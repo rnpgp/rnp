@@ -1,0 +1,46 @@
+# src/netpgp/netpgp
+# src/netpgpkeys/netpgpkeys
+# src/netpgpverify/netpgpverify
+configure
+*.la
+*.libs
+*.lo
+*.loT
+*.o
+*~
+.DS_Store
+.deps
+CVS
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache/
+buildaux/
+config.log
+config.status
+include/Makefile
+include/Makefile.in
+libtool
+m4/
+src/Makefile
+src/Makefile.in
+src/lib/Makefile
+src/lib/Makefile.in
+src/lib/config.h
+src/lib/config.h.in
+src/lib/stamp-h1
+src/libmj/Makefile
+src/libmj/Makefile.in
+src/libtransit/Makefile
+src/libtransit/config.h
+src/libtransit/transit
+src/netpgp/Makefile
+src/netpgp/Makefile.in
+src/netpgp/netpgp
+src/netpgpkeys/Makefile
+src/netpgpkeys/Makefile.in
+src/netpgpkeys/netpgpkeys
+tests/Makefile
+tests/Makefile.in
+tests/atconfig
+tests/atlocal
