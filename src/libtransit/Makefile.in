@@ -1,0 +1,23 @@
+# $NetBSD: Makefile.in,v 1.1 2014/03/04 02:14:15 agc Exp $
+
+PROG=transit
+
+OBJS+= transit.o
+OBJS+= main.o
+
+PREFIX=@PREFIX@
+MANDIR=@MANDIR@
+
+all: ${PROG}
+
+${PROG}: ${OBJS}
+	${CC} ${OBJS} -o ${PROG}
+
+install:
+	install -c -s ${PROG} ${DESTDIR}${PREFIX}/bin
+	install -c transit.1 ${DESTDIR}${MANDIR}/man1
+
+clean:
+	rm -rf *.core ${OBJS} ${PROG}
+cleandist:
+	rm -rf *.core ${OBJS} ${PROG} Makefile

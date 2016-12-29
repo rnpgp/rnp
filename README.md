@@ -3,7 +3,10 @@ Compile
 
 ```
 autoreconf -ivf
-./configure --enable-programs --prefix=/usr
+pushd src/libtransit
+./configure
+popd
+./configure
 make
 make install
 ```
