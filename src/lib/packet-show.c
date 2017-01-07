@@ -468,7 +468,7 @@ add_bitmap_entry(pgp_text_t *map, const char *str, uint8_t bit)
 		 * will be correct
 		 */
 		char		*newstr;
-		if (asprintf(&newstr, "Unknown bit(0x%x)", bit) == -1) {
+		if (pgp_asprintf(&newstr, "Unknown bit(0x%x)", bit) == -1) {
 			(void) fprintf(stderr, "add_bitmap_entry: bad alloc\n");
 			return 0;
 		}
