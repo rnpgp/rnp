@@ -169,7 +169,6 @@ main(int argc, char **argv)
 			exit(EXIT_FAILURE);
 		}
 	} else if (!pgpv_read_pubring(&pgp, keyring, -1)) {
-		fprintf(stderr, "can't read keyring\n");
 		exit(EXIT_FAILURE);
 	}
 	if (optind == argc) {
