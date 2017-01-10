@@ -13,6 +13,8 @@ AC_CONFIG_AUX_DIR([buildaux])
 AC_CONFIG_HEADER([src/lib/config.h])
 
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
+LT_INIT
 AM_MAINTAINER_MODE
 
 AC_CANONICAL_HOST
@@ -27,6 +29,8 @@ AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_LIBTOOL
 AC_PROG_LN_S
+AC_CONFIG_MACRO_DIR([m4])
+AM_PROG_CC_C_O
 
 dnl based on AC_PROG_RANLIB from autoconf
 m4_ifndef([AC_PROG_AR],[dnl
