@@ -56,9 +56,9 @@ echo "#endif /* USE_ARG */" >> config.h
 echo "" >> config.h
 echo "#endif /* CONFIG_H_ */" >> config.h
 
-for f in Makefile.in; do
-	sed	-e 's|@PREFIX@|'${prefix}'|g' \
-		-e 's|@MANDIR@|'${mandir}'|g' $f > $(basename $f .in)
-done
+#for f in Makefile.in; do
+#	sed	-e 's|@PREFIX@|'${prefix}'|g' \
+#		-e 's|@MANDIR@|'${mandir}'|g' $f > $(basename $f .in)
+#done
 
 exit 0

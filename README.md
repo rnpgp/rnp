@@ -18,7 +18,7 @@ popd
 pushd src/netpgpverify
 ./configure --mandir=/usr/share/man
 popd
-./configure 
+./configure
 make
 make install
 ```
@@ -27,6 +27,8 @@ Running commands
 =====
 
 ```
+netpgp
 netpgpkeys
+netpgpverify
 ```
 

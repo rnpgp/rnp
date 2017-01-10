@@ -124,6 +124,7 @@ AC_CONFIG_FILES([
         src/lib/Makefile
         src/netpgp/Makefile
         src/netpgpkeys/Makefile
+        src/netpgpverify/Makefile
         tests/Makefile
         tests/atlocal
 ])
