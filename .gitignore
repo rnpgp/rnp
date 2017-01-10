@@ -40,9 +40,11 @@ src/netpgp/netpgp
 src/netpgpkeys/Makefile
 src/netpgpkeys/Makefile.in
 src/netpgpkeys/netpgpkeys
+src/netpgpverify/config.h
 tests/Makefile
 tests/Makefile.in
 tests/atconfig
 tests/atlocal
 !src/libtransit/configure
 !src/libtransit/Makefile.in
+!src/netpgpverify/configure

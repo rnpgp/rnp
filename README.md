@@ -15,6 +15,9 @@ autoreconf -ivf
 pushd src/libtransit
 ./configure --mandir=/usr/share/man
 popd
+pushd src/netpgpverify
+./configure --mandir=/usr/share/man
+popd
 ./configure 
 make
 make install
