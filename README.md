@@ -1,12 +1,21 @@
+Prerequisites
+===========
+CentOS7
+
+```
+yum install -y automake gcc make openssl-devel bzip2-devel libtool
+```
+
 Compile
 =========
 
+(Prefix /usr/local by default)
 ```
 autoreconf -ivf
 pushd src/libtransit
-./configure
+./configure --mandir=/usr/share/man
 popd
-./configure
+./configure 
 make
 make install
 ```
@@ -15,6 +24,6 @@ Running commands
 =====
 
 ```
-export LD_LIBRARY_PATH=/usr/lib
+netpgpkeys
 ```
 
