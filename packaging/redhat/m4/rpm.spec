@@ -43,12 +43,15 @@ chrpath -d "%{buildroot}"/%{_prefix}/bin/netpgpverify;
 chrpath -d "%{buildroot}"/%{_libdir}/lib*.so.*;
 chmod 0755 "%{buildroot}"/%{_libdir}/lib*.so.*;
 for file in %{_mandir}/man1/netpgp.1 \
-%{_mandir}/man1/netpgpkeys.1 \
-%{_mandir}/man3/libmj.3 \
-%{_mandir}/man3/libnetpgp.3 \
-%{_mandir}/man1/netpgpverify.1; \
-do if [ ! -e "%{buildroot}"/"$file" ]; then \
-gzip -9 "%{buildroot}"/"$file"; fi; done;
+  %{_mandir}/man1/netpgpkeys.1 \
+  %{_mandir}/man3/libmj.3 \
+  %{_mandir}/man3/libnetpgp.3 \
+  %{_mandir}/man1/netpgpverify.1; \
+do
+  if [ ! -e "%{buildroot}"/"$file" ]; then
+    gzip -9 "%{buildroot}"/"$file";
+  fi;
+done;
 
 %pre
 
