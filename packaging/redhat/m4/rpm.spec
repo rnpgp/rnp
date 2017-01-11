@@ -29,6 +29,7 @@ ifdef(`PREFIX',%define _prefix PREFIX)
 NetPGP is a PGP-compatible tool for encrypting, signing, decrypting, and verifying files.
 
 %build
+autoreconf -ivf
 ./configure --prefix=%{_prefix} --libdir=%{_libdir} && make clean && make;
 (cd src/netpgpverify && ./configure --prefix=%{_prefix} --mandir=%{_mandir} && make clean && make;)
 
