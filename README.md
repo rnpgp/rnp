@@ -1,10 +1,13 @@
 Prerequisites
 =============
 
-CentOS7
+Start container:
+```
+docker run -it centos:7 -v ~/src/netpgp:/usr/local/netpgp bash
+```
 
 ```
-yum install -y automake gcc make openssl-devel bzip2-devel libtool
+yum install -y automake gcc make openssl-devel bzip2-devel libtool rpmdevtools rpm-build chrpath
 ```
 
 Compile
@@ -35,13 +38,13 @@ Building RPM
 
 Set up build environment.
 ```
-yum install -y rpmdevtools rpm-build chrpath openssl-devel zlib-devel bzip2-devel
 rpmdev-setuptree
 ```
 
 Run the rpmbuild script.
 ```
 version=1
+cd /usr/local/
 netpgp/packaging/redhat/extra/package-builder.sh $version
 ```
 
