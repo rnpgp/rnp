@@ -205,16 +205,16 @@ pgpv_digest_file(uint8_t *data, size_t size, const char *name, const uint8_t *ha
 	mem = NULL;
 	cc = 0;
 	if ((fp = fopen(name, "r")) == NULL) {
-		fprintf(stderr, "%s - not found", name);
+		fprintf(stderr, "%s - not found\n", name);
 		return 0;
 	}
 	if (fstat(fileno(fp), &st) < 0) {
-		fprintf(stderr, "%s - can't stat", name);
+		fprintf(stderr, "%s - can't stat\n", name);
 		goto done;
 	}
 	cc = (size_t)(st.st_size);
 	if ((mem = mmap(NULL, cc, PROT_READ, MAP_SHARED, fileno(fp), 0)) == MAP_FAILED) {
-		fprintf(stderr, "%s - can't mmap", name);
+		fprintf(stderr, "%s - can't mmap\n", name);
 		goto done;
 	}
 	ret = calcsum(data, size, mem, cc, hashed, hashsize, doarmor);

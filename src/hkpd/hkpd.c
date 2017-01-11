@@ -172,7 +172,7 @@ hkpd_sock_bind(const char *hostname, const int port, const int fam)
         if ((rc = getaddrinfo(hostname, portstr, &hints, &res)) != 0) {
                 hints.ai_flags = 0;
                 if ((rc = getaddrinfo(hostname, "hkp", &hints, &res)) != 0) {
-                        (void) fprintf(stderr, "getaddrinfo: %s",
+                        (void) fprintf(stderr, "getaddrinfo: %s\n",
 					gai_strerror(rc));
                         return -1;
                 }

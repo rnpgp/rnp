@@ -2002,13 +2002,13 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
 			 */
 			if (pgp_get_debug_level(__FILE__)) {
 				(void) fprintf(stderr,
-				"Error reading DSA r field in signature");
+				"Error reading DSA r field in signature\n");
 			}
 			return 0;
 		}
 		if (!limread_mpi(&pkt.u.sig.info.sig.dsa.s, region, stream)) {
 			ERRP(&stream->cbinfo, pkt,
-			"Error reading DSA s field in signature");
+			"Error reading DSA s field in signature\n");
 		}
 		break;
 
