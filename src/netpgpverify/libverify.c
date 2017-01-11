@@ -507,7 +507,7 @@ fmt_binary_mpi(pgpv_bignum_t *mpi, uint8_t *p, size_t size)
 
 	bytes = BITS_TO_BYTES(mpi->bits);
 	if ((size_t)bytes + 2 + 1 > size) {
-		fprintf(stderr, "truncated mpi");
+		fprintf(stderr, "truncated mpi\n");
 		return 0;
 	}
 	bn = (PGPV_BIGNUM *)mpi->bn;
