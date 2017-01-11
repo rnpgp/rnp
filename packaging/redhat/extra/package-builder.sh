@@ -21,6 +21,7 @@ usage() {
 main() {
 	# Make sure at least the version is supplied.
 	if [ $# -lt 1 ]; then usage ; exit 1; fi
+
 	local PNAME=netpgp
 	local PVERSION="$1"
 	local PPATH="${2:-${PNAME}}"
@@ -28,13 +29,17 @@ main() {
 	local PNAMEVERSION="${PNAME}-${PVERSION}"
 	local SOURCES_DIR="${SOURCES_DIR:-${HOME}/rpmbuild/SOURCES}"
 
+	# Create the SPEC_DIR and SOURCES_DIR.
+	mkdir -p "${SPEC_DIR}"
+	mkdir -p "${SOURCES_DIR}"
+
 	# Make a new copy of the sources and name by version, clearing any remnant from before.
-	if [ -e "${PNAMEVERSION}" ]; then rm -rf "${PNAMEVERSION}"; fi
+	if [[ -e "${PNAMEVERSION}" ]]; then rm -rf "${PNAMEVERSION}"; fi
 	cp -pRP "$PPATH" "${PNAMEVERSION}"
 
 	# Clean the new sources.
 	# Make sure to commit everything first before running this script!
-	(cd "${PNAMEVERSION}"; if [ -e .git ]; then git clean -fdx; git reset --hard; fi;)
+	(cd "${PNAMEVERSION}"; if [[ -e .git && $(hash git 2>/dev/null) ]]; then git clean -fdx; git reset --hard; fi;)
 
 	# Make the source tarball for the build.
 	tar -cjf "${PNAMEVERSION}".tar.bz2 "${PNAMEVERSION}"
