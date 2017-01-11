@@ -1,16 +1,13 @@
-# src/netpgp/netpgp
-# src/netpgpkeys/netpgpkeys
-# src/netpgpverify/netpgpverify
-configure
+.DS_Store
+*~
 *.la
-*.libs
 *.lo
 *.loT
 *.o
-*~
-.DS_Store
+
+# These artifacts can be removed by ./remove_artifacts.sh
 .deps
-CVS
+.libs
 Makefile
 Makefile.in
 aclocal.m4
@@ -18,6 +15,7 @@ autom4te.cache/
 buildaux/
 config.log
 config.status
+configure
 include/Makefile
 include/Makefile.in
 libtool
@@ -28,23 +26,22 @@ src/lib/Makefile
 src/lib/Makefile.in
 src/lib/config.h
 src/lib/config.h.in
+src/lib/config.h.in~
 src/lib/stamp-h1
 src/libmj/Makefile
 src/libmj/Makefile.in
-src/libtransit/Makefile
-src/libtransit/config.h
-src/libtransit/transit
 src/netpgp/Makefile
 src/netpgp/Makefile.in
 src/netpgp/netpgp
+src/netpgp/netpgp-netpgp.o
 src/netpgpkeys/Makefile
 src/netpgpkeys/Makefile.in
 src/netpgpkeys/netpgpkeys
+src/netpgpverify/Makefile
+src/netpgpverify/Makefile.in
 src/netpgpverify/config.h
+src/netpgpverify/netpgpverify
 tests/Makefile
 tests/Makefile.in
 tests/atconfig
 tests/atlocal
-!src/libtransit/configure
-!src/libtransit/Makefile.in
-!src/netpgpverify/configure
