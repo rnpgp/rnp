@@ -1,5 +1,6 @@
 Prerequisites
-===========
+=============
+
 CentOS7
 
 ```
@@ -7,7 +8,7 @@ yum install -y automake gcc make openssl-devel bzip2-devel libtool
 ```
 
 Compile
-=========
+=======
 
 (Prefix /usr/local by default)
 ```
@@ -24,11 +25,26 @@ make install
 ```
 
 Running commands
-=====
+================
 
 ```
 netpgp
 netpgpkeys
 netpgpverify
+```
+
+Building RPM
+============
+
+Set up build environment.
+```
+yum install -y rpmdevtools rpm-build
+rpmdev-setuptree
+```
+
+Run the rpmbuild script.
+```
+version=1
+netpgp/packaging/redhat/extra/package-builder.sh $version
 ```
 
