@@ -24,14 +24,7 @@
 #ifndef _BZLIB_H
 #define _BZLIB_H
 
-#ifdef __linux__
-#define __dead __attribute__ ((dead))
-// The __USE hack is probably necessary on all non-NetBSD platforms.
-// But we cannot risk breaking something that Frank cannot test.
-#ifndef __USE
-#define __USE(a) ((void)(a))
-#endif
-#endif
+#include "platform.h"
 
 #ifdef __cplusplus
 extern "C" {
