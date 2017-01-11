@@ -7,7 +7,7 @@ docker run -it centos:7 -v ~/src/netpgp:/usr/local/netpgp bash
 ```
 
 ```
-yum install -y automake gcc make openssl-devel bzip2-devel libtool rpmdevtools rpm-build chrpath
+yum install -y automake gcc make openssl-devel zlib-devel bzip2-devel libtool rpmdevtools rpm-build chrpath
 ```
 
 Compile
