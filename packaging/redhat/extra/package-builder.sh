@@ -34,7 +34,7 @@ main() {
 
 	# Clean the new sources.
 	# Make sure to commit everything first before running this script!
-	# (cd "${PNAMEVERSION}"; if [ -e .git ]; then git clean -fdx; git reset --hard; fi;)
+	(cd "${PNAMEVERSION}"; if [ -e .git ]; then git clean -fdx; git reset --hard; fi;)
 
 	# Make the source tarball for the build.
 	tar -cjf "${PNAMEVERSION}".tar.bz2 "${PNAMEVERSION}"
