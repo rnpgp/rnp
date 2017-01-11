@@ -7,9 +7,12 @@
 #
 # It is hereby released under the license of the enclosing project.
 # Call this with:
+#
 #  - the desired version number as the first argument;
+#
 #  - the path where the source code is as the second optional argument;
 #    (default: the same as the package name, $PNAME.
+#
 #  - the directory to place the generated spec file as the third optional
 #    argument.
 #    (default: ~/rpmbuild/SPECS)
@@ -33,13 +36,19 @@ main() {
 	mkdir -p "${SPEC_DIR}"
 	mkdir -p "${SOURCES_DIR}"
 
-	# Make a new copy of the sources and name by version, clearing any remnant from before.
+	# Make a new copy of the sources and name by version, clearing any
+	# remnant from before.
 	if [[ -e "${PNAMEVERSION}" ]]; then rm -rf "${PNAMEVERSION}"; fi
 	cp -pRP "$PPATH" "${PNAMEVERSION}"
 
 	# Clean the new sources.
 	# Make sure to commit everything first before running this script!
-	(cd "${PNAMEVERSION}"; if [[ -e .git && $(hash git 2>/dev/null) ]]; then git clean -fdx; git reset --hard; fi;)
+	(
+	cd "${PNAMEVERSION}"
+	if [[ -e .git && $(hash git 2>/dev/null) ]]; then
+		git clean -fdx; git reset --hard
+	fi
+	)
 
 	# Make the source tarball for the build.
 	tar -cjf "${PNAMEVERSION}".tar.bz2 "${PNAMEVERSION}"
@@ -55,7 +64,9 @@ main() {
 	m4 \
 		-D "PACKAGE_VERSION=${PVERSION}" \
 		-D "PREFIX=/usr" \
-		-D "SOURCE_TARBALL_NAME=${PSOURCE_PATH}" < "${PNAMEVERSION}"/packaging/redhat/m4/rpm.spec > "${PSPEC_PATH}"
+		-D "SOURCE_TARBALL_NAME=${PSOURCE_PATH}" \
+		< "${PNAMEVERSION}"/packaging/redhat/m4/rpm.spec \
+		> "${PSPEC_PATH}"
 
 	# Build the packages.
 	rpmbuild -ba --nodeps "${PSPEC_PATH}"
