@@ -3,7 +3,7 @@ Prerequisites
 
 Start container:
 ```
-docker run -it centos:7 -v ~/src/netpgp:/usr/local/netpgp bash
+docker run -v ~/src/netpgp:/usr/local/netpgp -it centos:7 bash
 ```
 
 ```
