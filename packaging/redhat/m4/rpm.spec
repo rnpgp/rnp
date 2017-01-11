@@ -16,7 +16,7 @@ URL: http://www.netpgp.com/
 Packager: Alistair Crooks <agc@netbsd.org>
 Summary: Freely licensed PGP implementation
 Source: SOURCE_TARBALL_NAME
-BuildRequires: openssl-devel, zlib-devel, bzip2-devel
+BuildRequires: openssl-devel, zlib-devel, bzip2-devel, chrpath
 Requires: netpgpverify = %{version}
 
 %define _unpackaged_files_terminate_build 0
@@ -36,9 +36,10 @@ NetPGP is a PGP-compatible tool for encrypting, signing, decrypting, and verifyi
 make install DESTDIR="%{buildroot}";
 (cd src/netpgpverify; make install DESTDIR="%{buildroot}";)
 find "%{buildroot}"/%{_libdir} -name "*.la" -delete;
-# chrpath -d "%{buildroot}"/%{_prefix}/bin/netpgp;
-# chrpath -d "%{buildroot}"/%{_prefix}/bin/netpgpkeys;
-# chrpath -d "%{buildroot}"/%{_prefix}/bin/netpgpverify;
+chrpath -d "%{buildroot}"/%{_prefix}/bin/netpgp;
+chrpath -d "%{buildroot}"/%{_prefix}/bin/netpgpkeys;
+chrpath -d "%{buildroot}"/%{_prefix}/bin/netpgpverify;
+chrpath -d "%{buildroot}"/%{_libdir}/lib*.so.*;
 chmod 0755 "%{buildroot}"/%{_libdir}/lib*.so.*;
 for file in %{_mandir}/man1/netpgp.1 \
 %{_mandir}/man1/netpgpkeys.1 \
