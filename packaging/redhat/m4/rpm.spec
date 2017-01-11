@@ -13,7 +13,7 @@ Release: 1
 License: BSD
 Vendor: NetBSD
 URL: http://www.netpgp.com/
-Packager: Alistair Crooks <agc@netbsd.org>
+Packager: Jeffrey Lau <jeffrey.lau@ribose.com>
 Summary: Freely licensed PGP implementation
 Source: SOURCE_TARBALL_NAME
 BuildRequires: openssl-devel, zlib-devel, bzip2-devel, chrpath
