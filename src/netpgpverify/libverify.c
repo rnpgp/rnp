@@ -250,6 +250,10 @@ read_file(pgpv_t *pgp, const char *f)
 		return 0;
 	}
 	fstat(fileno(mem->fp), &st);
+	if (st.st_size == 0) {
+		fprintf(stderr, "'%s' is empty\n", f);
+		return 0;
+	}
 	mem->size = (size_t)st.st_size;
 	mem->mem = mmap(NULL, mem->size, PROT_READ, MAP_SHARED, fileno(mem->fp), 0);
 	mem->dealloc = UNMAP_MEM;
