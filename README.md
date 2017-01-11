@@ -35,7 +35,7 @@ Building RPM
 
 Set up build environment.
 ```
-yum install -y rpmdevtools rpm-build
+yum install -y rpmdevtools rpm-build chrpath
 rpmdev-setuptree
 ```
 
