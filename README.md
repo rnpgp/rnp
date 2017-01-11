@@ -13,9 +13,6 @@ Compile
 (Prefix /usr/local by default)
 ```
 autoreconf -ivf
-pushd src/libtransit
-./configure --mandir=/usr/share/man
-popd
 pushd src/netpgpverify
 ./configure --mandir=/usr/share/man
 popd
