@@ -1,4 +1,5 @@
-dnl Frank Trampe wrote this.
+dnl (c) 2017 Ribose Inc.
+dnl Frank Trampe, Jeffrey Lau and Ronald Tse.
 dnl The file is hereby released under the license of the enclosing project.
 dnl This gets processed by m4.
 dnl Macros:
@@ -29,13 +30,15 @@ ifdef(`PREFIX',%define _prefix PREFIX)
 NetPGP is a PGP-compatible tool for encrypting, signing, decrypting, and verifying files.
 
 %build
-autoreconf -ivf
-./configure --prefix=%{_prefix} --libdir=%{_libdir} && make clean && make;
-(cd src/netpgpverify && ./configure --prefix=%{_prefix} --mandir=%{_mandir} && make clean && make;)
+autoreconf -ivf;
+./configure --prefix=%{_prefix} --libdir=%{_libdir};
+pushd src/netpgpverify;
+./configure --prefix=%{_prefix} --mandir=%{_mandir};
+popd;
+make clean && make;
 
 %install
 make install DESTDIR="%{buildroot}";
-(cd src/netpgpverify; make install DESTDIR="%{buildroot}";)
 find "%{buildroot}"/%{_libdir} -name "*.la" -delete;
 chrpath -d "%{buildroot}"/%{_prefix}/bin/netpgp;
 chrpath -d "%{buildroot}"/%{_prefix}/bin/netpgpkeys;

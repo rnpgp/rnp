@@ -1,9 +1,7 @@
 #!/bin/bash
 #
-# Jan 2017
-#
-# This is a project-specific variant of a script written by Frank Trampe,
-# with modifications by Jeffrey Lau.
+# (c) 2017 Ribose Inc.
+# Frank Trampe, Jeffrey Lau and Ronald Tse.
 #
 # It is hereby released under the license of the enclosing project.
 # Call this with:
