@@ -1,11 +1,6 @@
 Prerequisites
 =============
 
-Start container:
-```
-docker run -v ~/src/netpgp:/usr/local/netpgp -it centos:7 bash
-```
-
 Compile
 =======
 
@@ -16,7 +11,7 @@ make install
 ```
 
 Clean build artifacts
-===============
+=====================
 ```
 ./remove_artifacts.sh
 ```
@@ -35,14 +30,19 @@ netpgpverify
 Building RPM
 ============
 
+Start container:
+```
+docker run -v ~/src/netpgp:/usr/local/netpgp -it centos:7 bash
+```
+
 Set up build environment.
 ```
-./prepare_build.sh
+./packaging/redhat/extra/prepare_build.sh
 ```
 
 Run the rpmbuild script.
 ```
 ./remove_artifacts.sh
-./build_rpm.sh
+./packaging/redhat/extra/build_rpm.sh
 ```
 
