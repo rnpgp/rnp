@@ -37,11 +37,13 @@ docker run -v ~/src/netpgp:/usr/local/netpgp -it centos:7 bash
 
 Set up build environment.
 ```
+cd /usr/local/netpgp
 ./packaging/redhat/extra/prepare_build.sh
 ```
 
 Run the rpmbuild script.
 ```
+cd /usr/local/netpgp
 ./remove_artifacts.sh
 ./packaging/redhat/extra/build_rpm.sh
 ```
