@@ -21,7 +21,10 @@ usage() {
 
 main() {
   # Make sure at least the version is supplied.
-  if [ $# -lt 1 ]; then usage ; exit 1; fi
+  if [ $# -lt 1 ]; then
+    usage
+    exit 1
+  fi
 
   local PNAME=netpgp
   local PVERSION="$1"
@@ -36,7 +39,9 @@ main() {
 
   # Make a new copy of the sources and name by version, clearing any
   # remnant from before.
-  if [[ -e "${PNAMEVERSION}" ]]; then rm -rf "${PNAMEVERSION}"; fi
+  if [[ -e "${PNAMEVERSION}" ]]; then
+    rm -rf "${PNAMEVERSION}"
+  fi
   cp -pRP "$PPATH" "${PNAMEVERSION}"
 
   # Clean the new sources.
