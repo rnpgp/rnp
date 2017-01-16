@@ -6,5 +6,6 @@
 # $VERSION env var.
 
 VERSION=${1:-${VERSION:-1}}
-cd /usr/local/
-netpgp/packaging/redhat/extra/package-builder.sh $VERSION
+cd /usr/local/ || \
+	exit 1
+netpgp/packaging/redhat/extra/package-builder.sh "${VERSION}"
