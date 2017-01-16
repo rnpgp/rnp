@@ -53,6 +53,7 @@
 #include "pgpsum.h"
 #include "rsa.h"
 #include "verify.h"
+#include "platform.h"
 
 #ifndef USE_ARG
 #define USE_ARG(x)	/*LINTED*/(void)&(x)
