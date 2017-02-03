@@ -458,6 +458,7 @@ pgp_decrypt_file(pgp_io_t *io,
 	char		*filename = NULL;
 	int		 fd_in;
 	int		 fd_out;
+	int		 ret;
 
 	/* setup for reading from given input file */
 	fd_in = pgp_setup_file_read(io, &parse, infile,
@@ -522,7 +523,7 @@ pgp_decrypt_file(pgp_io_t *io,
 	}
 
 	/* Do it */
-	pgp_parse(parse, printerrors);
+	ret = pgp_parse(parse, printerrors);
 
 	/* Unsetup */
 	if (use_armour) {
@@ -541,7 +542,8 @@ pgp_decrypt_file(pgp_io_t *io,
 	pgp_teardown_file_read(parse, fd_in);
 	/* \todo cleardown crypt */
 
-	return 1;
+	ret = (ret && parse->cbinfo.gotpass);
+	return ret;
 }
 
 /* decrypt an area of memory */
