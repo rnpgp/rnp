@@ -1152,7 +1152,14 @@ pgp_sign_buf(pgp_io_t *io,
 		if (ret == 0) {
 			return NULL;
 		}
+		pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey, hash_alg);
+		ret = pgp_add_issuer_keyid(sig, keyid) &&
+			pgp_end_hashed_subpkts(sig) &&
+			pgp_write_sig(output, sig, &seckey->pubkey, seckey);
+
+		pgp_writer_close(output);
 		pgp_output_delete(output);
+		pgp_create_sig_delete(sig);
 	} else {
 		/* set armoured/not armoured here */
 		if (armored) {
