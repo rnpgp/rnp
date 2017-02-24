@@ -1111,6 +1111,7 @@ pgp_parser_content_free(pgp_packet_t *c)
 
 	case PGP_PTAG_CT_SECRET_KEY:
 	case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
+	case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
 		pgp_seckey_free(&c->u.seckey);
 		break;
 
@@ -2339,7 +2340,7 @@ consume_packet(pgp_region_t *region, pgp_stream_t *stream, unsigned warn)
  * \brief Parse a secret key
  */
 static int 
-parse_seckey(pgp_region_t *region, pgp_stream_t *stream)
+parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 {
 	pgp_packet_t		pkt;
 	pgp_region_t		encregion;
@@ -2457,10 +2458,14 @@ parse_seckey(pgp_region_t *region, pgp_stream_t *stream)
 			if (!consume_packet(region, stream, 0)) {
 				return 0;
 			}
+			if (tag == PGP_PTAG_CT_SECRET_KEY) {
+				CALLBACK(PGP_PTAG_CT_ENCRYPTED_SECRET_KEY,
+					&stream->cbinfo, &pkt);
 
-			CALLBACK(PGP_PTAG_CT_ENCRYPTED_SECRET_KEY,
-				&stream->cbinfo, &pkt);
-
+			} else {
+				CALLBACK(PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY,
+					&stream->cbinfo, &pkt);
+			}
 			return 1;
 		}
 		keysize = pgp_key_size(pkt.u.seckey.alg);
@@ -2687,7 +2692,7 @@ parse_seckey(pgp_region_t *region, pgp_stream_t *stream)
 	if (!ret) {
 		return 0;
 	}
-	CALLBACK(PGP_PTAG_CT_SECRET_KEY, &stream->cbinfo, &pkt);
+	CALLBACK(tag, &stream->cbinfo, &pkt);
 	if (pgp_get_debug_level(__FILE__)) {
 		(void) fprintf(stderr, "--- end of parse_seckey\n\n");
 	}
@@ -3177,11 +3182,8 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
 		break;
 
 	case PGP_PTAG_CT_SECRET_KEY:
-		ret = parse_seckey(&region, stream);
-		break;
-
 	case PGP_PTAG_CT_SECRET_SUBKEY:
-		ret = parse_seckey(&region, stream);
+		ret = parse_seckey((pgp_content_enum)pkt.u.ptag.type, &region, stream);
 		break;
 
 	case PGP_PTAG_CT_PK_SESSION_KEY:
