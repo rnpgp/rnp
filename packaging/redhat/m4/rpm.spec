@@ -7,10 +7,11 @@ dnl   PACKAGE_VERSION
 dnl   BINARY_TARGET
 dnl   PREFIX
 dnl   SOURCE_TARBALL_NAME
+dnl   RELEASE
 
 Name: netpgp
 Version: PACKAGE_VERSION
-Release: 1
+Release: RELEASE
 License: BSD
 Vendor: NetBSD
 URL: http://www.netpgp.com/

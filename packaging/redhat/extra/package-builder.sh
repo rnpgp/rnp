@@ -4,14 +4,20 @@
 # Frank Trampe, Jeffrey Lau and Ronald Tse.
 #
 # It is hereby released under the license of the enclosing project.
+#
+# Preconditions:
+#  - $ ls
+#    netpgp/
+#
 # Call this with:
 #
 #  - the desired version number as the first argument;
+#  - the desired rpm release number as the second argument;
 #
-#  - the path where the source code is as the second optional argument;
+#  - the path where the source code is as the third optional argument;
 #    (default: the same as the package name, $PNAME.
 #
-#  - the directory to place the generated spec file as the third optional
+#  - the directory to place the generated spec file as the fourth optional
 #    argument.
 #    (default: ~/rpmbuild/SPECS)
 
@@ -30,8 +36,9 @@ main() {
 
   readonly local PNAME=netpgp
   readonly local PVERSION="$1"
-  readonly local PPATH="${2:-${PNAME}}"
-  readonly local SPEC_DIR="${3:-${HOME}/rpmbuild/SPECS}"
+  readonly local PRELEASE="$2"
+  readonly local PPATH="${3:-${PNAME}}"
+  readonly local SPEC_DIR="${4:-${HOME}/rpmbuild/SPECS}"
   readonly local PNAMEVERSION="${PNAME}-${PVERSION}"
   readonly local SOURCES_DIR="${SOURCES_DIR:-${HOME}/rpmbuild/SOURCES}"
 
@@ -48,8 +55,7 @@ main() {
 
   # Clean the new sources.
   # Make sure to commit everything first before running this script!
-  pushd .
-  cd "${PNAMEVERSION}"
+  pushd "${PNAMEVERSION}"
   if [[ -e .git && $(hash git 2>/dev/null) ]]; then
     git clean -fdx
     git reset --hard
@@ -71,6 +77,7 @@ main() {
     -D "PACKAGE_VERSION=${PVERSION}" \
     -D "PREFIX=/usr" \
     -D "SOURCE_TARBALL_NAME=${PSOURCE_PATH}" \
+    -D "RELEASE=${PRELEASE}" \
     < "${PNAMEVERSION}/packaging/redhat/m4/rpm.spec" \
     > "${PSPEC_PATH}"
 
