@@ -14,8 +14,8 @@ Version: PACKAGE_VERSION
 Release: RELEASE
 License: BSD
 Vendor: NetBSD
-URL: http://www.netpgp.com/
-Packager: Jeffrey Lau <jeffrey.lau@ribose.com>
+URL: https://github.com/riboseinc/netpgp
+Packager: Ribose Packaging <packages@ribose.com>
 Summary: Freely licensed PGP implementation
 Source: SOURCE_TARBALL_NAME
 BuildRequires: openssl-devel, zlib-devel, bzip2-devel, chrpath

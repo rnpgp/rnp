@@ -82,7 +82,7 @@ main() {
     > "${PSPEC_PATH}"
 
   # Build the packages.
-  rpmbuild -ba --nodeps "${PSPEC_PATH}"
+  rpmbuild -v -ba --sign --nodeps "${PSPEC_PATH}"
 }
 
 main "$@"
