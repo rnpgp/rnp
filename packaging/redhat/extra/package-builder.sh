@@ -80,7 +80,7 @@ main() {
     -D "PREFIX=/usr" \
     -D "SOURCE_TARBALL_NAME=${PSOURCE_PATH}" \
     -D "RELEASE=${PRELEASE}" \
-    -D "PACKAGER=${PACKAGER}" \
+    -D "PACKAGER=${PACKAGER:-Ribose Packaging <packages@ribose.com>}" \
     < "${PNAMEVERSION}/packaging/redhat/m4/rpm.spec" \
     > "${PSPEC_PATH}"
 
