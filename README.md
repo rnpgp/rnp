@@ -1,23 +1,3 @@
-Prerequisites
-=============
-
-Compile
-=======
-```
-cd /usr/local/netpgp
-./build.sh
-make install
-```
-
-Clean build artifacts
-=====================
-```
-cd /usr/local/netpgp
-./remove_artifacts.sh
-```
-
-Otherwise use `git clean`.
-
 Binaries installed
 ==================
 ```
@@ -26,20 +6,56 @@ netpgpkeys
 netpgpverify
 ```
 
-Building RPM
-============
+Prerequisites
+=============
 
-Start container:
+This README assumes that you have `docker` installed.
+It's not strictly necessary, but just provides a consistent baseline for this
+guide to work.
+
+Clone source:
+```
+# cd ~/src
+git clone https://github.com/riboseinc/netpgp
+```
+
+Start container (assuming you git cloned to `~/src/netpgp`. Change 
+accordingly):
 ```
 docker run -v ~/src/netpgp:/usr/local/netpgp -it centos:7 bash
 ```
 
+Compile
+=======
+(In the container:)
+```
+cd /usr/local/netpgp
+./build.sh
+make install
+```
+
+Clean build artifacts
+=====================
+(In the container:)
+```
+cd /usr/local/netpgp
+./remove_artifacts.sh
+```
+
+Otherwise use `git clean`.
+
+Building RPM
+============
 Set up build environment.
+
+(In the container:)
 ```
 /usr/local/netpgp/packaging/redhat/extra/prepare_build.sh
 ```
 
 And if you're going to sign the RPM,
+
+(In the container:)
 ```
 # Import your packager private key.
 gpg --import your-packager.key
@@ -59,11 +75,13 @@ MACROS
 ```
 
 And if you're just going to test the RPM build process without GPG-signing,
+(In the container:)
 ```
 export SIGN=
 ```
 
 Run the rpmbuild script.
+(In the container:)
 ```
 cd /usr/local/netpgp
 ./remove_artifacts.sh
@@ -72,11 +90,16 @@ cd /usr/local
 netpgp/packaging/redhat/extra/build_rpm.sh
 ```
 
+The you can copy out the RPMs from the container:
+```
+cp ~/rpmbuild/SRPMS/netpgp*.rpm ~/rpmbuild/RPMS/x86_64/*.rpm /usr/local/netpgp
+```
+
 Installing RPMs
 ===============
 
 ```
-rpm --import https://raw.githubusercontent.com/riboseinc/yum/master/ribose-packages.pub
-curl -o https://raw.githubusercontent.com/riboseinc/yum/master/ribose.repo /etc/yum.repos.d
+rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
+curl -o https://github.com/riboseinc/yum/raw/master/ribose.repo /etc/yum.repos.d
 yum install netpgp
 ```
