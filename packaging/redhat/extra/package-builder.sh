@@ -21,7 +21,10 @@
 #    argument;
 #    (default: ~/rpmbuild/SPECS)
 #
-#  - the PACKAGER identity is from the env var $PACKAGER.
+#  - env var $PACKAGER, the PACKAGER identity
+#
+#  - env var $SIGN (default: true), set an empty string to make it not sign the
+#    RPM
 
 readonly __progname="$(basename $0)"
 
@@ -85,7 +88,7 @@ main() {
     > "${PSPEC_PATH}"
 
   # Build the packages.
-  rpmbuild -v -ba --sign --nodeps "${PSPEC_PATH}"
+  rpmbuild -v -ba ${SIGN:---sign} --nodeps "${PSPEC_PATH}"
 }
 
 main "$@"

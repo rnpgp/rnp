@@ -41,7 +41,7 @@ Set up build environment.
 
 And if you're going to sign the RPM,
 ```
-# Import your packager key.
+# Import your packager private key.
 gpg --import your-packager.key
 
 # Edit your identities.
@@ -56,6 +56,11 @@ cat <<MACROS >~/.rpmmacros
 %packager ${PACKAGER}
 %_topdir $HOME/rpmbuild
 MACROS
+```
+
+And if you're just going to test the RPM build process without GPG-signing,
+```
+export SIGN=
 ```
 
 Run the rpmbuild script.
