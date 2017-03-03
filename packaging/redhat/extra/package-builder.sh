@@ -18,8 +18,10 @@
 #    (default: the same as the package name, $PNAME.
 #
 #  - the directory to place the generated spec file as the fourth optional
-#    argument.
+#    argument;
 #    (default: ~/rpmbuild/SPECS)
+#
+#  - the PACKAGER identity is from the env var $PACKAGER.
 
 readonly __progname="$(basename $0)"
 
@@ -78,6 +80,7 @@ main() {
     -D "PREFIX=/usr" \
     -D "SOURCE_TARBALL_NAME=${PSOURCE_PATH}" \
     -D "RELEASE=${PRELEASE}" \
+    -D "PACKAGER=${PACKAGER}" \
     < "${PNAMEVERSION}/packaging/redhat/m4/rpm.spec" \
     > "${PSPEC_PATH}"
 

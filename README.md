@@ -3,9 +3,8 @@ Prerequisites
 
 Compile
 =======
-
-(Prefix /usr/local by default)
 ```
+cd /usr/local/netpgp
 ./build.sh
 make install
 ```
@@ -13,14 +12,14 @@ make install
 Clean build artifacts
 =====================
 ```
+cd /usr/local/netpgp
 ./remove_artifacts.sh
 ```
 
 Otherwise use `git clean`.
 
-Running commands
-================
-
+Binaries installed
+==================
 ```
 netpgp
 netpgpkeys
@@ -40,22 +39,29 @@ Set up build environment.
 /usr/local/netpgp/packaging/redhat/extra/prepare_build.sh
 ```
 
-Run the rpmbuild script.
+And if you're going to sign the RPM,
 ```
-cd /usr/local/netpgp
-./remove_artifacts.sh
-
-# Import your packager key
+# Import your packager key.
 gpg --import your-packager.key
+
+# Edit your identities.
+PACKAGER="${PACKAGER:-Your Packager <your@packager.com>}"
+GPG_NAME="${GPG_NAME:-${PACKAGER}}"
 
 cat <<MACROS >~/.rpmmacros
 %_signature gpg
 %_gpg_path $HOME/.gnupg
-%_gpg_name Your Packager <your@packager.com>
+%_gpg_name ${GPG_NAME}
 %_gpgbin /usr/bin/gpg
-%packager Your Packager <your@packager.com>
+%packager ${PACKAGER}
 %_topdir $HOME/rpmbuild
 MACROS
+```
+
+Run the rpmbuild script.
+```
+cd /usr/local/netpgp
+./remove_artifacts.sh
 
 cd /usr/local
 netpgp/packaging/redhat/extra/build_rpm.sh

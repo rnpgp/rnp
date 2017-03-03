@@ -8,6 +8,7 @@ dnl   BINARY_TARGET
 dnl   PREFIX
 dnl   SOURCE_TARBALL_NAME
 dnl   RELEASE
+dnl   PACKAGER
 
 Name: netpgp
 Version: PACKAGE_VERSION
@@ -15,7 +16,8 @@ Release: RELEASE
 License: BSD
 Vendor: NetBSD
 URL: https://github.com/riboseinc/netpgp
-Packager: Ribose Packaging <packages@ribose.com>
+dnl Packager: Ribose Packaging <packages@ribose.com>
+Packager: PACKAGER
 Summary: Freely licensed PGP implementation
 Source: SOURCE_TARBALL_NAME
 BuildRequires: openssl-devel, zlib-devel, bzip2-devel, chrpath
