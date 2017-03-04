@@ -10,8 +10,8 @@ Prerequisites
 =============
 
 This README assumes that you have `docker` installed.
-It's not strictly necessary, but just provides a consistent baseline for this
-guide to work.
+It's not strictly necessary, but just provides a consistent baseline for
+this guide to work.
 
 Clone source:
 ```
@@ -19,7 +19,7 @@ Clone source:
 git clone https://github.com/riboseinc/netpgp
 ```
 
-Start container (assuming you git cloned to `~/src/netpgp`. Change 
+Start container (assuming you git cloned to `~/src/netpgp`. Change
 accordingly):
 ```
 docker run -v ~/src/netpgp:/usr/local/netpgp -it centos:7 bash
@@ -100,6 +100,6 @@ Installing RPMs
 
 ```
 rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
-curl -o https://github.com/riboseinc/yum/raw/master/ribose.repo /etc/yum.repos.d
-yum install netpgp
+curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
+yum install -y netpgp
 ```
