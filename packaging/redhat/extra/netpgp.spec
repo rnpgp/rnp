@@ -1,13 +1,13 @@
 
 Name: netpgp
-Version: 3.99.17
+Version: 3.99.18
 Release: 1%{?dist}
 License: BSD
 Vendor: NetBSD
 URL: https://github.com/riboseinc/netpgp
 Packager: Ribose Packaging <packages@ribose.com>
 Summary: Freely licensed PGP implementation
-Source: netpgp-3.99.17.tar.bz2
+Source: netpgp-3.99.18.tar.bz2
 BuildRequires: openssl-devel, zlib-devel, bzip2-devel, chrpath
 Requires: netpgpverify = %{version}
 
