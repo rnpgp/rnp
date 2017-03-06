@@ -1,29 +1,18 @@
-dnl (c) 2017 Ribose Inc.
-dnl Frank Trampe, Jeffrey Lau and Ronald Tse.
-dnl The file is hereby released under the license of the enclosing project.
-dnl This gets processed by m4.
-dnl Macros:
-dnl   PACKAGE_VERSION
-dnl   BINARY_TARGET
-dnl   PREFIX
-dnl   SOURCE_TARBALL_NAME
-dnl   RELEASE
-dnl   PACKAGER
 
 Name: netpgp
-Version: PACKAGE_VERSION
-Release: RELEASE%{?dist}
+Version: 3.99.17
+Release: 1%{?dist}
 License: BSD
 Vendor: NetBSD
 URL: https://github.com/riboseinc/netpgp
-Packager: PACKAGER
+Packager: Ribose Packaging <packages@ribose.com>
 Summary: Freely licensed PGP implementation
-Source: SOURCE_TARBALL_NAME
+Source: netpgp-3.99.17.tar.bz2
 BuildRequires: openssl-devel, zlib-devel, bzip2-devel, chrpath
 Requires: netpgpverify = %{version}
 
 %define _unpackaged_files_terminate_build 0
-ifdef(`PREFIX',%define _prefix PREFIX)
+%define _prefix /usr
 
 %prep
 %setup

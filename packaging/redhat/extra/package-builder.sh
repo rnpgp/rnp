@@ -47,8 +47,10 @@ main() {
   readonly local PNAMEVERSION="${PNAME}-${PVERSION}"
   readonly local SOURCES_DIR="${SOURCES_DIR:-${HOME}/rpmbuild/SOURCES}"
 
-  # Create the SPEC_DIR and SOURCES_DIR.
-  mkdir -p "${SPEC_DIR}"
+  # Create the rpm spec file
+  sh ${PNAME}/packaging/redhat/extra/spec-builder "$@"
+
+  # Create the SOURCES_DIR.
   mkdir -p "${SOURCES_DIR}"
 
   # Make a new copy of the sources and name by version, clearing any
@@ -61,6 +63,7 @@ main() {
   # Clean the new sources.
   # Make sure to commit everything first before running this script!
   pushd "${PNAMEVERSION}"
+
   if [[ -e .git && $(hash git 2>/dev/null) ]]; then
     git clean -fdx
     git reset --hard
@@ -75,20 +78,16 @@ main() {
   cp -pRP "${PNAMEVERSION}.tar.bz2" "${PSOURCE_PATH}"
   chown $(id -u):$(id -g) "${PSOURCE_PATH}"
 
-  # Generate the spec file.
-  readonly local PSPEC_PATH="${SPEC_DIR}/${PNAMEVERSION}.spec"
-  chown $(id -u):$(id -g) "${PSPEC_PATH}"
-  m4 \
-    -D "PACKAGE_VERSION=${PVERSION}" \
-    -D "PREFIX=/usr" \
-    -D "SOURCE_TARBALL_NAME=${PSOURCE_PATH}" \
-    -D "RELEASE=${PRELEASE}" \
-    -D "PACKAGER=${PACKAGER:-Ribose Packaging <packages@ribose.com>}" \
-    < "${PNAMEVERSION}/packaging/redhat/m4/rpm.spec" \
-    > "${PSPEC_PATH}"
+  readonly local PSPEC_PATH="${SPEC_DIR}/${PNAME}.spec"
 
   # Build the packages.
-  rpmbuild -v -ba ${SIGN:---sign} --nodeps "${PSPEC_PATH}"
+  if [[ -z "${SIGN}" ]]; then
+    local sign_opts=
+  else
+    local sign_opts=--sign
+  fi
+  echo rpmbuild -v -ba ${sign_opts} --nodeps "${PSPEC_PATH}"
+  rpmbuild -v -ba ${sign_opts} --nodeps "${PSPEC_PATH}"
 }
 
 main "$@"
