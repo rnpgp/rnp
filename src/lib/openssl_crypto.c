@@ -811,6 +811,22 @@ pgp_rsa_new_selfsign_key(const int numbits,
 	return keydata;
 }
 
+pgp_key_t  *
+pgp_rsa_new_key(const int numbits,
+		const unsigned long e,
+		const char *hashalg,
+		const char *cipher)
+{
+	pgp_key_t  *keydata;
+
+	keydata = pgp_keydata_new();
+	if (!rsa_generate_keypair(keydata, numbits, e, hashalg, cipher)) {
+		pgp_keydata_free(keydata);
+		return NULL;
+	}
+	return keydata;
+}
+
 DSA_SIG        *
 pgp_dsa_sign(uint8_t *hashbuf,
 		unsigned hashsize,
