@@ -1110,6 +1110,7 @@ pgp_parser_content_free(pgp_packet_t *c)
 		break;
 
 	case PGP_PTAG_CT_SECRET_KEY:
+	case PGP_PTAG_CT_SECRET_SUBKEY:
 	case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
 	case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
 		pgp_seckey_free(&c->u.seckey);
