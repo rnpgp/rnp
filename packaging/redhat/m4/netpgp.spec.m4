@@ -30,7 +30,8 @@ ifdef(`PREFIX',%define _prefix PREFIX)
 %setup
 
 %description
-NetPGP is a PGP-compatible tool for encrypting, signing, decrypting, and verifying files.
+NetPGP is a PGP-compatible tool for encrypting, signing, decrypting, and
+verifying files.
 
 %build
 autoreconf -ivf;
@@ -156,3 +157,6 @@ netpgpverify verifies PGP signatures.
 %attr(0755,root,root) %{_prefix}/bin/netpgpverify
 %attr(0644,root,root) %{_mandir}/man1/netpgpverify.1.gz
 
+%changelog
+* Mon Mar 6 2017 Jeffrey Lau <jeffrey.lau@ribose.com>
+- Fix RPM build requirements
