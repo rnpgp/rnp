@@ -649,6 +649,24 @@ pgp_sig_start_key_sig(pgp_create_sig_t *sig,
 	start_sig_in_mem(sig);
 }
 
+void
+pgp_sig_start_subkey_sig(pgp_create_sig_t *sig,
+				const pgp_pubkey_t *key,
+				const pgp_pubkey_t *subkey,
+				pgp_sig_type_t type)
+{
+	sig->output = pgp_output_new();
+
+	sig->sig.info.version = PGP_V4;
+	sig->sig.info.hash_alg = PGP_HASH_SHA1;
+	sig->sig.info.key_alg = key->alg;
+	sig->sig.info.type = type;
+	sig->hashlen = (unsigned)-1;
+	init_key_sig(&sig->hash, &sig->sig, key);
+	hash_add_key(&sig->hash, subkey);
+	start_sig_in_mem(sig);
+}
+
 /**
  * \ingroup Core_Signature
  *
