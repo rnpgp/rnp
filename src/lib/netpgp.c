@@ -457,7 +457,7 @@ appendkey(pgp_io_t *io, pgp_key_t *key, char *ringfile)
 		(void) fprintf(io->errs, "can't open pubring '%s'\n", ringfile);
 		return 0;
 	}
-	if (!pgp_write_xfer_pubkey(create, key, noarmor)) {
+	if (!pgp_write_xfer_pubkey(create, key, NULL, noarmor)) {
 		(void) fprintf(io->errs, "Cannot write pubkey\n");
 		return 0;
 	}

@@ -502,6 +502,7 @@ write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, const pgp_pubkey
 unsigned 
 pgp_write_xfer_pubkey(pgp_output_t *output,
 			const pgp_key_t *key,
+			const pgp_keyring_t *subkeys,
 			const unsigned armoured)
 {
 	unsigned    i, j;
@@ -529,6 +530,22 @@ pgp_write_xfer_pubkey(pgp_output_t *output,
 	}
 
 	/* TODO: user attributes and corresponding signatures */
+	if (subkeys) {
+		for (i = 0; i < subkeys->keyc; i++) {
+			const pgp_key_t *subkey = &subkeys->keys[i];
+			if (subkey->type != PGP_PTAG_CT_PUBLIC_KEY) {
+				return 0;
+			}
+			if (!write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_SUBKEY, &subkey->key.pubkey)) {
+				return 0;
+			}
+			for (j = 0; j < subkey->packetc; j++) {
+				if (!pgp_write(output, subkey->packets[j].raw, (unsigned)subkey->packets[j].length)) {
+					return 0;
+				}
+			}
+		}
+	}
 
 	/*
 	 * subkey packets and corresponding signatures and optional

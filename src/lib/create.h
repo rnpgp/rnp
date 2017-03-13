@@ -94,7 +94,9 @@ unsigned pgp_write_litdata(pgp_output_t *,
 pgp_pk_sesskey_t *pgp_create_pk_sesskey(const pgp_key_t *, const char *);
 unsigned pgp_write_pk_sesskey(pgp_output_t *, pgp_pk_sesskey_t *);
 unsigned pgp_write_xfer_pubkey(pgp_output_t *,
-				const pgp_key_t *, const unsigned);
+				const pgp_key_t *,
+				const pgp_keyring_t *,
+				const unsigned);
 unsigned   pgp_write_xfer_seckey(pgp_output_t *,
 				const pgp_key_t *,
 				const uint8_t *,
