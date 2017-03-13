@@ -480,9 +480,9 @@ write_seckey_body(const pgp_seckey_t *key,
  * \return 1 if OK, otherwise 0
  */
 static unsigned 
-write_struct_pubkey(pgp_output_t *output, const pgp_pubkey_t *key)
+write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, const pgp_pubkey_t *key)
 {
-	return pgp_write_ptag(output, PGP_PTAG_CT_PUBLIC_KEY) &&
+	return pgp_write_ptag(output, tag) &&
 		pgp_write_length(output, 1 + 4 + 1 + pubkey_length(key)) &&
 		write_pubkey_body(key, output);
 }
@@ -510,7 +510,7 @@ pgp_write_xfer_pubkey(pgp_output_t *output,
 		pgp_writer_push_armoured(output, PGP_PGP_PUBLIC_KEY_BLOCK);
 	}
 	/* public key */
-	if (!write_struct_pubkey(output, &key->key.pubkey)) {
+	if (!write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &key->key.pubkey)) {
 		return 0;
 	}
 
@@ -620,7 +620,7 @@ pgp_write_rsa_pubkey(time_t t, const BIGNUM *n,
 	pgp_pubkey_t key;
 
 	pgp_fast_create_rsa_pubkey(&key, t, __UNCONST(n), __UNCONST(e));
-	return write_struct_pubkey(output, &key);
+	return write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &key);
 }
 
 /**
