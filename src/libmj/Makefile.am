@@ -9,3 +9,5 @@ libmj_la_CPPFLAGS	= -I$(top_srcdir)/include
 libmj_la_SOURCES	= mj.c
 
 dist_man_MANS		= libmj.3
+
+include_HEADERS 	= mj.h

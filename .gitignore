@@ -45,3 +45,4 @@ tests/Makefile
 tests/Makefile.in
 tests/atconfig
 tests/atlocal
+src/netpgpverify/stamp-h2
