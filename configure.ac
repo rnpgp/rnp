@@ -11,6 +11,7 @@ AS_SHELL_SANITIZE
 AC_CONFIG_SRCDIR([src/netpgp/netpgp.c])
 AC_CONFIG_AUX_DIR([buildaux])
 AC_CONFIG_HEADER([src/lib/config.h])
+AC_CONFIG_HEADER([src/netpgpverify/config.h])
 
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
