@@ -21,7 +21,6 @@
 #    argument;
 #    (default: ~/rpmbuild/SPECS)
 #
-#  - env var $PACKAGER, the PACKAGER identity
 
 readonly __progname="$(basename $0)"
 
@@ -48,18 +47,16 @@ main() {
   mkdir -p "${SPEC_DIR}"
 
   # readonly local PSOURCE_PATH="${SOURCES_DIR}/${PNAMEVERSION}.tar.bz2"
-  # readonly local PSOURCE_PATH="${PNAMEVERSION}.tar.bz2"
-  readonly local PSOURCE_PATH="https://api.github.com/repos/riboseinc/netpgp/tarball/${PVERSION}"
+  readonly local PSOURCE_PATH="${PNAMEVERSION}.tar.bz2"
+  # readonly local PSOURCE_PATH="https://api.github.com/repos/riboseinc/netpgp/tarball/${PVERSION}"
 
   # Generate the spec file, and copy it to the source directory.
   readonly local PSPEC_PATH="${SPEC_DIR}/${PNAME}.spec"
   m4 \
     -D "PACKAGE_VERSION=${PVERSION}" \
-    -D "PREFIX=/usr" \
     -D "SOURCE_TARBALL_NAME=${PSOURCE_PATH}" \
     -D "RELEASE=${PRELEASE}" \
-    -D "PACKAGER=${PACKAGER:-Ribose Packaging <packages@ribose.com>}" \
-    < "${PNAME}/packaging/redhat/m4/netpgp.spec.m4" \
+    < "packaging/redhat/m4/netpgp.spec.m4" \
     > "${PSPEC_PATH}" && \
 
   chown $(id -u):$(id -g) "${PSPEC_PATH}" && \

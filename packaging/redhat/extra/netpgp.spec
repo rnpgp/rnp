@@ -1,11 +1,12 @@
 
+
 Name: netpgp
 Version: 3.99.18
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/riboseinc/rp
 Summary: Freely licensed PGP implementation
-Source: netpgp-3.99.18.tar.gz
+Source: netpgp-3.99.18.tar.bz2
 BuildRequires: openssl-devel, zlib-devel, bzip2-devel, chrpath, autoconf, automake, libtool
 Requires: netpgpverify = %{version}-%{release}
 
@@ -19,19 +20,12 @@ verifying files, a fork from NetBSD's netpgp.
 %build
 autoreconf -ivf;
 %configure 
-pushd src/netpgpverify;
-%configure 
-popd;
 sed -i -e 's! -shared ! -Wl,--as-needed\0!g' libtool
 make;
 
 %install
 %make_install
 find "%{buildroot}"/%{_libdir} -name "*.la" -delete;
-# the upstream tarball doesn't install headers for libmj 
-# therefore we don't build libmj-devel package, so we delete these
-find "%{buildroot}"/%{_libdir} -name "libmj.so" -delete;
-find "%{buildroot}"/%{_libdir} -name "libmj.a" -delete;
 
 %files
 %defattr(-,root,root)
@@ -100,6 +94,32 @@ libmj provides JSON routines required by libnetpgp.
 %attr(0644,root,root) %{_mandir}/man3/libmj.3.gz
 
 
+%package -n libmj-devel
+Requires: libmj = %{version}
+Summary:  Development headers and libraries for libmj
+
+%description -n libmj-devel
+Development files for libmj, the JSON library used in libnetpgp
+
+%files -n libmj-devel
+%defattr(-,root,root)
+%attr(0755,root,root) %{_libdir}/libmj.so
+%attr(0644,root,root) %{_prefix}/include/mj.h
+%attr(0644,root,root) %{_mandir}/man3/libmj.3.gz
+
+
+%package -n libmj-static
+Requires: libmj-devel = %{version}
+Summary:  Static library for libmj
+
+%description -n libmj-static
+Static library files for libmj, the JSON library used in libnetpgp
+
+%files -n libmj-static
+%defattr(-,root,root)
+%attr(0755,root,root) %{_libdir}/libmj.a
+
+
 %package -n netpgpverify
 Summary: Command line utility to verify signatures
 
@@ -116,6 +136,7 @@ netpgpverify verifies PGP signatures.
 - Fix rpmlint and fedora-review errors
 - Add libnetpgp-static package
 - Add ldconfig calls to post and postun scriplets
+- add libmj-devel -static packages
 
 * Mon Mar 6 2017 Jeffrey Lau <jeffrey.lau@ribose.com>
 - Fix RPM build requirements

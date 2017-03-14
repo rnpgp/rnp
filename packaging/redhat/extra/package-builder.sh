@@ -47,31 +47,14 @@ main() {
   readonly local PNAMEVERSION="${PNAME}-${PVERSION}"
   readonly local SOURCES_DIR="${SOURCES_DIR:-${HOME}/rpmbuild/SOURCES}"
 
-  # Create the rpm spec file
-  sh ${PNAME}/packaging/redhat/extra/spec-builder "$@"
+  echo "Create the rpm spec file"
+  sh packaging/redhat/extra/spec-builder "$@"
 
-  # Create the SOURCES_DIR.
+  echo "Create the SOURCES_DIR ${SOURCES_DIR}"
   mkdir -p "${SOURCES_DIR}"
 
-  # Make a new copy of the sources and name by version, clearing any
-  # remnant from before.
-  if [[ -e "${PNAMEVERSION}" ]]; then
-    rm -rf "${PNAMEVERSION}"
-  fi
-  cp -pRP "${PPATH}" "${PNAMEVERSION}"
-
-  # Clean the new sources.
-  # Make sure to commit everything first before running this script!
-  pushd "${PNAMEVERSION}"
-
-  if [[ -e .git && $(hash git 2>/dev/null) ]]; then
-    git clean -fdx
-    git reset --hard
-  fi
-  popd
-
   # Make the source tarball for the build.
-  tar -cjf "${PNAMEVERSION}.tar.bz2" "${PNAMEVERSION}"
+  git archive --format=tar --prefix=${PNAMEVERSION}/ HEAD | bzip2 > ${PNAMEVERSION}.tar.bz2
 
   # Copy the source tarball into the source directory for rpmbuild.
   readonly local PSOURCE_PATH="${SOURCES_DIR}/${PNAMEVERSION}.tar.bz2"
