@@ -47,8 +47,8 @@ main() {
   mkdir -p "${SPEC_DIR}"
 
   # readonly local PSOURCE_PATH="${SOURCES_DIR}/${PNAMEVERSION}.tar.bz2"
-  readonly local PSOURCE_PATH="${PNAMEVERSION}.tar.bz2"
-  # readonly local PSOURCE_PATH="https://api.github.com/repos/riboseinc/netpgp/tarball/${PVERSION}"
+  # readonly local PSOURCE_PATH="${PNAMEVERSION}.tar.bz2"
+  readonly local PSOURCE_PATH="https://api.github.com/repos/riboseinc/rp/tarball/${PVERSION}"
 
   # Generate the spec file, and copy it to the source directory.
   readonly local PSPEC_PATH="${SPEC_DIR}/${PNAME}.spec"
