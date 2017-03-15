@@ -85,9 +85,7 @@ Run the rpmbuild script.
 ```
 cd /usr/local/netpgp
 ./remove_artifacts.sh
-
-cd /usr/local
-netpgp/packaging/redhat/extra/build_rpm.sh
+packaging/redhat/extra/build_rpm.sh
 ```
 
 The you can copy out the RPMs from the container:
