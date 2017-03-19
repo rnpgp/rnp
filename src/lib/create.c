@@ -269,6 +269,67 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
 	return 0;
 }
 
+static int
+hash_bn(pgp_hash_t *hash, BIGNUM *bignum)
+{
+	uint8_t *bn;
+	size_t   bits;
+	size_t   bytes;
+	uint8_t length[2];
+
+	if (BN_is_zero(bignum)) {
+		length[0] = length[1] = 0;
+		hash->add(hash, length, 2);
+		return 1;
+	}
+	if ((bits = (size_t) BN_num_bits(bignum)) < 1) {
+		(void) fprintf(stderr, "hash_mpi: bad size\n");
+		return 0;
+	}
+	if ((bytes = (size_t) BN_num_bytes(bignum)) < 1) {
+		(void) fprintf(stderr, "hash_mpi: bad size\n");
+		return 0;
+	}
+	if ((bn = calloc(1, bytes)) == NULL) {
+		(void) fprintf(stderr, "hash_bignum: bad bn alloc\n");
+		return 0;
+	}
+	BN_bn2bin(bignum, bn);
+	length[0] = (uint8_t)((bits >> 8) & 0xff);
+	length[1] = (uint8_t)(bits & 0xff);
+	hash->add(hash, length, 2);
+	hash->add(hash, bn, bytes);
+	free(bn);
+	return 1;
+}
+
+static int
+hash_key_material(const pgp_seckey_t *key, uint8_t *result) {
+	pgp_hash_t hash;
+	pgp_hash_sha1(&hash);
+	hash.init(&hash);
+	switch (key->pubkey.alg) {
+	case PGP_PKA_RSA:
+	case PGP_PKA_RSA_ENCRYPT_ONLY:
+	case PGP_PKA_RSA_SIGN_ONLY:
+		hash_bn(&hash, key->key.rsa.d);
+		hash_bn(&hash, key->key.rsa.p);
+		hash_bn(&hash, key->key.rsa.q);
+		hash_bn(&hash, key->key.rsa.u);
+		break;
+	case PGP_PKA_DSA:
+		hash_bn(&hash, key->key.dsa.x);
+		break;
+	case PGP_PKA_ELGAMAL:
+		hash_bn(&hash, key->key.elgamal.x);
+		break;
+	default:
+		return 0;
+	}
+	hash.finish(&hash, result);
+	return 1;
+}
+
 /*
  * Note that we support v3 keys here because they're needed for
  * verification.
@@ -287,6 +348,7 @@ write_seckey_body(const pgp_seckey_t *key,
 	unsigned	i = 0;
 	uint8_t		*hashed;
 	uint8_t		sesskey[CAST_KEY_LENGTH];
+	uint8_t		checkhash[PGP_CHECKHASH_SIZE];
 
 	if (!write_pubkey_body(&key->pubkey, output)) {
 		return 0;
@@ -463,7 +525,12 @@ write_seckey_body(const pgp_seckey_t *key,
 		return 0;
 	}
 
-	if (!pgp_write(output, key->checkhash, PGP_CHECKHASH_SIZE)) {
+	if (key->checkhash) {
+		memcpy(checkhash, key->checkhash, PGP_CHECKHASH_SIZE);
+	} else if (!hash_key_material(key, checkhash)) {
+		return 0;
+	}
+	if (!pgp_write(output, checkhash, PGP_CHECKHASH_SIZE)) {
 		return 0;
 	}
 
