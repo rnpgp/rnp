@@ -437,7 +437,7 @@ hash_bignum(pgp_hash_t *hash, BIGNUM *bignum)
 		(void) fprintf(stderr, "hash_bignum: bad size\n");
 		return 0;
 	}
-	if ((bn = calloc(1, len)) == NULL) {
+	if ((bn = calloc(1, len + 1)) == NULL) {
 		(void) fprintf(stderr, "hash_bignum: bad bn alloc\n");
 		return 0;
 	}
