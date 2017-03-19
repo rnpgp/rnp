@@ -275,7 +275,6 @@ decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 			(void) fprintf(stderr, "decrypt_cb: bad alloc\n");
 			return PGP_FINISHED;
 		}
-		decrypt->seckey->checkhash = calloc(1, PGP_CHECKHASH_SIZE);
 		*decrypt->seckey = content->seckey;
 		return PGP_KEEP_MEMORY;
 
