@@ -1,7 +1,144 @@
 # Introduction
 
-"rnp" is the Ribose fork of NetPGP originally written for NetBSD that
-works on Linux and macOS.
+"rnp" is a set of OpenPGP (RFC4880) tools that works on Linux, \*BSD and
+macOS as a replacement of GnuPG. It is maintained by Ribose after being
+forked from NetPGP, itself originally written for NetBSD.
+
+"librnp" is the library used by rnp for all OpenPGP functions, useful
+for developers to build against. Thanks to Allistair, it is a "real"
+library, not a wrapper like GPGME of GnuPG.
+
+NetPGP was originally written (and still maintained) by Allistair Crooks
+of NetBSD.
+
+
+# Usage
+
+
+## Generating an RSA Private Key
+
+Only RSA key supported right now.
+
+``` sh
+export keydir=/tmp
+netpgpkeys --generate-key --homedir=${keydir}
+```
+
+=>
+
+``` sh
+netpgp: generated keys in directory ${keydir}/6ed2d908150b82e7
+```
+
+In case you're curious, `6ed2d...` is the key fingerprint.
+
+
+## Listing Keys
+
+``` sh
+export keyringdir=${keydir}/MYFINGERPRINT
+netpgpkeys --list-keys --homedir=${keyringdir}
+
+```
+
+=>
+
+```
+1 key found
+...
+```
+
+
+## Signing a File
+
+
+### Signing in binary format
+
+``` sh
+netpgp --sign --homedir=${keyringdir} ${filename}
+```
+
+=>
+
+Created `${filename}.gpg` which is an OpenPGP message that includes the
+message together with the signature as a 'signed message'.
+
+This type of file can be verified by:
+
+* `netpgp --verify --homedir=${keyringdir} ${filename}.gpg`
+* `netpgpverify -k ${keyringdir}/pubring.gpg ${filename}.gpg`
+
+
+### Signing in binary detatched format
+
+``` sh
+netpgp --sign --detach --homedir=${keyringdir} ${filename}
+```
+
+=>
+
+Created `${filename}.sig` which is an OpenPGP message in binary
+format, that only contains the signature.
+
+This type of file can be verified by:
+
+* `netpgp --verify --homedir=${keyringdir} ${filename}.sig`
+* `netpgpverify -k ${keyringdir}/pubring.gpg ${filename}.sig`
+
+
+
+### Signing in Armored (ASCII-Armored) format
+
+``` sh
+netpgp --sign --armor --homedir=${keyringdir} ${filename}
+```
+
+=>
+
+Created `${filename}.asc` which is an OpenPGP message in ASCII-armored
+format, including the message together with the signature as a 'signed
+message'.
+
+This type of file can be verified by:
+
+* `netpgp --verify --homedir=${keyringdir} ${filename}.asc`
+
+But this file (and its `--detach` cousin) cannot be verified by
+`netpgpverify` yet.
+
+
+### Other options
+
+* `--clearsign` option will append a separate PGP Signaure to the end of
+  the message (the new output)
+
+* `--detach` option will append a separate PGP Signaure to the end of
+  the message (the new output)
+
+
+## Encrypt
+
+
+``` sh
+netpgp --encrypt --homedir=${keyringdir} ${filename}
+```
+
+=>
+
+Creates: `${filename}.gpg`
+
+
+## Decrypt
+
+``` sh
+netpgp --decrypt --homedir=${keyringdir} ${filename}.gpg
+```
+
+=>
+
+Creates: `${filename}`
+
+
 
 # Install
 
