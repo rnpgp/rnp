@@ -1,56 +1,93 @@
-Binaries installed
-==================
-```
-netpgp
-netpgpkeys
-netpgpverify
+# Introduction
+
+"rnp" is the Ribose fork of NetPGP originally written for NetBSD that
+works on Linux and macOS.
+
+# Install
+
+## Binaries installed
+
+* `netpgp`
+* `netpgpkeys`
+* `netpgpverify`
+
+## On macOS using Homebrew
+
+``` sh
+brew tap riboseinc/rnp
+brew install rnp
 ```
 
-Prerequisites
-=============
+## On RHEL and CentOS via YUM
 
-This README assumes that you have `docker` installed.
-It's not strictly necessary, but just provides a consistent baseline for
-this guide to work.
-
-Clone source:
-```
-# cd ~/src
-git clone https://github.com/riboseinc/netpgp
+``` sh
+rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
+curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
+yum install -y netpgp
 ```
 
-Start container (assuming you git cloned to `~/src/netpgp`. Change
-accordingly):
-```
-docker run -v ~/src/netpgp:/usr/local/netpgp -it centos:7 bash
-```
+## On Debian
 
-Compile
-=======
-(In the container:)
-```
-cd /usr/local/netpgp
+(WIP)
+
+
+## Compiling from source
+
+Clone this repo or download a release and expand it.
+
+``` sh
 ./build.sh
 make install
 ```
 
-Clean build artifacts
-=====================
-(In the container:)
+
+# Packaging
+
+## Prerequisites
+
+These steps require `docker` installed. It's not strictly necessary,
+but just provides a consistent baseline for this guide to work.
+
+Clone source:
 ```
-cd /usr/local/netpgp
+# cd ~/src
+git clone https://github.com/riboseinc/rnp
+```
+
+Start container (assuming you git cloned to `~/src/rnp`. Change
+accordingly):
+
+```
+docker run -v ~/src/rnp:/usr/local/rnp -it centos:7 bash
+```
+
+## Compile
+
+In the container:
+
+```
+cd /usr/local/rnp
+./build.sh
+make install
+```
+
+## Clean build artifacts
+
+In the container:
+```
+cd /usr/local/rnp
 ./remove_artifacts.sh
 ```
 
 Otherwise use `git clean`.
 
-Building RPM
-============
+## Building an RPM
+
 Set up build environment.
 
-(In the container:)
+In the container:
 ```
-/usr/local/netpgp/packaging/redhat/extra/prepare_build.sh
+/usr/local/rnp/packaging/redhat/extra/prepare_build.sh
 ```
 
 And if you're going to sign the RPM,
@@ -83,7 +120,7 @@ export SIGN=
 Run the rpmbuild script.
 (In the container:)
 ```
-cd /usr/local/netpgp
+cd /usr/local/rnp
 ./remove_artifacts.sh
 packaging/redhat/extra/build_rpm.sh
 ```
@@ -93,11 +130,3 @@ The you can copy out the RPMs from the container:
 cp ~/rpmbuild/SRPMS/netpgp*.rpm ~/rpmbuild/RPMS/x86_64/*.rpm /usr/local/netpgp
 ```
 
-Installing RPMs
-===============
-
-```
-rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
-curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
-yum install -y netpgp
-```
