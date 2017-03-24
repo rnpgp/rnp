@@ -899,8 +899,25 @@ void pgp_pk_sesskey_free(pgp_pk_sesskey_t *);
 
 int pgp_print_packet(pgp_printstate_t *, const pgp_packet_t *);
 
-#define DYNARRAY(type, arr)	\
-	unsigned arr##c; unsigned arr##vsize; type *arr##s
+/* A macro for defining a dynamic array. It expands to the following
+ * members:
+ *
+ * - arr##c:     the number of elements currently populating the array
+ * - arr##vsize: the current capacity of the array
+ * - arr##s      a pointer to the backing array
+ *
+ * If you aren't familiar with macro ## syntax DYNARRAY(int, number)
+ * would expand to:
+ *
+ * unsigned numberc;
+ * unsigned numbervsize;
+ * unsigned numbers;
+ */
+
+#define DYNARRAY(type, arr)  \
+	unsigned arr##c;     \
+	unsigned arr##vsize; \
+	type *arr##s;
 
 #define EXPAND_ARRAY(str, arr) do {					\
 	if (str->arr##c == str->arr##vsize) {				\
