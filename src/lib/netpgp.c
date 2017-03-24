@@ -1475,7 +1475,7 @@ netpgp_generate_key(netpgp_t *netpgp, char *id, int numbits)
 		attempts = INFINITE_ATTEMPTS;
 	}
 	passc = find_passphrase(netpgp->passfp, &cp[ID_OFFSET], passphrase, sizeof(passphrase), attempts);
-	if (!pgp_write_xfer_seckey(create, key, (uint8_t *)passphrase, (const unsigned)passc, noarmor)) {
+	if (!pgp_write_xfer_seckey(create, key, (uint8_t *)passphrase, (const unsigned)passc, NULL, noarmor)) {
 		(void) fprintf(io->errs, "Cannot write seckey\n");
 		goto out1;
 	}

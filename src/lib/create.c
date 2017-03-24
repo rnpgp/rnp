@@ -644,6 +644,7 @@ pgp_write_xfer_seckey(pgp_output_t *output,
 				const pgp_key_t *key,
 				const uint8_t *passphrase,
 				const size_t pplen,
+				const pgp_keyring_t *subkeys,
 				unsigned armoured)
 {
 	unsigned	i, j;
@@ -651,9 +652,9 @@ pgp_write_xfer_seckey(pgp_output_t *output,
 	if (armoured) {
 		pgp_writer_push_armoured(output, PGP_PGP_PRIVATE_KEY_BLOCK);
 	}
-	/* public key */
-	if (!pgp_write_struct_seckey(&key->key.seckey, passphrase,
-			pplen, output)) {
+	/* secret key */
+	if (!pgp_write_struct_seckey(PGP_PTAG_CT_SECRET_KEY,
+			&key->key.seckey, passphrase, pplen, output)) {
 		return 0;
 	}
 
@@ -677,6 +678,23 @@ pgp_write_xfer_seckey(pgp_output_t *output,
 	 * subkey packets and corresponding signatures and optional
 	 * revocation
 	 */
+	if (subkeys) {
+		for (i = 0; i < subkeys->keyc; i++) {
+			const pgp_key_t *subkey = &subkeys->keys[i];
+			if (subkey->type != PGP_PTAG_CT_SECRET_KEY) {
+				return 0;
+			}
+			if (!pgp_write_struct_seckey(PGP_PTAG_CT_SECRET_SUBKEY, &subkey->key.seckey, passphrase, pplen, output)) {
+				return 0;
+			}
+			for (j = 0; j < subkey->packetc; j++) {
+				if (!pgp_write(output, subkey->packets[j].raw, (unsigned)subkey->packets[j].length)) {
+					return 0;
+				}
+			}
+		}
+	}
+
 
 	if (armoured) {
 		pgp_writer_info_finalise(&output->errors, &output->writer);
@@ -777,7 +795,8 @@ pgp_fast_create_rsa_seckey(pgp_seckey_t *key, time_t t,
  * \return 1 if OK; else 0
  */
 unsigned 
-pgp_write_struct_seckey(const pgp_seckey_t *key,
+pgp_write_struct_seckey(pgp_content_enum tag,
+			    const pgp_seckey_t *key,
 			    const uint8_t *passphrase,
 			    const size_t pplen,
 			    pgp_output_t *output)
@@ -860,7 +879,7 @@ pgp_write_struct_seckey(const pgp_seckey_t *key,
 	/* secret key and public key MPIs */
 	length += (unsigned)seckey_length(key);
 
-	return pgp_write_ptag(output, PGP_PTAG_CT_SECRET_KEY) &&
+	return pgp_write_ptag(output, tag) &&
 		/* pgp_write_length(output,1+4+1+1+seckey_length(key)+2) && */
 		pgp_write_length(output, (unsigned)length) &&
 		write_seckey_body(key, passphrase, pplen, output);

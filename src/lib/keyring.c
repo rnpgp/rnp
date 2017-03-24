@@ -1060,7 +1060,7 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
 		pgp_write_xfer_pubkey(output, keydata, NULL, 1);
 	} else {
 		pgp_write_xfer_seckey(output, keydata, passphrase,
-					strlen((char *)passphrase), 1);
+					strlen((char *)passphrase), NULL, 1);
 	}
 	cp = netpgp_strdup(pgp_mem_data(mem));
 	pgp_teardown_memory_write(output, mem);
