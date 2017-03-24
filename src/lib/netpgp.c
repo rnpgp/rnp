@@ -54,6 +54,7 @@ __RCSID("$NetBSD: netpgp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <regex.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
 
@@ -330,23 +331,71 @@ readsshkeys(netpgp_t *netpgp, char *homedir, const char *needseckey)
 	return 1;
 }
 
-/* get the uid of the first key in the keyring */
+/* Format a PGP key to a readable hexadecimal string in a user supplied
+ * buffer.
+ *
+ * buffer: the buffer to write into
+ * sigid:  the PGP key ID to format
+ * len:    the length of buffer, including the null terminator
+ *
+ * TODO: There is no error checking here.
+ * TODO: Make this function more general or use an existing one.
+ */
+
+static void
+format_key(char *buffer, uint8_t *sigid, int len)
+{
+	unsigned int i;
+	unsigned int n;
+
+	/* Chunks of two bytes are processed at a time because we can
+	 * always be reasonably sure that PGP_KEY_ID_SIZE will be
+	 * divisible by two. However, if the RFCs specify a fixed
+	 * fixed size for PGP key IDs it might be more constructive
+	 * to format this in one call and do a compile-time size
+	 * check of the constant. If somebody wanted to do
+	 * something exotic they can easily re-implement
+	 * this function.
+	 */
+	for (i = 0, n = 0; i < PGP_KEY_ID_SIZE; i += 2) {
+		n += snprintf(&buffer[n], len - n, "%02x%02x",
+				sigid[i], sigid[i + 1]);
+	}
+	buffer[n] = 0x0;
+}
+
+/* Get the uid of the first key in the keyring.
+ *
+ * TODO: Set errno on failure.
+ * TODO: Check upstream calls to this function - they likely won't
+ *       handle the new error condition.
+ */
 static int
 get_first_ring(pgp_keyring_t *ring, char *id, size_t len, int last)
 {
 	uint8_t	*src;
-	int	 i;
-	int	 n;
 
-	if (ring == NULL) {
+	/* The NULL test on the ring may not be necessary for non-debug
+	 * builds - it would be much better that a NULL ring never
+	 * arrived here in the first place.
+	 *
+	 * The ring length check is a temporary fix for a case where
+	 * an empty ring arrives and causes an access violation in
+	 * some circumstances.
+	 */
+
+	errno = 0;
+
+	if (ring == NULL || ring->keyc < 1) {
+		errno = EINVAL;
 		return 0;
 	}
-	(void) memset(id, 0x0, len);
-	src = ring->keys[(last) ? ring->keyc - 1 : 0].sigid;
-	for (i = 0, n = 0 ; i < PGP_KEY_ID_SIZE ; i += 2) {
-		n += snprintf(&id[n], len - n, "%02x%02x", src[i], src[i + 1]);
-	}
-	id[n] = 0x0;
+
+	memset(id, 0x0, len);
+
+	src = (uint8_t *) &ring->keys[(last) ? ring->keyc - 1 : 0].sigid;
+	format_key(id, src, len);
+
 	return 1;
 }
 
@@ -759,54 +808,103 @@ find_passphrase(FILE *passfp, const char *id, char *passphrase, size_t size, int
 	return 0;
 }
 
-/***************************************************************************/
-/* exported functions start here */
-/***************************************************************************/
-
-/* initialise a netpgp_t structure */
-int
-netpgp_init(netpgp_t *netpgp)
-{
-	pgp_io_t	*io;
-	time_t		 t;
-	char		 id[MAX_ID_LENGTH];
-	char		*homedir;
-	char		*userid;
-	char		*stream;
-	char		*passfd;
-	char		*results;
-	int		 coredumps;
-	int		 last;
-
 #ifdef HAVE_SYS_RESOURCE_H
-	struct rlimit	limit;
 
-	coredumps = netpgp_getvar(netpgp, "coredumps") != NULL;
-	if (!coredumps) {
-		(void) memset(&limit, 0x0, sizeof(limit));
-		if (setrlimit(RLIMIT_CORE, &limit) != 0) {
-			(void) fprintf(stderr,
-			"netpgp: warning - can't turn off core dumps\n");
-			coredumps = 1;
+/* When system resource consumption limit controls are available this
+ * can be used to attempt to disable core dumps which may leak
+ * sensitive data.
+ *
+ * Returns 0 if disabling core dumps failed, returns 1 if disabling
+ * core dumps succeeded, and returns -1 if an error occurred. errno
+ * will be set to the result from setrlimit in the event of
+ * failure.
+ */
+static int disable_core_dumps(void)
+{
+	struct rlimit limit;
+	int error;
+
+	errno = 0;
+	memset(&limit, 0, sizeof(limit));
+	error = setrlimit(RLIMIT_CORE, &limit);
+	return error != -1 && error > 0 ? 0 : -1;
+}
+
+/* Disable core dumps according to the coredumps setting variable.
+ * Returns 0 if core dumps are definitely disabled or 1 if core dumps
+ * are or are possibly enabled.
+ *
+ * This function could benefit from communicating error conditions
+ * from disable_core_dumps.
+ */
+static int set_core_dumps(netpgp_t *netpgp)
+{
+	int setting;
+
+	setting = netpgp_getvar(netpgp, "coredumps") != NULL;
+	if (! setting) {
+		return disable_core_dumps() == 0 ? 0 : 1;
+	}
+
+	return 1;
+}
+
+#endif
+
+/* Gets a passphrase from a file descriptor and set it in the NetPGP
+ * context. Returns 1 on success and 0 on failure.
+ *
+ * TODO: Replace atoi(). This could create unexpected behaviour for users
+ *       that enter nonsense and end up using stdin.
+ *
+ * TODO: Decouple this layer from the error reporting layer, which should
+ *       be in or around netpgp_init(). Because the error message requires
+ *       passfd to be available this is complicated.
+ */
+static int set_pass_fd(netpgp_t *netpgp)
+{
+	char *passfd = netpgp_getvar(netpgp, "pass-fd");
+	pgp_io_t *io = netpgp->io;
+
+	if (passfd != NULL) {
+		netpgp->passfp = fdopen(atoi(passfd), "r");
+		if (netpgp->passfp == NULL) {
+			fprintf(io->errs,
+				"Can't open fd %s for reading\n", passfd);
+			return 0;
 		}
 	}
-#else
-	coredumps = 1;
-#endif
-	if ((io = calloc(1, sizeof(*io))) == NULL) {
-		(void) fprintf(stderr, "netpgp_init: bad alloc\n");
-		return 0;
-	}
+
+	return 1;
+}
+
+/* Initialize a NetPGP context's io stream handles with a user-supplied
+ * io struct. Returns 1 on success and 0 on failure. It is the caller's
+ * responsibility to de-allocate a dynamically allocated io struct
+ * upon failure.
+ */
+static int netpgp_init_io(netpgp_t *netpgp, pgp_io_t *io)
+{
+	char *stream;
+	char *results;
+
+	/* TODO: I think refactoring can go even further here. */
+
+	/* Configure the output stream. */
 	io->outs = stdout;
 	if ((stream = netpgp_getvar(netpgp, "outs")) != NULL &&
-	    strcmp(stream, "<stderr>") == 0) {
+			strcmp(stream, "<stderr>") == 0) {
 		io->outs = stderr;
 	}
+
+	/* Configure the error stream. */
 	io->errs = stderr;
 	if ((stream = netpgp_getvar(netpgp, "errs")) != NULL &&
-	    strcmp(stream, "<stdout>") == 0) {
+			strcmp(stream, "<stdout>") == 0) {
 		io->errs = stdout;
 	}
+
+	/* Configure the results stream. */
 	if ((results = netpgp_getvar(netpgp, "res")) == NULL) {
 		io->res = io->errs;
 	} else if (strcmp(results, "<stdout>") == 0) {
@@ -815,96 +913,232 @@ netpgp_init(netpgp_t *netpgp)
 		io->res = stderr;
 	} else {
 		if ((io->res = fopen(results, "w")) == NULL) {
-			(void) fprintf(io->errs, "Can't open results %s for writing\n",
+			fprintf(io->errs,
+				"Can't open results %s for writing\n",
 				results);
-			free(io);
 			return 0;
 		}
 	}
+
 	netpgp->io = io;
-	/* get passphrase from an fd */
-	if ((passfd = netpgp_getvar(netpgp, "pass-fd")) != NULL &&
-	    (netpgp->passfp = fdopen(atoi(passfd), "r")) == NULL) {
-		(void) fprintf(io->errs, "Can't open fd %s for reading\n",
-			passfd);
+
+	return 1;
+}
+
+/* Allocate a new io struct and initialize a NetPGP context with it.
+ * Returns 1 on success and 0 on failure.
+ *
+ * TODO: Set errno with a suitable error code.
+ */
+static int netpgp_new_io(netpgp_t *netpgp)
+{
+	pgp_io_t *io = (pgp_io_t *) malloc(sizeof(*io));
+
+	if (io != NULL) {
+		if (netpgp_init_io(netpgp, io))
+			return 1;
+		free((void *) io);
+	}
+
+	return 0;
+}
+
+static int netpgp_use_ssh_keys(netpgp_t *netpgp)
+{
+	return netpgp_getvar(netpgp, "ssh keys") != NULL;
+}
+
+static int netpgp_load_keys_gnupg(netpgp_t *netpgp, char *homedir)
+{
+	char     *userid;
+	char      id[MAX_ID_LENGTH];
+	pgp_io_t *io = netpgp->io;
+
+	/* TODO: Some of this might be split up into sub-functions. */
+	/* TODO: Double-check whether or not ID needs to be zeroed. */
+	/* TODO: Figure out what unhandled error is causing an
+	 *       empty keyring to end up in get_first_ring
+	 *       and ensure that it's not present in the
+	 *       ssh implementation too.
+	 */
+
+	netpgp->pubring = readkeyring(netpgp, "pubring");
+	if (netpgp->pubring == NULL) {
+		fprintf(io->errs, "Can't read pub keyring\n");
 		return 0;
 	}
-	/* warn if core dumps are enabled */
-	if (coredumps) {
-		(void) fprintf(io->errs,
-			"netpgp: warning: core dumps enabled\n");
+
+	/* If a userid has been given, we'll use it. */
+	if ((userid = netpgp_getvar(netpgp, "userid")) == NULL) {
+		/* also search in config file for default id */
+		memset(id, 0, sizeof(id));
+		conffile(netpgp, homedir, id, sizeof(id));
+		if (id[0] != 0x0) {
+			netpgp_setvar(netpgp, "userid", userid = id);
+		}
 	}
-	/* get home directory - where keyrings are in a subdir */
-	if ((homedir = netpgp_getvar(netpgp, "homedir")) == NULL) {
-		(void) fprintf(io->errs, "netpgp: bad homedir\n");
-		return 0;
-	}
-	if (netpgp_getvar(netpgp, "ssh keys") == NULL) {
-		/* read from ordinary pgp keyrings */
-		netpgp->pubring = readkeyring(netpgp, "pubring");
-		if (netpgp->pubring == NULL) {
-			(void) fprintf(io->errs, "Can't read pub keyring\n");
+
+	/* Only read secret keys if we need to. */
+	if (netpgp_getvar(netpgp, "need seckey")) {
+
+		/* Read the secret ring. */
+		netpgp->secring = readkeyring(netpgp, "secring");
+		if (netpgp->secring == NULL) {
+			fprintf(io->errs, "Can't read sec keyring\n");
 			return 0;
 		}
-		/* if a userid has been given, we'll use it */
-		if ((userid = netpgp_getvar(netpgp, "userid")) == NULL) {
-			/* also search in config file for default id */
-			(void) memset(id, 0x0, sizeof(id));
-			(void) conffile(netpgp, homedir, id, sizeof(id));
-			if (id[0] != 0x0) {
-				netpgp_setvar(netpgp, "userid", userid = id);
-			}
-		}
-		/* only read secret keys if we need to */
-		if (netpgp_getvar(netpgp, "need seckey")) {
-			/* read the secret ring */
-			netpgp->secring = readkeyring(netpgp, "secring");
-			if (netpgp->secring == NULL) {
-				(void) fprintf(io->errs, "Can't read sec keyring\n");
+
+		/* Now, if we don't have a valid user, use the first
+		 * in secring.
+		 */
+		if (! userid && netpgp_getvar(netpgp,
+				"need userid") != NULL) {
+			memset(id, 0, sizeof(id));
+			if (get_first_ring(netpgp->secring, id,
+					sizeof(id), 0)) {
+				netpgp_setvar(netpgp, "userid",
+						userid = id);
+
+			/* TODO: This is _temporary_. A more suitable
+			 *       replacement will be required.
+			 */
+			} else {
+				fprintf(io->errs, "Failed to read id\n");
 				return 0;
 			}
-			/* now, if we don't have a valid user, use the first in secring */
-			if (!userid && netpgp_getvar(netpgp, "need userid") != NULL) {
-				/* signing - need userid and sec key */
-				(void) memset(id, 0x0, sizeof(id));
-				if (get_first_ring(netpgp->secring, id, sizeof(id), 0)) {
-					netpgp_setvar(netpgp, "userid", userid = id);
-				}
-			}
-		} else if (netpgp_getvar(netpgp, "need userid") != NULL) {
-			/* encrypting - get first in pubring */
-			if (!userid && get_first_ring(netpgp->pubring, id, sizeof(id), 0)) {
-				(void) netpgp_setvar(netpgp, "userid", userid = id);
-			}
 		}
-		if (!userid && netpgp_getvar(netpgp, "need userid")) {
-			/* if we don't have a user id, and we need one, fail */
-			(void) fprintf(io->errs, "Cannot find user id\n");
+
+	} else if (netpgp_getvar(netpgp, "need userid") != NULL) {
+		/* encrypting - get first in pubring */
+		if (! userid && get_first_ring(
+				netpgp->pubring, id, sizeof(id), 0)) {
+			netpgp_setvar(netpgp, "userid", userid = id);
+		}
+	}
+
+	if (! userid && netpgp_getvar(netpgp, "need userid")) {
+		/* if we don't have a user id, and we need one, fail */
+		fprintf(io->errs, "Cannot find user id\n");
+		return 0;
+	}
+
+	return 1;
+}
+
+static int netpgp_load_keys_ssh(netpgp_t *netpgp, char *homedir)
+{
+	int       last = (netpgp->pubring != NULL);
+	char      id[MAX_ID_LENGTH];
+	char     *userid;
+	pgp_io_t *io = netpgp->io;
+
+	/* TODO: Double-check whether or not ID needs to be zeroed. */
+
+	if (! readsshkeys(netpgp, homedir,
+			netpgp_getvar(netpgp, "need seckey"))) {
+		fprintf(io->errs, "Can't read ssh keys\n");
+		return 0;
+	}
+	if ((userid = netpgp_getvar(netpgp, "userid")) == NULL) {
+		/* TODO: Handle get_first_ring() failure. */
+		get_first_ring(netpgp->pubring, id,
+				sizeof(id), last);
+		netpgp_setvar(netpgp, "userid", userid = id);
+	}
+	if (userid == NULL) {
+		if (netpgp_getvar(netpgp, "need userid") != NULL) {
+			fprintf(io->errs, "Cannot find user id\n");
 			return 0;
 		}
 	} else {
-		/* read from ssh keys */
-		last = (netpgp->pubring != NULL);
-		if (!readsshkeys(netpgp, homedir, netpgp_getvar(netpgp, "need seckey"))) {
-			(void) fprintf(io->errs, "Can't read ssh keys\n");
-			return 0;
-		}
-		if ((userid = netpgp_getvar(netpgp, "userid")) == NULL) {
-			get_first_ring(netpgp->pubring, id, sizeof(id), last);
-			netpgp_setvar(netpgp, "userid", userid = id);
-		}
-		if (userid == NULL) {
-			if (netpgp_getvar(netpgp, "need userid") != NULL) {
-				(void) fprintf(io->errs,
-						"Cannot find user id\n");
-				return 0;
-			}
-		} else {
-			(void) netpgp_setvar(netpgp, "userid", userid);
-		}
+		netpgp_setvar(netpgp, "userid", userid);
 	}
+
+	return 1;
+}
+
+/* Encapsulates setting `initialized` to the current time. */
+static void netpgp_touch_initialized(netpgp_t *netpgp)
+{
+	time_t t;
+
 	t = time(NULL);
 	netpgp_setvar(netpgp, "initialised", ctime(&t));
+}
+
+/*************************************************************************/
+/* exported functions start here                                         */
+/*************************************************************************/
+
+/* initialise a netpgp_t structure */
+int
+netpgp_init(netpgp_t *netpgp)
+{
+	int       coredumps;
+	char     *homedir;
+	pgp_io_t *io;
+
+	/* Assume that core dumps are always enabled. */
+	coredumps = 1;
+
+	/* If system resource constraints are in effect then attempt to
+	 * disable core dumps.
+	 */
+#ifdef HAVE_SYS_RESOURCE_H
+	coredumps = set_core_dumps(netpgp);
+	if (coredumps) {
+		fprintf(stderr,
+			"netpgp: warning - can't turn off core dumps\n");
+	}
+#endif
+
+	/* Initialize the context's io streams apparatus. */
+	if (! netpgp_new_io(netpgp)) {
+		return 0;
+	}
+	io = netpgp->io;
+
+	/* If a password-carrying file descriptor is in use then
+	 * load it.
+	 */
+	if (! set_pass_fd(netpgp))
+		return 0;
+
+	/* Warn if core dumps are enabled. */
+	if (coredumps) {
+		fprintf(io->errs,
+			"netpgp: warning: core dumps enabled, "
+			"sensitive data may be leaked to disk\n");
+	}
+
+	/* Get home directory - where keyrings are in a
+	 * subdirectory.
+	 *
+	 * TODO: While this check is prudent it might be wise to
+	 *       replace this with a purely boolean test and let
+	 *       consumers load the key again from the NetPGP
+	 *       context.
+	 *
+	 */
+	if ((homedir = netpgp_getvar(netpgp, "homedir")) == NULL) {
+		fprintf(io->errs, "netpgp: bad homedir\n");
+		return 0;
+	}
+
+	/* Load SSH keys if SSH keys are in use, otherwise load from
+	 * the gnupg-ish keyring. Nomenclature can be changed if
+	 * necessary.
+	 */
+	if (netpgp_use_ssh_keys(netpgp)) {
+		if (! netpgp_load_keys_ssh(netpgp, homedir))
+			return 0;
+	} else {
+		if (! netpgp_load_keys_gnupg(netpgp, homedir))
+			return 0;
+	}
+
+	netpgp_touch_initialized(netpgp);
+
 	return 1;
 }
 
