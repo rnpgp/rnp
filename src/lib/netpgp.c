@@ -964,7 +964,12 @@ static int netpgp_load_keys_gnupg(netpgp_t *netpgp, char *homedir)
 
 	netpgp->pubring = readkeyring(netpgp, "pubring");
 	if (netpgp->pubring == NULL) {
-		fprintf(io->errs, "Can't read pub keyring\n");
+		fprintf(io->errs, "cannot read pub keyring\n");
+		return 0;
+	}
+
+	if (((pgp_keyring_t *) netpgp->pubring)->keyc < 1) {
+		fprintf(io->errs, "pub keyring is empty\n");
 		return 0;
 	}
 
@@ -985,6 +990,11 @@ static int netpgp_load_keys_gnupg(netpgp_t *netpgp, char *homedir)
 		netpgp->secring = readkeyring(netpgp, "secring");
 		if (netpgp->secring == NULL) {
 			fprintf(io->errs, "Can't read sec keyring\n");
+			return 0;
+		}
+
+		if (((pgp_keyring_t *) netpgp->secring)->keyc < 1) {
+			fprintf(io->errs, "sec keyring is empty\n");
 			return 0;
 		}
 
