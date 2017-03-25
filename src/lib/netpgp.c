@@ -962,9 +962,19 @@ static int netpgp_load_keys_gnupg(netpgp_t *netpgp, char *homedir)
 	 *       ssh implementation too.
 	 */
 
+	/* Attempt to load the public keyring. */
 	netpgp->pubring = readkeyring(netpgp, "pubring");
 	if (netpgp->pubring == NULL) {
-		fprintf(io->errs, "Can't read pub keyring\n");
+		fprintf(io->errs, "cannot read pub keyring\n");
+		return 0;
+	}
+
+	/* Check that there are keys in the keyring. This test
+	 * may be delegated to readkeyring() or a wrapper function
+	 * for consistency.
+	 */
+	if (((pgp_keyring_t *) netpgp->pubring)->keyc < 1) {
+		fprintf(io->errs, "public keyring is empty\n");
 		return 0;
 	}
 
@@ -981,10 +991,19 @@ static int netpgp_load_keys_gnupg(netpgp_t *netpgp, char *homedir)
 	/* Only read secret keys if we need to. */
 	if (netpgp_getvar(netpgp, "need seckey")) {
 
-		/* Read the secret ring. */
+		/* Attempt to load the secret ring. */
 		netpgp->secring = readkeyring(netpgp, "secring");
 		if (netpgp->secring == NULL) {
-			fprintf(io->errs, "Can't read sec keyring\n");
+			fprintf(io->errs, "cannot read sec keyring\n");
+			return 0;
+		}
+
+		/* Check that there are keys in the keyring. This
+		 * test may be delegated to readkeyring() or a wrapper
+		 * function for consistency.
+		 */
+		if (((pgp_keyring_t *) netpgp->secring)->keyc < 1) {
+			fprintf(io->errs, "secret keyring is empty\n");
 			return 0;
 		}
 
@@ -993,19 +1012,22 @@ static int netpgp_load_keys_gnupg(netpgp_t *netpgp, char *homedir)
 		 */
 		if (! userid && netpgp_getvar(netpgp,
 				"need userid") != NULL) {
-			memset(id, 0, sizeof(id));
-			if (get_first_ring(netpgp->secring, id,
-					sizeof(id), 0)) {
-				netpgp_setvar(netpgp, "userid",
-						userid = id);
 
-			/* TODO: This is _temporary_. A more suitable
-			 *       replacement will be required.
-			 */
-			} else {
+			/* TODO: May not be necessary. */
+			memset(id, 0, sizeof(id));
+
+			if (! get_first_ring(netpgp->secring, id,
+					sizeof(id), 0)) {
+
+				/* TODO: This is _temporary_. A more
+				 *       suitable replacement will be
+				 *       required.
+				 */
 				fprintf(io->errs, "Failed to read id\n");
 				return 0;
 			}
+
+			netpgp_setvar(netpgp, "userid", userid = id);
 		}
 
 	} else if (netpgp_getvar(netpgp, "need userid") != NULL) {
