@@ -8,7 +8,6 @@ netpgpverify_SOURCES	= \
 	b64.c \
 	bignum.c \
 	bufgap.c \
-	bzlib.c \
 	digest.c \
 	libverify.c \
 	main.c \
