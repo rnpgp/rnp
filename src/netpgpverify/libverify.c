@@ -549,7 +549,6 @@ static unsigned
 fmt_key_mpis(pgpv_pubkey_t *pubkey, uint8_t *buf, size_t size)
 {
 	size_t	cc;
-
 	cc = 0;
 	buf[cc++] = pubkey->version;
 	cc += fmt_32(&buf[cc], (uint32_t)pubkey->birth); /* XXX - do this portably! */
@@ -767,7 +766,6 @@ static void
 print_key_mpis(pgpv_bignum_t *v, uint8_t keyalg)
 {
 	char	s[8192];
-
 	switch(keyalg) {
 	case PUBKEY_RSA_ENCRYPT_OR_SIGN:
 	case PUBKEY_RSA_ENCRYPT:
@@ -2107,7 +2105,7 @@ setup_data(pgpv_cursor_t *cursor, pgpv_t *pgp, const void *p, ssize_t size)
 		}
 		if (fgets(buf, (int)sizeof(buf), fp) == NULL) {
 			fclose(fp);
-			snprintf(cursor->why, sizeof(cursor->why), "can't read file '%s'", (const char *)p);
+			snprintf(cursor->why, sizeof(cursor->why), "Can't read file '%s'", (const char *)p);
 			return 0;
 		}
 		if (is_armored(buf, sizeof(buf))) {
@@ -2123,6 +2121,7 @@ setup_data(pgpv_cursor_t *cursor, pgpv_t *pgp, const void *p, ssize_t size)
 			rv = read_binary_memory(pgp, "signature", p, (size_t)size);
 		}
 	}
+
 	return rv;
 }
 
@@ -2299,11 +2298,14 @@ read_binary_file(pgpv_t *pgp, const char *op, const char *fmt, ...)
 static int
 getbignum(pgpv_bignum_t *bignum, bufgap_t *bg, char *buf, const char *header)
 {
-	uint32_t	 len;
+	uint32_t len;
 
 	USE_ARG(header);
 	(void) bufgap_getbin(bg, &len, sizeof(len));
 	len = pgp_ntoh32(len);
+	if (len > SHRT_MAX)
+		return (-1);
+
 	(void) bufgap_seek(bg, sizeof(len), BGFromHere, BGByte);
 	(void) bufgap_getbin(bg, buf, len);
 	bignum->bn = PGPV_BN_bin2bn((const uint8_t *)buf, (int)len, NULL);
@@ -2366,16 +2368,19 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 	va_start(args, fmt);
 	vsnprintf(f, sizeof(f), fmt, args);
 	va_end(args);
+
 	if (!bufgap_open(&bg, f)) {
 		(void) fprintf(stderr, "pgp_ssh2pubkey: can't open '%s'\n", f);
 		return 0;
 	}
+
 	(void)stat(f, &st);
 	if ((buf = calloc(1, (size_t)st.st_size)) == NULL) {
 		(void) fprintf(stderr, "can't calloc %zu bytes for '%s'\n", (size_t)st.st_size, f);
 		bufgap_close(&bg);
 		return 0;
 	}
+
 	if ((bin = calloc(1, (size_t)st.st_size)) == NULL) {
 		(void) fprintf(stderr, "can't calloc %zu bytes for '%s'\n", (size_t)st.st_size, f);
 		(void) free(buf);
@@ -2392,12 +2397,14 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 			return 0;
 		}
 	}
+
 	if (!bufgap_seek(&bg, 1, BGFromHere, BGByte)) {
 		(void) fprintf(stderr, "bad key file '%s'\n", f);
 		(void) free(buf);
 		bufgap_close(&bg);
 		return 0;
 	}
+
 	off = bufgap_tell(&bg, BGFromBOF, BGByte);
 
 	if (bufgap_size(&bg, BGByte) - off < 10) {
@@ -2437,14 +2444,20 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 	switch (pubkey->keyalg = findstr(pkatypes, buf)) {
 	case PUBKEY_RSA_ENCRYPT_OR_SIGN:
 	case PUBKEY_RSA_SIGN:
-		getbignum(&pubkey->bn[RSA_E], &bg, buf, "RSA E");
-		getbignum(&pubkey->bn[RSA_N], &bg, buf, "RSA N");
+		if (getbignum(&pubkey->bn[RSA_E], &bg, buf, "RSA E") < 0 || \
+		    getbignum(&pubkey->bn[RSA_N], &bg, buf, "RSA N") < 0) {
+			(void) fprintf(stderr, "bad public key file '%s'\n", f);
+			return 0;
+		}
 		break;
 	case PUBKEY_DSA:
-		getbignum(&pubkey->bn[DSA_P], &bg, buf, "DSA P");
-		getbignum(&pubkey->bn[DSA_Q], &bg, buf, "DSA Q");
-		getbignum(&pubkey->bn[DSA_G], &bg, buf, "DSA G");
-		getbignum(&pubkey->bn[DSA_Y], &bg, buf, "DSA Y");
+		if (getbignum(&pubkey->bn[DSA_P], &bg, buf, "DSA P") < 0 || \
+		    getbignum(&pubkey->bn[DSA_Q], &bg, buf, "DSA Q") < 0 || \
+		    getbignum(&pubkey->bn[DSA_G], &bg, buf, "DSA G") < 0 || \
+		    getbignum(&pubkey->bn[DSA_Y], &bg, buf, "DSA Y") < 0) {
+			(void) fprintf(stderr, "bad public key file '%s'\n", f);
+			return 0;
+		}
 		break;
 	default:
 		(void) fprintf(stderr, "Unrecognised pubkey type %d for '%s'\n",
@@ -2459,6 +2472,7 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 		printf("[%s]\n", bufgap_getstr(&bg));
 		ok = 0;
 	}
+
 	if (ok) {
 		memset(&userid, 0x0, sizeof(userid));
 		(void) gethostname(hostname, sizeof(hostname));
@@ -2881,7 +2895,6 @@ int
 pgpv_read_ssh_pubkeys(pgpv_t *pgp, const void *keyring, ssize_t size)
 {
 	pgpv_primarykey_t	primary;
-
 	USE_ARG(size);
 	if (pgp == NULL) {
 		return 0;
