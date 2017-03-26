@@ -2308,6 +2308,7 @@ pgp_seckey_free(pgp_seckey_t *key)
 			pgp_show_pka(key->pubkey.alg));
 	}
 	free(key->checkhash);
+	key->checkhash = NULL;
 }
 
 static int 
