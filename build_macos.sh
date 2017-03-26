@@ -16,6 +16,13 @@ reconf() {
 		return 1
 	fi
 
+	which autoreconf 2>&1 >/dev/null
+	if [ $? -ne 0 ]; then
+		echo "fatal: autoreconf not found. Hint: 'brew install" \
+		    "autoconf automake'"
+		return 1
+	fi
+
 	autoreconf -ivf
 }
 

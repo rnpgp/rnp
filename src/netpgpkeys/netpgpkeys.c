@@ -51,8 +51,10 @@
 
 #define DEFAULT_HASH_ALG "SHA256"
 
+extern char *__progname;
+
 static const char *usage =
-	" --help OR\n"
+	"--help OR\n"
 	"\t--export-key [options] OR\n"
 	"\t--find-key [options] OR\n"
 	"\t--generate-key [options] OR\n"
@@ -150,22 +152,25 @@ static struct option options[] = {
 /* gather up program variables into one struct */
 typedef struct prog_t {
 	char	 keyring[MAXPATHLEN + 1];	/* name of keyring */
-	char	*progname;			/* program name */
 	int	 numbits;			/* # of bits */
 	int	 cmd;				/* netpgpkeys command */
 } prog_t;
 
 
+static void
+print_praise(void) {
+	(void) fprintf(stderr,
+	    "%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
+	    netpgp_get_info("version"),
+	    netpgp_get_info("maintainer"));
+}
+
 /* print a usage message */
 static void
-print_usage(const char *usagemsg, char *progname)
+print_usage(const char *usagemsg)
 {
-	(void) fprintf(stderr,
-	"%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
-				netpgp_get_info("version"),
-				netpgp_get_info("maintainer"));
-	(void) fprintf(stderr, "Usage: %s COMMAND OPTIONS:\n%s %s",
-		progname, progname, usagemsg);
+	print_praise();
+	(void) fprintf(stderr, "Usage: %s %s", __progname, usagemsg);
 }
 
 /* match keys, decoding from json if we do find any */
@@ -235,7 +240,7 @@ netpgp_cmd(netpgp_t *netpgp, prog_t *p, char *f)
 		return netpgp_match_pubkeys(netpgp, f, stdout);
 	case HELP_CMD:
 	default:
-		print_usage(usage, p->progname);
+		print_usage(usage);
 		exit(EXIT_SUCCESS);
 	}
 }
@@ -263,10 +268,7 @@ setoption(netpgp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 		p->cmd = val;
 		break;
 	case VERSION_CMD:
-		printf(
-"%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
-			netpgp_get_info("version"),
-			netpgp_get_info("maintainer"));
+		print_praise();
 		exit(EXIT_SUCCESS);
 		/* options */
 	case SSHKEYS:
@@ -400,10 +402,9 @@ main(int argc, char **argv)
 	(void) memset(&p, 0x0, sizeof(p));
 	(void) memset(&netpgp, 0x0, sizeof(netpgp));
 	homeset = 0;
-	p.progname = argv[0];
 	p.numbits = DEFAULT_NUMBITS;
 	if (argc < 2) {
-		print_usage(usage, p.progname);
+		print_usage(usage);
 		exit(EXIT_ERROR);
 	}
 	/* set some defaults */
@@ -425,10 +426,7 @@ main(int argc, char **argv)
 				netpgp_setvar(&netpgp, "sshkeyfile", optarg);
 				break;
 			case 'V':
-				printf(
-	"%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
-					netpgp_get_info("version"),
-					netpgp_get_info("maintainer"));
+				print_praise();
 				exit(EXIT_SUCCESS);
 			case 'g':
 				p.cmd = GENERATE_KEY;

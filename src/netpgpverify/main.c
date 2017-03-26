@@ -37,6 +37,15 @@
 #include "types.h"
 #include "netpgpdefs.h"
 
+extern char *__progname;
+
+static const char *usage =
+        "[-S <ssh-pub-key-file>]\n"
+        "\t[-c <command>]\n"
+        "\t[-k <keyring>]\n"
+        "\t[-v version]\n"
+        "\t[-h help]\n";
+
 /* print the time nicely */
 static void
 ptime(int64_t secs)
@@ -130,6 +139,13 @@ verify_data(pgpv_t *pgp, const char *cmd, const char *inname, char *in, ssize_t 
 	return 0;
 }
 
+/* print a usage message */
+static void
+print_usage(const char *usagemsg)
+{
+	(void) fprintf(stderr, "Usage: %s %s", __progname, usagemsg);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -143,12 +159,17 @@ main(int argc, char **argv)
 	int		 ok;
 	int		 i;
 
+	if (argc < 2) {
+		print_usage(usage);
+		exit(1);
+	}
+
 	memset(&pgp, 0x0, sizeof(pgp));
 	keyring = NULL;
 	ssh = 0;
 	ok = 1;
 	cmd = "verify";
-	while ((i = getopt(argc, argv, "S:c:k:v")) != -1) {
+	while ((i = getopt(argc, argv, "S:c:k:vh")) != -1) {
 		switch(i) {
 		case 'S':
 			ssh = 1;
@@ -162,6 +183,9 @@ main(int argc, char **argv)
 			break;
 		case 'v':
 			printf("%s\n", NETPGPVERIFY_VERSION);
+			exit(EXIT_SUCCESS);
+		case 'h':
+			print_usage(usage);
 			exit(EXIT_SUCCESS);
 		default:
 			break;

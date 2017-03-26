@@ -49,8 +49,10 @@
  */
 #define DEFAULT_HASH_ALG "SHA256"
 
+extern char *__progname;
+
 static const char *usage =
-	" --help OR\n"
+	"--help OR\n"
 	"\t--encrypt [--output=file] [options] files... OR\n"
 	"\t--decrypt [--output=file] [options] files... OR\n\n"
 	"\t--sign [--armor] [--detach] [--hash=alg] [--output=file]\n"
@@ -169,7 +171,6 @@ static struct option options[] = {
 /* gather up program variables into one struct */
 typedef struct prog_t {
 	char	 keyring[MAXPATHLEN + 1];	/* name of keyring */
-	char	*progname;			/* program name */
 	char	*output;			/* output file name */
 	int	 overwrite;			/* overwrite files? */
 	int	 armour;			/* ASCII armor */
@@ -177,17 +178,20 @@ typedef struct prog_t {
 	int	 cmd;				/* netpgp command */
 } prog_t;
 
+static void
+print_praise(void) {
+	(void) fprintf(stderr,
+	"%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
+	    netpgp_get_info("version"),
+	    netpgp_get_info("maintainer"));
+}
 
 /* print a usage message */
 static void
-print_usage(const char *usagemsg, char *progname)
+print_usage(const char *usagemsg)
 {
-	(void) fprintf(stderr,
-	"%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
-				netpgp_get_info("version"),
-				netpgp_get_info("maintainer"));
-	(void) fprintf(stderr, "Usage: %s COMMAND OPTIONS:\n%s %s",
-		progname, progname, usagemsg);
+	print_praise();
+	(void) fprintf(stderr, "Usage: %s %s", __progname, usagemsg);
 }
 
 /* read all of stdin into memory */
@@ -329,15 +333,14 @@ netpgp_cmd(netpgp_t *netpgp, prog_t *p, char *f)
 	case LIST_PACKETS:
 		if (f == NULL) {
 			(void) fprintf(stderr, "%s: No filename provided\n",
-				p->progname);
+				__progname);
 			return 0;
 		}
 		return netpgp_list_packets(netpgp, f, p->armour, NULL);
 	case SHOW_KEYS:
 		return netpgp_validate_sigs(netpgp);
-	case HELP_CMD:
 	default:
-		print_usage(usage, p->progname);
+		print_usage(usage);
 		exit(EXIT_SUCCESS);
 	}
 }
@@ -372,13 +375,10 @@ setoption(netpgp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 	case LIST_PACKETS:
 	case SHOW_KEYS:
 	case HELP_CMD:
-		p->cmd = val;
-		break;
+                print_usage(usage);
+                exit(EXIT_SUCCESS);
 	case VERSION_CMD:
-		printf(
-"%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
-			netpgp_get_info("version"),
-			netpgp_get_info("maintainer"));
+		print_praise();
 		exit(EXIT_SUCCESS);
 		/* options */
 	case SSHKEYS:
@@ -528,11 +528,10 @@ main(int argc, char **argv)
 
 	(void) memset(&p, 0x0, sizeof(p));
 	(void) memset(&netpgp, 0x0, sizeof(netpgp));
-	p.progname = argv[0];
 	p.overwrite = 1;
 	p.output = NULL;
 	if (argc < 2) {
-		print_usage(usage, p.progname);
+		print_usage(usage);
 		exit(EXIT_ERROR);
 	}
 	/* set some defaults */
@@ -554,10 +553,7 @@ main(int argc, char **argv)
 				netpgp_setvar(&netpgp, "sshkeyfile", optarg);
 				break;
 			case 'V':
-				printf(
-	"%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
-					netpgp_get_info("version"),
-					netpgp_get_info("maintainer"));
+				print_praise();
 				exit(EXIT_SUCCESS);
 			case 'd':
 				/* for decryption, we need the seckey */
