@@ -156,7 +156,6 @@ typedef struct prog_t {
 	int	 cmd;				/* netpgpkeys command */
 } prog_t;
 
-
 static void
 print_praise(void) {
 	(void) fprintf(stderr,

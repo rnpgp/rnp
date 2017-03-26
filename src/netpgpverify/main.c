@@ -191,9 +191,14 @@ main(int argc, char **argv)
 			break;
 		}
 	}
+
+	if (keyring == NULL) {
+		print_usage(usage);
+		exit(1);
+	}
+
 	if (ssh) {
 		if (!pgpv_read_ssh_pubkeys(&pgp, keyring, -1)) {
-			fprintf(stderr, "can't read ssh keyring\n");
 			exit(EXIT_FAILURE);
 		}
 	} else if (!pgpv_read_pubring(&pgp, keyring, -1)) {
