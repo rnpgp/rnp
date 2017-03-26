@@ -7,7 +7,7 @@
 #
 # Preconditions:
 #  - $ ls
-#    netpgp/
+#    rnp/
 #
 # Call this with:
 #
@@ -39,7 +39,7 @@ main() {
     exit 1
   fi
 
-  readonly local PNAME=netpgp
+  readonly local PNAME=rnp
   readonly local PVERSION="$1"
   readonly local PRELEASE="$2"
   readonly local PPATH="${3:-${PNAME}}"

@@ -1,12 +1,20 @@
+dnl (c) 2017 Ribose Inc.
+dnl Frank Trampe, Jeffrey Lau and Ronald Tse.
+dnl The file is hereby released under the license of the enclosing project.
+dnl This gets processed by m4.
+dnl Macros:
+dnl   PACKAGE_VERSION
+dnl   SOURCE_TARBALL_NAME
+dnl   RELEASE
 
 
 Name: rnp
-Version: 3.99.18
-Release: 1%{?dist}
+Version: PACKAGE_VERSION
+Release: RELEASE%{?dist}
 License: BSD
 URL: https://github.com/riboseinc/rnp
 Summary: Freely licensed PGP implementation
-Source: netpgp-3.99.18.tar.bz2
+Source: SOURCE_TARBALL_NAME
 BuildRequires: openssl-devel, zlib-devel, bzip2-devel, chrpath, autoconf, automake, libtool
 Requires: rnpv = %{version}-%{release}
 
@@ -32,7 +40,7 @@ find "%{buildroot}"/%{_libdir} -name "*.la" -delete;
 %attr(0755,root,root) %{_bindir}/rnp
 %attr(0755,root,root) %{_bindir}/rnpkeys
 %attr(0644,root,root) %{_mandir}/man1/rnp.1.gz
-%attr(0644,root,root) %{_mandir}/man1/rnp.1.gz
+%attr(0644,root,root) %{_mandir}/man1/rnpkeys.1.gz
 %doc Licence
 
 

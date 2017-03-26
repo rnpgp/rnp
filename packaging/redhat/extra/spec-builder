@@ -7,7 +7,7 @@
 #
 # Preconditions:
 #  - $ ls
-#    netpgp/
+#    rnp/
 #
 # Call this with:
 #
@@ -35,7 +35,7 @@ main() {
     exit 1
   fi
 
-  readonly local PNAME=netpgp
+  readonly local PNAME=rnp
   readonly local PVERSION="$1"
   readonly local PRELEASE="$2"
   readonly local PPATH="${3:-${PNAME}}"
@@ -47,8 +47,8 @@ main() {
   mkdir -p "${SPEC_DIR}"
 
   # readonly local PSOURCE_PATH="${SOURCES_DIR}/${PNAMEVERSION}.tar.bz2"
-  # readonly local PSOURCE_PATH="${PNAMEVERSION}.tar.bz2"
-  readonly local PSOURCE_PATH="https://api.github.com/repos/riboseinc/rp/tarball/${PVERSION}"
+  readonly local PSOURCE_PATH="${PNAMEVERSION}.tar.bz2"
+  #readonly local PSOURCE_PATH="https://api.github.com/repos/riboseinc/rp/tarball/${PVERSION}"
 
   # Generate the spec file, and copy it to the source directory.
   readonly local PSPEC_PATH="${SPEC_DIR}/${PNAME}.spec"
@@ -56,7 +56,7 @@ main() {
     -D "PACKAGE_VERSION=${PVERSION}" \
     -D "SOURCE_TARBALL_NAME=${PSOURCE_PATH}" \
     -D "RELEASE=${PRELEASE}" \
-    < "packaging/redhat/m4/netpgp.spec.m4" \
+    < "packaging/redhat/m4/rnp.spec.m4" \
     > "${PSPEC_PATH}" && \
 
   chown $(id -u):$(id -g) "${PSPEC_PATH}" && \
