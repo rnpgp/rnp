@@ -2,9 +2,9 @@
 
 AM_CFLAGS		= $(WARNCFLAGS)
 
-bin_PROGRAMS		= netpgpverify
+bin_PROGRAMS		= rnpv
 
-netpgpverify_SOURCES	= \
+rnpv_SOURCES	= \
 	b64.c \
 	bignum.c \
 	bufgap.c \
@@ -20,8 +20,8 @@ netpgpverify_SOURCES	= \
 	sha2.c \
 	tiger.c
 
-netpgpverify_CPPFLAGS	= -I$(top_srcdir)/include -I../libmj
+rnpv_CPPFLAGS	= -I$(top_srcdir)/include -I../libmj
 
-netpgpverify_LDADD	= ../lib/libnetpgp.la ../libmj/libmj.la
+rnpv_LDADD	= ../lib/librnp.la ../libmj/libmj.la
 
-dist_man_MANS		= netpgpverify.1
+dist_man_MANS		= rnpv.1

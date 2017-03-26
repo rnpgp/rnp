@@ -2,11 +2,11 @@
 
 AM_CFLAGS		= $(WARNCFLAGS)
 
-lib_LTLIBRARIES		= libnetpgp.la
+lib_LTLIBRARIES		= librnp.la
 
-libnetpgp_la_CPPFLAGS	= -I$(top_srcdir)/include -I../libmj
+librnp_la_CPPFLAGS	= -I$(top_srcdir)/include -I../libmj
 
-libnetpgp_la_SOURCES	= \
+librnp_la_SOURCES	= \
 	bufgap.c \
 	compress.c \
 	create.c \
@@ -25,6 +25,6 @@ libnetpgp_la_SOURCES	= \
 	validate.c \
 	writer.c
 
-libnetpgp_la_LIBADD	= ../libmj/libmj.la
+librnp_la_LIBADD	= ../libmj/libmj.la
 
-dist_man_MANS		= libnetpgp.3
+dist_man_MANS		= librnp.3

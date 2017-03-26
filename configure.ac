@@ -2,16 +2,16 @@
 #
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT([netpgp],[20140220],[Alistair Crooks <agc@netbsd.org> c0596823])
+AC_INIT([rnp],[3.99.18],[Zoltan Gyarmati <mr.zoltan.gyarmati@gmail.com>])
 AC_PREREQ(2.69)
 AC_REVISION([$Revision: 1.42 $])
 
 AS_SHELL_SANITIZE
 
-AC_CONFIG_SRCDIR([src/netpgp/netpgp.c])
+AC_CONFIG_SRCDIR([src/rnp/rnp.c])
 AC_CONFIG_AUX_DIR([buildaux])
 AC_CONFIG_HEADER([src/lib/config.h])
-AC_CONFIG_HEADER([src/netpgpverify/config.h])
+AC_CONFIG_HEADER([src/rnpv/config.h])
 
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
@@ -129,9 +129,9 @@ AC_CONFIG_FILES([
         src/Makefile
         src/libmj/Makefile
         src/lib/Makefile
-        src/netpgp/Makefile
-        src/netpgpkeys/Makefile
-        src/netpgpverify/Makefile
+        src/rnp/Makefile
+        src/rnpkeys/Makefile
+        src/rnpv/Makefile
         tests/Makefile
         tests/atlocal
 ])

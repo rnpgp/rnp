@@ -26,7 +26,7 @@
 
 #include <netdb.h>
 
-#include <netpgp.h>
+#include <rnp.h>
 #include <regex.h>
 #include <sha1.h>
 #include <stdio.h>

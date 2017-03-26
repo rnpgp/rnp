@@ -1,4 +1,4 @@
-.\" $NetBSD: netpgpverify.1,v 1.10 2016/09/12 16:54:31 abhinav Exp $
+.\" $NetBSD: rnpv.1,v 1.10 2016/09/12 16:54:31 abhinav Exp $
 .\"
 .\" Copyright (c) 2013,2014,2015 Alistair Crooks <agc@NetBSD.org>
 .\" All rights reserved.
@@ -24,10 +24,10 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .Dd January 15, 2015
-.Dt NETPGPVERIFY 1
+.Dt RNPV 1
 .Os
 .Sh NAME
-.Nm netpgpverify
+.Nm rnpv
 .Nd standalone program for digital signature verification
 .Sh SYNOPSIS
 .Nm
@@ -50,7 +50,7 @@ are used, in order to ensure maximum portability.
 It is completely rewritten from the version of the program that appeared in
 .Nx 6.0
 as part of the
-.Xr netpgp 1
+.Xr rnp 1
 suite of commands.
 .Pp
 The
@@ -109,7 +109,7 @@ The
 argument allows an ssh public key file to be used as the source of
 truth for the key.
 This ssh-key-based signature can be created using the
-.Xr netpgp 1
+.Xr rnp 1
 utility.
 .Pp
 If a detached signature
@@ -125,7 +125,7 @@ Both text mode signatures, and binary signatures, can be verified by
 .Sh SIGNING AND VERIFICATION
 Verification of a file's signature is best viewed using the following example:
 .Bd -literal
-% netpgpverify -k pubring.gpg NetBSD-6.0_RC1_hashes.asc
+% rnpv -k pubring.gpg NetBSD-6.0_RC1_hashes.asc
 Good signature for NetBSD-6.0_RC1_hashes.asc made Thu Aug 23 11:47:50 2012
 signature     4096/RSA (Encrypt or Sign) 064973ac4c4a706e 2009-06-23
 fingerprint   ddee 2bdb 9c98 a0d1 d4fb dbf7 0649 73ac 4c4a 706e
@@ -139,7 +139,7 @@ utility will return 0 for a successful verification,
 1 if the file's signature does not match what was expected,
 or 2 if any other error occurs.
 .Sh SEE ALSO
-.Xr netpgp 1 ,
+.Xr rnp 1 ,
 .\" .Xr libbz2 3 ,
 .Xr zlib 3
 .Sh STANDARDS

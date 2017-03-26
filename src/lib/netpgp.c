@@ -68,7 +68,7 @@ __RCSID("$NetBSD: netpgp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <limits.h>
 #endif
 
-#include <netpgp.h>
+#include <rnp.h>
 
 #include "packet.h"
 #include "packet-parse.h"

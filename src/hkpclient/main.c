@@ -25,7 +25,7 @@
 #include <sys/types.h>
 
 #include <inttypes.h>
-#include <netpgp.h>
+#include <rnp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
