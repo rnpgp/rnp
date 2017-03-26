@@ -38,7 +38,6 @@ find "%{buildroot}"/%{_libdir} -name "*.la" -delete;
 
 %package -n libnetpgp
 Summary: Cryptography library
-Requires: libmj = %{version}
 
 %description -n libnetpgp
 libnetpgp provides cryptographic routines and support for PGP.
@@ -78,48 +77,6 @@ libnetpgp provides cryptographic routines and support for PGP.
 %attr(0644,root,root) %{_libdir}/libnetpgp.a
 
 
-%package -n libmj
-Summary: JSON support for netpgp
-
-%description -n libmj
-libmj provides JSON routines required by libnetpgp.
-
-%post  -n libmj -p /sbin/ldconfig
-
-%postun -n libmj -p /sbin/ldconfig
-
-%files -n libmj
-%defattr(-,root,root)
-%attr(0755,root,root) %{_libdir}/libmj.so.*
-%attr(0644,root,root) %{_mandir}/man3/libmj.3.gz
-
-
-%package -n libmj-devel
-Requires: libmj = %{version}
-Summary:  Development headers and libraries for libmj
-
-%description -n libmj-devel
-Development files for libmj, the JSON library used in libnetpgp
-
-%files -n libmj-devel
-%defattr(-,root,root)
-%attr(0755,root,root) %{_libdir}/libmj.so
-%attr(0644,root,root) %{_prefix}/include/mj.h
-%attr(0644,root,root) %{_mandir}/man3/libmj.3.gz
-
-
-%package -n libmj-static
-Requires: libmj-devel = %{version}
-Summary:  Static library for libmj
-
-%description -n libmj-static
-Static library files for libmj, the JSON library used in libnetpgp
-
-%files -n libmj-static
-%defattr(-,root,root)
-%attr(0755,root,root) %{_libdir}/libmj.a
-
-
 %package -n netpgpverify
 Summary: Command line utility to verify signatures
 
@@ -132,6 +89,9 @@ netpgpverify verifies PGP signatures.
 %attr(0644,root,root) %{_mandir}/man1/netpgpverify.1.gz
 
 %changelog
+* Fri Mar 26 2017 Zoltan Gyarmati <mr.zoltan.gyarmati@gmail.com> - 3.99.18-2
+- remove libmj installed packages as it's not installed anymore
+
 * Fri Mar 10 2017 Zoltan Gyarmati <mr.zoltan.gyarmati@gmail.com> - 3.99.18-1
 - Fix rpmlint and fedora-review errors
 - Add libnetpgp-static package
