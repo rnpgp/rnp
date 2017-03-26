@@ -8,7 +8,6 @@ netpgpverify_SOURCES	= \
 	b64.c \
 	bignum.c \
 	bufgap.c \
-	bzlib.c \
 	digest.c \
 	libverify.c \
 	main.c \
@@ -19,8 +18,7 @@ netpgpverify_SOURCES	= \
 	rsa.c \
 	sha1.c \
 	sha2.c \
-	tiger.c \
-	zlib.c
+	tiger.c
 
 netpgpverify_CPPFLAGS	= -I$(top_srcdir)/include -I../libmj
 
