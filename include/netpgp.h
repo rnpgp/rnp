@@ -47,6 +47,12 @@ typedef struct netpgp_t {
 	unsigned	  size;		/* size of array */
 	char		**name;		/* key names */
 	char		**value;	/* value information */
+
+/* TODO: We should review whether or not these need to be void. By
+ *       adding some of these types to a public interface documented
+ *       as "private" we get to keep strong type checking.
+ */
+
 	void		 *pubring;	/* public key ring */
 	void		 *secring;	/* s3kr1t key ring */
 	void		 *io;		/* the io struct for results/errs */
