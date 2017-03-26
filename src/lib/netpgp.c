@@ -955,7 +955,6 @@ static int netpgp_load_keys_gnupg(netpgp_t *netpgp, char *homedir)
 	pgp_io_t *io = netpgp->io;
 
 	/* TODO: Some of this might be split up into sub-functions. */
-	/* TODO: Double-check whether or not ID needs to be zeroed. */
 	/* TODO: Figure out what unhandled error is causing an
 	 *       empty keyring to end up in get_first_ring
 	 *       and ensure that it's not present in the
@@ -963,8 +962,14 @@ static int netpgp_load_keys_gnupg(netpgp_t *netpgp, char *homedir)
 	 */
 
 	netpgp->pubring = readkeyring(netpgp, "pubring");
+
 	if (netpgp->pubring == NULL) {
-		fprintf(io->errs, "Can't read pub keyring\n");
+		fprintf(io->errs, "cannot read pub keyring\n");
+		return 0;
+	}
+
+	if (((pgp_keyring_t *) netpgp->pubring)->keyc < 1) {
+		fprintf(io->errs, "pub keyring is empty\n");
 		return 0;
 	}
 
@@ -981,10 +986,15 @@ static int netpgp_load_keys_gnupg(netpgp_t *netpgp, char *homedir)
 	/* Only read secret keys if we need to. */
 	if (netpgp_getvar(netpgp, "need seckey")) {
 
-		/* Read the secret ring. */
 		netpgp->secring = readkeyring(netpgp, "secring");
+
 		if (netpgp->secring == NULL) {
 			fprintf(io->errs, "Can't read sec keyring\n");
+			return 0;
+		}
+
+		if (((pgp_keyring_t *) netpgp->secring)->keyc < 1) {
+			fprintf(io->errs, "sec keyring is empty\n");
 			return 0;
 		}
 
@@ -993,19 +1003,18 @@ static int netpgp_load_keys_gnupg(netpgp_t *netpgp, char *homedir)
 		 */
 		if (! userid && netpgp_getvar(netpgp,
 				"need userid") != NULL) {
-			memset(id, 0, sizeof(id));
-			if (get_first_ring(netpgp->secring, id,
-					sizeof(id), 0)) {
-				netpgp_setvar(netpgp, "userid",
-						userid = id);
 
-			/* TODO: This is _temporary_. A more suitable
-			 *       replacement will be required.
-			 */
-			} else {
-				fprintf(io->errs, "Failed to read id\n");
+			if (! get_first_ring(netpgp->secring, id,
+					sizeof(id), 0)) {
+				/* TODO: This is _temporary_. A more
+				 *       suitable replacement will be
+				 *       required.
+				 */
+				fprintf(io->errs, "failed to read id\n");
 				return 0;
 			}
+
+			netpgp_setvar(netpgp, "userid", userid = id);
 		}
 
 	} else if (netpgp_getvar(netpgp, "need userid") != NULL) {
