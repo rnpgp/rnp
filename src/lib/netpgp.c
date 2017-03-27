@@ -1451,8 +1451,12 @@ netpgp_generate_key(netpgp_t *netpgp, char *id, int numbits)
 	cp = NULL;
 	pgp_sprint_keydata(netpgp->io, NULL, key, &cp, "signature ", &key->key.seckey.pubkey, 0);
 	(void) fprintf(stdout, "%s", cp);
+
 	/* write public key */
-	cc = snprintf(dir, sizeof(dir), "%s/%.16s", netpgp_getvar(netpgp, "homedir"), &cp[ID_OFFSET]);
+
+	cc = snprintf(dir, sizeof(dir), "%s",
+			netpgp_getvar(netpgp, "homedir"));
+
 	netpgp_setvar(netpgp, "generated userid", &dir[cc - 16]);
 	if (mkdir(dir, 0700) < 0) {
 		(void) fprintf(io->errs, "can't mkdir '%s'\n", dir);
