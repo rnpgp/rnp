@@ -1483,7 +1483,6 @@ netpgp_generate_key(netpgp_t *netpgp, char *id, int numbits)
 	 *       permissions aren't 0700.
 	 */
 	if (mkdir(dir, 0700) == -1 && errno != EEXIST) {
-		perror(strerror(errno));
 		fprintf(io->errs, "can't mkdir '%s'\n", dir);
 		goto out;
 	}
