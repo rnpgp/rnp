@@ -73,10 +73,10 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "packet-show.h"
 #include "signature.h"
 #include "readerwriter.h"
-#include "netpgpdefs.h"
-#include "netpgpsdk.h"
+#include "rnpdefs.h"
+#include "rnpsdk.h"
 #include "packet.h"
-#include "netpgpdigest.h"
+#include "rnpdigest.h"
 #include "mj.h"
 
 /* static functions */

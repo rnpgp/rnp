@@ -80,14 +80,14 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "keyring.h"
 #include "packet-parse.h"
 #include "signature.h"
-#include "netpgpsdk.h"
+#include "rnpsdk.h"
 #include "readerwriter.h"
-#include "netpgpdefs.h"
+#include "rnpdefs.h"
 #include "packet.h"
 #include "crypto.h"
 #include "validate.h"
-#include "netpgpdefs.h"
-#include "netpgpdigest.h"
+#include "rnpdefs.h"
+#include "rnpdigest.h"
 
 
 

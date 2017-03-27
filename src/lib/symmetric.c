@@ -83,7 +83,7 @@ __RCSID("$NetBSD: symmetric.c,v 1.18 2010/11/07 08:39:59 agc Exp $");
 #endif
 
 #include "crypto.h"
-#include "netpgpdefs.h"
+#include "rnpdefs.h"
 
 
 static void 

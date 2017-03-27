@@ -70,7 +70,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "crypto.h"
 #include "readerwriter.h"
 #include "memory.h"
-#include "netpgpdefs.h"
+#include "rnpdefs.h"
 #include "signature.h"
 
 /**

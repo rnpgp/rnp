@@ -80,11 +80,11 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 #include "signature.h"
 #include "crypto.h"
 #include "create.h"
-#include "netpgpsdk.h"
+#include "rnpsdk.h"
 #include "readerwriter.h"
 #include "validate.h"
-#include "netpgpdefs.h"
-#include "netpgpdigest.h"
+#include "rnpdefs.h"
+#include "rnpdigest.h"
 
 
 /** \ingroup Core_Create

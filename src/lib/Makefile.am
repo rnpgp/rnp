@@ -13,7 +13,7 @@ librnp_la_SOURCES	= \
 	crypto.c \
 	keyring.c \
 	misc.c \
-	netpgp.c \
+	rnp.c \
 	openssl_crypto.c \
 	packet-parse.c \
 	packet-print.c \

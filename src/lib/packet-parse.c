@@ -87,9 +87,9 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "packet-show.h"
 #include "create.h"
 #include "readerwriter.h"
-#include "netpgpdefs.h"
+#include "rnpdefs.h"
 #include "crypto.h"
-#include "netpgpdigest.h"
+#include "rnpdigest.h"
 
 #define ERRP(cbinfo, cont, err)	do {					\
 	cont.u.error = err;						\

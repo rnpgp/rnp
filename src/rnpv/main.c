@@ -35,7 +35,7 @@
 
 #include "verify.h"
 #include "types.h"
-#include "netpgpdefs.h"
+#include "rnpdefs.h"
 
 extern char *__progname;
 
