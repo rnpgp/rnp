@@ -5,11 +5,11 @@ AT_SETUP([detached signature and verification])
 AT_CHECK([cp ${TOPSRCDIR}/configure file2], [0], [ignore], [ignore])
 
 # Detached signature
-AT_CHECK([netpgp --homedir $testhomedir --sign --detached file2],
+AT_CHECK([rnp --homedir $testhomedir --sign --detached file2],
     [0], [ignore], [ignore])
 
 # Verify detached sig file
-AT_CHECK([netpgp --homedir $testhomedir --verify file2.sig],
+AT_CHECK([rnp --homedir $testhomedir --verify file2.sig],
     [0], [ignore], [ignore])
 
 AT_CLEANUP
