@@ -85,6 +85,22 @@ __RCSID("$NetBSD: netpgp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "ssh2pgp.h"
 #include "defs.h"
 
+/* The dot directory relative to the user's home directory used for storing
+ * rnp keys.
+ *
+ * TODO: This define should be moved somewhere central to the build and
+ *       possibly made able to be overridden by the user.
+ *
+ * XXX:  For now the dot directory is .rnp to prevent competition with
+ *       developers' .gnupg installations. If you want to change this
+ *       make sure you _tell everyone_. I don't want any
+ *       surprises. :>
+ *
+ *       ~ shaun
+ */
+
+#define DOT_DIRECTORY ".rnp"
+
 /* read any gpg config file */
 static int
 conffile(netpgp_t *netpgp, char *homedir, char *userid, size_t length)
@@ -1451,13 +1467,26 @@ netpgp_generate_key(netpgp_t *netpgp, char *id, int numbits)
 	cp = NULL;
 	pgp_sprint_keydata(netpgp->io, NULL, key, &cp, "signature ", &key->key.seckey.pubkey, 0);
 	(void) fprintf(stdout, "%s", cp);
+
 	/* write public key */
-	cc = snprintf(dir, sizeof(dir), "%s/%.16s", netpgp_getvar(netpgp, "homedir"), &cp[ID_OFFSET]);
+
+	cc = snprintf(dir, sizeof(dir), "%s/%s",
+			netpgp_getvar(netpgp, "homedir"), DOT_DIRECTORY);
+
 	netpgp_setvar(netpgp, "generated userid", &dir[cc - 16]);
-	if (mkdir(dir, 0700) < 0) {
-		(void) fprintf(io->errs, "can't mkdir '%s'\n", dir);
+
+	/* TODO: This call competes with the mkdir() at
+	 *       netpgpkeys/netpgpkeys.c:main:458, but that call doesn't
+	 *       check for error conditions. For now this call is allowed
+	 *       to succeed if the directory already exists, but an
+	 *       error should be raised the existing directory's
+	 *       permissions aren't 0700.
+	 */
+	if (mkdir(dir, 0700) == -1 && errno != EEXIST) {
+		fprintf(io->errs, "can't mkdir '%s'\n", dir);
 		goto out;
 	}
+
 	(void) fprintf(io->errs, "netpgp: generated keys in directory %s\n", dir);
 	(void) snprintf(ringfile = filename, sizeof(filename), "%s/pubring.gpg", dir);
 	if (!appendkey(io, key, ringfile)) {
