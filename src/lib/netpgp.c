@@ -1103,6 +1103,8 @@ netpgp_init(netpgp_t *netpgp)
 	char     *homedir;
 	pgp_io_t *io;
 
+	memset((void *) netpgp, '\0', sizeof(netpgp_t));
+
 	/* Assume that core dumps are always enabled. */
 	coredumps = 1;
 
