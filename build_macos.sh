@@ -3,57 +3,44 @@
 # Copyright (c) 2017 Ribose Inc.
 # build_macos.sh
 
-[ -z "$OPENSSL_ROOT" ] && OPENSSL_ROOT="/usr/local/opt/openssl"
+OPENSSL_ROOT_DEFAULT='/usr/local'
 
-reconf() {
+find_openssl_root_homebrew() {
 
-	# Check that the ./m4/ directory exists.
-	if [ ! -e m4 ]; then
-		mkdir m4
-	elif [ -f m4 ]; then
-		echo "fatal: $(dirname $0)/m4 is not a directory. Please " \
-		     "move or delete it and try again."
-		return 1
-	fi
+	# Check that brew is available on the search path and that OpenSSL
+	# is installed:
 
-	which autoreconf 2>&1 >/dev/null
-	if [ $? -ne 0 ]; then
-		echo "fatal: autoreconf not found. Hint: 'brew install" \
-		    "autoconf automake'"
-		return 1
-	fi
-
-	autoreconf -ivf
-}
-
-configure() {
-
-	# configure will check that OpenSSL is OpenSSL but we must still
-	# manually specify that we want it on the preprocessor and linker
-	# search paths.
-	#
-	# If you're using a different package manager (like pkgin) you can
-	# invoke this script with a suitable OPENSSL_ROOT:
-	#
-	# $ OPENSSL_ROOT='/opt/pkg' ./build_macos.sh
-
-	CFLAGS="-I$OPENSSL_ROOT/include" \
-	LDFLAGS="-L$OPENSSL_ROOT/lib" \
-		./configure --with-openssl="$OPENSSL_ROOT"
-}
-
-main() {
-	if reconf; then
-		if configure; then
-			make
+	if command -v brew >/dev/null; then
+		if brew --prefix openssl 2>/dev/null; then
+			return 0
 		fi
 	fi
+	return 1
 }
 
-interactive() {
-	echo $- | grep i >/dev/null
+find_openssl_root() {
+	if ! find_openssl_root_homebrew; then
+		OPENSSL_ROOT="$OPENSSL_ROOT_DEFAULT"
+	fi
 }
 
-if ! interactive; then
-	main
-fi
+# You can override the OpenSSL root directory from the environment if you
+# wish; e.g. if using a different package manager:
+#
+# OPENSSL_ROOT='/opt/pkg' ./build_macos.sh
+
+[ -z "$OPENSSL_ROOT" ] && OPENSSL_ROOT="$(find_openssl_root)"
+
+ACFLAGS="--with-openssl=$OPENSSL_ROOT"
+
+# configure will check that the given OpenSSL path is probably OpenSSL but
+# we still need to add OPENSSL_ROOT to the preprocessor and linker search
+# paths. We set up that environment here:
+
+CFLAGS="$CFLAGS -I$OPENSSL_ROOT/include"
+
+LDFLAGS="$LDFLAGS -L$OPENSSL_ROOT/lib"
+
+export CFLAGS LDFLAGS
+
+. build_main.inc.sh

@@ -1,10 +1,6 @@
 #!/bin/bash
 #
-# (c) 2017 Ribose Inc.
-#
+# Copyright (c) 2017 Ribose Inc.
+# build.sh
 
-[ ! -d m4 ] && \
-  mkdir m4
-autoreconf -ivf
-./configure
-make
+. build_main.inc.sh 
