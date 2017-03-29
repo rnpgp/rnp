@@ -69,6 +69,7 @@ __RCSID("$NetBSD: compress.c,v 1.23 2012/03/05 02:20:18 christos Exp $");
 #endif
 
 #include <string.h>
+#include <stdlib.h>
 
 #include "packet-parse.h"
 #include "errors.h"

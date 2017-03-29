@@ -68,6 +68,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include <fcntl.h>
 #endif
 
+#include <stdio.h>
 #include <string.h>
 
 #ifdef HAVE_UNISTD_H
@@ -77,6 +78,8 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #ifdef HAVE_OPENSSL_CAST_H
 #include <openssl/cast.h>
 #endif
+
+#include <openssl/bn.h>
 
 #include "create.h"
 #include "keyring.h"

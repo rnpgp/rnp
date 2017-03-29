@@ -78,6 +78,8 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include <openssl/rand.h>
 #endif
 
+#include <openssl/bn.h>
+
 #include "errors.h"
 #include "packet.h"
 #include "crypto.h"
@@ -597,7 +599,7 @@ pgp_hash_add_int(pgp_hash_t *hash, unsigned n, unsigned length)
 \param hash Hash to set up
 \param alg Hash algorithm to use
 */
-void 
+int
 pgp_hash_any(pgp_hash_t *hash, pgp_hash_alg_t alg)
 {
 	switch (alg) {
@@ -627,7 +629,9 @@ pgp_hash_any(pgp_hash_t *hash, pgp_hash_alg_t alg)
 
 	default:
 		(void) fprintf(stderr, "pgp_hash_any: bad algorithm\n");
+                return 0;
 	}
+        return 1;
 }
 
 /**

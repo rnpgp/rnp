@@ -70,9 +70,7 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 #include <unistd.h>
 #endif
 
-#ifdef HAVE_OPENSSL_CAST_H
-#include <openssl/cast.h>
-#endif
+#include <openssl/bn.h>
 
 #include "create.h"
 #include "writer.h"

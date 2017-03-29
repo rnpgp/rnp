@@ -29,6 +29,8 @@
 #ifndef RPNDEFS_H_
 #define RPNDEFS_H_	1
 
+#include <stdio.h>
+
 #define PRItime		"ll"
 
 #ifdef WIN32

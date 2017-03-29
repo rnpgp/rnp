@@ -58,9 +58,10 @@
 #include "memory.h"
 #include "packet-parse.h"
 
-#include <openssl/dsa.h>
-
 #define PGP_MIN_HASH_SIZE	16
+
+typedef struct DSA_SIG_st DSA_SIG;
+typedef struct bignum_st BIGNUM;
 
 /** pgp_hash_t */
 struct pgp_hash_t {
@@ -107,7 +108,8 @@ void pgp_hash_sha256(pgp_hash_t *);
 void pgp_hash_sha512(pgp_hash_t *);
 void pgp_hash_sha384(pgp_hash_t *);
 void pgp_hash_sha224(pgp_hash_t *);
-void pgp_hash_any(pgp_hash_t *, pgp_hash_alg_t);
+
+int pgp_hash_any(pgp_hash_t *, pgp_hash_alg_t);
 pgp_hash_alg_t pgp_str_to_hash_alg(const char *);
 const char *pgp_text_from_hash(pgp_hash_t *);
 unsigned pgp_hash_size(pgp_hash_alg_t);
@@ -213,6 +215,7 @@ pgp_key_t  *pgp_rsa_new_key(const int,
 			const char *);
 
 int pgp_dsa_size(const pgp_dsa_pubkey_t *);
+
 DSA_SIG *pgp_dsa_sign(uint8_t *, unsigned,
 				const pgp_dsa_seckey_t *,
 				const pgp_dsa_pubkey_t *);

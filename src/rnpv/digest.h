@@ -29,11 +29,7 @@
 
 #include <inttypes.h>
 
-#include "md5.h"
-#include "sha1.h"
-#include "sha2.h"
-#include "rmd160.h"
-#include "tiger.h"
+#include "crypto.h"
 
 #ifndef __BEGIN_DECLS
 #  if defined(__cplusplus)
@@ -57,21 +53,14 @@ __BEGIN_DECLS
 #define SHA224_HASH_ALG		11
 #define TIGER2_HASH_ALG		100	/* private/experimental from rfc4880 */
 
+#define SHA256_DIGEST_LENGTH 32
+
+typedef struct pgp_hash_t pgp_hash_t;
+
 /* structure to describe digest methods */
 typedef struct digest_t {
 	uint32_t		 alg;		/* algorithm */
-	size_t			 size;		/* size */
-	union {
-		RNPV_MD5_CTX		 md5ctx;	/* MD5 */
-		RNPV_SHA1_CTX	 sha1ctx;	/* SHA1 */
-		RNPV_RMD160_CTX	 rmd160ctx;	/* RIPEMD */
-		RNPV_SHA256_CTX	 sha256ctx;	/* SHA256 */
-		RNPV_SHA512_CTX	 sha512ctx;	/* SHA512 */
-		RNPV_TIGER_CTX	 tigerctx;	/* TIGER/TIGER2 */
-	} u;
-	void			*prefix;	/* points to specific prefix */
-	uint32_t		 len;		/* prefix length */
-	void			*ctx;		/* pointer to context array */
+	pgp_hash_t		 ctx;		/* hash context */
 } digest_t;
 
 unsigned digest_get_alg(const char */*hashalg*/);

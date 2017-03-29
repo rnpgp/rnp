@@ -11,14 +11,9 @@ rnpv_SOURCES	= \
 	digest.c \
 	libverify.c \
 	main.c \
-	md5c.c \
 	misc.c \
 	pgpsum.c \
-	rmd160.c \
-	rsa.c \
-	sha1.c \
-	sha2.c \
-	tiger.c
+	rsa.c
 
 rnpv_CPPFLAGS	= -I$(top_srcdir)/include -I../libmj
 

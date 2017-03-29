@@ -68,6 +68,8 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include <openssl/cast.h>
 #endif
 
+#include <openssl/bn.h>
+
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
