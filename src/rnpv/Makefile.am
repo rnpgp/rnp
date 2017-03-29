@@ -20,7 +20,7 @@ rnpv_SOURCES	= \
 	sha2.c \
 	tiger.c
 
-rnpv_CPPFLAGS	= -I$(top_srcdir)/include -I../libmj
+rnpv_CPPFLAGS	= -I$(top_srcdir)/include -I$(top_srcdir)/src/libmj -I$(top_srcdir)/src/lib
 
 rnpv_LDADD	= ../lib/librnp.la ../libmj/libmj.la
 

@@ -4,7 +4,7 @@ AM_CFLAGS		= $(WARNCFLAGS)
 
 lib_LTLIBRARIES		= librnp.la
 
-librnp_la_CPPFLAGS	= -I$(top_srcdir)/include -I../libmj
+librnp_la_CPPFLAGS	= -I$(top_srcdir)/include -I$(top_srcdir)/src/libmj
 
 librnp_la_SOURCES	= \
 	bufgap.c \
