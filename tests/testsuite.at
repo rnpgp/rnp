@@ -1,8 +1,8 @@
 # $NetBSD: testsuite.at,v 1.7 2009/06/13 05:25:09 agc Exp $
 
-AT_INIT([netpgp])
+AT_INIT([rnp])
 
-AT_TESTED([netpgp netpgpverify])
+AT_TESTED([rnp rnpv])
 
 m4_include([userid.at])
 

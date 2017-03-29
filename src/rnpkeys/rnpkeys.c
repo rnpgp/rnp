@@ -41,7 +41,7 @@
 #include <unistd.h>
 
 #include <mj.h>
-#include <netpgp.h>
+#include <rnp.h>
 
 /*
  * 2048 is the absolute minimum, really - we should really look at

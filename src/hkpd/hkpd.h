@@ -29,7 +29,7 @@
 #ifndef HKPD_H_
 #define HKPD_H_	20100315
 
-#include <netpgp.h>
+#include <rnp.h>
 
 #define HKPD_VERSION	20100315
 

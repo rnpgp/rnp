@@ -16,11 +16,11 @@ AT_CHECK([gpg --batch --homedir $testhomedir --import < $testprivatekey],
 AT_CHECK([cp $abs_top_builddir/libtool file3], [0], [ignore], [ignore])
 
 # sign with an explicit userid, no default in gpg.conf
-AT_CHECK([netpgp --homedir $testhomedir --userid $testuserid --sign file3],
+AT_CHECK([rnp --homedir $testhomedir --userid $testuserid --sign file3],
     [0], [ignore], [ignore])
 
 # test with no userid
-AT_CHECK([netpgp --homedir $testhomedir --cat --output=file3.copy file3.gpg],
+AT_CHECK([rnp --cat --output=file3.copy --homedir $testhomedir file3.gpg],
     [0], [ignore], [ignore])
 
 AT_CHECK([diff file3 file3.copy])

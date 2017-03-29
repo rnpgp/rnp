@@ -85,8 +85,8 @@ __RCSID("$NetBSD: openssl_crypto.c,v 1.33 2010/11/07 08:39:59 agc Exp $");
 #include "crypto.h"
 #include "keyring.h"
 #include "readerwriter.h"
-#include "netpgpdefs.h"
-#include "netpgpdigest.h"
+#include "rnpdefs.h"
+#include "rnpdigest.h"
 #include "packet.h"
 
 

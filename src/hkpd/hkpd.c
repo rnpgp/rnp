@@ -37,7 +37,7 @@
 
 #include <errno.h>
 #include <netdb.h>
-#include <netpgp.h>
+#include <rnp.h>
 #include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>

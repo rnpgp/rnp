@@ -1,0 +1,13 @@
+## $NetBSD: Makefile.am,v 1.3 2010/11/06 00:03:33 agc Exp $
+
+AM_CFLAGS		= $(WARNCFLAGS)
+
+bin_PROGRAMS		= rnp
+
+rnp_SOURCES		= rnp.c
+
+rnp_CPPFLAGS		= -I$(top_srcdir)/include
+
+rnp_LDADD		= ../lib/librnp.la ../libmj/libmj.la
+
+dist_man_MANS		= rnp.1

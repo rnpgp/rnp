@@ -68,8 +68,8 @@ __RCSID("$NetBSD: packet-show.c,v 1.21 2011/08/14 11:19:51 christos Exp $");
 
 #include "packet-show.h"
 
-#include "netpgpsdk.h"
-#include "netpgpdefs.h"
+#include "rnpsdk.h"
+#include "rnpdefs.h"
 
 
 /*

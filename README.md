@@ -21,7 +21,7 @@ Only RSA key supported right now.
 
 ``` sh
 export keydir=/tmp
-netpgpkeys --generate-key --homedir=${keydir}
+rnpkeys --generate-key --homedir=${keydir}
 ```
 
 =>
@@ -37,7 +37,7 @@ In case you're curious, `6ed2d...` is the key fingerprint.
 
 ``` sh
 export keyringdir=${keydir}/MYFINGERPRINT
-netpgpkeys --list-keys --homedir=${keyringdir}
+rnpkeys --list-keys --homedir=${keyringdir}
 
 ```
 
@@ -55,7 +55,7 @@ netpgpkeys --list-keys --homedir=${keyringdir}
 ### Signing in binary format
 
 ``` sh
-netpgp --sign --homedir=${keyringdir} ${filename}
+rnp --sign --homedir=${keyringdir} ${filename}
 ```
 
 =>
@@ -65,14 +65,14 @@ message together with the signature as a 'signed message'.
 
 This type of file can be verified by:
 
-* `netpgp --verify --homedir=${keyringdir} ${filename}.gpg`
-* `netpgpverify -k ${keyringdir}/pubring.gpg ${filename}.gpg`
+* `rnp --verify --homedir=${keyringdir} ${filename}.gpg`
+* `rnpv -k ${keyringdir}/pubring.gpg ${filename}.gpg`
 
 
 ### Signing in binary detatched format
 
 ``` sh
-netpgp --sign --detach --homedir=${keyringdir} ${filename}
+rnp --sign --detach --homedir=${keyringdir} ${filename}
 ```
 
 =>
@@ -82,15 +82,15 @@ format, that only contains the signature.
 
 This type of file can be verified by:
 
-* `netpgp --verify --homedir=${keyringdir} ${filename}.sig`
-* `netpgpverify -k ${keyringdir}/pubring.gpg ${filename}.sig`
+* `rnp --verify --homedir=${keyringdir} ${filename}.sig`
+* `rnpv -k ${keyringdir}/pubring.gpg ${filename}.sig`
 
 
 
 ### Signing in Armored (ASCII-Armored) format
 
 ``` sh
-netpgp --sign --armor --homedir=${keyringdir} ${filename}
+rnp --sign --armor --homedir=${keyringdir} ${filename}
 ```
 
 =>
@@ -101,10 +101,10 @@ message'.
 
 This type of file can be verified by:
 
-* `netpgp --verify --homedir=${keyringdir} ${filename}.asc`
+* `rnp --verify --homedir=${keyringdir} ${filename}.asc`
 
 But this file (and its `--detach` cousin) cannot be verified by
-`netpgpverify` yet.
+`rnpv` yet.
 
 
 ### Other options
@@ -120,7 +120,7 @@ But this file (and its `--detach` cousin) cannot be verified by
 
 
 ``` sh
-netpgp --encrypt --homedir=${keyringdir} ${filename}
+rnp --encrypt --homedir=${keyringdir} ${filename}
 ```
 
 =>
@@ -131,7 +131,7 @@ Creates: `${filename}.gpg`
 ## Decrypt
 
 ``` sh
-netpgp --decrypt --homedir=${keyringdir} ${filename}.gpg
+rnp --decrypt --homedir=${keyringdir} ${filename}.gpg
 ```
 
 =>
@@ -144,9 +144,9 @@ Creates: `${filename}`
 
 ## Binaries installed
 
-* `netpgp`
-* `netpgpkeys`
-* `netpgpverify`
+* `rnp`
+* `rnpkeys`
+* `rnpv`
 
 ## On macOS using Homebrew
 
@@ -160,7 +160,7 @@ brew install rnp
 ``` sh
 rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
 curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
-yum install -y netpgp
+yum install -y rnp
 ```
 
 ## On Debian
@@ -264,6 +264,6 @@ packaging/redhat/extra/build_rpm.sh
 
 The you can copy out the RPMs from the container:
 ```
-cp ~/rpmbuild/SRPMS/netpgp*.rpm ~/rpmbuild/RPMS/x86_64/*.rpm /usr/local/netpgp
+cp ~/rpmbuild/SRPMS/rnp*.rpm ~/rpmbuild/RPMS/x86_64/*.rpm /usr/local/rnp
 ```
 

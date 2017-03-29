@@ -130,9 +130,9 @@ __RCSID("$NetBSD: reader.c,v 1.49 2012/03/05 02:20:18 christos Exp $");
 #include "packet.h"
 #include "keyring.h"
 #include "readerwriter.h"
-#include "netpgpsdk.h"
-#include "netpgpdefs.h"
-#include "netpgpdigest.h"
+#include "rnpsdk.h"
+#include "rnpdefs.h"
+#include "rnpdigest.h"
 
 /* data from partial blocks is queued up in virtual block in stream */
 static int

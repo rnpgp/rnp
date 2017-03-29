@@ -63,10 +63,10 @@
 #include "bufgap.h"
 
 #include "packet-parse.h"
-#include "netpgpdefs.h"
-#include "netpgpsdk.h"
+#include "rnpdefs.h"
+#include "rnpsdk.h"
 #include "crypto.h"
-#include "netpgpdigest.h"
+#include "rnpdigest.h"
 #include "ssh2pgp.h"
 
 /* structure for earching for constant strings */
