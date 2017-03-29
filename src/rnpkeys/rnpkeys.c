@@ -160,8 +160,8 @@ static void
 print_praise(void) {
 	(void) fprintf(stderr,
 	    "%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
-	    netpgp_get_info("version"),
-	    netpgp_get_info("maintainer"));
+	    rnp_get_info("version"),
+	    rnp_get_info("maintainer"));
 }
 
 /* print a usage message */
@@ -180,16 +180,16 @@ match_keys(rnp_t *netpgp, FILE *fp, char *f, const int psigs)
 	int	 idc;
 
 	if (f == NULL) {
-		if (!netpgp_list_keys_json(netpgp, &json, psigs)) {
+		if (!rnp_list_keys_json(netpgp, &json, psigs)) {
 			return 0;
 		}
 	} else {
-		if (netpgp_match_keys_json(netpgp, &json, f,
-				netpgp_getvar(netpgp, "format"), psigs) == 0) {
+		if (rnp_match_keys_json(netpgp, &json, f,
+				rnp_getvar(netpgp, "format"), psigs) == 0) {
 			return 0;
 		}
 	}
-	idc = netpgp_format_json(fp, json, psigs);
+	idc = rnp_format_json(fp, json, psigs);
 	/* clean up */
 	free(json);
 	return idc;
@@ -208,15 +208,15 @@ netpgp_cmd(rnp_t *netpgp, prog_t *p, char *f)
 		return match_keys(netpgp, stdout, f, (p->cmd == LIST_SIGS));
 	case FIND_KEY:
 		if ((key = f) == NULL) {
-			key = netpgp_getvar(netpgp, "userid");
+			key = rnp_getvar(netpgp, "userid");
 		}
-		return netpgp_find_key(netpgp, key);
+		return rnp_find_key(netpgp, key);
 	case EXPORT_KEY:
 		if ((key = f) == NULL) {
-			key = netpgp_getvar(netpgp, "userid");
+			key = rnp_getvar(netpgp, "userid");
 		}
 		if (key) {
-			if ((s = netpgp_export_key(netpgp, key)) != NULL) {
+			if ((s = rnp_export_key(netpgp, key)) != NULL) {
 				printf("%s", s);
 				return 1;
 			}
@@ -224,11 +224,11 @@ netpgp_cmd(rnp_t *netpgp, prog_t *p, char *f)
 		(void) fprintf(stderr, "key '%s' not found\n", f);
 		return 0;
 	case IMPORT_KEY:
-		return netpgp_import_key(netpgp, f);
+		return rnp_import_key(netpgp, f);
 	case GENERATE_KEY:
-		return netpgp_generate_key(netpgp, f, p->numbits);
+		return rnp_generate_key(netpgp, f, p->numbits);
 	case GET_KEY:
-		key = netpgp_get_key(netpgp, f, netpgp_getvar(netpgp, "format"));
+		key = rnp_get_key(netpgp, f, rnp_getvar(netpgp, "format"));
 		if (key) {
 			printf("%s", key);
 			return 1;
@@ -236,7 +236,7 @@ netpgp_cmd(rnp_t *netpgp, prog_t *p, char *f)
 		(void) fprintf(stderr, "key '%s' not found\n", f);
 		return 0;
 	case TRUSTED_KEYS:
-		return netpgp_match_pubkeys(netpgp, f, stdout);
+		return rnp_match_pubkeys(netpgp, f, stdout);
 	case HELP_CMD:
 	default:
 		print_usage(usage);
@@ -250,10 +250,10 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 {
 	switch (val) {
 	case COREDUMPS:
-		netpgp_setvar(netpgp, "coredumps", "allowed");
+		rnp_setvar(netpgp, "coredumps", "allowed");
 		break;
 	case GENERATE_KEY:
-		netpgp_setvar(netpgp, "userid checks", "skip");
+		rnp_setvar(netpgp, "userid checks", "skip");
 		p->cmd = val;
 		break;
 	case LIST_KEYS:
@@ -271,7 +271,7 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 		exit(EXIT_SUCCESS);
 		/* options */
 	case SSHKEYS:
-		netpgp_setvar(netpgp, "ssh keys", "1");
+		rnp_setvar(netpgp, "ssh keys", "1");
 		break;
 	case KEYRING:
 		if (arg == NULL) {
@@ -287,10 +287,10 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 				"no userid argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		netpgp_setvar(netpgp, "userid", arg);
+		rnp_setvar(netpgp, "userid", arg);
 		break;
 	case VERBOSE:
-		netpgp_incvar(netpgp, "verbose", 1);
+		rnp_incvar(netpgp, "verbose", 1);
 		break;
 	case HOMEDIR:
 		if (arg == NULL) {
@@ -298,7 +298,7 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 			"no home directory argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		netpgp_set_homedir(netpgp, arg, NULL, 0);
+		rnp_set_homedir(netpgp, arg, NULL, 0);
 		*homeset = 1;
 		break;
 	case NUMBITS:
@@ -315,7 +315,7 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 			"No hash algorithm argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		netpgp_setvar(netpgp, "hash", arg);
+		rnp_setvar(netpgp, "hash", arg);
 		break;
 	case PASSWDFD:
 		if (arg == NULL) {
@@ -323,7 +323,7 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 			"no pass-fd argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		netpgp_setvar(netpgp, "pass-fd", arg);
+		rnp_setvar(netpgp, "pass-fd", arg);
 		break;
 	case RESULTS:
 		if (arg == NULL) {
@@ -331,20 +331,20 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 			"No output filename argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		netpgp_setvar(netpgp, "res", arg);
+		rnp_setvar(netpgp, "res", arg);
 		break;
 	case SSHKEYFILE:
-		netpgp_setvar(netpgp, "ssh keys", "1");
-		netpgp_setvar(netpgp, "sshkeyfile", arg);
+		rnp_setvar(netpgp, "ssh keys", "1");
+		rnp_setvar(netpgp, "sshkeyfile", arg);
 		break;
 	case FORMAT:
-		netpgp_setvar(netpgp, "format", arg);
+		rnp_setvar(netpgp, "format", arg);
 		break;
 	case CIPHER:
-		netpgp_setvar(netpgp, "cipher", arg);
+		rnp_setvar(netpgp, "cipher", arg);
 		break;
 	case OPS_DEBUG:
-		netpgp_set_debug(arg);
+		rnp_set_debug(arg);
 		break;
 	default:
 		p->cmd = HELP_CMD;
@@ -407,10 +407,10 @@ main(int argc, char **argv)
 		exit(EXIT_ERROR);
 	}
 	/* set some defaults */
-	netpgp_setvar(&netpgp, "sshkeydir", "/etc/ssh");
-	netpgp_setvar(&netpgp, "res", "<stdout>");
-	netpgp_setvar(&netpgp, "hash", DEFAULT_HASH_ALG);
-	netpgp_setvar(&netpgp, "format", "human");
+	rnp_setvar(&netpgp, "sshkeydir", "/etc/ssh");
+	rnp_setvar(&netpgp, "res", "<stdout>");
+	rnp_setvar(&netpgp, "hash", DEFAULT_HASH_ALG);
+	rnp_setvar(&netpgp, "format", "human");
 	optindex = 0;
 	while ((ch = getopt_long(argc, argv, "S:Vglo:s", options, &optindex)) != -1) {
 		if (ch >= LIST_KEYS) {
@@ -421,8 +421,8 @@ main(int argc, char **argv)
 		} else {
 			switch (ch) {
 			case 'S':
-				netpgp_setvar(&netpgp, "ssh keys", "1");
-				netpgp_setvar(&netpgp, "sshkeyfile", optarg);
+				rnp_setvar(&netpgp, "ssh keys", "1");
+				rnp_setvar(&netpgp, "sshkeyfile", optarg);
 				break;
 			case 'V':
 				print_praise();
@@ -448,17 +448,17 @@ main(int argc, char **argv)
 		}
 	}
 	if (!homeset) {
-		netpgp_set_homedir(&netpgp, getenv("HOME"),
-			netpgp_getvar(&netpgp, "ssh keys") ? "/.ssh" : "/.gnupg", 1);
+		rnp_set_homedir(&netpgp, getenv("HOME"),
+			rnp_getvar(&netpgp, "ssh keys") ? "/.ssh" : "/.gnupg", 1);
 	}
 	/* initialise, and read keys from file */
-	if (!netpgp_init(&netpgp)) {
-		if (stat(netpgp_getvar(&netpgp, "homedir"), &st) < 0) {
-			(void) mkdir(netpgp_getvar(&netpgp, "homedir"), 0700);
+	if (!rnp_init(&netpgp)) {
+		if (stat(rnp_getvar(&netpgp, "homedir"), &st) < 0) {
+			(void) mkdir(rnp_getvar(&netpgp, "homedir"), 0700);
 		}
-		if (stat(netpgp_getvar(&netpgp, "homedir"), &st) < 0) {
+		if (stat(rnp_getvar(&netpgp, "homedir"), &st) < 0) {
 			(void) fprintf(stderr, "can't create home directory '%s'\n",
-				netpgp_getvar(&netpgp, "homedir"));
+				rnp_getvar(&netpgp, "homedir"));
 			exit(EXIT_ERROR);
 		}
 	}
@@ -475,6 +475,6 @@ main(int argc, char **argv)
 			}
 		}
 	}
-	netpgp_end(&netpgp);
+	rnp_end(&netpgp);
 	exit(ret);
 }

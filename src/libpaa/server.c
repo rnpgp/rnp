@@ -59,8 +59,8 @@ main(int argc, char **argv)
 	while ((i = getopt(argc, argv, "S:c:d:r:u:")) != -1) {
 		switch(i) {
 		case 'S':
-			netpgp_setvar(&netpgp, "ssh keys", "1");
-			netpgp_setvar(&netpgp, "sshkeyfile", optarg);
+			rnp_setvar(&netpgp, "ssh keys", "1");
+			rnp_setvar(&netpgp, "sshkeyfile", optarg);
 			break;
 		case 'c':
 			secretc = atoi(optarg);
@@ -72,16 +72,16 @@ main(int argc, char **argv)
 			challenge.realm = optarg;
 			break;
 		case 'u':
-			netpgp_setvar(&netpgp, "userid", optarg);
+			rnp_setvar(&netpgp, "userid", optarg);
 			break;
 		}
 	}
-	netpgp_setvar(&netpgp, "hash", DEFAULT_HASH_ALG);
-	netpgp_setvar(&netpgp, "need seckey", "1");
-	netpgp_setvar(&netpgp, "need userid", "1");
-	netpgp_set_homedir(&netpgp, getenv("HOME"),
-			netpgp_getvar(&netpgp, "ssh keys") ? "/.ssh" : "/.gnupg", 1);
-	if (!netpgp_init(&netpgp)) {
+	rnp_setvar(&netpgp, "hash", DEFAULT_HASH_ALG);
+	rnp_setvar(&netpgp, "need seckey", "1");
+	rnp_setvar(&netpgp, "need userid", "1");
+	rnp_set_homedir(&netpgp, getenv("HOME"),
+			rnp_getvar(&netpgp, "ssh keys") ? "/.ssh" : "/.gnupg", 1);
+	if (!rnp_init(&netpgp)) {
 		(void) fprintf(stderr, "can't initialise netpgp\n");
 		exit(EXIT_FAILURE);
 	}

@@ -247,14 +247,14 @@ paa_format_response(paa_response_t *response, rnp_t *netpgp, char *in, char *out
 		(int)(matches[1].rm_eo - matches[1].rm_so), &in[(int)matches[1].rm_so]);
 	/* read challenge string */
 	outc = snprintf(out, outsize, "Authorization: PubKey.v1\r\n");
-	response->userid = netpgp_getvar(netpgp, "userid");
+	response->userid = rnp_getvar(netpgp, "userid");
 	outc += snprintf(&out[outc], outsize - outc, "    id=\"%s\"", response->userid);
 	outc += snprintf(&out[outc], outsize - outc, ",\r\n    challenge=\"%s\"", challenge);
 	outc += snprintf(&out[outc], outsize - outc, ",\r\n    realm=\"%s\"", response->realm);
 	/* set up response */
 	(void) memset(sig, 0x0, sizeof(sig));
 	(void) snprintf(sig, sizeof(sig), "%s;%s;%s;", response->userid, response->realm, challenge);
-	sigc = netpgp_sign_memory(netpgp, response->userid, challenge,
+	sigc = rnp_sign_memory(netpgp, response->userid, challenge,
 		(unsigned)challengec, sig, sizeof(sig), 0, 0);
 	sig64c = b64encode(sig, (const unsigned)sigc, base64_signature,
 		sizeof(base64_signature), (int)0);
@@ -289,7 +289,7 @@ paa_check_response(paa_challenge_t *challenge, paa_identity_t *id, rnp_t *netpgp
 		(size_t)(matches[1].rm_eo - matches[1].rm_so), buf, sizeof(buf));
 	/* verify the signature */
 	(void) memset(verified, 0x0, sizeof(verified));
-	if (netpgp_verify_memory(netpgp, buf, (const unsigned)bufc, verified, sizeof(verified), 0) <= 0) {
+	if (rnp_verify_memory(netpgp, buf, (const unsigned)bufc, verified, sizeof(verified), 0) <= 0) {
 		(void) fprintf(stderr, "paa_check: signature cannot be verified\n");
 		return 0;
 	}

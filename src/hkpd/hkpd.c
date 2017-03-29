@@ -288,33 +288,33 @@ hkpd(rnp_t *netpgp, int sock4, int sock6)
 		cc = 0;
 		if (strncmp(&buf[opmatches[1].rm_so], "vindex", 6) == 0) {
 			cc = 0;
-			netpgp_setvar(netpgp, "subkey sigs", "yes");
+			rnp_setvar(netpgp, "subkey sigs", "yes");
 			if (strcmp(fmt, "json") == 0) {
-				if (netpgp_match_keys_json(netpgp, &cp, search, "human", 1)) {
+				if (rnp_match_keys_json(netpgp, &cp, search, "human", 1)) {
 					cc = strlen(cp);
 					code = HKP_SUCCESS;
 				}
-			} else if ((cp = netpgp_get_key(netpgp, search, fmt)) != NULL) {
+			} else if ((cp = rnp_get_key(netpgp, search, fmt)) != NULL) {
 				cc = strlen(cp);
 				code = HKP_SUCCESS;
 			}
 			response(newsock, code, search, 0, cp, cc, fmt);
-			netpgp_unsetvar(netpgp, "subkey sigs");
+			rnp_unsetvar(netpgp, "subkey sigs");
 		} else if (strncmp(&buf[opmatches[1].rm_so], "index", 5) == 0) {
 			cc = 0;
-			netpgp_unsetvar(netpgp, "subkey sigs");
+			rnp_unsetvar(netpgp, "subkey sigs");
 			if (strcmp(fmt, "json") == 0) {
-				if (netpgp_match_keys_json(netpgp, &cp, search, "human", 0)) {
+				if (rnp_match_keys_json(netpgp, &cp, search, "human", 0)) {
 					cc = strlen(cp);
 					code = HKP_SUCCESS;
 				}
-			} else if ((cp = netpgp_get_key(netpgp, search, fmt)) != NULL) {
+			} else if ((cp = rnp_get_key(netpgp, search, fmt)) != NULL) {
 				cc = strlen(cp);
 				code = HKP_SUCCESS;
 			}
 			response(newsock, code, search, 0, cp, cc, fmt);
 		} else if (strncmp(&buf[opmatches[1].rm_so], "get", 3) == 0) {
-			if ((cp = netpgp_export_key(netpgp, search)) != NULL) {
+			if ((cp = rnp_export_key(netpgp, search)) != NULL) {
 				cc = strlen(cp);
 				code = HKP_SUCCESS;
 			}

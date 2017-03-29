@@ -126,7 +126,7 @@ hkpc_print_key(FILE *fp, const char *op, const char *res)
 		return 0;
 	}
 	if (strcmp(op, "index") == 0 || strcmp(op, "vindex") == 0) {
-		ret = netpgp_format_json(fp, &res[(int)matches[0].rm_eo], 1);
+		ret = rnp_format_json(fp, &res[(int)matches[0].rm_eo], 1);
 	} else {
 		(void) fprintf(fp, "%s\n", &res[(int)matches[0].rm_eo]);
 		ret = 1;

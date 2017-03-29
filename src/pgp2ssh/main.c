@@ -74,15 +74,15 @@ main(int argc, char **argv)
 			break;
 		}
 	}
-	netpgp_setvar(&netpgp, "ssh keys", "1");
-	netpgp_setvar(&netpgp, "hash", DEFAULT_HASH_ALG);
-	netpgp_set_homedir(&netpgp, getenv("HOME"), "/.ssh", 1);
+	rnp_setvar(&netpgp, "ssh keys", "1");
+	rnp_setvar(&netpgp, "hash", DEFAULT_HASH_ALG);
+	rnp_set_homedir(&netpgp, getenv("HOME"), "/.ssh", 1);
 	for (ok = 1, i = optind ; i < argc ; i++) {
 		if (!hkpc_get(&res, server, port, family, "get", argv[i])) {
 			(void) fprintf(stderr, "No such key '%s'\n", argv[i]);
 			ok = 0;
 		}
-		if ((keyc = netpgp_write_sshkey(&netpgp, res, argv[i], key, sizeof(key))) <= 0) {
+		if ((keyc = rnp_write_sshkey(&netpgp, res, argv[i], key, sizeof(key))) <= 0) {
 			(void) fprintf(stderr, "can't netpgp_write_sshkey '%s'\n", argv[i]);
 			ok = 0;
 		}

@@ -26,8 +26,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NETPGP_H_
-#define NETPGP_H_
+#ifndef RNP_H_
+#define RNP_H_
 
 #include <stddef.h>
 
@@ -56,57 +56,57 @@ typedef struct rnp_t {
 } rnp_t;
 
 /* begin and end */
-int netpgp_init(rnp_t *);
-int netpgp_end(rnp_t *);
+int rnp_init(rnp_t *);
+int rnp_end(rnp_t *);
 
 /* debugging, reflection and information */
-int netpgp_set_debug(const char *);
-int netpgp_get_debug(const char *);
-const char *netpgp_get_info(const char *);
-int netpgp_list_packets(rnp_t *, char *, int, char *);
+int rnp_set_debug(const char *);
+int rnp_get_debug(const char *);
+const char *rnp_get_info(const char *);
+int rnp_list_packets(rnp_t *, char *, int, char *);
 
 /* variables */
-int netpgp_setvar(rnp_t *, const char *, const char *);
-char *netpgp_getvar(rnp_t *, const char *);
-int netpgp_incvar(rnp_t *, const char *, const int);
-int netpgp_unsetvar(rnp_t *, const char *);
+int rnp_setvar(rnp_t *, const char *, const char *);
+char *rnp_getvar(rnp_t *, const char *);
+int rnp_incvar(rnp_t *, const char *, const int);
+int rnp_unsetvar(rnp_t *, const char *);
 
 /* set home directory information */
-int netpgp_set_homedir(rnp_t *, char *, const char *, const int);
+int rnp_set_homedir(rnp_t *, char *, const char *, const int);
 
 /* key management */
-int netpgp_list_keys(rnp_t *, const int);
-int netpgp_list_keys_json(rnp_t *, char **, const int);
-int netpgp_find_key(rnp_t *, char *);
-char *netpgp_get_key(rnp_t *, const char *, const char *);
-char *netpgp_export_key(rnp_t *, char *);
-int netpgp_import_key(rnp_t *, char *);
-int netpgp_generate_key(rnp_t *, char *, int);
+int rnp_list_keys(rnp_t *, const int);
+int rnp_list_keys_json(rnp_t *, char **, const int);
+int rnp_find_key(rnp_t *, char *);
+char *rnp_get_key(rnp_t *, const char *, const char *);
+char *rnp_export_key(rnp_t *, char *);
+int rnp_import_key(rnp_t *, char *);
+int rnp_generate_key(rnp_t *, char *, int);
 
 /* file management */
-int netpgp_encrypt_file(rnp_t *, const char *, const char *, char *, int);
-int netpgp_decrypt_file(rnp_t *, const char *, char *, int);
-int netpgp_sign_file(rnp_t *, const char *, const char *, char *, int, int, int);
-int netpgp_verify_file(rnp_t *, const char *, const char *, int);
+int rnp_encrypt_file(rnp_t *, const char *, const char *, char *, int);
+int rnp_decrypt_file(rnp_t *, const char *, char *, int);
+int rnp_sign_file(rnp_t *, const char *, const char *, char *, int, int, int);
+int rnp_verify_file(rnp_t *, const char *, const char *, int);
 
 /* memory signing and encryption */
-int netpgp_sign_memory(rnp_t *, const char *, char *, size_t, char *, size_t, const unsigned, const unsigned);
-int netpgp_verify_memory(rnp_t *, const void *, const size_t, void *, size_t, const int);
-int netpgp_encrypt_memory(rnp_t *, const char *, void *, const size_t, char *, size_t, int);
-int netpgp_decrypt_memory(rnp_t *, const void *, const size_t, char *, size_t, const int);
+int rnp_sign_memory(rnp_t *, const char *, char *, size_t, char *, size_t, const unsigned, const unsigned);
+int rnp_verify_memory(rnp_t *, const void *, const size_t, void *, size_t, const int);
+int rnp_encrypt_memory(rnp_t *, const char *, void *, const size_t, char *, size_t, int);
+int rnp_decrypt_memory(rnp_t *, const void *, const size_t, char *, size_t, const int);
 
 /* match and hkp-related functions */
-int netpgp_match_keys_json(rnp_t *, char **, char *, const char *, const int);
-int netpgp_match_keys(rnp_t *, char *, const char *, void *, const int);
-int netpgp_match_pubkeys(rnp_t *, char *, void *);
-int netpgp_format_json(void *, const char *, const int);
+int rnp_match_keys_json(rnp_t *, char **, char *, const char *, const int);
+int rnp_match_keys(rnp_t *, char *, const char *, void *, const int);
+int rnp_match_pubkeys(rnp_t *, char *, void *);
+int rnp_format_json(void *, const char *, const int);
 
-int netpgp_validate_sigs(rnp_t *);
+int rnp_validate_sigs(rnp_t *);
 
 /* save pgp key in ssh format */
-int netpgp_write_sshkey(rnp_t *, char *, const char *, char *, size_t);
+int rnp_write_sshkey(rnp_t *, char *, const char *, char *, size_t);
 
 
 __END_DECLS
 
-#endif /* !NETPGP_H_ */
+#endif /* !RNP_H_ */

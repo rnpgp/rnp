@@ -59,7 +59,7 @@ set_homedir(rnp_t *netpgp, char *home, const char *subdir, const int quiet)
 	(void) snprintf(d, sizeof(d), "%s%s", home, (subdir) ? subdir : "");
 	if (stat(d, &st) == 0) {
 		if ((st.st_mode & S_IFMT) == S_IFDIR) {
-			netpgp_setvar(netpgp, "homedir", d);
+			rnp_setvar(netpgp, "homedir", d);
 			return 1;
 		}
 		(void) fprintf(stderr, "netpgp: homedir \"%s\" is not a dir\n",
@@ -101,8 +101,8 @@ main(int argc, char **argv)
 			set_homedir(&netpgp, optarg, NULL, 0);
 			break;
 		case 'S':
-			netpgp_setvar(&netpgp, "ssh keys", "1");
-			netpgp_setvar(&netpgp, "sshkeyfile", optarg);
+			rnp_setvar(&netpgp, "ssh keys", "1");
+			rnp_setvar(&netpgp, "sshkeyfile", optarg);
 			break;
 		case 'V':
 			printf("%s: Version %d\n", *argv, HKPD_VERSION);
@@ -119,7 +119,7 @@ main(int argc, char **argv)
 			port = atoi(optarg);
 			break;
 		case 'v':
-			netpgp_set_debug(optarg);
+			rnp_set_debug(optarg);
 			break;
 		default:
 			break;
@@ -132,7 +132,7 @@ main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 #endif 
-	if (!netpgp_init(&netpgp)) {
+	if (!rnp_init(&netpgp)) {
 		(void) fprintf(stderr, "can't initialise\n");
 		exit(EXIT_FAILURE);
 	}

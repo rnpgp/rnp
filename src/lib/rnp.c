@@ -249,8 +249,8 @@ readkeyring(rnp_t *netpgp, const char *name)
 	char		*filename;
 	char		*homedir;
 
-	homedir = netpgp_getvar(netpgp, "homedir");
-	if ((filename = netpgp_getvar(netpgp, name)) == NULL) {
+	homedir = rnp_getvar(netpgp, "homedir");
+	if ((filename = rnp_getvar(netpgp, name)) == NULL) {
 		(void) snprintf(f, sizeof(f), "%s/%s.gpg", homedir, name);
 		filename = f;
 	}
@@ -263,7 +263,7 @@ readkeyring(rnp_t *netpgp, const char *name)
 		(void) fprintf(stderr, "Can't read %s %s\n", name, filename);
 		return NULL;
 	}
-	netpgp_setvar(netpgp, name, filename);
+	rnp_setvar(netpgp, name, filename);
 	return keyring;
 }
 
@@ -279,7 +279,7 @@ readsshkeys(rnp_t *netpgp, char *homedir, const char *needseckey)
 	char		 f[MAXPATHLEN];
 	char		*filename;
 
-	if ((filename = netpgp_getvar(netpgp, "sshkeyfile")) == NULL) {
+	if ((filename = rnp_getvar(netpgp, "sshkeyfile")) == NULL) {
 		/* set reasonable default for RSA key */
 		(void) snprintf(f, sizeof(f), "%s/id_rsa.pub", homedir);
 		filename = f;
@@ -299,7 +299,7 @@ readsshkeys(rnp_t *netpgp, char *homedir, const char *needseckey)
 	}
 	/* openssh2 keys use md5 by default */
 	hashtype = PGP_HASH_MD5;
-	if ((hash = netpgp_getvar(netpgp, "hash")) != NULL) {
+	if ((hash = rnp_getvar(netpgp, "hash")) != NULL) {
 		/* openssh 2 hasn't really caught up to anything else yet */
 		if (netpgp_strcasecmp(hash, "md5") == 0) {
 			hashtype = PGP_HASH_MD5;
@@ -321,7 +321,7 @@ readsshkeys(rnp_t *netpgp, char *homedir, const char *needseckey)
 		pgp_append_keyring(netpgp->pubring, pubring);
 	}
 	if (needseckey) {
-		netpgp_setvar(netpgp, "sshpubfile", filename);
+		rnp_setvar(netpgp, "sshpubfile", filename);
 		/* try to take the ".pub" off the end */
 		if (filename == f) {
 			f[strlen(f) - 4] = 0x0;
@@ -342,7 +342,7 @@ readsshkeys(rnp_t *netpgp, char *homedir, const char *needseckey)
 			return 0;
 		}
 		netpgp->secring = secring;
-		netpgp_setvar(netpgp, "sshsecfile", filename);
+		rnp_setvar(netpgp, "sshsecfile", filename);
 	}
 	return 1;
 }
@@ -494,7 +494,7 @@ resolve_userid(rnp_t *netpgp, const pgp_keyring_t *keyring, const char *userid)
 	pgp_io_t		*io;
 
 	if (userid == NULL) {
-		userid = netpgp_getvar(netpgp, "userid");
+		userid = rnp_getvar(netpgp, "userid");
 		if (userid == NULL)
 			return NULL;
 	} else if (userid[0] == '0' && userid[1] == 'x') {
@@ -857,7 +857,7 @@ static int set_core_dumps(rnp_t *netpgp)
 {
 	int setting;
 
-	setting = netpgp_getvar(netpgp, "coredumps") != NULL;
+	setting = rnp_getvar(netpgp, "coredumps") != NULL;
 	if (! setting) {
 		return disable_core_dumps() == 0 ? 0 : 1;
 	}
@@ -879,7 +879,7 @@ static int set_core_dumps(rnp_t *netpgp)
  */
 static int set_pass_fd(rnp_t *netpgp)
 {
-	char *passfd = netpgp_getvar(netpgp, "pass-fd");
+	char *passfd = rnp_getvar(netpgp, "pass-fd");
 	pgp_io_t *io = netpgp->io;
 
 	if (passfd != NULL) {
@@ -908,20 +908,20 @@ static int netpgp_init_io(rnp_t *netpgp, pgp_io_t *io)
 
 	/* Configure the output stream. */
 	io->outs = stdout;
-	if ((stream = netpgp_getvar(netpgp, "outs")) != NULL &&
+	if ((stream = rnp_getvar(netpgp, "outs")) != NULL &&
 			strcmp(stream, "<stderr>") == 0) {
 		io->outs = stderr;
 	}
 
 	/* Configure the error stream. */
 	io->errs = stderr;
-	if ((stream = netpgp_getvar(netpgp, "errs")) != NULL &&
+	if ((stream = rnp_getvar(netpgp, "errs")) != NULL &&
 			strcmp(stream, "<stdout>") == 0) {
 		io->errs = stdout;
 	}
 
 	/* Configure the results stream. */
-	if ((results = netpgp_getvar(netpgp, "res")) == NULL) {
+	if ((results = rnp_getvar(netpgp, "res")) == NULL) {
 		io->res = io->errs;
 	} else if (strcmp(results, "<stdout>") == 0) {
 		io->res = stdout;
@@ -961,7 +961,7 @@ static int netpgp_new_io(rnp_t *netpgp)
 
 static int netpgp_use_ssh_keys(rnp_t *netpgp)
 {
-	return netpgp_getvar(netpgp, "ssh keys") != NULL;
+	return rnp_getvar(netpgp, "ssh keys") != NULL;
 }
 
 static int netpgp_load_keys_gnupg(rnp_t *netpgp, char *homedir)
@@ -990,17 +990,17 @@ static int netpgp_load_keys_gnupg(rnp_t *netpgp, char *homedir)
 	}
 
 	/* If a userid has been given, we'll use it. */
-	if ((userid = netpgp_getvar(netpgp, "userid")) == NULL) {
+	if ((userid = rnp_getvar(netpgp, "userid")) == NULL) {
 		/* also search in config file for default id */
 		memset(id, 0, sizeof(id));
 		conffile(netpgp, homedir, id, sizeof(id));
 		if (id[0] != 0x0) {
-			netpgp_setvar(netpgp, "userid", userid = id);
+			rnp_setvar(netpgp, "userid", userid = id);
 		}
 	}
 
 	/* Only read secret keys if we need to. */
-	if (netpgp_getvar(netpgp, "need seckey")) {
+	if (rnp_getvar(netpgp, "need seckey")) {
 
 		netpgp->secring = readkeyring(netpgp, "secring");
 
@@ -1017,7 +1017,7 @@ static int netpgp_load_keys_gnupg(rnp_t *netpgp, char *homedir)
 		/* Now, if we don't have a valid user, use the first
 		 * in secring.
 		 */
-		if (! userid && netpgp_getvar(netpgp,
+		if (! userid && rnp_getvar(netpgp,
 				"need userid") != NULL) {
 
 			if (! get_first_ring(netpgp->secring, id,
@@ -1030,18 +1030,18 @@ static int netpgp_load_keys_gnupg(rnp_t *netpgp, char *homedir)
 				return 0;
 			}
 
-			netpgp_setvar(netpgp, "userid", userid = id);
+			rnp_setvar(netpgp, "userid", userid = id);
 		}
 
-	} else if (netpgp_getvar(netpgp, "need userid") != NULL) {
+	} else if (rnp_getvar(netpgp, "need userid") != NULL) {
 		/* encrypting - get first in pubring */
 		if (! userid && get_first_ring(
 				netpgp->pubring, id, sizeof(id), 0)) {
-			netpgp_setvar(netpgp, "userid", userid = id);
+			rnp_setvar(netpgp, "userid", userid = id);
 		}
 	}
 
-	if (! userid && netpgp_getvar(netpgp, "need userid")) {
+	if (! userid && rnp_getvar(netpgp, "need userid")) {
 		/* if we don't have a user id, and we need one, fail */
 		fprintf(io->errs, "Cannot find user id\n");
 		return 0;
@@ -1060,23 +1060,23 @@ static int netpgp_load_keys_ssh(rnp_t *netpgp, char *homedir)
 	/* TODO: Double-check whether or not ID needs to be zeroed. */
 
 	if (! readsshkeys(netpgp, homedir,
-			netpgp_getvar(netpgp, "need seckey"))) {
+			rnp_getvar(netpgp, "need seckey"))) {
 		fprintf(io->errs, "Can't read ssh keys\n");
 		return 0;
 	}
-	if ((userid = netpgp_getvar(netpgp, "userid")) == NULL) {
+	if ((userid = rnp_getvar(netpgp, "userid")) == NULL) {
 		/* TODO: Handle get_first_ring() failure. */
 		get_first_ring(netpgp->pubring, id,
 				sizeof(id), last);
-		netpgp_setvar(netpgp, "userid", userid = id);
+		rnp_setvar(netpgp, "userid", userid = id);
 	}
 	if (userid == NULL) {
-		if (netpgp_getvar(netpgp, "need userid") != NULL) {
+		if (rnp_getvar(netpgp, "need userid") != NULL) {
 			fprintf(io->errs, "Cannot find user id\n");
 			return 0;
 		}
 	} else {
-		netpgp_setvar(netpgp, "userid", userid);
+		rnp_setvar(netpgp, "userid", userid);
 	}
 
 	return 1;
@@ -1088,7 +1088,7 @@ static void netpgp_touch_initialized(rnp_t *netpgp)
 	time_t t;
 
 	t = time(NULL);
-	netpgp_setvar(netpgp, "initialised", ctime(&t));
+	rnp_setvar(netpgp, "initialised", ctime(&t));
 }
 
 /*************************************************************************/
@@ -1097,7 +1097,7 @@ static void netpgp_touch_initialized(rnp_t *netpgp)
 
 /* initialise a netpgp_t structure */
 int
-netpgp_init(rnp_t *netpgp)
+rnp_init(rnp_t *netpgp)
 {
 	int       coredumps;
 	char     *homedir;
@@ -1147,7 +1147,7 @@ netpgp_init(rnp_t *netpgp)
 	 *       context.
 	 *
 	 */
-	if ((homedir = netpgp_getvar(netpgp, "homedir")) == NULL) {
+	if ((homedir = rnp_getvar(netpgp, "homedir")) == NULL) {
 		fprintf(io->errs, "netpgp: bad homedir\n");
 		return 0;
 	}
@@ -1171,7 +1171,7 @@ netpgp_init(rnp_t *netpgp)
 
 /* finish off with the netpgp_t struct */
 int
-netpgp_end(rnp_t *netpgp)
+rnp_end(rnp_t *netpgp)
 {
 	unsigned	i;
 
@@ -1201,7 +1201,7 @@ netpgp_end(rnp_t *netpgp)
 
 /* list the keys in a keyring */
 int
-netpgp_list_keys(rnp_t *netpgp, const int psigs)
+rnp_list_keys(rnp_t *netpgp, const int psigs)
 {
 	if (netpgp->pubring == NULL) {
 		(void) fprintf(stderr, "No keyring\n");
@@ -1212,7 +1212,7 @@ netpgp_list_keys(rnp_t *netpgp, const int psigs)
 
 /* list the keys in a keyring, returning a JSON encoded string */
 int
-netpgp_list_keys_json(rnp_t *netpgp, char **json, const int psigs)
+rnp_list_keys_json(rnp_t *netpgp, char **json, const int psigs)
 {
 	mj_t	obj;
 	int	ret;
@@ -1239,7 +1239,7 @@ DEFINE_ARRAY(strings_t, char *);
 
 /* find and list some keys in a keyring */
 int
-netpgp_match_keys(rnp_t *netpgp, char *name, const char *fmt, void *vp, const int psigs)
+rnp_match_keys(rnp_t *netpgp, char *name, const char *fmt, void *vp, const int psigs)
 {
 	const pgp_key_t	*key;
 	unsigned		 k;
@@ -1289,7 +1289,7 @@ netpgp_match_keys(rnp_t *netpgp, char *name, const char *fmt, void *vp, const in
 
 /* find and list some keys in a keyring - return JSON string */
 int
-netpgp_match_keys_json(rnp_t *netpgp, char **json, char *name, const char *fmt, const int psigs)
+rnp_match_keys_json(rnp_t *netpgp, char **json, char *name, const char *fmt, const int psigs)
 {
 	const pgp_key_t	*key;
 	unsigned	 k;
@@ -1334,7 +1334,7 @@ netpgp_match_keys_json(rnp_t *netpgp, char **json, char *name, const char *fmt, 
 
 /* find and list some public keys in a keyring */
 int
-netpgp_match_pubkeys(rnp_t *netpgp, char *name, void *vp)
+rnp_match_pubkeys(rnp_t *netpgp, char *name, void *vp)
 {
 	const pgp_key_t	*key;
 	unsigned	 k;
@@ -1357,7 +1357,7 @@ netpgp_match_pubkeys(rnp_t *netpgp, char *name, void *vp)
 
 /* find a key in a keyring */
 int
-netpgp_find_key(rnp_t *netpgp, char *id)
+rnp_find_key(rnp_t *netpgp, char *id)
 {
 	pgp_io_t	*io;
 
@@ -1371,7 +1371,7 @@ netpgp_find_key(rnp_t *netpgp, char *id)
 
 /* get a key in a keyring */
 char *
-netpgp_get_key(rnp_t *netpgp, const char *name, const char *fmt)
+rnp_get_key(rnp_t *netpgp, const char *name, const char *fmt)
 {
 	const pgp_key_t	*key;
 	char		*newkey;
@@ -1383,17 +1383,17 @@ netpgp_get_key(rnp_t *netpgp, const char *name, const char *fmt)
 		return (pgp_hkp_sprint_keydata(netpgp->io, netpgp->pubring,
 				key, &newkey,
 				&key->key.pubkey,
-				netpgp_getvar(netpgp, "subkey sigs") != NULL) > 0) ? newkey : NULL;
+				rnp_getvar(netpgp, "subkey sigs") != NULL) > 0) ? newkey : NULL;
 	}
 	return (pgp_sprint_keydata(netpgp->io, netpgp->pubring,
 				key, &newkey, "signature",
 				&key->key.pubkey,
-				netpgp_getvar(netpgp, "subkey sigs") != NULL) > 0) ? newkey : NULL;
+				rnp_getvar(netpgp, "subkey sigs") != NULL) > 0) ? newkey : NULL;
 }
 
 /* export a given key */
 char *
-netpgp_export_key(rnp_t *netpgp, char *name)
+rnp_export_key(rnp_t *netpgp, char *name)
 {
 	const pgp_key_t	*key;
 	pgp_io_t		*io;
@@ -1409,7 +1409,7 @@ netpgp_export_key(rnp_t *netpgp, char *name)
 
 /* import a key into our keyring */
 int
-netpgp_import_key(rnp_t *netpgp, char *f)
+rnp_import_key(rnp_t *netpgp, char *f)
 {
 	pgp_io_t	*io;
 	unsigned	 realarmor;
@@ -1429,7 +1429,7 @@ netpgp_import_key(rnp_t *netpgp, char *f)
 
 /* generate a new key */
 int
-netpgp_generate_key(rnp_t *netpgp, char *id, int numbits)
+rnp_generate_key(rnp_t *netpgp, char *id, int numbits)
 {
 	pgp_output_t		*create;
 	const unsigned		 noarmor = 0;
@@ -1460,8 +1460,8 @@ netpgp_generate_key(rnp_t *netpgp, char *id, int numbits)
 	}
 	uid = (uint8_t *)newid;
 	key = pgp_rsa_new_selfsign_key(numbits, 65537UL, uid,
-			netpgp_getvar(netpgp, "hash"),
-			netpgp_getvar(netpgp, "cipher"));
+			rnp_getvar(netpgp, "hash"),
+			rnp_getvar(netpgp, "cipher"));
 	if (key == NULL) {
 		(void) fprintf(io->errs, "Cannot generate key\n");
 		return 0;
@@ -1473,9 +1473,9 @@ netpgp_generate_key(rnp_t *netpgp, char *id, int numbits)
 	/* write public key */
 
 	cc = snprintf(dir, sizeof(dir), "%s/%s",
-			netpgp_getvar(netpgp, "homedir"), DOT_DIRECTORY);
+			rnp_getvar(netpgp, "homedir"), DOT_DIRECTORY);
 
-	netpgp_setvar(netpgp, "generated userid", &dir[cc - 16]);
+	rnp_setvar(netpgp, "generated userid", &dir[cc - 16]);
 
 	/* TODO: This call competes with the mkdir() at
 	 *       netpgpkeys/netpgpkeys.c:main:458, but that call doesn't
@@ -1508,7 +1508,7 @@ netpgp_generate_key(rnp_t *netpgp, char *id, int numbits)
 		goto out;
 	}
 	/* get the passphrase */
-	if ((numtries = netpgp_getvar(netpgp, "numtries")) == NULL ||
+	if ((numtries = rnp_getvar(netpgp, "numtries")) == NULL ||
 	    (attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
@@ -1533,7 +1533,7 @@ out:
 
 /* encrypt a file */
 int
-netpgp_encrypt_file(rnp_t *netpgp,
+rnp_encrypt_file(rnp_t *netpgp,
 			const char *userid,
 			const char *f,
 			char *out,
@@ -1561,14 +1561,14 @@ netpgp_encrypt_file(rnp_t *netpgp,
 		out = outname;
 	}
 	return (int)pgp_encrypt_file(io, f, out, key, (unsigned)armored,
-				overwrite, netpgp_getvar(netpgp, "cipher"));
+				overwrite, rnp_getvar(netpgp, "cipher"));
 }
 
 #define ARMOR_HEAD	"-----BEGIN PGP MESSAGE-----"
 
 /* decrypt a file */
 int
-netpgp_decrypt_file(rnp_t *netpgp, const char *f, char *out, int armored)
+rnp_decrypt_file(rnp_t *netpgp, const char *f, char *out, int armored)
 {
 	const unsigned	 overwrite = 1;
 	pgp_io_t	*io;
@@ -1585,8 +1585,8 @@ netpgp_decrypt_file(rnp_t *netpgp, const char *f, char *out, int armored)
 		return 0;
 	}
 	realarmor = isarmoured(io, f, NULL, ARMOR_HEAD);
-	sshkeys = (unsigned)(netpgp_getvar(netpgp, "ssh keys") != NULL);
-	if ((numtries = netpgp_getvar(netpgp, "numtries")) == NULL ||
+	sshkeys = (unsigned)(rnp_getvar(netpgp, "ssh keys") != NULL);
+	if ((numtries = rnp_getvar(netpgp, "numtries")) == NULL ||
 	    (attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
@@ -1600,7 +1600,7 @@ netpgp_decrypt_file(rnp_t *netpgp, const char *f, char *out, int armored)
 
 /* sign a file */
 int
-netpgp_sign_file(rnp_t *netpgp,
+rnp_sign_file(rnp_t *netpgp,
 		const char *userid,
 		const char *f,
 		char *out,
@@ -1630,7 +1630,7 @@ netpgp_sign_file(rnp_t *netpgp,
 		return 0;
 	}
 	ret = 1;
-	if ((numtries = netpgp_getvar(netpgp, "numtries")) == NULL ||
+	if ((numtries = rnp_getvar(netpgp, "numtries")) == NULL ||
 	    (attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
@@ -1650,7 +1650,7 @@ netpgp_sign_file(rnp_t *netpgp,
 					&pubkey->key.pubkey, 0);
 			}
 		}
-		if (netpgp_getvar(netpgp, "ssh keys") == NULL) {
+		if (rnp_getvar(netpgp, "ssh keys") == NULL) {
 			/* now decrypt key */
 			seckey = pgp_decrypt_seckey(keypair, netpgp->passfp);
 			if (seckey == NULL) {
@@ -1668,20 +1668,20 @@ netpgp_sign_file(rnp_t *netpgp,
 		return 0;
 	}
 	/* sign file */
-	hashalg = netpgp_getvar(netpgp, "hash");
+	hashalg = rnp_getvar(netpgp, "hash");
 	if (seckey->pubkey.alg == PGP_PKA_DSA) {
 		hashalg = "sha1";
 	}
 	if (detached) {
 		ret = pgp_sign_detached(io, f, out, seckey, hashalg,
-				get_birthtime(netpgp_getvar(netpgp, "birthtime")),
-				get_duration(netpgp_getvar(netpgp, "duration")),
+				get_birthtime(rnp_getvar(netpgp, "birthtime")),
+				get_duration(rnp_getvar(netpgp, "duration")),
 				(unsigned)armored,
 				overwrite);
 	} else {
 		ret = pgp_sign_file(io, f, out, seckey, hashalg,
-				get_birthtime(netpgp_getvar(netpgp, "birthtime")),
-				get_duration(netpgp_getvar(netpgp, "duration")),
+				get_birthtime(rnp_getvar(netpgp, "birthtime")),
+				get_duration(rnp_getvar(netpgp, "duration")),
 				(unsigned)armored, (unsigned)cleartext,
 				overwrite);
 	}
@@ -1693,7 +1693,7 @@ netpgp_sign_file(rnp_t *netpgp,
 
 /* verify a file */
 int
-netpgp_verify_file(rnp_t *netpgp, const char *in, const char *out, int armored)
+rnp_verify_file(rnp_t *netpgp, const char *in, const char *out, int armored)
 {
 	pgp_validation_t	 result;
 	pgp_io_t		*io;
@@ -1729,7 +1729,7 @@ netpgp_verify_file(rnp_t *netpgp, const char *in, const char *out, int armored)
 
 /* sign some memory */
 int
-netpgp_sign_memory(rnp_t *netpgp,
+rnp_sign_memory(rnp_t *netpgp,
 		const char *userid,
 		char *mem,
 		size_t size,
@@ -1759,7 +1759,7 @@ netpgp_sign_memory(rnp_t *netpgp,
 		return 0;
 	}
 	ret = 1;
-	if ((numtries = netpgp_getvar(netpgp, "numtries")) == NULL ||
+	if ((numtries = rnp_getvar(netpgp, "numtries")) == NULL ||
 	    (attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
@@ -1779,7 +1779,7 @@ netpgp_sign_memory(rnp_t *netpgp,
 					&pubkey->key.pubkey, 0);
 			}
 		}
-		if (netpgp_getvar(netpgp, "ssh keys") == NULL) {
+		if (rnp_getvar(netpgp, "ssh keys") == NULL) {
 			/* now decrypt key */
 			seckey = pgp_decrypt_seckey(keypair, netpgp->passfp);
 			if (seckey == NULL) {
@@ -1798,13 +1798,13 @@ netpgp_sign_memory(rnp_t *netpgp,
 	}
 	/* sign file */
 	(void) memset(out, 0x0, outsize);
-	hashalg = netpgp_getvar(netpgp, "hash");
+	hashalg = rnp_getvar(netpgp, "hash");
 	if (seckey->pubkey.alg == PGP_PKA_DSA) {
 		hashalg = "sha1";
 	}
 	signedmem = pgp_sign_buf(io, mem, size, seckey,
-				get_birthtime(netpgp_getvar(netpgp, "birthtime")),
-				get_duration(netpgp_getvar(netpgp, "duration")),
+				get_birthtime(rnp_getvar(netpgp, "birthtime")),
+				get_duration(rnp_getvar(netpgp, "duration")),
 				hashalg, armored, cleartext);
 	if (signedmem) {
 		size_t	m;
@@ -1822,7 +1822,7 @@ netpgp_sign_memory(rnp_t *netpgp,
 
 /* verify memory */
 int
-netpgp_verify_memory(rnp_t *netpgp, const void *in, const size_t size,
+rnp_verify_memory(rnp_t *netpgp, const void *in, const size_t size,
 			void *out, size_t outsize, const int armored)
 {
 	pgp_validation_t	 result;
@@ -1875,7 +1875,7 @@ netpgp_verify_memory(rnp_t *netpgp, const void *in, const size_t size,
 
 /* encrypt some memory */
 int
-netpgp_encrypt_memory(rnp_t *netpgp,
+rnp_encrypt_memory(rnp_t *netpgp,
 			const char *userid,
 			void *in,
 			const size_t insize,
@@ -1908,7 +1908,7 @@ netpgp_encrypt_memory(rnp_t *netpgp,
 		return 0;
 	}
 	enc = pgp_encrypt_buf(io, in, insize, keypair, (unsigned)armored,
-				netpgp_getvar(netpgp, "cipher"));
+				rnp_getvar(netpgp, "cipher"));
 	m = MIN(pgp_mem_len(enc), outsize);
 	(void) memcpy(out, pgp_mem_data(enc), m);
 	pgp_memory_free(enc);
@@ -1917,7 +1917,7 @@ netpgp_encrypt_memory(rnp_t *netpgp,
 
 /* decrypt a chunk of memory */
 int
-netpgp_decrypt_memory(rnp_t *netpgp, const void *input, const size_t insize,
+rnp_decrypt_memory(rnp_t *netpgp, const void *input, const size_t insize,
 			char *out, size_t outsize, const int armored)
 {
 	pgp_memory_t	*mem;
@@ -1936,8 +1936,8 @@ netpgp_decrypt_memory(rnp_t *netpgp, const void *input, const size_t insize,
 		return 0;
 	}
 	realarmour = isarmoured(io, NULL, input, ARMOR_HEAD);
-	sshkeys = (unsigned)(netpgp_getvar(netpgp, "ssh keys") != NULL);
-	if ((numtries = netpgp_getvar(netpgp, "numtries")) == NULL ||
+	sshkeys = (unsigned)(rnp_getvar(netpgp, "ssh keys") != NULL);
+	if ((numtries = rnp_getvar(netpgp, "numtries")) == NULL ||
 	    (attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
@@ -1962,28 +1962,28 @@ netpgp_decrypt_memory(rnp_t *netpgp, const void *input, const size_t insize,
 
 /* set the debugging level per filename */
 int
-netpgp_set_debug(const char *f)
+rnp_set_debug(const char *f)
 {
 	return pgp_set_debug_level(f);
 }
 
 /* get the debugging level per filename */
 int
-netpgp_get_debug(const char *f)
+rnp_get_debug(const char *f)
 {
 	return pgp_get_debug_level(f);
 }
 
 /* return the version for the library */
 const char *
-netpgp_get_info(const char *type)
+rnp_get_info(const char *type)
 {
 	return pgp_get_info(type);
 }
 
 /* list all the packets in a file */
 int
-netpgp_list_packets(rnp_t *netpgp, char *f, int armor, char *pubringname)
+rnp_list_packets(rnp_t *netpgp, char *f, int armor, char *pubringname)
 {
 	pgp_keyring_t	*keyring;
 	const unsigned	 noarmor = 0;
@@ -2002,7 +2002,7 @@ netpgp_list_packets(rnp_t *netpgp, char *f, int armor, char *pubringname)
 		(void) fprintf(io->errs, "No such file '%s'\n", f);
 		return 0;
 	}
-	homedir = netpgp_getvar(netpgp, "homedir");
+	homedir = rnp_getvar(netpgp, "homedir");
 	if (pubringname == NULL) {
 		(void) snprintf(ringname, sizeof(ringname),
 				"%s/pubring.gpg", homedir);
@@ -2019,7 +2019,7 @@ netpgp_list_packets(rnp_t *netpgp, char *f, int armor, char *pubringname)
 		return 0;
 	}
 	netpgp->pubring = keyring;
-	netpgp_setvar(netpgp, "pubring", pubringname);
+	rnp_setvar(netpgp, "pubring", pubringname);
 	ret = pgp_list_packets(io, f, (unsigned)armor,
 					netpgp->secring,
 					netpgp->pubring,
@@ -2031,7 +2031,7 @@ netpgp_list_packets(rnp_t *netpgp, char *f, int armor, char *pubringname)
 
 /* set a variable */
 int
-netpgp_setvar(rnp_t *netpgp, const char *name, const char *value)
+rnp_setvar(rnp_t *netpgp, const char *name, const char *value)
 {
 	char	*newval;
 	int	 i;
@@ -2063,7 +2063,7 @@ netpgp_setvar(rnp_t *netpgp, const char *name, const char *value)
 
 /* unset a variable */
 int
-netpgp_unsetvar(rnp_t *netpgp, const char *name)
+rnp_unsetvar(rnp_t *netpgp, const char *name)
 {
 	int	i;
 
@@ -2080,7 +2080,7 @@ netpgp_unsetvar(rnp_t *netpgp, const char *name)
 
 /* get a variable's value (NULL if not set) */
 char *
-netpgp_getvar(rnp_t *netpgp, const char *name)
+rnp_getvar(rnp_t *netpgp, const char *name)
 {
 	int	i;
 
@@ -2089,24 +2089,24 @@ netpgp_getvar(rnp_t *netpgp, const char *name)
 
 /* increment a value */
 int
-netpgp_incvar(rnp_t *netpgp, const char *name, const int delta)
+rnp_incvar(rnp_t *netpgp, const char *name, const int delta)
 {
 	char	*cp;
 	char	 num[16];
 	int	 val;
 
 	val = 0;
-	if ((cp = netpgp_getvar(netpgp, name)) != NULL) {
+	if ((cp = rnp_getvar(netpgp, name)) != NULL) {
 		val = atoi(cp);
 	}
 	(void) snprintf(num, sizeof(num), "%d", val + delta);
-	netpgp_setvar(netpgp, name, num);
+	rnp_setvar(netpgp, name, num);
 	return 1;
 }
 
 /* set the home directory value to "home/subdir" */
 int
-netpgp_set_homedir(rnp_t *netpgp, char *home, const char *subdir, const int quiet)
+rnp_set_homedir(rnp_t *netpgp, char *home, const char *subdir, const int quiet)
 {
 	struct stat	st;
 	char		d[MAXPATHLEN];
@@ -2120,7 +2120,7 @@ netpgp_set_homedir(rnp_t *netpgp, char *home, const char *subdir, const int quie
 	(void) snprintf(d, sizeof(d), "%s%s", home, (subdir) ? subdir : "");
 	if (stat(d, &st) == 0) {
 		if ((st.st_mode & S_IFMT) == S_IFDIR) {
-			netpgp_setvar(netpgp, "homedir", d);
+			rnp_setvar(netpgp, "homedir", d);
 			return 1;
 		}
 		(void) fprintf(stderr, "netpgp: homedir \"%s\" is not a dir\n",
@@ -2131,13 +2131,13 @@ netpgp_set_homedir(rnp_t *netpgp, char *home, const char *subdir, const int quie
 		(void) fprintf(stderr,
 			"netpgp: warning homedir \"%s\" not found\n", d);
 	}
-	netpgp_setvar(netpgp, "homedir", d);
+	rnp_setvar(netpgp, "homedir", d);
 	return 1;
 }
 
 /* validate all sigs in the pub keyring */
 int
-netpgp_validate_sigs(rnp_t *netpgp)
+rnp_validate_sigs(rnp_t *netpgp)
 {
 	pgp_validation_t	result;
 
@@ -2146,7 +2146,7 @@ netpgp_validate_sigs(rnp_t *netpgp)
 
 /* print the json out on 'fp' */
 int
-netpgp_format_json(void *vp, const char *json, const int psigs)
+rnp_format_json(void *vp, const char *json, const int psigs)
 {
 	mj_t	 ids;
 	FILE	*fp;
@@ -2178,7 +2178,7 @@ netpgp_format_json(void *vp, const char *json, const int psigs)
 
 /* find a key in keyring, and write it in ssh format */
 int
-netpgp_write_sshkey(rnp_t *netpgp, char *s, const char *userid, char *out, size_t size)
+rnp_write_sshkey(rnp_t *netpgp, char *s, const char *userid, char *out, size_t size)
 {
 	const pgp_key_t	*key;
 	pgp_keyring_t	*keyring;
