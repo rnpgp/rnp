@@ -2961,7 +2961,7 @@ pgpv_dump(pgpv_t *pgp, char **data)
 			*data = newdata;
 		}
 		memset(buf, 0x0, sizeof(buf));
-		dumpc = netpgp_hexdump(ARRAY_ELEMENT(pgp->pkts, pkt).s.data,
+		dumpc = rnp_hexdump(ARRAY_ELEMENT(pgp->pkts, pkt).s.data,
 				MIN((sizeof(buf) / 80) * 16,
 				ARRAY_ELEMENT(pgp->pkts, pkt).s.size),
 				buf, sizeof(buf));

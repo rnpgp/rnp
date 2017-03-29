@@ -1,5 +1,5 @@
-#ifndef NETPGPVERIFY_PLATFORM_H
-#define NETPGPVERIFY_PLATFORM_H
+#ifndef RNPV_PLATFORM_H
+#define RNPV_PLATFORM_H
 #ifdef __linux__
 #ifndef VASPRINTF_H
 #include <stdarg.h>

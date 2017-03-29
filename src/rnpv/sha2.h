@@ -66,62 +66,62 @@
 #endif
 
 /*** SHA-256/384/512 Context Structures *******************************/
-typedef struct _NETPGPV_SHA256_CTX {
+typedef struct _RNPV_SHA256_CTX {
 	uint32_t	state[8];
 	uint64_t	bitcount;
 	uint8_t	buffer[SHA256_BLOCK_LENGTH];
-} NETPGPV_SHA256_CTX;
+} RNPV_SHA256_CTX;
 
-typedef struct _NETPGPV_SHA512_CTX {
+typedef struct _RNPV_SHA512_CTX {
 	uint64_t	state[8];
 	uint64_t	bitcount[2];
 	uint8_t	buffer[SHA512_BLOCK_LENGTH];
-} NETPGPV_SHA512_CTX;
+} RNPV_SHA512_CTX;
 
-typedef NETPGPV_SHA256_CTX NETPGPV_SHA224_CTX;
-typedef NETPGPV_SHA512_CTX NETPGPV_SHA384_CTX;
+typedef RNPV_SHA256_CTX RNPV_SHA224_CTX;
+typedef RNPV_SHA512_CTX RNPV_SHA384_CTX;
 
 
 /*** SHA-256/384/512 Function Prototypes ******************************/
 __BEGIN_DECLS
-int netpgpv_SHA224_Init(NETPGPV_SHA224_CTX *);
-int netpgpv_SHA224_Update(NETPGPV_SHA224_CTX*, const uint8_t*, size_t);
-int netpgpv_SHA224_Final(uint8_t[SHA224_DIGEST_LENGTH], NETPGPV_SHA224_CTX*);
+int rnpv_SHA224_Init(RNPV_SHA224_CTX *);
+int rnpv_SHA224_Update(RNPV_SHA224_CTX*, const uint8_t*, size_t);
+int rnpv_SHA224_Final(uint8_t[SHA224_DIGEST_LENGTH], RNPV_SHA224_CTX*);
 #ifndef _KERNEL
-char *netpgpv_SHA224_End(NETPGPV_SHA224_CTX *, char[SHA224_DIGEST_STRING_LENGTH]);
-char *netpgpv_SHA224_FileChunk(const char *, char *, off_t, off_t);
-char *netpgpv_SHA224_File(const char *, char *);
-char *netpgpv_SHA224_Data(const uint8_t *, size_t, char[SHA224_DIGEST_STRING_LENGTH]);
+char *rnpv_SHA224_End(RNPV_SHA224_CTX *, char[SHA224_DIGEST_STRING_LENGTH]);
+char *rnpv_SHA224_FileChunk(const char *, char *, off_t, off_t);
+char *rnpv_SHA224_File(const char *, char *);
+char *rnpv_SHA224_Data(const uint8_t *, size_t, char[SHA224_DIGEST_STRING_LENGTH]);
 #endif /* !_KERNEL */
 
-int netpgpv_SHA256_Init(NETPGPV_SHA256_CTX *);
-int netpgpv_SHA256_Update(NETPGPV_SHA256_CTX*, const uint8_t*, size_t);
-int netpgpv_SHA256_Final(uint8_t[SHA256_DIGEST_LENGTH], NETPGPV_SHA256_CTX*);
+int rnpv_SHA256_Init(RNPV_SHA256_CTX *);
+int rnpv_SHA256_Update(RNPV_SHA256_CTX*, const uint8_t*, size_t);
+int rnpv_SHA256_Final(uint8_t[SHA256_DIGEST_LENGTH], RNPV_SHA256_CTX*);
 #ifndef _KERNEL
-char *netpgpv_SHA256_End(NETPGPV_SHA256_CTX *, char[SHA256_DIGEST_STRING_LENGTH]);
-char *netpgpv_SHA256_FileChunk(const char *, char *, off_t, off_t);
-char *netpgpv_SHA256_File(const char *, char *);
-char *netpgpv_SHA256_Data(const uint8_t *, size_t, char[SHA256_DIGEST_STRING_LENGTH]);
+char *rnpv_SHA256_End(RNPV_SHA256_CTX *, char[SHA256_DIGEST_STRING_LENGTH]);
+char *rnpv_SHA256_FileChunk(const char *, char *, off_t, off_t);
+char *rnpv_SHA256_File(const char *, char *);
+char *rnpv_SHA256_Data(const uint8_t *, size_t, char[SHA256_DIGEST_STRING_LENGTH]);
 #endif /* !_KERNEL */
 
-int netpgpv_SHA384_Init(NETPGPV_SHA384_CTX*);
-int netpgpv_SHA384_Update(NETPGPV_SHA384_CTX*, const uint8_t*, size_t);
-int netpgpv_SHA384_Final(uint8_t[SHA384_DIGEST_LENGTH], NETPGPV_SHA384_CTX*);
+int rnpv_SHA384_Init(RNPV_SHA384_CTX*);
+int rnpv_SHA384_Update(RNPV_SHA384_CTX*, const uint8_t*, size_t);
+int rnpv_SHA384_Final(uint8_t[SHA384_DIGEST_LENGTH], RNPV_SHA384_CTX*);
 #ifndef _KERNEL
-char *netpgpv_SHA384_End(NETPGPV_SHA384_CTX *, char[SHA384_DIGEST_STRING_LENGTH]);
-char *netpgpv_SHA384_FileChunk(const char *, char *, off_t, off_t);
-char *netpgpv_SHA384_File(const char *, char *);
-char *netpgpv_SHA384_Data(const uint8_t *, size_t, char[SHA384_DIGEST_STRING_LENGTH]);
+char *rnpv_SHA384_End(RNPV_SHA384_CTX *, char[SHA384_DIGEST_STRING_LENGTH]);
+char *rnpv_SHA384_FileChunk(const char *, char *, off_t, off_t);
+char *rnpv_SHA384_File(const char *, char *);
+char *rnpv_SHA384_Data(const uint8_t *, size_t, char[SHA384_DIGEST_STRING_LENGTH]);
 #endif /* !_KERNEL */
 
-int netpgpv_SHA512_Init(NETPGPV_SHA512_CTX*);
-int netpgpv_SHA512_Update(NETPGPV_SHA512_CTX*, const uint8_t*, size_t);
-int netpgpv_SHA512_Final(uint8_t[SHA512_DIGEST_LENGTH], NETPGPV_SHA512_CTX*);
+int rnpv_SHA512_Init(RNPV_SHA512_CTX*);
+int rnpv_SHA512_Update(RNPV_SHA512_CTX*, const uint8_t*, size_t);
+int rnpv_SHA512_Final(uint8_t[SHA512_DIGEST_LENGTH], RNPV_SHA512_CTX*);
 #ifndef _KERNEL
-char *netpgpv_SHA512_End(NETPGPV_SHA512_CTX *, char[SHA512_DIGEST_STRING_LENGTH]);
-char *netpgpv_SHA512_FileChunk(const char *, char *, off_t, off_t);
-char *netpgpv_SHA512_File(const char *, char *);
-char *netpgpv_SHA512_Data(const uint8_t *, size_t, char[SHA512_DIGEST_STRING_LENGTH]);
+char *rnpv_SHA512_End(RNPV_SHA512_CTX *, char[SHA512_DIGEST_STRING_LENGTH]);
+char *rnpv_SHA512_FileChunk(const char *, char *, off_t, off_t);
+char *rnpv_SHA512_File(const char *, char *);
+char *rnpv_SHA512_Data(const uint8_t *, size_t, char[SHA512_DIGEST_STRING_LENGTH]);
 #endif /* !_KERNEL */
 __END_DECLS
 

@@ -68,7 +68,7 @@ don_armor(digest_t *hash, uint8_t *in, size_t insize, int doarmor)
 	return 1;
 }
 
-#ifdef NETPGPV_DEBUG
+#ifdef RNPV_DEBUG
 /* just for giggles, write what we're about to checksum */
 static int
 writefile(uint8_t *mem, size_t insize)
@@ -78,7 +78,7 @@ writefile(uint8_t *mem, size_t insize)
 	char	template[256];
 	int	fd;
 
-	snprintf(template, sizeof(template), "netpgpvmd.XXXXXX");
+	snprintf(template, sizeof(template), "rnpvmd.XXXXXX");
 	if ((fd = mkstemp(template)) < 0) {
 		fprintf(stderr, "can't mkstemp %s\n", template);
 		return 0;
@@ -128,7 +128,7 @@ calcsum(uint8_t *out, size_t size, uint8_t *mem, size_t cc, const uint8_t *hashe
 	trailer[0] = 0x04;
 	trailer[1] = 0xff;
 	memcpy(&trailer[2], &len32, sizeof(len32));
-#ifdef NETPGPV_DEBUG
+#ifdef RNPV_DEBUG
 	writefile(mem, cc);
 #endif
 	digest_init(&hash, (const unsigned)hashalg);

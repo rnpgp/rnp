@@ -159,11 +159,11 @@ be64toh(uint64_t x)
  * library -- they are intended for private internal visibility/use
  * only.
  */
-static void netpgpv_SHA512_Last(NETPGPV_SHA512_CTX *);
-void netpgpv_SHA224_Transform(NETPGPV_SHA224_CTX *, const uint32_t*);
-void netpgpv_SHA256_Transform(NETPGPV_SHA256_CTX *, const uint32_t*);
-void netpgpv_SHA384_Transform(NETPGPV_SHA384_CTX *, const uint64_t*);
-void netpgpv_SHA512_Transform(NETPGPV_SHA512_CTX *, const uint64_t*);
+static void rnpv_SHA512_Last(RNPV_SHA512_CTX *);
+void rnpv_SHA224_Transform(RNPV_SHA224_CTX *, const uint32_t*);
+void rnpv_SHA256_Transform(RNPV_SHA256_CTX *, const uint32_t*);
+void rnpv_SHA384_Transform(RNPV_SHA384_CTX *, const uint64_t*);
+void rnpv_SHA512_Transform(RNPV_SHA512_CTX *, const uint64_t*);
 
 
 /*** SHA-XYZ INITIAL HASH VALUES AND CONSTANTS ************************/
@@ -281,7 +281,7 @@ static const uint64_t sha512_initial_hash_value[8] = {
 
 /*** SHA-256: *********************************************************/
 int
-netpgpv_SHA256_Init(NETPGPV_SHA256_CTX *context)
+rnpv_SHA256_Init(RNPV_SHA256_CTX *context)
 {
 	if (context == NULL)
 		return 1;
@@ -319,7 +319,7 @@ netpgpv_SHA256_Init(NETPGPV_SHA256_CTX *context)
 	j++
 
 void 
-netpgpv_SHA256_Transform(NETPGPV_SHA256_CTX *context, const uint32_t *data)
+rnpv_SHA256_Transform(RNPV_SHA256_CTX *context, const uint32_t *data)
 {
 	uint32_t	a, b, c, d, e, f, g, h, s0, s1;
 	uint32_t	T1, *W256;
@@ -379,7 +379,7 @@ netpgpv_SHA256_Transform(NETPGPV_SHA256_CTX *context, const uint32_t *data)
 #else /* SHA2_UNROLL_TRANSFORM */
 
 void
-netpgpv_SHA256_Transform(NETPGPV_SHA256_CTX *context, const uint32_t *data)
+rnpv_SHA256_Transform(RNPV_SHA256_CTX *context, const uint32_t *data)
 {
 	uint32_t	a, b, c, d, e, f, g, h, s0, s1;
 	uint32_t	T1, T2, *W256;
@@ -456,7 +456,7 @@ netpgpv_SHA256_Transform(NETPGPV_SHA256_CTX *context, const uint32_t *data)
 #endif /* SHA2_UNROLL_TRANSFORM */
 
 int
-netpgpv_SHA256_Update(NETPGPV_SHA256_CTX *context, const uint8_t *data, size_t len)
+rnpv_SHA256_Update(RNPV_SHA256_CTX *context, const uint8_t *data, size_t len)
 {
 	unsigned int	freespace, usedspace;
 
@@ -478,7 +478,7 @@ netpgpv_SHA256_Update(NETPGPV_SHA256_CTX *context, const uint8_t *data, size_t l
 			context->bitcount += freespace << 3;
 			len -= freespace;
 			data += freespace;
-			netpgpv_SHA256_Transform(context,
+			rnpv_SHA256_Transform(context,
 			    (uint32_t *)(void *)context->buffer);
 		} else {
 			/* The buffer is not yet full */
@@ -498,7 +498,7 @@ netpgpv_SHA256_Update(NETPGPV_SHA256_CTX *context, const uint8_t *data, size_t l
 	 */
 	if ((uintptr_t)data % 4 == 0) {
 		while (len >= SHA256_BLOCK_LENGTH) {
-			netpgpv_SHA256_Transform(context,
+			rnpv_SHA256_Transform(context,
 			    (const uint32_t *)(const void *)data);
 			context->bitcount += SHA256_BLOCK_LENGTH << 3;
 			len -= SHA256_BLOCK_LENGTH;
@@ -507,7 +507,7 @@ netpgpv_SHA256_Update(NETPGPV_SHA256_CTX *context, const uint8_t *data, size_t l
 	} else {
 		while (len >= SHA256_BLOCK_LENGTH) {
 			memcpy(context->buffer, data, SHA256_BLOCK_LENGTH);
-			netpgpv_SHA256_Transform(context,
+			rnpv_SHA256_Transform(context,
 			    (const uint32_t *)(const void *)context->buffer);
 			context->bitcount += SHA256_BLOCK_LENGTH << 3;
 			len -= SHA256_BLOCK_LENGTH;
@@ -526,7 +526,7 @@ netpgpv_SHA256_Update(NETPGPV_SHA256_CTX *context, const uint8_t *data, size_t l
 }
 
 static int
-netpgpv_SHA224_256_Final(uint8_t digest[], NETPGPV_SHA256_CTX *context, size_t len)
+rnpv_SHA224_256_Final(uint8_t digest[], RNPV_SHA256_CTX *context, size_t len)
 {
 	unsigned int	usedspace;
 	size_t i;
@@ -552,7 +552,7 @@ netpgpv_SHA224_256_Final(uint8_t digest[], NETPGPV_SHA256_CTX *context, size_t l
 					    usedspace));
 				}
 				/* Do second-to-last transform: */
-				netpgpv_SHA256_Transform(context,
+				rnpv_SHA256_Transform(context,
 				    (uint32_t *)(void *)context->buffer);
 
 				/* And set-up for the last transform: */
@@ -572,7 +572,7 @@ netpgpv_SHA224_256_Final(uint8_t digest[], NETPGPV_SHA256_CTX *context, size_t l
 		    &context->bitcount, sizeof(context->bitcount));
 
 		/* Final transform: */
-		netpgpv_SHA256_Transform(context, (uint32_t *)(void *)context->buffer);
+		rnpv_SHA256_Transform(context, (uint32_t *)(void *)context->buffer);
 
 		for (i = 0; i < len / 4; i++)
 			be32encode(digest + 4 * i, context->state[i]);
@@ -586,14 +586,14 @@ netpgpv_SHA224_256_Final(uint8_t digest[], NETPGPV_SHA256_CTX *context, size_t l
 }
 
 int
-netpgpv_SHA256_Final(uint8_t digest[], NETPGPV_SHA256_CTX *context)
+rnpv_SHA256_Final(uint8_t digest[], RNPV_SHA256_CTX *context)
 {
-	return netpgpv_SHA224_256_Final(digest, context, SHA256_DIGEST_LENGTH);
+	return rnpv_SHA224_256_Final(digest, context, SHA256_DIGEST_LENGTH);
 }
 
 /*** SHA-224: *********************************************************/
 int 
-netpgpv_SHA224_Init(NETPGPV_SHA224_CTX *context)
+rnpv_SHA224_Init(RNPV_SHA224_CTX *context)
 {
 	if (context == NULL)
 		return 1;
@@ -608,27 +608,27 @@ netpgpv_SHA224_Init(NETPGPV_SHA224_CTX *context)
 }
 
 int
-netpgpv_SHA224_Update(NETPGPV_SHA224_CTX *context, const uint8_t *data, size_t len)
+rnpv_SHA224_Update(RNPV_SHA224_CTX *context, const uint8_t *data, size_t len)
 {
-	return netpgpv_SHA256_Update((NETPGPV_SHA256_CTX *)context, data, len);
+	return rnpv_SHA256_Update((RNPV_SHA256_CTX *)context, data, len);
 }
 
 void
-netpgpv_SHA224_Transform(NETPGPV_SHA224_CTX *context, const uint32_t *data)
+rnpv_SHA224_Transform(RNPV_SHA224_CTX *context, const uint32_t *data)
 {
-	netpgpv_SHA256_Transform((NETPGPV_SHA256_CTX *)context, data);
+	rnpv_SHA256_Transform((RNPV_SHA256_CTX *)context, data);
 }
 
 int
-netpgpv_SHA224_Final(uint8_t digest[], NETPGPV_SHA224_CTX *context)
+rnpv_SHA224_Final(uint8_t digest[], RNPV_SHA224_CTX *context)
 {
-	return netpgpv_SHA224_256_Final(digest, (NETPGPV_SHA256_CTX *)context,
+	return rnpv_SHA224_256_Final(digest, (RNPV_SHA256_CTX *)context,
 	    SHA224_DIGEST_LENGTH);
 }
 
 /*** SHA-512: *********************************************************/
 int
-netpgpv_SHA512_Init(NETPGPV_SHA512_CTX *context)
+rnpv_SHA512_Init(RNPV_SHA512_CTX *context)
 {
 	if (context == NULL)
 		return 1;
@@ -665,7 +665,7 @@ netpgpv_SHA512_Init(NETPGPV_SHA512_CTX *context)
 	j++
 
 void
-netpgpv_SHA512_Transform(NETPGPV_SHA512_CTX *context, const uint64_t *data)
+rnpv_SHA512_Transform(RNPV_SHA512_CTX *context, const uint64_t *data)
 {
 	uint64_t	a, b, c, d, e, f, g, h, s0, s1;
 	uint64_t	T1, *W512 = (uint64_t *)context->buffer;
@@ -722,7 +722,7 @@ netpgpv_SHA512_Transform(NETPGPV_SHA512_CTX *context, const uint64_t *data)
 #else /* SHA2_UNROLL_TRANSFORM */
 
 void
-netpgpv_SHA512_Transform(NETPGPV_SHA512_CTX *context, const uint64_t *data)
+rnpv_SHA512_Transform(RNPV_SHA512_CTX *context, const uint64_t *data)
 {
 	uint64_t	a, b, c, d, e, f, g, h, s0, s1;
 	uint64_t	T1, T2, *W512 = (void *)context->buffer;
@@ -797,7 +797,7 @@ netpgpv_SHA512_Transform(NETPGPV_SHA512_CTX *context, const uint64_t *data)
 #endif /* SHA2_UNROLL_TRANSFORM */
 
 int
-netpgpv_SHA512_Update(NETPGPV_SHA512_CTX *context, const uint8_t *data, size_t len)
+rnpv_SHA512_Update(RNPV_SHA512_CTX *context, const uint8_t *data, size_t len)
 {
 	unsigned int	freespace, usedspace;
 
@@ -819,7 +819,7 @@ netpgpv_SHA512_Update(NETPGPV_SHA512_CTX *context, const uint8_t *data, size_t l
 			ADDINC128(context->bitcount, freespace << 3);
 			len -= freespace;
 			data += freespace;
-			netpgpv_SHA512_Transform(context,
+			rnpv_SHA512_Transform(context,
 			    (uint64_t *)(void *)context->buffer);
 		} else {
 			/* The buffer is not yet full */
@@ -839,7 +839,7 @@ netpgpv_SHA512_Update(NETPGPV_SHA512_CTX *context, const uint8_t *data, size_t l
 	 */
 	if ((uintptr_t)data % 8 == 0) {
 		while (len >= SHA512_BLOCK_LENGTH) {
-			netpgpv_SHA512_Transform(context,
+			rnpv_SHA512_Transform(context,
 			    (const uint64_t*)(const void *)data);
 			ADDINC128(context->bitcount, SHA512_BLOCK_LENGTH << 3);
 			len -= SHA512_BLOCK_LENGTH;
@@ -848,7 +848,7 @@ netpgpv_SHA512_Update(NETPGPV_SHA512_CTX *context, const uint8_t *data, size_t l
 	} else {
 		while (len >= SHA512_BLOCK_LENGTH) {
 			memcpy(context->buffer, data, SHA512_BLOCK_LENGTH);
-			netpgpv_SHA512_Transform(context,
+			rnpv_SHA512_Transform(context,
 			    (const void *)context->buffer);
 			ADDINC128(context->bitcount, SHA512_BLOCK_LENGTH << 3);
 			len -= SHA512_BLOCK_LENGTH;
@@ -867,7 +867,7 @@ netpgpv_SHA512_Update(NETPGPV_SHA512_CTX *context, const uint8_t *data, size_t l
 }
 
 static void
-netpgpv_SHA512_Last(NETPGPV_SHA512_CTX *context)
+rnpv_SHA512_Last(RNPV_SHA512_CTX *context)
 {
 	unsigned int	usedspace;
 
@@ -888,7 +888,7 @@ netpgpv_SHA512_Last(NETPGPV_SHA512_CTX *context)
 				    (size_t)(SHA512_BLOCK_LENGTH - usedspace));
 			}
 			/* Do second-to-last transform: */
-			netpgpv_SHA512_Transform(context,
+			rnpv_SHA512_Transform(context,
 			    (uint64_t *)(void *)context->buffer);
 
 			/* And set-up for the last transform: */
@@ -909,17 +909,17 @@ netpgpv_SHA512_Last(NETPGPV_SHA512_CTX *context)
 	    &context->bitcount[0], sizeof(context->bitcount[0]));
 
 	/* Final transform: */
-	netpgpv_SHA512_Transform(context, (uint64_t *)(void *)context->buffer);
+	rnpv_SHA512_Transform(context, (uint64_t *)(void *)context->buffer);
 }
 
 int
-netpgpv_SHA512_Final(uint8_t digest[], NETPGPV_SHA512_CTX *context)
+rnpv_SHA512_Final(uint8_t digest[], RNPV_SHA512_CTX *context)
 {
 	size_t i;
 
 	/* If no digest buffer is passed, we don't bother doing this: */
 	if (digest != NULL) {
-		netpgpv_SHA512_Last(context);
+		rnpv_SHA512_Last(context);
 
 		/* Save the hash data for output: */
 		for (i = 0; i < 8; ++i)
@@ -934,7 +934,7 @@ netpgpv_SHA512_Final(uint8_t digest[], NETPGPV_SHA512_CTX *context)
 
 /*** SHA-384: *********************************************************/
 int
-netpgpv_SHA384_Init(NETPGPV_SHA384_CTX *context)
+rnpv_SHA384_Init(RNPV_SHA384_CTX *context)
 {
 	if (context == NULL)
 		return 1;
@@ -948,25 +948,25 @@ netpgpv_SHA384_Init(NETPGPV_SHA384_CTX *context)
 }
 
 int
-netpgpv_SHA384_Update(NETPGPV_SHA384_CTX *context, const uint8_t *data, size_t len)
+rnpv_SHA384_Update(RNPV_SHA384_CTX *context, const uint8_t *data, size_t len)
 {
-	return netpgpv_SHA512_Update((NETPGPV_SHA512_CTX *)context, data, len);
+	return rnpv_SHA512_Update((RNPV_SHA512_CTX *)context, data, len);
 }
 
 void
-netpgpv_SHA384_Transform(NETPGPV_SHA512_CTX *context, const uint64_t *data)
+rnpv_SHA384_Transform(RNPV_SHA512_CTX *context, const uint64_t *data)
 {
-	netpgpv_SHA512_Transform((NETPGPV_SHA512_CTX *)context, data);
+	rnpv_SHA512_Transform((RNPV_SHA512_CTX *)context, data);
 }
 
 int
-netpgpv_SHA384_Final(uint8_t digest[], NETPGPV_SHA384_CTX *context)
+rnpv_SHA384_Final(uint8_t digest[], RNPV_SHA384_CTX *context)
 {
 	size_t i;
 
 	/* If no digest buffer is passed, we don't bother doing this: */
 	if (digest != NULL) {
-		netpgpv_SHA512_Last((NETPGPV_SHA512_CTX *)context);
+		rnpv_SHA512_Last((RNPV_SHA512_CTX *)context);
 
 		/* Save the hash data for output: */
 		for (i = 0; i < 6; ++i)

@@ -95,7 +95,7 @@ static const u_char PADDING[64] = {
 };
 
 void
-netpgpv_RMD160Init(NETPGPV_RMD160_CTX *ctx)
+rnpv_RMD160Init(RNPV_RMD160_CTX *ctx)
 {
 	ctx->count = 0;
 	ctx->state[0] = H0;
@@ -106,7 +106,7 @@ netpgpv_RMD160Init(NETPGPV_RMD160_CTX *ctx)
 }
 
 void
-netpgpv_RMD160Update(NETPGPV_RMD160_CTX *ctx, const u_char *input, uint32_t len)
+rnpv_RMD160Update(RNPV_RMD160_CTX *ctx, const u_char *input, uint32_t len)
 {
 	uint32_t have, off, need;
 
@@ -118,13 +118,13 @@ netpgpv_RMD160Update(NETPGPV_RMD160_CTX *ctx, const u_char *input, uint32_t len)
 	if (len >= need) {
 		if (have) {
 			memcpy(ctx->buffer + have, input, (size_t)need);
-			netpgpv_RMD160Transform(ctx->state, ctx->buffer);
+			rnpv_RMD160Transform(ctx->state, ctx->buffer);
 			off = need;
 			have = 0;
 		}
 		/* now the buffer is empty */
 		while (off + 64 <= len) {
-			netpgpv_RMD160Transform(ctx->state, input+off);
+			rnpv_RMD160Transform(ctx->state, input+off);
 			off += 64;
 		}
 	}
@@ -133,7 +133,7 @@ netpgpv_RMD160Update(NETPGPV_RMD160_CTX *ctx, const u_char *input, uint32_t len)
 }
 
 void
-netpgpv_RMD160Final(u_char digest[20], NETPGPV_RMD160_CTX *ctx)
+rnpv_RMD160Final(u_char digest[20], RNPV_RMD160_CTX *ctx)
 {
 	int i;
 	u_char size[8];
@@ -148,8 +148,8 @@ netpgpv_RMD160Final(u_char digest[20], NETPGPV_RMD160_CTX *ctx)
 	padlen = (uint32_t)(64 - ((ctx->count/8) % 64));
 	if (padlen < 1 + 8)
 		padlen += 64;
-	netpgpv_RMD160Update(ctx, PADDING, padlen - 8);		/* padlen - 8 <= 64 */
-	netpgpv_RMD160Update(ctx, size, 8);
+	rnpv_RMD160Update(ctx, PADDING, padlen - 8);		/* padlen - 8 <= 64 */
+	rnpv_RMD160Update(ctx, size, 8);
 
 	if (digest != NULL)
 		for (i = 0; i < 5; i++)
@@ -159,7 +159,7 @@ netpgpv_RMD160Final(u_char digest[20], NETPGPV_RMD160_CTX *ctx)
 }
 
 void
-netpgpv_RMD160Transform(uint32_t state[5], const u_char block[64])
+rnpv_RMD160Transform(uint32_t state[5], const u_char block[64])
 {
 	uint32_t a, b, c, d, e, aa, bb, cc, dd, ee, t, x[16];
 

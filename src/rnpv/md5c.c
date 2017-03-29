@@ -154,7 +154,7 @@ static const unsigned char PADDING[64] = {
  * MD5 initialization. Begins an MD5 operation, writing a new context.
  */
 void
-netpgpv_MD5Init(NETPGPV_MD5_CTX *context)
+rnpv_MD5Init(RNPV_MD5_CTX *context)
 {
 
 	context->count[0] = context->count[1] = 0;
@@ -172,7 +172,7 @@ netpgpv_MD5Init(NETPGPV_MD5_CTX *context)
  * context.
  */
 void
-netpgpv_MD5Update(NETPGPV_MD5_CTX *context,
+rnpv_MD5Update(RNPV_MD5_CTX *context,
 	const unsigned char *input,	/* input block */
 	unsigned int inputLen)		/* length of input block */
 {
@@ -210,8 +210,8 @@ netpgpv_MD5Update(NETPGPV_MD5_CTX *context,
  * message digest and zeroing the context.
  */
 void
-netpgpv_MD5Final(unsigned char digest[16],	/* message digest */
-	NETPGPV_MD5_CTX *context)		/* context */
+rnpv_MD5Final(unsigned char digest[16],	/* message digest */
+	RNPV_MD5_CTX *context)		/* context */
 {
 	unsigned char bits[8];
 	unsigned int idx, padLen;
@@ -222,10 +222,10 @@ netpgpv_MD5Final(unsigned char digest[16],	/* message digest */
 	/* Pad out to 56 mod 64. */
 	idx = (unsigned int)((context->count[0] >> 3) & 0x3f);
 	padLen = (idx < 56) ? (56 - idx) : (120 - idx);
-	netpgpv_MD5Update (context, PADDING, padLen);
+	rnpv_MD5Update (context, PADDING, padLen);
 
 	/* Append length (before padding) */
-	netpgpv_MD5Update(context, bits, 8);
+	rnpv_MD5Update(context, bits, 8);
 
 	/* Store state in digest */
 	Encode(digest, context->state, 16);

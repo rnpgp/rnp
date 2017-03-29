@@ -182,7 +182,7 @@ main(int argc, char **argv)
 			keyring = optarg;
 			break;
 		case 'v':
-			printf("%s\n", NETPGPVERIFY_VERSION);
+			printf("%s\n", RNPV_VERSION);
 			exit(EXIT_SUCCESS);
 		case 'h':
 			print_usage(usage);

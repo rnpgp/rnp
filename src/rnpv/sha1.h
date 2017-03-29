@@ -30,18 +30,18 @@ typedef struct {
 	uint32_t state[5];
 	uint32_t count[2];
 	uint8_t buffer[64];
-} NETPGPV_SHA1_CTX;
+} RNPV_SHA1_CTX;
 
 __BEGIN_DECLS
-void	netpgpv_SHA1Transform(uint32_t[5], const uint8_t[64]);
-void	netpgpv_SHA1Init(NETPGPV_SHA1_CTX *);
-void	netpgpv_SHA1Update(NETPGPV_SHA1_CTX *, const uint8_t *, unsigned int);
-void	netpgpv_SHA1Final(uint8_t[SHA1_DIGEST_LENGTH], NETPGPV_SHA1_CTX *);
+void	rnpv_SHA1Transform(uint32_t[5], const uint8_t[64]);
+void	rnpv_SHA1Init(RNPV_SHA1_CTX *);
+void	rnpv_SHA1Update(RNPV_SHA1_CTX *, const uint8_t *, unsigned int);
+void	rnpv_SHA1Final(uint8_t[SHA1_DIGEST_LENGTH], RNPV_SHA1_CTX *);
 #ifndef _KERNEL
-char	*netpgpv_SHA1End(NETPGPV_SHA1_CTX *, char *);
-char	*netpgpv_SHA1FileChunk(const char *, char *, off_t, off_t);
-char	*netpgpv_SHA1File(const char *, char *);
-char	*netpgpv_SHA1Data(const uint8_t *, size_t, char *);
+char	*rnpv_SHA1End(RNPV_SHA1_CTX *, char *);
+char	*rnpv_SHA1FileChunk(const char *, char *, off_t, off_t);
+char	*rnpv_SHA1File(const char *, char *);
+char	*rnpv_SHA1Data(const uint8_t *, size_t, char *);
 #endif /* _KERNEL */
 __END_DECLS
 

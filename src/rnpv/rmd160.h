@@ -49,18 +49,18 @@ typedef struct RMD160Context {
 	uint32_t state[5];	/* state */
 	uint64_t count;		/* number of bits, modulo 2^64 */
 	u_char buffer[64];	/* input buffer */
-} NETPGPV_RMD160_CTX;
+} RNPV_RMD160_CTX;
 
 __BEGIN_DECLS
-void	 netpgpv_RMD160Init(NETPGPV_RMD160_CTX *);
-void	 netpgpv_RMD160Transform(uint32_t [5], const u_char [64]);
-void	 netpgpv_RMD160Update(NETPGPV_RMD160_CTX *, const u_char *, uint32_t);
-void	 netpgpv_RMD160Final(u_char [RMD160_DIGEST_LENGTH], NETPGPV_RMD160_CTX *);
+void	 rnpv_RMD160Init(RNPV_RMD160_CTX *);
+void	 rnpv_RMD160Transform(uint32_t [5], const u_char [64]);
+void	 rnpv_RMD160Update(RNPV_RMD160_CTX *, const u_char *, uint32_t);
+void	 rnpv_RMD160Final(u_char [RMD160_DIGEST_LENGTH], RNPV_RMD160_CTX *);
 #ifndef _KERNEL
-char	*netpgpv_RMD160End(NETPGPV_RMD160_CTX *, char *);
-char	*netpgpv_RMD160FileChunk(const char *, char *, off_t, off_t);
-char	*netpgpv_RMD160File(const char *, char *);
-char	*netpgpv_RMD160Data(const u_char *, size_t, char *);
+char	*rnpv_RMD160End(RNPV_RMD160_CTX *, char *);
+char	*rnpv_RMD160FileChunk(const char *, char *, off_t, off_t);
+char	*rnpv_RMD160File(const char *, char *);
+char	*rnpv_RMD160Data(const u_char *, size_t, char *);
 #endif /* _KERNEL */
 __END_DECLS
 

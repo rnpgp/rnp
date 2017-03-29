@@ -54,16 +54,16 @@ typedef struct MD5Context {
 	uint32_t state[4];	/* state (ABCD) */
 	uint32_t count[2];	/* number of bits, modulo 2^64 (lsb first) */
 	unsigned char buffer[64]; /* input buffer */
-} NETPGPV_MD5_CTX;
+} RNPV_MD5_CTX;
 
 __BEGIN_DECLS
-void	netpgpv_MD5Init(NETPGPV_MD5_CTX *);
-void	netpgpv_MD5Update(NETPGPV_MD5_CTX *, const unsigned char *, unsigned int);
-void	netpgpv_MD5Final(unsigned char[MD5_DIGEST_LENGTH], NETPGPV_MD5_CTX *);
+void	rnpv_MD5Init(RNPV_MD5_CTX *);
+void	rnpv_MD5Update(RNPV_MD5_CTX *, const unsigned char *, unsigned int);
+void	rnpv_MD5Final(unsigned char[MD5_DIGEST_LENGTH], RNPV_MD5_CTX *);
 #ifndef _KERNEL
-char	*netpgpv_MD5End(NETPGPV_MD5_CTX *, char *);
-char	*netpgpv_MD5File(const char *, char *);
-char	*netpgpv_MD5Data(const unsigned char *, unsigned int, char *);
+char	*rnpv_MD5End(RNPV_MD5_CTX *, char *);
+char	*rnpv_MD5File(const char *, char *);
+char	*rnpv_MD5Data(const unsigned char *, unsigned int, char *);
 #endif /* _KERNEL */
 __END_DECLS
 

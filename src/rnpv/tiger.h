@@ -44,21 +44,21 @@ __BEGIN_DECLS
 #define TIGER_DIGEST_LENGTH            24
 #define TIGER_DIGEST_STRING_LENGTH     ((TIGER_DIGEST_LENGTH * 2) + 1)
 
-typedef struct NETPGPV_TIGER_CTX {
+typedef struct RNPV_TIGER_CTX {
 	uint64_t	ctx[3];
 	int		init;
 	uint8_t		pad;
-} NETPGPV_TIGER_CTX;
+} RNPV_TIGER_CTX;
 
-void netpgpv_TIGER_Init(NETPGPV_TIGER_CTX *);
-void netpgpv_TIGER2_Init(NETPGPV_TIGER_CTX *);
-void netpgpv_TIGER_Update(NETPGPV_TIGER_CTX *, const void *, size_t);
-void netpgpv_TIGER_Final(uint8_t *, NETPGPV_TIGER_CTX *);
+void rnpv_TIGER_Init(RNPV_TIGER_CTX *);
+void rnpv_TIGER2_Init(RNPV_TIGER_CTX *);
+void rnpv_TIGER_Update(RNPV_TIGER_CTX *, const void *, size_t);
+void rnpv_TIGER_Final(uint8_t *, RNPV_TIGER_CTX *);
 
-char *netpgpv_TIGER_End(NETPGPV_TIGER_CTX *, char *);
+char *rnpv_TIGER_End(RNPV_TIGER_CTX *, char *);
 
-char *netpgpv_TIGER_File(char *, char *, int);
-char *netpgpv_TIGER_Data(const uint8_t *, size_t, char *, int);
+char *rnpv_TIGER_File(char *, char *, int);
+char *rnpv_TIGER_Data(const uint8_t *, size_t, char *, int);
 
 __END_DECLS
 

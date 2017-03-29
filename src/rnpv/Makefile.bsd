@@ -1,6 +1,6 @@
 # $NetBSD: Makefile.bsd,v 1.6 2016/06/15 16:51:46 agc Exp $
 
-PROG=netpgpverify
+PROG=rnpv
 
 SRCS= b64.c bignum.c bufgap.c digest.c
 SRCS+= libverify.c main.c misc.c
@@ -17,7 +17,7 @@ CPPFLAGS+=-g -O0
 LDFLAGS+=-g -O0
 .endif
 
-MAN=	netpgpverify.1
+MAN=	rnpverify.1
 WARNS=	5
 
 .include <bsd.prog.mk>

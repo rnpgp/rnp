@@ -1,7 +1,7 @@
 #! /bin/sh
 
-version=$(awk '/^#define[ \t]+NETPGP_VERIFY_H_/ { print $3 }' verify.h)
-name=netpgpverify-${version}
+version=$(awk '/^#define[ \t]+RNP_VERIFY_H_/ { print $3 }' verify.h)
+name=rnpv-${version}
 
 (cd .. &&
 	mv files ${name} &&

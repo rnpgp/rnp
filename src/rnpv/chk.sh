@@ -93,9 +93,9 @@ printf "end pkgsrc signature\n" >> ${dir}/calc
 # make sure what was signed is what we have
 diff ${dir}/+PKG_HASH ${dir}/calc || die "Bad hashes generated"
 
-# use netpgpverify to verify the signature
-if [ -x /usr/bin/netpgpverify -o -x /usr/pkg/bin/netpgpverify ]; then
-	echo "=== Using netpgpverify to verify the package signature ==="
+# use rnpverify to verify the signature
+if [ -x /usr/bin/rnpverify -o -x /usr/pkg/bin/rnpverify ]; then
+	echo "=== Using rnpverify to verify the package signature ==="
 	# check the signature in +PKG_GPG_SIGNATURE
 	cp ${keyring} ${dir}/pubring.gpg
 	# calculate the sig file we want to verify
@@ -103,7 +103,7 @@ if [ -x /usr/bin/netpgpverify -o -x /usr/pkg/bin/netpgpverify ]; then
 	echo "Hash: ${digest}" >> ${dir}/${name}.sig
 	echo "" >> ${dir}/${name}.sig
 	cat ${dir}/+PKG_HASH ${dir}/+PKG_GPG_SIGNATURE >> ${dir}/${name}.sig
-	(cd ${dir} && ${here}/netpgpverify -k pubring.gpg ${name}.sig) || die "Bad signature"
+	(cd ${dir} && ${here}/rnpverify -k pubring.gpg ${name}.sig) || die "Bad signature"
 else
 	echo "=== Using gpg to verify the package signature ==="
 	gpg --recv --keyserver pgp.mit.edu 0x6F3AF5E2

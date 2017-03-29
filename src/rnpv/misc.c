@@ -45,7 +45,7 @@
 #endif
 
 void *
-netpgp_allocate(size_t n, size_t nels)
+rnp_allocate(size_t n, size_t nels)
 {
 #ifdef _KERNEL
 	return kmem_zalloc(n * nels, KM_SLEEP);
@@ -55,7 +55,7 @@ netpgp_allocate(size_t n, size_t nels)
 }
 
 void
-netpgp_deallocate(void *ptr, size_t size)
+rnp_deallocate(void *ptr, size_t size)
 {
 #ifdef _KERNEL
 	kmem_free(ptr, size);
@@ -73,7 +73,7 @@ netpgp_deallocate(void *ptr, size_t size)
 
 /* show hexadecimal/ascii dump */
 ssize_t 
-netpgp_hexdump(const void *vin, const size_t len, void *outvp, size_t size)
+rnp_hexdump(const void *vin, const size_t len, void *outvp, size_t size)
 {
 	const char	*in = (const char *)vin;
 	size_t		 i;

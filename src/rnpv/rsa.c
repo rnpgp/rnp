@@ -76,7 +76,7 @@ lowlevel_rsa_private_encrypt(int plainc, const unsigned char *plain, unsigned ch
 	decbn = PGPV_BN_new();
 	signedbn = PGPV_BN_new();
 	nbytes = PGPV_BN_num_bytes(rsa->n);
-	decbuf = netpgp_allocate(1, nbytes);
+	decbuf = rnp_allocate(1, nbytes);
 	/* add no padding */
 	memcpy(decbuf, plain, plainc);
 	PGPV_BN_bin2bn(decbuf, nbytes, decbn);
@@ -93,7 +93,7 @@ lowlevel_rsa_private_encrypt(int plainc, const unsigned char *plain, unsigned ch
 	memset(encbuf, 0x0, nbytes - signc);
 	r = nbytes;
 err:
-	netpgp_deallocate(decbuf, nbytes);
+	rnp_deallocate(decbuf, nbytes);
 	PGPV_BN_clear_free(decbn);
 	PGPV_BN_clear_free(signedbn);
 	return r;
@@ -114,7 +114,7 @@ lowlevel_rsa_public_encrypt(int plainc, const unsigned char *plain, unsigned cha
 	decbn = PGPV_BN_new();
 	encbn = PGPV_BN_new();
 	nbytes = PGPV_BN_num_bytes(rsa->n);
-	decbuf = netpgp_allocate(1, nbytes);
+	decbuf = rnp_allocate(1, nbytes);
 	(void) memcpy(decbuf, plain, plainc);
 	if (PGPV_BN_bin2bn(decbuf, nbytes, decbn) == NULL) {
 		printf("bin2bn failed\n");
@@ -135,7 +135,7 @@ lowlevel_rsa_public_encrypt(int plainc, const unsigned char *plain, unsigned cha
 err:
 	if (decbuf) {
 		memset(decbuf, 0x0, nbytes);
-		netpgp_deallocate(decbuf, nbytes);
+		rnp_deallocate(decbuf, nbytes);
 	}
 	PGPV_BN_clear_free(decbn);
 	PGPV_BN_clear_free(encbn);
@@ -164,7 +164,7 @@ lowlevel_rsa_private_decrypt(int enclen, const unsigned char *encbuf, unsigned c
 	encbn = PGPV_BN_new();
 	decbn = PGPV_BN_new();
 	nbytes = PGPV_BN_num_bytes(rsa->n);
-	buf = netpgp_allocate(1, nbytes);
+	buf = rnp_allocate(1, nbytes);
 	if (enclen > nbytes) {
 		printf("bad enclen\n");
 		goto err;
@@ -180,7 +180,7 @@ lowlevel_rsa_private_decrypt(int enclen, const unsigned char *encbuf, unsigned c
 err:
 	PGPV_BN_clear_free(encbn);
 	PGPV_BN_clear_free(decbn);
-	netpgp_deallocate(buf, nbytes);
+	rnp_deallocate(buf, nbytes);
 	return r;
 }
 
@@ -213,7 +213,7 @@ lowlevel_rsa_public_decrypt(const uint8_t *encbuf, int enclen, uint8_t *dec, con
 	}
 	if ((encbn = PGPV_BN_new()) == NULL ||
 	    (decbn = PGPV_BN_new()) == NULL ||
-	    (decbuf = netpgp_allocate(1, nbytes = PGPV_BN_num_bytes(rsa->n))) == NULL) {
+	    (decbuf = rnp_allocate(1, nbytes = PGPV_BN_num_bytes(rsa->n))) == NULL) {
 		printf("allocation failure\n");
 		goto err;
 	}
@@ -243,7 +243,7 @@ err:
 	PGPV_BN_free(decbn);
 	if (decbuf != NULL) {
 		(void) memset(decbuf, 0x0, nbytes);
-		netpgp_deallocate(decbuf, nbytes);
+		rnp_deallocate(decbuf, nbytes);
 	}
 	return r;
 }
@@ -542,14 +542,14 @@ dsa_verify(const signature_t *signature, const dsa_pubkey_t *pubdsa, const uint8
 RSA *
 RSA_new(void)
 {
-	return netpgp_allocate(1, sizeof(RSA));
+	return rnp_allocate(1, sizeof(RSA));
 }
 
 void
 RSA_free(RSA *rsa)
 {
 	if (rsa) {
-		netpgp_deallocate(rsa, sizeof(*rsa));
+		rnp_deallocate(rsa, sizeof(*rsa));
 	}
 }
 
@@ -650,28 +650,28 @@ RSA_public_decrypt(int enclen, const unsigned char *enc, unsigned char *dec, RSA
 DSA *
 DSA_new(void)
 {
-	return netpgp_allocate(1, sizeof(DSA));
+	return rnp_allocate(1, sizeof(DSA));
 }
 
 void
 DSA_free(DSA *dsa)
 {
 	if (dsa) {
-		netpgp_deallocate(dsa, sizeof(*dsa));
+		rnp_deallocate(dsa, sizeof(*dsa));
 	}
 }
 
 DSA_SIG *
 DSA_SIG_new(void)
 {
-	return netpgp_allocate(1, sizeof(DSA_SIG));
+	return rnp_allocate(1, sizeof(DSA_SIG));
 }
 
 void
 DSA_SIG_free(DSA_SIG *sig)
 {
 	if (sig) {
-		netpgp_deallocate(sig, sizeof(*sig));
+		rnp_deallocate(sig, sizeof(*sig));
 	}
 }
 
