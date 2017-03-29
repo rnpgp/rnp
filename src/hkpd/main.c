@@ -45,7 +45,7 @@
 
 /* set the home directory value to "home/subdir" */
 static int
-set_homedir(netpgp_t *netpgp, char *home, const char *subdir, const int quiet)
+set_homedir(rnp_t *netpgp, char *home, const char *subdir, const int quiet)
 {
 	struct stat	st;
 	char		d[MAXPATHLEN];
@@ -76,7 +76,7 @@ set_homedir(netpgp_t *netpgp, char *home, const char *subdir, const int quiet)
 int
 main(int argc, char **argv)
 {
-	netpgp_t	 netpgp;
+	rnp_t	 netpgp;
 	char		*family;
 	char		*host;
 	int		 daemonise;

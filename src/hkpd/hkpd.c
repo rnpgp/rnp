@@ -197,7 +197,7 @@ hkpd_sock_bind(const char *hostname, const int port, const int fam)
 
 /* netpgp key daemon - does not return */
 int
-hkpd(netpgp_t *netpgp, int sock4, int sock6)
+hkpd(rnp_t *netpgp, int sock4, int sock6)
 {
 	struct sockaddr_in	from;
 	regmatch_t		searchmatches[10];

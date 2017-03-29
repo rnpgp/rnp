@@ -84,8 +84,8 @@ int paa_server_init(paa_server_info_t *, unsigned);
 
 /* body of pubkey access authentication challenge/response/check functionality */
 int paa_format_challenge(paa_challenge_t *, paa_server_info_t *, char *, size_t);
-int paa_format_response(paa_response_t *, netpgp_t *, char *, char *, size_t);
-int paa_check_response(paa_challenge_t *, paa_identity_t *, netpgp_t *, char *);
+int paa_format_response(paa_response_t *, rnp_t *, char *, char *, size_t);
+int paa_check_response(paa_challenge_t *, paa_identity_t *, rnp_t *, char *);
 
 /* who are ya? */
 int paa_print_identity(FILE *, paa_identity_t *);

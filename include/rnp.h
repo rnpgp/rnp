@@ -44,7 +44,7 @@
 __BEGIN_DECLS
 
 /* structure used to hold (key,value) pair information */
-typedef struct netpgp_t {
+typedef struct rnp_t {
 	unsigned	  c;		/* # of elements used */
 	unsigned	  size;		/* size of array */
 	char		**name;		/* key names */
@@ -53,58 +53,58 @@ typedef struct netpgp_t {
 	void		 *secring;	/* s3kr1t key ring */
 	void		 *io;		/* the io struct for results/errs */
 	void		 *passfp;	/* file pointer for password input */
-} netpgp_t;
+} rnp_t;
 
 /* begin and end */
-int netpgp_init(netpgp_t *);
-int netpgp_end(netpgp_t *);
+int netpgp_init(rnp_t *);
+int netpgp_end(rnp_t *);
 
 /* debugging, reflection and information */
 int netpgp_set_debug(const char *);
 int netpgp_get_debug(const char *);
 const char *netpgp_get_info(const char *);
-int netpgp_list_packets(netpgp_t *, char *, int, char *);
+int netpgp_list_packets(rnp_t *, char *, int, char *);
 
 /* variables */
-int netpgp_setvar(netpgp_t *, const char *, const char *);
-char *netpgp_getvar(netpgp_t *, const char *);
-int netpgp_incvar(netpgp_t *, const char *, const int);
-int netpgp_unsetvar(netpgp_t *, const char *);
+int netpgp_setvar(rnp_t *, const char *, const char *);
+char *netpgp_getvar(rnp_t *, const char *);
+int netpgp_incvar(rnp_t *, const char *, const int);
+int netpgp_unsetvar(rnp_t *, const char *);
 
 /* set home directory information */
-int netpgp_set_homedir(netpgp_t *, char *, const char *, const int);
+int netpgp_set_homedir(rnp_t *, char *, const char *, const int);
 
 /* key management */
-int netpgp_list_keys(netpgp_t *, const int);
-int netpgp_list_keys_json(netpgp_t *, char **, const int);
-int netpgp_find_key(netpgp_t *, char *);
-char *netpgp_get_key(netpgp_t *, const char *, const char *);
-char *netpgp_export_key(netpgp_t *, char *);
-int netpgp_import_key(netpgp_t *, char *);
-int netpgp_generate_key(netpgp_t *, char *, int);
+int netpgp_list_keys(rnp_t *, const int);
+int netpgp_list_keys_json(rnp_t *, char **, const int);
+int netpgp_find_key(rnp_t *, char *);
+char *netpgp_get_key(rnp_t *, const char *, const char *);
+char *netpgp_export_key(rnp_t *, char *);
+int netpgp_import_key(rnp_t *, char *);
+int netpgp_generate_key(rnp_t *, char *, int);
 
 /* file management */
-int netpgp_encrypt_file(netpgp_t *, const char *, const char *, char *, int);
-int netpgp_decrypt_file(netpgp_t *, const char *, char *, int);
-int netpgp_sign_file(netpgp_t *, const char *, const char *, char *, int, int, int);
-int netpgp_verify_file(netpgp_t *, const char *, const char *, int);
+int netpgp_encrypt_file(rnp_t *, const char *, const char *, char *, int);
+int netpgp_decrypt_file(rnp_t *, const char *, char *, int);
+int netpgp_sign_file(rnp_t *, const char *, const char *, char *, int, int, int);
+int netpgp_verify_file(rnp_t *, const char *, const char *, int);
 
 /* memory signing and encryption */
-int netpgp_sign_memory(netpgp_t *, const char *, char *, size_t, char *, size_t, const unsigned, const unsigned);
-int netpgp_verify_memory(netpgp_t *, const void *, const size_t, void *, size_t, const int);
-int netpgp_encrypt_memory(netpgp_t *, const char *, void *, const size_t, char *, size_t, int);
-int netpgp_decrypt_memory(netpgp_t *, const void *, const size_t, char *, size_t, const int);
+int netpgp_sign_memory(rnp_t *, const char *, char *, size_t, char *, size_t, const unsigned, const unsigned);
+int netpgp_verify_memory(rnp_t *, const void *, const size_t, void *, size_t, const int);
+int netpgp_encrypt_memory(rnp_t *, const char *, void *, const size_t, char *, size_t, int);
+int netpgp_decrypt_memory(rnp_t *, const void *, const size_t, char *, size_t, const int);
 
 /* match and hkp-related functions */
-int netpgp_match_keys_json(netpgp_t *, char **, char *, const char *, const int);
-int netpgp_match_keys(netpgp_t *, char *, const char *, void *, const int);
-int netpgp_match_pubkeys(netpgp_t *, char *, void *);
+int netpgp_match_keys_json(rnp_t *, char **, char *, const char *, const int);
+int netpgp_match_keys(rnp_t *, char *, const char *, void *, const int);
+int netpgp_match_pubkeys(rnp_t *, char *, void *);
 int netpgp_format_json(void *, const char *, const int);
 
-int netpgp_validate_sigs(netpgp_t *);
+int netpgp_validate_sigs(rnp_t *);
 
 /* save pgp key in ssh format */
-int netpgp_write_sshkey(netpgp_t *, char *, const char *, char *, size_t);
+int netpgp_write_sshkey(rnp_t *, char *, const char *, char *, size_t);
 
 
 __END_DECLS

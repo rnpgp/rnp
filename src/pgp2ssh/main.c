@@ -42,7 +42,7 @@
 int
 main(int argc, char **argv)
 {
-	netpgp_t	 netpgp;
+	rnp_t	 netpgp;
 	char		*res;
 	char		 key[8192];
 	char		 asc[8192];

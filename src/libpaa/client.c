@@ -43,7 +43,7 @@ int
 main(int argc, char **argv)
 {
 	paa_response_t	response;
-	netpgp_t	netpgp;
+	rnp_t	netpgp;
 	char		challenge[2048];
 	char		buf[2048];
 	int		challengec;

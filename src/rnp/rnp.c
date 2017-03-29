@@ -196,7 +196,7 @@ print_usage(const char *usagemsg)
 
 /* read all of stdin into memory */
 static int
-stdin_to_mem(netpgp_t *netpgp, char **temp, char **out, unsigned *maxsize)
+stdin_to_mem(rnp_t *netpgp, char **temp, char **out, unsigned *maxsize)
 {
 	unsigned	 newsize;
 	unsigned	 size;
@@ -255,7 +255,7 @@ show_output(char *out, int size, const char *header)
 
 /* do a command once for a specified file 'f' */
 static int
-netpgp_cmd(netpgp_t *netpgp, prog_t *p, char *f)
+netpgp_cmd(rnp_t *netpgp, prog_t *p, char *f)
 {
 	const int	 cleartext = 1;
 	unsigned	 maxsize;
@@ -347,7 +347,7 @@ netpgp_cmd(netpgp_t *netpgp, prog_t *p, char *f)
 
 /* set an option */
 static int
-setoption(netpgp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
+setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 {
 	switch (val) {
 	case COREDUMPS:
@@ -484,7 +484,7 @@ setoption(netpgp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 
 /* we have -o option=value -- parse, and process */
 static int
-parse_option(netpgp_t *netpgp, prog_t *p, const char *s, int *homeset)
+parse_option(rnp_t *netpgp, prog_t *p, const char *s, int *homeset)
 {
 	static regex_t	 opt;
 	struct option	*op;
@@ -518,7 +518,7 @@ parse_option(netpgp_t *netpgp, prog_t *p, const char *s, int *homeset)
 int
 main(int argc, char **argv)
 {
-	netpgp_t	netpgp;
+	rnp_t	netpgp;
 	prog_t          p;
 	int             homeset;
 	int             optindex;

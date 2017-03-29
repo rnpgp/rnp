@@ -222,7 +222,7 @@ paa_format_challenge(paa_challenge_t *challenge, paa_server_info_t *server, char
 
 /* called from client to respond to the challenge */
 int
-paa_format_response(paa_response_t *response, netpgp_t *netpgp, char *in, char *out, size_t outsize)
+paa_format_response(paa_response_t *response, rnp_t *netpgp, char *in, char *out, size_t outsize)
 {
 	regmatch_t	matches[10];
 	regex_t		r;
@@ -264,7 +264,7 @@ paa_format_response(paa_response_t *response, netpgp_t *netpgp, char *in, char *
 
 /* called from server to check the response to the challenge */
 int
-paa_check_response(paa_challenge_t *challenge, paa_identity_t *id, netpgp_t *netpgp, char *response)
+paa_check_response(paa_challenge_t *challenge, paa_identity_t *id, rnp_t *netpgp, char *response)
 {
 	regmatch_t	matches[10];
 	regex_t		challenge_regex;

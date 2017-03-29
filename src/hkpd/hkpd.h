@@ -34,6 +34,6 @@
 #define HKPD_VERSION	20100315
 
 int hkpd_sock_bind(const char */*hostname*/, const int /*port*/, const int /*family*/);
-int hkpd(netpgp_t */*netpgp*/, int /*sock4*/, int /*sock6*/);
+int hkpd(rnp_t */*netpgp*/, int /*sock4*/, int /*sock6*/);
 
 #endif

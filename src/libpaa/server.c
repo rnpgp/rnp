@@ -45,7 +45,7 @@ main(int argc, char **argv)
 	paa_server_info_t	server;
 	paa_challenge_t		challenge;
 	paa_identity_t		id;
-	netpgp_t		netpgp;
+	rnp_t		netpgp;
 	char			buf[2048];
 	int			secretc;
 	int			cc;

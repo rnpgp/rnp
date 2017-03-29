@@ -174,7 +174,7 @@ print_usage(const char *usagemsg)
 
 /* match keys, decoding from json if we do find any */
 static int
-match_keys(netpgp_t *netpgp, FILE *fp, char *f, const int psigs)
+match_keys(rnp_t *netpgp, FILE *fp, char *f, const int psigs)
 {
 	char	*json;
 	int	 idc;
@@ -197,7 +197,7 @@ match_keys(netpgp_t *netpgp, FILE *fp, char *f, const int psigs)
 
 /* do a command once for a specified file 'f' */
 static int
-netpgp_cmd(netpgp_t *netpgp, prog_t *p, char *f)
+netpgp_cmd(rnp_t *netpgp, prog_t *p, char *f)
 {
 	char	*key;
 	char	*s;
@@ -246,7 +246,7 @@ netpgp_cmd(netpgp_t *netpgp, prog_t *p, char *f)
 
 /* set the option */
 static int
-setoption(netpgp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
+setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 {
 	switch (val) {
 	case COREDUMPS:
@@ -355,7 +355,7 @@ setoption(netpgp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 
 /* we have -o option=value -- parse, and process */
 static int
-parse_option(netpgp_t *netpgp, prog_t *p, const char *s, int *homeset)
+parse_option(rnp_t *netpgp, prog_t *p, const char *s, int *homeset)
 {
 	static regex_t	 opt;
 	struct option	*op;
@@ -390,7 +390,7 @@ int
 main(int argc, char **argv)
 {
 	struct stat	st;
-	netpgp_t	netpgp;
+	rnp_t	netpgp;
 	prog_t          p;
 	int             homeset;
 	int             optindex;
