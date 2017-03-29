@@ -1,4 +1,4 @@
-/* $NetBSD: netpgp.c,v 1.17 2010/11/29 04:20:12 agc Exp $ */
+/* $NetBSD: rnp.c,v 1.17 2010/11/29 04:20:12 agc Exp $ */
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* Command line program to perform netpgp operations */
+/* Command line program to perform rnp operations */
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -175,7 +175,7 @@ typedef struct prog_t {
 	int	 overwrite;			/* overwrite files? */
 	int	 armour;			/* ASCII armor */
 	int	 detached;			/* use separate file */
-	int	 cmd;				/* netpgp command */
+	int	 cmd;				/* rnp command */
 } prog_t;
 
 static void
@@ -196,7 +196,7 @@ print_usage(const char *usagemsg)
 
 /* read all of stdin into memory */
 static int
-stdin_to_mem(rnp_t *netpgp, char **temp, char **out, unsigned *maxsize)
+stdin_to_mem(rnp_t *rnp, char **temp, char **out, unsigned *maxsize)
 {
 	unsigned	 newsize;
 	unsigned	 size;
@@ -204,7 +204,7 @@ stdin_to_mem(rnp_t *netpgp, char **temp, char **out, unsigned *maxsize)
 	char		*loc;
 	int	 	 n;
 
-	*maxsize = (unsigned)atoi(rnp_getvar(netpgp, "max mem alloc"));
+	*maxsize = (unsigned)atoi(rnp_getvar(rnp, "max mem alloc"));
 	size = 0;
 	*temp = NULL;
 	while ((n = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
@@ -255,7 +255,7 @@ show_output(char *out, int size, const char *header)
 
 /* do a command once for a specified file 'f' */
 static int
-netpgp_cmd(rnp_t *netpgp, prog_t *p, char *f)
+rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 {
 	const int	 cleartext = 1;
 	unsigned	 maxsize;
@@ -267,36 +267,36 @@ netpgp_cmd(rnp_t *netpgp, prog_t *p, char *f)
 	switch (p->cmd) {
 	case ENCRYPT:
 		if (f == NULL) {
-			cc = stdin_to_mem(netpgp, &in, &out, &maxsize);
-			ret = rnp_encrypt_memory(netpgp,
-					rnp_getvar(netpgp, "userid"),
+			cc = stdin_to_mem(rnp, &in, &out, &maxsize);
+			ret = rnp_encrypt_memory(rnp,
+					rnp_getvar(rnp, "userid"),
 					in, cc, out, maxsize, p->armour);
 			ret = show_output(out, ret, "Bad memory encryption");
 			free(in);
 			free(out);
 			return ret;
 		}
-		return rnp_encrypt_file(netpgp,
-					rnp_getvar(netpgp, "userid"),
+		return rnp_encrypt_file(rnp,
+					rnp_getvar(rnp, "userid"),
 					f, p->output,
 					p->armour);
 	case DECRYPT:
 		if (f == NULL) {
-			cc = stdin_to_mem(netpgp, &in, &out, &maxsize);
-			ret = rnp_decrypt_memory(netpgp, in, cc, out,
+			cc = stdin_to_mem(rnp, &in, &out, &maxsize);
+			ret = rnp_decrypt_memory(rnp, in, cc, out,
 					maxsize, 0);
 			ret = show_output(out, ret, "Bad memory decryption");
 			free(in);
 			free(out);
 			return ret;
 		}
-		return rnp_decrypt_file(netpgp, f, p->output, p->armour);
+		return rnp_decrypt_file(rnp, f, p->output, p->armour);
 	case CLEARSIGN:
 	case SIGN:
 		if (f == NULL) {
-			cc = stdin_to_mem(netpgp, &in, &out, &maxsize);
-			ret = rnp_sign_memory(netpgp,
-					rnp_getvar(netpgp, "userid"),
+			cc = stdin_to_mem(rnp, &in, &out, &maxsize);
+			ret = rnp_sign_memory(rnp,
+					rnp_getvar(rnp, "userid"),
 					in, cc, out,
 					maxsize, p->armour,
 					(p->cmd == CLEARSIGN) ? cleartext :
@@ -306,8 +306,8 @@ netpgp_cmd(rnp_t *netpgp, prog_t *p, char *f)
 			free(out);
 			return ret;
 		}
-		return rnp_sign_file(netpgp,
-					rnp_getvar(netpgp, "userid"),
+		return rnp_sign_file(rnp,
+					rnp_getvar(rnp, "userid"),
 					f, p->output,
 					p->armour,
 					(p->cmd == CLEARSIGN) ? cleartext :
@@ -316,8 +316,8 @@ netpgp_cmd(rnp_t *netpgp, prog_t *p, char *f)
 	case VERIFY:
 	case VERIFY_CAT:
 		if (f == NULL) {
-			cc = stdin_to_mem(netpgp, &in, &out, &maxsize);
-			ret = rnp_verify_memory(netpgp, in, cc,
+			cc = stdin_to_mem(rnp, &in, &out, &maxsize);
+			ret = rnp_verify_memory(rnp, in, cc,
 					(p->cmd == VERIFY_CAT) ? out : NULL,
 					(p->cmd == VERIFY_CAT) ? maxsize : 0,
 					p->armour);
@@ -326,7 +326,7 @@ netpgp_cmd(rnp_t *netpgp, prog_t *p, char *f)
 			free(out);
 			return ret;
 		}
-		return rnp_verify_file(netpgp, f,
+		return rnp_verify_file(rnp, f,
 				(p->cmd == VERIFY) ? NULL :
 					(p->output) ? p->output : "-",
 				p->armour);
@@ -336,9 +336,9 @@ netpgp_cmd(rnp_t *netpgp, prog_t *p, char *f)
 				__progname);
 			return 0;
 		}
-		return rnp_list_packets(netpgp, f, p->armour, NULL);
+		return rnp_list_packets(rnp, f, p->armour, NULL);
 	case SHOW_KEYS:
-		return rnp_validate_sigs(netpgp);
+		return rnp_validate_sigs(rnp);
 	default:
 		print_usage(usage);
 		exit(EXIT_SUCCESS);
@@ -347,27 +347,27 @@ netpgp_cmd(rnp_t *netpgp, prog_t *p, char *f)
 
 /* set an option */
 static int
-setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
+setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
 {
 	switch (val) {
 	case COREDUMPS:
-		rnp_setvar(netpgp, "coredumps", "allowed");
+		rnp_setvar(rnp, "coredumps", "allowed");
 		break;
 	case ENCRYPT:
 		/* for encryption, we need a userid */
-		rnp_setvar(netpgp, "need userid", "1");
+		rnp_setvar(rnp, "need userid", "1");
 		p->cmd = val;
 		break;
 	case SIGN:
 	case CLEARSIGN:
 		/* for signing, we need a userid and a seckey */
-		rnp_setvar(netpgp, "need seckey", "1");
-		rnp_setvar(netpgp, "need userid", "1");
+		rnp_setvar(rnp, "need seckey", "1");
+		rnp_setvar(rnp, "need userid", "1");
 		p->cmd = val;
 		break;
 	case DECRYPT:
 		/* for decryption, we need a seckey */
-		rnp_setvar(netpgp, "need seckey", "1");
+		rnp_setvar(rnp, "need seckey", "1");
 		p->cmd = val;
 		break;
 	case VERIFY:
@@ -382,7 +382,7 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 		exit(EXIT_SUCCESS);
 		/* options */
 	case SSHKEYS:
-		rnp_setvar(netpgp, "ssh keys", "1");
+		rnp_setvar(rnp, "ssh keys", "1");
 		break;
 	case KEYRING:
 		if (arg == NULL) {
@@ -398,7 +398,7 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 				"No userid argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		rnp_setvar(netpgp, "userid", arg);
+		rnp_setvar(rnp, "userid", arg);
 		break;
 	case ARMOUR:
 		p->armour = 1;
@@ -407,7 +407,7 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 		p->detached = 1;
 		break;
 	case VERBOSE:
-		rnp_incvar(netpgp, "verbose", 1);
+		rnp_incvar(rnp, "verbose", 1);
 		break;
 	case HOMEDIR:
 		if (arg == NULL) {
@@ -415,7 +415,7 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 			"No home directory argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		rnp_set_homedir(netpgp, arg, NULL, 0);
+		rnp_set_homedir(rnp, arg, NULL, 0);
 		*homeset = 1;
 		break;
 	case HASH_ALG:
@@ -424,7 +424,7 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 			"No hash algorithm argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		rnp_setvar(netpgp, "hash", arg);
+		rnp_setvar(rnp, "hash", arg);
 		break;
 	case PASSWDFD:
 		if (arg == NULL) {
@@ -432,7 +432,7 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 			"No pass-fd argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		rnp_setvar(netpgp, "pass-fd", arg);
+		rnp_setvar(rnp, "pass-fd", arg);
 		break;
 	case OUTPUT:
 		if (arg == NULL) {
@@ -451,26 +451,26 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 			"No output filename argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		rnp_setvar(netpgp, "results", arg);
+		rnp_setvar(rnp, "results", arg);
 		break;
 	case SSHKEYFILE:
-		rnp_setvar(netpgp, "ssh keys", "1");
-		rnp_setvar(netpgp, "sshkeyfile", arg);
+		rnp_setvar(rnp, "ssh keys", "1");
+		rnp_setvar(rnp, "sshkeyfile", arg);
 		break;
 	case MAX_MEM_ALLOC:
-		rnp_setvar(netpgp, "max mem alloc", arg);
+		rnp_setvar(rnp, "max mem alloc", arg);
 		break;
 	case DURATION:
-		rnp_setvar(netpgp, "duration", arg);
+		rnp_setvar(rnp, "duration", arg);
 		break;
 	case BIRTHTIME:
-		rnp_setvar(netpgp, "birthtime", arg);
+		rnp_setvar(rnp, "birthtime", arg);
 		break;
 	case CIPHER:
-		rnp_setvar(netpgp, "cipher", arg);
+		rnp_setvar(rnp, "cipher", arg);
 		break;
 	case NUMTRIES:
-		rnp_setvar(netpgp, "numtries", arg);
+		rnp_setvar(rnp, "numtries", arg);
 		break;
 	case OPS_DEBUG:
 		rnp_set_debug(arg);
@@ -484,7 +484,7 @@ setoption(rnp_t *netpgp, prog_t *p, int val, char *arg, int *homeset)
 
 /* we have -o option=value -- parse, and process */
 static int
-parse_option(rnp_t *netpgp, prog_t *p, const char *s, int *homeset)
+parse_option(rnp_t *rnp, prog_t *p, const char *s, int *homeset)
 {
 	static regex_t	 opt;
 	struct option	*op;
@@ -508,7 +508,7 @@ parse_option(rnp_t *netpgp, prog_t *p, const char *s, int *homeset)
 		}
 		for (op = options ; op->name ; op++) {
 			if (strcmp(op->name, option) == 0) {
-				return setoption(netpgp, p, op->val, value, homeset);
+				return setoption(rnp, p, op->val, value, homeset);
 			}
 		}
 	}
@@ -518,7 +518,7 @@ parse_option(rnp_t *netpgp, prog_t *p, const char *s, int *homeset)
 int
 main(int argc, char **argv)
 {
-	rnp_t	netpgp;
+	rnp_t	rnp;
 	prog_t          p;
 	int             homeset;
 	int             optindex;
@@ -527,7 +527,7 @@ main(int argc, char **argv)
 	int             i;
 
 	(void) memset(&p, 0x0, sizeof(p));
-	(void) memset(&netpgp, 0x0, sizeof(netpgp));
+	(void) memset(&rnp, 0x0, sizeof(rnp));
 	p.overwrite = 1;
 	p.output = NULL;
 	if (argc < 2) {
@@ -535,45 +535,45 @@ main(int argc, char **argv)
 		exit(EXIT_ERROR);
 	}
 	/* set some defaults */
-	rnp_setvar(&netpgp, "hash", DEFAULT_HASH_ALG);
+	rnp_setvar(&rnp, "hash", DEFAULT_HASH_ALG);
 	/* 4 MiB for a memory file */
-	rnp_setvar(&netpgp, "max mem alloc", "4194304");
+	rnp_setvar(&rnp, "max mem alloc", "4194304");
 	homeset = 0;
 	optindex = 0;
 	while ((ch = getopt_long(argc, argv, "S:Vdeo:sv", options, &optindex)) != -1) {
 		if (ch >= ENCRYPT) {
 			/* getopt_long returns 0 for long options */
-			if (!setoption(&netpgp, &p, options[optindex].val, optarg, &homeset)) {
+			if (!setoption(&rnp, &p, options[optindex].val, optarg, &homeset)) {
 				(void) fprintf(stderr, "Bad option\n");
 			}
 		} else {
 			switch (ch) {
 			case 'S':
-				rnp_setvar(&netpgp, "ssh keys", "1");
-				rnp_setvar(&netpgp, "sshkeyfile", optarg);
+				rnp_setvar(&rnp, "ssh keys", "1");
+				rnp_setvar(&rnp, "sshkeyfile", optarg);
 				break;
 			case 'V':
 				print_praise();
 				exit(EXIT_SUCCESS);
 			case 'd':
 				/* for decryption, we need the seckey */
-				rnp_setvar(&netpgp, "need seckey", "1");
+				rnp_setvar(&rnp, "need seckey", "1");
 				p.cmd = DECRYPT;
 				break;
 			case 'e':
 				/* for encryption, we need a userid */
-				rnp_setvar(&netpgp, "need userid", "1");
+				rnp_setvar(&rnp, "need userid", "1");
 				p.cmd = ENCRYPT;
 				break;
 			case 'o':
-				if (!parse_option(&netpgp, &p, optarg, &homeset)) {
+				if (!parse_option(&rnp, &p, optarg, &homeset)) {
 					(void) fprintf(stderr, "Bad option\n");
 				}
 				break;
 			case 's':
 				/* for signing, we need a userid and a seckey */
-				rnp_setvar(&netpgp, "need seckey", "1");
-				rnp_setvar(&netpgp, "need userid", "1");
+				rnp_setvar(&rnp, "need seckey", "1");
+				rnp_setvar(&rnp, "need userid", "1");
 				p.cmd = SIGN;
 				break;
 			case 'v':
@@ -586,27 +586,27 @@ main(int argc, char **argv)
 		}
 	}
 	if (!homeset) {
-		rnp_set_homedir(&netpgp, getenv("HOME"),
-			rnp_getvar(&netpgp, "ssh keys") ? "/.ssh" : "/.gnupg", 1);
+		rnp_set_homedir(&rnp, getenv("HOME"),
+			rnp_getvar(&rnp, "ssh keys") ? "/.ssh" : "/.gnupg", 1);
 	}
 	/* initialise, and read keys from file */
-	if (!rnp_init(&netpgp)) {
+	if (!rnp_init(&rnp)) {
 		printf("can't initialise\n");
 		exit(EXIT_ERROR);
 	}
 	/* now do the required action for each of the command line args */
 	ret = EXIT_SUCCESS;
 	if (optind == argc) {
-		if (!netpgp_cmd(&netpgp, &p, NULL)) {
+		if (!rnp_cmd(&rnp, &p, NULL)) {
 			ret = EXIT_FAILURE;
 		}
 	} else {
 		for (i = optind; i < argc; i++) {
-			if (!netpgp_cmd(&netpgp, &p, argv[i])) {
+			if (!rnp_cmd(&rnp, &p, argv[i])) {
 				ret = EXIT_FAILURE;
 			}
 		}
 	}
-	rnp_end(&netpgp);
+	rnp_end(&rnp);
 	exit(ret);
 }

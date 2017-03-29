@@ -1,4 +1,4 @@
-.\" $NetBSD: netpgp.1,v 1.19 2014/02/17 07:23:18 agc Exp $
+.\" $NetBSD: rnp.1,v 1.19 2014/02/17 07:23:18 agc Exp $
 .\"
 .\" Copyright (c) 2009 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -27,11 +27,11 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 16, 2014
-.Dt NETPGP 1
+.Dd March 29, 2017
+.Dt RNP 1
 .Os
 .Sh NAME
-.Nm netpgp
+.Nm rnp
 .Nd signing, verification, encryption, and decryption utility
 .Sh SYNOPSIS
 .Nm
@@ -132,7 +132,7 @@ with the corresponding private key.
 This is called encryption.
 .Pp
 To manipulate keys themselves, a separate utility is provided, called
-.Xr netpgpkeys 1 .
+.Xr rnpkeys 1 .
 .Pp
 Keyrings are collections of public keys belonging to other users.
 By using other means of identification, it is possible to establish
@@ -196,7 +196,7 @@ this option is used to give a verbose representation
 of these packets on standard output.
 .It Fl Fl version
 Print the version information from the
-.Xr libnetpgp 3
+.Xr librnp 3
 library.
 .El
 .Pp
@@ -275,7 +275,7 @@ user identities \(ememail addresses and names are provided as aliases.
 .It Fl Fl pass\-fd Ns = Ns Ar fd
 This option is intended for the use of external programs which may
 like to use the
-.Xr libnetpgp 3
+.Xr librnp 3
 library through the
 .Nm
 interface, but have their own ways of retrieving and caching
@@ -332,7 +332,7 @@ be deleted in a secure manner when no longer needed.
 .El
 .Sh PASS PHRASES
 At the present time, the pass phrase cannot be changed by
-.Xr netpgpkeys 1
+.Xr rnpkeys 1
 once it has been chosen, and will
 be used for the life of the key, so a wise choice is advised.
 The pass phrase should not be an easily guessable word or phrase,
@@ -358,15 +358,15 @@ enter their pass phrases only when prompted by the application.
 .Sh SIGNING AND VERIFICATION
 Signing and verification of a file is best viewed using the following example:
 .Bd -literal
-% netpgp --sign --userid=agc@netbsd.org a
+% rnp --sign --userid=agc@netbsd.org a
 pub 2048/RSA (Encrypt or Sign) 1b68dcfcc0596823 2004-01-12
 Key fingerprint: d415 9deb 336d e4cc cdfa 00cd 1b68 dcfc c059 6823
 uid              Alistair Crooks \*[Lt]agc@netbsd.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@pkgsrc.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@alistaircrooks.com\*[Gt]
 uid              Alistair Crooks \*[Lt]alistair@hockley-crooks.com\*[Gt]
-netpgp passphrase:
-% netpgp --verify a.gpg
+rnp passphrase:
+% rnp --verify a.gpg
 Good signature for a.gpg made Thu Jan 29 03:06:00 2009
 using RSA (Encrypt or Sign) key 1B68DCFCC0596823
 pub 2048/RSA (Encrypt or Sign) 1b68dcfcc0596823 2004-01-12
@@ -406,31 +406,31 @@ When decrypting, the key is displayed,
 and the passphrase protecting
 the secret key must be typed in to access the data in the encrypted file.
 .Bd -literal
-% netpgp --encrypt --userid=c0596823 a
-% netpgp --decrypt a.gpg
+% rnp --encrypt --userid=c0596823 a
+% rnp --decrypt a.gpg
 pub 2048/RSA (Encrypt or Sign) 1b68dcfcc0596823 2004-01-12
 Key fingerprint: d415 9deb 336d e4cc cdfa 00cd 1b68 dcfc c059 6823
 uid              Alistair Crooks \*[Lt]agc@netbsd.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@pkgsrc.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@alistaircrooks.com\*[Gt]
 uid              Alistair Crooks \*[Lt]alistair@hockley-crooks.com\*[Gt]
-netpgp passphrase:
+rnp passphrase:
 %
 .Ed
 .Pp
 If no file name is provided, the data will be read from standard input,
 and displayed on standard output:
 .Bd -literal
-% netpgp --encrypt \*[Lt] a | netpgp --decrypt \*[Gt] b
-netpgp: default key set to "C0596823"
-netpgp: default key set to "C0596823"
+% rnp --encrypt \*[Lt] a | rnp --decrypt \*[Gt] b
+rnp: default key set to "C0596823"
+rnp: default key set to "C0596823"
 pub 2048/RSA (Encrypt or Sign) 1b68dcfcc0596823 2004-01-12
 Key fingerprint: d415 9deb 336d e4cc cdfa 00cd 1b68 dcfc c059 6823
 uid              Alistair Crooks \*[Lt]agc@netbsd.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@pkgsrc.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@alistaircrooks.com\*[Gt]
 uid              Alistair Crooks \*[Lt]alistair@hockley-crooks.com\*[Gt]
-netpgp passphrase:
+rnp passphrase:
 %
 .Ed
 .Pp
@@ -438,16 +438,16 @@ This simple (and contrived) example shows that
 .Nm
 commands can be used together in a pipeline to produce the desired effect.
 .Bd -literal
-% netpgp --sign \*[Lt] a | netpgp --cat \*[Gt] b
-netpgp: default key set to "C0596823"
-netpgp: default key set to "C0596823"
+% rnp --sign \*[Lt] a | rnp --cat \*[Gt] b
+rnp: default key set to "C0596823"
+rnp: default key set to "C0596823"
 pub 2048/RSA (Encrypt or Sign) 1b68dcfcc0596823 2004-01-12
 Key fingerprint: d415 9deb 336d e4cc cdfa 00cd 1b68 dcfc c059 6823
 uid              Alistair Crooks \*[Lt]agc@netbsd.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@pkgsrc.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@alistaircrooks.com\*[Gt]
 uid              Alistair Crooks \*[Lt]alistair@hockley-crooks.com\*[Gt]
-netpgp passphrase:
+rnp passphrase:
 Good signature for \*[Lt]stdin\*[Gt] made Mon Dec 21 18:25:02 2009
 using RSA (Encrypt or Sign) key 1b68dcfcc0596823
 pub 2048/RSA (Encrypt or Sign) 1b68dcfcc0596823 2004-01-12
@@ -463,8 +463,8 @@ uid              Alistair Crooks (Yahoo!) \*[Lt]agcrooks@yahoo-inc.com\*[Gt]
 For operations like signing and encrypting a file at the same time,
 the best way is to make use of pipelines:
 .Bd -literal
-% netpgp --sign \*[Lt] example | netpgp --encrypt --userid=c0596823 \*[Gt] example.gpg
-netpgp: default key set to "C0596823"
+% rnp --sign \*[Lt] example | rnp --encrypt --userid=c0596823 \*[Gt] example.gpg
+rnp: default key set to "C0596823"
 pub 2048/RSA (Encrypt or Sign) 1b68dcfcc0596823 2004-01-12
 Key fingerprint: d415 9deb 336d e4cc cdfa 00cd 1b68 dcfc c059 6823
 uid              Alistair Crooks \*[Lt]alistair@hockley-crooks.com\*[Gt]
@@ -472,10 +472,10 @@ uid              Alistair Crooks \*[Lt]agc@pkgsrc.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@netbsd.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@alistaircrooks.com\*[Gt]
 uid              Alistair Crooks (Yahoo!) \*[Lt]agcrooks@yahoo-inc.com\*[Gt]
-netpgp passphrase:
-% netpgp --decrypt \*[Lt] example.gpg | netpgp --cat
-netpgp: default key set to "C0596823"
-netpgp: default key set to "C0596823"
+rnp passphrase:
+% rnp --decrypt \*[Lt] example.gpg | rnp --cat
+rnp: default key set to "C0596823"
+rnp: default key set to "C0596823"
 pub 2048/RSA (Encrypt or Sign) 1b68dcfcc0596823 2004-01-12
 Key fingerprint: d415 9deb 336d e4cc cdfa 00cd 1b68 dcfc c059 6823
 uid              Alistair Crooks \*[Lt]alistair@hockley-crooks.com\*[Gt]
@@ -483,7 +483,7 @@ uid              Alistair Crooks \*[Lt]agc@pkgsrc.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@netbsd.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@alistaircrooks.com\*[Gt]
 uid              Alistair Crooks (Yahoo!) \*[Lt]agcrooks@yahoo-inc.com\*[Gt]
-netpgp passphrase:
+rnp passphrase:
 Good signature for \*[Lt]stdin\*[Gt] made Mon Feb 22 07:21:19 2010
 using RSA (Encrypt or Sign) key 1b68dcfcc0596823
 pub 2048/RSA (Encrypt or Sign) 1b68dcfcc0596823 2004-01-12
@@ -503,11 +503,11 @@ utility will return 0 for success,
 1 if the file's signature does not match what was expected,
 or 2 if any other error occurs.
 .Sh SEE ALSO
-.Xr netpgpkeys 1 ,
+.Xr rnpkeys 1 ,
 .Xr ssh 1 ,
 .Xr getpass 3 ,
 .\" .Xr libbz2 3 ,
-.Xr libnetpgp 3 ,
+.Xr librnp 3 ,
 .Xr ssl 3 ,
 .Xr zlib 3
 .Sh STANDARDS
