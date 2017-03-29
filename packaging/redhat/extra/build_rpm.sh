@@ -13,7 +13,7 @@ readonly version_file=${__file_dir}/../../../src/lib/version.h
 
 if [ -r ${version_file} ]; then
   readonly default_version=$( \
-    /usr/bin/env grep define.*NETPGP_BASE_VERSION ${version_file} | \
+    /usr/bin/env grep define.*RNP_BASE_VERSION ${version_file} | \
     awk '{print $3}' | \
     sed 's/"//g' \
   )

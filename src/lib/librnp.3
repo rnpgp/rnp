@@ -1,4 +1,4 @@
-.\" $NetBSD: libnetpgp.3,v 1.16 2014/02/17 07:23:18 agc Exp $
+.\" $NetBSD: librpn.3,v 1.16 2014/02/17 07:23:18 agc Exp $
 .\"
 .\" Copyright (c) 2009,2010 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -27,7 +27,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 16, 2014
+.Dd March 29, 2017
 .Dt LIBRNP 3
 .Os
 .Sh NAME
@@ -40,122 +40,122 @@
 .Pp
 The following functions relate to initialisations and finalisations:
 .Ft int
-.Fo netpgp_init
-.Fa "netpgp_t *netpgp"
+.Fo rpn_init
+.Fa "rpn_t *rpn"
 .Fc
 .Ft int
-.Fo netpgp_end
-.Fa "netpgp_t *netpgp"
+.Fo rpn_end
+.Fa "rpn_t *rpn"
 .Fc
 .Pp
 The following functions are for debugging, reflection and information:
 .Ft int
-.Fo netpgp_set_debug
+.Fo rpn_set_debug
 .Fa "const char *filename"
 .Fc
 .Ft int
-.Fo netpgp_get_debug
+.Fo rpn_get_debug
 .Fa "const char *filename"
 .Fc
 .Ft int
-.Fo netpgp_get_info
+.Fo rpn_get_info
 .Fa "const char *type"
 .Fc
 .Ft int
-.Fo netpgp_list_packets
-.Fa "netpgp_t *netpgp" "char *filename" "int armour" "char *pubringname"
+.Fo rpn_list_packets
+.Fa "rpn_t *rpn" "char *filename" "int armour" "char *pubringname"
 .Fc
 .Pp
 The following functions are for variable management:
 .Ft int
-.Fo netpgp_setvar
-.Fa "netpgp_t *netpgp" "const char *name" "const char *value"
+.Fo rpn_setvar
+.Fa "rpn_t *rpn" "const char *name" "const char *value"
 .Fc
 .Ft char *
-.Fo netpgp_getvar
-.Fa "netpgp_t *netpgp" "const char *name"
+.Fo rpn_getvar
+.Fa "rpn_t *rpn" "const char *name"
 .Fc
 .Ft int
-.Fo netpgp_incvar
-.Fa "netpgp_t *netpgp" "const char *name" "const int delta"
+.Fo rpn_incvar
+.Fa "rpn_t *rpn" "const char *name" "const int delta"
 .Fc
 .Pp
 The following function sets the home directory:
 .Ft int
-.Fo netpgp_set_homedir
-.Fa "netpgp_t *netpgp" "char *homedir" "char *subdir" "const int quiet"
+.Fo rpn_set_homedir
+.Fa "rpn_t *rpn" "char *homedir" "char *subdir" "const int quiet"
 .Fc
 .Pp
 The following functions are used for key management:
 .Ft int
-.Fo netpgp_list_keys
-.Fa "netpgp_t *netpgp" "const int printsigs"
+.Fo rpn_list_keys
+.Fa "rpn_t *rpn" "const int printsigs"
 .Fc
 .Ft int
-.Fo netpgp_match_list_keys
-.Fa "netpgp_t *netpgp" "char *pattern"
+.Fo rpn_match_list_keys
+.Fa "rpn_t *rpn" "char *pattern"
 .Fc
 .Ft int
-.Fo netpgp_find_key
-.Fa "netpgp_t *netpgp" "char *userid"
+.Fo rpn_find_key
+.Fa "rpn_t *rpn" "char *userid"
 .Fc
 .Ft char *
-.Fo netpgp_get_key
-.Fa "netpgp_t *netpgp" "const char *id"
+.Fo rpn_get_key
+.Fa "rpn_t *rpn" "const char *id"
 .Fc
 .Ft int
-.Fo netpgp_export_key
-.Fa "netpgp_t *netpgp" "char *userid"
+.Fo rpn_export_key
+.Fa "rpn_t *rpn" "char *userid"
 .Fc
 .Ft int
-.Fo netpgp_import_key
-.Fa "netpgp_t *netpgp" "char *file"
+.Fo rpn_import_key
+.Fa "rpn_t *rpn" "char *file"
 .Fc
 .Ft int
-.Fo netpgp_generate_key
-.Fa "netpgp_t *netpgp" "char *userid" "int numbits"
+.Fo rpn_generate_key
+.Fa "rpn_t *rpn" "char *userid" "int numbits"
 .Fc
 .Pp
 The following functions are used for file management:
 .Ft int
-.Fo netpgp_encrypt_file
-.Fa "netpgp_t *netpgp" "char *userid" "char *filename" "char *out"
+.Fo rpn_encrypt_file
+.Fa "rpn_t *rpn" "char *userid" "char *filename" "char *out"
 .Fa "int armored"
 .Fc
 .Ft int
-.Fo netpgp_decrypt_file
-.Fa "netpgp_t *netpgp" "char *filename" "char *out" "int armored"
+.Fo rpn_decrypt_file
+.Fa "rpn_t *rpn" "char *filename" "char *out" "int armored"
 .Fc
 .Ft int
-.Fo netpgp_sign_file
-.Fa "netpgp_t *netpgp" "char *userid" "char *filename" "char *out"
+.Fo rpn_sign_file
+.Fa "rpn_t *rpn" "char *userid" "char *filename" "char *out"
 .Fa "int armored" "int cleartext" "int detached"
 .Fc
 .Ft int
-.Fo netpgp_verify_file
-.Fa "netpgp_t *netpgp" "char *f" "int armored"
+.Fo rpn_verify_file
+.Fa "rpn_t *rpn" "char *f" "int armored"
 .Fc
 .Pp
 The following functions are used for memory signing and encryption:
 .Ft int
-.Fo netpgp_encrypt_memory
-.Fa "netpgp_t *netpgp" "char *userid" "void *in" "const size_t insize"
+.Fo rpn_encrypt_memory
+.Fa "rpn_t *rpn" "char *userid" "void *in" "const size_t insize"
 .Fa "char *out" "size_t outsize" "int armored"
 .Fc
 .Ft int
-.Fo netpgp_decrypt_memory
-.Fa "netpgp_t *netpgp" "const void *input" "const size_t insize"
+.Fo rpn_decrypt_memory
+.Fa "rpn_t *rpn" "const void *input" "const size_t insize"
 .Fa "char *out" "size_t outsize" "const int armored"
 .Fc
 .Ft int
-.Fo netpgp_sign_memory
-.Fa "netpgp_t *netpgp" "const char *userid" "char *mem"
+.Fo rpn_sign_memory
+.Fa "rpn_t *rpn" "const char *userid" "char *mem"
 .Fa "size_t size" "char *out" "size_t outsize"
 .Fa "const unsigned armored" "const unsigned cleartext"
 .Fc
 .Ft int
-.Fo netpgp_verify_memory
-.Fa "netpgp_t *netpgp" "const void *in" "const size_t insize"
+.Fo rpn_verify_memory
+.Fa "rpn_t *rpn" "const void *in" "const size_t insize"
 .Fa "void *out" "size_t outsize" "const int armored"
 .Fc
 .Sh DESCRIPTION
@@ -171,14 +171,14 @@ encryption and decryption.
 Normal operation sees the
 .Nm
 process be initialised using the
-.Fn netpgp_init
+.Fn rpn_init
 function, which will set up the public and private keyrings, and set the
 user identity to the
 .Ar userid
 argument passed stored in the
-.Dv netpgp_t
+.Dv rpn_t
 structure, and set using the
-.Fn netpgp_setvar
+.Fn rpn_setvar
 function.
 If no public key ring file is set, initial values will be taken from those
 in the
@@ -190,16 +190,16 @@ in the
 .Pa .gnupg/secring.gpg
 file in the user's home directory.
 The
-.Fn netpgp_init
+.Fn rpn_init
 function returns 1 on success, 0 on failure.
 .Pp
 To list all the keys in a keyring, the
-.Fn netpgp_list_keys
+.Fn rpn_list_keys
 function is used.
 The signature subkey fields can also be displayed
 using this function.
 The
-.Fn netpgp_match_list_keys
+.Fn rpn_match_list_keys
 function is used to match (via regular expression)
 a subset of the keys in the keyring.
 If the expression to match is NULL,
@@ -208,7 +208,7 @@ listing of all keys in the keyring.
 .Pp
 The home directory is specified as an internal variable,
 and its existence is checked using the
-.Fn netpgp_set_homedir
+.Fn rpn_set_homedir
 function.
 This function can operate in a verbose or quiet
 manner, depending on the value of the argument provided.
@@ -217,18 +217,18 @@ is appended to the home directory in order to search for
 the keyrings.
 .Pp
 To export a key, the
-.Fn netpgp_export_key
+.Fn rpn_export_key
 function is used.
 Output is sent to the standard output.
 .Pp
 To import a key onto the public keyring, the
-.Fn netpgp_import_key
+.Fn rpn_import_key
 is used.
 The name of the file containing the key to be imported is provided
 as the filename argument.
 .Pp
 To generate a key, the
-.Fn netpgp_generate_key
+.Fn rpn_generate_key
 is used.
 It takes an argument of the number of bits to use in the key.
 At the time that this manual page was created (April 2009),
@@ -243,21 +243,21 @@ files are the lifeblood of the
 .Nm
 library.
 To encrypt a file, the
-.Fn netpgp_encrypt_file
+.Fn rpn_encrypt_file
 function is used, and the
-.Fn netpgp_decrypt_file
+.Fn rpn_decrypt_file
 function is used to decrypt the results of the encryption.
 To sign a file, the
-.Fn netpgp_sign_file
+.Fn rpn_sign_file
 function is used, and the resulting signed file can be verified
 using the
-.Fn netpgp_verify_file
+.Fn rpn_verify_file
 function.
 .Pp
-.Fn netpgp_sign_memory
+.Fn rpn_sign_memory
 is a function which can sign an area
 of memory, and
-.Fn netpgp_verify_memory
+.Fn rpn_verify_memory
 verifies the digital signature produced.
 .Pp
 Internally, an encrypted or signed file
@@ -267,13 +267,13 @@ which hold information pertaining to the signature,
 encryption method, and the data which is being protected.
 This information can be displayed in a verbose manner using
 the
-.Fn netpgp_list_packets
+.Fn rpn_list_packets
 function.
 .Pp
 The
-.Fn netpgp_setvar
+.Fn rpn_setvar
 and
-.Fn netpgp_getvar
+.Fn rpn_getvar
 functions are used to manage the hash algorithm that
 is used with RSA signatures.
 These functions are general purpose functions, and
@@ -285,7 +285,7 @@ which has been set,
 the home directory from which to find the keyrings,
 the verbosity settings, and many more.
 The
-.Fn netpgp_incvar
+.Fn rpn_incvar
 function is used to add a numeric increment to the
 internal variable.
 This incremental value can be negative.
@@ -302,14 +302,14 @@ who signed the file, and the date and time at which it was signed.
 Some utility functions are also provided for debugging, and for
 finding out version and maintainer information from calling programs.
 These are the
-.Fn netpgp_set_debug
+.Fn rpn_set_debug
 and the
-.Fn netpgp_get_debug
+.Fn rpn_get_debug
 functions (for getting verbose debugging information on a per-source
 file basis).
 .Pp
 The
-.Fn netpgp_get_info
+.Fn rpn_get_info
 function returns the version or maintainer information depending upon the
 .Ar type
 argument.
@@ -320,12 +320,12 @@ and
 A failure to present a known
 .Ar type
 argument to
-.Fn netpgp_get_info
+.Fn rpn_get_info
 will result in the string
 .Dq [unknown]
 being returned.
 .Sh SEE ALSO
-.Xr netpgp 1 ,
+.Xr rpn 1 ,
 .Xr ssl 3
 .Sh HISTORY
 The

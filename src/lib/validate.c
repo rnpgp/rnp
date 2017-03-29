@@ -511,7 +511,7 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 				/* check we have seen some data */
 				/* if not, need to read from detached name */
 				(void) fprintf(io->errs,
-				"netpgp: assuming signed data in \"%s\"\n",
+				"rnp: assuming signed data in \"%s\"\n",
 					data->detachname);
 				data->mem = pgp_memory_new();
 				pgp_mem_readfile(data->mem, data->detachname);
@@ -838,7 +838,7 @@ pgp_validate_file(pgp_io_t *io,
 	}
 
 	if (dataname) {
-		validation.detachname = netpgp_strdup(dataname);
+		validation.detachname = rnp_strdup(dataname);
 	}
 
 	/* Set verification reader and handling options */
@@ -889,7 +889,7 @@ pgp_validate_file(pgp_io_t *io,
 				cc = (int)write(outfd, &cp[i], (unsigned)(len - i));
 				if (cc < 0) {
 					(void) fprintf(io->errs,
-						"netpgp: short write\n");
+						"rnp: short write\n");
 					ret = 0;
 					break;
 				}

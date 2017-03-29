@@ -245,7 +245,7 @@ decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
 	case PGP_GET_PASSPHRASE:
 		(void) pgp_getpassphrase(decrypt->passfp, pass, sizeof(pass));
-		*content->skey_passphrase.passphrase = netpgp_strdup(pass);
+		*content->skey_passphrase.passphrase = rnp_strdup(pass);
 		pgp_forget(pass, (unsigned)sizeof(pass));
 		return PGP_KEEP_MEMORY;
 
@@ -636,7 +636,7 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 			key->revokec += 1;
 		}
 		revocation->code = pkt->u.ss_revocation.code;
-		revocation->reason = netpgp_strdup(pgp_show_ss_rr_code(pkt->u.ss_revocation.code));
+		revocation->reason = rnp_strdup(pgp_show_ss_rr_code(pkt->u.ss_revocation.code));
 		break;
 	case PGP_PTAG_CT_SIGNATURE_FOOTER:
 	case PGP_PARSER_ERRCODE:
@@ -1062,7 +1062,7 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
 		pgp_write_xfer_seckey(output, keydata, passphrase,
 					strlen((char *)passphrase), NULL, 1);
 	}
-	cp = netpgp_strdup(pgp_mem_data(mem));
+	cp = rnp_strdup(pgp_mem_data(mem));
 	pgp_teardown_memory_write(output, mem);
 	return cp;
 }

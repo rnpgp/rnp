@@ -26,8 +26,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NETPGPDIGEST_H_
-#define NETPGPDIGEST_H_
+#ifndef RPNDIGEST_H_
+#define RPNDIGEST_H_
 
 /* header file to define the sizes for various digest arrays */
 
@@ -52,4 +52,4 @@
 #define PGP_SHA256_HASH_SIZE	SHA256_DIGEST_LENGTH
 #define PGP_CHECKHASH_SIZE	PGP_SHA1_HASH_SIZE
 
-#endif /* NETPGPDIGEST_H_ */
+#endif /* RPNDIGEST_H_ */

@@ -871,7 +871,7 @@ openssl_read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int ver
 	ok = 1;
 	if (strcmp(type, "ssh-rsa") == 0) {
 		if ((rsa = PEM_read_RSAPrivateKey(fp, NULL, NULL, NULL)) == NULL) {
-			(void) snprintf(prompt, sizeof(prompt), "netpgp PEM %s passphrase: ", f);
+			(void) snprintf(prompt, sizeof(prompt), "rnp PEM %s passphrase: ", f);
 			do {
 				pass = getpass(prompt);
 				rsa = PEM_read_RSAPrivateKey(fp, NULL, NULL, pass);

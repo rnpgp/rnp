@@ -162,7 +162,7 @@ pgp_getpassphrase(void *in, char *phrase, size_t size)
 	char	*p;
 
 	if (in == NULL) {
-		while ((p = getpass("netpgp passphrase: ")) == NULL) {
+		while ((p = getpass("rnp passphrase: ")) == NULL) {
 		}
 		(void) snprintf(phrase, size, "%s", p);
 	} else {
@@ -305,7 +305,7 @@ typedef struct {
 	uint32_t   checksum;
 	uint32_t   read_checksum;
 	/* unarmoured text blocks */
-	uint8_t   unarmoured[NETPGP_BUFSIZ];
+	uint8_t   unarmoured[RNP_BUFSIZ];
 	size_t          unarmoredc;
 	/* pushed back data (stored backwards) */
 	uint8_t  *pushback;
@@ -563,8 +563,8 @@ dup_headers(pgp_headers_t *dest, const pgp_headers_t *src)
 	} else {
 		dest->headerc = src->headerc;
 		for (n = 0; n < src->headerc; ++n) {
-			dest->headers[n].key = netpgp_strdup(src->headers[n].key);
-			dest->headers[n].value = netpgp_strdup(src->headers[n].value);
+			dest->headers[n].key = rnp_strdup(src->headers[n].key);
+			dest->headers[n].value = rnp_strdup(src->headers[n].value);
 		}
 	}
 }
@@ -727,8 +727,8 @@ add_header(dearmour_t *dearmour, const char *key, const char *value)
 			(void) fprintf(stderr, "add_header: bad alloc\n");
 			return 0;
 		}
-		dearmour->headers.headers[n].key = netpgp_strdup(key);
-		dearmour->headers.headers[n].value = netpgp_strdup(value);
+		dearmour->headers.headers[n].key = rnp_strdup(key);
+		dearmour->headers.headers[n].value = rnp_strdup(value);
 		dearmour->headers.headerc = n + 1;
 		return 1;
 	}
@@ -2294,7 +2294,7 @@ get_passphrase_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	switch (pkt->tag) {
 	case PGP_GET_PASSPHRASE:
 		*(content->skey_passphrase.passphrase) =
-				netpgp_strdup(getpass("netpgp passphrase: "));
+				rnp_strdup(getpass("rnp passphrase: "));
 		return PGP_KEEP_MEMORY;
 	default:
 		break;

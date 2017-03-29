@@ -549,7 +549,7 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key, pgp_hash_
 
 	if (key->version == 2 || key->version == 3) {
 		unsigned	n;
-		uint8_t		bn[NETPGP_BUFSIZ];
+		uint8_t		bn[RNP_BUFSIZ];
 
 		n = (unsigned) BN_num_bytes(key->key.rsa.n);
 		if (n > sizeof(bn)) {
@@ -677,24 +677,24 @@ pgp_str_to_hash_alg(const char *hash)
 	if (hash == NULL) {
 		return PGP_DEFAULT_HASH_ALGORITHM;
 	}
-	if (netpgp_strcasecmp(hash, "SHA1") == 0) {
+	if (rnp_strcasecmp(hash, "SHA1") == 0) {
 		return PGP_HASH_SHA1;
 	}
-	if (netpgp_strcasecmp(hash, "MD5") == 0) {
+	if (rnp_strcasecmp(hash, "MD5") == 0) {
 		return PGP_HASH_MD5;
 	}
-	if (netpgp_strcasecmp(hash, "SHA256") == 0) {
+	if (rnp_strcasecmp(hash, "SHA256") == 0) {
 		return PGP_HASH_SHA256;
 	}
 	/*
-        if (netpgp_strcasecmp(hash,"SHA224") == 0) {
+        if (rnp_strcasecmp(hash,"SHA224") == 0) {
 		return PGP_HASH_SHA224;
 	}
         */
-	if (netpgp_strcasecmp(hash, "SHA512") == 0) {
+	if (rnp_strcasecmp(hash, "SHA512") == 0) {
 		return PGP_HASH_SHA512;
 	}
-	if (netpgp_strcasecmp(hash, "SHA384") == 0) {
+	if (rnp_strcasecmp(hash, "SHA384") == 0) {
 		return PGP_HASH_SHA384;
 	}
 	return PGP_HASH_UNKNOWN;
@@ -818,7 +818,7 @@ pgp_str_to_cipher(const char *cipher)
 	str2cipher_t	*sp;
 
 	for (sp = str2cipher ; cipher && sp->s ; sp++) {
-		if (netpgp_strcasecmp(cipher, sp->s) == 0) {
+		if (rnp_strcasecmp(cipher, sp->s) == 0) {
 			return sp->i;
 		}
 	}
@@ -1252,7 +1252,7 @@ pgp_set_debug_level(const char *f)
 	if (i == MAX_DEBUG_NAMES) {
 		return 0;
 	}
-	debugv[debugc++] = netpgp_strdup(name);
+	debugv[debugc++] = rnp_strdup(name);
 	return 1;
 }
 
@@ -1282,10 +1282,10 @@ const char *
 pgp_get_info(const char *type)
 {
 	if (strcmp(type, "version") == 0) {
-		return NETPGP_VERSION_STRING;
+		return RNP_VERSION_STRING;
 	}
 	if (strcmp(type, "maintainer") == 0) {
-		return NETPGP_MAINTAINER;
+		return RNP_MAINTAINER;
 	}
 	return "[unknown]";
 }
@@ -1311,7 +1311,7 @@ pgp_asprintf(char **ret, const char *fmt, ...)
 }
 
 void
-netpgp_log(const char *fmt, ...)
+rnp_log(const char *fmt, ...)
 {
 	va_list	 vp;
 	time_t	 t;
@@ -1319,7 +1319,7 @@ netpgp_log(const char *fmt, ...)
 	int	 cc;
 
 	(void) time(&t);
-	cc = snprintf(buf, sizeof(buf), "%.24s: netpgp: ", ctime(&t));
+	cc = snprintf(buf, sizeof(buf), "%.24s: rnp: ", ctime(&t));
 	va_start(vp, fmt);
 	(void) vsnprintf(&buf[cc], sizeof(buf) - (size_t)cc, fmt, vp);
 	va_end(vp);
@@ -1329,7 +1329,7 @@ netpgp_log(const char *fmt, ...)
 
 /* portable replacement for strdup(3) */
 char *
-netpgp_strdup(const char *s)
+rnp_strdup(const char *s)
 {
 	size_t	 len;
 	char	*cp;
@@ -1344,7 +1344,7 @@ netpgp_strdup(const char *s)
 
 /* portable replacement for strcasecmp(3) */
 int
-netpgp_strcasecmp(const char *s1, const char *s2)
+rnp_strcasecmp(const char *s1, const char *s2)
 {
 	int	n;
 

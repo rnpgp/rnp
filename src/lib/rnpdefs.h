@@ -26,8 +26,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NETPGPDEFS_H_
-#define NETPGPDEFS_H_	1
+#ifndef RPNDEFS_H_
+#define RPNDEFS_H_	1
 
 #define PRItime		"ll"
 
@@ -56,7 +56,7 @@ int             pgp_get_debug_level(const char *);
 
 void		*pgp_new(size_t);
 
-#define NETPGP_BUFSIZ	8192
+#define RNP_BUFSIZ	8192
 
 #define CALLBACK(t, cbinfo, pkt)	do {				\
 	(pkt)->tag = (t);						\
@@ -65,4 +65,4 @@ void		*pgp_new(size_t);
 	}								\
 } while(/* CONSTCOND */0)
 
-#endif /* !NETPGPDEFS_H_ */
+#endif /* !RPNDEFS_H_ */

@@ -26,8 +26,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef NETPGPSDK_H_
-#define NETPGPSDK_H_
+#ifndef RPNSDK_H_
+#define RPNSDK_H_
 
 #include "keyring.h"
 #include "crypto.h"
@@ -69,10 +69,10 @@ const char     *pgp_get_info(const char *type);
 
 int pgp_asprintf(char **, const char *, ...) __printflike(2, 3);
 
-void netpgp_log(const char *, ...) __printflike(1, 2);
+void rnp_log(const char *, ...) __printflike(1, 2);
 
-int netpgp_strcasecmp(const char *, const char *);
-char *netpgp_strdup(const char *);
+int rnp_strcasecmp(const char *, const char *);
+char *rnp_strdup(const char *);
 
 
 #endif

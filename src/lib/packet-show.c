@@ -512,7 +512,7 @@ text_from_bytemapped_octets(const pgp_data_t *data,
 		str = (*text_fn) (data->contents[i]);
 
 		/* ! and add to text */
-		if (!add_str_from_octet_map(text, netpgp_strdup(str),
+		if (!add_str_from_octet_map(text, rnp_strdup(str),
 						data->contents[i])) {
 			pgp_text_free(text);
 			return NULL;
@@ -827,7 +827,7 @@ pgp_showall_ss_key_flags(const pgp_data_t *ss_key_flags)
 		bit = ss_key_flags->contents[0] & mask;
 		if (bit) {
 			str = pgp_show_ss_key_flag(bit, ss_key_flags_map);
-			if (!add_bitmap_entry(text, netpgp_strdup(str), bit)) {
+			if (!add_bitmap_entry(text, rnp_strdup(str), bit)) {
 				pgp_text_free(text);
 				return NULL;
 			}
@@ -884,7 +884,7 @@ pgp_show_keyserv_prefs(const pgp_data_t *prefs)
 		if (bit) {
 			str = pgp_show_keyserv_pref(bit,
 						ss_key_server_prefs_map);
-			if (!add_bitmap_entry(text, netpgp_strdup(str), bit)) {
+			if (!add_bitmap_entry(text, rnp_strdup(str), bit)) {
 				pgp_text_free(text);
 				return NULL;
 			}

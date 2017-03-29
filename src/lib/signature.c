@@ -164,8 +164,8 @@ rsa_sign(pgp_hash_t *hash,
 	unsigned        keysize;
 	unsigned        n;
 	unsigned        t;
-	uint8_t		hashbuf[NETPGP_BUFSIZ];
-	uint8_t		sigbuf[NETPGP_BUFSIZ];
+	uint8_t		hashbuf[RNP_BUFSIZ];
+	uint8_t		sigbuf[RNP_BUFSIZ];
 	uint8_t		*prefix;
 	BIGNUM         *bn;
 
@@ -230,7 +230,7 @@ dsa_sign(pgp_hash_t *hash,
 {
 	unsigned        hashsize;
 	unsigned        t;
-	uint8_t		hashbuf[NETPGP_BUFSIZ];
+	uint8_t		hashbuf[RNP_BUFSIZ];
 	DSA_SIG        *dsasig;
 
 	/* hashsize must be "equal in size to the number of bits of q,  */
@@ -270,8 +270,8 @@ rsa_verify(pgp_hash_alg_t type,
 	unsigned       	 keysize;
 	unsigned	 plen;
 	unsigned	 debug_len_decrypted;
-	uint8_t   	 sigbuf[NETPGP_BUFSIZ];
-	uint8_t   	 hashbuf_from_sig[NETPGP_BUFSIZ];
+	uint8_t   	 sigbuf[RNP_BUFSIZ];
+	uint8_t   	 hashbuf_from_sig[RNP_BUFSIZ];
 
 	plen = 0;
 	prefix = (const uint8_t *) "";

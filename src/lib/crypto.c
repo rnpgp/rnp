@@ -91,9 +91,9 @@ pgp_decrypt_decode_mpi(uint8_t *buf,
 				const pgp_seckey_t *seckey)
 {
 	unsigned        mpisize;
-	uint8_t		encmpibuf[NETPGP_BUFSIZ];
-	uint8_t		mpibuf[NETPGP_BUFSIZ];
-	uint8_t		gkbuf[NETPGP_BUFSIZ];
+	uint8_t		encmpibuf[RNP_BUFSIZ];
+	uint8_t		mpibuf[RNP_BUFSIZ];
+	uint8_t		gkbuf[RNP_BUFSIZ];
 	int             i;
 	int             n;
 
@@ -201,7 +201,7 @@ pgp_rsa_encrypt_mpi(const uint8_t *encoded_m_buf,
 		    pgp_pk_sesskey_params_t * skp)
 {
 
-	uint8_t   encmpibuf[NETPGP_BUFSIZ];
+	uint8_t   encmpibuf[RNP_BUFSIZ];
 	int             n;
 
 	if (sz_encoded_m_buf != (size_t)BN_num_bytes(pubkey->key.rsa.n)) {
@@ -238,8 +238,8 @@ pgp_elgamal_encrypt_mpi(const uint8_t *encoded_m_buf,
 		    pgp_pk_sesskey_params_t * skp)
 {
 
-	uint8_t   encmpibuf[NETPGP_BUFSIZ];
-	uint8_t   g_to_k[NETPGP_BUFSIZ];
+	uint8_t   encmpibuf[RNP_BUFSIZ];
+	uint8_t   g_to_k[RNP_BUFSIZ];
 	int             n;
 
 	if (sz_encoded_m_buf != (size_t)BN_num_bytes(pubkey->key.elgamal.p)) {

@@ -47,21 +47,21 @@
  * limitations under the License.
  */
 #ifndef VERSION_H_
-#define VERSION_H_	1
+#define VERSION_H_  1
 
-#ifndef NETPGP_AUTOCONF_VERSION
-#define NETPGP_AUTOCONF_VERSION	PACKAGE_VERSION
+#ifndef RNP_AUTOCONF_VERSION
+#define RNP_AUTOCONF_VERSION	PACKAGE_VERSION
 #endif
 
-#ifndef NETPGP_MAINTAINER
-#define NETPGP_MAINTAINER	PACKAGE_BUGREPORT
+#ifndef RNP_MAINTAINER
+#define RNP_MAINTAINER	PACKAGE_BUGREPORT
 #endif
 
 /* development versions have .99 suffix */
-#define NETPGP_BASE_VERSION	"3.99.18"
+#define RNP_BASE_VERSION	"3.99.18"
 
-#define NETPGP_VERSION_CAT(a, b)	"NetPGP portable " a "/[" b "]"
-#define NETPGP_VERSION_STRING \
-	NETPGP_VERSION_CAT(NETPGP_BASE_VERSION, NETPGP_AUTOCONF_VERSION)
+#define RNP_VERSION_CAT(a, b)	"RNP portable " a "/[" b "]"
+#define RNP_VERSION_STRING \
+	RNP_VERSION_CAT(RNP_BASE_VERSION, RNP_AUTOCONF_VERSION)
 
 #endif /* !VERSION_H_ */

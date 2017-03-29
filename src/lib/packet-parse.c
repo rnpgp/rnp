@@ -481,10 +481,10 @@ exact_limread(uint8_t *dest, unsigned len,
 static int 
 limskip(unsigned length, pgp_region_t *region, pgp_stream_t *stream)
 {
-	uint8_t   buf[NETPGP_BUFSIZ];
+	uint8_t   buf[RNP_BUFSIZ];
 
 	while (length > 0) {
-		unsigned	n = length % NETPGP_BUFSIZ;
+		unsigned	n = length % RNP_BUFSIZ;
 
 		if (!limread(buf, n, region, stream)) {
 			return 0;
@@ -646,11 +646,11 @@ limited_read_time(time_t *dest, pgp_region_t *region,
 static int 
 limread_mpi(BIGNUM **pbn, pgp_region_t *region, pgp_stream_t *stream)
 {
-	uint8_t   buf[NETPGP_BUFSIZ] = "";
+	uint8_t   buf[RNP_BUFSIZ] = "";
 					/* an MPI has a 2 byte length part.
 					 * Length is given in bits, so the
 					 * largest we should ever need for
-					 * the buffer is NETPGP_BUFSIZ bytes. */
+					 * the buffer is RPN_BUFSIZ bytes. */
 	unsigned        length;
 	unsigned        nonzero;
 	unsigned	ret;
@@ -675,7 +675,7 @@ limread_mpi(BIGNUM **pbn, pgp_region_t *region, pgp_stream_t *stream)
 		}
 		return 0;
 	}
-	if (length > NETPGP_BUFSIZ) {
+	if (length > RNP_BUFSIZ) {
 		(void) fprintf(stderr, "limread_mpi: bad length\n");
 		return 0;
 	}
