@@ -6,14 +6,12 @@ bin_PROGRAMS		= rnpv
 
 rnpv_SOURCES	= \
 	b64.c \
-	bignum.c \
 	bufgap.c \
 	digest.c \
 	libverify.c \
 	main.c \
 	misc.c \
-	pgpsum.c \
-	rsa.c
+	pgpsum.c
 
 rnpv_CPPFLAGS	= -I$(top_srcdir)/include -I../libmj
 
