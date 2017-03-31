@@ -64,6 +64,8 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include <unistd.h>
 #endif
 
+#include <openssl/bn.h>
+
 #include <string.h>
 
 #include "types.h"

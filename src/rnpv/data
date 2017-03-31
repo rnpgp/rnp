@@ -1,4 +1,4 @@
-PROG=rnpv
+PROG=netpgpverify
 
 SRCS= b64.c bignum.c digest.c
 SRCS+= libverify.c main.c misc.c
@@ -15,7 +15,7 @@ CPPFLAGS+=-g -O0
 LDFLAGS+=-g -O0
 .endif
 
-MAN=	rnpv.1
+MAN=	netpgpverify.1
 WARNS=	6
 
 .include <bsd.prog.mk>

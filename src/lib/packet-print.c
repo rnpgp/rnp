@@ -68,6 +68,8 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include <unistd.h>
 #endif
 
+#include <openssl/bn.h>
+
 #include "crypto.h"
 #include "keyring.h"
 #include "packet-show.h"
