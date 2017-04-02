@@ -246,7 +246,7 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 
 /* set the option */
 static int
-setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
+setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 {
 	switch (val) {
 	case COREDUMPS:
@@ -299,7 +299,6 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
 			exit(EXIT_ERROR);
 		}
 		rnp_set_homedir(rnp, arg, NULL, 0);
-		*homeset = 1;
 		break;
 	case NUMBITS:
 		if (arg == NULL) {
@@ -355,7 +354,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
 
 /* we have -o option=value -- parse, and process */
 static int
-parse_option(rnp_t *rnp, prog_t *p, const char *s, int *homeset)
+parse_option(rnp_t *rnp, prog_t *p, const char *s)
 {
 	static regex_t	 opt;
 	struct option	*op;
@@ -379,7 +378,7 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s, int *homeset)
 		}
 		for (op = options ; op->name ; op++) {
 			if (strcmp(op->name, option) == 0) {
-				return setoption(rnp, p, op->val, value, homeset);
+				return setoption(rnp, p, op->val, value);
 			}
 		}
 	}
@@ -390,17 +389,15 @@ int
 main(int argc, char **argv)
 {
 	struct stat	st;
-	rnp_t	rnp;
+	rnp_t		rnp;
 	prog_t          p;
-	int             homeset;
 	int             optindex;
 	int             ret;
 	int             ch;
 	int             i;
 
-	(void) memset(&p, 0x0, sizeof(p));
-	(void) memset(&rnp, 0x0, sizeof(rnp));
-	homeset = 0;
+	memset(&p, '\0', sizeof(p));
+	memset(&rnp, '\0', sizeof(rnp));
 	p.numbits = DEFAULT_NUMBITS;
 	if (argc < 2) {
 		print_usage(usage);
@@ -415,7 +412,7 @@ main(int argc, char **argv)
 	while ((ch = getopt_long(argc, argv, "S:Vglo:s", options, &optindex)) != -1) {
 		if (ch >= LIST_KEYS) {
 			/* getopt_long returns 0 for long options */
-			if (!setoption(&rnp, &p, options[optindex].val, optarg, &homeset)) {
+			if (!setoption(&rnp, &p, options[optindex].val, optarg)) {
 				(void) fprintf(stderr, "Bad setoption result %d\n", ch);
 			}
 		} else {
@@ -434,7 +431,7 @@ main(int argc, char **argv)
 				p.cmd = LIST_KEYS;
 				break;
 			case 'o':
-				if (!parse_option(&rnp, &p, optarg, &homeset)) {
+				if (!parse_option(&rnp, &p, optarg)) {
 					(void) fprintf(stderr, "Bad parse_option\n");
 				}
 				break;
@@ -447,33 +444,24 @@ main(int argc, char **argv)
 			}
 		}
 	}
-	if (!homeset) {
+
+	/* If the home directory is not set then try to set it. */
+	if (rnp_getvar(&rnp, "homedir") == NULL) {
 		rnp_set_homedir(&rnp, getenv("HOME"),
-			rnp_getvar(&rnp, "ssh keys") ? "/.ssh" : "/.gnupg", 1);
+				rnp_getvar(&rnp, "ssh keys") ?
+					"/.ssh" : "/.gnupg", 1);
 	}
 
-	/* Initialise the rnp context. */
+	/* Initialise the rnp context.
+	 *
+	 * TODO: Argument parsing and the above text set the home directory,
+	 *       but if it is not valid then the value will not be accepted
+	 *       by rnp_set_homedir and it will remain NULL. This causes
+	 *       the check in rnp_init() to fail.
+	 */
 	if (! rnp_init(&rnp)) {
 		fputs("fatal: failed to initialize rnpkeys\n", stderr);
-		exit(EXIT_ERROR);
-	}
-
-	/* If the home directory does not exist then attempt to create it.
-	 * I think it would be wise to consider rolling this feature into
-	 * rnp_init, possibly mediated by a flag. ~ shaun
-	 */
-	{
-		char *homedir = rnp_getvar(&rnp, "homedir");
-
-		if (stat(homedir, &st) < 0)
-			mkdir(homedir, 0700);
-
-		if (stat(homedir, &st) < 0) {
-			fprintf(stderr,
-				"fatal: cannot create home directory '%s'\n",
-				homedir);
-			exit(EXIT_ERROR);
-		}
+		return EXIT_ERROR;
 	}
 
 	/* now do the required action for each of the command line args */
@@ -490,5 +478,6 @@ main(int argc, char **argv)
 		}
 	}
 	rnp_end(&rnp);
-	exit(ret);
+
+	return ret;
 }
