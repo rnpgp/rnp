@@ -451,17 +451,31 @@ main(int argc, char **argv)
 		rnp_set_homedir(&rnp, getenv("HOME"),
 			rnp_getvar(&rnp, "ssh keys") ? "/.ssh" : "/.gnupg", 1);
 	}
-	/* initialise, and read keys from file */
-	if (!rnp_init(&rnp)) {
-		if (stat(rnp_getvar(&rnp, "homedir"), &st) < 0) {
-			(void) mkdir(rnp_getvar(&rnp, "homedir"), 0700);
-		}
-		if (stat(rnp_getvar(&rnp, "homedir"), &st) < 0) {
-			(void) fprintf(stderr, "can't create home directory '%s'\n",
-				rnp_getvar(&rnp, "homedir"));
+
+	/* Initialise the rnp context. */
+	if (! rnp_init(&rnp)) {
+		fputs("fatal: failed to initialize rnpkeys\n", stderr);
+		exit(EXIT_ERROR);
+	}
+
+	/* If the home directory does not exist then attempt to create it.
+	 * I think it would be wise to consider rolling this feature into
+	 * rnp_init, possibly mediated by a flag. ~ shaun
+	 */
+	{
+		char *homedir = rnp_getvar(&rnp, "homedir");
+
+		if (stat(homedir, &st) < 0)
+			mkdir(homedir, 0700);
+
+		if (stat(homedir, &st) < 0) {
+			fprintf(stderr,
+				"fatal: cannot create home directory '%s'\n",
+				homedir);
 			exit(EXIT_ERROR);
 		}
 	}
+
 	/* now do the required action for each of the command line args */
 	ret = EXIT_SUCCESS;
 	if (optind == argc) {
