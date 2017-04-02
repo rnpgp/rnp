@@ -68,6 +68,10 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include <unistd.h>
 #endif
 
+#ifdef RNP_DEBUG
+#include <assert.h>
+#endif
+
 #include "crypto.h"
 #include "keyring.h"
 #include "packet-show.h"
@@ -78,6 +82,12 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "packet.h"
 #include "rnpdigest.h"
 #include "mj.h"
+
+#define PTIMESTR_LEN 10
+
+#define PUBKEY_DOES_EXPIRE(pk)    ((pk)->duration > 0)
+
+#define PUBKEY_HAS_EXPIRED(pk, t) (((pk)->birthtime + (pk)->duration) < (t))
 
 /* static functions */
 
@@ -346,21 +356,30 @@ strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep)
 	return dest;
 }
 
-/* return the time as a string */
+/* Write the time as a string to buffer `dest`. The time string is guaranteed
+ * to be PTIMESTR_LEN characters long.
+ */
 static char * 
 ptimestr(char *dest, size_t size, time_t t)
 {
-	struct tm      *tm;
+	struct tm *tm;
 
 	tm = gmtime(&t);
-	(void) snprintf(dest, size, "%04d-%02d-%02d",
+
+	/* Remember - we guarantee that the time string will be PTIMESTR_LEN
+	 * characters long.
+	 */
+	snprintf(dest, size, "%04d-%02d-%02d",
 		tm->tm_year + 1900,
 		tm->tm_mon + 1,
 		tm->tm_mday);
+#ifdef RNP_DEBUG
+	assert(stelen(dest) == PTIMESTR_LEN);
+#endif
 	return dest;
 }
 
-/* print the sub key binding signature info */
+/* Print the sub key binding signature info. */
 static int
 psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired)
 {
@@ -375,17 +394,58 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
 		expired);
 }
 
+/* Searches a key's revocation list for the given key UID. If it is found its
+ * index is returned, otherwise -1 is returned.
+ */
 static int
 isrevoked(const pgp_key_t *key, unsigned uid)
 {
-	unsigned	r;
+	unsigned i;
 
-	for (r = 0 ; r < key->revokec ; r++) {
-		if (key->revokes[r].uid == uid) {
-			return r;
-		}
+	for (i = 0 ; i < key->revokec ; i++) {
+		if (key->revokes[i].uid == uid)
+			return i;
 	}
 	return -1;
+}
+
+/* Formats a public key expiration notice. Assumes that the public key
+ * expires. Return 0 on success and -1 on failure.
+ */
+static int
+format_pubkey_expiration_notice(char *buffer, const pgp_pubkey_t *pubkey,
+		time_t time, size_t size)
+{
+	char *buffer_end = buffer + size;
+
+	buffer[0] = '\0';
+
+	/* Write the opening bracket. */
+	buffer += snprintf(buffer, buffer_end - buffer, "%s", "[");
+	if (buffer >= buffer_end)
+		return -1;
+
+	/* Write the expiration state label. */
+	buffer += snprintf(buffer, buffer_end - buffer, "%s ",
+			PUBKEY_HAS_EXPIRED(pubkey, time) ? "EXPIRED" : "EXPIRES");
+
+	/* Ensure that there will be space for tihe time. */
+	if (buffer_end - buffer < PTIMESTR_LEN + 1)
+		return -1;
+
+	/* Write the expiration time. */
+	ptimestr(buffer, buffer_end - buffer,
+			pubkey->birthtime + pubkey->duration);
+	buffer += PTIMESTR_LEN;
+	if (buffer >= buffer_end)
+		return -1;
+
+	/* Write the closing bracket. */
+	buffer += snprintf(buffer, buffer_end - buffer, "%s", "]");
+	if (buffer >= buffer_end)
+		return -1;
+
+	return 0;
 }
 
 #ifndef KB
@@ -408,7 +468,6 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 	char			 fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
 	char			 expired[128];
 	char			 t[32];
-	int			 cc;
 	int			 n;
 	int			 r;
 
@@ -416,17 +475,13 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 		return -1;
 	}
 	now = time(NULL);
-	if (pubkey->duration > 0) {
-		cc = snprintf(expired, sizeof(expired),
-			(pubkey->birthtime + pubkey->duration < now) ?
-			"[EXPIRED " : "[EXPIRES ");
-		ptimestr(&expired[cc], sizeof(expired) - cc,
-			pubkey->birthtime + pubkey->duration);
-		cc += 10;
-		cc += snprintf(&expired[cc], sizeof(expired) - cc, "]");
-	} else {
+
+	if (PUBKEY_DOES_EXPIRE(pubkey)) {
+		format_pubkey_expiration_notice(expired, pubkey, now,
+				sizeof(expired));
+	} else
 		expired[0] = 0x0;
-	}
+
 	for (i = 0, n = 0; i < key->uidc; i++) {
 		if ((r = isrevoked(key, i)) >= 0 &&
 		    key->revokes[r].code == PGP_REVOCATION_COMPROMISED) {
