@@ -388,33 +388,40 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s)
 int
 main(int argc, char **argv)
 {
-	struct stat	st;
-	rnp_t		rnp;
-	prog_t          p;
-	int             optindex;
-	int             ret;
-	int             ch;
-	int             i;
+	rnp_t  rnp;
+	prog_t p;
+	int    optindex;
+	int    ret;
+	int    ch;
+	int    i;
 
 	memset(&p, '\0', sizeof(p));
 	memset(&rnp, '\0', sizeof(rnp));
+
 	p.numbits = DEFAULT_NUMBITS;
+
 	if (argc < 2) {
 		print_usage(usage);
 		exit(EXIT_ERROR);
 	}
-	/* set some defaults */
+
+	if (! rnp_init(&rnp)) {
+		fputs("fatal: failed to initialize rnpkeys\n", stderr);
+		return EXIT_ERROR;
+	}
+
 	rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-	rnp_setvar(&rnp, "res", "<stdout>");
-	rnp_setvar(&rnp, "hash", DEFAULT_HASH_ALG);
-	rnp_setvar(&rnp, "format", "human");
+	rnp_setvar(&rnp, "res",       "<stdout>");
+	rnp_setvar(&rnp, "hash",      DEFAULT_HASH_ALG);
+	rnp_setvar(&rnp, "format",    "human");
+
 	optindex = 0;
+
 	while ((ch = getopt_long(argc, argv, "S:Vglo:s", options, &optindex)) != -1) {
 		if (ch >= LIST_KEYS) {
 			/* getopt_long returns 0 for long options */
-			if (!setoption(&rnp, &p, options[optindex].val, optarg)) {
-				(void) fprintf(stderr, "Bad setoption result %d\n", ch);
-			}
+			if (!setoption(&rnp, &p, options[optindex].val, optarg))
+				fprintf(stderr, "Bad setoption result %d\n", ch);
 		} else {
 			switch (ch) {
 			case 'S':
@@ -445,22 +452,8 @@ main(int argc, char **argv)
 		}
 	}
 
-	/* If the home directory is not set then try to set it. */
-	if (rnp_getvar(&rnp, "homedir") == NULL) {
-		rnp_set_homedir(&rnp, getenv("HOME"),
-				rnp_getvar(&rnp, "ssh keys") ?
-					"/.ssh" : "/.gnupg", 1);
-	}
-
-	/* Initialise the rnp context.
-	 *
-	 * TODO: Argument parsing and the above text set the home directory,
-	 *       but if it is not valid then the value will not be accepted
-	 *       by rnp_set_homedir and it will remain NULL. This causes
-	 *       the check in rnp_init() to fail.
-	 */
-	if (! rnp_init(&rnp)) {
-		fputs("fatal: failed to initialize rnpkeys\n", stderr);
+	if (! rnp_load_keys(&rnp)) {
+		fputs("fatal: failed to load keys\n", stderr);
 		return EXIT_ERROR;
 	}
 

@@ -941,12 +941,13 @@ static int rnp_init_io(rnp_t *rnp, pgp_io_t *io)
 	return 1;
 }
 
-/* Allocate a new io struct and initialize a RNP context with it.
+/* Allocate a new io struct and initialize a rnp context with it.
  * Returns 1 on success and 0 on failure.
  *
  * TODO: Set errno with a suitable error code.
  */
-static int rnp_new_io(rnp_t *rnp)
+static int
+init_new_io(rnp_t *rnp)
 {
 	pgp_io_t *io = (pgp_io_t *) malloc(sizeof(*io));
 
@@ -959,12 +960,14 @@ static int rnp_new_io(rnp_t *rnp)
 	return 0;
 }
 
-static int rnp_use_ssh_keys(rnp_t *rnp)
+static int
+use_ssh_keys(rnp_t *rnp)
 {
 	return rnp_getvar(rnp, "ssh keys") != NULL;
 }
 
-static int rnp_load_keys_gnupg(rnp_t *rnp, char *homedir)
+static int
+load_keys_gnupg(rnp_t *rnp, char *homedir)
 {
 	char     *userid;
 	char      id[MAX_ID_LENGTH];
@@ -1050,7 +1053,8 @@ static int rnp_load_keys_gnupg(rnp_t *rnp, char *homedir)
 	return 1;
 }
 
-static int rnp_load_keys_ssh(rnp_t *rnp, char *homedir)
+static int
+load_keys_ssh(rnp_t *rnp, char *homedir)
 {
 	int       last = (rnp->pubring != NULL);
 	char      id[MAX_ID_LENGTH];
@@ -1083,12 +1087,25 @@ static int rnp_load_keys_ssh(rnp_t *rnp, char *homedir)
 }
 
 /* Encapsulates setting `initialized` to the current time. */
-static void rnp_touch_initialized(rnp_t *rnp)
+static void
+init_touch_initialized(rnp_t *rnp)
 {
 	time_t t;
 
 	t = time(NULL);
 	rnp_setvar(rnp, "initialised", ctime(&t));
+}
+
+static int
+init_default_homedir(rnp_t *rnp)
+{
+	char *home = getenv("HOME");
+	char *subdir = rnp_getvar(rnp, "ssh keys") ? "/.ssh" : "/.gnupg";
+
+	if (home == NULL)
+		return 0;
+
+	return rnp_set_homedir(rnp, home, subdir, 1);
 }
 
 /*************************************************************************/
@@ -1100,7 +1117,6 @@ int
 rnp_init(rnp_t *rnp)
 {
 	int       coredumps;
-	char     *homedir;
 	pgp_io_t *io;
 
 	memset((void *) rnp, '\0', sizeof(rnp_t));
@@ -1120,9 +1136,8 @@ rnp_init(rnp_t *rnp)
 #endif
 
 	/* Initialize the context's io streams apparatus. */
-	if (! rnp_new_io(rnp)) {
+	if (! init_new_io(rnp))
 		return 0;
-	}
 	io = rnp->io;
 
 	/* If a password-carrying file descriptor is in use then
@@ -1131,40 +1146,18 @@ rnp_init(rnp_t *rnp)
 	if (! set_pass_fd(rnp))
 		return 0;
 
-	/* Warn if core dumps are enabled. */
 	if (coredumps) {
-		fprintf(io->errs,
-			"rnp: warning: core dumps enabled, "
-			"sensitive data may be leaked to disk\n");
+		fputs("rnp: warning: core dumps enabled, "
+		      "sensitive data may be leaked to disk\n", io->errs);
 	}
 
-	/* Get home directory - where keyrings are in a
-	 * subdirectory.
-	 *
-	 * TODO: While this check is prudent it might be wise to
-	 *       replace this with a purely boolean test and let
-	 *       consumers load the key again from the RNP
-	 *       context.
-	 *
-	 */
-	if ((homedir = rnp_getvar(rnp, "homedir")) == NULL) {
-		fprintf(io->errs, "rnp: bad homedir\n");
+	/* Initialize the context with the default home directory. */
+	if (! init_default_homedir(rnp)) {
+		fputs("rnp: bad homedir\n", io->errs);
 		return 0;
 	}
 
-	/* Load SSH keys if SSH keys are in use, otherwise load from
-	 * the gnupg-ish keyring. Nomenclature can be changed if
-	 * necessary.
-	 */
-	if (rnp_use_ssh_keys(rnp)) {
-		if (! rnp_load_keys_ssh(rnp, homedir))
-			return 0;
-	} else {
-		if (! rnp_load_keys_gnupg(rnp, homedir))
-			return 0;
-	}
-
-	rnp_touch_initialized(rnp);
+	init_touch_initialized(rnp);
 
 	return 1;
 }
@@ -1229,6 +1222,29 @@ rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
 	ret = mj_asprint(json, &obj, MJ_JSON_ENCODE);
 	mj_delete(&obj);
 	return ret;
+}
+
+int
+rnp_load_keys(rnp_t *rnp)
+{
+	char *homedir = rnp_getvar(rnp, "homedir");
+
+	errno = 0;
+
+	if (homedir == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+
+	if (use_ssh_keys(rnp)) {
+		if (! load_keys_ssh(rnp, homedir))
+			return -1;
+	} else {
+		if (! load_keys_gnupg(rnp, homedir))
+			return -1;
+	}
+
+	return 0;
 }
 
 DEFINE_ARRAY(strings_t, char *);

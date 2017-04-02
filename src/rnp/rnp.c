@@ -42,8 +42,7 @@
 #include <string.h>
 #include <unistd.h>
 
-/*
- * SHA1 is now looking as though it should not be used.  Let's
+/* SHA1 is now looking as though it should not be used.  Let's
  * pre-empt this by specifying SHA256 - gpg interoperates just fine
  * with SHA256 - agc, 20090522
  */
@@ -347,7 +346,7 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 
 /* set an option */
 static int
-setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
+setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 {
 	switch (val) {
 	case COREDUMPS:
@@ -416,7 +415,6 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
 			exit(EXIT_ERROR);
 		}
 		rnp_set_homedir(rnp, arg, NULL, 0);
-		*homeset = 1;
 		break;
 	case HASH_ALG:
 		if (arg == NULL) {
@@ -484,7 +482,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
 
 /* we have -o option=value -- parse, and process */
 static int
-parse_option(rnp_t *rnp, prog_t *p, const char *s, int *homeset)
+parse_option(rnp_t *rnp, prog_t *p, const char *s)
 {
 	static regex_t	 opt;
 	struct option	*op;
@@ -508,7 +506,7 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s, int *homeset)
 		}
 		for (op = options ; op->name ; op++) {
 			if (strcmp(op->name, option) == 0) {
-				return setoption(rnp, p, op->val, value, homeset);
+				return setoption(rnp, p, op->val, value);
 			}
 		}
 	}
@@ -518,32 +516,39 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s, int *homeset)
 int
 main(int argc, char **argv)
 {
-	rnp_t	rnp;
-	prog_t          p;
-	int             homeset;
-	int             optindex;
-	int             ret;
-	int             ch;
-	int             i;
+	rnp_t  rnp;
+	prog_t p;
+	int    optindex;
+	int    ret;
+	int    ch;
+	int    i;
 
-	(void) memset(&p, 0x0, sizeof(p));
-	(void) memset(&rnp, 0x0, sizeof(rnp));
+	memset(&p, 0x0, sizeof(p));
+	memset(&rnp, 0x0, sizeof(rnp));
+
 	p.overwrite = 1;
 	p.output = NULL;
+
 	if (argc < 2) {
 		print_usage(usage);
 		exit(EXIT_ERROR);
 	}
-	/* set some defaults */
-	rnp_setvar(&rnp, "hash", DEFAULT_HASH_ALG);
-	/* 4 MiB for a memory file */
-	rnp_setvar(&rnp, "max mem alloc", "4194304");
-	homeset = 0;
+
+	if (! rnp_init(&rnp)) {
+		fputs("fatal: cannot initialise\n", stderr);
+		return EXIT_ERROR;
+	}
+
+	rnp_setvar(&rnp, "hash",          DEFAULT_HASH_ALG);
+	rnp_setvar(&rnp, "max mem alloc", "4194304");        /* 4MiB */
+
 	optindex = 0;
+
+	/* TODO: These options should be set after initialising the context. */
 	while ((ch = getopt_long(argc, argv, "S:Vdeo:sv", options, &optindex)) != -1) {
 		if (ch >= ENCRYPT) {
 			/* getopt_long returns 0 for long options */
-			if (!setoption(&rnp, &p, options[optindex].val, optarg, &homeset)) {
+			if (! setoption(&rnp, &p, options[optindex].val, optarg)) {
 				(void) fprintf(stderr, "Bad option\n");
 			}
 		} else {
@@ -566,7 +571,7 @@ main(int argc, char **argv)
 				p.cmd = ENCRYPT;
 				break;
 			case 'o':
-				if (!parse_option(&rnp, &p, optarg, &homeset)) {
+				if (! parse_option(&rnp, &p, optarg)) {
 					(void) fprintf(stderr, "Bad option\n");
 				}
 				break;
@@ -585,28 +590,25 @@ main(int argc, char **argv)
 			}
 		}
 	}
-	if (!homeset) {
-		rnp_set_homedir(&rnp, getenv("HOME"),
-			rnp_getvar(&rnp, "ssh keys") ? "/.ssh" : "/.gnupg", 1);
+
+	if (! rnp_load_keys(&rnp)) {
+		fputs("fatal: failed to load keys\n", stderr);
+		return EXIT_ERROR;
 	}
-	/* initialise, and read keys from file */
-	if (!rnp_init(&rnp)) {
-		printf("can't initialise\n");
-		exit(EXIT_ERROR);
-	}
+
 	/* now do the required action for each of the command line args */
 	ret = EXIT_SUCCESS;
 	if (optind == argc) {
-		if (!rnp_cmd(&rnp, &p, NULL)) {
+		if (! rnp_cmd(&rnp, &p, NULL))
 			ret = EXIT_FAILURE;
-		}
 	} else {
 		for (i = optind; i < argc; i++) {
-			if (!rnp_cmd(&rnp, &p, argv[i])) {
+			if (! rnp_cmd(&rnp, &p, argv[i])) {
 				ret = EXIT_FAILURE;
 			}
 		}
 	}
 	rnp_end(&rnp);
-	exit(ret);
+
+	return ret;
 }
