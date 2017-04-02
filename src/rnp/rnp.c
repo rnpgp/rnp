@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 
+#include <errno.h>
 #include <getopt.h>
 #include <regex.h>
 #include <rnp.h>
@@ -414,7 +415,10 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 			"No home directory argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		rnp_set_homedir(rnp, arg, NULL, 0);
+		/* TODO: Temporarily set subdirectory to /.rnp; see
+		 *       the equivalent space in rnpkeys for more details.
+		 */
+		rnp_set_homedir(rnp, arg, "/.rnp", 0);
 		break;
 	case HASH_ALG:
 		if (arg == NULL) {
@@ -592,7 +596,13 @@ main(int argc, char **argv)
 	}
 
 	if (! rnp_load_keys(&rnp)) {
-		fputs("fatal: failed to load keys\n", stderr);
+		switch (errno) {
+		case EINVAL:
+			fputs("fatal: failed to load keys: bad homedir\n", stderr);
+			break;
+		default:
+			fputs("fatal: failed to load keys\n", stderr);
+		}
 		return EXIT_ERROR;
 	}
 

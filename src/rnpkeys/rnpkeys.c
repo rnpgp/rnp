@@ -298,7 +298,17 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 			"no home directory argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		rnp_set_homedir(rnp, arg, NULL, 0);
+		/* TODO: This is a problem - because subdirectory is set to
+		 *       NULL the subdirectory needs to be concatenated
+		 *       downstream, which is inconsistent with
+		 *       the default subdirectory applied
+		 *       during initialization.
+		 *
+		 *       As a _temporary measure_ I have hardcoded the
+		 *       subdirectory to .rnp. This entire subsystem
+		 *       needs work.
+		 */
+		rnp_set_homedir(rnp, arg, "/.rnp", 0);
 		break;
 	case NUMBITS:
 		if (arg == NULL) {

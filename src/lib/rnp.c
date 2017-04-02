@@ -99,7 +99,8 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
  *       ~ shaun
  */
 
-#define DOT_DIRECTORY ".rnp"
+#define SUBDIRECTORY_GNUPG "/.rnp"
+#define SUBDIRECTORY_SSH   "/.ssh"
 
 /* read any gpg config file */
 static int
@@ -835,7 +836,8 @@ find_passphrase(FILE *passfp, const char *id, char *passphrase, size_t size, int
  * will be set to the result from setrlimit in the event of
  * failure.
  */
-static int disable_core_dumps(void)
+static int
+disable_core_dumps(void)
 {
 	struct rlimit limit;
 	int error;
@@ -853,7 +855,8 @@ static int disable_core_dumps(void)
  * This function could benefit from communicating error conditions
  * from disable_core_dumps.
  */
-static int set_core_dumps(rnp_t *rnp)
+static int
+set_core_dumps(rnp_t *rnp)
 {
 	int setting;
 
@@ -877,7 +880,8 @@ static int set_core_dumps(rnp_t *rnp)
  *       be in or around rnp_init(). Because the error message requires
  *       passfd to be available this is complicated.
  */
-static int set_pass_fd(rnp_t *rnp)
+static int
+set_pass_fd(rnp_t *rnp)
 {
 	char *passfd = rnp_getvar(rnp, "pass-fd");
 	pgp_io_t *io = rnp->io;
@@ -899,7 +903,8 @@ static int set_pass_fd(rnp_t *rnp)
  * responsibility to de-allocate a dynamically allocated io struct
  * upon failure.
  */
-static int rnp_init_io(rnp_t *rnp, pgp_io_t *io)
+static int
+init_io(rnp_t *rnp, pgp_io_t *io)
 {
 	char *stream;
 	char *results;
@@ -952,7 +957,7 @@ init_new_io(rnp_t *rnp)
 	pgp_io_t *io = (pgp_io_t *) malloc(sizeof(*io));
 
 	if (io != NULL) {
-		if (rnp_init_io(rnp, io))
+		if (init_io(rnp, io))
 			return 1;
 		free((void *) io);
 	}
@@ -1100,7 +1105,8 @@ static int
 init_default_homedir(rnp_t *rnp)
 {
 	char *home = getenv("HOME");
-	char *subdir = rnp_getvar(rnp, "ssh keys") ? "/.ssh" : "/.gnupg";
+	char *subdir = rnp_getvar(rnp, "ssh keys")
+			? SUBDIRECTORY_SSH : SUBDIRECTORY_GNUPG;
 
 	if (home == NULL)
 		return 0;
@@ -1444,6 +1450,7 @@ rnp_import_key(rnp_t *rnp, char *f)
 #define ID_OFFSET	38
 
 /* generate a new key */
+/* TODO: Does this need to take into account SSH keys? */
 int
 rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 {
@@ -1469,9 +1476,9 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 	io = rnp->io;
 	/* generate a new key */
 	if (id) {
-		(void) snprintf(newid, sizeof(newid), "%s", id);
+		snprintf(newid, sizeof(newid), "%s", id);
 	} else {
-		(void) snprintf(newid, sizeof(newid),
+		snprintf(newid, sizeof(newid),
 			"RSA %d-bit key <%s@localhost>", numbits, getenv("LOGNAME"));
 	}
 	uid = (uint8_t *)newid;
@@ -1488,8 +1495,11 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 
 	/* write public key */
 
-	cc = snprintf(dir, sizeof(dir), "%s/%s",
-			rnp_getvar(rnp, "homedir"), DOT_DIRECTORY);
+	/*cc = snprintf(dir, sizeof(dir), "%s%s",
+			rnp_getvar(rnp, "homedir"), SUBDIRECTORY_GNUPG);
+	*/
+
+	cc = snprintf(dir, sizeof(dir), "%s", rnp_getvar(rnp, "homedir"));
 
 	rnp_setvar(rnp, "generated userid", &dir[cc - 16]);
 
