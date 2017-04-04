@@ -2904,7 +2904,8 @@ pgpv_read_ssh_pubkeys(pgpv_t *pgp, const void *keyring, ssize_t size)
 		if (!read_ssh_file(pgp, &primary, "%s", (const char *)keyring)) {
 			return 0;
 		}
-	} else if (!read_ssh_file(pgp, &primary, "%s/%s", nonnull_getenv("HOME"), ".ssh/id_rsa.pub")) {
+	} else if (! read_ssh_file(pgp, &primary, "%s/%s",
+			nonnull_getenv("HOME"), SUBDIRECTORY_SSH "/id_rsa.pub")) {
 		return 0;
 	}
 	ARRAY_APPEND(pgp->primaries, primary);
