@@ -460,7 +460,8 @@ main(int argc, char **argv)
 		}
 	}
 
-	if (! rnp_load_keys(&rnp)) {
+	/* Keys aren't loaded if this is a key generation step. */
+	if (p.cmd != GENERATE_KEY && ! rnp_load_keys(&rnp)) {
 		fputs("fatal: failed to load keys\n", stderr);
 		return EXIT_ERROR;
 	}
