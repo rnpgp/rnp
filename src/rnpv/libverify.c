@@ -40,10 +40,10 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <bzlib.h>
+#include <zlib.h>
 
-#include "bzlib.h"
-#include "zlib.h"
-
+#include "../common/constants.h"
 #include "array.h"
 #include "b64.h"
 #include "bn.h"
@@ -2887,7 +2887,8 @@ pgpv_read_pubring(pgpv_t *pgp, const void *keyring, ssize_t size)
 			read_binary_memory(pgp, "pubring", keyring, (size_t)size) :
 			read_binary_file(pgp, "pubring", "%s", (const char *)keyring);
 	}
-	return read_binary_file(pgp, "pubring", "%s/%s", nonnull_getenv("HOME"), ".gnupg/pubring.gpg");
+	return read_binary_file(pgp, "pubring", "%s/%s",
+			nonnull_getenv("HOME"), SUBDIRECTORY_GNUPG "/pubring.gpg");
 }
 
 /* set up the pubkey keyring from ssh pub key */

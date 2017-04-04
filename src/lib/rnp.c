@@ -84,23 +84,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "crypto.h"
 #include "ssh2pgp.h"
 #include "defs.h"
-
-/* The dot directory relative to the user's home directory used for storing
- * rnp keys.
- *
- * TODO: This define should be moved somewhere central to the build and
- *       possibly made able to be overridden by the user.
- *
- * XXX:  For now the dot directory is .rnp to prevent competition with
- *       developers' .gnupg installations. If you want to change this
- *       make sure you _tell everyone_. I don't want any
- *       surprises. :>
- *
- *       ~ shaun
- */
-
-#define SUBDIRECTORY_GNUPG "/.rnp"
-#define SUBDIRECTORY_SSH   "/.ssh"
+#include "../common/constants.h"
 
 /* read any gpg config file */
 static int
@@ -1239,18 +1223,18 @@ rnp_load_keys(rnp_t *rnp)
 
 	if (homedir == NULL) {
 		errno = EINVAL;
-		return -1;
+		return 0;
 	}
 
 	if (use_ssh_keys(rnp)) {
 		if (! load_keys_ssh(rnp, homedir))
-			return -1;
+			return 0;
 	} else {
 		if (! load_keys_gnupg(rnp, homedir))
-			return -1;
+			return 0;
 	}
 
-	return 0;
+	return 1;
 }
 
 DEFINE_ARRAY(strings_t, char *);
@@ -1494,10 +1478,6 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 	(void) fprintf(stdout, "%s", cp);
 
 	/* write public key */
-
-	/*cc = snprintf(dir, sizeof(dir), "%s%s",
-			rnp_getvar(rnp, "homedir"), SUBDIRECTORY_GNUPG);
-	*/
 
 	cc = snprintf(dir, sizeof(dir), "%s", rnp_getvar(rnp, "homedir"));
 
@@ -2143,7 +2123,7 @@ rnp_set_homedir(rnp_t *rnp, char *home, const char *subdir, const int quiet)
 		}
 		return 0;
 	}
-	(void) snprintf(d, sizeof(d), "%s%s", home, (subdir) ? subdir : "");
+	snprintf(d, sizeof(d), "%s/%s", home, (subdir) ? subdir : "");
 	if (stat(d, &st) == 0) {
 		if ((st.st_mode & S_IFMT) == S_IFDIR) {
 			rnp_setvar(rnp, "homedir", d);

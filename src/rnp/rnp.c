@@ -180,10 +180,10 @@ typedef struct prog_t {
 
 static void
 print_praise(void) {
-	(void) fprintf(stderr,
-	"%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
-	    rnp_get_info("version"),
-	    rnp_get_info("maintainer"));
+	fprintf(stderr,
+		"%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
+		rnp_get_info("version"),
+		rnp_get_info("maintainer"));
 }
 
 /* print a usage message */
@@ -191,7 +191,7 @@ static void
 print_usage(const char *usagemsg)
 {
 	print_praise();
-	(void) fprintf(stderr, "Usage: %s %s", __progname, usagemsg);
+	fprintf(stderr, "Usage: %s %s", __progname, usagemsg);
 }
 
 /* read all of stdin into memory */
@@ -204,27 +204,27 @@ stdin_to_mem(rnp_t *rnp, char **temp, char **out, unsigned *maxsize)
 	char		*loc;
 	int	 	 n;
 
-	*maxsize = (unsigned)atoi(rnp_getvar(rnp, "max mem alloc"));
+	*maxsize = (unsigned) atoi(rnp_getvar(rnp, "max mem alloc"));
 	size = 0;
 	*temp = NULL;
 	while ((n = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
 		/* round up the allocation */
 		newsize = size + ((n / BUFSIZ) + 1) * BUFSIZ;
 		if (newsize > *maxsize) {
-			(void) fprintf(stderr, "bounds check\n");
+			fputs("bounds check\n", stderr);
 			return size;
 		}
 		loc = realloc(*temp, newsize);
 		if (loc == NULL) {
-			(void) fprintf(stderr, "short read\n");
+			fputs("short read\n", stderr);
 			return size;
 		}
 		*temp = loc;
-		(void) memcpy(&(*temp)[size], buf, n);
+		memcpy(&(*temp)[size], buf, n);
 		size += n;
 	}
 	if ((*out = calloc(1, *maxsize)) == NULL) {
-		(void) fprintf(stderr, "Bad alloc\n");
+		fputs("Bad alloc\n", stderr);
 		return 0;
 	}
 	return (int)size;
@@ -238,7 +238,7 @@ show_output(char *out, int size, const char *header)
 	int	n;
 
 	if (size <= 0) {
-		(void) fprintf(stderr, "%s\n", header);
+		fprintf(stderr, "%s\n", header);
 		return 0;
 	}
 	for (cc = 0 ; cc < size ; cc += n) {
@@ -247,7 +247,7 @@ show_output(char *out, int size, const char *header)
 		}
 	}
 	if (cc < size) {
-		(void) fprintf(stderr, "Short write\n");
+		fputs("Short write\n", stderr);
 		return 0;
 	}
 	return cc == size;
@@ -332,8 +332,7 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 				p->armour);
 	case LIST_PACKETS:
 		if (f == NULL) {
-			(void) fprintf(stderr, "%s: No filename provided\n",
-				__progname);
+			fprintf(stderr, "%s: No filename provided\n", __progname);
 			return 0;
 		}
 		return rnp_list_packets(rnp, f, p->armour, NULL);
@@ -386,16 +385,14 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 		break;
 	case KEYRING:
 		if (arg == NULL) {
-			(void) fprintf(stderr,
-				"No keyring argument provided\n");
+			fputs("No keyring argument provided\n", stderr);
 			exit(EXIT_ERROR);
 		}
 		snprintf(p->keyring, sizeof(p->keyring), "%s", arg);
 		break;
 	case USERID:
 		if (arg == NULL) {
-			(void) fprintf(stderr,
-				"No userid argument provided\n");
+			fputs("No userid argument provided\n", stderr);
 			exit(EXIT_ERROR);
 		}
 		rnp_setvar(rnp, "userid", arg);
@@ -497,21 +494,20 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s)
 
 	if (!compiled) {
 		compiled = 1;
-		(void) regcomp(&opt, "([^=]{1,128})(=(.*))?", REG_EXTENDED);
+		regcomp(&opt, "([^=]{1,128})(=(.*))?", REG_EXTENDED);
 	}
 	if (regexec(&opt, s, 10, matches, 0) == 0) {
-		(void) snprintf(option, sizeof(option), "%.*s",
+		snprintf(option, sizeof(option), "%.*s",
 			(int)(matches[1].rm_eo - matches[1].rm_so), &s[matches[1].rm_so]);
 		if (matches[2].rm_so > 0) {
-			(void) snprintf(value, sizeof(value), "%.*s",
+			snprintf(value, sizeof(value), "%.*s",
 				(int)(matches[3].rm_eo - matches[3].rm_so), &s[matches[3].rm_so]);
 		} else {
 			value[0] = 0x0;
 		}
 		for (op = options ; op->name ; op++) {
-			if (strcmp(op->name, option) == 0) {
+			if (strcmp(op->name, option) == 0)
 				return setoption(rnp, p, op->val, value);
-			}
 		}
 	}
 	return 0;
@@ -527,8 +523,7 @@ main(int argc, char **argv)
 	int    ch;
 	int    i;
 
-	memset(&p, 0x0, sizeof(p));
-	memset(&rnp, 0x0, sizeof(rnp));
+	memset(&p, '\0', sizeof(p));
 
 	p.overwrite = 1;
 	p.output = NULL;

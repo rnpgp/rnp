@@ -43,6 +43,8 @@
 #include <mj.h>
 #include <rnp.h>
 
+#include "../common/constants.h"
+
 /*
  * 2048 is the absolute minimum, really - we should really look at
  * bumping this to 4096 or even higher - agc, 20090522
@@ -298,17 +300,13 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 			"no home directory argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		/* TODO: This is a problem - because subdirectory is set to
-		 *       NULL the subdirectory needs to be concatenated
-		 *       downstream, which is inconsistent with
-		 *       the default subdirectory applied
-		 *       during initialization.
-		 *
-		 *       As a _temporary measure_ I have hardcoded the
-		 *       subdirectory to .rnp. This entire subsystem
-		 *       needs work.
+		/* TODO: This is a problem - the subdirectory to use is
+		 *       dependent on the type of key being used (gnupg or
+		 *       ssh). This was originally NULL and was expected to
+		 *       to be re-set downstream, but for now we assume
+		 *       gnupg ahead of a more meaningful refactor.
 		 */
-		rnp_set_homedir(rnp, arg, "/.rnp", 0);
+		rnp_set_homedir(rnp, arg, SUBDIRECTORY_GNUPG, 0);
 		break;
 	case NUMBITS:
 		if (arg == NULL) {
@@ -470,14 +468,12 @@ main(int argc, char **argv)
 	/* now do the required action for each of the command line args */
 	ret = EXIT_SUCCESS;
 	if (optind == argc) {
-		if (!rnp_cmd(&rnp, &p, NULL)) {
+		if (! rnp_cmd(&rnp, &p, NULL))
 			ret = EXIT_FAILURE;
-		}
 	} else {
 		for (i = optind; i < argc; i++) {
-			if (!rnp_cmd(&rnp, &p, argv[i])) {
+			if (! rnp_cmd(&rnp, &p, argv[i]))
 				ret = EXIT_FAILURE;
-			}
 		}
 	}
 	rnp_end(&rnp);

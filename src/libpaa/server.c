@@ -42,25 +42,30 @@
 int
 main(int argc, char **argv)
 {
-	paa_server_info_t	server;
-	paa_challenge_t		challenge;
-	paa_identity_t		id;
-	rnp_t		netpgp;
-	char			buf[2048];
-	int			secretc;
-	int			cc;
-	int			i;
+	paa_server_info_t server;
+	paa_challenge_t   challenge;
+	paa_identity_t    id;
+	rnp_t             rnp;
+	char              buf[2048];
+	int               secretc;
+	int               cc;
+	int               i;
 
-	(void) memset(&server, 0x0, sizeof(server));
-	(void) memset(&challenge, 0x0, sizeof(challenge));
-	(void) memset(&id, 0x0, sizeof(id));
-	(void) memset(&netpgp, 0x0, sizeof(netpgp));
+	memset(&server, '\0', sizeof(server));
+	memset(&challenge, '\0', sizeof(challenge));
+	memset(&id, '\0', sizeof(id));
+
+	if (! rnp_init(&rnp)) {
+		fputs("can't initialise rnp\n", stderr);
+		exit(EXIT_FAILURE);
+	}
+
 	secretc = 64;
 	while ((i = getopt(argc, argv, "S:c:d:r:u:")) != -1) {
 		switch(i) {
 		case 'S':
-			rnp_setvar(&netpgp, "ssh keys", "1");
-			rnp_setvar(&netpgp, "sshkeyfile", optarg);
+			rnp_setvar(&rnp, "ssh keys", "1");
+			rnp_setvar(&rnp, "sshkeyfile", optarg);
 			break;
 		case 'c':
 			secretc = atoi(optarg);
@@ -72,43 +77,50 @@ main(int argc, char **argv)
 			challenge.realm = optarg;
 			break;
 		case 'u':
-			rnp_setvar(&netpgp, "userid", optarg);
+			rnp_setvar(&rnp, "userid", optarg);
 			break;
 		}
 	}
-	rnp_setvar(&netpgp, "hash", DEFAULT_HASH_ALG);
-	rnp_setvar(&netpgp, "need seckey", "1");
-	rnp_setvar(&netpgp, "need userid", "1");
-	rnp_set_homedir(&netpgp, getenv("HOME"),
-			rnp_getvar(&netpgp, "ssh keys") ? "/.ssh" : "/.gnupg", 1);
-	if (!rnp_init(&netpgp)) {
-		(void) fprintf(stderr, "can't initialise netpgp\n");
-		exit(EXIT_FAILURE);
+
+	rnp_setvar(&rnp, "hash", DEFAULT_HASH_ALG);
+	rnp_setvar(&rnp, "need seckey", "1");
+	rnp_setvar(&rnp, "need userid", "1");
+	rnp_set_homedir(&rnp, getenv("HOME"),
+			rnp_getvar(&rnp, "ssh keys")
+				? SUBDIRECTORY_SSH : SUBDIRECTORY_GNUPG, 1);
+
+	if (! paa_server_init(&server, secretc)) {
+		fputs("can't initialise paa server\n", stderr);
+		return EXIT_FAILURE;
 	}
-	if (!paa_server_init(&server, secretc)) {
-		(void) fprintf(stderr, "can't initialise paa server\n");
-		exit(EXIT_FAILURE);
-	}
+
 	/* format the challenge */
 	cc = paa_format_challenge(&challenge, &server, buf, sizeof(buf));
+
 	/* write challenge to temp file */
 	paa_write_file("challenge", buf, cc);
+
 	/* get the client to authenticate via paa, writing to temp response file */
 	system("client/paaclient -r authentication@bigco.com < challenge > response");
-	/* read in response */
+
+	/* read in and check the response */
 	cc = paa_read_file("response", buf, sizeof(buf));
-	if (!paa_check_response(&challenge, &id, &netpgp, buf)) {
-		(void) fprintf(stderr, "server: paa_check failed\n");
-		exit(EXIT_FAILURE);
+	if (! paa_check_response(&challenge, &id, &rnp, buf)) {
+		fputs("server: paa_check failed\n", stderr);
+		return EXIT_FAILURE;
 	}
-	printf("paa_check_response verified challenge: signature authenticated:\n");
+
+	puts("paa_check_response verified challenge: signature authenticated:");
 	paa_print_identity(stdout, &id);
+
 	printf("Changing buf[%d] from '%c' to '%c'\n", cc / 2, buf[cc / 2], buf[cc / 2] - 1);
 	buf[cc / 2] = buf[cc / 2] - 1;
-	if (paa_check_response(&challenge, &id, &netpgp, buf)) {
-		(void) fprintf(stderr, "server: unexpected paa_check pass\n");
-		exit(EXIT_FAILURE);
+	if (paa_check_response(&challenge, &id, &rnp, buf)) {
+		fputs("server: unexpected paa_check pass\n", stderr);
+		return EXIT_FAILURE;
 	}
-	printf("paa_check_response verified challenge: signature not authenticated:\n");
-	exit(EXIT_SUCCESS);
+
+	puts("paa_check_response verified challenge: signature not authenticated:");
+
+	return EXIT_SUCCESS;
 }

@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <zlib.h>
 
+#include "../common/constants.h"
 #include "array.h"
 #include "bn.h"
 #include "b64.h"
@@ -2340,15 +2341,16 @@ pgpv_verify(pgpv_cursor_t *cursor, pgpv_t *pgp, const void *p, ssize_t size)
 int
 pgpv_read_pubring(pgpv_t *pgp, const void *keyring, ssize_t size)
 {
-	if (pgp == NULL) {
+	if (pgp == NULL)
 		return 0;
-	}
+
 	if (keyring) {
 		return (size > 0) ?
 			read_binary_memory(pgp, "pubring", keyring, (size_t)size) :
 			read_binary_file(pgp, "pubring", "%s", (const char *)keyring);
 	}
-	return read_binary_file(pgp, "pubring", "%s/%s", nonnull_getenv("HOME"), ".gnupg/pubring.gpg");
+	return read_binary_file(pgp, "pubring", "%s/%s",
+			nonnull_getenv("HOME"), SUBDIRECTORY_GNUPG "/pubring.gpg");
 }
 
 /* get verified data as a string, return its size */
