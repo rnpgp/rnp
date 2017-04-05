@@ -448,6 +448,23 @@ format_pubkey_expiration_notice(char *buffer, const pgp_pubkey_t *pubkey,
 	return 0;
 }
 
+#define F_REVOKED   1
+#define F_PRINTSIGS 2
+
+#define SIGNATURE_PADDING "          "
+
+/*
+static int
+format_uid_notice(char *buffer, uint8_t *uid, size_t size, int flags)
+{
+	return snprintf(buffer, size,
+			"uid    %s%s%s\n",
+			flags & F_PRINTSIGS ? "" : SIGNATURE_PADDING,
+			uid,
+			flags & F_REVOKED ? " [REVOKED]" : "");
+}
+*/
+
 #ifndef KB
 #define KB(x)	((x) * 1024)
 #endif
@@ -483,14 +500,21 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 		expired[0] = 0x0;
 
 	for (i = 0, n = 0; i < key->uidc; i++) {
+		int flags = 0;
+
 		if ((r = isrevoked(key, i)) >= 0 &&
 		    key->revokes[r].code == PGP_REVOCATION_COMPROMISED) {
 			continue;
 		}
-		n += snprintf(&uidbuf[n], sizeof(uidbuf) - n, "uid%s%s%s\n",
-				(psigs) ? "    " : "              ",
-				key->uids[i],
-				(isrevoked(key, i) >= 0) ? " [REVOKED]" : "");
+
+		if (psigs)
+			flags |= F_PRINTSIGS;
+		if (isrevoked(key, i) >= 0)
+			flags |= F_REVOKED;
+
+		n += format_uid_notice(&uidbuf[n], key->uids[i],
+				sizeof(uidbuf) - n, flags);
+
 		for (j = 0 ; j < key->subsigc ; j++) {
 			if (psigs) {
 				if (key->subsigs[j].uid != i) {
