@@ -463,6 +463,25 @@ format_uid_notice(char *buffer, uint8_t *uid, size_t size, int flags)
 			flags & F_REVOKED ? " [REVOKED]" : "");
 }
 
+/* TODO: Consider replacing `trustkey` with an optional `uid` parameter. */
+/* TODO: Consider passing only signer_id and birthtime. */
+static int
+format_sig_notice(char *buffer, const pgp_sig_t *sig,
+		const pgp_key_t *trustkey, size_t size)
+{
+	char keyid_buffer[PGP_KEY_ID_SIZE * 3];
+	char  time_buffer[PTIMESTR_LEN + 1];
+
+	return snprintf(buffer, size, "sig        %s  %s  %s\n",
+			strhexdump(keyid_buffer, sig->info.signer_id,
+				PGP_KEY_ID_SIZE, ""),
+			ptimestr(time_buffer, sizeof(time_buffer),
+				sig->info.birthtime),
+			trustkey != NULL ?
+				(char *) trustkey->uids[trustkey->uid0] :
+					"[unknown]");
+}
+
 #ifndef KB
 #define KB(x)	((x) * 1024)
 #endif
@@ -531,11 +550,9 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 					key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
 				psubkeybinding(&uidbuf[n], sizeof(uidbuf) - n, key, expired);
 			} else {
-				n += snprintf(&uidbuf[n], sizeof(uidbuf) - n,
-					"sig        %s  %s  %s\n",
-					strhexdump(keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, ""),
-					ptimestr(t, sizeof(t), key->subsigs[j].sig.info.birthtime),
-					(trustkey) ? (char *)trustkey->uids[trustkey->uid0] : "[unknown]");
+				n += format_sig_notice(&uidbuf[n],
+						&key->subsigs[j].sig,
+						trustkey, sizeof(uidbuf) - n);
 			}
 		}
 	}
