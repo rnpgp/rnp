@@ -490,6 +490,23 @@ format_sig_notice(char *buffer, const pgp_sig_t *sig,
 					"[unknown]");
 }
 
+static int
+format_subsig_notice(char *buffer,
+		const pgp_key_t *key, const pgp_key_t *trustkey,
+		const pgp_subsig_t *subsig, size_t size)
+{
+	char expired[128];
+	int n = 0;
+
+	if (subsig->sig.info.version == 4 &&
+			subsig->sig.info.type == PGP_SIG_SUBKEY) {
+		psubkeybinding(buffer, size, key, expired);
+	} else
+		n += format_sig_notice(buffer, &subsig->sig, trustkey, size);
+
+	return n;
+}
+
 #ifndef KB
 #define KB(x)	((x) * 1024)
 #endif
@@ -500,8 +517,6 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 		const pgp_key_t *key, char **buf, const char *header,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
-	const pgp_key_t	*trustkey;
-	unsigned	 	 from;
 	unsigned		 i;
 	unsigned		 j;
 	time_t			 now;
@@ -545,6 +560,8 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 
 		for (j = 0 ; j < key->subsigc ; j++) {
 			pgp_subsig_t *subsig = &key->subsigs[j];
+			const pgp_key_t	*trustkey;
+			unsigned from;
 
 			if (psigs) {
 
@@ -568,16 +585,12 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 						continue;
 				}
 			}
-			from = 0;
+
 			trustkey = pgp_getkeybyid(io, keyring,
 					subsig->sig.info.signer_id, &from, NULL);
-			if (subsig->sig.info.version == 4 &&
-					subsig->sig.info.type == PGP_SIG_SUBKEY) {
-				psubkeybinding(&uidbuf[n], sizeof(uidbuf) - n, key, expired);
-			} else {
-				n += format_sig_notice(&uidbuf[n], &subsig->sig,
-						trustkey, sizeof(uidbuf) - n);
-			}
+
+			n += format_subsig_notice(uidbuf + n, key, trustkey,
+					subsig, sizeof(uidbuf) - n);
 		}
 	}
 	return pgp_asprintf(buf, "%s %d/%s %s %s %s\nKey fingerprint: %s\n%s",
