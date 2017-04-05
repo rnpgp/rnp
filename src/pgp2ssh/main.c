@@ -32,6 +32,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "../common/constants.h"
 #include "b64.h"
 #include "hkpc.h"
 
@@ -76,7 +77,7 @@ main(int argc, char **argv)
 	}
 	rnp_setvar(&netpgp, "ssh keys", "1");
 	rnp_setvar(&netpgp, "hash", DEFAULT_HASH_ALG);
-	rnp_set_homedir(&netpgp, getenv("HOME"), "/.ssh", 1);
+	rnp_set_homedir(&netpgp, getenv("HOME"), SUBDIRECTORY_SSH, 1);
 	for (ok = 1, i = optind ; i < argc ; i++) {
 		if (!hkpc_get(&res, server, port, family, "get", argv[i])) {
 			(void) fprintf(stderr, "No such key '%s'\n", argv[i]);

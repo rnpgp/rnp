@@ -43,6 +43,8 @@
 #include <mj.h>
 #include <rnp.h>
 
+#include "../common/constants.h"
+
 /*
  * 2048 is the absolute minimum, really - we should really look at
  * bumping this to 4096 or even higher - agc, 20090522
@@ -246,7 +248,7 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 
 /* set the option */
 static int
-setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
+setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 {
 	switch (val) {
 	case COREDUMPS:
@@ -298,8 +300,13 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
 			"no home directory argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		rnp_set_homedir(rnp, arg, NULL, 0);
-		*homeset = 1;
+		/* TODO: This is a problem - the subdirectory to use is
+		 *       dependent on the type of key being used (gnupg or
+		 *       ssh). This was originally NULL and was expected to
+		 *       to be re-set downstream, but for now we assume
+		 *       gnupg ahead of a more meaningful refactor.
+		 */
+		rnp_set_homedir(rnp, arg, SUBDIRECTORY_GNUPG, 0);
 		break;
 	case NUMBITS:
 		if (arg == NULL) {
@@ -355,7 +362,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
 
 /* we have -o option=value -- parse, and process */
 static int
-parse_option(rnp_t *rnp, prog_t *p, const char *s, int *homeset)
+parse_option(rnp_t *rnp, prog_t *p, const char *s)
 {
 	static regex_t	 opt;
 	struct option	*op;
@@ -379,7 +386,7 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s, int *homeset)
 		}
 		for (op = options ; op->name ; op++) {
 			if (strcmp(op->name, option) == 0) {
-				return setoption(rnp, p, op->val, value, homeset);
+				return setoption(rnp, p, op->val, value);
 			}
 		}
 	}
@@ -389,35 +396,40 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s, int *homeset)
 int
 main(int argc, char **argv)
 {
-	struct stat	st;
-	rnp_t	rnp;
-	prog_t          p;
-	int             homeset;
-	int             optindex;
-	int             ret;
-	int             ch;
-	int             i;
+	rnp_t  rnp;
+	prog_t p;
+	int    optindex;
+	int    ret;
+	int    ch;
+	int    i;
 
-	(void) memset(&p, 0x0, sizeof(p));
-	(void) memset(&rnp, 0x0, sizeof(rnp));
-	homeset = 0;
+	memset(&p, '\0', sizeof(p));
+	memset(&rnp, '\0', sizeof(rnp));
+
 	p.numbits = DEFAULT_NUMBITS;
+
 	if (argc < 2) {
 		print_usage(usage);
 		exit(EXIT_ERROR);
 	}
-	/* set some defaults */
+
+	if (! rnp_init(&rnp)) {
+		fputs("fatal: failed to initialize rnpkeys\n", stderr);
+		return EXIT_ERROR;
+	}
+
 	rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-	rnp_setvar(&rnp, "res", "<stdout>");
-	rnp_setvar(&rnp, "hash", DEFAULT_HASH_ALG);
-	rnp_setvar(&rnp, "format", "human");
+	rnp_setvar(&rnp, "res",       "<stdout>");
+	rnp_setvar(&rnp, "hash",      DEFAULT_HASH_ALG);
+	rnp_setvar(&rnp, "format",    "human");
+
 	optindex = 0;
+
 	while ((ch = getopt_long(argc, argv, "S:Vglo:s", options, &optindex)) != -1) {
 		if (ch >= LIST_KEYS) {
 			/* getopt_long returns 0 for long options */
-			if (!setoption(&rnp, &p, options[optindex].val, optarg, &homeset)) {
-				(void) fprintf(stderr, "Bad setoption result %d\n", ch);
-			}
+			if (!setoption(&rnp, &p, options[optindex].val, optarg))
+				fprintf(stderr, "Bad setoption result %d\n", ch);
 		} else {
 			switch (ch) {
 			case 'S':
@@ -434,7 +446,7 @@ main(int argc, char **argv)
 				p.cmd = LIST_KEYS;
 				break;
 			case 'o':
-				if (!parse_option(&rnp, &p, optarg, &homeset)) {
+				if (!parse_option(&rnp, &p, optarg)) {
 					(void) fprintf(stderr, "Bad parse_option\n");
 				}
 				break;
@@ -447,34 +459,25 @@ main(int argc, char **argv)
 			}
 		}
 	}
-	if (!homeset) {
-		rnp_set_homedir(&rnp, getenv("HOME"),
-			rnp_getvar(&rnp, "ssh keys") ? "/.ssh" : "/.gnupg", 1);
+
+	/* Keys aren't loaded if this is a key generation step. */
+	if (p.cmd != GENERATE_KEY && ! rnp_load_keys(&rnp)) {
+		fputs("fatal: failed to load keys\n", stderr);
+		return EXIT_ERROR;
 	}
-	/* initialise, and read keys from file */
-	if (!rnp_init(&rnp)) {
-		if (stat(rnp_getvar(&rnp, "homedir"), &st) < 0) {
-			(void) mkdir(rnp_getvar(&rnp, "homedir"), 0700);
-		}
-		if (stat(rnp_getvar(&rnp, "homedir"), &st) < 0) {
-			(void) fprintf(stderr, "can't create home directory '%s'\n",
-				rnp_getvar(&rnp, "homedir"));
-			exit(EXIT_ERROR);
-		}
-	}
+
 	/* now do the required action for each of the command line args */
 	ret = EXIT_SUCCESS;
 	if (optind == argc) {
-		if (!rnp_cmd(&rnp, &p, NULL)) {
+		if (! rnp_cmd(&rnp, &p, NULL))
 			ret = EXIT_FAILURE;
-		}
 	} else {
 		for (i = optind; i < argc; i++) {
-			if (!rnp_cmd(&rnp, &p, argv[i])) {
+			if (! rnp_cmd(&rnp, &p, argv[i]))
 				ret = EXIT_FAILURE;
-			}
 		}
 	}
 	rnp_end(&rnp);
-	exit(ret);
+
+	return ret;
 }
