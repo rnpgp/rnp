@@ -453,7 +453,6 @@ format_pubkey_expiration_notice(char *buffer, const pgp_pubkey_t *pubkey,
 
 #define SIGNATURE_PADDING "          "
 
-/*
 static int
 format_uid_notice(char *buffer, uint8_t *uid, size_t size, int flags)
 {
@@ -463,7 +462,6 @@ format_uid_notice(char *buffer, uint8_t *uid, size_t size, int flags)
 			uid,
 			flags & F_REVOKED ? " [REVOKED]" : "");
 }
-*/
 
 #ifndef KB
 #define KB(x)	((x) * 1024)
