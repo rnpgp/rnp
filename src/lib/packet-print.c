@@ -505,9 +505,9 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 	int			 n;
 	int			 r;
 
-	if (key == NULL || key->revoked) {
+	if (key->revoked)
 		return -1;
-	}
+
 	now = time(NULL);
 
 	if (PUBKEY_DOES_EXPIRE(pubkey)) {
