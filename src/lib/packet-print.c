@@ -469,14 +469,14 @@ static int
 format_sig_notice(char *buffer, const pgp_sig_t *sig,
 		const pgp_key_t *trustkey, size_t size)
 {
-	char keyid_buffer[PGP_KEY_ID_SIZE * 3];
-	char  time_buffer[PTIMESTR_LEN + 1];
+	char keyid[PGP_KEY_ID_SIZE * 3];
+	char time[PTIMESTR_LEN + sizeof(char)];
 
+	ptimestr(time, sizeof(time), sig->info.birthtime);
 	return snprintf(buffer, size, "sig        %s  %s  %s\n",
-			strhexdump(keyid_buffer, sig->info.signer_id,
+			strhexdump(keyid, sig->info.signer_id,
 				PGP_KEY_ID_SIZE, ""),
-			ptimestr(time_buffer, sizeof(time_buffer),
-				sig->info.birthtime),
+			time,
 			trustkey != NULL ?
 				(char *) trustkey->uids[trustkey->uid0] :
 					"[unknown]");
