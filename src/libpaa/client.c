@@ -35,6 +35,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "../common/constants.h"
 #include "libpaa.h"
 
 #define DEFAULT_HASH_ALG "SHA256"
@@ -42,46 +43,59 @@
 int
 main(int argc, char **argv)
 {
-	paa_response_t	response;
-	rnp_t	netpgp;
-	char		challenge[2048];
-	char		buf[2048];
-	int		challengec;
-	int		cc;
-	int		i;
+	paa_response_t response;
+	rnp_t          rnp;
+	char           challenge[2048];
+	char           buf[2048];
+	int            challengec;
+	int            cc;
+	int            i;
 
-	(void) memset(&response, 0x0, sizeof(response));
-	(void) memset(&netpgp, 0x0, sizeof(netpgp));
+	memset(&response, '\0', sizeof(response));
+
+	if (! rnp_init(&rnp)) {
+		fprintf(stderr, "can't initialise rnp\n");
+		return EXIT_FAILURE;
+	}
+
 	while ((i = getopt(argc, argv, "S:d:r:u:")) != -1) {
 		switch(i) {
 		case 'S':
-			rnp_setvar(&netpgp, "ssh keys", "1");
-			rnp_setvar(&netpgp, "sshkeyfile", optarg);
+			rnp_setvar(&rnp, "ssh keys", "1");
+			rnp_setvar(&rnp, "sshkeyfile", optarg);
 			break;
+		/* XXX: Why are these options knocked out? */
 		case 'd':
-			//challenge.domain = optarg;
+			/* challenge.domain = optarg */;
 			break;
 		case 'r':
-			//challenge.realm = optarg;
+			/* challenge.realm = optarg */;
 			response.realm = optarg;
 			break;
 		case 'u':
-			rnp_setvar(&netpgp, "userid", optarg);
+			rnp_setvar(&rnp, "userid", optarg);
 			break;
 		}
 	}
-	rnp_setvar(&netpgp, "hash", DEFAULT_HASH_ALG);
-	rnp_setvar(&netpgp, "need seckey", "1");
-	rnp_setvar(&netpgp, "need userid", "1");
-	rnp_set_homedir(&netpgp, getenv("HOME"),
-			rnp_getvar(&netpgp, "ssh keys") ? "/.ssh" : "/.gnupg", 1);
-	if (!rnp_init(&netpgp)) {
-		(void) fprintf(stderr, "can't initialise netpgp\n");
-		exit(EXIT_FAILURE);
-	}
+
+	rnp_setvar(&rnp, "hash", DEFAULT_HASH_ALG);
+	rnp_setvar(&rnp, "need seckey", "1");
+	rnp_setvar(&rnp, "need userid", "1");
+
+	/* XXX: This action is common to every implementation - it needs to
+	 *      be either delegated to the library or a common modules
+	 *      library.
+	 */
+	rnp_set_homedir(&rnp, getenv("HOME"),
+			rnp_getvar(&rnp, "ssh keys")
+				? SUBDIRECTORY_SSH : SUBDIRECTORY_GNUPG, 1);
+
 	/* read challenge into challenge */
 	challengec = read(0, challenge, sizeof(challenge));
-	cc = paa_format_response(&response, &netpgp, challenge, buf, sizeof(buf));
+	cc = paa_format_response(&response, &rnp, challenge, buf, sizeof(buf));
 	write(1, buf, cc);
-	exit(EXIT_SUCCESS);
+
+	/* TODO: Free the rnp context. */
+
+	return EXIT_SUCCESS;
 }

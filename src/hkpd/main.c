@@ -39,6 +39,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "../common/constants.h"
 #include "hkpd.h"
 
 #define HAVE_DAEMON	1
@@ -51,68 +52,73 @@ set_homedir(rnp_t *netpgp, char *home, const char *subdir, const int quiet)
 	char		d[MAXPATHLEN];
 
 	if (home == NULL) {
-		if (!quiet) {
-			(void) fprintf(stderr, "NULL HOME directory\n");
-		}
+		if (! quiet)
+			fputs("NULL HOME directory\n", stderr);
 		return 0;
 	}
-	(void) snprintf(d, sizeof(d), "%s%s", home, (subdir) ? subdir : "");
+
+	snprintf(d, sizeof(d), "%s%s", home, (subdir) ? subdir : "");
+
 	if (stat(d, &st) == 0) {
 		if ((st.st_mode & S_IFMT) == S_IFDIR) {
 			rnp_setvar(netpgp, "homedir", d);
 			return 1;
 		}
-		(void) fprintf(stderr, "netpgp: homedir \"%s\" is not a dir\n",
-					d);
+		fprintf(stderr, "netpgp: homedir \"%s\" is not a dir\n", d);
 		return 0;
 	}
-	if (!quiet) {
-		(void) fprintf(stderr,
-			"netpgp: warning homedir \"%s\" not found\n", d);
-	}
+
+	if (! quiet)
+		printf(stderr, "netpgp: warning homedir \"%s\" not found\n", d);
+
 	return 1;
 }
 
 int
 main(int argc, char **argv)
 {
-	rnp_t	 netpgp;
-	char		*family;
-	char		*host;
-	int		 daemonise;
-	int		 port;
-	int		 sock6;
-	int		 sock4;
-	int		 i;
+	rnp_t  rnp;
+	char  *family;
+	char  *host;
+	int    daemonise;
+	int    port;
+	int    sock6;
+	int    sock4;
+	int    i;
 
-	(void) memset(&netpgp, 0x0, sizeof(netpgp));
-	/* set some defaults */
-	set_homedir(&netpgp, getenv("HOME"), "/.gnupg", 1);
-	port = 11371;
-	host = strdup("localhost");
+	if (! rnp_init(&rnp)) {
+		fprintf(stderr, "can't initialise\n");
+		return EXIT_FAILURE;
+	}
+
+	set_homedir(&rnp, getenv("HOME"), SUBDIRECTORY_GNUPG, 1);
+
+	port      = 11371;
+	host      = strdup("localhost");
 	daemonise = 1;
-	family = strdup("46");
+	family    = strdup("46");
+
 	while ((i = getopt(argc, argv, "DH:S:Vf:h:p:v:")) != -1) {
 		switch(i) {
 		case 'D':
 			daemonise = 0;
 			break;
 		case 'H':
-			set_homedir(&netpgp, optarg, NULL, 0);
+			set_homedir(&rnp, optarg, SUBDIRECTORY_GNUPG, 0);
 			break;
 		case 'S':
-			rnp_setvar(&netpgp, "ssh keys", "1");
-			rnp_setvar(&netpgp, "sshkeyfile", optarg);
+			rnp_setvar(&rnp, "ssh keys", "1");
+			rnp_setvar(&rnp, "sshkeyfile", optarg);
 			break;
 		case 'V':
 			printf("%s: Version %d\n", *argv, HKPD_VERSION);
-			exit(EXIT_SUCCESS);
+			return EXIT_SUCCESS;
 		case 'f':
-			(void) free(family);
+			free(family);
 			family = strdup(optarg);
 			break;
 		case 'h':
-			(void) free(host);
+			free(host);
 			host = strdup(optarg);
 			break;
 		case 'p':
@@ -125,29 +131,30 @@ main(int argc, char **argv)
 			break;
 		}
 	}
+
 #ifdef HAVE_DAEMON
 	/* if we are supposed to be a daemon, detach from controlling tty */
 	if (daemonise && daemon(0, 0) < 0) {
-		(void) fprintf(stderr, "daemon() failed\n");
-		exit(EXIT_FAILURE);
+		fputs("daemon() failed\n", stderr);
+		return EXIT_FAILURE;
 	}
 #endif 
-	if (!rnp_init(&netpgp)) {
-		(void) fprintf(stderr, "can't initialise\n");
-		exit(EXIT_FAILURE);
-	}
+
 	sock4 = sock6 = -1;
 	if (strchr(family, '4') != NULL &&
-	    (sock4 = hkpd_sock_bind(host, port, 4)) < 0) {
-		(void) fprintf(stderr,"hkpd: can't bind inet4 socket\n");
+			(sock4 = hkpd_sock_bind(host, port, 4)) < 0) {
+		fprintf(stderr,"hkpd: can't bind inet4 socket\n", stderr);
 	}
 	if (strchr(family, '6') != NULL &&
 	    (sock6 = hkpd_sock_bind(host, port, 6)) < 0) {
-		(void) fprintf(stderr,"hkpd: can't bind inet6 socket\n");
+		fputs("hkpd: can't bind inet6 socket\n", stderr);
 	}
 	if (sock4 < 0 && sock6 < 0) {
-		(void) fprintf(stderr,"hkpd: no sockets available\n");
-		exit(EXIT_FAILURE);
+		fputs("hkpd: no sockets available\n", stderr);
+		return EXIT_FAILURE;
 	}
-	hkpd(&netpgp, sock4, sock6);
+
+	hkpd(&rnp, sock4, sock6);
+
+	return 0;
 }
