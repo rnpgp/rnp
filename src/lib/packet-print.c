@@ -409,6 +409,14 @@ isrevoked(const pgp_key_t *key, unsigned uid)
 	return -1;
 }
 
+static int
+iscompromised(const pgp_key_t *key, unsigned uid)
+{
+	int r = isrevoked(key, uid);
+
+	return r >= 0 && key->revokes[r].code == PGP_REVOCATION_COMPROMISED;
+}
+
 /* Formats a public key expiration notice. Assumes that the public key
  * expires. Return 0 on success and -1 on failure.
  */
@@ -503,7 +511,6 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 	char			 expired[128];
 	char			 t[32];
 	int			 n;
-	int			 r;
 
 	if (key->revoked)
 		return -1;
@@ -519,10 +526,12 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 	for (i = 0, n = 0; i < key->uidc; i++) {
 		int flags = 0;
 
-		if ((r = isrevoked(key, i)) >= 0 &&
-		    key->revokes[r].code == PGP_REVOCATION_COMPROMISED) {
+		/* If the key has been marked compromised then skip it. */
+
+		if (iscompromised(key, i))
 			continue;
-		}
+
+		/* Format the UID stanza. */
 
 		if (psigs)
 			flags |= F_PRINTSIGS;
@@ -532,26 +541,41 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 		n += format_uid_notice(&uidbuf[n], key->uids[i],
 				sizeof(uidbuf) - n, flags);
 
+		/* Iterate the subsignatures. */
+
 		for (j = 0 ; j < key->subsigc ; j++) {
+			pgp_subsig_t *subsig = &key->subsigs[j];
+
 			if (psigs) {
-				if (key->subsigs[j].uid != i) {
+
+				/* TODO: Check that this is entirely necessary.
+				 *       If this is a question of consistency
+				 *       it might not be a good idea to do
+				 *       it here.
+				 */
+				if (subsig->uid != i)
 					continue;
-				}
 			} else {
-				if (!(key->subsigs[j].sig.info.version == 4 &&
-					key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY &&
+
+				/* If a version 4 subkey of the last UID
+				 * then skip. I'm not entirely sure what this
+				 * represents; it could benefit from a comment
+				 * or a macro.
+				 */
+				if (! (subsig->sig.info.version == 4 &&
+					subsig->sig.info.type == PGP_SIG_SUBKEY &&
 					i == key->uidc - 1)) {
 						continue;
 				}
 			}
 			from = 0;
-			trustkey = pgp_getkeybyid(io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
-			if (key->subsigs[j].sig.info.version == 4 &&
-					key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
+			trustkey = pgp_getkeybyid(io, keyring,
+					subsig->sig.info.signer_id, &from, NULL);
+			if (subsig->sig.info.version == 4 &&
+					subsig->sig.info.type == PGP_SIG_SUBKEY) {
 				psubkeybinding(&uidbuf[n], sizeof(uidbuf) - n, key, expired);
 			} else {
-				n += format_sig_notice(&uidbuf[n],
-						&key->subsigs[j].sig,
+				n += format_sig_notice(&uidbuf[n], &subsig->sig,
 						trustkey, sizeof(uidbuf) - n);
 			}
 		}
