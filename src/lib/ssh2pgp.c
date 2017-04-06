@@ -54,14 +54,9 @@
 #include <limits.h>
 #endif
 
-#ifdef HAVE_OPENSSL_CAST_H
-#include <openssl/cast.h>
-#endif
-
-#include <openssl/pem.h>
-
 #include "bufgap.h"
 
+#include "bn.h"
 #include "packet-parse.h"
 #include "rnpdefs.h"
 #include "rnpsdk.h"
@@ -348,7 +343,7 @@ pgp_ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey
 	pgp_hash_t	hash;
 	unsigned	done = 0;
 	unsigned	i = 0;
-	uint8_t		sesskey[CAST_KEY_LENGTH];
+	uint8_t		sesskey[PGP_CAST_KEY_LENGTH];
 	uint8_t		hashed[PGP_SHA1_HASH_SIZE];
 	BIGNUM		*tmp;
 
@@ -373,13 +368,13 @@ pgp_ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey
 		key->key.seckey.key.rsa.p = key->key.seckey.key.rsa.q;
 		key->key.seckey.key.rsa.q = tmp;
 	}
-	for (done = 0, i = 0; done < CAST_KEY_LENGTH; i++) {
+	for (done = 0, i = 0; done < PGP_CAST_KEY_LENGTH; i++) {
 		unsigned 	j;
 		uint8_t		zero = 0;
 		int             needed;
 		int             size;
 
-		needed = CAST_KEY_LENGTH - done;
+		needed = PGP_CAST_KEY_LENGTH - done;
 		size = MIN(needed, PGP_SHA1_HASH_SIZE);
 
 		pgp_hash_any(&hash, key->key.seckey.hash_alg);
@@ -412,7 +407,7 @@ pgp_ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey
 		(void) memcpy(&sesskey[i * PGP_SHA1_HASH_SIZE],
 				hashed, (unsigned)size);
 		done += (unsigned)size;
-		if (done > CAST_KEY_LENGTH) {
+		if (done > PGP_CAST_KEY_LENGTH) {
 			(void) fprintf(stderr,
 				"write_seckey_body: short add\n");
 			return 0;

@@ -84,22 +84,6 @@ __RCSID("$NetBSD: reader.c,v 1.49 2012/03/05 02:20:18 christos Exp $");
 #include <inttypes.h>
 #endif
 
-#ifdef HAVE_OPENSSL_IDEA_H
-#include <openssl/cast.h>
-#endif
-
-#ifdef HAVE_OPENSSL_IDEA_H
-#include <openssl/idea.h>
-#endif
-
-#ifdef HAVE_OPENSSL_AES_H
-#include <openssl/aes.h>
-#endif
-
-#ifdef HAVE_OPENSSL_DES_H
-#include <openssl/des.h>
-#endif
-
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>

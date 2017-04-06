@@ -31,25 +31,13 @@
 
 /* header file to define the sizes for various digest arrays */
 
-#ifdef HAVE_OPENSSL_MD5_H
-#include <openssl/md5.h>
-#endif
 
-#ifdef HAVE_OPENSSL_SHA_H
-#include <openssl/sha.h>
-#endif
+#define PGP_CAST_KEY_LENGTH     16
 
-/* Apple */
-#ifdef HAVE_COMMONCRYPTO_COMMONDIGEST_H
-#undef MD5_DIGEST_LENGTH
-#undef SHA_DIGEST_LENGTH
-#define COMMON_DIGEST_FOR_OPENSSL	1
-#include <CommonCrypto/CommonDigest.h>
-#endif
-
+#define PGP_MD5_HASH_SIZE 	16
 /* SHA1 Hash Size */
-#define PGP_SHA1_HASH_SIZE 	SHA_DIGEST_LENGTH
-#define PGP_SHA256_HASH_SIZE	SHA256_DIGEST_LENGTH
+#define PGP_SHA1_HASH_SIZE 	20
+#define PGP_SHA256_HASH_SIZE	32
 #define PGP_CHECKHASH_SIZE	PGP_SHA1_HASH_SIZE
 
 #endif /* RPNDIGEST_H_ */

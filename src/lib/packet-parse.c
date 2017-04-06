@@ -64,12 +64,6 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include <sys/types.h>
 #include <sys/param.h>
 
-#ifdef HAVE_OPENSSL_CAST_H
-#include <openssl/cast.h>
-#endif
-
-#include <openssl/bn.h>
-
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,6 +77,7 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #endif
 
 #include "packet.h"
+#include "bn.h"
 #include "packet-parse.h"
 #include "keyring.h"
 #include "errors.h"
@@ -2560,7 +2555,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 		pgp_crypt_any(&decrypt, pkt.u.seckey.alg);
 		if (pgp_get_debug_level(__FILE__)) {
 			hexdump(stderr, "input iv", pkt.u.seckey.iv, pgp_block_size(pkt.u.seckey.alg));
-			hexdump(stderr, "key", key, CAST_KEY_LENGTH);
+			hexdump(stderr, "key", key, PGP_CAST_KEY_LENGTH);
 		}
 		decrypt.set_iv(&decrypt, pkt.u.seckey.iv);
 		decrypt.set_crypt_key(&decrypt, key);

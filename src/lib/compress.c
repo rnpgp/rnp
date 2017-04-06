@@ -55,6 +55,8 @@
 #include <sys/cdefs.h>
 #endif
 
+#include <stdlib.h>
+
 #if defined(__NetBSD__)
 __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights reserved.");
 __RCSID("$NetBSD: compress.c,v 1.23 2012/03/05 02:20:18 christos Exp $");

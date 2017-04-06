@@ -56,10 +56,11 @@
 
 #include <time.h>
 
-typedef struct bignum_st BIGNUM;
-
 #include "types.h"
 #include "errors.h"
+
+typedef struct PGPV_BIGNUM_st PGPV_BIGNUM;
+#define BIGNUM PGPV_BIGNUM
 
 /* structure to keep track of printing state variables */
 typedef struct pgp_printstate_t {
