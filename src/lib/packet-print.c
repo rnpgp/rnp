@@ -749,7 +749,7 @@ pgp_hkp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 	unsigned	 	 j;
 	char			 keyid[PGP_KEY_ID_SIZE * 3];
 	char		 	 uidbuf[KB(128)];
-	char		 	 fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
+	char		 	 fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
 	int		 	 n;
 
 	if (key->revoked) {
@@ -792,13 +792,29 @@ pgp_hkp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 			}
 		}
 	}
-	return pgp_asprintf(buf, "pub:%s:%d:%d:%lld:%lld\n%s",
-		strhexdump(fp, key->sigfingerprint.fingerprint, PGP_FINGERPRINT_SIZE, ""),
-		pubkey->alg,
-		numkeybits(pubkey),
-		(long long)pubkey->birthtime,
-		(long long)pubkey->duration,
-		uidbuf);
+
+	strhexdump(fingerprint, key->sigfingerprint.fingerprint, PGP_FINGERPRINT_SIZE, "");
+
+	n = -1;
+	{
+		/* XXX: This number is completely arbitrary and should be
+		 *      adjusted to fit the expected format.
+		 */
+		char *buffer = (char *) malloc(1024);
+
+		if (buffer != NULL) {
+			n = snprintf(buffer, 1024,
+					"pub:%s:%d:%d:%lld:%lld\n%s",
+					fingerprint,
+					pubkey->alg,
+					numkeybits(pubkey),
+					(long long) pubkey->birthtime,
+					(long long) pubkey->duration,
+					uidbuf);
+			*buf = buffer;
+		}
+	}
+	return n;
 }
 
 /* print the key data for a pub or sec key */
