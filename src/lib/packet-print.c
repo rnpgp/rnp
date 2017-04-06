@@ -83,11 +83,17 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "rnpdigest.h"
 #include "mj.h"
 
-#define PTIMESTR_LEN 10
+#define F_REVOKED   1
+
+#define F_PRINTSIGS 2
+
+#define PTIMESTR_LEN              10
 
 #define PUBKEY_DOES_EXPIRE(pk)    ((pk)->duration > 0)
 
 #define PUBKEY_HAS_EXPIRED(pk, t) (((pk)->birthtime + (pk)->duration) < (t))
+
+#define SIGNATURE_PADDING         "          "
 
 /* static functions */
 
@@ -435,7 +441,8 @@ format_pubkey_expiration_notice(char *buffer, const pgp_pubkey_t *pubkey,
 
 	/* Write the expiration state label. */
 	buffer += snprintf(buffer, buffer_end - buffer, "%s ",
-			PUBKEY_HAS_EXPIRED(pubkey, time) ? "EXPIRED" : "EXPIRES");
+			PUBKEY_HAS_EXPIRED(pubkey, time)
+				? "EXPIRED" : "EXPIRES");
 
 	/* Ensure that there will be space for tihe time. */
 	if (buffer_end - buffer < PTIMESTR_LEN + 1)
@@ -456,13 +463,8 @@ format_pubkey_expiration_notice(char *buffer, const pgp_pubkey_t *pubkey,
 	return 0;
 }
 
-#define F_REVOKED   1
-#define F_PRINTSIGS 2
-
-#define SIGNATURE_PADDING "          "
-
 static int
-format_uid_notice(char *buffer, uint8_t *uid, size_t size, int flags)
+format_uid_line(char *buffer, uint8_t *uid, size_t size, int flags)
 {
 	return snprintf(buffer, size,
 			"uid    %s%s%s\n",
@@ -474,7 +476,7 @@ format_uid_notice(char *buffer, uint8_t *uid, size_t size, int flags)
 /* TODO: Consider replacing `trustkey` with an optional `uid` parameter. */
 /* TODO: Consider passing only signer_id and birthtime. */
 static int
-format_sig_notice(char *buffer, const pgp_sig_t *sig,
+format_sig_line(char *buffer, const pgp_sig_t *sig,
 		const pgp_key_t *trustkey, size_t size)
 {
 	char keyid[PGP_KEY_ID_SIZE * 3];
@@ -491,7 +493,7 @@ format_sig_notice(char *buffer, const pgp_sig_t *sig,
 }
 
 static int
-format_subsig_notice(char *buffer,
+format_subsig_line(char *buffer,
 		const pgp_key_t *key, const pgp_key_t *trustkey,
 		const pgp_subsig_t *subsig, size_t size)
 {
@@ -500,9 +502,59 @@ format_subsig_notice(char *buffer,
 
 	if (subsig->sig.info.version == 4 &&
 			subsig->sig.info.type == PGP_SIG_SUBKEY) {
-		psubkeybinding(buffer, size, key, expired);
+
+		/* XXX: The character count of this was previously ignored.
+		 *      This seems to have been incorrect, but if not
+		 *      you should revert it.
+		 */
+		n += psubkeybinding(buffer, size, key, expired);
 	} else
-		n += format_sig_notice(buffer, &subsig->sig, trustkey, size);
+		n += format_sig_line(buffer, &subsig->sig, trustkey, size);
+
+	return n;
+}
+
+static int
+format_uid_notice(
+		char *buffer, pgp_io_t *io,
+		const pgp_keyring_t *keyring, const pgp_key_t *key,
+		unsigned uid, size_t size, int flags)
+{
+	int i;
+	int n = 0;
+
+	if (isrevoked(key, uid) >= 0)
+		flags |= F_REVOKED;
+
+	n += format_uid_line(buffer, key->uids[uid], size, flags);
+
+	for (i = 0; i < key->subsigc; i++) {
+		pgp_subsig_t *subsig = &key->subsigs[i];
+		const pgp_key_t	*trustkey;
+		unsigned from;
+
+		/* TODO: To me this looks like an unnecessary consistency
+		 *       check that should be performed upstream before
+		 *       passing the information down here. Maybe not,
+		 *       if anyone can shed alternate light on this
+		 *       that would be great.
+		 */
+		if (flags & F_PRINTSIGS && subsig->uid != uid) {
+			continue;
+
+		/* TODO: I'm also unsure about this one. */
+		} else if (! (subsig->sig.info.version == 4 &&
+				subsig->sig.info.type == PGP_SIG_SUBKEY &&
+				uid == key->uidc - 1)) {
+			continue;
+		}
+
+		trustkey = pgp_getkeybyid(io, keyring,
+				subsig->sig.info.signer_id, &from, NULL);
+
+		n += format_subsig_line(buffer + n, key, trustkey,
+				subsig, size - n);
+	}
 
 	return n;
 }
@@ -517,15 +569,16 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 		const pgp_key_t *key, char **buf, const char *header,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
-	unsigned		 i;
-	unsigned		 j;
-	time_t			 now;
-	char			 uidbuf[KB(128)];
-	char			 keyid[PGP_KEY_ID_SIZE * 3];
-	char			 fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
-	char			 expired[128];
-	char			 t[32];
-	int			 n;
+	unsigned  i;
+	time_t    now;
+	char     *uid_notices;
+	int       uid_notices_offset = 0;
+	char     *string;
+	int       total_length;
+	char      keyid[PGP_KEY_ID_SIZE * 3];
+	char      fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
+	char      expiration_notice[128];
+	char      birthtime[32];
 
 	if (key->revoked)
 		return -1;
@@ -533,75 +586,69 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 	now = time(NULL);
 
 	if (PUBKEY_DOES_EXPIRE(pubkey)) {
-		format_pubkey_expiration_notice(expired, pubkey, now,
-				sizeof(expired));
+		format_pubkey_expiration_notice(
+				expiration_notice, pubkey, now,
+				sizeof(expiration_notice));
 	} else
-		expired[0] = 0x0;
+		expiration_notice[0] = '\0';
 
-	for (i = 0, n = 0; i < key->uidc; i++) {
+	/* Allocate a buffer for UID notices. Currently this is enormous
+	 * and I'm not sure where the original size came from (an RFC I
+	 * hope), so this might be changed in the future. At least it's
+	 * heap allocated now.
+	 */
+	uid_notices = (char *) malloc(KB(128));
+	if (uid_notices == NULL)
+		return -1;
+
+	/* TODO: Perhaps this should index key->uids instead of using the
+	 *       iterator index.
+	 */
+	for (i = 0; i < key->uidc; i++) {
 		int flags = 0;
-
-		/* If the key has been marked compromised then skip it. */
 
 		if (iscompromised(key, i))
 			continue;
 
-		/* Format the UID stanza. */
-
 		if (psigs)
 			flags |= F_PRINTSIGS;
-		if (isrevoked(key, i) >= 0)
-			flags |= F_REVOKED;
 
-		n += format_uid_notice(&uidbuf[n], key->uids[i],
-				sizeof(uidbuf) - n, flags);
-
-		/* Iterate the subsignatures. */
-
-		for (j = 0 ; j < key->subsigc ; j++) {
-			pgp_subsig_t *subsig = &key->subsigs[j];
-			const pgp_key_t	*trustkey;
-			unsigned from;
-
-			if (psigs) {
-
-				/* TODO: Check that this is entirely necessary.
-				 *       If this is a question of consistency
-				 *       it might not be a good idea to do
-				 *       it here.
-				 */
-				if (subsig->uid != i)
-					continue;
-			} else {
-
-				/* If a version 4 subkey of the last UID
-				 * then skip. I'm not entirely sure what this
-				 * represents; it could benefit from a comment
-				 * or a macro.
-				 */
-				if (! (subsig->sig.info.version == 4 &&
-					subsig->sig.info.type == PGP_SIG_SUBKEY &&
-					i == key->uidc - 1)) {
-						continue;
-				}
-			}
-
-			trustkey = pgp_getkeybyid(io, keyring,
-					subsig->sig.info.signer_id, &from, NULL);
-
-			n += format_subsig_notice(uidbuf + n, key, trustkey,
-					subsig, sizeof(uidbuf) - n);
-		}
+		uid_notices_offset += format_uid_notice(
+				uid_notices + uid_notices_offset,
+				io, keyring, key, i,
+				sizeof(uid_notices) - uid_notices_offset,
+				flags);
 	}
-	return pgp_asprintf(buf, "%s %d/%s %s %s %s\nKey fingerprint: %s\n%s",
-		header,
-		numkeybits(pubkey),
-		pgp_show_pka(pubkey->alg),
-		strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, ""),
-		ptimestr(t, sizeof(t), pubkey->birthtime),
-		expired,
-		strhexdump(fp, key->sigfingerprint.fingerprint, key->sigfingerprint.length, " "),
-		uidbuf);
+
+	strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
+
+	strhexdump(fingerprint, key->sigfingerprint.fingerprint,
+			key->sigfingerprint.length, " ");
+
+	ptimestr(birthtime, sizeof(birthtime), pubkey->birthtime);
+
+	/* Allocate a stupidly enormous string for the result until the
+	 * expected size can be guestimated.
+	 */
+	total_length = -1;
+	string = (char *) malloc(KB(16));
+	if (string != NULL) {
+		total_length = snprintf(string, KB(16),
+				"%s %d/%s %s %s %s\nKey fingerprint: %s\n%s",
+				header,
+				numkeybits(pubkey),
+				pgp_show_pka(pubkey->alg),
+				keyid,
+				birthtime,
+				expiration_notice,
+				fingerprint,
+				uid_notices);
+		*buf = string;
+	}
+
+	free((void *) uid_notices);
+
+	return total_length;
 }
 
 /* return the key info as a JSON encoded string */
