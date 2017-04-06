@@ -5,6 +5,9 @@
 *.loT
 *.o
 
+core.*
+vgcore.*
+
 # These artifacts can be removed by ./remove_artifacts.sh
 .deps
 .libs
@@ -41,6 +44,10 @@ src/rnpv/Makefile
 src/rnpv/Makefile.in
 src/rnpv/config.h
 src/rnpv/rnpv
+src/cmocka/Makefile
+src/cmocka/Makefile.in
+src/cmocka/config.h
+src/cmocka/rnp_tests
 tests/Makefile
 tests/Makefile.in
 tests/atconfig
