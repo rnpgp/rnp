@@ -103,6 +103,45 @@ static void hash_test_success(void **state)
 
 static void cipher_test_success(void **state)
 {
+   const uint8_t key[16] = { 0 };
+   uint8_t iv[16];
+   pgp_symm_alg_t alg = PGP_SA_AES_128;
+   pgp_crypt_t crypt;
+
+   uint8_t block[16] = { 0 };
+
+   assert_int_equal(1, pgp_crypt_any(&crypt, alg));
+
+   pgp_encrypt_init(&crypt);
+
+   memset(iv, 0x42, sizeof(iv));
+
+   crypt.set_crypt_key(&crypt, key);
+   crypt.block_encrypt(&crypt, block, block);
+
+   test_value_equal("AES ECB encrypt",
+                    "66E94BD4EF8A2C3B884CFA59CA342B2E",
+                    block, sizeof(block));
+
+   crypt.block_decrypt(&crypt, block, block);
+
+   test_value_equal("AES ECB decrypt",
+                    "00000000000000000000000000000000",
+                    block, sizeof(block));
+
+   crypt.set_iv(&crypt, iv);
+   crypt.cfb_encrypt(&crypt, block, block, 16);
+
+   test_value_equal("AES CFB encrypt",
+                    "BFDAA57CB812189713A950AD99478879",
+                    block, sizeof(block));
+
+   crypt.set_iv(&crypt, iv);
+   crypt.cfb_decrypt(&crypt, block, block, 16);
+   test_value_equal("AES CFB decrypt",
+                    "00000000000000000000000000000000",
+                    block, sizeof(block));
+
 }
 static void rsa_test_success(void **state)
 {
