@@ -320,15 +320,30 @@ pgp_ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hasht
 				(int)strlen(space + 1) - 1,
 				space + 1);
 		}
-		(void) pgp_asprintf((char **)(void *)&userid,
-						"%s (%s) %s",
-						hostname,
-						f,
-						owner);
+
+		/* This function is very large and probably needs to be
+		 * broken up. For the time being we approximate asprintf
+		 * in a little sub-context.
+		 *
+		 * TODO: There was no error handling here. Some must be
+		 *       added to prevent acting on and freeing a NULL
+		 *       pointer.
+		 */
+		{
+			char *buffer = (char *) malloc(1024);
+
+			if (buffer != NULL) {
+				snprintf(buffer, sizeof(buffer), "%s (%s) %s",
+						hostname, f, owner);
+				userid = (uint8_t *) buffer;
+			}
+		}
 		pgp_keyid(key->sigid, sizeof(key->sigid), pubkey, hashtype);
 		pgp_add_userid(key, userid);
 		pgp_fingerprint(&key->sigfingerprint, pubkey, hashtype);
-		free(userid);
+
+		free((void *) userid);
+
 		if (pgp_get_debug_level(__FILE__)) {
 			/*pgp_print_keydata(io, keyring, key, "pub", pubkey, 0);*/
 			__PGP_USED(io); /* XXX */
