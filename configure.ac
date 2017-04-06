@@ -86,45 +86,10 @@ AX_CHECK_BOTAN([CFLAGS="$CFLAGS $BOTAN_INCLUDES"
                 LDFLAGS="$LDFLAGS $BOTAN_LDFLAGS $BOTAN_LIBS"],
                [AC_MSG_ERROR([Missing Botan])])
 
-# Check for OpenSSL
-#
-
-m4_include([ax_check_openssl.m4])
-
-#AX_CHECK_OPENSSL([CFLAGS="$CFLAGS $OPENSSL_INCLUDES"
-#                  LDFLAGS="$LDFLAGS $OPENSSL_LDFLAGS $OPENSSL_LIBS"],
-#                 [AC_MSG_ERROR([Missing OpenSSL])])
-
-AX_CHECK_OPENSSL([], [AC_MSG_ERROR([OpenSSL could not be found])])
-
-AC_CHECK_HEADERS([openssl/aes.h openssl/bn.h openssl/camellia.h openssl/cast.h \
-                  openssl/des.h openssl/dsa.h openssl/err.h openssl/idea.h \
-                  openssl/md5.h openssl/rand.h openssl/rsa.h openssl/sha.h \
-                  openssl/err.h openssl/sha.h],
-                 [],
-                 [AC_MSG_ERROR([Missing required OpenSSL headers])])
-
-AC_CHECK_TYPES([SHA256_CTX],
-               [],
-               [AC_MSG_FAILURE([missing SHA256_CTX; is openssl 0.9.8 or newer installed?])],
-               [[
-#if defined(HAVE_SYS_TYPES_H)
-#include <sys/types.h>
-#endif
-#if defined(HAVE_OPENSSL_SHA_H)
-#include <openssl/sha.h>
-#endif
-#if defined(HAVE_COMMONCRYPTO_COMMONDIGEST_H)
-#define COMMON_DIGEST_FOR_OPENSSL 1
-#include <CommonCrypto/CommonDigest.h>
-#endif
-]])
-
 # Checks for library functions.
 #
 AC_SEARCH_LIBS([gzopen], [z])
 AC_SEARCH_LIBS([BZ2_bzDecompress], [bz2])
-AC_SEARCH_LIBS([RSA_public_encrypt], [crypto])
 
 # Initialize the testsuite
 #
