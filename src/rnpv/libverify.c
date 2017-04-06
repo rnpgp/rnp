@@ -2488,14 +2488,16 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 
 		/* XXX: There is no error handling for NULL pointers here,
 		 *      this needs addressing.
+		 *
+		 * XXX: What is a reasonable static size?
 		 */
 		{
 			char *buffer;
 
-			buffer = (char *) malloc(1024);
+			buffer = (char *) malloc(4096);
 			if (buffer != NULL) {
 				userid.userid.size = snprintf(
-						buffer, sizeof(buffer),
+						buffer, 4096,
 						"%s (%s) %s",
 						hostname, f, owner);
 				userid.userid.data = (uint8_t *) buffer;
