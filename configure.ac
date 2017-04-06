@@ -13,7 +13,7 @@ AC_CONFIG_AUX_DIR([buildaux])
 AC_CONFIG_HEADER([src/lib/config.h])
 AC_CONFIG_HEADER([src/rnpv/config.h])
 
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AM_INIT_AUTOMAKE([-Wall -Wextra foreign])
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT
 AM_MAINTAINER_MODE
@@ -75,6 +75,16 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
+
+# Check for Botan
+
+m4_include([ax_check_botan.m4])
+
+# TODO: check botan version (2.1 or higher required)
+
+AX_CHECK_BOTAN([CFLAGS="$CFLAGS $BOTAN_INCLUDES"
+                LDFLAGS="$LDFLAGS $BOTAN_LDFLAGS $BOTAN_LIBS"],
+               [AC_MSG_ERROR([Missing Botan])])
 
 # Check for OpenSSL
 #

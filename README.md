@@ -198,13 +198,30 @@ accordingly):
 docker run -v ~/src/rnp:/usr/local/rnp -it centos:7 bash
 ```
 
+## Install Dependencies
+
+### Botan
+
+Botan 2.1 or higher is required. Install it into the container:
+
+```
+$ wget https://botan.randombit.net/releases/Botan-2.1.0.tgz
+$ sha256sum Botan-2.1.0.tgz
+460f2d7205aed113f898df4947b1f66ccf8d080eec7dac229ef0b754c9ad6294  Botan-2.1.0.tgz
+$ tar -xzf Botan-2.1.0.tgz
+$ cd Botan-2.1.0
+$ ./configure.py --prefix=/usr/local/botan-2.1
+$ make
+$ sudo make install
+```
+
 ## Compile
 
 In the container:
 
 ```
 cd /usr/local/rnp
-./build.sh
+ACFLAGS=--with-botan=/usr/local/botan-2.1 ./build.sh
 make install
 ```
 
