@@ -9,6 +9,8 @@
 #include <cmocka.h>
 
 #include <crypto.h>
+#include <keyring.h>
+#include <packet.h>
 #include <mj.h>
 
 // returns new string containing hex value
@@ -145,8 +147,25 @@ static void cipher_test_success(void **state)
 }
 static void rsa_test_success(void **state)
 {
+   #if 0
+   const uint8_t ptext[3] = { 'a', 'b', 'c' };
 
+   uint8_t ctext[1024/8];
+   uint8_t decrypted[1024/8];
+   int ctext_size, decrypted_size;
+   pgp_key_t* pgp_key;
 
+   pgp_key = pgp_rsa_new_key(1024, 65537, "userid", "AES-128");
+
+   ctext_size = pgp_rsa_public_encrypt(ctext, ptext, sizeof(ptext),
+                                       pgp_key->key.seckey.pubkey);
+
+   decrypted_size = pgp_rsa_private_decrypt(decrypted, ctext, ctext_size,
+                                            pgp_key->key.seckey,
+                                            pgp_key->key.seckey.pubkey);
+
+   assert_int_equal(decrypted_size, 1024/8);
+#endif
 
 }
 
