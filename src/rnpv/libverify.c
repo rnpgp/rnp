@@ -2485,11 +2485,23 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 				space + 1);
 		}
 		calc_keyid(pubkey, "sha1");
-		userid.userid.size = asprintf((char **)(void *)&userid.userid.data,
+
+		/* XXX: There is no error handling for NULL pointers here,
+		 *      this needs addressing.
+		 */
+		{
+			char *buffer;
+
+			buffer = (char *) malloc(1024);
+			if (buffer != NULL) {
+				userid.userid.size = snprintf(
+						buffer, sizeof(buffer),
 						"%s (%s) %s",
-						hostname,
-						f,
-						owner);
+						hostname, f, owner);
+				userid.userid.data = (uint8_t *) buffer;
+			}
+		}
+
 		ARRAY_APPEND(primary->signed_userids, userid);
 		primary->fmtsize = estimate_primarykey_size(primary) + 1024;
 	}
