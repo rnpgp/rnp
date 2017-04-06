@@ -10,6 +10,7 @@ librnp_la_CPPFLAGS	= -I$(top_srcdir)/include -I$(top_srcdir)/src/libmj
 
 librnp_la_SOURCES	= \
 	bufgap.c \
+	bn.c \
 	compress.c \
 	create.c \
 	crypto.c \
