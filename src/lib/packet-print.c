@@ -797,13 +797,11 @@ pgp_hkp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 
 	n = -1;
 	{
-		/* XXX: This number is completely arbitrary and should be
-		 *      adjusted to fit the expected format.
-		 */
-		char *buffer = (char *) malloc(1024);
+		/* XXX: This number is completely arbitrary. */
+		char *buffer = (char *) malloc(KB(16));
 
 		if (buffer != NULL) {
-			n = snprintf(buffer, 1024,
+			n = snprintf(buffer, KB(16),
 					"pub:%s:%d:%d:%lld:%lld\n%s",
 					fingerprint,
 					pubkey->alg,
