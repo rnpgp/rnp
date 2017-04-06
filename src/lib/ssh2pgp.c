@@ -330,10 +330,10 @@ pgp_ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hasht
 		 *       pointer.
 		 */
 		{
-			char *buffer = (char *) malloc(1024);
+			char *buffer = (char *) malloc(4096);
 
 			if (buffer != NULL) {
-				snprintf(buffer, sizeof(buffer), "%s (%s) %s",
+				snprintf(buffer, 4096, "%s (%s) %s",
 						hostname, f, owner);
 				userid = (uint8_t *) buffer;
 			}
