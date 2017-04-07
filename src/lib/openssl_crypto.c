@@ -437,7 +437,7 @@ pgp_rsa_private_decrypt(uint8_t *out,
    botan_pk_op_decrypt_t decrypt_op;
    size_t out_len = RNP_BUFSIZ; // in pgp_decrypt_decode_mpi
 
-   botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, seckey->d->mp);
+   botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, pubkey->e->mp);
 
    botan_rng_init(&rng, NULL);
    if(botan_privkey_check_key(rsa_key, rng, 0) != 0)
@@ -483,6 +483,11 @@ pgp_rsa_public_encrypt(uint8_t *out,
    botan_rng_init(&rng, NULL);
 
    botan_pubkey_load_rsa(&rsa_key, pubkey->n->mp, pubkey->e->mp);
+
+   if (botan_pubkey_check_key(rsa_key, rng, 1) != 0)
+   {
+      return -1;
+   }
 
    botan_pk_op_encrypt_create(&enc_op, rsa_key, "Raw", 0);
 
@@ -914,6 +919,7 @@ pgp_elgamal_public_encrypt(uint8_t *g_to_k, uint8_t *encm,
 	if (!BN_rand(k, k_bits, 0, 0)) {
 		goto done;
 	}
+
 	/*
 	 * c1 = g^k c2 = m * y^k
 	 */
@@ -946,9 +952,6 @@ done:
 	}
 	if (k) {
 		BN_clear_free(k);
-	}
-	if (g) {
-		BN_clear_free(g);
 	}
 	return ret;
 }
@@ -1011,12 +1014,6 @@ done:
 	}
 	if (c1x) {
 		BN_clear_free(c1x);
-	}
-	if (x) {
-		BN_clear_free(x);
-	}
-	if (p) {
-		BN_clear_free(p);
 	}
 	if (c1) {
 		BN_clear_free(c1);
