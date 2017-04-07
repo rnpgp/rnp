@@ -12,8 +12,12 @@
 #include <keyring.h>
 #include <packet.h>
 #include <mj.h>
-#include <openssl/bn.h>
-//#include "bn.h"
+
+#if defined(USE_BN_INTERFACE)
+  #include "bn.h"
+#else
+  #include <openssl/bn.h>
+#endif
 
 // returns new string containing hex value
 char* hex_encode(const uint8_t v[], size_t len)
@@ -208,6 +212,17 @@ static void raw_rsa_test_success(void **state)
 
 static void raw_elg_test_success(void **state)
 {
+   // largest prime under 512 bits
+   const uint8_t p512[64] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFD, 0xC7,
+   };
+
    pgp_elgamal_pubkey_t pub_elg;
    pgp_elgamal_seckey_t sec_elg;
    uint8_t   encm[1024];
@@ -219,16 +234,14 @@ static void raw_elg_test_success(void **state)
    sec_elg.x = BN_new();
    BN_set_word(sec_elg.x, 0xDEADBEEF);
 
-   pub_elg.p = BN_new();
    pub_elg.g = BN_new();
    pub_elg.y = BN_new();
 
-   // P = 2**521-1
-   BN_set_bit(pub_elg.p, 521);
-   BN_sub_word(pub_elg.p, 1);
+   pub_elg.p = BN_bin2bn(p512, sizeof(p512), NULL);
 
    // G = 3
    BN_set_word(pub_elg.g, 3);
+   BN_set_word(sec_elg.x, 0xCAB5432);
 
    BN_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p, ctx);
 
@@ -236,18 +249,29 @@ static void raw_elg_test_success(void **state)
 
    pgp_elgamal_public_encrypt(g_to_k, encm, plaintext, sizeof(plaintext), &pub_elg);
 
+   unsigned ctext_size = pgp_elgamal_public_encrypt(g_to_k, encm, plaintext, sizeof(plaintext), &pub_elg);
+
+   assert_int_equal(ctext_size % 2, 0);
+   ctext_size /= 2;
+
 #if defined(DEBUG_PRINT)
    printf("P = 0x%s\n", BN_bn2hex(pub_elg.p));
    printf("G = 0x%s\n", BN_bn2hex(pub_elg.g));
    printf("Y = 0x%s\n", BN_bn2hex(pub_elg.y));
    printf("X = 0x%s\n", BN_bn2hex(sec_elg.x));
-   BIGNUM* x = BN_bin2bn(g_to_k, 66, NULL);
+   BIGNUM* x = BN_bin2bn(g_to_k, ctext_size, NULL);
    printf("Gtk = 0x%s\n", BN_bn2hex(x));
+   printf("MM = ");
+   for(size_t i = 0; i != ctext_size; ++i)
+   {
+      printf("%02X", encm[i]);
+   }
+   printf("\n");
 #endif
 
-   pgp_elgamal_private_decrypt(decr, g_to_k, encm, 66, &sec_elg, &pub_elg);
+   pgp_elgamal_private_decrypt(decr, g_to_k, encm, ctext_size, &sec_elg, &pub_elg);
 
-   test_value_equal("ElGamal decrypt", "01020304", decr, 4);
+   test_value_equal("ElGamal decrypt", "0102030417", decr, 5);
 }
 
 int main(void) {
