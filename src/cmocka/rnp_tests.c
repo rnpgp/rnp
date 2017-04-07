@@ -12,6 +12,8 @@
 #include <keyring.h>
 #include <packet.h>
 #include <mj.h>
+#include <openssl/bn.h>
+//#include "bn.h"
 
 // returns new string containing hex value
 char* hex_encode(const uint8_t v[], size_t len)
@@ -43,6 +45,12 @@ int test_value_equal(const char* what,
                      const char* expected_value,
                      const uint8_t v[], size_t v_len)
 {
+   if(strlen(expected_value) != v_len*2)
+   {
+      fprintf(stderr, "Bad length for %s expected %zu bytes got %zu\n", what, strlen(expected_value), 2*v_len);
+      return 1;
+   }
+
    char* produced = hex_encode(v, v_len);
 
    // fixme - expects expected_value is also uppercase
@@ -111,6 +119,7 @@ static void cipher_test_success(void **state)
    pgp_crypt_t crypt;
 
    uint8_t block[16] = { 0 };
+   uint8_t cfb_data[20] = { 0 };
 
    assert_int_equal(1, pgp_crypt_any(&crypt, alg));
 
@@ -132,40 +141,68 @@ static void cipher_test_success(void **state)
                     block, sizeof(block));
 
    crypt.set_iv(&crypt, iv);
-   crypt.cfb_encrypt(&crypt, block, block, 16);
+   crypt.cfb_encrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data));
 
    test_value_equal("AES CFB encrypt",
-                    "BFDAA57CB812189713A950AD99478879",
-                    block, sizeof(block));
+                    "BFDAA57CB812189713A950AD9947887983021617",
+                    cfb_data, sizeof(cfb_data));
 
    crypt.set_iv(&crypt, iv);
-   crypt.cfb_decrypt(&crypt, block, block, 16);
+   crypt.cfb_decrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data));
    test_value_equal("AES CFB decrypt",
-                    "00000000000000000000000000000000",
-                    block, sizeof(block));
+                    "0000000000000000000000000000000000000000",
+                    cfb_data, sizeof(cfb_data));
 
 }
-static void rsa_test_success(void **state)
+
+//#define DEBUG_PRINT
+
+static void raw_rsa_test_success(void **state)
 {
-   #if 0
-   const uint8_t ptext[3] = { 'a', 'b', 'c' };
+   uint8_t ptext[1024/8] = { 'a', 'b', 'c', 0 };
 
    uint8_t ctext[1024/8];
    uint8_t decrypted[1024/8];
    int ctext_size, decrypted_size;
    pgp_key_t* pgp_key;
 
+   const pgp_pubkey_t* pub_key;
+   const pgp_seckey_t* sec_key;
+
+   const pgp_rsa_pubkey_t* pub_rsa;
+   const pgp_rsa_seckey_t* sec_rsa;
+
    pgp_key = pgp_rsa_new_key(1024, 65537, "userid", "AES-128");
+   sec_key = pgp_get_seckey(pgp_key);
+   pub_key = pgp_get_pubkey(pgp_key);
+   pub_rsa = &pub_key->key.rsa;
+   sec_rsa = &sec_key->key.rsa;
 
-   ctext_size = pgp_rsa_public_encrypt(ctext, ptext, sizeof(ptext),
-                                       pgp_key->key.seckey.pubkey);
+#if defined(DEBUG_PRINT)
+   printf("PT = 0x%s\n", hex_encode(ptext, sizeof(ptext)));
+   printf("N = 0x%s\n", BN_bn2hex(pub_rsa->n));
+   printf("E = 0x%s\n", BN_bn2hex(pub_rsa->e));
+   printf("P = 0x%s\n", BN_bn2hex(sec_rsa->p));
+   printf("Q = 0x%s\n", BN_bn2hex(sec_rsa->q));
+   printf("D = 0x%s\n", BN_bn2hex(sec_rsa->d));
+#endif
 
+   ctext_size = pgp_rsa_public_encrypt(ctext, ptext, sizeof(ptext), pub_rsa);
+
+   assert_int_equal(ctext_size, 1024/8);
+
+   memset(decrypted, 0, sizeof(decrypted));
    decrypted_size = pgp_rsa_private_decrypt(decrypted, ctext, ctext_size,
-                                            pgp_key->key.seckey,
-                                            pgp_key->key.seckey.pubkey);
+                                            sec_rsa, pub_rsa);
+
+#if defined(DEBUG_PRINT)
+   printf("C = 0x%s\n", hex_encode(ctext, ctext_size));
+   printf("PD = 0x%s\n", hex_encode(decrypted, decrypted_size));
+#endif
+
+   test_value_equal("RSA 1024 decrypt", "616263", decrypted, 3);
 
    assert_int_equal(decrypted_size, 1024/8);
-#endif
 
 }
 
@@ -173,7 +210,7 @@ int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(hash_test_success),
         cmocka_unit_test(cipher_test_success),
-        cmocka_unit_test(rsa_test_success),
+        cmocka_unit_test(raw_rsa_test_success),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
