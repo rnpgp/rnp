@@ -94,7 +94,7 @@ struct pgp_crypt_t {
 	uint8_t			key[PGP_MAX_KEY_SIZE];
 	int			num;
 		/* num is offset for CFB */
-	void			*block_cipher_obj;
+	struct botan_block_cipher_struct			*block_cipher_obj;
 
 };
 

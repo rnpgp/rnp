@@ -111,9 +111,10 @@ std_init(pgp_crypt_t *crypt, const char* cipher_name)
            botan_block_cipher_destroy(crypt->block_cipher_obj);
 	}
 
-        if (botan_block_cipher_init(crypt->block_cipher_obj, cipher_name) != 0)
+        int rc = botan_block_cipher_init(&(crypt->block_cipher_obj), cipher_name);
+        if (rc != 0)
         {
-           (void) fprintf(stderr, "Block cipher %s not available", cipher_name);
+           (void) fprintf(stderr, "Block cipher '%s' not available %d\n", cipher_name, rc);
            return 0;
         }
 
@@ -137,7 +138,7 @@ std_block_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in)
    botan_block_cipher_decrypt_blocks(crypt->block_cipher_obj, in, out, 1);
 }
 
-static void 
+static void
 std_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
 {
    for(size_t i = 0; i < bytes; ++i)
@@ -246,7 +247,7 @@ aes128_init(pgp_crypt_t *crypt)
         return std_init(crypt, "AES-128");
 }
 
-#define AES_BLOCK_SIZE 8
+#define AES_BLOCK_SIZE 16
 #define AES128_KEY_LENGTH 16
 
 static const pgp_crypt_t aes128 =
