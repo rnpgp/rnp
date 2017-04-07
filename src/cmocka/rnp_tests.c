@@ -206,11 +206,56 @@ static void raw_rsa_test_success(void **state)
 
 }
 
+static void raw_elg_test_success(void **state)
+{
+   pgp_elgamal_pubkey_t pub_elg;
+   pgp_elgamal_seckey_t sec_elg;
+   uint8_t   encm[1024];
+   uint8_t   g_to_k[1024];
+   uint8_t decr[1024];
+   const uint8_t plaintext[5] = { 1, 2, 3, 4, 23 };
+   BN_CTX* ctx = BN_CTX_new();
+
+   sec_elg.x = BN_new();
+   BN_set_word(sec_elg.x, 0xDEADBEEF);
+
+   pub_elg.p = BN_new();
+   pub_elg.g = BN_new();
+   pub_elg.y = BN_new();
+
+   // P = 2**521-1
+   BN_set_bit(pub_elg.p, 521);
+   BN_sub_word(pub_elg.p, 1);
+
+   // G = 3
+   BN_set_word(pub_elg.g, 3);
+
+   BN_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p, ctx);
+
+   BN_CTX_free(ctx);
+
+   pgp_elgamal_public_encrypt(g_to_k, encm, plaintext, sizeof(plaintext), &pub_elg);
+
+#if defined(DEBUG_PRINT)
+   printf("P = 0x%s\n", BN_bn2hex(pub_elg.p));
+   printf("G = 0x%s\n", BN_bn2hex(pub_elg.g));
+   printf("Y = 0x%s\n", BN_bn2hex(pub_elg.y));
+   printf("X = 0x%s\n", BN_bn2hex(sec_elg.x));
+   BIGNUM* x = BN_bin2bn(g_to_k, 66, NULL);
+   printf("Gtk = 0x%s\n", BN_bn2hex(x));
+#endif
+
+   pgp_elgamal_private_decrypt(decr, g_to_k, encm, 66, &sec_elg, &pub_elg);
+
+   test_value_equal("ElGamal decrypt", "01020304", decr, 4);
+}
+
 int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(hash_test_success),
         cmocka_unit_test(cipher_test_success),
         cmocka_unit_test(raw_rsa_test_success),
+        cmocka_unit_test(raw_elg_test_success),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
