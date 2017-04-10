@@ -2346,61 +2346,63 @@ findstr(str_t *array, const char *name)
 static __printflike(3, 4) int
 read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 {
-	pgpv_signed_userid_t	 userid;
-	pgpv_pubkey_t		*pubkey;
-	struct stat		 st;
-	bufgap_t		 bg;
-	uint32_t		 len;
-	int64_t			 off;
-	va_list			 args;
-	char			 hostname[256];
-	char			 owner[256];
-	char			*space;
-	char		 	*buf;
-	char		 	*bin;
-	char			 f[1024];
-	int			 ok;
-	int			 cc;
+	pgpv_signed_userid_t  userid;
+	pgpv_pubkey_t        *pubkey;
+	struct stat           st;
+	bufgap_t              bg;
+	uint32_t              len;
+	int64_t               off;
+	va_list               args;
+	char                 *space;
+	char                 *buf;
+	char                 *bin;
+	int                   ok;
+	int                   cc;
+	char                  hostname[_POSIX_HOST_NAME_MAX + 1];
+	char                  owner_uri[_POSIX_LOGIN_NAME_MAX + sizeof(hostname) + 1];
+	char                  f[1024];
 
 	USE_ARG(pgp);
 	memset(primary, 0x0, sizeof(*primary));
-	(void) memset(&bg, 0x0, sizeof(bg));
+	memset(&bg, 0x0, sizeof(bg));
 	va_start(args, fmt);
 	vsnprintf(f, sizeof(f), fmt, args);
 	va_end(args);
 
-	if (!bufgap_open(&bg, f)) {
-		(void) fprintf(stderr, "pgp_ssh2pubkey: can't open '%s'\n", f);
+	if (! bufgap_open(&bg, f)) {
+		fprintf(stderr, "pgp_ssh2pubkey: can't open '%s'\n", f);
 		return 0;
 	}
 
-	(void)stat(f, &st);
-	if ((buf = calloc(1, (size_t)st.st_size)) == NULL) {
-		(void) fprintf(stderr, "can't calloc %zu bytes for '%s'\n", (size_t)st.st_size, f);
+	stat(f, &st);
+
+	if ((buf = calloc(1, (size_t) st.st_size)) == NULL) {
+		fprintf(stderr, "cannot calloc %zu bytes for '%s'\n",
+				(size_t) st.st_size, f);
 		bufgap_close(&bg);
 		return 0;
 	}
 
-	if ((bin = calloc(1, (size_t)st.st_size)) == NULL) {
-		(void) fprintf(stderr, "can't calloc %zu bytes for '%s'\n", (size_t)st.st_size, f);
-		(void) free(buf);
+	if ((bin = calloc(1, (size_t) st.st_size)) == NULL) {
+		fprintf(stderr, "cannot calloc %zu bytes for '%s'\n",
+				(size_t) st.st_size, f);
+		free((void *) buf);
 		bufgap_close(&bg);
 		return 0;
 	}
 
 	/* move past ascii type of key */
-	while (bufgap_peek(&bg, 0) != ' ') {
-		if (!bufgap_seek(&bg, 1, BGFromHere, BGByte)) {
-			(void) fprintf(stderr, "bad key file '%s'\n", f);
-			(void) free(buf);
-			bufgap_close(&bg);
-			return 0;
-		}
+	while (bufgap_peek(&bg, 0) != ' ' &&
+			! bufgap_seek(&bg, 1, BGFromHere, BGByte)) {
+		fprintf(stderr, "bad key file '%s'\n", f);
+		free((void *) buf);
+		bufgap_close(&bg);
+		return 0;
 	}
 
-	if (!bufgap_seek(&bg, 1, BGFromHere, BGByte)) {
-		(void) fprintf(stderr, "bad key file '%s'\n", f);
-		(void) free(buf);
+	if (! bufgap_seek(&bg, 1, BGFromHere, BGByte)) {
+		fprintf(stderr, "bad key file '%s'\n", f);
+		free((void *) buf);
 		bufgap_close(&bg);
 		return 0;
 	}
@@ -2408,37 +2410,39 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 	off = bufgap_tell(&bg, BGFromBOF, BGByte);
 
 	if (bufgap_size(&bg, BGByte) - off < 10) {
-		(void) fprintf(stderr, "bad key file '%s'\n", f);
-		(void) free(buf);
+		fprintf(stderr, "bad key file '%s'\n", f);
+		free((void *) buf);
 		bufgap_close(&bg);
 		return 0;
 	}
 
 	/* convert from base64 to binary */
-	cc = bufgap_getbin(&bg, buf, (size_t)bg.bcc);
-	if ((space = strchr(buf, ' ')) != NULL) {
+	cc = bufgap_getbin(&bg, buf, (size_t) bg.bcc);
+	if ((space = strchr(buf, ' ')) != NULL)
 		cc = (int)(space - buf);
-	}
+
 	cc = frombase64(bin, buf, (size_t)cc, 0);
-	bufgap_delete(&bg, (uint64_t)bufgap_tell(&bg, BGFromEOF, BGByte));
+	bufgap_delete(&bg, (uint64_t) bufgap_tell(&bg, BGFromEOF, BGByte));
 	bufgap_insert(&bg, bin, cc);
 	bufgap_seek(&bg, off, BGFromBOF, BGByte);
 
 	/* get the type of key */
-	(void) bufgap_getbin(&bg, &len, sizeof(len));
+	bufgap_getbin(&bg, &len, sizeof(len));
 	len = pgp_ntoh32(len);
 	if (len >= st.st_size) {
-		(void) fprintf(stderr, "bad public key file '%s'\n", f);
+		fprintf(stderr, "bad public key file '%s'\n", f);
 		return 0;
 	}
-	(void) bufgap_seek(&bg, sizeof(len), BGFromHere, BGByte);
-	(void) bufgap_getbin(&bg, buf, len);
-	(void) bufgap_seek(&bg, len, BGFromHere, BGByte);
+
+	bufgap_seek(&bg, sizeof(len), BGFromHere, BGByte);
+	bufgap_getbin(&bg, buf, len);
+	bufgap_seek(&bg, len, BGFromHere, BGByte);
 
 	pubkey = &primary->primary;
 	pubkey->hashalg = digest_get_alg("sha256"); /* gets fixed up later */
 	pubkey->version = 4;
 	pubkey->birth = 0; /* gets fixed up later */
+
 	/* get key type */
 	ok = 1;
 	switch (pubkey->keyalg = findstr(pkatypes, buf)) {
@@ -2446,7 +2450,7 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 	case PUBKEY_RSA_SIGN:
 		if (getbignum(&pubkey->bn[RSA_E], &bg, buf, "RSA E") < 0 || \
 		    getbignum(&pubkey->bn[RSA_N], &bg, buf, "RSA N") < 0) {
-			(void) fprintf(stderr, "bad public key file '%s'\n", f);
+			fprintf(stderr, "bad public key file '%s'\n", f);
 			return 0;
 		}
 		break;
@@ -2455,12 +2459,12 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 		    getbignum(&pubkey->bn[DSA_Q], &bg, buf, "DSA Q") < 0 || \
 		    getbignum(&pubkey->bn[DSA_G], &bg, buf, "DSA G") < 0 || \
 		    getbignum(&pubkey->bn[DSA_Y], &bg, buf, "DSA Y") < 0) {
-			(void) fprintf(stderr, "bad public key file '%s'\n", f);
+			fprintf(stderr, "bad public key file '%s'\n", f);
 			return 0;
 		}
 		break;
 	default:
-		(void) fprintf(stderr, "Unrecognised pubkey type %d for '%s'\n",
+		fprintf(stderr, "Unrecognised pubkey type %d for '%s'\n",
 				pubkey->keyalg, f);
 		ok = 0;
 		break;
@@ -2475,41 +2479,58 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 
 	if (ok) {
 		memset(&userid, 0x0, sizeof(userid));
-		(void) gethostname(hostname, sizeof(hostname));
+
+		gethostname(hostname, sizeof(hostname));
 		if (strlen(space + 1) - 1 == 0) {
-			(void) snprintf(owner, sizeof(owner), "<root@%s>",
+			snprintf(owner_uri, sizeof(owner_uri), "root@%s",
 					hostname);
 		} else {
-			(void) snprintf(owner, sizeof(owner), "<%.*s>",
-				(int)strlen(space + 1) - 1,
-				space + 1);
+			snprintf(owner_uri, sizeof(owner_uri), "%.*s",
+				(int) strlen(space + 1) - 1, space + 1);
 		}
+
+		/* XXX: This assumes that the public key will always use
+		 *      SHA-1.
+		 */
 		calc_keyid(pubkey, "sha1");
 
-		/* XXX: There is no error handling for NULL pointers here,
-		 *      this needs addressing.
-		 *
-		 * XXX: What is a reasonable static size?
+		/* XXX: This function needs to be broken up so that this
+		 *      bubble scope can be popped.
 		 */
 		{
-			char *buffer;
+			/* The total size will be the maximum size of the
+			 * component fields plus 64 bytes for any extra
+			 * formatting.
+			 */
+			static const size_t buffer_size =
+					sizeof(hostname) + sizeof(owner_uri) +
+					sizeof(f) + 64;
 
-			buffer = (char *) malloc(4096);
-			if (buffer != NULL) {
-				userid.userid.size = snprintf(
-						buffer, 4096,
-						"%s (%s) %s",
-						hostname, f, owner);
-				userid.userid.data = (uint8_t *) buffer;
+			char *buffer = (char *) malloc(buffer_size);
+
+			if (buffer == NULL) {
+				fputs("failed to allocate buffer: "
+						"insufficient memory\n", stderr);
+				free((void *) bin);
+				free((void *) buf);
+				bufgap_close(&bg);
+				return 0;
 			}
+			userid.userid.size = snprintf(
+					buffer, buffer_size,
+					"%s (%s) <%s>",
+					hostname, f, owner_uri);
+			userid.userid.data = (uint8_t *) buffer;
 		}
 
 		ARRAY_APPEND(primary->signed_userids, userid);
 		primary->fmtsize = estimate_primarykey_size(primary) + 1024;
 	}
-	(void) free(bin);
-	(void) free(buf);
+
+	free((void *) bin);
+	free((void *) buf);
 	bufgap_close(&bg);
+
 	return ok;
 }
 
