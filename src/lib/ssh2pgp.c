@@ -204,76 +204,80 @@ findstr(str_t *array, const char *name)
 int
 pgp_ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
 {
-	pgp_pubkey_t	*pubkey;
-	struct stat	 st;
-	bufgap_t	 bg;
-	uint32_t	 len;
-	int64_t		 off;
-	uint8_t		*userid;
-	char		 hostname[256];
-	char		 owner[256];
-	char		*space;
-	char	 	*buf;
-	char	 	*bin;
-	int		 ok;
-	int		 cc;
+	pgp_pubkey_t *pubkey;
+	struct stat   st;
+	bufgap_t      bg;
+	uint32_t      len;
+	int64_t       off;
+	uint8_t      *userid;
+	char          hostname[_POSIX_HOST_NAME_MAX + 1];
+	char          owner[_POSIX_LOGIN_NAME_MAX + sizeof(hostname) + 1];
+	char         *space;
+	char         *buf;
+	char         *bin;
+	int           ok;
+	int           cc;
 
-	(void) memset(&bg, 0x0, sizeof(bg));
-	if (!bufgap_open(&bg, f)) {
-		(void) fprintf(stderr, "pgp_ssh2pubkey: can't open '%s'\n", f);
+	memset(&bg, 0x0, sizeof(bg));
+	if (! bufgap_open(&bg, f)) {
+		fprintf(stderr, "pgp_ssh2pubkey: can't open '%s'\n", f);
 		return 0;
 	}
-	(void)stat(f, &st);
-	if ((buf = calloc(1, (size_t)st.st_size)) == NULL) {
-		(void) fprintf(stderr, "can't calloc %zu bytes for '%s'\n", (size_t)st.st_size, f);
+	stat(f, &st);
+	if ((buf = calloc(1, (size_t) st.st_size)) == NULL) {
+		fprintf(stderr, "can't calloc %zu bytes for '%s'\n",
+				(size_t) st.st_size, f);
 		bufgap_close(&bg);
 		return 0;
 	}
-	if ((bin = calloc(1, (size_t)st.st_size)) == NULL) {
-		(void) fprintf(stderr, "can't calloc %zu bytes for '%s'\n", (size_t)st.st_size, f);
-		(void) free(buf);
+	if ((bin = calloc(1, (size_t) st.st_size)) == NULL) {
+		fprintf(stderr, "can't calloc %zu bytes for '%s'\n",
+				(size_t) st.st_size, f);
+		free((void *) buf);
 		bufgap_close(&bg);
 		return 0;
 	}
 
 	/* move past ascii type of key */
-	while (bufgap_peek(&bg, 0) != ' ') {
+	while (bufgap_peek(&bg, 0) != ' ')
 		bufgap_seek(&bg, 1, BGFromHere, BGByte);
-	}
 	bufgap_seek(&bg, 1, BGFromHere, BGByte);
 	off = bufgap_tell(&bg, BGFromBOF, BGByte);
 
 	if (bufgap_size(&bg, BGByte) - off < 10) {
-		(void) fprintf(stderr, "bad key file '%s'\n", f);
-		(void) free(buf);
+		fprintf(stderr, "bad key file '%s'\n", f);
+		free((void *) buf);
 		bufgap_close(&bg);
 		return 0;
 	}
 
 	/* convert from base64 to binary */
-	cc = bufgap_getbin(&bg, buf, (size_t)bg.bcc);
+	cc = bufgap_getbin(&bg, buf, (size_t) bg.bcc);
 	if ((space = strchr(buf, ' ')) != NULL) {
 		cc = (int)(space - buf);
 	}
 	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, NULL, (const uint8_t *)(const void *)buf, (size_t)cc);
+		hexdump(stderr, NULL, (const uint8_t *) (const void *) buf,
+				(size_t) cc);
 	}
-	cc = frombase64(bin, buf, (size_t)cc, 0);
+	cc = frombase64(bin, buf, (size_t) cc, 0);
 	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "decoded base64:", (const uint8_t *)(const void *)bin, (size_t)cc);
+		hexdump(stderr, "decoded base64:",
+				(const uint8_t *) (const void *) bin,
+				(size_t) cc);
 	}
-	bufgap_delete(&bg, (uint64_t)bufgap_tell(&bg, BGFromEOF, BGByte));
+	bufgap_delete(&bg, (uint64_t) bufgap_tell(&bg, BGFromEOF, BGByte));
 	bufgap_insert(&bg, bin, cc);
 	bufgap_seek(&bg, off, BGFromBOF, BGByte);
 
 	/* get the type of key */
-	(void) bufgap_getbin(&bg, &len, sizeof(len));
+	bufgap_getbin(&bg, &len, sizeof(len));
 	len = ntohl(len);
-	(void) bufgap_seek(&bg, sizeof(len), BGFromHere, BGByte);
-	(void) bufgap_getbin(&bg, buf, len);
-	(void) bufgap_seek(&bg, len, BGFromHere, BGByte);
+	bufgap_seek(&bg, sizeof(len), BGFromHere, BGByte);
+	bufgap_getbin(&bg, buf, len);
+	bufgap_seek(&bg, len, BGFromHere, BGByte);
 
-	(void) memset(key, 0x0, sizeof(*key));
+	memset(key, 0x0, sizeof(*key));
 	pubkey = &key->key.seckey.pubkey;
 	pubkey->version = PGP_V4;
 	pubkey->birthtime = 0;
@@ -297,7 +301,7 @@ pgp_ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hasht
 		pubkey->key.dsa.y = getbignum(&bg, buf, "DSA Y");
 		break;
 	default:
-		(void) fprintf(stderr, "Unrecognised pubkey type %d for '%s'\n",
+		fprintf(stderr, "Unrecognised pubkey type %d for '%s'\n",
 				pubkey->alg, f);
 		ok = 0;
 		break;
@@ -310,33 +314,36 @@ pgp_ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hasht
 		ok = 0;
 	}
 	if (ok) {
-		(void) memset(&userid, 0x0, sizeof(userid));
-		(void) gethostname(hostname, sizeof(hostname));
+		memset(&userid, 0x0, sizeof(userid));
+		gethostname(hostname, sizeof(hostname));
 		if (strlen(space + 1) - 1 == 0) {
-			(void) snprintf(owner, sizeof(owner), "<root@%s>",
+			snprintf(owner, sizeof(owner), "root@%s",
 					hostname);
 		} else {
-			(void) snprintf(owner, sizeof(owner), "<%.*s>",
-				(int)strlen(space + 1) - 1,
-				space + 1);
+			snprintf(owner, sizeof(owner), "%.*s",
+					(int) strlen(space + 1) - 1,
+					space + 1);
 		}
 
-		/* This function is very large and probably needs to be
-		 * broken up. For the time being we approximate asprintf
-		 * in a little sub-context.
-		 *
-		 * TODO: There was no error handling here. Some must be
-		 *       added to prevent acting on and freeing a NULL
-		 *       pointer.
+		/* This overall function needs to be broken up and this
+		 * code brought back out.
 		 */
 		{
-			char *buffer = (char *) malloc(4096);
+			static const size_t buffer_size =
+					sizeof(hostname) + sizeof(owner) +
+					sizeof(f) + 64;
 
-			if (buffer != NULL) {
-				snprintf(buffer, 4096, "%s (%s) %s",
-						hostname, f, owner);
-				userid = (uint8_t *) buffer;
+			char *buffer = (char *) malloc(buffer_size);
+
+			if (buffer == NULL) {
+				fputs("cannot allocate buffer: "
+						"insufficient memory\n", stderr);
+				free((void *) buffer);
+				return 0;
 			}
+			snprintf(buffer, buffer_size, "%s (%s) <%s>",
+					hostname, f, owner);
+			userid = (uint8_t *) buffer;
 		}
 		pgp_keyid(key->sigid, sizeof(key->sigid), pubkey, hashtype);
 		pgp_add_userid(key, userid);
@@ -349,8 +356,8 @@ pgp_ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hasht
 			__PGP_USED(io); /* XXX */
 		}
 	}
-	(void) free(bin);
-	(void) free(buf);
+	free((void *) bin);
+	free((void *) buf);
 	bufgap_close(&bg);
 	return ok;
 }
