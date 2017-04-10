@@ -2386,7 +2386,7 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 	if ((bin = calloc(1, (size_t) st.st_size)) == NULL) {
 		fprintf(stderr, "cannot calloc %zu bytes for '%s'\n",
 				(size_t) st.st_size, f);
-		free(buf);
+		free((void *) buf);
 		bufgap_close(&bg);
 		return 0;
 	}
@@ -2395,14 +2395,14 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 	while (bufgap_peek(&bg, 0) != ' ' &&
 			! bufgap_seek(&bg, 1, BGFromHere, BGByte)) {
 		fprintf(stderr, "bad key file '%s'\n", f);
-		free(buf);
+		free((void *) buf);
 		bufgap_close(&bg);
 		return 0;
 	}
 
 	if (! bufgap_seek(&bg, 1, BGFromHere, BGByte)) {
 		fprintf(stderr, "bad key file '%s'\n", f);
-		free(buf);
+		free((void *) buf);
 		bufgap_close(&bg);
 		return 0;
 	}
@@ -2411,7 +2411,7 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 
 	if (bufgap_size(&bg, BGByte) - off < 10) {
 		fprintf(stderr, "bad key file '%s'\n", f);
-		free(buf);
+		free((void *) buf);
 		bufgap_close(&bg);
 		return 0;
 	}
@@ -2511,8 +2511,8 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 			if (buffer == NULL) {
 				fputs("failed to allocate buffer: "
 						"insufficient memory\n", stderr);
-				free(bin);
-				free(buf);
+				free((void *) bin);
+				free((void *) buf);
 				bufgap_close(&bg);
 				return 0;
 			}
@@ -2527,8 +2527,8 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 		primary->fmtsize = estimate_primarykey_size(primary) + 1024;
 	}
 
-	free(bin);
-	free(buf);
+	free((void *) bin);
+	free((void *) buf);
 	bufgap_close(&bg);
 
 	return ok;
