@@ -336,10 +336,11 @@ pgp_ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hasht
 			char *buffer = (char *) malloc(buffer_size);
 
 			if (buffer == NULL) {
-				fputs("cannot allocate buffer: "
+				fputs("failed to allocate buffer: "
 						"insufficient memory\n", stderr);
 				free((void *) bin);
 				free((void *) buf);
+				bufgap_close(&bg);
 				return 0;
 			}
 			snprintf(buffer, buffer_size, "%s (%s) <%s>",
