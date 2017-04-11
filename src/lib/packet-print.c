@@ -560,8 +560,11 @@ format_uid_notice(
 }
 
 #ifndef KB
-#define KB(x)	((x) * 1024)
+#define KB(x)  ((x) * 1024)
 #endif
+
+/* XXX: Why 128KiB? */
+#define NOTICE_BUFFER_SIZE KB(128)
 
 /* print into a string (malloc'ed) the pubkeydata */
 int
@@ -592,12 +595,7 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 	} else
 		expiration_notice[0] = '\0';
 
-	/* Allocate a buffer for UID notices. Currently this is enormous
-	 * and I'm not sure where the original size came from (an RFC I
-	 * hope), so this might be changed in the future. At least it's
-	 * heap allocated now.
-	 */
-	uid_notices = (char *) malloc(KB(128));
+	uid_notices = (char *) malloc(NOTICE_BUFFER_SIZE);
 	if (uid_notices == NULL)
 		return -1;
 
@@ -616,7 +614,7 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 		uid_notices_offset += format_uid_notice(
 				uid_notices + uid_notices_offset,
 				io, keyring, key, i,
-				sizeof(uid_notices) - uid_notices_offset,
+				NOTICE_BUFFER_SIZE - uid_notices_offset,
 				flags);
 	}
 
@@ -627,9 +625,12 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 
 	ptimestr(birthtime, sizeof(birthtime), pubkey->birthtime);
 
-	/* Allocate a stupidly enormous string for the result until the
-	 * expected size can be guestimated.
+	/* XXX: For now we assume that the output string won't exceed 16KiB
+	 *      in length but this is completely arbitrary. What this
+	 *      really needs is some objective facts to base this
+	 *      size on.
 	 */
+
 	total_length = -1;
 	string = (char *) malloc(KB(16));
 	if (string != NULL) {
@@ -749,7 +750,7 @@ pgp_hkp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 	unsigned	 	 j;
 	char			 keyid[PGP_KEY_ID_SIZE * 3];
 	char		 	 uidbuf[KB(128)];
-	char		 	 fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
+	char		 	 fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
 	int		 	 n;
 
 	if (key->revoked) {
@@ -792,13 +793,27 @@ pgp_hkp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 			}
 		}
 	}
-	return pgp_asprintf(buf, "pub:%s:%d:%d:%lld:%lld\n%s",
-		strhexdump(fp, key->sigfingerprint.fingerprint, PGP_FINGERPRINT_SIZE, ""),
-		pubkey->alg,
-		numkeybits(pubkey),
-		(long long)pubkey->birthtime,
-		(long long)pubkey->duration,
-		uidbuf);
+
+	strhexdump(fingerprint, key->sigfingerprint.fingerprint, PGP_FINGERPRINT_SIZE, "");
+
+	n = -1;
+	{
+		/* XXX: This number is completely arbitrary. */
+		char *buffer = (char *) malloc(KB(16));
+
+		if (buffer != NULL) {
+			n = snprintf(buffer, KB(16),
+					"pub:%s:%d:%d:%lld:%lld\n%s",
+					fingerprint,
+					pubkey->alg,
+					numkeybits(pubkey),
+					(long long) pubkey->birthtime,
+					(long long) pubkey->duration,
+					uidbuf);
+			*buf = buffer;
+		}
+	}
+	return n;
 }
 
 /* print the key data for a pub or sec key */

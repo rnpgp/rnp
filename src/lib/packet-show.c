@@ -451,33 +451,49 @@ add_str_from_octet_map(pgp_text_t *map, char *str, uint8_t octet)
 static unsigned 
 add_bitmap_entry(pgp_text_t *map, const char *str, uint8_t bit)
 {
+	int status = 1;
 
 	if (str && !add_str(&map->known, str)) {
-		/*
-		 * value recognised, but there was a problem adding it to the
+
+		/* Value recognised, but there was a problem adding it to the
 		 * list
 		 */
 		/* XXX - should print out error msg here, Ben? - rachel */
 		return 0;
+
+	/* Value not recognised and there was a problem adding it to
+	 * the unknown list.
+	 */
 	} else if (!str) {
-		/*
-		 * value not recognised and there was a problem adding it to
-		 * the unknown list
-		 * 2 chars of the string are the format definition, this will
-		 * be replaced in the output by 2 chars of hex, so the length
-		 * will be correct
+
+		/* This section relies on there being only one format
+		 * parameter, %x, which will reliably expand to two
+		 * characters. If you change the format string you
+		 * must change the size calculations
+		 * appropriately.
 		 */
-		char		*newstr;
-		if (pgp_asprintf(&newstr, "Unknown bit(0x%x)", bit) == -1) {
-			(void) fprintf(stderr, "add_bitmap_entry: bad alloc\n");
+
+		static char message_format[] = "Unknown bit (0x%x)";
+
+		char *newstr = (char *) malloc(sizeof(message_format));
+
+		if (newstr == NULL) {
+			fprintf(stderr, "add_bitmap_entry: bad alloc\n");
 			return 0;
 		}
-		if (!add_str(&map->unknown, newstr)) {
-			return 0;
-		}
-		free(newstr);
+		snprintf(newstr, sizeof(message_format), message_format, bit);
+
+		if (! add_str(&map->unknown, newstr))
+			status = 0;
+
+		/* Remember that if the buffer has been allocated it is
+		 * important that flow reaches here, even in the event
+		 * of an error.
+		 */
+		free((void *) newstr);
 	}
-	return 1;
+
+	return status;
 }
 
 /**
