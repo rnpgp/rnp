@@ -560,8 +560,11 @@ format_uid_notice(
 }
 
 #ifndef KB
-#define KB(x)	((x) * 1024)
+#define KB(x)  ((x) * 1024)
 #endif
+
+/* XXX: Why 128KiB? */
+#define NOTICE_BUFFER_SIZE KB(128)
 
 /* print into a string (malloc'ed) the pubkeydata */
 int
@@ -592,8 +595,7 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 	} else
 		expiration_notice[0] = '\0';
 
-	/* XXX: Why 128KiB? */
-	uid_notices = (char *) malloc(KB(128));
+	uid_notices = (char *) malloc(NOTICE_BUFFER_SIZE);
 	if (uid_notices == NULL)
 		return -1;
 
@@ -612,7 +614,7 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 		uid_notices_offset += format_uid_notice(
 				uid_notices + uid_notices_offset,
 				io, keyring, key, i,
-				sizeof(uid_notices) - uid_notices_offset,
+				NOTICE_BUFFER_SIZE - uid_notices_offset,
 				flags);
 	}
 
