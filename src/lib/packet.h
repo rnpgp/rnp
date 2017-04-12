@@ -56,9 +56,7 @@
 
 #include <time.h>
 
-#ifdef HAVE_OPENSSL_BN_H
-#include <openssl/bn.h>
-#endif
+typedef struct bignum_st BIGNUM;
 
 #include "types.h"
 #include "errors.h"

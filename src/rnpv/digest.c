@@ -38,12 +38,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "md5.h"
-#include "rmd160.h"
-#include "sha1.h"
-#include "sha2.h"
-
 #include "digest.h"
+#include "crypto.h"
 
 #ifndef USE_ARG
 #define	USE_ARG(x)	/*LINTED*/(void)&(x)
@@ -64,17 +60,6 @@ static uint8_t prefix_sha256[] = {
 	0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20
 };
 
-static uint64_t	prefix_tiger[] = {
-	0x0123456789ABCDEFLL,
-	0xFEDCBA9876543210LL,
-	0xF096A5B4C3B2E187LL
-};
-
-static uint8_t prefix_rmd160[] = {
-	0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2B, 0x24,
-	0x03, 0x02, 0x01, 0x05, 0x00, 0x04, 0x14
-};
-
 static uint8_t prefix_sha512[] = {
 	0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
 	0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40
@@ -88,24 +73,7 @@ static uint8_t prefix_sha512[] = {
 int 
 digest_alg_size(unsigned alg)
 {
-	switch(alg) {
-	case MD5_HASH_ALG:
-		return 16;
-	case SHA1_HASH_ALG:
-		return 20;
-	case RIPEMD_HASH_ALG:
-		return RMD160_DIGEST_LENGTH;
-	case SHA256_HASH_ALG:
-		return 32;
-	case SHA512_HASH_ALG:
-		return 64;
-	case TIGER_HASH_ALG:
-	case TIGER2_HASH_ALG:
-		return TIGER_DIGEST_LENGTH;
-	default:
-		printf("hash_any: bad algorithm\n");
-		return 0;
-	}
+        return pgp_hash_size(alg);
 }
 
 /* initialise the hash structure */
@@ -115,60 +83,16 @@ digest_init(digest_t *hash, const uint32_t hashalg)
 	if (hash == NULL) {
 		return 0;
 	}
-	switch(hash->alg = hashalg) {
-	case MD5_HASH_ALG:
-		rnpv_MD5Init(&hash->u.md5ctx);
-		hash->size = 16;
-		hash->prefix = prefix_md5;
-		hash->len = sizeof(prefix_md5);
-		hash->ctx = &hash->u.md5ctx;
-		return 1;
-	case SHA1_HASH_ALG:
-		rnpv_SHA1Init(&hash->u.sha1ctx);
-		hash->size = 20;
-		hash->prefix = prefix_sha1;
-		hash->len = sizeof(prefix_sha1);
-		hash->ctx = &hash->u.sha1ctx;
-		return 1;
-	case RIPEMD_HASH_ALG:
-		rnpv_RMD160Init(&hash->u.rmd160ctx);
-		hash->size = 20;
-		hash->prefix = prefix_rmd160;
-		hash->len = sizeof(prefix_rmd160);
-		hash->ctx = &hash->u.rmd160ctx;
-		return 1;
-	case SHA256_HASH_ALG:
-		rnpv_SHA256_Init(&hash->u.sha256ctx);
-		hash->size = 32;
-		hash->prefix = prefix_sha256;
-		hash->len = sizeof(prefix_sha256);
-		hash->ctx = &hash->u.sha256ctx;
-		return 1;
-	case SHA512_HASH_ALG:
-		rnpv_SHA512_Init(&hash->u.sha512ctx);
-		hash->size = 64;
-		hash->prefix = prefix_sha512;
-		hash->len = sizeof(prefix_sha512);
-		hash->ctx = &hash->u.sha512ctx;
-		return 1;
-	case TIGER_HASH_ALG:
-		rnpv_TIGER_Init(&hash->u.tigerctx);
-		hash->size = TIGER_DIGEST_LENGTH;
-		hash->prefix = prefix_tiger;
-		hash->len = sizeof(prefix_tiger);
-		hash->ctx = &hash->u.tigerctx;
-		return 1;
-	case TIGER2_HASH_ALG:
-		rnpv_TIGER2_Init(&hash->u.tigerctx);
-		hash->size = TIGER_DIGEST_LENGTH;
-		hash->prefix = prefix_tiger;
-		hash->len = sizeof(prefix_tiger);
-		hash->ctx = &hash->u.tigerctx;
-		return 1;
-	default:
-		printf("hash_any: bad algorithm\n");
-		return 0;
-	}
+        hash->alg = hashalg;
+        if (pgp_hash_any(&hash->ctx, hashalg) == 1)
+        {
+           if(!hash->ctx.init(&hash->ctx))
+           {
+              return 0;
+           }
+        }
+
+        return 0;
 }
 
 typedef struct rec_t {
@@ -182,8 +106,6 @@ static rec_t	hashalgs[] = {
 	{	"ripemd",	RIPEMD_HASH_ALG	},
 	{	"sha256",	SHA256_HASH_ALG	},
 	{	"sha512",	SHA512_HASH_ALG	},
-	{	"tiger",	TIGER_HASH_ALG	},
-	{	"tiger2",	TIGER2_HASH_ALG	},
 	{	NULL,		0		}
 };
 
@@ -207,30 +129,9 @@ digest_update(digest_t *hash, const uint8_t *data, size_t length)
 	if (hash == NULL || data == NULL) {
 		return 0;
 	}
-	switch(hash->alg) {
-	case MD5_HASH_ALG:
-		rnpv_MD5Update(hash->ctx, data, (unsigned)length);
-		return 1;
-	case SHA1_HASH_ALG:
-		rnpv_SHA1Update(hash->ctx, data, (unsigned)length);
-		return 1;
-	case RIPEMD_HASH_ALG:
-		rnpv_RMD160Update(hash->ctx, data, (unsigned)length);
-		return 1;
-	case SHA256_HASH_ALG:
-		rnpv_SHA256_Update(hash->ctx, data, length);
-		return 1;
-	case SHA512_HASH_ALG:
-		rnpv_SHA512_Update(hash->ctx, data, length);
-		return 1;
-	case TIGER_HASH_ALG:
-	case TIGER2_HASH_ALG:
-		rnpv_TIGER_Update(hash->ctx, data, length);
-		return 1;
-	default:
-		printf("hash_any: bad algorithm\n");
-		return 0;
-	}
+
+        hash->ctx.add(&hash->ctx, data, length);
+        return 1;
 }
 
 unsigned 
@@ -239,31 +140,9 @@ digest_final(uint8_t *out, digest_t *hash)
 	if (hash == NULL || out == NULL) {
 		return 0;
 	}
-	switch(hash->alg) {
-	case MD5_HASH_ALG:
-		rnpv_MD5Final(out, hash->ctx);
-		break;
-	case SHA1_HASH_ALG:
-		rnpv_SHA1Final(out, hash->ctx);
-		break;
-	case RIPEMD_HASH_ALG:
-		rnpv_RMD160Final(out, hash->ctx);
-		break;
-	case SHA256_HASH_ALG:
-		rnpv_SHA256_Final(out, hash->ctx);
-		break;
-	case SHA512_HASH_ALG:
-		rnpv_SHA512_Final(out, hash->ctx);
-		break;
-	case TIGER_HASH_ALG:
-		rnpv_TIGER_Final(out, hash->ctx);
-		break;
-	default:
-		printf("hash_any: bad algorithm\n");
-		return 0;
-	}
-	(void) memset(hash->ctx, 0x0, hash->size);
-	return (unsigned)hash->size;
+
+        hash->ctx.finish(&hash->ctx, out);
+        return digest_alg_size(hash->alg);
 }
 
 int
@@ -285,28 +164,46 @@ digest_length(digest_t *hash, unsigned hashedlen)
 }
 
 unsigned
-digest_get_prefix(unsigned hashalg, uint8_t *prefix, size_t size)
+digest_get_prefix(unsigned hashalg, uint8_t *out_prefix, size_t size)
 {
-	USE_ARG(size);
-	if (prefix == NULL) {
+	if (out_prefix == NULL) {
 		return 0;
 	}
+
+        const uint8_t* prefix = NULL;
+        size_t prefix_size = 0;
+
 	switch (hashalg) {
 	case MD5_HASH_ALG:
-		memcpy(prefix, prefix_md5, sizeof(prefix_md5));
-		return sizeof(prefix_md5);
-	case SHA1_HASH_ALG:
-		memcpy(prefix, prefix_sha1, sizeof(prefix_sha1));
-		return sizeof(prefix_sha1);
+           prefix = prefix_md5;
+           prefix_size = sizeof(prefix_md5);
+           break;
+
+        case SHA1_HASH_ALG:
+           prefix = prefix_sha1;
+           prefix_size = sizeof(prefix_sha1);
+           break;
+
 	case SHA256_HASH_ALG:
-		memcpy(prefix, prefix_sha256, sizeof(prefix_sha256));
-		return sizeof(prefix_sha256);
+           prefix = prefix_sha256;
+           prefix_size = sizeof(prefix_sha256);
+           break;
+
 	case SHA512_HASH_ALG:
-		memcpy(prefix, prefix_sha512, sizeof(prefix_sha512));
-		return sizeof(prefix_sha512);
+           prefix = prefix_sha512;
+           prefix_size = sizeof(prefix_sha512);
+           break;
+
 	default:
-		printf("digest_get_prefix: unknown hash algorithm: %d\n", hashalg);
-		return 0;
+           printf("digest_get_prefix: unknown hash algorithm: %d\n", hashalg);
+           return 0;
 	}
+
+        // insufficient output space
+        if (size < prefix_size) {
+           return 0;
+        }
+        memcpy(out_prefix, prefix, prefix_size);
+        return prefix_size;
 }
 
