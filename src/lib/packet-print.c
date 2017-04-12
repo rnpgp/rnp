@@ -69,6 +69,10 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include <unistd.h>
 #endif
 
+#ifdef RNP_DEBUG
+#include <assert.h>
+#endif
+
 #include "bn.h"
 #include "crypto.h"
 #include "keyring.h"
@@ -80,6 +84,18 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "packet.h"
 #include "rnpdigest.h"
 #include "mj.h"
+
+#define F_REVOKED   1
+
+#define F_PRINTSIGS 2
+
+#define PTIMESTR_LEN              10
+
+#define PUBKEY_DOES_EXPIRE(pk)    ((pk)->duration > 0)
+
+#define PUBKEY_HAS_EXPIRED(pk, t) (((pk)->birthtime + (pk)->duration) < (t))
+
+#define SIGNATURE_PADDING         "          "
 
 /* static functions */
 
@@ -348,21 +364,30 @@ strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep)
 	return dest;
 }
 
-/* return the time as a string */
+/* Write the time as a string to buffer `dest`. The time string is guaranteed
+ * to be PTIMESTR_LEN characters long.
+ */
 static char * 
 ptimestr(char *dest, size_t size, time_t t)
 {
-	struct tm      *tm;
+	struct tm *tm;
 
 	tm = gmtime(&t);
-	(void) snprintf(dest, size, "%04d-%02d-%02d",
+
+	/* Remember - we guarantee that the time string will be PTIMESTR_LEN
+	 * characters long.
+	 */
+	snprintf(dest, size, "%04d-%02d-%02d",
 		tm->tm_year + 1900,
 		tm->tm_mon + 1,
 		tm->tm_mday);
+#ifdef RNP_DEBUG
+	assert(stelen(dest) == PTIMESTR_LEN);
+#endif
 	return dest;
 }
 
-/* print the sub key binding signature info */
+/* Print the sub key binding signature info. */
 static int
 psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired)
 {
@@ -377,22 +402,171 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
 		expired);
 }
 
+/* Searches a key's revocation list for the given key UID. If it is found its
+ * index is returned, otherwise -1 is returned.
+ */
 static int
 isrevoked(const pgp_key_t *key, unsigned uid)
 {
-	unsigned	r;
+	unsigned i;
 
-	for (r = 0 ; r < key->revokec ; r++) {
-		if (key->revokes[r].uid == uid) {
-			return r;
-		}
+	for (i = 0 ; i < key->revokec ; i++) {
+		if (key->revokes[i].uid == uid)
+			return i;
 	}
 	return -1;
 }
 
+static int
+iscompromised(const pgp_key_t *key, unsigned uid)
+{
+	int r = isrevoked(key, uid);
+
+	return r >= 0 && key->revokes[r].code == PGP_REVOCATION_COMPROMISED;
+}
+
+/* Formats a public key expiration notice. Assumes that the public key
+ * expires. Return 0 on success and -1 on failure.
+ */
+static int
+format_pubkey_expiration_notice(char *buffer, const pgp_pubkey_t *pubkey,
+		time_t time, size_t size)
+{
+	char *buffer_end = buffer + size;
+
+	buffer[0] = '\0';
+
+	/* Write the opening bracket. */
+	buffer += snprintf(buffer, buffer_end - buffer, "%s", "[");
+	if (buffer >= buffer_end)
+		return -1;
+
+	/* Write the expiration state label. */
+	buffer += snprintf(buffer, buffer_end - buffer, "%s ",
+			PUBKEY_HAS_EXPIRED(pubkey, time)
+				? "EXPIRED" : "EXPIRES");
+
+	/* Ensure that there will be space for tihe time. */
+	if (buffer_end - buffer < PTIMESTR_LEN + 1)
+		return -1;
+
+	/* Write the expiration time. */
+	ptimestr(buffer, buffer_end - buffer,
+			pubkey->birthtime + pubkey->duration);
+	buffer += PTIMESTR_LEN;
+	if (buffer >= buffer_end)
+		return -1;
+
+	/* Write the closing bracket. */
+	buffer += snprintf(buffer, buffer_end - buffer, "%s", "]");
+	if (buffer >= buffer_end)
+		return -1;
+
+	return 0;
+}
+
+static int
+format_uid_line(char *buffer, uint8_t *uid, size_t size, int flags)
+{
+	return snprintf(buffer, size,
+			"uid    %s%s%s\n",
+			flags & F_PRINTSIGS ? "" : SIGNATURE_PADDING,
+			uid,
+			flags & F_REVOKED ? " [REVOKED]" : "");
+}
+
+/* TODO: Consider replacing `trustkey` with an optional `uid` parameter. */
+/* TODO: Consider passing only signer_id and birthtime. */
+static int
+format_sig_line(char *buffer, const pgp_sig_t *sig,
+		const pgp_key_t *trustkey, size_t size)
+{
+	char keyid[PGP_KEY_ID_SIZE * 3];
+	char time[PTIMESTR_LEN + sizeof(char)];
+
+	ptimestr(time, sizeof(time), sig->info.birthtime);
+	return snprintf(buffer, size, "sig        %s  %s  %s\n",
+			strhexdump(keyid, sig->info.signer_id,
+				PGP_KEY_ID_SIZE, ""),
+			time,
+			trustkey != NULL ?
+				(char *) trustkey->uids[trustkey->uid0] :
+					"[unknown]");
+}
+
+static int
+format_subsig_line(char *buffer,
+		const pgp_key_t *key, const pgp_key_t *trustkey,
+		const pgp_subsig_t *subsig, size_t size)
+{
+	char expired[128];
+	int n = 0;
+
+	if (subsig->sig.info.version == 4 &&
+			subsig->sig.info.type == PGP_SIG_SUBKEY) {
+
+		/* XXX: The character count of this was previously ignored.
+		 *      This seems to have been incorrect, but if not
+		 *      you should revert it.
+		 */
+		n += psubkeybinding(buffer, size, key, expired);
+	} else
+		n += format_sig_line(buffer, &subsig->sig, trustkey, size);
+
+	return n;
+}
+
+static int
+format_uid_notice(
+		char *buffer, pgp_io_t *io,
+		const pgp_keyring_t *keyring, const pgp_key_t *key,
+		unsigned uid, size_t size, int flags)
+{
+	int i;
+	int n = 0;
+
+	if (isrevoked(key, uid) >= 0)
+		flags |= F_REVOKED;
+
+	n += format_uid_line(buffer, key->uids[uid], size, flags);
+
+	for (i = 0; i < key->subsigc; i++) {
+		pgp_subsig_t *subsig = &key->subsigs[i];
+		const pgp_key_t	*trustkey;
+		unsigned from;
+
+		/* TODO: To me this looks like an unnecessary consistency
+		 *       check that should be performed upstream before
+		 *       passing the information down here. Maybe not,
+		 *       if anyone can shed alternate light on this
+		 *       that would be great.
+		 */
+		if (flags & F_PRINTSIGS && subsig->uid != uid) {
+			continue;
+
+		/* TODO: I'm also unsure about this one. */
+		} else if (! (subsig->sig.info.version == 4 &&
+				subsig->sig.info.type == PGP_SIG_SUBKEY &&
+				uid == key->uidc - 1)) {
+			continue;
+		}
+
+		trustkey = pgp_getkeybyid(io, keyring,
+				subsig->sig.info.signer_id, &from, NULL);
+
+		n += format_subsig_line(buffer + n, key, trustkey,
+				subsig, size - n);
+	}
+
+	return n;
+}
+
 #ifndef KB
-#define KB(x)	((x) * 1024)
+#define KB(x)  ((x) * 1024)
 #endif
+
+/* XXX: Why 128KiB? */
+#define NOTICE_BUFFER_SIZE KB(128)
 
 /* print into a string (malloc'ed) the pubkeydata */
 int
@@ -400,79 +574,84 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 		const pgp_key_t *key, char **buf, const char *header,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
-	const pgp_key_t	*trustkey;
-	unsigned	 	 from;
-	unsigned		 i;
-	unsigned		 j;
-	time_t			 now;
-	char			 uidbuf[KB(128)];
-	char			 keyid[PGP_KEY_ID_SIZE * 3];
-	char			 fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
-	char			 expired[128];
-	char			 t[32];
-	int			 cc;
-	int			 n;
-	int			 r;
+	unsigned  i;
+	time_t    now;
+	char     *uid_notices;
+	int       uid_notices_offset = 0;
+	char     *string;
+	int       total_length;
+	char      keyid[PGP_KEY_ID_SIZE * 3];
+	char      fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
+	char      expiration_notice[128];
+	char      birthtime[32];
 
-	if (key == NULL || key->revoked) {
+	if (key->revoked)
 		return -1;
-	}
+
 	now = time(NULL);
-	if (pubkey->duration > 0) {
-		cc = snprintf(expired, sizeof(expired),
-			(pubkey->birthtime + pubkey->duration < now) ?
-			"[EXPIRED " : "[EXPIRES ");
-		ptimestr(&expired[cc], sizeof(expired) - cc,
-			pubkey->birthtime + pubkey->duration);
-		cc += 10;
-		cc += snprintf(&expired[cc], sizeof(expired) - cc, "]");
-	} else {
-		expired[0] = 0x0;
-	}
-	for (i = 0, n = 0; i < key->uidc; i++) {
-		if ((r = isrevoked(key, i)) >= 0 &&
-		    key->revokes[r].code == PGP_REVOCATION_COMPROMISED) {
+
+	if (PUBKEY_DOES_EXPIRE(pubkey)) {
+		format_pubkey_expiration_notice(
+				expiration_notice, pubkey, now,
+				sizeof(expiration_notice));
+	} else
+		expiration_notice[0] = '\0';
+
+	uid_notices = (char *) malloc(NOTICE_BUFFER_SIZE);
+	if (uid_notices == NULL)
+		return -1;
+
+	/* TODO: Perhaps this should index key->uids instead of using the
+	 *       iterator index.
+	 */
+	for (i = 0; i < key->uidc; i++) {
+		int flags = 0;
+
+		if (iscompromised(key, i))
 			continue;
-		}
-		n += snprintf(&uidbuf[n], sizeof(uidbuf) - n, "uid%s%s%s\n",
-				(psigs) ? "    " : "              ",
-				key->uids[i],
-				(isrevoked(key, i) >= 0) ? " [REVOKED]" : "");
-		for (j = 0 ; j < key->subsigc ; j++) {
-			if (psigs) {
-				if (key->subsigs[j].uid != i) {
-					continue;
-				}
-			} else {
-				if (!(key->subsigs[j].sig.info.version == 4 &&
-					key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY &&
-					i == key->uidc - 1)) {
-						continue;
-				}
-			}
-			from = 0;
-			trustkey = pgp_getkeybyid(io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
-			if (key->subsigs[j].sig.info.version == 4 &&
-					key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
-				psubkeybinding(&uidbuf[n], sizeof(uidbuf) - n, key, expired);
-			} else {
-				n += snprintf(&uidbuf[n], sizeof(uidbuf) - n,
-					"sig        %s  %s  %s\n",
-					strhexdump(keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, ""),
-					ptimestr(t, sizeof(t), key->subsigs[j].sig.info.birthtime),
-					(trustkey) ? (char *)trustkey->uids[trustkey->uid0] : "[unknown]");
-			}
-		}
+
+		if (psigs)
+			flags |= F_PRINTSIGS;
+
+		uid_notices_offset += format_uid_notice(
+				uid_notices + uid_notices_offset,
+				io, keyring, key, i,
+				NOTICE_BUFFER_SIZE - uid_notices_offset,
+				flags);
 	}
-	return pgp_asprintf(buf, "%s %d/%s %s %s %s\nKey fingerprint: %s\n%s",
-		header,
-		numkeybits(pubkey),
-		pgp_show_pka(pubkey->alg),
-		strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, ""),
-		ptimestr(t, sizeof(t), pubkey->birthtime),
-		expired,
-		strhexdump(fp, key->sigfingerprint.fingerprint, key->sigfingerprint.length, " "),
-		uidbuf);
+
+	strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
+
+	strhexdump(fingerprint, key->sigfingerprint.fingerprint,
+			key->sigfingerprint.length, " ");
+
+	ptimestr(birthtime, sizeof(birthtime), pubkey->birthtime);
+
+	/* XXX: For now we assume that the output string won't exceed 16KiB
+	 *      in length but this is completely arbitrary. What this
+	 *      really needs is some objective facts to base this
+	 *      size on.
+	 */
+
+	total_length = -1;
+	string = (char *) malloc(KB(16));
+	if (string != NULL) {
+		total_length = snprintf(string, KB(16),
+				"%s %d/%s %s %s %s\nKey fingerprint: %s\n%s",
+				header,
+				numkeybits(pubkey),
+				pgp_show_pka(pubkey->alg),
+				keyid,
+				birthtime,
+				expiration_notice,
+				fingerprint,
+				uid_notices);
+		*buf = string;
+	}
+
+	free((void *) uid_notices);
+
+	return total_length;
 }
 
 /* return the key info as a JSON encoded string */
@@ -573,7 +752,7 @@ pgp_hkp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 	unsigned	 	 j;
 	char			 keyid[PGP_KEY_ID_SIZE * 3];
 	char		 	 uidbuf[KB(128)];
-	char		 	 fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
+	char		 	 fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
 	int		 	 n;
 
 	if (key->revoked) {
@@ -616,13 +795,27 @@ pgp_hkp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 			}
 		}
 	}
-	return pgp_asprintf(buf, "pub:%s:%d:%d:%lld:%lld\n%s",
-		strhexdump(fp, key->sigfingerprint.fingerprint, PGP_FINGERPRINT_SIZE, ""),
-		pubkey->alg,
-		numkeybits(pubkey),
-		(long long)pubkey->birthtime,
-		(long long)pubkey->duration,
-		uidbuf);
+
+	strhexdump(fingerprint, key->sigfingerprint.fingerprint, PGP_FINGERPRINT_SIZE, "");
+
+	n = -1;
+	{
+		/* XXX: This number is completely arbitrary. */
+		char *buffer = (char *) malloc(KB(16));
+
+		if (buffer != NULL) {
+			n = snprintf(buffer, KB(16),
+					"pub:%s:%d:%d:%lld:%lld\n%s",
+					fingerprint,
+					pubkey->alg,
+					numkeybits(pubkey),
+					(long long) pubkey->birthtime,
+					(long long) pubkey->duration,
+					uidbuf);
+			*buf = buffer;
+		}
+	}
+	return n;
 }
 
 /* print the key data for a pub or sec key */

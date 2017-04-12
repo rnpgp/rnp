@@ -88,6 +88,7 @@ AX_CHECK_BOTAN([CFLAGS="$CFLAGS $BOTAN_INCLUDES"
 
 # Checks for library functions.
 #
+AC_SEARCH_LIBS([_cmocka_run_group_tests], [cmocka])
 AC_SEARCH_LIBS([gzopen], [z])
 AC_SEARCH_LIBS([BZ2_bzDecompress], [bz2])
 
@@ -107,6 +108,7 @@ AC_CONFIG_FILES([
         src/rnp/Makefile
         src/rnpkeys/Makefile
         src/rnpv/Makefile
+        src/cmocka/Makefile
         tests/Makefile
         tests/atlocal
 ])

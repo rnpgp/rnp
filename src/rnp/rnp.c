@@ -34,6 +34,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 
+#include <errno.h>
 #include <getopt.h>
 #include <regex.h>
 #include <rnp.h>
@@ -42,8 +43,7 @@
 #include <string.h>
 #include <unistd.h>
 
-/*
- * SHA1 is now looking as though it should not be used.  Let's
+/* SHA1 is now looking as though it should not be used.  Let's
  * pre-empt this by specifying SHA256 - gpg interoperates just fine
  * with SHA256 - agc, 20090522
  */
@@ -180,10 +180,10 @@ typedef struct prog_t {
 
 static void
 print_praise(void) {
-	(void) fprintf(stderr,
-	"%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
-	    rnp_get_info("version"),
-	    rnp_get_info("maintainer"));
+	fprintf(stderr,
+		"%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
+		rnp_get_info("version"),
+		rnp_get_info("maintainer"));
 }
 
 /* print a usage message */
@@ -191,7 +191,7 @@ static void
 print_usage(const char *usagemsg)
 {
 	print_praise();
-	(void) fprintf(stderr, "Usage: %s %s", __progname, usagemsg);
+	fprintf(stderr, "Usage: %s %s", __progname, usagemsg);
 }
 
 /* read all of stdin into memory */
@@ -204,27 +204,27 @@ stdin_to_mem(rnp_t *rnp, char **temp, char **out, unsigned *maxsize)
 	char		*loc;
 	int	 	 n;
 
-	*maxsize = (unsigned)atoi(rnp_getvar(rnp, "max mem alloc"));
+	*maxsize = (unsigned) atoi(rnp_getvar(rnp, "max mem alloc"));
 	size = 0;
 	*temp = NULL;
 	while ((n = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
 		/* round up the allocation */
 		newsize = size + ((n / BUFSIZ) + 1) * BUFSIZ;
 		if (newsize > *maxsize) {
-			(void) fprintf(stderr, "bounds check\n");
+			fputs("bounds check\n", stderr);
 			return size;
 		}
 		loc = realloc(*temp, newsize);
 		if (loc == NULL) {
-			(void) fprintf(stderr, "short read\n");
+			fputs("short read\n", stderr);
 			return size;
 		}
 		*temp = loc;
-		(void) memcpy(&(*temp)[size], buf, n);
+		memcpy(&(*temp)[size], buf, n);
 		size += n;
 	}
 	if ((*out = calloc(1, *maxsize)) == NULL) {
-		(void) fprintf(stderr, "Bad alloc\n");
+		fputs("Bad alloc\n", stderr);
 		return 0;
 	}
 	return (int)size;
@@ -238,7 +238,7 @@ show_output(char *out, int size, const char *header)
 	int	n;
 
 	if (size <= 0) {
-		(void) fprintf(stderr, "%s\n", header);
+		fprintf(stderr, "%s\n", header);
 		return 0;
 	}
 	for (cc = 0 ; cc < size ; cc += n) {
@@ -247,7 +247,7 @@ show_output(char *out, int size, const char *header)
 		}
 	}
 	if (cc < size) {
-		(void) fprintf(stderr, "Short write\n");
+		fputs("Short write\n", stderr);
 		return 0;
 	}
 	return cc == size;
@@ -332,8 +332,7 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 				p->armour);
 	case LIST_PACKETS:
 		if (f == NULL) {
-			(void) fprintf(stderr, "%s: No filename provided\n",
-				__progname);
+			fprintf(stderr, "%s: No filename provided\n", __progname);
 			return 0;
 		}
 		return rnp_list_packets(rnp, f, p->armour, NULL);
@@ -347,7 +346,7 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 
 /* set an option */
 static int
-setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
+setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 {
 	switch (val) {
 	case COREDUMPS:
@@ -386,16 +385,14 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
 		break;
 	case KEYRING:
 		if (arg == NULL) {
-			(void) fprintf(stderr,
-				"No keyring argument provided\n");
+			fputs("No keyring argument provided\n", stderr);
 			exit(EXIT_ERROR);
 		}
 		snprintf(p->keyring, sizeof(p->keyring), "%s", arg);
 		break;
 	case USERID:
 		if (arg == NULL) {
-			(void) fprintf(stderr,
-				"No userid argument provided\n");
+			fputs("No userid argument provided\n", stderr);
 			exit(EXIT_ERROR);
 		}
 		rnp_setvar(rnp, "userid", arg);
@@ -415,8 +412,10 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
 			"No home directory argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		rnp_set_homedir(rnp, arg, NULL, 0);
-		*homeset = 1;
+		/* TODO: Temporarily set subdirectory to /.rnp; see
+		 *       the equivalent space in rnpkeys for more details.
+		 */
+		rnp_set_homedir(rnp, arg, "/.rnp", 0);
 		break;
 	case HASH_ALG:
 		if (arg == NULL) {
@@ -484,7 +483,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg, int *homeset)
 
 /* we have -o option=value -- parse, and process */
 static int
-parse_option(rnp_t *rnp, prog_t *p, const char *s, int *homeset)
+parse_option(rnp_t *rnp, prog_t *p, const char *s)
 {
 	static regex_t	 opt;
 	struct option	*op;
@@ -495,21 +494,20 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s, int *homeset)
 
 	if (!compiled) {
 		compiled = 1;
-		(void) regcomp(&opt, "([^=]{1,128})(=(.*))?", REG_EXTENDED);
+		regcomp(&opt, "([^=]{1,128})(=(.*))?", REG_EXTENDED);
 	}
 	if (regexec(&opt, s, 10, matches, 0) == 0) {
-		(void) snprintf(option, sizeof(option), "%.*s",
+		snprintf(option, sizeof(option), "%.*s",
 			(int)(matches[1].rm_eo - matches[1].rm_so), &s[matches[1].rm_so]);
 		if (matches[2].rm_so > 0) {
-			(void) snprintf(value, sizeof(value), "%.*s",
+			snprintf(value, sizeof(value), "%.*s",
 				(int)(matches[3].rm_eo - matches[3].rm_so), &s[matches[3].rm_so]);
 		} else {
 			value[0] = 0x0;
 		}
 		for (op = options ; op->name ; op++) {
-			if (strcmp(op->name, option) == 0) {
-				return setoption(rnp, p, op->val, value, homeset);
-			}
+			if (strcmp(op->name, option) == 0)
+				return setoption(rnp, p, op->val, value);
 		}
 	}
 	return 0;
@@ -518,32 +516,38 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s, int *homeset)
 int
 main(int argc, char **argv)
 {
-	rnp_t	rnp;
-	prog_t          p;
-	int             homeset;
-	int             optindex;
-	int             ret;
-	int             ch;
-	int             i;
+	rnp_t  rnp;
+	prog_t p;
+	int    optindex;
+	int    ret;
+	int    ch;
+	int    i;
 
-	(void) memset(&p, 0x0, sizeof(p));
-	(void) memset(&rnp, 0x0, sizeof(rnp));
+	memset(&p, '\0', sizeof(p));
+
 	p.overwrite = 1;
 	p.output = NULL;
+
 	if (argc < 2) {
 		print_usage(usage);
 		exit(EXIT_ERROR);
 	}
-	/* set some defaults */
-	rnp_setvar(&rnp, "hash", DEFAULT_HASH_ALG);
-	/* 4 MiB for a memory file */
-	rnp_setvar(&rnp, "max mem alloc", "4194304");
-	homeset = 0;
+
+	if (! rnp_init(&rnp)) {
+		fputs("fatal: cannot initialise\n", stderr);
+		return EXIT_ERROR;
+	}
+
+	rnp_setvar(&rnp, "hash",          DEFAULT_HASH_ALG);
+	rnp_setvar(&rnp, "max mem alloc", "4194304");        /* 4MiB */
+
 	optindex = 0;
+
+	/* TODO: These options should be set after initialising the context. */
 	while ((ch = getopt_long(argc, argv, "S:Vdeo:sv", options, &optindex)) != -1) {
 		if (ch >= ENCRYPT) {
 			/* getopt_long returns 0 for long options */
-			if (!setoption(&rnp, &p, options[optindex].val, optarg, &homeset)) {
+			if (! setoption(&rnp, &p, options[optindex].val, optarg)) {
 				(void) fprintf(stderr, "Bad option\n");
 			}
 		} else {
@@ -566,7 +570,7 @@ main(int argc, char **argv)
 				p.cmd = ENCRYPT;
 				break;
 			case 'o':
-				if (!parse_option(&rnp, &p, optarg, &homeset)) {
+				if (! parse_option(&rnp, &p, optarg)) {
 					(void) fprintf(stderr, "Bad option\n");
 				}
 				break;
@@ -585,28 +589,31 @@ main(int argc, char **argv)
 			}
 		}
 	}
-	if (!homeset) {
-		rnp_set_homedir(&rnp, getenv("HOME"),
-			rnp_getvar(&rnp, "ssh keys") ? "/.ssh" : "/.gnupg", 1);
+
+	if (! rnp_load_keys(&rnp)) {
+		switch (errno) {
+		case EINVAL:
+			fputs("fatal: failed to load keys: bad homedir\n", stderr);
+			break;
+		default:
+			fputs("fatal: failed to load keys\n", stderr);
+		}
+		return EXIT_ERROR;
 	}
-	/* initialise, and read keys from file */
-	if (!rnp_init(&rnp)) {
-		printf("can't initialise\n");
-		exit(EXIT_ERROR);
-	}
+
 	/* now do the required action for each of the command line args */
 	ret = EXIT_SUCCESS;
 	if (optind == argc) {
-		if (!rnp_cmd(&rnp, &p, NULL)) {
+		if (! rnp_cmd(&rnp, &p, NULL))
 			ret = EXIT_FAILURE;
-		}
 	} else {
 		for (i = optind; i < argc; i++) {
-			if (!rnp_cmd(&rnp, &p, argv[i])) {
+			if (! rnp_cmd(&rnp, &p, argv[i])) {
 				ret = EXIT_FAILURE;
 			}
 		}
 	}
 	rnp_end(&rnp);
-	exit(ret);
+
+	return ret;
 }

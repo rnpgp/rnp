@@ -85,22 +85,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "bn.h"
 #include "ssh2pgp.h"
 #include "defs.h"
-
-/* The dot directory relative to the user's home directory used for storing
- * rnp keys.
- *
- * TODO: This define should be moved somewhere central to the build and
- *       possibly made able to be overridden by the user.
- *
- * XXX:  For now the dot directory is .rnp to prevent competition with
- *       developers' .gnupg installations. If you want to change this
- *       make sure you _tell everyone_. I don't want any
- *       surprises. :>
- *
- *       ~ shaun
- */
-
-#define DOT_DIRECTORY ".rnp"
+#include "../common/constants.h"
 
 /* read any gpg config file */
 static int
@@ -261,7 +246,7 @@ readkeyring(rnp_t *rnp, const char *name)
 	}
 	if (!pgp_keyring_fileread(keyring, noarmor, filename)) {
 		free(keyring);
-		(void) fprintf(stderr, "Can't read %s %s\n", name, filename);
+		(void) fprintf(stderr, "cannot read %s %s\n", name, filename);
 		return NULL;
 	}
 	rnp_setvar(rnp, name, filename);
@@ -312,7 +297,7 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
 	}
 	if (!pgp_ssh2_readkeys(rnp->io, pubring, NULL, filename, NULL, hashtype)) {
 		free(pubring);
-		(void) fprintf(stderr, "readsshkeys: can't read %s\n",
+		(void) fprintf(stderr, "readsshkeys: cannot read %s\n",
 				filename);
 		return 0;
 	}
@@ -339,7 +324,7 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
 		if (!pgp_ssh2_readkeys(rnp->io, pubring, secring, NULL, filename, hashtype)) {
 			free(pubring);
 			free(secring);
-			(void) fprintf(stderr, "readsshkeys: can't read sec %s\n", filename);
+			(void) fprintf(stderr, "readsshkeys: cannot read sec %s\n", filename);
 			return 0;
 		}
 		rnp->secring = secring;
@@ -503,7 +488,7 @@ resolve_userid(rnp_t *rnp, const pgp_keyring_t *keyring, const char *userid)
 	}
 	io = rnp->io;
 	if ((key = pgp_getkeybyname(io, keyring, userid)) == NULL) {
-		(void) fprintf(io->errs, "Can't find key '%s'\n", userid);
+		(void) fprintf(io->errs, "cannot find key '%s'\n", userid);
 	}
 	return key;
 }
@@ -520,11 +505,11 @@ appendkey(pgp_io_t *io, pgp_key_t *key, char *ringfile)
 		fd = pgp_setup_file_write(&create, ringfile, 0);
 	}
 	if (fd < 0) {
-		(void) fprintf(io->errs, "can't open pubring '%s'\n", ringfile);
+		(void) fprintf(io->errs, "cannot open pubring '%s'\n", ringfile);
 		return 0;
 	}
 	if (!pgp_write_xfer_pubkey(create, key, NULL, noarmor)) {
-		(void) fprintf(io->errs, "Cannot write pubkey\n");
+		(void) fprintf(io->errs, "cannot write pubkey\n");
 		return 0;
 	}
 	pgp_teardown_file_write(create, fd);
@@ -545,7 +530,7 @@ isarmoured(pgp_io_t *io, const char *f, const void *memory, const char *text)
 	(void) regcomp(&r, text, REG_EXTENDED);
 	if (f) {
 		if ((fp = fopen(f, "r")) == NULL) {
-			(void) fprintf(io->errs, "isarmoured: can't open '%s'\n", f);
+			(void) fprintf(io->errs, "isarmoured: cannot open '%s'\n", f);
 			regfree(&r);
 			return 0;
 		}
@@ -733,7 +718,7 @@ savepubkey(char *res, char *f, size_t size)
 
 	(void) snprintf(f, size, "/tmp/pgp2ssh.XXXXXXX");
 	if ((fd = mkstemp(f)) < 0) {
-		(void) fprintf(stderr, "can't create temp file '%s'\n", f);
+		(void) fprintf(stderr, "cannot create temp file '%s'\n", f);
 		return 0;
 	}
 	len = strlen(res);
@@ -836,7 +821,8 @@ find_passphrase(FILE *passfp, const char *id, char *passphrase, size_t size, int
  * will be set to the result from setrlimit in the event of
  * failure.
  */
-static int disable_core_dumps(void)
+static int
+disable_core_dumps(void)
 {
 	struct rlimit limit;
 	int error;
@@ -854,7 +840,8 @@ static int disable_core_dumps(void)
  * This function could benefit from communicating error conditions
  * from disable_core_dumps.
  */
-static int set_core_dumps(rnp_t *rnp)
+static int
+set_core_dumps(rnp_t *rnp)
 {
 	int setting;
 
@@ -878,7 +865,8 @@ static int set_core_dumps(rnp_t *rnp)
  *       be in or around rnp_init(). Because the error message requires
  *       passfd to be available this is complicated.
  */
-static int set_pass_fd(rnp_t *rnp)
+static int
+set_pass_fd(rnp_t *rnp)
 {
 	char *passfd = rnp_getvar(rnp, "pass-fd");
 	pgp_io_t *io = rnp->io;
@@ -887,7 +875,7 @@ static int set_pass_fd(rnp_t *rnp)
 		rnp->passfp = fdopen(atoi(passfd), "r");
 		if (rnp->passfp == NULL) {
 			fprintf(io->errs,
-				"Can't open fd %s for reading\n", passfd);
+				"cannot open fd %s for reading\n", passfd);
 			return 0;
 		}
 	}
@@ -900,7 +888,8 @@ static int set_pass_fd(rnp_t *rnp)
  * responsibility to de-allocate a dynamically allocated io struct
  * upon failure.
  */
-static int rnp_init_io(rnp_t *rnp, pgp_io_t *io)
+static int
+init_io(rnp_t *rnp, pgp_io_t *io)
 {
 	char *stream;
 	char *results;
@@ -931,7 +920,7 @@ static int rnp_init_io(rnp_t *rnp, pgp_io_t *io)
 	} else {
 		if ((io->res = fopen(results, "w")) == NULL) {
 			fprintf(io->errs,
-				"Can't open results %s for writing\n",
+				"cannot open results %s for writing\n",
 				results);
 			return 0;
 		}
@@ -942,17 +931,18 @@ static int rnp_init_io(rnp_t *rnp, pgp_io_t *io)
 	return 1;
 }
 
-/* Allocate a new io struct and initialize a RNP context with it.
+/* Allocate a new io struct and initialize a rnp context with it.
  * Returns 1 on success and 0 on failure.
  *
  * TODO: Set errno with a suitable error code.
  */
-static int rnp_new_io(rnp_t *rnp)
+static int
+init_new_io(rnp_t *rnp)
 {
 	pgp_io_t *io = (pgp_io_t *) malloc(sizeof(*io));
 
 	if (io != NULL) {
-		if (rnp_init_io(rnp, io))
+		if (init_io(rnp, io))
 			return 1;
 		free((void *) io);
 	}
@@ -960,12 +950,14 @@ static int rnp_new_io(rnp_t *rnp)
 	return 0;
 }
 
-static int rnp_use_ssh_keys(rnp_t *rnp)
+static int
+use_ssh_keys(rnp_t *rnp)
 {
 	return rnp_getvar(rnp, "ssh keys") != NULL;
 }
 
-static int rnp_load_keys_gnupg(rnp_t *rnp, char *homedir)
+static int
+load_keys_gnupg(rnp_t *rnp, char *homedir)
 {
 	char     *userid;
 	char      id[MAX_ID_LENGTH];
@@ -1006,7 +998,7 @@ static int rnp_load_keys_gnupg(rnp_t *rnp, char *homedir)
 		rnp->secring = readkeyring(rnp, "secring");
 
 		if (rnp->secring == NULL) {
-			fprintf(io->errs, "Can't read sec keyring\n");
+			fprintf(io->errs, "cannot read sec keyring\n");
 			return 0;
 		}
 
@@ -1044,14 +1036,15 @@ static int rnp_load_keys_gnupg(rnp_t *rnp, char *homedir)
 
 	if (! userid && rnp_getvar(rnp, "need userid")) {
 		/* if we don't have a user id, and we need one, fail */
-		fprintf(io->errs, "Cannot find user id\n");
+		fprintf(io->errs, "cannot find user id\n");
 		return 0;
 	}
 
 	return 1;
 }
 
-static int rnp_load_keys_ssh(rnp_t *rnp, char *homedir)
+static int
+load_keys_ssh(rnp_t *rnp, char *homedir)
 {
 	int       last = (rnp->pubring != NULL);
 	char      id[MAX_ID_LENGTH];
@@ -1062,7 +1055,7 @@ static int rnp_load_keys_ssh(rnp_t *rnp, char *homedir)
 
 	if (! readsshkeys(rnp, homedir,
 			rnp_getvar(rnp, "need seckey"))) {
-		fprintf(io->errs, "Can't read ssh keys\n");
+		fprintf(io->errs, "cannot read ssh keys\n");
 		return 0;
 	}
 	if ((userid = rnp_getvar(rnp, "userid")) == NULL) {
@@ -1073,7 +1066,7 @@ static int rnp_load_keys_ssh(rnp_t *rnp, char *homedir)
 	}
 	if (userid == NULL) {
 		if (rnp_getvar(rnp, "need userid") != NULL) {
-			fprintf(io->errs, "Cannot find user id\n");
+			fprintf(io->errs, "cannot find user id\n");
 			return 0;
 		}
 	} else {
@@ -1084,12 +1077,28 @@ static int rnp_load_keys_ssh(rnp_t *rnp, char *homedir)
 }
 
 /* Encapsulates setting `initialized` to the current time. */
-static void rnp_touch_initialized(rnp_t *rnp)
+static void
+init_touch_initialized(rnp_t *rnp)
 {
 	time_t t;
 
 	t = time(NULL);
 	rnp_setvar(rnp, "initialised", ctime(&t));
+}
+
+static int
+init_default_homedir(rnp_t *rnp)
+{
+	char *home = getenv("HOME");
+	char *subdir = rnp_getvar(rnp, "ssh keys")
+			? SUBDIRECTORY_SSH : SUBDIRECTORY_GNUPG;
+
+	if (home == NULL) {
+		fputs("rnp: HOME environment variable is not set\n", stderr);
+		return 0;
+	}
+
+	return rnp_set_homedir(rnp, home, subdir, 1);
 }
 
 /*************************************************************************/
@@ -1101,7 +1110,6 @@ int
 rnp_init(rnp_t *rnp)
 {
 	int       coredumps;
-	char     *homedir;
 	pgp_io_t *io;
 
 	memset((void *) rnp, '\0', sizeof(rnp_t));
@@ -1116,14 +1124,13 @@ rnp_init(rnp_t *rnp)
 	coredumps = set_core_dumps(rnp);
 	if (coredumps) {
 		fprintf(stderr,
-			"rnp: warning - can't turn off core dumps\n");
+			"rnp: warning - cannot turn off core dumps\n");
 	}
 #endif
 
 	/* Initialize the context's io streams apparatus. */
-	if (! rnp_new_io(rnp)) {
+	if (! init_new_io(rnp))
 		return 0;
-	}
 	io = rnp->io;
 
 	/* If a password-carrying file descriptor is in use then
@@ -1132,40 +1139,18 @@ rnp_init(rnp_t *rnp)
 	if (! set_pass_fd(rnp))
 		return 0;
 
-	/* Warn if core dumps are enabled. */
 	if (coredumps) {
-		fprintf(io->errs,
-			"rnp: warning: core dumps enabled, "
-			"sensitive data may be leaked to disk\n");
+		fputs("rnp: warning: core dumps enabled, "
+		      "sensitive data may be leaked to disk\n", io->errs);
 	}
 
-	/* Get home directory - where keyrings are in a
-	 * subdirectory.
-	 *
-	 * TODO: While this check is prudent it might be wise to
-	 *       replace this with a purely boolean test and let
-	 *       consumers load the key again from the RNP
-	 *       context.
-	 *
-	 */
-	if ((homedir = rnp_getvar(rnp, "homedir")) == NULL) {
-		fprintf(io->errs, "rnp: bad homedir\n");
+	/* Initialize the context with the default home directory. */
+	if (! init_default_homedir(rnp)) {
+		fputs("rnp: bad homedir\n", io->errs);
 		return 0;
 	}
 
-	/* Load SSH keys if SSH keys are in use, otherwise load from
-	 * the gnupg-ish keyring. Nomenclature can be changed if
-	 * necessary.
-	 */
-	if (rnp_use_ssh_keys(rnp)) {
-		if (! rnp_load_keys_ssh(rnp, homedir))
-			return 0;
-	} else {
-		if (! rnp_load_keys_gnupg(rnp, homedir))
-			return 0;
-	}
-
-	rnp_touch_initialized(rnp);
+	init_touch_initialized(rnp);
 
 	return 1;
 }
@@ -1230,6 +1215,29 @@ rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
 	ret = mj_asprint(json, &obj, MJ_JSON_ENCODE);
 	mj_delete(&obj);
 	return ret;
+}
+
+int
+rnp_load_keys(rnp_t *rnp)
+{
+	char *homedir = rnp_getvar(rnp, "homedir");
+
+	errno = 0;
+
+	if (homedir == NULL) {
+		errno = EINVAL;
+		return 0;
+	}
+
+	if (use_ssh_keys(rnp)) {
+		if (! load_keys_ssh(rnp, homedir))
+			return 0;
+	} else {
+		if (! load_keys_gnupg(rnp, homedir))
+			return 0;
+	}
+
+	return 1;
 }
 
 DEFINE_ARRAY(strings_t, char *);
@@ -1420,7 +1428,7 @@ rnp_import_key(rnp_t *rnp, char *f)
 	realarmor = isarmoured(io, f, NULL, IMPORT_ARMOR_HEAD);
 	done = pgp_keyring_fileread(rnp->pubring, realarmor, f);
 	if (!done) {
-		(void) fprintf(io->errs, "Cannot import key from file %s\n", f);
+		(void) fprintf(io->errs, "cannot import key from file %s\n", f);
 		return 0;
 	}
 	return pgp_keyring_list(io, rnp->pubring, 0);
@@ -1429,6 +1437,7 @@ rnp_import_key(rnp_t *rnp, char *f)
 #define ID_OFFSET	38
 
 /* generate a new key */
+/* TODO: Does this need to take into account SSH keys? */
 int
 rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 {
@@ -1454,9 +1463,9 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 	io = rnp->io;
 	/* generate a new key */
 	if (id) {
-		(void) snprintf(newid, sizeof(newid), "%s", id);
+		snprintf(newid, sizeof(newid), "%s", id);
 	} else {
-		(void) snprintf(newid, sizeof(newid),
+		snprintf(newid, sizeof(newid),
 			"RSA %d-bit key <%s@localhost>", numbits, getenv("LOGNAME"));
 	}
 	uid = (uint8_t *)newid;
@@ -1464,7 +1473,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 			rnp_getvar(rnp, "hash"),
 			rnp_getvar(rnp, "cipher"));
 	if (key == NULL) {
-		(void) fprintf(io->errs, "Cannot generate key\n");
+		(void) fprintf(io->errs, "cannot generate key\n");
 		return 0;
 	}
 	cp = NULL;
@@ -1473,8 +1482,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 
 	/* write public key */
 
-	cc = snprintf(dir, sizeof(dir), "%s/%s",
-			rnp_getvar(rnp, "homedir"), DOT_DIRECTORY);
+	cc = snprintf(dir, sizeof(dir), "%s", rnp_getvar(rnp, "homedir"));
 
 	rnp_setvar(rnp, "generated userid", &dir[cc - 16]);
 
@@ -1486,14 +1494,14 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 	 *       permissions aren't 0700.
 	 */
 	if (mkdir(dir, 0700) == -1 && errno != EEXIST) {
-		fprintf(io->errs, "can't mkdir '%s'\n", dir);
+		fprintf(io->errs, "cannot mkdir '%s'\n", dir);
 		goto out;
 	}
 
 	(void) fprintf(io->errs, "rnp: generated keys in directory %s\n", dir);
 	(void) snprintf(ringfile = filename, sizeof(filename), "%s/pubring.gpg", dir);
 	if (!appendkey(io, key, ringfile)) {
-		(void) fprintf(io->errs, "Cannot write pubkey to '%s'\n", ringfile);
+		(void) fprintf(io->errs, "cannot write pubkey to '%s'\n", ringfile);
 		goto out;
 	}
 	if (rnp->pubring != NULL) {
@@ -1505,7 +1513,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 		fd = pgp_setup_file_write(&create, ringfile, 0);
 	}
 	if (fd < 0) {
-		(void) fprintf(io->errs, "can't append secring '%s'\n", ringfile);
+		(void) fprintf(io->errs, "cannot append secring '%s'\n", ringfile);
 		goto out;
 	}
 	/* get the passphrase */
@@ -1517,7 +1525,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 	}
 	passc = find_passphrase(rnp->passfp, &cp[ID_OFFSET], passphrase, sizeof(passphrase), attempts);
 	if (!pgp_write_xfer_seckey(create, key, (uint8_t *)passphrase, (const unsigned)passc, NULL, noarmor)) {
-		(void) fprintf(io->errs, "Cannot write seckey\n");
+		(void) fprintf(io->errs, "cannot write seckey\n");
 		goto out1;
 	}
 	rv = 1;
@@ -2015,7 +2023,7 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
 	}
 	if (!pgp_keyring_fileread(keyring, noarmor, pubringname)) {
 		free(keyring);
-		(void) fprintf(io->errs, "Cannot read pub keyring %s\n",
+		(void) fprintf(io->errs, "cannot read pub keyring %s\n",
 			pubringname);
 		return 0;
 	}
@@ -2109,29 +2117,28 @@ rnp_incvar(rnp_t *rnp, const char *name, const int delta)
 int
 rnp_set_homedir(rnp_t *rnp, char *home, const char *subdir, const int quiet)
 {
-	struct stat	st;
-	char		d[MAXPATHLEN];
+	struct stat st;
+	char        d[MAXPATHLEN];
 
 	if (home == NULL) {
-		if (!quiet) {
-			(void) fprintf(stderr, "NULL HOME directory\n");
-		}
+		if (! quiet)
+			fprintf(stderr, "NULL HOME directory\n");
 		return 0;
 	}
-	(void) snprintf(d, sizeof(d), "%s%s", home, (subdir) ? subdir : "");
+
+	snprintf(d, sizeof(d), "%s/%s", home, (subdir) ? subdir : "");
 	if (stat(d, &st) == 0) {
 		if ((st.st_mode & S_IFMT) == S_IFDIR) {
 			rnp_setvar(rnp, "homedir", d);
 			return 1;
 		}
-		(void) fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n",
-					d);
+		fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", d);
 		return 0;
 	}
-	if (!quiet) {
-		(void) fprintf(stderr,
-			"rnp: warning homedir \"%s\" not found\n", d);
-	}
+
+	if (! quiet)
+		fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", d);
+
 	rnp_setvar(rnp, "homedir", d);
 	return 1;
 }
@@ -2206,7 +2213,7 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
 		goto done;
 	}
 	if (!pgp_keyring_fileread(rnp->pubring = keyring, 1, f)) {
-		(void) fprintf(stderr, "can't import key\n");
+		(void) fprintf(stderr, "cannot import key\n");
 		goto done;
 	}
 	/* get rsa key */

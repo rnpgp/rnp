@@ -143,21 +143,21 @@ verify_data(pgpv_t *pgp, const char *cmd, const char *inname, char *in, ssize_t 
 static void
 print_usage(const char *usagemsg)
 {
-	(void) fprintf(stderr, "Usage: %s %s", __progname, usagemsg);
+	fprintf(stderr, "Usage: %s %s", __progname, usagemsg);
 }
 
 int
 main(int argc, char **argv)
 {
-	const char	*keyring;
-	const char	*cmd;
-	ssize_t		 cc;
-	size_t		 size;
-	pgpv_t		 pgp;
-	char		*in;
-	int		 ssh;
-	int		 ok;
-	int		 i;
+	const char *keyring;
+	const char *cmd;
+	ssize_t     cc;
+	size_t      size;
+	pgpv_t      pgp;
+	char       *in;
+	int         ssh;
+	int         ok;
+	int         i;
 
 	if (argc < 2) {
 		print_usage(usage);
@@ -165,10 +165,12 @@ main(int argc, char **argv)
 	}
 
 	memset(&pgp, 0x0, sizeof(pgp));
+
 	keyring = NULL;
 	ssh = 0;
 	ok = 1;
 	cmd = "verify";
+
 	while ((i = getopt(argc, argv, "S:c:k:vh")) != -1) {
 		switch(i) {
 		case 'S':
@@ -198,22 +200,22 @@ main(int argc, char **argv)
 	}
 
 	if (ssh) {
-		if (!pgpv_read_ssh_pubkeys(&pgp, keyring, -1)) {
+		if (! pgpv_read_ssh_pubkeys(&pgp, keyring, -1))
 			exit(EXIT_FAILURE);
-		}
-	} else if (!pgpv_read_pubring(&pgp, keyring, -1)) {
+	} else if (! pgpv_read_pubring(&pgp, keyring, -1))
 		exit(EXIT_FAILURE);
-	}
+
 	if (optind == argc) {
 		in = getstdin(&cc, &size);
 		ok = verify_data(&pgp, cmd, "[stdin]", in, cc);
 	} else {
 		for (ok = 1, i = optind ; i < argc ; i++) {
-			if (!verify_data(&pgp, cmd, argv[i], argv[i], -1)) {
+			if (!verify_data(&pgp, cmd, argv[i], argv[i], -1))
 				ok = 0;
-			}
 		}
 	}
+
 	pgpv_close(&pgp);
-	exit((ok) ? EXIT_SUCCESS : EXIT_FAILURE);
+
+	return (ok ? EXIT_SUCCESS : EXIT_FAILURE);
 }
