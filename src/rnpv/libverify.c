@@ -651,7 +651,7 @@ fmt_fingerprint(obuf_t *obuf, pgpv_fingerprint_t *fingerprint, const char *name)
 }
 
 /* calculate keyid from a pubkey */
-static int 
+static int
 calc_keyid(pgpv_pubkey_t *key, const char *hashtype)
 {
 	pgpv_calc_fingerprint(&key->fingerprint, key, hashtype);
@@ -666,13 +666,13 @@ str_to_keyid(const char *s, uint8_t *keyid)
 	uint64_t	u64;
 
 	u64 = (uint64_t)strtoull(s, NULL, 16);
-	u64 =   ((u64 & 0x00000000000000FFUL) << 56) | 
-		((u64 & 0x000000000000FF00UL) << 40) | 
-		((u64 & 0x0000000000FF0000UL) << 24) | 
-		((u64 & 0x00000000FF000000UL) <<  8) | 
-		((u64 & 0x000000FF00000000UL) >>  8) | 
-		((u64 & 0x0000FF0000000000UL) >> 24) | 
-		((u64 & 0x00FF000000000000UL) >> 40) | 
+	u64 =   ((u64 & 0x00000000000000FFUL) << 56) |
+		((u64 & 0x000000000000FF00UL) << 40) |
+		((u64 & 0x0000000000FF0000UL) << 24) |
+		((u64 & 0x00000000FF000000UL) <<  8) |
+		((u64 & 0x000000FF00000000UL) >>  8) |
+		((u64 & 0x0000FF0000000000UL) >> 24) |
+		((u64 & 0x00FF000000000000UL) >> 40) |
 		((u64 & 0xFF00000000000000UL) >> 56);
 	memcpy(keyid, &u64, PGPV_KEYID_LEN);
 }
@@ -752,7 +752,7 @@ fmt_time(obuf_t *obuf, const char *header, int64_t n, const char *trailer, int r
 	t = (time_t)n;
 	now = time(NULL);
 	elapsed = now - t;
-	gmtime_r(&t, &tm);            
+	gmtime_r(&t, &tm);
 	if (!obuf_printf(obuf, "%s%04d-%02d-%02d", header,
 		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday)) {
 			return false;
@@ -1962,7 +1962,7 @@ get_literal_data(pgpv_cursor_t *cursor, pgpv_litdata_t *litdata, size_t *size)
 	if (litdata->s.data == NULL && litdata->s.size == 0) {
 		mem = &ARRAY_ELEMENT(cursor->pgp->areas, litdata->mem);
 		*size = litdata->len;
-		return &mem->mem[litdata->offset]; 
+		return &mem->mem[litdata->offset];
 	}
 	*size = litdata->s.size;
 	return litdata->s.data;

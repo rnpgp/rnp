@@ -76,14 +76,14 @@ static uint8_t prefix_sha512[] = {
 /*************************************************************************/
 
 /* algorithm size (raw) */
-int 
+int
 digest_alg_size(unsigned alg)
 {
         return pgp_hash_size(alg);
 }
 
 /* initialise the hash structure */
-int 
+int
 digest_init(digest_t *hash, const uint32_t hashalg)
 {
 	if (hash == NULL) {
@@ -116,7 +116,7 @@ static rec_t	hashalgs[] = {
 };
 
 /* initialise by string alg name */
-unsigned 
+unsigned
 digest_get_alg(const char *hashalg)
 {
 	rec_t	*r;
@@ -129,7 +129,7 @@ digest_get_alg(const char *hashalg)
 	return 0;
 }
 
-int 
+int
 digest_update(digest_t *hash, const uint8_t *data, size_t length)
 {
 	if (hash == NULL || data == NULL) {
@@ -140,7 +140,7 @@ digest_update(digest_t *hash, const uint8_t *data, size_t length)
         return 1;
 }
 
-unsigned 
+unsigned
 digest_final(uint8_t *out, digest_t *hash)
 {
 	if (hash == NULL || out == NULL) {

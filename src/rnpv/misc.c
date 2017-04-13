@@ -78,7 +78,7 @@ rnp_deallocate(void *ptr, size_t size)
 #endif
 
 /* show hexadecimal/ascii dump */
-ssize_t 
+ssize_t
 rnp_hexdump(const void *vin, const size_t len, void *outvp, size_t size)
 {
 	const char	*in = (const char *)vin;
