@@ -1,5 +1,3 @@
-## $NetBSD: Makefile.am,v 1.4 2010/11/06 00:03:33 agc Exp $
-
 AM_CFLAGS		= $(WARNCFLAGS)
 
 bin_PROGRAMS		= rnpkeys

@@ -1,5 +1,3 @@
-## $NetBSD: Makefile.am,v 1.10 2010/11/29 06:21:40 agc Exp $
-
 AM_CFLAGS		= $(WARNCFLAGS)
 
 lib_LTLIBRARIES		= librnp.la
