@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009 The NetBSD Foundation, Inc.
+ * Copyright (c) 2012-2015 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
