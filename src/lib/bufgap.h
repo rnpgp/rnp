@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #ifndef BUFGAP_H_
-#define BUFGAP_H_ 20091023
+#define BUFGAP_H_
 
 #include <sys/types.h>
 
