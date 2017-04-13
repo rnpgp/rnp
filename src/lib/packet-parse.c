@@ -654,7 +654,7 @@ limread_mpi(BIGNUM **pbn, pgp_region_t *region, pgp_stream_t *stream)
 					/* an MPI has a 2 byte length part.
 					 * Length is given in bits, so the
 					 * largest we should ever need for
-					 * the buffer is RPN_BUFSIZ bytes. */
+					 * the buffer is RNP_BUFSIZ bytes. */
 	unsigned        length;
 	unsigned        nonzero;
 	unsigned	ret;

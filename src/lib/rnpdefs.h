@@ -28,8 +28,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RPNDEFS_H_
-#define RPNDEFS_H_
+#ifndef RNPDEFS_H_
+#define RNPDEFS_H_
 
 #include <stdio.h>
 
@@ -69,4 +69,4 @@ void		*pgp_new(size_t);
 	}								\
 } while(/* CONSTCOND */0)
 
-#endif /* !RPNDEFS_H_ */
+#endif /* !RNPDEFS_H_ */

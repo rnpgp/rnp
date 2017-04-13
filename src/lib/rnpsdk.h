@@ -28,8 +28,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RPNSDK_H_
-#define RPNSDK_H_
+#ifndef RNPSDK_H_
+#define RNPSDK_H_
 
 #include "keyring.h"
 #include "crypto.h"
@@ -53,7 +53,7 @@ typedef struct pgp_validation_t {
 
 void            pgp_validate_result_free(pgp_validation_t *);
 
-unsigned 
+unsigned
 pgp_validate_key_sigs(pgp_validation_t *,
 		const pgp_key_t *,
 		const pgp_keyring_t *,

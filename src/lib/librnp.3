@@ -40,122 +40,122 @@
 .Pp
 The following functions relate to initialisations and finalisations:
 .Ft int
-.Fo rpn_init
-.Fa "rpn_t *rpn"
+.Fo rnp_init
+.Fa "rnp_t *rnp"
 .Fc
 .Ft int
-.Fo rpn_end
-.Fa "rpn_t *rpn"
+.Fo rnp_end
+.Fa "rnp_t *rnp"
 .Fc
 .Pp
 The following functions are for debugging, reflection and information:
 .Ft int
-.Fo rpn_set_debug
+.Fo rnp_set_debug
 .Fa "const char *filename"
 .Fc
 .Ft int
-.Fo rpn_get_debug
+.Fo rnp_get_debug
 .Fa "const char *filename"
 .Fc
 .Ft int
-.Fo rpn_get_info
+.Fo rnp_get_info
 .Fa "const char *type"
 .Fc
 .Ft int
-.Fo rpn_list_packets
-.Fa "rpn_t *rpn" "char *filename" "int armour" "char *pubringname"
+.Fo rnp_list_packets
+.Fa "rnp_t *rnp" "char *filename" "int armour" "char *pubringname"
 .Fc
 .Pp
 The following functions are for variable management:
 .Ft int
-.Fo rpn_setvar
-.Fa "rpn_t *rpn" "const char *name" "const char *value"
+.Fo rnp_setvar
+.Fa "rnp_t *rnp" "const char *name" "const char *value"
 .Fc
 .Ft char *
-.Fo rpn_getvar
-.Fa "rpn_t *rpn" "const char *name"
+.Fo rnp_getvar
+.Fa "rnp_t *rnp" "const char *name"
 .Fc
 .Ft int
-.Fo rpn_incvar
-.Fa "rpn_t *rpn" "const char *name" "const int delta"
+.Fo rnp_incvar
+.Fa "rnp_t *rnp" "const char *name" "const int delta"
 .Fc
 .Pp
 The following function sets the home directory:
 .Ft int
-.Fo rpn_set_homedir
-.Fa "rpn_t *rpn" "char *homedir" "char *subdir" "const int quiet"
+.Fo rnp_set_homedir
+.Fa "rnp_t *rnp" "char *homedir" "char *subdir" "const int quiet"
 .Fc
 .Pp
 The following functions are used for key management:
 .Ft int
-.Fo rpn_list_keys
-.Fa "rpn_t *rpn" "const int printsigs"
+.Fo rnp_list_keys
+.Fa "rnp_t *rnp" "const int printsigs"
 .Fc
 .Ft int
-.Fo rpn_match_list_keys
-.Fa "rpn_t *rpn" "char *pattern"
+.Fo rnp_match_list_keys
+.Fa "rnp_t *rnp" "char *pattern"
 .Fc
 .Ft int
-.Fo rpn_find_key
-.Fa "rpn_t *rpn" "char *userid"
+.Fo rnp_find_key
+.Fa "rnp_t *rnp" "char *userid"
 .Fc
 .Ft char *
-.Fo rpn_get_key
-.Fa "rpn_t *rpn" "const char *id"
+.Fo rnp_get_key
+.Fa "rnp_t *rnp" "const char *id"
 .Fc
 .Ft int
-.Fo rpn_export_key
-.Fa "rpn_t *rpn" "char *userid"
+.Fo rnp_export_key
+.Fa "rnp_t *rnp" "char *userid"
 .Fc
 .Ft int
-.Fo rpn_import_key
-.Fa "rpn_t *rpn" "char *file"
+.Fo rnp_import_key
+.Fa "rnp_t *rnp" "char *file"
 .Fc
 .Ft int
-.Fo rpn_generate_key
-.Fa "rpn_t *rpn" "char *userid" "int numbits"
+.Fo rnp_generate_key
+.Fa "rnp_t *rnp" "char *userid" "int numbits"
 .Fc
 .Pp
 The following functions are used for file management:
 .Ft int
-.Fo rpn_encrypt_file
-.Fa "rpn_t *rpn" "char *userid" "char *filename" "char *out"
+.Fo rnp_encrypt_file
+.Fa "rnp_t *rnp" "char *userid" "char *filename" "char *out"
 .Fa "int armored"
 .Fc
 .Ft int
-.Fo rpn_decrypt_file
-.Fa "rpn_t *rpn" "char *filename" "char *out" "int armored"
+.Fo rnp_decrypt_file
+.Fa "rnp_t *rnp" "char *filename" "char *out" "int armored"
 .Fc
 .Ft int
-.Fo rpn_sign_file
-.Fa "rpn_t *rpn" "char *userid" "char *filename" "char *out"
+.Fo rnp_sign_file
+.Fa "rnp_t *rnp" "char *userid" "char *filename" "char *out"
 .Fa "int armored" "int cleartext" "int detached"
 .Fc
 .Ft int
-.Fo rpn_verify_file
-.Fa "rpn_t *rpn" "char *f" "int armored"
+.Fo rnp_verify_file
+.Fa "rnp_t *rnp" "char *f" "int armored"
 .Fc
 .Pp
 The following functions are used for memory signing and encryption:
 .Ft int
-.Fo rpn_encrypt_memory
-.Fa "rpn_t *rpn" "char *userid" "void *in" "const size_t insize"
+.Fo rnp_encrypt_memory
+.Fa "rnp_t *rnp" "char *userid" "void *in" "const size_t insize"
 .Fa "char *out" "size_t outsize" "int armored"
 .Fc
 .Ft int
-.Fo rpn_decrypt_memory
-.Fa "rpn_t *rpn" "const void *input" "const size_t insize"
+.Fo rnp_decrypt_memory
+.Fa "rnp_t *rnp" "const void *input" "const size_t insize"
 .Fa "char *out" "size_t outsize" "const int armored"
 .Fc
 .Ft int
-.Fo rpn_sign_memory
-.Fa "rpn_t *rpn" "const char *userid" "char *mem"
+.Fo rnp_sign_memory
+.Fa "rnp_t *rnp" "const char *userid" "char *mem"
 .Fa "size_t size" "char *out" "size_t outsize"
 .Fa "const unsigned armored" "const unsigned cleartext"
 .Fc
 .Ft int
-.Fo rpn_verify_memory
-.Fa "rpn_t *rpn" "const void *in" "const size_t insize"
+.Fo rnp_verify_memory
+.Fa "rnp_t *rnp" "const void *in" "const size_t insize"
 .Fa "void *out" "size_t outsize" "const int armored"
 .Fc
 .Sh DESCRIPTION
@@ -171,14 +171,14 @@ encryption and decryption.
 Normal operation sees the
 .Nm
 process be initialised using the
-.Fn rpn_init
+.Fn rnp_init
 function, which will set up the public and private keyrings, and set the
 user identity to the
 .Ar userid
 argument passed stored in the
-.Dv rpn_t
+.Dv rnp_t
 structure, and set using the
-.Fn rpn_setvar
+.Fn rnp_setvar
 function.
 If no public key ring file is set, initial values will be taken from those
 in the
@@ -190,16 +190,16 @@ in the
 .Pa .gnupg/secring.gpg
 file in the user's home directory.
 The
-.Fn rpn_init
+.Fn rnp_init
 function returns 1 on success, 0 on failure.
 .Pp
 To list all the keys in a keyring, the
-.Fn rpn_list_keys
+.Fn rnp_list_keys
 function is used.
 The signature subkey fields can also be displayed
 using this function.
 The
-.Fn rpn_match_list_keys
+.Fn rnp_match_list_keys
 function is used to match (via regular expression)
 a subset of the keys in the keyring.
 If the expression to match is NULL,
@@ -208,7 +208,7 @@ listing of all keys in the keyring.
 .Pp
 The home directory is specified as an internal variable,
 and its existence is checked using the
-.Fn rpn_set_homedir
+.Fn rnp_set_homedir
 function.
 This function can operate in a verbose or quiet
 manner, depending on the value of the argument provided.
@@ -217,18 +217,18 @@ is appended to the home directory in order to search for
 the keyrings.
 .Pp
 To export a key, the
-.Fn rpn_export_key
+.Fn rnp_export_key
 function is used.
 Output is sent to the standard output.
 .Pp
 To import a key onto the public keyring, the
-.Fn rpn_import_key
+.Fn rnp_import_key
 is used.
 The name of the file containing the key to be imported is provided
 as the filename argument.
 .Pp
 To generate a key, the
-.Fn rpn_generate_key
+.Fn rnp_generate_key
 is used.
 It takes an argument of the number of bits to use in the key.
 At the time that this manual page was created (April 2009),
@@ -243,21 +243,21 @@ files are the lifeblood of the
 .Nm
 library.
 To encrypt a file, the
-.Fn rpn_encrypt_file
+.Fn rnp_encrypt_file
 function is used, and the
-.Fn rpn_decrypt_file
+.Fn rnp_decrypt_file
 function is used to decrypt the results of the encryption.
 To sign a file, the
-.Fn rpn_sign_file
+.Fn rnp_sign_file
 function is used, and the resulting signed file can be verified
 using the
-.Fn rpn_verify_file
+.Fn rnp_verify_file
 function.
 .Pp
-.Fn rpn_sign_memory
+.Fn rnp_sign_memory
 is a function which can sign an area
 of memory, and
-.Fn rpn_verify_memory
+.Fn rnp_verify_memory
 verifies the digital signature produced.
 .Pp
 Internally, an encrypted or signed file
@@ -267,13 +267,13 @@ which hold information pertaining to the signature,
 encryption method, and the data which is being protected.
 This information can be displayed in a verbose manner using
 the
-.Fn rpn_list_packets
+.Fn rnp_list_packets
 function.
 .Pp
 The
-.Fn rpn_setvar
+.Fn rnp_setvar
 and
-.Fn rpn_getvar
+.Fn rnp_getvar
 functions are used to manage the hash algorithm that
 is used with RSA signatures.
 These functions are general purpose functions, and
@@ -285,7 +285,7 @@ which has been set,
 the home directory from which to find the keyrings,
 the verbosity settings, and many more.
 The
-.Fn rpn_incvar
+.Fn rnp_incvar
 function is used to add a numeric increment to the
 internal variable.
 This incremental value can be negative.
@@ -302,14 +302,14 @@ who signed the file, and the date and time at which it was signed.
 Some utility functions are also provided for debugging, and for
 finding out version and maintainer information from calling programs.
 These are the
-.Fn rpn_set_debug
+.Fn rnp_set_debug
 and the
-.Fn rpn_get_debug
+.Fn rnp_get_debug
 functions (for getting verbose debugging information on a per-source
 file basis).
 .Pp
 The
-.Fn rpn_get_info
+.Fn rnp_get_info
 function returns the version or maintainer information depending upon the
 .Ar type
 argument.
@@ -320,12 +320,12 @@ and
 A failure to present a known
 .Ar type
 argument to
-.Fn rpn_get_info
+.Fn rnp_get_info
 will result in the string
 .Dq [unknown]
 being returned.
 .Sh SEE ALSO
-.Xr rpn 1 ,
+.Xr rnp 1 ,
 .Xr ssl 3
 .Sh HISTORY
 The
