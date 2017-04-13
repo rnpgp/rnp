@@ -58,3 +58,4 @@ src/rnpkeys/rnpkeys
 src/rnpv/config.h
 src/rnpv/rnpv
 src/rnpv/stamp-h2
+*.swp
