@@ -1,11 +1,11 @@
-/* $NetBSD: rnp.c,v 1.17 2010/11/29 04:20:12 agc Exp $ */
-
-/*-
+/*
+ * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * This code is derived from software contributed to The NetBSD Foundation
- * by Alistair Crooks (agc@NetBSD.org)
+ * This code is originally derived from software contributed to
+ * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
+ * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,7 +28,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
 /* Command line program to perform rnp operations */
 #include <sys/types.h>
 #include <sys/param.h>

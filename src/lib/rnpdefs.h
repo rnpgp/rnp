@@ -1,9 +1,11 @@
-/*-
+/*
+ * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * This code is derived from software contributed to The NetBSD Foundation
- * by Alistair Crooks (agc@netbsd.org)
+ * This code is originally derived from software contributed to
+ * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
+ * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,8 +28,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RPNDEFS_H_
-#define RPNDEFS_H_	1
+#ifndef RNPDEFS_H_
+#define RNPDEFS_H_
 
 #include <stdio.h>
 
@@ -67,4 +69,4 @@ void		*pgp_new(size_t);
 	}								\
 } while(/* CONSTCOND */0)
 
-#endif /* !RPNDEFS_H_ */
+#endif /* !RNPDEFS_H_ */

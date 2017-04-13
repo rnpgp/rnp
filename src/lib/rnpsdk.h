@@ -1,9 +1,11 @@
-/*-
- * Copyright (c) 2009,2010 The NetBSD Foundation, Inc.
+/*
+ * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2009-2010 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * This code is derived from software contributed to The NetBSD Foundation
- * by Alistair Crooks (agc@NetBSD.org)
+ * This code is originally derived from software contributed to
+ * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
+ * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,8 +28,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RPNSDK_H_
-#define RPNSDK_H_
+#ifndef RNPSDK_H_
+#define RNPSDK_H_
 
 #include "keyring.h"
 #include "crypto.h"
@@ -51,7 +53,7 @@ typedef struct pgp_validation_t {
 
 void            pgp_validate_result_free(pgp_validation_t *);
 
-unsigned 
+unsigned
 pgp_validate_key_sigs(pgp_validation_t *,
 		const pgp_key_t *,
 		const pgp_keyring_t *,

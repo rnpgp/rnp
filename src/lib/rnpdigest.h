@@ -1,9 +1,11 @@
-/*-
+/*
+ * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * This code is derived from software contributed to The NetBSD Foundation
- * by Alistair Crooks (agc@netbsd.org)
+ * This code is originally derived from software contributed to
+ * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
+ * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,8 +28,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RPNDIGEST_H_
-#define RPNDIGEST_H_
+#ifndef RNPDIGEST_H_
+#define RNPDIGEST_H_
 
 /* header file to define the sizes for various digest arrays */
 
@@ -40,4 +42,4 @@
 #define PGP_SHA256_HASH_SIZE	32
 #define PGP_CHECKHASH_SIZE	PGP_SHA1_HASH_SIZE
 
-#endif /* RPNDIGEST_H_ */
+#endif /* RNPDIGEST_H_ */

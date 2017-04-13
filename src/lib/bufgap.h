@@ -1,11 +1,11 @@
-/* $NetBSD: bufgap.h,v 1.2 2009/12/06 17:43:05 agc Exp $ */
-
-/*-
+/*
+ * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 1996-2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * This code is derived from software contributed to The NetBSD Foundation
- * by Alistair Crooks (agc@NetBSD.org)
+ * This code is originally derived from software contributed to
+ * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
+ * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #ifndef BUFGAP_H_
-#define BUFGAP_H_ 20091023
+#define BUFGAP_H_
 
 #include <sys/types.h>
 

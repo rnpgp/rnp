@@ -1,6 +1,11 @@
-/*-
- * Copyright (c) 2012,2013,2014,2015 Alistair Crooks <agc@NetBSD.org>
+/*
+ * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2012-2015 The NetBSD Foundation, Inc.
  * All rights reserved.
+ *
+ * This code is originally derived from software contributed to
+ * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
+ * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,16 +16,17 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "config.h"
 
@@ -645,7 +651,7 @@ fmt_fingerprint(obuf_t *obuf, pgpv_fingerprint_t *fingerprint, const char *name)
 }
 
 /* calculate keyid from a pubkey */
-static int 
+static int
 calc_keyid(pgpv_pubkey_t *key, const char *hashtype)
 {
 	pgpv_calc_fingerprint(&key->fingerprint, key, hashtype);
@@ -660,13 +666,13 @@ str_to_keyid(const char *s, uint8_t *keyid)
 	uint64_t	u64;
 
 	u64 = (uint64_t)strtoull(s, NULL, 16);
-	u64 =   ((u64 & 0x00000000000000FFUL) << 56) | 
-		((u64 & 0x000000000000FF00UL) << 40) | 
-		((u64 & 0x0000000000FF0000UL) << 24) | 
-		((u64 & 0x00000000FF000000UL) <<  8) | 
-		((u64 & 0x000000FF00000000UL) >>  8) | 
-		((u64 & 0x0000FF0000000000UL) >> 24) | 
-		((u64 & 0x00FF000000000000UL) >> 40) | 
+	u64 =   ((u64 & 0x00000000000000FFUL) << 56) |
+		((u64 & 0x000000000000FF00UL) << 40) |
+		((u64 & 0x0000000000FF0000UL) << 24) |
+		((u64 & 0x00000000FF000000UL) <<  8) |
+		((u64 & 0x000000FF00000000UL) >>  8) |
+		((u64 & 0x0000FF0000000000UL) >> 24) |
+		((u64 & 0x00FF000000000000UL) >> 40) |
 		((u64 & 0xFF00000000000000UL) >> 56);
 	memcpy(keyid, &u64, PGPV_KEYID_LEN);
 }
@@ -746,7 +752,7 @@ fmt_time(obuf_t *obuf, const char *header, int64_t n, const char *trailer, int r
 	t = (time_t)n;
 	now = time(NULL);
 	elapsed = now - t;
-	gmtime_r(&t, &tm);            
+	gmtime_r(&t, &tm);
 	if (!obuf_printf(obuf, "%s%04d-%02d-%02d", header,
 		tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday)) {
 			return false;
@@ -1956,7 +1962,7 @@ get_literal_data(pgpv_cursor_t *cursor, pgpv_litdata_t *litdata, size_t *size)
 	if (litdata->s.data == NULL && litdata->s.size == 0) {
 		mem = &ARRAY_ELEMENT(cursor->pgp->areas, litdata->mem);
 		*size = litdata->len;
-		return &mem->mem[litdata->offset]; 
+		return &mem->mem[litdata->offset];
 	}
 	*size = litdata->s.size;
 	return litdata->s.data;

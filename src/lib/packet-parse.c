@@ -1,9 +1,11 @@
-/*-
+/*
+ * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * This code is derived from software contributed to The NetBSD Foundation
- * by Alistair Crooks (agc@NetBSD.org)
+ * This code is originally derived from software contributed to
+ * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
+ * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -106,7 +108,7 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
  *
  * \return 1 on success, 0 on failure
  */
-static int 
+static int
 limread_data(pgp_data_t *data, unsigned len,
 		  pgp_region_t *subregion, pgp_stream_t *stream)
 {
@@ -136,7 +138,7 @@ limread_data(pgp_data_t *data, unsigned len,
  *
  * \return 1 on success, 0 on failure
  */
-static int 
+static int
 read_data(pgp_data_t *data, pgp_region_t *region, pgp_stream_t *stream)
 {
 	int	cc;
@@ -150,7 +152,7 @@ read_data(pgp_data_t *data, pgp_region_t *region, pgp_stream_t *stream)
  * It is the user's responsibility to free the memory allocated here.
  */
 
-static int 
+static int
 read_unsig_str(uint8_t **str, pgp_region_t *subregion,
 		     pgp_stream_t *stream)
 {
@@ -169,13 +171,13 @@ read_unsig_str(uint8_t **str, pgp_region_t *subregion,
 	return 1;
 }
 
-static int 
+static int
 read_string(char **str, pgp_region_t *subregion, pgp_stream_t *stream)
 {
 	return read_unsig_str((uint8_t **) str, subregion, stream);
 }
 
-void 
+void
 pgp_init_subregion(pgp_region_t *subregion, pgp_region_t *region)
 {
 	(void) memset(subregion, 0x0, sizeof(*subregion));
@@ -215,7 +217,7 @@ pgp_init_subregion(pgp_region_t *subregion, pgp_region_t *region)
  * \sa #pgp_reader_ret_t for details of return codes
  */
 
-static int 
+static int
 sub_base_read(pgp_stream_t *stream, void *dest, size_t length, pgp_error_t **errors,
 	      pgp_reader_t *readinfo, pgp_cbdata_t *cbinfo)
 {
@@ -278,7 +280,7 @@ sub_base_read(pgp_stream_t *stream, void *dest, size_t length, pgp_error_t **err
 	return (int)n;
 }
 
-int 
+int
 pgp_stacked_read(pgp_stream_t *stream, void *dest, size_t length, pgp_error_t **errors,
 		 pgp_reader_t *readinfo, pgp_cbdata_t *cbinfo)
 {
@@ -286,7 +288,7 @@ pgp_stacked_read(pgp_stream_t *stream, void *dest, size_t length, pgp_error_t **
 }
 
 /* This will do a full read so long as length < MAX_INT */
-static int 
+static int
 base_read(uint8_t *dest, size_t length, pgp_stream_t *stream)
 {
 	return sub_base_read(stream, dest, length, &stream->errors, &stream->readinfo,
@@ -298,7 +300,7 @@ base_read(uint8_t *dest, size_t length, pgp_stream_t *stream)
  * *last_read tells you why - < 0 for an error, == 0 for EOF
  */
 
-static size_t 
+static size_t
 full_read(pgp_stream_t *stream, uint8_t *dest,
 		size_t length,
 		int *last_read,
@@ -339,7 +341,7 @@ full_read(pgp_stream_t *stream, uint8_t *dest,
  * \param length	How many bytes to read
  * \return		1 on success, 0 on failure
  */
-static unsigned 
+static unsigned
 _read_scalar(unsigned *result, unsigned length,
 	     pgp_stream_t *stream)
 {
@@ -390,7 +392,7 @@ _read_scalar(unsigned *result, unsigned length,
  * \param cbinfo	Callback info
  * \return		1 on success, 0 on error
  */
-unsigned 
+unsigned
 pgp_limited_read(pgp_stream_t *stream, uint8_t *dest,
 			size_t length,
 			pgp_region_t *region,
@@ -432,7 +434,7 @@ pgp_limited_read(pgp_stream_t *stream, uint8_t *dest,
    \ingroup Core_ReadPackets
    \brief Call pgp_limited_read on next in stack
 */
-unsigned 
+unsigned
 pgp_stacked_limited_read(pgp_stream_t *stream, uint8_t *dest, unsigned length,
 			 pgp_region_t *region,
 			 pgp_error_t **errors,
@@ -443,7 +445,7 @@ pgp_stacked_limited_read(pgp_stream_t *stream, uint8_t *dest, unsigned length,
 				readinfo->next, cbinfo);
 }
 
-static unsigned 
+static unsigned
 limread(uint8_t *dest, unsigned length,
 	     pgp_region_t *region, pgp_stream_t *info)
 {
@@ -451,7 +453,7 @@ limread(uint8_t *dest, unsigned length,
 				&info->readinfo, &info->cbinfo);
 }
 
-static unsigned 
+static unsigned
 exact_limread(uint8_t *dest, unsigned len,
 		   pgp_region_t *region,
 		   pgp_stream_t *stream)
@@ -475,7 +477,7 @@ exact_limread(uint8_t *dest, unsigned len,
  * \param *stream	How to parse
  * \return		1 on success, 0 on error (calls the cb with PGP_PARSER_ERROR in limread()).
  */
-static int 
+static int
 limskip(unsigned length, pgp_region_t *region, pgp_stream_t *stream)
 {
 	uint8_t   buf[RNP_BUFSIZ];
@@ -507,7 +509,7 @@ limskip(unsigned length, pgp_region_t *region, pgp_stream_t *stream)
  *
  * \see RFC4880 3.1
  */
-static int 
+static int
 limread_scalar(unsigned *dest,
 			unsigned len,
 			pgp_region_t *region,
@@ -555,7 +557,7 @@ limread_scalar(unsigned *dest,
  *
  * \see RFC4880 3.1
  */
-static int 
+static int
 limread_size_t(size_t *dest,
 				unsigned length,
 				pgp_region_t *region,
@@ -591,7 +593,7 @@ limread_size_t(size_t *dest,
  *
  * \see RFC4880 3.5
  */
-static int 
+static int
 limited_read_time(time_t *dest, pgp_region_t *region,
 		  pgp_stream_t *stream)
 {
@@ -640,14 +642,14 @@ limited_read_time(time_t *dest, pgp_region_t *region,
  *
  * \see RFC4880 3.2
  */
-static int 
+static int
 limread_mpi(BIGNUM **pbn, pgp_region_t *region, pgp_stream_t *stream)
 {
 	uint8_t   buf[RNP_BUFSIZ] = "";
 					/* an MPI has a 2 byte length part.
 					 * Length is given in bits, so the
 					 * largest we should ever need for
-					 * the buffer is RPN_BUFSIZ bytes. */
+					 * the buffer is RNP_BUFSIZ bytes. */
 	unsigned        length;
 	unsigned        nonzero;
 	unsigned	ret;
@@ -737,7 +739,7 @@ coalesce_blocks(pgp_stream_t *stream, unsigned length)
  *
  */
 
-static unsigned 
+static unsigned
 read_new_length(unsigned *length, pgp_stream_t *stream)
 {
 	uint8_t   c;
@@ -794,7 +796,7 @@ read_new_length(unsigned *length, pgp_stream_t *stream)
  * \see RFC4880 4.2.2
  * \see pgp_ptag_t
  */
-static int 
+static int
 limited_read_new_length(unsigned *length, pgp_region_t *region,
 			pgp_stream_t *stream)
 {
@@ -834,7 +836,7 @@ limited_read_new_length(unsigned *length, pgp_region_t *region,
 \ingroup Core_Create
 \brief Free allocated memory
 */
-void 
+void
 pgp_data_free(pgp_data_t *data)
 {
 	free(data->contents);
@@ -846,7 +848,7 @@ pgp_data_free(pgp_data_t *data)
 \ingroup Core_Create
 \brief Free allocated memory
 */
-static void 
+static void
 string_free(char **str)
 {
 	free(*str);
@@ -858,7 +860,7 @@ string_free(char **str)
 \brief Free allocated memory
 */
 /* ! Free packet memory, set pointer to NULL */
-void 
+void
 pgp_subpacket_free(pgp_subpacket_t *packet)
 {
 	free(packet->raw);
@@ -869,7 +871,7 @@ pgp_subpacket_free(pgp_subpacket_t *packet)
 \ingroup Core_Create
 \brief Free allocated memory
 */
-static void 
+static void
 headers_free(pgp_headers_t *headers)
 {
 	unsigned        n;
@@ -886,7 +888,7 @@ headers_free(pgp_headers_t *headers)
 \ingroup Core_Create
 \brief Free allocated memory
 */
-static void 
+static void
 cleartext_trailer_free(struct pgp_hash_t **trailer)
 {
 	free(*trailer);
@@ -897,7 +899,7 @@ cleartext_trailer_free(struct pgp_hash_t **trailer)
 \ingroup Core_Create
 \brief Free allocated memory
 */
-static void 
+static void
 cmd_get_passphrase_free(pgp_seckey_passphrase_t *skp)
 {
 	if (skp->passphrase && *skp->passphrase) {
@@ -910,7 +912,7 @@ cmd_get_passphrase_free(pgp_seckey_passphrase_t *skp)
 \ingroup Core_Create
 \brief Free allocated memory
 */
-static void 
+static void
 free_BN(BIGNUM **pp)
 {
 	BN_free(*pp);
@@ -922,7 +924,7 @@ free_BN(BIGNUM **pp)
  * \brief Free the memory used when parsing a signature
  * \param sig
  */
-static void 
+static void
 sig_free(pgp_sig_t *sig)
 {
 	switch (sig->info.key_alg) {
@@ -965,7 +967,7 @@ sig_free(pgp_sig_t *sig)
 \brief Free allocated memory
 */
 /* ! Free any memory allocated when parsing the packet content */
-void 
+void
 pgp_parser_content_free(pgp_packet_t *c)
 {
 	switch (c->tag) {
@@ -1131,7 +1133,7 @@ pgp_parser_content_free(pgp_packet_t *c)
 \ingroup Core_Create
 \brief Free allocated memory
 */
-void 
+void
 pgp_pk_sesskey_free(pgp_pk_sesskey_t *sk)
 {
 	switch (sk->alg) {
@@ -1155,7 +1157,7 @@ pgp_pk_sesskey_free(pgp_pk_sesskey_t *sk)
 \brief Free allocated memory
 */
 /* ! Free the memory used when parsing a public key */
-void 
+void
 pgp_pubkey_free(pgp_pubkey_t *p)
 {
 	switch (p->alg) {
@@ -1192,7 +1194,7 @@ pgp_pubkey_free(pgp_pubkey_t *p)
 /**
    \ingroup Core_ReadPackets
 */
-static int 
+static int
 parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region,
 		      pgp_stream_t *stream)
 {
@@ -1287,7 +1289,7 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region,
  *
  * \see RFC4880 5.5.2
  */
-static int 
+static int
 parse_pubkey(pgp_content_enum tag, pgp_region_t *region,
 		 pgp_stream_t *stream)
 {
@@ -1317,7 +1319,7 @@ parse_pubkey(pgp_content_enum tag, pgp_region_t *region,
  * For now, handle the whole packet as raw data.
  */
 
-static int 
+static int
 parse_userattr(pgp_region_t *region, pgp_stream_t *stream)
 {
 
@@ -1344,7 +1346,7 @@ parse_userattr(pgp_region_t *region, pgp_stream_t *stream)
 \brief Free allocated memory
 */
 /* ! Free the memory used when parsing this packet type */
-void 
+void
 pgp_userid_free(uint8_t **id)
 {
 	free(*id);
@@ -1370,7 +1372,7 @@ pgp_userid_free(uint8_t **id)
  *
  * \see RFC4880 5.11
  */
-static int 
+static int
 parse_userid(pgp_region_t *region, pgp_stream_t *stream)
 {
 	pgp_packet_t pkt;
@@ -1425,7 +1427,7 @@ parse_hash_find(pgp_stream_t *stream, const uint8_t *keyid)
  *
  * \see RFC4880 5.2.2
  */
-static int 
+static int
 parse_v3_sig(pgp_region_t *region,
 		   pgp_stream_t *stream)
 {
@@ -1543,7 +1545,7 @@ parse_v3_sig(pgp_region_t *region,
  *
  * \see RFC4880 5.2.3
  */
-static int 
+static int
 parse_one_sig_subpacket(pgp_sig_t *sig,
 			      pgp_region_t *region,
 			      pgp_stream_t *stream)
@@ -1839,7 +1841,7 @@ parse_one_sig_subpacket(pgp_sig_t *sig,
  *
  * \see RFC4880 5.2.3
  */
-static int 
+static int
 parse_sig_subpkts(pgp_sig_t *sig,
 			   pgp_region_t *region,
 			   pgp_stream_t *stream)
@@ -1888,7 +1890,7 @@ parse_sig_subpkts(pgp_sig_t *sig,
  *
  * \see RFC4880 5.2.3
  */
-static int 
+static int
 parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
 {
 	pgp_packet_t	pkt;
@@ -2065,7 +2067,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
  * \param *cb		The callback
  * \return		1 on success, 0 on error
  */
-static int 
+static int
 parse_sig(pgp_region_t *region, pgp_stream_t *stream)
 {
 	pgp_packet_t	pkt;
@@ -2096,7 +2098,7 @@ parse_sig(pgp_region_t *region, pgp_stream_t *stream)
  \ingroup Core_ReadPackets
  \brief Parse Compressed packet
 */
-static int 
+static int
 parse_compressed(pgp_region_t *region, pgp_stream_t *stream)
 {
 	pgp_packet_t	pkt;
@@ -2120,7 +2122,7 @@ parse_compressed(pgp_region_t *region, pgp_stream_t *stream)
 
 /* XXX: this could be improved by sharing all hashes that are the */
 /* same, then duping them just before checking the signature. */
-static void 
+static void
 parse_hash_init(pgp_stream_t *stream, pgp_hash_alg_t type,
 		    const uint8_t *keyid)
 {
@@ -2150,7 +2152,7 @@ parse_hash_init(pgp_stream_t *stream, pgp_hash_alg_t type,
    \ingroup Core_ReadPackets
    \brief Parse a One Pass Signature packet
 */
-static int 
+static int
 parse_one_pass(pgp_region_t * region, pgp_stream_t * stream)
 {
 	pgp_packet_t	pkt;
@@ -2213,7 +2215,7 @@ parse_trust(pgp_region_t *region, pgp_stream_t *stream)
 	return 1;
 }
 
-static void 
+static void
 parse_hash_data(pgp_stream_t *stream, const void *data,
 		    size_t length)
 {
@@ -2228,7 +2230,7 @@ parse_hash_data(pgp_stream_t *stream, const void *data,
    \ingroup Core_ReadPackets
    \brief Parse a Literal Data packet
 */
-static int 
+static int
 parse_litdata(pgp_region_t *region, pgp_stream_t *stream)
 {
 	pgp_memory_t	*mem;
@@ -2281,7 +2283,7 @@ parse_litdata(pgp_region_t *region, pgp_stream_t *stream)
  * \param key
  */
 
-void 
+void
 pgp_seckey_free(pgp_seckey_t *key)
 {
 	switch (key->pubkey.alg) {
@@ -2308,7 +2310,7 @@ pgp_seckey_free(pgp_seckey_t *key)
 	key->checkhash = NULL;
 }
 
-static int 
+static int
 consume_packet(pgp_region_t *region, pgp_stream_t *stream, unsigned warn)
 {
 	pgp_packet_t	pkt;
@@ -2338,7 +2340,7 @@ consume_packet(pgp_region_t *region, pgp_stream_t *stream, unsigned warn)
  * \ingroup Core_ReadPackets
  * \brief Parse a secret key
  */
-static int 
+static int
 parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 {
 	pgp_packet_t		pkt;
@@ -2702,7 +2704,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
    \ingroup Core_ReadPackets
    \brief Parse a Public Key Session Key packet
 */
-static int 
+static int
 parse_pk_sesskey(pgp_region_t *region,
 		     pgp_stream_t *stream)
 {
@@ -2873,7 +2875,7 @@ parse_pk_sesskey(pgp_region_t *region,
 	return 1;
 }
 
-static int 
+static int
 decrypt_se_data(pgp_content_enum tag, pgp_region_t *region,
 		    pgp_stream_t *stream)
 {
@@ -2933,7 +2935,7 @@ decrypt_se_data(pgp_content_enum tag, pgp_region_t *region,
 	return r;
 }
 
-static int 
+static int
 decrypt_se_ip_data(pgp_content_enum tag, pgp_region_t *region,
 		       pgp_stream_t *stream)
 {
@@ -2985,7 +2987,7 @@ decrypt_se_ip_data(pgp_content_enum tag, pgp_region_t *region,
    \ingroup Core_ReadPackets
    \brief Read a Symmetrically Encrypted packet
 */
-static int 
+static int
 parse_se_data(pgp_region_t *region, pgp_stream_t *stream)
 {
 	pgp_packet_t pkt;
@@ -3004,7 +3006,7 @@ parse_se_data(pgp_region_t *region, pgp_stream_t *stream)
    \ingroup Core_ReadPackets
    \brief Read a Symmetrically Encrypted Integrity Protected packet
 */
-static int 
+static int
 parse_se_ip_data(pgp_region_t *region, pgp_stream_t *stream)
 {
 	pgp_packet_t	pkt;
@@ -3038,7 +3040,7 @@ parse_se_ip_data(pgp_region_t *region, pgp_stream_t *stream)
    \ingroup Core_ReadPackets
    \brief Read a MDC packet
 */
-static int 
+static int
 parse_mdc(pgp_region_t *region, pgp_stream_t *stream)
 {
 	pgp_packet_t pkt;
@@ -3067,7 +3069,7 @@ parse_mdc(pgp_region_t *region, pgp_stream_t *stream)
  * \param *stream	How to parse
  * \param *pktlen	On return, will contain number of bytes in packet
  * \return 1 on success, 0 on error, -1 on EOF */
-static int 
+static int
 parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
 {
 	pgp_packet_t	pkt;
@@ -3271,7 +3273,7 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
  *
  */
 
-int 
+int
 pgp_parse(pgp_stream_t *stream, const int perrors)
 {
 	uint32_t   pktlen;
@@ -3296,7 +3298,7 @@ pgp_parse(pgp_stream_t *stream, const int perrors)
  * \param	tag	Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one individual signature subpacket tag
  * \param	type	Parse type
  * \todo Make all packet types optional, not just subpackets */
-void 
+void
 pgp_parse_options(pgp_stream_t *stream,
 		  pgp_content_enum tag,
 		  pgp_parse_type_t type)
@@ -3343,7 +3345,7 @@ pgp_parse_options(pgp_stream_t *stream,
 \ingroup Core_ReadPackets
 \brief Free pgp_stream_t struct and its contents
 */
-void 
+void
 pgp_stream_delete(pgp_stream_t *stream)
 {
 	pgp_cbdata_t	*cbinfo;
@@ -3381,7 +3383,7 @@ This is used when adding the first callback in a stack of callbacks.
 \sa pgp_callback_push()
 */
 
-void 
+void
 pgp_set_callback(pgp_stream_t *stream, pgp_cbfunc_t *cb, void *arg)
 {
 	stream->cbinfo.cbfunc = cb;
@@ -3394,7 +3396,7 @@ pgp_set_callback(pgp_stream_t *stream, pgp_cbfunc_t *cb, void *arg)
 \brief Adds a further callback to a stack of callbacks
 \sa pgp_set_callback()
 */
-void 
+void
 pgp_callback_push(pgp_stream_t *stream, pgp_cbfunc_t *cb, void *arg)
 {
 	pgp_cbdata_t	*cbinfo;
@@ -3434,7 +3436,7 @@ pgp_callback_errors(pgp_cbdata_t *cbinfo)
 \brief Calls the parse_cb_info's callback if present
 \return Return value from callback, if present; else PGP_FINISHED
 */
-pgp_cb_ret_t 
+pgp_cb_ret_t
 pgp_callback(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
 	return (cbinfo->cbfunc) ? cbinfo->cbfunc(pkt, cbinfo) : PGP_FINISHED;
@@ -3445,7 +3447,7 @@ pgp_callback(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 \brief Calls the next callback  in the stack
 \return Return value from callback
 */
-pgp_cb_ret_t 
+pgp_cb_ret_t
 pgp_stacked_callback(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
 	return pgp_callback(pkt, cbinfo->next);
