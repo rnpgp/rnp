@@ -182,7 +182,7 @@ std_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t byte
 static int 
 cast5_init(pgp_crypt_t *crypt)
 {
-        return std_init(crypt, "CAST-5");
+        return std_init(crypt, "CAST-128");
 }
 
 #define CAST_BLOCK 8
@@ -457,20 +457,24 @@ pgp_key_size(pgp_symm_alg_t alg)
 	return (p == NULL) ? 0 : (unsigned)p->keysize;
 }
 
-void 
+int
 pgp_encrypt_init(pgp_crypt_t *encrypt)
 {
 	/* \todo should there be a separate pgp_encrypt_init? */
-	pgp_decrypt_init(encrypt);
+        return pgp_decrypt_init(encrypt);
 }
 
-void 
+int
 pgp_decrypt_init(pgp_crypt_t *decrypt)
 {
-	decrypt->base_init(decrypt);
-	decrypt->block_encrypt(decrypt, decrypt->siv, decrypt->iv);
-	(void) memcpy(decrypt->civ, decrypt->siv, decrypt->blocksize);
-	decrypt->num = 0;
+        if(decrypt->base_init(decrypt) == 1)
+        {
+           decrypt->block_encrypt(decrypt, decrypt->siv, decrypt->iv);
+           (void) memcpy(decrypt->civ, decrypt->siv, decrypt->blocksize);
+           decrypt->num = 0;
+           return 1;
+        }
+        return 0;
 }
 
 size_t

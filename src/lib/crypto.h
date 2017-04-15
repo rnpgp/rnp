@@ -143,8 +143,9 @@ int pgp_decrypt_data(pgp_content_enum, pgp_region_t *,
 			pgp_stream_t *);
 
 int pgp_crypt_any(pgp_crypt_t *, pgp_symm_alg_t);
-void pgp_decrypt_init(pgp_crypt_t *);
-void pgp_encrypt_init(pgp_crypt_t *);
+int pgp_decrypt_init(pgp_crypt_t *);
+int pgp_encrypt_init(pgp_crypt_t *);
+
 size_t pgp_decrypt_se(pgp_crypt_t *, void *, const void *, size_t);
 size_t pgp_encrypt_se(pgp_crypt_t *, void *, const void *, size_t);
 size_t pgp_decrypt_se_ip(pgp_crypt_t *, void *, const void *, size_t);
