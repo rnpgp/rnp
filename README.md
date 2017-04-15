@@ -237,6 +237,32 @@ install_botan
 
 ```
 
+### Botan for not yet realeased branches
+
+Development branches may depend on Botan version which is not yet released (i.e. when adding support for new crypto algorithm). Not released branches of rnp should use following instructions to install Botan library.
+
+Install it into the container:
+
+```
+
+install_botan_dev() {
+  # TODO: Link to dev version of botan should probably be changed
+  BOTAN_DEV_GIT_REPO=https://github.com/flowher/botan.git
+  BOTAN_DEV_GIT_BRANCH=rnp_master
+
+  t=$(mktemp -d) \
+  && pushd ${t} \
+  && git clone --single-branch -b ${BOTAN_DEV_GIT_BRANCH} ${BOTAN_DEV_GIT_REPO} \
+  && pushd botan \
+  && ./configure.py --prefix=/usr/local \
+  && make \
+  && make install
+}
+install_botan_dev
+
+```
+
+
 ### Cmocka
 
 CMocka 1.1 is required to build and run tests.
