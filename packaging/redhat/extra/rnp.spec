@@ -14,12 +14,12 @@ Requires: rnpv = %{version}-%{release}
 %setup -q
 
 %description
-RNP is a PGP-compatible tool for encrypting, signing, decrypting, and
-verifying files, a fork from NetBSD's netpgp.
+RNP is a set of OpenPGP tools for encrypting, signing, decrypting, and
+verifying files enhanced, originally based on netpgp.
 
 %build
 autoreconf -ivf;
-%configure 
+%configure
 sed -i -e 's! -shared ! -Wl,--as-needed\0!g' libtool
 make;
 

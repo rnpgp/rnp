@@ -1,6 +1,6 @@
 # $NetBSD: Makefile.libtool.in,v 1.1 2014/03/09 00:15:45 agc Exp $
 
-LIB=	libnetpgpverify.a
+LIB=	librnpv.a
 
 OBJS= b64.o bignum.o bufgap.o digest.o
 OBJS+= libverify.o misc.o
@@ -22,9 +22,9 @@ ${LIB}: ${OBJS}
 	${LIBTOOL} --mode=compile --tag=CC ${CC} ${CFLAGS} -c $<
 
 install:
-	libtool --mode=install ${BSD_INSTALL_LIB} libnetpgpverify.la ${DESTDIR}${PREFIX}/lib
+	libtool --mode=install ${BSD_INSTALL_LIB} librnpv.la ${DESTDIR}${PREFIX}/lib
 	${BSD_INSTALL_DATA} verify.h ${DESTDIR}${PREFIX}/include/netpgp
-	${BSD_INSTALL_DATA} libnetpgpverify.3 ${DESTDIR}${PREFIX}/${PKGMANDIR}/man3
+	${BSD_INSTALL_DATA} librnpv.3 ${DESTDIR}${PREFIX}/${PKGMANDIR}/man3
 
 clean:
 	rm -rf *.core ${OBJS} ${LIB}

@@ -27,7 +27,7 @@ rnpkeys --generate-key --homedir=${keydir}
 =>
 
 ``` sh
-netpgp: generated keys in directory ${keydir}/6ed2d908150b82e7
+rnpkeys: generated keys in directory ${keydir}/6ed2d908150b82e7
 ```
 
 In case you're curious, `6ed2d...` is the key fingerprint.

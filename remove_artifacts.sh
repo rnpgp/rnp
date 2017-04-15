@@ -16,10 +16,10 @@ artifacts="
   src/lib/config.h.in
   src/lib/config.h.in~
   src/libmj/Makefile.in
-  src/netpgp/Makefile.in
-  src/netpgpkeys/Makefile.in
-  src/netpgpverify/Makefile.in
-  src/netpgpverify/config.h
+  src/rnp/Makefile.in
+  src/rnpkeys/Makefile.in
+  src/rnpv/Makefile.in
+  src/rnpv/config.h
   tests/Makefile.in
 "
 

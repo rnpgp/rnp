@@ -1,6 +1,6 @@
 # $NetBSD: Makefile.lib.in,v 1.1 2014/03/09 00:15:45 agc Exp $
 
-LIB=	libnetpgpverify.a
+LIB=	librnpv.a
 
 OBJS= b64.o bignum.o bufgap.o digest.o
 OBJS+= libverify.o misc.o
@@ -20,8 +20,8 @@ ${LIB}: ${OBJS}
 
 install:
 	${BSD_INSTALL_LIB} ${LIB} ${DESTDIR}${PREFIX}/lib
-	${BSD_INSTALL_DATA} verify.h ${DESTDIR}${PREFIX}/include/netpgp
-	${BSD_INSTALL_DATA} libnetpgpverify.3 ${DESTDIR}${PREFIX}/${PKGMANDIR}/man3
+	${BSD_INSTALL_DATA} verify.h ${DESTDIR}${PREFIX}/include/rnp
+	${BSD_INSTALL_DATA} librnpv.3 ${DESTDIR}${PREFIX}/${PKGMANDIR}/man3
 
 clean:
 	rm -rf *.core ${OBJS} ${LIB}
