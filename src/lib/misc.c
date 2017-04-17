@@ -76,15 +76,13 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include <unistd.h>
 #endif
 
-#ifdef HAVE_OPENSSL_RAND_H
-#include <openssl/rand.h>
-#endif
+#include <botan/ffi.h>
 
-#include <openssl/bn.h>
 
 #include "errors.h"
 #include "packet.h"
 #include "crypto.h"
+#include "bn.h"
 #include "create.h"
 #include "packet-parse.h"
 #include "packet-show.h"
@@ -427,7 +425,7 @@ hash_string(pgp_hash_t *hash, const uint8_t *buf, uint32_t len)
 
 /* hash a bignum, possibly padded - first length, then string itself */
 static int
-hash_bignum(pgp_hash_t *hash, BIGNUM *bignum)
+hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
 {
 	uint8_t	*bn;
 	size_t	 len;
@@ -834,7 +832,11 @@ pgp_str_to_cipher(const char *cipher)
 void
 pgp_random(void *dest, size_t length)
 {
-	RAND_bytes(dest, (int)length);
+        // todo should this be a global instead?
+        botan_rng_t rng;
+        botan_rng_init(&rng, NULL);
+        botan_rng_get(rng, dest, length);
+        botan_rng_destroy(rng);
 }
 
 /**

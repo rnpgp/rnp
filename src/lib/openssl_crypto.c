@@ -53,30 +53,6 @@
  */
 #include "config.h"
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
-#if defined(__NetBSD__)
-__COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights reserved.");
-__RCSID("$NetBSD: openssl_crypto.c,v 1.33 2010/11/07 08:39:59 agc Exp $");
-#endif
-
-#ifdef HAVE_OPENSSL_DSA_H
-#include <openssl/dsa.h>
-#endif
-
-#ifdef HAVE_OPENSSL_RSA_H
-#include <openssl/rsa.h>
-#endif
-
-#ifdef HAVE_OPENSSL_ERR_H
-#include <openssl/err.h>
-#endif
-
-#include <openssl/pem.h>
-#include <openssl/evp.h>
-
 #include <stdlib.h>
 #include <string.h>
 
@@ -90,63 +66,73 @@ __RCSID("$NetBSD: openssl_crypto.c,v 1.33 2010/11/07 08:39:59 agc Exp $");
 #include "rnpdefs.h"
 #include "rnpdigest.h"
 #include "packet.h"
+#include "bn.h"
+#include "rnpdigest.h"
 
+#include <botan/ffi.h>
+
+struct PGPV_BIGNUM_st {
+   botan_mp_t mp;
+};
+
+static int
+digest_init(pgp_hash_t *hash, const char *name)
+{
+	if (hash->data) {
+		(void) fprintf(stderr, "digest_init: %s hash data non-null\n", name);
+	}
+        botan_hash_t impl;
+        int rc = botan_hash_init(&impl, name, 0);
+        if (rc != 0) {
+                return 0;
+        }
+        hash->data = impl;
+        return 1; 
+}
 
 static void 
-test_seckey(const pgp_seckey_t *seckey)
+digest_add(pgp_hash_t *hash, const uint8_t *data, unsigned length)
 {
-	RSA            *test = RSA_new();
-
-	test->n = BN_dup(seckey->pubkey.key.rsa.n);
-	test->e = BN_dup(seckey->pubkey.key.rsa.e);
-
-	test->d = BN_dup(seckey->key.rsa.d);
-	test->p = BN_dup(seckey->key.rsa.p);
-	test->q = BN_dup(seckey->key.rsa.q);
-
-	if (RSA_check_key(test) != 1) {
-		(void) fprintf(stderr,
-			"test_seckey: RSA_check_key failed\n");
+	if (pgp_get_debug_level(__FILE__)) {
+		hexdump(stderr, "digest_add", data, length);
 	}
-	RSA_free(test);
+        botan_hash_update((botan_hash_t)hash->data, data, length); 
+}
+
+static unsigned 
+digest_finish(pgp_hash_t *hash, uint8_t *out)
+{
+        size_t outlen;
+        int rc = botan_hash_output_length((botan_hash_t)hash->data, &outlen);
+        if (rc != 0) {
+                (void) fprintf(stderr, "digest_finish botan_hash_output_length failed");
+                return 0;
+        }
+        rc = botan_hash_final(hash->data, out);
+        if (rc != 0) {
+                (void) fprintf(stderr, "digest_finish botan_hash_final failed");
+                return 0;
+        }
+	if (pgp_get_debug_level(__FILE__)) {
+		hexdump(stderr, "digest_finish", out, outlen);
+	}
+        botan_hash_destroy(hash->data);
+	hash->data = NULL;
+	return outlen;
 }
 
 static int 
 md5_init(pgp_hash_t *hash)
 {
-	if (hash->data) {
-		(void) fprintf(stderr, "md5_init: hash data non-null\n");
-	}
-	if ((hash->data = calloc(1, sizeof(MD5_CTX))) == NULL) {
-		(void) fprintf(stderr, "md5_init: bad alloc\n");
-		return 0;
-	}
-	MD5_Init(hash->data);
-	return 1;
-}
-
-static void 
-md5_add(pgp_hash_t *hash, const uint8_t *data, unsigned length)
-{
-	MD5_Update(hash->data, data, length);
-}
-
-static unsigned 
-md5_finish(pgp_hash_t *hash, uint8_t *out)
-{
-	MD5_Final(out, hash->data);
-	free(hash->data);
-	hash->data = NULL;
-	return 16;
+        return digest_init(hash, "MD5");
 }
 
 static const pgp_hash_t md5 = {
 	PGP_HASH_MD5,
-	MD5_DIGEST_LENGTH,
 	"MD5",
 	md5_init,
-	md5_add,
-	md5_finish,
+	digest_add,
+	digest_finish,
 	NULL
 };
 
@@ -164,45 +150,15 @@ pgp_hash_md5(pgp_hash_t *hash)
 static int 
 sha1_init(pgp_hash_t *hash)
 {
-	if (hash->data) {
-		(void) fprintf(stderr, "sha1_init: hash data non-null\n");
-	}
-	if ((hash->data = calloc(1, sizeof(SHA_CTX))) == NULL) {
-		(void) fprintf(stderr, "sha1_init: bad alloc\n");
-		return 0;
-	}
-	SHA1_Init(hash->data);
-	return 1;
-}
-
-static void 
-sha1_add(pgp_hash_t *hash, const uint8_t *data, unsigned length)
-{
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "sha1_add", data, length);
-	}
-	SHA1_Update(hash->data, data, length);
-}
-
-static unsigned 
-sha1_finish(pgp_hash_t *hash, uint8_t *out)
-{
-	SHA1_Final(out, hash->data);
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "sha1_finish", out, PGP_SHA1_HASH_SIZE);
-	}
-	free(hash->data);
-	hash->data = NULL;
-	return PGP_SHA1_HASH_SIZE;
+        return digest_init(hash, "SHA-1");
 }
 
 static const pgp_hash_t sha1 = {
 	PGP_HASH_SHA1,
-	PGP_SHA1_HASH_SIZE,
 	"SHA1",
 	sha1_init,
-	sha1_add,
-	sha1_finish,
+	digest_add,
+	digest_finish,
 	NULL
 };
 
@@ -220,45 +176,15 @@ pgp_hash_sha1(pgp_hash_t *hash)
 static int 
 sha256_init(pgp_hash_t *hash)
 {
-	if (hash->data) {
-		(void) fprintf(stderr, "sha256_init: hash data non-null\n");
-	}
-	if ((hash->data = calloc(1, sizeof(SHA256_CTX))) == NULL) {
-		(void) fprintf(stderr, "sha256_init: bad alloc\n");
-		return 0;
-	}
-	SHA256_Init(hash->data);
-	return 1;
-}
-
-static void 
-sha256_add(pgp_hash_t *hash, const uint8_t *data, unsigned length)
-{
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "sha256_add", data, length);
-	}
-	SHA256_Update(hash->data, data, length);
-}
-
-static unsigned 
-sha256_finish(pgp_hash_t *hash, uint8_t *out)
-{
-	SHA256_Final(out, hash->data);
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "sha1_finish", out, SHA256_DIGEST_LENGTH);
-	}
-	free(hash->data);
-	hash->data = NULL;
-	return SHA256_DIGEST_LENGTH;
+        return digest_init(hash, "SHA-256");
 }
 
 static const pgp_hash_t sha256 = {
 	PGP_HASH_SHA256,
-	SHA256_DIGEST_LENGTH,
 	"SHA256",
 	sha256_init,
-	sha256_add,
-	sha256_finish,
+	digest_add,
+	digest_finish,
 	NULL
 };
 
@@ -274,45 +200,15 @@ pgp_hash_sha256(pgp_hash_t *hash)
 static int 
 sha384_init(pgp_hash_t *hash)
 {
-	if (hash->data) {
-		(void) fprintf(stderr, "sha384_init: hash data non-null\n");
-	}
-	if ((hash->data = calloc(1, sizeof(SHA512_CTX))) == NULL) {
-		(void) fprintf(stderr, "sha384_init: bad alloc\n");
-		return 0;
-	}
-	SHA384_Init(hash->data);
-	return 1;
-}
-
-static void 
-sha384_add(pgp_hash_t *hash, const uint8_t *data, unsigned length)
-{
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "sha384_add", data, length);
-	}
-	SHA384_Update(hash->data, data, length);
-}
-
-static unsigned 
-sha384_finish(pgp_hash_t *hash, uint8_t *out)
-{
-	SHA384_Final(out, hash->data);
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "sha384_finish", out, SHA384_DIGEST_LENGTH);
-	}
-	free(hash->data);
-	hash->data = NULL;
-	return SHA384_DIGEST_LENGTH;
+        return digest_init(hash, "SHA-384");
 }
 
 static const pgp_hash_t sha384 = {
 	PGP_HASH_SHA384,
-	SHA384_DIGEST_LENGTH,
 	"SHA384",
 	sha384_init,
-	sha384_add,
-	sha384_finish,
+	digest_add,
+	digest_finish,
 	NULL
 };
 
@@ -328,45 +224,15 @@ pgp_hash_sha384(pgp_hash_t *hash)
 static int 
 sha512_init(pgp_hash_t *hash)
 {
-	if (hash->data) {
-		(void) fprintf(stderr, "sha512_init: hash data non-null\n");
-	}
-	if ((hash->data = calloc(1, sizeof(SHA512_CTX))) == NULL) {
-		(void) fprintf(stderr, "sha512_init: bad alloc\n");
-		return 0;
-	}
-	SHA512_Init(hash->data);
-	return 1;
-}
-
-static void 
-sha512_add(pgp_hash_t *hash, const uint8_t *data, unsigned length)
-{
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "sha512_add", data, length);
-	}
-	SHA512_Update(hash->data, data, length);
-}
-
-static unsigned 
-sha512_finish(pgp_hash_t *hash, uint8_t *out)
-{
-	SHA512_Final(out, hash->data);
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "sha512_finish", out, SHA512_DIGEST_LENGTH);
-	}
-	free(hash->data);
-	hash->data = NULL;
-	return SHA512_DIGEST_LENGTH;
+        return digest_init(hash, "SHA-512");
 }
 
 static const pgp_hash_t sha512 = {
 	PGP_HASH_SHA512,
-	SHA512_DIGEST_LENGTH,
 	"SHA512",
 	sha512_init,
-	sha512_add,
-	sha512_finish,
+        digest_add,
+	digest_finish,
 	NULL
 };
 
@@ -383,45 +249,15 @@ pgp_hash_sha512(pgp_hash_t *hash)
 static int 
 sha224_init(pgp_hash_t *hash)
 {
-	if (hash->data) {
-		(void) fprintf(stderr, "sha224_init: hash data non-null\n");
-	}
-	if ((hash->data = calloc(1, sizeof(SHA256_CTX))) == NULL) {
-		(void) fprintf(stderr, "sha256_init: bad alloc\n");
-		return 0;
-	}
-	SHA224_Init(hash->data);
-	return 1;
-}
-
-static void 
-sha224_add(pgp_hash_t *hash, const uint8_t *data, unsigned length)
-{
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "sha224_add", data, length);
-	}
-	SHA224_Update(hash->data, data, length);
-}
-
-static unsigned 
-sha224_finish(pgp_hash_t *hash, uint8_t *out)
-{
-	SHA224_Final(out, hash->data);
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "sha224_finish", out, SHA224_DIGEST_LENGTH);
-	}
-	free(hash->data);
-	hash->data = NULL;
-	return SHA224_DIGEST_LENGTH;
+        return digest_init(hash, "SHA-224");
 }
 
 static const pgp_hash_t sha224 = {
 	PGP_HASH_SHA224,
-	SHA224_DIGEST_LENGTH,
 	"SHA224",
 	sha224_init,
-	sha224_add,
-	sha224_finish,
+	digest_add,
+	digest_finish,
 	NULL
 };
 
@@ -436,44 +272,28 @@ pgp_dsa_verify(const uint8_t *hash, size_t hash_length,
 	       const pgp_dsa_sig_t *sig,
 	       const pgp_dsa_pubkey_t *dsa)
 {
-	unsigned	qlen;
-	DSA_SIG        *osig;
-	DSA            *odsa;
-	int             ret;
+   botan_pubkey_t dsa_key;
+   botan_pk_op_verify_t verify_op;
+   uint8_t* encoded_signature = NULL;
+   size_t q_bytes = 0;
+   unsigned int valid;
 
-	osig = DSA_SIG_new();
-	osig->r = sig->r;
-	osig->s = sig->s;
+   botan_pubkey_load_dsa(&dsa_key, dsa->p->mp, dsa->q->mp, dsa->g->mp, dsa->y->mp);
 
-	odsa = DSA_new();
-	odsa->p = dsa->p;
-	odsa->q = dsa->q;
-	odsa->g = dsa->g;
-	odsa->pub_key = dsa->y;
+   botan_mp_num_bytes(dsa->q->mp, &q_bytes);
 
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "input hash", hash, hash_length);
-		(void) fprintf(stderr, "Q=%d\n", BN_num_bytes(odsa->q));
-	}
-	if ((qlen = (unsigned)BN_num_bytes(odsa->q)) < hash_length) {
-		hash_length = qlen;
-	}
-	ret = DSA_do_verify(hash, (int)hash_length, osig, odsa);
-	if (pgp_get_debug_level(__FILE__)) {
-		(void) fprintf(stderr, "ret=%d\n", ret);
-	}
-	if (ret < 0) {
-		(void) fprintf(stderr, "pgp_dsa_verify: DSA verification\n");
-		return 0;
-	}
+   encoded_signature = calloc(2, q_bytes);
+   // sig->r, sig->s -> signature
 
-	odsa->p = odsa->q = odsa->g = odsa->pub_key = NULL;
-	DSA_free(odsa);
+   botan_pk_op_verify_create(&verify_op, dsa_key, "Raw", 0);
+   botan_pk_op_verify_update(verify_op, hash, hash_length);
+   valid = (botan_pk_op_verify_finish(verify_op, encoded_signature, 2*q_bytes) == 0);
+   botan_pk_op_verify_destroy(verify_op);
+   botan_pubkey_destroy(dsa_key);
 
-	osig->r = osig->s = NULL;
-	DSA_SIG_free(osig);
+   free(encoded_signature);
 
-	return (unsigned)ret;
+   return valid;
 }
 
 /**
@@ -491,19 +311,26 @@ pgp_rsa_public_decrypt(uint8_t *out,
 			size_t length,
 			const pgp_rsa_pubkey_t *pubkey)
 {
-	RSA            *orsa;
-	int             n;
+        size_t out_bytes = 0;
+        size_t n_bytes = 0;
+        botan_mp_t output, msg;
 
-	orsa = RSA_new();
-	orsa->n = pubkey->n;
-	orsa->e = pubkey->e;
+        botan_mp_init(&msg);
+        botan_mp_from_bin(msg, in, length);
 
-	n = RSA_public_decrypt((int)length, in, out, orsa, RSA_NO_PADDING);
+        botan_mp_init(&output);
+        botan_mp_powmod(output, msg, pubkey->e->mp, pubkey->n->mp);
 
-	orsa->n = orsa->e = NULL;
-	RSA_free(orsa);
+        // Handle any necessary zero padding
+        botan_mp_num_bytes(output, &out_bytes);
+        botan_mp_num_bytes(pubkey->n->mp, &n_bytes);
 
-	return n;
+        if(n_bytes < out_bytes)
+           return 0;
+
+        botan_mp_to_bin(output, out + (n_bytes - out_bytes));
+
+        return n_bytes;
 }
 
 /**
@@ -519,40 +346,49 @@ pgp_rsa_public_decrypt(uint8_t *out,
 int 
 pgp_rsa_private_encrypt(uint8_t *out,
 			const uint8_t *in,
-			size_t length,
+			size_t in_length,
 			const pgp_rsa_seckey_t *seckey,
-			const pgp_rsa_pubkey_t *pubkey)
+			const pgp_rsa_pubkey_t * pubkey)
 {
-	RSA            *orsa;
-	int             n;
 
-	orsa = RSA_new();
-	orsa->n = BN_dup(pubkey->n);
-	orsa->d = seckey->d;
-	orsa->p = seckey->q;	/* p and q are round the other way in openssl */
-	orsa->q = seckey->p;
+   botan_privkey_t rsa_key;
+   botan_pk_op_sign_t sign_op;
+   botan_rng_t rng;
+   size_t out_length;
 
-	/* debug */
-	orsa->e = BN_dup(pubkey->e);
-	/* If this isn't set, it's very likely that the programmer hasn't */
-	/* decrypted the secret key. RSA_check_key segfaults in that case. */
-	/* Use pgp_decrypt_seckey() to do that. */
-	if (orsa->d == NULL) {
-		(void) fprintf(stderr, "orsa is not set\n");
-		return 0;
-	}
-	if (RSA_check_key(orsa) != 1) {
-		(void) fprintf(stderr, "RSA_check_key is not set\n");
-		return 0;
-	}
-	/* end debug */
+   if(seckey->q == NULL)
+   {
+      (void) fprintf(stderr, "private key not set in pgp_rsa_private_encrypt\n");
+      return 0;
+   }
 
-	n = RSA_private_encrypt((int)length, in, out, orsa, RSA_NO_PADDING);
+   botan_rng_init(&rng, NULL);
 
-	orsa->n = orsa->d = orsa->p = orsa->q = NULL;
-	RSA_free(orsa);
+   /* p and q are reversed from normal usage in PGP */
+   botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, seckey->d->mp);
 
-	return n;
+   if(botan_privkey_check_key(rsa_key, rng, 0) != 0)
+   {
+      botan_privkey_destroy(rsa_key);
+      botan_rng_destroy(rng);
+      return 0;
+   }
+
+   if(botan_pk_op_sign_create(&sign_op, rsa_key, "Raw", 0) != 0)
+   {
+      botan_privkey_destroy(rsa_key);
+      botan_rng_destroy(rng);
+      return 0;
+   }
+
+   botan_pk_op_sign_update(sign_op, in, in_length);
+   botan_pk_op_sign_finish(sign_op, rng, out, &out_length);
+
+   botan_pk_op_sign_destroy(sign_op);
+   botan_privkey_destroy(rsa_key);
+   botan_rng_destroy(rng);
+
+   return (int)out_length;
 }
 
 /**
@@ -572,41 +408,32 @@ pgp_rsa_private_decrypt(uint8_t *out,
 			const pgp_rsa_seckey_t *seckey,
 			const pgp_rsa_pubkey_t *pubkey)
 {
-	RSA            *keypair;
-	int             n;
-	char            errbuf[1024];
+   botan_privkey_t rsa_key;
+   botan_rng_t rng;
+   botan_pk_op_decrypt_t decrypt_op;
+   size_t out_len = RNP_BUFSIZ; // in pgp_decrypt_decode_mpi
 
-	keypair = RSA_new();
-	keypair->n = pubkey->n;	/* XXX: do we need n? */
-	keypair->d = seckey->d;
-	keypair->p = seckey->q;
-	keypair->q = seckey->p;
+   botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, pubkey->e->mp);
 
-	/* debug */
-	keypair->e = pubkey->e;
-	if (RSA_check_key(keypair) != 1) {
-		(void) fprintf(stderr, "RSA_check_key is not set\n");
-		return 0;
-	}
-	/* end debug */
+   botan_rng_init(&rng, NULL);
+   if(botan_privkey_check_key(rsa_key, rng, 0) != 0)
+   {
+      botan_rng_destroy(rng);
+      botan_privkey_destroy(rsa_key);
+      return 0;
+   }
 
-	n = RSA_private_decrypt((int)length, in, out, keypair, RSA_NO_PADDING);
+   botan_pk_op_decrypt_create(&decrypt_op, rsa_key, "Raw", 0);
 
-	if (pgp_get_debug_level(__FILE__)) {
-		printf("pgp_rsa_private_decrypt: n=%d\n",n);
-	}
+   if(botan_pk_op_decrypt(decrypt_op, out, &out_len, (uint8_t*)in, length) != 0)
+   {
+      out_len = 0;
+   }
 
-	errbuf[0] = '\0';
-	if (n == -1) {
-		unsigned long   err = ERR_get_error();
-
-		ERR_error_string(err, &errbuf[0]);
-		(void) fprintf(stderr, "openssl error : %s\n", errbuf);
-	}
-	keypair->n = keypair->d = keypair->p = keypair->q = NULL;
-	RSA_free(keypair);
-
-	return n;
+   botan_rng_destroy(rng);
+   botan_privkey_destroy(rsa_key);
+   botan_pk_op_decrypt_destroy(decrypt_op);
+   return (int)out_len;
 }
 
 /**
@@ -623,30 +450,34 @@ pgp_rsa_public_encrypt(uint8_t *out,
 			size_t length,
 			const pgp_rsa_pubkey_t *pubkey)
 {
-	RSA            *orsa;
-	int             n;
 
-	/* printf("pgp_rsa_public_encrypt: length=%ld\n", length); */
+   botan_pubkey_t rsa_key;
+   botan_pk_op_encrypt_t enc_op;
 
-	orsa = RSA_new();
-	orsa->n = pubkey->n;
-	orsa->e = pubkey->e;
+   botan_rng_t rng;
 
-	/* printf("len: %ld\n", length); */
-	/* pgp_print_bn("n: ", orsa->n); */
-	/* pgp_print_bn("e: ", orsa->e); */
-	n = RSA_public_encrypt((int)length, in, out, orsa, RSA_NO_PADDING);
+   botan_rng_init(&rng, NULL);
 
-	if (n == -1) {
-		BIO            *fd_out;
+   botan_pubkey_load_rsa(&rsa_key, pubkey->n->mp, pubkey->e->mp);
 
-		fd_out = BIO_new_fd(fileno(stderr), BIO_NOCLOSE);
-		ERR_print_errors(fd_out);
-	}
-	orsa->n = orsa->e = NULL;
-	RSA_free(orsa);
+   if (botan_pubkey_check_key(rsa_key, rng, 1) != 0)
+   {
+      return -1;
+   }
 
-	return n;
+   botan_pk_op_encrypt_create(&enc_op, rsa_key, "Raw", 0);
+
+   size_t out_len = RNP_BUFSIZ; // in pgp_rsa_encrypt_mpi
+   if(botan_pk_op_encrypt(enc_op, rng, out, &out_len, in, length) != 0)
+   {
+      return -1;
+   }
+
+   botan_pk_op_encrypt_destroy(enc_op);
+   botan_pubkey_destroy(rsa_key);
+   botan_rng_destroy(rng);
+
+   return (int)out_len;
 }
 
 /**
@@ -658,8 +489,7 @@ pgp_rsa_public_encrypt(uint8_t *out,
 void 
 pgp_crypto_finish(void)
 {
-	CRYPTO_cleanup_all_ex_data();
-	ERR_remove_state((unsigned long)0);
+   // No op
 }
 
 /**
@@ -673,6 +503,19 @@ pgp_text_from_hash(pgp_hash_t *hash)
 {
 	return hash->name;
 }
+
+/**
+* Create a new BIGNUM wrapper but just borrow an existing object
+*/
+static BIGNUM* new_BN_take_mp(botan_mp_t mp)
+{
+   PGPV_BIGNUM	*a;
+
+   a = calloc(1, sizeof(*a));
+   a->mp = mp;
+   return a;
+}
+
 
 /**
  \ingroup HighLevel_KeyGenerate
@@ -691,18 +534,32 @@ rsa_generate_keypair(pgp_key_t *keydata,
 			const char *cipher)
 {
 	pgp_seckey_t *seckey;
-	RSA            *rsa;
-	BN_CTX         *ctx;
 	pgp_output_t *output;
 	pgp_memory_t   *mem;
+        botan_privkey_t rsa_key;
+        botan_rng_t rng;
+        botan_mp_t rsa_n, rsa_e, rsa_d, rsa_p, rsa_q, rsa_u;
 
-	ctx = BN_CTX_new();
 	pgp_keydata_init(keydata, PGP_PTAG_CT_SECRET_KEY);
 	seckey = pgp_get_writable_seckey(keydata);
 
 	/* generate the key pair */
 
-	rsa = RSA_generate_key(numbits, e, NULL, NULL);
+        if(e != 65537)
+        {
+           fprintf(stderr, "Unexpected RSA e value %zu, key generation failed\n", e);
+           return 0;
+        }
+
+        if(botan_rng_init(&rng, NULL) != 0)
+           return 0;
+        if(botan_privkey_create_rsa(&rsa_key, rng, numbits) != 0)
+           return 0;
+
+        if(botan_privkey_check_key(rsa_key, rng, 1) != 0)
+           return 0;
+
+        botan_rng_destroy(rng);
 
 	/* populate pgp key from ssl key */
 
@@ -711,8 +568,14 @@ rsa_generate_keypair(pgp_key_t *keydata,
 	seckey->pubkey.days_valid = 0;
 	seckey->pubkey.alg = PGP_PKA_RSA;
 
-	seckey->pubkey.key.rsa.n = BN_dup(rsa->n);
-	seckey->pubkey.key.rsa.e = BN_dup(rsa->e);
+        botan_mp_init(&rsa_n);
+        botan_mp_init(&rsa_e);
+        botan_privkey_rsa_get_n(rsa_n, rsa_key);
+        botan_privkey_rsa_get_e(rsa_e, rsa_key);
+
+        // not released by this function
+	seckey->pubkey.key.rsa.n = new_BN_take_mp(rsa_n);
+	seckey->pubkey.key.rsa.e = new_BN_take_mp(rsa_e);
 
 	seckey->s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
 	seckey->s2k_specifier = PGP_S2KS_SALTED;
@@ -724,17 +587,25 @@ rsa_generate_keypair(pgp_key_t *keydata,
 	seckey->octetc = 0;
 	seckey->checksum = 0;
 
-	seckey->key.rsa.d = BN_dup(rsa->d);
-	seckey->key.rsa.p = BN_dup(rsa->p);
-	seckey->key.rsa.q = BN_dup(rsa->q);
-	seckey->key.rsa.u = BN_mod_inverse(NULL, rsa->p, rsa->q, ctx);
-	if (seckey->key.rsa.u == NULL) {
-		(void) fprintf(stderr, "seckey->key.rsa.u is NULL\n");
-		return 0;
-	}
-	BN_CTX_free(ctx);
+        botan_mp_init(&rsa_d);
+        botan_mp_init(&rsa_p);
+        botan_mp_init(&rsa_q);
+        botan_mp_init(&rsa_u);
 
-	RSA_free(rsa);
+        botan_privkey_rsa_get_p(rsa_p, rsa_key);
+        botan_privkey_rsa_get_q(rsa_q, rsa_key);
+        botan_privkey_rsa_get_d(rsa_d, rsa_key);
+
+        if(botan_mp_mod_inverse(rsa_u, rsa_p, rsa_q) != 0 || botan_mp_is_zero(rsa_u))
+        {
+           fprintf(stderr, "Error computing RSA u param\n");
+           return 0;
+        }
+
+	seckey->key.rsa.d = new_BN_take_mp(rsa_d);
+	seckey->key.rsa.p = new_BN_take_mp(rsa_p);
+	seckey->key.rsa.q = new_BN_take_mp(rsa_q);
+	seckey->key.rsa.u = new_BN_take_mp(rsa_u);
 
 	pgp_keyid(keydata->sigid, PGP_KEY_ID_SIZE, &keydata->key.seckey.pubkey, seckey->hash_alg);
 	pgp_fingerprint(&keydata->sigfingerprint, &keydata->key.seckey.pubkey, seckey->hash_alg);
@@ -774,11 +645,6 @@ rsa_generate_keypair(pgp_key_t *keydata,
 	pgp_teardown_memory_write(output, mem);
 
 	/* should now have checksum in seckey struct */
-
-	/* test */
-	if (pgp_get_debug_level(__FILE__)) {
-		test_seckey(seckey);
-	}
 
 	return 1;
 }
@@ -829,70 +695,149 @@ pgp_rsa_new_key(const int numbits,
 	return keydata;
 }
 
+void DSA_SIG_free(DSA_SIG* sig)
+{
+   BN_clear_free(sig->r);
+   BN_clear_free(sig->s);
+   free(sig);
+}
+
 DSA_SIG        *
 pgp_dsa_sign(uint8_t *hashbuf,
 		unsigned hashsize,
 		const pgp_dsa_seckey_t *secdsa,
 		const pgp_dsa_pubkey_t *pubdsa)
 {
-	DSA_SIG        *dsasig;
-	DSA            *odsa;
+   botan_privkey_t dsa_key;
+   botan_pk_op_sign_t sign_op;
+   botan_rng_t rng;
+   size_t q_bytes = 0;
+   size_t sigbuf_size = 0;
+   uint8_t* sigbuf = NULL;
+   DSA_SIG* ret;
 
-	odsa = DSA_new();
-	odsa->p = pubdsa->p;
-	odsa->q = pubdsa->q;
-	odsa->g = pubdsa->g;
-	odsa->pub_key = pubdsa->y;
-	odsa->priv_key = secdsa->x;
+   botan_privkey_load_dsa(&dsa_key, pubdsa->p->mp, pubdsa->q->mp, pubdsa->g->mp, secdsa->x->mp);
 
-	dsasig = DSA_do_sign(hashbuf, (int)hashsize, odsa);
+   botan_rng_init(&rng, NULL);
 
-	odsa->p = odsa->q = odsa->g = odsa->pub_key = odsa->priv_key = NULL;
-	DSA_free(odsa);
+   botan_pk_op_sign_create(&sign_op, dsa_key, "Raw", 0);
+   botan_pk_op_sign_update(sign_op, hashbuf, hashsize);
 
-	return dsasig;
+   botan_mp_num_bytes(pubdsa->q->mp, &q_bytes);
+   sigbuf_size = q_bytes * 2;
+   sigbuf = calloc(sigbuf_size, 1);
+
+   botan_pk_op_sign_finish(sign_op, rng, sigbuf, &sigbuf_size);
+   botan_rng_destroy(rng);
+
+   botan_pk_op_sign_destroy(sign_op);
+   botan_privkey_destroy(dsa_key);
+
+   // Now load the DSA (r,s) values from the signature
+   ret = calloc(1, sizeof(DSA_SIG));
+   botan_mp_init(&(ret->r->mp));
+   botan_mp_init(&(ret->s->mp));
+
+   botan_mp_from_bin(ret->r->mp, sigbuf, q_bytes);
+   botan_mp_from_bin(ret->s->mp, sigbuf + q_bytes, q_bytes);
+
+   return ret;
+
 }
 
 int
 openssl_read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
 {
+        uint8_t keybuf[RNP_BUFSIZ] = { 0 };
 	FILE	*fp;
 	char	 prompt[BUFSIZ];
 	char	*pass;
-	DSA	*dsa;
-	RSA	*rsa;
 	int	 ok;
+        size_t read;
 
-	OpenSSL_add_all_algorithms();
+        botan_rng_t rng;
+
+        // TODO
 	if ((fp = fopen(f, "r")) == NULL) {
 		if (verbose) {
 			(void) fprintf(stderr, "can't open '%s'\n", f);
 		}
 		return 0;
 	}
-	ok = 1;
-	if (strcmp(type, "ssh-rsa") == 0) {
-		if ((rsa = PEM_read_RSAPrivateKey(fp, NULL, NULL, NULL)) == NULL) {
-			(void) snprintf(prompt, sizeof(prompt), "rnp PEM %s passphrase: ", f);
-			do {
-				pass = getpass(prompt);
-				rsa = PEM_read_RSAPrivateKey(fp, NULL, NULL, pass);
-			} while (rsa == NULL);
-		}
-		key->key.seckey.key.rsa.d = rsa->d;
-		key->key.seckey.key.rsa.p = rsa->p;
-		key->key.seckey.key.rsa.q = rsa->q;
-		key->key.seckey.key.rsa.d = rsa->d;
-	} else if (strcmp(type, "ssh-dss") == 0) {
-		if ((dsa = PEM_read_DSAPrivateKey(fp, NULL, NULL, NULL)) == NULL) {
-			ok = 0;
-		} else {
-			key->key.seckey.key.dsa.x = dsa->priv_key;
-		}
-	} else {
-		ok = 0;
-	}
+
+        read = fread(keybuf, 1, RNP_BUFSIZ, fp);
+
+        if(!feof(fp))
+        {
+           return 0;
+        }
 	(void) fclose(fp);
+
+        botan_rng_init(&rng, NULL);
+
+	if (strcmp(type, "ssh-rsa") == 0)
+        {
+           botan_privkey_t priv_key;
+           if(botan_privkey_load(&priv_key, rng, keybuf, read, NULL) != 0)
+           {
+              (void) snprintf(prompt, sizeof(prompt), "rnp PEM %s passphrase: ", f);
+              for(;;)
+              {
+                 pass = getpass(prompt);
+
+                 if(botan_privkey_load(&priv_key, rng, keybuf, read, pass) == 0)
+                    break;
+              }
+           }
+
+           if(botan_privkey_check_key(priv_key, rng, 0) != 0)
+           {
+              botan_rng_destroy(rng);
+              botan_privkey_destroy(priv_key);
+              return 0;
+           }
+
+           {
+           botan_mp_t x;
+           botan_mp_init(&x);
+           botan_privkey_get_field(x, priv_key, "d");
+           key->key.seckey.key.rsa.d = new_BN_take_mp(x);
+
+           botan_mp_init(&x);
+           botan_privkey_get_field(x, priv_key, "p");
+           key->key.seckey.key.rsa.p = new_BN_take_mp(x);
+
+           botan_mp_init(&x);
+           botan_privkey_get_field(x, priv_key, "q");
+           key->key.seckey.key.rsa.q = new_BN_take_mp(x);
+           botan_privkey_destroy(priv_key);
+           ok = 1;
+           }
+        }
+        else if (strcmp(type, "ssh-dss") == 0)
+        {
+           botan_privkey_t priv_key;
+           if(botan_privkey_load(&priv_key, rng, keybuf, read, NULL) != 0)
+           {
+              ok = 0;
+           }
+           else
+           {
+              botan_mp_t x;
+              botan_mp_init(&x);
+              botan_privkey_get_field(x, priv_key, "x");
+              key->key.seckey.key.dsa.x = new_BN_take_mp(x);
+              botan_privkey_destroy(priv_key);
+              ok = 1;
+           }
+	}
+        else
+        {
+           ok = 0;
+	}
+
+        botan_rng_destroy(rng);
+
 	return ok;
 }
 
@@ -954,6 +899,7 @@ pgp_elgamal_public_encrypt(uint8_t *g_to_k, uint8_t *encm,
 	if (!BN_rand(k, k_bits, 0, 0)) {
 		goto done;
 	}
+
 	/*
 	 * c1 = g^k c2 = m * y^k
 	 */
@@ -986,9 +932,6 @@ done:
 	}
 	if (k) {
 		BN_clear_free(k);
-	}
-	if (g) {
-		BN_clear_free(g);
 	}
 	return ret;
 }
@@ -1051,12 +994,6 @@ done:
 	}
 	if (c1x) {
 		BN_clear_free(c1x);
-	}
-	if (x) {
-		BN_clear_free(x);
-	}
-	if (p) {
-		BN_clear_free(p);
 	}
 	if (c1) {
 		BN_clear_free(c1);

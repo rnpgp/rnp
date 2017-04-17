@@ -61,8 +61,8 @@
 #include "pgpsum.h"
 #include "verify.h"
 #include "platform.h"
+#include "bn.h"
 
-#include <openssl/bn.h>
 
 #ifndef USE_ARG
 #define USE_ARG(x)	/*LINTED*/(void)&(x)

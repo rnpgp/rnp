@@ -1,4 +1,8 @@
-AM_CFLAGS		= $(WARNCFLAGS)
+## $NetBSD: Makefile.am,v 1.10 2010/11/29 06:21:40 agc Exp $
+
+AM_CFLAGS		= $(WARNCFLAGS) $(BOTAN_INCLUDES)
+
+AM_LDFLAGS              = $(BOTAN_LDFLAGS)
 
 lib_LTLIBRARIES		= librnp.la
 
@@ -6,6 +10,7 @@ librnp_la_CPPFLAGS	= -I$(top_srcdir)/include -I$(top_srcdir)/src/libmj
 
 librnp_la_SOURCES	= \
 	bufgap.c \
+	bn.c \
 	compress.c \
 	create.c \
 	crypto.c \
@@ -23,6 +28,6 @@ librnp_la_SOURCES	= \
 	validate.c \
 	writer.c
 
-librnp_la_LIBADD	= ../libmj/libmj.la
+librnp_la_LIBADD	= ../libmj/libmj.la $(BOTAN_LIBS)
 
 dist_man_MANS		= librnp.3

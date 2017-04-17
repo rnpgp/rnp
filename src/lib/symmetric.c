@@ -59,34 +59,15 @@ __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights rese
 __RCSID("$NetBSD: symmetric.c,v 1.18 2010/11/07 08:39:59 agc Exp $");
 #endif
 
-#include "crypto.h"
-#include "packet-show.h"
 
 #include <string.h>
+#include <stdlib.h>
 
-#ifdef HAVE_OPENSSL_CAST_H
-#include <openssl/cast.h>
-#endif
-
-#ifdef HAVE_OPENSSL_IDEA_H
-#include <openssl/idea.h>
-#endif
-
-#ifdef HAVE_OPENSSL_AES_H
-#include <openssl/aes.h>
-#endif
-
-#ifdef HAVE_OPENSSL_DES_H
-#include <openssl/des.h>
-#endif
-
-#ifdef HAVE_OPENSSL_CAMELLIA_H
-#include <openssl/camellia.h>
-#endif
+#include <botan/ffi.h>
 
 #include "crypto.h"
+#include "packet-show.h"
 #include "rnpdefs.h"
-
 
 static void 
 std_set_iv(pgp_crypt_t *crypt, const uint8_t *iv)
@@ -118,64 +99,94 @@ std_resync(pgp_crypt_t *decrypt)
 static void 
 std_finish(pgp_crypt_t *crypt)
 {
-	if (crypt->encrypt_key) {
-		free(crypt->encrypt_key);
-		crypt->encrypt_key = NULL;
-	}
-	if (crypt->decrypt_key) {
-		free(crypt->decrypt_key);
-		crypt->decrypt_key = NULL;
+	if (crypt->block_cipher_obj) {
+		free(crypt->block_cipher_obj);
+		crypt->block_cipher_obj = NULL;
 	}
 }
 
 static int 
-cast5_init(pgp_crypt_t *crypt)
+std_init(pgp_crypt_t *crypt, const char* cipher_name)
 {
-	if (crypt->encrypt_key) {
-		free(crypt->encrypt_key);
+	if (crypt->block_cipher_obj)
+        {
+           botan_block_cipher_destroy(crypt->block_cipher_obj);
 	}
-	if ((crypt->encrypt_key = calloc(1, sizeof(CAST_KEY))) == NULL) {
-		(void) fprintf(stderr, "cast5_init: alloc failure\n");
-		return 0;
-	}
-	CAST_set_key(crypt->encrypt_key, (int)crypt->keysize, crypt->key);
-	if ((crypt->decrypt_key = calloc(1, sizeof(CAST_KEY))) == NULL) {
-		(void) fprintf(stderr, "cast5_init: alloc failure\n");
-		return 0;
-	}
-	CAST_set_key(crypt->decrypt_key, (int)crypt->keysize, crypt->key);
+
+        int rc = botan_block_cipher_init(&(crypt->block_cipher_obj), cipher_name);
+        if (rc != 0)
+        {
+           (void) fprintf(stderr, "Block cipher '%s' not available %d\n", cipher_name, rc);
+           return 0;
+        }
+
+        if (botan_block_cipher_set_key(crypt->block_cipher_obj, crypt->key, crypt->keysize))
+        {
+           (void) fprintf(stderr, "failure setting key\n");
+           return 0;
+        }
 	return 1;
 }
 
 static void 
-cast5_block_encrypt(pgp_crypt_t *crypt, void *out, const void *in)
+std_block_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in)
 {
-	CAST_ecb_encrypt(in, out, crypt->encrypt_key, CAST_ENCRYPT);
+   botan_block_cipher_encrypt_blocks(crypt->block_cipher_obj, in, out, 1);
 }
 
 static void 
-cast5_block_decrypt(pgp_crypt_t *crypt, void *out, const void *in)
+std_block_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in)
 {
-	CAST_ecb_encrypt(in, out, crypt->encrypt_key, CAST_DECRYPT);
+   botan_block_cipher_decrypt_blocks(crypt->block_cipher_obj, in, out, 1);
+}
+
+static void
+std_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
+{
+   for(size_t i = 0; i < bytes; ++i)
+   {
+      if (crypt->num == 0)
+      {
+         botan_block_cipher_encrypt_blocks(crypt->block_cipher_obj, crypt->iv, crypt->iv, 1);
+      }
+      out[i] = in[i] ^ crypt->iv[crypt->num];
+      crypt->iv[crypt->num] = out[i];
+
+      crypt->num = (crypt->num + 1) % crypt->blocksize;
+   }
 }
 
 static void 
-cast5_cfb_encrypt(pgp_crypt_t *crypt, void *out, const void *in, size_t count)
+std_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
 {
-	CAST_cfb64_encrypt(in, out, (long)count,
-			   crypt->encrypt_key, crypt->iv, &crypt->num,
-			   CAST_ENCRYPT);
+   for(size_t i = 0; i < bytes; ++i)
+   {
+      uint8_t ciphertext = in[i];
+
+      if (crypt->num == 0)
+      {
+         botan_block_cipher_encrypt_blocks(crypt->block_cipher_obj, crypt->iv, crypt->iv, 1);
+      }
+
+      out[i] = in[i] ^ crypt->iv[crypt->num];
+      crypt->iv[crypt->num] = ciphertext;
+
+      crypt->num = (crypt->num + 1) % crypt->blocksize;
+   }
 }
 
-static void 
-cast5_cfb_decrypt(pgp_crypt_t *crypt, void *out, const void *in, size_t count)
+#define TRAILER		"","","","",0,NULL
+
+#if defined(BOTAN_HAS_CAST)
+
+static int 
+cast5_init(pgp_crypt_t *crypt)
 {
-	CAST_cfb64_encrypt(in, out, (long)count,
-			   crypt->encrypt_key, crypt->iv, &crypt->num,
-			   CAST_DECRYPT);
+        return std_init(crypt, "CAST-128");
 }
 
-#define TRAILER		"","","","",0,NULL,NULL
+#define CAST_BLOCK 8
+#define CAST_KEY_LENGTH 16
 
 static pgp_crypt_t cast5 =
 {
@@ -186,73 +197,26 @@ static pgp_crypt_t cast5 =
 	std_set_key,
 	cast5_init,
 	std_resync,
-	cast5_block_encrypt,
-	cast5_block_decrypt,
-	cast5_cfb_encrypt,
-	cast5_cfb_decrypt,
+	std_block_encrypt,
+	std_block_decrypt,
+	std_cfb_encrypt,
+	std_cfb_decrypt,
 	std_finish,
 	TRAILER
 };
 
-#ifndef OPENSSL_NO_IDEA
+#endif
+
+#if defined(BOTAN_HAS_IDEA)
+
 static int 
 idea_init(pgp_crypt_t *crypt)
 {
-	if (crypt->keysize != IDEA_KEY_LENGTH) {
-		(void) fprintf(stderr, "idea_init: keysize wrong\n");
-		return 0;
-	}
-
-	if (crypt->encrypt_key) {
-		free(crypt->encrypt_key);
-	}
-	if ((crypt->encrypt_key = calloc(1, sizeof(IDEA_KEY_SCHEDULE))) == NULL) {
-		(void) fprintf(stderr, "idea_init: alloc failure\n");
-		return 0;
-	}
-
-	/* note that we don't invert the key when decrypting for CFB mode */
-	idea_set_encrypt_key(crypt->key, crypt->encrypt_key);
-
-	if (crypt->decrypt_key) {
-		free(crypt->decrypt_key);
-	}
-	if ((crypt->decrypt_key = calloc(1, sizeof(IDEA_KEY_SCHEDULE))) == NULL) {
-		(void) fprintf(stderr, "idea_init: alloc failure\n");
-		return 0;
-	}
-
-	idea_set_decrypt_key(crypt->encrypt_key, crypt->decrypt_key);
-	return 1;
+        return std_init(crypt, "IDEA");
 }
 
-static void 
-idea_block_encrypt(pgp_crypt_t *crypt, void *out, const void *in)
-{
-	idea_ecb_encrypt(in, out, crypt->encrypt_key);
-}
-
-static void 
-idea_block_decrypt(pgp_crypt_t *crypt, void *out, const void *in)
-{
-	idea_ecb_encrypt(in, out, crypt->decrypt_key);
-}
-
-static void 
-idea_cfb_encrypt(pgp_crypt_t *crypt, void *out, const void *in, size_t count)
-{
-	idea_cfb64_encrypt(in, out, (long)count,
-			   crypt->encrypt_key, crypt->iv, &crypt->num,
-			   CAST_ENCRYPT);
-}
-
-static void 
-idea_cfb_decrypt(pgp_crypt_t *crypt, void *out, const void *in, size_t count)
-{
-	idea_cfb64_encrypt(in, out, (long)count,
-			   crypt->decrypt_key, crypt->iv, &crypt->num,
-			   CAST_DECRYPT);
-}
+#define IDEA_BLOCK 8
+#define IDEA_KEY_LENGTH 16
 
 static const pgp_crypt_t idea =
 {
@@ -263,14 +227,17 @@ static const pgp_crypt_t idea =
 	std_set_key,
 	idea_init,
 	std_resync,
-	idea_block_encrypt,
-	idea_block_decrypt,
-	idea_cfb_encrypt,
-	idea_cfb_decrypt,
+	std_block_encrypt,
+	std_block_decrypt,
+	std_cfb_encrypt,
+	std_cfb_decrypt,
 	std_finish,
 	TRAILER
 };
-#endif				/* OPENSSL_NO_IDEA */
+
+#endif
+
+#if defined(BOTAN_HAS_AES)
 
 /* AES with 128-bit key (AES) */
 
@@ -279,196 +246,66 @@ static const pgp_crypt_t idea =
 static int 
 aes128_init(pgp_crypt_t *crypt)
 {
-	if (crypt->encrypt_key) {
-		free(crypt->encrypt_key);
-	}
-	if ((crypt->encrypt_key = calloc(1, sizeof(AES_KEY))) == NULL) {
-		(void) fprintf(stderr, "aes128_init: alloc failure\n");
-		return 0;
-	}
-	if (AES_set_encrypt_key(crypt->key, KEYBITS_AES128,
-			crypt->encrypt_key)) {
-		fprintf(stderr, "aes128_init: Error setting encrypt_key\n");
-	}
-
-	if (crypt->decrypt_key) {
-		free(crypt->decrypt_key);
-	}
-	if ((crypt->decrypt_key = calloc(1, sizeof(AES_KEY))) == NULL) {
-		(void) fprintf(stderr, "aes128_init: alloc failure\n");
-		return 0;
-	}
-	if (AES_set_decrypt_key(crypt->key, KEYBITS_AES128,
-				crypt->decrypt_key)) {
-		fprintf(stderr, "aes128_init: Error setting decrypt_key\n");
-	}
-	return 1;
+        return std_init(crypt, "AES-128");
 }
 
-static void 
-aes_block_encrypt(pgp_crypt_t *crypt, void *out, const void *in)
-{
-	AES_encrypt(in, out, crypt->encrypt_key);
-}
-
-static void 
-aes_block_decrypt(pgp_crypt_t *crypt, void *out, const void *in)
-{
-	AES_decrypt(in, out, crypt->decrypt_key);
-}
-
-static void 
-aes_cfb_encrypt(pgp_crypt_t *crypt, void *out, const void *in, size_t count)
-{
-	AES_cfb128_encrypt(in, out, (unsigned)count,
-			   crypt->encrypt_key, crypt->iv, &crypt->num,
-			   AES_ENCRYPT);
-}
-
-static void 
-aes_cfb_decrypt(pgp_crypt_t *crypt, void *out, const void *in, size_t count)
-{
-	AES_cfb128_encrypt(in, out, (unsigned)count,
-			   crypt->encrypt_key, crypt->iv, &crypt->num,
-			   AES_DECRYPT);
-}
+#define AES_BLOCK_SIZE 16
+#define AES128_KEY_LENGTH 16
 
 static const pgp_crypt_t aes128 =
 {
 	PGP_SA_AES_128,
 	AES_BLOCK_SIZE,
-	KEYBITS_AES128 / 8,
+	AES128_KEY_LENGTH,
 	std_set_iv,
 	std_set_key,
 	aes128_init,
 	std_resync,
-	aes_block_encrypt,
-	aes_block_decrypt,
-	aes_cfb_encrypt,
-	aes_cfb_decrypt,
+	std_block_encrypt,
+	std_block_decrypt,
+	std_cfb_encrypt,
+	std_cfb_decrypt,
 	std_finish,
 	TRAILER
 };
 
 /* AES with 256-bit key */
 
-#define KEYBITS_AES256 256
+#define AES256_KEY_LENGTH 32
 
 static int 
 aes256_init(pgp_crypt_t *crypt)
 {
-	if (crypt->encrypt_key) {
-		free(crypt->encrypt_key);
-	}
-	if ((crypt->encrypt_key = calloc(1, sizeof(AES_KEY))) == NULL) {
-		(void) fprintf(stderr, "aes256_init: alloc failure\n");
-		return 0;
-	}
-	if (AES_set_encrypt_key(crypt->key, KEYBITS_AES256,
-			crypt->encrypt_key)) {
-		fprintf(stderr, "aes256_init: Error setting encrypt_key\n");
-		free(crypt->encrypt_key);
-		crypt->encrypt_key = NULL;
-		return 0;
-	}
-	if (crypt->decrypt_key) {
-		free(crypt->decrypt_key);
-	}
-	if ((crypt->decrypt_key = calloc(1, sizeof(AES_KEY))) == NULL) {
-		(void) fprintf(stderr, "aes256_init: alloc failure\n");
-		free(crypt->encrypt_key);
-		crypt->encrypt_key = NULL;
-		return 0;
-	}
-	if (AES_set_decrypt_key(crypt->key, KEYBITS_AES256,
-			crypt->decrypt_key)) {
-		fprintf(stderr, "aes256_init: Error setting decrypt_key\n");
-		free(crypt->encrypt_key);
-		crypt->encrypt_key = NULL;
-		free(crypt->decrypt_key);
-		crypt->decrypt_key = NULL;
-		return 0;
-	}
-	return 1;
+        return std_init(crypt, "AES-256");
 }
 
 static const pgp_crypt_t aes256 =
 {
 	PGP_SA_AES_256,
 	AES_BLOCK_SIZE,
-	KEYBITS_AES256 / 8,
+        AES256_KEY_LENGTH,
 	std_set_iv,
 	std_set_key,
 	aes256_init,
 	std_resync,
-	aes_block_encrypt,
-	aes_block_decrypt,
-	aes_cfb_encrypt,
-	aes_cfb_decrypt,
+	std_block_encrypt,
+	std_block_decrypt,
+	std_cfb_encrypt,
+	std_cfb_decrypt,
 	std_finish,
 	TRAILER
 };
+
+#endif
+
+#if defined(BOTAN_HAS_DES)
 
 /* Triple DES */
 
 static int 
 tripledes_init(pgp_crypt_t *crypt)
 {
-	DES_key_schedule *keys;
-	int             n;
-
-	if (crypt->encrypt_key) {
-		free(crypt->encrypt_key);
-	}
-	if ((keys = crypt->encrypt_key = calloc(1, 3 * sizeof(DES_key_schedule))) == NULL) {
-		(void) fprintf(stderr, "tripledes_init: alloc failure\n");
-		return 0;
-	}
-	for (n = 0; n < 3; ++n) {
-		DES_set_key((DES_cblock *)(void *)(crypt->key + n * 8),
-			&keys[n]);
-	}
-	return 1;
-}
-
-static void 
-tripledes_block_encrypt(pgp_crypt_t *crypt, void *out, const void *in)
-{
-	DES_key_schedule *keys = crypt->encrypt_key;
-
-	DES_ecb3_encrypt(__UNCONST(in), out, &keys[0], &keys[1], &keys[2],
-			DES_ENCRYPT);
-}
-
-static void 
-tripledes_block_decrypt(pgp_crypt_t *crypt, void *out, const void *in)
-{
-	DES_key_schedule *keys = crypt->encrypt_key;
-
-	DES_ecb3_encrypt(__UNCONST(in), out, &keys[0], &keys[1], &keys[2],
-			DES_DECRYPT);
-}
-
-static void 
-tripledes_cfb_encrypt(pgp_crypt_t *crypt, void *out, const void *in,
-			size_t count)
-{
-	DES_key_schedule *keys = crypt->encrypt_key;
-
-	DES_ede3_cfb64_encrypt(in, out, (long)count,
-		&keys[0], &keys[1], &keys[2], (DES_cblock *)(void *)crypt->iv,
-		&crypt->num, DES_ENCRYPT);
-}
-
-static void 
-tripledes_cfb_decrypt(pgp_crypt_t *crypt, void *out, const void *in,
-			size_t count)
-{
-	DES_key_schedule *keys = crypt->encrypt_key;
-
-	DES_ede3_cfb64_encrypt(in, out, (long)count,
-		&keys[0], &keys[1], &keys[2], (DES_cblock *)(void *)crypt->iv,
-		&crypt->num, DES_DECRYPT);
+        return std_init(crypt, "3DES");
 }
 
 static const pgp_crypt_t tripledes =
@@ -480,161 +317,109 @@ static const pgp_crypt_t tripledes =
 	std_set_key,
 	tripledes_init,
 	std_resync,
-	tripledes_block_encrypt,
-	tripledes_block_decrypt,
-	tripledes_cfb_encrypt,
-	tripledes_cfb_decrypt,
+	std_block_encrypt,
+	std_block_decrypt,
+	std_cfb_encrypt,
+	std_cfb_decrypt,
 	std_finish,
 	TRAILER
 };
 
-#if defined(HAVE_OPENSSL_CAMELLIA_H) && !defined(OPENSSL_NO_CAMELLIA)
+#endif
+
+#if defined(BOTAN_HAS_CAMELLIA)
+
 /* Camellia with 128-bit key (CAMELLIA) */
 
-#define KEYBITS_CAMELLIA128 128
+#define CAMELLIA_BLOCK_SIZE 16
+#define CAMELLIA128_KEY_LENGTH 16
 
 static int 
 camellia128_init(pgp_crypt_t *crypt)
 {
-	if (crypt->encrypt_key) {
-		free(crypt->encrypt_key);
-	}
-	if ((crypt->encrypt_key = calloc(1, sizeof(CAMELLIA_KEY))) == NULL) {
-		(void) fprintf(stderr, "camellia128_init: alloc failure\n");
-		return 0;
-	}
-	if (Camellia_set_key(crypt->key, KEYBITS_CAMELLIA128, crypt->encrypt_key)) {
-		fprintf(stderr, "camellia128_init: Error setting encrypt_key\n");
-	}
-	if (crypt->decrypt_key) {
-		free(crypt->decrypt_key);
-	}
-	if ((crypt->decrypt_key = calloc(1, sizeof(CAMELLIA_KEY))) == NULL) {
-		(void) fprintf(stderr, "camellia128_init: alloc failure\n");
-		return 0;
-	}
-	if (Camellia_set_key(crypt->key, KEYBITS_CAMELLIA128, crypt->decrypt_key)) {
-		fprintf(stderr, "camellia128_init: Error setting decrypt_key\n");
-	}
-	return 1;
-}
-
-static void 
-camellia_block_encrypt(pgp_crypt_t *crypt, void *out, const void *in)
-{
-	Camellia_encrypt(in, out, crypt->encrypt_key);
-}
-
-static void 
-camellia_block_decrypt(pgp_crypt_t *crypt, void *out, const void *in)
-{
-	Camellia_decrypt(in, out, crypt->decrypt_key);
-}
-
-static void 
-camellia_cfb_encrypt(pgp_crypt_t *crypt, void *out, const void *in, size_t count)
-{
-	Camellia_cfb128_encrypt(in, out, (unsigned)count,
-			   crypt->encrypt_key, crypt->iv, &crypt->num,
-			   CAMELLIA_ENCRYPT);
-}
-
-static void 
-camellia_cfb_decrypt(pgp_crypt_t *crypt, void *out, const void *in, size_t count)
-{
-	Camellia_cfb128_encrypt(in, out, (unsigned)count,
-			   crypt->encrypt_key, crypt->iv, &crypt->num,
-			   CAMELLIA_DECRYPT);
+        return std_init(crypt, "Camellia-128");
 }
 
 static const pgp_crypt_t camellia128 =
 {
 	PGP_SA_CAMELLIA_128,
 	CAMELLIA_BLOCK_SIZE,
-	KEYBITS_CAMELLIA128 / 8,
+        CAMELLIA128_KEY_LENGTH,
 	std_set_iv,
 	std_set_key,
 	camellia128_init,
 	std_resync,
-	camellia_block_encrypt,
-	camellia_block_decrypt,
-	camellia_cfb_encrypt,
-	camellia_cfb_decrypt,
+	std_block_encrypt,
+	std_block_decrypt,
+	std_cfb_encrypt,
+	std_cfb_decrypt,
 	std_finish,
 	TRAILER
 };
 
 /* Camellia with 256-bit key (CAMELLIA) */
 
-#define KEYBITS_CAMELLIA256 256
+#define CAMELLIA256_KEY_LENGTH 32
 
 static int 
 camellia256_init(pgp_crypt_t *crypt)
 {
-	if (crypt->encrypt_key) {
-		free(crypt->encrypt_key);
-	}
-	if ((crypt->encrypt_key = calloc(1, sizeof(CAMELLIA_KEY))) == NULL) {
-		(void) fprintf(stderr, "camellia256_init: alloc failure\n");
-		return 0;
-	}
-	if (Camellia_set_key(crypt->key, KEYBITS_CAMELLIA256, crypt->encrypt_key)) {
-		fprintf(stderr, "camellia256_init: Error setting encrypt_key\n");
-	}
-	if (crypt->decrypt_key) {
-		free(crypt->decrypt_key);
-	}
-	if ((crypt->decrypt_key = calloc(1, sizeof(CAMELLIA_KEY))) == NULL) {
-		(void) fprintf(stderr, "camellia256_init: alloc failure\n");
-		return 0;
-	}
-	if (Camellia_set_key(crypt->key, KEYBITS_CAMELLIA256, crypt->decrypt_key)) {
-		fprintf(stderr, "camellia256_init: Error setting decrypt_key\n");
-	}
-	return 1;
+        return std_init(crypt, "Camellia-256");
 }
 
 static const pgp_crypt_t camellia256 =
 {
 	PGP_SA_CAMELLIA_256,
 	CAMELLIA_BLOCK_SIZE,
-	KEYBITS_CAMELLIA256 / 8,
+        CAMELLIA256_KEY_LENGTH,
 	std_set_iv,
 	std_set_key,
 	camellia256_init,
 	std_resync,
-	camellia_block_encrypt,
-	camellia_block_decrypt,
-	camellia_cfb_encrypt,
-	camellia_cfb_decrypt,
+	std_block_encrypt,
+	std_block_decrypt,
+	std_cfb_encrypt,
+	std_cfb_decrypt,
 	std_finish,
 	TRAILER
 };
-#endif
 
+#endif
 
 static const pgp_crypt_t *
 get_proto(pgp_symm_alg_t alg)
 {
+        // TODO: check botan/build.h macros?
 	switch (alg) {
+#if defined(BOTAN_HAS_CAST)
 	case PGP_SA_CAST5:
 		return &cast5;
-#ifndef OPENSSL_NO_IDEA
+#endif
+
+#if defined(BOTAN_HAS_IDEA)
 	case PGP_SA_IDEA:
 		return &idea;
-#endif				/* OPENSSL_NO_IDEA */
+#endif
+
+#if defined(BOTAN_HAS_AES)
 	case PGP_SA_AES_128:
 		return &aes128;
 	case PGP_SA_AES_256:
 		return &aes256;
-#if defined(HAVE_OPENSSL_CAMELLIA_H) && !defined(OPENSSL_NO_CAMELLIA)
+#endif
+
+#if defined(BOTAN_HAS_CAMELLIA)
 	case PGP_SA_CAMELLIA_128:
 		return &camellia128;
 	case PGP_SA_CAMELLIA_256:
 		return &camellia256;
 #endif
+
+#if defined(BOTAN_HAS_DES)
 	case PGP_SA_TRIPLEDES:
 		return &tripledes;
+#endif
+
 	default:
 		(void) fprintf(stderr, "Unknown algorithm: %d (%s)\n",
 			alg, pgp_show_symm_alg(alg));
@@ -672,20 +457,24 @@ pgp_key_size(pgp_symm_alg_t alg)
 	return (p == NULL) ? 0 : (unsigned)p->keysize;
 }
 
-void 
+int
 pgp_encrypt_init(pgp_crypt_t *encrypt)
 {
 	/* \todo should there be a separate pgp_encrypt_init? */
-	pgp_decrypt_init(encrypt);
+        return pgp_decrypt_init(encrypt);
 }
 
-void 
+int
 pgp_decrypt_init(pgp_crypt_t *decrypt)
 {
-	decrypt->base_init(decrypt);
-	decrypt->block_encrypt(decrypt, decrypt->siv, decrypt->iv);
-	(void) memcpy(decrypt->civ, decrypt->siv, decrypt->blocksize);
-	decrypt->num = 0;
+        if(decrypt->base_init(decrypt) == 1)
+        {
+           decrypt->block_encrypt(decrypt, decrypt->siv, decrypt->iv);
+           (void) memcpy(decrypt->civ, decrypt->siv, decrypt->blocksize);
+           decrypt->num = 0;
+           return 1;
+        }
+        return 0;
 }
 
 size_t
@@ -754,25 +543,14 @@ pgp_encrypt_se(pgp_crypt_t *encrypt, void *outvoid, const void *invoid,
 unsigned 
 pgp_is_sa_supported(pgp_symm_alg_t alg)
 {
-	switch (alg) {
-	case PGP_SA_AES_128:
-	case PGP_SA_AES_256:
-	case PGP_SA_CAST5:
-	case PGP_SA_TRIPLEDES:
-#if defined(HAVE_OPENSSL_CAMELLIA_H) && !defined(OPENSSL_NO_CAMELLIA)
-	case PGP_SA_CAMELLIA_128:
-	case PGP_SA_CAMELLIA_256:
-#endif
-#ifndef OPENSSL_NO_IDEA
-	case PGP_SA_IDEA:
-#endif
-		return 1;
+        const pgp_crypt_t* proto = get_proto(alg);
+        if (proto != 0) {
+                return 1;
+        }
 
-	default:
-		fprintf(stderr, "\nWarning: %s not supported\n",
-			pgp_show_symm_alg(alg));
-		return 0;
-	}
+	fprintf(stderr, "\nWarning: %s not supported\n",
+		pgp_show_symm_alg(alg));
+	return 0;
 }
 
 size_t 

@@ -13,7 +13,7 @@ AC_CONFIG_AUX_DIR([buildaux])
 AC_CONFIG_HEADER([src/lib/config.h])
 AC_CONFIG_HEADER([src/rnpv/config.h])
 
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AM_INIT_AUTOMAKE([-Wall -Wextra foreign])
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT
 AM_MAINTAINER_MODE
@@ -27,6 +27,7 @@ AC_SUBST([CANONICAL_HOST])
 AC_PROG_MAKE_SET
 AC_PROG_AWK
 AC_PROG_CC
+AC_PROG_CC_STDC
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_CONFIG_MACRO_DIR([m4])
@@ -76,46 +77,21 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
-# Check for OpenSSL
-#
+# Check for Botan
 
-m4_include([ax_check_openssl.m4])
+m4_include([ax_check_botan.m4])
 
-#AX_CHECK_OPENSSL([CFLAGS="$CFLAGS $OPENSSL_INCLUDES"
-#                  LDFLAGS="$LDFLAGS $OPENSSL_LDFLAGS $OPENSSL_LIBS"],
-#                 [AC_MSG_ERROR([Missing OpenSSL])])
+# TODO: check botan version (2.1 or higher required)
 
-AX_CHECK_OPENSSL([], [AC_MSG_ERROR([OpenSSL could not be found])])
-
-AC_CHECK_HEADERS([openssl/aes.h openssl/bn.h openssl/camellia.h openssl/cast.h \
-                  openssl/des.h openssl/dsa.h openssl/err.h openssl/idea.h \
-                  openssl/md5.h openssl/rand.h openssl/rsa.h openssl/sha.h \
-                  openssl/err.h openssl/sha.h],
-                 [],
-                 [AC_MSG_ERROR([Missing required OpenSSL headers])])
-
-AC_CHECK_TYPES([SHA256_CTX],
-               [],
-               [AC_MSG_FAILURE([missing SHA256_CTX; is openssl 0.9.8 or newer installed?])],
-               [[
-#if defined(HAVE_SYS_TYPES_H)
-#include <sys/types.h>
-#endif
-#if defined(HAVE_OPENSSL_SHA_H)
-#include <openssl/sha.h>
-#endif
-#if defined(HAVE_COMMONCRYPTO_COMMONDIGEST_H)
-#define COMMON_DIGEST_FOR_OPENSSL 1
-#include <CommonCrypto/CommonDigest.h>
-#endif
-]])
+AX_CHECK_BOTAN([CFLAGS="$CFLAGS $BOTAN_INCLUDES"
+                LDFLAGS="$LDFLAGS $BOTAN_LDFLAGS $BOTAN_LIBS"],
+               [AC_MSG_ERROR([Missing Botan])])
 
 # Checks for library functions.
 #
 AC_SEARCH_LIBS([_cmocka_run_group_tests], [cmocka],,AC_MSG_ERROR(CMocka not found!))
 AC_SEARCH_LIBS([gzopen], [z],,AC_MSG_ERROR(libz not found!))
 AC_SEARCH_LIBS([BZ2_bzDecompress], [bz2],,AC_MSG_ERROR(Libbz2 not found!))
-AC_SEARCH_LIBS([RSA_public_encrypt], [crypto],,AC_MSG_ERROR(Crypto lib not found!))
 
 # Initialize the testsuite
 #

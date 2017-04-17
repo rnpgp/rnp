@@ -62,6 +62,8 @@ __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights rese
 __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #endif
 
+#include <stdlib.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -77,12 +79,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include <unistd.h>
 #endif
 
-#ifdef HAVE_OPENSSL_CAST_H
-#include <openssl/cast.h>
-#endif
-
-#include <openssl/bn.h>
-
+#include "bn.h"
 #include "create.h"
 #include "keyring.h"
 #include "packet.h"
@@ -352,7 +349,7 @@ write_seckey_body(const pgp_seckey_t *key,
 	unsigned	done = 0;
 	unsigned	i = 0;
 	uint8_t		*hashed;
-	uint8_t		sesskey[CAST_KEY_LENGTH];
+	uint8_t		sesskey[PGP_CAST_KEY_LENGTH];
 	uint8_t		checkhash[PGP_CHECKHASH_SIZE];
 
 	if (!write_pubkey_body(&key->pubkey, output)) {
@@ -426,7 +423,7 @@ write_seckey_body(const pgp_seckey_t *key,
 	case PGP_S2KS_SALTED:
 		/* RFC4880: section 3.7.1.1 and 3.7.1.2 */
 
-		for (done = 0, i = 0; done < CAST_KEY_LENGTH; i++) {
+		for (done = 0, i = 0; done < PGP_CAST_KEY_LENGTH; i++) {
 			unsigned 	hashsize;
 			unsigned 	j;
 			unsigned	needed;
@@ -436,7 +433,7 @@ write_seckey_body(const pgp_seckey_t *key,
 			/* Hard-coded SHA1 for session key */
 			pgp_hash_any(&hash, PGP_HASH_SHA1);
 			hashsize = pgp_hash_size(key->hash_alg);
-			needed = CAST_KEY_LENGTH - done;
+			needed = PGP_CAST_KEY_LENGTH - done;
 			size = MIN(needed, hashsize);
 			if ((hashed = calloc(1, hashsize)) == NULL) {
 				(void) fprintf(stderr, "write_seckey_body: bad alloc\n");
@@ -472,7 +469,7 @@ write_seckey_body(const pgp_seckey_t *key,
 			(void) memcpy(&sesskey[i * hashsize],
 					hashed, (unsigned)size);
 			done += (unsigned)size;
-			if (done > CAST_KEY_LENGTH) {
+			if (done > PGP_CAST_KEY_LENGTH) {
 				(void) fprintf(stderr,
 					"write_seckey_body: short add\n");
 				return 0;
@@ -502,7 +499,7 @@ write_seckey_body(const pgp_seckey_t *key,
 
 	if (pgp_get_debug_level(__FILE__)) {
 		hexdump(stderr, "writing: iv=", key->iv, pgp_block_size(key->alg));
-		hexdump(stderr, "key= ", sesskey, CAST_KEY_LENGTH);
+		hexdump(stderr, "key= ", sesskey, PGP_CAST_KEY_LENGTH);
 		(void) fprintf(stderr, "\nturning encryption on...\n");
 	}
 	pgp_push_enc_crypt(output, &crypted);

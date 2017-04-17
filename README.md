@@ -198,27 +198,10 @@ accordingly):
 docker run -v ~/src/rnp:/usr/local/rnp -it centos:7 bash
 ```
 
-## Compile
+## Install Dependencies
 
-In the container:
 
-```
-cd /usr/local/rnp
-./build.sh
-make install
-```
-
-## Clean build artifacts
-
-In the container:
-```
-cd /usr/local/rnp
-./remove_artifacts.sh
-```
-
-Otherwise use `git clean`.
-
-## Building an RPM
+### Required packages
 
 Set up build environment.
 
@@ -227,7 +210,97 @@ In the container:
 /usr/local/rnp/packaging/redhat/extra/prepare_build.sh
 ```
 
-And if you're going to sign the RPM,
+### Botan
+
+Botan 2.1 or higher is required.
+
+Install it into the container:
+
+```
+
+install_botan() {
+  BOTAN_URL=https://botan.randombit.net/releases/Botan-2.1.0.tgz
+  BOTAN_SHA=460f2d7205aed113f898df4947b1f66ccf8d080eec7dac229ef0b754c9ad6294
+
+  t=$(mktemp -d)
+  botan_file=${t}/botan.tgz
+  curl -fsSL ${BOTAN_URL} -o ${botan_file} \
+  && echo "${BOTAN_SHA}  ${botan_file}" | sha256sum -c - \
+  && pushd ${t} \
+  && tar -xzf ${botan_file} \
+  && pushd Botan-2.1.0 \
+  && ./configure.py --prefix=/usr/local \
+  && make \
+  && make install
+}
+install_botan
+
+```
+
+### Cmocka
+
+CMocka 1.1 is required to build and run tests.
+
+Install into the container:
+
+```
+
+install_cmocka() {
+  CMOCKA_URL=https://cmocka.org/files/1.1/cmocka-1.1.1.tar.xz
+  CMOCKA_SHA=f02ef48a7039aa77191d525c5b1aee3f13286b77a13615d11bc1148753fc0389
+
+  t=$(mktemp -d)
+  cmocka_file=${t}/cmocka.tgz
+  curl -fsSL ${CMOCKA_URL} -o ${cmocka_file} \
+  && echo "${CMOCKA_SHA}  ${cmocka_file}" | sha256sum -c - \
+  && pushd ${t} \
+  && tar -xf ${cmocka_file} \
+  && pushd cmocka-1.1.1 \
+  && mkdir build \
+  && pushd build \
+  && cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Debug .. \
+  && make install
+}
+install_cmocka
+
+```
+
+## Compile and Install
+
+In the container:
+
+```
+cd /usr/local/rnp
+ACFLAGS=--with-botan=/usr/local ./build.sh
+make install
+```
+
+## Running cmocka tests
+
+In the container:
+
+```
+export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib
+rnp_tests
+```
+
+## Clean build artifacts
+
+In the container:
+
+```
+cd /usr/local/rnp
+./remove_artifacts.sh
+```
+
+Otherwise use `git clean`.
+
+
+## Building RPMs
+
+### Signing
+
+If you're going to sign the RPM,
 
 (In the container:)
 ```
@@ -248,11 +321,14 @@ cat <<MACROS >~/.rpmmacros
 MACROS
 ```
 
-And if you're just going to test the RPM build process without GPG-signing,
+But if you're just going to test the RPM build process without
+GPG-signing,
 (In the container:)
 ```
 export SIGN=
 ```
+
+### Building
 
 Run the rpmbuild script.
 (In the container:)

@@ -59,16 +59,13 @@
 #include "packet.h"
 #include "memory.h"
 #include "packet-parse.h"
+#include "bn.h"
 
 #define PGP_MIN_HASH_SIZE	16
-
-typedef struct DSA_SIG_st DSA_SIG;
-typedef struct bignum_st BIGNUM;
 
 /** pgp_hash_t */
 struct pgp_hash_t {
 	pgp_hash_alg_t		 alg;		/* algorithm */
-	size_t			 size;		/* size */
 	const char		*name;		/* what it's known as */
 	int			(*init)(pgp_hash_t *);
 	void			(*add)(pgp_hash_t *, const uint8_t *, unsigned);
@@ -86,11 +83,11 @@ struct pgp_crypt_t {
 	int			(*base_init)(pgp_crypt_t *);
 	void			(*decrypt_resync)(pgp_crypt_t *);
 	/* encrypt/decrypt one block */
-	void			(*block_encrypt)(pgp_crypt_t *, void *, const void *);
-	void			(*block_decrypt)(pgp_crypt_t *, void *, const void *);
+	void			(*block_encrypt)(pgp_crypt_t *, uint8_t *, const uint8_t *);
+	void			(*block_decrypt)(pgp_crypt_t *, uint8_t *, const uint8_t *);
 	/* Standard CFB encrypt/decrypt (as used by Sym Enc Int Prot packets) */
-	void 			(*cfb_encrypt)(pgp_crypt_t *, void *, const void *, size_t);
-	void			(*cfb_decrypt)(pgp_crypt_t *, void *, const void *, size_t);
+	void 			(*cfb_encrypt)(pgp_crypt_t *, uint8_t *, const uint8_t *, size_t);
+	void			(*cfb_decrypt)(pgp_crypt_t *, uint8_t *, const uint8_t *, size_t);
 	void			(*decrypt_finish)(pgp_crypt_t *);
 	uint8_t			iv[PGP_MAX_BLOCK_SIZE];
 	uint8_t			civ[PGP_MAX_BLOCK_SIZE];
@@ -98,9 +95,9 @@ struct pgp_crypt_t {
 		/* siv is needed for weird v3 resync */
 	uint8_t			key[PGP_MAX_KEY_SIZE];
 	int			num;
-		/* num is offset - see openssl _encrypt doco */
-	void			*encrypt_key;
-	void			*decrypt_key;
+		/* num is offset for CFB */
+	struct botan_block_cipher_struct			*block_cipher_obj;
+
 };
 
 void pgp_crypto_finish(void);
@@ -146,8 +143,9 @@ int pgp_decrypt_data(pgp_content_enum, pgp_region_t *,
 			pgp_stream_t *);
 
 int pgp_crypt_any(pgp_crypt_t *, pgp_symm_alg_t);
-void pgp_decrypt_init(pgp_crypt_t *);
-void pgp_encrypt_init(pgp_crypt_t *);
+int pgp_decrypt_init(pgp_crypt_t *);
+int pgp_encrypt_init(pgp_crypt_t *);
+
 size_t pgp_decrypt_se(pgp_crypt_t *, void *, const void *, size_t);
 size_t pgp_encrypt_se(pgp_crypt_t *, void *, const void *, size_t);
 size_t pgp_decrypt_se_ip(pgp_crypt_t *, void *, const void *, size_t);
@@ -209,18 +207,27 @@ pgp_decrypt_buf(pgp_io_t *,
 			pgp_cbfunc_t *);
 
 /* Keys */
-pgp_key_t  *pgp_rsa_new_selfsign_key(const int,
-			const unsigned long, uint8_t *, const char *,
-			const char *);
+pgp_key_t  *pgp_rsa_new_selfsign_key(const int bits,
+                                     const unsigned long e,
+                                     uint8_t * userid,
+                                     const char * hash_alg,
+                                     const char * cipher);
 pgp_key_t  *pgp_rsa_new_key(const int,
 			const unsigned long, const char *,
 			const char *);
 
 int pgp_dsa_size(const pgp_dsa_pubkey_t *);
 
+typedef struct {
+	BIGNUM         *r;
+	BIGNUM         *s;
+} DSA_SIG;
+
+void DSA_SIG_free(DSA_SIG* sig);
+
 DSA_SIG *pgp_dsa_sign(uint8_t *, unsigned,
-				const pgp_dsa_seckey_t *,
-				const pgp_dsa_pubkey_t *);
+                      const pgp_dsa_seckey_t *,
+                      const pgp_dsa_pubkey_t *);
 
 int openssl_read_pem_seckey(const char *, pgp_key_t *, const char *, int);
 

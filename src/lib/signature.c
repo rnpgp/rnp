@@ -70,15 +70,13 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 #endif
 
 #include <string.h>
+#include <stdlib.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
-#ifdef HAVE_OPENSSL_DSA_H
-#include <openssl/dsa.h>
-#endif
-
+#include "bn.h"
 #include "signature.h"
 #include "crypto.h"
 #include "create.h"
@@ -135,6 +133,7 @@ pgp_dump_sig(pgp_sig_t *sig)
 {
 }
 #endif
+
 
 static uint8_t prefix_md5[] = {
 	0x30, 0x20, 0x30, 0x0C, 0x06, 0x08, 0x2A, 0x86, 0x48, 0x86,
