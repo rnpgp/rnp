@@ -99,7 +99,7 @@
   do { \
     (void)fprintf(stderr, "%s:%u:%s(): "str"\n", __FILE__, __LINE__, __func__);  \
     goto end; \
-  } while (0);
+  } while (0)
 
 struct PGPV_BIGNUM_st {
    botan_mp_t mp;
@@ -893,10 +893,14 @@ pgp_elgamal_public_encrypt(
   }
 
   // Initialize RNG and encrypt
-  if (botan_pubkey_load_elgamal(&key, pubkey->p->mp, pubkey->g->mp, pubkey->y->mp) ||
-      botan_pubkey_check_key(key, rng, 1)) {
+  if (botan_pubkey_load_elgamal(&key, pubkey->p->mp, pubkey->g->mp, pubkey->y->mp)) {
 
-      FAIL("Wrong public key");
+    FAIL("Failed to load public key");
+  }
+
+  if (botan_pubkey_check_key(key, rng, 1)) {
+
+    FAIL("Wrong public key");
   }
 
   /* Max size of an output len is twice an order of underlying group (twice byte-size of p)
@@ -908,8 +912,12 @@ pgp_elgamal_public_encrypt(
     FAIL("Memory allocation failure");
   }
 
-  if (botan_pk_op_encrypt_create(&op_ctx, key, "Raw", 0) ||
-      botan_pk_op_encrypt(op_ctx, rng, bt_ciphertext, &out_len, in, length)) {
+  if (botan_pk_op_encrypt_create(&op_ctx, key, "Raw", 0)) {
+
+    FAIL("Failed to create operation context");
+  }
+
+  if (botan_pk_op_encrypt(op_ctx, rng, bt_ciphertext, &out_len, in, length)) {
 
       FAIL("Encryption fails");
   }
@@ -921,19 +929,21 @@ pgp_elgamal_public_encrypt(
   memcpy(g2k, bt_ciphertext, p_len);
   memcpy(encm, bt_ciphertext + p_len, p_len);
 
-  ret = (int)out_len;
-end:
-  if (botan_pk_op_encrypt_destroy(op_ctx) ||
-      botan_pubkey_destroy(key) ||
-      botan_rng_destroy(rng)) {
+  // All operations OK and `out_len' correctly set. Reset ret
+  ret = 0;
 
-      // should never happen
-      (void)fprintf(stderr, "%s:%d ERROR when deinitializing\n", __FILE__, __LINE__);
-      ret = -1;
+end:
+  ret |= botan_pk_op_encrypt_destroy(op_ctx);
+  ret |= botan_pubkey_destroy(key);
+  ret |= botan_rng_destroy(rng);
+  free(bt_ciphertext);
+
+  if (ret) {
+    // Some error has occured
+    return -1;
   }
 
-  free(bt_ciphertext);
-  return ret;
+  return out_len;
 }
 
 int
@@ -958,10 +968,14 @@ pgp_elgamal_private_decrypt(uint8_t *out,
   }
 
   // Output len is twice an order of underlying group
-  if (botan_mp_num_bytes(pubkey->p->mp, &p_len) ||
-      (length != p_len)) {
+  if (botan_mp_num_bytes(pubkey->p->mp, &p_len)) {
 
       FAIL("Wrong public key");
+  }
+
+  if (length != p_len) {
+
+    FAIL("Wrong size of modulus in public key");
   }
 
   /* Max size of an output len is twice an order of underlying group (twice byte-size of p)
@@ -974,31 +988,42 @@ pgp_elgamal_private_decrypt(uint8_t *out,
       FAIL("Memory allocation failure");
   }
 
-  if (botan_privkey_load_elgamal(&key, pubkey->p->mp, pubkey->g->mp, seckey->x->mp) ||
-      botan_privkey_check_key(key, rng, 1)) {
+  if (botan_privkey_load_elgamal(&key, pubkey->p->mp, pubkey->g->mp, seckey->x->mp)) {
 
-      FAIL("Wrong private key");
+    FAIL("Failed to load private key");
+  }
+
+  if (botan_privkey_check_key(key, rng, 1)) {
+
+    FAIL("Wrong private key");
   }
 
   memcpy(bt_plaintext, g2k, p_len);
   memcpy(bt_plaintext + p_len, in, p_len);
 
-  if (botan_pk_op_decrypt_create(&op_ctx, key, "Raw", 0) ||
-      botan_pk_op_decrypt(op_ctx, out, &out_len, bt_plaintext, p_len*2)) {
+  if (botan_pk_op_decrypt_create(&op_ctx, key, "Raw", 0)) {
 
-      FAIL("Decryption fails");
+    FAIL("Failed to create operation context");
   }
 
-  ret = (int)out_len;
+  if (botan_pk_op_decrypt(op_ctx, out, &out_len, bt_plaintext, p_len*2)) {
+
+    FAIL("Decryption failed");
+  }
+
+  // All operations OK and `out_len' correctly set. Reset ret
+  ret = 0;
 
 end:
-  if (botan_pk_op_decrypt_destroy(op_ctx) ||
-      botan_privkey_destroy(key) ||
-      botan_rng_destroy(rng)) {
+  ret |= botan_pk_op_decrypt_destroy(op_ctx);
+  ret |= botan_privkey_destroy(key);
+  ret |= botan_rng_destroy(rng);
+  free(bt_plaintext);
 
-      ret = -1;
+  if (ret) {
+    // Some error has occured
+    return -1;
   }
 
-  free(bt_plaintext);
-  return ret;
+  return (int)out_len;
 }
