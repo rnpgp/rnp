@@ -183,12 +183,12 @@ static void raw_rsa_test_success(void **state)
    sec_rsa = &sec_key->key.rsa;
 
 #if defined(DEBUG_PRINT)
-   printf("PT = 0x%s\n", hex_encode(ptext, sizeof(ptext)));
-   printf("N = 0x%s\n", BN_bn2hex(pub_rsa->n));
-   printf("E = 0x%s\n", BN_bn2hex(pub_rsa->e));
-   printf("P = 0x%s\n", BN_bn2hex(sec_rsa->p));
-   printf("Q = 0x%s\n", BN_bn2hex(sec_rsa->q));
-   printf("D = 0x%s\n", BN_bn2hex(sec_rsa->d));
+   char* tmp = hex_encode(ptext, sizeof(ptext)); printf("PT = 0x%s\n", tmp); free(tmp);
+   printf("N = "); BN_print_fp(stdout, pub_rsa->n); printf("\n");
+   printf("E = "); BN_print_fp(stdout, pub_rsa->e); printf("\n");
+   printf("P = "); BN_print_fp(stdout, sec_rsa->p); printf("\n");
+   printf("Q = "); BN_print_fp(stdout, sec_rsa->q); printf("\n");
+   printf("D = "); BN_print_fp(stdout, sec_rsa->d); printf("\n");
 #endif
 
    ctext_size = pgp_rsa_public_encrypt(ctext, ptext, sizeof(ptext), pub_rsa);
@@ -200,8 +200,8 @@ static void raw_rsa_test_success(void **state)
                                             sec_rsa, pub_rsa);
 
 #if defined(DEBUG_PRINT)
-   printf("C = 0x%s\n", hex_encode(ctext, ctext_size));
-   printf("PD = 0x%s\n", hex_encode(decrypted, decrypted_size));
+   tmp = hex_encode(ctext, ctext_size);         printf("C = 0x%s\n", tmp);  free(tmp);
+   tmp = hex_encode(decrypted, decrypted_size); printf("PD = 0x%s\n", tmp); free(tmp);
 #endif
 
    test_value_equal("RSA 1024 decrypt", "616263", decrypted, 3);
@@ -228,11 +228,10 @@ static void raw_elg_test_success(void **state)
   uint8_t              encm[64];
   uint8_t              g_to_k[64];
   uint8_t              decryption_result[1024];
-  const uint8_t plaintext[] = { 0x01, 0x02, 0x03, 0x04, 0x17 };
-  BN_CTX* ctx = NULL;
+  const uint8_t        plaintext[] = { 0x01, 0x02, 0x03, 0x04, 0x17 };
+  BN_CTX               ctx;
 
   // Allocate needed memory
-  ctx = BN_CTX_new();
   pub_elg.p = BN_bin2bn(p512, sizeof(p512), NULL);
   pub_elg.g = BN_new();
   sec_elg.x = BN_new();
@@ -240,7 +239,7 @@ static void raw_elg_test_success(void **state)
 
   BN_set_word(pub_elg.g, 3);
   BN_set_word(sec_elg.x, 0xCAB5432);
-  BN_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p, ctx);
+  BN_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p, &ctx);
 
   // Encrypt
   unsigned ctext_size
@@ -257,16 +256,16 @@ static void raw_elg_test_success(void **state)
 #if defined(DEBUG_PRINT)
   BIGNUM *tmp = BN_new();
 
-  printf("\tP\t= 0x%s\n",   BN_bn2hex(pub_elg.p));
-  printf("\tG\t= 0x%s\n",   BN_bn2hex(pub_elg.g));
-  printf("\tY\t= 0x%s\n",   BN_bn2hex(pub_elg.y));
-  printf("\tX\t= 0x%s\n",   BN_bn2hex(sec_elg.x));
+  printf("\tP\t= "); BN_print_fp(stdout, pub_elg.p); printf("\n");
+  printf("\tG\t= "); BN_print_fp(stdout, pub_elg.g); printf("\n");
+  printf("\tY\t= "); BN_print_fp(stdout, pub_elg.y); printf("\n");
+  printf("\tX\t= "); BN_print_fp(stdout, sec_elg.x); printf("\n");
 
   BN_bin2bn(g_to_k, ctext_size, tmp);
-  printf("\tGtk\t= 0x%s\n", BN_bn2hex(tmp));
+  printf("\tGtk\t= "); BN_print_fp(stdout, tmp); printf("\n");
 
   BN_bin2bn(encm, ctext_size, tmp);
-  printf("\tMM\t= 0x%s\n",  BN_bn2hex(tmp));
+  printf("\tMM\t= "); BN_print_fp(stdout, tmp); printf("\n");
 
   BN_clear_free(tmp);
 #endif
@@ -278,7 +277,6 @@ static void raw_elg_test_success(void **state)
   test_value_equal("ElGamal decrypt", "0102030417", decryption_result, sizeof(plaintext));
 
   // Free heap
-  BN_CTX_free(ctx);
   BN_clear_free(pub_elg.p);
   BN_clear_free(pub_elg.g);
   BN_clear_free(sec_elg.x);
