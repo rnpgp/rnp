@@ -246,8 +246,7 @@ Install it into the container:
 ```
 
 install_botan_dev() {
-  # TODO: Link to dev version of botan should probably be changed
-  BOTAN_DEV_GIT_REPO=https://github.com/flowher/botan.git
+  BOTAN_DEV_GIT_REPO=https://github.com/randombit/botan.git
   BOTAN_DEV_GIT_BRANCH=rnp_master
 
   t=$(mktemp -d) \
