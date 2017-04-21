@@ -130,10 +130,53 @@ int pgp_rsa_private_encrypt(uint8_t *, const uint8_t *, size_t,
 int pgp_rsa_private_decrypt(uint8_t *, const uint8_t *, size_t,
 			const pgp_rsa_seckey_t *, const pgp_rsa_pubkey_t *);
 
-int pgp_elgamal_public_encrypt(uint8_t *, uint8_t *, const uint8_t *, size_t,
-			const pgp_elgamal_pubkey_t *);
-int pgp_elgamal_private_decrypt(uint8_t *, const uint8_t *, const uint8_t *, size_t,
-			const pgp_elgamal_seckey_t *, const pgp_elgamal_pubkey_t *);
+/*
+* Performs ElGamal encryption
+* Result of an encryption is composed of two parts - g2k and encm
+*
+* @param g2k [out] buffer stores first part of encryption (g^k % p)
+* @param encm [out] buffer stores second part of encryption (y^k * in % p)
+* @param in plaintext to be encrypted
+* @param length length of an input
+* @param pubkey public key to be used for encryption
+*
+* @pre g2k size must be at least equal to byte size of prime `p'
+* @pre encm size must be at least equal to byte size of prime `p'
+*
+* @return 	on success - number of bytes written to g2k and encm
+*			on failure -1
+*/
+int pgp_elgamal_public_encrypt(
+        uint8_t *g2k,
+        uint8_t *encm,
+        const uint8_t *in,
+        size_t length,
+		const pgp_elgamal_pubkey_t *pubkey);
+
+/*
+* Performs ElGamal decryption
+*
+* @param out [out] decrypted plaintext
+* @param g2k buffer stores first part of encryption (g^k % p)
+* @param encm buffer stores second part of encryption (y^k * in % p)
+* @param length length of g2k or in (must be equal to byte size of prime `p')
+* @param seckey private part of a key used for decryption
+* @param pubkey public domain parameters (p,g) used for decryption
+*
+* @pre g2k size must be at least equal to byte size of prime `p'
+* @pre encm size must be at least equal to byte size of prime `p'
+* @pre byte-size of `g2k' must be equal to `encm'
+*
+* @return 	on success - number of bytes written to g2k and encm
+*			on failure -1
+*/
+int pgp_elgamal_private_decrypt(
+        uint8_t *out,
+        const uint8_t *g2k,
+        const uint8_t *in,
+        size_t length,
+		const pgp_elgamal_seckey_t *seckey,
+		const pgp_elgamal_pubkey_t *pubkey);
 
 pgp_symm_alg_t pgp_str_to_cipher(const char *);
 unsigned pgp_block_size(pgp_symm_alg_t);

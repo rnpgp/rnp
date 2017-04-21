@@ -210,12 +210,12 @@ static void raw_rsa_test_success(void **state)
    sec_rsa = &sec_key->key.rsa;
 
 #if defined(DEBUG_PRINT)
-   printf("PT = 0x%s\n", hex_encode(ptext, sizeof(ptext)));
-   printf("N = 0x%s\n", BN_bn2hex(pub_rsa->n));
-   printf("E = 0x%s\n", BN_bn2hex(pub_rsa->e));
-   printf("P = 0x%s\n", BN_bn2hex(sec_rsa->p));
-   printf("Q = 0x%s\n", BN_bn2hex(sec_rsa->q));
-   printf("D = 0x%s\n", BN_bn2hex(sec_rsa->d));
+   char* tmp = hex_encode(ptext, sizeof(ptext)); printf("PT = 0x%s\n", tmp); free(tmp);
+   printf("N = "); BN_print_fp(stdout, pub_rsa->n); printf("\n");
+   printf("E = "); BN_print_fp(stdout, pub_rsa->e); printf("\n");
+   printf("P = "); BN_print_fp(stdout, sec_rsa->p); printf("\n");
+   printf("Q = "); BN_print_fp(stdout, sec_rsa->q); printf("\n");
+   printf("D = "); BN_print_fp(stdout, sec_rsa->d); printf("\n");
 #endif
 
    ctext_size = pgp_rsa_public_encrypt(ctext, ptext, sizeof(ptext), pub_rsa);
@@ -227,8 +227,8 @@ static void raw_rsa_test_success(void **state)
                                             sec_rsa, pub_rsa);
 
 #if defined(DEBUG_PRINT)
-   printf("C = 0x%s\n", hex_encode(ctext, ctext_size));
-   printf("PD = 0x%s\n", hex_encode(decrypted, decrypted_size));
+   tmp = hex_encode(ctext, ctext_size);         printf("C = 0x%s\n", tmp);  free(tmp);
+   tmp = hex_encode(decrypted, decrypted_size); printf("PD = 0x%s\n", tmp); free(tmp);
 #endif
 
    test_value_equal("RSA 1024 decrypt", "616263", decrypted, 3);
@@ -239,66 +239,75 @@ static void raw_rsa_test_success(void **state)
 
 static void raw_elg_test_success(void **state)
 {
-   // largest prime under 512 bits
-   const uint8_t p512[64] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                              0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFD, 0xC7,
-   };
+  // largest prime under 512 bits
+  const uint8_t p512[64] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFD, 0xC7,
+  };
 
-   pgp_elgamal_pubkey_t pub_elg;
-   pgp_elgamal_seckey_t sec_elg;
-   uint8_t   encm[1024];
-   uint8_t   g_to_k[1024];
-   uint8_t decr[1024];
-   const uint8_t plaintext[5] = { 1, 2, 3, 4, 23 };
-   BN_CTX* ctx = BN_CTX_new();
+  pgp_elgamal_pubkey_t pub_elg;
+  pgp_elgamal_seckey_t sec_elg;
+  uint8_t              encm[64];
+  uint8_t              g_to_k[64];
+  uint8_t              decryption_result[1024];
+  const uint8_t        plaintext[] = { 0x01, 0x02, 0x03, 0x04, 0x17 };
+  BN_CTX               ctx;
 
-   sec_elg.x = BN_new();
-   BN_set_word(sec_elg.x, 0xDEADBEEF);
+  // Allocate needed memory
+  pub_elg.p = BN_bin2bn(p512, sizeof(p512), NULL);
+  pub_elg.g = BN_new();
+  sec_elg.x = BN_new();
+  pub_elg.y = BN_new();
 
-   pub_elg.g = BN_new();
-   pub_elg.y = BN_new();
+  BN_set_word(pub_elg.g, 3);
+  BN_set_word(sec_elg.x, 0xCAB5432);
+  BN_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p, &ctx);
 
-   pub_elg.p = BN_bin2bn(p512, sizeof(p512), NULL);
-
-   // G = 3
-   BN_set_word(pub_elg.g, 3);
-   BN_set_word(sec_elg.x, 0xCAB5432);
-
-   BN_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p, ctx);
-
-   BN_CTX_free(ctx);
-
-   pgp_elgamal_public_encrypt(g_to_k, encm, plaintext, sizeof(plaintext), &pub_elg);
-
-   unsigned ctext_size = pgp_elgamal_public_encrypt(g_to_k, encm, plaintext, sizeof(plaintext), &pub_elg);
-
-   assert_int_equal(ctext_size % 2, 0);
-   ctext_size /= 2;
+  // Encrypt
+  unsigned ctext_size
+    = pgp_elgamal_public_encrypt(
+        g_to_k,
+        encm,
+        plaintext,
+        sizeof(plaintext),
+        &pub_elg);
+  assert_int_not_equal(ctext_size, -1);
+  assert_int_equal(ctext_size % 2, 0);
+  ctext_size /= 2;
 
 #if defined(DEBUG_PRINT)
-   printf("P = 0x%s\n", BN_bn2hex(pub_elg.p));
-   printf("G = 0x%s\n", BN_bn2hex(pub_elg.g));
-   printf("Y = 0x%s\n", BN_bn2hex(pub_elg.y));
-   printf("X = 0x%s\n", BN_bn2hex(sec_elg.x));
-   BIGNUM* x = BN_bin2bn(g_to_k, ctext_size, NULL);
-   printf("Gtk = 0x%s\n", BN_bn2hex(x));
-   printf("MM = ");
-   for(size_t i = 0; i != ctext_size; ++i)
-   {
-      printf("%02X", encm[i]);
-   }
-   printf("\n");
+  BIGNUM *tmp = BN_new();
+
+  printf("\tP\t= "); BN_print_fp(stdout, pub_elg.p); printf("\n");
+  printf("\tG\t= "); BN_print_fp(stdout, pub_elg.g); printf("\n");
+  printf("\tY\t= "); BN_print_fp(stdout, pub_elg.y); printf("\n");
+  printf("\tX\t= "); BN_print_fp(stdout, sec_elg.x); printf("\n");
+
+  BN_bin2bn(g_to_k, ctext_size, tmp);
+  printf("\tGtk\t= "); BN_print_fp(stdout, tmp); printf("\n");
+
+  BN_bin2bn(encm, ctext_size, tmp);
+  printf("\tMM\t= "); BN_print_fp(stdout, tmp); printf("\n");
+
+  BN_clear_free(tmp);
 #endif
 
-   pgp_elgamal_private_decrypt(decr, g_to_k, encm, ctext_size, &sec_elg, &pub_elg);
+  assert_int_not_equal(
+    pgp_elgamal_private_decrypt(decryption_result, g_to_k, encm, ctext_size, &sec_elg, &pub_elg),
+    -1);
 
-   test_value_equal("ElGamal decrypt", "0102030417", decr, 5);
+  test_value_equal("ElGamal decrypt", "0102030417", decryption_result, sizeof(plaintext));
+
+  // Free heap
+  BN_clear_free(pub_elg.p);
+  BN_clear_free(pub_elg.g);
+  BN_clear_free(sec_elg.x);
+  BN_clear_free(pub_elg.y);
 }
 
 int main(void) {
