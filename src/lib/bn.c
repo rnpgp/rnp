@@ -23,10 +23,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "config.h"
-#include "bn.h"
-
 #include <stdlib.h>
-#include <botan/ffi.h>
+
+#include "crypto.h"
+#include "bn.h"
 
 #ifndef USE_ARG
 #define USE_ARG(x)	/*LINTED*/(void)&x
@@ -40,11 +40,6 @@
 /* usually the order of args changes */
 /* the PGPV_BIGNUM API tends to have more const poisoning */
 /* these wrappers also check the arguments passed for sanity */
-
-// duplicated in openssl_crypto.c
-struct PGPV_BIGNUM_st {
-   botan_mp_t mp;
-};
 
 PGPV_BIGNUM *
 PGPV_BN_bin2bn(const uint8_t *data, int len, PGPV_BIGNUM *ret)
