@@ -91,7 +91,6 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include "rnpdefs.h"
 #include "memory.h"
 #include "readerwriter.h"
-#include "version.h"
 #include "rnpdigest.h"
 
 #ifdef WIN32
@@ -1290,10 +1289,10 @@ const char *
 pgp_get_info(const char *type)
 {
 	if (strcmp(type, "version") == 0) {
-		return RNP_VERSION_STRING;
+		return PACKAGE_STRING"["GIT_REVISION"]";
 	}
 	if (strcmp(type, "maintainer") == 0) {
-		return RNP_MAINTAINER;
+		return PACKAGE_BUGREPORT;
 	}
 	return "[unknown]";
 }

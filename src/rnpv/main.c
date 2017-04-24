@@ -190,7 +190,7 @@ main(int argc, char **argv)
 			keyring = optarg;
 			break;
 		case 'v':
-			printf("%s\n", RNPV_VERSION);
+			printf("%s\n", PACKAGE_VERSION"["GIT_REVISION"]");
 			exit(EXIT_SUCCESS);
 		case 'h':
 			print_usage(usage);

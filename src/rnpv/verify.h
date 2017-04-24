@@ -31,8 +31,6 @@
 #ifndef RNP_VERIFY_H_
 #define RNP_VERIFY_H_
 
-#define RNPV_VERSION	"rnpv portable 20160617"
-
 #include <sys/types.h>
 
 #include <inttypes.h>

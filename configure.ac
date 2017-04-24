@@ -2,9 +2,20 @@
 #
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT([rnp],[3.99.18],[Zoltan Gyarmati <mr.zoltan.gyarmati@gmail.com>])
+# The versioning scheme is to use 'x.y.z~' as package version during
+# development and when releasing the version removing the '~', from the
+# AC_INIT() call, tagging the version and after that kicking off the
+# development cycle of the new version by adding 'p.q.r~' to the
+# AC_INIT() call.
+AC_INIT([rnp],[0.8.0~],[Zoltan Gyarmati <mr.zoltan.gyarmati@gmail.com>])
 AC_PREREQ(2.69)
-AC_REVISION([$Revision: 1.42 $])
+AC_REVISION([m4_esyscmd_s([git describe --always])])
+
+# used to define a macro containing the current git hash for unambiguous
+# versioning
+AC_DEFINE([GIT_REVISION],["m4_esyscmd_s([git describe --always])"],
+[Git revision generated when autoreconf was called])
+
 
 AS_SHELL_SANITIZE
 
@@ -119,6 +130,7 @@ AC_OUTPUT
 #
 AC_MSG_NOTICE([ === Configuration results ===])
 AC_MSG_NOTICE([Version:             $PACKAGE_VERSION])
+AC_MSG_NOTICE([Git revision:        m4_esyscmd_s([git describe --always])])
 AC_MSG_NOTICE([C compiler:          $CC])
 AC_MSG_NOTICE([Warning CFLAGS:      $WARNCFLAGS])
 AC_MSG_NOTICE([=============================])

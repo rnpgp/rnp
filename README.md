@@ -310,3 +310,16 @@ The you can copy out the RPMs from the container:
 cp ~/rpmbuild/SRPMS/rnp*.rpm ~/rpmbuild/RPMS/x86_64/*.rpm /usr/local/rnp
 ```
 
+### VERSIONING
+
+ RNP uses [semantic versioning](http://semver.org/) for versioning. After
+forking the netpgp codebase, the versioning (re)started from 0.8.0. The
+autoconf package version (set in AC_INIT() in configure.ac) uses 'x.y.z~' as
+package version value during development and at release the '~' suffix is removed.
+After the release version is tagged/branched, the kicking off of the new
+development cycle starts with a commit which adds the new upcoming version
+suffixed with '~' to the AC_INIT() call.
+ The '--version' output of the rnp commands also contains the git hash of
+the version the binary was built from, which value is generated when
+autoreconf ran, consequently a release tarball generated with `make
+dist` will contain this hash version.

@@ -82,9 +82,7 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 #include "readerwriter.h"
 #include "memory.h"
 #include "rnpdefs.h"
-#include "version.h"
 #include "rnpdigest.h"
-
 
 /*
  * return 1 if OK, otherwise 0
@@ -681,7 +679,7 @@ pgp_writer_use_armored_sig(pgp_output_t *output)
 {
 	static const char     header[] =
 			"\r\n-----BEGIN PGP SIGNATURE-----\r\nVersion: "
-			RNP_VERSION_STRING
+			PACKAGE_STRING
 			"\r\n\r\n";
 	linebreak_t	*linebreak;
 	base64_t   	*base64;
@@ -866,11 +864,11 @@ pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
 {
 	static char     hdr_pubkey[] =
 			"-----BEGIN PGP PUBLIC KEY BLOCK-----\r\nVersion: "
-			RNP_VERSION_STRING
+			PACKAGE_STRING
 			"\r\n\r\n";
 	static char     hdr_private_key[] =
 			"-----BEGIN PGP PRIVATE KEY BLOCK-----\r\nVersion: "
-			RNP_VERSION_STRING
+			PACKAGE_STRING
 			"\r\n\r\n";
 	unsigned    	 hdrsize = 0;
 	unsigned	(*finaliser) (pgp_error_t **, pgp_writer_t *);
