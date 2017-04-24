@@ -14,10 +14,14 @@ librnp_la_SOURCES	= \
 	compress.c \
 	create.c \
 	crypto.c \
+	dsa.c \
+	elgamal.c \
+	hash.c \
 	keyring.c \
 	misc.c \
+	pem.c \
 	rnp.c \
-	openssl_crypto.c \
+	rsa.c \
 	packet-parse.c \
 	packet-print.c \
 	packet-show.c \

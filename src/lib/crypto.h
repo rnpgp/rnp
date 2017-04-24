@@ -55,6 +55,7 @@
 #ifndef CRYPTO_H_
 #define CRYPTO_H_
 
+#include <botan/ffi.h>
 #include "keyring.h"
 #include "packet.h"
 #include "memory.h"
@@ -62,6 +63,10 @@
 #include "bn.h"
 
 #define PGP_MIN_HASH_SIZE	16
+
+struct PGPV_BIGNUM_st {
+   botan_mp_t mp;
+};
 
 /** pgp_hash_t */
 struct pgp_hash_t {
@@ -370,4 +375,9 @@ struct pgp_stream_t {
 	uint8_t			*virtualpkt;
 };
 
+
+/**
+ * \brief Allocates BIGNUM and mp value assigned
+ */
+BIGNUM* new_BN_take_mp(botan_mp_t mp);
 #endif /* CRYPTO_H_ */
