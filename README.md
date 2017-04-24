@@ -214,81 +214,23 @@ In the container:
 
 Botan 2.1 or higher is required.
 
-Install it into the container:
+Installed via `packaging/redhat/extra/build_rpm.sh`.
 
-```
+#### Development versions of Botan
 
-install_botan() {
-  BOTAN_URL=https://botan.randombit.net/releases/Botan-2.1.0.tgz
-  BOTAN_SHA=460f2d7205aed113f898df4947b1f66ccf8d080eec7dac229ef0b754c9ad6294
+Development branches may depend on unreleased Botan versions (i.e. when
+adding support for new crypto algorithms), and should use following
+instructions to install Botan instead.
 
-  t=$(mktemp -d)
-  botan_file=${t}/botan.tgz
-  curl -fsSL ${BOTAN_URL} -o ${botan_file} \
-  && echo "${BOTAN_SHA}  ${botan_file}" | sha256sum -c - \
-  && pushd ${t} \
-  && tar -xzf ${botan_file} \
-  && pushd Botan-2.1.0 \
-  && ./configure.py --prefix=/usr/local \
-  && make \
-  && make install
-}
-install_botan
-
-```
-
-### Botan for not yet realeased branches
-
-Development branches may depend on Botan version which is not yet released (i.e. when adding support for new crypto algorithm). Not released branches of rnp should use following instructions to install Botan library.
-
-Install it into the container:
-
-```
-
-install_botan_dev() {
-  BOTAN_DEV_GIT_REPO=https://github.com/randombit/botan.git
-  BOTAN_DEV_GIT_BRANCH=rnp_master
-
-  t=$(mktemp -d) \
-  && pushd ${t} \
-  && git clone --single-branch -b ${BOTAN_DEV_GIT_BRANCH} ${BOTAN_DEV_GIT_REPO} \
-  && pushd botan \
-  && ./configure.py --prefix=/usr/local \
-  && make \
-  && make install
-}
-install_botan_dev
-
-```
+Update `packaging/redhat/extra/build_rpm.sh` to run `install_botan_dev`
+instead of `install_botan_stable` to use Botan's development version.
 
 
 ### Cmocka
 
 CMocka 1.1 is required to build and run tests.
 
-Install into the container:
-
-```
-
-install_cmocka() {
-  CMOCKA_URL=https://cmocka.org/files/1.1/cmocka-1.1.1.tar.xz
-  CMOCKA_SHA=f02ef48a7039aa77191d525c5b1aee3f13286b77a13615d11bc1148753fc0389
-
-  t=$(mktemp -d)
-  cmocka_file=${t}/cmocka.tgz
-  curl -fsSL ${CMOCKA_URL} -o ${cmocka_file} \
-  && echo "${CMOCKA_SHA}  ${cmocka_file}" | sha256sum -c - \
-  && pushd ${t} \
-  && tar -xf ${cmocka_file} \
-  && pushd cmocka-1.1.1 \
-  && mkdir build \
-  && pushd build \
-  && cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Debug .. \
-  && make install
-}
-install_cmocka
-
-```
+Installed via `packaging/redhat/extra/build_rpm.sh`.
 
 ## Compile and Install
 
