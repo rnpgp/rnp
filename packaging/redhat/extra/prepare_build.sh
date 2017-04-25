@@ -54,9 +54,8 @@ main() {
   # Setup the rpm build tree
   rpmdev-setuptree
 
-  # TODO: Detect whether botan / cmocka is already installed and skip these
-  install_botan_stable
   # TODO: Detect whether botan is already installed and skip
+  install_botan_dev
 }
 
 main "$@"
