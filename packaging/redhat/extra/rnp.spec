@@ -7,7 +7,7 @@ License: BSD
 URL: https://github.com/riboseinc/rnp
 Summary: Freely licensed PGP implementation
 Source: rnp-3.99.18.tar.bz2
-BuildRequires: openssl-devel, zlib-devel, bzip2-devel, chrpath, autoconf, automake, libtool
+BuildRequires: openssl-devel, zlib-devel, bzip2-devel, chrpath, autoconf, automake, libtool, libcmocka-devel
 Requires: rnpv = %{version}-%{release}
 
 %prep
