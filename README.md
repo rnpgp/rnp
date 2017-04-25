@@ -172,9 +172,17 @@ yum install -y rnp
 
 Clone this repo or download a release and expand it.
 
-``` sh
+General:
+
+``` bash
 ./build.sh
 make install
+```
+
+RHEL/CentOS:
+
+``` bash
+./build-install.sh
 ```
 
 
@@ -186,7 +194,7 @@ These steps require `docker` installed. It's not strictly necessary,
 but just provides a consistent baseline for this guide to work.
 
 Clone source:
-```
+``` bash
 # cd ~/src
 git clone https://github.com/riboseinc/rnp
 ```
@@ -194,9 +202,20 @@ git clone https://github.com/riboseinc/rnp
 Start container (assuming you git cloned to `~/src/rnp`. Change
 accordingly):
 
-```
+``` bash
 docker run -v ~/src/rnp:/usr/local/rnp -it centos:7 bash
 ```
+
+
+## Simple steps (if you want to ignore the rest)
+
+In CentOS container:
+
+``` bash
+cd /usr/local/rnp
+./package.sh
+```
+
 
 ## Install Dependencies
 
@@ -232,30 +251,33 @@ CMocka 1.1 is required to build and run tests.
 
 Installed via `packaging/redhat/extra/build_rpm.sh`.
 
+
 ## Compile and Install
 
 In the container:
 
-```
+``` bash
 cd /usr/local/rnp
 ACFLAGS=--with-botan=/usr/local ./build.sh
 make install
 ```
 
+
 ## Running cmocka tests
 
 In the container:
 
-```
+``` bash
 export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib
 rnp_tests
 ```
+
 
 ## Clean build artifacts
 
 In the container:
 
-```
+``` bash
 cd /usr/local/rnp
 ./remove_artifacts.sh
 ```
@@ -270,7 +292,8 @@ Otherwise use `git clean`.
 If you're going to sign the RPM,
 
 (In the container:)
-```
+
+``` bash
 # Import your packager private key.
 gpg --import your-packager.key
 
@@ -291,7 +314,8 @@ MACROS
 But if you're just going to test the RPM build process without
 GPG-signing,
 (In the container:)
-```
+
+``` bash
 export SIGN=
 ```
 
@@ -306,7 +330,7 @@ packaging/redhat/extra/build_rpm.sh
 ```
 
 The you can copy out the RPMs from the container:
-```
+``` bash
 cp ~/rpmbuild/SRPMS/rnp*.rpm ~/rpmbuild/RPMS/x86_64/*.rpm /usr/local/rnp
 ```
 
