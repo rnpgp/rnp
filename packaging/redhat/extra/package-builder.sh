@@ -48,7 +48,7 @@ main() {
   readonly local SOURCES_DIR="${SOURCES_DIR:-${HOME}/rpmbuild/SOURCES}"
 
   echo "Create the rpm spec file"
-  sh packaging/redhat/extra/spec-builder "$@"
+  sh packaging/redhat/extra/spec-builder.sh "$@"
 
   echo "Create the SOURCES_DIR ${SOURCES_DIR}"
   mkdir -p "${SOURCES_DIR}"
