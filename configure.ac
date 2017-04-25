@@ -7,7 +7,7 @@
 # AC_INIT() call, tagging the version and after that kicking off the
 # development cycle of the new version by adding 'p.q.r~' to the
 # AC_INIT() call.
-AC_INIT([rnp],[0.8.0~],[Zoltan Gyarmati <mr.zoltan.gyarmati@gmail.com>])
+AC_INIT([rnp],[0.8.0~],[Ribose Inc. <packaging@ribose.com>])
 AC_PREREQ(2.69)
 AC_REVISION([m4_esyscmd_s([git describe --always])])
 
