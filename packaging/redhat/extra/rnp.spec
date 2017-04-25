@@ -1,12 +1,12 @@
 
 
 Name: rnp
-Version: 3.99.18
+Version: 0.8.0~
 Release: 1%{?dist}
 License: BSD
 URL: https://github.com/riboseinc/rnp
 Summary: Freely licensed PGP implementation
-Source: rnp-3.99.18.tar.bz2
+Source: rnp-0.8.0~.tar.bz2
 BuildRequires: openssl-devel, zlib-devel, bzip2-devel, chrpath, autoconf, automake, libtool, libcmocka-devel
 Requires: rnpv = %{version}-%{release}
 
@@ -18,14 +18,16 @@ RNP is a set of OpenPGP tools for encrypting, signing, decrypting, and
 verifying files enhanced, originally based on netpgp.
 
 %build
+mkdir m4;
 autoreconf -ivf;
 %configure
-sed -i -e 's! -shared ! -Wl,--as-needed\0!g' libtool
+sed -i -e 's! -shared ! -Wl,--as-needed\0!g' libtool;
 make;
 
 %install
 %make_install
-find "%{buildroot}"/%{_libdir} -name "*.la" -delete;
+find "%{buildroot}"%{_libdir} -name "*.la" -delete;
+rm -f "%{buildroot}"%{_bindir}/rnp_tests;
 
 %files
 %defattr(-,root,root)
@@ -33,7 +35,7 @@ find "%{buildroot}"/%{_libdir} -name "*.la" -delete;
 %attr(0755,root,root) %{_bindir}/rnpkeys
 %attr(0644,root,root) %{_mandir}/man1/rnp.1.gz
 %attr(0644,root,root) %{_mandir}/man1/rnpkeys.1.gz
-%doc Licence
+%doc LICENSE.md
 
 
 %package -n librnp
