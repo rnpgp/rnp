@@ -1,7 +1,7 @@
 #!/bin/bash
 
 install_rpms() {
-  BUILD_PKGS="automake gcc make openssl-devel zlib-devel bzip2-devel libtool git which"
+  BUILD_PKGS="automake gcc make openssl-devel zlib-devel bzip2-devel boost-devel libtool git which"
 
   # gcc-c++ is necessary for building botan
   BOTAN_PKGS="gcc-c++"
@@ -42,7 +42,7 @@ install_botan_dev() {
   && pushd ${t} \
   && git clone --single-branch --depth 1 -b ${BOTAN_DEV_GIT_BRANCH} ${BOTAN_DEV_GIT_REPO} \
   && pushd botan \
-  && ./configure.py --prefix=/usr/local \
+  && ./configure.py --prefix=/usr/local --with-bzip2 --with-zlib --with-boost \
   && make \
   && make install
 }
