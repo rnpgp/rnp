@@ -39,12 +39,7 @@
 #include <keyring.h>
 #include <packet.h>
 #include <mj.h>
-
-#if defined(USE_BN_INTERFACE)
-  #include "bn.h"
-#else
-  #include <openssl/bn.h>
-#endif
+#include <bn.h>
 
 // returns new string containing hex value
 char* hex_encode(const uint8_t v[], size_t len)
