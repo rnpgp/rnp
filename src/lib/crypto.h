@@ -277,7 +277,7 @@ DSA_SIG *pgp_dsa_sign(uint8_t *, unsigned,
                       const pgp_dsa_seckey_t *,
                       const pgp_dsa_pubkey_t *);
 
-int openssl_read_pem_seckey(const char *, pgp_key_t *, const char *, int);
+int read_pem_seckey(const char *, pgp_key_t *, const char *, int);
 
 /** pgp_reader_t */
 struct pgp_reader_t {

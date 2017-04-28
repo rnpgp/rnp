@@ -86,7 +86,7 @@
 #include "rnpdefs.h"
 
 int
-openssl_read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
+read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
 {
         uint8_t keybuf[RNP_BUFSIZ] = { 0 };
 	FILE	*fp;
