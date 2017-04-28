@@ -98,8 +98,8 @@ openssl_read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int ver
         botan_rng_t rng;
         botan_privkey_t priv_key;
 
-        // TODO
-	if ((fp = fopen(f, "r")) == NULL) {
+        /* TODO */
+	if((fp = fopen(f, "r")) == NULL) {
 		if (verbose) {
 			(void) fprintf(stderr, "can't open '%s'\n", f);
 		}
@@ -116,7 +116,7 @@ openssl_read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int ver
 
         botan_rng_init(&rng, NULL);
 
-	if (strcmp(type, "ssh-rsa") == 0)
+	if(strcmp(type, "ssh-rsa") == 0)
         {
            if(botan_privkey_load(&priv_key, rng, keybuf, read, NULL) != 0)
            {
@@ -148,10 +148,11 @@ openssl_read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int ver
            botan_mp_init(&x);
            botan_privkey_get_field(x, priv_key, "q");
            key->key.seckey.key.rsa.q = new_BN_take_mp(x);
+           botan_privkey_destroy(priv_key);
            ok = 1;
            }
         }
-        else if (strcmp(type, "ssh-dss") == 0)
+        else if(strcmp(type, "ssh-dss") == 0)
         {
            if(botan_privkey_load(&priv_key, rng, keybuf, read, NULL) != 0)
            {
@@ -163,6 +164,7 @@ openssl_read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int ver
               botan_mp_init(&x);
               botan_privkey_get_field(x, priv_key, "x");
               key->key.seckey.key.dsa.x = new_BN_take_mp(x);
+              botan_privkey_destroy(priv_key);
               ok = 1;
            }
 	}
@@ -172,7 +174,6 @@ openssl_read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int ver
 	}
 
         botan_rng_destroy(rng);
-        botan_privkey_destroy(priv_key);
 
 	return ok;
 }
