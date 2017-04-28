@@ -116,10 +116,6 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
 
         botan_rng_init(&rng, NULL);
 
-    /* TODO: Check that the botan private key is destroyed in all
-	 *       circumstances in the ssh-rsa condition.
-	 */
-
 	if(strcmp(type, "ssh-rsa") == 0)
         {
            if(botan_privkey_load(&priv_key, rng, keybuf, read, NULL) != 0)
