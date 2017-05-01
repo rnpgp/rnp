@@ -216,14 +216,80 @@ size_arrays(rnp_t *rnp, unsigned needed)
 	return 1;
 }
 
+/* TODO: Make these const; currently their consumers don't preserve const. */
+
+static int
+use_ssh_keys(rnp_t *rnp)
+{
+    return rnp->keyring_format == SSH_KEYRING;
+}
+
+/* Get the home directory when resolving gnupg key directory. */
+static char *
+get_homedir_gnupg(rnp_t *rnp)
+{
+	char *homedir;
+
+	homedir = rnp_getvar(rnp, "homedir_gpg");
+	if (homedir == NULL)
+		homedir = rnp_getvar(rnp, "homedir");
+	return homedir;
+}
+
+static char *
+get_homedir_ssh(rnp_t *rnp)
+{
+	char *homedir;
+
+	homedir = rnp_getvar(rnp, "homedir_ssh");
+	if (homedir == NULL)
+		homedir = rnp_getvar(rnp, "homedir");
+	return homedir;
+}
+
+static int
+keydir_common(rnp_t *rnp, char *buffer, char *homedir, char *subdir,
+		size_t buffer_size)
+{
+	/* TODO: Check that the path is valid and communicate that error. */
+
+	if (snprintf(buffer, buffer_size, "%s/%s", homedir, subdir)
+			> buffer_size) {
+		errno = ENOBUFS;
+		return -1;
+	} else
+		return  0;
+}
+
+static int
+keydir_gnupg(rnp_t *rnp, char *buffer, size_t buffer_size)
+{
+	return keydir_common(rnp, buffer, get_homedir_gnupg(rnp),
+			rnp_getvar(rnp, "subdir_gpg"), buffer_size);
+}
+
+static int
+keydir_ssh(rnp_t *rnp, char *buffer, size_t buffer_size)
+{
+	return keydir_common(rnp, buffer, get_homedir_ssh(rnp),
+			rnp_getvar(rnp, "subdir_ssh"), buffer_size);
+}
+
+static int
+keydir(rnp_t *rnp, char *buffer, size_t buffer_size)
+{
+	return use_ssh_keys(rnp) ?
+			keydir_ssh(rnp, buffer, buffer_size) :
+			keydir_gnupg(rnp, buffer, buffer_size);
+}
+
 /* find the name in the array */
 static int
 findvar(rnp_t *rnp, const char *name)
 {
-	unsigned	i;
+	unsigned i;
 
-	for (i = 0 ; i < rnp->c && strcmp(rnp->name[i], name) != 0; i++) {
-	}
+	for (i = 0 ; i < rnp->c && strcmp(rnp->name[i], name) != 0; i++);
 	return (i == rnp->c) ? -1 : (int)i;
 }
 
@@ -235,9 +301,9 @@ readkeyring(rnp_t *rnp, const char *name)
 	const unsigned	 noarmor = 0;
 	char		 f[MAXPATHLEN];
 	char		*filename;
-	char		*homedir;
+	char		 homedir[MAXPATHLEN];
 
-	homedir = rnp_getvar(rnp, "homedir");
+	keydir(rnp, homedir, sizeof(homedir));
 	if ((filename = rnp_getvar(rnp, name)) == NULL) {
 		(void) snprintf(f, sizeof(f), "%s/%s.gpg", homedir, name);
 		filename = f;
@@ -966,13 +1032,6 @@ parse_keyring_format(rnp_t *rnp, enum keyring_format_t *keyring_format, char *fo
 	return 1;
 }
 
-
-static int
-use_ssh_keys(rnp_t *rnp)
-{
-	return rnp->keyring_format == SSH_KEYRING;
-}
-
 static int
 load_keys_gnupg(rnp_t *rnp, char *homedir)
 {
@@ -1125,18 +1184,12 @@ static int
 init_default_homedir(rnp_t *rnp)
 {
 	char *home = getenv("HOME");
-	char *subdir = SUBDIRECTORY_GNUPG;
-
-	if (use_ssh_keys(rnp)) {
-		subdir = SUBDIRECTORY_SSH;
-	}
 
 	if (home == NULL) {
 		fputs("rnp: HOME environment variable is not set\n", stderr);
 		return 0;
 	}
-
-	return rnp_set_homedir(rnp, home, subdir, 1);
+	return rnp_set_homedir(rnp, home, NULL, 1);
 }
 
 /*************************************************************************/
@@ -1155,6 +1208,10 @@ rnp_init(rnp_t *rnp)
 #if 0
     memset((void *) rnp, '\0', sizeof(rnp_t));
 #endif
+
+	/* Apply default settings. */
+	rnp_setvar(rnp, "subdir_gpg", SUBDIRECTORY_GNUPG);
+	rnp_setvar(rnp, "subdir_ssh", SUBDIRECTORY_SSH);
 
 	/* Assume that core dumps are always enabled. */
 	coredumps = 1;
@@ -1267,20 +1324,19 @@ rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
 int
 rnp_load_keys(rnp_t *rnp)
 {
-	char *homedir = rnp_getvar(rnp, "homedir");
+	char path[MAXPATHLEN];
 
 	errno = 0;
 
-	if (homedir == NULL) {
-		errno = EINVAL;
-		return 0;
-	}
-
 	if (use_ssh_keys(rnp)) {
-		if (! load_keys_ssh(rnp, homedir))
+		if (keydir_ssh(rnp, path, sizeof(path)) == -1)
+			return 0;
+		if (! load_keys_ssh(rnp, path))
 			return 0;
 	} else {
-		if (! load_keys_gnupg(rnp, homedir))
+		if (keydir_gnupg(rnp, path, sizeof(path)) == -1)
+			return 0;
+		if (! load_keys_gnupg(rnp, path))
 			return 0;
 	}
 
@@ -1529,7 +1585,8 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 
 	/* write public key */
 
-	cc = snprintf(dir, sizeof(dir), "%s", rnp_getvar(rnp, "homedir"));
+	keydir(rnp, dir, sizeof(dir));
+	cc = strlen(dir);
 
 	rnp_setvar(rnp, "generated userid", &dir[cc - 16]);
 
@@ -2046,7 +2103,7 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
 	struct stat	 st;
 	pgp_io_t	*io;
 	char		 ringname[MAXPATHLEN];
-	char		*homedir;
+	char		 homedir[MAXPATHLEN];
 	int		 ret;
 
 	io = rnp->io;
@@ -2058,7 +2115,7 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
 		(void) fprintf(io->errs, "No such file '%s'\n", f);
 		return 0;
 	}
-	homedir = rnp_getvar(rnp, "homedir");
+	keydir(rnp, homedir, sizeof(homedir));
 	if (pubringname == NULL) {
 		(void) snprintf(ringname, sizeof(ringname),
 				"%s/pubring.gpg", homedir);
@@ -2177,7 +2234,10 @@ int
 rnp_set_homedir(rnp_t *rnp, char *home, const char *subdir, const int quiet)
 {
 	struct stat st;
-	char        d[MAXPATHLEN];
+
+	/* TODO: This function is probably no longer needed. For the time
+	 *       being it ignores the subdir parameter.
+	 */
 
 	if (home == NULL) {
 		if (! quiet)
@@ -2185,20 +2245,19 @@ rnp_set_homedir(rnp_t *rnp, char *home, const char *subdir, const int quiet)
 		return 0;
 	}
 
-	snprintf(d, sizeof(d), "%s/%s", home, (subdir) ? subdir : "");
-	if (stat(d, &st) == 0) {
+	if (stat(home, &st) == 0) {
 		if ((st.st_mode & S_IFMT) == S_IFDIR) {
-			rnp_setvar(rnp, "homedir", d);
+			rnp_setvar(rnp, "homedir", home);
 			return 1;
 		}
-		fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", d);
+		fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", home);
 		return 0;
 	}
 
 	if (! quiet)
-		fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", d);
+		fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", home);
 
-	rnp_setvar(rnp, "homedir", d);
+	rnp_setvar(rnp, "homedir", home);
 	return 1;
 }
 
