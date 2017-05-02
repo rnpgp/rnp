@@ -1,0 +1,20 @@
+dist: trusty
+sudo: false
+language: c
+compiler: clang
+
+branches:
+  only:
+    - master
+
+cache:
+  directories:
+    - ~/builds/botan-install
+    - ~/builds/cmocka-install
+
+install:
+  - bash ci/build-botan.sh
+  - bash ci/build-cmocka.sh
+
+script:
+  - bash ci/build.sh
