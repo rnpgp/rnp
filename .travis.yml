@@ -11,6 +11,14 @@ env:
   global:
     - BOTAN_INSTALL="$HOME/builds/botan-install"
     - CMOCKA_INSTALL="$HOME/builds/cmocka-install"
+  matrix:
+    - BUILD_MODE="normal"
+    - BUILD_MODE="sanitize"
+    - BUILD_MODE="coverage"
+
+matrix:
+  allow_failures:
+    - env: BUILD_MODE="sanitize"
 
 cache:
   directories:
