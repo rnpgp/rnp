@@ -1,7 +1,9 @@
 dist: trusty
 sudo: false
 language: c
-compiler: clang
+compiler:
+  - clang
+  - gcc
 
 branches:
   only:
@@ -17,6 +19,13 @@ env:
     - BUILD_MODE="coverage"
 
 matrix:
+  exclude:
+    - compiler: gcc
+      env: BUILD_MODE="normal"
+    - compiler: gcc
+      env: BUILD_MODE="sanitize"
+    - compiler: clang
+      env: BUILD_MODE="coverage"
   allow_failures:
     - env: BUILD_MODE="sanitize"
 
