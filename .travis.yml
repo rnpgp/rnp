@@ -7,14 +7,21 @@ branches:
   only:
     - master
 
+env:
+  global:
+    - BOTAN_INSTALL="$HOME/builds/botan-install"
+    - CMOCKA_INSTALL="$HOME/builds/cmocka-install"
+
 cache:
   directories:
-    - ~/builds/botan-install
-    - ~/builds/cmocka-install
+    - "$BOTAN_INSTALL"
+    - "$CMOCKA_INSTALL"
 
 install:
-  - bash ci/build-botan.sh
-  - bash ci/build-cmocka.sh
+  - ./ci/install.sh
 
 script:
-  - bash ci/build.sh
+  - ./ci/main.sh
+
+after_success:
+  - ./ci/success.sh
