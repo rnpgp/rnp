@@ -312,11 +312,10 @@ static void raw_elg_test_success(void **state)
   BN_clear_free(pub_elg.y);
 }
 
-static void rnpkeys_generatekey_withUserId_VaryingHash(void **state)
+static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
 {
 
 #define DEFAULT_NUMBITS 2048
-    char userId[1024] = {0};
     const char* hashAlg[] = {
         "MD5", 
         "SHA-1", 
@@ -340,15 +339,64 @@ static void rnpkeys_generatekey_withUserId_VaryingHash(void **state)
 
         int retVal = rnp_init (&rnp);
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
-       
-        snprintf(userId, sizeof(userId),
-                            "rnpkeys_generatekey_withUserId_VaryingHash_%s", hashAlg[i]);
-
 
         /*Set the default parameters*/
         rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
         rnp_setvar(&rnp, "res",       "<stdout>");
         rnp_setvar(&rnp, "hash",     hashAlg[i]); 
+        rnp_setvar(&rnp, "format",    "human");
+
+        retVal = rnp_generate_key(&rnp, NULL, numbits);
+        assert_int_equal(retVal,1); //Ensure the key was generated 
+
+        /*Load the newly generated rnp key*/
+        retVal = rnp_load_keys(&rnp);
+        assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+
+        retVal = rnp_find_key(&rnp, getenv("LOGNAME"));
+        assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
+
+        rnp_end(&rnp); //Free memory and other allocated resources.
+    }
+}
+
+static void rnpkeys_generatekey_verifyUserIdOption(void **state)
+{
+
+#define DEFAULT_NUMBITS 2048
+    char userId[1024] = {0};
+    const char* UserId[] = {
+        "rnpkeys_generatekey_verifyUserIdOption_MD5", 
+        "rnpkeys_generatekey_verifyUserIdOption_SHA-1", 
+        "rnpkeys_generatekey_verifyUserIdOption_RIPEMD160", 
+        "rnpkeys_generatekey_verifyUserIdOption_SHA256", 
+        "rnpkeys_generatekey_verifyUserIdOption_SHA384", 
+        "rnpkeys_generatekey_verifyUserIdOption_SHA512",  
+        "rnpkeys_generatekey_verifyUserIdOption_SHA224"
+    }; 
+
+    /* Set the UserId = custom value. 
+     * Execute the Generate-key command to generate a new pair of private/public key 
+     * Verify the key was generated with the correct UserId.*/
+    rnp_t rnp; 
+    int numbits = DEFAULT_NUMBITS;
+
+    for (int i = 0; i < sizeof(UserId)/sizeof(UserId[0]); i++)
+    {
+        /*Initialize the basic RNP structure. */
+        memset(&rnp, '\0', sizeof(rnp));
+
+        int retVal = rnp_init (&rnp);
+        assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
+       
+        /* Set the user id to be used*/
+        snprintf(userId, sizeof(userId), "%s", UserId[i]);
+
+
+        /*Set the default parameters*/
+        rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
+        rnp_setvar(&rnp, "res",       "<stdout>");
+        rnp_setvar(&rnp, "hash",      "SHA256"); 
         rnp_setvar(&rnp, "format",    "human");
 
         retVal = rnp_generate_key(&rnp, userId, numbits);
@@ -365,7 +413,7 @@ static void rnpkeys_generatekey_withUserId_VaryingHash(void **state)
     }
 }
 
-static void rnpkeys_generatekey_withKeyring(void **state)
+static void rnpkeys_generatekey_verifykeyRingOptions(void **state)
 {
 #define DEFAULT_NUMBITS 2048    
 #define MAXPATHLEN 1024
@@ -430,7 +478,7 @@ int CreateNewDir(const char *foldername, int option)
 }
 
 
-static void rnpkeys_generatekey_withHomeDir(void **state)
+static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 {
 #define DEFAULT_NUMBITS 2048    
 #define NONDEFAULT_KEY_DIR "/home/max/test"
@@ -484,9 +532,10 @@ int main(void) {
         cmocka_unit_test(cipher_test_success),
         cmocka_unit_test(raw_rsa_test_success),
         cmocka_unit_test(raw_elg_test_success),
-        cmocka_unit_test(rnpkeys_generatekey_withUserId_VaryingHash),
-        cmocka_unit_test(rnpkeys_generatekey_withKeyring),
-        cmocka_unit_test(rnpkeys_generatekey_withHomeDir),
+        cmocka_unit_test(rnpkeys_generatekey_verifySupportedHashAlg),
+        cmocka_unit_test(rnpkeys_generatekey_verifyUserIdOption),
+        cmocka_unit_test(rnpkeys_generatekey_verifykeyRingOptions),
+        cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirOption),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
