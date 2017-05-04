@@ -8,6 +8,7 @@ compiler:
 branches:
   only:
     - master
+    - coverity_scan
 
 env:
   global:
@@ -22,9 +23,6 @@ env:
     - BUILD_MODE="normal"
     - BUILD_MODE="sanitize"
     - BUILD_MODE="coverage"
-
-  # before_install:
-  #   - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
 
 matrix:
   exclude:
@@ -66,12 +64,12 @@ addons:
 
     # Commands to prepare for build_command
     # ** likely specific to your build **
-    build_command_prepend: ""
+    build_command_prepend: "autoreconf -vfi && ./configure --with-botan=${BOTAN_INSTALL}"
 
     # The command that will be added as an argument to "cov-build" to compile
     # your project for analysis,
     # ** likely specific to your build **
-    build_command: "./ci/install.sh"
+    build_command: "make -j2"
 
     # Pattern to match selecting branches that will run analysis. We recommend
     # leaving this set to 'coverity_scan'.
