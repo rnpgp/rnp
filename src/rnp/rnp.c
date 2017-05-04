@@ -411,10 +411,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 			"No home directory argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		/* TODO: Temporarily set subdirectory to /.rnp; see
-		 *       the equivalent space in rnpkeys for more details.
-		 */
-		rnp_set_homedir(rnp, arg, "/.rnp", 0);
+		rnp_set_homedir(rnp, arg, 0);
 		break;
 	case HASH_ALG:
 		if (arg == NULL) {

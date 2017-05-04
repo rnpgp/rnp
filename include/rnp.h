@@ -74,7 +74,7 @@ int rnp_incvar(rnp_t *, const char *, const int);
 int rnp_unsetvar(rnp_t *, const char *);
 
 /* set home directory information */
-int rnp_set_homedir(rnp_t *, char *, const char *, const int);
+int rnp_set_homedir(rnp_t *, char *, const int);
 
 /* key management */
 int rnp_list_keys(rnp_t *, const int);
