@@ -64,12 +64,12 @@ addons:
 
     # Commands to prepare for build_command
     # ** likely specific to your build **
-    build_command_prepend: "autoreconf -vfi && ./configure --with-botan=${BOTAN_INSTALL}"
+    build_command_prepend: ""
 
     # The command that will be added as an argument to "cov-build" to compile
     # your project for analysis,
     # ** likely specific to your build **
-    build_command: "make -j2"
+    build_command: "./ci/main.sh"
 
     # Pattern to match selecting branches that will run analysis. We recommend
     # leaving this set to 'coverity_scan'.
