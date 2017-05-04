@@ -236,6 +236,7 @@ get_homedir_gnupg(rnp_t *rnp)
 	return homedir;
 }
 
+/* Get the home directory when resolving ssh key directory. */
 static char *
 get_homedir_ssh(rnp_t *rnp)
 {
@@ -261,6 +262,7 @@ keydir_common(rnp_t *rnp, char *buffer, char *homedir, char *subdir,
 		return  0;
 }
 
+/* Get the key directory for gnupg keys. */
 static int
 keydir_gnupg(rnp_t *rnp, char *buffer, size_t buffer_size)
 {
@@ -268,6 +270,7 @@ keydir_gnupg(rnp_t *rnp, char *buffer, size_t buffer_size)
 			rnp_getvar(rnp, "subdir_gpg"), buffer_size);
 }
 
+/* Get the key directory for ssh keys. */
 static int
 keydir_ssh(rnp_t *rnp, char *buffer, size_t buffer_size)
 {
@@ -275,6 +278,7 @@ keydir_ssh(rnp_t *rnp, char *buffer, size_t buffer_size)
 			rnp_getvar(rnp, "subdir_ssh"), buffer_size);
 }
 
+/* Get the key directory of the current type of key. */
 static int
 keydir(rnp_t *rnp, char *buffer, size_t buffer_size)
 {
@@ -305,16 +309,16 @@ readkeyring(rnp_t *rnp, const char *name)
 
 	keydir(rnp, homedir, sizeof(homedir));
 	if ((filename = rnp_getvar(rnp, name)) == NULL) {
-		(void) snprintf(f, sizeof(f), "%s/%s.gpg", homedir, name);
+		snprintf(f, sizeof(f), "%s/%s.gpg", homedir, name);
 		filename = f;
 	}
 	if ((keyring = calloc(1, sizeof(*keyring))) == NULL) {
-		(void) fprintf(stderr, "readkeyring: bad alloc\n");
+		fprintf(stderr, "readkeyring: bad alloc\n");
 		return NULL;
 	}
 	if (!pgp_keyring_fileread(keyring, noarmor, filename)) {
 		free(keyring);
-		(void) fprintf(stderr, "cannot read %s %s\n", name, filename);
+		fprintf(stderr, "cannot read %s %s\n", name, filename);
 		return NULL;
 	}
 	rnp_setvar(rnp, name, filename);
@@ -1189,7 +1193,7 @@ init_default_homedir(rnp_t *rnp)
 		fputs("rnp: HOME environment variable is not set\n", stderr);
 		return 0;
 	}
-	return rnp_set_homedir(rnp, home, NULL, 1);
+	return rnp_set_homedir(rnp, home, 1);
 }
 
 /*************************************************************************/
@@ -2205,9 +2209,9 @@ rnp_getvar(rnp_t *rnp, const char *name)
 int
 rnp_incvar(rnp_t *rnp, const char *name, const int delta)
 {
-	char	*cp;
-	char	 num[16];
-	int	 val;
+	char *cp;
+	char  num[16];
+	int   val;
 
 	val = 0;
 	if ((cp = rnp_getvar(rnp, name)) != NULL) {
@@ -2231,33 +2235,43 @@ rnp_set_keyring_format(rnp_t *rnp, char *format)
 
 /* set the home directory value to "home/subdir" */
 int
-rnp_set_homedir(rnp_t *rnp, char *home, const char *subdir, const int quiet)
+rnp_set_homedir(rnp_t *rnp, char *home, const int quiet)
 {
 	struct stat st;
 
-	/* TODO: This function is probably no longer needed. For the time
-	 *       being it ignores the subdir parameter.
+	/* TODO: Replace `stderr` with the rnp context's error file when we
+	 *       are sure that all utilities and bindings don't call
+	 *       rnp_set_homedir ahead of rnp_init.
 	 */
 
+	/* Check that a NULL parameter wasn't passed. */
 	if (home == NULL) {
 		if (! quiet)
-			fprintf(stderr, "NULL HOME directory\n");
+			fprintf(stderr, "rnp: null homedir\n");
+		return 0;
+
+	/* If the path is not a directory then fail. */
+	} else if (stat(home, &st) == 0 && (st.st_mode & S_IFMT) != S_IFDIR) {
+		if (! quiet)
+			fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", home);
+		return 0;
+
+	/* If the path doesn't exist then fail. */
+	} else if (errno == ENOENT) {
+		if (! quiet)
+			fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", home);
+		return 0;
+
+	/* If any other occurred then fail. */
+	} else {
+		if (! quiet)
+			fprintf(stderr, "rnp: an unspecified error occurred\n");
 		return 0;
 	}
 
-	if (stat(home, &st) == 0) {
-		if ((st.st_mode & S_IFMT) == S_IFDIR) {
-			rnp_setvar(rnp, "homedir", home);
-			return 1;
-		}
-		fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", home);
-		return 0;
-	}
-
-	if (! quiet)
-		fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", home);
-
+	/* Otherwise set the home directory. */
 	rnp_setvar(rnp, "homedir", home);
+
 	return 1;
 }
 
