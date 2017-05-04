@@ -22,12 +22,6 @@ matrix:
   include:
     - env: BUILD_MODE=normal
       compiler: clang
-    - env: BUILD_MODE=sanitize
-      compiler: clang
-    - env: BUILD_MODE=coverage
-      compiler: gcc
-  allow_failures:
-    - env: BUILD_MODE=sanitize
 
 cache:
   directories:
