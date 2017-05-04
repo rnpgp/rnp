@@ -46,7 +46,7 @@ install:
   - ./ci/install.sh
 
 script:
-  - ./ci/main.sh
+  - if [ ${COVERITY_SCAN_BRANCH} != 1 ]; then ./ci/main.sh ; fi
 
 after_success:
   - ./ci/success.sh
