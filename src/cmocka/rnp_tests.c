@@ -43,8 +43,9 @@
 #include <mj.h>
 #include <bn.h>
 
-#include<rnp.h>
+#include <rnp.h>
 #include <sys/stat.h>
+
 // returns new string containing hex value
 char* hex_encode(const uint8_t v[], size_t len)
 {
@@ -187,7 +188,7 @@ static void cipher_test_success(void **state)
 
 //#define DEBUG_PRINT
 
-static void raw_rsa_test_success(void **state)
+static void pkcs1_rsa_test_success(void **state)
 {
     uint8_t ptext[1024/8] = { 'a', 'b', 'c', 0 };
 
@@ -217,13 +218,14 @@ static void raw_rsa_test_success(void **state)
     printf("D = "); BN_print_fp(stdout, sec_rsa->d); printf("\n");
 #endif
 
-    ctext_size = pgp_rsa_public_encrypt(ctext, ptext, sizeof(ptext), pub_rsa);
+   ctext_size = pgp_rsa_encrypt_pkcs1(ctext, sizeof(ctext), ptext, 3, pub_rsa);
 
     assert_int_equal(ctext_size, 1024/8);
 
-    memset(decrypted, 0, sizeof(decrypted));
-    decrypted_size = pgp_rsa_private_decrypt(decrypted, ctext, ctext_size,
-            sec_rsa, pub_rsa);
+   memset(decrypted, 0, sizeof(decrypted));
+   decrypted_size = pgp_rsa_decrypt_pkcs1(decrypted, sizeof(decrypted),
+                                          ctext, ctext_size,
+                                          sec_rsa, pub_rsa);
 
 #if defined(DEBUG_PRINT)
     tmp = hex_encode(ctext, ctext_size);         printf("C = 0x%s\n", tmp);  free(tmp);
@@ -232,7 +234,7 @@ static void raw_rsa_test_success(void **state)
 
     test_value_equal("RSA 1024 decrypt", "616263", decrypted, 3);
 
-    assert_int_equal(decrypted_size, 1024/8);
+   assert_int_equal(decrypted_size, 3);
 
 }
 
@@ -267,17 +269,17 @@ static void raw_elg_test_success(void **state)
     BN_set_word(sec_elg.x, 0xCAB5432);
     BN_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p, &ctx);
 
-    // Encrypt
-    unsigned ctext_size
-        = pgp_elgamal_public_encrypt(
-                g_to_k,
-                encm,
-                plaintext,
-                sizeof(plaintext),
-                &pub_elg);
-    assert_int_not_equal(ctext_size, -1);
-    assert_int_equal(ctext_size % 2, 0);
-    ctext_size /= 2;
+  // Encrypt
+  unsigned ctext_size
+    = pgp_elgamal_public_encrypt_pkcs1(
+        g_to_k,
+        encm,
+        plaintext,
+        sizeof(plaintext),
+        &pub_elg);
+  assert_int_not_equal(ctext_size, -1);
+  assert_int_equal(ctext_size % 2, 0);
+  ctext_size /= 2;
 
 #if defined(DEBUG_PRINT)
     BIGNUM *tmp = BN_new();
@@ -296,9 +298,9 @@ static void raw_elg_test_success(void **state)
     BN_clear_free(tmp);
 #endif
 
-    assert_int_not_equal(
-            pgp_elgamal_private_decrypt(decryption_result, g_to_k, encm, ctext_size, &sec_elg, &pub_elg),
-            -1);
+  assert_int_not_equal(
+    pgp_elgamal_private_decrypt_pkcs1(decryption_result, g_to_k, encm, ctext_size, &sec_elg, &pub_elg),
+    -1);
 
     test_value_equal("ElGamal decrypt", "0102030417", decryption_result, sizeof(plaintext));
 
@@ -737,7 +739,7 @@ int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(hash_test_success),
         cmocka_unit_test(cipher_test_success),
-        cmocka_unit_test(raw_rsa_test_success),
+        cmocka_unit_test(pkcs1_rsa_test_success),
         cmocka_unit_test(raw_elg_test_success),
         cmocka_unit_test(rnpkeys_generatekey_verifySupportedHashAlg),
         cmocka_unit_test(rnpkeys_generatekey_verifyUserIdOption),
