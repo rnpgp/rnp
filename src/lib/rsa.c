@@ -91,9 +91,9 @@
 */
 int
 pgp_rsa_public_decrypt(uint8_t *out,
-			const uint8_t *in,
-			size_t length,
-			const pgp_rsa_pubkey_t *pubkey)
+                        const uint8_t *in,
+                        size_t length,
+                        const pgp_rsa_pubkey_t *pubkey)
 {
         size_t out_bytes = 0;
         size_t n_bytes = 0;
@@ -115,6 +115,60 @@ pgp_rsa_public_decrypt(uint8_t *out,
         botan_mp_to_bin(output, out + (n_bytes - out_bytes));
 
         return n_bytes;
+}
+
+/**
+   \ingroup Core_Crypto
+   \brief Recovers message digest from the signature
+   \param out Where to write decrypted data to
+   \param in Encrypted data
+   \param length Length of encrypted data
+   \param pubkey RSA public key
+   \return size of recovered message digest
+*/
+int
+pgp_rsa_encrypt_pkcs1(uint8_t *out,
+                      size_t out_len,
+                      const uint8_t *in,
+                      const size_t in_len,
+                      const pgp_rsa_pubkey_t *pubkey)
+{
+   int retval = -1;
+   botan_pubkey_t rsa_key = NULL;
+   botan_pk_op_encrypt_t enc_op = NULL;
+   botan_rng_t rng = NULL;
+
+   if (botan_rng_init(&rng, NULL) != 0)
+   {
+      goto done;
+   }
+
+   if (botan_pubkey_load_rsa(&rsa_key, pubkey->n->mp, pubkey->e->mp) != 0)
+   {
+      goto done;
+   }
+
+   if (botan_pubkey_check_key(rsa_key, rng, 1) != 0)
+   {
+      goto done;
+   }
+
+   if (botan_pk_op_encrypt_create(&enc_op, rsa_key, "PKCS1v15", 0) != 0)
+   {
+      goto done;
+   }
+
+   if (botan_pk_op_encrypt(enc_op, rng, out, &out_len, in, in_len) == 0)
+   {
+      retval = (int)out_len;
+   }
+
+done:
+   botan_pk_op_encrypt_destroy(enc_op);
+   botan_pubkey_destroy(rsa_key);
+   botan_rng_destroy(rng);
+
+   return retval;
 }
 
 /**
@@ -186,38 +240,48 @@ pgp_rsa_private_encrypt(uint8_t *out,
 \return size of recovered plaintext
 */
 int
-pgp_rsa_private_decrypt(uint8_t *out,
-			const uint8_t *in,
-			size_t length,
-			const pgp_rsa_seckey_t *seckey,
-			const pgp_rsa_pubkey_t *pubkey)
+pgp_rsa_decrypt_pkcs1(uint8_t *out,
+                      size_t out_len,
+                      const uint8_t *in,
+                      size_t in_len,
+                      const pgp_rsa_seckey_t *seckey,
+                      const pgp_rsa_pubkey_t *pubkey)
 {
-   botan_privkey_t rsa_key;
-   botan_rng_t rng;
-   botan_pk_op_decrypt_t decrypt_op;
-   size_t out_len = RNP_BUFSIZ; // in pgp_decrypt_decode_mpi
+   int retval = -1;
+   botan_privkey_t rsa_key = NULL;
+   botan_rng_t rng = NULL;
+   botan_pk_op_decrypt_t decrypt_op = NULL;
 
-   botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, pubkey->e->mp);
-
-   botan_rng_init(&rng, NULL);
-   if(botan_privkey_check_key(rsa_key, rng, 0) != 0)
+   if (botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, pubkey->e->mp) != 0)
    {
-      botan_rng_destroy(rng);
-      botan_privkey_destroy(rsa_key);
-      return 0;
+      goto done;
    }
 
-   botan_pk_op_decrypt_create(&decrypt_op, rsa_key, "Raw", 0);
-
-   if(botan_pk_op_decrypt(decrypt_op, out, &out_len, (uint8_t*)in, length) != 0)
+   if (botan_rng_init(&rng, NULL) != 0)
    {
-      out_len = 0;
+      goto done;
    }
 
+   if (botan_privkey_check_key(rsa_key, rng, 0) != 0)
+   {
+      goto done;
+   }
+
+   if (botan_pk_op_decrypt_create(&decrypt_op, rsa_key, "PKCS1v15", 0) != 0)
+   {
+      goto done;
+   }
+
+   if(botan_pk_op_decrypt(decrypt_op, out, &out_len, (uint8_t*)in, in_len) == 0)
+   {
+      retval = (int)out_len;
+   }
+
+done:
    botan_rng_destroy(rng);
    botan_privkey_destroy(rsa_key);
    botan_pk_op_decrypt_destroy(decrypt_op);
-   return (int)out_len;
+   return retval;
 }
 
 /**

@@ -183,7 +183,7 @@ static void cipher_test_success(void **state)
 
 //#define DEBUG_PRINT
 
-static void raw_rsa_test_success(void **state)
+static void pkcs1_rsa_test_success(void **state)
 {
    uint8_t ptext[1024/8] = { 'a', 'b', 'c', 0 };
 
@@ -213,13 +213,14 @@ static void raw_rsa_test_success(void **state)
    printf("D = "); BN_print_fp(stdout, sec_rsa->d); printf("\n");
 #endif
 
-   ctext_size = pgp_rsa_public_encrypt(ctext, ptext, sizeof(ptext), pub_rsa);
+   ctext_size = pgp_rsa_encrypt_pkcs1(ctext, sizeof(ctext), ptext, 3, pub_rsa);
 
    assert_int_equal(ctext_size, 1024/8);
 
    memset(decrypted, 0, sizeof(decrypted));
-   decrypted_size = pgp_rsa_private_decrypt(decrypted, ctext, ctext_size,
-                                            sec_rsa, pub_rsa);
+   decrypted_size = pgp_rsa_decrypt_pkcs1(decrypted, sizeof(decrypted),
+                                          ctext, ctext_size,
+                                          sec_rsa, pub_rsa);
 
 #if defined(DEBUG_PRINT)
    tmp = hex_encode(ctext, ctext_size);         printf("C = 0x%s\n", tmp);  free(tmp);
@@ -228,7 +229,7 @@ static void raw_rsa_test_success(void **state)
 
    test_value_equal("RSA 1024 decrypt", "616263", decrypted, 3);
 
-   assert_int_equal(decrypted_size, 1024/8);
+   assert_int_equal(decrypted_size, 3);
 
 }
 
@@ -265,7 +266,7 @@ static void raw_elg_test_success(void **state)
 
   // Encrypt
   unsigned ctext_size
-    = pgp_elgamal_public_encrypt(
+    = pgp_elgamal_public_encrypt_pkcs1(
         g_to_k,
         encm,
         plaintext,
@@ -293,7 +294,7 @@ static void raw_elg_test_success(void **state)
 #endif
 
   assert_int_not_equal(
-    pgp_elgamal_private_decrypt(decryption_result, g_to_k, encm, ctext_size, &sec_elg, &pub_elg),
+    pgp_elgamal_private_decrypt_pkcs1(decryption_result, g_to_k, encm, ctext_size, &sec_elg, &pub_elg),
     -1);
 
   test_value_equal("ElGamal decrypt", "0102030417", decryption_result, sizeof(plaintext));
@@ -309,7 +310,7 @@ int main(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(hash_test_success),
         cmocka_unit_test(cipher_test_success),
-        cmocka_unit_test(raw_rsa_test_success),
+        cmocka_unit_test(pkcs1_rsa_test_success),
         cmocka_unit_test(raw_elg_test_success),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
