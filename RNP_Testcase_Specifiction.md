@@ -1,16 +1,17 @@
-#Test specification for the RNP
+# Test specification for the RNP
 The document aims to describe and capture various use cases for the RNP product in the form of the test cases. These can be used as the acceptance test for the maintenance of the project. 
 
-##Guidelines for testing:
+## Guidelines for testing:
 
-###Testcase naming convention: 
+### Testcase naming convention: 
 
 the test case name is composed of the three parts. First being the module under test, second being the feature and third details the motivation of the test. Naming structure looks like 
 **<module\>\_<component\>\_<Testmotivation\>.**
 
 For example, when testing generatekey feature of the rnpkeys, the test case name would look like rnpkeys.generatekey.\<Testmotivation\>.
 
-###Testcase specification template:
+### Testcase specification template:
+
 Following template shall be used for describing a test case.
 Testcase Template:
 
@@ -45,7 +46,7 @@ Testcase Template:
 ----------
 
 
-###Testcases:
+### Testcases:
 
 
 ----------
