@@ -489,22 +489,24 @@ int DeleteDir(const char *foldername)
 
 static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 {
-#define DEFAULT_NUMBITS 2048    
-#define NONDEFAULT_KEY_DIR "/home/max/test"
-#define NONDEFAULT_KEY_DIR_WITHSUB "/home/max/test/.rnp"
+    const char* non_default_keydir = "/home/max/test";
+    const char* non_default_keydir_sub = "/home/max/test/.rnp";
 
     /* Set the UserId = custom value. 
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
-    int numbits = DEFAULT_NUMBITS;
+    const int numbits = 2048;
+
+    /* Clean the enviornment before running the test.*/
+    DeleteDir(non_default_keydir);
 
     /* Set the home directory to a non-default value and ensure the read/write permission 
      * for the specified directory*/
-    int retVal = setenv("HOME", NONDEFAULT_KEY_DIR, 1);
+    int retVal = setenv("HOME", non_default_keydir, 1);
     assert_int_equal(retVal,0); // Ensure the enviornment variable was set
 
-    CreateNewDir(NONDEFAULT_KEY_DIR, 0777);
+    CreateNewDir(non_default_keydir, 0777);
 
     /*Initialize the basic RNP structure. */
     memset(&rnp, '\0', sizeof(rnp));
@@ -522,7 +524,7 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     retVal = rnp_generate_key(&rnp, NULL, numbits);
     assert_int_equal(retVal,1); //Ensure the key was generated 
 
-    retVal = rnp_setvar(&rnp, "homedir",NONDEFAULT_KEY_DIR_WITHSUB);
+    retVal = rnp_setvar(&rnp, "homedir", non_default_keydir_sub);
     assert_int_equal(retVal,1); //Ensure the homedir parameter is set.
 
     /*Load the newly generated rnp key*/
@@ -533,29 +535,28 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
 
     rnp_end(&rnp); //Free memory and other allocated resources.
-
 }
-
 
 static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
 {
-#define DEFAULT_NUMBITS 2048    
-#define NONDEFAULT_KEY_DIR "/home/max/test"
-#define NONDEFAULT_KEY_DIR_WITHSUB "/home/max/test/.rnp"
+    const char* non_default_keydir = "/home/max/test";
 
     /* Set the UserId = custom value. 
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
-    int numbits = DEFAULT_NUMBITS;
+    const int numbits = 2048;
+
+    /* Clean the enviornment before running the test.*/
+    DeleteDir(non_default_keydir);
 
     /* Set the home directory to a non-default value and ensure the read/write permission 
      * for the specified directory*/
-    int retVal = setenv("HOME", NONDEFAULT_KEY_DIR, 1);
+    int retVal = setenv("HOME", non_default_keydir, 1);
     assert_int_equal(retVal,0); // Ensure the enviornment variable was set
 
     /* Create READ-only home dir*/
-    CreateNewDir(NONDEFAULT_KEY_DIR, 0500);
+    CreateNewDir(non_default_keydir, 0500);
 
     /*Initialize the basic RNP structure. */
     memset(&rnp, '\0', sizeof(rnp));
@@ -574,8 +575,94 @@ static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
     assert_int_equal(retVal,0); //Ensure the key was NOT generated as the directory has only list read permissions.
 
     rnp_end(&rnp); //Free memory and other allocated resources.
+}
 
-    DeleteDir(NONDEFAULT_KEY_DIR);
+static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
+{
+    const char* non_default_keydir = "/home/max/test";
+    const char* non_default_keydir_sub = "/home/max/test/.rnp";
+
+    /* Set the UserId = custom value. 
+     * Execute the Generate-key command to generate a new pair of private/public key 
+     * Verify the key was generated with the correct UserId.*/
+    rnp_t rnp; 
+    const int numbits = 2048;
+
+    /* Clean the enviornment before running the test.*/
+    DeleteDir(non_default_keydir);
+
+    /* Set the home directory to a non-default value and ensure the read/write permission 
+     * for the specified directory*/
+    int retVal = setenv("HOME", non_default_keydir, 1);
+    assert_int_equal(retVal,0); // Ensure the enviornment variable was set
+
+    /*Initialize the basic RNP structure. */
+    memset(&rnp, '\0', sizeof(rnp));
+
+    /*Set the default parameters*/
+    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
+    rnp_setvar(&rnp, "res",       "<stdout>");
+    rnp_setvar(&rnp, "hash",      "SHA256"); 
+    rnp_setvar(&rnp, "format",    "human");
+    rnp_setvar(&rnp, "pass-fd",   "password.txt");
+
+    retVal = rnp_init (&rnp);
+    assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
+
+    retVal = rnp_generate_key(&rnp, NULL, numbits);
+    assert_int_equal(retVal,1); //Ensure the key was NOT generated as the directory has only list read permissions.
+
+    retVal = rnp_setvar(&rnp, "homedir",non_default_keydir_sub);
+    assert_int_equal(retVal,1); //Ensure the homedir parameter is set.
+
+    /*Load the newly generated rnp key*/
+    retVal = rnp_load_keys(&rnp);
+    assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+
+    retVal = rnp_find_key(&rnp, getenv("LOGNAME")); //Find the default key generated with the login-name
+    assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
+
+    rnp_end(&rnp); //Free memory and other allocated resources.
+}
+
+static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **state)
+{
+    const char* non_default_keydir = "/etc";
+
+    /* Set the UserId = custom value. 
+     * Execute the Generate-key command to generate a new pair of private/public key 
+     * Verify the key was generated with the correct UserId.*/
+    rnp_t rnp; 
+    const int numbits = 2048;
+    
+    /* Clean the enviornment before running the test.*/
+    DeleteDir(non_default_keydir);
+
+    /* Set the home directory to a non-default value and ensure the read/write permission 
+     * for the specified directory*/
+    int retVal = setenv("HOME", non_default_keydir, 1);
+    assert_int_equal(retVal,0); // Ensure the enviornment variable was set
+
+    /* Create READ-only home dir*/
+    CreateNewDir(non_default_keydir, 0500);
+
+    /*Initialize the basic RNP structure. */
+    memset(&rnp, '\0', sizeof(rnp));
+
+    /*Set the default parameters*/
+    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
+    rnp_setvar(&rnp, "res",       "<stdout>");
+    rnp_setvar(&rnp, "hash",      "SHA256"); 
+    rnp_setvar(&rnp, "format",    "human");
+    rnp_setvar(&rnp, "pass-fd",   "password.txt");
+
+    retVal = rnp_init (&rnp);
+    assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
+
+    retVal = rnp_generate_key(&rnp, NULL, numbits);
+    assert_int_equal(retVal,0); //Ensure the key was NOT generated as the directory has only list read permissions.
+
+    rnp_end(&rnp); //Free memory and other allocated resources.
 }
 
 int main(void) {
@@ -589,6 +676,8 @@ int main(void) {
         cmocka_unit_test(rnpkeys_generatekey_verifykeyRingOptions),
         cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirOption),
         cmocka_unit_test(rnpkeys_generatekey_verifykeyReadOnlyHomeDir),
+        cmocka_unit_test(rnpkeys_generatekey_verifykeyNonexistingHomeDir),
+        cmocka_unit_test(rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
