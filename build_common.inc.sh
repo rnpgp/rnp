@@ -25,7 +25,7 @@ rnpbuild_reconf() {
 }
 
 rnpbuild_configure() {
-	./configure $ACFLAGS
+	./configure CFLAGS='-g3 -O0'
 }
 
 rnpbuild_main() {
