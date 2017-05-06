@@ -13,6 +13,7 @@ of NetBSD.
 
 # Status
 
+[![Travis CI Build Status](https://travis-ci.org/riboseinc/rnp.svg?branch=master)](https://travis-ci.org/riboseinc/rnp)
 [![Coverity Scan Build Status](https://img.shields.io/coverity/scan/12616.svg)](https://scan.coverity.com/projects/riboseinc-rnp)
 
 # Usage
