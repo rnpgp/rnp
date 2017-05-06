@@ -2,7 +2,9 @@
 The document aims to describe and capture various use cases for the RNP product in the form of the test cases. These can be used as the acceptance test for the maintenance of the project. 
 
 ##Guidelines for testing:
+
 ###Testcase naming convention: 
+
 the test case name is composed of the three parts. First being the module under test, second being the feature and third details the motivation of the test. Naming structure looks like 
 **<module\>\_<component\>\_<Testmotivation\>.**
 
@@ -28,15 +30,17 @@ Testcase Template:
 
 | Testing Step                    | Expected behavior                           |
 |:--------------------------------|:--------------------------------------------|
-| Set the userId via rnp_setvar() | It is expected that the key is generated                                          using the options set via rnp_setvar() |
+| Set the userId via rnp_setvar() | It is expected that the key is generated using the options set via rnp_setvar() |
 | Call the API to generate keys(rnp_generate_key)|                                             |
 
 
 | Verification Step                 | Verification logic                        |
 |:----------------------------------|:------------------------------------------|
 | Load the newly generated RNP keys |                                           |
-| Comments (if any)                 |                                           |                                          |
 
+| Comments (if any)                 |
+|:----------------------------------|
+|                                   |
 
 ----------
 
