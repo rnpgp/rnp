@@ -33,6 +33,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <limits.h>
 
 #include <cmocka.h>
 
@@ -313,10 +314,36 @@ static void raw_elg_test_success(void **state)
     BN_clear_free(pub_elg.y);
 }
 
+
+char *convert(char *buff, const int buffsize, unsigned int num, int base) {
+    char *ptr;    
+    ptr = &buff[buffsize - 1];    
+    *ptr = '\0';
+
+    do {
+        *--ptr="0123456789abcdef"[num%base];
+        num /= base;
+    } while(num != 0);
+
+    return ptr;
+}
+
+static int setupPassphrasefd(int* pipefd)
+{
+    if (pipe(pipefd) == -1) {
+        perror("pipe");
+        return 0;
+    }
+
+    /*Write and close fd*/
+    const char *password = "passwordforkeygeneration\0";
+    write(pipefd[1], password, strlen(password));
+    close(pipefd[1]);
+    return 1;
+}
+
 static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
 {
-
-#define DEFAULT_NUMBITS 2048
     const char* hashAlg[] = {
         "MD5", 
         "SHA-1", 
@@ -331,7 +358,12 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
-    int numbits = DEFAULT_NUMBITS;
+    const int numbits = 2048;
+    char passfd[4] = {0};
+    int pipefd[2];
+
+    /* Setup the pass phrase fd to avoid user-input*/
+    assert_int_equal(setupPassphrasefd(pipefd), 1);
 
     for (int i = 0; i < sizeof(hashAlg)/sizeof(hashAlg[0]); i++)
     {
@@ -343,7 +375,7 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
         rnp_setvar(&rnp, "res",       "<stdout>");
         rnp_setvar(&rnp, "hash",     hashAlg[i]); 
         rnp_setvar(&rnp, "format",    "human");
-        rnp_setvar(&rnp, "pass-fd",   "password.txt");
+        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
         int retVal = rnp_init (&rnp);
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -382,6 +414,12 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
     int numbits = DEFAULT_NUMBITS;
+    char passfd[4] = {0};
+    int pipefd[2];
+
+
+    /* Setup the pass phrase fd to avoid user-input*/
+    assert_int_equal(setupPassphrasefd(pipefd), 1);
 
     for (int i = 0; i < sizeof(UserId)/sizeof(UserId[0]); i++)
     {
@@ -396,7 +434,7 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
         rnp_setvar(&rnp, "res",       "<stdout>");
         rnp_setvar(&rnp, "hash",      "SHA256"); 
         rnp_setvar(&rnp, "format",    "human");
-        rnp_setvar(&rnp, "pass-fd",   "password.txt");
+        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
         int retVal = rnp_init (&rnp);
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -421,12 +459,18 @@ static void rnpkeys_generatekey_verifykeyRingOptions(void **state)
 #define MAXPATHLEN 1024
     char ringfile[MAXPATHLEN];
     char dir[MAXPATHLEN];
+    char passfd[4] = {0};
+    int pipefd[2];
+
 
     /* Set the UserId = custom value. 
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
     int numbits = DEFAULT_NUMBITS;
+
+    /* Setup the pass phrase fd to avoid user-input*/
+    assert_int_equal(setupPassphrasefd(pipefd), 1);
 
     /*Initialize the basic RNP structure. */
     memset(&rnp, '\0', sizeof(rnp));
@@ -436,7 +480,7 @@ static void rnpkeys_generatekey_verifykeyRingOptions(void **state)
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",   "password.txt");
+    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
     int retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -502,6 +546,12 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
     const int numbits = 2048;
+    char passfd[4] = {0};
+    int pipefd[2];
+
+
+    /* Setup the pass phrase fd to avoid user-input*/
+    assert_int_equal(setupPassphrasefd(pipefd), 1);
 
     /* Clean the enviornment before running the test.*/
     DeleteDir(non_default_keydir);
@@ -521,7 +571,7 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",   "password.txt");
+    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -551,6 +601,12 @@ static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
     const int numbits = 2048;
+    char passfd[4] = {0};
+    int pipefd[2];
+
+
+    /* Setup the pass phrase fd to avoid user-input*/
+    assert_int_equal(setupPassphrasefd(pipefd), 1);
 
     /* Clean the enviornment before running the test.*/
     DeleteDir(non_default_keydir);
@@ -571,7 +627,7 @@ static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",   "password.txt");
+    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -592,6 +648,12 @@ static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
     const int numbits = 2048;
+    char passfd[4] = {0};
+    int pipefd[2];
+
+
+    /* Setup the pass phrase fd to avoid user-input*/
+    assert_int_equal(setupPassphrasefd(pipefd), 1);
 
     /* Clean the enviornment before running the test.*/
     DeleteDir(non_default_keydir);
@@ -609,7 +671,7 @@ static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",   "password.txt");
+    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -639,7 +701,13 @@ static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **s
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
     const int numbits = 2048;
-    
+    char passfd[4] = {0};
+    int pipefd[2];
+
+
+    /* Setup the pass phrase fd to avoid user-input*/
+    assert_int_equal(setupPassphrasefd(pipefd), 1);
+
     /* Clean the enviornment before running the test.*/
     DeleteDir(non_default_keydir);
 
@@ -659,7 +727,7 @@ static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **s
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",   "password.txt");
+    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
