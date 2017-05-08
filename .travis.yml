@@ -1,20 +1,72 @@
 dist: trusty
 sudo: false
 language: c
-compiler: clang
 
 branches:
   only:
     - master
+    - coverity_scan
+
+env:
+  global:
+    - BOTAN_INSTALL="$HOME/builds/botan-install"
+    - CMOCKA_INSTALL="$HOME/builds/cmocka-install"
+
+    # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created via
+    # the "travis encrypt" command using the project repo's public key
+    - secure: "GkEHjN/3Ir8eo9kJNJ0xxCWvc1sh5OaKtQ9gpehW54Pik/rRqBAoyNJGcmkUntx/PaePJBwf+w+SFP71426TymvNjOA/K4uvtP9cIgMW9E9mxwwr5CmpuG8UVcisPEnntySR5ljQ5heqdM6+4uR0NC8GGaONCM3JYsdXuyVe3kz0HGra7A8NA/8kplbgul53+WJWkG82rEUjAkVBs+6HquBhDxrddWbzjurk7K8yNvCHuUYwIaryCsGmbUF7om4dXZtRqoFARkevJnGd51vbDxdzvwbPpkkDFFtyd4vuJrMxgAd6S71m0uemI+B8qIuhhL1BH7C82teyymLhSVB9q0DIfqCpC71mgdptb3298Z9ItPaceT+licjJ19vvAUtj7MoFbtszZy78uyrmGjg/w140YiJ40TKZjpz9Qlnr8LFS++wqkFWIvsr4aZOrdMOFMzowY/g5Ffe0/35ph8AXRYIhKXYewNZI786EpZtc4Rd45PWJ4UyFOeCTBvIXfp1ApyCx+ScemHe/B70vSBHSsJMA23+TBHP4Uj5CsRrLnrCx2aommuRKY2cAqcQXzdVw6ga2G9+S1Bg+CR3Om8L7frR/j/2zhZyPfwK/sB0oDdpeyyFv/zMUy3HPlWjwQyKfiPmd1D7wiEcwDf1uYVbYvTwOwyvH3FGehvPiXONadK4="
+
+matrix:
+  fast_finish: true
+  include:
+    - env: BUILD_MODE=normal
+      compiler: clang
+    - env: BUILD_MODE=sanitize
+      compiler: clang
+    - env: BUILD_MODE=coverage
+      compiler: gcc
+  allow_failures:
+    - env: BUILD_MODE=sanitize
 
 cache:
   directories:
-    - ~/builds/botan-install
-    - ~/builds/cmocka-install
+    - "$BOTAN_INSTALL"
+    - "$CMOCKA_INSTALL"
 
 install:
-  - bash ci/build-botan.sh
-  - bash ci/build-cmocka.sh
+  - ./ci/install.sh
 
 script:
-  - bash ci/build.sh
+  - if [ ${COVERITY_SCAN_BRANCH} != 1 ]; then ./ci/main.sh ; fi
+
+after_success:
+  - ./ci/success.sh
+
+addons:
+  coverity_scan:
+
+    # GitHub project metadata
+    # ** specific to your project **
+    project:
+      name: "riboseinc/rnp"
+      description: "The rnp OpenPGP implementation"
+      # version: 1.0
+
+    # Where email notification of build analysis results will be sent
+    notification_email: packaging@ribose.com
+
+    # Commands to prepare for build_command
+    # ** likely specific to your build **
+    build_command_prepend: ""
+
+    # The command that will be added as an argument to "cov-build" to compile
+    # your project for analysis,
+    # ** likely specific to your build **
+    build_command: "./ci/main.sh"
+
+    # Pattern to match selecting branches that will run analysis. We recommend
+    # leaving this set to 'coverity_scan'.
+    # Take care in resource usage, and consider the build frequency allowances per
+    #   https://scan.coverity.com/faq#frequency
+    branch_pattern: coverity_scan
+
