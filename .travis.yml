@@ -6,6 +6,7 @@ branches:
   only:
     - master
     - coverity_scan
+    - TestCases_export_key
 
 env:
   global:
