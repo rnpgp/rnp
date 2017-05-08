@@ -538,8 +538,8 @@ int DeleteDir(const char *foldername)
 
 static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 {
-    const char* non_default_keydir = "/home/max/test";
-    const char* non_default_keydir_sub = "/home/max/test/.rnp";
+    const char* non_default_keydir = "/tmp/test";
+    const char* non_default_keydir_sub = "/tmp/test/.rnp";
 
     /* Set the UserId = custom value. 
      * Execute the Generate-key command to generate a new pair of private/public key 
@@ -594,7 +594,7 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 
 static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
 {
-    const char* non_default_keydir = "/home/max/test";
+    const char* non_default_keydir = "/tmp/test";
 
     /* Set the UserId = custom value. 
      * Execute the Generate-key command to generate a new pair of private/public key 
@@ -640,8 +640,8 @@ static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
 
 static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
 {
-    const char* non_default_keydir = "/home/max/test";
-    const char* non_default_keydir_sub = "/home/max/test/.rnp";
+    const char* non_default_keydir = "/tmp/test";
+    const char* non_default_keydir_sub = "/tmp/test/.rnp";
 
     /* Set the UserId = custom value. 
      * Execute the Generate-key command to generate a new pair of private/public key 
