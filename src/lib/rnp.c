@@ -1114,7 +1114,11 @@ rnp_init(rnp_t *rnp)
 	int       coredumps;
 	pgp_io_t *io;
 
-	memset((void *) rnp, '\0', sizeof(rnp_t));
+    /* Before calling the init, the userdefined options are set. 
+     * DONOT MEMSET*/
+#if 0
+    memset((void *) rnp, '\0', sizeof(rnp_t));
+#endif
 
 	/* Assume that core dumps are always enabled. */
 	coredumps = 1;
@@ -1496,7 +1500,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 	 *       permissions aren't 0700.
 	 */
 	if (mkdir(dir, 0700) == -1 && errno != EEXIST) {
-		fprintf(io->errs, "cannot mkdir '%s'\n", dir);
+		fprintf(io->errs, "cannot mkdir '%s' errno = %d \n", dir, errno);
 		goto out;
 	}
 
