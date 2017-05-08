@@ -11,6 +11,7 @@ env:
   global:
     - BOTAN_INSTALL="$HOME/builds/botan-install"
     - CMOCKA_INSTALL="$HOME/builds/cmocka-install"
+    - LOGNAME="Travis"
 
     # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created via
     # the "travis encrypt" command using the project repo's public key
