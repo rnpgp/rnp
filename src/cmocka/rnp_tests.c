@@ -313,8 +313,8 @@ static void raw_elg_test_success(void **state)
 
 
 char *convert(char *buff, const int buffsize, unsigned int num, int base) {
-    char *ptr;    
-    ptr = &buff[buffsize - 1];    
+    char *ptr;
+    ptr = &buff[buffsize - 1];
     *ptr = '\0';
 
     do {
@@ -342,19 +342,19 @@ static int setupPassphrasefd(int* pipefd)
 static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
 {
     const char* hashAlg[] = {
-        "MD5", 
-        "SHA-1", 
-        "RIPEMD160", 
-        "SHA256", 
-        "SHA384", 
-        "SHA512", 
+        "MD5",
+        "SHA-1",
+        "RIPEMD160",
+        "SHA256",
+        "SHA384",
+        "SHA512",
         "SHA224"
-    }; 
+    };
 
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
+    /* Set the UserId = custom value.
+     * Execute the Generate-key command to generate a new pair of private/public key
      * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    rnp_t rnp;
     const int numbits = 2048;
     char passfd[4] = {0};
     int pipefd[2];
@@ -370,7 +370,7 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
         /*Set the default parameters*/
         rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
         rnp_setvar(&rnp, "res",       "<stdout>");
-        rnp_setvar(&rnp, "hash",     hashAlg[i]); 
+        rnp_setvar(&rnp, "hash",     hashAlg[i]);
         rnp_setvar(&rnp, "format",    "human");
         rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
@@ -378,14 +378,14 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
 
         retVal = rnp_generate_key(&rnp, NULL, numbits);
-        assert_int_equal(retVal,1); //Ensure the key was generated 
+        assert_int_equal(retVal,1); //Ensure the key was generated
 
         /*Load the newly generated rnp key*/
         retVal = rnp_load_keys(&rnp);
-        assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+        assert_int_equal(retVal,1); //Ensure the keyring is loaded.
 
         retVal = rnp_find_key(&rnp, getenv("LOGNAME"));
-        assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
+        assert_int_equal(retVal,1); //Ensure the key can be found with the userId
 
         rnp_end(&rnp); //Free memory and other allocated resources.
     }
@@ -397,19 +397,19 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
 #define DEFAULT_NUMBITS 2048
     char userId[1024] = {0};
     const char* UserId[] = {
-        "rnpkeys_generatekey_verifyUserIdOption_MD5", 
-        "rnpkeys_generatekey_verifyUserIdOption_SHA-1", 
-        "rnpkeys_generatekey_verifyUserIdOption_RIPEMD160", 
-        "rnpkeys_generatekey_verifyUserIdOption_SHA256", 
-        "rnpkeys_generatekey_verifyUserIdOption_SHA384", 
-        "rnpkeys_generatekey_verifyUserIdOption_SHA512",  
+        "rnpkeys_generatekey_verifyUserIdOption_MD5",
+        "rnpkeys_generatekey_verifyUserIdOption_SHA-1",
+        "rnpkeys_generatekey_verifyUserIdOption_RIPEMD160",
+        "rnpkeys_generatekey_verifyUserIdOption_SHA256",
+        "rnpkeys_generatekey_verifyUserIdOption_SHA384",
+        "rnpkeys_generatekey_verifyUserIdOption_SHA512",
         "rnpkeys_generatekey_verifyUserIdOption_SHA224"
-    }; 
+    };
 
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
+    /* Set the UserId = custom value.
+     * Execute the Generate-key command to generate a new pair of private/public key
      * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    rnp_t rnp;
     int numbits = DEFAULT_NUMBITS;
     char passfd[4] = {0};
     int pipefd[2];
@@ -429,7 +429,7 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
         /*Set the default parameters*/
         rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
         rnp_setvar(&rnp, "res",       "<stdout>");
-        rnp_setvar(&rnp, "hash",      "SHA256"); 
+        rnp_setvar(&rnp, "hash",      "SHA256");
         rnp_setvar(&rnp, "format",    "human");
         rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
@@ -437,14 +437,14 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
 
         retVal = rnp_generate_key(&rnp, userId, numbits);
-        assert_int_equal(retVal,1); //Ensure the key was generated 
+        assert_int_equal(retVal,1); //Ensure the key was generated
 
         /*Load the newly generated rnp key*/
         retVal = rnp_load_keys(&rnp);
-        assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+        assert_int_equal(retVal,1); //Ensure the keyring is loaded.
 
         retVal = rnp_find_key(&rnp, userId);
-        assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
+        assert_int_equal(retVal,1); //Ensure the key can be found with the userId
 
         rnp_end(&rnp); //Free memory and other allocated resources.
     }
@@ -452,7 +452,7 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
 
 static void rnpkeys_generatekey_verifykeyRingOptions(void **state)
 {
-#define DEFAULT_NUMBITS 2048    
+#define DEFAULT_NUMBITS 2048
 #define MAXPATHLEN 1024
     char ringfile[MAXPATHLEN];
     char dir[MAXPATHLEN];
@@ -460,10 +460,10 @@ static void rnpkeys_generatekey_verifykeyRingOptions(void **state)
     int pipefd[2];
 
 
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
+    /* Set the UserId = custom value.
+     * Execute the Generate-key command to generate a new pair of private/public key
      * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    rnp_t rnp;
     int numbits = DEFAULT_NUMBITS;
 
     /* Setup the pass phrase fd to avoid user-input*/
@@ -475,38 +475,38 @@ static void rnpkeys_generatekey_verifykeyRingOptions(void **state)
     /*Set the default parameters*/
     rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
     rnp_setvar(&rnp, "res",       "<stdout>");
-    rnp_setvar(&rnp, "hash",      "SHA256"); 
+    rnp_setvar(&rnp, "hash",      "SHA256");
     rnp_setvar(&rnp, "format",    "human");
     rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
     int retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
 
-    /* Set the keyring paramter for the key generation: 
+    /* Set the keyring paramter for the key generation:
      * It is expected the key would be added to the specified keyring.*/
     retVal = rnp_setvar(&rnp, "keyring",    "rnpkeys_generatekey_withKeyring");
     assert_int_equal(retVal,1); //Ensure the keyring property was set.
 
     retVal = rnp_generate_key(&rnp, NULL, numbits);
-    assert_int_equal(retVal,1); //Ensure the key was generated 
+    assert_int_equal(retVal,1); //Ensure the key was generated
 
     /*Delete the keys from other ring i.e. default ring known as pubring/secring.gpg
      * as the new keyring must be generated by the command.*/
     snprintf(dir, sizeof(dir), "%s", rnp_getvar(&rnp, "homedir"));
     snprintf(ringfile , sizeof(ringfile), "%s/pubring.gpg", dir);
     retVal = remove(ringfile);
-    assert_int_equal(retVal,0); //Ensure the public default public key file was removed. 
+    assert_int_equal(retVal,0); //Ensure the public default public key file was removed.
 
     snprintf(ringfile , sizeof(ringfile), "%s/secring.gpg", dir);
     retVal = remove(ringfile);
-    assert_int_equal(retVal,0); //Ensure the public default secret key file was removed. 
+    assert_int_equal(retVal,0); //Ensure the public default secret key file was removed.
 
     /*Load the newly generated rnp key*/
     retVal = rnp_load_keys(&rnp);
-    assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+    assert_int_equal(retVal,1); //Ensure the keyring is loaded.
 
     retVal = rnp_find_key(&rnp, getenv("LOGNAME")); //Find the default key generated with the login-name
-    assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
+    assert_int_equal(retVal,1); //Ensure the key can be found with the userId
 
     rnp_end(&rnp); //Free memory and other allocated resources.
 }
@@ -526,7 +526,7 @@ int DeleteDir(const char *foldername)
     struct stat st = {0};
 
     if (stat(foldername, &st) == -1) {
-        return 1; 
+        return 1;
     } else {
         return rmdir(foldername);
     }
@@ -538,10 +538,10 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     const char* non_default_keydir = "/home/max/test";
     const char* non_default_keydir_sub = "/home/max/test/.rnp";
 
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
+    /* Set the UserId = custom value.
+     * Execute the Generate-key command to generate a new pair of private/public key
      * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    rnp_t rnp;
     const int numbits = 2048;
     char passfd[4] = {0};
     int pipefd[2];
@@ -553,7 +553,7 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     /* Clean the enviornment before running the test.*/
     DeleteDir(non_default_keydir);
 
-    /* Set the home directory to a non-default value and ensure the read/write permission 
+    /* Set the home directory to a non-default value and ensure the read/write permission
      * for the specified directory*/
     int retVal = setenv("HOME", non_default_keydir, 1);
     assert_int_equal(retVal,0); // Ensure the enviornment variable was set
@@ -566,7 +566,7 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     /*Set the default parameters*/
     rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
     rnp_setvar(&rnp, "res",       "<stdout>");
-    rnp_setvar(&rnp, "hash",      "SHA256"); 
+    rnp_setvar(&rnp, "hash",      "SHA256");
     rnp_setvar(&rnp, "format",    "human");
     rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
@@ -574,17 +574,17 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
 
     retVal = rnp_generate_key(&rnp, NULL, numbits);
-    assert_int_equal(retVal,1); //Ensure the key was generated 
+    assert_int_equal(retVal,1); //Ensure the key was generated
 
     retVal = rnp_setvar(&rnp, "homedir", non_default_keydir_sub);
     assert_int_equal(retVal,1); //Ensure the homedir parameter is set.
 
     /*Load the newly generated rnp key*/
     retVal = rnp_load_keys(&rnp);
-    assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+    assert_int_equal(retVal,1); //Ensure the keyring is loaded.
 
     retVal = rnp_find_key(&rnp, getenv("LOGNAME")); //Find the default key generated with the login-name
-    assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
+    assert_int_equal(retVal,1); //Ensure the key can be found with the userId
 
     rnp_end(&rnp); //Free memory and other allocated resources.
 }
@@ -593,10 +593,10 @@ static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
 {
     const char* non_default_keydir = "/home/max/test";
 
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
+    /* Set the UserId = custom value.
+     * Execute the Generate-key command to generate a new pair of private/public key
      * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    rnp_t rnp;
     const int numbits = 2048;
     char passfd[4] = {0};
     int pipefd[2];
@@ -608,7 +608,7 @@ static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
     /* Clean the enviornment before running the test.*/
     DeleteDir(non_default_keydir);
 
-    /* Set the home directory to a non-default value and ensure the read/write permission 
+    /* Set the home directory to a non-default value and ensure the read/write permission
      * for the specified directory*/
     int retVal = setenv("HOME", non_default_keydir, 1);
     assert_int_equal(retVal,0); // Ensure the enviornment variable was set
@@ -622,7 +622,7 @@ static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
     /*Set the default parameters*/
     rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
     rnp_setvar(&rnp, "res",       "<stdout>");
-    rnp_setvar(&rnp, "hash",      "SHA256"); 
+    rnp_setvar(&rnp, "hash",      "SHA256");
     rnp_setvar(&rnp, "format",    "human");
     rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
@@ -640,10 +640,10 @@ static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
     const char* non_default_keydir = "/home/max/test";
     const char* non_default_keydir_sub = "/home/max/test/.rnp";
 
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
+    /* Set the UserId = custom value.
+     * Execute the Generate-key command to generate a new pair of private/public key
      * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    rnp_t rnp;
     const int numbits = 2048;
     char passfd[4] = {0};
     int pipefd[2];
@@ -655,7 +655,7 @@ static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
     /* Clean the enviornment before running the test.*/
     DeleteDir(non_default_keydir);
 
-    /* Set the home directory to a non-default value and ensure the read/write permission 
+    /* Set the home directory to a non-default value and ensure the read/write permission
      * for the specified directory*/
     int retVal = setenv("HOME", non_default_keydir, 1);
     assert_int_equal(retVal,0); // Ensure the enviornment variable was set
@@ -666,7 +666,7 @@ static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
     /*Set the default parameters*/
     rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
     rnp_setvar(&rnp, "res",       "<stdout>");
-    rnp_setvar(&rnp, "hash",      "SHA256"); 
+    rnp_setvar(&rnp, "hash",      "SHA256");
     rnp_setvar(&rnp, "format",    "human");
     rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
@@ -681,10 +681,10 @@ static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
 
     /*Load the newly generated rnp key*/
     retVal = rnp_load_keys(&rnp);
-    assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+    assert_int_equal(retVal,1); //Ensure the keyring is loaded.
 
     retVal = rnp_find_key(&rnp, getenv("LOGNAME")); //Find the default key generated with the login-name
-    assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
+    assert_int_equal(retVal,1); //Ensure the key can be found with the userId
 
     rnp_end(&rnp); //Free memory and other allocated resources.
 }
@@ -693,10 +693,10 @@ static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **s
 {
     const char* non_default_keydir = "/etc";
 
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
+    /* Set the UserId = custom value.
+     * Execute the Generate-key command to generate a new pair of private/public key
      * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    rnp_t rnp;
     const int numbits = 2048;
     char passfd[4] = {0};
     int pipefd[2];
@@ -708,7 +708,7 @@ static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **s
     /* Clean the enviornment before running the test.*/
     DeleteDir(non_default_keydir);
 
-    /* Set the home directory to a non-default value and ensure the read/write permission 
+    /* Set the home directory to a non-default value and ensure the read/write permission
      * for the specified directory*/
     int retVal = setenv("HOME", non_default_keydir, 1);
     assert_int_equal(retVal,0); // Ensure the enviornment variable was set
@@ -722,7 +722,7 @@ static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **s
     /*Set the default parameters*/
     rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
     rnp_setvar(&rnp, "res",       "<stdout>");
-    rnp_setvar(&rnp, "hash",      "SHA256"); 
+    rnp_setvar(&rnp, "hash",      "SHA256");
     rnp_setvar(&rnp, "format",    "human");
     rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
 
