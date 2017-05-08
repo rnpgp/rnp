@@ -14,7 +14,8 @@ autoreconf -vfi
 ./configure --with-botan=${BOTAN_INSTALL}
 make -j2
 
-[ ${COVERITY_SCAN_BRANCH} = 1 ] && exit 0
+: "${COVERITY_SCAN_BRANCH:=0}"
+[[ ${COVERITY_SCAN_BRANCH} = 1 ]] && exit 0
 
 cd src/cmocka
 ./rnp_tests
