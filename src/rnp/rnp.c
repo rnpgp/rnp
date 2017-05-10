@@ -524,6 +524,7 @@ main(int argc, char **argv)
 	int    ch;
 	int    i;
 
+	memset(&rnp, '\0', sizeof(rnp));
 	memset(&p, '\0', sizeof(p));
 
 	p.overwrite = 1;
