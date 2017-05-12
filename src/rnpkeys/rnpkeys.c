@@ -229,7 +229,10 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 	case IMPORT_KEY:
 		return rnp_import_key(rnp, f);
 	case GENERATE_KEY:
-		return rnp_generate_key(rnp, f, p->numbits);
+        if ((key = f) == NULL) {
+            key = rnp_getvar(rnp, "userid");
+        }
+		return rnp_generate_key(rnp, key, p->numbits);
 	case GET_KEY:
 		key = rnp_get_key(rnp, f, rnp_getvar(rnp, "format"));
 		if (key) {
@@ -414,11 +417,6 @@ main(int argc, char **argv)
 		exit(EXIT_ERROR);
 	}
 
-	if (! rnp_init(&rnp)) {
-		fputs("fatal: failed to initialize rnpkeys\n", stderr);
-		return EXIT_ERROR;
-	}
-
 	rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
 	rnp_setvar(&rnp, "res",       "<stdout>");
 	rnp_setvar(&rnp, "hash",      DEFAULT_HASH_ALG);
@@ -460,6 +458,12 @@ main(int argc, char **argv)
 			}
 		}
 	}
+
+	if (! rnp_init(&rnp)) {
+		fputs("fatal: failed to initialize rnpkeys\n", stderr);
+		return EXIT_ERROR;
+	}
+
 
 	/* Keys aren't loaded if this is a key generation step. */
 	if (p.cmd != GENERATE_KEY && ! rnp_load_keys(&rnp)) {

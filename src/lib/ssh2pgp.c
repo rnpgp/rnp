@@ -375,7 +375,7 @@ pgp_ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey
 
 	__PGP_USED(io);
 	/* XXX - check for rsa/dsa */
-	if (!openssl_read_pem_seckey(f, key, "ssh-rsa", 0)) {
+	if (!read_pem_seckey(f, key, "ssh-rsa", 0)) {
 		return 0;
 	}
 	if (pgp_get_debug_level(__FILE__)) {

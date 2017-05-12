@@ -372,6 +372,8 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 	case VERIFY_CAT:
 	case LIST_PACKETS:
 	case SHOW_KEYS:
+                p->cmd = val;
+                break;
 	case HELP_CMD:
                 print_usage(usage);
                 exit(EXIT_SUCCESS);
@@ -522,6 +524,7 @@ main(int argc, char **argv)
 	int    ch;
 	int    i;
 
+	memset(&rnp, '\0', sizeof(rnp));
 	memset(&p, '\0', sizeof(p));
 
 	p.overwrite = 1;
