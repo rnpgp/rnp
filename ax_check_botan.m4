@@ -5,7 +5,7 @@
 # DESCRIPTION
 #
 #   Look for Botan in a number of default spots, or in a user-selected
-#   spot (via --with-openssl).  Sets
+#   spot (via --with-botan).  Sets
 #
 #     BOTAN_INCLUDES to the include directives required
 #     BOTAN_LIBS to the -l directives required
@@ -14,9 +14,9 @@
 #   and calls ACTION-IF-FOUND or ACTION-IF-NOT-FOUND appropriately
 #
 #   This macro sets BOTAN_INCLUDES such that source files should use the
-#   openssl/ directory in include directives:
+#   botan/ directory in include directives:
 #
-#     #include <openssl/hmac.h>
+#     #include <botan/hmac.h>
 #
 # LICENSE
 # Based on

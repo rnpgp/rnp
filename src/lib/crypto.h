@@ -125,14 +125,29 @@ unsigned pgp_dsa_verify(const uint8_t *, size_t,
 			const pgp_dsa_sig_t *,
 			const pgp_dsa_pubkey_t *);
 
-int pgp_rsa_public_decrypt(uint8_t *, const uint8_t *, size_t,
-			const pgp_rsa_pubkey_t *);
+/*
+* RSA encrypt/decrypt
+*/
+
 int pgp_rsa_public_encrypt(uint8_t *, const uint8_t *, size_t,
 			const pgp_rsa_pubkey_t *);
 
+int pgp_rsa_encrypt_pkcs1(uint8_t* out, size_t out_len,
+                          const uint8_t* key, size_t key_len,
+                          const pgp_rsa_pubkey_t* pubkey);
+
+int pgp_rsa_decrypt_pkcs1(uint8_t* out, size_t out_len,
+                          const uint8_t* key, size_t key_len,
+                          const pgp_rsa_seckey_t* privkey,
+                          const pgp_rsa_pubkey_t* pubkey);
+
+/*
+* RSA signature generation and verification
+*/
+int pgp_rsa_public_decrypt(uint8_t *, const uint8_t *, size_t,
+			const pgp_rsa_pubkey_t *);
+
 int pgp_rsa_private_encrypt(uint8_t *, const uint8_t *, size_t,
-			const pgp_rsa_seckey_t *, const pgp_rsa_pubkey_t *);
-int pgp_rsa_private_decrypt(uint8_t *, const uint8_t *, size_t,
 			const pgp_rsa_seckey_t *, const pgp_rsa_pubkey_t *);
 
 /*
@@ -151,7 +166,7 @@ int pgp_rsa_private_decrypt(uint8_t *, const uint8_t *, size_t,
 * @return 	on success - number of bytes written to g2k and encm
 *			on failure -1
 */
-int pgp_elgamal_public_encrypt(
+int pgp_elgamal_public_encrypt_pkcs1(
         uint8_t *g2k,
         uint8_t *encm,
         const uint8_t *in,
@@ -175,7 +190,7 @@ int pgp_elgamal_public_encrypt(
 * @return 	on success - number of bytes written to g2k and encm
 *			on failure -1
 */
-int pgp_elgamal_private_decrypt(
+int pgp_elgamal_private_decrypt_pkcs1(
         uint8_t *out,
         const uint8_t *g2k,
         const uint8_t *in,
@@ -210,13 +225,6 @@ void pgp_reader_pop_hash(pgp_stream_t *);
 
 int pgp_decrypt_decode_mpi(uint8_t *, unsigned, const BIGNUM *,
 			const BIGNUM *, const pgp_seckey_t *);
-
-unsigned pgp_rsa_encrypt_mpi(const uint8_t *, const size_t,
-			const pgp_pubkey_t *,
-			pgp_pk_sesskey_params_t *);
-unsigned pgp_elgamal_encrypt_mpi(const uint8_t *, const size_t,
-			const pgp_pubkey_t *,
-			pgp_pk_sesskey_params_t *);
 
 /* Encrypt everything that's written */
 struct pgp_key_data;
@@ -277,7 +285,7 @@ DSA_SIG *pgp_dsa_sign(uint8_t *, unsigned,
                       const pgp_dsa_seckey_t *,
                       const pgp_dsa_pubkey_t *);
 
-int openssl_read_pem_seckey(const char *, pgp_key_t *, const char *, int);
+int read_pem_seckey(const char *, pgp_key_t *, const char *, int);
 
 /** pgp_reader_t */
 struct pgp_reader_t {

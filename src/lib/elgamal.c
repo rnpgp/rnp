@@ -88,7 +88,7 @@
   } while (0)
 
 int
-pgp_elgamal_public_encrypt(
+pgp_elgamal_public_encrypt_pkcs1(
       uint8_t *g2k,
       uint8_t *encm,
 			const uint8_t *in,
@@ -132,7 +132,7 @@ pgp_elgamal_public_encrypt(
     FAIL("Memory allocation failure");
   }
 
-  if (botan_pk_op_encrypt_create(&op_ctx, key, "Raw", 0)) {
+  if (botan_pk_op_encrypt_create(&op_ctx, key, "PKCS1v15", 0)) {
 
     FAIL("Failed to create operation context");
   }
@@ -167,7 +167,7 @@ end:
 }
 
 int
-pgp_elgamal_private_decrypt(uint8_t *out,
+pgp_elgamal_private_decrypt_pkcs1(uint8_t *out,
 				const uint8_t *g2k,
 				const uint8_t *in,
 				size_t length,
@@ -221,7 +221,7 @@ pgp_elgamal_private_decrypt(uint8_t *out,
   memcpy(bt_plaintext, g2k, p_len);
   memcpy(bt_plaintext + p_len, in, p_len);
 
-  if (botan_pk_op_decrypt_create(&op_ctx, key, "Raw", 0)) {
+  if (botan_pk_op_decrypt_create(&op_ctx, key, "PKCS1v15", 0)) {
 
     FAIL("Failed to create operation context");
   }

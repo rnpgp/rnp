@@ -96,9 +96,7 @@ pgp_decrypt_decode_mpi(uint8_t *buf,
 {
 	unsigned        mpisize;
 	uint8_t		encmpibuf[RNP_BUFSIZ];
-	uint8_t		mpibuf[RNP_BUFSIZ];
 	uint8_t		gkbuf[RNP_BUFSIZ];
-	int             i;
 	int             n;
 
 	mpisize = (unsigned)BN_num_bytes(encmpi);
@@ -113,39 +111,17 @@ pgp_decrypt_decode_mpi(uint8_t *buf,
 		if (pgp_get_debug_level(__FILE__)) {
 			hexdump(stderr, "encrypted", encmpibuf, 16);
 		}
-		n = pgp_rsa_private_decrypt(mpibuf, encmpibuf,
-					(unsigned)(BN_num_bits(encmpi) + 7) / 8,
-					&seckey->key.rsa, &seckey->pubkey.key.rsa);
-		if (n == -1) {
+                n = pgp_rsa_decrypt_pkcs1(buf, buflen,
+                                          encmpibuf, (unsigned)(BN_num_bits(encmpi) + 7) / 8,
+                                          &seckey->key.rsa, &seckey->pubkey.key.rsa);
+		if (n <= 0) {
 			(void) fprintf(stderr, "ops_rsa_private_decrypt failure\n");
 			return -1;
 		}
 		if (pgp_get_debug_level(__FILE__)) {
-			hexdump(stderr, "decrypted", mpibuf, 16);
+			hexdump(stderr, "decoded m", buf, n);
 		}
-		if (n <= 0) {
-			return -1;
-		}
-		/* Decode EME-PKCS1_V1_5 (RFC 2437). */
-		if (mpibuf[0] != 0 || mpibuf[1] != 2) {
-			return -1;
-		}
-		/* Skip the random bytes. */
-		for (i = 2; i < n && mpibuf[i]; ++i) {
-		}
-		if (i == n || i < 10) {
-			return -1;
-		}
-		/* Skip the zero */
-		i += 1;
-		/* this is the unencoded m buf */
-		if ((unsigned) (n - i) <= buflen) {
-			(void) memcpy(buf, mpibuf + i, (unsigned)(n - i)); /* XXX - Flexelint */
-		}
-		if (pgp_get_debug_level(__FILE__)) {
-			hexdump(stderr, "decoded m", buf, (size_t)(n - i));
-		}
-		return n - i;
+		return n;
 	case PGP_PKA_DSA:
 	case PGP_PKA_ELGAMAL:
 		(void) BN_bn2bin(g_to_k, gkbuf);
@@ -153,82 +129,22 @@ pgp_decrypt_decode_mpi(uint8_t *buf,
 		if (pgp_get_debug_level(__FILE__)) {
 			hexdump(stderr, "encrypted", encmpibuf, 16);
 		}
-		n = pgp_elgamal_private_decrypt(mpibuf, gkbuf, encmpibuf,
-					(unsigned)BN_num_bytes(encmpi),
-					&seckey->key.elgamal, &seckey->pubkey.key.elgamal);
-		if (n == -1) {
+		n = pgp_elgamal_private_decrypt_pkcs1(buf,
+                                                      gkbuf, encmpibuf, (unsigned)BN_num_bytes(encmpi),
+                                                      &seckey->key.elgamal, &seckey->pubkey.key.elgamal);
+		if (n <= 0) {
 			(void) fprintf(stderr, "ops_elgamal_private_decrypt failure\n");
 			return -1;
 		}
+
 		if (pgp_get_debug_level(__FILE__)) {
-			hexdump(stderr, "decrypted", mpibuf, 16);
+			hexdump(stderr, "decoded m", buf, n);
 		}
-		if (n <= 0) {
-			return -1;
-		}
-		/* Decode EME-PKCS1_V1_5 (RFC 2437). */
-		if (mpibuf[0] != 2) {
-			fprintf(stderr, "mpibuf mismatch\n");
-			return -1;
-		}
-		/* Skip the random bytes. */
-		for (i = 1; i < n && mpibuf[i]; ++i) {
-		}
-		if (i == n || i < 10) {
-			fprintf(stderr, "175 n %d\n", n);
-			return -1;
-		}
-		/* Skip the zero */
-		i += 1;
-		/* this is the unencoded m buf */
-		if ((unsigned) (n - i) <= buflen) {
-			(void) memcpy(buf, mpibuf + i, (unsigned)(n - i)); /* XXX - Flexelint */
-		}
-		if (pgp_get_debug_level(__FILE__)) {
-			hexdump(stderr, "decoded m", buf, (size_t)(n - i));
-		}
-		return n - i;
+		return n;
 	default:
 		(void) fprintf(stderr, "pubkey algorithm wrong\n");
 		return -1;
 	}
-}
-
-/**
-\ingroup Core_MPI
-\brief RSA-encrypt an MPI
-*/
-unsigned
-pgp_rsa_encrypt_mpi(const uint8_t *encoded_m_buf,
-		    const size_t sz_encoded_m_buf,
-		    const pgp_pubkey_t * pubkey,
-		    pgp_pk_sesskey_params_t * skp)
-{
-
-	uint8_t   encmpibuf[RNP_BUFSIZ];
-	int             n;
-
-	if (sz_encoded_m_buf != (size_t)BN_num_bytes(pubkey->key.rsa.n)) {
-		(void) fprintf(stderr, "sz_encoded_m_buf wrong\n");
-		return 0;
-	}
-
-	n = pgp_rsa_public_encrypt(encmpibuf, encoded_m_buf,
-				sz_encoded_m_buf, &pubkey->key.rsa);
-	if (n == -1) {
-		(void) fprintf(stderr, "pgp_rsa_public_encrypt failure\n");
-		return 0;
-	}
-
-	if (n <= 0)
-		return 0;
-
-	skp->rsa.encrypted_m = BN_bin2bn(encmpibuf, n, NULL);
-
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "encrypted mpi", encmpibuf, 16);
-	}
-	return 1;
 }
 
 /**
@@ -251,8 +167,8 @@ pgp_elgamal_encrypt_mpi(const uint8_t *encoded_m_buf,
 		return 0;
 	}
 
-	n = pgp_elgamal_public_encrypt(g_to_k, encmpibuf, encoded_m_buf,
-				sz_encoded_m_buf, &pubkey->key.elgamal);
+	n = pgp_elgamal_public_encrypt_pkcs1(g_to_k, encmpibuf, encoded_m_buf,
+                                             sz_encoded_m_buf, &pubkey->key.elgamal);
 	if (n == -1) {
 		(void) fprintf(stderr, "pgp_elgamal_public_encrypt failure\n");
 		return 0;
