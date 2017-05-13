@@ -192,7 +192,7 @@ pgp_rsa_private_encrypt(uint8_t *out,
    botan_privkey_t rsa_key;
    botan_pk_op_sign_t sign_op;
    botan_rng_t rng;
-   size_t out_length;
+   size_t out_length = in_length;
 
    if(seckey->q == NULL)
    {
