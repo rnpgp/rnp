@@ -301,12 +301,6 @@ rsa_verify(pgp_hash_alg_t type,
 		return 0;
 	}
 
-	/* XXX: why is there a leading 0? The first byte should be 1... */
-	/* XXX: because the decrypt should use keysize and not sigsize? */
-	if (hashbuf_from_sig[0] != 0 || hashbuf_from_sig[1] != 1) {
-		return 0;
-	}
-
 	switch (type) {
 	case PGP_HASH_MD5:
 		prefix = prefix_md5;
