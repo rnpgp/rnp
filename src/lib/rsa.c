@@ -219,8 +219,14 @@ pgp_rsa_private_encrypt(uint8_t *out,
       return 0;
    }
 
-   botan_pk_op_sign_update(sign_op, in, in_length);
-   botan_pk_op_sign_finish(sign_op, rng, out, &out_length);
+   if (botan_pk_op_sign_update(sign_op, in, in_length) != 0 ||
+       botan_pk_op_sign_finish(sign_op, rng, out, &out_length) != 0)
+   {
+      botan_pk_op_sign_destroy(sign_op);
+      botan_privkey_destroy(rsa_key);
+      botan_rng_destroy(rng);
+      return 0;
+   }
 
    botan_pk_op_sign_destroy(sign_op);
    botan_privkey_destroy(rsa_key);

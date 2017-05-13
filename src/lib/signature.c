@@ -217,6 +217,10 @@ rsa_sign(pgp_hash_t *hash,
 	}
 
 	t = pgp_rsa_private_encrypt(sigbuf, hashbuf, keysize, secrsa, pubrsa);
+	if (t == 0) {
+		(void) fprintf(stderr, "rsa_sign: pgp_rsa_private_encrypt failed\n");
+		return 0;
+	}
 	bn = BN_bin2bn(sigbuf, (int)t, NULL);
 	pgp_write_mpi(out, bn);
 	BN_free(bn);
