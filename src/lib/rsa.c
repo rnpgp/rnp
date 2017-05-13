@@ -203,7 +203,7 @@ pgp_rsa_private_encrypt(uint8_t *out,
    botan_rng_init(&rng, NULL);
 
    /* p and q are reversed from normal usage in PGP */
-   botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, seckey->d->mp);
+   botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, pubkey->e->mp);
 
    if(botan_privkey_check_key(rsa_key, rng, 0) != 0)
    {
