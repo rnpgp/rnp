@@ -279,6 +279,7 @@ typedef struct {
 	BIGNUM         *s;
 } DSA_SIG;
 
+DSA_SIG *DSA_SIG_new():
 void DSA_SIG_free(DSA_SIG* sig);
 
 DSA_SIG *pgp_dsa_sign(uint8_t *, unsigned,
