@@ -252,6 +252,7 @@ typedef enum {
 	PGP_PTAG_SS_FEATURES = 0x200 + 30,	/* features */
 	PGP_PTAG_SS_SIGNATURE_TARGET = 0x200 + 31,	/* signature target */
 	PGP_PTAG_SS_EMBEDDED_SIGNATURE = 0x200 + 32,	/* embedded signature */
+	PGP_PTAG_SS_ISSUER_FPR = 0x200 + 33,
 
 	PGP_PTAG_SS_USERDEFINED00 = 0x200 + 100,	/* internal or
 							 * user-defined */
@@ -850,6 +851,7 @@ typedef union {
 	pgp_data_t			ss_features;
 	pgp_ss_sig_target_t		ss_sig_target;
 	pgp_data_t			ss_embedded_sig;
+	pgp_data_t			ss_issuer_fpr;
 	pgp_ss_revocation_t		ss_revocation;
 	pgp_seckey_t			seckey;
 	uint8_t				*ss_signer;

@@ -1408,6 +1408,14 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 		end_subpacket(&print->indent);/* \todo print out contents? */
 		break;
 
+	case PGP_PTAG_SS_ISSUER_FPR:
+		start_subpacket(&print->indent, pkt->tag);
+		print_hexdump(print->indent, "Issuer Fingerprint",
+			      content->ss_issuer_fpr.contents + 1,
+			      content->ss_issuer_fpr.len - 1);
+		end_subpacket(&print->indent);
+		break;
+
 	case PGP_PTAG_SS_USERDEFINED00:
 	case PGP_PTAG_SS_USERDEFINED01:
 	case PGP_PTAG_SS_USERDEFINED02:

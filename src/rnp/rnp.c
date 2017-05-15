@@ -54,7 +54,7 @@ static const char *usage =
 	"--help OR\n"
 	"\t--encrypt [--output=file] [options] files... OR\n"
 	"\t--decrypt [--output=file] [options] files... OR\n\n"
-	"\t--sign [--armor] [--detach] [--hash=alg] [--output=file]\n"
+	"\t--sign [--detach] [--hash=alg] [--output=file]\n"
 		"\t\t[options] files... OR\n"
 	"\t--verify [options] files... OR\n"
 	"\t--cat [--output=file] [options] files... OR\n"
@@ -62,6 +62,7 @@ static const char *usage =
 	"\t--list-packets [options] OR\n"
 	"\t--version\n"
 	"where options are:\n"
+	"\t[--armor] AND/OR\n"
 	"\t[--cipher=<ciphername>] AND/OR\n"
 	"\t[--coredumps] AND/OR\n"
 	"\t[--homedir=<homedir>] AND/OR\n"
@@ -524,6 +525,7 @@ main(int argc, char **argv)
 	int    ch;
 	int    i;
 
+	memset(&rnp, '\0', sizeof(rnp));
 	memset(&p, '\0', sizeof(p));
 
 	p.overwrite = 1;

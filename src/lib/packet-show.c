@@ -130,6 +130,7 @@ static pgp_map_t packet_tag_map[] =
 	{PGP_PTAG_SS_FEATURES, "SS: Features"},
 	{PGP_PTAG_SS_SIGNATURE_TARGET, "SS: Signature Target"},
 	{PGP_PTAG_SS_EMBEDDED_SIGNATURE, "SS: Embedded Signature"},
+	{PGP_PTAG_SS_ISSUER_FPR, "SS: Issuer Fingerprint"},
 
 	{PGP_PTAG_CT_LITDATA_HEADER, "CT: Literal Data Header"},
 	{PGP_PTAG_CT_LITDATA_BODY, "CT: Literal Data Body"},
@@ -176,6 +177,7 @@ static pgp_map_t ss_type_map[] =
 	{PGP_PTAG_SS_KEY_FLAGS, "Key Flags"},
 	{PGP_PTAG_SS_REVOCATION_REASON, "Reason for Revocation"},
 	{PGP_PTAG_SS_FEATURES, "Features"},
+	{PGP_PTAG_SS_ISSUER_FPR, "Fingerprint"},
 	{0x00, NULL},		/* this is the end-of-array marker */
 };
 
