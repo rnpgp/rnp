@@ -1100,6 +1100,10 @@ pgp_parser_content_free(pgp_packet_t *c)
 		pgp_data_free(&c->u.ss_embedded_sig);
 		break;
 
+	case PGP_PTAG_SS_ISSUER_FPR:
+		pgp_data_free(&c->u.ss_issuer_fpr);
+		break;
+
 	case PGP_PARSER_PACKET_END:
 		pgp_subpacket_free(&c->u.packet);
 		break;
@@ -1683,6 +1687,14 @@ parse_one_sig_subpacket(pgp_sig_t *sig,
 	case PGP_PTAG_SS_EMBEDDED_SIGNATURE:
 		/* \todo should do something with this sig? */
 		if (!read_data(&pkt.u.ss_embedded_sig, &subregion, stream)) {
+			return 0;
+		}
+		break;
+
+	case PGP_PTAG_SS_ISSUER_FPR:
+		if (!read_data(&pkt.u.ss_issuer_fpr, &subregion, stream) ||
+				pkt.u.ss_issuer_fpr.len != 21 ||
+				pkt.u.ss_issuer_fpr.contents[0] != 0x04) {
 			return 0;
 		}
 		break;

@@ -394,7 +394,6 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
 static void rnpkeys_generatekey_verifyUserIdOption(void **state)
 {
 
-#define DEFAULT_NUMBITS 2048
     char userId[1024] = {0};
     const char* UserId[] = {
         "rnpkeys_generatekey_verifyUserIdOption_MD5", 
@@ -410,7 +409,7 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
-    int numbits = DEFAULT_NUMBITS;
+    const int numbits = 2048;
     char passfd[4] = {0};
     int pipefd[2];
 
@@ -453,10 +452,8 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
 #if 0
 static void rnpkeys_generatekey_verifykeyRingOptions(void **state)
 {
-#define DEFAULT_NUMBITS 2048    
-#define MAXPATHLEN 1024
-    char ringfile[MAXPATHLEN];
-    char dir[MAXPATHLEN];
+    char ringfile[1024];
+    char dir[1024];
     char passfd[4] = {0};
     int pipefd[2];
 
@@ -465,7 +462,7 @@ static void rnpkeys_generatekey_verifykeyRingOptions(void **state)
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
-    int numbits = DEFAULT_NUMBITS;
+    const int numbits = 2048;
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -699,6 +696,7 @@ static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
 static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **state)
 {
     const char* non_default_keydir = "/etc";
+    const char* default_keydir = getenv("HOME");
 
     /* Set the UserId = custom value. 
      * Execute the Generate-key command to generate a new pair of private/public key 
@@ -740,7 +738,63 @@ static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **s
     assert_int_equal(retVal,0); //Ensure the key was NOT generated as the directory has only list read permissions.
 
     rnp_end(&rnp); //Free memory and other allocated resources.
+    setenv("HOME", default_keydir, 1);
 }
+
+static void rnpkeys_exportkey_verifyUserId(void **state)
+{
+    /* * Execute the Generate-key command to generate a new pair of private/public key 
+     * Verify the key was generated with the correct UserId.
+     */
+    rnp_t rnp; 
+    const int numbits = 2048;
+    char passfd[4] = {0};
+    int pipefd[2];
+    char *exportedkey = NULL;
+
+    /* Setup the pass phrase fd to avoid user-input*/
+    assert_int_equal(setupPassphrasefd(pipefd), 1);
+    /*Initialize the basic RNP structure. */
+    memset(&rnp, '\0', sizeof(rnp));
+
+    /*Set the default parameters*/
+    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
+    rnp_setvar(&rnp, "res",       "<stdout>");
+    rnp_setvar(&rnp, "hash",      "SHA256"); 
+    rnp_setvar(&rnp, "format",    "human");
+    rnp_setvar(&rnp, "userid",    getenv("LOGNAME"));
+    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+
+    int retVal = rnp_init (&rnp);
+    assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
+
+    retVal = rnp_generate_key(&rnp, NULL, numbits);
+    assert_int_equal(retVal,1); //Ensure the key was generated. 
+
+    /*Load the newly generated rnp key*/
+    retVal = rnp_load_keys(&rnp);
+    assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+
+    /*try to export the key without passing userid from the interface;
+     * stack MUST query the set userid option to find the key*/
+    exportedkey = rnp_export_key(&rnp, NULL);
+    assert_non_null(exportedkey);
+
+    /*try to export the key with specified userid parameter from the interface;
+     * stack MUST NOT query the set userid option to find the key*/
+    exportedkey = NULL;
+    exportedkey = rnp_export_key(&rnp, getenv("LOGNAME"));
+    assert_non_null(exportedkey);
+
+    /* try to export the key with specified userid parameter (which is wrong) from the interface;
+     * stack MUST NOT be able to find the key*/
+    exportedkey = NULL;
+    exportedkey = rnp_export_key(&rnp, "LOGNAME");
+    assert_null(exportedkey);
+
+    rnp_end(&rnp); //Free memory and other allocated resources.
+}
+
 
 int main(void) {
     const struct CMUnitTest tests[] = {
@@ -755,6 +809,7 @@ int main(void) {
         //cmocka_unit_test(rnpkeys_generatekey_verifykeyReadOnlyHomeDir),
         cmocka_unit_test(rnpkeys_generatekey_verifykeyNonexistingHomeDir),
         cmocka_unit_test(rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission),
+        cmocka_unit_test(rnpkeys_exportkey_verifyUserId),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
