@@ -216,7 +216,7 @@ rsa_sign(pgp_hash_t *hash,
 		return 0;
 	}
 
-	t = pgp_rsa_private_encrypt(sigbuf, hashbuf, keysize, secrsa, pubrsa);
+	t = pgp_rsa_private_encrypt(sigbuf, sizeof(sigbuf), hashbuf, keysize, secrsa, pubrsa);
 	if (t == 0) {
 		(void) fprintf(stderr, "rsa_sign: pgp_rsa_private_encrypt failed\n");
 		return 0;

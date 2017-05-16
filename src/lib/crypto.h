@@ -147,7 +147,7 @@ int pgp_rsa_decrypt_pkcs1(uint8_t* out, size_t out_len,
 int pgp_rsa_public_decrypt(uint8_t *, const uint8_t *, size_t,
 			const pgp_rsa_pubkey_t *);
 
-int pgp_rsa_private_encrypt(uint8_t *, const uint8_t *, size_t,
+int pgp_rsa_private_encrypt(uint8_t *, size_t, const uint8_t *, size_t,
 			const pgp_rsa_seckey_t *, const pgp_rsa_pubkey_t *);
 
 /*

@@ -183,6 +183,7 @@ done:
 */
 int
 pgp_rsa_private_encrypt(uint8_t *out,
+			size_t out_length,
 			const uint8_t *in,
 			size_t in_length,
 			const pgp_rsa_seckey_t *seckey,
@@ -192,7 +193,6 @@ pgp_rsa_private_encrypt(uint8_t *out,
    botan_privkey_t rsa_key;
    botan_pk_op_sign_t sign_op;
    botan_rng_t rng;
-   size_t out_length = in_length;
 
    if(seckey->q == NULL)
    {
