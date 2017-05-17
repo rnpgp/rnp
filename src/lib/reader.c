@@ -152,10 +152,10 @@ pgp_getpassphrase(void *in, char *phrase, size_t size)
 		}
 		(void) snprintf(phrase, size, "%s", p);
 	} else {
+                memset(phrase, 0, size);
 		if (fgets(phrase, (int)size, in) == NULL) {
 			return 0;
 		}
-		phrase[strlen(phrase) - 1] = 0x0;
 	}
 	return 1;
 }
