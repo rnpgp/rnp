@@ -227,6 +227,10 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 		(void) fprintf(stderr, "key '%s' not found\n", f);
 		return 0;
 	case IMPORT_KEY:
+		if (f == NULL) {
+			(void) fprintf(stderr, "import file isn't specified\n");
+			return 0;
+		}
 		return rnp_import_key(rnp, f);
 	case GENERATE_KEY:
         if ((key = f) == NULL) {

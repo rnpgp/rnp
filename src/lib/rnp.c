@@ -543,7 +543,7 @@ isarmoured(pgp_io_t *io, const char *f, const void *memory, const char *text)
 		}
 		(void) fclose(fp);
 	} else {
-		if (regexec(&r, memory, 10, matches, 0) == 0) {
+		if (memory && regexec(&r, memory, 10, matches, 0) == 0) {
 			armoured = 1;
 		}
 	}
