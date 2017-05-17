@@ -355,7 +355,7 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
-    const int numbits = 2048;
+    const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
 
@@ -372,7 +372,7 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
         rnp_setvar(&rnp, "res",       "<stdout>");
         rnp_setvar(&rnp, "hash",     hashAlg[i]); 
         rnp_setvar(&rnp, "format",    "human");
-        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
 
         int retVal = rnp_init (&rnp);
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -409,7 +409,7 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
-    const int numbits = 2048;
+    const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
 
@@ -430,7 +430,7 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
         rnp_setvar(&rnp, "res",       "<stdout>");
         rnp_setvar(&rnp, "hash",      "SHA256"); 
         rnp_setvar(&rnp, "format",    "human");
-        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
 
         int retVal = rnp_init (&rnp);
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -462,7 +462,7 @@ static void rnpkeys_generatekey_verifykeyRingOptions(void **state)
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
-    const int numbits = 2048;
+    const int numbits = 1024;
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -475,7 +475,7 @@ static void rnpkeys_generatekey_verifykeyRingOptions(void **state)
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
 
     int retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -541,7 +541,7 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
-    const int numbits = 2048;
+    const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
 
@@ -567,7 +567,7 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -597,7 +597,7 @@ static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
-    const int numbits = 2048;
+    const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
 
@@ -624,7 +624,7 @@ static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -645,7 +645,7 @@ static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
-    const int numbits = 2048;
+    const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
 
@@ -672,7 +672,7 @@ static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -702,7 +702,7 @@ static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **s
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
-    const int numbits = 2048;
+    const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
 
@@ -729,7 +729,7 @@ static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **s
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -747,7 +747,7 @@ static void rnpkeys_exportkey_verifyUserId(void **state)
      * Verify the key was generated with the correct UserId.
      */
     rnp_t rnp; 
-    const int numbits = 2048;
+    const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
     char *exportedkey = NULL;
@@ -763,7 +763,7 @@ static void rnpkeys_exportkey_verifyUserId(void **state)
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
     rnp_setvar(&rnp, "userid",    getenv("LOGNAME"));
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
 
     int retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
