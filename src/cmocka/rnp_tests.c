@@ -359,6 +359,10 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
     char passfd[4] = {0};
     int pipefd[2];
 
+    /* Set the logname variable (if not previously set; for example in docker*/
+    setenv("LOGNAME", "ribose", 1);
+
+
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
 
@@ -413,6 +417,8 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
     char passfd[4] = {0};
     int pipefd[2];
 
+    /* Set the logname variable (if not previously set; for example in docker*/
+    setenv("LOGNAME", "ribose", 1);
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -463,6 +469,9 @@ static void rnpkeys_generatekey_verifykeyRingOptions(void **state)
      * Verify the key was generated with the correct UserId.*/
     rnp_t rnp; 
     const int numbits = 1024;
+
+    /* Set the logname variable (if not previously set; for example in docker*/
+    setenv("LOGNAME", "ribose", 1);
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -545,6 +554,8 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     char passfd[4] = {0};
     int pipefd[2];
 
+    /* Set the logname variable (if not previously set; for example in docker*/
+    setenv("LOGNAME", "ribose", 1);
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -601,6 +612,9 @@ static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
     char passfd[4] = {0};
     int pipefd[2];
 
+    /* Set the logname variable (if not previously set; for example in docker*/
+    setenv("LOGNAME", "ribose", 1);
+
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -649,6 +663,9 @@ static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
     char passfd[4] = {0};
     int pipefd[2];
 
+
+    /* Set the logname variable (if not previously set; for example in docker*/
+    setenv("LOGNAME", "ribose", 1);
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -707,6 +724,9 @@ static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **s
     int pipefd[2];
 
 
+    /* Set the logname variable (if not previously set; for example in docker*/
+    setenv("LOGNAME", "ribose", 1);
+
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
 
@@ -751,6 +771,9 @@ static void rnpkeys_exportkey_verifyUserId(void **state)
     char passfd[4] = {0};
     int pipefd[2];
     char *exportedkey = NULL;
+
+    /* Set the logname variable (if not previously set; for example in docker*/
+    setenv("LOGNAME", "ribose", 1);
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
