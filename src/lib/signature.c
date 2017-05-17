@@ -175,12 +175,16 @@ rsa_sign(pgp_hash_t *hash,
 		prefix = prefix_sha1;
 		prefixsize = sizeof(prefix_sha1);
 		expected = PGP_SHA1_HASH_SIZE;
-	} else {
+	} else if(strcmp(hash->name, "SHA256") == 0) {
 		hashsize = PGP_SHA256_HASH_SIZE + sizeof(prefix_sha256);
 		prefix = prefix_sha256;
 		prefixsize = sizeof(prefix_sha256);
 		expected = PGP_SHA256_HASH_SIZE;
-	}
+	} else {
+               (void)fprintf(stderr, "rsa_sign unsupported hash %s\n", hash->name);
+               return 0;
+        }
+
 	keysize = (BN_num_bits(pubrsa->n) + 7) / 8;
 	if (keysize > sizeof(hashbuf)) {
 		(void) fprintf(stderr, "rsa_sign: keysize too big\n");
@@ -204,7 +208,7 @@ rsa_sign(pgp_hash_t *hash,
 	(void) memcpy(&hashbuf[n], prefix, prefixsize);
 	n += prefixsize;
 	if ((t = hash->finish(hash, &hashbuf[n])) != expected) {
-		(void) fprintf(stderr, "rsa_sign: short %s hash\n", hash->name);
+                (void) fprintf(stderr, "rsa_sign: short %s hash (%d != %d)\n", hash->name, t, expected);
 		return 0;
 	}
 

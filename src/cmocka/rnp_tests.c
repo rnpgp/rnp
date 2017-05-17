@@ -311,7 +311,6 @@ static void raw_elg_test_success(void **state)
     BN_clear_free(pub_elg.y);
 }
 
-
 char *convert(char *buff, const int buffsize, unsigned int num, int base) {
     char *ptr;    
     ptr = &buff[buffsize - 1];    
@@ -334,9 +333,97 @@ static int setupPassphrasefd(int* pipefd)
 
     /*Write and close fd*/
     const char *password = "passwordforkeygeneration\0";
-    write(pipefd[1], password, strlen(password));
+    assert_int_equal(write(pipefd[1], password, strlen(password)), strlen(password));
     close(pipefd[1]);
     return 1;
+}
+
+static void rnpkeys_generatekey_testSignature(void **state)
+{
+    const char* hashAlg[] = {
+        "SHA-1", 
+        "SHA256", 
+    }; 
+
+    /* Set the UserId = custom value. 
+     * Execute the Generate-key command to generate a new pair of private/public key 
+     * Sign a message, then verify it
+     */
+    rnp_t rnp; 
+    const int numbits = 2048;
+    char passfd[4] = {0};
+    int pipefd[2];
+
+    char memToSign[] = "A simple test message";
+    char signatureBuf[4096];
+    char recoveredSig[4096];
+    char userId[128];
+
+    /* Setup the pass phrase fd to avoid user-input*/
+    assert_int_equal(setupPassphrasefd(pipefd), 1);
+
+    for (int i = 0; i < sizeof(hashAlg)/sizeof(hashAlg[0]); i++)
+    {
+        /*Initialize the basic RNP structure. */
+        memset(&rnp, '\0', sizeof(rnp));
+
+        /*Set the default parameters*/
+        rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
+        rnp_setvar(&rnp, "res",       "<stdout>");
+        rnp_setvar(&rnp, "hash",     hashAlg[i]); 
+        rnp_setvar(&rnp, "format",    "human");
+        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+        rnp_setvar(&rnp, "need seckey", "true");
+
+        int retVal = rnp_init (&rnp);
+        assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
+
+        memset(userId, 0, sizeof(userId));
+        strcpy(userId, "sigtest_");
+        strcat(userId, hashAlg[i]);
+
+        retVal = rnp_generate_key(&rnp, userId, numbits);
+        assert_int_equal(retVal,1); //Ensure the key was generated 
+
+        /*Load the newly generated rnp key*/
+        retVal = rnp_load_keys(&rnp);
+        assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+
+        retVal = rnp_find_key(&rnp, userId);
+        assert_int_equal(retVal,1); //Ensure the key can be found with the userId
+
+        unsigned int armored = 1;
+        unsigned int cleartext = 0;
+
+        close(pipefd[0]);
+        /* Setup the pass phrase fd to avoid user-input*/
+        assert_int_equal(setupPassphrasefd(pipefd), 1);
+
+        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+        retVal = rnp_sign_memory(&rnp, userId,
+                                 memToSign, sizeof(memToSign),
+                                 signatureBuf, sizeof(signatureBuf),
+                                 armored, cleartext);
+
+        assert_int_not_equal(retVal, 0); // Ensure signature operation succeeded
+
+        const int sigLen = retVal;
+
+        retVal = rnp_verify_memory(&rnp, signatureBuf, sigLen,
+                                   recoveredSig, sizeof(recoveredSig),
+                                   armored);
+        assert_int_equal(retVal, 1+strlen(memToSign)); // Ensure signature verification passed
+        assert_string_equal(recoveredSig, memToSign);
+
+        signatureBuf[200] += 1; // corrupt the signature
+
+        retVal = rnp_verify_memory(&rnp, signatureBuf, sigLen,
+                                   recoveredSig, sizeof(recoveredSig),
+                                   armored);
+        assert_int_equal(retVal, 0); // Ensure signature verification fails for invalid sig
+
+        rnp_end(&rnp); //Free memory and other allocated resources.
+    }
 }
 
 static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
@@ -802,6 +889,7 @@ int main(void) {
         cmocka_unit_test(cipher_test_success),
         cmocka_unit_test(pkcs1_rsa_test_success),
         cmocka_unit_test(raw_elg_test_success),
+        cmocka_unit_test(rnpkeys_generatekey_testSignature),
         cmocka_unit_test(rnpkeys_generatekey_verifySupportedHashAlg),
         cmocka_unit_test(rnpkeys_generatekey_verifyUserIdOption),
         //cmocka_unit_test(rnpkeys_generatekey_verifykeyRingOptions),
