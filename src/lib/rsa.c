@@ -80,6 +80,8 @@
 #include "readerwriter.h"
 #include "rnpdefs.h"
 
+#include <string.h>
+
 /**
    \ingroup Core_Crypto
    \brief Recovers message digest from the signature
@@ -112,6 +114,7 @@ pgp_rsa_public_decrypt(uint8_t *out,
         if(n_bytes < out_bytes)
            return 0;
 
+        memset(out, 0, n_bytes);
         botan_mp_to_bin(output, out + (n_bytes - out_bytes));
 
         return n_bytes;
