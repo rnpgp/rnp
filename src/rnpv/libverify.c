@@ -62,6 +62,7 @@
 #include "verify.h"
 #include "platform.h"
 #include "bn.h"
+#include "packet-show.h"
 
 
 #ifndef USE_ARG
@@ -1631,41 +1632,18 @@ estimate_primarykey_size(pgpv_primarykey_t *primary)
 static int
 rsa_verify(uint8_t *calculated, unsigned calclen, uint8_t hashalg, pgpv_bignum_t *bn, pgpv_pubkey_t *pubkey)
 {
-	unsigned	 prefixlen;
-	unsigned	 decryptc;
-	unsigned	 i;
-	uint8_t		 decrypted[8192];
 	uint8_t		 sigbn[8192];
-	uint8_t		 prefix[64];
-	size_t		 keysize;
 
         pgp_rsa_pubkey_t rsa_pubkey;
         rsa_pubkey.n = pubkey->bn[RSA_N].bn;
         rsa_pubkey.e = pubkey->bn[RSA_E].bn;
 
-        keysize = BITS_TO_BYTES(pubkey->bn[RSA_N].bits);
 	BN_bn2bin(bn[RSA_SIG].bn, sigbn);
-	decryptc = pgp_rsa_public_decrypt(decrypted, sigbn, BITS_TO_BYTES(bn[RSA_SIG].bits), &rsa_pubkey);
-	if (decryptc != keysize || (decrypted[0] != 0 || decrypted[1] != 1)) {
-		return 0;
-	}
-	if ((prefixlen = digest_get_prefix((unsigned)hashalg, prefix, sizeof(prefix))) == 0) {
-		printf("rsa_verify: unknown hash algorithm: %d\n", hashalg);
-		return 0;
-	}
-	for (i = 2 ; i < keysize - prefixlen - calclen - 1 ; i++) {
-		if (decrypted[i] != 0xff) {
-			return 0;
-		}
-	}
-	if (decrypted[i++] != 0x0) {
-		return 0;
-	}
-	if (memcmp(&decrypted[i], prefix, prefixlen) != 0) {
-		printf("rsa_verify: wrong hash algorithm\n");
-		return 0;
-	}
-	return memcmp(&decrypted[i + prefixlen], calculated, calclen) == 0;
+
+        return pgp_rsa_pkcs1_verify_hash(sigbn, BITS_TO_BYTES(bn[RSA_SIG].bits),
+                                         pgp_show_hash_alg(hashalg),
+                                         calculated, calclen,
+                                         &rsa_pubkey);
 }
 
 /* verify DSA signature */

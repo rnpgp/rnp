@@ -84,50 +84,12 @@
 
 /**
    \ingroup Core_Crypto
-   \brief Recovers message digest from the signature
+   \brief Decrypt PKCS1 formatted RSA ciphertext
    \param out Where to write decrypted data to
    \param in Encrypted data
    \param length Length of encrypted data
    \param pubkey RSA public key
-   \return size of recovered message digest
-*/
-int
-pgp_rsa_public_decrypt(uint8_t *out,
-                        const uint8_t *in,
-                        size_t length,
-                        const pgp_rsa_pubkey_t *pubkey)
-{
-        size_t out_bytes = 0;
-        size_t n_bytes = 0;
-        botan_mp_t output, msg;
-
-        botan_mp_init(&msg);
-        botan_mp_from_bin(msg, in, length);
-
-        botan_mp_init(&output);
-        botan_mp_powmod(output, msg, pubkey->e->mp, pubkey->n->mp);
-
-        // Handle any necessary zero padding
-        botan_mp_num_bytes(output, &out_bytes);
-        botan_mp_num_bytes(pubkey->n->mp, &n_bytes);
-
-        if(n_bytes < out_bytes)
-           return 0;
-
-        memset(out, 0, n_bytes);
-        botan_mp_to_bin(output, out + (n_bytes - out_bytes));
-
-        return n_bytes;
-}
-
-/**
-   \ingroup Core_Crypto
-   \brief Recovers message digest from the signature
-   \param out Where to write decrypted data to
-   \param in Encrypted data
-   \param length Length of encrypted data
-   \param pubkey RSA public key
-   \return size of recovered message digest
+   \return size of recovered plaintext
 */
 int
 pgp_rsa_encrypt_pkcs1(uint8_t *out,
@@ -174,6 +136,77 @@ done:
    return retval;
 }
 
+static void rnp_hash_to_botan_pkcs1_padding(char padding_name[], size_t len_padding_name,
+                                            const char* hash_name)
+{
+        // rnp uses SHAx Botan uses SHA-x
+        if(strcmp(hash_name, "SHA1") == 0)
+        {
+                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-1)");
+        }
+        else if(strcmp(hash_name, "SHA224") == 0)
+        {
+                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-224)");
+        }
+        else if(strcmp(hash_name, "SHA256") == 0)
+        {
+                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-256)");
+        }
+        else if(strcmp(hash_name, "SHA384") == 0)
+        {
+                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-384)");
+        }
+        else if(strcmp(hash_name, "SHA512") == 0)
+        {
+                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-512)");
+        }
+        else
+        {
+                snprintf(padding_name, len_padding_name, "EMSA-PKCS1-v1_5(Raw,%s)", hash_name);
+        }
+}
+
+int pgp_rsa_pkcs1_verify_hash(const uint8_t *sig_buf, size_t sig_buf_size,
+                              const char* hash_name, const uint8_t *hash, size_t hash_len,
+                              const pgp_rsa_pubkey_t *pubkey)
+{
+        char padding_name[64] = { 0 };
+        botan_pubkey_t rsa_key = NULL;
+        botan_pk_op_verify_t verify_op = NULL;
+        botan_rng_t rng = NULL;
+        int result = 0;
+
+        rnp_hash_to_botan_pkcs1_padding(padding_name, sizeof(padding_name), hash_name);
+
+        botan_rng_init(&rng, NULL);
+
+        botan_pubkey_load_rsa(&rsa_key, pubkey->n->mp, pubkey->e->mp);
+
+        if (botan_pubkey_check_key(rsa_key, rng, 1) != 0)
+        {
+                goto done;
+        }
+
+        if (botan_pk_op_verify_create(&verify_op, rsa_key, padding_name, 0) != 0)
+        {
+                goto done;
+        }
+
+        if (botan_pk_op_verify_update(verify_op, hash, hash_len) != 0)
+        {
+                goto done;
+        }
+
+        result = (botan_pk_op_verify_finish(verify_op, sig_buf, sig_buf_size) == 0) ? 1 : 0;
+
+done:
+        botan_pk_op_verify_destroy(verify_op);
+        botan_pubkey_destroy(rsa_key);
+        botan_rng_destroy(rng);
+        return result;
+}
+
+
 /**
    \ingroup Core_Crypto
    \brief Signs data with RSA
@@ -200,26 +233,8 @@ int pgp_rsa_pkcs1_sign_hash(uint8_t * sig_buf, size_t sig_buf_size,
                 return 0;
         }
 
-        if(strcmp(hash_name, "SHA1") == 0)
-        {
-                strcmp(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-1)");
-        }
-        else if(strcmp(hash_name, "SHA256") == 0)
-        {
-                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-256)");
-        }
-        else if(strcmp(hash_name, "SHA384") == 0)
-        {
-                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-384)");
-        }
-        else if(strcmp(hash_name, "SHA512") == 0)
-        {
-                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-512)");
-        }
-        else
-        {
-                snprintf(padding_name, sizeof(padding_name), "EMSA-PKCS1-v1_5(Raw,%s)", hash_name);
-        }
+
+        rnp_hash_to_botan_pkcs1_padding(padding_name, sizeof(padding_name), hash_name);
 
         botan_rng_init(&rng, NULL);
 

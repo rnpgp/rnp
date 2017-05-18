@@ -51,26 +51,6 @@
 #define	USE_ARG(x)	/*LINTED*/(void)&(x)
 #endif
 
-static uint8_t prefix_md5[] = {
-	0x30, 0x20, 0x30, 0x0C, 0x06, 0x08, 0x2A, 0x86, 0x48, 0x86,
-	0xF7, 0x0D, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10
-};
-
-static uint8_t prefix_sha1[] = {
-	0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0E, 0x03, 0x02,
-	0x1A, 0x05, 0x00, 0x04, 0x14
-};
-
-static uint8_t prefix_sha256[] = {
-	0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
-	0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20
-};
-
-static uint8_t prefix_sha512[] = {
-	0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
-	0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40
-};
-
 #define V4_SIGNATURE		4
 
 /*************************************************************************/
@@ -167,49 +147,5 @@ digest_length(digest_t *hash, unsigned hashedlen)
 	trailer[5] = (uint8_t)(hashedlen & 0xff);
 	digest_update(hash, trailer, sizeof(trailer));
 	return 1;
-}
-
-unsigned
-digest_get_prefix(unsigned hashalg, uint8_t *out_prefix, size_t size)
-{
-	if (out_prefix == NULL) {
-		return 0;
-	}
-
-        const uint8_t* prefix = NULL;
-        size_t prefix_size = 0;
-
-	switch (hashalg) {
-	case MD5_HASH_ALG:
-           prefix = prefix_md5;
-           prefix_size = sizeof(prefix_md5);
-           break;
-
-        case SHA1_HASH_ALG:
-           prefix = prefix_sha1;
-           prefix_size = sizeof(prefix_sha1);
-           break;
-
-	case SHA256_HASH_ALG:
-           prefix = prefix_sha256;
-           prefix_size = sizeof(prefix_sha256);
-           break;
-
-	case SHA512_HASH_ALG:
-           prefix = prefix_sha512;
-           prefix_size = sizeof(prefix_sha512);
-           break;
-
-	default:
-           printf("digest_get_prefix: unknown hash algorithm: %d\n", hashalg);
-           return 0;
-	}
-
-        // insufficient output space
-        if (size < prefix_size) {
-           return 0;
-        }
-        memcpy(out_prefix, prefix, prefix_size);
-        return prefix_size;
 }
 
