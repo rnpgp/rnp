@@ -159,73 +159,29 @@ rsa_sign(pgp_hash_t *hash,
 	const pgp_rsa_seckey_t *secrsa,
 	pgp_output_t *out)
 {
-	unsigned        prefixsize;
-	unsigned        expected;
-	unsigned        hashsize;
-	unsigned        keysize;
-	unsigned        n;
-	unsigned        t;
-	uint8_t		hashbuf[RNP_BUFSIZ];
+	unsigned        hash_size;
+        int             sig_size = 0;
+	uint8_t		hashbuf[128];
 	uint8_t		sigbuf[RNP_BUFSIZ];
-	uint8_t		*prefix;
 	BIGNUM         *bn;
 
-	if (strcmp(hash->name, "SHA1") == 0) {
-		hashsize = PGP_SHA1_HASH_SIZE + sizeof(prefix_sha1);
-		prefix = prefix_sha1;
-		prefixsize = sizeof(prefix_sha1);
-		expected = PGP_SHA1_HASH_SIZE;
-	} else if(strcmp(hash->name, "SHA256") == 0) {
-		hashsize = PGP_SHA256_HASH_SIZE + sizeof(prefix_sha256);
-		prefix = prefix_sha256;
-		prefixsize = sizeof(prefix_sha256);
-		expected = PGP_SHA256_HASH_SIZE;
-	} else {
-               (void)fprintf(stderr, "rsa_sign unsupported hash %s\n", hash->name);
-               return 0;
-        }
+        hash_size = hash->finish(hash, hashbuf);
 
-	keysize = (BN_num_bits(pubrsa->n) + 7) / 8;
-	if (keysize > sizeof(hashbuf)) {
-		(void) fprintf(stderr, "rsa_sign: keysize too big\n");
+        /**
+        * The high 16 bits (first two octets) of the hash are included
+        * in the Signature packet to provide a quick test to reject
+        * some invalid signatures. - RFC 4880
+        */
+	pgp_write(out, &hashbuf[0], 2);
+
+	sig_size = pgp_rsa_pkcs1_sign_hash(sigbuf, sizeof(sigbuf),
+                                           hash->name, hashbuf, hash_size,
+                                           secrsa, pubrsa);
+	if (sig_size == 0) {
+		(void) fprintf(stderr, "rsa_sign: pgp_rsa_pkcs1_sign_hash failed\n");
 		return 0;
 	}
-	if (10 + hashsize > keysize) {
-		(void) fprintf(stderr, "rsa_sign: hashsize too big\n");
-		return 0;
-	}
-
-	hashbuf[0] = 0;
-	hashbuf[1] = 1;
-	if (pgp_get_debug_level(__FILE__)) {
-		printf("rsa_sign: PS is %d\n", keysize - hashsize - 1 - 2);
-	}
-	for (n = 2; n < keysize - hashsize - 1; ++n) {
-		hashbuf[n] = 0xff;
-	}
-	hashbuf[n++] = 0;
-
-	(void) memcpy(&hashbuf[n], prefix, prefixsize);
-	n += prefixsize;
-	if ((t = hash->finish(hash, &hashbuf[n])) != expected) {
-                (void) fprintf(stderr, "rsa_sign: short %s hash (%d != %d)\n", hash->name, t, expected);
-		return 0;
-	}
-
-	pgp_write(out, &hashbuf[n], 2);
-
-	n += t;
-	if (n != keysize) {
-		(void) fprintf(stderr, "rsa_sign: n != keysize\n");
-		return 0;
-	}
-
-	t = pgp_rsa_private_encrypt(sigbuf, sizeof(sigbuf), hashbuf, keysize, secrsa, pubrsa);
-	if (t == 0) {
-		(void) fprintf(stderr, "rsa_sign: pgp_rsa_private_encrypt failed\n");
-		return 0;
-	}
-	bn = BN_bin2bn(sigbuf, (int)t, NULL);
+	bn = BN_bin2bn(sigbuf, sig_size, NULL);
 	pgp_write_mpi(out, bn);
 	BN_free(bn);
 	return 1;

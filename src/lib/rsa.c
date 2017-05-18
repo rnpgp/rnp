@@ -184,58 +184,76 @@ done:
    \param pubkey RSA public key
    \return number of bytes decrypted
 */
-int
-pgp_rsa_private_encrypt(uint8_t *out,
-			size_t out_length,
-			const uint8_t *in,
-			size_t in_length,
-			const pgp_rsa_seckey_t *seckey,
-			const pgp_rsa_pubkey_t * pubkey)
+int pgp_rsa_pkcs1_sign_hash(uint8_t * sig_buf, size_t sig_buf_size,
+                            const char* hash_name, const uint8_t *hash_buf, size_t hash_len,
+                            const pgp_rsa_seckey_t *seckey,
+                            const pgp_rsa_pubkey_t *pubkey)
 {
+        char padding_name[64] = { 0 };
+        botan_privkey_t rsa_key;
+        botan_pk_op_sign_t sign_op;
+        botan_rng_t rng;
 
-   botan_privkey_t rsa_key;
-   botan_pk_op_sign_t sign_op;
-   botan_rng_t rng;
+        if(seckey->q == NULL)
+        {
+                (void) fprintf(stderr, "private key not set in pgp_rsa_private_encrypt\n");
+                return 0;
+        }
 
-   if(seckey->q == NULL)
-   {
-      (void) fprintf(stderr, "private key not set in pgp_rsa_private_encrypt\n");
-      return 0;
-   }
+        if(strcmp(hash_name, "SHA1") == 0)
+        {
+                strcmp(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-1)");
+        }
+        else if(strcmp(hash_name, "SHA256") == 0)
+        {
+                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-256)");
+        }
+        else if(strcmp(hash_name, "SHA384") == 0)
+        {
+                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-384)");
+        }
+        else if(strcmp(hash_name, "SHA512") == 0)
+        {
+                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-512)");
+        }
+        else
+        {
+                snprintf(padding_name, sizeof(padding_name), "EMSA-PKCS1-v1_5(Raw,%s)", hash_name);
+        }
 
-   botan_rng_init(&rng, NULL);
+        botan_rng_init(&rng, NULL);
 
-   /* p and q are reversed from normal usage in PGP */
-   botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, pubkey->e->mp);
+        /* p and q are reversed from normal usage in PGP */
+        botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, pubkey->e->mp);
 
-   if(botan_privkey_check_key(rsa_key, rng, 0) != 0)
-   {
-      botan_privkey_destroy(rsa_key);
-      botan_rng_destroy(rng);
-      return 0;
-   }
+        if (botan_privkey_check_key(rsa_key, rng, 0) != 0)
+        {
+                botan_privkey_destroy(rsa_key);
+                botan_rng_destroy(rng);
+                return 0;
+        }
 
-   if(botan_pk_op_sign_create(&sign_op, rsa_key, "Raw", 0) != 0)
-   {
-      botan_privkey_destroy(rsa_key);
-      botan_rng_destroy(rng);
-      return 0;
-   }
+        if (botan_pk_op_sign_create(&sign_op, rsa_key, padding_name, 0) != 0)
+        {
+                botan_privkey_destroy(rsa_key);
+                botan_rng_destroy(rng);
+                return 0;
+        }
 
-   if (botan_pk_op_sign_update(sign_op, in, in_length) != 0 ||
-       botan_pk_op_sign_finish(sign_op, rng, out, &out_length) != 0)
-   {
-      botan_pk_op_sign_destroy(sign_op);
-      botan_privkey_destroy(rsa_key);
-      botan_rng_destroy(rng);
-      return 0;
-   }
+        if (botan_pk_op_sign_update(sign_op, hash_buf, hash_len) != 0 ||
+            botan_pk_op_sign_finish(sign_op, rng, sig_buf, &sig_buf_size) != 0)
+        {
+                botan_pk_op_sign_destroy(sign_op);
+                botan_privkey_destroy(rsa_key);
+                botan_rng_destroy(rng);
+                return 0;
+        }
 
-   botan_pk_op_sign_destroy(sign_op);
-   botan_privkey_destroy(rsa_key);
-   botan_rng_destroy(rng);
+        botan_pk_op_sign_destroy(sign_op);
+        botan_privkey_destroy(rsa_key);
+        botan_rng_destroy(rng);
 
-   return (int)out_length;
+        return (int)sig_buf_size;
 }
 
 /**
