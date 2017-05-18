@@ -135,21 +135,6 @@ pgp_dump_sig(pgp_sig_t *sig)
 #endif
 
 
-static uint8_t prefix_md5[] = {
-	0x30, 0x20, 0x30, 0x0C, 0x06, 0x08, 0x2A, 0x86, 0x48, 0x86,
-	0xF7, 0x0D, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10
-};
-
-static uint8_t prefix_sha1[] = {
-	0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0E, 0x03, 0x02,
-	0x1A, 0x05, 0x00, 0x04, 0x14
-};
-
-static uint8_t prefix_sha256[] = {
-	0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
-	0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20
-};
-
 
 /* XXX: both this and verify would be clearer if the signature were */
 /* treated as an MPI. */
@@ -224,25 +209,19 @@ dsa_sign(pgp_hash_t *hash,
 }
 
 static unsigned 
-rsa_verify(pgp_hash_alg_t type,
+rsa_verify(const char* hash_name,
 	   const uint8_t *hash,
 	   size_t hash_length,
 	   const pgp_rsa_sig_t *sig,
 	   const pgp_rsa_pubkey_t *pubrsa)
 {
-	const uint8_t	*prefix;
-	unsigned       	 n;
-	unsigned       	 keysize;
-	unsigned	 plen;
-	unsigned	 debug_len_decrypted;
+        size_t           sigbuf_len = 0;
+        size_t           keysize;
 	uint8_t   	 sigbuf[RNP_BUFSIZ];
-	uint8_t   	 hashbuf_from_sig[RNP_BUFSIZ];
 
-	plen = 0;
-	prefix = (const uint8_t *) "";
 	keysize = BN_num_bytes(pubrsa->n);
 	/* RSA key can't be bigger than 65535 bits, so... */
-	if (keysize > sizeof(hashbuf_from_sig)) {
+	if (keysize > sizeof(sigbuf)) {
 		(void) fprintf(stderr, "rsa_verify: keysize too big\n");
 		return 0;
 	}
@@ -252,59 +231,11 @@ rsa_verify(pgp_hash_alg_t type,
 	}
 	BN_bn2bin(sig->sig, sigbuf);
 
-	n = pgp_rsa_public_decrypt(hashbuf_from_sig, sigbuf,
-		(unsigned)(BN_num_bits(sig->sig) + 7) / 8, pubrsa);
-	debug_len_decrypted = n;
+        sigbuf_len = (BN_num_bits(sig->sig) + 7) / 8;
 
-	if (n != keysize) {
-		/* obviously, this includes error returns */
-		return 0;
-	}
-
-	if (hashbuf_from_sig[0] != 0 || hashbuf_from_sig[1] != 1) {
-		return 0;
-	}
-
-	switch (type) {
-	case PGP_HASH_MD5:
-		prefix = prefix_md5;
-		plen = sizeof(prefix_md5);
-		break;
-	case PGP_HASH_SHA1:
-		prefix = prefix_sha1;
-		plen = sizeof(prefix_sha1);
-		break;
-	case PGP_HASH_SHA256:
-		prefix = prefix_sha256;
-		plen = sizeof(prefix_sha256);
-		break;
-	default:
-		(void) fprintf(stderr, "Unknown hash algorithm: %d\n", type);
-		return 0;
-	}
-
-	if (keysize - plen - hash_length < 10) {
-		return 0;
-	}
-
-	for (n = 2; n < keysize - plen - hash_length - 1; ++n) {
-		if (hashbuf_from_sig[n] != 0xff) {
-			return 0;
-		}
-	}
-
-	if (hashbuf_from_sig[n++] != 0) {
-		return 0;
-	}
-
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "sig hashbuf", hashbuf_from_sig, debug_len_decrypted);
-		hexdump(stderr, "prefix", prefix, plen);
-		hexdump(stderr, "sig hash", &hashbuf_from_sig[n + plen], hash_length);
-		hexdump(stderr, "input hash", hash, hash_length);
-	}
-	return (memcmp(&hashbuf_from_sig[n], prefix, plen) == 0 &&
-	        memcmp(&hashbuf_from_sig[n + plen], hash, hash_length) == 0);
+	return pgp_rsa_pkcs1_verify_hash(sigbuf, sigbuf_len,
+                                         hash_name, hash, hash_length,
+                                         pubrsa);
 }
 
 static void 
@@ -387,9 +318,10 @@ pgp_check_sig(const uint8_t *hash, unsigned length,
 		break;
 
 	case PGP_PKA_RSA:
-		ret = rsa_verify(sig->info.hash_alg, hash, length,
-				&sig->info.sig.rsa,
-				&signer->key.rsa);
+		ret = rsa_verify(pgp_show_hash_alg(sig->info.hash_alg),
+                                 hash, length,
+                                 &sig->info.sig.rsa,
+                                 &signer->key.rsa);
 		break;
 
 	default:

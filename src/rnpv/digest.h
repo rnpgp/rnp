@@ -78,8 +78,6 @@ unsigned digest_final(uint8_t */*out*/, digest_t */*digest*/);
 int digest_alg_size(unsigned /*alg*/);
 int digest_length(digest_t */*hash*/, unsigned /*hashedlen*/);
 
-unsigned digest_get_prefix(unsigned /*hashalg*/, uint8_t */*prefix*/, size_t /*size*/);
-
 __END_DECLS
 
 #endif

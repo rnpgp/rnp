@@ -144,11 +144,20 @@ int pgp_rsa_decrypt_pkcs1(uint8_t* out, size_t out_len,
 /*
 * RSA signature generation and verification
 */
-int pgp_rsa_public_decrypt(uint8_t *, const uint8_t *, size_t,
-			const pgp_rsa_pubkey_t *);
 
-int pgp_rsa_private_encrypt(uint8_t *, size_t, const uint8_t *, size_t,
-			const pgp_rsa_seckey_t *, const pgp_rsa_pubkey_t *);
+/*
+* Returns 1 for valid 0 for invalid/error
+*/
+int pgp_rsa_pkcs1_verify_hash(const uint8_t *sig_buf, size_t sig_buf_size,
+                              const char* hash_name, const uint8_t *hash, size_t hash_len,
+                              const pgp_rsa_pubkey_t *pubkey);
+
+/*
+* Returns # bytes written to sig_buf on success, 0 on error
+*/
+int pgp_rsa_pkcs1_sign_hash(uint8_t * sig_buf, size_t sig_buf_size,
+                            const char* hash_name, const uint8_t *hash, size_t hash_len,
+                            const pgp_rsa_seckey_t *, const pgp_rsa_pubkey_t *);
 
 /*
 * Performs ElGamal encryption
