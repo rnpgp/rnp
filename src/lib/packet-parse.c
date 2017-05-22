@@ -714,7 +714,7 @@ streamread(pgp_stream_t *stream, unsigned c)
 static int
 coalesce_blocks(pgp_stream_t *stream, unsigned length)
 {
-	unsigned	c;
+	unsigned	c = 0;
 
 	stream->coalescing = 1;
 	/* already read a partial block length - prime the array */

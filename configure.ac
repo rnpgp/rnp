@@ -121,6 +121,7 @@ AC_CONFIG_FILES([
         src/rnpkeys/Makefile
         src/rnpv/Makefile
         src/cmocka/Makefile
+        src/fuzzing/Makefile
         tests/Makefile
         tests/atlocal
 ])

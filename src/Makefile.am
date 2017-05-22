@@ -1,1 +1,1 @@
-SUBDIRS = libmj lib rnp rnpkeys rnpv cmocka
+SUBDIRS = libmj lib rnp rnpkeys rnpv cmocka fuzzing

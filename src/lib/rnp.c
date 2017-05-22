@@ -832,7 +832,27 @@ disable_core_dumps(void)
 	errno = 0;
 	memset(&limit, 0, sizeof(limit));
 	error = setrlimit(RLIMIT_CORE, &limit);
-	return error != -1 && error > 0 ? 0 : -1;
+
+        if (error == 0)
+           {
+           error = getrlimit(RLIMIT_CORE, &limit);
+           if(error)
+              {
+              return error;
+              }
+           else if(limit.rlim_cur == 0)
+              {
+              return 1; // disabling core dumps ok
+              }
+           else
+              {
+              return 0; // failed for some reason?
+              }
+           }
+        else
+           {
+           return -1;
+           }
 }
 
 /* Disable core dumps according to the coredumps setting variable.
@@ -849,7 +869,7 @@ set_core_dumps(rnp_t *rnp)
 
 	setting = rnp_getvar(rnp, "coredumps") != NULL;
 	if (! setting) {
-		return disable_core_dumps() == 0 ? 0 : 1;
+		return disable_core_dumps() == 0 ? 1 : 0;
 	}
 
 	return 1;
