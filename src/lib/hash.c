@@ -271,6 +271,31 @@ pgp_hash_sha224(pgp_hash_t *hash)
 	*hash = sha224;
 }
 
+/*
+ * SM3
+ */
+
+static int
+sm3_init(pgp_hash_t *hash)
+{
+        return digest_init(hash, "SM3");
+}
+
+static const pgp_hash_t sm3 = {
+	PGP_HASH_SM3,
+	"SM3",
+	sm3_init,
+	digest_add,
+	digest_finish,
+	NULL
+};
+
+void
+pgp_hash_sm3(pgp_hash_t *hash)
+{
+	*hash = sm3;
+}
+
 /**
    \ingroup Core_Hashes
    \brief Get Hash name

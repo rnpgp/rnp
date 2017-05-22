@@ -263,6 +263,7 @@ static pgp_map_t hash_alg_map[] =
 	{PGP_HASH_SHA384, "SHA384"},
 	{PGP_HASH_SHA512, "SHA512"},
 	{PGP_HASH_SHA224, "SHA224"},
+	{PGP_HASH_SM3, "SM3"},
 	{0x00, NULL},		/* this is the end-of-array marker */
 };
 

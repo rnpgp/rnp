@@ -162,6 +162,7 @@ static void rnp_hash_to_botan_pkcs1_padding(char padding_name[], size_t len_padd
         }
         else
         {
+                // for SM3 MD5 etc
                 snprintf(padding_name, len_padding_name, "EMSA-PKCS1-v1_5(Raw,%s)", hash_name);
         }
 }

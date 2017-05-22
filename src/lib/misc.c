@@ -626,6 +626,10 @@ pgp_hash_any(pgp_hash_t *hash, pgp_hash_alg_t alg)
 		pgp_hash_sha224(hash);
 		break;
 
+	case PGP_HASH_SM3:
+                pgp_hash_sm3(hash);
+		break;
+
 	default:
 		(void) fprintf(stderr, "pgp_hash_any: bad algorithm\n");
                 return 0;
@@ -660,6 +664,9 @@ pgp_hash_size(pgp_hash_alg_t alg)
 
 	case PGP_HASH_SHA384:
 		return 48;
+
+	case PGP_HASH_SM3:
+		return 32;
 
 	default:
 		(void) fprintf(stderr, "pgp_hash_size: bad algorithm\n");
@@ -699,6 +706,9 @@ pgp_str_to_hash_alg(const char *hash)
 	}
 	if (rnp_strcasecmp(hash, "SHA384") == 0) {
 		return PGP_HASH_SHA384;
+	}
+	if (rnp_strcasecmp(hash, "SM3") == 0) {
+		return PGP_HASH_SM3;
 	}
 	return PGP_HASH_UNKNOWN;
 }

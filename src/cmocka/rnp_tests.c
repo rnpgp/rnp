@@ -203,21 +203,12 @@ int test_value_equal(const char* what,
         const char* expected_value,
         const uint8_t v[], size_t v_len)
 {
-    if(strlen(expected_value) != v_len*2)
-    {
-        fprintf(stderr, "Bad length for %s expected %zu bytes got %zu\n", what, strlen(expected_value), 2*v_len);
-        return 1;
-    }
+    assert_int_equal(strlen(expected_value), v_len*2);
 
     char* produced = hex_encode(v, v_len);
 
     // fixme - expects expected_value is also uppercase
-    if(strcmp(produced, expected_value) != 0)
-    {
-        fprintf(stderr, "Bad value for %s expected %s got %s\n", what, expected_value, produced);
-        free(produced);
-        return 1;
-    }
+    assert_string_equal(produced, expected_value);
 
     free(produced);
     return 0;
@@ -235,6 +226,7 @@ static void hash_test_success(void **state)
         PGP_HASH_SHA384,
         PGP_HASH_SHA512,
         PGP_HASH_SHA224,
+        PGP_HASH_SM3,
         PGP_HASH_UNKNOWN
     };
 
@@ -245,7 +237,8 @@ static void hash_test_success(void **state)
         "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD",
         "CB00753F45A35E8BB5A03D699AC65007272C32AB0EDED1631A8B605A43FF5BED8086072BA1E7CC2358BAECA134C825A7",
         "DDAF35A193617ABACC417349AE20413112E6FA4E89A97EA20A9EEEE64B55D39A2192992A274FC1A836BA3C23A3FEEBBD454D4423643CE80E2A9AC94FA54CA49F",
-        "23097D223405D8228642A477BDA255B32AADBCE4BDA0B3F7E36C9DA7"
+        "23097D223405D8228642A477BDA255B32AADBCE4BDA0B3F7E36C9DA7",
+        "66C7F0F462EEEDD9D1F2D46BDC10E4E24167C4875CF2F7A2297DA02B8F4BA8E0"
     };
 
     for(int i = 0; hash_algs[i] != PGP_HASH_UNKNOWN; ++i)
@@ -264,8 +257,8 @@ static void hash_test_success(void **state)
         hash.finish(&hash, hash_output);
 
         test_value_equal(hash.name,
-                hash_alg_expected_outputs[i],
-                hash_output, hash_size);
+                         hash_alg_expected_outputs[i],
+                         hash_output, hash_size);
     }
 }
 
