@@ -190,7 +190,10 @@ check_binary_sig(const uint8_t *data,
 	uint8_t		hashout[PGP_MAX_HASH_SIZE];
 	uint8_t		trailer[6];
 
-	pgp_hash_any(&hash, sig->info.hash_alg);
+	if (!pgp_hash_any(&hash, sig->info.hash_alg)) {
+		return 0;
+        }
+
 	if (!hash.init(&hash)) {
 		(void) fprintf(stderr, "check_binary_sig: bad hash init\n");
 		return 0;

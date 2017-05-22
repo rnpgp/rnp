@@ -2068,6 +2068,7 @@ rnp_setvar(rnp_t *rnp, const char *name, const char *value)
 	/* sanity checks for range of values */
 	if (strcmp(name, "hash") == 0 || strcmp(name, "algorithm") == 0) {
 		if (pgp_str_to_hash_alg(newval) == PGP_HASH_UNKNOWN) {
+                        fprintf(stderr, "Ignoring unknown hash algo '%s'\n", newval);
 			free(newval);
 			return 0;
 		}
