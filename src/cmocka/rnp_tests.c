@@ -341,8 +341,11 @@ static int setupPassphrasefd(int* pipefd)
 static void rnpkeys_generatekey_testSignature(void **state)
 {
     const char* hashAlg[] = {
-        "SHA-1", 
-        "SHA256", 
+        "SHA1",
+        "SHA256",
+        "SHA384",
+        "SHA512",
+        NULL
     }; 
 
     /* Set the UserId = custom value. 
@@ -350,7 +353,7 @@ static void rnpkeys_generatekey_testSignature(void **state)
      * Sign a message, then verify it
      */
     rnp_t rnp; 
-    const int numbits = 2048;
+    const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
 
@@ -362,15 +365,14 @@ static void rnpkeys_generatekey_testSignature(void **state)
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
 
-    for (int i = 0; i < sizeof(hashAlg)/sizeof(hashAlg[0]); i++)
+    for (int i = 0; hashAlg[i] != NULL; i++)
     {
         /*Initialize the basic RNP structure. */
         memset(&rnp, '\0', sizeof(rnp));
-
         /*Set the default parameters*/
         rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
         rnp_setvar(&rnp, "res",       "<stdout>");
-        rnp_setvar(&rnp, "hash",     hashAlg[i]); 
+
         rnp_setvar(&rnp, "format",    "human");
         rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
         rnp_setvar(&rnp, "need seckey", "true");
@@ -392,35 +394,39 @@ static void rnpkeys_generatekey_testSignature(void **state)
         retVal = rnp_find_key(&rnp, userId);
         assert_int_equal(retVal,1); //Ensure the key can be found with the userId
 
-        unsigned int armored = 1;
         unsigned int cleartext = 0;
 
-        close(pipefd[0]);
-        /* Setup the pass phrase fd to avoid user-input*/
-        assert_int_equal(setupPassphrasefd(pipefd), 1);
+        for(unsigned int armored = 0; armored <= 1; ++armored)
+        {
+                close(pipefd[0]);
+                /* Setup the pass phrase fd to avoid user-input*/
+                assert_int_equal(setupPassphrasefd(pipefd), 1);
 
-        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
-        retVal = rnp_sign_memory(&rnp, userId,
-                                 memToSign, sizeof(memToSign),
-                                 signatureBuf, sizeof(signatureBuf),
-                                 armored, cleartext);
+                rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+                rnp_setvar(&rnp, "hash",     hashAlg[i]);
 
-        assert_int_not_equal(retVal, 0); // Ensure signature operation succeeded
+                retVal = rnp_sign_memory(&rnp, userId,
+                                         memToSign, sizeof(memToSign),
+                                         signatureBuf, sizeof(signatureBuf),
+                                         armored, cleartext);
 
-        const int sigLen = retVal;
+                assert_int_not_equal(retVal, 0); // Ensure signature operation succeeded
 
-        retVal = rnp_verify_memory(&rnp, signatureBuf, sigLen,
-                                   recoveredSig, sizeof(recoveredSig),
-                                   armored);
-        assert_int_equal(retVal, 1+strlen(memToSign)); // Ensure signature verification passed
-        assert_string_equal(recoveredSig, memToSign);
+                const int sigLen = retVal;
 
-        signatureBuf[200] += 1; // corrupt the signature
+                retVal = rnp_verify_memory(&rnp, signatureBuf, sigLen,
+                                           recoveredSig, sizeof(recoveredSig),
+                                           armored);
+                assert_int_equal(retVal, 1+strlen(memToSign)); // Ensure signature verification passed
+                assert_string_equal(recoveredSig, memToSign);
 
-        retVal = rnp_verify_memory(&rnp, signatureBuf, sigLen,
-                                   recoveredSig, sizeof(recoveredSig),
-                                   armored);
-        assert_int_equal(retVal, 0); // Ensure signature verification fails for invalid sig
+                signatureBuf[50] ^= 0x8C; // corrupt the signature
+
+                retVal = rnp_verify_memory(&rnp, signatureBuf, sigLen,
+                                           recoveredSig, sizeof(recoveredSig),
+                                           armored);
+                assert_int_equal(retVal, 0); // Ensure signature verification fails for invalid sig
+        }
 
         rnp_end(&rnp); //Free memory and other allocated resources.
     }
@@ -430,7 +436,7 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
 {
     const char* hashAlg[] = {
         "MD5", 
-        "SHA-1", 
+        "SHA1", 
         "RIPEMD160", 
         "SHA256", 
         "SHA384", 
