@@ -142,23 +142,23 @@ static void rnp_hash_to_botan_pkcs1_padding(char padding_name[], size_t len_padd
         // rnp uses SHAx Botan uses SHA-x
         if(strcmp(hash_name, "SHA1") == 0)
         {
-                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-1)");
+                strncpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-1)", len_padding_name);
         }
         else if(strcmp(hash_name, "SHA224") == 0)
         {
-                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-224)");
+                strncpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-224)", len_padding_name);
         }
         else if(strcmp(hash_name, "SHA256") == 0)
         {
-                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-256)");
+                strncpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-256)", len_padding_name);
         }
         else if(strcmp(hash_name, "SHA384") == 0)
         {
-                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-384)");
+                strncpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-384)", len_padding_name);
         }
         else if(strcmp(hash_name, "SHA512") == 0)
         {
-                strcpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-512)");
+                strncpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-512)", len_padding_name);
         }
         else
         {
