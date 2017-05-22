@@ -463,6 +463,7 @@ static void rnpkeys_generatekey_testSignature(void **state)
         "SHA256",
         "SHA384",
         "SHA512",
+        "SM3",
         NULL
     }; 
 
@@ -559,7 +560,8 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
         "SHA256", 
         "SHA384", 
         "SHA512", 
-        "SHA224"
+        "SHA224",
+        "SM3"
     }; 
 
     /* Set the UserId = custom value. 
