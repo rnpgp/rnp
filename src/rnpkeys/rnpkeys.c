@@ -73,6 +73,7 @@ static const char *usage =
 	"\t[--hash=<hash alg>] AND/OR\n"
 	"\t[--homedir=<homedir>] AND/OR\n"
 	"\t[--keyring=<keyring>] AND/OR\n"
+	"\t[--keyring-format=<format>] AND/OR\n"
 	"\t[--userid=<userid>] AND/OR\n"
 	"\t[--verbose]\n";
 
@@ -92,6 +93,7 @@ enum optdefs {
 	/* options */
 	SSHKEYS,
 	KEYRING,
+	KEYRING_FORMAT,
 	USERID,
 	HOMEDIR,
 	NUMBITS,
@@ -134,6 +136,7 @@ static struct option options[] = {
 	/* options */
 	{"coredumps",	no_argument, 		NULL,	COREDUMPS},
 	{"keyring",	required_argument, 	NULL,	KEYRING},
+	{"keyring-format",	required_argument,	NULL, 	KEYRING_FORMAT},
 	{"userid",	required_argument, 	NULL,	USERID},
 	{"format",	required_argument, 	NULL,	FORMAT},
 	{"hash-alg",	required_argument, 	NULL,	HASH_ALG},
@@ -281,7 +284,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 		exit(EXIT_SUCCESS);
 		/* options */
 	case SSHKEYS:
-		rnp_setvar(rnp, "ssh keys", "1");
+		rnp_setvar(rnp, "keyring_format", "SSH");
 		break;
 	case KEYRING:
 		if (arg == NULL) {
@@ -290,6 +293,13 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 			exit(EXIT_ERROR);
 		}
 		snprintf(p->keyring, sizeof(p->keyring), "%s", arg);
+		break;
+	case KEYRING_FORMAT:
+		if (arg == NULL) {
+            (void) fprintf(stderr, "No keyring format argument provided\n");
+            exit(EXIT_ERROR);
+		}
+		rnp_setvar(rnp, "keyring_format", arg);
 		break;
 	case USERID:
 		if (optarg == NULL) {
@@ -349,7 +359,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 		rnp_setvar(rnp, "res", arg);
 		break;
 	case SSHKEYFILE:
-		rnp_setvar(rnp, "ssh keys", "1");
+		rnp_setvar(rnp, "keyring_format", "SSH");
 		rnp_setvar(rnp, "sshkeyfile", arg);
 		break;
 	case FORMAT:
@@ -436,7 +446,7 @@ main(int argc, char **argv)
 		} else {
 			switch (ch) {
 			case 'S':
-				rnp_setvar(&rnp, "ssh keys", "1");
+				rnp_setvar(&rnp, "keyring_format", "SSH");
 				rnp_setvar(&rnp, "sshkeyfile", optarg);
 				break;
 			case 'V':

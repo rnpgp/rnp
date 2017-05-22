@@ -953,9 +953,24 @@ init_new_io(rnp_t *rnp)
 }
 
 static int
+parse_keyring_format(rnp_t *rnp, enum keyring_format_t *keyring_format, char *format)
+{
+	if (rnp_strcasecmp(format, "GPG") == 0) {
+		*keyring_format = GPG_KEYRING;
+	} else if (rnp_strcasecmp(format, "SSH") == 0) {
+		*keyring_format = SSH_KEYRING;
+	} else {
+		fprintf(stderr, "rnp: unsupported keyring format: \"%s\"\n", format);
+		return 0;
+	}
+	return 1;
+}
+
+
+static int
 use_ssh_keys(rnp_t *rnp)
 {
-	return rnp_getvar(rnp, "ssh keys") != NULL;
+	return rnp->keyring_format == SSH_KEYRING;
 }
 
 static int
@@ -1089,11 +1104,32 @@ init_touch_initialized(rnp_t *rnp)
 }
 
 static int
+init_default_format(rnp_t *rnp)
+{
+	char *format = rnp_getvar(rnp, "keyring_format");
+
+	// default format is GPG
+	if (format == NULL) {
+		format = "GPG";
+	}
+
+	// if provided "ssh keys" variable, switch to SSH format
+	if (rnp_getvar(rnp, "ssh keys")) {
+		format = "SSH";
+	}
+
+	return rnp_set_keyring_format(rnp, format);
+}
+
+static int
 init_default_homedir(rnp_t *rnp)
 {
 	char *home = getenv("HOME");
-	char *subdir = rnp_getvar(rnp, "ssh keys")
-			? SUBDIRECTORY_SSH : SUBDIRECTORY_GNUPG;
+	char *subdir = SUBDIRECTORY_GNUPG;
+
+	if (use_ssh_keys(rnp)) {
+		subdir = SUBDIRECTORY_SSH;
+	}
 
 	if (home == NULL) {
 		fputs("rnp: HOME environment variable is not set\n", stderr);
@@ -1148,6 +1184,11 @@ rnp_init(rnp_t *rnp)
 	if (coredumps) {
 		fputs("rnp: warning: core dumps enabled, "
 		      "sensitive data may be leaked to disk\n", io->errs);
+	}
+
+	/* Initialize the context with the default keyring format. */
+	if (! init_default_format(rnp)) {
+		return 0;
 	}
 
 	/* Initialize the context with the default home directory. */
@@ -1600,7 +1641,7 @@ rnp_decrypt_file(rnp_t *rnp, const char *f, char *out, int armored)
 		return 0;
 	}
 	realarmor = isarmoured(io, f, NULL, ARMOR_HEAD);
-	sshkeys = (unsigned)(rnp_getvar(rnp, "ssh keys") != NULL);
+	sshkeys = (unsigned)use_ssh_keys(rnp);
 	if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
 	    (attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
@@ -1665,7 +1706,7 @@ rnp_sign_file(rnp_t *rnp,
 					&pubkey->key.pubkey, 0);
 			}
 		}
-		if (rnp_getvar(rnp, "ssh keys") == NULL) {
+		if (!use_ssh_keys(rnp)) {
 			/* now decrypt key */
 			seckey = pgp_decrypt_seckey(keypair, rnp->passfp);
 			if (seckey == NULL) {
@@ -1794,7 +1835,7 @@ rnp_sign_memory(rnp_t *rnp,
 					&pubkey->key.pubkey, 0);
 			}
 		}
-		if (rnp_getvar(rnp, "ssh keys") == NULL) {
+		if (!use_ssh_keys(rnp)) {
 			/* now decrypt key */
 			seckey = pgp_decrypt_seckey(keypair, rnp->passfp);
 			if (seckey == NULL) {
@@ -1951,7 +1992,7 @@ rnp_decrypt_memory(rnp_t *rnp, const void *input, const size_t insize,
 		return 0;
 	}
 	realarmour = isarmoured(io, NULL, input, ARMOR_HEAD);
-	sshkeys = (unsigned)(rnp_getvar(rnp, "ssh keys") != NULL);
+	sshkeys = (unsigned)use_ssh_keys(rnp);
 	if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
 	    (attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
@@ -2117,6 +2158,17 @@ rnp_incvar(rnp_t *rnp, const char *name, const int delta)
 	}
 	(void) snprintf(num, sizeof(num), "%d", val + delta);
 	rnp_setvar(rnp, name, num);
+	return 1;
+}
+
+/* set keyring format information */
+int
+rnp_set_keyring_format(rnp_t *rnp, char *format)
+{
+	if (! parse_keyring_format(rnp, &rnp->keyring_format, format)) {
+		return 0;
+	}
+	rnp_setvar(rnp, "keyring_format", format);
 	return 1;
 }
 

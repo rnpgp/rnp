@@ -45,6 +45,8 @@
 
 __BEGIN_DECLS
 
+enum keyring_format_t {GPG_KEYRING, SSH_KEYRING};
+
 /* structure used to hold (key,value) pair information */
 typedef struct rnp_t {
 	unsigned	  c;		/* # of elements used */
@@ -55,6 +57,8 @@ typedef struct rnp_t {
 	void		 *secring;	/* s3kr1t key ring */
 	void		 *io;		/* the io struct for results/errs */
 	void		 *passfp;	/* file pointer for password input */
+
+	enum keyring_format_t   keyring_format;   /* keyring format */
 } rnp_t;
 
 /* begin and end */
@@ -72,6 +76,9 @@ int rnp_setvar(rnp_t *, const char *, const char *);
 char *rnp_getvar(rnp_t *, const char *);
 int rnp_incvar(rnp_t *, const char *, const int);
 int rnp_unsetvar(rnp_t *, const char *);
+
+/* set keyring format information */
+int rnp_set_keyring_format(rnp_t *, char *);
 
 /* set home directory information */
 int rnp_set_homedir(rnp_t *, char *, const char *, const int);
