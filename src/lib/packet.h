@@ -507,7 +507,9 @@ typedef enum {
 	PGP_HASH_SHA256 = 8,	/* SHA256 */
 	PGP_HASH_SHA384 = 9,	/* SHA384 */
 	PGP_HASH_SHA512 = 10,	/* SHA512 */
-	PGP_HASH_SHA224 = 11	/* SHA224 */
+	PGP_HASH_SHA224 = 11,	/* SHA224 */
+
+	PGP_HASH_SM3    = 105	/* SM3 - temporary allocation in private range */
 } pgp_hash_alg_t;
 
 #define	PGP_DEFAULT_HASH_ALGORITHM	PGP_HASH_SHA256

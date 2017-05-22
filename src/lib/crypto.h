@@ -112,6 +112,7 @@ void pgp_hash_sha256(pgp_hash_t *);
 void pgp_hash_sha512(pgp_hash_t *);
 void pgp_hash_sha384(pgp_hash_t *);
 void pgp_hash_sha224(pgp_hash_t *);
+void pgp_hash_sm3(pgp_hash_t *);
 
 int pgp_hash_any(pgp_hash_t *, pgp_hash_alg_t);
 pgp_hash_alg_t pgp_str_to_hash_alg(const char *);
