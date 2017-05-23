@@ -59,7 +59,7 @@
 #include "packet.h"
 #include "crypto.h"
 #include "errors.h"
-#include "keyring.h"
+#include "keyring_pgp.h"
 
 /**
  * \ingroup Writer

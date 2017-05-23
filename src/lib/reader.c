@@ -114,7 +114,7 @@ __RCSID("$NetBSD: reader.c,v 1.49 2012/03/05 02:20:18 christos Exp $");
 #include "packet-parse.h"
 #include "packet-show.h"
 #include "packet.h"
-#include "keyring.h"
+#include "keyring_pgp.h"
 #include "readerwriter.h"
 #include "rnpsdk.h"
 #include "rnpdefs.h"
