@@ -311,7 +311,7 @@ static void raw_elg_test_success(void **state)
     BN_clear_free(pub_elg.y);
 }
 
-char *convert(char *buff, const int buffsize, unsigned int num, int base) {
+char *uint_to_string(char *buff, const int buffsize, unsigned int num, int base) {
     char *ptr;    
     ptr = &buff[buffsize - 1];    
     *ptr = '\0';
@@ -374,7 +374,7 @@ static void rnpkeys_generatekey_testSignature(void **state)
         rnp_setvar(&rnp, "res",       "<stdout>");
 
         rnp_setvar(&rnp, "format",    "human");
-        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+        rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],16));
         rnp_setvar(&rnp, "need seckey", "true");
 
         int retVal = rnp_init (&rnp);
@@ -402,7 +402,7 @@ static void rnpkeys_generatekey_testSignature(void **state)
                 /* Setup the pass phrase fd to avoid user-input*/
                 assert_int_equal(setupPassphrasefd(pipefd), 1);
 
-                rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+                rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],16));
                 rnp_setvar(&rnp, "hash",     hashAlg[i]);
 
                 retVal = rnp_sign_memory(&rnp, userId,
@@ -465,7 +465,7 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
         rnp_setvar(&rnp, "res",       "<stdout>");
         rnp_setvar(&rnp, "hash",     hashAlg[i]); 
         rnp_setvar(&rnp, "format",    "human");
-        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+        rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
 
         int retVal = rnp_init (&rnp);
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -523,7 +523,7 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
         rnp_setvar(&rnp, "res",       "<stdout>");
         rnp_setvar(&rnp, "hash",      "SHA256"); 
         rnp_setvar(&rnp, "format",    "human");
-        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+        rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
 
         int retVal = rnp_init (&rnp);
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -568,7 +568,7 @@ static void rnpkeys_generatekey_verifykeyRingOptions(void **state)
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+    rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
 
     int retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -660,7 +660,7 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+    rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -717,7 +717,7 @@ static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+    rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -765,7 +765,7 @@ static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+    rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -822,7 +822,7 @@ static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **s
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+    rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -856,7 +856,7 @@ static void rnpkeys_exportkey_verifyUserId(void **state)
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
     rnp_setvar(&rnp, "userid",    getenv("LOGNAME"));
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+    rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
 
     int retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
