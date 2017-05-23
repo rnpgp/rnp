@@ -709,7 +709,7 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
 	time_t	 now;
 	char	 tbuf[32];
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "formatobj: json is '%s'\n", json_object_to_json_string(obj));
 	}
 #if 0 //?
@@ -2114,22 +2114,6 @@ rnp_decrypt_memory(rnp_t *rnp, const void *input, const size_t insize,
 	(void) memcpy(out, pgp_mem_data(mem), m);
 	pgp_memory_free(mem);
 	return (int)m;
-}
-
-/* wrappers for the ops_debug_level functions we added to openpgpsdk */
-
-/* set the debugging level per filename */
-int
-rnp_set_debug(const char *f)
-{
-	return pgp_set_debug_level(f);
-}
-
-/* get the debugging level per filename */
-int
-rnp_get_debug(const char *f)
-{
-	return pgp_get_debug_level(f);
 }
 
 /* return the version for the library */

@@ -207,7 +207,7 @@ check_binary_sig(const uint8_t *data,
 		break;
 
 	case PGP_V4:
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "v4 hash", sig->info.v4_hashed,
 					sig->info.v4_hashlen);
 		}
@@ -229,7 +229,7 @@ check_binary_sig(const uint8_t *data,
 	}
 
 	n = pgp_hash_finish(&hash, hashout);
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stdout, "hash out", hashout, n);
 	}
 	return pgp_check_sig(hashout, n, sig, signer);
@@ -248,7 +248,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	unsigned		  valid = 0;
 
 	io = cbinfo->io;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(io->errs, "%s\n",
 				pgp_show_packet_tag(pkt->tag));
 	}
@@ -438,7 +438,7 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	unsigned		  valid = 0;
 
 	io = cbinfo->io;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(io->errs, "validate_data_cb: %s\n",
 				pgp_show_packet_tag(pkt->tag));
 	}
@@ -476,7 +476,7 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
 	case PGP_PTAG_CT_SIGNATURE:	/* V3 sigs */
 	case PGP_PTAG_CT_SIGNATURE_FOOTER:	/* V4 sigs */
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(io->outs, "hashed data", content->sig.info.v4_hashed,
 					content->sig.info.v4_hashlen);
 			hexdump(io->outs, "signer id", content->sig.info.signer_id,
@@ -519,7 +519,7 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 				data->mem = pgp_memory_new();
 				pgp_mem_readfile(data->mem, data->detachname);
 			}
-			if (pgp_get_debug_level(__FILE__)) {
+			if (rnp_get_debug(__FILE__)) {
 				hexdump(stderr, "sig dump", (const uint8_t *)(const void *)&content->sig,
 					sizeof(content->sig));
 			}

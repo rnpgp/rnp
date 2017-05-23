@@ -112,7 +112,7 @@ accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	pgp_keyring_t		*keyring;
 	accumulate_t		*accumulate;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "accumulate callback: packet tag %u\n", pkt->tag);
 	}
 	accumulate = pgp_callback_arg(cbinfo);
@@ -127,7 +127,7 @@ accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 		pgp_add_to_secring(keyring, &content->seckey);
 		return PGP_KEEP_MEMORY;
 	case PGP_PTAG_CT_USER_ID:
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			(void) fprintf(stderr, "User ID: %s for key %d\n",
 					content->userid,
 					keyring->keyc - 1);
@@ -414,7 +414,7 @@ hash_uint32(pgp_hash_t *hash, uint32_t n)
 static int
 hash_string(pgp_hash_t *hash, const uint8_t *buf, uint32_t len)
 {
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "hash_string", buf, len);
 	}
 	hash_uint32(hash, len);
@@ -484,7 +484,7 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
 		hash_bignum(&hash, key->key.rsa.n);
 		hash_bignum(&hash, key->key.rsa.e);
 		fp->length = pgp_hash_finish(&hash, fp->fingerprint);
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "v2/v3 fingerprint", fp->fingerprint, fp->length);
 		}
 	} else if (hashtype == PGP_HASH_MD5) {
@@ -510,7 +510,7 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
 			break;
 		}
 		fp->length = pgp_hash_finish(&hash, fp->fingerprint);
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "md5 fingerprint", fp->fingerprint, fp->length);
 		}
 	} else {
@@ -526,7 +526,7 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
 		pgp_hash_add(&hash, pgp_mem_data(mem), len);
 		fp->length = pgp_hash_finish(&hash, fp->fingerprint);
 		pgp_memory_free(mem);
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "sha1 fingerprint", fp->fingerprint, fp->length);
 		}
 	}
@@ -590,7 +590,7 @@ pgp_calc_mdc_hash(const uint8_t *preamble,
 	pgp_hash_t	hash;
 	uint8_t		c;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "preamble", preamble, sz_preamble);
 		hexdump(stderr, "plaintext", plaintext, sz_plaintext);
 	}
@@ -615,7 +615,7 @@ pgp_calc_mdc_hash(const uint8_t *preamble,
 	/* finish */
 	pgp_hash_finish(&hash, hashed);
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "hashed", hashed, PGP_SHA1_HASH_SIZE);
 	}
 }
@@ -1030,7 +1030,7 @@ static char    *debugv[MAX_DEBUG_NAMES];
 
 /* set the debugging level per filename */
 int
-pgp_set_debug_level(const char *f)
+rnp_set_debug(const char *f)
 {
 	const char     *name;
 	int             i;
@@ -1057,7 +1057,7 @@ pgp_set_debug_level(const char *f)
 
 /* get the debugging level per filename */
 int
-pgp_get_debug_level(const char *f)
+rnp_get_debug(const char *f)
 {
 	const char     *name;
 	int             i;
