@@ -2238,6 +2238,7 @@ int
 rnp_set_homedir(rnp_t *rnp, char *home, const int quiet)
 {
 	struct stat st;
+        int ret;
 
 	/* TODO: Replace `stderr` with the rnp context's error file when we
 	 *       are sure that all utilities and bindings don't call
@@ -2251,19 +2252,19 @@ rnp_set_homedir(rnp_t *rnp, char *home, const int quiet)
 		return 0;
 
 	/* If the path is not a directory then fail. */
-	} else if (stat(home, &st) == 0 && (st.st_mode & S_IFMT) != S_IFDIR) {
+	} else if ((ret = stat(home, &st)) == 0 && !S_ISDIR(st.st_mode)) {
 		if (! quiet)
 			fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", home);
 		return 0;
 
 	/* If the path doesn't exist then fail. */
-	} else if (errno == ENOENT) {
+	} else if (ret != 0 && errno == ENOENT) {
 		if (! quiet)
 			fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", home);
 		return 0;
 
 	/* If any other occurred then fail. */
-	} else {
+	} else if (ret != 0) {
 		if (! quiet)
 			fprintf(stderr, "rnp: an unspecified error occurred\n");
 		return 0;
