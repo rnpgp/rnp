@@ -308,13 +308,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 			"no home directory argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		/* TODO: This is a problem - the subdirectory to use is
-		 *       dependent on the type of key being used (gnupg or
-		 *       ssh). This was originally NULL and was expected to
-		 *       to be re-set downstream, but for now we assume
-		 *       gnupg ahead of a more meaningful refactor.
-		 */
-		rnp_set_homedir(rnp, arg, SUBDIRECTORY_GNUPG, 0);
+		rnp_set_homedir(rnp, arg, 0);
 		break;
 	case NUMBITS:
 		if (arg == NULL) {
