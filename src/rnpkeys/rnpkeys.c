@@ -41,7 +41,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <mj.h>
 #include <rnp.h>
 
 #include "../common/constants.h"

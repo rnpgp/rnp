@@ -6,6 +6,6 @@ rnp_SOURCES		= rnp.c
 
 rnp_CPPFLAGS		= -I$(top_srcdir)/include
 
-rnp_LDADD		= ../lib/librnp.la ../libmj/libmj.la
+rnp_LDADD		= ../lib/librnp.la
 
 dist_man_MANS		= rnp.1
