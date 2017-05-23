@@ -55,8 +55,8 @@ void            hexdump(FILE *, const char *, const uint8_t *, size_t);
 
 const char     *pgp_str_from_map(int, pgp_map_t *);
 
-int             pgp_set_debug_level(const char *);
-int             pgp_get_debug_level(const char *);
+int             rnp_set_debug(const char *);
+int             rnp_get_debug(const char *);
 
 void		*pgp_new(size_t);
 

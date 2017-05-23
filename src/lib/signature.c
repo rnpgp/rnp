@@ -298,7 +298,7 @@ pgp_check_sig(const uint8_t *hash, unsigned length,
 {
 	unsigned   ret;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stdout, "hash", hash, length);
 	}
 	ret = 0;
@@ -582,7 +582,7 @@ pgp_start_sig(pgp_create_sig_t *sig,
 
 	sig->hashlen = (unsigned)-1;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		fprintf(stderr, "initialising hash for sig in mem\n");
 	}
         pgp_hash_create(&sig->hash, sig->sig.info.hash_alg);
@@ -677,7 +677,7 @@ pgp_write_sig(pgp_output_t *output,
 			     (unsigned)(len - sig->unhashoff - 2), 2);
 
 	/* add the packet from version number to end of hashed subpackets */
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "ops_write_sig: hashed packet info\n");
 	}
 	pgp_hash_add(&sig->hash, pgp_mem_data(sig->mem), sig->unhashoff);
@@ -688,7 +688,7 @@ pgp_write_sig(pgp_output_t *output,
 	/* +6 for version, type, pk alg, hash alg, hashed subpacket length */
 	pgp_hash_add_int(&sig->hash, sig->hashlen + 6, 4);
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "ops_write_sig: done writing hashed\n");
 	}
 	/* XXX: technically, we could figure out how big the signature is */
@@ -1069,7 +1069,7 @@ pgp_sign_buf(pgp_io_t *io,
 		if (armored) {
 			pgp_writer_push_armor_msg(output);
 		}
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			fprintf(io->errs, "** Writing out one pass sig\n");
 		}
 		/* write one_pass_sig */
@@ -1080,11 +1080,11 @@ pgp_sign_buf(pgp_io_t *io,
 		pgp_hash_add(hash, input, (unsigned)insize);
 
 		/* output file contents as Literal Data packet */
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			(void) fprintf(stderr, "** Writing out data now\n");
 		}
 		pgp_write_litdata(output, input, (const int)insize, ld_type);
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			fprintf(stderr, "** After Writing out data now\n");
 		}
 

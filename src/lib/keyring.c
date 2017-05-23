@@ -827,7 +827,7 @@ pgp_getkeybyid(pgp_io_t *io, const pgp_keyring_t *keyring,
 
 	(void) memset(nullid, 0x0, sizeof(nullid));
 	for ( ; keyring && *from < keyring->keyc; *from += 1) {
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(io->errs, "keyring keyid", keyring->keys[*from].sigid, PGP_KEY_ID_SIZE);
 			hexdump(io->errs, "keyid", keyid, PGP_KEY_ID_SIZE);
 		}
@@ -908,14 +908,14 @@ getkeybyname(pgp_io_t *io,
 		return NULL;
 	}
 	len = strlen(name);
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(io->outs, "[%u] name '%s', len %zu\n",
 			*from, name, len);
 	}
 	/* first try name as a keyid */
 	(void) memset(keyid, 0x0, sizeof(keyid));
 	str2keyid(name, keyid, sizeof(keyid));
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(io->outs, "keyid", keyid, 4);
 	}
 	savedstart = *from;
@@ -923,7 +923,7 @@ getkeybyname(pgp_io_t *io,
 		return kp;
 	}
 	*from = savedstart;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(io->outs, "regex match '%s' from %u\n",
 			name, *from);
 	}
@@ -933,7 +933,7 @@ getkeybyname(pgp_io_t *io,
 		uidp = keyp->uids;
 		for (i = 0 ; i < keyp->uidc; i++, uidp++) {
 			if (regexec(&r, (char *)*uidp, 0, NULL, 0) == 0) {
-				if (pgp_get_debug_level(__FILE__)) {
+				if (rnp_get_debug(__FILE__)) {
 					(void) fprintf(io->outs,
 						"MATCHED keyid \"%s\" len %" PRIsize "u\n",
 					       (char *) *uidp, len);
@@ -1063,7 +1063,7 @@ pgp_add_to_pubring(pgp_keyring_t *keyring, const pgp_pubkey_t *pubkey, pgp_conte
 	pgp_key_t	*key;
 	time_t		 duration;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		fprintf(stderr, "pgp_add_to_pubring (type %u)\n", tag);
 	}
 	switch(tag) {
@@ -1098,12 +1098,12 @@ pgp_add_to_secring(pgp_keyring_t *keyring, const pgp_seckey_t *seckey)
 	const pgp_pubkey_t	*pubkey;
 	pgp_key_t		*key;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		fprintf(stderr, "pgp_add_to_secring\n");
 	}
 	if (keyring->keyc > 0) {
 		key = &keyring->keys[keyring->keyc - 1];
-		if (pgp_get_debug_level(__FILE__) &&
+		if (rnp_get_debug(__FILE__) &&
 		    key->key.pubkey.alg == PGP_PKA_DSA &&
 		    seckey->pubkey.alg == PGP_PKA_ELGAMAL) {
 			fprintf(stderr, "pgp_add_to_secring: found elgamal seckey\n");
@@ -1117,7 +1117,7 @@ pgp_add_to_secring(pgp_keyring_t *keyring, const pgp_seckey_t *seckey)
 	pgp_fingerprint(&key->sigfingerprint, pubkey, keyring->hashtype);
 	key->type = PGP_PTAG_CT_SECRET_KEY;
 	key->key.seckey = *seckey;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		fprintf(stderr, "pgp_add_to_secring: keyc %u\n", keyring->keyc);
 	}
 	return 1;

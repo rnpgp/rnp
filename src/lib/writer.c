@@ -418,7 +418,7 @@ dash_esc_writer(const uint8_t *src,
 	dashesc_t	*dash = pgp_writer_get_arg(writer);
 	unsigned        n;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		unsigned    i = 0;
 
 		(void) fprintf(stderr, "dash_esc_writer writing %u:\n", len);
@@ -950,12 +950,12 @@ encrypt_writer(const uint8_t *src,
 		/* memcpy(buf,src,size); // \todo copy needed here? */
                 pgp_cipher_cfb_encrypt(pgp_encrypt->crypt, encbuf, src + done, size);
 
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "unencrypted", &src[done], 16);
 			hexdump(stderr, "encrypted", encbuf, 16);
 		}
 		if (!stacked_write(writer, encbuf, size, errors)) {
-			if (pgp_get_debug_level(__FILE__)) {
+			if (rnp_get_debug(__FILE__)) {
 				fprintf(stderr,
 					"encrypted_writer: stacked write\n");
 			}
@@ -1161,7 +1161,7 @@ pgp_write_se_ip_pktset(pgp_output_t *output,
 	preamble[crypted->blocksize] = preamble[crypted->blocksize - 2];
 	preamble[crypted->blocksize + 1] = preamble[crypted->blocksize - 1];
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "preamble", preamble, preamblesize);
 	}
 
@@ -1170,14 +1170,14 @@ pgp_write_se_ip_pktset(pgp_output_t *output,
 	pgp_calc_mdc_hash(preamble, preamblesize, data, len, hashed);
 	pgp_write_mdc(mdcoutput, hashed);
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "plaintext", data, len);
 		hexdump(stderr, "mdc", pgp_mem_data(mdc), PGP_SHA1_HASH_SIZE + 1 + 1);
 	}
 
 	/* and write it out */
 	pgp_push_enc_crypt(output, crypted);
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr,
 			"writing %" PRIsize "u + %u + %" PRIsize "u\n",
 			preamblesize, len, pgp_mem_len(mdc));

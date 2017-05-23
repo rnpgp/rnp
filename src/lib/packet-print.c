@@ -749,7 +749,7 @@ pgp_sprint_json(pgp_io_t *io, const pgp_keyring_t *keyring,
             }
         } //for
 	} //for uidc
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		printf ("%s,%d: The json object created: %s\n", __FILE__, __LINE__,json_object_to_json_string(keyjson));
 	}
 	return 1;

@@ -430,7 +430,7 @@ write_seckey_body(const pgp_seckey_t *key,
 		pgp_cipher_set_key(&crypted, sesskey);
 	pgp_encrypt_init(&crypted);
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "writing: iv=", key->iv, pgp_block_size(key->alg));
 		hexdump(stderr, "key= ", sesskey, sesskey_size);
 		(void) fprintf(stderr, "\nturning encryption on...\n");
@@ -445,7 +445,7 @@ write_seckey_body(const pgp_seckey_t *key,
 			!pgp_write_mpi(output, key->key.rsa.p) ||
 			!pgp_write_mpi(output, key->key.rsa.q) ||
 			!pgp_write_mpi(output, key->key.rsa.u)) {
-			if (pgp_get_debug_level(__FILE__)) {
+			if (rnp_get_debug(__FILE__)) {
 				(void) fprintf(stderr,
 					"4 x mpi not written - problem\n");
 			}
@@ -877,7 +877,7 @@ pgp_calc_sesskey_checksum(pgp_pk_sesskey_t *sesskey, uint8_t cs[2])
 	cs[0] = (uint8_t)((checksum >> 8) & 0xff);
 	cs[1] = (uint8_t)(checksum & 0xff);
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "nm buf checksum:", cs, 2);
 	}
 	return 1;
@@ -988,7 +988,7 @@ pgp_create_pk_sesskey(const pgp_key_t *key, const char *ciphername)
 		   goto done;
 	}
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		   hexdump(stderr, "Encrypting for keyid", id, sizeof(sesskey->key_id));
 		   hexdump(stderr, "sesskey created", sesskey->key, cipherinfo.keysize);
 		   hexdump(stderr, "encoded key buf", encoded_key, cipherinfo.keysize + 1 + 2);
@@ -1012,7 +1012,7 @@ pgp_create_pk_sesskey(const pgp_key_t *key, const char *ciphername)
 
 		   sesskey->params.rsa.encrypted_m = BN_bin2bn(encmpibuf, n, NULL);
 
-		   if (pgp_get_debug_level(__FILE__)) {
+		   if (rnp_get_debug(__FILE__)) {
 			  hexdump(stderr, "encrypted mpi", encmpibuf, n);
 		   }
 		}
@@ -1034,7 +1034,7 @@ pgp_create_pk_sesskey(const pgp_key_t *key, const char *ciphername)
 		   sesskey->params.elgamal.g_to_k = BN_bin2bn(g_to_k, n / 2, NULL);
 		   sesskey->params.elgamal.encrypted_m = BN_bin2bn(encmpibuf, n / 2, NULL);
 
-		   if (pgp_get_debug_level(__FILE__)) {
+		   if (rnp_get_debug(__FILE__)) {
 			  hexdump(stderr, "elgamal g^k", g_to_k, n/2);
 			  hexdump(stderr, "encrypted mpi", encmpibuf, n/2);
 		   }

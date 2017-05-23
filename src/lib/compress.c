@@ -138,7 +138,7 @@ zlib_compressed_data_reader(pgp_stream_t *stream, void *dest, size_t length,
 	    z->zstream.next_out == &z->out[z->offset]) {
 		return 0;
 	}
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr,
 			"zlib_compressed_data_reader: length %" PRIsize "d\n",
 			length);

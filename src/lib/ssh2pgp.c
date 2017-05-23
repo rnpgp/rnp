@@ -151,7 +151,7 @@ getbignum(bufgap_t *bg, char *buf, const char *header)
 	(void) bufgap_seek(bg, sizeof(len), BGFromHere, BGByte);
 	(void) bufgap_getbin(bg, buf, len);
 	bignum = BN_bin2bn((const uint8_t *)buf, (int)len, NULL);
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, header, (const uint8_t *)(void *)buf, len);
 	}
 	(void) bufgap_seek(bg, len, BGFromHere, BGByte);
@@ -168,7 +168,7 @@ putbignum(bufgap_t *bg, BIGNUM *bignum)
 	(void) bufgap_insert(bg, &len, sizeof(len));
 	(void) bufgap_insert(bg, buf, len);
 	bignum = BN_bin2bn((const uint8_t *)buf, (int)len, NULL);
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, header, buf, (int)len);
 	}
 	(void) bufgap_seek(bg, len, BGFromHere, BGByte);
@@ -253,12 +253,12 @@ pgp_ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hasht
 	if ((space = strchr(buf, ' ')) != NULL) {
 		cc = (int)(space - buf);
 	}
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, NULL, (const uint8_t *) (const void *) buf,
 				(size_t) cc);
 	}
 	cc = frombase64(bin, buf, (size_t) cc, 0);
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "decoded base64:",
 				(const uint8_t *) (const void *) bin,
 				(size_t) cc);
@@ -350,7 +350,7 @@ pgp_ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hasht
 
 		free((void *) userid);
 
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			/*pgp_print_keydata(io, keyring, key, "pub", pubkey, 0);*/
 			__PGP_USED(io); /* XXX */
 		}
@@ -374,7 +374,7 @@ pgp_ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey
 	if (!read_pem_seckey(f, key, "ssh-rsa", 0)) {
 		return 0;
 	}
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		/*pgp_print_keydata(io, key, "sec", &key->key.seckey.pubkey, 0);*/
 		/* XXX */
 	}
@@ -422,7 +422,7 @@ pgp_ssh2_readkeys(pgp_io_t *io, pgp_keyring_t *pubring,
 	pubkey = NULL;
 	(void) memset(&key, 0x0, sizeof(key));
 	if (pubfile) {
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			(void) fprintf(io->errs, "pgp_ssh2_readkeys: pubfile '%s'\n", pubfile);
 		}
 		if (!pgp_ssh2pubkey(io, pubfile, &key, (pgp_hash_alg_t)hashtype)) {
@@ -435,7 +435,7 @@ pgp_ssh2_readkeys(pgp_io_t *io, pgp_keyring_t *pubring,
 		pubkey->type = PGP_PTAG_CT_PUBLIC_KEY;
 	}
 	if (secfile) {
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			(void) fprintf(io->errs, "pgp_ssh2_readkeys: secfile '%s'\n", secfile);
 		}
 		if (pubkey == NULL) {
