@@ -58,21 +58,14 @@
 #include "packet.h"
 #include "packet-parse.h"
 #include <json.h>
+#include "keyring.h"
 
 enum {
 	MAX_ID_LENGTH		= 128,
 	MAX_PASSPHRASE_LENGTH	= 256
 };
 
-typedef struct pgp_key_t	pgp_key_t;
-
-/** \struct pgp_keyring_t
- * A keyring
- */
-typedef struct pgp_keyring_t {
-	DYNARRAY(pgp_key_t,	key);
-	pgp_hash_alg_t	hashtype;
-} pgp_keyring_t;
+int pgp_keyring_load_keys(rnp_t *rnp, char *homedir);
 
 const pgp_key_t *pgp_getkeybyid(pgp_io_t *,
 					const pgp_keyring_t *,
