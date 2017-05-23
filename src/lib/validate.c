@@ -77,7 +77,7 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 
 #include "packet-parse.h"
 #include "packet-show.h"
-#include "keyring.h"
+#include "keyring_pgp.h"
 #include "signature.h"
 #include "rnpsdk.h"
 #include "readerwriter.h"

@@ -52,8 +52,8 @@
 /** \file
  */
 
-#ifndef KEYRING_H_
-#define KEYRING_H_
+#ifndef KEYRING_PGP_H_
+#define KEYRING_PGP_H_
 
 #include "packet.h"
 #include "packet-parse.h"
@@ -151,4 +151,4 @@ int pgp_add_to_secring(pgp_keyring_t *, const pgp_seckey_t *);
 
 int pgp_append_keyring(pgp_keyring_t *, pgp_keyring_t *);
 
-#endif /* KEYRING_H_ */
+#endif /* KEYRING_PGP_H_ */
