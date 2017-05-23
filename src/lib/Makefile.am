@@ -17,7 +17,9 @@ librnp_la_SOURCES	= \
 	dsa.c \
 	elgamal.c \
 	hash.c \
+	keyring.c \
 	keyring_pgp.c \
+	keyring_ssh.c \
 	misc.c \
 	packet-parse.c \
 	packet-print.c \

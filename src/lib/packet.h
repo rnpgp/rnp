@@ -949,7 +949,7 @@ typedef struct pgp_subsig_t {
 } pgp_subsig_t;
 
 /* describes a user's key */
-struct pgp_key_t {
+typedef struct pgp_key_t {
 	DYNARRAY(uint8_t *, uid);		/* array of user ids */
 	DYNARRAY(pgp_subpacket_t, packet);	/* array of raw subpackets */
 	DYNARRAY(pgp_subsig_t, subsig);	/* array of signature subkeys */
@@ -965,7 +965,7 @@ struct pgp_key_t {
 	uint32_t		uid0;		/* primary uid index in uids array */
 	uint8_t			revoked;	/* key has been revoked */
 	pgp_revoke_t		revocation;	/* revocation reason */
-};
+} pgp_key_t;
 
 #define MDC_PKT_TAG	0xd3
 

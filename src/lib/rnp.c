@@ -75,6 +75,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "packet.h"
 #include "packet-parse.h"
 #include "keyring_pgp.h"
+#include "keyring_ssh.h"
 #include "errors.h"
 #include "packet-show.h"
 #include "create.h"
@@ -90,41 +91,6 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "../common/constants.h"
 
 #include <json.h>
-
-/* read any gpg config file */
-static int
-conffile(rnp_t *rnp, char *homedir, char *userid, size_t length)
-{
-	regmatch_t	 matchv[10];
-	regex_t		 keyre;
-	char		 buf[BUFSIZ];
-	FILE		*fp;
-
-	__PGP_USED(rnp);
-	(void) snprintf(buf, sizeof(buf), "%s/gpg.conf", homedir);
-	if ((fp = fopen(buf, "r")) == NULL) {
-		return 0;
-	}
-	(void) memset(&keyre, 0x0, sizeof(keyre));
-	(void) regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)",
-		REG_EXTENDED);
-	while (fgets(buf, (int)sizeof(buf), fp) != NULL) {
-		if (regexec(&keyre, buf, 10, matchv, 0) == 0) {
-			(void) memcpy(userid, &buf[(int)matchv[1].rm_so],
-				MIN((unsigned)(matchv[1].rm_eo -
-						matchv[1].rm_so), length));
-			if (rnp->passfp == NULL) {
-				(void) fprintf(stderr,
-				"rnp: default key set to \"%.*s\"\n",
-				(int)(matchv[1].rm_eo - matchv[1].rm_so),
-				&buf[(int)matchv[1].rm_so]);
-			}
-		}
-	}
-	(void) fclose(fp);
-	regfree(&keyre);
-	return 1;
-}
 
 /* small function to pretty print an 8-character raw userid */
 static char    *
@@ -297,182 +263,6 @@ findvar(rnp_t *rnp, const char *name)
 
 	for (i = 0 ; i < rnp->c && strcmp(rnp->name[i], name) != 0; i++);
 	return (i == rnp->c) ? -1 : (int)i;
-}
-
-/* read a keyring and return it */
-static void *
-readkeyring(rnp_t *rnp, const char *name)
-{
-	pgp_keyring_t	*keyring;
-	const unsigned	 noarmor = 0;
-	char		 f[MAXPATHLEN];
-	char		*filename;
-	char		 homedir[MAXPATHLEN];
-
-	keydir(rnp, homedir, sizeof(homedir));
-	if ((filename = rnp_getvar(rnp, name)) == NULL) {
-		snprintf(f, sizeof(f), "%s/%s.gpg", homedir, name);
-		filename = f;
-	}
-	if ((keyring = calloc(1, sizeof(*keyring))) == NULL) {
-		fprintf(stderr, "readkeyring: bad alloc\n");
-		return NULL;
-	}
-	if (!pgp_keyring_fileread(keyring, noarmor, filename)) {
-		free(keyring);
-		fprintf(stderr, "cannot read %s %s\n", name, filename);
-		return NULL;
-	}
-	rnp_setvar(rnp, name, filename);
-	return keyring;
-}
-
-/* read keys from ssh key files */
-static int
-readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
-{
-	pgp_keyring_t	*pubring;
-	pgp_keyring_t	*secring;
-	struct stat	 st;
-	unsigned	 hashtype;
-	char		*hash;
-	char		 f[MAXPATHLEN];
-	char		*filename;
-
-	if ((filename = rnp_getvar(rnp, "sshkeyfile")) == NULL) {
-		/* set reasonable default for RSA key */
-		(void) snprintf(f, sizeof(f), "%s/id_rsa.pub", homedir);
-		filename = f;
-	} else if (strcmp(&filename[strlen(filename) - 4], ".pub") != 0) {
-		/* got ssh keys, check for pub file name */
-		(void) snprintf(f, sizeof(f), "%s.pub", filename);
-		filename = f;
-	}
-	/* check the pub file exists */
-	if (stat(filename, &st) != 0) {
-		(void) fprintf(stderr, "readsshkeys: bad pubkey filename '%s'\n", filename);
-		return 0;
-	}
-	if ((pubring = calloc(1, sizeof(*pubring))) == NULL) {
-		(void) fprintf(stderr, "readsshkeys: bad alloc\n");
-		return 0;
-	}
-	/* openssh2 keys use md5 by default */
-	hashtype = PGP_HASH_MD5;
-	if ((hash = rnp_getvar(rnp, "hash")) != NULL) {
-		/* openssh 2 hasn't really caught up to anything else yet */
-		if (rnp_strcasecmp(hash, "md5") == 0) {
-			hashtype = PGP_HASH_MD5;
-		} else if (rnp_strcasecmp(hash, "sha1") == 0) {
-			hashtype = PGP_HASH_SHA1;
-		} else if (rnp_strcasecmp(hash, "sha256") == 0) {
-			hashtype = PGP_HASH_SHA256;
-		}
-	}
-	if (!pgp_ssh2_readkeys(rnp->io, pubring, NULL, filename, NULL, hashtype)) {
-		free(pubring);
-		(void) fprintf(stderr, "readsshkeys: cannot read %s\n",
-				filename);
-		return 0;
-	}
-	if (rnp->pubring == NULL) {
-		rnp->pubring = pubring;
-	} else {
-		pgp_append_keyring(rnp->pubring, pubring);
-	}
-	if (needseckey) {
-		rnp_setvar(rnp, "sshpubfile", filename);
-		/* try to take the ".pub" off the end */
-		if (filename == f) {
-			f[strlen(f) - 4] = 0x0;
-		} else {
-			(void) snprintf(f, sizeof(f), "%.*s",
-					(int)strlen(filename) - 4, filename);
-			filename = f;
-		}
-		if ((secring = calloc(1, sizeof(*secring))) == NULL) {
-			free(pubring);
-			(void) fprintf(stderr, "readsshkeys: bad alloc\n");
-			return 0;
-		}
-		if (!pgp_ssh2_readkeys(rnp->io, pubring, secring, NULL, filename, hashtype)) {
-			free(pubring);
-			free(secring);
-			(void) fprintf(stderr, "readsshkeys: cannot read sec %s\n", filename);
-			return 0;
-		}
-		rnp->secring = secring;
-		rnp_setvar(rnp, "sshsecfile", filename);
-	}
-	return 1;
-}
-
-/* Format a PGP key to a readable hexadecimal string in a user supplied
- * buffer.
- *
- * buffer: the buffer to write into
- * sigid:  the PGP key ID to format
- * len:    the length of buffer, including the null terminator
- *
- * TODO: There is no error checking here.
- * TODO: Make this function more general or use an existing one.
- */
-
-static void
-format_key(char *buffer, uint8_t *sigid, int len)
-{
-	unsigned int i;
-	unsigned int n;
-
-	/* Chunks of two bytes are processed at a time because we can
-	 * always be reasonably sure that PGP_KEY_ID_SIZE will be
-	 * divisible by two. However, if the RFCs specify a fixed
-	 * fixed size for PGP key IDs it might be more constructive
-	 * to format this in one call and do a compile-time size
-	 * check of the constant. If somebody wanted to do
-	 * something exotic they can easily re-implement
-	 * this function.
-	 */
-	for (i = 0, n = 0; i < PGP_KEY_ID_SIZE; i += 2) {
-		n += snprintf(&buffer[n], len - n, "%02x%02x",
-				sigid[i], sigid[i + 1]);
-	}
-	buffer[n] = 0x0;
-}
-
-/* Get the uid of the first key in the keyring.
- *
- * TODO: Set errno on failure.
- * TODO: Check upstream calls to this function - they likely won't
- *       handle the new error condition.
- */
-static int
-get_first_ring(pgp_keyring_t *ring, char *id, size_t len, int last)
-{
-	uint8_t	*src;
-
-	/* The NULL test on the ring may not be necessary for non-debug
-	 * builds - it would be much better that a NULL ring never
-	 * arrived here in the first place.
-	 *
-	 * The ring length check is a temporary fix for a case where
-	 * an empty ring arrives and causes an access violation in
-	 * some circumstances.
-	 */
-
-	errno = 0;
-
-	if (ring == NULL || ring->keyc < 1) {
-		errno = EINVAL;
-		return 0;
-	}
-
-	memset(id, 0x0, len);
-
-	src = (uint8_t *) &ring->keys[(last) ? ring->keyc - 1 : 0].sigid;
-	format_key(id, src, len);
-
-	return 1;
 }
 
 /* find the time - in a specific %Y-%m-%d format - using a regexp */
@@ -1069,126 +859,6 @@ parse_keyring_format(rnp_t *rnp, enum keyring_format_t *keyring_format, char *fo
 	return 1;
 }
 
-static int
-load_keys_gnupg(rnp_t *rnp, char *homedir)
-{
-	char     *userid;
-	char      id[MAX_ID_LENGTH];
-	pgp_io_t *io = rnp->io;
-
-	/* TODO: Some of this might be split up into sub-functions. */
-	/* TODO: Figure out what unhandled error is causing an
-	 *       empty keyring to end up in get_first_ring
-	 *       and ensure that it's not present in the
-	 *       ssh implementation too.
-	 */
-
-	rnp->pubring = readkeyring(rnp, "pubring");
-
-	if (rnp->pubring == NULL) {
-		fprintf(io->errs, "cannot read pub keyring\n");
-		return 0;
-	}
-
-	if (((pgp_keyring_t *) rnp->pubring)->keyc < 1) {
-		fprintf(io->errs, "pub keyring is empty\n");
-		return 0;
-	}
-
-	/* If a userid has been given, we'll use it. */
-	if ((userid = rnp_getvar(rnp, "userid")) == NULL) {
-		/* also search in config file for default id */
-		memset(id, 0, sizeof(id));
-		conffile(rnp, homedir, id, sizeof(id));
-		if (id[0] != 0x0) {
-			rnp_setvar(rnp, "userid", userid = id);
-		}
-	}
-
-	/* Only read secret keys if we need to. */
-	if (rnp_getvar(rnp, "need seckey")) {
-
-		rnp->secring = readkeyring(rnp, "secring");
-
-		if (rnp->secring == NULL) {
-			fprintf(io->errs, "cannot read sec keyring\n");
-			return 0;
-		}
-
-		if (((pgp_keyring_t *) rnp->secring)->keyc < 1) {
-			fprintf(io->errs, "sec keyring is empty\n");
-			return 0;
-		}
-
-		/* Now, if we don't have a valid user, use the first
-		 * in secring.
-		 */
-		if (! userid && rnp_getvar(rnp,
-				"need userid") != NULL) {
-
-			if (! get_first_ring(rnp->secring, id,
-					sizeof(id), 0)) {
-				/* TODO: This is _temporary_. A more
-				 *       suitable replacement will be
-				 *       required.
-				 */
-				fprintf(io->errs, "failed to read id\n");
-				return 0;
-			}
-
-			rnp_setvar(rnp, "userid", userid = id);
-		}
-
-	} else if (rnp_getvar(rnp, "need userid") != NULL) {
-		/* encrypting - get first in pubring */
-		if (! userid && get_first_ring(
-				rnp->pubring, id, sizeof(id), 0)) {
-			rnp_setvar(rnp, "userid", userid = id);
-		}
-	}
-
-	if (! userid && rnp_getvar(rnp, "need userid")) {
-		/* if we don't have a user id, and we need one, fail */
-		fprintf(io->errs, "cannot find user id\n");
-		return 0;
-	}
-
-	return 1;
-}
-
-static int
-load_keys_ssh(rnp_t *rnp, char *homedir)
-{
-	int       last = (rnp->pubring != NULL);
-	char      id[MAX_ID_LENGTH];
-	char     *userid;
-	pgp_io_t *io = rnp->io;
-
-	/* TODO: Double-check whether or not ID needs to be zeroed. */
-
-	if (! readsshkeys(rnp, homedir,
-			rnp_getvar(rnp, "need seckey"))) {
-		fprintf(io->errs, "cannot read ssh keys\n");
-		return 0;
-	}
-	if ((userid = rnp_getvar(rnp, "userid")) == NULL) {
-		/* TODO: Handle get_first_ring() failure. */
-		get_first_ring(rnp->pubring, id,
-				sizeof(id), last);
-		rnp_setvar(rnp, "userid", userid = id);
-	}
-	if (userid == NULL) {
-		if (rnp_getvar(rnp, "need userid") != NULL) {
-			fprintf(io->errs, "cannot find user id\n");
-			return 0;
-		}
-	} else {
-		rnp_setvar(rnp, "userid", userid);
-	}
-
-	return 1;
-}
-
 /* Encapsulates setting `initialized` to the current time. */
 static void
 init_touch_initialized(rnp_t *rnp)
@@ -1369,19 +1039,19 @@ rnp_load_keys(rnp_t *rnp)
 
 	errno = 0;
 
-	if (use_ssh_keys(rnp)) {
-		if (keydir_ssh(rnp, path, sizeof(path)) == -1)
-			return 0;
-		if (! load_keys_ssh(rnp, path))
-			return 0;
-	} else {
-		if (keydir_gnupg(rnp, path, sizeof(path)) == -1)
-			return 0;
-		if (! load_keys_gnupg(rnp, path))
-			return 0;
+	if (keydir(rnp, path, sizeof(path)) == -1) {
+		return 0;
 	}
 
-	return 1;
+	switch (rnp->keyring_format) {
+		case GPG_KEYRING:
+			return pgp_keyring_load_keys(rnp, path);
+
+		case SSH_KEYRING:
+			return ssh_keyring_load_keys(rnp, path);
+	}
+
+	return 0;
 }
 
 DEFINE_ARRAY(strings_t, char *);
