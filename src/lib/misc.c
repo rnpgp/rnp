@@ -1078,7 +1078,7 @@ rnp_get_debug(const char *f)
 
 /* return the version for the library */
 const char *
-pgp_get_info(const char *type)
+rnp_get_info(const char *type)
 {
 	if (strcmp(type, "version") == 0) {
 		return PACKAGE_STRING"["GIT_REVISION"]";

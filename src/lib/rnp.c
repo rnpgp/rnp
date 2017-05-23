@@ -2116,13 +2116,6 @@ rnp_decrypt_memory(rnp_t *rnp, const void *input, const size_t insize,
 	return (int)m;
 }
 
-/* return the version for the library */
-const char *
-rnp_get_info(const char *type)
-{
-	return pgp_get_info(type);
-}
-
 /* list all the packets in a file */
 int
 rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)

@@ -67,7 +67,7 @@ pgp_validate_all_sigs(pgp_validation_t *,
 unsigned   pgp_check_sig(const uint8_t *,
 		unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 
-const char     *pgp_get_info(const char *type);
+const char     *rnp_get_info(const char *type);
 
 int pgp_asprintf(char **, const char *, ...) __printflike(2, 3);
 
