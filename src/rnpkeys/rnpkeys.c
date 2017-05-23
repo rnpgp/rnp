@@ -182,8 +182,11 @@ print_usage(const char *usagemsg)
 static int
 match_keys(rnp_t *rnp, FILE *fp, char *f, const int psigs)
 {
-	char	*json;
+	char	*json = NULL;
 	int	 idc;
+    rnp_list_keys_json(rnp, &json, psigs);
+    printf("\n======\n %s \n=======\n",json);
+    //return 0;
 
 	if (f == NULL) {
 		if (!rnp_list_keys_json(rnp, &json, psigs)) {
@@ -466,7 +469,6 @@ main(int argc, char **argv)
 			}
 		}
 	}
-
 	if (! rnp_init(&rnp)) {
 		fputs("fatal: failed to initialize rnpkeys\n", stderr);
 		return EXIT_ERROR;

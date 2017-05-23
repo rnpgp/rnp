@@ -89,6 +89,8 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "defs.h"
 #include "../common/constants.h"
 
+#include <json.h>
+
 /* read any gpg config file */
 static int
 conffile(rnp_t *rnp, char *homedir, char *userid, size_t length)
@@ -1334,20 +1336,19 @@ rnp_list_keys(rnp_t *rnp, const int psigs)
 int
 rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
 {
-	mj_t	obj;
+    json_object *obj = json_object_new_array();
 	int	ret;
-
 	if (rnp->pubring == NULL) {
 		(void) fprintf(stderr, "No keyring\n");
 		return 0;
 	}
-	(void) memset(&obj, 0x0, sizeof(obj));
-	if (!pgp_keyring_json(rnp->io, rnp->pubring, &obj, psigs)) {
+	if (!pgp_keyring_json(rnp->io, rnp->pubring, obj, psigs)) {
 		(void) fprintf(stderr, "No keys in keyring\n");
 		return 0;
 	}
-	ret = mj_asprint(json, &obj, MJ_JSON_ENCODE);
-	mj_delete(&obj);
+    const char *j  = json_object_to_json_string(obj);
+    ret = j != NULL;
+    *json = strdup(j);
 	return ret;
 }
 
@@ -1433,11 +1434,12 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
 int
 rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const int psigs)
 {
+	int		 ret = 1;
+#if 0
 	const pgp_key_t	*key;
 	unsigned	 k;
-	mj_t		 id_array;
+	json_object *id_array = NULL;
 	char		*newkey;
-	int		 ret;
 
 	if (name[0] == '0' && name[1] == 'x') {
 		name += 2;
@@ -1445,7 +1447,7 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
 	(void) memset(&id_array, 0x0, sizeof(id_array));
 	k = 0;
 	*json = NULL;
-	mj_create(&id_array, "array");
+//	mj_create(&id_array, "array");
 	do {
 		key = pgp_getnextkeybyname(rnp->io, rnp->pubring,
 						name, &k);
@@ -1461,8 +1463,8 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
 			} else {
 				ALLOC(mj_t, id_array.value.v, id_array.size,
 					id_array.c, 10, 10, "rnp_match_keys_json", return 0);
-				pgp_sprint_mj(rnp->io, rnp->pubring,
-						key, &id_array.value.v[id_array.c++],
+				pgp_sprint_json(rnp->io, rnp->pubring,
+						key, id_array,
 						"signature ",
 						&key->key.pubkey, psigs);
 			}
@@ -1471,6 +1473,7 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
 	} while (key != NULL);
 	ret = mj_asprint(json, &id_array, MJ_JSON_ENCODE);
 	mj_delete(&id_array);
+#endif
 	return ret;
 }
 

@@ -105,6 +105,8 @@ AC_SEARCH_LIBS([_cmocka_run_group_tests], [cmocka],,AC_MSG_ERROR(CMocka not foun
 AC_SEARCH_LIBS([gzopen], [z],,AC_MSG_ERROR(libz not found!))
 AC_SEARCH_LIBS([BZ2_bzDecompress], [bz2],,AC_MSG_ERROR(Libbz2 not found!))
 
+PKG_CHECK_MODULES(JSON, json-c,, [AC_MSG_WARN("json-c not found")])
+
 # Initialize the testsuite
 #
 AC_CONFIG_TESTDIR([tests])

@@ -1,6 +1,6 @@
 ## $NetBSD: Makefile.am,v 1.10 2010/11/29 06:21:40 agc Exp $
 
-AM_CFLAGS		= $(WARNCFLAGS) $(BOTAN_INCLUDES)
+AM_CFLAGS		= $(WARNCFLAGS) $(BOTAN_INCLUDES) $(JSON_CFLAGS)
 
 AM_LDFLAGS              = $(BOTAN_LDFLAGS)
 
@@ -32,6 +32,6 @@ librnp_la_SOURCES	= \
 	validate.c \
 	writer.c
 
-librnp_la_LIBADD	= ../libmj/libmj.la $(BOTAN_LIBS)
+librnp_la_LIBADD	= ../libmj/libmj.la $(BOTAN_LIBS) $(JSON_LIBS)
 
 dist_man_MANS		= librnp.3

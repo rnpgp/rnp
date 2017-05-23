@@ -58,6 +58,7 @@
 #include "packet.h"
 #include "packet-parse.h"
 #include "mj.h"
+#include <json.h>
 
 enum {
 	MAX_ID_LENGTH		= 128,
@@ -99,7 +100,7 @@ unsigned   pgp_keyring_fileread(pgp_keyring_t *, const unsigned,
 					const char *);
 
 int pgp_keyring_list(pgp_io_t *, const pgp_keyring_t *, const int);
-int pgp_keyring_json(pgp_io_t *, const pgp_keyring_t *, mj_t *, const int);
+int pgp_keyring_json(pgp_io_t *, const pgp_keyring_t *, json_object *, const int);
 
 void pgp_set_seckey(pgp_contents_t *, const pgp_key_t *);
 void pgp_forget(void *, unsigned);
@@ -123,8 +124,8 @@ int pgp_parse_and_accumulate(pgp_keyring_t *, pgp_stream_t *);
 int pgp_sprint_keydata(pgp_io_t *, const pgp_keyring_t *,
 			const pgp_key_t *, char **, const char *,
 			const pgp_pubkey_t *, const int);
-int pgp_sprint_mj(pgp_io_t *, const pgp_keyring_t *,
-			const pgp_key_t *, mj_t *, const char *,
+int pgp_sprint_json(pgp_io_t *, const pgp_keyring_t *,
+			const pgp_key_t *, json_object *, const char *,
 			const pgp_pubkey_t *, const int);
 int pgp_hkp_sprint_keydata(pgp_io_t *, const pgp_keyring_t *,
 			const pgp_key_t *, char **,
