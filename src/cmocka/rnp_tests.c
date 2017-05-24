@@ -910,6 +910,9 @@ static int setup_test(void **state)
     assert_int_equal(0,
         setenv("HOME", (char*)*state, 1)
     );
+    assert_int_equal(0,
+        chdir((char*)*state)
+    );
     return 0;
 }
 
@@ -930,6 +933,9 @@ int main(void) {
     char *tmphome = make_temp_dir();
     assert_int_equal(0,
         setenv("HOME", tmphome, 1)
+    );
+    assert_int_equal(0,
+        chdir(tmphome)
     );
 
     struct CMUnitTest tests[] = {
