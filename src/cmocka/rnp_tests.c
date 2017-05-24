@@ -1016,9 +1016,35 @@ static void rnpkeys_exportkey_verifyUserId(void **state)
     rnp_end(&rnp); //Free memory and other allocated resources.
 }
 
+static int setup_test(void **state)
+{
+    *state = make_temp_dir();
+    assert_int_equal(0,
+        setenv("HOME", (char*)*state, 1)
+    );
+    return 0;
+}
+
+static int teardown_test(void **state)
+{
+    delete_recursively((char*)*state);
+    free(*state);
+    *state = NULL;
+    return 0;
+}
 
 int main(void) {
-    const struct CMUnitTest tests[] = {
+    int ret;
+    /* Create a temporary HOME.
+     * This is just an extra guard to protect against accidental
+     * modifications of a user's HOME.
+     */
+    char *tmphome = make_temp_dir();
+    assert_int_equal(0,
+        setenv("HOME", tmphome, 1)
+    );
+
+    struct CMUnitTest tests[] = {
         cmocka_unit_test(hash_test_success),
         cmocka_unit_test(cipher_test_success),
         cmocka_unit_test(pkcs1_rsa_test_success),
@@ -1033,5 +1059,16 @@ int main(void) {
         cmocka_unit_test(rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission),
         cmocka_unit_test(rnpkeys_exportkey_verifyUserId),
     };
-    return cmocka_run_group_tests(tests, NULL, NULL);
+
+    /* Each test entry will invoke setup_test before running
+     * and teardown_test after running. */
+    for (size_t i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+        tests[i].setup_func = setup_test;
+        tests[i].teardown_func = teardown_test;
+    }
+    ret = cmocka_run_group_tests(tests, NULL, NULL);
+
+    delete_recursively(tmphome);
+    free(tmphome);
+    return ret;
 }
