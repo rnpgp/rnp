@@ -809,59 +809,64 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 
 static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
 {
-    const char* non_default_keydir = "/tmp/test";
-    const char* non_default_keydir_sub = "/tmp/test/.rnp";
-
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
-     * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    const char *ourdir = (char*)*state;
     const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
+    rnp_t rnp;
+    char fakedir[256];
 
+    // fakedir is a directory that does not exist
+    paths_concat(fakedir, sizeof(fakedir), ourdir, "fake", NULL);
 
-    /* Setup the pass phrase fd to avoid user-input*/
-    assert_int_equal(setupPassphrasefd(pipefd), 1);
-
-    /* Clean the enviornment before running the test.*/
-    DeleteDir(non_default_keydir);
-
-    /* Create READ-only home dir*/
-    CreateNewDir(non_default_keydir, 0777);
-
-    /* Set the home directory to a non-default value and ensure the read/write permission 
-     * for the specified directory*/
-    int retVal = setenv("HOME", non_default_keydir, 1);
-    assert_int_equal(retVal,0); // Ensure the enviornment variable was set
-
-    /*Initialize the basic RNP structure. */
+    /****************************************************************/
+    // First, make sure init succeeds with the default (using $HOME)
     memset(&rnp, '\0', sizeof(rnp));
+    assert_int_equal(1,
+        rnp_init(&rnp)
+    );
+    rnp_end(&rnp);
 
-    /*Set the default parameters*/
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
+    /****************************************************************/
+    // Ensure it fails when we set an invalid "homedir"
+    memset(&rnp, '\0', sizeof(rnp));
+    rnp_setvar(&rnp, "homedir", fakedir);
+    assert_int_equal(0,
+        rnp_init(&rnp)
+    );
+    rnp_end(&rnp);
+
+    /****************************************************************/
+    // Ensure it fails when we do not explicitly set "homedir" and
+    // $HOME is invalid.
+    memset(&rnp, '\0', sizeof(rnp));
+    assert_int_equal(0,
+        setenv("HOME", fakedir, 1)
+    );
+    assert_int_equal(0,
+        rnp_init(&rnp)
+    );
+    // Restore our original $HOME.
+    assert_int_equal(0,
+        setenv("HOME", ourdir, 1)
+    );
+    rnp_end(&rnp);
+
+    /****************************************************************/
+    // Ensure key generation fails when we set an invalid "homedir"
+    // after rnp_init.
+    memset(&rnp, '\0', sizeof(rnp));
+    assert_int_equal(setupPassphrasefd(pipefd), 1);
     rnp_setvar(&rnp, "res",       "<stdout>");
-    rnp_setvar(&rnp, "hash",      "SHA256"); 
-    rnp_setvar(&rnp, "format",    "human");
     rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
-
-    retVal = rnp_init (&rnp);
-    assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
-
-    retVal = rnp_generate_key(&rnp, NULL, numbits);
-    assert_int_equal(retVal,1); //Ensure the key was NOT generated as the directory has only list read permissions.
-
-    retVal = rnp_setvar(&rnp, "homedir",non_default_keydir_sub);
-    assert_int_equal(retVal,1); //Ensure the homedir parameter is set.
-
-    /*Load the newly generated rnp key*/
-    retVal = rnp_load_keys(&rnp);
-    assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
-
-    retVal = rnp_find_key(&rnp, getenv("LOGNAME")); //Find the default key generated with the login-name
-    assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
-
-    rnp_end(&rnp); //Free memory and other allocated resources.
+    assert_int_equal(1,
+        rnp_init(&rnp)
+    );
+    rnp_setvar(&rnp, "homedir", fakedir);
+    assert_int_equal(0,
+        rnp_generate_key(&rnp, NULL, numbits)
+    );
+    rnp_end(&rnp);
 }
 
 static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **state)
