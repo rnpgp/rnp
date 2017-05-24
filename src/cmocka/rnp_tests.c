@@ -116,7 +116,6 @@ int path_file_exists(const char *first, ...)
     va_start(ap, first);
         vpaths_concat(buffer, sizeof(buffer), first, ap);
     va_end(ap);
-    printf("path_file_exists '%s'\n", buffer);
     return file_exists(buffer);
 }
 
