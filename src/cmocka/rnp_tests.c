@@ -667,28 +667,6 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
     }
 }
 
-int CreateNewDir(const char *foldername, int option)
-{
-    struct stat st = {0};
-
-    if (stat(foldername, &st) == -1) {
-        return mkdir(foldername, option);
-    }
-    return 1;
-}
-
-int DeleteDir(const char *foldername)
-{
-    struct stat st = {0};
-
-    if (stat(foldername, &st) == -1) {
-        return 1; 
-    } else {
-        return rmdir(foldername);
-    }
-    return 1;
-}
-
 static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 {
     const char *ourdir = (char*)*state;
