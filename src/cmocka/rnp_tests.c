@@ -849,24 +849,23 @@ static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
 
 static void rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
 {
-    const char* non_default_keydir = "/etc";
-    const char* default_keydir = getenv("HOME");
+    const char *ourdir = (char*)*state;
 
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
-     * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    char nopermsdir[256];
+    paths_concat(nopermsdir, sizeof(nopermsdir), ourdir, "noperms", NULL);
+    path_mkdir(0000, nopermsdir, NULL);
+
+    rnp_t rnp;
     const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
-
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
 
     /* Set the home directory to a non-default value and ensure the read/write permission 
      * for the specified directory*/
-    int retVal = setenv("HOME", non_default_keydir, 1);
+    int retVal = setenv("HOME", nopermsdir, 1);
     assert_int_equal(retVal,0); // Ensure the enviornment variable was set
 
     /*Initialize the basic RNP structure. */
@@ -886,7 +885,6 @@ static void rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
     assert_int_equal(retVal,0); //Ensure the key was NOT generated as the directory has only list read permissions.
 
     rnp_end(&rnp); //Free memory and other allocated resources.
-    setenv("HOME", default_keydir, 1);
 }
 
 static void rnpkeys_exportkey_verifyUserId(void **state)
