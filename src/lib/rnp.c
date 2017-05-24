@@ -1285,9 +1285,13 @@ rnp_end(rnp_t *rnp)
 	}
 	if (rnp->pubring != NULL) {
 		pgp_keyring_free(rnp->pubring);
+                free(rnp->pubring);
+                rnp->pubring = NULL;
 	}
 	if (rnp->secring != NULL) {
 		pgp_keyring_free(rnp->secring);
+                free(rnp->secring);
+                rnp->secring = NULL;
 	}
 	free(rnp->io);
 	return 1;
