@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <limits.h>
+#include <ftw.h>
 
 #include <cmocka.h>
 
@@ -45,6 +46,122 @@
 
 #include <rnp.h>
 #include <sys/stat.h>
+
+/* Check if a file exists.
+ * Use with assert_true and assert_false.
+ */
+int file_exists(const char *path)
+{
+    struct stat st = {0};
+    return stat(path, &st) == 0 && S_ISREG(st.st_mode);
+}
+
+/* Check if a file is empty
+ * Use with assert_true and assert_false.
+ */
+int file_empty(const char *path)
+{
+    struct stat st = {0};
+    return stat(path, &st) == 0 &&
+           S_ISREG(st.st_mode) &&
+           st.st_size == 0;
+}
+
+/* Concatenate multiple strings into a full path.
+ * A directory separator is added between components.
+ * Must be called in between va_start and va_end.
+ * Final argument of calling function must be NULL.
+ */
+void vpaths_concat(char *buffer, size_t buffer_size, const char *first, va_list ap)
+{
+    size_t length = strlen(first);
+    const char *s;
+
+    assert_true(length < buffer_size);
+
+    memset(buffer, 0, buffer_size);
+
+    strncpy(buffer, first, buffer_size - 1);
+    while ((s = va_arg(ap, const char *))) {
+        length += strlen(s) + 1;
+        assert_true(length < buffer_size);
+        strncat(buffer, "/", buffer_size - 1);
+        strncat(buffer, s, buffer_size - 1);
+    }
+}
+
+/* Concatenate multiple strings into a full path.
+ * Final argument must be NULL.
+ */
+char *
+paths_concat(char *buffer, size_t buffer_length, const char *first, ...)
+{
+    va_list ap;
+
+    va_start(ap, first);
+        vpaths_concat(buffer, buffer_length, first, ap);
+    va_end(ap);
+    return buffer;
+}
+
+/* Concatenate multiple strings into a full path and
+ * check that the file exists.
+ * Final argument must be NULL.
+ */
+int path_file_exists(const char *first, ...)
+{
+    va_list ap;
+    char buffer[512] = {0};
+
+    va_start(ap, first);
+        vpaths_concat(buffer, sizeof(buffer), first, ap);
+    va_end(ap);
+    printf("path_file_exists '%s'\n", buffer);
+    return file_exists(buffer);
+}
+
+/* Concatenate multiple strings into a full path and
+ * create the directory.
+ * Final argument must be NULL.
+ */
+void
+path_mkdir(mode_t mode, const char *first, ...)
+{
+    va_list ap;
+    char buffer[512];
+
+    /* sanity check - should always be an absolute path */
+    assert_true(first[0] == '/');
+
+    va_start(ap, first);
+        vpaths_concat(buffer, sizeof(buffer), first, ap);
+    va_end(ap);
+
+    assert_int_equal(0,
+        mkdir(buffer, mode)
+    );
+}
+
+int remove_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+{
+    int ret = remove(fpath);
+    if (ret)
+        perror(fpath);
+
+    return ret;
+}
+
+/* Recursively remove a directory.
+ * The path must be a full path and must be located in /tmp, for safety.
+ */
+void delete_recursively(const char *path)
+{
+    /* sanity check, we should only be purging things from /tmp/ */
+    assert_int_equal(strncmp(path, "/tmp/", 5), 0);
+    assert_true(strlen(path) > 5);
+
+    nftw(path, remove_cb, 64, FTW_DEPTH | FTW_PHYS);
+}
 
 // returns new string containing hex value
 char* hex_encode(const uint8_t v[], size_t len)
