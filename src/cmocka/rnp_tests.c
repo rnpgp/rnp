@@ -748,16 +748,6 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 
     // Now we start over with a new home.
     memset(&rnp, 0, sizeof(rnp));
-    /*Set the default parameters*/
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(&rnp, "res",       "<stdout>");
-    rnp_setvar(&rnp, "hash",      "SHA256"); 
-    rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
-    assert_int_equal(1,
-        rnp_init(&rnp)
-    );
-
     // Create a directory "newhome" within this tests temporary directory.
     char newhome[256];
     paths_concat(newhome, sizeof(newhome), ourdir, "newhome", NULL);
@@ -766,6 +756,16 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     // Set the homedir to our newhome path.
     assert_int_equal(1,
         rnp_setvar(&rnp, "homedir", newhome)
+    );
+
+    /*Set the default parameters*/
+    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
+    rnp_setvar(&rnp, "res",       "<stdout>");
+    rnp_setvar(&rnp, "hash",      "SHA256"); 
+    rnp_setvar(&rnp, "format",    "human");
+    rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
+    assert_int_equal(1,
+        rnp_init(&rnp)
     );
 
     // pubring and secring should not exist yet
