@@ -163,6 +163,17 @@ void delete_recursively(const char *path)
     nftw(path, remove_cb, 64, FTW_DEPTH | FTW_PHYS);
 }
 
+/* Creates and returns a temporary directory path.
+ * Caller must free the string.
+ */
+static char *make_temp_dir()
+{
+    const char *template = "/tmp/rnp-cmocka-XXXXXX";
+    char *buffer = calloc(1, strlen(template) + 1);
+    strncpy(buffer, template, strlen(template));
+    return mkdtemp(buffer);
+}
+
 // returns new string containing hex value
 char* hex_encode(const uint8_t v[], size_t len)
 {
