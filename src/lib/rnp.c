@@ -1188,6 +1188,8 @@ static int
 init_default_homedir(rnp_t *rnp)
 {
 	char *home = getenv("HOME");
+	if (rnp_getvar(rnp, "homedir"))
+		home = rnp_getvar(rnp, "homedir");
 
 	if (home == NULL) {
 		fputs("rnp: HOME environment variable is not set\n", stderr);
