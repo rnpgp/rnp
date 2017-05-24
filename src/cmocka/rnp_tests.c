@@ -869,7 +869,7 @@ static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
     rnp_end(&rnp);
 }
 
-static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **state)
+static void rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
 {
     const char* non_default_keydir = "/etc";
     const char* default_keydir = getenv("HOME");
@@ -886,16 +886,10 @@ static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **s
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
 
-    /* Clean the enviornment before running the test.*/
-    DeleteDir(non_default_keydir);
-
     /* Set the home directory to a non-default value and ensure the read/write permission 
      * for the specified directory*/
     int retVal = setenv("HOME", non_default_keydir, 1);
     assert_int_equal(retVal,0); // Ensure the enviornment variable was set
-
-    /* Create READ-only home dir*/
-    CreateNewDir(non_default_keydir, 0500);
 
     /*Initialize the basic RNP structure. */
     memset(&rnp, '\0', sizeof(rnp));
@@ -1015,7 +1009,7 @@ int main(void) {
         cmocka_unit_test(rnpkeys_generatekey_verifyUserIdOption),
         cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirOption),
         cmocka_unit_test(rnpkeys_generatekey_verifykeyNonexistingHomeDir),
-        cmocka_unit_test(rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission),
+        cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirNoPermission),
         cmocka_unit_test(rnpkeys_exportkey_verifyUserId),
     };
 
