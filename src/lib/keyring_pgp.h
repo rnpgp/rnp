@@ -138,9 +138,4 @@ int pgp_list_packets(io_t *,
 
 char *pgp_export_key(io_t *, const pgp_key_t *, uint8_t *);
 
-int pgp_add_to_pubring(keyring_t *, const pgp_pubkey_t *, pgp_content_enum tag);
-int pgp_add_to_secring(keyring_t *, const pgp_seckey_t *);
-
-int pgp_append_keyring(keyring_t *, keyring_t *);
-
 #endif /* KEYRING_PGP_H_ */
