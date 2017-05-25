@@ -35,6 +35,7 @@
 #include "keyring.h"
 #include "keyring_pgp.h"
 #include "keyring_ssh.h"
+#include "packet-print.h"
 
 #include <regex.h>
 #include <stdio.h>
