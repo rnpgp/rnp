@@ -169,9 +169,4 @@ pgp_memory_t   *pgp_sign_buf(io_t *,
 				const unsigned,
 				const unsigned);
 
-unsigned pgp_keyring_read_from_mem(io_t *,
-				keyring_t *,
-				const unsigned,
-				pgp_memory_t *);
-
 #endif /* SIGNATURE_H_ */

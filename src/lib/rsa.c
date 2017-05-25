@@ -80,6 +80,7 @@
 #include "readerwriter.h"
 #include "rnpdefs.h"
 #include "s2k.h"
+#include "packet-key.h"
 
 #include <string.h>
 
