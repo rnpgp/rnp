@@ -631,7 +631,7 @@ pgp_hash_any(pgp_hash_t *hash, pgp_hash_alg_t alg)
 		break;
 
 	default:
-		(void) fprintf(stderr, "pgp_hash_any: bad algorithm\n");
+                (void) fprintf(stderr, "pgp_hash_any: bad algorithm %d\n", (int)alg);
                 return 0;
 	}
         return 1;
@@ -800,6 +800,9 @@ pgp_is_hash_alg_supported(const pgp_hash_alg_t *hash_alg)
 	case PGP_HASH_MD5:
 	case PGP_HASH_SHA1:
 	case PGP_HASH_SHA256:
+	case PGP_HASH_SHA384:
+	case PGP_HASH_SHA512:
+	case PGP_HASH_SM3:
 		return 1;
 
 	default:
