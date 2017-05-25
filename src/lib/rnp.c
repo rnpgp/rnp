@@ -1620,6 +1620,8 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 	}
 	if (rnp->pubring != NULL) {
 		pgp_keyring_free(rnp->pubring);
+		free(rnp->pubring);
+		rnp->pubring = NULL;
 	}
 	/* write secret key */
 	(void) snprintf(ringfile = filename, sizeof(filename), "%s/secring.gpg", dir);
@@ -1647,6 +1649,8 @@ out1:
 	pgp_teardown_file_write(create, fd);
 	if (rnp->secring != NULL) {
 		pgp_keyring_free(rnp->secring);
+		free(rnp->secring);
+		rnp->secring = NULL;
 	}
 out:
 	pgp_keydata_free(key);
