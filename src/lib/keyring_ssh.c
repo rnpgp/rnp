@@ -46,8 +46,8 @@
 static int
 readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
 {
-    pgp_keyring_t	*pubring;
-    pgp_keyring_t	*secring;
+    keyring_t	*pubring;
+    keyring_t	*secring;
     struct stat	 st;
     unsigned	 hashtype;
     char		*hash;
