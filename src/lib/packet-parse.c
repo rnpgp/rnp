@@ -2298,6 +2298,7 @@ parse_litdata(pgp_region_t *region, pgp_stream_t *stream)
 void
 pgp_seckey_free(pgp_seckey_t *key)
 {
+	pgp_pubkey_free(&key->pubkey);
 	switch (key->pubkey.alg) {
 	case PGP_PKA_RSA:
 	case PGP_PKA_RSA_ENCRYPT_ONLY:
