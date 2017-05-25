@@ -34,6 +34,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <limits.h>
+#include <ftw.h>
 
 #include <cmocka.h>
 
@@ -45,6 +46,132 @@
 
 #include <rnp.h>
 #include <sys/stat.h>
+
+/* Check if a file exists.
+ * Use with assert_true and assert_false.
+ */
+int file_exists(const char *path)
+{
+    struct stat st = {0};
+    return stat(path, &st) == 0 && S_ISREG(st.st_mode);
+}
+
+/* Check if a file is empty
+ * Use with assert_true and assert_false.
+ */
+int file_empty(const char *path)
+{
+    struct stat st = {0};
+    return stat(path, &st) == 0 &&
+           S_ISREG(st.st_mode) &&
+           st.st_size == 0;
+}
+
+/* Concatenate multiple strings into a full path.
+ * A directory separator is added between components.
+ * Must be called in between va_start and va_end.
+ * Final argument of calling function must be NULL.
+ */
+void vpaths_concat(char *buffer, size_t buffer_size, const char *first, va_list ap)
+{
+    size_t length = strlen(first);
+    const char *s;
+
+    assert_true(length < buffer_size);
+
+    memset(buffer, 0, buffer_size);
+
+    strncpy(buffer, first, buffer_size - 1);
+    while ((s = va_arg(ap, const char *))) {
+        length += strlen(s) + 1;
+        assert_true(length < buffer_size);
+        strncat(buffer, "/", buffer_size - 1);
+        strncat(buffer, s, buffer_size - 1);
+    }
+}
+
+/* Concatenate multiple strings into a full path.
+ * Final argument must be NULL.
+ */
+char *
+paths_concat(char *buffer, size_t buffer_length, const char *first, ...)
+{
+    va_list ap;
+
+    va_start(ap, first);
+        vpaths_concat(buffer, buffer_length, first, ap);
+    va_end(ap);
+    return buffer;
+}
+
+/* Concatenate multiple strings into a full path and
+ * check that the file exists.
+ * Final argument must be NULL.
+ */
+int path_file_exists(const char *first, ...)
+{
+    va_list ap;
+    char buffer[512] = {0};
+
+    va_start(ap, first);
+        vpaths_concat(buffer, sizeof(buffer), first, ap);
+    va_end(ap);
+    return file_exists(buffer);
+}
+
+/* Concatenate multiple strings into a full path and
+ * create the directory.
+ * Final argument must be NULL.
+ */
+void
+path_mkdir(mode_t mode, const char *first, ...)
+{
+    va_list ap;
+    char buffer[512];
+
+    /* sanity check - should always be an absolute path */
+    assert_true(first[0] == '/');
+
+    va_start(ap, first);
+        vpaths_concat(buffer, sizeof(buffer), first, ap);
+    va_end(ap);
+
+    assert_int_equal(0,
+        mkdir(buffer, mode)
+    );
+}
+
+int remove_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
+{
+    int ret = remove(fpath);
+    if (ret)
+        perror(fpath);
+
+    return ret;
+}
+
+/* Recursively remove a directory.
+ * The path must be a full path and must be located in /tmp, for safety.
+ */
+void delete_recursively(const char *path)
+{
+    /* sanity check, we should only be purging things from /tmp/ */
+    assert_int_equal(strncmp(path, "/tmp/", 5), 0);
+    assert_true(strlen(path) > 5);
+
+    nftw(path, remove_cb, 64, FTW_DEPTH | FTW_PHYS);
+}
+
+/* Creates and returns a temporary directory path.
+ * Caller must free the string.
+ */
+static char *make_temp_dir()
+{
+    const char *template = "/tmp/rnp-cmocka-XXXXXX";
+    char *buffer = calloc(1, strlen(template) + 1);
+    strncpy(buffer, template, strlen(template));
+    return mkdtemp(buffer);
+}
 
 // returns new string containing hex value
 char* hex_encode(const uint8_t v[], size_t len)
@@ -186,8 +313,6 @@ static void cipher_test_success(void **state)
 
 }
 
-//#define DEBUG_PRINT
-
 static void pkcs1_rsa_test_success(void **state)
 {
     uint8_t ptext[1024/8] = { 'a', 'b', 'c', 0 };
@@ -311,7 +436,7 @@ static void raw_elg_test_success(void **state)
     BN_clear_free(pub_elg.y);
 }
 
-char *convert(char *buff, const int buffsize, unsigned int num, int base) {
+char *uint_to_string(char *buff, const int buffsize, unsigned int num, int base) {
     char *ptr;    
     ptr = &buff[buffsize - 1];    
     *ptr = '\0';
@@ -374,7 +499,7 @@ static void rnpkeys_generatekey_testSignature(void **state)
         rnp_setvar(&rnp, "res",       "<stdout>");
 
         rnp_setvar(&rnp, "format",    "human");
-        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+        rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],16));
         rnp_setvar(&rnp, "need seckey", "true");
 
         int retVal = rnp_init (&rnp);
@@ -402,7 +527,7 @@ static void rnpkeys_generatekey_testSignature(void **state)
                 /* Setup the pass phrase fd to avoid user-input*/
                 assert_int_equal(setupPassphrasefd(pipefd), 1);
 
-                rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],16));
+                rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],16));
                 rnp_setvar(&rnp, "hash",     hashAlg[i]);
 
                 retVal = rnp_sign_memory(&rnp, userId,
@@ -465,7 +590,7 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
         rnp_setvar(&rnp, "res",       "<stdout>");
         rnp_setvar(&rnp, "hash",     hashAlg[i]); 
         rnp_setvar(&rnp, "format",    "human");
-        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+        rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
 
         int retVal = rnp_init (&rnp);
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -523,7 +648,7 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
         rnp_setvar(&rnp, "res",       "<stdout>");
         rnp_setvar(&rnp, "hash",      "SHA256"); 
         rnp_setvar(&rnp, "format",    "human");
-        rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+        rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
 
         int retVal = rnp_init (&rnp);
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -542,94 +667,9 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
     }
 }
 
-#if 0
-static void rnpkeys_generatekey_verifykeyRingOptions(void **state)
-{
-    char ringfile[1024];
-    char dir[1024];
-    char passfd[4] = {0};
-    int pipefd[2];
-
-
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
-     * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
-    const int numbits = 1024;
-
-    /* Setup the pass phrase fd to avoid user-input*/
-    assert_int_equal(setupPassphrasefd(pipefd), 1);
-
-    /*Initialize the basic RNP structure. */
-    memset(&rnp, '\0', sizeof(rnp));
-
-    /*Set the default parameters*/
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(&rnp, "res",       "<stdout>");
-    rnp_setvar(&rnp, "hash",      "SHA256"); 
-    rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
-
-    int retVal = rnp_init (&rnp);
-    assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
-
-    /* Set the keyring paramter for the key generation: 
-     * It is expected the key would be added to the specified keyring.*/
-    retVal = rnp_setvar(&rnp, "keyring",    "rnpkeys_generatekey_withKeyring");
-    assert_int_equal(retVal,1); //Ensure the keyring property was set.
-
-    retVal = rnp_generate_key(&rnp, NULL, numbits);
-    assert_int_equal(retVal,1); //Ensure the key was generated 
-
-    /*Delete the keys from other ring i.e. default ring known as pubring/secring.gpg
-     * as the new keyring must be generated by the command.*/
-    snprintf(dir, sizeof(dir), "%s", rnp_getvar(&rnp, "homedir"));
-    snprintf(ringfile , sizeof(ringfile), "%s/pubring.gpg", dir);
-    retVal = remove(ringfile);
-    assert_int_equal(retVal,0); //Ensure the public default public key file was removed. 
-
-    snprintf(ringfile , sizeof(ringfile), "%s/secring.gpg", dir);
-    retVal = remove(ringfile);
-    assert_int_equal(retVal,0); //Ensure the public default secret key file was removed. 
-
-    /*Load the newly generated rnp key*/
-    retVal = rnp_load_keys(&rnp);
-    assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
-
-    retVal = rnp_find_key(&rnp, getenv("LOGNAME")); //Find the default key generated with the login-name
-    assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
-
-    rnp_end(&rnp); //Free memory and other allocated resources.
-}
-#endif 
-
-int CreateNewDir(const char *foldername, int option)
-{
-    struct stat st = {0};
-
-    if (stat(foldername, &st) == -1) {
-        return mkdir(foldername, option);
-    }
-    return 1;
-}
-
-int DeleteDir(const char *foldername)
-{
-    struct stat st = {0};
-
-    if (stat(foldername, &st) == -1) {
-        return 1; 
-    } else {
-        return rmdir(foldername);
-    }
-    return 1;
-}
-
 static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 {
-    const char* non_default_keydir = "/tmp/test";
-    const char* non_default_keydir_sub = "/tmp/test/.rnp";
-
+    const char *ourdir = (char*)*state;
     /* Set the UserId = custom value. 
      * Execute the Generate-key command to generate a new pair of private/public key 
      * Verify the key was generated with the correct UserId.*/
@@ -638,19 +678,8 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     char passfd[4] = {0};
     int pipefd[2];
 
-
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
-
-    /* Clean the enviornment before running the test.*/
-    DeleteDir(non_default_keydir);
-
-    /* Set the home directory to a non-default value and ensure the read/write permission 
-     * for the specified directory*/
-    int retVal = setenv("HOME", non_default_keydir, 1);
-    assert_int_equal(retVal,0); // Ensure the enviornment variable was set
-
-    CreateNewDir(non_default_keydir, 0777);
 
     /*Initialize the basic RNP structure. */
     memset(&rnp, '\0', sizeof(rnp));
@@ -660,159 +689,184 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+    rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
 
-    retVal = rnp_init (&rnp);
-    assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
+    assert_int_equal(1,
+        rnp_init (&rnp)
+    );
 
-    retVal = rnp_generate_key(&rnp, NULL, numbits);
-    assert_int_equal(retVal,1); //Ensure the key was generated 
+    // pubring and secring should not exist yet
+    assert_false(
+        path_file_exists(ourdir, ".rnp/pubring.gpg", NULL)
+    );
+    assert_false(
+        path_file_exists(ourdir, ".rnp/secring.gpg", NULL)
+    );
 
-    retVal = rnp_setvar(&rnp, "homedir", non_default_keydir_sub);
-    assert_int_equal(retVal,1); //Ensure the homedir parameter is set.
+    // Ensure the key was generated.
+    assert_int_equal(1,
+        rnp_generate_key(&rnp, NULL, numbits)
+    );
 
-    /*Load the newly generated rnp key*/
-    retVal = rnp_load_keys(&rnp);
-    assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+    // pubring and secring should now exist
+    assert_true(
+        path_file_exists(ourdir, ".rnp/pubring.gpg", NULL)
+    );
+    assert_true(
+        path_file_exists(ourdir, ".rnp/secring.gpg", NULL)
+    );
 
-    retVal = rnp_find_key(&rnp, getenv("LOGNAME")); //Find the default key generated with the login-name
-    assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
+    assert_int_equal(1,
+        rnp_load_keys(&rnp)
+    );
+    assert_int_equal(1,
+        rnp_find_key(&rnp, getenv("LOGNAME"))
+    );
+    rnp_end(&rnp);
 
-    rnp_end(&rnp); //Free memory and other allocated resources.
-}
+    // Now we start over with a new home.
+    memset(&rnp, 0, sizeof(rnp));
+    // Create a directory "newhome" within this tests temporary directory.
+    char newhome[256];
+    paths_concat(newhome, sizeof(newhome), ourdir, "newhome", NULL);
+    path_mkdir(0700, newhome, NULL);
 
-#if 0
-static void rnpkeys_generatekey_verifykeyReadOnlyHomeDir(void **state)
-{
-    const char* non_default_keydir = "/tmp/test";
-
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
-     * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
-    const int numbits = 1024;
-    char passfd[4] = {0};
-    int pipefd[2];
-
-
-    /* Setup the pass phrase fd to avoid user-input*/
-    assert_int_equal(setupPassphrasefd(pipefd), 1);
-
-    /* Clean the enviornment before running the test.*/
-    DeleteDir(non_default_keydir);
-
-    /* Set the home directory to a non-default value and ensure the read/write permission 
-     * for the specified directory*/
-    int retVal = setenv("HOME", non_default_keydir, 1);
-    assert_int_equal(retVal,0); // Ensure the enviornment variable was set
-
-    /* Create READ-only home dir*/
-    CreateNewDir(non_default_keydir, 0500);
-
-    /*Initialize the basic RNP structure. */
-    memset(&rnp, '\0', sizeof(rnp));
+    // Set the homedir to our newhome path.
+    assert_int_equal(1,
+        rnp_setvar(&rnp, "homedir", newhome)
+    );
 
     /*Set the default parameters*/
     rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+    rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
+    assert_int_equal(1,
+        rnp_init(&rnp)
+    );
 
-    retVal = rnp_init (&rnp);
-    assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
+    // pubring and secring should not exist yet
+    assert_false(
+        path_file_exists(newhome, ".rnp/pubring.gpg", NULL)
+    );
+    assert_false(
+        path_file_exists(newhome, ".rnp/secring.gpg", NULL)
+    );
 
-    retVal = rnp_generate_key(&rnp, NULL, numbits);
-    assert_int_equal(retVal,0); //Ensure the key was NOT generated as the directory has only list read permissions.
+    // Ensure the key was generated.
+    assert_int_equal(1,
+        rnp_generate_key(&rnp, "newhomekey", numbits)
+    );
+
+    // pubring and secring should now exist
+    assert_true(
+        path_file_exists(newhome, ".rnp/pubring.gpg", NULL)
+    );
+    assert_true(
+        path_file_exists(newhome, ".rnp/secring.gpg", NULL)
+    );
+
+    // Load the keys in our newhome directory
+    assert_int_equal(1,
+        rnp_load_keys(&rnp)
+    );
+
+    // We should NOT find this key.
+    assert_int_equal(0,
+        rnp_find_key(&rnp, getenv("LOGNAME"))
+    );
+
+    // We should find this key, instead.
+    assert_int_equal(1,
+        rnp_find_key(&rnp, "newhomekey")
+    );
 
     rnp_end(&rnp); //Free memory and other allocated resources.
 }
-#endif
 
 static void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
 {
-    const char* non_default_keydir = "/tmp/test";
-    const char* non_default_keydir_sub = "/tmp/test/.rnp";
-
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
-     * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    const char *ourdir = (char*)*state;
     const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
+    rnp_t rnp;
+    char fakedir[256];
 
+    // fakedir is a directory that does not exist
+    paths_concat(fakedir, sizeof(fakedir), ourdir, "fake", NULL);
 
-    /* Setup the pass phrase fd to avoid user-input*/
-    assert_int_equal(setupPassphrasefd(pipefd), 1);
-
-    /* Clean the enviornment before running the test.*/
-    DeleteDir(non_default_keydir);
-
-    /* Create READ-only home dir*/
-    CreateNewDir(non_default_keydir, 0777);
-
-    /* Set the home directory to a non-default value and ensure the read/write permission 
-     * for the specified directory*/
-    int retVal = setenv("HOME", non_default_keydir, 1);
-    assert_int_equal(retVal,0); // Ensure the enviornment variable was set
-
-    /*Initialize the basic RNP structure. */
+    /****************************************************************/
+    // First, make sure init succeeds with the default (using $HOME)
     memset(&rnp, '\0', sizeof(rnp));
+    assert_int_equal(1,
+        rnp_init(&rnp)
+    );
+    rnp_end(&rnp);
 
-    /*Set the default parameters*/
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
+    /****************************************************************/
+    // Ensure it fails when we set an invalid "homedir"
+    memset(&rnp, '\0', sizeof(rnp));
+    rnp_setvar(&rnp, "homedir", fakedir);
+    assert_int_equal(0,
+        rnp_init(&rnp)
+    );
+    rnp_end(&rnp);
+
+    /****************************************************************/
+    // Ensure it fails when we do not explicitly set "homedir" and
+    // $HOME is invalid.
+    memset(&rnp, '\0', sizeof(rnp));
+    assert_int_equal(0,
+        setenv("HOME", fakedir, 1)
+    );
+    assert_int_equal(0,
+        rnp_init(&rnp)
+    );
+    // Restore our original $HOME.
+    assert_int_equal(0,
+        setenv("HOME", ourdir, 1)
+    );
+    rnp_end(&rnp);
+
+    /****************************************************************/
+    // Ensure key generation fails when we set an invalid "homedir"
+    // after rnp_init.
+    memset(&rnp, '\0', sizeof(rnp));
+    assert_int_equal(setupPassphrasefd(pipefd), 1);
     rnp_setvar(&rnp, "res",       "<stdout>");
-    rnp_setvar(&rnp, "hash",      "SHA256"); 
-    rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
-
-    retVal = rnp_init (&rnp);
-    assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
-
-    retVal = rnp_generate_key(&rnp, NULL, numbits);
-    assert_int_equal(retVal,1); //Ensure the key was NOT generated as the directory has only list read permissions.
-
-    retVal = rnp_setvar(&rnp, "homedir",non_default_keydir_sub);
-    assert_int_equal(retVal,1); //Ensure the homedir parameter is set.
-
-    /*Load the newly generated rnp key*/
-    retVal = rnp_load_keys(&rnp);
-    assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
-
-    retVal = rnp_find_key(&rnp, getenv("LOGNAME")); //Find the default key generated with the login-name
-    assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
-
-    rnp_end(&rnp); //Free memory and other allocated resources.
+    rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
+    assert_int_equal(1,
+        rnp_init(&rnp)
+    );
+    rnp_setvar(&rnp, "homedir", fakedir);
+    assert_int_equal(0,
+        rnp_generate_key(&rnp, NULL, numbits)
+    );
+    rnp_end(&rnp);
 }
 
-static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **state)
+static void rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
 {
-    const char* non_default_keydir = "/etc";
-    const char* default_keydir = getenv("HOME");
+    const char *ourdir = (char*)*state;
 
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
-     * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    char nopermsdir[256];
+    paths_concat(nopermsdir, sizeof(nopermsdir), ourdir, "noperms", NULL);
+    path_mkdir(0000, nopermsdir, NULL);
+
+    rnp_t rnp;
     const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
 
-
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
 
-    /* Clean the enviornment before running the test.*/
-    DeleteDir(non_default_keydir);
-
     /* Set the home directory to a non-default value and ensure the read/write permission 
      * for the specified directory*/
-    int retVal = setenv("HOME", non_default_keydir, 1);
+    int retVal = setenv("HOME", nopermsdir, 1);
     assert_int_equal(retVal,0); // Ensure the enviornment variable was set
-
-    /* Create READ-only home dir*/
-    CreateNewDir(non_default_keydir, 0500);
 
     /*Initialize the basic RNP structure. */
     memset(&rnp, '\0', sizeof(rnp));
@@ -822,7 +876,7 @@ static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **s
     rnp_setvar(&rnp, "res",       "<stdout>");
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+    rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -831,7 +885,6 @@ static void rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission(void **s
     assert_int_equal(retVal,0); //Ensure the key was NOT generated as the directory has only list read permissions.
 
     rnp_end(&rnp); //Free memory and other allocated resources.
-    setenv("HOME", default_keydir, 1);
 }
 
 static void rnpkeys_exportkey_verifyUserId(void **state)
@@ -856,7 +909,7 @@ static void rnpkeys_exportkey_verifyUserId(void **state)
     rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
     rnp_setvar(&rnp, "userid",    getenv("LOGNAME"));
-    rnp_setvar(&rnp, "pass-fd",  convert(passfd,4,pipefd[0],10));
+    rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
 
     int retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -888,9 +941,41 @@ static void rnpkeys_exportkey_verifyUserId(void **state)
     rnp_end(&rnp); //Free memory and other allocated resources.
 }
 
+static int setup_test(void **state)
+{
+    *state = make_temp_dir();
+    assert_int_equal(0,
+        setenv("HOME", (char*)*state, 1)
+    );
+    assert_int_equal(0,
+        chdir((char*)*state)
+    );
+    return 0;
+}
+
+static int teardown_test(void **state)
+{
+    delete_recursively((char*)*state);
+    free(*state);
+    *state = NULL;
+    return 0;
+}
 
 int main(void) {
-    const struct CMUnitTest tests[] = {
+    int ret;
+    /* Create a temporary HOME.
+     * This is just an extra guard to protect against accidental
+     * modifications of a user's HOME.
+     */
+    char *tmphome = make_temp_dir();
+    assert_int_equal(0,
+        setenv("HOME", tmphome, 1)
+    );
+    assert_int_equal(0,
+        chdir(tmphome)
+    );
+
+    struct CMUnitTest tests[] = {
         cmocka_unit_test(hash_test_success),
         cmocka_unit_test(cipher_test_success),
         cmocka_unit_test(pkcs1_rsa_test_success),
@@ -898,12 +983,21 @@ int main(void) {
         cmocka_unit_test(rnpkeys_generatekey_testSignature),
         cmocka_unit_test(rnpkeys_generatekey_verifySupportedHashAlg),
         cmocka_unit_test(rnpkeys_generatekey_verifyUserIdOption),
-        //cmocka_unit_test(rnpkeys_generatekey_verifykeyRingOptions),
         cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirOption),
-        //cmocka_unit_test(rnpkeys_generatekey_verifykeyReadOnlyHomeDir),
         cmocka_unit_test(rnpkeys_generatekey_verifykeyNonexistingHomeDir),
-        cmocka_unit_test(rnpkeys_generatekey_verifykeyNonExistingHomeDirNoPermission),
+        cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirNoPermission),
         cmocka_unit_test(rnpkeys_exportkey_verifyUserId),
     };
-    return cmocka_run_group_tests(tests, NULL, NULL);
+
+    /* Each test entry will invoke setup_test before running
+     * and teardown_test after running. */
+    for (size_t i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+        tests[i].setup_func = setup_test;
+        tests[i].teardown_func = teardown_test;
+    }
+    ret = cmocka_run_group_tests(tests, NULL, NULL);
+
+    delete_recursively(tmphome);
+    free(tmphome);
+    return ret;
 }
