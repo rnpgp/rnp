@@ -82,6 +82,7 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "bn.h"
 #include "packet-parse.h"
 #include "packet-print.h"
+#include "packet-key.h"
 #include "keyring_pgp.h"
 #include "errors.h"
 #include "packet-show.h"
@@ -98,6 +99,10 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 	return 0;							\
 	/*NOTREACHED*/							\
 } while(/*CONSTCOND*/0)
+
+typedef struct {
+	keyring_t		*keyring;
+} accumulate_t;
 
 /**
  * limread_data reads the specified amount of the subregion's data
@@ -3422,4 +3427,97 @@ pgp_crypt_t    *
 pgp_get_decrypt(pgp_stream_t *stream)
 {
 	return (stream->decrypt.alg) ? &stream->decrypt : NULL;
+}
+
+/**
+ * \ingroup Core_Callbacks
+ */
+static pgp_cb_ret_t
+accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
+{
+	const pgp_contents_t	*content = &pkt->u;
+	keyring_t		*keyring;
+	accumulate_t		*accumulate;
+
+	if (rnp_get_debug(__FILE__)) {
+		(void) fprintf(stderr, "accumulate callback: packet tag %u\n", pkt->tag);
+	}
+	accumulate = pgp_callback_arg(cbinfo);
+	keyring = accumulate->keyring;
+	switch (pkt->tag) {
+	case PGP_PTAG_CT_PUBLIC_KEY:
+	case PGP_PTAG_CT_PUBLIC_SUBKEY:
+		keyring_add_to_pubring(keyring, &content->pubkey, pkt->tag);
+		return PGP_KEEP_MEMORY;
+	case PGP_PTAG_CT_SECRET_KEY:
+	case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
+		keyring_add_to_secring(keyring, &content->seckey);
+		return PGP_KEEP_MEMORY;
+	case PGP_PTAG_CT_USER_ID:
+		if (rnp_get_debug(__FILE__)) {
+			(void) fprintf(stderr, "User ID: %s for key %d\n",
+					content->userid,
+					keyring->keyc - 1);
+		}
+		if (keyring->keyc == 0) {
+			PGP_ERROR_1(cbinfo->errors, PGP_E_P_NO_USERID, "%s",
+			    "No userid found");
+		} else {
+			pgp_add_userid(&keyring->keys[keyring->keyc - 1], content->userid);
+		}
+		return PGP_KEEP_MEMORY;
+	case PGP_PARSER_PACKET_END:
+		if (keyring->keyc > 0) {
+			pgp_add_subpacket(&keyring->keys[keyring->keyc - 1],
+						&content->packet);
+			return PGP_KEEP_MEMORY;
+		}
+		return PGP_RELEASE_MEMORY;
+	case PGP_PARSER_ERROR:
+		(void) fprintf(stderr, "Error: %s\n", content->error);
+		return PGP_FINISHED;
+	case PGP_PARSER_ERRCODE:
+		(void) fprintf(stderr, "parse error: %s\n",
+				pgp_errcode(content->errcode.errcode));
+		break;
+	default:
+		break;
+	}
+	/* XXX: we now exclude so many things, we should either drop this or */
+	/* do something to pass on copies of the stuff we keep */
+	return pgp_stacked_callback(pkt, cbinfo);
+}
+
+/**
+ * \ingroup Core_Parse
+ *
+ * Parse packets from an input stream until EOF or error.
+ *
+ * Key data found in the parsed data is added to #keyring.
+ *
+ * \param keyring Pointer to an existing keyring
+ * \param parse Options to use when parsing
+*/
+int
+pgp_parse_and_accumulate(keyring_t *keyring, pgp_stream_t *parse)
+{
+	accumulate_t	accumulate;
+	const int	printerrors = 1;
+	int             ret;
+
+	if (parse->readinfo.accumulate) {
+		(void) fprintf(stderr,
+			"pgp_parse_and_accumulate: already init\n");
+		return 0;
+	}
+
+	(void) memset(&accumulate, 0x0, sizeof(accumulate));
+
+	accumulate.keyring = keyring;
+
+	pgp_callback_push(parse, accumulate_cb, &accumulate);
+	parse->readinfo.accumulate = 1;
+	ret = pgp_parse(parse, !printerrors);
+
+	return ret;
 }

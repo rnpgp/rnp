@@ -86,6 +86,7 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 #include "packet.h"
 #include "crypto.h"
 #include "validate.h"
+#include "packet-key.h"
 
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>

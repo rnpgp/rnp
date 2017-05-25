@@ -49,26 +49,42 @@
  * limitations under the License.
  */
 
-/** \file
- */
 
-#ifndef KEYRING_PGP_H_
-#define KEYRING_PGP_H_
+#ifndef RNP_PACKET_KEY_H
+#define RNP_PACKET_KEY_H
 
 #include "packet.h"
-#include "packet-parse.h"
-#include "keyring.h"
-#include "memory.h"
 
-enum {
-	MAX_ID_LENGTH		= 128,
-	MAX_PASSPHRASE_LENGTH	= 256
-};
+struct pgp_key_t *pgp_keydata_new(void);
 
-int pgp_keyring_load_keys(rnp_t *rnp, char *homedir);
+void pgp_keydata_free(pgp_key_t *);
 
-unsigned pgp_keyring_fileread(keyring_t *, const unsigned, const char *);
+const pgp_pubkey_t *pgp_get_pubkey(const pgp_key_t *);
 
-unsigned pgp_keyring_read_from_mem(io_t *, keyring_t *, const unsigned, pgp_memory_t *);
+unsigned   pgp_is_key_secret(const pgp_key_t *);
 
-#endif /* KEYRING_PGP_H_ */
+const struct pgp_seckey_t *pgp_get_seckey(const pgp_key_t *);
+
+pgp_seckey_t *pgp_get_writable_seckey(pgp_key_t *);
+
+pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *, void *);
+
+void pgp_set_seckey(pgp_contents_t *, const pgp_key_t *);
+
+const unsigned char *pgp_get_key_id(const pgp_key_t *);
+
+unsigned pgp_get_userid_count(const pgp_key_t *);
+
+const unsigned char *pgp_get_userid(const pgp_key_t *, unsigned);
+
+unsigned pgp_is_key_supported(const pgp_key_t *);
+
+unsigned char *pgp_add_userid(pgp_key_t *, const unsigned char *);
+
+struct pgp_subpacket_t *pgp_add_subpacket(pgp_key_t *, const pgp_subpacket_t *);
+
+unsigned pgp_add_selfsigned_userid(pgp_key_t *, unsigned char *);
+
+void pgp_keydata_init(pgp_key_t *, const pgp_content_enum);
+
+#endif //RNP_PACKET_KEY_H

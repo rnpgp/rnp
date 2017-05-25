@@ -24,6 +24,7 @@ librnp_la_SOURCES	= \
 	packet-parse.c \
 	packet-print.c \
 	packet-show.c \
+	packet-key.c \
 	pem.c \
 	reader.c \
 	rnp.c \

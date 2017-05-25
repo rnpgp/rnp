@@ -57,6 +57,7 @@
 #define PACKET_H_
 
 #include <time.h>
+#include <stdint.h>
 
 #include "types.h"
 #include "hash.h"

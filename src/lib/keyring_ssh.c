@@ -64,6 +64,7 @@
 #include "rnpsdk.h"
 #include "crypto.h"
 #include "s2k.h"
+#include "packet-key.h"
 
 
 /* structure for earching for constant strings */
