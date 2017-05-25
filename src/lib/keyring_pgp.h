@@ -90,9 +90,6 @@ pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *, void *);
 unsigned   pgp_keyring_fileread(keyring_t *, const unsigned,
 					const char *);
 
-int pgp_keyring_list(io_t *, const keyring_t *, const int);
-int pgp_keyring_json(io_t *, const keyring_t *, json_object *, const int);
-
 void pgp_set_seckey(pgp_contents_t *, const pgp_key_t *);
 void pgp_forget(void *, unsigned);
 

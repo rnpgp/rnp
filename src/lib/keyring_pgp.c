@@ -1118,60 +1118,6 @@ pgp_getnextkeybyname(io_t *io,
 	return getkeybyname(io, keyring, name, n);
 }
 
-/**
-   \ingroup HighLevel_KeyringList
-
-   \brief Prints all keys in keyring to stdout.
-
-   \param keyring Keyring to use
-
-   \return none
-*/
-int
-pgp_keyring_list(io_t *io, const keyring_t *keyring, const int psigs)
-{
-	pgp_key_t		*key;
-	unsigned		 n;
-
-	(void) fprintf(io->res, "%u key%s\n", keyring->keyc,
-		(keyring->keyc == 1) ? "" : "s");
-	for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
-		if (pgp_is_key_secret(key)) {
-			pgp_print_keydata(io, keyring, key, "sec",
-				&key->key.seckey.pubkey, 0);
-		} else {
-			pgp_print_keydata(io, keyring, key, "signature ", &key->key.pubkey, psigs);
-		}
-		(void) fputc('\n', io->res);
-	}
-	return 1;
-}
-
-
-/* iterates through the keyring, and add the details of each key
- * to the **obj json object
- */
-int
-pgp_keyring_json(io_t *io, const keyring_t *keyring,
-                 json_object *obj, const int psigs)
-{
-	pgp_key_t		*key;
-	unsigned		n;
-	for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
-		json_object *jso = json_object_new_object();
-		if (pgp_is_key_secret(key)) {
-		pgp_sprint_json(io, keyring, key, jso,
-				"sec", &key->key.seckey.pubkey, psigs);
-		} else {
-			pgp_sprint_json(io, keyring, key, jso,
-				"signature ", &key->key.pubkey, psigs);
-		}
-		json_object_array_add(obj,jso);
-	}
-	return 1;
-}
-
-
 /* this interface isn't right - hook into callback for getting passphrase */
 char *
 pgp_export_key(io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)

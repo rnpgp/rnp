@@ -1008,7 +1008,7 @@ rnp_list_keys(rnp_t *rnp, const int psigs)
 		(void) fprintf(stderr, "No keyring\n");
 		return 0;
 	}
-	return pgp_keyring_list(rnp->io, rnp->pubring, psigs);
+	return keyring_list(rnp->io, rnp->pubring, psigs);
 }
 
 /* list the keys in a keyring, returning a JSON encoded string */
@@ -1021,7 +1021,7 @@ rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
 		(void) fprintf(stderr, "No keyring\n");
 		return 0;
 	}
-	if (!pgp_keyring_json(rnp->io, rnp->pubring, obj, psigs)) {
+	if (!keyring_json(rnp->io, rnp->pubring, obj, psigs)) {
 		(void) fprintf(stderr, "No keys in keyring\n");
 		return 0;
 	}
@@ -1243,7 +1243,7 @@ rnp_import_key(rnp_t *rnp, char *f)
 		(void) fprintf(io->errs, "cannot import key from file %s\n", f);
 		return 0;
 	}
-	return pgp_keyring_list(io, rnp->pubring, 0);
+	return keyring_list(io, rnp->pubring, 0);
 }
 
 #define ID_OFFSET	38
