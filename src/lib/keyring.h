@@ -31,7 +31,9 @@
 #ifndef KEYRING_H_
 #define KEYRING_H_
 
-#include "rnp.h"
+#include <rnp.h>
+#include <json.h>
+
 #include "packet.h"
 
 typedef struct keyring_t {
@@ -43,6 +45,9 @@ void keyring_format_key(char *buffer, uint8_t *sigid, int len);
 int keyring_get_first_ring(keyring_t *ring, char *id, size_t len, int last);
 
 void keyring_free(keyring_t *);
+
+int keyring_list(io_t *, const keyring_t *, const int);
+int keyring_json(io_t *, const keyring_t *, json_object *, const int);
 
 int keyring_add_to_pubring(keyring_t *, const pgp_pubkey_t *, pgp_content_enum tag);
 int keyring_add_to_secring(keyring_t *, const pgp_seckey_t *);

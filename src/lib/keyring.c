@@ -123,6 +123,54 @@ keyring_free(keyring_t *keyring)
     keyring->keyc = keyring->keyvsize = 0;
 }
 
+/**
+   \ingroup HighLevel_KeyringList
+
+   \brief Prints all keys in keyring to stdout.
+
+   \param keyring Keyring to use
+
+   \return none
+*/
+int
+keyring_list(io_t *io, const keyring_t *keyring, const int psigs)
+{
+    pgp_key_t		*key;
+    unsigned		 n;
+
+    (void) fprintf(io->res, "%u key%s\n", keyring->keyc,
+                   (keyring->keyc == 1) ? "" : "s");
+    for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
+        if (pgp_is_key_secret(key)) {
+            pgp_print_keydata(io, keyring, key, "sec",
+                              &key->key.seckey.pubkey, 0);
+        } else {
+            pgp_print_keydata(io, keyring, key, "signature ", &key->key.pubkey, psigs);
+        }
+        (void) fputc('\n', io->res);
+    }
+    return 1;
+}
+
+int
+keyring_json(io_t *io, const keyring_t *keyring, json_object *obj, const int psigs)
+{
+    pgp_key_t		*key;
+    unsigned		n;
+    for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
+        json_object *jso = json_object_new_object();
+        if (pgp_is_key_secret(key)) {
+            pgp_sprint_json(io, keyring, key, jso,
+                            "sec", &key->key.seckey.pubkey, psigs);
+        } else {
+            pgp_sprint_json(io, keyring, key, jso,
+                            "signature ", &key->key.pubkey, psigs);
+        }
+        json_object_array_add(obj,jso);
+    }
+    return 1;
+}
+
 /* append one keyring to another */
 int
 keyring_append_keyring(keyring_t *keyring, keyring_t *newring)
