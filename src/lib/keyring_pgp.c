@@ -940,24 +940,3 @@ pgp_keyring_read_from_mem(io_t *io,
 	pgp_stream_delete(stream);
 	return res;
 }
-
-/* this interface isn't right - hook into callback for getting passphrase */
-char *
-pgp_export_key(io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
-{
-	pgp_output_t	*output;
-	pgp_memory_t	*mem;
-	char		*cp;
-
-	__PGP_USED(io);
-	pgp_setup_memory_write(&output, &mem, 128);
-	if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
-		pgp_write_xfer_pubkey(output, keydata, NULL, 1);
-	} else {
-		pgp_write_xfer_seckey(output, keydata, passphrase,
-					strlen((char *)passphrase), NULL, 1);
-	}
-	cp = rnp_strdup(pgp_mem_data(mem));
-	pgp_teardown_memory_write(output, mem);
-	return cp;
-}
