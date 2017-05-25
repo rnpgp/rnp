@@ -32,6 +32,7 @@
 #define RNPDEFS_H_
 
 #include <stdio.h>
+#include "types.h"
 
 #define PRItime		"ll"
 

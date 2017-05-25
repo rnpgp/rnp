@@ -552,8 +552,8 @@ format_uid_notice(
 			continue;
 		}
 
-		trustkey = pgp_getkeybyid(io, keyring,
-				subsig->sig.info.signer_id, &from, NULL);
+		trustkey = keyring_get_key_by_id(io, keyring,
+										 subsig->sig.info.signer_id, &from, NULL);
 
 		n += format_subsig_line(buffer + n, key, trustkey,
 				subsig, size - n);
@@ -739,7 +739,7 @@ pgp_sprint_json(io_t *io, const keyring_t *keyring,
                         json_object_new_int((int64_t)(key->subsigs[j].sig.info.birthtime)));
 
                 unsigned from = 0;
-                const pgp_key_t *trustkey = pgp_getkeybyid(io, keyring,
+                const pgp_key_t *trustkey = keyring_get_key_by_id(io, keyring,
                                             key->subsigs[j].sig.info.signer_id,
                                             &from, NULL);
 
@@ -791,7 +791,7 @@ pgp_hkp_sprint_keydata(io_t *io, const keyring_t *keyring,
 				}
 			}
 			from = 0;
-			trustkey = pgp_getkeybyid(io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
+			trustkey = keyring_get_key_by_id(io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
 			if (key->subsigs[j].sig.info.version == 4 &&
 					key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
 				n += snprintf(&uidbuf[n], sizeof(uidbuf) - n, "sub:%d:%d:%s:%lld:%lld\n",

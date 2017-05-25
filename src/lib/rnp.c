@@ -134,9 +134,9 @@ resultp(io_t *io,
 			pgp_show_pka(res->valid_sigs[i].key_alg),
 			userid_to_id(res->valid_sigs[i].signer_id, id));
 		from = 0;
-		key = pgp_getkeybyid(io, ring,
-			(const uint8_t *) res->valid_sigs[i].signer_id,
-			&from, &sigkey);
+		key = keyring_get_key_by_id(io, ring,
+									(const uint8_t *) res->valid_sigs[i].signer_id,
+									&from, &sigkey);
 		if (sigkey == &key->enckey) {
 			(void) fprintf(io->res,
 				"WARNING: signature for %s made with encryption key\n",
@@ -350,7 +350,7 @@ resolve_userid(rnp_t *rnp, const keyring_t *keyring, const char *userid)
 		userid += 2;
 	}
 	io = rnp->io;
-	if ((key = pgp_getkeybyname(io, keyring, userid)) == NULL) {
+	if ((key = keyring_get_key_by_name(io, keyring, userid)) == NULL) {
 		(void) fprintf(io->errs, "cannot find key '%s'\n", userid);
 	}
 	return key;
@@ -1074,8 +1074,8 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
 	(void) memset(&pubs, 0x0, sizeof(pubs));
 	k = 0;
 	do {
-		key = pgp_getnextkeybyname(rnp->io, rnp->pubring,
-						name, &k);
+		key = keyring_get_next_key_by_name(rnp->io, rnp->pubring,
+										   name, &k);
 		if (key != NULL) {
 			ALLOC(char *, pubs.v, pubs.size, pubs.c, 10, 10,
 					"rnp_match_keys", return 0);
@@ -1126,8 +1126,8 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
 	k = 0;
 	*json = NULL;
 	do {
-		key = pgp_getnextkeybyname(rnp->io, rnp->pubring,
-						name, &k);
+		key = keyring_get_next_key_by_name(rnp->io, rnp->pubring,
+										   name, &k);
 		if (key != NULL) {
 			if (strcmp(fmt, "mr") == 0) {
 				pgp_hkp_sprint_keydata(rnp->io, rnp->pubring,
@@ -1165,8 +1165,8 @@ rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
 
 	k = 0;
 	do {
-		key = pgp_getnextkeybyname(rnp->io, rnp->pubring,
-						name, &k);
+		key = keyring_get_next_key_by_name(rnp->io, rnp->pubring,
+										   name, &k);
 		if (key != NULL) {
 			cc = pgp_sprint_pubkey(key, out, sizeof(out));
 			(void) fprintf(fp, "%.*s", (int)cc, out);
@@ -1187,7 +1187,7 @@ rnp_find_key(rnp_t *rnp, char *id)
 		(void) fprintf(io->errs, "NULL id to search for\n");
 		return 0;
 	}
-	return pgp_getkeybyname(rnp->io, rnp->pubring, id) != NULL;
+	return keyring_get_key_by_name(rnp->io, rnp->pubring, id) != NULL;
 }
 
 /* get a key in a keyring */
@@ -1466,7 +1466,7 @@ rnp_sign_file(rnp_t *rnp,
 	for (i = 0, seckey = NULL ; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS) ; i++) {
 		if (rnp->passfp == NULL) {
 			/* print out the user id */
-			pubkey = pgp_getkeybyname(io, rnp->pubring, userid);
+			pubkey = keyring_get_key_by_name(io, rnp->pubring, userid);
 			if (pubkey == NULL) {
 				(void) fprintf(io->errs,
 					"rnp: warning - using pubkey from secring\n");
@@ -1595,7 +1595,7 @@ rnp_sign_memory(rnp_t *rnp,
 	for (i = 0, seckey = NULL ; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS) ; i++) {
 		if (rnp->passfp == NULL) {
 			/* print out the user id */
-			pubkey = pgp_getkeybyname(io, rnp->pubring, userid);
+			pubkey = keyring_get_key_by_name(io, rnp->pubring, userid);
 			if (pubkey == NULL) {
 				(void) fprintf(io->errs,
 					"rnp: warning - using pubkey from secring\n");
@@ -2032,7 +2032,7 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
 	}
 	/* get rsa key */
 	k = 0;
-	key = pgp_getnextkeybyname(rnp->io, rnp->pubring, userid, &k);
+	key = keyring_get_next_key_by_name(rnp->io, rnp->pubring, userid, &k);
 	if (key == NULL) {
 		(void) fprintf(stderr, "no key found for '%s'\n", userid);
 		goto done;

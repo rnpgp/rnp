@@ -302,9 +302,9 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	case PGP_PTAG_CT_SIGNATURE:	/* V3 sigs */
 	case PGP_PTAG_CT_SIGNATURE_FOOTER:	/* V4 sigs */
 		from = 0;
-		signer = pgp_getkeybyid(io, key->keyring,
-					 content->sig.info.signer_id,
-					 &from, &sigkey);
+		signer = keyring_get_key_by_id(io, key->keyring,
+									   content->sig.info.signer_id,
+									   &from, &sigkey);
 		if (!signer) {
 			if (!add_sig_to_list(&content->sig.info,
 				&key->result->unknown_sigs,
@@ -483,8 +483,8 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 				sizeof(content->sig.info.signer_id));
 		}
 		from = 0;
-		signer = pgp_getkeybyid(io, data->keyring,
-					 content->sig.info.signer_id, &from, &sigkey);
+		signer = keyring_get_key_by_id(io, data->keyring,
+									   content->sig.info.signer_id, &from, &sigkey);
 		if (!signer) {
 			PGP_ERROR_1(errors, PGP_E_V_UNKNOWN_SIGNER,
 			    "%s", "Unknown Signer");

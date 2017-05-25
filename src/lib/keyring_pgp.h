@@ -67,18 +67,6 @@ enum {
 
 int pgp_keyring_load_keys(rnp_t *rnp, char *homedir);
 
-const pgp_key_t *pgp_getkeybyid(io_t *,
-					const keyring_t *,
-					const uint8_t *,
-					unsigned *,
-					pgp_pubkey_t **);
-const pgp_key_t *pgp_getkeybyname(io_t *,
-					const keyring_t *,
-					const char *);
-const pgp_key_t *pgp_getnextkeybyname(io_t *,
-					const keyring_t *,
-					const char *,
-					unsigned *);
 void pgp_keydata_free(pgp_key_t *);
 void pgp_dump_keyring(const keyring_t *);
 const pgp_pubkey_t *pgp_get_pubkey(const pgp_key_t *);
