@@ -943,23 +943,6 @@ pgp_keyring_read_from_mem(pgp_io_t *io,
 }
 
 /**
-   \ingroup HighLevel_KeyringRead
-
-   \brief Frees keyring's contents (but not keyring itself)
-
-   \param keyring Keyring whose data is to be freed
-
-   \note This does not free keyring itself, just the memory alloc-ed in it.
- */
-void 
-pgp_keyring_free(keyring_t *keyring)
-{
-	(void)free(keyring->keys);
-	keyring->keys = NULL;
-	keyring->keyc = keyring->keyvsize = 0;
-}
-
-/**
    \ingroup HighLevel_KeyringFind
 
    \brief Finds key in keyring from its Key ID

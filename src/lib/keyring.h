@@ -42,4 +42,6 @@ typedef struct keyring_t {
 void keyring_format_key(char *buffer, uint8_t *sigid, int len);
 int keyring_get_first_ring(keyring_t *ring, char *id, size_t len, int last);
 
+void keyring_free(keyring_t *);
+
 #endif /* KEYRING_H_ */
