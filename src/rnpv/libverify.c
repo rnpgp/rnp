@@ -2176,7 +2176,7 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 	va_end(args);
 
 	if (! bufgap_open(&bg, f)) {
-		fprintf(stderr, "pgp_ssh2pubkey: can't open '%s'\n", f);
+		fprintf(stderr, "bufgap_open: can't open '%s'\n", f);
 		return 0;
 	}
 
