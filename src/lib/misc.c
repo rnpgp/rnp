@@ -696,11 +696,9 @@ pgp_str_to_hash_alg(const char *hash)
 	if (rnp_strcasecmp(hash, "SHA256") == 0) {
 		return PGP_HASH_SHA256;
 	}
-	/*
         if (rnp_strcasecmp(hash,"SHA224") == 0) {
 		return PGP_HASH_SHA224;
 	}
-        */
 	if (rnp_strcasecmp(hash, "SHA512") == 0) {
 		return PGP_HASH_SHA512;
 	}
@@ -799,6 +797,7 @@ pgp_is_hash_alg_supported(const pgp_hash_alg_t *hash_alg)
 	switch (*hash_alg) {
 	case PGP_HASH_MD5:
 	case PGP_HASH_SHA1:
+	case PGP_HASH_SHA224:
 	case PGP_HASH_SHA256:
 	case PGP_HASH_SHA384:
 	case PGP_HASH_SHA512:
