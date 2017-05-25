@@ -35,6 +35,7 @@
 #include "keyring_ssh.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* Format a PGP key to a readable hexadecimal string in a user supplied
@@ -103,4 +104,21 @@ keyring_get_first_ring(keyring_t *ring, char *id, size_t len, int last)
     keyring_format_key(id, src, len);
 
     return 1;
+}
+
+/**
+   \ingroup HighLevel_KeyringRead
+
+   \brief Frees keyring's contents (but not keyring itself)
+
+   \param keyring Keyring whose data is to be freed
+
+   \note This does not free keyring itself, just the memory alloc-ed in it.
+ */
+void
+keyring_free(keyring_t *keyring)
+{
+    (void)free(keyring->keys);
+    keyring->keys = NULL;
+    keyring->keyc = keyring->keyvsize = 0;
 }

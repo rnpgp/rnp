@@ -80,7 +80,6 @@ const pgp_key_t *pgp_getnextkeybyname(pgp_io_t *,
 					const char *,
 					unsigned *);
 void pgp_keydata_free(pgp_key_t *);
-void pgp_keyring_free(keyring_t *);
 void pgp_dump_keyring(const keyring_t *);
 const pgp_pubkey_t *pgp_get_pubkey(const pgp_key_t *);
 unsigned   pgp_is_key_secret(const pgp_key_t *);

@@ -988,12 +988,12 @@ rnp_end(rnp_t *rnp)
 		free(rnp->value);
 	}
 	if (rnp->pubring != NULL) {
-		pgp_keyring_free(rnp->pubring);
+		keyring_free(rnp->pubring);
 				free(rnp->pubring);
 				rnp->pubring = NULL;
 	}
 	if (rnp->secring != NULL) {
-		pgp_keyring_free(rnp->secring);
+		keyring_free(rnp->secring);
 				free(rnp->secring);
 				rnp->secring = NULL;
 	}
@@ -1319,7 +1319,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 		goto out;
 	}
 	if (rnp->pubring != NULL) {
-		pgp_keyring_free(rnp->pubring);
+		keyring_free(rnp->pubring);
 		free(rnp->pubring);
 		rnp->pubring = NULL;
 	}
@@ -1349,7 +1349,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 out1:
 	pgp_teardown_file_write(create, fd);
 	if (rnp->secring != NULL) {
-		pgp_keyring_free(rnp->secring);
+		keyring_free(rnp->secring);
 		free(rnp->secring);
 		rnp->secring = NULL;
 	}
