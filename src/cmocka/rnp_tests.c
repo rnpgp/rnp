@@ -25,6 +25,9 @@
  */
 
 
+#define _XOPEN_SOURCE 500
+#define _POSIX_C_SOURCE 200809
+
 #include <stdarg.h>
 #include <stddef.h>
 #include <setjmp.h>
@@ -34,6 +37,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <limits.h>
+
 #include <ftw.h>
 
 #include <cmocka.h>
