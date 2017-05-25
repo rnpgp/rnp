@@ -91,14 +91,13 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "rnpdefs.h"
 #include "rnpdigest.h"
 #include <json.h>
+#include "keyring.h"
 
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/param.h>
 
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
 
 /* read any gpg config file */
 static int
@@ -940,182 +939,6 @@ pgp_keyring_read_from_mem(io_t *io,
 	/* don't call teardown_memory_read because memory was passed in */
 	pgp_stream_delete(stream);
 	return res;
-}
-
-/**
-   \ingroup HighLevel_KeyringFind
-
-   \brief Finds key in keyring from its Key ID
-
-   \param keyring Keyring to be searched
-   \param keyid ID of required key
-
-   \return Pointer to key, if found; NULL, if not found
-
-   \note This returns a pointer to the key inside the given keyring,
-   not a copy.  Do not free it after use.
-
-*/
-const pgp_key_t *
-pgp_getkeybyid(io_t *io, const keyring_t *keyring,
-			   const uint8_t *keyid, unsigned *from, pgp_pubkey_t **pubkey)
-{
-	uint8_t	nullid[PGP_KEY_ID_SIZE];
-
-	(void) memset(nullid, 0x0, sizeof(nullid));
-	for ( ; keyring && *from < keyring->keyc; *from += 1) {
-		if (rnp_get_debug(__FILE__)) {
-			hexdump(io->errs, "keyring keyid", keyring->keys[*from].sigid, PGP_KEY_ID_SIZE);
-			hexdump(io->errs, "keyid", keyid, PGP_KEY_ID_SIZE);
-		}
-		if (memcmp(keyring->keys[*from].sigid, keyid, PGP_KEY_ID_SIZE) == 0 ||
-		    memcmp(&keyring->keys[*from].sigid[PGP_KEY_ID_SIZE / 2],
-				keyid, PGP_KEY_ID_SIZE / 2) == 0) {
-			if (pubkey) {
-				*pubkey = &keyring->keys[*from].key.pubkey;
-			}
-			return &keyring->keys[*from];
-		}
-		if (memcmp(&keyring->keys[*from].encid, nullid, sizeof(nullid)) == 0) {
-			continue;
-		}
-		if (memcmp(&keyring->keys[*from].encid, keyid, PGP_KEY_ID_SIZE) == 0 ||
-		    memcmp(&keyring->keys[*from].encid[PGP_KEY_ID_SIZE / 2], keyid, PGP_KEY_ID_SIZE / 2) == 0) {
-			if (pubkey) {
-				*pubkey = &keyring->keys[*from].enckey;
-			}
-			return &keyring->keys[*from];
-		}
-	}
-	return NULL;
-}
-
-/* convert a string keyid into a binary keyid */
-static void
-str2keyid(const char *userid, uint8_t *keyid, size_t len)
-{
-	static const char	*uppers = "0123456789ABCDEF";
-	static const char	*lowers = "0123456789abcdef";
-	const char		*hi;
-	const char		*lo;
-	uint8_t			 hichar;
-	uint8_t			 lochar;
-	size_t			 j;
-	int			 i;
-
-	for (i = 0, j = 0 ; j < len && userid[i] && userid[i + 1] ; i += 2, j++) {
-		if ((hi = strchr(uppers, userid[i])) == NULL) {
-			if ((hi = strchr(lowers, userid[i])) == NULL) {
-				break;
-			}
-			hichar = (uint8_t)(hi - lowers);
-		} else {
-			hichar = (uint8_t)(hi - uppers);
-		}
-		if ((lo = strchr(uppers, userid[i + 1])) == NULL) {
-			if ((lo = strchr(lowers, userid[i + 1])) == NULL) {
-				break;
-			}
-			lochar = (uint8_t)(lo - lowers);
-		} else {
-			lochar = (uint8_t)(lo - uppers);
-		}
-		keyid[j] = (hichar << 4) | (lochar);
-	}
-	keyid[j] = 0x0;
-}
-
-/* return the next key which matches, starting searching at *from */
-static const pgp_key_t *
-getkeybyname(io_t *io,
-			const keyring_t *keyring,
-			const char *name,
-			unsigned *from)
-{
-	const pgp_key_t	*kp;
-	uint8_t			**uidp;
-	unsigned    	 	 i = 0;
-	pgp_key_t		*keyp;
-	unsigned		 savedstart;
-	regex_t			 r;
-	uint8_t		 	 keyid[PGP_KEY_ID_SIZE + 1];
-	size_t          	 len;
-
-	if (!keyring || !name || !from) {
-		return NULL;
-	}
-	len = strlen(name);
-	if (rnp_get_debug(__FILE__)) {
-		(void) fprintf(io->outs, "[%u] name '%s', len %zu\n",
-			*from, name, len);
-	}
-	/* first try name as a keyid */
-	(void) memset(keyid, 0x0, sizeof(keyid));
-	str2keyid(name, keyid, sizeof(keyid));
-	if (rnp_get_debug(__FILE__)) {
-		hexdump(io->outs, "keyid", keyid, 4);
-	}
-	savedstart = *from;
-	if ((kp = pgp_getkeybyid(io, keyring, keyid, from, NULL)) != NULL) {
-		return kp;
-	}
-	*from = savedstart;
-	if (rnp_get_debug(__FILE__)) {
-		(void) fprintf(io->outs, "regex match '%s' from %u\n",
-			name, *from);
-	}
-	/* match on full name or email address as a NOSUB, ICASE regexp */
-	(void) regcomp(&r, name, REG_EXTENDED | REG_ICASE);
-	for (keyp = &keyring->keys[*from]; *from < keyring->keyc; *from += 1, keyp++) {
-		uidp = keyp->uids;
-		for (i = 0 ; i < keyp->uidc; i++, uidp++) {
-			if (regexec(&r, (char *)*uidp, 0, NULL, 0) == 0) {
-				if (rnp_get_debug(__FILE__)) {
-					(void) fprintf(io->outs,
-						"MATCHED keyid \"%s\" len %" PRIsize "u\n",
-					       (char *) *uidp, len);
-				}
-				regfree(&r);
-				return keyp;
-			}
-		}
-	}
-	regfree(&r);
-	return NULL;
-}
-
-/**
-   \ingroup HighLevel_KeyringFind
-
-   \brief Finds key from its User ID
-
-   \param keyring Keyring to be searched
-   \param userid User ID of required key
-
-   \return Pointer to Key, if found; NULL, if not found
-
-   \note This returns a pointer to the key inside the keyring, not a
-   copy.  Do not free it.
-
-*/
-const pgp_key_t *
-pgp_getkeybyname(io_t *io,
-			const keyring_t *keyring,
-			const char *name)
-{
-	unsigned	from;
-
-	from = 0;
-	return getkeybyname(io, keyring, name, &from);
-}
-
-const pgp_key_t *
-pgp_getnextkeybyname(io_t *io,
-			const keyring_t *keyring,
-			const char *name,
-			unsigned *n)
-{
-	return getkeybyname(io, keyring, name, n);
 }
 
 /* this interface isn't right - hook into callback for getting passphrase */
