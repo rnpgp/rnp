@@ -100,7 +100,7 @@ static void
 std_finish(pgp_crypt_t *crypt)
 {
 	if (crypt->block_cipher_obj) {
-		free(crypt->block_cipher_obj);
+		botan_block_cipher_destroy(crypt->block_cipher_obj);
 		crypt->block_cipher_obj = NULL;
 	}
 }
@@ -111,6 +111,7 @@ std_init(pgp_crypt_t *crypt, const char* cipher_name)
 	if (crypt->block_cipher_obj)
         {
            botan_block_cipher_destroy(crypt->block_cipher_obj);
+           crypt->block_cipher_obj = NULL;
 	}
 
         int rc = botan_block_cipher_init(&(crypt->block_cipher_obj), cipher_name);
