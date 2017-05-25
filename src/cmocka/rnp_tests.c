@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include <stdarg.h>
 #include <stddef.h>
 #include <setjmp.h>
@@ -460,6 +459,7 @@ static void rnpkeys_generatekey_testSignature(void **state)
 {
     const char* hashAlg[] = {
         "SHA1",
+        "SHA224",
         "SHA256",
         "SHA384",
         "SHA512",
@@ -513,38 +513,51 @@ static void rnpkeys_generatekey_testSignature(void **state)
         retVal = rnp_find_key(&rnp, userId);
         assert_int_equal(retVal,1); //Ensure the key can be found with the userId
 
-        unsigned int cleartext = 0;
-
-        for(unsigned int armored = 0; armored <= 1; ++armored)
+        for(unsigned int cleartext = 0; cleartext <= 1; ++cleartext)
         {
-                close(pipefd[0]);
-                /* Setup the pass phrase fd to avoid user-input*/
-                assert_int_equal(setupPassphrasefd(pipefd), 1);
+                for(unsigned int armored = 0; armored <= 1; ++armored)
+                {
+                        const int skip_null = (cleartext == 1) ? 1 : 0;
 
-                rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],16));
-                rnp_setvar(&rnp, "hash",     hashAlg[i]);
+                        if(cleartext == 1 && armored == 0)
+                        {
+                                // This combination doesn't work...
+                                continue;
+                        }
 
-                retVal = rnp_sign_memory(&rnp, userId,
-                                         memToSign, sizeof(memToSign),
-                                         signatureBuf, sizeof(signatureBuf),
-                                         armored, cleartext);
+                        printf("Testing cleartext=%d armor=%d\n", cleartext, armored);
 
-                assert_int_not_equal(retVal, 0); // Ensure signature operation succeeded
+                        close(pipefd[0]);
+                        /* Setup the pass phrase fd to avoid user-input*/
+                        assert_int_equal(setupPassphrasefd(pipefd), 1);
 
-                const int sigLen = retVal;
+                        rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],16));
+                        rnp_setvar(&rnp, "hash",     hashAlg[i]);
 
-                retVal = rnp_verify_memory(&rnp, signatureBuf, sigLen,
-                                           recoveredSig, sizeof(recoveredSig),
-                                           armored);
-                assert_int_equal(retVal, 1+strlen(memToSign)); // Ensure signature verification passed
-                assert_string_equal(recoveredSig, memToSign);
+                        retVal = rnp_sign_memory(&rnp, userId,
+                                                 memToSign, strlen(memToSign) - skip_null,
+                                                 signatureBuf, sizeof(signatureBuf),
+                                                 armored, cleartext);
 
-                signatureBuf[50] ^= 0x8C; // corrupt the signature
+                        assert_int_not_equal(retVal, 0); // Ensure signature operation succeeded
 
-                retVal = rnp_verify_memory(&rnp, signatureBuf, sigLen,
-                                           recoveredSig, sizeof(recoveredSig),
-                                           armored);
-                assert_int_equal(retVal, 0); // Ensure signature verification fails for invalid sig
+                        const int sigLen = retVal;
+
+                        retVal = rnp_verify_memory(&rnp, signatureBuf, sigLen,
+                                                   recoveredSig, sizeof(recoveredSig),
+                                                   armored);
+                         // Ensure signature verification passed
+                        assert_int_equal(retVal, strlen(memToSign) - (skip_null ? 1 : 0));
+                        assert_string_equal(recoveredSig, memToSign);
+
+                        // TODO be smarter about this
+                        signatureBuf[50] ^= 0x0C; // corrupt the signature
+
+                        retVal = rnp_verify_memory(&rnp, signatureBuf, sigLen,
+                                                   recoveredSig, sizeof(recoveredSig),
+                                                   armored);
+                        assert_int_equal(retVal, 0); // Ensure signature verification fails for invalid sig
+                }
         }
 
         rnp_end(&rnp); //Free memory and other allocated resources.
