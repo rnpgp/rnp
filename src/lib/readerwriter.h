@@ -89,7 +89,7 @@ void pgp_setup_memory_write(pgp_output_t **, pgp_memory_t **, size_t);
 void pgp_teardown_memory_write(pgp_output_t *, pgp_memory_t *);
 
 /* memory reading */
-void pgp_setup_memory_read(pgp_io_t *,
+void pgp_setup_memory_read(io_t *,
 				pgp_stream_t **,
 				pgp_memory_t *,
 				void *,
@@ -107,7 +107,7 @@ int pgp_setup_file_append(pgp_output_t **, const char *);
 void pgp_teardown_file_append(pgp_output_t *, int);
 
 /* file reading */
-int pgp_setup_file_read(pgp_io_t *,
+int pgp_setup_file_read(io_t *,
 			pgp_stream_t **,
 			const char *,
 			void *,

@@ -1916,7 +1916,7 @@ pgp_teardown_memory_write(pgp_output_t *output, pgp_memory_t *mem)
    \sa pgp_teardown_memory_read()
 */
 void 
-pgp_setup_memory_read(pgp_io_t *io,
+pgp_setup_memory_read(io_t *io,
 			pgp_stream_t **stream,
 			pgp_memory_t *mem,
 			void *vp,
@@ -2052,7 +2052,7 @@ pgp_teardown_file_append(pgp_output_t *output, int fd)
    \sa pgp_teardown_file_read()
 */
 int 
-pgp_setup_file_read(pgp_io_t *io,
+pgp_setup_file_read(io_t *io,
 			pgp_stream_t **stream,
 			const char *filename,
 			void *vp,
@@ -2139,7 +2139,7 @@ pgp_pk_sesskey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
 	const pgp_contents_t	*content = &pkt->u;
 	unsigned		 from;
-	pgp_io_t		*io;
+	io_t		*io;
 
 	io = cbinfo->io;
 	if (rnp_get_debug(__FILE__)) {
@@ -2194,7 +2194,7 @@ pgp_get_seckey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	const pgp_key_t		*pubkey;
 	const pgp_key_t		*keypair;
 	unsigned		 from;
-	pgp_io_t		*io;
+	io_t		*io;
 	int			 i;
 
 	io = cbinfo->io;
@@ -2260,7 +2260,7 @@ pgp_cb_ret_t
 get_passphrase_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
 	const pgp_contents_t	*content = &pkt->u;
-	pgp_io_t		*io;
+	io_t		*io;
 
 	io = cbinfo->io;
 	if (rnp_get_debug(__FILE__)) {

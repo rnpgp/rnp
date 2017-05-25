@@ -55,11 +55,11 @@
 #include <inttypes.h>
 #endif
 
-typedef struct pgp_io_t {
+typedef struct io_t {
 	void	*outs;	/* output file stream */
 	void	*errs;	/* file stream to put error messages */
 	void	*res;	/* file stream to put results */
-} pgp_io_t;
+} io_t;
 
 /** pgp_map_t
  */
