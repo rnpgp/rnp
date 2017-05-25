@@ -836,7 +836,7 @@ open_output_file(pgp_output_t **output,
 
 */
 unsigned 
-pgp_sign_file(pgp_io_t *io,
+pgp_sign_file(io_t *io,
 		const char *inname,
 		const char *outname,
 		const pgp_seckey_t *seckey,
@@ -990,7 +990,7 @@ pgp_sign_file(pgp_io_t *io,
 
 */
 pgp_memory_t *
-pgp_sign_buf(pgp_io_t *io,
+pgp_sign_buf(io_t *io,
 		const void *input,
 		const size_t insize,
 		const pgp_seckey_t *seckey,
@@ -1108,7 +1108,7 @@ pgp_sign_buf(pgp_io_t *io,
 
 /* sign a file, and put the signature in a separate file */
 int
-pgp_sign_detached(pgp_io_t *io,
+pgp_sign_detached(io_t *io,
 			const char *f,
 			char *sigfile,
 			pgp_seckey_t *seckey,

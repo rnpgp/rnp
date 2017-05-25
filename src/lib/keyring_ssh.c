@@ -199,7 +199,7 @@ findstr(str_t *array, const char *name)
 
 /* convert an ssh (host) pubkey to a pgp pubkey */
 static int
-ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
+ssh2pubkey(io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
 {
     pgp_pubkey_t *pubkey;
     struct stat   st;
@@ -363,7 +363,7 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
 
 /* convert an ssh (host) seckey to a pgp seckey */
 static int
-ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey, pgp_hash_alg_t hashtype)
+ssh2seckey(io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey, pgp_hash_alg_t hashtype)
 {
     pgp_crypt_t	crypted;
     uint8_t		sesskey[PGP_MAX_KEY_SIZE];
@@ -411,7 +411,7 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey, pg
 
 /* read a key from the ssh file, and add it to a keyring */
 static int
-ssh2_readkeys(pgp_io_t *io, keyring_t *pubring,
+ssh2_readkeys(io_t *io, keyring_t *pubring,
                   keyring_t *secring, const char *pubfile,
                   const char *secfile, unsigned hashtype)
 {
@@ -540,7 +540,7 @@ ssh_keyring_load_keys(rnp_t *rnp, char *homedir)
     int       last = (rnp->pubring != NULL);
     char      id[MAX_ID_LENGTH];
     char     *userid;
-    pgp_io_t *io = rnp->io;
+    io_t *io = rnp->io;
 
     /* TODO: Double-check whether or not ID needs to be zeroed. */
 

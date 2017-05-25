@@ -519,7 +519,7 @@ format_subsig_line(char *buffer,
 
 static int
 format_uid_notice(
-		char *buffer, pgp_io_t *io,
+		char *buffer, io_t *io,
 		const keyring_t *keyring, const pgp_key_t *key,
 		unsigned uid, size_t size, int flags)
 {
@@ -571,7 +571,7 @@ format_uid_notice(
 
 /* print into a string (malloc'ed) the pubkeydata */
 int
-pgp_sprint_keydata(pgp_io_t *io, const keyring_t *keyring,
+pgp_sprint_keydata(io_t *io, const keyring_t *keyring,
 		const pgp_key_t *key, char **buf, const char *header,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
@@ -657,7 +657,7 @@ pgp_sprint_keydata(pgp_io_t *io, const keyring_t *keyring,
 
 /* return the key info as a JSON encoded string */
 int
-pgp_sprint_json(pgp_io_t *io, const keyring_t *keyring,
+pgp_sprint_json(io_t *io, const keyring_t *keyring,
 		const pgp_key_t *key, json_object *keyjson, const char *header,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
@@ -756,7 +756,7 @@ pgp_sprint_json(pgp_io_t *io, const keyring_t *keyring,
 }
 
 int
-pgp_hkp_sprint_keydata(pgp_io_t *io, const keyring_t *keyring,
+pgp_hkp_sprint_keydata(io_t *io, const keyring_t *keyring,
 		const pgp_key_t *key, char **buf,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
@@ -834,7 +834,7 @@ pgp_hkp_sprint_keydata(pgp_io_t *io, const keyring_t *keyring,
 
 /* print the key data for a pub or sec key */
 void
-pgp_print_keydata(pgp_io_t *io, const keyring_t *keyring,
+pgp_print_keydata(io_t *io, const keyring_t *keyring,
 		const pgp_key_t *key, const char *header,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
@@ -1644,7 +1644,7 @@ cb_list_packets(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 \param cb_get_passphrase
 */
 int 
-pgp_list_packets(pgp_io_t *io,
+pgp_list_packets(io_t *io,
 			char *filename,
 			unsigned armour,
 			keyring_t *secring,

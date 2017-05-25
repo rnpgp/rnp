@@ -166,7 +166,7 @@ pgp_keyring_load_keys(rnp_t *rnp, char *homedir)
 {
 	char     *userid;
 	char      id[MAX_ID_LENGTH];
-	pgp_io_t *io = rnp->io;
+	io_t *io = rnp->io;
 
 	/* TODO: Some of this might be split up into sub-functions. */
 	/* TODO: Figure out what unhandled error is causing an
@@ -913,7 +913,7 @@ pgp_keyring_fileread(keyring_t *keyring,
    \sa pgp_keyring_free
 */
 unsigned 
-pgp_keyring_read_from_mem(pgp_io_t *io,
+pgp_keyring_read_from_mem(io_t *io,
 				keyring_t *keyring,
 				const unsigned armour,
 				pgp_memory_t *mem)
@@ -957,7 +957,7 @@ pgp_keyring_read_from_mem(pgp_io_t *io,
 
 */
 const pgp_key_t *
-pgp_getkeybyid(pgp_io_t *io, const keyring_t *keyring,
+pgp_getkeybyid(io_t *io, const keyring_t *keyring,
 			   const uint8_t *keyid, unsigned *from, pgp_pubkey_t **pubkey)
 {
 	uint8_t	nullid[PGP_KEY_ID_SIZE];
@@ -1027,7 +1027,7 @@ str2keyid(const char *userid, uint8_t *keyid, size_t len)
 
 /* return the next key which matches, starting searching at *from */
 static const pgp_key_t *
-getkeybyname(pgp_io_t *io,
+getkeybyname(io_t *io,
 			const keyring_t *keyring,
 			const char *name,
 			unsigned *from)
@@ -1099,7 +1099,7 @@ getkeybyname(pgp_io_t *io,
 
 */
 const pgp_key_t *
-pgp_getkeybyname(pgp_io_t *io,
+pgp_getkeybyname(io_t *io,
 			const keyring_t *keyring,
 			const char *name)
 {
@@ -1110,7 +1110,7 @@ pgp_getkeybyname(pgp_io_t *io,
 }
 
 const pgp_key_t *
-pgp_getnextkeybyname(pgp_io_t *io,
+pgp_getnextkeybyname(io_t *io,
 			const keyring_t *keyring,
 			const char *name,
 			unsigned *n)
@@ -1128,7 +1128,7 @@ pgp_getnextkeybyname(pgp_io_t *io,
    \return none
 */
 int
-pgp_keyring_list(pgp_io_t *io, const keyring_t *keyring, const int psigs)
+pgp_keyring_list(io_t *io, const keyring_t *keyring, const int psigs)
 {
 	pgp_key_t		*key;
 	unsigned		 n;
@@ -1152,7 +1152,7 @@ pgp_keyring_list(pgp_io_t *io, const keyring_t *keyring, const int psigs)
  * to the **obj json object
  */
 int
-pgp_keyring_json(pgp_io_t *io, const keyring_t *keyring,
+pgp_keyring_json(io_t *io, const keyring_t *keyring,
                  json_object *obj, const int psigs)
 {
 	pgp_key_t		*key;
@@ -1174,7 +1174,7 @@ pgp_keyring_json(pgp_io_t *io, const keyring_t *keyring,
 
 /* this interface isn't right - hook into callback for getting passphrase */
 char *
-pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
+pgp_export_key(io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
 {
 	pgp_output_t	*output;
 	pgp_memory_t	*mem;

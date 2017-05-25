@@ -114,7 +114,7 @@ unsigned pgp_add_issuer_keyid(pgp_create_sig_t *,
 void pgp_add_primary_userid(pgp_create_sig_t *, unsigned);
 
 /* Standard Interface */
-unsigned   pgp_sign_file(pgp_io_t *,
+unsigned   pgp_sign_file(io_t *,
 			const char *,
 			const char *,
 			const pgp_seckey_t *,
@@ -125,7 +125,7 @@ unsigned   pgp_sign_file(pgp_io_t *,
 			const unsigned,
 			const unsigned);
 
-int pgp_sign_detached(pgp_io_t *,
+int pgp_sign_detached(io_t *,
 			const char *,
 			char *,
 			pgp_seckey_t *,
@@ -159,7 +159,7 @@ unsigned pgp_writer_use_armored_sig(pgp_output_t *);
 
 void pgp_writer_push_armoured(pgp_output_t *, pgp_armor_type_t);
 
-pgp_memory_t   *pgp_sign_buf(pgp_io_t *,
+pgp_memory_t   *pgp_sign_buf(io_t *,
 				const void *,
 				const size_t,
 				const pgp_seckey_t *,
@@ -169,7 +169,7 @@ pgp_memory_t   *pgp_sign_buf(pgp_io_t *,
 				const unsigned,
 				const unsigned);
 
-unsigned pgp_keyring_read_from_mem(pgp_io_t *,
+unsigned pgp_keyring_read_from_mem(io_t *,
 				keyring_t *,
 				const unsigned,
 				pgp_memory_t *);
