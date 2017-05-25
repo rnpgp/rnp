@@ -505,7 +505,7 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
     if (rnp->pubring == NULL) {
         rnp->pubring = pubring;
     } else {
-        pgp_append_keyring(rnp->pubring, pubring);
+        keyring_append_keyring(rnp->pubring, pubring);
     }
     if (needseckey) {
         rnp_setvar(rnp, "sshpubfile", filename);

@@ -120,11 +120,11 @@ accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	switch (pkt->tag) {
 	case PGP_PTAG_CT_PUBLIC_KEY:
 	case PGP_PTAG_CT_PUBLIC_SUBKEY:
-		pgp_add_to_pubring(keyring, &content->pubkey, pkt->tag);
+		keyring_add_to_pubring(keyring, &content->pubkey, pkt->tag);
 		return PGP_KEEP_MEMORY;
 	case PGP_PTAG_CT_SECRET_KEY:
 	case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-		pgp_add_to_secring(keyring, &content->seckey);
+		keyring_add_to_secring(keyring, &content->seckey);
 		return PGP_KEEP_MEMORY;
 	case PGP_PTAG_CT_USER_ID:
 		if (rnp_get_debug(__FILE__)) {

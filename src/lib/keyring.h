@@ -44,4 +44,8 @@ int keyring_get_first_ring(keyring_t *ring, char *id, size_t len, int last);
 
 void keyring_free(keyring_t *);
 
+int keyring_add_to_pubring(keyring_t *, const pgp_pubkey_t *, pgp_content_enum tag);
+int keyring_add_to_secring(keyring_t *, const pgp_seckey_t *);
+int keyring_append_keyring(keyring_t *, keyring_t *);
+
 #endif /* KEYRING_H_ */
