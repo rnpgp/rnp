@@ -477,8 +477,8 @@ static void rnpkeys_generatekey_testSignature(void **state)
     int pipefd[2];
 
     char memToSign[] = "A simple test message";
-    char signatureBuf[4096];
-    char recoveredSig[4096];
+    char signatureBuf[4096] = { 0 };
+    char recoveredSig[4096] = { 0 };
     char userId[128];
 
     /* Setup the pass phrase fd to avoid user-input*/
@@ -532,7 +532,7 @@ static void rnpkeys_generatekey_testSignature(void **state)
                         assert_int_equal(setupPassphrasefd(pipefd), 1);
 
                         rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],16));
-                        rnp_setvar(&rnp, "hash",     hashAlg[i]);
+                        assert_int_equal(rnp_setvar(&rnp, "hash",     hashAlg[i]), 1);
 
                         retVal = rnp_sign_memory(&rnp, userId,
                                                  memToSign, strlen(memToSign) - skip_null,
@@ -569,7 +569,7 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
     const char* hashAlg[] = {
         "MD5", 
         "SHA1", 
-        "RIPEMD160", 
+        //"RIPEMD160", 
         "SHA256", 
         "SHA384", 
         "SHA512", 
@@ -596,9 +596,9 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
         /*Set the default parameters*/
         rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
         rnp_setvar(&rnp, "res",       "<stdout>");
-        rnp_setvar(&rnp, "hash",     hashAlg[i]); 
         rnp_setvar(&rnp, "format",    "human");
         rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
+        assert_int_equal(rnp_setvar(&rnp, "hash",     hashAlg[i]), 1);
 
         int retVal = rnp_init (&rnp);
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -654,9 +654,9 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
         /*Set the default parameters*/
         rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
         rnp_setvar(&rnp, "res",       "<stdout>");
-        rnp_setvar(&rnp, "hash",      "SHA256"); 
         rnp_setvar(&rnp, "format",    "human");
         rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
+        assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
 
         int retVal = rnp_init (&rnp);
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -695,9 +695,9 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     /*Set the default parameters*/
     rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
     rnp_setvar(&rnp, "res",       "<stdout>");
-    rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
     rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
+    assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
 
     assert_int_equal(1,
         rnp_init (&rnp)
@@ -747,9 +747,11 @@ static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     /*Set the default parameters*/
     rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
     rnp_setvar(&rnp, "res",       "<stdout>");
-    rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
     rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
+
+    assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
+
     assert_int_equal(1,
         rnp_init(&rnp)
     );
@@ -882,9 +884,9 @@ static void rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
     /*Set the default parameters*/
     rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
     rnp_setvar(&rnp, "res",       "<stdout>");
-    rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
     rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
+    assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
 
     retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
@@ -914,10 +916,10 @@ static void rnpkeys_exportkey_verifyUserId(void **state)
     /*Set the default parameters*/
     rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
     rnp_setvar(&rnp, "res",       "<stdout>");
-    rnp_setvar(&rnp, "hash",      "SHA256"); 
     rnp_setvar(&rnp, "format",    "human");
     rnp_setvar(&rnp, "userid",    getenv("LOGNAME"));
     rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],10));
+    assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
 
     int retVal = rnp_init (&rnp);
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
