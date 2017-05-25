@@ -139,7 +139,7 @@ conffile(rnp_t *rnp, char *homedir, char *userid, size_t length)
 static void *
 readkeyring(rnp_t *rnp, const char *name, const char *homedir)
 {
-    pgp_keyring_t	*keyring;
+    keyring_t	*keyring;
     const unsigned	 noarmor = 0;
     char		 f[MAXPATHLEN];
     char		*filename;
@@ -182,7 +182,7 @@ pgp_keyring_load_keys(rnp_t *rnp, char *homedir)
 		return 0;
 	}
 
-	if (((pgp_keyring_t *) rnp->pubring)->keyc < 1) {
+	if (((keyring_t *) rnp->pubring)->keyc < 1) {
 		fprintf(io->errs, "pub keyring is empty\n");
 		return 0;
 	}
@@ -207,7 +207,7 @@ pgp_keyring_load_keys(rnp_t *rnp, char *homedir)
 			return 0;
 		}
 
-		if (((pgp_keyring_t *) rnp->secring)->keyc < 1) {
+		if (((keyring_t *) rnp->secring)->keyc < 1) {
 			fprintf(io->errs, "sec keyring is empty\n");
 			return 0;
 		}
@@ -712,14 +712,14 @@ pgp_keydata_init(pgp_key_t *keydata, const pgp_content_enum type)
 
 /* used to point to data during keyring read */
 typedef struct keyringcb_t {
-	pgp_keyring_t		*keyring;	/* the keyring we're reading */
+	keyring_t		*keyring;	/* the keyring we're reading */
 } keyringcb_t;
 
 
 static pgp_cb_ret_t
 cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
-	pgp_keyring_t	*keyring;
+	keyring_t	*keyring;
 	pgp_revoke_t	*revocation;
 	pgp_key_t	*key;
 	keyringcb_t	*cb;
@@ -811,7 +811,7 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
    \brief Reads a keyring from a file
 
-   \param keyring Pointer to an existing pgp_keyring_t struct
+   \param keyring Pointer to an existing keyring_t struct
    \param armour 1 if file is armoured; else 0
    \param filename Filename of keyring to be read
 
@@ -832,7 +832,7 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 */
 
 unsigned 
-pgp_keyring_fileread(pgp_keyring_t *keyring,
+pgp_keyring_fileread(keyring_t *keyring,
 			const unsigned armour,
 			const char *filename)
 {
@@ -894,7 +894,7 @@ pgp_keyring_fileread(pgp_keyring_t *keyring,
 
    \brief Reads a keyring from memory
 
-   \param keyring Pointer to existing pgp_keyring_t struct
+   \param keyring Pointer to existing keyring_t struct
    \param armour 1 if file is armoured; else 0
    \param mem Pointer to a pgp_memory_t struct containing keyring to be read
 
@@ -914,7 +914,7 @@ pgp_keyring_fileread(pgp_keyring_t *keyring,
 */
 unsigned 
 pgp_keyring_read_from_mem(pgp_io_t *io,
-				pgp_keyring_t *keyring,
+				keyring_t *keyring,
 				const unsigned armour,
 				pgp_memory_t *mem)
 {
@@ -952,7 +952,7 @@ pgp_keyring_read_from_mem(pgp_io_t *io,
    \note This does not free keyring itself, just the memory alloc-ed in it.
  */
 void 
-pgp_keyring_free(pgp_keyring_t *keyring)
+pgp_keyring_free(keyring_t *keyring)
 {
 	(void)free(keyring->keys);
 	keyring->keys = NULL;
@@ -974,7 +974,7 @@ pgp_keyring_free(pgp_keyring_t *keyring)
 
 */
 const pgp_key_t *
-pgp_getkeybyid(pgp_io_t *io, const pgp_keyring_t *keyring,
+pgp_getkeybyid(pgp_io_t *io, const keyring_t *keyring,
 			   const uint8_t *keyid, unsigned *from, pgp_pubkey_t **pubkey)
 {
 	uint8_t	nullid[PGP_KEY_ID_SIZE];
@@ -1045,7 +1045,7 @@ str2keyid(const char *userid, uint8_t *keyid, size_t len)
 /* return the next key which matches, starting searching at *from */
 static const pgp_key_t *
 getkeybyname(pgp_io_t *io,
-			const pgp_keyring_t *keyring,
+			const keyring_t *keyring,
 			const char *name,
 			unsigned *from)
 {
@@ -1117,7 +1117,7 @@ getkeybyname(pgp_io_t *io,
 */
 const pgp_key_t *
 pgp_getkeybyname(pgp_io_t *io,
-			const pgp_keyring_t *keyring,
+			const keyring_t *keyring,
 			const char *name)
 {
 	unsigned	from;
@@ -1128,7 +1128,7 @@ pgp_getkeybyname(pgp_io_t *io,
 
 const pgp_key_t *
 pgp_getnextkeybyname(pgp_io_t *io,
-			const pgp_keyring_t *keyring,
+			const keyring_t *keyring,
 			const char *name,
 			unsigned *n)
 {
@@ -1145,7 +1145,7 @@ pgp_getnextkeybyname(pgp_io_t *io,
    \return none
 */
 int
-pgp_keyring_list(pgp_io_t *io, const pgp_keyring_t *keyring, const int psigs)
+pgp_keyring_list(pgp_io_t *io, const keyring_t *keyring, const int psigs)
 {
 	pgp_key_t		*key;
 	unsigned		 n;
@@ -1169,7 +1169,7 @@ pgp_keyring_list(pgp_io_t *io, const pgp_keyring_t *keyring, const int psigs)
  * to the **obj json object
  */
 int
-pgp_keyring_json(pgp_io_t *io, const pgp_keyring_t *keyring,
+pgp_keyring_json(pgp_io_t *io, const keyring_t *keyring,
                  json_object *obj, const int psigs)
 {
 	pgp_key_t		*key;
@@ -1212,7 +1212,7 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
 
 /* add a key to a public keyring */
 int
-pgp_add_to_pubring(pgp_keyring_t *keyring, const pgp_pubkey_t *pubkey, pgp_content_enum tag)
+pgp_add_to_pubring(keyring_t *keyring, const pgp_pubkey_t *pubkey, pgp_content_enum tag)
 {
 	pgp_key_t	*key;
 	time_t		 duration;
@@ -1247,7 +1247,7 @@ pgp_add_to_pubring(pgp_keyring_t *keyring, const pgp_pubkey_t *pubkey, pgp_conte
 
 /* add a key to a secret keyring */
 int
-pgp_add_to_secring(pgp_keyring_t *keyring, const pgp_seckey_t *seckey)
+pgp_add_to_secring(keyring_t *keyring, const pgp_seckey_t *seckey)
 {
 	const pgp_pubkey_t	*pubkey;
 	pgp_key_t		*key;
@@ -1279,7 +1279,7 @@ pgp_add_to_secring(pgp_keyring_t *keyring, const pgp_seckey_t *seckey)
 
 /* append one keyring to another */
 int
-pgp_append_keyring(pgp_keyring_t *keyring, pgp_keyring_t *newring)
+pgp_append_keyring(keyring_t *keyring, keyring_t *newring)
 {
 	unsigned	i;
 

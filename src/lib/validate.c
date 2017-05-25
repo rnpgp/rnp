@@ -686,7 +686,7 @@ validate_result_status(FILE *errs, const char *f, pgp_validation_t *val)
 unsigned 
 pgp_validate_key_sigs(pgp_validation_t *result,
 	const pgp_key_t *key,
-	const pgp_keyring_t *keyring,
+	const keyring_t *keyring,
 	pgp_cb_ret_t cb_get_passphrase(const pgp_packet_t *,
 						pgp_cbdata_t *))
 {
@@ -735,7 +735,7 @@ pgp_validate_key_sigs(pgp_validation_t *result,
 */
 unsigned 
 pgp_validate_all_sigs(pgp_validation_t *result,
-	    const pgp_keyring_t *ring,
+	    const keyring_t *ring,
 	    pgp_cb_ret_t cb_get_passphrase(const pgp_packet_t *,
 	    					pgp_cbdata_t *))
 {
@@ -793,7 +793,7 @@ pgp_validate_file(pgp_io_t *io,
 			const char *infile,
 			const char *outfile,
 			const int user_says_armoured,
-			const pgp_keyring_t *keyring)
+			const keyring_t *keyring)
 {
 	validate_data_cb_t	 validation;
 	pgp_stream_t		*parse = NULL;
@@ -926,7 +926,7 @@ pgp_validate_mem(pgp_io_t *io,
 			pgp_memory_t *mem,
 			pgp_memory_t **cat,
 			const int user_says_armoured,
-			const pgp_keyring_t *keyring)
+			const keyring_t *keyring)
 {
 	validate_data_cb_t	 validation;
 	pgp_stream_t		*stream = NULL;

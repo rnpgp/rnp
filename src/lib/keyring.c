@@ -77,7 +77,7 @@ keyring_format_key(char *buffer, uint8_t *sigid, int len)
  *       handle the new error condition.
  */
 int
-keyring_get_first_ring(pgp_keyring_t *ring, char *id, size_t len, int last)
+keyring_get_first_ring(keyring_t *ring, char *id, size_t len, int last)
 {
     uint8_t	*src;
 

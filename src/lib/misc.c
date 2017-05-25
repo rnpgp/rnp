@@ -99,7 +99,7 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 
 
 typedef struct {
-	pgp_keyring_t		*keyring;
+	keyring_t		*keyring;
 } accumulate_t;
 
 /**
@@ -109,7 +109,7 @@ static pgp_cb_ret_t
 accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
 	const pgp_contents_t	*content = &pkt->u;
-	pgp_keyring_t		*keyring;
+	keyring_t		*keyring;
 	accumulate_t		*accumulate;
 
 	if (rnp_get_debug(__FILE__)) {
@@ -172,7 +172,7 @@ accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
  * \param parse Options to use when parsing
 */
 int
-pgp_parse_and_accumulate(pgp_keyring_t *keyring, pgp_stream_t *parse)
+pgp_parse_and_accumulate(keyring_t *keyring, pgp_stream_t *parse)
 {
 	accumulate_t	accumulate;
 	const int	printerrors = 1;

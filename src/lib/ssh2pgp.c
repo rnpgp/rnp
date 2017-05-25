@@ -411,8 +411,8 @@ pgp_ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey
 
 /* read a key from the ssh file, and add it to a keyring */
 int
-pgp_ssh2_readkeys(pgp_io_t *io, pgp_keyring_t *pubring,
-		pgp_keyring_t *secring, const char *pubfile,
+pgp_ssh2_readkeys(pgp_io_t *io, keyring_t *pubring,
+		keyring_t *secring, const char *pubfile,
 		const char *secfile, unsigned hashtype)
 {
 	pgp_key_t		*pubkey;

@@ -112,7 +112,7 @@ static void
 resultp(pgp_io_t *io,
 	const char *f,
 	pgp_validation_t *res,
-	pgp_keyring_t *ring)
+	keyring_t *ring)
 {
 	const pgp_key_t	*key;
 	pgp_pubkey_t		*sigkey;
@@ -338,7 +338,7 @@ get_birthtime(char *s)
 
 /* resolve the userid */
 static const pgp_key_t *
-resolve_userid(rnp_t *rnp, const pgp_keyring_t *keyring, const char *userid)
+resolve_userid(rnp_t *rnp, const keyring_t *keyring, const char *userid)
 {
 	const pgp_key_t	*key;
 	pgp_io_t		*io;
@@ -1485,7 +1485,7 @@ rnp_sign_file(rnp_t *rnp,
 				(void) fprintf(io->errs, "Bad passphrase\n");
 			}
 		} else {
-			pgp_keyring_t	*secring;
+			keyring_t	*secring;
 
 			secring = rnp->secring;
 			seckey = &secring->keys[0].key.seckey;
@@ -1614,7 +1614,7 @@ rnp_sign_memory(rnp_t *rnp,
 				(void) fprintf(io->errs, "Bad passphrase\n");
 			}
 		} else {
-			pgp_keyring_t	*secring;
+			keyring_t	*secring;
 
 			secring = rnp->secring;
 			seckey = &secring->keys[0].key.seckey;
@@ -1790,7 +1790,7 @@ rnp_decrypt_memory(rnp_t *rnp, const void *input, const size_t insize,
 int
 rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
 {
-	pgp_keyring_t	*keyring;
+	keyring_t	*keyring;
 	const unsigned	 noarmor = 0;
 	struct stat	 st;
 	pgp_io_t	*io;
@@ -2004,7 +2004,7 @@ int
 rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size)
 {
 	const pgp_key_t	*key;
-	pgp_keyring_t	*keyring;
+	keyring_t	*keyring;
 	pgp_io_t	*io;
 	unsigned	 k;
 	size_t		 cc;

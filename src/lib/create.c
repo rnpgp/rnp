@@ -505,7 +505,7 @@ write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, const pgp_pubkey
 unsigned
 pgp_write_xfer_pubkey(pgp_output_t *output,
 			const pgp_key_t *key,
-			const pgp_keyring_t *subkeys,
+			const keyring_t *subkeys,
 			const unsigned armoured)
 {
 	unsigned    i, j;
@@ -580,7 +580,7 @@ pgp_write_xfer_seckey(pgp_output_t *output,
 				const pgp_key_t *key,
 				const uint8_t *passphrase,
 				const size_t pplen,
-				const pgp_keyring_t *subkeys,
+				const keyring_t *subkeys,
 				unsigned armoured)
 {
 	unsigned	i, j;

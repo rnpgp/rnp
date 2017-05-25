@@ -56,12 +56,12 @@ void            pgp_validate_result_free(pgp_validation_t *);
 unsigned
 pgp_validate_key_sigs(pgp_validation_t *,
 		const pgp_key_t *,
-		const pgp_keyring_t *,
+		const keyring_t *,
 		pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
 
 unsigned
 pgp_validate_all_sigs(pgp_validation_t *,
-		const pgp_keyring_t *,
+		const keyring_t *,
 		pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
 
 unsigned   pgp_check_sig(const uint8_t *,
