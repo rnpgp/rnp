@@ -3,7 +3,7 @@ set -eu
 
 LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${CMOCKA_INSTALL}/lib"
 LDFLAGS="-L${CMOCKA_INSTALL}/lib"
-CFLAGS="--std=c11 -D_GNU_SOURCE -I${CMOCKA_INSTALL}/include"
+CFLAGS="-I${CMOCKA_INSTALL}/include"
 
 [ "$BUILD_MODE" = "coverage" ] && CFLAGS+=" -O0 --coverage"
 [ "$BUILD_MODE" = "sanitize" ] && CFLAGS+=" -fsanitize=leak,address,undefined"
