@@ -310,7 +310,7 @@ static void cipher_test_success(void **state)
     test_value_equal("AES CFB decrypt",
             "0000000000000000000000000000000000000000",
             cfb_data, sizeof(cfb_data));
-
+    crypt.decrypt_finish(&crypt);
 }
 
 static void pkcs1_rsa_test_success(void **state)
@@ -359,8 +359,8 @@ static void pkcs1_rsa_test_success(void **state)
 
     test_value_equal("RSA 1024 decrypt", "616263", decrypted, 3);
 
-   assert_int_equal(decrypted_size, 3);
-
+    assert_int_equal(decrypted_size, 3);
+    pgp_keydata_free(pgp_key);
 }
 
 static void raw_elg_test_success(void **state)
