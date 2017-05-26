@@ -435,11 +435,13 @@ write_seckey_body(const pgp_seckey_t *key,
 			hashsize = pgp_hash_size(key->hash_alg);
 			needed = PGP_CAST_KEY_LENGTH - done;
 			size = MIN(needed, hashsize);
-			if ((hashed = calloc(1, hashsize)) == NULL) {
+
+			if ((hashed = calloc(1, PGP_SHA1_HASH_SIZE)) == NULL) {
 				(void) fprintf(stderr, "write_seckey_body: bad alloc\n");
 				return 0;
 			}
 			if (!hash.init(&hash)) {
+                                free(hashed);
 				(void) fprintf(stderr, "write_seckey_body: bad alloc\n");
 				return 0;
 			}
@@ -469,6 +471,7 @@ write_seckey_body(const pgp_seckey_t *key,
 			(void) memcpy(&sesskey[i * hashsize],
 					hashed, (unsigned)size);
 			done += (unsigned)size;
+                        free(hashed);
 			if (done > PGP_CAST_KEY_LENGTH) {
 				(void) fprintf(stderr,
 					"write_seckey_body: short add\n");
