@@ -130,9 +130,6 @@ unsigned pgp_dsa_verify(const uint8_t *, size_t,
 * RSA encrypt/decrypt
 */
 
-int pgp_rsa_public_encrypt(uint8_t *, const uint8_t *, size_t,
-			const pgp_rsa_pubkey_t *);
-
 int pgp_rsa_encrypt_pkcs1(uint8_t* out, size_t out_len,
                           const uint8_t* key, size_t key_len,
                           const pgp_rsa_pubkey_t* pubkey);

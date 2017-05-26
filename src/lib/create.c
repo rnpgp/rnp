@@ -1070,7 +1070,7 @@ pgp_create_pk_sesskey(const pgp_key_t *key, const char *ciphername)
                                      encoded_key, sz_encoded_key,
                                      &pubkey->key.rsa);
            if (n <= 0) {
-              (void) fprintf(stderr, "pgp_rsa_public_encrypt failure\n");
+              (void) fprintf(stderr, "pgp_rsa_encrypt_pkcs1 failure\n");
               free(sesskey);
               sesskey = NULL;
               goto done;
