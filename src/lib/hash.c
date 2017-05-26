@@ -93,6 +93,43 @@ static pgp_map_t hash_alg_map[] =
 	{0x00, NULL},		/* this is the end-of-array marker */
 };
 
+/**
+ * \ingroup Core_Print
+ *
+ * returns description of the Hash Algorithm type
+ * \param hash Hash Algorithm type
+ * \return string or "Unknown"
+ */
+const char     *
+pgp_show_hash_alg(uint8_t hash)
+{
+	return pgp_str_from_map(hash, hash_alg_map);
+}
+
+/**
+\ingroup Core_Hashes
+\brief Returns hash enum corresponding to given string
+\param hash Text name of hash algorithm i.e. "SHA1"
+\returns Corresponding enum i.e. PGP_HASH_SHA1
+*/
+pgp_hash_alg_t
+pgp_str_to_hash_alg(const char *hash)
+{
+	if (hash == NULL)
+        {
+		return PGP_DEFAULT_HASH_ALGORITHM;
+	}
+        for(int i = 0; hash_alg_map[i].string != NULL; ++i)
+        {
+                if(rnp_strcasecmp(hash, hash_alg_map[i].string) == 0)
+                {
+                        return hash_alg_map[i].type;
+                }
+        }
+	return PGP_HASH_UNKNOWN;
+}
+
+
 static
 const char* pgp_hash_alg_to_botan_name(pgp_hash_alg_t hash)
 {
@@ -216,20 +253,6 @@ size_t pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
 	return outlen;
 }
 
-
-/**
- * \ingroup Core_Print
- *
- * returns description of the Hash Algorithm type
- * \param hash Hash Algorithm type
- * \return string or "Unknown"
- */
-const char     *
-pgp_show_hash_alg(uint8_t hash)
-{
-	return pgp_str_from_map(hash, hash_alg_map);
-}
-
 /**
    \ingroup Core_Hashes
    \brief Get Hash name
@@ -245,43 +268,6 @@ pgp_hash_name(const pgp_hash_t *hash)
 size_t pgp_hash_output_length(const pgp_hash_t* hash)
 {
         return hash->output_len;
-}
-
-
-/**
-\ingroup Core_Hashes
-\brief Returns hash enum corresponding to given string
-\param hash Text name of hash algorithm i.e. "SHA1"
-\returns Corresponding enum i.e. PGP_HASH_SHA1
-*/
-pgp_hash_alg_t
-pgp_str_to_hash_alg(const char *hash)
-{
-	if (hash == NULL) {
-		return PGP_DEFAULT_HASH_ALGORITHM;
-	}
-	if (rnp_strcasecmp(hash, "SHA1") == 0) {
-		return PGP_HASH_SHA1;
-	}
-	if (rnp_strcasecmp(hash, "MD5") == 0) {
-		return PGP_HASH_MD5;
-	}
-	if (rnp_strcasecmp(hash, "SHA256") == 0) {
-		return PGP_HASH_SHA256;
-	}
-        if (rnp_strcasecmp(hash,"SHA224") == 0) {
-		return PGP_HASH_SHA224;
-	}
-	if (rnp_strcasecmp(hash, "SHA512") == 0) {
-		return PGP_HASH_SHA512;
-	}
-	if (rnp_strcasecmp(hash, "SHA384") == 0) {
-		return PGP_HASH_SHA384;
-	}
-	if (rnp_strcasecmp(hash, "SM3") == 0) {
-		return PGP_HASH_SM3;
-	}
-	return PGP_HASH_UNKNOWN;
 }
 
 /**
