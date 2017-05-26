@@ -439,8 +439,8 @@ pgp_ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey
 		}
 	}
 	pgp_crypt_any(&crypted, key->key.seckey.alg);
-	crypted.set_iv(&crypted, key->key.seckey.iv);
-	crypted.set_crypt_key(&crypted, sesskey);
+        pgp_cipher_set_iv(&crypted, key->key.seckey.iv);
+        pgp_cipher_set_key(&crypted, sesskey);
 	pgp_encrypt_init(&crypted);
 	key->key.seckey.pubkey.alg = PGP_PKA_RSA;
 	pgp_fingerprint(&key->sigfingerprint, pubkey, hashtype);

@@ -273,32 +273,32 @@ static void cipher_test_success(void **state)
 
     memset(iv, 0x42, sizeof(iv));
 
-    crypt.set_crypt_key(&crypt, key);
-    crypt.block_encrypt(&crypt, block, block);
+    pgp_cipher_set_key(&crypt, key);
+    pgp_cipher_block_encrypt(&crypt, block, block);
 
     test_value_equal("AES ECB encrypt",
             "66E94BD4EF8A2C3B884CFA59CA342B2E",
             block, sizeof(block));
 
-    crypt.block_decrypt(&crypt, block, block);
+    pgp_cipher_block_decrypt(&crypt, block, block);
 
     test_value_equal("AES ECB decrypt",
             "00000000000000000000000000000000",
             block, sizeof(block));
 
-    crypt.set_iv(&crypt, iv);
-    crypt.cfb_encrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data));
+    pgp_cipher_set_iv(&crypt, iv);
+    pgp_cipher_cfb_encrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data));
 
     test_value_equal("AES CFB encrypt",
             "BFDAA57CB812189713A950AD9947887983021617",
             cfb_data, sizeof(cfb_data));
 
-    crypt.set_iv(&crypt, iv);
-    crypt.cfb_decrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data));
+    pgp_cipher_set_iv(&crypt, iv);
+    pgp_cipher_cfb_decrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data));
     test_value_equal("AES CFB decrypt",
             "0000000000000000000000000000000000000000",
             cfb_data, sizeof(cfb_data));
-    crypt.decrypt_finish(&crypt);
+    pgp_cipher_finish(&crypt);
 }
 
 static void pkcs1_rsa_test_success(void **state)

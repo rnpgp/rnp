@@ -494,8 +494,8 @@ write_seckey_body(const pgp_seckey_t *key,
 	/* use this session key to encrypt */
 
 	pgp_crypt_any(&crypted, key->alg);
-	crypted.set_iv(&crypted, key->iv);
-	crypted.set_crypt_key(&crypted, sesskey);
+        pgp_cipher_set_iv(&crypted, key->iv);
+        pgp_cipher_set_key(&crypted, sesskey);
 	pgp_encrypt_init(&crypted);
 
 	if (pgp_get_debug_level(__FILE__)) {
