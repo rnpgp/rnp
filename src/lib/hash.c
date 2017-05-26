@@ -242,43 +242,11 @@ pgp_hash_name(const pgp_hash_t *hash)
         return pgp_show_hash_alg(hash->alg);
 }
 
-/**
-\ingroup Core_Hashes
-\brief Returns size of hash for given hash algorithm
-\param alg Hash algorithm to use
-\return Size of hash algorithm in bytes
-*/
-unsigned
-pgp_hash_size(pgp_hash_alg_t alg)
+size_t pgp_hash_output_length(const pgp_hash_t* hash)
 {
-	switch (alg) {
-	case PGP_HASH_MD5:
-		return 16;
-
-	case PGP_HASH_SHA1:
-		return 20;
-
-	case PGP_HASH_SHA256:
-		return 32;
-
-	case PGP_HASH_SHA224:
-		return 28;
-
-	case PGP_HASH_SHA512:
-		return 64;
-
-	case PGP_HASH_SHA384:
-		return 48;
-
-	case PGP_HASH_SM3:
-		return 32;
-
-	default:
-		(void) fprintf(stderr, "pgp_hash_size: bad algorithm\n");
-	}
-
-	return 0;
+        return hash->output_len;
 }
+
 
 /**
 \ingroup Core_Hashes

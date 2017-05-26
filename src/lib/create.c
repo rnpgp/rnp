@@ -437,7 +437,7 @@ write_seckey_body(const pgp_seckey_t *key,
                            return 0;
                            }
 
-			hashsize = pgp_hash_size(key->hash_alg);
+			hashsize = pgp_hash_output_length(&hash);
 			needed = PGP_CAST_KEY_LENGTH - done;
 			size = MIN(needed, hashsize);
 			if ((hashed = calloc(1, hashsize)) == NULL) {

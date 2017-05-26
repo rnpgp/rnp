@@ -2490,7 +2490,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 
 		/* Hardcoded SHA1 for just now */
 		pkt.u.seckey.hash_alg = PGP_HASH_SHA1;
-		hashsize = pgp_hash_size(pkt.u.seckey.hash_alg);
+		hashsize = 160 / 8; // temporary hack
 		if (hashsize == 0 || hashsize > PGP_MAX_HASH_SIZE) {
 			(void) fprintf(stderr,
 				"parse_seckey: bad hashsize\n");

@@ -71,11 +71,10 @@ void pgp_hash_add(pgp_hash_t* hash, const uint8_t *input, size_t len);
 void pgp_hash_add_int(pgp_hash_t* hash, unsigned n, size_t bytes);
 size_t pgp_hash_finish(pgp_hash_t* hash, uint8_t *output);
 
-size_t pgp_hash_output_length(pgp_hash_t* hash);
+size_t pgp_hash_output_length(const pgp_hash_t* hash);
 
 const char* pgp_hash_name(const pgp_hash_t* hash);
 
 pgp_hash_alg_t pgp_str_to_hash_alg(const char *);
-unsigned pgp_hash_size(pgp_hash_alg_t alg);
 
 #endif

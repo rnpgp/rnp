@@ -1357,16 +1357,16 @@ pgp_push_checksum_writer(pgp_output_t *output, pgp_seckey_t *seckey)
 		/* configure the arg */
 		/* Hardcoded SHA1 for just now */
 		sum->hash_alg = PGP_HASH_SHA1;
-		hashsize = pgp_hash_size(sum->hash_alg);
-		if ((sum->hashed = seckey->checkhash) == NULL) {
-			sum->hashed = seckey->checkhash = calloc(1, hashsize);
-		}
 		/* init the hash */
 		if (!pgp_hash_create(&sum->hash, sum->hash_alg)) {
 			(void) fprintf(stderr,
 				"pgp_push_checksum_writer: bad hash init\n");
 			/* just continue and die */
 			/* XXX - agc - no way to return failure */
+		}
+		hashsize = pgp_hash_output_length(&sum->hash);
+		if ((sum->hashed = seckey->checkhash) == NULL) {
+			sum->hashed = seckey->checkhash = calloc(1, hashsize);
 		}
 		pgp_writer_push(output, skey_checksum_writer,
 			skey_checksum_finaliser, skey_checksum_destroyer, sum);
