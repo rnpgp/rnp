@@ -908,7 +908,7 @@ disable_core_dumps(void)
            error = getrlimit(RLIMIT_CORE, &limit);
            if(error)
               {
-              return error;
+              return -1;
               }
            else if(limit.rlim_cur == 0)
               {
@@ -926,8 +926,9 @@ disable_core_dumps(void)
 }
 
 /* Disable core dumps according to the coredumps setting variable.
- * Returns 0 if core dumps are definitely disabled or 1 if core dumps
- * are or are possibly enabled.
+ * Returns 0 if core dumps are definitely disabled, 1 if core dumps
+ * are or are possibly enabled, -1 if we tried to disable them
+ * but possibly failed.
  *
  * This function could benefit from communicating error conditions
  * from disable_core_dumps.
@@ -939,7 +940,7 @@ set_core_dumps(rnp_t *rnp)
 
 	setting = rnp_getvar(rnp, "coredumps") != NULL;
 	if (! setting) {
-		return disable_core_dumps() == 0 ? 1 : 0;
+		return disable_core_dumps() == 1 ? 0 : -1;
 	}
 
 	return 1;
@@ -1240,17 +1241,13 @@ rnp_init(rnp_t *rnp)
 	rnp_setvar(rnp, "subdir_ssh", SUBDIRECTORY_SSH);
 
 	/* Assume that core dumps are always enabled. */
-	coredumps = 1;
+	coredumps = -1;
 
 	/* If system resource constraints are in effect then attempt to
 	 * disable core dumps.
 	 */
 #ifdef HAVE_SYS_RESOURCE_H
 	coredumps = set_core_dumps(rnp);
-	if (coredumps) {
-		fprintf(stderr,
-			"rnp: warning - cannot turn off core dumps\n");
-	}
 #endif
 
 	/* Initialize the context's io streams apparatus. */
@@ -1264,6 +1261,9 @@ rnp_init(rnp_t *rnp)
 	if (! set_pass_fd(rnp))
 		return 0;
 
+	if (coredumps == -1) {
+		fputs("rnp: warning - cannot turn off core dumps\n", io->errs);
+	}
 	if (coredumps) {
 		fputs("rnp: warning: core dumps enabled, "
 		      "sensitive data may be leaked to disk\n", io->errs);
