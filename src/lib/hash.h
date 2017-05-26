@@ -75,17 +75,6 @@ size_t pgp_hash_output_length(pgp_hash_t* hash);
 
 const char* pgp_hash_name(const pgp_hash_t* hash);
 
-#if 0
-int pgp_hash_any(pgp_hash_t *, pgp_hash_alg_t);
-void pgp_hash_md5(pgp_hash_t *);
-void pgp_hash_sha1(pgp_hash_t *);
-void pgp_hash_sha256(pgp_hash_t *);
-void pgp_hash_sha512(pgp_hash_t *);
-void pgp_hash_sha384(pgp_hash_t *);
-void pgp_hash_sha224(pgp_hash_t *);
-void pgp_hash_sm3(pgp_hash_t *);
-#endif
-
 pgp_hash_alg_t pgp_str_to_hash_alg(const char *);
 unsigned pgp_hash_size(pgp_hash_alg_t alg);
 

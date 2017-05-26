@@ -56,7 +56,7 @@
 #include "array.h"
 #include "b64.h"
 #include "bufgap.h"
-#include "digest.h"
+#include "hash.h"
 #include "misc.h"
 #include "pgpsum.h"
 #include "verify.h"
@@ -589,7 +589,7 @@ fmt_key_mpis(pgpv_pubkey_t *pubkey, uint8_t *buf, size_t size)
 static int
 pgpv_calc_fingerprint(pgpv_fingerprint_t *fingerprint, pgpv_pubkey_t *pubkey, const char *hashtype)
 {
-	digest_t	 fphash;
+	pgp_hash_t	 fphash;
 	uint16_t	 cc;
 	uint8_t		 ch = 0x99;
 	uint8_t		 buf[8192 + 2 + 1];
@@ -598,26 +598,26 @@ pgpv_calc_fingerprint(pgpv_fingerprint_t *fingerprint, pgpv_pubkey_t *pubkey, co
 	memset(&fphash, 0x0, sizeof(fphash));
 	if (pubkey->version == 4) {
 		/* v4 keys */
-		fingerprint->hashalg = digest_get_alg(hashtype);
-		digest_init(&fphash, (unsigned)fingerprint->hashalg);
+		fingerprint->hashalg = pgp_str_to_hash_alg(hashtype);
+		pgp_hash_create(&fphash, fingerprint->hashalg);
 		cc = fmt_key_mpis(pubkey, buf, sizeof(buf));
-		digest_update(&fphash, &ch, 1);
+		pgp_hash_add(&fphash, &ch, 1);
 		fmt_16(len, cc);
-		digest_update(&fphash, len, 2);
-		digest_update(&fphash, buf, (unsigned)cc);
-		fingerprint->len = digest_final(fingerprint->v, &fphash);
+		pgp_hash_add(&fphash, len, 2);
+		pgp_hash_add(&fphash, buf, (unsigned)cc);
+		fingerprint->len = pgp_hash_finish(&fphash, fingerprint->v);
 		return 1;
 	}
 	if (ALG_IS_RSA(pubkey->keyalg)) {
 		/* v3 keys are RSA */
-		fingerprint->hashalg = digest_get_alg("md5");
-		digest_init(&fphash, (unsigned)fingerprint->hashalg);
+                fingerprint->hashalg = PGP_HASH_MD5;
+		pgp_hash_create(&fphash, fingerprint->hashalg);
 		if (pubkey->bn[RSA_N].bn && pubkey->bn[RSA_E].bn) {
 			cc = fmt_binary_mpi(&pubkey->bn[RSA_N], buf, sizeof(buf));
-			digest_update(&fphash, &buf[2], (unsigned)(cc - 2));
+			pgp_hash_add(&fphash, &buf[2], (unsigned)(cc - 2));
 			cc = fmt_binary_mpi(&pubkey->bn[RSA_E], buf, sizeof(buf));
-			digest_update(&fphash, &buf[2], (unsigned)(cc - 2));
-			fingerprint->len = digest_final(fingerprint->v, &fphash);
+			pgp_hash_add(&fphash, &buf[2], (unsigned)(cc - 2));
+			fingerprint->len = pgp_hash_finish(&fphash, fingerprint->v);
 			return 1;
 		}
 	}
@@ -2245,7 +2245,7 @@ read_ssh_file(pgpv_t *pgp, pgpv_primarykey_t *primary, const char *fmt, ...)
 	bufgap_seek(&bg, len, BGFromHere, BGByte);
 
 	pubkey = &primary->primary;
-	pubkey->hashalg = digest_get_alg("sha256"); /* gets fixed up later */
+	pubkey->hashalg = PGP_HASH_SHA256;
 	pubkey->version = 4;
 	pubkey->birth = 0; /* gets fixed up later */
 

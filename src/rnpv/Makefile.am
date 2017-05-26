@@ -5,7 +5,6 @@ bin_PROGRAMS		= rnpv
 rnpv_SOURCES	= \
 	b64.c \
 	bufgap.c \
-	digest.c \
 	libverify.c \
 	main.c \
 	misc.c \
