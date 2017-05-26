@@ -61,39 +61,13 @@
 #include "packet.h"
 #include "memory.h"
 #include "packet-parse.h"
+#include "symmetric.h"
 #include "bn.h"
 
 #define PGP_MIN_HASH_SIZE	16
 
 struct PGPV_BIGNUM_st {
    botan_mp_t mp;
-};
-
-/** pgp_crypt_t */
-struct pgp_crypt_t {
-	pgp_symm_alg_t	alg;
-	size_t			blocksize;
-	size_t			keysize;
-	void 			(*set_iv)(pgp_crypt_t *, const uint8_t *);
-	void			(*set_crypt_key)(pgp_crypt_t *, const uint8_t *);
-	int			(*base_init)(pgp_crypt_t *);
-	void			(*decrypt_resync)(pgp_crypt_t *);
-	/* encrypt/decrypt one block */
-	void			(*block_encrypt)(pgp_crypt_t *, uint8_t *, const uint8_t *);
-	void			(*block_decrypt)(pgp_crypt_t *, uint8_t *, const uint8_t *);
-	/* Standard CFB encrypt/decrypt (as used by Sym Enc Int Prot packets) */
-	void 			(*cfb_encrypt)(pgp_crypt_t *, uint8_t *, const uint8_t *, size_t);
-	void			(*cfb_decrypt)(pgp_crypt_t *, uint8_t *, const uint8_t *, size_t);
-	void			(*decrypt_finish)(pgp_crypt_t *);
-	uint8_t			iv[PGP_MAX_BLOCK_SIZE];
-	uint8_t			civ[PGP_MAX_BLOCK_SIZE];
-	uint8_t			siv[PGP_MAX_BLOCK_SIZE];
-		/* siv is needed for weird v3 resync */
-	uint8_t			key[PGP_MAX_KEY_SIZE];
-	int			num;
-		/* num is offset for CFB */
-	struct botan_block_cipher_struct			*block_cipher_obj;
-
 };
 
 void pgp_crypto_finish(void);
@@ -180,23 +154,6 @@ int pgp_elgamal_private_decrypt_pkcs1(
         size_t length,
 		const pgp_elgamal_seckey_t *seckey,
 		const pgp_elgamal_pubkey_t *pubkey);
-
-pgp_symm_alg_t pgp_str_to_cipher(const char *);
-unsigned pgp_block_size(pgp_symm_alg_t);
-unsigned pgp_key_size(pgp_symm_alg_t);
-
-int pgp_decrypt_data(pgp_content_enum, pgp_region_t *,
-			pgp_stream_t *);
-
-int pgp_crypt_any(pgp_crypt_t *, pgp_symm_alg_t);
-int pgp_decrypt_init(pgp_crypt_t *);
-int pgp_encrypt_init(pgp_crypt_t *);
-
-size_t pgp_decrypt_se(pgp_crypt_t *, void *, const void *, size_t);
-size_t pgp_encrypt_se(pgp_crypt_t *, void *, const void *, size_t);
-size_t pgp_decrypt_se_ip(pgp_crypt_t *, void *, const void *, size_t);
-size_t pgp_encrypt_se_ip(pgp_crypt_t *, void *, const void *, size_t);
-unsigned pgp_is_sa_supported(pgp_symm_alg_t);
 
 void pgp_reader_push_decrypt(pgp_stream_t *, pgp_crypt_t *,
 			pgp_region_t *);
