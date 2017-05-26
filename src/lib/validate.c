@@ -190,15 +190,12 @@ check_binary_sig(const uint8_t *data,
 	uint8_t		hashout[PGP_MAX_HASH_SIZE];
 	uint8_t		trailer[6];
 
-	if (!pgp_hash_any(&hash, sig->info.hash_alg)) {
+	if (!pgp_hash_create(&hash, sig->info.hash_alg)) {
+		(void) fprintf(stderr, "check_binary_sig: bad hash init\n");
 		return 0;
         }
 
-	if (!hash.init(&hash)) {
-		(void) fprintf(stderr, "check_binary_sig: bad hash init\n");
-		return 0;
-	}
-	hash.add(&hash, data, len);
+	pgp_hash_add(&hash, data, len);
 	switch (sig->info.version) {
 	case PGP_V3:
 		trailer[0] = sig->info.type;
@@ -206,7 +203,7 @@ check_binary_sig(const uint8_t *data,
 		trailer[2] = (unsigned)(sig->info.birthtime) >> 16;
 		trailer[3] = (unsigned)(sig->info.birthtime) >> 8;
 		trailer[4] = (uint8_t)(sig->info.birthtime);
-		hash.add(&hash, trailer, 5);
+		pgp_hash_add(&hash, trailer, 5);
 		break;
 
 	case PGP_V4:
@@ -214,7 +211,7 @@ check_binary_sig(const uint8_t *data,
 			hexdump(stderr, "v4 hash", sig->info.v4_hashed,
 					sig->info.v4_hashlen);
 		}
-		hash.add(&hash, sig->info.v4_hashed, (unsigned)sig->info.v4_hashlen);
+		pgp_hash_add(&hash, sig->info.v4_hashed, (unsigned)sig->info.v4_hashlen);
 		trailer[0] = 0x04;	/* version */
 		trailer[1] = 0xFF;
 		hashedlen = (unsigned)sig->info.v4_hashlen;
@@ -222,7 +219,7 @@ check_binary_sig(const uint8_t *data,
 		trailer[3] = (uint8_t)(hashedlen >> 16);
 		trailer[4] = (uint8_t)(hashedlen >> 8);
 		trailer[5] = (uint8_t)(hashedlen);
-		hash.add(&hash, trailer, 6);
+		pgp_hash_add(&hash, trailer, 6);
 		break;
 
 	default:
@@ -231,7 +228,7 @@ check_binary_sig(const uint8_t *data,
 		return 0;
 	}
 
-	n = hash.finish(&hash, hashout);
+	n = pgp_hash_finish(&hash, hashout);
 	if (pgp_get_debug_level(__FILE__)) {
 		hexdump(stdout, "hash out", hashout, n);
 	}

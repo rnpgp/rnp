@@ -281,7 +281,7 @@ hash_bn(pgp_hash_t *hash, BIGNUM *bignum)
 
 	if (BN_is_zero(bignum)) {
 		length[0] = length[1] = 0;
-		hash->add(hash, length, 2);
+                pgp_hash_add(hash, length, 2);
 		return 1;
 	}
 	if ((bits = (size_t) BN_num_bits(bignum)) < 1) {
@@ -299,8 +299,8 @@ hash_bn(pgp_hash_t *hash, BIGNUM *bignum)
 	BN_bn2bin(bignum, bn);
 	length[0] = (uint8_t)((bits >> 8) & 0xff);
 	length[1] = (uint8_t)(bits & 0xff);
-	hash->add(hash, length, 2);
-	hash->add(hash, bn, bytes);
+        pgp_hash_add(hash, length, 2);
+        pgp_hash_add(hash, bn, bytes);
 	free(bn);
 	return 1;
 }
@@ -308,8 +308,8 @@ hash_bn(pgp_hash_t *hash, BIGNUM *bignum)
 static int
 hash_key_material(const pgp_seckey_t *key, uint8_t *result) {
 	pgp_hash_t hash;
-	pgp_hash_sha1(&hash);
-	hash.init(&hash);
+        pgp_hash_create(&hash, PGP_HASH_SHA1);
+
 	switch (key->pubkey.alg) {
 	case PGP_PKA_RSA:
 	case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -328,7 +328,7 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result) {
 	default:
 		return 0;
 	}
-	hash.finish(&hash, result);
+        pgp_hash_finish(&hash, result);
 	return 1;
 }
 
@@ -431,15 +431,16 @@ write_seckey_body(const pgp_seckey_t *key,
 			uint8_t		zero = 0;
 
 			/* Hard-coded SHA1 for session key */
-			pgp_hash_any(&hash, PGP_HASH_SHA1);
+			if (!pgp_hash_create(&hash, PGP_HASH_SHA1))
+                           {
+                           (void) fprintf(stderr, "pgp_hash_create(SHA1) failed in write_seckey_body\n");
+                           return 0;
+                           }
+
 			hashsize = pgp_hash_size(key->hash_alg);
 			needed = PGP_CAST_KEY_LENGTH - done;
 			size = MIN(needed, hashsize);
 			if ((hashed = calloc(1, hashsize)) == NULL) {
-				(void) fprintf(stderr, "write_seckey_body: bad alloc\n");
-				return 0;
-			}
-			if (!hash.init(&hash)) {
 				(void) fprintf(stderr, "write_seckey_body: bad alloc\n");
 				return 0;
 			}
@@ -453,14 +454,14 @@ write_seckey_body(const pgp_seckey_t *key,
 				 * not used. This will change however when
 				 * other algorithms are supported.
 				 */
-				hash.add(&hash, &zero, 1);
+                                pgp_hash_add(&hash, &zero, 1);
 			}
 
 			if (key->s2k_specifier == PGP_S2KS_SALTED) {
-				hash.add(&hash, key->salt, PGP_SALT_SIZE);
+                                pgp_hash_add(&hash, key->salt, PGP_SALT_SIZE);
 			}
-			hash.add(&hash, passphrase, (unsigned)pplen);
-			hash.finish(&hash, hashed);
+                        pgp_hash_add(&hash, passphrase, (unsigned)pplen);
+                        pgp_hash_finish(&hash, hashed);
 
 			/*
 			 * if more in hash than is needed by session key, use

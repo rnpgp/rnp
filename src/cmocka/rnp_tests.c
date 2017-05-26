@@ -248,14 +248,13 @@ static void hash_test_success(void **state)
 
         assert_int_equal(hash_size*2, strlen(hash_alg_expected_outputs[i]));
 
-        assert_int_equal(1, pgp_hash_any(&hash, hash_algs[i]));
+        assert_int_equal(1, pgp_hash_create(&hash, hash_algs[i]));
 
-        hash.init(&hash);
-        hash.add(&hash, test_input, 1);
-        hash.add(&hash, test_input + 1, sizeof(test_input) - 1);
-        hash.finish(&hash, hash_output);
+        pgp_hash_add(&hash, test_input, 1);
+        pgp_hash_add(&hash, test_input + 1, sizeof(test_input) - 1);
+        pgp_hash_finish(&hash, hash_output);
 
-        test_value_equal(hash.name,
+        test_value_equal(pgp_hash_name(&hash),
                          hash_alg_expected_outputs[i],
                          hash_output, hash_size);
     }

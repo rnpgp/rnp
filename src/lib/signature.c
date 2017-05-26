@@ -150,7 +150,7 @@ rsa_sign(pgp_hash_t *hash,
 	uint8_t		sigbuf[RNP_BUFSIZ];
 	BIGNUM         *bn;
 
-        hash_size = hash->finish(hash, hashbuf);
+        hash_size = pgp_hash_finish(hash, hashbuf);
 
         /**
         * The high 16 bits (first two octets) of the hash are included
@@ -160,7 +160,8 @@ rsa_sign(pgp_hash_t *hash,
 	pgp_write(out, &hashbuf[0], 2);
 
 	sig_size = pgp_rsa_pkcs1_sign_hash(sigbuf, sizeof(sigbuf),
-                                           hash->name, hashbuf, hash_size,
+                                           pgp_hash_name(hash),
+                                           hashbuf, hash_size,
                                            secrsa, pubrsa);
 	if (sig_size == 0) {
 		(void) fprintf(stderr, "rsa_sign: pgp_rsa_pkcs1_sign_hash failed\n");
@@ -190,7 +191,7 @@ dsa_sign(pgp_hash_t *hash,
 	hashsize = 20;
 
 	/* finalise hash */
-	t = hash->finish(hash, &hashbuf[0]);
+	t = pgp_hash_finish(hash, &hashbuf[0]);
 	if (t != 20) {
 		(void) fprintf(stderr, "dsa_sign: hashfinish not 20\n");
 		return 0;
@@ -249,27 +250,15 @@ hash_add_key(pgp_hash_t *hash, const pgp_pubkey_t *key)
 	len = pgp_mem_len(mem);
 	pgp_hash_add_int(hash, 0x99, 1);
 	pgp_hash_add_int(hash, (unsigned)len, 2);
-	hash->add(hash, pgp_mem_data(mem), (unsigned)len);
+	pgp_hash_add(hash, pgp_mem_data(mem), (unsigned)len);
 	pgp_memory_free(mem);
-}
-
-static void 
-initialise_hash(pgp_hash_t *hash, const pgp_sig_t *sig)
-{
-	pgp_hash_any(hash, sig->info.hash_alg);
-	if (!hash->init(hash)) {
-		(void) fprintf(stderr,
-			"initialise_hash: bad hash init\n");
-		/* just continue and die */
-		/* XXX - agc - no way to return failure */
-	}
 }
 
 static void 
 init_key_sig(pgp_hash_t *hash, const pgp_sig_t *sig,
 		   const pgp_pubkey_t *key)
 {
-	initialise_hash(hash, sig);
+        pgp_hash_create(hash, sig->info.hash_alg);
 	hash_add_key(hash, key);
 }
 
@@ -279,7 +268,7 @@ hash_add_trailer(pgp_hash_t *hash, const pgp_sig_t *sig,
 {
 	if (sig->info.version == PGP_V4) {
 		if (raw_packet) {
-			hash->add(hash, raw_packet + sig->v4_hashstart,
+			pgp_hash_add(hash, raw_packet + sig->v4_hashstart,
 				  (unsigned)sig->info.v4_hashlen);
 		}
 		pgp_hash_add_int(hash, (unsigned)sig->info.version, 1);
@@ -340,7 +329,7 @@ hash_and_check_sig(pgp_hash_t *hash,
 	uint8_t   hashout[PGP_MAX_HASH_SIZE];
 	unsigned	n;
 
-	n = hash->finish(hash, hashout);
+	n = pgp_hash_finish(hash, hashout);
 	return pgp_check_sig(hashout, n, sig, signer);
 }
 
@@ -382,7 +371,7 @@ pgp_check_useridcert_sig(const pgp_pubkey_t *key,
 		pgp_hash_add_int(&hash, 0xb4, 1);
 		pgp_hash_add_int(&hash, (unsigned)userid_len, 4);
 	}
-	hash.add(&hash, id, (unsigned)userid_len);
+	pgp_hash_add(&hash, id, (unsigned)userid_len);
 	return finalise_sig(&hash, sig, signer, raw_packet);
 }
 
@@ -412,7 +401,7 @@ pgp_check_userattrcert_sig(const pgp_pubkey_t *key,
 		pgp_hash_add_int(&hash, 0xd1, 1);
 		pgp_hash_add_int(&hash, (unsigned)attribute->len, 4);
 	}
-	hash.add(&hash, attribute->contents, (unsigned)attribute->len);
+	pgp_hash_add(&hash, attribute->contents, (unsigned)attribute->len);
 	return finalise_sig(&hash, sig, signer, raw_packet);
 }
 
@@ -540,7 +529,7 @@ pgp_sig_start_key_sig(pgp_create_sig_t *sig,
 	init_key_sig(&sig->hash, &sig->sig, key);
 	pgp_hash_add_int(&sig->hash, 0xb4, 1);
 	pgp_hash_add_int(&sig->hash, (unsigned)strlen((const char *) id), 4);
-	sig->hash.add(&sig->hash, id, (unsigned)strlen((const char *) id));
+	pgp_hash_add(&sig->hash, id, (unsigned)strlen((const char *) id));
 	start_sig_in_mem(sig);
 }
 
@@ -594,7 +583,7 @@ pgp_start_sig(pgp_create_sig_t *sig,
 	if (pgp_get_debug_level(__FILE__)) {
 		fprintf(stderr, "initialising hash for sig in mem\n");
 	}
-	initialise_hash(&sig->hash, &sig->sig);
+        pgp_hash_create(&sig->hash, sig->sig.info.hash_alg);
 	start_sig_in_mem(sig);
 }
 
@@ -610,7 +599,7 @@ pgp_start_sig(pgp_create_sig_t *sig,
 void 
 pgp_sig_add_data(pgp_create_sig_t *sig, const void *buf, size_t length)
 {
-	sig->hash.add(&sig->hash, buf, (unsigned)length);
+	pgp_hash_add(&sig->hash, buf, (unsigned)length);
 }
 
 /**
@@ -689,7 +678,7 @@ pgp_write_sig(pgp_output_t *output,
 	if (pgp_get_debug_level(__FILE__)) {
 		(void) fprintf(stderr, "ops_write_sig: hashed packet info\n");
 	}
-	sig->hash.add(&sig->hash, pgp_mem_data(sig->mem), sig->unhashoff);
+	pgp_hash_add(&sig->hash, pgp_mem_data(sig->mem), sig->unhashoff);
 
 	/* add final trailer */
 	pgp_hash_add_int(&sig->hash, (unsigned)sig->sig.info.version, 1);
@@ -948,7 +937,7 @@ pgp_sign_file(pgp_io_t *io,
 
 		/* hash file contents */
 		hash = pgp_sig_get_hash(sig);
-		hash->add(hash, pgp_mem_data(infile), (unsigned)pgp_mem_len(infile));
+		pgp_hash_add(hash, pgp_mem_data(infile), (unsigned)pgp_mem_len(infile));
 
 #if 1
 		/* output file contents as Literal Data packet */
@@ -1086,7 +1075,7 @@ pgp_sign_buf(pgp_io_t *io,
 
 		/* hash memory */
 		hash = pgp_sig_get_hash(sig);
-		hash->add(hash, input, (unsigned)insize);
+		pgp_hash_add(hash, input, (unsigned)insize);
 
 		/* output file contents as Literal Data packet */
 		if (pgp_get_debug_level(__FILE__)) {
