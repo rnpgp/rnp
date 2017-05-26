@@ -1578,7 +1578,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 	case PGP_PTAG_CT_SIGNED_CLEARTEXT_TRAILER:
 		print_tagname(print->indent, "SIGNED CLEARTEXT TRAILER");
 		printf("hash algorithm: %d\n",
-		       content->cleartext_trailer->alg);
+		       pgp_hash_alg_type(content->cleartext_trailer));
 		printf("\n");
 		break;
 

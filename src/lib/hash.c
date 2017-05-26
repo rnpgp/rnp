@@ -205,8 +205,8 @@ pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
                 return 0;
         }
 
-        hash->output_len = outlen;
-        hash->alg = alg;
+        hash->_output_len = outlen;
+        hash->_alg = alg;
         hash->handle = impl;
         return 1;
 }
@@ -237,19 +237,15 @@ pgp_hash_add_int(pgp_hash_t *hash, unsigned n, size_t length)
 
 size_t pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
 {
-        size_t outlen;
-        int rc = botan_hash_output_length(hash->handle, &outlen);
-        if (rc != 0) {
-                (void) fprintf(stderr, "digest_finish botan_hash_output_length failed");
-                return 0;
-        }
-        rc = botan_hash_final(hash->handle, out);
+        size_t outlen = hash->_output_len;
+        int rc = botan_hash_final(hash->handle, out);
         if (rc != 0) {
                 (void) fprintf(stderr, "digest_finish botan_hash_final failed");
                 return 0;
         }
         botan_hash_destroy(hash->handle);
 	hash->handle = NULL;
+        hash->_output_len = 0;
 	return outlen;
 }
 
@@ -262,12 +258,17 @@ size_t pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
 const char     *
 pgp_hash_name(const pgp_hash_t *hash)
 {
-        return pgp_show_hash_alg(hash->alg);
+        return pgp_show_hash_alg(hash->_alg);
 }
 
 size_t pgp_hash_output_length(const pgp_hash_t* hash)
 {
-        return hash->output_len;
+        return hash->_output_len;
+}
+
+pgp_hash_alg_t pgp_hash_alg_type(const pgp_hash_t* hash)
+{
+        return hash->_alg;
 }
 
 /**

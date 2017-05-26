@@ -475,7 +475,7 @@ pgp_check_hash_sig(pgp_hash_t *hash,
 			 const pgp_sig_t *sig,
 			 const pgp_pubkey_t *signer)
 {
-	return (sig->info.hash_alg == hash->alg) ?
+       return (sig->info.hash_alg == pgp_hash_alg_type(hash)) ?
 		finalise_sig(hash, sig, signer, NULL) :
 		0;
 }
