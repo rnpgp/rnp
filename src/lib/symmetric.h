@@ -73,7 +73,6 @@ unsigned pgp_block_size(pgp_symm_alg_t);
 unsigned pgp_key_size(pgp_symm_alg_t);
 unsigned pgp_is_sa_supported(pgp_symm_alg_t);
 
-
 int pgp_crypt_any(pgp_crypt_t *, pgp_symm_alg_t);
 int pgp_decrypt_init(pgp_crypt_t *);
 int pgp_encrypt_init(pgp_crypt_t *);
@@ -99,38 +98,5 @@ size_t pgp_decrypt_se(pgp_crypt_t *, void *, const void *, size_t);
 size_t pgp_encrypt_se(pgp_crypt_t *, void *, const void *, size_t);
 size_t pgp_decrypt_se_ip(pgp_crypt_t *, void *, const void *, size_t);
 size_t pgp_encrypt_se_ip(pgp_crypt_t *, void *, const void *, size_t);
-
-
-#if 0
-// Initialize a cipher object
-void pgp_cipher_create(pgp_cipher_t** cipher, pgp_symm_alg_t algo);
-
-// Destroy a cipher object, freeing all resources
-void pgp_cipher_finish(pgp_cipher_t* cipher);
-
-// Return blocksize of cipher or 0 if error
-size_t pgp_cipher_blocksize(const pgp_cipher_t* cipher);
-
-// Return key length of cipher or 0 if error
-size_t pgp_cipher_keysize(const pgp_cipher_t* cipher);
-
-// IV is always pgp_cipher_blocksize(cipher) bytes long
-void pgp_cipher_set_iv(pgp_cipher_t* cipher, const uint8_t iv[]);
-
-// Key is always pgp_cipher_keysize(cipher) bytes long
-void pgp_cipher_set_key(pgp_cipher_t* cipher, const uint8_t key[]);
-
-void pgp_cipher_decrypt_resync(pgp_cipher_t* cipher);
-
-void pgp_cipher_block_encrypt(const pgp_cipher_t* cipher, uint8_t *block_out, const uint8_t *block_in);
-void pgp_cipher_block_decrypt(const pgp_cipher_t* cipher, uint8_t *block_out, const uint8_t *block_in);
-
-void pgp_cipher_cfb_encrypt(const pgp_cipher_t* cipher, uint8_t *text_out, const uint8_t *text_in, size_t len);
-void pgp_cipher_cfb_decrypt(const pgp_cipher_t* cipher, uint8_t *text_out, const uint8_t *text_in, size_t len);
-
-// FIXME remove this
-#define pgp_crypt_t pgp_cipher_t
-#endif
-
 
 #endif
