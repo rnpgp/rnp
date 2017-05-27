@@ -571,6 +571,7 @@ process_dash_escaped(pgp_stream_t *stream, dearmour_t *dearmour,
 	const char		*hashstr;
 	pgp_hash_t		*hash;
 	int			 total;
+        pgp_hash_alg_t alg = PGP_HASH_MD5; // default
 
 	body = &content.u.cleartext_body;
 	if ((hash = calloc(1, sizeof(*hash))) == NULL) {
@@ -580,8 +581,6 @@ process_dash_escaped(pgp_stream_t *stream, dearmour_t *dearmour,
 	}
 	hashstr = find_header(&dearmour->headers, "Hash");
 	if (hashstr) {
-		pgp_hash_alg_t alg;
-
 		alg = pgp_str_to_hash_alg(hashstr);
 		if (!pgp_is_hash_alg_supported(&alg)) {
 			free(hash);
@@ -595,12 +594,9 @@ process_dash_escaped(pgp_stream_t *stream, dearmour_t *dearmour,
 				"Unknown hash algorithm '%s'", hashstr);
 			return -1;
 		}
-		pgp_hash_any(hash, alg);
-	} else {
-		pgp_hash_md5(hash);
 	}
 
-	if (!hash->init(hash)) {
+	if (!pgp_hash_create(hash, alg)) {
 		PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s",
 			"can't initialise hash");
 		return -1;
@@ -655,9 +651,9 @@ process_dash_escaped(pgp_stream_t *stream, dearmour_t *dearmour,
 				return -1;
 			}
 			if (body->data[0] == '\n') {
-				hash->add(hash, (const uint8_t *)"\r", 1);
+                                pgp_hash_add(hash, (const uint8_t *)"\r", 1);
 			}
-			hash->add(hash, body->data, body->length);
+			pgp_hash_add(hash, body->data, body->length);
 			if (pgp_get_debug_level(__FILE__)) {
 				fprintf(stderr, "Got body:\n%s\n", body->data);
 			}
@@ -1590,8 +1586,7 @@ se_ip_data_reader(pgp_stream_t *stream, void *dest_,
 		size_t          sz_mdc;
 		size_t          sz_plaintext;
 
-		pgp_hash_any(&hash, PGP_HASH_SHA1);
-		if (!hash.init(&hash)) {
+		if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
 			(void) fprintf(stderr,
 				"se_ip_data_reader: can't init hash\n");
 			return -1;
@@ -2310,7 +2305,7 @@ hash_reader(pgp_stream_t *stream, void *dest,
 	if (r <= 0) {
 		return r;
 	}
-	hash->add(hash, dest, (unsigned)r);
+	pgp_hash_add(hash, dest, (unsigned)r);
 	return r;
 }
 
@@ -2321,11 +2316,6 @@ hash_reader(pgp_stream_t *stream, void *dest,
 void 
 pgp_reader_push_hash(pgp_stream_t *stream, pgp_hash_t *hash)
 {
-	if (!hash->init(hash)) {
-		(void) fprintf(stderr, "pgp_reader_push_hash: can't init hash\n");
-		/* just continue and die */
-		/* XXX - agc - no way to return failure */
-	}
 	pgp_reader_push(stream, hash_reader, NULL, hash);
 }
 

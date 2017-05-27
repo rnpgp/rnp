@@ -2151,8 +2151,7 @@ parse_hash_init(pgp_stream_t *stream, pgp_hash_alg_t type,
 	}
 	hash = &stream->hashes[stream->hashc++];
 
-	pgp_hash_any(&hash->hash, type);
-	if (!hash->hash.init(&hash->hash)) {
+	if (!pgp_hash_create(&hash->hash, type)) {
 		(void) fprintf(stderr, "parse_hash_init: bad alloc\n");
 		/* just continue and die here */
 		/* XXX - agc - no way to return failure */
@@ -2234,7 +2233,7 @@ parse_hash_data(pgp_stream_t *stream, const void *data,
 	size_t          n;
 
 	for (n = 0; n < stream->hashc; ++n) {
-		stream->hashes[n].hash.add(&stream->hashes[n].hash, data, (unsigned)length);
+		pgp_hash_add(&stream->hashes[n].hash, data, (unsigned)length);
 	}
 }
 
@@ -2491,7 +2490,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 
 		/* Hardcoded SHA1 for just now */
 		pkt.u.seckey.hash_alg = PGP_HASH_SHA1;
-		hashsize = pgp_hash_size(pkt.u.seckey.hash_alg);
+		hashsize = 160 / 8; // temporary hack
 		if (hashsize == 0 || hashsize > PGP_MAX_HASH_SIZE) {
 			(void) fprintf(stderr,
 				"parse_seckey: bad hashsize\n");
@@ -2501,16 +2500,14 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 		for (n = 0; n * hashsize < keysize; ++n) {
 			int             i;
 
-			pgp_hash_any(&hashes[n],
-				pkt.u.seckey.hash_alg);
-			if (!hashes[n].init(&hashes[n])) {
+                        if (!pgp_hash_create(&hashes[n], pkt.u.seckey.hash_alg)) {
 				(void) fprintf(stderr,
 					"parse_seckey: bad alloc\n");
 				return 0;
 			}
 			/* preload hashes with zeroes... */
 			for (i = 0; i < n; ++i) {
-				hashes[n].add(&hashes[n],
+				pgp_hash_add(&hashes[n],
 					(const uint8_t *) "", 1);
 			}
 		}
@@ -2520,12 +2517,12 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 
 			switch (pkt.u.seckey.s2k_specifier) {
 			case PGP_S2KS_SALTED:
-				hashes[n].add(&hashes[n],
+				pgp_hash_add(&hashes[n],
 					pkt.u.seckey.salt,
 					PGP_SALT_SIZE);
 				/* FALLTHROUGH */
 			case PGP_S2KS_SIMPLE:
-				hashes[n].add(&hashes[n],
+				pgp_hash_add(&hashes[n],
 					(uint8_t *)passphrase, (unsigned)passlen);
 				break;
 
@@ -2538,12 +2535,12 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 					if (i + j > pkt.u.seckey.octetc && i != 0) {
 						j = pkt.u.seckey.octetc - i;
 					}
-					hashes[n].add(&hashes[n],
+					pgp_hash_add(&hashes[n],
 						pkt.u.seckey.salt,
 						(unsigned)(j > PGP_SALT_SIZE) ?
 							PGP_SALT_SIZE : j);
 					if (j > PGP_SALT_SIZE) {
-						hashes[n].add(&hashes[n],
+						pgp_hash_add(&hashes[n],
 						(uint8_t *) passphrase,
 						j - PGP_SALT_SIZE);
 					}
@@ -2557,7 +2554,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 		for (n = 0; n * hashsize < keysize; ++n) {
 			int	r;
 
-			r = hashes[n].finish(&hashes[n], key + n * hashsize);
+                        r = pgp_hash_finish(&hashes[n], key + n * hashsize);
 			if (r != hashsize) {
 				(void) fprintf(stderr,
 					"parse_seckey: bad r\n");
@@ -2602,7 +2599,10 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 			(void) fprintf(stderr, "parse_seckey: bad alloc\n");
 			return 0;
 		}
-		pgp_hash_sha1(&checkhash);
+                if (!pgp_hash_create(&checkhash, PGP_HASH_SHA1)) {
+			(void) fprintf(stderr, "parse_seckey: bad alloc\n");
+			return 0;
+                }
 		pgp_reader_push_hash(stream, &checkhash);
 	} else {
 		pgp_reader_push_sum16(stream);
@@ -2652,7 +2652,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 		uint8_t   hash[PGP_CHECKHASH_SIZE];
 
 		pgp_reader_pop_hash(stream);
-		checkhash.finish(&checkhash, hash);
+                pgp_hash_finish(&checkhash, hash);
 
 		if (crypted &&
 		    pkt.u.seckey.pubkey.version != PGP_V4) {

@@ -56,6 +56,7 @@
 #define CRYPTO_H_
 
 #include <botan/ffi.h>
+#include "hash.h"
 #include "keyring.h"
 #include "packet.h"
 #include "memory.h"
@@ -66,16 +67,6 @@
 
 struct PGPV_BIGNUM_st {
    botan_mp_t mp;
-};
-
-/** pgp_hash_t */
-struct pgp_hash_t {
-	pgp_hash_alg_t		 alg;		/* algorithm */
-	const char		*name;		/* what it's known as */
-	int			(*init)(pgp_hash_t *);
-	void			(*add)(pgp_hash_t *, const uint8_t *, unsigned);
-	unsigned		(*finish)(pgp_hash_t *, uint8_t *);
-	void		 	*data;		/* blob for data */
 };
 
 /** pgp_crypt_t */
@@ -106,21 +97,6 @@ struct pgp_crypt_t {
 };
 
 void pgp_crypto_finish(void);
-void pgp_hash_md5(pgp_hash_t *);
-void pgp_hash_sha1(pgp_hash_t *);
-void pgp_hash_sha256(pgp_hash_t *);
-void pgp_hash_sha512(pgp_hash_t *);
-void pgp_hash_sha384(pgp_hash_t *);
-void pgp_hash_sha224(pgp_hash_t *);
-void pgp_hash_sm3(pgp_hash_t *);
-
-int pgp_hash_any(pgp_hash_t *, pgp_hash_alg_t);
-pgp_hash_alg_t pgp_str_to_hash_alg(const char *);
-const char *pgp_text_from_hash(pgp_hash_t *);
-unsigned pgp_hash_size(pgp_hash_alg_t);
-unsigned pgp_hash(uint8_t *, pgp_hash_alg_t, const void *, size_t);
-
-void pgp_hash_add_int(pgp_hash_t *, unsigned, unsigned);
 
 unsigned pgp_dsa_verify(const uint8_t *, size_t,
 			const pgp_dsa_sig_t *,

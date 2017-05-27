@@ -403,8 +403,7 @@ pgp_ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey
 		needed = PGP_CAST_KEY_LENGTH - done;
 		size = MIN(needed, PGP_SHA1_HASH_SIZE);
 
-		pgp_hash_any(&hash, key->key.seckey.hash_alg);
-		if (!hash.init(&hash)) {
+		if (!pgp_hash_create(&hash, key->key.seckey.hash_alg)) {
 			(void) fprintf(stderr, "write_seckey_body: bad alloc\n");
 			return 0;
 		}
@@ -418,13 +417,13 @@ pgp_ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey
 			 * not used. This will change however when
 			 * other algorithms are supported.
 			 */
-			hash.add(&hash, &zero, 1);
+			pgp_hash_add(&hash, &zero, 1);
 		}
 
 		if (key->key.seckey.s2k_specifier == PGP_S2KS_SALTED) {
-			hash.add(&hash, key->key.seckey.salt, PGP_SALT_SIZE);
+			pgp_hash_add(&hash, key->key.seckey.salt, PGP_SALT_SIZE);
 		}
-		hash.finish(&hash, hashed);
+		pgp_hash_finish(&hash, hashed);
 
 		/*
 		 * if more in hash than is needed by session key, use

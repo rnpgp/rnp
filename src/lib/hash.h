@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2012 The NetBSD Foundation, Inc.
+ * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -28,56 +28,53 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef DIGEST_H_
-#define DIGEST_H_
 
-#include <sys/types.h>
+#ifndef CRYPTO_HASH_H_
+#define CRYPTO_HASH_H_
 
-#include <inttypes.h>
+#include <stdlib.h>
+#include <stdint.h>
 
-#include "crypto.h"
+/** Hashing Algorithm Numbers.
+ * OpenPGP assigns a unique Algorithm Number to each algorithm that is
+ * part of OpenPGP.
+ *
+ * This lists algorithm numbers for hash algorithms.
+ *
+ * \see RFC4880 9.4
+ */
+typedef enum {
+	PGP_HASH_UNKNOWN = -1,	/* used to indicate errors */
+	PGP_HASH_MD5 = 1,	/* MD5 */
+	PGP_HASH_SHA1 = 2,	/* SHA-1 */
+	PGP_HASH_RIPEMD = 3,	/* RIPEMD160 */
 
-#ifndef __BEGIN_DECLS
-#  if defined(__cplusplus)
-#  define __BEGIN_DECLS           extern "C" {
-#  define __END_DECLS             }
-#  else
-#  define __BEGIN_DECLS
-#  define __END_DECLS
-#  endif
-#endif
+	PGP_HASH_SHA256 = 8,	/* SHA256 */
+	PGP_HASH_SHA384 = 9,	/* SHA384 */
+	PGP_HASH_SHA512 = 10,	/* SHA512 */
+	PGP_HASH_SHA224 = 11,	/* SHA224 */
 
-__BEGIN_DECLS
+	PGP_HASH_SM3    = 105	/* SM3 - temporary allocation in private range */
+} pgp_hash_alg_t;
 
-#define MD5_HASH_ALG		1
-#define SHA1_HASH_ALG		2
-#define RIPEMD_HASH_ALG		3
-#define TIGER_HASH_ALG		6	/* from rfc2440 */
-#define SHA256_HASH_ALG		8
-#define SHA384_HASH_ALG		9
-#define SHA512_HASH_ALG		10
-#define SHA224_HASH_ALG		11
-#define TIGER2_HASH_ALG		100	/* private/experimental from rfc4880 */
+#define	PGP_DEFAULT_HASH_ALGORITHM	PGP_HASH_SHA256
 
-#define SHA256_DIGEST_LENGTH 32
+/** pgp_hash_t */
+typedef struct pgp_hash_t {
+        void                    *handle;        /* hash object */
+        size_t                   _output_len;
+	pgp_hash_alg_t		 _alg;		/* algorithm */
+} pgp_hash_t;
 
-typedef struct pgp_hash_t pgp_hash_t;
+int pgp_hash_create(pgp_hash_t* hash, pgp_hash_alg_t alg);
+void pgp_hash_add(pgp_hash_t* hash, const uint8_t *input, size_t len);
+void pgp_hash_add_int(pgp_hash_t* hash, unsigned n, size_t bytes);
+size_t pgp_hash_finish(pgp_hash_t* hash, uint8_t *output);
 
-/* structure to describe digest methods */
-typedef struct digest_t {
-	uint32_t		 alg;		/* algorithm */
-	pgp_hash_t		 ctx;		/* hash context */
-} digest_t;
+size_t pgp_hash_output_length(const pgp_hash_t* hash);
+const char* pgp_hash_name(const pgp_hash_t* hash);
+pgp_hash_alg_t pgp_hash_alg_type(const pgp_hash_t* hash);
 
-unsigned digest_get_alg(const char */*hashalg*/);
-
-int digest_init(digest_t */*digest*/, const uint32_t /*hashalg*/);
-
-int digest_update(digest_t */*digest*/, const uint8_t */*data*/, size_t /*size*/);
-unsigned digest_final(uint8_t */*out*/, digest_t */*digest*/);
-int digest_alg_size(unsigned /*alg*/);
-int digest_length(digest_t */*hash*/, unsigned /*hashedlen*/);
-
-__END_DECLS
+pgp_hash_alg_t pgp_str_to_hash_alg(const char *);
 
 #endif

@@ -242,20 +242,16 @@ static void hash_test_success(void **state)
 
     for(int i = 0; hash_algs[i] != PGP_HASH_UNKNOWN; ++i)
     {
-        unsigned hash_size = pgp_hash_size(hash_algs[i]);
-
-        //printf("Testing hash # %d size %d\n", i+1, hash_size);
+        assert_int_equal(1, pgp_hash_create(&hash, hash_algs[i]));
+        unsigned hash_size = pgp_hash_output_length(&hash);
 
         assert_int_equal(hash_size*2, strlen(hash_alg_expected_outputs[i]));
 
-        assert_int_equal(1, pgp_hash_any(&hash, hash_algs[i]));
+        pgp_hash_add(&hash, test_input, 1);
+        pgp_hash_add(&hash, test_input + 1, sizeof(test_input) - 1);
+        pgp_hash_finish(&hash, hash_output);
 
-        hash.init(&hash);
-        hash.add(&hash, test_input, 1);
-        hash.add(&hash, test_input + 1, sizeof(test_input) - 1);
-        hash.finish(&hash, hash_output);
-
-        test_value_equal(hash.name,
+        test_value_equal(pgp_hash_name(&hash),
                          hash_alg_expected_outputs[i],
                          hash_output, hash_size);
     }
