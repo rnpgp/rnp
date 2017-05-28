@@ -79,6 +79,7 @@
 #include "crypto.h"
 #include "readerwriter.h"
 #include "rnpdefs.h"
+#include "s2k.h"
 
 #include <string.h>
 
@@ -386,12 +387,12 @@ rsa_generate_keypair(pgp_key_t *keydata,
 
         seckey->s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
         seckey->s2k_specifier = PGP_S2KS_SALTED;
-        /* seckey->s2k_specifier=PGP_S2KS_SIMPLE; */
+        seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
+
         if ((seckey->hash_alg = pgp_str_to_hash_alg(hashalg)) == PGP_HASH_UNKNOWN) {
                 seckey->hash_alg = PGP_HASH_SHA1;
         }
         seckey->alg = pgp_str_to_cipher(cipher);
-        seckey->octetc = 0;
         seckey->checksum = 0;
 
         seckey->key.rsa.d = new_BN_take_mp(rsa_d);

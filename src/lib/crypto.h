@@ -62,7 +62,6 @@
 #include "memory.h"
 #include "packet-parse.h"
 #include "symmetric.h"
-//#include "s2k.h"
 #include "bn.h"
 
 #define PGP_MIN_HASH_SIZE	16
