@@ -6,7 +6,7 @@ AM_LDFLAGS              = $(BOTAN_LDFLAGS)
 
 lib_LTLIBRARIES		= librnp.la
 
-librnp_la_CPPFLAGS	= -I$(top_srcdir)/include -I$(top_srcdir)/src/libmj
+librnp_la_CPPFLAGS	= -I$(top_srcdir)/include
 
 librnp_la_SOURCES	= \
 	bufgap.c \
@@ -32,6 +32,6 @@ librnp_la_SOURCES	= \
 	validate.c \
 	writer.c
 
-librnp_la_LIBADD	= ../libmj/libmj.la $(BOTAN_LIBS) $(JSON_LIBS)
+librnp_la_LIBADD	= $(BOTAN_LIBS) $(JSON_LIBS)
 
 dist_man_MANS		= librnp.3

@@ -57,7 +57,6 @@
 
 #include "packet.h"
 #include "packet-parse.h"
-#include "mj.h"
 #include <json.h>
 
 enum {

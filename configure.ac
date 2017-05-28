@@ -118,7 +118,6 @@ AC_CONFIG_FILES([
         Makefile
         include/Makefile
         src/Makefile
-        src/libmj/Makefile
         src/lib/Makefile
         src/rnp/Makefile
         src/rnpkeys/Makefile

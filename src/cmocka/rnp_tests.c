@@ -40,7 +40,6 @@
 #include <crypto.h>
 #include <keyring.h>
 #include <packet.h>
-#include <mj.h>
 #include <bn.h>
 
 #include <rnp.h>
