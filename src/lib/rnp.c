@@ -639,10 +639,9 @@ p(FILE *fp, const char *s, ...)
 
 /* print a JSON object to the FILE stream */
 static void
-pobj(FILE *fp, mj_t *obj, int depth)
+pobj(FILE *fp,  json_object *obj, int depth)
 {
 	unsigned	 i;
-	char		*s;
 
 	if (obj == NULL) {
 		(void) fprintf(stderr, "No object found\n");
@@ -651,40 +650,36 @@ pobj(FILE *fp, mj_t *obj, int depth)
 	for (i = 0 ; i < (unsigned)depth ; i++) {
 		p(fp, " ", NULL);
 	}
-	switch(obj->type) {
-	case MJ_NULL:
-	case MJ_FALSE:
-	case MJ_TRUE:
-		p(fp, (obj->type == MJ_NULL) ? "null" : (obj->type == MJ_FALSE) ? "false" : "true", NULL);
+	switch(json_object_get_type(obj)) {
+	case json_type_null:
+		p(fp, "null", NULL);
+	case json_type_boolean:
+		p(fp, json_object_get_boolean(obj) ? "true" : "false", NULL);
 		break;
-	case MJ_NUMBER:
-		p(fp, obj->value.s, NULL);
+	case json_type_int:
+        fprintf(fp,"%d",json_object_get_int(obj));
 		break;
-	case MJ_STRING:
-		if ((i = mj_asprint(&s, obj, MJ_HUMAN)) > 2) {
-			(void) fprintf(fp, "%.*s", (int)i - 2, &s[1]);
-			free(s);
-		}
+	case json_type_string:
+        fprintf(fp,"%s",json_object_get_string(obj));
 		break;
-	case MJ_ARRAY:
-		for (i = 0 ; i < obj->c ; i++) {
-			pobj(fp, &obj->value.v[i], depth + 1);
-			if (i < obj->c - 1) {
-				(void) fprintf(fp, ", "); 
-			}
-		}
-		(void) fprintf(fp, "\n"); 
+	case json_type_array:;
+        int arrsize = json_object_array_length(obj);
+        int i;
+        for (i = 0 ; i < arrsize ; i++) {
+            json_object *item = json_object_array_get_idx(obj, i);
+            pobj(fp,item,depth+1);
+            if(i<arrsize-1){
+				(void) fprintf(fp, ", ");
+            }
+        }
+		(void) fprintf(fp, "\n");
 		break;
-	case MJ_OBJECT:
-		for (i = 0 ; i < obj->c ; i += 2) {
-			pobj(fp, &obj->value.v[i], depth + 1);
-			p(fp, ": ", NULL); 
-			pobj(fp, &obj->value.v[i + 1], 0);
-			if (i < obj->c - 1) {
-				p(fp, ", ", NULL); 
-			}
-		}
-		p(fp, "\n", NULL); 
+	case json_type_object: ;
+        json_object_object_foreach(obj, key, val) {
+            printf("key: \"%s\"\n", key);
+			pobj(fp, val, depth+1);
+        }
+		p(fp, "\n", NULL);
 		break;
 	default:
 		break;
@@ -707,77 +702,96 @@ ptimestr(char *dest, size_t size, time_t t)
 
 /* format a JSON object */
 static void
-format_json_key(FILE *fp, mj_t *obj, const int psigs)
+format_json_key(FILE *fp, json_object *obj, const int psigs)
 {
 	int64_t	 birthtime;
 	int64_t	 duration;
 	time_t	 now;
 	char	 tbuf[32];
-	char	*s;
-	mj_t	*sub;
-	int	 i;
 
 	if (pgp_get_debug_level(__FILE__)) {
-		mj_asprint(&s, obj, MJ_HUMAN);
-		(void) fprintf(stderr, "formatobj: json is '%s'\n", s);
-		free(s);
+		(void) fprintf(stderr, "formatobj: json is '%s'\n", json_object_to_json_string(obj));
 	}
+#if 0 //?
 	if (obj->c == 2 && obj->value.v[1].type == MJ_STRING &&
 	    strcmp(obj->value.v[1].value.s, "[REVOKED]") == 0) {
 		/* whole key has been rovoked - just return */
 		return;
 	}
-	pobj(fp, &obj->value.v[mj_object_find(obj, "header", 0, 2) + 1], 0);
-	p(fp, " ", NULL);
-	pobj(fp, &obj->value.v[mj_object_find(obj, "key bits", 0, 2) + 1], 0);
-	p(fp, "/", NULL);
-	pobj(fp, &obj->value.v[mj_object_find(obj, "pka", 0, 2) + 1], 0);
-	p(fp, " ", NULL);
-	pobj(fp, &obj->value.v[mj_object_find(obj, "key id", 0, 2) + 1], 0);
-	birthtime = (int64_t)strtoll(obj->value.v[mj_object_find(obj, "birthtime", 0, 2) + 1].value.s, NULL, 10);
-	p(fp, " ", ptimestr(tbuf, sizeof(tbuf), birthtime), NULL);
-	duration = (int64_t)strtoll(obj->value.v[mj_object_find(obj, "duration", 0, 2) + 1].value.s, NULL, 10);
-	if (duration > 0) {
-		now = time(NULL);
-		p(fp, " ", (birthtime + duration < now) ? "[EXPIRED " : "[EXPIRES ",
-			ptimestr(tbuf, sizeof(tbuf), birthtime + duration), "]", NULL);
-	}
-	p(fp, "\n", "Key fingerprint: ", NULL);
-	pobj(fp, &obj->value.v[mj_object_find(obj, "fingerprint", 0, 2) + 1], 0);
-	p(fp, "\n", NULL);
-	/* go to field after \"duration\" */
-	for (i = mj_object_find(obj, "duration", 0, 2) + 2; i < mj_arraycount(obj) ; i += 2) {
-		if (strcmp(obj->value.v[i].value.s, "uid") == 0) {
-			sub = &obj->value.v[i + 1];
-			p(fp, "uid", NULL);
-			pobj(fp, &sub->value.v[0], (psigs) ? 4 : 14); /* human name */
-			pobj(fp, &sub->value.v[1], 1); /* any revocation */
-			p(fp, "\n", NULL);
-		} else if (strcmp(obj->value.v[i].value.s, "encryption") == 0) {
-			sub = &obj->value.v[i + 1];
-			p(fp, "encryption", NULL);
-			pobj(fp, &sub->value.v[0], 1);	/* size */
-			p(fp, "/", NULL);
-			pobj(fp, &sub->value.v[1], 0); /* alg */
-			p(fp, " ", NULL);
-			pobj(fp, &sub->value.v[2], 0); /* id */
-			p(fp, " ", ptimestr(tbuf, sizeof(tbuf),
-					(time_t)strtoll(sub->value.v[3].value.s, NULL, 10)),
-				"\n", NULL);
-		} else if (strcmp(obj->value.v[i].value.s, "sig") == 0) {
-			sub = &obj->value.v[i + 1];
-			p(fp, "sig", NULL);
-			pobj(fp, &sub->value.v[0], 8);	/* size */
-			p(fp, "  ", ptimestr(tbuf, sizeof(tbuf),
-					(time_t)strtoll(sub->value.v[1].value.s, NULL, 10)),
-				" ", NULL); /* time */
-			pobj(fp, &sub->value.v[2], 0); /* human name */
-			p(fp, "\n", NULL);
-		} else {
-			fprintf(stderr, "weird '%s'\n", obj->value.v[i].value.s);
-			pobj(fp, &obj->value.v[i], 0); /* human name */
-		}
-	}
+#endif
+    json_object *tmp;
+    if (json_object_object_get_ex(obj, "header", &tmp)) {
+        pobj(fp, tmp, 0);
+        p(fp, " ", NULL);
+    }
+
+    if (json_object_object_get_ex(obj, "key bits", &tmp)) {
+        pobj(fp, tmp, 0);
+        p(fp, "/", NULL);
+    }
+
+    if (json_object_object_get_ex(obj, "pka", &tmp)) {
+        pobj(fp, tmp, 0);
+        p(fp, " ", NULL);
+    }
+
+    if (json_object_object_get_ex(obj, "key_id", &tmp)) {
+        pobj(fp, tmp, 0);
+    }
+    
+    if (json_object_object_get_ex(obj, "birthtime", &tmp)) {
+        birthtime = (int64_t)strtoll(json_object_get_string(tmp), NULL, 10);
+        p(fp, " ", ptimestr(tbuf, sizeof(tbuf), birthtime), NULL);
+
+        if (json_object_object_get_ex(obj, "duration", &tmp)) {
+            duration = (int64_t)strtoll(json_object_get_string(tmp), NULL, 10);
+            if (duration > 0) {
+                now = time(NULL);
+                p(fp, " ", (birthtime + duration < now) ? "[EXPIRED " : "[EXPIRES ",
+                    ptimestr(tbuf, sizeof(tbuf), birthtime + duration), "]", NULL);
+            }
+        }
+    }
+
+    if (json_object_object_get_ex(obj, "fingerprint", &tmp)) {
+        p(fp, "\n", "Key fingerprint: ", NULL);
+        pobj(fp, tmp, 0);
+        p(fp, "\n", NULL);
+    }
+
+
+    if (json_object_object_get_ex(obj, "uid", &tmp)) {
+        if (!json_object_is_type(tmp, json_type_null)){
+            p(fp, "uid", NULL);
+            pobj(fp, json_object_array_get_idx(tmp,0), (psigs) ? 4 : 14); /* human name */
+            pobj(fp, json_object_array_get_idx(tmp,1),1); /* any revocation */
+            p(fp, "\n", NULL);
+        }
+    }
+
+    if (json_object_object_get_ex(obj, "encryption", &tmp)) {
+        if (!json_object_is_type(tmp, json_type_null)){
+            p(fp, "encryption", NULL);
+            pobj(fp, json_object_array_get_idx(tmp,0), 1);	/* size */
+            p(fp, "/", NULL);
+            pobj(fp, json_object_array_get_idx(tmp,1),0); /* alg */
+            p(fp, " ", NULL);
+            pobj(fp, json_object_array_get_idx(tmp,2),0); /* id */
+            p(fp, " ", ptimestr(tbuf, sizeof(tbuf), (time_t)strtoll(json_object_get_string(json_object_array_get_idx(tmp,3)), NULL, 10)), "\n", NULL);
+        }
+    }
+
+    if (json_object_object_get_ex(obj, "sig", &tmp)) {
+        if (!json_object_is_type(tmp, json_type_null)){
+            p(fp, "sig", NULL);
+            pobj(fp,json_object_array_get_idx(tmp,0), 8);	/* size */
+            p(fp, "  ", ptimestr(tbuf, sizeof(tbuf),
+                (time_t)strtoll(json_object_get_string(json_object_array_get_idx(tmp,1)), NULL, 10)),
+                " ", NULL); /* time */
+            pobj(fp,json_object_array_get_idx(tmp, 2), 0); /* human name */
+            p(fp, "\n", NULL);
+        }
+    }
 	p(fp, "\n", NULL);
 }
 
@@ -1435,19 +1449,17 @@ int
 rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const int psigs)
 {
 	int		 ret = 1;
-#if 0
 	const pgp_key_t	*key;
 	unsigned	 k;
-	json_object *id_array = NULL;
+	json_object *id_array = json_object_new_array();
 	char		*newkey;
-
+    //remove 0x prefix, if any
 	if (name[0] == '0' && name[1] == 'x') {
 		name += 2;
 	}
-	(void) memset(&id_array, 0x0, sizeof(id_array));
+    printf("%s,%d, NAME: %s\n",__FILE__,__LINE__,name);
 	k = 0;
 	*json = NULL;
-//	mj_create(&id_array, "array");
 	do {
 		key = pgp_getnextkeybyname(rnp->io, rnp->pubring,
 						name, &k);
@@ -1461,8 +1473,6 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
 					free(newkey);
 				}
 			} else {
-				ALLOC(mj_t, id_array.value.v, id_array.size,
-					id_array.c, 10, 10, "rnp_match_keys_json", return 0);
 				pgp_sprint_json(rnp->io, rnp->pubring,
 						key, id_array,
 						"signature ",
@@ -1471,9 +1481,10 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
 			k += 1;
 		}
 	} while (key != NULL);
-	ret = mj_asprint(json, &id_array, MJ_JSON_ENCODE);
-	mj_delete(&id_array);
-#endif
+    const char *j = json_object_to_json_string(id_array);
+    *json = strdup(j);
+    ret = strlen(j);
+	json_object_put(id_array);
 	return ret;
 }
 
@@ -2322,31 +2333,25 @@ rnp_validate_sigs(rnp_t *rnp)
 int
 rnp_format_json(void *vp, const char *json, const int psigs)
 {
-	mj_t	 ids;
+	json_object *ids;
 	FILE	*fp;
-	int	 from;
 	int	 idc;
-	int	 tok;
-	int	 to;
 	int	 i;
 
 	if ((fp = (FILE *)vp) == NULL || json == NULL) {
 		return 0;
 	}
-	/* ids is an array of strings, each containing 1 entry */
-	(void) memset(&ids, 0x0, sizeof(ids));
-	from = to = tok = 0;
-	/* convert from string into an mj structure */
-	(void) mj_parse(&ids, json, &from, &to, &tok);
-	if ((idc = mj_arraycount(&ids)) == 1 && strchr(json, '{') == NULL) {
-		idc = 0;
-	}
+	/* convert from string into a json structure */
+    ids = json_tokener_parse(json);
+//	/* ids is an array of strings, each containing 1 entry */
+    idc = json_object_array_length(ids);
 	(void) fprintf(fp, "%d key%s found\n", idc, (idc == 1) ? "" : "s");
 	for (i = 0 ; i < idc ; i++) {
-		format_json_key(fp, &ids.value.v[i], psigs);
+        json_object *item = json_object_array_get_idx(ids, i);;
+		format_json_key(fp, item, psigs);
 	}
 	/* clean up */
-	mj_delete(&ids);
+    json_object_put(ids);
 	return idc;
 }
 
