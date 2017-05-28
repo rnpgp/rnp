@@ -99,6 +99,10 @@ AX_CHECK_BOTAN([CFLAGS="$CFLAGS $BOTAN_INCLUDES"
                 LDFLAGS="$LDFLAGS $BOTAN_LDFLAGS $BOTAN_LIBS"],
                [AC_MSG_ERROR([Missing Botan])])
 
+
+AX_CHECK_BOTAN_DEFINES([CFLAGS="$CFLAGS $BOTAN_INCLUDES"
+                       LDFLAGS="$LDFLAGS $BOTAN_LDFLAGS $BOTAN_LIBS"])
+
 # Checks for library functions.
 #
 AC_SEARCH_LIBS([_cmocka_run_group_tests], [cmocka],,AC_MSG_ERROR(CMocka not found!))
