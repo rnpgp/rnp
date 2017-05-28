@@ -136,39 +136,9 @@ done:
    return retval;
 }
 
-static void rnp_hash_to_botan_pkcs1_padding(char padding_name[], size_t len_padding_name,
-                                            const char* hash_name)
-{
-        // rnp uses SHAx Botan uses SHA-x
-        if(strcmp(hash_name, "SHA1") == 0)
-        {
-                strncpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-1)", len_padding_name);
-        }
-        else if(strcmp(hash_name, "SHA224") == 0)
-        {
-                strncpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-224)", len_padding_name);
-        }
-        else if(strcmp(hash_name, "SHA256") == 0)
-        {
-                strncpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-256)", len_padding_name);
-        }
-        else if(strcmp(hash_name, "SHA384") == 0)
-        {
-                strncpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-384)", len_padding_name);
-        }
-        else if(strcmp(hash_name, "SHA512") == 0)
-        {
-                strncpy(padding_name, "EMSA-PKCS1-v1_5(Raw,SHA-512)", len_padding_name);
-        }
-        else
-        {
-                // for SM3 MD5 etc
-                snprintf(padding_name, len_padding_name, "EMSA-PKCS1-v1_5(Raw,%s)", hash_name);
-        }
-}
-
 int pgp_rsa_pkcs1_verify_hash(const uint8_t *sig_buf, size_t sig_buf_size,
-                              const char* hash_name, const uint8_t *hash, size_t hash_len,
+                              pgp_hash_alg_t hash_alg,
+                              const uint8_t *hash, size_t hash_len,
                               const pgp_rsa_pubkey_t *pubkey)
 {
         char padding_name[64] = { 0 };
@@ -177,7 +147,8 @@ int pgp_rsa_pkcs1_verify_hash(const uint8_t *sig_buf, size_t sig_buf_size,
         botan_rng_t rng = NULL;
         int result = 0;
 
-        rnp_hash_to_botan_pkcs1_padding(padding_name, sizeof(padding_name), hash_name);
+        snprintf(padding_name, sizeof(padding_name),
+                 "EMSA-PKCS1-v1_5(Raw,%s)", pgp_hash_name_botan(hash_alg));
 
         botan_rng_init(&rng, NULL);
 
@@ -219,7 +190,7 @@ done:
    \return number of bytes decrypted
 */
 int pgp_rsa_pkcs1_sign_hash(uint8_t * sig_buf, size_t sig_buf_size,
-                            const char* hash_name, const uint8_t *hash_buf, size_t hash_len,
+                            pgp_hash_alg_t hash_alg, const uint8_t *hash_buf, size_t hash_len,
                             const pgp_rsa_seckey_t *seckey,
                             const pgp_rsa_pubkey_t *pubkey)
 {
@@ -235,7 +206,8 @@ int pgp_rsa_pkcs1_sign_hash(uint8_t * sig_buf, size_t sig_buf_size,
         }
 
 
-        rnp_hash_to_botan_pkcs1_padding(padding_name, sizeof(padding_name), hash_name);
+        snprintf(padding_name, sizeof(padding_name),
+                 "EMSA-PKCS1-v1_5(Raw,%s)", pgp_hash_name_botan(hash_alg));
 
         botan_rng_init(&rng, NULL);
 

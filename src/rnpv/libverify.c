@@ -1641,7 +1641,7 @@ rsa_verify(uint8_t *calculated, unsigned calclen, uint8_t hashalg, pgpv_bignum_t
 	BN_bn2bin(bn[RSA_SIG].bn, sigbn);
 
         return pgp_rsa_pkcs1_verify_hash(sigbn, BITS_TO_BYTES(bn[RSA_SIG].bits),
-                                         pgp_show_hash_alg(hashalg),
+                                         hashalg,
                                          calculated, calclen,
                                          &rsa_pubkey);
 }

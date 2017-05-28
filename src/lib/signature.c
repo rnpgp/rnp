@@ -150,6 +150,8 @@ rsa_sign(pgp_hash_t *hash,
 	uint8_t		sigbuf[RNP_BUFSIZ];
 	BIGNUM         *bn;
 
+        pgp_hash_alg_t hash_alg = pgp_hash_alg_type(hash);
+
         hash_size = pgp_hash_finish(hash, hashbuf);
 
         /**
@@ -160,7 +162,7 @@ rsa_sign(pgp_hash_t *hash,
 	pgp_write(out, &hashbuf[0], 2);
 
 	sig_size = pgp_rsa_pkcs1_sign_hash(sigbuf, sizeof(sigbuf),
-                                           pgp_hash_name(hash),
+                                           hash_alg,
                                            hashbuf, hash_size,
                                            secrsa, pubrsa);
 	if (sig_size == 0) {
@@ -210,7 +212,7 @@ dsa_sign(pgp_hash_t *hash,
 }
 
 static unsigned 
-rsa_verify(const char* hash_name,
+rsa_verify(pgp_hash_alg_t hash_alg,
 	   const uint8_t *hash,
 	   size_t hash_length,
 	   const pgp_rsa_sig_t *sig,
@@ -235,7 +237,7 @@ rsa_verify(const char* hash_name,
         sigbuf_len = (BN_num_bits(sig->sig) + 7) / 8;
 
 	return pgp_rsa_pkcs1_verify_hash(sigbuf, sigbuf_len,
-                                         hash_name, hash, hash_length,
+                                         hash_alg, hash, hash_length,
                                          pubrsa);
 }
 
@@ -307,7 +309,7 @@ pgp_check_sig(const uint8_t *hash, unsigned length,
 		break;
 
 	case PGP_PKA_RSA:
-		ret = rsa_verify(pgp_show_hash_alg(sig->info.hash_alg),
+		ret = rsa_verify(sig->info.hash_alg,
                                  hash, length,
                                  &sig->info.sig.rsa,
                                  &signer->key.rsa);
