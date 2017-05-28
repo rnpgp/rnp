@@ -678,7 +678,7 @@ pgp_sprint_json(pgp_io_t *io, const pgp_keyring_t *keyring,
             json_object_new_int(numkeybits(pubkey)));
     json_object_object_add(keyjson,"pka",
             json_object_new_string(pgp_show_pka(pubkey->alg)));
-    json_object_object_add(keyjson,"key_id",
+    json_object_object_add(keyjson,"key id",
             json_object_new_string(strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "")));
     json_object_object_add(keyjson, "fingerprint",
             json_object_new_string(strhexdump(fp, key->sigfingerprint.fingerprint, key->sigfingerprint.length,"")));

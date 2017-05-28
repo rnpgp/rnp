@@ -735,7 +735,7 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
         p(fp, " ", NULL);
     }
 
-    if (json_object_object_get_ex(obj, "key_id", &tmp)) {
+    if (json_object_object_get_ex(obj, "key id", &tmp)) {
         pobj(fp, tmp, 0);
     }
     
