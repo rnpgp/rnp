@@ -2569,8 +2569,8 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 			hexdump(stderr, "input iv", pkt.u.seckey.iv, pgp_block_size(pkt.u.seckey.alg));
 			hexdump(stderr, "key", key, PGP_CAST_KEY_LENGTH);
 		}
-		decrypt.set_iv(&decrypt, pkt.u.seckey.iv);
-		decrypt.set_crypt_key(&decrypt, key);
+                pgp_cipher_set_iv(&decrypt, pkt.u.seckey.iv);
+                pgp_cipher_set_key(&decrypt, key);
 
 		/* now read encrypted data */
 
@@ -2881,8 +2881,8 @@ parse_pk_sesskey(pgp_region_t *region,
 		(void) fprintf(stderr, "parse_pk_sesskey: bad alloc\n");
 		return 0;
 	}
-	stream->decrypt.set_iv(&stream->decrypt, iv);
-	stream->decrypt.set_crypt_key(&stream->decrypt, pkt.u.pk_sesskey.key);
+        pgp_cipher_set_iv(&stream->decrypt, iv);
+        pgp_cipher_set_key(&stream->decrypt, pkt.u.pk_sesskey.key);
 	pgp_encrypt_init(&stream->decrypt);
 	free(iv);
 	return 1;
@@ -2919,9 +2919,8 @@ decrypt_se_data(pgp_content_enum tag, pgp_region_t *region,
 			return 0;
 		}
 		if (tag == PGP_PTAG_CT_SE_DATA_BODY) {
-			decrypt->decrypt_resync(decrypt);
-			decrypt->block_encrypt(decrypt, decrypt->civ,
-					decrypt->civ);
+                        pgp_cipher_cfb_resync(decrypt);
+                        pgp_cipher_block_encrypt(decrypt, decrypt->civ, decrypt->civ);
 		}
 		r = pgp_parse(stream, !printerrors);
 

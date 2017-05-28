@@ -620,37 +620,6 @@ pgp_calc_mdc_hash(const uint8_t *preamble,
 	}
 }
 
-/* structure to map string to cipher def */
-typedef struct str2cipher_t {
-	const char	*s;	/* cipher name */
-	pgp_symm_alg_t i;	/* cipher def */
-} str2cipher_t;
-
-static str2cipher_t	str2cipher[] = {
-	{	"cast5",		PGP_SA_CAST5		},
-	{	"idea",			PGP_SA_IDEA		},
-	{	"aes128",		PGP_SA_AES_128		},
-	{	"aes256",		PGP_SA_AES_256		},
-	{	"camellia128",		PGP_SA_CAMELLIA_128	},
-	{	"camellia256",		PGP_SA_CAMELLIA_256	},
-	{	"tripledes",		PGP_SA_TRIPLEDES	},
-	{	NULL,			0			}
-};
-
-/* convert from a string to a cipher definition */
-pgp_symm_alg_t
-pgp_str_to_cipher(const char *cipher)
-{
-	str2cipher_t	*sp;
-
-	for (sp = str2cipher ; cipher && sp->s ; sp++) {
-		if (rnp_strcasecmp(cipher, sp->s) == 0) {
-			return sp->i;
-		}
-	}
-	return PGP_SA_DEFAULT_CIPHER;
-}
-
 void
 pgp_random(void *dest, size_t length)
 {

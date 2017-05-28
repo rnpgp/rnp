@@ -948,8 +948,7 @@ encrypt_writer(const uint8_t *src,
 		unsigned        size = (remaining < BUFSZ) ? remaining : BUFSZ;
 
 		/* memcpy(buf,src,size); // \todo copy needed here? */
-		pgp_encrypt->crypt->cfb_encrypt(pgp_encrypt->crypt, encbuf,
-					src + done, size);
+                pgp_cipher_cfb_encrypt(pgp_encrypt->crypt, encbuf, src + done, size);
 
 		if (pgp_get_debug_level(__FILE__)) {
 			hexdump(stderr, "unencrypted", &src[done], 16);
@@ -1055,8 +1054,8 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const char *ci
 		(void) fprintf(stderr, "pgp_push_enc_se_ip: bad alloc\n");
 		return 0;
 	}
-	encrypted->set_iv(encrypted, iv);
-	encrypted->set_crypt_key(encrypted, &encrypted_pk_sesskey->key[0]);
+        pgp_cipher_set_iv(encrypted, iv);
+        pgp_cipher_set_key(encrypted, &encrypted_pk_sesskey->key[0]);
 	pgp_encrypt_init(encrypted);
 
 	se_ip->crypt = encrypted;
@@ -1439,8 +1438,8 @@ pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const c
 			"pgp_push_stream_enc_se_ip: bad alloc\n");
 		return;
 	}
-	encrypted->set_iv(encrypted, iv);
-	encrypted->set_crypt_key(encrypted, &encrypted_pk_sesskey->key[0]);
+        pgp_cipher_set_iv(encrypted, iv);
+        pgp_cipher_set_key(encrypted, &encrypted_pk_sesskey->key[0]);
 	pgp_encrypt_init(encrypted);
 
 	se_ip->crypt = encrypted;
@@ -1785,7 +1784,7 @@ str_enc_se_ip_destroyer(pgp_writer_t *writer)
 	pgp_teardown_memory_write(se_ip->litoutput, se_ip->litmem);
 	pgp_teardown_memory_write(se_ip->se_ip_out, se_ip->se_ip_mem);
 
-	se_ip->crypt->decrypt_finish(se_ip->crypt);
+        pgp_cipher_finish(se_ip->crypt);
 
 	free(se_ip->crypt);
 	free(se_ip);

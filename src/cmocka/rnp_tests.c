@@ -273,32 +273,32 @@ static void cipher_test_success(void **state)
 
     memset(iv, 0x42, sizeof(iv));
 
-    crypt.set_crypt_key(&crypt, key);
-    crypt.block_encrypt(&crypt, block, block);
+    pgp_cipher_set_key(&crypt, key);
+    pgp_cipher_block_encrypt(&crypt, block, block);
 
     test_value_equal("AES ECB encrypt",
             "66E94BD4EF8A2C3B884CFA59CA342B2E",
             block, sizeof(block));
 
-    crypt.block_decrypt(&crypt, block, block);
+    pgp_cipher_block_decrypt(&crypt, block, block);
 
     test_value_equal("AES ECB decrypt",
             "00000000000000000000000000000000",
             block, sizeof(block));
 
-    crypt.set_iv(&crypt, iv);
-    crypt.cfb_encrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data));
+    pgp_cipher_set_iv(&crypt, iv);
+    pgp_cipher_cfb_encrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data));
 
     test_value_equal("AES CFB encrypt",
             "BFDAA57CB812189713A950AD9947887983021617",
             cfb_data, sizeof(cfb_data));
 
-    crypt.set_iv(&crypt, iv);
-    crypt.cfb_decrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data));
+    pgp_cipher_set_iv(&crypt, iv);
+    pgp_cipher_cfb_decrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data));
     test_value_equal("AES CFB decrypt",
             "0000000000000000000000000000000000000000",
             cfb_data, sizeof(cfb_data));
-    crypt.decrypt_finish(&crypt);
+    pgp_cipher_finish(&crypt);
 }
 
 static void pkcs1_rsa_test_success(void **state)
@@ -521,8 +521,6 @@ static void rnpkeys_generatekey_testSignature(void **state)
                                 continue;
                         }
 
-                        printf("Testing cleartext=%d armor=%d\n", cleartext, armored);
-
                         close(pipefd[0]);
                         /* Setup the pass phrase fd to avoid user-input*/
                         assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -558,6 +556,89 @@ static void rnpkeys_generatekey_testSignature(void **state)
 
         rnp_end(&rnp); //Free memory and other allocated resources.
     }
+}
+
+static void rnpkeys_generatekey_testEncryption(void **state)
+{
+        const char* cipherAlg[] = {
+                "Blowfish",
+                "Twofish",
+                "CAST5",
+                "TripleDES",
+                "AES128",
+                "AES192",
+                "AES256",
+                "Camellia128",
+                "Camellia192",
+                "Camellia256",
+                NULL
+        };
+
+        rnp_t rnp;
+        const int numbits = 1024;
+        char passfd[4] = {0};
+        int pipefd[2];
+
+        char memToEncrypt[] = "A simple test message";
+        char ciphertextBuf[4096] = { 0 };
+        char plaintextBuf[4096] = { 0 };
+        char userId[128] = { 0 };
+
+        /* Setup the pass phrase fd to avoid user-input*/
+        assert_int_equal(setupPassphrasefd(pipefd), 1);
+
+        /*Initialize the basic RNP structure. */
+        memset(&rnp, '\0', sizeof(rnp));
+
+        /*Set the default parameters*/
+        rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
+        rnp_setvar(&rnp, "res",       "<stdout>");
+
+        rnp_setvar(&rnp, "format",    "human");
+        rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],16));
+        rnp_setvar(&rnp, "need seckey", "true");
+
+        int retVal = rnp_init (&rnp);
+        assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
+
+        strcpy(userId, "ciphertest");
+
+        retVal = rnp_generate_key(&rnp, userId, numbits);
+        assert_int_equal(retVal,1); //Ensure the key was generated 
+
+        /*Load the newly generated rnp key*/
+        retVal = rnp_load_keys(&rnp);
+        assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+
+        retVal = rnp_find_key(&rnp, userId);
+        assert_int_equal(retVal,1); //Ensure the key can be found with the userId
+
+        for (int i = 0; cipherAlg[i] != NULL; i++)
+        {
+                for(unsigned int armored = 0; armored <= 1; ++armored)
+                {
+                        rnp_setvar(&rnp, "pass-fd",  uint_to_string(passfd,4,pipefd[0],16));
+                        assert_int_equal(rnp_setvar(&rnp, "cipher",     cipherAlg[i]), 1);
+
+                        retVal = rnp_encrypt_memory(&rnp, userId, memToEncrypt, strlen(memToEncrypt),
+                                                    ciphertextBuf, sizeof(ciphertextBuf), armored);
+                        assert_int_not_equal(retVal, 0); // Ensure signature operation succeeded
+
+                        const int ctextLen = retVal;
+
+                        close(pipefd[0]);
+                        /* Setup the pass phrase fd to avoid user-input*/
+                        assert_int_equal(setupPassphrasefd(pipefd), 1);
+                        retVal = rnp_decrypt_memory(&rnp, ciphertextBuf, ctextLen,
+                                                    plaintextBuf, sizeof(plaintextBuf),
+                                                    armored);
+
+                        // Ensure plaintext recovered
+                        assert_int_equal(retVal, strlen(memToEncrypt));
+                        assert_string_equal(memToEncrypt, plaintextBuf);
+                }
+        }
+        rnp_end(&rnp); //Free memory and other allocated resources.
 }
 
 static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
@@ -987,6 +1068,7 @@ int main(void) {
         cmocka_unit_test(pkcs1_rsa_test_success),
         cmocka_unit_test(raw_elg_test_success),
         cmocka_unit_test(rnpkeys_generatekey_testSignature),
+        cmocka_unit_test(rnpkeys_generatekey_testEncryption),
         cmocka_unit_test(rnpkeys_generatekey_verifySupportedHashAlg),
         cmocka_unit_test(rnpkeys_generatekey_verifyUserIdOption),
         cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirOption),
