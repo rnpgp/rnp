@@ -11,15 +11,15 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *	  notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ *	  notice, this list of conditions and the following disclaimer in the
+ *	  documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED.	IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -39,7 +39,7 @@
  * use this file except in compliance with the License.
  *
  * You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *	   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -86,24 +86,24 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "packet.h"
 #include "rnpdigest.h"
 
-#define F_REVOKED   1
+#define F_REVOKED	1
 
 #define F_PRINTSIGS 2
 
-#define PTIMESTR_LEN              10
+#define PTIMESTR_LEN			  10
 
-#define PUBKEY_DOES_EXPIRE(pk)    ((pk)->duration > 0)
+#define PUBKEY_DOES_EXPIRE(pk)	  ((pk)->duration > 0)
 
 #define PUBKEY_HAS_EXPIRED(pk, t) (((pk)->birthtime + (pk)->duration) < (t))
 
-#define SIGNATURE_PADDING         "          "
+#define SIGNATURE_PADDING		  "			 "
 
 /* static functions */
 
 static void 
 print_indent(int indent)
 {
-	int             i;
+	int				i;
 
 	for (i = 0; i < indent; i++) {
 		printf("  ");
@@ -199,7 +199,7 @@ print_escaped(const uint8_t *data, size_t length)
 {
 	while (length-- > 0) {
 		if ((*data >= 0x20 && *data < 0x7f && *data != '%') ||
-		    *data == '\n') {
+			*data == '\n') {
 			putchar(*data);
 		} else {
 			printf("%%%02x", *data);
@@ -226,7 +226,7 @@ print_utf8_string(int indent, const char *name, const uint8_t *str)
 static void 
 print_duration(int indent, const char *name, time_t t)
 {
-	int             mins, hours, days, years;
+	int				mins, hours, days, years;
 
 	print_indent(indent);
 	printf("%s: ", name);
@@ -258,8 +258,8 @@ print_boolean(int indent, const char *name, uint8_t boolval)
 static void 
 print_text_breakdown(int indent, pgp_text_t *text)
 {
-	const char     *prefix = ".. ";
-	unsigned        i;
+	const char	   *prefix = ".. ";
+	unsigned		i;
 
 	/* these were recognised */
 	for (i = 0; i < text->known.used; i++) {
@@ -287,7 +287,7 @@ print_text_breakdown(int indent, pgp_text_t *text)
 static void 
 print_headers(const pgp_headers_t *h)
 {
-	unsigned        i;
+	unsigned		i;
 
 	for (i = 0; i < h->headerc; ++i) {
 		printf("%s=%s\n", h->headers[i].key, h->headers[i].value);
@@ -297,7 +297,7 @@ print_headers(const pgp_headers_t *h)
 static void 
 print_block(int indent, const char *name, const uint8_t *str, size_t length)
 {
-	int             o = (int)length;
+	int				o = (int)length;
 
 	print_indent(indent);
 	printf(">>>>> %s >>>>>\n", name);
@@ -470,7 +470,7 @@ static int
 format_uid_line(char *buffer, uint8_t *uid, size_t size, int flags)
 {
 	return snprintf(buffer, size,
-			"uid    %s%s%s\n",
+			"uid	%s%s%s\n",
 			flags & F_PRINTSIGS ? "" : SIGNATURE_PADDING,
 			uid,
 			flags & F_REVOKED ? " [REVOKED]" : "");
@@ -486,7 +486,7 @@ format_sig_line(char *buffer, const pgp_sig_t *sig,
 	char time[PTIMESTR_LEN + sizeof(char)];
 
 	ptimestr(time, sizeof(time), sig->info.birthtime);
-	return snprintf(buffer, size, "sig        %s  %s  %s\n",
+	return snprintf(buffer, size, "sig		  %s  %s  %s\n",
 			strhexdump(keyid, sig->info.signer_id,
 				PGP_KEY_ID_SIZE, ""),
 			time,
@@ -507,8 +507,8 @@ format_subsig_line(char *buffer,
 			subsig->sig.info.type == PGP_SIG_SUBKEY) {
 
 		/* XXX: The character count of this was previously ignored.
-		 *      This seems to have been incorrect, but if not
-		 *      you should revert it.
+		 *		This seems to have been incorrect, but if not
+		 *		you should revert it.
 		 */
 		n += psubkeybinding(buffer, size, key, expired);
 	} else
@@ -537,10 +537,10 @@ format_uid_notice(
 		unsigned from;
 
 		/* TODO: To me this looks like an unnecessary consistency
-		 *       check that should be performed upstream before
-		 *       passing the information down here. Maybe not,
-		 *       if anyone can shed alternate light on this
-		 *       that would be great.
+		 *		 check that should be performed upstream before
+		 *		 passing the information down here. Maybe not,
+		 *		 if anyone can shed alternate light on this
+		 *		 that would be great.
 		 */
 		if (flags & F_PRINTSIGS && subsig->uid != uid) {
 			continue;
@@ -576,15 +576,15 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
 	unsigned  i;
-	time_t    now;
-	char     *uid_notices;
-	int       uid_notices_offset = 0;
-	char     *string;
-	int       total_length;
-	char      keyid[PGP_KEY_ID_SIZE * 3];
-	char      fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
-	char      expiration_notice[128];
-	char      birthtime[32];
+	time_t	  now;
+	char	 *uid_notices;
+	int		  uid_notices_offset = 0;
+	char	 *string;
+	int		  total_length;
+	char	  keyid[PGP_KEY_ID_SIZE * 3];
+	char	  fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
+	char	  expiration_notice[128];
+	char	  birthtime[32];
 
 	if (key->revoked)
 		return -1;
@@ -603,7 +603,7 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 		return -1;
 
 	/* TODO: Perhaps this should index key->uids instead of using the
-	 *       iterator index.
+	 *		 iterator index.
 	 */
 	for (i = 0; i < key->uidc; i++) {
 		int flags = 0;
@@ -629,9 +629,9 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 	ptimestr(birthtime, sizeof(birthtime), pubkey->birthtime);
 
 	/* XXX: For now we assume that the output string won't exceed 16KiB
-	 *      in length but this is completely arbitrary. What this
-	 *      really needs is some objective facts to base this
-	 *      size on.
+	 *		in length but this is completely arbitrary. What this
+	 *		really needs is some objective facts to base this
+	 *		size on.
 	 */
 
 	total_length = -1;
@@ -671,83 +671,83 @@ pgp_sprint_json(pgp_io_t *io, const pgp_keyring_t *keyring,
 		return -1;
 	}
 
-    //add the top-level values
-    json_object_object_add(keyjson,"header",
-            json_object_new_string(header));
-    json_object_object_add(keyjson,"key bits",
-            json_object_new_int(numkeybits(pubkey)));
-    json_object_object_add(keyjson,"pka",
-            json_object_new_string(pgp_show_pka(pubkey->alg)));
-    json_object_object_add(keyjson,"key id",
-            json_object_new_string(strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "")));
-    json_object_object_add(keyjson, "fingerprint",
-            json_object_new_string(strhexdump(fp, key->sigfingerprint.fingerprint, key->sigfingerprint.length,"")));
-    json_object_object_add(keyjson,"birthtime",
-            json_object_new_int(pubkey->birthtime));
-    json_object_object_add(keyjson,"duration",
-            json_object_new_int(pubkey->duration));
+	//add the top-level values
+	json_object_object_add(keyjson,"header",
+			json_object_new_string(header));
+	json_object_object_add(keyjson,"key bits",
+			json_object_new_int(numkeybits(pubkey)));
+	json_object_object_add(keyjson,"pka",
+			json_object_new_string(pgp_show_pka(pubkey->alg)));
+	json_object_object_add(keyjson,"key id",
+			json_object_new_string(strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "")));
+	json_object_object_add(keyjson, "fingerprint",
+			json_object_new_string(strhexdump(fp, key->sigfingerprint.fingerprint, key->sigfingerprint.length,"")));
+	json_object_object_add(keyjson,"birthtime",
+			json_object_new_int(pubkey->birthtime));
+	json_object_object_add(keyjson,"duration",
+			json_object_new_int(pubkey->duration));
 
-    //iterating through the uids
-    for (i = 0; i < key->uidc; i++) {
-        if ((r = isrevoked(key, i)) >= 0 &&
-            key->revokes[r].code == PGP_REVOCATION_COMPROMISED) {
-            continue;
-        }
-        //add an array of the uids (and checking whether is REVOKED and
-        //indicate it as well)
-        json_object *uid_arr = json_object_new_array();
-        json_object_array_add(uid_arr,
-                json_object_new_string((char*)key->uids[i]));
-        json_object_array_add(uid_arr,
-                json_object_new_string((r >= 0) ? "[REVOKED]" : ""));
-        json_object_object_add(keyjson,"uid",uid_arr);
+	//iterating through the uids
+	for (i = 0; i < key->uidc; i++) {
+		if ((r = isrevoked(key, i)) >= 0 &&
+			key->revokes[r].code == PGP_REVOCATION_COMPROMISED) {
+			continue;
+		}
+		//add an array of the uids (and checking whether is REVOKED and
+		//indicate it as well)
+		json_object *uid_arr = json_object_new_array();
+		json_object_array_add(uid_arr,
+				json_object_new_string((char*)key->uids[i]));
+		json_object_array_add(uid_arr,
+				json_object_new_string((r >= 0) ? "[REVOKED]" : ""));
+		json_object_object_add(keyjson,"uid",uid_arr);
 
-        for (j = 0 ; j < key->subsigc ; j++) {
-            if (psigs) {
-                if (key->subsigs[j].uid != i) {
-                    continue;
-                }
-            } else {
-                if (!(key->subsigs[j].sig.info.version == 4 &&
-                    key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY &&
-                    i == key->uidc - 1)) {
-                        continue;
-                }
-            }
-            json_object *subsigc_arr = json_object_new_array();
+		for (j = 0 ; j < key->subsigc ; j++) {
+			if (psigs) {
+				if (key->subsigs[j].uid != i) {
+					continue;
+				}
+			} else {
+				if (!(key->subsigs[j].sig.info.version == 4 &&
+					key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY &&
+					i == key->uidc - 1)) {
+						continue;
+				}
+			}
+			json_object *subsigc_arr = json_object_new_array();
 
-            if (key->subsigs[j].sig.info.version == 4 &&
-                    key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
-                json_object_array_add(subsigc_arr,
-                        json_object_new_int((int64_t)numkeybits(&key->enckey)));
+			if (key->subsigs[j].sig.info.version == 4 &&
+					key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
+				json_object_array_add(subsigc_arr,
+						json_object_new_int((int64_t)numkeybits(&key->enckey)));
 
-                json_object_array_add(subsigc_arr,
-                        json_object_new_string((const char *)pgp_show_pka(key->enckey.alg)));
+				json_object_array_add(subsigc_arr,
+						json_object_new_string((const char *)pgp_show_pka(key->enckey.alg)));
 
-                json_object_array_add(subsigc_arr,
-                        json_object_new_string(strhexdump(keyid, key->encid, PGP_KEY_ID_SIZE, "")));
+				json_object_array_add(subsigc_arr,
+						json_object_new_string(strhexdump(keyid, key->encid, PGP_KEY_ID_SIZE, "")));
 
-                json_object_array_add(subsigc_arr,
-                        json_object_new_int((int64_t)key->enckey.birthtime));
+				json_object_array_add(subsigc_arr,
+						json_object_new_int((int64_t)key->enckey.birthtime));
 
-                json_object_object_add(keyjson,"encryption",subsigc_arr);
-            }
-            else {
-                json_object_array_add(subsigc_arr,
-                        json_object_new_string(strhexdump(keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, "")));
-                json_object_array_add(subsigc_arr,
-                        json_object_new_int((int64_t)(key->subsigs[j].sig.info.birthtime)));
+				json_object_object_add(keyjson,"encryption",subsigc_arr);
+			}
+			else {
+				json_object_array_add(subsigc_arr,
+						json_object_new_string(strhexdump(keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, "")));
+				json_object_array_add(subsigc_arr,
+						json_object_new_int((int64_t)(key->subsigs[j].sig.info.birthtime)));
 
-                unsigned from = 0;
-                const pgp_key_t *trustkey = pgp_getkeybyid(io, keyring,
-                                            key->subsigs[j].sig.info.signer_id,
-                                            &from, NULL);
+				unsigned from = 0;
+				const pgp_key_t *trustkey = pgp_getkeybyid(io, keyring,
+											key->subsigs[j].sig.info.signer_id,
+											&from, NULL);
 
-                json_object_array_add(subsigc_arr,
-                        json_object_new_string( (trustkey) ? (char *)trustkey->uids[trustkey->uid0] : "[unknown]"));
-                json_object_object_add(keyjson,"sig",subsigc_arr);
-            }
-        } //for
+				json_object_array_add(subsigc_arr,
+						json_object_new_string( (trustkey) ? (char *)trustkey->uids[trustkey->uid0] : "[unknown]"));
+				json_object_object_add(keyjson,"sig",subsigc_arr);
+			}
+		} //for
 	} //for uidc
 	if (pgp_get_debug_level(__FILE__)) {
 		printf ("%s,%d: The json object created: %s\n", __FILE__, __LINE__,json_object_to_json_string(keyjson));
@@ -761,13 +761,13 @@ pgp_hkp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
 	const pgp_key_t	*trustkey;
-	unsigned	 	 from;
-	unsigned	 	 i;
-	unsigned	 	 j;
+	unsigned		 from;
+	unsigned		 i;
+	unsigned		 j;
 	char			 keyid[PGP_KEY_ID_SIZE * 3];
-	char		 	 uidbuf[KB(128)];
-	char		 	 fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
-	int		 	 n;
+	char			 uidbuf[KB(128)];
+	char			 fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
+	int			 n;
 
 	if (key->revoked) {
 		return -1;
@@ -860,7 +860,7 @@ pgp_print_pubkey(const pgp_pubkey_t *pubkey)
 		print_uint(0, "Days Valid", pubkey->days_valid);
 	}
 	print_string_and_value(0, "Algorithm", pgp_show_pka(pubkey->alg),
-			       pubkey->alg);
+				   pubkey->alg);
 	switch (pubkey->alg) {
 	case PGP_PKA_DSA:
 		print_bn(0, "p", pubkey->key.dsa.p);
@@ -954,9 +954,9 @@ print_seckey_verbose(const pgp_content_enum type,
 	if (seckey->s2k_usage != PGP_S2KU_NONE) {
 		printf("S2K Specifier: %d\n", seckey->s2k_specifier);
 		printf("Symmetric algorithm: %d (%s)\n", seckey->alg,
-		       pgp_show_symm_alg(seckey->alg));
+			   pgp_show_symm_alg(seckey->alg));
 		printf("Hash algorithm: %d (%s)\n", seckey->hash_alg,
-		       pgp_show_hash_alg((uint8_t)seckey->hash_alg));
+			   pgp_show_hash_alg((uint8_t)seckey->hash_alg));
 		if (seckey->s2k_specifier != PGP_S2KS_SIMPLE) {
 			print_hexdump(0, "Salt", seckey->salt,
 					(unsigned)sizeof(seckey->salt));
@@ -1011,7 +1011,7 @@ print_pk_sesskey(pgp_content_enum tag,
 	printf("Version: %d\n", key->version);
 	print_hexdump(0, "Key ID", key->key_id, (unsigned)sizeof(key->key_id));
 	printf("Algorithm: %d (%s)\n", key->alg,
-	       pgp_show_pka(key->alg));
+		   pgp_show_pka(key->alg));
 	switch (key->alg) {
 	case PGP_PKA_RSA:
 		print_bn(0, "encrypted_m", key->params.rsa.encrypted_m);
@@ -1028,7 +1028,7 @@ print_pk_sesskey(pgp_content_enum tag,
 	}
 	if (tag == PGP_PTAG_CT_PK_SESSION_KEY) {
 		printf("Symmetric algorithm: %d (%s)\n", key->symm_alg,
-		       pgp_show_symm_alg(key->symm_alg));
+			   pgp_show_symm_alg(key->symm_alg));
 		print_hexdump(0, "Key", key->key, pgp_key_size(key->symm_alg));
 		printf("Checksum: %04x\n", key->checksum);
 	}
@@ -1040,8 +1040,8 @@ start_subpacket(int *indent, int type)
 	*indent += 1;
 	print_indent(*indent);
 	printf("-- %s (type 0x%02x)\n",
-	       pgp_show_ss_type((pgp_content_enum)type),
-	       type - PGP_PTAG_SIG_SUBPKT_BASE);
+		   pgp_show_ss_type((pgp_content_enum)type),
+		   type - PGP_PTAG_SIG_SUBPKT_BASE);
 }
 
 static void 
@@ -1079,7 +1079,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 
 	case PGP_PARSER_ERRCODE:
 		printf("parse error: %s\n",
-		       pgp_errcode(content->errcode.errcode));
+			   pgp_errcode(content->errcode.errcode));
 		break;
 
 	case PGP_PARSER_PACKET_END:
@@ -1094,11 +1094,11 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 		printf("\n");
 		print_indent(print->indent);
 		printf("==== ptag new_format=%u type=%u length_type=%d"
-		       " length=0x%x (%u) position=0x%x (%u)\n",
-		       content->ptag.new_format,
-		       content->ptag.type, content->ptag.length_type,
-		       content->ptag.length, content->ptag.length,
-		       content->ptag.position, content->ptag.position);
+			   " length=0x%x (%u) position=0x%x (%u)\n",
+			   content->ptag.new_format,
+			   content->ptag.type, content->ptag.length_type,
+			   content->ptag.length, content->ptag.length,
+			   content->ptag.position, content->ptag.position);
 		print_tagname(print->indent, pgp_show_packet_tag((pgp_content_enum)content->ptag.type));
 		break;
 
@@ -1152,8 +1152,8 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 		}
 
 		print_string_and_value(print->indent, "Signature Type",
-			    pgp_show_sig_type(content->sig.info.type),
-				       content->sig.info.type);
+				pgp_show_sig_type(content->sig.info.type),
+					   content->sig.info.type);
 
 		if (content->sig.info.signer_id_set) {
 			hexdump_data(print->indent, "Signer ID",
@@ -1163,7 +1163,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 
 		print_string_and_value(print->indent, "Public Key Algorithm",
 			pgp_show_pka(content->sig.info.key_alg),
-				     content->sig.info.key_alg);
+					 content->sig.info.key_alg);
 		print_string_and_value(print->indent, "Hash Algorithm",
 			pgp_show_hash_alg((uint8_t)
 				content->sig.info.hash_alg),
@@ -1210,8 +1210,8 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 
 		print_uint(print->indent, "Version", (unsigned)content->one_pass_sig.version);
 		print_string_and_value(print->indent, "Signature Type",
-		    pgp_show_sig_type(content->one_pass_sig.sig_type),
-				       content->one_pass_sig.sig_type);
+			pgp_show_sig_type(content->one_pass_sig.sig_type),
+					   content->one_pass_sig.sig_type);
 		print_string_and_value(print->indent, "Hash Algorithm",
 			pgp_show_hash_alg((uint8_t)content->one_pass_sig.hash_alg),
 			(uint8_t)content->one_pass_sig.hash_alg);
@@ -1227,8 +1227,8 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 	case PGP_PTAG_CT_USER_ATTR:
 		print_tagname(print->indent, "USER ATTRIBUTE");
 		print_hexdump(print->indent, "User Attribute",
-			      content->userattr.contents,
-			      (unsigned)content->userattr.len);
+				  content->userattr.contents,
+				  (unsigned)content->userattr.len);
 		break;
 
 	case PGP_PTAG_RAW_SS:
@@ -1239,10 +1239,10 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 		start_subpacket(&print->indent, pkt->tag);
 		print_uint(print->indent, "Raw Signature Subpacket: tag",
 			(unsigned)(content->ss_raw.tag -
-		   	(unsigned)PGP_PTAG_SIG_SUBPKT_BASE));
+			(unsigned)PGP_PTAG_SIG_SUBPKT_BASE));
 		print_hexdump(print->indent, "Raw Data",
-			      content->ss_raw.raw,
-			      (unsigned)content->ss_raw.length);
+				  content->ss_raw.raw,
+				  (unsigned)content->ss_raw.length);
 		break;
 
 	case PGP_PTAG_SS_CREATION_TIME:
@@ -1282,7 +1282,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 		start_subpacket(&print->indent, pkt->tag);
 		/* not yet tested */
 		printf("  revocation key: class=0x%x",
-		       content->ss_revocation_key.class);
+			   content->ss_revocation_key.class);
 		if (content->ss_revocation_key.class & 0x40) {
 			printf(" (sensitive)");
 		}
@@ -1295,7 +1295,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 	case PGP_PTAG_SS_ISSUER_KEY_ID:
 		start_subpacket(&print->indent, pkt->tag);
 		print_hexdump(print->indent, "Issuer Key Id",
-			      content->ss_issuer, (unsigned)sizeof(content->ss_issuer));
+				  content->ss_issuer, (unsigned)sizeof(content->ss_issuer));
 		end_subpacket(&print->indent);
 		break;
 
@@ -1313,7 +1313,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 	case PGP_PTAG_SS_PRIMARY_USER_ID:
 		start_subpacket(&print->indent, pkt->tag);
 		print_boolean(print->indent, "Primary User ID",
-			      content->ss_primary_userid);
+				  content->ss_primary_userid);
 		end_subpacket(&print->indent);
 		break;
 
@@ -1391,8 +1391,8 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 	case PGP_PTAG_SS_REGEXP:
 		start_subpacket(&print->indent, pkt->tag);
 		print_hexdump(print->indent, "Regular Expression",
-			      (uint8_t *) content->ss_regexp,
-			      (unsigned)strlen(content->ss_regexp));
+				  (uint8_t *) content->ss_regexp,
+				  (unsigned)strlen(content->ss_regexp));
 		print_string(print->indent, NULL, content->ss_regexp);
 		end_subpacket(&print->indent);
 		break;
@@ -1423,8 +1423,8 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 	case PGP_PTAG_SS_ISSUER_FPR:
 		start_subpacket(&print->indent, pkt->tag);
 		print_hexdump(print->indent, "Issuer Fingerprint",
-			      content->ss_issuer_fpr.contents + 1,
-			      content->ss_issuer_fpr.len - 1);
+				  content->ss_issuer_fpr.contents + 1,
+				  content->ss_issuer_fpr.len - 1);
 		end_subpacket(&print->indent);
 		break;
 
@@ -1441,24 +1441,24 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 	case PGP_PTAG_SS_USERDEFINED10:
 		start_subpacket(&print->indent, pkt->tag);
 		print_hexdump(print->indent, "Internal or user-defined",
-			      content->ss_userdef.contents,
-			      (unsigned)content->ss_userdef.len);
+				  content->ss_userdef.contents,
+				  (unsigned)content->ss_userdef.len);
 		end_subpacket(&print->indent);
 		break;
 
 	case PGP_PTAG_SS_RESERVED:
 		start_subpacket(&print->indent, pkt->tag);
 		print_hexdump(print->indent, "Reserved",
-			      content->ss_userdef.contents,
-			      (unsigned)content->ss_userdef.len);
+				  content->ss_userdef.contents,
+				  (unsigned)content->ss_userdef.len);
 		end_subpacket(&print->indent);
 		break;
 
 	case PGP_PTAG_SS_REVOCATION_REASON:
 		start_subpacket(&print->indent, pkt->tag);
 		print_hexdump(print->indent, "Revocation Reason",
-			      &content->ss_revocation.code,
-			      1);
+				  &content->ss_revocation.code,
+				  1);
 		str = pgp_show_ss_rr_code(content->ss_revocation.code);
 		print_string(print->indent, NULL, str);
 		end_subpacket(&print->indent);
@@ -1467,9 +1467,9 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 	case PGP_PTAG_CT_LITDATA_HEADER:
 		print_tagname(print->indent, "LITERAL DATA HEADER");
 		printf("  literal data header format=%c filename='%s'\n",
-		       content->litdata_header.format,
-		       content->litdata_header.filename);
-		showtime("    modification time",
+			   content->litdata_header.format,
+			   content->litdata_header.filename);
+		showtime("	  modification time",
 			 content->litdata_header.mtime);
 		printf("\n");
 		break;
@@ -1477,10 +1477,10 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 	case PGP_PTAG_CT_LITDATA_BODY:
 		print_tagname(print->indent, "LITERAL DATA BODY");
 		printf("  literal data body length=%u\n",
-		       content->litdata_body.length);
-		printf("    data=");
+			   content->litdata_body.length);
+		printf("	data=");
 		print_escaped(content->litdata_body.data,
-			      content->litdata_body.length);
+				  content->litdata_body.length);
 		printf("\n");
 		break;
 
@@ -1498,8 +1498,8 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 				   (unsigned)content->sig.info.duration);
 		}
 		print_string_and_value(print->indent, "Signature Type",
-			    pgp_show_sig_type(content->sig.info.type),
-				       content->sig.info.type);
+				pgp_show_sig_type(content->sig.info.type),
+					   content->sig.info.type);
 		if (content->sig.info.signer_id_set) {
 			hexdump_data(print->indent, "Signer ID",
 				content->sig.info.signer_id,
@@ -1507,7 +1507,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 		}
 		print_string_and_value(print->indent, "Public Key Algorithm",
 			pgp_show_pka(content->sig.info.key_alg),
-				     content->sig.info.key_alg);
+					 content->sig.info.key_alg);
 		print_string_and_value(print->indent, "Hash Algorithm",
 			pgp_show_hash_alg((uint8_t)content->sig.info.hash_alg),
 			(uint8_t)content->sig.info.hash_alg);
@@ -1584,13 +1584,13 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 	case PGP_PTAG_CT_SIGNED_CLEARTEXT_BODY:
 		print_tagname(print->indent, "SIGNED CLEARTEXT BODY");
 		print_block(print->indent, "signed cleartext", content->cleartext_body.data,
-			    content->cleartext_body.length);
+				content->cleartext_body.length);
 		break;
 
 	case PGP_PTAG_CT_SIGNED_CLEARTEXT_TRAILER:
 		print_tagname(print->indent, "SIGNED CLEARTEXT TRAILER");
 		printf("hash algorithm: %d\n",
-		       pgp_hash_alg_type(content->cleartext_trailer));
+			   pgp_hash_alg_type(content->cleartext_trailer));
 		printf("\n");
 		break;
 
@@ -1601,7 +1601,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 		}
 		putchar('[');
 		print_escaped(content->unarmoured_text.data,
-			      content->unarmoured_text.length);
+				  content->unarmoured_text.length);
 		putchar(']');
 		break;
 
@@ -1617,7 +1617,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 
 	case PGP_GET_SECKEY:
 		print_pk_sesskey(PGP_PTAG_CT_ENCRYPTED_PK_SESSION_KEY,
-				    content->get_seckey.pk_sesskey);
+					content->get_seckey.pk_sesskey);
 		break;
 
 	default:
