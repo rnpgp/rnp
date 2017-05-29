@@ -98,7 +98,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
  * \return 1 if OK, otherwise 0
  */
 
-unsigned 
+unsigned
 pgp_write_ss_header(pgp_output_t *output,
 			unsigned length,
 			pgp_content_enum type)
@@ -123,7 +123,7 @@ pgp_write_ss_header(pgp_output_t *output,
  * \param userid
  */
 
-void 
+void
 pgp_fast_create_userid(uint8_t **id, uint8_t *userid)
 {
 	*id = userid;
@@ -136,7 +136,7 @@ pgp_fast_create_userid(uint8_t **id, uint8_t *userid)
  * \param output
  * \return 1 if OK, otherwise 0
  */
-unsigned 
+unsigned
 pgp_write_struct_userid(pgp_output_t *output, const uint8_t *id)
 {
 	return pgp_write_ptag(output, PGP_PTAG_CT_USER_ID) &&
@@ -152,7 +152,7 @@ pgp_write_struct_userid(pgp_output_t *output, const uint8_t *id)
  *
  * \return return value from pgp_write_struct_userid()
  */
-unsigned 
+unsigned
 pgp_write_userid(const uint8_t *userid, pgp_output_t *output)
 {
 	return pgp_write_struct_userid(output, userid);
@@ -161,13 +161,13 @@ pgp_write_userid(const uint8_t *userid, pgp_output_t *output)
 /**
 \ingroup Core_MPI
 */
-static unsigned 
+static unsigned
 mpi_length(const BIGNUM *bn)
 {
 	return (unsigned)(2 + (BN_num_bits(bn) + 7) / 8);
 }
 
-static unsigned 
+static unsigned
 pubkey_length(const pgp_pubkey_t *key)
 {
 	switch (key->alg) {
@@ -185,7 +185,7 @@ pubkey_length(const pgp_pubkey_t *key)
 	return 0;
 }
 
-static unsigned 
+static unsigned
 seckey_length(const pgp_seckey_t *key)
 {
 	int             len;
@@ -213,7 +213,7 @@ seckey_length(const pgp_seckey_t *key)
  * \param n
  * \param e
 */
-void 
+void
 pgp_fast_create_rsa_pubkey(pgp_pubkey_t *key, time_t t,
 			       BIGNUM *n, BIGNUM *e)
 {
@@ -228,7 +228,7 @@ pgp_fast_create_rsa_pubkey(pgp_pubkey_t *key, time_t t,
  * Note that we support v3 keys here because they're needed for for
  * verification - the writer doesn't allow them, though
  */
-static unsigned 
+static unsigned
 write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
 {
 	if (!(pgp_write_scalar(output, (unsigned)key->version, 1) &&
@@ -336,7 +336,7 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result) {
  * Note that we support v3 keys here because they're needed for
  * verification.
  */
-static unsigned 
+static unsigned
 write_seckey_body(const pgp_seckey_t *key,
 		      const uint8_t *passphrase,
 		      const size_t pplen,
@@ -469,6 +469,7 @@ write_seckey_body(const pgp_seckey_t *key,
 			 */
 			(void) memcpy(&sesskey[i * hashsize],
 					hashed, (unsigned)size);
+			free(hashed);
 			done += (unsigned)size;
 			if (done > PGP_CAST_KEY_LENGTH) {
 				(void) fprintf(stderr,
@@ -538,6 +539,7 @@ write_seckey_body(const pgp_seckey_t *key,
 	}
 
 	pgp_writer_pop(output);
+	pgp_cipher_finish(&crypted);
 
 	return 1;
 }
@@ -549,7 +551,7 @@ write_seckey_body(const pgp_seckey_t *key,
  * \param output
  * \return 1 if OK, otherwise 0
  */
-static unsigned 
+static unsigned
 write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, const pgp_pubkey_t *key)
 {
 	return pgp_write_ptag(output, tag) &&
@@ -569,7 +571,7 @@ write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, const pgp_pubkey
 
 */
 
-unsigned 
+unsigned
 pgp_write_xfer_pubkey(pgp_output_t *output,
 			const pgp_key_t *key,
 			const pgp_keyring_t *subkeys,
@@ -642,7 +644,7 @@ pgp_write_xfer_pubkey(pgp_output_t *output,
 
 */
 
-unsigned 
+unsigned
 pgp_write_xfer_seckey(pgp_output_t *output,
 				const pgp_key_t *key,
 				const uint8_t *passphrase,
@@ -717,7 +719,7 @@ pgp_write_xfer_seckey(pgp_output_t *output,
  * \return 1 if OK, otherwise 0
  */
 
-unsigned 
+unsigned
 pgp_write_rsa_pubkey(time_t t, const BIGNUM *n,
 			 const BIGNUM *e,
 			 pgp_output_t *output)
@@ -735,7 +737,7 @@ pgp_write_rsa_pubkey(time_t t, const BIGNUM *n,
  * \param make_packet
  */
 
-void 
+void
 pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key,
 		     unsigned make_packet)
 {
@@ -770,7 +772,7 @@ pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key,
  * \param n The RSA public parameter n (=p*q) [OPTIONAL]
  * \param e The RSA public parameter e */
 
-void 
+void
 pgp_fast_create_rsa_seckey(pgp_seckey_t *key, time_t t,
 			     BIGNUM *d, BIGNUM *p, BIGNUM *q, BIGNUM *u,
 			       BIGNUM *n, BIGNUM *e)
@@ -797,7 +799,7 @@ pgp_fast_create_rsa_seckey(pgp_seckey_t *key, time_t t,
  * \param output
  * \return 1 if OK; else 0
  */
-unsigned 
+unsigned
 pgp_write_struct_seckey(pgp_content_enum tag,
 			    const pgp_seckey_t *key,
 			    const uint8_t *passphrase,
@@ -912,7 +914,7 @@ pgp_output_new(void)
  *
  * \param info the structure to be deleted.
  */
-void 
+void
 pgp_output_delete(pgp_output_t *output)
 {
 	pgp_writer_info_delete(&output->writer);
@@ -926,7 +928,7 @@ pgp_output_delete(pgp_output_t *output)
  \param cs Checksum to be written
  \return 1 if OK; else 0
 */
-unsigned 
+unsigned
 pgp_calc_sesskey_checksum(pgp_pk_sesskey_t *sesskey, uint8_t cs[2])
 {
 	uint32_t   checksum = 0;
@@ -950,7 +952,7 @@ pgp_calc_sesskey_checksum(pgp_pk_sesskey_t *sesskey, uint8_t cs[2])
 	return 1;
 }
 
-static unsigned 
+static unsigned
 create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, pgp_crypt_t *cipherinfo, uint8_t *m_buf)
 {
 	unsigned	i;
@@ -1124,7 +1126,7 @@ error:
 \param pksk Public Key Session Key to write out
 \return 1 if OK; else 0
 */
-unsigned 
+unsigned
 pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
 {
 	/* XXX - Flexelint - Pointer parameter 'pksk' (line 1076) could be declared as pointing to const */
@@ -1172,7 +1174,7 @@ pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
 \return 1 if OK; else 0
 */
 
-unsigned 
+unsigned
 pgp_write_mdc(pgp_output_t *output, const uint8_t *hashed)
 {
 	/* write it out */
@@ -1190,7 +1192,7 @@ pgp_write_mdc(pgp_output_t *output, const uint8_t *hashed)
 \param output Write settings
 \return 1 if OK; else 0
 */
-unsigned 
+unsigned
 pgp_write_litdata(pgp_output_t *output,
 			const uint8_t *data,
 			const int maxlen,
@@ -1219,7 +1221,7 @@ pgp_write_litdata(pgp_output_t *output,
 \return 1 if OK; else 0
 */
 
-unsigned 
+unsigned
 pgp_fileread_litdata(const char *filename,
 				 const pgp_litdata_enum type,
 				 pgp_output_t *output)
@@ -1251,7 +1253,7 @@ pgp_fileread_litdata(const char *filename,
    \return 1 if OK; 0 if error
 */
 
-int 
+int
 pgp_filewrite(const char *filename, const char *buf,
 			const size_t len, const unsigned overwrite)
 {
@@ -1289,7 +1291,7 @@ pgp_filewrite(const char *filename, const char *buf,
 \return 1 if OK; else 0
 \note Hard-coded to use AES256
 */
-unsigned 
+unsigned
 pgp_write_symm_enc_data(const uint8_t *data,
 				       const int len,
 				       pgp_output_t * output)
@@ -1331,8 +1333,8 @@ pgp_write_symm_enc_data(const uint8_t *data,
 \param output Write settings
 \return 1 if OK; else 0
 */
-unsigned 
-pgp_write_one_pass_sig(pgp_output_t *output, 
+unsigned
+pgp_write_one_pass_sig(pgp_output_t *output,
 			const pgp_seckey_t *seckey,
 			const pgp_hash_alg_t hash_alg,
 			const pgp_sig_type_t sig_type)

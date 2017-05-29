@@ -87,7 +87,7 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 /*
  * return 1 if OK, otherwise 0
  */
-static unsigned 
+static unsigned
 base_write(pgp_output_t *out, const void *src, unsigned len)
 {
 	return out->writer.writer(src, len, &out->errors, &out->writer);
@@ -102,7 +102,7 @@ base_write(pgp_output_t *out, const void *src, unsigned len)
  * \return 1 if OK, otherwise 0
  */
 
-unsigned 
+unsigned
 pgp_write(pgp_output_t *output, const void *src, unsigned len)
 {
 	return base_write(output, src, len);
@@ -116,7 +116,7 @@ pgp_write(pgp_output_t *output, const void *src, unsigned len)
  * \return 1 if OK, otherwise 0
  */
 
-unsigned 
+unsigned
 pgp_write_scalar(pgp_output_t *output, unsigned n, unsigned len)
 {
 	uint8_t   c;
@@ -137,7 +137,7 @@ pgp_write_scalar(pgp_output_t *output, unsigned n, unsigned len)
  * \return 1 if OK, otherwise 0
  */
 
-unsigned 
+unsigned
 pgp_write_mpi(pgp_output_t *output, const BIGNUM *bn)
 {
 	unsigned	bits;
@@ -160,7 +160,7 @@ pgp_write_mpi(pgp_output_t *output, const BIGNUM *bn)
  * \return 1 if OK, otherwise 0
  */
 
-unsigned 
+unsigned
 pgp_write_ptag(pgp_output_t *output, pgp_content_enum tag)
 {
 	uint8_t   c;
@@ -176,7 +176,7 @@ pgp_write_ptag(pgp_output_t *output, pgp_content_enum tag)
  * \return 1 if OK, otherwise 0
  */
 
-unsigned 
+unsigned
 pgp_write_length(pgp_output_t *output, unsigned len)
 {
 	uint8_t   c[2];
@@ -198,7 +198,7 @@ pgp_write_length(pgp_output_t *output, unsigned len)
  * Note that we finalise from the top down, so we don't use writers below
  * that have already been finalised
  */
-unsigned 
+unsigned
 pgp_writer_info_finalise(pgp_error_t **errors, pgp_writer_t *writer)
 {
 	unsigned   ret = 1;
@@ -214,7 +214,7 @@ pgp_writer_info_finalise(pgp_error_t **errors, pgp_writer_t *writer)
 	return ret;
 }
 
-void 
+void
 pgp_writer_info_delete(pgp_writer_t *writer)
 {
 	/* we should have finalised before deleting */
@@ -245,7 +245,7 @@ pgp_writer_info_delete(pgp_writer_t *writer)
  * \param destroyer
  * \param arg The argument for the writer and destroyer
  */
-void 
+void
 pgp_writer_set(pgp_output_t *output,
 	       pgp_writer_func_t *writer,
 	       pgp_writer_finaliser_t *finaliser,
@@ -273,7 +273,7 @@ pgp_writer_set(pgp_output_t *output,
  * \param destroyer
  * \param arg The argument for the writer and destroyer
  */
-void 
+void
 pgp_writer_push(pgp_output_t *output,
 		pgp_writer_func_t *writer,
 		pgp_writer_finaliser_t *finaliser,
@@ -297,7 +297,7 @@ pgp_writer_push(pgp_output_t *output,
 	}
 }
 
-void 
+void
 pgp_writer_pop(pgp_output_t *output)
 {
 	pgp_writer_t *next;
@@ -326,7 +326,7 @@ pgp_writer_pop(pgp_output_t *output)
  *
  * \param output The output structure
  */
-unsigned 
+unsigned
 pgp_writer_close(pgp_output_t *output)
 {
 	unsigned   ret;
@@ -361,7 +361,7 @@ pgp_writer_get_arg(pgp_writer_t *writer)
  * \param writer The writer_info structure.
  * \return Success - if 0, then errors should contain the error.
  */
-static unsigned 
+static unsigned
 stacked_write(pgp_writer_t *writer, const void *src, unsigned len,
 		  pgp_error_t ** errors)
 {
@@ -376,7 +376,7 @@ stacked_write(pgp_writer_t *writer, const void *src, unsigned len,
  *
  * \param writer the info structure.
  */
-static void 
+static void
 generic_destroyer(pgp_writer_t *writer)
 {
 	free(pgp_writer_get_arg(writer));
@@ -388,7 +388,7 @@ generic_destroyer(pgp_writer_t *writer)
  * A writer that just writes to the next one down. Useful for when you
  * want to insert just a finaliser into the stack.
  */
-unsigned 
+unsigned
 pgp_writer_passthrough(const uint8_t *src,
 		       unsigned len,
 		       pgp_error_t **errors,
@@ -409,7 +409,7 @@ typedef struct {
 	pgp_memory_t		*trailing;
 } dashesc_t;
 
-static unsigned 
+static unsigned
 dash_esc_writer(const uint8_t *src,
 		    unsigned len,
 		    pgp_error_t **errors,
@@ -477,7 +477,7 @@ dash_esc_writer(const uint8_t *src,
 /**
  * \param writer
  */
-static void 
+static void
 dash_escaped_destroyer(pgp_writer_t *writer)
 {
 	dashesc_t	*dash;
@@ -493,7 +493,7 @@ dash_escaped_destroyer(pgp_writer_t *writer)
  * \param output
  * \param sig
  */
-unsigned 
+unsigned
 pgp_writer_push_clearsigned(pgp_output_t *output, pgp_create_sig_t *sig)
 {
 	static const char     header[] =
@@ -538,7 +538,7 @@ typedef struct {
 static const char     b64map[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-static unsigned 
+static unsigned
 base64_writer(const uint8_t *src,
 	      unsigned len,
 	      pgp_error_t **errors,
@@ -593,7 +593,7 @@ base64_writer(const uint8_t *src,
 	return 1;
 }
 
-static unsigned 
+static unsigned
 sig_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 {
 	static const char	trail[] = "\r\n-----END PGP SIGNATURE-----\r\n";
@@ -641,7 +641,7 @@ typedef struct {
 
 #define BREAKPOS	76
 
-static unsigned 
+static unsigned
 linebreak_writer(const uint8_t *src,
 		 unsigned len,
 		 pgp_error_t **errors,
@@ -674,7 +674,7 @@ linebreak_writer(const uint8_t *src,
  * \brief Push armoured signature on stack
  * \param output
  */
-unsigned 
+unsigned
 pgp_writer_use_armored_sig(pgp_output_t *output)
 {
 	static const char     header[] =
@@ -709,7 +709,7 @@ pgp_writer_use_armored_sig(pgp_output_t *output)
 	return 1;
 }
 
-static unsigned 
+static unsigned
 armoured_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 {
 	/* TODO: This is same as sig_finaliser apart from trailer. */
@@ -755,7 +755,7 @@ armoured_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
  \brief Write a PGP MESSAGE
  \todo replace with generic function
 */
-void 
+void
 pgp_writer_push_armor_msg(pgp_output_t *output)
 {
 	static const char	 header[] = "-----BEGIN PGP MESSAGE-----\r\n";
@@ -783,7 +783,7 @@ pgp_writer_push_armor_msg(pgp_output_t *output)
 		base64);
 }
 
-static unsigned 
+static unsigned
 armoured_finaliser(pgp_armor_type_t type,
 			pgp_error_t **errors,
 			pgp_writer_t *writer)
@@ -842,13 +842,13 @@ armoured_finaliser(pgp_armor_type_t type,
 	return stacked_write(writer, tail, tailsize, errors);
 }
 
-static unsigned 
+static unsigned
 armored_pubkey_fini(pgp_error_t **errors, pgp_writer_t *writer)
 {
 	return armoured_finaliser(PGP_PGP_PUBLIC_KEY_BLOCK, errors, writer);
 }
 
-static unsigned 
+static unsigned
 armored_privkey_fini(pgp_error_t **errors, pgp_writer_t *writer)
 {
 	return armoured_finaliser(PGP_PGP_PRIVATE_KEY_BLOCK, errors, writer);
@@ -859,7 +859,7 @@ armored_privkey_fini(pgp_error_t **errors, pgp_writer_t *writer)
  \ingroup Core_WritersNext
  \brief Push Armoured Writer on stack (generic)
 */
-void 
+void
 pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
 {
 	static char     hdr_pubkey[] =
@@ -926,7 +926,7 @@ typedef struct {
  * encrypts it with the given key
  * and outputs the resulting encrypted text
  */
-static unsigned 
+static unsigned
 encrypt_writer(const uint8_t *src,
 	       unsigned len,
 	       pgp_error_t **errors,
@@ -968,7 +968,7 @@ encrypt_writer(const uint8_t *src,
 	return 1;
 }
 
-static void 
+static void
 encrypt_destroyer(pgp_writer_t *writer)
 {
 	crypt_t    *pgp_encrypt;
@@ -984,7 +984,7 @@ encrypt_destroyer(pgp_writer_t *writer)
 \ingroup Core_WritersNext
 \brief Push Encrypted Writer onto stack (create SE packets)
 */
-void 
+void
 pgp_push_enc_crypt(pgp_output_t *output, pgp_crypt_t *pgp_crypt)
 {
 	/* Create encrypt to be used with this writer */
@@ -1021,7 +1021,7 @@ static void     encrypt_se_ip_destroyer(pgp_writer_t *);
 \ingroup Core_WritersNext
 \brief Push Encrypted SE IP Writer onto stack
 */
-int 
+int
 pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const char *cipher)
 {
 	pgp_pk_sesskey_t *encrypted_pk_sesskey;
@@ -1069,7 +1069,7 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const char *ci
 	return 1;
 }
 
-static unsigned 
+static unsigned
 encrypt_se_ip_writer(const uint8_t *src,
 		     unsigned len,
 		     pgp_error_t **errors,
@@ -1120,7 +1120,7 @@ encrypt_se_ip_writer(const uint8_t *src,
 	return ret;
 }
 
-static void 
+static void
 encrypt_se_ip_destroyer(pgp_writer_t *writer)
 {
 	encrypt_se_ip_t	*se_ip;
@@ -1130,7 +1130,7 @@ encrypt_se_ip_destroyer(pgp_writer_t *writer)
 	free(se_ip);
 }
 
-unsigned 
+unsigned
 pgp_write_se_ip_pktset(pgp_output_t *output,
 			const uint8_t *data,
 			const unsigned len,
@@ -1202,7 +1202,7 @@ typedef struct {
 	int             fd;
 } writer_fd_t;
 
-static unsigned 
+static unsigned
 fd_writer(const uint8_t *src, unsigned len,
 	  pgp_error_t **errors,
 	  pgp_writer_t *writer)
@@ -1225,7 +1225,7 @@ fd_writer(const uint8_t *src, unsigned len,
 	return 1;
 }
 
-static void 
+static void
 writer_fd_destroyer(pgp_writer_t *writer)
 {
 	free(pgp_writer_get_arg(writer));
@@ -1244,7 +1244,7 @@ writer_fd_destroyer(pgp_writer_t *writer)
  *
  */
 
-void 
+void
 pgp_writer_set_fd(pgp_output_t *output, int fd)
 {
 	writer_fd_t	*writer;
@@ -1257,7 +1257,7 @@ pgp_writer_set_fd(pgp_output_t *output, int fd)
 	}
 }
 
-static unsigned 
+static unsigned
 memory_writer(const uint8_t *src,
 		unsigned len,
 		pgp_error_t **errors,
@@ -1283,7 +1283,7 @@ memory_writer(const uint8_t *src,
  * \sa pgp_memory_free()
  */
 
-void 
+void
 pgp_writer_set_memory(pgp_output_t *output, pgp_memory_t *mem)
 {
 	pgp_writer_set(output, memory_writer, NULL, NULL, mem);
@@ -1297,7 +1297,7 @@ typedef struct {
 	uint8_t			*hashed;
 } skey_checksum_t;
 
-static unsigned 
+static unsigned
 skey_checksum_writer(const uint8_t *src,
 	const unsigned len,
 	pgp_error_t **errors,
@@ -1328,7 +1328,7 @@ skey_checksum_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 	return 1;
 }
 
-static void 
+static void
 skey_checksum_destroyer(pgp_writer_t *writer)
 {
 	skey_checksum_t *sum;
@@ -1342,7 +1342,7 @@ skey_checksum_destroyer(pgp_writer_t *writer)
 \param output
 \param seckey
 */
-void 
+void
 pgp_push_checksum_writer(pgp_output_t *output, pgp_seckey_t *seckey)
 {
 	/* XXX: push a SHA-1 checksum writer (and change s2k to 254). */
@@ -1387,13 +1387,13 @@ typedef struct {
 } str_enc_se_ip_t;
 
 
-static unsigned 
+static unsigned
 str_enc_se_ip_writer(const uint8_t *src,
 			    unsigned len,
 			    pgp_error_t **errors,
 			    pgp_writer_t *writer);
 
-static unsigned 
+static unsigned
 str_enc_se_ip_finaliser(pgp_error_t **errors,
 			       pgp_writer_t * writer);
 
@@ -1406,7 +1406,7 @@ static void     str_enc_se_ip_destroyer(pgp_writer_t *writer);
 \param output
 \param pubkey
 */
-void 
+void
 pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const char *cipher)
 {
 	pgp_pk_sesskey_t	*encrypted_pk_sesskey;
@@ -1464,7 +1464,7 @@ pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const c
 
 
 /* calculate the partial data length */
-static unsigned 
+static unsigned
 partial_data_len(unsigned len)
 {
 	unsigned	mask;
@@ -1487,7 +1487,7 @@ partial_data_len(unsigned len)
 	return mask;
 }
 
-static unsigned 
+static unsigned
 write_partial_len(pgp_output_t *output, unsigned len)
 {
 	/* len must be a power of 2 from 0 to 30 */
@@ -1503,7 +1503,7 @@ write_partial_len(pgp_output_t *output, unsigned len)
 	return pgp_write(output, &c, 1);
 }
 
-static unsigned 
+static unsigned
 stream_write_litdata(pgp_output_t *output,
 			const uint8_t *data,
 			unsigned len)
@@ -1684,7 +1684,7 @@ stream_write_se_ip_last(pgp_output_t *output,
 	return 1;
 }
 
-static unsigned 
+static unsigned
 str_enc_se_ip_writer(const uint8_t *src,
 			    unsigned len,
 			    pgp_error_t **errors,
@@ -1736,7 +1736,7 @@ str_enc_se_ip_writer(const uint8_t *src,
 }
 
 /* write last chunk of data */
-static unsigned 
+static unsigned
 str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 {
 	str_enc_se_ip_t	*se_ip;
@@ -1774,7 +1774,7 @@ str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 				 (unsigned)pgp_mem_len(se_ip->se_ip_mem), errors);
 }
 
-static void 
+static void
 str_enc_se_ip_destroyer(pgp_writer_t *writer)
 {
 	str_enc_se_ip_t *se_ip;
