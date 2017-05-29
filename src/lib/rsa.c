@@ -386,7 +386,7 @@ rsa_generate_keypair(pgp_key_t *keydata,
         seckey->pubkey.key.rsa.e = new_BN_take_mp(rsa_e);
 
         seckey->s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-        seckey->s2k_specifier = PGP_S2KS_SALTED;
+        seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
         seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
 
         if ((seckey->hash_alg = pgp_str_to_hash_alg(hashalg)) == PGP_HASH_UNKNOWN) {
