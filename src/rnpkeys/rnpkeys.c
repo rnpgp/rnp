@@ -41,7 +41,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <mj.h>
 #include <rnp.h>
 
 #include "../common/constants.h"
@@ -182,7 +181,7 @@ print_usage(const char *usagemsg)
 static int
 match_keys(rnp_t *rnp, FILE *fp, char *f, const int psigs)
 {
-	char	*json;
+	char	*json = NULL;
 	int	 idc;
 
 	if (f == NULL) {
@@ -466,7 +465,6 @@ main(int argc, char **argv)
 			}
 		}
 	}
-
 	if (! rnp_init(&rnp)) {
 		fputs("fatal: failed to initialize rnpkeys\n", stderr);
 		return EXIT_ERROR;

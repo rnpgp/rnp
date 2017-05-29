@@ -90,6 +90,7 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "validate.h"
 #include "rnpdefs.h"
 #include "rnpdigest.h"
+#include <json.h>
 
 
 
@@ -1009,40 +1010,26 @@ pgp_keyring_list(pgp_io_t *io, const pgp_keyring_t *keyring, const int psigs)
 	return 1;
 }
 
+
+/* iterates through the keyring, and add the details of each key
+ * to the **obj json object
+ */
 int
-pgp_keyring_json(pgp_io_t *io, const pgp_keyring_t *keyring, mj_t *obj, const int psigs)
+pgp_keyring_json(pgp_io_t *io, const pgp_keyring_t *keyring,
+                 json_object *obj, const int psigs)
 {
 	pgp_key_t		*key;
-	unsigned		 n;
-
-	(void) memset(obj, 0x0, sizeof(*obj));
-	mj_create(obj, "array");
-	obj->size = keyring->keyvsize;
-	if (pgp_get_debug_level(__FILE__)) {
-		(void) fprintf(io->errs, "pgp_keyring_json: vsize %u\n", obj->size);
-	}
-	if ((obj->value.v = calloc(sizeof(*obj->value.v), obj->size)) == NULL) {
-		(void) fprintf(io->errs, "calloc failure\n");
-		return 0;
-	}
+	unsigned		n;
 	for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
+		json_object *jso = json_object_new_object();
 		if (pgp_is_key_secret(key)) {
-			pgp_sprint_mj(io, keyring, key, &obj->value.v[obj->c],
+		pgp_sprint_json(io, keyring, key, jso,
 				"sec", &key->key.seckey.pubkey, psigs);
 		} else {
-			pgp_sprint_mj(io, keyring, key, &obj->value.v[obj->c],
+			pgp_sprint_json(io, keyring, key, jso,
 				"signature ", &key->key.pubkey, psigs);
 		}
-		if (obj->value.v[obj->c].type != 0) {
-			obj->c += 1;
-		}
-	}
-	if (pgp_get_debug_level(__FILE__)) {
-		char	*s;
-
-		mj_asprint(&s, obj, MJ_JSON_ENCODE);
-		(void) fprintf(stderr, "pgp_keyring_json: '%s'\n", s);
-		free(s);
+		json_object_array_add(obj,jso);
 	}
 	return 1;
 }
@@ -1149,4 +1136,5 @@ pgp_append_keyring(pgp_keyring_t *keyring, pgp_keyring_t *newring)
 		keyring->keyc += 1;
 	}
 	return 1;
+
 }

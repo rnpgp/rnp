@@ -4,8 +4,8 @@ bin_PROGRAMS		= rnpkeys
 
 rnpkeys_SOURCES	= rnpkeys.c
 
-rnpkeys_CPPFLAGS	= -I$(top_srcdir)/include -I$(top_srcdir)/src/libmj
+rnpkeys_CPPFLAGS	= -I$(top_srcdir)/include
 
-rnpkeys_LDADD	= ../lib/librnp.la ../libmj/libmj.la
+rnpkeys_LDADD	= ../lib/librnp.la
 
 dist_man_MANS		= rnpkeys.1
