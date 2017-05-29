@@ -183,7 +183,6 @@ match_keys(rnp_t *rnp, FILE *fp, char *f, const int psigs)
 {
 	char	*json = NULL;
 	int	 idc;
-//    rnp_list_keys_json(rnp, &json, psigs);
 
 	if (f == NULL) {
 		if (!rnp_list_keys_json(rnp, &json, psigs)) {

@@ -639,7 +639,7 @@ p(FILE *fp, const char *s, ...)
 
 /* print a JSON object to the FILE stream */
 static void
-pobj(FILE *fp,  json_object *obj, int depth)
+pobj(FILE *fp, json_object *obj, int depth)
 {
 	unsigned	 i;
 
