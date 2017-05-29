@@ -103,23 +103,25 @@ int pgp_cipher_finish(pgp_crypt_t *crypt)
 		botan_block_cipher_destroy(crypt->block_cipher_obj);
 		crypt->block_cipher_obj = NULL;
 	}
-        return 0;
+	return 0;
 }
 
 int
 pgp_cipher_block_encrypt(const pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in)
 {
-        if (botan_block_cipher_encrypt_blocks(crypt->block_cipher_obj, in, out, 1) == 0)
-                return 0;
-        return -1;
+    if (botan_block_cipher_encrypt_blocks(crypt->block_cipher_obj, in, out, 1) == 0) {
+        return 0;
+    }
+    return -1;
 }
 
 int
 pgp_cipher_block_decrypt(const pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in)
 {
-        if (botan_block_cipher_decrypt_blocks(crypt->block_cipher_obj, in, out, 1) == 0)
-                return 0;
-        return -1;
+    if (botan_block_cipher_decrypt_blocks(crypt->block_cipher_obj, in, out, 1) == 0) {
+		return 0;
+    }
+    return -1;
 }
 
 int
