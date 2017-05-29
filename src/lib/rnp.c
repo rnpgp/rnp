@@ -687,7 +687,7 @@ pobj(FILE *fp, json_object *obj, int depth)
 }
 
 /* return the time as a string */
-static char * 
+static char *
 ptimestr(char *dest, size_t size, time_t t)
 {
 	struct tm      *tm;
@@ -738,7 +738,7 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
     if (json_object_object_get_ex(obj, "key id", &tmp)) {
         pobj(fp, tmp, 0);
     }
-    
+
     if (json_object_object_get_ex(obj, "birthtime", &tmp)) {
         birthtime = (int64_t)strtoll(json_object_get_string(tmp), NULL, 10);
         p(fp, " ", ptimestr(tbuf, sizeof(tbuf), birthtime), NULL);
@@ -952,13 +952,9 @@ disable_core_dumps(void)
 static int
 set_core_dumps(rnp_t *rnp)
 {
-	int setting;
-
-	setting = rnp_getvar(rnp, "coredumps") != NULL;
-	if (! setting) {
-		return disable_core_dumps() == 1 ? 0 : -1;
-	}
-
+    if (findvar(rnp, "coredumps") == -1) {
+        return disable_core_dumps() == 1 ? 0 : -1;
+    }
 	return 1;
 }
 
@@ -1246,7 +1242,7 @@ rnp_init(rnp_t *rnp)
 	int       coredumps;
 	pgp_io_t *io;
 
-    /* Before calling the init, the userdefined options are set. 
+    /* Before calling the init, the userdefined options are set.
      * DONOT MEMSET*/
 #if 0
     memset((void *) rnp, '\0', sizeof(rnp_t));
