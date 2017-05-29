@@ -2483,9 +2483,6 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 			return 0;
 		}
 
-		/* Hardcoded SHA1 for just now */
-		pkt.u.seckey.hash_alg = PGP_HASH_SHA1;
-
                 if(pkt.u.seckey.s2k_specifier == PGP_S2KS_SIMPLE)
                 {
                         pgp_s2k_simple(pkt.u.seckey.hash_alg,

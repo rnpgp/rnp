@@ -84,6 +84,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "keyring.h"
 #include "packet.h"
 #include "signature.h"
+#include "s2k.h"
 #include "writer.h"
 #include "readerwriter.h"
 #include "memory.h"
@@ -345,12 +346,17 @@ write_seckey_body(const pgp_seckey_t *key,
 	/* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
 
 	pgp_crypt_t   crypted;
-	pgp_hash_t    hash;
-	unsigned	done = 0;
-	unsigned	i = 0;
-	uint8_t		*hashed;
-	uint8_t		sesskey[PGP_CAST_KEY_LENGTH];
+	uint8_t		sesskey[PGP_MAX_KEY_SIZE];
 	uint8_t		checkhash[PGP_CHECKHASH_SIZE];
+        size_t          sesskey_size;
+
+        sesskey_size = pgp_key_size(key->alg);
+
+        if (sesskey_size == 0)
+        {
+                (void) fprintf(stderr, "write_seckey_body: unknown encryption algorithm\n");
+                return 0;
+        }
 
 	if (!write_pubkey_body(&key->pubkey, output)) {
 		return 0;
@@ -362,31 +368,29 @@ write_seckey_body(const pgp_seckey_t *key,
 	if (!pgp_write_scalar(output, (unsigned)key->s2k_usage, 1)) {
 		return 0;
 	}
-
-	if (key->alg != PGP_SA_CAST5) {
-		(void) fprintf(stderr, "write_seckey_body: algorithm\n");
-		return 0;
-	}
 	if (!pgp_write_scalar(output, (unsigned)key->alg, 1)) {
 		return 0;
 	}
 
 	if (key->s2k_specifier != PGP_S2KS_SIMPLE &&
-		key->s2k_specifier != PGP_S2KS_SALTED) {
-		/* = 1 \todo could also be iterated-and-salted */
-		(void) fprintf(stderr, "write_seckey_body: s2k spec\n");
+	    key->s2k_specifier != PGP_S2KS_SALTED &&
+            key->s2k_specifier != PGP_S2KS_ITERATED_AND_SALTED) {
+		(void) fprintf(stderr, "write_seckey_body: invalid/unsupported s2k specifier %d\n",
+                               key->s2k_specifier);
 		return 0;
 	}
 	if (!pgp_write_scalar(output, (unsigned)key->s2k_specifier, 1)) {
 		return 0;
 	}
+
 	if (!pgp_write_scalar(output, (unsigned)key->hash_alg, 1)) {
 		return 0;
 	}
 
 	switch (key->s2k_specifier) {
 	case PGP_S2KS_SIMPLE:
-		/* nothing more to do */
+		/* no data to write */
+                pgp_s2k_simple(key->hash_alg, sesskey, sesskey_size, (const char*)passphrase);
 		break;
 
 	case PGP_S2KS_SALTED:
@@ -395,100 +399,27 @@ write_seckey_body(const pgp_seckey_t *key,
 		if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
 			return 0;
 		}
+                pgp_s2k_salted(key->hash_alg, sesskey, sesskey_size,
+                               (const char*)passphrase, key->salt);
 		break;
 
-		/*
-		 * \todo case PGP_S2KS_ITERATED_AND_SALTED: // 8-octet salt
-		 * value // 1-octet count break;
-		 */
+        case PGP_S2KS_ITERATED_AND_SALTED:
+		/* 8-octet salt value */
+		pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE);
+                pgp_s2k_iterated(key->hash_alg, sesskey, sesskey_size,
+                                 (const char*)passphrase, key->salt, key->s2k_iterations);
+                uint8_t encoded_iterations = pgp_s2k_encode_iterations(key->s2k_iterations);
 
-	default:
-		(void) fprintf(stderr,
-			"invalid/unsupported s2k specifier %d\n",
-			key->s2k_specifier);
-		return 0;
+		if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
+			return 0;
+		}
+                if (!pgp_write_scalar(output, encoded_iterations, 1)) {
+			return 0;
+                }
+		break;
 	}
 
 	if (!pgp_write(output, &key->iv[0], pgp_block_size(key->alg))) {
-		return 0;
-	}
-
-	/*
-	 * create the session key for encrypting the algorithm-specific
-	 * fields
-	 */
-
-	switch (key->s2k_specifier) {
-	case PGP_S2KS_SIMPLE:
-	case PGP_S2KS_SALTED:
-		/* RFC4880: section 3.7.1.1 and 3.7.1.2 */
-
-		for (done = 0, i = 0; done < PGP_CAST_KEY_LENGTH; i++) {
-			unsigned 	hashsize;
-			unsigned 	j;
-			unsigned	needed;
-			unsigned	size;
-			uint8_t		zero = 0;
-
-			/* Hard-coded SHA1 for session key */
-			if (!pgp_hash_create(&hash, PGP_HASH_SHA1))
-						   {
-						   (void) fprintf(stderr, "pgp_hash_create(SHA1) failed in write_seckey_body\n");
-						   return 0;
-						   }
-
-			hashsize = pgp_hash_output_length(&hash);
-			needed = PGP_CAST_KEY_LENGTH - done;
-			size = MIN(needed, hashsize);
-			if ((hashed = calloc(1, hashsize)) == NULL) {
-				(void) fprintf(stderr, "write_seckey_body: bad alloc\n");
-				return 0;
-			}
-
-			/* preload if iterating  */
-			for (j = 0; j < i; j++) {
-				/*
-				 * Coverity shows a DEADCODE error on this
-				 * line. This is expected since the hardcoded
-				 * use of SHA1 and CAST5 means that it will
-				 * not used. This will change however when
-				 * other algorithms are supported.
-				 */
-								pgp_hash_add(&hash, &zero, 1);
-			}
-
-			if (key->s2k_specifier == PGP_S2KS_SALTED) {
-								pgp_hash_add(&hash, key->salt, PGP_SALT_SIZE);
-			}
-						pgp_hash_add(&hash, passphrase, (unsigned)pplen);
-						pgp_hash_finish(&hash, hashed);
-
-			/*
-			 * if more in hash than is needed by session key, use
-			 * the leftmost octets
-			 */
-			(void) memcpy(&sesskey[i * hashsize],
-					hashed, (unsigned)size);
-			free(hashed);
-			done += (unsigned)size;
-			if (done > PGP_CAST_KEY_LENGTH) {
-				(void) fprintf(stderr,
-					"write_seckey_body: short add\n");
-				return 0;
-			}
-		}
-
-		break;
-
-		/*
-		 * \todo case PGP_S2KS_ITERATED_AND_SALTED: * 8-octet salt
-		 * value * 1-octet count break;
-		 */
-
-	default:
-		(void) fprintf(stderr,
-			"invalid/unsupported s2k specifier %d\n",
-			key->s2k_specifier);
 		return 0;
 	}
 
@@ -501,7 +432,7 @@ write_seckey_body(const pgp_seckey_t *key,
 
 	if (pgp_get_debug_level(__FILE__)) {
 		hexdump(stderr, "writing: iv=", key->iv, pgp_block_size(key->alg));
-		hexdump(stderr, "key= ", sesskey, PGP_CAST_KEY_LENGTH);
+		hexdump(stderr, "key= ", sesskey, sesskey_size);
 		(void) fprintf(stderr, "\nturning encryption on...\n");
 	}
 	pgp_push_enc_crypt(output, &crypted);

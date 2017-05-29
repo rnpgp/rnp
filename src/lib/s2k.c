@@ -60,7 +60,7 @@ void pgp_s2k_iterated(pgp_hash_alg_t alg,
         botan_pbkdf(s2k_algo_str,
                     out, output_len,
                     passphrase,
-                    salt, PGP_SALT_SIZE,
+                    salt, salt == NULL ? 0 : PGP_SALT_SIZE,
                     iterations);
 }
 
