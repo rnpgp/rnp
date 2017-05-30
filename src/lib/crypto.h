@@ -173,10 +173,10 @@ struct pgp_key_data;
 void pgp_writer_push_encrypt(pgp_output_t *,
 			const struct pgp_key_data *);
 
-unsigned   pgp_encrypt_file(io_t *, const char *, const char *,
+unsigned   pgp_encrypt_file(pgp_io_t *, const char *, const char *,
 			const pgp_key_t *,
 			const unsigned, const unsigned, const char *);
-unsigned   pgp_decrypt_file(io_t *,
+unsigned   pgp_decrypt_file(pgp_io_t *,
 			const char *,
 			const char *,
 			keyring_t *,
@@ -189,11 +189,11 @@ unsigned   pgp_decrypt_file(io_t *,
 			pgp_cbfunc_t *);
 
 pgp_memory_t *
-pgp_encrypt_buf(io_t *, const void *, const size_t,
+pgp_encrypt_buf(pgp_io_t *, const void *, const size_t,
 			const pgp_key_t *,
 			const unsigned, const char *);
 pgp_memory_t *
-pgp_decrypt_buf(io_t *,
+pgp_decrypt_buf(pgp_io_t *,
 			const void *,
 			const size_t,
 			keyring_t *,
@@ -263,7 +263,7 @@ struct pgp_cbdata_t {
 	pgp_error_t		**errors; /* address of error stack */
 	pgp_cbdata_t		*next;
 	pgp_output_t		*output;	/* when writing out parsed info */
-	io_t		*io;		/* error/output messages */
+	pgp_io_t		*io;		/* error/output messages */
 	void			*passfp;	/* fp for passphrase input */
 	pgp_cryptinfo_t		 cryptinfo;	/* used when decrypting */
 	pgp_printstate_t	 printstate;	/* used to keep printing state */

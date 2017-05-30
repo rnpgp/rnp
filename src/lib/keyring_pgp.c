@@ -166,7 +166,7 @@ pgp_keyring_load_keys(rnp_t *rnp, char *homedir)
 {
 	char     *userid;
 	char      id[MAX_ID_LENGTH];
-	io_t *io = rnp->io;
+	pgp_io_t *io = rnp->io;
 
 	/* TODO: Some of this might be split up into sub-functions. */
 	/* TODO: Figure out what unhandled error is causing an
@@ -454,7 +454,7 @@ pgp_keyring_fileread(keyring_t *keyring,
    \sa pgp_keyring_free
 */
 unsigned 
-pgp_keyring_read_from_mem(io_t *io,
+pgp_keyring_read_from_mem(pgp_io_t *io,
 				keyring_t *keyring,
 				const unsigned armour,
 				pgp_memory_t *mem)

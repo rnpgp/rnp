@@ -103,14 +103,14 @@ unsigned check_binary_sig(const uint8_t *,
 		const pgp_sig_t *,
 		const pgp_pubkey_t *);
 
-unsigned   pgp_validate_file(io_t *,
+unsigned   pgp_validate_file(pgp_io_t *,
 			pgp_validation_t *,
 			const char *,
 			const char *,
 			const int,
 			const keyring_t *);
 
-unsigned   pgp_validate_mem(io_t *,
+unsigned   pgp_validate_mem(pgp_io_t *,
 			pgp_validation_t *,
 			pgp_memory_t *,
 			pgp_memory_t **,

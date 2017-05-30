@@ -58,21 +58,21 @@
 #include "packet.h"
 #include "keyring.h"
 
-int pgp_sprint_keydata(io_t *, const keyring_t *,
+int pgp_sprint_keydata(pgp_io_t *, const keyring_t *,
 					   const pgp_key_t *, char **, const char *,
 					   const pgp_pubkey_t *, const int);
-int pgp_sprint_json(io_t *, const keyring_t *,
+int pgp_sprint_json(pgp_io_t *, const keyring_t *,
 				  const pgp_key_t *, json_object *, const char *,
 				  const pgp_pubkey_t *, const int);
-int pgp_hkp_sprint_keydata(io_t *, const keyring_t *,
+int pgp_hkp_sprint_keydata(pgp_io_t *, const keyring_t *,
 						   const pgp_key_t *, char **,
 						   const pgp_pubkey_t *, const int);
-void pgp_print_keydata(io_t *, const keyring_t *, const pgp_key_t *,
+void pgp_print_keydata(pgp_io_t *, const keyring_t *, const pgp_key_t *,
 					   const char *, const pgp_pubkey_t *, const int);
 void pgp_print_pubkey(const pgp_pubkey_t *);
 int pgp_sprint_pubkey(const pgp_key_t *, char *, size_t);
 
-int pgp_list_packets(io_t *,
+int pgp_list_packets(pgp_io_t *,
 					 char *,
 					 unsigned,
 					 keyring_t *,
@@ -80,7 +80,7 @@ int pgp_list_packets(io_t *,
 					 void *,
 					 pgp_cbfunc_t *);
 
-char *pgp_export_key(io_t *, const pgp_key_t *, uint8_t *);
+char *pgp_export_key(pgp_io_t *, const pgp_key_t *, uint8_t *);
 
 
 #endif /* PACKET_PRINT_H_ */
