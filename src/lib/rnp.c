@@ -952,13 +952,9 @@ disable_core_dumps(void)
 static int
 set_core_dumps(rnp_t *rnp)
 {
-	int setting;
-
-	setting = rnp_getvar(rnp, "coredumps") != NULL;
-	if (! setting) {
+	if (findvar(rnp, "coredumps") == -1) {
 		return disable_core_dumps() == 1 ? 0 : -1;
 	}
-
 	return 1;
 }
 
