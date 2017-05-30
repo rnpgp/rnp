@@ -469,6 +469,7 @@ write_seckey_body(const pgp_seckey_t *key,
 			 */
 			(void) memcpy(&sesskey[i * hashsize],
 					hashed, (unsigned)size);
+			free(hashed);
 			done += (unsigned)size;
 			if (done > PGP_CAST_KEY_LENGTH) {
 				(void) fprintf(stderr,
@@ -538,6 +539,7 @@ write_seckey_body(const pgp_seckey_t *key,
 	}
 
 	pgp_writer_pop(output);
+	pgp_cipher_finish(&crypted);
 
 	return 1;
 }
