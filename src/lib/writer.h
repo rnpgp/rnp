@@ -82,7 +82,7 @@ struct pgp_writer_t {
 	pgp_writer_destroyer_t *destroyer;	/* the writer's destroyer */
 	void			 *arg;	/* writer-specific argument */
 	pgp_writer_t	 	 *next;	/* next writer in the stack */
-	io_t		 *io;	/* IO for errors and output */
+	pgp_io_t		 *io;	/* IO for errors and output */
 };
 
 

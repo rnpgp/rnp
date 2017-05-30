@@ -110,7 +110,7 @@ userid_to_id(const uint8_t *userid, char *id)
 
 /* print out the successful signature information */
 static void
-resultp(io_t *io,
+resultp(pgp_io_t *io,
 	const char *f,
 	pgp_validation_t *res,
 	keyring_t *ring)
@@ -342,7 +342,7 @@ static const pgp_key_t *
 resolve_userid(rnp_t *rnp, const keyring_t *keyring, const char *userid)
 {
 	const pgp_key_t	*key;
-	io_t		*io;
+	pgp_io_t		*io;
 
 	if (userid == NULL) {
 		userid = rnp_getvar(rnp, "userid");
@@ -360,7 +360,7 @@ resolve_userid(rnp_t *rnp, const keyring_t *keyring, const char *userid)
 
 /* append a key to a keyring */
 static int
-appendkey(io_t *io, pgp_key_t *key, char *ringfile)
+appendkey(pgp_io_t *io, pgp_key_t *key, char *ringfile)
 {
 	pgp_output_t	*create;
 	const unsigned	 noarmor = 0;
@@ -383,7 +383,7 @@ appendkey(io_t *io, pgp_key_t *key, char *ringfile)
 
 /* return 1 if the file contains ascii-armoured text */
 static unsigned
-isarmoured(io_t *io, const char *f, const void *memory, const char *text)
+isarmoured(pgp_io_t *io, const char *f, const void *memory, const char *text)
 {
 	regmatch_t	 matches[10];
 	unsigned	 armoured;
@@ -765,7 +765,7 @@ static int
 set_pass_fd(rnp_t *rnp)
 {
 	char *passfd = rnp_getvar(rnp, "pass-fd");
-	io_t *io = rnp->io;
+	pgp_io_t *io = rnp->io;
 
 	if (passfd != NULL) {
 		rnp->passfp = fdopen(atoi(passfd), "r");
@@ -785,7 +785,7 @@ set_pass_fd(rnp_t *rnp)
  * upon failure.
  */
 static int
-init_io(rnp_t *rnp, io_t *io)
+init_io(rnp_t *rnp, pgp_io_t *io)
 {
 	char *stream;
 	char *results;
@@ -835,7 +835,7 @@ init_io(rnp_t *rnp, io_t *io)
 static int
 init_new_io(rnp_t *rnp)
 {
-	io_t *io = (io_t *) malloc(sizeof(*io));
+	pgp_io_t *io = (pgp_io_t *) malloc(sizeof(*io));
 
 	if (io != NULL) {
 		if (init_io(rnp, io))
@@ -911,7 +911,7 @@ int
 rnp_init(rnp_t *rnp)
 {
 	int       coredumps;
-	io_t *io;
+	pgp_io_t *io;
 
 	/* Before calling the init, the userdefined options are set.
 	 * DONOT MEMSET*/
@@ -1182,7 +1182,7 @@ rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
 int
 rnp_find_key(rnp_t *rnp, char *id)
 {
-	io_t	*io;
+	pgp_io_t	*io;
 
 	io = rnp->io;
 	if (id == NULL) {
@@ -1219,7 +1219,7 @@ char *
 rnp_export_key(rnp_t *rnp, char *name)
 {
 	const pgp_key_t	*key;
-	io_t		*io;
+	pgp_io_t		*io;
 
 	io = rnp->io;
 	if ((key = resolve_userid(rnp, rnp->pubring, name)) == NULL) {
@@ -1234,7 +1234,7 @@ rnp_export_key(rnp_t *rnp, char *name)
 int
 rnp_import_key(rnp_t *rnp, char *f)
 {
-	io_t	*io;
+	pgp_io_t	*io;
 	unsigned	 realarmor;
 	int		 done;
 
@@ -1258,7 +1258,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 	pgp_output_t		*create;
 	const unsigned		 noarmor = 0;
 	pgp_key_t		*key;
-	io_t		*io;
+	pgp_io_t		*io;
 	uint8_t			*uid;
 	char			 passphrase[128];
 	char			 newid[1024];
@@ -1371,7 +1371,7 @@ rnp_encrypt_file(rnp_t *rnp,
 	const pgp_key_t	*key;
 	const unsigned		 overwrite = 1;
 	const char		*suffix;
-	io_t		*io;
+	pgp_io_t		*io;
 	char			 outname[MAXPATHLEN];
 
 	io = rnp->io;
@@ -1400,7 +1400,7 @@ int
 rnp_decrypt_file(rnp_t *rnp, const char *f, char *out, int armored)
 {
 	const unsigned	 overwrite = 1;
-	io_t	*io;
+	pgp_io_t	*io;
 	unsigned	 realarmor;
 	unsigned	 sshkeys;
 	char		*numtries;
@@ -1442,7 +1442,7 @@ rnp_sign_file(rnp_t *rnp,
 	const unsigned		 overwrite = 1;
 	pgp_seckey_t		*seckey;
 	const char		*hashalg;
-	io_t		*io;
+	pgp_io_t		*io;
 	char			*numtries;
 	int			 attempts;
 	int			 ret;
@@ -1525,7 +1525,7 @@ int
 rnp_verify_file(rnp_t *rnp, const char *in, const char *out, int armored)
 {
 	pgp_validation_t	 result;
-	io_t		*io;
+	pgp_io_t		*io;
 	unsigned		 realarmor;
 
 	__PGP_USED(armored);
@@ -1572,7 +1572,7 @@ rnp_sign_memory(rnp_t *rnp,
 	pgp_seckey_t		*seckey;
 	pgp_memory_t		*signedmem;
 	const char		*hashalg;
-	io_t		*io;
+	pgp_io_t		*io;
 	char 			*numtries;
 	int			 attempts;
 	int			 ret;
@@ -1657,7 +1657,7 @@ rnp_verify_memory(rnp_t *rnp, const void *in, const size_t size,
 	pgp_validation_t	 result;
 	pgp_memory_t		*signedmem;
 	pgp_memory_t		*cat;
-	io_t		*io;
+	pgp_io_t		*io;
 	size_t			 m;
 	int			 ret;
 
@@ -1714,7 +1714,7 @@ rnp_encrypt_memory(rnp_t *rnp,
 {
 	const pgp_key_t	*keypair;
 	pgp_memory_t	*enc;
-	io_t	*io;
+	pgp_io_t	*io;
 	size_t		 m;
 
 	io = rnp->io;
@@ -1750,7 +1750,7 @@ rnp_decrypt_memory(rnp_t *rnp, const void *input, const size_t insize,
 			char *out, size_t outsize, const int armored)
 {
 	pgp_memory_t	*mem;
-	io_t	*io;
+	pgp_io_t	*io;
 	unsigned	 realarmour;
 	unsigned	 sshkeys;
 	size_t		 m;
@@ -1794,7 +1794,7 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
 	keyring_t	*keyring;
 	const unsigned	 noarmor = 0;
 	struct stat	 st;
-	io_t	*io;
+	pgp_io_t	*io;
 	char		 ringname[MAXPATHLEN];
 	char		 homedir[MAXPATHLEN];
 	int		 ret;
@@ -2006,7 +2006,7 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
 {
 	const pgp_key_t	*key;
 	keyring_t	*keyring;
-	io_t	*io;
+	pgp_io_t	*io;
 	unsigned	 k;
 	size_t		 cc;
 	char		 f[MAXPATHLEN];
@@ -2014,7 +2014,7 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
 	keyring = NULL;
 	io = NULL;
 	cc = 0;
-	if ((io = calloc(1, sizeof(io_t))) == NULL) {
+	if ((io = calloc(1, sizeof(pgp_io_t))) == NULL) {
 		(void) fprintf(stderr, "rnp_save_sshpub: bad alloc 1\n");
 		goto done;
 	}

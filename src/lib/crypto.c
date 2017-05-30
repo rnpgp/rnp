@@ -266,7 +266,7 @@ Encrypt a file
 \return 1 if OK; else 0
 */
 unsigned
-pgp_encrypt_file(io_t *io,
+pgp_encrypt_file(pgp_io_t *io,
 			const char *infile,
 			const char *outfile,
 			const pgp_key_t *key,
@@ -312,7 +312,7 @@ pgp_encrypt_file(io_t *io,
 
 /* encrypt the contents of the input buffer, and return the mem structure */
 pgp_memory_t *
-pgp_encrypt_buf(io_t *io,
+pgp_encrypt_buf(pgp_io_t *io,
 			const void *input,
 			const size_t insize,
 			const pgp_key_t *pubkey,
@@ -361,7 +361,7 @@ pgp_encrypt_buf(io_t *io,
 */
 
 unsigned
-pgp_decrypt_file(io_t *io,
+pgp_decrypt_file(pgp_io_t *io,
 			const char *infile,
 			const char *outfile,
 			keyring_t *secring,
@@ -468,7 +468,7 @@ pgp_decrypt_file(io_t *io,
 
 /* decrypt an area of memory */
 pgp_memory_t *
-pgp_decrypt_buf(io_t *io,
+pgp_decrypt_buf(pgp_io_t *io,
 			const void *input,
 			const size_t insize,
 			keyring_t *secring,

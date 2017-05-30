@@ -138,7 +138,7 @@ keyring_free(keyring_t *keyring)
    \return none
 */
 int
-keyring_list(io_t *io, const keyring_t *keyring, const int psigs)
+keyring_list(pgp_io_t *io, const keyring_t *keyring, const int psigs)
 {
     pgp_key_t		*key;
     unsigned		 n;
@@ -158,7 +158,7 @@ keyring_list(io_t *io, const keyring_t *keyring, const int psigs)
 }
 
 int
-keyring_json(io_t *io, const keyring_t *keyring, json_object *obj, const int psigs)
+keyring_json(pgp_io_t *io, const keyring_t *keyring, json_object *obj, const int psigs)
 {
     pgp_key_t		*key;
     unsigned		n;
@@ -273,7 +273,7 @@ keyring_add_to_secring(keyring_t *keyring, const pgp_seckey_t *seckey)
 
 */
 const pgp_key_t *
-keyring_get_key_by_id(io_t *io, const keyring_t *keyring,
+keyring_get_key_by_id(pgp_io_t *io, const keyring_t *keyring,
                       const uint8_t *keyid, unsigned *from, pgp_pubkey_t **pubkey)
 {
 	uint8_t	nullid[PGP_KEY_ID_SIZE];
@@ -343,7 +343,7 @@ str2keyid(const char *userid, uint8_t *keyid, size_t len)
 
 /* return the next key which matches, starting searching at *from */
 static const pgp_key_t *
-get_key_by_name(io_t *io, const keyring_t *keyring, const char *name, unsigned *from)
+get_key_by_name(pgp_io_t *io, const keyring_t *keyring, const char *name, unsigned *from)
 {
 	const pgp_key_t	*kp;
 	uint8_t			**uidp;
@@ -412,7 +412,7 @@ get_key_by_name(io_t *io, const keyring_t *keyring, const char *name, unsigned *
 
 */
 const pgp_key_t *
-keyring_get_key_by_name(io_t *io, const keyring_t *keyring, const char *name)
+keyring_get_key_by_name(pgp_io_t *io, const keyring_t *keyring, const char *name)
 {
 	unsigned	from;
 
@@ -421,7 +421,7 @@ keyring_get_key_by_name(io_t *io, const keyring_t *keyring, const char *name)
 }
 
 const pgp_key_t *
-keyring_get_next_key_by_name(io_t *io, const keyring_t *keyring, const char *name, unsigned *n)
+keyring_get_next_key_by_name(pgp_io_t *io, const keyring_t *keyring, const char *name, unsigned *n)
 {
 	return get_key_by_name(io, keyring, name, n);
 }

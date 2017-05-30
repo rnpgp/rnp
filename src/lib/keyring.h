@@ -48,15 +48,15 @@ int keyring_get_first_ring(keyring_t *ring, char *id, size_t len, int last);
 
 void keyring_free(keyring_t *);
 
-int keyring_list(io_t *, const keyring_t *, const int);
-int keyring_json(io_t *, const keyring_t *, json_object *, const int);
+int keyring_list(pgp_io_t *, const keyring_t *, const int);
+int keyring_json(pgp_io_t *, const keyring_t *, json_object *, const int);
 
 int keyring_add_to_pubring(keyring_t *, const pgp_pubkey_t *, pgp_content_enum tag);
 int keyring_add_to_secring(keyring_t *, const pgp_seckey_t *);
 int keyring_append_keyring(keyring_t *, keyring_t *);
 
-const pgp_key_t *keyring_get_key_by_id(io_t *, const keyring_t *, const unsigned char *, unsigned *, pgp_pubkey_t **);
-const pgp_key_t *keyring_get_key_by_name(io_t *, const keyring_t *, const char *);
-const pgp_key_t *keyring_get_next_key_by_name(io_t *, const keyring_t *, const char *, unsigned *);
+const pgp_key_t *keyring_get_key_by_id(pgp_io_t *, const keyring_t *, const unsigned char *, unsigned *, pgp_pubkey_t **);
+const pgp_key_t *keyring_get_key_by_name(pgp_io_t *, const keyring_t *, const char *);
+const pgp_key_t *keyring_get_next_key_by_name(pgp_io_t *, const keyring_t *, const char *, unsigned *);
 
 #endif /* KEYRING_H_ */

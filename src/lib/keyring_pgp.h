@@ -69,6 +69,6 @@ int pgp_keyring_load_keys(rnp_t *rnp, char *homedir);
 
 unsigned pgp_keyring_fileread(keyring_t *, const unsigned, const char *);
 
-unsigned pgp_keyring_read_from_mem(io_t *, keyring_t *, const unsigned, pgp_memory_t *);
+unsigned pgp_keyring_read_from_mem(pgp_io_t *, keyring_t *, const unsigned, pgp_memory_t *);
 
 #endif /* KEYRING_PGP_H_ */

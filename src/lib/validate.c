@@ -244,7 +244,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	validate_key_cb_t	 *key;
 	pgp_pubkey_t		 *sigkey;
 	pgp_error_t		**errors;
-	io_t		 *io;
+	pgp_io_t		 *io;
 	unsigned		  from;
 	unsigned		  valid = 0;
 
@@ -434,7 +434,7 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	validate_data_cb_t	 *data;
 	pgp_pubkey_t		 *sigkey;
 	pgp_error_t		**errors;
-	io_t		 *io;
+	pgp_io_t		 *io;
 	unsigned		  from;
 	unsigned		  valid = 0;
 
@@ -789,7 +789,7 @@ pgp_validate_result_free(pgp_validation_t *result)
    	pgp_validate_result_free(result) after use.
 */
 unsigned 
-pgp_validate_file(io_t *io,
+pgp_validate_file(pgp_io_t *io,
 			pgp_validation_t *result,
 			const char *infile,
 			const char *outfile,
@@ -922,7 +922,7 @@ pgp_validate_file(io_t *io,
 */
 
 unsigned 
-pgp_validate_mem(io_t *io,
+pgp_validate_mem(pgp_io_t *io,
 			pgp_validation_t *result,
 			pgp_memory_t *mem,
 			pgp_memory_t **cat,
