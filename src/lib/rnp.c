@@ -223,7 +223,7 @@ size_arrays(rnp_t *rnp, unsigned needed)
 static int
 use_ssh_keys(rnp_t *rnp)
 {
-    return rnp->keyring_format == SSH_KEYRING;
+	return rnp->keyring_format == SSH_KEYRING;
 }
 
 /* Get the home directory when resolving gnupg key directory. */
@@ -657,28 +657,28 @@ pobj(FILE *fp, json_object *obj, int depth)
 		p(fp, json_object_get_boolean(obj) ? "true" : "false", NULL);
 		break;
 	case json_type_int:
-        fprintf(fp,"%d",json_object_get_int(obj));
+		fprintf(fp,"%d",json_object_get_int(obj));
 		break;
 	case json_type_string:
-        fprintf(fp,"%s",json_object_get_string(obj));
+		fprintf(fp,"%s",json_object_get_string(obj));
 		break;
 	case json_type_array:;
-        int arrsize = json_object_array_length(obj);
-        int i;
-        for (i = 0 ; i < arrsize ; i++) {
-            json_object *item = json_object_array_get_idx(obj, i);
-            pobj(fp,item,depth+1);
-            if(i<arrsize-1){
+		int arrsize = json_object_array_length(obj);
+		int i;
+		for (i = 0 ; i < arrsize ; i++) {
+			json_object *item = json_object_array_get_idx(obj, i);
+			pobj(fp,item,depth+1);
+			if(i<arrsize-1){
 				(void) fprintf(fp, ", ");
-            }
-        }
+			}
+		}
 		(void) fprintf(fp, "\n");
 		break;
 	case json_type_object: ;
-        json_object_object_foreach(obj, key, val) {
-            printf("key: \"%s\"\n", key);
+		json_object_object_foreach(obj, key, val) {
+			printf("key: \"%s\"\n", key);
 			pobj(fp, val, depth+1);
-        }
+		}
 		p(fp, "\n", NULL);
 		break;
 	default:
@@ -687,7 +687,7 @@ pobj(FILE *fp, json_object *obj, int depth)
 }
 
 /* return the time as a string */
-static char * 
+static char *
 ptimestr(char *dest, size_t size, time_t t)
 {
 	struct tm      *tm;
@@ -714,84 +714,84 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
 	}
 #if 0 //?
 	if (obj->c == 2 && obj->value.v[1].type == MJ_STRING &&
-	    strcmp(obj->value.v[1].value.s, "[REVOKED]") == 0) {
+		strcmp(obj->value.v[1].value.s, "[REVOKED]") == 0) {
 		/* whole key has been rovoked - just return */
 		return;
 	}
 #endif
-    json_object *tmp;
-    if (json_object_object_get_ex(obj, "header", &tmp)) {
-        pobj(fp, tmp, 0);
-        p(fp, " ", NULL);
-    }
+	json_object *tmp;
+	if (json_object_object_get_ex(obj, "header", &tmp)) {
+		pobj(fp, tmp, 0);
+		p(fp, " ", NULL);
+	}
 
-    if (json_object_object_get_ex(obj, "key bits", &tmp)) {
-        pobj(fp, tmp, 0);
-        p(fp, "/", NULL);
-    }
+	if (json_object_object_get_ex(obj, "key bits", &tmp)) {
+		pobj(fp, tmp, 0);
+		p(fp, "/", NULL);
+	}
 
-    if (json_object_object_get_ex(obj, "pka", &tmp)) {
-        pobj(fp, tmp, 0);
-        p(fp, " ", NULL);
-    }
+	if (json_object_object_get_ex(obj, "pka", &tmp)) {
+		pobj(fp, tmp, 0);
+		p(fp, " ", NULL);
+	}
 
-    if (json_object_object_get_ex(obj, "key id", &tmp)) {
-        pobj(fp, tmp, 0);
-    }
-    
-    if (json_object_object_get_ex(obj, "birthtime", &tmp)) {
-        birthtime = (int64_t)strtoll(json_object_get_string(tmp), NULL, 10);
-        p(fp, " ", ptimestr(tbuf, sizeof(tbuf), birthtime), NULL);
+	if (json_object_object_get_ex(obj, "key id", &tmp)) {
+		pobj(fp, tmp, 0);
+	}
 
-        if (json_object_object_get_ex(obj, "duration", &tmp)) {
-            duration = (int64_t)strtoll(json_object_get_string(tmp), NULL, 10);
-            if (duration > 0) {
-                now = time(NULL);
-                p(fp, " ", (birthtime + duration < now) ? "[EXPIRED " : "[EXPIRES ",
-                    ptimestr(tbuf, sizeof(tbuf), birthtime + duration), "]", NULL);
-            }
-        }
-    }
+	if (json_object_object_get_ex(obj, "birthtime", &tmp)) {
+		birthtime = (int64_t)strtoll(json_object_get_string(tmp), NULL, 10);
+		p(fp, " ", ptimestr(tbuf, sizeof(tbuf), birthtime), NULL);
 
-    if (json_object_object_get_ex(obj, "fingerprint", &tmp)) {
-        p(fp, "\n", "Key fingerprint: ", NULL);
-        pobj(fp, tmp, 0);
-        p(fp, "\n", NULL);
-    }
+		if (json_object_object_get_ex(obj, "duration", &tmp)) {
+			duration = (int64_t)strtoll(json_object_get_string(tmp), NULL, 10);
+			if (duration > 0) {
+				now = time(NULL);
+				p(fp, " ", (birthtime + duration < now) ? "[EXPIRED " : "[EXPIRES ",
+					ptimestr(tbuf, sizeof(tbuf), birthtime + duration), "]", NULL);
+			}
+		}
+	}
+
+	if (json_object_object_get_ex(obj, "fingerprint", &tmp)) {
+		p(fp, "\n", "Key fingerprint: ", NULL);
+		pobj(fp, tmp, 0);
+		p(fp, "\n", NULL);
+	}
 
 
-    if (json_object_object_get_ex(obj, "uid", &tmp)) {
-        if (!json_object_is_type(tmp, json_type_null)){
-            p(fp, "uid", NULL);
-            pobj(fp, json_object_array_get_idx(tmp,0), (psigs) ? 4 : 14); /* human name */
-            pobj(fp, json_object_array_get_idx(tmp,1),1); /* any revocation */
-            p(fp, "\n", NULL);
-        }
-    }
+	if (json_object_object_get_ex(obj, "uid", &tmp)) {
+		if (!json_object_is_type(tmp, json_type_null)){
+			p(fp, "uid", NULL);
+			pobj(fp, json_object_array_get_idx(tmp,0), (psigs) ? 4 : 14); /* human name */
+			pobj(fp, json_object_array_get_idx(tmp,1),1); /* any revocation */
+			p(fp, "\n", NULL);
+		}
+	}
 
-    if (json_object_object_get_ex(obj, "encryption", &tmp)) {
-        if (!json_object_is_type(tmp, json_type_null)){
-            p(fp, "encryption", NULL);
-            pobj(fp, json_object_array_get_idx(tmp,0), 1);	/* size */
-            p(fp, "/", NULL);
-            pobj(fp, json_object_array_get_idx(tmp,1),0); /* alg */
-            p(fp, " ", NULL);
-            pobj(fp, json_object_array_get_idx(tmp,2),0); /* id */
-            p(fp, " ", ptimestr(tbuf, sizeof(tbuf), (time_t)strtoll(json_object_get_string(json_object_array_get_idx(tmp,3)), NULL, 10)), "\n", NULL);
-        }
-    }
+	if (json_object_object_get_ex(obj, "encryption", &tmp)) {
+		if (!json_object_is_type(tmp, json_type_null)){
+			p(fp, "encryption", NULL);
+			pobj(fp, json_object_array_get_idx(tmp,0), 1);	/* size */
+			p(fp, "/", NULL);
+			pobj(fp, json_object_array_get_idx(tmp,1),0); /* alg */
+			p(fp, " ", NULL);
+			pobj(fp, json_object_array_get_idx(tmp,2),0); /* id */
+			p(fp, " ", ptimestr(tbuf, sizeof(tbuf), (time_t)strtoll(json_object_get_string(json_object_array_get_idx(tmp,3)), NULL, 10)), "\n", NULL);
+		}
+	}
 
-    if (json_object_object_get_ex(obj, "sig", &tmp)) {
-        if (!json_object_is_type(tmp, json_type_null)){
-            p(fp, "sig", NULL);
-            pobj(fp,json_object_array_get_idx(tmp,0), 8);	/* size */
-            p(fp, "  ", ptimestr(tbuf, sizeof(tbuf),
-                (time_t)strtoll(json_object_get_string(json_object_array_get_idx(tmp,1)), NULL, 10)),
-                " ", NULL); /* time */
-            pobj(fp,json_object_array_get_idx(tmp, 2), 0); /* human name */
-            p(fp, "\n", NULL);
-        }
-    }
+	if (json_object_object_get_ex(obj, "sig", &tmp)) {
+		if (!json_object_is_type(tmp, json_type_null)){
+			p(fp, "sig", NULL);
+			pobj(fp,json_object_array_get_idx(tmp,0), 8);	/* size */
+			p(fp, "  ", ptimestr(tbuf, sizeof(tbuf),
+				(time_t)strtoll(json_object_get_string(json_object_array_get_idx(tmp,1)), NULL, 10)),
+				" ", NULL); /* time */
+			pobj(fp,json_object_array_get_idx(tmp, 2), 0); /* human name */
+			p(fp, "\n", NULL);
+		}
+	}
 	p(fp, "\n", NULL);
 }
 
@@ -919,26 +919,26 @@ disable_core_dumps(void)
 	memset(&limit, 0, sizeof(limit));
 	error = setrlimit(RLIMIT_CORE, &limit);
 
-        if (error == 0)
-           {
-           error = getrlimit(RLIMIT_CORE, &limit);
-           if(error)
-              {
-              return -1;
-              }
-           else if(limit.rlim_cur == 0)
-              {
-              return 1; // disabling core dumps ok
-              }
-           else
-              {
-              return 0; // failed for some reason?
-              }
-           }
-        else
-           {
-           return -1;
-           }
+		if (error == 0)
+		   {
+		   error = getrlimit(RLIMIT_CORE, &limit);
+		   if(error)
+			  {
+			  return -1;
+			  }
+		   else if(limit.rlim_cur == 0)
+			  {
+			  return 1; // disabling core dumps ok
+			  }
+		   else
+			  {
+			  return 0; // failed for some reason?
+			  }
+		   }
+		else
+		   {
+		   return -1;
+		   }
 }
 
 /* Disable core dumps according to the coredumps setting variable.
@@ -1246,10 +1246,10 @@ rnp_init(rnp_t *rnp)
 	int       coredumps;
 	pgp_io_t *io;
 
-    /* Before calling the init, the userdefined options are set. 
-     * DONOT MEMSET*/
+	/* Before calling the init, the userdefined options are set.
+	 * DONOT MEMSET*/
 #if 0
-    memset((void *) rnp, '\0', sizeof(rnp_t));
+	memset((void *) rnp, '\0', sizeof(rnp_t));
 #endif
 
 	/* Apply default settings. */
@@ -1282,7 +1282,7 @@ rnp_init(rnp_t *rnp)
 	}
 	if (coredumps) {
 		fputs("rnp: warning: core dumps enabled, "
-		      "sensitive data may be leaked to disk\n", io->errs);
+			  "sensitive data may be leaked to disk\n", io->errs);
 	}
 
 	/* Initialize the context with the default keyring format. */
@@ -1323,13 +1323,13 @@ rnp_end(rnp_t *rnp)
 	}
 	if (rnp->pubring != NULL) {
 		pgp_keyring_free(rnp->pubring);
-                free(rnp->pubring);
-                rnp->pubring = NULL;
+				free(rnp->pubring);
+				rnp->pubring = NULL;
 	}
 	if (rnp->secring != NULL) {
 		pgp_keyring_free(rnp->secring);
-                free(rnp->secring);
-                rnp->secring = NULL;
+				free(rnp->secring);
+				rnp->secring = NULL;
 	}
 	free(rnp->io);
 	return 1;
@@ -1350,7 +1350,7 @@ rnp_list_keys(rnp_t *rnp, const int psigs)
 int
 rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
 {
-    json_object *obj = json_object_new_array();
+	json_object *obj = json_object_new_array();
 	int	ret;
 	if (rnp->pubring == NULL) {
 		(void) fprintf(stderr, "No keyring\n");
@@ -1360,9 +1360,9 @@ rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
 		(void) fprintf(stderr, "No keys in keyring\n");
 		return 0;
 	}
-    const char *j  = json_object_to_json_string(obj);
-    ret = j != NULL;
-    *json = strdup(j);
+	const char *j  = json_object_to_json_string(obj);
+	ret = j != NULL;
+	*json = strdup(j);
 	return ret;
 }
 
@@ -1453,11 +1453,11 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
 	unsigned	 k;
 	json_object *id_array = json_object_new_array();
 	char		*newkey;
-    //remove 0x prefix, if any
+	//remove 0x prefix, if any
 	if (name[0] == '0' && name[1] == 'x') {
 		name += 2;
 	}
-    printf("%s,%d, NAME: %s\n",__FILE__,__LINE__,name);
+	printf("%s,%d, NAME: %s\n",__FILE__,__LINE__,name);
 	k = 0;
 	*json = NULL;
 	do {
@@ -1481,9 +1481,9 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
 			k += 1;
 		}
 	} while (key != NULL);
-    const char *j = json_object_to_json_string(id_array);
-    *json = strdup(j);
-    ret = strlen(j);
+	const char *j = json_object_to_json_string(id_array);
+	*json = strdup(j);
+	ret = strlen(j);
 	json_object_put(id_array);
 	return ret;
 }
@@ -1668,7 +1668,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 	}
 	/* get the passphrase */
 	if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
-	    (attempts = atoi(numtries)) <= 0) {
+		(attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
 		attempts = INFINITE_ATTEMPTS;
@@ -1748,7 +1748,7 @@ rnp_decrypt_file(rnp_t *rnp, const char *f, char *out, int armored)
 	realarmor = isarmoured(io, f, NULL, ARMOR_HEAD);
 	sshkeys = (unsigned)use_ssh_keys(rnp);
 	if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
-	    (attempts = atoi(numtries)) <= 0) {
+		(attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
 		attempts = INFINITE_ATTEMPTS;
@@ -1792,7 +1792,7 @@ rnp_sign_file(rnp_t *rnp,
 	}
 	ret = 1;
 	if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
-	    (attempts = atoi(numtries)) <= 0) {
+		(attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
 		attempts = INFINITE_ATTEMPTS;
@@ -1921,7 +1921,7 @@ rnp_sign_memory(rnp_t *rnp,
 	}
 	ret = 1;
 	if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
-	    (attempts = atoi(numtries)) <= 0) {
+		(attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
 		attempts = INFINITE_ATTEMPTS;
@@ -2099,7 +2099,7 @@ rnp_decrypt_memory(rnp_t *rnp, const void *input, const size_t insize,
 	realarmour = isarmoured(io, NULL, input, ARMOR_HEAD);
 	sshkeys = (unsigned)use_ssh_keys(rnp);
 	if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
-	    (attempts = atoi(numtries)) <= 0) {
+		(attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
 		attempts = INFINITE_ATTEMPTS;
@@ -2214,7 +2214,7 @@ rnp_setvar(rnp_t *rnp, const char *name, const char *value)
 	/* sanity checks for range of values */
 	if (strcmp(name, "hash") == 0 || strcmp(name, "algorithm") == 0) {
 		if (pgp_str_to_hash_alg(newval) == PGP_HASH_UNKNOWN) {
-                        fprintf(stderr, "Ignoring unknown hash algo '%s'\n", newval);
+						fprintf(stderr, "Ignoring unknown hash algo '%s'\n", newval);
 			free(newval);
 			return 0;
 		}
@@ -2282,7 +2282,7 @@ int
 rnp_set_homedir(rnp_t *rnp, char *home, const int quiet)
 {
 	struct stat st;
-        int ret;
+		int ret;
 
 	/* TODO: Replace `stderr` with the rnp context's error file when we
 	 *       are sure that all utilities and bindings don't call
@@ -2342,16 +2342,16 @@ rnp_format_json(void *vp, const char *json, const int psigs)
 		return 0;
 	}
 	/* convert from string into a json structure */
-    ids = json_tokener_parse(json);
+	ids = json_tokener_parse(json);
 //	/* ids is an array of strings, each containing 1 entry */
-    idc = json_object_array_length(ids);
+	idc = json_object_array_length(ids);
 	(void) fprintf(fp, "%d key%s found\n", idc, (idc == 1) ? "" : "s");
 	for (i = 0 ; i < idc ; i++) {
-        json_object *item = json_object_array_get_idx(ids, i);;
+		json_object *item = json_object_array_get_idx(ids, i);;
 		format_json_key(fp, item, psigs);
 	}
 	/* clean up */
-    json_object_put(ids);
+	json_object_put(ids);
 	return idc;
 }
 
