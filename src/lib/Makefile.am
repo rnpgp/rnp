@@ -9,8 +9,8 @@ lib_LTLIBRARIES		= librnp.la
 librnp_la_CPPFLAGS	= -I$(top_srcdir)/include
 
 librnp_la_SOURCES	= \
-	bufgap.c \
 	bn.c \
+	bufgap.c \
 	compress.c \
 	create.c \
 	crypto.c \
@@ -19,13 +19,14 @@ librnp_la_SOURCES	= \
 	hash.c \
 	keyring.c \
 	misc.c \
-	pem.c \
-	rnp.c \
-	rsa.c \
 	packet-parse.c \
 	packet-print.c \
 	packet-show.c \
+	pem.c \
 	reader.c \
+	rnp.c \
+	rsa.c \
+	s2k.c \
 	signature.c \
 	ssh2pgp.c \
 	symmetric.c \

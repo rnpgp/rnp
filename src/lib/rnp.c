@@ -1669,6 +1669,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 	} else if (strcmp(numtries, "unlimited") == 0) {
 		attempts = INFINITE_ATTEMPTS;
 	}
+        memset(passphrase, 0, sizeof(passphrase));
 	passc = find_passphrase(rnp->passfp, &cp[ID_OFFSET], passphrase, sizeof(passphrase), attempts);
 	if (!pgp_write_xfer_seckey(create, key, (uint8_t *)passphrase, (const unsigned)passc, NULL, noarmor)) {
 		(void) fprintf(io->errs, "cannot write seckey\n");

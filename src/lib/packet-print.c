@@ -962,7 +962,7 @@ print_seckey_verbose(const pgp_content_enum type,
 					(unsigned)sizeof(seckey->salt));
 		}
 		if (seckey->s2k_specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-			printf("Octet count: %u\n", seckey->octetc);
+			printf("Octet count: %u\n", seckey->s2k_iterations);
 		}
 		print_hexdump(0, "IV", seckey->iv, pgp_block_size(seckey->alg));
 	}

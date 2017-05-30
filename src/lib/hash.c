@@ -130,8 +130,7 @@ pgp_str_to_hash_alg(const char *hash)
 }
 
 
-static
-const char* pgp_hash_alg_to_botan_name(pgp_hash_alg_t hash)
+const char* pgp_hash_name_botan(pgp_hash_alg_t hash)
 {
         switch(hash)
         {
@@ -183,7 +182,7 @@ const char* pgp_hash_alg_to_botan_name(pgp_hash_alg_t hash)
 int
 pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
 {
-        const char* hash_name = pgp_hash_alg_to_botan_name(alg);
+        const char* hash_name = pgp_hash_name_botan(alg);
         botan_hash_t impl;
         size_t outlen;
         int rc;
@@ -280,6 +279,6 @@ pgp_hash_alg_t pgp_hash_alg_type(const pgp_hash_t* hash)
 unsigned
 pgp_is_hash_alg_supported(const pgp_hash_alg_t *hash_alg)
 {
-        return pgp_hash_alg_to_botan_name(*hash_alg) != NULL;
+        return pgp_hash_name_botan(*hash_alg) != NULL;
 }
 

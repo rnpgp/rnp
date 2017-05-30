@@ -519,7 +519,7 @@ typedef struct pgp_seckey_t {
 	pgp_symm_alg_t		alg;		/* symmetric alg */
 	pgp_hash_alg_t		hash_alg;	/* hash algorithm */
 	uint8_t				salt[PGP_SALT_SIZE];
-	unsigned			octetc;
+	unsigned			s2k_iterations;
 	uint8_t				iv[PGP_MAX_BLOCK_SIZE];
 	union {
 		pgp_rsa_seckey_t		rsa;

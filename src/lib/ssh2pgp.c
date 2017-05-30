@@ -63,7 +63,7 @@
 #include "rnpdefs.h"
 #include "rnpsdk.h"
 #include "crypto.h"
-#include "rnpdigest.h"
+#include "s2k.h"
 #include "ssh2pgp.h"
 
 /* structure for earching for constant strings */
@@ -366,12 +366,8 @@ int
 pgp_ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey, pgp_hash_alg_t hashtype)
 {
 	pgp_crypt_t	crypted;
-	pgp_hash_t	hash;
-	unsigned	done = 0;
-	unsigned	i = 0;
-	uint8_t		sesskey[PGP_CAST_KEY_LENGTH];
-	uint8_t		hashed[PGP_SHA1_HASH_SIZE];
-	BIGNUM		*tmp;
+	uint8_t		sesskey[PGP_MAX_KEY_SIZE];
+        unsigned        sesskey_len;
 
 	__PGP_USED(io);
 	/* XXX - check for rsa/dsa */
@@ -384,65 +380,30 @@ pgp_ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey
 	}
 	/* let's add some sane defaults */
 	(void) memcpy(&key->key.seckey.pubkey, pubkey, sizeof(*pubkey));
+	key->key.seckey.pubkey.alg = PGP_PKA_RSA;
 	key->key.seckey.s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
 	key->key.seckey.alg = PGP_SA_CAST5;
 	key->key.seckey.s2k_specifier = PGP_S2KS_SALTED;
 	key->key.seckey.hash_alg = PGP_HASH_SHA1;
+
+        pgp_random(key->key.seckey.salt, PGP_SALT_SIZE);
+
 	if (key->key.seckey.pubkey.alg == PGP_PKA_RSA) {
 		/* openssh and openssl have p and q swapped */
-		tmp = key->key.seckey.key.rsa.p;
+		BIGNUM* tmp = key->key.seckey.key.rsa.p;
 		key->key.seckey.key.rsa.p = key->key.seckey.key.rsa.q;
 		key->key.seckey.key.rsa.q = tmp;
 	}
-	for (done = 0, i = 0; done < PGP_CAST_KEY_LENGTH; i++) {
-		unsigned 	j;
-		uint8_t		zero = 0;
-		int             needed;
-		int             size;
 
-		needed = PGP_CAST_KEY_LENGTH - done;
-		size = MIN(needed, PGP_SHA1_HASH_SIZE);
+        sesskey_len = pgp_key_size(key->key.seckey.alg);
 
-		if (!pgp_hash_create(&hash, key->key.seckey.hash_alg)) {
-			(void) fprintf(stderr, "write_seckey_body: bad alloc\n");
-			return 0;
-		}
+        pgp_s2k_salted(key->key.seckey.hash_alg, sesskey, sesskey_len,
+                       "", key->key.seckey.salt);
 
-		/* preload if iterating  */
-		for (j = 0; j < i; j++) {
-			/*
-			 * Coverity shows a DEADCODE error on this
-			 * line. This is expected since the hardcoded
-			 * use of SHA1 and CAST5 means that it will
-			 * not used. This will change however when
-			 * other algorithms are supported.
-			 */
-			pgp_hash_add(&hash, &zero, 1);
-		}
-
-		if (key->key.seckey.s2k_specifier == PGP_S2KS_SALTED) {
-			pgp_hash_add(&hash, key->key.seckey.salt, PGP_SALT_SIZE);
-		}
-		pgp_hash_finish(&hash, hashed);
-
-		/*
-		 * if more in hash than is needed by session key, use
-		 * the leftmost octets
-		 */
-		(void) memcpy(&sesskey[i * PGP_SHA1_HASH_SIZE],
-				hashed, (unsigned)size);
-		done += (unsigned)size;
-		if (done > PGP_CAST_KEY_LENGTH) {
-			(void) fprintf(stderr,
-				"write_seckey_body: short add\n");
-			return 0;
-		}
-	}
 	pgp_crypt_any(&crypted, key->key.seckey.alg);
         pgp_cipher_set_iv(&crypted, key->key.seckey.iv);
         pgp_cipher_set_key(&crypted, sesskey);
 	pgp_encrypt_init(&crypted);
-	key->key.seckey.pubkey.alg = PGP_PKA_RSA;
 	pgp_fingerprint(&key->sigfingerprint, pubkey, hashtype);
 	pgp_keyid(key->sigid, sizeof(key->sigid), pubkey, hashtype);
 	return 1;

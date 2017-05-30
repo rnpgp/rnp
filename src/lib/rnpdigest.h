@@ -34,12 +34,8 @@
 /* header file to define the sizes for various digest arrays */
 
 
-#define PGP_CAST_KEY_LENGTH     16
-
-#define PGP_MD5_HASH_SIZE 	16
 /* SHA1 Hash Size */
 #define PGP_SHA1_HASH_SIZE 	20
-#define PGP_SHA256_HASH_SIZE	32
 #define PGP_CHECKHASH_SIZE	PGP_SHA1_HASH_SIZE
 
 #endif /* RNPDIGEST_H_ */
