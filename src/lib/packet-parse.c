@@ -81,7 +81,9 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "packet.h"
 #include "bn.h"
 #include "packet-parse.h"
-#include "keyring.h"
+#include "packet-print.h"
+#include "packet-key.h"
+#include "keyring_pgp.h"
 #include "errors.h"
 #include "packet-show.h"
 #include "create.h"
@@ -89,6 +91,7 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "rnpdefs.h"
 #include "crypto.h"
 #include "rnpdigest.h"
+#include "s2k.h"
 
 #define ERRP(cbinfo, cont, err)	do {					\
 	cont.u.error = err;						\
@@ -96,6 +99,11 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 	return 0;							\
 	/*NOTREACHED*/							\
 } while(/*CONSTCOND*/0)
+
+typedef struct {
+    pgp_io_t        *io;
+	keyring_t		*keyring;
+} accumulate_t;
 
 /**
  * limread_data reads the specified amount of the subregion's data
@@ -669,7 +677,7 @@ limread_mpi(BIGNUM **pbn, pgp_region_t *region, pgp_stream_t *stream)
 
 	if (length == 0) {
 		/* if we try to read a length of 0, then fail */
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			(void) fprintf(stderr, "limread_mpi: 0 length\n");
 		}
 		return 0;
@@ -714,7 +722,7 @@ streamread(pgp_stream_t *stream, unsigned c)
 static int
 coalesce_blocks(pgp_stream_t *stream, unsigned length)
 {
-	unsigned	c;
+	unsigned	c = 0;
 
 	stream->coalescing = 1;
 	/* already read a partial block length - prime the array */
@@ -1908,7 +1916,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
 	pgp_packet_t	pkt;
 	uint8_t		c = 0x0;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		fprintf(stderr, "\nparse_v4_sig\n");
 	}
 	/* clear signature */
@@ -1929,7 +1937,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
 		return 0;
 	}
 	pkt.u.sig.info.type = (pgp_sig_type_t)c;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		fprintf(stderr, "signature type=%d (%s)\n",
 			pkt.u.sig.info.type,
 			pgp_show_sig_type(pkt.u.sig.info.type));
@@ -1941,7 +1949,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
 	}
 	pkt.u.sig.info.key_alg = (pgp_pubkey_alg_t)c;
 	/* XXX: check key algorithm */
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "key_alg=%d (%s)\n",
 			pkt.u.sig.info.key_alg,
 			pgp_show_pka(pkt.u.sig.info.key_alg));
@@ -1951,7 +1959,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
 	}
 	pkt.u.sig.info.hash_alg = (pgp_hash_alg_t)c;
 	/* XXX: check hash algorithm */
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		fprintf(stderr, "hash_alg=%d %s\n",
 			pkt.u.sig.info.hash_alg,
 		  pgp_show_hash_alg(pkt.u.sig.info.hash_alg));
@@ -1964,7 +1972,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
 
 	pkt.u.sig.info.v4_hashlen = stream->readinfo.alength
 					- pkt.u.sig.v4_hashstart;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		fprintf(stderr, "v4_hashlen=%zd\n", pkt.u.sig.info.v4_hashlen);
 	}
 
@@ -2000,7 +2008,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
 		if (!limread_mpi(&pkt.u.sig.info.sig.rsa.sig, region, stream)) {
 			return 0;
 		}
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			(void) fprintf(stderr, "parse_v4_sig: RSA: sig is\n");
 			BN_print_fp(stderr, pkt.u.sig.info.sig.rsa.sig);
 			(void) fprintf(stderr, "\n");
@@ -2013,7 +2021,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
 			 * usually if this fails, it just means we've reached
 			 * the end of the keyring
 			 */
-			if (pgp_get_debug_level(__FILE__)) {
+			if (rnp_get_debug(__FILE__)) {
 				(void) fprintf(stderr,
 				"Error reading DSA r field in signature\n");
 			}
@@ -2151,8 +2159,7 @@ parse_hash_init(pgp_stream_t *stream, pgp_hash_alg_t type,
 	}
 	hash = &stream->hashes[stream->hashc++];
 
-	pgp_hash_any(&hash->hash, type);
-	if (!hash->hash.init(&hash->hash)) {
+	if (!pgp_hash_create(&hash->hash, type)) {
 		(void) fprintf(stderr, "parse_hash_init: bad alloc\n");
 		/* just continue and die here */
 		/* XXX - agc - no way to return failure */
@@ -2234,7 +2241,7 @@ parse_hash_data(pgp_stream_t *stream, const void *data,
 	size_t          n;
 
 	for (n = 0; n < stream->hashc; ++n) {
-		stream->hashes[n].hash.add(&stream->hashes[n].hash, data, (unsigned)length);
+		pgp_hash_add(&stream->hashes[n].hash, data, (unsigned)length);
 	}
 }
 
@@ -2298,6 +2305,7 @@ parse_litdata(pgp_region_t *region, pgp_stream_t *stream)
 void
 pgp_seckey_free(pgp_seckey_t *key)
 {
+	pgp_pubkey_free(&key->pubkey);
 	switch (key->pubkey.alg) {
 	case PGP_PKA_RSA:
 	case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -2365,7 +2373,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 	uint8_t			c = 0x0;
 	int			ret = 1;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		fprintf(stderr, "\n---------\nparse_seckey:\n");
 		fprintf(stderr,
 			"region length=%u, readc=%u, remainder=%u\n",
@@ -2376,7 +2384,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 	if (!parse_pubkey_data(&pkt.u.seckey.pubkey, region, stream)) {
 		return 0;
 	}
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		fprintf(stderr, "parse_seckey: public key parsed\n");
 		pgp_print_pubkey(&pkt.u.seckey.pubkey);
 	}
@@ -2412,7 +2420,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 		}
 		pkt.u.seckey.hash_alg = (pgp_hash_alg_t)c;
 		if (pkt.u.seckey.s2k_specifier != PGP_S2KS_SIMPLE &&
-		    !limread(pkt.u.seckey.salt, 8, region, stream)) {
+		    !limread(pkt.u.seckey.salt, PGP_SALT_SIZE, region, stream)) {
 			return 0;
 		}
 		if (pkt.u.seckey.s2k_specifier ==
@@ -2420,9 +2428,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 			if (!limread(&c, 1, region, stream)) {
 				return 0;
 			}
-			pkt.u.seckey.octetc =
-				(16 + ((unsigned)c & 15)) <<
-						(((unsigned)c >> 4) + 6);
+			pkt.u.seckey.s2k_iterations = pgp_s2k_decode_iterations(c);
 		}
 	} else if (pkt.u.seckey.s2k_usage != PGP_S2KU_NONE) {
 		/* this is V3 style, looks just like a V4 simple hash */
@@ -2436,15 +2442,11 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 
 	if (crypted) {
 		pgp_packet_t	seckey;
-		pgp_hash_t	hashes[(PGP_MAX_KEY_SIZE + PGP_MIN_HASH_SIZE - 1) / PGP_MIN_HASH_SIZE];
-		unsigned	passlen;
-		uint8_t   	key[PGP_MAX_KEY_SIZE + PGP_MAX_HASH_SIZE];
+                uint8_t        derived_key[PGP_MAX_KEY_SIZE];
 		char           *passphrase;
-		int             hashsize;
-		int             keysize;
-		int             n;
+		unsigned        keysize;
 
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			(void) fprintf(stderr, "crypted seckey\n");
 		}
 		blocksize = pgp_block_size(pkt.u.seckey.alg);
@@ -2463,7 +2465,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 		seckey.u.skey_passphrase.seckey = &pkt.u.seckey;
 		CALLBACK(PGP_GET_PASSPHRASE, &stream->cbinfo, &seckey);
 		if (!passphrase) {
-			if (pgp_get_debug_level(__FILE__)) {
+			if (rnp_get_debug(__FILE__)) {
 				/* \todo make into proper error */
 				(void) fprintf(stderr,
 				"parse_seckey: can't get passphrase\n");
@@ -2482,97 +2484,41 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 			return 1;
 		}
 		keysize = pgp_key_size(pkt.u.seckey.alg);
-		if (keysize == 0 || keysize > PGP_MAX_KEY_SIZE) {
+		if (keysize == 0) {
 			(void) fprintf(stderr,
-				"parse_seckey: bad keysize\n");
+				"parse_seckey: unknown symmetric algo");
 			return 0;
 		}
 
-		/* Hardcoded SHA1 for just now */
-		pkt.u.seckey.hash_alg = PGP_HASH_SHA1;
-		hashsize = pgp_hash_size(pkt.u.seckey.hash_alg);
-		if (hashsize == 0 || hashsize > PGP_MAX_HASH_SIZE) {
-			(void) fprintf(stderr,
-				"parse_seckey: bad hashsize\n");
-			return 0;
-		}
+                if(pkt.u.seckey.s2k_specifier == PGP_S2KS_SIMPLE)
+                {
+                        pgp_s2k_simple(pkt.u.seckey.hash_alg,
+                                       derived_key, keysize,
+                                       passphrase);
+                }
+                else if(pkt.u.seckey.s2k_specifier == PGP_S2KS_SALTED)
+                {
+                        pgp_s2k_salted(pkt.u.seckey.hash_alg,
+                                       derived_key, keysize,
+                                       passphrase, pkt.u.seckey.salt);
+                }
+                else if(pkt.u.seckey.s2k_specifier == PGP_S2KS_ITERATED_AND_SALTED)
+                {
+                        pgp_s2k_iterated(pkt.u.seckey.hash_alg,
+                                         derived_key, keysize,
+                                         passphrase,
+                                         pkt.u.seckey.salt, pkt.u.seckey.s2k_iterations);
+                }
 
-		for (n = 0; n * hashsize < keysize; ++n) {
-			int             i;
-
-			pgp_hash_any(&hashes[n],
-				pkt.u.seckey.hash_alg);
-			if (!hashes[n].init(&hashes[n])) {
-				(void) fprintf(stderr,
-					"parse_seckey: bad alloc\n");
-				return 0;
-			}
-			/* preload hashes with zeroes... */
-			for (i = 0; i < n; ++i) {
-				hashes[n].add(&hashes[n],
-					(const uint8_t *) "", 1);
-			}
-		}
-		passlen = (unsigned)strlen(passphrase);
-		for (n = 0; n * hashsize < keysize; ++n) {
-			unsigned        i;
-
-			switch (pkt.u.seckey.s2k_specifier) {
-			case PGP_S2KS_SALTED:
-				hashes[n].add(&hashes[n],
-					pkt.u.seckey.salt,
-					PGP_SALT_SIZE);
-				/* FALLTHROUGH */
-			case PGP_S2KS_SIMPLE:
-				hashes[n].add(&hashes[n],
-					(uint8_t *)passphrase, (unsigned)passlen);
-				break;
-
-			case PGP_S2KS_ITERATED_AND_SALTED:
-				for (i = 0; i < pkt.u.seckey.octetc;
-						i += passlen + PGP_SALT_SIZE) {
-					unsigned	j;
-
-					j = passlen + PGP_SALT_SIZE;
-					if (i + j > pkt.u.seckey.octetc && i != 0) {
-						j = pkt.u.seckey.octetc - i;
-					}
-					hashes[n].add(&hashes[n],
-						pkt.u.seckey.salt,
-						(unsigned)(j > PGP_SALT_SIZE) ?
-							PGP_SALT_SIZE : j);
-					if (j > PGP_SALT_SIZE) {
-						hashes[n].add(&hashes[n],
-						(uint8_t *) passphrase,
-						j - PGP_SALT_SIZE);
-					}
-				}
-				break;
-			default:
-				break;
-			}
-		}
-
-		for (n = 0; n * hashsize < keysize; ++n) {
-			int	r;
-
-			r = hashes[n].finish(&hashes[n], key + n * hashsize);
-			if (r != hashsize) {
-				(void) fprintf(stderr,
-					"parse_seckey: bad r\n");
-				return 0;
-			}
-		}
-
-		pgp_forget(passphrase, passlen);
+		pgp_forget(passphrase, strlen(passphrase));
 
 		pgp_crypt_any(&decrypt, pkt.u.seckey.alg);
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "input iv", pkt.u.seckey.iv, pgp_block_size(pkt.u.seckey.alg));
-			hexdump(stderr, "key", key, PGP_CAST_KEY_LENGTH);
+			hexdump(stderr, "key", derived_key, keysize);
 		}
-		decrypt.set_iv(&decrypt, pkt.u.seckey.iv);
-		decrypt.set_crypt_key(&decrypt, key);
+                pgp_cipher_set_iv(&decrypt, pkt.u.seckey.iv);
+                pgp_cipher_set_key(&decrypt, derived_key);
 
 		/* now read encrypted data */
 
@@ -2591,7 +2537,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 		saved_region = region;
 		region = &encregion;
 	}
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		fprintf(stderr, "parse_seckey: end of crypted passphrase\n");
 	}
 	if (pkt.u.seckey.s2k_usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
@@ -2601,12 +2547,15 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 			(void) fprintf(stderr, "parse_seckey: bad alloc\n");
 			return 0;
 		}
-		pgp_hash_sha1(&checkhash);
+                if (!pgp_hash_create(&checkhash, PGP_HASH_SHA1)) {
+			(void) fprintf(stderr, "parse_seckey: bad alloc\n");
+			return 0;
+                }
 		pgp_reader_push_hash(stream, &checkhash);
 	} else {
 		pgp_reader_push_sum16(stream);
 	}
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		fprintf(stderr, "parse_seckey: checkhash, reading MPIs\n");
 	}
 	switch (pkt.u.seckey.pubkey.alg) {
@@ -2642,7 +2591,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 		ret = 0;
 	}
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "4 MPIs read\n");
 	}
 	stream->reading_v3_secret = 0;
@@ -2651,7 +2600,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 		uint8_t   hash[PGP_CHECKHASH_SIZE];
 
 		pgp_reader_pop_hash(stream);
-		checkhash.finish(&checkhash, hash);
+                pgp_hash_finish(&checkhash, hash);
 
 		if (crypted &&
 		    pkt.u.seckey.pubkey.version != PGP_V4) {
@@ -2706,7 +2655,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 		return 0;
 	}
 	CALLBACK(tag, &stream->cbinfo, &pkt);
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "--- end of parse_seckey\n\n");
 	}
 	return 1;
@@ -2747,7 +2696,7 @@ parse_pk_sesskey(pgp_region_t *region,
 			  (unsigned)sizeof(pkt.u.pk_sesskey.key_id), region, stream)) {
 		return 0;
 	}
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "sesskey: pubkey id", pkt.u.pk_sesskey.key_id, sizeof(pkt.u.pk_sesskey.key_id));
 	}
 	if (!limread(&c, 1, region, stream)) {
@@ -2790,13 +2739,13 @@ parse_pk_sesskey(pgp_region_t *region,
 	sesskey.u.get_seckey.seckey = &secret;
 	sesskey.u.get_seckey.pk_sesskey = &pkt.u.pk_sesskey;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "getting secret key via callback\n");
 	}
 
 	CALLBACK(PGP_GET_SECKEY, &stream->cbinfo, &sesskey);
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "got secret key via callback\n");
 	}
 	if (!secret) {
@@ -2814,7 +2763,7 @@ parse_pk_sesskey(pgp_region_t *region,
 
 	/* PKA */
 	pkt.u.pk_sesskey.symm_alg = (pgp_symm_alg_t)unencoded_m_buf[0];
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "symm alg %d\n", pkt.u.pk_sesskey.symm_alg);
 	}
 
@@ -2827,7 +2776,7 @@ parse_pk_sesskey(pgp_region_t *region,
 		return 0;
 	}
 	k = pgp_key_size(pkt.u.pk_sesskey.symm_alg);
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "key size %d\n", k);
 	}
 
@@ -2844,12 +2793,12 @@ parse_pk_sesskey(pgp_region_t *region,
 
 	(void) memcpy(pkt.u.pk_sesskey.key, unencoded_m_buf + 1, k);
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "recovered sesskey", pkt.u.pk_sesskey.key, k);
 	}
 	pkt.u.pk_sesskey.checksum = unencoded_m_buf[k + 1] +
 			(unencoded_m_buf[k + 2] << 8);
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "session key checksum: %2x %2x\n",
 			unencoded_m_buf[k + 1], unencoded_m_buf[k + 2]);
 	}
@@ -2865,12 +2814,12 @@ parse_pk_sesskey(pgp_region_t *region,
 		return 0;
 	}
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "getting pk session key via callback\n");
 	}
 	/* all is well */
 	CALLBACK(PGP_PTAG_CT_PK_SESSION_KEY, &stream->cbinfo, &pkt);
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "got pk session key via callback\n");
 	}
 
@@ -2880,8 +2829,8 @@ parse_pk_sesskey(pgp_region_t *region,
 		(void) fprintf(stderr, "parse_pk_sesskey: bad alloc\n");
 		return 0;
 	}
-	stream->decrypt.set_iv(&stream->decrypt, iv);
-	stream->decrypt.set_crypt_key(&stream->decrypt, pkt.u.pk_sesskey.key);
+        pgp_cipher_set_iv(&stream->decrypt, iv);
+        pgp_cipher_set_key(&stream->decrypt, pkt.u.pk_sesskey.key);
 	pgp_encrypt_init(&stream->decrypt);
 	free(iv);
 	return 1;
@@ -2918,9 +2867,8 @@ decrypt_se_data(pgp_content_enum tag, pgp_region_t *region,
 			return 0;
 		}
 		if (tag == PGP_PTAG_CT_SE_DATA_BODY) {
-			decrypt->decrypt_resync(decrypt);
-			decrypt->block_encrypt(decrypt, decrypt->civ,
-					decrypt->civ);
+                        pgp_cipher_cfb_resync(decrypt);
+                        pgp_cipher_block_encrypt(decrypt, decrypt->civ, decrypt->civ);
 		}
 		r = pgp_parse(stream, !printerrors);
 
@@ -2957,7 +2905,7 @@ decrypt_se_ip_data(pgp_content_enum tag, pgp_region_t *region,
 
 	decrypt = pgp_get_decrypt(stream);
 	if (decrypt) {
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			(void) fprintf(stderr, "decrypt_se_ip_data: decrypt\n");
 		}
 		pgp_reader_push_decrypt(stream, decrypt, region);
@@ -2970,7 +2918,7 @@ decrypt_se_ip_data(pgp_content_enum tag, pgp_region_t *region,
 	} else {
 		pgp_packet_t pkt;
 
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			(void) fprintf(stderr, "decrypt_se_ip_data: no decrypt\n");
 		}
 		while (region->readc < region->length) {
@@ -3028,7 +2976,7 @@ parse_se_ip_data(pgp_region_t *region, pgp_stream_t *stream)
 		return 0;
 	}
 	pkt.u.se_ip_data_header = c;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "parse_se_ip_data: data header %d\n", c);
 	}
 	if (pkt.u.se_ip_data_header != PGP_SE_IP_DATA_VERSION) {
@@ -3036,7 +2984,7 @@ parse_se_ip_data(pgp_region_t *region, pgp_stream_t *stream)
 		return 0;
 	}
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "parse_se_ip_data: region %d,%d\n",
 			region->readc, region->length);
 		hexdump(stderr, "compressed region", stream->virtualpkt, stream->virtualc);
@@ -3094,7 +3042,7 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
 
 	ret = base_read(&ptag, 1, stream);
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr,
 			"parse_packet: base_read returned %d, ptag %d\n",
 			ret, ptag);
@@ -3156,7 +3104,7 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
 	pgp_init_subregion(&region, NULL);
 	region.length = pkt.u.ptag.length;
 	region.indeterminate = indeterminate;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "parse_packet: type %u\n",
 			       pkt.u.ptag.type);
 	}
@@ -3480,4 +3428,101 @@ pgp_crypt_t    *
 pgp_get_decrypt(pgp_stream_t *stream)
 {
 	return (stream->decrypt.alg) ? &stream->decrypt : NULL;
+}
+
+/**
+ * \ingroup Core_Callbacks
+ */
+static pgp_cb_ret_t
+accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
+{
+	const pgp_contents_t	*content = &pkt->u;
+	keyring_t		*keyring;
+    pgp_io_t        *io;
+    pgp_keydata_key_t keydata;
+	accumulate_t		*accumulate;
+
+	if (rnp_get_debug(__FILE__)) {
+		(void) fprintf(stderr, "accumulate callback: packet tag %u\n", pkt->tag);
+	}
+	accumulate = pgp_callback_arg(cbinfo);
+    io = accumulate->io;
+	keyring = accumulate->keyring;
+	switch (pkt->tag) {
+	case PGP_PTAG_CT_PUBLIC_KEY:
+	case PGP_PTAG_CT_PUBLIC_SUBKEY:
+    case PGP_PTAG_CT_SECRET_KEY:
+    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
+        keydata.seckey = content->seckey;
+        keydata.pubkey = content->pubkey;
+        keyring_add_keydata(io, keyring, &keydata, pkt->tag);
+		return PGP_KEEP_MEMORY;
+	case PGP_PTAG_CT_USER_ID:
+		if (rnp_get_debug(__FILE__)) {
+			(void) fprintf(stderr, "User ID: %s for key %d\n",
+					content->userid,
+					keyring->keyc - 1);
+		}
+		if (keyring->keyc == 0) {
+			PGP_ERROR_1(cbinfo->errors, PGP_E_P_NO_USERID, "%s",
+			    "No userid found");
+		} else {
+			pgp_add_userid(&keyring->keys[keyring->keyc - 1], content->userid);
+		}
+		return PGP_KEEP_MEMORY;
+	case PGP_PARSER_PACKET_END:
+		if (keyring->keyc > 0) {
+			pgp_add_subpacket(&keyring->keys[keyring->keyc - 1],
+						&content->packet);
+			return PGP_KEEP_MEMORY;
+		}
+		return PGP_RELEASE_MEMORY;
+	case PGP_PARSER_ERROR:
+		(void) fprintf(stderr, "Error: %s\n", content->error);
+		return PGP_FINISHED;
+	case PGP_PARSER_ERRCODE:
+		(void) fprintf(stderr, "parse error: %s\n",
+				pgp_errcode(content->errcode.errcode));
+		break;
+	default:
+		break;
+	}
+	/* XXX: we now exclude so many things, we should either drop this or */
+	/* do something to pass on copies of the stuff we keep */
+	return pgp_stacked_callback(pkt, cbinfo);
+}
+
+/**
+ * \ingroup Core_Parse
+ *
+ * Parse packets from an input stream until EOF or error.
+ *
+ * Key data found in the parsed data is added to #keyring.
+ *
+ * \param keyring Pointer to an existing keyring
+ * \param parse Options to use when parsing
+*/
+int
+pgp_parse_and_accumulate(pgp_io_t * io, keyring_t *keyring, pgp_stream_t *parse)
+{
+	accumulate_t	accumulate;
+	const int	printerrors = 1;
+	int             ret;
+
+	if (parse->readinfo.accumulate) {
+		(void) fprintf(io->errs,
+			"pgp_parse_and_accumulate: already init\n");
+		return 0;
+	}
+
+	(void) memset(&accumulate, 0x0, sizeof(accumulate));
+
+    accumulate.io = io;
+	accumulate.keyring = keyring;
+
+	pgp_callback_push(parse, accumulate_cb, &accumulate);
+	parse->readinfo.accumulate = 1;
+	ret = pgp_parse(parse, !printerrors);
+
+	return ret;
 }

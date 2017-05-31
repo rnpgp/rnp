@@ -113,12 +113,13 @@ __RCSID("$NetBSD: reader.c,v 1.49 2012/03/05 02:20:18 christos Exp $");
 #include "packet.h"
 #include "packet-parse.h"
 #include "packet-show.h"
-#include "packet.h"
-#include "keyring.h"
+#include "packet-print.h"
+#include "keyring_pgp.h"
 #include "readerwriter.h"
 #include "rnpsdk.h"
 #include "rnpdefs.h"
 #include "rnpdigest.h"
+#include "packet-key.h"
 
 /* data from partial blocks is queued up in virtual block in stream */
 static int
@@ -126,7 +127,7 @@ read_partial_data(pgp_stream_t *stream, void *dest, size_t length)
 {
 	unsigned	n;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "fd_reader: coalesced data, off %d\n",
 				stream->virtualoff);
 	}
@@ -152,10 +153,10 @@ pgp_getpassphrase(void *in, char *phrase, size_t size)
 		}
 		(void) snprintf(phrase, size, "%s", p);
 	} else {
+                memset(phrase, 0, size);
 		if (fgets(phrase, (int)size, in) == NULL) {
 			return 0;
 		}
-		phrase[strlen(phrase) - 1] = 0x0;
 	}
 	return 1;
 }
@@ -370,7 +371,7 @@ set_lastseen_headerline(dearmour_t *dearmour, char *hdr, pgp_error_t **errors)
 		return 0;
 	}
 	dearmour->lastseen = lastseen;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		printf("set header: hdr=%s, dearmour->lastseen=%d, prev=%d\n",
 			hdr, dearmour->lastseen, prev);
 	}
@@ -571,6 +572,7 @@ process_dash_escaped(pgp_stream_t *stream, dearmour_t *dearmour,
 	const char		*hashstr;
 	pgp_hash_t		*hash;
 	int			 total;
+        pgp_hash_alg_t alg = PGP_HASH_MD5; // default
 
 	body = &content.u.cleartext_body;
 	if ((hash = calloc(1, sizeof(*hash))) == NULL) {
@@ -580,8 +582,6 @@ process_dash_escaped(pgp_stream_t *stream, dearmour_t *dearmour,
 	}
 	hashstr = find_header(&dearmour->headers, "Hash");
 	if (hashstr) {
-		pgp_hash_alg_t alg;
-
 		alg = pgp_str_to_hash_alg(hashstr);
 		if (!pgp_is_hash_alg_supported(&alg)) {
 			free(hash);
@@ -595,12 +595,9 @@ process_dash_escaped(pgp_stream_t *stream, dearmour_t *dearmour,
 				"Unknown hash algorithm '%s'", hashstr);
 			return -1;
 		}
-		pgp_hash_any(hash, alg);
-	} else {
-		pgp_hash_md5(hash);
 	}
 
-	if (!hash->init(hash)) {
+	if (!pgp_hash_create(hash, alg)) {
 		PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s",
 			"can't initialise hash");
 		return -1;
@@ -655,10 +652,10 @@ process_dash_escaped(pgp_stream_t *stream, dearmour_t *dearmour,
 				return -1;
 			}
 			if (body->data[0] == '\n') {
-				hash->add(hash, (const uint8_t *)"\r", 1);
+                                pgp_hash_add(hash, (const uint8_t *)"\r", 1);
 			}
-			hash->add(hash, body->data, body->length);
-			if (pgp_get_debug_level(__FILE__)) {
+			pgp_hash_add(hash, body->data, body->length);
+			if (rnp_get_debug(__FILE__)) {
 				fprintf(stderr, "Got body:\n%s\n", body->data);
 			}
 			CALLBACK(PGP_PTAG_CT_SIGNED_CLEARTEXT_BODY, cbinfo,
@@ -668,7 +665,7 @@ process_dash_escaped(pgp_stream_t *stream, dearmour_t *dearmour,
 		body->data[body->length++] = c;
 		total += 1;
 		if (body->length == sizeof(body->data)) {
-			if (pgp_get_debug_level(__FILE__)) {
+			if (rnp_get_debug(__FILE__)) {
 				(void) fprintf(stderr, "Got body (2):\n%s\n",
 						body->data);
 			}
@@ -1411,7 +1408,7 @@ encrypted_data_reader(pgp_stream_t *stream, void *dest,
 				"encrypted_data_reader: bad v3 secret\n");
 			return -1;
 		}
-		encrypted->decrypt->decrypt_resync(encrypted->decrypt);
+                pgp_cipher_cfb_resync(encrypted->decrypt);
 		encrypted->prevplain = 0;
 	} else if (readinfo->parent->reading_v3_secret &&
 		   readinfo->parent->reading_mpi_len) {
@@ -1478,7 +1475,7 @@ encrypted_data_reader(pgp_stream_t *stream, void *dest,
 					pgp_decrypt_se_ip(encrypted->decrypt,
 					encrypted->decrypted, buffer, n);
 
-				if (pgp_get_debug_level(__FILE__)) {
+				if (rnp_get_debug(__FILE__)) {
 					hexdump(stderr, "encrypted", buffer, 16);
 					hexdump(stderr, "decrypted", encrypted->decrypted, 16);
 				}
@@ -1540,7 +1537,7 @@ pgp_reader_pop_decrypt(pgp_stream_t *stream)
 	encrypted_t	*encrypted;
 
 	encrypted = pgp_reader_get_arg(pgp_readinfo(stream));
-	encrypted->decrypt->decrypt_finish(encrypted->decrypt);
+        pgp_cipher_finish(encrypted->decrypt);
 	free(encrypted);
 	pgp_reader_pop(stream);
 }
@@ -1590,8 +1587,7 @@ se_ip_data_reader(pgp_stream_t *stream, void *dest_,
 		size_t          sz_mdc;
 		size_t          sz_plaintext;
 
-		pgp_hash_any(&hash, PGP_HASH_SHA1);
-		if (!hash.init(&hash)) {
+		if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
 			(void) fprintf(stderr,
 				"se_ip_data_reader: can't init hash\n");
 			return -1;
@@ -1611,11 +1607,11 @@ se_ip_data_reader(pgp_stream_t *stream, void *dest_,
 			free(buf);
 			return -1;
 		}
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "SE IP packet", buf, decrypted_region.length); 
 		}
 		/* verify leading preamble */
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "preamble", buf, se_ip->decrypt->blocksize);
 		}
 		b = se_ip->decrypt->blocksize;
@@ -1641,7 +1637,7 @@ se_ip_data_reader(pgp_stream_t *stream, void *dest_,
 		mdc = plaintext + sz_plaintext;
 		mdc_hash = mdc + 2;
 
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "plaintext", plaintext, sz_plaintext);
 			hexdump(stderr, "mdc", mdc, sz_mdc);
 		}
@@ -2109,7 +2105,7 @@ pgp_litdata_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
 	const pgp_contents_t	*content = &pkt->u;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		printf("pgp_litdata_cb: ");
 		pgp_print_packet(&cbinfo->printstate, pkt);
 	}
@@ -2118,7 +2114,7 @@ pgp_litdata_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	case PGP_PTAG_CT_LITDATA_BODY:
 		/* if writer enabled, use it */
 		if (cbinfo->output) {
-			if (pgp_get_debug_level(__FILE__)) {
+			if (rnp_get_debug(__FILE__)) {
 				printf("pgp_litdata_cb: length is %u\n",
 					content->litdata_body.length);
 			}
@@ -2147,13 +2143,13 @@ pgp_pk_sesskey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	pgp_io_t		*io;
 
 	io = cbinfo->io;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		pgp_print_packet(&cbinfo->printstate, pkt);
 	}
 	/* Read data from packet into static buffer */
 	switch (pkt->tag) {
 	case PGP_PTAG_CT_PK_SESSION_KEY:
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			printf("PGP_PTAG_CT_PK_SESSION_KEY\n");
 		}
 		if (!cbinfo->cryptinfo.secring) {
@@ -2163,8 +2159,8 @@ pgp_pk_sesskey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 		}
 		from = 0;
 		cbinfo->cryptinfo.keydata =
-			pgp_getkeybyid(io, cbinfo->cryptinfo.secring,
-				content->pk_sesskey.key_id, &from, NULL);
+				keyring_get_key_by_id(io, cbinfo->cryptinfo.secring,
+									  content->pk_sesskey.key_id, &from, NULL);
 		if (!cbinfo->cryptinfo.keydata) {
 			break;
 		}
@@ -2203,22 +2199,22 @@ pgp_get_seckey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	int			 i;
 
 	io = cbinfo->io;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		pgp_print_packet(&cbinfo->printstate, pkt);
 	}
 	switch (pkt->tag) {
 	case PGP_GET_SECKEY:
 		/* print key from pubring */
 		from = 0;
-		pubkey = pgp_getkeybyid(io, cbinfo->cryptinfo.pubring,
-				content->get_seckey.pk_sesskey->key_id,
-				&from, NULL);
+		pubkey = keyring_get_key_by_id(io, cbinfo->cryptinfo.pubring,
+									   content->get_seckey.pk_sesskey->key_id,
+									   &from, NULL);
 		/* validate key from secring */
 		from = 0;
 		cbinfo->cryptinfo.keydata =
-			pgp_getkeybyid(io, cbinfo->cryptinfo.secring,
-				content->get_seckey.pk_sesskey->key_id,
-				&from, NULL);
+				keyring_get_key_by_id(io, cbinfo->cryptinfo.secring,
+									  content->get_seckey.pk_sesskey->key_id,
+									  &from, NULL);
 		if (!cbinfo->cryptinfo.keydata ||
 		    !pgp_is_key_secret(cbinfo->cryptinfo.keydata)) {
 			return (pgp_cb_ret_t)0;
@@ -2268,7 +2264,7 @@ get_passphrase_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	pgp_io_t		*io;
 
 	io = cbinfo->io;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		pgp_print_packet(&cbinfo->printstate, pkt);
 	}
 	if (cbinfo->cryptinfo.keydata == NULL) {
@@ -2310,7 +2306,7 @@ hash_reader(pgp_stream_t *stream, void *dest,
 	if (r <= 0) {
 		return r;
 	}
-	hash->add(hash, dest, (unsigned)r);
+	pgp_hash_add(hash, dest, (unsigned)r);
 	return r;
 }
 
@@ -2321,11 +2317,6 @@ hash_reader(pgp_stream_t *stream, void *dest,
 void 
 pgp_reader_push_hash(pgp_stream_t *stream, pgp_hash_t *hash)
 {
-	if (!hash->init(hash)) {
-		(void) fprintf(stderr, "pgp_reader_push_hash: can't init hash\n");
-		/* just continue and die */
-		/* XXX - agc - no way to return failure */
-	}
 	pgp_reader_push(stream, hash_reader, NULL, hash);
 }
 

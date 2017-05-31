@@ -108,7 +108,7 @@ pgp_decrypt_decode_mpi(uint8_t *buf,
 	switch (seckey->pubkey.alg) {
 	case PGP_PKA_RSA:
 		BN_bn2bin(encmpi, encmpibuf);
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "encrypted", encmpibuf, 16);
 		}
                 n = pgp_rsa_decrypt_pkcs1(buf, buflen,
@@ -118,7 +118,7 @@ pgp_decrypt_decode_mpi(uint8_t *buf,
 			(void) fprintf(stderr, "ops_rsa_private_decrypt failure\n");
 			return -1;
 		}
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "decoded m", buf, n);
 		}
 		return n;
@@ -126,7 +126,7 @@ pgp_decrypt_decode_mpi(uint8_t *buf,
 	case PGP_PKA_ELGAMAL:
 		(void) BN_bn2bin(g_to_k, gkbuf);
 		(void) BN_bn2bin(encmpi, encmpibuf);
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "encrypted", encmpibuf, 16);
 		}
 		n = pgp_elgamal_private_decrypt_pkcs1(buf,
@@ -137,7 +137,7 @@ pgp_decrypt_decode_mpi(uint8_t *buf,
 			return -1;
 		}
 
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "decoded m", buf, n);
 		}
 		return n;
@@ -180,7 +180,7 @@ pgp_elgamal_encrypt_mpi(const uint8_t *encoded_m_buf,
 	skp->elgamal.g_to_k = BN_bin2bn(g_to_k, n / 2, NULL);
 	skp->elgamal.encrypted_m = BN_bin2bn(encmpibuf, n / 2, NULL);
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "encrypted mpi", encmpibuf, 16);
 	}
 	return 1;
@@ -191,7 +191,7 @@ write_parsed_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
 	const pgp_contents_t	*content = &pkt->u;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		printf("write_parsed_cb: ");
 		pgp_print_packet(&cbinfo->printstate, pkt);
 	}
@@ -244,7 +244,7 @@ write_parsed_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 		break;
 
 	default:
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			fprintf(stderr, "Unexpected packet tag=%d (0x%x)\n",
 				pkt->tag,
 				pkt->tag);
@@ -364,8 +364,8 @@ unsigned
 pgp_decrypt_file(pgp_io_t *io,
 			const char *infile,
 			const char *outfile,
-			pgp_keyring_t *secring,
-			pgp_keyring_t *pubring,
+			keyring_t *secring,
+			keyring_t *pubring,
 			const unsigned use_armour,
 			const unsigned allow_overwrite,
 			const unsigned sshkeys,
@@ -471,8 +471,8 @@ pgp_memory_t *
 pgp_decrypt_buf(pgp_io_t *io,
 			const void *input,
 			const size_t insize,
-			pgp_keyring_t *secring,
-			pgp_keyring_t *pubring,
+			keyring_t *secring,
+			keyring_t *pubring,
 			const unsigned use_armour,
 			const unsigned sshkeys,
 			void *passfp,

@@ -135,21 +135,6 @@ pgp_dump_sig(pgp_sig_t *sig)
 #endif
 
 
-static uint8_t prefix_md5[] = {
-	0x30, 0x20, 0x30, 0x0C, 0x06, 0x08, 0x2A, 0x86, 0x48, 0x86,
-	0xF7, 0x0D, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10
-};
-
-static uint8_t prefix_sha1[] = {
-	0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0E, 0x03, 0x02,
-	0x1A, 0x05, 0x00, 0x04, 0x14
-};
-
-static uint8_t prefix_sha256[] = {
-	0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01,
-	0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20
-};
-
 
 /* XXX: both this and verify would be clearer if the signature were */
 /* treated as an MPI. */
@@ -159,65 +144,32 @@ rsa_sign(pgp_hash_t *hash,
 	const pgp_rsa_seckey_t *secrsa,
 	pgp_output_t *out)
 {
-	unsigned        prefixsize;
-	unsigned        expected;
-	unsigned        hashsize;
-	unsigned        keysize;
-	unsigned        n;
-	unsigned        t;
-	uint8_t		hashbuf[RNP_BUFSIZ];
+	unsigned        hash_size;
+        int             sig_size = 0;
+	uint8_t		hashbuf[128];
 	uint8_t		sigbuf[RNP_BUFSIZ];
-	uint8_t		*prefix;
 	BIGNUM         *bn;
 
-	if (strcmp(hash->name, "SHA1") == 0) {
-		hashsize = PGP_SHA1_HASH_SIZE + sizeof(prefix_sha1);
-		prefix = prefix_sha1;
-		prefixsize = sizeof(prefix_sha1);
-		expected = PGP_SHA1_HASH_SIZE;
-	} else {
-		hashsize = PGP_SHA256_HASH_SIZE + sizeof(prefix_sha256);
-		prefix = prefix_sha256;
-		prefixsize = sizeof(prefix_sha256);
-		expected = PGP_SHA256_HASH_SIZE;
-	}
-	keysize = (BN_num_bits(pubrsa->n) + 7) / 8;
-	if (keysize > sizeof(hashbuf)) {
-		(void) fprintf(stderr, "rsa_sign: keysize too big\n");
+        pgp_hash_alg_t hash_alg = pgp_hash_alg_type(hash);
+
+        hash_size = pgp_hash_finish(hash, hashbuf);
+
+        /**
+        * The high 16 bits (first two octets) of the hash are included
+        * in the Signature packet to provide a quick test to reject
+        * some invalid signatures. - RFC 4880
+        */
+	pgp_write(out, &hashbuf[0], 2);
+
+	sig_size = pgp_rsa_pkcs1_sign_hash(sigbuf, sizeof(sigbuf),
+                                           hash_alg,
+                                           hashbuf, hash_size,
+                                           secrsa, pubrsa);
+	if (sig_size == 0) {
+		(void) fprintf(stderr, "rsa_sign: pgp_rsa_pkcs1_sign_hash failed\n");
 		return 0;
 	}
-	if (10 + hashsize > keysize) {
-		(void) fprintf(stderr, "rsa_sign: hashsize too big\n");
-		return 0;
-	}
-
-	hashbuf[0] = 0;
-	hashbuf[1] = 1;
-	if (pgp_get_debug_level(__FILE__)) {
-		printf("rsa_sign: PS is %d\n", keysize - hashsize - 1 - 2);
-	}
-	for (n = 2; n < keysize - hashsize - 1; ++n) {
-		hashbuf[n] = 0xff;
-	}
-	hashbuf[n++] = 0;
-
-	(void) memcpy(&hashbuf[n], prefix, prefixsize);
-	n += prefixsize;
-	if ((t = hash->finish(hash, &hashbuf[n])) != expected) {
-		(void) fprintf(stderr, "rsa_sign: short %s hash\n", hash->name);
-		return 0;
-	}
-
-	pgp_write(out, &hashbuf[n], 2);
-
-	n += t;
-	if (n != keysize) {
-		(void) fprintf(stderr, "rsa_sign: n != keysize\n");
-		return 0;
-	}
-
-	t = pgp_rsa_private_encrypt(sigbuf, hashbuf, keysize, secrsa, pubrsa);
-	bn = BN_bin2bn(sigbuf, (int)t, NULL);
+	bn = BN_bin2bn(sigbuf, sig_size, NULL);
 	pgp_write_mpi(out, bn);
 	BN_free(bn);
 	return 1;
@@ -241,7 +193,7 @@ dsa_sign(pgp_hash_t *hash,
 	hashsize = 20;
 
 	/* finalise hash */
-	t = hash->finish(hash, &hashbuf[0]);
+	t = pgp_hash_finish(hash, &hashbuf[0]);
 	if (t != 20) {
 		(void) fprintf(stderr, "dsa_sign: hashfinish not 20\n");
 		return 0;
@@ -260,25 +212,19 @@ dsa_sign(pgp_hash_t *hash,
 }
 
 static unsigned 
-rsa_verify(pgp_hash_alg_t type,
+rsa_verify(pgp_hash_alg_t hash_alg,
 	   const uint8_t *hash,
 	   size_t hash_length,
 	   const pgp_rsa_sig_t *sig,
 	   const pgp_rsa_pubkey_t *pubrsa)
 {
-	const uint8_t	*prefix;
-	unsigned       	 n;
-	unsigned       	 keysize;
-	unsigned	 plen;
-	unsigned	 debug_len_decrypted;
+        size_t           sigbuf_len = 0;
+        size_t           keysize;
 	uint8_t   	 sigbuf[RNP_BUFSIZ];
-	uint8_t   	 hashbuf_from_sig[RNP_BUFSIZ];
 
-	plen = 0;
-	prefix = (const uint8_t *) "";
 	keysize = BN_num_bytes(pubrsa->n);
 	/* RSA key can't be bigger than 65535 bits, so... */
-	if (keysize > sizeof(hashbuf_from_sig)) {
+	if (keysize > sizeof(sigbuf)) {
 		(void) fprintf(stderr, "rsa_verify: keysize too big\n");
 		return 0;
 	}
@@ -288,61 +234,11 @@ rsa_verify(pgp_hash_alg_t type,
 	}
 	BN_bn2bin(sig->sig, sigbuf);
 
-	n = pgp_rsa_public_decrypt(hashbuf_from_sig, sigbuf,
-		(unsigned)(BN_num_bits(sig->sig) + 7) / 8, pubrsa);
-	debug_len_decrypted = n;
+        sigbuf_len = (BN_num_bits(sig->sig) + 7) / 8;
 
-	if (n != keysize) {
-		/* obviously, this includes error returns */
-		return 0;
-	}
-
-	/* XXX: why is there a leading 0? The first byte should be 1... */
-	/* XXX: because the decrypt should use keysize and not sigsize? */
-	if (hashbuf_from_sig[0] != 0 || hashbuf_from_sig[1] != 1) {
-		return 0;
-	}
-
-	switch (type) {
-	case PGP_HASH_MD5:
-		prefix = prefix_md5;
-		plen = sizeof(prefix_md5);
-		break;
-	case PGP_HASH_SHA1:
-		prefix = prefix_sha1;
-		plen = sizeof(prefix_sha1);
-		break;
-	case PGP_HASH_SHA256:
-		prefix = prefix_sha256;
-		plen = sizeof(prefix_sha256);
-		break;
-	default:
-		(void) fprintf(stderr, "Unknown hash algorithm: %d\n", type);
-		return 0;
-	}
-
-	if (keysize - plen - hash_length < 10) {
-		return 0;
-	}
-
-	for (n = 2; n < keysize - plen - hash_length - 1; ++n) {
-		if (hashbuf_from_sig[n] != 0xff) {
-			return 0;
-		}
-	}
-
-	if (hashbuf_from_sig[n++] != 0) {
-		return 0;
-	}
-
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "sig hashbuf", hashbuf_from_sig, debug_len_decrypted);
-		hexdump(stderr, "prefix", prefix, plen);
-		hexdump(stderr, "sig hash", &hashbuf_from_sig[n + plen], hash_length);
-		hexdump(stderr, "input hash", hash, hash_length);
-	}
-	return (memcmp(&hashbuf_from_sig[n], prefix, plen) == 0 &&
-	        memcmp(&hashbuf_from_sig[n + plen], hash, hash_length) == 0);
+	return pgp_rsa_pkcs1_verify_hash(sigbuf, sigbuf_len,
+                                         hash_alg, hash, hash_length,
+                                         pubrsa);
 }
 
 static void 
@@ -356,27 +252,15 @@ hash_add_key(pgp_hash_t *hash, const pgp_pubkey_t *key)
 	len = pgp_mem_len(mem);
 	pgp_hash_add_int(hash, 0x99, 1);
 	pgp_hash_add_int(hash, (unsigned)len, 2);
-	hash->add(hash, pgp_mem_data(mem), (unsigned)len);
+	pgp_hash_add(hash, pgp_mem_data(mem), (unsigned)len);
 	pgp_memory_free(mem);
-}
-
-static void 
-initialise_hash(pgp_hash_t *hash, const pgp_sig_t *sig)
-{
-	pgp_hash_any(hash, sig->info.hash_alg);
-	if (!hash->init(hash)) {
-		(void) fprintf(stderr,
-			"initialise_hash: bad hash init\n");
-		/* just continue and die */
-		/* XXX - agc - no way to return failure */
-	}
 }
 
 static void 
 init_key_sig(pgp_hash_t *hash, const pgp_sig_t *sig,
 		   const pgp_pubkey_t *key)
 {
-	initialise_hash(hash, sig);
+        pgp_hash_create(hash, sig->info.hash_alg);
 	hash_add_key(hash, key);
 }
 
@@ -386,7 +270,7 @@ hash_add_trailer(pgp_hash_t *hash, const pgp_sig_t *sig,
 {
 	if (sig->info.version == PGP_V4) {
 		if (raw_packet) {
-			hash->add(hash, raw_packet + sig->v4_hashstart,
+			pgp_hash_add(hash, raw_packet + sig->v4_hashstart,
 				  (unsigned)sig->info.v4_hashlen);
 		}
 		pgp_hash_add_int(hash, (unsigned)sig->info.version, 1);
@@ -414,7 +298,7 @@ pgp_check_sig(const uint8_t *hash, unsigned length,
 {
 	unsigned   ret;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stdout, "hash", hash, length);
 	}
 	ret = 0;
@@ -425,9 +309,10 @@ pgp_check_sig(const uint8_t *hash, unsigned length,
 		break;
 
 	case PGP_PKA_RSA:
-		ret = rsa_verify(sig->info.hash_alg, hash, length,
-				&sig->info.sig.rsa,
-				&signer->key.rsa);
+		ret = rsa_verify(sig->info.hash_alg,
+                                 hash, length,
+                                 &sig->info.sig.rsa,
+                                 &signer->key.rsa);
 		break;
 
 	default:
@@ -446,7 +331,7 @@ hash_and_check_sig(pgp_hash_t *hash,
 	uint8_t   hashout[PGP_MAX_HASH_SIZE];
 	unsigned	n;
 
-	n = hash->finish(hash, hashout);
+	n = pgp_hash_finish(hash, hashout);
 	return pgp_check_sig(hashout, n, sig, signer);
 }
 
@@ -488,7 +373,7 @@ pgp_check_useridcert_sig(const pgp_pubkey_t *key,
 		pgp_hash_add_int(&hash, 0xb4, 1);
 		pgp_hash_add_int(&hash, (unsigned)userid_len, 4);
 	}
-	hash.add(&hash, id, (unsigned)userid_len);
+	pgp_hash_add(&hash, id, (unsigned)userid_len);
 	return finalise_sig(&hash, sig, signer, raw_packet);
 }
 
@@ -518,7 +403,7 @@ pgp_check_userattrcert_sig(const pgp_pubkey_t *key,
 		pgp_hash_add_int(&hash, 0xd1, 1);
 		pgp_hash_add_int(&hash, (unsigned)attribute->len, 4);
 	}
-	hash.add(&hash, attribute->contents, (unsigned)attribute->len);
+	pgp_hash_add(&hash, attribute->contents, (unsigned)attribute->len);
 	return finalise_sig(&hash, sig, signer, raw_packet);
 }
 
@@ -592,7 +477,7 @@ pgp_check_hash_sig(pgp_hash_t *hash,
 			 const pgp_sig_t *sig,
 			 const pgp_pubkey_t *signer)
 {
-	return (sig->info.hash_alg == hash->alg) ?
+       return (sig->info.hash_alg == pgp_hash_alg_type(hash)) ?
 		finalise_sig(hash, sig, signer, NULL) :
 		0;
 }
@@ -646,7 +531,7 @@ pgp_sig_start_key_sig(pgp_create_sig_t *sig,
 	init_key_sig(&sig->hash, &sig->sig, key);
 	pgp_hash_add_int(&sig->hash, 0xb4, 1);
 	pgp_hash_add_int(&sig->hash, (unsigned)strlen((const char *) id), 4);
-	sig->hash.add(&sig->hash, id, (unsigned)strlen((const char *) id));
+	pgp_hash_add(&sig->hash, id, (unsigned)strlen((const char *) id));
 	start_sig_in_mem(sig);
 }
 
@@ -697,10 +582,10 @@ pgp_start_sig(pgp_create_sig_t *sig,
 
 	sig->hashlen = (unsigned)-1;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		fprintf(stderr, "initialising hash for sig in mem\n");
 	}
-	initialise_hash(&sig->hash, &sig->sig);
+        pgp_hash_create(&sig->hash, sig->sig.info.hash_alg);
 	start_sig_in_mem(sig);
 }
 
@@ -716,7 +601,7 @@ pgp_start_sig(pgp_create_sig_t *sig,
 void 
 pgp_sig_add_data(pgp_create_sig_t *sig, const void *buf, size_t length)
 {
-	sig->hash.add(&sig->hash, buf, (unsigned)length);
+	pgp_hash_add(&sig->hash, buf, (unsigned)length);
 }
 
 /**
@@ -792,10 +677,10 @@ pgp_write_sig(pgp_output_t *output,
 			     (unsigned)(len - sig->unhashoff - 2), 2);
 
 	/* add the packet from version number to end of hashed subpackets */
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "ops_write_sig: hashed packet info\n");
 	}
-	sig->hash.add(&sig->hash, pgp_mem_data(sig->mem), sig->unhashoff);
+	pgp_hash_add(&sig->hash, pgp_mem_data(sig->mem), sig->unhashoff);
 
 	/* add final trailer */
 	pgp_hash_add_int(&sig->hash, (unsigned)sig->sig.info.version, 1);
@@ -803,7 +688,7 @@ pgp_write_sig(pgp_output_t *output,
 	/* +6 for version, type, pk alg, hash alg, hashed subpacket length */
 	pgp_hash_add_int(&sig->hash, sig->hashlen + 6, 4);
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "ops_write_sig: done writing hashed\n");
 	}
 	/* XXX: technically, we could figure out how big the signature is */
@@ -1054,7 +939,7 @@ pgp_sign_file(pgp_io_t *io,
 
 		/* hash file contents */
 		hash = pgp_sig_get_hash(sig);
-		hash->add(hash, pgp_mem_data(infile), (unsigned)pgp_mem_len(infile));
+		pgp_hash_add(hash, pgp_mem_data(infile), (unsigned)pgp_mem_len(infile));
 
 #if 1
 		/* output file contents as Literal Data packet */
@@ -1184,7 +1069,7 @@ pgp_sign_buf(pgp_io_t *io,
 		if (armored) {
 			pgp_writer_push_armor_msg(output);
 		}
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			fprintf(io->errs, "** Writing out one pass sig\n");
 		}
 		/* write one_pass_sig */
@@ -1192,14 +1077,14 @@ pgp_sign_buf(pgp_io_t *io,
 
 		/* hash memory */
 		hash = pgp_sig_get_hash(sig);
-		hash->add(hash, input, (unsigned)insize);
+		pgp_hash_add(hash, input, (unsigned)insize);
 
 		/* output file contents as Literal Data packet */
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			(void) fprintf(stderr, "** Writing out data now\n");
 		}
 		pgp_write_litdata(output, input, (const int)insize, ld_type);
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			fprintf(stderr, "** After Writing out data now\n");
 		}
 

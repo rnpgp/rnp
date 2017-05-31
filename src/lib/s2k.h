@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2010-2011 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -28,58 +27,33 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef MJ_H_
-#define MJ_H_
 
-enum {
-	MJ_NULL		= 1,
-	MJ_FALSE	= 2,
-	MJ_TRUE		= 3,
-	MJ_NUMBER	= 4,
-	MJ_STRING	= 5,
-	MJ_ARRAY	= 6,
-	MJ_OBJECT	= 7,
+#ifndef RNP_S2K_H_
+#define RNP_S2K_H_
 
-	MJ_LAST		= MJ_OBJECT,
+#include "hash.h"
 
-	MJ_HUMAN	= 0,	/* human readable, not encoded */
-	MJ_JSON_ENCODE	= 1	/* encoded JSON */
-};
+void pgp_s2k_simple(pgp_hash_alg_t alg,
+                    uint8_t *out, size_t output_len,
+                    const char *passphrase);
 
-/* a minimalist JSON node */
-typedef struct mj_t {
-	unsigned	type;		/* type of JSON node */
-	unsigned	c;		/* # of chars */
-	unsigned	size;		/* size of array */
-	union {
-		struct mj_t	*v;	/* sub-objects */
-		char		*s;	/* string value */
-	} value;
-} mj_t;
+void pgp_s2k_salted(pgp_hash_alg_t alg,
+                    uint8_t *out, size_t output_len,
+                    const char *passphrase,
+                    const uint8_t *salt);
 
-/* creation and deletion */
-int mj_create(mj_t */*atom*/, const char */*type*/, .../*value*/);
-int mj_parse(mj_t */*atom*/, const char */*s*/, int */*from*/,
-		int */*to*/, int */*token*/);
-int mj_append(mj_t */*atom*/, const char */*type*/, .../*value*/);
-int mj_append_field(mj_t */*atom*/, const char */*name*/, const char */*type*/,
-		.../*value*/);
-int mj_deepcopy(mj_t */*dst*/, mj_t */*src*/);
-void mj_delete(mj_t */*atom*/);
+void pgp_s2k_iterated(pgp_hash_alg_t alg,
+                      uint8_t *out, size_t output_len,
+                      const char *passphrase,
+                      const uint8_t *salt,
+                      size_t iterations);
 
-/* JSON object access */
-int mj_arraycount(mj_t */*atom*/);
-int mj_object_find(mj_t */*atom*/, const char */*name*/,
-		const unsigned /*from*/, const unsigned /*incr*/);
-mj_t *mj_get_atom(mj_t */*atom*/, ...);
-int mj_lint(mj_t */*atom*/);
+size_t pgp_s2k_decode_iterations(uint8_t encoded_iter);
 
-/* textual output */
-int mj_snprint(char */*buf*/, size_t /*size*/, mj_t */*atom*/, int /*encoded*/);
-int mj_asprint(char **/*bufp*/, mj_t */*atom*/, int /*encoded*/);
-int mj_string_size(mj_t */*atom*/);
-int mj_pretty(mj_t */*atom*/, void */*fp*/, unsigned /*depth*/,
-		const char */*trailer*/);
-const char *mj_string_rep(mj_t */*atom*/);
+uint8_t pgp_s2k_encode_iterations(size_t iterations);
+
+// Round iterations to nearest representable value
+size_t pgp_s2k_round_iterations(size_t iterations);
+
 
 #endif

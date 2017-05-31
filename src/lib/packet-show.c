@@ -254,18 +254,6 @@ static pgp_map_t symm_alg_map[] =
 	{0x00, NULL},		/* this is the end-of-array marker */
 };
 
-static pgp_map_t hash_alg_map[] =
-{
-	{PGP_HASH_MD5, "MD5"},
-	{PGP_HASH_SHA1, "SHA1"},
-	{PGP_HASH_RIPEMD, "RIPEMD160"},
-	{PGP_HASH_SHA256, "SHA256"},
-	{PGP_HASH_SHA384, "SHA384"},
-	{PGP_HASH_SHA512, "SHA512"},
-	{PGP_HASH_SHA224, "SHA224"},
-	{0x00, NULL},		/* this is the end-of-array marker */
-};
-
 static pgp_map_t compression_alg_map[] =
 {
 	{PGP_C_NONE, "Uncompressed"},
@@ -690,19 +678,6 @@ pgp_showall_ss_zpref(const pgp_data_t *ss_zpref)
 					&pgp_show_ss_zpref);
 }
 
-
-/**
- * \ingroup Core_Print
- *
- * returns description of the Hash Algorithm type
- * \param hash Hash Algorithm type
- * \return string or "Unknown"
- */
-const char     *
-pgp_show_hash_alg(uint8_t hash)
-{
-	return pgp_str_from_map(hash, hash_alg_map);
-}
 
 /**
  * \ingroup Core_Print

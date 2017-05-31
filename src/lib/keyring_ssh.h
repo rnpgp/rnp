@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2012 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -28,58 +27,16 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef DIGEST_H_
-#define DIGEST_H_
 
-#include <sys/types.h>
+#ifndef KEYRING_SSH_H_
+#define KEYRING_SSH_H_
 
-#include <inttypes.h>
+#include "rnp.h"
+#include "keyring.h"
 
-#include "crypto.h"
+int ssh_keyring_load_keys(rnp_t *rnp, char *homedir);
 
-#ifndef __BEGIN_DECLS
-#  if defined(__cplusplus)
-#  define __BEGIN_DECLS           extern "C" {
-#  define __END_DECLS             }
-#  else
-#  define __BEGIN_DECLS
-#  define __END_DECLS
-#  endif
-#endif
+int ssh_keyring_read_from_file(pgp_io_t *, keyring_t *, const char *);
+int ssh_keyring_read_from_mem(pgp_io_t *, keyring_t *, pgp_memory_t *);
 
-__BEGIN_DECLS
-
-#define MD5_HASH_ALG		1
-#define SHA1_HASH_ALG		2
-#define RIPEMD_HASH_ALG		3
-#define TIGER_HASH_ALG		6	/* from rfc2440 */
-#define SHA256_HASH_ALG		8
-#define SHA384_HASH_ALG		9
-#define SHA512_HASH_ALG		10
-#define SHA224_HASH_ALG		11
-#define TIGER2_HASH_ALG		100	/* private/experimental from rfc4880 */
-
-#define SHA256_DIGEST_LENGTH 32
-
-typedef struct pgp_hash_t pgp_hash_t;
-
-/* structure to describe digest methods */
-typedef struct digest_t {
-	uint32_t		 alg;		/* algorithm */
-	pgp_hash_t		 ctx;		/* hash context */
-} digest_t;
-
-unsigned digest_get_alg(const char */*hashalg*/);
-
-int digest_init(digest_t */*digest*/, const uint32_t /*hashalg*/);
-
-int digest_update(digest_t */*digest*/, const uint8_t */*data*/, size_t /*size*/);
-unsigned digest_final(uint8_t */*out*/, digest_t */*digest*/);
-int digest_alg_size(unsigned /*alg*/);
-int digest_length(digest_t */*hash*/, unsigned /*hashedlen*/);
-
-unsigned digest_get_prefix(unsigned /*hashalg*/, uint8_t */*prefix*/, size_t /*size*/);
-
-__END_DECLS
-
-#endif
+#endif /* KEYRING_SSH_H_ */

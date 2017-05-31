@@ -77,7 +77,7 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 
 #include "bn.h"
 #include "crypto.h"
-#include "keyring.h"
+#include "keyring_pgp.h"
 #include "packet-show.h"
 #include "signature.h"
 #include "readerwriter.h"
@@ -85,7 +85,6 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "rnpsdk.h"
 #include "packet.h"
 #include "rnpdigest.h"
-#include "mj.h"
 
 #define F_REVOKED   1
 
@@ -521,7 +520,7 @@ format_subsig_line(char *buffer,
 static int
 format_uid_notice(
 		char *buffer, pgp_io_t *io,
-		const pgp_keyring_t *keyring, const pgp_key_t *key,
+		const keyring_t *keyring, const pgp_key_t *key,
 		unsigned uid, size_t size, int flags)
 {
 	int i;
@@ -553,8 +552,8 @@ format_uid_notice(
 			continue;
 		}
 
-		trustkey = pgp_getkeybyid(io, keyring,
-				subsig->sig.info.signer_id, &from, NULL);
+		trustkey = keyring_get_key_by_id(io, keyring,
+										 subsig->sig.info.signer_id, &from, NULL);
 
 		n += format_subsig_line(buffer + n, key, trustkey,
 				subsig, size - n);
@@ -572,7 +571,7 @@ format_uid_notice(
 
 /* print into a string (malloc'ed) the pubkeydata */
 int
-pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
+pgp_sprint_keydata(pgp_io_t *io, const keyring_t *keyring,
 		const pgp_key_t *key, char **buf, const char *header,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
@@ -658,93 +657,106 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 
 /* return the key info as a JSON encoded string */
 int
-pgp_sprint_mj(pgp_io_t *io, const pgp_keyring_t *keyring,
-		const pgp_key_t *key, mj_t *keyjson, const char *header,
+pgp_sprint_json(pgp_io_t *io, const keyring_t *keyring,
+		const pgp_key_t *key, json_object *keyjson, const char *header,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
-	const pgp_key_t	*trustkey;
-	unsigned	 	 from;
-	unsigned		 i;
-	unsigned		 j;
-	mj_t			 sub_obj;
 	char			 keyid[PGP_KEY_ID_SIZE * 3];
 	char			 fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
 	int			 r;
+	unsigned		 i;
+	unsigned		 j;
 
 	if (key == NULL || key->revoked) {
 		return -1;
 	}
-	(void) memset(keyjson, 0x0, sizeof(*keyjson));
-	mj_create(keyjson, "object");
-	mj_append_field(keyjson, "header", "string", header, -1);
-	mj_append_field(keyjson, "key bits", "integer", (int64_t) numkeybits(pubkey));
-	mj_append_field(keyjson, "pka", "string", pgp_show_pka(pubkey->alg), -1);
-	mj_append_field(keyjson, "key id", "string", strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, ""), -1);
-	mj_append_field(keyjson, "fingerprint", "string",
-		strhexdump(fp, key->sigfingerprint.fingerprint, key->sigfingerprint.length, " "), -1);
-	mj_append_field(keyjson, "birthtime", "integer", pubkey->birthtime);
-	mj_append_field(keyjson, "duration", "integer", pubkey->duration);
-	for (i = 0; i < key->uidc; i++) {
-		if ((r = isrevoked(key, i)) >= 0 &&
-		    key->revokes[r].code == PGP_REVOCATION_COMPROMISED) {
-			continue;
-		}
-		(void) memset(&sub_obj, 0x0, sizeof(sub_obj));
-		mj_create(&sub_obj, "array");
-		mj_append(&sub_obj, "string", key->uids[i], -1);
-		mj_append(&sub_obj, "string", (r >= 0) ? "[REVOKED]" : "", -1);
-		mj_append_field(keyjson, "uid", "array", &sub_obj);
-		mj_delete(&sub_obj);
-		for (j = 0 ; j < key->subsigc ; j++) {
-			if (psigs) {
-				if (key->subsigs[j].uid != i) {
-					continue;
-				}
-			} else {
-				if (!(key->subsigs[j].sig.info.version == 4 &&
-					key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY &&
-					i == key->uidc - 1)) {
-						continue;
-				}
-			}
-			(void) memset(&sub_obj, 0x0, sizeof(sub_obj));
-			mj_create(&sub_obj, "array");
-			if (key->subsigs[j].sig.info.version == 4 &&
-					key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
-				mj_append(&sub_obj, "integer", (int64_t)numkeybits(&key->enckey));
-				mj_append(&sub_obj, "string",
-					(const char *)pgp_show_pka(key->enckey.alg), -1);
-				mj_append(&sub_obj, "string",
-					strhexdump(keyid, key->encid, PGP_KEY_ID_SIZE, ""), -1);
-				mj_append(&sub_obj, "integer", (int64_t)key->enckey.birthtime);
-				mj_append_field(keyjson, "encryption", "array", &sub_obj);
-				mj_delete(&sub_obj);
-			} else {
-				mj_append(&sub_obj, "string",
-					strhexdump(keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, ""), -1);
-				mj_append(&sub_obj, "integer",
-					(int64_t)(key->subsigs[j].sig.info.birthtime));
-				from = 0;
-				trustkey = pgp_getkeybyid(io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
-				mj_append(&sub_obj, "string",
-					(trustkey) ? (char *)trustkey->uids[trustkey->uid0] : "[unknown]", -1);
-				mj_append_field(keyjson, "sig", "array", &sub_obj);
-				mj_delete(&sub_obj);
-			}
-		}
-	}
-	if (pgp_get_debug_level(__FILE__)) {
-		char	*buf;
 
-		mj_asprint(&buf, keyjson, 1);
-		(void) fprintf(stderr, "pgp_sprint_mj: '%s'\n", buf);
-		free(buf);
+    //add the top-level values
+    json_object_object_add(keyjson,"header",
+            json_object_new_string(header));
+    json_object_object_add(keyjson,"key bits",
+            json_object_new_int(numkeybits(pubkey)));
+    json_object_object_add(keyjson,"pka",
+            json_object_new_string(pgp_show_pka(pubkey->alg)));
+    json_object_object_add(keyjson,"key id",
+            json_object_new_string(strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "")));
+    json_object_object_add(keyjson, "fingerprint",
+            json_object_new_string(strhexdump(fp, key->sigfingerprint.fingerprint, key->sigfingerprint.length,"")));
+    json_object_object_add(keyjson,"birthtime",
+            json_object_new_int(pubkey->birthtime));
+    json_object_object_add(keyjson,"duration",
+            json_object_new_int(pubkey->duration));
+
+    //iterating through the uids
+    for (i = 0; i < key->uidc; i++) {
+        if ((r = isrevoked(key, i)) >= 0 &&
+            key->revokes[r].code == PGP_REVOCATION_COMPROMISED) {
+            continue;
+        }
+        //add an array of the uids (and checking whether is REVOKED and
+        //indicate it as well)
+        json_object *uid_arr = json_object_new_array();
+        json_object_array_add(uid_arr,
+                json_object_new_string((char*)key->uids[i]));
+        json_object_array_add(uid_arr,
+                json_object_new_string((r >= 0) ? "[REVOKED]" : ""));
+        json_object_object_add(keyjson,"uid",uid_arr);
+
+        for (j = 0 ; j < key->subsigc ; j++) {
+            if (psigs) {
+                if (key->subsigs[j].uid != i) {
+                    continue;
+                }
+            } else {
+                if (!(key->subsigs[j].sig.info.version == 4 &&
+                    key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY &&
+                    i == key->uidc - 1)) {
+                        continue;
+                }
+            }
+            json_object *subsigc_arr = json_object_new_array();
+
+            if (key->subsigs[j].sig.info.version == 4 &&
+                    key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
+                json_object_array_add(subsigc_arr,
+                        json_object_new_int((int64_t)numkeybits(&key->enckey)));
+
+                json_object_array_add(subsigc_arr,
+                        json_object_new_string((const char *)pgp_show_pka(key->enckey.alg)));
+
+                json_object_array_add(subsigc_arr,
+                        json_object_new_string(strhexdump(keyid, key->encid, PGP_KEY_ID_SIZE, "")));
+
+                json_object_array_add(subsigc_arr,
+                        json_object_new_int((int64_t)key->enckey.birthtime));
+
+                json_object_object_add(keyjson,"encryption",subsigc_arr);
+            }
+            else {
+                json_object_array_add(subsigc_arr,
+                        json_object_new_string(strhexdump(keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, "")));
+                json_object_array_add(subsigc_arr,
+                        json_object_new_int((int64_t)(key->subsigs[j].sig.info.birthtime)));
+
+                unsigned from = 0;
+                const pgp_key_t *trustkey = keyring_get_key_by_id(io, keyring,
+                                            key->subsigs[j].sig.info.signer_id,
+                                            &from, NULL);
+
+                json_object_array_add(subsigc_arr,
+                        json_object_new_string( (trustkey) ? (char *)trustkey->uids[trustkey->uid0] : "[unknown]"));
+                json_object_object_add(keyjson,"sig",subsigc_arr);
+            }
+        } //for
+	} //for uidc
+	if (rnp_get_debug(__FILE__)) {
+		printf ("%s,%d: The json object created: %s\n", __FILE__, __LINE__,json_object_to_json_string(keyjson));
 	}
 	return 1;
 }
 
 int
-pgp_hkp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
+pgp_hkp_sprint_keydata(pgp_io_t *io, const keyring_t *keyring,
 		const pgp_key_t *key, char **buf,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
@@ -779,7 +791,7 @@ pgp_hkp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 				}
 			}
 			from = 0;
-			trustkey = pgp_getkeybyid(io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
+			trustkey = keyring_get_key_by_id(io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
 			if (key->subsigs[j].sig.info.version == 4 &&
 					key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
 				n += snprintf(&uidbuf[n], sizeof(uidbuf) - n, "sub:%d:%d:%s:%lld:%lld\n",
@@ -822,7 +834,7 @@ pgp_hkp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 
 /* print the key data for a pub or sec key */
 void
-pgp_print_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
+pgp_print_keydata(pgp_io_t *io, const keyring_t *keyring,
 		const pgp_key_t *key, const char *header,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
@@ -950,7 +962,7 @@ print_seckey_verbose(const pgp_content_enum type,
 					(unsigned)sizeof(seckey->salt));
 		}
 		if (seckey->s2k_specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-			printf("Octet count: %u\n", seckey->octetc);
+			printf("Octet count: %u\n", seckey->s2k_iterations);
 		}
 		print_hexdump(0, "IV", seckey->iv, pgp_block_size(seckey->alg));
 	}
@@ -1578,7 +1590,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 	case PGP_PTAG_CT_SIGNED_CLEARTEXT_TRAILER:
 		print_tagname(print->indent, "SIGNED CLEARTEXT TRAILER");
 		printf("hash algorithm: %d\n",
-		       content->cleartext_trailer->alg);
+		       pgp_hash_alg_type(content->cleartext_trailer));
 		printf("\n");
 		break;
 
@@ -1635,8 +1647,8 @@ int
 pgp_list_packets(pgp_io_t *io,
 			char *filename,
 			unsigned armour,
-			pgp_keyring_t *secring,
-			pgp_keyring_t *pubring,
+			keyring_t *secring,
+			keyring_t *pubring,
 			void *passfp,
 			pgp_cbfunc_t *cb_get_passphrase)
 {
@@ -1658,4 +1670,25 @@ pgp_list_packets(pgp_io_t *io,
 	pgp_parse(stream, printerrors);
 	pgp_teardown_file_read(stream, fd);
 	return 1;
+}
+
+/* this interface isn't right - hook into callback for getting passphrase */
+char *
+pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
+{
+	pgp_output_t	*output;
+	pgp_memory_t	*mem;
+	char		*cp;
+
+	__PGP_USED(io);
+	pgp_setup_memory_write(&output, &mem, 128);
+	if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
+		pgp_write_xfer_pubkey(output, keydata, NULL, 1);
+	} else {
+		pgp_write_xfer_seckey(output, keydata, passphrase,
+							  strlen((char *)passphrase), NULL, 1);
+	}
+	cp = rnp_strdup(pgp_mem_data(mem));
+	pgp_teardown_memory_write(output, mem);
+	return cp;
 }

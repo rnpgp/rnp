@@ -58,6 +58,7 @@
 
 #include "types.h"
 #include "packet.h"
+#include "keyring.h"
 
 /** pgp_region_t */
 typedef struct pgp_region_t {
@@ -167,5 +168,7 @@ int pgp_decompress(pgp_region_t *, pgp_stream_t *,
 			pgp_compression_type_t);
 unsigned pgp_writez(pgp_output_t *, const uint8_t *,
 			const unsigned);
+
+int pgp_parse_and_accumulate(pgp_io_t *io, keyring_t *, pgp_stream_t *);
 
 #endif /* PACKET_PARSE_H_ */

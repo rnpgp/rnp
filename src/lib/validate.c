@@ -77,7 +77,7 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 
 #include "packet-parse.h"
 #include "packet-show.h"
-#include "keyring.h"
+#include "keyring_pgp.h"
 #include "signature.h"
 #include "rnpsdk.h"
 #include "readerwriter.h"
@@ -86,6 +86,7 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 #include "packet.h"
 #include "crypto.h"
 #include "validate.h"
+#include "packet-key.h"
 
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -190,12 +191,12 @@ check_binary_sig(const uint8_t *data,
 	uint8_t		hashout[PGP_MAX_HASH_SIZE];
 	uint8_t		trailer[6];
 
-	pgp_hash_any(&hash, sig->info.hash_alg);
-	if (!hash.init(&hash)) {
+	if (!pgp_hash_create(&hash, sig->info.hash_alg)) {
 		(void) fprintf(stderr, "check_binary_sig: bad hash init\n");
 		return 0;
-	}
-	hash.add(&hash, data, len);
+        }
+
+	pgp_hash_add(&hash, data, len);
 	switch (sig->info.version) {
 	case PGP_V3:
 		trailer[0] = sig->info.type;
@@ -203,15 +204,15 @@ check_binary_sig(const uint8_t *data,
 		trailer[2] = (unsigned)(sig->info.birthtime) >> 16;
 		trailer[3] = (unsigned)(sig->info.birthtime) >> 8;
 		trailer[4] = (uint8_t)(sig->info.birthtime);
-		hash.add(&hash, trailer, 5);
+		pgp_hash_add(&hash, trailer, 5);
 		break;
 
 	case PGP_V4:
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "v4 hash", sig->info.v4_hashed,
 					sig->info.v4_hashlen);
 		}
-		hash.add(&hash, sig->info.v4_hashed, (unsigned)sig->info.v4_hashlen);
+		pgp_hash_add(&hash, sig->info.v4_hashed, (unsigned)sig->info.v4_hashlen);
 		trailer[0] = 0x04;	/* version */
 		trailer[1] = 0xFF;
 		hashedlen = (unsigned)sig->info.v4_hashlen;
@@ -219,7 +220,7 @@ check_binary_sig(const uint8_t *data,
 		trailer[3] = (uint8_t)(hashedlen >> 16);
 		trailer[4] = (uint8_t)(hashedlen >> 8);
 		trailer[5] = (uint8_t)(hashedlen);
-		hash.add(&hash, trailer, 6);
+		pgp_hash_add(&hash, trailer, 6);
 		break;
 
 	default:
@@ -228,8 +229,8 @@ check_binary_sig(const uint8_t *data,
 		return 0;
 	}
 
-	n = hash.finish(&hash, hashout);
-	if (pgp_get_debug_level(__FILE__)) {
+	n = pgp_hash_finish(&hash, hashout);
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stdout, "hash out", hashout, n);
 	}
 	return pgp_check_sig(hashout, n, sig, signer);
@@ -248,7 +249,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	unsigned		  valid = 0;
 
 	io = cbinfo->io;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(io->errs, "%s\n",
 				pgp_show_packet_tag(pkt->tag));
 	}
@@ -302,9 +303,9 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	case PGP_PTAG_CT_SIGNATURE:	/* V3 sigs */
 	case PGP_PTAG_CT_SIGNATURE_FOOTER:	/* V4 sigs */
 		from = 0;
-		signer = pgp_getkeybyid(io, key->keyring,
-					 content->sig.info.signer_id,
-					 &from, &sigkey);
+		signer = keyring_get_key_by_id(io, key->keyring,
+									   content->sig.info.signer_id,
+									   &from, &sigkey);
 		if (!signer) {
 			if (!add_sig_to_list(&content->sig.info,
 				&key->result->unknown_sigs,
@@ -438,7 +439,7 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 	unsigned		  valid = 0;
 
 	io = cbinfo->io;
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(io->errs, "validate_data_cb: %s\n",
 				pgp_show_packet_tag(pkt->tag));
 	}
@@ -476,15 +477,15 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
 	case PGP_PTAG_CT_SIGNATURE:	/* V3 sigs */
 	case PGP_PTAG_CT_SIGNATURE_FOOTER:	/* V4 sigs */
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(io->outs, "hashed data", content->sig.info.v4_hashed,
 					content->sig.info.v4_hashlen);
 			hexdump(io->outs, "signer id", content->sig.info.signer_id,
 				sizeof(content->sig.info.signer_id));
 		}
 		from = 0;
-		signer = pgp_getkeybyid(io, data->keyring,
-					 content->sig.info.signer_id, &from, &sigkey);
+		signer = keyring_get_key_by_id(io, data->keyring,
+									   content->sig.info.signer_id, &from, &sigkey);
 		if (!signer) {
 			PGP_ERROR_1(errors, PGP_E_V_UNKNOWN_SIGNER,
 			    "%s", "Unknown Signer");
@@ -519,7 +520,7 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 				data->mem = pgp_memory_new();
 				pgp_mem_readfile(data->mem, data->detachname);
 			}
-			if (pgp_get_debug_level(__FILE__)) {
+			if (rnp_get_debug(__FILE__)) {
 				hexdump(stderr, "sig dump", (const uint8_t *)(const void *)&content->sig,
 					sizeof(content->sig));
 			}
@@ -686,7 +687,7 @@ validate_result_status(FILE *errs, const char *f, pgp_validation_t *val)
 unsigned 
 pgp_validate_key_sigs(pgp_validation_t *result,
 	const pgp_key_t *key,
-	const pgp_keyring_t *keyring,
+	const keyring_t *keyring,
 	pgp_cb_ret_t cb_get_passphrase(const pgp_packet_t *,
 						pgp_cbdata_t *))
 {
@@ -735,7 +736,7 @@ pgp_validate_key_sigs(pgp_validation_t *result,
 */
 unsigned 
 pgp_validate_all_sigs(pgp_validation_t *result,
-	    const pgp_keyring_t *ring,
+	    const keyring_t *ring,
 	    pgp_cb_ret_t cb_get_passphrase(const pgp_packet_t *,
 	    					pgp_cbdata_t *))
 {
@@ -793,7 +794,7 @@ pgp_validate_file(pgp_io_t *io,
 			const char *infile,
 			const char *outfile,
 			const int user_says_armoured,
-			const pgp_keyring_t *keyring)
+			const keyring_t *keyring)
 {
 	validate_data_cb_t	 validation;
 	pgp_stream_t		*parse = NULL;
@@ -926,7 +927,7 @@ pgp_validate_mem(pgp_io_t *io,
 			pgp_memory_t *mem,
 			pgp_memory_t **cat,
 			const int user_says_armoured,
-			const pgp_keyring_t *keyring)
+			const keyring_t *keyring)
 {
 	validate_data_cb_t	 validation;
 	pgp_stream_t		*stream = NULL;

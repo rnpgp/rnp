@@ -119,3 +119,15 @@ AC_DEFUN([AX_CHECK_BOTAN], [
     AC_SUBST([BOTAN_LIBS])
     AC_SUBST([BOTAN_LDFLAGS])
 ])
+
+
+AC_DEFUN([AX_CHECK_BOTAN_DEFINES], [
+    AC_CHECK_DECLS([BOTAN_HAS_AES,BOTAN_HAS_CAST,BOTAN_HAS_MD5,BOTAN_HAS_SHA1,BOTAN_HAS_RSA,BOTAN_HAS_EMSA_PKCS1,BOTAN_HAS_PGP_S2K],
+        [
+            $1
+        ], [
+            AC_MSG_ERROR([Botan build is missing a required feature])
+            $2
+        ],
+        [#include <botan/build.h>])
+])

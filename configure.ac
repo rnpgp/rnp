@@ -32,6 +32,7 @@ AM_MAINTAINER_MODE
 AC_CANONICAL_HOST
 CANONICAL_HOST=$host
 AC_SUBST([CANONICAL_HOST])
+AX_APPEND_COMPILE_FLAGS([-std=c11 -D_GNU_SOURCE])
 
 # Checks for programs.
 #
@@ -98,11 +99,17 @@ AX_CHECK_BOTAN([CFLAGS="$CFLAGS $BOTAN_INCLUDES"
                 LDFLAGS="$LDFLAGS $BOTAN_LDFLAGS $BOTAN_LIBS"],
                [AC_MSG_ERROR([Missing Botan])])
 
+
+AX_CHECK_BOTAN_DEFINES([CFLAGS="$CFLAGS $BOTAN_INCLUDES"
+                       LDFLAGS="$LDFLAGS $BOTAN_LDFLAGS $BOTAN_LIBS"])
+
 # Checks for library functions.
 #
 AC_SEARCH_LIBS([_cmocka_run_group_tests], [cmocka],,AC_MSG_ERROR(CMocka not found!))
 AC_SEARCH_LIBS([gzopen], [z],,AC_MSG_ERROR(libz not found!))
 AC_SEARCH_LIBS([BZ2_bzDecompress], [bz2],,AC_MSG_ERROR(Libbz2 not found!))
+
+PKG_CHECK_MODULES(JSON, json-c,, [AC_MSG_ERROR("json-c not found")])
 
 # Initialize the testsuite
 #
@@ -115,12 +122,12 @@ AC_CONFIG_FILES([
         Makefile
         include/Makefile
         src/Makefile
-        src/libmj/Makefile
         src/lib/Makefile
         src/rnp/Makefile
         src/rnpkeys/Makefile
         src/rnpv/Makefile
         src/cmocka/Makefile
+        src/fuzzing/Makefile
         tests/Makefile
         tests/atlocal
 ])

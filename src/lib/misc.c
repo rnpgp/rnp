@@ -98,104 +98,6 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #endif
 
 
-typedef struct {
-	pgp_keyring_t		*keyring;
-} accumulate_t;
-
-/**
- * \ingroup Core_Callbacks
- */
-static pgp_cb_ret_t
-accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
-{
-	const pgp_contents_t	*content = &pkt->u;
-	pgp_keyring_t		*keyring;
-	accumulate_t		*accumulate;
-
-	if (pgp_get_debug_level(__FILE__)) {
-		(void) fprintf(stderr, "accumulate callback: packet tag %u\n", pkt->tag);
-	}
-	accumulate = pgp_callback_arg(cbinfo);
-	keyring = accumulate->keyring;
-	switch (pkt->tag) {
-	case PGP_PTAG_CT_PUBLIC_KEY:
-	case PGP_PTAG_CT_PUBLIC_SUBKEY:
-		pgp_add_to_pubring(keyring, &content->pubkey, pkt->tag);
-		return PGP_KEEP_MEMORY;
-	case PGP_PTAG_CT_SECRET_KEY:
-	case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-		pgp_add_to_secring(keyring, &content->seckey);
-		return PGP_KEEP_MEMORY;
-	case PGP_PTAG_CT_USER_ID:
-		if (pgp_get_debug_level(__FILE__)) {
-			(void) fprintf(stderr, "User ID: %s for key %d\n",
-					content->userid,
-					keyring->keyc - 1);
-		}
-		if (keyring->keyc == 0) {
-			PGP_ERROR_1(cbinfo->errors, PGP_E_P_NO_USERID, "%s",
-			    "No userid found");
-		} else {
-			pgp_add_userid(&keyring->keys[keyring->keyc - 1], content->userid);
-		}
-		return PGP_KEEP_MEMORY;
-	case PGP_PARSER_PACKET_END:
-		if (keyring->keyc > 0) {
-			pgp_add_subpacket(&keyring->keys[keyring->keyc - 1],
-						&content->packet);
-			return PGP_KEEP_MEMORY;
-		}
-		return PGP_RELEASE_MEMORY;
-	case PGP_PARSER_ERROR:
-		(void) fprintf(stderr, "Error: %s\n", content->error);
-		return PGP_FINISHED;
-	case PGP_PARSER_ERRCODE:
-		(void) fprintf(stderr, "parse error: %s\n",
-				pgp_errcode(content->errcode.errcode));
-		break;
-	default:
-		break;
-	}
-	/* XXX: we now exclude so many things, we should either drop this or */
-	/* do something to pass on copies of the stuff we keep */
-	return pgp_stacked_callback(pkt, cbinfo);
-}
-
-/**
- * \ingroup Core_Parse
- *
- * Parse packets from an input stream until EOF or error.
- *
- * Key data found in the parsed data is added to #keyring.
- *
- * \param keyring Pointer to an existing keyring
- * \param parse Options to use when parsing
-*/
-int
-pgp_parse_and_accumulate(pgp_keyring_t *keyring, pgp_stream_t *parse)
-{
-	accumulate_t	accumulate;
-	const int	printerrors = 1;
-	int             ret;
-
-	if (parse->readinfo.accumulate) {
-		(void) fprintf(stderr,
-			"pgp_parse_and_accumulate: already init\n");
-		return 0;
-	}
-
-	(void) memset(&accumulate, 0x0, sizeof(accumulate));
-
-	accumulate.keyring = keyring;
-
-	pgp_callback_push(parse, accumulate_cb, &accumulate);
-	parse->readinfo.accumulate = 1;
-	ret = pgp_parse(parse, !printerrors);
-
-	return ret;
-}
-
-
 /** \file
  * \brief Error Handling
  */
@@ -274,6 +176,13 @@ pgp_new(size_t size)
 			"allocation failure for %" PRIsize "u bytes", size);
 	}
 	return vp;
+}
+
+/* utility function to zero out memory */
+void
+pgp_forget(void *vp, unsigned size)
+{
+	(void) memset(vp, 0x0, size);
 }
 
 /**
@@ -406,7 +315,7 @@ hash_uint32(pgp_hash_t *hash, uint32_t n)
 	ibuf[1] = (uint8_t)(n >> 16) & 0xff;
 	ibuf[2] = (uint8_t)(n >> 8) & 0xff;
 	ibuf[3] = (uint8_t)n & 0xff;
-	(*hash->add)(hash, (const uint8_t *)(void *)ibuf, (unsigned)sizeof(ibuf));
+        pgp_hash_add(hash, ibuf, sizeof(ibuf));
 	return sizeof(ibuf);
 }
 
@@ -414,11 +323,11 @@ hash_uint32(pgp_hash_t *hash, uint32_t n)
 static int
 hash_string(pgp_hash_t *hash, const uint8_t *buf, uint32_t len)
 {
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "hash_string", buf, len);
 	}
 	hash_uint32(hash, len);
-	(*hash->add)(hash, buf, len);
+        pgp_hash_add(hash, buf, len);
 	return (int)(sizeof(len) + len);
 }
 
@@ -476,21 +385,19 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
 				"pgp_fingerprint: bad algorithm\n");
 			return 0;
 		}
-		pgp_hash_md5(&hash);
-		if (!hash.init(&hash)) {
+                if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
 			(void) fprintf(stderr,
 				"pgp_fingerprint: bad md5 alloc\n");
 			return 0;
 		}
 		hash_bignum(&hash, key->key.rsa.n);
 		hash_bignum(&hash, key->key.rsa.e);
-		fp->length = hash.finish(&hash, fp->fingerprint);
-		if (pgp_get_debug_level(__FILE__)) {
+		fp->length = pgp_hash_finish(&hash, fp->fingerprint);
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "v2/v3 fingerprint", fp->fingerprint, fp->length);
 		}
 	} else if (hashtype == PGP_HASH_MD5) {
-		pgp_hash_md5(&hash);
-		if (!hash.init(&hash)) {
+		if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
 			(void) fprintf(stderr,
 				"pgp_fingerprint: bad md5 alloc\n");
 			return 0;
@@ -511,14 +418,13 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
 		default:
 			break;
 		}
-		fp->length = hash.finish(&hash, fp->fingerprint);
-		if (pgp_get_debug_level(__FILE__)) {
+		fp->length = pgp_hash_finish(&hash, fp->fingerprint);
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "md5 fingerprint", fp->fingerprint, fp->length);
 		}
 	} else {
 		pgp_build_pubkey(mem, key, 0);
-		pgp_hash_sha1(&hash);
-		if (!hash.init(&hash)) {
+		if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
 			(void) fprintf(stderr,
 				"pgp_fingerprint: bad sha1 alloc\n");
 			return 0;
@@ -526,10 +432,10 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
 		len = (unsigned)pgp_mem_len(mem);
 		pgp_hash_add_int(&hash, 0x99, 1);
 		pgp_hash_add_int(&hash, len, 2);
-		hash.add(&hash, pgp_mem_data(mem), len);
-		fp->length = hash.finish(&hash, fp->fingerprint);
+		pgp_hash_add(&hash, pgp_mem_data(mem), len);
+		fp->length = pgp_hash_finish(&hash, fp->fingerprint);
 		pgp_memory_free(mem);
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "sha1 fingerprint", fp->fingerprint, fp->length);
 		}
 	}
@@ -576,159 +482,6 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key, pgp_hash_
 
 /**
 \ingroup Core_Hashes
-\brief Add to the hash
-\param hash Hash to add to
-\param n Int to add
-\param length Length of int in bytes
-*/
-void
-pgp_hash_add_int(pgp_hash_t *hash, unsigned n, unsigned length)
-{
-	uint8_t   c;
-
-	while (length--) {
-		c = n >> (length * 8);
-		hash->add(hash, &c, 1);
-	}
-}
-
-/**
-\ingroup Core_Hashes
-\brief Setup hash for given hash algorithm
-\param hash Hash to set up
-\param alg Hash algorithm to use
-*/
-int
-pgp_hash_any(pgp_hash_t *hash, pgp_hash_alg_t alg)
-{
-	switch (alg) {
-	case PGP_HASH_MD5:
-		pgp_hash_md5(hash);
-		break;
-
-	case PGP_HASH_SHA1:
-		pgp_hash_sha1(hash);
-		break;
-
-	case PGP_HASH_SHA256:
-		pgp_hash_sha256(hash);
-		break;
-
-	case PGP_HASH_SHA384:
-		pgp_hash_sha384(hash);
-		break;
-
-	case PGP_HASH_SHA512:
-		pgp_hash_sha512(hash);
-		break;
-
-	case PGP_HASH_SHA224:
-		pgp_hash_sha224(hash);
-		break;
-
-	default:
-		(void) fprintf(stderr, "pgp_hash_any: bad algorithm\n");
-                return 0;
-	}
-        return 1;
-}
-
-/**
-\ingroup Core_Hashes
-\brief Returns size of hash for given hash algorithm
-\param alg Hash algorithm to use
-\return Size of hash algorithm in bytes
-*/
-unsigned
-pgp_hash_size(pgp_hash_alg_t alg)
-{
-	switch (alg) {
-	case PGP_HASH_MD5:
-		return 16;
-
-	case PGP_HASH_SHA1:
-		return 20;
-
-	case PGP_HASH_SHA256:
-		return 32;
-
-	case PGP_HASH_SHA224:
-		return 28;
-
-	case PGP_HASH_SHA512:
-		return 64;
-
-	case PGP_HASH_SHA384:
-		return 48;
-
-	default:
-		(void) fprintf(stderr, "pgp_hash_size: bad algorithm\n");
-	}
-
-	return 0;
-}
-
-/**
-\ingroup Core_Hashes
-\brief Returns hash enum corresponding to given string
-\param hash Text name of hash algorithm i.e. "SHA1"
-\returns Corresponding enum i.e. PGP_HASH_SHA1
-*/
-pgp_hash_alg_t
-pgp_str_to_hash_alg(const char *hash)
-{
-	if (hash == NULL) {
-		return PGP_DEFAULT_HASH_ALGORITHM;
-	}
-	if (rnp_strcasecmp(hash, "SHA1") == 0) {
-		return PGP_HASH_SHA1;
-	}
-	if (rnp_strcasecmp(hash, "MD5") == 0) {
-		return PGP_HASH_MD5;
-	}
-	if (rnp_strcasecmp(hash, "SHA256") == 0) {
-		return PGP_HASH_SHA256;
-	}
-	/*
-        if (rnp_strcasecmp(hash,"SHA224") == 0) {
-		return PGP_HASH_SHA224;
-	}
-        */
-	if (rnp_strcasecmp(hash, "SHA512") == 0) {
-		return PGP_HASH_SHA512;
-	}
-	if (rnp_strcasecmp(hash, "SHA384") == 0) {
-		return PGP_HASH_SHA384;
-	}
-	return PGP_HASH_UNKNOWN;
-}
-
-/**
-\ingroup Core_Hashes
-\brief Hash given data
-\param out Where to write the hash
-\param alg Hash algorithm to use
-\param in Data to hash
-\param length Length of data
-\return Size of hash created
-*/
-unsigned
-pgp_hash(uint8_t *out, pgp_hash_alg_t alg, const void *in, size_t length)
-{
-	pgp_hash_t      hash;
-
-	pgp_hash_any(&hash, alg);
-	if (!hash.init(&hash)) {
-		(void) fprintf(stderr, "pgp_hash: bad alloc\n");
-		/* we'll just continue here - don't want to return a 0 hash */
-		/* XXX - agc - no way to return failure */
-	}
-	hash.add(&hash, in, (unsigned)length);
-	return hash.finish(&hash, out);
-}
-
-/**
-\ingroup Core_Hashes
 \brief Calculate hash for MDC packet
 \param preamble Preamble to hash
 \param sz_preamble Size of preamble
@@ -746,86 +499,34 @@ pgp_calc_mdc_hash(const uint8_t *preamble,
 	pgp_hash_t	hash;
 	uint8_t		c;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "preamble", preamble, sz_preamble);
 		hexdump(stderr, "plaintext", plaintext, sz_plaintext);
 	}
 	/* init */
-	pgp_hash_any(&hash, PGP_HASH_SHA1);
-	if (!hash.init(&hash)) {
+	if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
 		(void) fprintf(stderr, "pgp_calc_mdc_hash: bad alloc\n");
 		/* we'll just continue here - it will die anyway */
 		/* agc - XXX - no way to return failure */
 	}
 
 	/* preamble */
-	hash.add(&hash, preamble, (unsigned)sz_preamble);
+	pgp_hash_add(&hash, preamble, (unsigned)sz_preamble);
 	/* plaintext */
-	hash.add(&hash, plaintext, sz_plaintext);
+	pgp_hash_add(&hash, plaintext, sz_plaintext);
 	/* MDC packet tag */
 	c = MDC_PKT_TAG;
-	hash.add(&hash, &c, 1);
+	pgp_hash_add(&hash, &c, 1);
 	/* MDC packet len */
 	c = PGP_SHA1_HASH_SIZE;
-	hash.add(&hash, &c, 1);
+	pgp_hash_add(&hash, &c, 1);
 
 	/* finish */
-	hash.finish(&hash, hashed);
+	pgp_hash_finish(&hash, hashed);
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "hashed", hashed, PGP_SHA1_HASH_SIZE);
 	}
-}
-
-/**
-\ingroup HighLevel_Supported
-\brief Is this Hash Algorithm supported?
-\param hash_alg Hash Algorithm to check
-\return 1 if supported; else 0
-*/
-unsigned
-pgp_is_hash_alg_supported(const pgp_hash_alg_t *hash_alg)
-{
-	switch (*hash_alg) {
-	case PGP_HASH_MD5:
-	case PGP_HASH_SHA1:
-	case PGP_HASH_SHA256:
-		return 1;
-
-	default:
-		return 0;
-	}
-}
-
-/* structure to map string to cipher def */
-typedef struct str2cipher_t {
-	const char	*s;	/* cipher name */
-	pgp_symm_alg_t i;	/* cipher def */
-} str2cipher_t;
-
-static str2cipher_t	str2cipher[] = {
-	{	"cast5",		PGP_SA_CAST5		},
-	{	"idea",			PGP_SA_IDEA		},
-	{	"aes128",		PGP_SA_AES_128		},
-	{	"aes256",		PGP_SA_AES_256		},
-	{	"camellia128",		PGP_SA_CAMELLIA_128	},
-	{	"camellia256",		PGP_SA_CAMELLIA_256	},
-	{	"tripledes",		PGP_SA_TRIPLEDES	},
-	{	NULL,			0			}
-};
-
-/* convert from a string to a cipher definition */
-pgp_symm_alg_t
-pgp_str_to_cipher(const char *cipher)
-{
-	str2cipher_t	*sp;
-
-	for (sp = str2cipher ; cipher && sp->s ; sp++) {
-		if (rnp_strcasecmp(cipher, sp->s) == 0) {
-			return sp->i;
-		}
-	}
-	return PGP_SA_DEFAULT_CIPHER;
 }
 
 void
@@ -1238,7 +939,7 @@ static char    *debugv[MAX_DEBUG_NAMES];
 
 /* set the debugging level per filename */
 int
-pgp_set_debug_level(const char *f)
+rnp_set_debug(const char *f)
 {
 	const char     *name;
 	int             i;
@@ -1265,7 +966,7 @@ pgp_set_debug_level(const char *f)
 
 /* get the debugging level per filename */
 int
-pgp_get_debug_level(const char *f)
+rnp_get_debug(const char *f)
 {
 	const char     *name;
 	int             i;
@@ -1286,7 +987,7 @@ pgp_get_debug_level(const char *f)
 
 /* return the version for the library */
 const char *
-pgp_get_info(const char *type)
+rnp_get_info(const char *type)
 {
 	if (strcmp(type, "version") == 0) {
 		return PACKAGE_STRING"["GIT_REVISION"]";

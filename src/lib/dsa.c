@@ -94,7 +94,8 @@ pgp_dsa_verify(const uint8_t *hash, size_t hash_length,
    botan_mp_num_bytes(dsa->q->mp, &q_bytes);
 
    encoded_signature = calloc(2, q_bytes);
-   // sig->r, sig->s -> signature
+   BN_bn2bin(sig->r, encoded_signature);
+   BN_bn2bin(sig->s, encoded_signature + q_bytes);
 
    botan_pk_op_verify_create(&verify_op, dsa_key, "Raw", 0);
    botan_pk_op_verify_update(verify_op, hash, hash_length);

@@ -75,7 +75,7 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 #include "bn.h"
 #include "create.h"
 #include "writer.h"
-#include "keyring.h"
+#include "keyring_pgp.h"
 #include "signature.h"
 #include "packet.h"
 #include "packet-parse.h"
@@ -418,7 +418,7 @@ dash_esc_writer(const uint8_t *src,
 	dashesc_t	*dash = pgp_writer_get_arg(writer);
 	unsigned        n;
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		unsigned    i = 0;
 
 		(void) fprintf(stderr, "dash_esc_writer writing %u:\n", len);
@@ -502,7 +502,7 @@ pgp_writer_push_clearsigned(pgp_output_t *output, pgp_create_sig_t *sig)
 	dashesc_t      *dash;
 	unsigned	ret;
 
-	hash = pgp_text_from_hash(pgp_sig_get_hash(sig));
+	hash = pgp_hash_name(pgp_sig_get_hash(sig));
 	if ((dash = calloc(1, sizeof(*dash))) == NULL) {
 		PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Bad alloc");
 		return 0;
@@ -948,15 +948,14 @@ encrypt_writer(const uint8_t *src,
 		unsigned        size = (remaining < BUFSZ) ? remaining : BUFSZ;
 
 		/* memcpy(buf,src,size); // \todo copy needed here? */
-		pgp_encrypt->crypt->cfb_encrypt(pgp_encrypt->crypt, encbuf,
-					src + done, size);
+                pgp_cipher_cfb_encrypt(pgp_encrypt->crypt, encbuf, src + done, size);
 
-		if (pgp_get_debug_level(__FILE__)) {
+		if (rnp_get_debug(__FILE__)) {
 			hexdump(stderr, "unencrypted", &src[done], 16);
 			hexdump(stderr, "encrypted", encbuf, 16);
 		}
 		if (!stacked_write(writer, encbuf, size, errors)) {
-			if (pgp_get_debug_level(__FILE__)) {
+			if (rnp_get_debug(__FILE__)) {
 				fprintf(stderr,
 					"encrypted_writer: stacked write\n");
 			}
@@ -1055,8 +1054,8 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const char *ci
 		(void) fprintf(stderr, "pgp_push_enc_se_ip: bad alloc\n");
 		return 0;
 	}
-	encrypted->set_iv(encrypted, iv);
-	encrypted->set_crypt_key(encrypted, &encrypted_pk_sesskey->key[0]);
+        pgp_cipher_set_iv(encrypted, iv);
+        pgp_cipher_set_key(encrypted, &encrypted_pk_sesskey->key[0]);
 	pgp_encrypt_init(encrypted);
 
 	se_ip->crypt = encrypted;
@@ -1162,7 +1161,7 @@ pgp_write_se_ip_pktset(pgp_output_t *output,
 	preamble[crypted->blocksize] = preamble[crypted->blocksize - 2];
 	preamble[crypted->blocksize + 1] = preamble[crypted->blocksize - 1];
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "preamble", preamble, preamblesize);
 	}
 
@@ -1171,14 +1170,14 @@ pgp_write_se_ip_pktset(pgp_output_t *output,
 	pgp_calc_mdc_hash(preamble, preamblesize, data, len, hashed);
 	pgp_write_mdc(mdcoutput, hashed);
 
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		hexdump(stderr, "plaintext", data, len);
 		hexdump(stderr, "mdc", pgp_mem_data(mdc), PGP_SHA1_HASH_SIZE + 1 + 1);
 	}
 
 	/* and write it out */
 	pgp_push_enc_crypt(output, crypted);
-	if (pgp_get_debug_level(__FILE__)) {
+	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr,
 			"writing %" PRIsize "u + %u + %" PRIsize "u\n",
 			preamblesize, len, pgp_mem_len(mdc));
@@ -1309,7 +1308,7 @@ skey_checksum_writer(const uint8_t *src,
 
 	sum = pgp_writer_get_arg(writer);
 	/* add contents to hash */
-	sum->hash.add(&sum->hash, src, len);
+	pgp_hash_add(&sum->hash, src, len);
 	/* write to next stacked writer */
 	ret = stacked_write(writer, src, len, errors);
 	/* tidy up and return */
@@ -1325,7 +1324,7 @@ skey_checksum_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 	if (errors && *errors) {
 		printf("errors in skey_checksum_finaliser\n");
 	}
-	(*sum->hash.finish)(&sum->hash, sum->hashed);
+	pgp_hash_finish(&sum->hash, sum->hashed);
 	return 1;
 }
 
@@ -1357,17 +1356,16 @@ pgp_push_checksum_writer(pgp_output_t *output, pgp_seckey_t *seckey)
 		/* configure the arg */
 		/* Hardcoded SHA1 for just now */
 		sum->hash_alg = PGP_HASH_SHA1;
-		hashsize = pgp_hash_size(sum->hash_alg);
-		if ((sum->hashed = seckey->checkhash) == NULL) {
-			sum->hashed = seckey->checkhash = calloc(1, hashsize);
-		}
 		/* init the hash */
-		pgp_hash_any(&sum->hash, sum->hash_alg);
-		if (!sum->hash.init(&sum->hash)) {
+		if (!pgp_hash_create(&sum->hash, sum->hash_alg)) {
 			(void) fprintf(stderr,
 				"pgp_push_checksum_writer: bad hash init\n");
 			/* just continue and die */
 			/* XXX - agc - no way to return failure */
+		}
+		hashsize = pgp_hash_output_length(&sum->hash);
+		if ((sum->hashed = seckey->checkhash) == NULL) {
+			sum->hashed = seckey->checkhash = calloc(1, hashsize);
 		}
 		pgp_writer_push(output, skey_checksum_writer,
 			skey_checksum_finaliser, skey_checksum_destroyer, sum);
@@ -1440,8 +1438,8 @@ pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const c
 			"pgp_push_stream_enc_se_ip: bad alloc\n");
 		return;
 	}
-	encrypted->set_iv(encrypted, iv);
-	encrypted->set_crypt_key(encrypted, &encrypted_pk_sesskey->key[0]);
+        pgp_cipher_set_iv(encrypted, iv);
+        pgp_cipher_set_key(encrypted, &encrypted_pk_sesskey->key[0]);
 	pgp_encrypt_init(encrypted);
 
 	se_ip->crypt = encrypted;
@@ -1580,7 +1578,7 @@ stream_write_se_ip(pgp_output_t *output,
 		pgp_write(output, data, (unsigned)pdlen);
 		pgp_writer_pop(output);
 
-		se_ip->hash.add(&se_ip->hash, data, (unsigned)pdlen);
+		pgp_hash_add(&se_ip->hash, data, (unsigned)pdlen);
 
 		data += pdlen;
 		len -= (unsigned)pdlen;
@@ -1623,17 +1621,16 @@ stream_write_se_ip_first(pgp_output_t *output,
 	pgp_random(preamble, blocksize);
 	preamble[blocksize] = preamble[blocksize - 2];
 	preamble[blocksize + 1] = preamble[blocksize - 1];
-	pgp_hash_any(&se_ip->hash, PGP_HASH_SHA1);
-	if (!se_ip->hash.init(&se_ip->hash)) {
+	if (!pgp_hash_create(&se_ip->hash, PGP_HASH_SHA1)) {
 		free(preamble);
 		(void) fprintf(stderr,
 			"stream_write_se_ip_first: bad hash init\n");
 		return 0;
 	}
 	pgp_write(output, preamble, (unsigned)preamblesize);
-	se_ip->hash.add(&se_ip->hash, preamble, (unsigned)preamblesize);
+	pgp_hash_add(&se_ip->hash, preamble, (unsigned)preamblesize);
 	pgp_write(output, data, (unsigned)(sz_pd - preamblesize - 1));
-	se_ip->hash.add(&se_ip->hash, data, (unsigned)(sz_pd - preamblesize - 1));
+	pgp_hash_add(&se_ip->hash, data, (unsigned)(sz_pd - preamblesize - 1));
 	data += (sz_pd - preamblesize - 1);
 	sz_towrite -= sz_pd;
 	pgp_writer_pop(output);
@@ -1655,18 +1652,18 @@ stream_write_se_ip_last(pgp_output_t *output,
 	uint8_t		 hashed[PGP_SHA1_HASH_SIZE];
 	size_t		 bufsize = len + mdcsize;
 
-	se_ip->hash.add(&se_ip->hash, data, len);
+	pgp_hash_add(&se_ip->hash, data, len);
 
 	/* MDC packet tag */
 	c = MDC_PKT_TAG;
-	se_ip->hash.add(&se_ip->hash, &c, 1);
+	pgp_hash_add(&se_ip->hash, &c, 1);
 
 	/* MDC packet len */
 	c = PGP_SHA1_HASH_SIZE;
-	se_ip->hash.add(&se_ip->hash, &c, 1);
+	pgp_hash_add(&se_ip->hash, &c, 1);
 
 	/* finish */
-	se_ip->hash.finish(&se_ip->hash, hashed);
+	pgp_hash_finish(&se_ip->hash, hashed);
 
 	pgp_setup_memory_write(&mdcoutput, &mdcmem, mdcsize);
 	pgp_write_mdc(mdcoutput, hashed);
@@ -1787,7 +1784,7 @@ str_enc_se_ip_destroyer(pgp_writer_t *writer)
 	pgp_teardown_memory_write(se_ip->litoutput, se_ip->litmem);
 	pgp_teardown_memory_write(se_ip->se_ip_out, se_ip->se_ip_mem);
 
-	se_ip->crypt->decrypt_finish(se_ip->crypt);
+        pgp_cipher_finish(se_ip->crypt);
 
 	free(se_ip->crypt);
 	free(se_ip);

@@ -6,12 +6,12 @@ branches:
   only:
     - master
     - coverity_scan
-    - TestCases_export_key
 
 env:
   global:
     - BOTAN_INSTALL="$HOME/builds/botan-install"
     - CMOCKA_INSTALL="$HOME/builds/cmocka-install"
+    - JSON_C_INSTALL="$HOME/builds/json-c-install"
     - LOGNAME="Travis"
 
     # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created via
@@ -23,11 +23,18 @@ matrix:
   include:
     - env: BUILD_MODE=normal
       compiler: clang
+    - env: BUILD_MODE=sanitize
+      compiler: clang
+    - env: BUILD_MODE=coverage
+      compiler: gcc
+  allow_failures:
+    - env: BUILD_MODE=sanitize
 
 cache:
   directories:
     - "$BOTAN_INSTALL"
     - "$CMOCKA_INSTALL"
+    - "$JSON_C_INSTALL"
 
 install:
   - ./ci/install.sh
