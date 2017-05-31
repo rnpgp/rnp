@@ -13,15 +13,15 @@ See the file `.travis.yml` and the scripts in `ci/` for the most up-to-date deta
 Sometimes tests fail in Travis CI and you will want to reproduce them locally for easier troubleshooting.
 We can use a container for this, like so:
 
-```
-docker run -ti --rm travisci/ci-garnet:packer-1490989530 bash -l
+``` sh
+$ docker run -ti --rm travisci/ci-garnet:packer-1490989530 bash -l
 ```
 
 (Refer to [here](https://docs.travis-ci.com/user/common-build-problems/#Troubleshooting-Locally-in-a-Docker-Image) and [here](https://hub.docker.com/r/travisci/ci-garnet/tags/))
 
 Inside the container, you will need to perform steps like the following:
 
-```
+``` sh
 $ git clone https://github.com/riboseinc/rnp.git
 $ cd rnp
 $ export BOTAN_INSTALL="$HOME/builds/botan-install"
@@ -50,7 +50,7 @@ Coverity Scan is used for occasional static analysis of the code base.
 To initiate analysis, a developer must push to the `coverity_scan` branch.
 You may wish to perform a clean clone for this, like so:
 
-```
+``` sh
 $ cd /tmp
 $ git clone git@github.com:riboseinc/rnp.git
 $ git checkout coverity_scan                    # switch to the coverity_scan branch
@@ -70,7 +70,7 @@ Clang includes a useful static analyzer that can also be used to locate potentia
 
 To use it, pass the build command to `scan-build`:
 
-```
+``` sh
 $ ./configure
 $ scan-build make -j4
 [...]
@@ -99,7 +99,7 @@ Currently, we have a very simple test program in `src/fuzzers/fuzz_keys`, which 
 
 Here is an example:
 
-```
+``` sh
 $ env CC=afl-gcc AFL_HARDEN=1 CFLAGS=-ggdb ./configure --disable-shared
 $ make -j$(grep -c '^$' /proc/cpuinfo) clean all
 $ mkdir afl_in afl_out
@@ -120,7 +120,7 @@ Clang and GCC both support a number of sanitizers that can help locate issues in
 
 To use them, you should rebuild with the sanitizers enabled, and then run the tests (or any executable):
 
-```
+``` sh
 $ env CC=clang CFLAGS="-fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" ./configure
 $ make -j4
 $ src/cmocka/rnp_tests
@@ -141,7 +141,7 @@ C is a very flexible and powerful language. Because of this, it is important to 
 
 A git pre-commit hook exists to perform this task automatically, and can be enabled like so:
 
-```
+``` sh
 $ cd rnp
 $ git-hooks/enable.sh
 ```
@@ -156,7 +156,7 @@ Note that if you have unstaged changes on some of the files you are attempting t
 
 If you are not able to use the git hook, you can run clang-format manually.
 
-```
+``` sh
 $ clang-format -style=file -i src/lib/some_changed_file.c
 ```
 
