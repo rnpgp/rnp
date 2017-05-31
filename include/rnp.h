@@ -34,31 +34,31 @@
 #include <stddef.h>
 
 #ifndef __BEGIN_DECLS
-#  if defined(__cplusplus)
-#  define __BEGIN_DECLS           extern "C" {
-#  define __END_DECLS             }
-#  else
-#  define __BEGIN_DECLS
-#  define __END_DECLS
-#  endif
+#if defined(__cplusplus)
+#define __BEGIN_DECLS extern "C" {
+#define __END_DECLS }
+#else
+#define __BEGIN_DECLS
+#define __END_DECLS
+#endif
 #endif
 
 __BEGIN_DECLS
 
-enum keyring_format_t {GPG_KEYRING, SSH_KEYRING};
+enum keyring_format_t { GPG_KEYRING, SSH_KEYRING };
 
 /* structure used to hold (key,value) pair information */
 typedef struct rnp_t {
-	unsigned	  c;		/* # of elements used */
-	unsigned	  size;		/* size of array */
-	char		**name;		/* key names */
-	char		**value;	/* value information */
-	void		 *pubring;	/* public key ring */
-	void		 *secring;	/* s3kr1t key ring */
-	void		 *io;		/* the io struct for results/errs */
-	void		 *passfp;	/* file pointer for password input */
+    unsigned c;       /* # of elements used */
+    unsigned size;    /* size of array */
+    char **  name;    /* key names */
+    char **  value;   /* value information */
+    void *   pubring; /* public key ring */
+    void *   secring; /* s3kr1t key ring */
+    void *   io;      /* the io struct for results/errs */
+    void *   passfp;  /* file pointer for password input */
 
-	enum keyring_format_t   keyring_format;   /* keyring format */
+    enum keyring_format_t keyring_format; /* keyring format */
 } rnp_t;
 
 /* begin and end */
@@ -66,16 +66,16 @@ int rnp_init(rnp_t *);
 int rnp_end(rnp_t *);
 
 /* debugging, reflection and information */
-int rnp_set_debug(const char *);
-int rnp_get_debug(const char *);
+int         rnp_set_debug(const char *);
+int         rnp_get_debug(const char *);
 const char *rnp_get_info(const char *);
-int rnp_list_packets(rnp_t *, char *, int, char *);
+int         rnp_list_packets(rnp_t *, char *, int, char *);
 
 /* variables */
-int rnp_setvar(rnp_t *, const char *, const char *);
+int   rnp_setvar(rnp_t *, const char *, const char *);
 char *rnp_getvar(rnp_t *, const char *);
-int rnp_incvar(rnp_t *, const char *, const int);
-int rnp_unsetvar(rnp_t *, const char *);
+int   rnp_incvar(rnp_t *, const char *, const int);
+int   rnp_unsetvar(rnp_t *, const char *);
 
 /* set keyring format information */
 int rnp_set_keyring_format(rnp_t *, char *);
@@ -84,14 +84,14 @@ int rnp_set_keyring_format(rnp_t *, char *);
 int rnp_set_homedir(rnp_t *, char *, const int);
 
 /* key management */
-int rnp_list_keys(rnp_t *, const int);
-int rnp_list_keys_json(rnp_t *, char **, const int);
-int rnp_load_keys(rnp_t *);
-int rnp_find_key(rnp_t *, char *);
+int   rnp_list_keys(rnp_t *, const int);
+int   rnp_list_keys_json(rnp_t *, char **, const int);
+int   rnp_load_keys(rnp_t *);
+int   rnp_find_key(rnp_t *, char *);
 char *rnp_get_key(rnp_t *, const char *, const char *);
 char *rnp_export_key(rnp_t *, char *);
-int rnp_import_key(rnp_t *, char *);
-int rnp_generate_key(rnp_t *, char *, int);
+int   rnp_import_key(rnp_t *, char *);
+int   rnp_generate_key(rnp_t *, char *, int);
 
 /* file management */
 int rnp_encrypt_file(rnp_t *, const char *, const char *, char *, int);
@@ -100,7 +100,8 @@ int rnp_sign_file(rnp_t *, const char *, const char *, char *, int, int, int);
 int rnp_verify_file(rnp_t *, const char *, const char *, int);
 
 /* memory signing and encryption */
-int rnp_sign_memory(rnp_t *, const char *, char *, size_t, char *, size_t, const unsigned, const unsigned);
+int rnp_sign_memory(
+  rnp_t *, const char *, char *, size_t, char *, size_t, const unsigned, const unsigned);
 int rnp_verify_memory(rnp_t *, const void *, const size_t, void *, size_t, const int);
 int rnp_encrypt_memory(rnp_t *, const char *, void *, const size_t, char *, size_t, int);
 int rnp_decrypt_memory(rnp_t *, const void *, const size_t, char *, size_t, const int);
@@ -115,7 +116,6 @@ int rnp_validate_sigs(rnp_t *);
 
 /* save pgp key in ssh format */
 int rnp_write_sshkey(rnp_t *, char *, const char *, char *, size_t);
-
 
 __END_DECLS
 

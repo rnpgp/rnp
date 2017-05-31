@@ -33,40 +33,41 @@
 
 #include <stdio.h>
 
-#define PRItime		"ll"
+#define PRItime "ll"
 
 #ifdef WIN32
-#define PRIsize		"I"
+#define PRIsize "I"
 #else
-#define PRIsize		"z"
+#define PRIsize "z"
 #endif
 
 /* for silencing unused parameter warnings */
-#define __PGP_USED(x)	/*LINTED*/(void)&(x)
+#define __PGP_USED(x) /*LINTED*/ (void) &(x)
 
 #ifndef __UNCONST
-#define __UNCONST(a)	((void *)(unsigned long)(const void *)(a))
+#define __UNCONST(a) ((void *) (unsigned long) (const void *) (a))
 #endif
 
 /* number of elements in an array */
-#define PGP_ARRAY_SIZE(a)       (sizeof(a)/sizeof(*(a)))
+#define PGP_ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
-void            hexdump(FILE *, const char *, const uint8_t *, size_t);
+void hexdump(FILE *, const char *, const uint8_t *, size_t);
 
-const char     *pgp_str_from_map(int, pgp_map_t *);
+const char *pgp_str_from_map(int, pgp_map_t *);
 
-int             pgp_set_debug_level(const char *);
-int             pgp_get_debug_level(const char *);
+int pgp_set_debug_level(const char *);
+int pgp_get_debug_level(const char *);
 
-void		*pgp_new(size_t);
+void *pgp_new(size_t);
 
-#define RNP_BUFSIZ	8192
+#define RNP_BUFSIZ 8192
 
-#define CALLBACK(t, cbinfo, pkt)	do {				\
-	(pkt)->tag = (t);						\
-	if (pgp_callback(pkt, cbinfo) == PGP_RELEASE_MEMORY) {	\
-		pgp_parser_content_free(pkt);				\
-	}								\
-} while(/* CONSTCOND */0)
+#define CALLBACK(t, cbinfo, pkt)                               \
+    do {                                                       \
+        (pkt)->tag = (t);                                      \
+        if (pgp_callback(pkt, cbinfo) == PGP_RELEASE_MEMORY) { \
+            pgp_parser_content_free(pkt);                      \
+        }                                                      \
+    } while (/* CONSTCOND */ 0)
 
 #endif /* !RNPDEFS_H_ */

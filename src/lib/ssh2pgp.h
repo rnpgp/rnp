@@ -37,7 +37,7 @@
 int pgp_ssh2pubkey(pgp_io_t *, const char *, pgp_key_t *, pgp_hash_alg_t);
 int pgp_ssh2seckey(pgp_io_t *, const char *, pgp_key_t *, pgp_pubkey_t *, pgp_hash_alg_t);
 
-int pgp_ssh2_readkeys(pgp_io_t *, pgp_keyring_t *, pgp_keyring_t *,
-		const char *, const char *, unsigned);
+int pgp_ssh2_readkeys(
+  pgp_io_t *, pgp_keyring_t *, pgp_keyring_t *, const char *, const char *, unsigned);
 
 #endif

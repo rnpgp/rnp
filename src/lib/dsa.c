@@ -79,90 +79,92 @@
 #include "crypto.h"
 
 unsigned
-pgp_dsa_verify(const uint8_t *hash, size_t hash_length,
-	       const pgp_dsa_sig_t *sig,
-	       const pgp_dsa_pubkey_t *dsa)
+pgp_dsa_verify(const uint8_t *         hash,
+               size_t                  hash_length,
+               const pgp_dsa_sig_t *   sig,
+               const pgp_dsa_pubkey_t *dsa)
 {
-   botan_pubkey_t dsa_key;
-   botan_pk_op_verify_t verify_op;
-   uint8_t* encoded_signature = NULL;
-   size_t q_bytes = 0;
-   unsigned int valid;
+    botan_pubkey_t       dsa_key;
+    botan_pk_op_verify_t verify_op;
+    uint8_t *            encoded_signature = NULL;
+    size_t               q_bytes = 0;
+    unsigned int         valid;
 
-   botan_pubkey_load_dsa(&dsa_key, dsa->p->mp, dsa->q->mp, dsa->g->mp, dsa->y->mp);
+    botan_pubkey_load_dsa(&dsa_key, dsa->p->mp, dsa->q->mp, dsa->g->mp, dsa->y->mp);
 
-   botan_mp_num_bytes(dsa->q->mp, &q_bytes);
+    botan_mp_num_bytes(dsa->q->mp, &q_bytes);
 
-   encoded_signature = calloc(2, q_bytes);
-   BN_bn2bin(sig->r, encoded_signature);
-   BN_bn2bin(sig->s, encoded_signature + q_bytes);
+    encoded_signature = calloc(2, q_bytes);
+    BN_bn2bin(sig->r, encoded_signature);
+    BN_bn2bin(sig->s, encoded_signature + q_bytes);
 
-   botan_pk_op_verify_create(&verify_op, dsa_key, "Raw", 0);
-   botan_pk_op_verify_update(verify_op, hash, hash_length);
-   valid = (botan_pk_op_verify_finish(verify_op, encoded_signature, 2*q_bytes) == 0);
-   botan_pk_op_verify_destroy(verify_op);
-   botan_pubkey_destroy(dsa_key);
+    botan_pk_op_verify_create(&verify_op, dsa_key, "Raw", 0);
+    botan_pk_op_verify_update(verify_op, hash, hash_length);
+    valid = (botan_pk_op_verify_finish(verify_op, encoded_signature, 2 * q_bytes) == 0);
+    botan_pk_op_verify_destroy(verify_op);
+    botan_pubkey_destroy(dsa_key);
 
-   free(encoded_signature);
+    free(encoded_signature);
 
-   return valid;
+    return valid;
 }
 
 DSA_SIG *
 DSA_SIG_new()
 {
-   DSA_SIG *sig = calloc(1, sizeof(DSA_SIG));
-   sig->r = calloc(1, sizeof(BIGNUM));
-   sig->s = calloc(1, sizeof(BIGNUM));
-   return sig;
+    DSA_SIG *sig = calloc(1, sizeof(DSA_SIG));
+    sig->r = calloc(1, sizeof(BIGNUM));
+    sig->s = calloc(1, sizeof(BIGNUM));
+    return sig;
 }
 
-void DSA_SIG_free(DSA_SIG* sig)
+void
+DSA_SIG_free(DSA_SIG *sig)
 {
-   BN_clear_free(sig->r);
-   BN_clear_free(sig->s);
-   free(sig);
+    BN_clear_free(sig->r);
+    BN_clear_free(sig->s);
+    free(sig);
 }
 
-DSA_SIG        *
-pgp_dsa_sign(uint8_t *hashbuf,
-      unsigned hashsize,
-      const pgp_dsa_seckey_t *secdsa,
-      const pgp_dsa_pubkey_t *pubdsa)
+DSA_SIG *
+pgp_dsa_sign(uint8_t *               hashbuf,
+             unsigned                hashsize,
+             const pgp_dsa_seckey_t *secdsa,
+             const pgp_dsa_pubkey_t *pubdsa)
 {
-   botan_privkey_t dsa_key;
-   botan_pk_op_sign_t sign_op;
-   botan_rng_t rng;
-   size_t q_bytes = 0;
-   size_t sigbuf_size = 0;
-   uint8_t* sigbuf = NULL;
-   DSA_SIG* ret;
+    botan_privkey_t    dsa_key;
+    botan_pk_op_sign_t sign_op;
+    botan_rng_t        rng;
+    size_t             q_bytes = 0;
+    size_t             sigbuf_size = 0;
+    uint8_t *          sigbuf = NULL;
+    DSA_SIG *          ret;
 
-   botan_privkey_load_dsa(&dsa_key, pubdsa->p->mp, pubdsa->q->mp, pubdsa->g->mp, secdsa->x->mp);
+    botan_privkey_load_dsa(
+      &dsa_key, pubdsa->p->mp, pubdsa->q->mp, pubdsa->g->mp, secdsa->x->mp);
 
-   botan_rng_init(&rng, NULL);
+    botan_rng_init(&rng, NULL);
 
-   botan_pk_op_sign_create(&sign_op, dsa_key, "Raw", 0);
-   botan_pk_op_sign_update(sign_op, hashbuf, hashsize);
+    botan_pk_op_sign_create(&sign_op, dsa_key, "Raw", 0);
+    botan_pk_op_sign_update(sign_op, hashbuf, hashsize);
 
-   botan_mp_num_bytes(pubdsa->q->mp, &q_bytes);
-   sigbuf_size = q_bytes * 2;
-   sigbuf = calloc(sigbuf_size, 1);
+    botan_mp_num_bytes(pubdsa->q->mp, &q_bytes);
+    sigbuf_size = q_bytes * 2;
+    sigbuf = calloc(sigbuf_size, 1);
 
-   botan_pk_op_sign_finish(sign_op, rng, sigbuf, &sigbuf_size);
-   botan_rng_destroy(rng);
+    botan_pk_op_sign_finish(sign_op, rng, sigbuf, &sigbuf_size);
+    botan_rng_destroy(rng);
 
-   botan_pk_op_sign_destroy(sign_op);
-   botan_privkey_destroy(dsa_key);
+    botan_pk_op_sign_destroy(sign_op);
+    botan_privkey_destroy(dsa_key);
 
-   // Now load the DSA (r,s) values from the signature
-   ret = DSA_SIG_new();
-   botan_mp_init(&(ret->r->mp));
-   botan_mp_init(&(ret->s->mp));
+    // Now load the DSA (r,s) values from the signature
+    ret = DSA_SIG_new();
+    botan_mp_init(&(ret->r->mp));
+    botan_mp_init(&(ret->s->mp));
 
-   botan_mp_from_bin(ret->r->mp, sigbuf, q_bytes);
-   botan_mp_from_bin(ret->s->mp, sigbuf + q_bytes, q_bytes);
+    botan_mp_from_bin(ret->r->mp, sigbuf, q_bytes);
+    botan_mp_from_bin(ret->s->mp, sigbuf + q_bytes, q_bytes);
 
-   return ret;
-
+    return ret;
 }
