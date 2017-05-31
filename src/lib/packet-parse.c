@@ -643,9 +643,11 @@ limited_read_time(time_t *dest, pgp_region_t *region, pgp_stream_t *stream)
  * \param *ptag		Pointer to current packet's Packet Tag.
  * \param *reader	Our reader
  * \param *cb		The callback
- * \return		1 on success, 0 on error (by limread_scalar() or limread() or if the MPI is
+ * \return		1 on success, 0 on error (by limread_scalar() or limread() or if the MPI
+ * is
  * not properly formed (XXX
- * 				 see comment below - the callback is called with a PGP_PARSER_ERROR in
+ * 				 see comment below - the callback is called with a PGP_PARSER_ERROR
+ * in
  * case of an error)
  *
  * \see RFC4880 3.2
@@ -801,7 +803,8 @@ read_new_length(unsigned *length, pgp_stream_t *stream)
  * \param *ptag		Pointer to current packet's Packet Tag.
  * \param *reader	Our reader
  * \param *cb		The callback
- * \return		1 on success, 0 on error (by limread_scalar() or limread() or if the MPI is
+ * \return		1 on success, 0 on error (by limread_scalar() or limread() or if the MPI
+ * is
  * not properly formed (XXX
  * 				 see comment below)
  *
@@ -3229,7 +3232,8 @@ pgp_parse(pgp_stream_t *stream, const int perrors)
  * subpacket types should be returned parsed; or raw; or ignored.
  *
  * \param	stream	Pointer to previously allocated structure
- * \param	tag	Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one individual signature
+ * \param	tag	Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one individual
+ * signature
  * subpacket tag
  * \param	type	Parse type
  * \todo Make all packet types optional, not just subpackets */

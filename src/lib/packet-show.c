@@ -280,8 +280,9 @@ static pgp_bit_map_t ss_key_flags_map[] = {
 };
 
 static pgp_bit_map_t ss_key_server_prefs_map[] = {
-  {0x80, "Key holder requests that this key only be modified or updated by the key holder or "
-         "an administrator of the key server"},
+  {0x80,
+   "Key holder requests that this key only be modified or updated by the key holder or "
+   "an administrator of the key server"},
   {0x00, NULL},
 };
 
