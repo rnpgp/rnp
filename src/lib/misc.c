@@ -585,12 +585,15 @@ pgp_memory_pad(pgp_memory_t *mem, size_t length)
 		return;
 	}
 	if (mem->allocated < mem->length + length) {
-		mem->allocated = mem->allocated * 2 + length;
-		temp = realloc(mem->buf, mem->allocated);
+                size_t newsize = mem->allocated * 2 + length;
+		temp = realloc(mem->buf, newsize);
 		if (temp == NULL) {
 			(void) fprintf(stderr, "pgp_memory_pad: bad alloc\n");
+                        // TODO return an error here
 		} else {
 			mem->buf = temp;
+                        memset(mem->buf + mem->allocated, 0, newsize - mem->allocated);
+                        mem->allocated = newsize;
 		}
 	}
 	if (mem->allocated < mem->length + length) {
