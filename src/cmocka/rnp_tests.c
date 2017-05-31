@@ -981,19 +981,22 @@ rnpkeys_exportkey_verifyUserId(void **state)
      * stack MUST query the set userid option to find the key*/
     exportedkey = rnp_export_key(&rnp, NULL);
     assert_non_null(exportedkey);
+    free(exportedkey);
+    exportedkey = NULL;
 
     /*try to export the key with specified userid parameter from the interface;
      * stack MUST NOT query the set userid option to find the key*/
-    exportedkey = NULL;
     exportedkey = rnp_export_key(&rnp, getenv("LOGNAME"));
     assert_non_null(exportedkey);
+    free(exportedkey);
+    exportedkey = NULL;
 
     /* try to export the key with specified userid parameter (which is wrong) from the
      * interface;
      * stack MUST NOT be able to find the key*/
-    exportedkey = NULL;
     exportedkey = rnp_export_key(&rnp, "LOGNAME");
     assert_null(exportedkey);
+    free(exportedkey);
 
     rnp_end(&rnp); // Free memory and other allocated resources.
 }
