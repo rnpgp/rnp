@@ -226,6 +226,38 @@ keyring_add_key(pgp_io_t *io, keyring_t *keyring, pgp_keydata_key_t *keydata, pg
 	return 1;
 }
 
+int
+keyring_remove_key(pgp_io_t *io, keyring_t *keyring, const pgp_key_t *key)
+{
+    int i;
+
+    for (i = 0; i < keyring->keyc; i++) {
+        if (key == &keyring->keys[i]) {
+            memmove(&keyring->keys[i], &keyring->keys[i + 1], sizeof(pgp_key_t) * (keyring->keyc - i));
+            keyring->keyc--;
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int
+keyring_remove_key_by_id(pgp_io_t *io, keyring_t *keyring, const uint8_t *keyid)
+{
+    unsigned         from;
+    const pgp_key_t *key;
+
+    from = 0;
+
+    key = keyring_get_key_by_id(io, keyring, keyid, &from, NULL);
+    if (key != NULL) {
+        return keyring_remove_key(io, keyring, key);
+    }
+
+    return 0;
+}
+
 
 /**
    \ingroup HighLevel_KeyringFind

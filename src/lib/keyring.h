@@ -53,6 +53,8 @@ int keyring_json(pgp_io_t *, const keyring_t *, json_object *, const int);
 
 int keyring_append_keyring(keyring_t *, keyring_t *);
 int keyring_add_key(pgp_io_t *, keyring_t *, pgp_keydata_key_t *, pgp_content_enum tag);
+int keyring_remove_key(pgp_io_t *, keyring_t *, const pgp_key_t *);
+int keyring_remove_key_by_id(pgp_io_t *, keyring_t *, const uint8_t *);
 
 const pgp_key_t *keyring_get_key_by_id(pgp_io_t *, const keyring_t *, const unsigned char *, unsigned *, pgp_pubkey_t **);
 const pgp_key_t *keyring_get_key_by_name(pgp_io_t *, const keyring_t *, const char *);
