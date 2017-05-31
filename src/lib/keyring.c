@@ -37,6 +37,7 @@
 #include "keyring_ssh.h"
 #include "packet-print.h"
 #include "packet-key.h"
+#include "packet.h"
 
 #include <regex.h>
 #include <stdio.h>
@@ -191,72 +192,40 @@ keyring_append_keyring(keyring_t *keyring, keyring_t *newring)
     return 1;
 }
 
-/* add a key to a public keyring */
+/* add a key to keyring */
 int
-keyring_add_to_pubring(keyring_t *keyring, const pgp_pubkey_t *pubkey, pgp_content_enum tag)
+keyring_add_key(pgp_io_t *io, keyring_t *keyring, pgp_keydata_key_t *keydata, pgp_content_enum tag)
 {
-    pgp_key_t	*key;
-    time_t		 duration;
+    pgp_key_t  *key;
 
-    if (rnp_get_debug(__FILE__)) {
-        fprintf(stderr, "keyring_add_to_pubring (type %u)\n", tag);
-    }
-    switch(tag) {
-        case PGP_PTAG_CT_PUBLIC_KEY:
-            EXPAND_ARRAY(keyring, key);
-            key = &keyring->keys[keyring->keyc++];
-            duration = key->key.pubkey.duration;
-            (void) memset(key, 0x0, sizeof(*key));
-            key->type = tag;
-            pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, pubkey, keyring->hashtype);
-            pgp_fingerprint(&key->sigfingerprint, pubkey, keyring->hashtype);
-            key->key.pubkey = *pubkey;
-            key->key.pubkey.duration = duration;
-            return 1;
-        case PGP_PTAG_CT_PUBLIC_SUBKEY:
-            /* subkey is not the first */
-            key = &keyring->keys[keyring->keyc - 1];
-            pgp_keyid(key->encid, PGP_KEY_ID_SIZE, pubkey, keyring->hashtype);
-            duration = key->key.pubkey.duration;
-            (void) memcpy(&key->enckey, pubkey, sizeof(key->enckey));
-            key->enckey.duration = duration;
-            return 1;
-        default:
-            return 0;
-    }
-}
+	if (rnp_get_debug(__FILE__)) {
+		fprintf(io->errs, "keyring_add_key\n");
+	}
 
-/* add a key to a secret keyring */
-int
-keyring_add_to_secring(keyring_t *keyring, const pgp_seckey_t *seckey)
-{
-    const pgp_pubkey_t	*pubkey;
-    pgp_key_t		*key;
-
-    if (rnp_get_debug(__FILE__)) {
-        fprintf(stderr, "keyring_add_to_secring\n");
-    }
-    if (keyring->keyc > 0) {
+	if (tag != PGP_PTAG_CT_PUBLIC_SUBKEY) {
+		EXPAND_ARRAY(keyring, key);
+		key = &keyring->keys[keyring->keyc++];
+		(void) memset(key, 0x0, sizeof(*key));
+		pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, &keydata->pubkey, keyring->hashtype);
+		pgp_fingerprint(&key->sigfingerprint, &keydata->pubkey, keyring->hashtype);
+        key->type = tag;
+        key->key = *keydata;
+	} else {
+        // it's is a subkey, adding as enckey to master that was before the key
+        // TODO: move to the right way — support multiple subkeys
         key = &keyring->keys[keyring->keyc - 1];
-        if (rnp_get_debug(__FILE__) &&
-            key->key.pubkey.alg == PGP_PKA_DSA &&
-            seckey->pubkey.alg == PGP_PKA_ELGAMAL) {
-            fprintf(stderr, "keyring_add_to_secring: found elgamal seckey\n");
-        }
+        pgp_keyid(key->encid, PGP_KEY_ID_SIZE, &keydata->pubkey, keyring->hashtype);
+        (void) memcpy(&key->enckey, &keydata->pubkey, sizeof(key->enckey));
+        key->enckey.duration = key->key.pubkey.duration;
     }
-    EXPAND_ARRAY(keyring, key);
-    key = &keyring->keys[keyring->keyc++];
-    (void) memset(key, 0x0, sizeof(*key));
-    pubkey = &seckey->pubkey;
-    pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, pubkey, keyring->hashtype);
-    pgp_fingerprint(&key->sigfingerprint, pubkey, keyring->hashtype);
-    key->type = PGP_PTAG_CT_SECRET_KEY;
-    key->key.seckey = *seckey;
-    if (rnp_get_debug(__FILE__)) {
-        fprintf(stderr, "keyring_add_to_secring: keyc %u\n", keyring->keyc);
-    }
-    return 1;
+
+	if (rnp_get_debug(__FILE__)) {
+		fprintf(io->errs, "keyring_add_key: keyc %u\n", keyring->keyc);
+	}
+
+	return 1;
 }
+
 
 /**
    \ingroup HighLevel_KeyringFind

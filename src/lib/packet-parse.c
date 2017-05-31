@@ -101,6 +101,7 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 } while(/*CONSTCOND*/0)
 
 typedef struct {
+    pgp_io_t        *io;
 	keyring_t		*keyring;
 } accumulate_t;
 
@@ -3437,21 +3438,24 @@ accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
 	const pgp_contents_t	*content = &pkt->u;
 	keyring_t		*keyring;
+    pgp_io_t        *io;
+    pgp_keydata_key_t keydata;
 	accumulate_t		*accumulate;
 
 	if (rnp_get_debug(__FILE__)) {
 		(void) fprintf(stderr, "accumulate callback: packet tag %u\n", pkt->tag);
 	}
 	accumulate = pgp_callback_arg(cbinfo);
+    io = accumulate->io;
 	keyring = accumulate->keyring;
 	switch (pkt->tag) {
 	case PGP_PTAG_CT_PUBLIC_KEY:
 	case PGP_PTAG_CT_PUBLIC_SUBKEY:
-		keyring_add_to_pubring(keyring, &content->pubkey, pkt->tag);
-		return PGP_KEEP_MEMORY;
-	case PGP_PTAG_CT_SECRET_KEY:
-	case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-		keyring_add_to_secring(keyring, &content->seckey);
+    case PGP_PTAG_CT_SECRET_KEY:
+    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
+        keydata.seckey = content->seckey;
+        keydata.pubkey = content->pubkey;
+        keyring_add_key(io, keyring, &keydata, pkt->tag);
 		return PGP_KEEP_MEMORY;
 	case PGP_PTAG_CT_USER_ID:
 		if (rnp_get_debug(__FILE__)) {
@@ -3499,20 +3503,21 @@ accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
  * \param parse Options to use when parsing
 */
 int
-pgp_parse_and_accumulate(keyring_t *keyring, pgp_stream_t *parse)
+pgp_parse_and_accumulate(pgp_io_t * io, keyring_t *keyring, pgp_stream_t *parse)
 {
 	accumulate_t	accumulate;
 	const int	printerrors = 1;
 	int             ret;
 
 	if (parse->readinfo.accumulate) {
-		(void) fprintf(stderr,
+		(void) fprintf(io->errs,
 			"pgp_parse_and_accumulate: already init\n");
 		return 0;
 	}
 
 	(void) memset(&accumulate, 0x0, sizeof(accumulate));
 
+    accumulate.io = io;
 	accumulate.keyring = keyring;
 
 	pgp_callback_push(parse, accumulate_cb, &accumulate);
