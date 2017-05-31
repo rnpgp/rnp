@@ -68,6 +68,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "types.h"
 #include "bn.h"
@@ -524,13 +525,13 @@ pgp_decrypt_buf(pgp_io_t *io,
 	}
 
 	/* tidy up */
-	pgp_teardown_memory_read(parse, inmem);
-
+    const bool gotpass = parse->cbinfo.gotpass;
 	pgp_writer_close(parse->cbinfo.output);
 	pgp_output_delete(parse->cbinfo.output);
+    pgp_teardown_memory_read(parse, inmem);
 
 	/* if we didn't get the passphrase, return NULL */
-	return (parse->cbinfo.gotpass) ? outmem : NULL;
+	return gotpass ? outmem : NULL;
 }
 
 void pgp_crypto_finish(void)
