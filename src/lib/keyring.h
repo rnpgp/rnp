@@ -37,11 +37,17 @@
 #include <stdint.h>
 
 #include "packet.h"
+#include "memory.h"
 
 typedef struct keyring_t {
     DYNARRAY(pgp_key_t,	key);
     pgp_hash_alg_t	hashtype;
 } keyring_t;
+
+int keyring_load_keys(rnp_t *rnp, char *homedir);
+
+int keyring_load_from_file(rnp_t *rnp, keyring_t *, const unsigned, const char *);
+int keyring_load_from_mem(rnp_t *rnp, keyring_t *, const unsigned, pgp_memory_t *);
 
 void keyring_free(keyring_t *);
 
@@ -49,7 +55,10 @@ int keyring_list(pgp_io_t *, const keyring_t *, const int);
 int keyring_json(pgp_io_t *, const keyring_t *, json_object *, const int);
 
 int keyring_append_keyring(keyring_t *, keyring_t *);
-int keyring_add_key(pgp_io_t *, keyring_t *, pgp_keydata_key_t *, pgp_content_enum tag);
+
+int keyring_add_key(pgp_io_t *, keyring_t *, pgp_key_t *, pgp_content_enum);
+int keyring_add_keydata(pgp_io_t *, keyring_t *, pgp_keydata_key_t *, pgp_content_enum);
+
 int keyring_remove_key(pgp_io_t *, keyring_t *, const pgp_key_t *);
 int keyring_remove_key_by_id(pgp_io_t *, keyring_t *, const uint8_t *);
 

@@ -66,6 +66,7 @@
 #include "s2k.h"
 #include "packet-key.h"
 #include "keyring_internal.h"
+#include "packet.h"
 
 
 /* structure for earching for constant strings */
@@ -415,7 +416,7 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey, pg
 static int
 ssh2_readkeys(pgp_io_t *io, keyring_t *pubring,
                   keyring_t *secring, const char *pubfile,
-                  const char *secfile, unsigned hashtype)
+                  const char *secfile)
 {
     pgp_key_t		*pubkey;
     pgp_key_t		*seckey;
@@ -427,7 +428,7 @@ ssh2_readkeys(pgp_io_t *io, keyring_t *pubring,
         if (rnp_get_debug(__FILE__)) {
             (void) fprintf(io->errs, "ssh2_readkeys: pubfile '%s'\n", pubfile);
         }
-        if (!ssh2pubkey(io, pubfile, &key, (pgp_hash_alg_t)hashtype)) {
+        if (!ssh2pubkey(io, pubfile, &key, pubring->hashtype)) {
             (void) fprintf(io->errs, "ssh2_readkeys: can't read pubkeys '%s'\n", pubfile);
             return 0;
         }
@@ -443,7 +444,7 @@ ssh2_readkeys(pgp_io_t *io, keyring_t *pubring,
         if (pubkey == NULL) {
             pubkey = &pubring->keys[0];
         }
-        if (!ssh2seckey(io, secfile, &key, &pubkey->key.pubkey, (pgp_hash_alg_t)hashtype)) {
+        if (!ssh2seckey(io, secfile, &key, &pubkey->key.pubkey, secring->hashtype)) {
             (void) fprintf(io->errs, "ssh2_readkeys: can't read seckeys '%s'\n", secfile);
             return 0;
         }
@@ -463,7 +464,7 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
     keyring_t	*pubring;
     keyring_t	*secring;
     struct stat	 st;
-    unsigned	 hashtype;
+    pgp_hash_alg_t hashtype;
     char		*hash;
     char		 f[MAXPATHLEN];
     char		*filename;
@@ -498,7 +499,8 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
             hashtype = PGP_HASH_SHA256;
         }
     }
-    if (!ssh2_readkeys(rnp->io, pubring, NULL, filename, NULL, hashtype)) {
+    pubring->hashtype = hashtype;
+    if (!ssh2_readkeys(rnp->io, pubring, NULL, filename, NULL)) {
         free(pubring);
         (void) fprintf(stderr, "readsshkeys: cannot read %s\n",
                        filename);
@@ -524,7 +526,8 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
             (void) fprintf(stderr, "readsshkeys: bad alloc\n");
             return 0;
         }
-        if (!ssh2_readkeys(rnp->io, pubring, secring, NULL, filename, hashtype)) {
+        secring->hashtype = hashtype;
+        if (!ssh2_readkeys(rnp->io, pubring, secring, NULL, filename)) {
             free(pubring);
             free(secring);
             (void) fprintf(stderr, "readsshkeys: cannot read sec %s\n", filename);
@@ -567,4 +570,49 @@ ssh_keyring_load_keys(rnp_t *rnp, char *homedir)
     }
 
     return 1;
+}
+
+int
+ssh_keyring_read_from_file(pgp_io_t *io, keyring_t *keyring, const char *filename)
+{
+    char         f[MAXPATHLEN];
+    pgp_key_t    key;
+    pgp_key_t    pubkey;
+
+    (void) memset(&key, 0x0, sizeof(key));
+
+    if (rnp_get_debug(__FILE__)) {
+        (void) fprintf(io->errs, "ssh_keyring_read_from_file: read as pubkey '%s'\n", filename);
+    }
+
+    if (ssh2pubkey(io, filename, &key, keyring->hashtype)) {
+        (void) fprintf(io->errs, "ssh_keyring_read_from_file: it's pubkeys '%s'\n", filename);
+        keyring_add_key(io, keyring, &key, PGP_PTAG_CT_PUBLIC_KEY);
+        return 1;
+    }
+
+    if (rnp_get_debug(__FILE__)) {
+        (void) fprintf(io->errs, "ssh_keyring_read_from_file: read as seckey '%s'\n", filename);
+    }
+
+    (void) snprintf(f, sizeof(f), "%s.pub", filename);
+    if (!ssh2pubkey(io, filename, &pubkey, keyring->hashtype)) {
+        (void) fprintf(io->errs, "ssh_keyring_read_from_file: can't read pubkey from '%s'\n", f);
+        return 0;
+    }
+
+    if (ssh2seckey(io, filename, &key, &pubkey.key.pubkey, keyring->hashtype)) {
+        (void) fprintf(io->errs, "ssh_keyring_read_from_file: it's seckey '%s'\n", filename);
+        keyring_add_key(io, keyring, &key, PGP_PTAG_CT_SECRET_KEY);
+        return 1;
+    }
+
+    return 0;
+}
+
+int
+ssh_keyring_read_from_mem(pgp_io_t *io, keyring_t *keyring, pgp_memory_t *memory)
+{
+    // we can't read SSH key from memory because it doesn't keep two different part for public and secret key
+    return 0;
 }
