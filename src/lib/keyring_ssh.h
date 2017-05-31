@@ -32,7 +32,11 @@
 #define KEYRING_SSH_H_
 
 #include "rnp.h"
+#include "keyring.h"
 
 int ssh_keyring_load_keys(rnp_t *rnp, char *homedir);
+
+int ssh_keyring_read_from_file(pgp_io_t *, keyring_t *, const char *);
+int ssh_keyring_read_from_mem(pgp_io_t *, keyring_t *, pgp_memory_t *);
 
 #endif /* KEYRING_SSH_H_ */

@@ -12,5 +12,5 @@ int main(int argc, char* argv[])
    {
    keyring_t keyring;
    memset(&keyring, 0, sizeof(keyring));
-   pgp_keyring_fileread(NULL, &keyring, 1, argv[1]);
+   pgp_keyring_read_from_file(NULL, &keyring, 1, argv[1]);
    }

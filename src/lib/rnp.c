@@ -75,8 +75,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "packet.h"
 #include "packet-parse.h"
 #include "packet-print.h"
-#include "keyring_pgp.h"
-#include "keyring_ssh.h"
+#include "keyring.h"
 #include "errors.h"
 #include "packet-show.h"
 #include "create.h"
@@ -1044,15 +1043,7 @@ rnp_load_keys(rnp_t *rnp)
 		return 0;
 	}
 
-	switch (rnp->keyring_format) {
-		case GPG_KEYRING:
-			return pgp_keyring_load_keys(rnp, path);
-
-		case SSH_KEYRING:
-			return ssh_keyring_load_keys(rnp, path);
-	}
-
-	return 0;
+    return keyring_load_keys(rnp, path);
 }
 
 DEFINE_ARRAY(strings_t, char *);
@@ -1240,7 +1231,7 @@ rnp_import_key(rnp_t *rnp, char *f)
 
 	io = rnp->io;
 	realarmor = isarmoured(io, f, NULL, IMPORT_ARMOR_HEAD);
-	done = pgp_keyring_fileread(rnp->io, rnp->pubring, realarmor, f);
+	done = pgp_keyring_read_from_file(rnp->io, rnp->pubring, realarmor, f);
 	if (!done) {
 		(void) fprintf(io->errs, "cannot import key from file %s\n", f);
 		return 0;
@@ -1818,7 +1809,7 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
 		(void) fprintf(io->errs, "rnp_list_packets: bad alloc\n");
 		return 0;
 	}
-	if (!pgp_keyring_fileread(rnp->io, keyring, noarmor, pubringname)) {
+	if (!pgp_keyring_read_from_file(rnp->io, keyring, noarmor, pubringname)) {
 		free(keyring);
 		(void) fprintf(io->errs, "cannot read pub keyring %s\n",
 			pubringname);
@@ -2028,7 +2019,7 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
 		(void) fprintf(stderr, "rnp_save_sshpub: bad alloc 2\n");
 		goto done;
 	}
-	if (!pgp_keyring_fileread(rnp->io, rnp->pubring = keyring, 1, f)) {
+	if (!pgp_keyring_read_from_file(rnp->io, rnp->pubring = keyring, 1, f)) {
 		(void) fprintf(stderr, "cannot import key\n");
 		goto done;
 	}

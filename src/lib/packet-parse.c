@@ -3455,7 +3455,7 @@ accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
         keydata.seckey = content->seckey;
         keydata.pubkey = content->pubkey;
-        keyring_add_key(io, keyring, &keydata, pkt->tag);
+        keyring_add_keydata(io, keyring, &keydata, pkt->tag);
 		return PGP_KEEP_MEMORY;
 	case PGP_PTAG_CT_USER_ID:
 		if (rnp_get_debug(__FILE__)) {

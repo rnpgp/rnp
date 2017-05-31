@@ -153,7 +153,7 @@ readkeyring(rnp_t *rnp, const char *name, const char *homedir)
         (void) fprintf(stderr, "readkeyring: bad alloc\n");
         return NULL;
     }
-    if (!pgp_keyring_fileread(rnp->io, keyring, noarmor, filename)) {
+    if (!pgp_keyring_read_from_file(rnp->io, keyring, noarmor, filename)) {
         free(keyring);
         (void) fprintf(stderr, "cannot read %s %s\n", name, filename);
         return NULL;
@@ -373,10 +373,10 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
 */
 
-unsigned 
-pgp_keyring_fileread(pgp_io_t * io, keyring_t *keyring,
-			const unsigned armour,
-			const char *filename)
+int
+pgp_keyring_read_from_file(pgp_io_t *io, keyring_t *keyring,
+						   const unsigned armour,
+						   const char *filename)
 {
 	pgp_stream_t	*stream;
 	keyringcb_t	 cb;
@@ -454,7 +454,7 @@ pgp_keyring_fileread(pgp_io_t * io, keyring_t *keyring,
    \sa pgp_keyring_fileread
    \sa pgp_keyring_free
 */
-unsigned 
+int
 pgp_keyring_read_from_mem(pgp_io_t *io,
 				keyring_t *keyring,
 				const unsigned armour,

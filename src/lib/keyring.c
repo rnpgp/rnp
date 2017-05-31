@@ -44,6 +44,52 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+int
+keyring_load_keys(rnp_t *rnp, char *homedir)
+{
+    switch (rnp->keyring_format) {
+        case GPG_KEYRING:
+            return pgp_keyring_load_keys(rnp, homedir);
+
+        case SSH_KEYRING:
+            return ssh_keyring_load_keys(rnp, homedir);
+    }
+
+    return 0;
+}
+
+int
+keyring_load_from_file(rnp_t *rnp, keyring_t *keyring, const unsigned armour, const char *filename)
+{
+    {
+        switch (rnp->keyring_format) {
+            case GPG_KEYRING:
+                return pgp_keyring_read_from_file(rnp->io, keyring, armour, filename);
+
+            case SSH_KEYRING:
+                return ssh_keyring_read_from_file(rnp->io, keyring, filename);
+        }
+
+        return 0;
+    }
+}
+
+int
+keyring_load_from_mem(rnp_t *rnp, keyring_t *keyring, const unsigned armour, pgp_memory_t *memory)
+{
+    switch (rnp->keyring_format) {
+        case GPG_KEYRING:
+            return pgp_keyring_read_from_mem(rnp->io, keyring, armour, memory);
+
+        case SSH_KEYRING:
+            return ssh_keyring_read_from_mem(rnp->io, keyring, memory);
+    }
+
+    return 0;
+}
+
+
 /* Format a PGP key to a readable hexadecimal string in a user supplied
  * buffer.
  *
@@ -194,12 +240,33 @@ keyring_append_keyring(keyring_t *keyring, keyring_t *newring)
 
 /* add a key to keyring */
 int
-keyring_add_key(pgp_io_t *io, keyring_t *keyring, pgp_keydata_key_t *keydata, pgp_content_enum tag)
+keyring_add_key(pgp_io_t *io, keyring_t *keyring, pgp_key_t *key, pgp_content_enum tag)
+{
+    pgp_key_t  *newkey;
+
+    if (rnp_get_debug(__FILE__)) {
+        fprintf(io->errs, "keyring_add_key\n");
+    }
+
+    EXPAND_ARRAY(keyring, key);
+    newkey = &keyring->keys[keyring->keyc++];
+    (void) memcpy(newkey, key, sizeof(pgp_key_t));
+    newkey->type = tag;
+
+    if (rnp_get_debug(__FILE__)) {
+        fprintf(io->errs, "keyring_add_key: keyc %u\n", keyring->keyc);
+    }
+
+    return 1;
+}
+
+int
+keyring_add_keydata(pgp_io_t *io, keyring_t *keyring, pgp_keydata_key_t *keydata, pgp_content_enum tag)
 {
     pgp_key_t  *key;
 
 	if (rnp_get_debug(__FILE__)) {
-		fprintf(io->errs, "keyring_add_key\n");
+		fprintf(io->errs, "keyring_add_keydata\n");
 	}
 
 	if (tag != PGP_PTAG_CT_PUBLIC_SUBKEY) {
@@ -220,7 +287,7 @@ keyring_add_key(pgp_io_t *io, keyring_t *keyring, pgp_keydata_key_t *keydata, pg
     }
 
 	if (rnp_get_debug(__FILE__)) {
-		fprintf(io->errs, "keyring_add_key: keyc %u\n", keyring->keyc);
+		fprintf(io->errs, "keyring_add_keydata: keyc %u\n", keyring->keyc);
 	}
 
 	return 1;
