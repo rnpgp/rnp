@@ -120,7 +120,7 @@ pgp_keydata_new(void)
 
  \note This frees the keydata itself, as well as any other memory alloc-ed by it.
 */
-void 
+void
 pgp_keydata_free(pgp_key_t *keydata)
 {
 	unsigned        n;
@@ -173,7 +173,7 @@ pgp_get_pubkey(const pgp_key_t *keydata)
 \brief Check whether this is a secret key or not.
 */
 
-unsigned 
+unsigned
 pgp_is_key_secret(const pgp_key_t *data)
 {
 	return data->type != PGP_PTAG_CT_PUBLIC_KEY;
@@ -229,7 +229,7 @@ typedef struct {
 	pgp_seckey_t		*seckey;
 } decrypt_t;
 
-static pgp_cb_ret_t 
+static pgp_cb_ret_t
 decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
 	const pgp_contents_t	*content = &pkt->u;
@@ -325,7 +325,7 @@ pgp_decrypt_seckey(const pgp_key_t *key, void *passfp)
 \param content Content to be set
 \param key Keydata to get secret key from
 */
-void 
+void
 pgp_set_seckey(pgp_contents_t *cont, const pgp_key_t *key)
 {
 	*cont->get_seckey.seckey = &key->key.seckey;
@@ -349,7 +349,7 @@ pgp_get_key_id(const pgp_key_t *key)
 \param key Keydata to check
 \return Num of user ids
 */
-unsigned 
+unsigned
 pgp_get_userid_count(const pgp_key_t *key)
 {
 	return key->uidc;
@@ -375,7 +375,7 @@ pgp_get_userid(const pgp_key_t *key, unsigned subscript)
    \return 1 if key algorithm and type are supported by OpenPGP::SDK; 0 if not
 */
 
-unsigned 
+unsigned
 pgp_is_key_supported(const pgp_key_t *key)
 {
 	if (key->type == PGP_PTAG_CT_PUBLIC_KEY) {
@@ -399,7 +399,7 @@ pgp_is_key_supported(const pgp_key_t *key)
 \param src Source User ID
 \note If dst already has a userid, it will be freed.
 */
-static uint8_t * 
+static uint8_t *
 copy_userid(uint8_t **dst, const uint8_t *src)
 {
 	size_t          len;
@@ -424,7 +424,7 @@ copy_userid(uint8_t **dst, const uint8_t *src)
 \param src Source packet
 \note If dst already has a packet, it will be freed.
 */
-static pgp_subpacket_t * 
+static pgp_subpacket_t *
 copy_packet(pgp_subpacket_t *dst, const pgp_subpacket_t *src)
 {
 	if (dst->raw) {
@@ -489,7 +489,7 @@ pgp_add_subpacket(pgp_key_t *keydata, const pgp_subpacket_t *packet)
 \param userid Self-signed User ID to add
 \return 1 if OK; else 0
 */
-unsigned 
+unsigned
 pgp_add_selfsigned_userid(pgp_key_t *key, uint8_t *userid)
 {
 	pgp_create_sig_t	*sig;
@@ -542,7 +542,7 @@ pgp_add_selfsigned_userid(pgp_key_t *key, uint8_t *userid)
 \param keydata Keydata to initialise
 \param type PGP_PTAG_CT_PUBLIC_KEY or PGP_PTAG_CT_SECRET_KEY
 */
-void 
+void
 pgp_keydata_init(pgp_key_t *keydata, const pgp_content_enum type)
 {
 	if (keydata->type != PGP_PTAG_CT_RESERVED) {
@@ -677,7 +677,7 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
 */
 
-unsigned 
+unsigned
 pgp_keyring_fileread(pgp_keyring_t *keyring,
 			const unsigned armour,
 			const char *filename)
@@ -758,7 +758,7 @@ pgp_keyring_fileread(pgp_keyring_t *keyring,
    \sa pgp_keyring_fileread
    \sa pgp_keyring_free
 */
-unsigned 
+unsigned
 pgp_keyring_read_from_mem(pgp_io_t *io,
 				pgp_keyring_t *keyring,
 				const unsigned armour,
@@ -797,7 +797,7 @@ pgp_keyring_read_from_mem(pgp_io_t *io,
 
    \note This does not free keyring itself, just the memory alloc-ed in it.
  */
-void 
+void
 pgp_keyring_free(pgp_keyring_t *keyring)
 {
 	(void)free(keyring->keys);
@@ -1051,7 +1051,8 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
 		pgp_write_xfer_seckey(output, keydata, passphrase,
 					strlen((char *)passphrase), NULL, 1);
 	}
-	cp = rnp_strdup(pgp_mem_data(mem));
+	cp = malloc(pgp_mem_len(mem));
+	memcpy(cp, pgp_mem_data(mem), pgp_mem_len(mem));
 	pgp_teardown_memory_write(output, mem);
 	return cp;
 }

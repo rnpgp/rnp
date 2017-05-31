@@ -1130,11 +1130,11 @@ rnp_log(const char *fmt, ...)
 char *
 rnp_strdup(const char *s)
 {
-	size_t	 len;
-	char	*cp;
+	size_t	 len = 0;
+	char	*cp = NULL;
 
 	len = strlen(s);
-	if ((cp = calloc(1, len + 1)) != NULL) {
+	if ((cp = calloc(1, len + 1))) {
 		(void) memcpy(cp, s, len);
 		cp[len] = 0x0;
 	}

@@ -424,8 +424,8 @@ static void raw_elg_test_success(void **state)
 }
 
 char *uint_to_string(char *buff, const int buffsize, unsigned int num, int base) {
-    char *ptr;    
-    ptr = &buff[buffsize - 1];    
+    char *ptr;
+    ptr = &buff[buffsize - 1];
     *ptr = '\0';
 
     do {
@@ -460,13 +460,13 @@ static void rnpkeys_generatekey_testSignature(void **state)
         "SHA512",
         "SM3",
         NULL
-    }; 
+    };
 
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
+    /* Set the UserId = custom value.
+     * Execute the Generate-key command to generate a new pair of private/public key
      * Sign a message, then verify it
      */
-    rnp_t rnp; 
+    rnp_t rnp;
     const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
@@ -499,11 +499,11 @@ static void rnpkeys_generatekey_testSignature(void **state)
         strcat(userId, hashAlg[i]);
 
         retVal = rnp_generate_key(&rnp, userId, numbits);
-        assert_int_equal(retVal,1); //Ensure the key was generated 
+        assert_int_equal(retVal,1); //Ensure the key was generated
 
         /*Load the newly generated rnp key*/
         retVal = rnp_load_keys(&rnp);
-        assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+        assert_int_equal(retVal,1); //Ensure the keyring is loaded.
 
         retVal = rnp_find_key(&rnp, userId);
         assert_int_equal(retVal,1); //Ensure the key can be found with the userId
@@ -603,11 +603,11 @@ static void rnpkeys_generatekey_testEncryption(void **state)
         strcpy(userId, "ciphertest");
 
         retVal = rnp_generate_key(&rnp, userId, numbits);
-        assert_int_equal(retVal,1); //Ensure the key was generated 
+        assert_int_equal(retVal,1); //Ensure the key was generated
 
         /*Load the newly generated rnp key*/
         retVal = rnp_load_keys(&rnp);
-        assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+        assert_int_equal(retVal,1); //Ensure the keyring is loaded.
 
         retVal = rnp_find_key(&rnp, userId);
         assert_int_equal(retVal,1); //Ensure the key can be found with the userId
@@ -643,20 +643,20 @@ static void rnpkeys_generatekey_testEncryption(void **state)
 static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
 {
     const char* hashAlg[] = {
-        "MD5", 
-        "SHA1", 
-        //"RIPEMD160", 
-        "SHA256", 
-        "SHA384", 
-        "SHA512", 
+        "MD5",
+        "SHA1",
+        //"RIPEMD160",
+        "SHA256",
+        "SHA384",
+        "SHA512",
         "SHA224",
         "SM3"
-    }; 
+    };
 
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
+    /* Set the UserId = custom value.
+     * Execute the Generate-key command to generate a new pair of private/public key
      * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    rnp_t rnp;
     const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
@@ -680,14 +680,14 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state)
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
 
         retVal = rnp_generate_key(&rnp, NULL, numbits);
-        assert_int_equal(retVal,1); //Ensure the key was generated 
+        assert_int_equal(retVal,1); //Ensure the key was generated
 
         /*Load the newly generated rnp key*/
         retVal = rnp_load_keys(&rnp);
-        assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+        assert_int_equal(retVal,1); //Ensure the keyring is loaded.
 
         retVal = rnp_find_key(&rnp, getenv("LOGNAME"));
-        assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
+        assert_int_equal(retVal,1); //Ensure the key can be found with the userId
 
         rnp_end(&rnp); //Free memory and other allocated resources.
     }
@@ -698,19 +698,19 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
 
     char userId[1024] = {0};
     const char* UserId[] = {
-        "rnpkeys_generatekey_verifyUserIdOption_MD5", 
-        "rnpkeys_generatekey_verifyUserIdOption_SHA-1", 
-        "rnpkeys_generatekey_verifyUserIdOption_RIPEMD160", 
-        "rnpkeys_generatekey_verifyUserIdOption_SHA256", 
-        "rnpkeys_generatekey_verifyUserIdOption_SHA384", 
-        "rnpkeys_generatekey_verifyUserIdOption_SHA512",  
+        "rnpkeys_generatekey_verifyUserIdOption_MD5",
+        "rnpkeys_generatekey_verifyUserIdOption_SHA-1",
+        "rnpkeys_generatekey_verifyUserIdOption_RIPEMD160",
+        "rnpkeys_generatekey_verifyUserIdOption_SHA256",
+        "rnpkeys_generatekey_verifyUserIdOption_SHA384",
+        "rnpkeys_generatekey_verifyUserIdOption_SHA512",
         "rnpkeys_generatekey_verifyUserIdOption_SHA224"
-    }; 
+    };
 
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
+    /* Set the UserId = custom value.
+     * Execute the Generate-key command to generate a new pair of private/public key
      * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    rnp_t rnp;
     const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
@@ -738,14 +738,14 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
         assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
 
         retVal = rnp_generate_key(&rnp, userId, numbits);
-        assert_int_equal(retVal,1); //Ensure the key was generated 
+        assert_int_equal(retVal,1); //Ensure the key was generated
 
         /*Load the newly generated rnp key*/
         retVal = rnp_load_keys(&rnp);
-        assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+        assert_int_equal(retVal,1); //Ensure the keyring is loaded.
 
         retVal = rnp_find_key(&rnp, userId);
-        assert_int_equal(retVal,1); //Ensure the key can be found with the userId 
+        assert_int_equal(retVal,1); //Ensure the key can be found with the userId
 
         rnp_end(&rnp); //Free memory and other allocated resources.
     }
@@ -754,10 +754,10 @@ static void rnpkeys_generatekey_verifyUserIdOption(void **state)
 static void rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 {
     const char *ourdir = (char*)*state;
-    /* Set the UserId = custom value. 
-     * Execute the Generate-key command to generate a new pair of private/public key 
+    /* Set the UserId = custom value.
+     * Execute the Generate-key command to generate a new pair of private/public key
      * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp; 
+    rnp_t rnp;
     const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
@@ -949,7 +949,7 @@ static void rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
 
-    /* Set the home directory to a non-default value and ensure the read/write permission 
+    /* Set the home directory to a non-default value and ensure the read/write permission
      * for the specified directory*/
     int retVal = setenv("HOME", nopermsdir, 1);
     assert_int_equal(retVal,0); // Ensure the enviornment variable was set
@@ -975,10 +975,10 @@ static void rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
 
 static void rnpkeys_exportkey_verifyUserId(void **state)
 {
-    /* * Execute the Generate-key command to generate a new pair of private/public key 
+    /* * Execute the Generate-key command to generate a new pair of private/public key
      * Verify the key was generated with the correct UserId.
      */
-    rnp_t rnp; 
+    rnp_t rnp;
     const int numbits = 1024;
     char passfd[4] = {0};
     int pipefd[2];
@@ -1001,28 +1001,31 @@ static void rnpkeys_exportkey_verifyUserId(void **state)
     assert_int_equal(retVal,1); //Ensure the rnp core structure is correctly initialized.
 
     retVal = rnp_generate_key(&rnp, NULL, numbits);
-    assert_int_equal(retVal,1); //Ensure the key was generated. 
+    assert_int_equal(retVal,1); //Ensure the key was generated.
 
     /*Load the newly generated rnp key*/
     retVal = rnp_load_keys(&rnp);
-    assert_int_equal(retVal,1); //Ensure the keyring is loaded. 
+    assert_int_equal(retVal,1); //Ensure the keyring is loaded.
 
     /*try to export the key without passing userid from the interface;
      * stack MUST query the set userid option to find the key*/
     exportedkey = rnp_export_key(&rnp, NULL);
     assert_non_null(exportedkey);
+    free(exportedkey);
+    exportedkey = NULL;
 
     /*try to export the key with specified userid parameter from the interface;
      * stack MUST NOT query the set userid option to find the key*/
-    exportedkey = NULL;
     exportedkey = rnp_export_key(&rnp, getenv("LOGNAME"));
     assert_non_null(exportedkey);
+    free(exportedkey);
+    exportedkey = NULL;
 
     /* try to export the key with specified userid parameter (which is wrong) from the interface;
      * stack MUST NOT be able to find the key*/
-    exportedkey = NULL;
     exportedkey = rnp_export_key(&rnp, "LOGNAME");
     assert_null(exportedkey);
+    free(exportedkey);
 
     rnp_end(&rnp); //Free memory and other allocated resources.
 }
