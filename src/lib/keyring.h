@@ -59,44 +59,35 @@
 #include "packet-parse.h"
 #include <json.h>
 
-enum {
-	MAX_ID_LENGTH		= 128,
-	MAX_PASSPHRASE_LENGTH	= 256
-};
+enum { MAX_ID_LENGTH = 128, MAX_PASSPHRASE_LENGTH = 256 };
 
-typedef struct pgp_key_t	pgp_key_t;
+typedef struct pgp_key_t pgp_key_t;
 
 /** \struct pgp_keyring_t
  * A keyring
  */
 typedef struct pgp_keyring_t {
-	DYNARRAY(pgp_key_t,	key);
-	pgp_hash_alg_t	hashtype;
+    DYNARRAY(pgp_key_t, key);
+    pgp_hash_alg_t hashtype;
 } pgp_keyring_t;
 
-const pgp_key_t *pgp_getkeybyid(pgp_io_t *,
-					const pgp_keyring_t *,
-					const uint8_t *,
-					unsigned *,
-					pgp_pubkey_t **);
-const pgp_key_t *pgp_getkeybyname(pgp_io_t *,
-					const pgp_keyring_t *,
-					const char *);
+const pgp_key_t *pgp_getkeybyid(
+  pgp_io_t *, const pgp_keyring_t *, const uint8_t *, unsigned *, pgp_pubkey_t **);
+const pgp_key_t *pgp_getkeybyname(pgp_io_t *, const pgp_keyring_t *, const char *);
 const pgp_key_t *pgp_getnextkeybyname(pgp_io_t *,
-					const pgp_keyring_t *,
-					const char *,
-					unsigned *);
-void pgp_keydata_free(pgp_key_t *);
-void pgp_keyring_free(pgp_keyring_t *);
-void pgp_dump_keyring(const pgp_keyring_t *);
+                                      const pgp_keyring_t *,
+                                      const char *,
+                                      unsigned *);
+void                pgp_keydata_free(pgp_key_t *);
+void                pgp_keyring_free(pgp_keyring_t *);
+void                pgp_dump_keyring(const pgp_keyring_t *);
 const pgp_pubkey_t *pgp_get_pubkey(const pgp_key_t *);
-unsigned   pgp_is_key_secret(const pgp_key_t *);
+unsigned            pgp_is_key_secret(const pgp_key_t *);
 const pgp_seckey_t *pgp_get_seckey(const pgp_key_t *);
-pgp_seckey_t *pgp_get_writable_seckey(pgp_key_t *);
-pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *, void *);
+pgp_seckey_t *      pgp_get_writable_seckey(pgp_key_t *);
+pgp_seckey_t *      pgp_decrypt_seckey(const pgp_key_t *, void *);
 
-unsigned   pgp_keyring_fileread(pgp_keyring_t *, const unsigned,
-					const char *);
+unsigned pgp_keyring_fileread(pgp_keyring_t *, const unsigned, const char *);
 
 int pgp_keyring_list(pgp_io_t *, const pgp_keyring_t *, const int);
 int pgp_keyring_json(pgp_io_t *, const pgp_keyring_t *, json_object *, const int);
@@ -105,44 +96,52 @@ void pgp_set_seckey(pgp_contents_t *, const pgp_key_t *);
 void pgp_forget(void *, unsigned);
 
 const uint8_t *pgp_get_key_id(const pgp_key_t *);
-unsigned pgp_get_userid_count(const pgp_key_t *);
+unsigned       pgp_get_userid_count(const pgp_key_t *);
 const uint8_t *pgp_get_userid(const pgp_key_t *, unsigned);
-unsigned pgp_is_key_supported(const pgp_key_t *);
+unsigned       pgp_is_key_supported(const pgp_key_t *);
 
-uint8_t *pgp_add_userid(pgp_key_t *, const uint8_t *);
-pgp_subpacket_t *pgp_add_subpacket(pgp_key_t *,
-						const pgp_subpacket_t *);
+uint8_t *        pgp_add_userid(pgp_key_t *, const uint8_t *);
+pgp_subpacket_t *pgp_add_subpacket(pgp_key_t *, const pgp_subpacket_t *);
 
 unsigned pgp_add_selfsigned_userid(pgp_key_t *, uint8_t *);
 
-pgp_key_t  *pgp_keydata_new(void);
-void pgp_keydata_init(pgp_key_t *, const pgp_content_enum);
+pgp_key_t *pgp_keydata_new(void);
+void       pgp_keydata_init(pgp_key_t *, const pgp_content_enum);
 
 int pgp_parse_and_accumulate(pgp_keyring_t *, pgp_stream_t *);
 
-int pgp_sprint_keydata(pgp_io_t *, const pgp_keyring_t *,
-			const pgp_key_t *, char **, const char *,
-			const pgp_pubkey_t *, const int);
-int pgp_sprint_json(pgp_io_t *, const pgp_keyring_t *,
-			const pgp_key_t *, json_object *, const char *,
-			const pgp_pubkey_t *, const int);
-int pgp_hkp_sprint_keydata(pgp_io_t *, const pgp_keyring_t *,
-			const pgp_key_t *, char **,
-			const pgp_pubkey_t *, const int);
-void pgp_print_keydata(pgp_io_t *, const pgp_keyring_t *, const pgp_key_t *,
-			const char *, const pgp_pubkey_t *, const int);
-void pgp_print_sig(pgp_io_t *, const pgp_key_t *, const char *,
-			const pgp_pubkey_t *);
+int pgp_sprint_keydata(pgp_io_t *,
+                       const pgp_keyring_t *,
+                       const pgp_key_t *,
+                       char **,
+                       const char *,
+                       const pgp_pubkey_t *,
+                       const int);
+int pgp_sprint_json(pgp_io_t *,
+                    const pgp_keyring_t *,
+                    const pgp_key_t *,
+                    json_object *,
+                    const char *,
+                    const pgp_pubkey_t *,
+                    const int);
+int pgp_hkp_sprint_keydata(pgp_io_t *,
+                           const pgp_keyring_t *,
+                           const pgp_key_t *,
+                           char **,
+                           const pgp_pubkey_t *,
+                           const int);
+void pgp_print_keydata(pgp_io_t *,
+                       const pgp_keyring_t *,
+                       const pgp_key_t *,
+                       const char *,
+                       const pgp_pubkey_t *,
+                       const int);
+void pgp_print_sig(pgp_io_t *, const pgp_key_t *, const char *, const pgp_pubkey_t *);
 void pgp_print_pubkey(const pgp_pubkey_t *);
-int pgp_sprint_pubkey(const pgp_key_t *, char *, size_t);
+int  pgp_sprint_pubkey(const pgp_key_t *, char *, size_t);
 
-int pgp_list_packets(pgp_io_t *,
-			char *,
-			unsigned,
-			pgp_keyring_t *,
-			pgp_keyring_t *,
-			void *,
-			pgp_cbfunc_t *);
+int pgp_list_packets(
+  pgp_io_t *, char *, unsigned, pgp_keyring_t *, pgp_keyring_t *, void *, pgp_cbfunc_t *);
 
 char *pgp_export_key(pgp_io_t *, const pgp_key_t *, uint8_t *);
 

@@ -92,8 +92,6 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "rnpdigest.h"
 #include <json.h>
 
-
-
 /**
    \ingroup HighLevel_Keyring
 
@@ -104,12 +102,11 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
    \note The returned pgp_key_t struct must be freed after use with pgp_keydata_free.
 */
 
-pgp_key_t  *
+pgp_key_t *
 pgp_keydata_new(void)
 {
-	return calloc(1, sizeof(pgp_key_t));
+    return calloc(1, sizeof(pgp_key_t));
 }
-
 
 /**
  \ingroup HighLevel_Keyring
@@ -120,32 +117,32 @@ pgp_keydata_new(void)
 
  \note This frees the keydata itself, as well as any other memory alloc-ed by it.
 */
-void 
+void
 pgp_keydata_free(pgp_key_t *keydata)
 {
-	unsigned        n;
+    unsigned n;
 
-	for (n = 0; n < keydata->uidc; ++n) {
-		pgp_userid_free(&keydata->uids[n]);
-	}
-	free(keydata->uids);
-	keydata->uids = NULL;
-	keydata->uidc = 0;
+    for (n = 0; n < keydata->uidc; ++n) {
+        pgp_userid_free(&keydata->uids[n]);
+    }
+    free(keydata->uids);
+    keydata->uids = NULL;
+    keydata->uidc = 0;
 
-	for (n = 0; n < keydata->packetc; ++n) {
-		pgp_subpacket_free(&keydata->packets[n]);
-	}
-	free(keydata->packets);
-	keydata->packets = NULL;
-	keydata->packetc = 0;
+    for (n = 0; n < keydata->packetc; ++n) {
+        pgp_subpacket_free(&keydata->packets[n]);
+    }
+    free(keydata->packets);
+    keydata->packets = NULL;
+    keydata->packetc = 0;
 
-	if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
-		pgp_pubkey_free(&keydata->key.pubkey);
-	} else {
-		pgp_seckey_free(&keydata->key.seckey);
-	}
+    if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
+        pgp_pubkey_free(&keydata->key.pubkey);
+    } else {
+        pgp_seckey_free(&keydata->key.seckey);
+    }
 
-	free(keydata);
+    free(keydata);
 }
 
 /**
@@ -162,9 +159,8 @@ pgp_keydata_free(pgp_key_t *keydata)
 const pgp_pubkey_t *
 pgp_get_pubkey(const pgp_key_t *keydata)
 {
-	return (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) ?
-				&keydata->key.pubkey :
-				&keydata->key.seckey.pubkey;
+    return (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) ? &keydata->key.pubkey :
+                                                       &keydata->key.seckey.pubkey;
 }
 
 /**
@@ -173,10 +169,10 @@ pgp_get_pubkey(const pgp_key_t *keydata)
 \brief Check whether this is a secret key or not.
 */
 
-unsigned 
+unsigned
 pgp_is_key_secret(const pgp_key_t *data)
 {
-	return data->type != PGP_PTAG_CT_PUBLIC_KEY;
+    return data->type != PGP_PTAG_CT_PUBLIC_KEY;
 }
 
 /**
@@ -193,8 +189,7 @@ pgp_is_key_secret(const pgp_key_t *data)
 const pgp_seckey_t *
 pgp_get_seckey(const pgp_key_t *data)
 {
-	return (data->type == PGP_PTAG_CT_SECRET_KEY) ?
-				&data->key.seckey : NULL;
+    return (data->type == PGP_PTAG_CT_SECRET_KEY) ? &data->key.seckey : NULL;
 }
 
 /**
@@ -211,87 +206,84 @@ pgp_get_seckey(const pgp_key_t *data)
 pgp_seckey_t *
 pgp_get_writable_seckey(pgp_key_t *data)
 {
-	return (data->type == PGP_PTAG_CT_SECRET_KEY) ?
-				&data->key.seckey : NULL;
+    return (data->type == PGP_PTAG_CT_SECRET_KEY) ? &data->key.seckey : NULL;
 }
 
 /* utility function to zero out memory */
 void
 pgp_forget(void *vp, unsigned size)
 {
-	(void) memset(vp, 0x0, size);
+    (void) memset(vp, 0x0, size);
 }
 
 typedef struct {
-	FILE			*passfp;
-	const pgp_key_t	*key;
-	char			*passphrase;
-	pgp_seckey_t		*seckey;
+    FILE *           passfp;
+    const pgp_key_t *key;
+    char *           passphrase;
+    pgp_seckey_t *   seckey;
 } decrypt_t;
 
-static pgp_cb_ret_t 
+static pgp_cb_ret_t
 decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
-	const pgp_contents_t	*content = &pkt->u;
-	decrypt_t		*decrypt;
-	char			 pass[MAX_PASSPHRASE_LENGTH];
+    const pgp_contents_t *content = &pkt->u;
+    decrypt_t *           decrypt;
+    char                  pass[MAX_PASSPHRASE_LENGTH];
 
-	decrypt = pgp_callback_arg(cbinfo);
-	switch (pkt->tag) {
-	case PGP_PARSER_PTAG:
-	case PGP_PTAG_CT_USER_ID:
-	case PGP_PTAG_CT_SIGNATURE:
-	case PGP_PTAG_CT_SIGNATURE_HEADER:
-	case PGP_PTAG_CT_SIGNATURE_FOOTER:
-	case PGP_PTAG_CT_TRUST:
-		break;
+    decrypt = pgp_callback_arg(cbinfo);
+    switch (pkt->tag) {
+    case PGP_PARSER_PTAG:
+    case PGP_PTAG_CT_USER_ID:
+    case PGP_PTAG_CT_SIGNATURE:
+    case PGP_PTAG_CT_SIGNATURE_HEADER:
+    case PGP_PTAG_CT_SIGNATURE_FOOTER:
+    case PGP_PTAG_CT_TRUST:
+        break;
 
-	case PGP_GET_PASSPHRASE:
-		(void) pgp_getpassphrase(decrypt->passfp, pass, sizeof(pass));
-		*content->skey_passphrase.passphrase = rnp_strdup(pass);
-		pgp_forget(pass, (unsigned)sizeof(pass));
-		return PGP_KEEP_MEMORY;
+    case PGP_GET_PASSPHRASE:
+        (void) pgp_getpassphrase(decrypt->passfp, pass, sizeof(pass));
+        *content->skey_passphrase.passphrase = rnp_strdup(pass);
+        pgp_forget(pass, (unsigned) sizeof(pass));
+        return PGP_KEEP_MEMORY;
 
-	case PGP_PARSER_ERRCODE:
-		switch (content->errcode.errcode) {
-		case PGP_E_P_MPI_FORMAT_ERROR:
-			/* Generally this means a bad passphrase */
-			fprintf(stderr, "Bad passphrase!\n");
-			return PGP_RELEASE_MEMORY;
+    case PGP_PARSER_ERRCODE:
+        switch (content->errcode.errcode) {
+        case PGP_E_P_MPI_FORMAT_ERROR:
+            /* Generally this means a bad passphrase */
+            fprintf(stderr, "Bad passphrase!\n");
+            return PGP_RELEASE_MEMORY;
 
-		case PGP_E_P_PACKET_CONSUMED:
-			/* And this is because of an error we've accepted */
-			return PGP_RELEASE_MEMORY;
-		default:
-			break;
-		}
-		(void) fprintf(stderr, "parse error: %s\n",
-				pgp_errcode(content->errcode.errcode));
-		return PGP_FINISHED;
+        case PGP_E_P_PACKET_CONSUMED:
+            /* And this is because of an error we've accepted */
+            return PGP_RELEASE_MEMORY;
+        default:
+            break;
+        }
+        (void) fprintf(stderr, "parse error: %s\n", pgp_errcode(content->errcode.errcode));
+        return PGP_FINISHED;
 
-	case PGP_PARSER_ERROR:
-		fprintf(stderr, "parse error: %s\n", content->error);
-		return PGP_FINISHED;
+    case PGP_PARSER_ERROR:
+        fprintf(stderr, "parse error: %s\n", content->error);
+        return PGP_FINISHED;
 
-	case PGP_PTAG_CT_SECRET_KEY:
-		if ((decrypt->seckey = calloc(1, sizeof(*decrypt->seckey))) == NULL) {
-			(void) fprintf(stderr, "decrypt_cb: bad alloc\n");
-			return PGP_FINISHED;
-		}
-		*decrypt->seckey = content->seckey;
-		return PGP_KEEP_MEMORY;
+    case PGP_PTAG_CT_SECRET_KEY:
+        if ((decrypt->seckey = calloc(1, sizeof(*decrypt->seckey))) == NULL) {
+            (void) fprintf(stderr, "decrypt_cb: bad alloc\n");
+            return PGP_FINISHED;
+        }
+        *decrypt->seckey = content->seckey;
+        return PGP_KEEP_MEMORY;
 
-	case PGP_PARSER_PACKET_END:
-		/* nothing to do */
-		break;
+    case PGP_PARSER_PACKET_END:
+        /* nothing to do */
+        break;
 
-	default:
-		fprintf(stderr, "Unexpected tag %d (0x%x)\n", pkt->tag,
-			pkt->tag);
-		return PGP_FINISHED;
-	}
+    default:
+        fprintf(stderr, "Unexpected tag %d (0x%x)\n", pkt->tag, pkt->tag);
+        return PGP_FINISHED;
+    }
 
-	return PGP_RELEASE_MEMORY;
+    return PGP_RELEASE_MEMORY;
 }
 
 /**
@@ -304,19 +296,19 @@ decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 pgp_seckey_t *
 pgp_decrypt_seckey(const pgp_key_t *key, void *passfp)
 {
-	pgp_stream_t	*stream;
-	const int	 printerrors = 1;
-	decrypt_t	 decrypt;
+    pgp_stream_t *stream;
+    const int     printerrors = 1;
+    decrypt_t     decrypt;
 
-	(void) memset(&decrypt, 0x0, sizeof(decrypt));
-	decrypt.key = key;
-	decrypt.passfp = passfp;
-	stream = pgp_new(sizeof(*stream));
-	pgp_keydata_reader_set(stream, key);
-	pgp_set_callback(stream, decrypt_cb, &decrypt);
-	stream->readinfo.accumulate = 1;
-	pgp_parse(stream, !printerrors);
-	return decrypt.seckey;
+    (void) memset(&decrypt, 0x0, sizeof(decrypt));
+    decrypt.key = key;
+    decrypt.passfp = passfp;
+    stream = pgp_new(sizeof(*stream));
+    pgp_keydata_reader_set(stream, key);
+    pgp_set_callback(stream, decrypt_cb, &decrypt);
+    stream->readinfo.accumulate = 1;
+    pgp_parse(stream, !printerrors);
+    return decrypt.seckey;
 }
 
 /**
@@ -325,10 +317,10 @@ pgp_decrypt_seckey(const pgp_key_t *key, void *passfp)
 \param content Content to be set
 \param key Keydata to get secret key from
 */
-void 
+void
 pgp_set_seckey(pgp_contents_t *cont, const pgp_key_t *key)
 {
-	*cont->get_seckey.seckey = &key->key.seckey;
+    *cont->get_seckey.seckey = &key->key.seckey;
 }
 
 /**
@@ -340,7 +332,7 @@ pgp_set_seckey(pgp_contents_t *cont, const pgp_key_t *key)
 const uint8_t *
 pgp_get_key_id(const pgp_key_t *key)
 {
-	return key->sigid;
+    return key->sigid;
 }
 
 /**
@@ -349,10 +341,10 @@ pgp_get_key_id(const pgp_key_t *key)
 \param key Keydata to check
 \return Num of user ids
 */
-unsigned 
+unsigned
 pgp_get_userid_count(const pgp_key_t *key)
 {
-	return key->uidc;
+    return key->uidc;
 }
 
 /**
@@ -365,7 +357,7 @@ pgp_get_userid_count(const pgp_key_t *key)
 const uint8_t *
 pgp_get_userid(const pgp_key_t *key, unsigned subscript)
 {
-	return key->uids[subscript];
+    return key->uids[subscript];
 }
 
 /**
@@ -375,20 +367,20 @@ pgp_get_userid(const pgp_key_t *key, unsigned subscript)
    \return 1 if key algorithm and type are supported by OpenPGP::SDK; 0 if not
 */
 
-unsigned 
+unsigned
 pgp_is_key_supported(const pgp_key_t *key)
 {
-	if (key->type == PGP_PTAG_CT_PUBLIC_KEY) {
-		switch(key->key.pubkey.alg) {
-		case PGP_PKA_RSA:
-		case PGP_PKA_DSA:
-		case PGP_PKA_ELGAMAL:
-			return 1;
-		default:
-			break;
-		}
-	}
-	return 0;
+    if (key->type == PGP_PTAG_CT_PUBLIC_KEY) {
+        switch (key->key.pubkey.alg) {
+        case PGP_PKA_RSA:
+        case PGP_PKA_DSA:
+        case PGP_PKA_ELGAMAL:
+            return 1;
+        default:
+            break;
+        }
+    }
+    return 0;
 }
 
 /* \todo check where userid pointers are copied */
@@ -399,21 +391,21 @@ pgp_is_key_supported(const pgp_key_t *key)
 \param src Source User ID
 \note If dst already has a userid, it will be freed.
 */
-static uint8_t * 
+static uint8_t *
 copy_userid(uint8_t **dst, const uint8_t *src)
 {
-	size_t          len;
+    size_t len;
 
-	len = strlen((const char *) src);
-	if (*dst) {
-		free(*dst);
-	}
-	if ((*dst = calloc(1, len + 1)) == NULL) {
-		(void) fprintf(stderr, "copy_userid: bad alloc\n");
-	} else {
-		(void) memcpy(*dst, src, len);
-	}
-	return *dst;
+    len = strlen((const char *) src);
+    if (*dst) {
+        free(*dst);
+    }
+    if ((*dst = calloc(1, len + 1)) == NULL) {
+        (void) fprintf(stderr, "copy_userid: bad alloc\n");
+    } else {
+        (void) memcpy(*dst, src, len);
+    }
+    return *dst;
 }
 
 /* \todo check where pkt pointers are copied */
@@ -424,19 +416,19 @@ copy_userid(uint8_t **dst, const uint8_t *src)
 \param src Source packet
 \note If dst already has a packet, it will be freed.
 */
-static pgp_subpacket_t * 
+static pgp_subpacket_t *
 copy_packet(pgp_subpacket_t *dst, const pgp_subpacket_t *src)
 {
-	if (dst->raw) {
-		free(dst->raw);
-	}
-	if ((dst->raw = calloc(1, src->length)) == NULL) {
-		(void) fprintf(stderr, "copy_packet: bad alloc\n");
-	} else {
-		dst->length = src->length;
-		(void) memcpy(dst->raw, src->raw, src->length);
-	}
-	return dst;
+    if (dst->raw) {
+        free(dst->raw);
+    }
+    if ((dst->raw = calloc(1, src->length)) == NULL) {
+        (void) fprintf(stderr, "copy_packet: bad alloc\n");
+    } else {
+        dst->length = src->length;
+        (void) memcpy(dst->raw, src->raw, src->length);
+    }
+    return dst;
 }
 
 /**
@@ -446,17 +438,17 @@ copy_packet(pgp_subpacket_t *dst, const pgp_subpacket_t *src)
 \param userid User ID to add
 \return Pointer to new User ID
 */
-uint8_t  *
+uint8_t *
 pgp_add_userid(pgp_key_t *key, const uint8_t *userid)
 {
-	uint8_t  **uidp;
+    uint8_t **uidp;
 
-	EXPAND_ARRAY(key, uid);
-	/* initialise new entry in array */
-	uidp = &key->uids[key->uidc++];
-	*uidp = NULL;
-	/* now copy it */
-	return copy_userid(uidp, userid);
+    EXPAND_ARRAY(key, uid);
+    /* initialise new entry in array */
+    uidp = &key->uids[key->uidc++];
+    *uidp = NULL;
+    /* now copy it */
+    return copy_userid(uidp, userid);
 }
 
 void print_packet_hex(const pgp_subpacket_t *pkt);
@@ -468,18 +460,18 @@ void print_packet_hex(const pgp_subpacket_t *pkt);
 \param packet Packet to add
 \return Pointer to new packet
 */
-pgp_subpacket_t   *
+pgp_subpacket_t *
 pgp_add_subpacket(pgp_key_t *keydata, const pgp_subpacket_t *packet)
 {
-	pgp_subpacket_t   *subpktp;
+    pgp_subpacket_t *subpktp;
 
-	EXPAND_ARRAY(keydata, packet);
-	/* initialise new entry in array */
-	subpktp = &keydata->packets[keydata->packetc++];
-	subpktp->length = 0;
-	subpktp->raw = NULL;
-	/* now copy it */
-	return copy_packet(subpktp, packet);
+    EXPAND_ARRAY(keydata, packet);
+    /* initialise new entry in array */
+    subpktp = &keydata->packets[keydata->packetc++];
+    subpktp->length = 0;
+    subpktp->raw = NULL;
+    /* now copy it */
+    return copy_packet(subpktp, packet);
 }
 
 /**
@@ -489,51 +481,51 @@ pgp_add_subpacket(pgp_key_t *keydata, const pgp_subpacket_t *packet)
 \param userid Self-signed User ID to add
 \return 1 if OK; else 0
 */
-unsigned 
+unsigned
 pgp_add_selfsigned_userid(pgp_key_t *key, uint8_t *userid)
 {
-	pgp_create_sig_t	*sig;
-	pgp_subpacket_t	 sigpacket;
-	pgp_memory_t		*mem_userid = NULL;
-	pgp_output_t		*useridoutput = NULL;
-	pgp_memory_t		*mem_sig = NULL;
-	pgp_output_t		*sigoutput = NULL;
+    pgp_create_sig_t *sig;
+    pgp_subpacket_t   sigpacket;
+    pgp_memory_t *    mem_userid = NULL;
+    pgp_output_t *    useridoutput = NULL;
+    pgp_memory_t *    mem_sig = NULL;
+    pgp_output_t *    sigoutput = NULL;
 
-	/*
-         * create signature packet for this userid
-         */
+    /*
+     * create signature packet for this userid
+     */
 
-	/* create userid pkt */
-	pgp_setup_memory_write(&useridoutput, &mem_userid, 128);
-	pgp_write_struct_userid(useridoutput, userid);
+    /* create userid pkt */
+    pgp_setup_memory_write(&useridoutput, &mem_userid, 128);
+    pgp_write_struct_userid(useridoutput, userid);
 
-	/* create sig for this pkt */
-	sig = pgp_create_sig_new();
-	pgp_sig_start_key_sig(sig, &key->key.seckey.pubkey, userid, PGP_CERT_POSITIVE);
-	pgp_add_time(sig, (int64_t)time(NULL), "birth");
-	pgp_add_issuer_keyid(sig, key->sigid);
-	pgp_add_primary_userid(sig, 1);
-	pgp_end_hashed_subpkts(sig);
+    /* create sig for this pkt */
+    sig = pgp_create_sig_new();
+    pgp_sig_start_key_sig(sig, &key->key.seckey.pubkey, userid, PGP_CERT_POSITIVE);
+    pgp_add_time(sig, (int64_t) time(NULL), "birth");
+    pgp_add_issuer_keyid(sig, key->sigid);
+    pgp_add_primary_userid(sig, 1);
+    pgp_end_hashed_subpkts(sig);
 
-	pgp_setup_memory_write(&sigoutput, &mem_sig, 128);
-	pgp_write_sig(sigoutput, sig, &key->key.seckey.pubkey, &key->key.seckey);
+    pgp_setup_memory_write(&sigoutput, &mem_sig, 128);
+    pgp_write_sig(sigoutput, sig, &key->key.seckey.pubkey, &key->key.seckey);
 
-	/* add this packet to key */
-	sigpacket.length = pgp_mem_len(mem_sig);
-	sigpacket.raw = pgp_mem_data(mem_sig);
+    /* add this packet to key */
+    sigpacket.length = pgp_mem_len(mem_sig);
+    sigpacket.raw = pgp_mem_data(mem_sig);
 
-	/* add userid to key */
-	(void) pgp_add_userid(key, userid);
-	(void) pgp_add_subpacket(key, &sigpacket);
+    /* add userid to key */
+    (void) pgp_add_userid(key, userid);
+    (void) pgp_add_subpacket(key, &sigpacket);
 
-	/* cleanup */
-	pgp_create_sig_delete(sig);
-	pgp_output_delete(useridoutput);
-	pgp_output_delete(sigoutput);
-	pgp_memory_free(mem_userid);
-	pgp_memory_free(mem_sig);
+    /* cleanup */
+    pgp_create_sig_delete(sig);
+    pgp_output_delete(useridoutput);
+    pgp_output_delete(sigoutput);
+    pgp_memory_free(mem_userid);
+    pgp_memory_free(mem_sig);
 
-	return 1;
+    return 1;
 }
 
 /**
@@ -542,114 +534,109 @@ pgp_add_selfsigned_userid(pgp_key_t *key, uint8_t *userid)
 \param keydata Keydata to initialise
 \param type PGP_PTAG_CT_PUBLIC_KEY or PGP_PTAG_CT_SECRET_KEY
 */
-void 
+void
 pgp_keydata_init(pgp_key_t *keydata, const pgp_content_enum type)
 {
-	if (keydata->type != PGP_PTAG_CT_RESERVED) {
-		(void) fprintf(stderr,
-			"pgp_keydata_init: wrong keydata type\n");
-	} else if (type != PGP_PTAG_CT_PUBLIC_KEY &&
-		   type != PGP_PTAG_CT_SECRET_KEY) {
-		(void) fprintf(stderr, "pgp_keydata_init: wrong type\n");
-	} else {
-		keydata->type = type;
-	}
+    if (keydata->type != PGP_PTAG_CT_RESERVED) {
+        (void) fprintf(stderr, "pgp_keydata_init: wrong keydata type\n");
+    } else if (type != PGP_PTAG_CT_PUBLIC_KEY && type != PGP_PTAG_CT_SECRET_KEY) {
+        (void) fprintf(stderr, "pgp_keydata_init: wrong type\n");
+    } else {
+        keydata->type = type;
+    }
 }
 
 /* used to point to data during keyring read */
 typedef struct keyringcb_t {
-	pgp_keyring_t		*keyring;	/* the keyring we're reading */
+    pgp_keyring_t *keyring; /* the keyring we're reading */
 } keyringcb_t;
-
 
 static pgp_cb_ret_t
 cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
-	pgp_keyring_t	*keyring;
-	pgp_revoke_t	*revocation;
-	pgp_key_t	*key;
-	keyringcb_t	*cb;
+    pgp_keyring_t *keyring;
+    pgp_revoke_t * revocation;
+    pgp_key_t *    key;
+    keyringcb_t *  cb;
 
-	cb = pgp_callback_arg(cbinfo);
-	keyring = cb->keyring;
-	switch (pkt->tag) {
-	case PGP_PARSER_PTAG:
-	case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-		/* we get these because we didn't prompt */
-		break;
-	case PGP_PTAG_CT_SIGNATURE_HEADER:
-		key = &keyring->keys[keyring->keyc - 1];
-		EXPAND_ARRAY(key, subsig);
-		key->subsigs[key->subsigc].uid = key->uidc - 1;
-		(void) memcpy(&key->subsigs[key->subsigc].sig, &pkt->u.sig,
-				sizeof(pkt->u.sig));
-		key->subsigc += 1;
-		break;
-	case PGP_PTAG_CT_SIGNATURE:
-		key = &keyring->keys[keyring->keyc - 1];
-		EXPAND_ARRAY(key, subsig);
-		key->subsigs[key->subsigc].uid = key->uidc - 1;
-		(void) memcpy(&key->subsigs[key->subsigc].sig, &pkt->u.sig,
-				sizeof(pkt->u.sig));
-		key->subsigc += 1;
-		break;
-	case PGP_PTAG_CT_TRUST:
-		key = &keyring->keys[keyring->keyc - 1];
-		key->subsigs[key->subsigc - 1].trustlevel = pkt->u.ss_trust.level;
-		key->subsigs[key->subsigc - 1].trustamount = pkt->u.ss_trust.amount;
-		break;
-	case PGP_PTAG_SS_KEY_EXPIRY:
-		EXPAND_ARRAY(keyring, key);
-		if (keyring->keyc > 0) {
-			keyring->keys[keyring->keyc - 1].key.pubkey.duration = pkt->u.ss_time;
-		}
-		break;
-	case PGP_PTAG_SS_ISSUER_KEY_ID:
-		key = &keyring->keys[keyring->keyc - 1];
-		(void) memcpy(&key->subsigs[key->subsigc - 1].sig.info.signer_id,
-			      pkt->u.ss_issuer,
-			      sizeof(pkt->u.ss_issuer));
-		key->subsigs[key->subsigc - 1].sig.info.signer_id_set = 1;
-		break;
-	case PGP_PTAG_SS_CREATION_TIME:
-		key = &keyring->keys[keyring->keyc - 1];
-		key->subsigs[key->subsigc - 1].sig.info.birthtime = pkt->u.ss_time;
-		key->subsigs[key->subsigc - 1].sig.info.birthtime_set = 1;
-		break;
-	case PGP_PTAG_SS_EXPIRATION_TIME:
-		key = &keyring->keys[keyring->keyc - 1];
-		key->subsigs[key->subsigc - 1].sig.info.duration = pkt->u.ss_time;
-		key->subsigs[key->subsigc - 1].sig.info.duration_set = 1;
-		break;
-	case PGP_PTAG_SS_PRIMARY_USER_ID:
-		key = &keyring->keys[keyring->keyc - 1];
-		key->uid0 = key->uidc - 1;
-		break;
-	case PGP_PTAG_SS_REVOCATION_REASON:
-		key = &keyring->keys[keyring->keyc - 1];
-		if (key->uidc == 0) {
-			/* revoke whole key */
-			key->revoked = 1;
-			revocation = &key->revocation;
-		} else {
-			/* revoke the user id */
-			EXPAND_ARRAY(key, revoke);
-			revocation = &key->revokes[key->revokec];
-			key->revokes[key->revokec].uid = key->uidc - 1;
-			key->revokec += 1;
-		}
-		revocation->code = pkt->u.ss_revocation.code;
-		revocation->reason = rnp_strdup(pgp_show_ss_rr_code(pkt->u.ss_revocation.code));
-		break;
-	case PGP_PTAG_CT_SIGNATURE_FOOTER:
-	case PGP_PARSER_ERRCODE:
-		break;
+    cb = pgp_callback_arg(cbinfo);
+    keyring = cb->keyring;
+    switch (pkt->tag) {
+    case PGP_PARSER_PTAG:
+    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
+        /* we get these because we didn't prompt */
+        break;
+    case PGP_PTAG_CT_SIGNATURE_HEADER:
+        key = &keyring->keys[keyring->keyc - 1];
+        EXPAND_ARRAY(key, subsig);
+        key->subsigs[key->subsigc].uid = key->uidc - 1;
+        (void) memcpy(&key->subsigs[key->subsigc].sig, &pkt->u.sig, sizeof(pkt->u.sig));
+        key->subsigc += 1;
+        break;
+    case PGP_PTAG_CT_SIGNATURE:
+        key = &keyring->keys[keyring->keyc - 1];
+        EXPAND_ARRAY(key, subsig);
+        key->subsigs[key->subsigc].uid = key->uidc - 1;
+        (void) memcpy(&key->subsigs[key->subsigc].sig, &pkt->u.sig, sizeof(pkt->u.sig));
+        key->subsigc += 1;
+        break;
+    case PGP_PTAG_CT_TRUST:
+        key = &keyring->keys[keyring->keyc - 1];
+        key->subsigs[key->subsigc - 1].trustlevel = pkt->u.ss_trust.level;
+        key->subsigs[key->subsigc - 1].trustamount = pkt->u.ss_trust.amount;
+        break;
+    case PGP_PTAG_SS_KEY_EXPIRY:
+        EXPAND_ARRAY(keyring, key);
+        if (keyring->keyc > 0) {
+            keyring->keys[keyring->keyc - 1].key.pubkey.duration = pkt->u.ss_time;
+        }
+        break;
+    case PGP_PTAG_SS_ISSUER_KEY_ID:
+        key = &keyring->keys[keyring->keyc - 1];
+        (void) memcpy(&key->subsigs[key->subsigc - 1].sig.info.signer_id,
+                      pkt->u.ss_issuer,
+                      sizeof(pkt->u.ss_issuer));
+        key->subsigs[key->subsigc - 1].sig.info.signer_id_set = 1;
+        break;
+    case PGP_PTAG_SS_CREATION_TIME:
+        key = &keyring->keys[keyring->keyc - 1];
+        key->subsigs[key->subsigc - 1].sig.info.birthtime = pkt->u.ss_time;
+        key->subsigs[key->subsigc - 1].sig.info.birthtime_set = 1;
+        break;
+    case PGP_PTAG_SS_EXPIRATION_TIME:
+        key = &keyring->keys[keyring->keyc - 1];
+        key->subsigs[key->subsigc - 1].sig.info.duration = pkt->u.ss_time;
+        key->subsigs[key->subsigc - 1].sig.info.duration_set = 1;
+        break;
+    case PGP_PTAG_SS_PRIMARY_USER_ID:
+        key = &keyring->keys[keyring->keyc - 1];
+        key->uid0 = key->uidc - 1;
+        break;
+    case PGP_PTAG_SS_REVOCATION_REASON:
+        key = &keyring->keys[keyring->keyc - 1];
+        if (key->uidc == 0) {
+            /* revoke whole key */
+            key->revoked = 1;
+            revocation = &key->revocation;
+        } else {
+            /* revoke the user id */
+            EXPAND_ARRAY(key, revoke);
+            revocation = &key->revokes[key->revokec];
+            key->revokes[key->revokec].uid = key->uidc - 1;
+            key->revokec += 1;
+        }
+        revocation->code = pkt->u.ss_revocation.code;
+        revocation->reason = rnp_strdup(pgp_show_ss_rr_code(pkt->u.ss_revocation.code));
+        break;
+    case PGP_PTAG_CT_SIGNATURE_FOOTER:
+    case PGP_PARSER_ERRCODE:
+        break;
 
-	default:
-		break;
-	}
+    default:
+        break;
+    }
 
-	return PGP_RELEASE_MEMORY;
+    return PGP_RELEASE_MEMORY;
 }
 
 /**
@@ -677,62 +664,60 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
 */
 
-unsigned 
-pgp_keyring_fileread(pgp_keyring_t *keyring,
-			const unsigned armour,
-			const char *filename)
+unsigned
+pgp_keyring_fileread(pgp_keyring_t *keyring, const unsigned armour, const char *filename)
 {
-	pgp_stream_t	*stream;
-	keyringcb_t	 cb;
-	unsigned	 res = 1;
-	int		 fd;
+    pgp_stream_t *stream;
+    keyringcb_t   cb;
+    unsigned      res = 1;
+    int           fd;
 
-	(void) memset(&cb, 0x0, sizeof(cb));
-	cb.keyring = keyring;
-	stream = pgp_new(sizeof(*stream));
+    (void) memset(&cb, 0x0, sizeof(cb));
+    cb.keyring = keyring;
+    stream = pgp_new(sizeof(*stream));
 
-	/* add this for the moment, */
-	/*
-	 * \todo need to fix the problems with reading signature subpackets
-	 * later
-	 */
+    /* add this for the moment, */
+    /*
+     * \todo need to fix the problems with reading signature subpackets
+     * later
+     */
 
-	/* pgp_parse_options(parse,PGP_PTAG_SS_ALL,PGP_PARSE_RAW); */
-	pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
+    /* pgp_parse_options(parse,PGP_PTAG_SS_ALL,PGP_PARSE_RAW); */
+    pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
 
 #ifdef O_BINARY
-	fd = open(filename, O_RDONLY | O_BINARY);
+    fd = open(filename, O_RDONLY | O_BINARY);
 #else
-	fd = open(filename, O_RDONLY);
+    fd = open(filename, O_RDONLY);
 #endif
-	if (fd < 0) {
-		pgp_stream_delete(stream);
-		perror(filename);
-		return 0;
-	}
+    if (fd < 0) {
+        pgp_stream_delete(stream);
+        perror(filename);
+        return 0;
+    }
 #ifdef USE_MMAP_FOR_FILES
-	pgp_reader_set_mmap(stream, fd);
+    pgp_reader_set_mmap(stream, fd);
 #else
-	pgp_reader_set_fd(stream, fd);
+    pgp_reader_set_fd(stream, fd);
 #endif
 
-	pgp_set_callback(stream, cb_keyring_read, &cb);
+    pgp_set_callback(stream, cb_keyring_read, &cb);
 
-	if (armour) {
-		pgp_reader_push_dearmour(stream);
-	}
-	res = pgp_parse_and_accumulate(keyring, stream);
-	pgp_print_errors(pgp_stream_get_errors(stream));
+    if (armour) {
+        pgp_reader_push_dearmour(stream);
+    }
+    res = pgp_parse_and_accumulate(keyring, stream);
+    pgp_print_errors(pgp_stream_get_errors(stream));
 
-	if (armour) {
-		pgp_reader_pop_dearmour(stream);
-	}
+    if (armour) {
+        pgp_reader_pop_dearmour(stream);
+    }
 
-	(void)close(fd);
+    (void) close(fd);
 
-	pgp_stream_delete(stream);
+    pgp_stream_delete(stream);
 
-	return res;
+    return res;
 }
 
 /**
@@ -758,34 +743,33 @@ pgp_keyring_fileread(pgp_keyring_t *keyring,
    \sa pgp_keyring_fileread
    \sa pgp_keyring_free
 */
-unsigned 
-pgp_keyring_read_from_mem(pgp_io_t *io,
-				pgp_keyring_t *keyring,
-				const unsigned armour,
-				pgp_memory_t *mem)
+unsigned
+pgp_keyring_read_from_mem(pgp_io_t *     io,
+                          pgp_keyring_t *keyring,
+                          const unsigned armour,
+                          pgp_memory_t * mem)
 {
-	pgp_stream_t	*stream;
-	const unsigned	 noaccum = 0;
-	keyringcb_t	 cb;
-	unsigned	 res;
+    pgp_stream_t * stream;
+    const unsigned noaccum = 0;
+    keyringcb_t    cb;
+    unsigned       res;
 
-	(void) memset(&cb, 0x0, sizeof(cb));
-	cb.keyring = keyring;
-	stream = pgp_new(sizeof(*stream));
-	pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
-	pgp_setup_memory_read(io, &stream, mem, &cb, cb_keyring_read,
-					noaccum);
-	if (armour) {
-		pgp_reader_push_dearmour(stream);
-	}
-	res = (unsigned)pgp_parse_and_accumulate(keyring, stream);
-	pgp_print_errors(pgp_stream_get_errors(stream));
-	if (armour) {
-		pgp_reader_pop_dearmour(stream);
-	}
-	/* don't call teardown_memory_read because memory was passed in */
-	pgp_stream_delete(stream);
-	return res;
+    (void) memset(&cb, 0x0, sizeof(cb));
+    cb.keyring = keyring;
+    stream = pgp_new(sizeof(*stream));
+    pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
+    pgp_setup_memory_read(io, &stream, mem, &cb, cb_keyring_read, noaccum);
+    if (armour) {
+        pgp_reader_push_dearmour(stream);
+    }
+    res = (unsigned) pgp_parse_and_accumulate(keyring, stream);
+    pgp_print_errors(pgp_stream_get_errors(stream));
+    if (armour) {
+        pgp_reader_pop_dearmour(stream);
+    }
+    /* don't call teardown_memory_read because memory was passed in */
+    pgp_stream_delete(stream);
+    return res;
 }
 
 /**
@@ -797,12 +781,12 @@ pgp_keyring_read_from_mem(pgp_io_t *io,
 
    \note This does not free keyring itself, just the memory alloc-ed in it.
  */
-void 
+void
 pgp_keyring_free(pgp_keyring_t *keyring)
 {
-	(void)free(keyring->keys);
-	keyring->keys = NULL;
-	keyring->keyc = keyring->keyvsize = 0;
+    (void) free(keyring->keys);
+    keyring->keys = NULL;
+    keyring->keyc = keyring->keyvsize = 0;
 }
 
 /**
@@ -820,131 +804,133 @@ pgp_keyring_free(pgp_keyring_t *keyring)
 
 */
 const pgp_key_t *
-pgp_getkeybyid(pgp_io_t *io, const pgp_keyring_t *keyring,
-			   const uint8_t *keyid, unsigned *from, pgp_pubkey_t **pubkey)
+pgp_getkeybyid(pgp_io_t *           io,
+               const pgp_keyring_t *keyring,
+               const uint8_t *      keyid,
+               unsigned *           from,
+               pgp_pubkey_t **      pubkey)
 {
-	uint8_t	nullid[PGP_KEY_ID_SIZE];
+    uint8_t nullid[PGP_KEY_ID_SIZE];
 
-	(void) memset(nullid, 0x0, sizeof(nullid));
-	for ( ; keyring && *from < keyring->keyc; *from += 1) {
-		if (pgp_get_debug_level(__FILE__)) {
-			hexdump(io->errs, "keyring keyid", keyring->keys[*from].sigid, PGP_KEY_ID_SIZE);
-			hexdump(io->errs, "keyid", keyid, PGP_KEY_ID_SIZE);
-		}
-		if (memcmp(keyring->keys[*from].sigid, keyid, PGP_KEY_ID_SIZE) == 0 ||
-		    memcmp(&keyring->keys[*from].sigid[PGP_KEY_ID_SIZE / 2],
-				keyid, PGP_KEY_ID_SIZE / 2) == 0) {
-			if (pubkey) {
-				*pubkey = &keyring->keys[*from].key.pubkey;
-			}
-			return &keyring->keys[*from];
-		}
-		if (memcmp(&keyring->keys[*from].encid, nullid, sizeof(nullid)) == 0) {
-			continue;
-		}
-		if (memcmp(&keyring->keys[*from].encid, keyid, PGP_KEY_ID_SIZE) == 0 ||
-		    memcmp(&keyring->keys[*from].encid[PGP_KEY_ID_SIZE / 2], keyid, PGP_KEY_ID_SIZE / 2) == 0) {
-			if (pubkey) {
-				*pubkey = &keyring->keys[*from].enckey;
-			}
-			return &keyring->keys[*from];
-		}
-	}
-	return NULL;
+    (void) memset(nullid, 0x0, sizeof(nullid));
+    for (; keyring && *from < keyring->keyc; *from += 1) {
+        if (pgp_get_debug_level(__FILE__)) {
+            hexdump(io->errs, "keyring keyid", keyring->keys[*from].sigid, PGP_KEY_ID_SIZE);
+            hexdump(io->errs, "keyid", keyid, PGP_KEY_ID_SIZE);
+        }
+        if (memcmp(keyring->keys[*from].sigid, keyid, PGP_KEY_ID_SIZE) == 0 ||
+            memcmp(&keyring->keys[*from].sigid[PGP_KEY_ID_SIZE / 2],
+                   keyid,
+                   PGP_KEY_ID_SIZE / 2) == 0) {
+            if (pubkey) {
+                *pubkey = &keyring->keys[*from].key.pubkey;
+            }
+            return &keyring->keys[*from];
+        }
+        if (memcmp(&keyring->keys[*from].encid, nullid, sizeof(nullid)) == 0) {
+            continue;
+        }
+        if (memcmp(&keyring->keys[*from].encid, keyid, PGP_KEY_ID_SIZE) == 0 ||
+            memcmp(&keyring->keys[*from].encid[PGP_KEY_ID_SIZE / 2],
+                   keyid,
+                   PGP_KEY_ID_SIZE / 2) == 0) {
+            if (pubkey) {
+                *pubkey = &keyring->keys[*from].enckey;
+            }
+            return &keyring->keys[*from];
+        }
+    }
+    return NULL;
 }
 
 /* convert a string keyid into a binary keyid */
 static void
 str2keyid(const char *userid, uint8_t *keyid, size_t len)
 {
-	static const char	*uppers = "0123456789ABCDEF";
-	static const char	*lowers = "0123456789abcdef";
-	const char		*hi;
-	const char		*lo;
-	uint8_t			 hichar;
-	uint8_t			 lochar;
-	size_t			 j;
-	int			 i;
+    static const char *uppers = "0123456789ABCDEF";
+    static const char *lowers = "0123456789abcdef";
+    const char *       hi;
+    const char *       lo;
+    uint8_t            hichar;
+    uint8_t            lochar;
+    size_t             j;
+    int                i;
 
-	for (i = 0, j = 0 ; j < len && userid[i] && userid[i + 1] ; i += 2, j++) {
-		if ((hi = strchr(uppers, userid[i])) == NULL) {
-			if ((hi = strchr(lowers, userid[i])) == NULL) {
-				break;
-			}
-			hichar = (uint8_t)(hi - lowers);
-		} else {
-			hichar = (uint8_t)(hi - uppers);
-		}
-		if ((lo = strchr(uppers, userid[i + 1])) == NULL) {
-			if ((lo = strchr(lowers, userid[i + 1])) == NULL) {
-				break;
-			}
-			lochar = (uint8_t)(lo - lowers);
-		} else {
-			lochar = (uint8_t)(lo - uppers);
-		}
-		keyid[j] = (hichar << 4) | (lochar);
-	}
-	keyid[j] = 0x0;
+    for (i = 0, j = 0; j < len && userid[i] && userid[i + 1]; i += 2, j++) {
+        if ((hi = strchr(uppers, userid[i])) == NULL) {
+            if ((hi = strchr(lowers, userid[i])) == NULL) {
+                break;
+            }
+            hichar = (uint8_t)(hi - lowers);
+        } else {
+            hichar = (uint8_t)(hi - uppers);
+        }
+        if ((lo = strchr(uppers, userid[i + 1])) == NULL) {
+            if ((lo = strchr(lowers, userid[i + 1])) == NULL) {
+                break;
+            }
+            lochar = (uint8_t)(lo - lowers);
+        } else {
+            lochar = (uint8_t)(lo - uppers);
+        }
+        keyid[j] = (hichar << 4) | (lochar);
+    }
+    keyid[j] = 0x0;
 }
 
 /* return the next key which matches, starting searching at *from */
 static const pgp_key_t *
-getkeybyname(pgp_io_t *io,
-			const pgp_keyring_t *keyring,
-			const char *name,
-			unsigned *from)
+getkeybyname(pgp_io_t *io, const pgp_keyring_t *keyring, const char *name, unsigned *from)
 {
-	const pgp_key_t	*kp;
-	uint8_t			**uidp;
-	unsigned    	 	 i = 0;
-	pgp_key_t		*keyp;
-	unsigned		 savedstart;
-	regex_t			 r;
-	uint8_t		 	 keyid[PGP_KEY_ID_SIZE + 1];
-	size_t          	 len;
+    const pgp_key_t *kp;
+    uint8_t **       uidp;
+    unsigned         i = 0;
+    pgp_key_t *      keyp;
+    unsigned         savedstart;
+    regex_t          r;
+    uint8_t          keyid[PGP_KEY_ID_SIZE + 1];
+    size_t           len;
 
-	if (!keyring || !name || !from) {
-		return NULL;
-	}
-	len = strlen(name);
-	if (pgp_get_debug_level(__FILE__)) {
-		(void) fprintf(io->outs, "[%u] name '%s', len %zu\n",
-			*from, name, len);
-	}
-	/* first try name as a keyid */
-	(void) memset(keyid, 0x0, sizeof(keyid));
-	str2keyid(name, keyid, sizeof(keyid));
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(io->outs, "keyid", keyid, 4);
-	}
-	savedstart = *from;
-	if ((kp = pgp_getkeybyid(io, keyring, keyid, from, NULL)) != NULL) {
-		return kp;
-	}
-	*from = savedstart;
-	if (pgp_get_debug_level(__FILE__)) {
-		(void) fprintf(io->outs, "regex match '%s' from %u\n",
-			name, *from);
-	}
-	/* match on full name or email address as a NOSUB, ICASE regexp */
-	(void) regcomp(&r, name, REG_EXTENDED | REG_ICASE);
-	for (keyp = &keyring->keys[*from]; *from < keyring->keyc; *from += 1, keyp++) {
-		uidp = keyp->uids;
-		for (i = 0 ; i < keyp->uidc; i++, uidp++) {
-			if (regexec(&r, (char *)*uidp, 0, NULL, 0) == 0) {
-				if (pgp_get_debug_level(__FILE__)) {
-					(void) fprintf(io->outs,
-						"MATCHED keyid \"%s\" len %" PRIsize "u\n",
-					       (char *) *uidp, len);
-				}
-				regfree(&r);
-				return keyp;
-			}
-		}
-	}
-	regfree(&r);
-	return NULL;
+    if (!keyring || !name || !from) {
+        return NULL;
+    }
+    len = strlen(name);
+    if (pgp_get_debug_level(__FILE__)) {
+        (void) fprintf(io->outs, "[%u] name '%s', len %zu\n", *from, name, len);
+    }
+    /* first try name as a keyid */
+    (void) memset(keyid, 0x0, sizeof(keyid));
+    str2keyid(name, keyid, sizeof(keyid));
+    if (pgp_get_debug_level(__FILE__)) {
+        hexdump(io->outs, "keyid", keyid, 4);
+    }
+    savedstart = *from;
+    if ((kp = pgp_getkeybyid(io, keyring, keyid, from, NULL)) != NULL) {
+        return kp;
+    }
+    *from = savedstart;
+    if (pgp_get_debug_level(__FILE__)) {
+        (void) fprintf(io->outs, "regex match '%s' from %u\n", name, *from);
+    }
+    /* match on full name or email address as a NOSUB, ICASE regexp */
+    (void) regcomp(&r, name, REG_EXTENDED | REG_ICASE);
+    for (keyp = &keyring->keys[*from]; *from < keyring->keyc; *from += 1, keyp++) {
+        uidp = keyp->uids;
+        for (i = 0; i < keyp->uidc; i++, uidp++) {
+            if (regexec(&r, (char *) *uidp, 0, NULL, 0) == 0) {
+                if (pgp_get_debug_level(__FILE__)) {
+                    (void) fprintf(io->outs,
+                                   "MATCHED keyid \"%s\" len %" PRIsize "u\n",
+                                   (char *) *uidp,
+                                   len);
+                }
+                regfree(&r);
+                return keyp;
+            }
+        }
+    }
+    regfree(&r);
+    return NULL;
 }
 
 /**
@@ -962,23 +948,18 @@ getkeybyname(pgp_io_t *io,
 
 */
 const pgp_key_t *
-pgp_getkeybyname(pgp_io_t *io,
-			const pgp_keyring_t *keyring,
-			const char *name)
+pgp_getkeybyname(pgp_io_t *io, const pgp_keyring_t *keyring, const char *name)
 {
-	unsigned	from;
+    unsigned from;
 
-	from = 0;
-	return getkeybyname(io, keyring, name, &from);
+    from = 0;
+    return getkeybyname(io, keyring, name, &from);
 }
 
 const pgp_key_t *
-pgp_getnextkeybyname(pgp_io_t *io,
-			const pgp_keyring_t *keyring,
-			const char *name,
-			unsigned *n)
+pgp_getnextkeybyname(pgp_io_t *io, const pgp_keyring_t *keyring, const char *name, unsigned *n)
 {
-	return getkeybyname(io, keyring, name, n);
+    return getkeybyname(io, keyring, name, n);
 }
 
 /**
@@ -993,148 +974,139 @@ pgp_getnextkeybyname(pgp_io_t *io,
 int
 pgp_keyring_list(pgp_io_t *io, const pgp_keyring_t *keyring, const int psigs)
 {
-	pgp_key_t		*key;
-	unsigned		 n;
+    pgp_key_t *key;
+    unsigned   n;
 
-	(void) fprintf(io->res, "%u key%s\n", keyring->keyc,
-		(keyring->keyc == 1) ? "" : "s");
-	for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
-		if (pgp_is_key_secret(key)) {
-			pgp_print_keydata(io, keyring, key, "sec",
-				&key->key.seckey.pubkey, 0);
-		} else {
-			pgp_print_keydata(io, keyring, key, "signature ", &key->key.pubkey, psigs);
-		}
-		(void) fputc('\n', io->res);
-	}
-	return 1;
+    (void) fprintf(io->res, "%u key%s\n", keyring->keyc, (keyring->keyc == 1) ? "" : "s");
+    for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
+        if (pgp_is_key_secret(key)) {
+            pgp_print_keydata(io, keyring, key, "sec", &key->key.seckey.pubkey, 0);
+        } else {
+            pgp_print_keydata(io, keyring, key, "signature ", &key->key.pubkey, psigs);
+        }
+        (void) fputc('\n', io->res);
+    }
+    return 1;
 }
-
 
 /* iterates through the keyring, and add the details of each key
  * to the **obj json object
  */
 int
-pgp_keyring_json(pgp_io_t *io, const pgp_keyring_t *keyring,
-                 json_object *obj, const int psigs)
+pgp_keyring_json(pgp_io_t *io, const pgp_keyring_t *keyring, json_object *obj, const int psigs)
 {
-	pgp_key_t		*key;
-	unsigned		n;
-	for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
-		json_object *jso = json_object_new_object();
-		if (pgp_is_key_secret(key)) {
-		pgp_sprint_json(io, keyring, key, jso,
-				"sec", &key->key.seckey.pubkey, psigs);
-		} else {
-			pgp_sprint_json(io, keyring, key, jso,
-				"signature ", &key->key.pubkey, psigs);
-		}
-		json_object_array_add(obj,jso);
-	}
-	return 1;
+    pgp_key_t *key;
+    unsigned   n;
+    for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
+        json_object *jso = json_object_new_object();
+        if (pgp_is_key_secret(key)) {
+            pgp_sprint_json(io, keyring, key, jso, "sec", &key->key.seckey.pubkey, psigs);
+        } else {
+            pgp_sprint_json(io, keyring, key, jso, "signature ", &key->key.pubkey, psigs);
+        }
+        json_object_array_add(obj, jso);
+    }
+    return 1;
 }
-
 
 /* this interface isn't right - hook into callback for getting passphrase */
 char *
 pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
 {
-	pgp_output_t	*output;
-	pgp_memory_t	*mem;
-	char		*cp;
+    pgp_output_t *output;
+    pgp_memory_t *mem;
+    char *        cp;
 
-	__PGP_USED(io);
-	pgp_setup_memory_write(&output, &mem, 128);
-	if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
-		pgp_write_xfer_pubkey(output, keydata, NULL, 1);
-	} else {
-		pgp_write_xfer_seckey(output, keydata, passphrase,
-					strlen((char *)passphrase), NULL, 1);
-	}
-	cp = rnp_strdup(pgp_mem_data(mem));
-	pgp_teardown_memory_write(output, mem);
-	return cp;
+    __PGP_USED(io);
+    pgp_setup_memory_write(&output, &mem, 128);
+    if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
+        pgp_write_xfer_pubkey(output, keydata, NULL, 1);
+    } else {
+        pgp_write_xfer_seckey(
+          output, keydata, passphrase, strlen((char *) passphrase), NULL, 1);
+    }
+    cp = rnp_strdup(pgp_mem_data(mem));
+    pgp_teardown_memory_write(output, mem);
+    return cp;
 }
 
 /* add a key to a public keyring */
 int
 pgp_add_to_pubring(pgp_keyring_t *keyring, const pgp_pubkey_t *pubkey, pgp_content_enum tag)
 {
-	pgp_key_t	*key;
-	time_t		 duration;
+    pgp_key_t *key;
+    time_t     duration;
 
-	if (pgp_get_debug_level(__FILE__)) {
-		fprintf(stderr, "pgp_add_to_pubring (type %u)\n", tag);
-	}
-	switch(tag) {
-	case PGP_PTAG_CT_PUBLIC_KEY:
-		EXPAND_ARRAY(keyring, key);
-		key = &keyring->keys[keyring->keyc++];
-		duration = key->key.pubkey.duration;
-		(void) memset(key, 0x0, sizeof(*key));
-		key->type = tag;
-		pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, pubkey, keyring->hashtype);
-		pgp_fingerprint(&key->sigfingerprint, pubkey, keyring->hashtype);
-		key->key.pubkey = *pubkey;
-		key->key.pubkey.duration = duration;
-		return 1;
-	case PGP_PTAG_CT_PUBLIC_SUBKEY:
-		/* subkey is not the first */
-		key = &keyring->keys[keyring->keyc - 1];
-		pgp_keyid(key->encid, PGP_KEY_ID_SIZE, pubkey, keyring->hashtype);
-		duration = key->key.pubkey.duration;
-		(void) memcpy(&key->enckey, pubkey, sizeof(key->enckey));
-		key->enckey.duration = duration;
-		return 1;
-	default:
-		return 0;
-	}
+    if (pgp_get_debug_level(__FILE__)) {
+        fprintf(stderr, "pgp_add_to_pubring (type %u)\n", tag);
+    }
+    switch (tag) {
+    case PGP_PTAG_CT_PUBLIC_KEY:
+        EXPAND_ARRAY(keyring, key);
+        key = &keyring->keys[keyring->keyc++];
+        duration = key->key.pubkey.duration;
+        (void) memset(key, 0x0, sizeof(*key));
+        key->type = tag;
+        pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, pubkey, keyring->hashtype);
+        pgp_fingerprint(&key->sigfingerprint, pubkey, keyring->hashtype);
+        key->key.pubkey = *pubkey;
+        key->key.pubkey.duration = duration;
+        return 1;
+    case PGP_PTAG_CT_PUBLIC_SUBKEY:
+        /* subkey is not the first */
+        key = &keyring->keys[keyring->keyc - 1];
+        pgp_keyid(key->encid, PGP_KEY_ID_SIZE, pubkey, keyring->hashtype);
+        duration = key->key.pubkey.duration;
+        (void) memcpy(&key->enckey, pubkey, sizeof(key->enckey));
+        key->enckey.duration = duration;
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 /* add a key to a secret keyring */
 int
 pgp_add_to_secring(pgp_keyring_t *keyring, const pgp_seckey_t *seckey)
 {
-	const pgp_pubkey_t	*pubkey;
-	pgp_key_t		*key;
+    const pgp_pubkey_t *pubkey;
+    pgp_key_t *         key;
 
-	if (pgp_get_debug_level(__FILE__)) {
-		fprintf(stderr, "pgp_add_to_secring\n");
-	}
-	if (keyring->keyc > 0) {
-		key = &keyring->keys[keyring->keyc - 1];
-		if (pgp_get_debug_level(__FILE__) &&
-		    key->key.pubkey.alg == PGP_PKA_DSA &&
-		    seckey->pubkey.alg == PGP_PKA_ELGAMAL) {
-			fprintf(stderr, "pgp_add_to_secring: found elgamal seckey\n");
-		}
-	}
-	EXPAND_ARRAY(keyring, key);
-	key = &keyring->keys[keyring->keyc++];
-	(void) memset(key, 0x0, sizeof(*key));
-	pubkey = &seckey->pubkey;
-	pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, pubkey, keyring->hashtype);
-	pgp_fingerprint(&key->sigfingerprint, pubkey, keyring->hashtype);
-	key->type = PGP_PTAG_CT_SECRET_KEY;
-	key->key.seckey = *seckey;
-	if (pgp_get_debug_level(__FILE__)) {
-		fprintf(stderr, "pgp_add_to_secring: keyc %u\n", keyring->keyc);
-	}
-	return 1;
+    if (pgp_get_debug_level(__FILE__)) {
+        fprintf(stderr, "pgp_add_to_secring\n");
+    }
+    if (keyring->keyc > 0) {
+        key = &keyring->keys[keyring->keyc - 1];
+        if (pgp_get_debug_level(__FILE__) && key->key.pubkey.alg == PGP_PKA_DSA &&
+            seckey->pubkey.alg == PGP_PKA_ELGAMAL) {
+            fprintf(stderr, "pgp_add_to_secring: found elgamal seckey\n");
+        }
+    }
+    EXPAND_ARRAY(keyring, key);
+    key = &keyring->keys[keyring->keyc++];
+    (void) memset(key, 0x0, sizeof(*key));
+    pubkey = &seckey->pubkey;
+    pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, pubkey, keyring->hashtype);
+    pgp_fingerprint(&key->sigfingerprint, pubkey, keyring->hashtype);
+    key->type = PGP_PTAG_CT_SECRET_KEY;
+    key->key.seckey = *seckey;
+    if (pgp_get_debug_level(__FILE__)) {
+        fprintf(stderr, "pgp_add_to_secring: keyc %u\n", keyring->keyc);
+    }
+    return 1;
 }
 
 /* append one keyring to another */
 int
 pgp_append_keyring(pgp_keyring_t *keyring, pgp_keyring_t *newring)
 {
-	unsigned	i;
+    unsigned i;
 
-	for (i = 0 ; i < newring->keyc ; i++) {
-		EXPAND_ARRAY(keyring, key);
-		(void) memcpy(&keyring->keys[keyring->keyc], &newring->keys[i],
-				sizeof(newring->keys[i]));
-		keyring->keyc += 1;
-	}
-	return 1;
-
+    for (i = 0; i < newring->keyc; i++) {
+        EXPAND_ARRAY(keyring, key);
+        (void) memcpy(
+          &keyring->keys[keyring->keyc], &newring->keys[i], sizeof(newring->keys[i]));
+        keyring->keyc += 1;
+    }
+    return 1;
 }
