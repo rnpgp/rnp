@@ -60,9 +60,9 @@ $ git push -u origin coverity_scan -f           # forcefully push the coverity_s
 
 Note: Some of these steps are overly verbose, and not all are necessary.
 
-The results can be accessed on scan.coverity.com. You will need to create an account and request access to the riboseinc/rnp project.
+The results can be accessed on https://scan.coverity.com/projects/riboseinc-rnp. You will need to create an account and request access to the riboseinc/rnp project.
 
-Since the scan results are not updated live, line numbers may no longer be accurate against master, issues may already be resolved, etc.
+Since the scan results are not updated live, line numbers may no longer be accurate against the `master` branch, issues may already be resolved, etc.
 
 ### Clang Static Analyzer
 
@@ -92,7 +92,7 @@ Currently, we have a very simple test program in `src/fuzzers/fuzz_keys`, which 
 2. Rebuild, using the afl-gcc compiler.
     * It's probably easiest to also do a static build, using the `--disable-shared` option to `configure`.
     * It may be helpful to occasionally enable the address sanitizer, which tends to help produce crashes that may not otherwise be found. Read the documentation for AFL first to understand the challenges with ASan and AFL.
-3. Create directories for input files, and for AFL output. 
+3. Create directories for input files, and for AFL output.
 4. Run `afl-fuzz`.
 5. When satisfied, exit with `CTRL-C`.
 6. Analyze the crashes/hangs in the output directory.
@@ -111,7 +111,7 @@ $ valgrind -q src/fuzzing/fuzz_keys < afl_out/[...]
 
 #### Further Reading
 
-* AFL's README, parallel_fuzzing.txt, and other bundled documentation.
+* AFL's `README`, `parallel_fuzzing.txt`, and other bundled documentation.
 * https://fuzzing-project.org/tutorial3.html
 
 ### Clang Sanitizer
@@ -162,12 +162,12 @@ $ clang-format -style=file -i src/lib/some_changed_file.c
 
 (Or, if you do not have clang-form v4 available, use a container)
 
-### Style Guide
+## Style Guide
 
 In order to keep the code base consistent, we should define and adhere to a single style.
 When in doubt, consult the existing code base.
 
-#### Naming
+### Naming
 
 The following are samples that demonstrate the style for naming different things.
 
@@ -179,7 +179,7 @@ The following are samples that demonstrate the style for naming different things
 * Enum Values: `PGP_PKA_RSA = 1`
 * Constants (macro): `RNP_BUFSIZ`
 
-#### General Guidelines
+### General Guidelines
 
 Do:
 
