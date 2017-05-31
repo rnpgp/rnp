@@ -40,8 +40,8 @@
 #include "memory.h"
 
 typedef struct keyring_t {
-    DYNARRAY(pgp_key_t,	key);
-    pgp_hash_alg_t	hashtype;
+    DYNARRAY(pgp_key_t, key);
+    pgp_hash_alg_t hashtype;
 } keyring_t;
 
 int keyring_load_keys(rnp_t *rnp, char *homedir);
@@ -62,8 +62,12 @@ int keyring_add_keydata(pgp_io_t *, keyring_t *, pgp_keydata_key_t *, pgp_conten
 int keyring_remove_key(pgp_io_t *, keyring_t *, const pgp_key_t *);
 int keyring_remove_key_by_id(pgp_io_t *, keyring_t *, const uint8_t *);
 
-const pgp_key_t *keyring_get_key_by_id(pgp_io_t *, const keyring_t *, const unsigned char *, unsigned *, pgp_pubkey_t **);
+const pgp_key_t *keyring_get_key_by_id(
+  pgp_io_t *, const keyring_t *, const unsigned char *, unsigned *, pgp_pubkey_t **);
 const pgp_key_t *keyring_get_key_by_name(pgp_io_t *, const keyring_t *, const char *);
-const pgp_key_t *keyring_get_next_key_by_name(pgp_io_t *, const keyring_t *, const char *, unsigned *);
+const pgp_key_t *keyring_get_next_key_by_name(pgp_io_t *,
+                                              const keyring_t *,
+                                              const char *,
+                                              unsigned *);
 
 #endif /* KEYRING_H_ */

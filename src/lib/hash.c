@@ -80,17 +80,16 @@
 #include <botan/ffi.h>
 #include <stdio.h>
 
-static pgp_map_t hash_alg_map[] =
-{
-	{PGP_HASH_MD5, "MD5"},
-	{PGP_HASH_SHA1, "SHA1"},
-	{PGP_HASH_RIPEMD, "RIPEMD160"},
-	{PGP_HASH_SHA256, "SHA256"},
-	{PGP_HASH_SHA384, "SHA384"},
-	{PGP_HASH_SHA512, "SHA512"},
-	{PGP_HASH_SHA224, "SHA224"},
-	{PGP_HASH_SM3, "SM3"},
-	{0x00, NULL},		/* this is the end-of-array marker */
+static pgp_map_t hash_alg_map[] = {
+  {PGP_HASH_MD5, "MD5"},
+  {PGP_HASH_SHA1, "SHA1"},
+  {PGP_HASH_RIPEMD, "RIPEMD160"},
+  {PGP_HASH_SHA256, "SHA256"},
+  {PGP_HASH_SHA384, "SHA384"},
+  {PGP_HASH_SHA512, "SHA512"},
+  {PGP_HASH_SHA224, "SHA224"},
+  {PGP_HASH_SM3, "SM3"},
+  {0x00, NULL}, /* this is the end-of-array marker */
 };
 
 /**
@@ -100,10 +99,10 @@ static pgp_map_t hash_alg_map[] =
  * \param hash Hash Algorithm type
  * \return string or "Unknown"
  */
-const char     *
+const char *
 pgp_show_hash_alg(uint8_t hash)
 {
-	return pgp_str_from_map(hash, hash_alg_map);
+    return pgp_str_from_map(hash, hash_alg_map);
 }
 
 /**
@@ -115,62 +114,58 @@ pgp_show_hash_alg(uint8_t hash)
 pgp_hash_alg_t
 pgp_str_to_hash_alg(const char *hash)
 {
-	if (hash == NULL)
-        {
-		return PGP_DEFAULT_HASH_ALGORITHM;
-	}
-        for(int i = 0; hash_alg_map[i].string != NULL; ++i)
-        {
-                if(rnp_strcasecmp(hash, hash_alg_map[i].string) == 0)
-                {
-                        return hash_alg_map[i].type;
-                }
+    if (hash == NULL) {
+        return PGP_DEFAULT_HASH_ALGORITHM;
+    }
+    for (int i = 0; hash_alg_map[i].string != NULL; ++i) {
+        if (rnp_strcasecmp(hash, hash_alg_map[i].string) == 0) {
+            return hash_alg_map[i].type;
         }
-	return PGP_HASH_UNKNOWN;
+    }
+    return PGP_HASH_UNKNOWN;
 }
 
-
-const char* pgp_hash_name_botan(pgp_hash_alg_t hash)
+const char *
+pgp_hash_name_botan(pgp_hash_alg_t hash)
 {
-        switch(hash)
-        {
+    switch (hash) {
 #if defined(BOTAN_HAS_MD5)
-        case PGP_HASH_MD5:
-                return "MD5";
+    case PGP_HASH_MD5:
+        return "MD5";
 #endif
 
 #if defined(BOTAN_HAS_SHA1)
-	case PGP_HASH_SHA1:
-                return "SHA-1";
+    case PGP_HASH_SHA1:
+        return "SHA-1";
 #endif
 
 #if defined(BOTAN_HAS_RIPEMD_160)
-	case PGP_HASH_RIPEMD:
-                return "RIPEMD-160";
+    case PGP_HASH_RIPEMD:
+        return "RIPEMD-160";
 #endif
 
 #if defined(BOTAN_HAS_SHA2_32)
-	case PGP_HASH_SHA224:
-                return "SHA-224";
-	case PGP_HASH_SHA256:
-                return "SHA-256";
+    case PGP_HASH_SHA224:
+        return "SHA-224";
+    case PGP_HASH_SHA256:
+        return "SHA-256";
 #endif
 
 #if defined(BOTAN_HAS_SHA2_64)
-	case PGP_HASH_SHA384:
-                return "SHA-384";
-	case PGP_HASH_SHA512:
-                return "SHA-512";
+    case PGP_HASH_SHA384:
+        return "SHA-384";
+    case PGP_HASH_SHA512:
+        return "SHA-512";
 #endif
 
 #if defined(BOTAN_HAS_SM3)
-	case PGP_HASH_SM3:
-                return "SM3";
+    case PGP_HASH_SM3:
+        return "SM3";
 #endif
 
-        default:
-                return NULL;
-        }
+    default:
+        return NULL;
+    }
 }
 
 /**
@@ -182,37 +177,38 @@ const char* pgp_hash_name_botan(pgp_hash_alg_t hash)
 int
 pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
 {
-        const char* hash_name = pgp_hash_name_botan(alg);
-        botan_hash_t impl;
-        size_t outlen;
-        int rc;
+    const char * hash_name = pgp_hash_name_botan(alg);
+    botan_hash_t impl;
+    size_t       outlen;
+    int          rc;
 
-        if (hash_name == NULL) {
-                return 0;
-        }
+    if (hash_name == NULL) {
+        return 0;
+    }
 
-        rc = botan_hash_init(&impl, hash_name, 0);
-        if (rc != 0) {
-                (void) fprintf(stderr, "Error creating hash object for '%s'", hash_name);
-                return 0;
-        }
+    rc = botan_hash_init(&impl, hash_name, 0);
+    if (rc != 0) {
+        (void) fprintf(stderr, "Error creating hash object for '%s'", hash_name);
+        return 0;
+    }
 
-        rc = botan_hash_output_length(impl, &outlen);
-        if (rc != 0) {
-                botan_hash_destroy(hash->handle);
-                (void) fprintf(stderr, "In pgp_hash_create, botan_hash_output_length failed");
-                return 0;
-        }
+    rc = botan_hash_output_length(impl, &outlen);
+    if (rc != 0) {
+        botan_hash_destroy(hash->handle);
+        (void) fprintf(stderr, "In pgp_hash_create, botan_hash_output_length failed");
+        return 0;
+    }
 
-        hash->_output_len = outlen;
-        hash->_alg = alg;
-        hash->handle = impl;
-        return 1;
+    hash->_output_len = outlen;
+    hash->_alg = alg;
+    hash->handle = impl;
+    return 1;
 }
 
-void pgp_hash_add(pgp_hash_t *hash, const uint8_t *data, size_t length)
+void
+pgp_hash_add(pgp_hash_t *hash, const uint8_t *data, size_t length)
 {
-        botan_hash_update(hash->handle, data, length);
+    botan_hash_update(hash->handle, data, length);
 }
 
 /**
@@ -225,27 +221,27 @@ void pgp_hash_add(pgp_hash_t *hash, const uint8_t *data, size_t length)
 void
 pgp_hash_add_int(pgp_hash_t *hash, unsigned n, size_t length)
 {
-	uint8_t   c;
+    uint8_t c;
 
-	while (length--) {
-		c = n >> (length * 8);
-		pgp_hash_add(hash, &c, 1);
-	}
+    while (length--) {
+        c = n >> (length * 8);
+        pgp_hash_add(hash, &c, 1);
+    }
 }
 
-
-size_t pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
+size_t
+pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
 {
-        size_t outlen = hash->_output_len;
-        int rc = botan_hash_final(hash->handle, out);
-        if (rc != 0) {
-                (void) fprintf(stderr, "digest_finish botan_hash_final failed");
-                return 0;
-        }
-        botan_hash_destroy(hash->handle);
-	hash->handle = NULL;
-        hash->_output_len = 0;
-	return outlen;
+    size_t outlen = hash->_output_len;
+    int    rc = botan_hash_final(hash->handle, out);
+    if (rc != 0) {
+        (void) fprintf(stderr, "digest_finish botan_hash_final failed");
+        return 0;
+    }
+    botan_hash_destroy(hash->handle);
+    hash->handle = NULL;
+    hash->_output_len = 0;
+    return outlen;
 }
 
 /**
@@ -254,20 +250,22 @@ size_t pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
    \param hash Hash struct
    \return Hash name
 */
-const char     *
+const char *
 pgp_hash_name(const pgp_hash_t *hash)
 {
-        return pgp_show_hash_alg(hash->_alg);
+    return pgp_show_hash_alg(hash->_alg);
 }
 
-size_t pgp_hash_output_length(const pgp_hash_t* hash)
+size_t
+pgp_hash_output_length(const pgp_hash_t *hash)
 {
-        return hash->_output_len;
+    return hash->_output_len;
 }
 
-pgp_hash_alg_t pgp_hash_alg_type(const pgp_hash_t* hash)
+pgp_hash_alg_t
+pgp_hash_alg_type(const pgp_hash_t *hash)
 {
-        return hash->_alg;
+    return hash->_alg;
 }
 
 /**
@@ -279,6 +277,5 @@ pgp_hash_alg_t pgp_hash_alg_type(const pgp_hash_t* hash)
 unsigned
 pgp_is_hash_alg_supported(const pgp_hash_alg_t *hash_alg)
 {
-        return pgp_hash_name_botan(*hash_alg) != NULL;
+    return pgp_hash_name_botan(*hash_alg) != NULL;
 }
-

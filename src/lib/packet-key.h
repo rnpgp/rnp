@@ -49,7 +49,6 @@
  * limitations under the License.
  */
 
-
 #ifndef RNP_PACKET_KEY_H
 #define RNP_PACKET_KEY_H
 
@@ -61,7 +60,7 @@ void pgp_keydata_free(pgp_key_t *);
 
 const pgp_pubkey_t *pgp_get_pubkey(const pgp_key_t *);
 
-unsigned   pgp_is_key_secret(const pgp_key_t *);
+unsigned pgp_is_key_secret(const pgp_key_t *);
 
 const struct pgp_seckey_t *pgp_get_seckey(const pgp_key_t *);
 
@@ -87,4 +86,4 @@ unsigned pgp_add_selfsigned_userid(pgp_key_t *, unsigned char *);
 
 void pgp_keydata_init(pgp_key_t *, const pgp_content_enum);
 
-#endif //RNP_PACKET_KEY_H
+#endif // RNP_PACKET_KEY_H

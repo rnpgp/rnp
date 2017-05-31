@@ -60,10 +60,7 @@
 #include "keyring.h"
 #include "memory.h"
 
-enum {
-	MAX_ID_LENGTH		= 128,
-	MAX_PASSPHRASE_LENGTH	= 256
-};
+enum { MAX_ID_LENGTH = 128, MAX_PASSPHRASE_LENGTH = 256 };
 
 int pgp_keyring_load_keys(rnp_t *rnp, char *homedir);
 

@@ -44,7 +44,7 @@
 #include "hash.h"
 
 #ifndef USE_ARG
-#define USE_ARG(x)	/*LINTED*/(void)&(x)
+#define USE_ARG(x) /*LINTED*/ (void) &(x)
 #endif
 
 #undef swap16
@@ -54,24 +54,25 @@
 static size_t
 don_armor(pgp_hash_t *hash, uint8_t *in, size_t insize, int doarmor)
 {
-	uint8_t	*from;
-	uint8_t	*newp;
-	uint8_t	*p;
-	uint8_t	 dos_line_end[2];
+    uint8_t *from;
+    uint8_t *newp;
+    uint8_t *p;
+    uint8_t  dos_line_end[2];
 
-	dos_line_end[0] = '\r';
-	dos_line_end[1] = '\n';
-	for (from = in ; (p = memchr(from, '\n', insize - (size_t)(from - in))) != NULL ; from = p + 1) {
-		for (newp = p ; doarmor == 'w' && newp > from ; --newp) {
-			if (*(newp - 1) != ' ' && *(newp - 1) != '\t') {
-				break;
-			}
-		}
-		pgp_hash_add(hash, from, (size_t)(newp - from));
-		pgp_hash_add(hash, dos_line_end, sizeof(dos_line_end));
-	}
-	pgp_hash_add(hash, from, insize - (size_t)(from - in));
-	return 1;
+    dos_line_end[0] = '\r';
+    dos_line_end[1] = '\n';
+    for (from = in; (p = memchr(from, '\n', insize - (size_t)(from - in))) != NULL;
+         from = p + 1) {
+        for (newp = p; doarmor == 'w' && newp > from; --newp) {
+            if (*(newp - 1) != ' ' && *(newp - 1) != '\t') {
+                break;
+            }
+        }
+        pgp_hash_add(hash, from, (size_t)(newp - from));
+        pgp_hash_add(hash, dos_line_end, sizeof(dos_line_end));
+    }
+    pgp_hash_add(hash, from, insize - (size_t)(from - in));
+    return 1;
 }
 
 #ifdef RNPV_DEBUG
@@ -79,24 +80,24 @@ don_armor(pgp_hash_t *hash, uint8_t *in, size_t insize, int doarmor)
 static int
 writefile(uint8_t *mem, size_t insize)
 {
-	size_t	cc;
-	size_t	wc;
-	char	template[256];
-	int	fd;
+    size_t cc;
+    size_t wc;
+    char template[256];
+    int fd;
 
-	snprintf(template, sizeof(template), "rnpvmd.XXXXXX");
-	if ((fd = mkstemp(template)) < 0) {
-		fprintf(stderr, "can't mkstemp %s\n", template);
-		return 0;
-	}
-	for (cc = 0 ; cc < insize ; cc += wc) {
-		if ((wc = write(fd, &mem[cc], insize - cc)) <= 0) {
-			fprintf(stderr, "short write\n");
-			break;
-		}
-	}
-	close(fd);
-	return 1;
+    snprintf(template, sizeof(template), "rnpvmd.XXXXXX");
+    if ((fd = mkstemp(template)) < 0) {
+        fprintf(stderr, "can't mkstemp %s\n", template);
+        return 0;
+    }
+    for (cc = 0; cc < insize; cc += wc) {
+        if ((wc = write(fd, &mem[cc], insize - cc)) <= 0) {
+            fprintf(stderr, "short write\n");
+            break;
+        }
+    }
+    close(fd);
+    return 1;
 }
 #endif
 
@@ -104,89 +105,96 @@ writefile(uint8_t *mem, size_t insize)
 static int
 already_armored(uint8_t *in, size_t insize)
 {
-	uint8_t	*from;
-	uint8_t	*p;
+    uint8_t *from;
+    uint8_t *p;
 
-	for (from = in ; (p = memchr(from, '\n', insize - (size_t)(from - in))) != NULL ; from = p + 1) {
-		if (*(p - 1) != '\r') {
-			return 0;
-		}
-	}
-	return 1;
+    for (from = in; (p = memchr(from, '\n', insize - (size_t)(from - in))) != NULL;
+         from = p + 1) {
+        if (*(p - 1) != '\r') {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 /* calculate the checksum for the data we have */
 static int
-calcsum(uint8_t *out, size_t size, uint8_t *mem, size_t cc, const uint8_t *hashed, size_t hashsize, int doarmor)
+calcsum(uint8_t *      out,
+        size_t         size,
+        uint8_t *      mem,
+        size_t         cc,
+        const uint8_t *hashed,
+        size_t         hashsize,
+        int            doarmor)
 {
-	pgp_hash_t	 hash;
-	uint32_t	 len32;
-	uint16_t	 len16;
-	uint8_t		 hashalg;
-	uint8_t		 trailer[6];
+    pgp_hash_t hash;
+    uint32_t   len32;
+    uint16_t   len16;
+    uint8_t    hashalg;
+    uint8_t    trailer[6];
 
-	USE_ARG(size);
-	/* hashed data is non-null (previously checked) */
-	hashalg = hashed[3];
-	memcpy(&len16, &hashed[4], sizeof(len16));
-	len32 = pgp_ntoh16(len16) + 6;
-	len32 = pgp_hton32(len32);
-	trailer[0] = 0x04;
-	trailer[1] = 0xff;
-	memcpy(&trailer[2], &len32, sizeof(len32));
+    USE_ARG(size);
+    /* hashed data is non-null (previously checked) */
+    hashalg = hashed[3];
+    memcpy(&len16, &hashed[4], sizeof(len16));
+    len32 = pgp_ntoh16(len16) + 6;
+    len32 = pgp_hton32(len32);
+    trailer[0] = 0x04;
+    trailer[1] = 0xff;
+    memcpy(&trailer[2], &len32, sizeof(len32));
 #ifdef RNPV_DEBUG
-	writefile(mem, cc);
+    writefile(mem, cc);
 #endif
-	pgp_hash_create(&hash, hashalg);
-	if (strchr("tw", doarmor) != NULL && !already_armored(mem, cc)) {
-		/* this took me ages to find - something causes gpg to truncate its input */
-		don_armor(&hash, mem, cc - 1, doarmor);
-	} else {
-		pgp_hash_add(&hash, mem, cc);
-	}
-	if (hashed) {
-		pgp_hash_add(&hash, hashed, hashsize);
-	}
-	pgp_hash_add(&hash, trailer, sizeof(trailer));
-	return pgp_hash_finish(&hash, out);
+    pgp_hash_create(&hash, hashalg);
+    if (strchr("tw", doarmor) != NULL && !already_armored(mem, cc)) {
+        /* this took me ages to find - something causes gpg to truncate its input */
+        don_armor(&hash, mem, cc - 1, doarmor);
+    } else {
+        pgp_hash_add(&hash, mem, cc);
+    }
+    if (hashed) {
+        pgp_hash_add(&hash, hashed, hashsize);
+    }
+    pgp_hash_add(&hash, trailer, sizeof(trailer));
+    return pgp_hash_finish(&hash, out);
 }
 
 /* used to byteswap 16 bit words */
 typedef union {
-	uint16_t	i16;
-	uint8_t		i8[2];
+    uint16_t i16;
+    uint8_t  i8[2];
 } u16;
 
 /* used to byte swap 32 bit words */
 typedef union {
-	uint32_t	i32;
-	uint8_t		i8[4];
+    uint32_t i32;
+    uint8_t  i8[4];
 } u32;
 
 static inline uint16_t
 swap16(uint16_t in)
 {
-	u16	u;
+    u16 u;
 
-	u.i16 = in;
-	return (u.i8[0] << 8) | u.i8[1];
+    u.i16 = in;
+    return (u.i8[0] << 8) | u.i8[1];
 }
 
 static inline uint32_t
 swap32(uint32_t in)
 {
-	u32	u;
+    u32 u;
 
-	u.i32 = in;
-	return (u.i8[0] << 24) | (u.i8[1] << 16) | (u.i8[2] << 8) | u.i8[3];
+    u.i32 = in;
+    return (u.i8[0] << 24) | (u.i8[1] << 16) | (u.i8[2] << 8) | u.i8[3];
 }
 
 static inline int
 is_little_endian(void)
 {
-	static const int	indian = 1;
+    static const int indian = 1;
 
-	return (*(const char *)(const void *)&indian != 0);
+    return (*(const char *) (const void *) &indian != 0);
 }
 
 /************************************************************/
@@ -195,78 +203,89 @@ is_little_endian(void)
 
 /* open the file, mmap it, and then get the checksum on that */
 int
-pgpv_digest_file(uint8_t *data, size_t size, const char *name, const uint8_t *hashed, size_t hashsize, int doarmor)
+pgpv_digest_file(uint8_t *      data,
+                 size_t         size,
+                 const char *   name,
+                 const uint8_t *hashed,
+                 size_t         hashsize,
+                 int            doarmor)
 {
-	struct stat	 st;
-	uint8_t		*mem;
-	size_t		 cc;
-	FILE		*fp;
-	int		 ret;
+    struct stat st;
+    uint8_t *   mem;
+    size_t      cc;
+    FILE *      fp;
+    int         ret;
 
-	if (hashed == NULL || data == NULL || name == NULL) {
-		fprintf(stderr, "no hashed data provided\n");
-		return 0;
-	}
-	ret = 0;
-	mem = NULL;
-	cc = 0;
-	if ((fp = fopen(name, "r")) == NULL) {
-		fprintf(stderr, "%s - not found\n", name);
-		return 0;
-	}
-	if (fstat(fileno(fp), &st) < 0) {
-		fprintf(stderr, "%s - can't stat\n", name);
-		goto done;
-	}
-	cc = (size_t)(st.st_size);
-	if ((mem = mmap(NULL, cc, PROT_READ, MAP_SHARED, fileno(fp), 0)) == MAP_FAILED) {
-		fprintf(stderr, "%s - can't mmap\n", name);
-		goto done;
-	}
-	ret = calcsum(data, size, mem, cc, hashed, hashsize, doarmor);
+    if (hashed == NULL || data == NULL || name == NULL) {
+        fprintf(stderr, "no hashed data provided\n");
+        return 0;
+    }
+    ret = 0;
+    mem = NULL;
+    cc = 0;
+    if ((fp = fopen(name, "r")) == NULL) {
+        fprintf(stderr, "%s - not found\n", name);
+        return 0;
+    }
+    if (fstat(fileno(fp), &st) < 0) {
+        fprintf(stderr, "%s - can't stat\n", name);
+        goto done;
+    }
+    cc = (size_t)(st.st_size);
+    if ((mem = mmap(NULL, cc, PROT_READ, MAP_SHARED, fileno(fp), 0)) == MAP_FAILED) {
+        fprintf(stderr, "%s - can't mmap\n", name);
+        goto done;
+    }
+    ret = calcsum(data, size, mem, cc, hashed, hashsize, doarmor);
 done:
-	if (data) {
-		munmap(mem, cc);
-	}
-	fclose(fp);
-	return ret;
+    if (data) {
+        munmap(mem, cc);
+    }
+    fclose(fp);
+    return ret;
 }
 
 /* calculate the digest over memory too */
 int
-pgpv_digest_memory(uint8_t *data, size_t size, void *mem, size_t cc, const uint8_t *hashed, size_t hashsize, int doarmor)
+pgpv_digest_memory(uint8_t *      data,
+                   size_t         size,
+                   void *         mem,
+                   size_t         cc,
+                   const uint8_t *hashed,
+                   size_t         hashsize,
+                   int            doarmor)
 {
-	if (hashed == NULL || data == NULL || mem == NULL) {
-		fprintf(stderr, "no hashed data provided\n");
-		return 0;
-	}
-	return calcsum(data, size, mem, cc, hashed, hashsize, doarmor);
+    if (hashed == NULL || data == NULL || mem == NULL) {
+        fprintf(stderr, "no hashed data provided\n");
+        return 0;
+    }
+    return calcsum(data, size, mem, cc, hashed, hashsize, doarmor);
 }
 
 /* our 16bit byte swap if LE host */
 uint16_t
 pgp_ntoh16(uint16_t in)
 {
-	return (is_little_endian()) ? swap16(in) : in;
+    return (is_little_endian()) ? swap16(in) : in;
 }
 
 /* our 16bit byte swap if LE host */
 uint16_t
 pgp_hton16(uint16_t in)
 {
-	return (is_little_endian()) ? swap16(in) : in;
+    return (is_little_endian()) ? swap16(in) : in;
 }
 
 /* our 32bit byte swap if LE host */
 uint32_t
 pgp_ntoh32(uint32_t in)
 {
-	return (is_little_endian()) ? swap32(in) : in;
+    return (is_little_endian()) ? swap32(in) : in;
 }
 
 /* our 32bit byte swap if LE host */
 uint32_t
 pgp_hton32(uint32_t in)
 {
-	return (is_little_endian()) ? swap32(in) : in;
+    return (is_little_endian()) ? swap32(in) : in;
 }

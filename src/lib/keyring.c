@@ -44,31 +44,33 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 int
 keyring_load_keys(rnp_t *rnp, char *homedir)
 {
     switch (rnp->keyring_format) {
-        case GPG_KEYRING:
-            return pgp_keyring_load_keys(rnp, homedir);
+    case GPG_KEYRING:
+        return pgp_keyring_load_keys(rnp, homedir);
 
-        case SSH_KEYRING:
-            return ssh_keyring_load_keys(rnp, homedir);
+    case SSH_KEYRING:
+        return ssh_keyring_load_keys(rnp, homedir);
     }
 
     return 0;
 }
 
 int
-keyring_load_from_file(rnp_t *rnp, keyring_t *keyring, const unsigned armour, const char *filename)
+keyring_load_from_file(rnp_t *        rnp,
+                       keyring_t *    keyring,
+                       const unsigned armour,
+                       const char *   filename)
 {
     {
         switch (rnp->keyring_format) {
-            case GPG_KEYRING:
-                return pgp_keyring_read_from_file(rnp->io, keyring, armour, filename);
+        case GPG_KEYRING:
+            return pgp_keyring_read_from_file(rnp->io, keyring, armour, filename);
 
-            case SSH_KEYRING:
-                return ssh_keyring_read_from_file(rnp->io, keyring, filename);
+        case SSH_KEYRING:
+            return ssh_keyring_read_from_file(rnp->io, keyring, filename);
         }
 
         return 0;
@@ -76,19 +78,21 @@ keyring_load_from_file(rnp_t *rnp, keyring_t *keyring, const unsigned armour, co
 }
 
 int
-keyring_load_from_mem(rnp_t *rnp, keyring_t *keyring, const unsigned armour, pgp_memory_t *memory)
+keyring_load_from_mem(rnp_t *        rnp,
+                      keyring_t *    keyring,
+                      const unsigned armour,
+                      pgp_memory_t * memory)
 {
     switch (rnp->keyring_format) {
-        case GPG_KEYRING:
-            return pgp_keyring_read_from_mem(rnp->io, keyring, armour, memory);
+    case GPG_KEYRING:
+        return pgp_keyring_read_from_mem(rnp->io, keyring, armour, memory);
 
-        case SSH_KEYRING:
-            return ssh_keyring_read_from_mem(rnp->io, keyring, memory);
+    case SSH_KEYRING:
+        return ssh_keyring_read_from_mem(rnp->io, keyring, memory);
     }
 
     return 0;
 }
-
 
 /* Format a PGP key to a readable hexadecimal string in a user supplied
  * buffer.
@@ -117,8 +121,7 @@ keyring_format_key(char *buffer, uint8_t *sigid, int len)
      * this function.
      */
     for (i = 0, n = 0; i < PGP_KEY_ID_SIZE; i += 2) {
-        n += snprintf(&buffer[n], len - n, "%02x%02x",
-                      sigid[i], sigid[i + 1]);
+        n += snprintf(&buffer[n], len - n, "%02x%02x", sigid[i], sigid[i + 1]);
     }
     buffer[n] = 0x0;
 }
@@ -132,7 +135,7 @@ keyring_format_key(char *buffer, uint8_t *sigid, int len)
 int
 keyring_get_first_ring(keyring_t *ring, char *id, size_t len, int last)
 {
-    uint8_t	*src;
+    uint8_t *src;
 
     /* The NULL test on the ring may not be necessary for non-debug
      * builds - it would be much better that a NULL ring never
@@ -170,7 +173,7 @@ keyring_get_first_ring(keyring_t *ring, char *id, size_t len, int last)
 void
 keyring_free(keyring_t *keyring)
 {
-    (void)free(keyring->keys);
+    (void) free(keyring->keys);
     keyring->keys = NULL;
     keyring->keyc = keyring->keyvsize = 0;
 }
@@ -187,15 +190,13 @@ keyring_free(keyring_t *keyring)
 int
 keyring_list(pgp_io_t *io, const keyring_t *keyring, const int psigs)
 {
-    pgp_key_t		*key;
-    unsigned		 n;
+    pgp_key_t *key;
+    unsigned   n;
 
-    (void) fprintf(io->res, "%u key%s\n", keyring->keyc,
-                   (keyring->keyc == 1) ? "" : "s");
+    (void) fprintf(io->res, "%u key%s\n", keyring->keyc, (keyring->keyc == 1) ? "" : "s");
     for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
         if (pgp_is_key_secret(key)) {
-            pgp_print_keydata(io, keyring, key, "sec",
-                              &key->key.seckey.pubkey, 0);
+            pgp_print_keydata(io, keyring, key, "sec", &key->key.seckey.pubkey, 0);
         } else {
             pgp_print_keydata(io, keyring, key, "signature ", &key->key.pubkey, psigs);
         }
@@ -207,18 +208,16 @@ keyring_list(pgp_io_t *io, const keyring_t *keyring, const int psigs)
 int
 keyring_json(pgp_io_t *io, const keyring_t *keyring, json_object *obj, const int psigs)
 {
-    pgp_key_t		*key;
-    unsigned		n;
+    pgp_key_t *key;
+    unsigned   n;
     for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
         json_object *jso = json_object_new_object();
         if (pgp_is_key_secret(key)) {
-            pgp_sprint_json(io, keyring, key, jso,
-                            "sec", &key->key.seckey.pubkey, psigs);
+            pgp_sprint_json(io, keyring, key, jso, "sec", &key->key.seckey.pubkey, psigs);
         } else {
-            pgp_sprint_json(io, keyring, key, jso,
-                            "signature ", &key->key.pubkey, psigs);
+            pgp_sprint_json(io, keyring, key, jso, "signature ", &key->key.pubkey, psigs);
         }
-        json_object_array_add(obj,jso);
+        json_object_array_add(obj, jso);
     }
     return 1;
 }
@@ -227,12 +226,12 @@ keyring_json(pgp_io_t *io, const keyring_t *keyring, json_object *obj, const int
 int
 keyring_append_keyring(keyring_t *keyring, keyring_t *newring)
 {
-    unsigned	i;
+    unsigned i;
 
-    for (i = 0 ; i < newring->keyc ; i++) {
+    for (i = 0; i < newring->keyc; i++) {
         EXPAND_ARRAY(keyring, key);
-        (void) memcpy(&keyring->keys[keyring->keyc], &newring->keys[i],
-                      sizeof(newring->keys[i]));
+        (void) memcpy(
+          &keyring->keys[keyring->keyc], &newring->keys[i], sizeof(newring->keys[i]));
         keyring->keyc += 1;
     }
     return 1;
@@ -242,7 +241,7 @@ keyring_append_keyring(keyring_t *keyring, keyring_t *newring)
 int
 keyring_add_key(pgp_io_t *io, keyring_t *keyring, pgp_key_t *key, pgp_content_enum tag)
 {
-    pgp_key_t  *newkey;
+    pgp_key_t *newkey;
 
     if (rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "keyring_add_key\n");
@@ -261,23 +260,26 @@ keyring_add_key(pgp_io_t *io, keyring_t *keyring, pgp_key_t *key, pgp_content_en
 }
 
 int
-keyring_add_keydata(pgp_io_t *io, keyring_t *keyring, pgp_keydata_key_t *keydata, pgp_content_enum tag)
+keyring_add_keydata(pgp_io_t *         io,
+                    keyring_t *        keyring,
+                    pgp_keydata_key_t *keydata,
+                    pgp_content_enum   tag)
 {
-    pgp_key_t  *key;
+    pgp_key_t *key;
 
-	if (rnp_get_debug(__FILE__)) {
-		fprintf(io->errs, "keyring_add_keydata\n");
-	}
+    if (rnp_get_debug(__FILE__)) {
+        fprintf(io->errs, "keyring_add_keydata\n");
+    }
 
-	if (tag != PGP_PTAG_CT_PUBLIC_SUBKEY) {
-		EXPAND_ARRAY(keyring, key);
-		key = &keyring->keys[keyring->keyc++];
-		(void) memset(key, 0x0, sizeof(*key));
-		pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, &keydata->pubkey, keyring->hashtype);
-		pgp_fingerprint(&key->sigfingerprint, &keydata->pubkey, keyring->hashtype);
+    if (tag != PGP_PTAG_CT_PUBLIC_SUBKEY) {
+        EXPAND_ARRAY(keyring, key);
+        key = &keyring->keys[keyring->keyc++];
+        (void) memset(key, 0x0, sizeof(*key));
+        pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, &keydata->pubkey, keyring->hashtype);
+        pgp_fingerprint(&key->sigfingerprint, &keydata->pubkey, keyring->hashtype);
         key->type = tag;
         key->key = *keydata;
-	} else {
+    } else {
         // it's is a subkey, adding as enckey to master that was before the key
         // TODO: move to the right way — support multiple subkeys
         key = &keyring->keys[keyring->keyc - 1];
@@ -286,11 +288,11 @@ keyring_add_keydata(pgp_io_t *io, keyring_t *keyring, pgp_keydata_key_t *keydata
         key->enckey.duration = key->key.pubkey.duration;
     }
 
-	if (rnp_get_debug(__FILE__)) {
-		fprintf(io->errs, "keyring_add_keydata: keyc %u\n", keyring->keyc);
-	}
+    if (rnp_get_debug(__FILE__)) {
+        fprintf(io->errs, "keyring_add_keydata: keyc %u\n", keyring->keyc);
+    }
 
-	return 1;
+    return 1;
 }
 
 int
@@ -300,7 +302,9 @@ keyring_remove_key(pgp_io_t *io, keyring_t *keyring, const pgp_key_t *key)
 
     for (i = 0; i < keyring->keyc; i++) {
         if (key == &keyring->keys[i]) {
-            memmove(&keyring->keys[i], &keyring->keys[i + 1], sizeof(pgp_key_t) * (keyring->keyc - i));
+            memmove(&keyring->keys[i],
+                    &keyring->keys[i + 1],
+                    sizeof(pgp_key_t) * (keyring->keyc - i));
             keyring->keyc--;
             return 1;
         }
@@ -325,7 +329,6 @@ keyring_remove_key_by_id(pgp_io_t *io, keyring_t *keyring, const uint8_t *keyid)
     return 0;
 }
 
-
 /**
    \ingroup HighLevel_KeyringFind
 
@@ -341,128 +344,133 @@ keyring_remove_key_by_id(pgp_io_t *io, keyring_t *keyring, const uint8_t *keyid)
 
 */
 const pgp_key_t *
-keyring_get_key_by_id(pgp_io_t *io, const keyring_t *keyring,
-                      const uint8_t *keyid, unsigned *from, pgp_pubkey_t **pubkey)
+keyring_get_key_by_id(pgp_io_t *       io,
+                      const keyring_t *keyring,
+                      const uint8_t *  keyid,
+                      unsigned *       from,
+                      pgp_pubkey_t **  pubkey)
 {
-	uint8_t	nullid[PGP_KEY_ID_SIZE];
+    uint8_t nullid[PGP_KEY_ID_SIZE];
 
-	(void) memset(nullid, 0x0, sizeof(nullid));
-	for ( ; keyring && *from < keyring->keyc; *from += 1) {
-		if (rnp_get_debug(__FILE__)) {
-			hexdump(io->errs, "keyring keyid", keyring->keys[*from].sigid, PGP_KEY_ID_SIZE);
-			hexdump(io->errs, "keyid", keyid, PGP_KEY_ID_SIZE);
-		}
-		if (memcmp(keyring->keys[*from].sigid, keyid, PGP_KEY_ID_SIZE) == 0 ||
-		    memcmp(&keyring->keys[*from].sigid[PGP_KEY_ID_SIZE / 2],
-				keyid, PGP_KEY_ID_SIZE / 2) == 0) {
-			if (pubkey) {
-				*pubkey = &keyring->keys[*from].key.pubkey;
-			}
-			return &keyring->keys[*from];
-		}
-		if (memcmp(&keyring->keys[*from].encid, nullid, sizeof(nullid)) == 0) {
-			continue;
-		}
-		if (memcmp(&keyring->keys[*from].encid, keyid, PGP_KEY_ID_SIZE) == 0 ||
-		    memcmp(&keyring->keys[*from].encid[PGP_KEY_ID_SIZE / 2], keyid, PGP_KEY_ID_SIZE / 2) == 0) {
-			if (pubkey) {
-				*pubkey = &keyring->keys[*from].enckey;
-			}
-			return &keyring->keys[*from];
-		}
-	}
-	return NULL;
+    (void) memset(nullid, 0x0, sizeof(nullid));
+    for (; keyring && *from < keyring->keyc; *from += 1) {
+        if (rnp_get_debug(__FILE__)) {
+            hexdump(io->errs, "keyring keyid", keyring->keys[*from].sigid, PGP_KEY_ID_SIZE);
+            hexdump(io->errs, "keyid", keyid, PGP_KEY_ID_SIZE);
+        }
+        if (memcmp(keyring->keys[*from].sigid, keyid, PGP_KEY_ID_SIZE) == 0 ||
+            memcmp(&keyring->keys[*from].sigid[PGP_KEY_ID_SIZE / 2],
+                   keyid,
+                   PGP_KEY_ID_SIZE / 2) == 0) {
+            if (pubkey) {
+                *pubkey = &keyring->keys[*from].key.pubkey;
+            }
+            return &keyring->keys[*from];
+        }
+        if (memcmp(&keyring->keys[*from].encid, nullid, sizeof(nullid)) == 0) {
+            continue;
+        }
+        if (memcmp(&keyring->keys[*from].encid, keyid, PGP_KEY_ID_SIZE) == 0 ||
+            memcmp(&keyring->keys[*from].encid[PGP_KEY_ID_SIZE / 2],
+                   keyid,
+                   PGP_KEY_ID_SIZE / 2) == 0) {
+            if (pubkey) {
+                *pubkey = &keyring->keys[*from].enckey;
+            }
+            return &keyring->keys[*from];
+        }
+    }
+    return NULL;
 }
 
 /* convert a string keyid into a binary keyid */
 static void
 str2keyid(const char *userid, uint8_t *keyid, size_t len)
 {
-	static const char	*uppers = "0123456789ABCDEF";
-	static const char	*lowers = "0123456789abcdef";
-	const char		*hi;
-	const char		*lo;
-	uint8_t			 hichar;
-	uint8_t			 lochar;
-	size_t			 j;
-	int			 i;
+    static const char *uppers = "0123456789ABCDEF";
+    static const char *lowers = "0123456789abcdef";
+    const char *       hi;
+    const char *       lo;
+    uint8_t            hichar;
+    uint8_t            lochar;
+    size_t             j;
+    int                i;
 
-	for (i = 0, j = 0 ; j < len && userid[i] && userid[i + 1] ; i += 2, j++) {
-		if ((hi = strchr(uppers, userid[i])) == NULL) {
-			if ((hi = strchr(lowers, userid[i])) == NULL) {
-				break;
-			}
-			hichar = (uint8_t)(hi - lowers);
-		} else {
-			hichar = (uint8_t)(hi - uppers);
-		}
-		if ((lo = strchr(uppers, userid[i + 1])) == NULL) {
-			if ((lo = strchr(lowers, userid[i + 1])) == NULL) {
-				break;
-			}
-			lochar = (uint8_t)(lo - lowers);
-		} else {
-			lochar = (uint8_t)(lo - uppers);
-		}
-		keyid[j] = (hichar << 4) | (lochar);
-	}
-	keyid[j] = 0x0;
+    for (i = 0, j = 0; j < len && userid[i] && userid[i + 1]; i += 2, j++) {
+        if ((hi = strchr(uppers, userid[i])) == NULL) {
+            if ((hi = strchr(lowers, userid[i])) == NULL) {
+                break;
+            }
+            hichar = (uint8_t)(hi - lowers);
+        } else {
+            hichar = (uint8_t)(hi - uppers);
+        }
+        if ((lo = strchr(uppers, userid[i + 1])) == NULL) {
+            if ((lo = strchr(lowers, userid[i + 1])) == NULL) {
+                break;
+            }
+            lochar = (uint8_t)(lo - lowers);
+        } else {
+            lochar = (uint8_t)(lo - uppers);
+        }
+        keyid[j] = (hichar << 4) | (lochar);
+    }
+    keyid[j] = 0x0;
 }
 
 /* return the next key which matches, starting searching at *from */
 static const pgp_key_t *
 get_key_by_name(pgp_io_t *io, const keyring_t *keyring, const char *name, unsigned *from)
 {
-	const pgp_key_t	*kp;
-	uint8_t			**uidp;
-	unsigned    	 	 i = 0;
-	pgp_key_t		*keyp;
-	unsigned		 savedstart;
-	regex_t r;
-	uint8_t		 	 keyid[PGP_KEY_ID_SIZE + 1];
-	size_t          	 len;
+    const pgp_key_t *kp;
+    uint8_t **       uidp;
+    unsigned         i = 0;
+    pgp_key_t *      keyp;
+    unsigned         savedstart;
+    regex_t          r;
+    uint8_t          keyid[PGP_KEY_ID_SIZE + 1];
+    size_t           len;
 
-	if (!keyring || !name || !from) {
-		return NULL;
-	}
-	len = strlen(name);
-	if (rnp_get_debug(__FILE__)) {
-		(void) fprintf(io->outs, "[%u] name '%s', len %zu\n",
-			*from, name, len);
-	}
-	/* first try name as a keyid */
-	(void) memset(keyid, 0x0, sizeof(keyid));
-	str2keyid(name, keyid, sizeof(keyid));
-	if (rnp_get_debug(__FILE__)) {
-		hexdump(io->outs, "keyid", keyid, 4);
-	}
-	savedstart = *from;
-	if ((kp = keyring_get_key_by_id(io, keyring, keyid, from, NULL)) != NULL) {
-		return kp;
-	}
-	*from = savedstart;
-	if (rnp_get_debug(__FILE__)) {
-		(void) fprintf(io->outs, "regex match '%s' from %u\n",
-			name, *from);
-	}
-	/* match on full name or email address as a NOSUB, ICASE regexp */
-	(void) regcomp(&r, name, REG_EXTENDED | REG_ICASE);
-	for (keyp = &keyring->keys[*from]; *from < keyring->keyc; *from += 1, keyp++) {
-		uidp = keyp->uids;
-		for (i = 0 ; i < keyp->uidc; i++, uidp++) {
-			if (regexec(&r, (char *)*uidp, 0, NULL, 0) == 0) {
-				if (rnp_get_debug(__FILE__)) {
-					(void) fprintf(io->outs,
-						"MATCHED keyid \"%s\" len %" PRIsize "u\n",
-					       (char *) *uidp, len);
-				}
-				regfree(&r);
-				return keyp;
-			}
-		}
-	}
-	regfree(&r);
-	return NULL;
+    if (!keyring || !name || !from) {
+        return NULL;
+    }
+    len = strlen(name);
+    if (rnp_get_debug(__FILE__)) {
+        (void) fprintf(io->outs, "[%u] name '%s', len %zu\n", *from, name, len);
+    }
+    /* first try name as a keyid */
+    (void) memset(keyid, 0x0, sizeof(keyid));
+    str2keyid(name, keyid, sizeof(keyid));
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(io->outs, "keyid", keyid, 4);
+    }
+    savedstart = *from;
+    if ((kp = keyring_get_key_by_id(io, keyring, keyid, from, NULL)) != NULL) {
+        return kp;
+    }
+    *from = savedstart;
+    if (rnp_get_debug(__FILE__)) {
+        (void) fprintf(io->outs, "regex match '%s' from %u\n", name, *from);
+    }
+    /* match on full name or email address as a NOSUB, ICASE regexp */
+    (void) regcomp(&r, name, REG_EXTENDED | REG_ICASE);
+    for (keyp = &keyring->keys[*from]; *from < keyring->keyc; *from += 1, keyp++) {
+        uidp = keyp->uids;
+        for (i = 0; i < keyp->uidc; i++, uidp++) {
+            if (regexec(&r, (char *) *uidp, 0, NULL, 0) == 0) {
+                if (rnp_get_debug(__FILE__)) {
+                    (void) fprintf(io->outs,
+                                   "MATCHED keyid \"%s\" len %" PRIsize "u\n",
+                                   (char *) *uidp,
+                                   len);
+                }
+                regfree(&r);
+                return keyp;
+            }
+        }
+    }
+    regfree(&r);
+    return NULL;
 }
 
 /**
@@ -482,14 +490,17 @@ get_key_by_name(pgp_io_t *io, const keyring_t *keyring, const char *name, unsign
 const pgp_key_t *
 keyring_get_key_by_name(pgp_io_t *io, const keyring_t *keyring, const char *name)
 {
-	unsigned	from;
+    unsigned from;
 
-	from = 0;
-	return get_key_by_name(io, keyring, name, &from);
+    from = 0;
+    return get_key_by_name(io, keyring, name, &from);
 }
 
 const pgp_key_t *
-keyring_get_next_key_by_name(pgp_io_t *io, const keyring_t *keyring, const char *name, unsigned *n)
+keyring_get_next_key_by_name(pgp_io_t *       io,
+                             const keyring_t *keyring,
+                             const char *     name,
+                             unsigned *       n)
 {
-	return get_key_by_name(io, keyring, name, n);
+    return get_key_by_name(io, keyring, name, n);
 }

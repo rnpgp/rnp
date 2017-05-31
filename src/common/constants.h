@@ -36,6 +36,6 @@
  */
 
 #define SUBDIRECTORY_GNUPG ".rnp"
-#define SUBDIRECTORY_SSH   ".ssh"
+#define SUBDIRECTORY_SSH ".ssh"
 
 #endif

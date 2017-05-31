@@ -33,9 +33,8 @@
 
 /* header file to define the sizes for various digest arrays */
 
-
 /* SHA1 Hash Size */
-#define PGP_SHA1_HASH_SIZE 	20
-#define PGP_CHECKHASH_SIZE	PGP_SHA1_HASH_SIZE
+#define PGP_SHA1_HASH_SIZE 20
+#define PGP_CHECKHASH_SIZE PGP_SHA1_HASH_SIZE
 
 #endif /* RNPDIGEST_H_ */
