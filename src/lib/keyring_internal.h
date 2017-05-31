@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -28,16 +27,18 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef SSH2PGP_H_
-#define SSH2PGP_H_
 
-#include "keyring.h"
-#include "types.h"
+#ifndef KEYRING_INTERNAL_H_
+#define KEYRING_INTERNAL_H_
 
-int pgp_ssh2pubkey(pgp_io_t *, const char *, pgp_key_t *, pgp_hash_alg_t);
-int pgp_ssh2seckey(pgp_io_t *, const char *, pgp_key_t *, pgp_pubkey_t *, pgp_hash_alg_t);
+#include <rnp.h>
+#include <json.h>
 
-int pgp_ssh2_readkeys(pgp_io_t *, pgp_keyring_t *, pgp_keyring_t *,
-		const char *, const char *, unsigned);
+#include <stdint.h>
 
-#endif
+#include "packet.h"
+
+void keyring_format_key(char *buffer, uint8_t *sigid, int len);
+int keyring_get_first_ring(keyring_t *ring, char *id, size_t len, int last);
+
+#endif /* KEYRING_INTERNAL_H_ */

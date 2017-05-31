@@ -49,65 +49,41 @@
  * limitations under the License.
  */
 
-/** \file
- */
-
-#ifndef PACKET_SHOW_H_
-#define PACKET_SHOW_H_
+#ifndef RNP_PACKET_KEY_H
+#define RNP_PACKET_KEY_H
 
 #include "packet.h"
 
-/** pgp_list_t
- */
-typedef struct {
-    unsigned size; /* num of array slots allocated */
-    unsigned used; /* num of array slots currently used */
-    char **  strings;
-} pgp_list_t;
+struct pgp_key_t *pgp_keydata_new(void);
 
-/** pgp_text_t
- */
-typedef struct {
-    pgp_list_t known;
-    pgp_list_t unknown;
-} pgp_text_t;
+void pgp_keydata_free(pgp_key_t *);
 
-/** pgp_bit_map_t
- */
-typedef struct {
-    uint8_t     mask;
-    const char *string;
-} pgp_bit_map_t;
+const pgp_pubkey_t *pgp_get_pubkey(const pgp_key_t *);
 
-void pgp_text_init(pgp_text_t *);
-void pgp_text_free(pgp_text_t *);
+unsigned pgp_is_key_secret(const pgp_key_t *);
 
-const char *pgp_show_packet_tag(pgp_content_enum);
-const char *pgp_show_ss_type(pgp_content_enum);
+const struct pgp_seckey_t *pgp_get_seckey(const pgp_key_t *);
 
-const char *pgp_show_sig_type(pgp_sig_type_t);
-const char *pgp_show_pka(pgp_pubkey_alg_t);
+pgp_seckey_t *pgp_get_writable_seckey(pgp_key_t *);
 
-pgp_text_t *pgp_showall_ss_zpref(const pgp_data_t *);
-const char *pgp_show_ss_zpref(uint8_t);
+pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *, void *);
 
-pgp_text_t *pgp_showall_ss_hashpref(const pgp_data_t *);
-const char *pgp_show_hash_alg(uint8_t);
-const char *pgp_show_symm_alg(uint8_t);
+void pgp_set_seckey(pgp_contents_t *, const pgp_key_t *);
 
-pgp_text_t *pgp_showall_ss_skapref(const pgp_data_t *);
-const char *pgp_show_ss_skapref(uint8_t);
+const unsigned char *pgp_get_key_id(const pgp_key_t *);
 
-const char *pgp_show_ss_rr_code(pgp_ss_rr_code_t);
+unsigned pgp_get_userid_count(const pgp_key_t *);
 
-pgp_text_t *pgp_showall_ss_features(pgp_data_t);
+const unsigned char *pgp_get_userid(const pgp_key_t *, unsigned);
 
-pgp_text_t *pgp_showall_ss_key_flags(const pgp_data_t *);
-const char *pgp_show_ss_key_flag(uint8_t, pgp_bit_map_t *);
+unsigned pgp_is_key_supported(const pgp_key_t *);
 
-pgp_text_t *pgp_show_keyserv_prefs(const pgp_data_t *);
-const char *pgp_show_keyserv_pref(uint8_t, pgp_bit_map_t *);
+unsigned char *pgp_add_userid(pgp_key_t *, const unsigned char *);
 
-pgp_text_t *pgp_showall_notation(pgp_ss_notation_t);
+struct pgp_subpacket_t *pgp_add_subpacket(pgp_key_t *, const pgp_subpacket_t *);
 
-#endif /* PACKET_SHOW_H_ */
+unsigned pgp_add_selfsigned_userid(pgp_key_t *, unsigned char *);
+
+void pgp_keydata_init(pgp_key_t *, const pgp_content_enum);
+
+#endif // RNP_PACKET_KEY_H

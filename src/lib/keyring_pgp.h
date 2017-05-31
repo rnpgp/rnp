@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -27,35 +28,44 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+/*
+ * Copyright (c) 2005-2008 Nominet UK (www.nic.uk)
+ * All rights reserved.
+ * Contributors: Ben Laurie, Rachel Willmer. The Contributors have asserted
+ * their moral rights under the UK Copyright Design and Patents Act 1988 to
+ * be recorded as the authors of this copyright work.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License.
+ *
+ * You may obtain a copy of the License at
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-#ifndef RNP_S2K_H_
-#define RNP_S2K_H_
+/** \file
+ */
 
-#include "hash.h"
+#ifndef KEYRING_PGP_H_
+#define KEYRING_PGP_H_
 
-void pgp_s2k_simple(pgp_hash_alg_t alg,
-                    uint8_t *      out,
-                    size_t         output_len,
-                    const char *   passphrase);
+#include "packet.h"
+#include "packet-parse.h"
+#include "keyring.h"
+#include "memory.h"
 
-void pgp_s2k_salted(pgp_hash_alg_t alg,
-                    uint8_t *      out,
-                    size_t         output_len,
-                    const char *   passphrase,
-                    const uint8_t *salt);
+enum { MAX_ID_LENGTH = 128, MAX_PASSPHRASE_LENGTH = 256 };
 
-void pgp_s2k_iterated(pgp_hash_alg_t alg,
-                      uint8_t *      out,
-                      size_t         output_len,
-                      const char *   passphrase,
-                      const uint8_t *salt,
-                      size_t         iterations);
+int pgp_keyring_load_keys(rnp_t *rnp, char *homedir);
 
-size_t pgp_s2k_decode_iterations(uint8_t encoded_iter);
+int pgp_keyring_read_from_file(pgp_io_t *, keyring_t *, const unsigned, const char *);
 
-uint8_t pgp_s2k_encode_iterations(size_t iterations);
+int pgp_keyring_read_from_mem(pgp_io_t *, keyring_t *, const unsigned, pgp_memory_t *);
 
-// Round iterations to nearest representable value
-size_t pgp_s2k_round_iterations(size_t iterations);
-
-#endif
+#endif /* KEYRING_PGP_H_ */

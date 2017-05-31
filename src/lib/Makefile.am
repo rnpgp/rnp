@@ -18,17 +18,19 @@ librnp_la_SOURCES	= \
 	elgamal.c \
 	hash.c \
 	keyring.c \
+	keyring_pgp.c \
+	keyring_ssh.c \
 	misc.c \
 	packet-parse.c \
 	packet-print.c \
 	packet-show.c \
+	packet-key.c \
 	pem.c \
 	reader.c \
 	rnp.c \
 	rsa.c \
 	s2k.c \
 	signature.c \
-	ssh2pgp.c \
 	symmetric.c \
 	validate.c \
 	writer.c

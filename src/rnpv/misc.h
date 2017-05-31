@@ -36,20 +36,23 @@
 #include <inttypes.h>
 
 #ifndef __BEGIN_DECLS
-#  if defined(__cplusplus)
-#  define __BEGIN_DECLS           extern "C" {
-#  define __END_DECLS             }
-#  else
-#  define __BEGIN_DECLS
-#  define __END_DECLS
-#  endif
+#if defined(__cplusplus)
+#define __BEGIN_DECLS extern "C" {
+#define __END_DECLS }
+#else
+#define __BEGIN_DECLS
+#define __END_DECLS
+#endif
 #endif
 
 __BEGIN_DECLS
 
-void *rnp_allocate(size_t /*n*/, size_t /*nels*/);
-void rnp_deallocate(void */*ptr*/, size_t /*size*/);
-ssize_t rnp_hexdump(const void */*in*/, const size_t /*inlen*/, void */*out*/, size_t /*outsize*/);
+void *  rnp_allocate(size_t /*n*/, size_t /*nels*/);
+void    rnp_deallocate(void * /*ptr*/, size_t /*size*/);
+ssize_t rnp_hexdump(const void * /*in*/,
+                    const size_t /*inlen*/,
+                    void * /*out*/,
+                    size_t /*outsize*/);
 
 __END_DECLS
 

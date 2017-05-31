@@ -28,34 +28,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RNP_S2K_H_
-#define RNP_S2K_H_
+#ifndef KEYRING_SSH_H_
+#define KEYRING_SSH_H_
 
-#include "hash.h"
+#include "rnp.h"
+#include "keyring.h"
 
-void pgp_s2k_simple(pgp_hash_alg_t alg,
-                    uint8_t *      out,
-                    size_t         output_len,
-                    const char *   passphrase);
+int ssh_keyring_load_keys(rnp_t *rnp, char *homedir);
 
-void pgp_s2k_salted(pgp_hash_alg_t alg,
-                    uint8_t *      out,
-                    size_t         output_len,
-                    const char *   passphrase,
-                    const uint8_t *salt);
+int ssh_keyring_read_from_file(pgp_io_t *, keyring_t *, const char *);
+int ssh_keyring_read_from_mem(pgp_io_t *, keyring_t *, pgp_memory_t *);
 
-void pgp_s2k_iterated(pgp_hash_alg_t alg,
-                      uint8_t *      out,
-                      size_t         output_len,
-                      const char *   passphrase,
-                      const uint8_t *salt,
-                      size_t         iterations);
-
-size_t pgp_s2k_decode_iterations(uint8_t encoded_iter);
-
-uint8_t pgp_s2k_encode_iterations(size_t iterations);
-
-// Round iterations to nearest representable value
-size_t pgp_s2k_round_iterations(size_t iterations);
-
-#endif
+#endif /* KEYRING_SSH_H_ */
