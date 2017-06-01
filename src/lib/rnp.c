@@ -75,7 +75,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "packet.h"
 #include "packet-parse.h"
 #include "packet-print.h"
-#include "keyring.h"
+#include "key_store.h"
 #include "errors.h"
 #include "packet-show.h"
 #include "create.h"
@@ -109,7 +109,7 @@ userid_to_id(const uint8_t *userid, char *id)
 
 /* print out the successful signature information */
 static void
-resultp(pgp_io_t *io, const char *f, pgp_validation_t *res, keyring_t *ring)
+resultp(pgp_io_t *io, const char *f, pgp_validation_t *res, rnp_key_store_t *ring)
 {
     const pgp_key_t *key;
     pgp_pubkey_t *   sigkey;
@@ -132,7 +132,7 @@ resultp(pgp_io_t *io, const char *f, pgp_validation_t *res, keyring_t *ring)
                        pgp_show_pka(res->valid_sigs[i].key_alg),
                        userid_to_id(res->valid_sigs[i].signer_id, id));
         from = 0;
-        key = keyring_get_key_by_id(
+        key = rnp_key_store_get_key_by_id(
           io, ring, (const uint8_t *) res->valid_sigs[i].signer_id, &from, &sigkey);
         if (sigkey == &key->enckey) {
             (void) fprintf(io->res,
@@ -333,7 +333,7 @@ get_birthtime(char *s)
 
 /* resolve the userid */
 static const pgp_key_t *
-resolve_userid(rnp_t *rnp, const keyring_t *keyring, const char *userid)
+resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
 {
     const pgp_key_t *key;
     pgp_io_t *       io;
@@ -346,7 +346,7 @@ resolve_userid(rnp_t *rnp, const keyring_t *keyring, const char *userid)
         userid += 2;
     }
     io = rnp->io;
-    if ((key = keyring_get_key_by_name(io, keyring, userid)) == NULL) {
+    if ((key = rnp_key_store_get_key_by_name(io, keyring, userid)) == NULL) {
         (void) fprintf(io->errs, "cannot find key '%s'\n", userid);
     }
     return key;
@@ -986,12 +986,12 @@ rnp_end(rnp_t *rnp)
         free(rnp->value);
     }
     if (rnp->pubring != NULL) {
-        keyring_free(rnp->pubring);
+        rnp_key_store_free(rnp->pubring);
         free(rnp->pubring);
         rnp->pubring = NULL;
     }
     if (rnp->secring != NULL) {
-        keyring_free(rnp->secring);
+        rnp_key_store_free(rnp->secring);
         free(rnp->secring);
         rnp->secring = NULL;
     }
@@ -1007,7 +1007,7 @@ rnp_list_keys(rnp_t *rnp, const int psigs)
         (void) fprintf(stderr, "No keyring\n");
         return 0;
     }
-    return keyring_list(rnp->io, rnp->pubring, psigs);
+    return rnp_key_store_list(rnp->io, rnp->pubring, psigs);
 }
 
 /* list the keys in a keyring, returning a JSON encoded string */
@@ -1020,7 +1020,7 @@ rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
         (void) fprintf(stderr, "No keyring\n");
         return 0;
     }
-    if (!keyring_json(rnp->io, rnp->pubring, obj, psigs)) {
+    if (!rnp_key_store_json(rnp->io, rnp->pubring, obj, psigs)) {
         (void) fprintf(stderr, "No keys in keyring\n");
         return 0;
     }
@@ -1041,7 +1041,7 @@ rnp_load_keys(rnp_t *rnp)
         return 0;
     }
 
-    return keyring_load_keys(rnp, path);
+    return rnp_key_store_load_keys(rnp, path);
 }
 
 DEFINE_ARRAY(strings_t, char *);
@@ -1065,7 +1065,7 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
     (void) memset(&pubs, 0x0, sizeof(pubs));
     k = 0;
     do {
-        key = keyring_get_next_key_by_name(rnp->io, rnp->pubring, name, &k);
+        key = rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k);
         if (key != NULL) {
             ALLOC(char *, pubs.v, pubs.size, pubs.c, 10, 10, "rnp_match_keys", return 0);
             if (strcmp(fmt, "mr") == 0) {
@@ -1116,7 +1116,7 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
     k = 0;
     *json = NULL;
     do {
-        key = keyring_get_next_key_by_name(rnp->io, rnp->pubring, name, &k);
+        key = rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k);
         if (key != NULL) {
             if (strcmp(fmt, "mr") == 0) {
                 pgp_hkp_sprint_keydata(
@@ -1151,7 +1151,7 @@ rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
 
     k = 0;
     do {
-        key = keyring_get_next_key_by_name(rnp->io, rnp->pubring, name, &k);
+        key = rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k);
         if (key != NULL) {
             cc = pgp_sprint_pubkey(key, out, sizeof(out));
             (void) fprintf(fp, "%.*s", (int) cc, out);
@@ -1172,7 +1172,7 @@ rnp_find_key(rnp_t *rnp, char *id)
         (void) fprintf(io->errs, "NULL id to search for\n");
         return 0;
     }
-    return keyring_get_key_by_name(rnp->io, rnp->pubring, id) != NULL;
+    return rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, id) != NULL;
 }
 
 /* get a key in a keyring */
@@ -1232,12 +1232,12 @@ rnp_import_key(rnp_t *rnp, char *f)
 
     io = rnp->io;
     realarmor = isarmoured(io, f, NULL, IMPORT_ARMOR_HEAD);
-    done = pgp_keyring_read_from_file(rnp->io, rnp->pubring, realarmor, f);
+    done = rnp_key_store_pgp_read_from_file(rnp->io, rnp->pubring, realarmor, f);
     if (!done) {
         (void) fprintf(io->errs, "cannot import key from file %s\n", f);
         return 0;
     }
-    return keyring_list(io, rnp->pubring, 0);
+    return rnp_key_store_list(io, rnp->pubring, 0);
 }
 
 #define ID_OFFSET 38
@@ -1311,7 +1311,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
         goto out;
     }
     if (rnp->pubring != NULL) {
-        keyring_free(rnp->pubring);
+        rnp_key_store_free(rnp->pubring);
         free(rnp->pubring);
         rnp->pubring = NULL;
     }
@@ -1342,7 +1342,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 out1:
     pgp_teardown_file_write(create, fd);
     if (rnp->secring != NULL) {
-        keyring_free(rnp->secring);
+        rnp_key_store_free(rnp->secring);
         free(rnp->secring);
         rnp->secring = NULL;
     }
@@ -1459,7 +1459,7 @@ rnp_sign_file(rnp_t *     rnp,
          i++) {
         if (rnp->passfp == NULL) {
             /* print out the user id */
-            pubkey = keyring_get_key_by_name(io, rnp->pubring, userid);
+            pubkey = rnp_key_store_get_key_by_name(io, rnp->pubring, userid);
             if (pubkey == NULL) {
                 (void) fprintf(io->errs, "rnp: warning - using pubkey from secring\n");
                 pgp_print_keydata(
@@ -1476,7 +1476,7 @@ rnp_sign_file(rnp_t *     rnp,
                 (void) fprintf(io->errs, "Bad passphrase\n");
             }
         } else {
-            keyring_t *secring;
+            rnp_key_store_t *secring;
 
             secring = rnp->secring;
             seckey = &secring->keys[0].key.seckey;
@@ -1595,7 +1595,7 @@ rnp_sign_memory(rnp_t *        rnp,
          i++) {
         if (rnp->passfp == NULL) {
             /* print out the user id */
-            pubkey = keyring_get_key_by_name(io, rnp->pubring, userid);
+            pubkey = rnp_key_store_get_key_by_name(io, rnp->pubring, userid);
             if (pubkey == NULL) {
                 (void) fprintf(io->errs, "rnp: warning - using pubkey from secring\n");
                 pgp_print_keydata(
@@ -1612,7 +1612,7 @@ rnp_sign_memory(rnp_t *        rnp,
                 (void) fprintf(io->errs, "Bad passphrase\n");
             }
         } else {
-            keyring_t *secring;
+            rnp_key_store_t *secring;
 
             secring = rnp->secring;
             seckey = &secring->keys[0].key.seckey;
@@ -1794,13 +1794,13 @@ rnp_decrypt_memory(rnp_t *      rnp,
 int
 rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
 {
-    keyring_t *    keyring;
-    const unsigned noarmor = 0;
-    struct stat    st;
-    pgp_io_t *     io;
-    char           ringname[MAXPATHLEN];
-    char           homedir[MAXPATHLEN];
-    int            ret;
+    rnp_key_store_t *keyring;
+    const unsigned   noarmor = 0;
+    struct stat      st;
+    pgp_io_t *       io;
+    char             ringname[MAXPATHLEN];
+    char             homedir[MAXPATHLEN];
+    int              ret;
 
     io = rnp->io;
     if (f == NULL) {
@@ -1820,7 +1820,7 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
         (void) fprintf(io->errs, "rnp_list_packets: bad alloc\n");
         return 0;
     }
-    if (!pgp_keyring_read_from_file(rnp->io, keyring, noarmor, pubringname)) {
+    if (!rnp_key_store_pgp_read_from_file(rnp->io, keyring, noarmor, pubringname)) {
         free(keyring);
         (void) fprintf(io->errs, "cannot read pub keyring %s\n", pubringname);
         return 0;
@@ -2004,7 +2004,7 @@ int
 rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size)
 {
     const pgp_key_t *key;
-    keyring_t *      keyring;
+    rnp_key_store_t *keyring;
     pgp_io_t *       io;
     unsigned         k;
     size_t           cc;
@@ -2027,13 +2027,13 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
         (void) fprintf(stderr, "rnp_save_sshpub: bad alloc 2\n");
         goto done;
     }
-    if (!pgp_keyring_read_from_file(rnp->io, rnp->pubring = keyring, 1, f)) {
+    if (!rnp_key_store_pgp_read_from_file(rnp->io, rnp->pubring = keyring, 1, f)) {
         (void) fprintf(stderr, "cannot import key\n");
         goto done;
     }
     /* get rsa key */
     k = 0;
-    key = keyring_get_next_key_by_name(rnp->io, rnp->pubring, userid, &k);
+    key = rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, userid, &k);
     if (key == NULL) {
         (void) fprintf(stderr, "no key found for '%s'\n", userid);
         goto done;

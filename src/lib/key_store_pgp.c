@@ -79,7 +79,7 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #endif
 
 #include "types.h"
-#include "keyring_pgp.h"
+#include "key_store_pgp.h"
 #include "packet-parse.h"
 #include "signature.h"
 #include "rnpsdk.h"
@@ -91,8 +91,8 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "rnpdefs.h"
 #include "rnpdigest.h"
 #include <json.h>
-#include "keyring.h"
-#include "keyring_internal.h"
+#include "key_store.h"
+#include "key_store_internal.h"
 #include "packet-key.h"
 
 #include <sys/types.h>
@@ -139,10 +139,10 @@ conffile(rnp_t *rnp, char *homedir, char *userid, size_t length)
 static void *
 readkeyring(rnp_t *rnp, const char *name, const char *homedir)
 {
-    keyring_t *    keyring;
-    const unsigned noarmor = 0;
-    char           f[MAXPATHLEN];
-    char *         filename;
+    rnp_key_store_t *keyring;
+    const unsigned   noarmor = 0;
+    char             f[MAXPATHLEN];
+    char *           filename;
 
     if ((filename = rnp_getvar(rnp, name)) == NULL) {
         (void) snprintf(f, sizeof(f), "%s/%s.gpg", homedir, name);
@@ -152,7 +152,7 @@ readkeyring(rnp_t *rnp, const char *name, const char *homedir)
         (void) fprintf(stderr, "readkeyring: bad alloc\n");
         return NULL;
     }
-    if (!pgp_keyring_read_from_file(rnp->io, keyring, noarmor, filename)) {
+    if (!rnp_key_store_pgp_read_from_file(rnp->io, keyring, noarmor, filename)) {
         free(keyring);
         (void) fprintf(stderr, "cannot read %s %s\n", name, filename);
         return NULL;
@@ -162,7 +162,7 @@ readkeyring(rnp_t *rnp, const char *name, const char *homedir)
 }
 
 int
-pgp_keyring_load_keys(rnp_t *rnp, char *homedir)
+rnp_key_store_pgp_load_keys(rnp_t *rnp, char *homedir)
 {
     char *    userid;
     char      id[MAX_ID_LENGTH];
@@ -170,7 +170,7 @@ pgp_keyring_load_keys(rnp_t *rnp, char *homedir)
 
     /* TODO: Some of this might be split up into sub-functions. */
     /* TODO: Figure out what unhandled error is causing an
-     *       empty keyring to end up in keyring_get_first_ring
+     *       empty keyring to end up in rnp_key_store_get_first_ring
      *       and ensure that it's not present in the
      *       ssh implementation too.
      */
@@ -182,7 +182,7 @@ pgp_keyring_load_keys(rnp_t *rnp, char *homedir)
         return 0;
     }
 
-    if (((keyring_t *) rnp->pubring)->keyc < 1) {
+    if (((rnp_key_store_t *) rnp->pubring)->keyc < 1) {
         fprintf(io->errs, "pub keyring is empty\n");
         return 0;
     }
@@ -206,7 +206,7 @@ pgp_keyring_load_keys(rnp_t *rnp, char *homedir)
             return 0;
         }
 
-        if (((keyring_t *) rnp->secring)->keyc < 1) {
+        if (((rnp_key_store_t *) rnp->secring)->keyc < 1) {
             fprintf(io->errs, "sec keyring is empty\n");
             return 0;
         }
@@ -215,7 +215,7 @@ pgp_keyring_load_keys(rnp_t *rnp, char *homedir)
          * in secring.
          */
         if (!userid && rnp_getvar(rnp, "need userid") != NULL) {
-            if (!keyring_get_first_ring(rnp->secring, id, sizeof(id), 0)) {
+            if (!rnp_key_store_get_first_ring(rnp->secring, id, sizeof(id), 0)) {
                 /* TODO: This is _temporary_. A more
                  *       suitable replacement will be
                  *       required.
@@ -229,7 +229,7 @@ pgp_keyring_load_keys(rnp_t *rnp, char *homedir)
 
     } else if (rnp_getvar(rnp, "need userid") != NULL) {
         /* encrypting - get first in pubring */
-        if (!userid && keyring_get_first_ring(rnp->pubring, id, sizeof(id), 0)) {
+        if (!userid && rnp_key_store_get_first_ring(rnp->pubring, id, sizeof(id), 0)) {
             rnp_setvar(rnp, "userid", userid = id);
         }
     }
@@ -247,16 +247,16 @@ void print_packet_hex(const pgp_subpacket_t *pkt);
 
 /* used to point to data during keyring read */
 typedef struct keyringcb_t {
-    keyring_t *keyring; /* the keyring we're reading */
+    rnp_key_store_t *keyring; /* the keyring we're reading */
 } keyringcb_t;
 
 static pgp_cb_ret_t
 cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
-    keyring_t *   keyring;
-    pgp_revoke_t *revocation;
-    pgp_key_t *   key;
-    keyringcb_t * cb;
+    rnp_key_store_t *keyring;
+    pgp_revoke_t *   revocation;
+    pgp_key_t *      key;
+    keyringcb_t *    cb;
 
     cb = pgp_callback_arg(cbinfo);
     keyring = cb->keyring;
@@ -364,10 +364,10 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 */
 
 int
-pgp_keyring_read_from_file(pgp_io_t *     io,
-                           keyring_t *    keyring,
-                           const unsigned armour,
-                           const char *   filename)
+rnp_key_store_pgp_read_from_file(pgp_io_t *       io,
+                                 rnp_key_store_t *keyring,
+                                 const unsigned   armour,
+                                 const char *     filename)
 {
     pgp_stream_t *stream;
     keyringcb_t   cb;
@@ -446,10 +446,10 @@ pgp_keyring_read_from_file(pgp_io_t *     io,
    \sa pgp_keyring_free
 */
 int
-pgp_keyring_read_from_mem(pgp_io_t *     io,
-                          keyring_t *    keyring,
-                          const unsigned armour,
-                          pgp_memory_t * mem)
+rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
+                                rnp_key_store_t *keyring,
+                                const unsigned   armour,
+                                pgp_memory_t *   mem)
 {
     pgp_stream_t * stream;
     const unsigned noaccum = 0;

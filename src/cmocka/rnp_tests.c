@@ -38,7 +38,7 @@
 #include <cmocka.h>
 
 #include <crypto.h>
-#include <keyring_pgp.h>
+#include <key_store_pgp.h>
 #include <packet.h>
 #include <packet-key.h>
 #include <bn.h>

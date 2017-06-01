@@ -77,7 +77,7 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 
 #include "packet-parse.h"
 #include "packet-show.h"
-#include "keyring_pgp.h"
+#include "key_store_pgp.h"
 #include "signature.h"
 #include "rnpsdk.h"
 #include "readerwriter.h"
@@ -294,8 +294,8 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PTAG_CT_SIGNATURE:        /* V3 sigs */
     case PGP_PTAG_CT_SIGNATURE_FOOTER: /* V4 sigs */
         from = 0;
-        signer =
-          keyring_get_key_by_id(io, key->keyring, content->sig.info.signer_id, &from, &sigkey);
+        signer = rnp_key_store_get_key_by_id(
+          io, key->keyring, content->sig.info.signer_id, &from, &sigkey);
         if (!signer) {
             if (!add_sig_to_list(
                   &content->sig.info, &key->result->unknown_sigs, &key->result->unknownc)) {
@@ -468,7 +468,7 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
                     sizeof(content->sig.info.signer_id));
         }
         from = 0;
-        signer = keyring_get_key_by_id(
+        signer = rnp_key_store_get_key_by_id(
           io, data->keyring, content->sig.info.signer_id, &from, &sigkey);
         if (!signer) {
             PGP_ERROR_1(errors, PGP_E_V_UNKNOWN_SIGNER, "%s", "Unknown Signer");
@@ -661,9 +661,9 @@ validate_result_status(FILE *errs, const char *f, pgp_validation_t *val)
  * \sa pgp_validate_result_free()
  */
 unsigned
-pgp_validate_key_sigs(pgp_validation_t *result,
-                      const pgp_key_t * key,
-                      const keyring_t * keyring,
+pgp_validate_key_sigs(pgp_validation_t *     result,
+                      const pgp_key_t *      key,
+                      const rnp_key_store_t *keyring,
                       pgp_cb_ret_t cb_get_passphrase(const pgp_packet_t *, pgp_cbdata_t *))
 {
     pgp_stream_t *    stream;
@@ -710,8 +710,8 @@ pgp_validate_key_sigs(pgp_validation_t *result,
    \sa pgp_validate_result_free()
 */
 unsigned
-pgp_validate_all_sigs(pgp_validation_t *result,
-                      const keyring_t * ring,
+pgp_validate_all_sigs(pgp_validation_t *     result,
+                      const rnp_key_store_t *ring,
                       pgp_cb_ret_t cb_get_passphrase(const pgp_packet_t *, pgp_cbdata_t *))
 {
     unsigned n;
@@ -762,12 +762,12 @@ pgp_validate_result_free(pgp_validation_t *result)
         pgp_validate_result_free(result) after use.
 */
 unsigned
-pgp_validate_file(pgp_io_t *        io,
-                  pgp_validation_t *result,
-                  const char *      infile,
-                  const char *      outfile,
-                  const int         user_says_armoured,
-                  const keyring_t * keyring)
+pgp_validate_file(pgp_io_t *             io,
+                  pgp_validation_t *     result,
+                  const char *           infile,
+                  const char *           outfile,
+                  const int              user_says_armoured,
+                  const rnp_key_store_t *keyring)
 {
     validate_data_cb_t validation;
     pgp_stream_t *     parse = NULL;
@@ -892,12 +892,12 @@ pgp_validate_file(pgp_io_t *        io,
 */
 
 unsigned
-pgp_validate_mem(pgp_io_t *        io,
-                 pgp_validation_t *result,
-                 pgp_memory_t *    mem,
-                 pgp_memory_t **   cat,
-                 const int         user_says_armoured,
-                 const keyring_t * keyring)
+pgp_validate_mem(pgp_io_t *             io,
+                 pgp_validation_t *     result,
+                 pgp_memory_t *         mem,
+                 pgp_memory_t **        cat,
+                 const int              user_says_armoured,
+                 const rnp_key_store_t *keyring)
 {
     validate_data_cb_t validation;
     pgp_stream_t *     stream = NULL;

@@ -49,7 +49,7 @@
  * limitations under the License.
  */
 
-#include "keyring_pgp.h"
+#include "key_store_pgp.h"
 #include "packet-key.h"
 #include "signature.h"
 #include "rnpdefs.h"
