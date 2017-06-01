@@ -75,7 +75,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "packet.h"
 #include "packet-parse.h"
 #include "packet-print.h"
-#include "keyring.h"
+#include "key_store.h"
 #include "errors.h"
 #include "packet-show.h"
 #include "create.h"

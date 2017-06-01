@@ -5,8 +5,8 @@
 #include <string.h>
 
 #include <rnp.h>
-#include <keyring.h>
-#include <keyring_pgp.h>
+#include <key_store.h>
+#include <key_store_pgp.h>
 
 int
 main(int argc, char *argv[])

@@ -57,7 +57,7 @@
 
 #include "packet.h"
 #include "packet-parse.h"
-#include "keyring.h"
+#include "key_store.h"
 #include "memory.h"
 
 enum { MAX_ID_LENGTH = 128, MAX_PASSPHRASE_LENGTH = 256 };

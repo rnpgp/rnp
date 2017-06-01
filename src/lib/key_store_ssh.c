@@ -65,7 +65,7 @@
 #include "crypto.h"
 #include "s2k.h"
 #include "packet-key.h"
-#include "keyring_internal.h"
+#include "key_store_internal.h"
 #include "packet.h"
 
 /* structure for earching for constant strings */

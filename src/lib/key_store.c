@@ -32,9 +32,9 @@
 
 #include "rnp.h"
 #include "rnpdefs.h"
-#include "keyring.h"
-#include "keyring_pgp.h"
-#include "keyring_ssh.h"
+#include "key_store.h"
+#include "key_store_pgp.h"
+#include "key_store_ssh.h"
 #include "packet-print.h"
 #include "packet-key.h"
 #include "packet.h"

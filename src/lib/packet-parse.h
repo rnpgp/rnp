@@ -58,7 +58,7 @@
 
 #include "types.h"
 #include "packet.h"
-#include "keyring.h"
+#include "key_store.h"
 
 /** pgp_region_t */
 typedef struct pgp_region_t {

@@ -31,7 +31,7 @@
 #ifndef RNPSDK_H_
 #define RNPSDK_H_
 
-#include "keyring_pgp.h"
+#include "key_store_pgp.h"
 #include "crypto.h"
 #include "signature.h"
 #include "packet-show.h"

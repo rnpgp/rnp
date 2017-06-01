@@ -57,7 +57,7 @@
 
 #include <botan/ffi.h>
 #include "hash.h"
-#include "keyring_pgp.h"
+#include "key_store_pgp.h"
 #include "packet.h"
 #include "memory.h"
 #include "packet-parse.h"
