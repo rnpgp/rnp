@@ -28,8 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef KEYRING_INTERNAL_H_
-#define KEYRING_INTERNAL_H_
+#ifndef KEY_STORE_INTERNAL_H_
+#define KEY_STORE_INTERNAL_H_
 
 #include <rnp.h>
 #include <json.h>
@@ -37,8 +37,9 @@
 #include <stdint.h>
 
 #include "packet.h"
+#include "keyring.h"
 
-void keyring_format_key(char *buffer, uint8_t *sigid, int len);
-int keyring_get_first_ring(keyring_t *ring, char *id, size_t len, int last);
+void rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len);
+int rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int last);
 
-#endif /* KEYRING_INTERNAL_H_ */
+#endif /* KEY_STORE_INTERNAL_H_ */

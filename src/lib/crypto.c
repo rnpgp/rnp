@@ -366,17 +366,17 @@ pgp_encrypt_buf(pgp_io_t *       io,
 */
 
 unsigned
-pgp_decrypt_file(pgp_io_t *     io,
-                 const char *   infile,
-                 const char *   outfile,
-                 keyring_t *    secring,
-                 keyring_t *    pubring,
-                 const unsigned use_armour,
-                 const unsigned allow_overwrite,
-                 const unsigned sshkeys,
-                 void *         passfp,
-                 int            numtries,
-                 pgp_cbfunc_t * getpassfunc)
+pgp_decrypt_file(pgp_io_t *       io,
+                 const char *     infile,
+                 const char *     outfile,
+                 rnp_key_store_t *secring,
+                 rnp_key_store_t *pubring,
+                 const unsigned   use_armour,
+                 const unsigned   allow_overwrite,
+                 const unsigned   sshkeys,
+                 void *           passfp,
+                 int              numtries,
+                 pgp_cbfunc_t *   getpassfunc)
 {
     pgp_stream_t *parse = NULL;
     const int     printerrors = 1;
@@ -467,16 +467,16 @@ pgp_decrypt_file(pgp_io_t *     io,
 
 /* decrypt an area of memory */
 pgp_memory_t *
-pgp_decrypt_buf(pgp_io_t *     io,
-                const void *   input,
-                const size_t   insize,
-                keyring_t *    secring,
-                keyring_t *    pubring,
-                const unsigned use_armour,
-                const unsigned sshkeys,
-                void *         passfp,
-                int            numtries,
-                pgp_cbfunc_t * getpassfunc)
+pgp_decrypt_buf(pgp_io_t *       io,
+                const void *     input,
+                const size_t     insize,
+                rnp_key_store_t *secring,
+                rnp_key_store_t *pubring,
+                const unsigned   use_armour,
+                const unsigned   sshkeys,
+                void *           passfp,
+                int              numtries,
+                pgp_cbfunc_t *   getpassfunc)
 {
     pgp_stream_t *parse = NULL;
     pgp_memory_t *outmem;

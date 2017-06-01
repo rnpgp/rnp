@@ -52,8 +52,8 @@
 /** \file
  */
 
-#ifndef KEYRING_PGP_H_
-#define KEYRING_PGP_H_
+#ifndef KEY_STORE_PGP_H_
+#define KEY_STORE_PGP_H_
 
 #include "packet.h"
 #include "packet-parse.h"
@@ -62,10 +62,16 @@
 
 enum { MAX_ID_LENGTH = 128, MAX_PASSPHRASE_LENGTH = 256 };
 
-int pgp_keyring_load_keys(rnp_t *rnp, char *homedir);
+int rnp_key_store_pgp_load_keys(rnp_t *rnp, char *homedir);
 
-int pgp_keyring_read_from_file(pgp_io_t *, keyring_t *, const unsigned, const char *);
+int rnp_key_store_pgp_read_from_file(pgp_io_t *,
+                                     rnp_key_store_t *,
+                                     const unsigned,
+                                     const char *);
 
-int pgp_keyring_read_from_mem(pgp_io_t *, keyring_t *, const unsigned, pgp_memory_t *);
+int rnp_key_store_pgp_read_from_mem(pgp_io_t *,
+                                    rnp_key_store_t *,
+                                    const unsigned,
+                                    pgp_memory_t *);
 
-#endif /* KEYRING_PGP_H_ */
+#endif /* KEY_STORE_PGP_H_ */

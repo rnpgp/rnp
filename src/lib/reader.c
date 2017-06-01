@@ -2102,7 +2102,7 @@ pgp_pk_sesskey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             return (pgp_cb_ret_t) 0;
         }
         from = 0;
-        cbinfo->cryptinfo.keydata = keyring_get_key_by_id(
+        cbinfo->cryptinfo.keydata = rnp_key_store_get_key_by_id(
           io, cbinfo->cryptinfo.secring, content->pk_sesskey.key_id, &from, NULL);
         if (!cbinfo->cryptinfo.keydata) {
             break;
@@ -2149,11 +2149,11 @@ pgp_get_seckey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_GET_SECKEY:
         /* print key from pubring */
         from = 0;
-        pubkey = keyring_get_key_by_id(
+        pubkey = rnp_key_store_get_key_by_id(
           io, cbinfo->cryptinfo.pubring, content->get_seckey.pk_sesskey->key_id, &from, NULL);
         /* validate key from secring */
         from = 0;
-        cbinfo->cryptinfo.keydata = keyring_get_key_by_id(
+        cbinfo->cryptinfo.keydata = rnp_key_store_get_key_by_id(
           io, cbinfo->cryptinfo.secring, content->get_seckey.pk_sesskey->key_id, &from, NULL);
         if (!cbinfo->cryptinfo.keydata || !pgp_is_key_secret(cbinfo->cryptinfo.keydata)) {
             return (pgp_cb_ret_t) 0;

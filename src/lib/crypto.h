@@ -189,8 +189,8 @@ unsigned pgp_encrypt_file(pgp_io_t *,
 unsigned pgp_decrypt_file(pgp_io_t *,
                           const char *,
                           const char *,
-                          keyring_t *,
-                          keyring_t *,
+                          rnp_key_store_t *,
+                          rnp_key_store_t *,
                           const unsigned,
                           const unsigned,
                           const unsigned,
@@ -203,8 +203,8 @@ pgp_memory_t *pgp_encrypt_buf(
 pgp_memory_t *pgp_decrypt_buf(pgp_io_t *,
                               const void *,
                               const size_t,
-                              keyring_t *,
-                              keyring_t *,
+                              rnp_key_store_t *,
+                              rnp_key_store_t *,
                               const unsigned,
                               const unsigned,
                               void *,
@@ -252,10 +252,10 @@ struct pgp_reader_t {
 */
 struct pgp_cryptinfo_t {
     char *           passphrase;
-    keyring_t *      secring;
+    rnp_key_store_t *secring;
     const pgp_key_t *keydata;
     pgp_cbfunc_t *   getpassphrase;
-    keyring_t *      pubring;
+    rnp_key_store_t *pubring;
 };
 
 /** pgp_cbdata_t */

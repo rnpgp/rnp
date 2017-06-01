@@ -398,11 +398,11 @@ ssh2seckey(
 
 /* read a key from the ssh file, and add it to a keyring */
 static int
-ssh2_readkeys(pgp_io_t *  io,
-              keyring_t * pubring,
-              keyring_t * secring,
-              const char *pubfile,
-              const char *secfile)
+ssh2_readkeys(pgp_io_t *       io,
+              rnp_key_store_t *pubring,
+              rnp_key_store_t *secring,
+              const char *     pubfile,
+              const char *     secfile)
 {
     pgp_key_t *pubkey;
     pgp_key_t *seckey;
@@ -446,13 +446,13 @@ ssh2_readkeys(pgp_io_t *  io,
 static int
 readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
 {
-    keyring_t *    pubring;
-    keyring_t *    secring;
-    struct stat    st;
-    pgp_hash_alg_t hashtype;
-    char *         hash;
-    char           f[MAXPATHLEN];
-    char *         filename;
+    rnp_key_store_t *pubring;
+    rnp_key_store_t *secring;
+    struct stat      st;
+    pgp_hash_alg_t   hashtype;
+    char *           hash;
+    char             f[MAXPATHLEN];
+    char *           filename;
 
     if ((filename = rnp_getvar(rnp, "sshkeyfile")) == NULL) {
         /* set reasonable default for RSA key */
@@ -493,7 +493,7 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
     if (rnp->pubring == NULL) {
         rnp->pubring = pubring;
     } else {
-        keyring_append_keyring(rnp->pubring, pubring);
+        rnp_key_store_append_keyring(rnp->pubring, pubring);
     }
     if (needseckey) {
         rnp_setvar(rnp, "sshpubfile", filename);
@@ -523,7 +523,7 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
 }
 
 int
-ssh_keyring_load_keys(rnp_t *rnp, char *homedir)
+rnp_key_store_ssh_load_keys(rnp_t *rnp, char *homedir)
 {
     int       last = (rnp->pubring != NULL);
     char      id[MAX_ID_LENGTH];
@@ -538,7 +538,7 @@ ssh_keyring_load_keys(rnp_t *rnp, char *homedir)
     }
     if ((userid = rnp_getvar(rnp, "userid")) == NULL) {
         /* TODO: Handle get_first_ring() failure. */
-        keyring_get_first_ring(rnp->pubring, id, sizeof(id), last);
+        rnp_key_store_get_first_ring(rnp->pubring, id, sizeof(id), last);
         rnp_setvar(rnp, "userid", userid = id);
     }
     if (userid == NULL) {
@@ -554,7 +554,7 @@ ssh_keyring_load_keys(rnp_t *rnp, char *homedir)
 }
 
 int
-ssh_keyring_read_from_file(pgp_io_t *io, keyring_t *keyring, const char *filename)
+rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *filename)
 {
     char      f[MAXPATHLEN];
     pgp_key_t key;
@@ -564,30 +564,30 @@ ssh_keyring_read_from_file(pgp_io_t *io, keyring_t *keyring, const char *filenam
 
     if (rnp_get_debug(__FILE__)) {
         (void) fprintf(
-          io->errs, "ssh_keyring_read_from_file: read as pubkey '%s'\n", filename);
+          io->errs, "rnp_key_store_ssh_from_file: read as pubkey '%s'\n", filename);
     }
 
     if (ssh2pubkey(io, filename, &key, keyring->hashtype)) {
-        (void) fprintf(io->errs, "ssh_keyring_read_from_file: it's pubkeys '%s'\n", filename);
-        keyring_add_key(io, keyring, &key, PGP_PTAG_CT_PUBLIC_KEY);
+        (void) fprintf(io->errs, "rnp_key_store_ssh_from_file: it's pubkeys '%s'\n", filename);
+        rnp_key_store_add_key(io, keyring, &key, PGP_PTAG_CT_PUBLIC_KEY);
         return 1;
     }
 
     if (rnp_get_debug(__FILE__)) {
         (void) fprintf(
-          io->errs, "ssh_keyring_read_from_file: read as seckey '%s'\n", filename);
+          io->errs, "rnp_key_store_ssh_from_file: read as seckey '%s'\n", filename);
     }
 
     (void) snprintf(f, sizeof(f), "%s.pub", filename);
     if (!ssh2pubkey(io, filename, &pubkey, keyring->hashtype)) {
         (void) fprintf(
-          io->errs, "ssh_keyring_read_from_file: can't read pubkey from '%s'\n", f);
+          io->errs, "rnp_key_store_ssh_from_file: can't read pubkey from '%s'\n", f);
         return 0;
     }
 
     if (ssh2seckey(io, filename, &key, &pubkey.key.pubkey, keyring->hashtype)) {
-        (void) fprintf(io->errs, "ssh_keyring_read_from_file: it's seckey '%s'\n", filename);
-        keyring_add_key(io, keyring, &key, PGP_PTAG_CT_SECRET_KEY);
+        (void) fprintf(io->errs, "rnp_key_store_ssh_from_file: it's seckey '%s'\n", filename);
+        rnp_key_store_add_key(io, keyring, &key, PGP_PTAG_CT_SECRET_KEY);
         return 1;
     }
 
@@ -595,7 +595,7 @@ ssh_keyring_read_from_file(pgp_io_t *io, keyring_t *keyring, const char *filenam
 }
 
 int
-ssh_keyring_read_from_mem(pgp_io_t *io, keyring_t *keyring, pgp_memory_t *memory)
+rnp_key_store_ssh_from_mem(pgp_io_t *io, rnp_key_store_t *keyring, pgp_memory_t *memory)
 {
     // we can't read SSH key from memory because it doesn't keep two different part for public
     // and secret key

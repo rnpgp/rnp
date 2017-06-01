@@ -517,13 +517,13 @@ format_subsig_line(char *              buffer,
 }
 
 static int
-format_uid_notice(char *           buffer,
-                  pgp_io_t *       io,
-                  const keyring_t *keyring,
-                  const pgp_key_t *key,
-                  unsigned         uid,
-                  size_t           size,
-                  int              flags)
+format_uid_notice(char *                 buffer,
+                  pgp_io_t *             io,
+                  const rnp_key_store_t *keyring,
+                  const pgp_key_t *      key,
+                  unsigned               uid,
+                  size_t                 size,
+                  int                    flags)
 {
     int i;
     int n = 0;
@@ -553,7 +553,8 @@ format_uid_notice(char *           buffer,
             continue;
         }
 
-        trustkey = keyring_get_key_by_id(io, keyring, subsig->sig.info.signer_id, &from, NULL);
+        trustkey =
+          rnp_key_store_get_key_by_id(io, keyring, subsig->sig.info.signer_id, &from, NULL);
 
         n += format_subsig_line(buffer + n, key, trustkey, subsig, size - n);
     }
@@ -570,13 +571,13 @@ format_uid_notice(char *           buffer,
 
 /* print into a string (malloc'ed) the pubkeydata */
 int
-pgp_sprint_keydata(pgp_io_t *          io,
-                   const keyring_t *   keyring,
-                   const pgp_key_t *   key,
-                   char **             buf,
-                   const char *        header,
-                   const pgp_pubkey_t *pubkey,
-                   const int           psigs)
+pgp_sprint_keydata(pgp_io_t *             io,
+                   const rnp_key_store_t *keyring,
+                   const pgp_key_t *      key,
+                   char **                buf,
+                   const char *           header,
+                   const pgp_pubkey_t *   pubkey,
+                   const int              psigs)
 {
     unsigned i;
     time_t   now;
@@ -661,13 +662,13 @@ pgp_sprint_keydata(pgp_io_t *          io,
 
 /* return the key info as a JSON encoded string */
 int
-pgp_sprint_json(pgp_io_t *          io,
-                const keyring_t *   keyring,
-                const pgp_key_t *   key,
-                json_object *       keyjson,
-                const char *        header,
-                const pgp_pubkey_t *pubkey,
-                const int           psigs)
+pgp_sprint_json(pgp_io_t *             io,
+                const rnp_key_store_t *keyring,
+                const pgp_key_t *      key,
+                json_object *          keyjson,
+                const char *           header,
+                const pgp_pubkey_t *   pubkey,
+                const int              psigs)
 {
     char     keyid[PGP_KEY_ID_SIZE * 3];
     char     fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
@@ -748,7 +749,7 @@ pgp_sprint_json(pgp_io_t *          io,
                   json_object_new_int((int64_t)(key->subsigs[j].sig.info.birthtime)));
 
                 unsigned         from = 0;
-                const pgp_key_t *trustkey = keyring_get_key_by_id(
+                const pgp_key_t *trustkey = rnp_key_store_get_key_by_id(
                   io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
 
                 json_object_array_add(
@@ -769,12 +770,12 @@ pgp_sprint_json(pgp_io_t *          io,
 }
 
 int
-pgp_hkp_sprint_keydata(pgp_io_t *          io,
-                       const keyring_t *   keyring,
-                       const pgp_key_t *   key,
-                       char **             buf,
-                       const pgp_pubkey_t *pubkey,
-                       const int           psigs)
+pgp_hkp_sprint_keydata(pgp_io_t *             io,
+                       const rnp_key_store_t *keyring,
+                       const pgp_key_t *      key,
+                       char **                buf,
+                       const pgp_pubkey_t *   pubkey,
+                       const int              psigs)
 {
     const pgp_key_t *trustkey;
     unsigned         from;
@@ -807,7 +808,7 @@ pgp_hkp_sprint_keydata(pgp_io_t *          io,
                 }
             }
             from = 0;
-            trustkey = keyring_get_key_by_id(
+            trustkey = rnp_key_store_get_key_by_id(
               io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
             if (key->subsigs[j].sig.info.version == 4 &&
                 key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
@@ -857,12 +858,12 @@ pgp_hkp_sprint_keydata(pgp_io_t *          io,
 
 /* print the key data for a pub or sec key */
 void
-pgp_print_keydata(pgp_io_t *          io,
-                  const keyring_t *   keyring,
-                  const pgp_key_t *   key,
-                  const char *        header,
-                  const pgp_pubkey_t *pubkey,
-                  const int           psigs)
+pgp_print_keydata(pgp_io_t *             io,
+                  const rnp_key_store_t *keyring,
+                  const pgp_key_t *      key,
+                  const char *           header,
+                  const pgp_pubkey_t *   pubkey,
+                  const int              psigs)
 {
     char *cp;
 
@@ -1654,13 +1655,13 @@ cb_list_packets(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 \param cb_get_passphrase
 */
 int
-pgp_list_packets(pgp_io_t *    io,
-                 char *        filename,
-                 unsigned      armour,
-                 keyring_t *   secring,
-                 keyring_t *   pubring,
-                 void *        passfp,
-                 pgp_cbfunc_t *cb_get_passphrase)
+pgp_list_packets(pgp_io_t *       io,
+                 char *           filename,
+                 unsigned         armour,
+                 rnp_key_store_t *secring,
+                 rnp_key_store_t *pubring,
+                 void *           passfp,
+                 pgp_cbfunc_t *   cb_get_passphrase)
 {
     pgp_stream_t * stream = NULL;
     const unsigned accumulate = 1;

@@ -163,6 +163,6 @@ pgp_reader_func_t pgp_stacked_read;
 int      pgp_decompress(pgp_region_t *, pgp_stream_t *, pgp_compression_type_t);
 unsigned pgp_writez(pgp_output_t *, const uint8_t *, const unsigned);
 
-int pgp_parse_and_accumulate(pgp_io_t *io, keyring_t *, pgp_stream_t *);
+int pgp_parse_and_accumulate(pgp_io_t *io, rnp_key_store_t *, pgp_stream_t *);
 
 #endif /* PACKET_PARSE_H_ */
