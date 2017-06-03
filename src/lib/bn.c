@@ -403,7 +403,8 @@ size_t PGPV_BN_words_used(const PGPV_BIGNUM *n) {
   return (num_bits / 32) + ((num_bits % 32) ? 1 : 0);
 }
 
-PGPV_BN_ULONG PGPV_BN_get_word(const PGPV_BIGNUM *n) {
+PGPV_BN_ULONG
+PGPV_BN_get_word(const PGPV_BIGNUM *n) {
   uint32_t n32;
 
   if (n == NULL) {

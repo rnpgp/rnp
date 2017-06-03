@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009-2010 The NetBSD Foundation, Inc.
+ * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -28,50 +28,49 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RNPSDK_H_
-#define RNPSDK_H_
+/*
+ * Copyright (c) 2005-2008 Nominet UK (www.nic.uk)
+ * All rights reserved.
+ * Contributors: Ben Laurie, Rachel Willmer. The Contributors have asserted
+ * their moral rights under the UK Copyright Design and Patents Act 1988 to
+ * be recorded as the authors of this copyright work.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License.
+ *
+ * You may obtain a copy of the License at
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-#include "key_store_pgp.h"
-#include "crypto.h"
-#include "signature.h"
-#include "packet-show.h"
+/** \file
+ */
 
-#ifndef __printflike
-#define __printflike(n, m) __attribute__((format(printf, n, m)))
-#endif
+#ifndef KEY_STORE_PGP_H_
+#define KEY_STORE_PGP_H_
 
-typedef struct pgp_validation_t {
-  unsigned validc;
-  pgp_sig_info_t *valid_sigs;
-  unsigned invalidc;
-  pgp_sig_info_t *invalid_sigs;
-  unsigned unknownc;
-  pgp_sig_info_t *unknown_sigs;
-  time_t birthtime;
-  time_t duration;
-} pgp_validation_t;
+#include "packet.h"
+#include "packet-parse.h"
+#include "key_store.h"
+#include "memory.h"
 
-void pgp_validate_result_free(pgp_validation_t *);
+enum {
+  MAX_ID_LENGTH = 128,
+  MAX_PASSPHRASE_LENGTH = 256
+};
 
-unsigned pgp_validate_key_sigs(pgp_validation_t *, const pgp_key_t *,
-                               const rnp_key_store_t *,
-                               pgp_cb_ret_t cb(const pgp_packet_t *,
-                                               pgp_cbdata_t *));
+int rnp_key_store_pgp_load_keys(rnp_t *rnp, char *homedir);
 
-unsigned pgp_validate_all_sigs(pgp_validation_t *, const rnp_key_store_t *,
-                               pgp_cb_ret_t cb(const pgp_packet_t *,
-                                               pgp_cbdata_t *));
+int rnp_key_store_pgp_read_from_file(pgp_io_t *, rnp_key_store_t *,
+                                     const unsigned, const char *);
 
-unsigned pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *,
-                       const pgp_pubkey_t *);
+int rnp_key_store_pgp_read_from_mem(pgp_io_t *, rnp_key_store_t *,
+                                    const unsigned, pgp_memory_t *);
 
-const char *rnp_get_info(const char *type);
-
-int pgp_asprintf(char **, const char *, ...) __printflike(2, 3);
-
-void rnp_log(const char *, ...) __printflike(1, 2);
-
-int rnp_strcasecmp(const char *, const char *);
-char *rnp_strdup(const char *);
-
-#endif
+#endif /* KEY_STORE_PGP_H_ */

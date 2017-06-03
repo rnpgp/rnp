@@ -82,7 +82,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 
 #include "bn.h"
 #include "create.h"
-#include "keyring_pgp.h"
+#include "key_store_pgp.h"
 #include "packet.h"
 #include "signature.h"
 #include "s2k.h"
@@ -473,7 +473,7 @@ static unsigned write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag,
 */
 
 unsigned pgp_write_xfer_pubkey(pgp_output_t *output, const pgp_key_t *key,
-                               const keyring_t *subkeys,
+                               const rnp_key_store_t *subkeys,
                                const unsigned armoured) {
   unsigned i, j;
 
@@ -547,7 +547,8 @@ unsigned pgp_write_xfer_pubkey(pgp_output_t *output, const pgp_key_t *key,
 
 unsigned pgp_write_xfer_seckey(pgp_output_t *output, const pgp_key_t *key,
                                const uint8_t *passphrase, const size_t pplen,
-                               const keyring_t *subkeys, unsigned armoured) {
+                               const rnp_key_store_t *subkeys,
+                               unsigned armoured) {
   unsigned i, j;
 
   if (armoured) {
@@ -841,7 +842,8 @@ static unsigned create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey,
   m_buf[0] = sesskey->symm_alg;
   for (i = 0; i < cipherinfo->keysize; i++) {
     /* XXX - Flexelint - Warning 679: Suspicious Truncation in arithmetic
-     * expression combining with pointer */
+     * expression
+     * combining with pointer */
     m_buf[1 + i] = sesskey->key[i];
   }
 
@@ -995,7 +997,8 @@ error:
 */
 unsigned pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk) {
   /* XXX - Flexelint - Pointer parameter 'pksk' (line 1076) could be declared as
-   * pointing to const */
+   * pointing to
+   * const */
   if (pksk == NULL) {
     (void)fprintf(stderr, "pgp_write_pk_sesskey: NULL pksk\n");
     return 0;

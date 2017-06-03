@@ -69,7 +69,7 @@ typedef struct {
   uint8_t *userid;
   pgp_data_t userattr;
   uint8_t hash[PGP_MAX_HASH_SIZE];
-  const keyring_t *keyring;
+  const rnp_key_store_t *keyring;
   validate_reader_t *reader;
   pgp_validation_t *result;
   pgp_cb_ret_t (*getpassphrase)(const pgp_packet_t *, pgp_cbdata_t *);
@@ -87,7 +87,7 @@ typedef struct {
   } data;
   uint8_t hash[PGP_MAX_HASH_SIZE];
   pgp_memory_t *mem;
-  const keyring_t *keyring;
+  const rnp_key_store_t *keyring;
   validate_reader_t *reader; /* reader-specific arg */
   pgp_validation_t *result;
   char *detachname;
@@ -101,10 +101,10 @@ unsigned check_binary_sig(const uint8_t *, const unsigned, const pgp_sig_t *,
                           const pgp_pubkey_t *);
 
 unsigned pgp_validate_file(pgp_io_t *, pgp_validation_t *, const char *,
-                           const char *, const int, const keyring_t *);
+                           const char *, const int, const rnp_key_store_t *);
 
 unsigned pgp_validate_mem(pgp_io_t *, pgp_validation_t *, pgp_memory_t *,
-                          pgp_memory_t **, const int, const keyring_t *);
+                          pgp_memory_t **, const int, const rnp_key_store_t *);
 
 pgp_cb_ret_t validate_data_cb(const pgp_packet_t *, pgp_cbdata_t *);
 

@@ -84,7 +84,7 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "packet-parse.h"
 #include "packet-print.h"
 #include "packet-key.h"
-#include "keyring_pgp.h"
+#include "key_store_pgp.h"
 #include "errors.h"
 #include "packet-show.h"
 #include "create.h"
@@ -99,12 +99,12 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
     cont.u.error = err;                        \
     CALLBACK(PGP_PARSER_ERROR, cbinfo, &cont); \
     return 0;                                  \
-        /*NOTREACHED*/							\
-} while(/*CONSTCOND*/0)
+    /*NOTREACHED*/                             \
+  } while (/*CONSTCOND*/ 0)
 
 typedef struct {
   pgp_io_t *io;
-  keyring_t *keyring;
+  rnp_key_store_t *keyring;
 } accumulate_t;
 
 /**
@@ -445,7 +445,8 @@ static unsigned exact_limread(uint8_t *dest, unsigned len, pgp_region_t *region,
  * \param *region	Pointer to packet region
  * \param *stream	How to parse
  * \return		1 on success, 0 on error (calls the cb with
- *PGP_PARSER_ERROR in limread()).
+ *PGP_PARSER_ERROR in
+ * limread()).
  */
 static int limskip(unsigned length, pgp_region_t *region,
                    pgp_stream_t *stream) {
@@ -475,7 +476,8 @@ static int limskip(unsigned length, pgp_region_t *region,
  * \param *stream	How to parse
  * \param *cb		The callback
  * \return		1 on success, 0 on error (calls the cb with
- *PGP_PARSER_ERROR in limread()).
+ *PGP_PARSER_ERROR in
+ * limread()).
  *
  * \see RFC4880 3.1
  */
@@ -520,7 +522,8 @@ static int limread_scalar(unsigned *dest, unsigned len, pgp_region_t *region,
  * \param *stream	How to parse
  * \param *cb		The callback
  * \return		1 on success, 0 on error (calls the cb with
- *PGP_PARSER_ERROR in limread()).
+ *PGP_PARSER_ERROR in
+ * limread()).
  *
  * \see RFC4880 3.1
  */
@@ -542,7 +545,8 @@ static int limread_size_t(size_t *dest, unsigned length, pgp_region_t *region,
 /** Read a timestamp.
  *
  * Timestamps in OpenPGP are unix time, i.e. seconds since The Epoch (1.1.1970).
- *They are stored in an unsigned scalar
+ *They are
+ * stored in an unsigned scalar
  * of 4 bytes.
  *
  * This function reads the timestamp using limread_scalar().
@@ -585,30 +589,42 @@ static int limited_read_time(time_t *dest, pgp_region_t *region,
  * Read a multiprecision integer.
  *
  * Large numbers (multiprecision integers, MPI) are stored in OpenPGP in two
- *parts.  First there is a 2 byte scalar
+ *parts.  First
+ * there is a 2 byte scalar
  * indicating the length of the following MPI in Bits.  Then follow the bits
- *that make up the actual number, most
+ *that make up the
+ * actual number, most
  * significant bits first (Big Endian).  The most significant bit in the MPI is
- *supposed to be 1 (unless the MPI is
+ *supposed to be
+ * 1 (unless the MPI is
  * encrypted - then it may be different as the bit count refers to the plain
- *text but the bits are encrypted).
+ *text but the bits
+ * are encrypted).
  *
  * Unused bits (i.e. those filling up the most significant byte from the left to
- *the first bits that counts) are
+ *the first bits
+ * that counts) are
  * supposed to be cleared - I guess. XXX - does anything actually say so?
  *
  * This function makes sure to respect packet boundaries.
  *
  * \param **pgn		return the integer there - the BIGNUM is created by
- *BN_bin2bn() and probably needs to be freed
+ *BN_bin2bn() and
+ * probably needs to be freed
  * 				by the caller XXX right ben?
  * \param *ptag		Pointer to current packet's Packet Tag.
  * \param *reader	Our reader
  * \param *cb		The callback
  * \return		1 on success, 0 on error (by limread_scalar() or limread()
- *or if the MPI is not properly formed (XXX
- * 				 see comment below - the callback is called with a
- *PGP_PARSER_ERROR in case of an error)
+ *or if the
+ * MPI
+ * is
+ * not properly formed (XXX
+ * 				 see comment below - the callback is called with
+ *a
+ * PGP_PARSER_ERROR
+ * in
+ * case of an error)
  *
  * \see RFC4880 3.2
  */
@@ -746,7 +762,8 @@ static unsigned read_new_length(unsigned *length, pgp_stream_t *stream) {
 /** Read the length information for a new format Packet Tag.
  *
  * New style Packet Tags encode the length in one to five octets.  This function
- *reads the right amount of bytes and
+ *reads the
+ * right amount of bytes and
  * decodes it to the proper length information.
  *
  * This function makes sure to respect packet boundaries.
@@ -756,7 +773,10 @@ static unsigned read_new_length(unsigned *length, pgp_stream_t *stream) {
  * \param *reader	Our reader
  * \param *cb		The callback
  * \return		1 on success, 0 on error (by limread_scalar() or limread()
- *or if the MPI is not properly formed (XXX
+ *or if the
+ * MPI
+ * is
+ * not properly formed (XXX
  * 				 see comment below)
  *
  * \see RFC4880 4.2.2
@@ -1221,12 +1241,14 @@ static int parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region,
  * \brief Parse a public key packet.
  *
  * This function parses an entire v3 (== v2) or v4 public key packet for RSA,
- *ElGamal, and DSA keys.
+ *ElGamal, and DSA
+ * keys.
  *
  * Once the key has been parsed successfully, it is passed to the callback.
  *
  * \param *ptag		Pointer to the current Packet Tag.  This function
- *should consume the entire packet.
+ *should consume the
+ * entire packet.
  * \param *reader	Our reader
  * \param *cb		The callback
  * \return		1 on success, 0 on error
@@ -1262,7 +1284,6 @@ static int parse_pubkey(pgp_content_enum tag, pgp_region_t *region,
  */
 
 static int parse_userattr(pgp_region_t *region, pgp_stream_t *stream) {
-
   pgp_packet_t pkt;
 
   /*
@@ -1296,17 +1317,20 @@ void pgp_userid_free(uint8_t **id) {
  * \brief Parse a user id.
  *
  * This function parses an user id packet, which is basically just a char array
- *the size of the packet.
+ *the size of the
+ * packet.
  *
  * The char array is to be treated as an UTF-8 string.
  *
  * The userid gets null terminated by this function.  Freeing it is the
- *responsibility of the caller.
+ *responsibility of the
+ * caller.
  *
  * Once the userid has been parsed successfully, it is passed to the callback.
  *
  * \param *ptag		Pointer to the Packet Tag.  This function should
- *consume the entire packet.
+ *consume the entire
+ * packet.
  * \param *reader	Our reader
  * \param *cb		The callback
  * \return		1 on success, 0 on error
@@ -1359,7 +1383,8 @@ static pgp_hash_t *parse_hash_find(pgp_stream_t *stream, const uint8_t *keyid) {
  *callback.
  *
  * \param *ptag		Pointer to the Packet Tag.  This function should
- *consume the entire packet.
+ *consume the entire
+ * packet.
  * \param *reader	Our reader
  * \param *cb		The callback
  * \return		1 on success, 0 on error
@@ -1470,7 +1495,8 @@ static int parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream) {
  *callback.
  *
  * \param *ptag		Pointer to the Packet Tag.  This function should
- *consume the entire subpacket.
+ *consume the entire
+ * subpacket.
  * \param *reader	Our reader
  * \param *cb		The callback
  * \return		1 on success, 0 on error
@@ -1755,13 +1781,16 @@ static int parse_one_sig_subpacket(pgp_sig_t *sig, pgp_region_t *region,
  * \brief Parse several signature subpackets.
  *
  * Hashed and unhashed subpacket sets are preceded by an octet count that
- *specifies the length of the complete set.
+ *specifies the length
+ * of the complete set.
  * This function parses this length and then calls parse_one_sig_subpacket() for
- *each subpacket until the
+ *each subpacket
+ * until the
  * entire set is consumed.
  *
  * This function does not call the callback directly, parse_one_sig_subpacket()
- *does for each subpacket.
+ *does for each
+ * subpacket.
  *
  * \param *ptag		Pointer to the Packet Tag.
  * \param *reader	Our reader
@@ -3074,7 +3103,9 @@ int pgp_parse(pgp_stream_t *stream, const int perrors) {
  *
  * \param	stream	Pointer to previously allocated structure
  * \param	tag	Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one
- *individual signature subpacket tag
+ *individual
+ * signature
+ * subpacket tag
  * \param	type	Parse type
  * \todo Make all packet types optional, not just subpackets */
 void pgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag,
@@ -3225,7 +3256,7 @@ pgp_crypt_t *pgp_get_decrypt(pgp_stream_t *stream) {
 static pgp_cb_ret_t accumulate_cb(const pgp_packet_t *pkt,
                                   pgp_cbdata_t *cbinfo) {
   const pgp_contents_t *content = &pkt->u;
-  keyring_t *keyring;
+  rnp_key_store_t *keyring;
   pgp_io_t *io;
   pgp_keydata_key_t keydata;
   accumulate_t *accumulate;
@@ -3243,7 +3274,7 @@ static pgp_cb_ret_t accumulate_cb(const pgp_packet_t *pkt,
   case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
     keydata.seckey = content->seckey;
     keydata.pubkey = content->pubkey;
-    keyring_add_keydata(io, keyring, &keydata, pkt->tag);
+    rnp_key_store_add_keydata(io, keyring, &keydata, pkt->tag);
     return PGP_KEEP_MEMORY;
   case PGP_PTAG_CT_USER_ID:
     if (rnp_get_debug(__FILE__)) {
@@ -3287,7 +3318,7 @@ static pgp_cb_ret_t accumulate_cb(const pgp_packet_t *pkt,
  * \param keyring Pointer to an existing keyring
  * \param parse Options to use when parsing
 */
-int pgp_parse_and_accumulate(pgp_io_t *io, keyring_t *keyring,
+int pgp_parse_and_accumulate(pgp_io_t *io, rnp_key_store_t *keyring,
                              pgp_stream_t *parse) {
   accumulate_t accumulate;
   const int printerrors = 1;

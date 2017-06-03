@@ -115,7 +115,7 @@ __RCSID("$NetBSD: reader.c,v 1.49 2012/03/05 02:20:18 christos Exp $");
 #include "packet-parse.h"
 #include "packet-show.h"
 #include "packet-print.h"
-#include "keyring_pgp.h"
+#include "key_store_pgp.h"
 #include "readerwriter.h"
 #include "rnpsdk.h"
 #include "rnpdefs.h"
@@ -1757,7 +1757,8 @@ void pgp_teardown_memory_write(pgp_output_t *output, pgp_memory_t *mem) {
    \param arg Reader-specific arg
    \param callback Callback to use with reader
    \param accumulate Set if we need to accumulate as we read. (Usually 0 unless
-   doing signature verification)
+   doing signature
+   verification)
    \note It is the caller's responsiblity to free parse_info
    \sa pgp_teardown_memory_read()
 */
@@ -1878,7 +1879,8 @@ void pgp_teardown_file_append(pgp_output_t *output, int fd) {
    \param vp Reader-specific arg
    \param callback Callback to use when reading
    \param accumulate Set if we need to accumulate as we read. (Usually 0 unless
-   doing signature verification)
+   doing signature
+   verification)
    \note It is the caller's responsiblity to free parse_info and to close fd
    \sa pgp_teardown_file_read()
 */
@@ -1975,7 +1977,7 @@ pgp_cb_ret_t pgp_pk_sesskey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo) {
       return (pgp_cb_ret_t)0;
     }
     from = 0;
-    cbinfo->cryptinfo.keydata = keyring_get_key_by_id(
+    cbinfo->cryptinfo.keydata = rnp_key_store_get_key_by_id(
         io, cbinfo->cryptinfo.secring, content->pk_sesskey.key_id, &from, NULL);
     if (!cbinfo->cryptinfo.keydata) {
       break;
@@ -2020,12 +2022,12 @@ pgp_cb_ret_t pgp_get_seckey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo) {
   case PGP_GET_SECKEY:
     /* print key from pubring */
     from = 0;
-    pubkey = keyring_get_key_by_id(io, cbinfo->cryptinfo.pubring,
-                                   content->get_seckey.pk_sesskey->key_id,
-                                   &from, NULL);
+    pubkey = rnp_key_store_get_key_by_id(io, cbinfo->cryptinfo.pubring,
+                                         content->get_seckey.pk_sesskey->key_id,
+                                         &from, NULL);
     /* validate key from secring */
     from = 0;
-    cbinfo->cryptinfo.keydata = keyring_get_key_by_id(
+    cbinfo->cryptinfo.keydata = rnp_key_store_get_key_by_id(
         io, cbinfo->cryptinfo.secring, content->get_seckey.pk_sesskey->key_id,
         &from, NULL);
     if (!cbinfo->cryptinfo.keydata ||
