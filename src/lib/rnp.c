@@ -89,6 +89,8 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "defs.h"
 #include "../common/constants.h"
 
+#include <json.h>
+
 /* read any gpg config file */
 static int
 conffile(rnp_t *rnp, char *homedir, char *userid, size_t length)
@@ -216,14 +218,84 @@ size_arrays(rnp_t *rnp, unsigned needed)
 	return 1;
 }
 
+/* TODO: Make these const; currently their consumers don't preserve const. */
+
+static int
+use_ssh_keys(rnp_t *rnp)
+{
+	return rnp->keyring_format == SSH_KEYRING;
+}
+
+/* Get the home directory when resolving gnupg key directory. */
+static char *
+get_homedir_gnupg(rnp_t *rnp)
+{
+	char *homedir;
+
+	homedir = rnp_getvar(rnp, "homedir_gpg");
+	if (homedir == NULL)
+		homedir = rnp_getvar(rnp, "homedir");
+	return homedir;
+}
+
+/* Get the home directory when resolving ssh key directory. */
+static char *
+get_homedir_ssh(rnp_t *rnp)
+{
+	char *homedir;
+
+	homedir = rnp_getvar(rnp, "homedir_ssh");
+	if (homedir == NULL)
+		homedir = rnp_getvar(rnp, "homedir");
+	return homedir;
+}
+
+static int
+keydir_common(rnp_t *rnp, char *buffer, char *homedir, char *subdir,
+		size_t buffer_size)
+{
+	/* TODO: Check that the path is valid and communicate that error. */
+
+	if (snprintf(buffer, buffer_size, "%s/%s", homedir, subdir)
+			> buffer_size) {
+		errno = ENOBUFS;
+		return -1;
+	} else
+		return  0;
+}
+
+/* Get the key directory for gnupg keys. */
+static int
+keydir_gnupg(rnp_t *rnp, char *buffer, size_t buffer_size)
+{
+	return keydir_common(rnp, buffer, get_homedir_gnupg(rnp),
+			rnp_getvar(rnp, "subdir_gpg"), buffer_size);
+}
+
+/* Get the key directory for ssh keys. */
+static int
+keydir_ssh(rnp_t *rnp, char *buffer, size_t buffer_size)
+{
+	return keydir_common(rnp, buffer, get_homedir_ssh(rnp),
+			rnp_getvar(rnp, "subdir_ssh"), buffer_size);
+}
+
+/* Get the key directory of the current type of key. */
+static int
+keydir(rnp_t *rnp, char *buffer, size_t buffer_size)
+{
+	return use_ssh_keys(rnp) ?
+			keydir_ssh(rnp, buffer, buffer_size) :
+			keydir_gnupg(rnp, buffer, buffer_size);
+}
+
 /* find the name in the array */
 static int
 findvar(rnp_t *rnp, const char *name)
 {
-	unsigned	i;
+	unsigned i;
 
-	for (i = 0 ; i < rnp->c && strcmp(rnp->name[i], name) != 0; i++) {
-	}
+	for (i = 0 ; i < rnp->c && strcmp(rnp->name[i], name) != 0; i++);
 	return (i == rnp->c) ? -1 : (int)i;
 }
 
@@ -235,20 +307,20 @@ readkeyring(rnp_t *rnp, const char *name)
 	const unsigned	 noarmor = 0;
 	char		 f[MAXPATHLEN];
 	char		*filename;
-	char		*homedir;
+	char		 homedir[MAXPATHLEN];
 
-	homedir = rnp_getvar(rnp, "homedir");
+	keydir(rnp, homedir, sizeof(homedir));
 	if ((filename = rnp_getvar(rnp, name)) == NULL) {
-		(void) snprintf(f, sizeof(f), "%s/%s.gpg", homedir, name);
+		snprintf(f, sizeof(f), "%s/%s.gpg", homedir, name);
 		filename = f;
 	}
 	if ((keyring = calloc(1, sizeof(*keyring))) == NULL) {
-		(void) fprintf(stderr, "readkeyring: bad alloc\n");
+		fprintf(stderr, "readkeyring: bad alloc\n");
 		return NULL;
 	}
 	if (!pgp_keyring_fileread(keyring, noarmor, filename)) {
 		free(keyring);
-		(void) fprintf(stderr, "cannot read %s %s\n", name, filename);
+		fprintf(stderr, "cannot read %s %s\n", name, filename);
 		return NULL;
 	}
 	rnp_setvar(rnp, name, filename);
@@ -543,7 +615,7 @@ isarmoured(pgp_io_t *io, const char *f, const void *memory, const char *text)
 		}
 		(void) fclose(fp);
 	} else {
-		if (regexec(&r, memory, 10, matches, 0) == 0) {
+		if (memory && regexec(&r, memory, 10, matches, 0) == 0) {
 			armoured = 1;
 		}
 	}
@@ -567,10 +639,9 @@ p(FILE *fp, const char *s, ...)
 
 /* print a JSON object to the FILE stream */
 static void
-pobj(FILE *fp, mj_t *obj, int depth)
+pobj(FILE *fp, json_object *obj, int depth)
 {
 	unsigned	 i;
-	char		*s;
 
 	if (obj == NULL) {
 		(void) fprintf(stderr, "No object found\n");
@@ -579,40 +650,36 @@ pobj(FILE *fp, mj_t *obj, int depth)
 	for (i = 0 ; i < (unsigned)depth ; i++) {
 		p(fp, " ", NULL);
 	}
-	switch(obj->type) {
-	case MJ_NULL:
-	case MJ_FALSE:
-	case MJ_TRUE:
-		p(fp, (obj->type == MJ_NULL) ? "null" : (obj->type == MJ_FALSE) ? "false" : "true", NULL);
+	switch(json_object_get_type(obj)) {
+	case json_type_null:
+		p(fp, "null", NULL);
+	case json_type_boolean:
+		p(fp, json_object_get_boolean(obj) ? "true" : "false", NULL);
 		break;
-	case MJ_NUMBER:
-		p(fp, obj->value.s, NULL);
+	case json_type_int:
+		fprintf(fp,"%d",json_object_get_int(obj));
 		break;
-	case MJ_STRING:
-		if ((i = mj_asprint(&s, obj, MJ_HUMAN)) > 2) {
-			(void) fprintf(fp, "%.*s", (int)i - 2, &s[1]);
-			free(s);
-		}
+	case json_type_string:
+		fprintf(fp,"%s",json_object_get_string(obj));
 		break;
-	case MJ_ARRAY:
-		for (i = 0 ; i < obj->c ; i++) {
-			pobj(fp, &obj->value.v[i], depth + 1);
-			if (i < obj->c - 1) {
-				(void) fprintf(fp, ", "); 
+	case json_type_array:;
+		int arrsize = json_object_array_length(obj);
+		int i;
+		for (i = 0 ; i < arrsize ; i++) {
+			json_object *item = json_object_array_get_idx(obj, i);
+			pobj(fp,item,depth+1);
+			if(i<arrsize-1){
+				(void) fprintf(fp, ", ");
 			}
 		}
-		(void) fprintf(fp, "\n"); 
+		(void) fprintf(fp, "\n");
 		break;
-	case MJ_OBJECT:
-		for (i = 0 ; i < obj->c ; i += 2) {
-			pobj(fp, &obj->value.v[i], depth + 1);
-			p(fp, ": ", NULL); 
-			pobj(fp, &obj->value.v[i + 1], 0);
-			if (i < obj->c - 1) {
-				p(fp, ", ", NULL); 
-			}
+	case json_type_object: ;
+		json_object_object_foreach(obj, key, val) {
+			printf("key: \"%s\"\n", key);
+			pobj(fp, val, depth+1);
 		}
-		p(fp, "\n", NULL); 
+		p(fp, "\n", NULL);
 		break;
 	default:
 		break;
@@ -620,7 +687,7 @@ pobj(FILE *fp, mj_t *obj, int depth)
 }
 
 /* return the time as a string */
-static char * 
+static char *
 ptimestr(char *dest, size_t size, time_t t)
 {
 	struct tm      *tm;
@@ -635,75 +702,94 @@ ptimestr(char *dest, size_t size, time_t t)
 
 /* format a JSON object */
 static void
-format_json_key(FILE *fp, mj_t *obj, const int psigs)
+format_json_key(FILE *fp, json_object *obj, const int psigs)
 {
 	int64_t	 birthtime;
 	int64_t	 duration;
 	time_t	 now;
 	char	 tbuf[32];
-	char	*s;
-	mj_t	*sub;
-	int	 i;
 
 	if (pgp_get_debug_level(__FILE__)) {
-		mj_asprint(&s, obj, MJ_HUMAN);
-		(void) fprintf(stderr, "formatobj: json is '%s'\n", s);
-		free(s);
+		(void) fprintf(stderr, "formatobj: json is '%s'\n", json_object_to_json_string(obj));
 	}
+#if 0 //?
 	if (obj->c == 2 && obj->value.v[1].type == MJ_STRING &&
-	    strcmp(obj->value.v[1].value.s, "[REVOKED]") == 0) {
+		strcmp(obj->value.v[1].value.s, "[REVOKED]") == 0) {
 		/* whole key has been rovoked - just return */
 		return;
 	}
-	pobj(fp, &obj->value.v[mj_object_find(obj, "header", 0, 2) + 1], 0);
-	p(fp, " ", NULL);
-	pobj(fp, &obj->value.v[mj_object_find(obj, "key bits", 0, 2) + 1], 0);
-	p(fp, "/", NULL);
-	pobj(fp, &obj->value.v[mj_object_find(obj, "pka", 0, 2) + 1], 0);
-	p(fp, " ", NULL);
-	pobj(fp, &obj->value.v[mj_object_find(obj, "key id", 0, 2) + 1], 0);
-	birthtime = (int64_t)strtoll(obj->value.v[mj_object_find(obj, "birthtime", 0, 2) + 1].value.s, NULL, 10);
-	p(fp, " ", ptimestr(tbuf, sizeof(tbuf), birthtime), NULL);
-	duration = (int64_t)strtoll(obj->value.v[mj_object_find(obj, "duration", 0, 2) + 1].value.s, NULL, 10);
-	if (duration > 0) {
-		now = time(NULL);
-		p(fp, " ", (birthtime + duration < now) ? "[EXPIRED " : "[EXPIRES ",
-			ptimestr(tbuf, sizeof(tbuf), birthtime + duration), "]", NULL);
+#endif
+	json_object *tmp;
+	if (json_object_object_get_ex(obj, "header", &tmp)) {
+		pobj(fp, tmp, 0);
+		p(fp, " ", NULL);
 	}
-	p(fp, "\n", "Key fingerprint: ", NULL);
-	pobj(fp, &obj->value.v[mj_object_find(obj, "fingerprint", 0, 2) + 1], 0);
-	p(fp, "\n", NULL);
-	/* go to field after \"duration\" */
-	for (i = mj_object_find(obj, "duration", 0, 2) + 2; i < mj_arraycount(obj) ; i += 2) {
-		if (strcmp(obj->value.v[i].value.s, "uid") == 0) {
-			sub = &obj->value.v[i + 1];
+
+	if (json_object_object_get_ex(obj, "key bits", &tmp)) {
+		pobj(fp, tmp, 0);
+		p(fp, "/", NULL);
+	}
+
+	if (json_object_object_get_ex(obj, "pka", &tmp)) {
+		pobj(fp, tmp, 0);
+		p(fp, " ", NULL);
+	}
+
+	if (json_object_object_get_ex(obj, "key id", &tmp)) {
+		pobj(fp, tmp, 0);
+	}
+
+	if (json_object_object_get_ex(obj, "birthtime", &tmp)) {
+		birthtime = (int64_t)strtoll(json_object_get_string(tmp), NULL, 10);
+		p(fp, " ", ptimestr(tbuf, sizeof(tbuf), birthtime), NULL);
+
+		if (json_object_object_get_ex(obj, "duration", &tmp)) {
+			duration = (int64_t)strtoll(json_object_get_string(tmp), NULL, 10);
+			if (duration > 0) {
+				now = time(NULL);
+				p(fp, " ", (birthtime + duration < now) ? "[EXPIRED " : "[EXPIRES ",
+					ptimestr(tbuf, sizeof(tbuf), birthtime + duration), "]", NULL);
+			}
+		}
+	}
+
+	if (json_object_object_get_ex(obj, "fingerprint", &tmp)) {
+		p(fp, "\n", "Key fingerprint: ", NULL);
+		pobj(fp, tmp, 0);
+		p(fp, "\n", NULL);
+	}
+
+
+	if (json_object_object_get_ex(obj, "uid", &tmp)) {
+		if (!json_object_is_type(tmp, json_type_null)){
 			p(fp, "uid", NULL);
-			pobj(fp, &sub->value.v[0], (psigs) ? 4 : 14); /* human name */
-			pobj(fp, &sub->value.v[1], 1); /* any revocation */
+			pobj(fp, json_object_array_get_idx(tmp,0), (psigs) ? 4 : 14); /* human name */
+			pobj(fp, json_object_array_get_idx(tmp,1),1); /* any revocation */
 			p(fp, "\n", NULL);
-		} else if (strcmp(obj->value.v[i].value.s, "encryption") == 0) {
-			sub = &obj->value.v[i + 1];
+		}
+	}
+
+	if (json_object_object_get_ex(obj, "encryption", &tmp)) {
+		if (!json_object_is_type(tmp, json_type_null)){
 			p(fp, "encryption", NULL);
-			pobj(fp, &sub->value.v[0], 1);	/* size */
+			pobj(fp, json_object_array_get_idx(tmp,0), 1);	/* size */
 			p(fp, "/", NULL);
-			pobj(fp, &sub->value.v[1], 0); /* alg */
+			pobj(fp, json_object_array_get_idx(tmp,1),0); /* alg */
 			p(fp, " ", NULL);
-			pobj(fp, &sub->value.v[2], 0); /* id */
-			p(fp, " ", ptimestr(tbuf, sizeof(tbuf),
-					(time_t)strtoll(sub->value.v[3].value.s, NULL, 10)),
-				"\n", NULL);
-		} else if (strcmp(obj->value.v[i].value.s, "sig") == 0) {
-			sub = &obj->value.v[i + 1];
+			pobj(fp, json_object_array_get_idx(tmp,2),0); /* id */
+			p(fp, " ", ptimestr(tbuf, sizeof(tbuf), (time_t)strtoll(json_object_get_string(json_object_array_get_idx(tmp,3)), NULL, 10)), "\n", NULL);
+		}
+	}
+
+	if (json_object_object_get_ex(obj, "sig", &tmp)) {
+		if (!json_object_is_type(tmp, json_type_null)){
 			p(fp, "sig", NULL);
-			pobj(fp, &sub->value.v[0], 8);	/* size */
+			pobj(fp,json_object_array_get_idx(tmp,0), 8);	/* size */
 			p(fp, "  ", ptimestr(tbuf, sizeof(tbuf),
-					(time_t)strtoll(sub->value.v[1].value.s, NULL, 10)),
+				(time_t)strtoll(json_object_get_string(json_object_array_get_idx(tmp,1)), NULL, 10)),
 				" ", NULL); /* time */
-			pobj(fp, &sub->value.v[2], 0); /* human name */
+			pobj(fp,json_object_array_get_idx(tmp, 2), 0); /* human name */
 			p(fp, "\n", NULL);
-		} else {
-			fprintf(stderr, "weird '%s'\n", obj->value.v[i].value.s);
-			pobj(fp, &obj->value.v[i], 0); /* human name */
 		}
 	}
 	p(fp, "\n", NULL);
@@ -832,12 +918,33 @@ disable_core_dumps(void)
 	errno = 0;
 	memset(&limit, 0, sizeof(limit));
 	error = setrlimit(RLIMIT_CORE, &limit);
-	return error != -1 && error > 0 ? 0 : -1;
+
+		if (error == 0)
+		   {
+		   error = getrlimit(RLIMIT_CORE, &limit);
+		   if(error)
+			  {
+			  return -1;
+			  }
+		   else if(limit.rlim_cur == 0)
+			  {
+			  return 1; // disabling core dumps ok
+			  }
+		   else
+			  {
+			  return 0; // failed for some reason?
+			  }
+		   }
+		else
+		   {
+		   return -1;
+		   }
 }
 
 /* Disable core dumps according to the coredumps setting variable.
- * Returns 0 if core dumps are definitely disabled or 1 if core dumps
- * are or are possibly enabled.
+ * Returns 0 if core dumps are definitely disabled, 1 if core dumps
+ * are or are possibly enabled, -1 if we tried to disable them
+ * but possibly failed.
  *
  * This function could benefit from communicating error conditions
  * from disable_core_dumps.
@@ -845,13 +952,9 @@ disable_core_dumps(void)
 static int
 set_core_dumps(rnp_t *rnp)
 {
-	int setting;
-
-	setting = rnp_getvar(rnp, "coredumps") != NULL;
-	if (! setting) {
-		return disable_core_dumps() == 0 ? 0 : 1;
+	if (findvar(rnp, "coredumps") == -1) {
+		return disable_core_dumps() == 1 ? 0 : -1;
 	}
-
 	return 1;
 }
 
@@ -953,9 +1056,17 @@ init_new_io(rnp_t *rnp)
 }
 
 static int
-use_ssh_keys(rnp_t *rnp)
+parse_keyring_format(rnp_t *rnp, enum keyring_format_t *keyring_format, char *format)
 {
-	return rnp_getvar(rnp, "ssh keys") != NULL;
+	if (rnp_strcasecmp(format, "GPG") == 0) {
+		*keyring_format = GPG_KEYRING;
+	} else if (rnp_strcasecmp(format, "SSH") == 0) {
+		*keyring_format = SSH_KEYRING;
+	} else {
+		fprintf(stderr, "rnp: unsupported keyring format: \"%s\"\n", format);
+		return 0;
+	}
+	return 1;
 }
 
 static int
@@ -1089,18 +1200,35 @@ init_touch_initialized(rnp_t *rnp)
 }
 
 static int
+init_default_format(rnp_t *rnp)
+{
+	char *format = rnp_getvar(rnp, "keyring_format");
+
+	// default format is GPG
+	if (format == NULL) {
+		format = "GPG";
+	}
+
+	// if provided "ssh keys" variable, switch to SSH format
+	if (rnp_getvar(rnp, "ssh keys")) {
+		format = "SSH";
+	}
+
+	return rnp_set_keyring_format(rnp, format);
+}
+
+static int
 init_default_homedir(rnp_t *rnp)
 {
 	char *home = getenv("HOME");
-	char *subdir = rnp_getvar(rnp, "ssh keys")
-			? SUBDIRECTORY_SSH : SUBDIRECTORY_GNUPG;
+	if (rnp_getvar(rnp, "homedir"))
+		home = rnp_getvar(rnp, "homedir");
 
 	if (home == NULL) {
 		fputs("rnp: HOME environment variable is not set\n", stderr);
 		return 0;
 	}
-
-	return rnp_set_homedir(rnp, home, subdir, 1);
+	return rnp_set_homedir(rnp, home, 1);
 }
 
 /*************************************************************************/
@@ -1114,24 +1242,24 @@ rnp_init(rnp_t *rnp)
 	int       coredumps;
 	pgp_io_t *io;
 
-    /* Before calling the init, the userdefined options are set. 
-     * DONOT MEMSET*/
+	/* Before calling the init, the userdefined options are set.
+	 * DONOT MEMSET*/
 #if 0
-    memset((void *) rnp, '\0', sizeof(rnp_t));
+	memset((void *) rnp, '\0', sizeof(rnp_t));
 #endif
 
+	/* Apply default settings. */
+	rnp_setvar(rnp, "subdir_gpg", SUBDIRECTORY_GNUPG);
+	rnp_setvar(rnp, "subdir_ssh", SUBDIRECTORY_SSH);
+
 	/* Assume that core dumps are always enabled. */
-	coredumps = 1;
+	coredumps = -1;
 
 	/* If system resource constraints are in effect then attempt to
 	 * disable core dumps.
 	 */
 #ifdef HAVE_SYS_RESOURCE_H
 	coredumps = set_core_dumps(rnp);
-	if (coredumps) {
-		fprintf(stderr,
-			"rnp: warning - cannot turn off core dumps\n");
-	}
 #endif
 
 	/* Initialize the context's io streams apparatus. */
@@ -1145,9 +1273,17 @@ rnp_init(rnp_t *rnp)
 	if (! set_pass_fd(rnp))
 		return 0;
 
+	if (coredumps == -1) {
+		fputs("rnp: warning - cannot turn off core dumps\n", io->errs);
+	}
 	if (coredumps) {
 		fputs("rnp: warning: core dumps enabled, "
-		      "sensitive data may be leaked to disk\n", io->errs);
+			  "sensitive data may be leaked to disk\n", io->errs);
+	}
+
+	/* Initialize the context with the default keyring format. */
+	if (! init_default_format(rnp)) {
+		return 0;
 	}
 
 	/* Initialize the context with the default home directory. */
@@ -1183,9 +1319,13 @@ rnp_end(rnp_t *rnp)
 	}
 	if (rnp->pubring != NULL) {
 		pgp_keyring_free(rnp->pubring);
+				free(rnp->pubring);
+				rnp->pubring = NULL;
 	}
 	if (rnp->secring != NULL) {
 		pgp_keyring_free(rnp->secring);
+				free(rnp->secring);
+				rnp->secring = NULL;
 	}
 	free(rnp->io);
 	return 1;
@@ -1206,40 +1346,38 @@ rnp_list_keys(rnp_t *rnp, const int psigs)
 int
 rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
 {
-	mj_t	obj;
+	json_object *obj = json_object_new_array();
 	int	ret;
-
 	if (rnp->pubring == NULL) {
 		(void) fprintf(stderr, "No keyring\n");
 		return 0;
 	}
-	(void) memset(&obj, 0x0, sizeof(obj));
-	if (!pgp_keyring_json(rnp->io, rnp->pubring, &obj, psigs)) {
+	if (!pgp_keyring_json(rnp->io, rnp->pubring, obj, psigs)) {
 		(void) fprintf(stderr, "No keys in keyring\n");
 		return 0;
 	}
-	ret = mj_asprint(json, &obj, MJ_JSON_ENCODE);
-	mj_delete(&obj);
+	const char *j  = json_object_to_json_string(obj);
+	ret = j != NULL;
+	*json = strdup(j);
 	return ret;
 }
 
 int
 rnp_load_keys(rnp_t *rnp)
 {
-	char *homedir = rnp_getvar(rnp, "homedir");
+	char path[MAXPATHLEN];
 
 	errno = 0;
 
-	if (homedir == NULL) {
-		errno = EINVAL;
-		return 0;
-	}
-
 	if (use_ssh_keys(rnp)) {
-		if (! load_keys_ssh(rnp, homedir))
+		if (keydir_ssh(rnp, path, sizeof(path)) == -1)
+			return 0;
+		if (! load_keys_ssh(rnp, path))
 			return 0;
 	} else {
-		if (! load_keys_gnupg(rnp, homedir))
+		if (keydir_gnupg(rnp, path, sizeof(path)) == -1)
+			return 0;
+		if (! load_keys_gnupg(rnp, path))
 			return 0;
 	}
 
@@ -1306,19 +1444,18 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
 int
 rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const int psigs)
 {
+	int		 ret = 1;
 	const pgp_key_t	*key;
 	unsigned	 k;
-	mj_t		 id_array;
+	json_object *id_array = json_object_new_array();
 	char		*newkey;
-	int		 ret;
-
+	//remove 0x prefix, if any
 	if (name[0] == '0' && name[1] == 'x') {
 		name += 2;
 	}
-	(void) memset(&id_array, 0x0, sizeof(id_array));
+	printf("%s,%d, NAME: %s\n",__FILE__,__LINE__,name);
 	k = 0;
 	*json = NULL;
-	mj_create(&id_array, "array");
 	do {
 		key = pgp_getnextkeybyname(rnp->io, rnp->pubring,
 						name, &k);
@@ -1332,18 +1469,18 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
 					free(newkey);
 				}
 			} else {
-				ALLOC(mj_t, id_array.value.v, id_array.size,
-					id_array.c, 10, 10, "rnp_match_keys_json", return 0);
-				pgp_sprint_mj(rnp->io, rnp->pubring,
-						key, &id_array.value.v[id_array.c++],
+				pgp_sprint_json(rnp->io, rnp->pubring,
+						key, id_array,
 						"signature ",
 						&key->key.pubkey, psigs);
 			}
 			k += 1;
 		}
 	} while (key != NULL);
-	ret = mj_asprint(json, &id_array, MJ_JSON_ENCODE);
-	mj_delete(&id_array);
+	const char *j = json_object_to_json_string(id_array);
+	*json = strdup(j);
+	ret = strlen(j);
+	json_object_put(id_array);
 	return ret;
 }
 
@@ -1488,7 +1625,8 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 
 	/* write public key */
 
-	cc = snprintf(dir, sizeof(dir), "%s", rnp_getvar(rnp, "homedir"));
+	keydir(rnp, dir, sizeof(dir));
+	cc = strlen(dir);
 
 	rnp_setvar(rnp, "generated userid", &dir[cc - 16]);
 
@@ -1512,6 +1650,8 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 	}
 	if (rnp->pubring != NULL) {
 		pgp_keyring_free(rnp->pubring);
+		free(rnp->pubring);
+		rnp->pubring = NULL;
 	}
 	/* write secret key */
 	(void) snprintf(ringfile = filename, sizeof(filename), "%s/secring.gpg", dir);
@@ -1524,11 +1664,12 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 	}
 	/* get the passphrase */
 	if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
-	    (attempts = atoi(numtries)) <= 0) {
+		(attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
 		attempts = INFINITE_ATTEMPTS;
 	}
+        memset(passphrase, 0, sizeof(passphrase));
 	passc = find_passphrase(rnp->passfp, &cp[ID_OFFSET], passphrase, sizeof(passphrase), attempts);
 	if (!pgp_write_xfer_seckey(create, key, (uint8_t *)passphrase, (const unsigned)passc, NULL, noarmor)) {
 		(void) fprintf(io->errs, "cannot write seckey\n");
@@ -1539,6 +1680,8 @@ out1:
 	pgp_teardown_file_write(create, fd);
 	if (rnp->secring != NULL) {
 		pgp_keyring_free(rnp->secring);
+		free(rnp->secring);
+		rnp->secring = NULL;
 	}
 out:
 	pgp_keydata_free(key);
@@ -1600,9 +1743,9 @@ rnp_decrypt_file(rnp_t *rnp, const char *f, char *out, int armored)
 		return 0;
 	}
 	realarmor = isarmoured(io, f, NULL, ARMOR_HEAD);
-	sshkeys = (unsigned)(rnp_getvar(rnp, "ssh keys") != NULL);
+	sshkeys = (unsigned)use_ssh_keys(rnp);
 	if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
-	    (attempts = atoi(numtries)) <= 0) {
+		(attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
 		attempts = INFINITE_ATTEMPTS;
@@ -1646,7 +1789,7 @@ rnp_sign_file(rnp_t *rnp,
 	}
 	ret = 1;
 	if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
-	    (attempts = atoi(numtries)) <= 0) {
+		(attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
 		attempts = INFINITE_ATTEMPTS;
@@ -1665,7 +1808,7 @@ rnp_sign_file(rnp_t *rnp,
 					&pubkey->key.pubkey, 0);
 			}
 		}
-		if (rnp_getvar(rnp, "ssh keys") == NULL) {
+		if (!use_ssh_keys(rnp)) {
 			/* now decrypt key */
 			seckey = pgp_decrypt_seckey(keypair, rnp->passfp);
 			if (seckey == NULL) {
@@ -1775,7 +1918,7 @@ rnp_sign_memory(rnp_t *rnp,
 	}
 	ret = 1;
 	if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
-	    (attempts = atoi(numtries)) <= 0) {
+		(attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
 		attempts = INFINITE_ATTEMPTS;
@@ -1794,7 +1937,7 @@ rnp_sign_memory(rnp_t *rnp,
 					&pubkey->key.pubkey, 0);
 			}
 		}
-		if (rnp_getvar(rnp, "ssh keys") == NULL) {
+		if (!use_ssh_keys(rnp)) {
 			/* now decrypt key */
 			seckey = pgp_decrypt_seckey(keypair, rnp->passfp);
 			if (seckey == NULL) {
@@ -1951,9 +2094,9 @@ rnp_decrypt_memory(rnp_t *rnp, const void *input, const size_t insize,
 		return 0;
 	}
 	realarmour = isarmoured(io, NULL, input, ARMOR_HEAD);
-	sshkeys = (unsigned)(rnp_getvar(rnp, "ssh keys") != NULL);
+	sshkeys = (unsigned)use_ssh_keys(rnp);
 	if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
-	    (attempts = atoi(numtries)) <= 0) {
+		(attempts = atoi(numtries)) <= 0) {
 		attempts = MAX_PASSPHRASE_ATTEMPTS;
 	} else if (strcmp(numtries, "unlimited") == 0) {
 		attempts = INFINITE_ATTEMPTS;
@@ -2005,7 +2148,7 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
 	struct stat	 st;
 	pgp_io_t	*io;
 	char		 ringname[MAXPATHLEN];
-	char		*homedir;
+	char		 homedir[MAXPATHLEN];
 	int		 ret;
 
 	io = rnp->io;
@@ -2017,7 +2160,7 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
 		(void) fprintf(io->errs, "No such file '%s'\n", f);
 		return 0;
 	}
-	homedir = rnp_getvar(rnp, "homedir");
+	keydir(rnp, homedir, sizeof(homedir));
 	if (pubringname == NULL) {
 		(void) snprintf(ringname, sizeof(ringname),
 				"%s/pubring.gpg", homedir);
@@ -2068,6 +2211,7 @@ rnp_setvar(rnp_t *rnp, const char *name, const char *value)
 	/* sanity checks for range of values */
 	if (strcmp(name, "hash") == 0 || strcmp(name, "algorithm") == 0) {
 		if (pgp_str_to_hash_alg(newval) == PGP_HASH_UNKNOWN) {
+						fprintf(stderr, "Ignoring unknown hash algo '%s'\n", newval);
 			free(newval);
 			return 0;
 		}
@@ -2106,9 +2250,9 @@ rnp_getvar(rnp_t *rnp, const char *name)
 int
 rnp_incvar(rnp_t *rnp, const char *name, const int delta)
 {
-	char	*cp;
-	char	 num[16];
-	int	 val;
+	char *cp;
+	char  num[16];
+	int   val;
 
 	val = 0;
 	if ((cp = rnp_getvar(rnp, name)) != NULL) {
@@ -2119,33 +2263,57 @@ rnp_incvar(rnp_t *rnp, const char *name, const int delta)
 	return 1;
 }
 
+/* set keyring format information */
+int
+rnp_set_keyring_format(rnp_t *rnp, char *format)
+{
+	if (! parse_keyring_format(rnp, &rnp->keyring_format, format)) {
+		return 0;
+	}
+	rnp_setvar(rnp, "keyring_format", format);
+	return 1;
+}
+
 /* set the home directory value to "home/subdir" */
 int
-rnp_set_homedir(rnp_t *rnp, char *home, const char *subdir, const int quiet)
+rnp_set_homedir(rnp_t *rnp, char *home, const int quiet)
 {
 	struct stat st;
-	char        d[MAXPATHLEN];
+		int ret;
 
+	/* TODO: Replace `stderr` with the rnp context's error file when we
+	 *       are sure that all utilities and bindings don't call
+	 *       rnp_set_homedir ahead of rnp_init.
+	 */
+
+	/* Check that a NULL parameter wasn't passed. */
 	if (home == NULL) {
 		if (! quiet)
-			fprintf(stderr, "NULL HOME directory\n");
+			fprintf(stderr, "rnp: null homedir\n");
+		return 0;
+
+	/* If the path is not a directory then fail. */
+	} else if ((ret = stat(home, &st)) == 0 && !S_ISDIR(st.st_mode)) {
+		if (! quiet)
+			fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", home);
+		return 0;
+
+	/* If the path doesn't exist then fail. */
+	} else if (ret != 0 && errno == ENOENT) {
+		if (! quiet)
+			fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", home);
+		return 0;
+
+	/* If any other occurred then fail. */
+	} else if (ret != 0) {
+		if (! quiet)
+			fprintf(stderr, "rnp: an unspecified error occurred\n");
 		return 0;
 	}
 
-	snprintf(d, sizeof(d), "%s/%s", home, (subdir) ? subdir : "");
-	if (stat(d, &st) == 0) {
-		if ((st.st_mode & S_IFMT) == S_IFDIR) {
-			rnp_setvar(rnp, "homedir", d);
-			return 1;
-		}
-		fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", d);
-		return 0;
-	}
+	/* Otherwise set the home directory. */
+	rnp_setvar(rnp, "homedir", home);
 
-	if (! quiet)
-		fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", d);
-
-	rnp_setvar(rnp, "homedir", d);
 	return 1;
 }
 
@@ -2162,31 +2330,25 @@ rnp_validate_sigs(rnp_t *rnp)
 int
 rnp_format_json(void *vp, const char *json, const int psigs)
 {
-	mj_t	 ids;
+	json_object *ids;
 	FILE	*fp;
-	int	 from;
 	int	 idc;
-	int	 tok;
-	int	 to;
 	int	 i;
 
 	if ((fp = (FILE *)vp) == NULL || json == NULL) {
 		return 0;
 	}
-	/* ids is an array of strings, each containing 1 entry */
-	(void) memset(&ids, 0x0, sizeof(ids));
-	from = to = tok = 0;
-	/* convert from string into an mj structure */
-	(void) mj_parse(&ids, json, &from, &to, &tok);
-	if ((idc = mj_arraycount(&ids)) == 1 && strchr(json, '{') == NULL) {
-		idc = 0;
-	}
+	/* convert from string into a json structure */
+	ids = json_tokener_parse(json);
+//	/* ids is an array of strings, each containing 1 entry */
+	idc = json_object_array_length(ids);
 	(void) fprintf(fp, "%d key%s found\n", idc, (idc == 1) ? "" : "s");
 	for (i = 0 ; i < idc ; i++) {
-		format_json_key(fp, &ids.value.v[i], psigs);
+		json_object *item = json_object_array_get_idx(ids, i);;
+		format_json_key(fp, item, psigs);
 	}
 	/* clean up */
-	mj_delete(&ids);
+	json_object_put(ids);
 	return idc;
 }
 

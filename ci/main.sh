@@ -1,14 +1,17 @@
 #!/bin/bash
 set -eu
 
-LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${CMOCKA_INSTALL}/lib"
+LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${CMOCKA_INSTALL}/lib:${JSON_C_INSTALL}/lib"
 LDFLAGS="-L${CMOCKA_INSTALL}/lib"
-CFLAGS="--std=c11 -D_GNU_SOURCE -I${CMOCKA_INSTALL}/include"
+CFLAGS="-I${CMOCKA_INSTALL}/include"
+
+JSON_LIBS="-L${JSON_C_INSTALL}/lib -ljson-c"
+JSON_CFLAGS="-I${JSON_C_INSTALL}/include/json-c"
 
 [ "$BUILD_MODE" = "coverage" ] && CFLAGS+=" -O0 --coverage"
 [ "$BUILD_MODE" = "sanitize" ] && CFLAGS+=" -fsanitize=leak,address,undefined"
 
-export LD_LIBRARY_PATH CFLAGS LDFLAGS
+export LD_LIBRARY_PATH CFLAGS LDFLAGS JSON_CFLAGS JSON_LIBS
 
 autoreconf -vfi
 ./configure --with-botan=${BOTAN_INSTALL}

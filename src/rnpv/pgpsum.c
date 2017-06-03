@@ -40,8 +40,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "digest.h"
 #include "pgpsum.h"
+#include "hash.h"
 
 #ifndef USE_ARG
 #define USE_ARG(x)	/*LINTED*/(void)&(x)
@@ -52,7 +52,7 @@
 
 /* add the ascii armor line endings (except for last line) */
 static size_t
-don_armor(digest_t *hash, uint8_t *in, size_t insize, int doarmor)
+don_armor(pgp_hash_t *hash, uint8_t *in, size_t insize, int doarmor)
 {
 	uint8_t	*from;
 	uint8_t	*newp;
@@ -67,10 +67,10 @@ don_armor(digest_t *hash, uint8_t *in, size_t insize, int doarmor)
 				break;
 			}
 		}
-		digest_update(hash, from, (size_t)(newp - from));
-		digest_update(hash, dos_line_end, sizeof(dos_line_end));
+		pgp_hash_add(hash, from, (size_t)(newp - from));
+		pgp_hash_add(hash, dos_line_end, sizeof(dos_line_end));
 	}
-	digest_update(hash, from, insize - (size_t)(from - in));
+	pgp_hash_add(hash, from, insize - (size_t)(from - in));
 	return 1;
 }
 
@@ -119,7 +119,7 @@ already_armored(uint8_t *in, size_t insize)
 static int
 calcsum(uint8_t *out, size_t size, uint8_t *mem, size_t cc, const uint8_t *hashed, size_t hashsize, int doarmor)
 {
-	digest_t	 hash;
+	pgp_hash_t	 hash;
 	uint32_t	 len32;
 	uint16_t	 len16;
 	uint8_t		 hashalg;
@@ -137,18 +137,18 @@ calcsum(uint8_t *out, size_t size, uint8_t *mem, size_t cc, const uint8_t *hashe
 #ifdef RNPV_DEBUG
 	writefile(mem, cc);
 #endif
-	digest_init(&hash, (const unsigned)hashalg);
+	pgp_hash_create(&hash, hashalg);
 	if (strchr("tw", doarmor) != NULL && !already_armored(mem, cc)) {
 		/* this took me ages to find - something causes gpg to truncate its input */
 		don_armor(&hash, mem, cc - 1, doarmor);
 	} else {
-		digest_update(&hash, mem, cc);
+		pgp_hash_add(&hash, mem, cc);
 	}
 	if (hashed) {
-		digest_update(&hash, hashed, hashsize);
+		pgp_hash_add(&hash, hashed, hashsize);
 	}
-	digest_update(&hash, trailer, sizeof(trailer));
-	return digest_final(out, &hash);
+	pgp_hash_add(&hash, trailer, sizeof(trailer));
+	return pgp_hash_finish(&hash, out);
 }
 
 /* used to byteswap 16 bit words */

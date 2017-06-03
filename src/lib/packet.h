@@ -59,6 +59,7 @@
 #include <time.h>
 
 #include "types.h"
+#include "hash.h"
 #include "errors.h"
 
 typedef struct PGPV_BIGNUM_st PGPV_BIGNUM;
@@ -490,28 +491,6 @@ typedef enum {
 
 #define PGP_SA_DEFAULT_CIPHER	PGP_SA_CAST5
 
-/** Hashing Algorithm Numbers.
- * OpenPGP assigns a unique Algorithm Number to each algorithm that is
- * part of OpenPGP.
- *
- * This lists algorithm numbers for hash algorithms.
- *
- * \see RFC4880 9.4
- */
-typedef enum {
-	PGP_HASH_UNKNOWN = -1,	/* used to indicate errors */
-	PGP_HASH_MD5 = 1,	/* MD5 */
-	PGP_HASH_SHA1 = 2,	/* SHA-1 */
-	PGP_HASH_RIPEMD = 3,	/* RIPEMD160 */
-
-	PGP_HASH_SHA256 = 8,	/* SHA256 */
-	PGP_HASH_SHA384 = 9,	/* SHA384 */
-	PGP_HASH_SHA512 = 10,	/* SHA512 */
-	PGP_HASH_SHA224 = 11	/* SHA224 */
-} pgp_hash_alg_t;
-
-#define	PGP_DEFAULT_HASH_ALGORITHM	PGP_HASH_SHA256
-
 void   pgp_calc_mdc_hash(const uint8_t *,
 			const size_t,
 			const uint8_t *,
@@ -540,7 +519,7 @@ typedef struct pgp_seckey_t {
 	pgp_symm_alg_t		alg;		/* symmetric alg */
 	pgp_hash_alg_t		hash_alg;	/* hash algorithm */
 	uint8_t				salt[PGP_SALT_SIZE];
-	unsigned			octetc;
+	unsigned			s2k_iterations;
 	uint8_t				iv[PGP_MAX_BLOCK_SIZE];
 	union {
 		pgp_rsa_seckey_t		rsa;

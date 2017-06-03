@@ -84,6 +84,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "keyring.h"
 #include "packet.h"
 #include "signature.h"
+#include "s2k.h"
 #include "writer.h"
 #include "readerwriter.h"
 #include "memory.h"
@@ -98,7 +99,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
  * \return 1 if OK, otherwise 0
  */
 
-unsigned 
+unsigned
 pgp_write_ss_header(pgp_output_t *output,
 			unsigned length,
 			pgp_content_enum type)
@@ -123,7 +124,7 @@ pgp_write_ss_header(pgp_output_t *output,
  * \param userid
  */
 
-void 
+void
 pgp_fast_create_userid(uint8_t **id, uint8_t *userid)
 {
 	*id = userid;
@@ -136,7 +137,7 @@ pgp_fast_create_userid(uint8_t **id, uint8_t *userid)
  * \param output
  * \return 1 if OK, otherwise 0
  */
-unsigned 
+unsigned
 pgp_write_struct_userid(pgp_output_t *output, const uint8_t *id)
 {
 	return pgp_write_ptag(output, PGP_PTAG_CT_USER_ID) &&
@@ -152,7 +153,7 @@ pgp_write_struct_userid(pgp_output_t *output, const uint8_t *id)
  *
  * \return return value from pgp_write_struct_userid()
  */
-unsigned 
+unsigned
 pgp_write_userid(const uint8_t *userid, pgp_output_t *output)
 {
 	return pgp_write_struct_userid(output, userid);
@@ -161,13 +162,13 @@ pgp_write_userid(const uint8_t *userid, pgp_output_t *output)
 /**
 \ingroup Core_MPI
 */
-static unsigned 
+static unsigned
 mpi_length(const BIGNUM *bn)
 {
 	return (unsigned)(2 + (BN_num_bits(bn) + 7) / 8);
 }
 
-static unsigned 
+static unsigned
 pubkey_length(const pgp_pubkey_t *key)
 {
 	switch (key->alg) {
@@ -185,7 +186,7 @@ pubkey_length(const pgp_pubkey_t *key)
 	return 0;
 }
 
-static unsigned 
+static unsigned
 seckey_length(const pgp_seckey_t *key)
 {
 	int             len;
@@ -213,9 +214,9 @@ seckey_length(const pgp_seckey_t *key)
  * \param n
  * \param e
 */
-void 
+void
 pgp_fast_create_rsa_pubkey(pgp_pubkey_t *key, time_t t,
-			       BIGNUM *n, BIGNUM *e)
+				   BIGNUM *n, BIGNUM *e)
 {
 	key->version = PGP_V4;
 	key->birthtime = t;
@@ -228,16 +229,16 @@ pgp_fast_create_rsa_pubkey(pgp_pubkey_t *key, time_t t,
  * Note that we support v3 keys here because they're needed for for
  * verification - the writer doesn't allow them, though
  */
-static unsigned 
+static unsigned
 write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
 {
 	if (!(pgp_write_scalar(output, (unsigned)key->version, 1) &&
-	      pgp_write_scalar(output, (unsigned)key->birthtime, 4))) {
+		  pgp_write_scalar(output, (unsigned)key->birthtime, 4))) {
 		return 0;
 	}
 
 	if (key->version != 4 &&
-	    !pgp_write_scalar(output, key->days_valid, 2)) {
+		!pgp_write_scalar(output, key->days_valid, 2)) {
 		return 0;
 	}
 
@@ -281,7 +282,7 @@ hash_bn(pgp_hash_t *hash, BIGNUM *bignum)
 
 	if (BN_is_zero(bignum)) {
 		length[0] = length[1] = 0;
-		hash->add(hash, length, 2);
+				pgp_hash_add(hash, length, 2);
 		return 1;
 	}
 	if ((bits = (size_t) BN_num_bits(bignum)) < 1) {
@@ -299,8 +300,8 @@ hash_bn(pgp_hash_t *hash, BIGNUM *bignum)
 	BN_bn2bin(bignum, bn);
 	length[0] = (uint8_t)((bits >> 8) & 0xff);
 	length[1] = (uint8_t)(bits & 0xff);
-	hash->add(hash, length, 2);
-	hash->add(hash, bn, bytes);
+		pgp_hash_add(hash, length, 2);
+		pgp_hash_add(hash, bn, bytes);
 	free(bn);
 	return 1;
 }
@@ -308,8 +309,8 @@ hash_bn(pgp_hash_t *hash, BIGNUM *bignum)
 static int
 hash_key_material(const pgp_seckey_t *key, uint8_t *result) {
 	pgp_hash_t hash;
-	pgp_hash_sha1(&hash);
-	hash.init(&hash);
+		pgp_hash_create(&hash, PGP_HASH_SHA1);
+
 	switch (key->pubkey.alg) {
 	case PGP_PKA_RSA:
 	case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -328,7 +329,7 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result) {
 	default:
 		return 0;
 	}
-	hash.finish(&hash, result);
+		pgp_hash_finish(&hash, result);
 	return 1;
 }
 
@@ -336,21 +337,26 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result) {
  * Note that we support v3 keys here because they're needed for
  * verification.
  */
-static unsigned 
+static unsigned
 write_seckey_body(const pgp_seckey_t *key,
-		      const uint8_t *passphrase,
-		      const size_t pplen,
-		      pgp_output_t *output)
+			  const uint8_t *passphrase,
+			  const size_t pplen,
+			  pgp_output_t *output)
 {
 	/* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
 
 	pgp_crypt_t   crypted;
-	pgp_hash_t    hash;
-	unsigned	done = 0;
-	unsigned	i = 0;
-	uint8_t		*hashed;
-	uint8_t		sesskey[PGP_CAST_KEY_LENGTH];
+	uint8_t		sesskey[PGP_MAX_KEY_SIZE];
 	uint8_t		checkhash[PGP_CHECKHASH_SIZE];
+        size_t          sesskey_size;
+
+        sesskey_size = pgp_key_size(key->alg);
+
+        if (sesskey_size == 0)
+        {
+                (void) fprintf(stderr, "write_seckey_body: unknown encryption algorithm\n");
+                return 0;
+        }
 
 	if (!write_pubkey_body(&key->pubkey, output)) {
 		return 0;
@@ -362,31 +368,29 @@ write_seckey_body(const pgp_seckey_t *key,
 	if (!pgp_write_scalar(output, (unsigned)key->s2k_usage, 1)) {
 		return 0;
 	}
-
-	if (key->alg != PGP_SA_CAST5) {
-		(void) fprintf(stderr, "write_seckey_body: algorithm\n");
-		return 0;
-	}
 	if (!pgp_write_scalar(output, (unsigned)key->alg, 1)) {
 		return 0;
 	}
 
 	if (key->s2k_specifier != PGP_S2KS_SIMPLE &&
-	    key->s2k_specifier != PGP_S2KS_SALTED) {
-		/* = 1 \todo could also be iterated-and-salted */
-		(void) fprintf(stderr, "write_seckey_body: s2k spec\n");
+	    key->s2k_specifier != PGP_S2KS_SALTED &&
+            key->s2k_specifier != PGP_S2KS_ITERATED_AND_SALTED) {
+		(void) fprintf(stderr, "write_seckey_body: invalid/unsupported s2k specifier %d\n",
+                               key->s2k_specifier);
 		return 0;
 	}
 	if (!pgp_write_scalar(output, (unsigned)key->s2k_specifier, 1)) {
 		return 0;
 	}
+
 	if (!pgp_write_scalar(output, (unsigned)key->hash_alg, 1)) {
 		return 0;
 	}
 
 	switch (key->s2k_specifier) {
 	case PGP_S2KS_SIMPLE:
-		/* nothing more to do */
+		/* no data to write */
+                pgp_s2k_simple(key->hash_alg, sesskey, sesskey_size, (const char*)passphrase);
 		break;
 
 	case PGP_S2KS_SALTED:
@@ -395,111 +399,40 @@ write_seckey_body(const pgp_seckey_t *key,
 		if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
 			return 0;
 		}
+                pgp_s2k_salted(key->hash_alg, sesskey, sesskey_size,
+                               (const char*)passphrase, key->salt);
 		break;
 
-		/*
-		 * \todo case PGP_S2KS_ITERATED_AND_SALTED: // 8-octet salt
-		 * value // 1-octet count break;
-		 */
+        case PGP_S2KS_ITERATED_AND_SALTED:
+		/* 8-octet salt value */
+		pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE);
+                pgp_s2k_iterated(key->hash_alg, sesskey, sesskey_size,
+                                 (const char*)passphrase, key->salt, key->s2k_iterations);
+                uint8_t encoded_iterations = pgp_s2k_encode_iterations(key->s2k_iterations);
 
-	default:
-		(void) fprintf(stderr,
-			"invalid/unsupported s2k specifier %d\n",
-			key->s2k_specifier);
-		return 0;
+		if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
+			return 0;
+		}
+                if (!pgp_write_scalar(output, encoded_iterations, 1)) {
+			return 0;
+                }
+		break;
 	}
 
 	if (!pgp_write(output, &key->iv[0], pgp_block_size(key->alg))) {
 		return 0;
 	}
 
-	/*
-	 * create the session key for encrypting the algorithm-specific
-	 * fields
-	 */
-
-	switch (key->s2k_specifier) {
-	case PGP_S2KS_SIMPLE:
-	case PGP_S2KS_SALTED:
-		/* RFC4880: section 3.7.1.1 and 3.7.1.2 */
-
-		for (done = 0, i = 0; done < PGP_CAST_KEY_LENGTH; i++) {
-			unsigned 	hashsize;
-			unsigned 	j;
-			unsigned	needed;
-			unsigned	size;
-			uint8_t		zero = 0;
-
-			/* Hard-coded SHA1 for session key */
-			pgp_hash_any(&hash, PGP_HASH_SHA1);
-			hashsize = pgp_hash_size(key->hash_alg);
-			needed = PGP_CAST_KEY_LENGTH - done;
-			size = MIN(needed, hashsize);
-			if ((hashed = calloc(1, hashsize)) == NULL) {
-				(void) fprintf(stderr, "write_seckey_body: bad alloc\n");
-				return 0;
-			}
-			if (!hash.init(&hash)) {
-				(void) fprintf(stderr, "write_seckey_body: bad alloc\n");
-				return 0;
-			}
-
-			/* preload if iterating  */
-			for (j = 0; j < i; j++) {
-				/*
-				 * Coverity shows a DEADCODE error on this
-				 * line. This is expected since the hardcoded
-				 * use of SHA1 and CAST5 means that it will
-				 * not used. This will change however when
-				 * other algorithms are supported.
-				 */
-				hash.add(&hash, &zero, 1);
-			}
-
-			if (key->s2k_specifier == PGP_S2KS_SALTED) {
-				hash.add(&hash, key->salt, PGP_SALT_SIZE);
-			}
-			hash.add(&hash, passphrase, (unsigned)pplen);
-			hash.finish(&hash, hashed);
-
-			/*
-			 * if more in hash than is needed by session key, use
-			 * the leftmost octets
-			 */
-			(void) memcpy(&sesskey[i * hashsize],
-					hashed, (unsigned)size);
-			done += (unsigned)size;
-			if (done > PGP_CAST_KEY_LENGTH) {
-				(void) fprintf(stderr,
-					"write_seckey_body: short add\n");
-				return 0;
-			}
-		}
-
-		break;
-
-		/*
-		 * \todo case PGP_S2KS_ITERATED_AND_SALTED: * 8-octet salt
-		 * value * 1-octet count break;
-		 */
-
-	default:
-		(void) fprintf(stderr,
-			"invalid/unsupported s2k specifier %d\n",
-			key->s2k_specifier);
-		return 0;
-	}
-
 	/* use this session key to encrypt */
 
 	pgp_crypt_any(&crypted, key->alg);
-	crypted.set_iv(&crypted, key->iv);
-	crypted.set_crypt_key(&crypted, sesskey);
+		pgp_cipher_set_iv(&crypted, key->iv);
+		pgp_cipher_set_key(&crypted, sesskey);
 	pgp_encrypt_init(&crypted);
 
 	if (pgp_get_debug_level(__FILE__)) {
 		hexdump(stderr, "writing: iv=", key->iv, pgp_block_size(key->alg));
-		hexdump(stderr, "key= ", sesskey, PGP_CAST_KEY_LENGTH);
+		hexdump(stderr, "key= ", sesskey, sesskey_size);
 		(void) fprintf(stderr, "\nturning encryption on...\n");
 	}
 	pgp_push_enc_crypt(output, &crypted);
@@ -509,9 +442,9 @@ write_seckey_body(const pgp_seckey_t *key,
 	case PGP_PKA_RSA_ENCRYPT_ONLY:
 	case PGP_PKA_RSA_SIGN_ONLY:
 		if (!pgp_write_mpi(output, key->key.rsa.d) ||
-		    !pgp_write_mpi(output, key->key.rsa.p) ||
-		    !pgp_write_mpi(output, key->key.rsa.q) ||
-		    !pgp_write_mpi(output, key->key.rsa.u)) {
+			!pgp_write_mpi(output, key->key.rsa.p) ||
+			!pgp_write_mpi(output, key->key.rsa.q) ||
+			!pgp_write_mpi(output, key->key.rsa.u)) {
 			if (pgp_get_debug_level(__FILE__)) {
 				(void) fprintf(stderr,
 					"4 x mpi not written - problem\n");
@@ -537,6 +470,7 @@ write_seckey_body(const pgp_seckey_t *key,
 	}
 
 	pgp_writer_pop(output);
+	pgp_cipher_finish(&crypted);
 
 	return 1;
 }
@@ -548,7 +482,7 @@ write_seckey_body(const pgp_seckey_t *key,
  * \param output
  * \return 1 if OK, otherwise 0
  */
-static unsigned 
+static unsigned
 write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, const pgp_pubkey_t *key)
 {
 	return pgp_write_ptag(output, tag) &&
@@ -568,7 +502,7 @@ write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, const pgp_pubkey
 
 */
 
-unsigned 
+unsigned
 pgp_write_xfer_pubkey(pgp_output_t *output,
 			const pgp_key_t *key,
 			const pgp_keyring_t *subkeys,
@@ -641,7 +575,7 @@ pgp_write_xfer_pubkey(pgp_output_t *output,
 
 */
 
-unsigned 
+unsigned
 pgp_write_xfer_seckey(pgp_output_t *output,
 				const pgp_key_t *key,
 				const uint8_t *passphrase,
@@ -716,7 +650,7 @@ pgp_write_xfer_seckey(pgp_output_t *output,
  * \return 1 if OK, otherwise 0
  */
 
-unsigned 
+unsigned
 pgp_write_rsa_pubkey(time_t t, const BIGNUM *n,
 			 const BIGNUM *e,
 			 pgp_output_t *output)
@@ -734,9 +668,9 @@ pgp_write_rsa_pubkey(time_t t, const BIGNUM *n,
  * \param make_packet
  */
 
-void 
+void
 pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key,
-		     unsigned make_packet)
+			 unsigned make_packet)
 {
 	pgp_output_t *output;
 
@@ -769,10 +703,10 @@ pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key,
  * \param n The RSA public parameter n (=p*q) [OPTIONAL]
  * \param e The RSA public parameter e */
 
-void 
+void
 pgp_fast_create_rsa_seckey(pgp_seckey_t *key, time_t t,
-			     BIGNUM *d, BIGNUM *p, BIGNUM *q, BIGNUM *u,
-			       BIGNUM *n, BIGNUM *e)
+				 BIGNUM *d, BIGNUM *p, BIGNUM *q, BIGNUM *u,
+				   BIGNUM *n, BIGNUM *e)
 {
 	pgp_fast_create_rsa_pubkey(&key->pubkey, t, n, e);
 
@@ -796,12 +730,12 @@ pgp_fast_create_rsa_seckey(pgp_seckey_t *key, time_t t,
  * \param output
  * \return 1 if OK; else 0
  */
-unsigned 
+unsigned
 pgp_write_struct_seckey(pgp_content_enum tag,
-			    const pgp_seckey_t *key,
-			    const uint8_t *passphrase,
-			    const size_t pplen,
-			    pgp_output_t *output)
+				const pgp_seckey_t *key,
+				const uint8_t *passphrase,
+				const size_t pplen,
+				pgp_output_t *output)
 {
 	int             length = 0;
 
@@ -911,7 +845,7 @@ pgp_output_new(void)
  *
  * \param info the structure to be deleted.
  */
-void 
+void
 pgp_output_delete(pgp_output_t *output)
 {
 	pgp_writer_info_delete(&output->writer);
@@ -925,7 +859,7 @@ pgp_output_delete(pgp_output_t *output)
  \param cs Checksum to be written
  \return 1 if OK; else 0
 */
-unsigned 
+unsigned
 pgp_calc_sesskey_checksum(pgp_pk_sesskey_t *sesskey, uint8_t cs[2])
 {
 	uint32_t   checksum = 0;
@@ -949,7 +883,7 @@ pgp_calc_sesskey_checksum(pgp_pk_sesskey_t *sesskey, uint8_t cs[2])
 	return 1;
 }
 
-static unsigned 
+static unsigned
 create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, pgp_crypt_t *cipherinfo, uint8_t *m_buf)
 {
 	unsigned	i;
@@ -982,11 +916,11 @@ pgp_pk_sesskey_t *
 pgp_create_pk_sesskey(const pgp_key_t *key, const char *ciphername)
 {
 	/*
-         * Creates a random session key and encrypts it for the given key
-         *
-         * Encryption used is PK,
-         * can be any, we're hardcoding RSA for now
-         */
+		 * Creates a random session key and encrypts it for the given key
+		 *
+		 * Encryption used is PK,
+		 * can be any, we're hardcoding RSA for now
+		 */
 
 	const pgp_pubkey_t	*pubkey;
 	const uint8_t		*id = NULL;
@@ -1004,42 +938,42 @@ pgp_create_pk_sesskey(const pgp_key_t *key, const char *ciphername)
 		id = key->encid;
 	}
 
-        if (key->type != PGP_PTAG_CT_PUBLIC_KEY) {
-           (void) fprintf(stderr, "pgp_create_pk_sesskey: bad type\n");
-           return NULL;
-        }
+		if (key->type != PGP_PTAG_CT_PUBLIC_KEY) {
+		   (void) fprintf(stderr, "pgp_create_pk_sesskey: bad type\n");
+		   return NULL;
+		}
 
-        if (pubkey->alg != PGP_PKA_RSA &&
-            pubkey->alg != PGP_PKA_DSA &&
-            pubkey->alg != PGP_PKA_ELGAMAL) {
-           (void) fprintf(stderr, "pgp_create_pk_sesskey: bad pubkey algorithm\n");
-           return NULL;
+		if (pubkey->alg != PGP_PKA_RSA &&
+			pubkey->alg != PGP_PKA_DSA &&
+			pubkey->alg != PGP_PKA_ELGAMAL) {
+		   (void) fprintf(stderr, "pgp_create_pk_sesskey: bad pubkey algorithm\n");
+		   return NULL;
 	}
 
 	(void) memset(&cipherinfo, 0x0, sizeof(cipherinfo));
 
 	if (pgp_crypt_any(&cipherinfo,
-                          cipher = pgp_str_to_cipher((ciphername) ? ciphername : "cast5")) == 0)
-        {
-           return NULL;
-        }
+						  cipher = pgp_str_to_cipher((ciphername) ? ciphername : "cast5")) == 0)
+		{
+		   return NULL;
+		}
 
 	/* allocate encoded_key here */
 
-        /* The buffer stores the key plus alg_id (1 byte) + checksum (2 bytes) */
+		/* The buffer stores the key plus alg_id (1 byte) + checksum (2 bytes) */
 
-        sz_encoded_key = cipherinfo.keysize + 1 + 2;
+		sz_encoded_key = cipherinfo.keysize + 1 + 2;
 	encoded_key = calloc(1, sz_encoded_key);
 	if (encoded_key == NULL) {
 		(void) fprintf(stderr,
 			"pgp_create_pk_sesskey: can't allocate\n");
-                goto error;
+				goto error;
 	}
 
 	if ((sesskey = calloc(1, sizeof(*sesskey))) == NULL) {
 		(void) fprintf(stderr,
 			"pgp_create_pk_sesskey: can't allocate\n");
-                goto error;
+				goto error;
 	}
 
 	sesskey->version = PGP_PKSK_V3;
@@ -1049,71 +983,71 @@ pgp_create_pk_sesskey(const pgp_key_t *key, const char *ciphername)
 	pgp_random(sesskey->key, cipherinfo.keysize);
 
 	if (create_unencoded_m_buf(sesskey, &cipherinfo, &encoded_key[0]) == 0) {
-           free(sesskey);
-           sesskey = NULL;
-           goto done;
+		   free(sesskey);
+		   sesskey = NULL;
+		   goto done;
 	}
 
 	if (pgp_get_debug_level(__FILE__)) {
-           hexdump(stderr, "Encrypting for keyid", id, sizeof(sesskey->key_id));
-           hexdump(stderr, "sesskey created", sesskey->key, cipherinfo.keysize);
-           hexdump(stderr, "encoded key buf", encoded_key, cipherinfo.keysize + 1 + 2);
+		   hexdump(stderr, "Encrypting for keyid", id, sizeof(sesskey->key_id));
+		   hexdump(stderr, "sesskey created", sesskey->key, cipherinfo.keysize);
+		   hexdump(stderr, "encoded key buf", encoded_key, cipherinfo.keysize + 1 + 2);
 	}
 
 	/* and encrypt it */
-        if (key->key.pubkey.alg == PGP_PKA_RSA)
-        {
-           uint8_t   encmpibuf[RNP_BUFSIZ];
-           int             n;
+		if (key->key.pubkey.alg == PGP_PKA_RSA)
+		{
+		   uint8_t   encmpibuf[RNP_BUFSIZ];
+		   int             n;
 
-           n = pgp_rsa_encrypt_pkcs1(encmpibuf, sizeof(encmpibuf),
-                                     encoded_key, sz_encoded_key,
-                                     &pubkey->key.rsa);
-           if (n <= 0) {
-              (void) fprintf(stderr, "pgp_rsa_public_encrypt failure\n");
-              free(sesskey);
-              sesskey = NULL;
-              goto done;
-           }
+		   n = pgp_rsa_encrypt_pkcs1(encmpibuf, sizeof(encmpibuf),
+									 encoded_key, sz_encoded_key,
+									 &pubkey->key.rsa);
+		   if (n <= 0) {
+			  (void) fprintf(stderr, "pgp_rsa_encrypt_pkcs1 failure\n");
+			  free(sesskey);
+			  sesskey = NULL;
+			  goto done;
+		   }
 
-           sesskey->params.rsa.encrypted_m = BN_bin2bn(encmpibuf, n, NULL);
+		   sesskey->params.rsa.encrypted_m = BN_bin2bn(encmpibuf, n, NULL);
 
-           if (pgp_get_debug_level(__FILE__)) {
-              hexdump(stderr, "encrypted mpi", encmpibuf, n);
-           }
-        }
-        else
-        {
-           /* ElGamal case */
-           uint8_t   encmpibuf[RNP_BUFSIZ];
-           uint8_t   g_to_k[RNP_BUFSIZ];
-           int             n;
+		   if (pgp_get_debug_level(__FILE__)) {
+			  hexdump(stderr, "encrypted mpi", encmpibuf, n);
+		   }
+		}
+		else
+		{
+		   /* ElGamal case */
+		   uint8_t   encmpibuf[RNP_BUFSIZ];
+		   uint8_t   g_to_k[RNP_BUFSIZ];
+		   int             n;
 
-           n = pgp_elgamal_public_encrypt_pkcs1(g_to_k, encmpibuf,
-                                                encoded_key, sz_encoded_key,
-                                                &pubkey->key.elgamal);
-           if (n <= 0) {
-              (void) fprintf(stderr, "pgp_elgamal_public_encrypt failure\n");
-              goto error;
-           }
+		   n = pgp_elgamal_public_encrypt_pkcs1(g_to_k, encmpibuf,
+												encoded_key, sz_encoded_key,
+												&pubkey->key.elgamal);
+		   if (n <= 0) {
+			  (void) fprintf(stderr, "pgp_elgamal_public_encrypt failure\n");
+			  goto error;
+		   }
 
-           sesskey->params.elgamal.g_to_k = BN_bin2bn(g_to_k, n / 2, NULL);
-           sesskey->params.elgamal.encrypted_m = BN_bin2bn(encmpibuf, n / 2, NULL);
+		   sesskey->params.elgamal.g_to_k = BN_bin2bn(g_to_k, n / 2, NULL);
+		   sesskey->params.elgamal.encrypted_m = BN_bin2bn(encmpibuf, n / 2, NULL);
 
-           if (pgp_get_debug_level(__FILE__)) {
-              hexdump(stderr, "elgamal g^k", g_to_k, n/2);
-              hexdump(stderr, "encrypted mpi", encmpibuf, n/2);
-           }
-        }
+		   if (pgp_get_debug_level(__FILE__)) {
+			  hexdump(stderr, "elgamal g^k", g_to_k, n/2);
+			  hexdump(stderr, "encrypted mpi", encmpibuf, n/2);
+		   }
+		}
 
 done:
 	free(encoded_key);
 	return sesskey;
 
 error:
-        free(encoded_key);
-        free(sesskey);
-        return NULL;
+		free(encoded_key);
+		free(sesskey);
+		return NULL;
 }
 
 /**
@@ -1123,7 +1057,7 @@ error:
 \param pksk Public Key Session Key to write out
 \return 1 if OK; else 0
 */
-unsigned 
+unsigned
 pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
 {
 	/* XXX - Flexelint - Pointer parameter 'pksk' (line 1076) could be declared as pointing to const */
@@ -1171,7 +1105,7 @@ pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
 \return 1 if OK; else 0
 */
 
-unsigned 
+unsigned
 pgp_write_mdc(pgp_output_t *output, const uint8_t *hashed)
 {
 	/* write it out */
@@ -1189,17 +1123,17 @@ pgp_write_mdc(pgp_output_t *output, const uint8_t *hashed)
 \param output Write settings
 \return 1 if OK; else 0
 */
-unsigned 
+unsigned
 pgp_write_litdata(pgp_output_t *output,
 			const uint8_t *data,
 			const int maxlen,
 			const pgp_litdata_enum type)
 {
 	/*
-         * RFC4880 does not specify a meaning for filename or date.
-         * It is implementation-dependent.
-         * We will not implement them.
-         */
+		 * RFC4880 does not specify a meaning for filename or date.
+		 * It is implementation-dependent.
+		 * We will not implement them.
+		 */
 	/* \todo do we need to check text data for <cr><lf> line endings ? */
 	return pgp_write_ptag(output, PGP_PTAG_CT_LITDATA) &&
 		pgp_write_length(output, (unsigned)(1 + 1 + 4 + maxlen)) &&
@@ -1218,7 +1152,7 @@ pgp_write_litdata(pgp_output_t *output,
 \return 1 if OK; else 0
 */
 
-unsigned 
+unsigned
 pgp_fileread_litdata(const char *filename,
 				 const pgp_litdata_enum type,
 				 pgp_output_t *output)
@@ -1250,7 +1184,7 @@ pgp_fileread_litdata(const char *filename,
    \return 1 if OK; 0 if error
 */
 
-int 
+int
 pgp_filewrite(const char *filename, const char *buf,
 			const size_t len, const unsigned overwrite)
 {
@@ -1288,10 +1222,10 @@ pgp_filewrite(const char *filename, const char *buf,
 \return 1 if OK; else 0
 \note Hard-coded to use AES256
 */
-unsigned 
+unsigned
 pgp_write_symm_enc_data(const uint8_t *data,
-				       const int len,
-				       pgp_output_t * output)
+					   const int len,
+					   pgp_output_t * output)
 {
 	pgp_crypt_t	crypt_info;
 	uint8_t		*encrypted = (uint8_t *) NULL;
@@ -1330,8 +1264,8 @@ pgp_write_symm_enc_data(const uint8_t *data,
 \param output Write settings
 \return 1 if OK; else 0
 */
-unsigned 
-pgp_write_one_pass_sig(pgp_output_t *output, 
+unsigned
+pgp_write_one_pass_sig(pgp_output_t *output,
 			const pgp_seckey_t *seckey,
 			const pgp_hash_alg_t hash_alg,
 			const pgp_sig_type_t sig_type)

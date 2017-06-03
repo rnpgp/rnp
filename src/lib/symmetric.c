@@ -68,25 +68,25 @@ __RCSID("$NetBSD: symmetric.c,v 1.18 2010/11/07 08:39:59 agc Exp $");
 #include "crypto.h"
 #include "packet-show.h"
 #include "rnpdefs.h"
+#include "rnpsdk.h"
 
-static void 
-std_set_iv(pgp_crypt_t *crypt, const uint8_t *iv)
+int pgp_cipher_set_iv(pgp_crypt_t* cipher, const uint8_t *iv)
 {
-	(void) memcpy(crypt->iv, iv, crypt->blocksize);
-	crypt->num = 0;
+	(void) memcpy(cipher->iv, iv, cipher->blocksize);
+	cipher->num = 0;
+        return 0;
 }
 
-static void 
-std_set_key(pgp_crypt_t *crypt, const uint8_t *key)
+int pgp_cipher_set_key(pgp_crypt_t* cipher, const uint8_t *key)
 {
-	(void) memcpy(crypt->key, key, crypt->keysize);
+	(void) memcpy(cipher->key, key, cipher->keysize);
+        return 0;
 }
 
-static void 
-std_resync(pgp_crypt_t *decrypt)
+int pgp_cipher_cfb_resync(pgp_crypt_t *decrypt)
 {
 	if ((size_t) decrypt->num == decrypt->blocksize) {
-		return;
+		return 0;
 	}
 
 	memmove(decrypt->civ + decrypt->blocksize - decrypt->num, decrypt->civ,
@@ -94,54 +94,36 @@ std_resync(pgp_crypt_t *decrypt)
 	(void) memcpy(decrypt->civ, decrypt->siv + decrypt->num,
 	       decrypt->blocksize - decrypt->num);
 	decrypt->num = 0;
+        return 0;
 }
 
-static void 
-std_finish(pgp_crypt_t *crypt)
+int pgp_cipher_finish(pgp_crypt_t *crypt)
 {
 	if (crypt->block_cipher_obj) {
-		free(crypt->block_cipher_obj);
+		botan_block_cipher_destroy(crypt->block_cipher_obj);
 		crypt->block_cipher_obj = NULL;
 	}
+        return 0;
 }
 
-static int 
-std_init(pgp_crypt_t *crypt, const char* cipher_name)
+int
+pgp_cipher_block_encrypt(const pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in)
 {
-	if (crypt->block_cipher_obj)
-        {
-           botan_block_cipher_destroy(crypt->block_cipher_obj);
-	}
-
-        int rc = botan_block_cipher_init(&(crypt->block_cipher_obj), cipher_name);
-        if (rc != 0)
-        {
-           (void) fprintf(stderr, "Block cipher '%s' not available %d\n", cipher_name, rc);
-           return 0;
-        }
-
-        if (botan_block_cipher_set_key(crypt->block_cipher_obj, crypt->key, crypt->keysize))
-        {
-           (void) fprintf(stderr, "failure setting key\n");
-           return 0;
-        }
-	return 1;
+        if (botan_block_cipher_encrypt_blocks(crypt->block_cipher_obj, in, out, 1) == 0)
+                return 0;
+        return -1;
 }
 
-static void 
-std_block_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in)
+int
+pgp_cipher_block_decrypt(const pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in)
 {
-   botan_block_cipher_encrypt_blocks(crypt->block_cipher_obj, in, out, 1);
+        if (botan_block_cipher_decrypt_blocks(crypt->block_cipher_obj, in, out, 1) == 0)
+                return 0;
+        return -1;
 }
 
-static void 
-std_block_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in)
-{
-   botan_block_cipher_decrypt_blocks(crypt->block_cipher_obj, in, out, 1);
-}
-
-static void
-std_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
+int
+pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
 {
    for(size_t i = 0; i < bytes; ++i)
    {
@@ -154,10 +136,11 @@ std_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t byte
 
       crypt->num = (crypt->num + 1) % crypt->blocksize;
    }
+   return 0;
 }
 
-static void 
-std_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
+int
+pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
 {
    for(size_t i = 0; i < bytes; ++i)
    {
@@ -173,288 +156,163 @@ std_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t byte
 
       crypt->num = (crypt->num + 1) % crypt->blocksize;
    }
+   return 0;
 }
 
-#define TRAILER		"","","","",0,NULL
+/* structure to map string to cipher def */
+typedef struct str2cipher_t {
+	const char	*s;	/* cipher name */
+	pgp_symm_alg_t i;	/* cipher def */
+} str2cipher_t;
 
-#if defined(BOTAN_HAS_CAST)
-
-static int 
-cast5_init(pgp_crypt_t *crypt)
-{
-        return std_init(crypt, "CAST-128");
-}
-
-#define CAST_BLOCK 8
-#define CAST_KEY_LENGTH 16
-
-static pgp_crypt_t cast5 =
-{
-	PGP_SA_CAST5,
-	CAST_BLOCK,
-	CAST_KEY_LENGTH,
-	std_set_iv,
-	std_set_key,
-	cast5_init,
-	std_resync,
-	std_block_encrypt,
-	std_block_decrypt,
-	std_cfb_encrypt,
-	std_cfb_decrypt,
-	std_finish,
-	TRAILER
+static str2cipher_t	str2cipher[] = {
+	{	"cast5",		PGP_SA_CAST5		},
+	{	"idea",			PGP_SA_IDEA		},
+	{	"blowfish",		PGP_SA_BLOWFISH		},
+	{	"twofish",		PGP_SA_TWOFISH		},
+	{	"aes128",		PGP_SA_AES_128		},
+	{	"aes192",		PGP_SA_AES_192		},
+	{	"aes256",		PGP_SA_AES_256		},
+	{	"camellia128",		PGP_SA_CAMELLIA_128	},
+	{	"camellia192",		PGP_SA_CAMELLIA_192	},
+	{	"camellia256",		PGP_SA_CAMELLIA_256	},
+	{	"tripledes",		PGP_SA_TRIPLEDES	},
+	{	NULL,			0			}
 };
 
-#endif
-
-#if defined(BOTAN_HAS_IDEA)
-
-static int 
-idea_init(pgp_crypt_t *crypt)
+/* convert from a string to a cipher definition */
+pgp_symm_alg_t
+pgp_str_to_cipher(const char *cipher)
 {
-        return std_init(crypt, "IDEA");
-}
+	str2cipher_t	*sp;
 
-#define IDEA_BLOCK 8
-#define IDEA_KEY_LENGTH 16
-
-static const pgp_crypt_t idea =
-{
-	PGP_SA_IDEA,
-	IDEA_BLOCK,
-	IDEA_KEY_LENGTH,
-	std_set_iv,
-	std_set_key,
-	idea_init,
-	std_resync,
-	std_block_encrypt,
-	std_block_decrypt,
-	std_cfb_encrypt,
-	std_cfb_decrypt,
-	std_finish,
-	TRAILER
-};
-
-#endif
-
-#if defined(BOTAN_HAS_AES)
-
-/* AES with 128-bit key (AES) */
-
-#define KEYBITS_AES128 128
-
-static int 
-aes128_init(pgp_crypt_t *crypt)
-{
-        return std_init(crypt, "AES-128");
-}
-
-#define AES_BLOCK_SIZE 16
-#define AES128_KEY_LENGTH 16
-
-static const pgp_crypt_t aes128 =
-{
-	PGP_SA_AES_128,
-	AES_BLOCK_SIZE,
-	AES128_KEY_LENGTH,
-	std_set_iv,
-	std_set_key,
-	aes128_init,
-	std_resync,
-	std_block_encrypt,
-	std_block_decrypt,
-	std_cfb_encrypt,
-	std_cfb_decrypt,
-	std_finish,
-	TRAILER
-};
-
-/* AES with 256-bit key */
-
-#define AES256_KEY_LENGTH 32
-
-static int 
-aes256_init(pgp_crypt_t *crypt)
-{
-        return std_init(crypt, "AES-256");
-}
-
-static const pgp_crypt_t aes256 =
-{
-	PGP_SA_AES_256,
-	AES_BLOCK_SIZE,
-        AES256_KEY_LENGTH,
-	std_set_iv,
-	std_set_key,
-	aes256_init,
-	std_resync,
-	std_block_encrypt,
-	std_block_decrypt,
-	std_cfb_encrypt,
-	std_cfb_decrypt,
-	std_finish,
-	TRAILER
-};
-
-#endif
-
-#if defined(BOTAN_HAS_DES)
-
-/* Triple DES */
-
-static int 
-tripledes_init(pgp_crypt_t *crypt)
-{
-        return std_init(crypt, "3DES");
-}
-
-static const pgp_crypt_t tripledes =
-{
-	PGP_SA_TRIPLEDES,
-	8,
-	24,
-	std_set_iv,
-	std_set_key,
-	tripledes_init,
-	std_resync,
-	std_block_encrypt,
-	std_block_decrypt,
-	std_cfb_encrypt,
-	std_cfb_decrypt,
-	std_finish,
-	TRAILER
-};
-
-#endif
-
-#if defined(BOTAN_HAS_CAMELLIA)
-
-/* Camellia with 128-bit key (CAMELLIA) */
-
-#define CAMELLIA_BLOCK_SIZE 16
-#define CAMELLIA128_KEY_LENGTH 16
-
-static int 
-camellia128_init(pgp_crypt_t *crypt)
-{
-        return std_init(crypt, "Camellia-128");
-}
-
-static const pgp_crypt_t camellia128 =
-{
-	PGP_SA_CAMELLIA_128,
-	CAMELLIA_BLOCK_SIZE,
-        CAMELLIA128_KEY_LENGTH,
-	std_set_iv,
-	std_set_key,
-	camellia128_init,
-	std_resync,
-	std_block_encrypt,
-	std_block_decrypt,
-	std_cfb_encrypt,
-	std_cfb_decrypt,
-	std_finish,
-	TRAILER
-};
-
-/* Camellia with 256-bit key (CAMELLIA) */
-
-#define CAMELLIA256_KEY_LENGTH 32
-
-static int 
-camellia256_init(pgp_crypt_t *crypt)
-{
-        return std_init(crypt, "Camellia-256");
-}
-
-static const pgp_crypt_t camellia256 =
-{
-	PGP_SA_CAMELLIA_256,
-	CAMELLIA_BLOCK_SIZE,
-        CAMELLIA256_KEY_LENGTH,
-	std_set_iv,
-	std_set_key,
-	camellia256_init,
-	std_resync,
-	std_block_encrypt,
-	std_block_decrypt,
-	std_cfb_encrypt,
-	std_cfb_decrypt,
-	std_finish,
-	TRAILER
-};
-
-#endif
-
-static const pgp_crypt_t *
-get_proto(pgp_symm_alg_t alg)
-{
-        // TODO: check botan/build.h macros?
-	switch (alg) {
-#if defined(BOTAN_HAS_CAST)
-	case PGP_SA_CAST5:
-		return &cast5;
-#endif
-
-#if defined(BOTAN_HAS_IDEA)
-	case PGP_SA_IDEA:
-		return &idea;
-#endif
-
-#if defined(BOTAN_HAS_AES)
-	case PGP_SA_AES_128:
-		return &aes128;
-	case PGP_SA_AES_256:
-		return &aes256;
-#endif
-
-#if defined(BOTAN_HAS_CAMELLIA)
-	case PGP_SA_CAMELLIA_128:
-		return &camellia128;
-	case PGP_SA_CAMELLIA_256:
-		return &camellia256;
-#endif
-
-#if defined(BOTAN_HAS_DES)
-	case PGP_SA_TRIPLEDES:
-		return &tripledes;
-#endif
-
-	default:
-		(void) fprintf(stderr, "Unknown algorithm: %d (%s)\n",
-			alg, pgp_show_symm_alg(alg));
+	for (sp = str2cipher ; cipher && sp->s ; sp++) {
+		if (rnp_strcasecmp(cipher, sp->s) == 0) {
+			return sp->i;
+		}
 	}
-	return NULL;
+	return PGP_SA_DEFAULT_CIPHER;
 }
 
-int 
+
+static
+const char* pgp_sa_to_botan_string(pgp_symm_alg_t alg)
+{
+        switch(alg)
+        {
+#if defined(BOTAN_HAS_IDEA)
+	case PGP_SA_IDEA: return "IDEA";
+#endif
+
+#if defined(BOTAN_HAS_DES)
+	case PGP_SA_TRIPLEDES: return "TripleDES";
+#endif
+
+#if defined(BOTAN_HAS_CAST)
+	case PGP_SA_CAST5: return "CAST-128";
+#endif
+
+#if defined(BOTAN_HAS_BLOWFISH)
+	case PGP_SA_BLOWFISH: return "Blowfish";
+#endif
+
+#if defined(BOTAN_HAS_AES)
+	case PGP_SA_AES_128: return "AES-128";
+	case PGP_SA_AES_192: return "AES-192";
+	case PGP_SA_AES_256: return "AES-256";
+#endif
+
+#if defined(BOTAN_HAS_TWOFISH)
+	case PGP_SA_TWOFISH: return "Twofish";
+#endif
+
+#if defined(BOTAN_HAS_CAMELLIA)
+	case PGP_SA_CAMELLIA_128: return "Camellia-128";
+	case PGP_SA_CAMELLIA_192: return "Camellia-192";
+	case PGP_SA_CAMELLIA_256: return "Camellia-256";
+#endif
+
+        case PGP_SA_PLAINTEXT:
+                return NULL; // ???
+        default:
+                fprintf(stderr, "Unsupported PGP symmetric alg %d", (int)alg);
+                return NULL;
+        }
+}
+
+int
 pgp_crypt_any(pgp_crypt_t *crypt, pgp_symm_alg_t alg)
 {
-	const pgp_crypt_t *ptr = get_proto(alg);
+        const char* cipher_name = pgp_sa_to_botan_string(alg);
+        if (cipher_name == NULL)
+                return 0;
 
-	if (ptr) {
-		*crypt = *ptr;
-		return 1;
-	} else {
-		(void) memset(crypt, 0x0, sizeof(*crypt));
-		return 0;
-	}
+        memset(crypt, 0x0, sizeof(*crypt));
+
+        crypt->alg = alg;
+        crypt->blocksize = pgp_block_size(alg);
+        crypt->keysize = pgp_key_size(alg);
+
+        if (botan_block_cipher_init(&(crypt->block_cipher_obj), cipher_name) != 0)
+        {
+           (void) fprintf(stderr, "Block cipher '%s' not available\n", cipher_name);
+           return 0;
+        }
+
+        return 1;
 }
 
-unsigned 
+unsigned
 pgp_block_size(pgp_symm_alg_t alg)
 {
-	const pgp_crypt_t *p = get_proto(alg);
+        switch(alg)
+        {
+	case PGP_SA_IDEA:
+	case PGP_SA_TRIPLEDES:
+	case PGP_SA_CAST5:
+	case PGP_SA_BLOWFISH:
+                return 8;
 
-	return (p == NULL) ? 0 : (unsigned)p->blocksize;
+	case PGP_SA_AES_128:
+	case PGP_SA_AES_192:
+	case PGP_SA_AES_256:
+	case PGP_SA_TWOFISH:
+	case PGP_SA_CAMELLIA_128:
+	case PGP_SA_CAMELLIA_192:
+	case PGP_SA_CAMELLIA_256:
+                return 16;
+
+        default:
+                fprintf(stderr, "Unknown PGP symmetric alg %d", (int)alg);
+                return 0;
+        }
 }
 
-unsigned 
+unsigned
 pgp_key_size(pgp_symm_alg_t alg)
 {
-	const pgp_crypt_t *p = get_proto(alg);
+        switch(alg)
+        {
+	case PGP_SA_IDEA:
+	case PGP_SA_CAST5:
+	case PGP_SA_BLOWFISH:
+	case PGP_SA_AES_128:
+	case PGP_SA_CAMELLIA_128:
+                return 16;
 
-	return (p == NULL) ? 0 : (unsigned)p->keysize;
+	case PGP_SA_TRIPLEDES:
+	case PGP_SA_AES_192:
+	case PGP_SA_CAMELLIA_192:
+                return 24;
+
+	case PGP_SA_TWOFISH:
+	case PGP_SA_AES_256:
+	case PGP_SA_CAMELLIA_256:
+                return 32;
+
+        default:
+                return 0;
+        }
 }
 
 int
@@ -465,16 +323,18 @@ pgp_encrypt_init(pgp_crypt_t *encrypt)
 }
 
 int
-pgp_decrypt_init(pgp_crypt_t *decrypt)
+pgp_decrypt_init(pgp_crypt_t *crypt)
 {
-        if(decrypt->base_init(decrypt) == 1)
+        if (botan_block_cipher_set_key(crypt->block_cipher_obj, crypt->key, crypt->keysize) != 0)
         {
-           decrypt->block_encrypt(decrypt, decrypt->siv, decrypt->iv);
-           (void) memcpy(decrypt->civ, decrypt->siv, decrypt->blocksize);
-           decrypt->num = 0;
-           return 1;
+           (void) fprintf(stderr, "Failure setting key on block cipher object\n");
+           return 0;
         }
-        return 0;
+
+        pgp_cipher_block_encrypt(crypt, crypt->siv, crypt->iv);
+        (void) memcpy(crypt->civ, crypt->siv, crypt->blocksize);
+        crypt->num = 0;
+        return 1;
 }
 
 size_t
@@ -495,8 +355,7 @@ pgp_decrypt_se(pgp_crypt_t *decrypt, void *outvoid, const void *invoid,
 		if ((size_t) decrypt->num == decrypt->blocksize) {
 			(void) memcpy(decrypt->siv, decrypt->civ,
 					decrypt->blocksize);
-			decrypt->block_decrypt(decrypt, decrypt->civ,
-					decrypt->civ);
+                        pgp_cipher_block_decrypt(decrypt, decrypt->civ, decrypt->civ);
 			decrypt->num = 0;
 		}
 		t = decrypt->civ[decrypt->num];
@@ -506,7 +365,7 @@ pgp_decrypt_se(pgp_crypt_t *decrypt, void *outvoid, const void *invoid,
 	return (size_t)saved;
 }
 
-size_t 
+size_t
 pgp_encrypt_se(pgp_crypt_t *encrypt, void *outvoid, const void *invoid,
 	       size_t count)
 {
@@ -522,8 +381,7 @@ pgp_encrypt_se(pgp_crypt_t *encrypt, void *outvoid, const void *invoid,
 		if ((size_t) encrypt->num == encrypt->blocksize) {
 			(void) memcpy(encrypt->siv, encrypt->civ,
 					encrypt->blocksize);
-			encrypt->block_encrypt(encrypt, encrypt->civ,
-					encrypt->civ);
+                        pgp_cipher_block_encrypt(encrypt, encrypt->civ, encrypt->civ);
 			encrypt->num = 0;
 		}
 		encrypt->civ[encrypt->num] = *out++ =
@@ -540,20 +398,19 @@ pgp_encrypt_se(pgp_crypt_t *encrypt, void *outvoid, const void *invoid,
 \param alg Symmetric Algorithm to check
 \return 1 if supported; else 0
 */
-unsigned 
+unsigned
 pgp_is_sa_supported(pgp_symm_alg_t alg)
 {
-        const pgp_crypt_t* proto = get_proto(alg);
-        if (proto != 0) {
+        const char* cipher_name = pgp_sa_to_botan_string(alg);
+        if (cipher_name != NULL)
                 return 1;
-        }
 
 	fprintf(stderr, "\nWarning: %s not supported\n",
 		pgp_show_symm_alg(alg));
 	return 0;
 }
 
-size_t 
+size_t
 pgp_encrypt_se_ip(pgp_crypt_t *crypt, void *out, const void *in,
 		  size_t count)
 {
@@ -561,13 +418,13 @@ pgp_encrypt_se_ip(pgp_crypt_t *crypt, void *out, const void *in,
 		return 0;
 	}
 
-	crypt->cfb_encrypt(crypt, out, in, count);
+        pgp_cipher_cfb_encrypt(crypt, out, in, count);
 
 	/* \todo test this number was encrypted */
 	return count;
 }
 
-size_t 
+size_t
 pgp_decrypt_se_ip(pgp_crypt_t *crypt, void *out, const void *in,
 		  size_t count)
 {
@@ -575,7 +432,7 @@ pgp_decrypt_se_ip(pgp_crypt_t *crypt, void *out, const void *in,
 		return 0;
 	}
 
-	crypt->cfb_decrypt(crypt, out, in, count);
+        pgp_cipher_cfb_decrypt(crypt, out, in, count);
 
 	/* \todo check this number was in fact decrypted */
 	return count;

@@ -85,7 +85,6 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "rnpsdk.h"
 #include "packet.h"
 #include "rnpdigest.h"
-#include "mj.h"
 
 #define F_REVOKED   1
 
@@ -658,87 +657,100 @@ pgp_sprint_keydata(pgp_io_t *io, const pgp_keyring_t *keyring,
 
 /* return the key info as a JSON encoded string */
 int
-pgp_sprint_mj(pgp_io_t *io, const pgp_keyring_t *keyring,
-		const pgp_key_t *key, mj_t *keyjson, const char *header,
+pgp_sprint_json(pgp_io_t *io, const pgp_keyring_t *keyring,
+		const pgp_key_t *key, json_object *keyjson, const char *header,
 		const pgp_pubkey_t *pubkey, const int psigs)
 {
-	const pgp_key_t	*trustkey;
-	unsigned	 	 from;
-	unsigned		 i;
-	unsigned		 j;
-	mj_t			 sub_obj;
 	char			 keyid[PGP_KEY_ID_SIZE * 3];
 	char			 fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
 	int			 r;
+	unsigned		 i;
+	unsigned		 j;
 
 	if (key == NULL || key->revoked) {
 		return -1;
 	}
-	(void) memset(keyjson, 0x0, sizeof(*keyjson));
-	mj_create(keyjson, "object");
-	mj_append_field(keyjson, "header", "string", header, -1);
-	mj_append_field(keyjson, "key bits", "integer", (int64_t) numkeybits(pubkey));
-	mj_append_field(keyjson, "pka", "string", pgp_show_pka(pubkey->alg), -1);
-	mj_append_field(keyjson, "key id", "string", strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, ""), -1);
-	mj_append_field(keyjson, "fingerprint", "string",
-		strhexdump(fp, key->sigfingerprint.fingerprint, key->sigfingerprint.length, " "), -1);
-	mj_append_field(keyjson, "birthtime", "integer", pubkey->birthtime);
-	mj_append_field(keyjson, "duration", "integer", pubkey->duration);
-	for (i = 0; i < key->uidc; i++) {
-		if ((r = isrevoked(key, i)) >= 0 &&
-		    key->revokes[r].code == PGP_REVOCATION_COMPROMISED) {
-			continue;
-		}
-		(void) memset(&sub_obj, 0x0, sizeof(sub_obj));
-		mj_create(&sub_obj, "array");
-		mj_append(&sub_obj, "string", key->uids[i], -1);
-		mj_append(&sub_obj, "string", (r >= 0) ? "[REVOKED]" : "", -1);
-		mj_append_field(keyjson, "uid", "array", &sub_obj);
-		mj_delete(&sub_obj);
-		for (j = 0 ; j < key->subsigc ; j++) {
-			if (psigs) {
-				if (key->subsigs[j].uid != i) {
-					continue;
-				}
-			} else {
-				if (!(key->subsigs[j].sig.info.version == 4 &&
-					key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY &&
-					i == key->uidc - 1)) {
-						continue;
-				}
-			}
-			(void) memset(&sub_obj, 0x0, sizeof(sub_obj));
-			mj_create(&sub_obj, "array");
-			if (key->subsigs[j].sig.info.version == 4 &&
-					key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
-				mj_append(&sub_obj, "integer", (int64_t)numkeybits(&key->enckey));
-				mj_append(&sub_obj, "string",
-					(const char *)pgp_show_pka(key->enckey.alg), -1);
-				mj_append(&sub_obj, "string",
-					strhexdump(keyid, key->encid, PGP_KEY_ID_SIZE, ""), -1);
-				mj_append(&sub_obj, "integer", (int64_t)key->enckey.birthtime);
-				mj_append_field(keyjson, "encryption", "array", &sub_obj);
-				mj_delete(&sub_obj);
-			} else {
-				mj_append(&sub_obj, "string",
-					strhexdump(keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, ""), -1);
-				mj_append(&sub_obj, "integer",
-					(int64_t)(key->subsigs[j].sig.info.birthtime));
-				from = 0;
-				trustkey = pgp_getkeybyid(io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
-				mj_append(&sub_obj, "string",
-					(trustkey) ? (char *)trustkey->uids[trustkey->uid0] : "[unknown]", -1);
-				mj_append_field(keyjson, "sig", "array", &sub_obj);
-				mj_delete(&sub_obj);
-			}
-		}
-	}
-	if (pgp_get_debug_level(__FILE__)) {
-		char	*buf;
 
-		mj_asprint(&buf, keyjson, 1);
-		(void) fprintf(stderr, "pgp_sprint_mj: '%s'\n", buf);
-		free(buf);
+    //add the top-level values
+    json_object_object_add(keyjson,"header",
+            json_object_new_string(header));
+    json_object_object_add(keyjson,"key bits",
+            json_object_new_int(numkeybits(pubkey)));
+    json_object_object_add(keyjson,"pka",
+            json_object_new_string(pgp_show_pka(pubkey->alg)));
+    json_object_object_add(keyjson,"key id",
+            json_object_new_string(strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "")));
+    json_object_object_add(keyjson, "fingerprint",
+            json_object_new_string(strhexdump(fp, key->sigfingerprint.fingerprint, key->sigfingerprint.length,"")));
+    json_object_object_add(keyjson,"birthtime",
+            json_object_new_int(pubkey->birthtime));
+    json_object_object_add(keyjson,"duration",
+            json_object_new_int(pubkey->duration));
+
+    //iterating through the uids
+    for (i = 0; i < key->uidc; i++) {
+        if ((r = isrevoked(key, i)) >= 0 &&
+            key->revokes[r].code == PGP_REVOCATION_COMPROMISED) {
+            continue;
+        }
+        //add an array of the uids (and checking whether is REVOKED and
+        //indicate it as well)
+        json_object *uid_arr = json_object_new_array();
+        json_object_array_add(uid_arr,
+                json_object_new_string((char*)key->uids[i]));
+        json_object_array_add(uid_arr,
+                json_object_new_string((r >= 0) ? "[REVOKED]" : ""));
+        json_object_object_add(keyjson,"uid",uid_arr);
+
+        for (j = 0 ; j < key->subsigc ; j++) {
+            if (psigs) {
+                if (key->subsigs[j].uid != i) {
+                    continue;
+                }
+            } else {
+                if (!(key->subsigs[j].sig.info.version == 4 &&
+                    key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY &&
+                    i == key->uidc - 1)) {
+                        continue;
+                }
+            }
+            json_object *subsigc_arr = json_object_new_array();
+
+            if (key->subsigs[j].sig.info.version == 4 &&
+                    key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
+                json_object_array_add(subsigc_arr,
+                        json_object_new_int((int64_t)numkeybits(&key->enckey)));
+
+                json_object_array_add(subsigc_arr,
+                        json_object_new_string((const char *)pgp_show_pka(key->enckey.alg)));
+
+                json_object_array_add(subsigc_arr,
+                        json_object_new_string(strhexdump(keyid, key->encid, PGP_KEY_ID_SIZE, "")));
+
+                json_object_array_add(subsigc_arr,
+                        json_object_new_int((int64_t)key->enckey.birthtime));
+
+                json_object_object_add(keyjson,"encryption",subsigc_arr);
+            }
+            else {
+                json_object_array_add(subsigc_arr,
+                        json_object_new_string(strhexdump(keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, "")));
+                json_object_array_add(subsigc_arr,
+                        json_object_new_int((int64_t)(key->subsigs[j].sig.info.birthtime)));
+
+                unsigned from = 0;
+                const pgp_key_t *trustkey = pgp_getkeybyid(io, keyring,
+                                            key->subsigs[j].sig.info.signer_id,
+                                            &from, NULL);
+
+                json_object_array_add(subsigc_arr,
+                        json_object_new_string( (trustkey) ? (char *)trustkey->uids[trustkey->uid0] : "[unknown]"));
+                json_object_object_add(keyjson,"sig",subsigc_arr);
+            }
+        } //for
+	} //for uidc
+	if (pgp_get_debug_level(__FILE__)) {
+		printf ("%s,%d: The json object created: %s\n", __FILE__, __LINE__,json_object_to_json_string(keyjson));
 	}
 	return 1;
 }
@@ -950,7 +962,7 @@ print_seckey_verbose(const pgp_content_enum type,
 					(unsigned)sizeof(seckey->salt));
 		}
 		if (seckey->s2k_specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-			printf("Octet count: %u\n", seckey->octetc);
+			printf("Octet count: %u\n", seckey->s2k_iterations);
 		}
 		print_hexdump(0, "IV", seckey->iv, pgp_block_size(seckey->alg));
 	}
@@ -1578,7 +1590,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 	case PGP_PTAG_CT_SIGNED_CLEARTEXT_TRAILER:
 		print_tagname(print->indent, "SIGNED CLEARTEXT TRAILER");
 		printf("hash algorithm: %d\n",
-		       content->cleartext_trailer->alg);
+		       pgp_hash_alg_type(content->cleartext_trailer));
 		printf("\n");
 		break;
 

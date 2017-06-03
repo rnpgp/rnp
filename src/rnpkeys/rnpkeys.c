@@ -41,7 +41,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <mj.h>
 #include <rnp.h>
 
 #include "../common/constants.h"
@@ -73,6 +72,7 @@ static const char *usage =
 	"\t[--hash=<hash alg>] AND/OR\n"
 	"\t[--homedir=<homedir>] AND/OR\n"
 	"\t[--keyring=<keyring>] AND/OR\n"
+	"\t[--keyring-format=<format>] AND/OR\n"
 	"\t[--userid=<userid>] AND/OR\n"
 	"\t[--verbose]\n";
 
@@ -92,6 +92,7 @@ enum optdefs {
 	/* options */
 	SSHKEYS,
 	KEYRING,
+	KEYRING_FORMAT,
 	USERID,
 	HOMEDIR,
 	NUMBITS,
@@ -134,6 +135,7 @@ static struct option options[] = {
 	/* options */
 	{"coredumps",	no_argument, 		NULL,	COREDUMPS},
 	{"keyring",	required_argument, 	NULL,	KEYRING},
+	{"keyring-format",	required_argument,	NULL, 	KEYRING_FORMAT},
 	{"userid",	required_argument, 	NULL,	USERID},
 	{"format",	required_argument, 	NULL,	FORMAT},
 	{"hash-alg",	required_argument, 	NULL,	HASH_ALG},
@@ -179,7 +181,7 @@ print_usage(const char *usagemsg)
 static int
 match_keys(rnp_t *rnp, FILE *fp, char *f, const int psigs)
 {
-	char	*json;
+	char	*json = NULL;
 	int	 idc;
 
 	if (f == NULL) {
@@ -227,6 +229,10 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 		(void) fprintf(stderr, "key '%s' not found\n", f);
 		return 0;
 	case IMPORT_KEY:
+		if (f == NULL) {
+			(void) fprintf(stderr, "import file isn't specified\n");
+			return 0;
+		}
 		return rnp_import_key(rnp, f);
 	case GENERATE_KEY:
         if ((key = f) == NULL) {
@@ -277,7 +283,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 		exit(EXIT_SUCCESS);
 		/* options */
 	case SSHKEYS:
-		rnp_setvar(rnp, "ssh keys", "1");
+		rnp_setvar(rnp, "keyring_format", "SSH");
 		break;
 	case KEYRING:
 		if (arg == NULL) {
@@ -286,6 +292,13 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 			exit(EXIT_ERROR);
 		}
 		snprintf(p->keyring, sizeof(p->keyring), "%s", arg);
+		break;
+	case KEYRING_FORMAT:
+		if (arg == NULL) {
+            (void) fprintf(stderr, "No keyring format argument provided\n");
+            exit(EXIT_ERROR);
+		}
+		rnp_setvar(rnp, "keyring_format", arg);
 		break;
 	case USERID:
 		if (optarg == NULL) {
@@ -304,13 +317,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 			"no home directory argument provided\n");
 			exit(EXIT_ERROR);
 		}
-		/* TODO: This is a problem - the subdirectory to use is
-		 *       dependent on the type of key being used (gnupg or
-		 *       ssh). This was originally NULL and was expected to
-		 *       to be re-set downstream, but for now we assume
-		 *       gnupg ahead of a more meaningful refactor.
-		 */
-		rnp_set_homedir(rnp, arg, SUBDIRECTORY_GNUPG, 0);
+		rnp_set_homedir(rnp, arg, 0);
 		break;
 	case NUMBITS:
 		if (arg == NULL) {
@@ -345,7 +352,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 		rnp_setvar(rnp, "res", arg);
 		break;
 	case SSHKEYFILE:
-		rnp_setvar(rnp, "ssh keys", "1");
+		rnp_setvar(rnp, "keyring_format", "SSH");
 		rnp_setvar(rnp, "sshkeyfile", arg);
 		break;
 	case FORMAT:
@@ -432,7 +439,7 @@ main(int argc, char **argv)
 		} else {
 			switch (ch) {
 			case 'S':
-				rnp_setvar(&rnp, "ssh keys", "1");
+				rnp_setvar(&rnp, "keyring_format", "SSH");
 				rnp_setvar(&rnp, "sshkeyfile", optarg);
 				break;
 			case 'V':
@@ -458,7 +465,6 @@ main(int argc, char **argv)
 			}
 		}
 	}
-
 	if (! rnp_init(&rnp)) {
 		fputs("fatal: failed to initialize rnpkeys\n", stderr);
 		return EXIT_ERROR;

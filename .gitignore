@@ -48,6 +48,10 @@ src/cmocka/Makefile
 src/cmocka/Makefile.in
 src/cmocka/config.h
 src/cmocka/rnp_tests
+src/fuzzing/Makefile
+src/fuzzing/Makefile.in
+src/fuzzing/config.h
+src/fuzzing/fuzz_keys
 tests/Makefile
 tests/Makefile.in
 tests/atconfig

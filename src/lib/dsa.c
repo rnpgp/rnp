@@ -94,7 +94,8 @@ pgp_dsa_verify(const uint8_t *hash, size_t hash_length,
    botan_mp_num_bytes(dsa->q->mp, &q_bytes);
 
    encoded_signature = calloc(2, q_bytes);
-   // sig->r, sig->s -> signature
+   BN_bn2bin(sig->r, encoded_signature);
+   BN_bn2bin(sig->s, encoded_signature + q_bytes);
 
    botan_pk_op_verify_create(&verify_op, dsa_key, "Raw", 0);
    botan_pk_op_verify_update(verify_op, hash, hash_length);
@@ -107,6 +108,14 @@ pgp_dsa_verify(const uint8_t *hash, size_t hash_length,
    return valid;
 }
 
+DSA_SIG *
+DSA_SIG_new()
+{
+   DSA_SIG *sig = calloc(1, sizeof(DSA_SIG));
+   sig->r = calloc(1, sizeof(BIGNUM));
+   sig->s = calloc(1, sizeof(BIGNUM));
+   return sig;
+}
 
 void DSA_SIG_free(DSA_SIG* sig)
 {
@@ -147,7 +156,7 @@ pgp_dsa_sign(uint8_t *hashbuf,
    botan_privkey_destroy(dsa_key);
 
    // Now load the DSA (r,s) values from the signature
-   ret = calloc(1, sizeof(DSA_SIG));
+   ret = DSA_SIG_new();
    botan_mp_init(&(ret->r->mp));
    botan_mp_init(&(ret->s->mp));
 

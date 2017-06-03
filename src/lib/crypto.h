@@ -56,10 +56,12 @@
 #define CRYPTO_H_
 
 #include <botan/ffi.h>
+#include "hash.h"
 #include "keyring.h"
 #include "packet.h"
 #include "memory.h"
 #include "packet-parse.h"
+#include "symmetric.h"
 #include "bn.h"
 
 #define PGP_MIN_HASH_SIZE	16
@@ -68,58 +70,7 @@ struct PGPV_BIGNUM_st {
    botan_mp_t mp;
 };
 
-/** pgp_hash_t */
-struct pgp_hash_t {
-	pgp_hash_alg_t		 alg;		/* algorithm */
-	const char		*name;		/* what it's known as */
-	int			(*init)(pgp_hash_t *);
-	void			(*add)(pgp_hash_t *, const uint8_t *, unsigned);
-	unsigned		(*finish)(pgp_hash_t *, uint8_t *);
-	void		 	*data;		/* blob for data */
-};
-
-/** pgp_crypt_t */
-struct pgp_crypt_t {
-	pgp_symm_alg_t	alg;
-	size_t			blocksize;
-	size_t			keysize;
-	void 			(*set_iv)(pgp_crypt_t *, const uint8_t *);
-	void			(*set_crypt_key)(pgp_crypt_t *, const uint8_t *);
-	int			(*base_init)(pgp_crypt_t *);
-	void			(*decrypt_resync)(pgp_crypt_t *);
-	/* encrypt/decrypt one block */
-	void			(*block_encrypt)(pgp_crypt_t *, uint8_t *, const uint8_t *);
-	void			(*block_decrypt)(pgp_crypt_t *, uint8_t *, const uint8_t *);
-	/* Standard CFB encrypt/decrypt (as used by Sym Enc Int Prot packets) */
-	void 			(*cfb_encrypt)(pgp_crypt_t *, uint8_t *, const uint8_t *, size_t);
-	void			(*cfb_decrypt)(pgp_crypt_t *, uint8_t *, const uint8_t *, size_t);
-	void			(*decrypt_finish)(pgp_crypt_t *);
-	uint8_t			iv[PGP_MAX_BLOCK_SIZE];
-	uint8_t			civ[PGP_MAX_BLOCK_SIZE];
-	uint8_t			siv[PGP_MAX_BLOCK_SIZE];
-		/* siv is needed for weird v3 resync */
-	uint8_t			key[PGP_MAX_KEY_SIZE];
-	int			num;
-		/* num is offset for CFB */
-	struct botan_block_cipher_struct			*block_cipher_obj;
-
-};
-
 void pgp_crypto_finish(void);
-void pgp_hash_md5(pgp_hash_t *);
-void pgp_hash_sha1(pgp_hash_t *);
-void pgp_hash_sha256(pgp_hash_t *);
-void pgp_hash_sha512(pgp_hash_t *);
-void pgp_hash_sha384(pgp_hash_t *);
-void pgp_hash_sha224(pgp_hash_t *);
-
-int pgp_hash_any(pgp_hash_t *, pgp_hash_alg_t);
-pgp_hash_alg_t pgp_str_to_hash_alg(const char *);
-const char *pgp_text_from_hash(pgp_hash_t *);
-unsigned pgp_hash_size(pgp_hash_alg_t);
-unsigned pgp_hash(uint8_t *, pgp_hash_alg_t, const void *, size_t);
-
-void pgp_hash_add_int(pgp_hash_t *, unsigned, unsigned);
 
 unsigned pgp_dsa_verify(const uint8_t *, size_t,
 			const pgp_dsa_sig_t *,
@@ -128,9 +79,6 @@ unsigned pgp_dsa_verify(const uint8_t *, size_t,
 /*
 * RSA encrypt/decrypt
 */
-
-int pgp_rsa_public_encrypt(uint8_t *, const uint8_t *, size_t,
-			const pgp_rsa_pubkey_t *);
 
 int pgp_rsa_encrypt_pkcs1(uint8_t* out, size_t out_len,
                           const uint8_t* key, size_t key_len,
@@ -144,11 +92,22 @@ int pgp_rsa_decrypt_pkcs1(uint8_t* out, size_t out_len,
 /*
 * RSA signature generation and verification
 */
-int pgp_rsa_public_decrypt(uint8_t *, const uint8_t *, size_t,
-			const pgp_rsa_pubkey_t *);
 
-int pgp_rsa_private_encrypt(uint8_t *, const uint8_t *, size_t,
-			const pgp_rsa_seckey_t *, const pgp_rsa_pubkey_t *);
+/*
+* Returns 1 for valid 0 for invalid/error
+*/
+int pgp_rsa_pkcs1_verify_hash(const uint8_t *sig_buf, size_t sig_buf_size,
+                              pgp_hash_alg_t hash_alg,
+                              const uint8_t *hash, size_t hash_len,
+                              const pgp_rsa_pubkey_t *pubkey);
+
+/*
+* Returns # bytes written to sig_buf on success, 0 on error
+*/
+int pgp_rsa_pkcs1_sign_hash(uint8_t * sig_buf, size_t sig_buf_size,
+                            pgp_hash_alg_t hash_alg,
+                            const uint8_t *hash, size_t hash_len,
+                            const pgp_rsa_seckey_t *, const pgp_rsa_pubkey_t *);
 
 /*
 * Performs ElGamal encryption
@@ -197,23 +156,6 @@ int pgp_elgamal_private_decrypt_pkcs1(
         size_t length,
 		const pgp_elgamal_seckey_t *seckey,
 		const pgp_elgamal_pubkey_t *pubkey);
-
-pgp_symm_alg_t pgp_str_to_cipher(const char *);
-unsigned pgp_block_size(pgp_symm_alg_t);
-unsigned pgp_key_size(pgp_symm_alg_t);
-
-int pgp_decrypt_data(pgp_content_enum, pgp_region_t *,
-			pgp_stream_t *);
-
-int pgp_crypt_any(pgp_crypt_t *, pgp_symm_alg_t);
-int pgp_decrypt_init(pgp_crypt_t *);
-int pgp_encrypt_init(pgp_crypt_t *);
-
-size_t pgp_decrypt_se(pgp_crypt_t *, void *, const void *, size_t);
-size_t pgp_encrypt_se(pgp_crypt_t *, void *, const void *, size_t);
-size_t pgp_decrypt_se_ip(pgp_crypt_t *, void *, const void *, size_t);
-size_t pgp_encrypt_se_ip(pgp_crypt_t *, void *, const void *, size_t);
-unsigned pgp_is_sa_supported(pgp_symm_alg_t);
 
 void pgp_reader_push_decrypt(pgp_stream_t *, pgp_crypt_t *,
 			pgp_region_t *);
@@ -279,6 +221,7 @@ typedef struct {
 	BIGNUM         *s;
 } DSA_SIG;
 
+DSA_SIG *DSA_SIG_new();
 void DSA_SIG_free(DSA_SIG* sig);
 
 DSA_SIG *pgp_dsa_sign(uint8_t *, unsigned,
