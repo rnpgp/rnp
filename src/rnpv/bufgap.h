@@ -46,42 +46,43 @@
 
 /* Constants for Buffer Gap routines */
 enum {
-  BGByte,
-  BGChar,
-  BGLine,
-  BGFromBOF,
-  BGFromHere,
-  BGFromEOF
+    BGByte,
+    BGChar,
+    BGLine,
+
+    BGFromBOF,
+    BGFromHere,
+    BGFromEOF
 };
 
 /* this struct describes a file in memory */
 typedef struct bufgap_t {
-  uint64_t size; /* size of file */
-  uint64_t abc;  /* # of bytes after the gap */
-  uint64_t bbc;  /* # of bytes before the gap */
-  uint64_t acc;  /* # of utf chars after the gap */
-  uint64_t bcc;  /* # of utf chars before the gap */
-  uint64_t alc;  /* # of records after the gap */
-  uint64_t blc;  /* # of records before the gap */
-  char *name;    /* file name - perhaps null */
-  char *buf;     /* buffer-gap buffer */
-  char modified; /* file has been modified */
+    uint64_t size;     /* size of file */
+    uint64_t abc;      /* # of bytes after the gap */
+    uint64_t bbc;      /* # of bytes before the gap */
+    uint64_t acc;      /* # of utf chars after the gap */
+    uint64_t bcc;      /* # of utf chars before the gap */
+    uint64_t alc;      /* # of records after the gap */
+    uint64_t blc;      /* # of records before the gap */
+    char *   name;     /* file name - perhaps null */
+    char *   buf;      /* buffer-gap buffer */
+    char     modified; /* file has been modified */
 } bufgap_t;
 
-int bufgap_open(bufgap_t *, const char *);
-void bufgap_close(bufgap_t *);
-int bufgap_forwards(bufgap_t *, uint64_t, int);
-int bufgap_backwards(bufgap_t *, uint64_t, int);
-int bufgap_seek(bufgap_t *, int64_t, int, int);
-char *bufgap_getstr(bufgap_t *);
-int bufgap_getbin(bufgap_t *, void *, size_t);
+int     bufgap_open(bufgap_t *, const char *);
+void    bufgap_close(bufgap_t *);
+int     bufgap_forwards(bufgap_t *, uint64_t, int);
+int     bufgap_backwards(bufgap_t *, uint64_t, int);
+int     bufgap_seek(bufgap_t *, int64_t, int, int);
+char *  bufgap_getstr(bufgap_t *);
+int     bufgap_getbin(bufgap_t *, void *, size_t);
 int64_t bufgap_tell(bufgap_t *, int, int);
 int64_t bufgap_size(bufgap_t *, int);
-int bufgap_insert(bufgap_t *, const char *, int);
-int bufgap_delete(bufgap_t *, uint64_t);
-int bufgap_peek(bufgap_t *, int64_t);
-char *bufgap_gettext(bufgap_t *, int64_t, int64_t);
-int bufgap_write(bufgap_t *, FILE *);
-int bufgap_dirty(bufgap_t *);
+int     bufgap_insert(bufgap_t *, const char *, int);
+int     bufgap_delete(bufgap_t *, uint64_t);
+int     bufgap_peek(bufgap_t *, int64_t);
+char *  bufgap_gettext(bufgap_t *, int64_t, int64_t);
+int     bufgap_write(bufgap_t *, FILE *);
+int     bufgap_dirty(bufgap_t *);
 
 #endif /* !BUFGAP_H_ */

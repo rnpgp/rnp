@@ -31,7 +31,7 @@
 #ifndef RNPSDK_H_
 #define RNPSDK_H_
 
-#include "keyring_pgp.h"
+#include "key_store_pgp.h"
 #include "crypto.h"
 #include "signature.h"
 #include "packet-show.h"
@@ -41,28 +41,28 @@
 #endif
 
 typedef struct pgp_validation_t {
-  unsigned validc;
-  pgp_sig_info_t *valid_sigs;
-  unsigned invalidc;
-  pgp_sig_info_t *invalid_sigs;
-  unsigned unknownc;
-  pgp_sig_info_t *unknown_sigs;
-  time_t birthtime;
-  time_t duration;
+    unsigned        validc;
+    pgp_sig_info_t *valid_sigs;
+    unsigned        invalidc;
+    pgp_sig_info_t *invalid_sigs;
+    unsigned        unknownc;
+    pgp_sig_info_t *unknown_sigs;
+    time_t          birthtime;
+    time_t          duration;
 } pgp_validation_t;
 
 void pgp_validate_result_free(pgp_validation_t *);
 
-unsigned
-pgp_validate_key_sigs(pgp_validation_t *, const pgp_key_t *, const keyring_t *,
-                      pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
+unsigned pgp_validate_key_sigs(pgp_validation_t *,
+                               const pgp_key_t *,
+                               const rnp_key_store_t *,
+                               pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
 
-unsigned pgp_validate_all_sigs(pgp_validation_t *, const keyring_t *,
-                               pgp_cb_ret_t cb(const pgp_packet_t *,
-                                               pgp_cbdata_t *));
+unsigned pgp_validate_all_sigs(pgp_validation_t *,
+                               const rnp_key_store_t *,
+                               pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
 
-unsigned pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *,
-                       const pgp_pubkey_t *);
+unsigned pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 
 const char *rnp_get_info(const char *type);
 
@@ -70,7 +70,7 @@ int pgp_asprintf(char **, const char *, ...) __printflike(2, 3);
 
 void rnp_log(const char *, ...) __printflike(1, 2);
 
-int rnp_strcasecmp(const char *, const char *);
+int   rnp_strcasecmp(const char *, const char *);
 char *rnp_strdup(const char *);
 
 #endif

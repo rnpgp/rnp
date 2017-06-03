@@ -43,10 +43,10 @@
 #endif
 
 /* for silencing unused parameter warnings */
-#define __PGP_USED(x) /*LINTED*/ (void)&(x)
+#define __PGP_USED(x) /*LINTED*/ (void) &(x)
 
 #ifndef __UNCONST
-#define __UNCONST(a) ((void *)(unsigned long)(const void *)(a))
+#define __UNCONST(a) ((void *) (unsigned long) (const void *) (a))
 #endif
 
 /* number of elements in an array */
@@ -60,16 +60,16 @@ int rnp_set_debug(const char *);
 int rnp_get_debug(const char *);
 
 void *pgp_new(size_t);
-void pgp_forget(void *, unsigned);
+void  pgp_forget(void *, unsigned);
 
 #define RNP_BUFSIZ 8192
 
-#define CALLBACK(t, cbinfo, pkt)                           \
-  do {                                                     \
-    (pkt)->tag = (t);                                      \
-    if (pgp_callback(pkt, cbinfo) == PGP_RELEASE_MEMORY) { \
-      pgp_parser_content_free(pkt);                        \
-    }                                                      \
-  } while (/* CONSTCOND */ 0)
+#define CALLBACK(t, cbinfo, pkt)                               \
+    do {                                                       \
+        (pkt)->tag = (t);                                      \
+        if (pgp_callback(pkt, cbinfo) == PGP_RELEASE_MEMORY) { \
+            pgp_parser_content_free(pkt);                      \
+        }                                                      \
+    } while (/* CONSTCOND */ 0)
 
 #endif /* !RNPDEFS_H_ */

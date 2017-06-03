@@ -33,41 +33,62 @@
 #include <botan/ffi.h>
 #include <stdio.h>
 
-void pgp_s2k_simple(pgp_hash_alg_t alg, uint8_t *out, size_t output_len,
-                    const char *passphrase) {
-  return pgp_s2k_salted(alg, out, output_len, passphrase, NULL);
+void
+pgp_s2k_simple(pgp_hash_alg_t alg, uint8_t *out, size_t output_len, const char *passphrase)
+{
+    return pgp_s2k_salted(alg, out, output_len, passphrase, NULL);
 }
 
-void pgp_s2k_salted(pgp_hash_alg_t alg, uint8_t *out, size_t output_len,
-                    const char *passphrase, const uint8_t *salt) {
-  return pgp_s2k_iterated(alg, out, output_len, passphrase, salt, 1);
+void
+pgp_s2k_salted(pgp_hash_alg_t alg,
+               uint8_t *      out,
+               size_t         output_len,
+               const char *   passphrase,
+               const uint8_t *salt)
+{
+    return pgp_s2k_iterated(alg, out, output_len, passphrase, salt, 1);
 }
 
-void pgp_s2k_iterated(pgp_hash_alg_t alg, uint8_t *out, size_t output_len,
-                      const char *passphrase, const uint8_t *salt,
-                      size_t iterations) {
-  char s2k_algo_str[128];
-  snprintf(s2k_algo_str, sizeof(s2k_algo_str), "OpenPGP-S2K(%s)",
-           pgp_hash_name_botan(alg));
+void
+pgp_s2k_iterated(pgp_hash_alg_t alg,
+                 uint8_t *      out,
+                 size_t         output_len,
+                 const char *   passphrase,
+                 const uint8_t *salt,
+                 size_t         iterations)
+{
+    char s2k_algo_str[128];
+    snprintf(s2k_algo_str, sizeof(s2k_algo_str), "OpenPGP-S2K(%s)", pgp_hash_name_botan(alg));
 
-  botan_pbkdf(s2k_algo_str, out, output_len, passphrase, salt,
-              salt == NULL ? 0 : PGP_SALT_SIZE, iterations);
+    botan_pbkdf(s2k_algo_str,
+                out,
+                output_len,
+                passphrase,
+                salt,
+                salt == NULL ? 0 : PGP_SALT_SIZE,
+                iterations);
 }
 
-size_t pgp_s2k_decode_iterations(uint8_t c) {
-  // See RFC 4880 section 3.7.1.3
-  return (16 + (c & 0x0F)) << ((c >> 4) + 6);
+size_t
+pgp_s2k_decode_iterations(uint8_t c)
+{
+    // See RFC 4880 section 3.7.1.3
+    return (16 + (c & 0x0F)) << ((c >> 4) + 6);
 }
 
-size_t pgp_s2k_round_iterations(size_t iterations) {
-  return pgp_s2k_decode_iterations(pgp_s2k_encode_iterations(iterations));
+size_t
+pgp_s2k_round_iterations(size_t iterations)
+{
+    return pgp_s2k_decode_iterations(pgp_s2k_encode_iterations(iterations));
 }
 
-uint8_t pgp_s2k_encode_iterations(size_t iterations) {
-  for (uint8_t c = 0; c <= 255; ++c) {
-    if (pgp_s2k_decode_iterations(c) >= iterations) {
-      return c;
+uint8_t
+pgp_s2k_encode_iterations(size_t iterations)
+{
+    for (uint8_t c = 0; c <= 255; ++c) {
+        if (pgp_s2k_decode_iterations(c) >= iterations) {
+            return c;
+        }
     }
-  }
-  return 255;
+    return 255;
 }

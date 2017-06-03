@@ -47,9 +47,11 @@
 
 __BEGIN_DECLS
 
-void *rnp_allocate(size_t /*n*/, size_t /*nels*/);
-void rnp_deallocate(void * /*ptr*/, size_t /*size*/);
-ssize_t rnp_hexdump(const void * /*in*/, const size_t /*inlen*/, void * /*out*/,
+void *  rnp_allocate(size_t /*n*/, size_t /*nels*/);
+void    rnp_deallocate(void * /*ptr*/, size_t /*size*/);
+ssize_t rnp_hexdump(const void * /*in*/,
+                    const size_t /*inlen*/,
+                    void * /*out*/,
                     size_t /*outsize*/);
 
 __END_DECLS

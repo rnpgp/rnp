@@ -207,29 +207,30 @@ VERSION HISTORY:
 /*
 ** Translation Table as described in RFC1113
 */
-static const char cb64[] =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+static const char cb64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 /*
 ** Translation Table to decode (created by author)
 */
-static const char cd64[] = "|$$$}rstuvwxyz{$$$$$$$>?@ABCDEFGHIJKLMNOPQRSTUVW$$$"
-                           "$$$XYZ[\\]^_`abcdefghijklmnopq";
+static const char cd64[] =
+  "|$$$}rstuvwxyz{$$$$$$$>?@ABCDEFGHIJKLMNOPQRSTUVW$$$$$$XYZ[\\]^_`abcdefghijklmnopq";
 
 /*
 ** encodeblock
 **
 ** encode 3 8-bit binary bytes as 4 '6-bit' characters
 */
-static void encodeblock(uint8_t *wordin, uint8_t *wordout, int wordlen) {
-  wordout[0] = cb64[(unsigned)wordin[0] >> 2];
-  wordout[1] = cb64[((unsigned)(wordin[0] & 0x03) << 4) |
-                    ((unsigned)(wordin[1] & 0xf0) >> 4)];
-  wordout[2] = (uint8_t)(wordlen > 1)
-                   ? cb64[((unsigned)(wordin[1] & 0x0f) << 2) |
-                          ((unsigned)(wordin[2] & 0xc0) >> 6)]
-                   : '=';
-  wordout[3] = (uint8_t)(wordlen > 2) ? cb64[wordin[2] & 0x3f] : '=';
+static void
+encodeblock(uint8_t *wordin, uint8_t *wordout, int wordlen)
+{
+    wordout[0] = cb64[(unsigned) wordin[0] >> 2];
+    wordout[1] =
+      cb64[((unsigned) (wordin[0] & 0x03) << 4) | ((unsigned) (wordin[1] & 0xf0) >> 4)];
+    wordout[2] =
+      (uint8_t)(wordlen > 1) ?
+        cb64[((unsigned) (wordin[1] & 0x0f) << 2) | ((unsigned) (wordin[2] & 0xc0) >> 6)] :
+        '=';
+    wordout[3] = (uint8_t)(wordlen > 2) ? cb64[wordin[2] & 0x3f] : '=';
 }
 
 /*
@@ -237,50 +238,51 @@ static void encodeblock(uint8_t *wordin, uint8_t *wordout, int wordlen) {
 **
 ** base64 encode a stream adding padding and line breaks as per spec.
 */
-int b64encode(const char *in, const size_t insize, void *vp, size_t outsize,
-              int linesize) {
-  const char *inp;
-  unsigned i;
-  uint8_t wordout[4];
-  uint8_t wordin[3];
-  char *out = vp;
-  char *outp;
-  int blocksout;
-  int wordlen;
+int
+b64encode(const char *in, const size_t insize, void *vp, size_t outsize, int linesize)
+{
+    const char *inp;
+    unsigned    i;
+    uint8_t     wordout[4];
+    uint8_t     wordin[3];
+    char *      out = vp;
+    char *      outp;
+    int         blocksout;
+    int         wordlen;
 
-  if (in == NULL || vp == NULL) {
-    return 0;
-  }
-  wordlen = 0;
-  for (blocksout = 0, inp = in, outp = out;
-       (size_t)(inp - in) < insize && (size_t)(outp - out) < outsize;) {
-    for (wordlen = 0, i = 0; i < sizeof(wordin); i++) {
-      wordin[i] = (uint8_t) * inp++;
-      if ((size_t)(inp - in) <= insize) {
-        wordlen++;
-      } else {
-        wordin[i] = 0x0;
-      }
+    if (in == NULL || vp == NULL) {
+        return 0;
     }
-    if (wordlen > 0) {
-      encodeblock(wordin, wordout, wordlen);
-      for (i = 0; i < sizeof(wordout); i++) {
-        *outp++ = wordout[i];
-      }
-      blocksout++;
-    }
-    if (linesize > 0) {
-      if (blocksout >= (int)(linesize / sizeof(wordout)) ||
-          (size_t)(inp - in) >= insize) {
-        if (blocksout) {
-          *outp++ = '\r';
-          *outp++ = '\n';
+    wordlen = 0;
+    for (blocksout = 0, inp = in, outp = out;
+         (size_t)(inp - in) < insize && (size_t)(outp - out) < outsize;) {
+        for (wordlen = 0, i = 0; i < sizeof(wordin); i++) {
+            wordin[i] = (uint8_t) *inp++;
+            if ((size_t)(inp - in) <= insize) {
+                wordlen++;
+            } else {
+                wordin[i] = 0x0;
+            }
         }
-        blocksout = 0;
-      }
+        if (wordlen > 0) {
+            encodeblock(wordin, wordout, wordlen);
+            for (i = 0; i < sizeof(wordout); i++) {
+                *outp++ = wordout[i];
+            }
+            blocksout++;
+        }
+        if (linesize > 0) {
+            if (blocksout >= (int) (linesize / sizeof(wordout)) ||
+                (size_t)(inp - in) >= insize) {
+                if (blocksout) {
+                    *outp++ = '\r';
+                    *outp++ = '\n';
+                }
+                blocksout = 0;
+            }
+        }
     }
-  }
-  return (int)(outp - out);
+    return (int) (outp - out);
 }
 
 /*
@@ -288,10 +290,12 @@ int b64encode(const char *in, const size_t insize, void *vp, size_t outsize,
 **
 ** decode 4 '6-bit' characters into 3 8-bit binary bytes
 */
-static void decodeblock(uint8_t wordin[4], uint8_t wordout[3]) {
-  wordout[0] = (uint8_t)((unsigned)wordin[0] << 2 | (unsigned)wordin[1] >> 4);
-  wordout[1] = (uint8_t)((unsigned)wordin[1] << 4 | (unsigned)wordin[2] >> 2);
-  wordout[2] = (uint8_t)(((wordin[2] << 6) & 0xc0) | wordin[3]);
+static void
+decodeblock(uint8_t wordin[4], uint8_t wordout[3])
+{
+    wordout[0] = (uint8_t)((unsigned) wordin[0] << 2 | (unsigned) wordin[1] >> 4);
+    wordout[1] = (uint8_t)((unsigned) wordin[1] << 4 | (unsigned) wordin[2] >> 2);
+    wordout[2] = (uint8_t)(((wordin[2] << 6) & 0xc0) | wordin[3]);
 }
 
 /*
@@ -299,54 +303,59 @@ static void decodeblock(uint8_t wordin[4], uint8_t wordout[3]) {
 **
 ** decode a base64 encoded stream discarding padding, line breaks and noise
 */
-int b64decode(const char *in, const size_t insize, void *vp, size_t outsize) {
-  const char *inp;
-  unsigned wordlen;
-  unsigned i;
-  uint8_t wordout[3];
-  uint8_t wordin[4];
-  uint8_t v;
-  char *out = vp;
-  char *outp;
+int
+b64decode(const char *in, const size_t insize, void *vp, size_t outsize)
+{
+    const char *inp;
+    unsigned    wordlen;
+    unsigned    i;
+    uint8_t     wordout[3];
+    uint8_t     wordin[4];
+    uint8_t     v;
+    char *      out = vp;
+    char *      outp;
 
-  if (in == NULL || vp == NULL) {
-    return 0;
-  }
-  for (inp = in, outp = out;
-       (size_t)(inp - in) < insize && (size_t)(outp - out) < outsize;) {
-    for (wordlen = 0, i = 0; i < sizeof(wordin) && (size_t)(inp - in) < insize;
-         i++) {
-      /* get a single character */
-      for (v = 0; (size_t)(inp - in) <= insize && v == 0;) {
-        if (*inp == '\r' && *(inp + 1) == '\n') {
-          inp += 2;
-        } else {
-          v = (uint8_t) * inp++;
-          v = (uint8_t)((v < 43 || v > 122) ? 0 : cd64[v - 43]);
-          if (v) {
-            v = (uint8_t)((v == '$') ? 0 : v - 61);
-          }
-        }
-      }
-      /* perhaps 0x0 pad */
-      if ((size_t)(inp - in) <= insize) {
-        wordlen += 1;
-        if (v) {
-          wordin[i] = (uint8_t)(v - 1);
-        }
-      } else {
-        wordin[i] = 0x0;
-      }
+    if (in == NULL || vp == NULL) {
+        return 0;
     }
-    if (wordlen > 0) {
-      decodeblock(wordin, wordout);
-      for (i = 0; i < wordlen - 1; i++) {
-        *outp++ = wordout[i];
-      }
+    for (inp = in, outp = out;
+         (size_t)(inp - in) < insize && (size_t)(outp - out) < outsize;) {
+        for (wordlen = 0, i = 0; i < sizeof(wordin) && (size_t)(inp - in) < insize; i++) {
+            /* get a single character */
+            for (v = 0; (size_t)(inp - in) <= insize && v == 0;) {
+                if (*inp == '\r' && *(inp + 1) == '\n') {
+                    inp += 2;
+                } else {
+                    v = (uint8_t) *inp++;
+                    v = (uint8_t)((v < 43 || v > 122) ? 0 : cd64[v - 43]);
+                    if (v) {
+                        v = (uint8_t)((v == '$') ? 0 : v - 61);
+                    }
+                }
+            }
+            /* perhaps 0x0 pad */
+            if ((size_t)(inp - in) <= insize) {
+                wordlen += 1;
+                if (v) {
+                    wordin[i] = (uint8_t)(v - 1);
+                }
+            } else {
+                wordin[i] = 0x0;
+            }
+        }
+        if (wordlen > 0) {
+            decodeblock(wordin, wordout);
+            for (i = 0; i < wordlen - 1; i++) {
+                *outp++ = wordout[i];
+            }
+        }
     }
-  }
-  return (int)(outp - out);
+    return (int) (outp - out);
 }
 
 /* return the encoded size for n bytes input */
-int b64_encsize(unsigned n) { return ((4 * n) / 3) + 4; }
+int
+b64_encsize(unsigned n)
+{
+    return ((4 * n) / 3) + 4;
+}

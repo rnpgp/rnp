@@ -109,9 +109,9 @@ typedef struct PGPV_BIGNUM_st PGPV_BIGNUM;
 
 /* a "context" of mp integers - never really used */
 typedef struct bn_ctx_t {
-  size_t count;
-  size_t arraysize;
-  PGPV_BIGNUM **v;
+    size_t        count;
+    size_t        arraysize;
+    PGPV_BIGNUM **v;
 } PGPV_BN_CTX;
 
 #define MP_LT -1
@@ -130,7 +130,7 @@ typedef struct bn_ctx_t {
 
 PGPV_BIGNUM *PGPV_BN_new(void);
 PGPV_BIGNUM *PGPV_BN_dup(const PGPV_BIGNUM * /*a*/);
-int PGPV_BN_copy(PGPV_BIGNUM * /*b*/, const PGPV_BIGNUM * /*a*/);
+int          PGPV_BN_copy(PGPV_BIGNUM * /*b*/, const PGPV_BIGNUM * /*a*/);
 
 void PGPV_BN_init(PGPV_BIGNUM * /*a*/);
 void PGPV_BN_free(PGPV_BIGNUM * /*a*/);
@@ -144,29 +144,31 @@ int PGPV_BN_is_odd(const PGPV_BIGNUM *n);
 int PGPV_BN_is_zero(const PGPV_BIGNUM *n);
 int PGPV_BN_is_negative(const PGPV_BIGNUM *n);
 
-PGPV_BIGNUM *PGPV_BN_bin2bn(const uint8_t * /*buf*/, int /*size*/,
-                            PGPV_BIGNUM * /*bn*/);
-int PGPV_BN_bn2bin(const PGPV_BIGNUM * /*a*/, unsigned char * /*b*/);
-char *PGPV_BN_bn2hex(const PGPV_BIGNUM * /*a*/);
-char *PGPV_BN_bn2dec(const PGPV_BIGNUM * /*a*/);
-char *PGPV_BN_bn2radix(const PGPV_BIGNUM * /*a*/, unsigned /*radix*/);
-int PGPV_BN_hex2bn(PGPV_BIGNUM ** /*a*/, const char * /*str*/);
-int PGPV_BN_dec2bn(PGPV_BIGNUM ** /*a*/, const char * /*str*/);
-int PGPV_BN_radix2bn(PGPV_BIGNUM ** /*a*/, const char * /*str*/,
-                     unsigned /*radix*/);
-int PGPV_BN_print_fp(FILE * /*fp*/, const PGPV_BIGNUM * /*a*/);
+PGPV_BIGNUM *PGPV_BN_bin2bn(const uint8_t * /*buf*/, int /*size*/, PGPV_BIGNUM * /*bn*/);
+int          PGPV_BN_bn2bin(const PGPV_BIGNUM * /*a*/, unsigned char * /*b*/);
+char *       PGPV_BN_bn2hex(const PGPV_BIGNUM * /*a*/);
+char *       PGPV_BN_bn2dec(const PGPV_BIGNUM * /*a*/);
+char *       PGPV_BN_bn2radix(const PGPV_BIGNUM * /*a*/, unsigned /*radix*/);
+int          PGPV_BN_hex2bn(PGPV_BIGNUM ** /*a*/, const char * /*str*/);
+int          PGPV_BN_dec2bn(PGPV_BIGNUM ** /*a*/, const char * /*str*/);
+int          PGPV_BN_radix2bn(PGPV_BIGNUM ** /*a*/, const char * /*str*/, unsigned /*radix*/);
+int          PGPV_BN_print_fp(FILE * /*fp*/, const PGPV_BIGNUM * /*a*/);
 
-int PGPV_BN_add(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/,
-                const PGPV_BIGNUM * /*b*/);
-int PGPV_BN_sub(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/,
-                const PGPV_BIGNUM * /*b*/);
-int PGPV_BN_mul(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/,
-                const PGPV_BIGNUM * /*b*/, PGPV_BN_CTX * /*ctx*/);
-int PGPV_BN_div(PGPV_BIGNUM * /*q*/, PGPV_BIGNUM * /*r*/,
-                const PGPV_BIGNUM * /*a*/, const PGPV_BIGNUM * /*b*/,
+int PGPV_BN_add(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, const PGPV_BIGNUM * /*b*/);
+int PGPV_BN_sub(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, const PGPV_BIGNUM * /*b*/);
+int PGPV_BN_mul(PGPV_BIGNUM * /*r*/,
+                const PGPV_BIGNUM * /*a*/,
+                const PGPV_BIGNUM * /*b*/,
+                PGPV_BN_CTX * /*ctx*/);
+int PGPV_BN_div(PGPV_BIGNUM * /*q*/,
+                PGPV_BIGNUM * /*r*/,
+                const PGPV_BIGNUM * /*a*/,
+                const PGPV_BIGNUM * /*b*/,
                 PGPV_BN_CTX * /*ctx*/);
 void PGPV_BN_swap(PGPV_BIGNUM * /*a*/, PGPV_BIGNUM * /*b*/);
-int PGPV_BN_bitop(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, char /*op*/,
+int  PGPV_BN_bitop(PGPV_BIGNUM * /*r*/,
+                  const PGPV_BIGNUM * /*a*/,
+                  char /*op*/,
                   const PGPV_BIGNUM * /*b*/);
 int PGPV_BN_lshift(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, int /*n*/);
 int PGPV_BN_lshift1(PGPV_BIGNUM * /*r*/, PGPV_BIGNUM * /*a*/);
@@ -183,35 +185,43 @@ void PGPV_BN_set_negative(PGPV_BIGNUM * /*a*/, int /*n*/);
 int PGPV_BN_num_bytes(const PGPV_BIGNUM * /*a*/);
 int PGPV_BN_num_bits(const PGPV_BIGNUM * /*a*/);
 
-int PGPV_BN_mod_exp(PGPV_BIGNUM * /*r*/, PGPV_BIGNUM * /*a*/,
-                    PGPV_BIGNUM * /*p*/, PGPV_BIGNUM * /*m*/,
+int PGPV_BN_mod_exp(PGPV_BIGNUM * /*r*/,
+                    PGPV_BIGNUM * /*a*/,
+                    PGPV_BIGNUM * /*p*/,
+                    PGPV_BIGNUM * /*m*/,
                     PGPV_BN_CTX * /*ctx*/);
-PGPV_BIGNUM *PGPV_BN_mod_inverse(PGPV_BIGNUM * /*ret*/, PGPV_BIGNUM * /*a*/,
+PGPV_BIGNUM *PGPV_BN_mod_inverse(PGPV_BIGNUM * /*ret*/,
+                                 PGPV_BIGNUM * /*a*/,
                                  const PGPV_BIGNUM * /*n*/,
                                  PGPV_BN_CTX * /*ctx*/);
-int PGPV_BN_mod_mul(PGPV_BIGNUM * /*ret*/, PGPV_BIGNUM * /*a*/,
-                    PGPV_BIGNUM * /*b*/, const PGPV_BIGNUM * /*m*/,
+int PGPV_BN_mod_mul(PGPV_BIGNUM * /*ret*/,
+                    PGPV_BIGNUM * /*a*/,
+                    PGPV_BIGNUM * /*b*/,
+                    const PGPV_BIGNUM * /*m*/,
                     PGPV_BN_CTX * /*ctx*/);
 
 PGPV_BN_CTX *PGPV_BN_CTX_new(void);
 PGPV_BIGNUM *PGPV_BN_CTX_get(PGPV_BN_CTX * /*ctx*/);
-void PGPV_BN_CTX_start(PGPV_BN_CTX * /*ctx*/);
-void PGPV_BN_CTX_end(PGPV_BN_CTX * /*ctx*/);
-void PGPV_BN_CTX_init(PGPV_BN_CTX * /*c*/);
-void PGPV_BN_CTX_free(PGPV_BN_CTX * /*c*/);
+void         PGPV_BN_CTX_start(PGPV_BN_CTX * /*ctx*/);
+void         PGPV_BN_CTX_end(PGPV_BN_CTX * /*ctx*/);
+void         PGPV_BN_CTX_init(PGPV_BN_CTX * /*c*/);
+void         PGPV_BN_CTX_free(PGPV_BN_CTX * /*c*/);
 
-int PGPV_BN_rand(PGPV_BIGNUM * /*rnd*/, int /*bits*/, int /*top*/,
-                 int /*bottom*/);
+int PGPV_BN_rand(PGPV_BIGNUM * /*rnd*/, int /*bits*/, int /*top*/, int /*bottom*/);
 int PGPV_BN_rand_range(PGPV_BIGNUM * /*rnd*/, PGPV_BIGNUM * /*range*/);
 
-int PGPV_BN_is_prime(const PGPV_BIGNUM * /*a*/, int /*checks*/,
-                     void (*callback)(int, int, void *), PGPV_BN_CTX * /*ctx*/,
+int PGPV_BN_is_prime(const PGPV_BIGNUM * /*a*/,
+                     int /*checks*/,
+                     void (*callback)(int, int, void *),
+                     PGPV_BN_CTX * /*ctx*/,
                      void * /*cb_arg*/);
 
 const PGPV_BIGNUM *PGPV_BN_value_one(void);
-int PGPV_BN_is_bit_set(const PGPV_BIGNUM * /*a*/, int /*n*/);
+int                PGPV_BN_is_bit_set(const PGPV_BIGNUM * /*a*/, int /*n*/);
 
-int PGPV_BN_gcd(PGPV_BIGNUM * /*r*/, PGPV_BIGNUM * /*a*/, PGPV_BIGNUM * /*b*/,
+int PGPV_BN_gcd(PGPV_BIGNUM * /*r*/,
+                PGPV_BIGNUM * /*a*/,
+                PGPV_BIGNUM * /*b*/,
                 PGPV_BN_CTX * /*ctx*/);
 
 __END_DECLS

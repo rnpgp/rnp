@@ -28,8 +28,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef KEYRING_H_
-#define KEYRING_H_
+#ifndef KEY_STORE_INTERNAL_H_
+#define KEY_STORE_INTERNAL_H_
 
 #include <rnp.h>
 #include <json.h>
@@ -37,40 +37,9 @@
 #include <stdint.h>
 
 #include "packet.h"
-#include "memory.h"
+#include "key_store.h"
 
-typedef struct keyring_t {
-  DYNARRAY(pgp_key_t, key);
-  pgp_hash_alg_t hashtype;
-} keyring_t;
+void rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len);
+int rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int last);
 
-int keyring_load_keys(rnp_t *rnp, char *homedir);
-
-int keyring_load_from_file(rnp_t *rnp, keyring_t *, const unsigned,
-                           const char *);
-int keyring_load_from_mem(rnp_t *rnp, keyring_t *, const unsigned,
-                          pgp_memory_t *);
-
-void keyring_free(keyring_t *);
-
-int keyring_list(pgp_io_t *, const keyring_t *, const int);
-int keyring_json(pgp_io_t *, const keyring_t *, json_object *, const int);
-
-int keyring_append_keyring(keyring_t *, keyring_t *);
-
-int keyring_add_key(pgp_io_t *, keyring_t *, pgp_key_t *, pgp_content_enum);
-int keyring_add_keydata(pgp_io_t *, keyring_t *, pgp_keydata_key_t *,
-                        pgp_content_enum);
-
-int keyring_remove_key(pgp_io_t *, keyring_t *, const pgp_key_t *);
-int keyring_remove_key_by_id(pgp_io_t *, keyring_t *, const uint8_t *);
-
-const pgp_key_t *keyring_get_key_by_id(pgp_io_t *, const keyring_t *,
-                                       const unsigned char *, unsigned *,
-                                       pgp_pubkey_t **);
-const pgp_key_t *keyring_get_key_by_name(pgp_io_t *, const keyring_t *,
-                                         const char *);
-const pgp_key_t *keyring_get_next_key_by_name(pgp_io_t *, const keyring_t *,
-                                              const char *, unsigned *);
-
-#endif /* KEYRING_H_ */
+#endif /* KEY_STORE_INTERNAL_H_ */
