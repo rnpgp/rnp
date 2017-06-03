@@ -47,27 +47,23 @@
 #include "misc.h"
 
 #ifndef USE_ARG
-#define USE_ARG(x) /*LINTED*/ (void) &(x)
+#define USE_ARG(x) /*LINTED*/ (void)&(x)
 #endif
 
-void *
-rnp_allocate(size_t n, size_t nels)
-{
+void *rnp_allocate(size_t n, size_t nels) {
 #ifdef _KERNEL
-    return kmem_zalloc(n * nels, KM_SLEEP);
+  return kmem_zalloc(n * nels, KM_SLEEP);
 #else
-    return calloc(n, nels);
+  return calloc(n, nels);
 #endif
 }
 
-void
-rnp_deallocate(void *ptr, size_t size)
-{
+void rnp_deallocate(void *ptr, size_t size) {
 #ifdef _KERNEL
-    kmem_free(ptr, size);
+  kmem_free(ptr, size);
 #else
-    USE_ARG(size);
-    free(ptr);
+  USE_ARG(size);
+  free(ptr);
 #endif
 }
 
@@ -78,38 +74,37 @@ rnp_deallocate(void *ptr, size_t size)
 #endif
 
 /* show hexadecimal/ascii dump */
-ssize_t
-rnp_hexdump(const void *vin, const size_t len, void *outvp, size_t size)
-{
-    const char *in = (const char *) vin;
-    size_t      i;
-    char        line[HEXDUMP_LINELEN + 1];
-    char *      out = (char *) outvp;
-    int         o;
+ssize_t rnp_hexdump(const void *vin, const size_t len, void *outvp,
+                    size_t size) {
+  const char *in = (const char *)vin;
+  size_t i;
+  char line[HEXDUMP_LINELEN + 1];
+  char *out = (char *)outvp;
+  int o;
 
-    for (i = 0, o = 0; i < len; i++) {
-        if (i % HEXDUMP_LINELEN == 0) {
-            o += snprintf(&out[o], size - o, "%.5" PRIsize "u |  ", i);
-        } else if (i % (HEXDUMP_LINELEN / 2) == 0) {
-            o += snprintf(&out[o], size - o, " ");
-        }
-        o += snprintf(&out[o], size - o, "%.02x ", (uint8_t) in[i]);
-        line[i % HEXDUMP_LINELEN] = (isprint((uint8_t) in[i])) ? in[i] : '.';
-        if (i % HEXDUMP_LINELEN == HEXDUMP_LINELEN - 1) {
-            line[HEXDUMP_LINELEN] = 0x0;
-            o += snprintf(&out[o], size - o, " | %s\n", line);
-        }
+  for (i = 0, o = 0; i < len; i++) {
+    if (i % HEXDUMP_LINELEN == 0) {
+      o += snprintf(&out[o], size - o, "%.5" PRIsize "u |  ", i);
+    } else if (i % (HEXDUMP_LINELEN / 2) == 0) {
+      o += snprintf(&out[o], size - o, " ");
     }
-    if (i % HEXDUMP_LINELEN != 0) {
-        for (; i % HEXDUMP_LINELEN != 0; i++) {
-            o += snprintf(&out[o], size - o, "   ");
-            if (i % (HEXDUMP_LINELEN / 2) == 0) {
-                o += snprintf(&out[o], size - o, " ");
-            }
-            line[i % HEXDUMP_LINELEN] = ' ';
-        }
-        line[HEXDUMP_LINELEN] = 0x0;
-        o += snprintf(&out[o], size - o, " | %s\n", line);
+    o += snprintf(&out[o], size - o, "%.02x ", (uint8_t)in[i]);
+    line[i % HEXDUMP_LINELEN] = (isprint((uint8_t)in[i])) ? in[i] : '.';
+    if (i % HEXDUMP_LINELEN == HEXDUMP_LINELEN - 1) {
+      line[HEXDUMP_LINELEN] = 0x0;
+      o += snprintf(&out[o], size - o, " | %s\n", line);
     }
-    return (ssize_t) o;
+  }
+  if (i % HEXDUMP_LINELEN != 0) {
+    for (; i % HEXDUMP_LINELEN != 0; i++) {
+      o += snprintf(&out[o], size - o, "   ");
+      if (i % (HEXDUMP_LINELEN / 2) == 0) {
+        o += snprintf(&out[o], size - o, " ");
+      }
+      line[i % HEXDUMP_LINELEN] = ' ';
+    }
+    line[HEXDUMP_LINELEN] = 0x0;
+    o += snprintf(&out[o], size - o, " | %s\n", line);
+  }
+  return (ssize_t)o;
 }

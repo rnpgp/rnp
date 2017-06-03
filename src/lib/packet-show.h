@@ -60,23 +60,23 @@
 /** pgp_list_t
  */
 typedef struct {
-    unsigned size; /* num of array slots allocated */
-    unsigned used; /* num of array slots currently used */
-    char **  strings;
+  unsigned size; /* num of array slots allocated */
+  unsigned used; /* num of array slots currently used */
+  char **strings;
 } pgp_list_t;
 
 /** pgp_text_t
  */
 typedef struct {
-    pgp_list_t known;
-    pgp_list_t unknown;
+  pgp_list_t known;
+  pgp_list_t unknown;
 } pgp_text_t;
 
 /** pgp_bit_map_t
  */
 typedef struct {
-    uint8_t     mask;
-    const char *string;
+  uint8_t mask;
+  const char *string;
 } pgp_bit_map_t;
 
 void pgp_text_init(pgp_text_t *);

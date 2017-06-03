@@ -54,17 +54,17 @@
 
 /** pgp_crypt_t */
 struct pgp_crypt_t {
-    pgp_symm_alg_t alg;
-    size_t         blocksize;
-    size_t         keysize;
-    uint8_t        iv[PGP_MAX_BLOCK_SIZE];
-    uint8_t        civ[PGP_MAX_BLOCK_SIZE];
-    uint8_t        siv[PGP_MAX_BLOCK_SIZE];
-    /* siv is needed for weird v3 resync */
-    uint8_t key[PGP_MAX_KEY_SIZE];
-    int     num;
-    /* num is offset for CFB */
-    struct botan_block_cipher_struct *block_cipher_obj;
+  pgp_symm_alg_t alg;
+  size_t blocksize;
+  size_t keysize;
+  uint8_t iv[PGP_MAX_BLOCK_SIZE];
+  uint8_t civ[PGP_MAX_BLOCK_SIZE];
+  uint8_t siv[PGP_MAX_BLOCK_SIZE];
+  /* siv is needed for weird v3 resync */
+  uint8_t key[PGP_MAX_KEY_SIZE];
+  int num;
+  /* num is offset for CFB */
+  struct botan_block_cipher_struct *block_cipher_obj;
 };
 
 pgp_symm_alg_t pgp_str_to_cipher(const char *name);
@@ -83,12 +83,16 @@ int pgp_cipher_set_key(pgp_crypt_t *cipher, const uint8_t *key);
 int pgp_cipher_set_iv(pgp_crypt_t *cipher, const uint8_t *iv);
 
 // Encrypt or decrypt a single block
-int pgp_cipher_block_encrypt(const pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in);
-int pgp_cipher_block_decrypt(const pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in);
+int pgp_cipher_block_encrypt(const pgp_crypt_t *cipher, uint8_t *out,
+                             const uint8_t *in);
+int pgp_cipher_block_decrypt(const pgp_crypt_t *cipher, uint8_t *out,
+                             const uint8_t *in);
 
 // CFB encryption/decryption
-int pgp_cipher_cfb_encrypt(pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in, size_t len);
-int pgp_cipher_cfb_decrypt(pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in, size_t len);
+int pgp_cipher_cfb_encrypt(pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in,
+                           size_t len);
+int pgp_cipher_cfb_decrypt(pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in,
+                           size_t len);
 
 int pgp_cipher_cfb_resync(pgp_crypt_t *cipher);
 

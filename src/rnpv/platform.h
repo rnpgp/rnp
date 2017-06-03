@@ -43,7 +43,7 @@ int asprintf(char **, const char *, ...);
 // The __USE hack is probably necessary on all non-NetBSD platforms.
 // But we cannot risk breaking something that Frank cannot test.
 #ifndef __USE
-#define __USE(a) ((void) (a))
+#define __USE(a) ((void)(a))
 #endif
 #endif
 #endif
