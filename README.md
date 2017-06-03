@@ -19,13 +19,16 @@ of NetBSD.
 
 # Supported Platforms
 
-Officially supported platforms:
+Currently supported platforms:
 
 * Fedora 25
 * RHEL/CentOS 7
+
+Upcoming supported platforms:
+
 * Ubuntu 14.04 LTS, 16.04 LTS, 17.04
 * Debian 8, 9
-* OpenSUSE Leap 42.2
+* OpenSUSE Leap 42.2, 42.3
 * SLES 12
 
 
