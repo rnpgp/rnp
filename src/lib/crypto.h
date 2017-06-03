@@ -57,7 +57,7 @@
 
 #include <botan/ffi.h>
 #include "hash.h"
-#include "key_store_pgp.h"
+#include "keyring_pgp.h"
 #include "packet.h"
 #include "memory.h"
 #include "packet-parse.h"
@@ -164,17 +164,15 @@ void pgp_writer_push_encrypt(pgp_output_t *, const struct pgp_key_data *);
 unsigned pgp_encrypt_file(pgp_io_t *, const char *, const char *,
                           const pgp_key_t *, const unsigned, const unsigned,
                           const char *);
-unsigned pgp_decrypt_file(pgp_io_t *, const char *, const char *,
-                          rnp_key_store_t *, rnp_key_store_t *, const unsigned,
-                          const unsigned, const unsigned, void *, int,
-                          pgp_cbfunc_t *);
+unsigned pgp_decrypt_file(pgp_io_t *, const char *, const char *, keyring_t *,
+                          keyring_t *, const unsigned, const unsigned,
+                          const unsigned, void *, int, pgp_cbfunc_t *);
 
 pgp_memory_t *pgp_encrypt_buf(pgp_io_t *, const void *, const size_t,
                               const pgp_key_t *, const unsigned, const char *);
 pgp_memory_t *pgp_decrypt_buf(pgp_io_t *, const void *, const size_t,
-                              rnp_key_store_t *, rnp_key_store_t *,
-                              const unsigned, const unsigned, void *, int,
-                              pgp_cbfunc_t *);
+                              keyring_t *, keyring_t *, const unsigned,
+                              const unsigned, void *, int, pgp_cbfunc_t *);
 
 /* Keys */
 pgp_key_t *pgp_rsa_new_selfsign_key(const int bits, const unsigned long e,
@@ -217,10 +215,10 @@ struct pgp_reader_t {
 */
 struct pgp_cryptinfo_t {
   char *passphrase;
-  rnp_key_store_t *secring;
+  keyring_t *secring;
   const pgp_key_t *keydata;
   pgp_cbfunc_t *getpassphrase;
-  rnp_key_store_t *pubring;
+  keyring_t *pubring;
 };
 
 /** pgp_cbdata_t */

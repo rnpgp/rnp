@@ -69,7 +69,6 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 
 #include <string.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
 #include "types.h"
 #include "bn.h"
@@ -152,6 +151,7 @@ unsigned pgp_elgamal_encrypt_mpi(const uint8_t *encoded_m_buf,
                                  const size_t sz_encoded_m_buf,
                                  const pgp_pubkey_t *pubkey,
                                  pgp_pk_sesskey_params_t *skp) {
+
   uint8_t encmpibuf[RNP_BUFSIZ];
   uint8_t g_to_k[RNP_BUFSIZ];
   int n;
@@ -335,8 +335,7 @@ pgp_memory_t *pgp_encrypt_buf(pgp_io_t *io, const void *input,
    \brief Decrypt a file.
    \param infile Name of file to be decrypted
    \param outfile Name of file to write to. If NULL, the filename is constructed
-   from the input
-   filename, following GPG conventions.
+   from the input filename, following GPG conventions.
    \param keyring Keyring to use
    \param use_armour Expect armoured text, if set
    \param allow_overwrite Allow output file to overwritten, if set.
@@ -344,7 +343,7 @@ pgp_memory_t *pgp_encrypt_buf(pgp_io_t *io, const void *input,
 */
 
 unsigned pgp_decrypt_file(pgp_io_t *io, const char *infile, const char *outfile,
-                          rnp_key_store_t *secring, rnp_key_store_t *pubring,
+                          keyring_t *secring, keyring_t *pubring,
                           const unsigned use_armour,
                           const unsigned allow_overwrite,
                           const unsigned sshkeys, void *passfp, int numtries,
@@ -440,11 +439,10 @@ unsigned pgp_decrypt_file(pgp_io_t *io, const char *infile, const char *outfile,
 
 /* decrypt an area of memory */
 pgp_memory_t *pgp_decrypt_buf(pgp_io_t *io, const void *input,
-                              const size_t insize, rnp_key_store_t *secring,
-                              rnp_key_store_t *pubring,
-                              const unsigned use_armour, const unsigned sshkeys,
-                              void *passfp, int numtries,
-                              pgp_cbfunc_t *getpassfunc) {
+                              const size_t insize, keyring_t *secring,
+                              keyring_t *pubring, const unsigned use_armour,
+                              const unsigned sshkeys, void *passfp,
+                              int numtries, pgp_cbfunc_t *getpassfunc) {
   pgp_stream_t *parse = NULL;
   pgp_memory_t *outmem;
   pgp_memory_t *inmem;
@@ -486,13 +484,13 @@ pgp_memory_t *pgp_decrypt_buf(pgp_io_t *io, const void *input,
   }
 
   /* tidy up */
-  const bool gotpass = parse->cbinfo.gotpass;
-  pgp_writer_close(parse->cbinfo.output);
-  pgp_output_delete(parse->cbinfo.output);
   pgp_teardown_memory_read(parse, inmem);
 
+  pgp_writer_close(parse->cbinfo.output);
+  pgp_output_delete(parse->cbinfo.output);
+
   /* if we didn't get the passphrase, return NULL */
-  return gotpass ? outmem : NULL;
+  return (parse->cbinfo.gotpass) ? outmem : NULL;
 }
 
 void pgp_crypto_finish(void) {

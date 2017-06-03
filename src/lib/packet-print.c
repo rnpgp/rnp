@@ -78,7 +78,7 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 
 #include "bn.h"
 #include "crypto.h"
-#include "key_store_pgp.h"
+#include "keyring_pgp.h"
 #include "packet-show.h"
 #include "signature.h"
 #include "readerwriter.h"
@@ -442,6 +442,7 @@ static int format_subsig_line(char *buffer, const pgp_key_t *key,
 
   if (subsig->sig.info.version == 4 &&
       subsig->sig.info.type == PGP_SIG_SUBKEY) {
+
     /* XXX: The character count of this was previously ignored.
      *      This seems to have been incorrect, but if not
      *      you should revert it.
@@ -454,9 +455,8 @@ static int format_subsig_line(char *buffer, const pgp_key_t *key,
 }
 
 static int format_uid_notice(char *buffer, pgp_io_t *io,
-                             const rnp_key_store_t *keyring,
-                             const pgp_key_t *key, unsigned uid, size_t size,
-                             int flags) {
+                             const keyring_t *keyring, const pgp_key_t *key,
+                             unsigned uid, size_t size, int flags) {
   int i;
   int n = 0;
 
@@ -486,8 +486,8 @@ static int format_uid_notice(char *buffer, pgp_io_t *io,
       continue;
     }
 
-    trustkey = rnp_key_store_get_key_by_id(
-        io, keyring, subsig->sig.info.signer_id, &from, NULL);
+    trustkey = keyring_get_key_by_id(io, keyring, subsig->sig.info.signer_id,
+                                     &from, NULL);
 
     n += format_subsig_line(buffer + n, key, trustkey, subsig, size - n);
   }
@@ -503,7 +503,7 @@ static int format_uid_notice(char *buffer, pgp_io_t *io,
 #define NOTICE_BUFFER_SIZE KB(128)
 
 /* print into a string (malloc'ed) the pubkeydata */
-int pgp_sprint_keydata(pgp_io_t *io, const rnp_key_store_t *keyring,
+int pgp_sprint_keydata(pgp_io_t *io, const keyring_t *keyring,
                        const pgp_key_t *key, char **buf, const char *header,
                        const pgp_pubkey_t *pubkey, const int psigs) {
   unsigned i;
@@ -578,7 +578,7 @@ int pgp_sprint_keydata(pgp_io_t *io, const rnp_key_store_t *keyring,
 }
 
 /* return the key info as a JSON encoded string */
-int pgp_sprint_json(pgp_io_t *io, const rnp_key_store_t *keyring,
+int pgp_sprint_json(pgp_io_t *io, const keyring_t *keyring,
                     const pgp_key_t *key, json_object *keyjson,
                     const char *header, const pgp_pubkey_t *pubkey,
                     const int psigs) {
@@ -667,7 +667,7 @@ int pgp_sprint_json(pgp_io_t *io, const rnp_key_store_t *keyring,
             json_object_new_int((int64_t)(key->subsigs[j].sig.info.birthtime)));
 
         unsigned from = 0;
-        const pgp_key_t *trustkey = rnp_key_store_get_key_by_id(
+        const pgp_key_t *trustkey = keyring_get_key_by_id(
             io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
 
         json_object_array_add(
@@ -677,7 +677,7 @@ int pgp_sprint_json(pgp_io_t *io, const rnp_key_store_t *keyring,
         json_object_object_add(keyjson, "sig", subsigc_arr);
       }
     } // for
-  }   // for uidc
+  } // for uidc
   if (rnp_get_debug(__FILE__)) {
     printf("%s,%d: The json object created: %s\n", __FILE__, __LINE__,
            json_object_to_json_string(keyjson));
@@ -685,7 +685,7 @@ int pgp_sprint_json(pgp_io_t *io, const rnp_key_store_t *keyring,
   return 1;
 }
 
-int pgp_hkp_sprint_keydata(pgp_io_t *io, const rnp_key_store_t *keyring,
+int pgp_hkp_sprint_keydata(pgp_io_t *io, const keyring_t *keyring,
                            const pgp_key_t *key, char **buf,
                            const pgp_pubkey_t *pubkey, const int psigs) {
   const pgp_key_t *trustkey;
@@ -717,7 +717,7 @@ int pgp_hkp_sprint_keydata(pgp_io_t *io, const rnp_key_store_t *keyring,
         }
       }
       from = 0;
-      trustkey = rnp_key_store_get_key_by_id(
+      trustkey = keyring_get_key_by_id(
           io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
       if (key->subsigs[j].sig.info.version == 4 &&
           key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
@@ -758,7 +758,7 @@ int pgp_hkp_sprint_keydata(pgp_io_t *io, const rnp_key_store_t *keyring,
 }
 
 /* print the key data for a pub or sec key */
-void pgp_print_keydata(pgp_io_t *io, const rnp_key_store_t *keyring,
+void pgp_print_keydata(pgp_io_t *io, const keyring_t *keyring,
                        const pgp_key_t *key, const char *header,
                        const pgp_pubkey_t *pubkey, const int psigs) {
   char *cp;
@@ -1525,8 +1525,8 @@ static pgp_cb_ret_t cb_list_packets(const pgp_packet_t *pkt,
 \param cb_get_passphrase
 */
 int pgp_list_packets(pgp_io_t *io, char *filename, unsigned armour,
-                     rnp_key_store_t *secring, rnp_key_store_t *pubring,
-                     void *passfp, pgp_cbfunc_t *cb_get_passphrase) {
+                     keyring_t *secring, keyring_t *pubring, void *passfp,
+                     pgp_cbfunc_t *cb_get_passphrase) {
   pgp_stream_t *stream = NULL;
   const unsigned accumulate = 1;
   const int printerrors = 1;
@@ -1562,8 +1562,7 @@ char *pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata,
     pgp_write_xfer_seckey(output, keydata, passphrase,
                           strlen((char *)passphrase), NULL, 1);
   }
-  cp = malloc(pgp_mem_len(mem));
-  memcpy(cp, pgp_mem_data(mem), pgp_mem_len(mem));
+  cp = rnp_strdup(pgp_mem_data(mem));
   pgp_teardown_memory_write(output, mem);
   return cp;
 }

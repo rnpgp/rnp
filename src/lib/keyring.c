@@ -32,9 +32,9 @@
 
 #include "rnp.h"
 #include "rnpdefs.h"
-#include "key_store.h"
-#include "key_store_pgp.h"
-#include "key_store_ssh.h"
+#include "keyring.h"
+#include "keyring_pgp.h"
+#include "keyring_ssh.h"
 #include "packet-print.h"
 #include "packet-key.h"
 #include "packet.h"
@@ -44,42 +44,41 @@
 #include <stdlib.h>
 #include <string.h>
 
-int rnp_key_store_load_keys(rnp_t *rnp, char *homedir) {
+int keyring_load_keys(rnp_t *rnp, char *homedir) {
   switch (rnp->keyring_format) {
   case GPG_KEYRING:
-    return rnp_key_store_pgp_load_keys(rnp, homedir);
+    return pgp_keyring_load_keys(rnp, homedir);
 
   case SSH_KEYRING:
-    return rnp_key_store_ssh_load_keys(rnp, homedir);
+    return ssh_keyring_load_keys(rnp, homedir);
   }
 
   return 0;
 }
 
-int rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *keyring,
-                                 const unsigned armour, const char *filename) {
+int keyring_load_from_file(rnp_t *rnp, keyring_t *keyring,
+                           const unsigned armour, const char *filename) {
   {
     switch (rnp->keyring_format) {
     case GPG_KEYRING:
-      return rnp_key_store_pgp_read_from_file(rnp->io, keyring, armour,
-                                              filename);
+      return pgp_keyring_read_from_file(rnp->io, keyring, armour, filename);
 
     case SSH_KEYRING:
-      return rnp_key_store_ssh_from_file(rnp->io, keyring, filename);
+      return ssh_keyring_read_from_file(rnp->io, keyring, filename);
     }
 
     return 0;
   }
 }
 
-int rnp_key_store_load_from_mem(rnp_t *rnp, rnp_key_store_t *keyring,
-                                const unsigned armour, pgp_memory_t *memory) {
+int keyring_load_from_mem(rnp_t *rnp, keyring_t *keyring, const unsigned armour,
+                          pgp_memory_t *memory) {
   switch (rnp->keyring_format) {
   case GPG_KEYRING:
-    return rnp_key_store_pgp_read_from_mem(rnp->io, keyring, armour, memory);
+    return pgp_keyring_read_from_mem(rnp->io, keyring, armour, memory);
 
   case SSH_KEYRING:
-    return rnp_key_store_ssh_from_mem(rnp->io, keyring, memory);
+    return ssh_keyring_read_from_mem(rnp->io, keyring, memory);
   }
 
   return 0;
@@ -96,7 +95,7 @@ int rnp_key_store_load_from_mem(rnp_t *rnp, rnp_key_store_t *keyring,
  * TODO: Make this function more general or use an existing one.
  */
 
-void rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len) {
+void keyring_format_key(char *buffer, uint8_t *sigid, int len) {
   unsigned int i;
   unsigned int n;
 
@@ -121,8 +120,7 @@ void rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len) {
  * TODO: Check upstream calls to this function - they likely won't
  *       handle the new error condition.
  */
-int rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len,
-                                 int last) {
+int keyring_get_first_ring(keyring_t *ring, char *id, size_t len, int last) {
   uint8_t *src;
 
   /* The NULL test on the ring may not be necessary for non-debug
@@ -144,7 +142,7 @@ int rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len,
   memset(id, 0x0, len);
 
   src = (uint8_t *)&ring->keys[(last) ? ring->keyc - 1 : 0].sigid;
-  rnp_key_store_format_key(id, src, len);
+  keyring_format_key(id, src, len);
 
   return 1;
 }
@@ -158,7 +156,7 @@ int rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len,
 
    \note This does not free keyring itself, just the memory alloc-ed in it.
  */
-void rnp_key_store_free(rnp_key_store_t *keyring) {
+void keyring_free(keyring_t *keyring) {
   (void)free(keyring->keys);
   keyring->keys = NULL;
   keyring->keyc = keyring->keyvsize = 0;
@@ -173,8 +171,7 @@ void rnp_key_store_free(rnp_key_store_t *keyring) {
 
    \return none
 */
-int rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring,
-                       const int psigs) {
+int keyring_list(pgp_io_t *io, const keyring_t *keyring, const int psigs) {
   pgp_key_t *key;
   unsigned n;
 
@@ -192,8 +189,8 @@ int rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring,
   return 1;
 }
 
-int rnp_key_store_json(pgp_io_t *io, const rnp_key_store_t *keyring,
-                       json_object *obj, const int psigs) {
+int keyring_json(pgp_io_t *io, const keyring_t *keyring, json_object *obj,
+                 const int psigs) {
   pgp_key_t *key;
   unsigned n;
   for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
@@ -211,8 +208,7 @@ int rnp_key_store_json(pgp_io_t *io, const rnp_key_store_t *keyring,
 }
 
 /* append one keyring to another */
-int rnp_key_store_append_keyring(rnp_key_store_t *keyring,
-                                 rnp_key_store_t *newring) {
+int keyring_append_keyring(keyring_t *keyring, keyring_t *newring) {
   unsigned i;
 
   for (i = 0; i < newring->keyc; i++) {
@@ -225,12 +221,12 @@ int rnp_key_store_append_keyring(rnp_key_store_t *keyring,
 }
 
 /* add a key to keyring */
-int rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring,
-                          pgp_key_t *key, pgp_content_enum tag) {
+int keyring_add_key(pgp_io_t *io, keyring_t *keyring, pgp_key_t *key,
+                    pgp_content_enum tag) {
   pgp_key_t *newkey;
 
   if (rnp_get_debug(__FILE__)) {
-    fprintf(io->errs, "rnp_key_store_add_key\n");
+    fprintf(io->errs, "keyring_add_key\n");
   }
 
   EXPAND_ARRAY(keyring, key);
@@ -239,19 +235,18 @@ int rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring,
   newkey->type = tag;
 
   if (rnp_get_debug(__FILE__)) {
-    fprintf(io->errs, "rnp_key_store_add_key: keyc %u\n", keyring->keyc);
+    fprintf(io->errs, "keyring_add_key: keyc %u\n", keyring->keyc);
   }
 
   return 1;
 }
 
-int rnp_key_store_add_keydata(pgp_io_t *io, rnp_key_store_t *keyring,
-                              pgp_keydata_key_t *keydata,
-                              pgp_content_enum tag) {
+int keyring_add_keydata(pgp_io_t *io, keyring_t *keyring,
+                        pgp_keydata_key_t *keydata, pgp_content_enum tag) {
   pgp_key_t *key;
 
   if (rnp_get_debug(__FILE__)) {
-    fprintf(io->errs, "rnp_key_store_add_keydata\n");
+    fprintf(io->errs, "keyring_add_keydata\n");
   }
 
   if (tag != PGP_PTAG_CT_PUBLIC_SUBKEY) {
@@ -272,14 +267,13 @@ int rnp_key_store_add_keydata(pgp_io_t *io, rnp_key_store_t *keyring,
   }
 
   if (rnp_get_debug(__FILE__)) {
-    fprintf(io->errs, "rnp_key_store_add_keydata: keyc %u\n", keyring->keyc);
+    fprintf(io->errs, "keyring_add_keydata: keyc %u\n", keyring->keyc);
   }
 
   return 1;
 }
 
-int rnp_key_store_remove_key(pgp_io_t *io, rnp_key_store_t *keyring,
-                             const pgp_key_t *key) {
+int keyring_remove_key(pgp_io_t *io, keyring_t *keyring, const pgp_key_t *key) {
   int i;
 
   for (i = 0; i < keyring->keyc; i++) {
@@ -294,16 +288,16 @@ int rnp_key_store_remove_key(pgp_io_t *io, rnp_key_store_t *keyring,
   return 0;
 }
 
-int rnp_key_store_remove_key_by_id(pgp_io_t *io, rnp_key_store_t *keyring,
-                                   const uint8_t *keyid) {
+int keyring_remove_key_by_id(pgp_io_t *io, keyring_t *keyring,
+                             const uint8_t *keyid) {
   unsigned from;
   const pgp_key_t *key;
 
   from = 0;
 
-  key = rnp_key_store_get_key_by_id(io, keyring, keyid, &from, NULL);
+  key = keyring_get_key_by_id(io, keyring, keyid, &from, NULL);
   if (key != NULL) {
-    return rnp_key_store_remove_key(io, keyring, key);
+    return keyring_remove_key(io, keyring, key);
   }
 
   return 0;
@@ -323,11 +317,9 @@ int rnp_key_store_remove_key_by_id(pgp_io_t *io, rnp_key_store_t *keyring,
    not a copy.  Do not free it after use.
 
 */
-const pgp_key_t *rnp_key_store_get_key_by_id(pgp_io_t *io,
-                                             const rnp_key_store_t *keyring,
-                                             const uint8_t *keyid,
-                                             unsigned *from,
-                                             pgp_pubkey_t **pubkey) {
+const pgp_key_t *keyring_get_key_by_id(pgp_io_t *io, const keyring_t *keyring,
+                                       const uint8_t *keyid, unsigned *from,
+                                       pgp_pubkey_t **pubkey) {
   uint8_t nullid[PGP_KEY_ID_SIZE];
 
   (void)memset(nullid, 0x0, sizeof(nullid));
@@ -394,8 +386,7 @@ static void str2keyid(const char *userid, uint8_t *keyid, size_t len) {
 }
 
 /* return the next key which matches, starting searching at *from */
-static const pgp_key_t *get_key_by_name(pgp_io_t *io,
-                                        const rnp_key_store_t *keyring,
+static const pgp_key_t *get_key_by_name(pgp_io_t *io, const keyring_t *keyring,
                                         const char *name, unsigned *from) {
   const pgp_key_t *kp;
   uint8_t **uidp;
@@ -420,8 +411,7 @@ static const pgp_key_t *get_key_by_name(pgp_io_t *io,
     hexdump(io->outs, "keyid", keyid, 4);
   }
   savedstart = *from;
-  if ((kp = rnp_key_store_get_key_by_id(io, keyring, keyid, from, NULL)) !=
-      NULL) {
+  if ((kp = keyring_get_key_by_id(io, keyring, keyid, from, NULL)) != NULL) {
     return kp;
   }
   *from = savedstart;
@@ -462,17 +452,16 @@ static const pgp_key_t *get_key_by_name(pgp_io_t *io,
    copy.  Do not free it.
 
 */
-const pgp_key_t *rnp_key_store_get_key_by_name(pgp_io_t *io,
-                                               const rnp_key_store_t *keyring,
-                                               const char *name) {
+const pgp_key_t *keyring_get_key_by_name(pgp_io_t *io, const keyring_t *keyring,
+                                         const char *name) {
   unsigned from;
 
   from = 0;
   return get_key_by_name(io, keyring, name, &from);
 }
 
-const pgp_key_t *
-rnp_key_store_get_next_key_by_name(pgp_io_t *io, const rnp_key_store_t *keyring,
-                                   const char *name, unsigned *n) {
+const pgp_key_t *keyring_get_next_key_by_name(pgp_io_t *io,
+                                              const keyring_t *keyring,
+                                              const char *name, unsigned *n) {
   return get_key_by_name(io, keyring, name, n);
 }

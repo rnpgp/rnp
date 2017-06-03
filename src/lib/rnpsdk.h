@@ -31,7 +31,7 @@
 #ifndef RNPSDK_H_
 #define RNPSDK_H_
 
-#include "key_store_pgp.h"
+#include "keyring_pgp.h"
 #include "crypto.h"
 #include "signature.h"
 #include "packet-show.h"
@@ -53,12 +53,11 @@ typedef struct pgp_validation_t {
 
 void pgp_validate_result_free(pgp_validation_t *);
 
-unsigned pgp_validate_key_sigs(pgp_validation_t *, const pgp_key_t *,
-                               const rnp_key_store_t *,
-                               pgp_cb_ret_t cb(const pgp_packet_t *,
-                                               pgp_cbdata_t *));
+unsigned
+pgp_validate_key_sigs(pgp_validation_t *, const pgp_key_t *, const keyring_t *,
+                      pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
 
-unsigned pgp_validate_all_sigs(pgp_validation_t *, const rnp_key_store_t *,
+unsigned pgp_validate_all_sigs(pgp_validation_t *, const keyring_t *,
                                pgp_cb_ret_t cb(const pgp_packet_t *,
                                                pgp_cbdata_t *));
 

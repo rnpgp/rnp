@@ -279,8 +279,7 @@ static pgp_bit_map_t ss_key_flags_map[] = {
 
 static pgp_bit_map_t ss_key_server_prefs_map[] = {
   { 0x80, "Key holder requests that this key only be modified or updated by "
-          "the key holder or "
-          "an administrator of the key server" },
+          "the key holder or an administrator of the key server" },
   { 0x00, NULL },
 };
 
@@ -357,8 +356,7 @@ void pgp_text_init(pgp_text_t *text) {
  * pgp_text_free() frees the memory used by an pgp_text_t structure
  *
  * \param text Pointer to a previously allocated structure. This structure and
- *its contents
- * will be freed.
+ *its contents will be freed.
  */
 void pgp_text_free(pgp_text_t *text) {
   /* Strings in "known" array will be constants, so don't free them */
@@ -412,6 +410,7 @@ static unsigned add_bitmap_entry(pgp_text_t *map, const char *str,
   int status = 1;
 
   if (str && !add_str(&map->known, str)) {
+
     /* Value recognised, but there was a problem adding it to the
      * list
      */
@@ -422,6 +421,7 @@ static unsigned add_bitmap_entry(pgp_text_t *map, const char *str,
      * the unknown list.
      */
   } else if (!str) {
+
     /* This section relies on there being only one format
      * parameter, %x, which will reliably expand to two
      * characters. If you change the format string you

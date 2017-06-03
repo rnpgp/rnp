@@ -58,7 +58,7 @@
 #include "packet.h"
 #include "crypto.h"
 #include "errors.h"
-#include "key_store.h"
+#include "keyring.h"
 #include "writer.h"
 #include "memory.h"
 
@@ -90,10 +90,10 @@ unsigned pgp_write_litdata(pgp_output_t *, const uint8_t *, const int,
 pgp_pk_sesskey_t *pgp_create_pk_sesskey(const pgp_key_t *, const char *);
 unsigned pgp_write_pk_sesskey(pgp_output_t *, pgp_pk_sesskey_t *);
 unsigned pgp_write_xfer_pubkey(pgp_output_t *, const pgp_key_t *,
-                               const rnp_key_store_t *, const unsigned);
+                               const keyring_t *, const unsigned);
 unsigned pgp_write_xfer_seckey(pgp_output_t *, const pgp_key_t *,
-                               const uint8_t *, const size_t,
-                               const rnp_key_store_t *, const unsigned);
+                               const uint8_t *, const size_t, const keyring_t *,
+                               const unsigned);
 
 void pgp_fast_create_userid(uint8_t **, uint8_t *);
 unsigned pgp_write_userid(const uint8_t *, pgp_output_t *);

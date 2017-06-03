@@ -41,7 +41,7 @@
 #include <cmocka.h>
 
 #include <crypto.h>
-#include <key_store_pgp.h>
+#include <keyring_pgp.h>
 #include <packet.h>
 #include <packet-key.h>
 #include <bn.h>
@@ -214,11 +214,9 @@ static void hash_test_success(void **state) {
     "A9993E364706816ABA3E25717850C26C9CD0D89D",
     "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD",
     "CB00753F45A35E8BB5A03D699AC65007272C32AB0EDED1631A8B605A43FF5BED8086072BA1"
-    "E7CC2358BAECA"
-    "134C825A7",
+    "E7CC2358BAECA134C825A7",
     "DDAF35A193617ABACC417349AE20413112E6FA4E89A97EA20A9EEEE64B55D39A2192992A27"
-    "4FC1A836BA3C2"
-    "3A3FEEBBD454D4423643CE80E2A9AC94FA54CA49F",
+    "4FC1A836BA3C23A3FEEBBD454D4423643CE80E2A9AC94FA54CA49F",
     "23097D223405D8228642A477BDA255B32AADBCE4BDA0B3F7E36C9DA7",
     "66C7F0F462EEEDD9D1F2D46BDC10E4E24167C4875CF2F7A2297DA02B8F4BA8E0"
   };
@@ -665,6 +663,7 @@ static void rnpkeys_generatekey_verifySupportedHashAlg(void **state) {
 }
 
 static void rnpkeys_generatekey_verifyUserIdOption(void **state) {
+
   char userId[1024] = { 0 };
   const char *UserId[] = { "rnpkeys_generatekey_verifyUserIdOption_MD5",
                            "rnpkeys_generatekey_verifyUserIdOption_SHA-1",
@@ -930,23 +929,19 @@ static void rnpkeys_exportkey_verifyUserId(void **state) {
    * stack MUST query the set userid option to find the key*/
   exportedkey = rnp_export_key(&rnp, NULL);
   assert_non_null(exportedkey);
-  free(exportedkey);
-  exportedkey = NULL;
 
   /*try to export the key with specified userid parameter from the interface;
    * stack MUST NOT query the set userid option to find the key*/
+  exportedkey = NULL;
   exportedkey = rnp_export_key(&rnp, getenv("LOGNAME"));
   assert_non_null(exportedkey);
-  free(exportedkey);
-  exportedkey = NULL;
 
   /* try to export the key with specified userid parameter (which is wrong) from
-   * the
-   * interface;
+   * the interface;
    * stack MUST NOT be able to find the key*/
+  exportedkey = NULL;
   exportedkey = rnp_export_key(&rnp, "LOGNAME");
   assert_null(exportedkey);
-  free(exportedkey);
 
   rnp_end(&rnp); // Free memory and other allocated resources.
 }
