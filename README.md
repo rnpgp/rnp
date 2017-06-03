@@ -16,8 +16,23 @@ of NetBSD.
 [![Travis CI Build Status](https://travis-ci.org/riboseinc/rnp.svg?branch=master)](https://travis-ci.org/riboseinc/rnp)
 [![Coverity Scan Build Status](https://img.shields.io/coverity/scan/12616.svg)](https://scan.coverity.com/projects/riboseinc-rnp)
 
-# Usage
 
+# Supported Platforms
+
+Currently supported platforms:
+
+* Fedora 25
+* RHEL/CentOS 7
+
+Upcoming supported platforms:
+
+* Ubuntu 14.04 LTS, 16.04 LTS, 17.04
+* Debian 8, 9
+* OpenSUSE Leap 42.2, 42.3
+* SLES 12
+
+
+# Usage
 
 ## Generating an RSA Private Key
 
