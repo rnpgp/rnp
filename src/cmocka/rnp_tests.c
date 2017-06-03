@@ -319,6 +319,7 @@ pkcs1_rsa_test_success(void **state)
     const pgp_rsa_seckey_t *sec_rsa;
 
     pgp_key = pgp_rsa_new_key(1024, 65537, "userid", "AES-128");
+    assert_true(pgp_key != NULL);
     sec_key = pgp_get_seckey(pgp_key);
     pub_key = pgp_get_pubkey(pgp_key);
     pub_rsa = &pub_key->key.rsa;
