@@ -59,52 +59,44 @@
 #include "packet.h"
 #include "crypto.h"
 #include "errors.h"
-#include "keyring.h"
+#include "key_store_pgp.h"
 
 /**
  * \ingroup Writer
  * the writer function prototype
  */
 
-typedef struct pgp_writer_t	pgp_writer_t;
-typedef unsigned pgp_writer_func_t(const uint8_t *,
-	     unsigned,
-	     pgp_error_t **,
-	     pgp_writer_t *);
-typedef unsigned 
-pgp_writer_finaliser_t(pgp_error_t **, pgp_writer_t *);
-typedef void    pgp_writer_destroyer_t(pgp_writer_t *);
+typedef struct pgp_writer_t pgp_writer_t;
+typedef unsigned pgp_writer_func_t(const uint8_t *, unsigned, pgp_error_t **, pgp_writer_t *);
+typedef unsigned pgp_writer_finaliser_t(pgp_error_t **, pgp_writer_t *);
+typedef void     pgp_writer_destroyer_t(pgp_writer_t *);
 
 /** Writer settings */
 struct pgp_writer_t {
-	pgp_writer_func_t	 *writer;	/* the writer itself */
-	pgp_writer_finaliser_t *finaliser;	/* the writer's finaliser */
-	pgp_writer_destroyer_t *destroyer;	/* the writer's destroyer */
-	void			 *arg;	/* writer-specific argument */
-	pgp_writer_t	 	 *next;	/* next writer in the stack */
-	pgp_io_t		 *io;	/* IO for errors and output */
+    pgp_writer_func_t *     writer;    /* the writer itself */
+    pgp_writer_finaliser_t *finaliser; /* the writer's finaliser */
+    pgp_writer_destroyer_t *destroyer; /* the writer's destroyer */
+    void *                  arg;       /* writer-specific argument */
+    pgp_writer_t *          next;      /* next writer in the stack */
+    pgp_io_t *              io;        /* IO for errors and output */
 };
-
 
 void *pgp_writer_get_arg(pgp_writer_t *);
 
 void pgp_writer_set(pgp_output_t *,
-	       pgp_writer_func_t *,
-	       pgp_writer_finaliser_t *,
-	       pgp_writer_destroyer_t *,
-	       void *);
+                    pgp_writer_func_t *,
+                    pgp_writer_finaliser_t *,
+                    pgp_writer_destroyer_t *,
+                    void *);
 void pgp_writer_push(pgp_output_t *,
-		pgp_writer_func_t *,
-		pgp_writer_finaliser_t *,
-		pgp_writer_destroyer_t *,
-		void *);
-void pgp_writer_pop(pgp_output_t *);
-unsigned pgp_writer_passthrough(const uint8_t *,
-		       unsigned,
-		       pgp_error_t **,
-		       pgp_writer_t *);
+                     pgp_writer_func_t *,
+                     pgp_writer_finaliser_t *,
+                     pgp_writer_destroyer_t *,
+                     void *);
+void     pgp_writer_pop(pgp_output_t *);
+unsigned pgp_writer_passthrough(const uint8_t *, unsigned, pgp_error_t **, pgp_writer_t *);
 
-void pgp_writer_set_fd(pgp_output_t *, int);
+void     pgp_writer_set_fd(pgp_output_t *, int);
 unsigned pgp_writer_close(pgp_output_t *);
 
 unsigned pgp_write(pgp_output_t *, const void *, unsigned);
@@ -113,7 +105,7 @@ unsigned pgp_write_ptag(pgp_output_t *, pgp_content_enum);
 unsigned pgp_write_scalar(pgp_output_t *, unsigned, unsigned);
 unsigned pgp_write_mpi(pgp_output_t *, const BIGNUM *);
 
-void pgp_writer_info_delete(pgp_writer_t *);
+void     pgp_writer_info_delete(pgp_writer_t *);
 unsigned pgp_writer_info_finalise(pgp_error_t **, pgp_writer_t *);
 
 void pgp_push_stream_enc_se_ip(pgp_output_t *, const pgp_key_t *, const char *);

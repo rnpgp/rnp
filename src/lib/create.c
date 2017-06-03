@@ -81,7 +81,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 
 #include "bn.h"
 #include "create.h"
-#include "keyring.h"
+#include "key_store_pgp.h"
 #include "packet.h"
 #include "signature.h"
 #include "s2k.h"
@@ -90,6 +90,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "memory.h"
 #include "rnpdefs.h"
 #include "rnpdigest.h"
+#include "packet-key.h"
 
 /**
  * \ingroup Core_Create
@@ -100,13 +101,11 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
  */
 
 unsigned
-pgp_write_ss_header(pgp_output_t *output,
-			unsigned length,
-			pgp_content_enum type)
+pgp_write_ss_header(pgp_output_t *output, unsigned length, pgp_content_enum type)
 {
-	return pgp_write_length(output, length) &&
-		pgp_write_scalar(output, (unsigned)(type -
-				(unsigned)PGP_PTAG_SIG_SUBPKT_BASE), 1);
+    return pgp_write_length(output, length) &&
+           pgp_write_scalar(
+             output, (unsigned) (type - (unsigned) PGP_PTAG_SIG_SUBPKT_BASE), 1);
 }
 
 /*
@@ -127,7 +126,7 @@ pgp_write_ss_header(pgp_output_t *output,
 void
 pgp_fast_create_userid(uint8_t **id, uint8_t *userid)
 {
-	*id = userid;
+    *id = userid;
 }
 
 /**
@@ -140,9 +139,9 @@ pgp_fast_create_userid(uint8_t **id, uint8_t *userid)
 unsigned
 pgp_write_struct_userid(pgp_output_t *output, const uint8_t *id)
 {
-	return pgp_write_ptag(output, PGP_PTAG_CT_USER_ID) &&
-		pgp_write_length(output, (unsigned)strlen((const char *) id)) &&
-		pgp_write(output, id, (unsigned)strlen((const char *) id));
+    return pgp_write_ptag(output, PGP_PTAG_CT_USER_ID) &&
+           pgp_write_length(output, (unsigned) strlen((const char *) id)) &&
+           pgp_write(output, id, (unsigned) strlen((const char *) id));
 }
 
 /**
@@ -156,7 +155,7 @@ pgp_write_struct_userid(pgp_output_t *output, const uint8_t *id)
 unsigned
 pgp_write_userid(const uint8_t *userid, pgp_output_t *output)
 {
-	return pgp_write_struct_userid(output, userid);
+    return pgp_write_struct_userid(output, userid);
 }
 
 /**
@@ -165,46 +164,44 @@ pgp_write_userid(const uint8_t *userid, pgp_output_t *output)
 static unsigned
 mpi_length(const BIGNUM *bn)
 {
-	return (unsigned)(2 + (BN_num_bits(bn) + 7) / 8);
+    return (unsigned) (2 + (BN_num_bits(bn) + 7) / 8);
 }
 
 static unsigned
 pubkey_length(const pgp_pubkey_t *key)
 {
-	switch (key->alg) {
-	case PGP_PKA_DSA:
-		return mpi_length(key->key.dsa.p) + mpi_length(key->key.dsa.q) +
-			mpi_length(key->key.dsa.g) + mpi_length(key->key.dsa.y);
+    switch (key->alg) {
+    case PGP_PKA_DSA:
+        return mpi_length(key->key.dsa.p) + mpi_length(key->key.dsa.q) +
+               mpi_length(key->key.dsa.g) + mpi_length(key->key.dsa.y);
 
-	case PGP_PKA_RSA:
-		return mpi_length(key->key.rsa.n) + mpi_length(key->key.rsa.e);
+    case PGP_PKA_RSA:
+        return mpi_length(key->key.rsa.n) + mpi_length(key->key.rsa.e);
 
-	default:
-		(void) fprintf(stderr,
-			"pubkey_length: unknown key algorithm\n");
-	}
-	return 0;
+    default:
+        (void) fprintf(stderr, "pubkey_length: unknown key algorithm\n");
+    }
+    return 0;
 }
 
 static unsigned
 seckey_length(const pgp_seckey_t *key)
 {
-	int             len;
+    int len;
 
-	len = 0;
-	switch (key->pubkey.alg) {
-	case PGP_PKA_DSA:
-		return (unsigned)(mpi_length(key->key.dsa.x) + pubkey_length(&key->pubkey));
-	case PGP_PKA_RSA:
-		len = mpi_length(key->key.rsa.d) + mpi_length(key->key.rsa.p) +
-			mpi_length(key->key.rsa.q) + mpi_length(key->key.rsa.u);
+    len = 0;
+    switch (key->pubkey.alg) {
+    case PGP_PKA_DSA:
+        return (unsigned) (mpi_length(key->key.dsa.x) + pubkey_length(&key->pubkey));
+    case PGP_PKA_RSA:
+        len = mpi_length(key->key.rsa.d) + mpi_length(key->key.rsa.p) +
+              mpi_length(key->key.rsa.q) + mpi_length(key->key.rsa.u);
 
-		return (unsigned)(len + pubkey_length(&key->pubkey));
-	default:
-		(void) fprintf(stderr,
-			"seckey_length: unknown key algorithm\n");
-	}
-	return 0;
+        return (unsigned) (len + pubkey_length(&key->pubkey));
+    default:
+        (void) fprintf(stderr, "seckey_length: unknown key algorithm\n");
+    }
+    return 0;
 }
 
 /**
@@ -215,14 +212,13 @@ seckey_length(const pgp_seckey_t *key)
  * \param e
 */
 void
-pgp_fast_create_rsa_pubkey(pgp_pubkey_t *key, time_t t,
-				   BIGNUM *n, BIGNUM *e)
+pgp_fast_create_rsa_pubkey(pgp_pubkey_t *key, time_t t, BIGNUM *n, BIGNUM *e)
 {
-	key->version = PGP_V4;
-	key->birthtime = t;
-	key->alg = PGP_PKA_RSA;
-	key->key.rsa.n = n;
-	key->key.rsa.e = e;
+    key->version = PGP_V4;
+    key->birthtime = t;
+    key->alg = PGP_PKA_RSA;
+    key->key.rsa.n = n;
+    key->key.rsa.e = e;
 }
 
 /*
@@ -232,105 +228,102 @@ pgp_fast_create_rsa_pubkey(pgp_pubkey_t *key, time_t t,
 static unsigned
 write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
 {
-	if (!(pgp_write_scalar(output, (unsigned)key->version, 1) &&
-		  pgp_write_scalar(output, (unsigned)key->birthtime, 4))) {
-		return 0;
-	}
+    if (!(pgp_write_scalar(output, (unsigned) key->version, 1) &&
+          pgp_write_scalar(output, (unsigned) key->birthtime, 4))) {
+        return 0;
+    }
 
-	if (key->version != 4 &&
-		!pgp_write_scalar(output, key->days_valid, 2)) {
-		return 0;
-	}
+    if (key->version != 4 && !pgp_write_scalar(output, key->days_valid, 2)) {
+        return 0;
+    }
 
-	if (!pgp_write_scalar(output, (unsigned)key->alg, 1)) {
-		return 0;
-	}
+    if (!pgp_write_scalar(output, (unsigned) key->alg, 1)) {
+        return 0;
+    }
 
-	switch (key->alg) {
-	case PGP_PKA_DSA:
-		return pgp_write_mpi(output, key->key.dsa.p) &&
-			pgp_write_mpi(output, key->key.dsa.q) &&
-			pgp_write_mpi(output, key->key.dsa.g) &&
-			pgp_write_mpi(output, key->key.dsa.y);
+    switch (key->alg) {
+    case PGP_PKA_DSA:
+        return pgp_write_mpi(output, key->key.dsa.p) &&
+               pgp_write_mpi(output, key->key.dsa.q) &&
+               pgp_write_mpi(output, key->key.dsa.g) && pgp_write_mpi(output, key->key.dsa.y);
 
-	case PGP_PKA_RSA:
-	case PGP_PKA_RSA_ENCRYPT_ONLY:
-	case PGP_PKA_RSA_SIGN_ONLY:
-		return pgp_write_mpi(output, key->key.rsa.n) &&
-			pgp_write_mpi(output, key->key.rsa.e);
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        return pgp_write_mpi(output, key->key.rsa.n) && pgp_write_mpi(output, key->key.rsa.e);
 
-	case PGP_PKA_ELGAMAL:
-		return pgp_write_mpi(output, key->key.elgamal.p) &&
-			pgp_write_mpi(output, key->key.elgamal.g) &&
-			pgp_write_mpi(output, key->key.elgamal.y);
+    case PGP_PKA_ELGAMAL:
+        return pgp_write_mpi(output, key->key.elgamal.p) &&
+               pgp_write_mpi(output, key->key.elgamal.g) &&
+               pgp_write_mpi(output, key->key.elgamal.y);
 
-	default:
-		(void) fprintf(stderr,
-			"write_pubkey_body: bad algorithm\n");
-		break;
-	}
-	return 0;
+    default:
+        (void) fprintf(stderr, "write_pubkey_body: bad algorithm\n");
+        break;
+    }
+    return 0;
 }
 
 static int
 hash_bn(pgp_hash_t *hash, BIGNUM *bignum)
 {
-	uint8_t *bn;
-	size_t   bits;
-	size_t   bytes;
-	uint8_t length[2];
+    uint8_t *bn;
+    size_t   bits;
+    size_t   bytes;
+    uint8_t  length[2];
 
-	if (BN_is_zero(bignum)) {
-		length[0] = length[1] = 0;
-				pgp_hash_add(hash, length, 2);
-		return 1;
-	}
-	if ((bits = (size_t) BN_num_bits(bignum)) < 1) {
-		(void) fprintf(stderr, "hash_mpi: bad size\n");
-		return 0;
-	}
-	if ((bytes = (size_t) BN_num_bytes(bignum)) < 1) {
-		(void) fprintf(stderr, "hash_mpi: bad size\n");
-		return 0;
-	}
-	if ((bn = calloc(1, bytes)) == NULL) {
-		(void) fprintf(stderr, "hash_bignum: bad bn alloc\n");
-		return 0;
-	}
-	BN_bn2bin(bignum, bn);
-	length[0] = (uint8_t)((bits >> 8) & 0xff);
-	length[1] = (uint8_t)(bits & 0xff);
-		pgp_hash_add(hash, length, 2);
-		pgp_hash_add(hash, bn, bytes);
-	free(bn);
-	return 1;
+    if (BN_is_zero(bignum)) {
+        length[0] = length[1] = 0;
+        pgp_hash_add(hash, length, 2);
+        return 1;
+    }
+    if ((bits = (size_t) BN_num_bits(bignum)) < 1) {
+        (void) fprintf(stderr, "hash_mpi: bad size\n");
+        return 0;
+    }
+    if ((bytes = (size_t) BN_num_bytes(bignum)) < 1) {
+        (void) fprintf(stderr, "hash_mpi: bad size\n");
+        return 0;
+    }
+    if ((bn = calloc(1, bytes)) == NULL) {
+        (void) fprintf(stderr, "hash_bignum: bad bn alloc\n");
+        return 0;
+    }
+    BN_bn2bin(bignum, bn);
+    length[0] = (uint8_t)((bits >> 8) & 0xff);
+    length[1] = (uint8_t)(bits & 0xff);
+    pgp_hash_add(hash, length, 2);
+    pgp_hash_add(hash, bn, bytes);
+    free(bn);
+    return 1;
 }
 
 static int
-hash_key_material(const pgp_seckey_t *key, uint8_t *result) {
-	pgp_hash_t hash;
-		pgp_hash_create(&hash, PGP_HASH_SHA1);
+hash_key_material(const pgp_seckey_t *key, uint8_t *result)
+{
+    pgp_hash_t hash;
+    pgp_hash_create(&hash, PGP_HASH_SHA1);
 
-	switch (key->pubkey.alg) {
-	case PGP_PKA_RSA:
-	case PGP_PKA_RSA_ENCRYPT_ONLY:
-	case PGP_PKA_RSA_SIGN_ONLY:
-		hash_bn(&hash, key->key.rsa.d);
-		hash_bn(&hash, key->key.rsa.p);
-		hash_bn(&hash, key->key.rsa.q);
-		hash_bn(&hash, key->key.rsa.u);
-		break;
-	case PGP_PKA_DSA:
-		hash_bn(&hash, key->key.dsa.x);
-		break;
-	case PGP_PKA_ELGAMAL:
-		hash_bn(&hash, key->key.elgamal.x);
-		break;
-	default:
-		return 0;
-	}
-		pgp_hash_finish(&hash, result);
-	return 1;
+    switch (key->pubkey.alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        hash_bn(&hash, key->key.rsa.d);
+        hash_bn(&hash, key->key.rsa.p);
+        hash_bn(&hash, key->key.rsa.q);
+        hash_bn(&hash, key->key.rsa.u);
+        break;
+    case PGP_PKA_DSA:
+        hash_bn(&hash, key->key.dsa.x);
+        break;
+    case PGP_PKA_ELGAMAL:
+        hash_bn(&hash, key->key.elgamal.x);
+        break;
+    default:
+        return 0;
+    }
+    pgp_hash_finish(&hash, result);
+    return 1;
 }
 
 /*
@@ -339,140 +332,140 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result) {
  */
 static unsigned
 write_seckey_body(const pgp_seckey_t *key,
-			  const uint8_t *passphrase,
-			  const size_t pplen,
-			  pgp_output_t *output)
+                  const uint8_t *     passphrase,
+                  const size_t        pplen,
+                  pgp_output_t *      output)
 {
-	/* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
+    /* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
 
-	pgp_crypt_t   crypted;
-	uint8_t		sesskey[PGP_MAX_KEY_SIZE];
-	uint8_t		checkhash[PGP_CHECKHASH_SIZE];
-        size_t          sesskey_size;
+    pgp_crypt_t crypted;
+    uint8_t     sesskey[PGP_MAX_KEY_SIZE];
+    uint8_t     checkhash[PGP_CHECKHASH_SIZE];
+    size_t      sesskey_size;
 
-        sesskey_size = pgp_key_size(key->alg);
+    sesskey_size = pgp_key_size(key->alg);
 
-        if (sesskey_size == 0)
-        {
-                (void) fprintf(stderr, "write_seckey_body: unknown encryption algorithm\n");
-                return 0;
+    if (sesskey_size == 0) {
+        (void) fprintf(stderr, "write_seckey_body: unknown encryption algorithm\n");
+        return 0;
+    }
+
+    if (!write_pubkey_body(&key->pubkey, output)) {
+        return 0;
+    }
+    if (key->s2k_usage != PGP_S2KU_ENCRYPTED_AND_HASHED) {
+        (void) fprintf(stderr, "write_seckey_body: s2k usage\n");
+        return 0;
+    }
+    if (!pgp_write_scalar(output, (unsigned) key->s2k_usage, 1)) {
+        return 0;
+    }
+    if (!pgp_write_scalar(output, (unsigned) key->alg, 1)) {
+        return 0;
+    }
+
+    if (key->s2k_specifier != PGP_S2KS_SIMPLE && key->s2k_specifier != PGP_S2KS_SALTED &&
+        key->s2k_specifier != PGP_S2KS_ITERATED_AND_SALTED) {
+        (void) fprintf(stderr,
+                       "write_seckey_body: invalid/unsupported s2k specifier %d\n",
+                       key->s2k_specifier);
+        return 0;
+    }
+    if (!pgp_write_scalar(output, (unsigned) key->s2k_specifier, 1)) {
+        return 0;
+    }
+
+    if (!pgp_write_scalar(output, (unsigned) key->hash_alg, 1)) {
+        return 0;
+    }
+
+    switch (key->s2k_specifier) {
+    case PGP_S2KS_SIMPLE:
+        /* no data to write */
+        pgp_s2k_simple(key->hash_alg, sesskey, sesskey_size, (const char *) passphrase);
+        break;
+
+    case PGP_S2KS_SALTED:
+        /* 8-octet salt value */
+        pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE);
+        if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
+            return 0;
         }
+        pgp_s2k_salted(
+          key->hash_alg, sesskey, sesskey_size, (const char *) passphrase, key->salt);
+        break;
 
-	if (!write_pubkey_body(&key->pubkey, output)) {
-		return 0;
-	}
-	if (key->s2k_usage != PGP_S2KU_ENCRYPTED_AND_HASHED) {
-		(void) fprintf(stderr, "write_seckey_body: s2k usage\n");
-		return 0;
-	}
-	if (!pgp_write_scalar(output, (unsigned)key->s2k_usage, 1)) {
-		return 0;
-	}
-	if (!pgp_write_scalar(output, (unsigned)key->alg, 1)) {
-		return 0;
-	}
+    case PGP_S2KS_ITERATED_AND_SALTED:
+        /* 8-octet salt value */
+        pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE);
+        pgp_s2k_iterated(key->hash_alg,
+                         sesskey,
+                         sesskey_size,
+                         (const char *) passphrase,
+                         key->salt,
+                         key->s2k_iterations);
+        uint8_t encoded_iterations = pgp_s2k_encode_iterations(key->s2k_iterations);
 
-	if (key->s2k_specifier != PGP_S2KS_SIMPLE &&
-	    key->s2k_specifier != PGP_S2KS_SALTED &&
-            key->s2k_specifier != PGP_S2KS_ITERATED_AND_SALTED) {
-		(void) fprintf(stderr, "write_seckey_body: invalid/unsupported s2k specifier %d\n",
-                               key->s2k_specifier);
-		return 0;
-	}
-	if (!pgp_write_scalar(output, (unsigned)key->s2k_specifier, 1)) {
-		return 0;
-	}
+        if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
+            return 0;
+        }
+        if (!pgp_write_scalar(output, encoded_iterations, 1)) {
+            return 0;
+        }
+        break;
+    }
 
-	if (!pgp_write_scalar(output, (unsigned)key->hash_alg, 1)) {
-		return 0;
-	}
+    if (!pgp_write(output, &key->iv[0], pgp_block_size(key->alg))) {
+        return 0;
+    }
 
-	switch (key->s2k_specifier) {
-	case PGP_S2KS_SIMPLE:
-		/* no data to write */
-                pgp_s2k_simple(key->hash_alg, sesskey, sesskey_size, (const char*)passphrase);
-		break;
+    /* use this session key to encrypt */
 
-	case PGP_S2KS_SALTED:
-		/* 8-octet salt value */
-		pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE);
-		if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
-			return 0;
-		}
-                pgp_s2k_salted(key->hash_alg, sesskey, sesskey_size,
-                               (const char*)passphrase, key->salt);
-		break;
+    pgp_crypt_any(&crypted, key->alg);
+    pgp_cipher_set_iv(&crypted, key->iv);
+    pgp_cipher_set_key(&crypted, sesskey);
+    pgp_encrypt_init(&crypted);
 
-        case PGP_S2KS_ITERATED_AND_SALTED:
-		/* 8-octet salt value */
-		pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE);
-                pgp_s2k_iterated(key->hash_alg, sesskey, sesskey_size,
-                                 (const char*)passphrase, key->salt, key->s2k_iterations);
-                uint8_t encoded_iterations = pgp_s2k_encode_iterations(key->s2k_iterations);
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, "writing: iv=", key->iv, pgp_block_size(key->alg));
+        hexdump(stderr, "key= ", sesskey, sesskey_size);
+        (void) fprintf(stderr, "\nturning encryption on...\n");
+    }
+    pgp_push_enc_crypt(output, &crypted);
 
-		if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
-			return 0;
-		}
-                if (!pgp_write_scalar(output, encoded_iterations, 1)) {
-			return 0;
-                }
-		break;
-	}
+    switch (key->pubkey.alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        if (!pgp_write_mpi(output, key->key.rsa.d) || !pgp_write_mpi(output, key->key.rsa.p) ||
+            !pgp_write_mpi(output, key->key.rsa.q) || !pgp_write_mpi(output, key->key.rsa.u)) {
+            if (rnp_get_debug(__FILE__)) {
+                (void) fprintf(stderr, "4 x mpi not written - problem\n");
+            }
+            return 0;
+        }
+        break;
+    case PGP_PKA_DSA:
+        return pgp_write_mpi(output, key->key.dsa.x);
+    case PGP_PKA_ELGAMAL:
+        return pgp_write_mpi(output, key->key.elgamal.x);
+    default:
+        return 0;
+    }
 
-	if (!pgp_write(output, &key->iv[0], pgp_block_size(key->alg))) {
-		return 0;
-	}
+    if (key->checkhash) {
+        memcpy(checkhash, key->checkhash, PGP_CHECKHASH_SIZE);
+    } else if (!hash_key_material(key, checkhash)) {
+        return 0;
+    }
+    if (!pgp_write(output, checkhash, PGP_CHECKHASH_SIZE)) {
+        return 0;
+    }
 
-	/* use this session key to encrypt */
+    pgp_writer_pop(output);
+    pgp_cipher_finish(&crypted);
 
-	pgp_crypt_any(&crypted, key->alg);
-		pgp_cipher_set_iv(&crypted, key->iv);
-		pgp_cipher_set_key(&crypted, sesskey);
-	pgp_encrypt_init(&crypted);
-
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "writing: iv=", key->iv, pgp_block_size(key->alg));
-		hexdump(stderr, "key= ", sesskey, sesskey_size);
-		(void) fprintf(stderr, "\nturning encryption on...\n");
-	}
-	pgp_push_enc_crypt(output, &crypted);
-
-	switch (key->pubkey.alg) {
-	case PGP_PKA_RSA:
-	case PGP_PKA_RSA_ENCRYPT_ONLY:
-	case PGP_PKA_RSA_SIGN_ONLY:
-		if (!pgp_write_mpi(output, key->key.rsa.d) ||
-			!pgp_write_mpi(output, key->key.rsa.p) ||
-			!pgp_write_mpi(output, key->key.rsa.q) ||
-			!pgp_write_mpi(output, key->key.rsa.u)) {
-			if (pgp_get_debug_level(__FILE__)) {
-				(void) fprintf(stderr,
-					"4 x mpi not written - problem\n");
-			}
-			return 0;
-		}
-		break;
-	case PGP_PKA_DSA:
-		return pgp_write_mpi(output, key->key.dsa.x);
-	case PGP_PKA_ELGAMAL:
-		return pgp_write_mpi(output, key->key.elgamal.x);
-	default:
-		return 0;
-	}
-
-	if (key->checkhash) {
-		memcpy(checkhash, key->checkhash, PGP_CHECKHASH_SIZE);
-	} else if (!hash_key_material(key, checkhash)) {
-		return 0;
-	}
-	if (!pgp_write(output, checkhash, PGP_CHECKHASH_SIZE)) {
-		return 0;
-	}
-
-	pgp_writer_pop(output);
-	pgp_cipher_finish(&crypted);
-
-	return 1;
+    return 1;
 }
 
 /**
@@ -485,11 +478,10 @@ write_seckey_body(const pgp_seckey_t *key,
 static unsigned
 write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, const pgp_pubkey_t *key)
 {
-	return pgp_write_ptag(output, tag) &&
-		pgp_write_length(output, 1 + 4 + 1 + pubkey_length(key)) &&
-		write_pubkey_body(key, output);
+    return pgp_write_ptag(output, tag) &&
+           pgp_write_length(output, 1 + 4 + 1 + pubkey_length(key)) &&
+           write_pubkey_body(key, output);
 }
-
 
 /**
    \ingroup HighLevel_KeyWrite
@@ -503,63 +495,64 @@ write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, const pgp_pubkey
 */
 
 unsigned
-pgp_write_xfer_pubkey(pgp_output_t *output,
-			const pgp_key_t *key,
-			const pgp_keyring_t *subkeys,
-			const unsigned armoured)
+pgp_write_xfer_pubkey(pgp_output_t *         output,
+                      const pgp_key_t *      key,
+                      const rnp_key_store_t *subkeys,
+                      const unsigned         armoured)
 {
-	unsigned    i, j;
+    unsigned i, j;
 
-	if (armoured) {
-		pgp_writer_push_armoured(output, PGP_PGP_PUBLIC_KEY_BLOCK);
-	}
-	/* public key */
-	if (!write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &key->key.pubkey)) {
-		return 0;
-	}
+    if (armoured) {
+        pgp_writer_push_armoured(output, PGP_PGP_PUBLIC_KEY_BLOCK);
+    }
+    /* public key */
+    if (!write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &key->key.pubkey)) {
+        return 0;
+    }
 
-	/* TODO: revocation signatures go here */
+    /* TODO: revocation signatures go here */
 
-	/* user ids and corresponding signatures */
-	for (i = 0; i < key->uidc; i++) {
-		if (!pgp_write_struct_userid(output, key->uids[i])) {
-			return 0;
-		}
-		for (j = 0; j < key->packetc; j++) {
-			if (!pgp_write(output, key->packets[j].raw, (unsigned)key->packets[j].length)) {
-				return 0;
-			}
-		}
-	}
+    /* user ids and corresponding signatures */
+    for (i = 0; i < key->uidc; i++) {
+        if (!pgp_write_struct_userid(output, key->uids[i])) {
+            return 0;
+        }
+        for (j = 0; j < key->packetc; j++) {
+            if (!pgp_write(output, key->packets[j].raw, (unsigned) key->packets[j].length)) {
+                return 0;
+            }
+        }
+    }
 
-	/* TODO: user attributes and corresponding signatures */
-	if (subkeys) {
-		for (i = 0; i < subkeys->keyc; i++) {
-			const pgp_key_t *subkey = &subkeys->keys[i];
-			if (subkey->type != PGP_PTAG_CT_PUBLIC_KEY) {
-				return 0;
-			}
-			if (!write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_SUBKEY, &subkey->key.pubkey)) {
-				return 0;
-			}
-			for (j = 0; j < subkey->packetc; j++) {
-				if (!pgp_write(output, subkey->packets[j].raw, (unsigned)subkey->packets[j].length)) {
-					return 0;
-				}
-			}
-		}
-	}
+    /* TODO: user attributes and corresponding signatures */
+    if (subkeys) {
+        for (i = 0; i < subkeys->keyc; i++) {
+            const pgp_key_t *subkey = &subkeys->keys[i];
+            if (subkey->type != PGP_PTAG_CT_PUBLIC_KEY) {
+                return 0;
+            }
+            if (!write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_SUBKEY, &subkey->key.pubkey)) {
+                return 0;
+            }
+            for (j = 0; j < subkey->packetc; j++) {
+                if (!pgp_write(
+                      output, subkey->packets[j].raw, (unsigned) subkey->packets[j].length)) {
+                    return 0;
+                }
+            }
+        }
+    }
 
-	/*
-	 * subkey packets and corresponding signatures and optional
-	 * revocation
-	 */
+    /*
+     * subkey packets and corresponding signatures and optional
+     * revocation
+     */
 
-	if (armoured) {
-		pgp_writer_info_finalise(&output->errors, &output->writer);
-		pgp_writer_pop(output);
-	}
-	return 1;
+    if (armoured) {
+        pgp_writer_info_finalise(&output->errors, &output->writer);
+        pgp_writer_pop(output);
+    }
+    return 1;
 }
 
 /**
@@ -576,67 +569,68 @@ pgp_write_xfer_pubkey(pgp_output_t *output,
 */
 
 unsigned
-pgp_write_xfer_seckey(pgp_output_t *output,
-				const pgp_key_t *key,
-				const uint8_t *passphrase,
-				const size_t pplen,
-				const pgp_keyring_t *subkeys,
-				unsigned armoured)
+pgp_write_xfer_seckey(pgp_output_t *         output,
+                      const pgp_key_t *      key,
+                      const uint8_t *        passphrase,
+                      const size_t           pplen,
+                      const rnp_key_store_t *subkeys,
+                      unsigned               armoured)
 {
-	unsigned	i, j;
+    unsigned i, j;
 
-	if (armoured) {
-		pgp_writer_push_armoured(output, PGP_PGP_PRIVATE_KEY_BLOCK);
-	}
-	/* secret key */
-	if (!pgp_write_struct_seckey(PGP_PTAG_CT_SECRET_KEY,
-			&key->key.seckey, passphrase, pplen, output)) {
-		return 0;
-	}
+    if (armoured) {
+        pgp_writer_push_armoured(output, PGP_PGP_PRIVATE_KEY_BLOCK);
+    }
+    /* secret key */
+    if (!pgp_write_struct_seckey(
+          PGP_PTAG_CT_SECRET_KEY, &key->key.seckey, passphrase, pplen, output)) {
+        return 0;
+    }
 
-	/* TODO: revocation signatures go here */
+    /* TODO: revocation signatures go here */
 
-	/* user ids and corresponding signatures */
-	for (i = 0; i < key->uidc; i++) {
-		if (!pgp_write_struct_userid(output, key->uids[i])) {
-			return 0;
-		}
-		for (j = 0; j < key->packetc; j++) {
-			if (!pgp_write(output, key->packets[j].raw, (unsigned)key->packets[j].length)) {
-				return 0;
-			}
-		}
-	}
+    /* user ids and corresponding signatures */
+    for (i = 0; i < key->uidc; i++) {
+        if (!pgp_write_struct_userid(output, key->uids[i])) {
+            return 0;
+        }
+        for (j = 0; j < key->packetc; j++) {
+            if (!pgp_write(output, key->packets[j].raw, (unsigned) key->packets[j].length)) {
+                return 0;
+            }
+        }
+    }
 
-	/* TODO: user attributes and corresponding signatures */
+    /* TODO: user attributes and corresponding signatures */
 
-	/*
-	 * subkey packets and corresponding signatures and optional
-	 * revocation
-	 */
-	if (subkeys) {
-		for (i = 0; i < subkeys->keyc; i++) {
-			const pgp_key_t *subkey = &subkeys->keys[i];
-			if (subkey->type != PGP_PTAG_CT_SECRET_KEY) {
-				return 0;
-			}
-			if (!pgp_write_struct_seckey(PGP_PTAG_CT_SECRET_SUBKEY, &subkey->key.seckey, passphrase, pplen, output)) {
-				return 0;
-			}
-			for (j = 0; j < subkey->packetc; j++) {
-				if (!pgp_write(output, subkey->packets[j].raw, (unsigned)subkey->packets[j].length)) {
-					return 0;
-				}
-			}
-		}
-	}
+    /*
+     * subkey packets and corresponding signatures and optional
+     * revocation
+     */
+    if (subkeys) {
+        for (i = 0; i < subkeys->keyc; i++) {
+            const pgp_key_t *subkey = &subkeys->keys[i];
+            if (subkey->type != PGP_PTAG_CT_SECRET_KEY) {
+                return 0;
+            }
+            if (!pgp_write_struct_seckey(
+                  PGP_PTAG_CT_SECRET_SUBKEY, &subkey->key.seckey, passphrase, pplen, output)) {
+                return 0;
+            }
+            for (j = 0; j < subkey->packetc; j++) {
+                if (!pgp_write(
+                      output, subkey->packets[j].raw, (unsigned) subkey->packets[j].length)) {
+                    return 0;
+                }
+            }
+        }
+    }
 
-
-	if (armoured) {
-		pgp_writer_info_finalise(&output->errors, &output->writer);
-		pgp_writer_pop(output);
-	}
-	return 1;
+    if (armoured) {
+        pgp_writer_info_finalise(&output->errors, &output->writer);
+        pgp_writer_pop(output);
+    }
+    return 1;
 }
 
 /**
@@ -651,14 +645,12 @@ pgp_write_xfer_seckey(pgp_output_t *output,
  */
 
 unsigned
-pgp_write_rsa_pubkey(time_t t, const BIGNUM *n,
-			 const BIGNUM *e,
-			 pgp_output_t *output)
+pgp_write_rsa_pubkey(time_t t, const BIGNUM *n, const BIGNUM *e, pgp_output_t *output)
 {
-	pgp_pubkey_t key;
+    pgp_pubkey_t key;
 
-	pgp_fast_create_rsa_pubkey(&key, t, __UNCONST(n), __UNCONST(e));
-	return write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &key);
+    pgp_fast_create_rsa_pubkey(&key, t, __UNCONST(n), __UNCONST(e));
+    return write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &key);
 }
 
 /**
@@ -669,19 +661,18 @@ pgp_write_rsa_pubkey(time_t t, const BIGNUM *n,
  */
 
 void
-pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key,
-			 unsigned make_packet)
+pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key, unsigned make_packet)
 {
-	pgp_output_t *output;
+    pgp_output_t *output;
 
-	output = pgp_output_new();
-	pgp_memory_init(out, 128);
-	pgp_writer_set_memory(output, out);
-	write_pubkey_body(key, output);
-	if (make_packet) {
-		pgp_memory_make_packet(out, PGP_PTAG_CT_PUBLIC_KEY);
-	}
-	pgp_output_delete(output);
+    output = pgp_output_new();
+    pgp_memory_init(out, 128);
+    pgp_writer_set_memory(output, out);
+    write_pubkey_body(key, output);
+    if (make_packet) {
+        pgp_memory_make_packet(out, PGP_PTAG_CT_PUBLIC_KEY);
+    }
+    pgp_output_delete(output);
 }
 
 /**
@@ -704,21 +695,26 @@ pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key,
  * \param e The RSA public parameter e */
 
 void
-pgp_fast_create_rsa_seckey(pgp_seckey_t *key, time_t t,
-				 BIGNUM *d, BIGNUM *p, BIGNUM *q, BIGNUM *u,
-				   BIGNUM *n, BIGNUM *e)
+pgp_fast_create_rsa_seckey(pgp_seckey_t *key,
+                           time_t        t,
+                           BIGNUM *      d,
+                           BIGNUM *      p,
+                           BIGNUM *      q,
+                           BIGNUM *      u,
+                           BIGNUM *      n,
+                           BIGNUM *      e)
 {
-	pgp_fast_create_rsa_pubkey(&key->pubkey, t, n, e);
+    pgp_fast_create_rsa_pubkey(&key->pubkey, t, n, e);
 
-	/* XXX: calculate optionals */
-	key->key.rsa.d = d;
-	key->key.rsa.p = p;
-	key->key.rsa.q = q;
-	key->key.rsa.u = u;
+    /* XXX: calculate optionals */
+    key->key.rsa.d = d;
+    key->key.rsa.p = p;
+    key->key.rsa.q = q;
+    key->key.rsa.u = u;
 
-	key->s2k_usage = PGP_S2KU_NONE;
+    key->s2k_usage = PGP_S2KU_NONE;
 
-	/* XXX: sanity check and add errors... */
+    /* XXX: sanity check and add errors... */
 }
 
 /**
@@ -731,94 +727,90 @@ pgp_fast_create_rsa_seckey(pgp_seckey_t *key, time_t t,
  * \return 1 if OK; else 0
  */
 unsigned
-pgp_write_struct_seckey(pgp_content_enum tag,
-				const pgp_seckey_t *key,
-				const uint8_t *passphrase,
-				const size_t pplen,
-				pgp_output_t *output)
+pgp_write_struct_seckey(pgp_content_enum    tag,
+                        const pgp_seckey_t *key,
+                        const uint8_t *     passphrase,
+                        const size_t        pplen,
+                        pgp_output_t *      output)
 {
-	int             length = 0;
+    int length = 0;
 
-	if (key->pubkey.version != 4) {
-		(void) fprintf(stderr,
-			"pgp_write_struct_seckey: public key version\n");
-		return 0;
-	}
+    if (key->pubkey.version != 4) {
+        (void) fprintf(stderr, "pgp_write_struct_seckey: public key version\n");
+        return 0;
+    }
 
-	/* Ref: RFC4880 Section 5.5.3 */
+    /* Ref: RFC4880 Section 5.5.3 */
 
-	/* pubkey, excluding MPIs */
-	length += 1 + 4 + 1 + 1;
+    /* pubkey, excluding MPIs */
+    length += 1 + 4 + 1 + 1;
 
-	/* s2k usage */
-	length += 1;
+    /* s2k usage */
+    length += 1;
 
-	switch (key->s2k_usage) {
-	case PGP_S2KU_NONE:
-		/* nothing to add */
-		break;
+    switch (key->s2k_usage) {
+    case PGP_S2KU_NONE:
+        /* nothing to add */
+        break;
 
-	case PGP_S2KU_ENCRYPTED_AND_HASHED:	/* 254 */
-	case PGP_S2KU_ENCRYPTED:	/* 255 */
+    case PGP_S2KU_ENCRYPTED_AND_HASHED: /* 254 */
+    case PGP_S2KU_ENCRYPTED:            /* 255 */
 
-		/* Ref: RFC4880 Section 3.7 */
-		length += 1;	/* s2k_specifier */
+        /* Ref: RFC4880 Section 3.7 */
+        length += 1; /* s2k_specifier */
 
-		switch (key->s2k_specifier) {
-		case PGP_S2KS_SIMPLE:
-			length += 1;	/* hash algorithm */
-			break;
+        switch (key->s2k_specifier) {
+        case PGP_S2KS_SIMPLE:
+            length += 1; /* hash algorithm */
+            break;
 
-		case PGP_S2KS_SALTED:
-			length += 1 + 8;	/* hash algorithm + salt */
-			break;
+        case PGP_S2KS_SALTED:
+            length += 1 + 8; /* hash algorithm + salt */
+            break;
 
-		case PGP_S2KS_ITERATED_AND_SALTED:
-			length += 1 + 8 + 1;	/* hash algorithm, salt +
-						 * count */
-			break;
+        case PGP_S2KS_ITERATED_AND_SALTED:
+            length += 1 + 8 + 1; /* hash algorithm, salt +
+                                  * count */
+            break;
 
-		default:
-			(void) fprintf(stderr,
-				"pgp_write_struct_seckey: s2k spec\n");
-			return 0;
-		}
-		break;
+        default:
+            (void) fprintf(stderr, "pgp_write_struct_seckey: s2k spec\n");
+            return 0;
+        }
+        break;
 
-	default:
-		(void) fprintf(stderr,
-			"pgp_write_struct_seckey: s2k usage\n");
-		return 0;
-	}
+    default:
+        (void) fprintf(stderr, "pgp_write_struct_seckey: s2k usage\n");
+        return 0;
+    }
 
-	/* IV */
-	if (key->s2k_usage) {
-		length += pgp_block_size(key->alg);
-	}
-	/* checksum or hash */
-	switch (key->s2k_usage) {
-	case PGP_S2KU_NONE:
-	case PGP_S2KU_ENCRYPTED:
-		length += 2;
-		break;
+    /* IV */
+    if (key->s2k_usage) {
+        length += pgp_block_size(key->alg);
+    }
+    /* checksum or hash */
+    switch (key->s2k_usage) {
+    case PGP_S2KU_NONE:
+    case PGP_S2KU_ENCRYPTED:
+        length += 2;
+        break;
 
-	case PGP_S2KU_ENCRYPTED_AND_HASHED:
-		length += PGP_CHECKHASH_SIZE;
-		break;
+    case PGP_S2KU_ENCRYPTED_AND_HASHED:
+        length += PGP_CHECKHASH_SIZE;
+        break;
 
-	default:
-		(void) fprintf(stderr,
-			"pgp_write_struct_seckey: s2k cksum usage\n");
-		return 0;
-	}
+    default:
+        (void) fprintf(stderr, "pgp_write_struct_seckey: s2k cksum usage\n");
+        return 0;
+    }
 
-	/* secret key and public key MPIs */
-	length += (unsigned)seckey_length(key);
+    /* secret key and public key MPIs */
+    length += (unsigned) seckey_length(key);
 
-	return pgp_write_ptag(output, tag) &&
-		/* pgp_write_length(output,1+4+1+1+seckey_length(key)+2) && */
-		pgp_write_length(output, (unsigned)length) &&
-		write_seckey_body(key, passphrase, pplen, output);
+    return pgp_write_ptag(output, tag) &&
+           /* pgp_write_length(output,1+4+1+1+seckey_length(key)+2) && */
+           pgp_write_length(output, (unsigned) length) &&
+           write_seckey_body(key, passphrase, pplen, output);
 }
 
 /**
@@ -833,7 +825,7 @@ pgp_write_struct_seckey(pgp_content_enum tag,
 pgp_output_t *
 pgp_output_new(void)
 {
-	return calloc(1, sizeof(pgp_output_t));
+    return calloc(1, sizeof(pgp_output_t));
 }
 
 /**
@@ -848,8 +840,8 @@ pgp_output_new(void)
 void
 pgp_output_delete(pgp_output_t *output)
 {
-	pgp_writer_info_delete(&output->writer);
-	free(output);
+    pgp_writer_info_delete(&output->writer);
+    free(output);
 }
 
 /**
@@ -862,45 +854,45 @@ pgp_output_delete(pgp_output_t *output)
 unsigned
 pgp_calc_sesskey_checksum(pgp_pk_sesskey_t *sesskey, uint8_t cs[2])
 {
-	uint32_t   checksum = 0;
-	unsigned    i;
+    uint32_t checksum = 0;
+    unsigned i;
 
-	if (!pgp_is_sa_supported(sesskey->symm_alg)) {
-		return 0;
-	}
+    if (!pgp_is_sa_supported(sesskey->symm_alg)) {
+        return 0;
+    }
 
-	for (i = 0; i < pgp_key_size(sesskey->symm_alg); i++) {
-		checksum += sesskey->key[i];
-	}
-	checksum = checksum % 65536;
+    for (i = 0; i < pgp_key_size(sesskey->symm_alg); i++) {
+        checksum += sesskey->key[i];
+    }
+    checksum = checksum % 65536;
 
-	cs[0] = (uint8_t)((checksum >> 8) & 0xff);
-	cs[1] = (uint8_t)(checksum & 0xff);
+    cs[0] = (uint8_t)((checksum >> 8) & 0xff);
+    cs[1] = (uint8_t)(checksum & 0xff);
 
-	if (pgp_get_debug_level(__FILE__)) {
-		hexdump(stderr, "nm buf checksum:", cs, 2);
-	}
-	return 1;
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, "nm buf checksum:", cs, 2);
+    }
+    return 1;
 }
 
 static unsigned
 create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, pgp_crypt_t *cipherinfo, uint8_t *m_buf)
 {
-	unsigned	i;
+    unsigned i;
 
-	/* m_buf is the buffer which will be encoded in PKCS#1 block
-	* encoding to form the "m" value used in the Public Key
-	* Encrypted Session Key Packet as defined in RFC Section 5.1
-	* "Public-Key Encrypted Session Key Packet"
-	 */
-	m_buf[0] = sesskey->symm_alg;
-	for (i = 0; i < cipherinfo->keysize ; i++) {
-		/* XXX - Flexelint - Warning 679: Suspicious Truncation in arithmetic expression combining with pointer */
-		m_buf[1 + i] = sesskey->key[i];
-	}
+    /* m_buf is the buffer which will be encoded in PKCS#1 block
+    * encoding to form the "m" value used in the Public Key
+    * Encrypted Session Key Packet as defined in RFC Section 5.1
+    * "Public-Key Encrypted Session Key Packet"
+     */
+    m_buf[0] = sesskey->symm_alg;
+    for (i = 0; i < cipherinfo->keysize; i++) {
+        /* XXX - Flexelint - Warning 679: Suspicious Truncation in arithmetic expression
+         * combining with pointer */
+        m_buf[1 + i] = sesskey->key[i];
+    }
 
-	return pgp_calc_sesskey_checksum(sesskey,
-				m_buf + 1 + cipherinfo->keysize);
+    return pgp_calc_sesskey_checksum(sesskey, m_buf + 1 + cipherinfo->keysize);
 }
 
 /**
@@ -915,139 +907,130 @@ create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, pgp_crypt_t *cipherinfo, uint8
 pgp_pk_sesskey_t *
 pgp_create_pk_sesskey(const pgp_key_t *key, const char *ciphername)
 {
-	/*
-		 * Creates a random session key and encrypts it for the given key
-		 *
-		 * Encryption used is PK,
-		 * can be any, we're hardcoding RSA for now
-		 */
+    /*
+             * Creates a random session key and encrypts it for the given key
+             *
+             * Encryption used is PK,
+             * can be any, we're hardcoding RSA for now
+             */
 
-	const pgp_pubkey_t	*pubkey;
-	const uint8_t		*id = NULL;
-	pgp_symm_alg_t	 cipher;
-	pgp_crypt_t		 cipherinfo;
-	pgp_pk_sesskey_t	*sesskey = NULL;
-	uint8_t			*encoded_key = NULL;
-	size_t			 sz_encoded_key = 0;
+    const pgp_pubkey_t *pubkey;
+    const uint8_t *     id = NULL;
+    pgp_symm_alg_t      cipher;
+    pgp_crypt_t         cipherinfo;
+    pgp_pk_sesskey_t *  sesskey = NULL;
+    uint8_t *           encoded_key = NULL;
+    size_t              sz_encoded_key = 0;
 
-	if (memcmp(key->encid, "\0\0\0\0\0\0\0\0", 8) == 0) {
-		pubkey = pgp_get_pubkey(key);
-		id = key->sigid;
-	} else {
-		pubkey = &key->enckey;
-		id = key->encid;
-	}
+    if (memcmp(key->encid, "\0\0\0\0\0\0\0\0", 8) == 0) {
+        pubkey = pgp_get_pubkey(key);
+        id = key->sigid;
+    } else {
+        pubkey = &key->enckey;
+        id = key->encid;
+    }
 
-		if (key->type != PGP_PTAG_CT_PUBLIC_KEY) {
-		   (void) fprintf(stderr, "pgp_create_pk_sesskey: bad type\n");
-		   return NULL;
-		}
+    if (key->type != PGP_PTAG_CT_PUBLIC_KEY) {
+        (void) fprintf(stderr, "pgp_create_pk_sesskey: bad type\n");
+        return NULL;
+    }
 
-		if (pubkey->alg != PGP_PKA_RSA &&
-			pubkey->alg != PGP_PKA_DSA &&
-			pubkey->alg != PGP_PKA_ELGAMAL) {
-		   (void) fprintf(stderr, "pgp_create_pk_sesskey: bad pubkey algorithm\n");
-		   return NULL;
-	}
+    if (pubkey->alg != PGP_PKA_RSA && pubkey->alg != PGP_PKA_DSA &&
+        pubkey->alg != PGP_PKA_ELGAMAL) {
+        (void) fprintf(stderr, "pgp_create_pk_sesskey: bad pubkey algorithm\n");
+        return NULL;
+    }
 
-	(void) memset(&cipherinfo, 0x0, sizeof(cipherinfo));
+    (void) memset(&cipherinfo, 0x0, sizeof(cipherinfo));
 
-	if (pgp_crypt_any(&cipherinfo,
-						  cipher = pgp_str_to_cipher((ciphername) ? ciphername : "cast5")) == 0)
-		{
-		   return NULL;
-		}
+    if (pgp_crypt_any(&cipherinfo,
+                      cipher = pgp_str_to_cipher((ciphername) ? ciphername : "cast5")) == 0) {
+        return NULL;
+    }
 
-	/* allocate encoded_key here */
+    /* allocate encoded_key here */
 
-		/* The buffer stores the key plus alg_id (1 byte) + checksum (2 bytes) */
+    /* The buffer stores the key plus alg_id (1 byte) + checksum (2 bytes) */
 
-		sz_encoded_key = cipherinfo.keysize + 1 + 2;
-	encoded_key = calloc(1, sz_encoded_key);
-	if (encoded_key == NULL) {
-		(void) fprintf(stderr,
-			"pgp_create_pk_sesskey: can't allocate\n");
-				goto error;
-	}
+    sz_encoded_key = cipherinfo.keysize + 1 + 2;
+    encoded_key = calloc(1, sz_encoded_key);
+    if (encoded_key == NULL) {
+        (void) fprintf(stderr, "pgp_create_pk_sesskey: can't allocate\n");
+        goto error;
+    }
 
-	if ((sesskey = calloc(1, sizeof(*sesskey))) == NULL) {
-		(void) fprintf(stderr,
-			"pgp_create_pk_sesskey: can't allocate\n");
-				goto error;
-	}
+    if ((sesskey = calloc(1, sizeof(*sesskey))) == NULL) {
+        (void) fprintf(stderr, "pgp_create_pk_sesskey: can't allocate\n");
+        goto error;
+    }
 
-	sesskey->version = PGP_PKSK_V3;
-	(void) memcpy(sesskey->key_id, id, sizeof(sesskey->key_id));
-	sesskey->alg = pubkey->alg;
-	sesskey->symm_alg = cipher;
-	pgp_random(sesskey->key, cipherinfo.keysize);
+    sesskey->version = PGP_PKSK_V3;
+    (void) memcpy(sesskey->key_id, id, sizeof(sesskey->key_id));
+    sesskey->alg = pubkey->alg;
+    sesskey->symm_alg = cipher;
+    pgp_random(sesskey->key, cipherinfo.keysize);
 
-	if (create_unencoded_m_buf(sesskey, &cipherinfo, &encoded_key[0]) == 0) {
-		   free(sesskey);
-		   sesskey = NULL;
-		   goto done;
-	}
+    if (create_unencoded_m_buf(sesskey, &cipherinfo, &encoded_key[0]) == 0) {
+        free(sesskey);
+        sesskey = NULL;
+        goto done;
+    }
 
-	if (pgp_get_debug_level(__FILE__)) {
-		   hexdump(stderr, "Encrypting for keyid", id, sizeof(sesskey->key_id));
-		   hexdump(stderr, "sesskey created", sesskey->key, cipherinfo.keysize);
-		   hexdump(stderr, "encoded key buf", encoded_key, cipherinfo.keysize + 1 + 2);
-	}
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, "Encrypting for keyid", id, sizeof(sesskey->key_id));
+        hexdump(stderr, "sesskey created", sesskey->key, cipherinfo.keysize);
+        hexdump(stderr, "encoded key buf", encoded_key, cipherinfo.keysize + 1 + 2);
+    }
 
-	/* and encrypt it */
-		if (key->key.pubkey.alg == PGP_PKA_RSA)
-		{
-		   uint8_t   encmpibuf[RNP_BUFSIZ];
-		   int             n;
+    /* and encrypt it */
+    if (key->key.pubkey.alg == PGP_PKA_RSA) {
+        uint8_t encmpibuf[RNP_BUFSIZ];
+        int     n;
 
-		   n = pgp_rsa_encrypt_pkcs1(encmpibuf, sizeof(encmpibuf),
-									 encoded_key, sz_encoded_key,
-									 &pubkey->key.rsa);
-		   if (n <= 0) {
-			  (void) fprintf(stderr, "pgp_rsa_encrypt_pkcs1 failure\n");
-			  free(sesskey);
-			  sesskey = NULL;
-			  goto done;
-		   }
+        n = pgp_rsa_encrypt_pkcs1(
+          encmpibuf, sizeof(encmpibuf), encoded_key, sz_encoded_key, &pubkey->key.rsa);
+        if (n <= 0) {
+            (void) fprintf(stderr, "pgp_rsa_encrypt_pkcs1 failure\n");
+            free(sesskey);
+            sesskey = NULL;
+            goto done;
+        }
 
-		   sesskey->params.rsa.encrypted_m = BN_bin2bn(encmpibuf, n, NULL);
+        sesskey->params.rsa.encrypted_m = BN_bin2bn(encmpibuf, n, NULL);
 
-		   if (pgp_get_debug_level(__FILE__)) {
-			  hexdump(stderr, "encrypted mpi", encmpibuf, n);
-		   }
-		}
-		else
-		{
-		   /* ElGamal case */
-		   uint8_t   encmpibuf[RNP_BUFSIZ];
-		   uint8_t   g_to_k[RNP_BUFSIZ];
-		   int             n;
+        if (rnp_get_debug(__FILE__)) {
+            hexdump(stderr, "encrypted mpi", encmpibuf, n);
+        }
+    } else {
+        /* ElGamal case */
+        uint8_t encmpibuf[RNP_BUFSIZ];
+        uint8_t g_to_k[RNP_BUFSIZ];
+        int     n;
 
-		   n = pgp_elgamal_public_encrypt_pkcs1(g_to_k, encmpibuf,
-												encoded_key, sz_encoded_key,
-												&pubkey->key.elgamal);
-		   if (n <= 0) {
-			  (void) fprintf(stderr, "pgp_elgamal_public_encrypt failure\n");
-			  goto error;
-		   }
+        n = pgp_elgamal_public_encrypt_pkcs1(
+          g_to_k, encmpibuf, encoded_key, sz_encoded_key, &pubkey->key.elgamal);
+        if (n <= 0) {
+            (void) fprintf(stderr, "pgp_elgamal_public_encrypt failure\n");
+            goto error;
+        }
 
-		   sesskey->params.elgamal.g_to_k = BN_bin2bn(g_to_k, n / 2, NULL);
-		   sesskey->params.elgamal.encrypted_m = BN_bin2bn(encmpibuf, n / 2, NULL);
+        sesskey->params.elgamal.g_to_k = BN_bin2bn(g_to_k, n / 2, NULL);
+        sesskey->params.elgamal.encrypted_m = BN_bin2bn(encmpibuf, n / 2, NULL);
 
-		   if (pgp_get_debug_level(__FILE__)) {
-			  hexdump(stderr, "elgamal g^k", g_to_k, n/2);
-			  hexdump(stderr, "encrypted mpi", encmpibuf, n/2);
-		   }
-		}
+        if (rnp_get_debug(__FILE__)) {
+            hexdump(stderr, "elgamal g^k", g_to_k, n / 2);
+            hexdump(stderr, "encrypted mpi", encmpibuf, n / 2);
+        }
+    }
 
 done:
-	free(encoded_key);
-	return sesskey;
+    free(encoded_key);
+    return sesskey;
 
 error:
-		free(encoded_key);
-		free(sesskey);
-		return NULL;
+    free(encoded_key);
+    free(sesskey);
+    return NULL;
 }
 
 /**
@@ -1060,41 +1043,42 @@ error:
 unsigned
 pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
 {
-	/* XXX - Flexelint - Pointer parameter 'pksk' (line 1076) could be declared as pointing to const */
-	if (pksk == NULL) {
-		(void) fprintf(stderr,
-			"pgp_write_pk_sesskey: NULL pksk\n");
-		return 0;
-	}
-	switch (pksk->alg) {
-	case PGP_PKA_RSA:
-		return pgp_write_ptag(output, PGP_PTAG_CT_PK_SESSION_KEY) &&
-			pgp_write_length(output, (unsigned)(1 + 8 + 1 +
-				BN_num_bytes(pksk->params.rsa.encrypted_m) + 2)) &&
-			pgp_write_scalar(output, (unsigned)pksk->version, 1) &&
-			pgp_write(output, pksk->key_id, 8) &&
-			pgp_write_scalar(output, (unsigned)pksk->alg, 1) &&
-			pgp_write_mpi(output, pksk->params.rsa.encrypted_m)
-			/* ??	&& pgp_write_scalar(output, 0, 2); */
-			;
-	case PGP_PKA_DSA:
-	case PGP_PKA_ELGAMAL:
-		return pgp_write_ptag(output, PGP_PTAG_CT_PK_SESSION_KEY) &&
-			pgp_write_length(output, (unsigned)(1 + 8 + 1 +
-				BN_num_bytes(pksk->params.elgamal.g_to_k) + 2 +
-				BN_num_bytes(pksk->params.elgamal.encrypted_m) + 2)) &&
-			pgp_write_scalar(output, (unsigned)pksk->version, 1) &&
-			pgp_write(output, pksk->key_id, 8) &&
-			pgp_write_scalar(output, (unsigned)pksk->alg, 1) &&
-			pgp_write_mpi(output, pksk->params.elgamal.g_to_k) &&
-			pgp_write_mpi(output, pksk->params.elgamal.encrypted_m)
-			/* ??	&& pgp_write_scalar(output, 0, 2); */
-			;
-	default:
-		(void) fprintf(stderr,
-			"pgp_write_pk_sesskey: bad algorithm\n");
-		return 0;
-	}
+    /* XXX - Flexelint - Pointer parameter 'pksk' (line 1076) could be declared as pointing to
+     * const */
+    if (pksk == NULL) {
+        (void) fprintf(stderr, "pgp_write_pk_sesskey: NULL pksk\n");
+        return 0;
+    }
+    switch (pksk->alg) {
+    case PGP_PKA_RSA:
+        return pgp_write_ptag(output, PGP_PTAG_CT_PK_SESSION_KEY) &&
+               pgp_write_length(
+                 output,
+                 (unsigned) (1 + 8 + 1 + BN_num_bytes(pksk->params.rsa.encrypted_m) + 2)) &&
+               pgp_write_scalar(output, (unsigned) pksk->version, 1) &&
+               pgp_write(output, pksk->key_id, 8) &&
+               pgp_write_scalar(output, (unsigned) pksk->alg, 1) &&
+               pgp_write_mpi(output, pksk->params.rsa.encrypted_m)
+          /* ??	&& pgp_write_scalar(output, 0, 2); */
+          ;
+    case PGP_PKA_DSA:
+    case PGP_PKA_ELGAMAL:
+        return pgp_write_ptag(output, PGP_PTAG_CT_PK_SESSION_KEY) &&
+               pgp_write_length(
+                 output,
+                 (unsigned) (1 + 8 + 1 + BN_num_bytes(pksk->params.elgamal.g_to_k) + 2 +
+                             BN_num_bytes(pksk->params.elgamal.encrypted_m) + 2)) &&
+               pgp_write_scalar(output, (unsigned) pksk->version, 1) &&
+               pgp_write(output, pksk->key_id, 8) &&
+               pgp_write_scalar(output, (unsigned) pksk->alg, 1) &&
+               pgp_write_mpi(output, pksk->params.elgamal.g_to_k) &&
+               pgp_write_mpi(output, pksk->params.elgamal.encrypted_m)
+          /* ??	&& pgp_write_scalar(output, 0, 2); */
+          ;
+    default:
+        (void) fprintf(stderr, "pgp_write_pk_sesskey: bad algorithm\n");
+        return 0;
+    }
 }
 
 /**
@@ -1108,10 +1092,10 @@ pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
 unsigned
 pgp_write_mdc(pgp_output_t *output, const uint8_t *hashed)
 {
-	/* write it out */
-	return pgp_write_ptag(output, PGP_PTAG_CT_MDC) &&
-		pgp_write_length(output, PGP_SHA1_HASH_SIZE) &&
-		pgp_write(output, hashed, PGP_SHA1_HASH_SIZE);
+    /* write it out */
+    return pgp_write_ptag(output, PGP_PTAG_CT_MDC) &&
+           pgp_write_length(output, PGP_SHA1_HASH_SIZE) &&
+           pgp_write(output, hashed, PGP_SHA1_HASH_SIZE);
 }
 
 /**
@@ -1124,23 +1108,21 @@ pgp_write_mdc(pgp_output_t *output, const uint8_t *hashed)
 \return 1 if OK; else 0
 */
 unsigned
-pgp_write_litdata(pgp_output_t *output,
-			const uint8_t *data,
-			const int maxlen,
-			const pgp_litdata_enum type)
+pgp_write_litdata(pgp_output_t *         output,
+                  const uint8_t *        data,
+                  const int              maxlen,
+                  const pgp_litdata_enum type)
 {
-	/*
-		 * RFC4880 does not specify a meaning for filename or date.
-		 * It is implementation-dependent.
-		 * We will not implement them.
-		 */
-	/* \todo do we need to check text data for <cr><lf> line endings ? */
-	return pgp_write_ptag(output, PGP_PTAG_CT_LITDATA) &&
-		pgp_write_length(output, (unsigned)(1 + 1 + 4 + maxlen)) &&
-		pgp_write_scalar(output, (unsigned)type, 1) &&
-		pgp_write_scalar(output, 0, 1) &&
-		pgp_write_scalar(output, 0, 4) &&
-		pgp_write(output, data, (unsigned)maxlen);
+    /*
+             * RFC4880 does not specify a meaning for filename or date.
+             * It is implementation-dependent.
+             * We will not implement them.
+             */
+    /* \todo do we need to check text data for <cr><lf> line endings ? */
+    return pgp_write_ptag(output, PGP_PTAG_CT_LITDATA) &&
+           pgp_write_length(output, (unsigned) (1 + 1 + 4 + maxlen)) &&
+           pgp_write_scalar(output, (unsigned) type, 1) && pgp_write_scalar(output, 0, 1) &&
+           pgp_write_scalar(output, 0, 4) && pgp_write(output, data, (unsigned) maxlen);
 }
 
 /**
@@ -1153,23 +1135,21 @@ pgp_write_litdata(pgp_output_t *output,
 */
 
 unsigned
-pgp_fileread_litdata(const char *filename,
-				 const pgp_litdata_enum type,
-				 pgp_output_t *output)
+pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_output_t *output)
 {
-	pgp_memory_t	*mem;
-	unsigned   	 ret;
-	int		 len;
+    pgp_memory_t *mem;
+    unsigned      ret;
+    int           len;
 
-	mem = pgp_memory_new();
-	if (!pgp_mem_readfile(mem, filename)) {
-		(void) fprintf(stderr, "pgp_mem_readfile of '%s' failed\n", filename);
-		return 0;
-	}
-	len = (int)pgp_mem_len(mem);
-	ret = pgp_write_litdata(output, pgp_mem_data(mem), len, type);
-	pgp_memory_free(mem);
-	return ret;
+    mem = pgp_memory_new();
+    if (!pgp_mem_readfile(mem, filename)) {
+        (void) fprintf(stderr, "pgp_mem_readfile of '%s' failed\n", filename);
+        return 0;
+    }
+    len = (int) pgp_mem_len(mem);
+    ret = pgp_write_litdata(output, pgp_mem_data(mem), len, type);
+    pgp_memory_free(mem);
+    return ret;
 }
 
 /**
@@ -1185,32 +1165,34 @@ pgp_fileread_litdata(const char *filename,
 */
 
 int
-pgp_filewrite(const char *filename, const char *buf,
-			const size_t len, const unsigned overwrite)
+pgp_filewrite(const char *   filename,
+              const char *   buf,
+              const size_t   len,
+              const unsigned overwrite)
 {
-	int		flags;
-	int		fd;
+    int flags;
+    int fd;
 
-	flags = O_WRONLY | O_CREAT;
-	if (overwrite) {
-		flags |= O_TRUNC;
-	} else {
-		flags |= O_EXCL;
-	}
+    flags = O_WRONLY | O_CREAT;
+    if (overwrite) {
+        flags |= O_TRUNC;
+    } else {
+        flags |= O_EXCL;
+    }
 #ifdef O_BINARY
-	flags |= O_BINARY;
+    flags |= O_BINARY;
 #endif
-	fd = open(filename, flags, 0600);
-	if (fd < 0) {
-		(void) fprintf(stderr, "can't open '%s'\n", filename);
-		return 0;
-	}
-	if (write(fd, buf, len) != (int)len) {
-		(void) close(fd);
-		return 0;
-	}
+    fd = open(filename, flags, 0600);
+    if (fd < 0) {
+        (void) fprintf(stderr, "can't open '%s'\n", filename);
+        return 0;
+    }
+    if (write(fd, buf, len) != (int) len) {
+        (void) close(fd);
+        return 0;
+    }
 
-	return (close(fd) == 0);
+    return (close(fd) == 0);
 }
 
 /**
@@ -1223,36 +1205,32 @@ pgp_filewrite(const char *filename, const char *buf,
 \note Hard-coded to use AES256
 */
 unsigned
-pgp_write_symm_enc_data(const uint8_t *data,
-					   const int len,
-					   pgp_output_t * output)
+pgp_write_symm_enc_data(const uint8_t *data, const int len, pgp_output_t *output)
 {
-	pgp_crypt_t	crypt_info;
-	uint8_t		*encrypted = (uint8_t *) NULL;
-	size_t		encrypted_sz;
-	int             done = 0;
+    pgp_crypt_t crypt_info;
+    uint8_t *   encrypted = (uint8_t *) NULL;
+    size_t      encrypted_sz;
+    int         done = 0;
 
-	/* \todo assume AES256 for now */
-	pgp_crypt_any(&crypt_info, PGP_SA_AES_256);
-	pgp_encrypt_init(&crypt_info);
+    /* \todo assume AES256 for now */
+    pgp_crypt_any(&crypt_info, PGP_SA_AES_256);
+    pgp_encrypt_init(&crypt_info);
 
-	encrypted_sz = (size_t)(len + crypt_info.blocksize + 2);
-	if ((encrypted = calloc(1, encrypted_sz)) == NULL) {
-		(void) fprintf(stderr, "can't allocate %" PRIsize "d\n",
-			encrypted_sz);
-		return 0;
-	}
+    encrypted_sz = (size_t)(len + crypt_info.blocksize + 2);
+    if ((encrypted = calloc(1, encrypted_sz)) == NULL) {
+        (void) fprintf(stderr, "can't allocate %" PRIsize "d\n", encrypted_sz);
+        return 0;
+    }
 
-	done = (int)pgp_encrypt_se(&crypt_info, encrypted, data, (unsigned)len);
-	if (done != len) {
-		(void) fprintf(stderr,
-			"pgp_write_symm_enc_data: done != len\n");
-		return 0;
-	}
+    done = (int) pgp_encrypt_se(&crypt_info, encrypted, data, (unsigned) len);
+    if (done != len) {
+        (void) fprintf(stderr, "pgp_write_symm_enc_data: done != len\n");
+        return 0;
+    }
 
-	return pgp_write_ptag(output, PGP_PTAG_CT_SE_DATA) &&
-		pgp_write_length(output, (unsigned)(1 + encrypted_sz)) &&
-		pgp_write(output, data, (unsigned)len);
+    return pgp_write_ptag(output, PGP_PTAG_CT_SE_DATA) &&
+           pgp_write_length(output, (unsigned) (1 + encrypted_sz)) &&
+           pgp_write(output, data, (unsigned) len);
 }
 
 /**
@@ -1265,20 +1243,19 @@ pgp_write_symm_enc_data(const uint8_t *data,
 \return 1 if OK; else 0
 */
 unsigned
-pgp_write_one_pass_sig(pgp_output_t *output,
-			const pgp_seckey_t *seckey,
-			const pgp_hash_alg_t hash_alg,
-			const pgp_sig_type_t sig_type)
+pgp_write_one_pass_sig(pgp_output_t *       output,
+                       const pgp_seckey_t * seckey,
+                       const pgp_hash_alg_t hash_alg,
+                       const pgp_sig_type_t sig_type)
 {
-	uint8_t   keyid[PGP_KEY_ID_SIZE];
+    uint8_t keyid[PGP_KEY_ID_SIZE];
 
-	pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey, PGP_HASH_SHA1); /* XXX - hardcoded */
-	return pgp_write_ptag(output, PGP_PTAG_CT_1_PASS_SIG) &&
-		pgp_write_length(output, 1 + 1 + 1 + 1 + 8 + 1) &&
-		pgp_write_scalar(output, 3, 1)	/* version */ &&
-		pgp_write_scalar(output, (unsigned)sig_type, 1) &&
-		pgp_write_scalar(output, (unsigned)hash_alg, 1) &&
-		pgp_write_scalar(output, (unsigned)seckey->pubkey.alg, 1) &&
-		pgp_write(output, keyid, 8) &&
-		pgp_write_scalar(output, 1, 1);
+    pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey, PGP_HASH_SHA1); /* XXX - hardcoded */
+    return pgp_write_ptag(output, PGP_PTAG_CT_1_PASS_SIG) &&
+           pgp_write_length(output, 1 + 1 + 1 + 1 + 8 + 1) &&
+           pgp_write_scalar(output, 3, 1) /* version */ &&
+           pgp_write_scalar(output, (unsigned) sig_type, 1) &&
+           pgp_write_scalar(output, (unsigned) hash_alg, 1) &&
+           pgp_write_scalar(output, (unsigned) seckey->pubkey.alg, 1) &&
+           pgp_write(output, keyid, 8) && pgp_write_scalar(output, 1, 1);
 }

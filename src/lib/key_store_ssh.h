@@ -28,34 +28,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RNP_S2K_H_
-#define RNP_S2K_H_
+#ifndef KEY_STORE_SSH_H_
+#define KEY_STORE_SSH_H_
 
-#include "hash.h"
+#include "rnp.h"
+#include "key_store.h"
 
-void pgp_s2k_simple(pgp_hash_alg_t alg,
-                    uint8_t *      out,
-                    size_t         output_len,
-                    const char *   passphrase);
+int rnp_key_store_ssh_load_keys(rnp_t *rnp, char *homedir);
 
-void pgp_s2k_salted(pgp_hash_alg_t alg,
-                    uint8_t *      out,
-                    size_t         output_len,
-                    const char *   passphrase,
-                    const uint8_t *salt);
+int rnp_key_store_ssh_from_file(pgp_io_t *, rnp_key_store_t *, const char *);
+int rnp_key_store_ssh_from_mem(pgp_io_t *, rnp_key_store_t *, pgp_memory_t *);
 
-void pgp_s2k_iterated(pgp_hash_alg_t alg,
-                      uint8_t *      out,
-                      size_t         output_len,
-                      const char *   passphrase,
-                      const uint8_t *salt,
-                      size_t         iterations);
-
-size_t pgp_s2k_decode_iterations(uint8_t encoded_iter);
-
-uint8_t pgp_s2k_encode_iterations(size_t iterations);
-
-// Round iterations to nearest representable value
-size_t pgp_s2k_round_iterations(size_t iterations);
-
-#endif
+#endif /* KEY_STORE_SSH_H_ */
