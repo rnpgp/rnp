@@ -34,19 +34,22 @@
 #include "hash.h"
 
 void pgp_s2k_simple(pgp_hash_alg_t alg,
-                    uint8_t *out, size_t output_len,
-                    const char *passphrase);
+                    uint8_t *      out,
+                    size_t         output_len,
+                    const char *   passphrase);
 
 void pgp_s2k_salted(pgp_hash_alg_t alg,
-                    uint8_t *out, size_t output_len,
-                    const char *passphrase,
+                    uint8_t *      out,
+                    size_t         output_len,
+                    const char *   passphrase,
                     const uint8_t *salt);
 
 void pgp_s2k_iterated(pgp_hash_alg_t alg,
-                      uint8_t *out, size_t output_len,
-                      const char *passphrase,
+                      uint8_t *      out,
+                      size_t         output_len,
+                      const char *   passphrase,
                       const uint8_t *salt,
-                      size_t iterations);
+                      size_t         iterations);
 
 size_t pgp_s2k_decode_iterations(uint8_t encoded_iter);
 
@@ -54,6 +57,5 @@ uint8_t pgp_s2k_encode_iterations(size_t iterations);
 
 // Round iterations to nearest representable value
 size_t pgp_s2k_round_iterations(size_t iterations);
-
 
 #endif

@@ -52,62 +52,26 @@
 /** \file
  */
 
-#ifndef PACKET_SHOW_H_
-#define PACKET_SHOW_H_
+#ifndef KEY_STORE_PGP_H_
+#define KEY_STORE_PGP_H_
 
 #include "packet.h"
+#include "packet-parse.h"
+#include "key_store.h"
+#include "memory.h"
 
-/** pgp_list_t
- */
-typedef struct {
-    unsigned size; /* num of array slots allocated */
-    unsigned used; /* num of array slots currently used */
-    char **  strings;
-} pgp_list_t;
+enum { MAX_ID_LENGTH = 128, MAX_PASSPHRASE_LENGTH = 256 };
 
-/** pgp_text_t
- */
-typedef struct {
-    pgp_list_t known;
-    pgp_list_t unknown;
-} pgp_text_t;
+int rnp_key_store_pgp_load_keys(rnp_t *rnp, char *homedir);
 
-/** pgp_bit_map_t
- */
-typedef struct {
-    uint8_t     mask;
-    const char *string;
-} pgp_bit_map_t;
+int rnp_key_store_pgp_read_from_file(pgp_io_t *,
+                                     rnp_key_store_t *,
+                                     const unsigned,
+                                     const char *);
 
-void pgp_text_init(pgp_text_t *);
-void pgp_text_free(pgp_text_t *);
+int rnp_key_store_pgp_read_from_mem(pgp_io_t *,
+                                    rnp_key_store_t *,
+                                    const unsigned,
+                                    pgp_memory_t *);
 
-const char *pgp_show_packet_tag(pgp_content_enum);
-const char *pgp_show_ss_type(pgp_content_enum);
-
-const char *pgp_show_sig_type(pgp_sig_type_t);
-const char *pgp_show_pka(pgp_pubkey_alg_t);
-
-pgp_text_t *pgp_showall_ss_zpref(const pgp_data_t *);
-const char *pgp_show_ss_zpref(uint8_t);
-
-pgp_text_t *pgp_showall_ss_hashpref(const pgp_data_t *);
-const char *pgp_show_hash_alg(uint8_t);
-const char *pgp_show_symm_alg(uint8_t);
-
-pgp_text_t *pgp_showall_ss_skapref(const pgp_data_t *);
-const char *pgp_show_ss_skapref(uint8_t);
-
-const char *pgp_show_ss_rr_code(pgp_ss_rr_code_t);
-
-pgp_text_t *pgp_showall_ss_features(pgp_data_t);
-
-pgp_text_t *pgp_showall_ss_key_flags(const pgp_data_t *);
-const char *pgp_show_ss_key_flag(uint8_t, pgp_bit_map_t *);
-
-pgp_text_t *pgp_show_keyserv_prefs(const pgp_data_t *);
-const char *pgp_show_keyserv_pref(uint8_t, pgp_bit_map_t *);
-
-pgp_text_t *pgp_showall_notation(pgp_ss_notation_t);
-
-#endif /* PACKET_SHOW_H_ */
+#endif /* KEY_STORE_PGP_H_ */

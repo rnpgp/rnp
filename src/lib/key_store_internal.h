@@ -28,15 +28,18 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef KEYRING_SSH_H_
-#define KEYRING_SSH_H_
+#ifndef KEY_STORE_INTERNAL_H_
+#define KEY_STORE_INTERNAL_H_
 
-#include "rnp.h"
-#include "keyring.h"
+#include <rnp.h>
+#include <json.h>
 
-int ssh_keyring_load_keys(rnp_t *rnp, char *homedir);
+#include <stdint.h>
 
-int ssh_keyring_read_from_file(pgp_io_t *, keyring_t *, const char *);
-int ssh_keyring_read_from_mem(pgp_io_t *, keyring_t *, pgp_memory_t *);
+#include "packet.h"
+#include "key_store.h"
 
-#endif /* KEYRING_SSH_H_ */
+void rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len);
+int rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int last);
+
+#endif /* KEY_STORE_INTERNAL_H_ */
