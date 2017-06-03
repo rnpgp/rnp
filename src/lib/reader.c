@@ -1850,7 +1850,9 @@ pgp_setup_memory_write(pgp_output_t **output, pgp_memory_t **mem, size_t bufsz)
 void
 pgp_teardown_memory_write(pgp_output_t *output, pgp_memory_t *mem)
 {
-    pgp_writer_close(output); /* new */
+    if (output) {
+        pgp_writer_close(output); /* new */
+    }
     pgp_output_delete(output);
     pgp_memory_free(mem);
 }

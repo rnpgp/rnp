@@ -543,3 +543,10 @@ new_BN_take_mp(botan_mp_t mp)
     a->mp = mp;
     return a;
 }
+
+void
+destroy_BN_mp(BIGNUM** a)
+{
+    free(*a);
+    *a = NULL;
+}

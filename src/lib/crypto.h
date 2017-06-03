@@ -332,4 +332,6 @@ struct pgp_stream_t {
  * \brief Allocates BIGNUM and mp value assigned
  */
 BIGNUM *new_BN_take_mp(botan_mp_t mp);
+void destroy_BN_mp(BIGNUM** a);
+
 #endif /* CRYPTO_H_ */

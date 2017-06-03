@@ -840,6 +840,9 @@ pgp_output_new(void)
 void
 pgp_output_delete(pgp_output_t *output)
 {
+    if (!output) {
+        return;
+    }
     pgp_writer_info_delete(&output->writer);
     free(output);
 }
