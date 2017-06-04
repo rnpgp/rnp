@@ -2943,7 +2943,7 @@ decrypt_se_ip_data(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *str
 static int
 parse_se_data(pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_packet_t pkt;
+    pgp_packet_t pkt = {0};
 
     /* there's no info to go with this, so just announce it */
     CALLBACK(PGP_PTAG_CT_SE_DATA_HEADER, &stream->cbinfo, &pkt);
@@ -2962,7 +2962,7 @@ parse_se_data(pgp_region_t *region, pgp_stream_t *stream)
 static int
 parse_se_ip_data(pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_packet_t pkt;
+    pgp_packet_t pkt= {0};
     uint8_t      c = 0x0;
 
     if (!limread(&c, 1, region, stream)) {
@@ -2996,7 +2996,7 @@ parse_se_ip_data(pgp_region_t *region, pgp_stream_t *stream)
 static int
 parse_mdc(pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_packet_t pkt;
+    pgp_packet_t pkt = {0};
 
     pkt.u.mdc.length = PGP_SHA1_HASH_SIZE;
     if ((pkt.u.mdc.data = calloc(1, PGP_SHA1_HASH_SIZE)) == NULL) {
@@ -3025,8 +3025,8 @@ parse_mdc(pgp_region_t *region, pgp_stream_t *stream)
 static int
 parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
 {
-    pgp_packet_t pkt;
-    pgp_region_t region;
+    pgp_packet_t pkt = {0};
+    pgp_region_t region = {0};
     uint8_t      ptag;
     unsigned     indeterminate = 0;
     int          ret;
