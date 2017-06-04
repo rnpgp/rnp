@@ -1323,6 +1323,7 @@ static int
 parse_pubkey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 {
     pgp_packet_t pkt;
+    memset(&pkt, 0x00, sizeof(pgp_packet_t));
 
     if (!parse_pubkey_data(&pkt.u.pubkey, region, stream)) {
         (void) fprintf(stderr, "parse_pubkey: parse_pubkey_data failed\n");
