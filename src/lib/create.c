@@ -210,7 +210,7 @@ seckey_length(const pgp_seckey_t *key)
  * \param t
  * \param n
  * \param e
-*/
+ */
 void
 pgp_fast_create_rsa_pubkey(pgp_pubkey_t *key, time_t t, BIGNUM *n, BIGNUM *e)
 {
@@ -884,9 +884,9 @@ create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, pgp_crypt_t *cipherinfo, uint8
     unsigned i;
 
     /* m_buf is the buffer which will be encoded in PKCS#1 block
-    * encoding to form the "m" value used in the Public Key
-    * Encrypted Session Key Packet as defined in RFC Section 5.1
-    * "Public-Key Encrypted Session Key Packet"
+     * encoding to form the "m" value used in the Public Key
+     * Encrypted Session Key Packet as defined in RFC Section 5.1
+     * "Public-Key Encrypted Session Key Packet"
      */
     m_buf[0] = sesskey->symm_alg;
     for (i = 0; i < cipherinfo->keysize; i++) {
@@ -911,11 +911,11 @@ pgp_pk_sesskey_t *
 pgp_create_pk_sesskey(const pgp_key_t *key, const char *ciphername)
 {
     /*
-             * Creates a random session key and encrypts it for the given key
-             *
-             * Encryption used is PK,
-             * can be any, we're hardcoding RSA for now
-             */
+     * Creates a random session key and encrypts it for the given key
+     *
+     * Encryption used is PK,
+     * can be any, we're hardcoding RSA for now
+     */
 
     const pgp_pubkey_t *pubkey;
     const uint8_t *     id = NULL;
@@ -1117,10 +1117,10 @@ pgp_write_litdata(pgp_output_t *         output,
                   const pgp_litdata_enum type)
 {
     /*
-             * RFC4880 does not specify a meaning for filename or date.
-             * It is implementation-dependent.
-             * We will not implement them.
-             */
+     * RFC4880 does not specify a meaning for filename or date.
+     * It is implementation-dependent.
+     * We will not implement them.
+     */
     /* \todo do we need to check text data for <cr><lf> line endings ? */
     return pgp_write_ptag(output, PGP_PTAG_CT_LITDATA) &&
            pgp_write_length(output, (unsigned) (1 + 1 + 4 + maxlen)) &&

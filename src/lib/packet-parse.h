@@ -130,7 +130,7 @@ pgp_reader_t *pgp_readinfo(pgp_stream_t *);
 int pgp_parse(pgp_stream_t *, const int);
 
 /** Used to specify whether subpackets should be returned raw, parsed
-* or ignored.  */
+ * or ignored.  */
 typedef enum {
     PGP_PARSE_RAW,    /* Callback Raw */
     PGP_PARSE_PARSED, /* Callback Parsed */

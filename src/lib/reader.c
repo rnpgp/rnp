@@ -268,15 +268,15 @@ typedef struct {
     unsigned      prev_nl : 1;
     unsigned      allow_headers_without_gap : 1;
     /* !< allow headers in armoured data that are
-    * not separated from the data by a blank line
-    * */
+     * not separated from the data by a blank line
+     * */
     unsigned allow_no_gap : 1;
     /* !< allow no blank line at the start of
-    * armoured data */
+     * armoured data */
     unsigned allow_trailing_whitespace : 1;
     /* !< allow armoured stuff to have trailing
-    * whitespace where we wouldn't strictly expect
-    * it */
+     * whitespace where we wouldn't strictly expect
+     * it */
     /* it is an error to get a cleartext message without a sig */
     unsigned expect_sig : 1;
     unsigned got_sig : 1;

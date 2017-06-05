@@ -3481,7 +3481,7 @@ accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
  *
  * \param keyring Pointer to an existing keyring
  * \param parse Options to use when parsing
-*/
+ */
 int
 pgp_parse_and_accumulate(pgp_io_t *io, rnp_key_store_t *keyring, pgp_stream_t *parse)
 {

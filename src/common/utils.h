@@ -26,20 +26,17 @@
 #ifndef __RNP__UTILS_H__
 #define __RNP__UTILS_H__
 
-#define RNP_LOG(msg) \
-	(void)fprintf(stderr, "%s:%d:%s "msg"\n", __FILE__, __LINE__, __func__)
+#define RNP_LOG(msg) (void) fprintf(stderr, "%s:%d:%s " msg "\n", __FILE__, __LINE__, __func__)
 
-#define CHECK(exp, val, err)										\
-	do { 															\
-		if ((exp)!=(val)) 											\
-		{															\
-			RNP_LOG("ERROR: ("#exp")!=("#val")");				 	\
-			ret = (err); 											\
-			goto end; 												\
-		}	 														\
-	} while(false)
+#define CHECK(exp, val, err)                          \
+    do {                                              \
+        if ((exp) != (val)) {                         \
+            RNP_LOG("ERROR: (" #exp ")!=(" #val ")"); \
+            ret = (err);                              \
+            goto end;                                 \
+        }                                             \
+    } while (false)
 
-#define CHECK_BOTAN(exp, err) \
-	CHECK((exp), 0, (err))
+#define CHECK_BOTAN(exp, err) CHECK((exp), 0, (err))
 
 #endif

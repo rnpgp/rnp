@@ -64,10 +64,10 @@
 /** error codes */
 /* Remember to add names to map in errors.c */
 typedef enum {
-    PGP_E_OK = 0x0000,            /* no error */
-    PGP_E_FAIL = 0x0001,          /* general error */
-    PGP_E_SYSTEM_ERROR = 0x0002,  /* system error, look at errno for
-                                   * details */
+    PGP_E_OK = 0x0000,   /* no error */
+    PGP_E_FAIL = 0x0001, /* general error */
+    PGP_E_SYSTEM_ERROR = 0x0002, /* system error, look at errno for
+                                  * details */
     PGP_E_UNIMPLEMENTED = 0x0003, /* feature not yet implemented */
 
     /* reader errors */
@@ -128,8 +128,8 @@ typedef enum {
 /** one entry in a linked list of errors */
 typedef struct pgp_error {
     pgp_errcode_t errcode;
-    int           sys_errno; /* irrelevent unless errcode ==
-                      * PGP_E_SYSTEM_ERROR */
+    int sys_errno; /* irrelevent unless errcode ==
+                    * PGP_E_SYSTEM_ERROR */
     char *            comment;
     const char *      file;
     int               line;

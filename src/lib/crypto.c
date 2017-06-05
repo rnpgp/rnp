@@ -517,7 +517,7 @@ pgp_decrypt_buf(pgp_io_t *       io,
     if (use_armour) {
         pgp_reader_pop_dearmour(parse);
     }
-  
+
     /* tidy up */
     const bool gotpass = parse->cbinfo.gotpass;
     pgp_writer_close(parse->cbinfo.output);
@@ -545,7 +545,7 @@ new_BN_take_mp(botan_mp_t mp)
 }
 
 void
-destroy_BN_mp(BIGNUM** a)
+destroy_BN_mp(BIGNUM **a)
 {
     free(*a);
     *a = NULL;

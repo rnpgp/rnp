@@ -103,8 +103,8 @@ __BEGIN_DECLS
 #endif /* USE_BN_INTERFACE */
 
 /*
-* PGPV_BIGNUM is an opaque struct
-*/
+ * PGPV_BIGNUM is an opaque struct
+ */
 typedef struct PGPV_BIGNUM_st PGPV_BIGNUM;
 
 /* a "context" of mp integers - never really used */
