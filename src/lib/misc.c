@@ -707,6 +707,9 @@ pgp_memory_new(void)
 void
 pgp_memory_free(pgp_memory_t *mem)
 {
+    if (!mem) {
+        return;
+    }
     pgp_memory_release(mem);
     free(mem);
 }
