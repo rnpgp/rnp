@@ -992,26 +992,6 @@ rnp_get_info(const char *type)
     return "[unknown]";
 }
 
-/* local version of asprintf so we don't have to play autoconf games */
-int
-pgp_asprintf(char **ret, const char *fmt, ...)
-{
-    va_list args;
-    char    buf[120 * 1024]; /* XXX - "huge" buffer on stack */
-    int     cc;
-
-    va_start(args, fmt);
-    cc = vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-    if ((*ret = calloc(1, (size_t)(cc + 1))) == NULL) {
-        *ret = NULL;
-        return -1;
-    }
-    (void) memcpy(*ret, buf, (size_t) cc);
-    (*ret)[cc] = 0x0;
-    return cc;
-}
-
 void
 rnp_log(const char *fmt, ...)
 {
