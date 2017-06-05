@@ -179,7 +179,7 @@ pgp_new(size_t size)
 
 /* utility function to zero out memory */
 void
-pgp_forget(void *vp, unsigned size)
+pgp_forget(void *vp, size_t size)
 {
     (void) memset(vp, 0x0, size);
 }

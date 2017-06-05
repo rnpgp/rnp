@@ -1513,7 +1513,7 @@ rnp_sign_file(rnp_t *     rnp,
                             (unsigned) cleartext,
                             overwrite);
     }
-    pgp_forget(seckey, (unsigned) sizeof(*seckey));
+    pgp_forget(seckey, sizeof(*seckey));
     return ret;
 }
 
@@ -1647,7 +1647,7 @@ rnp_sign_memory(rnp_t *        rnp,
     } else {
         ret = 0;
     }
-    pgp_forget(seckey, (unsigned) sizeof(*seckey));
+    pgp_forget(seckey, sizeof(*seckey));
     return ret;
 }
 

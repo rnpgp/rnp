@@ -782,9 +782,14 @@ open_output_file(pgp_output_t **output,
     /* setup output file */
     if (outname) {
         fd = pgp_setup_file_write(output, outname, overwrite);
+        if (strcmp(outname, "-") == 0) {
+            fd = pgp_setup_file_write(output, NULL, overwrite);
+        } else {
+            fd = pgp_setup_file_write(output, outname, overwrite);
+        }
     } else {
-        unsigned flen = (unsigned) (strlen(inname) + 4 + 1);
-        char *   f = NULL;
+        size_t flen = strlen(inname) + 1 + strlen(suffix) + 1;
+        char * f = NULL;
 
         if ((f = calloc(1, flen)) == NULL) {
             (void) fprintf(stderr, "open_output_file: bad alloc\n");
