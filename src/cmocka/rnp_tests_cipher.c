@@ -24,6 +24,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <crypto.h>
+#include <key_store_pgp.h>
+#include <packet.h>
+#include <packet-key.h>
+#include <bn.h>
+#include <rnp.h>
+#include <rnp_tests_support.h>
+#include <rnp_tests.h>
+
 void
 hash_test_success(void **state)
 {
