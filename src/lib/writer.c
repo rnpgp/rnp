@@ -1615,7 +1615,7 @@ str_enc_se_ip_writer(const uint8_t *src,
         /* The first partial length MUST be at least 512 octets long. */
         if (datalength < 512) {
             return 1; /* will wait for more data or
-                               * end of stream             */
+                       * end of stream             */
         }
         pgp_setup_memory_write(&se_ip->litoutput, &se_ip->litmem, datalength + 32);
         stream_write_litdata_first(se_ip->litoutput,

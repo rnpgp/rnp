@@ -850,8 +850,8 @@ pgp_validate_file(pgp_io_t *             io,
         }
         if (outfd < 0) {
             /* even if the signature was good, we can't
-            * write the file, so send back a bad return
-            * code */
+             * write the file, so send back a bad return
+             * code */
             ret = 0;
         } else if (validate_result_status(io->errs, infile, result)) {
             unsigned len;

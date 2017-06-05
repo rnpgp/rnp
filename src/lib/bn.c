@@ -236,9 +236,9 @@ PGPV_BN_set_negative(PGPV_BIGNUM *a, int n)
 {
     if (a) {
         /** BN_set_negative sets sign of a BIGNUM
-* \param  b  pointer to the BIGNUM object
-* \param  n  0 if the BIGNUM b should be positive and a value != 0 otherwise
-*/
+         * \param  b  pointer to the BIGNUM object
+         * \param  n  0 if the BIGNUM b should be positive and a value != 0 otherwise
+         */
 
         int a_is_currently_negative = (botan_mp_is_negative(a->mp) == 1);
 
@@ -482,9 +482,9 @@ PGPV_BN_words_used(const PGPV_BIGNUM *n)
     }
 
     /*
-    * The word size of Botan's BigInt is not exposed through the C API.
-    * Assume 32-bit words are in use to match PGPV_BN_ULONG
-    */
+     * The word size of Botan's BigInt is not exposed through the C API.
+     * Assume 32-bit words are in use to match PGPV_BN_ULONG
+     */
     return (num_bits / 32) + ((num_bits % 32) ? 1 : 0);
 }
 

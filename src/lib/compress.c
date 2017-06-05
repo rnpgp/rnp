@@ -279,7 +279,7 @@ bzip2_compressed_data_reader(pgp_stream_t *stream,
  * \param *region 	Pointer to a region
  * \param *stream 	How to parse
  * \param type Which compression type to expect
-*/
+ */
 
 int
 pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_t type)

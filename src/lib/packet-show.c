@@ -566,7 +566,7 @@ showall_octets_bits(pgp_data_t *data, pgp_bit_map_t **map, size_t nmap)
  * returns description of the Packet Tag
  * \param packet_tag
  * \return string or "Unknown"
-*/
+ */
 const char *
 pgp_show_packet_tag(pgp_content_enum packet_tag)
 {
@@ -636,7 +636,7 @@ pgp_show_pka(pgp_pubkey_alg_t pka)
  * returns description of the Preferred Compression
  * \param octet Preferred Compression
  * \return string or "Unknown"
-*/
+ */
 const char *
 pgp_show_ss_zpref(uint8_t octet)
 {
@@ -682,7 +682,7 @@ pgp_show_symm_alg(uint8_t hash)
  * returns description of the given Preferred Symmetric Key Algorithm
  * \param octet
  * \return string or "Unknown"
-*/
+ */
 const char *
 pgp_show_ss_skapref(uint8_t octet)
 {
@@ -708,7 +708,7 @@ pgp_showall_ss_skapref(const pgp_data_t *ss_skapref)
  * returns description of one SS Feature
  * \param octet
  * \return string or "Unknown"
-*/
+ */
 static const char *
 show_ss_feature(uint8_t octet, unsigned offset)
 {
@@ -764,7 +764,7 @@ pgp_showall_ss_features(pgp_data_t ss_features)
  * \param octet
  * \param map
  * \return
-*/
+ */
 const char *
 pgp_show_ss_key_flag(uint8_t octet, pgp_bit_map_t *map)
 {
@@ -833,7 +833,7 @@ pgp_show_keyserv_pref(uint8_t prefs, pgp_bit_map_t *map)
  * \return NULL if cannot allocate memory or other error
  * \return pointer to structure, if no error
  *
-*/
+ */
 pgp_text_t *
 pgp_show_keyserv_prefs(const pgp_data_t *prefs)
 {

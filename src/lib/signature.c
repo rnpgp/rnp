@@ -152,10 +152,10 @@ rsa_sign(pgp_hash_t *            hash,
     hash_size = pgp_hash_finish(hash, hashbuf);
 
     /**
-    * The high 16 bits (first two octets) of the hash are included
-    * in the Signature packet to provide a quick test to reject
-    * some invalid signatures. - RFC 4880
-    */
+     * The high 16 bits (first two octets) of the hash are included
+     * in the Signature packet to provide a quick test to reject
+     * some invalid signatures. - RFC 4880
+     */
     pgp_write(out, &hashbuf[0], 2);
 
     sig_size = pgp_rsa_pkcs1_sign_hash(
