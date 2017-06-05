@@ -60,7 +60,7 @@ int rnp_set_debug(const char *);
 int rnp_get_debug(const char *);
 
 void *pgp_new(size_t);
-void  pgp_forget(void *, unsigned);
+void  pgp_forget(void *, size_t);
 
 #define RNP_BUFSIZ 8192
 

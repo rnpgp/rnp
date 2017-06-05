@@ -192,8 +192,14 @@ rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring, const int psigs
 {
     pgp_key_t *key;
     unsigned   n;
+    unsigned   keyc = (keyring != NULL) ? keyring->keyc : 0;
 
-    (void) fprintf(io->res, "%u key%s\n", keyring->keyc, (keyring->keyc == 1) ? "" : "s");
+    (void) fprintf(io->res, "%u key%s\n", keyc, (keyc == 1) ? "" : "s");
+
+    if (keyring == NULL) {
+        return 1;
+    }
+
     for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
         if (pgp_is_key_secret(key)) {
             pgp_print_keydata(io, keyring, key, "sec", &key->key.seckey.pubkey, 0);

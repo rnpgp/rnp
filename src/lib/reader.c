@@ -145,7 +145,8 @@ read_partial_data(pgp_stream_t *stream, void *dest, size_t length)
 int
 pgp_getpassphrase(void *in, char *phrase, size_t size)
 {
-    char *p;
+    char * p;
+    size_t len;
 
     if (in == NULL) {
         while ((p = getpass("rnp passphrase: ")) == NULL) {
@@ -155,6 +156,11 @@ pgp_getpassphrase(void *in, char *phrase, size_t size)
         memset(phrase, 0, size);
         if (fgets(phrase, (int) size, in) == NULL) {
             return 0;
+        }
+
+        len = strlen(phrase);
+        if (len >= 1 && phrase[len - 1] == '\n') {
+            phrase[len - 1] = '\0';
         }
     }
     return 1;

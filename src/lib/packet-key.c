@@ -203,9 +203,11 @@ decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         break;
 
     case PGP_GET_PASSPHRASE:
-        (void) pgp_getpassphrase(decrypt->passfp, pass, sizeof(pass));
+        if (pgp_getpassphrase(decrypt->passfp, pass, sizeof(pass)) == 0) {
+            pass[0] = '\0';
+        }
         *content->skey_passphrase.passphrase = rnp_strdup(pass);
-        pgp_forget(pass, (unsigned) sizeof(pass));
+        pgp_forget(pass, sizeof(pass));
         return PGP_KEEP_MEMORY;
 
     case PGP_PARSER_ERRCODE:
@@ -248,6 +250,20 @@ decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     return PGP_RELEASE_MEMORY;
 }
 
+static pgp_cb_ret_t
+decrypt_cb_empty(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
+{
+    const pgp_contents_t *content = &pkt->u;
+
+    switch (pkt->tag) {
+    case PGP_GET_PASSPHRASE:
+        *content->skey_passphrase.passphrase = rnp_strdup("");
+        return PGP_KEEP_MEMORY;
+    default:
+        return decrypt_cb(pkt, cbinfo);
+    }
+}
+
 /**
 \ingroup Core_Keys
 \brief Decrypts secret key from given keydata with given passphrase
@@ -262,8 +278,21 @@ pgp_decrypt_seckey(const pgp_key_t *key, void *passfp)
     const int     printerrors = 1;
     decrypt_t     decrypt;
 
+    /* XXX first try with an empty passphrase */
     (void) memset(&decrypt, 0x0, sizeof(decrypt));
+
     decrypt.key = key;
+    stream = pgp_new(sizeof(*stream));
+    pgp_keydata_reader_set(stream, key);
+    pgp_set_callback(stream, decrypt_cb_empty, &decrypt);
+    stream->readinfo.accumulate = 1;
+    pgp_parse(stream, !printerrors);
+
+    if (decrypt.seckey != NULL) {
+        return decrypt.seckey;
+    }
+
+    /* ask for a passphrase */
     decrypt.passfp = passfp;
     stream = pgp_new(sizeof(*stream));
     pgp_keydata_reader_set(stream, key);
