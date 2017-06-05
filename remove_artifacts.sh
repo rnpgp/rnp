@@ -16,10 +16,10 @@ artifacts="
   m4/ltsugar.m4
   m4/ltversion.m4
   src/Makefile.in
+  src/cmocka/Makefile.in
   src/lib/Makefile.in
   src/lib/config.h.in
   src/lib/config.h.in~
-  src/libmj/Makefile.in
   src/rnp/Makefile.in
   src/rnpkeys/Makefile.in
   src/rnpv/Makefile.in
