@@ -272,7 +272,7 @@ decrypt_cb_empty(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 \return secret key
 */
 pgp_seckey_t *
-pgp_decrypt_seckey(const pgp_key_t *key, void *passfp)
+pgp_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
 {
     pgp_stream_t *stream;
     const int     printerrors = 1;
