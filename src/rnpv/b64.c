@@ -54,7 +54,7 @@ DESCRIPTION:
                 Decoding is the process in reverse.  A 'decode' lookup
                 table has been created to avoid string scans.
 
-DESIGN GOALS:	Specifically:
+DESIGN GOALS:    Specifically:
                 Code is a stand-alone utility to perform base64
                 encoding/decoding. It should be genuinely useful
                 when the need arises and it meets a need that is

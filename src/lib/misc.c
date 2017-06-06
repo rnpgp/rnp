@@ -224,7 +224,7 @@ pgp_push_error(pgp_error_t **errstack,
 
     if ((err = calloc(1, sizeof(*err))) == NULL) {
         (void) fprintf(stderr, "calloc comment failure\n");
-        free((void*) comment);
+        free((void *) comment);
         return;
     }
 

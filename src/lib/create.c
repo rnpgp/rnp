@@ -1062,7 +1062,7 @@ pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
                pgp_write(output, pksk->key_id, 8) &&
                pgp_write_scalar(output, (unsigned) pksk->alg, 1) &&
                pgp_write_mpi(output, pksk->params.rsa.encrypted_m)
-          /* ??	&& pgp_write_scalar(output, 0, 2); */
+          /* ??    && pgp_write_scalar(output, 0, 2); */
           ;
     case PGP_PKA_DSA:
     case PGP_PKA_ELGAMAL:
@@ -1076,7 +1076,7 @@ pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
                pgp_write_scalar(output, (unsigned) pksk->alg, 1) &&
                pgp_write_mpi(output, pksk->params.elgamal.g_to_k) &&
                pgp_write_mpi(output, pksk->params.elgamal.encrypted_m)
-          /* ??	&& pgp_write_scalar(output, 0, 2); */
+          /* ??    && pgp_write_scalar(output, 0, 2); */
           ;
     default:
         (void) fprintf(stderr, "pgp_write_pk_sesskey: bad algorithm\n");

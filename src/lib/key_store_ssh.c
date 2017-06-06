@@ -161,17 +161,17 @@ getbignum(bufgap_t *bg, char *buf, const char *header)
 static int
 putbignum(bufgap_t *bg, BIGNUM *bignum)
 {
-	uint32_t	 len;
+    uint32_t     len;
 
-	len = BN_num_bytes(bignum);
-	(void) bufgap_insert(bg, &len, sizeof(len));
-	(void) bufgap_insert(bg, buf, len);
-	bignum = BN_bin2bn((const uint8_t *)buf, (int)len, NULL);
-	if (rnp_get_debug(__FILE__)) {
-		hexdump(stderr, header, buf, (int)len);
-	}
-	(void) bufgap_seek(bg, len, BGFromHere, BGByte);
-	return bignum;
+    len = BN_num_bytes(bignum);
+    (void) bufgap_insert(bg, &len, sizeof(len));
+    (void) bufgap_insert(bg, buf, len);
+    bignum = BN_bin2bn((const uint8_t *)buf, (int)len, NULL);
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, header, buf, (int)len);
+    }
+    (void) bufgap_seek(bg, len, BGFromHere, BGByte);
+    return bignum;
 }
 #endif
 
