@@ -66,8 +66,6 @@ unsigned pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_p
 
 const char *rnp_get_info(const char *type);
 
-int pgp_asprintf(char **, const char *, ...) __printflike(2, 3);
-
 void rnp_log(const char *, ...) __printflike(1, 2);
 
 int   rnp_strcasecmp(const char *, const char *);
