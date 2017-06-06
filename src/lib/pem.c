@@ -109,6 +109,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
     read = fread(keybuf, 1, RNP_BUFSIZ, fp);
 
     if (!feof(fp)) {
+        (void) fclose(fp);
         return 0;
     }
     (void) fclose(fp);

@@ -1323,6 +1323,7 @@ static int
 parse_pubkey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 {
     pgp_packet_t pkt;
+    memset(&pkt, 0x00, sizeof(pgp_packet_t));
 
     if (!parse_pubkey_data(&pkt.u.pubkey, region, stream)) {
         (void) fprintf(stderr, "parse_pubkey: parse_pubkey_data failed\n");
@@ -1353,7 +1354,7 @@ parse_pubkey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 static int
 parse_userattr(pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_packet_t pkt;
+    pgp_packet_t pkt = {0};
 
     /*
      * xxx- treat as raw data for now. Could break down further into
@@ -1408,7 +1409,7 @@ pgp_userid_free(uint8_t **id)
 static int
 parse_userid(pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_packet_t pkt;
+    pgp_packet_t pkt = {0};
 
     if (region->readc != 0) {
         /* We should not have read anything so far */
@@ -1577,8 +1578,8 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
 static int
 parse_one_sig_subpacket(pgp_sig_t *sig, pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_region_t subregion;
-    pgp_packet_t pkt;
+    pgp_region_t subregion = {0};
+    pgp_packet_t pkt = {0};
     uint8_t      bools = 0x0;
     uint8_t      c = 0x0;
     unsigned     doread = 1;
@@ -1879,8 +1880,8 @@ parse_one_sig_subpacket(pgp_sig_t *sig, pgp_region_t *region, pgp_stream_t *stre
 static int
 parse_sig_subpkts(pgp_sig_t *sig, pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_region_t subregion;
-    pgp_packet_t pkt;
+    pgp_region_t subregion = {0};
+    pgp_packet_t pkt = {0};
 
     pgp_init_subregion(&subregion, region);
     if (!limread_scalar(&subregion.length, 2, region, stream)) {
@@ -2132,7 +2133,7 @@ parse_sig(pgp_region_t *region, pgp_stream_t *stream)
 static int
 parse_compressed(pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_packet_t pkt;
+    pgp_packet_t pkt = {0};
     uint8_t      c = 0x0;
 
     if (!limread(&c, 1, region, stream)) {
@@ -2183,7 +2184,7 @@ parse_hash_init(pgp_stream_t *stream, pgp_hash_alg_t type, const uint8_t *keyid)
 static int
 parse_one_pass(pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_packet_t pkt;
+    pgp_packet_t pkt = {0};
     uint8_t      c = 0x0;
 
     if (!limread(&pkt.u.one_pass_sig.version, 1, region, stream)) {
@@ -2235,7 +2236,7 @@ parse_one_pass(pgp_region_t *region, pgp_stream_t *stream)
 static int
 parse_trust(pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_packet_t pkt;
+    pgp_packet_t pkt = {0};
 
     if (!read_data(&pkt.u.trust, region, stream)) {
         return 0;
@@ -2262,7 +2263,7 @@ static int
 parse_litdata(pgp_region_t *region, pgp_stream_t *stream)
 {
     pgp_memory_t *mem;
-    pgp_packet_t  pkt;
+    pgp_packet_t  pkt = {0};
     uint8_t       c = 0x0;
 
     if (!limread(&c, 1, region, stream)) {
@@ -2340,8 +2341,8 @@ pgp_seckey_free(pgp_seckey_t *key)
 static int
 consume_packet(pgp_region_t *region, pgp_stream_t *stream, unsigned warn)
 {
-    pgp_packet_t pkt;
-    pgp_data_t   remainder;
+    pgp_packet_t pkt = {0};
+    pgp_data_t   remainder = {0};
 
     if (region->indeterminate) {
         ERRP(&stream->cbinfo, pkt, "Can't consume indeterminate packets");
@@ -2942,7 +2943,7 @@ decrypt_se_ip_data(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *str
 static int
 parse_se_data(pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_packet_t pkt;
+    pgp_packet_t pkt = {0};
 
     /* there's no info to go with this, so just announce it */
     CALLBACK(PGP_PTAG_CT_SE_DATA_HEADER, &stream->cbinfo, &pkt);
@@ -2961,7 +2962,7 @@ parse_se_data(pgp_region_t *region, pgp_stream_t *stream)
 static int
 parse_se_ip_data(pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_packet_t pkt;
+    pgp_packet_t pkt= {0};
     uint8_t      c = 0x0;
 
     if (!limread(&c, 1, region, stream)) {
@@ -2995,7 +2996,7 @@ parse_se_ip_data(pgp_region_t *region, pgp_stream_t *stream)
 static int
 parse_mdc(pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_packet_t pkt;
+    pgp_packet_t pkt = {0};
 
     pkt.u.mdc.length = PGP_SHA1_HASH_SIZE;
     if ((pkt.u.mdc.data = calloc(1, PGP_SHA1_HASH_SIZE)) == NULL) {
@@ -3024,8 +3025,8 @@ parse_mdc(pgp_region_t *region, pgp_stream_t *stream)
 static int
 parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
 {
-    pgp_packet_t pkt;
-    pgp_region_t region;
+    pgp_packet_t pkt = {0};
+    pgp_region_t region = {0};
     uint8_t      ptag;
     unsigned     indeterminate = 0;
     int          ret;

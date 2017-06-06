@@ -973,6 +973,7 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const char *ci
     /* Create and write encrypted PK session key */
     if ((encrypted_pk_sesskey = pgp_create_pk_sesskey(pubkey, cipher)) == NULL) {
         (void) fprintf(stderr, "pgp_push_enc_se_ip: null pk sesskey\n");
+        free(se_ip);
         return 0;
     }
     pgp_write_pk_sesskey(output, encrypted_pk_sesskey);
@@ -980,12 +981,16 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const char *ci
     /* Setup the se_ip */
     if ((encrypted = calloc(1, sizeof(*encrypted))) == NULL) {
         free(se_ip);
+        pgp_pk_sesskey_free(encrypted_pk_sesskey);
+        free(encrypted_pk_sesskey);
         (void) fprintf(stderr, "pgp_push_enc_se_ip: bad alloc\n");
         return 0;
     }
     pgp_crypt_any(encrypted, encrypted_pk_sesskey->symm_alg);
     if ((iv = calloc(1, encrypted->blocksize)) == NULL) {
         free(se_ip);
+        pgp_pk_sesskey_free(encrypted_pk_sesskey);
+        free(encrypted_pk_sesskey);
         free(encrypted);
         (void) fprintf(stderr, "pgp_push_enc_se_ip: bad alloc\n");
         return 0;
@@ -999,6 +1004,7 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const char *ci
     /* And push writer on stack */
     pgp_writer_push(output, encrypt_se_ip_writer, NULL, encrypt_se_ip_destroyer, se_ip);
     /* tidy up */
+    pgp_pk_sesskey_free(encrypted_pk_sesskey);
     free(encrypted_pk_sesskey);
     free(iv);
     return 1;
