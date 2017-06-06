@@ -224,6 +224,7 @@ pgp_push_error(pgp_error_t **errstack,
 
     if ((err = calloc(1, sizeof(*err))) == NULL) {
         (void) fprintf(stderr, "calloc comment failure\n");
+        free((void*) comment);
         return;
     }
 
@@ -384,10 +385,12 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
         if (key->alg != PGP_PKA_RSA && key->alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
             key->alg != PGP_PKA_RSA_SIGN_ONLY) {
             (void) fprintf(stderr, "pgp_fingerprint: bad algorithm\n");
+            pgp_memory_free(mem);
             return 0;
         }
         if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad md5 alloc\n");
+            pgp_memory_free(mem);
             return 0;
         }
         hash_bignum(&hash, key->key.rsa.n);
@@ -399,6 +402,7 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
     } else if (hashtype == PGP_HASH_MD5) {
         if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad md5 alloc\n");
+            pgp_memory_free(mem);
             return 0;
         }
         type = (key->alg == PGP_PKA_RSA) ? "ssh-rsa" : "ssh-dss";
@@ -425,6 +429,7 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
         pgp_build_pubkey(mem, key, 0);
         if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad sha1 alloc\n");
+            pgp_memory_free(mem);
             return 0;
         }
         len = (unsigned) pgp_mem_len(mem);

@@ -239,6 +239,7 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
     if (bufgap_size(&bg, BGByte) - off < 10) {
         fprintf(stderr, "bad key file '%s'\n", f);
         free((void *) buf);
+        free((void *) bin);
         bufgap_close(&bg);
         return 0;
     }

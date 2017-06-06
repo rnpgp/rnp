@@ -83,7 +83,7 @@
 
 #define FAIL(str)                                                                      \
     do {                                                                               \
-        (void) fprintf(stderr, "%s:%u:%s(): " str "\n", __FILE__, __LINE__, __func__); \
+        (void) fprintf(stderr, "%s:%d:%s(): " str "\n", __FILE__, __LINE__, __func__); \
         goto end;                                                                      \
     } while (0)
 
