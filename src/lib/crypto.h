@@ -132,8 +132,8 @@ int pgp_rsa_pkcs1_sign_hash(uint8_t *      sig_buf,
  * @pre g2k size must be at least equal to byte size of prime `p'
  * @pre encm size must be at least equal to byte size of prime `p'
  *
- * @return 	on success - number of bytes written to g2k and encm
- *			on failure -1
+ * @return     on success - number of bytes written to g2k and encm
+ *            on failure -1
  */
 int pgp_elgamal_public_encrypt_pkcs1(uint8_t *                   g2k,
                                      uint8_t *                   encm,
@@ -155,8 +155,8 @@ int pgp_elgamal_public_encrypt_pkcs1(uint8_t *                   g2k,
  * @pre encm size must be at least equal to byte size of prime `p'
  * @pre byte-size of `g2k' must be equal to `encm'
  *
- * @return 	on success - number of bytes written to g2k and encm
- *			on failure -1
+ * @return     on success - number of bytes written to g2k and encm
+ *            on failure -1
  */
 int pgp_elgamal_private_decrypt_pkcs1(uint8_t *                   out,
                                       const uint8_t *             g2k,

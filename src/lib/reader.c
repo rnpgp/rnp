@@ -1293,7 +1293,7 @@ pgp_reader_push_dearmour(pgp_stream_t *parse_info)
  * // Allow no blank line at the start of armoured data unsigned no_gap,
  *
  * //Allow armoured data to have trailing whitespace where we strictly would not
- * expect it			      unsigned trailing_whitespace
+ * expect it                  unsigned trailing_whitespace
  */
 {
     dearmour_t *dearmour;
@@ -1693,13 +1693,13 @@ typedef struct mmap_reader_t {
  * descriptor in "parse_info" into the buffer starting at "dest" using the
  * rules contained in "flags"
  *
- * \param	dest	Pointer to previously allocated buffer
- * \param	plength Number of bytes to try to read
- * \param	flags	Rules about reading to use
- * \param	readinfo	Reader info
- * \param	cbinfo	Callback info
+ * \param    dest    Pointer to previously allocated buffer
+ * \param    plength Number of bytes to try to read
+ * \param    flags    Rules about reading to use
+ * \param    readinfo    Reader info
+ * \param    cbinfo    Callback info
  *
- * \return	n	Number of bytes read
+ * \return    n    Number of bytes read
  *
  * PGP_R_EARLY_EOF and PGP_R_ERROR push errors on the stack
  */

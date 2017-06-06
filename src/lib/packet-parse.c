@@ -110,10 +110,10 @@ typedef struct {
  * limread_data reads the specified amount of the subregion's data
  * into a data_t structure
  *
- * \param data	Empty structure which will be filled with data
- * \param len	Number of octets to read
+ * \param data    Empty structure which will be filled with data
+ * \param len    Number of octets to read
  * \param subregion
- * \param stream	How to parse
+ * \param stream    How to parse
  *
  * \return 1 on success, 0 on failure
  */
@@ -351,10 +351,10 @@ full_read(pgp_stream_t *stream,
  * This function does not know or care about packet boundaries. It
  * also assumes that an EOF is an error.
  *
- * \param *result	The scalar value is stored here
- * \param *reader	Our reader
- * \param length	How many bytes to read
- * \return		1 on success, 0 on failure
+ * \param *result    The scalar value is stored here
+ * \param *reader    Our reader
+ * \param length    How many bytes to read
+ * \return        1 on success, 0 on failure
  */
 static unsigned
 _read_scalar(unsigned *result, unsigned length, pgp_stream_t *stream)
@@ -398,13 +398,13 @@ _read_scalar(unsigned *result, unsigned length, pgp_stream_t *stream)
  *
  * This function makes sure to respect packet boundaries.
  *
- * \param dest		The destination buffer
- * \param length	How many bytes to read
- * \param region	Pointer to packet region
+ * \param dest        The destination buffer
+ * \param length    How many bytes to read
+ * \param region    Pointer to packet region
  * \param errors    Error stack
- * \param readinfo		Reader info
- * \param cbinfo	Callback info
- * \return		1 on success, 0 on error
+ * \param readinfo        Reader info
+ * \param cbinfo    Callback info
+ * \return        1 on success, 0 on error
  */
 unsigned
 pgp_limited_read(pgp_stream_t *stream,
@@ -482,10 +482,10 @@ exact_limread(uint8_t *dest, unsigned len, pgp_region_t *region, pgp_stream_t *s
  *
  * This function makes sure to respect packet boundaries.
  *
- * \param length	How many bytes to skip
- * \param *region	Pointer to packet region
- * \param *stream	How to parse
- * \return		1 on success, 0 on error (calls the cb with PGP_PARSER_ERROR in
+ * \param length    How many bytes to skip
+ * \param *region    Pointer to packet region
+ * \param *stream    How to parse
+ * \return        1 on success, 0 on error (calls the cb with PGP_PARSER_ERROR in
  * limread()).
  */
 static int
@@ -511,12 +511,12 @@ limskip(unsigned length, pgp_region_t *region, pgp_stream_t *stream)
  *
  * This function makes sure to respect packet boundaries.
  *
- * \param *dest		The scalar value is stored here
- * \param length	How many bytes make up this scalar (at most 4)
- * \param *region	Pointer to current packet region
- * \param *stream	How to parse
- * \param *cb		The callback
- * \return		1 on success, 0 on error (calls the cb with PGP_PARSER_ERROR in
+ * \param *dest        The scalar value is stored here
+ * \param length    How many bytes make up this scalar (at most 4)
+ * \param *region    Pointer to current packet region
+ * \param *stream    How to parse
+ * \param *cb        The callback
+ * \return        1 on success, 0 on error (calls the cb with PGP_PARSER_ERROR in
  * limread()).
  *
  * \see RFC4880 3.1
@@ -557,12 +557,12 @@ limread_scalar(unsigned *dest, unsigned len, pgp_region_t *region, pgp_stream_t 
  *
  * This function makes sure to respect packet boundaries.
  *
- * \param *dest		The scalar value is stored here
- * \param length	How many bytes make up this scalar (at most 4)
- * \param *region	Pointer to current packet region
- * \param *stream	How to parse
- * \param *cb		The callback
- * \return		1 on success, 0 on error (calls the cb with PGP_PARSER_ERROR in
+ * \param *dest        The scalar value is stored here
+ * \param length    How many bytes make up this scalar (at most 4)
+ * \param *region    Pointer to current packet region
+ * \param *stream    How to parse
+ * \param *cb        The callback
+ * \return        1 on success, 0 on error (calls the cb with PGP_PARSER_ERROR in
  * limread()).
  *
  * \see RFC4880 3.1
@@ -593,11 +593,11 @@ limread_size_t(size_t *dest, unsigned length, pgp_region_t *region, pgp_stream_t
  *
  * This function makes sure to respect packet boundaries.
  *
- * \param *dest		The timestamp is stored here
- * \param *ptag		Pointer to current packet's Packet Tag.
- * \param *reader	Our reader
- * \param *cb		The callback
- * \return		see limread_scalar()
+ * \param *dest        The timestamp is stored here
+ * \param *ptag        Pointer to current packet's Packet Tag.
+ * \param *reader    Our reader
+ * \param *cb        The callback
+ * \return        see limread_scalar()
  *
  * \see RFC4880 3.5
  */
@@ -644,17 +644,17 @@ limited_read_time(time_t *dest, pgp_region_t *region, pgp_stream_t *stream)
  *
  * This function makes sure to respect packet boundaries.
  *
- * \param **pgn		return the integer there - the BIGNUM is created by BN_bin2bn() and
+ * \param **pgn        return the integer there - the BIGNUM is created by BN_bin2bn() and
  * probably needs to be freed
- * 				by the caller XXX right ben?
- * \param *ptag		Pointer to current packet's Packet Tag.
- * \param *reader	Our reader
- * \param *cb		The callback
- * \return		1 on success, 0 on error (by limread_scalar() or limread() or if the
+ *                 by the caller XXX right ben?
+ * \param *ptag        Pointer to current packet's Packet Tag.
+ * \param *reader    Our reader
+ * \param *cb        The callback
+ * \return        1 on success, 0 on error (by limread_scalar() or limread() or if the
  * MPI
  * is
  * not properly formed (XXX
- * 				 see comment below - the callback is called with a
+ *                  see comment below - the callback is called with a
  * PGP_PARSER_ERROR
  * in
  * case of an error)
@@ -754,9 +754,9 @@ coalesce_blocks(pgp_stream_t *stream, unsigned length)
  *
  * \sa Internet-Draft RFC4880.txt Section 4.2.2
  *
- * \param *length	Where the decoded length will be put
- * \param *stream	How to parse
- * \return		1 if OK, else 0
+ * \param *length    Where the decoded length will be put
+ * \param *stream    How to parse
+ * \return        1 if OK, else 0
  *
  */
 
@@ -808,15 +808,15 @@ read_new_length(unsigned *length, pgp_stream_t *stream)
  *
  * This function makes sure to respect packet boundaries.
  *
- * \param *length	return the length here
- * \param *ptag		Pointer to current packet's Packet Tag.
- * \param *reader	Our reader
- * \param *cb		The callback
- * \return		1 on success, 0 on error (by limread_scalar() or limread() or if the
+ * \param *length    return the length here
+ * \param *ptag        Pointer to current packet's Packet Tag.
+ * \param *reader    Our reader
+ * \param *cb        The callback
+ * \return        1 on success, 0 on error (by limread_scalar() or limread() or if the
  * MPI
  * is
  * not properly formed (XXX
- * 				 see comment below)
+ *                  see comment below)
  *
  * \see RFC4880 4.2.2
  * \see pgp_ptag_t
@@ -1311,11 +1311,11 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
  *
  * Once the key has been parsed successfully, it is passed to the callback.
  *
- * \param *ptag		Pointer to the current Packet Tag.  This function should consume the
+ * \param *ptag        Pointer to the current Packet Tag.  This function should consume the
  * entire packet.
- * \param *reader	Our reader
- * \param *cb		The callback
- * \return		1 on success, 0 on error
+ * \param *reader    Our reader
+ * \param *cb        The callback
+ * \return        1 on success, 0 on error
  *
  * \see RFC4880 5.5.2
  */
@@ -1398,11 +1398,11 @@ pgp_userid_free(uint8_t **id)
  *
  * Once the userid has been parsed successfully, it is passed to the callback.
  *
- * \param *ptag		Pointer to the Packet Tag.  This function should consume the entire
+ * \param *ptag        Pointer to the Packet Tag.  This function should consume the entire
  * packet.
- * \param *reader	Our reader
- * \param *cb		The callback
- * \return		1 on success, 0 on error
+ * \param *reader    Our reader
+ * \param *cb        The callback
+ * \return        1 on success, 0 on error
  *
  * \see RFC4880 5.11
  */
@@ -1452,11 +1452,11 @@ parse_hash_find(pgp_stream_t *stream, const uint8_t *keyid)
  *
  * Once the signature has been parsed successfully, it is passed to the callback.
  *
- * \param *ptag		Pointer to the Packet Tag.  This function should consume the entire
+ * \param *ptag        Pointer to the Packet Tag.  This function should consume the entire
  * packet.
- * \param *reader	Our reader
- * \param *cb		The callback
- * \return		1 on success, 0 on error
+ * \param *reader    Our reader
+ * \param *cb        The callback
+ * \return        1 on success, 0 on error
  *
  * \see RFC4880 5.2.2
  */
@@ -1567,11 +1567,11 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
  *
  * Once the subpacket has been parsed successfully, it is passed to the callback.
  *
- * \param *ptag		Pointer to the Packet Tag.  This function should consume the entire
+ * \param *ptag        Pointer to the Packet Tag.  This function should consume the entire
  * subpacket.
- * \param *reader	Our reader
- * \param *cb		The callback
- * \return		1 on success, 0 on error
+ * \param *reader    Our reader
+ * \param *cb        The callback
+ * \return        1 on success, 0 on error
  *
  * \see RFC4880 5.2.3
  */
@@ -1870,10 +1870,10 @@ parse_one_sig_subpacket(pgp_sig_t *sig, pgp_region_t *region, pgp_stream_t *stre
  * This function does not call the callback directly, parse_one_sig_subpacket() does for each
  * subpacket.
  *
- * \param *ptag		Pointer to the Packet Tag.
- * \param *reader	Our reader
- * \param *cb		The callback
- * \return		1 on success, 0 on error
+ * \param *ptag        Pointer to the Packet Tag.
+ * \param *reader    Our reader
+ * \param *cb        The callback
+ * \return        1 on success, 0 on error
  *
  * \see RFC4880 5.2.3
  */
@@ -1915,10 +1915,10 @@ parse_sig_subpkts(pgp_sig_t *sig, pgp_region_t *region, pgp_stream_t *stream)
  *
  * Once the signature packet has been parsed successfully, it is passed to the callback.
  *
- * \param *ptag		Pointer to the Packet Tag.
- * \param *reader	Our reader
- * \param *cb		The callback
- * \return		1 on success, 0 on error
+ * \param *ptag        Pointer to the Packet Tag.
+ * \param *reader    Our reader
+ * \param *cb        The callback
+ * \return        1 on success, 0 on error
  *
  * \see RFC4880 5.2.3
  */
@@ -2094,10 +2094,10 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
  *
  * Once the signature packet has been parsed successfully, it is passed to the callback.
  *
- * \param *ptag		Pointer to the Packet Tag.
- * \param *reader	Our reader
- * \param *cb		The callback
- * \return		1 on success, 0 on error
+ * \param *ptag        Pointer to the Packet Tag.
+ * \param *reader    Our reader
+ * \param *cb        The callback
+ * \return        1 on success, 0 on error
  */
 static int
 parse_sig(pgp_region_t *region, pgp_stream_t *stream)
@@ -2962,7 +2962,7 @@ parse_se_data(pgp_region_t *region, pgp_stream_t *stream)
 static int
 parse_se_ip_data(pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_packet_t pkt= {0};
+    pgp_packet_t pkt = {0};
     uint8_t      c = 0x0;
 
     if (!limread(&c, 1, region, stream)) {
@@ -3019,8 +3019,8 @@ parse_mdc(pgp_region_t *region, pgp_stream_t *stream)
  * content tag and then calls the appropriate function to handle the
  * content.
  *
- * \param *stream	How to parse
- * \param *pktlen	On return, will contain number of bytes in packet
+ * \param *stream    How to parse
+ * \param *pktlen    On return, will contain number of bytes in packet
  * \return 1 on success, 0 on error, -1 on EOF */
 static int
 parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
@@ -3212,8 +3212,8 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
  *
  * After returning, stream->errors holds any errors encountered while parsing.
  *
- * \param stream	Parsing configuration
- * \return		1 on success in all packets, 0 on error in any packet
+ * \param stream    Parsing configuration
+ * \return        1 on success in all packets, 0 on error in any packet
  *
  * \sa CoreAPI Overview
  *
@@ -3242,11 +3242,11 @@ pgp_parse(pgp_stream_t *stream, const int perrors)
  * \brief Specifies whether one or more signature
  * subpacket types should be returned parsed; or raw; or ignored.
  *
- * \param	stream	Pointer to previously allocated structure
- * \param	tag	Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one individual
+ * \param    stream    Pointer to previously allocated structure
+ * \param    tag    Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one individual
  * signature
  * subpacket tag
- * \param	type	Parse type
+ * \param    type    Parse type
  * \todo Make all packet types optional, not just subpackets */
 void
 pgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, pgp_parse_type_t type)

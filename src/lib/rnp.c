@@ -497,11 +497,11 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
         (void) fprintf(stderr, "formatobj: json is '%s'\n", json_object_to_json_string(obj));
     }
 #if 0 //?
-	if (obj->c == 2 && obj->value.v[1].type == MJ_STRING &&
-		strcmp(obj->value.v[1].value.s, "[REVOKED]") == 0) {
-		/* whole key has been rovoked - just return */
-		return;
-	}
+    if (obj->c == 2 && obj->value.v[1].type == MJ_STRING &&
+        strcmp(obj->value.v[1].value.s, "[REVOKED]") == 0) {
+        /* whole key has been rovoked - just return */
+        return;
+    }
 #endif
     json_object *tmp;
     if (json_object_object_get_ex(obj, "header", &tmp)) {
@@ -912,7 +912,7 @@ rnp_init(rnp_t *rnp)
 /* Before calling the init, the userdefined options are set.
  * DONOT MEMSET*/
 #if 0
-	memset((void *) rnp, '\0', sizeof(rnp_t));
+    memset((void *) rnp, '\0', sizeof(rnp_t));
 #endif
 
     /* Apply default settings. */
@@ -1986,7 +1986,7 @@ rnp_format_json(void *vp, const char *json, const int psigs)
     }
     /* convert from string into a json structure */
     ids = json_tokener_parse(json);
-    //	/* ids is an array of strings, each containing 1 entry */
+    //    /* ids is an array of strings, each containing 1 entry */
     idc = json_object_array_length(ids);
     (void) fprintf(fp, "%d key%s found\n", idc, (idc == 1) ? "" : "s");
     for (i = 0; i < idc; i++) {

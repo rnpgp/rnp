@@ -276,8 +276,8 @@ bzip2_compressed_data_reader(pgp_stream_t *stream,
 /**
  * \ingroup Core_Compress
  *
- * \param *region 	Pointer to a region
- * \param *stream 	How to parse
+ * \param *region     Pointer to a region
+ * \param *stream     How to parse
  * \param type Which compression type to expect
  */
 
