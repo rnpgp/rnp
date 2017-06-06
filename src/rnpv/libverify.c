@@ -60,7 +60,6 @@
 #include "misc.h"
 #include "pgpsum.h"
 #include "verify.h"
-#include "platform.h"
 #include "bn.h"
 #include "packet-show.h"
 
@@ -232,16 +231,20 @@ obuf_add_mem(obuf_t *obuf, const char *s, size_t len)
 __printflike(2, 3) static bool obuf_printf(obuf_t *obuf, const char *fmt, ...)
 {
     va_list args;
-    char *  cp;
+    va_list argscpy;
+    char *  cp = NULL;
     bool    ret;
     int     cc;
 
     if (obuf && fmt) {
         ret = true;
         va_start(args, fmt);
-        cc = vasprintf(&cp, fmt, args);
+        va_copy(argscpy, args);
+        cc = vsnprintf(cp, 0, fmt, args);
         va_end(args);
-        if (cc > 0) {
+        if( (cc > 0) && ((cp = malloc( 1 + cc)) != NULL)){
+            cc = vsprintf(cp, fmt, argscpy);
+            va_end(argscpy);
             ret = obuf_add_mem(obuf, cp, (size_t) cc);
             free(cp);
         }
