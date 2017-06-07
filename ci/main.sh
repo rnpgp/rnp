@@ -9,12 +9,21 @@ JSON_LIBS="-L${JSON_C_INSTALL}/lib -ljson-c"
 JSON_CFLAGS="-I${JSON_C_INSTALL}/include/json-c"
 
 [ "$BUILD_MODE" = "coverage" ] && CFLAGS+=" -O0 --coverage"
-[ "$BUILD_MODE" = "sanitize" ] && CFLAGS+=" -fsanitize=leak,address,undefined"
+
+# CFLAGS for sanitize and sanitize-leaks
+[ "$BUILD_MODE" = "sanitize" -o "$BUILD_MODE" = "sanitize-leaks" ] && CFLAGS+=" \
+ -fsanitize=leak,address,undefined   \
+ -fno-omit-frame-pointer             \
+ -fno-common"
+
+# No leak detection for main sanitize run (only for sanitize-leaks)
+[ "$BUILD_MODE" = "sanitize" ] && export ASAN_OPTIONS=detect_leaks=0
 
 export LD_LIBRARY_PATH CFLAGS LDFLAGS JSON_CFLAGS JSON_LIBS
 
 autoreconf -vfi
 ./configure --with-botan=${BOTAN_INSTALL}
+make clean
 make -j2
 
 : "${COVERITY_SCAN_BRANCH:=0}"
