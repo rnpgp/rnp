@@ -17,7 +17,7 @@ INTERACTIVE="yes"
 # Leave this stuff
 STASH_NAME="pre-commit-$(date +%s)"
 CONTAINER_NAME="clang-format-$(date +%s)"
-CLANG_VERSION="4.0.0"
+CLANG_FORMAT_VERSION="4.0.0"
 
 apply_patch() {
   local patchfile=$1
@@ -71,7 +71,7 @@ fi
 
 exec 1>&2
 
-$CLANG_FORMAT -version | grep -Fq "$CLANG_VERSION" || (echo Incorrect version of clang-format.; exit 1)
+$CLANG_FORMAT -version | grep -Fq "$CLANG_FORMAT_VERSION" || (echo Incorrect version of clang-format.; exit 1)
 
 patchfile=$(mktemp --tmpdir --suffix=.patch git-clang-format.XXXXXX)
 stash
