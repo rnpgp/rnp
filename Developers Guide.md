@@ -135,7 +135,7 @@ C is a very flexible and powerful language. Because of this, it is important to 
 
 ## Code Formatting
 
-`clang-format` (v4+) can be used to format the code base, utilizing the `.clang-format` file included in the repository.
+`clang-format` (v4.0.0) can be used to format the code base, utilizing the `.clang-format` file included in the repository.
 
 ### clang-format git hook
 
@@ -146,7 +146,7 @@ $ cd rnp
 $ git-hooks/enable.sh
 ```
 
-If you do not have clang-format v4+ available, you can use a docker container for this purpose by setting `USE_DOCKER="yes"` in `git-hooks/pre-commit.sh`.
+If you do not have clang-format v4.0.0 available, you can use a docker container for this purpose by setting `USE_DOCKER="yes"` in `git-hooks/pre-commit.sh`.
 
 This should generally work if you commit from the command line.
 
@@ -160,7 +160,7 @@ If you are not able to use the git hook, you can run clang-format manually.
 $ clang-format -style=file -i src/lib/some_changed_file.c
 ```
 
-(Or, if you do not have clang-form v4 available, use a container)
+(Or, if you do not have clang-form v4.0.0 available, use a container)
 
 ## Style Guide
 

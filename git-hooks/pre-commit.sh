@@ -70,6 +70,8 @@ fi
 
 exec 1>&2
 
+$CLANG_FORMAT -version | grep -Fq 4.0.0 || (echo Incorrect version of clang-format.; exit 1)
+
 patchfile=$(mktemp --tmpdir --suffix=.patch git-clang-format.XXXXXX)
 stash
 trap "cleanup" SIGHUP SIGINT SIGTERM EXIT ERR
