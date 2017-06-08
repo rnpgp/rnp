@@ -466,6 +466,7 @@ pgp_rsa_new_key(const int           numbits,
 
     keydata = pgp_keydata_new();
     if (!rsa_generate_keypair(keydata, numbits, e, hashalg, cipher)) {
+        pgp_keydata_free(keydata);
         return NULL;
     }
     return keydata;
