@@ -325,7 +325,7 @@ rsa_generate_keypair(pgp_key_t *         keydata,
     }
 
     if (e != 65537) {
-        fprintf(stderr, "Unexpected RSA e value %zu, key generation failed\n", e);
+        fprintf(stderr, "Unexpected RSA e value %lu, key generation failed\n", e);
         return false;
     }
 
