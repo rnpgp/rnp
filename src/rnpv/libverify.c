@@ -244,10 +244,10 @@ __printflike(2, 3) static bool obuf_printf(obuf_t *obuf, const char *fmt, ...)
         va_end(args);
         if ((cc > 0) && ((cp = malloc(1 + cc)) != NULL)) {
             cc = vsprintf(cp, fmt, argscpy);
-            va_end(argscpy);
             ret = obuf_add_mem(obuf, cp, (size_t) cc);
             free(cp);
         }
+        va_end(argscpy);
         return ret;
     }
     return false;
