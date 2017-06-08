@@ -53,12 +53,13 @@ You may wish to perform a clean clone for this, like so:
 ``` sh
 $ cd /tmp
 $ git clone git@github.com:riboseinc/rnp.git
+$ cd rnp
 $ git checkout coverity_scan                    # switch to the coverity_scan branch
 $ git rebase master coverity_scan               # replay all commits from master onto coverity_scan
 $ git push -u origin coverity_scan -f           # forcefully push the coverity_scan branch
 ```
 
-Note: Some of these steps are overly verbose, and not all are necessary.
+Note: The `master` and `coverity_scan` branches have separate `.travis.yml` files, so you may need to perform a manual merge. In general, the `coverity_scan` branch's `.travis.yml` is identical to `master`'s, but with a build matrix of only one entry.
 
 The results can be accessed on https://scan.coverity.com/projects/riboseinc-rnp. You will need to create an account and request access to the riboseinc/rnp project.
 
@@ -151,6 +152,8 @@ If you do not have clang-format v4.0.0 available, you can use a docker container
 This should generally work if you commit from the command line.
 
 Note that if you have unstaged changes on some of the files you are attempting to commit, which have formatting issues detected, you will have to resolve this yourself (the script will inform you of this).
+
+If your commit does not touch any `.c`/`.h` files, you can skip the pre-commit hook with git's `--no-verify`/`-n` option.
 
 ### clang-format (manually)
 
