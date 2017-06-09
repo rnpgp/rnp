@@ -108,27 +108,6 @@ pgp_write_ss_header(pgp_output_t *output, unsigned length, pgp_content_enum type
              output, (unsigned) (type - (unsigned) PGP_PTAG_SIG_SUBPKT_BASE), 1);
 }
 
-/*
- * XXX: the general idea of _fast_ is that it doesn't copy stuff the safe
- * (i.e. non _fast_) version will, and so will also need to be freed.
- */
-
-/**
- * \ingroup Core_Create
- *
- * pgp_fast_create_userid() sets id->userid to the given userid.
- * This is fast because it is only copying a char*. However, if userid
- * is changed or freed in the future, this could have injurious results.
- * \param id
- * \param userid
- */
-
-void
-pgp_fast_create_userid(uint8_t **id, uint8_t *userid)
-{
-    *id = userid;
-}
-
 /**
  * \ingroup Core_WritePackets
  * \brief Writes a User Id packet
@@ -202,23 +181,6 @@ seckey_length(const pgp_seckey_t *key)
         (void) fprintf(stderr, "seckey_length: unknown key algorithm\n");
     }
     return 0;
-}
-
-/**
- * \ingroup Core_Create
- * \param key
- * \param t
- * \param n
- * \param e
- */
-void
-pgp_fast_create_rsa_pubkey(pgp_pubkey_t *key, time_t t, BIGNUM *n, BIGNUM *e)
-{
-    key->version = PGP_V4;
-    key->birthtime = t;
-    key->alg = PGP_PKA_RSA;
-    key->key.rsa.n = n;
-    key->key.rsa.e = e;
 }
 
 /*
@@ -634,26 +596,6 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
 }
 
 /**
- * \ingroup Core_WritePackets
- * \brief Writes one RSA public key packet.
- * \param t Creation time
- * \param n RSA public modulus
- * \param e RSA public encryption exponent
- * \param output Writer settings
- *
- * \return 1 if OK, otherwise 0
- */
-
-unsigned
-pgp_write_rsa_pubkey(time_t t, const BIGNUM *n, const BIGNUM *e, pgp_output_t *output)
-{
-    pgp_pubkey_t key;
-
-    pgp_fast_create_rsa_pubkey(&key, t, __UNCONST(n), __UNCONST(e));
-    return write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &key);
-}
-
-/**
  * \ingroup Core_Create
  * \param out
  * \param key
@@ -673,48 +615,6 @@ pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key, unsigned make_packe
         pgp_memory_make_packet(out, PGP_PTAG_CT_PUBLIC_KEY);
     }
     pgp_output_delete(output);
-}
-
-/**
- * \ingroup Core_Create
- *
- * Create an RSA secret key structure. If a parameter is marked as
- * [OPTIONAL], then it can be omitted and will be calculated from
- * other params - or, in the case of e, will default to 0x10001.
- *
- * Parameters are _not_ copied, so will be freed if the structure is
- * freed.
- *
- * \param key The key structure to be initialised.
- * \param t
- * \param d The RSA parameter d (=e^-1 mod (p-1)(q-1)) [OPTIONAL]
- * \param p The RSA parameter p
- * \param q The RSA parameter q (q > p)
- * \param u The RSA parameter u (=p^-1 mod q) [OPTIONAL]
- * \param n The RSA public parameter n (=p*q) [OPTIONAL]
- * \param e The RSA public parameter e */
-
-void
-pgp_fast_create_rsa_seckey(pgp_seckey_t *key,
-                           time_t        t,
-                           BIGNUM *      d,
-                           BIGNUM *      p,
-                           BIGNUM *      q,
-                           BIGNUM *      u,
-                           BIGNUM *      n,
-                           BIGNUM *      e)
-{
-    pgp_fast_create_rsa_pubkey(&key->pubkey, t, n, e);
-
-    /* XXX: calculate optionals */
-    key->key.rsa.d = d;
-    key->key.rsa.p = p;
-    key->key.rsa.q = q;
-    key->key.rsa.u = u;
-
-    key->s2k_usage = PGP_S2KU_NONE;
-
-    /* XXX: sanity check and add errors... */
 }
 
 /**
