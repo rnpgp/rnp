@@ -77,6 +77,7 @@
  */
 #include <stdlib.h>
 #include "crypto.h"
+#include "bn.h"
 
 unsigned
 pgp_dsa_verify(const uint8_t *         hash,
@@ -107,23 +108,6 @@ pgp_dsa_verify(const uint8_t *         hash,
     free(encoded_signature);
 
     return valid;
-}
-
-DSA_SIG *
-DSA_SIG_new()
-{
-    DSA_SIG *sig = calloc(1, sizeof(DSA_SIG));
-    sig->r = calloc(1, sizeof(BIGNUM));
-    sig->s = calloc(1, sizeof(BIGNUM));
-    return sig;
-}
-
-void
-DSA_SIG_free(DSA_SIG *sig)
-{
-    BN_clear_free(sig->r);
-    BN_clear_free(sig->s);
-    free(sig);
 }
 
 DSA_SIG *
@@ -160,8 +144,6 @@ pgp_dsa_sign(uint8_t *               hashbuf,
 
     // Now load the DSA (r,s) values from the signature
     ret = DSA_SIG_new();
-    botan_mp_init(&(ret->r->mp));
-    botan_mp_init(&(ret->s->mp));
 
     botan_mp_from_bin(ret->r->mp, sigbuf, q_bytes);
     botan_mp_from_bin(ret->s->mp, sigbuf + q_bytes, q_bytes);

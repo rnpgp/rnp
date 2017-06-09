@@ -78,7 +78,7 @@
 
 #include <stdlib.h>
 #include <string.h>
-
+#include "bn.h"
 #include "crypto.h"
 
 #define FAIL(str)                                                                      \

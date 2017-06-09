@@ -967,6 +967,11 @@ sig_free(pgp_sig_t *sig)
         free_BN(&sig->info.sig.elgamal.s);
         break;
 
+    case PGP_PKA_EDDSA:
+        free_BN(&sig->info.sig.ecc.r);
+        free_BN(&sig->info.sig.ecc.s);
+        break;
+
     case PGP_PKA_PRIVATE00:
     case PGP_PKA_PRIVATE01:
     case PGP_PKA_PRIVATE02:
@@ -1203,6 +1208,10 @@ pgp_pubkey_free(pgp_pubkey_t *p)
         free_BN(&p->key.dsa.y);
         break;
 
+    case PGP_PKA_EDDSA:
+        free(&p->key.ecc.oid);
+        free_BN(&p->key.ecc.point);
+
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         free_BN(&p->key.elgamal.p);
@@ -1281,6 +1290,18 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
             return 0;
         }
         break;
+
+    case PGP_PKA_EDDSA:
+       if (!limread(&c, 1, region, stream))
+          return 0;
+       if (c == 0 || c == 0xFF)
+          return 0; // reserved values
+       key->key.ecc.oid = malloc(c);
+       if (!limread(key->key.ecc.oid, c, region, stream))
+          return 0;
+       if (!limread_mpi(&key->key.ecc.point, region, stream))
+          return 0;
+       break;
 
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
@@ -1522,6 +1543,13 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_DSA:
         if (!limread_mpi(&pkt.u.sig.info.sig.dsa.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.dsa.s, region, stream)) {
+            return 0;
+        }
+        break;
+
+    case PGP_PKA_EDDSA:
+        if (!limread_mpi(&pkt.u.sig.info.sig.ecc.r, region, stream) ||
+            !limread_mpi(&pkt.u.sig.info.sig.ecc.s, region, stream)) {
             return 0;
         }
         break;
@@ -2045,6 +2073,13 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
         }
         break;
 
+    case PGP_PKA_EDDSA:
+        if (!limread_mpi(&pkt.u.sig.info.sig.ecc.r, region, stream) ||
+            !limread_mpi(&pkt.u.sig.info.sig.ecc.s, region, stream)) {
+            return 0;
+        }
+        break;
+
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         if (!limread_mpi(&pkt.u.sig.info.sig.elgamal.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.elgamal.s, region, stream)) {
@@ -2328,6 +2363,10 @@ pgp_seckey_free(pgp_seckey_t *key)
         free_BN(&key->key.dsa.x);
         break;
 
+    case PGP_PKA_EDDSA:
+        free_BN(&key->key.ecc.x);
+        break;
+
     default:
         (void) fprintf(stderr,
                        "pgp_seckey_free: Unknown algorithm: %d (%s)\n",
@@ -2568,6 +2607,12 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 
     case PGP_PKA_DSA:
         if (!limread_mpi(&pkt.u.seckey.key.dsa.x, region, stream)) {
+            ret = 0;
+        }
+        break;
+
+    case PGP_PKA_EDDSA:
+        if (!limread_mpi(&pkt.u.seckey.key.ecc.x, region, stream)) {
             ret = 0;
         }
         break;

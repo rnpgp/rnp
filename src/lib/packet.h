@@ -355,6 +355,7 @@ typedef enum {
     PGP_PKA_RESERVED_DH = 21,             /* Reserved for Diffie-Hellman
                                            * (X9.42, as defined for
                                            * IETF-S/MIME) */
+    PGP_PKA_EDDSA = 22,                   /* EdDSA */
     PGP_PKA_PRIVATE00 = 100,              /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE01 = 101,              /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE02 = 102,              /* Private/Experimental Algorithm */
@@ -400,6 +401,17 @@ typedef struct {
                 * with x being the secret) */
 } pgp_elgamal_pubkey_t;
 
+/** Structure to hold an ECC public key params.
+ *
+ * \see RFC 6637
+ */
+typedef struct {
+    uint8_t oid_len;
+    uint8_t *oid;
+    BIGNUM *point; /* octet string encoded as MPI */
+} pgp_ecc_pubkey_t;
+
+
 /** Version.
  * OpenPGP has two different protocol versions: version 3 and version 4.
  *
@@ -426,6 +438,7 @@ typedef struct {
         pgp_dsa_pubkey_t     dsa;     /* A DSA public key */
         pgp_rsa_pubkey_t     rsa;     /* An RSA public key */
         pgp_elgamal_pubkey_t elgamal; /* An ElGamal public key */
+        pgp_ecc_pubkey_t     ecc;     /* An ECC public key */
     } key;                            /* Public Key Parameters */
 } pgp_pubkey_t;
 
@@ -447,6 +460,11 @@ typedef struct {
 typedef struct {
     BIGNUM *x;
 } pgp_elgamal_seckey_t;
+
+/** pgp_ecc_seckey_t */
+typedef struct {
+    BIGNUM *x;
+} pgp_ecc_seckey_t;
 
 /** s2k_usage_t
  */
@@ -520,6 +538,7 @@ typedef struct pgp_seckey_t {
         pgp_rsa_seckey_t     rsa;
         pgp_dsa_seckey_t     dsa;
         pgp_elgamal_seckey_t elgamal;
+        pgp_ecc_seckey_t ecc;
     } key;
     unsigned checksum;
     uint8_t *checkhash;
@@ -582,6 +601,12 @@ typedef struct pgp_elgamal_sig_t {
     BIGNUM *s;
 } pgp_elgamal_sig_t;
 
+/** pgp_ecc_signature_t */
+typedef struct pgp_ecc_sig_t {
+    BIGNUM *r;
+    BIGNUM *s;
+} pgp_ecc_sig_t;
+
 #define PGP_KEY_ID_SIZE 8
 #define PGP_FINGERPRINT_SIZE 20
 
@@ -603,6 +628,7 @@ typedef struct pgp_sig_info_t {
         pgp_rsa_sig_t     rsa;     /* An RSA Signature */
         pgp_dsa_sig_t     dsa;     /* A DSA Signature */
         pgp_elgamal_sig_t elgamal; /* deprecated */
+        pgp_ecc_sig_t     ecc;     /* An ECDSA or EdDSA signature */
         pgp_data_t        unknown; /* private or experimental */
     } sig;                         /* signature params */
     size_t   v4_hashlen;

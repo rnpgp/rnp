@@ -206,6 +206,40 @@ dsa_sign(pgp_hash_t *            hash,
     return 1;
 }
 
+static int
+eddsa_sign(pgp_hash_t *            hash,
+           const pgp_ecc_pubkey_t *pubkey,
+           const pgp_ecc_seckey_t *seckey,
+           pgp_output_t *          output)
+{
+    uint8_t  hashbuf[RNP_BUFSIZ];
+
+    /* finalise hash */
+    unsigned hashsize = pgp_hash_finish(hash, &hashbuf[0]);
+
+    pgp_write(output, &hashbuf[0], 2);
+
+    /* write signature to buf */
+    BIGNUM* r = BN_new();
+    BIGNUM* s = BN_new();
+    if(pgp_eddsa_sign_hash(r, s, hashbuf, hashsize, seckey, pubkey) < 0)
+       return 0;
+
+    /* convert and write the sig out to memory */
+    pgp_write_mpi(output, r);
+    pgp_write_mpi(output, s);
+    return 1;
+}
+
+static unsigned
+eddsa_verify(const uint8_t *         hash,
+             size_t                  hash_length,
+             const pgp_ecc_sig_t *   sig,
+             const pgp_ecc_pubkey_t *pubecc)
+{
+return 0;
+}
+
 static unsigned
 rsa_verify(pgp_hash_alg_t          hash_alg,
            const uint8_t *         hash,
@@ -297,6 +331,10 @@ pgp_check_sig(const uint8_t *     hash,
     switch (sig->info.key_alg) {
     case PGP_PKA_DSA:
         ret = pgp_dsa_verify(hash, length, &sig->info.sig.dsa, &signer->key.dsa);
+        break;
+
+    case PGP_PKA_EDDSA:
+        ret = eddsa_verify(hash, length, &sig->info.sig.ecc, &signer->key.ecc);
         break;
 
     case PGP_PKA_RSA:
@@ -646,6 +684,13 @@ pgp_write_sig(pgp_output_t *      output,
         }
         break;
 
+    case PGP_PKA_EDDSA:
+        if (seckey->key.ecc.x == NULL) {
+            (void) fprintf(stderr, "pgp_write_sig: null ecc.x\n");
+            return 0;
+        }
+        break;
+
     default:
         (void) fprintf(stderr, "Unsupported algorithm %d\n", seckey->pubkey.alg);
         return 0;
@@ -681,6 +726,13 @@ pgp_write_sig(pgp_output_t *      output,
     case PGP_PKA_RSA_SIGN_ONLY:
         if (!rsa_sign(&sig->hash, &key->key.rsa, &seckey->key.rsa, sig->output)) {
             (void) fprintf(stderr, "pgp_write_sig: rsa_sign failure\n");
+            return 0;
+        }
+        break;
+
+    case PGP_PKA_EDDSA:
+        if (!eddsa_sign(&sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
+            (void) fprintf(stderr, "pgp_write_sig: dsa_sign failure\n");
             return 0;
         }
         break;

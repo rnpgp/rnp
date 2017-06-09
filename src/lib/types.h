@@ -51,9 +51,7 @@
 #ifndef TYPES_H_
 #define TYPES_H_
 
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#endif
+#include <stdint.h>
 
 typedef struct pgp_io_t {
     void *outs; /* output file stream */

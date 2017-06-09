@@ -84,6 +84,8 @@
 #include "rnpdefs.h"
 #include "s2k.h"
 #include "packet-key.h"
+#include "bn.h"
+
 #include "../common/utils.h"
 /**
    \ingroup Core_Crypto

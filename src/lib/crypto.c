@@ -534,19 +534,3 @@ pgp_crypto_finish(void)
     // currently empty implementation
 }
 
-BIGNUM *
-new_BN_take_mp(botan_mp_t mp)
-{
-    PGPV_BIGNUM *a;
-
-    a = calloc(1, sizeof(*a));
-    a->mp = mp;
-    return a;
-}
-
-void
-destroy_BN_mp(BIGNUM **a)
-{
-    free(*a);
-    *a = NULL;
-}

@@ -55,20 +55,15 @@
 #ifndef CRYPTO_H_
 #define CRYPTO_H_
 
-#include <botan/ffi.h>
 #include "hash.h"
 #include "key_store_pgp.h"
 #include "packet.h"
 #include "memory.h"
 #include "packet-parse.h"
 #include "symmetric.h"
-#include "bn.h"
+#include "eddsa.h"
 
 #define PGP_MIN_HASH_SIZE 16
-
-struct PGPV_BIGNUM_st {
-    botan_mp_t mp;
-};
 
 void pgp_crypto_finish(void);
 
@@ -221,14 +216,7 @@ pgp_key_t *pgp_rsa_new_key(const int, const unsigned long, const char *, const c
 
 int pgp_dsa_size(const pgp_dsa_pubkey_t *);
 
-typedef struct {
-    BIGNUM *r;
-    BIGNUM *s;
-} DSA_SIG;
-
-DSA_SIG *DSA_SIG_new();
-void DSA_SIG_free(DSA_SIG *sig);
-
+typedef struct DSA_SIG_st DSA_SIG;
 DSA_SIG *pgp_dsa_sign(uint8_t *, unsigned, const pgp_dsa_seckey_t *, const pgp_dsa_pubkey_t *);
 
 int read_pem_seckey(const char *, pgp_key_t *, const char *, int);
@@ -327,11 +315,5 @@ struct pgp_stream_t {
     unsigned virtualoff;
     uint8_t *virtualpkt;
 };
-
-/**
- * \brief Allocates BIGNUM and mp value assigned
- */
-BIGNUM *new_BN_take_mp(botan_mp_t mp);
-void destroy_BN_mp(BIGNUM **a);
 
 #endif /* CRYPTO_H_ */
