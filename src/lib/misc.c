@@ -376,21 +376,18 @@ int
 pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t hashtype)
 {
     pgp_memory_t *mem;
-    pgp_hash_t    hash;
+    pgp_hash_t    hash = {0};
     const char *  type;
     uint32_t      len;
 
-    mem = pgp_memory_new();
     if (key->version == 2 || key->version == 3) {
         if (key->alg != PGP_PKA_RSA && key->alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
-            key->alg != PGP_PKA_RSA_SIGN_ONLY) {
+                key->alg != PGP_PKA_RSA_SIGN_ONLY) {
             (void) fprintf(stderr, "pgp_fingerprint: bad algorithm\n");
-            pgp_memory_free(mem);
             return 0;
         }
         if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad md5 alloc\n");
-            pgp_memory_free(mem);
             return 0;
         }
         hash_bignum(&hash, key->key.rsa.n);
@@ -402,30 +399,30 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
     } else if (hashtype == PGP_HASH_MD5) {
         if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad md5 alloc\n");
-            pgp_memory_free(mem);
             return 0;
         }
         type = (key->alg == PGP_PKA_RSA) ? "ssh-rsa" : "ssh-dss";
         hash_string(&hash, (const uint8_t *) (const void *) type, (unsigned) strlen(type));
         switch (key->alg) {
-        case PGP_PKA_RSA:
-            hash_bignum(&hash, key->key.rsa.e);
-            hash_bignum(&hash, key->key.rsa.n);
-            break;
-        case PGP_PKA_DSA:
-            hash_bignum(&hash, key->key.dsa.p);
-            hash_bignum(&hash, key->key.dsa.q);
-            hash_bignum(&hash, key->key.dsa.g);
-            hash_bignum(&hash, key->key.dsa.y);
-            break;
-        default:
-            break;
+            case PGP_PKA_RSA:
+                hash_bignum(&hash, key->key.rsa.e);
+                hash_bignum(&hash, key->key.rsa.n);
+                break;
+            case PGP_PKA_DSA:
+                hash_bignum(&hash, key->key.dsa.p);
+                hash_bignum(&hash, key->key.dsa.q);
+                hash_bignum(&hash, key->key.dsa.g);
+                hash_bignum(&hash, key->key.dsa.y);
+                break;
+            default:
+                break;
         }
         fp->length = pgp_hash_finish(&hash, fp->fingerprint);
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "md5 fingerprint", fp->fingerprint, fp->length);
         }
     } else {
+        mem = pgp_memory_new();
         pgp_build_pubkey(mem, key, 0);
         if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad sha1 alloc\n");
@@ -496,7 +493,7 @@ pgp_calc_mdc_hash(const uint8_t *preamble,
                   const unsigned sz_plaintext,
                   uint8_t *      hashed)
 {
-    pgp_hash_t hash;
+    pgp_hash_t hash = {0};
     uint8_t    c;
 
     if (rnp_get_debug(__FILE__)) {
@@ -952,7 +949,7 @@ rnp_set_debug(const char *f)
     } else {
         name += 1;
     }
-    for (i = 0; i < debugc && i < MAX_DEBUG_NAMES; i++) {
+    for (i = 0; ((i < MAX_DEBUG_NAMES) && (i < debugc)); i++) {
         if (strcmp(debugv[i], name) == 0) {
             return 1;
         }
