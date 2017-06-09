@@ -471,7 +471,7 @@ pgp_add_subpacket(pgp_key_t *keydata, const pgp_subpacket_t *packet)
 \return 1 if OK; else 0
 */
 unsigned
-pgp_add_selfsigned_userid(pgp_key_t *key, uint8_t *userid)
+pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
 {
     struct pgp_create_sig_t *sig;
     pgp_subpacket_t          sigpacket;

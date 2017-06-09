@@ -49,42 +49,25 @@
  * limitations under the License.
  */
 
-#ifndef RNP_PACKET_KEY_H
-#define RNP_PACKET_KEY_H
+#ifndef RNP_DSA_H_
+#define RNP_DSA_H_
 
-#include <stdio.h>
+#include <stdint.h>
 #include "packet.h"
 
-struct pgp_key_t *pgp_keydata_new(void);
+/* TODO key generation */
 
-void pgp_keydata_free(pgp_key_t *);
+/* DSA signature/verify */
 
-const pgp_pubkey_t *pgp_get_pubkey(const pgp_key_t *);
+typedef struct DSA_SIG_st DSA_SIG;
 
-unsigned pgp_is_key_secret(const pgp_key_t *);
+int pgp_dsa_size(const pgp_dsa_pubkey_t *);
 
-const struct pgp_seckey_t *pgp_get_seckey(const pgp_key_t *);
+DSA_SIG *pgp_dsa_sign(uint8_t *, unsigned, const pgp_dsa_seckey_t *, const pgp_dsa_pubkey_t *);
 
-pgp_seckey_t *pgp_get_writable_seckey(pgp_key_t *);
+unsigned pgp_dsa_verify(const uint8_t *,
+                        size_t,
+                        const pgp_dsa_sig_t *,
+                        const pgp_dsa_pubkey_t *);
 
-pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *, FILE *);
-
-void pgp_set_seckey(pgp_contents_t *, const pgp_key_t *);
-
-const unsigned char *pgp_get_key_id(const pgp_key_t *);
-
-unsigned pgp_get_userid_count(const pgp_key_t *);
-
-const unsigned char *pgp_get_userid(const pgp_key_t *, unsigned);
-
-unsigned pgp_is_key_supported(const pgp_key_t *);
-
-unsigned char *pgp_add_userid(pgp_key_t *, const unsigned char *);
-
-struct pgp_subpacket_t *pgp_add_subpacket(pgp_key_t *, const pgp_subpacket_t *);
-
-unsigned pgp_add_selfsigned_userid(pgp_key_t *, const unsigned char *);
-
-void pgp_keydata_init(pgp_key_t *, const pgp_content_enum);
-
-#endif // RNP_PACKET_KEY_H
+#endif

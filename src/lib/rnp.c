@@ -1275,8 +1275,9 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
           newid, sizeof(newid), "RSA %d-bit key <%s@localhost>", numbits, getenv("LOGNAME"));
     }
     uid = (uint8_t *) newid;
-    key = pgp_rsa_new_selfsign_key(
-      numbits, 65537UL, uid, rnp_getvar(rnp, "hash"), rnp_getvar(rnp, "cipher"));
+    key = pgp_generate_keypair(PGP_PKA_RSA, numbits, uid,
+                               rnp_getvar(rnp, "hash"), rnp_getvar(rnp, "cipher"));
+
     if (key == NULL) {
         (void) fprintf(io->errs, "cannot generate key\n");
         return 0;

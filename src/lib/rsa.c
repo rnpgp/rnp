@@ -79,14 +79,12 @@
 #include <stdbool.h>
 
 #include "config.h"
-#include "crypto.h"
-#include "readerwriter.h"
 #include "rnpdefs.h"
-#include "s2k.h"
-#include "packet-key.h"
+#include "rsa.h"
 #include "bn.h"
 
 #include "../common/utils.h"
+
 /**
    \ingroup Core_Crypto
    \brief Decrypt PKCS1 formatted RSA ciphertext
@@ -296,180 +294,47 @@ done:
     return retval;
 }
 
-/**
- \ingroup HighLevel_KeyGenerate
- \brief Generates an RSA keypair
- \param numbits Modulus size
- \param e Public Exponent
- \param keydata Pointer to keydata struct to hold new key
- \return 1 if key generated successfully; otherwise 0
- \note It is the caller's responsibility to call pgp_keydata_free(keydata)
-*/
-static bool
-rsa_generate_keypair(pgp_key_t *         keydata,
-                     const int           numbits,
-                     const unsigned long e,
-                     const char *        hashalg,
-                     const char *        cipher)
-{
-    pgp_seckey_t *  seckey = NULL;
-    pgp_output_t *  output = NULL;
-    pgp_memory_t *  mem = NULL;
-    botan_privkey_t rsa_key = NULL;
-    botan_rng_t     rng = NULL;
-    botan_mp_t      rsa_n, rsa_e, rsa_d, rsa_p, rsa_q, rsa_u;
-    bool            ret = false;
+int pgp_genkey_rsa(pgp_seckey_t* seckey, size_t numbits)
+   {
+   botan_privkey_t rsa_key = NULL;
+   botan_rng_t     rng = NULL;
+   int ret = -1;
 
-    pgp_keydata_init(keydata, PGP_PTAG_CT_SECRET_KEY);
-    seckey = pgp_get_writable_seckey(keydata);
-    if (!seckey) {
-        return false;
-    }
+   if (botan_rng_init(&rng, NULL) != 0)
+      goto end;
 
-    if (e != 65537) {
-        fprintf(stderr, "Unexpected RSA e value %lu, key generation failed\n", e);
-        return false;
-    }
+   if (botan_privkey_create_rsa(&rsa_key, rng, numbits) != 0)
+      goto end;
 
-    botan_mp_init(&rsa_n);
-    botan_mp_init(&rsa_e);
-    botan_mp_init(&rsa_d);
-    botan_mp_init(&rsa_p);
-    botan_mp_init(&rsa_q);
-    botan_mp_init(&rsa_u);
+   if (botan_privkey_check_key(rsa_key, rng, 1) != 0)
+      goto end;
 
-    CHECK_BOTAN(botan_rng_init(&rng, NULL), false);
-    CHECK_BOTAN(botan_privkey_create_rsa(&rsa_key, rng, numbits), false);
-    CHECK_BOTAN(botan_privkey_check_key(rsa_key, rng, 1), false);
+   /* Calls below never fail as calls above were OK */
+   seckey->pubkey.key.rsa.n = BN_new();
+   seckey->pubkey.key.rsa.e = BN_new();
+   seckey->key.rsa.p = BN_new();
+   seckey->key.rsa.q = BN_new();
+   seckey->key.rsa.d = BN_new();
+   seckey->key.rsa.u = BN_new();
 
-    /* Calls below never fail as calls above were OK */
-    (void) botan_privkey_rsa_get_n(rsa_n, rsa_key);
-    (void) botan_privkey_rsa_get_e(rsa_e, rsa_key);
-    (void) botan_privkey_rsa_get_p(rsa_p, rsa_key);
-    (void) botan_privkey_rsa_get_q(rsa_q, rsa_key);
-    (void) botan_privkey_rsa_get_d(rsa_d, rsa_key);
+   (void) botan_privkey_rsa_get_n(seckey->pubkey.key.rsa.n->mp, rsa_key);
+   (void) botan_privkey_rsa_get_e(seckey->pubkey.key.rsa.e->mp, rsa_key);
+   (void) botan_privkey_rsa_get_d(seckey->key.rsa.d->mp, rsa_key);
+   (void) botan_privkey_rsa_get_p(seckey->key.rsa.p->mp, rsa_key);
+   (void) botan_privkey_rsa_get_q(seckey->key.rsa.q->mp, rsa_key);
 
-    if (botan_mp_mod_inverse(rsa_u, rsa_p, rsa_q) || botan_mp_is_zero(rsa_u)) {
-        RNP_LOG("Error computing RSA u param");
-        goto end;
-    }
+   if (botan_mp_mod_inverse(seckey->key.rsa.u->mp,
+                            seckey->key.rsa.p->mp,
+                            seckey->key.rsa.q->mp) != 0)
+      {
+      RNP_LOG("Error computing RSA u param");
+      goto end;
+      }
 
-    /* populate pgp key from ssl key */
-    seckey->pubkey.version = PGP_V4;
-    seckey->pubkey.birthtime = time(NULL);
-    seckey->pubkey.days_valid = 0;
-    seckey->pubkey.alg = PGP_PKA_RSA;
+   ret = 1;
 
-    // not released by this function
-    seckey->pubkey.key.rsa.n = new_BN_take_mp(rsa_n);
-    seckey->pubkey.key.rsa.e = new_BN_take_mp(rsa_e);
-
-    seckey->s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
-    seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
-
-    if ((seckey->hash_alg = pgp_str_to_hash_alg(hashalg)) == PGP_HASH_UNKNOWN) {
-        seckey->hash_alg = PGP_HASH_SHA1;
-    }
-    seckey->alg = pgp_str_to_cipher(cipher);
-    seckey->checksum = 0;
-
-    seckey->key.rsa.d = new_BN_take_mp(rsa_d);
-    seckey->key.rsa.p = new_BN_take_mp(rsa_p);
-    seckey->key.rsa.q = new_BN_take_mp(rsa_q);
-    seckey->key.rsa.u = new_BN_take_mp(rsa_u);
-
-    CHECK(pgp_keyid(
-            keydata->sigid, PGP_KEY_ID_SIZE, &keydata->key.seckey.pubkey, seckey->hash_alg),
-          1,
-          false);
-    CHECK(
-      pgp_fingerprint(&keydata->sigfingerprint, &keydata->key.seckey.pubkey, seckey->hash_alg),
-      1,
-      false);
-
-    /* Generate checksum */
-    pgp_setup_memory_write(&output, &mem, 128);
-    pgp_push_checksum_writer(output, seckey);
-
-    if ((seckey->pubkey.alg != PGP_PKA_RSA) &&
-        (seckey->pubkey.alg != PGP_PKA_RSA_ENCRYPT_ONLY) &&
-        (seckey->pubkey.alg != PGP_PKA_RSA_SIGN_ONLY)) {
-        RNP_LOG("Bad seckey->pubkey.alg");
-        goto end;
-    }
-
-    CHECK(pgp_write_mpi(output, seckey->key.rsa.d), true, false);
-    CHECK(pgp_write_mpi(output, seckey->key.rsa.p), true, false);
-    CHECK(pgp_write_mpi(output, seckey->key.rsa.q), true, false);
-    CHECK(pgp_write_mpi(output, seckey->key.rsa.u), true, false);
-    ret = true;
-
-end:
-    if (!ret) {
-        botan_mp_destroy(rsa_n);
-        botan_mp_destroy(rsa_e);
-        botan_mp_destroy(rsa_d);
-        botan_mp_destroy(rsa_p);
-        botan_mp_destroy(rsa_q);
-        botan_mp_destroy(rsa_u);
-
-        destroy_BN_mp(&seckey->pubkey.key.rsa.n);
-        destroy_BN_mp(&seckey->pubkey.key.rsa.e);
-        destroy_BN_mp(&seckey->key.rsa.d);
-        destroy_BN_mp(&seckey->key.rsa.p);
-        destroy_BN_mp(&seckey->key.rsa.q);
-        destroy_BN_mp(&seckey->key.rsa.u);
-    }
-
-    pgp_teardown_memory_write(output, mem);
-    botan_privkey_destroy(rsa_key);
-    botan_rng_destroy(rng);
-    return ret;
-}
-
-/**
- \ingroup HighLevel_KeyGenerate
- \brief Creates a self-signed RSA keypair
- \param numbits Modulus size
- \param e Public Exponent
- \param userid User ID
- \return The new keypair or NULL
-
- \note It is the caller's responsibility to call pgp_keydata_free(keydata)
- \sa rsa_generate_keypair()
- \sa pgp_keydata_free()
-*/
-pgp_key_t *
-pgp_rsa_new_selfsign_key(const int           numbits,
-                         const unsigned long e,
-                         uint8_t *           userid,
-                         const char *        hashalg,
-                         const char *        cipher)
-{
-    pgp_key_t *keydata;
-
-    keydata = pgp_keydata_new();
-    if (!rsa_generate_keypair(keydata, numbits, e, hashalg, cipher) ||
-        !pgp_add_selfsigned_userid(keydata, userid)) {
-        pgp_keydata_free(keydata);
-        return NULL;
-    }
-    return keydata;
-}
-
-pgp_key_t *
-pgp_rsa_new_key(const int           numbits,
-                const unsigned long e,
-                const char *        hashalg,
-                const char *        cipher)
-{
-    pgp_key_t *keydata = NULL;
-
-    keydata = pgp_keydata_new();
-    if (!rsa_generate_keypair(keydata, numbits, e, hashalg, cipher)) {
-        pgp_keydata_free(keydata);
-        return NULL;
-    }
-    return keydata;
-}
+   end:
+   botan_privkey_destroy(rsa_key);
+   botan_rng_destroy(rng);
+   return ret;
+   }

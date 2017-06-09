@@ -76,7 +76,7 @@
 /** \file
  */
 #include <stdlib.h>
-#include "crypto.h"
+#include "dsa.h"
 #include "bn.h"
 
 unsigned

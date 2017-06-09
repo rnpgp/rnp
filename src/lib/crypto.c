@@ -72,11 +72,17 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 
 #include "types.h"
 #include "bn.h"
+#include "rsa.h"
+#include "elgamal.h"
+#include "eddsa.h"
 #include "crypto.h"
 #include "readerwriter.h"
 #include "memory.h"
 #include "rnpdefs.h"
 #include "signature.h"
+#include "packet-key.h"
+#include "s2k.h"
+#include "../common/utils.h"
 
 /**
 \ingroup Core_MPI
@@ -190,6 +196,109 @@ pgp_elgamal_encrypt_mpi(const uint8_t *          encoded_m_buf,
         hexdump(stderr, "encrypted mpi", encmpibuf, 16);
     }
     return 1;
+}
+
+pgp_key_t*
+pgp_generate_keypair(pgp_pubkey_alg_t    alg,
+                     const int           alg_params,
+                     const uint8_t*      userid,
+                     const char*         hashalg,
+                     const char*         cipher)
+{
+    pgp_seckey_t *  seckey = NULL;
+    pgp_output_t *  output = NULL;
+    pgp_memory_t *  mem = NULL;
+    pgp_key_t *keydata = NULL;
+    bool ok = false;
+
+    keydata = pgp_keydata_new();
+    if (!keydata)
+       goto end;
+
+    pgp_keydata_init(keydata, PGP_PTAG_CT_SECRET_KEY);
+    seckey = pgp_get_writable_seckey(keydata);
+    if (!seckey)
+       goto end;
+
+    /* populate pgp key structure */
+    seckey->pubkey.version = PGP_V4;
+    seckey->pubkey.birthtime = time(NULL);
+    seckey->pubkey.days_valid = 0;
+    seckey->pubkey.alg = alg;
+
+    if(seckey->pubkey.alg == PGP_PKA_RSA ||
+       seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
+       seckey->pubkey.alg == PGP_PKA_RSA_SIGN_ONLY)
+       {
+       pgp_genkey_rsa(seckey, alg_params);
+       }
+    else if(seckey->pubkey.alg == PGP_PKA_EDDSA)
+       {
+       pgp_genkey_eddsa(seckey, alg_params);
+       }
+    else
+       {
+       goto end;
+       }
+
+    seckey->s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
+    seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
+
+    if ((seckey->hash_alg = pgp_str_to_hash_alg(hashalg)) == PGP_HASH_UNKNOWN) {
+        seckey->hash_alg = PGP_HASH_SHA1;
+    }
+    seckey->alg = pgp_str_to_cipher(cipher);
+    seckey->checksum = 0;
+
+    if (pgp_keyid(keydata->sigid, PGP_KEY_ID_SIZE, &keydata->key.seckey.pubkey, seckey->hash_alg) != 1)
+       goto end;
+
+    if (pgp_fingerprint(&keydata->sigfingerprint, &keydata->key.seckey.pubkey, seckey->hash_alg) != 1)
+       goto end;
+
+    /* Generate checksum */
+    pgp_setup_memory_write(&output, &mem, 128);
+    pgp_push_checksum_writer(output, seckey);
+
+    if(seckey->pubkey.alg == PGP_PKA_RSA ||
+       seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
+       seckey->pubkey.alg == PGP_PKA_RSA_SIGN_ONLY)
+       {
+       if(pgp_write_mpi(output, seckey->key.rsa.d) != 1 ||
+          pgp_write_mpi(output, seckey->key.rsa.p) != 1 ||
+          pgp_write_mpi(output, seckey->key.rsa.q) != 1 ||
+          pgp_write_mpi(output, seckey->key.rsa.u) != 1)
+          goto end;
+       }
+    else if(seckey->pubkey.alg == PGP_PKA_EDDSA)
+       {
+       //...
+       //ret = true;
+       }
+    else
+       {
+       RNP_LOG("Bad seckey->pubkey.alg");
+       goto end;
+       }
+
+    if(userid != NULL && !pgp_add_selfsigned_userid(keydata, userid))
+       {
+       goto end;
+       }
+
+    ok = true;
+
+end:
+    pgp_teardown_memory_write(output, mem);
+
+    if (ok == false)
+       {
+       pgp_keydata_free(keydata);
+       return NULL;
+       }
+    else
+       return keydata;
 }
 
 static pgp_cb_ret_t
