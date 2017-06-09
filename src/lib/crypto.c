@@ -542,7 +542,7 @@ new_BN_take_mp(botan_mp_t mp)
 {
     PGPV_BIGNUM *a;
 
-    if((a = calloc(1, sizeof(*a))){
+    if((a = calloc(1, sizeof(*a)))){
             return NULL;
     }
 
