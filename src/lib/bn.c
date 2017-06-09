@@ -181,7 +181,7 @@ PGPV_BN_div(PGPV_BIGNUM *      dv,
             const PGPV_BIGNUM *d,
             PGPV_BN_CTX *      ctx)
 {
-    if ((dv == NULL && rem == NULL) || a == NULL || d == NULL) {
+    if ( (dv == NULL) || (rem == NULL) || (a == NULL) || (d == NULL)) {
         return 0;
     }
     USE_ARG(ctx);
