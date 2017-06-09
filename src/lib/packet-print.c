@@ -1691,16 +1691,20 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
     char *        cp;
 
     __PGP_USED(io);
-    if ((cp = (char *)malloc(pgp_mem_len(mem))) == NULL){
-        return NULL;
-    }
     pgp_setup_memory_write(&output, &mem, 128);
+
     if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
         pgp_write_xfer_pubkey(output, keydata, NULL, 1);
     } else {
         pgp_write_xfer_seckey(
           output, keydata, passphrase, strlen((char *) passphrase), NULL, 1);
     }
+
+    if ((cp = (char *)malloc(pgp_mem_len(mem))) == NULL){
+        pgp_teardown_memory_write(output, mem);
+        return NULL;
+    }
+
     memcpy(cp, pgp_mem_data(mem), pgp_mem_len(mem));
     pgp_teardown_memory_write(output, mem);
     return cp;
