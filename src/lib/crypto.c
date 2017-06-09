@@ -286,6 +286,7 @@ pgp_encrypt_file(pgp_io_t *       io,
     __PGP_USED(io);
     inmem = pgp_memory_new();
     if (!pgp_mem_readfile(inmem, infile)) {
+        pgp_memory_free(inmem);
         return 0;
     }
     fd_out = pgp_setup_file_write(&output, outfile, allow_overwrite);
@@ -409,6 +410,7 @@ pgp_decrypt_file(pgp_io_t *       io,
             if ((filename = calloc(1, filenamelen + 1)) == NULL) {
                 (void) fprintf(
                   stderr, "can't allocate %" PRIsize "d bytes\n", (size_t)(filenamelen + 1));
+                pgp_teardown_file_read(parse, fd_in);
                 return 0;
             }
             (void) strncpy(filename, infile, filenamelen);
@@ -458,10 +460,11 @@ pgp_decrypt_file(pgp_io_t *       io,
         pgp_teardown_file_write(parse->cbinfo.output, fd_out);
         free(filename);
     }
-    pgp_teardown_file_read(parse, fd_in);
-    /* \todo cleardown crypt */
 
+    /* \todo cleardown crypt */
     ret = (ret && parse->cbinfo.gotpass);
+
+    pgp_teardown_file_read(parse, fd_in);
     return ret;
 }
 
@@ -539,7 +542,10 @@ new_BN_take_mp(botan_mp_t mp)
 {
     PGPV_BIGNUM *a;
 
-    a = calloc(1, sizeof(*a));
+    if((a = calloc(1, sizeof(*a))){
+            return NULL;
+    }
+
     a->mp = mp;
     return a;
 }
