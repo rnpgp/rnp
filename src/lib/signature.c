@@ -239,7 +239,7 @@ eddsa_verify(const uint8_t *         hash,
              const pgp_ecc_sig_t *   sig,
              const pgp_ecc_pubkey_t *pubecc)
 {
-return 0;
+    return pgp_eddsa_verify_hash(sig->r, sig->s, hash, hash_length, pubecc);
 }
 
 static unsigned

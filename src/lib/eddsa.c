@@ -83,7 +83,7 @@ int pgp_eddsa_verify_hash(const BIGNUM* r,
    {
    botan_pubkey_t eddsa = NULL;
    botan_pk_op_verify_t verify_op = NULL;
-   int result = -1;
+   int result = 0;
    uint8_t bn_buf[64];
 
    // Check curve OID matches 25519
@@ -97,7 +97,7 @@ int pgp_eddsa_verify_hash(const BIGNUM* r,
    BN_bn2bin(pubkey->point, bn_buf);
 
    // See draft-koch-eddsa-for-openpgp-04 section 3 "Point Format"
-   if(bn_buf[0] != 0x04)
+   if(bn_buf[0] != 0x40)
       goto done;
 
    if (botan_pubkey_load_ed25519(&eddsa, bn_buf + 1))
