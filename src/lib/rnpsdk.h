@@ -71,4 +71,6 @@ void rnp_log(const char *, ...) __printflike(1, 2);
 int   rnp_strcasecmp(const char *, const char *);
 char *rnp_strdup(const char *);
 
+char * rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep);
+
 #endif

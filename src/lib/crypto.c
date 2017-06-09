@@ -230,11 +230,13 @@ pgp_generate_keypair(pgp_pubkey_alg_t    alg,
        seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
        seckey->pubkey.alg == PGP_PKA_RSA_SIGN_ONLY)
        {
-       pgp_genkey_rsa(seckey, alg_params);
+       if (pgp_genkey_rsa(seckey, alg_params) != 1)
+          goto end;
        }
     else if(seckey->pubkey.alg == PGP_PKA_EDDSA)
        {
-       pgp_genkey_eddsa(seckey, alg_params);
+       if (pgp_genkey_eddsa(seckey, alg_params) != 1)
+          goto end;
        }
     else
        {
@@ -273,8 +275,8 @@ pgp_generate_keypair(pgp_pubkey_alg_t    alg,
        }
     else if(seckey->pubkey.alg == PGP_PKA_EDDSA)
        {
-       //...
-       //ret = true;
+       if(pgp_write_mpi(output, seckey->key.ecc.x) != 1)
+          goto end;
        }
     else
        {

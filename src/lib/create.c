@@ -197,7 +197,7 @@ seckey_length(const pgp_seckey_t *key)
     len = 0;
     switch (key->pubkey.alg) {
     case PGP_PKA_EDDSA:
-        return mpi_length(key->key.ecc.x);
+        return mpi_length(key->key.ecc.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_DSA:
         return (unsigned) (mpi_length(key->key.dsa.x) + pubkey_length(&key->pubkey));
     case PGP_PKA_RSA:
@@ -355,7 +355,6 @@ write_seckey_body(const pgp_seckey_t *key,
 {
     /* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
 
-    pgp_crypt_t crypted;
     uint8_t     sesskey[PGP_MAX_KEY_SIZE];
     uint8_t     checkhash[PGP_CHECKHASH_SIZE];
     size_t      sesskey_size;
@@ -438,17 +437,18 @@ write_seckey_body(const pgp_seckey_t *key,
 
     /* use this session key to encrypt */
 
-    pgp_crypt_any(&crypted, key->alg);
-    pgp_cipher_set_iv(&crypted, key->iv);
-    pgp_cipher_set_key(&crypted, sesskey);
-    pgp_encrypt_init(&crypted);
+    pgp_crypt_t* crypted = malloc(sizeof(pgp_crypt_t));
+    pgp_crypt_any(crypted, key->alg);
+    pgp_cipher_set_iv(crypted, key->iv);
+    pgp_cipher_set_key(crypted, sesskey);
+    pgp_encrypt_init(crypted);
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "writing: iv=", key->iv, pgp_block_size(key->alg));
         hexdump(stderr, "key= ", sesskey, sesskey_size);
         (void) fprintf(stderr, "\nturning encryption on...\n");
     }
-    pgp_push_enc_crypt(output, &crypted);
+    pgp_push_enc_crypt(output, crypted);
 
     switch (key->pubkey.alg) {
     case PGP_PKA_RSA:
@@ -463,11 +463,17 @@ write_seckey_body(const pgp_seckey_t *key,
         }
         break;
     case PGP_PKA_DSA:
-        return pgp_write_mpi(output, key->key.dsa.x);
+       if( !pgp_write_mpi(output, key->key.dsa.x))
+          return 0;
+       break;
     case PGP_PKA_EDDSA:
-        return pgp_write_mpi(output, key->key.ecc.x);
+       if( !pgp_write_mpi(output, key->key.ecc.x))
+          return 0;
+       break;
     case PGP_PKA_ELGAMAL:
-        return pgp_write_mpi(output, key->key.elgamal.x);
+       if( !pgp_write_mpi(output, key->key.elgamal.x))
+          return 0;
+       break;
     default:
         return 0;
     }
@@ -482,7 +488,8 @@ write_seckey_body(const pgp_seckey_t *key,
     }
 
     pgp_writer_pop(output);
-    pgp_cipher_finish(&crypted);
+    pgp_cipher_finish(crypted);
+    free(crypted);
 
     return 1;
 }

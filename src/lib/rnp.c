@@ -1240,8 +1240,6 @@ rnp_import_key(rnp_t *rnp, char *f)
     return rnp_key_store_list(io, rnp->pubring, 0);
 }
 
-#define ID_OFFSET 38
-
 /* generate a new key */
 /* TODO: Does this need to take into account SSH keys? */
 int
@@ -1252,11 +1250,12 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     pgp_key_t *    key;
     pgp_io_t *     io;
     uint8_t *      uid;
-    char           passphrase[128];
-    char           newid[1024];
-    char           filename[MAXPATHLEN];
-    char           dir[MAXPATHLEN];
-    char *         cp;
+    char           passphrase[128] = { 0 };
+    char           newid[1024] = { 0 };
+    char           filename[MAXPATHLEN] = { 0 };
+    char           dir[MAXPATHLEN] = { 0 };
+    char           keyid[2*PGP_KEY_ID_SIZE] = { 0 };
+    char *         cp = NULL;
     char *         ringfile;
     char *         numtries;
     int            attempts;
@@ -1275,14 +1274,16 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
           newid, sizeof(newid), "RSA %d-bit key <%s@localhost>", numbits, getenv("LOGNAME"));
     }
     uid = (uint8_t *) newid;
-    key = pgp_generate_keypair(PGP_PKA_RSA, numbits, uid,
+
+    const pgp_pubkey_alg_t alg = (numbits == 255) ? PGP_PKA_EDDSA : PGP_PKA_RSA;
+    key = pgp_generate_keypair(alg, numbits, uid,
                                rnp_getvar(rnp, "hash"), rnp_getvar(rnp, "cipher"));
 
     if (key == NULL) {
         (void) fprintf(io->errs, "cannot generate key\n");
         return 0;
     }
-    cp = NULL;
+
     pgp_sprint_keydata(rnp->io, NULL, key, &cp, "signature ", &key->key.seckey.pubkey, 0);
     (void) fprintf(stdout, "%s", cp);
 
@@ -1331,9 +1332,11 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     } else if (strcmp(numtries, "unlimited") == 0) {
         attempts = INFINITE_ATTEMPTS;
     }
+    rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
+
     memset(passphrase, 0, sizeof(passphrase));
     passc =
-      find_passphrase(rnp->passfp, &cp[ID_OFFSET], passphrase, sizeof(passphrase), attempts);
+      find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
     if (!pgp_write_xfer_seckey(
           create, key, (uint8_t *) passphrase, (const unsigned) passc, NULL, noarmor)) {
         (void) fprintf(io->errs, "cannot write seckey\n");

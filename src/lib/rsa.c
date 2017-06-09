@@ -298,7 +298,7 @@ int pgp_genkey_rsa(pgp_seckey_t* seckey, size_t numbits)
    {
    botan_privkey_t rsa_key = NULL;
    botan_rng_t     rng = NULL;
-   int ret = -1;
+   int ret = 0;
 
    if (botan_rng_init(&rng, NULL) != 0)
       goto end;

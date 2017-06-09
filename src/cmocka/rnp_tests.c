@@ -61,12 +61,11 @@ main(void)
     assert_int_equal(0, chdir(tmphome));
 
     struct CMUnitTest tests[] = {
-      cmocka_unit_test(rnp_test_eddsa),
-      #if 0
       cmocka_unit_test(hash_test_success),
       cmocka_unit_test(cipher_test_success),
       cmocka_unit_test(pkcs1_rsa_test_success),
       cmocka_unit_test(raw_elg_test_success),
+      cmocka_unit_test(rnp_test_eddsa),
       cmocka_unit_test(rnpkeys_generatekey_testSignature),
       cmocka_unit_test(rnpkeys_generatekey_testEncryption),
       cmocka_unit_test(rnpkeys_generatekey_verifySupportedHashAlg),
@@ -75,7 +74,6 @@ main(void)
       cmocka_unit_test(rnpkeys_generatekey_verifykeyNonexistingHomeDir),
       cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirNoPermission),
       cmocka_unit_test(rnpkeys_exportkey_verifyUserId),
-      #endif
     };
 
     /* Each test entry will invoke setup_test before running

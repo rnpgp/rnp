@@ -1040,3 +1040,17 @@ rnp_strcasecmp(const char *s1, const char *s2)
     }
     return n;
 }
+
+/* return the hexdump as a string */
+char *
+rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep)
+{
+    unsigned i;
+    int      n;
+
+    for (n = 0, i = 0; i < length; i += 2) {
+        n += snprintf(&dest[n], 3, "%02x", *src++);
+        n += snprintf(&dest[n], 10, "%02x%s", *src++, sep);
+    }
+    return dest;
+}

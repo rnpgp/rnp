@@ -1209,8 +1209,9 @@ pgp_pubkey_free(pgp_pubkey_t *p)
         break;
 
     case PGP_PKA_EDDSA:
-        free(&p->key.ecc.oid);
+        free(p->key.ecc.oid);
         free_BN(&p->key.ecc.point);
+        break;
 
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
@@ -1296,6 +1297,7 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
           return 0;
        if (c == 0 || c == 0xFF)
           return 0; // reserved values
+       key->key.ecc.oid_len = c;
        key->key.ecc.oid = malloc(c);
        if (!limread(key->key.ecc.oid, c, region, stream))
           return 0;

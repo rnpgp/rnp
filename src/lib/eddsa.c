@@ -63,8 +63,8 @@ int pgp_genkey_eddsa(pgp_seckey_t* seckey, size_t curve_len)
    seckey->pubkey.key.ecc.oid = calloc(1, sizeof(ed25519_oid));
    memcpy(seckey->pubkey.key.ecc.oid, ed25519_oid, sizeof(ed25519_oid));
 
-   // Hack to insert the required 0x04 prefix on the public key
-   key_bits[31] = 0x04;
+   // Hack to insert the required 0x40 prefix on the public key
+   key_bits[31] = 0x40;
    seckey->pubkey.key.ecc.point = BN_bin2bn(key_bits + 31, 33, NULL);
 
    retval = 1;
