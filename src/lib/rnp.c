@@ -1254,7 +1254,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     char           newid[1024] = { 0 };
     char           filename[MAXPATHLEN] = { 0 };
     char           dir[MAXPATHLEN] = { 0 };
-    char           keyid[2*PGP_KEY_ID_SIZE] = { 0 };
+    char           keyid[2*PGP_KEY_ID_SIZE + 1] = { 0 };
     char *         cp = NULL;
     char *         ringfile;
     char *         numtries;
