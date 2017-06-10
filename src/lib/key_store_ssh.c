@@ -218,11 +218,10 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
         return 0;
     }
 
-    
-
     /* check the pub file exists */
     if (stat(f, &st) != 0) {
         (void) fprintf(stderr, "ssh2pubkey: bad filename '%s'\n", f);
+        bufgap_close(&bg);
         return 0;
     }
 
