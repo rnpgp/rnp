@@ -85,7 +85,7 @@ pgp_s2k_round_iterations(size_t iterations)
 uint8_t
 pgp_s2k_encode_iterations(size_t iterations)
 {
-    for (uint8_t c = 0; c < 255; ++c) {
+    for (uint16_t c = 0; c < 256; ++c) {
         if (pgp_s2k_decode_iterations(c) >= iterations) {
             return c;
         }
