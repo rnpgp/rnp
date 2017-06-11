@@ -77,6 +77,7 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 #endif
 
 #include "bn.h"
+#include "ec.h"
 #include "signature.h"
 #include "rsa.h"
 #include "dsa.h"
@@ -87,6 +88,7 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 #include "validate.h"
 #include "rnpdefs.h"
 #include "rnpdigest.h"
+#include "../common/utils.h"
 
 /** \ingroup Core_Create
  * needed for signature creation
@@ -265,7 +267,7 @@ rsa_verify(pgp_hash_alg_t          hash_alg,
     }
     BN_bn2bin(sig->sig, sigbuf);
 
-    sigbuf_len = (BN_num_bits(sig->sig) + 7) / 8;
+    sigbuf_len = BITS_TO_BYTES(BN_num_bits(sig->sig));
 
     return pgp_rsa_pkcs1_verify_hash(sigbuf, sigbuf_len, hash_alg, hash, hash_length, pubrsa);
 }
@@ -324,12 +326,12 @@ pgp_check_sig(const uint8_t *     hash,
               const pgp_sig_t *   sig,
               const pgp_pubkey_t *signer)
 {
-    unsigned ret;
+    unsigned ret = 0;
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stdout, "hash", hash, length);
     }
-    ret = 0;
+
     switch (sig->info.key_alg) {
     case PGP_PKA_DSA:
         ret = pgp_dsa_verify(hash, length, &sig->info.sig.dsa, &signer->key.dsa);
@@ -343,6 +345,9 @@ pgp_check_sig(const uint8_t *     hash,
         ret =
           rsa_verify(sig->info.hash_alg, hash, length, &sig->info.sig.rsa, &signer->key.rsa);
         break;
+
+    case PGP_PKA_ECDSA:
+        ret = (pgp_ecdsa_verify_hash(&sig->info.sig.ecdsa, hash, length, &signer->key.ecdsa) == PGP_E_OK);
 
     default:
         (void) fprintf(stderr, "pgp_check_sig: unusual alg\n");
@@ -727,25 +732,30 @@ pgp_write_sig(pgp_output_t *      output,
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
         if (!rsa_sign(&sig->hash, &key->key.rsa, &seckey->key.rsa, sig->output)) {
-            (void) fprintf(stderr, "pgp_write_sig: rsa_sign failure\n");
+            RNP_LOG("rsa_sign failure");
             return 0;
         }
         break;
 
     case PGP_PKA_EDDSA:
         if (!eddsa_sign(&sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
-            (void) fprintf(stderr, "pgp_write_sig: dsa_sign failure\n");
+            RNP_LOG("eddsa_sign failure");
             return 0;
         }
         break;
 
     case PGP_PKA_DSA:
         if (!dsa_sign(&sig->hash, &key->key.dsa, &seckey->key.dsa, sig->output)) {
-            (void) fprintf(stderr, "pgp_write_sig: dsa_sign failure\n");
+            RNP_LOG("dsa_sign failure");
             return 0;
         }
         break;
 
+    case PGP_PKA_ECDSA:
+        //if (!pgp_ecdsa_sign_hash()) {
+        //    RNP_LOG("ecdsa sign failure");
+        //}
+        break;
     default:
         (void) fprintf(stderr, "Unsupported algorithm %d\n", seckey->pubkey.alg);
         return 0;

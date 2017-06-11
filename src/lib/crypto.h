@@ -55,6 +55,7 @@
 #ifndef CRYPTO_H_
 #define CRYPTO_H_
 
+#include <limits.h>
 #include <botan/ffi.h>
 #include "hash.h"
 #include "key_store_pgp.h"
@@ -69,10 +70,6 @@
 #define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
 
 #define MAX_CURVE_BYTELEN BITS_TO_BYTES(521)  /* Length of NIST P-521 */
-
-struct PGPV_BIGNUM_st {
-    botan_mp_t mp;
-};
 
 void pgp_crypto_finish(void);
 
