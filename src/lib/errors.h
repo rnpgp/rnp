@@ -96,6 +96,7 @@ typedef enum {
 
     /* creator errors */
     PGP_E_C = 0x4000, /* general creator error */
+    PGP_E_C_KEY_GENERATION_FAILED = PGP_E_C + 1,
 
     /* validation errors */
     PGP_E_V = 0x5000, /* general validation error */
@@ -124,6 +125,7 @@ typedef enum {
     PGP_E_PROTO_BAD_PKSK_VRSN = PGP_E_PROTO + 8,
     PGP_E_PROTO_DECRYPTED_MSG_WRONG_LEN = PGP_E_PROTO + 9,
     PGP_E_PROTO_BAD_SK_CHECKSUM = PGP_E_PROTO + 10
+
 } pgp_errcode_t;
 
 /** one entry in a linked list of errors */

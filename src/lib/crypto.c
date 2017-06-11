@@ -82,6 +82,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "signature.h"
 #include "packet-key.h"
 #include "s2k.h"
+#include "ec.h"
 #include "../common/utils.h"
 
 /**
@@ -238,6 +239,15 @@ pgp_generate_keypair(pgp_pubkey_alg_t    alg,
        if (pgp_genkey_eddsa(seckey, alg_params) != 1)
           goto end;
        }
+    else if(seckey->pubkey.alg == PGP_PKA_ECDSA)
+        {
+        // TODO: To be refactored with #130
+        const pgp_curve_t curve = (alg_params == 256) ? PGP_CURVE_NIST_P_256 :
+                                   (alg_params == 384) ? PGP_CURVE_NIST_P_384 :
+                                   PGP_CURVE_NIST_P_521;
+        if (pgp_ecdsa_genkeypair(seckey, curve) != PGP_E_OK)
+            goto end;
+        }
     else
        {
        goto end;
@@ -278,6 +288,11 @@ pgp_generate_keypair(pgp_pubkey_alg_t    alg,
        if(pgp_write_mpi(output, seckey->key.ecc.x) != 1)
           goto end;
        }
+    else if (seckey->pubkey.alg == PGP_PKA_ECDSA)
+        {
+        if (pgp_write_mpi(output, seckey->key.ecdsa.x) != 1)
+            goto end;
+        }
     else
        {
        RNP_LOG("Bad seckey->pubkey.alg");
@@ -299,8 +314,7 @@ end:
        pgp_keydata_free(keydata);
        return NULL;
        }
-    else
-       return keydata;
+    return keydata;
 }
 
 static pgp_cb_ret_t

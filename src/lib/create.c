@@ -93,6 +93,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "rnpdefs.h"
 #include "rnpdigest.h"
 #include "packet-key.h"
+#include "ec.h"
 
 /**
  * \ingroup Core_Create
@@ -223,6 +224,9 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
           pgp_write(output, ed25519_oid, sizeof(ed25519_oid)) &&
           pgp_write_mpi(output, key->key.ecc.point);
 
+    case PGP_PKA_ECDSA:
+        return (ec_serialize_pubkey(output, &key->key.ecdsa) == PGP_E_OK);
+
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
@@ -295,6 +299,8 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result)
     case PGP_PKA_EDDSA:
         hash_bn(&hash, key->key.ecc.x);
         break;
+    case PGP_PKA_ECDSA:
+        hash_bn(&hash, key->key.ecdsa.x);
     case PGP_PKA_ELGAMAL:
         hash_bn(&hash, key->key.elgamal.x);
         break;
@@ -430,6 +436,10 @@ write_seckey_body(const pgp_seckey_t *key,
        break;
     case PGP_PKA_EDDSA:
        if( !pgp_write_mpi(output, key->key.ecc.x))
+          return 0;
+       break;
+    case PGP_PKA_ECDSA:
+       if( !pgp_write_mpi(output, key->key.ecdsa.x))
           return 0;
        break;
     case PGP_PKA_ELGAMAL:

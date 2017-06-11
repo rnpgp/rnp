@@ -443,10 +443,10 @@ typedef struct pgp_ec_pubkey_t {
 
     pgp_curve_t     curve;
 
-    struct ec_point_xy_t {
+    struct public_xy {
         BIGNUM *x;
         BIGNUM *y;
-    } point_xy;
+    } public_xy;
 
 } pgp_ec_pubkey_t;
 
@@ -479,6 +479,7 @@ typedef struct pgp_pubkey_t {
         pgp_dsa_pubkey_t     dsa;     /* A DSA public key */
         pgp_rsa_pubkey_t     rsa;     /* An RSA public key */
         pgp_elgamal_pubkey_t elgamal; /* An ElGamal public key */
+        pgp_ecdsa_pubkey_t   ecdsa;   /* An ECDSA public key */
         pgp_ecc_pubkey_t     ecc;     /* An ECC public key */
     } key;                            /* Public Key Parameters */
 } pgp_pubkey_t;
@@ -526,6 +527,7 @@ typedef enum {
     PGP_S2KS_SALTED = 1,
     PGP_S2KS_ITERATED_AND_SALTED = 3
 } pgp_s2k_specifier_t;
+
 
 /** Symmetric Key Algorithm Numbers.
  * OpenPGP assigns a unique Algorithm Number to each algorithm that is
@@ -584,6 +586,7 @@ typedef struct pgp_seckey_t {
         pgp_dsa_seckey_t     dsa;
         pgp_elgamal_seckey_t elgamal;
         pgp_ecc_seckey_t ecc;
+        pgp_ecdsa_seckey_t   ecdsa;
     } key;
     unsigned checksum;
     uint8_t *checkhash;
@@ -645,12 +648,6 @@ typedef pgp_dsa_sig_t pgp_elgamal_sig_t;
 
 /** Struct to hold params of a ECDSA signature */
 typedef pgp_dsa_sig_t pgp_ecc_sig_t;
-
-/** pgp_ecc_signature_t */
-typedef struct pgp_ecc_sig_t {
-    BIGNUM *r;
-    BIGNUM *s;
-} pgp_ecc_sig_t;
 
 #define PGP_KEY_ID_SIZE 8
 #define PGP_FINGERPRINT_SIZE 20
@@ -933,7 +930,9 @@ void pgp_finish(void);
 void pgp_pubkey_free(pgp_pubkey_t *);
 void pgp_userid_free(uint8_t **);
 void pgp_data_free(pgp_data_t *);
-void pgp_sig_free(pgp_sig_t *);
+// TODO: Interesting that this function doesn't even exist.
+//       What does it mean? Is this struct ever freed?
+// void pgp_sig_free(pgp_sig_t *);
 void pgp_ss_notation_free(pgp_ss_notation_t *);
 void pgp_ss_revocation_free(pgp_ss_revocation_t *);
 void pgp_ss_sig_target_free(pgp_ss_sig_target_t *);

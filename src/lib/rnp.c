@@ -1240,6 +1240,8 @@ rnp_import_key(rnp_t *rnp, char *f)
     return rnp_key_store_list(io, rnp->pubring, 0);
 }
 
+#define ID_OFFSET 38
+
 /* generate a new key */
 /* TODO: Does this need to take into account SSH keys? */
 int
@@ -1274,8 +1276,9 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
           newid, sizeof(newid), "RSA %d-bit key <%s@localhost>", numbits, getenv("LOGNAME"));
     }
     uid = (uint8_t *) newid;
-
-    const pgp_pubkey_alg_t alg = (numbits == 255) ? PGP_PKA_EDDSA : PGP_PKA_RSA;
+    const pgp_pubkey_alg_t alg = ((numbits == 256) || (numbits == 384) || (numbits == 521))
+                                ? PGP_PKA_ECDSA : (numbits == 255)
+                                ? PGP_PKA_EDDSA : PGP_PKA_RSA;
     key = pgp_generate_keypair(alg, numbits, uid,
                                rnp_getvar(rnp, "hash"), rnp_getvar(rnp, "cipher"));
 
