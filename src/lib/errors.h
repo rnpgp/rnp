@@ -111,6 +111,7 @@ typedef enum {
     PGP_E_ALG_UNSUPPORTED_SIGNATURE_ALG = PGP_E_ALG + 3,
     PGP_E_ALG_UNSUPPORTED_HASH_ALG = PGP_E_ALG + 4,
     PGP_E_ALG_UNSUPPORTED_COMPRESS_ALG = PGP_E_ALG + 5,
+    PGP_E_ALG_UNSUPPORTED_CURVE = PGP_E_ALG + 6,
 
     /* Protocol errors */
     PGP_E_PROTO = 0x7000, /* general protocol error */
