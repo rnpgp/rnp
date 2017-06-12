@@ -37,6 +37,4 @@
         }                                             \
     } while (false)
 
-#define CHECK_BOTAN(exp, err) CHECK((exp), 0, (err))
-
 #endif

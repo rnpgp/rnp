@@ -300,6 +300,23 @@ int pgp_genkey_rsa(pgp_seckey_t* seckey, size_t numbits)
    botan_rng_t     rng = NULL;
    int ret = 0;
 
+   seckey->pubkey.key.rsa.n = BN_new();
+   seckey->pubkey.key.rsa.e = BN_new();
+   seckey->key.rsa.p = BN_new();
+   seckey->key.rsa.q = BN_new();
+   seckey->key.rsa.d = BN_new();
+   seckey->key.rsa.u = BN_new();
+
+   if(!seckey->pubkey.key.rsa.n ||
+      !seckey->pubkey.key.rsa.e ||
+      !seckey->key.rsa.p ||
+      !seckey->key.rsa.q ||
+      !seckey->key.rsa.d ||
+      !seckey->key.rsa.u)
+      {
+      goto end;
+      }
+
    if (botan_rng_init(&rng, NULL) != 0)
       goto end;
 
@@ -310,13 +327,6 @@ int pgp_genkey_rsa(pgp_seckey_t* seckey, size_t numbits)
       goto end;
 
    /* Calls below never fail as calls above were OK */
-   seckey->pubkey.key.rsa.n = BN_new();
-   seckey->pubkey.key.rsa.e = BN_new();
-   seckey->key.rsa.p = BN_new();
-   seckey->key.rsa.q = BN_new();
-   seckey->key.rsa.d = BN_new();
-   seckey->key.rsa.u = BN_new();
-
    (void) botan_privkey_rsa_get_n(seckey->pubkey.key.rsa.n->mp, rsa_key);
    (void) botan_privkey_rsa_get_e(seckey->pubkey.key.rsa.e->mp, rsa_key);
    (void) botan_privkey_rsa_get_d(seckey->key.rsa.d->mp, rsa_key);

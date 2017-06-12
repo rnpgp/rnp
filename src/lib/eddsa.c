@@ -2,10 +2,6 @@
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -96,7 +92,9 @@ int pgp_eddsa_verify_hash(const BIGNUM* r,
 
    BN_bn2bin(pubkey->point, bn_buf);
 
-   // See draft-koch-eddsa-for-openpgp-04 section 3 "Point Format"
+   /*
+   * See draft-ietf-openpgp-rfc4880bis-01 section 13.3
+   */
    if(bn_buf[0] != 0x40)
       goto done;
 
@@ -117,7 +115,7 @@ int pgp_eddsa_verify_hash(const BIGNUM* r,
    BN_bn2bin(r, bn_buf);
    BN_bn2bin(s, bn_buf + 32);
 
-   result = (botan_pk_op_verify_finish(verify_op, bn_buf, 64) == 0) ? 1 : 0;
+   result = (botan_pk_op_verify_finish(verify_op, bn_buf, 64) == 0);
 
    done:
    botan_pk_op_verify_destroy(verify_op);

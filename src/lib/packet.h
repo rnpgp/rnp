@@ -348,14 +348,13 @@ typedef enum {
                                            * \see RFC4880 13.5) */
     PGP_PKA_ELGAMAL = 16,                 /* Elgamal (Encrypt-Only) */
     PGP_PKA_DSA = 17,                     /* DSA (Digital Signature Algorithm) */
-    PGP_PKA_RESERVED_ELLIPTIC_CURVE = 18, /* Reserved for Elliptic
-                                           * Curve */
-    PGP_PKA_RESERVED_ECDSA = 19,          /* Reserved for ECDSA */
+    PGP_PKA_RESERVED_ELLIPTIC_CURVE = 18, /* ECDH (RFC 6637) */
+    PGP_PKA_RESERVED_ECDSA = 19,          /* ECDSA (RFC 6637) */
     PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN = 20, /* Deprecated. */
     PGP_PKA_RESERVED_DH = 21,             /* Reserved for Diffie-Hellman
                                            * (X9.42, as defined for
                                            * IETF-S/MIME) */
-    PGP_PKA_EDDSA = 22,                   /* EdDSA */
+    PGP_PKA_EDDSA = 22,                   /* EdDSA from draft-ietf-openpgp-rfc4880bis */
     PGP_PKA_PRIVATE00 = 100,              /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE01 = 101,              /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE02 = 102,              /* Private/Experimental Algorithm */

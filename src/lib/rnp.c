@@ -1250,7 +1250,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     pgp_key_t *    key;
     pgp_io_t *     io;
     uint8_t *      uid;
-    char           passphrase[128] = { 0 };
+    char           passphrase[MAX_PASSPHRASE_LENGTH] = { 0 };
     char           newid[1024] = { 0 };
     char           filename[MAXPATHLEN] = { 0 };
     char           dir[MAXPATHLEN] = { 0 };

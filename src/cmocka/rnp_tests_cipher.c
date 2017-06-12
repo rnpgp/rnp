@@ -213,6 +213,9 @@ void rnp_test_eddsa(void** state)
 
    // cut one byte off hash -> invalid sig
    assert_int_equal(pgp_eddsa_verify_hash(r, s, hash, sizeof(hash) - 1, &pgp_key->key.seckey.pubkey.key.ecc), 0);
+
+   BN_free(r);
+   BN_free(s);
    }
 
 void
