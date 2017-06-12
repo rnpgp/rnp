@@ -243,7 +243,7 @@ pgp_errcode_t pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *sign,
 
     if ((BN_num_bytes(sign->r) > sign_half_len) ||
         (BN_num_bytes(sign->s) > sign_half_len) ||
-        (2*sign_half_len) > MAX_CURVE_BYTELEN) {
+        (sign_half_len > MAX_CURVE_BYTELEN)) {
         RNP_LOG("Failed to load public key");
         goto end;
     }

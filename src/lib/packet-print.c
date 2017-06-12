@@ -77,6 +77,7 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 
 #include "bn.h"
 #include "crypto.h"
+#include "ec.h"
 #include "key_store_pgp.h"
 #include "packet-show.h"
 #include "signature.h"
@@ -99,6 +100,7 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #define SIGNATURE_PADDING "          "
 
 /* static functions */
+extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
 static void
 print_indent(int indent)
@@ -345,6 +347,9 @@ numkeybits(const pgp_pubkey_t *pubkey)
         }
     case PGP_PKA_ELGAMAL:
         return BN_num_bytes(pubkey->key.elgamal.y) * 8;
+    case PGP_PKA_ECDSA:
+        // BN_num_bytes returns value <= curve order
+        return ec_curves[pubkey->key.ecdsa.curve].bitlen;
     case PGP_PKA_EDDSA:
         return 255;
     default:
@@ -897,6 +902,12 @@ pgp_print_pubkey(const pgp_pubkey_t *pubkey)
         print_bn(0, "g", pubkey->key.elgamal.g);
         print_bn(0, "y", pubkey->key.elgamal.y);
         break;
+    case PGP_PKA_ECDSA:
+        print_string(0, "curve",
+            ec_curves[pubkey->key.ecdsa.curve].botan_name);
+        print_bn(0, "x", pubkey->key.ecdsa.public_xy.x);
+        print_bn(0, "y", pubkey->key.ecdsa.public_xy.y);
+        break;
 
     default:
         (void) fprintf(stderr, "pgp_print_pubkey: Unusual algorithm\n");
@@ -945,7 +956,14 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
                        "point=%s\n",
                        BN_bn2hex(key->key.pubkey.key.ecc.point));
         break;
-
+    case PGP_PKA_ECDSA:
+        cc += snprintf(&out[cc],
+                       outsize - cc,
+                       "curve=%s\nx=%s\ny=%s\n",
+                       ec_curves[key->key.pubkey.key.ecdsa.curve].botan_name,
+                       BN_bn2hex(key->key.pubkey.key.ecdsa.public_xy.x),
+                       BN_bn2hex(key->key.pubkey.key.ecdsa.public_xy.y));
+        break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         cc += snprintf(&out[cc],
@@ -1001,6 +1019,10 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
 
     case PGP_PKA_DSA:
         print_bn(0, "x", seckey->key.dsa.x);
+        break;
+
+    case PGP_PKA_ECDSA:
+        print_bn(0, "x", seckey->key.ecdsa.x);
         break;
 
     case PGP_PKA_EDDSA:
@@ -1202,6 +1224,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
             break;
 
         case PGP_PKA_EDDSA:
+        case PGP_PKA_ECDSA:
             print_bn(print->indent, "r", content->sig.info.sig.ecc.r);
             print_bn(print->indent, "s", content->sig.info.sig.ecc.s);
             break;
@@ -1551,6 +1574,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
             break;
 
         case PGP_PKA_EDDSA:
+        case PGP_PKA_ECDSA:
             print_bn(print->indent, "r", content->sig.info.sig.ecc.r);
             print_bn(print->indent, "s", content->sig.info.sig.ecc.s);
             break;
