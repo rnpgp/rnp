@@ -80,6 +80,8 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #endif
 
 #include "bn.h"
+#include "rsa.h"
+#include "elgamal.h"
 #include "create.h"
 #include "key_store_pgp.h"
 #include "packet.h"
@@ -154,6 +156,9 @@ pubkey_length(const pgp_pubkey_t *key)
         return mpi_length(key->key.dsa.p) + mpi_length(key->key.dsa.q) +
                mpi_length(key->key.dsa.g) + mpi_length(key->key.dsa.y);
 
+    case PGP_PKA_EDDSA:
+        return mpi_length(key->key.ecc.point) + 1 + key->key.ecc.oid_len;
+
     case PGP_PKA_RSA:
         return mpi_length(key->key.rsa.n) + mpi_length(key->key.rsa.e);
 
@@ -170,6 +175,8 @@ seckey_length(const pgp_seckey_t *key)
 
     len = 0;
     switch (key->pubkey.alg) {
+    case PGP_PKA_EDDSA:
+        return mpi_length(key->key.ecc.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_DSA:
         return (unsigned) (mpi_length(key->key.dsa.x) + pubkey_length(&key->pubkey));
     case PGP_PKA_RSA:
@@ -203,11 +210,18 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
         return 0;
     }
 
+    const uint8_t ed25519_oid[9] = { 0x2b, 0x06, 0x01 ,0x04, 0x01, 0xda, 0x47, 0x0f, 0x01 };
+
     switch (key->alg) {
     case PGP_PKA_DSA:
         return pgp_write_mpi(output, key->key.dsa.p) &&
                pgp_write_mpi(output, key->key.dsa.q) &&
                pgp_write_mpi(output, key->key.dsa.g) && pgp_write_mpi(output, key->key.dsa.y);
+
+    case PGP_PKA_EDDSA:
+       return pgp_write_scalar(output, sizeof(ed25519_oid), 1) &&
+          pgp_write(output, ed25519_oid, sizeof(ed25519_oid)) &&
+          pgp_write_mpi(output, key->key.ecc.point);
 
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -278,6 +292,9 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result)
     case PGP_PKA_DSA:
         hash_bn(&hash, key->key.dsa.x);
         break;
+    case PGP_PKA_EDDSA:
+        hash_bn(&hash, key->key.ecc.x);
+        break;
     case PGP_PKA_ELGAMAL:
         hash_bn(&hash, key->key.elgamal.x);
         break;
@@ -300,7 +317,6 @@ write_seckey_body(const pgp_seckey_t *key,
 {
     /* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
 
-    pgp_crypt_t crypted;
     uint8_t     sesskey[PGP_MAX_KEY_SIZE];
     uint8_t     checkhash[PGP_CHECKHASH_SIZE];
     size_t      sesskey_size;
@@ -383,17 +399,18 @@ write_seckey_body(const pgp_seckey_t *key,
 
     /* use this session key to encrypt */
 
-    pgp_crypt_any(&crypted, key->alg);
-    pgp_cipher_set_iv(&crypted, key->iv);
-    pgp_cipher_set_key(&crypted, sesskey);
-    pgp_encrypt_init(&crypted);
+    pgp_crypt_t* crypted = malloc(sizeof(pgp_crypt_t));
+    pgp_crypt_any(crypted, key->alg);
+    pgp_cipher_set_iv(crypted, key->iv);
+    pgp_cipher_set_key(crypted, sesskey);
+    pgp_encrypt_init(crypted);
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "writing: iv=", key->iv, pgp_block_size(key->alg));
         hexdump(stderr, "key= ", sesskey, sesskey_size);
         (void) fprintf(stderr, "\nturning encryption on...\n");
     }
-    pgp_push_enc_crypt(output, &crypted);
+    pgp_push_enc_crypt(output, crypted);
 
     switch (key->pubkey.alg) {
     case PGP_PKA_RSA:
@@ -408,9 +425,17 @@ write_seckey_body(const pgp_seckey_t *key,
         }
         break;
     case PGP_PKA_DSA:
-        return pgp_write_mpi(output, key->key.dsa.x);
+       if( !pgp_write_mpi(output, key->key.dsa.x))
+          return 0;
+       break;
+    case PGP_PKA_EDDSA:
+       if( !pgp_write_mpi(output, key->key.ecc.x))
+          return 0;
+       break;
     case PGP_PKA_ELGAMAL:
-        return pgp_write_mpi(output, key->key.elgamal.x);
+       if( !pgp_write_mpi(output, key->key.elgamal.x))
+          return 0;
+       break;
     default:
         return 0;
     }
@@ -425,7 +450,8 @@ write_seckey_body(const pgp_seckey_t *key,
     }
 
     pgp_writer_pop(output);
-    pgp_cipher_finish(&crypted);
+    pgp_cipher_finish(crypted);
+    free(crypted);
 
     return 1;
 }

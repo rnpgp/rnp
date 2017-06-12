@@ -55,115 +55,25 @@
 #ifndef CRYPTO_H_
 #define CRYPTO_H_
 
-#include <botan/ffi.h>
 #include "hash.h"
 #include "key_store_pgp.h"
 #include "packet.h"
 #include "memory.h"
 #include "packet-parse.h"
 #include "symmetric.h"
-#include "bn.h"
 
 #define PGP_MIN_HASH_SIZE 16
 
-struct PGPV_BIGNUM_st {
-    botan_mp_t mp;
-};
-
 void pgp_crypto_finish(void);
 
-unsigned pgp_dsa_verify(const uint8_t *,
-                        size_t,
-                        const pgp_dsa_sig_t *,
-                        const pgp_dsa_pubkey_t *);
+/* Key generation */
 
-/*
- * RSA encrypt/decrypt
- */
-
-int pgp_rsa_encrypt_pkcs1(uint8_t *               out,
-                          size_t                  out_len,
-                          const uint8_t *         key,
-                          size_t                  key_len,
-                          const pgp_rsa_pubkey_t *pubkey);
-
-int pgp_rsa_decrypt_pkcs1(uint8_t *               out,
-                          size_t                  out_len,
-                          const uint8_t *         key,
-                          size_t                  key_len,
-                          const pgp_rsa_seckey_t *privkey,
-                          const pgp_rsa_pubkey_t *pubkey);
-
-/*
- * RSA signature generation and verification
- */
-
-/*
- * Returns 1 for valid 0 for invalid/error
- */
-int pgp_rsa_pkcs1_verify_hash(const uint8_t *         sig_buf,
-                              size_t                  sig_buf_size,
-                              pgp_hash_alg_t          hash_alg,
-                              const uint8_t *         hash,
-                              size_t                  hash_len,
-                              const pgp_rsa_pubkey_t *pubkey);
-
-/*
- * Returns # bytes written to sig_buf on success, 0 on error
- */
-int pgp_rsa_pkcs1_sign_hash(uint8_t *      sig_buf,
-                            size_t         sig_buf_size,
-                            pgp_hash_alg_t hash_alg,
-                            const uint8_t *hash,
-                            size_t         hash_len,
-                            const pgp_rsa_seckey_t *,
-                            const pgp_rsa_pubkey_t *);
-
-/*
- * Performs ElGamal encryption
- * Result of an encryption is composed of two parts - g2k and encm
- *
- * @param g2k [out] buffer stores first part of encryption (g^k % p)
- * @param encm [out] buffer stores second part of encryption (y^k * in % p)
- * @param in plaintext to be encrypted
- * @param length length of an input
- * @param pubkey public key to be used for encryption
- *
- * @pre g2k size must be at least equal to byte size of prime `p'
- * @pre encm size must be at least equal to byte size of prime `p'
- *
- * @return     on success - number of bytes written to g2k and encm
- *            on failure -1
- */
-int pgp_elgamal_public_encrypt_pkcs1(uint8_t *                   g2k,
-                                     uint8_t *                   encm,
-                                     const uint8_t *             in,
-                                     size_t                      length,
-                                     const pgp_elgamal_pubkey_t *pubkey);
-
-/*
- * Performs ElGamal decryption
- *
- * @param out [out] decrypted plaintext
- * @param g2k buffer stores first part of encryption (g^k % p)
- * @param encm buffer stores second part of encryption (y^k * in % p)
- * @param length length of g2k or in (must be equal to byte size of prime `p')
- * @param seckey private part of a key used for decryption
- * @param pubkey public domain parameters (p,g) used for decryption
- *
- * @pre g2k size must be at least equal to byte size of prime `p'
- * @pre encm size must be at least equal to byte size of prime `p'
- * @pre byte-size of `g2k' must be equal to `encm'
- *
- * @return     on success - number of bytes written to g2k and encm
- *            on failure -1
- */
-int pgp_elgamal_private_decrypt_pkcs1(uint8_t *                   out,
-                                      const uint8_t *             g2k,
-                                      const uint8_t *             in,
-                                      size_t                      length,
-                                      const pgp_elgamal_seckey_t *seckey,
-                                      const pgp_elgamal_pubkey_t *pubkey);
+pgp_key_t*
+pgp_generate_keypair(pgp_pubkey_alg_t   alg,
+                     const int          alg_params,
+                     const uint8_t*     userid,
+                     const char*        hashalg,
+                     const char*        cipher);
 
 void pgp_reader_push_decrypt(pgp_stream_t *, pgp_crypt_t *, pgp_region_t *);
 void pgp_reader_pop_decrypt(pgp_stream_t *);
@@ -211,25 +121,7 @@ pgp_memory_t *pgp_decrypt_buf(pgp_io_t *,
                               int,
                               pgp_cbfunc_t *);
 
-/* Keys */
-pgp_key_t *pgp_rsa_new_selfsign_key(const int           bits,
-                                    const unsigned long e,
-                                    uint8_t *           userid,
-                                    const char *        hash_alg,
-                                    const char *        cipher);
-pgp_key_t *pgp_rsa_new_key(const int, const unsigned long, const char *, const char *);
 
-int pgp_dsa_size(const pgp_dsa_pubkey_t *);
-
-typedef struct {
-    BIGNUM *r;
-    BIGNUM *s;
-} DSA_SIG;
-
-DSA_SIG *DSA_SIG_new();
-void DSA_SIG_free(DSA_SIG *sig);
-
-DSA_SIG *pgp_dsa_sign(uint8_t *, unsigned, const pgp_dsa_seckey_t *, const pgp_dsa_pubkey_t *);
 
 int read_pem_seckey(const char *, pgp_key_t *, const char *, int);
 
@@ -327,11 +219,5 @@ struct pgp_stream_t {
     unsigned virtualoff;
     uint8_t *virtualpkt;
 };
-
-/**
- * \brief Allocates BIGNUM and mp value assigned
- */
-BIGNUM *new_BN_take_mp(botan_mp_t mp);
-void destroy_BN_mp(BIGNUM **a);
 
 #endif /* CRYPTO_H_ */
