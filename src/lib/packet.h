@@ -567,9 +567,6 @@ unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
 /* Salt size for hashing */
 #define PGP_SALT_SIZE 8
 
-/* Max hash size */
-#define PGP_MAX_HASH_SIZE 64
-
 /** pgp_seckey_t
  */
 typedef struct pgp_seckey_t {

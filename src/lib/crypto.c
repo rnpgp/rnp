@@ -242,10 +242,11 @@ pgp_generate_keypair(pgp_pubkey_alg_t    alg,
     else if(seckey->pubkey.alg == PGP_PKA_ECDSA)
         {
         // TODO: To be refactored with #130
-        const pgp_curve_t curve = (alg_params == 256) ? PGP_CURVE_NIST_P_256 :
-                                   (alg_params == 384) ? PGP_CURVE_NIST_P_384 :
-                                   PGP_CURVE_NIST_P_521;
-        if (pgp_ecdsa_genkeypair(seckey, curve) != PGP_E_OK)
+        seckey->pubkey.key.ecdsa.curve =
+                (alg_params == 256) ? PGP_CURVE_NIST_P_256 :
+                (alg_params == 384) ? PGP_CURVE_NIST_P_384 :
+                PGP_CURVE_NIST_P_521;
+        if (pgp_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecdsa.curve) != PGP_E_OK)
             goto end;
         }
     else

@@ -95,6 +95,8 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "packet-key.h"
 #include "ec.h"
 
+extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
+
 /**
  * \ingroup Core_Create
  * \param length
@@ -160,6 +162,12 @@ pubkey_length(const pgp_pubkey_t *key)
     case PGP_PKA_EDDSA:
         return mpi_length(key->key.ecc.point) + 1 + key->key.ecc.oid_len;
 
+    case PGP_PKA_ECDSA:
+        return 1 +  // length of curve OID
+           + ec_curves[key->key.ecdsa.curve].OIDhex_len + 1 // 0x04
+           + mpi_length(key->key.ecdsa.public_xy.x) +
+             mpi_length(key->key.ecdsa.public_xy.y);
+
     case PGP_PKA_RSA:
         return mpi_length(key->key.rsa.n) + mpi_length(key->key.rsa.e);
 
@@ -178,6 +186,8 @@ seckey_length(const pgp_seckey_t *key)
     switch (key->pubkey.alg) {
     case PGP_PKA_EDDSA:
         return mpi_length(key->key.ecc.x) + pubkey_length(&key->pubkey);
+    case PGP_PKA_ECDSA:
+        return mpi_length(key->key.ecdsa.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_DSA:
         return (unsigned) (mpi_length(key->key.dsa.x) + pubkey_length(&key->pubkey));
     case PGP_PKA_RSA:
@@ -301,6 +311,7 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result)
         break;
     case PGP_PKA_ECDSA:
         hash_bn(&hash, key->key.ecdsa.x);
+        break;
     case PGP_PKA_ELGAMAL:
         hash_bn(&hash, key->key.elgamal.x);
         break;

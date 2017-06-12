@@ -58,6 +58,10 @@ typedef enum {
 } pgp_hash_alg_t;
 
 #define PGP_DEFAULT_HASH_ALGORITHM PGP_HASH_SHA256
+/**
+ * Output size (in bytes) of biggest supported hash algo
+ */
+#define PGP_MAX_HASH_SIZE BITS_TO_BYTES(512)
 
 /** pgp_hash_t */
 typedef struct pgp_hash_t {
