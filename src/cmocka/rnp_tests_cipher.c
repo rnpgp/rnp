@@ -216,6 +216,7 @@ void rnp_test_eddsa(void** state)
 
    BN_free(r);
    BN_free(s);
+   pgp_keydata_free(pgp_key);
    }
 
 void
