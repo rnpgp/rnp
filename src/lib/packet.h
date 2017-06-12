@@ -130,6 +130,13 @@ typedef struct {
  */
 #define PGP_PTAG_OF_LENGTH_TYPE_MASK 0x03
 
+/**
+ * Maximal length of the OID in hex representation.
+ *
+ * \see RFC4880 bis01 - 9.2 ECC Curve OID
+ */
+#define MAX_CURVE_OID_HEX_LEN 9U
+
 /** Old Packet Format Lengths.
  * Defines the meanings of the 2 bits for length type in the
  * old packet format.
@@ -165,6 +172,8 @@ typedef enum {
  * \see RFC4880 4.2
  */
 #define PGP_PTAG_NF_CONTENT_TAG_SHIFT 0
+
+#define MDC_PKT_TAG 0xd3
 
 /* PTag Content Tags */
 /***************************/
@@ -348,9 +357,9 @@ typedef enum {
                                            * \see RFC4880 13.5) */
     PGP_PKA_ELGAMAL = 16,                 /* Elgamal (Encrypt-Only) */
     PGP_PKA_DSA = 17,                     /* DSA (Digital Signature Algorithm) */
-    PGP_PKA_RESERVED_ELLIPTIC_CURVE = 18, /* ECDH (RFC 6637) */
-    PGP_PKA_RESERVED_ECDSA = 19,          /* ECDSA (RFC 6637) */
-    PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN = 20, /* Deprecated. */
+    PGP_PKA_ECDH = 18,                    /* ECDH public key algorithm */
+    PGP_PKA_ECDSA = 19,                   /* ECDSA public key algorithm [FIPS186-3] */
+    PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN = 20, /* Deprecated. Reserved (formerly Elgamal Encrypt or Sign) */
     PGP_PKA_RESERVED_DH = 21,             /* Reserved for Diffie-Hellman
                                            * (X9.42, as defined for
                                            * IETF-S/MIME) */
@@ -367,6 +376,23 @@ typedef enum {
     PGP_PKA_PRIVATE09 = 109,              /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE10 = 110               /* Private/Experimental Algorithm */
 } pgp_pubkey_alg_t;
+
+/**
+ * Enumeration of elliptic curves used by PGP.
+ *
+ * \see RFC4880-bis01 9.2. ECC Curve OID
+ *
+ * Values in this enum correspond to order in ec_curve array (in ec.c)
+ */
+typedef enum {
+    PGP_CURVE_NIST_P_256 = 0,
+    PGP_CURVE_NIST_P_384,
+    PGP_CURVE_NIST_P_521,
+    PGP_CURVE_ED25519,
+
+    // Keep always last one
+    PGP_CURVE_MAX
+} pgp_curve_t;
 
 /** Structure to hold one DSA public key params.
  *
@@ -410,6 +436,22 @@ typedef struct {
     BIGNUM *point; /* octet string encoded as MPI */
 } pgp_ecc_pubkey_t;
 
+/** Structure to hold EC public point in uncompressed form
+ *  to be used with ECDSA and ECDH
+ */
+typedef struct pgp_ec_pubkey_t {
+
+    pgp_curve_t     curve;
+
+    struct ec_point_xy_t {
+        BIGNUM *x;
+        BIGNUM *y;
+    } point_xy;
+
+} pgp_ec_pubkey_t;
+
+/* Type definition for ECDSA */
+typedef pgp_ec_pubkey_t pgp_ecdsa_pubkey_t;
 
 /** Version.
  * OpenPGP has two different protocol versions: version 3 and version 4.
@@ -423,7 +465,7 @@ typedef enum {
 } pgp_version_t;
 
 /** Structure to hold a pgp public key */
-typedef struct {
+typedef struct pgp_pubkey_t {
     pgp_version_t version; /* version of the key (v3, v4...) */
     time_t        birthtime;
     time_t        duration;
@@ -443,7 +485,7 @@ typedef struct {
 
 /** Structure to hold data for one RSA secret key
  */
-typedef struct {
+typedef struct pgp_rsa_seckey_t {
     BIGNUM *d;
     BIGNUM *p;
     BIGNUM *q;
@@ -451,20 +493,24 @@ typedef struct {
 } pgp_rsa_seckey_t;
 
 /** pgp_dsa_seckey_t */
-typedef struct {
+typedef struct pgp_dsa_seckey_t {
     BIGNUM *x;
 } pgp_dsa_seckey_t;
 
 /** pgp_elgamal_seckey_t */
-typedef struct {
+typedef struct pgp_elgamal_seckey_t {
     BIGNUM *x;
 } pgp_elgamal_seckey_t;
+
+/** pgp_ecdsa_seckey_t */
+typedef struct pgp_ecdsa_seckey_t {
+    BIGNUM *x;
+} pgp_ecdsa_seckey_t;
 
 /** pgp_ecc_seckey_t */
 typedef struct {
     BIGNUM *x;
 } pgp_ecc_seckey_t;
-
 /** s2k_usage_t
  */
 typedef enum {
@@ -594,11 +640,11 @@ typedef struct pgp_dsa_sig_t {
     BIGNUM *s; /* DSA value s */
 } pgp_dsa_sig_t;
 
-/** pgp_elgamal_signature_t */
-typedef struct pgp_elgamal_sig_t {
-    BIGNUM *r;
-    BIGNUM *s;
-} pgp_elgamal_sig_t;
+/** Struct to hold params of a Elgamal signature */
+typedef pgp_dsa_sig_t pgp_elgamal_sig_t;
+
+/** Struct to hold params of a ECDSA signature */
+typedef pgp_dsa_sig_t pgp_ecc_sig_t;
 
 /** pgp_ecc_signature_t */
 typedef struct pgp_ecc_sig_t {
@@ -628,6 +674,7 @@ typedef struct pgp_sig_info_t {
         pgp_dsa_sig_t     dsa;     /* A DSA Signature */
         pgp_elgamal_sig_t elgamal; /* deprecated */
         pgp_ecc_sig_t     ecc;     /* An ECDSA or EdDSA signature */
+	pgp_ecc_sig_t     ecdsa;    /* A ECDSA signature */
         pgp_data_t        unknown; /* private or experimental */
     } sig;                         /* signature params */
     size_t   v4_hashlen;
@@ -873,7 +920,7 @@ struct pgp_packet_t {
 };
 
 /** pgp_fingerprint_t */
-typedef struct {
+typedef struct pgp_fingerprint_t {
     uint8_t        fingerprint[PGP_FINGERPRINT_SIZE];
     unsigned       length;
     pgp_hash_alg_t hashtype;
@@ -946,7 +993,7 @@ typedef union {
 } pgp_keydata_key_t;
 
 /* sigpacket_t */
-typedef struct {
+typedef struct sigpacket_t {
     uint8_t **       userid;
     pgp_subpacket_t *packet;
 } sigpacket_t;
@@ -985,6 +1032,15 @@ typedef struct pgp_key_t {
     pgp_revoke_t      revocation;     /* revocation reason */
 } pgp_key_t;
 
-#define MDC_PKT_TAG 0xd3
+/**
+ * Structure holds description of elliptic curve
+ */
+typedef struct ec_curve_desc_t {
+    pgp_curve_t rnp_curve_id;
+    size_t bitlen;
+    uint8_t OIDhex[MAX_CURVE_OID_HEX_LEN];
+    size_t OIDhex_len;
+    const char *botan_name;
+} ec_curve_desc_t;
 
 #endif /* PACKET_H_ */
