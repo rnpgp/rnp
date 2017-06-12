@@ -536,7 +536,7 @@ format_uid_notice(char *                 buffer,
     for (i = 0; i < key->subsigc; i++) {
         pgp_subsig_t *   subsig = &key->subsigs[i];
         const pgp_key_t *trustkey;
-        unsigned         from = 0u; //\todo: is this the right initial value ? 
+        unsigned         from = 0;
 
         /* TODO: To me this looks like an unnecessary consistency
          *       check that should be performed upstream before
