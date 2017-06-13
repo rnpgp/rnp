@@ -13,7 +13,7 @@ install_rpms() {
   BOTAN_PKGS="gcc-c++"
 
   # libcmocka is only available through EPEL
-  CMOCKA_PKGS="libcmocka-devel"
+  CMOCKA_PKGS="libcmocka libcmocka-devel"
 
   RPM_PKGS="rpmdevtools rpm-build rpm-sign chrpath createrepo rpmlint"
 
@@ -23,7 +23,7 @@ install_rpms() {
     ${CMOCKA_PKGS} \
     ${RPM_PKGS}
 
-  if [ -s /etc/yum.repos.d/ribose.repo ]; then
+  if [ ! -s /etc/yum.repos.d/ribose.repo ]; then
     rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
     curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
   fi
