@@ -60,6 +60,12 @@ main(void)
     assert_int_equal(0, setenv("HOME", tmphome, 1));
     assert_int_equal(0, chdir(tmphome));
 
+    /* We use LOGNAME in a few places within the tests
+     * and it isn't always set in every environment.
+     */
+    if (!getenv("LOGNAME"))
+        setenv("LOGNAME", "test-user", 1);
+
     struct CMUnitTest tests[] = {
       cmocka_unit_test(hash_test_success),
       cmocka_unit_test(cipher_test_success),
