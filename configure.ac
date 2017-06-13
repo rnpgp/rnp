@@ -79,6 +79,9 @@ AC_CHECK_HEADERS([sys/cdefs.h sys/file.h sys/mman.h sys/param.h \
 AC_CHECK_HEADERS([bzlib.h],
                  [],
                  [AC_MSG_FAILURE([missing <bzlib.h>; is bzip2 installed?])])
+AC_CHECK_HEADERS([json-c/json.h],
+                 [],
+                 [AC_MSG_FAILURE([missing <json-c/json.h>; is json-c installed?])])
 
 # Checks for typedefs, structures, and compiler characteristics.
 #
@@ -108,8 +111,8 @@ AX_CHECK_BOTAN_DEFINES([CFLAGS="$CFLAGS $BOTAN_INCLUDES"
 AC_SEARCH_LIBS([_cmocka_run_group_tests], [cmocka],,AC_MSG_ERROR(CMocka not found!))
 AC_SEARCH_LIBS([gzopen], [z],,AC_MSG_ERROR(libz not found!))
 AC_SEARCH_LIBS([BZ2_bzDecompress], [bz2],,AC_MSG_ERROR(Libbz2 not found!))
+AC_SEARCH_LIBS([json_object_new_object], [json-c],,AC_MSG_ERROR(json-c not found!))
 
-PKG_CHECK_MODULES(JSON, json-c,, [AC_MSG_ERROR("json-c not found")])
 
 # Initialize the testsuite
 #
