@@ -90,7 +90,7 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "validate.h"
 #include "rnpdefs.h"
 #include "rnpdigest.h"
-#include <json-c/json.h>
+#include <json.h>
 #include "key_store.h"
 #include "key_store_internal.h"
 #include "packet-key.h"
