@@ -14,6 +14,7 @@ install_rpms() {
 
   # libcmocka is only available through EPEL
   CMOCKA_PKGS="libcmocka libcmocka-devel"
+  JSONC_PKGS="json-c json-c-devel"
 
   RPM_PKGS="rpmdevtools rpm-build rpm-sign chrpath createrepo rpmlint"
 
@@ -21,14 +22,15 @@ install_rpms() {
   yum install -y ${BUILD_PKGS} \
     ${BOTAN_PKGS} \
     ${CMOCKA_PKGS} \
+    ${JSONC_PKGS} \
     ${RPM_PKGS}
 
-  if [ ! -s /etc/yum.repos.d/ribose.repo ]; then
-    rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
-    curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
-  fi
-
-  yum install -y json-c12 json-c12-devel
+  # For json-c 0.12.1
+  #if [ ! -s /etc/yum.repos.d/ribose.repo ]; then
+  #  rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
+  #  curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
+  #fi
+  #yum install -y json-c12 json-c12-devel
 }
 
 install_botan_stable() {
