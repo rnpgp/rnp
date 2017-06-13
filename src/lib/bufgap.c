@@ -149,7 +149,6 @@ bufgap_open(bufgap_t *bp, const char *f)
         (void) fclose(filep);
         if (cc != s.st_size) {
             FREE(bp->buf);
-            FREE(bp);
             return 0;
         }
         bp->name = strnsave(__UNCONST(f), (int) utfbytes(__UNCONST(f)));
