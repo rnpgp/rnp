@@ -14,21 +14,28 @@ Sometimes tests fail in Travis CI and you will want to reproduce them locally fo
 We can use a container for this, like so:
 
 ``` sh
-$ docker run -ti --rm travisci/ci-garnet:packer-1490989530 bash -l
+./travis.sh
+# or
+# docker run -ti --rm travisci/ci-garnet:packer-1490989530 bash -l
 ```
 
-(Refer to [here](https://docs.travis-ci.com/user/common-build-problems/#Troubleshooting-Locally-in-a-Docker-Image) and [here](https://hub.docker.com/r/travisci/ci-garnet/tags/))
+(Refer to
+[here](https://docs.travis-ci.com/user/common-build-problems/#Troubleshooting-Locally-in-a-Docker-Image)
+and [here](https://hub.docker.com/r/travisci/ci-garnet/tags/))
 
 Inside the container, you will need to perform steps like the following:
 
 ``` sh
-$ git clone https://github.com/riboseinc/rnp.git
-$ cd rnp
-$ export BOTAN_INSTALL="$HOME/builds/botan-install"
-$ export CMOCKA_INSTALL="$HOME/builds/cmocka-install"
-$ export JSON_C_INSTALL="$HOME/builds/json-c-install"
-$ ci/install.sh
-$ env BUILD_MODE=normal CC=clang ci/main.sh
+cd ~/
+git clone https://github.com/riboseinc/rnp
+# or if testing local copy
+# git clone /usr/local/rnp
+cd rnp
+export BOTAN_INSTALL="$HOME/builds/botan-install"
+export CMOCKA_INSTALL="$HOME/builds/cmocka-install"
+export JSON_C_INSTALL="$HOME/builds/json-c-install"
+ci/install.sh
+env BUILD_MODE=normal CC=clang ci/main.sh
 ```
 
 (The above uses clang as the compiler -- use `CC=gcc` for GCC)
@@ -51,12 +58,12 @@ To initiate analysis, a developer must push to the `coverity_scan` branch.
 You may wish to perform a clean clone for this, like so:
 
 ``` sh
-$ cd /tmp
-$ git clone git@github.com:riboseinc/rnp.git
-$ cd rnp
-$ git checkout coverity_scan                    # switch to the coverity_scan branch
-$ git rebase master coverity_scan               # replay all commits from master onto coverity_scan
-$ git push -u origin coverity_scan -f           # forcefully push the coverity_scan branch
+cd /tmp
+git clone git@github.com:riboseinc/rnp.git
+cd rnp
+git checkout coverity_scan                    # switch to the coverity_scan branch
+git rebase master coverity_scan               # replay all commits from master onto coverity_scan
+git push -u origin coverity_scan -f           # forcefully push the coverity_scan branch
 ```
 
 Note: The `master` and `coverity_scan` branches have separate `.travis.yml` files, so you may need to perform a manual merge. In general, the `coverity_scan` branch's `.travis.yml` is identical to `master`'s, but with a build matrix of only one entry.
@@ -72,8 +79,8 @@ Clang includes a useful static analyzer that can also be used to locate potentia
 To use it, pass the build command to `scan-build`:
 
 ``` sh
-$ ./configure
-$ scan-build make -j4
+./configure
+scan-build make -j4
 [...]
 scan-build: 6 bugs found.
 scan-build: Run 'scan-view /tmp/scan-build-2017-05-29-223318-9830-1' to examine bug reports.
@@ -101,13 +108,13 @@ Currently, we have a very simple test program in `src/fuzzers/fuzz_keys`, which 
 Here is an example:
 
 ``` sh
-$ env CC=afl-gcc AFL_HARDEN=1 CFLAGS=-ggdb ./configure --disable-shared
-$ make -j$(grep -c '^$' /proc/cpuinfo) clean all
-$ mkdir afl_in afl_out
-$ cp some_tests/*.asc afl_in/
-$ afl-fuzz -i afl_in -o afl_out src/fuzzing/fuzz_keys @@
-# ctrl-c to exit
-$ valgrind -q src/fuzzing/fuzz_keys < afl_out/[...]
+env CC=afl-gcc AFL_HARDEN=1 CFLAGS=-ggdb ./configure --disable-shared
+make -j$(grep -c '^$' /proc/cpuinfo) clean all
+mkdir afl_in afl_out
+cp some_tests/*.asc afl_in/
+afl-fuzz -i afl_in -o afl_out src/fuzzing/fuzz_keys @@
+ctrl-c to exit
+valgrind -q src/fuzzing/fuzz_keys < afl_out/[...]
 ```
 
 #### Further Reading
@@ -122,9 +129,9 @@ Clang and GCC both support a number of sanitizers that can help locate issues in
 To use them, you should rebuild with the sanitizers enabled, and then run the tests (or any executable):
 
 ``` sh
-$ env CC=clang CFLAGS="-fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" ./configure
-$ make -j4
-$ src/cmocka/rnp_tests
+env CC=clang CFLAGS="-fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" ./configure
+make -j4
+src/cmocka/rnp_tests
 ```
 
 Here we are using the [AddressSanitizer](https://clang.llvm.org/docs/AddressSanitizer.html) and [UndefinedBehaviorSanitizer](https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html).
@@ -143,8 +150,8 @@ C is a very flexible and powerful language. Because of this, it is important to 
 A git pre-commit hook exists to perform this task automatically, and can be enabled like so:
 
 ``` sh
-$ cd rnp
-$ git-hooks/enable.sh
+cd rnp
+git-hooks/enable.sh
 ```
 
 If you do not have clang-format v4.0.0 available, you can use a docker container for this purpose by setting `USE_DOCKER="yes"` in `git-hooks/pre-commit.sh`.
@@ -160,7 +167,7 @@ If your commit does not touch any `.c`/`.h` files, you can skip the pre-commit h
 If you are not able to use the git hook, you can run clang-format manually.
 
 ``` sh
-$ clang-format -style=file -i src/lib/some_changed_file.c
+clang-format -style=file -i src/lib/some_changed_file.c
 ```
 
 (Or, if you do not have clang-form v4.0.0 available, use a container)
