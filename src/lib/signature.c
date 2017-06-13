@@ -213,8 +213,8 @@ dsa_sign(pgp_hash_t *            hash,
 
 static int
 ecdsa_sign(pgp_hash_t *hash,
-         const pgp_ecdsa_pubkey_t *pub_key,
-         const pgp_ecdsa_seckey_t *prv_key,
+         const pgp_ecc_pubkey_t *pub_key,
+         const pgp_ecc_seckey_t *prv_key,
          pgp_output_t *output)
 {
     uint8_t  hashbuf[PGP_MAX_HASH_SIZE];
@@ -386,7 +386,7 @@ pgp_check_sig(const uint8_t *     hash,
         break;
 
     case PGP_PKA_ECDSA:
-        ret = (pgp_ecdsa_verify_hash(&sig->info.sig.ecdsa, hash, length, &signer->key.ecdsa) == PGP_E_OK);
+        ret = (pgp_ecdsa_verify_hash(&sig->info.sig.ecdsa, hash, length, &signer->key.ecc) == PGP_E_OK);
         break;
 
     default:
@@ -575,7 +575,7 @@ start_sig_in_mem(pgp_create_sig_t *sig)
 /**
  * \ingroup Core_Signature
  *
- * pgp_sig_start() creates a V4 public key signature with a SHA1 hash.
+ * pgp_sig_start() creates a V4 public key signature
  *
  * \param sig The signature structure to initialise
  * \param key The public key to be signed
@@ -586,7 +586,8 @@ void
 pgp_sig_start_key_sig(pgp_create_sig_t *  sig,
                       const pgp_pubkey_t *key,
                       const uint8_t *     id,
-                      pgp_sig_type_t      type)
+                      pgp_sig_type_t      type,
+                      pgp_hash_alg_t      hash_alg)
 {
     sig->output = pgp_output_new();
 
@@ -594,7 +595,7 @@ pgp_sig_start_key_sig(pgp_create_sig_t *  sig,
      * probably use the buffered writer to construct packets
      * (done), and also should share code for hash calculation) */
     sig->sig.info.version = PGP_V4;
-    sig->sig.info.hash_alg = PGP_HASH_SHA1;
+    sig->sig.info.hash_alg = hash_alg;
     sig->sig.info.key_alg = key->alg;
     sig->sig.info.type = type;
     sig->hashlen = (unsigned) -1;
@@ -609,7 +610,8 @@ void
 pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
                          const pgp_pubkey_t *key,
                          const pgp_pubkey_t *subkey,
-                         pgp_sig_type_t      type)
+                         pgp_sig_type_t      type,
+                         pgp_hash_alg_t      hash_alg)
 {
     sig->output = pgp_output_new();
 
@@ -732,15 +734,9 @@ pgp_write_sig(pgp_output_t *      output,
         break;
 
     case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
         if (seckey->key.ecc.x == NULL) {
             (void) fprintf(stderr, "pgp_write_sig: null ecc.x\n");
-            return 0;
-        }
-        break;
-
-    case PGP_PKA_ECDSA:
-        if (seckey->key.ecdsa.x == NULL) {
-            (void) fprintf(stderr, "pgp_write_sig: null ecdsa.x\n");
             return 0;
         }
         break;
@@ -799,7 +795,7 @@ pgp_write_sig(pgp_output_t *      output,
         break;
 
     case PGP_PKA_ECDSA:
-        if (!ecdsa_sign(&sig->hash, &key->key.ecdsa, &seckey->key.ecdsa, sig->output)) {
+        if (!ecdsa_sign(&sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
             RNP_LOG("ecdsa sign failure");
             return 0;
         }

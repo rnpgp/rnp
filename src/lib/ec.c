@@ -82,15 +82,13 @@ pgp_curve_t find_curve_by_OID(  const uint8_t *oid,
 }
 
 pgp_errcode_t ec_serialize_pubkey(  pgp_output_t *output,
-                                    const pgp_ecdsa_pubkey_t *pubkey) {
+                                    const pgp_ecc_pubkey_t *pubkey) {
 
     const ec_curve_desc_t *curve = &ec_curves[pubkey->curve];
 
     if (pgp_write_scalar(output, curve->OIDhex_len, 1) &&
         pgp_write(output, curve->OIDhex, curve->OIDhex_len) &&
-        pgp_write_scalar(output, 0x04, 1) &&
-        pgp_write_mpi(output, pubkey->public_xy.x) &&
-        pgp_write_mpi(output, pubkey->public_xy.y)) {
+        pgp_write_mpi(output, pubkey->point)) {
 
         return PGP_E_OK;
     }
@@ -101,9 +99,19 @@ pgp_errcode_t ec_serialize_pubkey(  pgp_output_t *output,
 pgp_errcode_t pgp_ecdsa_genkeypair( pgp_seckey_t *seckey,
                                     pgp_curve_t curve) {
 
+    /**
+     * Keeps "0x04 || x || y"
+     * \see 13.2.  ECDSA and ECDH Conversion Primitives
+     *
+     * P-521 is biggest supported curve for ECDSA
+     */
+    uint8_t point_bytes[BITS_TO_BYTES(521)*2 + 1] = {0};
+    const size_t filed_byte_size = BITS_TO_BYTES(ec_curves[curve].bitlen);
     botan_privkey_t pr_key = NULL;
     botan_pubkey_t pu_key = NULL;
     botan_rng_t rng = NULL;
+    BIGNUM *public_x = NULL;
+    BIGNUM *public_y = NULL;
     pgp_errcode_t ret = PGP_E_C_KEY_GENERATION_FAILED;
 
     if (botan_rng_init(&rng, NULL)) {
@@ -119,19 +127,47 @@ pgp_errcode_t pgp_ecdsa_genkeypair( pgp_seckey_t *seckey,
     }
 
     // Crash if seckey is null. It's clean and easy to debug design
-    seckey->pubkey.key.ecdsa.public_xy.x = BN_new();
-    seckey->pubkey.key.ecdsa.public_xy.y = BN_new();
-    seckey->key.ecdsa.x = BN_new();
+    public_x = BN_new();
+    public_y = BN_new();
+    seckey->key.ecc.x = BN_new();
 
-    if (botan_pubkey_get_field(seckey->pubkey.key.ecdsa.public_xy.x->mp, pu_key, "public_x")) {
+    if (!public_x || !public_y || !seckey->key.ecc.x) {
+        RNP_LOG("Allocation failed");
         goto end;
     }
 
-    if (botan_pubkey_get_field(seckey->pubkey.key.ecdsa.public_xy.y->mp, pu_key, "public_y")) {
+    if (botan_pubkey_get_field(public_x->mp, pu_key, "public_x")) {
         goto end;
     }
 
-    if (botan_privkey_get_field(seckey->key.ecdsa.x->mp, pr_key, "x")) {
+    if (botan_pubkey_get_field(public_y->mp, pu_key, "public_y")) {
+        goto end;
+    }
+
+    if (botan_privkey_get_field(seckey->key.ecc.x->mp, pr_key, "x")) {
+        goto end;
+    }
+
+    // Safety check
+    if ((BN_num_bytes(public_x) > filed_byte_size) ||
+        (BN_num_bytes(public_y) > filed_byte_size)) {
+        RNP_LOG("Key generation failed");
+        goto end;
+    }
+
+    /*
+     * Convert coordinates to MPI stored as
+     * "0x04 || x || y"
+     *
+     *  \see 13.2.  ECDSA and ECDH Conversion Primitives
+     */
+
+    point_bytes[0] = 0x04;
+    BN_bn2bin(public_x, &point_bytes[1]);
+    BN_bn2bin(public_y, &point_bytes[1 + filed_byte_size]);
+
+    seckey->pubkey.key.ecc.point = BN_bin2bn(point_bytes, (2*filed_byte_size) + 1, NULL);
+    if (!seckey->pubkey.key.ecc.point) {
         goto end;
     }
 
@@ -142,7 +178,8 @@ end:
     botan_rng_destroy(rng);
     botan_privkey_destroy(pr_key);
     botan_pubkey_destroy(pu_key);
-
+    BN_free(public_x);
+    BN_free(public_y);
     if (PGP_E_OK != ret) {
         RNP_LOG("ECDSA key generation failed");
         pgp_seckey_free(seckey);
@@ -155,8 +192,8 @@ end:
 pgp_errcode_t pgp_ecdsa_sign_hash(  pgp_ecc_sig_t *sign,
                                     const uint8_t *hashbuf,
                                     size_t hash_len,
-                                    const pgp_ecdsa_seckey_t *seckey,
-                                    const pgp_ecdsa_pubkey_t *pubkey) {
+                                    const pgp_ecc_seckey_t *seckey,
+                                    const pgp_ecc_pubkey_t *pubkey) {
 
     botan_pk_op_sign_t signer = NULL;
     botan_privkey_t key = NULL;
@@ -218,34 +255,49 @@ end:
 pgp_errcode_t pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *sign,
                                     const uint8_t *hash,
                                     size_t hash_len,
-                                    const pgp_ecdsa_pubkey_t *pubkey)
+                                    const pgp_ecc_pubkey_t *pubkey)
 {
-    botan_pk_op_verify_t verifier = NULL;
+    botan_mp_t public_x = NULL;
+    botan_mp_t public_y = NULL;
     botan_pubkey_t pub = NULL;
+    botan_pk_op_verify_t verifier = NULL;
     pgp_errcode_t ret = PGP_E_V_BAD_SIGNATURE;
     uint8_t sign_buf[2 * MAX_CURVE_BYTELEN] = {0};
     const size_t sign_half_len = BITS_TO_BYTES(ec_curves[pubkey->curve].bitlen);
-    const char* curve_name = ec_curves[pubkey->curve].botan_name;
+    uint8_t point_bytes[BITS_TO_BYTES(521)*2 + 1] = {0};
 
-    if (botan_pubkey_load_ecdsa(&pub, pubkey->public_xy.x->mp, pubkey->public_xy.y->mp, curve_name)) {
+
+    if ((BN_num_bytes(pubkey->point) > sizeof(point_bytes)) ||
+        BN_bn2bin(pubkey->point, point_bytes) ||
+        (point_bytes[0] != 0x04)) {
+        RNP_LOG("Failed to load public key");
+        goto end;
+    }
+
+    if (botan_mp_init(&public_x) ||
+        botan_mp_init(&public_y) ||
+        botan_mp_from_bin(public_x, &point_bytes[1], sign_half_len) ||
+        botan_mp_from_bin(public_y, &point_bytes[1 + sign_half_len], sign_half_len)) {
+        goto end;
+    }
+
+    const char* curve_name = ec_curves[pubkey->curve].botan_name;
+    if (botan_pubkey_load_ecdsa(&pub, public_x, public_y, curve_name)) {
         RNP_LOG("Failed to load public key");
         goto end;
     }
 
     if (botan_pk_op_verify_create(&verifier, pub, "Raw", 0)) {
-        RNP_LOG("Failed to load public key");
         goto end;
     }
 
     if (botan_pk_op_verify_update(verifier, hash, hash_len)) {
-        RNP_LOG("Failed to load public key");
         goto end;
     }
 
     if ((BN_num_bytes(sign->r) > sign_half_len) ||
         (BN_num_bytes(sign->s) > sign_half_len) ||
         (sign_half_len > MAX_CURVE_BYTELEN)) {
-        RNP_LOG("Failed to load public key");
         goto end;
     }
 
@@ -257,6 +309,8 @@ pgp_errcode_t pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *sign,
         : PGP_E_OK;
 
 end:
+    botan_mp_destroy(public_x);
+    botan_mp_destroy(public_y);
     botan_pubkey_destroy(pub);
     botan_pk_op_verify_destroy(verifier);
     return ret;

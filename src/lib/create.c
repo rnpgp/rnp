@@ -164,9 +164,8 @@ pubkey_length(const pgp_pubkey_t *key)
 
     case PGP_PKA_ECDSA:
         return 1 +  // length of curve OID
-           + ec_curves[key->key.ecdsa.curve].OIDhex_len + 1 // 0x04
-           + mpi_length(key->key.ecdsa.public_xy.x) +
-             mpi_length(key->key.ecdsa.public_xy.y);
+           + ec_curves[key->key.ecc.curve].OIDhex_len
+           + mpi_length(key->key.ecc.point);
 
     case PGP_PKA_RSA:
         return mpi_length(key->key.rsa.n) + mpi_length(key->key.rsa.e);
@@ -185,9 +184,8 @@ seckey_length(const pgp_seckey_t *key)
     len = 0;
     switch (key->pubkey.alg) {
     case PGP_PKA_EDDSA:
-        return mpi_length(key->key.ecc.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_ECDSA:
-        return mpi_length(key->key.ecdsa.x) + pubkey_length(&key->pubkey);
+        return mpi_length(key->key.ecc.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_DSA:
         return (unsigned) (mpi_length(key->key.dsa.x) + pubkey_length(&key->pubkey));
     case PGP_PKA_RSA:
@@ -235,7 +233,7 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
           pgp_write_mpi(output, key->key.ecc.point);
 
     case PGP_PKA_ECDSA:
-        return (ec_serialize_pubkey(output, &key->key.ecdsa) == PGP_E_OK);
+        return (ec_serialize_pubkey(output, &key->key.ecc) == PGP_E_OK);
 
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -307,10 +305,8 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result)
         hash_bn(&hash, key->key.dsa.x);
         break;
     case PGP_PKA_EDDSA:
-        hash_bn(&hash, key->key.ecc.x);
-        break;
     case PGP_PKA_ECDSA:
-        hash_bn(&hash, key->key.ecdsa.x);
+        hash_bn(&hash, key->key.ecc.x);
         break;
     case PGP_PKA_ELGAMAL:
         hash_bn(&hash, key->key.elgamal.x);
@@ -446,11 +442,8 @@ write_seckey_body(const pgp_seckey_t *key,
           return 0;
        break;
     case PGP_PKA_EDDSA:
-       if( !pgp_write_mpi(output, key->key.ecc.x))
-          return 0;
-       break;
     case PGP_PKA_ECDSA:
-       if( !pgp_write_mpi(output, key->key.ecdsa.x))
+       if( !pgp_write_mpi(output, key->key.ecc.x))
           return 0;
        break;
     case PGP_PKA_ELGAMAL:

@@ -1224,8 +1224,7 @@ pgp_pubkey_free(pgp_pubkey_t *p)
         break;
 
     case PGP_PKA_ECDSA:
-        free_BN(&p->key.ecdsa.public_xy.x);
-        free_BN(&p->key.ecdsa.public_xy.y);
+        free_BN(&p->key.ecc.point);
         break;
 
     case PGP_PKA_NOTHING:
@@ -1324,17 +1323,10 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_ECDSA: {
         pgp_data_t OID = {0};
         unsigned OID_len = 0;
-        unsigned tmp = 0;
         if (!limread_scalar(&OID_len, 1, region, stream) ||
             !limread_data(&OID, OID_len, region, stream) ||
-            !limread_scalar(&tmp, 1, region, stream) ||
-            !limread_mpi(&key->key.ecdsa.public_xy.x, region, stream) ||
-            !limread_mpi(&key->key.ecdsa.public_xy.y, region, stream)) {
+            !limread_mpi(&key->key.ecc.point, region, stream)) {
             return 0;
-        }
-
-        if (tmp != 4) {
-            PGP_ERROR_1(&stream->errors, 1, "Unsupported EC point format (%d)", tmp);
         }
 
         const pgp_curve_t curve = find_curve_by_OID(OID.contents, OID.len);
@@ -1343,7 +1335,7 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
             pgp_data_free(&OID);
             return 0;
         }
-        key->key.ecdsa.curve = curve;
+        key->key.ecc.curve = curve;
         pgp_data_free(&OID);
         break;
     }
@@ -2401,11 +2393,8 @@ pgp_seckey_free(pgp_seckey_t *key)
         break;
 
     case PGP_PKA_EDDSA:
-        free_BN(&key->key.ecc.x);
-        break;
-
     case PGP_PKA_ECDSA:
-        free_BN(&key->key.ecdsa.x);
+        free_BN(&key->key.ecc.x);
         break;
     default:
         (void) fprintf(stderr,
@@ -2652,13 +2641,8 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         break;
 
     case PGP_PKA_EDDSA:
-        if (!limread_mpi(&pkt.u.seckey.key.ecc.x, region, stream)) {
-            ret = 0;
-        }
-        break;
-
     case PGP_PKA_ECDSA:
-        if (!limread_mpi(&pkt.u.seckey.key.ecdsa.x, region, stream)) {
+        if (!limread_mpi(&pkt.u.seckey.key.ecc.x, region, stream)) {
             ret = 0;
         }
         break;
