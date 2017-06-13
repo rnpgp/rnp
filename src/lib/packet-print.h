@@ -52,7 +52,7 @@
 #ifndef PACKET_PRINT_H_
 #define PACKET_PRINT_H_
 
-#include <json.h>
+#include <json-c/json.h>
 
 #include "types.h"
 #include "packet.h"
