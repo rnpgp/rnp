@@ -525,7 +525,7 @@ format_uid_notice(char *                 buffer,
     for (i = 0; i < key->subsigc; i++) {
         pgp_subsig_t *   subsig = &key->subsigs[i];
         const pgp_key_t *trustkey;
-        unsigned         from = 0;
+        unsigned         from;
 
         /* TODO: To me this looks like an unnecessary consistency
          *       check that should be performed upstream before
@@ -1702,19 +1702,13 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
 
     __PGP_USED(io);
     pgp_setup_memory_write(&output, &mem, 128);
-
     if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
         pgp_write_xfer_pubkey(output, keydata, NULL, 1);
     } else {
         pgp_write_xfer_seckey(
           output, keydata, passphrase, strlen((char *) passphrase), NULL, 1);
     }
-
-    if ((cp = (char *)malloc(pgp_mem_len(mem))) == NULL){
-        pgp_teardown_memory_write(output, mem);
-        return NULL;
-    }
-
+    cp = malloc(pgp_mem_len(mem));
     memcpy(cp, pgp_mem_data(mem), pgp_mem_len(mem));
     pgp_teardown_memory_write(output, mem);
     return cp;
