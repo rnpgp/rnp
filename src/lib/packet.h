@@ -433,25 +433,9 @@ typedef struct {
 typedef struct {
     uint8_t oid_len;
     uint8_t *oid;
+    pgp_curve_t curve;
     BIGNUM *point; /* octet string encoded as MPI */
 } pgp_ecc_pubkey_t;
-
-/** Structure to hold EC public point in uncompressed form
- *  to be used with ECDSA and ECDH
- */
-typedef struct pgp_ec_pubkey_t {
-
-    pgp_curve_t     curve;
-
-    struct public_xy {
-        BIGNUM *x;
-        BIGNUM *y;
-    } public_xy;
-
-} pgp_ec_pubkey_t;
-
-/* Type definition for ECDSA */
-typedef pgp_ec_pubkey_t pgp_ecdsa_pubkey_t;
 
 /** Version.
  * OpenPGP has two different protocol versions: version 3 and version 4.
@@ -479,7 +463,6 @@ typedef struct pgp_pubkey_t {
         pgp_dsa_pubkey_t     dsa;     /* A DSA public key */
         pgp_rsa_pubkey_t     rsa;     /* An RSA public key */
         pgp_elgamal_pubkey_t elgamal; /* An ElGamal public key */
-        pgp_ecdsa_pubkey_t   ecdsa;   /* An ECDSA public key */
         pgp_ecc_pubkey_t     ecc;     /* An ECC public key */
     } key;                            /* Public Key Parameters */
 } pgp_pubkey_t;
@@ -502,11 +485,6 @@ typedef struct pgp_dsa_seckey_t {
 typedef struct pgp_elgamal_seckey_t {
     BIGNUM *x;
 } pgp_elgamal_seckey_t;
-
-/** pgp_ecdsa_seckey_t */
-typedef struct pgp_ecdsa_seckey_t {
-    BIGNUM *x;
-} pgp_ecdsa_seckey_t;
 
 /** pgp_ecc_seckey_t */
 typedef struct {
@@ -582,8 +560,7 @@ typedef struct pgp_seckey_t {
         pgp_rsa_seckey_t     rsa;
         pgp_dsa_seckey_t     dsa;
         pgp_elgamal_seckey_t elgamal;
-        pgp_ecc_seckey_t ecc;
-        pgp_ecdsa_seckey_t   ecdsa;
+        pgp_ecc_seckey_t     ecc;
     } key;
     unsigned checksum;
     uint8_t *checkhash;
@@ -667,8 +644,8 @@ typedef struct pgp_sig_info_t {
         pgp_rsa_sig_t     rsa;     /* An RSA Signature */
         pgp_dsa_sig_t     dsa;     /* A DSA Signature */
         pgp_elgamal_sig_t elgamal; /* deprecated */
-        pgp_ecc_sig_t     ecc;     /* An ECDSA or EdDSA signature */
-	pgp_ecc_sig_t     ecdsa;    /* A ECDSA signature */
+        pgp_ecc_sig_t     ecc;   /* An ECDSA or EdDSA signature */
+	      pgp_ecc_sig_t     ecdsa;   /* A ECDSA signature */
         pgp_data_t        unknown; /* private or experimental */
     } sig;                         /* signature params */
     size_t   v4_hashlen;
@@ -1032,10 +1009,10 @@ typedef struct pgp_key_t {
  * Structure holds description of elliptic curve
  */
 typedef struct ec_curve_desc_t {
-    pgp_curve_t rnp_curve_id;
-    size_t bitlen;
-    uint8_t OIDhex[MAX_CURVE_OID_HEX_LEN];
-    size_t OIDhex_len;
+    const pgp_curve_t rnp_curve_id;
+    const size_t bitlen;
+    const uint8_t OIDhex[MAX_CURVE_OID_HEX_LEN];
+    const size_t OIDhex_len;
     const char *botan_name;
 } ec_curve_desc_t;
 

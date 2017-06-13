@@ -307,14 +307,14 @@ ECDSA_signverify_success(void **state)
     uint8_t message[32];
     pgp_ecc_sig_t sig = {NULL, NULL};
 
-    pgp_key_t* pgp_key1 = pgp_generate_keypair(PGP_PKA_ECDSA, 256, NULL, "SHA-256", "AES-128");
-    pgp_key_t* pgp_key2 = pgp_generate_keypair(PGP_PKA_ECDSA, 256, NULL, "SHA-256", "AES-128");
+    pgp_key_t* pgp_key1 = pgp_generate_keypair(PGP_PKA_ECDSA, 256, NULL, "SHA256", "AES-128");
+    pgp_key_t* pgp_key2 = pgp_generate_keypair(PGP_PKA_ECDSA, 256, NULL, "SHA256", "AES-128");
     assert_int_not_equal(pgp_key1, NULL);
     assert_int_not_equal(pgp_key2, NULL);
 
-    const pgp_ecdsa_pubkey_t *pub_key1 = &pgp_key1->key.pubkey.key.ecdsa;
-    const pgp_ecdsa_pubkey_t *pub_key2 = &pgp_key2->key.pubkey.key.ecdsa;
-    const pgp_ecdsa_seckey_t *prv_key1 = &pgp_key1->key.seckey.key.ecdsa;
+    const pgp_ecc_pubkey_t *pub_key1 = &pgp_key1->key.pubkey.key.ecc;
+    const pgp_ecc_pubkey_t *pub_key2 = &pgp_key2->key.pubkey.key.ecc;
+    const pgp_ecc_seckey_t *prv_key1 = &pgp_key1->key.seckey.key.ecc;
 
     assert_int_equal(
         pgp_ecdsa_sign_hash(&sig, message, sizeof(message), prv_key1, pub_key1),
