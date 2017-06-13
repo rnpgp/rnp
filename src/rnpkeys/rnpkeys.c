@@ -221,6 +221,8 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
         }
         if (key) {
             if ((s = rnp_export_key(rnp, key)) != NULL) {
+                // TODO: We really should not assume rnp_export_key returns null terminated string.
+                //       ``rnp_export_key`` should return char* and length.
                 printf("%s", s);
                 return 1;
             }

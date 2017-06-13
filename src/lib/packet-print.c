@@ -1732,8 +1732,10 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
         pgp_write_xfer_seckey(
           output, keydata, passphrase, strlen((char *) passphrase), NULL, 1);
     }
-    cp = malloc(pgp_mem_len(mem));
-    memcpy(cp, pgp_mem_data(mem), pgp_mem_len(mem));
+    const size_t mem_len = pgp_mem_len(mem) + 1;
+    cp = malloc(sizeof(*cp)*mem_len);
+    memcpy(cp, pgp_mem_data(mem), mem_len);
     pgp_teardown_memory_write(output, mem);
+    cp[mem_len - 1] = '\0';
     return cp;
 }
