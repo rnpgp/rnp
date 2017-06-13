@@ -80,6 +80,8 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #endif
 
 #include "bn.h"
+#include "rsa.h"
+#include "elgamal.h"
 #include "create.h"
 #include "key_store_pgp.h"
 #include "packet.h"
@@ -106,27 +108,6 @@ pgp_write_ss_header(pgp_output_t *output, unsigned length, pgp_content_enum type
     return pgp_write_length(output, length) &&
            pgp_write_scalar(
              output, (unsigned) (type - (unsigned) PGP_PTAG_SIG_SUBPKT_BASE), 1);
-}
-
-/*
- * XXX: the general idea of _fast_ is that it doesn't copy stuff the safe
- * (i.e. non _fast_) version will, and so will also need to be freed.
- */
-
-/**
- * \ingroup Core_Create
- *
- * pgp_fast_create_userid() sets id->userid to the given userid.
- * This is fast because it is only copying a char*. However, if userid
- * is changed or freed in the future, this could have injurious results.
- * \param id
- * \param userid
- */
-
-void
-pgp_fast_create_userid(uint8_t **id, uint8_t *userid)
-{
-    *id = userid;
 }
 
 /**
@@ -175,6 +156,9 @@ pubkey_length(const pgp_pubkey_t *key)
         return mpi_length(key->key.dsa.p) + mpi_length(key->key.dsa.q) +
                mpi_length(key->key.dsa.g) + mpi_length(key->key.dsa.y);
 
+    case PGP_PKA_EDDSA:
+        return mpi_length(key->key.ecc.point) + 1 + key->key.ecc.oid_len;
+
     case PGP_PKA_RSA:
         return mpi_length(key->key.rsa.n) + mpi_length(key->key.rsa.e);
 
@@ -191,6 +175,8 @@ seckey_length(const pgp_seckey_t *key)
 
     len = 0;
     switch (key->pubkey.alg) {
+    case PGP_PKA_EDDSA:
+        return mpi_length(key->key.ecc.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_DSA:
         return (unsigned) (mpi_length(key->key.dsa.x) + pubkey_length(&key->pubkey));
     case PGP_PKA_RSA:
@@ -202,23 +188,6 @@ seckey_length(const pgp_seckey_t *key)
         (void) fprintf(stderr, "seckey_length: unknown key algorithm\n");
     }
     return 0;
-}
-
-/**
- * \ingroup Core_Create
- * \param key
- * \param t
- * \param n
- * \param e
- */
-void
-pgp_fast_create_rsa_pubkey(pgp_pubkey_t *key, time_t t, BIGNUM *n, BIGNUM *e)
-{
-    key->version = PGP_V4;
-    key->birthtime = t;
-    key->alg = PGP_PKA_RSA;
-    key->key.rsa.n = n;
-    key->key.rsa.e = e;
 }
 
 /*
@@ -241,11 +210,18 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
         return 0;
     }
 
+    const uint8_t ed25519_oid[9] = { 0x2b, 0x06, 0x01 ,0x04, 0x01, 0xda, 0x47, 0x0f, 0x01 };
+
     switch (key->alg) {
     case PGP_PKA_DSA:
         return pgp_write_mpi(output, key->key.dsa.p) &&
                pgp_write_mpi(output, key->key.dsa.q) &&
                pgp_write_mpi(output, key->key.dsa.g) && pgp_write_mpi(output, key->key.dsa.y);
+
+    case PGP_PKA_EDDSA:
+       return pgp_write_scalar(output, sizeof(ed25519_oid), 1) &&
+          pgp_write(output, ed25519_oid, sizeof(ed25519_oid)) &&
+          pgp_write_mpi(output, key->key.ecc.point);
 
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -316,6 +292,9 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result)
     case PGP_PKA_DSA:
         hash_bn(&hash, key->key.dsa.x);
         break;
+    case PGP_PKA_EDDSA:
+        hash_bn(&hash, key->key.ecc.x);
+        break;
     case PGP_PKA_ELGAMAL:
         hash_bn(&hash, key->key.elgamal.x);
         break;
@@ -338,7 +317,6 @@ write_seckey_body(const pgp_seckey_t *key,
 {
     /* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
 
-    pgp_crypt_t crypted;
     uint8_t     sesskey[PGP_MAX_KEY_SIZE];
     uint8_t     checkhash[PGP_CHECKHASH_SIZE];
     size_t      sesskey_size;
@@ -421,17 +399,18 @@ write_seckey_body(const pgp_seckey_t *key,
 
     /* use this session key to encrypt */
 
-    pgp_crypt_any(&crypted, key->alg);
-    pgp_cipher_set_iv(&crypted, key->iv);
-    pgp_cipher_set_key(&crypted, sesskey);
-    pgp_encrypt_init(&crypted);
+    pgp_crypt_t* crypted = malloc(sizeof(pgp_crypt_t));
+    pgp_crypt_any(crypted, key->alg);
+    pgp_cipher_set_iv(crypted, key->iv);
+    pgp_cipher_set_key(crypted, sesskey);
+    pgp_encrypt_init(crypted);
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "writing: iv=", key->iv, pgp_block_size(key->alg));
         hexdump(stderr, "key= ", sesskey, sesskey_size);
         (void) fprintf(stderr, "\nturning encryption on...\n");
     }
-    pgp_push_enc_crypt(output, &crypted);
+    pgp_push_enc_crypt(output, crypted);
 
     switch (key->pubkey.alg) {
     case PGP_PKA_RSA:
@@ -446,9 +425,17 @@ write_seckey_body(const pgp_seckey_t *key,
         }
         break;
     case PGP_PKA_DSA:
-        return pgp_write_mpi(output, key->key.dsa.x);
+       if( !pgp_write_mpi(output, key->key.dsa.x))
+          return 0;
+       break;
+    case PGP_PKA_EDDSA:
+       if( !pgp_write_mpi(output, key->key.ecc.x))
+          return 0;
+       break;
     case PGP_PKA_ELGAMAL:
-        return pgp_write_mpi(output, key->key.elgamal.x);
+       if( !pgp_write_mpi(output, key->key.elgamal.x))
+          return 0;
+       break;
     default:
         return 0;
     }
@@ -463,7 +450,8 @@ write_seckey_body(const pgp_seckey_t *key,
     }
 
     pgp_writer_pop(output);
-    pgp_cipher_finish(&crypted);
+    pgp_cipher_finish(crypted);
+    free(crypted);
 
     return 1;
 }
@@ -634,26 +622,6 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
 }
 
 /**
- * \ingroup Core_WritePackets
- * \brief Writes one RSA public key packet.
- * \param t Creation time
- * \param n RSA public modulus
- * \param e RSA public encryption exponent
- * \param output Writer settings
- *
- * \return 1 if OK, otherwise 0
- */
-
-unsigned
-pgp_write_rsa_pubkey(time_t t, const BIGNUM *n, const BIGNUM *e, pgp_output_t *output)
-{
-    pgp_pubkey_t key;
-
-    pgp_fast_create_rsa_pubkey(&key, t, __UNCONST(n), __UNCONST(e));
-    return write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &key);
-}
-
-/**
  * \ingroup Core_Create
  * \param out
  * \param key
@@ -673,48 +641,6 @@ pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key, unsigned make_packe
         pgp_memory_make_packet(out, PGP_PTAG_CT_PUBLIC_KEY);
     }
     pgp_output_delete(output);
-}
-
-/**
- * \ingroup Core_Create
- *
- * Create an RSA secret key structure. If a parameter is marked as
- * [OPTIONAL], then it can be omitted and will be calculated from
- * other params - or, in the case of e, will default to 0x10001.
- *
- * Parameters are _not_ copied, so will be freed if the structure is
- * freed.
- *
- * \param key The key structure to be initialised.
- * \param t
- * \param d The RSA parameter d (=e^-1 mod (p-1)(q-1)) [OPTIONAL]
- * \param p The RSA parameter p
- * \param q The RSA parameter q (q > p)
- * \param u The RSA parameter u (=p^-1 mod q) [OPTIONAL]
- * \param n The RSA public parameter n (=p*q) [OPTIONAL]
- * \param e The RSA public parameter e */
-
-void
-pgp_fast_create_rsa_seckey(pgp_seckey_t *key,
-                           time_t        t,
-                           BIGNUM *      d,
-                           BIGNUM *      p,
-                           BIGNUM *      q,
-                           BIGNUM *      u,
-                           BIGNUM *      n,
-                           BIGNUM *      e)
-{
-    pgp_fast_create_rsa_pubkey(&key->pubkey, t, n, e);
-
-    /* XXX: calculate optionals */
-    key->key.rsa.d = d;
-    key->key.rsa.p = p;
-    key->key.rsa.q = q;
-    key->key.rsa.u = u;
-
-    key->s2k_usage = PGP_S2KU_NONE;
-
-    /* XXX: sanity check and add errors... */
 }
 
 /**

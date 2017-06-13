@@ -24,6 +24,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <rsa.h>
+#include <dsa.h>
+#include <eddsa.h>
+#include <elgamal.h>
 #include <crypto.h>
 #include <key_store_pgp.h>
 #include <packet.h>
@@ -138,7 +142,7 @@ pkcs1_rsa_test_success(void **state)
     const pgp_rsa_pubkey_t *pub_rsa;
     const pgp_rsa_seckey_t *sec_rsa;
 
-    pgp_key = pgp_rsa_new_key(1024, 65537, "userid", "AES-128");
+    pgp_key = pgp_generate_keypair(PGP_PKA_RSA, 1024, NULL, "SHA-256", "AES-128");
     assert_true(pgp_key != NULL);
     sec_key = pgp_get_seckey(pgp_key);
     pub_key = pgp_get_pubkey(pgp_key);
@@ -188,6 +192,32 @@ pkcs1_rsa_test_success(void **state)
     assert_int_equal(decrypted_size, 3);
     pgp_keydata_free(pgp_key);
 }
+
+void rnp_test_eddsa(void** state)
+   {
+   pgp_key_t* pgp_key = pgp_generate_keypair(PGP_PKA_EDDSA, 255, NULL, "SHA-256", "AES-128");
+   assert_non_null(pgp_key);
+
+   const uint8_t hash[32] = { 0 };
+   BIGNUM* r = BN_new();
+   BIGNUM* s = BN_new();
+
+   assert_int_equal(pgp_eddsa_sign_hash(r, s, hash, sizeof(hash),
+                                        &pgp_key->key.seckey.key.ecc,
+                                        &pgp_key->key.seckey.pubkey.key.ecc), 0);
+
+   assert_int_equal(pgp_eddsa_verify_hash(r, s, hash, sizeof(hash), &pgp_key->key.seckey.pubkey.key.ecc), 1);
+
+   // swap r/s -> invalid sig
+   assert_int_equal(pgp_eddsa_verify_hash(s, r, hash, sizeof(hash), &pgp_key->key.seckey.pubkey.key.ecc), 0);
+
+   // cut one byte off hash -> invalid sig
+   assert_int_equal(pgp_eddsa_verify_hash(r, s, hash, sizeof(hash) - 1, &pgp_key->key.seckey.pubkey.key.ecc), 0);
+
+   BN_free(r);
+   BN_free(s);
+   pgp_keydata_free(pgp_key);
+   }
 
 void
 raw_elg_test_success(void **state)

@@ -84,6 +84,7 @@
 
 #include "crypto.h"
 #include "rnpdefs.h"
+#include "bn.h"
 
 int
 read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)

@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009-2010 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -28,49 +27,33 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RNPSDK_H_
-#define RNPSDK_H_
 
-#include "key_store_pgp.h"
-#include "crypto.h"
-#include "signature.h"
-#include "packet-show.h"
+#ifndef RNP_ED25519_H_
+#define RNP_ED25519_H_
 
-#ifndef __printflike
-#define __printflike(n, m) __attribute__((format(printf, n, m)))
-#endif
+#include "packet-parse.h"
 
-typedef struct pgp_validation_t {
-    unsigned        validc;
-    pgp_sig_info_t *valid_sigs;
-    unsigned        invalidc;
-    pgp_sig_info_t *invalid_sigs;
-    unsigned        unknownc;
-    pgp_sig_info_t *unknown_sigs;
-    time_t          birthtime;
-    time_t          duration;
-} pgp_validation_t;
+/*
+* curve_len must be 255 currently (for Ed25519)
+* If Ed448 was supported in the future curve_len=448 would also be allowed.
+*/
+int pgp_genkey_eddsa(pgp_seckey_t* seckey, size_t numbits);
 
-void pgp_validate_result_free(pgp_validation_t *);
+typedef struct DSA_SIG_st DSA_SIG;
 
-unsigned pgp_validate_key_sigs(pgp_validation_t *,
-                               const pgp_key_t *,
-                               const rnp_key_store_t *,
-                               pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
+int pgp_eddsa_verify_hash(const BIGNUM* r,
+                          const BIGNUM* s,
+                          const uint8_t *         hash,
+                          size_t                  hash_len,
+                          const pgp_ecc_pubkey_t *pubkey);
 
-unsigned pgp_validate_all_sigs(pgp_validation_t *,
-                               const rnp_key_store_t *,
-                               pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
 
-unsigned pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
+int pgp_eddsa_sign_hash(BIGNUM* r,
+                        BIGNUM* s,
+                        const uint8_t *hash,
+                        size_t         hash_len,
+                        const pgp_ecc_seckey_t *,
+                        const pgp_ecc_pubkey_t *);
 
-const char *rnp_get_info(const char *type);
-
-void rnp_log(const char *, ...) __printflike(1, 2);
-
-int   rnp_strcasecmp(const char *, const char *);
-char *rnp_strdup(const char *);
-
-char * rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep);
 
 #endif

@@ -632,3 +632,37 @@ PGPV_BN_gcd(PGPV_BIGNUM *r, PGPV_BIGNUM *a, PGPV_BIGNUM *b, PGPV_BN_CTX *ctx)
     USE_ARG(ctx);
     return botan_mp_gcd(r->mp, a->mp, b->mp);
 }
+
+BIGNUM *
+new_BN_take_mp(botan_mp_t mp)
+{
+    PGPV_BIGNUM *a;
+
+    a = calloc(1, sizeof(*a));
+    a->mp = mp;
+    return a;
+}
+
+void
+destroy_BN_mp(BIGNUM **a)
+{
+    free(*a);
+    *a = NULL;
+}
+
+DSA_SIG *
+DSA_SIG_new()
+{
+    DSA_SIG *sig = calloc(1, sizeof(DSA_SIG));
+    sig->r = BN_new();
+    sig->s = BN_new();
+    return sig;
+}
+
+void
+DSA_SIG_free(DSA_SIG *sig)
+{
+    BN_clear_free(sig->r);
+    BN_clear_free(sig->s);
+    free(sig);
+}

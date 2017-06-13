@@ -78,8 +78,8 @@
 
 #include <stdlib.h>
 #include <string.h>
-
-#include "crypto.h"
+#include "elgamal.h"
+#include "bn.h"
 
 #define FAIL(str)                                                                      \
     do {                                                                               \

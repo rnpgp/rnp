@@ -29,6 +29,8 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+#include <botan/ffi.h>
+
 #ifndef __BEGIN_DECLS
 #if defined(__cplusplus)
 #define __BEGIN_DECLS extern "C" {
@@ -103,9 +105,11 @@ __BEGIN_DECLS
 #endif /* USE_BN_INTERFACE */
 
 /*
- * PGPV_BIGNUM is an opaque struct
+ * PGPV_BIGNUM struct
  */
-typedef struct PGPV_BIGNUM_st PGPV_BIGNUM;
+typedef struct PGPV_BIGNUM_st {
+    botan_mp_t mp;
+} PGPV_BIGNUM;
 
 /* a "context" of mp integers - never really used */
 typedef struct bn_ctx_t {
@@ -223,6 +227,24 @@ int PGPV_BN_gcd(PGPV_BIGNUM * /*r*/,
                 PGPV_BIGNUM * /*a*/,
                 PGPV_BIGNUM * /*b*/,
                 PGPV_BN_CTX * /*ctx*/);
+
+/**
+ * \brief Allocates BIGNUM and mp value assigned
+ */
+BIGNUM *new_BN_take_mp(botan_mp_t mp);
+void destroy_BN_mp(BIGNUM **a);
+
+/*
+* This type is used to represent any signature where
+* a pair of MPIs is used (DSA, ECDSA, EdDSA, ...)
+*/
+typedef struct DSA_SIG_st {
+    BIGNUM *r;
+    BIGNUM *s;
+} DSA_SIG;
+
+DSA_SIG *DSA_SIG_new();
+void DSA_SIG_free(DSA_SIG *sig);
 
 __END_DECLS
 

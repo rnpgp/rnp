@@ -52,6 +52,8 @@
 #include "../common/constants.h"
 
 #include "crypto.h"
+#include "rsa.h"
+#include "dsa.h"
 
 #include "array.h"
 #include "b64.h"
