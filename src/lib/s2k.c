@@ -85,17 +85,7 @@ pgp_s2k_round_iterations(size_t iterations)
 uint8_t
 pgp_s2k_encode_iterations(size_t iterations)
 {
-    /* For compatibility, when an S2K specifier is used, the special value
-     * 254 or 255 is stored in the position where the hash algorithm octet
-     * would have been in the old data structure. This is then followed
-     * immediately by a one-octet algorithm identifier, and then by the S2K
-     * specifier as encoded above.
-     * 0:           secret data is unencrypted (no passphrase)
-     * 255 or 254:  followed by algorithm octet and S2K specifier
-     * Cipher alg:  use Simple S2K algorithm using MD5 hash
-     * For more info refer to rfc 4880 section 3.7.2.1.
-     */
-    for (uint16_t c = 0; c < 256; ++c) {
+    for (uint8_t c = 0; c <= 255; ++c) {
         if (pgp_s2k_decode_iterations(c) >= iterations) {
             return c;
         }

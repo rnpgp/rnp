@@ -604,7 +604,6 @@ process_dash_escaped(pgp_stream_t *stream,
 
     if (!pgp_hash_create(hash, alg)) {
         PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "can't initialise hash");
-        free(hash);
         return -1;
     }
 
@@ -616,7 +615,6 @@ process_dash_escaped(pgp_stream_t *stream,
 
         c = read_char(stream, dearmour, errors, readinfo, cbinfo, 1);
         if (c < 0) {
-            free(hash);
             return -1;
         }
         if (dearmour->prev_nl && c == '-') {
@@ -1530,7 +1528,7 @@ se_ip_data_reader(pgp_stream_t *stream,
         uint8_t *  plaintext;
         uint8_t *  mdc;
         uint8_t *  mdc_hash;
-        pgp_hash_t hash = {0};
+        pgp_hash_t hash;
         size_t     b;
         size_t     sz_preamble;
         size_t     sz_mdc_hash;

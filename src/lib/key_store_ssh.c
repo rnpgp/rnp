@@ -217,14 +217,7 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
         fprintf(stderr, "ssh2pubkey: can't open '%s'\n", f);
         return 0;
     }
-
-    /* check the pub file exists */
-    if (stat(f, &st) != 0) {
-        (void) fprintf(stderr, "ssh2pubkey: bad filename '%s'\n", f);
-        bufgap_close(&bg);
-        return 0;
-    }
-
+    stat(f, &st);
     if ((buf = calloc(1, (size_t) st.st_size)) == NULL) {
         fprintf(stderr, "can't calloc %zu bytes for '%s'\n", (size_t) st.st_size, f);
         bufgap_close(&bg);
@@ -503,7 +496,6 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
     } else {
         rnp_key_store_append_keyring(rnp->pubring, pubring);
     }
-
     if (needseckey) {
         rnp_setvar(rnp, "sshpubfile", filename);
         /* try to take the ".pub" off the end */
