@@ -79,9 +79,9 @@ AC_CHECK_HEADERS([sys/cdefs.h sys/file.h sys/mman.h sys/param.h \
 AC_CHECK_HEADERS([bzlib.h],
                  [],
                  [AC_MSG_FAILURE([missing <bzlib.h>; is bzip2 installed?])])
-AC_CHECK_HEADERS([json-c/json.h],
-                 [],
-                 [AC_MSG_FAILURE([missing <json-c/json.h>; is json-c installed?])])
+AC_CHECK_HEADERS([json.h],,
+  [AC_MSG_FAILURE([missing <json.h>; is json-c installed?])]
+)
 
 # Checks for typedefs, structures, and compiler characteristics.
 #

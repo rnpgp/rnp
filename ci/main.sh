@@ -2,8 +2,8 @@
 set -eux
 
 LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${CMOCKA_INSTALL}/lib:${JSON_C_INSTALL}/lib"
-LDFLAGS="-L${CMOCKA_INSTALL}/lib -L${JSON_C_INSTALL}/lib"
-CFLAGS="-I${CMOCKA_INSTALL}/include -I${JSON_C_INSTALL}/include"
+LDFLAGS="-L${CMOCKA_INSTALL}/lib -L${JSON_C_INSTALL}/lib -ljson-c"
+CFLAGS="-I${CMOCKA_INSTALL}/include -I${JSON_C_INSTALL}/include/json-c"
 
 [ "$BUILD_MODE" = "coverage" ] && CFLAGS+=" -O0 --coverage"
 
