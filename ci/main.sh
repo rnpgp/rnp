@@ -6,7 +6,7 @@ LDFLAGS="-L${CMOCKA_INSTALL}/lib"
 CFLAGS="-I${CMOCKA_INSTALL}/include"
 
 JSON_LIBS="-L${JSON_C_INSTALL}/lib -ljson-c"
-JSON_CFLAGS="-I${JSON_C_INSTALL}/include/json-c"
+JSON_CFLAGS="-I${JSON_C_INSTALL}/include"
 
 [ "$BUILD_MODE" = "coverage" ] && CFLAGS+=" -O0 --coverage"
 
