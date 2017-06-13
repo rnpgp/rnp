@@ -32,7 +32,7 @@
 #define KEY_STORE_H_
 
 #include <rnp.h>
-#include <json.h>
+#include <json-c/json.h>
 
 #include <stdint.h>
 
