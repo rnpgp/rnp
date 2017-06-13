@@ -27,6 +27,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <botan/ffi.h>
 
 #include "ec.h"
 #include "crypto.h"
