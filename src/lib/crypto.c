@@ -82,6 +82,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "signature.h"
 #include "packet-key.h"
 #include "s2k.h"
+#include "ec.h"
 #include "../common/utils.h"
 
 /**
@@ -226,6 +227,11 @@ pgp_generate_keypair(pgp_pubkey_alg_t    alg,
     seckey->pubkey.days_valid = 0;
     seckey->pubkey.alg = alg;
 
+    if ((seckey->hash_alg = pgp_str_to_hash_alg(hashalg)) == PGP_HASH_UNKNOWN) {
+        // TODO: Shouldn't it be PGP_DEFAULT_HASH_ALGORITHM ?
+        seckey->hash_alg = PGP_HASH_SHA1;
+    }
+
     if(seckey->pubkey.alg == PGP_PKA_RSA ||
        seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
        seckey->pubkey.alg == PGP_PKA_RSA_SIGN_ONLY)
@@ -238,6 +244,26 @@ pgp_generate_keypair(pgp_pubkey_alg_t    alg,
        if (pgp_genkey_eddsa(seckey, alg_params) != 1)
           goto end;
        }
+    else if(seckey->pubkey.alg == PGP_PKA_ECDSA)
+        {
+        // TODO: To be refactored with #130
+        seckey->pubkey.key.ecc.curve =
+                (alg_params == 256) ? PGP_CURVE_NIST_P_256 :
+                (alg_params == 384) ? PGP_CURVE_NIST_P_384 :
+                PGP_CURVE_NIST_P_521;
+
+        pgp_hash_t tmp;
+        const size_t hash_size = pgp_hash_create(&tmp, seckey->hash_alg)
+                        ? pgp_hash_output_length(&tmp)
+                        : 0;
+
+        if (hash_size < 32) {
+            RNP_LOG("Hash output length to small (256 required minimum)");
+            goto end;
+        }
+        if (pgp_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK)
+            goto end;
+        }
     else
        {
        goto end;
@@ -246,10 +272,6 @@ pgp_generate_keypair(pgp_pubkey_alg_t    alg,
     seckey->s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
     seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
     seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
-
-    if ((seckey->hash_alg = pgp_str_to_hash_alg(hashalg)) == PGP_HASH_UNKNOWN) {
-        seckey->hash_alg = PGP_HASH_SHA1;
-    }
     seckey->alg = pgp_str_to_cipher(cipher);
     seckey->checksum = 0;
 
@@ -273,7 +295,8 @@ pgp_generate_keypair(pgp_pubkey_alg_t    alg,
           pgp_write_mpi(output, seckey->key.rsa.u) != 1)
           goto end;
        }
-    else if(seckey->pubkey.alg == PGP_PKA_EDDSA)
+    else if((seckey->pubkey.alg == PGP_PKA_EDDSA) ||
+            (seckey->pubkey.alg == PGP_PKA_ECDSA))
        {
        if(pgp_write_mpi(output, seckey->key.ecc.x) != 1)
           goto end;
@@ -299,8 +322,7 @@ end:
        pgp_keydata_free(keydata);
        return NULL;
        }
-    else
-       return keydata;
+    return keydata;
 }
 
 static pgp_cb_ret_t

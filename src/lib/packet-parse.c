@@ -92,6 +92,8 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "crypto.h"
 #include "rnpdigest.h"
 #include "s2k.h"
+#include "ec.h"
+#include "../common/utils.h"
 
 #define ERRP(cbinfo, cont, err)                    \
     do {                                           \
@@ -968,6 +970,7 @@ sig_free(pgp_sig_t *sig)
         break;
 
     case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
         free_BN(&sig->info.sig.ecc.r);
         free_BN(&sig->info.sig.ecc.s);
         break;
@@ -1220,6 +1223,10 @@ pgp_pubkey_free(pgp_pubkey_t *p)
         free_BN(&p->key.elgamal.y);
         break;
 
+    case PGP_PKA_ECDSA:
+        free_BN(&p->key.ecc.point);
+        break;
+
     case PGP_PKA_NOTHING:
         /* nothing to free */
         break;
@@ -1313,7 +1320,25 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
             return 0;
         }
         break;
+    case PGP_PKA_ECDSA: {
+        pgp_data_t OID = {0};
+        unsigned OID_len = 0;
+        if (!limread_scalar(&OID_len, 1, region, stream) ||
+            !limread_data(&OID, OID_len, region, stream) ||
+            !limread_mpi(&key->key.ecc.point, region, stream)) {
+            return 0;
+        }
 
+        const pgp_curve_t curve = find_curve_by_OID(OID.contents, OID.len);
+        if (PGP_CURVE_MAX == curve) {
+            RNP_LOG("Unsupported curve");
+            pgp_data_free(&OID);
+            return 0;
+        }
+        key->key.ecc.curve = curve;
+        pgp_data_free(&OID);
+        break;
+    }
     default:
         PGP_ERROR_1(&stream->errors,
                     PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG,
@@ -1550,6 +1575,7 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
         break;
 
     case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
         if (!limread_mpi(&pkt.u.sig.info.sig.ecc.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.ecc.s, region, stream)) {
             return 0;
@@ -2076,6 +2102,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
         break;
 
     case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
         if (!limread_mpi(&pkt.u.sig.info.sig.ecc.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.ecc.s, region, stream)) {
             return 0;
@@ -2366,9 +2393,9 @@ pgp_seckey_free(pgp_seckey_t *key)
         break;
 
     case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
         free_BN(&key->key.ecc.x);
         break;
-
     default:
         (void) fprintf(stderr,
                        "pgp_seckey_free: Unknown algorithm: %d (%s)\n",
@@ -2614,6 +2641,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         break;
 
     case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
         if (!limread_mpi(&pkt.u.seckey.key.ecc.x, region, stream)) {
             ret = 0;
         }
