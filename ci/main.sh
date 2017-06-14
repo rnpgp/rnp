@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eux
 
+CORES="2" && [ -r /proc/cpuinfo ] && CORES=$(grep -c '^$' /proc/cpuinfo)
+
 LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${CMOCKA_INSTALL}/lib:${JSON_C_INSTALL}/lib"
 LDFLAGS="-L${CMOCKA_INSTALL}/lib -L${JSON_C_INSTALL}/lib -ljson-c"
 CFLAGS="-I${CMOCKA_INSTALL}/include -I${JSON_C_INSTALL}/include/json-c"
@@ -21,7 +23,7 @@ export LD_LIBRARY_PATH CFLAGS LDFLAGS
 autoreconf -vfi
 ./configure --with-botan=${BOTAN_INSTALL}
 make clean
-make -j2
+make -j${CORES}
 
 : "${COVERITY_SCAN_BRANCH:=0}"
 [[ ${COVERITY_SCAN_BRANCH} = 1 ]] && exit 0

@@ -1,12 +1,14 @@
 #!/bin/bash
 set -eu
 
+CORES="2" && [ -r /proc/cpuinfo ] && CORES=$(grep -c '^$' /proc/cpuinfo)
+
 # botan
 if [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ]; then
   git clone https://github.com/randombit/botan ~/builds/botan
   cd ~/builds/botan
   ./configure.py --prefix="${BOTAN_INSTALL}"
-  make -j2 install
+  make -j${CORES} install
 fi
 
 # cmocka
@@ -19,7 +21,7 @@ if [ ! -e "${CMOCKA_INSTALL}/lib/libcmocka.so" ]; then
   mkdir -p cmocka-build
   cd cmocka-build
   cmake -DCMAKE_INSTALL_PREFIX="${CMOCKA_INSTALL}" ~/builds/cmocka
-  make all install
+  make -j${CORES} all install
 fi
 
 # json-c
@@ -30,6 +32,6 @@ if [ ! -e "${JSON_C_INSTALL}/lib/libjson-c.so" ]; then
   tar xzf json-c.tar.gz --strip 1
 
   ./configure --prefix="${JSON_C_INSTALL}"
-  make -j2 install
+  make -j${CORES} install
 fi
 

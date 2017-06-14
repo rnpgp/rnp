@@ -1,5 +1,7 @@
 #!/bin/bash
 
+CORES="2" && [ -r /proc/cpuinfo ] && CORES=$(grep -c '^$' /proc/cpuinfo)
+
 [ "x${RNP_BUILD_DIR}" = "x" ] && \
   export RNP_BUILD_DIR=$(mktemp -d)
 
@@ -48,7 +50,7 @@ install_botan_stable() {
     && tar -xzf ${botan_file} \
     && pushd Botan-2.1.0 \
     && ./configure.py --prefix=${BOTAN_PREFIX} --with-bzip2 --with-zlib --with-boost \
-    && make -j2 install
+    && make -j${CORES} install
   fi
 }
 
@@ -64,7 +66,7 @@ install_botan_dev() {
     && git clone --single-branch --depth 1 -b ${BOTAN_DEV_GIT_BRANCH} ${BOTAN_DEV_GIT_REPO} \
     && pushd botan \
     && ./configure.py --prefix=${BOTAN_PREFIX} --with-bzip2 --with-zlib --with-boost \
-    && make -j2 install
+    && make -j${CORES} install
   fi
 }
 
