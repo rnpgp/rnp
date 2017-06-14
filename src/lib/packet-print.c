@@ -77,7 +77,7 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 
 #include "bn.h"
 #include "crypto.h"
-#include "ec.h"
+#include "ecdsa.h"
 #include "key_store_pgp.h"
 #include "packet-show.h"
 #include "signature.h"
@@ -1729,12 +1729,14 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
           output, keydata, passphrase, strlen((char *) passphrase), NULL, 1);
     }
 
-    if ((cp = (char *)malloc(pgp_mem_len(mem))) == NULL){
+    const size_t mem_len = pgp_mem_len(mem) + 1;
+    if ((cp = (char *)malloc(mem_len)) == NULL){
         pgp_teardown_memory_write(output, mem);
         return NULL;
     }
 
-    memcpy(cp, pgp_mem_data(mem), pgp_mem_len(mem));
+    memcpy(cp, pgp_mem_data(mem), mem_len);
     pgp_teardown_memory_write(output, mem);
+    cp[mem_len - 1] = '\0';
     return cp;
 }
