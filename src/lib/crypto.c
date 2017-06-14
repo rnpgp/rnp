@@ -82,7 +82,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "signature.h"
 #include "packet-key.h"
 #include "s2k.h"
-#include "ec.h"
+#include "ecdsa.h"
 #include "../common/utils.h"
 
 /**
@@ -199,27 +199,27 @@ pgp_elgamal_encrypt_mpi(const uint8_t *          encoded_m_buf,
     return 1;
 }
 
-pgp_key_t*
-pgp_generate_keypair(pgp_pubkey_alg_t    alg,
-                     const int           alg_params,
-                     const uint8_t*      userid,
-                     const char*         hashalg,
-                     const char*         cipher)
+pgp_key_t *
+pgp_generate_keypair(pgp_pubkey_alg_t alg,
+                     const int        alg_params,
+                     const uint8_t *  userid,
+                     const char *     hashalg,
+                     const char *     cipher)
 {
-    pgp_seckey_t *  seckey = NULL;
-    pgp_output_t *  output = NULL;
-    pgp_memory_t *  mem = NULL;
-    pgp_key_t *keydata = NULL;
-    bool ok = false;
+    pgp_seckey_t *seckey = NULL;
+    pgp_output_t *output = NULL;
+    pgp_memory_t *mem = NULL;
+    pgp_key_t *   keydata = NULL;
+    bool          ok = false;
 
     keydata = pgp_keydata_new();
     if (!keydata)
-       goto end;
+        goto end;
 
     pgp_keydata_init(keydata, PGP_PTAG_CT_SECRET_KEY);
     seckey = pgp_get_writable_seckey(keydata);
     if (!seckey)
-       goto end;
+        goto end;
 
     /* populate pgp key structure */
     seckey->pubkey.version = PGP_V4;
@@ -232,30 +232,23 @@ pgp_generate_keypair(pgp_pubkey_alg_t    alg,
         seckey->hash_alg = PGP_HASH_SHA1;
     }
 
-    if(seckey->pubkey.alg == PGP_PKA_RSA ||
-       seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
-       seckey->pubkey.alg == PGP_PKA_RSA_SIGN_ONLY)
-       {
-       if (pgp_genkey_rsa(seckey, alg_params) != 1)
-          goto end;
-       }
-    else if(seckey->pubkey.alg == PGP_PKA_EDDSA)
-       {
-       if (pgp_genkey_eddsa(seckey, alg_params) != 1)
-          goto end;
-       }
-    else if(seckey->pubkey.alg == PGP_PKA_ECDSA)
-        {
+    if (seckey->pubkey.alg == PGP_PKA_RSA || seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
+        seckey->pubkey.alg == PGP_PKA_RSA_SIGN_ONLY) {
+        if (pgp_genkey_rsa(seckey, alg_params) != 1)
+            goto end;
+    } else if (seckey->pubkey.alg == PGP_PKA_EDDSA) {
+        if (pgp_genkey_eddsa(seckey, alg_params) != 1)
+            goto end;
+    } else if (seckey->pubkey.alg == PGP_PKA_ECDSA) {
         // TODO: To be refactored with #130
         seckey->pubkey.key.ecc.curve =
-                (alg_params == 256) ? PGP_CURVE_NIST_P_256 :
-                (alg_params == 384) ? PGP_CURVE_NIST_P_384 :
-                PGP_CURVE_NIST_P_521;
+          (alg_params == 256) ?
+            PGP_CURVE_NIST_P_256 :
+            (alg_params == 384) ? PGP_CURVE_NIST_P_384 : PGP_CURVE_NIST_P_521;
 
-        pgp_hash_t tmp;
-        const size_t hash_size = pgp_hash_create(&tmp, seckey->hash_alg)
-                        ? pgp_hash_output_length(&tmp)
-                        : 0;
+        pgp_hash_t   tmp;
+        const size_t hash_size =
+          pgp_hash_create(&tmp, seckey->hash_alg) ? pgp_hash_output_length(&tmp) : 0;
 
         if (hash_size < 32) {
             RNP_LOG("Hash output length to small (256 required minimum)");
@@ -263,11 +256,9 @@ pgp_generate_keypair(pgp_pubkey_alg_t    alg,
         }
         if (pgp_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK)
             goto end;
-        }
-    else
-       {
-       goto end;
-       }
+    } else {
+        goto end;
+    }
 
     seckey->s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
     seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
@@ -275,53 +266,47 @@ pgp_generate_keypair(pgp_pubkey_alg_t    alg,
     seckey->alg = pgp_str_to_cipher(cipher);
     seckey->checksum = 0;
 
-    if (pgp_keyid(keydata->sigid, PGP_KEY_ID_SIZE, &keydata->key.seckey.pubkey, seckey->hash_alg) != 1)
-       goto end;
+    if (pgp_keyid(
+          keydata->sigid, PGP_KEY_ID_SIZE, &keydata->key.seckey.pubkey, seckey->hash_alg) != 1)
+        goto end;
 
-    if (pgp_fingerprint(&keydata->sigfingerprint, &keydata->key.seckey.pubkey, seckey->hash_alg) != 1)
-       goto end;
+    if (pgp_fingerprint(
+          &keydata->sigfingerprint, &keydata->key.seckey.pubkey, seckey->hash_alg) != 1)
+        goto end;
 
     /* Generate checksum */
     pgp_setup_memory_write(&output, &mem, 128);
     pgp_push_checksum_writer(output, seckey);
 
-    if(seckey->pubkey.alg == PGP_PKA_RSA ||
-       seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
-       seckey->pubkey.alg == PGP_PKA_RSA_SIGN_ONLY)
-       {
-       if(pgp_write_mpi(output, seckey->key.rsa.d) != 1 ||
-          pgp_write_mpi(output, seckey->key.rsa.p) != 1 ||
-          pgp_write_mpi(output, seckey->key.rsa.q) != 1 ||
-          pgp_write_mpi(output, seckey->key.rsa.u) != 1)
-          goto end;
-       }
-    else if((seckey->pubkey.alg == PGP_PKA_EDDSA) ||
-            (seckey->pubkey.alg == PGP_PKA_ECDSA))
-       {
-       if(pgp_write_mpi(output, seckey->key.ecc.x) != 1)
-          goto end;
-       }
-    else
-       {
-       RNP_LOG("Bad seckey->pubkey.alg");
-       goto end;
-       }
+    if (seckey->pubkey.alg == PGP_PKA_RSA || seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
+        seckey->pubkey.alg == PGP_PKA_RSA_SIGN_ONLY) {
+        if (pgp_write_mpi(output, seckey->key.rsa.d) != 1 ||
+            pgp_write_mpi(output, seckey->key.rsa.p) != 1 ||
+            pgp_write_mpi(output, seckey->key.rsa.q) != 1 ||
+            pgp_write_mpi(output, seckey->key.rsa.u) != 1)
+            goto end;
+    } else if ((seckey->pubkey.alg == PGP_PKA_EDDSA) ||
+               (seckey->pubkey.alg == PGP_PKA_ECDSA)) {
+        if (pgp_write_mpi(output, seckey->key.ecc.x) != 1)
+            goto end;
+    } else {
+        RNP_LOG("Bad seckey->pubkey.alg");
+        goto end;
+    }
 
-    if(userid != NULL && !pgp_add_selfsigned_userid(keydata, userid))
-       {
-       goto end;
-       }
+    if (userid != NULL && !pgp_add_selfsigned_userid(keydata, userid)) {
+        goto end;
+    }
 
     ok = true;
 
 end:
     pgp_teardown_memory_write(output, mem);
 
-    if (ok == false)
-       {
-       pgp_keydata_free(keydata);
-       return NULL;
-       }
+    if (ok == false) {
+        pgp_keydata_free(keydata);
+        return NULL;
+    }
     return keydata;
 }
 

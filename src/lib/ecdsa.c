@@ -29,7 +29,7 @@
 #include <string.h>
 #include <botan/ffi.h>
 
-#include "ec.h"
+#include "ecdsa.h"
 #include "crypto.h"
 #include "packet.h"
 #include "readerwriter.h"
@@ -46,73 +46,63 @@
  */
 // TODO: Check size of this array against PGP_CURVE_MAX with static assert
 const ec_curve_desc_t ec_curves[] = {
-    {
-        PGP_CURVE_NIST_P_256, 256,
-        {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07}, 8,
-        "secp256r1"
-    },
-    {
-        PGP_CURVE_NIST_P_384, 384,
-        {0x2B, 0x81, 0x04, 0x00, 0x22}, 5,
-        "secp384r1"
-    },
-    {
-        PGP_CURVE_NIST_P_521, 521,
-        {0x2B, 0x81, 0x04, 0x00, 0x23}, 5,
-        "secp521r1"
-    },
-    {
-        PGP_CURVE_ED25519, 255,
-        { 0x2b, 0x06, 0x01 ,0x04, 0x01, 0xda, 0x47, 0x0f, 0x01 }, 9,
-        "Ed25519"
-    }
-};
+  {PGP_CURVE_NIST_P_256,
+   256,
+   {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07},
+   8,
+   "secp256r1"},
+  {PGP_CURVE_NIST_P_384, 384, {0x2B, 0x81, 0x04, 0x00, 0x22}, 5, "secp384r1"},
+  {PGP_CURVE_NIST_P_521, 521, {0x2B, 0x81, 0x04, 0x00, 0x23}, 5, "secp521r1"},
+  {PGP_CURVE_ED25519,
+   255,
+   {0x2b, 0x06, 0x01, 0x04, 0x01, 0xda, 0x47, 0x0f, 0x01},
+   9,
+   "Ed25519"}};
 
-pgp_curve_t find_curve_by_OID(  const uint8_t *oid,
-                                size_t oid_len) {
-
-    for (size_t i=0; i<PGP_ARRAY_SIZE(ec_curves); i++) {
+pgp_curve_t
+find_curve_by_OID(const uint8_t *oid, size_t oid_len)
+{
+    for (size_t i = 0; i < PGP_ARRAY_SIZE(ec_curves); i++) {
         if ((oid_len == ec_curves[i].OIDhex_len) &&
             (!memcmp(oid, ec_curves[i].OIDhex, oid_len))) {
             return i;
         }
     }
 
-  return PGP_CURVE_MAX;
+    return PGP_CURVE_MAX;
 }
 
-pgp_errcode_t ec_serialize_pubkey(  pgp_output_t *output,
-                                    const pgp_ecc_pubkey_t *pubkey) {
-
+pgp_errcode_t
+ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey)
+{
     const ec_curve_desc_t *curve = &ec_curves[pubkey->curve];
 
     if (pgp_write_scalar(output, curve->OIDhex_len, 1) &&
         pgp_write(output, curve->OIDhex, curve->OIDhex_len) &&
         pgp_write_mpi(output, pubkey->point)) {
-
         return PGP_E_OK;
     }
 
     return PGP_E_W_WRITE_FAILED;
 }
 
-pgp_errcode_t pgp_ecdsa_genkeypair( pgp_seckey_t *seckey,
-                                    pgp_curve_t curve) {
-
+pgp_errcode_t
+pgp_ecdsa_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve)
+{
     /**
      * Keeps "0x04 || x || y"
      * \see 13.2.  ECDSA and ECDH Conversion Primitives
      *
      * P-521 is biggest supported curve for ECDSA
      */
-    uint8_t point_bytes[BITS_TO_BYTES(521)*2 + 1] = {0};
-    const size_t filed_byte_size = BITS_TO_BYTES(ec_curves[curve].bitlen);
+    uint8_t         point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
+    const size_t    filed_byte_size = BITS_TO_BYTES(ec_curves[curve].bitlen);
     botan_privkey_t pr_key = NULL;
-    botan_pubkey_t pu_key = NULL;
-    botan_rng_t rng = NULL;
-    BIGNUM *public_x = NULL;
-    BIGNUM *public_y = NULL;
-    pgp_errcode_t ret = PGP_E_C_KEY_GENERATION_FAILED;
+    botan_pubkey_t  pu_key = NULL;
+    botan_rng_t     rng = NULL;
+    BIGNUM *        public_x = NULL;
+    BIGNUM *        public_y = NULL;
+    pgp_errcode_t   ret = PGP_E_C_KEY_GENERATION_FAILED;
 
     if (botan_rng_init(&rng, NULL)) {
         goto end;
@@ -166,7 +156,7 @@ pgp_errcode_t pgp_ecdsa_genkeypair( pgp_seckey_t *seckey,
     BN_bn2bin(public_x, &point_bytes[1]);
     BN_bn2bin(public_y, &point_bytes[1 + filed_byte_size]);
 
-    seckey->pubkey.key.ecc.point = BN_bin2bn(point_bytes, (2*filed_byte_size) + 1, NULL);
+    seckey->pubkey.key.ecc.point = BN_bin2bn(point_bytes, (2 * filed_byte_size) + 1, NULL);
     if (!seckey->pubkey.key.ecc.point) {
         goto end;
     }
@@ -185,24 +175,24 @@ end:
         pgp_seckey_free(seckey);
     }
 
-
     return ret;
 }
 
-pgp_errcode_t pgp_ecdsa_sign_hash(  pgp_ecc_sig_t *sign,
-                                    const uint8_t *hashbuf,
-                                    size_t hash_len,
-                                    const pgp_ecc_seckey_t *seckey,
-                                    const pgp_ecc_pubkey_t *pubkey) {
-
+pgp_errcode_t
+pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
+                    const uint8_t *         hashbuf,
+                    size_t                  hash_len,
+                    const pgp_ecc_seckey_t *seckey,
+                    const pgp_ecc_pubkey_t *pubkey)
+{
     botan_pk_op_sign_t signer = NULL;
-    botan_privkey_t key = NULL;
-    botan_rng_t rng = NULL;
-    pgp_errcode_t ret = PGP_E_FAIL;
-    uint8_t out_buf[2 * MAX_CURVE_BYTELEN] = {0};
-    const size_t sign_half_len = BITS_TO_BYTES(ec_curves[pubkey->curve].bitlen);
+    botan_privkey_t    key = NULL;
+    botan_rng_t        rng = NULL;
+    pgp_errcode_t      ret = PGP_E_FAIL;
+    uint8_t            out_buf[2 * MAX_CURVE_BYTELEN] = {0};
+    const size_t       sign_half_len = BITS_TO_BYTES(ec_curves[pubkey->curve].bitlen);
 
-    if ( sign->r || sign->s ) {
+    if (sign->r || sign->s) {
         // Caller must not allocate r and s
         return PGP_E_FAIL;
     }
@@ -252,36 +242,34 @@ end:
     return ret;
 }
 
-pgp_errcode_t pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *sign,
-                                    const uint8_t *hash,
-                                    size_t hash_len,
-                                    const pgp_ecc_pubkey_t *pubkey)
+pgp_errcode_t
+pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
+                      const uint8_t *         hash,
+                      size_t                  hash_len,
+                      const pgp_ecc_pubkey_t *pubkey)
 {
-    botan_mp_t public_x = NULL;
-    botan_mp_t public_y = NULL;
-    botan_pubkey_t pub = NULL;
+    botan_mp_t           public_x = NULL;
+    botan_mp_t           public_y = NULL;
+    botan_pubkey_t       pub = NULL;
     botan_pk_op_verify_t verifier = NULL;
-    pgp_errcode_t ret = PGP_E_V_BAD_SIGNATURE;
-    uint8_t sign_buf[2 * MAX_CURVE_BYTELEN] = {0};
-    const size_t sign_half_len = BITS_TO_BYTES(ec_curves[pubkey->curve].bitlen);
-    uint8_t point_bytes[BITS_TO_BYTES(521)*2 + 1] = {0};
-
+    pgp_errcode_t        ret = PGP_E_V_BAD_SIGNATURE;
+    uint8_t              sign_buf[2 * MAX_CURVE_BYTELEN] = {0};
+    const size_t         sign_half_len = BITS_TO_BYTES(ec_curves[pubkey->curve].bitlen);
+    uint8_t              point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
 
     if ((BN_num_bytes(pubkey->point) > sizeof(point_bytes)) ||
-        BN_bn2bin(pubkey->point, point_bytes) ||
-        (point_bytes[0] != 0x04)) {
+        BN_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
         RNP_LOG("Failed to load public key");
         goto end;
     }
 
-    if (botan_mp_init(&public_x) ||
-        botan_mp_init(&public_y) ||
+    if (botan_mp_init(&public_x) || botan_mp_init(&public_y) ||
         botan_mp_from_bin(public_x, &point_bytes[1], sign_half_len) ||
         botan_mp_from_bin(public_y, &point_bytes[1 + sign_half_len], sign_half_len)) {
         goto end;
     }
 
-    const char* curve_name = ec_curves[pubkey->curve].botan_name;
+    const char *curve_name = ec_curves[pubkey->curve].botan_name;
     if (botan_pubkey_load_ecdsa(&pub, public_x, public_y, curve_name)) {
         RNP_LOG("Failed to load public key");
         goto end;
@@ -295,8 +283,7 @@ pgp_errcode_t pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *sign,
         goto end;
     }
 
-    if ((BN_num_bytes(sign->r) > sign_half_len) ||
-        (BN_num_bytes(sign->s) > sign_half_len) ||
+    if ((BN_num_bytes(sign->r) > sign_half_len) || (BN_num_bytes(sign->s) > sign_half_len) ||
         (sign_half_len > MAX_CURVE_BYTELEN)) {
         goto end;
     }
@@ -304,9 +291,9 @@ pgp_errcode_t pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *sign,
     BN_bn2bin(sign->r, sign_buf);
     BN_bn2bin(sign->s, sign_buf + sign_half_len);
 
-    ret = botan_pk_op_verify_finish(verifier, sign_buf, sign_half_len * 2)
-        ? PGP_E_V_BAD_SIGNATURE
-        : PGP_E_OK;
+    ret = botan_pk_op_verify_finish(verifier, sign_buf, sign_half_len * 2) ?
+            PGP_E_V_BAD_SIGNATURE :
+            PGP_E_OK;
 
 end:
     botan_mp_destroy(public_x);

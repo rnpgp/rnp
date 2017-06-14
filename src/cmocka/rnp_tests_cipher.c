@@ -36,7 +36,7 @@
 #include "rnp.h"
 #include "rnp_tests_support.h"
 #include "rnp_tests.h"
-#include "ec.h"
+#include "ecdsa.h"
 
 void
 hash_test_success(void **state)
@@ -194,31 +194,40 @@ pkcs1_rsa_test_success(void **state)
     pgp_keydata_free(pgp_key);
 }
 
-void rnp_test_eddsa(void** state)
-   {
-   pgp_key_t* pgp_key = pgp_generate_keypair(PGP_PKA_EDDSA, 255, NULL, "SHA-256", "AES-128");
-   assert_non_null(pgp_key);
+void
+rnp_test_eddsa(void **state)
+{
+    pgp_key_t *pgp_key = pgp_generate_keypair(PGP_PKA_EDDSA, 255, NULL, "SHA-256", "AES-128");
+    assert_non_null(pgp_key);
 
-   const uint8_t hash[32] = { 0 };
-   BIGNUM* r = BN_new();
-   BIGNUM* s = BN_new();
+    const uint8_t hash[32] = {0};
+    BIGNUM *      r = BN_new();
+    BIGNUM *      s = BN_new();
 
-   assert_int_equal(pgp_eddsa_sign_hash(r, s, hash, sizeof(hash),
-                                        &pgp_key->key.seckey.key.ecc,
-                                        &pgp_key->key.seckey.pubkey.key.ecc), 0);
+    assert_int_equal(pgp_eddsa_sign_hash(r,
+                                         s,
+                                         hash,
+                                         sizeof(hash),
+                                         &pgp_key->key.seckey.key.ecc,
+                                         &pgp_key->key.seckey.pubkey.key.ecc),
+                     0);
 
-   assert_int_equal(pgp_eddsa_verify_hash(r, s, hash, sizeof(hash), &pgp_key->key.seckey.pubkey.key.ecc), 1);
+    assert_int_equal(
+      pgp_eddsa_verify_hash(r, s, hash, sizeof(hash), &pgp_key->key.seckey.pubkey.key.ecc), 1);
 
-   // swap r/s -> invalid sig
-   assert_int_equal(pgp_eddsa_verify_hash(s, r, hash, sizeof(hash), &pgp_key->key.seckey.pubkey.key.ecc), 0);
+    // swap r/s -> invalid sig
+    assert_int_equal(
+      pgp_eddsa_verify_hash(s, r, hash, sizeof(hash), &pgp_key->key.seckey.pubkey.key.ecc), 0);
 
-   // cut one byte off hash -> invalid sig
-   assert_int_equal(pgp_eddsa_verify_hash(r, s, hash, sizeof(hash) - 1, &pgp_key->key.seckey.pubkey.key.ecc), 0);
+    // cut one byte off hash -> invalid sig
+    assert_int_equal(
+      pgp_eddsa_verify_hash(r, s, hash, sizeof(hash) - 1, &pgp_key->key.seckey.pubkey.key.ecc),
+      0);
 
-   BN_free(r);
-   BN_free(s);
-   pgp_keydata_free(pgp_key);
-   }
+    BN_free(r);
+    BN_free(s);
+    pgp_keydata_free(pgp_key);
+}
 
 void
 raw_elg_test_success(void **state)
@@ -302,13 +311,13 @@ raw_elg_test_success(void **state)
 void
 ECDSA_signverify_success(void **state)
 {
-    (void)state;
+    (void) state;
 
-    uint8_t message[32];
+    uint8_t       message[32];
     pgp_ecc_sig_t sig = {NULL, NULL};
 
-    pgp_key_t* pgp_key1 = pgp_generate_keypair(PGP_PKA_ECDSA, 256, NULL, "SHA256", "AES-128");
-    pgp_key_t* pgp_key2 = pgp_generate_keypair(PGP_PKA_ECDSA, 256, NULL, "SHA256", "AES-128");
+    pgp_key_t *pgp_key1 = pgp_generate_keypair(PGP_PKA_ECDSA, 256, NULL, "SHA256", "AES-128");
+    pgp_key_t *pgp_key2 = pgp_generate_keypair(PGP_PKA_ECDSA, 256, NULL, "SHA256", "AES-128");
     assert_int_not_equal(pgp_key1, NULL);
     assert_int_not_equal(pgp_key2, NULL);
 
@@ -316,24 +325,20 @@ ECDSA_signverify_success(void **state)
     const pgp_ecc_pubkey_t *pub_key2 = &pgp_key2->key.pubkey.key.ecc;
     const pgp_ecc_seckey_t *prv_key1 = &pgp_key1->key.seckey.key.ecc;
 
-    assert_int_equal(
-        pgp_ecdsa_sign_hash(&sig, message, sizeof(message), prv_key1, pub_key1),
-        PGP_E_OK);
+    assert_int_equal(pgp_ecdsa_sign_hash(&sig, message, sizeof(message), prv_key1, pub_key1),
+                     PGP_E_OK);
 
-    assert_int_equal(
-        pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key1),
-        PGP_E_OK);
+    assert_int_equal(pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key1),
+                     PGP_E_OK);
 
     // Fails because of different key used
-    assert_int_equal(
-        pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key2),
-        PGP_E_V_BAD_SIGNATURE);
+    assert_int_equal(pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key2),
+                     PGP_E_V_BAD_SIGNATURE);
 
     // Fails because message won't verify
     message[0] = ~message[0];
-    assert_int_equal(
-        pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key1),
-        PGP_E_V_BAD_SIGNATURE);
+    assert_int_equal(pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key1),
+                     PGP_E_V_BAD_SIGNATURE);
 
     BN_clear_free(sig.r);
     BN_clear_free(sig.s);

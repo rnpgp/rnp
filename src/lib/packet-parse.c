@@ -92,7 +92,7 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "crypto.h"
 #include "rnpdigest.h"
 #include "s2k.h"
-#include "ec.h"
+#include "ecdsa.h"
 #include "../common/utils.h"
 
 #define ERRP(cbinfo, cont, err)                    \
@@ -1300,17 +1300,17 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
         break;
 
     case PGP_PKA_EDDSA:
-       if (!limread(&c, 1, region, stream))
-          return 0;
-       if (c == 0 || c == 0xFF)
-          return 0; // reserved values
-       key->key.ecc.oid_len = c;
-       key->key.ecc.oid = malloc(c);
-       if (!limread(key->key.ecc.oid, c, region, stream))
-          return 0;
-       if (!limread_mpi(&key->key.ecc.point, region, stream))
-          return 0;
-       break;
+        if (!limread(&c, 1, region, stream))
+            return 0;
+        if (c == 0 || c == 0xFF)
+            return 0; // reserved values
+        key->key.ecc.oid_len = c;
+        key->key.ecc.oid = malloc(c);
+        if (!limread(key->key.ecc.oid, c, region, stream))
+            return 0;
+        if (!limread_mpi(&key->key.ecc.point, region, stream))
+            return 0;
+        break;
 
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
@@ -1322,7 +1322,7 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
         break;
     case PGP_PKA_ECDSA: {
         pgp_data_t OID = {0};
-        unsigned OID_len = 0;
+        unsigned   OID_len = 0;
         if (!limread_scalar(&OID_len, 1, region, stream) ||
             !limread_data(&OID, OID_len, region, stream) ||
             !limread_mpi(&key->key.ecc.point, region, stream)) {

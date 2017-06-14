@@ -77,7 +77,7 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 #endif
 
 #include "bn.h"
-#include "ec.h"
+#include "ecdsa.h"
 #include "dsa.h"
 #include "eddsa.h"
 #include "hash.h"
@@ -212,12 +212,12 @@ dsa_sign(pgp_hash_t *            hash,
 }
 
 static int
-ecdsa_sign(pgp_hash_t *hash,
-         const pgp_ecc_pubkey_t *pub_key,
-         const pgp_ecc_seckey_t *prv_key,
-         pgp_output_t *output)
+ecdsa_sign(pgp_hash_t *            hash,
+           const pgp_ecc_pubkey_t *pub_key,
+           const pgp_ecc_seckey_t *prv_key,
+           pgp_output_t *          output)
 {
-    uint8_t  hashbuf[PGP_MAX_HASH_SIZE];
+    uint8_t       hashbuf[PGP_MAX_HASH_SIZE];
     pgp_ecc_sig_t sig = {NULL, NULL};
 
     /* finalise hash */
@@ -245,8 +245,8 @@ eddsa_sign(pgp_hash_t *            hash,
            const pgp_ecc_seckey_t *seckey,
            pgp_output_t *          output)
 {
-    uint8_t  hashbuf[RNP_BUFSIZ];
-    int ret = 0;
+    uint8_t hashbuf[RNP_BUFSIZ];
+    int     ret = 0;
 
     /* finalise hash */
     unsigned hashsize = pgp_hash_finish(hash, &hashbuf[0]);
@@ -254,14 +254,14 @@ eddsa_sign(pgp_hash_t *            hash,
     pgp_write(output, &hashbuf[0], 2);
 
     /* write signature to buf */
-    BIGNUM* r = BN_new();
-    BIGNUM* s = BN_new();
+    BIGNUM *r = BN_new();
+    BIGNUM *s = BN_new();
     if (!r || !s) {
         goto end;
     }
 
-    if(pgp_eddsa_sign_hash(r, s, hashbuf, hashsize, seckey, pubkey) < 0)
-       goto end;
+    if (pgp_eddsa_sign_hash(r, s, hashbuf, hashsize, seckey, pubkey) < 0)
+        goto end;
 
     /* convert and write the sig out to memory */
     pgp_write_mpi(output, r);
@@ -386,7 +386,8 @@ pgp_check_sig(const uint8_t *     hash,
         break;
 
     case PGP_PKA_ECDSA:
-        ret = (pgp_ecdsa_verify_hash(&sig->info.sig.ecdsa, hash, length, &signer->key.ecc) == PGP_E_OK);
+        ret = (pgp_ecdsa_verify_hash(&sig->info.sig.ecdsa, hash, length, &signer->key.ecc) ==
+               PGP_E_OK);
         break;
 
     default:
