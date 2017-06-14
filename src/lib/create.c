@@ -289,7 +289,7 @@ hash_bn(pgp_hash_t *hash, BIGNUM *bignum)
 static int
 hash_key_material(const pgp_seckey_t *key, uint8_t *result)
 {
-    pgp_hash_t hash;
+    pgp_hash_t hash = {0};
     pgp_hash_create(&hash, PGP_HASH_SHA1);
 
     switch (key->pubkey.alg) {
@@ -1087,6 +1087,7 @@ pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_outp
     mem = pgp_memory_new();
     if (!pgp_mem_readfile(mem, filename)) {
         (void) fprintf(stderr, "pgp_mem_readfile of '%s' failed\n", filename);
+        pgp_memory_free(mem);
         return 0;
     }
     len = (int) pgp_mem_len(mem);
@@ -1168,6 +1169,7 @@ pgp_write_symm_enc_data(const uint8_t *data, const int len, pgp_output_t *output
     done = (int) pgp_encrypt_se(&crypt_info, encrypted, data, (unsigned) len);
     if (done != len) {
         (void) fprintf(stderr, "pgp_write_symm_enc_data: done != len\n");
+        free(encrypted);
         return 0;
     }
 
