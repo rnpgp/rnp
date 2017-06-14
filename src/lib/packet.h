@@ -645,7 +645,7 @@ typedef struct pgp_sig_info_t {
         pgp_dsa_sig_t     dsa;     /* A DSA Signature */
         pgp_elgamal_sig_t elgamal; /* deprecated */
         pgp_ecc_sig_t     ecc;   /* An ECDSA or EdDSA signature */
-	      pgp_ecc_sig_t     ecdsa;   /* A ECDSA signature */
+        pgp_ecc_sig_t     ecdsa;   /* A ECDSA signature */
         pgp_data_t        unknown; /* private or experimental */
     } sig;                         /* signature params */
     size_t   v4_hashlen;
