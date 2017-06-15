@@ -1265,7 +1265,7 @@ rnp_import_key(rnp_t *rnp, char *f)
 
     io = rnp->io;
     realarmor = isarmoured(io, f, NULL, IMPORT_ARMOR_HEAD);
-    done = rnp_key_store_pgp_read_from_file(rnp->io, rnp->pubring, realarmor, f);
+    done = rnp_key_store_load_from_file(rnp, rnp->pubring, realarmor, f);
     if (!done) {
         (void) fprintf(io->errs, "cannot import key from file %s\n", f);
         return 0;
@@ -1859,7 +1859,7 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
         (void) fprintf(io->errs, "rnp_list_packets: bad alloc\n");
         return 0;
     }
-    if (!rnp_key_store_pgp_read_from_file(rnp->io, keyring, noarmor, pubringname)) {
+    if (!rnp_key_store_load_from_file(rnp, keyring, noarmor, pubringname)) {
         free(keyring);
         (void) fprintf(io->errs, "cannot read pub keyring %s\n", pubringname);
         return 0;
@@ -2067,7 +2067,7 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
         (void) fprintf(stderr, "rnp_save_sshpub: bad alloc 2\n");
         goto done;
     }
-    if (!rnp_key_store_pgp_read_from_file(rnp->io, rnp->pubring = keyring, 1, f)) {
+    if (!rnp_key_store_load_from_file(rnp, rnp->pubring = keyring, 1, f)) {
         (void) fprintf(stderr, "cannot import key\n");
         goto done;
     }

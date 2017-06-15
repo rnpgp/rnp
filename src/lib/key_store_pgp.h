@@ -62,11 +62,6 @@
 
 enum { MAX_ID_LENGTH = 128, MAX_PASSPHRASE_LENGTH = 256 };
 
-int rnp_key_store_pgp_read_from_file(pgp_io_t *,
-                                     rnp_key_store_t *,
-                                     const unsigned,
-                                     const char *);
-
 int rnp_key_store_pgp_read_from_mem(pgp_io_t *,
                                     rnp_key_store_t *,
                                     const unsigned,

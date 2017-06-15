@@ -49,14 +49,6 @@
  * limitations under the License.
  */
 
-/** \file
- */
-#include "config.h"
-
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
 #if defined(__NetBSD__)
 __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights reserved.");
 __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
@@ -66,7 +58,6 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <fcntl.h>
 #endif
 
-#include <regex.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -78,28 +69,14 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <unistd.h>
 #endif
 
+#include <json.h>
+
 #include "types.h"
 #include "key_store_pgp.h"
-#include "packet-parse.h"
 #include "signature.h"
 #include "rnpsdk.h"
 #include "readerwriter.h"
 #include "rnpdefs.h"
-#include "packet.h"
-#include "crypto.h"
-#include "validate.h"
-#include "rnpdefs.h"
-#include "rnpdigest.h"
-#include <json.h>
-#include "key_store.h"
-#include "key_store_internal.h"
-#include "packet-key.h"
-
-#include <sys/types.h>
-#include <sys/param.h>
-
-#include <stdio.h>
-#include <string.h>
 
 void print_packet_hex(const pgp_subpacket_t *pkt);
 
@@ -236,90 +213,6 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     }
 
     return PGP_RELEASE_MEMORY;
-}
-
-/**
-   \ingroup HighLevel_KeyringRead
-
-   \brief Reads a keyring from a file
-
-   \param keyring Pointer to an existing keyring_t struct
-   \param armour 1 if file is armoured; else 0
-   \param filename Filename of keyring to be read
-
-   \return pgp 1 if OK; 0 on error
-
-   \note Keyring struct must already exist.
-
-   \note Can be used with either a public or secret keyring.
-
-   \note You must call pgp_keyring_free() after usage to free alloc-ed memory.
-
-   \note If you call this twice on the same keyring struct, without calling
-   pgp_keyring_free() between these calls, you will introduce a memory leak.
-
-   \sa pgp_keyring_read_from_mem()
-   \sa pgp_keyring_free()
-
-*/
-
-int
-rnp_key_store_pgp_read_from_file(pgp_io_t *       io,
-                                 rnp_key_store_t *keyring,
-                                 const unsigned   armour,
-                                 const char *     filename)
-{
-    pgp_stream_t *stream;
-    keyringcb_t   cb;
-    unsigned      res = 1;
-    int           fd;
-
-    (void) memset(&cb, 0x0, sizeof(cb));
-    cb.keyring = keyring;
-    stream = pgp_new(sizeof(*stream));
-
-    /* add this for the moment, */
-    /*
-     * \todo need to fix the problems with reading signature subpackets
-     * later
-     */
-
-    /* pgp_parse_options(parse,PGP_PTAG_SS_ALL,PGP_PARSE_RAW); */
-    pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
-
-#ifdef O_BINARY
-    fd = open(filename, O_RDONLY | O_BINARY);
-#else
-    fd = open(filename, O_RDONLY);
-#endif
-    if (fd < 0) {
-        pgp_stream_delete(stream);
-        perror(filename);
-        return 0;
-    }
-#ifdef USE_MMAP_FOR_FILES
-    pgp_reader_set_mmap(stream, fd);
-#else
-    pgp_reader_set_fd(stream, fd);
-#endif
-
-    pgp_set_callback(stream, cb_keyring_read, &cb);
-
-    if (armour) {
-        pgp_reader_push_dearmour(stream);
-    }
-    res = pgp_parse_and_accumulate(io, keyring, stream);
-    pgp_print_errors(pgp_stream_get_errors(stream));
-
-    if (armour) {
-        pgp_reader_pop_dearmour(stream);
-    }
-
-    (void) close(fd);
-
-    pgp_stream_delete(stream);
-
-    return res;
 }
 
 /**

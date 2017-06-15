@@ -576,6 +576,7 @@ rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *
     pgp_key_t pubkey;
 
     (void) memset(&key, 0x0, sizeof(key));
+    (void) memset(&pubkey, 0x0, sizeof(pubkey));
 
     if (rnp_get_debug(__FILE__)) {
         (void) fprintf(
@@ -610,9 +611,10 @@ rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *
 }
 
 int
-rnp_key_store_ssh_from_mem(pgp_io_t *io, rnp_key_store_t *keyring, pgp_memory_t *memory)
+rnp_key_store_ssh_from_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_t *memory)
 {
     // we can't read SSH key from memory because it doesn't keep two different part for public
     // and secret key
-    return 0;
+    fprintf(io->errs, "rnp hasn't support reading SSH key from memory yet\n");
+    return 1;
 }

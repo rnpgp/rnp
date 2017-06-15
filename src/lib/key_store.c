@@ -85,32 +85,26 @@ conffile(rnp_t *rnp, char *homedir, char *userid, size_t length)
 }
 
 static void *
-rnp_key_store_read_keyring(enum key_store_format_t key_store_format,
-                           pgp_io_t *              io,
-                           const char *            name,
-                           const char *            homedir)
+rnp_key_store_read_keyring(rnp_t *rnp, const char *name, const char *homedir)
 {
-    int              rc = 0;
-    rnp_key_store_t *keyring;
+    rnp_key_store_t *key_store;
     char             filename[MAXPATHLEN];
 
-    if ((keyring = calloc(1, sizeof(*keyring))) == NULL) {
-        (void) fprintf(stderr, "rnp_key_store_kbx_read_keyring: bad alloc\n");
+    if ((key_store = calloc(1, sizeof(*key_store))) == NULL) {
+        (void) fprintf(stderr, "rnp_key_store_read_keyring: bad alloc\n");
         return NULL;
     }
-    if (key_store_format == KBX_KEY_STORE) {
+    if (rnp->key_store_format == KBX_KEY_STORE) {
         snprintf(filename, sizeof(filename), "%s/%s.kbx", homedir, name);
-        rc = rnp_key_store_kbx_from_file(io, keyring, filename);
-    } else if (key_store_format == GPG_KEY_STORE) {
+    } else if (rnp->key_store_format == GPG_KEY_STORE) {
         snprintf(filename, sizeof(filename), "%s/%s.gpg", homedir, name);
-        rc = rnp_key_store_pgp_read_from_file(io, keyring, 0, filename);
     }
-    if (!rc) {
-        free(keyring);
+    if (!rnp_key_store_load_from_file(rnp, key_store, 0, filename)) {
+        free(key_store);
         (void) fprintf(stderr, "cannot read %s %s\n", name, filename);
         return NULL;
     }
-    return keyring;
+    return key_store;
 }
 
 int
@@ -131,8 +125,7 @@ rnp_key_store_load_keys(rnp_t *rnp, char *homedir)
         return rnp_key_store_ssh_load_keys(rnp, homedir);
     }
 
-    rnp->pubring =
-      rnp_key_store_read_keyring(rnp->key_store_format, rnp->io, "pubring", homedir);
+    rnp->pubring = rnp_key_store_read_keyring(rnp, "pubring", homedir);
 
     if (rnp->pubring == NULL) {
         fprintf(io->errs, "cannot read pub keyring\n");
@@ -156,8 +149,7 @@ rnp_key_store_load_keys(rnp_t *rnp, char *homedir)
 
     /* Only read secret keys if we need to. */
     if (rnp_getvar(rnp, "need seckey")) {
-        rnp->secring =
-          rnp_key_store_read_keyring(rnp->key_store_format, rnp->io, "secring", homedir);
+        rnp->secring = rnp_key_store_read_keyring(rnp, "secring", homedir);
 
         if (rnp->secring == NULL) {
             fprintf(io->errs, "cannot read sec keyring\n");
@@ -207,20 +199,20 @@ rnp_key_store_load_from_file(rnp_t *          rnp,
                              const unsigned   armour,
                              const char *     filename)
 {
-    {
-        switch (rnp->key_store_format) {
-        case GPG_KEY_STORE:
-            return rnp_key_store_pgp_read_from_file(rnp->io, keyring, armour, filename);
+    int          rc;
+    pgp_memory_t mem = {0};
 
-        case KBX_KEY_STORE:
-            return rnp_key_store_kbx_from_file(rnp->io, keyring, filename);
-
-        case SSH_KEY_STORE:
-            return rnp_key_store_ssh_from_file(rnp->io, keyring, filename);
-        }
-
-        return 0;
+    if (rnp->key_store_format == SSH_KEY_STORE) {
+        return rnp_key_store_ssh_from_file(rnp->io, keyring, filename);
     }
+
+    if (!pgp_mem_readfile(&mem, filename)) {
+        return 1;
+    }
+
+    rc = rnp_key_store_load_from_mem(rnp, keyring, armour, &mem);
+    pgp_memory_release(&mem);
+    return rc;
 }
 
 int
