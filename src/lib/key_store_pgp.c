@@ -266,6 +266,9 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         /* we get these because we didn't prompt */
         break;
     case PGP_PTAG_CT_SIGNATURE_HEADER:
+        if (keyring->keyc == 0) {
+            break;
+        }
         key = &keyring->keys[keyring->keyc - 1];
         EXPAND_ARRAY(key, subsig);
         key->subsigs[key->subsigc].uid = key->uidc - 1;
@@ -273,6 +276,9 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         key->subsigc += 1;
         break;
     case PGP_PTAG_CT_SIGNATURE:
+        if (keyring->keyc == 0) {
+            break;
+        }
         key = &keyring->keys[keyring->keyc - 1];
         EXPAND_ARRAY(key, subsig);
         key->subsigs[key->subsigc].uid = key->uidc - 1;
@@ -280,7 +286,13 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         key->subsigc += 1;
         break;
     case PGP_PTAG_CT_TRUST:
+        if (keyring->keyc == 0) {
+            break;
+        }
         key = &keyring->keys[keyring->keyc - 1];
+        if (key->subsigc == 0) {
+            break;
+        }
         key->subsigs[key->subsigc - 1].trustlevel = pkt->u.ss_trust.level;
         key->subsigs[key->subsigc - 1].trustamount = pkt->u.ss_trust.amount;
         break;
@@ -291,19 +303,37 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         }
         break;
     case PGP_PTAG_SS_ISSUER_KEY_ID:
+        if (keyring->keyc == 0) {
+            break;
+        }
         key = &keyring->keys[keyring->keyc - 1];
+        if (key->subsigc == 0) {
+            break;
+        }
         (void) memcpy(&key->subsigs[key->subsigc - 1].sig.info.signer_id,
                       pkt->u.ss_issuer,
                       sizeof(pkt->u.ss_issuer));
         key->subsigs[key->subsigc - 1].sig.info.signer_id_set = 1;
         break;
     case PGP_PTAG_SS_CREATION_TIME:
+        if (keyring->keyc == 0) {
+            break;
+        }
         key = &keyring->keys[keyring->keyc - 1];
+        if (key->subsigc == 0) {
+            break;
+        }
         key->subsigs[key->subsigc - 1].sig.info.birthtime = pkt->u.ss_time;
         key->subsigs[key->subsigc - 1].sig.info.birthtime_set = 1;
         break;
     case PGP_PTAG_SS_EXPIRATION_TIME:
+        if (keyring->keyc == 0) {
+            break;
+        }
         key = &keyring->keys[keyring->keyc - 1];
+        if (key->subsigc == 0) {
+            break;
+        }
         key->subsigs[key->subsigc - 1].sig.info.duration = pkt->u.ss_time;
         key->subsigs[key->subsigc - 1].sig.info.duration_set = 1;
         break;
