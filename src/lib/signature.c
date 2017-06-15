@@ -91,6 +91,8 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 #include "signature.h"
 #include "../common/utils.h"
 
+extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
+
 /** \ingroup Core_Create
  * needed for signature creation
  */
@@ -219,6 +221,12 @@ ecdsa_sign(pgp_hash_t *            hash,
 {
     uint8_t       hashbuf[PGP_MAX_HASH_SIZE];
     pgp_ecc_sig_t sig = {NULL, NULL};
+
+    const size_t curve_byte_size = BITS_TO_BYTES(ec_curves[pub_key->curve].bitlen);
+    if (curve_byte_size > pgp_hash_output_length(hash)) {
+        RNP_LOG("Message hash to small");
+        return 0;
+    }
 
     /* finalise hash */
     size_t hashsize = pgp_hash_finish(hash, hashbuf);

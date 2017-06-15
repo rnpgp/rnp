@@ -1240,8 +1240,6 @@ rnp_import_key(rnp_t *rnp, char *f)
     return rnp_key_store_list(io, rnp->pubring, 0);
 }
 
-#define ID_OFFSET 38
-
 /* generate a new key */
 /* TODO: Does this need to take into account SSH keys? */
 int
@@ -1252,11 +1250,11 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     pgp_key_t *    key;
     pgp_io_t *     io;
     uint8_t *      uid;
-    char           passphrase[MAX_PASSPHRASE_LENGTH] = { 0 };
-    char           newid[1024] = { 0 };
-    char           filename[MAXPATHLEN] = { 0 };
-    char           dir[MAXPATHLEN] = { 0 };
-    char           keyid[2*PGP_KEY_ID_SIZE + 1] = { 0 };
+    char           passphrase[MAX_PASSPHRASE_LENGTH] = {0};
+    char           newid[1024] = {0};
+    char           filename[MAXPATHLEN] = {0};
+    char           dir[MAXPATHLEN] = {0};
+    char           keyid[2 * PGP_KEY_ID_SIZE + 1] = {0};
     char *         cp = NULL;
     char *         ringfile;
     char *         numtries;
@@ -1276,11 +1274,11 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
           newid, sizeof(newid), "RSA %d-bit key <%s@localhost>", numbits, getenv("LOGNAME"));
     }
     uid = (uint8_t *) newid;
-    const pgp_pubkey_alg_t alg = ((numbits == 256) || (numbits == 384) || (numbits == 521))
-                                ? PGP_PKA_ECDSA : (numbits == 255)
-                                ? PGP_PKA_EDDSA : PGP_PKA_RSA;
-    key = pgp_generate_keypair(alg, numbits, uid,
-                               rnp_getvar(rnp, "hash"), rnp_getvar(rnp, "cipher"));
+    const pgp_pubkey_alg_t alg = ((numbits == 256) || (numbits == 384) || (numbits == 521)) ?
+                                   PGP_PKA_ECDSA :
+                                   (numbits == 255) ? PGP_PKA_EDDSA : PGP_PKA_RSA;
+    key = pgp_generate_keypair(
+      alg, numbits, uid, rnp_getvar(rnp, "hash"), rnp_getvar(rnp, "cipher"));
 
     if (key == NULL) {
         (void) fprintf(io->errs, "cannot generate key\n");
@@ -1338,8 +1336,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
 
     memset(passphrase, 0, sizeof(passphrase));
-    passc =
-      find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
+    passc = find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
     if (!pgp_write_xfer_seckey(
           create, key, (uint8_t *) passphrase, (const unsigned) passc, NULL, noarmor)) {
         (void) fprintf(io->errs, "cannot write seckey\n");

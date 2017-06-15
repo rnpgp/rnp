@@ -246,14 +246,12 @@ pgp_generate_keypair(pgp_pubkey_alg_t alg,
             PGP_CURVE_NIST_P_256 :
             (alg_params == 384) ? PGP_CURVE_NIST_P_384 : PGP_CURVE_NIST_P_521;
 
-        pgp_hash_t   tmp;
-        const size_t hash_size =
-          pgp_hash_create(&tmp, seckey->hash_alg) ? pgp_hash_output_length(&tmp) : 0;
-
-        if (hash_size < 32) {
-            RNP_LOG("Hash output length to small (256 required minimum)");
-            goto end;
-        }
+        const pgp_curve_t curve = seckey->pubkey.key.ecc.curve;
+        seckey->hash_alg = (curve == PGP_CURVE_NIST_P_256) ?
+                             PGP_HASH_SHA256 :
+                             (curve == PGP_CURVE_NIST_P_384) ?
+                             PGP_HASH_SHA384 :
+                             /*(curve == PGP_CURVE_NIST_P_256 )*/ PGP_HASH_SHA512;
         if (pgp_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK)
             goto end;
     } else {
