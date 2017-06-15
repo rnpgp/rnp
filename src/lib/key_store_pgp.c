@@ -129,6 +129,9 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         }
         key = &keyring->keys[keyring->keyc - 1];
         EXPAND_ARRAY(key, subsig);
+        if (key->subsigs == NULL) {
+            break;
+        }
         key->subsigs[key->subsigc].uid = key->uidc - 1;
         (void) memcpy(&key->subsigs[key->subsigc].sig, &pkt->u.sig, sizeof(pkt->u.sig));
         key->subsigc += 1;
@@ -139,6 +142,9 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         }
         key = &keyring->keys[keyring->keyc - 1];
         EXPAND_ARRAY(key, subsig);
+        if (key->subsigs == NULL) {
+            break;
+        }
         key->subsigs[key->subsigc].uid = key->uidc - 1;
         (void) memcpy(&key->subsigs[key->subsigc].sig, &pkt->u.sig, sizeof(pkt->u.sig));
         key->subsigc += 1;
@@ -156,6 +162,9 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         break;
     case PGP_PTAG_SS_KEY_EXPIRY:
         EXPAND_ARRAY(keyring, key);
+        if (keyring->keys == NULL) {
+            break;
+        }
         if (keyring->keyc > 0) {
             keyring->keys[keyring->keyc - 1].key.pubkey.duration = pkt->u.ss_time;
         }
@@ -208,6 +217,9 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         } else {
             /* revoke the user id */
             EXPAND_ARRAY(key, revoke);
+            if (key->revokes == NULL) {
+                break;
+            }
             revocation = &key->revokes[key->revokec];
             key->revokes[key->revokec].uid = key->uidc - 1;
             key->revokec += 1;

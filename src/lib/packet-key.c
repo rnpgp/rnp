@@ -435,6 +435,9 @@ pgp_add_userid(pgp_key_t *key, const uint8_t *userid)
     uint8_t **uidp;
 
     EXPAND_ARRAY(key, uid);
+    if (key->uids == NULL) {
+        return 0;
+    }
     /* initialise new entry in array */
     uidp = &key->uids[key->uidc++];
     *uidp = NULL;
@@ -455,6 +458,9 @@ pgp_add_subpacket(pgp_key_t *keydata, const pgp_subpacket_t *packet)
     pgp_subpacket_t *subpktp;
 
     EXPAND_ARRAY(keydata, packet);
+    if (keydata->packets == NULL) {
+        return 0;
+    }
     /* initialise new entry in array */
     subpktp = &keydata->packets[keydata->packetc++];
     subpktp->length = 0;

@@ -427,6 +427,9 @@ ssh2_readkeys(pgp_io_t *       io,
             return 0;
         }
         EXPAND_ARRAY(pubring, key);
+        if (pubring->keys == NULL) {
+            return 0;
+        }
         pubkey = &pubring->keys[pubring->keyc++];
         (void) memcpy(pubkey, &key, sizeof(key));
         pubkey->type = PGP_PTAG_CT_PUBLIC_KEY;
@@ -443,6 +446,9 @@ ssh2_readkeys(pgp_io_t *       io,
             return 0;
         }
         EXPAND_ARRAY(secring, key);
+        if (secring->keys == NULL) {
+            return 0;
+        }
         seckey = &secring->keys[secring->keyc++];
         (void) memcpy(seckey, &key, sizeof(key));
         seckey->type = PGP_PTAG_CT_SECRET_KEY;

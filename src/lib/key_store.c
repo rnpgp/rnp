@@ -400,6 +400,9 @@ rnp_key_store_append_keyring(rnp_key_store_t *keyring, rnp_key_store_t *newring)
 
     for (i = 0; i < newring->keyc; i++) {
         EXPAND_ARRAY(keyring, key);
+        if (keyring->keys == NULL) {
+            return 0;
+        }
         (void) memcpy(
           &keyring->keys[keyring->keyc], &newring->keys[i], sizeof(newring->keys[i]));
         keyring->keyc += 1;
@@ -407,6 +410,9 @@ rnp_key_store_append_keyring(rnp_key_store_t *keyring, rnp_key_store_t *newring)
 
     for (i = 0; i < newring->blobc; i++) {
         EXPAND_ARRAY(keyring, blob);
+        if (keyring->blobs == NULL) {
+            return 0;
+        }
         (void) memcpy(
           &keyring->blobs[keyring->blobc], &newring->blobs[i], sizeof(newring->blobs[i]));
         keyring->blobc += 1;
@@ -428,6 +434,9 @@ rnp_key_store_add_key(pgp_io_t *       io,
     }
 
     EXPAND_ARRAY(keyring, key);
+    if (keyring->keys == NULL) {
+        return 0;
+    }
     newkey = &keyring->keys[keyring->keyc++];
     (void) memcpy(newkey, key, sizeof(pgp_key_t));
     newkey->type = tag;
@@ -453,6 +462,9 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
 
     if (tag != PGP_PTAG_CT_PUBLIC_SUBKEY) {
         EXPAND_ARRAY(keyring, key);
+        if (keyring->keys == NULL) {
+            return 0;
+        }
         key = &keyring->keys[keyring->keyc++];
         (void) memset(key, 0x0, sizeof(*key));
         pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, &keydata->pubkey, keyring->hashtype);
