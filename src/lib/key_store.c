@@ -322,9 +322,19 @@ rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int la
 void
 rnp_key_store_free(rnp_key_store_t *keyring)
 {
+    int i;
+
+    if (keyring->keys != NULL) {
+        for (i = 0; i < keyring->keyc; i++) {
+            FREE_ARRAY((&keyring->keys[i]), uid);
+            FREE_ARRAY((&keyring->keys[i]), subsig);
+            FREE_ARRAY((&keyring->keys[i]), revoke);
+        }
+    }
     FREE_ARRAY(keyring, key);
+
     if (keyring->blobs != NULL) {
-        for (int i = 0; i < keyring->blobc; i++) {
+        for (i = 0; i < keyring->blobc; i++) {
             if (keyring->blobs[i]->type == KBX_PGP_BLOB) {
                 FREE_ARRAY(((kbx_pgp_blob_t *) (keyring->blobs[i])), key);
                 if (((kbx_pgp_blob_t *) (keyring->blobs[i]))->sn_size > 0) {
