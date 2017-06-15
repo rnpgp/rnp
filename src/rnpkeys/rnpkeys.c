@@ -312,7 +312,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
         exit(EXIT_SUCCESS);
     /* options */
     case SSHKEYS:
-        rnp_setvar(rnp, "keyring_format", "SSH");
+        rnp_setvar(rnp, "key_store_format", "SSH");
         break;
     case KEYRING:
         if (arg == NULL) {
@@ -326,7 +326,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
             (void) fprintf(stderr, "No keyring format argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_setvar(rnp, "keyring_format", arg);
+        rnp_setvar(rnp, "key_store_format", arg);
         break;
     case USERID:
         if (optarg == NULL) {
@@ -374,7 +374,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
         rnp_setvar(rnp, "res", arg);
         break;
     case SSHKEYFILE:
-        rnp_setvar(rnp, "keyring_format", "SSH");
+        rnp_setvar(rnp, "key_store_format", "SSH");
         rnp_setvar(rnp, "sshkeyfile", arg);
         break;
     case FORMAT:
@@ -466,7 +466,7 @@ main(int argc, char **argv)
         } else {
             switch (ch) {
             case 'S':
-                rnp_setvar(&rnp, "keyring_format", "SSH");
+                rnp_setvar(&rnp, "key_store_format", "SSH");
                 rnp_setvar(&rnp, "sshkeyfile", optarg);
                 break;
             case 'V':

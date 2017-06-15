@@ -46,7 +46,7 @@
 
 __BEGIN_DECLS
 
-enum keyring_format_t { GPG_KEYRING, SSH_KEYRING };
+enum key_store_format_t { GPG_KEY_STORE, SSH_KEY_STORE, KBX_KEY_STORE };
 
 /* rnp operation context : contains additional data about the currently ongoing operation */
 typedef struct rnp_ctx_t {
@@ -72,7 +72,7 @@ typedef struct rnp_t {
     void *    passfp;  /* file pointer for password input */
     rnp_ctx_t ctx;     /* current operation context */
 
-    enum keyring_format_t keyring_format; /* keyring format */
+    enum key_store_format_t key_store_format; /* keyring format */
     union {
         rnp_keygen_desc_t generate_key_ctx;
     } action;
