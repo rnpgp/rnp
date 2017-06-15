@@ -13,8 +13,8 @@ RNP = 'rnp'
 RNP_KEYS = 'rnpkeys'
 GPG = 'gpg2'
 WORKDIR = '/tmp'
-SMALL_ITERATIONS = 1000
-LARGE_ITERATIONS = 10
+SMALL_ITERATIONS = 10
+LARGE_ITERATIONS = 2
 LARGESIZE = 1024*1024*100
 SMALLSIZE = 0
 SMALLFILE = 'smalltest.txt'
@@ -135,8 +135,8 @@ def run_tests():
         print '#1. Encryption'
         #rnpcmd = ' '.join([rnphome, '--encrypt', infile, '--output', rnpout])
         #print rnpcmd
-        tmrnp = run_proc_iterative(RNP, rnphome + ['--encrypt', infile, '--output', rnpout], iterations)
-        tmgpg = run_proc_iterative(GPG, gpghome + ['--batch', '--yes', '--trust-model', 'always', '-r', 'performance@rnp', '--compress-level', '0', '--output', gpgout, '--encrypt', infile], iterations)
+        tmrnp = run_proc_iterative(RNP, rnphome + ['--encrypt', infile, '--output', rnpout], iterations, nooutput = False)
+        tmgpg = run_proc_iterative(GPG, gpghome + ['--batch', '--yes', '--trust-model', 'always', '-r', 'performance@rnp', '--compress-level', '0', '--output', gpgout, '--encrypt', infile], iterations, nooutput = False)
         print_test_results(fsize, iterations, tmrnp, tmgpg, 'ENCRYPT')
         #rnpcmd = 'rnp --homedir /tmp/tmpyr3xUT --encrypt /tmp/tmpyr3xUT/smalltest.txt --output=/tmp/tmpyr3xUT/smalltest.txt-rnp-encrypted'
         #gpg2 --homedir /tmp/tmpyr3xUT/.gnupg --batch --yes --trust-model always -r performance@rnp --compress-level 0 --output /tmp/tmpyr3xUT/largetest.txt-gpg-encrypted --encrypt /tmp/tmpyr3xUT/largetest.txt
