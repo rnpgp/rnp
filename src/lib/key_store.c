@@ -125,6 +125,10 @@ rnp_key_store_load_keys(rnp_t *rnp, char *homedir)
         return rnp_key_store_ssh_load_keys(rnp, homedir);
     }
 
+    if (rnp->pubring) {
+        rnp_key_store_free(rnp->pubring);
+        free(rnp->pubring);
+    }
     rnp->pubring = rnp_key_store_read_keyring(rnp, "pubring", homedir);
 
     if (rnp->pubring == NULL) {
@@ -149,6 +153,11 @@ rnp_key_store_load_keys(rnp_t *rnp, char *homedir)
 
     /* Only read secret keys if we need to. */
     if (rnp_getvar(rnp, "need seckey")) {
+        if (rnp->secring) {
+            rnp_key_store_free(rnp->secring);
+            free(rnp->secring);
+        }
+
         rnp->secring = rnp_key_store_read_keyring(rnp, "secring", homedir);
 
         if (rnp->secring == NULL) {
@@ -193,9 +202,30 @@ rnp_key_store_load_keys(rnp_t *rnp, char *homedir)
     return 1;
 }
 
+/* Get the keyring extention of the current type of key. */
+int
+rnp_key_store_extension(rnp_t *rnp, char *buffer, size_t buffer_size)
+{
+    switch (rnp->key_store_format) {
+    case GPG_KEY_STORE:
+        strncpy(buffer, "gpg", buffer_size);
+        return 0;
+
+    case KBX_KEY_STORE:
+        strncpy(buffer, "kbx", buffer_size);
+        return 0;
+
+    case SSH_KEY_STORE:
+        strncpy(buffer, "", buffer_size);
+        return 0;
+    }
+
+    return 1;
+}
+
 int
 rnp_key_store_load_from_file(rnp_t *          rnp,
-                             rnp_key_store_t *keyring,
+                             rnp_key_store_t *key_store,
                              const unsigned   armour,
                              const char *     filename)
 {
@@ -203,33 +233,80 @@ rnp_key_store_load_from_file(rnp_t *          rnp,
     pgp_memory_t mem = {0};
 
     if (rnp->key_store_format == SSH_KEY_STORE) {
-        return rnp_key_store_ssh_from_file(rnp->io, keyring, filename);
+        return rnp_key_store_ssh_from_file(rnp->io, key_store, filename);
     }
 
     if (!pgp_mem_readfile(&mem, filename)) {
         return 1;
     }
 
-    rc = rnp_key_store_load_from_mem(rnp, keyring, armour, &mem);
+    rc = rnp_key_store_load_from_mem(rnp, key_store, armour, &mem);
     pgp_memory_release(&mem);
     return rc;
 }
 
 int
 rnp_key_store_load_from_mem(rnp_t *          rnp,
-                            rnp_key_store_t *keyring,
+                            rnp_key_store_t *key_store,
                             const unsigned   armour,
                             pgp_memory_t *   memory)
 {
     switch (rnp->key_store_format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_read_from_mem(rnp->io, keyring, armour, memory);
+        return rnp_key_store_pgp_read_from_mem(rnp->io, key_store, armour, memory);
 
     case KBX_KEY_STORE:
-        return rnp_key_store_kbx_from_mem(rnp->io, keyring, memory);
+        return rnp_key_store_kbx_from_mem(rnp->io, key_store, memory);
 
     case SSH_KEY_STORE:
-        return rnp_key_store_ssh_from_mem(rnp->io, keyring, memory);
+        return rnp_key_store_ssh_from_mem(rnp->io, key_store, memory);
+    }
+
+    return 0;
+}
+
+int
+rnp_key_store_write_to_file(rnp_t *          rnp,
+                            rnp_key_store_t *key_store,
+                            const uint8_t *  passphrase,
+                            const unsigned   passlength,
+                            const unsigned   armour,
+                            const char *     filename)
+{
+    int          rc;
+    pgp_memory_t mem = {0};
+
+    if (rnp->key_store_format == SSH_KEY_STORE) {
+        return rnp_key_store_ssh_to_file(rnp->io, key_store, passphrase, passlength, filename);
+    }
+
+    if (!rnp_key_store_write_to_mem(rnp, key_store, passphrase, passlength, armour, &mem)) {
+        return 1;
+    }
+
+    rc = pgp_mem_writefile(&mem, filename);
+    pgp_memory_release(&mem);
+    return rc;
+}
+
+int
+rnp_key_store_write_to_mem(rnp_t *          rnp,
+                           rnp_key_store_t *key_store,
+                           const uint8_t *  passphrase,
+                           const unsigned   passlength,
+                           const unsigned   armour,
+                           pgp_memory_t *   memory)
+{
+    switch (rnp->key_store_format) {
+    case GPG_KEY_STORE:
+        return rnp_key_store_pgp_write_to_mem(
+          rnp->io, key_store, passphrase, passlength, armour, memory);
+
+    case KBX_KEY_STORE:
+        return rnp_key_store_kbx_to_mem(rnp->io, key_store, passphrase, memory);
+
+    case SSH_KEY_STORE:
+        return rnp_key_store_ssh_to_mem(rnp->io, key_store, passphrase, passlength, memory);
     }
 
     return 0;
@@ -429,6 +506,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
                       pgp_key_t *      key,
                       pgp_content_enum tag)
 {
+    int        i;
     pgp_key_t *newkey;
 
     if (rnp_get_debug(__FILE__)) {
@@ -440,8 +518,46 @@ rnp_key_store_add_key(pgp_io_t *       io,
         return 0;
     }
     newkey = &keyring->keys[keyring->keyc++];
-    (void) memcpy(newkey, key, sizeof(pgp_key_t));
+    memcpy((uint8_t *) newkey + offsetof(pgp_key_t, type),
+           (uint8_t *) key + offsetof(pgp_key_t, type),
+           sizeof(pgp_key_t) - offsetof(pgp_key_t, type));
     newkey->type = tag;
+
+    for (i = 0; i < key->uidc; i++) {
+        EXPAND_ARRAY(newkey, uid);
+        if (newkey->uids == NULL) {
+            return 0;
+        }
+        memcpy(&newkey->uids[newkey->uidc], &key->uids[i], sizeof(uint8_t *));
+        newkey->uidc++;
+    }
+
+    for (i = 0; i < key->packetc; i++) {
+        EXPAND_ARRAY(newkey, packet);
+        if (newkey->packets == NULL) {
+            return 0;
+        }
+        memcpy(&newkey->packets[newkey->packetc], &key->packets[i], sizeof(pgp_subpacket_t));
+        newkey->packetc++;
+    }
+
+    for (i = 0; i < key->subsigc; i++) {
+        EXPAND_ARRAY(newkey, subsig);
+        if (newkey->subsigs == NULL) {
+            return 0;
+        }
+        memcpy(&newkey->subsigs[newkey->subsigc], &key->subsigs[i], sizeof(pgp_subsig_t));
+        newkey->subsigc++;
+    }
+
+    for (i = 0; i < key->revokec; i++) {
+        EXPAND_ARRAY(newkey, revoke);
+        if (newkey->revokes == NULL) {
+            return 0;
+        }
+        memcpy(&newkey->revokes[newkey->revokec], &key->revokes[i], sizeof(pgp_revoke_t));
+        newkey->revokec++;
+    }
 
     if (rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "rnp_key_store_add_key: keyc %u\n", keyring->keyc);

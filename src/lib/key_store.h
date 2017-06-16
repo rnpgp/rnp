@@ -59,7 +59,7 @@ typedef struct {
     uint16_t   flags;
     uint32_t   file_created_at;
     uint32_t   last_maintenance_run;
-} kbx_first_blob_t;
+} kbx_header_blob_t;
 
 typedef struct {
     uint8_t  fp[PGP_FINGERPRINT_SIZE];
@@ -114,10 +114,25 @@ typedef struct rnp_key_store_t {
     pgp_hash_alg_t hashtype;
 } rnp_key_store_t;
 
+int rnp_key_store_extension(rnp_t *rnp, char *buffer, size_t buffer_size);
+
 int rnp_key_store_load_keys(rnp_t *rnp, char *homedir);
 
 int rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *, const unsigned, const char *);
 int rnp_key_store_load_from_mem(rnp_t *rnp, rnp_key_store_t *, const unsigned, pgp_memory_t *);
+
+int rnp_key_store_write_to_file(rnp_t *rnp,
+                                rnp_key_store_t *,
+                                const uint8_t *,
+                                const unsigned,
+                                const unsigned,
+                                const char *);
+int rnp_key_store_write_to_mem(rnp_t *rnp,
+                               rnp_key_store_t *,
+                               const uint8_t *,
+                               const unsigned,
+                               const unsigned,
+                               pgp_memory_t *);
 
 void rnp_key_store_free(rnp_key_store_t *);
 

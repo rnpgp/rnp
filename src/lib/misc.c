@@ -774,6 +774,27 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
     return (mem->allocated == mem->length);
 }
 
+int
+pgp_mem_writefile(pgp_memory_t *mem, const char *f)
+{
+    FILE *fp;
+
+    if ((fp = fopen(f, "wb")) == NULL) {
+        fprintf(stderr, "pgp_mem_writefile: can't open \"%s\"\n", f);
+        return 0;
+    }
+
+    fwrite(mem->buf, mem->length, 1, fp);
+    if (ferror(fp)) {
+        fprintf(stderr, "pgp_mem_writefile: can't write to file");
+        fclose(fp);
+        return 0;
+    }
+
+    fclose(fp);
+    return 1;
+}
+
 typedef struct {
     uint16_t sum;
 } sum16_t;

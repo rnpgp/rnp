@@ -497,10 +497,12 @@ main(int argc, char **argv)
         return EXIT_ERROR;
     }
 
-    /* Keys aren't loaded if this is a key generation step. */
-    if (p.cmd != GENERATE_KEY && !rnp_load_keys(&rnp)) {
-        fputs("fatal: failed to load keys\n", stderr);
-        return EXIT_ERROR;
+    if (!rnp_load_keys(&rnp)) {
+        /* Keys mightn't loaded if this is a key generation step. */
+        if (p.cmd != GENERATE_KEY) {
+            fputs("fatal: failed to load keys\n", stderr);
+            return EXIT_ERROR;
+        }
     }
 
     /* now do the required action for each of the command line args */

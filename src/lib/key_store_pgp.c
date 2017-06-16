@@ -77,6 +77,7 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "rnpsdk.h"
 #include "readerwriter.h"
 #include "rnpdefs.h"
+#include "packet.h"
 
 void print_packet_hex(const pgp_subpacket_t *pkt);
 
@@ -265,4 +266,52 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
     /* don't call teardown_memory_read because memory was passed in */
     pgp_stream_delete(stream);
     return res;
+}
+
+int
+rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
+                               rnp_key_store_t *key_store,
+                               const uint8_t *  passphrase,
+                               const unsigned   passlength,
+                               const unsigned   armour,
+                               pgp_memory_t *   mem)
+{
+    int          i;
+    unsigned     rc;
+    pgp_key_t *  key;
+    pgp_output_t output = {};
+
+    __PGP_USED(io);
+    pgp_writer_set_memory(&output, mem);
+
+    for (i = 0; i < key_store->keyc; i++) {
+        key = &key_store->keys[i];
+
+        switch (key->type) {
+        case PGP_PTAG_CT_PUBLIC_KEY:
+        case PGP_PTAG_CT_PUBLIC_SUBKEY:
+            if (!pgp_write_xfer_pubkey(&output, key, NULL, armour)) {
+                fprintf(io->errs, "Can't write public key\n");
+                return 0;
+            }
+            break;
+
+        case PGP_PTAG_CT_SECRET_KEY:
+        case PGP_PTAG_CT_SECRET_SUBKEY:
+            if (!pgp_write_xfer_seckey(&output, key, passphrase, passlength, NULL, armour)) {
+                fprintf(io->errs, "Can't write private key\n");
+                return 0;
+            }
+            break;
+
+        default:
+            fprintf(io->errs, "Can't write key type: %d\n", key->type);
+            return 0;
+        }
+    }
+
+    rc = pgp_writer_close(&output);
+    pgp_writer_info_delete(&output.writer);
+
+    return rc;
 }

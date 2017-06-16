@@ -42,21 +42,6 @@
 #define BLOB_HEADER_SIZE 0x5
 #define BLOB_FIRST_SIZE 0x20
 
-int
-rnp_key_store_kbx_from_file(pgp_io_t *io, rnp_key_store_t *key_store, const char *file)
-{
-    int          rc;
-    pgp_memory_t mem = {0};
-
-    if (!pgp_mem_readfile(&mem, file)) {
-        return 1;
-    }
-
-    rc = rnp_key_store_kbx_from_mem(io, key_store, &mem);
-    pgp_memory_release(&mem);
-    return rc;
-}
-
 static uint8_t
 ru8(uint8_t *p)
 {
@@ -77,7 +62,7 @@ ru32(uint8_t *p)
 }
 
 static int
-rnp_key_store_kbx_parse_first_blob(kbx_first_blob_t *first_blob)
+rnp_key_store_kbx_parse_first_blob(kbx_header_blob_t *first_blob)
 {
     uint8_t *image = first_blob->blob.image;
 
@@ -345,7 +330,7 @@ rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
         break;
 
     case KBX_FIRST_BLOB:
-        blob = calloc(1, sizeof(kbx_first_blob_t));
+        blob = calloc(1, sizeof(kbx_header_blob_t));
         break;
 
     case KBX_PGP_BLOB:
@@ -375,7 +360,7 @@ rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
     // call real parser of blob
     switch (type) {
     case KBX_FIRST_BLOB:
-        if (rnp_key_store_kbx_parse_first_blob((kbx_first_blob_t *) blob)) {
+        if (rnp_key_store_kbx_parse_first_blob((kbx_header_blob_t *) blob)) {
             free(blob);
             return NULL;
         }
@@ -451,5 +436,14 @@ rnp_key_store_kbx_from_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_
         buf += blob_length;
     }
 
+    return 1;
+}
+
+int
+rnp_key_store_kbx_to_mem(pgp_io_t *       io,
+                         rnp_key_store_t *key_store,
+                         const uint8_t *  passphrase,
+                         pgp_memory_t *   memory)
+{
     return 1;
 }

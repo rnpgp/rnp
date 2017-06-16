@@ -355,29 +355,6 @@ resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
     return key;
 }
 
-/* append a key to a keyring */
-static int
-appendkey(pgp_io_t *io, pgp_key_t *key, char *ringfile)
-{
-    pgp_output_t * create;
-    const unsigned noarmor = 0;
-    int            fd;
-
-    if ((fd = pgp_setup_file_append(NULL, &create, ringfile)) < 0) {
-        fd = pgp_setup_file_write(NULL, &create, ringfile, 0);
-    }
-    if (fd < 0) {
-        (void) fprintf(io->errs, "cannot open pubring '%s'\n", ringfile);
-        return 0;
-    }
-    if (!pgp_write_xfer_pubkey(create, key, NULL, noarmor)) {
-        (void) fprintf(io->errs, "cannot write pubkey\n");
-        return 0;
-    }
-    pgp_teardown_file_write(create, fd);
-    return 1;
-}
-
 /* return 1 if the file contains ascii-armoured text */
 static unsigned
 isarmoured(pgp_io_t *io, const char *f, const void *memory, const char *text)
@@ -954,6 +931,18 @@ rnp_init(rnp_t *rnp)
               io->errs);
     }
 
+    rnp->pubring = calloc(1, sizeof(rnp_key_store_t));
+    if (rnp->pubring == NULL) {
+        fputs("rnp: can't create empty pubring keystore\n", io->errs);
+        return 0;
+    }
+
+    rnp->secring = calloc(1, sizeof(rnp_key_store_t));
+    if (rnp->secring == NULL) {
+        fputs("rnp: can't create empty secring keystore\n", io->errs);
+        return 0;
+    }
+
     /* Initialize the context with the default keyring format. */
     if (!init_default_format(rnp)) {
         return 0;
@@ -1297,24 +1286,20 @@ rnp_generate_key(rnp_t *rnp, const char *id)
 {
     RNP_MSG("Generating a new key...\n");
 
-    pgp_output_t * create;
-    const unsigned noarmor = 0;
-    pgp_key_t *    key;
-    pgp_io_t *     io;
-    uint8_t *      uid = NULL;
-    char           passphrase[MAX_PASSPHRASE_LENGTH] = {0};
-    char           newid[1024] = {0};
-    char           filename[MAXPATHLEN] = {0};
-    char           dir[MAXPATHLEN] = {0};
-    char           keyid[2 * PGP_KEY_ID_SIZE + 1] = {0};
-    char *         cp = NULL;
-    char *         ringfile;
-    char *         numtries;
-    int            attempts;
-    int            passc;
-    int            fd;
-    int            cc;
-    int            rv = 0;
+    pgp_key_t *key;
+    pgp_io_t * io;
+    uint8_t *  uid;
+    char       passphrase[MAX_PASSPHRASE_LENGTH] = {0};
+    char       newid[1024] = {0};
+    char       filename[MAXPATHLEN] = {0};
+    char       dir[MAXPATHLEN] = {0};
+    char       ext[MAXPATHLEN] = {0};
+    char       keyid[2 * PGP_KEY_ID_SIZE + 1] = {0};
+    char *     cp = NULL;
+    char *     ringfile;
+    char *     numtries;
+    int        attempts;
+    int        passc;
 
     io = rnp->io;
 
@@ -1337,15 +1322,20 @@ rnp_generate_key(rnp_t *rnp, const char *id)
         return 0;
     }
 
+    if (!rnp_key_store_add_key(io, rnp->pubring, key, PGP_PTAG_CT_PUBLIC_KEY) ||
+        !rnp_key_store_add_key(io, rnp->secring, key, PGP_PTAG_CT_SECRET_KEY)) {
+        pgp_keydata_free(key);
+        return 0;
+    }
+
     pgp_sprint_keydata(rnp->io, NULL, key, &cp, "signature ", &key->key.seckey.pubkey, 0);
     (void) fprintf(stdout, "%s", cp);
+    free(cp);
 
     /* write public key */
 
     keydir(rnp, dir, sizeof(dir));
-    cc = strlen(dir);
-
-    rnp_setvar(rnp, "generated userid", &dir[cc - 16]);
+    rnp_key_store_extension(rnp, ext, sizeof(ext));
 
     /* TODO: This call competes with the mkdir() at
      *       rnpkeys/rnpkeys.c:main:458, but that call doesn't
@@ -1356,29 +1346,12 @@ rnp_generate_key(rnp_t *rnp, const char *id)
      */
     if (mkdir(dir, 0700) == -1 && errno != EEXIST) {
         fprintf(io->errs, "cannot mkdir '%s' errno = %d \n", dir, errno);
-        goto out;
+        pgp_keydata_free(key);
+        return 0;
     }
 
     (void) fprintf(io->errs, "rnp: generated keys in directory %s\n", dir);
-    (void) snprintf(ringfile = filename, sizeof(filename), "%s/pubring.gpg", dir);
-    if (!appendkey(io, key, ringfile)) {
-        (void) fprintf(io->errs, "cannot write pubkey to '%s'\n", ringfile);
-        goto out;
-    }
-    if (rnp->pubring) {
-        rnp_key_store_free(rnp->pubring);
-        free(rnp->pubring);
-        rnp->pubring = NULL;
-    }
-    /* write secret key */
-    (void) snprintf(ringfile = filename, sizeof(filename), "%s/secring.gpg", dir);
-    if ((fd = pgp_setup_file_append(&rnp->ctx, &create, ringfile)) < 0) {
-        fd = pgp_setup_file_write(&rnp->ctx, &create, ringfile, 0);
-    }
-    if (fd < 0) {
-        (void) fprintf(io->errs, "cannot append secring '%s'\n", ringfile);
-        goto out;
-    }
+
     /* get the passphrase */
     if ((numtries = rnp_getvar(rnp, "numtries")) == NULL || (attempts = atoi(numtries)) <= 0) {
         attempts = MAX_PASSPHRASE_ATTEMPTS;
@@ -1389,23 +1362,25 @@ rnp_generate_key(rnp_t *rnp, const char *id)
 
     memset(passphrase, 0, sizeof(passphrase));
     passc = find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
-    if (!pgp_write_xfer_seckey(
-          create, key, (uint8_t *) passphrase, (const unsigned) passc, NULL, noarmor)) {
-        (void) fprintf(io->errs, "cannot write seckey\n");
-        goto out1;
+
+    /* write secret key */
+    snprintf(ringfile = filename, sizeof(filename), "%s/secring.%s", dir, ext);
+
+    if (!rnp_key_store_write_to_file(
+          rnp, rnp->secring, (uint8_t *) passphrase, (const unsigned) passc, 0, ringfile)) {
+        pgp_keydata_free(key);
+        return 0;
     }
-    rv = 1;
-out1:
-    pgp_teardown_file_write(create, fd);
-    if (rnp->secring != NULL) {
-        rnp_key_store_free(rnp->secring);
-        free(rnp->secring);
-        rnp->secring = NULL;
+
+    /* write secret key */
+    snprintf(ringfile = filename, sizeof(filename), "%s/pubring.%s", dir, ext);
+    if (!rnp_key_store_write_to_file(rnp, rnp->pubring, NULL, 0, 0, ringfile)) {
+        pgp_keydata_free(key);
+        return 0;
     }
-out:
+
     pgp_keydata_free(key);
-    free(cp);
-    return rv;
+    return 1;
 }
 
 /* encrypt a file */

@@ -39,4 +39,9 @@ int rnp_key_store_ssh_load_keys(rnp_t *rnp, char *homedir);
 int rnp_key_store_ssh_from_file(pgp_io_t *, rnp_key_store_t *, const char *);
 int rnp_key_store_ssh_from_mem(pgp_io_t *, rnp_key_store_t *, pgp_memory_t *);
 
+int rnp_key_store_ssh_to_file(
+  pgp_io_t *, rnp_key_store_t *, const uint8_t *, const unsigned, const char *);
+int rnp_key_store_ssh_to_mem(
+  pgp_io_t *, rnp_key_store_t *, const uint8_t *, const unsigned, pgp_memory_t *);
+
 #endif /* KEY_STORE_SSH_H_ */
