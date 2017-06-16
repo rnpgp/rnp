@@ -1323,8 +1323,12 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_ECDSA: {
         pgp_data_t OID = {0};
         unsigned   OID_len = 0;
-        if (!limread_scalar(&OID_len, 1, region, stream) ||
-            !limread_data(&OID, OID_len, region, stream) ||
+        if (!limread_scalar(&OID_len, 1, region, stream) || (OID_len == 0x00) ||
+            (OID_len == 0xFF)) { // values reserved for future extensions
+            return 0;
+        }
+
+        if (!limread_data(&OID, OID_len, region, stream) ||
             !limread_mpi(&key->key.ecc.point, region, stream)) {
             return 0;
         }
