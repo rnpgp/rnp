@@ -69,18 +69,17 @@
 
 #define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
 
-#define MAX_CURVE_BYTELEN BITS_TO_BYTES(521)  /* Length of NIST P-521 */
+#define MAX_CURVE_BYTELEN BITS_TO_BYTES(521) /* Length of NIST P-521 */
 
 void pgp_crypto_finish(void);
 
 /* Key generation */
 
-pgp_key_t*
-pgp_generate_keypair(pgp_pubkey_alg_t   alg,
-                     const int          alg_params,
-                     const uint8_t*     userid,
-                     const char*        hashalg,
-                     const char*        cipher);
+pgp_key_t *pgp_generate_keypair(pgp_pubkey_alg_t alg,
+                                const int        alg_params,
+                                const uint8_t *  userid,
+                                const char *     hashalg,
+                                const char *     cipher);
 
 void pgp_reader_push_decrypt(pgp_stream_t *, pgp_crypt_t *, pgp_region_t *);
 void pgp_reader_pop_decrypt(pgp_stream_t *);
