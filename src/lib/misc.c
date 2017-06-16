@@ -573,27 +573,31 @@ pgp_memory_init(pgp_memory_t *mem, size_t needed)
 \param mem Memory to use
 \param length New size
 */
-void
+int
 pgp_memory_pad(pgp_memory_t *mem, size_t length)
 {
     uint8_t *temp;
 
     if (mem->allocated < mem->length) {
         (void) fprintf(stderr, "pgp_memory_pad: bad alloc in\n");
-        return;
+        return 1;
     }
     if (mem->allocated < mem->length + length) {
         mem->allocated = mem->allocated * 2 + length;
         temp = realloc(mem->buf, mem->allocated);
         if (temp == NULL) {
             (void) fprintf(stderr, "pgp_memory_pad: bad alloc\n");
+            return 1;
         } else {
             mem->buf = temp;
         }
     }
     if (mem->allocated < mem->length + length) {
         (void) fprintf(stderr, "pgp_memory_pad: bad alloc out\n");
+        return 1;
     }
+
+    return 0;
 }
 
 /**
@@ -603,12 +607,15 @@ pgp_memory_pad(pgp_memory_t *mem, size_t length)
 \param src Data to add
 \param length Length of data to add
 */
-void
+int
 pgp_memory_add(pgp_memory_t *mem, const uint8_t *src, size_t length)
 {
-    pgp_memory_pad(mem, length);
+    if (pgp_memory_pad(mem, length)) {
+        return 1;
+    }
     (void) memcpy(mem->buf + mem->length, src, length);
     mem->length += length;
+    return 0;
 }
 
 /* XXX: this could be refactored via the writer, but an awful lot of */
@@ -664,7 +671,9 @@ pgp_memory_make_packet(pgp_memory_t *out, pgp_content_enum tag)
     size_t extra;
 
     extra = (out->length < 192) ? 1 : (out->length < 8192 + 192) ? 2 : 5;
-    pgp_memory_pad(out, extra + 1);
+    if (pgp_memory_pad(out, extra + 1)) {
+        return;
+    }
     memmove(out->buf + extra + 1, out->buf, out->length);
 
     out->buf[0] = PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT | tag;

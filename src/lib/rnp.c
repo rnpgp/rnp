@@ -1688,7 +1688,9 @@ rnp_verify_memory(
         return 0;
     }
     signedmem = pgp_memory_new();
-    pgp_memory_add(signedmem, in, size);
+    if (pgp_memory_add(signedmem, in, size)) {
+        return 0;
+    }
     if (out) {
         cat = pgp_memory_new();
     }

@@ -440,15 +440,21 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PTAG_CT_LITDATA_BODY:
         data->data.litdata_body = content->litdata_body;
         data->type = LITDATA;
-        pgp_memory_add(
-          data->mem, data->data.litdata_body.data, data->data.litdata_body.length);
+        if (pgp_memory_add(
+              data->mem, data->data.litdata_body.data, data->data.litdata_body.length)) {
+            PGP_ERROR_1(errors, PGP_E_V_BAD_SIGNATURE, "%s", "Can't allocate memory");
+            return PGP_RELEASE_MEMORY;
+        }
         return PGP_KEEP_MEMORY;
 
     case PGP_PTAG_CT_SIGNED_CLEARTEXT_BODY:
         data->data.cleartext_body = content->cleartext_body;
         data->type = SIGNED_CLEARTEXT;
-        pgp_memory_add(
-          data->mem, data->data.cleartext_body.data, data->data.cleartext_body.length);
+        if (pgp_memory_add(
+              data->mem, data->data.cleartext_body.data, data->data.cleartext_body.length)) {
+            PGP_ERROR_1(errors, PGP_E_V_BAD_SIGNATURE, "%s", "Can't allocate memory");
+            return PGP_RELEASE_MEMORY;
+        }
         return PGP_KEEP_MEMORY;
 
     case PGP_PTAG_CT_SIGNED_CLEARTEXT_TRAILER:
