@@ -62,6 +62,7 @@ __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights rese
 __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #endif
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -778,20 +779,30 @@ int
 pgp_mem_writefile(pgp_memory_t *mem, const char *f)
 {
     FILE *fp;
+    char  tmp[MAXPATHLEN];
 
-    if ((fp = fopen(f, "wb")) == NULL) {
+    snprintf(tmp, sizeof(tmp), "/tmp/rnp_keyring.XXXXXX");
+
+    if ((fp = fopen(tmp, "wb")) == NULL) {
         fprintf(stderr, "pgp_mem_writefile: can't open \"%s\"\n", f);
         return 0;
     }
 
     fwrite(mem->buf, mem->length, 1, fp);
     if (ferror(fp)) {
-        fprintf(stderr, "pgp_mem_writefile: can't write to file");
+        fprintf(stderr, "pgp_mem_writefile: can't write to file\n");
         fclose(fp);
         return 0;
     }
 
     fclose(fp);
+
+    if (rename(tmp, f)) {
+        fprintf(
+          stderr, "pgp_mem_writefile: can't rename to traget file: %s\n", strerror(errno));
+        return 0;
+    }
+
     return 1;
 }
 
