@@ -239,10 +239,11 @@ static pgp_map_t symm_alg_map[] = {
   {PGP_SA_AES_128, "AES (128-bit key)"},
   {PGP_SA_AES_192, "AES (192-bit key)"},
   {PGP_SA_AES_256, "AES (256-bit key)"},
-  {PGP_SA_TWOFISH, "Twofish(256-bit key)"},
+  {PGP_SA_TWOFISH, "Twofish (256-bit key)"},
   {PGP_SA_CAMELLIA_128, "Camellia (128-bit key)"},
   {PGP_SA_CAMELLIA_192, "Camellia (192-bit key)"},
   {PGP_SA_CAMELLIA_256, "Camellia (256-bit key)"},
+  {PGP_SA_SM4, "SM4"},
   {0x00, NULL}, /* this is the end-of-array marker */
 };
 
