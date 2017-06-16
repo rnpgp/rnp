@@ -1051,3 +1051,27 @@ rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep)
     }
     return dest;
 }
+
+/* return the file modification time */
+int64_t
+rnp_filemtime(char *path)
+{
+    struct stat st;
+    
+    if (stat(path, &st) != 0) {
+        return 0;
+    } else {
+        return st.st_mtime;
+    }
+}
+
+/* return the filename from the path */
+const char * rnp_filename(const char *path)
+{
+    char *res = strrchr(path, '/');
+    if (!res) {
+        return path;
+    } else {
+        return res + 1;
+    }
+}

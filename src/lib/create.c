@@ -1030,28 +1030,36 @@ pgp_write_mdc(pgp_output_t *output, const uint8_t *hashed)
 /**
 \ingroup Core_WritePackets
 \brief Writes Literal Data packet from buffer
+\param output Write settings
 \param data Buffer to write out
 \param maxlen Max length of buffer
 \param type Literal Data Type
-\param output Write settings
+\param filename File name to store in the packet. May be NULL
+\param modtime File modification time. May be 0
 \return 1 if OK; else 0
 */
 unsigned
 pgp_write_litdata(pgp_output_t *         output,
                   const uint8_t *        data,
                   const int              maxlen,
-                  const pgp_litdata_enum type)
+                  const pgp_litdata_enum type,
+                  const char* filename,
+                  const int64_t modtime)
 {
-    /*
-     * RFC4880 does not specify a meaning for filename or date.
-     * It is implementation-dependent.
-     * We will not implement them.
-     */
-    /* \todo do we need to check text data for <cr><lf> line endings ? */
+    /* \todo do we need to check text data for <cr><lf> line endings ? - Yes, we need. 
+    For non-PGP_LDT_BINARY we should convert line endings to the canonical CRLF style. */
+
+    unsigned flen = filename ? strlen(filename) : 0;
+    if (flen > 255) {
+        (void) fprintf(stderr, "pgp_write_litdata : filename %s too long\n", filename);
+        return 0;
+    }    
+    
     return pgp_write_ptag(output, PGP_PTAG_CT_LITDATA) &&
-           pgp_write_length(output, (unsigned) (1 + 1 + 4 + maxlen)) &&
-           pgp_write_scalar(output, (unsigned) type, 1) && pgp_write_scalar(output, 0, 1) &&
-           pgp_write_scalar(output, 0, 4) && pgp_write(output, data, (unsigned) maxlen);
+           pgp_write_length(output, (unsigned) (1 + 1 + flen + 4 + maxlen)) &&
+           pgp_write_scalar(output, (unsigned) type, 1) && pgp_write_scalar(output, flen, 1) &&
+           pgp_write(output, filename, flen) && pgp_write_scalar(output, modtime, 4) && 
+           pgp_write(output, data, (unsigned) maxlen);
 }
 
 /**
@@ -1076,8 +1084,9 @@ pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_outp
         pgp_memory_free(mem);
         return 0;
     }
+    
     len = (int) pgp_mem_len(mem);
-    ret = pgp_write_litdata(output, pgp_mem_data(mem), len, type);
+    ret = pgp_write_litdata(output, pgp_mem_data(mem), len, type, rnp_filename(filename), rnp_filemtime(filename));
     pgp_memory_free(mem);
     return ret;
 }

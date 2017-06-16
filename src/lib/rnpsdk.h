@@ -73,4 +73,6 @@ char *rnp_strdup(const char *);
 
 char * rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep);
 
+int64_t rnp_filemtime(char *path)
+
 #endif
