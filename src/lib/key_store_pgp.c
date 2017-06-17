@@ -272,7 +272,6 @@ int
 rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
                                rnp_key_store_t *key_store,
                                const uint8_t *  passphrase,
-                               const unsigned   passlength,
                                const unsigned   armour,
                                pgp_memory_t *   mem)
 {
@@ -298,7 +297,7 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
 
         case PGP_PTAG_CT_SECRET_KEY:
         case PGP_PTAG_CT_SECRET_SUBKEY:
-            if (!pgp_write_xfer_seckey(&output, key, passphrase, passlength, NULL, armour)) {
+            if (!pgp_write_xfer_seckey(&output, key, passphrase, NULL, armour)) {
                 fprintf(io->errs, "Can't write private key\n");
                 return 0;
             }

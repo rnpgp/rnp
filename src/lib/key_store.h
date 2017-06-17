@@ -121,18 +121,10 @@ int rnp_key_store_load_keys(rnp_t *rnp, char *homedir);
 int rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *, const unsigned, const char *);
 int rnp_key_store_load_from_mem(rnp_t *rnp, rnp_key_store_t *, const unsigned, pgp_memory_t *);
 
-int rnp_key_store_write_to_file(rnp_t *rnp,
-                                rnp_key_store_t *,
-                                const uint8_t *,
-                                const unsigned,
-                                const unsigned,
-                                const char *);
-int rnp_key_store_write_to_mem(rnp_t *rnp,
-                               rnp_key_store_t *,
-                               const uint8_t *,
-                               const unsigned,
-                               const unsigned,
-                               pgp_memory_t *);
+int rnp_key_store_write_to_file(
+  rnp_t *rnp, rnp_key_store_t *, const uint8_t *, const unsigned, const char *);
+int rnp_key_store_write_to_mem(
+  rnp_t *rnp, rnp_key_store_t *, const uint8_t *, const unsigned, pgp_memory_t *);
 
 void rnp_key_store_free(rnp_key_store_t *);
 

@@ -623,7 +623,6 @@ int
 rnp_key_store_ssh_to_file(pgp_io_t *       io,
                           rnp_key_store_t *key_store,
                           const uint8_t *  passphase,
-                          const unsigned   passlength,
                           const char *     file)
 {
     fprintf(io->errs, "rnp hasn't support writing SSH key to file yet\n");
@@ -634,7 +633,6 @@ int
 rnp_key_store_ssh_to_mem(pgp_io_t *       io,
                          rnp_key_store_t *key_store,
                          const uint8_t *  passphase,
-                         const unsigned   passlength,
                          pgp_memory_t *   memory)
 {
     // we can't write SSH key to memory because it doesn't keep two different part for public

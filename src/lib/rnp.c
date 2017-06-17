@@ -1299,7 +1299,6 @@ rnp_generate_key(rnp_t *rnp, const char *id)
     char *     ringfile;
     char *     numtries;
     int        attempts;
-    int        passc;
 
     io = rnp->io;
 
@@ -1361,20 +1360,19 @@ rnp_generate_key(rnp_t *rnp, const char *id)
     rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
 
     memset(passphrase, 0, sizeof(passphrase));
-    passc = find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
+    find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
 
     /* write secret key */
     snprintf(ringfile = filename, sizeof(filename), "%s/secring.%s", dir, ext);
 
-    if (!rnp_key_store_write_to_file(
-          rnp, rnp->secring, (uint8_t *) passphrase, (const unsigned) passc, 0, ringfile)) {
+    if (!rnp_key_store_write_to_file(rnp, rnp->secring, (uint8_t *) passphrase, 0, ringfile)) {
         pgp_keydata_free(key);
         return 0;
     }
 
     /* write secret key */
     snprintf(ringfile = filename, sizeof(filename), "%s/pubring.%s", dir, ext);
-    if (!rnp_key_store_write_to_file(rnp, rnp->pubring, NULL, 0, 0, ringfile)) {
+    if (!rnp_key_store_write_to_file(rnp, rnp->pubring, NULL, 0, ringfile)) {
         pgp_keydata_free(key);
         return 0;
     }

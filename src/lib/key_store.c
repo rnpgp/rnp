@@ -269,7 +269,6 @@ int
 rnp_key_store_write_to_file(rnp_t *          rnp,
                             rnp_key_store_t *key_store,
                             const uint8_t *  passphrase,
-                            const unsigned   passlength,
                             const unsigned   armour,
                             const char *     filename)
 {
@@ -277,10 +276,10 @@ rnp_key_store_write_to_file(rnp_t *          rnp,
     pgp_memory_t mem = {0};
 
     if (rnp->key_store_format == SSH_KEY_STORE) {
-        return rnp_key_store_ssh_to_file(rnp->io, key_store, passphrase, passlength, filename);
+        return rnp_key_store_ssh_to_file(rnp->io, key_store, passphrase, filename);
     }
 
-    if (!rnp_key_store_write_to_mem(rnp, key_store, passphrase, passlength, armour, &mem)) {
+    if (!rnp_key_store_write_to_mem(rnp, key_store, passphrase, armour, &mem)) {
         return 1;
     }
 
@@ -293,20 +292,18 @@ int
 rnp_key_store_write_to_mem(rnp_t *          rnp,
                            rnp_key_store_t *key_store,
                            const uint8_t *  passphrase,
-                           const unsigned   passlength,
                            const unsigned   armour,
                            pgp_memory_t *   memory)
 {
     switch (rnp->key_store_format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_write_to_mem(
-          rnp->io, key_store, passphrase, passlength, armour, memory);
+        return rnp_key_store_pgp_write_to_mem(rnp->io, key_store, passphrase, armour, memory);
 
     case KBX_KEY_STORE:
         return rnp_key_store_kbx_to_mem(rnp->io, key_store, passphrase, memory);
 
     case SSH_KEY_STORE:
-        return rnp_key_store_ssh_to_mem(rnp->io, key_store, passphrase, passlength, memory);
+        return rnp_key_store_ssh_to_mem(rnp->io, key_store, passphrase, memory);
     }
 
     return 0;

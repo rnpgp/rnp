@@ -313,10 +313,7 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result)
  * verification.
  */
 static unsigned
-write_seckey_body(const pgp_seckey_t *key,
-                  const uint8_t *     passphrase,
-                  const size_t        pplen,
-                  pgp_output_t *      output)
+write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output_t *output)
 {
     /* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
 
@@ -564,7 +561,6 @@ unsigned
 pgp_write_xfer_seckey(pgp_output_t *         output,
                       const pgp_key_t *      key,
                       const uint8_t *        passphrase,
-                      const size_t           pplen,
                       const rnp_key_store_t *subkeys,
                       unsigned               armoured)
 {
@@ -575,7 +571,7 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
     }
     /* secret key */
     if (!pgp_write_struct_seckey(
-          PGP_PTAG_CT_SECRET_KEY, &key->key.seckey, passphrase, pplen, output)) {
+          PGP_PTAG_CT_SECRET_KEY, &key->key.seckey, passphrase, output)) {
         return 0;
     }
 
@@ -606,7 +602,7 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
                 return 0;
             }
             if (!pgp_write_struct_seckey(
-                  PGP_PTAG_CT_SECRET_SUBKEY, &subkey->key.seckey, passphrase, pplen, output)) {
+                  PGP_PTAG_CT_SECRET_SUBKEY, &subkey->key.seckey, passphrase, output)) {
                 return 0;
             }
             for (j = 0; j < subkey->packetc; j++) {
@@ -660,7 +656,6 @@ unsigned
 pgp_write_struct_seckey(pgp_content_enum    tag,
                         const pgp_seckey_t *key,
                         const uint8_t *     passphrase,
-                        const size_t        pplen,
                         pgp_output_t *      output)
 {
     int length = 0;
@@ -740,7 +735,7 @@ pgp_write_struct_seckey(pgp_content_enum    tag,
     return pgp_write_ptag(output, tag) &&
            /* pgp_write_length(output,1+4+1+1+seckey_length(key)+2) && */
            pgp_write_length(output, (unsigned) length) &&
-           write_seckey_body(key, passphrase, pplen, output);
+           write_seckey_body(key, passphrase, output);
 }
 
 /**
