@@ -15,6 +15,7 @@ librnp_la_SOURCES	= \
 	create.c \
 	crypto.c \
 	dsa.c \
+	ecdsa.c \
 	eddsa.c \
 	elgamal.c \
 	hash.c \

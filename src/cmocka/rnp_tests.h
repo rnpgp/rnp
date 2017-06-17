@@ -51,3 +51,5 @@ void cipher_test_success(void **state);
 void pkcs1_rsa_test_success(void **state);
 
 void raw_elg_test_success(void **state);
+
+void ECDSA_signverify_success(void **state);
