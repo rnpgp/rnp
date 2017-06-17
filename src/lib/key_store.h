@@ -41,7 +41,7 @@
 
 typedef enum {
     KBX_EMPTY_BLOB = 0,
-    KBX_FIRST_BLOB = 1,
+    KBX_HEADER_BLOB = 1,
     KBX_PGP_BLOB = 2,
     KBX_X509_BLOB = 3
 } kbx_blob_type;

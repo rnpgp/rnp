@@ -591,6 +591,7 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
         // TODO: move to the right way — support multiple subkeys
         key = &keyring->keys[keyring->keyc - 1];
         pgp_keyid(key->encid, PGP_KEY_ID_SIZE, &keydata->pubkey, keyring->hashtype);
+        pgp_fingerprint(&key->encfingerprint, &keydata->pubkey, keyring->hashtype);
         (void) memcpy(&key->enckey, &keydata->pubkey, sizeof(key->enckey));
         key->enckey.duration = key->key.pubkey.duration;
     }
