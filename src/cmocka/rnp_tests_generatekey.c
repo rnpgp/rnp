@@ -241,6 +241,8 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
                              "SHA224",
                              "SM3"};
 
+    const char *keystores[] = {"GPG", "KBX"};
+
     /* Set the UserId = custom value.
      * Execute the Generate-key command to generate a new pair of private/public
      * key
@@ -253,31 +255,37 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
     assert_int_equal(setupPassphrasefd(pipefd), 1);
 
     for (int i = 0; i < sizeof(hashAlg) / sizeof(hashAlg[0]); i++) {
-        /*Initialize the basic RNP structure. */
-        memset(&rnp, '\0', sizeof(rnp));
+        for (int j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
+            /*Initialize the basic RNP structure. */
+            memset(&rnp, '\0', sizeof(rnp));
 
-        /*Set the default parameters*/
-        rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-        rnp_setvar(&rnp, "res", "<stdout>");
-        rnp_setvar(&rnp, "format", "human");
-        rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
-        assert_int_equal(rnp_setvar(&rnp, "hash", hashAlg[i]), 1);
+            /*Set the default parameters*/
+            rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
+            rnp_setvar(&rnp, "res", "<stdout>");
+            rnp_setvar(&rnp, "format", "human");
+            rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
+            assert_int_equal(rnp_setvar(&rnp, "hash", hashAlg[i]), 1);
 
-        int retVal = rnp_init(&rnp);
-        assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
+            int retVal = rnp_init(&rnp);
 
-        set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
-        retVal = rnp_generate_key(&rnp, NULL);
-        assert_int_equal(retVal, 1); // Ensure the key was generated
+            rnp_set_key_store_format(&rnp, keystores[j]);
 
-        /*Load the newly generated rnp key*/
-        retVal = rnp_load_keys(&rnp);
-        assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
+            assert_int_equal(retVal,
+                             1); // Ensure the rnp core structure is correctly initialized.
 
-        retVal = rnp_find_key(&rnp, getenv("LOGNAME"));
-        assert_int_equal(retVal, 1); // Ensure the key can be found with the userId
+            set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+            retVal = rnp_generate_key(&rnp, NULL);
+            assert_int_equal(retVal, 1); // Ensure the key was generated
 
-        rnp_end(&rnp); // Free memory and other allocated resources.
+            /*Load the newly generated rnp key*/
+            retVal = rnp_load_keys(&rnp);
+            assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
+
+            retVal = rnp_find_key(&rnp, getenv("LOGNAME"));
+            assert_int_equal(retVal, 1); // Ensure the key can be found with the userId
+
+            rnp_end(&rnp); // Free memory and other allocated resources.
+        }
     }
 }
 
@@ -293,6 +301,8 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
                             "rnpkeys_generatekey_verifyUserIdOption_SHA512",
                             "rnpkeys_generatekey_verifyUserIdOption_SHA224"};
 
+    const char *keystores[] = {"GPG", "KBX"};
+
     /* Set the UserId = custom value.
      * Execute the Generate-key command to generate a new pair of private/public
      * key
@@ -305,34 +315,40 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
     assert_int_equal(setupPassphrasefd(pipefd), 1);
 
     for (int i = 0; i < sizeof(UserId) / sizeof(UserId[0]); i++) {
-        /* Set the user id to be used*/
-        snprintf(userId, sizeof(userId), "%s", UserId[i]);
+        for (int j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
+            /* Set the user id to be used*/
+            snprintf(userId, sizeof(userId), "%s", UserId[i]);
 
-        /*Initialize the basic RNP structure. */
-        memset(&rnp, '\0', sizeof(rnp));
+            /*Initialize the basic RNP structure. */
+            memset(&rnp, '\0', sizeof(rnp));
 
-        /*Set the default parameters*/
-        rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-        rnp_setvar(&rnp, "res", "<stdout>");
-        rnp_setvar(&rnp, "format", "human");
-        rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
-        assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
+            /*Set the default parameters*/
+            rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
+            rnp_setvar(&rnp, "res", "<stdout>");
+            rnp_setvar(&rnp, "format", "human");
+            rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
+            assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
 
-        int retVal = rnp_init(&rnp);
-        assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
+            int retVal = rnp_init(&rnp);
 
-        set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
-        retVal = rnp_generate_key(&rnp, userId);
-        assert_int_equal(retVal, 1); // Ensure the key was generated
+            rnp_set_key_store_format(&rnp, keystores[j]);
 
-        /*Load the newly generated rnp key*/
-        retVal = rnp_load_keys(&rnp);
-        assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
+            assert_int_equal(retVal,
+                             1); // Ensure the rnp core structure is correctly initialized.
 
-        retVal = rnp_find_key(&rnp, userId);
-        assert_int_equal(retVal, 1); // Ensure the key can be found with the userId
+            set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+            retVal = rnp_generate_key(&rnp, userId);
+            assert_int_equal(retVal, 1); // Ensure the key was generated
 
-        rnp_end(&rnp); // Free memory and other allocated resources.
+            /*Load the newly generated rnp key*/
+            retVal = rnp_load_keys(&rnp);
+            assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
+
+            retVal = rnp_find_key(&rnp, userId);
+            assert_int_equal(retVal, 1); // Ensure the key can be found with the userId
+
+            rnp_end(&rnp); // Free memory and other allocated resources.
+        }
     }
 }
 
