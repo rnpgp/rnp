@@ -2,6 +2,16 @@
 
 The following are a set of conventions and items that are relevant to contributors.
 
+# Contributing
+
+Pull Requests should be used for any non-trivial changes. This presents an opportunity for feedback and allows the CI tests to complete prior to merging. The `master` branch should generally always be in a buildable and functional state.
+
+Pull Requests should be:
+
+* Focused. Try not to include changes that are unrelated to the main purpose of the PR.
+* As small as possible. Sometimes large pull requests may be necessary for adding complex features, but generally they should be kept as small as possible to ensure a quick and thorough review process.
+* Related to a GH issue to which you are assigned. If there is none, file one (but search first!). This ensures there is no duplication of effort and allows for a discussion prior to beginning work. (This may not be necessary for PRs that are purely documentation updates)
+
 # Continuous Integration (Travis CI)
 
 Travis CI is used for continuously testing new commits and pull requests.
