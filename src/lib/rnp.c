@@ -823,7 +823,7 @@ init_new_io(rnp_t *rnp)
 }
 
 static int
-parse_keyring_format(rnp_t *rnp, enum key_store_format_t *keyring_format, char *format)
+parse_keyring_format(rnp_t *rnp, enum key_store_format_t *keyring_format, const char *format)
 {
     if (rnp_strcasecmp(format, "GPG") == 0) {
         *keyring_format = GPG_KEY_STORE;
@@ -863,7 +863,7 @@ init_default_format(rnp_t *rnp)
         format = "SSH";
     }
 
-    return rnp_set_keyring_format(rnp, format);
+    return rnp_set_key_store_format(rnp, format);
 }
 
 static int
@@ -1926,7 +1926,7 @@ rnp_incvar(rnp_t *rnp, const char *name, const int delta)
 
 /* set keyring format information */
 int
-rnp_set_keyring_format(rnp_t *rnp, char *format)
+rnp_set_key_store_format(rnp_t *rnp, const char *format)
 {
     if (!parse_keyring_format(rnp, &rnp->key_store_format, format)) {
         return 0;

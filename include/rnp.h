@@ -100,8 +100,8 @@ int   rnp_incvar(rnp_t *, const char *, const int);
 int   rnp_unsetvar(rnp_t *, const char *);
 int findvar(rnp_t *rnp, const char *name);
 
-/* set keyring format information */
-int rnp_set_keyring_format(rnp_t *, char *);
+/* set key store format information */
+int rnp_set_key_store_format(rnp_t *, const char *);
 
 /* set home directory information */
 int rnp_set_homedir(rnp_t *, char *, const int);
