@@ -195,11 +195,12 @@ Do:
 
 * Do use header guards (`#ifndef SOME_HEADER_H [...]`) in headers.
 * Do use `sizeof(variable)`, rather than `sizeof(type)`. Or `sizeof(*variable)` as appropriate.
-* Do use commit messages that close GitHub issues automatically, when applicable. `Fix XYZ. Closes #78.` See [here.](https://help.github.com/articles/closing-issues-via-commit-messages/).
+* Do use commit messages that close GitHub issues automatically, when applicable. `Fix XYZ. Closes #78.` See [here](https://help.github.com/articles/closing-issues-via-commit-messages/).
 * Do declare functions `static` when they do not need to be referenced outside the current source file.
 * Do omit braces for simple one-line conditionals. (Unless attached to another conditional with multiple lines.)
 
 Do not:
-* Do not use static storage-class for variables.
-* Do not use `pragma`.
+* Do not use the static storage class for variables. In short, this means no variable declarations with the word `static`, such as `static char buffer[256]`. These tend to cause surprises and thread safety issues.
+* Do not use `pragma`, and try to avoid `__attribute__` as well.
+
 
