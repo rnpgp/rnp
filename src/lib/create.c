@@ -93,6 +93,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "rnpdefs.h"
 #include "rnpdigest.h"
 #include "packet-key.h"
+#include "rnpsdk.h"
 
 /**
  * \ingroup Core_Create
@@ -1084,7 +1085,7 @@ pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_outp
         pgp_memory_free(mem);
         return 0;
     }
-    
+
     len = (int) pgp_mem_len(mem);
     ret = pgp_write_litdata(output, pgp_mem_data(mem), len, type, rnp_filename(filename), rnp_filemtime(filename));
     pgp_memory_free(mem);

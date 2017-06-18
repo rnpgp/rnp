@@ -1054,7 +1054,7 @@ rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep)
 
 /* return the file modification time */
 int64_t
-rnp_filemtime(char *path)
+rnp_filemtime(const char *path)
 {
     struct stat st;
     
@@ -1065,8 +1065,9 @@ rnp_filemtime(char *path)
     }
 }
 
-/* return the filename from the path */
-const char * rnp_filename(const char *path)
+/* return the filename from the given path */
+const char * 
+rnp_filename(const char *path)
 {
     char *res = strrchr(path, '/');
     if (!res) {

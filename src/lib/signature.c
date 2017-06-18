@@ -969,19 +969,9 @@ pgp_sign_file(pgp_io_t *          io,
         hash = pgp_sig_get_hash(sig);
         pgp_hash_add(hash, pgp_mem_data(infile), (unsigned) pgp_mem_len(infile));
 
-#if 1
         /* output file contents as Literal Data packet */
-        pgp_write_litdata(
-          output, pgp_mem_data(infile), (const int) pgp_mem_len(infile), PGP_LDT_BINARY);
-#else
-        /* XXX - agc - sync with writer.c 1094 for ops_writez */
-        pgp_setup_memory_write(&litoutput, &litmem, bufsz);
-        pgp_setup_memory_write(&zoutput, &zmem, bufsz);
-                pgp_write_litdata(litoutput,
-            pgp_mem_data(pgp_mem_data(infile),
-            (const int)pgp_mem_len(infile), PGP_LDT_BINARY);
-        pgp_writez(zoutput, pgp_mem_data(litmem), pgp_mem_len(litmem));
-#endif
+        pgp_write_litdata(output, pgp_mem_data(infile), (const int) pgp_mem_len(infile), 
+                          PGP_LDT_BINARY, rnp_filename(inname), rnp_filemtime(inname));
 
         /* add creation time to signature */
         pgp_add_time(sig, (int64_t) from, "birth");
@@ -1105,7 +1095,7 @@ pgp_sign_buf(pgp_io_t *          io,
         if (rnp_get_debug(__FILE__)) {
             (void) fprintf(stderr, "** Writing out data now\n");
         }
-        pgp_write_litdata(output, input, (const int) insize, ld_type);
+        pgp_write_litdata(output, input, (const int) insize, ld_type, NULL, 0);
         if (rnp_get_debug(__FILE__)) {
             fprintf(stderr, "** After Writing out data now\n");
         }
