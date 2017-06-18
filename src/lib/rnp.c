@@ -1834,6 +1834,7 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
     ret = pgp_list_packets(
       io, f, (unsigned) armor, rnp->secring, rnp->pubring, rnp->passfp, get_passphrase_cb);
     free(keyring);
+    rnp->pubring = NULL;
     return ret;
 }
 
