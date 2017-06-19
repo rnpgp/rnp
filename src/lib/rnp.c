@@ -1017,8 +1017,9 @@ void
 rnp_set_ctx(rnp_ctx_t *ctx)
 {
     if (curctx && (curctx != ctx) && ownctx) {
+        rnp_ctx_t *oldctx = curctx;
         rnp_free_ctx(curctx);
-        free(curctx);
+        free(oldctx);
         ownctx = false;
     }
 
