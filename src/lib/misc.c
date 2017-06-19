@@ -382,7 +382,7 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
 
     if (key->version == 2 || key->version == 3) {
         if (key->alg != PGP_PKA_RSA && key->alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
-                key->alg != PGP_PKA_RSA_SIGN_ONLY) {
+            key->alg != PGP_PKA_RSA_SIGN_ONLY) {
             (void) fprintf(stderr, "pgp_fingerprint: bad algorithm\n");
             return 0;
         }
@@ -404,18 +404,18 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
         type = (key->alg == PGP_PKA_RSA) ? "ssh-rsa" : "ssh-dss";
         hash_string(&hash, (const uint8_t *) (const void *) type, (unsigned) strlen(type));
         switch (key->alg) {
-            case PGP_PKA_RSA:
-                hash_bignum(&hash, key->key.rsa.e);
-                hash_bignum(&hash, key->key.rsa.n);
-                break;
-            case PGP_PKA_DSA:
-                hash_bignum(&hash, key->key.dsa.p);
-                hash_bignum(&hash, key->key.dsa.q);
-                hash_bignum(&hash, key->key.dsa.g);
-                hash_bignum(&hash, key->key.dsa.y);
-                break;
-            default:
-                break;
+        case PGP_PKA_RSA:
+            hash_bignum(&hash, key->key.rsa.e);
+            hash_bignum(&hash, key->key.rsa.n);
+            break;
+        case PGP_PKA_DSA:
+            hash_bignum(&hash, key->key.dsa.p);
+            hash_bignum(&hash, key->key.dsa.q);
+            hash_bignum(&hash, key->key.dsa.g);
+            hash_bignum(&hash, key->key.dsa.y);
+            break;
+        default:
+            break;
         }
         fp->length = pgp_hash_finish(&hash, fp->fingerprint);
         if (rnp_get_debug(__FILE__)) {
@@ -1057,7 +1057,7 @@ int64_t
 rnp_filemtime(const char *path)
 {
     struct stat st;
-    
+
     if (stat(path, &st) != 0) {
         return 0;
     } else {
@@ -1066,7 +1066,7 @@ rnp_filemtime(const char *path)
 }
 
 /* return the filename from the given path */
-const char * 
+const char *
 rnp_filename(const char *path)
 {
     char *res = strrchr(path, '/');

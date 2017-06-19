@@ -951,7 +951,7 @@ pgp_sign_file(pgp_io_t *          io,
     pgp_output_t *    output;
     pgp_hash_t *      hash;
     unsigned          ret;
-    uint8_t           keyid[PGP_KEY_ID_SIZE];    
+    uint8_t           keyid[PGP_KEY_ID_SIZE];
     int               fd_out;
 
     sig = NULL;
