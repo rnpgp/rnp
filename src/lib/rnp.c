@@ -43,6 +43,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <stdbool.h>
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
@@ -997,6 +998,65 @@ rnp_end(rnp_t *rnp)
     }
     free(rnp->io);
     return 1;
+}
+
+/* rnp_ctx_t functions */
+
+int
+rnp_init_ctx(rnp_ctx_t *ctx)
+{
+    memset(&ctx, '\0', sizeof(ctx));
+    return 0;
+}
+
+/* set operation context as current */
+static rnp_ctx_t *curctx = NULL;
+static int ownctx = false;
+
+void
+rnp_set_ctx(rnp_ctx_t *ctx)
+{
+    if (curctx && (curctx != ctx) && ownctx) {
+        rnp_free_ctx(curctx);
+        free(curctx);
+        ownctx = false;
+    }
+
+    curctx = ctx;
+}
+
+/* current operation context */
+rnp_ctx_t * 
+rnp_cur_ctx()
+{
+    return curctx;
+}
+
+/* create new current operation context */
+rnp_ctx_t * 
+rnp_cur_ctx_new()
+{
+    rnp_set_ctx(NULL);
+
+    if ((curctx = calloc(1, sizeof(*curctx))) == NULL) {
+        (void) fprintf(stderr, "rnp_cur_ctx: cannot allocate memory");
+        return NULL;
+    }
+
+    rnp_init_ctx(curctx);
+    ownctx = true;
+
+    return curctx;
+}
+
+/* free operation context */
+void 
+rnp_free_ctx(rnp_ctx_t *ctx)
+{
+    if (ctx->filename != NULL)
+        free(ctx->filename);
+    if (ctx == curctx)
+        curctx = NULL;
 }
 
 /* list the keys in a keyring */

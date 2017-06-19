@@ -37,6 +37,7 @@
 #include <getopt.h>
 #include <regex.h>
 #include <rnp.h>
+#include <rnpsdk.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -260,12 +261,19 @@ show_output(char *out, int size, const char *header)
 static int
 rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 {
-    const int cleartext = 1;
-    unsigned  maxsize;
-    char *    out;
-    char *    in;
-    int       ret;
-    int       cc;
+    const int   cleartext = 1;
+    unsigned    maxsize;
+    char *      out;
+    char *      in;
+    int         ret;
+    int         cc;
+    rnp_ctx_t * ctx;
+
+    ctx = rnp_cur_ctx_new();
+    if (!ctx) {
+        fprintf(stderr, "rnp_cmd: context allocation failed");
+        return 0;
+    }
 
     switch (p->cmd) {
     case ENCRYPT:
@@ -278,6 +286,9 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
             free(out);
             return ret;
         }
+
+        ctx->filename = strdup(rnp_filename(f));
+        ctx->filemtime = rnp_filemtime(f);
         return rnp_encrypt_file(rnp, rnp_getvar(rnp, "userid"), f, p->output, p->armour);
     case DECRYPT:
         if (f == NULL) {
@@ -306,6 +317,9 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
             free(out);
             return ret;
         }
+
+        ctx->filename = strdup(rnp_filename(f));
+        ctx->filemtime = rnp_filemtime(f);        
         return rnp_sign_file(rnp,
                              rnp_getvar(rnp, "userid"),
                              f,

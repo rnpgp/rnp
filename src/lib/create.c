@@ -1078,6 +1078,9 @@ pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_outp
     pgp_memory_t *mem;
     unsigned      ret;
     int           len;
+    const char   *fname;
+    int64_t       mtime;
+    rnp_ctx_t    *ctx;
 
     mem = pgp_memory_new();
     if (!pgp_mem_readfile(mem, filename)) {
@@ -1087,7 +1090,16 @@ pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_outp
     }
 
     len = (int) pgp_mem_len(mem);
-    ret = pgp_write_litdata(output, pgp_mem_data(mem), len, type, rnp_filename(filename), rnp_filemtime(filename));
+    ctx = rnp_cur_ctx();
+    if (ctx) {
+        fname = (const char*)ctx->filename;
+        mtime = ctx->filemtime;
+    } else {
+        fname = NULL;
+        mtime = 0;
+    }
+
+    ret = pgp_write_litdata(output, pgp_mem_data(mem), len, type, fname, mtime);
     pgp_memory_free(mem);
     return ret;
 }

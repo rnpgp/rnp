@@ -1017,6 +1017,7 @@ encrypt_se_ip_writer(const uint8_t *src,
                      pgp_writer_t * writer)
 {
     const unsigned   bufsz = 128;
+    rnp_ctx_t *      ctx;
     encrypt_se_ip_t *se_ip = pgp_writer_get_arg(writer);
     pgp_output_t *   litoutput;
     pgp_output_t *   zoutput;
@@ -1024,14 +1025,15 @@ encrypt_se_ip_writer(const uint8_t *src,
     pgp_memory_t *   litmem;
     pgp_memory_t *   zmem;
     pgp_memory_t *   localmem;
-    unsigned         ret = 1;
+    unsigned         ret = 1;    
 
+    ctx = rnp_cur_ctx();
     pgp_setup_memory_write(&litoutput, &litmem, bufsz);
     pgp_setup_memory_write(&zoutput, &zmem, bufsz);
     pgp_setup_memory_write(&output, &localmem, bufsz);
 
     /* create literal data packet from source data */
-    pgp_write_litdata(litoutput, src, (const int) len, PGP_LDT_BINARY, NULL, 0);
+    pgp_write_litdata(litoutput, src, (const int) len, PGP_LDT_BINARY, ctx ? ctx->filename : NULL, ctx ? ctx->filemtime : 0);
     if (pgp_mem_len(litmem) <= len) {
         (void) fprintf(stderr, "encrypt_se_ip_writer: bad len\n");
         return 0;
@@ -1657,8 +1659,10 @@ str_enc_se_ip_writer(const uint8_t *src,
 static unsigned
 str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 {
+    rnp_ctx_t *ctx;
     str_enc_se_ip_t *se_ip;
 
+    ctx = rnp_cur_ctx();
     se_ip = pgp_writer_get_arg(writer);
     if (se_ip->litoutput == NULL) {
         /* first literal data chunk was not written */
@@ -1671,7 +1675,9 @@ str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
         pgp_write_litdata(se_ip->litoutput,
                           pgp_mem_data(se_ip->mem_data),
                           (const int) pgp_mem_len(se_ip->mem_data),
-                          PGP_LDT_BINARY, NULL, 0);
+                          PGP_LDT_BINARY, 
+                          ctx ? ctx->filename : NULL,
+                          ctx ? ctx->filemtime : 0);
 
         /* create SE IP packet set from this literal data */
         pgp_write_se_ip_pktset(se_ip->se_ip_out,
