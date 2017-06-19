@@ -490,8 +490,9 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
 
     /* create sig for this pkt */
     sig = pgp_create_sig_new();
-    pgp_sig_start_key_sig(sig, &key->key.seckey.pubkey, userid, PGP_CERT_POSITIVE, key->key.seckey.hash_alg);
-    pgp_add_time(sig, (int64_t) time(NULL), "birth");
+    pgp_sig_start_key_sig(
+      sig, &key->key.seckey.pubkey, userid, PGP_CERT_POSITIVE, key->key.seckey.hash_alg);
+    pgp_add_time(sig, (int64_t) time(NULL), PGP_PTAG_SS_CREATION_TIME);
     pgp_add_issuer_keyid(sig, key->sigid);
     pgp_add_primary_userid(sig, 1);
     pgp_end_hashed_subpkts(sig);

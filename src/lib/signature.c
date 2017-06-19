@@ -830,12 +830,13 @@ pgp_write_sig(pgp_output_t *      output,
 
 /* add a time stamp to the output */
 unsigned
-pgp_add_time(pgp_create_sig_t *sig, int64_t when, const char *type)
+pgp_add_time(pgp_create_sig_t *sig, int64_t when, pgp_content_enum tag)
 {
-    pgp_content_enum tag;
+    if ((tag != PGP_PTAG_SS_CREATION_TIME) && (tag != PGP_PTAG_SS_EXPIRATION_TIME)) {
+        (void) fprintf(stderr, "Wrong pgp signature time tag");
+        return 0;
+    }
 
-    tag =
-      (strcmp(type, "birth") == 0) ? PGP_PTAG_SS_CREATION_TIME : PGP_PTAG_SS_EXPIRATION_TIME;
     /* just do 32-bit timestamps for just now - it's in the protocol */
     return pgp_write_ss_header(sig->output, 5, tag) &&
            pgp_write_scalar(sig->output, (uint32_t) when, (unsigned) sizeof(uint32_t));
@@ -1003,8 +1004,8 @@ pgp_sign_file(pgp_io_t *          io,
         /* - creation time */
         /* - key id */
         ret = pgp_writer_use_armored_sig(output) &&
-              pgp_add_time(sig, (int64_t) from, "birth") &&
-              pgp_add_time(sig, (int64_t) duration, "expiration");
+              pgp_add_time(sig, (int64_t) from, PGP_PTAG_SS_CREATION_TIME) &&
+              pgp_add_time(sig, (int64_t) duration, PGP_PTAG_SS_EXPIRATION_TIME);
         if (ret == 0) {
             pgp_teardown_file_write(output, fd_out);
             return 0;
@@ -1047,8 +1048,8 @@ pgp_sign_file(pgp_io_t *          io,
 #endif
 
         /* add creation time to signature */
-        pgp_add_time(sig, (int64_t) from, "birth");
-        pgp_add_time(sig, (int64_t) duration, "expiration");
+        pgp_add_time(sig, (int64_t) from, PGP_PTAG_SS_CREATION_TIME);
+        pgp_add_time(sig, (int64_t) duration, PGP_PTAG_SS_EXPIRATION_TIME);
         /* add key id to signature */
         pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey, hash_alg);
         pgp_add_issuer_keyid(sig, keyid);
@@ -1137,8 +1138,9 @@ pgp_sign_buf(pgp_io_t *          io,
         /* - key id */
         ret = pgp_writer_push_clearsigned(output, sig) &&
               pgp_write(output, input, (unsigned) insize) &&
-              pgp_writer_use_armored_sig(output) && pgp_add_time(sig, from, "birth") &&
-              pgp_add_time(sig, (int64_t) duration, "expiration");
+              pgp_writer_use_armored_sig(output) &&
+              pgp_add_time(sig, from, PGP_PTAG_SS_CREATION_TIME) &&
+              pgp_add_time(sig, (int64_t) duration, PGP_PTAG_SS_EXPIRATION_TIME);
         if (ret == 0) {
             return NULL;
         }
@@ -1174,8 +1176,8 @@ pgp_sign_buf(pgp_io_t *          io,
         }
 
         /* add creation time to signature */
-        pgp_add_time(sig, from, "birth");
-        pgp_add_time(sig, (int64_t) duration, "expiration");
+        pgp_add_time(sig, from, PGP_PTAG_SS_CREATION_TIME);
+        pgp_add_time(sig, (int64_t) duration, PGP_PTAG_SS_EXPIRATION_TIME);
         /* add key id to signature */
         pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey, hash_alg);
         pgp_add_issuer_keyid(sig, keyid);
@@ -1242,8 +1244,8 @@ pgp_sign_detached(pgp_io_t *     io,
     pgp_memory_free(mem);
 
     /* calculate the signature */
-    pgp_add_time(sig, from, "birth");
-    pgp_add_time(sig, (int64_t) duration, "expiration");
+    pgp_add_time(sig, from, PGP_PTAG_SS_CREATION_TIME);
+    pgp_add_time(sig, (int64_t) duration, PGP_PTAG_SS_EXPIRATION_TIME);
     pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey, hash_alg);
     pgp_add_issuer_keyid(sig, keyid);
     pgp_end_hashed_subpkts(sig);
