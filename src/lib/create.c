@@ -1044,22 +1044,22 @@ pgp_write_litdata(pgp_output_t *         output,
                   const uint8_t *        data,
                   const int              maxlen,
                   const pgp_litdata_enum type,
-                  const char* filename,
-                  const int64_t modtime)
+                  const char *           filename,
+                  const int64_t          modtime)
 {
-    /* \todo do we need to check text data for <cr><lf> line endings ? - Yes, we need. 
+    /* \todo do we need to check text data for <cr><lf> line endings ? - Yes, we need.
     For non-PGP_LDT_BINARY we should convert line endings to the canonical CRLF style. */
 
     unsigned flen = filename ? strlen(filename) : 0;
     if (flen > 255) {
         (void) fprintf(stderr, "pgp_write_litdata : filename %s too long\n", filename);
         return 0;
-    }    
-    
+    }
+
     return pgp_write_ptag(output, PGP_PTAG_CT_LITDATA) &&
            pgp_write_length(output, (unsigned) (1 + 1 + flen + 4 + maxlen)) &&
            pgp_write_scalar(output, (unsigned) type, 1) && pgp_write_scalar(output, flen, 1) &&
-           pgp_write(output, filename, flen) && pgp_write_scalar(output, modtime, 4) && 
+           pgp_write(output, filename, flen) && pgp_write_scalar(output, modtime, 4) &&
            pgp_write(output, data, (unsigned) maxlen);
 }
 
@@ -1078,9 +1078,9 @@ pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_outp
     pgp_memory_t *mem;
     unsigned      ret;
     int           len;
-    const char   *fname;
+    const char *  fname;
     int64_t       mtime;
-    rnp_ctx_t    *ctx;
+    rnp_ctx_t *   ctx;
 
     mem = pgp_memory_new();
     if (!pgp_mem_readfile(mem, filename)) {
@@ -1092,7 +1092,7 @@ pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_outp
     len = (int) pgp_mem_len(mem);
     ctx = rnp_cur_ctx();
     if (ctx) {
-        fname = (const char*)ctx->filename;
+        fname = (const char *) ctx->filename;
         mtime = ctx->filemtime;
     } else {
         fname = NULL;

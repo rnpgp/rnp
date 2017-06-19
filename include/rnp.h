@@ -64,12 +64,12 @@ typedef struct rnp_t {
 
 /* rnp operation context : contains additional data about the currently ongoing operation */
 typedef struct rnp_ctx_t {
-    char *   filename; /* name of the input file to store in literal data packet */
-    int64_t  filemtime; /* file modification time to store in literal data packet */
-    int halg; /* hash algorithm */
-    int ealg; /* encryption algorithm */
-    int zalg; /* compression algorithm used */
-    int zlevel; /* compression level */    
+    char *  filename;  /* name of the input file to store in literal data packet */
+    int64_t filemtime; /* file modification time to store in literal data packet */
+    int     halg;      /* hash algorithm */
+    int     ealg;      /* encryption algorithm */
+    int     zalg;      /* compression algorithm used */
+    int     zlevel;    /* compression level */
 } rnp_ctx_t;
 
 /* begin and end */
@@ -77,14 +77,14 @@ int rnp_init(rnp_t *);
 int rnp_end(rnp_t *);
 
 /* init pgp/rnp operation context */
-int         rnp_init_ctx(rnp_ctx_t *);
+int rnp_init_ctx(rnp_ctx_t *);
 /* set operation context as current */
-void        rnp_set_ctx(rnp_ctx_t *);
+void rnp_set_ctx(rnp_ctx_t *);
 /* current operation context, or new one if needed */
-rnp_ctx_t * rnp_cur_ctx();
-rnp_ctx_t * rnp_cur_ctx_new();
+rnp_ctx_t *rnp_cur_ctx();
+rnp_ctx_t *rnp_cur_ctx_new();
 /* free operation context */
-void        rnp_free_ctx(rnp_ctx_t *);
+void rnp_free_ctx(rnp_ctx_t *);
 
 /* debugging, reflection and information */
 int         rnp_set_debug(const char *);

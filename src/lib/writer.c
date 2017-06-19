@@ -1025,7 +1025,7 @@ encrypt_se_ip_writer(const uint8_t *src,
     pgp_memory_t *   litmem;
     pgp_memory_t *   zmem;
     pgp_memory_t *   localmem;
-    unsigned         ret = 1;    
+    unsigned         ret = 1;
 
     ctx = rnp_cur_ctx();
     pgp_setup_memory_write(&litoutput, &litmem, bufsz);
@@ -1033,7 +1033,12 @@ encrypt_se_ip_writer(const uint8_t *src,
     pgp_setup_memory_write(&output, &localmem, bufsz);
 
     /* create literal data packet from source data */
-    pgp_write_litdata(litoutput, src, (const int) len, PGP_LDT_BINARY, ctx ? ctx->filename : NULL, ctx ? ctx->filemtime : 0);
+    pgp_write_litdata(litoutput,
+                      src,
+                      (const int) len,
+                      PGP_LDT_BINARY,
+                      ctx ? ctx->filename : NULL,
+                      ctx ? ctx->filemtime : 0);
     if (pgp_mem_len(litmem) <= len) {
         (void) fprintf(stderr, "encrypt_se_ip_writer: bad len\n");
         return 0;
@@ -1659,7 +1664,7 @@ str_enc_se_ip_writer(const uint8_t *src,
 static unsigned
 str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 {
-    rnp_ctx_t *ctx;
+    rnp_ctx_t *      ctx;
     str_enc_se_ip_t *se_ip;
 
     ctx = rnp_cur_ctx();
@@ -1675,7 +1680,7 @@ str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
         pgp_write_litdata(se_ip->litoutput,
                           pgp_mem_data(se_ip->mem_data),
                           (const int) pgp_mem_len(se_ip->mem_data),
-                          PGP_LDT_BINARY, 
+                          PGP_LDT_BINARY,
                           ctx ? ctx->filename : NULL,
                           ctx ? ctx->filemtime : 0);
 

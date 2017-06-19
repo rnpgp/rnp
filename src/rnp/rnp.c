@@ -261,13 +261,13 @@ show_output(char *out, int size, const char *header)
 static int
 rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 {
-    const int   cleartext = 1;
-    unsigned    maxsize;
-    char *      out;
-    char *      in;
-    int         ret;
-    int         cc;
-    rnp_ctx_t * ctx;
+    const int  cleartext = 1;
+    unsigned   maxsize;
+    char *     out;
+    char *     in;
+    int        ret;
+    int        cc;
+    rnp_ctx_t *ctx;
 
     ctx = rnp_cur_ctx_new();
     if (!ctx) {
@@ -319,7 +319,7 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
         }
 
         ctx->filename = strdup(rnp_filename(f));
-        ctx->filemtime = rnp_filemtime(f);        
+        ctx->filemtime = rnp_filemtime(f);
         return rnp_sign_file(rnp,
                              rnp_getvar(rnp, "userid"),
                              f,

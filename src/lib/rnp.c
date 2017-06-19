@@ -1011,7 +1011,7 @@ rnp_init_ctx(rnp_ctx_t *ctx)
 
 /* set operation context as current */
 static rnp_ctx_t *curctx = NULL;
-static int ownctx = false;
+static int        ownctx = false;
 
 void
 rnp_set_ctx(rnp_ctx_t *ctx)
@@ -1026,14 +1026,14 @@ rnp_set_ctx(rnp_ctx_t *ctx)
 }
 
 /* current operation context */
-rnp_ctx_t * 
+rnp_ctx_t *
 rnp_cur_ctx()
 {
     return curctx;
 }
 
 /* create new current operation context */
-rnp_ctx_t * 
+rnp_ctx_t *
 rnp_cur_ctx_new()
 {
     rnp_set_ctx(NULL);
@@ -1050,7 +1050,7 @@ rnp_cur_ctx_new()
 }
 
 /* free operation context */
-void 
+void
 rnp_free_ctx(rnp_ctx_t *ctx)
 {
     if (ctx->filename != NULL)
@@ -1310,11 +1310,11 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     pgp_key_t *    key;
     pgp_io_t *     io;
     uint8_t *      uid;
-    char           passphrase[MAX_PASSPHRASE_LENGTH] = { 0 };
-    char           newid[1024] = { 0 };
-    char           filename[MAXPATHLEN] = { 0 };
-    char           dir[MAXPATHLEN] = { 0 };
-    char           keyid[2*PGP_KEY_ID_SIZE + 1] = { 0 };
+    char           passphrase[MAX_PASSPHRASE_LENGTH] = {0};
+    char           newid[1024] = {0};
+    char           filename[MAXPATHLEN] = {0};
+    char           dir[MAXPATHLEN] = {0};
+    char           keyid[2 * PGP_KEY_ID_SIZE + 1] = {0};
     char *         cp = NULL;
     char *         ringfile;
     char *         numtries;
@@ -1336,8 +1336,8 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     uid = (uint8_t *) newid;
 
     const pgp_pubkey_alg_t alg = (numbits == 255) ? PGP_PKA_EDDSA : PGP_PKA_RSA;
-    key = pgp_generate_keypair(alg, numbits, uid,
-                               rnp_getvar(rnp, "hash"), rnp_getvar(rnp, "cipher"));
+    key = pgp_generate_keypair(
+      alg, numbits, uid, rnp_getvar(rnp, "hash"), rnp_getvar(rnp, "cipher"));
 
     if (key == NULL) {
         (void) fprintf(io->errs, "cannot generate key\n");
@@ -1395,8 +1395,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
 
     memset(passphrase, 0, sizeof(passphrase));
-    passc =
-      find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
+    passc = find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
     if (!pgp_write_xfer_seckey(
           create, key, (uint8_t *) passphrase, (const unsigned) passc, NULL, noarmor)) {
         (void) fprintf(io->errs, "cannot write seckey\n");

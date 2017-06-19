@@ -880,7 +880,7 @@ pgp_sign_file(pgp_io_t *          io,
               const unsigned      cleartext,
               const unsigned      overwrite)
 {
-    rnp_ctx_t *       ctx;    
+    rnp_ctx_t *       ctx;
     pgp_create_sig_t *sig;
     pgp_sig_type_t    sig_type;
     pgp_hash_alg_t    hash_alg;
@@ -972,8 +972,12 @@ pgp_sign_file(pgp_io_t *          io,
         pgp_hash_add(hash, pgp_mem_data(infile), (unsigned) pgp_mem_len(infile));
 
         /* output file contents as Literal Data packet */
-        pgp_write_litdata(output, pgp_mem_data(infile), (const int) pgp_mem_len(infile), 
-                          PGP_LDT_BINARY, ctx ? ctx->filename : NULL, ctx ? ctx->filemtime : 0);
+        pgp_write_litdata(output,
+                          pgp_mem_data(infile),
+                          (const int) pgp_mem_len(infile),
+                          PGP_LDT_BINARY,
+                          ctx ? ctx->filename : NULL,
+                          ctx ? ctx->filemtime : 0);
 
         /* add creation time to signature */
         pgp_add_time(sig, (int64_t) from, "birth");
@@ -1019,7 +1023,7 @@ pgp_sign_buf(pgp_io_t *          io,
              const unsigned      armored,
              const unsigned      cleartext)
 {
-    rnp_ctx_t *       ctx;    
+    rnp_ctx_t *       ctx;
     pgp_litdata_enum  ld_type;
     pgp_create_sig_t *sig;
     pgp_sig_type_t    sig_type;
@@ -1099,7 +1103,12 @@ pgp_sign_buf(pgp_io_t *          io,
         if (rnp_get_debug(__FILE__)) {
             (void) fprintf(stderr, "** Writing out data now\n");
         }
-        pgp_write_litdata(output, input, (const int) insize, ld_type, ctx ? ctx->filename : NULL, ctx ? ctx->filemtime : 0);
+        pgp_write_litdata(output,
+                          input,
+                          (const int) insize,
+                          ld_type,
+                          ctx ? ctx->filename : NULL,
+                          ctx ? ctx->filemtime : 0);
         if (rnp_get_debug(__FILE__)) {
             fprintf(stderr, "** After Writing out data now\n");
         }
