@@ -525,9 +525,11 @@ typedef enum {
     PGP_SA_AES_192 = 8,        /* AES with 192-bit key */
     PGP_SA_AES_256 = 9,        /* AES with 256-bit key */
     PGP_SA_TWOFISH = 10,       /* Twofish with 256-bit key (TWOFISH) */
-    PGP_SA_CAMELLIA_128 = 100, /* Camellia with 128-bit key (CAMELLIA) */
-    PGP_SA_CAMELLIA_192 = 101, /* Camellia with 192-bit key */
-    PGP_SA_CAMELLIA_256 = 102  /* Camellia with 256-bit key */
+    PGP_SA_CAMELLIA_128 = 11,  /* Camellia with 128-bit key (CAMELLIA) */
+    PGP_SA_CAMELLIA_192 = 12,  /* Camellia with 192-bit key */
+    PGP_SA_CAMELLIA_256 = 13,  /* Camellia with 256-bit key */
+
+    PGP_SA_SM4          = 105  /* RNP extension - SM4 */
 } pgp_symm_alg_t;
 
 #define PGP_SA_DEFAULT_CIPHER PGP_SA_CAST5
