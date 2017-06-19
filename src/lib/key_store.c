@@ -151,7 +151,7 @@ rnp_key_store_load_keys(rnp_t *rnp, char *homedir)
         }
     }
 
-    /* Only read secret keys if we need to. */
+    /* Only read secret keys if we need to */
     if (rnp_getvar(rnp, "need seckey")) {
         if (rnp->secring) {
             rnp_key_store_free(rnp->secring);
@@ -237,7 +237,7 @@ rnp_key_store_load_from_file(rnp_t *          rnp,
     }
 
     if (!pgp_mem_readfile(&mem, filename)) {
-        return 1;
+        return 0;
     }
 
     rc = rnp_key_store_load_from_mem(rnp, key_store, armour, &mem);
@@ -280,7 +280,7 @@ rnp_key_store_write_to_file(rnp_t *          rnp,
     }
 
     if (!rnp_key_store_write_to_mem(rnp, key_store, passphrase, armour, &mem)) {
-        return 1;
+        return 0;
     }
 
     rc = pgp_mem_writefile(&mem, filename);

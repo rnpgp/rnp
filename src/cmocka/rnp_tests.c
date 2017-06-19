@@ -78,6 +78,7 @@ main(void)
       cmocka_unit_test(rnpkeys_generatekey_verifySupportedHashAlg),
       cmocka_unit_test(rnpkeys_generatekey_verifyUserIdOption),
       cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirOption),
+      cmocka_unit_test(rnpkeys_generatekey_verifykeyKBXHomeDirOption),
       cmocka_unit_test(rnpkeys_generatekey_verifykeyNonexistingHomeDir),
       cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirNoPermission),
       cmocka_unit_test(rnpkeys_exportkey_verifyUserId),

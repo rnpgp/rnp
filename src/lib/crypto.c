@@ -610,7 +610,9 @@ pgp_decrypt_buf(pgp_io_t *       io,
     }
 
     inmem = pgp_memory_new();
-    pgp_memory_add(inmem, input, insize);
+    if (!pgp_memory_add(inmem, input, insize)) {
+        return 0;
+    }
 
     /* set up to read from memory */
     pgp_setup_memory_read(io, &parse, inmem, NULL, write_parsed_cb, 0);

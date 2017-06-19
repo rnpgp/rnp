@@ -851,11 +851,21 @@ init_touch_initialized(rnp_t *rnp)
 static int
 init_default_format(rnp_t *rnp)
 {
-    char *format = rnp_getvar(rnp, "key_store_format");
+    char        ringname[MAXPATHLEN];
+    char        homedir[MAXPATHLEN];
+    char *      format = rnp_getvar(rnp, "key_store_format");
+    struct stat st;
 
     // default format is GPG
     if (format == NULL) {
         format = "GPG";
+
+        keydir(rnp, homedir, sizeof(homedir));
+        snprintf(ringname, sizeof(ringname), "%s/pubring.kbx", homedir);
+        if (!stat(ringname, &st)) {
+            // found pubring.kbx and switch to KBX format
+            format = "KBX";
+        }
     }
 
     // if provided "ssh keys" variable, switch to SSH format
@@ -931,6 +941,20 @@ rnp_init(rnp_t *rnp)
               io->errs);
     }
 
+    /* Initialize the context with the default home directory. */
+    if (!init_default_homedir(rnp)) {
+        fputs("rnp: bad homedir\n", io->errs);
+        return 0;
+    }
+
+    /* Initialize operation context */
+    rnp_ctx_init(&rnp->ctx);
+
+    /* Initialize the context with the default keyring format. */
+    if (!init_default_format(rnp)) {
+        return 0;
+    }
+
     rnp->pubring = calloc(1, sizeof(rnp_key_store_t));
     if (rnp->pubring == NULL) {
         fputs("rnp: can't create empty pubring keystore\n", io->errs);
@@ -942,20 +966,6 @@ rnp_init(rnp_t *rnp)
         fputs("rnp: can't create empty secring keystore\n", io->errs);
         return 0;
     }
-
-    /* Initialize the context with the default keyring format. */
-    if (!init_default_format(rnp)) {
-        return 0;
-    }
-
-    /* Initialize the context with the default home directory. */
-    if (!init_default_homedir(rnp)) {
-        fputs("rnp: bad homedir\n", io->errs);
-        return 0;
-    }
-
-    /* Initialize operation context */
-    rnp_ctx_init(&rnp->ctx);
 
     init_touch_initialized(rnp);
 
@@ -1232,6 +1242,10 @@ rnp_get_key(rnp_t *rnp, const char *name, const char *fmt)
 char *
 rnp_export_key(rnp_t *rnp, char *name)
 {
+    char             keyid[2 * PGP_KEY_ID_SIZE + 1] = {0};
+    char             passphrase[MAX_PASSPHRASE_LENGTH] = {0};
+    char *           numtries;
+    int              attempts;
     const pgp_key_t *key;
     pgp_io_t *       io;
 
@@ -1239,7 +1253,22 @@ rnp_export_key(rnp_t *rnp, char *name)
     if ((key = resolve_userid(rnp, rnp->pubring, name)) == NULL) {
         return NULL;
     }
-    return pgp_export_key(io, key, NULL);
+
+    if (key->type == PGP_PTAG_CT_ENCRYPTED_SECRET_KEY) {
+        /* get the passphrase */
+        if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
+            (attempts = atoi(numtries)) <= 0) {
+            attempts = MAX_PASSPHRASE_ATTEMPTS;
+        } else if (strcmp(numtries, "unlimited") == 0) {
+            attempts = INFINITE_ATTEMPTS;
+        }
+
+        rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
+        memset(passphrase, 0, sizeof(passphrase));
+        find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
+    }
+
+    return pgp_export_key(io, key, (uint8_t *) passphrase);
 }
 
 #define IMPORT_ARMOR_HEAD "-----BEGIN PGP PUBLIC KEY BLOCK-----"
@@ -1362,7 +1391,7 @@ rnp_generate_key(rnp_t *rnp, const char *id)
     memset(passphrase, 0, sizeof(passphrase));
     find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
 
-    /* write secret key */
+    /* write keypair */
     snprintf(ringfile = filename, sizeof(filename), "%s/secring.%s", dir, ext);
 
     if (!rnp_key_store_write_to_file(rnp, rnp->secring, (uint8_t *) passphrase, 0, ringfile)) {
@@ -1370,9 +1399,8 @@ rnp_generate_key(rnp_t *rnp, const char *id)
         return 0;
     }
 
-    /* write secret key */
     snprintf(ringfile = filename, sizeof(filename), "%s/pubring.%s", dir, ext);
-    if (!rnp_key_store_write_to_file(rnp, rnp->pubring, NULL, 0, ringfile)) {
+    if (!rnp_key_store_write_to_file(rnp, rnp->pubring, (uint8_t *) passphrase, 0, ringfile)) {
         pgp_keydata_free(key);
         return 0;
     }
@@ -1497,10 +1525,7 @@ rnp_sign_file(
                 (void) fprintf(io->errs, "Bad passphrase\n");
             }
         } else {
-            rnp_key_store_t *secring;
-
-            secring = rnp->secring;
-            seckey = &secring->keys[0].key.seckey;
+            seckey = &((rnp_key_store_t *) rnp->secring)->keys[0].key.seckey;
         }
     }
     if (seckey == NULL) {
@@ -1630,10 +1655,7 @@ rnp_sign_memory(rnp_t *        rnp,
                 (void) fprintf(io->errs, "Bad passphrase\n");
             }
         } else {
-            rnp_key_store_t *secring;
-
-            secring = rnp->secring;
-            seckey = &secring->keys[0].key.seckey;
+            seckey = &((rnp_key_store_t *) rnp->secring)->keys[0].key.seckey;
         }
     }
     if (seckey == NULL) {
@@ -1688,7 +1710,7 @@ rnp_verify_memory(
         return 0;
     }
     signedmem = pgp_memory_new();
-    if (pgp_memory_add(signedmem, in, size)) {
+    if (!pgp_memory_add(signedmem, in, size)) {
         return 0;
     }
     if (out) {

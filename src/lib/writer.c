@@ -453,7 +453,7 @@ dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writ
 
         /* trailing whitespace isn't included in the signature */
         if (src[n] == ' ' || src[n] == '\t') {
-            if (pgp_memory_add(dash->trailing, &src[n], 1)) {
+            if (!pgp_memory_add(dash->trailing, &src[n], 1)) {
                 return 0;
             }
         } else {
@@ -1207,7 +1207,7 @@ memory_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer
 
     __PGP_USED(errors);
     mem = pgp_writer_get_arg(writer);
-    if (pgp_memory_add(mem, src, len)) {
+    if (!pgp_memory_add(mem, src, len)) {
         return 0;
     }
     return 1;
@@ -1637,8 +1637,8 @@ str_enc_se_ip_writer(const uint8_t *src,
     if (se_ip->litoutput == NULL) {
         /* first literal data chunk is not yet written */
 
-        if (pgp_memory_add(se_ip->mem_data, src, len)) {
-            return 1;
+        if (!pgp_memory_add(se_ip->mem_data, src, len)) {
+            return 0;
         }
         datalength = pgp_mem_len(se_ip->mem_data);
 

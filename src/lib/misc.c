@@ -611,11 +611,11 @@ int
 pgp_memory_add(pgp_memory_t *mem, const uint8_t *src, size_t length)
 {
     if (pgp_memory_pad(mem, length)) {
-        return 1;
+        return 0;
     }
     (void) memcpy(mem->buf + mem->length, src, length);
     mem->length += length;
-    return 0;
+    return 1;
 }
 
 /* XXX: this could be refactored via the writer, but an awful lot of */

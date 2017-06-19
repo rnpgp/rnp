@@ -616,7 +616,7 @@ rnp_key_store_ssh_from_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_
     // we can't read SSH key from memory because it doesn't keep two different part for public
     // and secret key
     fprintf(io->errs, "rnp hasn't support reading SSH key from memory yet\n");
-    return 1;
+    return 0;
 }
 
 int
@@ -626,7 +626,7 @@ rnp_key_store_ssh_to_file(pgp_io_t *       io,
                           const char *     file)
 {
     fprintf(io->errs, "rnp hasn't support writing SSH key to file yet\n");
-    return 1;
+    return 0;
 }
 
 int
@@ -638,5 +638,5 @@ rnp_key_store_ssh_to_mem(pgp_io_t *       io,
     // we can't write SSH key to memory because it doesn't keep two different part for public
     // and secret key
     fprintf(io->errs, "rnp hasn't support writing SSH key to memory yet\n");
-    return 1;
+    return 0;
 }

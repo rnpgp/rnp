@@ -264,6 +264,7 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
             rnp_setvar(&rnp, "res", "<stdout>");
             rnp_setvar(&rnp, "format", "human");
             rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
+            rnp_setvar(&rnp, "key_store_format", keystores[j]);
             assert_int_equal(rnp_setvar(&rnp, "hash", hashAlg[i]), 1);
 
             int retVal = rnp_init(&rnp);
@@ -327,6 +328,7 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
             rnp_setvar(&rnp, "res", "<stdout>");
             rnp_setvar(&rnp, "format", "human");
             rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
+            rnp_setvar(&rnp, "key_store_format", keystores[j]);
             assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
 
             int retVal = rnp_init(&rnp);
@@ -410,6 +412,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     rnp_setvar(&rnp, "res", "<stdout>");
     rnp_setvar(&rnp, "format", "human");
     rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
+    rnp_setvar(&rnp, "key_store_format", "GPG");
 
     assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
 
@@ -426,6 +429,103 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     // pubring and secring should now exist
     assert_true(path_file_exists(newhome, ".rnp/pubring.gpg", NULL));
     assert_true(path_file_exists(newhome, ".rnp/secring.gpg", NULL));
+
+    // Load the keys in our newhome directory
+    assert_int_equal(1, rnp_load_keys(&rnp));
+
+    // We should NOT find this key.
+    assert_int_equal(0, rnp_find_key(&rnp, getenv("LOGNAME")));
+
+    // We should find this key, instead.
+    assert_int_equal(1, rnp_find_key(&rnp, "newhomekey"));
+
+    rnp_end(&rnp); // Free memory and other allocated resources.
+}
+
+void
+rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
+{
+    const char *ourdir = (char *) *state;
+    /* Set the UserId = custom value.
+     * Execute the Generate-key command to generate a new pair of private/public
+     * key
+     * Verify the key was generated with the correct UserId.*/
+    rnp_t rnp;
+    char  passfd[4] = {0};
+    int   pipefd[2];
+
+    /* Setup the pass phrase fd to avoid user-input*/
+    assert_int_equal(setupPassphrasefd(pipefd), 1);
+
+    /*Initialize the basic RNP structure. */
+    memset(&rnp, '\0', sizeof(rnp));
+
+    /*Set the default parameters*/
+    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
+    rnp_setvar(&rnp, "res", "<stdout>");
+    rnp_setvar(&rnp, "format", "human");
+    rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
+    rnp_setvar(&rnp, "key_store_format", "KBX");
+    assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
+
+    assert_int_equal(1, rnp_init(&rnp));
+
+    // pubring and secring should not exist yet
+    assert_false(path_file_exists(ourdir, ".rnp/pubring.kbx", NULL));
+    assert_false(path_file_exists(ourdir, ".rnp/secring.kbx", NULL));
+    assert_false(path_file_exists(ourdir, ".rnp/pubring.gpg", NULL));
+    assert_false(path_file_exists(ourdir, ".rnp/secring.gpg", NULL));
+
+    // Ensure the key was generated.
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+    assert_int_equal(1, rnp_generate_key(&rnp, NULL));
+
+    // pubring and secring should now exist
+    assert_true(path_file_exists(ourdir, ".rnp/pubring.kbx", NULL));
+    assert_true(path_file_exists(ourdir, ".rnp/secring.kbx", NULL));
+    assert_false(path_file_exists(ourdir, ".rnp/pubring.gpg", NULL));
+    assert_false(path_file_exists(ourdir, ".rnp/secring.gpg", NULL));
+
+    assert_int_equal(1, rnp_load_keys(&rnp));
+    assert_int_equal(1, rnp_find_key(&rnp, getenv("LOGNAME")));
+    rnp_end(&rnp);
+
+    // Now we start over with a new home.
+    memset(&rnp, 0, sizeof(rnp));
+    // Create a directory "newhome" within this tests temporary directory.
+    char newhome[256];
+    paths_concat(newhome, sizeof(newhome), ourdir, "newhome", NULL);
+    path_mkdir(0700, newhome, NULL);
+
+    // Set the homedir to our newhome path.
+    assert_int_equal(1, rnp_setvar(&rnp, "homedir", newhome));
+
+    /*Set the default parameters*/
+    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
+    rnp_setvar(&rnp, "res", "<stdout>");
+    rnp_setvar(&rnp, "format", "human");
+    rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
+    rnp_setvar(&rnp, "key_store_format", "KBX");
+
+    assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
+
+    assert_int_equal(1, rnp_init(&rnp));
+
+    // pubring and secring should not exist yet
+    assert_false(path_file_exists(newhome, ".rnp/pubring.kbx", NULL));
+    assert_false(path_file_exists(newhome, ".rnp/secring.kbx", NULL));
+    assert_false(path_file_exists(newhome, ".rnp/pubring.gpg", NULL));
+    assert_false(path_file_exists(newhome, ".rnp/secring.gpg", NULL));
+
+    // Ensure the key was generated.
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+    assert_int_equal(1, rnp_generate_key(&rnp, "newhomekey"));
+
+    // pubring and secring should now exist
+    assert_true(path_file_exists(newhome, ".rnp/pubring.kbx", NULL));
+    assert_true(path_file_exists(newhome, ".rnp/secring.kbx", NULL));
+    assert_false(path_file_exists(newhome, ".rnp/pubring.gpg", NULL));
+    assert_false(path_file_exists(newhome, ".rnp/secring.gpg", NULL));
 
     // Load the keys in our newhome directory
     assert_int_equal(1, rnp_load_keys(&rnp));

@@ -72,7 +72,7 @@ rnp_key_store_kbx_parse_header_blob(kbx_header_blob_t *first_blob)
                 "The first blob has wrong length: %u but expected %u\n",
                 first_blob->blob.length,
                 BLOB_FIRST_SIZE);
-        return 1;
+        return 0;
     }
 
     first_blob->version = ru8(image);
@@ -80,7 +80,7 @@ rnp_key_store_kbx_parse_header_blob(kbx_header_blob_t *first_blob)
 
     if (first_blob->version != 1) {
         fprintf(stderr, "Wrong version, expect 1 but has %u\n", first_blob->version);
-        return 1;
+        return 0;
     }
 
     first_blob->flags = ru16(image);
@@ -89,7 +89,7 @@ rnp_key_store_kbx_parse_header_blob(kbx_header_blob_t *first_blob)
     // blob should contains a magic KBXf
     if (strncasecmp((const char *) (image), "KBXf", 4)) {
         fprintf(stderr, "The first blob hasn't got a KBXf magic string\n");
-        return 1;
+        return 0;
     }
 
     image += 3;
@@ -109,7 +109,7 @@ rnp_key_store_kbx_parse_header_blob(kbx_header_blob_t *first_blob)
     // RFU
     image += 4;
 
-    return 0;
+    return 1;
 }
 
 static int
@@ -125,7 +125,7 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
 
     if (pgp_blob->version != 1) {
         fprintf(stderr, "Wrong version, expect 1 but has %u\n", pgp_blob->version);
-        return 1;
+        return 0;
     }
 
     // Maybe we should add checksum verify but GnuPG never checked it
@@ -149,7 +149,7 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
           pgp_blob->blob.length,
           pgp_blob->keyblock_offset,
           pgp_blob->keyblock_length);
-        return 1;
+        return 0;
     }
 
     pgp_blob->nkeys = ru16(image);
@@ -159,7 +159,7 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
         fprintf(stderr,
                 "PGP blob should contains at least 1 key, it contains: %u keys\n",
                 pgp_blob->nkeys);
-        return 1;
+        return 0;
     }
 
     pgp_blob->keys_len = ru16(image);
@@ -170,13 +170,13 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
           stderr,
           "PGP blob should contains keys structure at least 28 bytes, it contains: %u bytes\n",
           pgp_blob->keys_len);
-        return 1;
+        return 0;
     }
 
     for (i = 0; i < pgp_blob->nkeys; i++) {
         EXPAND_ARRAY(pgp_blob, key);
         if (pgp_blob->keys == NULL) {
-            return 1;
+            return 0;
         }
 
         // copy fingerprint
@@ -204,14 +204,14 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
                 "Serial number is %u and it's bigger that blob size it can use: %lu\n",
                 pgp_blob->sn_size,
                 pgp_blob->blob.length - (image - pgp_blob->blob.image));
-        return 1;
+        return 0;
     }
 
     if (pgp_blob->sn_size > 0) {
         pgp_blob->sn = malloc(pgp_blob->sn_size);
         if (pgp_blob->sn == NULL) {
             fprintf(stderr, "bad malloc\n");
-            return 1;
+            return 0;
         }
 
         memcpy(pgp_blob->sn, image, pgp_blob->sn_size);
@@ -229,13 +229,13 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
           stderr,
           "PGP blob should contains UID structure at least 12 bytes, it contains: %u bytes\n",
           pgp_blob->uids_len);
-        return 1;
+        return 0;
     }
 
     for (i = 0; i < pgp_blob->nuids; i++) {
         EXPAND_ARRAY(pgp_blob, uid);
         if (pgp_blob->uids == NULL) {
-            return 1;
+            return 0;
         }
 
         pgp_blob->uids[pgp_blob->uidc].offset = ru32(image);
@@ -268,13 +268,13 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
           stderr,
           "PGP blob should contains SIGN structure at least 4 bytes, it contains: %u bytes\n",
           pgp_blob->uids_len);
-        return 1;
+        return 0;
     }
 
     for (i = 0; i < pgp_blob->nsigs; i++) {
         EXPAND_ARRAY(pgp_blob, sig);
         if (pgp_blob->sigs == NULL) {
-            return 1;
+            return 0;
         }
 
         pgp_blob->sigs[pgp_blob->sigc].expired = ru32(image);
@@ -304,7 +304,7 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
 
     // here starts keyblock, UID and reserved space for future usage
 
-    return 0;
+    return 1;
 }
 
 static kbx_blob_t *
@@ -359,14 +359,14 @@ rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
     // call real parser of blob
     switch (type) {
     case KBX_HEADER_BLOB:
-        if (rnp_key_store_kbx_parse_header_blob((kbx_header_blob_t *) blob)) {
+        if (!rnp_key_store_kbx_parse_header_blob((kbx_header_blob_t *) blob)) {
             free(blob);
             return NULL;
         }
         break;
 
     case KBX_PGP_BLOB:
-        if (rnp_key_store_kbx_parse_pgp_blob((kbx_pgp_blob_t *) blob)) {
+        if (!rnp_key_store_kbx_parse_pgp_blob((kbx_pgp_blob_t *) blob)) {
             free(blob);
             return NULL;
         }
@@ -483,11 +483,14 @@ rnp_key_store_kbx_write_header(rnp_key_store_t *key_store, pgp_memory_t *m)
         file_created_at = ((kbx_header_blob_t *) key_store->blobs[0])->file_created_at;
     }
 
-    return pu32(m, BLOB_FIRST_SIZE) || pu8(m, KBX_HEADER_BLOB) || pu8(m, 1) // version
-           || pu16(m, flags) || pgp_memory_add(m, (const uint8_t *) "KBXf", 4) ||
-           pu32(m, 0)                                                        // RFU
-           || pu32(m, 0)                                                     // RFU
-           || pu32(m, file_created_at) || pu32(m, time(NULL)) || pu32(m, 0); // RFU
+    return !(!pu32(m, BLOB_FIRST_SIZE) || !pu8(m, KBX_HEADER_BLOB) || !pu8(m, 1) // version
+             ||
+             !pu16(m, flags) || !pgp_memory_add(m, (const uint8_t *) "KBXf", 4) ||
+             !pu32(m, 0) // RFU
+             ||
+             !pu32(m, 0) // RFU
+             ||
+             !pu32(m, file_created_at) || !pu32(m, time(NULL)) || !pu32(m, 0)); // RFU
 }
 
 static int
@@ -503,52 +506,52 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
 
     start = m->length;
 
-    if (pu32(m, 0)) { // length, we don't know length of blbo, so it's 0 right now
-        return 1;
+    if (!pu32(m, 0)) { // length, we don't know length of blbo, so it's 0 right now
+        return 0;
     }
 
-    if (pu8(m, KBX_PGP_BLOB) || pu8(m, 1)) { // type, version
-        return 1;
+    if (!pu8(m, KBX_PGP_BLOB) || !pu8(m, 1)) { // type, version
+        return 0;
     }
 
-    if (pu16(m, 0)) { // flags, not used by GnuPG
-        return 1;
+    if (!pu16(m, 0)) { // flags, not used by GnuPG
+        return 0;
     }
 
-    if (pu32(m, 0) || pu32(m, 0)) { // offset and length of keyblock, update later
-        return 1;
+    if (!pu32(m, 0) || !pu32(m, 0)) { // offset and length of keyblock, update later
+        return 0;
     }
 
-    if (pu16(m, key_store->keyc) || pu16(m, 28)) {
-        return 1;
+    if (!pu16(m, key_store->keyc) || !pu16(m, 28)) {
+        return 0;
     }
 
     for (i = 0; i < key_store->keyc; i++) {
         if (key_store->keys[i].type == PGP_PTAG_CT_PUBLIC_SUBKEY) {
-            if (pgp_memory_add(
+            if (!pgp_memory_add(
                   m, key_store->keys[i].encfingerprint.fingerprint, PGP_FINGERPRINT_SIZE)) {
-                return 1;
+                return 0;
             }
         } else {
-            if (pgp_memory_add(
+            if (!pgp_memory_add(
                   m, key_store->keys[i].sigfingerprint.fingerprint, PGP_FINGERPRINT_SIZE)) {
-                return 1;
+                return 0;
             }
         }
-        if (pu32(m, (m->length - PGP_FINGERPRINT_SIZE + 8) - start)) {
-            return 1;
+        if (!pu32(m, (m->length - PGP_FINGERPRINT_SIZE + 8) - start)) {
+            return 0;
         }
-        if (pu16(m, 0)) { // flags, not used by GnuPG
-            return 1;
+        if (!pu16(m, 0)) { // flags, not used by GnuPG
+            return 0;
         }
-        if (pu16(m, 0)) { // RFU
-            return 1;
+        if (!pu16(m, 0)) { // RFU
+            return 0;
         }
         // here we can add something to padding, but we keep 28 byte per record
     }
 
-    if (pu16(m, 0)) { // Zero size of serial number
-        return 1;
+    if (!pu16(m, 0)) { // Zero size of serial number
+        return 0;
     }
 
     // skip serial number
@@ -558,24 +561,25 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
         nuids += key_store->keys[i].uidc;
     }
 
-    if (pu16(m, nuids) || pu16(m, 12)) {
-        return 1;
+    if (!pu16(m, nuids) || !pu16(m, 12)) {
+        return 0;
     }
 
     uid_start = m->length;
 
     for (i = 0; i < key_store->keyc; i++) {
         for (j = 0; j < key_store->keys[i].uidc; j++) {
-            if (pu32(m, 0) || pu32(m, 0)) { // UID offset and length, update when blob has done
-                return 1;
+            if (!pu32(m, 0) ||
+                !pu32(m, 0)) { // UID offset and length, update when blob has done
+                return 0;
             }
 
-            if (pu16(m, 0)) { // flags, (not yet used)
-                return 1;
+            if (!pu16(m, 0)) { // flags, (not yet used)
+                return 0;
             }
 
-            if (pu8(m, 0) || pu8(m, 0)) { // Validity & RFU
-                return 1;
+            if (!pu8(m, 0) || !pu8(m, 0)) { // Validity & RFU
+                return 0;
             }
         }
     }
@@ -585,32 +589,32 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
         nsigs += key_store->keys[i].subsigc;
     }
 
-    if (pu16(m, nsigs) || pu16(m, 4)) {
-        return 1;
+    if (!pu16(m, nsigs) || !pu16(m, 4)) {
+        return 0;
     }
 
     for (i = 0; i < key_store->keyc; i++) {
         for (j = 0; j < key_store->keys[i].subsigc; j++) {
-            if (pu32(m, key_store->keys[i].subsigs[j].sig.info.duration)) {
-                return 1;
+            if (!pu32(m, key_store->keys[i].subsigs[j].sig.info.duration)) {
+                return 0;
             }
         }
     }
 
-    if (pu8(m, 0) || pu8(m, 0)) { // Assigned ownertrust & All_Validity (not yet used)
-        return 1;
+    if (!pu8(m, 0) || !pu8(m, 0)) { // Assigned ownertrust & All_Validity (not yet used)
+        return 0;
     }
 
-    if (pu16(m, 0) || pu32(m, 0)) { // RFU & Recheck_after
-        return 1;
+    if (!pu16(m, 0) || !pu32(m, 0)) { // RFU & Recheck_after
+        return 0;
     }
 
-    if (pu32(m, time(NULL)) || pu32(m, time(NULL))) { // Latest timestamp && created
-        return 1;
+    if (!pu32(m, time(NULL)) || !pu32(m, time(NULL))) { // Latest timestamp && created
+        return 0;
     }
 
-    if (pu32(m, 0)) { // Size of reserved space
-        return 1;
+    if (!pu32(m, 0)) { // Size of reserved space
+        return 0;
     }
 
     // wrtite UID, we might redesign PGP write and use this information from keyblob
@@ -625,8 +629,8 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
             p[3] = (uint8_t) pt;
 
             pt = strlen((const char *) key_store->keys[i].uids[j]);
-            if (pgp_memory_add(m, key_store->keys[i].uids[j], pt)) {
-                return 1;
+            if (!pgp_memory_add(m, key_store->keys[i].uids[j], pt)) {
+                return 0;
             }
 
             p += 4;
@@ -647,7 +651,7 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
     p[3] = (uint8_t) pt;
 
     if (!rnp_key_store_pgp_write_to_mem(io, key_store, passphrase, 0, m)) {
-        return 1;
+        return 0;
     }
 
     pt = m->length - key_start;
@@ -667,7 +671,7 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
     p[2] = (uint8_t)(pt >> 8);
     p[3] = (uint8_t) pt;
 
-    return 0;
+    return 1;
 }
 
 static int
@@ -675,13 +679,13 @@ rnp_key_store_kbx_write_x509(rnp_key_store_t *key_store, pgp_memory_t *m)
 {
     for (int i = 0; i < key_store->blobc; i++) {
         if (key_store->blobs[i]->type == KBX_X509_BLOB) {
-            if (pgp_memory_add(m, key_store->blobs[i]->image, key_store->blobs[i]->length)) {
-                return 1;
+            if (!pgp_memory_add(m, key_store->blobs[i]->image, key_store->blobs[i]->length)) {
+                return 0;
             }
         }
     }
 
-    return 0;
+    return 1;
 }
 
 int
@@ -692,17 +696,17 @@ rnp_key_store_kbx_to_mem(pgp_io_t *       io,
 {
     pgp_memory_clear(memory);
 
-    if (rnp_key_store_kbx_write_header(key_store, memory)) {
+    if (!rnp_key_store_kbx_write_header(key_store, memory)) {
         fprintf(io->errs, "Can't write KBX header\n");
         return 0;
     }
 
-    if (rnp_key_store_kbx_write_pgp(io, key_store, passphrase, memory)) {
+    if (!rnp_key_store_kbx_write_pgp(io, key_store, passphrase, memory)) {
         fprintf(io->errs, "Can't write PGP blobs\n");
         return 0;
     }
 
-    if (rnp_key_store_kbx_write_x509(key_store, memory)) {
+    if (!rnp_key_store_kbx_write_x509(key_store, memory)) {
         fprintf(io->errs, "Can't write X509 blobs\n");
         return 0;
     }

@@ -856,8 +856,8 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
         id = key->encid;
     }
 
-    if (key->type != PGP_PTAG_CT_PUBLIC_KEY) {
-        (void) fprintf(stderr, "pgp_create_pk_sesskey: bad type\n");
+    if (pubkey == NULL) {
+        (void) fprintf(stderr, "pgp_create_pk_sesskey: bad pub key\n");
         return NULL;
     }
 
