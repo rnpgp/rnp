@@ -2,6 +2,16 @@
 
 The following are a set of conventions and items that are relevant to contributors.
 
+# Contributing
+
+Pull Requests should be used for any non-trivial changes. This presents an opportunity for feedback and allows the CI tests to complete prior to merging. The `master` branch should generally always be in a buildable and functional state.
+
+Pull Requests should be:
+
+* Focused. Try not to include changes that are unrelated to the main purpose of the PR.
+* As small as possible. Sometimes large pull requests may be necessary for adding complex features, but generally they should be kept as small as possible to ensure a quick and thorough review process.
+* Related to a GH issue to which you are assigned. If there is none, file one (but search first!). This ensures there is no duplication of effort and allows for a discussion prior to beginning work. (This may not be necessary for PRs that are purely documentation updates)
+
 # Continuous Integration (Travis CI)
 
 Travis CI is used for continuously testing new commits and pull requests.
@@ -195,11 +205,12 @@ Do:
 
 * Do use header guards (`#ifndef SOME_HEADER_H [...]`) in headers.
 * Do use `sizeof(variable)`, rather than `sizeof(type)`. Or `sizeof(*variable)` as appropriate.
-* Do use commit messages that close GitHub issues automatically, when applicable. `Fix XYZ. Closes #78.` See [here.](https://help.github.com/articles/closing-issues-via-commit-messages/).
+* Do use commit messages that close GitHub issues automatically, when applicable. `Fix XYZ. Closes #78.` See [here](https://help.github.com/articles/closing-issues-via-commit-messages/).
 * Do declare functions `static` when they do not need to be referenced outside the current source file.
 * Do omit braces for simple one-line conditionals. (Unless attached to another conditional with multiple lines.)
 
 Do not:
-* Do not use static storage-class for variables.
-* Do not use `pragma`.
+* Do not use the static storage class for variables. In short, this means no variable declarations with the word `static`, such as `static char buffer[256]`. These tend to cause surprises and thread safety issues.
+* Do not use `pragma`, and try to avoid `__attribute__` as well.
+
 

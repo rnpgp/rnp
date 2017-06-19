@@ -55,14 +55,21 @@
 #ifndef CRYPTO_H_
 #define CRYPTO_H_
 
+#include <limits.h>
+#include <botan/ffi.h>
 #include "hash.h"
 #include "key_store_pgp.h"
 #include "packet.h"
 #include "memory.h"
 #include "packet-parse.h"
 #include "symmetric.h"
+#include "bn.h"
 
 #define PGP_MIN_HASH_SIZE 16
+
+#define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
+
+#define MAX_CURVE_BYTELEN BITS_TO_BYTES(521)  /* Length of NIST P-521 */
 
 void pgp_crypto_finish(void);
 
@@ -120,8 +127,6 @@ pgp_memory_t *pgp_decrypt_buf(pgp_io_t *,
                               void *,
                               int,
                               pgp_cbfunc_t *);
-
-
 
 int read_pem_seckey(const char *, pgp_key_t *, const char *, int);
 

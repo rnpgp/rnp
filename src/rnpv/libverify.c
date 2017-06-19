@@ -81,8 +81,6 @@
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
-#define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
-
 /* packet types */
 #define SIGNATURE_PKT 2
 #define ONEPASS_SIGNATURE_PKT 4
