@@ -888,7 +888,7 @@ pgp_sig_get_hash(pgp_create_sig_t *sig)
 
 /* open up an output file */
 static int
-open_output_file(rnp_ctx_t *ctx,
+open_output_file(rnp_ctx_t *    ctx,
                  pgp_output_t **output,
                  const char *   inname,
                  const char *   outname,
@@ -975,7 +975,8 @@ pgp_sign_file(rnp_ctx_t *         ctx,
     }
 
     /* setup output file */
-    fd_out = open_output_file(ctx, &output, inname, outname, (ctx->armour) ? "asc" : "gpg", ctx->overwrite);
+    fd_out = open_output_file(
+      ctx, &output, inname, outname, (ctx->armour) ? "asc" : "gpg", ctx->overwrite);
     if (fd_out < 0) {
         pgp_memory_free(infile);
         return 0;
@@ -1034,10 +1035,8 @@ pgp_sign_file(rnp_ctx_t *         ctx,
         pgp_hash_add(hash, pgp_mem_data(infile), (unsigned) pgp_mem_len(infile));
 
         /* output file contents as Literal Data packet */
-        pgp_write_litdata(output,
-                          pgp_mem_data(infile),
-                          (const int) pgp_mem_len(infile),
-                          PGP_LDT_BINARY);
+        pgp_write_litdata(
+          output, pgp_mem_data(infile), (const int) pgp_mem_len(infile), PGP_LDT_BINARY);
 
         /* add creation time to signature */
         pgp_add_time(sig, (int64_t) from, "birth");
@@ -1160,10 +1159,7 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
         if (rnp_get_debug(__FILE__)) {
             (void) fprintf(stderr, "** Writing out data now\n");
         }
-        pgp_write_litdata(output,
-                          input,
-                          (const int) insize,
-                          ld_type);
+        pgp_write_litdata(output, input, (const int) insize, ld_type);
         if (rnp_get_debug(__FILE__)) {
             fprintf(stderr, "** After Writing out data now\n");
         }
@@ -1212,7 +1208,8 @@ pgp_sign_detached(rnp_ctx_t *    ctx,
     }
 
     /* setup output file */
-    fd = open_output_file(ctx, &output, f, sigfile, (ctx->armour) ? "asc" : "sig", ctx->overwrite);
+    fd = open_output_file(
+      ctx, &output, f, sigfile, (ctx->armour) ? "asc" : "sig", ctx->overwrite);
     if (fd < 0) {
         (void) fprintf(io->errs, "Can't open output file: %s\n", f);
         return 0;

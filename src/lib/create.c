@@ -1072,8 +1072,8 @@ pgp_write_litdata(pgp_output_t *         output,
     return pgp_write_ptag(output, PGP_PTAG_CT_LITDATA) &&
            pgp_write_length(output, (unsigned) (1 + 1 + flen + 4 + maxlen)) &&
            pgp_write_scalar(output, (unsigned) type, 1) && pgp_write_scalar(output, flen, 1) &&
-           ((flen > 0) ? pgp_write(output, filename, flen) : 1) && pgp_write_scalar(output, modtime, 4) &&
-           pgp_write(output, data, (unsigned) maxlen);
+           ((flen > 0) ? pgp_write(output, filename, flen) : 1) &&
+           pgp_write_scalar(output, modtime, 4) && pgp_write(output, data, (unsigned) maxlen);
 }
 
 /**

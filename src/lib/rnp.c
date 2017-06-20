@@ -1452,12 +1452,8 @@ rnp_decrypt_file(rnp_t *rnp, const char *f, char *out, int armored)
 
 /* sign a file */
 int
-rnp_sign_file(rnp_t *     rnp,
-              const char *userid,
-              const char *f,
-              char *      out,
-              int         cleartext,
-              int         detached)
+rnp_sign_file(
+  rnp_t *rnp, const char *userid, const char *f, char *out, int cleartext, int detached)
 {
     const pgp_key_t *keypair;
     const pgp_key_t *pubkey;
@@ -1729,12 +1725,8 @@ rnp_verify_memory(
 
 /* encrypt some memory */
 int
-rnp_encrypt_memory(rnp_t *      rnp,
-                   const char * userid,
-                   void *       in,
-                   const size_t insize,
-                   char *       out,
-                   size_t       outsize)
+rnp_encrypt_memory(
+  rnp_t *rnp, const char *userid, void *in, const size_t insize, char *out, size_t outsize)
 {
     const pgp_key_t *keypair;
     pgp_memory_t *   enc;

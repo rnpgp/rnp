@@ -1921,7 +1921,10 @@ pgp_teardown_memory_read(pgp_stream_t *stream, pgp_memory_t *mem)
  \sa pgp_teardown_file_write()
 */
 int
-pgp_setup_file_write(rnp_ctx_t *ctx, pgp_output_t **output, const char *filename, unsigned allow_overwrite)
+pgp_setup_file_write(rnp_ctx_t *    ctx,
+                     pgp_output_t **output,
+                     const char *   filename,
+                     unsigned       allow_overwrite)
 {
     int fd = 0;
     int flags = 0;

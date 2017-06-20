@@ -387,11 +387,8 @@ Encrypt a file
 \return 1 if OK; else 0
 */
 unsigned
-pgp_encrypt_file(rnp_ctx_t *      ctx,
-                 pgp_io_t *       io,
-                 const char *     infile,
-                 const char *     outfile,
-                 const pgp_key_t *key)
+pgp_encrypt_file(
+  rnp_ctx_t *ctx, pgp_io_t *io, const char *infile, const char *outfile, const pgp_key_t *key)
 {
     pgp_output_t *output;
     pgp_memory_t *inmem;

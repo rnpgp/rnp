@@ -261,13 +261,13 @@ show_output(char *out, int size, const char *header)
 static int
 rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 {
-    const int  cleartext = 1;
-    unsigned   maxsize;
-    char *     out;
-    char *     in;
-    char *     cipher;
-    int        ret;
-    int        cc;
+    const int cleartext = 1;
+    unsigned  maxsize;
+    char *    out;
+    char *    in;
+    char *    cipher;
+    int       ret;
+    int       cc;
 
     /* operation context initialization: writing all additional parameters */
     rnp_ctx_reset(&rnp->ctx);
@@ -280,8 +280,9 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 
     switch (p->cmd) {
     case ENCRYPT:
-        rnp->ctx.ealg = pgp_str_to_cipher((cipher = rnp_getvar(rnp, "cipher")) ? cipher : "cast5");
-        
+        rnp->ctx.ealg =
+          pgp_str_to_cipher((cipher = rnp_getvar(rnp, "cipher")) ? cipher : "cast5");
+
         if (f == NULL) {
             cc = stdin_to_mem(rnp, &in, &out, &maxsize);
             ret = rnp_encrypt_memory(rnp, rnp_getvar(rnp, "userid"), in, cc, out, maxsize);
@@ -290,7 +291,7 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
             free(out);
             return ret;
         }
-        
+
         return rnp_encrypt_file(rnp, rnp_getvar(rnp, "userid"), f, p->output);
     case DECRYPT:
         if (f == NULL) {

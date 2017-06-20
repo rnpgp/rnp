@@ -144,13 +144,13 @@ typedef struct {
  * \see RFC4880 4.2.1
  */
 typedef enum {
-    PGP_PTAG_OLD_LEN_1 = 0x00,            /* Packet has a 1 byte length -
-                                           * header is 2 bytes long. */
-    PGP_PTAG_OLD_LEN_2 = 0x01,            /* Packet has a 2 byte length -
-                                           * header is 3 bytes long. */
-    PGP_PTAG_OLD_LEN_4 = 0x02,            /* Packet has a 4 byte
-                                           * length - header is 5 bytes
-                                           * long. */
+    PGP_PTAG_OLD_LEN_1 = 0x00, /* Packet has a 1 byte length -
+                                * header is 2 bytes long. */
+    PGP_PTAG_OLD_LEN_2 = 0x01, /* Packet has a 2 byte length -
+                                * header is 3 bytes long. */
+    PGP_PTAG_OLD_LEN_4 = 0x02, /* Packet has a 4 byte
+                                * length - header is 5 bytes
+                                * long. */
     PGP_PTAG_OLD_LEN_INDETERMINATE = 0x03 /* Packet has a
                                            * indeterminate length. */
 } pgp_ptag_of_lt_t;
@@ -186,15 +186,15 @@ typedef enum {
  * \see RFC4880 5.2.3.1
  */
 typedef enum {
-    PGP_PTAG_CT_RESERVED = 0,       /* Reserved - a packet tag must
-                                     * not have this value */
+    PGP_PTAG_CT_RESERVED = 0, /* Reserved - a packet tag must
+                               * not have this value */
     PGP_PTAG_CT_PK_SESSION_KEY = 1, /* Public-Key Encrypted Session
                                      * Key Packet */
-    PGP_PTAG_CT_SIGNATURE = 2,      /* Signature Packet */
+    PGP_PTAG_CT_SIGNATURE = 2, /* Signature Packet */
     PGP_PTAG_CT_SK_SESSION_KEY = 3, /* Symmetric-Key Encrypted Session
                                      * Key Packet */
-    PGP_PTAG_CT_1_PASS_SIG = 4,     /* One-Pass Signature
-                                     * Packet */
+    PGP_PTAG_CT_1_PASS_SIG = 4, /* One-Pass Signature
+                                 * Packet */
     PGP_PTAG_CT_SECRET_KEY = 5,     /* Secret Key Packet */
     PGP_PTAG_CT_PUBLIC_KEY = 6,     /* Public Key Packet */
     PGP_PTAG_CT_SECRET_SUBKEY = 7,  /* Secret Subkey Packet */
@@ -208,9 +208,9 @@ typedef enum {
     PGP_PTAG_CT_RESERVED2 = 15,     /* reserved */
     PGP_PTAG_CT_RESERVED3 = 16,     /* reserved */
     PGP_PTAG_CT_USER_ATTR = 17,     /* User Attribute Packet */
-    PGP_PTAG_CT_SE_IP_DATA = 18,    /* Sym. Encrypted and Integrity
-                                     * Protected Data Packet */
-    PGP_PTAG_CT_MDC = 19,           /* Modification Detection Code Packet */
+    PGP_PTAG_CT_SE_IP_DATA = 18, /* Sym. Encrypted and Integrity
+                                  * Protected Data Packet */
+    PGP_PTAG_CT_MDC = 19, /* Modification Detection Code Packet */
 
     PGP_PARSER_PTAG = 0x100, /* Internal Use: The packet is the "Packet
                               * Tag" itself - used when callback sends
@@ -221,42 +221,42 @@ typedef enum {
 
     /* signature subpackets (0x200-2ff) (type+0x200) */
     /* only those we can parse are listed here */
-    PGP_PTAG_SIG_SUBPKT_BASE = 0x200,        /* Base for signature
-                                              * subpacket types - All
-                                              * signature type values
-                                              * are relative to this
-                                              * value. */
-    PGP_PTAG_SS_CREATION_TIME = 0x200 + 2,   /* signature creation time */
+    PGP_PTAG_SIG_SUBPKT_BASE = 0x200,      /* Base for signature
+                                            * subpacket types - All
+                                            * signature type values
+                                            * are relative to this
+                                            * value. */
+    PGP_PTAG_SS_CREATION_TIME = 0x200 + 2, /* signature creation time */
     PGP_PTAG_SS_EXPIRATION_TIME = 0x200 + 3, /* signature
                                               * expiration time */
 
-    PGP_PTAG_SS_EXPORT_CERT = 0x200 + 4,         /* exportable certification */
-    PGP_PTAG_SS_TRUST = 0x200 + 5,               /* trust signature */
-    PGP_PTAG_SS_REGEXP = 0x200 + 6,              /* regular expression */
-    PGP_PTAG_SS_REVOCABLE = 0x200 + 7,           /* revocable */
-    PGP_PTAG_SS_KEY_EXPIRY = 0x200 + 9,          /* key expiration
-                                                  * time */
-    PGP_PTAG_SS_RESERVED = 0x200 + 10,           /* reserved */
-    PGP_PTAG_SS_PREFERRED_SKA = 0x200 + 11,      /* preferred symmetric
-                                                  * algs */
-    PGP_PTAG_SS_REVOCATION_KEY = 0x200 + 12,     /* revocation key */
-    PGP_PTAG_SS_ISSUER_KEY_ID = 0x200 + 16,      /* issuer key ID */
-    PGP_PTAG_SS_NOTATION_DATA = 0x200 + 20,      /* notation data */
-    PGP_PTAG_SS_PREFERRED_HASH = 0x200 + 21,     /* preferred hash
-                                                  * algs */
-    PGP_PTAG_SS_PREF_COMPRESS = 0x200 + 22,      /* preferred
-                                                  * compression
-                                                  * algorithms */
-    PGP_PTAG_SS_KEYSERV_PREFS = 0x200 + 23,      /* key server
-                                                  * preferences */
-    PGP_PTAG_SS_PREF_KEYSERV = 0x200 + 24,       /* Preferred Key
-                                                  * Server */
-    PGP_PTAG_SS_PRIMARY_USER_ID = 0x200 + 25,    /* primary User ID */
-    PGP_PTAG_SS_POLICY_URI = 0x200 + 26,         /* Policy URI */
-    PGP_PTAG_SS_KEY_FLAGS = 0x200 + 27,          /* key flags */
-    PGP_PTAG_SS_SIGNERS_USER_ID = 0x200 + 28,    /* Signer's User ID */
-    PGP_PTAG_SS_REVOCATION_REASON = 0x200 + 29,  /* reason for
-                                                  * revocation */
+    PGP_PTAG_SS_EXPORT_CERT = 0x200 + 4, /* exportable certification */
+    PGP_PTAG_SS_TRUST = 0x200 + 5,       /* trust signature */
+    PGP_PTAG_SS_REGEXP = 0x200 + 6,      /* regular expression */
+    PGP_PTAG_SS_REVOCABLE = 0x200 + 7,   /* revocable */
+    PGP_PTAG_SS_KEY_EXPIRY = 0x200 + 9, /* key expiration
+                                         * time */
+    PGP_PTAG_SS_RESERVED = 0x200 + 10, /* reserved */
+    PGP_PTAG_SS_PREFERRED_SKA = 0x200 + 11, /* preferred symmetric
+                                             * algs */
+    PGP_PTAG_SS_REVOCATION_KEY = 0x200 + 12, /* revocation key */
+    PGP_PTAG_SS_ISSUER_KEY_ID = 0x200 + 16,  /* issuer key ID */
+    PGP_PTAG_SS_NOTATION_DATA = 0x200 + 20,  /* notation data */
+    PGP_PTAG_SS_PREFERRED_HASH = 0x200 + 21, /* preferred hash
+                                              * algs */
+    PGP_PTAG_SS_PREF_COMPRESS = 0x200 + 22, /* preferred
+                                             * compression
+                                             * algorithms */
+    PGP_PTAG_SS_KEYSERV_PREFS = 0x200 + 23, /* key server
+                                             * preferences */
+    PGP_PTAG_SS_PREF_KEYSERV = 0x200 + 24, /* Preferred Key
+                                            * Server */
+    PGP_PTAG_SS_PRIMARY_USER_ID = 0x200 + 25, /* primary User ID */
+    PGP_PTAG_SS_POLICY_URI = 0x200 + 26,      /* Policy URI */
+    PGP_PTAG_SS_KEY_FLAGS = 0x200 + 27,       /* key flags */
+    PGP_PTAG_SS_SIGNERS_USER_ID = 0x200 + 28, /* Signer's User ID */
+    PGP_PTAG_SS_REVOCATION_REASON = 0x200 + 29, /* reason for
+                                                 * revocation */
     PGP_PTAG_SS_FEATURES = 0x200 + 30,           /* features */
     PGP_PTAG_SS_SIGNATURE_TARGET = 0x200 + 31,   /* signature target */
     PGP_PTAG_SS_EMBEDDED_SIGNATURE = 0x200 + 32, /* embedded signature */
@@ -302,7 +302,7 @@ typedef enum {
     PGP_GET_SECKEY = 0x400 + 1,
 
     /* Errors */
-    PGP_PARSER_ERROR = 0x500,      /* Internal Use: Parser Error */
+    PGP_PARSER_ERROR = 0x500, /* Internal Use: Parser Error */
     PGP_PARSER_ERRCODE = 0x500 + 1 /* Internal Use: Parser Error
                                     * with errcode returned */
 } pgp_content_enum;
@@ -324,10 +324,10 @@ typedef struct {
  * \see RFC4880 4.2
  */
 typedef struct {
-    unsigned new_format;            /* Whether this packet tag is new
-                                     * (1) or old format (0) */
-    unsigned type;                  /* content_tag value - See
-                                     * #pgp_content_enum for meanings */
+    unsigned new_format; /* Whether this packet tag is new
+                          * (1) or old format (0) */
+    unsigned type; /* content_tag value - See
+                    * #pgp_content_enum for meanings */
     pgp_ptag_of_lt_t length_type;   /* Length type (#pgp_ptag_of_lt_t)
                                      * - only if this packet tag is old
                                      * format.  Set to 0 if new format. */
@@ -336,9 +336,9 @@ typedef struct {
                  * information, not at the same moment we
                  * create the packet tag structure. Only
      * defined if #readc is set. */ /* XXX: Ben, is this correct? */
-    unsigned position;              /* The position (within the
-                                     * current reader) of the packet */
-    unsigned size;                  /* number of bits */
+    unsigned position; /* The position (within the
+                        * current reader) of the packet */
+    unsigned size; /* number of bits */
 } pgp_ptag_t;
 
 /** Public Key Algorithm Numbers.
@@ -349,32 +349,33 @@ typedef struct {
  * \see RFC4880 9.1
  */
 typedef enum {
-    PGP_PKA_NOTHING = 0,                  /* No PKA */
-    PGP_PKA_RSA = 1,                      /* RSA (Encrypt or Sign) */
-    PGP_PKA_RSA_ENCRYPT_ONLY = 2,         /* RSA Encrypt-Only (deprecated -
-                                           * \see RFC4880 13.5) */
-    PGP_PKA_RSA_SIGN_ONLY = 3,            /* RSA Sign-Only (deprecated -
-                                           * \see RFC4880 13.5) */
-    PGP_PKA_ELGAMAL = 16,                 /* Elgamal (Encrypt-Only) */
-    PGP_PKA_DSA = 17,                     /* DSA (Digital Signature Algorithm) */
-    PGP_PKA_ECDH = 18,                    /* ECDH public key algorithm */
-    PGP_PKA_ECDSA = 19,                   /* ECDSA public key algorithm [FIPS186-3] */
-    PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN = 20, /* Deprecated. Reserved (formerly Elgamal Encrypt or Sign) */
-    PGP_PKA_RESERVED_DH = 21,             /* Reserved for Diffie-Hellman
-                                           * (X9.42, as defined for
-                                           * IETF-S/MIME) */
-    PGP_PKA_EDDSA = 22,                   /* EdDSA from draft-ietf-openpgp-rfc4880bis */
-    PGP_PKA_PRIVATE00 = 100,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE01 = 101,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE02 = 102,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE03 = 103,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE04 = 104,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE05 = 105,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE06 = 106,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE07 = 107,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE08 = 108,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE09 = 109,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE10 = 110               /* Private/Experimental Algorithm */
+    PGP_PKA_NOTHING = 0, /* No PKA */
+    PGP_PKA_RSA = 1,     /* RSA (Encrypt or Sign) */
+    PGP_PKA_RSA_ENCRYPT_ONLY = 2, /* RSA Encrypt-Only (deprecated -
+                                   * \see RFC4880 13.5) */
+    PGP_PKA_RSA_SIGN_ONLY = 3, /* RSA Sign-Only (deprecated -
+                                * \see RFC4880 13.5) */
+    PGP_PKA_ELGAMAL = 16, /* Elgamal (Encrypt-Only) */
+    PGP_PKA_DSA = 17,     /* DSA (Digital Signature Algorithm) */
+    PGP_PKA_ECDH = 18,    /* ECDH public key algorithm */
+    PGP_PKA_ECDSA = 19,   /* ECDSA public key algorithm [FIPS186-3] */
+    PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN =
+      20,                     /* Deprecated. Reserved (formerly Elgamal Encrypt or Sign) */
+    PGP_PKA_RESERVED_DH = 21, /* Reserved for Diffie-Hellman
+                               * (X9.42, as defined for
+                               * IETF-S/MIME) */
+    PGP_PKA_EDDSA = 22,       /* EdDSA from draft-ietf-openpgp-rfc4880bis */
+    PGP_PKA_PRIVATE00 = 100,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE01 = 101,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE02 = 102,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE03 = 103,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE04 = 104,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE05 = 105,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE06 = 106,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE07 = 107,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE08 = 108,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE09 = 109,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE10 = 110   /* Private/Experimental Algorithm */
 } pgp_pubkey_alg_t;
 
 /**
@@ -431,10 +432,10 @@ typedef struct {
  * \see RFC 6637
  */
 typedef struct {
-    uint8_t oid_len;
-    uint8_t *oid;
+    uint8_t     oid_len;
+    uint8_t *   oid;
     pgp_curve_t curve;
-    BIGNUM *point; /* octet string encoded as MPI */
+    BIGNUM *    point; /* octet string encoded as MPI */
 } pgp_ecc_pubkey_t;
 
 /** Version.
@@ -505,7 +506,6 @@ typedef enum {
     PGP_S2KS_SALTED = 1,
     PGP_S2KS_ITERATED_AND_SALTED = 3
 } pgp_s2k_specifier_t;
-
 
 /** Symmetric Key Algorithm Numbers.
  * OpenPGP assigns a unique Algorithm Number to each algorithm that is
@@ -584,12 +584,12 @@ typedef enum {
     PGP_SIG_TEXT = 0x01,       /* Signature of a canonical text document */
     PGP_SIG_STANDALONE = 0x02, /* Standalone signature */
 
-    PGP_CERT_GENERIC = 0x10,  /* Generic certification of a User ID and
-                               * Public Key packet */
-    PGP_CERT_PERSONA = 0x11,  /* Persona certification of a User ID and
-                               * Public Key packet */
-    PGP_CERT_CASUAL = 0x12,   /* Casual certification of a User ID and
-                               * Public Key packet */
+    PGP_CERT_GENERIC = 0x10, /* Generic certification of a User ID and
+                              * Public Key packet */
+    PGP_CERT_PERSONA = 0x11, /* Persona certification of a User ID and
+                              * Public Key packet */
+    PGP_CERT_CASUAL = 0x12, /* Casual certification of a User ID and
+                             * Public Key packet */
     PGP_CERT_POSITIVE = 0x13, /* Positive certification of a
                                * User ID and Public Key packet */
 
@@ -632,19 +632,19 @@ typedef pgp_dsa_sig_t pgp_ecc_sig_t;
  * \see RFC4880 5.2.3
  */
 typedef struct pgp_sig_info_t {
-    pgp_version_t  version;                    /* signature version number */
-    pgp_sig_type_t type;                       /* signature type value */
-    time_t         birthtime;                  /* creation time of the signature */
-    time_t         duration;                   /* number of seconds it's valid for */
+    pgp_version_t  version;   /* signature version number */
+    pgp_sig_type_t type;      /* signature type value */
+    time_t         birthtime; /* creation time of the signature */
+    time_t         duration;  /* number of seconds it's valid for */
     uint8_t        signer_id[PGP_KEY_ID_SIZE]; /* Eight-octet key ID
                                                 * of signer */
-    pgp_pubkey_alg_t key_alg;                  /* public key algorithm number */
-    pgp_hash_alg_t   hash_alg;                 /* hashing algorithm number */
+    pgp_pubkey_alg_t key_alg;  /* public key algorithm number */
+    pgp_hash_alg_t   hash_alg; /* hashing algorithm number */
     union {
         pgp_rsa_sig_t     rsa;     /* An RSA Signature */
         pgp_dsa_sig_t     dsa;     /* A DSA Signature */
         pgp_elgamal_sig_t elgamal; /* deprecated */
-        pgp_ecc_sig_t     ecc;   /* An ECDSA or EdDSA signature */
+        pgp_ecc_sig_t     ecc;     /* An ECDSA or EdDSA signature */
         pgp_ecc_sig_t     ecdsa;   /* A ECDSA signature */
         pgp_data_t        unknown; /* private or experimental */
     } sig;                         /* signature params */
@@ -1010,10 +1010,10 @@ typedef struct pgp_key_t {
  */
 typedef struct ec_curve_desc_t {
     const pgp_curve_t rnp_curve_id;
-    const size_t bitlen;
-    const uint8_t OIDhex[MAX_CURVE_OID_HEX_LEN];
-    const size_t OIDhex_len;
-    const char *botan_name;
+    const size_t      bitlen;
+    const uint8_t     OIDhex[MAX_CURVE_OID_HEX_LEN];
+    const size_t      OIDhex_len;
+    const char *      botan_name;
 } ec_curve_desc_t;
 
 #endif /* PACKET_H_ */

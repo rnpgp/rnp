@@ -88,11 +88,8 @@ unsigned pgp_check_direct_sig(const pgp_pubkey_t *,
                               const pgp_pubkey_t *,
                               const uint8_t *);
 unsigned pgp_check_hash_sig(pgp_hash_t *, const pgp_sig_t *, const pgp_pubkey_t *);
-void     pgp_sig_start_key_sig(pgp_create_sig_t *,
-                           const pgp_pubkey_t *,
-                           const uint8_t *,
-                           pgp_sig_type_t,
-                           pgp_hash_alg_t);
+void     pgp_sig_start_key_sig(
+  pgp_create_sig_t *, const pgp_pubkey_t *, const uint8_t *, pgp_sig_type_t, pgp_hash_alg_t);
 void pgp_sig_start_subkey_sig(pgp_create_sig_t *,
                               const pgp_pubkey_t *,
                               const pgp_pubkey_t *,
