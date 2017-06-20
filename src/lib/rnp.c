@@ -1349,8 +1349,8 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     }
     /* write secret key */
     (void) snprintf(ringfile = filename, sizeof(filename), "%s/secring.gpg", dir);
-    if ((fd = pgp_setup_file_append(NULL, &create, ringfile)) < 0) {
-        fd = pgp_setup_file_write(NULL, &create, ringfile, 0);
+    if ((fd = pgp_setup_file_append(&rnp->ctx, &create, ringfile)) < 0) {
+        fd = pgp_setup_file_write(&rnp->ctx, &create, ringfile, 0);
     }
     if (fd < 0) {
         (void) fprintf(io->errs, "cannot append secring '%s'\n", ringfile);
@@ -1456,13 +1456,11 @@ rnp_sign_file(rnp_t *     rnp,
               const char *userid,
               const char *f,
               char *      out,
-              int         armored,
               int         cleartext,
               int         detached)
 {
     const pgp_key_t *keypair;
     const pgp_key_t *pubkey;
-    const unsigned   overwrite = 1;
     pgp_seckey_t *   seckey;
     const char *     hashalg;
     pgp_io_t *       io;
@@ -1523,26 +1521,24 @@ rnp_sign_file(rnp_t *     rnp,
         hashalg = "sha1";
     }
     if (detached) {
-        ret = pgp_sign_detached(io,
+        ret = pgp_sign_detached(&rnp->ctx,
+                                io,
                                 f,
                                 out,
                                 seckey,
                                 hashalg,
                                 get_birthtime(rnp_getvar(rnp, "birthtime")),
-                                get_duration(rnp_getvar(rnp, "duration")),
-                                (unsigned) armored,
-                                overwrite);
+                                get_duration(rnp_getvar(rnp, "duration")));
     } else {
-        ret = pgp_sign_file(io,
+        ret = pgp_sign_file(&rnp->ctx,
+                            io,
                             f,
                             out,
                             seckey,
                             hashalg,
                             get_birthtime(rnp_getvar(rnp, "birthtime")),
                             get_duration(rnp_getvar(rnp, "duration")),
-                            (unsigned) armored,
-                            (unsigned) cleartext,
-                            overwrite);
+                            (unsigned) cleartext);
     }
     pgp_forget(seckey, sizeof(*seckey));
     return ret;
@@ -1594,7 +1590,6 @@ rnp_sign_memory(rnp_t *        rnp,
                 size_t         size,
                 char *         out,
                 size_t         outsize,
-                const unsigned armored,
                 const unsigned cleartext)
 {
     const pgp_key_t *keypair;
@@ -1659,14 +1654,14 @@ rnp_sign_memory(rnp_t *        rnp,
     if (seckey->pubkey.alg == PGP_PKA_DSA) {
         hashalg = "sha1";
     }
-    signedmem = pgp_sign_buf(io,
+    signedmem = pgp_sign_buf(&rnp->ctx,
+                             io,
                              mem,
                              size,
                              seckey,
                              get_birthtime(rnp_getvar(rnp, "birthtime")),
                              get_duration(rnp_getvar(rnp, "duration")),
                              hashalg,
-                             armored,
                              cleartext);
     if (signedmem) {
         size_t m;

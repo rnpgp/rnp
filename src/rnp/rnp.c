@@ -312,7 +312,6 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
                                   cc,
                                   out,
                                   maxsize,
-                                  p->armour,
                                   (p->cmd == CLEARSIGN) ? cleartext : !cleartext);
             ret = show_output(out, ret, "Bad memory signature");
             free(in);
@@ -324,7 +323,6 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
                              rnp_getvar(rnp, "userid"),
                              f,
                              p->output,
-                             p->armour,
                              (p->cmd == CLEARSIGN) ? cleartext : !cleartext,
                              p->detached);
     case VERIFY:

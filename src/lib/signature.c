@@ -924,6 +924,7 @@ open_output_file(rnp_ctx_t *ctx,
 /**
 \ingroup HighLevel_Sign
 \brief Sign a file
+\param ctx Operation context
 \param inname Input filename
 \param outname Output filename. If NULL, a name is constructed from the input filename.
 \param seckey Secret Key to use for signing
@@ -933,18 +934,16 @@ open_output_file(rnp_ctx_t *ctx,
 
 */
 unsigned
-pgp_sign_file(pgp_io_t *          io,
+pgp_sign_file(rnp_ctx_t *         ctx,
+              pgp_io_t *          io,
               const char *        inname,
               const char *        outname,
               const pgp_seckey_t *seckey,
               const char *        hashname,
               const int64_t       from,
               const uint64_t      duration,
-              const unsigned      armored,
-              const unsigned      cleartext,
-              const unsigned      overwrite)
+              const unsigned      cleartext)
 {
-    rnp_ctx_t *       ctx;
     pgp_create_sig_t *sig;
     pgp_sig_type_t    sig_type;
     pgp_hash_alg_t    hash_alg;
@@ -961,7 +960,6 @@ pgp_sign_file(pgp_io_t *          io,
     output = NULL;
     hash = NULL;
     fd_out = 0;
-    ctx = NULL;//rnp_cur_ctx();
 
     /* find the hash algorithm */
     hash_alg = pgp_str_to_hash_alg(hashname);
@@ -977,7 +975,7 @@ pgp_sign_file(pgp_io_t *          io,
     }
 
     /* setup output file */
-    fd_out = open_output_file(ctx, &output, inname, outname, (armored) ? "asc" : "gpg", overwrite);
+    fd_out = open_output_file(ctx, &output, inname, outname, (ctx->armour) ? "asc" : "gpg", ctx->overwrite);
     if (fd_out < 0) {
         pgp_memory_free(infile);
         return 0;
@@ -1024,7 +1022,7 @@ pgp_sign_file(pgp_io_t *          io,
         }
     } else {
         /* set armoured/not armoured here */
-        if (armored) {
+        if (ctx->armour) {
             pgp_writer_push_armor_msg(output);
         }
 
@@ -1069,23 +1067,21 @@ pgp_sign_file(pgp_io_t *          io,
 \param input_len Length of input text
 \param sig_type Signature type
 \param seckey Secret Key
-\param armored Write armoured text, if set
 \return New pgp_memory_t struct containing signed text
 \note It is the caller's responsibility to call pgp_memory_free(me)
 
 */
 pgp_memory_t *
-pgp_sign_buf(pgp_io_t *          io,
+pgp_sign_buf(rnp_ctx_t *         ctx,
+             pgp_io_t *          io,
              const void *        input,
              const size_t        insize,
              const pgp_seckey_t *seckey,
              const int64_t       from,
              const uint64_t      duration,
              const char *        hashname,
-             const unsigned      armored,
              const unsigned      cleartext)
 {
-    rnp_ctx_t *       ctx;
     pgp_litdata_enum  ld_type;
     pgp_create_sig_t *sig;
     pgp_sig_type_t    sig_type;
@@ -1102,7 +1098,6 @@ pgp_sign_buf(pgp_io_t *          io,
     mem = pgp_memory_new();
     hash = NULL;
     ret = 0;
-    ctx = NULL;//rnp_cur_ctx();
 
     hash_alg = pgp_str_to_hash_alg(hashname);
     if (hash_alg == PGP_HASH_UNKNOWN) {
@@ -1148,7 +1143,7 @@ pgp_sign_buf(pgp_io_t *          io,
         pgp_create_sig_delete(sig);
     } else {
         /* set armoured/not armoured here */
-        if (armored) {
+        if (ctx->armour) {
             pgp_writer_push_armor_msg(output);
         }
         if (rnp_get_debug(__FILE__)) {
@@ -1193,25 +1188,21 @@ pgp_sign_buf(pgp_io_t *          io,
 
 /* sign a file, and put the signature in a separate file */
 int
-pgp_sign_detached(pgp_io_t *     io,
+pgp_sign_detached(rnp_ctx_t *    ctx,
+                  pgp_io_t *     io,
                   const char *   f,
                   char *         sigfile,
                   pgp_seckey_t * seckey,
                   const char *   hash,
                   const int64_t  from,
-                  const uint64_t duration,
-                  const unsigned armored,
-                  const unsigned overwrite)
+                  const uint64_t duration)
 {
-    rnp_ctx_t *       ctx;    
     pgp_create_sig_t *sig;
     pgp_hash_alg_t    hash_alg;
     pgp_output_t *    output;
     pgp_memory_t *    mem;
     uint8_t           keyid[PGP_KEY_ID_SIZE];
     int               fd;
-
-    ctx = NULL;//rnp_cur_ctx();
 
     /* find out which hash algorithm to use */
     hash_alg = pgp_str_to_hash_alg(hash);
@@ -1221,7 +1212,7 @@ pgp_sign_detached(pgp_io_t *     io,
     }
 
     /* setup output file */
-    fd = open_output_file(ctx, &output, f, sigfile, (armored) ? "asc" : "sig", overwrite);
+    fd = open_output_file(ctx, &output, f, sigfile, (ctx->armour) ? "asc" : "sig", ctx->overwrite);
     if (fd < 0) {
         (void) fprintf(io->errs, "Can't open output file: %s\n", f);
         return 0;
@@ -1238,7 +1229,7 @@ pgp_sign_detached(pgp_io_t *     io,
         return 0;
     }
     /* set armoured/not armoured here */
-    if (armored) {
+    if (ctx->armour) {
         pgp_writer_push_armor_msg(output);
     }
     pgp_sig_add_data(sig, pgp_mem_data(mem), pgp_mem_len(mem));

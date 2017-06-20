@@ -116,12 +116,11 @@ int   rnp_generate_key(rnp_t *, char *, int);
 /* file management */
 int rnp_encrypt_file(rnp_t *, const char *, const char *, char *);
 int rnp_decrypt_file(rnp_t *, const char *, char *, int);
-int rnp_sign_file(rnp_t *, const char *, const char *, char *, int, int, int);
+int rnp_sign_file(rnp_t *, const char *, const char *, char *, int, int);
 int rnp_verify_file(rnp_t *, const char *, const char *, int);
 
 /* memory signing and encryption */
-int rnp_sign_memory(
-  rnp_t *, const char *, char *, size_t, char *, size_t, const unsigned, const unsigned);
+int rnp_sign_memory(rnp_t *, const char *, char *, size_t, char *, size_t, const unsigned);
 int rnp_verify_memory(rnp_t *, const void *, const size_t, void *, size_t, const int);
 int rnp_encrypt_memory(rnp_t *, const char *, void *, const size_t, char *, size_t);
 int rnp_decrypt_memory(rnp_t *, const void *, const size_t, char *, size_t, const int);

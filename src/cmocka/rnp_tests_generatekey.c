@@ -87,6 +87,8 @@ rnpkeys_generatekey_testSignature(void **state)
                     continue;
                 }
 
+                rnp.ctx.armour = armored;
+
                 close(pipefd[0]);
                 /* Setup the pass phrase fd to avoid user-input*/
                 assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -100,7 +102,6 @@ rnpkeys_generatekey_testSignature(void **state)
                                          strlen(memToSign) - skip_null,
                                          signatureBuf,
                                          sizeof(signatureBuf),
-                                         armored,
                                          cleartext);
 
                 assert_int_not_equal(retVal, 0); // Ensure signature operation succeeded
