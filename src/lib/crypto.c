@@ -86,6 +86,31 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "../common/utils.h"
 
 /**
+ * EC Curves definition used by implementation
+ *
+ * \see RFC4880 bis01 - 9.2. ECC Curve OID
+ *
+ * Order of the elements in this array corresponds to
+ * values in pgp_curve_t enum.
+ */
+// TODO: Check size of this array against PGP_CURVE_MAX with static assert
+const ec_curve_desc_t ec_curves[] = {
+  {PGP_CURVE_NIST_P_256,
+   256,
+   {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07},
+   8,
+   "secp256r1",
+   "NIST P-256"},
+  {PGP_CURVE_NIST_P_384, 384, {0x2B, 0x81, 0x04, 0x00, 0x22}, 5, "secp384r1", "NIST P-384"},
+  {PGP_CURVE_NIST_P_521, 521, {0x2B, 0x81, 0x04, 0x00, 0x23}, 5, "secp521r1", "NIST P-521"},
+  {PGP_CURVE_ED25519,
+   255,
+   {0x2b, 0x06, 0x01, 0x04, 0x01, 0xda, 0x47, 0x0f, 0x01},
+   9,
+   "Ed25519",
+   "Curve 25519"}};
+
+/**
 \ingroup Core_MPI
 \brief Decrypt and unencode MPI
 \param buf Buffer in which to write decrypted unencoded MPI
@@ -200,11 +225,7 @@ pgp_elgamal_encrypt_mpi(const uint8_t *          encoded_m_buf,
 }
 
 pgp_key_t *
-pgp_generate_keypair(pgp_pubkey_alg_t alg,
-                     const int        alg_params,
-                     const uint8_t *  userid,
-                     const char *     hashalg,
-                     const char *     cipher)
+pgp_generate_keypair(const generate_key_ctx_t *key_desc, const uint8_t *userid)
 {
     pgp_seckey_t *seckey = NULL;
     pgp_output_t *output = NULL;
@@ -225,33 +246,19 @@ pgp_generate_keypair(pgp_pubkey_alg_t alg,
     seckey->pubkey.version = PGP_V4;
     seckey->pubkey.birthtime = time(NULL);
     seckey->pubkey.days_valid = 0;
-    seckey->pubkey.alg = alg;
-
-    if ((seckey->hash_alg = pgp_str_to_hash_alg(hashalg)) == PGP_HASH_UNKNOWN) {
-        // TODO: Shouldn't it be PGP_DEFAULT_HASH_ALGORITHM ?
-        seckey->hash_alg = PGP_HASH_SHA1;
-    }
+    seckey->pubkey.alg = key_desc->key_alg;
+    seckey->hash_alg =
+      (PGP_HASH_UNKNOWN == key_desc->hash_alg) ? PGP_HASH_SHA1 : key_desc->hash_alg;
 
     if (seckey->pubkey.alg == PGP_PKA_RSA || seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
         seckey->pubkey.alg == PGP_PKA_RSA_SIGN_ONLY) {
-        if (pgp_genkey_rsa(seckey, alg_params) != 1)
+        if (pgp_genkey_rsa(seckey, key_desc->rsa.modulus_bit_len) != 1)
             goto end;
     } else if (seckey->pubkey.alg == PGP_PKA_EDDSA) {
-        if (pgp_genkey_eddsa(seckey, alg_params) != 1)
+        if (pgp_genkey_eddsa(seckey, ec_curves[PGP_CURVE_ED25519].bitlen) != 1)
             goto end;
     } else if (seckey->pubkey.alg == PGP_PKA_ECDSA) {
-        // TODO: To be refactored with #130
-        seckey->pubkey.key.ecc.curve =
-          (alg_params == 256) ?
-            PGP_CURVE_NIST_P_256 :
-            (alg_params == 384) ? PGP_CURVE_NIST_P_384 : PGP_CURVE_NIST_P_521;
-
-        const pgp_curve_t curve = seckey->pubkey.key.ecc.curve;
-        seckey->hash_alg = (curve == PGP_CURVE_NIST_P_256) ?
-                             PGP_HASH_SHA256 :
-                             (curve == PGP_CURVE_NIST_P_384) ?
-                             PGP_HASH_SHA384 :
-                             /*(curve == PGP_CURVE_NIST_P_256 )*/ PGP_HASH_SHA512;
+        seckey->pubkey.key.ecc.curve = key_desc->ecc.curve;
         if (pgp_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK)
             goto end;
     } else {
@@ -261,8 +268,8 @@ pgp_generate_keypair(pgp_pubkey_alg_t alg,
     seckey->s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
     seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
     seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
-    seckey->alg = pgp_str_to_cipher(cipher);
-    pgp_random(&seckey->iv[0], pgp_block_size(seckey->alg));    
+    seckey->alg = key_desc->sym_alg;
+    pgp_random(&seckey->iv[0], pgp_block_size(seckey->alg));
     seckey->checksum = 0;
 
     if (pgp_keyid(

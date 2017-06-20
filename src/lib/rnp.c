@@ -249,7 +249,7 @@ keydir(rnp_t *rnp, char *buffer, size_t buffer_size)
 }
 
 /* find the name in the array */
-static int
+int
 findvar(rnp_t *rnp, const char *name)
 {
     unsigned i;
@@ -1240,11 +1240,17 @@ rnp_import_key(rnp_t *rnp, char *f)
     return rnp_key_store_list(io, rnp->pubring, 0);
 }
 
+static uint32_t get_numbits(const rnp_t* rnp) {
+    return 0;
+}
+
 /* generate a new key */
 /* TODO: Does this need to take into account SSH keys? */
 int
-rnp_generate_key(rnp_t *rnp, char *id, int numbits)
+rnp_generate_key(rnp_t *rnp, const char *id)
 {
+    RNP_MSG("Generating a new key...\n");
+
     pgp_output_t * create;
     const unsigned noarmor = 0;
     pgp_key_t *    key;
@@ -1266,23 +1272,18 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
 
     io = rnp->io;
 
-    const pgp_pubkey_alg_t alg = ((numbits == 256) || (numbits == 384) || (numbits == 521)) ?
-                                   PGP_PKA_ECDSA :
-                                   (numbits == 255) ? PGP_PKA_EDDSA : PGP_PKA_RSA;
-
     /* generate a new key */
     if (id) {
         snprintf(newid, sizeof(newid), "%s", id);
     } else {
         snprintf(
           newid, sizeof(newid), "%s %d-bit key <%s@localhost>",
-          pgp_show_pka(alg), numbits, getenv("LOGNAME"));
+          pgp_show_pka(rnp->action.generate_key_ctx.key_alg),
+          get_numbits(rnp), getenv("LOGNAME"));
     }
     uid = (uint8_t *) newid;
 
-    key = pgp_generate_keypair(
-      alg, numbits, uid, rnp_getvar(rnp, "hash"), rnp_getvar(rnp, "cipher"));
-
+    key = pgp_generate_keypair(&rnp->action.generate_key_ctx, uid);
     if (key == NULL) {
         (void) fprintf(io->errs, "cannot generate key\n");
         return 0;
@@ -1316,7 +1317,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
         (void) fprintf(io->errs, "cannot write pubkey to '%s'\n", ringfile);
         goto out;
     }
-    if (rnp->pubring != NULL) {
+    if (rnp->pubring) {
         rnp_key_store_free(rnp->pubring);
         free(rnp->pubring);
         rnp->pubring = NULL;

@@ -26,6 +26,7 @@
 #ifndef __RNP__UTILS_H__
 #define __RNP__UTILS_H__
 
+#define RNP_MSG(msg) (void) fprintf(stdout, msg);
 #define RNP_LOG(msg) (void) fprintf(stderr, "%s:%d:%s " msg "\n", __FILE__, __LINE__, __func__)
 
 #define CHECK(exp, val, err)                          \
@@ -36,5 +37,7 @@
             goto end;                                 \
         }                                             \
     } while (false)
+
+#define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
 
 #endif

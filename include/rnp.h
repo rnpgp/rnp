@@ -32,6 +32,7 @@
 #define RNP_H_
 
 #include <stddef.h>
+#include "packet.h"
 
 #ifndef __BEGIN_DECLS
 #if defined(__cplusplus)
@@ -59,6 +60,9 @@ typedef struct rnp_t {
     void *   passfp;  /* file pointer for password input */
 
     enum keyring_format_t keyring_format; /* keyring format */
+    union {
+        generate_key_ctx_t generate_key_ctx;
+    } action;
 } rnp_t;
 
 /* begin and end */
@@ -76,6 +80,7 @@ int   rnp_setvar(rnp_t *, const char *, const char *);
 char *rnp_getvar(rnp_t *, const char *);
 int   rnp_incvar(rnp_t *, const char *, const int);
 int   rnp_unsetvar(rnp_t *, const char *);
+int findvar(rnp_t *rnp, const char *name);
 
 /* set keyring format information */
 int rnp_set_keyring_format(rnp_t *, char *);
@@ -91,7 +96,7 @@ int   rnp_find_key(rnp_t *, char *);
 char *rnp_get_key(rnp_t *, const char *, const char *);
 char *rnp_export_key(rnp_t *, char *);
 int   rnp_import_key(rnp_t *, char *);
-int   rnp_generate_key(rnp_t *, char *, int);
+int   rnp_generate_key(rnp_t *, const char *);
 
 /* file management */
 int rnp_encrypt_file(rnp_t *, const char *, const char *, char *, int);

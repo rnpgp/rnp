@@ -34,19 +34,6 @@
 #include "packet.h"
 
 /* -----------------------------------------------------------------------------
- * @brief   Finds curve ID by hex representation of OID
- *
- * @param   oid       buffer with OID in hex
- * @param   oid_len   length of oid buffer
- *
- * @returns success curve ID
- *          failure PGP_CURVE_MAX is returned
- *
- * @remarks see RFC 4880 bis 01 - 9.2 ECC Curve OID
--------------------------------------------------------------------------------- */
-pgp_curve_t find_curve_by_OID(const uint8_t *oid, size_t oid_len);
-
-/* -----------------------------------------------------------------------------
  * @brief   Serialize ECDSA public to octet string
  *
  * @param   output      generated output
@@ -59,7 +46,7 @@ pgp_curve_t find_curve_by_OID(const uint8_t *oid, size_t oid_len);
  *
  * @remarks see RFC 4880 bis 01 - 5.5.2 Public-Key Packet Formats
 -------------------------------------------------------------------------------- */
-pgp_errcode_t ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey);
+pgp_errcode_t ecdsa_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey);
 
 /* -----------------------------------------------------------------------------
  * @brief   Generate ECDSA keypair
