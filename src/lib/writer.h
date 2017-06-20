@@ -79,6 +79,7 @@ struct pgp_writer_t {
     void *                  arg;       /* writer-specific argument */
     pgp_writer_t *          next;      /* next writer in the stack */
     pgp_io_t *              io;        /* IO for errors and output */
+    rnp_ctx_t *             ctx;       /* Operation context */
 };
 
 void *pgp_writer_get_arg(pgp_writer_t *);

@@ -269,7 +269,10 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
     int        ret;
     int        cc;
 
+    /* operation context initialization: writing all additional parameters */
+    rnp_ctx_reset(&rnp->ctx);
     rnp->ctx.armour = p->armour;
+    rnp->ctx.overwrite = p->overwrite;
     if (f) {
         rnp->ctx.filename = strdup(rnp_filename(f));
         rnp->ctx.filemtime = rnp_filemtime(f);

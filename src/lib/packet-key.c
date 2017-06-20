@@ -485,7 +485,7 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
      */
 
     /* create userid pkt */
-    pgp_setup_memory_write(&useridoutput, &mem_userid, 128);
+    pgp_setup_memory_write(NULL, &useridoutput, &mem_userid, 128);
     pgp_write_struct_userid(useridoutput, userid);
 
     /* create sig for this pkt */
@@ -496,7 +496,7 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
     pgp_add_primary_userid(sig, 1);
     pgp_end_hashed_subpkts(sig);
 
-    pgp_setup_memory_write(&sigoutput, &mem_sig, 128);
+    pgp_setup_memory_write(NULL, &sigoutput, &mem_sig, 128);
     pgp_write_sig(sigoutput, sig, &key->key.seckey.pubkey, &key->key.seckey);
 
     /* add this packet to key */

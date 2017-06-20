@@ -273,7 +273,7 @@ pgp_generate_keypair(pgp_pubkey_alg_t alg,
         goto end;
 
     /* Generate checksum */
-    pgp_setup_memory_write(&output, &mem, 128);
+    pgp_setup_memory_write(NULL, &output, &mem, 128);
     pgp_push_checksum_writer(output, seckey);
 
     if (seckey->pubkey.alg == PGP_PKA_RSA || seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
@@ -403,7 +403,7 @@ pgp_encrypt_file(rnp_ctx_t *      ctx,
         pgp_memory_free(inmem);
         return 0;
     }
-    fd_out = pgp_setup_file_write(&output, outfile, ctx->overwrite);
+    fd_out = pgp_setup_file_write(ctx, &output, outfile, ctx->overwrite);
     if (fd_out < 0) {
         pgp_memory_free(inmem);
         return 0;
@@ -447,7 +447,7 @@ pgp_encrypt_buf(rnp_ctx_t *      ctx,
         return 0;
     }
 
-    pgp_setup_memory_write(&output, &outmem, insize);
+    pgp_setup_memory_write(ctx, &output, &outmem, insize);
 
     /* set armoured/not armoured here */
     if (ctx->armour) {
@@ -507,7 +507,7 @@ pgp_decrypt_file(pgp_io_t *       io,
     }
     /* setup output filename */
     if (outfile) {
-        fd_out = pgp_setup_file_write(&parse->cbinfo.output, outfile, allow_overwrite);
+        fd_out = pgp_setup_file_write(NULL, &parse->cbinfo.output, outfile, allow_overwrite);
         if (fd_out < 0) {
             perror(outfile);
             pgp_teardown_file_read(parse, fd_in);
@@ -530,7 +530,7 @@ pgp_decrypt_file(pgp_io_t *       io,
             filename[filenamelen] = 0x0;
         }
 
-        fd_out = pgp_setup_file_write(&parse->cbinfo.output, filename, allow_overwrite);
+        fd_out = pgp_setup_file_write(NULL, &parse->cbinfo.output, filename, allow_overwrite);
         if (fd_out < 0) {
             perror(filename);
             free(filename);
@@ -611,7 +611,7 @@ pgp_decrypt_buf(pgp_io_t *       io,
     pgp_setup_memory_read(io, &parse, inmem, NULL, write_parsed_cb, 0);
 
     /* setup for writing decrypted contents to given output file */
-    pgp_setup_memory_write(&parse->cbinfo.output, &outmem, insize);
+    pgp_setup_memory_write(NULL, &parse->cbinfo.output, &outmem, insize);
 
     /* setup keyring and passphrase callback */
     parse->cbinfo.cryptinfo.secring = secring;

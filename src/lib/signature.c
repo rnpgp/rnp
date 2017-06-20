@@ -888,7 +888,8 @@ pgp_sig_get_hash(pgp_create_sig_t *sig)
 
 /* open up an output file */
 static int
-open_output_file(pgp_output_t **output,
+open_output_file(rnp_ctx_t *ctx,
+                 pgp_output_t **output,
                  const char *   inname,
                  const char *   outname,
                  const char *   suffix,
@@ -898,11 +899,11 @@ open_output_file(pgp_output_t **output,
 
     /* setup output file */
     if (outname) {
-        fd = pgp_setup_file_write(output, outname, overwrite);
+        fd = pgp_setup_file_write(ctx, output, outname, overwrite);
         if (strcmp(outname, "-") == 0) {
-            fd = pgp_setup_file_write(output, NULL, overwrite);
+            fd = pgp_setup_file_write(ctx, output, NULL, overwrite);
         } else {
-            fd = pgp_setup_file_write(output, outname, overwrite);
+            fd = pgp_setup_file_write(ctx, output, outname, overwrite);
         }
     } else {
         size_t flen = strlen(inname) + 1 + strlen(suffix) + 1;
@@ -913,7 +914,7 @@ open_output_file(pgp_output_t **output,
             fd = -1;
         } else {
             (void) snprintf(f, flen, "%s.%s", inname, suffix);
-            fd = pgp_setup_file_write(output, f, overwrite);
+            fd = pgp_setup_file_write(ctx, output, f, overwrite);
             free(f);
         }
     }
@@ -976,7 +977,7 @@ pgp_sign_file(pgp_io_t *          io,
     }
 
     /* setup output file */
-    fd_out = open_output_file(&output, inname, outname, (armored) ? "asc" : "gpg", overwrite);
+    fd_out = open_output_file(ctx, &output, inname, outname, (armored) ? "asc" : "gpg", overwrite);
     if (fd_out < 0) {
         pgp_memory_free(infile);
         return 0;
@@ -1126,7 +1127,7 @@ pgp_sign_buf(pgp_io_t *          io,
     pgp_start_sig(sig, seckey, hash_alg, sig_type);
 
     /* setup writer */
-    pgp_setup_memory_write(&output, &mem, insize);
+    pgp_setup_memory_write(ctx, &output, &mem, insize);
 
     if (cleartext) {
         /* Do the signing */
@@ -1206,12 +1207,15 @@ pgp_sign_detached(pgp_io_t *     io,
                   const unsigned armored,
                   const unsigned overwrite)
 {
+    rnp_ctx_t *       ctx;    
     pgp_create_sig_t *sig;
     pgp_hash_alg_t    hash_alg;
     pgp_output_t *    output;
     pgp_memory_t *    mem;
     uint8_t           keyid[PGP_KEY_ID_SIZE];
     int               fd;
+
+    ctx = NULL;//rnp_cur_ctx();
 
     /* find out which hash algorithm to use */
     hash_alg = pgp_str_to_hash_alg(hash);
@@ -1221,7 +1225,7 @@ pgp_sign_detached(pgp_io_t *     io,
     }
 
     /* setup output file */
-    fd = open_output_file(&output, f, sigfile, (armored) ? "asc" : "sig", overwrite);
+    fd = open_output_file(ctx, &output, f, sigfile, (armored) ? "asc" : "sig", overwrite);
     if (fd < 0) {
         (void) fprintf(io->errs, "Can't open output file: %s\n", f);
         return 0;

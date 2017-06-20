@@ -80,8 +80,9 @@ typedef struct rnp_t {
 int rnp_init(rnp_t *);
 int rnp_end(rnp_t *);
 
-/* init and free rnp operation context */
+/* init, reset and free rnp operation context */
 int rnp_ctx_init(rnp_ctx_t *);
+void rnp_ctx_reset(rnp_ctx_t *);
 void rnp_ctx_free(rnp_ctx_t *);
 
 /* debugging, reflection and information */

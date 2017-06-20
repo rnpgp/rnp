@@ -84,7 +84,7 @@ void     pgp_push_checksum_writer(pgp_output_t *, pgp_seckey_t *);
 unsigned pgp_pop_skey_checksum_writer(pgp_output_t *);
 
 /* memory writing */
-void pgp_setup_memory_write(pgp_output_t **, pgp_memory_t **, size_t);
+void pgp_setup_memory_write(rnp_ctx_t *, pgp_output_t **, pgp_memory_t **, size_t);
 void pgp_teardown_memory_write(pgp_output_t *, pgp_memory_t *);
 
 /* memory reading */
@@ -97,11 +97,11 @@ void pgp_setup_memory_read(pgp_io_t *,
 void pgp_teardown_memory_read(pgp_stream_t *, pgp_memory_t *);
 
 /* file writing */
-int  pgp_setup_file_write(pgp_output_t **, const char *, unsigned);
+int  pgp_setup_file_write(rnp_ctx_t *, pgp_output_t **, const char *, unsigned);
 void pgp_teardown_file_write(pgp_output_t *, int);
 
 /* file appending */
-int  pgp_setup_file_append(pgp_output_t **, const char *);
+int  pgp_setup_file_append(rnp_ctx_t *, pgp_output_t **, const char *);
 void pgp_teardown_file_append(pgp_output_t *, int);
 
 /* file reading */

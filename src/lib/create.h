@@ -69,6 +69,7 @@
 struct pgp_output_t {
     pgp_writer_t writer;
     pgp_error_t *errors; /* error stack */
+    rnp_ctx_t *ctx; /* current operation context */
 };
 
 pgp_output_t *pgp_output_new(void);

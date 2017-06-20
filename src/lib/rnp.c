@@ -361,8 +361,8 @@ appendkey(pgp_io_t *io, pgp_key_t *key, char *ringfile)
     const unsigned noarmor = 0;
     int            fd;
 
-    if ((fd = pgp_setup_file_append(&create, ringfile)) < 0) {
-        fd = pgp_setup_file_write(&create, ringfile, 0);
+    if ((fd = pgp_setup_file_append(NULL, &create, ringfile)) < 0) {
+        fd = pgp_setup_file_write(NULL, &create, ringfile, 0);
     }
     if (fd < 0) {
         (void) fprintf(io->errs, "cannot open pubring '%s'\n", ringfile);
@@ -1005,12 +1005,19 @@ rnp_end(rnp_t *rnp)
     return 1;
 }
 
-/* rnp_ctx_t functions */
+/* rnp_ctx_t : init, reset, free internal pointers */
 int
 rnp_ctx_init(rnp_ctx_t *ctx)
 {
-    memset(&ctx, '\0', sizeof(ctx));
+    memset((void *) ctx, '\0', sizeof(ctx));
     return 0;
+}
+
+void
+rnp_ctx_reset(rnp_ctx_t *ctx)
+{
+    rnp_ctx_free(ctx);
+    memset((void *) ctx, '\0', sizeof(ctx));
 }
 
 /* free operation context */
@@ -1342,8 +1349,8 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     }
     /* write secret key */
     (void) snprintf(ringfile = filename, sizeof(filename), "%s/secring.gpg", dir);
-    if ((fd = pgp_setup_file_append(&create, ringfile)) < 0) {
-        fd = pgp_setup_file_write(&create, ringfile, 0);
+    if ((fd = pgp_setup_file_append(NULL, &create, ringfile)) < 0) {
+        fd = pgp_setup_file_write(NULL, &create, ringfile, 0);
     }
     if (fd < 0) {
         (void) fprintf(io->errs, "cannot append secring '%s'\n", ringfile);

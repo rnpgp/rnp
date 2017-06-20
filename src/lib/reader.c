@@ -1827,6 +1827,7 @@ pgp_reader_set_memory(pgp_stream_t *stream, const void *buffer, size_t length)
 /**
  \ingroup Core_Writers
  \brief Create and initialise output and mem; Set for writing to mem
+ \param ctx Operation context, may be NULL
  \param output Address where new output pointer will be set
  \param mem Address when new mem pointer will be set
  \param bufsz Initial buffer size (will automatically be increased when necessary)
@@ -1834,7 +1835,7 @@ pgp_reader_set_memory(pgp_stream_t *stream, const void *buffer, size_t length)
  \sa pgp_teardown_memory_write()
 */
 void
-pgp_setup_memory_write(pgp_output_t **output, pgp_memory_t **mem, size_t bufsz)
+pgp_setup_memory_write(rnp_ctx_t *ctx, pgp_output_t **output, pgp_memory_t **mem, size_t bufsz)
 {
     /*
      * initialise needed structures for writing to memory
@@ -1843,8 +1844,8 @@ pgp_setup_memory_write(pgp_output_t **output, pgp_memory_t **mem, size_t bufsz)
     *output = pgp_output_new();
     *mem = pgp_memory_new();
 
+    (*output)->ctx = ctx;
     pgp_memory_init(*mem, bufsz);
-
     pgp_writer_set_memory(*output, *mem);
 }
 
@@ -1911,6 +1912,7 @@ pgp_teardown_memory_read(pgp_stream_t *stream, pgp_memory_t *mem)
 /**
  \ingroup Core_Writers
  \brief Create and initialise output and mem; Set for writing to file
+ \param ctx Operation context, may be null
  \param output Address where new output pointer will be set
  \param filename File to write to
  \param allow_overwrite Allows file to be overwritten, if set.
@@ -1919,7 +1921,7 @@ pgp_teardown_memory_read(pgp_stream_t *stream, pgp_memory_t *mem)
  \sa pgp_teardown_file_write()
 */
 int
-pgp_setup_file_write(pgp_output_t **output, const char *filename, unsigned allow_overwrite)
+pgp_setup_file_write(rnp_ctx_t *ctx, pgp_output_t **output, const char *filename, unsigned allow_overwrite)
 {
     int fd = 0;
     int flags = 0;
@@ -1945,7 +1947,9 @@ pgp_setup_file_write(pgp_output_t **output, const char *filename, unsigned allow
             return fd;
         }
     }
+
     *output = pgp_output_new();
+    (*output)->ctx = ctx;
     pgp_writer_set_fd(*output, fd);
     return fd;
 }
@@ -1969,7 +1973,7 @@ pgp_teardown_file_write(pgp_output_t *output, int fd)
    \brief As pgp_setup_file_write, but appends to file
 */
 int
-pgp_setup_file_append(pgp_output_t **output, const char *filename)
+pgp_setup_file_append(rnp_ctx_t *ctx, pgp_output_t **output, const char *filename)
 {
     int fd;
 
@@ -1983,6 +1987,7 @@ pgp_setup_file_append(pgp_output_t **output, const char *filename)
 #endif
     if (fd >= 0) {
         *output = pgp_output_new();
+        (*output)->ctx = ctx;
         pgp_writer_set_fd(*output, fd);
     }
     return fd;

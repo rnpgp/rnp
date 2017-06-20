@@ -1720,7 +1720,7 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
     char *        cp;
 
     __PGP_USED(io);
-    pgp_setup_memory_write(&output, &mem, 128);
+    pgp_setup_memory_write(NULL, &output, &mem, 128);
 
     if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
         pgp_write_xfer_pubkey(output, keydata, NULL, 1);
