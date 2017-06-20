@@ -1037,9 +1037,7 @@ encrypt_se_ip_writer(const uint8_t *src,
     pgp_write_litdata(litoutput,
                       src,
                       (const int) len,
-                      PGP_LDT_BINARY,
-                      writer->ctx ? writer->ctx->filename : NULL,
-                      writer->ctx ? writer->ctx->filemtime : 0);
+                      PGP_LDT_BINARY);
     if (pgp_mem_len(litmem) <= len) {
         (void) fprintf(stderr, "encrypt_se_ip_writer: bad len\n");
         return 0;
@@ -1455,14 +1453,27 @@ stream_write_litdata_first(pgp_output_t *         output,
                            unsigned               len,
                            const pgp_litdata_enum type)
 {
-    /* \todo add filename  */
-    /* \todo add date */
-    /* \todo do we need to check text data for <cr><lf> line endings ? */
+    /* \todo do we need to check text data for <cr><lf> line endings ? - Yes, we need.
+    For non-PGP_LDT_BINARY we should convert line endings to the canonical CRLF style. */
 
     unsigned sz_towrite;
     size_t   sz_pd;
+    char *   fname = NULL;
+    int64_t  mtime = 0;
+    unsigned flen = 0;
 
-    sz_towrite = 1 + 1 + 4 + len;
+    /* checking whether filename and modification time are available */
+    if (output->ctx) {
+        fname = output->ctx->filename;
+        mtime = output->ctx->filemtime;
+        flen = fname ? strlen(fname) : 0;
+        if (flen > 255) {
+            (void) fprintf(stderr, "stream_write_litdata_first : filename %s too long\n", fname);
+            return 0;
+        }            
+    }
+
+    sz_towrite = 1 + 1 + flen + 4 + len;
     sz_pd = (size_t) partial_data_len(sz_towrite);
     if (sz_pd < 512) {
         (void) fprintf(stderr, "stream_write_litdata_first: bad sz_pd\n");
@@ -1471,8 +1482,11 @@ stream_write_litdata_first(pgp_output_t *         output,
     pgp_write_ptag(output, PGP_PTAG_CT_LITDATA);
     write_partial_len(output, (unsigned) sz_pd);
     pgp_write_scalar(output, (unsigned) type, 1);
-    pgp_write_scalar(output, 0, 1);
-    pgp_write_scalar(output, 0, 4);
+    pgp_write_scalar(output, flen, 1);
+    if (flen > 0) {
+        pgp_write(output, fname, flen);
+    }
+    pgp_write_scalar(output, mtime, 4);
     pgp_write(output, data, (unsigned) (sz_pd - 6));
 
     data += (sz_pd - 6);
@@ -1678,9 +1692,7 @@ str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
         pgp_write_litdata(se_ip->litoutput,
                           pgp_mem_data(se_ip->mem_data),
                           (const int) pgp_mem_len(se_ip->mem_data),
-                          PGP_LDT_BINARY,
-                          writer->ctx ? writer->ctx->filename : NULL,
-                          writer->ctx ? writer->ctx->filemtime : 0);
+                          PGP_LDT_BINARY);
 
         /* create SE IP packet set from this literal data */
         pgp_write_se_ip_pktset(se_ip->se_ip_out,

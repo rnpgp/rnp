@@ -1039,9 +1039,7 @@ pgp_sign_file(pgp_io_t *          io,
         pgp_write_litdata(output,
                           pgp_mem_data(infile),
                           (const int) pgp_mem_len(infile),
-                          PGP_LDT_BINARY,
-                          ctx ? ctx->filename : NULL,
-                          ctx ? ctx->filemtime : 0);
+                          PGP_LDT_BINARY);
 
         /* add creation time to signature */
         pgp_add_time(sig, (int64_t) from, "birth");
@@ -1170,9 +1168,7 @@ pgp_sign_buf(pgp_io_t *          io,
         pgp_write_litdata(output,
                           input,
                           (const int) insize,
-                          ld_type,
-                          ctx ? ctx->filename : NULL,
-                          ctx ? ctx->filemtime : 0);
+                          ld_type);
         if (rnp_get_debug(__FILE__)) {
             fprintf(stderr, "** After Writing out data now\n");
         }

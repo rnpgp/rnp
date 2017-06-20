@@ -1045,31 +1045,34 @@ pgp_write_mdc(pgp_output_t *output, const uint8_t *hashed)
 \param data Buffer to write out
 \param maxlen Max length of buffer
 \param type Literal Data Type
-\param filename File name to store in the packet. May be NULL
-\param modtime File modification time. May be 0
 \return 1 if OK; else 0
 */
 unsigned
 pgp_write_litdata(pgp_output_t *         output,
                   const uint8_t *        data,
                   const int              maxlen,
-                  const pgp_litdata_enum type,
-                  const char *           filename,
-                  const int64_t          modtime)
+                  const pgp_litdata_enum type)
 {
+    char *   filename = NULL;
+    uint64_t modtime = 0;
+    unsigned flen = 0;
     /* \todo do we need to check text data for <cr><lf> line endings ? - Yes, we need.
     For non-PGP_LDT_BINARY we should convert line endings to the canonical CRLF style. */
 
-    unsigned flen = filename ? strlen(filename) : 0;
-    if (flen > 255) {
-        (void) fprintf(stderr, "pgp_write_litdata : filename %s too long\n", filename);
-        return 0;
+    if (output->ctx) {
+        filename = output->ctx->filename;
+        modtime = output->ctx->filemtime;
+        flen = filename ? strlen(filename) : 0;
+        if (flen > 255) {
+            (void) fprintf(stderr, "pgp_write_litdata : filename %s too long\n", filename);
+            return 0;
+        }
     }
 
     return pgp_write_ptag(output, PGP_PTAG_CT_LITDATA) &&
            pgp_write_length(output, (unsigned) (1 + 1 + flen + 4 + maxlen)) &&
            pgp_write_scalar(output, (unsigned) type, 1) && pgp_write_scalar(output, flen, 1) &&
-           pgp_write(output, filename, flen) && pgp_write_scalar(output, modtime, 4) &&
+           ((flen > 0) ? pgp_write(output, filename, flen) : 1) && pgp_write_scalar(output, modtime, 4) &&
            pgp_write(output, data, (unsigned) maxlen);
 }
 
@@ -1083,13 +1086,11 @@ pgp_write_litdata(pgp_output_t *         output,
 */
 
 unsigned
-pgp_fileread_litdata(rnp_ctx_t *ctx, const char *filename, const pgp_litdata_enum type, pgp_output_t *output)
+pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_output_t *output)
 {
     pgp_memory_t *mem;
     unsigned      ret;
     int           len;
-    const char *  fname;
-    int64_t       mtime;
 
     mem = pgp_memory_new();
     if (!pgp_mem_readfile(mem, filename)) {
@@ -1099,15 +1100,7 @@ pgp_fileread_litdata(rnp_ctx_t *ctx, const char *filename, const pgp_litdata_enu
     }
 
     len = (int) pgp_mem_len(mem);
-    if (ctx) {
-        fname = (const char *) ctx->filename;
-        mtime = ctx->filemtime;
-    } else {
-        fname = NULL;
-        mtime = 0;
-    }
-
-    ret = pgp_write_litdata(output, pgp_mem_data(mem), len, type, fname, mtime);
+    ret = pgp_write_litdata(output, pgp_mem_data(mem), len, type);
     pgp_memory_free(mem);
     return ret;
 }
