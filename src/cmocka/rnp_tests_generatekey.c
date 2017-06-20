@@ -26,6 +26,7 @@
 
 #include <rnp.h>
 #include <rnp_tests_support.h>
+#include "symmetric.h"
 
 void
 rnpkeys_generatekey_testSignature(void **state)

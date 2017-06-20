@@ -42,12 +42,15 @@
 #include <unistd.h>
 
 #include <rnp.h>
+#include <crypto.h>
 
 #include "../common/constants.h"
 
 /*
  * 2048 is the absolute minimum, really - we should really look at
  * bumping this to 4096 or even higher - agc, 20090522
+ *
+ * TODO : Really 2048 is bad default? 4096 seems
  */
 #define DEFAULT_NUMBITS 2048
 
@@ -68,6 +71,7 @@ static const char *usage = "--help OR\n"
                            "where options are:\n"
                            "\t[--cipher=<cipher name>] AND/OR\n"
                            "\t[--coredumps] AND/OR\n"
+                           "\t[--expert] AND/OR\n"
                            "\t[--hash=<hash alg>] AND/OR\n"
                            "\t[--homedir=<homedir>] AND/OR\n"
                            "\t[--keyring=<keyring>] AND/OR\n"
@@ -103,6 +107,7 @@ enum optdefs {
     SSHKEYFILE,
     CIPHER,
     FORMAT,
+    EXPERT,
 
     /* debug */
     OPS_DEBUG
@@ -150,8 +155,11 @@ static struct option options[] = {
   {"pass-fd", required_argument, NULL, PASSWDFD},
   {"results", required_argument, NULL, RESULTS},
   {"cipher", required_argument, NULL, CIPHER},
+  {"expert", no_argument, NULL, EXPERT},
   {NULL, 0, NULL, 0},
 };
+
+pgp_errcode_t rnp_generate_key_expert_mode(rnp_t *rnp);
 
 /* gather up program variables into one struct */
 typedef struct prog_t {
@@ -234,10 +242,35 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
         }
         return rnp_import_key(rnp, f);
     case GENERATE_KEY:
-        if ((key = f) == NULL) {
-            key = rnp_getvar(rnp, "userid");
+        key = f ? f : rnp_getvar(rnp, "userid");
+        generate_key_ctx_t *ctx = &rnp->action.generate_key_ctx;
+        if (findvar(rnp, "expert") > 0) {
+            (void) rnp_generate_key_expert_mode(rnp);
+        } else {
+            // OZAPTF: remove 'numbits' option
+            ctx->key_alg = PGP_PKA_RSA;
+            ctx->rsa.modulus_bit_len = DEFAULT_NUMBITS;
         }
-        return rnp_generate_key(rnp, key, p->numbits);
+
+        // Find hash algorithm to use
+        const char *hash_str = rnp_getvar(rnp, "hash");
+        ctx->hash_alg = hash_str ? pgp_str_to_hash_alg(hash_str) : PGP_HASH_UNKNOWN;
+        if (PGP_HASH_UNKNOWN == ctx->hash_alg) {
+            // Use default hash
+            if (ctx->key_alg == PGP_PKA_ECDSA) {
+                ctx->hash_alg = (ctx->ecc.curve == PGP_CURVE_NIST_P_256) ?
+                                  PGP_HASH_SHA256 :
+                                  (ctx->ecc.curve == PGP_CURVE_NIST_P_384) ?
+                                  PGP_HASH_SHA384 :
+                                  /*PGP_CURVE_NIST_P_521*/ PGP_HASH_SHA512;
+            } else {
+                // TODO: Shouldn't it be PGP_DEFAULT_HASH_ALGORITHM ?
+                ctx->hash_alg = PGP_HASH_SHA1;
+            }
+        }
+
+        ctx->sym_alg = pgp_str_to_cipher(rnp_getvar(rnp, "cipher"));
+        return rnp_generate_key(rnp, key);
     case GET_KEY:
         key = rnp_get_key(rnp, f, rnp_getvar(rnp, "format"));
         if (key) {
@@ -266,6 +299,9 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
     case GENERATE_KEY:
         rnp_setvar(rnp, "userid checks", "skip");
         p->cmd = val;
+        break;
+    case EXPERT:
+        rnp_setvar(rnp, "expert", "");
         break;
     case LIST_KEYS:
     case LIST_SIGS:
@@ -424,7 +460,6 @@ main(int argc, char **argv)
 
     rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
     rnp_setvar(&rnp, "res", "<stdout>");
-    rnp_setvar(&rnp, "hash", DEFAULT_HASH_ALG);
     rnp_setvar(&rnp, "format", "human");
 
     optindex = 0;
