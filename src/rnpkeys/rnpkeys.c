@@ -247,9 +247,8 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
         if (findvar(rnp, "expert") > 0) {
             (void) rnp_generate_key_expert_mode(rnp);
         } else {
-            // OZAPTF: remove 'numbits' option
             ctx->key_alg = PGP_PKA_RSA;
-            ctx->rsa.modulus_bit_len = DEFAULT_NUMBITS;
+            ctx->rsa.modulus_bit_len = p->numbits;
         }
 
         // Find hash algorithm to use
