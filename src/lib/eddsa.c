@@ -30,8 +30,6 @@
 #include <botan/ffi.h>
 #include "../common/utils.h"
 
-static const uint8_t ed25519_oid[9] = { 0x2b, 0x06, 0x01 ,0x04, 0x01, 0xda, 0x47, 0x0f, 0x01 };
-
 int pgp_genkey_eddsa(pgp_seckey_t* seckey, size_t curve_len)
    {
    if(curve_len != 255)
@@ -55,9 +53,7 @@ int pgp_genkey_eddsa(pgp_seckey_t* seckey, size_t curve_len)
    // Second 32 bytes are the EdDSA public key
 
    seckey->key.ecc.x = BN_bin2bn(key_bits, 32, NULL);
-   seckey->pubkey.key.ecc.oid_len = sizeof(ed25519_oid);
-   seckey->pubkey.key.ecc.oid = calloc(1, sizeof(ed25519_oid));
-   memcpy(seckey->pubkey.key.ecc.oid, ed25519_oid, sizeof(ed25519_oid));
+   seckey->pubkey.key.ecc.curve = PGP_CURVE_ED25519;
 
    // Hack to insert the required 0x40 prefix on the public key
    key_bits[31] = 0x40;
@@ -83,7 +79,7 @@ int pgp_eddsa_verify_hash(const BIGNUM* r,
    uint8_t bn_buf[64];
 
    // Check curve OID matches 25519
-   if (pubkey->oid_len != 9 || memcmp(pubkey->oid, ed25519_oid, 9) != 0)
+   if (pubkey->curve != PGP_CURVE_ED25519)
       goto done;
 
    // Unexpected size for Ed25519 key
@@ -137,7 +133,7 @@ int pgp_eddsa_sign_hash(BIGNUM* r,
    uint8_t bn_buf[64];
 
    // Check curve OID matches 25519
-   if (pubkey->oid_len != 9 || memcmp(pubkey->oid, ed25519_oid, 9) != 0)
+   if (pubkey->curve != PGP_CURVE_ED25519)
       {
       goto done;
       }
