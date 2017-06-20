@@ -243,7 +243,7 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
         return rnp_import_key(rnp, f);
     case GENERATE_KEY:
         key = f ? f : rnp_getvar(rnp, "userid");
-        generate_key_ctx_t *ctx = &rnp->action.generate_key_ctx;
+        rnp_keygen_desc_t *ctx = &rnp->action.generate_key_ctx;
         if (findvar(rnp, "expert") > 0) {
             (void) rnp_generate_key_expert_mode(rnp);
         } else {

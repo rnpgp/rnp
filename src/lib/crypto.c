@@ -225,7 +225,7 @@ pgp_elgamal_encrypt_mpi(const uint8_t *          encoded_m_buf,
 }
 
 pgp_key_t *
-pgp_generate_keypair(const generate_key_ctx_t *key_desc, const uint8_t *userid)
+pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
 {
     pgp_seckey_t *seckey = NULL;
     pgp_output_t *output = NULL;
