@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eu
 
+[ "$BUILD_MODE" = "style-check" ] && exit 0
+
 CORES="2" && [ -r /proc/cpuinfo ] && CORES=$(grep -c '^$' /proc/cpuinfo)
 
 # botan
