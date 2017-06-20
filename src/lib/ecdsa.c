@@ -52,20 +52,6 @@ find_curve_by_OID(const uint8_t *oid, size_t oid_len)
 }
 
 pgp_errcode_t
-ecdsa_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey)
-{
-    const ec_curve_desc_t *curve = &ec_curves[pubkey->curve];
-
-    if (pgp_write_scalar(output, curve->OIDhex_len, 1) &&
-        pgp_write(output, curve->OIDhex, curve->OIDhex_len) &&
-        pgp_write_mpi(output, pubkey->point)) {
-        return PGP_E_OK;
-    }
-
-    return PGP_E_W_WRITE_FAILED;
-}
-
-pgp_errcode_t
 pgp_ecdsa_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve)
 {
     /**
@@ -280,4 +266,18 @@ end:
     botan_pubkey_destroy(pub);
     botan_pk_op_verify_destroy(verifier);
     return ret;
+}
+
+pgp_errcode_t
+ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey)
+{
+    const ec_curve_desc_t *curve = &ec_curves[pubkey->curve];
+
+    if (pgp_write_scalar(output, curve->OIDhex_len, 1) &&
+        pgp_write(output, curve->OIDhex, curve->OIDhex_len) &&
+        pgp_write_mpi(output, pubkey->point)) {
+        return PGP_E_OK;
+    }
+
+    return PGP_E_W_WRITE_FAILED;
 }
