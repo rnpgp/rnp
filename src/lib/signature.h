@@ -107,7 +107,7 @@ unsigned    pgp_write_sig(pgp_output_t *,
                        pgp_create_sig_t *,
                        const pgp_pubkey_t *,
                        const pgp_seckey_t *);
-unsigned pgp_add_time(pgp_create_sig_t *, int64_t, const char *);
+unsigned pgp_add_time(pgp_create_sig_t *, int64_t, pgp_content_enum);
 unsigned pgp_add_issuer_keyid(pgp_create_sig_t *, const uint8_t *);
 void     pgp_add_primary_userid(pgp_create_sig_t *, unsigned);
 

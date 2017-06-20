@@ -170,6 +170,7 @@ static str2cipher_t str2cipher[] = {{"cast5", PGP_SA_CAST5},
                                     {"idea", PGP_SA_IDEA},
                                     {"blowfish", PGP_SA_BLOWFISH},
                                     {"twofish", PGP_SA_TWOFISH},
+                                    {"sm4", PGP_SA_SM4},
                                     {"aes128", PGP_SA_AES_128},
                                     {"aes192", PGP_SA_AES_192},
                                     {"aes256", PGP_SA_AES_256},
@@ -224,6 +225,11 @@ pgp_sa_to_botan_string(pgp_symm_alg_t alg)
         return "AES-192";
     case PGP_SA_AES_256:
         return "AES-256";
+#endif
+
+#if defined(BOTAN_HAS_SM4)
+    case PGP_SA_SM4:
+        return "SM4";
 #endif
 
 #if defined(BOTAN_HAS_TWOFISH)
@@ -286,6 +292,7 @@ pgp_block_size(pgp_symm_alg_t alg)
     case PGP_SA_CAMELLIA_128:
     case PGP_SA_CAMELLIA_192:
     case PGP_SA_CAMELLIA_256:
+    case PGP_SA_SM4:
         return 16;
 
     default:
@@ -303,6 +310,7 @@ pgp_key_size(pgp_symm_alg_t alg)
     case PGP_SA_BLOWFISH:
     case PGP_SA_AES_128:
     case PGP_SA_CAMELLIA_128:
+    case PGP_SA_SM4:
         return 16;
 
     case PGP_SA_TRIPLEDES:

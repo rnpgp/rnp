@@ -262,6 +262,7 @@ pgp_generate_keypair(pgp_pubkey_alg_t alg,
     seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
     seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
     seckey->alg = pgp_str_to_cipher(cipher);
+    pgp_random(&seckey->iv[0], pgp_block_size(seckey->alg));    
     seckey->checksum = 0;
 
     if (pgp_keyid(
