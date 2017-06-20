@@ -431,8 +431,6 @@ typedef struct {
  * \see RFC 6637
  */
 typedef struct {
-    uint8_t oid_len;
-    uint8_t *oid;
     pgp_curve_t curve;
     BIGNUM *point; /* octet string encoded as MPI */
 } pgp_ecc_pubkey_t;
