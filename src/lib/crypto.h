@@ -237,4 +237,19 @@ struct pgp_stream_t {
 -------------------------------------------------------------------------------- */
 pgp_curve_t find_curve_by_OID(const uint8_t *oid, size_t oid_len);
 
+/* -----------------------------------------------------------------------------
+ * @brief   Serialize EC public to octet string
+ *
+ * @param   output      generated output
+ * @param   pubkey      initialized ECDSA public key
+ *
+ * @pre     output      must be not null
+ * @pre     pubkey      must be not null
+ *
+ * @returns success PGP_E_OK, error code otherwise
+ *
+ * @remarks see RFC 4880 bis 01 - 5.5.2 Public-Key Packet Formats
+-------------------------------------------------------------------------------- */
+pgp_errcode_t ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey);
+
 #endif /* CRYPTO_H_ */

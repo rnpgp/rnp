@@ -93,6 +93,8 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 
 #include <json.h>
 
+extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
+
 /* small function to pretty print an 8-character raw userid */
 static char *
 userid_to_id(const uint8_t *userid, char *id)
@@ -1269,8 +1271,21 @@ rnp_import_key(rnp_t *rnp, char *f)
     return rnp_key_store_list(io, rnp->pubring, 0);
 }
 
-static uint32_t get_numbits(const rnp_t* rnp) {
-    return 0;
+static uint32_t
+get_numbits(const rnp_keygen_desc_t *key)
+{
+    switch (key->key_alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        return key->rsa.modulus_bit_len;
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
+    case PGP_PKA_EDDSA:
+        return ec_curves[key->ecc.curve].bitlen;
+    default:
+        return 0;
+    }
 }
 
 /* generate a new key */
@@ -1305,10 +1320,12 @@ rnp_generate_key(rnp_t *rnp, const char *id)
     if (id) {
         snprintf(newid, sizeof(newid), "%s", id);
     } else {
-        snprintf(
-          newid, sizeof(newid), "%s %d-bit key <%s@localhost>",
-          pgp_show_pka(rnp->action.generate_key_ctx.key_alg),
-          get_numbits(rnp), getenv("LOGNAME"));
+        snprintf(newid,
+                 sizeof(newid),
+                 "%s %d-bit key <%s@localhost>",
+                 pgp_show_pka(rnp->action.generate_key_ctx.key_alg),
+                 get_numbits(&rnp->action.generate_key_ctx),
+                 getenv("LOGNAME"));
     }
     uid = (uint8_t *) newid;
 

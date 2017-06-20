@@ -224,7 +224,7 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
                pgp_write_mpi(output, key->key.dsa.g) && pgp_write_mpi(output, key->key.dsa.y);
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
-        return (ecdsa_serialize_pubkey(output, &key->key.ecc) == PGP_E_OK);
+        return (ec_serialize_pubkey(output, &key->key.ecc) == PGP_E_OK);
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:

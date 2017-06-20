@@ -34,21 +34,6 @@
 #include "packet.h"
 
 /* -----------------------------------------------------------------------------
- * @brief   Serialize ECDSA public to octet string
- *
- * @param   output      generated output
- * @param   pubkey      initialized ECDSA public key
- *
- * @pre     output      must be not null
- * @pre     pubkey      must be not null
- *
- * @returns success PGP_E_OK, error code otherwise
- *
- * @remarks see RFC 4880 bis 01 - 5.5.2 Public-Key Packet Formats
--------------------------------------------------------------------------------- */
-pgp_errcode_t ecdsa_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey);
-
-/* -----------------------------------------------------------------------------
  * @brief   Generate ECDSA keypair
  *
  * @param   seckey[out] private part of the key
