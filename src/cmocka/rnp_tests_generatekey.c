@@ -185,14 +185,14 @@ rnpkeys_generatekey_testEncryption(void **state)
         for (unsigned int armored = 0; armored <= 1; ++armored) {
             rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 16));
             assert_int_equal(rnp_setvar(&rnp, "cipher", cipherAlg[i]), 1);
+            rnp.ctx.armour = armored;
 
             retVal = rnp_encrypt_memory(&rnp,
                                         userId,
                                         memToEncrypt,
                                         strlen(memToEncrypt),
                                         ciphertextBuf,
-                                        sizeof(ciphertextBuf),
-                                        armored);
+                                        sizeof(ciphertextBuf));
             assert_int_not_equal(retVal, 0); // Ensure signature operation succeeded
 
             const int ctextLen = retVal;

@@ -77,7 +77,7 @@ unsigned pgp_write_se_ip_pktset(pgp_output_t *,
                                 const unsigned,
                                 pgp_crypt_t *);
 void pgp_push_enc_crypt(pgp_output_t *, pgp_crypt_t *);
-int  pgp_push_enc_se_ip(pgp_output_t *, const pgp_key_t *, const char *);
+int  pgp_push_enc_se_ip(pgp_output_t *, const pgp_key_t *, pgp_symm_alg_t);
 
 /* Secret Key checksum */
 void     pgp_push_checksum_writer(pgp_output_t *, pgp_seckey_t *);

@@ -265,31 +265,30 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
     unsigned   maxsize;
     char *     out;
     char *     in;
+    char *     cipher;
     int        ret;
     int        cc;
-    rnp_ctx_t *ctx;
 
-    ctx = rnp_cur_ctx_new();
-    if (!ctx) {
-        fprintf(stderr, "rnp_cmd: context allocation failed");
-        return 0;
+    rnp->ctx.armour = p->armour;
+    if (f) {
+        rnp->ctx.filename = strdup(rnp_filename(f));
+        rnp->ctx.filemtime = rnp_filemtime(f);
     }
 
     switch (p->cmd) {
     case ENCRYPT:
+        rnp->ctx.ealg = pgp_str_to_cipher((cipher = rnp_getvar(rnp, "cipher")) ? cipher : "cast5");
+        
         if (f == NULL) {
             cc = stdin_to_mem(rnp, &in, &out, &maxsize);
-            ret = rnp_encrypt_memory(
-              rnp, rnp_getvar(rnp, "userid"), in, cc, out, maxsize, p->armour);
+            ret = rnp_encrypt_memory(rnp, rnp_getvar(rnp, "userid"), in, cc, out, maxsize);
             ret = show_output(out, ret, "Bad memory encryption");
             free(in);
             free(out);
             return ret;
         }
-
-        ctx->filename = strdup(rnp_filename(f));
-        ctx->filemtime = rnp_filemtime(f);
-        return rnp_encrypt_file(rnp, rnp_getvar(rnp, "userid"), f, p->output, p->armour);
+        
+        return rnp_encrypt_file(rnp, rnp_getvar(rnp, "userid"), f, p->output);
     case DECRYPT:
         if (f == NULL) {
             cc = stdin_to_mem(rnp, &in, &out, &maxsize);
@@ -318,8 +317,6 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
             return ret;
         }
 
-        ctx->filename = strdup(rnp_filename(f));
-        ctx->filemtime = rnp_filemtime(f);
         return rnp_sign_file(rnp,
                              rnp_getvar(rnp, "userid"),
                              f,
@@ -379,6 +376,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
         p->cmd = val;
         break;
     case DECRYPT:
+
         /* for decryption, we need a seckey */
         rnp_setvar(rnp, "need seckey", "1");
         p->cmd = val;

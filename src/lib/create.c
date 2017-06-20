@@ -842,24 +842,22 @@ create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, pgp_crypt_t *cipherinfo, uint8
  \ingroup Core_Create
 \brief Creates an pgp_pk_sesskey_t struct from keydata
 \param key Keydata to use
+\param cipher Encryption algorithm used
 \return pgp_pk_sesskey_t struct
 \note It is the caller's responsiblity to free the returned pointer
-\note Currently hard-coded to use CAST5
-\note Currently hard-coded to use RSA
 */
 pgp_pk_sesskey_t *
-pgp_create_pk_sesskey(const pgp_key_t *key, const char *ciphername)
+pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
 {
     /*
      * Creates a random session key and encrypts it for the given key
      *
-     * Encryption used is PK,
+     * Encryption used is PK
      * can be any, we're hardcoding RSA for now
      */
 
     const pgp_pubkey_t *pubkey;
     const uint8_t *     id = NULL;
-    pgp_symm_alg_t      cipher;
     pgp_crypt_t         cipherinfo;
     pgp_pk_sesskey_t *  sesskey = NULL;
     uint8_t *           encoded_key = NULL;
@@ -886,8 +884,7 @@ pgp_create_pk_sesskey(const pgp_key_t *key, const char *ciphername)
 
     (void) memset(&cipherinfo, 0x0, sizeof(cipherinfo));
 
-    if (pgp_crypt_any(&cipherinfo,
-                      cipher = pgp_str_to_cipher((ciphername) ? ciphername : "cast5")) == 0) {
+    if (pgp_crypt_any(&cipherinfo, cipher) == 0) {
         return NULL;
     }
 
@@ -1086,14 +1083,13 @@ pgp_write_litdata(pgp_output_t *         output,
 */
 
 unsigned
-pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_output_t *output)
+pgp_fileread_litdata(rnp_ctx_t *ctx, const char *filename, const pgp_litdata_enum type, pgp_output_t *output)
 {
     pgp_memory_t *mem;
     unsigned      ret;
     int           len;
     const char *  fname;
     int64_t       mtime;
-    rnp_ctx_t *   ctx;
 
     mem = pgp_memory_new();
     if (!pgp_mem_readfile(mem, filename)) {
@@ -1103,7 +1099,6 @@ pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_outp
     }
 
     len = (int) pgp_mem_len(mem);
-    ctx = rnp_cur_ctx();
     if (ctx) {
         fname = (const char *) ctx->filename;
         mtime = ctx->filemtime;

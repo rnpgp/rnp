@@ -379,21 +379,19 @@ write_parsed_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 /**
 \ingroup HighLevel_Crypto
 Encrypt a file
+\param ctx Rnp context, holding additional information about the operation
+\param io I/O structure
 \param infile Name of file to be encrypted
 \param outfile Name of file to write to. If NULL, name is constructed from infile
-\param pubkey Public Key to encrypt file for
-\param use_armour Write armoured text, if set
-\param allow_overwrite Allow output file to be overwrwritten if it exists
+\param key Public Key to encrypt file for
 \return 1 if OK; else 0
 */
 unsigned
-pgp_encrypt_file(pgp_io_t *       io,
+pgp_encrypt_file(rnp_ctx_t *      ctx,
+                 pgp_io_t *       io,
                  const char *     infile,
                  const char *     outfile,
-                 const pgp_key_t *key,
-                 const unsigned   use_armour,
-                 const unsigned   allow_overwrite,
-                 const char *     cipher)
+                 const pgp_key_t *key)
 {
     pgp_output_t *output;
     pgp_memory_t *inmem;
@@ -405,19 +403,19 @@ pgp_encrypt_file(pgp_io_t *       io,
         pgp_memory_free(inmem);
         return 0;
     }
-    fd_out = pgp_setup_file_write(&output, outfile, allow_overwrite);
+    fd_out = pgp_setup_file_write(&output, outfile, ctx->overwrite);
     if (fd_out < 0) {
         pgp_memory_free(inmem);
         return 0;
     }
 
     /* set armoured/not armoured here */
-    if (use_armour) {
+    if (ctx->armour) {
         pgp_writer_push_armor_msg(output);
     }
 
     /* Push the encrypted writer */
-    if (!pgp_push_enc_se_ip(output, key, cipher)) {
+    if (!pgp_push_enc_se_ip(output, key, ctx->ealg)) {
         pgp_memory_free(inmem);
         return 0;
     }
@@ -434,12 +432,11 @@ pgp_encrypt_file(pgp_io_t *       io,
 
 /* encrypt the contents of the input buffer, and return the mem structure */
 pgp_memory_t *
-pgp_encrypt_buf(pgp_io_t *       io,
+pgp_encrypt_buf(rnp_ctx_t *      ctx,
+                pgp_io_t *       io,
                 const void *     input,
                 const size_t     insize,
-                const pgp_key_t *pubkey,
-                const unsigned   use_armour,
-                const char *     cipher)
+                const pgp_key_t *pubkey)
 {
     pgp_output_t *output;
     pgp_memory_t *outmem;
@@ -453,12 +450,12 @@ pgp_encrypt_buf(pgp_io_t *       io,
     pgp_setup_memory_write(&output, &outmem, insize);
 
     /* set armoured/not armoured here */
-    if (use_armour) {
+    if (ctx->armour) {
         pgp_writer_push_armor_msg(output);
     }
 
     /* Push the encrypted writer */
-    pgp_push_enc_se_ip(output, pubkey, cipher);
+    pgp_push_enc_se_ip(output, pubkey, ctx->ealg);
 
     /* This does the writing */
     pgp_write(output, input, (unsigned) insize);

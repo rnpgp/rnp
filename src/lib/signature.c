@@ -960,7 +960,7 @@ pgp_sign_file(pgp_io_t *          io,
     output = NULL;
     hash = NULL;
     fd_out = 0;
-    ctx = rnp_cur_ctx();
+    ctx = NULL;//rnp_cur_ctx();
 
     /* find the hash algorithm */
     hash_alg = pgp_str_to_hash_alg(hashname);
@@ -1103,7 +1103,7 @@ pgp_sign_buf(pgp_io_t *          io,
     mem = pgp_memory_new();
     hash = NULL;
     ret = 0;
-    ctx = rnp_cur_ctx();
+    ctx = NULL;//rnp_cur_ctx();
 
     hash_alg = pgp_str_to_hash_alg(hashname);
     if (hash_alg == PGP_HASH_UNKNOWN) {

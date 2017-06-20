@@ -961,6 +961,9 @@ rnp_init(rnp_t *rnp)
         return 0;
     }
 
+    /* Initialize operation context */
+    rnp_ctx_init(&rnp->ctx);
+
     init_touch_initialized(rnp);
 
     return 1;
@@ -997,67 +1000,25 @@ rnp_end(rnp_t *rnp)
         rnp->secring = NULL;
     }
     free(rnp->io);
+    rnp_ctx_free(&rnp->ctx);
+
     return 1;
 }
 
 /* rnp_ctx_t functions */
-
 int
-rnp_init_ctx(rnp_ctx_t *ctx)
+rnp_ctx_init(rnp_ctx_t *ctx)
 {
     memset(&ctx, '\0', sizeof(ctx));
     return 0;
 }
 
-/* set operation context as current */
-static rnp_ctx_t *curctx = NULL;
-static int        ownctx = false;
-
-void
-rnp_set_ctx(rnp_ctx_t *ctx)
-{
-    if (curctx && (curctx != ctx) && ownctx) {
-        rnp_ctx_t *oldctx = curctx;
-        rnp_free_ctx(curctx);
-        free(oldctx);
-        ownctx = false;
-    }
-
-    curctx = ctx;
-}
-
-/* current operation context */
-rnp_ctx_t *
-rnp_cur_ctx()
-{
-    return curctx;
-}
-
-/* create new current operation context */
-rnp_ctx_t *
-rnp_cur_ctx_new()
-{
-    rnp_set_ctx(NULL);
-
-    if ((curctx = calloc(1, sizeof(*curctx))) == NULL) {
-        (void) fprintf(stderr, "rnp_cur_ctx: cannot allocate memory");
-        return NULL;
-    }
-
-    rnp_init_ctx(curctx);
-    ownctx = true;
-
-    return curctx;
-}
-
 /* free operation context */
 void
-rnp_free_ctx(rnp_ctx_t *ctx)
+rnp_ctx_free(rnp_ctx_t *ctx)
 {
     if (ctx->filename != NULL)
         free(ctx->filename);
-    if (ctx == curctx)
-        curctx = NULL;
 }
 
 /* list the keys in a keyring */
@@ -1419,10 +1380,9 @@ out:
 
 /* encrypt a file */
 int
-rnp_encrypt_file(rnp_t *rnp, const char *userid, const char *f, char *out, int armored)
+rnp_encrypt_file(rnp_t *rnp, const char *userid, const char *f, char *out)
 {
     const pgp_key_t *key;
-    const unsigned   overwrite = 1;
     const char *     suffix;
     pgp_io_t *       io;
     char             outname[MAXPATHLEN];
@@ -1432,7 +1392,7 @@ rnp_encrypt_file(rnp_t *rnp, const char *userid, const char *f, char *out, int a
         (void) fprintf(io->errs, "rnp_encrypt_file: no filename specified\n");
         return 0;
     }
-    suffix = (armored) ? ".asc" : ".gpg";
+    suffix = (rnp->ctx.armour) ? ".asc" : ".gpg";
     /* get key with which to sign */
     if ((key = resolve_userid(rnp, rnp->pubring, userid)) == NULL) {
         return 0;
@@ -1441,8 +1401,7 @@ rnp_encrypt_file(rnp_t *rnp, const char *userid, const char *f, char *out, int a
         (void) snprintf(outname, sizeof(outname), "%s%s", f, suffix);
         out = outname;
     }
-    return (int) pgp_encrypt_file(
-      io, f, out, key, (unsigned) armored, overwrite, rnp_getvar(rnp, "cipher"));
+    return (int) pgp_encrypt_file(&rnp->ctx, io, f, out, key);
 }
 
 #define ARMOR_HEAD "-----BEGIN PGP MESSAGE-----"
@@ -1773,8 +1732,7 @@ rnp_encrypt_memory(rnp_t *      rnp,
                    void *       in,
                    const size_t insize,
                    char *       out,
-                   size_t       outsize,
-                   int          armored)
+                   size_t       outsize)
 {
     const pgp_key_t *keypair;
     pgp_memory_t *   enc;
@@ -1798,8 +1756,7 @@ rnp_encrypt_memory(rnp_t *      rnp,
         (void) fprintf(io->errs, "rnp_encrypt_buf: input size is larger than output size\n");
         return 0;
     }
-    enc =
-      pgp_encrypt_buf(io, in, insize, keypair, (unsigned) armored, rnp_getvar(rnp, "cipher"));
+    enc = pgp_encrypt_buf(&rnp->ctx, io, in, insize, keypair);
     m = MIN(pgp_mem_len(enc), outsize);
     (void) memcpy(out, pgp_mem_data(enc), m);
     pgp_memory_free(enc);

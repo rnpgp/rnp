@@ -958,7 +958,7 @@ static void encrypt_se_ip_destroyer(pgp_writer_t *);
 \brief Push Encrypted SE IP Writer onto stack
 */
 int
-pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const char *cipher)
+pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t cipher)
 {
     pgp_pk_sesskey_t *encrypted_pk_sesskey;
     encrypt_se_ip_t * se_ip;
@@ -1027,7 +1027,7 @@ encrypt_se_ip_writer(const uint8_t *src,
     pgp_memory_t *   localmem;
     unsigned         ret = 1;
 
-    ctx = rnp_cur_ctx();
+    ctx = NULL; //rnp_cur_ctx();
     pgp_setup_memory_write(&litoutput, &litmem, bufsz);
     pgp_setup_memory_write(&zoutput, &zmem, bufsz);
     pgp_setup_memory_write(&output, &localmem, bufsz);
@@ -1343,7 +1343,7 @@ static void str_enc_se_ip_destroyer(pgp_writer_t *writer);
 \param pubkey
 */
 void
-pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const char *cipher)
+pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t cipher)
 {
     pgp_pk_sesskey_t *encrypted_pk_sesskey;
     str_enc_se_ip_t * se_ip;
@@ -1667,7 +1667,7 @@ str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
     rnp_ctx_t *      ctx;
     str_enc_se_ip_t *se_ip;
 
-    ctx = rnp_cur_ctx();
+    ctx = NULL; //rnp_cur_ctx();
     se_ip = pgp_writer_get_arg(writer);
     if (se_ip->litoutput == NULL) {
         /* first literal data chunk was not written */
