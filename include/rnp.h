@@ -74,7 +74,7 @@ typedef struct rnp_t {
 
     enum keyring_format_t keyring_format; /* keyring format */
     union {
-        generate_key_ctx_t generate_key_ctx;
+        rnp_keygen_desc_t generate_key_ctx;
     } action;
 } rnp_t;
 

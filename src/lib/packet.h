@@ -1006,7 +1006,7 @@ typedef struct pgp_key_t {
 } pgp_key_t;
 
 /* structure used to hold context of key generation */
-typedef struct generate_key_ctx_t {
+typedef struct rnp_keygen_desc_t {
     // Asymmteric algorithm that user requesed key for
     pgp_pubkey_alg_t key_alg;
     // Hash to be used for key signature
@@ -1021,6 +1021,6 @@ typedef struct generate_key_ctx_t {
             uint32_t modulus_bit_len;
         } rsa;
     };
-} generate_key_ctx_t;
+} rnp_keygen_desc_t;
 
 #endif /* PACKET_H_ */

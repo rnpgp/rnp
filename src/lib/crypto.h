@@ -74,7 +74,7 @@ void pgp_crypto_finish(void);
 
 /* Key generation */
 
-pgp_key_t *pgp_generate_keypair(const generate_key_ctx_t *key_desc, const uint8_t *userid);
+pgp_key_t *pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid);
 
 void pgp_reader_push_decrypt(pgp_stream_t *, pgp_crypt_t *, pgp_region_t *);
 void pgp_reader_pop_decrypt(pgp_stream_t *);
