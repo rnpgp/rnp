@@ -28,6 +28,14 @@
 #include <rnp_tests_support.h>
 #include "symmetric.h"
 
+static void
+set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc)
+{
+    key_desc->key_alg = PGP_PKA_RSA;
+    key_desc->sym_alg = PGP_SA_DEFAULT_CIPHER;
+    key_desc->rsa.modulus_bit_len = 1024;
+}
+
 void
 rnpkeys_generatekey_testSignature(void **state)
 {
@@ -62,9 +70,7 @@ rnpkeys_generatekey_testSignature(void **state)
         strcpy(userId, "sigtest_");
         strcat(userId, hashAlg[i]);
 
-        rnp.action.generate_key_ctx.key_alg = PGP_PKA_RSA;
-        rnp.action.generate_key_ctx.sym_alg = PGP_SA_DEFAULT_CIPHER;
-        rnp.action.generate_key_ctx.rsa.modulus_bit_len = 1024;
+        set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
         retVal = rnp_generate_key(&rnp, userId);
         assert_int_equal(retVal, 1); // Ensure the key was generated
 
@@ -170,9 +176,7 @@ rnpkeys_generatekey_testEncryption(void **state)
 
     strcpy(userId, "ciphertest");
 
-    rnp.action.generate_key_ctx.key_alg = PGP_PKA_RSA;
-    rnp.action.generate_key_ctx.sym_alg = PGP_SA_DEFAULT_CIPHER;
-    rnp.action.generate_key_ctx.rsa.modulus_bit_len = 1024;
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
     retVal = rnp_generate_key(&rnp, userId);
     assert_int_equal(retVal, 1); // Ensure the key was generated
 
@@ -262,9 +266,7 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
         int retVal = rnp_init(&rnp);
         assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
 
-        rnp.action.generate_key_ctx.key_alg = PGP_PKA_RSA;
-        rnp.action.generate_key_ctx.sym_alg = PGP_SA_DEFAULT_CIPHER;
-        rnp.action.generate_key_ctx.rsa.modulus_bit_len = 1024;
+        set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
         retVal = rnp_generate_key(&rnp, NULL);
         assert_int_equal(retVal, 1); // Ensure the key was generated
 
@@ -319,9 +321,7 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
         int retVal = rnp_init(&rnp);
         assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
 
-        rnp.action.generate_key_ctx.key_alg = PGP_PKA_RSA;
-        rnp.action.generate_key_ctx.sym_alg = PGP_SA_DEFAULT_CIPHER;
-        rnp.action.generate_key_ctx.rsa.modulus_bit_len = 1024;
+        set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
         retVal = rnp_generate_key(&rnp, userId);
         assert_int_equal(retVal, 1); // Ensure the key was generated
 
@@ -368,9 +368,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     assert_false(path_file_exists(ourdir, ".rnp/secring.gpg", NULL));
 
     // Ensure the key was generated.
-    rnp.action.generate_key_ctx.key_alg = PGP_PKA_RSA;
-    rnp.action.generate_key_ctx.sym_alg = PGP_SA_DEFAULT_CIPHER;
-    rnp.action.generate_key_ctx.rsa.modulus_bit_len = 1024;
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
     assert_int_equal(1, rnp_generate_key(&rnp, NULL));
 
     // pubring and secring should now exist
@@ -406,9 +404,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     assert_false(path_file_exists(newhome, ".rnp/secring.gpg", NULL));
 
     // Ensure the key was generated.
-    rnp.action.generate_key_ctx.key_alg = PGP_PKA_RSA;
-    rnp.action.generate_key_ctx.sym_alg = PGP_SA_DEFAULT_CIPHER;
-    rnp.action.generate_key_ctx.rsa.modulus_bit_len = 1024;
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
     assert_int_equal(1, rnp_generate_key(&rnp, "newhomekey"));
 
     // pubring and secring should now exist
@@ -471,9 +467,7 @@ rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
     rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
     assert_int_equal(1, rnp_init(&rnp));
     rnp_setvar(&rnp, "homedir", fakedir);
-    rnp.action.generate_key_ctx.key_alg = PGP_PKA_RSA;
-    rnp.action.generate_key_ctx.sym_alg = PGP_SA_DEFAULT_CIPHER;
-    rnp.action.generate_key_ctx.rsa.modulus_bit_len = 1024;
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
     assert_int_equal(0, rnp_generate_key(&rnp, NULL));
     rnp_end(&rnp);
 }
@@ -513,9 +507,7 @@ rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
     retVal = rnp_init(&rnp);
     assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
 
-    rnp.action.generate_key_ctx.key_alg = PGP_PKA_RSA;
-    rnp.action.generate_key_ctx.sym_alg = PGP_SA_DEFAULT_CIPHER;
-    rnp.action.generate_key_ctx.rsa.modulus_bit_len = 1024;
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
     retVal = rnp_generate_key(&rnp, NULL);
     assert_int_equal(retVal, 0); // Ensure the key was NOT generated as the
                                  // directory has only list read permissions.

@@ -46,14 +46,7 @@
 
 #include "../common/constants.h"
 
-/*
- * 2048 is the absolute minimum, really - we should really look at
- * bumping this to 4096 or even higher - agc, 20090522
- *
- * TODO : Really 2048 is bad default? 4096 seems
- */
-#define DEFAULT_NUMBITS 2048
-
+#define DEFAULT_RSA_NUMBITS 2048
 #define DEFAULT_HASH_ALG "SHA256"
 
 extern char *__progname;
@@ -159,6 +152,26 @@ static struct option options[] = {
   {NULL, 0, NULL, 0},
 };
 
+static void
+adjust_key_params(rnp_keygen_desc_t *key_desc, const char *hash_str, const char *symalg_str)
+{
+    switch (key_desc->key_alg) {
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
+        key_desc->hash_alg = hash_str ? pgp_str_to_hash_alg(hash_str) :
+                                        (key_desc->ecc.curve == PGP_CURVE_NIST_P_256) ?
+                                        PGP_HASH_SHA256 :
+                                        (key_desc->ecc.curve == PGP_CURVE_NIST_P_384) ?
+                                        PGP_HASH_SHA384 :
+                                        /*PGP_CURVE_NIST_P_521*/ PGP_HASH_SHA512;
+        break;
+    default:
+        key_desc->hash_alg = hash_str ? pgp_str_to_hash_alg(hash_str) : PGP_HASH_SHA1;
+    }
+
+    key_desc->sym_alg = pgp_str_to_cipher(symalg_str);
+}
+
 pgp_errcode_t rnp_generate_key_expert_mode(rnp_t *rnp);
 
 /* gather up program variables into one struct */
@@ -243,32 +256,14 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
         return rnp_import_key(rnp, f);
     case GENERATE_KEY:
         key = f ? f : rnp_getvar(rnp, "userid");
-        rnp_keygen_desc_t *ctx = &rnp->action.generate_key_ctx;
+        rnp_keygen_desc_t *key_desc = &rnp->action.generate_key_ctx;
         if (findvar(rnp, "expert") > 0) {
             (void) rnp_generate_key_expert_mode(rnp);
         } else {
-            ctx->key_alg = PGP_PKA_RSA;
-            ctx->rsa.modulus_bit_len = p->numbits;
+            key_desc->key_alg = PGP_PKA_RSA;
+            key_desc->rsa.modulus_bit_len = p->numbits;
         }
-
-        // Find hash algorithm to use
-        const char *hash_str = rnp_getvar(rnp, "hash");
-        ctx->hash_alg = hash_str ? pgp_str_to_hash_alg(hash_str) : PGP_HASH_UNKNOWN;
-        if (PGP_HASH_UNKNOWN == ctx->hash_alg) {
-            // Use default hash
-            if (ctx->key_alg == PGP_PKA_ECDSA) {
-                ctx->hash_alg = (ctx->ecc.curve == PGP_CURVE_NIST_P_256) ?
-                                  PGP_HASH_SHA256 :
-                                  (ctx->ecc.curve == PGP_CURVE_NIST_P_384) ?
-                                  PGP_HASH_SHA384 :
-                                  /*PGP_CURVE_NIST_P_521*/ PGP_HASH_SHA512;
-            } else {
-                // TODO: Shouldn't it be PGP_DEFAULT_HASH_ALGORITHM ?
-                ctx->hash_alg = PGP_HASH_SHA1;
-            }
-        }
-
-        ctx->sym_alg = pgp_str_to_cipher(rnp_getvar(rnp, "cipher"));
+        adjust_key_params(key_desc, rnp_getvar(rnp, "hash"), rnp_getvar(rnp, "cipher"));
         return rnp_generate_key(rnp, key);
     case GET_KEY:
         key = rnp_get_key(rnp, f, rnp_getvar(rnp, "format"));
@@ -450,7 +445,7 @@ main(int argc, char **argv)
     memset(&p, '\0', sizeof(p));
     memset(&rnp, '\0', sizeof(rnp));
 
-    p.numbits = DEFAULT_NUMBITS;
+    p.numbits = DEFAULT_RSA_NUMBITS;
 
     if (argc < 2) {
         print_usage(usage);
