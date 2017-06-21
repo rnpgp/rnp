@@ -215,7 +215,7 @@ static pgp_map_t pubkey_alg_map[] = {
   {PGP_PKA_ECDSA, "ECDSA"},
   {PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN, "Reserved (formerly Elgamal Encrypt or Sign"},
   {PGP_PKA_RESERVED_DH, "Reserved for Diffie-Hellman (X9.42)"},
-  {PGP_PKA_EDDSA,     "EdDSA"},
+  {PGP_PKA_EDDSA, "EdDSA"},
   {PGP_PKA_PRIVATE00, "Private/Experimental"},
   {PGP_PKA_PRIVATE01, "Private/Experimental"},
   {PGP_PKA_PRIVATE02, "Private/Experimental"},

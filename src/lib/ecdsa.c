@@ -36,28 +36,7 @@
 #include "rnpdefs.h"
 #include "../common/utils.h"
 
-/**
- * EC Curves definition used by implementation
- *
- * \see RFC4880 bis01 - 9.2. ECC Curve OID
- *
- * Order of the elements in this array corresponds to
- * values in pgp_curve_t enum.
- */
-// TODO: Check size of this array against PGP_CURVE_MAX with static assert
-const ec_curve_desc_t ec_curves[] = {
-  {PGP_CURVE_NIST_P_256,
-   256,
-   {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07},
-   8,
-   "secp256r1"},
-  {PGP_CURVE_NIST_P_384, 384, {0x2B, 0x81, 0x04, 0x00, 0x22}, 5, "secp384r1"},
-  {PGP_CURVE_NIST_P_521, 521, {0x2B, 0x81, 0x04, 0x00, 0x23}, 5, "secp521r1"},
-  {PGP_CURVE_ED25519,
-   255,
-   {0x2b, 0x06, 0x01, 0x04, 0x01, 0xda, 0x47, 0x0f, 0x01},
-   9,
-   "Ed25519"}};
+extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
 pgp_curve_t
 find_curve_by_OID(const uint8_t *oid, size_t oid_len)
@@ -70,20 +49,6 @@ find_curve_by_OID(const uint8_t *oid, size_t oid_len)
     }
 
     return PGP_CURVE_MAX;
-}
-
-pgp_errcode_t
-ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey)
-{
-    const ec_curve_desc_t *curve = &ec_curves[pubkey->curve];
-
-    if (pgp_write_scalar(output, curve->OIDhex_len, 1) &&
-        pgp_write(output, curve->OIDhex, curve->OIDhex_len) &&
-        pgp_write_mpi(output, pubkey->point)) {
-        return PGP_E_OK;
-    }
-
-    return PGP_E_W_WRITE_FAILED;
 }
 
 pgp_errcode_t
@@ -301,4 +266,18 @@ end:
     botan_pubkey_destroy(pub);
     botan_pk_op_verify_destroy(verifier);
     return ret;
+}
+
+pgp_errcode_t
+ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey)
+{
+    const ec_curve_desc_t *curve = &ec_curves[pubkey->curve];
+
+    if (pgp_write_scalar(output, curve->OIDhex_len, 1) &&
+        pgp_write(output, curve->OIDhex, curve->OIDhex_len) &&
+        pgp_write_mpi(output, pubkey->point)) {
+        return PGP_E_OK;
+    }
+
+    return PGP_E_W_WRITE_FAILED;
 }
