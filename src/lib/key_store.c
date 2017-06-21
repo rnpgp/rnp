@@ -112,6 +112,7 @@ rnp_key_store_load_keys(rnp_t *rnp, char *homedir)
 {
     char *    userid;
     char      id[MAX_ID_LENGTH];
+    void *    newring;
     pgp_io_t *io = rnp->io;
 
     /* TODO: Some of this might be split up into sub-functions. */
@@ -125,16 +126,19 @@ rnp_key_store_load_keys(rnp_t *rnp, char *homedir)
         return rnp_key_store_ssh_load_keys(rnp, homedir);
     }
 
+    newring = rnp_key_store_read_keyring(rnp, "pubring", homedir);
+
+    if (newring == NULL) {
+        fprintf(io->errs, "cannot read pub keyring\n");
+        return 0;
+    }
+
     if (rnp->pubring) {
         rnp_key_store_free(rnp->pubring);
         free(rnp->pubring);
     }
-    rnp->pubring = rnp_key_store_read_keyring(rnp, "pubring", homedir);
 
-    if (rnp->pubring == NULL) {
-        fprintf(io->errs, "cannot read pub keyring\n");
-        return 0;
-    }
+    rnp->pubring = newring;
 
     if (((rnp_key_store_t *) rnp->pubring)->keyc < 1) {
         fprintf(io->errs, "pub keyring is empty\n");
@@ -153,17 +157,19 @@ rnp_key_store_load_keys(rnp_t *rnp, char *homedir)
 
     /* Only read secret keys if we need to */
     if (rnp_getvar(rnp, "need seckey")) {
+        newring = rnp_key_store_read_keyring(rnp, "secring", homedir);
+
+        if (newring == NULL) {
+            fprintf(io->errs, "cannot read sec keyring\n");
+            return 0;
+        }
+
         if (rnp->secring) {
             rnp_key_store_free(rnp->secring);
             free(rnp->secring);
         }
 
-        rnp->secring = rnp_key_store_read_keyring(rnp, "secring", homedir);
-
-        if (rnp->secring == NULL) {
-            fprintf(io->errs, "cannot read sec keyring\n");
-            return 0;
-        }
+        rnp->secring = newring;
 
         if (((rnp_key_store_t *) rnp->secring)->keyc < 1) {
             fprintf(io->errs, "sec keyring is empty\n");

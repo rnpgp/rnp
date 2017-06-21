@@ -580,24 +580,24 @@ pgp_memory_pad(pgp_memory_t *mem, size_t length)
 
     if (mem->allocated < mem->length) {
         (void) fprintf(stderr, "pgp_memory_pad: bad alloc in\n");
-        return 1;
+        return 0;
     }
     if (mem->allocated < mem->length + length) {
         mem->allocated = mem->allocated * 2 + length;
         temp = realloc(mem->buf, mem->allocated);
         if (temp == NULL) {
             (void) fprintf(stderr, "pgp_memory_pad: bad alloc\n");
-            return 1;
+            return 0;
         } else {
             mem->buf = temp;
         }
     }
     if (mem->allocated < mem->length + length) {
         (void) fprintf(stderr, "pgp_memory_pad: bad alloc out\n");
-        return 1;
+        return 0;
     }
 
-    return 0;
+    return 1;
 }
 
 /**
@@ -610,7 +610,7 @@ pgp_memory_pad(pgp_memory_t *mem, size_t length)
 int
 pgp_memory_add(pgp_memory_t *mem, const uint8_t *src, size_t length)
 {
-    if (pgp_memory_pad(mem, length)) {
+    if (!pgp_memory_pad(mem, length)) {
         return 0;
     }
     (void) memcpy(mem->buf + mem->length, src, length);
@@ -671,7 +671,7 @@ pgp_memory_make_packet(pgp_memory_t *out, pgp_content_enum tag)
     size_t extra;
 
     extra = (out->length < 192) ? 1 : (out->length < 8192 + 192) ? 2 : 5;
-    if (pgp_memory_pad(out, extra + 1)) {
+    if (!pgp_memory_pad(out, extra + 1)) {
         return;
     }
     memmove(out->buf + extra + 1, out->buf, out->length);
