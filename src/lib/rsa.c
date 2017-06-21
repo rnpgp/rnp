@@ -294,57 +294,51 @@ done:
     return retval;
 }
 
-int pgp_genkey_rsa(pgp_seckey_t* seckey, size_t numbits)
-   {
-   botan_privkey_t rsa_key = NULL;
-   botan_rng_t     rng = NULL;
-   int ret = 0;
+int
+pgp_genkey_rsa(pgp_seckey_t *seckey, size_t numbits)
+{
+    botan_privkey_t rsa_key = NULL;
+    botan_rng_t     rng = NULL;
+    int             ret = 0;
 
-   seckey->pubkey.key.rsa.n = BN_new();
-   seckey->pubkey.key.rsa.e = BN_new();
-   seckey->key.rsa.p = BN_new();
-   seckey->key.rsa.q = BN_new();
-   seckey->key.rsa.d = BN_new();
-   seckey->key.rsa.u = BN_new();
+    seckey->pubkey.key.rsa.n = BN_new();
+    seckey->pubkey.key.rsa.e = BN_new();
+    seckey->key.rsa.p = BN_new();
+    seckey->key.rsa.q = BN_new();
+    seckey->key.rsa.d = BN_new();
+    seckey->key.rsa.u = BN_new();
 
-   if(!seckey->pubkey.key.rsa.n ||
-      !seckey->pubkey.key.rsa.e ||
-      !seckey->key.rsa.p ||
-      !seckey->key.rsa.q ||
-      !seckey->key.rsa.d ||
-      !seckey->key.rsa.u)
-      {
-      goto end;
-      }
+    if (!seckey->pubkey.key.rsa.n || !seckey->pubkey.key.rsa.e || !seckey->key.rsa.p ||
+        !seckey->key.rsa.q || !seckey->key.rsa.d || !seckey->key.rsa.u) {
+        goto end;
+    }
 
-   if (botan_rng_init(&rng, NULL) != 0)
-      goto end;
+    if (botan_rng_init(&rng, NULL) != 0)
+        goto end;
 
-   if (botan_privkey_create_rsa(&rsa_key, rng, numbits) != 0)
-      goto end;
+    if (botan_privkey_create_rsa(&rsa_key, rng, numbits) != 0)
+        goto end;
 
-   if (botan_privkey_check_key(rsa_key, rng, 1) != 0)
-      goto end;
+    if (botan_privkey_check_key(rsa_key, rng, 1) != 0)
+        goto end;
 
-   /* Calls below never fail as calls above were OK */
-   (void) botan_privkey_rsa_get_n(seckey->pubkey.key.rsa.n->mp, rsa_key);
-   (void) botan_privkey_rsa_get_e(seckey->pubkey.key.rsa.e->mp, rsa_key);
-   (void) botan_privkey_rsa_get_d(seckey->key.rsa.d->mp, rsa_key);
-   (void) botan_privkey_rsa_get_p(seckey->key.rsa.p->mp, rsa_key);
-   (void) botan_privkey_rsa_get_q(seckey->key.rsa.q->mp, rsa_key);
+    /* Calls below never fail as calls above were OK */
+    (void) botan_privkey_rsa_get_n(seckey->pubkey.key.rsa.n->mp, rsa_key);
+    (void) botan_privkey_rsa_get_e(seckey->pubkey.key.rsa.e->mp, rsa_key);
+    (void) botan_privkey_rsa_get_d(seckey->key.rsa.d->mp, rsa_key);
+    (void) botan_privkey_rsa_get_p(seckey->key.rsa.p->mp, rsa_key);
+    (void) botan_privkey_rsa_get_q(seckey->key.rsa.q->mp, rsa_key);
 
-   if (botan_mp_mod_inverse(seckey->key.rsa.u->mp,
-                            seckey->key.rsa.p->mp,
-                            seckey->key.rsa.q->mp) != 0)
-      {
-      RNP_LOG("Error computing RSA u param");
-      goto end;
-      }
+    if (botan_mp_mod_inverse(
+          seckey->key.rsa.u->mp, seckey->key.rsa.p->mp, seckey->key.rsa.q->mp) != 0) {
+        RNP_LOG("Error computing RSA u param");
+        goto end;
+    }
 
-   ret = 1;
+    ret = 1;
 
-   end:
-   botan_privkey_destroy(rsa_key);
-   botan_rng_destroy(rng);
-   return ret;
-   }
+end:
+    botan_privkey_destroy(rsa_key);
+    botan_rng_destroy(rng);
+    return ret;
+}
