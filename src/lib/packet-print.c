@@ -347,11 +347,12 @@ numkeybits(const pgp_pubkey_t *pubkey)
         }
     case PGP_PKA_ELGAMAL:
         return BN_num_bytes(pubkey->key.elgamal.y) * 8;
+
     case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
         // BN_num_bytes returns value <= curve order
         return ec_curves[pubkey->key.ecc.curve].bitlen;
-    case PGP_PKA_EDDSA:
-        return 255;
+
     default:
         (void)fprintf(stderr, "Unknown public key alg in numkeybits\n");
         return -1;
@@ -950,11 +951,6 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
                        BN_bn2hex(key->key.pubkey.key.rsa.e));
         break;
     case PGP_PKA_EDDSA:
-        cc += snprintf(&out[cc],
-                       outsize - cc,
-                       "point=%s\n",
-                       BN_bn2hex(key->key.pubkey.key.ecc.point));
-        break;
     case PGP_PKA_ECDSA:
         cc += snprintf(&out[cc],
                        outsize - cc,

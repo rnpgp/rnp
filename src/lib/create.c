@@ -161,8 +161,6 @@ pubkey_length(const pgp_pubkey_t *key)
                mpi_length(key->key.dsa.g) + mpi_length(key->key.dsa.y);
 
     case PGP_PKA_EDDSA:
-        return mpi_length(key->key.ecc.point) + 1 + key->key.ecc.oid_len;
-
     case PGP_PKA_ECDSA:
         return 1 + // length of curve OID
                +ec_curves[key->key.ecc.curve].OIDhex_len + mpi_length(key->key.ecc.point);
@@ -219,20 +217,14 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
         return 0;
     }
 
-    const uint8_t ed25519_oid[9] = {0x2b, 0x06, 0x01, 0x04, 0x01, 0xda, 0x47, 0x0f, 0x01};
-
     switch (key->alg) {
     case PGP_PKA_DSA:
         return pgp_write_mpi(output, key->key.dsa.p) &&
                pgp_write_mpi(output, key->key.dsa.q) &&
                pgp_write_mpi(output, key->key.dsa.g) && pgp_write_mpi(output, key->key.dsa.y);
 
-    case PGP_PKA_EDDSA:
-        return pgp_write_scalar(output, sizeof(ed25519_oid), 1) &&
-               pgp_write(output, ed25519_oid, sizeof(ed25519_oid)) &&
-               pgp_write_mpi(output, key->key.ecc.point);
-
     case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
         return (ec_serialize_pubkey(output, &key->key.ecc) == PGP_E_OK);
 
     case PGP_PKA_RSA:

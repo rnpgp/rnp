@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eux
 
+[ "$BUILD_MODE" = "style-check" ] && exec ci/style-check.sh
+
 CORES="2" && [ -r /proc/cpuinfo ] && CORES=$(grep -c '^$' /proc/cpuinfo)
 
 LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${CMOCKA_INSTALL}/lib:${JSON_C_INSTALL}/lib"

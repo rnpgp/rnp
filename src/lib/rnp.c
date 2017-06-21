@@ -1278,7 +1278,7 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     const unsigned noarmor = 0;
     pgp_key_t *    key;
     pgp_io_t *     io;
-    uint8_t *      uid;
+    uint8_t *      uid = NULL;
     char           passphrase[MAX_PASSPHRASE_LENGTH] = {0};
     char           newid[1024] = {0};
     char           filename[MAXPATHLEN] = {0};
@@ -1293,19 +1293,22 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     int            cc;
     int            rv = 0;
 
-    uid = NULL;
     io = rnp->io;
+
+    const pgp_pubkey_alg_t alg = ((numbits == 256) || (numbits == 384) || (numbits == 521)) ?
+                                   PGP_PKA_ECDSA :
+                                   (numbits == 255) ? PGP_PKA_EDDSA : PGP_PKA_RSA;
+
     /* generate a new key */
     if (id) {
         snprintf(newid, sizeof(newid), "%s", id);
     } else {
         snprintf(
-          newid, sizeof(newid), "RSA %d-bit key <%s@localhost>", numbits, getenv("LOGNAME"));
+          newid, sizeof(newid), "%s %d-bit key <%s@localhost>",
+          pgp_show_pka(alg), numbits, getenv("LOGNAME"));
     }
     uid = (uint8_t *) newid;
-    const pgp_pubkey_alg_t alg = ((numbits == 256) || (numbits == 384) || (numbits == 521)) ?
-                                   PGP_PKA_ECDSA :
-                                   (numbits == 255) ? PGP_PKA_EDDSA : PGP_PKA_RSA;
+
     key = pgp_generate_keypair(
       alg, numbits, uid, rnp_getvar(rnp, "hash"), rnp_getvar(rnp, "cipher"));
 
