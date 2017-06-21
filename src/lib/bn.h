@@ -47,7 +47,6 @@ __BEGIN_DECLS
 
 #ifdef USE_BN_INTERFACE
 #define BIGNUM PGPV_BIGNUM
-#define BN_CTX PGPV_BN_CTX
 #define BN_is_negative PGPV_BN_is_negative
 #define BN_is_zero PGPV_BN_is_zero
 #define BN_is_odd PGPV_BN_is_odd
@@ -89,12 +88,6 @@ __BEGIN_DECLS
 #define BN_mod_sub PGPV_BN_mod_sub
 #define BN_raise PGPV_BN_raise
 #define BN_factorial PGPV_BN_factorial
-#define BN_CTX_new PGPV_BN_CTX_new
-#define BN_CTX_get PGPV_BN_CTX_get
-#define BN_CTX_start PGPV_BN_CTX_start
-#define BN_CTX_end PGPV_BN_CTX_end
-#define BN_CTX_init PGPV_BN_CTX_init
-#define BN_CTX_free PGPV_BN_CTX_free
 #define BN_rand PGPV_BN_rand
 #define BN_rand_range PGPV_BN_rand_range
 #define BN_is_prime PGPV_BN_is_prime
@@ -110,13 +103,6 @@ __BEGIN_DECLS
 typedef struct PGPV_BIGNUM_st {
     botan_mp_t mp;
 } PGPV_BIGNUM;
-
-/* a "context" of mp integers - never really used */
-typedef struct bn_ctx_t {
-    size_t        count;
-    size_t        arraysize;
-    PGPV_BIGNUM **v;
-} PGPV_BN_CTX;
 
 #define MP_LT -1
 #define MP_EQ 0
@@ -162,13 +148,11 @@ int PGPV_BN_add(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, const PGPV_BIGNU
 int PGPV_BN_sub(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, const PGPV_BIGNUM * /*b*/);
 int PGPV_BN_mul(PGPV_BIGNUM * /*r*/,
                 const PGPV_BIGNUM * /*a*/,
-                const PGPV_BIGNUM * /*b*/,
-                PGPV_BN_CTX * /*ctx*/);
+                const PGPV_BIGNUM * /*b*/);
 int PGPV_BN_div(PGPV_BIGNUM * /*q*/,
                 PGPV_BIGNUM * /*r*/,
                 const PGPV_BIGNUM * /*a*/,
-                const PGPV_BIGNUM * /*b*/,
-                PGPV_BN_CTX * /*ctx*/);
+                const PGPV_BIGNUM * /*b*/);
 void PGPV_BN_swap(PGPV_BIGNUM * /*a*/, PGPV_BIGNUM * /*b*/);
 int  PGPV_BN_bitop(PGPV_BIGNUM * /*r*/,
                   const PGPV_BIGNUM * /*a*/,
@@ -192,24 +176,15 @@ int PGPV_BN_num_bits(const PGPV_BIGNUM * /*a*/);
 int PGPV_BN_mod_exp(PGPV_BIGNUM * /*r*/,
                     PGPV_BIGNUM * /*a*/,
                     PGPV_BIGNUM * /*p*/,
-                    PGPV_BIGNUM * /*m*/,
-                    PGPV_BN_CTX * /*ctx*/);
+                    PGPV_BIGNUM * /*m*/);
 PGPV_BIGNUM *PGPV_BN_mod_inverse(PGPV_BIGNUM * /*ret*/,
                                  PGPV_BIGNUM * /*a*/,
-                                 const PGPV_BIGNUM * /*n*/,
-                                 PGPV_BN_CTX * /*ctx*/);
+                                 const PGPV_BIGNUM * /*n*/);
+
 int PGPV_BN_mod_mul(PGPV_BIGNUM * /*ret*/,
                     PGPV_BIGNUM * /*a*/,
                     PGPV_BIGNUM * /*b*/,
-                    const PGPV_BIGNUM * /*m*/,
-                    PGPV_BN_CTX * /*ctx*/);
-
-PGPV_BN_CTX *PGPV_BN_CTX_new(void);
-PGPV_BIGNUM *PGPV_BN_CTX_get(PGPV_BN_CTX * /*ctx*/);
-void         PGPV_BN_CTX_start(PGPV_BN_CTX * /*ctx*/);
-void         PGPV_BN_CTX_end(PGPV_BN_CTX * /*ctx*/);
-void         PGPV_BN_CTX_init(PGPV_BN_CTX * /*c*/);
-void         PGPV_BN_CTX_free(PGPV_BN_CTX * /*c*/);
+                    const PGPV_BIGNUM * /*m*/);
 
 int PGPV_BN_rand(PGPV_BIGNUM * /*rnd*/, int /*bits*/, int /*top*/, int /*bottom*/);
 int PGPV_BN_rand_range(PGPV_BIGNUM * /*rnd*/, PGPV_BIGNUM * /*range*/);
@@ -217,7 +192,6 @@ int PGPV_BN_rand_range(PGPV_BIGNUM * /*rnd*/, PGPV_BIGNUM * /*range*/);
 int PGPV_BN_is_prime(const PGPV_BIGNUM * /*a*/,
                      int /*checks*/,
                      void (*callback)(int, int, void *),
-                     PGPV_BN_CTX * /*ctx*/,
                      void * /*cb_arg*/);
 
 const PGPV_BIGNUM *PGPV_BN_value_one(void);
@@ -225,8 +199,7 @@ int                PGPV_BN_is_bit_set(const PGPV_BIGNUM * /*a*/, int /*n*/);
 
 int PGPV_BN_gcd(PGPV_BIGNUM * /*r*/,
                 PGPV_BIGNUM * /*a*/,
-                PGPV_BIGNUM * /*b*/,
-                PGPV_BN_CTX * /*ctx*/);
+                PGPV_BIGNUM * /*b*/);
 
 /**
  * \brief Allocates BIGNUM and mp value assigned
