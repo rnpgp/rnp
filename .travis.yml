@@ -13,6 +13,7 @@ env:
     - CMOCKA_INSTALL="$HOME/builds/cmocka-install"
     - JSON_C_INSTALL="$HOME/builds/json-c-install"
     - LOGNAME="Travis"
+    - CLANG_FORMAT_DIFF="clang-format-diff-4.0"
 
     # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created via
     # the "travis encrypt" command using the project repo's public key
@@ -29,6 +30,13 @@ matrix:
       compiler: clang
     - env: BUILD_MODE=coverage
       compiler: gcc
+    - env: BUILD_MODE=style-check
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-4.0
+          packages:
+            - clang-format-4.0
   allow_failures:
     - env: BUILD_MODE=sanitize-leaks
 
