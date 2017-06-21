@@ -66,21 +66,15 @@
 #include "bn.h"
 
 #define PGP_MIN_HASH_SIZE 16
+#define MAX_CURVE_BYTELEN BITS_TO_BYTES(521) /* Length of NIST P-521 */
 
-#define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
-
-#define MAX_CURVE_BYTELEN BITS_TO_BYTES(521)  /* Length of NIST P-521 */
+#define NTAGS 0x100 /* == 256 */
 
 void pgp_crypto_finish(void);
 
 /* Key generation */
 
-pgp_key_t*
-pgp_generate_keypair(pgp_pubkey_alg_t   alg,
-                     const int          alg_params,
-                     const uint8_t*     userid,
-                     const char*        hashalg,
-                     const char*        cipher);
+pgp_key_t *pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid);
 
 void pgp_reader_push_decrypt(pgp_stream_t *, pgp_crypt_t *, pgp_region_t *);
 void pgp_reader_pop_decrypt(pgp_stream_t *);
@@ -172,7 +166,17 @@ typedef struct {
     uint8_t    keyid[PGP_KEY_ID_SIZE];
 } pgp_hashtype_t;
 
-#define NTAGS 0x100 /* == 256 */
+/**
+ * Structure holds description of elliptic curve
+ */
+typedef struct ec_curve_desc_t {
+    const pgp_curve_t rnp_curve_id;
+    const size_t      bitlen;
+    const uint8_t     OIDhex[MAX_CURVE_OID_HEX_LEN];
+    const size_t      OIDhex_len;
+    const char *      botan_name;
+    const char *      pgp_name;
+} ec_curve_desc_t;
 
 /** \brief Structure to hold information about a packet parse.
  *
@@ -195,7 +199,7 @@ typedef struct {
  *
  *  It has a linked list of errors.
  */
-
+// TODO: Shouldn't this be in some other place than crypto.h?
 struct pgp_stream_t {
     uint8_t ss_raw[NTAGS / 8];
     /* 1 bit / sig-subpkt type; set to get raw data */
@@ -219,5 +223,33 @@ struct pgp_stream_t {
     unsigned virtualoff;
     uint8_t *virtualpkt;
 };
+
+/* -----------------------------------------------------------------------------
+ * @brief   Finds curve ID by hex representation of OID
+ *
+ * @param   oid       buffer with OID in hex
+ * @param   oid_len   length of oid buffer
+ *
+ * @returns success curve ID
+ *          failure PGP_CURVE_MAX is returned
+ *
+ * @remarks see RFC 4880 bis 01 - 9.2 ECC Curve OID
+-------------------------------------------------------------------------------- */
+pgp_curve_t find_curve_by_OID(const uint8_t *oid, size_t oid_len);
+
+/* -----------------------------------------------------------------------------
+ * @brief   Serialize EC public to octet string
+ *
+ * @param   output      generated output
+ * @param   pubkey      initialized ECDSA public key
+ *
+ * @pre     output      must be not null
+ * @pre     pubkey      must be not null
+ *
+ * @returns success PGP_E_OK, error code otherwise
+ *
+ * @remarks see RFC 4880 bis 01 - 5.5.2 Public-Key Packet Formats
+-------------------------------------------------------------------------------- */
+pgp_errcode_t ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey);
 
 #endif /* CRYPTO_H_ */

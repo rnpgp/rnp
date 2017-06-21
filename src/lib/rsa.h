@@ -38,7 +38,7 @@
  * RSA encrypt/decrypt
  */
 
-int pgp_genkey_rsa(pgp_seckey_t* seckey, size_t numbits);
+int pgp_genkey_rsa(pgp_seckey_t *seckey, size_t numbits);
 
 int pgp_rsa_encrypt_pkcs1(uint8_t *               out,
                           size_t                  out_len,

@@ -143,7 +143,12 @@ pkcs1_rsa_test_success(void **state)
     const pgp_rsa_pubkey_t *pub_rsa;
     const pgp_rsa_seckey_t *sec_rsa;
 
-    pgp_key = pgp_generate_keypair(PGP_PKA_RSA, 1024, NULL, "SHA-256", "AES-128");
+    const rnp_keygen_desc_t key_desc = {.key_alg = PGP_PKA_RSA,
+                                        .hash_alg = PGP_HASH_SHA256,
+                                        .sym_alg = PGP_SA_AES_128,
+                                        .rsa = {.modulus_bit_len = 1024}};
+    pgp_key = pgp_generate_keypair(&key_desc, NULL);
+
     assert_true(pgp_key != NULL);
     sec_key = pgp_get_seckey(pgp_key);
     pub_key = pgp_get_pubkey(pgp_key);
@@ -197,7 +202,9 @@ pkcs1_rsa_test_success(void **state)
 void
 rnp_test_eddsa(void **state)
 {
-    pgp_key_t *pgp_key = pgp_generate_keypair(PGP_PKA_EDDSA, 255, NULL, "SHA-256", "AES-128");
+    const rnp_keygen_desc_t key_desc = {
+      .key_alg = PGP_PKA_EDDSA, .hash_alg = PGP_HASH_SHA256, .sym_alg = PGP_SA_AES_128};
+    pgp_key_t *pgp_key = pgp_generate_keypair(&key_desc, NULL);
     assert_non_null(pgp_key);
 
     const uint8_t hash[32] = {0};
@@ -316,8 +323,13 @@ ECDSA_signverify_success(void **state)
     uint8_t       message[32];
     pgp_ecc_sig_t sig = {NULL, NULL};
 
-    pgp_key_t *pgp_key1 = pgp_generate_keypair(PGP_PKA_ECDSA, 256, NULL, "SHA256", "AES-128");
-    pgp_key_t *pgp_key2 = pgp_generate_keypair(PGP_PKA_ECDSA, 256, NULL, "SHA256", "AES-128");
+    const rnp_keygen_desc_t key_desc = {.key_alg = PGP_PKA_ECDSA,
+                                        .hash_alg = PGP_HASH_SHA256,
+                                        .sym_alg = PGP_SA_AES_128,
+                                        .ecc = {.curve = PGP_CURVE_NIST_P_256}};
+
+    pgp_key_t *pgp_key1 = pgp_generate_keypair(&key_desc, NULL);
+    pgp_key_t *pgp_key2 = pgp_generate_keypair(&key_desc, NULL);
     assert_int_not_equal(pgp_key1, NULL);
     assert_int_not_equal(pgp_key2, NULL);
 
