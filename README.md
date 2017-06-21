@@ -36,7 +36,7 @@ Upcoming supported platforms:
 
 ## Generating an RSA Private Key
 
-Only RSA key supported right now.
+By default ``rnpkeys  --generate-key`` will generate 2048-bit RSA key.
 
 ``` sh
 export keydir=/tmp
@@ -50,6 +50,36 @@ rnpkeys: generated keys in directory ${keydir}/6ed2d908150b82e7
 ```
 
 In case you're curious, `6ed2d...` is the key fingerprint.
+
+In order to use fully featured key pair generation ``--expert`` flag should be used. With this flag added to  ``rnpkeys --generate-key`` user has a possibility to generate keypair for any supported algorithm and/or key size.
+
+Example:
+
+``` sh
+> export keydir=/tmp
+> rnpkeys --generate-key --expert --homedir=${keydir}
+
+Please select what kind of key you want:
+    (1)  RSA (Encrypt or Sign)
+    (19) ECDSA
+    (22) EDDSA
+> 19
+
+Please select which elliptic curve you want:
+    (1) NIST P-256
+    (2) NIST P-384
+    (3) NIST P-521
+> 2
+
+Generating a new key...
+signature  384/ECDSA d45592277b75ada1 2017-06-21
+Key fingerprint: 4244 2969 07ca 42f7 b6d8 1636 d455 9227 7b75 ada1
+uid              ECDSA 384-bit key <flowher@localhost>
+rnp: generated keys in directory /tmp/.rnp
+Enter passphrase for d45592277b75ada1:
+Repeat passphrase for d45592277b75ada1:
+>
+```
 
 
 ## Listing Keys
