@@ -514,20 +514,20 @@ typedef enum {
  * \see RFC4880 9.2
  */
 typedef enum {
-    PGP_SA_PLAINTEXT = 0,      /* Plaintext or unencrypted data */
-    PGP_SA_IDEA = 1,           /* IDEA */
-    PGP_SA_TRIPLEDES = 2,      /* TripleDES */
-    PGP_SA_CAST5 = 3,          /* CAST5 */
-    PGP_SA_BLOWFISH = 4,       /* Blowfish */
-    PGP_SA_AES_128 = 7,        /* AES with 128-bit key (AES) */
-    PGP_SA_AES_192 = 8,        /* AES with 192-bit key */
-    PGP_SA_AES_256 = 9,        /* AES with 256-bit key */
-    PGP_SA_TWOFISH = 10,       /* Twofish with 256-bit key (TWOFISH) */
-    PGP_SA_CAMELLIA_128 = 11,  /* Camellia with 128-bit key (CAMELLIA) */
-    PGP_SA_CAMELLIA_192 = 12,  /* Camellia with 192-bit key */
-    PGP_SA_CAMELLIA_256 = 13,  /* Camellia with 256-bit key */
+    PGP_SA_PLAINTEXT = 0,     /* Plaintext or unencrypted data */
+    PGP_SA_IDEA = 1,          /* IDEA */
+    PGP_SA_TRIPLEDES = 2,     /* TripleDES */
+    PGP_SA_CAST5 = 3,         /* CAST5 */
+    PGP_SA_BLOWFISH = 4,      /* Blowfish */
+    PGP_SA_AES_128 = 7,       /* AES with 128-bit key (AES) */
+    PGP_SA_AES_192 = 8,       /* AES with 192-bit key */
+    PGP_SA_AES_256 = 9,       /* AES with 256-bit key */
+    PGP_SA_TWOFISH = 10,      /* Twofish with 256-bit key (TWOFISH) */
+    PGP_SA_CAMELLIA_128 = 11, /* Camellia with 128-bit key (CAMELLIA) */
+    PGP_SA_CAMELLIA_192 = 12, /* Camellia with 192-bit key */
+    PGP_SA_CAMELLIA_256 = 13, /* Camellia with 256-bit key */
 
-    PGP_SA_SM4          = 105  /* RNP extension - SM4 */
+    PGP_SA_SM4 = 105 /* RNP extension - SM4 */
 } pgp_symm_alg_t;
 
 #define PGP_SA_DEFAULT_CIPHER PGP_SA_CAST5
