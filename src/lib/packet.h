@@ -1005,15 +1005,22 @@ typedef struct pgp_key_t {
     pgp_revoke_t      revocation;     /* revocation reason */
 } pgp_key_t;
 
-/**
- * Structure holds description of elliptic curve
- */
-typedef struct ec_curve_desc_t {
-    const pgp_curve_t rnp_curve_id;
-    const size_t      bitlen;
-    const uint8_t     OIDhex[MAX_CURVE_OID_HEX_LEN];
-    const size_t      OIDhex_len;
-    const char *      botan_name;
-} ec_curve_desc_t;
+/* structure used to hold context of key generation */
+typedef struct rnp_keygen_desc_t {
+    // Asymmteric algorithm that user requesed key for
+    pgp_pubkey_alg_t key_alg;
+    // Hash to be used for key signature
+    pgp_hash_alg_t hash_alg;
+    // Symmetric algorithm to be used for secret key encryption
+    pgp_symm_alg_t sym_alg;
+    union {
+        struct ecc_t {
+            pgp_curve_t curve;
+        } ecc;
+        struct rsa_t {
+            uint32_t modulus_bit_len;
+        } rsa;
+    };
+} rnp_keygen_desc_t;
 
 #endif /* PACKET_H_ */

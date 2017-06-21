@@ -34,6 +34,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include "../common/utils.h"
 
 /** Hashing Algorithm Numbers.
  * OpenPGP assigns a unique Algorithm Number to each algorithm that is
@@ -44,10 +45,10 @@
  * \see RFC4880 9.4
  */
 typedef enum {
-    PGP_HASH_UNKNOWN = -1, /* used to indicate errors */
-    PGP_HASH_MD5 = 1,      /* MD5 */
-    PGP_HASH_SHA1 = 2,     /* SHA-1 */
-    PGP_HASH_RIPEMD = 3,   /* RIPEMD160 */
+    PGP_HASH_UNKNOWN = 0, /* used to indicate errors */
+    PGP_HASH_MD5 = 1,     /* MD5 */
+    PGP_HASH_SHA1 = 2,    /* SHA-1 */
+    PGP_HASH_RIPEMD = 3,  /* RIPEMD160 */
 
     PGP_HASH_SHA256 = 8,  /* SHA256 */
     PGP_HASH_SHA384 = 9,  /* SHA384 */
