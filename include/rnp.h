@@ -34,6 +34,7 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <packet.h>
+#include <symmetric.h>
 
 #ifndef __BEGIN_DECLS
 #if defined(__cplusplus)

@@ -244,3 +244,20 @@ setupPassphrasefd(int *pipefd)
     close(pipefd[1]);
     return 1;
 }
+
+void
+setup_rnp_common(rnp_t *rnp, char *passfd)
+{
+    /*Initialize the basic RNP structure. */
+    memset(rnp, '\0', sizeof(*rnp));
+    /*Set the default parameters*/
+    rnp_setvar(rnp, "sshkeydir", "/etc/ssh");
+    rnp_setvar(rnp, "res", "<stdout>");
+    rnp_setvar(rnp, "format", "human");
+    if (passfd) {
+        rnp_setvar(rnp, "pass-fd", passfd);
+        rnp_setvar(rnp, "need seckey", "true");
+    }
+    int retVal = rnp_init(rnp);
+    assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
+}

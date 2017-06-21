@@ -36,6 +36,7 @@
 #include <ftw.h>
 #include <sys/stat.h>
 #include <cmocka.h>
+#include <rnp.h>
 
 /* Check if a file exists.
  * Use with assert_true and assert_false.
@@ -101,3 +102,7 @@ char *uint_to_string(char *buff, const int buffsize, unsigned int num, int base)
 /*
  */
 int setupPassphrasefd(int *pipefd);
+
+/*
+ */
+void setup_rnp_common(rnp_t *rnp, char *passfd);
