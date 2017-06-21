@@ -257,6 +257,7 @@ pgp_writer_set(pgp_output_t *          output,
         output->writer.finaliser = finaliser;
         output->writer.destroyer = destroyer;
         output->writer.arg = arg;
+        output->writer.ctx = output->ctx;
     }
 }
 
@@ -292,6 +293,7 @@ pgp_writer_push(pgp_output_t *          output,
         output->writer.finaliser = finaliser;
         output->writer.destroyer = destroyer;
         output->writer.arg = arg;
+        output->writer.ctx = output->ctx;
     }
 }
 
@@ -351,10 +353,11 @@ pgp_writer_get_arg(pgp_writer_t *writer)
  *
  * Write to the next writer down in the stack.
  *
+ * \param ctx Operation context
+ * \param writer The writer_info structure.
  * \param src The data to write.
  * \param len The length of src.
  * \param errors A place to store errors.
- * \param writer The writer_info structure.
  * \return Success - if 0, then errors should contain the error.
  */
 static unsigned
@@ -958,7 +961,7 @@ static void encrypt_se_ip_destroyer(pgp_writer_t *);
 \brief Push Encrypted SE IP Writer onto stack
 */
 int
-pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const char *cipher)
+pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t cipher)
 {
     pgp_pk_sesskey_t *encrypted_pk_sesskey;
     encrypt_se_ip_t * se_ip;
@@ -1026,9 +1029,9 @@ encrypt_se_ip_writer(const uint8_t *src,
     pgp_memory_t *   localmem;
     unsigned         ret = 1;
 
-    pgp_setup_memory_write(&litoutput, &litmem, bufsz);
-    pgp_setup_memory_write(&zoutput, &zmem, bufsz);
-    pgp_setup_memory_write(&output, &localmem, bufsz);
+    pgp_setup_memory_write(writer->ctx, &litoutput, &litmem, bufsz);
+    pgp_setup_memory_write(writer->ctx, &zoutput, &zmem, bufsz);
+    pgp_setup_memory_write(writer->ctx, &output, &localmem, bufsz);
 
     /* create literal data packet from source data */
     pgp_write_litdata(litoutput, src, (const int) len, PGP_LDT_BINARY);
@@ -1105,7 +1108,7 @@ pgp_write_se_ip_pktset(pgp_output_t * output,
     }
 
     /* now construct MDC packet and add to the end of the buffer */
-    pgp_setup_memory_write(&mdcoutput, &mdc, mdcsize);
+    pgp_setup_memory_write(output->ctx, &mdcoutput, &mdc, mdcsize);
     pgp_calc_mdc_hash(preamble, preamblesize, data, len, hashed);
     pgp_write_mdc(mdcoutput, hashed);
 
@@ -1336,7 +1339,7 @@ static void str_enc_se_ip_destroyer(pgp_writer_t *writer);
 \param pubkey
 */
 void
-pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const char *cipher)
+pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t cipher)
 {
     pgp_pk_sesskey_t *encrypted_pk_sesskey;
     str_enc_se_ip_t * se_ip;
@@ -1376,7 +1379,7 @@ pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, const c
     se_ip->litmem = NULL;
     se_ip->litoutput = NULL;
 
-    pgp_setup_memory_write(&se_ip->se_ip_out, &se_ip->se_ip_mem, bufsz);
+    pgp_setup_memory_write(output->ctx, &se_ip->se_ip_out, &se_ip->se_ip_mem, bufsz);
 
     /* And push writer on stack */
     pgp_writer_push(
@@ -1447,14 +1450,28 @@ stream_write_litdata_first(pgp_output_t *         output,
                            unsigned               len,
                            const pgp_litdata_enum type)
 {
-    /* \todo add filename  */
-    /* \todo add date */
-    /* \todo do we need to check text data for <cr><lf> line endings ? */
+    /* \todo do we need to check text data for <cr><lf> line endings ? - Yes, we need.
+    For non-PGP_LDT_BINARY we should convert line endings to the canonical CRLF style. */
 
     unsigned sz_towrite;
     size_t   sz_pd;
+    char *   fname = NULL;
+    int64_t  mtime = 0;
+    unsigned flen = 0;
 
-    sz_towrite = 1 + 1 + 4 + len;
+    /* checking whether filename and modification time are available */
+    if (output->ctx) {
+        fname = output->ctx->filename;
+        mtime = output->ctx->filemtime;
+        flen = fname ? strlen(fname) : 0;
+        if (flen > 255) {
+            (void) fprintf(
+              stderr, "stream_write_litdata_first : filename %s too long\n", fname);
+            return 0;
+        }
+    }
+
+    sz_towrite = 1 + 1 + flen + 4 + len;
     sz_pd = (size_t) partial_data_len(sz_towrite);
     if (sz_pd < 512) {
         (void) fprintf(stderr, "stream_write_litdata_first: bad sz_pd\n");
@@ -1463,8 +1480,11 @@ stream_write_litdata_first(pgp_output_t *         output,
     pgp_write_ptag(output, PGP_PTAG_CT_LITDATA);
     write_partial_len(output, (unsigned) sz_pd);
     pgp_write_scalar(output, (unsigned) type, 1);
-    pgp_write_scalar(output, 0, 1);
-    pgp_write_scalar(output, 0, 4);
+    pgp_write_scalar(output, flen, 1);
+    if (flen > 0) {
+        pgp_write(output, fname, flen);
+    }
+    pgp_write_scalar(output, mtime, 4);
     pgp_write(output, data, (unsigned) (sz_pd - 6));
 
     data += (sz_pd - 6);
@@ -1580,7 +1600,7 @@ stream_write_se_ip_last(pgp_output_t *   output,
     /* finish */
     pgp_hash_finish(&se_ip->hash, hashed);
 
-    pgp_setup_memory_write(&mdcoutput, &mdcmem, mdcsize);
+    pgp_setup_memory_write(output->ctx, &mdcoutput, &mdcmem, mdcsize);
     pgp_write_mdc(mdcoutput, hashed);
 
     /* write length of last se_ip chunk */
@@ -1623,7 +1643,8 @@ str_enc_se_ip_writer(const uint8_t *src,
             return 1; /* will wait for more data or
                        * end of stream             */
         }
-        pgp_setup_memory_write(&se_ip->litoutput, &se_ip->litmem, datalength + 32);
+        pgp_setup_memory_write(
+          writer->ctx, &se_ip->litoutput, &se_ip->litmem, datalength + 32);
         stream_write_litdata_first(se_ip->litoutput,
                                    pgp_mem_data(se_ip->mem_data),
                                    (unsigned) datalength,
@@ -1666,7 +1687,7 @@ str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 
         /* create literal data packet from buffered data */
         pgp_setup_memory_write(
-          &se_ip->litoutput, &se_ip->litmem, pgp_mem_len(se_ip->mem_data) + 32);
+          writer->ctx, &se_ip->litoutput, &se_ip->litmem, pgp_mem_len(se_ip->mem_data) + 32);
 
         pgp_write_litdata(se_ip->litoutput,
                           pgp_mem_data(se_ip->mem_data),

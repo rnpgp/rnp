@@ -79,6 +79,7 @@ struct pgp_writer_t {
     void *                  arg;       /* writer-specific argument */
     pgp_writer_t *          next;      /* next writer in the stack */
     pgp_io_t *              io;        /* IO for errors and output */
+    rnp_ctx_t *             ctx;       /* Operation context */
 };
 
 void *pgp_writer_get_arg(pgp_writer_t *);
@@ -108,6 +109,6 @@ unsigned pgp_write_mpi(pgp_output_t *, const BIGNUM *);
 void     pgp_writer_info_delete(pgp_writer_t *);
 unsigned pgp_writer_info_finalise(pgp_error_t **, pgp_writer_t *);
 
-void pgp_push_stream_enc_se_ip(pgp_output_t *, const pgp_key_t *, const char *);
+void pgp_push_stream_enc_se_ip(pgp_output_t *, const pgp_key_t *, pgp_symm_alg_t);
 
 #endif /* WRITER_H_ */

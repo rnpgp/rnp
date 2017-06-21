@@ -43,6 +43,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <stdbool.h>
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
@@ -360,8 +361,8 @@ appendkey(pgp_io_t *io, pgp_key_t *key, char *ringfile)
     const unsigned noarmor = 0;
     int            fd;
 
-    if ((fd = pgp_setup_file_append(&create, ringfile)) < 0) {
-        fd = pgp_setup_file_write(&create, ringfile, 0);
+    if ((fd = pgp_setup_file_append(NULL, &create, ringfile)) < 0) {
+        fd = pgp_setup_file_write(NULL, &create, ringfile, 0);
     }
     if (fd < 0) {
         (void) fprintf(io->errs, "cannot open pubring '%s'\n", ringfile);
@@ -960,6 +961,9 @@ rnp_init(rnp_t *rnp)
         return 0;
     }
 
+    /* Initialize operation context */
+    rnp_ctx_init(&rnp->ctx);
+
     init_touch_initialized(rnp);
 
     return 1;
@@ -996,7 +1000,32 @@ rnp_end(rnp_t *rnp)
         rnp->secring = NULL;
     }
     free(rnp->io);
+    rnp_ctx_free(&rnp->ctx);
+
     return 1;
+}
+
+/* rnp_ctx_t : init, reset, free internal pointers */
+int
+rnp_ctx_init(rnp_ctx_t *ctx)
+{
+    memset((void *) ctx, '\0', sizeof(ctx));
+    return 0;
+}
+
+void
+rnp_ctx_reset(rnp_ctx_t *ctx)
+{
+    rnp_ctx_free(ctx);
+    memset((void *) ctx, '\0', sizeof(ctx));
+}
+
+/* free operation context */
+void
+rnp_ctx_free(rnp_ctx_t *ctx)
+{
+    if (ctx->filename != NULL)
+        free(ctx->filename);
 }
 
 /* list the keys in a keyring */
@@ -1323,8 +1352,8 @@ rnp_generate_key(rnp_t *rnp, char *id, int numbits)
     }
     /* write secret key */
     (void) snprintf(ringfile = filename, sizeof(filename), "%s/secring.gpg", dir);
-    if ((fd = pgp_setup_file_append(&create, ringfile)) < 0) {
-        fd = pgp_setup_file_write(&create, ringfile, 0);
+    if ((fd = pgp_setup_file_append(&rnp->ctx, &create, ringfile)) < 0) {
+        fd = pgp_setup_file_write(&rnp->ctx, &create, ringfile, 0);
     }
     if (fd < 0) {
         (void) fprintf(io->errs, "cannot append secring '%s'\n", ringfile);
@@ -1361,10 +1390,9 @@ out:
 
 /* encrypt a file */
 int
-rnp_encrypt_file(rnp_t *rnp, const char *userid, const char *f, char *out, int armored)
+rnp_encrypt_file(rnp_t *rnp, const char *userid, const char *f, char *out)
 {
     const pgp_key_t *key;
-    const unsigned   overwrite = 1;
     const char *     suffix;
     pgp_io_t *       io;
     char             outname[MAXPATHLEN];
@@ -1374,7 +1402,7 @@ rnp_encrypt_file(rnp_t *rnp, const char *userid, const char *f, char *out, int a
         (void) fprintf(io->errs, "rnp_encrypt_file: no filename specified\n");
         return 0;
     }
-    suffix = (armored) ? ".asc" : ".gpg";
+    suffix = (rnp->ctx.armour) ? ".asc" : ".gpg";
     /* get key with which to sign */
     if ((key = resolve_userid(rnp, rnp->pubring, userid)) == NULL) {
         return 0;
@@ -1383,8 +1411,7 @@ rnp_encrypt_file(rnp_t *rnp, const char *userid, const char *f, char *out, int a
         (void) snprintf(outname, sizeof(outname), "%s%s", f, suffix);
         out = outname;
     }
-    return (int) pgp_encrypt_file(
-      io, f, out, key, (unsigned) armored, overwrite, rnp_getvar(rnp, "cipher"));
+    return (int) pgp_encrypt_file(&rnp->ctx, io, f, out, key);
 }
 
 #define ARMOR_HEAD "-----BEGIN PGP MESSAGE-----"
@@ -1428,17 +1455,11 @@ rnp_decrypt_file(rnp_t *rnp, const char *f, char *out, int armored)
 
 /* sign a file */
 int
-rnp_sign_file(rnp_t *     rnp,
-              const char *userid,
-              const char *f,
-              char *      out,
-              int         armored,
-              int         cleartext,
-              int         detached)
+rnp_sign_file(
+  rnp_t *rnp, const char *userid, const char *f, char *out, int cleartext, int detached)
 {
     const pgp_key_t *keypair;
     const pgp_key_t *pubkey;
-    const unsigned   overwrite = 1;
     pgp_seckey_t *   seckey;
     const char *     hashalg;
     pgp_io_t *       io;
@@ -1499,26 +1520,24 @@ rnp_sign_file(rnp_t *     rnp,
         hashalg = "sha1";
     }
     if (detached) {
-        ret = pgp_sign_detached(io,
+        ret = pgp_sign_detached(&rnp->ctx,
+                                io,
                                 f,
                                 out,
                                 seckey,
                                 hashalg,
                                 get_birthtime(rnp_getvar(rnp, "birthtime")),
-                                get_duration(rnp_getvar(rnp, "duration")),
-                                (unsigned) armored,
-                                overwrite);
+                                get_duration(rnp_getvar(rnp, "duration")));
     } else {
-        ret = pgp_sign_file(io,
+        ret = pgp_sign_file(&rnp->ctx,
+                            io,
                             f,
                             out,
                             seckey,
                             hashalg,
                             get_birthtime(rnp_getvar(rnp, "birthtime")),
                             get_duration(rnp_getvar(rnp, "duration")),
-                            (unsigned) armored,
-                            (unsigned) cleartext,
-                            overwrite);
+                            (unsigned) cleartext);
     }
     pgp_forget(seckey, sizeof(*seckey));
     return ret;
@@ -1570,7 +1589,6 @@ rnp_sign_memory(rnp_t *        rnp,
                 size_t         size,
                 char *         out,
                 size_t         outsize,
-                const unsigned armored,
                 const unsigned cleartext)
 {
     const pgp_key_t *keypair;
@@ -1635,14 +1653,14 @@ rnp_sign_memory(rnp_t *        rnp,
     if (seckey->pubkey.alg == PGP_PKA_DSA) {
         hashalg = "sha1";
     }
-    signedmem = pgp_sign_buf(io,
+    signedmem = pgp_sign_buf(&rnp->ctx,
+                             io,
                              mem,
                              size,
                              seckey,
                              get_birthtime(rnp_getvar(rnp, "birthtime")),
                              get_duration(rnp_getvar(rnp, "duration")),
                              hashalg,
-                             armored,
                              cleartext);
     if (signedmem) {
         size_t m;
@@ -1710,13 +1728,8 @@ rnp_verify_memory(
 
 /* encrypt some memory */
 int
-rnp_encrypt_memory(rnp_t *      rnp,
-                   const char * userid,
-                   void *       in,
-                   const size_t insize,
-                   char *       out,
-                   size_t       outsize,
-                   int          armored)
+rnp_encrypt_memory(
+  rnp_t *rnp, const char *userid, void *in, const size_t insize, char *out, size_t outsize)
 {
     const pgp_key_t *keypair;
     pgp_memory_t *   enc;
@@ -1740,8 +1753,7 @@ rnp_encrypt_memory(rnp_t *      rnp,
         (void) fprintf(io->errs, "rnp_encrypt_buf: input size is larger than output size\n");
         return 0;
     }
-    enc =
-      pgp_encrypt_buf(io, in, insize, keypair, (unsigned) armored, rnp_getvar(rnp, "cipher"));
+    enc = pgp_encrypt_buf(&rnp->ctx, io, in, insize, keypair);
     m = MIN(pgp_mem_len(enc), outsize);
     (void) memcpy(out, pgp_mem_data(enc), m);
     pgp_memory_free(enc);
@@ -1837,6 +1849,7 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
     ret = pgp_list_packets(
       io, f, (unsigned) armor, rnp->secring, rnp->pubring, rnp->passfp, get_passphrase_cb);
     free(keyring);
+    rnp->pubring = NULL;
     return ret;
 }
 

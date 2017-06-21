@@ -349,32 +349,33 @@ typedef struct {
  * \see RFC4880 9.1
  */
 typedef enum {
-    PGP_PKA_NOTHING = 0,                  /* No PKA */
-    PGP_PKA_RSA = 1,                      /* RSA (Encrypt or Sign) */
-    PGP_PKA_RSA_ENCRYPT_ONLY = 2,         /* RSA Encrypt-Only (deprecated -
-                                           * \see RFC4880 13.5) */
-    PGP_PKA_RSA_SIGN_ONLY = 3,            /* RSA Sign-Only (deprecated -
-                                           * \see RFC4880 13.5) */
-    PGP_PKA_ELGAMAL = 16,                 /* Elgamal (Encrypt-Only) */
-    PGP_PKA_DSA = 17,                     /* DSA (Digital Signature Algorithm) */
-    PGP_PKA_ECDH = 18,                    /* ECDH public key algorithm */
-    PGP_PKA_ECDSA = 19,                   /* ECDSA public key algorithm [FIPS186-3] */
-    PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN = 20, /* Deprecated. Reserved (formerly Elgamal Encrypt or Sign) */
-    PGP_PKA_RESERVED_DH = 21,             /* Reserved for Diffie-Hellman
-                                           * (X9.42, as defined for
-                                           * IETF-S/MIME) */
-    PGP_PKA_EDDSA = 22,                   /* EdDSA from draft-ietf-openpgp-rfc4880bis */
-    PGP_PKA_PRIVATE00 = 100,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE01 = 101,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE02 = 102,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE03 = 103,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE04 = 104,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE05 = 105,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE06 = 106,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE07 = 107,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE08 = 108,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE09 = 109,              /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE10 = 110               /* Private/Experimental Algorithm */
+    PGP_PKA_NOTHING = 0,          /* No PKA */
+    PGP_PKA_RSA = 1,              /* RSA (Encrypt or Sign) */
+    PGP_PKA_RSA_ENCRYPT_ONLY = 2, /* RSA Encrypt-Only (deprecated -
+                                   * \see RFC4880 13.5) */
+    PGP_PKA_RSA_SIGN_ONLY = 3,    /* RSA Sign-Only (deprecated -
+                                   * \see RFC4880 13.5) */
+    PGP_PKA_ELGAMAL = 16,         /* Elgamal (Encrypt-Only) */
+    PGP_PKA_DSA = 17,             /* DSA (Digital Signature Algorithm) */
+    PGP_PKA_ECDH = 18,            /* ECDH public key algorithm */
+    PGP_PKA_ECDSA = 19,           /* ECDSA public key algorithm [FIPS186-3] */
+    PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN =
+      20,                     /* Deprecated. Reserved (formerly Elgamal Encrypt or Sign) */
+    PGP_PKA_RESERVED_DH = 21, /* Reserved for Diffie-Hellman
+                               * (X9.42, as defined for
+                               * IETF-S/MIME) */
+    PGP_PKA_EDDSA = 22,       /* EdDSA from draft-ietf-openpgp-rfc4880bis */
+    PGP_PKA_PRIVATE00 = 100,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE01 = 101,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE02 = 102,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE03 = 103,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE04 = 104,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE05 = 105,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE06 = 106,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE07 = 107,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE08 = 108,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE09 = 109,  /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE10 = 110   /* Private/Experimental Algorithm */
 } pgp_pubkey_alg_t;
 
 /**
@@ -432,7 +433,7 @@ typedef struct {
  */
 typedef struct {
     pgp_curve_t curve;
-    BIGNUM *point; /* octet string encoded as MPI */
+    BIGNUM *    point; /* octet string encoded as MPI */
 } pgp_ecc_pubkey_t;
 
 /** Version.
@@ -504,7 +505,6 @@ typedef enum {
     PGP_S2KS_ITERATED_AND_SALTED = 3
 } pgp_s2k_specifier_t;
 
-
 /** Symmetric Key Algorithm Numbers.
  * OpenPGP assigns a unique Algorithm Number to each algorithm that is
  * part of OpenPGP.
@@ -514,20 +514,20 @@ typedef enum {
  * \see RFC4880 9.2
  */
 typedef enum {
-    PGP_SA_PLAINTEXT = 0,      /* Plaintext or unencrypted data */
-    PGP_SA_IDEA = 1,           /* IDEA */
-    PGP_SA_TRIPLEDES = 2,      /* TripleDES */
-    PGP_SA_CAST5 = 3,          /* CAST5 */
-    PGP_SA_BLOWFISH = 4,       /* Blowfish */
-    PGP_SA_AES_128 = 7,        /* AES with 128-bit key (AES) */
-    PGP_SA_AES_192 = 8,        /* AES with 192-bit key */
-    PGP_SA_AES_256 = 9,        /* AES with 256-bit key */
-    PGP_SA_TWOFISH = 10,       /* Twofish with 256-bit key (TWOFISH) */
-    PGP_SA_CAMELLIA_128 = 11,  /* Camellia with 128-bit key (CAMELLIA) */
-    PGP_SA_CAMELLIA_192 = 12,  /* Camellia with 192-bit key */
-    PGP_SA_CAMELLIA_256 = 13,  /* Camellia with 256-bit key */
+    PGP_SA_PLAINTEXT = 0,     /* Plaintext or unencrypted data */
+    PGP_SA_IDEA = 1,          /* IDEA */
+    PGP_SA_TRIPLEDES = 2,     /* TripleDES */
+    PGP_SA_CAST5 = 3,         /* CAST5 */
+    PGP_SA_BLOWFISH = 4,      /* Blowfish */
+    PGP_SA_AES_128 = 7,       /* AES with 128-bit key (AES) */
+    PGP_SA_AES_192 = 8,       /* AES with 192-bit key */
+    PGP_SA_AES_256 = 9,       /* AES with 256-bit key */
+    PGP_SA_TWOFISH = 10,      /* Twofish with 256-bit key (TWOFISH) */
+    PGP_SA_CAMELLIA_128 = 11, /* Camellia with 128-bit key (CAMELLIA) */
+    PGP_SA_CAMELLIA_192 = 12, /* Camellia with 192-bit key */
+    PGP_SA_CAMELLIA_256 = 13, /* Camellia with 256-bit key */
 
-    PGP_SA_SM4          = 105  /* RNP extension - SM4 */
+    PGP_SA_SM4 = 105 /* RNP extension - SM4 */
 } pgp_symm_alg_t;
 
 #define PGP_SA_DEFAULT_CIPHER PGP_SA_CAST5
@@ -644,7 +644,7 @@ typedef struct pgp_sig_info_t {
         pgp_rsa_sig_t     rsa;     /* An RSA Signature */
         pgp_dsa_sig_t     dsa;     /* A DSA Signature */
         pgp_elgamal_sig_t elgamal; /* deprecated */
-        pgp_ecc_sig_t     ecc;   /* An ECDSA or EdDSA signature */
+        pgp_ecc_sig_t     ecc;     /* An ECDSA or EdDSA signature */
         pgp_ecc_sig_t     ecdsa;   /* A ECDSA signature */
         pgp_data_t        unknown; /* private or experimental */
     } sig;                         /* signature params */
@@ -1010,10 +1010,10 @@ typedef struct pgp_key_t {
  */
 typedef struct ec_curve_desc_t {
     const pgp_curve_t rnp_curve_id;
-    const size_t bitlen;
-    const uint8_t OIDhex[MAX_CURVE_OID_HEX_LEN];
-    const size_t OIDhex_len;
-    const char *botan_name;
+    const size_t      bitlen;
+    const uint8_t     OIDhex[MAX_CURVE_OID_HEX_LEN];
+    const size_t      OIDhex_len;
+    const char *      botan_name;
 } ec_curve_desc_t;
 
 #endif /* PACKET_H_ */

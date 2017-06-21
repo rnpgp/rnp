@@ -37,6 +37,7 @@
 #include <getopt.h>
 #include <regex.h>
 #include <rnp.h>
+#include <rnpsdk.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -264,21 +265,34 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
     unsigned  maxsize;
     char *    out;
     char *    in;
+    char *    cipher;
     int       ret;
     int       cc;
 
+    /* operation context initialization: writing all additional parameters */
+    rnp_ctx_reset(&rnp->ctx);
+    rnp->ctx.armour = p->armour;
+    rnp->ctx.overwrite = p->overwrite;
+    if (f) {
+        rnp->ctx.filename = strdup(rnp_filename(f));
+        rnp->ctx.filemtime = rnp_filemtime(f);
+    }
+
     switch (p->cmd) {
     case ENCRYPT:
+        rnp->ctx.ealg =
+          pgp_str_to_cipher((cipher = rnp_getvar(rnp, "cipher")) ? cipher : "cast5");
+
         if (f == NULL) {
             cc = stdin_to_mem(rnp, &in, &out, &maxsize);
-            ret = rnp_encrypt_memory(
-              rnp, rnp_getvar(rnp, "userid"), in, cc, out, maxsize, p->armour);
+            ret = rnp_encrypt_memory(rnp, rnp_getvar(rnp, "userid"), in, cc, out, maxsize);
             ret = show_output(out, ret, "Bad memory encryption");
             free(in);
             free(out);
             return ret;
         }
-        return rnp_encrypt_file(rnp, rnp_getvar(rnp, "userid"), f, p->output, p->armour);
+
+        return rnp_encrypt_file(rnp, rnp_getvar(rnp, "userid"), f, p->output);
     case DECRYPT:
         if (f == NULL) {
             cc = stdin_to_mem(rnp, &in, &out, &maxsize);
@@ -299,18 +313,17 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
                                   cc,
                                   out,
                                   maxsize,
-                                  p->armour,
                                   (p->cmd == CLEARSIGN) ? cleartext : !cleartext);
             ret = show_output(out, ret, "Bad memory signature");
             free(in);
             free(out);
             return ret;
         }
+
         return rnp_sign_file(rnp,
                              rnp_getvar(rnp, "userid"),
                              f,
                              p->output,
-                             p->armour,
                              (p->cmd == CLEARSIGN) ? cleartext : !cleartext,
                              p->detached);
     case VERIFY:
@@ -365,6 +378,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
         p->cmd = val;
         break;
     case DECRYPT:
+
         /* for decryption, we need a seckey */
         rnp_setvar(rnp, "need seckey", "1");
         p->cmd = val;

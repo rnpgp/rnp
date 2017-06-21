@@ -40,7 +40,9 @@ rnpkeys_generatekey_testSignature(void **state)
     rnp_t     rnp;
     const int numbits = 1024;
     char      passfd[4] = {0};
+    char *    fdptr;
     int       pipefd[2];
+    int       retVal;
 
     char memToSign[] = "A simple test message";
     char signatureBuf[4096] = {0};
@@ -51,18 +53,10 @@ rnpkeys_generatekey_testSignature(void **state)
     assert_int_equal(setupPassphrasefd(pipefd), 1);
 
     for (int i = 0; hashAlg[i] != NULL; i++) {
-        /*Initialize the basic RNP structure. */
-        memset(&rnp, '\0', sizeof(rnp));
-        /*Set the default parameters*/
-        rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-        rnp_setvar(&rnp, "res", "<stdout>");
-
-        rnp_setvar(&rnp, "format", "human");
-        rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 16));
-        rnp_setvar(&rnp, "need seckey", "true");
-
-        int retVal = rnp_init(&rnp);
-        assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
+        /* Setup passphrase input and rnp structure */
+        assert_int_equal(setupPassphrasefd(pipefd), 1);
+        fdptr = uint_to_string(passfd, 4, pipefd[0], 16);
+        setup_rnp_common(&rnp, fdptr);
 
         memset(userId, 0, sizeof(userId));
         strcpy(userId, "sigtest_");
@@ -78,6 +72,9 @@ rnpkeys_generatekey_testSignature(void **state)
         retVal = rnp_find_key(&rnp, userId);
         assert_int_equal(retVal, 1); // Ensure the key can be found with the userId
 
+        close(pipefd[0]);
+        rnp_end(&rnp);
+
         for (unsigned int cleartext = 0; cleartext <= 1; ++cleartext) {
             for (unsigned int armored = 0; armored <= 1; ++armored) {
                 const int skip_null = (cleartext == 1) ? 1 : 0;
@@ -87,43 +84,53 @@ rnpkeys_generatekey_testSignature(void **state)
                     continue;
                 }
 
-                close(pipefd[0]);
-                /* Setup the pass phrase fd to avoid user-input*/
+                /* Setup passphrase input and rnp structure */
                 assert_int_equal(setupPassphrasefd(pipefd), 1);
+                fdptr = uint_to_string(passfd, 4, pipefd[0], 16);
+                setup_rnp_common(&rnp, fdptr);
+                retVal = rnp_load_keys(&rnp);
+                assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
 
-                rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 16));
+                rnp.ctx.armour = armored;
                 assert_int_equal(rnp_setvar(&rnp, "hash", hashAlg[i]), 1);
 
+                /* Signing the memory */
                 retVal = rnp_sign_memory(&rnp,
                                          userId,
                                          memToSign,
                                          strlen(memToSign) - skip_null,
                                          signatureBuf,
                                          sizeof(signatureBuf),
-                                         armored,
                                          cleartext);
 
                 assert_int_not_equal(retVal, 0); // Ensure signature operation succeeded
-
                 const int sigLen = retVal;
+                close(pipefd[0]);
+                rnp_end(&rnp);
 
+                /* Setup rnp again and load keyring. Passphrase is not needed */
+                setup_rnp_common(&rnp, NULL);
+                retVal = rnp_load_keys(&rnp);
+                assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
+
+                /* Verify the memory */
                 retVal = rnp_verify_memory(
                   &rnp, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig), armored);
-                // Ensure signature verification passed
+                /* Ensure signature verification passed */
                 assert_int_equal(retVal, strlen(memToSign) - (skip_null ? 1 : 0));
                 assert_string_equal(recoveredSig, memToSign);
 
-                // TODO be smarter about this
-                signatureBuf[50] ^= 0x0C; // corrupt the signature
+                /* Corrupt te signature */
+                /* TODO be smarter about this */
+                signatureBuf[50] ^= 0x0C;
 
                 retVal = rnp_verify_memory(
                   &rnp, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig), armored);
-                assert_int_equal(retVal,
-                                 0); // Ensure signature verification fails for invalid sig
+                /* Ensure that signature verification fails */
+                assert_int_equal(retVal, 0);
+                rnp_end(&rnp);
             }
         }
-
-        rnp_end(&rnp); // Free memory and other allocated resources.
     }
 }
 
@@ -145,7 +152,9 @@ rnpkeys_generatekey_testEncryption(void **state)
     rnp_t     rnp;
     const int numbits = 1024;
     char      passfd[4] = {0};
+    char *    fdptr;
     int       pipefd[2];
+    int       retVal;
 
     char memToEncrypt[] = "A simple test message";
     char ciphertextBuf[4096] = {0};
@@ -154,20 +163,8 @@ rnpkeys_generatekey_testEncryption(void **state)
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
-
-    /*Initialize the basic RNP structure. */
-    memset(&rnp, '\0', sizeof(rnp));
-
-    /*Set the default parameters*/
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(&rnp, "res", "<stdout>");
-
-    rnp_setvar(&rnp, "format", "human");
-    rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 16));
-    rnp_setvar(&rnp, "need seckey", "true");
-
-    int retVal = rnp_init(&rnp);
-    assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
+    fdptr = uint_to_string(passfd, 4, pipefd[0], 16);
+    setup_rnp_common(&rnp, fdptr);
 
     strcpy(userId, "ciphertest");
 
@@ -181,34 +178,46 @@ rnpkeys_generatekey_testEncryption(void **state)
     retVal = rnp_find_key(&rnp, userId);
     assert_int_equal(retVal, 1); // Ensure the key can be found with the userId
 
+    rnp_end(&rnp);
+
     for (int i = 0; cipherAlg[i] != NULL; i++) {
         for (unsigned int armored = 0; armored <= 1; ++armored) {
-            rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 16));
+            /* setting up rnp and encrypting memory */
+            setup_rnp_common(&rnp, NULL);
+            retVal = rnp_load_keys(&rnp);
+            assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
+            /* setting the cipher and armored flags */
             assert_int_equal(rnp_setvar(&rnp, "cipher", cipherAlg[i]), 1);
+            rnp.ctx.armour = armored;
+            rnp.ctx.ealg = pgp_str_to_cipher(cipherAlg[i]);
 
             retVal = rnp_encrypt_memory(&rnp,
                                         userId,
                                         memToEncrypt,
                                         strlen(memToEncrypt),
                                         ciphertextBuf,
-                                        sizeof(ciphertextBuf),
-                                        armored);
-            assert_int_not_equal(retVal, 0); // Ensure signature operation succeeded
-
+                                        sizeof(ciphertextBuf));
+            assert_int_not_equal(retVal, 0); // Ensure encryption operation succeeded
             const int ctextLen = retVal;
+            rnp_end(&rnp);
 
-            close(pipefd[0]);
-            /* Setup the pass phrase fd to avoid user-input*/
+            /* setting up rnp again and decrypting memory */
             assert_int_equal(setupPassphrasefd(pipefd), 1);
+            fdptr = uint_to_string(passfd, 4, pipefd[0], 16);
+            setup_rnp_common(&rnp, fdptr);
+            retVal = rnp_load_keys(&rnp);
+            assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
+
             retVal = rnp_decrypt_memory(
               &rnp, ciphertextBuf, ctextLen, plaintextBuf, sizeof(plaintextBuf), armored);
 
-            // Ensure plaintext recovered
+            /* Ensure plaintext recovered */
             assert_int_equal(retVal, strlen(memToEncrypt));
             assert_string_equal(memToEncrypt, plaintextBuf);
+            close(pipefd[0]);
+            rnp_end(&rnp);
         }
     }
-    rnp_end(&rnp); // Free memory and other allocated resources.
 }
 
 void

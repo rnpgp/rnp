@@ -93,6 +93,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "rnpdefs.h"
 #include "rnpdigest.h"
 #include "packet-key.h"
+#include "rnpsdk.h"
 #include "ecdsa.h"
 
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
@@ -833,24 +834,22 @@ create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, pgp_crypt_t *cipherinfo, uint8
  \ingroup Core_Create
 \brief Creates an pgp_pk_sesskey_t struct from keydata
 \param key Keydata to use
+\param cipher Encryption algorithm used
 \return pgp_pk_sesskey_t struct
 \note It is the caller's responsiblity to free the returned pointer
-\note Currently hard-coded to use CAST5
-\note Currently hard-coded to use RSA
 */
 pgp_pk_sesskey_t *
-pgp_create_pk_sesskey(const pgp_key_t *key, const char *ciphername)
+pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
 {
     /*
      * Creates a random session key and encrypts it for the given key
      *
-     * Encryption used is PK,
+     * Encryption used is PK
      * can be any, we're hardcoding RSA for now
      */
 
     const pgp_pubkey_t *pubkey;
     const uint8_t *     id = NULL;
-    pgp_symm_alg_t      cipher;
     pgp_crypt_t         cipherinfo;
     pgp_pk_sesskey_t *  sesskey = NULL;
     uint8_t *           encoded_key = NULL;
@@ -877,8 +876,7 @@ pgp_create_pk_sesskey(const pgp_key_t *key, const char *ciphername)
 
     (void) memset(&cipherinfo, 0x0, sizeof(cipherinfo));
 
-    if (pgp_crypt_any(&cipherinfo,
-                      cipher = pgp_str_to_cipher((ciphername) ? ciphername : "cast5")) == 0) {
+    if (pgp_crypt_any(&cipherinfo, cipher) == 0) {
         return NULL;
     }
 
@@ -1035,10 +1033,10 @@ pgp_write_mdc(pgp_output_t *output, const uint8_t *hashed)
 /**
 \ingroup Core_WritePackets
 \brief Writes Literal Data packet from buffer
+\param output Write settings
 \param data Buffer to write out
 \param maxlen Max length of buffer
 \param type Literal Data Type
-\param output Write settings
 \return 1 if OK; else 0
 */
 unsigned
@@ -1047,16 +1045,27 @@ pgp_write_litdata(pgp_output_t *         output,
                   const int              maxlen,
                   const pgp_litdata_enum type)
 {
-    /*
-     * RFC4880 does not specify a meaning for filename or date.
-     * It is implementation-dependent.
-     * We will not implement them.
-     */
-    /* \todo do we need to check text data for <cr><lf> line endings ? */
+    char *   filename = NULL;
+    uint64_t modtime = 0;
+    unsigned flen = 0;
+    /* \todo do we need to check text data for <cr><lf> line endings ? - Yes, we need.
+    For non-PGP_LDT_BINARY we should convert line endings to the canonical CRLF style. */
+
+    if (output->ctx) {
+        filename = output->ctx->filename;
+        modtime = output->ctx->filemtime;
+        flen = filename ? strlen(filename) : 0;
+        if (flen > 255) {
+            (void) fprintf(stderr, "pgp_write_litdata : filename %s too long\n", filename);
+            return 0;
+        }
+    }
+
     return pgp_write_ptag(output, PGP_PTAG_CT_LITDATA) &&
-           pgp_write_length(output, (unsigned) (1 + 1 + 4 + maxlen)) &&
-           pgp_write_scalar(output, (unsigned) type, 1) && pgp_write_scalar(output, 0, 1) &&
-           pgp_write_scalar(output, 0, 4) && pgp_write(output, data, (unsigned) maxlen);
+           pgp_write_length(output, (unsigned) (1 + 1 + flen + 4 + maxlen)) &&
+           pgp_write_scalar(output, (unsigned) type, 1) && pgp_write_scalar(output, flen, 1) &&
+           ((flen > 0) ? pgp_write(output, filename, flen) : 1) &&
+           pgp_write_scalar(output, modtime, 4) && pgp_write(output, data, (unsigned) maxlen);
 }
 
 /**
@@ -1081,6 +1090,7 @@ pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_outp
         pgp_memory_free(mem);
         return 0;
     }
+
     len = (int) pgp_mem_len(mem);
     ret = pgp_write_litdata(output, pgp_mem_data(mem), len, type);
     pgp_memory_free(mem);
