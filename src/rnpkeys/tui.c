@@ -87,6 +87,7 @@ ask_curve()
         for (int i = 0; (i < PGP_CURVE_MAX) && (i != PGP_CURVE_ED25519); i++) {
             printf("\t(%u) %s\n", i + 1, ec_curves[i].pgp_name);
         }
+        printf("> ");
         ok = rnp_secure_get_long_from_fd(stdin, &result);
         ok &= (result > 0) && (result < PGP_CURVE_MAX);
     } while (!ok);
@@ -103,7 +104,8 @@ ask_algorithm()
                "\t(1)  RSA (Encrypt or Sign)\n"
                // "\t(18) ECDH\n"
                "\t(19) ECDSA\n"
-               "\t(22) EDDSA\n");
+               "\t(22) EDDSA\n"
+               "> ");
 
     } while (!rnp_secure_get_long_from_fd(stdin, &result) ||
              !is_keygen_supported_for_alg(result));
@@ -115,7 +117,7 @@ ask_bitlen()
 {
     long result = 0;
     do {
-        printf("Please provide bit length of the key (between 1024 and 4096):\n");
+        printf("Please provide bit length of the key (between 1024 and 4096):\n> ");
     } while (!rnp_secure_get_long_from_fd(stdin, &result) ||
              !is_rsa_keysize_supported(result));
     return result;
