@@ -174,12 +174,9 @@ PGPV_BN_mul(PGPV_BIGNUM *r, const PGPV_BIGNUM *a, const PGPV_BIGNUM *b)
 }
 
 int
-PGPV_BN_div(PGPV_BIGNUM *      dv,
-            PGPV_BIGNUM *      rem,
-            const PGPV_BIGNUM *a,
-            const PGPV_BIGNUM *d)
+PGPV_BN_div(PGPV_BIGNUM *dv, PGPV_BIGNUM *rem, const PGPV_BIGNUM *a, const PGPV_BIGNUM *d)
 {
-    if ( (dv == NULL) || (rem == NULL) || (a == NULL) || (d == NULL)) {
+    if ((dv == NULL) || (rem == NULL) || (a == NULL) || (d == NULL)) {
         return 0;
     }
     return botan_mp_div(dv->mp, rem->mp, a->mp, d->mp) == 0;
@@ -268,8 +265,7 @@ PGPV_BN_cmp(PGPV_BIGNUM *a, PGPV_BIGNUM *b)
 }
 
 int
-PGPV_BN_mod_exp(
-  PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM *P)
+PGPV_BN_mod_exp(PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM *P)
 {
     if (Y == NULL || G == NULL || X == NULL || P == NULL) {
         return -1;
@@ -287,8 +283,7 @@ PGPV_BN_mod_inverse(PGPV_BIGNUM *r, PGPV_BIGNUM *a, const PGPV_BIGNUM *n)
 }
 
 int
-PGPV_BN_mod_mul(
-  PGPV_BIGNUM *ret, PGPV_BIGNUM *a, PGPV_BIGNUM *b, const PGPV_BIGNUM *m)
+PGPV_BN_mod_mul(PGPV_BIGNUM *ret, PGPV_BIGNUM *a, PGPV_BIGNUM *b, const PGPV_BIGNUM *m)
 {
     if (ret == NULL || a == NULL || b == NULL || m == NULL) {
         return 0;
@@ -496,7 +491,7 @@ int
 PGPV_BN_is_prime(const PGPV_BIGNUM *a,
                  int                checks,
                  void (*callback)(int, int, void *),
-                 void *       cb_arg)
+                 void *cb_arg)
 {
     int ret;
     int test_prob;

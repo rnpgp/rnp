@@ -146,9 +146,7 @@ int          PGPV_BN_print_fp(FILE * /*fp*/, const PGPV_BIGNUM * /*a*/);
 
 int PGPV_BN_add(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, const PGPV_BIGNUM * /*b*/);
 int PGPV_BN_sub(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, const PGPV_BIGNUM * /*b*/);
-int PGPV_BN_mul(PGPV_BIGNUM * /*r*/,
-                const PGPV_BIGNUM * /*a*/,
-                const PGPV_BIGNUM * /*b*/);
+int PGPV_BN_mul(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, const PGPV_BIGNUM * /*b*/);
 int PGPV_BN_div(PGPV_BIGNUM * /*q*/,
                 PGPV_BIGNUM * /*r*/,
                 const PGPV_BIGNUM * /*a*/,
@@ -197,9 +195,7 @@ int PGPV_BN_is_prime(const PGPV_BIGNUM * /*a*/,
 const PGPV_BIGNUM *PGPV_BN_value_one(void);
 int                PGPV_BN_is_bit_set(const PGPV_BIGNUM * /*a*/, int /*n*/);
 
-int PGPV_BN_gcd(PGPV_BIGNUM * /*r*/,
-                PGPV_BIGNUM * /*a*/,
-                PGPV_BIGNUM * /*b*/);
+int PGPV_BN_gcd(PGPV_BIGNUM * /*r*/, PGPV_BIGNUM * /*a*/, PGPV_BIGNUM * /*b*/);
 
 /**
  * \brief Allocates BIGNUM and mp value assigned
