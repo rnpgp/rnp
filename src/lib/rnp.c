@@ -823,14 +823,16 @@ init_new_io(rnp_t *rnp)
 }
 
 static int
-parse_keyring_format(rnp_t *rnp, enum key_store_format_t *keyring_format, const char *format)
+parse_key_store_format(rnp_t *                  rnp,
+                       enum key_store_format_t *key_store_format,
+                       const char *             format)
 {
     if (rnp_strcasecmp(format, "GPG") == 0) {
-        *keyring_format = GPG_KEY_STORE;
+        *key_store_format = GPG_KEY_STORE;
     } else if (rnp_strcasecmp(format, "KBX") == 0) {
-        *keyring_format = KBX_KEY_STORE;
+        *key_store_format = KBX_KEY_STORE;
     } else if (rnp_strcasecmp(format, "SSH") == 0) {
-        *keyring_format = SSH_KEY_STORE;
+        *key_store_format = SSH_KEY_STORE;
     } else {
         fprintf(stderr, "rnp: unsupported keyring format: \"%s\"\n", format);
         return 0;
@@ -1950,7 +1952,7 @@ rnp_incvar(rnp_t *rnp, const char *name, const int delta)
 int
 rnp_set_key_store_format(rnp_t *rnp, const char *format)
 {
-    if (!parse_keyring_format(rnp, &rnp->key_store_format, format)) {
+    if (!parse_key_store_format(rnp, &rnp->key_store_format, format)) {
         return 0;
     }
     rnp_setvar(rnp, "key_store_format", format);

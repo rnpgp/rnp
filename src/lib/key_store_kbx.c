@@ -128,10 +128,6 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
         return 0;
     }
 
-    // Maybe we should add checksum verify but GnuPG never checked it
-    // Checksum is last 20 bytes of blob and may be MD5, if it invalid MD5 and starts from 4
-    // zero it is SHA-1.
-
     pgp_blob->flags = ru16(image);
     image += 2;
 
@@ -303,6 +299,10 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
     image += 4;
 
     // here starts keyblock, UID and reserved space for future usage
+
+    // Maybe we should add checksum verify but GnuPG never checked it
+    // Checksum is last 20 bytes of blob and it is SHA-1, if it invalid MD5 and starts from 4
+    // zero it is MD5.
 
     return 1;
 }
@@ -499,10 +499,12 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
                             const uint8_t *  passphrase,
                             pgp_memory_t *   m)
 {
-    int      i, j, nuids, nsigs;
-    size_t   start, key_start, uid_start;
-    uint8_t *p;
-    uint32_t pt;
+    int        i, j, nuids, nsigs;
+    size_t     start, key_start, uid_start;
+    uint8_t *  p;
+    uint8_t    checksum[20];
+    uint32_t   pt;
+    pgp_hash_t hash = {0};
 
     start = m->length;
 
@@ -661,6 +663,29 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
     p[1] = (uint8_t)(pt >> 16);
     p[2] = (uint8_t)(pt >> 8);
     p[3] = (uint8_t) pt;
+
+    // checksum
+    if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
+        fprintf(stderr, "rnp_key_store_kbx_write_pgp: bad sha1 alloc\n");
+        return 0;
+    }
+
+    if (hash._output_len != 20) {
+        fprintf(stderr,
+                "rnp_key_store_kbx_write_pgp: wrong hash size %zu, should be 20 bytes\n",
+                hash._output_len);
+        return 0;
+    }
+
+    pgp_hash_add(&hash, m->buf + start, m->length - start);
+
+    if (!pgp_hash_finish(&hash, checksum)) {
+        return 0;
+    }
+
+    if (!(pgp_memory_add(m, checksum, 20))) {
+        return 0;
+    }
 
     // fix the length of blob
     pt = m->length - start;

@@ -67,7 +67,7 @@ static const char *usage = "--help OR\n"
                            "\t[--coredumps] AND/OR\n"
                            "\t[--homedir=<homedir>] AND/OR\n"
                            "\t[--keyring=<keyring>] AND/OR\n"
-                           "\t[--keyring-format=<format>] AND/OR\n"
+                           "\t[--keystore-format=<format>] AND/OR\n"
                            "\t[--numtries=<attempts>] AND/OR\n"
                            "\t[--userid=<userid>] AND/OR\n"
                            "\t[--maxmemalloc=<number of bytes>] AND/OR\n"
@@ -89,7 +89,7 @@ enum optdefs {
     /* options */
     SSHKEYS,
     KEYRING,
-    KEYRING_FORMAT,
+    KEY_STORE_FORMAT,
     USERID,
     ARMOUR,
     HOMEDIR,
@@ -139,7 +139,7 @@ static struct option options[] = {
   {"sshkeyfile", required_argument, NULL, SSHKEYFILE},
   {"coredumps", no_argument, NULL, COREDUMPS},
   {"keyring", required_argument, NULL, KEYRING},
-  {"keyring-format", required_argument, NULL, KEYRING_FORMAT},
+  {"keystore-format", required_argument, NULL, KEY_STORE_FORMAT},
   {"userid", required_argument, NULL, USERID},
   {"home", required_argument, NULL, HOMEDIR},
   {"homedir", required_argument, NULL, HOMEDIR},
@@ -406,7 +406,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
         }
         snprintf(p->keyring, sizeof(p->keyring), "%s", arg);
         break;
-    case KEYRING_FORMAT:
+    case KEY_STORE_FORMAT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring format argument provided\n");
             exit(EXIT_ERROR);
