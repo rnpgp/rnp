@@ -254,7 +254,6 @@ raw_elg_test_success(void **state)
     uint8_t              g_to_k[64];
     uint8_t              decryption_result[1024];
     const uint8_t        plaintext[] = {0x01, 0x02, 0x03, 0x04, 0x17};
-    BN_CTX               ctx;
 
     // Allocate needed memory
     pub_elg.p = BN_bin2bn(p512, sizeof(p512), NULL);
@@ -264,7 +263,7 @@ raw_elg_test_success(void **state)
 
     BN_set_word(pub_elg.g, 3);
     BN_set_word(sec_elg.x, 0xCAB5432);
-    BN_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p, &ctx);
+    BN_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p);
 
     // Encrypt
     unsigned ctext_size =
