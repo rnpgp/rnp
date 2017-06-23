@@ -174,13 +174,22 @@ If your commit does not touch any `.c`/`.h` files, you can skip the pre-commit h
 
 ### clang-format (manually)
 
-If you are not able to use the git hook, you can run clang-format manually.
+If you are not able to use the git hook, you can run clang-format manually in a docker container.
 
-``` sh
-clang-format -style=file -i src/lib/some_changed_file.c
+Create a suitable container image with:
+
+```
+docker run --name=clang-format alpine:latest apk --no-cache add clang
+docker commit clang-format clang-format
+docker rm clang-format
 ```
 
-(Or, if you do not have clang-form v4.0.0 available, use a container)
+You can then reformat a file (say, `src/lib/bn.c`) like so:
+
+```
+cd rnp
+docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i src/lib/bn.c
+```
 
 ## Style Guide
 

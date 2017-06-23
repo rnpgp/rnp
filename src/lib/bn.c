@@ -165,26 +165,20 @@ PGPV_BN_sub(PGPV_BIGNUM *r, const PGPV_BIGNUM *a, const PGPV_BIGNUM *b)
 }
 
 int
-PGPV_BN_mul(PGPV_BIGNUM *r, const PGPV_BIGNUM *a, const PGPV_BIGNUM *b, PGPV_BN_CTX *ctx)
+PGPV_BN_mul(PGPV_BIGNUM *r, const PGPV_BIGNUM *a, const PGPV_BIGNUM *b)
 {
     if (a == NULL || b == NULL || r == NULL) {
         return 0;
     }
-    USE_ARG(ctx);
     return botan_mp_mul(r->mp, a->mp, b->mp) == 0;
 }
 
 int
-PGPV_BN_div(PGPV_BIGNUM *      dv,
-            PGPV_BIGNUM *      rem,
-            const PGPV_BIGNUM *a,
-            const PGPV_BIGNUM *d,
-            PGPV_BN_CTX *      ctx)
+PGPV_BN_div(PGPV_BIGNUM *dv, PGPV_BIGNUM *rem, const PGPV_BIGNUM *a, const PGPV_BIGNUM *d)
 {
-    if ( (dv == NULL) || (rem == NULL) || (a == NULL) || (d == NULL)) {
+    if ((dv == NULL) || (rem == NULL) || (a == NULL) || (d == NULL)) {
         return 0;
     }
-    USE_ARG(ctx);
     return botan_mp_div(dv->mp, rem->mp, a->mp, d->mp) == 0;
 }
 
@@ -271,20 +265,17 @@ PGPV_BN_cmp(PGPV_BIGNUM *a, PGPV_BIGNUM *b)
 }
 
 int
-PGPV_BN_mod_exp(
-  PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM *P, PGPV_BN_CTX *ctx)
+PGPV_BN_mod_exp(PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM *P)
 {
     if (Y == NULL || G == NULL || X == NULL || P == NULL) {
         return -1;
     }
-    USE_ARG(ctx);
     return botan_mp_powmod(Y->mp, G->mp, X->mp, P->mp) == 0;
 }
 
 PGPV_BIGNUM *
-PGPV_BN_mod_inverse(PGPV_BIGNUM *r, PGPV_BIGNUM *a, const PGPV_BIGNUM *n, PGPV_BN_CTX *ctx)
+PGPV_BN_mod_inverse(PGPV_BIGNUM *r, PGPV_BIGNUM *a, const PGPV_BIGNUM *n)
 {
-    USE_ARG(ctx);
     if (r == NULL || a == NULL || n == NULL) {
         return NULL;
     }
@@ -292,66 +283,12 @@ PGPV_BN_mod_inverse(PGPV_BIGNUM *r, PGPV_BIGNUM *a, const PGPV_BIGNUM *n, PGPV_B
 }
 
 int
-PGPV_BN_mod_mul(
-  PGPV_BIGNUM *ret, PGPV_BIGNUM *a, PGPV_BIGNUM *b, const PGPV_BIGNUM *m, PGPV_BN_CTX *ctx)
+PGPV_BN_mod_mul(PGPV_BIGNUM *ret, PGPV_BIGNUM *a, PGPV_BIGNUM *b, const PGPV_BIGNUM *m)
 {
-    USE_ARG(ctx);
     if (ret == NULL || a == NULL || b == NULL || m == NULL) {
         return 0;
     }
     return (botan_mp_mod_mul(ret->mp, a->mp, b->mp, m->mp) < 0) ? 0 : 1;
-}
-
-PGPV_BN_CTX *
-PGPV_BN_CTX_new(void)
-{
-    return calloc(1, sizeof(PGPV_BN_CTX));
-}
-
-void
-PGPV_BN_CTX_init(PGPV_BN_CTX *c)
-{
-    if (c != NULL) {
-        c->arraysize = 15;
-        if ((c->v = calloc(sizeof(*c->v), c->arraysize)) == NULL) {
-            c->arraysize = 0;
-        }
-    }
-}
-
-PGPV_BIGNUM *
-PGPV_BN_CTX_get(PGPV_BN_CTX *ctx)
-{
-    if (ctx == NULL || ctx->v == NULL || ctx->arraysize == 0 ||
-        ctx->count == ctx->arraysize - 1) {
-        return NULL;
-    }
-    return ctx->v[ctx->count++] = PGPV_BN_new();
-}
-
-void
-PGPV_BN_CTX_start(PGPV_BN_CTX *ctx)
-{
-    PGPV_BN_CTX_init(ctx);
-}
-
-void
-PGPV_BN_CTX_free(PGPV_BN_CTX *c)
-{
-    unsigned i;
-
-    if (c != NULL && c->v != NULL) {
-        for (i = 0; i < c->count; i++) {
-            PGPV_BN_clear_free(c->v[i]);
-        }
-        free(c->v);
-    }
-}
-
-void
-PGPV_BN_CTX_end(PGPV_BN_CTX *ctx)
-{
-    PGPV_BN_CTX_free(ctx);
 }
 
 char *
@@ -554,8 +491,7 @@ int
 PGPV_BN_is_prime(const PGPV_BIGNUM *a,
                  int                checks,
                  void (*callback)(int, int, void *),
-                 PGPV_BN_CTX *ctx,
-                 void *       cb_arg)
+                 void *cb_arg)
 {
     int ret;
     int test_prob;
@@ -563,7 +499,6 @@ PGPV_BN_is_prime(const PGPV_BIGNUM *a,
     if (a == NULL || checks <= 0) {
         return -1;
     }
-    USE_ARG(ctx);
     USE_ARG(cb_arg);
     USE_ARG(callback);
 
@@ -627,9 +562,8 @@ PGPV_BN_is_bit_set(const PGPV_BIGNUM *a, int n)
 
 /* get greatest common divisor */
 int
-PGPV_BN_gcd(PGPV_BIGNUM *r, PGPV_BIGNUM *a, PGPV_BIGNUM *b, PGPV_BN_CTX *ctx)
+PGPV_BN_gcd(PGPV_BIGNUM *r, PGPV_BIGNUM *a, PGPV_BIGNUM *b)
 {
-    USE_ARG(ctx);
     return botan_mp_gcd(r->mp, a->mp, b->mp);
 }
 

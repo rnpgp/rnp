@@ -26,6 +26,15 @@
 
 #include <rnp.h>
 #include <rnp_tests_support.h>
+#include "symmetric.h"
+
+static void
+set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc)
+{
+    key_desc->key_alg = PGP_PKA_RSA;
+    key_desc->sym_alg = PGP_SA_DEFAULT_CIPHER;
+    key_desc->rsa.modulus_bit_len = 1024;
+}
 
 void
 rnpkeys_generatekey_testSignature(void **state)
@@ -37,12 +46,11 @@ rnpkeys_generatekey_testSignature(void **state)
      * key
      * Sign a message, then verify it
      */
-    rnp_t     rnp;
-    const int numbits = 1024;
-    char      passfd[4] = {0};
-    char *    fdptr;
-    int       pipefd[2];
-    int       retVal;
+    rnp_t rnp;
+    char  passfd[4] = {0};
+    char *fdptr;
+    int   pipefd[2];
+    int   retVal;
 
     char memToSign[] = "A simple test message";
     char signatureBuf[4096] = {0};
@@ -62,7 +70,8 @@ rnpkeys_generatekey_testSignature(void **state)
         strcpy(userId, "sigtest_");
         strcat(userId, hashAlg[i]);
 
-        retVal = rnp_generate_key(&rnp, userId, numbits);
+        set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+        retVal = rnp_generate_key(&rnp, userId);
         assert_int_equal(retVal, 1); // Ensure the key was generated
 
         /*Load the newly generated rnp key*/
@@ -149,12 +158,11 @@ rnpkeys_generatekey_testEncryption(void **state)
                                "Camellia256",
                                NULL};
 
-    rnp_t     rnp;
-    const int numbits = 1024;
-    char      passfd[4] = {0};
-    char *    fdptr;
-    int       pipefd[2];
-    int       retVal;
+    rnp_t rnp;
+    char  passfd[4] = {0};
+    char *fdptr;
+    int   pipefd[2];
+    int   retVal;
 
     char memToEncrypt[] = "A simple test message";
     char ciphertextBuf[4096] = {0};
@@ -168,7 +176,8 @@ rnpkeys_generatekey_testEncryption(void **state)
 
     strcpy(userId, "ciphertest");
 
-    retVal = rnp_generate_key(&rnp, userId, numbits);
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+    retVal = rnp_generate_key(&rnp, userId);
     assert_int_equal(retVal, 1); // Ensure the key was generated
 
     /*Load the newly generated rnp key*/
@@ -236,10 +245,9 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
      * Execute the Generate-key command to generate a new pair of private/public
      * key
      * Verify the key was generated with the correct UserId.*/
-    rnp_t     rnp;
-    const int numbits = 1024;
-    char      passfd[4] = {0};
-    int       pipefd[2];
+    rnp_t rnp;
+    char  passfd[4] = {0};
+    int   pipefd[2];
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -258,7 +266,8 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
         int retVal = rnp_init(&rnp);
         assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
 
-        retVal = rnp_generate_key(&rnp, NULL, numbits);
+        set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+        retVal = rnp_generate_key(&rnp, NULL);
         assert_int_equal(retVal, 1); // Ensure the key was generated
 
         /*Load the newly generated rnp key*/
@@ -288,10 +297,9 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
      * Execute the Generate-key command to generate a new pair of private/public
      * key
      * Verify the key was generated with the correct UserId.*/
-    rnp_t     rnp;
-    const int numbits = 1024;
-    char      passfd[4] = {0};
-    int       pipefd[2];
+    rnp_t rnp;
+    char  passfd[4] = {0};
+    int   pipefd[2];
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -313,7 +321,8 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
         int retVal = rnp_init(&rnp);
         assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
 
-        retVal = rnp_generate_key(&rnp, userId, numbits);
+        set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+        retVal = rnp_generate_key(&rnp, userId);
         assert_int_equal(retVal, 1); // Ensure the key was generated
 
         /*Load the newly generated rnp key*/
@@ -335,10 +344,9 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
      * Execute the Generate-key command to generate a new pair of private/public
      * key
      * Verify the key was generated with the correct UserId.*/
-    rnp_t     rnp;
-    const int numbits = 1024;
-    char      passfd[4] = {0};
-    int       pipefd[2];
+    rnp_t rnp;
+    char  passfd[4] = {0};
+    int   pipefd[2];
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -360,7 +368,8 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     assert_false(path_file_exists(ourdir, ".rnp/secring.gpg", NULL));
 
     // Ensure the key was generated.
-    assert_int_equal(1, rnp_generate_key(&rnp, NULL, numbits));
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+    assert_int_equal(1, rnp_generate_key(&rnp, NULL));
 
     // pubring and secring should now exist
     assert_true(path_file_exists(ourdir, ".rnp/pubring.gpg", NULL));
@@ -395,7 +404,8 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     assert_false(path_file_exists(newhome, ".rnp/secring.gpg", NULL));
 
     // Ensure the key was generated.
-    assert_int_equal(1, rnp_generate_key(&rnp, "newhomekey", numbits));
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+    assert_int_equal(1, rnp_generate_key(&rnp, "newhomekey"));
 
     // pubring and secring should now exist
     assert_true(path_file_exists(newhome, ".rnp/pubring.gpg", NULL));
@@ -417,7 +427,6 @@ void
 rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
 {
     const char *ourdir = (char *) *state;
-    const int   numbits = 1024;
     char        passfd[4] = {0};
     int         pipefd[2];
     rnp_t       rnp;
@@ -458,7 +467,8 @@ rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
     rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
     assert_int_equal(1, rnp_init(&rnp));
     rnp_setvar(&rnp, "homedir", fakedir);
-    assert_int_equal(0, rnp_generate_key(&rnp, NULL, numbits));
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+    assert_int_equal(0, rnp_generate_key(&rnp, NULL));
     rnp_end(&rnp);
 }
 
@@ -471,10 +481,9 @@ rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
     paths_concat(nopermsdir, sizeof(nopermsdir), ourdir, "noperms", NULL);
     path_mkdir(0000, nopermsdir, NULL);
 
-    rnp_t     rnp;
-    const int numbits = 1024;
-    char      passfd[4] = {0};
-    int       pipefd[2];
+    rnp_t rnp;
+    char  passfd[4] = {0};
+    int   pipefd[2];
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -498,7 +507,8 @@ rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
     retVal = rnp_init(&rnp);
     assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
 
-    retVal = rnp_generate_key(&rnp, NULL, numbits);
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+    retVal = rnp_generate_key(&rnp, NULL);
     assert_int_equal(retVal, 0); // Ensure the key was NOT generated as the
                                  // directory has only list read permissions.
 
