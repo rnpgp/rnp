@@ -1742,6 +1742,7 @@ rnp_encrypt_memory(
         return 0;
     }
     if ((keypair = resolve_userid(rnp, rnp->pubring, userid)) == NULL) {
+        (void) fprintf(io->errs, "%s: public key not available\n", userid);        
         return 0;
     }
     if (in == out) {

@@ -38,6 +38,7 @@
 #include <regex.h>
 #include <rnp.h>
 #include <rnpsdk.h>
+#include <rnpcfg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -75,111 +76,101 @@ static const char *usage = "--help OR\n"
 
 enum optdefs {
     /* commands */
-    ENCRYPT = 260,
-    DECRYPT,
-    SIGN,
-    CLEARSIGN,
-    VERIFY,
-    VERIFY_CAT,
-    LIST_PACKETS,
-    SHOW_KEYS,
-    VERSION_CMD,
-    HELP_CMD,
+    CMD_ENCRYPT = 260,
+    CMD_DECRYPT,
+    CMD_SIGN,
+    CMD_CLEARSIGN,
+    CMD_VERIFY,
+    CMD_VERIFY_CAT,
+    CMD_LIST_PACKETS,
+    CMD_SHOW_KEYS,
+    CMD_VERSION,
+    CMD_HELP,
 
     /* options */
-    SSHKEYS,
-    KEYRING,
-    KEYRING_FORMAT,
-    USERID,
-    ARMOUR,
-    HOMEDIR,
-    DETACHED,
-    HASH_ALG,
-    OUTPUT,
-    RESULTS,
-    VERBOSE,
-    COREDUMPS,
-    PASSWDFD,
-    SSHKEYFILE,
-    MAX_MEM_ALLOC,
-    DURATION,
-    BIRTHTIME,
-    CIPHER,
-    NUMTRIES,
+    OPT_SSHKEYS,
+    OPT_KEYRING,
+    OPT_KEYRING_FORMAT,
+    OPT_USERID,
+    OPT_ARMOUR,
+    OPT_HOMEDIR,
+    OPT_DETACHED,
+    OPT_HASH_ALG,
+    OPT_OUTPUT,
+    OPT_RESULTS,
+    OPT_VERBOSE,
+    OPT_COREDUMPS,
+    OPT_PASSWDFD,
+    OPT_SSHKEYFILE,
+    OPT_MAX_MEM_ALLOC,
+    OPT_DURATION,
+    OPT_BIRTHTIME,
+    OPT_CIPHER,
+    OPT_NUMTRIES,
 
     /* debug */
-    OPS_DEBUG
+    OPT__DEBUG
 };
 
 #define EXIT_ERROR 2
 
 static struct option options[] = {
   /* file manipulation commands */
-  {"encrypt", no_argument, NULL, ENCRYPT},
-  {"decrypt", no_argument, NULL, DECRYPT},
-  {"sign", no_argument, NULL, SIGN},
-  {"clearsign", no_argument, NULL, CLEARSIGN},
-  {"verify", no_argument, NULL, VERIFY},
-  {"cat", no_argument, NULL, VERIFY_CAT},
-  {"vericat", no_argument, NULL, VERIFY_CAT},
-  {"verify-cat", no_argument, NULL, VERIFY_CAT},
-  {"verify-show", no_argument, NULL, VERIFY_CAT},
-  {"verifyshow", no_argument, NULL, VERIFY_CAT},
+  {"encrypt", no_argument, NULL, CMD_ENCRYPT},
+  {"decrypt", no_argument, NULL, CMD_DECRYPT},
+  {"sign", no_argument, NULL, CMD_SIGN},
+  {"clearsign", no_argument, NULL, CMD_CLEARSIGN},
+  {"verify", no_argument, NULL, CMD_VERIFY},
+  {"cat", no_argument, NULL, CMD_VERIFY_CAT},
+  {"vericat", no_argument, NULL, CMD_VERIFY_CAT},
+  {"verify-cat", no_argument, NULL, CMD_VERIFY_CAT},
+  {"verify-show", no_argument, NULL, CMD_VERIFY_CAT},
+  {"verifyshow", no_argument, NULL, CMD_VERIFY_CAT},
   /* file listing commands */
-  {"list-packets", no_argument, NULL, LIST_PACKETS},
+  {"list-packets", no_argument, NULL, CMD_LIST_PACKETS},
   /* debugging commands */
-  {"help", no_argument, NULL, HELP_CMD},
-  {"version", no_argument, NULL, VERSION_CMD},
-  {"debug", required_argument, NULL, OPS_DEBUG},
-  {"show-keys", no_argument, NULL, SHOW_KEYS},
-  {"showkeys", no_argument, NULL, SHOW_KEYS},
+  {"help", no_argument, NULL, CMD_HELP},
+  {"version", no_argument, NULL, CMD_VERSION},
+  {"debug", required_argument, NULL, CMD_DEBUG},
+  {"show-keys", no_argument, NULL, CMD_SHOW_KEYS},
+  {"showkeys", no_argument, NULL, CMD_SHOW_KEYS},
   /* options */
-  {"ssh", no_argument, NULL, SSHKEYS},
-  {"ssh-keys", no_argument, NULL, SSHKEYS},
-  {"sshkeyfile", required_argument, NULL, SSHKEYFILE},
-  {"coredumps", no_argument, NULL, COREDUMPS},
-  {"keyring", required_argument, NULL, KEYRING},
-  {"keyring-format", required_argument, NULL, KEYRING_FORMAT},
-  {"userid", required_argument, NULL, USERID},
-  {"home", required_argument, NULL, HOMEDIR},
-  {"homedir", required_argument, NULL, HOMEDIR},
-  {"ascii", no_argument, NULL, ARMOUR},
-  {"armor", no_argument, NULL, ARMOUR},
-  {"armour", no_argument, NULL, ARMOUR},
-  {"detach", no_argument, NULL, DETACHED},
-  {"detached", no_argument, NULL, DETACHED},
-  {"hash-alg", required_argument, NULL, HASH_ALG},
-  {"hash", required_argument, NULL, HASH_ALG},
-  {"algorithm", required_argument, NULL, HASH_ALG},
-  {"verbose", no_argument, NULL, VERBOSE},
-  {"pass-fd", required_argument, NULL, PASSWDFD},
-  {"output", required_argument, NULL, OUTPUT},
-  {"results", required_argument, NULL, RESULTS},
-  {"maxmemalloc", required_argument, NULL, MAX_MEM_ALLOC},
-  {"max-mem", required_argument, NULL, MAX_MEM_ALLOC},
-  {"max-alloc", required_argument, NULL, MAX_MEM_ALLOC},
-  {"from", required_argument, NULL, BIRTHTIME},
-  {"birth", required_argument, NULL, BIRTHTIME},
-  {"birthtime", required_argument, NULL, BIRTHTIME},
-  {"creation", required_argument, NULL, BIRTHTIME},
-  {"duration", required_argument, NULL, DURATION},
-  {"expiry", required_argument, NULL, DURATION},
-  {"cipher", required_argument, NULL, CIPHER},
-  {"num-tries", required_argument, NULL, NUMTRIES},
-  {"numtries", required_argument, NULL, NUMTRIES},
-  {"attempts", required_argument, NULL, NUMTRIES},
+  {"ssh", no_argument, NULL, OPT_SSHKEYS},
+  {"ssh-keys", no_argument, NULL, OPT_SSHKEYS},
+  {"sshkeyfile", required_argument, NULL, OPT_SSHKEYFILE},
+  {"coredumps", no_argument, NULL, OPT_COREDUMPS},
+  {"keyring", required_argument, NULL, OPT_KEYRING},
+  {"keyring-format", required_argument, NULL, OPT_KEYRING_FORMAT},
+  {"userid", required_argument, NULL, OPT_USERID},
+  {"home", required_argument, NULL, OPT_HOMEDIR},
+  {"homedir", required_argument, NULL, OPT_HOMEDIR},
+  {"ascii", no_argument, NULL, OPT_ARMOUR},
+  {"armor", no_argument, NULL, OPT_ARMOUR},
+  {"armour", no_argument, NULL, OPT_ARMOUR},
+  {"detach", no_argument, NULL, OPT_DETACHED},
+  {"detached", no_argument, NULL, OPT_DETACHED},
+  {"hash-alg", required_argument, NULL, OPT_HASH_ALG},
+  {"hash", required_argument, NULL, OPT_HASH_ALG},
+  {"algorithm", required_argument, NULL, OPT_HASH_ALG},
+  {"verbose", no_argument, NULL, OPT_VERBOSE},
+  {"pass-fd", required_argument, NULL, OPT_PASSWDFD},
+  {"output", required_argument, NULL, OPT_OUTPUT},
+  {"results", required_argument, NULL, OPT_RESULTS},
+  {"maxmemalloc", required_argument, NULL, OPT_MAX_MEM_ALLOC},
+  {"max-mem", required_argument, NULL, OPT_MAX_MEM_ALLOC},
+  {"max-alloc", required_argument, NULL, OPT_MAX_MEM_ALLOC},
+  {"from", required_argument, NULL, OPT_BIRTHTIME},
+  {"birth", required_argument, NULL, OPT_BIRTHTIME},
+  {"birthtime", required_argument, NULL, OPT_BIRTHTIME},
+  {"creation", required_argument, NULL, OPT_BIRTHTIME},
+  {"duration", required_argument, NULL, OPT_DURATION},
+  {"expiry", required_argument, NULL, OPT_DURATION},
+  {"cipher", required_argument, NULL, OPT_CIPHER},
+  {"num-tries", required_argument, NULL, OPT_NUMTRIES},
+  {"numtries", required_argument, NULL, OPT_NUMTRIES},
+  {"attempts", required_argument, NULL, OPT_NUMTRIES},
   {NULL, 0, NULL, 0},
 };
-
-/* gather up program variables into one struct */
-typedef struct prog_t {
-    char  keyring[MAXPATHLEN + 1]; /* name of keyring */
-    char *output;                  /* output file name */
-    int   overwrite;               /* overwrite files? */
-    int   armour;                  /* ASCII armor */
-    int   detached;                /* use separate file */
-    int   cmd;                     /* rnp command */
-} prog_t;
 
 static void
 print_praise(void)
@@ -200,7 +191,7 @@ print_usage(const char *usagemsg)
 
 /* read all of stdin into memory */
 static int
-stdin_to_mem(rnp_t *rnp, char **temp, char **out, unsigned *maxsize)
+stdin_to_mem(rnp_cfg_t *cfg, char **temp, char **out, unsigned *maxsize)
 {
     unsigned newsize;
     unsigned size;
@@ -208,7 +199,7 @@ stdin_to_mem(rnp_t *rnp, char **temp, char **out, unsigned *maxsize)
     char *   loc;
     int      n;
 
-    *maxsize = (unsigned) atoi(rnp_getvar(rnp, "max mem alloc"));
+    *maxsize = (unsigned) rnp_cfg_getint(cfg, CFG_MAXALLOC);
     size = 0;
     *temp = NULL;
     while ((n = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
@@ -259,61 +250,69 @@ show_output(char *out, int size, const char *header)
 
 /* do a command once for a specified file 'f' */
 static int
-rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
+rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 {
-    const int cleartext = 1;
-    unsigned  maxsize;
-    char *    out;
-    char *    in;
-    char *    cipher;
-    int       ret;
-    int       cc;
+    unsigned         maxsize;
+    char *           out;
+    char *           in;
+    char *           cipher;
+    char *           userid;
+    int              ret;
+    int              cc;
+    const pgp_key_t *keypair = NULL;
 
     /* operation context initialization: writing all additional parameters */
     rnp_ctx_reset(&rnp->ctx);
-    rnp->ctx.armour = p->armour;
-    rnp->ctx.overwrite = p->overwrite;
+    rnp->ctx.armour = rnp_cfg_getint(cfg, CFG_ARMOUR);
+    rnp->ctx.overwrite = rnp_cfg_getint(cfg, CFG_OVERWRITE);
     if (f) {
         rnp->ctx.filename = strdup(rnp_filename(f));
         rnp->ctx.filemtime = rnp_filemtime(f);
     }
 
-    switch (p->cmd) {
-    case ENCRYPT:
-        rnp->ctx.ealg =
-          pgp_str_to_cipher((cipher = rnp_getvar(rnp, "cipher")) ? cipher : "cast5");
+    /* getting recipient/signer key if needed */
+    if (rnp_cfg_getint(cfg, CFG_NEEDSUSERID)) {
+        userid = rnp_cfg_get(cfg, CFG_USERID);
+        if (!userid) {
+            fprintf(stderr, "user/key id is not available but required\n");
+            return 0;
+        }
+    }
+
+    switch (cmd) {
+    case CMD_ENCRYPT:
+        rnp->ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
 
         if (f == NULL) {
-            cc = stdin_to_mem(rnp, &in, &out, &maxsize);
-            ret = rnp_encrypt_memory(rnp, rnp_getvar(rnp, "userid"), in, cc, out, maxsize);
+            cc = stdin_to_mem(cfg, &in, &out, &maxsize);
+            ret = rnp_encrypt_memory(rnp, userid, in, cc, out, maxsize);
             ret = show_output(out, ret, "Bad memory encryption");
             free(in);
             free(out);
             return ret;
         }
-
-        return rnp_encrypt_file(rnp, rnp_getvar(rnp, "userid"), f, p->output);
-    case DECRYPT:
+        return rnp_encrypt_file(rnp, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE));
+    case CMD_DECRYPT:
         if (f == NULL) {
-            cc = stdin_to_mem(rnp, &in, &out, &maxsize);
+            cc = stdin_to_mem(cfg, &in, &out, &maxsize);
             ret = rnp_decrypt_memory(rnp, in, cc, out, maxsize, 0);
             ret = show_output(out, ret, "Bad memory decryption");
             free(in);
             free(out);
             return ret;
         }
-        return rnp_decrypt_file(rnp, f, p->output, p->armour);
-    case CLEARSIGN:
-    case SIGN:
+        return rnp_decrypt_file(rnp, f, rnp_cfg_get(cfg, CFG_OUTFILE), rnp->ctx.armour);
+    case CMD_CLEARSIGN:
+    case CMD_SIGN:
         if (f == NULL) {
-            cc = stdin_to_mem(rnp, &in, &out, &maxsize);
+            cc = stdin_to_mem(cfg, &in, &out, &maxsize);
             ret = rnp_sign_memory(rnp,
-                                  rnp_getvar(rnp, "userid"),
+                                  userid,
                                   in,
                                   cc,
                                   out,
                                   maxsize,
-                                  (p->cmd == CLEARSIGN) ? cleartext : !cleartext);
+                                  (cmd == CLEARSIGN) ? 1 : 0);
             ret = show_output(out, ret, "Bad memory signature");
             free(in);
             free(out);
@@ -321,35 +320,37 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
         }
 
         return rnp_sign_file(rnp,
-                             rnp_getvar(rnp, "userid"),
+                             userid,
                              f,
-                             p->output,
-                             (p->cmd == CLEARSIGN) ? cleartext : !cleartext,
-                             p->detached);
-    case VERIFY:
-    case VERIFY_CAT:
+                             rnp_cfg_get(cfg, CFG_OUTFILE),
+                             (p->cmd == CLEARSIGN) ? 1 : 0,
+                             rnp_cfg_getint(cfg, CFG_DETACHED));
+    case CMD_VERIFY:
+    case CMD_VERIFY_CAT:
         if (f == NULL) {
-            cc = stdin_to_mem(rnp, &in, &out, &maxsize);
+            cc = stdin_to_mem(cfg, &in, &out, &maxsize);
             ret = rnp_verify_memory(rnp,
                                     in,
                                     cc,
-                                    (p->cmd == VERIFY_CAT) ? out : NULL,
-                                    (p->cmd == VERIFY_CAT) ? maxsize : 0,
-                                    p->armour);
+                                    (cmd == VERIFY_CAT) ? out : NULL,
+                                    (cmd == VERIFY_CAT) ? maxsize : 0,
+                                    rnp->ctx.armour);
             ret = show_output(out, ret, "Bad memory verification");
             free(in);
             free(out);
             return ret;
         }
+
+        out = rnp_cfg_get(cfg, CFG_OUTFILE);
         return rnp_verify_file(
-          rnp, f, (p->cmd == VERIFY) ? NULL : (p->output) ? p->output : "-", p->armour);
-    case LIST_PACKETS:
+            rnp, f, (cmd == VERIFY) ? NULL : (out) ? out : "-", rnp->cfg.armour);
+    case CMD_LIST_PACKETS:
         if (f == NULL) {
             fprintf(stderr, "%s: No filename provided\n", __progname);
             return 0;
         }
-        return rnp_list_packets(rnp, f, p->armour, NULL);
-    case SHOW_KEYS:
+        return rnp_list_packets(rnp, f, rnp->ctx.armour, NULL);
+    case CMD_SHOW_KEYS:
         return rnp_validate_sigs(rnp);
     default:
         print_usage(usage);
@@ -359,138 +360,135 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 
 /* set an option */
 static int
-setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
+setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
 {
     switch (val) {
-    case COREDUMPS:
-        rnp_setvar(rnp, "coredumps", "allowed");
+    case OPT_COREDUMPS:
+        rnp_cfg_setint(cfg, CFG_COREDUMPS, 1);
         break;
-    case ENCRYPT:
+    case CMD_ENCRYPT:
         /* for encryption, we need a userid */
-        rnp_setvar(rnp, "need userid", "1");
-        p->cmd = val;
+        rnp_cfg_setint(cfg, CFG_NEEDSUSERID, 1);
+        *cmd = val;
         break;
-    case SIGN:
-    case CLEARSIGN:
+    case CMD_SIGN:
+    case CMD_CLEARSIGN:
         /* for signing, we need a userid and a seckey */
-        rnp_setvar(rnp, "need seckey", "1");
-        rnp_setvar(rnp, "need userid", "1");
-        p->cmd = val;
+        rnp_cfg_setint(cfg, CFG_NEEDSUSERID, 1);
+        rnp_cfg_setint(cfg, CFG_NEEDSSECKEY, 1);
+        *cmd = val;
         break;
-    case DECRYPT:
-
+    case CMD_DECRYPT:
         /* for decryption, we need a seckey */
-        rnp_setvar(rnp, "need seckey", "1");
-        p->cmd = val;
+        rnp_cfg_setint(cfg, CFG_NEEDSSECKEY, 1);
+        *cmd = val;
         break;
-    case VERIFY:
-    case VERIFY_CAT:
-    case LIST_PACKETS:
-    case SHOW_KEYS:
-        p->cmd = val;
+    case CMD_VERIFY:
+    case CMD_VERIFY_CAT:
+    case CMD_LIST_PACKETS:
+    case CMD_SHOW_KEYS:
+        *cmd = val;
         break;
-    case HELP_CMD:
+    case CMD_HELP:
         print_usage(usage);
         exit(EXIT_SUCCESS);
-    case VERSION_CMD:
+    case CMD_VERSION:
         print_praise();
         exit(EXIT_SUCCESS);
     /* options */
-    case SSHKEYS:
-        rnp_setvar(rnp, "keyring_format", "SSH");
+    case OPT_SSHKEYS:
+        rnp_cfg_set(cfg, CFG_KEYRINGFMT, CFG_KEYRING_SSH);
         break;
-    case KEYRING:
+    case OPT_KEYRING:
         if (arg == NULL) {
             fputs("No keyring argument provided\n", stderr);
             exit(EXIT_ERROR);
         }
-        snprintf(p->keyring, sizeof(p->keyring), "%s", arg);
+        rnp_cfg_set(cfg, CFG_KEYRING, arg);
         break;
-    case KEYRING_FORMAT:
+    case OPT_KEYRING_FORMAT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring format argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_setvar(rnp, "keyring_format", arg);
+        rnp_cfg_set(cfg, CFG_KEYRINGFMT, arg);
         break;
-    case USERID:
+    case OPT_USERID:
         if (arg == NULL) {
             fputs("No userid argument provided\n", stderr);
             exit(EXIT_ERROR);
         }
-        rnp_setvar(rnp, "userid", arg);
+        rnp_cfg_set(cfg, CFG_USERID, arg);
         break;
-    case ARMOUR:
-        p->armour = 1;
+    case OPT_ARMOUR:
+        rnp_cfg_setint(cfg, CFG_ARMOUR, 1);
         break;
-    case DETACHED:
-        p->detached = 1;
+    case OPT_DETACHED:
+        rnp_cfg_setint(cfg, CFG_DETACHED, 1);
         break;
-    case VERBOSE:
-        rnp_incvar(rnp, "verbose", 1);
+    case OPT_VERBOSE:
+        rnp_cfg_setint(cfg, CFG_VERBOSE, rnp_cfg_getint(cfg, CFG_VERBOSE) + 1);
         break;
-    case HOMEDIR:
+    case OPT_HOMEDIR:
         if (arg == NULL) {
             (void) fprintf(stderr, "No home directory argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_set_homedir(rnp, arg, 0);
+        rnp_cfg_set(cfg, CFG_HOMEDIR, arg);
+
         break;
-    case HASH_ALG:
+    case OPT_HASH_ALG:
         if (arg == NULL) {
             (void) fprintf(stderr, "No hash algorithm argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_setvar(rnp, "hash", arg);
+        rnp_cfg_set(cfg, CFG_HASH, arg);
         break;
-    case PASSWDFD:
+    case OPT_PASSWDFD:
         if (arg == NULL) {
             (void) fprintf(stderr, "No pass-fd argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_setvar(rnp, "pass-fd", arg);
+        rnp_cfg_set(cfg, CFG_PASSFD, arg);
         break;
-    case OUTPUT:
+    case OPT_OUTPUT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No output filename argument provided\n");
             exit(EXIT_ERROR);
         }
-        if (p->output) {
-            (void) free(p->output);
-        }
-        p->output = strdup(arg);
+        rnp_cfg_set(cfg, CFG_OUTFILE, arg);
         break;
-    case RESULTS:
+    case OPT_RESULTS:
         if (arg == NULL) {
             (void) fprintf(stderr, "No output filename argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_setvar(rnp, "results", arg);
+        rnp_cfg_set(cfg, CFG_RESULTS, arg);
         break;
-    case SSHKEYFILE:
-        rnp_setvar(rnp, "keyring_format", "SSH");
-        rnp_setvar(rnp, "sshkeyfile", arg);
+    case OPT_SSHKEYFILE:
+        rnp_cfg_set(cfg, CFG_KEYRINGFMT, CFG_KEYRING_SSH);
+        rnp_cfg_set(cfg, CFG_SSHKEYFILE, arg);
         break;
-    case MAX_MEM_ALLOC:
-        rnp_setvar(rnp, "max mem alloc", arg);
+    case OPT_MAX_MEM_ALLOC:
+        rnp_cfg_set(cfg, CFG_MAXALLOC, arg);
         break;
-    case DURATION:
-        rnp_setvar(rnp, "duration", arg);
+    case OPT_DURATION:
+        rnp_cfg_set(cfg, CFG_DURATION, arg);
         break;
-    case BIRTHTIME:
-        rnp_setvar(rnp, "birthtime", arg);
+    case OPT_BIRTHTIME:
+        rnp_cfg_set(cfg, CFG_BIRTHTIME, arg);
         break;
-    case CIPHER:
-        rnp_setvar(rnp, "cipher", arg);
+    case OPT_CIPHER:
+        rnp_cfg_set(cfg, CFG_CIPHER, arg);
         break;
-    case NUMTRIES:
-        rnp_setvar(rnp, "numtries", arg);
+    case OPT_NUMTRIES:
+        rnp_cfg_set(cfg, CFG_NUMTRIES);
         break;
-    case OPS_DEBUG:
+    case OPT_DEBUG:
         rnp_set_debug(arg);
         break;
     default:
-        p->cmd = HELP_CMD;
+        *cmd = CMD_HELP;
         break;
     }
     return 1;
@@ -498,7 +496,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 
 /* we have -o option=value -- parse, and process */
 static int
-parse_option(rnp_t *rnp, prog_t *p, const char *s)
+parse_option(rnp_cfg_t *cfg, int *cmd, const char *s)
 {
     static regex_t opt;
     struct option *op;
@@ -528,7 +526,7 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s)
         }
         for (op = options; op->name; op++) {
             if (strcmp(op->name, option) == 0)
-                return setoption(rnp, p, op->val, value);
+                return setoption(cfg, cmd, op->val, value);
         }
     }
     return 0;
@@ -537,22 +535,24 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s)
 int
 main(int argc, char **argv)
 {
-    rnp_t  rnp;
-    prog_t p;
-    int    optindex;
-    int    ret;
-    int    ch;
-    int    i;
-
-    memset(&rnp, '\0', sizeof(rnp));
-    memset(&p, '\0', sizeof(p));
-
-    p.overwrite = 1;
-    p.output = NULL;
+    rnp_t     rnp;
+    rnp_cfg_t cfg;
+    int       optindex;
+    int       ret;
+    int       cmd = 0;
+    int       ch;
+    int       i;
 
     if (argc < 2) {
         print_usage(usage);
         exit(EXIT_ERROR);
+    }
+
+    memset(&rnp, '\0', sizeof(rnp));
+
+    if (!rnp_cfg_init(&cfg)) {
+        fputs("fatal: cannot initialise cfg\n", stderr);
+        return EXIT_ERROR;        
     }
 
     if (!rnp_init(&rnp)) {
@@ -560,57 +560,57 @@ main(int argc, char **argv)
         return EXIT_ERROR;
     }
 
-    rnp_setvar(&rnp, "hash", DEFAULT_HASH_ALG);
-    rnp_setvar(&rnp, "max mem alloc", "4194304"); /* 4MiB */
-
+    rnp_cfg_load_defaults(&cfg);
     optindex = 0;
 
     /* TODO: These options should be set after initialising the context. */
     while ((ch = getopt_long(argc, argv, "S:Vdeo:sv", options, &optindex)) != -1) {
-        if (ch >= ENCRYPT) {
+        if (ch >= CMD_ENCRYPT) {
             /* getopt_long returns 0 for long options */
-            if (!setoption(&rnp, &p, options[optindex].val, optarg)) {
+            if (!setoption(&cfg, &cmd, options[optindex].val, optarg)) {
                 (void) fprintf(stderr, "Bad option\n");
             }
         } else {
             switch (ch) {
             case 'S':
-                rnp_setvar(&rnp, "keyring_format", "SSH");
-                rnp_setvar(&rnp, "sshkeyfile", optarg);
+                rnp_cfg_set(&cfg, CFG_KEYRINGFMT, CFG_KEYRING_SSH);
+                rnp_cfg_set(&cfg, CFG_SSHKEYFILE, optarg);
                 break;
             case 'V':
                 print_praise();
                 exit(EXIT_SUCCESS);
             case 'd':
                 /* for decryption, we need the seckey */
-                rnp_setvar(&rnp, "need seckey", "1");
-                p.cmd = DECRYPT;
+                rnp_cfg_setint(&fg, CFG_NEEDSSECKEY, 1);
+                cmd = CMD_DECRYPT;
                 break;
             case 'e':
                 /* for encryption, we need a userid */
-                rnp_setvar(&rnp, "need userid", "1");
-                p.cmd = ENCRYPT;
+                rnp_cfg_setint(&fg, CFG_NEEDSUSERID, 1);                
+                cmd = CMD_ENCRYPT;
                 break;
             case 'o':
-                if (!parse_option(&rnp, &p, optarg)) {
+                if (!parse_option(&cfg, &cmd, optarg)) {
                     (void) fprintf(stderr, "Bad option\n");
                 }
                 break;
             case 's':
                 /* for signing, we need a userid and a seckey */
-                rnp_setvar(&rnp, "need seckey", "1");
-                rnp_setvar(&rnp, "need userid", "1");
-                p.cmd = SIGN;
+                rnp_cfg_setint(&fg, CFG_NEEDSSECKEY, 1);
+                rnp_cfg_setint(&fg, CFG_NEEDSUSERID, 1);                
+                cmd = CMD_SIGN;
                 break;
             case 'v':
-                p.cmd = VERIFY;
+                cmd = CMD_VERIFY;
                 break;
             default:
-                p.cmd = HELP_CMD;
+                cmd = CMD_HELP;
                 break;
             }
         }
     }
+
+    rnp_cfg_apply(&cfg);
 
     if (!rnp_load_keys(&rnp)) {
         switch (errno) {
@@ -626,11 +626,11 @@ main(int argc, char **argv)
     /* now do the required action for each of the command line args */
     ret = EXIT_SUCCESS;
     if (optind == argc) {
-        if (!rnp_cmd(&rnp, &p, NULL))
+        if (!rnp_cmd(&rnp_cfg, &rnp, cmd, NULL))
             ret = EXIT_FAILURE;
     } else {
         for (i = optind; i < argc; i++) {
-            if (!rnp_cmd(&rnp, &p, argv[i])) {
+            if (!rnp_cmd(&rnp_cfg, &rnp, cmd, argv[i])) {
                 ret = EXIT_FAILURE;
             }
         }
