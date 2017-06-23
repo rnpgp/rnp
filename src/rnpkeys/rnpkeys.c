@@ -291,6 +291,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
         rnp_setvar(rnp, "coredumps", "allowed");
         break;
     case GENERATE_KEY:
+        rnp_setvar(rnp, "need seckey", "1");
         rnp_setvar(rnp, "userid checks", "skip");
         p->cmd = val;
         break;
