@@ -788,12 +788,19 @@ int
 pgp_mem_writefile(pgp_memory_t *mem, const char *f)
 {
     FILE *fp;
+    int   fd;
     char  tmp[MAXPATHLEN];
 
-    snprintf(tmp, sizeof(tmp), "/tmp/rnp_keyring.XXXXXX");
+    snprintf(tmp, sizeof(tmp), "%s.rnp-tmp.XXXXXX", f);
 
-    if ((fp = fopen(tmp, "wb")) == NULL) {
-        fprintf(stderr, "pgp_mem_writefile: can't open \"%s\"\n", f);
+    fd = mkstemp(tmp);
+    if (fd < 0) {
+        fprintf(stderr, "pgp_mem_writefile: can't open temp file: %s\n", strerror(errno));
+        return 0;
+    }
+
+    if ((fp = fdopen(fd, "wb")) == NULL) {
+        fprintf(stderr, "pgp_mem_writefile: can't open \"%s\"\n", strerror(errno));
         return 0;
     }
 
