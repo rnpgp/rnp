@@ -36,11 +36,10 @@ rnpkeys_exportkey_verifyUserId(void **state)
      * key
      * Verify the key was generated with the correct UserId.
      */
-    rnp_t     rnp;
-    const int numbits = 1024;
-    char      passfd[4] = {0};
-    int       pipefd[2];
-    char *    exportedkey = NULL;
+    rnp_t rnp;
+    char  passfd[4] = {0};
+    int   pipefd[2];
+    char *exportedkey = NULL;
 
     /* Setup the pass phrase fd to avoid user-input*/
     assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -58,7 +57,10 @@ rnpkeys_exportkey_verifyUserId(void **state)
     int retVal = rnp_init(&rnp);
     assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
 
-    retVal = rnp_generate_key(&rnp, NULL, numbits);
+    rnp.action.generate_key_ctx.key_alg = PGP_PKA_RSA;
+    rnp.action.generate_key_ctx.sym_alg = PGP_SA_DEFAULT_CIPHER;
+    rnp.action.generate_key_ctx.rsa.modulus_bit_len = 1024;
+    retVal = rnp_generate_key(&rnp, NULL);
     assert_int_equal(retVal, 1); // Ensure the key was generated.
 
     /*Load the newly generated rnp key*/

@@ -223,7 +223,8 @@ ecdsa_sign(pgp_hash_t *            hash,
     pgp_ecc_sig_t sig = {NULL, NULL};
 
     const size_t curve_byte_size = BITS_TO_BYTES(ec_curves[pub_key->curve].bitlen);
-    if (curve_byte_size > pgp_hash_output_length(hash)) {
+    // "-2" because ECDSA on P-521 must work with SHA-512 digest
+    if (curve_byte_size - 2 > pgp_hash_output_length(hash)) {
         RNP_LOG("Message hash to small");
         return 0;
     }
