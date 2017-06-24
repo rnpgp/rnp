@@ -621,6 +621,7 @@ process_dash_escaped(pgp_stream_t *stream,
         }
         if (dearmour->prev_nl && c == '-') {
             if ((c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0)) < 0) {
+                free(hash);
                 return -1;
             }
             if (c != ' ') {
@@ -630,6 +631,7 @@ process_dash_escaped(pgp_stream_t *stream,
                 }
                 for (count = 2; count < 5; ++count) {
                     if ((c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0)) < 0) {
+                        free(hash);
                         return -1;
                     }
                     if (c != '-') {
@@ -641,12 +643,14 @@ process_dash_escaped(pgp_stream_t *stream,
             }
             /* otherwise we read the next character */
             if ((c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0)) < 0) {
+                free(hash);
                 return -1;
             }
         }
         if (c == '\n' && body->length) {
             if (memchr(body->data + 1, '\n', body->length - 1) != NULL) {
                 (void) fprintf(stderr, "process_dash_escaped: newline found\n");
+                free(hash);
                 return -1;
             }
             if (body->data[0] == '\n') {
@@ -671,14 +675,17 @@ process_dash_escaped(pgp_stream_t *stream,
     }
     if (body->data[0] != '\n') {
         (void) fprintf(stderr, "process_dash_escaped: no newline in body data\n");
+        free(hash);
         return -1;
     }
     if (body->length != 1) {
         (void) fprintf(stderr, "process_dash_escaped: bad body length\n");
+        free(hash);
         return -1;
     }
     /* don't send that one character, because it's part of the trailer */
     (void) memset(&content2, 0x0, sizeof(content2));
+    free(hash);
     CALLBACK(PGP_PTAG_CT_SIGNED_CLEARTEXT_TRAILER, cbinfo, &content2);
     return total;
 }

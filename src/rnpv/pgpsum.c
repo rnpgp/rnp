@@ -127,7 +127,7 @@ calcsum(uint8_t *      out,
         size_t         hashsize,
         int            doarmor)
 {
-    pgp_hash_t hash;
+    pgp_hash_t hash = {0};
     uint32_t   len32;
     uint16_t   len16;
     uint8_t    hashalg;

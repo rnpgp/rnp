@@ -183,7 +183,7 @@ check_binary_sig(const uint8_t *     data,
                  const pgp_pubkey_t *signer)
 {
     unsigned   hashedlen;
-    pgp_hash_t hash;
+    pgp_hash_t hash = {0};
     unsigned   n;
     uint8_t    hashout[PGP_MAX_HASH_SIZE];
     uint8_t    trailer[6];
