@@ -1023,11 +1023,11 @@ pgp_sign_file(rnp_ctx_t *         ctx,
         ret = pgp_add_issuer_keyid(sig, keyid) && pgp_end_hashed_subpkts(sig) &&
               pgp_write_sig(output, sig, &seckey->pubkey, seckey);
 
-        pgp_teardown_file_write(output, fd_out);
-
         if (ret == 0) {
             PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Cannot sign file as cleartext");
         }
+
+        pgp_teardown_file_write(output, fd_out);
     } else {
         /* set armoured/not armoured here */
         if (ctx->armour) {

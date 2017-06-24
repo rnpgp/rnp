@@ -1037,6 +1037,9 @@ encrypt_se_ip_writer(const uint8_t *src,
     pgp_write_litdata(litoutput, src, (const int) len, PGP_LDT_BINARY);
     if (pgp_mem_len(litmem) <= len) {
         (void) fprintf(stderr, "encrypt_se_ip_writer: bad len\n");
+        pgp_teardown_memory_write(litoutput, litmem);
+        pgp_teardown_memory_write(zoutput, zmem);
+        pgp_teardown_memory_write(output, localmem);
         return 0;
     }
 
