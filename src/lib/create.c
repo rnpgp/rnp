@@ -621,6 +621,54 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
     return 1;
 }
 
+unsigned
+pgp_write_xfer_anykey(pgp_output_t *         output,
+                      const pgp_key_t *      key,
+                      const uint8_t *        passphrase,
+                      const rnp_key_store_t *subkeys,
+                      unsigned               armoured)
+{
+    int i;
+
+    switch (key->type) {
+    case PGP_PTAG_CT_PUBLIC_KEY:
+    case PGP_PTAG_CT_PUBLIC_SUBKEY:
+        if (!pgp_write_xfer_pubkey(output, key, NULL, armoured)) {
+            fprintf(stderr, "Can't write public key\n");
+            return 0;
+        }
+        break;
+
+    case PGP_PTAG_CT_SECRET_KEY:
+    case PGP_PTAG_CT_SECRET_SUBKEY:
+        if (!pgp_write_xfer_seckey(output, key, passphrase, NULL, armoured)) {
+            fprintf(stderr, "Can't write private key\n");
+            return 0;
+        }
+        break;
+
+    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
+    case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
+        if (key->packetc == 0) {
+            fprintf(stderr, "Can't write encrypted private key without RAW packed.\n");
+            return 0;
+        }
+        for (i = 0; i < key->packetc; i++) {
+            if (!pgp_write(output, key->packets[i].raw, key->packets[i].length)) {
+                fprintf(stderr, "Can't write part of encrypted private key\n");
+                return 0;
+            }
+        }
+        break;
+
+    default:
+        fprintf(stderr, "Can't write key type: %d\n", key->type);
+        return 0;
+    }
+
+    return 1;
+}
+
 /**
  * \ingroup Core_Create
  * \param out

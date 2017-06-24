@@ -286,25 +286,7 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
     for (i = 0; i < key_store->keyc; i++) {
         key = &key_store->keys[i];
 
-        switch (key->type) {
-        case PGP_PTAG_CT_PUBLIC_KEY:
-        case PGP_PTAG_CT_PUBLIC_SUBKEY:
-            if (!pgp_write_xfer_pubkey(&output, key, NULL, armour)) {
-                fprintf(io->errs, "Can't write public key\n");
-                return 0;
-            }
-            break;
-
-        case PGP_PTAG_CT_SECRET_KEY:
-        case PGP_PTAG_CT_SECRET_SUBKEY:
-            if (!pgp_write_xfer_seckey(&output, key, passphrase, NULL, armour)) {
-                fprintf(io->errs, "Can't write private key\n");
-                return 0;
-            }
-            break;
-
-        default:
-            fprintf(io->errs, "Can't write key type: %d\n", key->type);
+        if (!pgp_write_xfer_anykey(&output, key, passphrase, NULL, armour)) {
             return 0;
         }
     }

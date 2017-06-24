@@ -633,16 +633,8 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *     io,
 
     pgp_writer_set_memory(&output, m);
 
-    if (key->type == PGP_PTAG_CT_PUBLIC_KEY || key->type == PGP_PTAG_CT_PUBLIC_SUBKEY) {
-        if (!pgp_write_xfer_pubkey(&output, key, NULL, 0)) {
-            fprintf(io->errs, "Can't write public key\n");
-            return 0;
-        }
-    } else {
-        if (!pgp_write_xfer_seckey(&output, key, passphrase, NULL, 0)) {
-            fprintf(io->errs, "Can't write private key\n");
-            return 0;
-        }
+    if (!pgp_write_xfer_anykey(&output, key, passphrase, NULL, 0)) {
+        return 0;
     }
 
     rc = pgp_writer_close(&output);
