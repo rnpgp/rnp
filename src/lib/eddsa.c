@@ -110,8 +110,8 @@ pgp_eddsa_verify_hash(const BIGNUM *          r,
         goto done;
 
     memset(bn_buf, 0, sizeof(bn_buf));
-    BN_bn2bin(r, bn_buf);
-    BN_bn2bin(s, bn_buf + 32);
+    BN_bn2bin(r, &bn_buf[32 - BN_num_bytes(r)]);
+    BN_bn2bin(s, &bn_buf[32 + 32 - BN_num_bytes(s)]);
 
     result = (botan_pk_op_verify_finish(verify_op, bn_buf, 64) == 0);
 
