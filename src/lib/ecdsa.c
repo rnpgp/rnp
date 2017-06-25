@@ -103,9 +103,11 @@ pgp_ecdsa_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve)
         goto end;
     }
 
+    const size_t x_bytes = BN_num_bytes(public_x);
+    const size_t y_bytes = BN_num_bytes(public_y);
+
     // Safety check
-    if ((BN_num_bytes(public_x) > filed_byte_size) ||
-        (BN_num_bytes(public_y) > filed_byte_size)) {
+    if ((x_bytes > filed_byte_size) || (y_bytes > filed_byte_size)) {
         RNP_LOG("Key generation failed");
         goto end;
     }
@@ -115,11 +117,13 @@ pgp_ecdsa_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve)
      * "0x04 || x || y"
      *
      *  \see 13.2.  ECDSA and ECDH Conversion Primitives
+     *
+     * Note: Generated pk/sk may not always have exact number of bytes
+     *       which is important when converting to octet-string
      */
-
     point_bytes[0] = 0x04;
-    BN_bn2bin(public_x, &point_bytes[1]);
-    BN_bn2bin(public_y, &point_bytes[1 + filed_byte_size]);
+    BN_bn2bin(public_x, &point_bytes[1 + filed_byte_size - x_bytes]);
+    BN_bn2bin(public_y, &point_bytes[1 + filed_byte_size + (filed_byte_size - y_bytes)]);
 
     seckey->pubkey.key.ecc.point = BN_bin2bn(point_bytes, (2 * filed_byte_size) + 1, NULL);
     if (!seckey->pubkey.key.ecc.point) {
@@ -253,8 +257,8 @@ pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
         goto end;
     }
 
-    BN_bn2bin(sign->r, sign_buf);
-    BN_bn2bin(sign->s, sign_buf + sign_half_len);
+    BN_bn2bin(sign->r, &sign_buf[sign_half_len - BN_num_bytes(sign->r)]);
+    BN_bn2bin(sign->s, &sign_buf[sign_half_len + sign_half_len - BN_num_bytes(sign->s)]);
 
     ret = botan_pk_op_verify_finish(verifier, sign_buf, sign_half_len * 2) ?
             PGP_E_V_BAD_SIGNATURE :
