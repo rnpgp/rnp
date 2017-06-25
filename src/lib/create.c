@@ -313,10 +313,7 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result)
  * verification.
  */
 static unsigned
-write_seckey_body(const pgp_seckey_t *key,
-                  const uint8_t *     passphrase,
-                  const size_t        pplen,
-                  pgp_output_t *      output)
+write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output_t *output)
 {
     /* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
 
@@ -564,7 +561,6 @@ unsigned
 pgp_write_xfer_seckey(pgp_output_t *         output,
                       const pgp_key_t *      key,
                       const uint8_t *        passphrase,
-                      const size_t           pplen,
                       const rnp_key_store_t *subkeys,
                       unsigned               armoured)
 {
@@ -575,7 +571,7 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
     }
     /* secret key */
     if (!pgp_write_struct_seckey(
-          PGP_PTAG_CT_SECRET_KEY, &key->key.seckey, passphrase, pplen, output)) {
+          PGP_PTAG_CT_SECRET_KEY, &key->key.seckey, passphrase, output)) {
         return 0;
     }
 
@@ -606,7 +602,7 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
                 return 0;
             }
             if (!pgp_write_struct_seckey(
-                  PGP_PTAG_CT_SECRET_SUBKEY, &subkey->key.seckey, passphrase, pplen, output)) {
+                  PGP_PTAG_CT_SECRET_SUBKEY, &subkey->key.seckey, passphrase, output)) {
                 return 0;
             }
             for (j = 0; j < subkey->packetc; j++) {
@@ -622,6 +618,54 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
         pgp_writer_info_finalise(&output->errors, &output->writer);
         pgp_writer_pop(output);
     }
+    return 1;
+}
+
+unsigned
+pgp_write_xfer_anykey(pgp_output_t *         output,
+                      const pgp_key_t *      key,
+                      const uint8_t *        passphrase,
+                      const rnp_key_store_t *subkeys,
+                      unsigned               armoured)
+{
+    int i;
+
+    switch (key->type) {
+    case PGP_PTAG_CT_PUBLIC_KEY:
+    case PGP_PTAG_CT_PUBLIC_SUBKEY:
+        if (!pgp_write_xfer_pubkey(output, key, NULL, armoured)) {
+            fprintf(stderr, "Can't write public key\n");
+            return 0;
+        }
+        break;
+
+    case PGP_PTAG_CT_SECRET_KEY:
+    case PGP_PTAG_CT_SECRET_SUBKEY:
+        if (!pgp_write_xfer_seckey(output, key, passphrase, NULL, armoured)) {
+            fprintf(stderr, "Can't write private key\n");
+            return 0;
+        }
+        break;
+
+    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
+    case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
+        if (key->packetc == 0) {
+            fprintf(stderr, "Can't write encrypted private key without RAW packed.\n");
+            return 0;
+        }
+        for (i = 0; i < key->packetc; i++) {
+            if (!pgp_write(output, key->packets[i].raw, key->packets[i].length)) {
+                fprintf(stderr, "Can't write part of encrypted private key\n");
+                return 0;
+            }
+        }
+        break;
+
+    default:
+        fprintf(stderr, "Can't write key type: %d\n", key->type);
+        return 0;
+    }
+
     return 1;
 }
 
@@ -660,7 +704,6 @@ unsigned
 pgp_write_struct_seckey(pgp_content_enum    tag,
                         const pgp_seckey_t *key,
                         const uint8_t *     passphrase,
-                        const size_t        pplen,
                         pgp_output_t *      output)
 {
     int length = 0;
@@ -740,7 +783,7 @@ pgp_write_struct_seckey(pgp_content_enum    tag,
     return pgp_write_ptag(output, tag) &&
            /* pgp_write_length(output,1+4+1+1+seckey_length(key)+2) && */
            pgp_write_length(output, (unsigned) length) &&
-           write_seckey_body(key, passphrase, pplen, output);
+           write_seckey_body(key, passphrase, output);
 }
 
 /**
@@ -861,8 +904,8 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
         id = key->encid;
     }
 
-    if (key->type != PGP_PTAG_CT_PUBLIC_KEY) {
-        (void) fprintf(stderr, "pgp_create_pk_sesskey: bad type\n");
+    if (pubkey == NULL) {
+        (void) fprintf(stderr, "pgp_create_pk_sesskey: bad pub key\n");
         return NULL;
     }
 

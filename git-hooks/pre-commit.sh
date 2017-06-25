@@ -73,7 +73,7 @@ exec 1>&2
 
 $CLANG_FORMAT -version | grep -Fq "$CLANG_FORMAT_VERSION" || (echo Incorrect version of clang-format.; exit 1)
 
-patchfile=$(mktemp --tmpdir --suffix=.patch git-clang-format.XXXXXX)
+patchfile=$(mktemp -t git-clang-format.XXXXXX.patch)
 stash
 trap "cleanup" SIGHUP SIGINT SIGTERM EXIT ERR
 
@@ -84,7 +84,7 @@ do
     sed -e "1s|--- |--- a/|" -e "2s|+++ -|+++ b/$file|" >> "$patchfile"
 
   # cat is just here to ignore the exit status of diff
-  $CLANG_FORMAT -style=file "$file" | diff -u --color=always "$file" - | cat
+  $CLANG_FORMAT -style=file "$file" | diff -u "$file" - | cat
 done
 unstash
 

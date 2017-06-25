@@ -36,6 +36,8 @@ void rnpkeys_generatekey_verifyUserIdOption(void **state);
 
 void rnpkeys_generatekey_verifykeyHomeDirOption(void **state);
 
+void rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state);
+
 void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state);
 
 void rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state);

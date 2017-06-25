@@ -954,6 +954,9 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
                        BN_bn2hex(key->key.pubkey.key.rsa.e));
         break;
     case PGP_PKA_EDDSA:
+        cc += snprintf(
+          &out[cc], outsize - cc, "point=%s\n", BN_bn2hex(key->key.pubkey.key.ecc.point));
+        break;
     case PGP_PKA_ECDSA:
         cc += snprintf(&out[cc],
                        outsize - cc,
@@ -1724,8 +1727,7 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
     if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
         pgp_write_xfer_pubkey(output, keydata, NULL, 1);
     } else {
-        pgp_write_xfer_seckey(
-          output, keydata, passphrase, strlen((char *) passphrase), NULL, 1);
+        pgp_write_xfer_seckey(output, keydata, passphrase, NULL, 1);
     }
 
     const size_t mem_len = pgp_mem_len(mem) + 1;

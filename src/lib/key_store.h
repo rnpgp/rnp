@@ -39,15 +39,92 @@
 #include "packet.h"
 #include "memory.h"
 
+typedef enum {
+    KBX_EMPTY_BLOB = 0,
+    KBX_HEADER_BLOB = 1,
+    KBX_PGP_BLOB = 2,
+    KBX_X509_BLOB = 3
+} kbx_blob_type;
+
+typedef struct {
+    uint32_t      length;
+    kbx_blob_type type;
+
+    uint8_t *image;
+} kbx_blob_t;
+
+typedef struct {
+    kbx_blob_t blob;
+    uint8_t    version;
+    uint16_t   flags;
+    uint32_t   file_created_at;
+    uint32_t   last_maintenance_run;
+} kbx_header_blob_t;
+
+typedef struct {
+    uint8_t  fp[PGP_FINGERPRINT_SIZE];
+    uint32_t keyid_offset;
+    uint16_t flags;
+} kbx_pgp_key_t;
+
+typedef struct {
+    uint32_t offset;
+    uint32_t length;
+    uint16_t flags;
+    uint8_t  validity;
+} kbx_pgp_uid_t;
+
+typedef struct {
+    uint32_t expired;
+} kbx_pgp_sig_t;
+
+typedef struct {
+    kbx_blob_t blob;
+    uint8_t    version;
+    uint16_t   flags;
+    uint32_t   keyblock_offset;
+    uint32_t   keyblock_length;
+
+    uint16_t nkeys;
+    uint16_t keys_len;
+    DYNARRAY(kbx_pgp_key_t, key);
+
+    uint16_t sn_size;
+    uint8_t *sn;
+
+    uint16_t nuids;
+    uint16_t uids_len;
+    DYNARRAY(kbx_pgp_uid_t, uid);
+
+    uint16_t nsigs;
+    uint16_t sigs_len;
+    DYNARRAY(kbx_pgp_sig_t, sig);
+
+    uint8_t ownertrust;
+    uint8_t all_Validity;
+
+    uint32_t recheck_after;
+    uint32_t latest_timestamp;
+    uint32_t blob_created_at;
+} kbx_pgp_blob_t;
+
 typedef struct rnp_key_store_t {
     DYNARRAY(pgp_key_t, key);
+    DYNARRAY(kbx_blob_t *, blob);
     pgp_hash_alg_t hashtype;
 } rnp_key_store_t;
+
+int rnp_key_store_extension(rnp_t *rnp, char *buffer, size_t buffer_size);
 
 int rnp_key_store_load_keys(rnp_t *rnp, char *homedir);
 
 int rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *, const unsigned, const char *);
 int rnp_key_store_load_from_mem(rnp_t *rnp, rnp_key_store_t *, const unsigned, pgp_memory_t *);
+
+int rnp_key_store_write_to_file(
+  rnp_t *rnp, rnp_key_store_t *, const uint8_t *, const unsigned, const char *);
+int rnp_key_store_write_to_mem(
+  rnp_t *rnp, rnp_key_store_t *, const uint8_t *, const unsigned, pgp_memory_t *);
 
 void rnp_key_store_free(rnp_key_store_t *);
 

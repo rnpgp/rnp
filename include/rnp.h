@@ -46,7 +46,7 @@
 
 __BEGIN_DECLS
 
-enum keyring_format_t { GPG_KEYRING, SSH_KEYRING };
+enum key_store_format_t { GPG_KEY_STORE, SSH_KEY_STORE, KBX_KEY_STORE };
 
 /* rnp operation context : contains additional data about the currently ongoing operation */
 typedef struct rnp_ctx_t {
@@ -72,7 +72,7 @@ typedef struct rnp_t {
     void *    passfp;  /* file pointer for password input */
     rnp_ctx_t ctx;     /* current operation context */
 
-    enum keyring_format_t keyring_format; /* keyring format */
+    enum key_store_format_t key_store_format; /* keyring format */
     union {
         rnp_keygen_desc_t generate_key_ctx;
     } action;
@@ -100,8 +100,8 @@ int   rnp_incvar(rnp_t *, const char *, const int);
 int   rnp_unsetvar(rnp_t *, const char *);
 int findvar(rnp_t *rnp, const char *name);
 
-/* set keyring format information */
-int rnp_set_keyring_format(rnp_t *, char *);
+/* set key store format information */
+int rnp_set_key_store_format(rnp_t *, const char *);
 
 /* set home directory information */
 int rnp_set_homedir(rnp_t *, char *, const int);

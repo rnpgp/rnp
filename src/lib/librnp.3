@@ -82,7 +82,7 @@ The following functions are for variable management:
 .Pp
 The following function sets the keyring format:
 .Ft int
-.Fo rnp_set_keyring_format
+.Fo rnp_set_key_store_format
 .Fa "rnp_t *rnp" "char *format"
 .Fc
 .Pp
@@ -212,9 +212,9 @@ If the expression to match is NULL,
 the search will degenerate into a
 listing of all keys in the keyring.
 .Pp
-The keyring format is specified as an internal variable,
+The key store format is specified as an internal variable,
 and its existence is checked using the
-.Fn rnp_set_keyring_format
+.Fn rnp_set_key_store_format
 function.
 .Pp
 The home directory is specified as an internal variable,
