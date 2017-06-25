@@ -48,8 +48,22 @@ __BEGIN_DECLS
 
 enum keyring_format_t { GPG_KEYRING, SSH_KEYRING };
 
+/* structure used to hold (key,value) pair information */
+typedef struct rnp_t {
+    void *    pubring; /* public key ring */
+    void *    secring; /* s3kr1t key ring */
+    void *    io;      /* the io struct for results/errs */
+    void *    passfp;  /* file pointer for password input */
+
+    enum keyring_format_t keyring_format; /* keyring format */
+    union {
+        rnp_keygen_desc_t generate_key_ctx;
+    } action;
+} rnp_t;
+
 /* rnp operation context : contains additional data about the currently ongoing operation */
 typedef struct rnp_ctx_t {
+    rnp_t *        rnp;       /* rnp structure */
     char *         filename;  /* name of the input file to store in literal data packet */
     int64_t        filemtime; /* file modification time to store in literal data packet */
     int            halg;      /* hash algorithm */
@@ -60,30 +74,12 @@ typedef struct rnp_ctx_t {
     int            armour;    /* use ASCII armour on output */
 } rnp_ctx_t;
 
-/* structure used to hold (key,value) pair information */
-typedef struct rnp_t {
-    unsigned  c;       /* # of elements used */
-    unsigned  size;    /* size of array */
-    char **   name;    /* key names */
-    char **   value;   /* value information */
-    void *    pubring; /* public key ring */
-    void *    secring; /* s3kr1t key ring */
-    void *    io;      /* the io struct for results/errs */
-    void *    passfp;  /* file pointer for password input */
-    rnp_ctx_t ctx;     /* current operation context */
-
-    enum keyring_format_t keyring_format; /* keyring format */
-    union {
-        rnp_keygen_desc_t generate_key_ctx;
-    } action;
-} rnp_t;
-
 /* begin and end */
 int rnp_init(rnp_t *);
 int rnp_end(rnp_t *);
 
 /* init, reset and free rnp operation context */
-int  rnp_ctx_init(rnp_ctx_t *);
+int  rnp_ctx_init(rnp_ctx_t *, rnp_t *);
 void rnp_ctx_reset(rnp_ctx_t *);
 void rnp_ctx_free(rnp_ctx_t *);
 
@@ -92,13 +88,6 @@ int         rnp_set_debug(const char *);
 int         rnp_get_debug(const char *);
 const char *rnp_get_info(const char *);
 int         rnp_list_packets(rnp_t *, char *, int, char *);
-
-/* variables */
-int   rnp_setvar(rnp_t *, const char *, const char *);
-char *rnp_getvar(rnp_t *, const char *);
-int   rnp_incvar(rnp_t *, const char *, const int);
-int   rnp_unsetvar(rnp_t *, const char *);
-int findvar(rnp_t *rnp, const char *name);
 
 /* set keyring format information */
 int rnp_set_keyring_format(rnp_t *, char *);
@@ -117,16 +106,16 @@ int   rnp_import_key(rnp_t *, char *);
 int   rnp_generate_key(rnp_t *, const char *);
 
 /* file management */
-int rnp_encrypt_file(rnp_t *, const char *, const char *, char *);
-int rnp_decrypt_file(rnp_t *, const char *, char *, int);
-int rnp_sign_file(rnp_t *, const char *, const char *, char *, int, int);
-int rnp_verify_file(rnp_t *, const char *, const char *, int);
+int rnp_encrypt_file(rnp_ctx_t *, const char *, const char *, char *);
+int rnp_decrypt_file(rnp_ctx_t *, const char *, char *, int);
+int rnp_sign_file(rnp_ctx_t *, const char *, const char *, char *, int, int);
+int rnp_verify_file(rnp_ctx_t *, const char *, const char *, int);
 
 /* memory signing and encryption */
-int rnp_sign_memory(rnp_t *, const char *, char *, size_t, char *, size_t, const unsigned);
-int rnp_verify_memory(rnp_t *, const void *, const size_t, void *, size_t, const int);
-int rnp_encrypt_memory(rnp_t *, const char *, void *, const size_t, char *, size_t);
-int rnp_decrypt_memory(rnp_t *, const void *, const size_t, char *, size_t, const int);
+int rnp_sign_memory(rnp_ctx_t *, const char *, char *, size_t, char *, size_t, const unsigned);
+int rnp_verify_memory(rnp_ctx_t *, const void *, const size_t, void *, size_t, const int);
+int rnp_encrypt_memory(rnp_ctx_t *, const char *, void *, const size_t, char *, size_t);
+int rnp_decrypt_memory(rnp_ctx_t *, const void *, const size_t, char *, size_t, const int);
 
 /* match and hkp-related functions */
 int rnp_match_keys_json(rnp_t *, char **, char *, const char *, const int);

@@ -35,6 +35,8 @@
 #define CFG_MAXALLOC    "maxalloc"    /* maximum memory allocation during the reading from stdin */
 #define CFG_KEYRINGFMT  "keyringfmt"  /* keyring format : GPG, SSH */
 #define CFG_SSHKEYFILE  "sshkeyfile"  /* SSH key file */
+#define CFG_SUBDIRGPG   "subdirgpg"   /* gpg/rnp files subdirectory: .rnp by default */
+#define CFG_SUBDIRSSH   "subdirssh"   /* ssh files (keys) subdirectory: .ssh by default */
 #define CFG_COREDUMPS   "coredumps"   /* enable/disable core dumps. 1 or 0. */
 #define CFG_NEEDSUSERID "needsuserid" /* needs user id for the ongoing operation - i.e. signing, encryption */
 #define CFG_NEEDSSECKEY "needsseckey" /* needs secret key for the ongoing operation - i.e. signing, decryption, so secret keyring will be loaded */

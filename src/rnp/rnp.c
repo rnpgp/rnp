@@ -253,21 +253,24 @@ static int
 rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 {
     unsigned         maxsize;
-    char *           out;
-    char *           in;
+    char *           out = NULL;
+    char *           in = NULL;
+    char *           outf;
     char *           cipher;
     char *           userid;
     int              ret;
     int              cc;
+    int              clearsign = (cmd == CLEARSIGN) ? 1 : 0;
     const pgp_key_t *keypair = NULL;
+    rnp_ctx_t        ctx;
 
     /* operation context initialization: writing all additional parameters */
-    rnp_ctx_reset(&rnp->ctx);
-    rnp->ctx.armour = rnp_cfg_getint(cfg, CFG_ARMOUR);
-    rnp->ctx.overwrite = rnp_cfg_getint(cfg, CFG_OVERWRITE);
+    rnp_ctx_init(&ctx, rnp);
+    ctx.armour = rnp_cfg_getint(cfg, CFG_ARMOUR);
+    ctx.overwrite = rnp_cfg_getint(cfg, CFG_OVERWRITE);
     if (f) {
-        rnp->ctx.filename = strdup(rnp_filename(f));
-        rnp->ctx.filemtime = rnp_filemtime(f);
+        ctx.filename = strdup(rnp_filename(f));
+        ctx.filemtime = rnp_filemtime(f);
     }
 
     /* getting recipient/signer key if needed */
@@ -275,56 +278,43 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         userid = rnp_cfg_get(cfg, CFG_USERID);
         if (!userid) {
             fprintf(stderr, "user/key id is not available but required\n");
-            return 0;
+            ret = 0;
+            goto done;
         }
     }
 
     switch (cmd) {
     case CMD_ENCRYPT:
-        rnp->ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
+        ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
 
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
             ret = rnp_encrypt_memory(rnp, userid, in, cc, out, maxsize);
             ret = show_output(out, ret, "Bad memory encryption");
-            free(in);
-            free(out);
-            return ret;
+        } else {
+            ret = rnp_encrypt_file(rnp, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE));
         }
-        return rnp_encrypt_file(rnp, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE));
+        goto done;
     case CMD_DECRYPT:
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
             ret = rnp_decrypt_memory(rnp, in, cc, out, maxsize, 0);
             ret = show_output(out, ret, "Bad memory decryption");
-            free(in);
-            free(out);
-            return ret;
+        } else {
+            ret = rnp_decrypt_file(rnp, f, rnp_cfg_get(cfg, CFG_OUTFILE), rnp->ctx.armour);
         }
-        return rnp_decrypt_file(rnp, f, rnp_cfg_get(cfg, CFG_OUTFILE), rnp->ctx.armour);
+        goto done;
     case CMD_CLEARSIGN:
     case CMD_SIGN:
+
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            ret = rnp_sign_memory(rnp,
-                                  userid,
-                                  in,
-                                  cc,
-                                  out,
-                                  maxsize,
-                                  (cmd == CLEARSIGN) ? 1 : 0);
+            ret = rnp_sign_memory(rnp, userid, in, cc, out, maxsize, clearsign);
             ret = show_output(out, ret, "Bad memory signature");
-            free(in);
-            free(out);
-            return ret;
+        } else {
+            ret = rnp_sign_file(rnp, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE), clearsign, rnp_cfg_getint(cfg, CFG_DETACHED));
         }
-
-        return rnp_sign_file(rnp,
-                             userid,
-                             f,
-                             rnp_cfg_get(cfg, CFG_OUTFILE),
-                             (p->cmd == CLEARSIGN) ? 1 : 0,
-                             rnp_cfg_getint(cfg, CFG_DETACHED));
+        goto done;
     case CMD_VERIFY:
     case CMD_VERIFY_CAT:
         if (f == NULL) {
@@ -336,26 +326,37 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
                                     (cmd == VERIFY_CAT) ? maxsize : 0,
                                     rnp->ctx.armour);
             ret = show_output(out, ret, "Bad memory verification");
-            free(in);
-            free(out);
-            return ret;
+        } else {
+            outf = rnp_cfg_get(cfg, CFG_OUTFILE);
+            ret = rnp_verify_file(rnp, f, (cmd == VERIFY) ? NULL : (outf) ? outf : "-", rnp->cfg.armour);
         }
-
-        out = rnp_cfg_get(cfg, CFG_OUTFILE);
-        return rnp_verify_file(
-            rnp, f, (cmd == VERIFY) ? NULL : (out) ? out : "-", rnp->cfg.armour);
+        goto done;
     case CMD_LIST_PACKETS:
         if (f == NULL) {
             fprintf(stderr, "%s: No filename provided\n", __progname);
-            return 0;
+            ret = 0;
+        } else {
+            ret = rnp_list_packets(rnp, f, rnp->ctx.armour, NULL);
         }
-        return rnp_list_packets(rnp, f, rnp->ctx.armour, NULL);
+        goto done;
     case CMD_SHOW_KEYS:
-        return rnp_validate_sigs(rnp);
+        ret = rnp_validate_sigs(rnp);
+        goto done;
     default:
         print_usage(usage);
         exit(EXIT_SUCCESS);
     }
+
+    done:
+    if (in) {
+        free(in);
+    }
+    if (out) {
+        free(out);
+    }
+
+    rnp_ctx_free(&tcx);
+    return ret;
 }
 
 /* set an option */
@@ -491,6 +492,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         *cmd = CMD_HELP;
         break;
     }
+
     return 1;
 }
 

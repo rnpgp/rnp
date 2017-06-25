@@ -45,6 +45,8 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_set(&cfg, CFG_HASH, DEFAULT_HASH_ALG);
     rnp_cfg_set(&cfg, CFG_CIPHER, 'cast5');    
     rnp_cfg_setint(&cfg, CFG_MAXALLOC, 4194304);
+    rnp_cfg_set(&cfg, CFG_SUBDIRGPG, SUBDIRECTORY_GNUPG);
+    rnp_cfg_set(&cfg, CFG_SUBDIRSSH, SUBDIRECTOR_SSH);
 }
 
 int
