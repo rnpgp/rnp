@@ -48,7 +48,7 @@ __BEGIN_DECLS
 
 enum keyring_format_t { GPG_KEYRING, SSH_KEYRING };
 
-/* structure used to hold (key,value) pair information */
+/* structure used to keep application-wide rnp configuration: keyrings, password io, whatever else */
 typedef struct rnp_t {
     void *    pubring; /* public key ring */
     void *    secring; /* s3kr1t key ring */
@@ -60,6 +60,11 @@ typedef struct rnp_t {
         rnp_keygen_desc_t generate_key_ctx;
     } action;
 } rnp_t;
+
+/* rnp initialization parameters : keyring pathes, flags, whatever else */
+typedef struct rnp_init_t {
+    unsigned enable_coredumps;
+} rnp_init_t;
 
 /* rnp operation context : contains additional data about the currently ongoing operation */
 typedef struct rnp_ctx_t {
@@ -74,9 +79,10 @@ typedef struct rnp_ctx_t {
     int            armour;    /* use ASCII armour on output */
 } rnp_ctx_t;
 
-/* begin and end */
-int rnp_init(rnp_t *);
-int rnp_end(rnp_t *);
+/* initialize rnp using the init structure  */
+int  rnp_init(rnp_t *, rnp_init_t *);
+/* finish work with rnp and cleanup the memory */
+int  rnp_end(rnp_t *);
 
 /* init, reset and free rnp operation context */
 int  rnp_ctx_init(rnp_ctx_t *, rnp_t *);

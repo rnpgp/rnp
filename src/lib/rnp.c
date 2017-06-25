@@ -736,25 +736,6 @@ disable_core_dumps(void)
     }
 }
 
-/* Disable core dumps according to the coredumps setting variable.
- * Returns 0 if core dumps are definitely disabled, 1 if core dumps
- * are or are possibly enabled, -1 if we tried to disable them
- * but possibly failed.
- *
- * This function could benefit from communicating error conditions
- * from disable_core_dumps.
- */
-static int
-set_core_dumps(rnp_t *rnp)
-{
-    if (findvar(rnp, "coredumps") == -1) {
-        return disable_core_dumps() == 1 ? 0 : -1;
-    }
-    return 1;
-}
-
-#endif
-
 /* Gets a passphrase from a file descriptor and set it in the RNP
  * context. Returns 1 on success and 0 on failure.
  *
@@ -907,26 +888,28 @@ init_default_homedir(rnp_t *rnp)
 
 /* Initialize a rnp_t structure */
 int
-rnp_init(rnp_t *rnp)
-{
-    int       coredumps;
+rnp_init(rnp_t *rnp, rnp_init_t *params)
+{    
+    int       coredumps = -1; /* -1 : cannot disable, 1 : disabled, 0 : enabled */
     pgp_io_t *io;
 
-/* Before calling the init, the userdefined options are set.
- * DONOT MEMSET*/
-#if 0
-    memset((void *) rnp, '\0', sizeof(rnp_t));
+    /* If system resource constraints are in effect then attempt to
+     * disable core dumps.
+    */
+    if (!params->enable_coredumps) {    
+#ifdef HAVE_SYS_RESOURCE_H            
+        coredumps = disable_core_dumps(rnp);
 #endif
+    } else {
+        coredumps = 0;
+    }
 
-    /* Assume that core dumps are always enabled. */
-    coredumps = -1;
-
-/* If system resource constraints are in effect then attempt to
- * disable core dumps.
- */
-#ifdef HAVE_SYS_RESOURCE_H
-    coredumps = set_core_dumps(rnp);
-#endif
+    if (coredumps == -1) {
+        fputs("rnp: warning - cannot turn off core dumps\n", io->errs);
+    }
+    if (coredumps != 1) {
+        fputs("rnp: warning: core dumps enabled, sensitive data may be leaked to disk\n", io->errs);
+    }
 
     /* Initialize the context's io streams apparatus. */
     if (!init_new_io(rnp))
@@ -938,15 +921,6 @@ rnp_init(rnp_t *rnp)
      */
     if (!set_pass_fd(rnp))
         return 0;
-
-    if (coredumps == -1) {
-        fputs("rnp: warning - cannot turn off core dumps\n", io->errs);
-    }
-    if (coredumps) {
-        fputs("rnp: warning: core dumps enabled, "
-              "sensitive data may be leaked to disk\n",
-              io->errs);
-    }
 
     /* Initialize the context with the default keyring format. */
     if (!init_default_format(rnp)) {

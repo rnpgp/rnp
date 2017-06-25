@@ -50,9 +50,10 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
 }
 
 int
-rnp_cfg_apply(rnp_cfg_t *cfg)
+rnp_cfg_apply(rnp_cfg_t *cfg, rnp_init_t *params)
 {
-    
+    if (rnp_cfg_getint(CFG_COREDUMPS))
+        params->enable_coredumps = 1;
 }
 
 /* find the value name in the rnp_cfg */

@@ -65,7 +65,7 @@ typedef struct rnp_cfg_t {
 
 int rnp_cfg_init(rnp_cfg_t *cfg);
 int rnp_cfg_load_defaults(rnp_cfg_t *cfg);
-int rnp_cfg_apply(rnp_cfg_t *cfg);
+int rnp_cfg_apply(rnp_cfg_t *cfg, rnp_init_t *params);
 int rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val);
 int rnp_cfg_unset(rnp_cfg_t *cfg, const char *key);
 int rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val);
