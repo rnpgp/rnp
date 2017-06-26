@@ -149,7 +149,7 @@ pgp_write_mpi(pgp_output_t *output, const BIGNUM *bn)
         return 0;
     }
     BN_bn2bin(bn, buf);
-    return pgp_write_scalar(output, bits, 2) && pgp_write(output, buf, (bits + 7) / 8);
+    return pgp_write_scalar(output, bits, 2) && pgp_write(output, buf, BITS_TO_BYTES(bits));
 }
 
 /**
