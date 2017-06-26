@@ -924,6 +924,19 @@ open_output_file(rnp_ctx_t *    ctx,
 }
 
 /**
+    Pick up hash algorithm according to secret key and preferences set in the context
+*/
+static pgp_hash_alg_t
+pgp_pick_hash_alg(rnp_ctx_t * ctx, const pgp_seckey_t *seckey)
+{
+    if (seckey->pubkey.alg == PGP_PKA_DSA) {
+        return PGP_HASH_SHA1;
+    } else { 
+        return ctx->halg;
+    }
+}
+
+/**
 \ingroup HighLevel_Sign
 \brief Sign a file
 \param ctx Operation context
@@ -941,9 +954,6 @@ pgp_sign_file(rnp_ctx_t *         ctx,
               const char *        inname,
               const char *        outname,
               const pgp_seckey_t *seckey,
-              const char *        hashname,
-              const int64_t       from,
-              const uint64_t      duration,
               const unsigned      cleartext)
 {
     pgp_create_sig_t *sig;
@@ -964,8 +974,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
     fd_out = 0;
 
     /* find the hash algorithm */
-    hash_alg = pgp_str_to_hash_alg(hashname);
-    if (hash_alg == PGP_HASH_UNKNOWN) {
+    if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
         (void) fprintf(io->errs, "pgp_sign_file: unknown hash algorithm: \"%s\"\n", hashname);
         return 0;
     }
@@ -1007,8 +1016,8 @@ pgp_sign_file(rnp_ctx_t *         ctx,
         /* - creation time */
         /* - key id */
         ret = pgp_writer_use_armored_sig(output) &&
-              pgp_add_time(sig, (int64_t) from, PGP_PTAG_SS_CREATION_TIME) &&
-              pgp_add_time(sig, (int64_t) duration, PGP_PTAG_SS_EXPIRATION_TIME);
+              pgp_add_time(sig, (int64_t) ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME) &&
+              pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
         if (ret == 0) {
             pgp_teardown_file_write(output, fd_out);
             return 0;
@@ -1041,8 +1050,8 @@ pgp_sign_file(rnp_ctx_t *         ctx,
           output, pgp_mem_data(infile), (const int) pgp_mem_len(infile), PGP_LDT_BINARY);
 
         /* add creation time to signature */
-        pgp_add_time(sig, (int64_t) from, PGP_PTAG_SS_CREATION_TIME);
-        pgp_add_time(sig, (int64_t) duration, PGP_PTAG_SS_EXPIRATION_TIME);
+        pgp_add_time(sig, (int64_t) ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
+        pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
         /* add key id to signature */
         pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey, hash_alg);
         pgp_add_issuer_keyid(sig, keyid);
@@ -1078,9 +1087,6 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
              const void *        input,
              const size_t        insize,
              const pgp_seckey_t *seckey,
-             const int64_t       from,
-             const uint64_t      duration,
-             const char *        hashname,
              const unsigned      cleartext)
 {
     pgp_litdata_enum  ld_type;
@@ -1099,9 +1105,8 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
     mem = pgp_memory_new();
     hash = NULL;
     ret = 0;
-
-    hash_alg = pgp_str_to_hash_alg(hashname);
-    if (hash_alg == PGP_HASH_UNKNOWN) {
+    
+    if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
         (void) fprintf(io->errs, "pgp_sign_buf: unknown hash algorithm: \"%s\"\n", hashname);
         return NULL;
     }
@@ -1131,8 +1136,8 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
         ret = pgp_writer_push_clearsigned(output, sig) &&
               pgp_write(output, input, (unsigned) insize) &&
               pgp_writer_use_armored_sig(output) &&
-              pgp_add_time(sig, from, PGP_PTAG_SS_CREATION_TIME) &&
-              pgp_add_time(sig, (int64_t) duration, PGP_PTAG_SS_EXPIRATION_TIME);
+              pgp_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME) &&
+              pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
         if (ret == 0) {
             return NULL;
         }
@@ -1168,8 +1173,8 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
         }
 
         /* add creation time to signature */
-        pgp_add_time(sig, from, PGP_PTAG_SS_CREATION_TIME);
-        pgp_add_time(sig, (int64_t) duration, PGP_PTAG_SS_EXPIRATION_TIME);
+        pgp_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
+        pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
         /* add key id to signature */
         pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey, hash_alg);
         pgp_add_issuer_keyid(sig, keyid);
@@ -1191,10 +1196,7 @@ pgp_sign_detached(rnp_ctx_t *    ctx,
                   pgp_io_t *     io,
                   const char *   f,
                   char *         sigfile,
-                  pgp_seckey_t * seckey,
-                  const char *   hash,
-                  const int64_t  from,
-                  const uint64_t duration)
+                  pgp_seckey_t * seckey)
 {
     pgp_create_sig_t *sig;
     pgp_hash_alg_t    hash_alg;
@@ -1204,8 +1206,7 @@ pgp_sign_detached(rnp_ctx_t *    ctx,
     int               fd;
 
     /* find out which hash algorithm to use */
-    hash_alg = pgp_str_to_hash_alg(hash);
-    if (hash_alg == PGP_HASH_UNKNOWN) {
+    if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
         (void) fprintf(io->errs, "Unknown hash algorithm: %s\n", hash);
         return 0;
     }
@@ -1236,8 +1237,8 @@ pgp_sign_detached(rnp_ctx_t *    ctx,
     pgp_memory_free(mem);
 
     /* calculate the signature */
-    pgp_add_time(sig, from, PGP_PTAG_SS_CREATION_TIME);
-    pgp_add_time(sig, (int64_t) duration, PGP_PTAG_SS_EXPIRATION_TIME);
+    pgp_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
+    pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
     pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey, hash_alg);
     pgp_add_issuer_keyid(sig, keyid);
     pgp_end_hashed_subpkts(sig);

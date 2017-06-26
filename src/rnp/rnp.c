@@ -272,8 +272,9 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.filename = strdup(rnp_filename(f));
         ctx.filemtime = rnp_filemtime(f);
     }
+    ctx.pswdtries = rnp_cfg_get_pswdtries(cfg);
 
-    /* getting recipient/signer key if needed */
+    /* getting recipient/signer user id if needed */
     if (rnp_cfg_getint(cfg, CFG_NEEDSUSERID)) {
         userid = rnp_cfg_get(cfg, CFG_USERID);
         if (!userid) {
@@ -306,6 +307,16 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         goto done;
     case CMD_CLEARSIGN:
     case CMD_SIGN:
+        ctx.halg = pgp_str_to_hash_alg(rnp_ctx_get(CFG_HASH));
+        
+        if (ctx.halg == PGP_HASH_UNKNOWN) {
+            fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_ctx_get(CFG_HASH));
+            ret = 0;
+            goto done;
+        }
+
+        ctx.sigcreate = get_birthtime(rnp_cfg_get(cfg, CFG_BIRTHTIME));
+        ctx.sigexpire = get_duration(rnp_cfg_get(cfg, CFG_DURATION)));
 
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);

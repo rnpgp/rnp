@@ -47,6 +47,7 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_setint(&cfg, CFG_MAXALLOC, 4194304);
     rnp_cfg_set(&cfg, CFG_SUBDIRGPG, SUBDIRECTORY_GNUPG);
     rnp_cfg_set(&cfg, CFG_SUBDIRSSH, SUBDIRECTOR_SSH);
+    rnp_cfg_set(&cfg, CFG_NUMTRIES, MAX_PASSPHRASE_ATTEMPTS);
 }
 
 int
@@ -206,6 +207,23 @@ rnp_cfg_free(rnp_cfg_t *cfg)
 
     if (cfg->vals) {
         free(cfg->vals);
+    }
+}
+
+int 
+rnp_cfg_get_pswdtries(rnp_cfg_t *cfg)
+{
+    char *numtries;
+    int   num;
+
+    numtries = rnp_cfg_get(cfg);    
+
+    if ((numtries == NULL) || ((num = atoi(numtries)) <= 0)) {
+        return MAX_PASSPHRASE_ATTEMPTS;
+    } else if (strcmp(numtries, "unlimited")) {
+        return INFINITE_ATTEMPTS;
+    } else {
+        return num;
     }
 }
 

@@ -1451,11 +1451,8 @@ rnp_sign_file(
         return 0;
     }
     ret = 1;
-    if ((numtries = rnp_getvar(ctx->rnp, "numtries")) == NULL || (attempts = atoi(numtries)) <= 0) {
-        attempts = MAX_PASSPHRASE_ATTEMPTS;
-    } else if (strcmp(numtries, "unlimited") == 0) {
-        attempts = INFINITE_ATTEMPTS;
-    }
+    attempts = ctx->pswdtries;
+
     for (i = 0, seckey = NULL; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS);
          i++) {
         if (ctx->rnp->passfp == NULL) {
@@ -1488,29 +1485,10 @@ rnp_sign_file(
         return 0;
     }
     /* sign file */
-    hashalg = rnp_getvar(ctx->rnp, "hash");
-    if (seckey->pubkey.alg == PGP_PKA_DSA) {
-        hashalg = "sha1";
-    }
     if (detached) {
-        ret = pgp_sign_detached(ctx,
-                                io,
-                                f,
-                                out,
-                                seckey,
-                                hashalg,
-                                get_birthtime(rnp_getvar(rnp, "birthtime")),
-                                get_duration(rnp_getvar(rnp, "duration")));
+        ret = pgp_sign_detached(ctx, io, f, out, seckey);
     } else {
-        ret = pgp_sign_file(ctx,
-                            io,
-                            f,
-                            out,
-                            seckey,
-                            hashalg,
-                            get_birthtime(rnp_getvar(rnp, "birthtime")),
-                            get_duration(rnp_getvar(rnp, "duration")),
-                            (unsigned) cleartext);
+        ret = pgp_sign_file(ctx, io, f, out, seckey, (unsigned) cleartext);
     }
     pgp_forget(seckey, sizeof(*seckey));
     return ret;
@@ -1568,9 +1546,7 @@ rnp_sign_memory(rnp_ctx_t *    ctx,
     const pgp_key_t *pubkey;
     pgp_seckey_t *   seckey;
     pgp_memory_t *   signedmem;
-    const char *     hashalg;
     pgp_io_t *       io;
-    char *           numtries;
     int              attempts;
     int              ret;
     int              i;
@@ -1584,11 +1560,8 @@ rnp_sign_memory(rnp_ctx_t *    ctx,
         return 0;
     }
     ret = 1;
-    if ((numtries = rnp_getvar(rnp, "numtries")) == NULL || (attempts = atoi(numtries)) <= 0) {
-        attempts = MAX_PASSPHRASE_ATTEMPTS;
-    } else if (strcmp(numtries, "unlimited") == 0) {
-        attempts = INFINITE_ATTEMPTS;
-    }
+    attempts = ctx->pswdtries;
+
     for (i = 0, seckey = NULL; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS);
          i++) {
         if (ctx->rnp->passfp == NULL) {
@@ -1622,19 +1595,7 @@ rnp_sign_memory(rnp_ctx_t *    ctx,
     }
     /* sign file */
     (void) memset(out, 0x0, outsize);
-    hashalg = rnp_getvar(ctx->rnp, "hash");
-    if (seckey->pubkey.alg == PGP_PKA_DSA) {
-        hashalg = "sha1";
-    }
-    signedmem = pgp_sign_buf(ctx,
-                             io,
-                             mem,
-                             size,
-                             seckey,
-                             get_birthtime(rnp_getvar(rnp, "birthtime")),
-                             get_duration(rnp_getvar(rnp, "duration")),
-                             hashalg,
-                             cleartext);
+    signedmem = pgp_sign_buf(ctx, io, mem, size, seckey, cleartext);
     if (signedmem) {
         size_t m;
 

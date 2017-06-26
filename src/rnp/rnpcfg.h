@@ -45,11 +45,11 @@
 #define CFG_VERBOSE     "verbose"     /* verbose logging */
 #define CFG_HOMEDIR     "homedir"     /* home directory - folder with keyrings and possibly other stuff */
 #define CFG_PASSFD      "pass-fd"     /* password file descriptor */
-#define CFG_NUMTRIES    "numtries"    /* number of password request tries */
+#define CFG_NUMTRIES    "numtries"    /* number of password request tries, or 'unlimited' for unlimited attempts */
 #define CFG_DURATION    "duration"    /* signature validity duration */
 #define CFG_BIRTHTIME   "birthtime"   /* signature validity start */
 #define CFG_CIPHER      "cipher"      /* symmetric encryption algorithm as string */
-#define CFG_HASH        "hash"        /* hash algorithm used as string */
+#define CFG_HASH        "hash"        /* hash algorithm used, string like 'SHA1'*/
 
 /* additional cfg constants */
 #define CFG_KEYRING_GPG "GPG" /* GPG keyring format */
@@ -74,6 +74,7 @@ int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
 void rnp_cfg_free(rnp_cfg_t *cfg);
 
 int rnp_cfg_apply_homedir(rnp_t *rnp, rnp_cfg_t *rnp, const int quiet);
+int rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
 
 
 #endif
