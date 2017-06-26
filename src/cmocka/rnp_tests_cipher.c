@@ -315,44 +315,50 @@ raw_elg_test_success(void **state)
 }
 
 void
-ECDSA_signverify_success(void **state)
+ecdsa_signverify_success(void **state)
 {
     (void) state;
+    uint8_t message[64];
 
-    uint8_t       message[32];
-    pgp_ecc_sig_t sig = {NULL, NULL};
+    struct curve {
+        pgp_curve_t id;
+        size_t      size;
+    } curves[] = {
+      {PGP_CURVE_NIST_P_256, 32}, {PGP_CURVE_NIST_P_384, 48}, {PGP_CURVE_NIST_P_521, 64}};
 
-    const rnp_keygen_desc_t key_desc = {.key_alg = PGP_PKA_ECDSA,
-                                        .hash_alg = PGP_HASH_SHA256,
-                                        .sym_alg = PGP_SA_AES_128,
-                                        .ecc = {.curve = PGP_CURVE_NIST_P_256}};
+    for (int i = 0; i < sizeof(curves) / sizeof(curves[0]); i++) {
+        pgp_ecc_sig_t           sig = {NULL, NULL};
+        const rnp_keygen_desc_t key_desc = {.key_alg = PGP_PKA_ECDSA,
+                                            .hash_alg = PGP_HASH_SHA512,
+                                            .sym_alg = PGP_SA_AES_128,
+                                            .ecc = {.curve = curves[i].id}};
 
-    pgp_key_t *pgp_key1 = pgp_generate_keypair(&key_desc, NULL);
-    pgp_key_t *pgp_key2 = pgp_generate_keypair(&key_desc, NULL);
-    assert_int_not_equal(pgp_key1, NULL);
-    assert_int_not_equal(pgp_key2, NULL);
+        pgp_key_t *pgp_key1 = pgp_generate_keypair(&key_desc, NULL);
+        pgp_key_t *pgp_key2 = pgp_generate_keypair(&key_desc, NULL);
+        assert_int_not_equal(pgp_key1, NULL);
+        assert_int_not_equal(pgp_key2, NULL);
+        const pgp_ecc_pubkey_t *pub_key1 = &pgp_key1->key.pubkey.key.ecc;
+        const pgp_ecc_pubkey_t *pub_key2 = &pgp_key2->key.pubkey.key.ecc;
+        const pgp_ecc_seckey_t *prv_key1 = &pgp_key1->key.seckey.key.ecc;
 
-    const pgp_ecc_pubkey_t *pub_key1 = &pgp_key1->key.pubkey.key.ecc;
-    const pgp_ecc_pubkey_t *pub_key2 = &pgp_key2->key.pubkey.key.ecc;
-    const pgp_ecc_seckey_t *prv_key1 = &pgp_key1->key.seckey.key.ecc;
+        assert_int_equal(
+          pgp_ecdsa_sign_hash(&sig, message, curves[i].size, prv_key1, pub_key1), PGP_E_OK);
 
-    assert_int_equal(pgp_ecdsa_sign_hash(&sig, message, sizeof(message), prv_key1, pub_key1),
-                     PGP_E_OK);
+        assert_int_equal(pgp_ecdsa_verify_hash(&sig, message, curves[i].size, pub_key1),
+                         PGP_E_OK);
 
-    assert_int_equal(pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key1),
-                     PGP_E_OK);
+        // Fails because of different key used
+        assert_int_equal(pgp_ecdsa_verify_hash(&sig, message, curves[i].size, pub_key2),
+                         PGP_E_V_BAD_SIGNATURE);
 
-    // Fails because of different key used
-    assert_int_equal(pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key2),
-                     PGP_E_V_BAD_SIGNATURE);
+        // Fails because message won't verify
+        message[0] = ~message[0];
+        assert_int_equal(pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key1),
+                         PGP_E_V_BAD_SIGNATURE);
 
-    // Fails because message won't verify
-    message[0] = ~message[0];
-    assert_int_equal(pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key1),
-                     PGP_E_V_BAD_SIGNATURE);
-
-    BN_clear_free(sig.r);
-    BN_clear_free(sig.s);
-    pgp_keydata_free(pgp_key1);
-    pgp_keydata_free(pgp_key2);
+        BN_clear_free(sig.r);
+        BN_clear_free(sig.s);
+        pgp_keydata_free(pgp_key1);
+        pgp_keydata_free(pgp_key2);
+    }
 }

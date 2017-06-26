@@ -149,7 +149,7 @@ pgp_write_mpi(pgp_output_t *output, const BIGNUM *bn)
         return 0;
     }
     BN_bn2bin(bn, buf);
-    return pgp_write_scalar(output, bits, 2) && pgp_write(output, buf, (bits + 7) / 8);
+    return pgp_write_scalar(output, bits, 2) && pgp_write(output, buf, BITS_TO_BYTES(bits));
 }
 
 /**
@@ -453,7 +453,9 @@ dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writ
 
         /* trailing whitespace isn't included in the signature */
         if (src[n] == ' ' || src[n] == '\t') {
-            pgp_memory_add(dash->trailing, &src[n], 1);
+            if (!pgp_memory_add(dash->trailing, &src[n], 1)) {
+                return 0;
+            }
         } else {
             if ((l = (unsigned) pgp_mem_len(dash->trailing)) != 0) {
                 if (!dash->seen_nl && !dash->seen_cr) {
@@ -1205,7 +1207,9 @@ memory_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer
 
     __PGP_USED(errors);
     mem = pgp_writer_get_arg(writer);
-    pgp_memory_add(mem, src, len);
+    if (!pgp_memory_add(mem, src, len)) {
+        return 0;
+    }
     return 1;
 }
 
@@ -1630,11 +1634,12 @@ str_enc_se_ip_writer(const uint8_t *src,
     size_t           datalength;
 
     se_ip = pgp_writer_get_arg(writer);
-    ret = 1;
     if (se_ip->litoutput == NULL) {
         /* first literal data chunk is not yet written */
 
-        pgp_memory_add(se_ip->mem_data, src, len);
+        if (!pgp_memory_add(se_ip->mem_data, src, len)) {
+            return 0;
+        }
         datalength = pgp_mem_len(se_ip->mem_data);
 
         /* 4.2.2.4. Partial Body Lengths */

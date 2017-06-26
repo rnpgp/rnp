@@ -2,10 +2,6 @@
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -28,18 +24,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef KEY_STORE_SSH_H_
-#define KEY_STORE_SSH_H_
+#ifndef RNP_KEY_STORE_KBX_H
+#define RNP_KEY_STORE_KBX_H
 
 #include "rnp.h"
 #include "key_store.h"
 
-int rnp_key_store_ssh_load_keys(rnp_t *rnp, char *homedir);
+int rnp_key_store_kbx_from_mem(pgp_io_t *, rnp_key_store_t *, pgp_memory_t *);
+int rnp_key_store_kbx_to_mem(pgp_io_t *, rnp_key_store_t *, const uint8_t *, pgp_memory_t *);
 
-int rnp_key_store_ssh_from_file(pgp_io_t *, rnp_key_store_t *, const char *);
-int rnp_key_store_ssh_from_mem(pgp_io_t *, rnp_key_store_t *, pgp_memory_t *);
-
-int rnp_key_store_ssh_to_file(pgp_io_t *, rnp_key_store_t *, const uint8_t *, const char *);
-int rnp_key_store_ssh_to_mem(pgp_io_t *, rnp_key_store_t *, const uint8_t *, pgp_memory_t *);
-
-#endif /* KEY_STORE_SSH_H_ */
+#endif // RNP_KEY_STORE_KBX_H

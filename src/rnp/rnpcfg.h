@@ -27,33 +27,33 @@
 #define __RNP__CFG_H__
 
 /* cfg variables known by rnp */
-#define CFG_OVERWRITE   "overwrite"   /* overwrite output file if it is already exist or fail */
-#define CFG_ARMOUR      "armour"      /* armour output data or not */
-#define CFG_DETACHED    "detached"    /* produce the detached signature */
-#define CFG_OUTFILE     "outfile"     /* name/path of the output file */
-#define CFG_RESULTS     "results"     /* name/path for results, not used right now */
-#define CFG_MAXALLOC    "maxalloc"    /* maximum memory allocation during the reading from stdin */
-#define CFG_KEYRINGFMT  "keyringfmt"  /* keyring format : GPG, SSH */
-#define CFG_SSHKEYFILE  "sshkeyfile"  /* SSH key file */
-#define CFG_SUBDIRGPG   "subdirgpg"   /* gpg/rnp files subdirectory: .rnp by default */
-#define CFG_SUBDIRSSH   "subdirssh"   /* ssh files (keys) subdirectory: .ssh by default */
-#define CFG_COREDUMPS   "coredumps"   /* enable/disable core dumps. 1 or 0. */
-#define CFG_NEEDSUSERID "needsuserid" /* needs user id for the ongoing operation - i.e. signing, encryption */
-#define CFG_NEEDSSECKEY "needsseckey" /* needs secret key for the ongoing operation - i.e. signing, decryption, so secret keyring will be loaded */
-#define CFG_KEYRING     "keyring"     /* path to the keyring ?? */
-#define CFG_USERID      "userid"      /* userid for the ongoing operation */
-#define CFG_VERBOSE     "verbose"     /* verbose logging */
-#define CFG_HOMEDIR     "homedir"     /* home directory - folder with keyrings and possibly other stuff */
-#define CFG_PASSFD      "pass-fd"     /* password file descriptor */
-#define CFG_NUMTRIES    "numtries"    /* number of password request tries, or 'unlimited' for unlimited attempts */
-#define CFG_DURATION    "duration"    /* signature validity duration */
-#define CFG_BIRTHTIME   "birthtime"   /* signature validity start */
-#define CFG_CIPHER      "cipher"      /* symmetric encryption algorithm as string */
-#define CFG_HASH        "hash"        /* hash algorithm used, string like 'SHA1'*/
+#define CFG_OVERWRITE    "overwrite"   /* overwrite output file if it is already exist or fail */
+#define CFG_ARMOUR       "armour"      /* armour output data or not */
+#define CFG_DETACHED     "detached"    /* produce the detached signature */
+#define CFG_OUTFILE      "outfile"     /* name/path of the output file */
+#define CFG_RESULTS      "results"     /* name/path for results, not used right now */
+#define CFG_MAXALLOC     "maxalloc"    /* maximum memory allocation during the reading from stdin */
+#define CFG_KEYSTOREFMT  "keystorefmt" /* keyring format : GPG, SSH */
+#define CFG_SSHKEYFILE   "sshkeyfile"  /* SSH key file */
+#define CFG_SUBDIRGPG    "subdirgpg"   /* gpg/rnp files subdirectory: .rnp by default */
+#define CFG_SUBDIRSSH    "subdirssh"   /* ssh files (keys) subdirectory: .ssh by default */
+#define CFG_COREDUMPS    "coredumps"   /* enable/disable core dumps. 1 or 0. */
+#define CFG_NEEDSUSERID  "needsuserid" /* needs user id for the ongoing operation - i.e. signing, encryption */
+#define CFG_NEEDSSECKEY  "needsseckey" /* needs secret key for the ongoing operation - i.e. signing, decryption, so secret keyring will be loaded */
+#define CFG_KEYRING      "keyring"     /* path to the keyring ?? */
+#define CFG_USERID       "userid"      /* userid for the ongoing operation */
+#define CFG_VERBOSE      "verbose"     /* verbose logging */
+#define CFG_HOMEDIR      "homedir"     /* home directory - folder with keyrings and possibly other stuff */
+#define CFG_PASSFD       "pass-fd"     /* password file descriptor */
+#define CFG_NUMTRIES     "numtries"    /* number of password request tries, or 'unlimited' for unlimited attempts */
+#define CFG_DURATION     "duration"    /* signature validity duration */
+#define CFG_BIRTHTIME    "birthtime"   /* signature validity start */
+#define CFG_CIPHER       "cipher"      /* symmetric encryption algorithm as string */
+#define CFG_HASH         "hash"        /* hash algorithm used, string like 'SHA1'*/
 
 /* additional cfg constants */
-#define CFG_KEYRING_GPG "GPG" /* GPG keyring format */
-#define CFG_KEYRING_SSH "SSH" /* SSH keyring format */
+#define CFG_KEYSTORE_GPG "GPG" /* GPG keyring format */
+#define CFG_KEYSTORE_SSH "SSH" /* SSH keyring format */
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration options */
 typedef struct rnp_cfg_t {

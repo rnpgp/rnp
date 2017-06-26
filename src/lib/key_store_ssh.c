@@ -427,6 +427,9 @@ ssh2_readkeys(pgp_io_t *       io,
             return 0;
         }
         EXPAND_ARRAY(pubring, key);
+        if (pubring->keys == NULL) {
+            return 0;
+        }
         pubkey = &pubring->keys[pubring->keyc++];
         (void) memcpy(pubkey, &key, sizeof(key));
         pubkey->type = PGP_PTAG_CT_PUBLIC_KEY;
@@ -443,6 +446,9 @@ ssh2_readkeys(pgp_io_t *       io,
             return 0;
         }
         EXPAND_ARRAY(secring, key);
+        if (secring->keys == NULL) {
+            return 0;
+        }
         seckey = &secring->keys[secring->keyc++];
         (void) memcpy(seckey, &key, sizeof(key));
         seckey->type = PGP_PTAG_CT_SECRET_KEY;
@@ -570,6 +576,7 @@ rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *
     pgp_key_t pubkey;
 
     (void) memset(&key, 0x0, sizeof(key));
+    (void) memset(&pubkey, 0x0, sizeof(pubkey));
 
     if (rnp_get_debug(__FILE__)) {
         (void) fprintf(
@@ -604,9 +611,32 @@ rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *
 }
 
 int
-rnp_key_store_ssh_from_mem(pgp_io_t *io, rnp_key_store_t *keyring, pgp_memory_t *memory)
+rnp_key_store_ssh_from_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_t *memory)
 {
     // we can't read SSH key from memory because it doesn't keep two different part for public
     // and secret key
+    fprintf(io->errs, "rnp hasn't support reading SSH key from memory yet\n");
+    return 0;
+}
+
+int
+rnp_key_store_ssh_to_file(pgp_io_t *       io,
+                          rnp_key_store_t *key_store,
+                          const uint8_t *  passphase,
+                          const char *     file)
+{
+    fprintf(io->errs, "rnp hasn't support writing SSH key to file yet\n");
+    return 0;
+}
+
+int
+rnp_key_store_ssh_to_mem(pgp_io_t *       io,
+                         rnp_key_store_t *key_store,
+                         const uint8_t *  passphase,
+                         pgp_memory_t *   memory)
+{
+    // we can't write SSH key to memory because it doesn't keep two different part for public
+    // and secret key
+    fprintf(io->errs, "rnp hasn't support writing SSH key to memory yet\n");
     return 0;
 }

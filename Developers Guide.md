@@ -4,13 +4,52 @@ The following are a set of conventions and items that are relevant to contributo
 
 # Contributing
 
-Pull Requests should be used for any non-trivial changes. This presents an opportunity for feedback and allows the CI tests to complete prior to merging. The `master` branch should generally always be in a buildable and functional state.
+## Pull Requests
+
+Pull Requests should be used for any non-trivial changes. This presents an
+opportunity for feedback and allows the CI tests to complete prior to merging.
+The `master` branch should generally always be in a buildable and functional
+state.
 
 Pull Requests should be:
 
-* Focused. Try not to include changes that are unrelated to the main purpose of the PR.
-* As small as possible. Sometimes large pull requests may be necessary for adding complex features, but generally they should be kept as small as possible to ensure a quick and thorough review process.
-* Related to a GH issue to which you are assigned. If there is none, file one (but search first!). This ensures there is no duplication of effort and allows for a discussion prior to beginning work. (This may not be necessary for PRs that are purely documentation updates)
+* Focused. Do not include changes that are unrelated to the main purpose of
+the PR.
+* As small as possible. Sometimes large pull requests may be necessary for
+adding complex features, but generally they should be kept as small as
+possible to ensure a quick and thorough review process.
+* Related to a GH issue to which you are assigned. If there is none,
+file one (but search first!). This ensures there is no duplication of effort
+and allows for a discussion prior to beginning work.
+(This may not be necessary for PRs that are purely documentation updates)
+* Approved by **2** reviewers before merging.
+(Updates related to policies, like this section,
+should be approved by the project owner)
+
+## Branches
+
+Git branches should be used generously. Most branches should be topic branches,
+created for adding a specific feature or fixing a specific bug.
+
+Keep branches short-lived (treat them as disposable/transient) and try to
+avoid long-running branches.
+
+A good example of using a branch would be:
+
+* User `@joe` notices a bug where a NULL pointer is dereferenced during key
+export. He creates GH issue `#500`.
+* He creates a new branch to fix this bug named `joe-500-fix-null-deref-in-pgp_export_key`.
+* Joe commits a fix for the issue to this new branch.
+* Joe creates a Pull Request to merge this branch in to master.
+* Once merged, Joe deletes the branch since it is no longer useful.
+
+Branch names may vary but should be somewhat descriptive, with words
+separated by hyphens. It is also helpful to start the branch name with
+your github username, to make it clear who created the branch and prevent
+naming conflicts.
+
+Remember that branch names may be preserved permanently in the commit
+history of `master`, depending on how they are merged.
 
 # Continuous Integration (Travis CI)
 

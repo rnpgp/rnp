@@ -62,6 +62,7 @@ __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights rese
 __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #endif
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -572,27 +573,31 @@ pgp_memory_init(pgp_memory_t *mem, size_t needed)
 \param mem Memory to use
 \param length New size
 */
-void
+int
 pgp_memory_pad(pgp_memory_t *mem, size_t length)
 {
     uint8_t *temp;
 
     if (mem->allocated < mem->length) {
         (void) fprintf(stderr, "pgp_memory_pad: bad alloc in\n");
-        return;
+        return 0;
     }
     if (mem->allocated < mem->length + length) {
         mem->allocated = mem->allocated * 2 + length;
         temp = realloc(mem->buf, mem->allocated);
         if (temp == NULL) {
             (void) fprintf(stderr, "pgp_memory_pad: bad alloc\n");
+            return 0;
         } else {
             mem->buf = temp;
         }
     }
     if (mem->allocated < mem->length + length) {
         (void) fprintf(stderr, "pgp_memory_pad: bad alloc out\n");
+        return 0;
     }
+
+    return 1;
 }
 
 /**
@@ -602,12 +607,15 @@ pgp_memory_pad(pgp_memory_t *mem, size_t length)
 \param src Data to add
 \param length Length of data to add
 */
-void
+int
 pgp_memory_add(pgp_memory_t *mem, const uint8_t *src, size_t length)
 {
-    pgp_memory_pad(mem, length);
+    if (!pgp_memory_pad(mem, length)) {
+        return 0;
+    }
     (void) memcpy(mem->buf + mem->length, src, length);
     mem->length += length;
+    return 1;
 }
 
 /* XXX: this could be refactored via the writer, but an awful lot of */
@@ -663,7 +671,9 @@ pgp_memory_make_packet(pgp_memory_t *out, pgp_content_enum tag)
     size_t extra;
 
     extra = (out->length < 192) ? 1 : (out->length < 8192 + 192) ? 2 : 5;
-    pgp_memory_pad(out, extra + 1);
+    if (!pgp_memory_pad(out, extra + 1)) {
+        return;
+    }
     memmove(out->buf + extra + 1, out->buf, out->length);
 
     out->buf[0] = PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT | tag;
@@ -772,6 +782,44 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
     }
     (void) fclose(fp);
     return (mem->allocated == mem->length);
+}
+
+int
+pgp_mem_writefile(pgp_memory_t *mem, const char *f)
+{
+    FILE *fp;
+    int   fd;
+    char  tmp[MAXPATHLEN];
+
+    snprintf(tmp, sizeof(tmp), "%s.rnp-tmp.XXXXXX", f);
+
+    fd = mkstemp(tmp);
+    if (fd < 0) {
+        fprintf(stderr, "pgp_mem_writefile: can't open temp file: %s\n", strerror(errno));
+        return 0;
+    }
+
+    if ((fp = fdopen(fd, "wb")) == NULL) {
+        fprintf(stderr, "pgp_mem_writefile: can't open \"%s\"\n", strerror(errno));
+        return 0;
+    }
+
+    fwrite(mem->buf, mem->length, 1, fp);
+    if (ferror(fp)) {
+        fprintf(stderr, "pgp_mem_writefile: can't write to file\n");
+        fclose(fp);
+        return 0;
+    }
+
+    fclose(fp);
+
+    if (rename(tmp, f)) {
+        fprintf(
+          stderr, "pgp_mem_writefile: can't rename to traget file: %s\n", strerror(errno));
+        return 0;
+    }
+
+    return 1;
 }
 
 typedef struct {

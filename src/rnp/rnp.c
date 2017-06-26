@@ -68,7 +68,7 @@ static const char *usage = "--help OR\n"
                            "\t[--coredumps] AND/OR\n"
                            "\t[--homedir=<homedir>] AND/OR\n"
                            "\t[--keyring=<keyring>] AND/OR\n"
-                           "\t[--keyring-format=<format>] AND/OR\n"
+                           "\t[--keystore-format=<format>] AND/OR\n"
                            "\t[--numtries=<attempts>] AND/OR\n"
                            "\t[--userid=<userid>] AND/OR\n"
                            "\t[--maxmemalloc=<number of bytes>] AND/OR\n"
@@ -90,7 +90,7 @@ enum optdefs {
     /* options */
     OPT_SSHKEYS,
     OPT_KEYRING,
-    OPT_KEYRING_FORMAT,
+    OPT_KEY_STORE_FORMAT,
     OPT_USERID,
     OPT_ARMOUR,
     OPT_HOMEDIR,
@@ -140,7 +140,7 @@ static struct option options[] = {
   {"sshkeyfile", required_argument, NULL, OPT_SSHKEYFILE},
   {"coredumps", no_argument, NULL, OPT_COREDUMPS},
   {"keyring", required_argument, NULL, OPT_KEYRING},
-  {"keyring-format", required_argument, NULL, OPT_KEYRING_FORMAT},
+  {"keystore-format", required_argument, NULL, OPT_KEY_STORE_FORMAT},
   {"userid", required_argument, NULL, OPT_USERID},
   {"home", required_argument, NULL, OPT_HOMEDIR},
   {"homedir", required_argument, NULL, OPT_HOMEDIR},
@@ -409,7 +409,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         exit(EXIT_SUCCESS);
     /* options */
     case OPT_SSHKEYS:
-        rnp_cfg_set(cfg, CFG_KEYRINGFMT, CFG_KEYRING_SSH);
+        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
         break;
     case OPT_KEYRING:
         if (arg == NULL) {
@@ -418,12 +418,12 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         }
         rnp_cfg_set(cfg, CFG_KEYRING, arg);
         break;
-    case OPT_KEYRING_FORMAT:
+    case OPT_KEY_STORE_FORMAT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring format argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_cfg_set(cfg, CFG_KEYRINGFMT, arg);
+        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, arg);
         break;
     case OPT_USERID:
         if (arg == NULL) {
@@ -478,7 +478,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         rnp_cfg_set(cfg, CFG_RESULTS, arg);
         break;
     case OPT_SSHKEYFILE:
-        rnp_cfg_set(cfg, CFG_KEYRINGFMT, CFG_KEYRING_SSH);
+        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
         rnp_cfg_set(cfg, CFG_SSHKEYFILE, arg);
         break;
     case OPT_MAX_MEM_ALLOC:
@@ -583,7 +583,7 @@ main(int argc, char **argv)
         } else {
             switch (ch) {
             case 'S':
-                rnp_cfg_set(&cfg, CFG_KEYRINGFMT, CFG_KEYRING_SSH);
+                rnp_cfg_set(&cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
                 rnp_cfg_set(&cfg, CFG_SSHKEYFILE, optarg);
                 break;
             case 'V':
