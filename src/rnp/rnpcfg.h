@@ -50,6 +50,9 @@
 #define CFG_BIRTHTIME    "birthtime"   /* signature validity start */
 #define CFG_CIPHER       "cipher"      /* symmetric encryption algorithm as string */
 #define CFG_HASH         "hash"        /* hash algorithm used, string like 'SHA1'*/
+#define CFG_IO_OUTS      "outs"        /* output stream */
+#define CFG_IO_ERRS      "errs"        /* error stream */
+#define CFG_IO_RESS      "ress"        /* results stream */
 
 /* additional cfg constants */
 #define CFG_KEYSTORE_GPG "GPG" /* GPG keyring format */

@@ -251,17 +251,6 @@ keydir(rnp_t *rnp, char *buffer, size_t buffer_size)
                                keydir_gnupg(rnp, buffer, buffer_size);
 }
 
-/* find the name in the array */
-int
-findvar(rnp_t *rnp, const char *name)
-{
-    unsigned i;
-
-    for (i = 0; i < rnp->c && strcmp(rnp->name[i], name) != 0; i++)
-        ;
-    return (i == rnp->c) ? -1 : (int) i;
-}
-
 /* resolve the userid */
 static const pgp_key_t *
 resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
@@ -270,10 +259,8 @@ resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
     pgp_io_t *       io;
 
     if (userid == NULL) {
-        userid = rnp_getvar(rnp, "userid");
-        if (userid == NULL)
-            return NULL;
-    } else if (userid[0] == '0' && userid[1] == 'x') {
+        return NULL;
+    } else if ((strlen(userid) > 1) && userid[0] == '0' && userid[1] == 'x') {
         userid += 2;
     }
     io = rnp->io;
@@ -652,17 +639,12 @@ disable_core_dumps(void)
  *       passfd to be available this is complicated.
  */
 static int
-set_pass_fd(rnp_t *rnp)
+set_pass_fd(rnp_t *rnp, int passfd)
 {
-    char *    passfd = rnp_getvar(rnp, "pass-fd");
-    pgp_io_t *io = rnp->io;
-
-    if (passfd != NULL) {
-        rnp->passfp = fdopen(atoi(passfd), "r");
-        if (rnp->passfp == NULL) {
-            fprintf(io->errs, "cannot open fd %s for reading\n", passfd);
-            return 0;
-        }
+    rnp->passfp = fdopen(passfd, "r");
+    if (rnp->passfp == NULL) {
+        fprintf(rnp->io->errs, "cannot open fd %d for reading\n", passfd);
+        return 0;
     }
 
     return 1;
@@ -674,7 +656,7 @@ set_pass_fd(rnp_t *rnp)
  * upon failure.
  */
 static int
-init_io(rnp_t *rnp, pgp_io_t *io)
+init_io(rnp_t *rnp, pgp_io_t *io, char *outs, char *errs, char *ress)
 {
     char *stream;
     char *results;
@@ -683,26 +665,26 @@ init_io(rnp_t *rnp, pgp_io_t *io)
 
     /* Configure the output stream. */
     io->outs = stdout;
-    if ((stream = rnp_getvar(rnp, "outs")) != NULL && strcmp(stream, "<stderr>") == 0) {
+    if (outs && strcmp(stream, "<stderr>") == 0) {
         io->outs = stderr;
     }
 
     /* Configure the error stream. */
     io->errs = stderr;
-    if ((stream = rnp_getvar(rnp, "errs")) != NULL && strcmp(stream, "<stdout>") == 0) {
+    if (errs && strcmp(stream, "<stdout>") == 0) {
         io->errs = stdout;
     }
 
     /* Configure the results stream. */
-    if ((results = rnp_getvar(rnp, "res")) == NULL) {
+    if (ress == NULL) {
         io->res = io->errs;
-    } else if (strcmp(results, "<stdout>") == 0) {
+    } else if (strcmp(ress, "<stdout>") == 0) {
         io->res = stdout;
-    } else if (strcmp(results, "<stderr>") == 0) {
+    } else if (strcmp(ress, "<stderr>") == 0) {
         io->res = stderr;
     } else {
-        if ((io->res = fopen(results, "w")) == NULL) {
-            fprintf(io->errs, "cannot open results %s for writing\n", results);
+        if ((io->res = fopen(ress, "w")) == NULL) {
+            fprintf(io->errs, "cannot open results %s for writing\n", ress);
             return 0;
         }
     }
@@ -718,12 +700,12 @@ init_io(rnp_t *rnp, pgp_io_t *io)
  * TODO: Set errno with a suitable error code.
  */
 static int
-init_new_io(rnp_t *rnp)
+init_new_io(rnp_t *rnp, char *outs, char *errs, char *ress)
 {
-    pgp_io_t *io = (pgp_io_t *) malloc(sizeof(*io));
+    pgp_io_t *io = (pgp_io_t *) calloc(sizeof(*io));
 
     if (io != NULL) {
-        if (init_io(rnp, io))
+        if (init_io(rnp, io, outs, errs, ress))
             return 1;
         free((void *) io);
     }
@@ -831,15 +813,18 @@ rnp_init(rnp_t *rnp, rnp_init_t *params)
     }
 
     /* Initialize the context's io streams apparatus. */
-    if (!init_new_io(rnp))
+    if (!init_new_io(rnp, params->outs, params->errs, params->ress))
         return 0;
     io = rnp->io;
 
     /* If a password-carrying file descriptor is in use then
      * load it.
      */
-    if (!set_pass_fd(rnp))
-        return 0;
+    if (params->passfd >= 0)
+    {
+        if (!set_pass_fd(rnp, params->passfd))
+            return 0;
+    }
 
     /* Initialize the context with the default home directory. */
     if (!init_default_homedir(rnp)) {

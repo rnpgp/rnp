@@ -34,6 +34,8 @@ int
 rnp_cfg_init(rnp_cfg_t *cfg)
 {
     memset((void *) cfg, '\0', sizeof(rnp_cfg_t));
+    cfg->passfd = -1;
+
     return 1;
 }
 
@@ -53,8 +55,30 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
 int
 rnp_cfg_apply(rnp_cfg_t *cfg, rnp_init_t *params)
 {
-    if (rnp_cfg_getint(CFG_COREDUMPS))
+    int   passfd;
+    char *stream;
+
+    if (rnp_cfg_getint(CFG_COREDUMPS)) {
         params->enable_coredumps = 1;
+    }
+
+    if (passfd = rnp_cfg_getint(CFG_PASSFD)) {
+        params->passfd = passfd;
+    }
+
+    if (stream = rnp_cfg_get(CFG_IO_OUTS)) {
+        params->outs = stream;
+    }
+
+    if (stream = rnp_cfg_get(CFG_IO_ERRS)) {
+        params->errs = stream;
+    }
+
+    if (stream = rnp_cfg_get(CFG_IO_RESS)) {
+        params->ress = stream;
+    }    
+
+    return 1;
 }
 
 /* find the value name in the rnp_cfg */

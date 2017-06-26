@@ -63,7 +63,12 @@ typedef struct rnp_t {
 
 /* rnp initialization parameters : keyring pathes, flags, whatever else */
 typedef struct rnp_init_t {
-    unsigned enable_coredumps;
+    unsigned enable_coredumps;             /* enable coredumps: if it is allowed then they are disabled by default to not leak confidential information */
+    int      passfd;                       /* password file descriptor */
+    enum     key_store_format_t ks_format; /* format of the key store */
+    char *   outs;                         /* output stream : may be <stderr> , most likel these are subject for refactoring  */
+    char *   errs;                         /* error stream : may be <stdout> */
+    char *   ress;                         /* results stream : maye be <stdout>, <stderr> or file name/path */    
 } rnp_init_t;
 
 /* rnp operation context : contains additional data about the currently ongoing operation */
