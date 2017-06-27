@@ -348,6 +348,7 @@ numkeybits(const pgp_pubkey_t *pubkey)
     case PGP_PKA_ELGAMAL:
         return BN_num_bytes(pubkey->key.elgamal.y) * 8;
 
+    case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
@@ -952,6 +953,7 @@ pgp_print_pubkey(const pgp_pubkey_t *pubkey)
         print_bn(0, "y", pubkey->key.elgamal.y);
         break;
     case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
         print_string(0, "curve", ec_curves[pubkey->key.ecc.curve].botan_name);
         print_bn(0, "public point", pubkey->key.ecc.point);
         break;
@@ -1004,6 +1006,7 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
         cc += snprintf(&out[cc],
                        outsize - cc,
                        "curve=%s\npoint=%s\n",
@@ -1068,6 +1071,7 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
         break;
 
     case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
         print_bn(0, "x", seckey->key.ecc.x);

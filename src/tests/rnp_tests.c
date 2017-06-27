@@ -151,6 +151,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_utils_list),
       cmocka_unit_test(pgp_parse_keyrings_1_pubring),
       cmocka_unit_test(test_load_user_prefs),
+      cmocka_unit_test(ecdh_roundtrip)
     };
 
     /* Each test entry will invoke setup_test before running

@@ -212,7 +212,7 @@ static pgp_map_t pubkey_alg_map[] = {
   {PGP_PKA_RSA_SIGN_ONLY, "RSA Sign-Only"},
   {PGP_PKA_ELGAMAL, "Elgamal (Encrypt-Only)"},
   {PGP_PKA_DSA, "DSA"},
-  {PGP_PKA_ECDH, "Reserved for Elliptic Curve"},
+  {PGP_PKA_ECDH, "ECDH"},
   {PGP_PKA_ECDSA, "ECDSA"},
   {PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN, "Reserved (formerly Elgamal Encrypt or Sign"},
   {PGP_PKA_RESERVED_DH, "Reserved for Diffie-Hellman (X9.42)"},

@@ -66,8 +66,10 @@
 #include <rekey/rnp_key_store.h>
 
 #define PGP_MIN_HASH_SIZE 16
-#define MAX_CURVE_BYTELEN BITS_TO_BYTES(521) /* Length of NIST P-521 */
-
+/* Maximal byte size of elliptic curve order (NIST P-521) */
+#define MAX_CURVE_BYTELEN BITS_TO_BYTES(521)
+/* Maximal size of symmetric key */
+#define MAX_SYMM_KEY_SIZE 32
 #define NTAGS 0x100 /* == 256 */
 
 void pgp_crypto_finish(void);
@@ -246,10 +248,20 @@ pgp_curve_t find_curve_by_OID(const uint8_t *oid, size_t oid_len);
  * @pre     output      must be not null
  * @pre     pubkey      must be not null
  *
- * @returns success PGP_E_OK, error code otherwise
+ * @returns true on success
  *
  * @remarks see RFC 4880 bis 01 - 5.5.2 Public-Key Packet Formats
 -------------------------------------------------------------------------------- */
-pgp_errcode_t ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey);
+bool ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey);
+
+/* -----------------------------------------------------------------------------
+ * @brief   Returns pointer to the curve descriptor
+ *
+ * @param   Valid curve ID
+ *
+ * @returns NULL if wrong ID provided, otherwise descriptor
+ *
+-------------------------------------------------------------------------------- */
+const ec_curve_desc_t *get_curve_desc(const pgp_curve_t curve_id);
 
 #endif /* CRYPTO_H_ */

@@ -34,6 +34,7 @@
 #include <bn.h>
 #include <rnp/rnp.h>
 #include <ecdsa.h>
+#include <ecdh.h>
 
 #include "rnp_tests.h"
 #include "support.h"
@@ -369,7 +370,7 @@ ecdsa_signverify_success(void **state)
     } curves[] = {
       {PGP_CURVE_NIST_P_256, 32}, {PGP_CURVE_NIST_P_384, 48}, {PGP_CURVE_NIST_P_521, 64}};
 
-    for (int i = 0; i < sizeof(curves) / sizeof(curves[0]); i++) {
+    for (int i = 0; i < ARRAY_SIZE(curves); i++) {
         pgp_ecc_sig_t           sig = {NULL, NULL};
         const rnp_keygen_desc_t key_desc = {.crypto = {.key_alg = PGP_PKA_ECDSA,
                                                        .hash_alg = PGP_HASH_SHA512,
@@ -410,4 +411,66 @@ ecdsa_signverify_success(void **state)
         pgp_key_free(pgp_key1);
         pgp_key_free(pgp_key2);
     }
+}
+
+void
+ecdh_roundtrip(void **state)
+{
+    struct curve {
+        pgp_curve_t id;
+        size_t      size;
+    } curves[] = {
+      {PGP_CURVE_NIST_P_256, 32}, {PGP_CURVE_NIST_P_384, 48}, {PGP_CURVE_NIST_P_521, 66}};
+
+    rnp_test_state_t *rstate = *state;
+    uint8_t           secret[49] = {0};
+    size_t            secret_len = sizeof(secret);
+    uint8_t           plaintext[32] = {0};
+    size_t            plaintext_len = sizeof(plaintext);
+    uint8_t           result[32] = {0};
+    size_t            result_len = sizeof(result);
+    botan_mp_t        tmp_eph_key;
+
+    rnp_assert_int_equal(rstate, botan_mp_init(&tmp_eph_key), 0);
+
+    for (int i = 0; i < ARRAY_SIZE(curves); i++) {
+        const rnp_keygen_desc_t key_desc = {.key_alg = PGP_PKA_ECDH,
+                                            .hash_alg = PGP_HASH_SHA512,
+                                            .sym_alg = PGP_SA_AES_256,
+                                            .ecc = {.curve = curves[i].id}};
+
+        const size_t expected_result_byte_size = curves[i].size * 2 + 1;
+        pgp_key_t *  ecdh_key1 = pgp_generate_keypair(&key_desc, NULL);
+
+        rnp_assert_int_equal(rstate,
+                             pgp_ecdh_encrypt_pkcs5(plaintext,
+                                                    plaintext_len,
+                                                    secret,
+                                                    &secret_len,
+                                                    tmp_eph_key,
+                                                    &ecdh_key1->key.pubkey.key.ecdh,
+                                                    &ecdh_key1->sigfingerprint),
+                             RNP_SUCCESS);
+
+        size_t num_bytes = 0;
+        rnp_assert_int_equal(rstate, botan_mp_num_bytes(tmp_eph_key, &num_bytes), 0);
+        rnp_assert_int_equal(rstate, num_bytes, expected_result_byte_size);
+
+        rnp_assert_int_equal(rstate,
+                             pgp_ecdh_decrypt_pkcs5(result,
+                                                    &result_len,
+                                                    secret,
+                                                    secret_len,
+                                                    tmp_eph_key,
+                                                    &ecdh_key1->key.seckey.key.ecc,
+                                                    &ecdh_key1->key.pubkey.key.ecdh,
+                                                    &ecdh_key1->sigfingerprint),
+                             RNP_SUCCESS);
+
+        rnp_assert_int_equal(rstate, plaintext_len, result_len);
+        rnp_assert_int_equal(rstate, memcmp(plaintext, result, result_len), 0);
+        pgp_key_free(ecdh_key1);
+    }
+
+    botan_mp_destroy(tmp_eph_key);
 }

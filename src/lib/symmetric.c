@@ -61,6 +61,7 @@ __RCSID("$NetBSD: symmetric.c,v 1.18 2010/11/07 08:39:59 agc Exp $");
 
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include <botan/ffi.h>
 
@@ -304,6 +305,11 @@ pgp_block_size(pgp_symm_alg_t alg)
 unsigned
 pgp_key_size(pgp_symm_alg_t alg)
 {
+    /* Update MAX_SYMM_KEY_SIZE after adding algorithm
+     * with bigger key size.
+     */
+    static_assert(32 == MAX_SYMM_KEY_SIZE, "MAX_SYMM_KEY_SIZE must be updated");
+
     switch (alg) {
     case PGP_SA_IDEA:
     case PGP_SA_CAST5:

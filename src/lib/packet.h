@@ -137,6 +137,15 @@ typedef struct {
  */
 #define MAX_CURVE_OID_HEX_LEN 9U
 
+/* Maximum block size for symmetric crypto */
+#define PGP_MAX_BLOCK_SIZE 16
+
+/* Maximum key size for symmetric crypto */
+#define PGP_MAX_KEY_SIZE 32
+
+/* Salt size for hashing */
+#define PGP_SALT_SIZE 8
+
 /** Old Packet Format Lengths.
  * Defines the meanings of the 2 bits for length type in the
  * old packet format.
@@ -400,6 +409,37 @@ typedef enum {
     PGP_CURVE_MAX
 } pgp_curve_t;
 
+/** Symmetric Key Algorithm Numbers.
+ * OpenPGP assigns a unique Algorithm Number to each algorithm that is
+ * part of OpenPGP.
+ *
+ * This lists algorithm numbers for symmetric key algorithms.
+ *
+ * \see RFC4880 9.2
+ */
+typedef enum {
+    PGP_SA_PLAINTEXT = 0,     /* Plaintext or unencrypted data */
+    PGP_SA_IDEA = 1,          /* IDEA */
+    PGP_SA_TRIPLEDES = 2,     /* TripleDES */
+    PGP_SA_CAST5 = 3,         /* CAST5 */
+    PGP_SA_BLOWFISH = 4,      /* Blowfish */
+    PGP_SA_AES_128 = 7,       /* AES with 128-bit key (AES) */
+    PGP_SA_AES_192 = 8,       /* AES with 192-bit key */
+    PGP_SA_AES_256 = 9,       /* AES with 256-bit key */
+    PGP_SA_TWOFISH = 10,      /* Twofish with 256-bit key (TWOFISH) */
+    PGP_SA_CAMELLIA_128 = 11, /* Camellia with 128-bit key (CAMELLIA) */
+    PGP_SA_CAMELLIA_192 = 12, /* Camellia with 192-bit key */
+    PGP_SA_CAMELLIA_256 = 13, /* Camellia with 256-bit key */
+
+    PGP_SA_SM4 = 105 /* RNP extension - SM4 */
+} pgp_symm_alg_t;
+
+typedef struct symmetric_key_t {
+    pgp_symm_alg_t type;
+    uint8_t        key[PGP_MAX_KEY_SIZE];
+    size_t         key_size;
+} symmetric_key_t;
+
 /** Structure to hold one DSA public key params.
  *
  * \see RFC4880 5.5.2
@@ -441,6 +481,18 @@ typedef struct {
     BIGNUM *    point; /* octet string encoded as MPI */
 } pgp_ecc_pubkey_t;
 
+/** Structure to hold an ECDH public key params.
+ *
+ * \see RFC 6637
+ */
+typedef struct pgp_ecdh_pubkey_t {
+    pgp_ecc_pubkey_t ec;
+    struct {
+        pgp_hash_alg_t hash;     /* Hash used by kdf */
+        pgp_symm_alg_t wrap_alg; /* Symmetric algorithm used to wrap KEK*/
+    } kdf;
+} pgp_ecdh_pubkey_t;
+
 /** Version.
  * OpenPGP has two different protocol versions: version 3 and version 4.
  *
@@ -467,8 +519,10 @@ typedef struct pgp_pubkey_t {
         pgp_dsa_pubkey_t     dsa;     /* A DSA public key */
         pgp_rsa_pubkey_t     rsa;     /* An RSA public key */
         pgp_elgamal_pubkey_t elgamal; /* An ElGamal public key */
-        pgp_ecc_pubkey_t     ecc;     /* An ECC public key */
-    } key;                            /* Public Key Parameters */
+        /*TODO: This field is common to ECC signing algorithms only. Change it to ec_sign*/
+        pgp_ecc_pubkey_t  ecc;  /* An ECC public key */
+        pgp_ecdh_pubkey_t ecdh; /* Public Key Parameters for ECDH */
+    } key;                      /* Public Key Parameters */
 } pgp_pubkey_t;
 
 /** Structure to hold data for one RSA secret key
@@ -510,45 +564,11 @@ typedef enum {
     PGP_S2KS_ITERATED_AND_SALTED = 3
 } pgp_s2k_specifier_t;
 
-/** Symmetric Key Algorithm Numbers.
- * OpenPGP assigns a unique Algorithm Number to each algorithm that is
- * part of OpenPGP.
- *
- * This lists algorithm numbers for symmetric key algorithms.
- *
- * \see RFC4880 9.2
- */
-typedef enum {
-    PGP_SA_PLAINTEXT = 0,     /* Plaintext or unencrypted data */
-    PGP_SA_IDEA = 1,          /* IDEA */
-    PGP_SA_TRIPLEDES = 2,     /* TripleDES */
-    PGP_SA_CAST5 = 3,         /* CAST5 */
-    PGP_SA_BLOWFISH = 4,      /* Blowfish */
-    PGP_SA_AES_128 = 7,       /* AES with 128-bit key (AES) */
-    PGP_SA_AES_192 = 8,       /* AES with 192-bit key */
-    PGP_SA_AES_256 = 9,       /* AES with 256-bit key */
-    PGP_SA_TWOFISH = 10,      /* Twofish with 256-bit key (TWOFISH) */
-    PGP_SA_CAMELLIA_128 = 11, /* Camellia with 128-bit key (CAMELLIA) */
-    PGP_SA_CAMELLIA_192 = 12, /* Camellia with 192-bit key */
-    PGP_SA_CAMELLIA_256 = 13, /* Camellia with 256-bit key */
-
-    PGP_SA_SM4 = 105 /* RNP extension - SM4 */
-} pgp_symm_alg_t;
-
 #define PGP_SA_DEFAULT_CIPHER PGP_SA_CAST5
 
 void pgp_calc_mdc_hash(
   const uint8_t *, const size_t, const uint8_t *, const unsigned, uint8_t *);
 unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
-
-/* Maximum block size for symmetric crypto */
-#define PGP_MAX_BLOCK_SIZE 16
-
-/* Maximum key size for symmetric crypto */
-#define PGP_MAX_KEY_SIZE 32
-
-/* Salt size for hashing */
-#define PGP_SALT_SIZE 8
 
 /** pgp_seckey_t
  */
@@ -825,10 +845,18 @@ typedef struct {
     BIGNUM *encrypted_m;
 } pgp_pk_sesskey_params_elgamal_t;
 
+/** pgp_pk_sesskey_params_elgamal_t */
+typedef struct {
+    uint8_t  encrypted_m[48];  // wrapped_key
+    unsigned encrypted_m_size; // wrapped_key_size
+    BIGNUM * ephemeral_point;
+} pgp_pk_sesskey_params_ecdh_t;
+
 /** pgp_pk_sesskey_params_t */
 typedef union {
     pgp_pk_sesskey_params_rsa_t     rsa;
     pgp_pk_sesskey_params_elgamal_t elgamal;
+    pgp_pk_sesskey_params_ecdh_t    ecdh;
 } pgp_pk_sesskey_params_t;
 
 /** pgp_pk_sesskey_t */
@@ -1053,6 +1081,7 @@ typedef struct pgp_key_t {
     uint8_t           revoked;        /* key has been revoked */
     pgp_revoke_t      revocation;     /* revocation reason */
     uint8_t           loaded;         /* key was loaded so has key packet in subpackets */
+    symmetric_key_t   session_key;
 } pgp_key_t;
 
 /* structure used to hold context of key generation */

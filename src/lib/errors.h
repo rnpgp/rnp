@@ -64,11 +64,15 @@
 /** error codes */
 /* Remember to add names to map in errors.c */
 typedef enum {
-    PGP_E_OK = 0x0000,            /* no error */
-    PGP_E_FAIL = 0x0001,          /* general error */
-    PGP_E_SYSTEM_ERROR = 0x0002,  /* system error, look at errno for
-                                   * details */
-    PGP_E_UNIMPLEMENTED = 0x0003, /* feature not yet implemented */
+    PGP_E_OK = 0x0000,               /* no error */
+    PGP_E_FAIL = 0x0001,             /* general error */
+    PGP_E_SYSTEM_ERROR = 0x0002,     /* system error, look at errno for
+                                      * details */
+    PGP_E_UNIMPLEMENTED = 0x0003,    /* feature not yet implemented */
+    PGP_E_BUFFER_TOO_SHORT = 0x0004, /* if the output buffer is not large enough
+                                        to contain the output */
+    PGP_E_BAD_PARAMETERS = 0x0005,   /* unexpected parameters supplied to the function */
+    PGP_E_OUT_OF_MEMORY = 0x0006,    /* Memory allocation failed */
 
     /* reader errors */
     PGP_E_R = 0x1000, /* general reader error */
