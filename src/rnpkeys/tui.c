@@ -77,22 +77,27 @@ is_keygen_supported_for_alg(pgp_pubkey_alg_t id)
     }
 }
 
-static long
+static pgp_curve_t
 ask_curve()
 {
-    long result = 0;
-    bool ok = false;
+    pgp_curve_t result = PGP_CURVE_MAX;
+    long        val = 0;
+    bool        ok = false;
     do {
         printf("Please select which elliptic curve you want:\n");
         for (int i = 0; (i < PGP_CURVE_MAX) && (i != PGP_CURVE_ED25519); i++) {
             printf("\t(%u) %s\n", i + 1, ec_curves[i].pgp_name);
         }
         printf("> ");
-        ok = rnp_secure_get_long_from_fd(stdin, &result);
-        ok &= (result > 0) && (result < PGP_CURVE_MAX);
+        ok = rnp_secure_get_long_from_fd(stdin, &val);
+        ok &= (val > 0) && (val < PGP_CURVE_MAX);
     } while (!ok);
 
-    return result - 1;
+    if (ok) {
+        result = (pgp_curve_t) val;
+    }
+
+    return result;
 }
 
 static long
@@ -151,7 +156,7 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
         break;
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
-        rnp->action.generate_key_ctx.ecc.curve = (pgp_curve_t) ask_curve();
+        rnp->action.generate_key_ctx.ecc.curve = ask_curve();
         break;
     case PGP_PKA_EDDSA:
         rnp->action.generate_key_ctx.ecc.curve = PGP_CURVE_ED25519;
