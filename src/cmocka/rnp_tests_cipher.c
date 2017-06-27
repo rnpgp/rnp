@@ -41,7 +41,7 @@
 void
 hash_test_success(void **state)
 {
-    pgp_hash_t hash;
+    pgp_hash_t hash = {0};
     uint8_t    hash_output[PGP_MAX_HASH_SIZE];
 
     const pgp_hash_alg_t hash_algs[] = {PGP_HASH_MD5,
