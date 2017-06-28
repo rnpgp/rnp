@@ -24,25 +24,27 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "rsa.h"
-#include "dsa.h"
-#include "eddsa.h"
-#include "elgamal.h"
-#include "crypto.h"
-#include "key_store_pgp.h"
-#include "packet.h"
-#include "packet-key.h"
-#include "bn.h"
-#include "rnp.h"
-#include "rnp_tests_support.h"
+#include <rsa.h>
+#include <dsa.h>
+#include <eddsa.h>
+#include <elgamal.h>
+#include <crypto.h>
+#include <key_store_pgp.h>
+#include <packet.h>
+#include <packet-key.h>
+#include <bn.h>
+#include <rnp.h>
+#include <ecdsa.h>
+
 #include "rnp_tests.h"
-#include "ecdsa.h"
+#include "rnp_tests_support.h"
 
 void
 hash_test_success(void **state)
 {
-    pgp_hash_t hash = {0};
-    uint8_t    hash_output[PGP_MAX_HASH_SIZE];
+    rnp_test_state_t *rstate = *state;
+    pgp_hash_t        hash = {0};
+    uint8_t           hash_output[PGP_MAX_HASH_SIZE];
 
     const pgp_hash_alg_t hash_algs[] = {PGP_HASH_MD5,
                                         PGP_HASH_SHA1,
@@ -68,69 +70,86 @@ hash_test_success(void **state)
       "66C7F0F462EEEDD9D1F2D46BDC10E4E24167C4875CF2F7A2297DA02B8F4BA8E0"};
 
     for (int i = 0; hash_algs[i] != PGP_HASH_UNKNOWN; ++i) {
-        assert_int_equal(1, pgp_hash_create(&hash, hash_algs[i]));
+        rnp_assert_int_equal(rstate, 1, pgp_hash_create(&hash, hash_algs[i]));
         unsigned hash_size = pgp_hash_output_length(&hash);
 
-        assert_int_equal(hash_size * 2, strlen(hash_alg_expected_outputs[i]));
+        rnp_assert_int_equal(rstate, hash_size * 2, strlen(hash_alg_expected_outputs[i]));
 
         pgp_hash_add(&hash, test_input, 1);
         pgp_hash_add(&hash, test_input + 1, sizeof(test_input) - 1);
         pgp_hash_finish(&hash, hash_output);
 
-        test_value_equal(
-          pgp_hash_name(&hash), hash_alg_expected_outputs[i], hash_output, hash_size);
+        rnp_assert_int_equal(
+          rstate,
+          0,
+          test_value_equal(
+            pgp_hash_name(&hash), hash_alg_expected_outputs[i], hash_output, hash_size));
     }
 }
 
 void
 cipher_test_success(void **state)
 {
-    const uint8_t  key[16] = {0};
-    uint8_t        iv[16];
-    pgp_symm_alg_t alg = PGP_SA_AES_128;
-    pgp_crypt_t    crypt;
+    rnp_test_state_t *rstate = *state;
+    const uint8_t     key[16] = {0};
+    uint8_t           iv[16];
+    pgp_symm_alg_t    alg = PGP_SA_AES_128;
+    pgp_crypt_t       crypt;
 
     uint8_t block[16] = {0};
     uint8_t cfb_data[20] = {0};
 
-    assert_int_equal(1, pgp_crypt_any(&crypt, alg));
+    rnp_assert_int_equal(rstate, 1, pgp_crypt_any(&crypt, alg));
 
-    pgp_encrypt_init(&crypt);
+    rnp_assert_int_equal(rstate, 1, pgp_encrypt_init(&crypt));
 
     memset(iv, 0x42, sizeof(iv));
 
-    pgp_cipher_set_key(&crypt, key);
-    pgp_cipher_block_encrypt(&crypt, block, block);
+    rnp_assert_int_equal(rstate, 0, pgp_cipher_set_key(&crypt, key));
+    rnp_assert_int_equal(rstate, 0, pgp_cipher_block_encrypt(&crypt, block, block));
 
-    test_value_equal(
-      "AES ECB encrypt", "66E94BD4EF8A2C3B884CFA59CA342B2E", block, sizeof(block));
+    rnp_assert_int_equal(
+      rstate,
+      0,
+      test_value_equal(
+        "AES ECB encrypt", "66E94BD4EF8A2C3B884CFA59CA342B2E", block, sizeof(block)));
 
-    pgp_cipher_block_decrypt(&crypt, block, block);
+    rnp_assert_int_equal(rstate, 0, pgp_cipher_block_decrypt(&crypt, block, block));
 
-    test_value_equal(
-      "AES ECB decrypt", "00000000000000000000000000000000", block, sizeof(block));
+    rnp_assert_int_equal(
+      rstate,
+      0,
+      test_value_equal(
+        "AES ECB decrypt", "00000000000000000000000000000000", block, sizeof(block)));
 
-    pgp_cipher_set_iv(&crypt, iv);
-    pgp_cipher_cfb_encrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data));
+    rnp_assert_int_equal(rstate, 0, pgp_cipher_set_iv(&crypt, iv));
+    rnp_assert_int_equal(
+      rstate, 0, pgp_cipher_cfb_encrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data)));
 
-    test_value_equal("AES CFB encrypt",
-                     "BFDAA57CB812189713A950AD9947887983021617",
-                     cfb_data,
-                     sizeof(cfb_data));
+    rnp_assert_int_equal(rstate,
+                         0,
+                         test_value_equal("AES CFB encrypt",
+                                          "BFDAA57CB812189713A950AD9947887983021617",
+                                          cfb_data,
+                                          sizeof(cfb_data)));
 
-    pgp_cipher_set_iv(&crypt, iv);
-    pgp_cipher_cfb_decrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data));
-    test_value_equal("AES CFB decrypt",
-                     "0000000000000000000000000000000000000000",
-                     cfb_data,
-                     sizeof(cfb_data));
-    pgp_cipher_finish(&crypt);
+    rnp_assert_int_equal(rstate, 0, pgp_cipher_set_iv(&crypt, iv));
+    rnp_assert_int_equal(
+      rstate, 0, pgp_cipher_cfb_decrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data)));
+    rnp_assert_int_equal(rstate,
+                         0,
+                         test_value_equal("AES CFB decrypt",
+                                          "0000000000000000000000000000000000000000",
+                                          cfb_data,
+                                          sizeof(cfb_data)));
+    rnp_assert_int_equal(rstate, 0, pgp_cipher_finish(&crypt));
 }
 
 void
 pkcs1_rsa_test_success(void **state)
 {
-    uint8_t ptext[1024 / 8] = {'a', 'b', 'c', 0};
+    rnp_test_state_t *rstate = *state;
+    uint8_t           ptext[1024 / 8] = {'a', 'b', 'c', 0};
 
     uint8_t    ctext[1024 / 8];
     uint8_t    decrypted[1024 / 8];
@@ -148,10 +167,14 @@ pkcs1_rsa_test_success(void **state)
                                         .sym_alg = PGP_SA_AES_128,
                                         .rsa = {.modulus_bit_len = 1024}};
     pgp_key = pgp_generate_keypair(&key_desc, NULL);
+    rnp_assert_non_null(rstate, pgp_key);
 
-    assert_true(pgp_key != NULL);
     sec_key = pgp_get_seckey(pgp_key);
+    rnp_assert_non_null(rstate, sec_key);
+
     pub_key = pgp_get_pubkey(pgp_key);
+    rnp_assert_non_null(rstate, pub_key);
+
     pub_rsa = &pub_key->key.rsa;
     sec_rsa = &sec_key->key.rsa;
 
@@ -178,7 +201,7 @@ pkcs1_rsa_test_success(void **state)
 
     ctext_size = pgp_rsa_encrypt_pkcs1(ctext, sizeof(ctext), ptext, 3, pub_rsa);
 
-    assert_int_equal(ctext_size, 1024 / 8);
+    rnp_assert_int_equal(rstate, ctext_size, 1024 / 8);
 
     memset(decrypted, 0, sizeof(decrypted));
     decrypted_size =
@@ -195,39 +218,46 @@ pkcs1_rsa_test_success(void **state)
 
     test_value_equal("RSA 1024 decrypt", "616263", decrypted, 3);
 
-    assert_int_equal(decrypted_size, 3);
+    rnp_assert_int_equal(rstate, decrypted_size, 3);
     pgp_keydata_free(pgp_key);
 }
 
 void
 rnp_test_eddsa(void **state)
 {
+    rnp_test_state_t *      rstate = *state;
     const rnp_keygen_desc_t key_desc = {
       .key_alg = PGP_PKA_EDDSA, .hash_alg = PGP_HASH_SHA256, .sym_alg = PGP_SA_AES_128};
     pgp_key_t *pgp_key = pgp_generate_keypair(&key_desc, NULL);
-    assert_non_null(pgp_key);
+    rnp_assert_non_null(rstate, pgp_key);
 
     const uint8_t hash[32] = {0};
     BIGNUM *      r = BN_new();
     BIGNUM *      s = BN_new();
 
-    assert_int_equal(pgp_eddsa_sign_hash(r,
-                                         s,
-                                         hash,
-                                         sizeof(hash),
-                                         &pgp_key->key.seckey.key.ecc,
-                                         &pgp_key->key.seckey.pubkey.key.ecc),
-                     0);
+    rnp_assert_int_equal(rstate,
+                         pgp_eddsa_sign_hash(r,
+                                             s,
+                                             hash,
+                                             sizeof(hash),
+                                             &pgp_key->key.seckey.key.ecc,
+                                             &pgp_key->key.seckey.pubkey.key.ecc),
+                         0);
 
-    assert_int_equal(
-      pgp_eddsa_verify_hash(r, s, hash, sizeof(hash), &pgp_key->key.seckey.pubkey.key.ecc), 1);
+    rnp_assert_int_equal(
+      rstate,
+      pgp_eddsa_verify_hash(r, s, hash, sizeof(hash), &pgp_key->key.seckey.pubkey.key.ecc),
+      1);
 
     // swap r/s -> invalid sig
-    assert_int_equal(
-      pgp_eddsa_verify_hash(s, r, hash, sizeof(hash), &pgp_key->key.seckey.pubkey.key.ecc), 0);
+    rnp_assert_int_equal(
+      rstate,
+      pgp_eddsa_verify_hash(s, r, hash, sizeof(hash), &pgp_key->key.seckey.pubkey.key.ecc),
+      0);
 
     // cut one byte off hash -> invalid sig
-    assert_int_equal(
+    rnp_assert_int_equal(
+      rstate,
       pgp_eddsa_verify_hash(r, s, hash, sizeof(hash) - 1, &pgp_key->key.seckey.pubkey.key.ecc),
       0);
 
@@ -239,6 +269,7 @@ rnp_test_eddsa(void **state)
 void
 raw_elg_test_success(void **state)
 {
+    rnp_test_state_t *rstate = *state;
     // largest prime under 512 bits
     const uint8_t p512[64] = {
       0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -257,9 +288,16 @@ raw_elg_test_success(void **state)
 
     // Allocate needed memory
     pub_elg.p = BN_bin2bn(p512, sizeof(p512), NULL);
+    rnp_assert_non_null(rstate, pub_elg.p);
+
     pub_elg.g = BN_new();
+    rnp_assert_non_null(rstate, pub_elg.g);
+
     sec_elg.x = BN_new();
+    rnp_assert_non_null(rstate, sec_elg.x);
+
     pub_elg.y = BN_new();
+    rnp_assert_non_null(rstate, pub_elg.y);
 
     BN_set_word(pub_elg.g, 3);
     BN_set_word(sec_elg.x, 0xCAB5432);
@@ -268,8 +306,8 @@ raw_elg_test_success(void **state)
     // Encrypt
     unsigned ctext_size =
       pgp_elgamal_public_encrypt_pkcs1(g_to_k, encm, plaintext, sizeof(plaintext), &pub_elg);
-    assert_int_not_equal(ctext_size, -1);
-    assert_int_equal(ctext_size % 2, 0);
+    rnp_assert_int_not_equal(rstate, ctext_size, -1);
+    rnp_assert_int_equal(rstate, ctext_size % 2, 0);
     ctext_size /= 2;
 
 #if defined(DEBUG_PRINT)
@@ -301,11 +339,16 @@ raw_elg_test_success(void **state)
     BN_clear_free(tmp);
 #endif
 
-    assert_int_not_equal(pgp_elgamal_private_decrypt_pkcs1(
-                           decryption_result, g_to_k, encm, ctext_size, &sec_elg, &pub_elg),
-                         -1);
+    rnp_assert_int_not_equal(
+      rstate,
+      pgp_elgamal_private_decrypt_pkcs1(
+        decryption_result, g_to_k, encm, ctext_size, &sec_elg, &pub_elg),
+      -1);
 
-    test_value_equal("ElGamal decrypt", "0102030417", decryption_result, sizeof(plaintext));
+    rnp_assert_int_equal(
+      rstate,
+      0,
+      test_value_equal("ElGamal decrypt", "0102030417", decryption_result, sizeof(plaintext)));
 
     // Free heap
     BN_clear_free(pub_elg.p);
@@ -317,8 +360,8 @@ raw_elg_test_success(void **state)
 void
 ecdsa_signverify_success(void **state)
 {
-    (void) state;
-    uint8_t message[64];
+    rnp_test_state_t *rstate = *state;
+    uint8_t           message[64];
 
     struct curve {
         pgp_curve_t id;
@@ -334,27 +377,33 @@ ecdsa_signverify_success(void **state)
                                             .ecc = {.curve = curves[i].id}};
 
         pgp_key_t *pgp_key1 = pgp_generate_keypair(&key_desc, NULL);
+        rnp_assert_non_null(rstate, pgp_key1);
+
         pgp_key_t *pgp_key2 = pgp_generate_keypair(&key_desc, NULL);
-        assert_int_not_equal(pgp_key1, NULL);
-        assert_int_not_equal(pgp_key2, NULL);
+        rnp_assert_non_null(rstate, pgp_key2);
+
         const pgp_ecc_pubkey_t *pub_key1 = &pgp_key1->key.pubkey.key.ecc;
         const pgp_ecc_pubkey_t *pub_key2 = &pgp_key2->key.pubkey.key.ecc;
         const pgp_ecc_seckey_t *prv_key1 = &pgp_key1->key.seckey.key.ecc;
 
-        assert_int_equal(
-          pgp_ecdsa_sign_hash(&sig, message, curves[i].size, prv_key1, pub_key1), PGP_E_OK);
+        rnp_assert_int_equal(
+          rstate,
+          pgp_ecdsa_sign_hash(&sig, message, curves[i].size, prv_key1, pub_key1),
+          PGP_E_OK);
 
-        assert_int_equal(pgp_ecdsa_verify_hash(&sig, message, curves[i].size, pub_key1),
-                         PGP_E_OK);
+        rnp_assert_int_equal(
+          rstate, pgp_ecdsa_verify_hash(&sig, message, curves[i].size, pub_key1), PGP_E_OK);
 
         // Fails because of different key used
-        assert_int_equal(pgp_ecdsa_verify_hash(&sig, message, curves[i].size, pub_key2),
-                         PGP_E_V_BAD_SIGNATURE);
+        rnp_assert_int_equal(rstate,
+                             pgp_ecdsa_verify_hash(&sig, message, curves[i].size, pub_key2),
+                             PGP_E_V_BAD_SIGNATURE);
 
         // Fails because message won't verify
         message[0] = ~message[0];
-        assert_int_equal(pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key1),
-                         PGP_E_V_BAD_SIGNATURE);
+        rnp_assert_int_equal(rstate,
+                             pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key1),
+                             PGP_E_V_BAD_SIGNATURE);
 
         BN_clear_free(sig.r);
         BN_clear_free(sig.s);

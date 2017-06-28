@@ -39,12 +39,12 @@
 #include <rnp.h>
 
 /* Check if a file exists.
- * Use with assert_true and assert_false.
+ * Use with assert_true and rnp_assert_false(rstate, .
  */
 int file_exists(const char *path);
 
 /* Check if a file is empty
- * Use with assert_true and assert_false.
+ * Use with assert_true and rnp_assert_false(rstate, .
  */
 int file_empty(const char *path);
 
@@ -105,4 +105,4 @@ int setupPassphrasefd(int *pipefd);
 
 /*
  */
-void setup_rnp_common(rnp_t *rnp, char *passfd);
+int setup_rnp_common(rnp_t *rnp, char *passfd);
