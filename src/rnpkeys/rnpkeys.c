@@ -45,6 +45,7 @@
 #include <crypto.h>
 
 #include "../common/constants.h"
+#include "../rnp/rnpcfg.h"
 
 #define DEFAULT_RSA_NUMBITS 2048
 #define DEFAULT_HASH_ALG "SHA256"
@@ -80,7 +81,7 @@ enum optdefs {
     CMD_EXPORT_KEY,
     CMD_IMPORT_KEY,
     CMD_GENERATE_KEY,
-    CMD_VERSION_CMD,
+    CMD_VERSION,
     CMD_HELP,
     CMD_GET_KEY,
     CMD_TRUSTED_KEYS,
@@ -199,7 +200,7 @@ print_usage(const char *usagemsg)
 
 /* match keys, decoding from json if we do find any */
 static int
-match_keys(rnp_t *rnp, FILE *fp, char *f, const int psigs)
+match_keys(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, char *f, const int psigs)
 {
     char *json = NULL;
     int   idc;
@@ -209,7 +210,7 @@ match_keys(rnp_t *rnp, FILE *fp, char *f, const int psigs)
             return 0;
         }
     } else {
-        if (rnp_match_keys_json(rnp, &json, f, rnp_getvar(rnp, "format"), psigs) == 0) {
+        if (rnp_match_keys_json(rnp, &json, f, rnp_cfg_get(cfg, CFG_KEYFORMAT), psigs) == 0) {
             return 0;
         }
     }
@@ -221,23 +222,23 @@ match_keys(rnp_t *rnp, FILE *fp, char *f, const int psigs)
 
 /* do a command once for a specified file 'f' */
 static int
-rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
+rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 {
-    char *key;
-    char *s;
+    const char *key;
+    char *      s;
 
-    switch (p->cmd) {
-    case LIST_KEYS:
-    case LIST_SIGS:
-        return match_keys(rnp, stdout, f, (p->cmd == LIST_SIGS));
-    case FIND_KEY:
+    switch (cmd) {
+    case CMD_LIST_KEYS:
+    case CMD_LIST_SIGS:
+        return match_keys(cfg, rnp, stdout, f, cmd == CMD_LIST_SIGS);
+    case CMD_FIND_KEY:
         if ((key = f) == NULL) {
-            key = rnp_getvar(rnp, "userid");
+            key = rnp_cfg_get(cfg, CFG_USERID);
         }
         return rnp_find_key(rnp, key);
-    case EXPORT_KEY:
+    case CMD_EXPORT_KEY:
         if ((key = f) == NULL) {
-            key = rnp_getvar(rnp, "userid");
+            key = rnp_cfg_get(cfg, CFG_USERID);
         }
         if (key) {
             if ((s = rnp_export_key(rnp, key)) != NULL) {
@@ -247,34 +248,34 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
         }
         (void) fprintf(stderr, "key '%s' not found\n", f);
         return 0;
-    case IMPORT_KEY:
+    case CMD_IMPORT_KEY:
         if (f == NULL) {
             (void) fprintf(stderr, "import file isn't specified\n");
             return 0;
         }
         return rnp_import_key(rnp, f);
-    case GENERATE_KEY:
-        key = f ? f : rnp_getvar(rnp, "userid");
+    case CMD_GENERATE_KEY:
+        key = f ? f : rnp_cfg_get(cfg, CFG_USERID);
         rnp_keygen_desc_t *key_desc = &rnp->action.generate_key_ctx;
-        if (findvar(rnp, "expert") > 0) {
+        if (rnp_cfg_getint(cfg, CFG_EXPERT)) {
             (void) rnp_generate_key_expert_mode(rnp);
         } else {
             key_desc->key_alg = PGP_PKA_RSA;
-            key_desc->rsa.modulus_bit_len = p->numbits;
+            key_desc->rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
         }
-        adjust_key_params(key_desc, rnp_getvar(rnp, "hash"), rnp_getvar(rnp, "cipher"));
+        adjust_key_params(key_desc, rnp_cfg_get(cfg, CFG_HASH), rnp_cfg_get(cfg, CFG_CIPHER));
         return rnp_generate_key(rnp, key);
-    case GET_KEY:
-        key = rnp_get_key(rnp, f, rnp_getvar(rnp, "format"));
+    case CMD_GET_KEY:
+        key = rnp_get_key(rnp, f, rnp_cfg_get(cfg, CFG_KEYFORMAT));
         if (key) {
             printf("%s", key);
             return 1;
         }
         (void) fprintf(stderr, "key '%s' not found\n", f);
         return 0;
-    case TRUSTED_KEYS:
+    case CMD_TRUSTED_KEYS:
         return rnp_match_pubkeys(rnp, f, stdout);
-    case HELP_CMD:
+    case CMD_HELP:
     default:
         print_usage(usage);
         exit(EXIT_SUCCESS);
@@ -283,111 +284,110 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 
 /* set the option */
 static int
-setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
+setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
 {
     switch (val) {
-    case COREDUMPS:
-        rnp_setvar(rnp, "coredumps", "allowed");
+    case OPT_COREDUMPS:
+        rnp_cfg_setint(cfg, CFG_COREDUMPS, 1);
         break;
-    case GENERATE_KEY:
-        rnp_setvar(rnp, "need seckey", "1");
-        rnp_setvar(rnp, "userid checks", "skip");
-        p->cmd = val;
+    case CMD_GENERATE_KEY:
+        rnp_cfg_setint(cfg, CFG_NEEDSSECKEY, 1);
+        *cmd = val;
         break;
-    case EXPERT:
-        rnp_setvar(rnp, "expert", "");
+    case OPT_EXPERT:
+        rnp_cfg_setint(cfg, CFG_EXPERT, 1);
         break;
-    case LIST_KEYS:
-    case LIST_SIGS:
-    case FIND_KEY:
-    case EXPORT_KEY:
-    case IMPORT_KEY:
-    case GET_KEY:
-    case TRUSTED_KEYS:
-    case HELP_CMD:
-        p->cmd = val;
+    case CMD_LIST_KEYS:
+    case CMD_LIST_SIGS:
+    case CMD_FIND_KEY:
+    case CMD_EXPORT_KEY:
+    case CMD_IMPORT_KEY:
+    case CMD_GET_KEY:
+    case CMD_TRUSTED_KEYS:
+    case CMD_HELP:
+        *cmd = val;
         break;
-    case VERSION_CMD:
+    case CMD_VERSION:
         print_praise();
         exit(EXIT_SUCCESS);
     /* options */
-    case SSHKEYS:
-        rnp_setvar(rnp, "key_store_format", "SSH");
+    case OPT_SSHKEYS:
+        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
         break;
-    case KEYRING:
+    case OPT_KEYRING:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring argument provided\n");
             exit(EXIT_ERROR);
         }
-        snprintf(p->keyring, sizeof(p->keyring), "%s", arg);
+        rnp_cfg_set(cfg, CFG_KEYRING, arg);
         break;
-    case KEY_STORE_FORMAT:
+    case OPT_KEY_STORE_FORMAT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring format argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_setvar(rnp, "key_store_format", arg);
+        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, arg);
         break;
-    case USERID:
-        if (optarg == NULL) {
+    case OPT_USERID:
+        if (arg == NULL) {
             (void) fprintf(stderr, "no userid argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_setvar(rnp, "userid", arg);
+        rnp_cfg_set(cfg, CFG_USERID, arg);
         break;
-    case VERBOSE:
-        rnp_incvar(rnp, "verbose", 1);
+    case OPT_VERBOSE:
+        rnp_cfg_setint(cfg, CFG_VERBOSE, rnp_cfg_getint(cfg, CFG_VERBOSE) + 1);
         break;
-    case HOMEDIR:
+    case OPT_HOMEDIR:
         if (arg == NULL) {
             (void) fprintf(stderr, "no home directory argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_set_homedir(rnp, arg, 0);
+        rnp_cfg_set(cfg, CFG_HOMEDIR, arg);
         break;
-    case NUMBITS:
+    case OPT_NUMBITS:
         if (arg == NULL) {
             (void) fprintf(stderr, "no number of bits argument provided\n");
             exit(EXIT_ERROR);
         }
-        p->numbits = atoi(arg);
+        rnp_cfg_setint(cfg, CFG_NUMBITS, atoi(arg));
         break;
-    case HASH_ALG:
+    case OPT_HASH_ALG:
         if (arg == NULL) {
             (void) fprintf(stderr, "No hash algorithm argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_setvar(rnp, "hash", arg);
+        rnp_cfg_set(cfg, CFG_HASH, arg);
         break;
-    case PASSWDFD:
+    case OPT_PASSWDFD:
         if (arg == NULL) {
             (void) fprintf(stderr, "no pass-fd argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_setvar(rnp, "pass-fd", arg);
+        rnp_cfg_set(cfg, CFG_PASSFD, arg);
         break;
-    case RESULTS:
+    case OPT_RESULTS:
         if (arg == NULL) {
             (void) fprintf(stderr, "No output filename argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_setvar(rnp, "res", arg);
+        rnp_cfg_set(cfg, CFG_IO_RESS, arg);
         break;
-    case SSHKEYFILE:
-        rnp_setvar(rnp, "key_store_format", "SSH");
-        rnp_setvar(rnp, "sshkeyfile", arg);
+    case OPT_SSHKEYFILE:
+        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
+        rnp_cfg_set(cfg, CFG_SSHKEYFILE, arg);
         break;
-    case FORMAT:
-        rnp_setvar(rnp, "format", arg);
+    case OPT_FORMAT:
+        rnp_cfg_set(cfg, CFG_KEYFORMAT, arg);
         break;
-    case CIPHER:
-        rnp_setvar(rnp, "cipher", arg);
+    case OPT_CIPHER:
+        rnp_cfg_set(cfg, CFG_CIPHER, arg);
         break;
-    case OPS_DEBUG:
+    case OPT_DEBUG:
         rnp_set_debug(arg);
         break;
     default:
-        p->cmd = HELP_CMD;
+        *cmd = CMD_HELP;
         break;
     }
     return 1;
@@ -395,7 +395,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 
 /* we have -o option=value -- parse, and process */
 static int
-parse_option(rnp_t *rnp, prog_t *p, const char *s)
+parse_option(rnp_cfg_t *cfg, int *cmd, const char *s)
 {
     static regex_t opt;
     struct option *op;
@@ -425,7 +425,7 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s)
         }
         for (op = options; op->name; op++) {
             if (strcmp(op->name, option) == 0) {
-                return setoption(rnp, p, op->val, value);
+                return setoption(cfg, cmd, op->val, value);
             }
         }
     }
@@ -435,71 +435,86 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s)
 int
 main(int argc, char **argv)
 {
-    rnp_t  rnp;
-    prog_t p;
-    int    optindex;
-    int    ret;
-    int    ch;
-    int    i;
-
-    memset(&p, '\0', sizeof(p));
-    memset(&rnp, '\0', sizeof(rnp));
-
-    p.numbits = DEFAULT_RSA_NUMBITS;
+    rnp_t        rnp;
+    rnp_cfg_t    cfg;
+    rnp_params_t rnp_params;    
+    int          cmd;
+    int          optindex;
+    int          ret;
+    int          ch;
+    int          i;
 
     if (argc < 2) {
         print_usage(usage);
         exit(EXIT_ERROR);
     }
 
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(&rnp, "res", "<stdout>");
-    rnp_setvar(&rnp, "format", "human");
+    memset(&rnp, '\0', sizeof(rnp));
+    memset(&rnp_params, '\0', sizeof(rnp_params));
+
+    if (!rnp_cfg_init(&cfg)) {
+        fputs("fatal: cannot initialise cfg\n", stderr);
+        return EXIT_ERROR;        
+    }
+
+    rnp_cfg_load_defaults(&cfg);
+    rnp_cfg_setint(&cfg, CFG_NUMBITS, DEFAULT_RSA_NUMBITS);
+    rnp_cfg_set(&cfg, CFG_IO_RESS, "<stdout>");
+    rnp_cfg_set(&cfg, CFG_KEYFORMAT, "human");
 
     optindex = 0;
 
     while ((ch = getopt_long(argc, argv, "S:Vglo:s", options, &optindex)) != -1) {
-        if (ch >= LIST_KEYS) {
+        if (ch >= CMD_LIST_KEYS) {
             /* getopt_long returns 0 for long options */
-            if (!setoption(&rnp, &p, options[optindex].val, optarg))
+            if (!setoption(&cfg, &cmd, options[optindex].val, optarg))
                 fprintf(stderr, "Bad setoption result %d\n", ch);
         } else {
             switch (ch) {
             case 'S':
-                rnp_setvar(&rnp, "key_store_format", "SSH");
-                rnp_setvar(&rnp, "sshkeyfile", optarg);
+                rnp_cfg_set(&cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
+                rnp_cfg_set(&cfg, CFG_SSHKEYFILE, optarg);
                 break;
             case 'V':
                 print_praise();
                 exit(EXIT_SUCCESS);
             case 'g':
-                p.cmd = GENERATE_KEY;
+                cmd = CMD_GENERATE_KEY;
                 break;
             case 'l':
-                p.cmd = LIST_KEYS;
+                cmd = CMD_LIST_KEYS;
                 break;
             case 'o':
-                if (!parse_option(&rnp, &p, optarg)) {
+                if (!parse_option(&cfg, &cmd, optarg)) {
                     (void) fprintf(stderr, "Bad parse_option\n");
                 }
                 break;
             case 's':
-                p.cmd = LIST_SIGS;
+                cmd = CMD_LIST_SIGS;
                 break;
             default:
-                p.cmd = HELP_CMD;
+                cmd = CMD_HELP;
                 break;
             }
         }
     }
-    if (!rnp_init(&rnp)) {
+
+    rnp_params_init(&rnp_params);
+    if (!rnp_cfg_apply(&cfg, &rnp_params)) {
+        fputs("fatal: cannot apply configuration\n", stderr);
+        return EXIT_ERROR;
+    }
+
+    if (!rnp_init(&rnp, &rnp_params)) {
         fputs("fatal: failed to initialize rnpkeys\n", stderr);
         return EXIT_ERROR;
     }
 
-    if (!rnp_load_keys(&rnp)) {
+    rnp_params_free(&rnp_params);
+
+    if (!rnp_key_store_load_keys(&rnp, 1)) {
         /* Keys mightn't loaded if this is a key generation step. */
-        if (p.cmd != GENERATE_KEY) {
+        if (cmd != CMD_GENERATE_KEY) {
             fputs("fatal: failed to load keys\n", stderr);
             return EXIT_ERROR;
         }
@@ -508,11 +523,11 @@ main(int argc, char **argv)
     /* now do the required action for each of the command line args */
     ret = EXIT_SUCCESS;
     if (optind == argc) {
-        if (!rnp_cmd(&rnp, &p, NULL))
+        if (!rnp_cmd(&cfg, &rnp, cmd, NULL))
             ret = EXIT_FAILURE;
     } else {
         for (i = optind; i < argc; i++) {
-            if (!rnp_cmd(&rnp, &p, argv[i]))
+            if (!rnp_cmd(&cfg, &rnp, cmd, argv[i]))
                 ret = EXIT_FAILURE;
         }
     }

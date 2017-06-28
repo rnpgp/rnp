@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <rnpcfg.h>
+#include "rnpcfg.h"
 #include <rnpsdk.h>
 #include <../common/constants.h>
 

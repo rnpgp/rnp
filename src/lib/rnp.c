@@ -886,7 +886,7 @@ rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
 
 /* find a key in a keyring */
 int
-rnp_find_key(rnp_t *rnp, char *id)
+rnp_find_key(rnp_t *rnp, const char *id)
 {
     pgp_io_t *io;
 
@@ -931,7 +931,7 @@ rnp_get_key(rnp_t *rnp, const char *name, const char *fmt)
 
 /* export a given key */
 char *
-rnp_export_key(rnp_t *rnp, char *name)
+rnp_export_key(rnp_t *rnp, const char *name)
 {
     char             keyid[2 * PGP_KEY_ID_SIZE + 1] = {0};
     char             passphrase[MAX_PASSPHRASE_LENGTH] = {0};

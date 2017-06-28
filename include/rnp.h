@@ -121,9 +121,9 @@ int rnp_set_key_store_format(rnp_t *, const char *);
 /* key management */
 int   rnp_list_keys(rnp_t *, const int);
 int   rnp_list_keys_json(rnp_t *, char **, const int);
-int   rnp_find_key(rnp_t *, char *);
+int   rnp_find_key(rnp_t *, const char *);
 char *rnp_get_key(rnp_t *, const char *, const char *);
-char *rnp_export_key(rnp_t *, char *);
+char *rnp_export_key(rnp_t *, const char *);
 int   rnp_import_key(rnp_t *, char *);
 int   rnp_generate_key(rnp_t *, const char *);
 

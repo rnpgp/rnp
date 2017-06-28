@@ -3,7 +3,8 @@ AM_CFLAGS		= $(WARNCFLAGS)
 bin_PROGRAMS		= rnpkeys
 
 rnpkeys_SOURCES	=   rnpkeys.c \
-                    tui.c
+                    tui.c \
+                    ../rnp/rnpcfg.c
 
 rnpkeys_CPPFLAGS	= -I$(top_srcdir)/include
 
