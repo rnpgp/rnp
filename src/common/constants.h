@@ -36,6 +36,10 @@
  */
 
 #define SUBDIRECTORY_GNUPG ".rnp"
-#define SUBDIRECTORY_SSH ".ssh"
+#define SUBDIRECTORY_RNP   ".rnp"
+#define SUBDIRECTORY_SSH   ".ssh"
+#define PUBRING_KBX        "pubring.kbx"
+#define PUBRING_GPG        "pubring.gpg"
+#define SECRING_GPG        "secring.gpg"
 
 #endif

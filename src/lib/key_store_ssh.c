@@ -511,7 +511,6 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
     }
 
     if (needseckey) {
-        rnp_setvar(rnp, "sshpubfile", filename);
         /* try to take the ".pub" off the end */
         if (filename == f) {
             f[strlen(f) - 4] = 0x0;
@@ -532,7 +531,6 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
             return 0;
         }
         rnp->secring = secring;
-        rnp_setvar(rnp, "sshsecfile", filename);
     }
     return 1;
 }

@@ -47,8 +47,8 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_set(&cfg, CFG_HASH, DEFAULT_HASH_ALG);
     rnp_cfg_set(&cfg, CFG_CIPHER, 'cast5');    
     rnp_cfg_setint(&cfg, CFG_MAXALLOC, 4194304);
-    rnp_cfg_set(&cfg, CFG_SUBDIRGPG, SUBDIRECTORY_GNUPG);
-    rnp_cfg_set(&cfg, CFG_SUBDIRSSH, SUBDIRECTOR_SSH);
+    rnp_cfg_set(&cfg, CFG_SUBDIRGPG, SUBDIRECTORY_RNP);
+    rnp_cfg_set(&cfg, CFG_SUBDIRSSH, SUBDIRECTORY_SSH);
     rnp_cfg_set(&cfg, CFG_NUMTRIES, MAX_PASSPHRASE_ATTEMPTS);
 }
 
@@ -57,14 +57,21 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_init_t *params)
 {
     int   passfd;
     char *stream;
+    char  home[MAXPATHLEN];
+
+    /* enabling core dumps if user wants this */
 
     if (rnp_cfg_getint(CFG_COREDUMPS)) {
         params->enable_coredumps = 1;
     }
 
+    /* checking if password input was specified */
+
     if (passfd = rnp_cfg_getint(CFG_PASSFD)) {
         params->passfd = passfd;
     }
+
+    /* stdout/stderr and results redirection */
 
     if (stream = rnp_cfg_get(CFG_IO_OUTS)) {
         params->outs = stream;
@@ -76,7 +83,14 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_init_t *params)
 
     if (stream = rnp_cfg_get(CFG_IO_RESS)) {
         params->ress = stream;
-    }    
+    }
+
+    /* detecting keystore pathes and format */
+
+    if (!rnp_cfg_get_ks_info(cfg, params))
+        return 0;
+
+    /* default key/userid */
 
     return 1;
 }
@@ -252,38 +266,158 @@ rnp_cfg_get_pswdtries(rnp_cfg_t *cfg)
 }
 
 int
-rnp_cfg_apply_homedir(rnp_t *rnp, rnp_cfg_t *cfg, const int quiet)
+rnp_cfg_check_homedir(rnp_cfg_t *cfg, char *homedir)
 {
     struct stat st;
     int         ret;
 
-    /* TODO: Replace `stderr` with the rnp context's error file when we
-     *       are sure that all utilities and bindings don't call
-     *       rnp_set_homedir ahead of rnp_init.
-     */
-
-    /* Check that a NULL parameter wasn't passed. */
-    if (home == NULL) {
-        if (!quiet)
-            fprintf(stderr, "rnp: null homedir\n");
+    if (homedir == NULL) {
+        fputs("rnp: homedir option and HOME environment variable are not set \n", stderr);
         return 0;
-
-        /* If the path is not a directory then fail. */
-    } else if ((ret = stat(home, &st)) == 0 && !S_ISDIR(st.st_mode)) {
-        if (!quiet)
-            fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", home);
+    } else if ((ret = stat(homedir, &st)) == 0 && !S_ISDIR(st.st_mode)) {
+        /* file exists in place of homedir */
+        fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", homedir);
         return 0;
-
-        /* If the path doesn't exist then fail. */
     } else if (ret != 0 && errno == ENOENT) {
-        if (!quiet)
-            fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", home);
+        /* If the path doesn't exist then fail. */        
+        fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", homedir);
         return 0;
-
-        /* If any other occurred then fail. */
     } else if (ret != 0) {
-        if (!quiet)
-            fprintf(stderr, "rnp: an unspecified error occurred\n");
+        /* If any other occurred then fail. */        
+        fprintf(stderr, "rnp: an unspecified error occurred\n");
+        return 0;
+    }
+
+    return 1;
+}
+
+/* 
+  Compose path from dir, subdir and filename. subdir can be null, then just dir and filename will be used.
+  res should point to the allocated buffer.
+*/
+int 
+rnp_path_compose(char *dir, char *subdir, char *filename, char *res)
+{
+    int pos;
+
+    /* checking input parameters for conrrectness */    
+    if (!dir || !filename || !res) {
+        return 0;
+    }
+
+    /* concatenating dir, subdir and filename */
+    strcpy(res, dir);
+    pos = strlen(dir);
+
+    if (subdir) {
+        if ((pos > 0) && (res[pos - 1] != '/')) {
+            res[pos++] = '/';
+        }
+
+        strcpy(res + pos, subdir);
+        pos += strlen(subdir);
+    }
+
+    if ((pos > 0) && (res[pos - 1] != '/')) {
+        res[pos++] = '/';
+    }
+
+    strcpy(res + pos, filename);
+
+    return 1;
+}
+
+static int
+parse_ks_format(enum key_store_format_t *key_store_format,
+                const char *             format)
+{
+    if (rnp_strcasecmp(format, CFG_KEYSTORE_GPG) == 0) {
+        *key_store_format = GPG_KEY_STORE;
+    } else if (rnp_strcasecmp(format, CFG_KEYSTORE_KBX) == 0) {
+        *key_store_format = KBX_KEY_STORE;
+    } else if (rnp_strcasecmp(format, CFG_KEYSTORE_SSH) == 0) {
+        *key_store_format = SSH_KEY_STORE;
+    } else {
+        fprintf(stderr, "rnp: unsupported keystore format: \"%s\"\n", format);
+        return 0;
+    }
+    return 1;
+}
+
+/* helper function : get key storage subdir in case when user didn't specify homedir */
+char *
+rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg, int defhomedir, enum key_store_format_t ksfmt)
+{
+    char *subdir;
+
+    if (!defhomedir) {
+        subdir = NULL;
+    } else if (ksfmt == SSH_KEY_STORE) {
+        if ((subdir = rnp_cfg_get(cfg, CFG_SUBDIRSSH)) == NULL) {
+            subdir = SUBDIRECTORY_SSH;
+        }
+    } else {
+        if ((subdir = rnp_cfg_get(cfg, CFG_SUBDIRGPG)) == NULL) {
+            subdir = SUBDIRECTORY_RNP;
+        }
+    }
+    
+    return subdir;
+}
+
+int 
+rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_init_t *params)
+{
+    int    defhomedir = 0;
+    char * homedir;
+    char * format;
+    char * subdir;
+    char   pubpath[MAXPATHLEN] = {0};
+    char   secpath[MAXPATHLEN] = {0};
+    
+    /* getting path to keyrings. If it is specified by user in 'homedir' param then it is considered as the final path, no .rnp/.ssh is added */
+    if ((homedir = rnp_cfg_get(cfg, CFG_HOMEDIR)) == NULL) {
+        homedir = getenv("HOME");
+        defhomedir = 1;
+    }
+
+    /* detecting key storage format */
+    if ((format = rnp_cfg_get(cfg, CFG_KEYSTOREFMT) == NULL) {
+        if (rnp_cfg_get(cfg, CFG_SSHKEYFILE)) {
+            format = CFG_KEYSTORE_SSH;
+        } else {
+            if ((subdir = rnp_cfg_get(cfg, CFG_SUBDIRGPG)) == NULL) {
+                subdir = SUBDIRECTORY_RNP;
+            }
+            rnp_path_compose(homedir, defhomedir ? subdir : NULL, PUBRING_KBX, pubpath);
+
+            if (!stat(pubpath, &st)) {
+                format = CFG_KEYSTORE_KBX;
+            } else {
+                format = CFG_KEYSTORE_GPG;
+            }
+        }
+    }
+
+    if (!parse_ks_format(&params->ks_format, format)) {
+        return 0;
+    }
+
+    /* building pubring/secring pathes */
+    subdir = rnp_cfg_get_ks_subdir(cfg, defhomedir, params->ks_format);
+
+    if (params->ks_format == GPG_KEY_STORE) {
+        rnp_path_compose(homedir, subdir, PUBRING_GPG, pubpath);
+        params->pubpath = strdup(pubpath);
+        rnp_path_compose(homedir, subdir, SECRING_GPG, secpath);
+        params->secpath = strdup(secpath);
+    } else if (params->ks_format == KBX_KEY_STORE) {
+        rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath);
+        params->pubpath = strdup(pubpath);
+        rnp_path_compose(homedir, subdir, SECRING_KBX, secpath);
+        params->secpath = strdup(secpath);
+    } else {
+        fprintf(stderr, "rnp: unsupported keystore format: \"%d\"\n", (int)params->ks_format);   
         return 0;
     }
 

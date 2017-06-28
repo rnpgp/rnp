@@ -40,7 +40,7 @@
 #define CFG_COREDUMPS    "coredumps"   /* enable/disable core dumps. 1 or 0. */
 #define CFG_NEEDSUSERID  "needsuserid" /* needs user id for the ongoing operation - i.e. signing, encryption */
 #define CFG_NEEDSSECKEY  "needsseckey" /* needs secret key for the ongoing operation - i.e. signing, decryption, so secret keyring will be loaded */
-#define CFG_KEYRING      "keyring"     /* path to the keyring ?? */
+#define CFG_KEYRING      "keyring"     /* path to the keyring ?? seems not to be used anywhere */
 #define CFG_USERID       "userid"      /* userid for the ongoing operation */
 #define CFG_VERBOSE      "verbose"     /* verbose logging */
 #define CFG_HOMEDIR      "homedir"     /* home directory - folder with keyrings and possibly other stuff */
@@ -56,6 +56,7 @@
 
 /* additional cfg constants */
 #define CFG_KEYSTORE_GPG "GPG" /* GPG keyring format */
+#define CFG_KEYSTORE_KBX "KBX" /* GPG new keyring format : KBX */
 #define CFG_KEYSTORE_SSH "SSH" /* SSH keyring format */
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration options */
@@ -76,8 +77,8 @@ const char * rnp_cfg_get(rnp_cfg_t *cfg, const char *key);
 int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
 void rnp_cfg_free(rnp_cfg_t *cfg);
 
-int rnp_cfg_apply_homedir(rnp_t *rnp, rnp_cfg_t *rnp, const int quiet);
+int rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_init_t *params);
 int rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
-
+int rnp_path_compose(char *dir, char *subdir, char *filename, char *res, size_t maxsize);
 
 #endif
