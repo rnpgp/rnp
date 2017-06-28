@@ -577,35 +577,22 @@ process_dash_escaped(pgp_stream_t *stream,
     pgp_packet_t      content2;
     pgp_packet_t      content;
     const char *      hashstr;
-    pgp_hash_t *      hash;
     int               total;
     pgp_hash_alg_t    alg = PGP_HASH_MD5; // default
 
     body = &content.u.cleartext_body;
-    if ((hash = calloc(1, sizeof(*hash))) == NULL) {
-        PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "process_dash_escaped: bad alloc");
-        return -1;
-    }
     hashstr = find_header(&dearmour->headers, "Hash");
     if (hashstr) {
         alg = pgp_str_to_hash_alg(hashstr);
         if (!pgp_is_hash_alg_supported(&alg)) {
-            free(hash);
             PGP_ERROR_1(
               errors, PGP_E_R_BAD_FORMAT, "Unsupported hash algorithm '%s'", hashstr);
             return -1;
         }
         if (alg == PGP_HASH_UNKNOWN) {
-            free(hash);
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "Unknown hash algorithm '%s'", hashstr);
             return -1;
         }
-    }
-
-    if (!pgp_hash_create(hash, alg)) {
-        PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "can't initialise hash");
-        free(hash);
-        return -1;
     }
 
     body->length = 0;
@@ -616,7 +603,6 @@ process_dash_escaped(pgp_stream_t *stream,
 
         c = read_char(stream, dearmour, errors, readinfo, cbinfo, 1);
         if (c < 0) {
-            free(hash);
             return -1;
         }
         if (dearmour->prev_nl && c == '-') {
@@ -649,10 +635,6 @@ process_dash_escaped(pgp_stream_t *stream,
                 (void) fprintf(stderr, "process_dash_escaped: newline found\n");
                 return -1;
             }
-            if (body->data[0] == '\n') {
-                pgp_hash_add(hash, (const uint8_t *) "\r", 1);
-            }
-            pgp_hash_add(hash, body->data, body->length);
             if (rnp_get_debug(__FILE__)) {
                 fprintf(stderr, "Got body:\n%s\n", body->data);
             }

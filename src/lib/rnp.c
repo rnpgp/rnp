@@ -880,9 +880,8 @@ rnp_end(rnp_t *rnp)
 int
 rnp_ctx_init(rnp_ctx_t *ctx, rnp_t *rnp)
 {
-    memset((void *) ctx, '\0', sizeof(ctx));
+    memset(ctx, '\0', sizeof(*ctx));
     ctx->rnp = rnp;
-
     return 0;
 }
 
@@ -890,15 +889,14 @@ void
 rnp_ctx_reset(rnp_ctx_t *ctx)
 {
     rnp_ctx_free(ctx);
-    memset((void *) ctx, '\0', sizeof(ctx));
+    memset(ctx, '\0', sizeof(*ctx));
 }
 
 /* free operation context */
 void
 rnp_ctx_free(rnp_ctx_t *ctx)
 {
-    if (ctx->filename != NULL)
-        free(ctx->filename);
+    free(ctx->filename);
 }
 
 /* list the keys in a keyring */

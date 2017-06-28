@@ -982,6 +982,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
     /* read input file into buf */
     infile = pgp_memory_new();
     if (!pgp_mem_readfile(infile, inname)) {
+        pgp_memory_free(infile);
         return 0;
     }
 
@@ -1005,6 +1006,9 @@ pgp_sign_file(rnp_ctx_t *         ctx,
 
     if (cleartext) {
         if (pgp_writer_push_clearsigned(output, sig) != 1) {
+            pgp_memory_free(infile);
+            pgp_teardown_file_write(output, fd_out);
+            pgp_create_sig_delete(sig);
             return 0;
         }
 
@@ -1020,6 +1024,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
               pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
         if (ret == 0) {
             pgp_teardown_file_write(output, fd_out);
+            pgp_create_sig_delete(sig);
             return 0;
         }
 
@@ -1027,11 +1032,11 @@ pgp_sign_file(rnp_ctx_t *         ctx,
         ret = pgp_add_issuer_keyid(sig, keyid) && pgp_end_hashed_subpkts(sig) &&
               pgp_write_sig(output, sig, &seckey->pubkey, seckey);
 
-        pgp_teardown_file_write(output, fd_out);
-
         if (ret == 0) {
             PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Cannot sign file as cleartext");
         }
+
+        pgp_teardown_file_write(output, fd_out);
     } else {
         /* set armoured/not armoured here */
         if (ctx->armour) {
@@ -1227,6 +1232,8 @@ pgp_sign_detached(rnp_ctx_t *    ctx,
     mem = pgp_memory_new();
     if (!pgp_mem_readfile(mem, f)) {
         pgp_teardown_file_write(output, fd);
+        pgp_memory_free(sig->mem); /* free memory allocated in pgp_start_sig*/
+        pgp_create_sig_delete(sig);
         return 0;
     }
     /* set armoured/not armoured here */
@@ -1246,5 +1253,7 @@ pgp_sign_detached(rnp_ctx_t *    ctx,
     pgp_teardown_file_write(output, fd);
     pgp_seckey_free(seckey);
 
+    /* free  the memory allocated for the signature.*/
+    pgp_create_sig_delete(sig);
     return 1;
 }
