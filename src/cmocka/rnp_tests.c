@@ -121,6 +121,7 @@ main(void)
     } else {
         for (i = 0; i < iteration; i++) {
             for (j = 0; j < sizeof(tests) / sizeof(tests[0]); j++) {
+                printf("Run iteration %d, test: %s\n", i, tests[j].name);
                 void *state;
                 if (setup_test(&state)) {
                     continue;
