@@ -29,12 +29,23 @@
 #include <string.h>
 #include <rnpcfg.h>
 #include <rnpsdk.h>
+#include <../common/constants.h>
+
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <regex.h>
+
+/* SHA1 is now looking as though it should not be used.  Let's
+ * pre-empt this by specifying SHA256 - gpg interoperates just fine
+ * with SHA256 - agc, 20090522
+ */
+#define DEFAULT_HASH_ALG "SHA256"
 
 int 
 rnp_cfg_init(rnp_cfg_t *cfg)
 {
     memset((void *) cfg, '\0', sizeof(rnp_cfg_t));
-    cfg->passfd = -1;
 
     return 1;
 }
@@ -42,56 +53,52 @@ rnp_cfg_init(rnp_cfg_t *cfg)
 int 
 rnp_cfg_load_defaults(rnp_cfg_t *cfg)
 {
-    rnp_cfg_setint(&cfg, CFG_OVERWRITE, 1);
-    rnp_cfg_set(&cfg, CFG_OUTFILE, NULL);
-    rnp_cfg_set(&cfg, CFG_HASH, DEFAULT_HASH_ALG);
-    rnp_cfg_set(&cfg, CFG_CIPHER, 'cast5');    
-    rnp_cfg_setint(&cfg, CFG_MAXALLOC, 4194304);
-    rnp_cfg_set(&cfg, CFG_SUBDIRGPG, SUBDIRECTORY_RNP);
-    rnp_cfg_set(&cfg, CFG_SUBDIRSSH, SUBDIRECTORY_SSH);
-    rnp_cfg_set(&cfg, CFG_NUMTRIES, MAX_PASSPHRASE_ATTEMPTS);
+    rnp_cfg_setint(cfg, CFG_OVERWRITE, 1);
+    rnp_cfg_set(cfg, CFG_OUTFILE, NULL);
+    rnp_cfg_set(cfg, CFG_HASH, DEFAULT_HASH_ALG);
+    rnp_cfg_set(cfg, CFG_CIPHER, "cast5");    
+    rnp_cfg_setint(cfg, CFG_MAXALLOC, 4194304);
+    rnp_cfg_set(cfg, CFG_SUBDIRGPG, SUBDIRECTORY_RNP);
+    rnp_cfg_set(cfg, CFG_SUBDIRSSH, SUBDIRECTORY_SSH);
+    rnp_cfg_setint(cfg, CFG_NUMTRIES, MAX_PASSPHRASE_ATTEMPTS);
+
+    return 1;
 }
 
 int
 rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
 {
-    int   passfd;
-    char *stream;
-    char  home[MAXPATHLEN];
+    int         passfd;
+    const char *stream;
 
     /* enabling core dumps if user wants this */
-
-    if (rnp_cfg_getint(CFG_COREDUMPS)) {
+    if (rnp_cfg_getint(cfg, CFG_COREDUMPS)) {
         params->enable_coredumps = 1;
     }
 
     /* checking if password input was specified */
-
-    if (passfd = rnp_cfg_getint(CFG_PASSFD)) {
+    if ((passfd = rnp_cfg_getint(cfg, CFG_PASSFD))) {
         params->passfd = passfd;
     }
 
     /* stdout/stderr and results redirection */
-
-    if (stream = rnp_cfg_get(CFG_IO_OUTS)) {
+    if ((stream = rnp_cfg_get(cfg, CFG_IO_OUTS))) {
         params->outs = stream;
     }
 
-    if (stream = rnp_cfg_get(CFG_IO_ERRS)) {
+    if ((stream = rnp_cfg_get(cfg, CFG_IO_ERRS))) {
         params->errs = stream;
     }
 
-    if (stream = rnp_cfg_get(CFG_IO_RESS)) {
+    if ((stream = rnp_cfg_get(cfg, CFG_IO_RESS))) {
         params->ress = stream;
     }
 
     /* detecting keystore pathes and format */
-
     if (!rnp_cfg_get_ks_info(cfg, params))
         return 0;    
 
     /* default key/userid */
-
     if (!rnp_cfg_get_defkey(cfg, params))
         return 0;
 
@@ -246,10 +253,10 @@ rnp_cfg_free(rnp_cfg_t *cfg)
 int 
 rnp_cfg_get_pswdtries(rnp_cfg_t *cfg)
 {
-    char *numtries;
-    int   num;
+    const char *numtries;
+    int         num;
 
-    numtries = rnp_cfg_get(cfg);    
+    numtries = rnp_cfg_get(cfg, CFG_NUMTRIES);
 
     if ((numtries == NULL) || ((num = atoi(numtries)) <= 0)) {
         return MAX_PASSPHRASE_ATTEMPTS;
@@ -286,12 +293,44 @@ rnp_cfg_check_homedir(rnp_cfg_t *cfg, char *homedir)
     return 1;
 }
 
+/* read any gpg config file */
+static int
+conffile(const char *homedir, char *userid, size_t length)
+{
+    regmatch_t matchv[10];
+    regex_t    keyre;
+    char       buf[BUFSIZ];
+    FILE *     fp;
+
+    (void) snprintf(buf, sizeof(buf), "%s/.gnupg/gpg.conf", homedir);
+    if ((fp = fopen(buf, "r")) == NULL) {
+        return 0;
+    }
+    (void) memset(&keyre, 0x0, sizeof(keyre));
+    (void) regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED);
+    while (fgets(buf, (int) sizeof(buf), fp) != NULL) {
+        if (regexec(&keyre, buf, 10, matchv, 0) == 0) {
+            (void) memcpy(userid,
+                          &buf[(int) matchv[1].rm_so],
+                          MIN((unsigned) (matchv[1].rm_eo - matchv[1].rm_so), length));
+
+            (void) fprintf(stderr, 
+                           "rnp: default key set to \"%.*s\"\n",
+                           (int) (matchv[1].rm_eo - matchv[1].rm_so),
+                           &buf[(int) matchv[1].rm_so]);
+        }
+    }
+    (void) fclose(fp);
+    regfree(&keyre);
+    return 1;
+}
+
 /* 
   Compose path from dir, subdir and filename. subdir can be null, then just dir and filename will be used.
   res should point to the allocated buffer.
 */
 int 
-rnp_path_compose(char *dir, char *subdir, char *filename, char *res)
+rnp_path_compose(const char *dir, const char *subdir, const char *filename, char *res)
 {
     int pos;
 
@@ -340,10 +379,10 @@ parse_ks_format(enum key_store_format_t *key_store_format,
 }
 
 /* helper function : get key storage subdir in case when user didn't specify homedir */
-char *
+const char *
 rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg, int defhomedir, enum key_store_format_t ksfmt)
 {
-    char *subdir;
+    const char *subdir;
 
     if (!defhomedir) {
         subdir = NULL;
@@ -363,12 +402,13 @@ rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg, int defhomedir, enum key_store_format_t ks
 int 
 rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
 {
-    int    defhomedir = 0;
-    char * homedir;
-    char * format;
-    char * subdir;
-    char   pubpath[MAXPATHLEN] = {0};
-    char   secpath[MAXPATHLEN] = {0};
+    int         defhomedir = 0;
+    const char *homedir;
+    const char *format;
+    const char *subdir;
+    char        pubpath[MAXPATHLEN] = {0};
+    char        secpath[MAXPATHLEN] = {0};
+    struct stat st;
     
     /* getting path to keyrings. If it is specified by user in 'homedir' param then it is considered as the final path, no .rnp/.ssh is added */
     if ((homedir = rnp_cfg_get(cfg, CFG_HOMEDIR)) == NULL) {
@@ -377,7 +417,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
     }
 
     /* detecting key storage format */
-    if ((format = rnp_cfg_get(cfg, CFG_KEYSTOREFMT) == NULL) {
+    if ((format = rnp_cfg_get(cfg, CFG_KEYSTOREFMT)) == NULL) {
         if (rnp_cfg_get(cfg, CFG_SSHKEYFILE)) {
             format = CFG_KEYSTORE_SSH;
         } else {
@@ -401,6 +441,15 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
     /* building pubring/secring pathes */
     subdir = rnp_cfg_get_ks_subdir(cfg, defhomedir, params->ks_format);
 
+    /* creating home dir if needed */
+    if (defhomedir && subdir) {
+        rnp_path_compose(homedir, NULL, subdir, pubpath);
+        if (mkdir(pubpath, 0700) == -1 && errno != EEXIST) {
+            fprintf(stderr, "cannot mkdir '%s' errno = %d \n", pubpath, errno);
+            return 0;
+        }        
+    }
+
     if (params->ks_format == GPG_KEY_STORE) {
         rnp_path_compose(homedir, subdir, PUBRING_GPG, pubpath);
         params->pubpath = strdup(pubpath);
@@ -412,7 +461,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
         rnp_path_compose(homedir, subdir, SECRING_KBX, secpath);
         params->secpath = strdup(secpath);
     } else {
-        fprintf(stderr, "rnp: unsupported keystore format: \"%d\"\n", (int)params->ks_format);   
+        fprintf(stderr, "rnp: unsupported keystore format: \"%d\"\n", (int)params->ks_format);
         return 0;
     }
 
@@ -422,5 +471,30 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
 int
 rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
 {
+    char        id[MAX_ID_LENGTH];
+    const char *userid;
+    const char *homedir;
+    int         defhomedir = 0;
 
+    if ((homedir = rnp_cfg_get(cfg, CFG_HOMEDIR)) == NULL) {
+        homedir = getenv("HOME");
+        defhomedir = 1;
+    }
+
+    /* If a userid has been given, we'll use it. */
+    if ((userid = rnp_cfg_get(cfg, CFG_USERID)) == NULL) {
+        /* also search in config file for default id */
+
+        if (defhomedir) {
+            memset(id, 0, sizeof(id));        
+            conffile(homedir, id, sizeof(id));
+            if (id[0] != 0x0) {
+                params->defkey = strdup(id);
+            }
+        }
+    } else {
+        params->defkey = strdup(userid);
+    }
+
+    return 1;
 }

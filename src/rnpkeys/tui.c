@@ -132,7 +132,7 @@ ask_bitlen()
  * @brief   Asks user for details needed for the key to be generated (currently
  *          key type and key length only)
  *          This function should explicitly ask user for all details (not use
- *          rnp_getvar or getenv).
+ *          getenv or something similar).
  *
  * @param   rnp [in]  Initialized rnp_t struture.
  *              [out] Function fills corresponding to key type and length

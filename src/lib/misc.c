@@ -72,6 +72,7 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <regex.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -1126,8 +1127,8 @@ rnp_filename(const char *path)
 }
 
 /* find the time - in a specific %Y-%m-%d format - using a regexp */
-static int
-grabdate(char *s, int64_t *t)
+int
+grabdate(const char *s, int64_t *t)
 {
     static regex_t r;
     static int     compiled;
@@ -1151,8 +1152,8 @@ grabdate(char *s, int64_t *t)
 }
 
 /* get expiration in seconds */
-static uint64_t
-get_duration(char *s)
+uint64_t
+get_duration(const char *s)
 {
     uint64_t now;
     int64_t  t;
@@ -1183,8 +1184,8 @@ get_duration(char *s)
 }
 
 /* get birthtime in seconds */
-static int64_t
-get_birthtime(char *s)
+int64_t
+get_birthtime(const char *s)
 {
     int64_t t;
 

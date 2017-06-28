@@ -122,7 +122,7 @@ unsigned pgp_sign_file(rnp_ctx_t *,
 int pgp_sign_detached(rnp_ctx_t *,
                       pgp_io_t *,
                       const char *,
-                      char *,
+                      const char *,
                       pgp_seckey_t *);
 
 /* armoured stuff */

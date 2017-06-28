@@ -44,12 +44,6 @@
 #include <string.h>
 #include <unistd.h>
 
-/* SHA1 is now looking as though it should not be used.  Let's
- * pre-empt this by specifying SHA256 - gpg interoperates just fine
- * with SHA256 - agc, 20090522
- */
-#define DEFAULT_HASH_ALG "SHA256"
-
 extern char *__progname;
 
 static const char *usage = "--help OR\n"
@@ -109,7 +103,7 @@ enum optdefs {
     OPT_NUMTRIES,
 
     /* debug */
-    OPT__DEBUG
+    OPT_DEBUG
 };
 
 #define EXIT_ERROR 2
@@ -131,7 +125,7 @@ static struct option options[] = {
   /* debugging commands */
   {"help", no_argument, NULL, CMD_HELP},
   {"version", no_argument, NULL, CMD_VERSION},
-  {"debug", required_argument, NULL, CMD_DEBUG},
+  {"debug", required_argument, NULL, OPT_DEBUG},
   {"show-keys", no_argument, NULL, CMD_SHOW_KEYS},
   {"showkeys", no_argument, NULL, CMD_SHOW_KEYS},
   /* options */
@@ -255,13 +249,11 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     unsigned         maxsize;
     char *           out = NULL;
     char *           in = NULL;
-    char *           outf;
-    char *           cipher;
-    char *           userid;
+    const char *     outf;
+    const char *     userid;
     int              ret;
     int              cc;
-    int              clearsign = (cmd == CLEARSIGN) ? 1 : 0;
-    const pgp_key_t *keypair = NULL;
+    int              clearsign = (cmd == CMD_CLEARSIGN) ? 1 : 0;
     rnp_ctx_t        ctx;
 
     /* operation context initialization: writing all additional parameters */
@@ -272,7 +264,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.filename = strdup(rnp_filename(f));
         ctx.filemtime = rnp_filemtime(f);
     }
-    ctx.pswdtries = rnp_cfg_get_pswdtries(cfg);
+    rnp->pswdtries = rnp_cfg_get_pswdtries(cfg);
 
     /* getting recipient/signer user id if needed */
     if (rnp_cfg_getint(cfg, CFG_NEEDSUSERID)) {
@@ -290,56 +282,56 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            ret = rnp_encrypt_memory(rnp, userid, in, cc, out, maxsize);
+            ret = rnp_encrypt_memory(&ctx, userid, in, cc, out, maxsize);
             ret = show_output(out, ret, "Bad memory encryption");
         } else {
-            ret = rnp_encrypt_file(rnp, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE));
+            ret = rnp_encrypt_file(&ctx, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE));
         }
         goto done;
     case CMD_DECRYPT:
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            ret = rnp_decrypt_memory(rnp, in, cc, out, maxsize, 0);
+            ret = rnp_decrypt_memory(&ctx, in, cc, out, maxsize, 0);
             ret = show_output(out, ret, "Bad memory decryption");
         } else {
-            ret = rnp_decrypt_file(rnp, f, rnp_cfg_get(cfg, CFG_OUTFILE), rnp->ctx.armour);
+            ret = rnp_decrypt_file(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE));
         }
         goto done;
     case CMD_CLEARSIGN:
     case CMD_SIGN:
-        ctx.halg = pgp_str_to_hash_alg(rnp_ctx_get(CFG_HASH));
+        ctx.halg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
         
         if (ctx.halg == PGP_HASH_UNKNOWN) {
-            fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_ctx_get(CFG_HASH));
+            fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_cfg_get(cfg, CFG_HASH));
             ret = 0;
             goto done;
         }
 
         ctx.sigcreate = get_birthtime(rnp_cfg_get(cfg, CFG_BIRTHTIME));
-        ctx.sigexpire = get_duration(rnp_cfg_get(cfg, CFG_DURATION)));
+        ctx.sigexpire = get_duration(rnp_cfg_get(cfg, CFG_DURATION));
 
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            ret = rnp_sign_memory(rnp, userid, in, cc, out, maxsize, clearsign);
+            ret = rnp_sign_memory(&ctx, userid, in, cc, out, maxsize, clearsign);
             ret = show_output(out, ret, "Bad memory signature");
         } else {
-            ret = rnp_sign_file(rnp, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE), clearsign, rnp_cfg_getint(cfg, CFG_DETACHED));
+            ret = rnp_sign_file(&ctx, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE), clearsign, rnp_cfg_getint(cfg, CFG_DETACHED));
         }
         goto done;
     case CMD_VERIFY:
     case CMD_VERIFY_CAT:
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            ret = rnp_verify_memory(rnp,
+            ret = rnp_verify_memory(&ctx,
                                     in,
                                     cc,
-                                    (cmd == VERIFY_CAT) ? out : NULL,
-                                    (cmd == VERIFY_CAT) ? maxsize : 0,
-                                    rnp->ctx.armour);
+                                    (cmd == CMD_VERIFY_CAT) ? out : NULL,
+                                    (cmd == CMD_VERIFY_CAT) ? maxsize : 0,
+                                    ctx.armour);
             ret = show_output(out, ret, "Bad memory verification");
         } else {
             outf = rnp_cfg_get(cfg, CFG_OUTFILE);
-            ret = rnp_verify_file(rnp, f, (cmd == VERIFY) ? NULL : (outf) ? outf : "-", rnp->cfg.armour);
+            ret = rnp_verify_file(&ctx, f, (cmd == CMD_VERIFY) ? NULL : (outf) ? outf : "-", ctx.armour);
         }
         goto done;
     case CMD_LIST_PACKETS:
@@ -347,7 +339,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
             fprintf(stderr, "%s: No filename provided\n", __progname);
             ret = 0;
         } else {
-            ret = rnp_list_packets(rnp, f, rnp->ctx.armour, NULL);
+            ret = rnp_list_packets(rnp, f, ctx.armour);
         }
         goto done;
     case CMD_SHOW_KEYS:
@@ -359,14 +351,10 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     }
 
     done:
-    if (in) {
-        free(in);
-    }
-    if (out) {
-        free(out);
-    }
+    free(in);
+    free(out);
+    rnp_ctx_free(&ctx);
 
-    rnp_ctx_free(&tcx);
     return ret;
 }
 
@@ -494,7 +482,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         rnp_cfg_set(cfg, CFG_CIPHER, arg);
         break;
     case OPT_NUMTRIES:
-        rnp_cfg_set(cfg, CFG_NUMTRIES);
+        rnp_cfg_set(cfg, CFG_NUMTRIES, arg);
         break;
     case OPT_DEBUG:
         rnp_set_debug(arg);
@@ -591,12 +579,12 @@ main(int argc, char **argv)
                 exit(EXIT_SUCCESS);
             case 'd':
                 /* for decryption, we need the seckey */
-                rnp_cfg_setint(&fg, CFG_NEEDSSECKEY, 1);
+                rnp_cfg_setint(&cfg, CFG_NEEDSSECKEY, 1);
                 cmd = CMD_DECRYPT;
                 break;
             case 'e':
                 /* for encryption, we need a userid */
-                rnp_cfg_setint(&fg, CFG_NEEDSUSERID, 1);                
+                rnp_cfg_setint(&cfg, CFG_NEEDSUSERID, 1);                
                 cmd = CMD_ENCRYPT;
                 break;
             case 'o':
@@ -606,8 +594,8 @@ main(int argc, char **argv)
                 break;
             case 's':
                 /* for signing, we need a userid and a seckey */
-                rnp_cfg_setint(&fg, CFG_NEEDSSECKEY, 1);
-                rnp_cfg_setint(&fg, CFG_NEEDSUSERID, 1);                
+                rnp_cfg_setint(&cfg, CFG_NEEDSSECKEY, 1);
+                rnp_cfg_setint(&cfg, CFG_NEEDSUSERID, 1);                
                 cmd = CMD_SIGN;
                 break;
             case 'v':
@@ -633,25 +621,19 @@ main(int argc, char **argv)
 
     rnp_params_free(&rnp_params);
 
-    if (!rnp_load_keys(&rnp)) {
-        switch (errno) {
-        case EINVAL:
-            fputs("fatal: failed to load keys: bad homedir\n", stderr);
-            break;
-        default:
-            fputs("fatal: failed to load keys\n", stderr);
-        }
+    if (!rnp_key_store_load_keys(&rnp, rnp_cfg_getint(&cfg, CFG_NEEDSSECKEY))) {
+        fputs("fatal: failed to load keys\n", stderr);
         return EXIT_ERROR;
     }
 
     /* now do the required action for each of the command line args */
     ret = EXIT_SUCCESS;
     if (optind == argc) {
-        if (!rnp_cmd(&rnp_cfg, &rnp, cmd, NULL))
+        if (!rnp_cmd(&cfg, &rnp, cmd, NULL))
             ret = EXIT_FAILURE;
     } else {
         for (i = optind; i < argc; i++) {
-            if (!rnp_cmd(&rnp_cfg, &rnp, cmd, argv[i])) {
+            if (!rnp_cmd(&cfg, &rnp, cmd, argv[i])) {
                 ret = EXIT_FAILURE;
             }
         }

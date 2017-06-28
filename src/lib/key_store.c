@@ -36,10 +36,12 @@
 #include "key_store_internal.h"
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
-#include "key_store_ssh.h"
 #include "packet-print.h"
 #include "packet-key.h"
 #include "packet.h"
+#ifdef ENABLE_SSH
+#include "key_store_ssh.h"
+#endif
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -50,83 +52,41 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-/* read any gpg config file */
-static int
-conffile(rnp_t *rnp, char *homedir, char *userid, size_t length)
-{
-    regmatch_t matchv[10];
-    regex_t    keyre;
-    char       buf[BUFSIZ];
-    FILE *     fp;
-
-    __PGP_USED(rnp);
-    (void) snprintf(buf, sizeof(buf), "%s/gpg.conf", homedir);
-    if ((fp = fopen(buf, "r")) == NULL) {
-        return 0;
-    }
-    (void) memset(&keyre, 0x0, sizeof(keyre));
-    (void) regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED);
-    while (fgets(buf, (int) sizeof(buf), fp) != NULL) {
-        if (regexec(&keyre, buf, 10, matchv, 0) == 0) {
-            (void) memcpy(userid,
-                          &buf[(int) matchv[1].rm_so],
-                          MIN((unsigned) (matchv[1].rm_eo - matchv[1].rm_so), length));
-            if (rnp->passfp == NULL) {
-                (void) fprintf(stderr,
-                               "rnp: default key set to \"%.*s\"\n",
-                               (int) (matchv[1].rm_eo - matchv[1].rm_so),
-                               &buf[(int) matchv[1].rm_so]);
-            }
-        }
-    }
-    (void) fclose(fp);
-    regfree(&keyre);
-    return 1;
-}
-
 static void *
-rnp_key_store_read_keyring(rnp_t *rnp, const char *name, const char *homedir)
+rnp_key_store_read_keyring(rnp_t *rnp, const char *path)
 {
     rnp_key_store_t *key_store;
-    char             filename[MAXPATHLEN];
 
     if ((key_store = calloc(1, sizeof(*key_store))) == NULL) {
         (void) fprintf(stderr, "rnp_key_store_read_keyring: bad alloc\n");
         return NULL;
     }
-    if (rnp->key_store_format == KBX_KEY_STORE) {
-        snprintf(filename, sizeof(filename), "%s/%s.kbx", homedir, name);
-    } else if (rnp->key_store_format == GPG_KEY_STORE) {
-        snprintf(filename, sizeof(filename), "%s/%s.gpg", homedir, name);
-    }
-    if (!rnp_key_store_load_from_file(rnp, key_store, 0, filename)) {
+
+    if (!rnp_key_store_load_from_file(rnp, key_store, 0, path)) {
         free(key_store);
-        (void) fprintf(stderr, "cannot read %s %s\n", name, filename);
+        (void) fprintf(stderr, "rnp_key_store_read_keyring: cannot read %s\n", path);
         return NULL;
     }
+
     return key_store;
 }
 
 int
-rnp_key_store_load_keys(rnp_t *rnp, char *homedir)
+rnp_key_store_load_keys(rnp_t *rnp, int loadsecret)
 {
-    char *    userid;
     char      id[MAX_ID_LENGTH];
     void *    newring;
     pgp_io_t *io = rnp->io;
 
-    /* TODO: Some of this might be split up into sub-functions. */
-    /* TODO: Figure out what unhandled error is causing an
-     *       empty keyring to end up in rnp_key_store_get_first_ring
-     *       and ensure that it's not present in the
-     *       ssh implementation too.
-     */
-
     if (rnp->key_store_format == SSH_KEY_STORE) {
+        #ifdef ENABLE_SSH        
         return rnp_key_store_ssh_load_keys(rnp, homedir);
+        #else
+        return 0;
+        #endif
     }
 
-    newring = rnp_key_store_read_keyring(rnp, "pubring", homedir);
+    newring = rnp_key_store_read_keyring(rnp, rnp->pubpath);
 
     if (newring == NULL) {
         fprintf(io->errs, "cannot read pub keyring\n");
@@ -145,19 +105,9 @@ rnp_key_store_load_keys(rnp_t *rnp, char *homedir)
         return 0;
     }
 
-    /* If a userid has been given, we'll use it. */
-    if ((userid = rnp_getvar(rnp, "userid")) == NULL) {
-        /* also search in config file for default id */
-        memset(id, 0, sizeof(id));
-        conffile(rnp, homedir, id, sizeof(id));
-        if (id[0] != 0x0) {
-            rnp_setvar(rnp, "userid", userid = id);
-        }
-    }
-
     /* Only read secret keys if we need to */
-    if (rnp_getvar(rnp, "need seckey")) {
-        newring = rnp_key_store_read_keyring(rnp, "secring", homedir);
+    if (loadsecret) {
+        newring = rnp_key_store_read_keyring(rnp, rnp->secpath);
 
         if (newring == NULL) {
             fprintf(io->errs, "cannot read sec keyring\n");
@@ -179,51 +129,17 @@ rnp_key_store_load_keys(rnp_t *rnp, char *homedir)
         /* Now, if we don't have a valid user, use the first
          * in secring.
          */
-        if (!userid && rnp_getvar(rnp, "need userid") != NULL) {
-            if (!rnp_key_store_get_first_ring(rnp->secring, id, sizeof(id), 0)) {
-                /* TODO: This is _temporary_. A more
-                 *       suitable replacement will be
-                 *       required.
-                 */
-                fprintf(io->errs, "failed to read id\n");
-                return 0;
+        if (!rnp->defkey) {
+            if (rnp_key_store_get_first_ring(rnp->secring, id, sizeof(id), 0)) {
+                rnp->defkey = strdup(id);
             }
-
-            rnp_setvar(rnp, "userid", userid = id);
         }
 
-    } else if (rnp_getvar(rnp, "need userid") != NULL) {
+    } else if (!rnp->defkey) {
         /* encrypting - get first in pubring */
-        if (!userid && rnp_key_store_get_first_ring(rnp->pubring, id, sizeof(id), 0)) {
-            rnp_setvar(rnp, "userid", userid = id);
+        if (rnp_key_store_get_first_ring(rnp->pubring, id, sizeof(id), 0)) {
+            rnp->defkey = strdup(id);
         }
-    }
-
-    if (!userid && rnp_getvar(rnp, "need userid")) {
-        /* if we don't have a user id, and we need one, fail */
-        fprintf(io->errs, "cannot find user id\n");
-        return 0;
-    }
-
-    return 1;
-}
-
-/* Get the keyring extention of the current type of key. */
-int
-rnp_key_store_extension(rnp_t *rnp, char *buffer, size_t buffer_size)
-{
-    switch (rnp->key_store_format) {
-    case GPG_KEY_STORE:
-        strncpy(buffer, "gpg", buffer_size);
-        return 0;
-
-    case KBX_KEY_STORE:
-        strncpy(buffer, "kbx", buffer_size);
-        return 0;
-
-    case SSH_KEY_STORE:
-        strncpy(buffer, "", buffer_size);
-        return 0;
     }
 
     return 1;
@@ -239,7 +155,11 @@ rnp_key_store_load_from_file(rnp_t *          rnp,
     pgp_memory_t mem = {0};
 
     if (rnp->key_store_format == SSH_KEY_STORE) {
+        #ifdef ENABLE_SSH
         return rnp_key_store_ssh_from_file(rnp->io, key_store, filename);
+        #else
+        return 0;
+        #endif
     }
 
     if (!pgp_mem_readfile(&mem, filename)) {
@@ -265,7 +185,11 @@ rnp_key_store_load_from_mem(rnp_t *          rnp,
         return rnp_key_store_kbx_from_mem(rnp->io, key_store, memory);
 
     case SSH_KEY_STORE:
+        #ifdef ENABLE_SSH
         return rnp_key_store_ssh_from_mem(rnp->io, key_store, memory);
+        #else
+        return 0;
+        #endif
     }
 
     return 0;
@@ -282,7 +206,11 @@ rnp_key_store_write_to_file(rnp_t *          rnp,
     pgp_memory_t mem = {0};
 
     if (rnp->key_store_format == SSH_KEY_STORE) {
+        #ifdef ENABLE_SSH
         return rnp_key_store_ssh_to_file(rnp->io, key_store, passphrase, filename);
+        #else
+        return 0;
+        #endif
     }
 
     if (!rnp_key_store_write_to_mem(rnp, key_store, passphrase, armour, &mem)) {
@@ -309,7 +237,11 @@ rnp_key_store_write_to_mem(rnp_t *          rnp,
         return rnp_key_store_kbx_to_mem(rnp->io, key_store, passphrase, memory);
 
     case SSH_KEY_STORE:
+        #ifdef ENABLE_SSH
         return rnp_key_store_ssh_to_mem(rnp->io, key_store, passphrase, memory);
+        #else
+        return 0;
+        #endif
     }
 
     return 0;

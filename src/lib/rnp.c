@@ -146,109 +146,12 @@ resultp(pgp_io_t *io, const char *f, pgp_validation_t *res, rnp_key_store_t *rin
     }
 }
 
-/* check there's enough space in the arrays */
-static int
-size_arrays(rnp_t *rnp, unsigned needed)
-{
-    char **temp;
-
-    if (rnp->size == 0) {
-        /* only get here first time around */
-        rnp->size = needed;
-        if ((rnp->name = calloc(sizeof(char *), needed)) == NULL) {
-            (void) fprintf(stderr, "size_arrays: bad alloc\n");
-            return 0;
-        }
-        if ((rnp->value = calloc(sizeof(char *), needed)) == NULL) {
-            free(rnp->name);
-            (void) fprintf(stderr, "size_arrays: bad alloc\n");
-            return 0;
-        }
-    } else if (rnp->c == rnp->size) {
-        /* only uses 'needed' when filled array */
-        rnp->size += needed;
-        temp = realloc(rnp->name, sizeof(char *) * needed);
-        if (temp == NULL) {
-            (void) fprintf(stderr, "size_arrays: bad alloc\n");
-            return 0;
-        }
-        rnp->name = temp;
-        temp = realloc(rnp->value, sizeof(char *) * needed);
-        if (temp == NULL) {
-            (void) fprintf(stderr, "size_arrays: bad alloc\n");
-            return 0;
-        }
-        rnp->value = temp;
-    }
-    return 1;
-}
-
 /* TODO: Make these const; currently their consumers don't preserve const. */
 
 static int
 use_ssh_keys(rnp_t *rnp)
 {
     return rnp->key_store_format == SSH_KEY_STORE;
-}
-
-/* Get the home directory when resolving gnupg key directory. */
-static char *
-get_homedir_gnupg(rnp_t *rnp)
-{
-    char *homedir;
-
-    homedir = rnp_getvar(rnp, "homedir_gpg");
-    if (homedir == NULL)
-        homedir = rnp_getvar(rnp, "homedir");
-    return homedir;
-}
-
-/* Get the home directory when resolving ssh key directory. */
-static char *
-get_homedir_ssh(rnp_t *rnp)
-{
-    char *homedir;
-
-    homedir = rnp_getvar(rnp, "homedir_ssh");
-    if (homedir == NULL)
-        homedir = rnp_getvar(rnp, "homedir");
-    return homedir;
-}
-
-static int
-keydir_common(rnp_t *rnp, char *buffer, char *homedir, char *subdir, size_t buffer_size)
-{
-    /* TODO: Check that the path is valid and communicate that error. */
-
-    if (snprintf(buffer, buffer_size, "%s/%s", homedir, subdir) > buffer_size) {
-        errno = ENOBUFS;
-        return -1;
-    } else
-        return 0;
-}
-
-/* Get the key directory for gnupg keys. */
-static int
-keydir_gnupg(rnp_t *rnp, char *buffer, size_t buffer_size)
-{
-    return keydir_common(
-      rnp, buffer, get_homedir_gnupg(rnp), rnp_getvar(rnp, "subdir_gpg"), buffer_size);
-}
-
-/* Get the key directory for ssh keys. */
-static int
-keydir_ssh(rnp_t *rnp, char *buffer, size_t buffer_size)
-{
-    return keydir_common(
-      rnp, buffer, get_homedir_ssh(rnp), rnp_getvar(rnp, "subdir_ssh"), buffer_size);
-}
-
-/* Get the key directory of the current type of key. */
-static int
-keydir(rnp_t *rnp, char *buffer, size_t buffer_size)
-{
-    return use_ssh_keys(rnp) ? keydir_ssh(rnp, buffer, buffer_size) :
-                               keydir_gnupg(rnp, buffer, buffer_size);
 }
 
 /* resolve the userid */
@@ -553,9 +456,6 @@ formatbignum(char *buffer, BIGNUM *bn)
     return cc;
 }
 
-#define MAX_PASSPHRASE_ATTEMPTS 3
-#define INFINITE_ATTEMPTS -1
-
 /* get the passphrase from the user */
 static int
 find_passphrase(FILE *passfp, const char *id, char *passphrase, size_t size, int attempts)
@@ -628,6 +528,8 @@ disable_core_dumps(void)
     }
 }
 
+#endif
+
 /* Gets a passphrase from a file descriptor and set it in the RNP
  * context. Returns 1 on success and 0 on failure.
  *
@@ -656,10 +558,9 @@ set_pass_fd(rnp_t *rnp, int passfd)
  * upon failure.
  */
 static int
-init_io(rnp_t *rnp, pgp_io_t *io, char *outs, char *errs, char *ress)
+init_io(rnp_t *rnp, pgp_io_t *io, const char *outs, const char *errs, const char *ress)
 {
     char *stream;
-    char *results;
 
     /* TODO: I think refactoring can go even further here. */
 
@@ -700,9 +601,9 @@ init_io(rnp_t *rnp, pgp_io_t *io, char *outs, char *errs, char *ress)
  * TODO: Set errno with a suitable error code.
  */
 static int
-init_new_io(rnp_t *rnp, char *outs, char *errs, char *ress)
+init_new_io(rnp_t *rnp, const char *outs, const char *errs, const char *ress)
 {
-    pgp_io_t *io = (pgp_io_t *) calloc(sizeof(*io));
+    pgp_io_t *io = (pgp_io_t *) calloc(1, sizeof(*io));
 
     if (io != NULL) {
         if (init_io(rnp, io, outs, errs, ress))
@@ -711,16 +612,6 @@ init_new_io(rnp_t *rnp, char *outs, char *errs, char *ress)
     }
 
     return 0;
-}
-
-/* Encapsulates setting `initialized` to the current time. */
-static void
-init_touch_initialized(rnp_t *rnp)
-{
-    time_t t;
-
-    t = time(NULL);
-    rnp_setvar(rnp, "initialised", ctime(&t));
 }
 
 /*************************************************************************/
@@ -739,17 +630,17 @@ rnp_init(rnp_t *rnp, rnp_params_t *params)
     */
     if (!params->enable_coredumps) {    
 #ifdef HAVE_SYS_RESOURCE_H            
-        coredumps = disable_core_dumps(rnp);
+        coredumps = disable_core_dumps();
 #endif
     } else {
         coredumps = 0;
     }
 
     if (coredumps == -1) {
-        fputs("rnp: warning - cannot turn off core dumps\n", io->errs);
+        fputs("rnp: warning - cannot turn off core dumps\n", stderr);
     }
     if (coredumps != 1) {
-        fputs("rnp: warning: core dumps enabled, sensitive data may be leaked to disk\n", io->errs);
+        fputs("rnp: warning: core dumps enabled, sensitive data may be leaked to disk\n", stderr);
     }
 
     /* Initialize the context's io streams apparatus. */
@@ -764,6 +655,7 @@ rnp_init(rnp_t *rnp, rnp_params_t *params)
             return 0;
     }
 
+    rnp->pswdtries = MAX_PASSPHRASE_ATTEMPTS;
     /* set keystore type and pathes */
     rnp->key_store_format = params->ks_format;
     rnp->pubpath = strdup(params->pubpath);
@@ -788,8 +680,6 @@ rnp_init(rnp_t *rnp, rnp_params_t *params)
 int
 rnp_end(rnp_t *rnp)
 {
-    unsigned i;
-
     if (rnp->pubring != NULL) {
         rnp_key_store_free(rnp->pubring);
         free(rnp->pubring);
@@ -811,14 +701,16 @@ rnp_end(rnp_t *rnp)
 int  rnp_params_init(rnp_params_t *params)
 {
     memset(params, '\0', sizeof(*params));
+    params->passfd = -1;
+
     return 0;
 }
 
-void rnp_params_free(rnp_params_t *)
+void rnp_params_free(rnp_params_t *params)
 {
-    free(pubpath);
-    free(secpath);
-    free(defkey);
+    free(params->pubpath);
+    free(params->secpath);
+    free(params->defkey);
 }
 
 /* rnp_ctx_t : init, reset, free internal pointers */
@@ -873,20 +765,6 @@ rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
     ret = j != NULL;
     *json = strdup(j);
     return ret;
-}
-
-int
-rnp_load_keys(rnp_t *rnp)
-{
-    char path[MAXPATHLEN];
-
-    errno = 0;
-
-    if (keydir(rnp, path, sizeof(path)) == -1) {
-        return 0;
-    }
-
-    return rnp_key_store_load_keys(rnp, path);
 }
 
 DEFINE_ARRAY(strings_t, char *);
@@ -1036,7 +914,7 @@ rnp_get_key(rnp_t *rnp, const char *name, const char *fmt)
                                        key,
                                        &newkey,
                                        &key->key.pubkey,
-                                       rnp_getvar(rnp, "subkey sigs") != NULL) > 0) ?
+                                       0) > 0) ?
                  newkey :
                  NULL;
     }
@@ -1046,7 +924,7 @@ rnp_get_key(rnp_t *rnp, const char *name, const char *fmt)
                                &newkey,
                                "signature",
                                &key->key.pubkey,
-                               rnp_getvar(rnp, "subkey sigs") != NULL) > 0) ?
+                               0) > 0) ?
              newkey :
              NULL;
 }
@@ -1057,8 +935,6 @@ rnp_export_key(rnp_t *rnp, char *name)
 {
     char             keyid[2 * PGP_KEY_ID_SIZE + 1] = {0};
     char             passphrase[MAX_PASSPHRASE_LENGTH] = {0};
-    char *           numtries;
-    int              attempts;
     const pgp_key_t *key;
     pgp_io_t *       io;
 
@@ -1068,17 +944,9 @@ rnp_export_key(rnp_t *rnp, char *name)
     }
 
     if (key->type == PGP_PTAG_CT_ENCRYPTED_SECRET_KEY) {
-        /* get the passphrase */
-        if ((numtries = rnp_getvar(rnp, "numtries")) == NULL ||
-            (attempts = atoi(numtries)) <= 0) {
-            attempts = MAX_PASSPHRASE_ATTEMPTS;
-        } else if (strcmp(numtries, "unlimited") == 0) {
-            attempts = INFINITE_ATTEMPTS;
-        }
-
         rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
         memset(passphrase, 0, sizeof(passphrase));
-        find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
+        find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), rnp->pswdtries);
     }
 
     return pgp_export_key(io, key, (uint8_t *) passphrase);
@@ -1133,14 +1001,8 @@ rnp_generate_key(rnp_t *rnp, const char *id)
     uint8_t *  uid;
     char       passphrase[MAX_PASSPHRASE_LENGTH] = {0};
     char       newid[1024] = {0};
-    char       filename[MAXPATHLEN] = {0};
-    char       dir[MAXPATHLEN] = {0};
-    char       ext[MAXPATHLEN] = {0};
     char       keyid[2 * PGP_KEY_ID_SIZE + 1] = {0};
     char *     cp = NULL;
-    char *     ringfile;
-    char *     numtries;
-    int        attempts;
 
     io = rnp->io;
 
@@ -1173,47 +1035,18 @@ rnp_generate_key(rnp_t *rnp, const char *id)
     (void) fprintf(stdout, "%s", cp);
     free(cp);
 
-    /* write public key */
-
-    keydir(rnp, dir, sizeof(dir));
-    rnp_key_store_extension(rnp, ext, sizeof(ext));
-
-    /* TODO: This call competes with the mkdir() at
-     *       rnpkeys/rnpkeys.c:main:458, but that call doesn't
-     *       check for error conditions. For now this call is allowed
-     *       to succeed if the directory already exists, but an
-     *       error should be raised the existing directory's
-     *       permissions aren't 0700.
-     */
-    if (mkdir(dir, 0700) == -1 && errno != EEXIST) {
-        fprintf(io->errs, "cannot mkdir '%s' errno = %d \n", dir, errno);
-        pgp_keydata_free(key);
-        return 0;
-    }
-
-    (void) fprintf(io->errs, "rnp: generated keys in directory %s\n", dir);
-
     /* get the passphrase */
-    if ((numtries = rnp_getvar(rnp, "numtries")) == NULL || (attempts = atoi(numtries)) <= 0) {
-        attempts = MAX_PASSPHRASE_ATTEMPTS;
-    } else if (strcmp(numtries, "unlimited") == 0) {
-        attempts = INFINITE_ATTEMPTS;
-    }
     rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
-
     memset(passphrase, 0, sizeof(passphrase));
-    find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
+    find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), rnp->pswdtries);
 
     /* write keypair */
-    snprintf(ringfile = filename, sizeof(filename), "%s/secring.%s", dir, ext);
-
-    if (!rnp_key_store_write_to_file(rnp, rnp->secring, (uint8_t *) passphrase, 0, ringfile)) {
+    if (!rnp_key_store_write_to_file(rnp, rnp->secring, (uint8_t *) passphrase, 0, rnp->pubpath)) {
         pgp_keydata_free(key);
         return 0;
     }
 
-    snprintf(ringfile = filename, sizeof(filename), "%s/pubring.%s", dir, ext);
-    if (!rnp_key_store_write_to_file(rnp, rnp->pubring, (uint8_t *) passphrase, 0, ringfile)) {
+    if (!rnp_key_store_write_to_file(rnp, rnp->pubring, (uint8_t *) passphrase, 0, rnp->secpath)) {
         pgp_keydata_free(key);
         return 0;
     }
@@ -1224,7 +1057,7 @@ rnp_generate_key(rnp_t *rnp, const char *id)
 
 /* encrypt a file */
 int
-rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, char *out)
+rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *out)
 {
     const pgp_key_t *key;
     const char *     suffix;
@@ -1252,16 +1085,12 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, char *out)
 
 /* decrypt a file */
 int
-rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, char *out, int armored)
+rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
 {
-    const unsigned overwrite = 1;
     pgp_io_t *     io;
     unsigned       realarmor;
     unsigned       sshkeys;
-    char *         numtries;
-    int            attempts;
 
-    __PGP_USED(armored);
     io = ctx->rnp->io;
     if (f == NULL) {
         (void) fprintf(io->errs, "rnp_decrypt_file: no filename specified\n");
@@ -1269,35 +1098,28 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, char *out, int armored)
     }
     realarmor = isarmoured(io, f, NULL, ARMOR_HEAD);
     sshkeys = (unsigned) use_ssh_keys(ctx->rnp);
-    if ((numtries = rnp_getvar(ctx->rnp, "numtries")) == NULL || (attempts = atoi(numtries)) <= 0) {
-        attempts = MAX_PASSPHRASE_ATTEMPTS;
-    } else if (strcmp(numtries, "unlimited") == 0) {
-        attempts = INFINITE_ATTEMPTS;
-    }
     return pgp_decrypt_file(ctx->rnp->io,
                             f,
                             out,
                             ctx->rnp->secring,
                             ctx->rnp->pubring,
                             realarmor,
-                            overwrite,
+                            ctx->overwrite,
                             sshkeys,
                             ctx->rnp->passfp,
-                            attempts,
+                            ctx->rnp->pswdtries,
                             get_passphrase_cb);
 }
 
 /* sign a file */
 int
 rnp_sign_file(
-  rnp_ctx_t *ctx, const char *userid, const char *f, char *out, int cleartext, int detached)
+  rnp_ctx_t *ctx, const char *userid, const char *f, const char *out, int cleartext, int detached)
 {
     const pgp_key_t *keypair;
     const pgp_key_t *pubkey;
     pgp_seckey_t *   seckey;
-    const char *     hashalg;
     pgp_io_t *       io;
-    char *           numtries;
     int              attempts;
     int              ret;
     int              i;
@@ -1312,7 +1134,7 @@ rnp_sign_file(
         return 0;
     }
     ret = 1;
-    attempts = ctx->pswdtries;
+    attempts = ctx->rnp->pswdtries;
 
     for (i = 0, seckey = NULL; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS);
          i++) {
@@ -1335,7 +1157,7 @@ rnp_sign_file(
                 (void) fprintf(io->errs, "Bad passphrase\n");
             }
         } else {
-            seckey = &((rnp_key_store_t *) rnp->secring)->keys[0].key.seckey;
+            seckey = &((rnp_key_store_t *) ctx->rnp->secring)->keys[0].key.seckey;
         }
     }
     if (seckey == NULL) {
@@ -1418,7 +1240,7 @@ rnp_sign_memory(rnp_ctx_t *    ctx,
         return 0;
     }
     ret = 1;
-    attempts = ctx->pswdtries;
+    attempts = ctx->rnp->pswdtries;
 
     for (i = 0, seckey = NULL; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS);
          i++) {
@@ -1428,10 +1250,10 @@ rnp_sign_memory(rnp_ctx_t *    ctx,
             if (pubkey == NULL) {
                 (void) fprintf(io->errs, "rnp: warning - using pubkey from secring\n");
                 pgp_print_keydata(
-                  io, rnp->pubring, keypair, "signature ", &keypair->key.seckey.pubkey, 0);
+                  io, ctx->rnp->pubring, keypair, "signature ", &keypair->key.seckey.pubkey, 0);
             } else {
                 pgp_print_keydata(
-                  io, rnp->pubring, pubkey, "signature ", &pubkey->key.pubkey, 0);
+                  io, ctx->rnp->pubring, pubkey, "signature ", &pubkey->key.pubkey, 0);
             }
         }
         if (!use_ssh_keys(ctx->rnp)) {
@@ -1441,7 +1263,7 @@ rnp_sign_memory(rnp_ctx_t *    ctx,
                 (void) fprintf(io->errs, "Bad passphrase\n");
             }
         } else {
-            seckey = &((rnp_key_store_t *) rnp->secring)->keys[0].key.seckey;
+            seckey = &((rnp_key_store_t *) ctx->rnp->secring)->keys[0].key.seckey;
         }
     }
     if (seckey == NULL) {
@@ -1490,10 +1312,10 @@ rnp_verify_memory(
     if (out) {
         cat = pgp_memory_new();
     }
-    ret = pgp_validate_mem(io, &result, signedmem, (out) ? &cat : NULL, armored, rnp->pubring);
+    ret = pgp_validate_mem(io, &result, signedmem, (out) ? &cat : NULL, armored, ctx->rnp->pubring);
     /* signedmem is freed from pgp_validate_mem */
     if (ret) {
-        resultp(io, "<stdin>", &result, rnp->pubring);
+        resultp(io, "<stdin>", &result, ctx->rnp->pubring);
         if (out) {
             m = MIN(pgp_mem_len(cat), outsize);
             (void) memcpy(out, pgp_mem_data(cat), m);
@@ -1527,7 +1349,7 @@ rnp_encrypt_memory(
     pgp_io_t *       io;
     size_t           m;
 
-    io = rnp->io;
+    io = ctx->rnp->io;
     if (in == NULL) {
         (void) fprintf(io->errs, "rnp_encrypt_buf: no memory to encrypt\n");
         return 0;
@@ -1566,7 +1388,6 @@ rnp_decrypt_memory(rnp_ctx_t *  ctx,
     unsigned      realarmour;
     unsigned      sshkeys;
     size_t        m;
-    char *        numtries;
     int           attempts;
 
     __PGP_USED(armored);
@@ -1576,20 +1397,16 @@ rnp_decrypt_memory(rnp_ctx_t *  ctx,
         return 0;
     }
     realarmour = isarmoured(io, NULL, input, ARMOR_HEAD);
-    sshkeys = (unsigned) use_ssh_keys(rnp);
-    if ((numtries = rnp_getvar(rnp, "numtries")) == NULL || (attempts = atoi(numtries)) <= 0) {
-        attempts = MAX_PASSPHRASE_ATTEMPTS;
-    } else if (strcmp(numtries, "unlimited") == 0) {
-        attempts = INFINITE_ATTEMPTS;
-    }
-    mem = pgp_decrypt_buf(rnp->io,
+    sshkeys = (unsigned) use_ssh_keys(ctx->rnp);
+    attempts = ctx->rnp->pswdtries;
+    mem = pgp_decrypt_buf(ctx->rnp->io,
                           input,
                           insize,
-                          rnp->secring,
-                          rnp->pubring,
+                          ctx->rnp->secring,
+                          ctx->rnp->pubring,
                           realarmour,
                           sshkeys,
-                          rnp->passfp,
+                          ctx->rnp->passfp,
                           attempts,
                           get_passphrase_cb);
     if (mem == NULL) {
@@ -1603,14 +1420,12 @@ rnp_decrypt_memory(rnp_ctx_t *  ctx,
 
 /* list all the packets in a file */
 int
-rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
+rnp_list_packets(rnp_t *rnp, char *f, int armor)
 {
     rnp_key_store_t *keyring;
     const unsigned   noarmor = 0;
     struct stat      st;
     pgp_io_t *       io;
-    char             ringname[MAXPATHLEN];
-    char             homedir[MAXPATHLEN];
     int              ret;
 
     io = rnp->io;
@@ -1622,22 +1437,16 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
         (void) fprintf(io->errs, "No such file '%s'\n", f);
         return 0;
     }
-    keydir(rnp, homedir, sizeof(homedir));
-    if (pubringname == NULL) {
-        (void) snprintf(ringname, sizeof(ringname), "%s/pubring.gpg", homedir);
-        pubringname = ringname;
-    }
     if ((keyring = calloc(1, sizeof(*keyring))) == NULL) {
         (void) fprintf(io->errs, "rnp_list_packets: bad alloc\n");
         return 0;
     }
-    if (!rnp_key_store_load_from_file(rnp, keyring, noarmor, pubringname)) {
+    if (!rnp_key_store_load_from_file(rnp, keyring, noarmor, rnp->pubpath)) {
         free(keyring);
-        (void) fprintf(io->errs, "cannot read pub keyring %s\n", pubringname);
+        (void) fprintf(io->errs, "cannot read pub keyring %s\n", rnp->pubpath);
         return 0;
     }
     rnp->pubring = keyring;
-    rnp_setvar(rnp, "pubring", pubringname);
     ret = pgp_list_packets(
       io, f, (unsigned) armor, rnp->secring, rnp->pubring, rnp->passfp, get_passphrase_cb);
     free(keyring);

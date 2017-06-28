@@ -975,7 +975,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
 
     /* find the hash algorithm */
     if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
-        (void) fprintf(io->errs, "pgp_sign_file: unknown hash algorithm: \"%s\"\n", hashname);
+        (void) fprintf(io->errs, "pgp_sign_file: cannot pick hash algorithm: %d\n", (int)ctx->halg);
         return 0;
     }
 
@@ -1112,7 +1112,7 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
     ret = 0;
     
     if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
-        (void) fprintf(io->errs, "pgp_sign_buf: unknown hash algorithm: \"%s\"\n", hashname);
+        (void) fprintf(io->errs, "pgp_sign_buf: cannot pick hash algorithm: %d\n", ctx->halg);
         return NULL;
     }
 
@@ -1200,7 +1200,7 @@ int
 pgp_sign_detached(rnp_ctx_t *    ctx,
                   pgp_io_t *     io,
                   const char *   f,
-                  char *         sigfile,
+                  const char *   sigfile,
                   pgp_seckey_t * seckey)
 {
     pgp_create_sig_t *sig;
@@ -1212,7 +1212,7 @@ pgp_sign_detached(rnp_ctx_t *    ctx,
 
     /* find out which hash algorithm to use */
     if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
-        (void) fprintf(io->errs, "Unknown hash algorithm: %s\n", hash);
+        (void) fprintf(io->errs, "cannot pick hash algorithm: %d\n", ctx->halg);
         return 0;
     }
 

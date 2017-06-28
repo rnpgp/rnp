@@ -26,6 +26,8 @@
 #ifndef __RNP__CFG_H__
 #define __RNP__CFG_H__
 
+#include <rnp.h>
+
 /* cfg variables known by rnp */
 #define CFG_OVERWRITE    "overwrite"   /* overwrite output file if it is already exist or fail */
 #define CFG_ARMOUR       "armour"      /* armour output data or not */
@@ -78,7 +80,8 @@ int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
 void rnp_cfg_free(rnp_cfg_t *cfg);
 
 int rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);
+int rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
 int rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
-int rnp_path_compose(char *dir, char *subdir, char *filename, char *res, size_t maxsize);
+int rnp_path_compose(const char *dir, const char *subdir, const char *filename, char *res);
 
 #endif
