@@ -54,6 +54,8 @@ typedef struct rnp_t {
     void *    secring; /* s3kr1t key ring */
     void *    io;      /* the io struct for results/errs */
     void *    passfp;  /* file pointer for password input */
+    char *    pubpath; /* path to the public keyring */
+    char *    secpath; /* path to the secret keyring */
 
     enum key_store_format_t key_store_format; /* keyring format */
     union {
@@ -62,7 +64,7 @@ typedef struct rnp_t {
 } rnp_t;
 
 /* rnp initialization parameters : keyring pathes, flags, whatever else */
-typedef struct rnp_init_t {
+typedef struct rnp_params_t {
     unsigned enable_coredumps;             /* enable coredumps: if it is allowed then they are disabled by default to not leak confidential information */
 
     int      passfd;                       /* password file descriptor */
@@ -74,7 +76,7 @@ typedef struct rnp_init_t {
     char *   pubpath;                      /* public keystore path */
     char *   secpath;                      /* secret keystore path */
     char *   defkey;                       /* default/preferred key id */
-} rnp_init_t;
+} rnp_params_t;
 
 /* rnp operation context : contains additional data about the currently ongoing operation */
 typedef struct rnp_ctx_t {
@@ -93,9 +95,13 @@ typedef struct rnp_ctx_t {
 } rnp_ctx_t;
 
 /* initialize rnp using the init structure  */
-int  rnp_init(rnp_t *, rnp_init_t *);
+int  rnp_init(rnp_t *, rnp_params_t *);
 /* finish work with rnp and cleanup the memory */
 int  rnp_end(rnp_t *);
+
+/* rnp initialization parameters : init and free */
+int  rnp_params_init(rnp_params_t *);
+void rnp_params_free(rnp_params_t *);
 
 /* init, reset and free rnp operation context */
 int  rnp_ctx_init(rnp_ctx_t *, rnp_t *);
@@ -110,9 +116,6 @@ int         rnp_list_packets(rnp_t *, char *, int, char *);
 
 /* set key store format information */
 int rnp_set_key_store_format(rnp_t *, const char *);
-
-/* set home directory information */
-int rnp_set_homedir(rnp_t *, char *, const int);
 
 /* key management */
 int   rnp_list_keys(rnp_t *, const int);

@@ -548,14 +548,14 @@ parse_option(rnp_cfg_t *cfg, int *cmd, const char *s)
 int
 main(int argc, char **argv)
 {
-    rnp_init_t rnp_params;
-    rnp_t      rnp;
-    rnp_cfg_t  cfg;    
-    int        optindex;
-    int        ret;
-    int        cmd = 0;
-    int        ch;
-    int        i;
+    rnp_params_t rnp_params;
+    rnp_t        rnp;
+    rnp_cfg_t    cfg;    
+    int          optindex;
+    int          ret;
+    int          cmd = 0;
+    int          ch;
+    int          i;
 
     if (argc < 2) {
         print_usage(usage);
@@ -620,6 +620,7 @@ main(int argc, char **argv)
         }
     }
 
+    rnp_params_init(&rnp_params);
     if (!rnp_cfg_apply(&cfg, &rnp_params)) {
         fputs("fatal: cannot apply configuration\n", stderr);
         return EXIT_ERROR;
@@ -629,6 +630,8 @@ main(int argc, char **argv)
         fputs("fatal: cannot initialise\n", stderr);
         return EXIT_ERROR;        
     }
+
+    rnp_params_free(&rnp_params);
 
     if (!rnp_load_keys(&rnp)) {
         switch (errno) {

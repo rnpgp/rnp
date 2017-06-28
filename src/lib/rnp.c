@@ -713,24 +713,6 @@ init_new_io(rnp_t *rnp, char *outs, char *errs, char *ress)
     return 0;
 }
 
-static int
-parse_key_store_format(rnp_t *                  rnp,
-                       enum key_store_format_t *key_store_format,
-                       const char *             format)
-{
-    if (rnp_strcasecmp(format, "GPG") == 0) {
-        *key_store_format = GPG_KEY_STORE;
-    } else if (rnp_strcasecmp(format, "KBX") == 0) {
-        *key_store_format = KBX_KEY_STORE;
-    } else if (rnp_strcasecmp(format, "SSH") == 0) {
-        *key_store_format = SSH_KEY_STORE;
-    } else {
-        fprintf(stderr, "rnp: unsupported keyring format: \"%s\"\n", format);
-        return 0;
-    }
-    return 1;
-}
-
 /* Encapsulates setting `initialized` to the current time. */
 static void
 init_touch_initialized(rnp_t *rnp)
@@ -741,55 +723,13 @@ init_touch_initialized(rnp_t *rnp)
     rnp_setvar(rnp, "initialised", ctime(&t));
 }
 
-static int
-init_default_format(rnp_t *rnp)
-{
-    char        ringname[MAXPATHLEN];
-    char        homedir[MAXPATHLEN];
-    char *      format = rnp_getvar(rnp, "key_store_format");
-    struct stat st;
-
-    // default format is GPG
-    if (format == NULL) {
-        format = "GPG";
-
-        keydir(rnp, homedir, sizeof(homedir));
-        snprintf(ringname, sizeof(ringname), "%s/pubring.kbx", homedir);
-        if (!stat(ringname, &st)) {
-            // found pubring.kbx and switch to KBX format
-            format = "KBX";
-        }
-    }
-
-    // if provided "ssh keys" variable, switch to SSH format
-    if (rnp_getvar(rnp, "ssh keys")) {
-        format = "SSH";
-    }
-
-    return rnp_set_key_store_format(rnp, format);
-}
-
-static int
-init_default_homedir(rnp_t *rnp)
-{
-    char *home = getenv("HOME");
-    if (rnp_getvar(rnp, "homedir"))
-        home = rnp_getvar(rnp, "homedir");
-
-    if (home == NULL) {
-        fputs("rnp: HOME environment variable is not set\n", stderr);
-        return 0;
-    }
-    return rnp_set_homedir(rnp, home, 1);
-}
-
 /*************************************************************************/
 /* exported functions start here                                         */
 /*************************************************************************/
 
 /* Initialize a rnp_t structure */
 int
-rnp_init(rnp_t *rnp, rnp_init_t *params)
+rnp_init(rnp_t *rnp, rnp_params_t *params)
 {    
     int       coredumps = -1; /* -1 : cannot disable, 1 : disabled, 0 : enabled */
     pgp_io_t *io;
@@ -813,29 +753,21 @@ rnp_init(rnp_t *rnp, rnp_init_t *params)
     }
 
     /* Initialize the context's io streams apparatus. */
-    if (!init_new_io(rnp, params->outs, params->errs, params->ress))
+    if (!init_new_io(rnp, params->outs, params->errs, params->ress)) {
         return 0;
+    }
     io = rnp->io;
 
-    /* If a password-carrying file descriptor is in use then
-     * load it.
-     */
-    if (params->passfd >= 0)
-    {
+    /* If a password-carrying file descriptor is in use then load it. */
+    if (params->passfd >= 0) {
         if (!set_pass_fd(rnp, params->passfd))
             return 0;
     }
 
-    /* Initialize the context with the default home directory. */
-    if (!init_default_homedir(rnp)) {
-        fputs("rnp: bad homedir\n", io->errs);
-        return 0;
-    }
-
-    /* Initialize the context with the default keyring format. */
-    if (!init_default_format(rnp)) {
-        return 0;
-    }
+    /* set keystore type and pathes */
+    rnp->key_store_format = params->ks_format;
+    rnp->pubpath = strdup(params->pubpath);
+    rnp->secpath = strdup(params->secpath);    
 
     rnp->pubring = calloc(1, sizeof(rnp_key_store_t));
     if (rnp->pubring == NULL) {
@@ -848,8 +780,6 @@ rnp_init(rnp_t *rnp, rnp_init_t *params)
         fputs("rnp: can't create empty secring keystore\n", io->errs);
         return 0;
     }
-
-    init_touch_initialized(rnp);
 
     return 1;
 }
@@ -871,9 +801,24 @@ rnp_end(rnp_t *rnp)
         rnp->secring = NULL;
     }
     free(rnp->io);
-    rnp_ctx_free(&rnp->ctx);
+    free(rnp->pubpath);
+    free(rnp->secpath);
 
     return 1;
+}
+
+/* rnp_params_t : initialize and free internals */
+int  rnp_params_init(rnp_params_t *params)
+{
+    memset(params, '\0', sizeof(*params));
+    return 0;
+}
+
+void rnp_params_free(rnp_params_t *)
+{
+    free(pubpath);
+    free(secpath);
+    free(defkey);
 }
 
 /* rnp_ctx_t : init, reset, free internal pointers */
@@ -1698,136 +1643,6 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
     free(keyring);
     rnp->pubring = NULL;
     return ret;
-}
-
-/* set a variable */
-int
-rnp_setvar(rnp_t *rnp, const char *name, const char *value)
-{
-    char *newval;
-    int   i;
-
-    /* protect against the case where 'value' is rnp->value[i] */
-    newval = rnp_strdup(value);
-    if ((i = findvar(rnp, name)) < 0) {
-        /* add the element to the array */
-        if (size_arrays(rnp, rnp->size + 15)) {
-            rnp->name[i = rnp->c++] = rnp_strdup(name);
-        }
-    } else {
-        /* replace the element in the array */
-        if (rnp->value[i]) {
-            free(rnp->value[i]);
-            rnp->value[i] = NULL;
-        }
-    }
-    /* sanity checks for range of values */
-    if (strcmp(name, "hash") == 0 || strcmp(name, "algorithm") == 0) {
-        if (pgp_str_to_hash_alg(newval) == PGP_HASH_UNKNOWN) {
-            fprintf(stderr, "Ignoring unknown hash algo '%s'\n", newval);
-            free(newval);
-            return 0;
-        }
-    }
-    rnp->value[i] = newval;
-    return 1;
-}
-
-/* unset a variable */
-int
-rnp_unsetvar(rnp_t *rnp, const char *name)
-{
-    int i;
-
-    if ((i = findvar(rnp, name)) >= 0) {
-        if (rnp->value[i]) {
-            free(rnp->value[i]);
-            rnp->value[i] = NULL;
-        }
-        rnp->value[i] = NULL;
-        return 1;
-    }
-    return 0;
-}
-
-/* get a variable's value (NULL if not set) */
-char *
-rnp_getvar(rnp_t *rnp, const char *name)
-{
-    int i;
-
-    return ((i = findvar(rnp, name)) < 0) ? NULL : rnp->value[i];
-}
-
-/* increment a value */
-int
-rnp_incvar(rnp_t *rnp, const char *name, const int delta)
-{
-    char *cp;
-    char  num[16];
-    int   val;
-
-    val = 0;
-    if ((cp = rnp_getvar(rnp, name)) != NULL) {
-        val = atoi(cp);
-    }
-    (void) snprintf(num, sizeof(num), "%d", val + delta);
-    rnp_setvar(rnp, name, num);
-    return 1;
-}
-
-/* set keyring format information */
-int
-rnp_set_key_store_format(rnp_t *rnp, const char *format)
-{
-    if (!parse_key_store_format(rnp, &rnp->key_store_format, format)) {
-        return 0;
-    }
-    rnp_setvar(rnp, "key_store_format", format);
-    return 1;
-}
-
-/* set the home directory value to "home/subdir" */
-int
-rnp_set_homedir(rnp_t *rnp, char *home, const int quiet)
-{
-    struct stat st;
-    int         ret;
-
-    /* TODO: Replace `stderr` with the rnp context's error file when we
-     *       are sure that all utilities and bindings don't call
-     *       rnp_set_homedir ahead of rnp_init.
-     */
-
-    /* Check that a NULL parameter wasn't passed. */
-    if (home == NULL) {
-        if (!quiet)
-            fprintf(stderr, "rnp: null homedir\n");
-        return 0;
-
-        /* If the path is not a directory then fail. */
-    } else if ((ret = stat(home, &st)) == 0 && !S_ISDIR(st.st_mode)) {
-        if (!quiet)
-            fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", home);
-        return 0;
-
-        /* If the path doesn't exist then fail. */
-    } else if (ret != 0 && errno == ENOENT) {
-        if (!quiet)
-            fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", home);
-        return 0;
-
-        /* If any other occurred then fail. */
-    } else if (ret != 0) {
-        if (!quiet)
-            fprintf(stderr, "rnp: an unspecified error occurred\n");
-        return 0;
-    }
-
-    /* Otherwise set the home directory. */
-    rnp_setvar(rnp, "homedir", home);
-
-    return 1;
 }
 
 /* validate all sigs in the pub keyring */

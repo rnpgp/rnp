@@ -53,7 +53,7 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
 }
 
 int
-rnp_cfg_apply(rnp_cfg_t *cfg, rnp_init_t *params)
+rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
 {
     int   passfd;
     char *stream;
@@ -88,9 +88,12 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_init_t *params)
     /* detecting keystore pathes and format */
 
     if (!rnp_cfg_get_ks_info(cfg, params))
-        return 0;
+        return 0;    
 
     /* default key/userid */
+
+    if (!rnp_cfg_get_defkey(cfg, params))
+        return 0;
 
     return 1;
 }
@@ -192,9 +195,7 @@ rnp_cfg_unset(rnp_cfg_t *cfg, const char *key)
     int i;
 
     if ((i = rnp_cfg_find(cfg, key)) >= 0) {
-        if (cfg->vals[i]) {
-            free(cfg->vals[i]);
-        }
+        free(cfg->vals[i]);
         cfg->vals[i] = NULL;
         return 1;
     }
@@ -234,18 +235,12 @@ rnp_cfg_free(rnp_cfg_t *cfg)
     int i;
 
     for (i = 0; i < cfg->count; i++) {
-        if (cfg->vals[i])
-            free(cfg->vals[i]);
+        free(cfg->vals[i]);
         free(cfg->keys[i]);
     }
 
-    if (cfg->keys) {
-        free(cfg->keys);
-    }
-
-    if (cfg->vals) {
-        free(cfg->vals);
-    }
+    free(cfg->keys);
+    free(cfg->vals);
 }
 
 int 
@@ -366,7 +361,7 @@ rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg, int defhomedir, enum key_store_format_t ks
 }
 
 int 
-rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_init_t *params)
+rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
 {
     int    defhomedir = 0;
     char * homedir;
@@ -422,4 +417,10 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_init_t *params)
     }
 
     return 1;
+}
+
+int
+rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
+{
+
 }
