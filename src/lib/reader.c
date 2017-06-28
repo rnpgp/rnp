@@ -1816,7 +1816,7 @@ pgp_reader_set_memory(pgp_stream_t *stream, const void *buffer, size_t length)
  \note It is the caller's responsiblity to free output and mem.
  \sa pgp_teardown_memory_write()
 */
-void
+int
 pgp_setup_memory_write(rnp_ctx_t *ctx, pgp_output_t **output, pgp_memory_t **mem, size_t bufsz)
 {
     /*
@@ -1824,11 +1824,20 @@ pgp_setup_memory_write(rnp_ctx_t *ctx, pgp_output_t **output, pgp_memory_t **mem
      */
 
     *output = pgp_output_new();
+    if (*output == NULL) {
+        return 0;
+    }
     *mem = pgp_memory_new();
+    if (mem == NULL) {
+        free(*output);
+        return 0;
+    }
 
     (*output)->ctx = ctx;
     pgp_memory_init(*mem, bufsz);
     pgp_writer_set_memory(*output, *mem);
+
+    return 1;
 }
 
 /**
@@ -1860,7 +1869,7 @@ pgp_teardown_memory_write(pgp_output_t *output, pgp_memory_t *mem)
    \note It is the caller's responsiblity to free parse_info
    \sa pgp_teardown_memory_read()
 */
-void
+int
 pgp_setup_memory_read(pgp_io_t *     io,
                       pgp_stream_t **stream,
                       pgp_memory_t * mem,
@@ -1869,12 +1878,17 @@ pgp_setup_memory_read(pgp_io_t *     io,
                       unsigned       accumulate)
 {
     *stream = pgp_new(sizeof(**stream));
+    if (*stream == NULL) {
+        return 0;
+    }
     (*stream)->io = (*stream)->cbinfo.io = io;
     pgp_set_callback(*stream, callback, vp);
     pgp_reader_set_memory(*stream, pgp_mem_data(mem), pgp_mem_len(mem));
     if (accumulate) {
         (*stream)->readinfo.accumulate = 1;
     }
+
+    return 1;
 }
 
 /**

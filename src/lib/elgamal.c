@@ -220,10 +220,18 @@ pgp_elgamal_private_decrypt_pkcs1(uint8_t *                   out,
     ret = 0;
 
 end:
-    ret |= botan_pk_op_decrypt_destroy(op_ctx);
-    ret |= botan_privkey_destroy(key);
-    ret |= botan_rng_destroy(rng);
-    free(bt_plaintext);
+    if (op_ctx != NULL) {
+        ret |= botan_pk_op_decrypt_destroy(op_ctx);
+    }
+    if (key != NULL) {
+        ret |= botan_privkey_destroy(key);
+    }
+    if (rng != NULL) {
+        ret |= botan_rng_destroy(rng);
+    }
+    if (bt_plaintext != NULL) {
+        free(bt_plaintext);
+    }
 
     if (ret) {
         // Some error has occured

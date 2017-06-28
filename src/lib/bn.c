@@ -51,6 +51,10 @@ PGPV_BN_bin2bn(const uint8_t *data, int len, PGPV_BIGNUM *ret)
         ret = PGPV_BN_new();
     }
 
+    if (ret == NULL) {
+        return NULL;
+    }
+
     return (botan_mp_from_bin(ret->mp, data, len) == 0) ? ret : NULL;
 }
 
@@ -71,6 +75,9 @@ PGPV_BN_new(void)
     PGPV_BIGNUM *a;
 
     a = calloc(1, sizeof(*a));
+    if (a == NULL) {
+        return NULL;
+    }
     botan_mp_init(&a->mp);
     return a;
 }
@@ -78,7 +85,7 @@ PGPV_BN_new(void)
 void
 PGPV_BN_free(PGPV_BIGNUM *a)
 {
-    if (a) {
+    if (a != NULL) {
         botan_mp_destroy(a->mp);
         free(a);
     }

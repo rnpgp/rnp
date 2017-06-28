@@ -940,8 +940,10 @@ cmd_get_passphrase_free(pgp_seckey_passphrase_t *skp)
 static void
 free_BN(BIGNUM **pp)
 {
-    BN_free(*pp);
-    *pp = NULL;
+    if (*pp != NULL) {
+        BN_free(*pp);
+        *pp = NULL;
+    }
 }
 
 /**
@@ -2393,7 +2395,9 @@ pgp_seckey_free(pgp_seckey_t *key)
                        key->pubkey.alg,
                        pgp_show_pka(key->pubkey.alg));
     }
-    free(key->checkhash);
+    if (key->checkhash != NULL) {
+        free(key->checkhash);
+    }
     key->checkhash = NULL;
 }
 

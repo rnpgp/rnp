@@ -1126,7 +1126,10 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
     pgp_start_sig(sig, seckey, hash_alg, sig_type);
 
     /* setup writer */
-    pgp_setup_memory_write(ctx, &output, &mem, insize);
+    if (!pgp_setup_memory_write(ctx, &output, &mem, insize)) {
+        (void) fprintf(io->errs, "can't setup memory write\n");
+        return NULL;
+    }
 
     if (cleartext) {
         /* Do the signing */

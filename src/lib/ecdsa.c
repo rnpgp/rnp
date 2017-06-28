@@ -134,11 +134,21 @@ pgp_ecdsa_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve)
     ret = PGP_E_OK;
 
 end:
-    botan_rng_destroy(rng);
-    botan_privkey_destroy(pr_key);
-    botan_pubkey_destroy(pu_key);
-    BN_free(public_x);
-    BN_free(public_y);
+    if (rng != NULL) {
+        botan_rng_destroy(rng);
+    }
+    if (pr_key != NULL) {
+        botan_privkey_destroy(pr_key);
+    }
+    if (pu_key != NULL) {
+        botan_pubkey_destroy(pu_key);
+    }
+    if (public_x != NULL) {
+        BN_free(public_x);
+    }
+    if (public_y != NULL) {
+        BN_free(public_y);
+    }
     if (PGP_E_OK != ret) {
         RNP_LOG("ECDSA key generation failed");
         pgp_seckey_free(seckey);

@@ -1031,9 +1031,12 @@ encrypt_se_ip_writer(const uint8_t *src,
     pgp_memory_t *   localmem;
     unsigned         ret = 1;
 
-    pgp_setup_memory_write(writer->ctx, &litoutput, &litmem, bufsz);
-    pgp_setup_memory_write(writer->ctx, &zoutput, &zmem, bufsz);
-    pgp_setup_memory_write(writer->ctx, &output, &localmem, bufsz);
+    if (!pgp_setup_memory_write(writer->ctx, &litoutput, &litmem, bufsz) ||
+        !pgp_setup_memory_write(writer->ctx, &zoutput, &zmem, bufsz) ||
+        !pgp_setup_memory_write(writer->ctx, &output, &localmem, bufsz)) {
+        (void) fprintf(stderr, "can't setup memory write\n");
+        return 0;
+    }
 
     /* create literal data packet from source data */
     pgp_write_litdata(litoutput, src, (const int) len, PGP_LDT_BINARY);
@@ -1113,7 +1116,10 @@ pgp_write_se_ip_pktset(pgp_output_t * output,
     }
 
     /* now construct MDC packet and add to the end of the buffer */
-    pgp_setup_memory_write(output->ctx, &mdcoutput, &mdc, mdcsize);
+    if (!pgp_setup_memory_write(output->ctx, &mdcoutput, &mdc, mdcsize)) {
+        (void) fprintf(stderr, "can't setup memory write\n");
+        return 0;
+    }
     pgp_calc_mdc_hash(preamble, preamblesize, data, len, hashed);
     pgp_write_mdc(mdcoutput, hashed);
 
@@ -1386,7 +1392,10 @@ pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_sym
     se_ip->litmem = NULL;
     se_ip->litoutput = NULL;
 
-    pgp_setup_memory_write(output->ctx, &se_ip->se_ip_out, &se_ip->se_ip_mem, bufsz);
+    if (!pgp_setup_memory_write(output->ctx, &se_ip->se_ip_out, &se_ip->se_ip_mem, bufsz)) {
+        (void) fprintf(stderr, "can't setup memory write\n");
+        return;
+    }
 
     /* And push writer on stack */
     pgp_writer_push(
@@ -1607,7 +1616,9 @@ stream_write_se_ip_last(pgp_output_t *   output,
     /* finish */
     pgp_hash_finish(&se_ip->hash, hashed);
 
-    pgp_setup_memory_write(output->ctx, &mdcoutput, &mdcmem, mdcsize);
+    if (!pgp_setup_memory_write(output->ctx, &mdcoutput, &mdcmem, mdcsize)) {
+        return 0;
+    }
     pgp_write_mdc(mdcoutput, hashed);
 
     /* write length of last se_ip chunk */
@@ -1651,8 +1662,10 @@ str_enc_se_ip_writer(const uint8_t *src,
             return 1; /* will wait for more data or
                        * end of stream             */
         }
-        pgp_setup_memory_write(
-          writer->ctx, &se_ip->litoutput, &se_ip->litmem, datalength + 32);
+        if (!pgp_setup_memory_write(
+              writer->ctx, &se_ip->litoutput, &se_ip->litmem, datalength + 32)) {
+            return 0;
+        }
         stream_write_litdata_first(se_ip->litoutput,
                                    pgp_mem_data(se_ip->mem_data),
                                    (unsigned) datalength,
@@ -1694,8 +1707,12 @@ str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
         /* so we know the total length of data, write a simple packet */
 
         /* create literal data packet from buffered data */
-        pgp_setup_memory_write(
-          writer->ctx, &se_ip->litoutput, &se_ip->litmem, pgp_mem_len(se_ip->mem_data) + 32);
+        if (!pgp_setup_memory_write(writer->ctx,
+                                    &se_ip->litoutput,
+                                    &se_ip->litmem,
+                                    pgp_mem_len(se_ip->mem_data) + 32)) {
+            return 0;
+        }
 
         pgp_write_litdata(se_ip->litoutput,
                           pgp_mem_data(se_ip->mem_data),

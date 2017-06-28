@@ -257,8 +257,9 @@ findvar(rnp_t *rnp, const char *name)
 {
     unsigned i;
 
-    for (i = 0; i < rnp->c && strcmp(rnp->name[i], name) != 0; i++)
+    for (i = 0; i < rnp->c && rnp->name[i] && strcmp(rnp->name[i], name) != 0; i++)
         ;
+
     return (i == rnp->c) ? -1 : (int) i;
 }
 
@@ -1880,11 +1881,15 @@ rnp_setvar(rnp_t *rnp, const char *name, const char *value)
 
     /* protect against the case where 'value' is rnp->value[i] */
     newval = rnp_strdup(value);
+    if (newval == NULL) {
+        return 0;
+    }
     if ((i = findvar(rnp, name)) < 0) {
         /* add the element to the array */
-        if (size_arrays(rnp, rnp->size + 15)) {
-            rnp->name[i = rnp->c++] = rnp_strdup(name);
+        if (!size_arrays(rnp, rnp->size + 15)) {
+            return 0;
         }
+        rnp->name[i = rnp->c++] = rnp_strdup(name);
     } else {
         /* replace the element in the array */
         if (rnp->value[i]) {

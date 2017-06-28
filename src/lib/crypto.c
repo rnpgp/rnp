@@ -281,7 +281,10 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
         goto end;
 
     /* Generate checksum */
-    pgp_setup_memory_write(NULL, &output, &mem, 128);
+    if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
+        RNP_LOG("can't setup memory write\n");
+        goto end;
+    }
     pgp_push_checksum_writer(output, seckey);
 
     if (seckey->pubkey.alg == PGP_PKA_RSA || seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
@@ -452,7 +455,10 @@ pgp_encrypt_buf(rnp_ctx_t *      ctx,
         return 0;
     }
 
-    pgp_setup_memory_write(ctx, &output, &outmem, insize);
+    if (!pgp_setup_memory_write(ctx, &output, &outmem, insize)) {
+        (void) fprintf(io->errs, "can't setup memory write\n");
+        return 0;
+    }
 
     /* set armoured/not armoured here */
     if (ctx->armour) {
@@ -615,10 +621,16 @@ pgp_decrypt_buf(pgp_io_t *       io,
     }
 
     /* set up to read from memory */
-    pgp_setup_memory_read(io, &parse, inmem, NULL, write_parsed_cb, 0);
+    if (!pgp_setup_memory_read(io, &parse, inmem, NULL, write_parsed_cb, 0)) {
+        (void) fprintf(io->errs, "can't setup memory read\n");
+        return 0;
+    }
 
     /* setup for writing decrypted contents to given output file */
-    pgp_setup_memory_write(NULL, &parse->cbinfo.output, &outmem, insize);
+    if (!pgp_setup_memory_write(NULL, &parse->cbinfo.output, &outmem, insize)) {
+        (void) fprintf(io->errs, "can't setup memory write\n");
+        return 0;
+    }
 
     /* setup keyring and passphrase callback */
     parse->cbinfo.cryptinfo.secring = secring;

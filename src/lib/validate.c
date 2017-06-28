@@ -910,7 +910,10 @@ pgp_validate_mem(pgp_io_t *             io,
     const int          printerrors = 1;
     int                realarmour;
 
-    pgp_setup_memory_read(io, &stream, mem, &validation, validate_data_cb, 1);
+    if (!pgp_setup_memory_read(io, &stream, mem, &validation, validate_data_cb, 1)) {
+        (void) fprintf(io->errs, "can't setup memory read\n");
+        return 0;
+    }
     /* Set verification reader and handling options */
     (void) memset(&validation, 0x0, sizeof(validation));
     validation.result = result;

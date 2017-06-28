@@ -254,7 +254,10 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
     cb.keyring = keyring;
     stream = pgp_new(sizeof(*stream));
     pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
-    pgp_setup_memory_read(io, &stream, mem, &cb, cb_keyring_read, noaccum);
+    if (!pgp_setup_memory_read(io, &stream, mem, &cb, cb_keyring_read, noaccum)) {
+        (void) fprintf(io->errs, "can't setup memory read\n");
+        return 0;
+    }
     if (armour) {
         pgp_reader_push_dearmour(stream);
     }
