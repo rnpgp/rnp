@@ -360,7 +360,11 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
     switch (key->s2k_specifier) {
     case PGP_S2KS_SIMPLE:
         /* no data to write */
-        pgp_s2k_simple(key->hash_alg, sesskey, sesskey_size, (const char *) passphrase);
+        if (pgp_s2k_simple(key->hash_alg, sesskey, sesskey_size, (const char *) passphrase) <
+            0) {
+            (void) fprintf(stderr, "pgp_s2k_simple failed\n");
+            return 0;
+        }
         break;
 
     case PGP_S2KS_SALTED:
@@ -372,8 +376,11 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
         if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
             return 0;
         }
-        pgp_s2k_salted(
-          key->hash_alg, sesskey, sesskey_size, (const char *) passphrase, key->salt);
+        if (pgp_s2k_salted(
+              key->hash_alg, sesskey, sesskey_size, (const char *) passphrase, key->salt)) {
+            (void) fprintf(stderr, "pgp_s2k_salted failed\n");
+            return 0;
+        }
         break;
 
     case PGP_S2KS_ITERATED_AND_SALTED:
@@ -382,12 +389,15 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
             (void) fprintf(stderr, "pgp_random failed\n");
             return 0;
         }
-        pgp_s2k_iterated(key->hash_alg,
-                         sesskey,
-                         sesskey_size,
-                         (const char *) passphrase,
-                         key->salt,
-                         key->s2k_iterations);
+        if (pgp_s2k_iterated(key->hash_alg,
+                             sesskey,
+                             sesskey_size,
+                             (const char *) passphrase,
+                             key->salt,
+                             key->s2k_iterations)) {
+            (void) fprintf(stderr, "pgp_s2k_iterated failed\n");
+            return 0;
+        }
         uint8_t encoded_iterations = pgp_s2k_encode_iterations(key->s2k_iterations);
 
         if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {

@@ -2560,17 +2560,29 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         }
 
         if (pkt.u.seckey.s2k_specifier == PGP_S2KS_SIMPLE) {
-            pgp_s2k_simple(pkt.u.seckey.hash_alg, derived_key, keysize, passphrase);
+            if (pgp_s2k_simple(pkt.u.seckey.hash_alg, derived_key, keysize, passphrase)) {
+                (void) fprintf(stderr, "pgp_s2k_simple failed\n");
+                return 0;
+            }
         } else if (pkt.u.seckey.s2k_specifier == PGP_S2KS_SALTED) {
-            pgp_s2k_salted(
-              pkt.u.seckey.hash_alg, derived_key, keysize, passphrase, pkt.u.seckey.salt);
+            if (pgp_s2k_salted(pkt.u.seckey.hash_alg,
+                               derived_key,
+                               keysize,
+                               passphrase,
+                               pkt.u.seckey.salt)) {
+                (void) fprintf(stderr, "pgp_s2k_salted failed\n");
+                return 0;
+            }
         } else if (pkt.u.seckey.s2k_specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-            pgp_s2k_iterated(pkt.u.seckey.hash_alg,
-                             derived_key,
-                             keysize,
-                             passphrase,
-                             pkt.u.seckey.salt,
-                             pkt.u.seckey.s2k_iterations);
+            if (pgp_s2k_iterated(pkt.u.seckey.hash_alg,
+                                 derived_key,
+                                 keysize,
+                                 passphrase,
+                                 pkt.u.seckey.salt,
+                                 pkt.u.seckey.s2k_iterations)) {
+                (void) fprintf(stderr, "pgp_s2k_iterated failed\n");
+                return 0;
+            }
         }
 
         pgp_forget(passphrase, strlen(passphrase));

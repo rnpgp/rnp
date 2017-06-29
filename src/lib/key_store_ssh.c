@@ -396,7 +396,11 @@ ssh2seckey(
 
     sesskey_len = pgp_key_size(key->key.seckey.alg);
 
-    pgp_s2k_salted(key->key.seckey.hash_alg, sesskey, sesskey_len, "", key->key.seckey.salt);
+    if (pgp_s2k_salted(
+          key->key.seckey.hash_alg, sesskey, sesskey_len, "", key->key.seckey.salt)) {
+        (void) fprintf(stderr, "pgp_s2k_salted failed\n");
+        return 0;
+    }
 
     pgp_crypt_any(&crypted, key->key.seckey.alg);
     pgp_cipher_set_iv(&crypted, key->key.seckey.iv);
