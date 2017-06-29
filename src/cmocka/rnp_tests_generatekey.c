@@ -60,13 +60,10 @@ rnpkeys_generatekey_testSignature(void **state)
     char recoveredSig[4096] = {0};
     char userId[128];
 
-    /* Setup the pass phrase fd to avoid user-input*/
-    rnp_assert_int_equal(rstate, setupPassphrasefd(pipefd), 1);
-
     for (int i = 0; hashAlg[i] != NULL; i++) {
         /* Setup passphrase input and rnp structure */
         rnp_assert_int_equal(rstate, setupPassphrasefd(pipefd), 1);
-        fdptr = uint_to_string(passfd, 4, pipefd[0], 16);
+        fdptr = uint_to_string(passfd, 4, pipefd[0], 10);
         rnp_assert_int_equal(
           rstate,
           1,
@@ -102,7 +99,7 @@ rnpkeys_generatekey_testSignature(void **state)
 
                 /* Setup passphrase input and rnp structure */
                 rnp_assert_int_equal(rstate, setupPassphrasefd(pipefd), 1);
-                fdptr = uint_to_string(passfd, 4, pipefd[0], 16);
+                fdptr = uint_to_string(passfd, 4, pipefd[0], 10);
                 rnp_assert_int_equal(
                   rstate,
                   1,
@@ -188,7 +185,7 @@ rnpkeys_generatekey_testEncryption(void **state)
 
     /* Setup the pass phrase fd to avoid user-input*/
     rnp_assert_int_equal(rstate, setupPassphrasefd(pipefd), 1);
-    fdptr = uint_to_string(passfd, 4, pipefd[0], 16);
+    fdptr = uint_to_string(passfd, 4, pipefd[0], 10);
     rnp_assert_int_equal(
       rstate,
       1,
@@ -238,7 +235,7 @@ rnpkeys_generatekey_testEncryption(void **state)
 
             /* setting up rnp again and decrypting memory */
             rnp_assert_int_equal(rstate, setupPassphrasefd(pipefd), 1);
-            fdptr = uint_to_string(passfd, 4, pipefd[0], 16);
+            fdptr = uint_to_string(passfd, 4, pipefd[0], 10);
             rnp_assert_int_equal(
               rstate,
               1,
