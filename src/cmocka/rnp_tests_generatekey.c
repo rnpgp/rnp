@@ -207,7 +207,7 @@ rnpkeys_generatekey_testEncryption(void **state)
             setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd);
 
             /* Loading the keyrings */
-            assert_int_equal(rnp_key_store_load_keys(&rnp, 0), 1);
+            assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
             assert_true(rnp_secret_count(&rnp) > 0);
             
             /* Setting the decryption context */
@@ -312,13 +312,13 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 {
     /* Try to generate keypair in different home directories */
 
-    const char *ourdir = (char *) *state;
+    const char *ourdir = getenv("HOME");
     char        newhome[256];
     rnp_t       rnp;
     int         pipefd[2];
 
     /* Initialize the rnp structure. */
-    setup_rnp_common(&rnp, GPG_KEY_STORE, ourdir, pipefd);
+    setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd);
 
     /* Pubring and secring should not exist yet */
     assert_false(path_file_exists(ourdir, ".rnp/pubring.gpg", NULL));
@@ -341,24 +341,26 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     close(pipefd[0]);
     rnp_end(&rnp);
 
-    /* Now we start over with a new home. */
+    /* Now we start over with a new home. When home is specified explicitly then it should include .rnp as well */
     paths_concat(newhome, sizeof(newhome), ourdir, "newhome", NULL);
     path_mkdir(0700, newhome, NULL);
+    paths_concat(newhome, sizeof(newhome), ourdir, "newhome", ".rnp", NULL);
+    path_mkdir(0700, newhome, NULL);    
 
     /* Initialize the rnp structure. */
     setup_rnp_common(&rnp, GPG_KEY_STORE, newhome, pipefd);
 
     /* Pubring and secring should not exist yet */
-    assert_false(path_file_exists(newhome, ".rnp/pubring.gpg", NULL));
-    assert_false(path_file_exists(newhome, ".rnp/secring.gpg", NULL));
+    assert_false(path_file_exists(newhome, "pubring.gpg", NULL));
+    assert_false(path_file_exists(newhome, "secring.gpg", NULL));
 
     /* Ensure the key was generated. */
     set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
     assert_int_equal(1, rnp_generate_key(&rnp, "newhomekey"));
 
     /* Pubring and secring should now exist */
-    assert_true(path_file_exists(newhome, ".rnp/pubring.gpg", NULL));
-    assert_true(path_file_exists(newhome, ".rnp/secring.gpg", NULL));
+    assert_true(path_file_exists(newhome, "pubring.gpg", NULL));
+    assert_true(path_file_exists(newhome, "secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
     assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
@@ -382,7 +384,7 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
     int         pipefd[2];
 
     /* Initialize the rnp structure. */
-    setup_rnp_common(&rnp, KBX_KEY_STORE, ourdir, pipefd);
+    setup_rnp_common(&rnp, KBX_KEY_STORE, NULL, pipefd);
 
     /* Pubring and secring should not exist yet */
     assert_false(path_file_exists(ourdir, ".rnp/pubring.kbx", NULL));
@@ -414,23 +416,23 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
     path_mkdir(0700, newhome, NULL);
 
     /* Initialize the rnp structure. */
-    setup_rnp_common(&rnp, GPG_KEY_STORE, newhome, pipefd);
+    setup_rnp_common(&rnp, KBX_KEY_STORE, newhome, pipefd);
 
     /* Pubring and secring should not exist yet */
-    assert_false(path_file_exists(newhome, ".rnp/pubring.kbx", NULL));
-    assert_false(path_file_exists(newhome, ".rnp/secring.kbx", NULL));
-    assert_false(path_file_exists(newhome, ".rnp/pubring.gpg", NULL));
-    assert_false(path_file_exists(newhome, ".rnp/secring.gpg", NULL));
+    assert_false(path_file_exists(newhome, "pubring.kbx", NULL));
+    assert_false(path_file_exists(newhome, "secring.kbx", NULL));
+    assert_false(path_file_exists(newhome, "pubring.gpg", NULL));
+    assert_false(path_file_exists(newhome, "secring.gpg", NULL));
 
     /* Ensure the key was generated. */
     set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
     assert_int_equal(1, rnp_generate_key(&rnp, "newhomekey"));
 
     /* Pubring and secring should now exist, but only for the KBX */
-    assert_true(path_file_exists(newhome, ".rnp/pubring.kbx", NULL));
-    assert_true(path_file_exists(newhome, ".rnp/secring.kbx", NULL));
-    assert_false(path_file_exists(newhome, ".rnp/pubring.gpg", NULL));
-    assert_false(path_file_exists(newhome, ".rnp/secring.gpg", NULL));
+    assert_true(path_file_exists(newhome, "pubring.kbx", NULL));
+    assert_true(path_file_exists(newhome, "secring.kbx", NULL));
+    assert_false(path_file_exists(newhome, "pubring.gpg", NULL));
+    assert_false(path_file_exists(newhome, "secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
     assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
@@ -459,10 +461,6 @@ rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
 
     paths_concat(nopermsdir, sizeof(nopermsdir), ourdir, "noperms", NULL);
     path_mkdir(0000, nopermsdir, NULL);
-
-    /* Set the home directory to a non-default value and ensure the read/write
-     * permission for the specified directory*/
-    assert_int_equal(setenv("HOME", nopermsdir, 1), 0);
 
     /* Initialize the rnp structure. */
     setup_rnp_common(&rnp, GPG_KEY_STORE, nopermsdir, pipefd);

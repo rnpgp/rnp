@@ -659,7 +659,7 @@ rnp_init(rnp_t *rnp, rnp_params_t *params)
     /* set keystore type and pathes */
     rnp->key_store_format = params->ks_format;
     rnp->pubpath = strdup(params->pubpath);
-    rnp->secpath = strdup(params->secpath);    
+    rnp->secpath = strdup(params->secpath);
 
     rnp->pubring = calloc(1, sizeof(rnp_key_store_t));
     if (rnp->pubring == NULL) {
@@ -1052,12 +1052,12 @@ rnp_generate_key(rnp_t *rnp, const char *id)
     find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), rnp->pswdtries);
 
     /* write keypair */
-    if (!rnp_key_store_write_to_file(rnp, rnp->secring, (uint8_t *) passphrase, 0, rnp->pubpath)) {
+    if (!rnp_key_store_write_to_file(rnp, rnp->secring, (uint8_t *) passphrase, 0, rnp->secpath)) {
         pgp_keydata_free(key);
         return 0;
     }
 
-    if (!rnp_key_store_write_to_file(rnp, rnp->pubring, (uint8_t *) passphrase, 0, rnp->secpath)) {
+    if (!rnp_key_store_write_to_file(rnp, rnp->pubring, (uint8_t *) passphrase, 0, rnp->pubpath)) {
         pgp_keydata_free(key);
         return 0;
     }

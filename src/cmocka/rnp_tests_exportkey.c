@@ -51,13 +51,11 @@ rnpkeys_exportkey_verifyUserId(void **state)
     assert_int_equal(rnp_public_count(&rnp), 1);
     assert_int_equal(rnp_find_key(&rnp, getenv("LOGNAME")), 1);
 
-    /* Try to export the key without passing userid from the interface */
+    /* Try to export the key without passing userid from the interface : this should fail*/
     exportedkey = rnp_export_key(&rnp, NULL);
-    assert_non_null(exportedkey);
-    free(exportedkey);
-    exportedkey = NULL;
+    assert_null(exportedkey);
 
-    /* Try to export the key with specified userid parameter from the interface */
+    /* Try to export the key with specified userid parameter from the env */
     exportedkey = rnp_export_key(&rnp, getenv("LOGNAME"));
     assert_non_null(exportedkey);
     free(exportedkey);

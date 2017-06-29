@@ -56,6 +56,14 @@ file_exists(const char *path)
     return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 }
 
+/* Check if a directory exists */
+int
+dir_exists(const char *path)
+{
+    struct stat st = {0};
+    return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
+}
+
 /* Check if a file is empty
  * Use with assert_true and assert_false.
  */
@@ -250,9 +258,11 @@ setup_rnp_common(rnp_t *rnp, enum key_store_format_t ks_format, const char *home
 {
     char         pubpath[1024];
     char         secpath[1024];
+    char         homepath[1024];
     rnp_params_t params;
 
     rnp_params_init(&params);
+
     /* set password fd if any */
     if (pipefd) {
         assert_int_equal(setupPassphrasefd(pipefd), 1);
@@ -260,20 +270,25 @@ setup_rnp_common(rnp_t *rnp, enum key_store_format_t ks_format, const char *home
     }
     /* setup keyring pathes */
     if (homedir == NULL) {
+        /* if we use default homedir then we append '.rnp' and create directory as well */
         homedir = getenv("HOME");
+        paths_concat(homepath, sizeof(homepath), homedir, ".rnp", NULL);
+        if (!dir_exists(homepath))        
+            path_mkdir(0700, homepath, NULL);
+        homedir = homepath;
     }
+
     assert_non_null(homedir);
     assert_true((ks_format == GPG_KEY_STORE) || (ks_format == KBX_KEY_STORE));
-    paths_concat(pubpath, sizeof(pubpath), homedir, ".rnp", (ks_format == GPG_KEY_STORE) ? "pubring.gpg" : "pubring.kbx", NULL);
-    paths_concat(secpath, sizeof(secpath), homedir, ".rnp", (ks_format == GPG_KEY_STORE) ? "secring.gpg" : "secring.kbx", NULL);
-    params.pubpath = pubpath;
-    params.secpath = secpath;
+    paths_concat(pubpath, sizeof(pubpath), homedir, (ks_format == GPG_KEY_STORE) ? "pubring.gpg" : "pubring.kbx", NULL);
+    paths_concat(secpath, sizeof(secpath), homedir, (ks_format == GPG_KEY_STORE) ? "secring.gpg" : "secring.kbx", NULL);
+    params.pubpath = strdup(pubpath);
+    params.secpath = strdup(secpath);
     params.ks_format = ks_format;
 
     /*initialize the basic RNP structure. */
     memset(rnp, '\0', sizeof(*rnp));
-    int retVal = rnp_init(rnp, &params);
-    assert_int_equal(retVal, 1);
+    assert_int_equal(rnp_init(rnp, &params), 1);
     rnp_params_free(&params);
 }
 
