@@ -153,8 +153,6 @@ size_arrays(rnp_t *rnp, unsigned needed)
     char **temp;
 
     if (rnp->size == 0) {
-        /* only get here first time around */
-        rnp->size = needed;
         if ((rnp->name = calloc(sizeof(char *), needed)) == NULL) {
             (void) fprintf(stderr, "size_arrays: bad alloc\n");
             return 0;
@@ -164,9 +162,9 @@ size_arrays(rnp_t *rnp, unsigned needed)
             (void) fprintf(stderr, "size_arrays: bad alloc\n");
             return 0;
         }
+        /* only get here first time around */
+        rnp->size = needed;
     } else if (rnp->c == rnp->size) {
-        /* only uses 'needed' when filled array */
-        rnp->size += needed;
         temp = realloc(rnp->name, sizeof(char *) * needed);
         if (temp == NULL) {
             (void) fprintf(stderr, "size_arrays: bad alloc\n");
@@ -179,6 +177,8 @@ size_arrays(rnp_t *rnp, unsigned needed)
             return 0;
         }
         rnp->value = temp;
+        /* only uses 'needed' when filled array */
+        rnp->size += needed;
     }
     return 1;
 }
