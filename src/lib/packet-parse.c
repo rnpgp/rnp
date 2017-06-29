@@ -2339,6 +2339,10 @@ parse_litdata(pgp_region_t *region, pgp_stream_t *stream)
     }
     CALLBACK(PGP_PTAG_CT_LITDATA_HEADER, &stream->cbinfo, &pkt);
     mem = pkt.u.litdata_body.mem = pgp_memory_new();
+    if (mem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     pgp_memory_init(pkt.u.litdata_body.mem, (unsigned) ((region->length * 101) / 100) + 12);
     pkt.u.litdata_body.data = mem->buf;
 

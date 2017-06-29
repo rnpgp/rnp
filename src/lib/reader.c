@@ -1828,7 +1828,7 @@ pgp_setup_memory_write(rnp_ctx_t *ctx, pgp_output_t **output, pgp_memory_t **mem
         return 0;
     }
     *mem = pgp_memory_new();
-    if (mem == NULL) {
+    if (*mem == NULL) {
         free(*output);
         return 0;
     }

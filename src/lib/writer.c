@@ -513,6 +513,10 @@ pgp_writer_push_clearsigned(pgp_output_t *output, pgp_create_sig_t *sig)
     dash->seen_nl = 1;
     dash->sig = sig;
     dash->trailing = pgp_memory_new();
+    if (dash->trailing == NULL) {
+        PGP_ERROR_1(&output->errors, PGP_E_FAIL, "%s", "can't allocate mem");
+        return 0;
+    }
     pgp_writer_push(output, dash_esc_writer, NULL, dash_escaped_destroyer, dash);
     return ret;
 }
@@ -1272,6 +1276,10 @@ skey_checksum_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
     skey_checksum_t *sum;
 
     sum = pgp_writer_get_arg(writer);
+    if (sum == NULL) {
+        printf("sum is NULL\n");
+        return 0;
+    }
     if (errors && *errors) {
         printf("errors in skey_checksum_finaliser\n");
     }
@@ -1387,6 +1395,10 @@ pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_sym
     se_ip->crypt = encrypted;
 
     se_ip->mem_data = pgp_memory_new();
+    if (se_ip->mem_data == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return;
+    }
     pgp_memory_init(se_ip->mem_data, bufsz);
 
     se_ip->litmem = NULL;

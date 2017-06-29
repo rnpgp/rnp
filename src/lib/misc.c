@@ -424,6 +424,10 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
         }
     } else {
         mem = pgp_memory_new();
+        if (mem == NULL) {
+            (void) fprintf(stderr, "can't allocate mem\n");
+            return 0;
+        }
         pgp_build_pubkey(mem, key, 0);
         if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad sha1 alloc\n");

@@ -310,10 +310,14 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
     ok = true;
 
 end:
-    pgp_teardown_memory_write(output, mem);
+    if (output != NULL && mem != NULL) {
+        pgp_teardown_memory_write(output, mem);
+    }
 
     if (ok == false) {
-        pgp_keydata_free(keydata);
+        if (keydata != NULL) {
+            pgp_keydata_free(keydata);
+        }
         return NULL;
     }
     return keydata;
@@ -407,6 +411,10 @@ pgp_encrypt_file(
 
     __PGP_USED(io);
     inmem = pgp_memory_new();
+    if (inmem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     if (!pgp_mem_readfile(inmem, infile)) {
         pgp_memory_free(inmem);
         return 0;
@@ -616,6 +624,10 @@ pgp_decrypt_buf(pgp_io_t *       io,
     }
 
     inmem = pgp_memory_new();
+    if (inmem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     if (!pgp_memory_add(inmem, input, insize)) {
         return 0;
     }

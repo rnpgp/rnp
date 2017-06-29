@@ -1712,11 +1712,19 @@ rnp_verify_memory(
         return 0;
     }
     signedmem = pgp_memory_new();
+    if (signedmem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     if (!pgp_memory_add(signedmem, in, size)) {
         return 0;
     }
     if (out) {
         cat = pgp_memory_new();
+        if (cat == NULL) {
+            (void) fprintf(stderr, "can't allocate mem\n");
+            return 0;
+        }
     }
     ret = pgp_validate_mem(io, &result, signedmem, (out) ? &cat : NULL, armored, rnp->pubring);
     /* signedmem is freed from pgp_validate_mem */

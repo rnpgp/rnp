@@ -1126,6 +1126,10 @@ pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_outp
     int           len;
 
     mem = pgp_memory_new();
+    if (mem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     if (!pgp_mem_readfile(mem, filename)) {
         (void) fprintf(stderr, "pgp_mem_readfile of '%s' failed\n", filename);
         pgp_memory_free(mem);

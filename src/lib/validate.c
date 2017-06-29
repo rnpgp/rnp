@@ -503,6 +503,10 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
                 (void) fprintf(
                   io->errs, "rnp: assuming signed data in \"%s\"\n", data->detachname);
                 data->mem = pgp_memory_new();
+                if (data->mem == NULL) {
+                    PGP_ERROR_1(errors, PGP_E_FAIL, "%s", "can't allocate mem");
+                    break;
+                }
                 pgp_mem_readfile(data->mem, data->detachname);
             }
             if (rnp_get_debug(__FILE__)) {
@@ -826,6 +830,10 @@ pgp_validate_file(pgp_io_t *             io,
     validation.result = result;
     validation.keyring = keyring;
     validation.mem = pgp_memory_new();
+    if (validation.mem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     pgp_memory_init(validation.mem, 128);
     /* Note: Coverity incorrectly reports an error that validation.reader */
     /* is never used. */
@@ -919,6 +927,10 @@ pgp_validate_mem(pgp_io_t *             io,
     validation.result = result;
     validation.keyring = keyring;
     validation.mem = pgp_memory_new();
+    if (validation.mem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     pgp_memory_init(validation.mem, 128);
     /* Note: Coverity incorrectly reports an error that validation.reader */
     /* is never used. */
