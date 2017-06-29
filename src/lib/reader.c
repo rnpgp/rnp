@@ -1948,6 +1948,10 @@ pgp_setup_file_write(rnp_ctx_t *    ctx,
     }
 
     *output = pgp_output_new();
+    if (*output == NULL) {
+        fprintf(stderr, "Can't allocate memory\n");
+        return -1;
+    }
     (*output)->ctx = ctx;
     pgp_writer_set_fd(*output, fd);
     return fd;
@@ -1986,6 +1990,10 @@ pgp_setup_file_append(rnp_ctx_t *ctx, pgp_output_t **output, const char *filenam
 #endif
     if (fd >= 0) {
         *output = pgp_output_new();
+        if (*output == NULL) {
+            fprintf(stderr, "Can't allocate memory\n");
+            return -1;
+        }
         (*output)->ctx = ctx;
         pgp_writer_set_fd(*output, fd);
     }

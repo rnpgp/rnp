@@ -682,6 +682,10 @@ pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key, unsigned make_packe
     pgp_output_t *output;
 
     output = pgp_output_new();
+    if (output == NULL) {
+        fprintf(stderr, "Can't allocate memory\n");
+        return;
+    }
     pgp_memory_init(out, 128);
     pgp_writer_set_memory(output, out);
     write_pubkey_body(key, output);

@@ -608,6 +608,10 @@ pgp_sig_start_key_sig(pgp_create_sig_t *  sig,
                       pgp_hash_alg_t      hash_alg)
 {
     sig->output = pgp_output_new();
+    if (sig->output == NULL) {
+        fprintf(stderr, "Can't allocate memory\n");
+        return;
+    }
 
     /* XXX:  refactor with check (in several ways - check should
      * probably use the buffered writer to construct packets
@@ -632,6 +636,10 @@ pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
                          pgp_hash_alg_t      hash_alg)
 {
     sig->output = pgp_output_new();
+    if (sig->output == NULL) {
+        fprintf(stderr, "Can't allocate memory\n");
+        return;
+    }
 
     sig->sig.info.version = PGP_V4;
     sig->sig.info.hash_alg = PGP_HASH_SHA1;
@@ -661,6 +669,10 @@ pgp_start_sig(pgp_create_sig_t *   sig,
               const pgp_sig_type_t type)
 {
     sig->output = pgp_output_new();
+    if (sig->output == NULL) {
+        fprintf(stderr, "Can't allocate memory\n");
+        return;
+    }
 
     /* XXX:  refactor with check (in several ways - check should
      * probably use the buffered writer to construct packets
