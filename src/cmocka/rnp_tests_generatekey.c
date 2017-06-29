@@ -25,16 +25,9 @@
  */
 
 #include <rnp.h>
+#include <key_store.h>
 #include <rnp_tests_support.h>
 #include "symmetric.h"
-
-static void
-set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc)
-{
-    key_desc->key_alg = PGP_PKA_RSA;
-    key_desc->sym_alg = PGP_SA_DEFAULT_CIPHER;
-    key_desc->rsa.modulus_bit_len = 1024;
-}
 
 void
 rnpkeys_generatekey_testSignature(void **state)
@@ -46,41 +39,35 @@ rnpkeys_generatekey_testSignature(void **state)
      * key
      * Sign a message, then verify it
      */
-    rnp_t rnp;
-    char  passfd[4] = {0};
-    char *fdptr;
-    int   pipefd[2];
-    int   retVal;
-
-    char memToSign[] = "A simple test message";
-    char signatureBuf[4096] = {0};
-    char recoveredSig[4096] = {0};
-    char userId[128];
-
-    /* Setup the pass phrase fd to avoid user-input*/
-    assert_int_equal(setupPassphrasefd(pipefd), 1);
+    rnp_t     rnp;
+    rnp_ctx_t ctx;
+    int       pipefd[2];
+    int       retVal;
+    char      memToSign[] = "A simple test message";
+    char      signatureBuf[4096] = {0};
+    char      recoveredSig[4096] = {0};
+    char      userId[128];
 
     for (int i = 0; hashAlg[i] != NULL; i++) {
         /* Setup passphrase input and rnp structure */
-        assert_int_equal(setupPassphrasefd(pipefd), 1);
-        fdptr = uint_to_string(passfd, 4, pipefd[0], 16);
-        setup_rnp_common(&rnp, fdptr);
+        setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd);
 
         memset(userId, 0, sizeof(userId));
         strcpy(userId, "sigtest_");
         strcat(userId, hashAlg[i]);
+        
+        /* Generate the RSA key and make sure it was generated */
+        set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_DEFAULT_HASH_ALGORITHM);
+        assert_int_equal(rnp_generate_key(&rnp, userId), 1);
 
-        set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
-        retVal = rnp_generate_key(&rnp, userId);
-        assert_int_equal(retVal, 1); // Ensure the key was generated
+        /* Load the newly generated rnp key */
+        assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
+        assert_true(rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
-        /*Load the newly generated rnp key*/
-        retVal = rnp_load_keys(&rnp);
-        assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
+        /* Make sure just generated key is present in the keyring */
+        assert_int_equal(rnp_find_key(&rnp, userId), 1); 
 
-        retVal = rnp_find_key(&rnp, userId);
-        assert_int_equal(retVal, 1); // Ensure the key can be found with the userId
-
+        /* Cleanup */
         close(pipefd[0]);
         rnp_end(&rnp);
 
@@ -94,17 +81,21 @@ rnpkeys_generatekey_testSignature(void **state)
                 }
 
                 /* Setup passphrase input and rnp structure */
-                assert_int_equal(setupPassphrasefd(pipefd), 1);
-                fdptr = uint_to_string(passfd, 4, pipefd[0], 16);
-                setup_rnp_common(&rnp, fdptr);
-                retVal = rnp_load_keys(&rnp);
-                assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
+                setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd);
 
-                rnp.ctx.armour = armored;
-                assert_int_equal(rnp_setvar(&rnp, "hash", hashAlg[i]), 1);
+                /* Load keyring */
+                assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
+                assert_true(rnp_secret_count(&rnp) > 0);
+
+                /* Setup signing context */
+                rnp_ctx_init(&ctx, &rnp);
+                ctx.armour = armored;
+                ctx.halg = pgp_str_to_hash_alg(hashAlg[i]);
+                ctx.filename = strdup("dummyfile.dat");
+                assert_int_not_equal(ctx.halg, PGP_HASH_UNKNOWN);
 
                 /* Signing the memory */
-                retVal = rnp_sign_memory(&rnp,
+                retVal = rnp_sign_memory(&ctx,
                                          userId,
                                          memToSign,
                                          strlen(memToSign) - skip_null,
@@ -112,29 +103,26 @@ rnpkeys_generatekey_testSignature(void **state)
                                          sizeof(signatureBuf),
                                          cleartext);
 
-                assert_int_not_equal(retVal, 0); // Ensure signature operation succeeded
+                /* Make sure operation succeeded, and cleanup */
+                assert_int_not_equal(retVal, 0);
                 const int sigLen = retVal;
                 close(pipefd[0]);
-                rnp_end(&rnp);
-
-                /* Setup rnp again and load keyring. Passphrase is not needed */
-                setup_rnp_common(&rnp, NULL);
-                retVal = rnp_load_keys(&rnp);
-                assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
+                rnp_ctx_free(&ctx);
 
                 /* Verify the memory */
+                rnp_ctx_init(&ctx, &rnp);
                 retVal = rnp_verify_memory(
-                  &rnp, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig), armored);
+                  &ctx, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig), armored);
                 /* Ensure signature verification passed */
                 assert_int_equal(retVal, strlen(memToSign) - (skip_null ? 1 : 0));
                 assert_string_equal(recoveredSig, memToSign);
 
-                /* Corrupt te signature */
+                /* Corrupt the signature */
                 /* TODO be smarter about this */
                 signatureBuf[50] ^= 0x0C;
 
                 retVal = rnp_verify_memory(
-                  &rnp, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig), armored);
+                  &ctx, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig), armored);
                 /* Ensure that signature verification fails */
                 assert_int_equal(retVal, 0);
                 rnp_end(&rnp);
@@ -158,72 +146,82 @@ rnpkeys_generatekey_testEncryption(void **state)
                                "Camellia256",
                                NULL};
 
-    rnp_t rnp;
-    char  passfd[4] = {0};
-    char *fdptr;
-    int   pipefd[2];
-    int   retVal;
+    rnp_t     rnp;
+    rnp_ctx_t ctx;
+    int       pipefd[2];
+    int       retVal;
+    char      memToEncrypt[] = "A simple test message";
+    char      ciphertextBuf[4096] = {0};
+    char      plaintextBuf[4096] = {0};
+    char      userId[128] = {0};
 
-    char memToEncrypt[] = "A simple test message";
-    char ciphertextBuf[4096] = {0};
-    char plaintextBuf[4096] = {0};
-    char userId[128] = {0};
-
-    /* Setup the pass phrase fd to avoid user-input*/
-    assert_int_equal(setupPassphrasefd(pipefd), 1);
-    fdptr = uint_to_string(passfd, 4, pipefd[0], 16);
-    setup_rnp_common(&rnp, fdptr);
+    /* Setup passphrase input and rnp structure */
+    setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd);
 
     strcpy(userId, "ciphertest");
+    /* Generate the RSA key and make sure it was generated */
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_DEFAULT_HASH_ALGORITHM);
+    assert_int_equal(rnp_generate_key(&rnp, userId), 1);
 
-    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
-    retVal = rnp_generate_key(&rnp, userId);
-    assert_int_equal(retVal, 1); // Ensure the key was generated
+    /* Load keyring */
+    assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
+    assert_true(rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
-    /*Load the newly generated rnp key*/
-    retVal = rnp_load_keys(&rnp);
-    assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
+    /* Make sure just generated key is present in the keyring */
+    assert_int_equal(rnp_find_key(&rnp, userId), 1);
 
-    retVal = rnp_find_key(&rnp, userId);
-    assert_int_equal(retVal, 1); // Ensure the key can be found with the userId
-
+    /* Cleanup */
+    close(pipefd[0]);
     rnp_end(&rnp);
 
     for (int i = 0; cipherAlg[i] != NULL; i++) {
         for (unsigned int armored = 0; armored <= 1; ++armored) {
             /* setting up rnp and encrypting memory */
-            setup_rnp_common(&rnp, NULL);
-            retVal = rnp_load_keys(&rnp);
-            assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
-            /* setting the cipher and armored flags */
-            assert_int_equal(rnp_setvar(&rnp, "cipher", cipherAlg[i]), 1);
-            rnp.ctx.armour = armored;
-            rnp.ctx.ealg = pgp_str_to_cipher(cipherAlg[i]);
+            setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, NULL);
 
-            retVal = rnp_encrypt_memory(&rnp,
+            /* Load keyring */
+            assert_int_equal(rnp_key_store_load_keys(&rnp, 0), 1);
+            assert_int_equal(rnp_secret_count(&rnp), 0);
+
+            /* setting the cipher and armored flags */
+            rnp_ctx_init(&ctx, &rnp);
+            ctx.armour = armored;
+            ctx.filename = strdup("dummyfile.dat");
+            ctx.ealg = pgp_str_to_cipher(cipherAlg[i]);
+            /* checking whether we have correct cipher constant */
+            assert_true((ctx.ealg != PGP_SA_DEFAULT_CIPHER) || (strcmp(cipherAlg[i], "CAST5") == 0));
+
+            /* Encrypting the memory */
+            retVal = rnp_encrypt_memory(&ctx,
                                         userId,
                                         memToEncrypt,
                                         strlen(memToEncrypt),
                                         ciphertextBuf,
                                         sizeof(ciphertextBuf));
-            assert_int_not_equal(retVal, 0); // Ensure encryption operation succeeded
+            assert_int_not_equal(retVal, 0);
             const int ctextLen = retVal;
+            rnp_ctx_free(&ctx);
             rnp_end(&rnp);
 
-            /* setting up rnp again and decrypting memory */
-            assert_int_equal(setupPassphrasefd(pipefd), 1);
-            fdptr = uint_to_string(passfd, 4, pipefd[0], 16);
-            setup_rnp_common(&rnp, fdptr);
-            retVal = rnp_load_keys(&rnp);
-            assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
+            /* Setting up rnp again and decrypting memory */
+            setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd);
 
-            retVal = rnp_decrypt_memory(
-              &rnp, ciphertextBuf, ctextLen, plaintextBuf, sizeof(plaintextBuf), armored);
+            /* Loading the keyrings */
+            assert_int_equal(rnp_key_store_load_keys(&rnp, 0), 1);
+            assert_true(rnp_secret_count(&rnp) > 0);
+            
+            /* Setting the decryption context */
+            rnp_ctx_init(&ctx, &rnp);
+            ctx.armour = armored;
+
+            /* Decrypting the memory */
+            retVal = rnp_decrypt_memory(&ctx, ciphertextBuf, ctextLen, plaintextBuf, sizeof(plaintextBuf));
 
             /* Ensure plaintext recovered */
             assert_int_equal(retVal, strlen(memToEncrypt));
             assert_string_equal(memToEncrypt, plaintextBuf);
             close(pipefd[0]);
+            rnp_ctx_free(&ctx);
             rnp_end(&rnp);
         }
     }
@@ -232,60 +230,34 @@ rnpkeys_generatekey_testEncryption(void **state)
 void
 rnpkeys_generatekey_verifySupportedHashAlg(void **state)
 {
-    const char *hashAlg[] = {"MD5",
-                             "SHA1",
-                             //"RIPEMD160",
-                             "SHA256",
-                             "SHA384",
-                             "SHA512",
-                             "SHA224",
-                             "SM3"};
-
-    const char *keystores[] = {"GPG", "KBX"};
-
-    /* Set the UserId = custom value.
-     * Execute the Generate-key command to generate a new pair of private/public
-     * key
-     * Verify the key was generated with the correct UserId.*/
+    /* Generate key for each of the hash algorithms. Check whether key was generated successfully */
+    
+    const char *hashAlg[] = {"MD5", "SHA1", "SHA256", "SHA384", "SHA512", "SHA224", "SM3"};
+    enum key_store_format_t keystores[] = {GPG_KEY_STORE, KBX_KEY_STORE};
     rnp_t rnp;
-    char  passfd[4] = {0};
     int   pipefd[2];
-
-    /* Setup the pass phrase fd to avoid user-input*/
-    assert_int_equal(setupPassphrasefd(pipefd), 1);
 
     for (int i = 0; i < sizeof(hashAlg) / sizeof(hashAlg[0]); i++) {
         for (int j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
-            /*Initialize the basic RNP structure. */
-            memset(&rnp, '\0', sizeof(rnp));
+            /* Setting up rnp again and decrypting memory */
+            setup_rnp_common(&rnp, keystores[j], NULL, pipefd);
+            assert_true(rnp.key_store_format == keystores[j]);
 
-            /*Set the default parameters*/
-            rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-            rnp_setvar(&rnp, "res", "<stdout>");
-            rnp_setvar(&rnp, "format", "human");
-            rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
-            rnp_setvar(&rnp, "key_store_format", keystores[j]);
-            assert_int_equal(rnp_setvar(&rnp, "hash", hashAlg[i]), 1);
+            set_default_rsa_key_desc(&rnp.action.generate_key_ctx, pgp_str_to_hash_alg(hashAlg[i]));
+            assert_int_not_equal(rnp.action.generate_key_ctx.hash_alg, PGP_HASH_UNKNOWN);
 
-            int retVal = rnp_init(&rnp);
+            /* Generate key with specified parameters */
+            assert_int_equal(rnp_generate_key(&rnp, NULL), 1);
 
-            rnp_set_key_store_format(&rnp, keystores[j]);
+            /* Load the newly generated rnp key */
+            assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
+            assert_true(rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
-            assert_int_equal(retVal,
-                             1); // Ensure the rnp core structure is correctly initialized.
+            assert_int_equal(rnp_find_key(&rnp, getenv("LOGNAME")), 1);
 
-            set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
-            retVal = rnp_generate_key(&rnp, NULL);
-            assert_int_equal(retVal, 1); // Ensure the key was generated
-
-            /*Load the newly generated rnp key*/
-            retVal = rnp_load_keys(&rnp);
-            assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
-
-            retVal = rnp_find_key(&rnp, getenv("LOGNAME"));
-            assert_int_equal(retVal, 1); // Ensure the key can be found with the userId
-
-            rnp_end(&rnp); // Free memory and other allocated resources.
+            /* Close pipe and free allocated memory */
+            close(pipefd[0]);
+            rnp_end(&rnp);
         }
     }
 }
@@ -293,8 +265,12 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
 void
 rnpkeys_generatekey_verifyUserIdOption(void **state)
 {
+    /* Set the UserId = custom value.
+     * Execute the Generate-key command to generate a new keypair
+     * Verify the key was generated with the correct UserId. */
+    
     char        userId[1024] = {0};
-    const char *UserId[] = {"rnpkeys_generatekey_verifyUserIdOption_MD5",
+    const char *userIds[] = {"rnpkeys_generatekey_verifyUserIdOption_MD5",
                             "rnpkeys_generatekey_verifyUserIdOption_SHA-1",
                             "rnpkeys_generatekey_verifyUserIdOption_RIPEMD160",
                             "rnpkeys_generatekey_verifyUserIdOption_SHA256",
@@ -302,54 +278,31 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
                             "rnpkeys_generatekey_verifyUserIdOption_SHA512",
                             "rnpkeys_generatekey_verifyUserIdOption_SHA224"};
 
-    const char *keystores[] = {"GPG", "KBX"};
-
-    /* Set the UserId = custom value.
-     * Execute the Generate-key command to generate a new pair of private/public
-     * key
-     * Verify the key was generated with the correct UserId.*/
+    enum key_store_format_t keystores[] = {GPG_KEY_STORE, KBX_KEY_STORE};
     rnp_t rnp;
-    char  passfd[4] = {0};
     int   pipefd[2];
 
-    /* Setup the pass phrase fd to avoid user-input*/
-    assert_int_equal(setupPassphrasefd(pipefd), 1);
-
-    for (int i = 0; i < sizeof(UserId) / sizeof(UserId[0]); i++) {
+    for (int i = 0; i < sizeof(userIds) / sizeof(userIds[0]); i++) {
         for (int j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
             /* Set the user id to be used*/
-            snprintf(userId, sizeof(userId), "%s", UserId[i]);
+            snprintf(userId, sizeof(userId), "%s", userIds[i]);
 
             /*Initialize the basic RNP structure. */
-            memset(&rnp, '\0', sizeof(rnp));
+            setup_rnp_common(&rnp, keystores[j], NULL, pipefd);
+            assert_true(rnp.key_store_format == keystores[j]);
 
-            /*Set the default parameters*/
-            rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-            rnp_setvar(&rnp, "res", "<stdout>");
-            rnp_setvar(&rnp, "format", "human");
-            rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
-            rnp_setvar(&rnp, "key_store_format", keystores[j]);
-            assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
-
-            int retVal = rnp_init(&rnp);
-
-            rnp_set_key_store_format(&rnp, keystores[j]);
-
-            assert_int_equal(retVal,
-                             1); // Ensure the rnp core structure is correctly initialized.
-
-            set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
-            retVal = rnp_generate_key(&rnp, userId);
-            assert_int_equal(retVal, 1); // Ensure the key was generated
+            set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
+            /* Generate the key with corresponding userId */
+            assert_int_equal(rnp_generate_key(&rnp, userId), 1);
 
             /*Load the newly generated rnp key*/
-            retVal = rnp_load_keys(&rnp);
-            assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
+            assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
+            assert_true(rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
+            assert_int_equal(rnp_find_key(&rnp, userId), 1);
 
-            retVal = rnp_find_key(&rnp, userId);
-            assert_int_equal(retVal, 1); // Ensure the key can be found with the userId
-
-            rnp_end(&rnp); // Free memory and other allocated resources.
+            /* Close pipe and free allocated memory */
+            close(pipefd[0]);
+            rnp_end(&rnp);
         }
     }
 }
@@ -357,276 +310,167 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
 void
 rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 {
+    /* Try to generate keypair in different home directories */
+
     const char *ourdir = (char *) *state;
-    /* Set the UserId = custom value.
-     * Execute the Generate-key command to generate a new pair of private/public
-     * key
-     * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp;
-    char  passfd[4] = {0};
-    int   pipefd[2];
+    char        newhome[256];
+    rnp_t       rnp;
+    int         pipefd[2];
 
-    /* Setup the pass phrase fd to avoid user-input*/
-    assert_int_equal(setupPassphrasefd(pipefd), 1);
+    /* Initialize the rnp structure. */
+    setup_rnp_common(&rnp, GPG_KEY_STORE, ourdir, pipefd);
 
-    /*Initialize the basic RNP structure. */
-    memset(&rnp, '\0', sizeof(rnp));
-
-    /*Set the default parameters*/
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(&rnp, "res", "<stdout>");
-    rnp_setvar(&rnp, "format", "human");
-    rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
-    assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
-
-    assert_int_equal(1, rnp_init(&rnp));
-
-    // pubring and secring should not exist yet
+    /* Pubring and secring should not exist yet */
     assert_false(path_file_exists(ourdir, ".rnp/pubring.gpg", NULL));
     assert_false(path_file_exists(ourdir, ".rnp/secring.gpg", NULL));
 
-    // Ensure the key was generated.
-    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+    /* Ensure the key was generated. */
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
     assert_int_equal(1, rnp_generate_key(&rnp, NULL));
 
-    // pubring and secring should now exist
+    /* Pubring and secring should now exist */
     assert_true(path_file_exists(ourdir, ".rnp/pubring.gpg", NULL));
     assert_true(path_file_exists(ourdir, ".rnp/secring.gpg", NULL));
 
-    assert_int_equal(1, rnp_load_keys(&rnp));
-    assert_int_equal(1, rnp_find_key(&rnp, getenv("LOGNAME")));
+    /* Loading keyrings and checking whether they have correct key */
+    assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
+    assert_int_equal(rnp_secret_count(&rnp), 1);
+    assert_int_equal(rnp_public_count(&rnp), 1);
+    assert_int_equal(rnp_find_key(&rnp, getenv("LOGNAME")), 1);
+
+    close(pipefd[0]);
     rnp_end(&rnp);
 
-    // Now we start over with a new home.
-    memset(&rnp, 0, sizeof(rnp));
-    // Create a directory "newhome" within this tests temporary directory.
-    char newhome[256];
+    /* Now we start over with a new home. */
     paths_concat(newhome, sizeof(newhome), ourdir, "newhome", NULL);
     path_mkdir(0700, newhome, NULL);
 
-    // Set the homedir to our newhome path.
-    assert_int_equal(1, rnp_setvar(&rnp, "homedir", newhome));
+    /* Initialize the rnp structure. */
+    setup_rnp_common(&rnp, GPG_KEY_STORE, newhome, pipefd);
 
-    /*Set the default parameters*/
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(&rnp, "res", "<stdout>");
-    rnp_setvar(&rnp, "format", "human");
-    rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
-    rnp_setvar(&rnp, "key_store_format", "GPG");
-
-    assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
-
-    assert_int_equal(1, rnp_init(&rnp));
-
-    // pubring and secring should not exist yet
+    /* Pubring and secring should not exist yet */
     assert_false(path_file_exists(newhome, ".rnp/pubring.gpg", NULL));
     assert_false(path_file_exists(newhome, ".rnp/secring.gpg", NULL));
 
-    // Ensure the key was generated.
-    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+    /* Ensure the key was generated. */
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
     assert_int_equal(1, rnp_generate_key(&rnp, "newhomekey"));
 
-    // pubring and secring should now exist
+    /* Pubring and secring should now exist */
     assert_true(path_file_exists(newhome, ".rnp/pubring.gpg", NULL));
     assert_true(path_file_exists(newhome, ".rnp/secring.gpg", NULL));
 
-    // Load the keys in our newhome directory
-    assert_int_equal(1, rnp_load_keys(&rnp));
+    /* Loading keyrings and checking whether they have correct key */
+    assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
+    assert_int_equal(rnp_secret_count(&rnp), 1);
+    assert_int_equal(rnp_public_count(&rnp), 1);
+    /* We should not find this key */
+    assert_int_equal(rnp_find_key(&rnp, getenv("LOGNAME")), 0);
 
-    // We should NOT find this key.
-    assert_int_equal(0, rnp_find_key(&rnp, getenv("LOGNAME")));
-
-    // We should find this key, instead.
-    assert_int_equal(1, rnp_find_key(&rnp, "newhomekey"));
-
-    rnp_end(&rnp); // Free memory and other allocated resources.
+    close(pipefd[0]);
+    rnp_end(&rnp);
 }
 
 void
 rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
 {
+    /* Try to generate keypair in different home directories for KBX keystorage */
+    
     const char *ourdir = (char *) *state;
-    /* Set the UserId = custom value.
-     * Execute the Generate-key command to generate a new pair of private/public
-     * key
-     * Verify the key was generated with the correct UserId.*/
-    rnp_t rnp;
-    char  passfd[4] = {0};
-    int   pipefd[2];
+    char        newhome[256];
+    rnp_t       rnp;
+    int         pipefd[2];
 
-    /* Setup the pass phrase fd to avoid user-input*/
-    assert_int_equal(setupPassphrasefd(pipefd), 1);
+    /* Initialize the rnp structure. */
+    setup_rnp_common(&rnp, KBX_KEY_STORE, ourdir, pipefd);
 
-    /*Initialize the basic RNP structure. */
-    memset(&rnp, '\0', sizeof(rnp));
-
-    /*Set the default parameters*/
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(&rnp, "res", "<stdout>");
-    rnp_setvar(&rnp, "format", "human");
-    rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
-    rnp_setvar(&rnp, "key_store_format", "KBX");
-    assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
-
-    assert_int_equal(1, rnp_init(&rnp));
-
-    // pubring and secring should not exist yet
+    /* Pubring and secring should not exist yet */
     assert_false(path_file_exists(ourdir, ".rnp/pubring.kbx", NULL));
     assert_false(path_file_exists(ourdir, ".rnp/secring.kbx", NULL));
     assert_false(path_file_exists(ourdir, ".rnp/pubring.gpg", NULL));
     assert_false(path_file_exists(ourdir, ".rnp/secring.gpg", NULL));
 
-    // Ensure the key was generated.
-    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+    /* Ensure the key was generated. */
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
     assert_int_equal(1, rnp_generate_key(&rnp, NULL));
 
-    // pubring and secring should now exist
+    /* Pubring and secring should now exist, but only for the KBX */
     assert_true(path_file_exists(ourdir, ".rnp/pubring.kbx", NULL));
     assert_true(path_file_exists(ourdir, ".rnp/secring.kbx", NULL));
     assert_false(path_file_exists(ourdir, ".rnp/pubring.gpg", NULL));
     assert_false(path_file_exists(ourdir, ".rnp/secring.gpg", NULL));
 
-    assert_int_equal(1, rnp_load_keys(&rnp));
-    assert_int_equal(1, rnp_find_key(&rnp, getenv("LOGNAME")));
+    /* Loading keyrings and checking whether they have correct key */
+    assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
+    assert_int_equal(rnp_secret_count(&rnp), 1);
+    assert_int_equal(rnp_public_count(&rnp), 1);
+    assert_int_equal(rnp_find_key(&rnp, getenv("LOGNAME")), 1);
+
+    close(pipefd[0]);
     rnp_end(&rnp);
 
-    // Now we start over with a new home.
-    memset(&rnp, 0, sizeof(rnp));
-    // Create a directory "newhome" within this tests temporary directory.
-    char newhome[256];
+    /* Now we start over with a new home. */
     paths_concat(newhome, sizeof(newhome), ourdir, "newhome", NULL);
     path_mkdir(0700, newhome, NULL);
 
-    // Set the homedir to our newhome path.
-    assert_int_equal(1, rnp_setvar(&rnp, "homedir", newhome));
+    /* Initialize the rnp structure. */
+    setup_rnp_common(&rnp, GPG_KEY_STORE, newhome, pipefd);
 
-    /*Set the default parameters*/
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(&rnp, "res", "<stdout>");
-    rnp_setvar(&rnp, "format", "human");
-    rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
-    rnp_setvar(&rnp, "key_store_format", "KBX");
-
-    assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
-
-    assert_int_equal(1, rnp_init(&rnp));
-
-    // pubring and secring should not exist yet
+    /* Pubring and secring should not exist yet */
     assert_false(path_file_exists(newhome, ".rnp/pubring.kbx", NULL));
     assert_false(path_file_exists(newhome, ".rnp/secring.kbx", NULL));
     assert_false(path_file_exists(newhome, ".rnp/pubring.gpg", NULL));
     assert_false(path_file_exists(newhome, ".rnp/secring.gpg", NULL));
 
-    // Ensure the key was generated.
-    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
+    /* Ensure the key was generated. */
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
     assert_int_equal(1, rnp_generate_key(&rnp, "newhomekey"));
 
-    // pubring and secring should now exist
+    /* Pubring and secring should now exist, but only for the KBX */
     assert_true(path_file_exists(newhome, ".rnp/pubring.kbx", NULL));
     assert_true(path_file_exists(newhome, ".rnp/secring.kbx", NULL));
     assert_false(path_file_exists(newhome, ".rnp/pubring.gpg", NULL));
     assert_false(path_file_exists(newhome, ".rnp/secring.gpg", NULL));
 
-    // Load the keys in our newhome directory
-    assert_int_equal(1, rnp_load_keys(&rnp));
+    /* Loading keyrings and checking whether they have correct key */
+    assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
+    assert_int_equal(rnp_secret_count(&rnp), 1);
+    assert_int_equal(rnp_public_count(&rnp), 1);
+    /* We should not find this key */
+    assert_int_equal(rnp_find_key(&rnp, getenv("LOGNAME")), 0);
 
-    // We should NOT find this key.
-    assert_int_equal(0, rnp_find_key(&rnp, getenv("LOGNAME")));
-
-    // We should find this key, instead.
-    assert_int_equal(1, rnp_find_key(&rnp, "newhomekey"));
-
-    rnp_end(&rnp); // Free memory and other allocated resources.
+    close(pipefd[0]);
+    rnp_end(&rnp);
 }
 
 void
 rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
 {
-    const char *ourdir = (char *) *state;
-    char        passfd[4] = {0};
-    int         pipefd[2];
-    rnp_t       rnp;
-    char        fakedir[256];
-
-    // fakedir is a directory that does not exist
-    paths_concat(fakedir, sizeof(fakedir), ourdir, "fake", NULL);
-
-    /****************************************************************/
-    // First, make sure init succeeds with the default (using $HOME)
-    memset(&rnp, '\0', sizeof(rnp));
-    assert_int_equal(1, rnp_init(&rnp));
-    rnp_end(&rnp);
-
-    /****************************************************************/
-    // Ensure it fails when we set an invalid "homedir"
-    memset(&rnp, '\0', sizeof(rnp));
-    rnp_setvar(&rnp, "homedir", fakedir);
-    assert_int_equal(0, rnp_init(&rnp));
-    rnp_end(&rnp);
-
-    /****************************************************************/
-    // Ensure it fails when we do not explicitly set "homedir" and
-    // $HOME is invalid.
-    memset(&rnp, '\0', sizeof(rnp));
-    assert_int_equal(0, setenv("HOME", fakedir, 1));
-    assert_int_equal(0, rnp_init(&rnp));
-    // Restore our original $HOME.
-    assert_int_equal(0, setenv("HOME", ourdir, 1));
-    rnp_end(&rnp);
-
-    /****************************************************************/
-    // Ensure key generation fails when we set an invalid "homedir"
-    // after rnp_init.
-    memset(&rnp, '\0', sizeof(rnp));
-    assert_int_equal(setupPassphrasefd(pipefd), 1);
-    rnp_setvar(&rnp, "res", "<stdout>");
-    rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
-    assert_int_equal(1, rnp_init(&rnp));
-    rnp_setvar(&rnp, "homedir", fakedir);
-    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
-    assert_int_equal(0, rnp_generate_key(&rnp, NULL));
-    rnp_end(&rnp);
+    /* This test is empty now since meaning of homedir was changed */
 }
 
 void
 rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
 {
     const char *ourdir = (char *) *state;
+    char        nopermsdir[256];
+    rnp_t       rnp;
+    int         pipefd[2];
 
-    char nopermsdir[256];
     paths_concat(nopermsdir, sizeof(nopermsdir), ourdir, "noperms", NULL);
     path_mkdir(0000, nopermsdir, NULL);
 
-    rnp_t rnp;
-    char  passfd[4] = {0};
-    int   pipefd[2];
-
-    /* Setup the pass phrase fd to avoid user-input*/
-    assert_int_equal(setupPassphrasefd(pipefd), 1);
-
     /* Set the home directory to a non-default value and ensure the read/write
-     * permission
-     * for the specified directory*/
-    int retVal = setenv("HOME", nopermsdir, 1);
-    assert_int_equal(retVal, 0); // Ensure the enviornment variable was set
+     * permission for the specified directory*/
+    assert_int_equal(setenv("HOME", nopermsdir, 1), 0);
 
-    /*Initialize the basic RNP structure. */
-    memset(&rnp, '\0', sizeof(rnp));
+    /* Initialize the rnp structure. */
+    setup_rnp_common(&rnp, GPG_KEY_STORE, nopermsdir, pipefd);
 
-    /*Set the default parameters*/
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(&rnp, "res", "<stdout>");
-    rnp_setvar(&rnp, "format", "human");
-    rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
-    assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
+    /* Try to generate key in the directory and make sure generation fails */
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
+    assert_int_equal(0, rnp_generate_key(&rnp, NULL));
 
-    retVal = rnp_init(&rnp);
-    assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
-
-    set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
-    retVal = rnp_generate_key(&rnp, NULL);
-    assert_int_equal(retVal, 0); // Ensure the key was NOT generated as the
-                                 // directory has only list read permissions.
-
-    rnp_end(&rnp); // Free memory and other allocated resources.
+    close(pipefd[0]);
+    rnp_end(&rnp);
 }

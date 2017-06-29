@@ -32,59 +32,38 @@
 void
 rnpkeys_exportkey_verifyUserId(void **state)
 {
-    /* * Execute the Generate-key command to generate a new pair of private/public
-     * key
-     * Verify the key was generated with the correct UserId.
-     */
+    /* Generate the key and export it */
+
     rnp_t rnp;
-    char  passfd[4] = {0};
     int   pipefd[2];
     char *exportedkey = NULL;
 
-    /* Setup the pass phrase fd to avoid user-input*/
-    assert_int_equal(setupPassphrasefd(pipefd), 1);
-    /*Initialize the basic RNP structure. */
-    memset(&rnp, '\0', sizeof(rnp));
+    /* Initialize the rnp structure. */
+    setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd);
 
-    /*Set the default parameters*/
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(&rnp, "res", "<stdout>");
-    rnp_setvar(&rnp, "format", "human");
-    rnp_setvar(&rnp, "userid", getenv("LOGNAME"));
-    rnp_setvar(&rnp, "pass-fd", uint_to_string(passfd, 4, pipefd[0], 10));
-    assert_int_equal(rnp_setvar(&rnp, "hash", "SHA256"), 1);
+    /* Generate the key */
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
+    assert_int_equal(1, rnp_generate_key(&rnp, NULL));
 
-    int retVal = rnp_init(&rnp);
-    assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
+    /* Loading keyrings and checking whether they have correct key */
+    assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
+    assert_int_equal(rnp_secret_count(&rnp), 1);
+    assert_int_equal(rnp_public_count(&rnp), 1);
+    assert_int_equal(rnp_find_key(&rnp, getenv("LOGNAME")), 1);
 
-    rnp.action.generate_key_ctx.key_alg = PGP_PKA_RSA;
-    rnp.action.generate_key_ctx.sym_alg = PGP_SA_DEFAULT_CIPHER;
-    rnp.action.generate_key_ctx.rsa.modulus_bit_len = 1024;
-    retVal = rnp_generate_key(&rnp, NULL);
-    assert_int_equal(retVal, 1); // Ensure the key was generated.
-
-    /*Load the newly generated rnp key*/
-    retVal = rnp_load_keys(&rnp);
-    assert_int_equal(retVal, 1); // Ensure the keyring is loaded.
-
-    /*try to export the key without passing userid from the interface;
-     * stack MUST query the set userid option to find the key*/
+    /* Try to export the key without passing userid from the interface */
     exportedkey = rnp_export_key(&rnp, NULL);
     assert_non_null(exportedkey);
     free(exportedkey);
     exportedkey = NULL;
 
-    /*try to export the key with specified userid parameter from the interface;
-     * stack MUST NOT query the set userid option to find the key*/
+    /* Try to export the key with specified userid parameter from the interface */
     exportedkey = rnp_export_key(&rnp, getenv("LOGNAME"));
     assert_non_null(exportedkey);
     free(exportedkey);
     exportedkey = NULL;
 
-    /* try to export the key with specified userid parameter (which is wrong) from
-     * the
-     * interface;
-     * stack MUST NOT be able to find the key*/
+    /* try to export the key with specified userid parameter (which is wrong) */
     exportedkey = rnp_export_key(&rnp, "LOGNAME");
     assert_null(exportedkey);
     free(exportedkey);

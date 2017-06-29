@@ -246,18 +246,42 @@ setupPassphrasefd(int *pipefd)
 }
 
 void
-setup_rnp_common(rnp_t *rnp, char *passfd)
+setup_rnp_common(rnp_t *rnp, enum key_store_format_t ks_format, const char *homedir, int *pipefd)
 {
-    /*Initialize the basic RNP structure. */
-    memset(rnp, '\0', sizeof(*rnp));
-    /*Set the default parameters*/
-    rnp_setvar(rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(rnp, "res", "<stdout>");
-    rnp_setvar(rnp, "format", "human");
-    if (passfd) {
-        rnp_setvar(rnp, "pass-fd", passfd);
-        rnp_setvar(rnp, "need seckey", "true");
+    char         pubpath[1024];
+    char         secpath[1024];
+    rnp_params_t params;
+
+    rnp_params_init(&params);
+    /* set password fd if any */
+    if (pipefd) {
+        assert_int_equal(setupPassphrasefd(pipefd), 1);
+        params.passfd = pipefd[0];
     }
-    int retVal = rnp_init(rnp);
-    assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
+    /* setup keyring pathes */
+    if (homedir == NULL) {
+        homedir = getenv("HOME");
+    }
+    assert_non_null(homedir);
+    assert_true((ks_format == GPG_KEY_STORE) || (ks_format == KBX_KEY_STORE));
+    paths_concat(pubpath, sizeof(pubpath), homedir, ".rnp", (ks_format == GPG_KEY_STORE) ? "pubring.gpg" : "pubring.kbx", NULL);
+    paths_concat(secpath, sizeof(secpath), homedir, ".rnp", (ks_format == GPG_KEY_STORE) ? "secring.gpg" : "secring.kbx", NULL);
+    params.pubpath = pubpath;
+    params.secpath = secpath;
+    params.ks_format = ks_format;
+
+    /*initialize the basic RNP structure. */
+    memset(rnp, '\0', sizeof(*rnp));
+    int retVal = rnp_init(rnp, &params);
+    assert_int_equal(retVal, 1);
+    rnp_params_free(&params);
+}
+
+void
+set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc, pgp_hash_alg_t hashalg)
+{
+    key_desc->key_alg = PGP_PKA_RSA;
+    key_desc->sym_alg = PGP_SA_DEFAULT_CIPHER;
+    key_desc->rsa.modulus_bit_len = 1024;
+    key_desc->hash_alg = hashalg;
 }

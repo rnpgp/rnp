@@ -50,14 +50,14 @@ enum key_store_format_t { GPG_KEY_STORE, SSH_KEY_STORE, KBX_KEY_STORE };
 
 /* structure used to keep application-wide rnp configuration: keyrings, password io, whatever else */
 typedef struct rnp_t {
-    void *    pubring;   /* public key ring */
-    void *    secring;   /* s3kr1t key ring */
-    pgp_io_t *io;        /* the io struct for results/errs */
-    void *    passfp;    /* file pointer for password input */
-    char *    pubpath;   /* path to the public keyring */
-    char *    secpath;   /* path to the secret keyring */
-    char *    defkey;    /* default key id */
-    int       pswdtries; /* number of password tries, -1 for unlimited */    
+    void *          pubring;   /* public key ring */
+    void *          secring;   /* s3kr1t key ring */
+    pgp_io_t *      io;        /* the io struct for results/errs */
+    void *          passfp;    /* file pointer for password input */
+    char *          pubpath;   /* path to the public keyring */
+    char *          secpath;   /* path to the secret keyring */
+    char *          defkey;    /* default key id */
+    int             pswdtries; /* number of password tries, -1 for unlimited */
 
     enum key_store_format_t key_store_format; /* keyring format */
     union {
@@ -74,7 +74,7 @@ typedef struct rnp_params_t {
     const char *errs;                    /* error stream : may be <stdout> */
     const char *ress;                    /* results stream : maye be <stdout>, <stderr> or file name/path */
 
-    enum key_store_format_t ks_format;   /* format of the key store */    
+    enum key_store_format_t ks_format;   /* format of the key store */
     char *   pubpath;                    /* public keystore path */
     char *   secpath;                    /* secret keystore path */
     char *   defkey;                     /* default/preferred key id */
@@ -126,6 +126,8 @@ char *rnp_get_key(rnp_t *, const char *, const char *);
 char *rnp_export_key(rnp_t *, const char *);
 int   rnp_import_key(rnp_t *, char *);
 int   rnp_generate_key(rnp_t *, const char *);
+int   rnp_secret_count(rnp_t *);
+int   rnp_public_count(rnp_t *);
 
 /* file management */
 int rnp_encrypt_file(rnp_ctx_t *, const char *, const char *, const char *);
@@ -137,7 +139,7 @@ int rnp_verify_file(rnp_ctx_t *, const char *, const char *, int);
 int rnp_sign_memory(rnp_ctx_t *, const char *, char *, size_t, char *, size_t, const unsigned);
 int rnp_verify_memory(rnp_ctx_t *, const void *, const size_t, void *, size_t, const int);
 int rnp_encrypt_memory(rnp_ctx_t *, const char *, void *, const size_t, char *, size_t);
-int rnp_decrypt_memory(rnp_ctx_t *, const void *, const size_t, char *, size_t, const int);
+int rnp_decrypt_memory(rnp_ctx_t *, const void *, const size_t, char *, size_t);
 
 /* match and hkp-related functions */
 int rnp_match_keys_json(rnp_t *, char **, char *, const char *, const int);

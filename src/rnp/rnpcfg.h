@@ -69,7 +69,7 @@ typedef struct rnp_cfg_t {
     unsigned  count;   /* number of elements used */
     unsigned  size;    /* allocated number of elements in the array */
     char **   keys;    /* key names */
-    char **   vals;   /* values */
+    char **   vals;    /* values */
 } rnp_cfg_t;
 
 int rnp_cfg_init(rnp_cfg_t *cfg);

@@ -291,7 +291,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     case CMD_DECRYPT:
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            ret = rnp_decrypt_memory(&ctx, in, cc, out, maxsize, 0);
+            ret = rnp_decrypt_memory(&ctx, in, cc, out, maxsize);
             ret = show_output(out, ret, "Bad memory decryption");
         } else {
             ret = rnp_decrypt_file(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE));

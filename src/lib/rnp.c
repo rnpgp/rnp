@@ -989,6 +989,17 @@ get_numbits(const rnp_keygen_desc_t *key)
     }
 }
 
+int   
+rnp_secret_count(rnp_t *rnp)
+{
+    return rnp->secring ? ((rnp_key_store_t *)rnp->secring)->keyc : 0;
+}
+
+int rnp_public_count(rnp_t *rnp)
+{
+    return rnp->pubring ? ((rnp_key_store_t *)rnp->pubring)->keyc : 0;
+}
+
 /* generate a new key */
 /* TODO: Does this need to take into account SSH keys? */
 int
@@ -1380,8 +1391,7 @@ rnp_decrypt_memory(rnp_ctx_t *  ctx,
                    const void * input,
                    const size_t insize,
                    char *       out,
-                   size_t       outsize,
-                   const int    armored)
+                   size_t       outsize)
 {
     pgp_memory_t *mem;
     pgp_io_t *    io;
@@ -1390,7 +1400,6 @@ rnp_decrypt_memory(rnp_ctx_t *  ctx,
     size_t        m;
     int           attempts;
 
-    __PGP_USED(armored);
     io = ctx->rnp->io;
     if (input == NULL) {
         (void) fprintf(io->errs, "rnp_decrypt_memory: no memory\n");
