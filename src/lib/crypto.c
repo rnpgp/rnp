@@ -269,7 +269,10 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
     seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
     seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
     seckey->alg = key_desc->sym_alg;
-    pgp_random(&seckey->iv[0], pgp_block_size(seckey->alg));
+    if (pgp_random(&seckey->iv[0], pgp_block_size(seckey->alg))) {
+        (void) fprintf(stderr, "pgp_random failed\n");
+        goto end;
+    }
     seckey->checksum = 0;
 
     if (pgp_keyid(

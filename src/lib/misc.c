@@ -531,14 +531,22 @@ pgp_calc_mdc_hash(const uint8_t *preamble,
     }
 }
 
-void
+int
 pgp_random(void *dest, size_t length)
 {
+    int rc;
+
     // todo should this be a global instead?
     botan_rng_t rng;
-    botan_rng_init(&rng, NULL);
-    botan_rng_get(rng, dest, length);
+
+    if (botan_rng_init(&rng, NULL)) {
+        (void) fprintf(stderr, "pgp_random: can't init botan\n");
+        return -1;
+    }
+    rc = botan_rng_get(rng, dest, length);
     botan_rng_destroy(rng);
+
+    return rc;
 }
 
 /**

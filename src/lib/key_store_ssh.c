@@ -382,7 +382,10 @@ ssh2seckey(
     key->key.seckey.s2k_specifier = PGP_S2KS_SALTED;
     key->key.seckey.hash_alg = PGP_HASH_SHA1;
 
-    pgp_random(key->key.seckey.salt, PGP_SALT_SIZE);
+    if (pgp_random(key->key.seckey.salt, PGP_SALT_SIZE)) {
+        (void) fprintf(stderr, "pgp_random failed\n");
+        return 0;
+    }
 
     if (key->key.seckey.pubkey.alg == PGP_PKA_RSA) {
         /* openssh and openssl have p and q swapped */
