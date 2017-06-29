@@ -256,6 +256,21 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     int              clearsign = (cmd == CMD_CLEARSIGN) ? 1 : 0;
     rnp_ctx_t        ctx;
 
+    /* checking userid for the upcoming operation */
+    if (rnp_cfg_getint(cfg, CFG_NEEDSUSERID)) {
+        userid = rnp_cfg_get(cfg, CFG_USERID);
+
+        if (!userid && rnp->defkey) {
+            userid = rnp->defkey;
+        }
+
+        if (!userid) {
+            fprintf(stderr, "user/key id is not available but required\n");
+            ret = 0;
+            goto done;
+        }
+    }
+
     /* operation context initialization: writing all additional parameters */
     rnp_ctx_init(&ctx, rnp);
     ctx.armour = rnp_cfg_getint(cfg, CFG_ARMOUR);
@@ -265,16 +280,6 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.filemtime = rnp_filemtime(f);
     }
     rnp->pswdtries = rnp_cfg_get_pswdtries(cfg);
-
-    /* getting recipient/signer user id if needed */
-    if (rnp_cfg_getint(cfg, CFG_NEEDSUSERID)) {
-        userid = rnp_cfg_get(cfg, CFG_USERID);
-        if (!userid) {
-            fprintf(stderr, "user/key id is not available but required\n");
-            ret = 0;
-            goto done;
-        }
-    }
 
     switch (cmd) {
     case CMD_ENCRYPT:

@@ -490,6 +490,7 @@ rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
             conffile(homedir, id, sizeof(id));
             if (id[0] != 0x0) {
                 params->defkey = strdup(id);
+                rnp_cfg_set(cfg, CFG_USERID, id);
             }
         }
     } else {
