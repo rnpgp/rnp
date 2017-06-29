@@ -1280,6 +1280,10 @@ skey_checksum_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
         printf("sum is NULL\n");
         return 0;
     }
+    if (sum->hashed == NULL) {
+        printf("sum->hashed is NULL\n");
+        return 0;
+    }
     if (errors && *errors) {
         printf("errors in skey_checksum_finaliser\n");
     }
@@ -1323,6 +1327,10 @@ pgp_push_checksum_writer(pgp_output_t *output, pgp_seckey_t *seckey)
         hashsize = pgp_hash_output_length(&sum->hash);
         if ((sum->hashed = seckey->checkhash) == NULL) {
             sum->hashed = seckey->checkhash = calloc(1, hashsize);
+            if (sum->hashed == NULL) {
+                (void) fprintf(stderr, "pgp_push_checksum_writer: can't allocate memory\n");
+                return;
+            }
         }
         pgp_writer_push(
           output, skey_checksum_writer, skey_checksum_finaliser, skey_checksum_destroyer, sum);
