@@ -94,7 +94,7 @@ ask_curve()
     } while (!ok);
 
     if (ok) {
-        result = (pgp_curve_t) val;
+        result = (pgp_curve_t) (val - 1);
     }
 
     return result;
