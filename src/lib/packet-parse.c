@@ -2635,7 +2635,11 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
             (void) fprintf(stderr, "parse_seckey: bad alloc\n");
             return 0;
         }
-        pgp_reader_push_hash(stream, &checkhash);
+        if (!pgp_reader_push_hash(stream, &checkhash)) {
+            free(pkt.u.seckey.checkhash);
+            (void) fprintf(stderr, "parse_seckey: bad alloc\n");
+            return 0;
+        }
     } else {
         pgp_reader_push_sum16(stream);
     }

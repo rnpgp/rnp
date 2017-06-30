@@ -193,7 +193,7 @@ pgp_reader_set(pgp_stream_t *          stream,
  * \param destroyer Reader's destroyer
  * \param vp Reader-specific arg
  */
-void
+int
 pgp_reader_push(pgp_stream_t *          stream,
                 pgp_reader_func_t *     reader,
                 pgp_reader_destroyer_t *destroyer,
@@ -203,6 +203,7 @@ pgp_reader_push(pgp_stream_t *          stream,
 
     if ((readinfo = calloc(1, sizeof(*readinfo))) == NULL) {
         (void) fprintf(stderr, "pgp_reader_push: bad alloc\n");
+        return 0;
     } else {
         *readinfo = stream->readinfo;
         (void) memset(&stream->readinfo, 0x0, sizeof(stream->readinfo));
@@ -213,6 +214,7 @@ pgp_reader_push(pgp_stream_t *          stream,
         stream->readinfo.accumulate = readinfo->accumulate;
 
         pgp_reader_set(stream, reader, destroyer, vp);
+        return 1;
     }
 }
 
@@ -1294,7 +1296,10 @@ pgp_reader_push_dearmour(pgp_stream_t *parse_info)
         dearmour->expect_sig = 0;
         dearmour->got_sig = 0;
 
-        pgp_reader_push(parse_info, armoured_data_reader, armoured_data_destroyer, dearmour);
+        if (!pgp_reader_push(
+              parse_info, armoured_data_reader, armoured_data_destroyer, dearmour)) {
+            free(dearmour);
+        }
     }
 }
 
@@ -1453,7 +1458,10 @@ pgp_reader_push_decrypt(pgp_stream_t *stream, pgp_crypt_t *decrypt, pgp_region_t
         encrypted->decrypt = decrypt;
         encrypted->region = region;
         pgp_decrypt_init(encrypted->decrypt);
-        pgp_reader_push(stream, encrypted_data_reader, encrypted_data_destroyer, encrypted);
+        if (!pgp_reader_push(
+              stream, encrypted_data_reader, encrypted_data_destroyer, encrypted)) {
+            free(encrypted);
+        }
     }
 }
 
@@ -1641,7 +1649,9 @@ pgp_reader_push_se_ip_data(pgp_stream_t *stream, pgp_crypt_t *decrypt, pgp_regio
     } else {
         se_ip->region = region;
         se_ip->decrypt = decrypt;
-        pgp_reader_push(stream, se_ip_data_reader, se_ip_data_destroyer, se_ip);
+        if (!pgp_reader_push(stream, se_ip_data_reader, se_ip_data_destroyer, se_ip)) {
+            free(se_ip);
+        }
     }
 }
 
@@ -2279,10 +2289,10 @@ hash_reader(pgp_stream_t *stream,
    \ingroup Internal_Readers_Hash
    \brief Push hashed data reader on stack
 */
-void
+int
 pgp_reader_push_hash(pgp_stream_t *stream, pgp_hash_t *hash)
 {
-    pgp_reader_push(stream, hash_reader, NULL, hash);
+    return pgp_reader_push(stream, hash_reader, NULL, hash);
 }
 
 /**
