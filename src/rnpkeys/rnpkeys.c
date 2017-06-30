@@ -29,87 +29,41 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 /* Command line program to perform rnp operations */
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/stat.h>
-
 #include <getopt.h>
 #include <regex.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
-#include <rnp.h>
-#include <crypto.h>
-
+#include "rnp.h"
+#include "crypto.h"
 #include "../common/constants.h"
+#include "rnpkeys.h"
 
-#define DEFAULT_RSA_NUMBITS 2048
 #define DEFAULT_HASH_ALG "SHA256"
 
 extern char *__progname;
 
-static const char *usage = "--help OR\n"
-                           "\t--export-key [options] OR\n"
-                           "\t--find-key [options] OR\n"
-                           "\t--generate-key [options] OR\n"
-                           "\t--import-key [options] OR\n"
-                           "\t--list-keys [options] OR\n"
-                           "\t--list-sigs [options] OR\n"
-                           "\t--trusted-keys [options] OR\n"
-                           "\t--get-key keyid [options] OR\n"
-                           "\t--version\n"
-                           "where options are:\n"
-                           "\t[--cipher=<cipher name>] AND/OR\n"
-                           "\t[--coredumps] AND/OR\n"
-                           "\t[--expert] AND/OR\n"
-                           "\t[--hash=<hash alg>] AND/OR\n"
-                           "\t[--homedir=<homedir>] AND/OR\n"
-                           "\t[--keyring=<keyring>] AND/OR\n"
-                           "\t[--keystore-format=<format>] AND/OR\n"
-                           "\t[--userid=<userid>] AND/OR\n"
-                           "\t[--verbose]\n";
+const char *usage = "--help OR\n"
+                    "\t--export-key [options] OR\n"
+                    "\t--find-key [options] OR\n"
+                    "\t--generate-key [options] OR\n"
+                    "\t--import-key [options] OR\n"
+                    "\t--list-keys [options] OR\n"
+                    "\t--list-sigs [options] OR\n"
+                    "\t--trusted-keys [options] OR\n"
+                    "\t--get-key keyid [options] OR\n"
+                    "\t--version\n"
+                    "where options are:\n"
+                    "\t[--cipher=<cipher name>] AND/OR\n"
+                    "\t[--coredumps] AND/OR\n"
+                    "\t[--expert] AND/OR\n"
+                    "\t[--hash=<hash alg>] AND/OR\n"
+                    "\t[--homedir=<homedir>] AND/OR\n"
+                    "\t[--keyring=<keyring>] AND/OR\n"
+                    "\t[--keystore-format=<format>] AND/OR\n"
+                    "\t[--userid=<userid>] AND/OR\n"
+                    "\t[--verbose]\n";
 
-enum optdefs {
-    /* commands */
-    LIST_KEYS = 260,
-    LIST_SIGS,
-    FIND_KEY,
-    EXPORT_KEY,
-    IMPORT_KEY,
-    GENERATE_KEY,
-    VERSION_CMD,
-    HELP_CMD,
-    GET_KEY,
-    TRUSTED_KEYS,
-
-    /* options */
-    SSHKEYS,
-    KEYRING,
-    KEY_STORE_FORMAT,
-    USERID,
-    HOMEDIR,
-    NUMBITS,
-    HASH_ALG,
-    VERBOSE,
-    COREDUMPS,
-    PASSWDFD,
-    RESULTS,
-    SSHKEYFILE,
-    CIPHER,
-    FORMAT,
-    EXPERT,
-
-    /* debug */
-    OPS_DEBUG
-
-};
-
-#define EXIT_ERROR 2
-
-static struct option options[] = {
+struct option options[] = {
   /* key-management commands */
   {"list-keys", no_argument, NULL, LIST_KEYS},
   {"list-sigs", no_argument, NULL, LIST_SIGS},
@@ -172,32 +126,6 @@ adjust_key_params(rnp_keygen_desc_t *key_desc, const char *hash_str, const char 
     key_desc->sym_alg = pgp_str_to_cipher(symalg_str);
 }
 
-pgp_errcode_t rnp_generate_key_expert_mode(rnp_t *rnp);
-
-/* gather up program variables into one struct */
-typedef struct prog_t {
-    char keyring[MAXPATHLEN + 1]; /* name of keyring */
-    int  numbits;                 /* # of bits */
-    int  cmd;                     /* rnpkeys command */
-} prog_t;
-
-static void
-print_praise(void)
-{
-    (void) fprintf(stderr,
-                   "%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
-                   rnp_get_info("version"),
-                   rnp_get_info("maintainer"));
-}
-
-/* print a usage message */
-static void
-print_usage(const char *usagemsg)
-{
-    print_praise();
-    (void) fprintf(stderr, "Usage: %s %s", __progname, usagemsg);
-}
-
 /* match keys, decoding from json if we do find any */
 static int
 match_keys(rnp_t *rnp, FILE *fp, char *f, const int psigs)
@@ -220,8 +148,25 @@ match_keys(rnp_t *rnp, FILE *fp, char *f, const int psigs)
     return idc;
 }
 
+void
+print_praise(void)
+{
+    (void) fprintf(stderr,
+                   "%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
+                   rnp_get_info("version"),
+                   rnp_get_info("maintainer"));
+}
+
+/* print a usage message */
+void
+print_usage(const char *usagemsg)
+{
+    print_praise();
+    (void) fprintf(stderr, "Usage: %s %s", __progname, usagemsg);
+}
+
 /* do a command once for a specified file 'f' */
-static int
+int
 rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 {
     char *key;
@@ -283,7 +228,7 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
 }
 
 /* set the option */
-static int
+int
 setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 {
     switch (val) {
@@ -395,7 +340,7 @@ setoption(rnp_t *rnp, prog_t *p, int val, char *arg)
 }
 
 /* we have -o option=value -- parse, and process */
-static int
+int
 parse_option(rnp_t *rnp, prog_t *p, const char *s)
 {
     static regex_t opt;
@@ -431,93 +376,4 @@ parse_option(rnp_t *rnp, prog_t *p, const char *s)
         }
     }
     return 0;
-}
-
-int
-main(int argc, char **argv)
-{
-    rnp_t  rnp;
-    prog_t p;
-    int    optindex;
-    int    ret;
-    int    ch;
-    int    i;
-
-    memset(&p, '\0', sizeof(p));
-    memset(&rnp, '\0', sizeof(rnp));
-
-    p.numbits = DEFAULT_RSA_NUMBITS;
-
-    if (argc < 2) {
-        print_usage(usage);
-        exit(EXIT_ERROR);
-    }
-
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(&rnp, "res", "<stdout>");
-    rnp_setvar(&rnp, "format", "human");
-
-    optindex = 0;
-
-    while ((ch = getopt_long(argc, argv, "S:Vglo:s", options, &optindex)) != -1) {
-        if (ch >= LIST_KEYS) {
-            /* getopt_long returns 0 for long options */
-            if (!setoption(&rnp, &p, options[optindex].val, optarg))
-                fprintf(stderr, "Bad setoption result %d\n", ch);
-        } else {
-            switch (ch) {
-            case 'S':
-                rnp_setvar(&rnp, "key_store_format", "SSH");
-                rnp_setvar(&rnp, "sshkeyfile", optarg);
-                break;
-            case 'V':
-                print_praise();
-                exit(EXIT_SUCCESS);
-            case 'g':
-                p.cmd = GENERATE_KEY;
-                break;
-            case 'l':
-                p.cmd = LIST_KEYS;
-                break;
-            case 'o':
-                if (!parse_option(&rnp, &p, optarg)) {
-                    (void) fprintf(stderr, "Bad parse_option\n");
-                }
-                break;
-            case 's':
-                p.cmd = LIST_SIGS;
-                break;
-            default:
-                p.cmd = HELP_CMD;
-                break;
-            }
-        }
-    }
-    if (!rnp_init(&rnp)) {
-        fputs("fatal: failed to initialize rnpkeys\n", stderr);
-        return EXIT_ERROR;
-    }
-
-    if (!rnp_load_keys(&rnp)) {
-        /* Keys mightn't loaded if this is a key generation step. */
-        if (p.cmd != GENERATE_KEY) {
-            fputs("fatal: failed to load keys\n", stderr);
-            return EXIT_ERROR;
-        }
-    }
-
-    /* now do the required action for each of the command line args */
-    ret = EXIT_SUCCESS;
-    if (optind == argc) {
-        if (!rnp_cmd(&rnp, &p, NULL))
-            ret = EXIT_FAILURE;
-    } else {
-        for (i = optind; i < argc; i++) {
-            if (!rnp_cmd(&rnp, &p, argv[i]))
-                ret = EXIT_FAILURE;
-        }
-    }
-    rnp_end(&rnp);
-
-    return ret;
 }
