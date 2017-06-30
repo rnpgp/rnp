@@ -1257,11 +1257,18 @@ pgp_sign_detached(rnp_ctx_t *    ctx,
 
     /* create a new signature */
     sig = pgp_create_sig_new();
+    if (sig == NULL) {
+        pgp_create_sig_delete(sig);
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     pgp_start_sig(sig, seckey, hash_alg, PGP_SIG_BINARY);
 
     /* read the contents of 'f', and add that to the signature */
     mem = pgp_memory_new();
     if (mem == NULL) {
+        pgp_teardown_file_write(output, fd);
+        pgp_create_sig_delete(sig);
         (void) fprintf(stderr, "can't allocate mem\n");
         return 0;
     }
