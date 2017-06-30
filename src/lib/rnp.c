@@ -153,8 +153,6 @@ size_arrays(rnp_t *rnp, unsigned needed)
     char **temp;
 
     if (rnp->size == 0) {
-        /* only get here first time around */
-        rnp->size = needed;
         if ((rnp->name = calloc(sizeof(char *), needed)) == NULL) {
             (void) fprintf(stderr, "size_arrays: bad alloc\n");
             return 0;
@@ -164,9 +162,9 @@ size_arrays(rnp_t *rnp, unsigned needed)
             (void) fprintf(stderr, "size_arrays: bad alloc\n");
             return 0;
         }
+        /* only get here first time around */
+        rnp->size = needed;
     } else if (rnp->c == rnp->size) {
-        /* only uses 'needed' when filled array */
-        rnp->size += needed;
         temp = realloc(rnp->name, sizeof(char *) * needed);
         if (temp == NULL) {
             (void) fprintf(stderr, "size_arrays: bad alloc\n");
@@ -179,6 +177,8 @@ size_arrays(rnp_t *rnp, unsigned needed)
             return 0;
         }
         rnp->value = temp;
+        /* only uses 'needed' when filled array */
+        rnp->size += needed;
     }
     return 1;
 }
@@ -257,8 +257,9 @@ findvar(rnp_t *rnp, const char *name)
 {
     unsigned i;
 
-    for (i = 0; i < rnp->c && strcmp(rnp->name[i], name) != 0; i++)
+    for (i = 0; i < rnp->c && rnp->name[i] && strcmp(rnp->name[i], name) != 0; i++)
         ;
+
     return (i == rnp->c) ? -1 : (int) i;
 }
 
@@ -1711,11 +1712,19 @@ rnp_verify_memory(
         return 0;
     }
     signedmem = pgp_memory_new();
+    if (signedmem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     if (!pgp_memory_add(signedmem, in, size)) {
         return 0;
     }
     if (out) {
         cat = pgp_memory_new();
+        if (cat == NULL) {
+            (void) fprintf(stderr, "can't allocate mem\n");
+            return 0;
+        }
     }
     ret = pgp_validate_mem(io, &result, signedmem, (out) ? &cat : NULL, armored, rnp->pubring);
     /* signedmem is freed from pgp_validate_mem */
@@ -1880,11 +1889,15 @@ rnp_setvar(rnp_t *rnp, const char *name, const char *value)
 
     /* protect against the case where 'value' is rnp->value[i] */
     newval = rnp_strdup(value);
+    if (newval == NULL) {
+        return 0;
+    }
     if ((i = findvar(rnp, name)) < 0) {
         /* add the element to the array */
-        if (size_arrays(rnp, rnp->size + 15)) {
-            rnp->name[i = rnp->c++] = rnp_strdup(name);
+        if (!size_arrays(rnp, rnp->size + 15)) {
+            return 0;
         }
+        rnp->name[i = rnp->c++] = rnp_strdup(name);
     } else {
         /* replace the element in the array */
         if (rnp->value[i]) {

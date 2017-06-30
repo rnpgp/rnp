@@ -269,7 +269,10 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
     seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
     seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
     seckey->alg = key_desc->sym_alg;
-    pgp_random(&seckey->iv[0], pgp_block_size(seckey->alg));
+    if (pgp_random(&seckey->iv[0], pgp_block_size(seckey->alg))) {
+        (void) fprintf(stderr, "pgp_random failed\n");
+        goto end;
+    }
     seckey->checksum = 0;
 
     if (pgp_keyid(
@@ -281,7 +284,10 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
         goto end;
 
     /* Generate checksum */
-    pgp_setup_memory_write(NULL, &output, &mem, 128);
+    if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
+        RNP_LOG("can't setup memory write\n");
+        goto end;
+    }
     pgp_push_checksum_writer(output, seckey);
 
     if (seckey->pubkey.alg == PGP_PKA_RSA || seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
@@ -307,10 +313,14 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
     ok = true;
 
 end:
-    pgp_teardown_memory_write(output, mem);
+    if (output != NULL && mem != NULL) {
+        pgp_teardown_memory_write(output, mem);
+    }
 
     if (ok == false) {
-        pgp_keydata_free(keydata);
+        if (keydata != NULL) {
+            pgp_keydata_free(keydata);
+        }
         return NULL;
     }
     return keydata;
@@ -404,6 +414,10 @@ pgp_encrypt_file(
 
     __PGP_USED(io);
     inmem = pgp_memory_new();
+    if (inmem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     if (!pgp_mem_readfile(inmem, infile)) {
         pgp_memory_free(inmem);
         return 0;
@@ -452,7 +466,10 @@ pgp_encrypt_buf(rnp_ctx_t *      ctx,
         return 0;
     }
 
-    pgp_setup_memory_write(ctx, &output, &outmem, insize);
+    if (!pgp_setup_memory_write(ctx, &output, &outmem, insize)) {
+        (void) fprintf(io->errs, "can't setup memory write\n");
+        return 0;
+    }
 
     /* set armoured/not armoured here */
     if (ctx->armour) {
@@ -610,15 +627,25 @@ pgp_decrypt_buf(pgp_io_t *       io,
     }
 
     inmem = pgp_memory_new();
+    if (inmem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     if (!pgp_memory_add(inmem, input, insize)) {
         return 0;
     }
 
     /* set up to read from memory */
-    pgp_setup_memory_read(io, &parse, inmem, NULL, write_parsed_cb, 0);
+    if (!pgp_setup_memory_read(io, &parse, inmem, NULL, write_parsed_cb, 0)) {
+        (void) fprintf(io->errs, "can't setup memory read\n");
+        return 0;
+    }
 
     /* setup for writing decrypted contents to given output file */
-    pgp_setup_memory_write(NULL, &parse->cbinfo.output, &outmem, insize);
+    if (!pgp_setup_memory_write(NULL, &parse->cbinfo.output, &outmem, insize)) {
+        (void) fprintf(io->errs, "can't setup memory write\n");
+        return 0;
+    }
 
     /* setup keyring and passphrase callback */
     parse->cbinfo.cryptinfo.secring = secring;

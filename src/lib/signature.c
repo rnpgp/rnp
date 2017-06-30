@@ -327,6 +327,10 @@ hash_add_key(pgp_hash_t *hash, const pgp_pubkey_t *key)
     const unsigned dontmakepacket = 0;
     size_t         len;
 
+    if (mem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return;
+    }
     pgp_build_pubkey(mem, key, dontmakepacket);
     len = pgp_mem_len(mem);
     pgp_hash_add_int(hash, 0x99, 1);
@@ -568,6 +572,10 @@ start_sig_in_mem(pgp_create_sig_t *sig)
     /* since this has subpackets and stuff, we have to buffer the whole */
     /* thing to get counts before writing. */
     sig->mem = pgp_memory_new();
+    if (sig->mem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return;
+    }
     pgp_memory_init(sig->mem, 100);
     pgp_writer_set_memory(sig->output, sig->mem);
 
@@ -600,6 +608,10 @@ pgp_sig_start_key_sig(pgp_create_sig_t *  sig,
                       pgp_hash_alg_t      hash_alg)
 {
     sig->output = pgp_output_new();
+    if (sig->output == NULL) {
+        fprintf(stderr, "Can't allocate memory\n");
+        return;
+    }
 
     /* XXX:  refactor with check (in several ways - check should
      * probably use the buffered writer to construct packets
@@ -624,6 +636,10 @@ pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
                          pgp_hash_alg_t      hash_alg)
 {
     sig->output = pgp_output_new();
+    if (sig->output == NULL) {
+        fprintf(stderr, "Can't allocate memory\n");
+        return;
+    }
 
     sig->sig.info.version = PGP_V4;
     sig->sig.info.hash_alg = PGP_HASH_SHA1;
@@ -653,6 +669,10 @@ pgp_start_sig(pgp_create_sig_t *   sig,
               const pgp_sig_type_t type)
 {
     sig->output = pgp_output_new();
+    if (sig->output == NULL) {
+        fprintf(stderr, "Can't allocate memory\n");
+        return;
+    }
 
     /* XXX:  refactor with check (in several ways - check should
      * probably use the buffered writer to construct packets
@@ -972,6 +992,10 @@ pgp_sign_file(rnp_ctx_t *         ctx,
 
     /* read input file into buf */
     infile = pgp_memory_new();
+    if (infile == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     if (!pgp_mem_readfile(infile, inname)) {
         pgp_memory_free(infile);
         return 0;
@@ -1105,6 +1129,11 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
     hash = NULL;
     ret = 0;
 
+    if (mem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return NULL;
+    }
+
     hash_alg = pgp_str_to_hash_alg(hashname);
     if (hash_alg == PGP_HASH_UNKNOWN) {
         (void) fprintf(io->errs, "pgp_sign_buf: unknown hash algorithm: \"%s\"\n", hashname);
@@ -1126,7 +1155,10 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
     pgp_start_sig(sig, seckey, hash_alg, sig_type);
 
     /* setup writer */
-    pgp_setup_memory_write(ctx, &output, &mem, insize);
+    if (!pgp_setup_memory_write(ctx, &output, &mem, insize)) {
+        (void) fprintf(io->errs, "can't setup memory write\n");
+        return NULL;
+    }
 
     if (cleartext) {
         /* Do the signing */
@@ -1229,6 +1261,10 @@ pgp_sign_detached(rnp_ctx_t *    ctx,
 
     /* read the contents of 'f', and add that to the signature */
     mem = pgp_memory_new();
+    if (mem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     if (!pgp_mem_readfile(mem, f)) {
         pgp_teardown_file_write(output, fd);
         pgp_memory_free(sig->mem); /* free memory allocated in pgp_start_sig*/

@@ -360,28 +360,44 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
     switch (key->s2k_specifier) {
     case PGP_S2KS_SIMPLE:
         /* no data to write */
-        pgp_s2k_simple(key->hash_alg, sesskey, sesskey_size, (const char *) passphrase);
+        if (pgp_s2k_simple(key->hash_alg, sesskey, sesskey_size, (const char *) passphrase) <
+            0) {
+            (void) fprintf(stderr, "pgp_s2k_simple failed\n");
+            return 0;
+        }
         break;
 
     case PGP_S2KS_SALTED:
         /* 8-octet salt value */
-        pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE);
+        if (pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE)) {
+            (void) fprintf(stderr, "pgp_random failed\n");
+            return 0;
+        }
         if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
             return 0;
         }
-        pgp_s2k_salted(
-          key->hash_alg, sesskey, sesskey_size, (const char *) passphrase, key->salt);
+        if (pgp_s2k_salted(
+              key->hash_alg, sesskey, sesskey_size, (const char *) passphrase, key->salt)) {
+            (void) fprintf(stderr, "pgp_s2k_salted failed\n");
+            return 0;
+        }
         break;
 
     case PGP_S2KS_ITERATED_AND_SALTED:
         /* 8-octet salt value */
-        pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE);
-        pgp_s2k_iterated(key->hash_alg,
-                         sesskey,
-                         sesskey_size,
-                         (const char *) passphrase,
-                         key->salt,
-                         key->s2k_iterations);
+        if (pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE)) {
+            (void) fprintf(stderr, "pgp_random failed\n");
+            return 0;
+        }
+        if (pgp_s2k_iterated(key->hash_alg,
+                             sesskey,
+                             sesskey_size,
+                             (const char *) passphrase,
+                             key->salt,
+                             key->s2k_iterations)) {
+            (void) fprintf(stderr, "pgp_s2k_iterated failed\n");
+            return 0;
+        }
         uint8_t encoded_iterations = pgp_s2k_encode_iterations(key->s2k_iterations);
 
         if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
@@ -682,6 +698,10 @@ pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key, unsigned make_packe
     pgp_output_t *output;
 
     output = pgp_output_new();
+    if (output == NULL) {
+        fprintf(stderr, "Can't allocate memory\n");
+        return;
+    }
     pgp_memory_init(out, 128);
     pgp_writer_set_memory(output, out);
     write_pubkey_body(key, output);
@@ -941,7 +961,10 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
     (void) memcpy(sesskey->key_id, id, sizeof(sesskey->key_id));
     sesskey->alg = pubkey->alg;
     sesskey->symm_alg = cipher;
-    pgp_random(sesskey->key, cipherinfo.keysize);
+    if (pgp_random(sesskey->key, cipherinfo.keysize)) {
+        (void) fprintf(stderr, "pgp_random failed\n");
+        goto error;
+    }
 
     if (create_unencoded_m_buf(sesskey, &cipherinfo, &encoded_key[0]) == 0) {
         free(sesskey);
@@ -1126,6 +1149,10 @@ pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_outp
     int           len;
 
     mem = pgp_memory_new();
+    if (mem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     if (!pgp_mem_readfile(mem, filename)) {
         (void) fprintf(stderr, "pgp_mem_readfile of '%s' failed\n", filename);
         pgp_memory_free(mem);

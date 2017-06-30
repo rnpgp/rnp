@@ -27,23 +27,43 @@
 #include <setjmp.h>
 #include <stdio.h>
 #include <cmocka.h>
-#include <rnp_tests.h>
-#include <rnp_tests_support.h>
+
+#include "rnp_tests.h"
+#include "rnp_tests_support.h"
 
 static int
 setup_test(void **state)
 {
-    *state = make_temp_dir();
-    assert_int_equal(0, setenv("HOME", (char *) *state, 1));
-    assert_int_equal(0, chdir((char *) *state));
+    rnp_test_state_t *rstate;
+    rstate = calloc(1, sizeof(rnp_test_state_t));
+    if (rstate == NULL) {
+        *state = NULL;
+        return -1;
+    }
+    rstate->home = make_temp_dir();
+    if (rstate->home == NULL) {
+        free(rstate);
+        *state = NULL;
+        return -1;
+    }
+    if (getenv("RNP_TEST_NOT_FATAL")) {
+        rstate->not_fatal = 1;
+    } else {
+        rstate->not_fatal = 0;
+    }
+    *state = rstate;
+    assert_int_equal(0, setenv("HOME", rstate->home, 1));
+    assert_int_equal(0, chdir(rstate->home));
     return 0;
 }
 
 static int
 teardown_test(void **state)
 {
-    delete_recursively((char *) *state);
-    free(*state);
+    rnp_test_state_t *rstate = *state;
+    delete_recursively(rstate->home);
+    free(rstate->home);
+    free(rstate);
     *state = NULL;
     return 0;
 }
@@ -51,7 +71,7 @@ teardown_test(void **state)
 int
 main(void)
 {
-    int ret;
+    int ret, i, j;
     /* Create a temporary HOME.
      * This is just an extra guard to protect against accidental
      * modifications of a user's HOME.
@@ -65,6 +85,11 @@ main(void)
      */
     if (!getenv("LOGNAME"))
         setenv("LOGNAME", "test-user", 1);
+
+    int iteration = 0;
+    if (getenv("RNP_TEST_ITERATIONS")) {
+        iteration = atoi(getenv("RNP_TEST_ITERATIONS"));
+    }
 
     struct CMUnitTest tests[] = {
       cmocka_unit_test(hash_test_success),
@@ -86,11 +111,27 @@ main(void)
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */
-    for (size_t i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+    for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
         tests[i].setup_func = setup_test;
         tests[i].teardown_func = teardown_test;
     }
-    ret = cmocka_run_group_tests(tests, NULL, NULL);
+
+    if (iteration == 0) {
+        ret = cmocka_run_group_tests(tests, NULL, NULL);
+    } else {
+        for (i = 0; i < iteration; i++) {
+            for (j = 0; j < sizeof(tests) / sizeof(tests[0]); j++) {
+                printf("Run iteration %d, test: %s\n", i, tests[j].name);
+                void *state;
+                if (setup_test(&state)) {
+                    continue;
+                }
+                tests[j].test_func(&state);
+                teardown_test(&state);
+            }
+        }
+        ret = 0;
+    }
 
     delete_recursively(tmphome);
     free(tmphome);

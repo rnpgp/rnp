@@ -47,7 +47,7 @@
 #include <sys/stat.h>
 
 /* Check if a file exists.
- * Use with assert_true and assert_false.
+ * Use with assert_true and rnp_assert_false(rstate, .
  */
 int
 file_exists(const char *path)
@@ -57,7 +57,7 @@ file_exists(const char *path)
 }
 
 /* Check if a file is empty
- * Use with assert_true and assert_false.
+ * Use with assert_true and rnp_assert_false(rstate, .
  */
 int
 file_empty(const char *path)
@@ -171,6 +171,9 @@ make_temp_dir()
 {
     const char *template = "/tmp/rnp-cmocka-XXXXXX";
     char *buffer = calloc(1, strlen(template) + 1);
+    if (buffer == NULL) {
+        return NULL;
+    }
     strncpy(buffer, template, strlen(template));
     return mkdtemp(buffer);
 }
@@ -207,6 +210,9 @@ test_value_equal(const char *what, const char *expected_value, const uint8_t v[]
     assert_int_equal(strlen(expected_value), v_len * 2);
 
     char *produced = hex_encode(v, v_len);
+    if (produced == NULL) {
+        return -1;
+    }
 
     // fixme - expects expected_value is also uppercase
     assert_string_equal(produced, expected_value);
@@ -245,19 +251,40 @@ setupPassphrasefd(int *pipefd)
     return 1;
 }
 
-void
+int
 setup_rnp_common(rnp_t *rnp, char *passfd)
 {
+    int rc;
     /*Initialize the basic RNP structure. */
     memset(rnp, '\0', sizeof(*rnp));
     /*Set the default parameters*/
-    rnp_setvar(rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(rnp, "res", "<stdout>");
-    rnp_setvar(rnp, "format", "human");
-    if (passfd) {
-        rnp_setvar(rnp, "pass-fd", passfd);
-        rnp_setvar(rnp, "need seckey", "true");
+    rc = rnp_setvar(rnp, "sshkeydir", "/etc/ssh");
+    if (rc != 1) {
+        return rc;
     }
-    int retVal = rnp_init(rnp);
-    assert_int_equal(retVal, 1); // Ensure the rnp core structure is correctly initialized.
+    rc = rnp_setvar(rnp, "res", "<stdout>");
+    if (rc != 1) {
+        return rc;
+    }
+    rc = rnp_setvar(rnp, "format", "human");
+    if (rc != 1) {
+        return rc;
+    }
+    rc = rnp_setvar(rnp, "userid", getenv("LOGNAME"));
+    if (rc != 1) {
+        return rc;
+    }
+
+    if (passfd) {
+        rc = rnp_setvar(rnp, "pass-fd", passfd);
+        if (rc != 1) {
+            return rc;
+        }
+        rc = rnp_setvar(rnp, "need seckey", "true");
+        if (rc != 1) {
+            return rc;
+        }
+    }
+
+    return rnp_init(rnp);
 }
