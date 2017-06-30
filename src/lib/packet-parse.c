@@ -1144,6 +1144,13 @@ pgp_parser_content_free(pgp_packet_t *c)
         pgp_subpacket_free(&c->u.packet);
         break;
 
+    case PGP_PTAG_RAW_SS:
+        if (c->u.ss_raw.raw != NULL) {
+            free(c->u.ss_raw.raw);
+        }
+        c->u.ss_raw.raw = NULL;
+        break;
+
     case PGP_PARSER_ERROR:
     case PGP_PARSER_ERRCODE:
         break;
@@ -1671,9 +1678,13 @@ parse_one_sig_subpacket(pgp_sig_t *sig, pgp_region_t *region, pgp_stream_t *stre
             return 0;
         }
         if (!limread(pkt.u.ss_raw.raw, (unsigned) pkt.u.ss_raw.length, &subregion, stream)) {
+            free(pkt.u.ss_raw.raw);
             return 0;
         }
         CALLBACK(PGP_PTAG_RAW_SS, &stream->cbinfo, &pkt);
+        if (pkt.u.ss_raw.raw != NULL) {
+            free(pkt.u.ss_raw.raw);
+        }
         return 1;
     }
     switch (pkt.tag) {
