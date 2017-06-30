@@ -243,7 +243,7 @@ pgp_writer_info_delete(pgp_writer_t *writer)
  * \param destroyer
  * \param arg The argument for the writer and destroyer
  */
-void
+int
 pgp_writer_set(pgp_output_t *          output,
                pgp_writer_func_t *     writer,
                pgp_writer_finaliser_t *finaliser,
@@ -252,12 +252,14 @@ pgp_writer_set(pgp_output_t *          output,
 {
     if (output->writer.writer) {
         (void) fprintf(stderr, "pgp_writer_set: already set\n");
+        return 0;
     } else {
         output->writer.writer = writer;
         output->writer.finaliser = finaliser;
         output->writer.destroyer = destroyer;
         output->writer.arg = arg;
         output->writer.ctx = output->ctx;
+        return 1;
     }
 }
 
@@ -272,7 +274,7 @@ pgp_writer_set(pgp_output_t *          output,
  * \param destroyer
  * \param arg The argument for the writer and destroyer
  */
-void
+int
 pgp_writer_push(pgp_output_t *          output,
                 pgp_writer_func_t *     writer,
                 pgp_writer_finaliser_t *finaliser,
@@ -283,8 +285,10 @@ pgp_writer_push(pgp_output_t *          output,
 
     if ((copy = calloc(1, sizeof(*copy))) == NULL) {
         (void) fprintf(stderr, "pgp_writer_push: bad alloc\n");
+        return 0;
     } else if (output->writer.writer == NULL) {
         (void) fprintf(stderr, "pgp_writer_push: no orig writer\n");
+        return 0;
     } else {
         *copy = output->writer;
         output->writer.next = copy;
@@ -295,6 +299,7 @@ pgp_writer_push(pgp_output_t *          output,
         output->writer.arg = arg;
         output->writer.ctx = output->ctx;
     }
+    return 1;
 }
 
 void
@@ -514,10 +519,14 @@ pgp_writer_push_clearsigned(pgp_output_t *output, pgp_create_sig_t *sig)
     dash->sig = sig;
     dash->trailing = pgp_memory_new();
     if (dash->trailing == NULL) {
+        free(dash);
         PGP_ERROR_1(&output->errors, PGP_E_FAIL, "%s", "can't allocate mem");
         return 0;
     }
-    pgp_writer_push(output, dash_esc_writer, NULL, dash_escaped_destroyer, dash);
+    if (!pgp_writer_push(output, dash_esc_writer, NULL, dash_escaped_destroyer, dash)) {
+        free(dash);
+        return 0;
+    }
     return ret;
 }
 
@@ -673,14 +682,20 @@ pgp_writer_use_armored_sig(pgp_output_t *output)
         PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "pgp_writer_use_armored_sig: Bad alloc");
         return 0;
     }
-    pgp_writer_push(output, linebreak_writer, NULL, generic_destroyer, linebreak);
+    if (!pgp_writer_push(output, linebreak_writer, NULL, generic_destroyer, linebreak)) {
+        free(linebreak);
+        return 0;
+    }
     base64 = calloc(1, sizeof(*base64));
     if (!base64) {
         PGP_MEMORY_ERROR(&output->errors);
         return 0;
     }
     base64->checksum = CRC24_INIT;
-    pgp_writer_push(output, base64_writer, sig_finaliser, generic_destroyer, base64);
+    if (!pgp_writer_push(output, base64_writer, sig_finaliser, generic_destroyer, base64)) {
+        free(base64);
+        return 0;
+    }
     return 1;
 }
 
@@ -740,14 +755,20 @@ pgp_writer_push_armor_msg(pgp_output_t *output)
         (void) fprintf(stderr, "pgp_writer_push_armor_msg: bad lb alloc\n");
         return;
     }
-    pgp_writer_push(output, linebreak_writer, NULL, generic_destroyer, linebreak);
+    if (!pgp_writer_push(output, linebreak_writer, NULL, generic_destroyer, linebreak)) {
+        free(linebreak);
+        return;
+    }
     if ((base64 = calloc(1, sizeof(*base64))) == NULL) {
         (void) fprintf(stderr, "pgp_writer_push_armor_msg: bad alloc\n");
         return;
     }
     base64->checksum = CRC24_INIT;
-    pgp_writer_push(
-      output, base64_writer, armoured_message_finaliser, generic_destroyer, base64);
+    if (!pgp_writer_push(
+          output, base64_writer, armoured_message_finaliser, generic_destroyer, base64)) {
+        free(base64);
+        return;
+    }
 }
 
 static unsigned
@@ -855,13 +876,19 @@ pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
         return;
     }
     pgp_write(output, header, hdrsize);
-    pgp_writer_push(output, linebreak_writer, NULL, generic_destroyer, linebreak);
+    if (!pgp_writer_push(output, linebreak_writer, NULL, generic_destroyer, linebreak)) {
+        free(linebreak);
+        return;
+    }
     if ((base64 = calloc(1, sizeof(*base64))) == NULL) {
         (void) fprintf(stderr, "pgp_writer_push_armoured: bad alloc\n");
         return;
     }
     base64->checksum = CRC24_INIT;
-    pgp_writer_push(output, base64_writer, finaliser, generic_destroyer, base64);
+    if (!pgp_writer_push(output, base64_writer, finaliser, generic_destroyer, base64)) {
+        free(base64);
+        return;
+    }
 }
 
 /**************************************************************************/
@@ -944,7 +971,9 @@ pgp_push_enc_crypt(pgp_output_t *output, pgp_crypt_t *pgp_crypt)
         pgp_encrypt->crypt = pgp_crypt;
         pgp_encrypt->free_crypt = 0;
         /* And push writer on stack */
-        pgp_writer_push(output, encrypt_writer, NULL, encrypt_destroyer, pgp_encrypt);
+        if (!pgp_writer_push(output, encrypt_writer, NULL, encrypt_destroyer, pgp_encrypt)) {
+            free(pgp_encrypt);
+        }
     }
 }
 
@@ -1011,7 +1040,13 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t
     se_ip->crypt = encrypted;
 
     /* And push writer on stack */
-    pgp_writer_push(output, encrypt_se_ip_writer, NULL, encrypt_se_ip_destroyer, se_ip);
+    if (!pgp_writer_push(output, encrypt_se_ip_writer, NULL, encrypt_se_ip_destroyer, se_ip)) {
+        free(se_ip);
+        pgp_pk_sesskey_free(encrypted_pk_sesskey);
+        free(encrypted_pk_sesskey);
+        free(encrypted);
+        return 0;
+    }
     /* tidy up */
     pgp_pk_sesskey_free(encrypted_pk_sesskey);
     free(encrypted_pk_sesskey);
@@ -1212,7 +1247,9 @@ pgp_writer_set_fd(pgp_output_t *output, int fd)
         (void) fprintf(stderr, "pgp_writer_set_fd: bad alloc\n");
     } else {
         writer->fd = fd;
-        pgp_writer_set(output, fd_writer, NULL, writer_fd_destroyer, writer);
+        if (!pgp_writer_set(output, fd_writer, NULL, writer_fd_destroyer, writer)) {
+            free(writer);
+        }
     }
 }
 
@@ -1407,6 +1444,9 @@ pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_sym
 
     se_ip->mem_data = pgp_memory_new();
     if (se_ip->mem_data == NULL) {
+        free(iv);
+        free(encrypted);
+        free(se_ip);
         (void) fprintf(stderr, "can't allocate mem\n");
         return;
     }
@@ -1416,13 +1456,22 @@ pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_sym
     se_ip->litoutput = NULL;
 
     if (!pgp_setup_memory_write(output->ctx, &se_ip->se_ip_out, &se_ip->se_ip_mem, bufsz)) {
+        free(iv);
+        free(encrypted);
+        free(se_ip);
         (void) fprintf(stderr, "can't setup memory write\n");
         return;
     }
 
     /* And push writer on stack */
-    pgp_writer_push(
-      output, str_enc_se_ip_writer, str_enc_se_ip_finaliser, str_enc_se_ip_destroyer, se_ip);
+    if (!pgp_writer_push(output,
+                         str_enc_se_ip_writer,
+                         str_enc_se_ip_finaliser,
+                         str_enc_se_ip_destroyer,
+                         se_ip)) {
+        free(se_ip);
+        return;
+    }
     /* tidy up */
     free(encrypted_pk_sesskey);
     free(iv);

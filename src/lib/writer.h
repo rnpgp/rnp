@@ -84,16 +84,16 @@ struct pgp_writer_t {
 
 void *pgp_writer_get_arg(pgp_writer_t *);
 
-void pgp_writer_set(pgp_output_t *,
+int pgp_writer_set(pgp_output_t *,
+                   pgp_writer_func_t *,
+                   pgp_writer_finaliser_t *,
+                   pgp_writer_destroyer_t *,
+                   void *);
+int pgp_writer_push(pgp_output_t *,
                     pgp_writer_func_t *,
                     pgp_writer_finaliser_t *,
                     pgp_writer_destroyer_t *,
                     void *);
-void pgp_writer_push(pgp_output_t *,
-                     pgp_writer_func_t *,
-                     pgp_writer_finaliser_t *,
-                     pgp_writer_destroyer_t *,
-                     void *);
 void     pgp_writer_pop(pgp_output_t *);
 unsigned pgp_writer_passthrough(const uint8_t *, unsigned, pgp_error_t **, pgp_writer_t *);
 

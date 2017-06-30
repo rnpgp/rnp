@@ -178,6 +178,7 @@ read_unsig_str(uint8_t **str, pgp_region_t *subregion, pgp_stream_t *stream)
     if (len &&
         !pgp_limited_read(
           stream, *str, len, subregion, &stream->errors, &stream->readinfo, &stream->cbinfo)) {
+        free(*str);
         return 0;
     }
     (*str)[len] = '\0';
@@ -888,8 +889,10 @@ string_free(char **str)
 void
 pgp_subpacket_free(pgp_subpacket_t *packet)
 {
-    free(packet->raw);
-    packet->raw = NULL;
+    if (packet->raw) {
+        free(packet->raw);
+        packet->raw = NULL;
+    }
 }
 
 /**
@@ -1421,8 +1424,10 @@ parse_userattr(pgp_region_t *region, pgp_stream_t *stream)
 void
 pgp_userid_free(uint8_t **id)
 {
-    free(*id);
-    *id = NULL;
+    if (*id != NULL) {
+        free(*id);
+        *id = NULL;
+    }
 }
 
 /**
@@ -1464,10 +1469,12 @@ parse_userid(pgp_region_t *region, pgp_stream_t *stream)
     }
 
     if (region->length && !limread(pkt.u.userid, region->length, region, stream)) {
+        pgp_userid_free(&pkt.u.userid);
         return 0;
     }
     pkt.u.userid[region->length] = 0x0;
     CALLBACK(PGP_PTAG_CT_USER_ID, &stream->cbinfo, &pkt);
+    pgp_userid_free(&pkt.u.userid);
     return 1;
 }
 
@@ -2050,6 +2057,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
     }
 
     if (!stream->readinfo.accumulate) {
+        free(pkt.u.sig.info.v4_hashed);
         /* We must accumulate, else we can't check the signature */
         fprintf(stderr, "*** ERROR: must set accumulate to 1\n");
         return 0;
@@ -2623,6 +2631,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
             return 0;
         }
         if (!pgp_hash_create(&checkhash, PGP_HASH_SHA1)) {
+            free(pkt.u.seckey.checkhash);
             (void) fprintf(stderr, "parse_seckey: bad alloc\n");
             return 0;
         }
