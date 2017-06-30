@@ -306,9 +306,12 @@ list_free_strings(pgp_list_t *list)
     unsigned i;
 
     for (i = 0; i < list->used; i++) {
-        free(list->strings[i]);
-        list->strings[i] = NULL;
+        if (list->strings[i] != NULL) {
+            free(list->strings[i]);
+            list->strings[i] = NULL;
+        }
     }
+    list->used = 0;
 }
 
 static void
