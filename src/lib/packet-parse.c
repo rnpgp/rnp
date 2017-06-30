@@ -2078,16 +2078,19 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
                   pkt.u.sig.info.v4_hashlen);
 
     if (!parse_sig_subpkts(&pkt.u.sig, region, stream)) {
+        free(pkt.u.sig.info.v4_hashed);
         return 0;
     }
 
     if (!limread(pkt.u.sig.hash2, 2, region, stream)) {
+        free(pkt.u.sig.info.v4_hashed);
         return 0;
     }
 
     switch (pkt.u.sig.info.key_alg) {
     case PGP_PKA_RSA:
         if (!limread_mpi(&pkt.u.sig.info.sig.rsa.sig, region, stream)) {
+            free(pkt.u.sig.info.v4_hashed);
             return 0;
         }
         if (rnp_get_debug(__FILE__)) {
@@ -2106,6 +2109,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
             if (rnp_get_debug(__FILE__)) {
                 (void) fprintf(stderr, "Error reading DSA r field in signature\n");
             }
+            free(pkt.u.sig.info.v4_hashed);
             return 0;
         }
         if (!limread_mpi(&pkt.u.sig.info.sig.dsa.s, region, stream)) {
@@ -2117,6 +2121,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_ECDSA:
         if (!limread_mpi(&pkt.u.sig.info.sig.ecc.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.ecc.s, region, stream)) {
+            free(pkt.u.sig.info.v4_hashed);
             return 0;
         }
         break;
@@ -2124,6 +2129,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         if (!limread_mpi(&pkt.u.sig.info.sig.elgamal.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.elgamal.s, region, stream)) {
+            free(pkt.u.sig.info.v4_hashed);
             return 0;
         }
         break;
@@ -2140,6 +2146,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_PRIVATE09:
     case PGP_PKA_PRIVATE10:
         if (!read_data(&pkt.u.sig.info.sig.unknown, region, stream)) {
+            free(pkt.u.sig.info.v4_hashed);
             return 0;
         }
         break;
@@ -2149,6 +2156,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
                     PGP_E_ALG_UNSUPPORTED_SIGNATURE_ALG,
                     "Bad v4 signature key algorithm (%s)",
                     pgp_show_pka(pkt.u.sig.info.key_alg));
+        free(pkt.u.sig.info.v4_hashed);
         return 0;
     }
     if (region->readc != region->length) {
@@ -2156,9 +2164,11 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
                     PGP_E_R_UNCONSUMED_DATA,
                     "Unconsumed data (%d)",
                     region->length - region->readc);
+        free(pkt.u.sig.info.v4_hashed);
         return 0;
     }
     CALLBACK(PGP_PTAG_CT_SIGNATURE_FOOTER, &stream->cbinfo, &pkt);
+    free(pkt.u.sig.info.v4_hashed);
     return 1;
 }
 
