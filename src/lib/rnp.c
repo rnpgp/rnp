@@ -560,19 +560,17 @@ set_pass_fd(rnp_t *rnp, int passfd)
 static int
 init_io(rnp_t *rnp, pgp_io_t *io, const char *outs, const char *errs, const char *ress)
 {
-    char *stream;
-
     /* TODO: I think refactoring can go even further here. */
 
     /* Configure the output stream. */
     io->outs = stdout;
-    if (outs && strcmp(stream, "<stderr>") == 0) {
+    if (outs && strcmp(outs, "<stderr>") == 0) {
         io->outs = stderr;
     }
 
     /* Configure the error stream. */
     io->errs = stderr;
-    if (errs && strcmp(stream, "<stdout>") == 0) {
+    if (errs && strcmp(errs, "<stdout>") == 0) {
         io->errs = stdout;
     }
 
