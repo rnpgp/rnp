@@ -254,7 +254,10 @@ setupPassphrasefd(int *pipefd)
 }
 
 void
-setup_rnp_common(rnp_t *rnp, enum key_store_format_t ks_format, const char *homedir, int *pipefd)
+setup_rnp_common(rnp_t *                 rnp,
+                 enum key_store_format_t ks_format,
+                 const char *            homedir,
+                 int *                   pipefd)
 {
     char         pubpath[1024];
     char         secpath[1024];
@@ -273,15 +276,23 @@ setup_rnp_common(rnp_t *rnp, enum key_store_format_t ks_format, const char *home
         /* if we use default homedir then we append '.rnp' and create directory as well */
         homedir = getenv("HOME");
         paths_concat(homepath, sizeof(homepath), homedir, ".rnp", NULL);
-        if (!dir_exists(homepath))        
+        if (!dir_exists(homepath))
             path_mkdir(0700, homepath, NULL);
         homedir = homepath;
     }
 
     assert_non_null(homedir);
     assert_true((ks_format == GPG_KEY_STORE) || (ks_format == KBX_KEY_STORE));
-    paths_concat(pubpath, sizeof(pubpath), homedir, (ks_format == GPG_KEY_STORE) ? "pubring.gpg" : "pubring.kbx", NULL);
-    paths_concat(secpath, sizeof(secpath), homedir, (ks_format == GPG_KEY_STORE) ? "secring.gpg" : "secring.kbx", NULL);
+    paths_concat(pubpath,
+                 sizeof(pubpath),
+                 homedir,
+                 (ks_format == GPG_KEY_STORE) ? "pubring.gpg" : "pubring.kbx",
+                 NULL);
+    paths_concat(secpath,
+                 sizeof(secpath),
+                 homedir,
+                 (ks_format == GPG_KEY_STORE) ? "secring.gpg" : "secring.kbx",
+                 NULL);
     params.pubpath = strdup(pubpath);
     params.secpath = strdup(secpath);
     params.ks_format = ks_format;

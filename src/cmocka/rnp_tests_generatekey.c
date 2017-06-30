@@ -55,7 +55,7 @@ rnpkeys_generatekey_testSignature(void **state)
         memset(userId, 0, sizeof(userId));
         strcpy(userId, "sigtest_");
         strcat(userId, hashAlg[i]);
-        
+
         /* Generate the RSA key and make sure it was generated */
         set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_DEFAULT_HASH_ALGORITHM);
         assert_int_equal(rnp_generate_key(&rnp, userId), 1);
@@ -65,7 +65,7 @@ rnpkeys_generatekey_testSignature(void **state)
         assert_true(rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
         /* Make sure just generated key is present in the keyring */
-        assert_int_equal(rnp_find_key(&rnp, userId), 1); 
+        assert_int_equal(rnp_find_key(&rnp, userId), 1);
 
         /* Cleanup */
         close(pipefd[0]);
@@ -189,7 +189,8 @@ rnpkeys_generatekey_testEncryption(void **state)
             ctx.filename = strdup("dummyfile.dat");
             ctx.ealg = pgp_str_to_cipher(cipherAlg[i]);
             /* checking whether we have correct cipher constant */
-            assert_true((ctx.ealg != PGP_SA_DEFAULT_CIPHER) || (strcmp(cipherAlg[i], "CAST5") == 0));
+            assert_true((ctx.ealg != PGP_SA_DEFAULT_CIPHER) ||
+                        (strcmp(cipherAlg[i], "CAST5") == 0));
 
             /* Encrypting the memory */
             retVal = rnp_encrypt_memory(&ctx,
@@ -209,13 +210,14 @@ rnpkeys_generatekey_testEncryption(void **state)
             /* Loading the keyrings */
             assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
             assert_true(rnp_secret_count(&rnp) > 0);
-            
+
             /* Setting the decryption context */
             rnp_ctx_init(&ctx, &rnp);
             ctx.armour = armored;
 
             /* Decrypting the memory */
-            retVal = rnp_decrypt_memory(&ctx, ciphertextBuf, ctextLen, plaintextBuf, sizeof(plaintextBuf));
+            retVal = rnp_decrypt_memory(
+              &ctx, ciphertextBuf, ctextLen, plaintextBuf, sizeof(plaintextBuf));
 
             /* Ensure plaintext recovered */
             assert_int_equal(retVal, strlen(memToEncrypt));
@@ -230,12 +232,13 @@ rnpkeys_generatekey_testEncryption(void **state)
 void
 rnpkeys_generatekey_verifySupportedHashAlg(void **state)
 {
-    /* Generate key for each of the hash algorithms. Check whether key was generated successfully */
-    
+    /* Generate key for each of the hash algorithms. Check whether key was generated
+     * successfully */
+
     const char *hashAlg[] = {"MD5", "SHA1", "SHA256", "SHA384", "SHA512", "SHA224", "SM3"};
     enum key_store_format_t keystores[] = {GPG_KEY_STORE, KBX_KEY_STORE};
-    rnp_t rnp;
-    int   pipefd[2];
+    rnp_t                   rnp;
+    int                     pipefd[2];
 
     for (int i = 0; i < sizeof(hashAlg) / sizeof(hashAlg[0]); i++) {
         for (int j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
@@ -243,7 +246,8 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
             setup_rnp_common(&rnp, keystores[j], NULL, pipefd);
             assert_true(rnp.key_store_format == keystores[j]);
 
-            set_default_rsa_key_desc(&rnp.action.generate_key_ctx, pgp_str_to_hash_alg(hashAlg[i]));
+            set_default_rsa_key_desc(&rnp.action.generate_key_ctx,
+                                     pgp_str_to_hash_alg(hashAlg[i]));
             assert_int_not_equal(rnp.action.generate_key_ctx.hash_alg, PGP_HASH_UNKNOWN);
 
             /* Generate key with specified parameters */
@@ -268,19 +272,19 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
     /* Set the UserId = custom value.
      * Execute the Generate-key command to generate a new keypair
      * Verify the key was generated with the correct UserId. */
-    
+
     char        userId[1024] = {0};
     const char *userIds[] = {"rnpkeys_generatekey_verifyUserIdOption_MD5",
-                            "rnpkeys_generatekey_verifyUserIdOption_SHA-1",
-                            "rnpkeys_generatekey_verifyUserIdOption_RIPEMD160",
-                            "rnpkeys_generatekey_verifyUserIdOption_SHA256",
-                            "rnpkeys_generatekey_verifyUserIdOption_SHA384",
-                            "rnpkeys_generatekey_verifyUserIdOption_SHA512",
-                            "rnpkeys_generatekey_verifyUserIdOption_SHA224"};
+                             "rnpkeys_generatekey_verifyUserIdOption_SHA-1",
+                             "rnpkeys_generatekey_verifyUserIdOption_RIPEMD160",
+                             "rnpkeys_generatekey_verifyUserIdOption_SHA256",
+                             "rnpkeys_generatekey_verifyUserIdOption_SHA384",
+                             "rnpkeys_generatekey_verifyUserIdOption_SHA512",
+                             "rnpkeys_generatekey_verifyUserIdOption_SHA224"};
 
     enum key_store_format_t keystores[] = {GPG_KEY_STORE, KBX_KEY_STORE};
-    rnp_t rnp;
-    int   pipefd[2];
+    rnp_t                   rnp;
+    int                     pipefd[2];
 
     for (int i = 0; i < sizeof(userIds) / sizeof(userIds[0]); i++) {
         for (int j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
@@ -341,11 +345,12 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     close(pipefd[0]);
     rnp_end(&rnp);
 
-    /* Now we start over with a new home. When home is specified explicitly then it should include .rnp as well */
+    /* Now we start over with a new home. When home is specified explicitly then it should
+     * include .rnp as well */
     paths_concat(newhome, sizeof(newhome), ourdir, "newhome", NULL);
     path_mkdir(0700, newhome, NULL);
     paths_concat(newhome, sizeof(newhome), ourdir, "newhome", ".rnp", NULL);
-    path_mkdir(0700, newhome, NULL);    
+    path_mkdir(0700, newhome, NULL);
 
     /* Initialize the rnp structure. */
     setup_rnp_common(&rnp, GPG_KEY_STORE, newhome, pipefd);
@@ -377,7 +382,7 @@ void
 rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
 {
     /* Try to generate keypair in different home directories for KBX keystorage */
-    
+
     const char *ourdir = (char *) *state;
     char        newhome[256];
     rnp_t       rnp;

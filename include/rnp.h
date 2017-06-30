@@ -48,16 +48,17 @@ __BEGIN_DECLS
 
 enum key_store_format_t { GPG_KEY_STORE, SSH_KEY_STORE, KBX_KEY_STORE };
 
-/* structure used to keep application-wide rnp configuration: keyrings, password io, whatever else */
+/* structure used to keep application-wide rnp configuration: keyrings, password io, whatever
+ * else */
 typedef struct rnp_t {
-    void *          pubring;   /* public key ring */
-    void *          secring;   /* s3kr1t key ring */
-    pgp_io_t *      io;        /* the io struct for results/errs */
-    void *          passfp;    /* file pointer for password input */
-    char *          pubpath;   /* path to the public keyring */
-    char *          secpath;   /* path to the secret keyring */
-    char *          defkey;    /* default key id */
-    int             pswdtries; /* number of password tries, -1 for unlimited */
+    void *    pubring;   /* public key ring */
+    void *    secring;   /* s3kr1t key ring */
+    pgp_io_t *io;        /* the io struct for results/errs */
+    void *    passfp;    /* file pointer for password input */
+    char *    pubpath;   /* path to the public keyring */
+    char *    secpath;   /* path to the secret keyring */
+    char *    defkey;    /* default key id */
+    int       pswdtries; /* number of password tries, -1 for unlimited */
 
     enum key_store_format_t key_store_format; /* keyring format */
     union {
@@ -67,17 +68,19 @@ typedef struct rnp_t {
 
 /* rnp initialization parameters : keyring pathes, flags, whatever else */
 typedef struct rnp_params_t {
-    unsigned    enable_coredumps;        /* enable coredumps: if it is allowed then they are disabled by default to not leak confidential information */
+    unsigned enable_coredumps; /* enable coredumps: if it is allowed then they are disabled by
+                                  default to not leak confidential information */
 
-    int         passfd;                  /* password file descriptor */
-    const char *outs;                    /* output stream : may be <stderr> , most likel these are subject for refactoring  */
-    const char *errs;                    /* error stream : may be <stdout> */
-    const char *ress;                    /* results stream : maye be <stdout>, <stderr> or file name/path */
+    int         passfd; /* password file descriptor */
+    const char *outs;   /* output stream : may be <stderr> , most likel these are subject for
+                           refactoring  */
+    const char *errs;   /* error stream : may be <stdout> */
+    const char *ress;   /* results stream : maye be <stdout>, <stderr> or file name/path */
 
-    enum key_store_format_t ks_format;   /* format of the key store */
-    char *   pubpath;                    /* public keystore path */
-    char *   secpath;                    /* secret keystore path */
-    char *   defkey;                     /* default/preferred key id */
+    enum key_store_format_t ks_format; /* format of the key store */
+    char *                  pubpath;   /* public keystore path */
+    char *                  secpath;   /* secret keystore path */
+    char *                  defkey;    /* default/preferred key id */
 } rnp_params_t;
 
 /* rnp operation context : contains additional data about the currently ongoing operation */
@@ -96,9 +99,9 @@ typedef struct rnp_ctx_t {
 } rnp_ctx_t;
 
 /* initialize rnp using the init structure  */
-int  rnp_init(rnp_t *, rnp_params_t *);
+int rnp_init(rnp_t *, rnp_params_t *);
 /* finish work with rnp and cleanup the memory */
-int  rnp_end(rnp_t *);
+int rnp_end(rnp_t *);
 
 /* rnp initialization parameters : init and free */
 int  rnp_params_init(rnp_params_t *);
