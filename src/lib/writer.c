@@ -281,12 +281,15 @@ pgp_writer_push(pgp_output_t *          output,
                 pgp_writer_destroyer_t *destroyer,
                 void *                  arg)
 {
-    pgp_writer_t *copy;
+    pgp_writer_t *copy = NULL;
 
     if ((copy = calloc(1, sizeof(*copy))) == NULL) {
         (void) fprintf(stderr, "pgp_writer_push: bad alloc\n");
         return 0;
     } else if (output->writer.writer == NULL) {
+        if (copy != NULL) {
+            free(copy);
+        }
         (void) fprintf(stderr, "pgp_writer_push: no orig writer\n");
         return 0;
     } else {
@@ -1045,6 +1048,7 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t
         pgp_pk_sesskey_free(encrypted_pk_sesskey);
         free(encrypted_pk_sesskey);
         free(encrypted);
+        free(iv);
         return 0;
     }
     /* tidy up */
@@ -1470,7 +1474,6 @@ pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_sym
                          str_enc_se_ip_destroyer,
                          se_ip)) {
         free(se_ip);
-        return;
     }
     /* tidy up */
     free(encrypted_pk_sesskey);
