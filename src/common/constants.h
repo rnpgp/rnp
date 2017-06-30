@@ -36,14 +36,14 @@
  */
 
 #define SUBDIRECTORY_GNUPG ".rnp"
-#define SUBDIRECTORY_RNP   ".rnp"
-#define SUBDIRECTORY_SSH   ".ssh"
-#define PUBRING_KBX        "pubring.kbx"
-#define SECRING_KBX        "secring.kbx"
-#define PUBRING_GPG        "pubring.gpg"
-#define SECRING_GPG        "secring.gpg"
+#define SUBDIRECTORY_RNP ".rnp"
+#define SUBDIRECTORY_SSH ".ssh"
+#define PUBRING_KBX "pubring.kbx"
+#define SECRING_KBX "secring.kbx"
+#define PUBRING_GPG "pubring.gpg"
+#define SECRING_GPG "secring.gpg"
 
 #define MAX_PASSPHRASE_ATTEMPTS 3
-#define INFINITE_ATTEMPTS       -1
+#define INFINITE_ATTEMPTS -1
 
 #endif

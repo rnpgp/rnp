@@ -437,7 +437,7 @@ main(int argc, char **argv)
 {
     rnp_t        rnp;
     rnp_cfg_t    cfg;
-    rnp_params_t rnp_params;    
+    rnp_params_t rnp_params;
     int          cmd;
     int          optindex;
     int          ret;
@@ -454,7 +454,7 @@ main(int argc, char **argv)
 
     if (!rnp_cfg_init(&cfg)) {
         fputs("fatal: cannot initialise cfg\n", stderr);
-        return EXIT_ERROR;        
+        return EXIT_ERROR;
     }
 
     rnp_cfg_load_defaults(&cfg);

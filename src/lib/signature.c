@@ -927,11 +927,11 @@ open_output_file(rnp_ctx_t *    ctx,
     Pick up hash algorithm according to secret key and preferences set in the context
 */
 static pgp_hash_alg_t
-pgp_pick_hash_alg(rnp_ctx_t * ctx, const pgp_seckey_t *seckey)
+pgp_pick_hash_alg(rnp_ctx_t *ctx, const pgp_seckey_t *seckey)
 {
     if (seckey->pubkey.alg == PGP_PKA_DSA) {
         return PGP_HASH_SHA1;
-    } else { 
+    } else {
         return ctx->halg;
     }
 }
@@ -975,7 +975,8 @@ pgp_sign_file(rnp_ctx_t *         ctx,
 
     /* find the hash algorithm */
     if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
-        (void) fprintf(io->errs, "pgp_sign_file: cannot pick hash algorithm: %d\n", (int)ctx->halg);
+        (void) fprintf(
+          io->errs, "pgp_sign_file: cannot pick hash algorithm: %d\n", (int) ctx->halg);
         return 0;
     }
 
@@ -1110,7 +1111,7 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
     mem = pgp_memory_new();
     hash = NULL;
     ret = 0;
-    
+
     if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
         (void) fprintf(io->errs, "pgp_sign_buf: cannot pick hash algorithm: %d\n", ctx->halg);
         return NULL;
@@ -1197,11 +1198,8 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
 
 /* sign a file, and put the signature in a separate file */
 int
-pgp_sign_detached(rnp_ctx_t *    ctx,
-                  pgp_io_t *     io,
-                  const char *   f,
-                  const char *   sigfile,
-                  pgp_seckey_t * seckey)
+pgp_sign_detached(
+  rnp_ctx_t *ctx, pgp_io_t *io, const char *f, const char *sigfile, pgp_seckey_t *seckey)
 {
     pgp_create_sig_t *sig;
     pgp_hash_alg_t    hash_alg;

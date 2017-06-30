@@ -246,15 +246,15 @@ show_output(char *out, int size, const char *header)
 static int
 rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 {
-    unsigned         maxsize;
-    char *           out = NULL;
-    char *           in = NULL;
-    const char *     outf;
-    const char *     userid;
-    int              ret;
-    int              cc;
-    int              clearsign = (cmd == CMD_CLEARSIGN) ? 1 : 0;
-    rnp_ctx_t        ctx;
+    unsigned    maxsize;
+    char *      out = NULL;
+    char *      in = NULL;
+    const char *outf;
+    const char *userid;
+    int         ret;
+    int         cc;
+    int         clearsign = (cmd == CMD_CLEARSIGN) ? 1 : 0;
+    rnp_ctx_t   ctx;
 
     /* checking userid for the upcoming operation */
     if (rnp_cfg_getint(cfg, CFG_NEEDSUSERID)) {
@@ -305,7 +305,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     case CMD_CLEARSIGN:
     case CMD_SIGN:
         ctx.halg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
-        
+
         if (ctx.halg == PGP_HASH_UNKNOWN) {
             fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_cfg_get(cfg, CFG_HASH));
             ret = 0;
@@ -320,7 +320,12 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
             ret = rnp_sign_memory(&ctx, userid, in, cc, out, maxsize, clearsign);
             ret = show_output(out, ret, "Bad memory signature");
         } else {
-            ret = rnp_sign_file(&ctx, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE), clearsign, rnp_cfg_getint(cfg, CFG_DETACHED));
+            ret = rnp_sign_file(&ctx,
+                                userid,
+                                f,
+                                rnp_cfg_get(cfg, CFG_OUTFILE),
+                                clearsign,
+                                rnp_cfg_getint(cfg, CFG_DETACHED));
         }
         goto done;
     case CMD_VERIFY:
@@ -336,7 +341,8 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
             ret = show_output(out, ret, "Bad memory verification");
         } else {
             outf = rnp_cfg_get(cfg, CFG_OUTFILE);
-            ret = rnp_verify_file(&ctx, f, (cmd == CMD_VERIFY) ? NULL : (outf) ? outf : "-", ctx.armour);
+            ret = rnp_verify_file(
+              &ctx, f, (cmd == CMD_VERIFY) ? NULL : (outf) ? outf : "-", ctx.armour);
         }
         goto done;
     case CMD_LIST_PACKETS:
@@ -355,7 +361,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         exit(EXIT_SUCCESS);
     }
 
-    done:
+done:
     free(in);
     free(out);
     rnp_ctx_free(&ctx);
@@ -543,7 +549,7 @@ main(int argc, char **argv)
 {
     rnp_params_t rnp_params;
     rnp_t        rnp;
-    rnp_cfg_t    cfg;    
+    rnp_cfg_t    cfg;
     int          optindex;
     int          ret;
     int          cmd = 0;
@@ -560,7 +566,7 @@ main(int argc, char **argv)
 
     if (!rnp_cfg_init(&cfg)) {
         fputs("fatal: cannot initialise cfg\n", stderr);
-        return EXIT_ERROR;        
+        return EXIT_ERROR;
     }
 
     rnp_cfg_load_defaults(&cfg);
@@ -589,7 +595,7 @@ main(int argc, char **argv)
                 break;
             case 'e':
                 /* for encryption, we need a userid */
-                rnp_cfg_setint(&cfg, CFG_NEEDSUSERID, 1);                
+                rnp_cfg_setint(&cfg, CFG_NEEDSUSERID, 1);
                 cmd = CMD_ENCRYPT;
                 break;
             case 'o':
@@ -600,7 +606,7 @@ main(int argc, char **argv)
             case 's':
                 /* for signing, we need a userid and a seckey */
                 rnp_cfg_setint(&cfg, CFG_NEEDSSECKEY, 1);
-                rnp_cfg_setint(&cfg, CFG_NEEDSUSERID, 1);                
+                rnp_cfg_setint(&cfg, CFG_NEEDSUSERID, 1);
                 cmd = CMD_SIGN;
                 break;
             case 'v':
@@ -621,7 +627,7 @@ main(int argc, char **argv)
 
     if (!rnp_init(&rnp, &rnp_params)) {
         fputs("fatal: cannot initialise\n", stderr);
-        return EXIT_ERROR;        
+        return EXIT_ERROR;
     }
 
     rnp_params_free(&rnp_params);
