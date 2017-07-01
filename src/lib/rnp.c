@@ -1158,6 +1158,7 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
                 if (newkey) {
                     printf("%s\n", newkey);
                     free(newkey);
+                    newkey = NULL;
                 }
             } else {
                 pgp_sprint_json(
