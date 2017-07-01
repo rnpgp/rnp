@@ -578,9 +578,11 @@ BIGNUM *
 new_BN_take_mp(botan_mp_t mp)
 {
     PGPV_BIGNUM *a;
-
     a = calloc(1, sizeof(*a));
-    a->mp = mp;
+    if (a)
+    {
+        a->mp = mp;
+    }
     return a;
 }
 
@@ -595,15 +597,21 @@ DSA_SIG *
 DSA_SIG_new()
 {
     DSA_SIG *sig = calloc(1, sizeof(DSA_SIG));
-    sig->r = BN_new();
-    sig->s = BN_new();
+    if (sig)
+    {
+        sig->r = BN_new();
+        sig->s = BN_new();
+    }
     return sig;
 }
 
 void
 DSA_SIG_free(DSA_SIG *sig)
 {
-    BN_clear_free(sig->r);
-    BN_clear_free(sig->s);
-    free(sig);
+    if (sig)
+    {
+        BN_clear_free(sig->r);
+        BN_clear_free(sig->s);
+        free(sig);
+    }
 }

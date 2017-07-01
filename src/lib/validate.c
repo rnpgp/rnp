@@ -887,6 +887,7 @@ pgp_validate_file(pgp_io_t *             io,
             }
         }
     }
+    (void) close(outfd);
     pgp_memory_free(validation.mem);
     return ret;
 }
