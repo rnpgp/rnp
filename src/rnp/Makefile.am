@@ -4,7 +4,7 @@ bin_PROGRAMS		= rnp
 
 rnp_SOURCES		= rnp.c
 
-rnp_CPPFLAGS		= -I$(top_srcdir)/include
+rnp_CPPFLAGS		= -I$(top_srcdir)/include $(JSON_CFLAGS)
 
 rnp_LDADD		= ../lib/librnp.la
 
