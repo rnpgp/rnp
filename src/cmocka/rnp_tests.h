@@ -64,6 +64,8 @@ void raw_elg_test_success(void **state);
 
 void ecdsa_signverify_success(void **state);
 
+void rnpkeys_generatekey_testExpertMode(void **state);
+
 #define rnp_assert_int_equal(state, a, b)           \
     {                                               \
         int _rnp_a = (a);                           \

@@ -202,12 +202,15 @@ rnp_cmd(rnp_t *rnp, prog_t *p, char *f)
     case GENERATE_KEY:
         key = f ? f : rnp_getvar(rnp, "userid");
         rnp_keygen_desc_t *key_desc = &rnp->action.generate_key_ctx;
-        if (findvar(rnp, "expert") > 0) {
-            (void) rnp_generate_key_expert_mode(rnp);
+
+        if ((findvar(rnp, "expert") > 0) && (rnp_generate_key_expert_mode(rnp) != PGP_E_OK)) {
+            (void) fprintf(stderr, "Critical error: Key generation failed\n");
+            exit(EXIT_ERROR);
         } else {
             key_desc->key_alg = PGP_PKA_RSA;
             key_desc->rsa.modulus_bit_len = p->numbits;
         }
+
         adjust_key_params(key_desc, rnp_getvar(rnp, "hash"), rnp_getvar(rnp, "cipher"));
         return rnp_generate_key(rnp, key);
     case GET_KEY:

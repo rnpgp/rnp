@@ -122,6 +122,7 @@ ask_bitlen(FILE *input_fp)
 {
     long result = 0;
     do {
+        result = 0;
         printf("Please provide bit length of the key (between 1024 and 4096):\n> ");
     } while (!rnp_secure_get_long_from_fd(input_fp, &result) ||
              !is_rsa_keysize_supported(result));

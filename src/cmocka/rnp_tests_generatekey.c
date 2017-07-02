@@ -24,11 +24,12 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <rnp.h>
-#include <symmetric.h>
-
+#include "rnp_tests_support.h"
+#include "rnp.h"
 #include "rnp_tests.h"
 #include "rnp_tests_support.h"
+#include "symmetric.h"
+#include "../rnpkeys/rnpkeys.h"
 
 static void
 set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc)
@@ -650,4 +651,79 @@ rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
 
     rnp_assert_int_equal(
       rstate, 1, rnp_end(&rnp)); // Free memory and other allocated resources.
+}
+
+static void
+ask_expert_details(rnp_t *ctx, const char *rsp, size_t rsp_len)
+{
+    int pipefd[2] = {0};
+
+    /* Write response to fd */
+    assert_int_not_equal(pipe(pipefd), -1);
+    for (int i = 0; i < rsp_len;) {
+        i += write(pipefd[1], rsp + i, rsp_len - i);
+    }
+    close(pipefd[1]);
+
+    /* Mock user-input*/
+    ctx->user_input_fp = fdopen(pipefd[0], "r");
+
+    /* Run tests*/
+    rnp_generate_key_expert_mode(ctx);
+
+    /* Close & clean fd*/
+    fclose(ctx->user_input_fp);
+    ctx->user_input_fp = NULL;
+    close(pipefd[0]);
+}
+
+void
+rnpkeys_generatekey_testExpertMode(void **state)
+{
+    (void) state;
+    static const char test_ecdsa_256[] = "19\n1\n";
+    static const char test_ecdsa_384[] = "19\n2\n";
+    static const char test_ecdsa_521[] = "19\n3\n";
+    static const char test_eddsa[] = "22\n";
+    static const char test_rsa_1024[] = "1\n1024\n";
+    static const char test_rsa_ask_twice_4096[] = "1\n1023\n4096\n";
+
+    rnp_t ctx;
+
+    rnp_init(&ctx);
+    ask_expert_details(&ctx, test_ecdsa_256, sizeof(test_ecdsa_256));
+    assert_int_equal(ctx.action.generate_key_ctx.key_alg, PGP_PKA_ECDSA);
+    assert_int_equal(ctx.action.generate_key_ctx.ecc.curve, PGP_CURVE_NIST_P_256);
+
+    /* TODO: Currently it's not possible to call rnp_init() rnp_end() rnp_init().
+     *       Memset here is just workorund and this code should be revisited
+     *       after GH #258 is merged.
+     */
+    memset(&ctx.action.generate_key_ctx, 0x00, sizeof(rnp_keygen_desc_t));
+
+    ask_expert_details(&ctx, test_ecdsa_384, sizeof(test_ecdsa_384));
+    assert_int_equal(ctx.action.generate_key_ctx.key_alg, PGP_PKA_ECDSA);
+    assert_int_equal(ctx.action.generate_key_ctx.ecc.curve, PGP_CURVE_NIST_P_384);
+
+    memset(&ctx.action.generate_key_ctx, 0x00, sizeof(rnp_keygen_desc_t));
+    ask_expert_details(&ctx, test_ecdsa_521, sizeof(test_ecdsa_521));
+    assert_int_equal(ctx.action.generate_key_ctx.key_alg, PGP_PKA_ECDSA);
+    assert_int_equal(ctx.action.generate_key_ctx.ecc.curve, PGP_CURVE_NIST_P_521);
+
+    memset(&ctx.action.generate_key_ctx, 0x00, sizeof(rnp_keygen_desc_t));
+    ask_expert_details(&ctx, test_eddsa, sizeof(test_eddsa));
+    assert_int_equal(ctx.action.generate_key_ctx.key_alg, PGP_PKA_EDDSA);
+    assert_int_equal(ctx.action.generate_key_ctx.ecc.curve, PGP_CURVE_ED25519);
+
+    memset(&ctx.action.generate_key_ctx, 0x00, sizeof(rnp_keygen_desc_t));
+    ask_expert_details(&ctx, test_rsa_1024, sizeof(test_rsa_1024));
+    assert_int_equal(ctx.action.generate_key_ctx.key_alg, PGP_PKA_RSA);
+    assert_int_equal(ctx.action.generate_key_ctx.rsa.modulus_bit_len, 1024);
+
+    memset(&ctx.action.generate_key_ctx, 0x00, sizeof(rnp_keygen_desc_t));
+    ask_expert_details(&ctx, test_rsa_ask_twice_4096, sizeof(test_rsa_ask_twice_4096));
+    assert_int_equal(ctx.action.generate_key_ctx.key_alg, PGP_PKA_RSA);
+    assert_int_equal(ctx.action.generate_key_ctx.rsa.modulus_bit_len, 4096);
+
+    rnp_end(&ctx);
 }
