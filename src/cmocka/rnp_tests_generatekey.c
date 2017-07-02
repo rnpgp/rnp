@@ -672,6 +672,30 @@ ask_expert_details(rnp_t *ctx, const char *rsp, size_t rsp_len)
     close(pipefd[0]);
 }
 
+static void
+ask_expert_details(rnp_t *ctx, const char *rsp, size_t rsp_len)
+{
+    int pipefd[2] = {0};
+
+    /* Write response to fd */
+    assert_int_not_equal(pipe(pipefd), -1);
+    for (int i = 0; i < rsp_len;) {
+        i += write(pipefd[1], rsp + i, rsp_len - i);
+    }
+    close(pipefd[1]);
+
+    /* Mock user-input*/
+    ctx->user_input_fp = fdopen(pipefd[0], "r");
+
+    /* Run tests*/
+    rnp_generate_key_expert_mode(ctx);
+
+    /* Close & clean fd*/
+    fclose(ctx->user_input_fp);
+    ctx->user_input_fp = NULL;
+    close(pipefd[0]);
+}
+
 void
 rnpkeys_generatekey_testExpertMode(void **state)
 {
