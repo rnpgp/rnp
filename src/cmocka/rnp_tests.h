@@ -67,59 +67,59 @@ void ecdsa_signverify_success(void **state);
 void rnpkeys_generatekey_testExpertMode(void **state);
 
 #define rnp_assert_int_equal(state, a, b)           \
-    {                                               \
+    do {                                            \
         int _rnp_a = (a);                           \
         int _rnp_b = (b);                           \
         if (state->not_fatal && _rnp_a != _rnp_b) { \
             return;                                 \
         }                                           \
         assert_int_equal(_rnp_a, _rnp_b);           \
-    }
+    } while (0)
 
 #define rnp_assert_int_not_equal(state, a, b)       \
-    {                                               \
+    do {                                            \
         int _rnp_a = (a);                           \
         int _rnp_b = (b);                           \
         if (state->not_fatal && _rnp_a == _rnp_b) { \
             return;                                 \
         }                                           \
         assert_int_not_equal(_rnp_a, _rnp_b);       \
-    }
+    } while (0)
 
 #define rnp_assert_true(state, a)          \
-    {                                      \
+    do {                                   \
         int _rnp_a = (a);                  \
         if (state->not_fatal && !_rnp_a) { \
             return;                        \
         }                                  \
         assert_true(_rnp_a);               \
-    }
+    } while (0)
 
 #define rnp_assert_false(state, a)        \
-    {                                     \
+    do {                                  \
         int _rnp_a = (a);                 \
         if (state->not_fatal && _rnp_a) { \
             return;                       \
         }                                 \
         assert_false(_rnp_a);             \
-    }
+    } while (0)
 
 #define rnp_assert_non_null(state, a)             \
-    {                                             \
+    do {                                          \
         void *_rnp_a = (void *) (a);              \
         if (state->not_fatal && _rnp_a == NULL) { \
             return;                               \
         }                                         \
         assert_non_null(_rnp_a);                  \
-    }
+    } while (0)
 
 #define rnp_assert_null(state, a)                 \
-    {                                             \
+    do {                                          \
         void *_rnp_a = (void *) (a);              \
         if (state->not_fatal && _rnp_a != NULL) { \
             return;                               \
         }                                         \
         assert_null(_rnp_a);                      \
-    }
+    } while (0)
 
 #endif // RNP_KEY_STORE_KBX_H
