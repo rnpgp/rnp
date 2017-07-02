@@ -11,4 +11,4 @@ librnpkeys_la_SOURCES   = \
 bin_PROGRAMS            = rnpkeys
 rnpkeys_SOURCES         = main.c
 rnpkeys_CPPFLAGS        = -I$(top_srcdir)/include
-rnpkeys_LDADD           = librnpkeys.la
+rnpkeys_LDADD           = librnpkeys.la ../lib/librnp.la
