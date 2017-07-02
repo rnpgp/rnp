@@ -87,7 +87,7 @@ rnpkeys_generatekey_testSignature(void **state)
         rnp_assert_int_equal(rstate, retVal, 1); // Ensure the key can be found with the userId
 
         close(pipefd[0]);
-        rnp_assert_int_equal(rstate, 1, rnp_end(&rnp));
+        rnp_end(&rnp);
 
         for (unsigned int cleartext = 0; cleartext <= 1; ++cleartext) {
             for (unsigned int armored = 0; armored <= 1; ++armored) {
@@ -125,7 +125,7 @@ rnpkeys_generatekey_testSignature(void **state)
                   rstate, retVal, 0); // Ensure signature operation succeeded
                 const int sigLen = retVal;
                 close(pipefd[0]);
-                rnp_assert_int_equal(rstate, 1, rnp_end(&rnp));
+                rnp_end(&rnp);
 
                 /* Setup rnp again and load keyring. Passphrase is not needed */
                 rnp_assert_int_equal(
@@ -151,7 +151,7 @@ rnpkeys_generatekey_testSignature(void **state)
                   &rnp, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig), armored);
                 /* Ensure that signature verification fails */
                 rnp_assert_int_equal(rstate, retVal, 0);
-                rnp_assert_int_equal(rstate, 1, rnp_end(&rnp));
+                rnp_end(&rnp);
             }
         }
     }
@@ -206,7 +206,7 @@ rnpkeys_generatekey_testEncryption(void **state)
     retVal = rnp_find_key(&rnp, userId);
     rnp_assert_int_equal(rstate, retVal, 1); // Ensure the key can be found with the userId
 
-    rnp_assert_int_equal(rstate, 1, rnp_end(&rnp));
+    rnp_end(&rnp);
 
     for (int i = 0; cipherAlg[i] != NULL; i++) {
         for (unsigned int armored = 0; armored <= 1; ++armored) {
@@ -232,7 +232,7 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_int_not_equal(
               rstate, retVal, 0); // Ensure encryption operation succeeded
             const int ctextLen = retVal;
-            rnp_assert_int_equal(rstate, 1, rnp_end(&rnp));
+            rnp_end(&rnp);
 
             /* setting up rnp again and decrypting memory */
             rnp_assert_int_equal(rstate, setupPassphrasefd(pipefd), 1);
@@ -252,7 +252,7 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_int_equal(rstate, retVal, strlen(memToEncrypt));
             assert_string_equal(memToEncrypt, plaintextBuf);
             close(pipefd[0]);
-            rnp_assert_int_equal(rstate, 1, rnp_end(&rnp));
+            rnp_end(&rnp);
         }
     }
 }
@@ -311,8 +311,7 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
               rnp_find_key(&rnp,
                            getenv("LOGNAME"))); // Ensure the key can be found with the userId
 
-            rnp_assert_int_equal(
-              rstate, 1, rnp_end(&rnp)); // Free memory and other allocated resources.
+            rnp_end(&rnp); // Free memory and other allocated resources.
         }
     }
 }
@@ -373,8 +372,7 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
               1,
               rnp_find_key(&rnp, userId)); // Ensure the key can be found with the userId
 
-            rnp_assert_int_equal(
-              rstate, 1, rnp_end(&rnp)); // Free memory and other allocated resources.
+            rnp_end(&rnp); // Free memory and other allocated resources.
         }
     }
 }
@@ -418,7 +416,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 
     rnp_assert_int_equal(rstate, 1, rnp_load_keys(&rnp));
     rnp_assert_int_equal(rstate, 1, rnp_find_key(&rnp, getenv("LOGNAME")));
-    rnp_assert_int_equal(rstate, 1, rnp_end(&rnp));
+    rnp_end(&rnp);
 
     // Now we start over with a new home.
     memset(&rnp, 0, sizeof(rnp));
@@ -460,8 +458,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     // We should find this key, instead.
     rnp_assert_int_equal(rstate, 1, rnp_find_key(&rnp, "newhomekey"));
 
-    rnp_assert_int_equal(
-      rstate, 1, rnp_end(&rnp)); // Free memory and other allocated resources.
+    rnp_end(&rnp); // Free memory and other allocated resources.
 }
 
 void
@@ -508,7 +505,7 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
 
     rnp_assert_int_equal(rstate, 1, rnp_load_keys(&rnp));
     rnp_assert_int_equal(rstate, 1, rnp_find_key(&rnp, getenv("LOGNAME")));
-    rnp_assert_int_equal(rstate, 1, rnp_end(&rnp));
+    rnp_end(&rnp);
 
     // Now we start over with a new home.
     memset(&rnp, 0, sizeof(rnp));
@@ -554,8 +551,7 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
     // We should find this key, instead.
     rnp_assert_int_equal(rstate, 1, rnp_find_key(&rnp, "newhomekey"));
 
-    rnp_assert_int_equal(
-      rstate, 1, rnp_end(&rnp)); // Free memory and other allocated resources.
+    rnp_end(&rnp); // Free memory and other allocated resources.
 }
 
 void
@@ -575,14 +571,14 @@ rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
     // First, make sure init succeeds with the default (using $HOME)
     memset(&rnp, '\0', sizeof(rnp));
     rnp_assert_int_equal(rstate, 1, rnp_init(&rnp));
-    rnp_assert_int_equal(rstate, 1, rnp_end(&rnp));
+    rnp_end(&rnp);
 
     /****************************************************************/
     // Ensure it fails when we set an invalid "homedir"
     memset(&rnp, '\0', sizeof(rnp));
     rnp_setvar(&rnp, "homedir", fakedir);
     rnp_assert_int_equal(rstate, 0, rnp_init(&rnp));
-    rnp_assert_int_equal(rstate, 1, rnp_end(&rnp));
+    rnp_end(&rnp);
 
     /****************************************************************/
     // Ensure it fails when we do not explicitly set "homedir" and
@@ -592,7 +588,7 @@ rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
     rnp_assert_int_equal(rstate, 0, rnp_init(&rnp));
     // Restore our original $HOME.
     rnp_assert_int_equal(rstate, 0, setenv("HOME", ourdir, 1));
-    rnp_assert_int_equal(rstate, 1, rnp_end(&rnp));
+    rnp_end(&rnp);
 
     /****************************************************************/
     // Ensure key generation fails when we set an invalid "homedir"
@@ -605,7 +601,7 @@ rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
     rnp_setvar(&rnp, "homedir", fakedir);
     set_default_rsa_key_desc(&rnp.action.generate_key_ctx);
     rnp_assert_int_equal(rstate, 0, rnp_generate_key(&rnp, NULL));
-    rnp_assert_int_equal(rstate, 1, rnp_end(&rnp));
+    rnp_end(&rnp);
 }
 
 void
@@ -649,8 +645,7 @@ rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
     rnp_assert_int_equal(rstate, retVal, 0); // Ensure the key was NOT generated as the
                                              // directory has only list read permissions.
 
-    rnp_assert_int_equal(
-      rstate, 1, rnp_end(&rnp)); // Free memory and other allocated resources.
+    rnp_end(&rnp); // Free memory and other allocated resources.
 }
 
 static void
