@@ -976,7 +976,7 @@ rnp_init(rnp_t *rnp)
 }
 
 /* finish off with the rnp_t struct */
-int
+void
 rnp_end(rnp_t *rnp)
 {
     unsigned i;
@@ -1007,8 +1007,6 @@ rnp_end(rnp_t *rnp)
     }
     free(rnp->io);
     rnp_ctx_free(&rnp->ctx);
-
-    return 1;
 }
 
 /* rnp_ctx_t : init, reset, free internal pointers */
