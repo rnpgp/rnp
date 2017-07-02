@@ -79,8 +79,8 @@ typedef struct rnp_t {
 } rnp_t;
 
 /* begin and end */
-int rnp_init(rnp_t *);
-int rnp_end(rnp_t *);
+int  rnp_init(rnp_t *);
+void rnp_end(rnp_t *);
 
 /* init, reset and free rnp operation context */
 int  rnp_ctx_init(rnp_ctx_t *);
