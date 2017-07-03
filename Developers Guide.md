@@ -93,7 +93,7 @@ git clone https://github.com/riboseinc/rnp
 cd rnp
 export BOTAN_INSTALL="$HOME/builds/botan-install"
 export CMOCKA_INSTALL="$HOME/builds/cmocka-install"
-export JSON_C_INSTALL="$HOME/builds/json-c-install"
+export JSONC_INSTALL="$HOME/builds/json-c-install"
 export BUILD_MODE=normal
 ci/install.sh
 env CC=clang ci/main.sh

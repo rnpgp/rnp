@@ -79,17 +79,8 @@ AC_CHECK_HEADERS([sys/cdefs.h sys/file.h sys/mman.h sys/param.h \
 AC_CHECK_HEADERS([bzlib.h],
                  [],
                  [AC_MSG_FAILURE([missing <bzlib.h>; is bzip2 installed?])])
-# Check JSON
-PKG_CHECK_MODULES(JSON, json-c,,,,[AC_MSG_ERR("json-c missing")])
-# also checking the actual header in the given include path
-# for this we have to set CFLAGS to contain the include path got
-# from pkg-config, and restore afterwards
-SAVED_CFLAGS=$CFLAGS
-CFLAGS=$JSON_CFLAGS
-AC_CHECK_HEADER([json.h],,
-  [AC_MSG_FAILURE([missing <json.h>; is json-c properly installed?])]
-)
-CFLAGS=$SAVED_CFLAGS
+
+AX_CHECK_JSONC([], AC_MSG_ERROR([missing json-c library]))
 
 # Checks for typedefs, structures, and compiler characteristics.
 #

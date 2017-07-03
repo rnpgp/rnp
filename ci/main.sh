@@ -5,7 +5,7 @@ set -eux
 
 CORES="2" && [ -r /proc/cpuinfo ] && CORES=$(grep -c '^$' /proc/cpuinfo)
 
-LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${CMOCKA_INSTALL}/lib"
+LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${CMOCKA_INSTALL}/lib:${JSONC_INSTALL}/lib"
 LDFLAGS="-L${CMOCKA_INSTALL}/lib"
 CFLAGS="-I${CMOCKA_INSTALL}/include"
 
@@ -23,7 +23,7 @@ CFLAGS="-I${CMOCKA_INSTALL}/include"
 export LD_LIBRARY_PATH CFLAGS LDFLAGS
 
 autoreconf -vfi
-./configure --with-botan=${BOTAN_INSTALL} PKG_CONFIG_PATH=${JSON_C_INSTALL}/lib/pkgconfig/
+./configure --with-botan=${BOTAN_INSTALL} --with-jsonc=${JSONC_INSTALL}
 make clean
 make -j${CORES}
 
