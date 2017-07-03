@@ -253,14 +253,13 @@ pgp_writer_set(pgp_output_t *          output,
     if (output->writer.writer) {
         (void) fprintf(stderr, "pgp_writer_set: already set\n");
         return 0;
-    } else {
-        output->writer.writer = writer;
-        output->writer.finaliser = finaliser;
-        output->writer.destroyer = destroyer;
-        output->writer.arg = arg;
-        output->writer.ctx = output->ctx;
-        return 1;
     }
+    output->writer.writer = writer;
+    output->writer.finaliser = finaliser;
+    output->writer.destroyer = destroyer;
+    output->writer.arg = arg;
+    output->writer.ctx = output->ctx;
+    return 1;
 }
 
 /**
@@ -286,22 +285,24 @@ pgp_writer_push(pgp_output_t *          output,
     if ((copy = calloc(1, sizeof(*copy))) == NULL) {
         (void) fprintf(stderr, "pgp_writer_push: bad alloc\n");
         return 0;
-    } else if (output->writer.writer == NULL) {
+    }
+
+    if (output->writer.writer == NULL) {
         if (copy != NULL) {
             free(copy);
         }
         (void) fprintf(stderr, "pgp_writer_push: no orig writer\n");
         return 0;
-    } else {
-        *copy = output->writer;
-        output->writer.next = copy;
-
-        output->writer.writer = writer;
-        output->writer.finaliser = finaliser;
-        output->writer.destroyer = destroyer;
-        output->writer.arg = arg;
-        output->writer.ctx = output->ctx;
     }
+
+    *copy = output->writer;
+    output->writer.next = copy;
+
+    output->writer.writer = writer;
+    output->writer.finaliser = finaliser;
+    output->writer.destroyer = destroyer;
+    output->writer.arg = arg;
+    output->writer.ctx = output->ctx;
     return 1;
 }
 

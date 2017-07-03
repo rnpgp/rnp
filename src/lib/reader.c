@@ -204,18 +204,18 @@ pgp_reader_push(pgp_stream_t *          stream,
     if ((readinfo = calloc(1, sizeof(*readinfo))) == NULL) {
         (void) fprintf(stderr, "pgp_reader_push: bad alloc\n");
         return 0;
-    } else {
-        *readinfo = stream->readinfo;
-        (void) memset(&stream->readinfo, 0x0, sizeof(stream->readinfo));
-        stream->readinfo.next = readinfo;
-        stream->readinfo.parent = stream;
-
-        /* should copy accumulate flags from other reader? RW */
-        stream->readinfo.accumulate = readinfo->accumulate;
-
-        pgp_reader_set(stream, reader, destroyer, vp);
-        return 1;
     }
+
+    *readinfo = stream->readinfo;
+    (void) memset(&stream->readinfo, 0x0, sizeof(stream->readinfo));
+    stream->readinfo.next = readinfo;
+    stream->readinfo.parent = stream;
+
+    /* should copy accumulate flags from other reader? RW */
+    stream->readinfo.accumulate = readinfo->accumulate;
+
+    pgp_reader_set(stream, reader, destroyer, vp);
+    return 1;
 }
 
 /**

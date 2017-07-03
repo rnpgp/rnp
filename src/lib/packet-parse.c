@@ -1432,9 +1432,10 @@ void
 pgp_userid_free(uint8_t **id)
 {
     if (*id != NULL) {
-        free(*id);
-        *id = NULL;
+        return;
     }
+    free(*id);
+    *id = NULL;
 }
 
 /**

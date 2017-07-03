@@ -1258,7 +1258,6 @@ pgp_sign_detached(rnp_ctx_t *    ctx,
     /* create a new signature */
     sig = pgp_create_sig_new();
     if (sig == NULL) {
-        pgp_create_sig_delete(sig);
         (void) fprintf(stderr, "can't allocate mem\n");
         return 0;
     }
