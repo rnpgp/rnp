@@ -889,10 +889,11 @@ string_free(char **str)
 void
 pgp_subpacket_free(pgp_subpacket_t *packet)
 {
-    if (packet->raw) {
-        free(packet->raw);
-        packet->raw = NULL;
+    if (packet->raw == NULL) {
+        return;
     }
+    free(packet->raw);
+    packet->raw = NULL;
 }
 
 /**
