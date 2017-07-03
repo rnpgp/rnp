@@ -862,6 +862,7 @@ pgp_validate_file(pgp_io_t *             io,
         } else {
             outfd = open(outfile, O_WRONLY | O_CREAT, 0666);
         }
+
         if (outfd < 0) {
             /* even if the signature was good, we can't
              * write the file, so send back a bad return
@@ -882,11 +883,13 @@ pgp_validate_file(pgp_io_t *             io,
                     break;
                 }
             }
-            if (strcmp(outfile, "-") != 0) {
-                (void) close(outfd);
-            }
         }
     }
+
+    if ((outfd > 0) && !strcmp(outfile, "-")) {
+        (void) close(outfd);
+    }
+
     pgp_memory_free(validation.mem);
     return ret;
 }

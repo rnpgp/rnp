@@ -1269,6 +1269,7 @@ pgp_sign_detached(rnp_ctx_t *    ctx,
         pgp_teardown_file_write(output, fd);
         pgp_memory_free(sig->mem); /* free memory allocated in pgp_start_sig*/
         pgp_create_sig_delete(sig);
+        pgp_memory_free(mem);
         return 0;
     }
     /* set armoured/not armoured here */
