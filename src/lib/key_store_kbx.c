@@ -198,9 +198,9 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
 
     if (pgp_blob->sn_size > pgp_blob->blob.length - (image - pgp_blob->blob.image)) {
         fprintf(stderr,
-                "Serial number is %u and it's bigger that blob size it can use: %lu\n",
+                "Serial number is %u and it's bigger that blob size it can use: %u\n",
                 pgp_blob->sn_size,
-                pgp_blob->blob.length - (image - pgp_blob->blob.image));
+                (uint32_t)(pgp_blob->blob.length - (image - pgp_blob->blob.image)));
         return 0;
     }
 
