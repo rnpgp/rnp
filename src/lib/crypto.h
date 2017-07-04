@@ -80,7 +80,7 @@ void pgp_reader_push_decrypt(pgp_stream_t *, pgp_crypt_t *, pgp_region_t *);
 void pgp_reader_pop_decrypt(pgp_stream_t *);
 
 /* Hash everything that's read */
-void pgp_reader_push_hash(pgp_stream_t *, pgp_hash_t *);
+int  pgp_reader_push_hash(pgp_stream_t *, pgp_hash_t *);
 void pgp_reader_pop_hash(pgp_stream_t *);
 
 int pgp_decrypt_decode_mpi(

@@ -961,10 +961,14 @@ pgp_reader_push_sum16(pgp_stream_t *stream)
 {
     sum16_t *arg;
 
-    if ((arg = calloc(1, sizeof(*arg))) == NULL) {
+    arg = calloc(1, sizeof(*arg));
+    if (arg == NULL) {
         (void) fprintf(stderr, "pgp_reader_push_sum16: bad alloc\n");
-    } else {
-        pgp_reader_push(stream, sum16_reader, sum16_destroyer, arg);
+        return;
+    }
+
+    if (!pgp_reader_push(stream, sum16_reader, sum16_destroyer, arg)) {
+        free(arg);
     }
 }
 
