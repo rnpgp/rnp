@@ -40,17 +40,17 @@ rnpkeys_exportkey_verifyUserId(void **state)
     char *            exportedkey = NULL;
 
     /* Initialize the rnp structure. */
-    rnp_assert_int_equal(rstate, 1, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
+    rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
 
     /* Generate the key */
     set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
-    rnp_assert_int_equal(rstate, 1, rnp_generate_key(&rnp, NULL));
+    rnp_assert_ok(rstate, rnp_generate_key(&rnp, NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    rnp_assert_int_equal(rstate, rnp_key_store_load_keys(&rnp, 1), 1);
-    rnp_assert_int_equal(rstate, rnp_secret_count(&rnp), 1);
-    rnp_assert_int_equal(rstate, rnp_public_count(&rnp), 1);
-    rnp_assert_int_equal(rstate, rnp_find_key(&rnp, getenv("LOGNAME")), 1);
+    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
+    rnp_assert_ok(rstate, rnp_secret_count(&rnp));
+    rnp_assert_ok(rstate, rnp_public_count(&rnp));
+    rnp_assert_ok(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
     /* Try to export the key without passing userid from the interface : this should fail*/
     exportedkey = rnp_export_key(&rnp, NULL);
@@ -67,6 +67,6 @@ rnpkeys_exportkey_verifyUserId(void **state)
     rnp_assert_null(rstate, exportedkey);
     free(exportedkey);
 
-    rnp_assert_int_equal(
-      rstate, 1, rnp_end(&rnp)); // Free memory and other allocated resources.
+    /* Free memory and other allocated resources. */
+    rnp_assert_ok(rstate, rnp_end(&rnp));
 }

@@ -29,6 +29,7 @@
 #include <string.h>
 #include <botan/ffi.h>
 #include "../common/utils.h"
+#include "../common/constants.h"
 
 int
 pgp_genkey_eddsa(pgp_seckey_t *seckey, size_t curve_len)

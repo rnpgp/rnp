@@ -319,7 +319,7 @@ setup_rnp_common(rnp_t *                 rnp,
     }
     rnp_params_free(&params);
 
-    RNP_OK;
+    return RNP_OK;
 }
 
 void

@@ -897,7 +897,8 @@ rnp_find_key(rnp_t *rnp, const char *id)
         (void) fprintf(io->errs, "NULL id to search for\n");
         return RNP_FAIL;
     }
-    return rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, id) != NULL ? RNP_OK : RNP_FAIL;
+    return rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, id) != NULL ? RNP_OK :
+                                                                              RNP_FAIL;
 }
 
 /* get a key in a keyring */

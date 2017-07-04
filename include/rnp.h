@@ -33,6 +33,7 @@
 
 #include <stddef.h>
 #include "packet.h"
+#include "../common/constants.h"
 
 #ifndef __BEGIN_DECLS
 #if defined(__cplusplus)

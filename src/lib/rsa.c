@@ -84,6 +84,7 @@
 #include "bn.h"
 
 #include "../common/utils.h"
+#include "../common/constants.h"
 
 /**
    \ingroup Core_Crypto
@@ -169,7 +170,8 @@ pgp_rsa_pkcs1_verify_hash(const uint8_t *         sig_buf,
         goto done;
     }
 
-    result = (botan_pk_op_verify_finish(verify_op, sig_buf, sig_buf_size) == 0) ? RNP_OK : RNP_FAIL;
+    result =
+      (botan_pk_op_verify_finish(verify_op, sig_buf, sig_buf_size) == 0) ? RNP_OK : RNP_FAIL;
 
 done:
     botan_pk_op_verify_destroy(verify_op);

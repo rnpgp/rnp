@@ -1143,8 +1143,8 @@ rnp_filename(const char *path)
 }
 
 /* find the time - in a specific %Y-%m-%d format - using a regexp */
-static int
-grabdate(char *s, int64_t *t)
+int
+grabdate(const char *s, int64_t *t)
 {
     static regex_t r;
     static int     compiled;
@@ -1168,8 +1168,8 @@ grabdate(char *s, int64_t *t)
 }
 
 /* get expiration in seconds */
-static uint64_t
-get_duration(char *s)
+uint64_t
+get_duration(const char *s)
 {
     uint64_t now;
     int64_t  t;

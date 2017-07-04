@@ -42,6 +42,7 @@
 #include "verify.h"
 #include "types.h"
 #include "rnpdefs.h"
+#include "../common/constants.h"
 
 extern char *__progname;
 

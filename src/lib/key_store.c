@@ -39,6 +39,7 @@
 #include "packet-print.h"
 #include "packet-key.h"
 #include "packet.h"
+
 #ifdef ENABLE_SSH
 #include "key_store_ssh.h"
 #endif
