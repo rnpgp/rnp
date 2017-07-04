@@ -11,7 +11,7 @@ env:
   global:
     - BOTAN_INSTALL="$HOME/builds/botan-install"
     - CMOCKA_INSTALL="$HOME/builds/cmocka-install"
-    - JSON_C_INSTALL="$HOME/builds/json-c-install"
+    - JSONC_INSTALL="$HOME/builds/jsonc-install"
     - LOGNAME="Travis"
     - CLANG_FORMAT_DIFF="clang-format-diff-4.0"
 
@@ -44,7 +44,7 @@ cache:
   directories:
     - "$BOTAN_INSTALL"
     - "$CMOCKA_INSTALL"
-    - "$JSON_C_INSTALL"
+    - "$JSONC_INSTALL"
 
 install:
   - ./ci/install.sh
