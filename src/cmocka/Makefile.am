@@ -1,6 +1,6 @@
 AM_CFLAGS		    = $(WARNCFLAGS)
 bin_PROGRAMS		= rnp_tests
-rnp_tests_CPPFLAGS	= -I$(top_srcdir)/include -I$(top_srcdir)/src/lib $(JSON_CFLAGS)
+rnp_tests_CPPFLAGS	= -I$(top_srcdir)/include -I$(top_srcdir)/src/lib $(JSONC_INCLUDES)
 rnp_tests_LDADD		= ../lib/librnp.la ../rnpkeys/librnpkeys.la $(JSON_LIBS)
 rnp_tests_SOURCES   = \
     rnp_tests_support.c \
