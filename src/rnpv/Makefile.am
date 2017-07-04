@@ -1,6 +1,6 @@
 AM_CFLAGS		= $(WARNCFLAGS) $(JSON_CFLAGS)
 bin_PROGRAMS	= rnpv
-rnpv_CPPFLAGS   = -I$(top_srcdir)/include -I$(top_srcdir)/src/lib
+rnpv_CPPFLAGS   = -I$(top_srcdir)/include -I$(top_srcdir)/src/lib $(JSON_CFLAGS)
 rnpv_LDADD	    = ../lib/librnp.la $(JSON_LIBS)
 dist_man_MANS	= rnpv.1
 rnpv_SOURCES    = \
