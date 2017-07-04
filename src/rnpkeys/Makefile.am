@@ -10,5 +10,5 @@ librnpkeys_la_SOURCES   = \
 
 bin_PROGRAMS            = rnpkeys
 rnpkeys_SOURCES         = main.c
-rnpkeys_CPPFLAGS        = -I$(top_srcdir)/include
+rnpkeys_CPPFLAGS        = -I$(top_srcdir)/include $(JSONC_INCLUDES)
 rnpkeys_LDADD           = librnpkeys.la ../lib/librnp.la
