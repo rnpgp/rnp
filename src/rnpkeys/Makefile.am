@@ -6,7 +6,7 @@ rnpkeys_SOURCES	=   rnpkeys.c \
                     tui.c \
                     ../rnp/rnpcfg.c
 
-rnpkeys_CPPFLAGS	= -I$(top_srcdir)/include
+rnpkeys_CPPFLAGS	= -I$(top_srcdir)/include $(JSONC_INCLUDES)
 
 rnpkeys_LDADD	= ../lib/librnp.la
 

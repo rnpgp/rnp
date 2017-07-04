@@ -91,19 +91,27 @@ pgp_keydata_free(pgp_key_t *keydata)
 {
     unsigned n;
 
-    for (n = 0; n < keydata->uidc; ++n) {
-        pgp_userid_free(&keydata->uids[n]);
+    if (keydata == NULL) {
+        return;
     }
-    free(keydata->uids);
-    keydata->uids = NULL;
-    keydata->uidc = 0;
 
-    for (n = 0; n < keydata->packetc; ++n) {
-        pgp_subpacket_free(&keydata->packets[n]);
+    if (keydata->uids != NULL) {
+        for (n = 0; n < keydata->uidc; ++n) {
+            pgp_userid_free(&keydata->uids[n]);
+        }
+        free(keydata->uids);
+        keydata->uids = NULL;
+        keydata->uidc = 0;
     }
-    free(keydata->packets);
-    keydata->packets = NULL;
-    keydata->packetc = 0;
+
+    if (keydata->packets != NULL) {
+        for (n = 0; n < keydata->packetc; ++n) {
+            pgp_subpacket_free(&keydata->packets[n]);
+        }
+        free(keydata->packets);
+        keydata->packets = NULL;
+        keydata->packetc = 0;
+    }
 
     if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
         pgp_pubkey_free(&keydata->key.pubkey);
@@ -491,7 +499,10 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
      */
 
     /* create userid pkt */
-    pgp_setup_memory_write(NULL, &useridoutput, &mem_userid, 128);
+    if (!pgp_setup_memory_write(NULL, &useridoutput, &mem_userid, 128)) {
+        (void) fprintf(stderr, "cat't setup memory write\n");
+        return 0;
+    }
     pgp_write_struct_userid(useridoutput, userid);
 
     /* create sig for this pkt */
@@ -503,7 +514,10 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
     pgp_add_primary_userid(sig, 1);
     pgp_end_hashed_subpkts(sig);
 
-    pgp_setup_memory_write(NULL, &sigoutput, &mem_sig, 128);
+    if (!pgp_setup_memory_write(NULL, &sigoutput, &mem_sig, 128)) {
+        (void) fprintf(stderr, "can't setup memory write\n");
+        return 0;
+    }
     pgp_write_sig(sigoutput, sig, &key->key.seckey.pubkey, &key->key.seckey);
 
     /* add this packet to key */

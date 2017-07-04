@@ -25,46 +25,48 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <key_store_pgp.h>
 #include <rnp.h>
-#include <rnp_tests_support.h>
+#include <key_store.h>
+#include "rnp_tests.h"
+#include "rnp_tests_support.h"
 
 void
 rnpkeys_exportkey_verifyUserId(void **state)
 {
     /* Generate the key and export it */
-
+    rnp_test_state_t *rstate = *state;
     rnp_t rnp;
     int   pipefd[2];
     char *exportedkey = NULL;
 
     /* Initialize the rnp structure. */
-    setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd);
+    rnp_assert_int_equal(rstate, 1, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
 
     /* Generate the key */
     set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
-    assert_int_equal(1, rnp_generate_key(&rnp, NULL));
+    rnp_assert_int_equal(rstate, 1, rnp_generate_key(&rnp, NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    assert_int_equal(rnp_key_store_load_keys(&rnp, 1), 1);
-    assert_int_equal(rnp_secret_count(&rnp), 1);
-    assert_int_equal(rnp_public_count(&rnp), 1);
-    assert_int_equal(rnp_find_key(&rnp, getenv("LOGNAME")), 1);
+    rnp_assert_int_equal(rstate, rnp_key_store_load_keys(&rnp, 1), 1);
+    rnp_assert_int_equal(rstate, rnp_secret_count(&rnp), 1);
+    rnp_assert_int_equal(rstate, rnp_public_count(&rnp), 1);
+    rnp_assert_int_equal(rstate, rnp_find_key(&rnp, getenv("LOGNAME")), 1);
 
     /* Try to export the key without passing userid from the interface : this should fail*/
     exportedkey = rnp_export_key(&rnp, NULL);
-    assert_null(exportedkey);
+    rnp_assert_null(rstate, exportedkey);
+    free(exportedkey);
 
     /* Try to export the key with specified userid parameter from the env */
     exportedkey = rnp_export_key(&rnp, getenv("LOGNAME"));
-    assert_non_null(exportedkey);
+    rnp_assert_non_null(rstate, exportedkey);
     free(exportedkey);
-    exportedkey = NULL;
 
     /* try to export the key with specified userid parameter (which is wrong) */
     exportedkey = rnp_export_key(&rnp, "LOGNAME");
-    assert_null(exportedkey);
+    rnp_assert_null(rstate, exportedkey);
     free(exportedkey);
 
-    rnp_end(&rnp); // Free memory and other allocated resources.
+    rnp_assert_int_equal(
+      rstate, 1, rnp_end(&rnp)); // Free memory and other allocated resources.
 }

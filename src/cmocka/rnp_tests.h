@@ -24,6 +24,14 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef RNP_KEY_STORE_KBX_H
+#define RNP_KEY_STORE_KBX_H
+
+typedef struct {
+    char *home;
+    int   not_fatal;
+} rnp_test_state_t;
+
 void rnpkeys_exportkey_verifyUserId(void **state);
 
 void rnpkeys_generatekey_testSignature(void **state);
@@ -53,3 +61,61 @@ void pkcs1_rsa_test_success(void **state);
 void raw_elg_test_success(void **state);
 
 void ecdsa_signverify_success(void **state);
+
+#define rnp_assert_int_equal(state, a, b)           \
+    {                                               \
+        int _rnp_a = (a);                           \
+        int _rnp_b = (b);                           \
+        if (state->not_fatal && _rnp_a != _rnp_b) { \
+            return;                                 \
+        }                                           \
+        assert_int_equal(_rnp_a, _rnp_b);           \
+    }
+
+#define rnp_assert_int_not_equal(state, a, b)       \
+    {                                               \
+        int _rnp_a = (a);                           \
+        int _rnp_b = (b);                           \
+        if (state->not_fatal && _rnp_a == _rnp_b) { \
+            return;                                 \
+        }                                           \
+        assert_int_not_equal(_rnp_a, _rnp_b);       \
+    }
+
+#define rnp_assert_true(state, a)          \
+    {                                      \
+        int _rnp_a = (a);                  \
+        if (state->not_fatal && !_rnp_a) { \
+            return;                        \
+        }                                  \
+        assert_true(_rnp_a);               \
+    }
+
+#define rnp_assert_false(state, a)        \
+    {                                     \
+        int _rnp_a = (a);                 \
+        if (state->not_fatal && _rnp_a) { \
+            return;                       \
+        }                                 \
+        assert_false(_rnp_a);             \
+    }
+
+#define rnp_assert_non_null(state, a)             \
+    {                                             \
+        void *_rnp_a = (void *) (a);              \
+        if (state->not_fatal && _rnp_a == NULL) { \
+            return;                               \
+        }                                         \
+        assert_non_null(_rnp_a);                  \
+    }
+
+#define rnp_assert_null(state, a)                 \
+    {                                             \
+        void *_rnp_a = (void *) (a);              \
+        if (state->not_fatal && _rnp_a != NULL) { \
+            return;                               \
+        }                                         \
+        assert_null(_rnp_a);                      \
+    }
+
+#endif // RNP_KEY_STORE_KBX_H

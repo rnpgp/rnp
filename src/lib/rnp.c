@@ -703,7 +703,7 @@ rnp_params_init(rnp_params_t *params)
     memset(params, '\0', sizeof(*params));
     params->passfd = -1;
 
-    return 0;
+    return 1;
 }
 
 void
@@ -720,7 +720,7 @@ rnp_ctx_init(rnp_ctx_t *ctx, rnp_t *rnp)
 {
     memset(ctx, '\0', sizeof(*ctx));
     ctx->rnp = rnp;
-    return 0;
+    return 1;
 }
 
 void
@@ -848,6 +848,7 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
                 if (newkey) {
                     printf("%s\n", newkey);
                     free(newkey);
+                    newkey = NULL;
                 }
             } else {
                 pgp_sprint_json(
@@ -1328,11 +1329,19 @@ rnp_verify_memory(rnp_ctx_t *  ctx,
         return 0;
     }
     signedmem = pgp_memory_new();
+    if (signedmem == NULL) {
+        (void) fprintf(stderr, "can't allocate mem\n");
+        return 0;
+    }
     if (!pgp_memory_add(signedmem, in, size)) {
         return 0;
     }
     if (out) {
         cat = pgp_memory_new();
+        if (cat == NULL) {
+            (void) fprintf(stderr, "can't allocate mem\n");
+            return 0;
+        }
     }
     ret = pgp_validate_mem(
       io, &result, signedmem, (out) ? &cat : NULL, armored, ctx->rnp->pubring);

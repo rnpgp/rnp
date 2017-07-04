@@ -425,6 +425,10 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
         }
     } else {
         mem = pgp_memory_new();
+        if (mem == NULL) {
+            (void) fprintf(stderr, "can't allocate mem\n");
+            return 0;
+        }
         pgp_build_pubkey(mem, key, 0);
         if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad sha1 alloc\n");
@@ -528,14 +532,22 @@ pgp_calc_mdc_hash(const uint8_t *preamble,
     }
 }
 
-void
+int
 pgp_random(void *dest, size_t length)
 {
+    int rc;
+
     // todo should this be a global instead?
     botan_rng_t rng;
-    botan_rng_init(&rng, NULL);
-    botan_rng_get(rng, dest, length);
+
+    if (botan_rng_init(&rng, NULL)) {
+        (void) fprintf(stderr, "pgp_random: can't init botan\n");
+        return -1;
+    }
+    rc = botan_rng_get(rng, dest, length);
     botan_rng_destroy(rng);
+
+    return rc;
 }
 
 /**
@@ -950,10 +962,14 @@ pgp_reader_push_sum16(pgp_stream_t *stream)
 {
     sum16_t *arg;
 
-    if ((arg = calloc(1, sizeof(*arg))) == NULL) {
+    arg = calloc(1, sizeof(*arg));
+    if (arg == NULL) {
         (void) fprintf(stderr, "pgp_reader_push_sum16: bad alloc\n");
-    } else {
-        pgp_reader_push(stream, sum16_reader, sum16_destroyer, arg);
+        return;
+    }
+
+    if (!pgp_reader_push(stream, sum16_reader, sum16_destroyer, arg)) {
+        free(arg);
     }
 }
 

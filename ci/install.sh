@@ -27,13 +27,13 @@ if [ ! -e "${CMOCKA_INSTALL}/lib/libcmocka.so" ]; then
 fi
 
 # json-c
-if [ ! -e "${JSON_C_INSTALL}/lib/libjson-c.so" ]; then
+if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ]; then
   mkdir ~/builds/json-c
   cd ~/builds/json-c
   wget https://s3.amazonaws.com/json-c_releases/releases/json-c-0.12.1.tar.gz -O json-c.tar.gz
   tar xzf json-c.tar.gz --strip 1
 
-  ./configure --prefix="${JSON_C_INSTALL}"
+  ./configure --prefix="${JSONC_INSTALL}"
   make -j${CORES} install
 fi
 

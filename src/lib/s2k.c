@@ -33,13 +33,13 @@
 #include <botan/ffi.h>
 #include <stdio.h>
 
-void
+int
 pgp_s2k_simple(pgp_hash_alg_t alg, uint8_t *out, size_t output_len, const char *passphrase)
 {
     return pgp_s2k_salted(alg, out, output_len, passphrase, NULL);
 }
 
-void
+int
 pgp_s2k_salted(pgp_hash_alg_t alg,
                uint8_t *      out,
                size_t         output_len,
@@ -49,7 +49,7 @@ pgp_s2k_salted(pgp_hash_alg_t alg,
     return pgp_s2k_iterated(alg, out, output_len, passphrase, salt, 1);
 }
 
-void
+int
 pgp_s2k_iterated(pgp_hash_alg_t alg,
                  uint8_t *      out,
                  size_t         output_len,
@@ -60,13 +60,13 @@ pgp_s2k_iterated(pgp_hash_alg_t alg,
     char s2k_algo_str[128];
     snprintf(s2k_algo_str, sizeof(s2k_algo_str), "OpenPGP-S2K(%s)", pgp_hash_name_botan(alg));
 
-    botan_pbkdf(s2k_algo_str,
-                out,
-                output_len,
-                passphrase,
-                salt,
-                salt == NULL ? 0 : PGP_SALT_SIZE,
-                iterations);
+    return botan_pbkdf(s2k_algo_str,
+                       out,
+                       output_len,
+                       passphrase,
+                       salt,
+                       salt == NULL ? 0 : PGP_SALT_SIZE,
+                       iterations);
 }
 
 size_t

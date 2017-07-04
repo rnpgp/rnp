@@ -118,7 +118,7 @@ void  pgp_callback_push(pgp_stream_t *, pgp_cbfunc_t *, void *);
 void *pgp_callback_arg(pgp_cbdata_t *);
 void *pgp_callback_errors(pgp_cbdata_t *);
 void  pgp_reader_set(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
-void  pgp_reader_push(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
+int   pgp_reader_push(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
 void  pgp_reader_pop(pgp_stream_t *);
 
 void *pgp_reader_get_arg(pgp_reader_t *);
