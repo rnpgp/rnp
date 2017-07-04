@@ -35,7 +35,7 @@
  *       developers' .gnupg installations.
  */
 
-#define SUBDIRECTORY_GNUPG ".rnp"
+#define SUBDIRECTORY_GNUPG ".gnupg"
 #define SUBDIRECTORY_RNP ".rnp"
 #define SUBDIRECTORY_SSH ".ssh"
 #define PUBRING_KBX "pubring.kbx"
