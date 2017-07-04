@@ -84,6 +84,5 @@ rnpkeys_exportkey_verifyUserId(void **state)
     rnp_assert_null(rstate, exportedkey);
     free(exportedkey);
 
-    rnp_assert_int_equal(
-      rstate, 1, rnp_end(&rnp)); // Free memory and other allocated resources.
+    rnp_end(&rnp); // Free memory and other allocated resources.
 }

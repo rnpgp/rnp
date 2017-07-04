@@ -62,15 +62,15 @@ typedef struct rnp_ctx_t {
 
 /* structure used to hold (key,value) pair information */
 typedef struct rnp_t {
-    unsigned  c;       /* # of elements used */
-    unsigned  size;    /* size of array */
-    char **   name;    /* key names */
-    char **   value;   /* value information */
-    void *    pubring; /* public key ring */
-    void *    secring; /* s3kr1t key ring */
-    void *    io;      /* the io struct for results/errs */
-    void *    passfp;  /* file pointer for password input */
-    rnp_ctx_t ctx;     /* current operation context */
+    unsigned  c;             /* # of elements used */
+    unsigned  size;          /* size of array */
+    char **   name;          /* key names */
+    char **   value;         /* value information */
+    void *    pubring;       /* public key ring */
+    void *    secring;       /* s3kr1t key ring */
+    void *    io;            /* the io struct for results/errs */
+    void *    user_input_fp; /* file pointer for password input */
+    rnp_ctx_t ctx;           /* current operation context */
 
     enum key_store_format_t key_store_format; /* keyring format */
     union {
@@ -79,8 +79,8 @@ typedef struct rnp_t {
 } rnp_t;
 
 /* begin and end */
-int rnp_init(rnp_t *);
-int rnp_end(rnp_t *);
+int  rnp_init(rnp_t *);
+void rnp_end(rnp_t *);
 
 /* init, reset and free rnp operation context */
 int  rnp_ctx_init(rnp_ctx_t *);

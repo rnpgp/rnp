@@ -750,8 +750,8 @@ set_pass_fd(rnp_t *rnp)
     pgp_io_t *io = rnp->io;
 
     if (passfd != NULL) {
-        rnp->passfp = fdopen(atoi(passfd), "r");
-        if (rnp->passfp == NULL) {
+        rnp->user_input_fp = fdopen(atoi(passfd), "r");
+        if (rnp->user_input_fp == NULL) {
             fprintf(io->errs, "cannot open fd %s for reading\n", passfd);
             return 0;
         }
@@ -976,7 +976,7 @@ rnp_init(rnp_t *rnp)
 }
 
 /* finish off with the rnp_t struct */
-int
+void
 rnp_end(rnp_t *rnp)
 {
     unsigned i;
@@ -1007,8 +1007,6 @@ rnp_end(rnp_t *rnp)
     }
     free(rnp->io);
     rnp_ctx_free(&rnp->ctx);
-
-    return 1;
 }
 
 /* rnp_ctx_t : init, reset, free internal pointers */
@@ -1268,7 +1266,7 @@ rnp_export_key(rnp_t *rnp, char *name)
 
         rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
         memset(passphrase, 0, sizeof(passphrase));
-        find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
+        find_passphrase(rnp->user_input_fp, keyid, passphrase, sizeof(passphrase), attempts);
     }
 
     return pgp_export_key(io, key, (uint8_t *) passphrase);
@@ -1392,7 +1390,7 @@ rnp_generate_key(rnp_t *rnp, const char *id)
     rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
 
     memset(passphrase, 0, sizeof(passphrase));
-    find_passphrase(rnp->passfp, keyid, passphrase, sizeof(passphrase), attempts);
+    find_passphrase(rnp->user_input_fp, keyid, passphrase, sizeof(passphrase), attempts);
 
     /* write keypair */
     snprintf(ringfile = filename, sizeof(filename), "%s/secring.%s", dir, ext);
@@ -1472,7 +1470,7 @@ rnp_decrypt_file(rnp_t *rnp, const char *f, char *out, int armored)
                             realarmor,
                             overwrite,
                             sshkeys,
-                            rnp->passfp,
+                            rnp->user_input_fp,
                             attempts,
                             get_passphrase_cb);
 }
@@ -1509,7 +1507,7 @@ rnp_sign_file(
     }
     for (i = 0, seckey = NULL; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS);
          i++) {
-        if (rnp->passfp == NULL) {
+        if (rnp->user_input_fp == NULL) {
             /* print out the user id */
             pubkey = rnp_key_store_get_key_by_name(io, rnp->pubring, userid);
             if (pubkey == NULL) {
@@ -1523,7 +1521,7 @@ rnp_sign_file(
         }
         if (!use_ssh_keys(rnp)) {
             /* now decrypt key */
-            seckey = pgp_decrypt_seckey(keypair, rnp->passfp);
+            seckey = pgp_decrypt_seckey(keypair, rnp->user_input_fp);
             if (seckey == NULL) {
                 (void) fprintf(io->errs, "Bad passphrase\n");
             }
@@ -1639,7 +1637,7 @@ rnp_sign_memory(rnp_t *        rnp,
     }
     for (i = 0, seckey = NULL; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS);
          i++) {
-        if (rnp->passfp == NULL) {
+        if (rnp->user_input_fp == NULL) {
             /* print out the user id */
             pubkey = rnp_key_store_get_key_by_name(io, rnp->pubring, userid);
             if (pubkey == NULL) {
@@ -1653,7 +1651,7 @@ rnp_sign_memory(rnp_t *        rnp,
         }
         if (!use_ssh_keys(rnp)) {
             /* now decrypt key */
-            seckey = pgp_decrypt_seckey(keypair, rnp->passfp);
+            seckey = pgp_decrypt_seckey(keypair, rnp->user_input_fp);
             if (seckey == NULL) {
                 (void) fprintf(io->errs, "Bad passphrase\n");
             }
@@ -1825,7 +1823,7 @@ rnp_decrypt_memory(rnp_t *      rnp,
                           rnp->pubring,
                           realarmour,
                           sshkeys,
-                          rnp->passfp,
+                          rnp->user_input_fp,
                           attempts,
                           get_passphrase_cb);
     if (mem == NULL) {
@@ -1874,8 +1872,13 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor, char *pubringname)
     }
     rnp->pubring = keyring;
     rnp_setvar(rnp, "pubring", pubringname);
-    ret = pgp_list_packets(
-      io, f, (unsigned) armor, rnp->secring, rnp->pubring, rnp->passfp, get_passphrase_cb);
+    ret = pgp_list_packets(io,
+                           f,
+                           (unsigned) armor,
+                           rnp->secring,
+                           rnp->pubring,
+                           rnp->user_input_fp,
+                           get_passphrase_cb);
     free(keyring);
     rnp->pubring = NULL;
     return ret;

@@ -71,7 +71,7 @@ conffile(rnp_t *rnp, char *homedir, char *userid, size_t length)
             (void) memcpy(userid,
                           &buf[(int) matchv[1].rm_so],
                           MIN((unsigned) (matchv[1].rm_eo - matchv[1].rm_so), length));
-            if (rnp->passfp == NULL) {
+            if (rnp->user_input_fp == NULL) {
                 (void) fprintf(stderr,
                                "rnp: default key set to \"%.*s\"\n",
                                (int) (matchv[1].rm_eo - matchv[1].rm_so),
