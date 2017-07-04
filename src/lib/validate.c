@@ -163,7 +163,7 @@ add_sig_to_list(const pgp_sig_info_t *sig, pgp_sig_info_t **sigs, unsigned *coun
     *sigs = newsigs;
     copy_sig_info(&(*sigs)[*count], sig);
     *count += 1;
-    return 1;
+    return RNP_OK;
 }
 
 /*

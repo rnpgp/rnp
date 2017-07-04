@@ -374,12 +374,12 @@ pgp_is_key_supported(const pgp_key_t *key)
         case PGP_PKA_RSA:
         case PGP_PKA_DSA:
         case PGP_PKA_ELGAMAL:
-            return 1;
+            return RNP_OK;
         default:
             break;
         }
     }
-    return 0;
+    return RNP_FAIL;
 }
 
 /* \todo check where userid pointers are copied */
@@ -444,7 +444,7 @@ pgp_add_userid(pgp_key_t *key, const uint8_t *userid)
 
     EXPAND_ARRAY(key, uid);
     if (key->uids == NULL) {
-        return 0;
+        return NULL;
     }
     /* initialise new entry in array */
     uidp = &key->uids[key->uidc++];
@@ -467,7 +467,7 @@ pgp_add_subpacket(pgp_key_t *keydata, const pgp_subpacket_t *packet)
 
     EXPAND_ARRAY(keydata, packet);
     if (keydata->packets == NULL) {
-        return 0;
+        return NULL;
     }
     /* initialise new entry in array */
     subpktp = &keydata->packets[keydata->packetc++];
@@ -501,7 +501,7 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
     /* create userid pkt */
     if (!pgp_setup_memory_write(NULL, &useridoutput, &mem_userid, 128)) {
         (void) fprintf(stderr, "cat't setup memory write\n");
-        return 0;
+        return RNP_FAIL;
     }
     pgp_write_struct_userid(useridoutput, userid);
 
@@ -516,7 +516,7 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
 
     if (!pgp_setup_memory_write(NULL, &sigoutput, &mem_sig, 128)) {
         (void) fprintf(stderr, "can't setup memory write\n");
-        return 0;
+        return RNP_FAIL;
     }
     pgp_write_sig(sigoutput, sig, &key->key.seckey.pubkey, &key->key.seckey);
 
@@ -535,7 +535,7 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
     pgp_memory_free(mem_userid);
     pgp_memory_free(mem_sig);
 
-    return 1;
+    return RNP_OK;
 }
 
 /**

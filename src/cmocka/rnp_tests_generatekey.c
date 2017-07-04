@@ -40,15 +40,15 @@ rnpkeys_generatekey_testSignature(void **state)
      */
 
     rnp_test_state_t *rstate = *state;
-    const char *      hashAlg[] = {"SHA1", "SHA224", "SHA256", "SHA384", "SHA512", "SM3", NULL};
-    rnp_t             rnp;
-    rnp_ctx_t         ctx;
-    int               pipefd[2];
-    int               retVal;
-    char              memToSign[] = "A simple test message";
-    char              signatureBuf[4096] = {0};
-    char              recoveredSig[4096] = {0};
-    char              userId[128];
+    const char *hashAlg[] = {"SHA1", "SHA224", "SHA256", "SHA384", "SHA512", "SM3", NULL};
+    rnp_t       rnp;
+    rnp_ctx_t   ctx;
+    int         pipefd[2];
+    int         retVal;
+    char        memToSign[] = "A simple test message";
+    char        signatureBuf[4096] = {0};
+    char        recoveredSig[4096] = {0};
+    char        userId[128];
 
     for (int i = 0; hashAlg[i] != NULL; i++) {
         /* Setup passphrase input and rnp structure */
@@ -83,7 +83,8 @@ rnpkeys_generatekey_testSignature(void **state)
                 }
 
                 /* Setup passphrase input and rnp structure */
-                rnp_assert_int_equal(rstate, 1, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
+                rnp_assert_int_equal(
+                  rstate, 1, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
 
                 /* Load keyring */
                 rnp_assert_int_equal(rstate, 1, rnp_key_store_load_keys(&rnp, 1));
@@ -192,8 +193,9 @@ rnpkeys_generatekey_testEncryption(void **state)
             ctx.filename = strdup("dummyfile.dat");
             ctx.ealg = pgp_str_to_cipher(cipherAlg[i]);
             /* checking whether we have correct cipher constant */
-            rnp_assert_true(rstate, (ctx.ealg != PGP_SA_DEFAULT_CIPHER) ||
-                        (strcmp(cipherAlg[i], "CAST5") == 0));
+            rnp_assert_true(rstate,
+                            (ctx.ealg != PGP_SA_DEFAULT_CIPHER) ||
+                              (strcmp(cipherAlg[i], "CAST5") == 0));
 
             /* Encrypting the memory */
             retVal = rnp_encrypt_memory(&ctx,
@@ -208,7 +210,8 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_int_equal(rstate, 1, rnp_end(&rnp));
 
             /* Setting up rnp again and decrypting memory */
-            rnp_assert_int_equal(rstate, 1, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
+            rnp_assert_int_equal(
+              rstate, 1, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
 
             /* Loading the keyrings */
             rnp_assert_int_equal(rstate, 1, rnp_key_store_load_keys(&rnp, 1));
@@ -247,12 +250,14 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
     for (int i = 0; i < sizeof(hashAlg) / sizeof(hashAlg[0]); i++) {
         for (int j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
             /* Setting up rnp again and decrypting memory */
-            rnp_assert_int_equal(rstate, 1, setup_rnp_common(&rnp, keystores[j], NULL, pipefd));
+            rnp_assert_int_equal(
+              rstate, 1, setup_rnp_common(&rnp, keystores[j], NULL, pipefd));
             rnp_assert_true(rstate, rnp.key_store_format == keystores[j]);
 
             set_default_rsa_key_desc(&rnp.action.generate_key_ctx,
                                      pgp_str_to_hash_alg(hashAlg[i]));
-            rnp_assert_int_not_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_UNKNOWN);
+            rnp_assert_int_not_equal(
+              rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_UNKNOWN);
 
             /* Generate key with specified parameters */
             rnp_assert_int_equal(rstate, 1, rnp_generate_key(&rnp, NULL));
@@ -278,8 +283,8 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
      * Verify the key was generated with the correct UserId. */
 
     rnp_test_state_t *rstate = *state;
-    char        userId[1024] = {0};
-    const char *userIds[] = {"rnpkeys_generatekey_verifyUserIdOption_MD5",
+    char              userId[1024] = {0};
+    const char *      userIds[] = {"rnpkeys_generatekey_verifyUserIdOption_MD5",
                              "rnpkeys_generatekey_verifyUserIdOption_SHA-1",
                              "rnpkeys_generatekey_verifyUserIdOption_RIPEMD160",
                              "rnpkeys_generatekey_verifyUserIdOption_SHA256",
@@ -297,7 +302,8 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
             snprintf(userId, sizeof(userId), "%s", userIds[i]);
 
             /*Initialize the basic RNP structure. */
-            rnp_assert_int_equal(rstate, 1, setup_rnp_common(&rnp, keystores[j], NULL, pipefd));
+            rnp_assert_int_equal(
+              rstate, 1, setup_rnp_common(&rnp, keystores[j], NULL, pipefd));
             rnp_assert_true(rstate, rnp.key_store_format == keystores[j]);
 
             set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
@@ -322,10 +328,10 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     /* Try to generate keypair in different home directories */
 
     rnp_test_state_t *rstate = *state;
-    const char *ourdir = rstate->home;
-    char        newhome[256];
-    rnp_t       rnp;
-    int         pipefd[2];
+    const char *      ourdir = rstate->home;
+    char              newhome[256];
+    rnp_t             rnp;
+    int               pipefd[2];
 
     /* Initialize the rnp structure. */
     rnp_assert_int_equal(rstate, 1, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
@@ -391,9 +397,9 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
 
     rnp_test_state_t *rstate = *state;
     const char *      ourdir = rstate->home;
-    char        newhome[256];
-    rnp_t       rnp;
-    int         pipefd[2];
+    char              newhome[256];
+    rnp_t             rnp;
+    int               pipefd[2];
 
     /* Initialize the rnp structure. */
     rnp_assert_int_equal(rstate, 1, setup_rnp_common(&rnp, KBX_KEY_STORE, NULL, pipefd));
@@ -467,10 +473,10 @@ void
 rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
 {
     rnp_test_state_t *rstate = *state;
-    const char *ourdir = rstate->home;
-    char        nopermsdir[256];
-    rnp_t       rnp;
-    int         pipefd[2];
+    const char *      ourdir = rstate->home;
+    char              nopermsdir[256];
+    rnp_t             rnp;
+    int               pipefd[2];
 
     paths_concat(nopermsdir, sizeof(nopermsdir), ourdir, "noperms", NULL);
     path_mkdir(0000, nopermsdir, NULL);

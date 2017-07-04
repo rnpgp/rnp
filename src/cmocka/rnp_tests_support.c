@@ -249,14 +249,14 @@ setupPassphrasefd(int *pipefd)
 {
     if (pipe(pipefd) == -1) {
         perror("pipe");
-        return 0;
+        return RNP_FAIL;
     }
 
     /*Write and close fd*/
     const char *password = "passwordforkeygeneration\0";
     assert_int_equal(write(pipefd[1], password, strlen(password)), strlen(password));
     close(pipefd[1]);
-    return 1;
+    return RNP_OK;
 }
 
 int
@@ -291,11 +291,11 @@ setup_rnp_common(rnp_t *                 rnp,
     }
 
     if (homedir == NULL) {
-        return 0;
+        return RNP_FAIL;
     }
 
     if ((ks_format != GPG_KEY_STORE) && (ks_format != KBX_KEY_STORE)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     paths_concat(pubpath,
@@ -319,7 +319,7 @@ setup_rnp_common(rnp_t *                 rnp,
     }
     rnp_params_free(&params);
 
-    return 1;
+    RNP_OK;
 }
 
 void

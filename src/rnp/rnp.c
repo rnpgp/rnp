@@ -228,7 +228,7 @@ show_output(char *out, int size, const char *header)
 
     if (size <= 0) {
         fprintf(stderr, "%s\n", header);
-        return 0;
+        return RNP_FAIL;
     }
     for (cc = 0; cc < size; cc += n) {
         if ((n = write(STDOUT_FILENO, &out[cc], size - cc)) <= 0) {
@@ -237,9 +237,9 @@ show_output(char *out, int size, const char *header)
     }
     if (cc < size) {
         fputs("Short write\n", stderr);
-        return 0;
+        return RNP_FAIL;
     }
-    return cc == size;
+    return cc == size ? RNP_OK : RNP_FAIL;
 }
 
 /* do a command once for a specified file 'f' */
@@ -503,7 +503,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         break;
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 /* we have -o option=value -- parse, and process */

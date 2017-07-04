@@ -146,7 +146,7 @@ pgp_rsa_pkcs1_verify_hash(const uint8_t *         sig_buf,
     botan_pubkey_t       rsa_key = NULL;
     botan_pk_op_verify_t verify_op = NULL;
     botan_rng_t          rng = NULL;
-    int                  result = 0;
+    int                  result = RNP_FAIL;
 
     snprintf(padding_name,
              sizeof(padding_name),
@@ -169,7 +169,7 @@ pgp_rsa_pkcs1_verify_hash(const uint8_t *         sig_buf,
         goto done;
     }
 
-    result = (botan_pk_op_verify_finish(verify_op, sig_buf, sig_buf_size) == 0) ? 1 : 0;
+    result = (botan_pk_op_verify_finish(verify_op, sig_buf, sig_buf_size) == 0) ? RNP_OK : RNP_FAIL;
 
 done:
     botan_pk_op_verify_destroy(verify_op);

@@ -82,7 +82,7 @@ rnp_key_store_load_keys(rnp_t *rnp, int loadsecret)
 #ifdef ENABLE_SSH
         return rnp_key_store_ssh_load_keys(rnp, homedir);
 #else
-        return 0;
+        return RNP_FAIL;
 #endif
     }
 
@@ -90,7 +90,7 @@ rnp_key_store_load_keys(rnp_t *rnp, int loadsecret)
 
     if (newring == NULL) {
         fprintf(io->errs, "cannot read pub keyring\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     if (rnp->pubring) {
@@ -102,7 +102,7 @@ rnp_key_store_load_keys(rnp_t *rnp, int loadsecret)
 
     if (((rnp_key_store_t *) rnp->pubring)->keyc < 1) {
         fprintf(io->errs, "pub keyring is empty\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     /* Only read secret keys if we need to */
@@ -111,7 +111,7 @@ rnp_key_store_load_keys(rnp_t *rnp, int loadsecret)
 
         if (newring == NULL) {
             fprintf(io->errs, "cannot read sec keyring\n");
-            return 0;
+            return RNP_FAIL;
         }
 
         if (rnp->secring) {
@@ -123,7 +123,7 @@ rnp_key_store_load_keys(rnp_t *rnp, int loadsecret)
 
         if (((rnp_key_store_t *) rnp->secring)->keyc < 1) {
             fprintf(io->errs, "sec keyring is empty\n");
-            return 0;
+            return RNP_FAIL;
         }
 
         /* Now, if we don't have a valid user, use the first
@@ -142,7 +142,7 @@ rnp_key_store_load_keys(rnp_t *rnp, int loadsecret)
         }
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 int
@@ -158,12 +158,12 @@ rnp_key_store_load_from_file(rnp_t *          rnp,
 #ifdef ENABLE_SSH
         return rnp_key_store_ssh_from_file(rnp->io, key_store, filename);
 #else
-        return 0;
+        return RNP_FAIL;
 #endif
     }
 
     if (!pgp_mem_readfile(&mem, filename)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     rc = rnp_key_store_load_from_mem(rnp, key_store, armour, &mem);
@@ -188,11 +188,11 @@ rnp_key_store_load_from_mem(rnp_t *          rnp,
 #ifdef ENABLE_SSH
         return rnp_key_store_ssh_from_mem(rnp->io, key_store, memory);
 #else
-        return 0;
+        return RNP_FAIL;
 #endif
     }
 
-    return 0;
+    return RNP_FAIL;
 }
 
 int
@@ -209,12 +209,12 @@ rnp_key_store_write_to_file(rnp_t *          rnp,
 #ifdef ENABLE_SSH
         return rnp_key_store_ssh_to_file(rnp->io, key_store, passphrase, filename);
 #else
-        return 0;
+        return RNP_FAIL;
 #endif
     }
 
     if (!rnp_key_store_write_to_mem(rnp, key_store, passphrase, armour, &mem)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     rc = pgp_mem_writefile(&mem, filename);
@@ -240,11 +240,11 @@ rnp_key_store_write_to_mem(rnp_t *          rnp,
 #ifdef ENABLE_SSH
         return rnp_key_store_ssh_to_mem(rnp->io, key_store, passphrase, memory);
 #else
-        return 0;
+        return RNP_FAIL;
 #endif
     }
 
-    return 0;
+    return RNP_FAIL;
 }
 
 /* Format a PGP key to a readable hexadecimal string in a user supplied
@@ -303,7 +303,7 @@ rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int la
 
     if (ring == NULL || ring->keyc < 1) {
         errno = EINVAL;
-        return 0;
+        return RNP_FAIL;
     }
 
     memset(id, 0x0, len);
@@ -311,7 +311,7 @@ rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int la
     src = (uint8_t *) &ring->keys[(last) ? ring->keyc - 1 : 0].sigid;
     rnp_key_store_format_key(id, src, len);
 
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -372,7 +372,7 @@ rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring, const int psigs
     (void) fprintf(io->res, "%u key%s\n", keyc, (keyc == 1) ? "" : "s");
 
     if (keyring == NULL) {
-        return 1;
+        return RNP_OK;
     }
 
     for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
@@ -383,7 +383,7 @@ rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring, const int psigs
         }
         (void) fputc('\n', io->res);
     }
-    return 1;
+    return RNP_OK;
 }
 
 int
@@ -403,7 +403,7 @@ rnp_key_store_json(pgp_io_t *             io,
         }
         json_object_array_add(obj, jso);
     }
-    return 1;
+    return RNP_OK;
 }
 
 /* append one keyring to another */
@@ -415,7 +415,7 @@ rnp_key_store_append_keyring(rnp_key_store_t *keyring, rnp_key_store_t *newring)
     for (i = 0; i < newring->keyc; i++) {
         EXPAND_ARRAY(keyring, key);
         if (keyring->keys == NULL) {
-            return 0;
+            return RNP_FAIL;
         }
         (void) memcpy(
           &keyring->keys[keyring->keyc], &newring->keys[i], sizeof(newring->keys[i]));
@@ -425,13 +425,13 @@ rnp_key_store_append_keyring(rnp_key_store_t *keyring, rnp_key_store_t *newring)
     for (i = 0; i < newring->blobc; i++) {
         EXPAND_ARRAY(keyring, blob);
         if (keyring->blobs == NULL) {
-            return 0;
+            return RNP_FAIL;
         }
         (void) memcpy(
           &keyring->blobs[keyring->blobc], &newring->blobs[i], sizeof(newring->blobs[i]));
         keyring->blobc += 1;
     }
-    return 1;
+    return RNP_OK;
 }
 
 /* add a key to keyring */
@@ -450,7 +450,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
 
     EXPAND_ARRAY(keyring, key);
     if (keyring->keys == NULL) {
-        return 0;
+        return RNP_FAIL;
     }
     newkey = &keyring->keys[keyring->keyc++];
     memcpy((uint8_t *) newkey + offsetof(pgp_key_t, type),
@@ -461,7 +461,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
     for (i = 0; i < key->uidc; i++) {
         EXPAND_ARRAY(newkey, uid);
         if (newkey->uids == NULL) {
-            return 0;
+            return RNP_FAIL;
         }
         memcpy(&newkey->uids[newkey->uidc], &key->uids[i], sizeof(uint8_t *));
         newkey->uidc++;
@@ -470,7 +470,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
     for (i = 0; i < key->packetc; i++) {
         EXPAND_ARRAY(newkey, packet);
         if (newkey->packets == NULL) {
-            return 0;
+            return RNP_FAIL;
         }
         memcpy(&newkey->packets[newkey->packetc], &key->packets[i], sizeof(pgp_subpacket_t));
         newkey->packetc++;
@@ -479,7 +479,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
     for (i = 0; i < key->subsigc; i++) {
         EXPAND_ARRAY(newkey, subsig);
         if (newkey->subsigs == NULL) {
-            return 0;
+            return RNP_FAIL;
         }
         memcpy(&newkey->subsigs[newkey->subsigc], &key->subsigs[i], sizeof(pgp_subsig_t));
         newkey->subsigc++;
@@ -488,7 +488,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
     for (i = 0; i < key->revokec; i++) {
         EXPAND_ARRAY(newkey, revoke);
         if (newkey->revokes == NULL) {
-            return 0;
+            return RNP_FAIL;
         }
         memcpy(&newkey->revokes[newkey->revokec], &key->revokes[i], sizeof(pgp_revoke_t));
         newkey->revokec++;
@@ -498,7 +498,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
         fprintf(io->errs, "rnp_key_store_add_key: keyc %u\n", keyring->keyc);
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 int
@@ -516,7 +516,7 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
     if (tag != PGP_PTAG_CT_PUBLIC_SUBKEY) {
         EXPAND_ARRAY(keyring, key);
         if (keyring->keys == NULL) {
-            return 0;
+            return RNP_FAIL;
         }
         key = &keyring->keys[keyring->keyc++];
         (void) memset(key, 0x0, sizeof(*key));
@@ -538,7 +538,7 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
         fprintf(io->errs, "rnp_key_store_add_keydata: keyc %u\n", keyring->keyc);
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 int
@@ -552,11 +552,11 @@ rnp_key_store_remove_key(pgp_io_t *io, rnp_key_store_t *keyring, const pgp_key_t
                     &keyring->keys[i + 1],
                     sizeof(pgp_key_t) * (keyring->keyc - i));
             keyring->keyc--;
-            return 1;
+            return RNP_OK;
         }
     }
 
-    return 0;
+    return RNP_FAIL;
 }
 
 int
@@ -572,7 +572,7 @@ rnp_key_store_remove_key_by_id(pgp_io_t *io, rnp_key_store_t *keyring, const uin
         return rnp_key_store_remove_key(io, keyring, key);
     }
 
-    return 0;
+    return RNP_FAIL;
 }
 
 /**

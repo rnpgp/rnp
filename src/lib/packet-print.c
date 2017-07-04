@@ -420,7 +420,7 @@ iscompromised(const pgp_key_t *key, unsigned uid)
 }
 
 /* Formats a public key expiration notice. Assumes that the public key
- * expires. Return 0 on success and -1 on failure.
+ * expires. Return 1 on success and 0 on failure.
  */
 static int
 format_pubkey_expiration_notice(char *              buffer,
@@ -435,7 +435,7 @@ format_pubkey_expiration_notice(char *              buffer,
     /* Write the opening bracket. */
     buffer += snprintf(buffer, buffer_end - buffer, "%s", "[");
     if (buffer >= buffer_end)
-        return -1;
+        return RNP_FAIL;
 
     /* Write the expiration state label. */
     buffer += snprintf(buffer,
@@ -445,20 +445,20 @@ format_pubkey_expiration_notice(char *              buffer,
 
     /* Ensure that there will be space for tihe time. */
     if (buffer_end - buffer < PTIMESTR_LEN + 1)
-        return -1;
+        return RNP_FAIL;
 
     /* Write the expiration time. */
     ptimestr(buffer, buffer_end - buffer, pubkey->birthtime + pubkey->duration);
     buffer += PTIMESTR_LEN;
     if (buffer >= buffer_end)
-        return -1;
+        return RNP_FAIL;
 
     /* Write the closing bracket. */
     buffer += snprintf(buffer, buffer_end - buffer, "%s", "]");
     if (buffer >= buffer_end)
-        return -1;
+        return RNP_FAIL;
 
-    return 0;
+    return RNP_OK;
 }
 
 static int
@@ -762,7 +762,7 @@ pgp_sprint_json(pgp_io_t *             io,
                __LINE__,
                json_object_to_json_string(keyjson));
     }
-    return 1;
+    return RNP_OK;
 }
 
 int
@@ -1233,7 +1233,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 
         default:
             (void) fprintf(stderr, "pgp_print_packet: Unusual algorithm\n");
-            return 0;
+            return RNP_FAIL;
         }
 
         if (content->sig.hash)
@@ -1280,7 +1280,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
     case PGP_PTAG_RAW_SS:
         if (pkt->critical) {
             (void) fprintf(stderr, "contents are critical\n");
-            return 0;
+            return RNP_FAIL;
         }
         start_subpacket(&print->indent, pkt->tag);
         print_uint(print->indent,
@@ -1597,7 +1597,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 
         default:
             (void) fprintf(stderr, "pgp_print_packet: Unusual key algorithm\n");
-            return 0;
+            return RNP_FAIL;
         }
         break;
 
@@ -1666,9 +1666,9 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
     default:
         print_tagname(print->indent, "UNKNOWN PACKET TYPE");
         fprintf(stderr, "pgp_print_packet: unknown tag=%d (0x%x)\n", pkt->tag, pkt->tag);
-        return 0;
+        return RNP_FAIL;
     }
-    return 1;
+    return RNP_OK;
 }
 
 static pgp_cb_ret_t
@@ -1710,7 +1710,7 @@ pgp_list_packets(pgp_io_t *       io,
     }
     pgp_parse(stream, printerrors);
     pgp_teardown_file_read(stream, fd);
-    return 1;
+    return RNP_OK;
 }
 
 /* this interface isn't right - hook into callback for getting passphrase */

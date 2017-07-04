@@ -104,14 +104,14 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
         if (verbose) {
             (void) fprintf(stderr, "can't open '%s'\n", f);
         }
-        return 0;
+        return RNP_FAIL;
     }
 
     read = fread(keybuf, 1, RNP_BUFSIZ, fp);
 
     if (!feof(fp)) {
         (void) fclose(fp);
-        return 0;
+        return RNP_FAIL;
     }
     (void) fclose(fp);
 
@@ -129,7 +129,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
         }
 
         if (botan_privkey_check_key(priv_key, rng, 0) != 0) {
-            return 0;
+            return RNP_FAIL;
         }
 
         {
@@ -146,21 +146,21 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
             botan_privkey_get_field(x, priv_key, "q");
             key->key.seckey.key.rsa.q = new_BN_take_mp(x);
             botan_privkey_destroy(priv_key);
-            ok = 1;
+            ok = RNP_OK;
         }
     } else if (strcmp(type, "ssh-dss") == 0) {
         if (botan_privkey_load(&priv_key, rng, keybuf, read, NULL) != 0) {
-            ok = 0;
+            ok = RNP_FAIL;
         } else {
             botan_mp_t x;
             botan_mp_init(&x);
             botan_privkey_get_field(x, priv_key, "x");
             key->key.seckey.key.dsa.x = new_BN_take_mp(x);
             botan_privkey_destroy(priv_key);
-            ok = 1;
+            ok = RNP_OK;
         }
     } else {
-        ok = 0;
+        ok = RNP_FAIL;
     }
 
     botan_rng_destroy(rng);

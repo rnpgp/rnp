@@ -127,7 +127,7 @@ pgp_write_scalar(pgp_output_t *output, unsigned n, unsigned len)
             return 0;
         }
     }
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -259,7 +259,7 @@ pgp_writer_set(pgp_output_t *          output,
     output->writer.destroyer = destroyer;
     output->writer.arg = arg;
     output->writer.ctx = output->ctx;
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -303,7 +303,7 @@ pgp_writer_push(pgp_output_t *          output,
     output->writer.destroyer = destroyer;
     output->writer.arg = arg;
     output->writer.ctx = output->ctx;
-    return 1;
+    return RNP_OK;
 }
 
 void
@@ -475,7 +475,7 @@ dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writ
             pgp_sig_add_data(dash->sig, &src[n], 1);
         }
     }
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -590,7 +590,7 @@ base64_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer
         }
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 static unsigned
@@ -661,7 +661,7 @@ linebreak_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_wri
         }
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -700,7 +700,7 @@ pgp_writer_use_armored_sig(pgp_output_t *output)
         free(base64);
         return 0;
     }
-    return 1;
+    return RNP_OK;
 }
 
 static unsigned
@@ -942,7 +942,7 @@ encrypt_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_write
         done += size;
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 static void
@@ -1056,7 +1056,7 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t
     pgp_pk_sesskey_free(encrypted_pk_sesskey);
     free(encrypted_pk_sesskey);
     free(iv);
-    return 1;
+    return RNP_OK;
 }
 
 static unsigned
@@ -1197,7 +1197,7 @@ pgp_write_se_ip_pktset(pgp_output_t * output,
     pgp_teardown_memory_write(mdcoutput, mdc);
     free(preamble);
 
-    return 1;
+    return RNP_OK;
 }
 
 typedef struct {
@@ -1221,7 +1221,7 @@ fd_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer_t *
         PGP_ERROR_1(errors, PGP_E_W_WRITE_TOO_SHORT, "file descriptor %d", writerfd->fd);
         return 0;
     }
-    return 1;
+    return RNP_OK;
 }
 
 static void
@@ -1268,7 +1268,7 @@ memory_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer
     if (!pgp_memory_add(mem, src, len)) {
         return 0;
     }
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -1333,7 +1333,7 @@ skey_checksum_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
         printf("errors in skey_checksum_finaliser\n");
     }
     pgp_hash_finish(&sum->hash, sum->hashed);
-    return 1;
+    return RNP_OK;
 }
 
 static void
@@ -1533,7 +1533,7 @@ stream_write_litdata(pgp_output_t *output, const uint8_t *data, unsigned len)
         data += pdlen;
         len -= (unsigned) pdlen;
     }
-    return 1;
+    return RNP_OK;
 }
 
 static unsigned
@@ -1613,7 +1613,7 @@ stream_write_se_ip(pgp_output_t *   output,
         data += pdlen;
         len -= (unsigned) pdlen;
     }
-    return 1;
+    return RNP_OK;
 }
 
 static unsigned
@@ -1666,7 +1666,7 @@ stream_write_se_ip_first(pgp_output_t *   output,
     pgp_writer_pop(output);
     stream_write_se_ip(output, data, (unsigned) sz_towrite, se_ip);
     free(preamble);
-    return 1;
+    return RNP_OK;
 }
 
 static unsigned
@@ -1713,7 +1713,7 @@ stream_write_se_ip_last(pgp_output_t *   output,
 
     pgp_teardown_memory_write(mdcoutput, mdcmem);
 
-    return 1;
+    return RNP_OK;
 }
 
 static unsigned
@@ -1738,7 +1738,7 @@ str_enc_se_ip_writer(const uint8_t *src,
         /* 4.2.2.4. Partial Body Lengths */
         /* The first partial length MUST be at least 512 octets long. */
         if (datalength < 512) {
-            return 1; /* will wait for more data or
+            return RNP_OK; /* will wait for more data or
                        * end of stream             */
         }
         if (!pgp_setup_memory_write(

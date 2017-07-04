@@ -47,7 +47,7 @@ rnp_cfg_init(rnp_cfg_t *cfg)
 {
     memset((void *) cfg, '\0', sizeof(rnp_cfg_t));
 
-    return 1;
+    return RNP_OK;
 }
 
 int
@@ -62,7 +62,7 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_set(cfg, CFG_SUBDIRSSH, SUBDIRECTORY_SSH);
     rnp_cfg_setint(cfg, CFG_NUMTRIES, MAX_PASSPHRASE_ATTEMPTS);
 
-    return 1;
+    return RNP_OK;
 }
 
 int
@@ -96,13 +96,13 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
 
     /* detecting keystore pathes and format */
     if (!rnp_cfg_get_ks_info(cfg, params))
-        return 0;
+        return RNP_FAIL;
 
     /* default key/userid */
     if (!rnp_cfg_get_defkey(cfg, params))
-        return 0;
+        return RNP_FAIL;
 
-    return 1;
+    return RNP_OK;
 }
 
 /* find the value name in the rnp_cfg */
@@ -129,7 +129,7 @@ rnp_cfg_resize(rnp_cfg_t *cfg, unsigned newsize)
 
         if ((cfg->keys == NULL) || (cfg->keys == NULL)) {
             (void) fprintf(stderr, "rnp_cfg_resize: bad alloc\n");
-            return 0;
+            return RNP_FAIL;
         }
         cfg->size = newsize;
     } else if (cfg->count == cfg->size) {
@@ -137,20 +137,20 @@ rnp_cfg_resize(rnp_cfg_t *cfg, unsigned newsize)
         temp = realloc(cfg->keys, sizeof(char *) * newsize);
         if (temp == NULL) {
             (void) fprintf(stderr, "rnp_cfg_resize: bad realloc\n");
-            return 0;
+            return RNP_FAIL;
         }
         cfg->keys = temp;
 
         temp = realloc(cfg->vals, sizeof(char *) * newsize);
         if (temp == NULL) {
             (void) fprintf(stderr, "rnp_cfg_resize: bad realloc\n");
-            return 0;
+            return RNP_FAIL;
         }
         cfg->vals = temp;
         cfg->size = newsize;
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 /* set val for the key in config. key and val are duplicated */
@@ -166,7 +166,7 @@ rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val)
         newval = rnp_strdup(val);
         if (newval == NULL) {
             (void) fprintf(stderr, "rnp_cfg_set: bad alloc\n");
-            return 0;
+            return RNP_FAIL;
         }
     }
 
@@ -176,12 +176,12 @@ rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val)
             newkey = rnp_strdup(key);
             if (newkey == NULL) {
                 (void) fprintf(stderr, "rnp_cfg_set: bad alloc\n");
-                return 0;
+                return RNP_FAIL;
             }
             cfg->keys[i = cfg->count++] = newkey;
         } else {
             free(newval);
-            return 0;
+            return RNP_FAIL;
         }
     } else {
         /* replace the element in the array */
@@ -192,7 +192,7 @@ rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val)
     }
 
     cfg->vals[i] = newval;
-    return 1;
+    return RNP_OK;
 }
 
 /* unset var for key, setting it to NULL if it exists in cfg */
@@ -204,9 +204,9 @@ rnp_cfg_unset(rnp_cfg_t *cfg, const char *key)
     if ((i = rnp_cfg_find(cfg, key)) >= 0) {
         free(cfg->vals[i]);
         cfg->vals[i] = NULL;
-        return 1;
+        return RNP_OK;
     }
-    return 0;
+    return RNP_FAIL;
 }
 
 /* set int value for the key */
@@ -275,22 +275,22 @@ rnp_cfg_check_homedir(rnp_cfg_t *cfg, char *homedir)
 
     if (homedir == NULL) {
         fputs("rnp: homedir option and HOME environment variable are not set \n", stderr);
-        return 0;
+        return RNP_FAIL;
     } else if ((ret = stat(homedir, &st)) == 0 && !S_ISDIR(st.st_mode)) {
         /* file exists in place of homedir */
         fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", homedir);
-        return 0;
+        return RNP_FAIL;
     } else if (ret != 0 && errno == ENOENT) {
         /* If the path doesn't exist then fail. */
         fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", homedir);
-        return 0;
+        return RNP_FAIL;
     } else if (ret != 0) {
         /* If any other occurred then fail. */
         fprintf(stderr, "rnp: an unspecified error occurred\n");
-        return 0;
+        return RNP_FAIL;
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 /* read any gpg config file */
@@ -304,7 +304,7 @@ conffile(const char *homedir, char *userid, size_t length)
 
     (void) snprintf(buf, sizeof(buf), "%s/.gnupg/gpg.conf", homedir);
     if ((fp = fopen(buf, "r")) == NULL) {
-        return 0;
+        return RNP_FAIL;
     }
     (void) memset(&keyre, 0x0, sizeof(keyre));
     (void) regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED);
@@ -322,7 +322,7 @@ conffile(const char *homedir, char *userid, size_t length)
     }
     (void) fclose(fp);
     regfree(&keyre);
-    return 1;
+    return RNP_OK;
 }
 
 /*
@@ -337,7 +337,7 @@ rnp_path_compose(const char *dir, const char *subdir, const char *filename, char
 
     /* checking input parameters for conrrectness */
     if (!dir || !filename || !res) {
-        return 0;
+        return RNP_FAIL;
     }
 
     /* concatenating dir, subdir and filename */
@@ -359,7 +359,7 @@ rnp_path_compose(const char *dir, const char *subdir, const char *filename, char
 
     strcpy(res + pos, filename);
 
-    return 1;
+    return RNP_OK;
 }
 
 static int
@@ -373,9 +373,9 @@ parse_ks_format(enum key_store_format_t *key_store_format, const char *format)
         *key_store_format = SSH_KEY_STORE;
     } else {
         fprintf(stderr, "rnp: unsupported keystore format: \"%s\"\n", format);
-        return 0;
+        return RNP_FAIL;
     }
-    return 1;
+    return RNP_OK;
 }
 
 /* helper function : get key storage subdir in case when user didn't specify homedir */
@@ -436,7 +436,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
     }
 
     if (!parse_ks_format(&params->ks_format, format)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     /* building pubring/secring pathes */
@@ -447,7 +447,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
         rnp_path_compose(homedir, NULL, subdir, pubpath);
         if (mkdir(pubpath, 0700) == -1 && errno != EEXIST) {
             fprintf(stderr, "cannot mkdir '%s' errno = %d \n", pubpath, errno);
-            return 0;
+            return RNP_FAIL;
         }
     }
 
@@ -463,10 +463,10 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
         params->secpath = strdup(secpath);
     } else {
         fprintf(stderr, "rnp: unsupported keystore format: \"%d\"\n", (int) params->ks_format);
-        return 0;
+        return RNP_FAIL;
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 int
@@ -498,5 +498,5 @@ rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
         params->defkey = strdup(userid);
     }
 
-    return 1;
+    return RNP_OK;
 }

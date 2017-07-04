@@ -169,12 +169,12 @@ rsa_sign(pgp_hash_t *            hash,
       sigbuf, sizeof(sigbuf), hash_alg, hashbuf, hash_size, secrsa, pubrsa);
     if (sig_size == 0) {
         (void) fprintf(stderr, "rsa_sign: pgp_rsa_pkcs1_sign_hash failed\n");
-        return 0;
+        return RNP_FAIL;
     }
     bn = BN_bin2bn(sigbuf, sig_size, NULL);
     pgp_write_mpi(out, bn);
     BN_free(bn);
-    return 1;
+    return RNP_OK;
 }
 
 static int
@@ -198,7 +198,7 @@ dsa_sign(pgp_hash_t *            hash,
     t = pgp_hash_finish(hash, &hashbuf[0]);
     if (t != 20) {
         (void) fprintf(stderr, "dsa_sign: hashfinish not 20\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     pgp_write(output, &hashbuf[0], 2);
@@ -210,7 +210,7 @@ dsa_sign(pgp_hash_t *            hash,
     pgp_write_mpi(output, dsasig->r);
     pgp_write_mpi(output, dsasig->s);
     DSA_SIG_free(dsasig);
-    return 1;
+    return RNP_OK;
 }
 
 static int
@@ -226,17 +226,17 @@ ecdsa_sign(pgp_hash_t *            hash,
     // "-2" because ECDSA on P-521 must work with SHA-512 digest
     if (curve_byte_size - 2 > pgp_hash_output_length(hash)) {
         RNP_LOG("Message hash to small");
-        return 0;
+        return RNP_FAIL;
     }
 
     /* finalise hash */
     size_t hashsize = pgp_hash_finish(hash, hashbuf);
     if (!pgp_write(output, &hashbuf[0], 2))
-        return 0;
+        return RNP_FAIL;
 
     /* write signature to buf */
     if (pgp_ecdsa_sign_hash(&sig, hashbuf, hashsize, prv_key, pub_key) != PGP_E_OK) {
-        return 0;
+        return RNP_FAIL;
     }
 
     /* convert and write the sig out to memory */
@@ -307,11 +307,11 @@ rsa_verify(pgp_hash_alg_t          hash_alg,
     /* RSA key can't be bigger than 65535 bits, so... */
     if (keysize > sizeof(sigbuf)) {
         (void) fprintf(stderr, "rsa_verify: keysize too big\n");
-        return 0;
+        return RNP_FAIL;
     }
     if ((unsigned) BN_num_bits(sig->sig) > 8 * sizeof(sigbuf)) {
         (void) fprintf(stderr, "rsa_verify: BN_numbits too big\n");
-        return 0;
+        return RNP_FAIL;
     }
     BN_bn2bin(sig->sig, sigbuf);
 
@@ -742,7 +742,7 @@ pgp_write_sig(pgp_output_t *      output,
               const pgp_pubkey_t *key,
               const pgp_seckey_t *seckey)
 {
-    unsigned ret = 0;
+    unsigned ret = RNP_FAIL;
     size_t   len = pgp_mem_len(sig->mem);
 
     /* check key not decrypted */
@@ -752,14 +752,14 @@ pgp_write_sig(pgp_output_t *      output,
     case PGP_PKA_RSA_SIGN_ONLY:
         if (seckey->key.rsa.d == NULL) {
             (void) fprintf(stderr, "pgp_write_sig: null rsa.d\n");
-            return 0;
+            return RNP_FAIL;
         }
         break;
 
     case PGP_PKA_DSA:
         if (seckey->key.dsa.x == NULL) {
             (void) fprintf(stderr, "pgp_write_sig: null dsa.x\n");
-            return 0;
+            return RNP_FAIL;
         }
         break;
 
@@ -767,18 +767,18 @@ pgp_write_sig(pgp_output_t *      output,
     case PGP_PKA_ECDSA:
         if (seckey->key.ecc.x == NULL) {
             (void) fprintf(stderr, "pgp_write_sig: null ecc.x\n");
-            return 0;
+            return RNP_FAIL;
         }
         break;
 
     default:
         (void) fprintf(stderr, "Unsupported algorithm %d\n", seckey->pubkey.alg);
-        return 0;
+        return RNP_FAIL;
     }
 
     if (sig->hashlen == (unsigned) -1) {
         (void) fprintf(stderr, "ops_write_sig: bad hashed data len\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     pgp_memory_place_int(sig->mem, sig->unhashoff, (unsigned) (len - sig->unhashoff - 2), 2);
@@ -806,33 +806,33 @@ pgp_write_sig(pgp_output_t *      output,
     case PGP_PKA_RSA_SIGN_ONLY:
         if (!rsa_sign(&sig->hash, &key->key.rsa, &seckey->key.rsa, sig->output)) {
             RNP_LOG("rsa_sign failure");
-            return 0;
+            return RNP_FAIL;
         }
         break;
 
     case PGP_PKA_EDDSA:
         if (!eddsa_sign(&sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
             RNP_LOG("eddsa_sign failure");
-            return 0;
+            return RNP_FAIL;
         }
         break;
 
     case PGP_PKA_DSA:
         if (!dsa_sign(&sig->hash, &key->key.dsa, &seckey->key.dsa, sig->output)) {
             RNP_LOG("dsa_sign failure");
-            return 0;
+            return RNP_FAIL;
         }
         break;
 
     case PGP_PKA_ECDSA:
         if (!ecdsa_sign(&sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
             RNP_LOG("ecdsa sign failure");
-            return 0;
+            return RNP_FAIL;
         }
         break;
     default:
         (void) fprintf(stderr, "Unsupported algorithm %d\n", seckey->pubkey.alg);
-        return 0;
+        return RNP_FAIL;
     }
 
     ret = pgp_write_ptag(output, PGP_PTAG_CT_SIGNATURE);
@@ -843,7 +843,7 @@ pgp_write_sig(pgp_output_t *      output,
     }
     pgp_memory_free(sig->mem);
 
-    if (ret == 0) {
+    if (ret == RNP_FAIL) {
         PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Cannot write signature");
     }
     return ret;
@@ -855,7 +855,7 @@ pgp_add_time(pgp_create_sig_t *sig, int64_t when, pgp_content_enum tag)
 {
     if ((tag != PGP_PTAG_SS_CREATION_TIME) && (tag != PGP_PTAG_SS_EXPIRATION_TIME)) {
         (void) fprintf(stderr, "Wrong pgp signature time tag");
-        return 0;
+        return RNP_FAIL;
     }
 
     /* just do 32-bit timestamps for just now - it's in the protocol */
@@ -997,18 +997,18 @@ pgp_sign_file(rnp_ctx_t *         ctx,
     if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
         (void) fprintf(
           io->errs, "pgp_sign_file: cannot pick hash algorithm: %d\n", (int) ctx->halg);
-        return 0;
+        return RNP_FAIL;
     }
 
     /* read input file into buf */
     infile = pgp_memory_new();
     if (infile == NULL) {
         (void) fprintf(stderr, "can't allocate mem\n");
-        return 0;
+        return RNP_FAIL;
     }
     if (!pgp_mem_readfile(infile, inname)) {
         pgp_memory_free(infile);
-        return 0;
+        return RNP_FAIL;
     }
 
     /* setup output file */
@@ -1016,7 +1016,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
       ctx, &output, inname, outname, (ctx->armour) ? "asc" : "gpg", ctx->overwrite);
     if (fd_out < 0) {
         pgp_memory_free(infile);
-        return 0;
+        return RNP_FAIL;
     }
 
     /* set up signature */
@@ -1024,7 +1024,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
     if (!sig) {
         pgp_memory_free(infile);
         pgp_teardown_file_write(output, fd_out);
-        return 0;
+        return RNP_FAIL;
     }
 
     pgp_start_sig(sig, seckey, hash_alg, sig_type);
@@ -1034,7 +1034,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
             pgp_memory_free(infile);
             pgp_teardown_file_write(output, fd_out);
             pgp_create_sig_delete(sig);
-            return 0;
+            return RNP_FAIL;
         }
 
         /* Do the signing */
@@ -1047,17 +1047,17 @@ pgp_sign_file(rnp_ctx_t *         ctx,
         ret = pgp_writer_use_armored_sig(output) &&
               pgp_add_time(sig, (int64_t) ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME) &&
               pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
-        if (ret == 0) {
+        if (ret == RNP_FAIL) {
             pgp_teardown_file_write(output, fd_out);
             pgp_create_sig_delete(sig);
-            return 0;
+            return RNP_FAIL;
         }
 
         pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey, hash_alg);
         ret = pgp_add_issuer_keyid(sig, keyid) && pgp_end_hashed_subpkts(sig) &&
               pgp_write_sig(output, sig, &seckey->pubkey, seckey);
 
-        if (ret == 0) {
+        if (ret == RNP_FAIL) {
             PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Cannot sign file as cleartext");
         }
 
@@ -1094,7 +1094,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
         pgp_create_sig_delete(sig);
         pgp_memory_free(infile);
 
-        ret = 1;
+        ret = RNP_OK;
     }
 
     return ret;
@@ -1243,7 +1243,7 @@ pgp_sign_detached(
     /* find out which hash algorithm to use */
     if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
         (void) fprintf(io->errs, "cannot pick hash algorithm: %d\n", ctx->halg);
-        return 0;
+        return RNP_FAIL;
     }
 
     /* setup output file */
@@ -1251,14 +1251,14 @@ pgp_sign_detached(
       ctx, &output, f, sigfile, (ctx->armour) ? "asc" : "sig", ctx->overwrite);
     if (fd < 0) {
         (void) fprintf(io->errs, "Can't open output file: %s\n", f);
-        return 0;
+        return RNP_FAIL;
     }
 
     /* create a new signature */
     sig = pgp_create_sig_new();
     if (sig == NULL) {
         (void) fprintf(stderr, "can't allocate mem\n");
-        return 0;
+        return RNP_FAIL;
     }
     pgp_start_sig(sig, seckey, hash_alg, PGP_SIG_BINARY);
 
@@ -1268,14 +1268,14 @@ pgp_sign_detached(
         pgp_teardown_file_write(output, fd);
         pgp_create_sig_delete(sig);
         (void) fprintf(stderr, "can't allocate mem\n");
-        return 0;
+        return RNP_FAIL;
     }
     if (!pgp_mem_readfile(mem, f)) {
         pgp_teardown_file_write(output, fd);
         pgp_memory_free(sig->mem); /* free memory allocated in pgp_start_sig*/
         pgp_create_sig_delete(sig);
         pgp_memory_free(mem);
-        return 0;
+        return RNP_FAIL;
     }
     /* set armoured/not armoured here */
     if (ctx->armour) {
@@ -1296,5 +1296,5 @@ pgp_sign_detached(
 
     /* free  the memory allocated for the signature.*/
     pgp_create_sig_delete(sig);
-    return 1;
+    return RNP_OK;
 }

@@ -183,26 +183,26 @@ pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
     int          rc;
 
     if (hash_name == NULL) {
-        return 0;
+        return RNP_FAIL;
     }
 
     rc = botan_hash_init(&impl, hash_name, 0);
     if (rc != 0) {
         (void) fprintf(stderr, "Error creating hash object for '%s'", hash_name);
-        return 0;
+        return RNP_FAIL;
     }
 
     rc = botan_hash_output_length(impl, &outlen);
     if (rc != 0) {
         botan_hash_destroy(hash->handle);
         (void) fprintf(stderr, "In pgp_hash_create, botan_hash_output_length failed");
-        return 0;
+        return RNP_FAIL;
     }
 
     hash->_output_len = outlen;
     hash->_alg = alg;
     hash->handle = impl;
-    return 1;
+    return RNP_OK;
 }
 
 void

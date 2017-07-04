@@ -243,7 +243,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         if (key) {
             if ((s = rnp_export_key(rnp, key)) != NULL) {
                 printf("%s", s);
-                return 1;
+                return RNP_OK;
             }
         }
         (void) fprintf(stderr, "key '%s' not found\n", f);
@@ -269,7 +269,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         key = rnp_get_key(rnp, f, rnp_cfg_get(cfg, CFG_KEYFORMAT));
         if (key) {
             printf("%s", key);
-            return 1;
+            return RNP_OK;
         }
         (void) fprintf(stderr, "key '%s' not found\n", f);
         return 0;
@@ -390,7 +390,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         *cmd = CMD_HELP;
         break;
     }
-    return 1;
+    return RNP_OK;
 }
 
 /* we have -o option=value -- parse, and process */

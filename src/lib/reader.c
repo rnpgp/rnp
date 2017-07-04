@@ -155,7 +155,7 @@ pgp_getpassphrase(void *in, char *phrase, size_t size)
     } else {
         memset(phrase, 0, size);
         if (fgets(phrase, (int) size, in) == NULL) {
-            return 0;
+            return RNP_FAIL;
         }
 
         len = strlen(phrase);
@@ -163,7 +163,7 @@ pgp_getpassphrase(void *in, char *phrase, size_t size)
             phrase[len - 1] = '\0';
         }
     }
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -203,7 +203,7 @@ pgp_reader_push(pgp_stream_t *          stream,
 
     if ((readinfo = calloc(1, sizeof(*readinfo))) == NULL) {
         (void) fprintf(stderr, "pgp_reader_push: bad alloc\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     *readinfo = stream->readinfo;
@@ -215,7 +215,7 @@ pgp_reader_push(pgp_stream_t *          stream,
     stream->readinfo.accumulate = readinfo->accumulate;
 
     pgp_reader_set(stream, reader, destroyer, vp);
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -368,7 +368,7 @@ set_lastseen_headerline(dearmour_t *dearmour, char *hdr, pgp_error_t **errors)
     prev = dearmour->lastseen;
     if ((lastseen = findheaderline(hdr)) == -1) {
         PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "Unrecognised Header Line %s", hdr);
-        return 0;
+        return RNP_FAIL;
     }
     dearmour->lastseen = lastseen;
     if (rnp_get_debug(__FILE__)) {
@@ -427,7 +427,7 @@ set_lastseen_headerline(dearmour_t *dearmour, char *hdr, pgp_error_t **errors)
     case BEGIN_PGP_SIGNED_MESSAGE:
         break;
     }
-    return 1;
+    return RNP_OK;
 }
 
 static int
@@ -683,17 +683,16 @@ add_header(dearmour_t *dearmour, const char *key, const char *value)
           realloc(dearmour->headers.headers, (n + 1) * sizeof(*dearmour->headers.headers));
         if (dearmour->headers.headers == NULL) {
             (void) fprintf(stderr, "add_header: bad alloc\n");
-            return 0;
+            return RNP_FAIL;
         }
         dearmour->headers.headers[n].key = rnp_strdup(key);
         dearmour->headers.headers[n].value = rnp_strdup(value);
         dearmour->headers.headerc = n + 1;
-        return 1;
+        return RNP_OK;
     }
-    return 0;
+    return RNP_FAIL;
 }
 
-/* \todo what does a return value of 0 indicate? 1 is good, -1 is bad */
 static int
 parse_headers(pgp_stream_t *stream,
               dearmour_t *  dearmour,
@@ -705,20 +704,20 @@ parse_headers(pgp_stream_t *stream,
     unsigned size;
     unsigned first = 1;
     char *   buf;
-    int      ret = 1;
+    int      ret = RNP_OK;
 
     nbuf = 0;
     size = 80;
     if ((buf = calloc(1, size)) == NULL) {
         (void) fprintf(stderr, "parse_headers: bad calloc\n");
-        return -1;
+        return RNP_FAIL;
     }
     for (;;) {
         int c;
 
         if ((c = read_char(stream, dearmour, errors, readinfo, cbinfo, 1)) < 0) {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Unexpected EOF");
-            ret = -1;
+            ret = RNP_EOF;
             break;
         }
         if (c == '\n') {
@@ -730,7 +729,7 @@ parse_headers(pgp_stream_t *stream,
 
             if (nbuf >= size) {
                 (void) fprintf(stderr, "parse_headers: bad size\n");
-                return -1;
+                return RNP_EOF;
             }
             buf[nbuf] = '\0';
 
@@ -741,7 +740,7 @@ parse_headers(pgp_stream_t *stream,
                      * armour
                      */
                     PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No colon in armour header");
-                    ret = -1;
+                    ret = RNP_EOF;
                     break;
                 } else {
                     if (first &&
@@ -759,7 +758,7 @@ parse_headers(pgp_stream_t *stream,
                          */
                         buf[nbuf] = '\n';
                         push_back(dearmour, (uint8_t *) buf, nbuf + 1);
-                        ret = -1;
+                        ret = RNP_EOF;
                         break;
                     }
                 }
@@ -767,12 +766,12 @@ parse_headers(pgp_stream_t *stream,
                 *s = '\0';
                 if (s[1] != ' ') {
                     PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No space in armour header");
-                    ret = -1;
+                    ret = RNP_EOF;
                     goto end;
                 }
                 if (!add_header(dearmour, buf, s + 2)) {
                     PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "Invalid header %s", buf);
-                    ret = -1;
+                    ret = RNP_EOF;
                     goto end;
                 }
                 nbuf = 0;
@@ -784,7 +783,7 @@ parse_headers(pgp_stream_t *stream,
                 buf = realloc(buf, size);
                 if (buf == NULL) {
                     (void) fprintf(stderr, "bad alloc\n");
-                    ret = -1;
+                    ret = RNP_EOF;
                     goto end;
                 }
             }
@@ -873,18 +872,18 @@ decode64(pgp_stream_t *stream,
 
     if (dearmour->buffered) {
         (void) fprintf(stderr, "decode64: bad dearmour->buffered\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     ret = read4(stream, dearmour, errors, readinfo, cbinfo, &c, &n, &l);
     if (ret < 0) {
         PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly formed base64");
-        return 0;
+        return RNP_FAIL;
     }
     if (n == 3) {
         if (c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated base64 (2)");
-            return 0;
+            return RNP_FAIL;
         }
         dearmour->buffered = 2;
         dearmour->eof64 = 1;
@@ -892,7 +891,7 @@ decode64(pgp_stream_t *stream,
     } else if (n == 2) {
         if (c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated base64 (3)");
-            return 0;
+            return RNP_FAIL;
         }
         dearmour->buffered = 1;
         dearmour->eof64 = 1;
@@ -900,23 +899,23 @@ decode64(pgp_stream_t *stream,
         c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0);
         if (c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated base64");
-            return 0;
+            return RNP_FAIL;
         }
     } else if (n == 0) {
         if (!dearmour->prev_nl || c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated base64 (4)");
-            return 0;
+            return RNP_FAIL;
         }
         dearmour->buffered = 0;
     } else {
         if (n != 4) {
             (void) fprintf(stderr, "decode64: bad n (!= 4)\n");
-            return 0;
+            return RNP_FAIL;
         }
         dearmour->buffered = 3;
         if (c == '-' || c == '=') {
             (void) fprintf(stderr, "decode64: bad c\n");
-            return 0;
+            return RNP_FAIL;
         }
     }
 
@@ -924,17 +923,17 @@ decode64(pgp_stream_t *stream,
         /* then we saw padding */
         if (c != '=') {
             (void) fprintf(stderr, "decode64: bad c (=)\n");
-            return 0;
+            return RNP_FAIL;
         }
         c = read_and_eat_whitespace(stream, dearmour, errors, readinfo, cbinfo, 1);
         if (c != '\n') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No newline at base64 end");
-            return 0;
+            return RNP_FAIL;
         }
         c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0);
         if (c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No checksum at base64 end");
-            return 0;
+            return RNP_FAIL;
         }
     }
     if (c == '=') {
@@ -943,32 +942,32 @@ decode64(pgp_stream_t *stream,
           read4(stream, dearmour, errors, readinfo, cbinfo, &c, &n, &dearmour->read_checksum);
         if (ret < 0 || n != 4) {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Error in checksum");
-            return 0;
+            return RNP_FAIL;
         }
         c = read_char(stream, dearmour, errors, readinfo, cbinfo, 1);
         if (dearmour->allow_trailing_whitespace)
             c = eat_whitespace(stream, c, dearmour, errors, readinfo, cbinfo, 1);
         if (c != '\n') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated checksum");
-            return 0;
+            return RNP_FAIL;
         }
         c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0);
         if (c != '-') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Bad base64 trailer (2)");
-            return 0;
+            return RNP_FAIL;
         }
     }
     if (c == '-') {
         for (n = 0; n < 4; ++n)
             if (read_char(stream, dearmour, errors, readinfo, cbinfo, 0) != '-') {
                 PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Bad base64 trailer");
-                return 0;
+                return RNP_FAIL;
             }
         dearmour->eof64 = 1;
     } else {
         if (!dearmour->buffered) {
             (void) fprintf(stderr, "decode64: not buffered\n");
-            return 0;
+            return RNP_FAIL;
         }
     }
 
@@ -982,9 +981,9 @@ decode64(pgp_stream_t *stream,
 
     if (dearmour->eof64 && dearmour->read_checksum != dearmour->checksum) {
         PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Checksum mismatch");
-        return 0;
+        return RNP_FAIL;
     }
-    return 1;
+    return RNP_OK;
 }
 
 static void
@@ -1835,19 +1834,19 @@ pgp_setup_memory_write(rnp_ctx_t *ctx, pgp_output_t **output, pgp_memory_t **mem
 
     *output = pgp_output_new();
     if (*output == NULL) {
-        return 0;
+        return RNP_FAIL;
     }
     *mem = pgp_memory_new();
     if (*mem == NULL) {
         free(*output);
-        return 0;
+        return RNP_FAIL;
     }
 
     (*output)->ctx = ctx;
     pgp_memory_init(*mem, bufsz);
     pgp_writer_set_memory(*output, *mem);
 
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -1889,7 +1888,7 @@ pgp_setup_memory_read(pgp_io_t *     io,
 {
     *stream = pgp_new(sizeof(**stream));
     if (*stream == NULL) {
-        return 0;
+        return RNP_FAIL;
     }
     (*stream)->io = (*stream)->cbinfo.io = io;
     pgp_set_callback(*stream, callback, vp);
@@ -1898,7 +1897,7 @@ pgp_setup_memory_read(pgp_io_t *     io,
         (*stream)->readinfo.accumulate = 1;
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 /**

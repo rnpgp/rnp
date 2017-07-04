@@ -35,9 +35,9 @@ rnpkeys_exportkey_verifyUserId(void **state)
 {
     /* Generate the key and export it */
     rnp_test_state_t *rstate = *state;
-    rnp_t rnp;
-    int   pipefd[2];
-    char *exportedkey = NULL;
+    rnp_t             rnp;
+    int               pipefd[2];
+    char *            exportedkey = NULL;
 
     /* Initialize the rnp structure. */
     rnp_assert_int_equal(rstate, 1, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));

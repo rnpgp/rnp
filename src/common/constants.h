@@ -46,4 +46,10 @@
 #define MAX_PASSPHRASE_ATTEMPTS 3
 #define INFINITE_ATTEMPTS -1
 
+/* Function return codes, more will be added later */
+
+#define RNP_OK 1
+#define RNP_FAIL 0
+#define RNP_EOF -1
+
 #endif

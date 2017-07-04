@@ -404,13 +404,13 @@ savepubkey(char *res, char *f, size_t size)
     (void) snprintf(f, size, "/tmp/pgp2ssh.XXXXXXX");
     if ((fd = mkstemp(f)) < 0) {
         (void) fprintf(stderr, "cannot create temp file '%s'\n", f);
-        return 0;
+        return RNP_FAIL;
     }
     len = strlen(res);
     for (cc = 0; (wc = (int) write(fd, &res[cc], len - (size_t) cc)) > 0; cc += wc) {
     }
     (void) close(fd);
-    return 1;
+    return RNP_OK;
 }
 
 /* format a uint32_t */
@@ -519,9 +519,9 @@ disable_core_dumps(void)
         if (error) {
             return -1;
         } else if (limit.rlim_cur == 0) {
-            return 1; // disabling core dumps ok
+            return RNP_OK; // disabling core dumps ok
         } else {
-            return 0; // failed for some reason?
+            return RNP_FAIL; // failed for some reason?
         }
     } else {
         return -1;
@@ -546,10 +546,10 @@ set_pass_fd(rnp_t *rnp, int passfd)
     rnp->passfp = fdopen(passfd, "r");
     if (rnp->passfp == NULL) {
         fprintf(rnp->io->errs, "cannot open fd %d for reading\n", passfd);
-        return 0;
+        return RNP_FAIL;
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 /* Initialize a RNP context's io stream handles with a user-supplied
@@ -584,13 +584,13 @@ init_io(rnp_t *rnp, pgp_io_t *io, const char *outs, const char *errs, const char
     } else {
         if ((io->res = fopen(ress, "w")) == NULL) {
             fprintf(io->errs, "cannot open results %s for writing\n", ress);
-            return 0;
+            return RNP_FAIL;
         }
     }
 
     rnp->io = io;
 
-    return 1;
+    return RNP_OK;
 }
 
 /* Allocate a new io struct and initialize a rnp context with it.
@@ -605,11 +605,11 @@ init_new_io(rnp_t *rnp, const char *outs, const char *errs, const char *ress)
 
     if (io != NULL) {
         if (init_io(rnp, io, outs, errs, ress))
-            return 1;
+            return RNP_OK;
         free((void *) io);
     }
 
-    return 0;
+    return RNP_FAIL;
 }
 
 /*************************************************************************/
@@ -644,14 +644,14 @@ rnp_init(rnp_t *rnp, rnp_params_t *params)
 
     /* Initialize the context's io streams apparatus. */
     if (!init_new_io(rnp, params->outs, params->errs, params->ress)) {
-        return 0;
+        return RNP_FAIL;
     }
     io = rnp->io;
 
     /* If a password-carrying file descriptor is in use then load it. */
     if (params->passfd >= 0) {
         if (!set_pass_fd(rnp, params->passfd))
-            return 0;
+            return RNP_FAIL;
     }
 
     rnp->pswdtries = MAX_PASSPHRASE_ATTEMPTS;
@@ -663,16 +663,16 @@ rnp_init(rnp_t *rnp, rnp_params_t *params)
     rnp->pubring = calloc(1, sizeof(rnp_key_store_t));
     if (rnp->pubring == NULL) {
         fputs("rnp: can't create empty pubring keystore\n", io->errs);
-        return 0;
+        return RNP_FAIL;
     }
 
     rnp->secring = calloc(1, sizeof(rnp_key_store_t));
     if (rnp->secring == NULL) {
         fputs("rnp: can't create empty secring keystore\n", io->errs);
-        return 0;
+        return RNP_FAIL;
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 /* finish off with the rnp_t struct */
@@ -693,7 +693,7 @@ rnp_end(rnp_t *rnp)
     free(rnp->pubpath);
     free(rnp->secpath);
 
-    return 1;
+    return RNP_OK;
 }
 
 /* rnp_params_t : initialize and free internals */
@@ -703,7 +703,7 @@ rnp_params_init(rnp_params_t *params)
     memset(params, '\0', sizeof(*params));
     params->passfd = -1;
 
-    return 1;
+    return RNP_OK;
 }
 
 void
@@ -720,7 +720,7 @@ rnp_ctx_init(rnp_ctx_t *ctx, rnp_t *rnp)
 {
     memset(ctx, '\0', sizeof(*ctx));
     ctx->rnp = rnp;
-    return 1;
+    return RNP_OK;
 }
 
 void
@@ -743,7 +743,7 @@ rnp_list_keys(rnp_t *rnp, const int psigs)
 {
     if (rnp->pubring == NULL) {
         (void) fprintf(stderr, "No keyring\n");
-        return 0;
+        return RNP_FAIL;
     }
     return rnp_key_store_list(rnp->io, rnp->pubring, psigs);
 }
@@ -756,16 +756,16 @@ rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
     int          ret;
     if (rnp->pubring == NULL) {
         (void) fprintf(stderr, "No keyring\n");
-        return 0;
+        return RNP_FAIL;
     }
     if (!rnp_key_store_json(rnp->io, rnp->pubring, obj, psigs)) {
         (void) fprintf(stderr, "No keys in keyring\n");
-        return 0;
+        return RNP_FAIL;
     }
     const char *j = json_object_to_json_string(obj);
     ret = j != NULL;
     *json = strdup(j);
-    return ret;
+    return ret ? RNP_OK : RNP_FAIL;
 }
 
 DEFINE_ARRAY(strings_t, char *);
@@ -895,9 +895,9 @@ rnp_find_key(rnp_t *rnp, const char *id)
     io = rnp->io;
     if (id == NULL) {
         (void) fprintf(io->errs, "NULL id to search for\n");
-        return 0;
+        return RNP_FAIL;
     }
-    return rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, id) != NULL;
+    return rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, id) != NULL ? RNP_OK : RNP_FAIL;
 }
 
 /* get a key in a keyring */
@@ -960,7 +960,7 @@ rnp_import_key(rnp_t *rnp, char *f)
     done = rnp_key_store_load_from_file(rnp, rnp->pubring, realarmor, f);
     if (!done) {
         (void) fprintf(io->errs, "cannot import key from file %s\n", f);
-        return 0;
+        return RNP_FAIL;
     }
     return rnp_key_store_list(io, rnp->pubring, 0);
 }
@@ -1027,13 +1027,13 @@ rnp_generate_key(rnp_t *rnp, const char *id)
     key = pgp_generate_keypair(&rnp->action.generate_key_ctx, uid);
     if (key == NULL) {
         (void) fprintf(io->errs, "cannot generate key\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     if (!rnp_key_store_add_key(io, rnp->pubring, key, PGP_PTAG_CT_PUBLIC_KEY) ||
         !rnp_key_store_add_key(io, rnp->secring, key, PGP_PTAG_CT_SECRET_KEY)) {
         pgp_keydata_free(key);
-        return 0;
+        return RNP_FAIL;
     }
 
     pgp_sprint_keydata(rnp->io, NULL, key, &cp, "signature ", &key->key.seckey.pubkey, 0);
@@ -1049,17 +1049,17 @@ rnp_generate_key(rnp_t *rnp, const char *id)
     if (!rnp_key_store_write_to_file(
           rnp, rnp->secring, (uint8_t *) passphrase, 0, rnp->secpath)) {
         pgp_keydata_free(key);
-        return 0;
+        return RNP_FAIL;
     }
 
     if (!rnp_key_store_write_to_file(
           rnp, rnp->pubring, (uint8_t *) passphrase, 0, rnp->pubpath)) {
         pgp_keydata_free(key);
-        return 0;
+        return RNP_FAIL;
     }
 
     pgp_keydata_free(key);
-    return 1;
+    return RNP_OK;
 }
 
 /* encrypt a file */
@@ -1074,12 +1074,12 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *
     io = ctx->rnp->io;
     if (f == NULL) {
         (void) fprintf(io->errs, "rnp_encrypt_file: no filename specified\n");
-        return 0;
+        return RNP_FAIL;
     }
     suffix = (ctx->armour) ? ".asc" : ".gpg";
     /* get key with which to sign */
     if ((key = resolve_userid(ctx->rnp, ctx->rnp->pubring, userid)) == NULL) {
-        return 0;
+        return RNP_FAIL;
     }
     if (out == NULL) {
         (void) snprintf(outname, sizeof(outname), "%s%s", f, suffix);
@@ -1101,7 +1101,7 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
     io = ctx->rnp->io;
     if (f == NULL) {
         (void) fprintf(io->errs, "rnp_decrypt_file: no filename specified\n");
-        return 0;
+        return RNP_FAIL;
     }
     realarmor = isarmoured(io, f, NULL, ARMOR_HEAD);
     sshkeys = (unsigned) use_ssh_keys(ctx->rnp);
@@ -1138,13 +1138,13 @@ rnp_sign_file(rnp_ctx_t * ctx,
     io = ctx->rnp->io;
     if (f == NULL) {
         (void) fprintf(io->errs, "rnp_sign_file: no filename specified\n");
-        return 0;
+        return RNP_FAIL;
     }
     /* get key with which to sign */
     if ((keypair = resolve_userid(ctx->rnp, ctx->rnp->secring, userid)) == NULL) {
-        return 0;
+        return RNP_FAIL;
     }
-    ret = 1;
+    ret = RNP_OK;
     attempts = ctx->rnp->pswdtries;
 
     for (i = 0, seckey = NULL; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS);
@@ -1177,7 +1177,7 @@ rnp_sign_file(rnp_ctx_t * ctx,
     }
     if (seckey == NULL) {
         (void) fprintf(io->errs, "Bad passphrase\n");
-        return 0;
+        return RNP_FAIL;
     }
     /* sign file */
     if (detached) {
@@ -1204,12 +1204,12 @@ rnp_verify_file(rnp_ctx_t *ctx, const char *in, const char *out, int armored)
     io = ctx->rnp->io;
     if (in == NULL) {
         (void) fprintf(io->errs, "rnp_verify_file: no filename specified\n");
-        return 0;
+        return RNP_FAIL;
     }
     realarmor = isarmoured(io, in, NULL, ARMOR_SIG_HEAD);
     if (pgp_validate_file(io, &result, in, out, (const int) realarmor, ctx->rnp->pubring)) {
         resultp(io, in, &result, ctx->rnp->pubring);
-        return 1;
+        return RNP_OK;
     }
     if (result.validc + result.invalidc + result.unknownc == 0) {
         (void) fprintf(io->errs, "\"%s\": No signatures found - is this a signed file?\n", in);
@@ -1224,7 +1224,7 @@ rnp_verify_file(rnp_ctx_t *ctx, const char *in, const char *out, int armored)
           result.invalidc,
           result.unknownc);
     }
-    return 0;
+    return RNP_FAIL;
 }
 
 /* sign some memory */
@@ -1458,20 +1458,20 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor)
     io = rnp->io;
     if (f == NULL) {
         (void) fprintf(io->errs, "No file containing packets\n");
-        return 0;
+        return RNP_FAIL;
     }
     if (stat(f, &st) < 0) {
         (void) fprintf(io->errs, "No such file '%s'\n", f);
-        return 0;
+        return RNP_FAIL;
     }
     if ((keyring = calloc(1, sizeof(*keyring))) == NULL) {
         (void) fprintf(io->errs, "rnp_list_packets: bad alloc\n");
-        return 0;
+        return RNP_FAIL;
     }
     if (!rnp_key_store_load_from_file(rnp, keyring, noarmor, rnp->pubpath)) {
         free(keyring);
         (void) fprintf(io->errs, "cannot read pub keyring %s\n", rnp->pubpath);
-        return 0;
+        return RNP_FAIL;
     }
     rnp->pubring = keyring;
     ret = pgp_list_packets(

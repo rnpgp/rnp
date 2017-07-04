@@ -119,14 +119,14 @@ verify_data(pgpv_t *pgp, const char *cmd, const char *inname, char *in, ssize_t 
                 ssize_t ignored = write(STDOUT_FILENO, data, size);
                 __PGP_USED(ignored);
             }
-            return 1;
+            return RNP_OK;
         }
     } else if (strcasecmp(cmd, "dump") == 0) {
         if ((cookie = pgpv_verify(&cursor, pgp, in, cc)) != 0) {
             size = pgpv_dump(pgp, &data);
             ssize_t ignored = write(STDOUT_FILENO, data, size);
             __PGP_USED(ignored);
-            return 1;
+            return RNP_OK;
         }
     } else if (strcasecmp(cmd, "verify") == 0 || strcasecmp(cmd, "trust") == 0) {
         modifiers = (strcasecmp(cmd, "trust") == 0) ? "trust" : NULL;
@@ -135,7 +135,7 @@ verify_data(pgpv_t *pgp, const char *cmd, const char *inname, char *in, ssize_t 
             ptime(cursor.sigtime);
             el = pgpv_get_cursor_element(&cursor, 0);
             pentry(pgp, el, modifiers);
-            return 1;
+            return RNP_OK;
         }
         fprintf(stderr, "Signature did not match contents -- %s\n", cursor.why);
     } else {
