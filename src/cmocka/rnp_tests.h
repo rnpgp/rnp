@@ -24,8 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RNP_KEY_STORE_KBX_H
-#define RNP_KEY_STORE_KBX_H
+#ifndef RNP_TESTS_H
+#define RNP_TESTS_H
 
 typedef struct {
     char *home;
@@ -49,8 +49,6 @@ void rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state);
 void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state);
 
 void rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state);
-
-void rnpkeys_exportkey_verifyUserId(void **state);
 
 void rnp_test_eddsa(void **state);
 
@@ -122,4 +120,22 @@ void rnpkeys_generatekey_testExpertMode(void **state);
         assert_null(_rnp_a);                      \
     } while (0)
 
-#endif // RNP_KEY_STORE_KBX_H
+#define rnp_assert_ok(state, a)                     \
+    {                                               \
+        int _rnp_a = (a);                           \
+        if (state->not_fatal && _rnp_a != RNP_OK) { \
+            return;                                 \
+        }                                           \
+        assert_int_equal(_rnp_a, RNP_OK);           \
+    }
+
+#define rnp_assert_fail(state, a)                     \
+    {                                                 \
+        int _rnp_a = (a);                             \
+        if (state->not_fatal && _rnp_a != RNP_FAIL) { \
+            return;                                   \
+        }                                             \
+        assert_int_equal(_rnp_a, RNP_FAIL);           \
+    }
+
+#endif // RNP_TESTS_H

@@ -117,19 +117,9 @@ unsigned pgp_sign_file(rnp_ctx_t *,
                        const char *,
                        const char *,
                        const pgp_seckey_t *,
-                       const char *,
-                       const int64_t,
-                       const uint64_t,
-                       const unsigned);
+                       const unsigned cleartext);
 
-int pgp_sign_detached(rnp_ctx_t *,
-                      pgp_io_t *,
-                      const char *,
-                      char *,
-                      pgp_seckey_t *,
-                      const char *,
-                      const int64_t,
-                      const uint64_t);
+int pgp_sign_detached(rnp_ctx_t *, pgp_io_t *, const char *, const char *, pgp_seckey_t *);
 
 /* armoured stuff */
 unsigned pgp_crc24(unsigned, uint8_t);
@@ -155,14 +145,7 @@ unsigned pgp_writer_use_armored_sig(pgp_output_t *);
 
 void pgp_writer_push_armoured(pgp_output_t *, pgp_armor_type_t);
 
-pgp_memory_t *pgp_sign_buf(rnp_ctx_t *,
-                           pgp_io_t *,
-                           const void *,
-                           const size_t,
-                           const pgp_seckey_t *,
-                           const int64_t,
-                           const uint64_t,
-                           const char *,
-                           const unsigned);
+pgp_memory_t *pgp_sign_buf(
+  rnp_ctx_t *, pgp_io_t *, const void *, const size_t, const pgp_seckey_t *, const unsigned);
 
 #endif /* SIGNATURE_H_ */

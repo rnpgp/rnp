@@ -35,6 +35,7 @@
 #include "crypto.h"
 #include "signature.h"
 #include "packet-show.h"
+#include "../common/constants.h"
 
 #ifndef __printflike
 #define __printflike(n, m) __attribute__((format(printf, n, m)))
@@ -76,5 +77,9 @@ char *rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *
 int64_t rnp_filemtime(const char *path);
 
 const char *rnp_filename(const char *path);
+
+int grabdate(const char *s, int64_t *t);
+uint64_t get_duration(const char *s);
+int64_t get_birthtime(const char *s);
 
 #endif

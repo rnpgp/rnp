@@ -272,7 +272,7 @@ pgp_crypt_any(pgp_crypt_t *crypt, pgp_symm_alg_t alg)
         return 0;
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 unsigned
@@ -340,13 +340,13 @@ pgp_decrypt_init(pgp_crypt_t *crypt)
 {
     if (botan_block_cipher_set_key(crypt->block_cipher_obj, crypt->key, crypt->keysize) != 0) {
         (void) fprintf(stderr, "Failure setting key on block cipher object\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     pgp_cipher_block_encrypt(crypt, crypt->siv, crypt->iv);
     (void) memcpy(crypt->civ, crypt->siv, crypt->blocksize);
     crypt->num = 0;
-    return 1;
+    return RNP_OK;
 }
 
 size_t
@@ -410,7 +410,7 @@ pgp_is_sa_supported(pgp_symm_alg_t alg)
 {
     const char *cipher_name = pgp_sa_to_botan_string(alg);
     if (cipher_name != NULL)
-        return 1;
+        return RNP_OK;
 
     fprintf(stderr, "\nWarning: %s not supported\n", pgp_show_symm_alg(alg));
     return 0;

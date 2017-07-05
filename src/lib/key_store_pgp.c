@@ -256,7 +256,7 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
     pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
     if (!pgp_setup_memory_read(io, &stream, mem, &cb, cb_keyring_read, noaccum)) {
         (void) fprintf(io->errs, "can't setup memory read\n");
-        return 0;
+        return RNP_FAIL;
     }
     if (armour) {
         pgp_reader_push_dearmour(stream);
@@ -290,7 +290,7 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
         key = &key_store->keys[i];
 
         if (!pgp_write_xfer_anykey(&output, key, passphrase, NULL, armour)) {
-            return 0;
+            return RNP_FAIL;
         }
     }
 

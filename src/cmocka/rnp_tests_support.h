@@ -99,10 +99,15 @@ int test_value_equal(const char *  what,
  */
 char *uint_to_string(char *buff, const int buffsize, unsigned int num, int base);
 
-/*
- */
+/* Setup readable pipe with default passphrase inside */
 int setupPassphrasefd(int *pipefd);
 
-/*
- */
-int setup_rnp_common(rnp_t *rnp, char *passfd);
+/* Common initialization of rnp structure : home path, keystore format and pointer to store
+ * passphrase fd */
+int setup_rnp_common(rnp_t *                 rnp,
+                     enum key_store_format_t ks_format,
+                     const char *            homedir,
+                     int *                   pipefd);
+
+/* Initialize key generation params with default values and specified hash algorithm */
+void set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc, pgp_hash_alg_t hashalg);

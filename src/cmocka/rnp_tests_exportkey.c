@@ -26,63 +26,45 @@
  */
 
 #include <rnp.h>
-
+#include <key_store.h>
 #include "rnp_tests.h"
 #include "rnp_tests_support.h"
 
 void
 rnpkeys_exportkey_verifyUserId(void **state)
 {
+    /* Generate the key and export it */
     rnp_test_state_t *rstate = *state;
-    /* * Execute the Generate-key command to generate a new pair of private/public
-     * key
-     * Verify the key was generated with the correct UserId.
-     */
-    rnp_t rnp;
-    char  passfd[4] = {0};
-    int   pipefd[2];
-    char *fdptr;
-    char *exportedkey = NULL;
+    rnp_t             rnp;
+    int               pipefd[2];
+    char *            exportedkey = NULL;
 
-    /* Setup the pass phrase fd to avoid user-input*/
-    rnp_assert_int_equal(rstate, setupPassphrasefd(pipefd), 1);
-    /*Initialize the basic RNP structure. */
-    fdptr = uint_to_string(passfd, 4, pipefd[0], 10);
-    rnp_assert_int_equal(
-      rstate,
-      1,
-      setup_rnp_common(&rnp,
-                       fdptr)); // Ensure the rnp core structure is correctly initialized.
-    rnp_assert_int_equal(rstate, 1, rnp_setvar(&rnp, "hash", "SHA256"));
+    /* Initialize the rnp structure. */
+    rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
 
-    rnp.action.generate_key_ctx.key_alg = PGP_PKA_RSA;
-    rnp.action.generate_key_ctx.sym_alg = PGP_SA_DEFAULT_CIPHER;
-    rnp.action.generate_key_ctx.rsa.modulus_bit_len = 1024;
-    rnp_assert_int_equal(
-      rstate, 1, rnp_generate_key(&rnp, NULL)); // Ensure the key was generated.
+    /* Generate the key */
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
+    rnp_assert_ok(rstate, rnp_generate_key(&rnp, NULL));
 
-    /*Load the newly generated rnp key*/
-    rnp_assert_int_equal(rstate, 1, rnp_load_keys(&rnp)); // Ensure the keyring is loaded.
+    /* Loading keyrings and checking whether they have correct key */
+    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
+    rnp_assert_ok(rstate, rnp_secret_count(&rnp));
+    rnp_assert_ok(rstate, rnp_public_count(&rnp));
+    rnp_assert_ok(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
-    /*try to export the key without passing userid from the interface;
-     * stack MUST query the set userid option to find the key*/
+    /* Try to export the key without passing userid from the interface : this should fail*/
     exportedkey = rnp_export_key(&rnp, NULL);
-    rnp_assert_non_null(rstate, exportedkey);
+    rnp_assert_null(rstate, exportedkey);
     free(exportedkey);
 
-    /*try to export the key with specified userid parameter from the interface;
-     * stack MUST NOT query the set userid option to find the key*/
+    /* Try to export the key with specified userid parameter from the env */
     exportedkey = rnp_export_key(&rnp, getenv("LOGNAME"));
     rnp_assert_non_null(rstate, exportedkey);
     free(exportedkey);
 
-    /* try to export the key with specified userid parameter (which is wrong) from
-     * the
-     * interface;
-     * stack MUST NOT be able to find the key*/
+    /* try to export the key with specified userid parameter (which is wrong) */
     exportedkey = rnp_export_key(&rnp, "LOGNAME");
     rnp_assert_null(rstate, exportedkey);
     free(exportedkey);
-
     rnp_end(&rnp); // Free memory and other allocated resources.
 }

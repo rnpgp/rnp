@@ -6,7 +6,8 @@ librnpkeys_la_CPPFLAGS  = -I$(top_srcdir)/include $(JSONC_INCLUDES)
 librnpkeys_la_LIBADD    = ../lib/librnp.la
 librnpkeys_la_SOURCES   = \
     rnpkeys.c \
-    tui.c
+    tui.c \
+    ../rnp/rnpcfg.c
 
 bin_PROGRAMS            = rnpkeys
 rnpkeys_SOURCES         = main.c

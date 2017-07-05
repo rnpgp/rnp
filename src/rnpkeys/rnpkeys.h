@@ -8,51 +8,43 @@
 
 enum optdefs {
     /* commands */
-    LIST_KEYS = 260,
-    LIST_SIGS,
-    FIND_KEY,
-    EXPORT_KEY,
-    IMPORT_KEY,
-    GENERATE_KEY,
-    VERSION_CMD,
-    HELP_CMD,
-    GET_KEY,
-    TRUSTED_KEYS,
+    CMD_LIST_KEYS = 260,
+    CMD_LIST_SIGS,
+    CMD_FIND_KEY,
+    CMD_EXPORT_KEY,
+    CMD_IMPORT_KEY,
+    CMD_GENERATE_KEY,
+    CMD_VERSION,
+    CMD_HELP,
+    CMD_GET_KEY,
+    CMD_TRUSTED_KEYS,
 
     /* options */
-    SSHKEYS,
-    KEYRING,
-    KEY_STORE_FORMAT,
-    USERID,
-    HOMEDIR,
-    NUMBITS,
-    HASH_ALG,
-    VERBOSE,
-    COREDUMPS,
-    PASSWDFD,
-    RESULTS,
-    SSHKEYFILE,
-    CIPHER,
-    FORMAT,
-    EXPERT,
+    OPT_SSHKEYS,
+    OPT_KEYRING,
+    OPT_KEY_STORE_FORMAT,
+    OPT_USERID,
+    OPT_HOMEDIR,
+    OPT_NUMBITS,
+    OPT_HASH_ALG,
+    OPT_VERBOSE,
+    OPT_COREDUMPS,
+    OPT_PASSWDFD,
+    OPT_RESULTS,
+    OPT_SSHKEYFILE,
+    OPT_CIPHER,
+    OPT_FORMAT,
+    OPT_EXPERT,
 
     /* debug */
-    OPS_DEBUG
-
+    OPT_DEBUG
 };
 
-/* gather up program variables into one struct */
-typedef struct prog_t {
-    char keyring[MAXPATHLEN + 1]; /* name of keyring */
-    int  numbits;                 /* # of bits */
-    int  cmd;                     /* rnpkeys command */
-} prog_t;
-
+pgp_errcode_t rnp_generate_key_expert_mode(rnp_t *rnp);
+int rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f);
+int setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg);
 void print_praise(void);
 void print_usage(const char *usagemsg);
-int setoption(rnp_t *rnp, prog_t *p, int val, char *arg);
-int parse_option(rnp_t *rnp, prog_t *p, const char *s);
-int rnp_cmd(rnp_t *rnp, prog_t *p, char *f);
-pgp_errcode_t rnp_generate_key_expert_mode(rnp_t *rnp);
+int parse_option(rnp_cfg_t *cfg, int *cmd, const char *s);
 
 #endif /* _rnpkeys_ */

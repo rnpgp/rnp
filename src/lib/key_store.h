@@ -114,9 +114,7 @@ typedef struct rnp_key_store_t {
     pgp_hash_alg_t hashtype;
 } rnp_key_store_t;
 
-int rnp_key_store_extension(rnp_t *rnp, char *buffer, size_t buffer_size);
-
-int rnp_key_store_load_keys(rnp_t *rnp, char *homedir);
+int rnp_key_store_load_keys(rnp_t *rnp, int loadsecret);
 
 int rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *, const unsigned, const char *);
 int rnp_key_store_load_from_mem(rnp_t *rnp, rnp_key_store_t *, const unsigned, pgp_memory_t *);

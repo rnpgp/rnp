@@ -33,6 +33,7 @@
 
 #include <stddef.h>
 #include "packet.h"
+#include "../common/constants.h"
 
 #ifndef __BEGIN_DECLS
 #if defined(__cplusplus)
@@ -48,29 +49,17 @@ __BEGIN_DECLS
 
 enum key_store_format_t { GPG_KEY_STORE, SSH_KEY_STORE, KBX_KEY_STORE };
 
-/* rnp operation context : contains additional data about the currently ongoing operation */
-typedef struct rnp_ctx_t {
-    char *         filename;  /* name of the input file to store in literal data packet */
-    int64_t        filemtime; /* file modification time to store in literal data packet */
-    int            halg;      /* hash algorithm */
-    pgp_symm_alg_t ealg;      /* encryption algorithm */
-    int            zalg;      /* compression algorithm used */
-    int            zlevel;    /* compression level */
-    int            overwrite; /* allow to overwrite output file if exists */
-    int            armour;    /* use ASCII armour on output */
-} rnp_ctx_t;
-
-/* structure used to hold (key,value) pair information */
+/* structure used to keep application-wide rnp configuration: keyrings, password io, whatever
+ * else */
 typedef struct rnp_t {
-    unsigned  c;             /* # of elements used */
-    unsigned  size;          /* size of array */
-    char **   name;          /* key names */
-    char **   value;         /* value information */
     void *    pubring;       /* public key ring */
     void *    secring;       /* s3kr1t key ring */
-    void *    io;            /* the io struct for results/errs */
+    pgp_io_t *io;            /* the io struct for results/errs */
     void *    user_input_fp; /* file pointer for password input */
-    rnp_ctx_t ctx;           /* current operation context */
+    char *    pubpath;       /* path to the public keyring */
+    char *    secpath;       /* path to the secret keyring */
+    char *    defkey;        /* default key id */
+    int       pswdtries;     /* number of password tries, -1 for unlimited */
 
     enum key_store_format_t key_store_format; /* keyring format */
     union {
@@ -78,12 +67,49 @@ typedef struct rnp_t {
     } action;
 } rnp_t;
 
-/* begin and end */
-int  rnp_init(rnp_t *);
+/* rnp initialization parameters : keyring pathes, flags, whatever else */
+typedef struct rnp_params_t {
+    unsigned enable_coredumps; /* enable coredumps: if it is allowed then they are disabled by
+                                  default to not leak confidential information */
+
+    int         passfd; /* password file descriptor */
+    const char *outs;   /* output stream : may be <stderr> , most likel these are subject for
+                           refactoring  */
+    const char *errs;   /* error stream : may be <stdout> */
+    const char *ress;   /* results stream : maye be <stdout>, <stderr> or file name/path */
+
+    enum key_store_format_t ks_format; /* format of the key store */
+    char *                  pubpath;   /* public keystore path */
+    char *                  secpath;   /* secret keystore path */
+    char *                  defkey;    /* default/preferred key id */
+} rnp_params_t;
+
+/* rnp operation context : contains additional data about the currently ongoing operation */
+typedef struct rnp_ctx_t {
+    rnp_t *        rnp;       /* rnp structure */
+    char *         filename;  /* name of the input file to store in literal data packet */
+    int64_t        filemtime; /* file modification time to store in literal data packet */
+    int64_t        sigcreate; /* signature creation time */
+    uint64_t       sigexpire; /* signature expiration time */
+    pgp_hash_alg_t halg;      /* hash algorithm */
+    pgp_symm_alg_t ealg;      /* encryption algorithm */
+    int            zalg;      /* compression algorithm used */
+    int            zlevel;    /* compression level */
+    int            overwrite; /* allow to overwrite output file if exists */
+    int            armour;    /* use ASCII armour on output */
+} rnp_ctx_t;
+
+/* initialize rnp using the init structure  */
+int rnp_init(rnp_t *, const rnp_params_t *);
+/* finish work with rnp and cleanup the memory */
 void rnp_end(rnp_t *);
 
+/* rnp initialization parameters : init and free */
+int  rnp_params_init(rnp_params_t *);
+void rnp_params_free(rnp_params_t *);
+
 /* init, reset and free rnp operation context */
-int  rnp_ctx_init(rnp_ctx_t *);
+int  rnp_ctx_init(rnp_ctx_t *, rnp_t *);
 void rnp_ctx_reset(rnp_ctx_t *);
 void rnp_ctx_free(rnp_ctx_t *);
 
@@ -91,42 +117,33 @@ void rnp_ctx_free(rnp_ctx_t *);
 int         rnp_set_debug(const char *);
 int         rnp_get_debug(const char *);
 const char *rnp_get_info(const char *);
-int         rnp_list_packets(rnp_t *, char *, int, char *);
-
-/* variables */
-int   rnp_setvar(rnp_t *, const char *, const char *);
-char *rnp_getvar(rnp_t *, const char *);
-int   rnp_incvar(rnp_t *, const char *, const int);
-int   rnp_unsetvar(rnp_t *, const char *);
-int findvar(rnp_t *rnp, const char *name);
+int         rnp_list_packets(rnp_t *, char *, int);
 
 /* set key store format information */
 int rnp_set_key_store_format(rnp_t *, const char *);
 
-/* set home directory information */
-int rnp_set_homedir(rnp_t *, char *, const int);
-
 /* key management */
 int   rnp_list_keys(rnp_t *, const int);
 int   rnp_list_keys_json(rnp_t *, char **, const int);
-int   rnp_load_keys(rnp_t *);
-int   rnp_find_key(rnp_t *, char *);
+int   rnp_find_key(rnp_t *, const char *);
 char *rnp_get_key(rnp_t *, const char *, const char *);
-char *rnp_export_key(rnp_t *, char *);
+char *rnp_export_key(rnp_t *, const char *);
 int   rnp_import_key(rnp_t *, char *);
 int   rnp_generate_key(rnp_t *, const char *);
+int   rnp_secret_count(rnp_t *);
+int   rnp_public_count(rnp_t *);
 
 /* file management */
-int rnp_encrypt_file(rnp_t *, const char *, const char *, char *);
-int rnp_decrypt_file(rnp_t *, const char *, char *, int);
-int rnp_sign_file(rnp_t *, const char *, const char *, char *, int, int);
-int rnp_verify_file(rnp_t *, const char *, const char *, int);
+int rnp_encrypt_file(rnp_ctx_t *, const char *, const char *, const char *);
+int rnp_decrypt_file(rnp_ctx_t *, const char *, const char *);
+int rnp_sign_file(rnp_ctx_t *, const char *, const char *, const char *, int, int);
+int rnp_verify_file(rnp_ctx_t *, const char *, const char *, int);
 
 /* memory signing and encryption */
-int rnp_sign_memory(rnp_t *, const char *, char *, size_t, char *, size_t, const unsigned);
-int rnp_verify_memory(rnp_t *, const void *, const size_t, void *, size_t, const int);
-int rnp_encrypt_memory(rnp_t *, const char *, void *, const size_t, char *, size_t);
-int rnp_decrypt_memory(rnp_t *, const void *, const size_t, char *, size_t, const int);
+int rnp_sign_memory(rnp_ctx_t *, const char *, char *, size_t, char *, size_t, const unsigned);
+int rnp_verify_memory(rnp_ctx_t *, const void *, const size_t, void *, size_t, const int);
+int rnp_encrypt_memory(rnp_ctx_t *, const char *, void *, const size_t, char *, size_t);
+int rnp_decrypt_memory(rnp_ctx_t *, const void *, const size_t, char *, size_t);
 
 /* match and hkp-related functions */
 int rnp_match_keys_json(rnp_t *, char **, char *, const char *, const int);

@@ -72,6 +72,7 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <regex.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -286,10 +287,10 @@ pgp_has_error(pgp_error_t *errstack, pgp_errcode_t errcode)
 
     for (err = errstack; err != NULL; err = err->next) {
         if (err->errcode == errcode) {
-            return 1;
+            return RNP_OK;
         }
     }
-    return 0;
+    return RNP_FAIL;
 }
 
 /**
@@ -385,11 +386,11 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
         if (key->alg != PGP_PKA_RSA && key->alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
             key->alg != PGP_PKA_RSA_SIGN_ONLY) {
             (void) fprintf(stderr, "pgp_fingerprint: bad algorithm\n");
-            return 0;
+            return RNP_FAIL;
         }
         if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad md5 alloc\n");
-            return 0;
+            return RNP_FAIL;
         }
         hash_bignum(&hash, key->key.rsa.n);
         hash_bignum(&hash, key->key.rsa.e);
@@ -400,7 +401,7 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
     } else if (hashtype == PGP_HASH_MD5) {
         if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad md5 alloc\n");
-            return 0;
+            return RNP_FAIL;
         }
         type = (key->alg == PGP_PKA_RSA) ? "ssh-rsa" : "ssh-dss";
         hash_string(&hash, (const uint8_t *) (const void *) type, (unsigned) strlen(type));
@@ -426,13 +427,13 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
         mem = pgp_memory_new();
         if (mem == NULL) {
             (void) fprintf(stderr, "can't allocate mem\n");
-            return 0;
+            return RNP_FAIL;
         }
         pgp_build_pubkey(mem, key, 0);
         if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad sha1 alloc\n");
             pgp_memory_free(mem);
-            return 0;
+            return RNP_FAIL;
         }
         len = (unsigned) pgp_mem_len(mem);
         pgp_hash_add_int(&hash, 0x99, 1);
@@ -444,7 +445,7 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
             hexdump(stderr, "sha1 fingerprint", fp->fingerprint, fp->length);
         }
     }
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -466,12 +467,12 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key, pgp_hash_
         n = (unsigned) BN_num_bytes(key->key.rsa.n);
         if (n > sizeof(bn)) {
             (void) fprintf(stderr, "pgp_keyid: bad num bytes\n");
-            return 0;
+            return RNP_FAIL;
         }
         if (key->alg != PGP_PKA_RSA && key->alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
             key->alg != PGP_PKA_RSA_SIGN_ONLY) {
             (void) fprintf(stderr, "pgp_keyid: bad algorithm\n");
-            return 0;
+            return RNP_FAIL;
         }
         BN_bn2bin(key->key.rsa.n, bn);
         (void) memcpy(keyid, bn + n - idlen, idlen);
@@ -479,7 +480,7 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key, pgp_hash_
         pgp_fingerprint(&finger, key, hashtype);
         (void) memcpy(keyid, finger.fingerprint + finger.length - idlen, idlen);
     }
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -592,24 +593,24 @@ pgp_memory_pad(pgp_memory_t *mem, size_t length)
 
     if (mem->allocated < mem->length) {
         (void) fprintf(stderr, "pgp_memory_pad: bad alloc in\n");
-        return 0;
+        return RNP_FAIL;
     }
     if (mem->allocated < mem->length + length) {
         mem->allocated = mem->allocated * 2 + length;
         temp = realloc(mem->buf, mem->allocated);
         if (temp == NULL) {
             (void) fprintf(stderr, "pgp_memory_pad: bad alloc\n");
-            return 0;
+            return RNP_FAIL;
         } else {
             mem->buf = temp;
         }
     }
     if (mem->allocated < mem->length + length) {
         (void) fprintf(stderr, "pgp_memory_pad: bad alloc out\n");
-        return 0;
+        return RNP_FAIL;
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -623,11 +624,11 @@ int
 pgp_memory_add(pgp_memory_t *mem, const uint8_t *src, size_t length)
 {
     if (!pgp_memory_pad(mem, length)) {
-        return 0;
+        return RNP_FAIL;
     }
     (void) memcpy(mem->buf + mem->length, src, length);
     mem->length += length;
-    return 1;
+    return RNP_OK;
 }
 
 /* XXX: this could be refactored via the writer, but an awful lot of */
@@ -770,7 +771,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
 
     if ((fp = fopen(f, "rb")) == NULL) {
         (void) fprintf(stderr, "pgp_mem_readfile: can't open \"%s\"\n", f);
-        return 0;
+        return RNP_FAIL;
     }
     (void) fstat(fileno(fp), &st);
     mem->allocated = (size_t) st.st_size;
@@ -780,7 +781,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
         if ((mem->buf = calloc(1, mem->allocated)) == NULL) {
             (void) fprintf(stderr, "pgp_mem_readfile: calloc\n");
             (void) fclose(fp);
-            return 0;
+            return RNP_FAIL;
         }
         /* read into contents of mem */
         for (mem->length = 0; (cc = (int) read(fileno(fp),
@@ -793,7 +794,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
         mem->mmapped = 1;
     }
     (void) fclose(fp);
-    return (mem->allocated == mem->length);
+    return (mem->allocated == mem->length) ? RNP_OK : RNP_FAIL;
 }
 
 int
@@ -808,19 +809,19 @@ pgp_mem_writefile(pgp_memory_t *mem, const char *f)
     fd = mkstemp(tmp);
     if (fd < 0) {
         fprintf(stderr, "pgp_mem_writefile: can't open temp file: %s\n", strerror(errno));
-        return 0;
+        return RNP_FAIL;
     }
 
     if ((fp = fdopen(fd, "wb")) == NULL) {
         fprintf(stderr, "pgp_mem_writefile: can't open \"%s\"\n", strerror(errno));
-        return 0;
+        return RNP_FAIL;
     }
 
     fwrite(mem->buf, mem->length, 1, fp);
     if (ferror(fp)) {
         fprintf(stderr, "pgp_mem_writefile: can't write to file\n");
         fclose(fp);
-        return 0;
+        return RNP_FAIL;
     }
 
     fclose(fp);
@@ -828,10 +829,10 @@ pgp_mem_writefile(pgp_memory_t *mem, const char *f)
     if (rename(tmp, f)) {
         fprintf(
           stderr, "pgp_mem_writefile: can't rename to traget file: %s\n", strerror(errno));
-        return 0;
+        return RNP_FAIL;
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 typedef struct {
@@ -1019,10 +1020,10 @@ rnp_set_debug(const char *f)
         }
     }
     if (i == MAX_DEBUG_NAMES) {
-        return 0;
+        return RNP_FAIL;
     }
     debugv[debugc++] = rnp_strdup(name);
-    return 1;
+    return RNP_OK;
 }
 
 /* get the debugging level per filename */
@@ -1139,4 +1140,76 @@ rnp_filename(const char *path)
     } else {
         return res + 1;
     }
+}
+
+/* find the time - in a specific %Y-%m-%d format - using a regexp */
+int
+grabdate(const char *s, int64_t *t)
+{
+    static regex_t r;
+    static int     compiled;
+    regmatch_t     matches[10];
+    struct tm      tm;
+
+    if (!compiled) {
+        compiled = 1;
+        (void) regcomp(
+          &r, "([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])", REG_EXTENDED);
+    }
+    if (regexec(&r, s, 10, matches, 0) == 0) {
+        (void) memset(&tm, 0x0, sizeof(tm));
+        tm.tm_year = (int) strtol(&s[(int) matches[1].rm_so], NULL, 10);
+        tm.tm_mon = (int) strtol(&s[(int) matches[2].rm_so], NULL, 10) - 1;
+        tm.tm_mday = (int) strtol(&s[(int) matches[3].rm_so], NULL, 10);
+        *t = mktime(&tm);
+        return 1;
+    }
+    return 0;
+}
+
+/* get expiration in seconds */
+uint64_t
+get_duration(const char *s)
+{
+    uint64_t now;
+    int64_t  t;
+    char *   mult;
+
+    if (s == NULL) {
+        return 0;
+    }
+    now = (uint64_t) strtoull(s, NULL, 10);
+    if ((mult = strchr("hdwmy", s[strlen(s) - 1])) != NULL) {
+        switch (*mult) {
+        case 'h':
+            return now * 60 * 60;
+        case 'd':
+            return now * 60 * 60 * 24;
+        case 'w':
+            return now * 60 * 60 * 24 * 7;
+        case 'm':
+            return now * 60 * 60 * 24 * 31;
+        case 'y':
+            return now * 60 * 60 * 24 * 365;
+        }
+    }
+    if (grabdate(s, &t)) {
+        return t;
+    }
+    return (uint64_t) strtoll(s, NULL, 10);
+}
+
+/* get birthtime in seconds */
+int64_t
+get_birthtime(const char *s)
+{
+    int64_t t;
+
+    if (s == NULL) {
+        return time(NULL);
+    }
+    if (grabdate(s, &t)) {
+        return t;
+    }
+    return (uint64_t) strtoll(s, NULL, 10);
 }

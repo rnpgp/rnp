@@ -75,6 +75,7 @@ __RCSID("$NetBSD: compress.c,v 1.23 2012/03/05 02:20:18 christos Exp $");
 #include <string.h>
 #include <stdlib.h>
 
+#include "../common/constants.h"
 #include "packet-parse.h"
 #include "errors.h"
 #include "rnpdefs.h"
@@ -332,7 +333,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                     PGP_E_ALG_UNSUPPORTED_COMPRESS_ALG,
                     "Compression algorithm %d is not yet supported",
                     type);
-        return 0;
+        return RNP_FAIL;
     }
 
     switch (type) {
@@ -357,7 +358,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                     PGP_E_ALG_UNSUPPORTED_COMPRESS_ALG,
                     "Compression algorithm %d is not yet supported",
                     type);
-        return 0;
+        return RNP_FAIL;
     }
 
     switch (type) {
@@ -368,7 +369,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                         PGP_E_P_DECOMPRESSION_ERROR,
                         "Cannot initialise ZIP or ZLIB stream for decompression: error=%d",
                         ret);
-            return 0;
+            return RNP_FAIL;
         }
         pgp_reader_push(stream, zlib_compressed_data_reader, NULL, &z);
         break;
@@ -380,7 +381,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                         PGP_E_P_DECOMPRESSION_ERROR,
                         "Cannot initialise BZIP2 stream for decompression: error=%d",
                         ret);
-            return 0;
+            return RNP_FAIL;
         }
         pgp_reader_push(stream, bzip2_compressed_data_reader, NULL, &bz);
         break;
@@ -391,7 +392,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                     PGP_E_ALG_UNSUPPORTED_COMPRESS_ALG,
                     "Compression algorithm %d is not yet supported",
                     type);
-        return 0;
+        return RNP_FAIL;
     }
 
     ret = pgp_parse(stream, !printerrors);

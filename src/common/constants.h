@@ -35,7 +35,21 @@
  *       developers' .gnupg installations.
  */
 
-#define SUBDIRECTORY_GNUPG ".rnp"
+#define SUBDIRECTORY_GNUPG ".gnupg"
+#define SUBDIRECTORY_RNP ".rnp"
 #define SUBDIRECTORY_SSH ".ssh"
+#define PUBRING_KBX "pubring.kbx"
+#define SECRING_KBX "secring.kbx"
+#define PUBRING_GPG "pubring.gpg"
+#define SECRING_GPG "secring.gpg"
+
+#define MAX_PASSPHRASE_ATTEMPTS 3
+#define INFINITE_ATTEMPTS -1
+
+/* Function return codes, more will be added later */
+
+#define RNP_OK 1
+#define RNP_FAIL 0
+#define RNP_EOF -1
 
 #endif

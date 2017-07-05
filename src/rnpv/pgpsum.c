@@ -42,6 +42,7 @@
 
 #include "pgpsum.h"
 #include "hash.h"
+#include "../common/constants.h"
 
 #ifndef USE_ARG
 #define USE_ARG(x) /*LINTED*/ (void) &(x)
@@ -72,7 +73,7 @@ don_armor(pgp_hash_t *hash, uint8_t *in, size_t insize, int doarmor)
         pgp_hash_add(hash, dos_line_end, sizeof(dos_line_end));
     }
     pgp_hash_add(hash, from, insize - (size_t)(from - in));
-    return 1;
+    return RNP_OK;
 }
 
 #ifdef RNPV_DEBUG
@@ -97,7 +98,7 @@ writefile(uint8_t *mem, size_t insize)
         }
     }
     close(fd);
-    return 1;
+    return RNP_OK;
 }
 #endif
 
@@ -114,7 +115,7 @@ already_armored(uint8_t *in, size_t insize)
             return 0;
         }
     }
-    return 1;
+    return RNP_OK;
 }
 
 /* calculate the checksum for the data we have */

@@ -337,20 +337,20 @@ list_resize(pgp_list_t *list)
     if (newstrings) {
         list->strings = newstrings;
         list->size = newsize;
-        return 1;
+        return RNP_OK;
     }
     (void) fprintf(stderr, "list_resize - bad alloc\n");
-    return 0;
+    return RNP_FAIL;
 }
 
 static unsigned
 add_str(pgp_list_t *list, const char *str)
 {
     if (list->size == list->used && !list_resize(list)) {
-        return 0;
+        return RNP_FAIL;
     }
     list->strings[list->used++] = __UNCONST(str);
-    return 1;
+    return RNP_OK;
 }
 
 /* find a bitfield in a map - serial search */
@@ -407,7 +407,7 @@ add_str_from_octet_map(pgp_text_t *map, char *str, uint8_t octet)
          * list
          */
         /* XXX - should print out error msg here, Ben? - rachel */
-        return 0;
+        return RNP_FAIL;
     } else if (!str) {
         /*
          * value not recognised and there was a problem adding it to
@@ -418,29 +418,29 @@ add_str_from_octet_map(pgp_text_t *map, char *str, uint8_t octet)
                                    * format, 1 for NUL */
         if ((str = calloc(1, len)) == NULL) {
             (void) fprintf(stderr, "add_str_from_octet_map: bad alloc\n");
-            return 0;
+            return RNP_FAIL;
         }
         (void) snprintf(str, len, "0x%x", octet);
         if (!add_str(&map->unknown, str)) {
-            return 0;
+            return RNP_FAIL;
         }
         free(str);
     }
-    return 1;
+    return RNP_OK;
 }
 
 /* ! generic function which adds text derived from single bit map to text */
 static unsigned
 add_bitmap_entry(pgp_text_t *map, const char *str, uint8_t bit)
 {
-    int status = 1;
+    int status = RNP_OK;
 
     if (str && !add_str(&map->known, str)) {
         /* Value recognised, but there was a problem adding it to the
          * list
          */
         /* XXX - should print out error msg here, Ben? - rachel */
-        return 0;
+        return RNP_FAIL;
 
         /* Value not recognised and there was a problem adding it to
          * the unknown list.
@@ -459,12 +459,12 @@ add_bitmap_entry(pgp_text_t *map, const char *str, uint8_t bit)
 
         if (newstr == NULL) {
             fprintf(stderr, "add_bitmap_entry: bad alloc\n");
-            return 0;
+            return RNP_FAIL;
         }
         snprintf(newstr, sizeof(message_format), message_format, bit);
 
         if (!add_str(&map->unknown, newstr))
-            status = 0;
+            status = RNP_FAIL;
 
         /* Remember that if the buffer has been allocated it is
          * important that flow reaches here, even in the event

@@ -95,6 +95,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "packet-key.h"
 #include "rnpsdk.h"
 #include "ecdsa.h"
+#include "../common/constants.h"
 
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
@@ -206,15 +207,15 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
 {
     if (!(pgp_write_scalar(output, (unsigned) key->version, 1) &&
           pgp_write_scalar(output, (unsigned) key->birthtime, 4))) {
-        return 0;
+        return RNP_FAIL;
     }
 
     if (key->version != 4 && !pgp_write_scalar(output, key->days_valid, 2)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     if (!pgp_write_scalar(output, (unsigned) key->alg, 1)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     switch (key->alg) {
@@ -239,7 +240,7 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
         (void) fprintf(stderr, "write_pubkey_body: bad algorithm\n");
         break;
     }
-    return 0;
+    return RNP_FAIL;
 }
 
 static int
@@ -253,19 +254,19 @@ hash_bn(pgp_hash_t *hash, BIGNUM *bignum)
     if (BN_is_zero(bignum)) {
         length[0] = length[1] = 0;
         pgp_hash_add(hash, length, 2);
-        return 1;
+        return RNP_OK;
     }
     if ((bits = (size_t) BN_num_bits(bignum)) < 1) {
         (void) fprintf(stderr, "hash_mpi: bad size\n");
-        return 0;
+        return RNP_FAIL;
     }
     if ((bytes = (size_t) BN_num_bytes(bignum)) < 1) {
         (void) fprintf(stderr, "hash_mpi: bad size\n");
-        return 0;
+        return RNP_FAIL;
     }
     if ((bn = calloc(1, bytes)) == NULL) {
         (void) fprintf(stderr, "hash_bignum: bad bn alloc\n");
-        return 0;
+        return RNP_FAIL;
     }
     BN_bn2bin(bignum, bn);
     length[0] = (uint8_t)((bits >> 8) & 0xff);
@@ -273,7 +274,7 @@ hash_bn(pgp_hash_t *hash, BIGNUM *bignum)
     pgp_hash_add(hash, length, 2);
     pgp_hash_add(hash, bn, bytes);
     free(bn);
-    return 1;
+    return RNP_OK;
 }
 
 static int
@@ -302,10 +303,10 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result)
         hash_bn(&hash, key->key.elgamal.x);
         break;
     default:
-        return 0;
+        return RNP_FAIL;
     }
     pgp_hash_finish(&hash, result);
-    return 1;
+    return RNP_OK;
 }
 
 /*
@@ -325,21 +326,21 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
 
     if (sesskey_size == 0) {
         (void) fprintf(stderr, "write_seckey_body: unknown encryption algorithm\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     if (!write_pubkey_body(&key->pubkey, output)) {
-        return 0;
+        return RNP_FAIL;
     }
     if (key->s2k_usage != PGP_S2KU_ENCRYPTED_AND_HASHED) {
         (void) fprintf(stderr, "write_seckey_body: s2k usage\n");
-        return 0;
+        return RNP_FAIL;
     }
     if (!pgp_write_scalar(output, (unsigned) key->s2k_usage, 1)) {
-        return 0;
+        return RNP_FAIL;
     }
     if (!pgp_write_scalar(output, (unsigned) key->alg, 1)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     if (key->s2k_specifier != PGP_S2KS_SIMPLE && key->s2k_specifier != PGP_S2KS_SALTED &&
@@ -347,14 +348,14 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
         (void) fprintf(stderr,
                        "write_seckey_body: invalid/unsupported s2k specifier %d\n",
                        key->s2k_specifier);
-        return 0;
+        return RNP_FAIL;
     }
     if (!pgp_write_scalar(output, (unsigned) key->s2k_specifier, 1)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     if (!pgp_write_scalar(output, (unsigned) key->hash_alg, 1)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     switch (key->s2k_specifier) {
@@ -363,7 +364,7 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
         if (pgp_s2k_simple(key->hash_alg, sesskey, sesskey_size, (const char *) passphrase) <
             0) {
             (void) fprintf(stderr, "pgp_s2k_simple failed\n");
-            return 0;
+            return RNP_FAIL;
         }
         break;
 
@@ -371,15 +372,15 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
         /* 8-octet salt value */
         if (pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE)) {
             (void) fprintf(stderr, "pgp_random failed\n");
-            return 0;
+            return RNP_FAIL;
         }
         if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
-            return 0;
+            return RNP_FAIL;
         }
         if (pgp_s2k_salted(
               key->hash_alg, sesskey, sesskey_size, (const char *) passphrase, key->salt)) {
             (void) fprintf(stderr, "pgp_s2k_salted failed\n");
-            return 0;
+            return RNP_FAIL;
         }
         break;
 
@@ -387,7 +388,7 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
         /* 8-octet salt value */
         if (pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE)) {
             (void) fprintf(stderr, "pgp_random failed\n");
-            return 0;
+            return RNP_FAIL;
         }
         if (pgp_s2k_iterated(key->hash_alg,
                              sesskey,
@@ -396,21 +397,21 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
                              key->salt,
                              key->s2k_iterations)) {
             (void) fprintf(stderr, "pgp_s2k_iterated failed\n");
-            return 0;
+            return RNP_FAIL;
         }
         uint8_t encoded_iterations = pgp_s2k_encode_iterations(key->s2k_iterations);
 
         if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
-            return 0;
+            return RNP_FAIL;
         }
         if (!pgp_write_scalar(output, encoded_iterations, 1)) {
-            return 0;
+            return RNP_FAIL;
         }
         break;
     }
 
     if (!pgp_write(output, &key->iv[0], pgp_block_size(key->alg))) {
-        return 0;
+        return RNP_FAIL;
     }
 
     /* use this session key to encrypt */
@@ -437,40 +438,40 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
             if (rnp_get_debug(__FILE__)) {
                 (void) fprintf(stderr, "4 x mpi not written - problem\n");
             }
-            return 0;
+            return RNP_FAIL;
         }
         break;
     case PGP_PKA_DSA:
         if (!pgp_write_mpi(output, key->key.dsa.x))
-            return 0;
+            return RNP_FAIL;
         break;
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
         if (!pgp_write_mpi(output, key->key.ecc.x))
-            return 0;
+            return RNP_FAIL;
         break;
     case PGP_PKA_ELGAMAL:
         if (!pgp_write_mpi(output, key->key.elgamal.x))
-            return 0;
+            return RNP_FAIL;
         break;
     default:
-        return 0;
+        return RNP_FAIL;
     }
 
     if (key->checkhash) {
         memcpy(checkhash, key->checkhash, PGP_CHECKHASH_SIZE);
     } else if (!hash_key_material(key, checkhash)) {
-        return 0;
+        return RNP_FAIL;
     }
     if (!pgp_write(output, checkhash, PGP_CHECKHASH_SIZE)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     pgp_writer_pop(output);
     pgp_cipher_finish(crypted);
     free(crypted);
 
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -512,7 +513,7 @@ pgp_write_xfer_pubkey(pgp_output_t *         output,
     }
     /* public key */
     if (!write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &key->key.pubkey)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     /* TODO: revocation signatures go here */
@@ -520,11 +521,11 @@ pgp_write_xfer_pubkey(pgp_output_t *         output,
     /* user ids and corresponding signatures */
     for (i = 0; i < key->uidc; i++) {
         if (!pgp_write_struct_userid(output, key->uids[i])) {
-            return 0;
+            return RNP_FAIL;
         }
         for (j = 0; j < key->packetc; j++) {
             if (!pgp_write(output, key->packets[j].raw, (unsigned) key->packets[j].length)) {
-                return 0;
+                return RNP_FAIL;
             }
         }
     }
@@ -534,15 +535,15 @@ pgp_write_xfer_pubkey(pgp_output_t *         output,
         for (i = 0; i < subkeys->keyc; i++) {
             const pgp_key_t *subkey = &subkeys->keys[i];
             if (subkey->type != PGP_PTAG_CT_PUBLIC_KEY) {
-                return 0;
+                return RNP_FAIL;
             }
             if (!write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_SUBKEY, &subkey->key.pubkey)) {
-                return 0;
+                return RNP_FAIL;
             }
             for (j = 0; j < subkey->packetc; j++) {
                 if (!pgp_write(
                       output, subkey->packets[j].raw, (unsigned) subkey->packets[j].length)) {
-                    return 0;
+                    return RNP_FAIL;
                 }
             }
         }
@@ -557,7 +558,7 @@ pgp_write_xfer_pubkey(pgp_output_t *         output,
         pgp_writer_info_finalise(&output->errors, &output->writer);
         pgp_writer_pop(output);
     }
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -588,7 +589,7 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
     /* secret key */
     if (!pgp_write_struct_seckey(
           PGP_PTAG_CT_SECRET_KEY, &key->key.seckey, passphrase, output)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     /* TODO: revocation signatures go here */
@@ -596,11 +597,11 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
     /* user ids and corresponding signatures */
     for (i = 0; i < key->uidc; i++) {
         if (!pgp_write_struct_userid(output, key->uids[i])) {
-            return 0;
+            return RNP_FAIL;
         }
         for (j = 0; j < key->packetc; j++) {
             if (!pgp_write(output, key->packets[j].raw, (unsigned) key->packets[j].length)) {
-                return 0;
+                return RNP_FAIL;
             }
         }
     }
@@ -615,16 +616,16 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
         for (i = 0; i < subkeys->keyc; i++) {
             const pgp_key_t *subkey = &subkeys->keys[i];
             if (subkey->type != PGP_PTAG_CT_SECRET_KEY) {
-                return 0;
+                return RNP_FAIL;
             }
             if (!pgp_write_struct_seckey(
                   PGP_PTAG_CT_SECRET_SUBKEY, &subkey->key.seckey, passphrase, output)) {
-                return 0;
+                return RNP_FAIL;
             }
             for (j = 0; j < subkey->packetc; j++) {
                 if (!pgp_write(
                       output, subkey->packets[j].raw, (unsigned) subkey->packets[j].length)) {
-                    return 0;
+                    return RNP_FAIL;
                 }
             }
         }
@@ -634,7 +635,7 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
         pgp_writer_info_finalise(&output->errors, &output->writer);
         pgp_writer_pop(output);
     }
-    return 1;
+    return RNP_OK;
 }
 
 unsigned
@@ -651,7 +652,7 @@ pgp_write_xfer_anykey(pgp_output_t *         output,
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
         if (!pgp_write_xfer_pubkey(output, key, NULL, armoured)) {
             fprintf(stderr, "Can't write public key\n");
-            return 0;
+            return RNP_FAIL;
         }
         break;
 
@@ -659,7 +660,7 @@ pgp_write_xfer_anykey(pgp_output_t *         output,
     case PGP_PTAG_CT_SECRET_SUBKEY:
         if (!pgp_write_xfer_seckey(output, key, passphrase, NULL, armoured)) {
             fprintf(stderr, "Can't write private key\n");
-            return 0;
+            return RNP_FAIL;
         }
         break;
 
@@ -667,22 +668,22 @@ pgp_write_xfer_anykey(pgp_output_t *         output,
     case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
         if (key->packetc == 0) {
             fprintf(stderr, "Can't write encrypted private key without RAW packed.\n");
-            return 0;
+            return RNP_FAIL;
         }
         for (i = 0; i < key->packetc; i++) {
             if (!pgp_write(output, key->packets[i].raw, key->packets[i].length)) {
                 fprintf(stderr, "Can't write part of encrypted private key\n");
-                return 0;
+                return RNP_FAIL;
             }
         }
         break;
 
     default:
         fprintf(stderr, "Can't write key type: %d\n", key->type);
-        return 0;
+        return RNP_FAIL;
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 /**
@@ -730,7 +731,7 @@ pgp_write_struct_seckey(pgp_content_enum    tag,
 
     if (key->pubkey.version != 4) {
         (void) fprintf(stderr, "pgp_write_struct_seckey: public key version\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     /* Ref: RFC4880 Section 5.5.3 */
@@ -768,13 +769,13 @@ pgp_write_struct_seckey(pgp_content_enum    tag,
 
         default:
             (void) fprintf(stderr, "pgp_write_struct_seckey: s2k spec\n");
-            return 0;
+            return RNP_FAIL;
         }
         break;
 
     default:
         (void) fprintf(stderr, "pgp_write_struct_seckey: s2k usage\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     /* IV */
@@ -794,7 +795,7 @@ pgp_write_struct_seckey(pgp_content_enum    tag,
 
     default:
         (void) fprintf(stderr, "pgp_write_struct_seckey: s2k cksum usage\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     /* secret key and public key MPIs */
@@ -854,7 +855,7 @@ pgp_calc_sesskey_checksum(pgp_pk_sesskey_t *sesskey, uint8_t cs[2])
     unsigned i;
 
     if (!pgp_is_sa_supported(sesskey->symm_alg)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     for (i = 0; i < pgp_key_size(sesskey->symm_alg); i++) {
@@ -868,7 +869,7 @@ pgp_calc_sesskey_checksum(pgp_pk_sesskey_t *sesskey, uint8_t cs[2])
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "nm buf checksum:", cs, 2);
     }
-    return 1;
+    return RNP_OK;
 }
 
 static unsigned
@@ -1043,7 +1044,7 @@ pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
      * const */
     if (pksk == NULL) {
         (void) fprintf(stderr, "pgp_write_pk_sesskey: NULL pksk\n");
-        return 0;
+        return RNP_FAIL;
     }
     switch (pksk->alg) {
     case PGP_PKA_RSA:
@@ -1073,7 +1074,7 @@ pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
           ;
     default:
         (void) fprintf(stderr, "pgp_write_pk_sesskey: bad algorithm\n");
-        return 0;
+        return RNP_FAIL;
     }
 }
 
@@ -1121,7 +1122,7 @@ pgp_write_litdata(pgp_output_t *         output,
         flen = filename ? strlen(filename) : 0;
         if (flen > 255) {
             (void) fprintf(stderr, "pgp_write_litdata : filename %s too long\n", filename);
-            return 0;
+            return RNP_FAIL;
         }
     }
 
@@ -1151,12 +1152,12 @@ pgp_fileread_litdata(const char *filename, const pgp_litdata_enum type, pgp_outp
     mem = pgp_memory_new();
     if (mem == NULL) {
         (void) fprintf(stderr, "can't allocate mem\n");
-        return 0;
+        return RNP_FAIL;
     }
     if (!pgp_mem_readfile(mem, filename)) {
         (void) fprintf(stderr, "pgp_mem_readfile of '%s' failed\n", filename);
         pgp_memory_free(mem);
-        return 0;
+        return RNP_FAIL;
     }
 
     len = (int) pgp_mem_len(mem);
@@ -1198,11 +1199,11 @@ pgp_filewrite(const char *   filename,
     fd = open(filename, flags, 0600);
     if (fd < 0) {
         (void) fprintf(stderr, "can't open '%s'\n", filename);
-        return 0;
+        return RNP_FAIL;
     }
     if (write(fd, buf, len) != (int) len) {
         (void) close(fd);
-        return 0;
+        return RNP_FAIL;
     }
 
     return (close(fd) == 0);
@@ -1232,14 +1233,14 @@ pgp_write_symm_enc_data(const uint8_t *data, const int len, pgp_output_t *output
     encrypted_sz = (size_t)(len + crypt_info.blocksize + 2);
     if ((encrypted = calloc(1, encrypted_sz)) == NULL) {
         (void) fprintf(stderr, "can't allocate %" PRIsize "d\n", encrypted_sz);
-        return 0;
+        return RNP_FAIL;
     }
 
     done = (int) pgp_encrypt_se(&crypt_info, encrypted, data, (unsigned) len);
     if (done != len) {
         (void) fprintf(stderr, "pgp_write_symm_enc_data: done != len\n");
         free(encrypted);
-        return 0;
+        return RNP_FAIL;
     }
 
     return pgp_write_ptag(output, PGP_PTAG_CT_SE_DATA) &&

@@ -84,6 +84,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "s2k.h"
 #include "ecdsa.h"
 #include "../common/utils.h"
+#include "../common/constants.h"
 
 /**
  * EC Curves definition used by implementation
@@ -202,18 +203,19 @@ pgp_elgamal_encrypt_mpi(const uint8_t *          encoded_m_buf,
 
     if (sz_encoded_m_buf != (size_t) BN_num_bytes(pubkey->key.elgamal.p)) {
         (void) fprintf(stderr, "sz_encoded_m_buf wrong\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     n = pgp_elgamal_public_encrypt_pkcs1(
       g_to_k, encmpibuf, encoded_m_buf, sz_encoded_m_buf, &pubkey->key.elgamal);
     if (n == -1) {
         (void) fprintf(stderr, "pgp_elgamal_public_encrypt failure\n");
-        return 0;
+        return RNP_FAIL;
     }
 
-    if (n <= 0)
-        return 0;
+    if (n <= 0) {
+        return RNP_FAIL;
+    }
 
     skp->elgamal.g_to_k = BN_bin2bn(g_to_k, n / 2, NULL);
     skp->elgamal.encrypted_m = BN_bin2bn(encmpibuf, n / 2, NULL);
@@ -221,7 +223,7 @@ pgp_elgamal_encrypt_mpi(const uint8_t *          encoded_m_buf,
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "encrypted mpi", encmpibuf, 16);
     }
-    return 1;
+    return RNP_OK;
 }
 
 pgp_key_t *
@@ -416,16 +418,16 @@ pgp_encrypt_file(
     inmem = pgp_memory_new();
     if (inmem == NULL) {
         (void) fprintf(stderr, "can't allocate mem\n");
-        return 0;
+        return RNP_FAIL;
     }
     if (!pgp_mem_readfile(inmem, infile)) {
         pgp_memory_free(inmem);
-        return 0;
+        return RNP_FAIL;
     }
     fd_out = pgp_setup_file_write(ctx, &output, outfile, ctx->overwrite);
     if (fd_out < 0) {
         pgp_memory_free(inmem);
-        return 0;
+        return RNP_FAIL;
     }
 
     /* set armoured/not armoured here */
@@ -436,7 +438,7 @@ pgp_encrypt_file(
     /* Push the encrypted writer */
     if (!pgp_push_enc_se_ip(output, key, ctx->ealg)) {
         pgp_memory_free(inmem);
-        return 0;
+        return RNP_FAIL;
     }
 
     /* This does the writing */
@@ -446,7 +448,7 @@ pgp_encrypt_file(
     pgp_memory_free(inmem);
     pgp_teardown_file_write(output, fd_out);
 
-    return 1;
+    return RNP_OK;
 }
 
 /* encrypt the contents of the input buffer, and return the mem structure */
@@ -463,12 +465,12 @@ pgp_encrypt_buf(rnp_ctx_t *      ctx,
     __PGP_USED(io);
     if (input == NULL) {
         (void) fprintf(io->errs, "pgp_encrypt_buf: null memory\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     if (!pgp_setup_memory_write(ctx, &output, &outmem, insize)) {
         (void) fprintf(io->errs, "can't setup memory write\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     /* set armoured/not armoured here */
@@ -525,7 +527,7 @@ pgp_decrypt_file(pgp_io_t *       io,
     fd_in = pgp_setup_file_read(io, &parse, infile, NULL, write_parsed_cb, 0);
     if (fd_in < 0) {
         perror(infile);
-        return 0;
+        return RNP_FAIL;
     }
     /* setup output filename */
     if (outfile) {
@@ -533,7 +535,7 @@ pgp_decrypt_file(pgp_io_t *       io,
         if (fd_out < 0) {
             perror(outfile);
             pgp_teardown_file_read(parse, fd_in);
-            return 0;
+            return RNP_FAIL;
         }
     } else {
         const int   suffixlen = 4;
@@ -546,7 +548,7 @@ pgp_decrypt_file(pgp_io_t *       io,
                 (void) fprintf(
                   stderr, "can't allocate %" PRIsize "d bytes\n", (size_t)(filenamelen + 1));
                 pgp_teardown_file_read(parse, fd_in);
-                return 0;
+                return RNP_FAIL;
             }
             (void) strncpy(filename, infile, filenamelen);
             filename[filenamelen] = 0x0;
@@ -557,7 +559,7 @@ pgp_decrypt_file(pgp_io_t *       io,
             perror(filename);
             free(filename);
             pgp_teardown_file_read(parse, fd_in);
-            return 0;
+            return RNP_FAIL;
         }
     }
 
@@ -623,28 +625,29 @@ pgp_decrypt_buf(pgp_io_t *       io,
 
     if (input == NULL) {
         (void) fprintf(io->errs, "pgp_encrypt_buf: null memory\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     inmem = pgp_memory_new();
     if (inmem == NULL) {
         (void) fprintf(stderr, "can't allocate mem\n");
-        return 0;
+        return RNP_FAIL;
     }
+
     if (!pgp_memory_add(inmem, input, insize)) {
-        return 0;
+        return RNP_FAIL;
     }
 
     /* set up to read from memory */
     if (!pgp_setup_memory_read(io, &parse, inmem, NULL, write_parsed_cb, 0)) {
         (void) fprintf(io->errs, "can't setup memory read\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     /* setup for writing decrypted contents to given output file */
     if (!pgp_setup_memory_write(NULL, &parse->cbinfo.output, &outmem, insize)) {
         (void) fprintf(io->errs, "can't setup memory write\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     /* setup keyring and passphrase callback */

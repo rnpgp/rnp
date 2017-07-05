@@ -215,26 +215,26 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
     memset(&bg, 0x0, sizeof(bg));
     if (!bufgap_open(&bg, f)) {
         fprintf(stderr, "ssh2pubkey: can't open '%s'\n", f);
-        return 0;
+        return RNP_FAIL;
     }
 
     /* check the pub file exists */
     if (stat(f, &st) != 0) {
         (void) fprintf(stderr, "ssh2pubkey: bad filename '%s'\n", f);
         bufgap_close(&bg);
-        return 0;
+        return RNP_FAIL;
     }
 
     if ((buf = calloc(1, (size_t) st.st_size)) == NULL) {
         fprintf(stderr, "can't calloc %zu bytes for '%s'\n", (size_t) st.st_size, f);
         bufgap_close(&bg);
-        return 0;
+        return RNP_FAIL;
     }
     if ((bin = calloc(1, (size_t) st.st_size)) == NULL) {
         fprintf(stderr, "can't calloc %zu bytes for '%s'\n", (size_t) st.st_size, f);
         free((void *) buf);
         bufgap_close(&bg);
-        return 0;
+        return RNP_FAIL;
     }
 
     /* move past ascii type of key */
@@ -248,7 +248,7 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
         free((void *) buf);
         free((void *) bin);
         bufgap_close(&bg);
-        return 0;
+        return RNP_FAIL;
     }
 
     /* convert from base64 to binary */
@@ -279,7 +279,7 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
     pubkey->version = PGP_V4;
     pubkey->birthtime = 0;
     /* get key type */
-    ok = 1;
+    ok = RNP_OK;
     switch (pubkey->alg = findstr(pkatypes, buf)) {
     case PGP_PKA_RSA:
         /* get the 'e' param of the key */
@@ -299,7 +299,7 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
         break;
     default:
         fprintf(stderr, "Unrecognised pubkey type %d for '%s'\n", pubkey->alg, f);
-        ok = 0;
+        ok = RNP_FAIL;
         break;
     }
 
@@ -307,7 +307,7 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
     if (ok && bufgap_tell(&bg, BGFromEOF, BGByte) > 0) {
         printf("%" PRIi64 " bytes left\n", bufgap_tell(&bg, BGFromEOF, BGByte));
         printf("[%s]\n", bufgap_getstr(&bg));
-        ok = 0;
+        ok = RNP_FAIL;
     }
     if (ok) {
         memset(&userid, 0x0, sizeof(userid));
@@ -334,7 +334,7 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
                 free((void *) bin);
                 free((void *) buf);
                 bufgap_close(&bg);
-                return 0;
+                return RNP_FAIL;
             }
             snprintf(buffer, buffer_size, "%s (%s) <%s>", hostname, f, owner);
             userid = (uint8_t *) buffer;
@@ -368,7 +368,7 @@ ssh2seckey(
     __PGP_USED(io);
     /* XXX - check for rsa/dsa */
     if (!read_pem_seckey(f, key, "ssh-rsa", 0)) {
-        return 0;
+        return RNP_FAIL;
     }
     if (rnp_get_debug(__FILE__)) {
         /*pgp_print_keydata(io, key, "sec", &key->key.seckey.pubkey, 0);*/
@@ -384,7 +384,7 @@ ssh2seckey(
 
     if (pgp_random(key->key.seckey.salt, PGP_SALT_SIZE)) {
         (void) fprintf(stderr, "pgp_random failed\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     if (key->key.seckey.pubkey.alg == PGP_PKA_RSA) {
@@ -399,7 +399,7 @@ ssh2seckey(
     if (pgp_s2k_salted(
           key->key.seckey.hash_alg, sesskey, sesskey_len, "", key->key.seckey.salt)) {
         (void) fprintf(stderr, "pgp_s2k_salted failed\n");
-        return 0;
+        return RNP_FAIL;
     }
 
     pgp_crypt_any(&crypted, key->key.seckey.alg);
@@ -408,7 +408,7 @@ ssh2seckey(
     pgp_encrypt_init(&crypted);
     pgp_fingerprint(&key->sigfingerprint, pubkey, hashtype);
     pgp_keyid(key->sigid, sizeof(key->sigid), pubkey, hashtype);
-    return 1;
+    return RNP_OK;
 }
 
 /* read a key from the ssh file, and add it to a keyring */
@@ -431,11 +431,11 @@ ssh2_readkeys(pgp_io_t *       io,
         }
         if (!ssh2pubkey(io, pubfile, &key, pubring->hashtype)) {
             (void) fprintf(io->errs, "ssh2_readkeys: can't read pubkeys '%s'\n", pubfile);
-            return 0;
+            return RNP_FAIL;
         }
         EXPAND_ARRAY(pubring, key);
         if (pubring->keys == NULL) {
-            return 0;
+            return RNP_FAIL;
         }
         pubkey = &pubring->keys[pubring->keyc++];
         (void) memcpy(pubkey, &key, sizeof(key));
@@ -450,17 +450,17 @@ ssh2_readkeys(pgp_io_t *       io,
         }
         if (!ssh2seckey(io, secfile, &key, &pubkey->key.pubkey, secring->hashtype)) {
             (void) fprintf(io->errs, "ssh2_readkeys: can't read seckeys '%s'\n", secfile);
-            return 0;
+            return RNP_FAIL;
         }
         EXPAND_ARRAY(secring, key);
         if (secring->keys == NULL) {
-            return 0;
+            return RNP_FAIL;
         }
         seckey = &secring->keys[secring->keyc++];
         (void) memcpy(seckey, &key, sizeof(key));
         seckey->type = PGP_PTAG_CT_SECRET_KEY;
     }
-    return 1;
+    return RNP_OK;
 }
 
 /* read keys from ssh key files */
@@ -487,11 +487,11 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
     /* check the pub file exists */
     if (stat(filename, &st) != 0) {
         (void) fprintf(stderr, "readsshkeys: bad pubkey filename '%s'\n", filename);
-        return 0;
+        return RNP_FAIL;
     }
     if ((pubring = calloc(1, sizeof(*pubring))) == NULL) {
         (void) fprintf(stderr, "readsshkeys: bad alloc\n");
-        return 0;
+        return RNP_FAIL;
     }
     /* openssh2 keys use md5 by default */
     hashtype = PGP_HASH_MD5;
@@ -509,7 +509,7 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
     if (!ssh2_readkeys(rnp->io, pubring, NULL, filename, NULL)) {
         free(pubring);
         (void) fprintf(stderr, "readsshkeys: cannot read %s\n", filename);
-        return 0;
+        return RNP_FAIL;
     }
     if (rnp->pubring == NULL) {
         rnp->pubring = pubring;
@@ -518,7 +518,6 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
     }
 
     if (needseckey) {
-        rnp_setvar(rnp, "sshpubfile", filename);
         /* try to take the ".pub" off the end */
         if (filename == f) {
             f[strlen(f) - 4] = 0x0;
@@ -529,19 +528,18 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
         if ((secring = calloc(1, sizeof(*secring))) == NULL) {
             free(pubring);
             (void) fprintf(stderr, "readsshkeys: bad alloc\n");
-            return 0;
+            return RNP_FAIL;
         }
         secring->hashtype = hashtype;
         if (!ssh2_readkeys(rnp->io, pubring, secring, NULL, filename)) {
             free(pubring);
             free(secring);
             (void) fprintf(stderr, "readsshkeys: cannot read sec %s\n", filename);
-            return 0;
+            return RNP_FAIL;
         }
         rnp->secring = secring;
-        rnp_setvar(rnp, "sshsecfile", filename);
     }
-    return 1;
+    return RNP_OK;
 }
 
 int
@@ -556,7 +554,7 @@ rnp_key_store_ssh_load_keys(rnp_t *rnp, char *homedir)
 
     if (!readsshkeys(rnp, homedir, rnp_getvar(rnp, "need seckey"))) {
         fprintf(io->errs, "cannot read ssh keys\n");
-        return 0;
+        return RNP_FAIL;
     }
     if ((userid = rnp_getvar(rnp, "userid")) == NULL) {
         /* TODO: Handle get_first_ring() failure. */
@@ -566,13 +564,13 @@ rnp_key_store_ssh_load_keys(rnp_t *rnp, char *homedir)
     if (userid == NULL) {
         if (rnp_getvar(rnp, "need userid") != NULL) {
             fprintf(io->errs, "cannot find user id\n");
-            return 0;
+            return RNP_FAIL;
         }
     } else {
         rnp_setvar(rnp, "userid", userid);
     }
 
-    return 1;
+    return RNP_OK;
 }
 
 int
@@ -593,7 +591,7 @@ rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *
     if (ssh2pubkey(io, filename, &key, keyring->hashtype)) {
         (void) fprintf(io->errs, "rnp_key_store_ssh_from_file: it's pubkeys '%s'\n", filename);
         rnp_key_store_add_key(io, keyring, &key, PGP_PTAG_CT_PUBLIC_KEY);
-        return 1;
+        return RNP_OK;
     }
 
     if (rnp_get_debug(__FILE__)) {
@@ -605,16 +603,16 @@ rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *
     if (!ssh2pubkey(io, filename, &pubkey, keyring->hashtype)) {
         (void) fprintf(
           io->errs, "rnp_key_store_ssh_from_file: can't read pubkey from '%s'\n", f);
-        return 0;
+        return RNP_FAIL;
     }
 
     if (ssh2seckey(io, filename, &key, &pubkey.key.pubkey, keyring->hashtype)) {
         (void) fprintf(io->errs, "rnp_key_store_ssh_from_file: it's seckey '%s'\n", filename);
         rnp_key_store_add_key(io, keyring, &key, PGP_PTAG_CT_SECRET_KEY);
-        return 1;
+        return RNP_OK;
     }
 
-    return 0;
+    return RNP_FAIL;
 }
 
 int
@@ -623,7 +621,7 @@ rnp_key_store_ssh_from_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_
     // we can't read SSH key from memory because it doesn't keep two different part for public
     // and secret key
     fprintf(io->errs, "rnp hasn't support reading SSH key from memory yet\n");
-    return 0;
+    return RNP_FAIL;
 }
 
 int
@@ -633,7 +631,7 @@ rnp_key_store_ssh_to_file(pgp_io_t *       io,
                           const char *     file)
 {
     fprintf(io->errs, "rnp hasn't support writing SSH key to file yet\n");
-    return 0;
+    return RNP_FAIL;
 }
 
 int
@@ -645,5 +643,5 @@ rnp_key_store_ssh_to_mem(pgp_io_t *       io,
     // we can't write SSH key to memory because it doesn't keep two different part for public
     // and secret key
     fprintf(io->errs, "rnp hasn't support writing SSH key to memory yet\n");
-    return 0;
+    return RNP_FAIL;
 }

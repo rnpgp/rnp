@@ -36,6 +36,7 @@
 #include "rnp.h"
 #include "crypto.h"
 #include "../common/constants.h"
+#include "../rnp/rnpcfg.h"
 #include "rnpkeys.h"
 
 extern struct option options[];
@@ -44,71 +45,86 @@ extern const char *  usage;
 int
 main(int argc, char **argv)
 {
-    rnp_t  rnp;
-    prog_t p;
-    int    optindex;
-    int    ret;
-    int    ch;
-    int    i;
-
-    memset(&p, '\0', sizeof(p));
-    memset(&rnp, '\0', sizeof(rnp));
-
-    p.numbits = DEFAULT_RSA_NUMBITS;
+    rnp_t        rnp;
+    rnp_cfg_t    cfg;
+    rnp_params_t rnp_params;
+    int          cmd;
+    int          optindex;
+    int          ret;
+    int          ch;
+    int          i;
 
     if (argc < 2) {
         print_usage(usage);
         exit(EXIT_ERROR);
     }
 
-    rnp_setvar(&rnp, "sshkeydir", "/etc/ssh");
-    rnp_setvar(&rnp, "res", "<stdout>");
-    rnp_setvar(&rnp, "format", "human");
+    memset(&rnp, '\0', sizeof(rnp));
+    memset(&rnp_params, '\0', sizeof(rnp_params));
+
+    if (!rnp_cfg_init(&cfg)) {
+        fputs("fatal: cannot initialise cfg\n", stderr);
+        return EXIT_ERROR;
+    }
+
+    rnp_cfg_load_defaults(&cfg);
+    rnp_cfg_setint(&cfg, CFG_NUMBITS, DEFAULT_RSA_NUMBITS);
+    rnp_cfg_set(&cfg, CFG_IO_RESS, "<stdout>");
+    rnp_cfg_set(&cfg, CFG_KEYFORMAT, "human");
 
     optindex = 0;
 
     while ((ch = getopt_long(argc, argv, "S:Vglo:s", options, &optindex)) != -1) {
-        if (ch >= LIST_KEYS) {
+        if (ch >= CMD_LIST_KEYS) {
             /* getopt_long returns 0 for long options */
-            if (!setoption(&rnp, &p, options[optindex].val, optarg))
+            if (!setoption(&cfg, &cmd, options[optindex].val, optarg))
                 fprintf(stderr, "Bad setoption result %d\n", ch);
         } else {
             switch (ch) {
             case 'S':
-                rnp_setvar(&rnp, "key_store_format", "SSH");
-                rnp_setvar(&rnp, "sshkeyfile", optarg);
+                rnp_cfg_set(&cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
+                rnp_cfg_set(&cfg, CFG_SSHKEYFILE, optarg);
                 break;
             case 'V':
                 print_praise();
                 exit(EXIT_SUCCESS);
             case 'g':
-                p.cmd = GENERATE_KEY;
+                cmd = CMD_GENERATE_KEY;
                 break;
             case 'l':
-                p.cmd = LIST_KEYS;
+                cmd = CMD_LIST_KEYS;
                 break;
             case 'o':
-                if (!parse_option(&rnp, &p, optarg)) {
+                if (!parse_option(&cfg, &cmd, optarg)) {
                     (void) fprintf(stderr, "Bad parse_option\n");
                 }
                 break;
             case 's':
-                p.cmd = LIST_SIGS;
+                cmd = CMD_LIST_SIGS;
                 break;
             default:
-                p.cmd = HELP_CMD;
+                cmd = CMD_HELP;
                 break;
             }
         }
     }
-    if (!rnp_init(&rnp)) {
+
+    rnp_params_init(&rnp_params);
+    if (!rnp_cfg_apply(&cfg, &rnp_params)) {
+        fputs("fatal: cannot apply configuration\n", stderr);
+        return EXIT_ERROR;
+    }
+
+    if (!rnp_init(&rnp, &rnp_params)) {
         fputs("fatal: failed to initialize rnpkeys\n", stderr);
         return EXIT_ERROR;
     }
 
-    if (!rnp_load_keys(&rnp)) {
+    rnp_params_free(&rnp_params);
+
+    if (!rnp_key_store_load_keys(&rnp, 1)) {
         /* Keys mightn't loaded if this is a key generation step. */
-        if (p.cmd != GENERATE_KEY) {
+        if (cmd != CMD_GENERATE_KEY) {
             fputs("fatal: failed to load keys\n", stderr);
             return EXIT_ERROR;
         }
@@ -117,11 +133,11 @@ main(int argc, char **argv)
     /* now do the required action for each of the command line args */
     ret = EXIT_SUCCESS;
     if (optind == argc) {
-        if (!rnp_cmd(&rnp, &p, NULL))
+        if (!rnp_cmd(&cfg, &rnp, cmd, NULL))
             ret = EXIT_FAILURE;
     } else {
         for (i = optind; i < argc; i++) {
-            if (!rnp_cmd(&rnp, &p, argv[i]))
+            if (!rnp_cmd(&cfg, &rnp, cmd, argv[i]))
                 ret = EXIT_FAILURE;
         }
     }
