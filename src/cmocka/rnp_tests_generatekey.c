@@ -519,7 +519,7 @@ void
 rnpkeys_generatekey_testExpertMode(void **state)
 {
     rnp_test_state_t *rstate = *state;
-    
+
     static const char test_ecdsa_256[] = "19\n1\n";
     static const char test_ecdsa_384[] = "19\n2\n";
     static const char test_ecdsa_521[] = "19\n3\n";
