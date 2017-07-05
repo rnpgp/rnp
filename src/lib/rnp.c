@@ -1072,24 +1072,23 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *
 {
     const pgp_key_t *key;
     const char *     suffix;
-    pgp_io_t *       io;
     char             outname[MAXPATHLEN];
 
-    io = ctx->rnp->io;
     if (f == NULL) {
-        (void) fprintf(io->errs, "rnp_encrypt_file: no filename specified\n");
+        (void) fprintf(ctx->rnp->io->errs, "rnp_encrypt_file: no filename specified\n");
         return RNP_FAIL;
     }
-    suffix = (ctx->armour) ? ".asc" : ".gpg";
     /* get key with which to sign */
     if ((key = resolve_userid(ctx->rnp, ctx->rnp->pubring, userid)) == NULL) {
         return RNP_FAIL;
     }
+    /* generate output file name if needed */
     if (out == NULL) {
+        suffix = (ctx->armour) ? ".asc" : ".gpg";
         (void) snprintf(outname, sizeof(outname), "%s%s", f, suffix);
         out = outname;
     }
-    return (int) pgp_encrypt_file(ctx, io, f, out, key);
+    return (int) pgp_encrypt_file(ctx, ctx->rnp->io, f, out, key);
 }
 
 #define ARMOR_HEAD "-----BEGIN PGP MESSAGE-----"
