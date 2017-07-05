@@ -100,7 +100,7 @@ typedef struct rnp_ctx_t {
 } rnp_ctx_t;
 
 /* initialize rnp using the init structure  */
-int rnp_init(rnp_t *, rnp_params_t *);
+int rnp_init(rnp_t *, const rnp_params_t *);
 /* finish work with rnp and cleanup the memory */
 int rnp_end(rnp_t *);
 

@@ -618,7 +618,7 @@ init_new_io(rnp_t *rnp, const char *outs, const char *errs, const char *ress)
 
 /* Initialize a rnp_t structure */
 int
-rnp_init(rnp_t *rnp, rnp_params_t *params)
+rnp_init(rnp_t *rnp, const rnp_params_t *params)
 {
     int       coredumps = -1; /* -1 : cannot disable, 1 : disabled, 0 : enabled */
     pgp_io_t *io;
