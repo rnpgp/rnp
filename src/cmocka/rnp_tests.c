@@ -107,7 +107,7 @@ main(void)
       cmocka_unit_test(rnpkeys_generatekey_verifykeyNonexistingHomeDir),
       cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirNoPermission),
       cmocka_unit_test(rnpkeys_exportkey_verifyUserId),
-    };
+      cmocka_unit_test(rnpkeys_generatekey_testExpertMode)};
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */

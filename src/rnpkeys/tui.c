@@ -15,7 +15,7 @@ extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
  *
 -------------------------------------------------------------------------------- */
 static bool
-rnp_secure_get_long_from_fd(const FILE *fp, long *result)
+rnp_secure_get_long_from_fd(FILE *fp, long *result)
 {
     char  buff[BUFSIZ];
     char *end_ptr;
@@ -26,7 +26,7 @@ rnp_secure_get_long_from_fd(const FILE *fp, long *result)
         goto end;
     }
 
-    if (fgets(buff, sizeof(buff), stdin) == NULL) {
+    if (fgets(buff, sizeof(buff), fp) == NULL) {
         RNP_LOG("EOF or read error");
         goto end;
     } else {
@@ -78,7 +78,7 @@ is_keygen_supported_for_alg(pgp_pubkey_alg_t id)
 }
 
 static pgp_curve_t
-ask_curve()
+ask_curve(FILE *input_fp)
 {
     pgp_curve_t result = PGP_CURVE_MAX;
     long        val = 0;
@@ -89,7 +89,7 @@ ask_curve()
             printf("\t(%u) %s\n", i + 1, ec_curves[i].pgp_name);
         }
         printf("> ");
-        ok = rnp_secure_get_long_from_fd(stdin, &val);
+        ok = rnp_secure_get_long_from_fd(input_fp, &val);
         ok &= (val > 0) && (val < PGP_CURVE_MAX);
     } while (!ok);
 
@@ -101,7 +101,7 @@ ask_curve()
 }
 
 static long
-ask_algorithm()
+ask_algorithm(FILE *input_fp)
 {
     long result = 0;
     do {
@@ -112,18 +112,19 @@ ask_algorithm()
                "\t(22) EDDSA\n"
                "> ");
 
-    } while (!rnp_secure_get_long_from_fd(stdin, &result) ||
+    } while (!rnp_secure_get_long_from_fd(input_fp, &result) ||
              !is_keygen_supported_for_alg(result));
     return result;
 }
 
 static long
-ask_bitlen()
+ask_bitlen(FILE *input_fp)
 {
     long result = 0;
     do {
+        result = 0;
         printf("Please provide bit length of the key (between 1024 and 4096):\n> ");
-    } while (!rnp_secure_get_long_from_fd(stdin, &result) ||
+    } while (!rnp_secure_get_long_from_fd(input_fp, &result) ||
              !is_rsa_keysize_supported(result));
     return result;
 }
@@ -144,7 +145,8 @@ ask_bitlen()
 pgp_errcode_t
 rnp_generate_key_expert_mode(rnp_t *rnp)
 {
-    rnp->action.generate_key_ctx.key_alg = (pgp_pubkey_alg_t) ask_algorithm();
+    FILE *input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
+    rnp->action.generate_key_ctx.key_alg = (pgp_pubkey_alg_t) ask_algorithm(input_fd);
 
     // get more details about the key
     switch (rnp->action.generate_key_ctx.key_alg) {
@@ -152,11 +154,11 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
         // Those algorithms must _NOT_ be supported
         //  case PGP_PKA_RSA_ENCRYPT_ONLY:
         //  case PGP_PKA_RSA_SIGN_ONLY:
-        rnp->action.generate_key_ctx.rsa.modulus_bit_len = ask_bitlen();
+        rnp->action.generate_key_ctx.rsa.modulus_bit_len = ask_bitlen(input_fd);
         break;
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
-        rnp->action.generate_key_ctx.ecc.curve = ask_curve();
+        rnp->action.generate_key_ctx.ecc.curve = ask_curve(input_fd);
         break;
     case PGP_PKA_EDDSA:
         rnp->action.generate_key_ctx.ecc.curve = PGP_CURVE_ED25519;

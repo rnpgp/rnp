@@ -52,14 +52,14 @@ enum key_store_format_t { GPG_KEY_STORE, SSH_KEY_STORE, KBX_KEY_STORE };
 /* structure used to keep application-wide rnp configuration: keyrings, password io, whatever
  * else */
 typedef struct rnp_t {
-    void *    pubring;   /* public key ring */
-    void *    secring;   /* s3kr1t key ring */
-    pgp_io_t *io;        /* the io struct for results/errs */
-    void *    passfp;    /* file pointer for password input */
-    char *    pubpath;   /* path to the public keyring */
-    char *    secpath;   /* path to the secret keyring */
-    char *    defkey;    /* default key id */
-    int       pswdtries; /* number of password tries, -1 for unlimited */
+    void *    pubring;       /* public key ring */
+    void *    secring;       /* s3kr1t key ring */
+    pgp_io_t *io;            /* the io struct for results/errs */
+    void *    user_input_fp; /* file pointer for password input */
+    char *    pubpath;       /* path to the public keyring */
+    char *    secpath;       /* path to the secret keyring */
+    char *    defkey;        /* default key id */
+    int       pswdtries;     /* number of password tries, -1 for unlimited */
 
     enum key_store_format_t key_store_format; /* keyring format */
     union {
@@ -102,7 +102,7 @@ typedef struct rnp_ctx_t {
 /* initialize rnp using the init structure  */
 int rnp_init(rnp_t *, const rnp_params_t *);
 /* finish work with rnp and cleanup the memory */
-int rnp_end(rnp_t *);
+void rnp_end(rnp_t *);
 
 /* rnp initialization parameters : init and free */
 int  rnp_params_init(rnp_params_t *);

@@ -66,7 +66,5 @@ rnpkeys_exportkey_verifyUserId(void **state)
     exportedkey = rnp_export_key(&rnp, "LOGNAME");
     rnp_assert_null(rstate, exportedkey);
     free(exportedkey);
-
-    /* Free memory and other allocated resources. */
-    rnp_assert_ok(rstate, rnp_end(&rnp));
+    rnp_end(&rnp); // Free memory and other allocated resources.
 }
