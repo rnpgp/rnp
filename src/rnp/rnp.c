@@ -632,7 +632,7 @@ main(int argc, char **argv)
 
     rnp_params_free(&rnp_params);
 
-    if (!rnp_key_store_load_keys(&rnp, rnp_cfg_getint(&cfg, CFG_NEEDSSECKEY))) {
+    if (!rnp_key_store_load_keys(&rnp, (bool)rnp_cfg_getint(&cfg, CFG_NEEDSSECKEY))) {
         fputs("fatal: failed to load keys\n", stderr);
         return EXIT_ERROR;
     }

@@ -122,7 +122,7 @@ main(int argc, char **argv)
 
     rnp_params_free(&rnp_params);
 
-    if (!rnp_key_store_load_keys(&rnp, 1)) {
+    if (!rnp_key_store_load_keys(&rnp, true)) {
         /* Keys mightn't loaded if this is a key generation step. */
         if (cmd != CMD_GENERATE_KEY) {
             fputs("fatal: failed to load keys\n", stderr);

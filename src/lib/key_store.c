@@ -73,7 +73,7 @@ rnp_key_store_read_keyring(rnp_t *rnp, const char *path)
 }
 
 int
-rnp_key_store_load_keys(rnp_t *rnp, int loadsecret)
+rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 {
     char      id[MAX_ID_LENGTH];
     void *    newring;

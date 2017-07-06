@@ -762,7 +762,7 @@ pgp_mem_data(pgp_memory_t *mem)
 }
 
 /* read a gile into an pgp_memory_t */
-int
+bool
 pgp_mem_readfile(pgp_memory_t *mem, const char *f)
 {
     struct stat st;
@@ -771,7 +771,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
 
     if ((fp = fopen(f, "rb")) == NULL) {
         (void) fprintf(stderr, "pgp_mem_readfile: can't open \"%s\"\n", f);
-        return RNP_FAIL;
+        return false;
     }
     (void) fstat(fileno(fp), &st);
     mem->allocated = (size_t) st.st_size;
@@ -781,7 +781,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
         if ((mem->buf = calloc(1, mem->allocated)) == NULL) {
             (void) fprintf(stderr, "pgp_mem_readfile: calloc\n");
             (void) fclose(fp);
-            return RNP_FAIL;
+            return false;
         }
         /* read into contents of mem */
         for (mem->length = 0; (cc = (int) read(fileno(fp),
@@ -794,7 +794,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
         mem->mmapped = 1;
     }
     (void) fclose(fp);
-    return (mem->allocated == mem->length) ? RNP_OK : RNP_FAIL;
+    return (mem->allocated == mem->length);
 }
 
 int

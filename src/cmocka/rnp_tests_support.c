@@ -29,6 +29,7 @@
 #include <setjmp.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -49,7 +50,7 @@
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .
  */
-int
+bool
 file_exists(const char *path)
 {
     struct stat st = {0};
@@ -57,7 +58,7 @@ file_exists(const char *path)
 }
 
 /* Check if a directory exists */
-int
+bool
 dir_exists(const char *path)
 {
     struct stat st = {0};
@@ -67,7 +68,7 @@ dir_exists(const char *path)
 /* Check if a file is empty
  * Use with assert_true and rnp_assert_false(rstate, .
  */
-int
+bool
 file_empty(const char *path)
 {
     struct stat st = {0};
