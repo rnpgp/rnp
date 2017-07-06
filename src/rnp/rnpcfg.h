@@ -27,6 +27,7 @@
 #define __RNP__CFG_H__
 
 #include <rnp.h>
+#include <stdbool.h>
 
 /* cfg variables known by rnp */
 #define CFG_OVERWRITE "overwrite" /* overwrite output file if it is already exist or fail */
