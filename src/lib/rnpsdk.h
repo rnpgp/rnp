@@ -78,8 +78,4 @@ int64_t rnp_filemtime(const char *path);
 
 const char *rnp_filename(const char *path);
 
-int grabdate(const char *s, int64_t *t);
-uint64_t get_duration(const char *s);
-int64_t get_birthtime(const char *s);
-
 #endif

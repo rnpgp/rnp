@@ -86,6 +86,11 @@ void rnp_cfg_free(rnp_cfg_t *cfg);
 int rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);
 int rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
 int rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
+
+/* rnp CLI helper functions */
 int rnp_path_compose(const char *dir, const char *subdir, const char *filename, char *res);
+bool grabdate(const char *s, int64_t *t);
+uint64_t get_duration(const char *s);
+int64_t get_birthtime(const char *s);
 
 #endif

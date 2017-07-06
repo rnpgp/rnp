@@ -500,3 +500,104 @@ rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
 
     return RNP_OK;
 }
+
+/** 
+ * @brief Grabs date from the string in %Y-%m-%d format
+ * 
+ * @param s [in] NULL-terminated string with the date
+ * @param t [out] On successfull return result will be placed here
+ * @return true on success or false otherwise
+ */
+
+bool
+grabdate(const char *s, int64_t *t)
+{
+    static regex_t r;
+    static int     compiled;
+    regmatch_t     matches[10];
+    struct tm      tm;
+
+    if (!compiled) {
+        compiled = 1;
+        (void) regcomp(
+          &r, "([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])", REG_EXTENDED);
+    }
+    if (regexec(&r, s, 10, matches, 0) == 0) {
+        (void) memset(&tm, 0x0, sizeof(tm));
+        tm.tm_year = (int) strtol(&s[(int) matches[1].rm_so], NULL, 10);
+        tm.tm_mon = (int) strtol(&s[(int) matches[2].rm_so], NULL, 10) - 1;
+        tm.tm_mday = (int) strtol(&s[(int) matches[3].rm_so], NULL, 10);
+        *t = mktime(&tm);
+        return true;
+    }
+    return false;
+}
+
+/** 
+ * @brief Get signature validity duration time from the user input
+ *
+ * Signature duration may be specified in different formats:
+ * - 10d : 10 days (you can use [h]ours, d[ays], [w]eeks, [m]onthes)
+ * - 2017-07-12 : as the exact date when signature becomes invalid
+ * - 60000 : number of seconds
+ * 
+ * @param s [in] NULL-terminated string with the date
+ * @param t [out] On successfull return result will be placed here
+ * @return duration time in seconds
+ */
+
+uint64_t
+get_duration(const char *s)
+{
+    uint64_t now;
+    int64_t  t;
+    char *   mult;
+
+    if ((s == NULL) || (strlen(s) < 1)) {
+        return 0;
+    }
+    now = (uint64_t) strtoull(s, NULL, 10);
+    if ((mult = strchr("hdwmy", s[strlen(s) - 1])) != NULL) {
+        switch (*mult) {
+        case 'h':
+            return now * 60 * 60;
+        case 'd':
+            return now * 60 * 60 * 24;
+        case 'w':
+            return now * 60 * 60 * 24 * 7;
+        case 'm':
+            return now * 60 * 60 * 24 * 31;
+        case 'y':
+            return now * 60 * 60 * 24 * 365;
+        }
+    }
+    if (grabdate(s, &t)) {
+        return t;
+    }
+    return (uint64_t) strtoll(s, NULL, 10);
+}
+
+/** 
+ * @brief Get signature validity start time from the user input
+ *
+ * Signature validity may be specified in different formats:
+ * - 2017-07-12 : as the exact date when signature becomes invalid
+ * - 1499334073 : timestamp
+ * 
+ * @param s [in] NULL-terminated string with the date
+ * @return timestamp of the validity start
+ */
+
+int64_t
+get_birthtime(const char *s)
+{
+    int64_t t;
+
+    if (s == NULL) {
+        return time(NULL);
+    }
+    if (grabdate(s, &t)) {
+        return t;
+    }
+    return (uint64_t) strtoll(s, NULL, 10);
+}
