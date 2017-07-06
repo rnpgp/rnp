@@ -247,21 +247,22 @@ show_output(rnp_cfg_t *cfg, char *out, int size, const char *header)
 
         fd = open(outfile, flags, 0600);
         if (fd < 0) {
-            if (overwrite && (errno == EEXIST)) {
-                fprintf(stderr, "Failed to write to the %s : file already exists.\n", outfile);
-            } else {
-                fprintf(
-                  stderr, "Failed to open file %s for writing : error %d.\n", outfile, errno);
-            }
+            fprintf(stderr, "Failed to write to the %s : %s.\n", outfile, strerror(errno));
             return RNP_FAIL;
         }
     }
 
     for (cc = 0; cc < size; cc += n) {
         if ((n = write(fd, &out[cc], size - cc)) <= 0) {
+            if (n < 0) {
+                fprintf(stderr, "Write failed: %s.\n", strerror(errno));
+            }
+
             break;
         }
     }
+
+    
 
     if (fd != STDOUT_FILENO) {
         close(fd);
