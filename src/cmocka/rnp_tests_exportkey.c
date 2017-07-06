@@ -50,7 +50,7 @@ rnpkeys_exportkey_verifyUserId(void **state)
     rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
     rnp_assert_ok(rstate, rnp_secret_count(&rnp));
     rnp_assert_ok(rstate, rnp_public_count(&rnp));
-    rnp_assert_ok(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
+    rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
     /* Try to export the key without passing userid from the interface : this should fail*/
     exportedkey = rnp_export_key(&rnp, NULL);

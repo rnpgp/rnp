@@ -889,7 +889,7 @@ rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
 }
 
 /* find a key in a keyring */
-int
+bool
 rnp_find_key(rnp_t *rnp, const char *id)
 {
     pgp_io_t *io;

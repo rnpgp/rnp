@@ -32,6 +32,7 @@
 #define RNP_H_
 
 #include <stddef.h>
+#include <stdbool.h>
 #include "packet.h"
 #include "constants.h"
 
@@ -125,7 +126,7 @@ int rnp_set_key_store_format(rnp_t *, const char *);
 /* key management */
 int   rnp_list_keys(rnp_t *, const int);
 int   rnp_list_keys_json(rnp_t *, char **, const int);
-int   rnp_find_key(rnp_t *, const char *);
+bool  rnp_find_key(rnp_t *, const char *);
 char *rnp_get_key(rnp_t *, const char *, const char *);
 char *rnp_export_key(rnp_t *, const char *);
 int   rnp_import_key(rnp_t *, char *);

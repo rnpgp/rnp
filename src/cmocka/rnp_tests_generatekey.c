@@ -70,7 +70,7 @@ rnpkeys_generatekey_testSignature(void **state)
         rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
         /* Make sure just generated key is present in the keyring */
-        rnp_assert_ok(rstate, rnp_find_key(&rnp, userId));
+        rnp_assert_true(rstate, rnp_find_key(&rnp, userId));
 
         /* Cleanup */
         close(pipefd[0]);
@@ -174,7 +174,7 @@ rnpkeys_generatekey_testEncryption(void **state)
     rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
     /* Make sure just generated key is present in the keyring */
-    rnp_assert_ok(rstate, rnp_find_key(&rnp, userId));
+    rnp_assert_true(rstate, rnp_find_key(&rnp, userId));
 
     /* Cleanup */
     close(pipefd[0]);
@@ -266,7 +266,7 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
             rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
             rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
-            rnp_assert_ok(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
+            rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
             /* Close pipe and free allocated memory */
             close(pipefd[0]);
@@ -312,7 +312,7 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
             /*Load the newly generated rnp key*/
             rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
             rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
-            rnp_assert_ok(rstate, rnp_find_key(&rnp, userId));
+            rnp_assert_true(rstate, rnp_find_key(&rnp, userId));
 
             /* Close pipe and free allocated memory */
             close(pipefd[0]);
@@ -351,7 +351,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
     rnp_assert_int_equal(rstate, 1, rnp_secret_count(&rnp));
     rnp_assert_int_equal(rstate, 1, rnp_public_count(&rnp));
-    rnp_assert_ok(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
+    rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
     close(pipefd[0]);
     rnp_end(&rnp);
@@ -383,7 +383,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     rnp_assert_int_equal(rstate, 1, rnp_secret_count(&rnp));
     rnp_assert_int_equal(rstate, 1, rnp_public_count(&rnp));
     /* We should not find this key */
-    rnp_assert_fail(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
+    rnp_assert_false(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
     close(pipefd[0]);
     rnp_end(&rnp); // Free memory and other allocated resources.
@@ -423,7 +423,7 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
     rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
     rnp_assert_int_equal(rstate, 1, rnp_secret_count(&rnp));
     rnp_assert_int_equal(rstate, 1, rnp_public_count(&rnp));
-    rnp_assert_ok(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
+    rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
     close(pipefd[0]);
     rnp_end(&rnp);
@@ -456,7 +456,7 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
     rnp_assert_int_equal(rstate, 1, rnp_secret_count(&rnp));
     rnp_assert_int_equal(rstate, 1, rnp_public_count(&rnp));
     /* We should not find this key */
-    rnp_assert_fail(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
+    rnp_assert_false(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
     close(pipefd[0]);
     rnp_end(&rnp);
