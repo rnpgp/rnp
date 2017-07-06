@@ -42,7 +42,7 @@
 
 #include "pgpsum.h"
 #include "hash.h"
-#include "../common/constants.h"
+#include "constants.h"
 
 #ifndef USE_ARG
 #define USE_ARG(x) /*LINTED*/ (void) &(x)

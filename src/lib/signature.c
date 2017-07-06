@@ -89,7 +89,7 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 #include "rnpdefs.h"
 #include "rnpdigest.h"
 #include "signature.h"
-#include "../common/utils.h"
+#include "utils.h"
 
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 

@@ -35,7 +35,7 @@
 #include "crypto.h"
 #include "signature.h"
 #include "packet-show.h"
-#include "../common/constants.h"
+#include "constants.h"
 
 #ifndef __printflike
 #define __printflike(n, m) __attribute__((format(printf, n, m)))

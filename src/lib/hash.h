@@ -34,7 +34,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include "../common/utils.h"
+#include "utils.h"
 
 /** Hashing Algorithm Numbers.
  * OpenPGP assigns a unique Algorithm Number to each algorithm that is

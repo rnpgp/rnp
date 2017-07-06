@@ -83,8 +83,8 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "packet-key.h"
 #include "s2k.h"
 #include "ecdsa.h"
-#include "../common/utils.h"
-#include "../common/constants.h"
+#include "utils.h"
+#include "constants.h"
 
 /**
  * EC Curves definition used by implementation

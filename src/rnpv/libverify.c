@@ -49,7 +49,7 @@
 #include <bzlib.h>
 #include <zlib.h>
 
-#include "../common/constants.h"
+#include "constants.h"
 
 #include "crypto.h"
 #include "rsa.h"

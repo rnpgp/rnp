@@ -27,14 +27,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "rnpcfg.h"
-#include <rnpsdk.h>
-#include <../common/constants.h>
-
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <regex.h>
+
+#include "rnpcfg.h"
+#include "rnpsdk.h"
+#include "constants.h"
 
 /* SHA1 is now looking as though it should not be used.  Let's
  * pre-empt this by specifying SHA256 - gpg interoperates just fine

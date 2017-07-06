@@ -83,8 +83,8 @@
 #include "rsa.h"
 #include "bn.h"
 
-#include "../common/utils.h"
-#include "../common/constants.h"
+#include "utils.h"
+#include "constants.h"
 
 /**
    \ingroup Core_Crypto
