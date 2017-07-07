@@ -974,7 +974,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
               const char *        inname,
               const char *        outname,
               const pgp_seckey_t *seckey,
-              const unsigned      cleartext)
+              bool                cleartext)
 {
     pgp_create_sig_t *sig;
     pgp_sig_type_t    sig_type;
@@ -1117,7 +1117,7 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
              const void *        input,
              const size_t        insize,
              const pgp_seckey_t *seckey,
-             const unsigned      cleartext)
+             const bool          cleartext)
 {
     pgp_litdata_enum  ld_type;
     pgp_create_sig_t *sig;

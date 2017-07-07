@@ -1128,8 +1128,8 @@ rnp_sign_file(rnp_ctx_t * ctx,
               const char *userid,
               const char *f,
               const char *out,
-              int         cleartext,
-              int         detached)
+              bool        cleartext,
+              bool        detached)
 {
     const pgp_key_t *keypair;
     const pgp_key_t *pubkey;
@@ -1187,7 +1187,7 @@ rnp_sign_file(rnp_ctx_t * ctx,
     if (detached) {
         ret = pgp_sign_detached(ctx, io, f, out, seckey);
     } else {
-        ret = pgp_sign_file(ctx, io, f, out, seckey, (unsigned) cleartext);
+        ret = pgp_sign_file(ctx, io, f, out, seckey, cleartext);
     }
     pgp_forget(seckey, sizeof(*seckey));
     return ret;
@@ -1233,13 +1233,13 @@ rnp_verify_file(rnp_ctx_t *ctx, const char *in, const char *out, int armored)
 
 /* sign some memory */
 int
-rnp_sign_memory(rnp_ctx_t *    ctx,
-                const char *   userid,
-                char *         mem,
-                size_t         size,
-                char *         out,
-                size_t         outsize,
-                const unsigned cleartext)
+rnp_sign_memory(rnp_ctx_t * ctx,
+                const char *userid,
+                char *      mem,
+                size_t      size,
+                char *      out,
+                size_t      outsize,
+                bool        cleartext)
 {
     const pgp_key_t *keypair;
     const pgp_key_t *pubkey;
@@ -1491,12 +1491,12 @@ rnp_list_packets(rnp_t *rnp, char *f, int armor)
 }
 
 /* validate all sigs in the pub keyring */
-int
+bool
 rnp_validate_sigs(rnp_t *rnp)
 {
     pgp_validation_t result;
 
-    return (int) pgp_validate_all_sigs(&result, rnp->pubring, NULL);
+    return pgp_validate_all_sigs(&result, rnp->pubring, NULL);
 }
 
 /* print the json out on 'fp' */

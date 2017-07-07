@@ -96,19 +96,19 @@ unsigned check_binary_sig(const uint8_t *,
                           const pgp_sig_t *,
                           const pgp_pubkey_t *);
 
-unsigned pgp_validate_file(pgp_io_t *,
-                           pgp_validation_t *,
-                           const char *,
-                           const char *,
-                           const int,
-                           const rnp_key_store_t *);
+bool pgp_validate_file(pgp_io_t *,
+                       pgp_validation_t *,
+                       const char *,
+                       const char *,
+                       const bool,
+                       const rnp_key_store_t *);
 
-unsigned pgp_validate_mem(pgp_io_t *,
-                          pgp_validation_t *,
-                          pgp_memory_t *,
-                          pgp_memory_t **,
-                          const int,
-                          const rnp_key_store_t *);
+bool pgp_validate_mem(pgp_io_t *,
+                      pgp_validation_t *,
+                      pgp_memory_t *,
+                      pgp_memory_t **,
+                      const bool,
+                      const rnp_key_store_t *);
 
 pgp_cb_ret_t validate_data_cb(const pgp_packet_t *, pgp_cbdata_t *);
 

@@ -137,11 +137,11 @@ int   rnp_public_count(rnp_t *);
 /* file management */
 int rnp_encrypt_file(rnp_ctx_t *, const char *, const char *, const char *);
 int rnp_decrypt_file(rnp_ctx_t *, const char *, const char *);
-int rnp_sign_file(rnp_ctx_t *, const char *, const char *, const char *, int, int);
+int rnp_sign_file(rnp_ctx_t *, const char *, const char *, const char *, bool, bool);
 int rnp_verify_file(rnp_ctx_t *, const char *, const char *, int);
 
 /* memory signing and encryption */
-int rnp_sign_memory(rnp_ctx_t *, const char *, char *, size_t, char *, size_t, const unsigned);
+int rnp_sign_memory(rnp_ctx_t *, const char *, char *, size_t, char *, size_t, bool);
 int rnp_verify_memory(rnp_ctx_t *, const void *, const size_t, void *, size_t, const int);
 int rnp_encrypt_memory(rnp_ctx_t *, const char *, void *, const size_t, char *, size_t);
 int rnp_decrypt_memory(rnp_ctx_t *, const void *, const size_t, char *, size_t);
@@ -152,7 +152,7 @@ int rnp_match_keys(rnp_t *, char *, const char *, void *, const int);
 int rnp_match_pubkeys(rnp_t *, char *, void *);
 int rnp_format_json(void *, const char *, const int);
 
-int rnp_validate_sigs(rnp_t *);
+bool rnp_validate_sigs(rnp_t *);
 
 /* save pgp key in ssh format */
 int rnp_write_sshkey(rnp_t *, char *, const char *, char *, size_t);

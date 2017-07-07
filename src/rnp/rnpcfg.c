@@ -501,9 +501,9 @@ rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
     return RNP_OK;
 }
 
-/** 
+/**
  * @brief Grabs date from the string in %Y-%m-%d format
- * 
+ *
  * @param s [in] NULL-terminated string with the date
  * @param t [out] On successfull return result will be placed here
  * @return true on success or false otherwise
@@ -533,14 +533,14 @@ grabdate(const char *s, int64_t *t)
     return false;
 }
 
-/** 
+/**
  * @brief Get signature validity duration time from the user input
  *
  * Signature duration may be specified in different formats:
  * - 10d : 10 days (you can use [h]ours, d[ays], [w]eeks, [m]onthes)
  * - 2017-07-12 : as the exact date when signature becomes invalid
  * - 60000 : number of seconds
- * 
+ *
  * @param s [in] NULL-terminated string with the date
  * @param t [out] On successfull return result will be placed here
  * @return duration time in seconds
@@ -577,13 +577,13 @@ get_duration(const char *s)
     return (uint64_t) strtoll(s, NULL, 10);
 }
 
-/** 
+/**
  * @brief Get signature validity start time from the user input
  *
  * Signature validity may be specified in different formats:
  * - 2017-07-12 : as the exact date when signature becomes invalid
  * - 1499334073 : timestamp
- * 
+ *
  * @param s [in] NULL-terminated string with the date
  * @return timestamp of the validity start
  */

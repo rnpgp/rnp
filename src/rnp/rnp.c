@@ -220,7 +220,7 @@ stdin_to_mem(rnp_cfg_t *cfg, char **temp, char **out, unsigned *maxsize)
 }
 
 /* output the text to stdout */
-static int
+static bool
 show_output(char *out, int size, const char *header)
 {
     int cc;
@@ -228,7 +228,7 @@ show_output(char *out, int size, const char *header)
 
     if (size <= 0) {
         fprintf(stderr, "%s\n", header);
-        return RNP_FAIL;
+        return false;
     }
     for (cc = 0; cc < size; cc += n) {
         if ((n = write(STDOUT_FILENO, &out[cc], size - cc)) <= 0) {
@@ -237,13 +237,13 @@ show_output(char *out, int size, const char *header)
     }
     if (cc < size) {
         fputs("Short write\n", stderr);
-        return RNP_FAIL;
+        return false;
     }
-    return cc == size ? RNP_OK : RNP_FAIL;
+    return cc == size;
 }
 
 /* do a command once for a specified file 'f' */
-static int
+static bool
 rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 {
     unsigned    maxsize;
@@ -251,9 +251,10 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     char *      in = NULL;
     const char *outf;
     const char *userid;
-    int         ret;
+    bool        ret = false;
     int         cc;
-    int         clearsign = (cmd == CMD_CLEARSIGN) ? 1 : 0;
+    int         sz;
+    bool        clearsign = (cmd == CMD_CLEARSIGN);
     rnp_ctx_t   ctx;
 
     /* checking userid for the upcoming operation */
@@ -266,7 +267,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 
         if (!userid) {
             fprintf(stderr, "user/key id is not available but required\n");
-            ret = 0;
+            ret = false;
             goto done;
         }
     }
@@ -287,19 +288,19 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            ret = rnp_encrypt_memory(&ctx, userid, in, cc, out, maxsize);
-            ret = show_output(out, ret, "Bad memory encryption");
+            sz = rnp_encrypt_memory(&ctx, userid, in, cc, out, maxsize);
+            ret = show_output(out, sz, "Bad memory encryption");
         } else {
-            ret = rnp_encrypt_file(&ctx, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE));
+            ret = rnp_encrypt_file(&ctx, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
         }
         goto done;
     case CMD_DECRYPT:
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            ret = rnp_decrypt_memory(&ctx, in, cc, out, maxsize);
-            ret = show_output(out, ret, "Bad memory decryption");
+            sz = rnp_decrypt_memory(&ctx, in, cc, out, maxsize);
+            ret = show_output(out, sz, "Bad memory decryption");
         } else {
-            ret = rnp_decrypt_file(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE));
+            ret = rnp_decrypt_file(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
         }
         goto done;
     case CMD_CLEARSIGN:
@@ -308,7 +309,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 
         if (ctx.halg == PGP_HASH_UNKNOWN) {
             fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_cfg_get(cfg, CFG_HASH));
-            ret = 0;
+            ret = false;
             goto done;
         }
 
@@ -317,40 +318,41 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            ret = rnp_sign_memory(&ctx, userid, in, cc, out, maxsize, clearsign);
-            ret = show_output(out, ret, "Bad memory signature");
+            sz = rnp_sign_memory(&ctx, userid, in, cc, out, maxsize, clearsign);
+            ret = show_output(out, sz, "Bad memory signature");
         } else {
             ret = rnp_sign_file(&ctx,
                                 userid,
                                 f,
                                 rnp_cfg_get(cfg, CFG_OUTFILE),
                                 clearsign,
-                                rnp_cfg_getint(cfg, CFG_DETACHED));
+                                (bool) rnp_cfg_getint(cfg, CFG_DETACHED)) == RNP_OK;
         }
         goto done;
     case CMD_VERIFY:
     case CMD_VERIFY_CAT:
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            ret = rnp_verify_memory(&ctx,
-                                    in,
-                                    cc,
-                                    (cmd == CMD_VERIFY_CAT) ? out : NULL,
-                                    (cmd == CMD_VERIFY_CAT) ? maxsize : 0,
-                                    ctx.armour);
-            ret = show_output(out, ret, "Bad memory verification");
+            sz = rnp_verify_memory(&ctx,
+                                   in,
+                                   cc,
+                                   (cmd == CMD_VERIFY_CAT) ? out : NULL,
+                                   (cmd == CMD_VERIFY_CAT) ? maxsize : 0,
+                                   ctx.armour);
+            ret = show_output(out, sz, "Bad memory verification");
         } else {
             outf = rnp_cfg_get(cfg, CFG_OUTFILE);
             ret = rnp_verify_file(
-              &ctx, f, (cmd == CMD_VERIFY) ? NULL : (outf) ? outf : "-", ctx.armour);
+                    &ctx, f, (cmd == CMD_VERIFY) ? NULL : (outf) ? outf : "-", ctx.armour) ==
+                  RNP_OK;
         }
         goto done;
     case CMD_LIST_PACKETS:
         if (f == NULL) {
             fprintf(stderr, "%s: No filename provided\n", __progname);
-            ret = 0;
+            ret = false;
         } else {
-            ret = rnp_list_packets(rnp, f, ctx.armour);
+            ret = rnp_list_packets(rnp, f, ctx.armour) == RNP_OK;
         }
         goto done;
     case CMD_SHOW_KEYS:
@@ -632,7 +634,7 @@ main(int argc, char **argv)
 
     rnp_params_free(&rnp_params);
 
-    if (!rnp_key_store_load_keys(&rnp, (bool)rnp_cfg_getint(&cfg, CFG_NEEDSSECKEY))) {
+    if (!rnp_key_store_load_keys(&rnp, (bool) rnp_cfg_getint(&cfg, CFG_NEEDSSECKEY))) {
         fputs("fatal: failed to load keys\n", stderr);
         return EXIT_ERROR;
     }
