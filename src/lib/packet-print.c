@@ -499,6 +499,11 @@ format_subsig_line(char *              buffer,
     char expired[128];
     int  n = 0;
 
+    expired[0] = '\0';
+    if (PUBKEY_DOES_EXPIRE(&key->key.pubkey)) {
+        format_pubkey_expiration_notice(
+          expired, &key->key.pubkey, time(NULL), sizeof(expired));
+    }
     if (subsig->sig.info.version == 4 && subsig->sig.info.type == PGP_SIG_SUBKEY) {
         /* XXX: The character count of this was previously ignored.
          *      This seems to have been incorrect, but if not
