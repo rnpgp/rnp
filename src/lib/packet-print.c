@@ -100,6 +100,7 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #define SIGNATURE_PADDING "          "
 
 /* static functions */
+static bool format_key_usage(char *buffer, size_t size, uint8_t flags);
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
 static void
@@ -385,14 +386,17 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
 {
     char keyid[512];
     char t[32];
+    char key_usage[8];
 
+    format_key_usage(key_usage, sizeof(key_usage), key->flags);
     return snprintf(buf,
                     size,
-                    "encryption %d/%s %s %s %s\n",
+                    "encryption %d/%s %s %s [%s] %s\n",
                     numkeybits(&key->enckey),
                     pgp_show_pka(key->enckey.alg),
                     rnp_strhexdump(keyid, key->encid, PGP_KEY_ID_SIZE, ""),
                     ptimestr(t, sizeof(t), key->enckey.birthtime),
+                    key_usage,
                     expired);
 }
 
@@ -557,6 +561,29 @@ format_uid_notice(char *                 buffer,
     return n;
 }
 
+static bool
+format_key_usage(char *buffer, size_t size, uint8_t flags)
+{
+    static const pgp_bit_map_t flags_map[] = {
+      {PGP_KF_ENCRYPT_COMMS | PGP_KF_ENCRYPT_STORAGE, "E"},
+      {PGP_KF_SIGN, "S"},
+      {PGP_KF_CERTIFY, "C"},
+      {PGP_KF_AUTH, "A"},
+    };
+
+    *buffer = '\0';
+    for (size_t i = 0; i < PGP_ARRAY_SIZE(flags_map); i++) {
+        if (flags & flags_map[i].mask) {
+            const size_t current_length = strlen(buffer);
+            if (current_length == size - 1) {
+                return false;
+            }
+            strncat(buffer, flags_map[i].string, size - current_length - 1);
+        }
+    }
+    return true;
+}
+
 #ifndef KB
 #define KB(x) ((x) *1024)
 #endif
@@ -584,6 +611,7 @@ pgp_sprint_keydata(pgp_io_t *             io,
     char     fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
     char     expiration_notice[128];
     char     birthtime[32];
+    char     key_usage[8];
 
     if (key->revoked)
         return -1;
@@ -628,6 +656,10 @@ pgp_sprint_keydata(pgp_io_t *             io,
 
     ptimestr(birthtime, sizeof(birthtime), pubkey->birthtime);
 
+    if (!format_key_usage(key_usage, sizeof(key_usage), key->flags)) {
+        return -1;
+    }
+
     /* XXX: For now we assume that the output string won't exceed 16KiB
      *      in length but this is completely arbitrary. What this
      *      really needs is some objective facts to base this
@@ -639,12 +671,13 @@ pgp_sprint_keydata(pgp_io_t *             io,
     if (string != NULL) {
         total_length = snprintf(string,
                                 KB(16),
-                                "%s %d/%s %s %s %s\nKey fingerprint: %s\n%s",
+                                "%s %d/%s %s %s [%s] %s\nKey fingerprint: %s\n%s",
                                 header,
                                 numkeybits(pubkey),
                                 pgp_show_pka(pubkey->alg),
                                 keyid,
                                 birthtime,
+                                key_usage,
                                 expiration_notice,
                                 fingerprint,
                                 uid_notices);
@@ -668,11 +701,16 @@ pgp_sprint_json(pgp_io_t *             io,
 {
     char     keyid[PGP_KEY_ID_SIZE * 3];
     char     fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
+    char     key_usage[8];
     int      r;
     unsigned i;
     unsigned j;
 
     if (key == NULL || key->revoked) {
+        return -1;
+    }
+
+    if (!format_key_usage(key_usage, sizeof(key_usage), key->flags)) {
         return -1;
     }
 
@@ -691,6 +729,8 @@ pgp_sprint_json(pgp_io_t *             io,
         rnp_strhexdump(fp, key->sigfingerprint.fingerprint, key->sigfingerprint.length, "")));
     json_object_object_add(keyjson, "birthtime", json_object_new_int(pubkey->birthtime));
     json_object_object_add(keyjson, "duration", json_object_new_int(pubkey->duration));
+    json_object_object_add(keyjson, "flags", json_object_new_int(key->flags));
+    json_object_object_add(keyjson, "usage", json_object_new_string(key_usage));
 
     // iterating through the uids
     for (i = 0; i < key->uidc; i++) {

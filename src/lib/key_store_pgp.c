@@ -205,6 +205,10 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         revocation->code = pkt->u.ss_revocation.code;
         revocation->reason = rnp_strdup(pgp_show_ss_rr_code(pkt->u.ss_revocation.code));
         break;
+    case PGP_PTAG_SS_KEY_FLAGS:
+        key = &keyring->keys[keyring->keyc - 1];
+        key->flags = pkt->u.ss_key_flags.contents[0];
+        break;
     case PGP_PTAG_CT_SIGNATURE_FOOTER:
     case PGP_PARSER_ERRCODE:
         break;
