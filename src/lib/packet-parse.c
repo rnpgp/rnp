@@ -2424,6 +2424,12 @@ pgp_seckey_free(pgp_seckey_t *key)
     case PGP_PKA_ECDSA:
         free_BN(&key->key.ecc.x);
         break;
+
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        free_BN(&key->key.elgamal.x);
+        break;
+
     default:
         (void) fprintf(stderr,
                        "pgp_seckey_free: Unknown algorithm: %d (%s)\n",
