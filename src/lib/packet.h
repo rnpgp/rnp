@@ -606,6 +606,22 @@ typedef enum {
     PGP_SIG_3RD_PARTY = 0x50 /* Third-Party Confirmation signature */
 } pgp_sig_type_t;
 
+/** Key Flags
+ *
+ * \see RFC4880 5.2.3.21
+ */
+typedef enum {
+    PGP_KF_CERTIFY = 0x01,         /* This key may be used to certify other keys. */
+    PGP_KF_SIGN = 0x02,            /* This key may be used to sign data. */
+    PGP_KF_ENCRYPT_COMMS = 0x04,   /* This key may be used to encrypt communications. */
+    PGP_KF_ENCRYPT_STORAGE = 0x08, /* This key may be used to encrypt storage. */
+    PGP_KF_SPLIT = 0x10,           /* The private component of this key may have been split
+                                            by a secret-sharing mechanism. */
+    PGP_KF_AUTH = 0x20,            /* This key may be used for authentication. */
+    PGP_KF_SHARED = 0x80           /* The private component of this key may be in the
+                                            possession of more than one person. */
+} pgp_key_flags_t;
+
 /** Struct to hold params of an RSA signature */
 typedef struct pgp_rsa_sig_t {
     BIGNUM *sig; /* the signature value (m^d % n) */
@@ -1004,6 +1020,7 @@ typedef struct pgp_key_t {
     DYNARRAY(pgp_revoke_t, revoke);    /* array of signature revocations */
     pgp_content_enum  type;            /* type of key */
     pgp_keydata_key_t key;             /* pubkey/seckey data */
+    uint8_t           flags;           /* key flags */
     pgp_pubkey_t      sigkey;          /* signature key */
     uint8_t           sigid[PGP_KEY_ID_SIZE];
     pgp_fingerprint_t sigfingerprint; /* pgp signature fingerprint */

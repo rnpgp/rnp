@@ -247,6 +247,7 @@ uint_to_string(char *buff, const int buffsize, unsigned int num, int base)
 int
 setupPassphrasefd(int *pipefd)
 {
+    ssize_t r, p;
     if (pipe(pipefd) == -1) {
         perror("pipe");
         return RNP_FAIL;
@@ -254,7 +255,16 @@ setupPassphrasefd(int *pipefd)
 
     /*Write and close fd*/
     const char *password = "passwordforkeygeneration\0";
-    assert_int_equal(write(pipefd[1], password, strlen(password)), strlen(password));
+    r = strlen(password);
+    do {
+        p = write(pipefd[1], password, r);
+        if (p <= 0) {
+            perror("write");
+            return 0;
+        }
+        password += p;
+        r -= p;
+    } while (r);
     close(pipefd[1]);
     return RNP_OK;
 }
