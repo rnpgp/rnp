@@ -205,6 +205,10 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         revocation->code = pkt->u.ss_revocation.code;
         revocation->reason = rnp_strdup(pgp_show_ss_rr_code(pkt->u.ss_revocation.code));
         break;
+    case PGP_PTAG_SS_KEY_FLAGS:
+        key = &keyring->keys[keyring->keyc - 1];
+        key->flags = pkt->u.ss_key_flags.contents[0];
+        break;
     case PGP_PTAG_CT_SIGNATURE_FOOTER:
     case PGP_PARSER_ERRCODE:
         break;
@@ -252,12 +256,11 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
 
     (void) memset(&cb, 0x0, sizeof(cb));
     cb.keyring = keyring;
-    stream = pgp_new(sizeof(*stream));
-    pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
     if (!pgp_setup_memory_read(io, &stream, mem, &cb, cb_keyring_read, noaccum)) {
         (void) fprintf(io->errs, "can't setup memory read\n");
         return RNP_FAIL;
     }
+    pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
     if (armour) {
         pgp_reader_push_dearmour(stream);
     }

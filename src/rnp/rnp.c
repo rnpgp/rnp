@@ -250,7 +250,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     char *      out = NULL;
     char *      in = NULL;
     const char *outf;
-    const char *userid;
+    const char *userid = NULL;
     bool        ret = false;
     int         cc;
     int         sz;

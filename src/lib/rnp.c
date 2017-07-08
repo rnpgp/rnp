@@ -325,6 +325,10 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
         birthtime = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
         p(fp, " ", ptimestr(tbuf, sizeof(tbuf), birthtime), NULL);
 
+        if (json_object_object_get_ex(obj, "usage", &tmp)) {
+            p(fp, " [", json_object_get_string(tmp), "]", NULL);
+        }
+
         if (json_object_object_get_ex(obj, "duration", &tmp)) {
             duration = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
             if (duration > 0) {
@@ -356,6 +360,7 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
 
     if (json_object_object_get_ex(obj, "encryption", &tmp)) {
         if (!json_object_is_type(tmp, json_type_null)) {
+            json_object *usage;
             p(fp, "encryption", NULL);
             pobj(fp, json_object_array_get_idx(tmp, 0), 1); /* size */
             p(fp, "/", NULL);
@@ -368,8 +373,11 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
                        sizeof(tbuf),
                        (time_t) strtoll(
                          json_object_get_string(json_object_array_get_idx(tmp, 3)), NULL, 10)),
-              "\n",
               NULL);
+            if (json_object_object_get_ex(obj, "usage", &usage)) {
+                p(fp, " [", json_object_get_string(usage), "]", NULL);
+            }
+            p(fp, "\n", NULL);
         }
     }
 
