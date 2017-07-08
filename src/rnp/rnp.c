@@ -262,8 +262,6 @@ show_output(rnp_cfg_t *cfg, char *out, int size, const char *header)
         }
     }
 
-    
-
     if (fd != STDOUT_FILENO) {
         close(fd);
     }
