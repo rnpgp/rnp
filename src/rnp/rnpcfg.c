@@ -36,21 +36,15 @@
 #include "rnpsdk.h"
 #include "constants.h"
 
-/* SHA1 is now looking as though it should not be used.  Let's
- * pre-empt this by specifying SHA256 - gpg interoperates just fine
- * with SHA256 - agc, 20090522
- */
-#define DEFAULT_HASH_ALG "SHA256"
-
-int
+bool
 rnp_cfg_init(rnp_cfg_t *cfg)
 {
     memset((void *) cfg, '\0', sizeof(rnp_cfg_t));
 
-    return RNP_OK;
+    return true;
 }
 
-int
+void
 rnp_cfg_load_defaults(rnp_cfg_t *cfg)
 {
     rnp_cfg_setint(cfg, CFG_OVERWRITE, 1);
@@ -61,11 +55,18 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_set(cfg, CFG_SUBDIRGPG, SUBDIRECTORY_RNP);
     rnp_cfg_set(cfg, CFG_SUBDIRSSH, SUBDIRECTORY_SSH);
     rnp_cfg_setint(cfg, CFG_NUMTRIES, MAX_PASSPHRASE_ATTEMPTS);
-
-    return RNP_OK;
 }
 
-int
+static void rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
+static bool rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);
+
+/** @brief apply configuration from keys-vals storage to rnp_params_t structure
+ *  @param cfg [in] rnp config, must be allocated and initialized
+ *  @param params [out] this structure will be filled so can be further feed into rnp_init
+ *
+ *  @return true on success, false if something went wrong
+ **/
+bool
 rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
 {
     int         passfd;
@@ -95,14 +96,15 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
     }
 
     /* detecting keystore pathes and format */
-    if (!rnp_cfg_get_ks_info(cfg, params))
-        return RNP_FAIL;
+    if (!rnp_cfg_get_ks_info(cfg, params)) {
+        fprintf(stderr, "rnp_cfg_apply: cannot obtain keystore path(es) \n");
+        return false;
+    }
 
     /* default key/userid */
-    if (!rnp_cfg_get_defkey(cfg, params))
-        return RNP_FAIL;
+    rnp_cfg_get_defkey(cfg, params);
 
-    return RNP_OK;
+    return true;
 }
 
 /* find the value name in the rnp_cfg */
@@ -116,8 +118,12 @@ rnp_cfg_find(rnp_cfg_t *cfg, const char *key)
     return (i == cfg->count) ? -1 : (int) i;
 }
 
-/* resize keys/vals arrays to the new size. Only expanding is supported */
-static int
+/** @brief resize keys/vals arrays to the new size. Only expanding is supported now.
+ *  Pointers keys and vals will be freed in rnp_cfg_free
+ *
+ *  @return true on success, false if allocation fails.
+ **/
+static bool
 rnp_cfg_resize(rnp_cfg_t *cfg, unsigned newsize)
 {
     char **temp;
@@ -127,9 +133,9 @@ rnp_cfg_resize(rnp_cfg_t *cfg, unsigned newsize)
         cfg->keys = calloc(sizeof(char *), newsize);
         cfg->vals = calloc(sizeof(char *), newsize);
 
-        if ((cfg->keys == NULL) || (cfg->keys == NULL)) {
+        if ((cfg->keys == NULL) || (cfg->vals == NULL)) {
             (void) fprintf(stderr, "rnp_cfg_resize: bad alloc\n");
-            return RNP_FAIL;
+            return false;
         }
         cfg->size = newsize;
     } else if (cfg->count == cfg->size) {
@@ -137,24 +143,30 @@ rnp_cfg_resize(rnp_cfg_t *cfg, unsigned newsize)
         temp = realloc(cfg->keys, sizeof(char *) * newsize);
         if (temp == NULL) {
             (void) fprintf(stderr, "rnp_cfg_resize: bad realloc\n");
-            return RNP_FAIL;
+            return false;
         }
         cfg->keys = temp;
 
         temp = realloc(cfg->vals, sizeof(char *) * newsize);
         if (temp == NULL) {
             (void) fprintf(stderr, "rnp_cfg_resize: bad realloc\n");
-            return RNP_FAIL;
+            return false;
         }
         cfg->vals = temp;
         cfg->size = newsize;
     }
 
-    return RNP_OK;
+    return true;
 }
 
-/* set val for the key in config. key and val are duplicated */
-int
+/** @brief set val for the key in config, copying them
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *  @param val value, must be null-terminated string
+ *
+ *  @return false if allocation is failed. keys and vals fields will be freed in rnp_cfg_free
+ **/
+bool
 rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val)
 {
     char *newval = NULL;
@@ -166,7 +178,7 @@ rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val)
         newval = rnp_strdup(val);
         if (newval == NULL) {
             (void) fprintf(stderr, "rnp_cfg_set: bad alloc\n");
-            return RNP_FAIL;
+            return false;
         }
     }
 
@@ -176,12 +188,13 @@ rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val)
             newkey = rnp_strdup(key);
             if (newkey == NULL) {
                 (void) fprintf(stderr, "rnp_cfg_set: bad alloc\n");
-                return RNP_FAIL;
+                free(newval);
+                return false;
             }
             cfg->keys[i = cfg->count++] = newkey;
         } else {
             free(newval);
-            return RNP_FAIL;
+            return false;
         }
     } else {
         /* replace the element in the array */
@@ -192,11 +205,16 @@ rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val)
     }
 
     cfg->vals[i] = newval;
-    return RNP_OK;
+    return true;
 }
 
-/* unset var for key, setting it to NULL if it exists in cfg */
-int
+/** @brief unset value for the key in config, making it NULL
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return true if value was found and set to NULL or false otherwise
+ **/
+bool
 rnp_cfg_unset(rnp_cfg_t *cfg, const char *key)
 {
     int i;
@@ -204,13 +222,19 @@ rnp_cfg_unset(rnp_cfg_t *cfg, const char *key)
     if ((i = rnp_cfg_find(cfg, key)) >= 0) {
         free(cfg->vals[i]);
         cfg->vals[i] = NULL;
-        return RNP_OK;
+        return true;
     }
-    return RNP_FAIL;
+    return false;
 }
 
-/* set int value for the key */
-int
+/** @brief set integer value for the key in config
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *  @param val value, which will be set
+ *
+ *  @return true if operation succeeds or false otherwise
+ **/
+bool
 rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val)
 {
     char st[16] = {0};
@@ -218,7 +242,12 @@ rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val)
     return rnp_cfg_set(cfg, key, st);
 }
 
-/* get value for the key. Returns NULL if there is no value */
+/** @brief return value for the key if there is one
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return true if operation succeeds or false otherwise
+ **/
 const char *
 rnp_cfg_get(rnp_cfg_t *cfg, const char *key)
 {
@@ -227,7 +256,12 @@ rnp_cfg_get(rnp_cfg_t *cfg, const char *key)
     return ((i = rnp_cfg_find(cfg, key)) < 0) ? NULL : cfg->vals[i];
 }
 
-/* get int value for the key */
+/** @brief return integer value for the key if there is one
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return integer value or 0 if there is no value or it is non-integer
+ **/
 int
 rnp_cfg_getint(rnp_cfg_t *cfg, const char *key)
 {
@@ -235,7 +269,9 @@ rnp_cfg_getint(rnp_cfg_t *cfg, const char *key)
     return val ? atoi(val) : 0;
 }
 
-/* free the memory, used by cfg internally */
+/** @brief free the memory allocated in rnp_cfg_t
+ *  @param cfg rnp config, must be allocated and initialized
+ **/
 void
 rnp_cfg_free(rnp_cfg_t *cfg)
 {
@@ -325,19 +361,22 @@ conffile(const char *homedir, char *userid, size_t length)
     return RNP_OK;
 }
 
-/*
-  Compose path from dir, subdir and filename. subdir can be null, then just dir and filename
-  will be used.
-  res should point to the allocated buffer.
-*/
-int
+/** @brief compose path from dir, subdir and filename, and store it in the res
+ *  @param dir [in] null-terminated directory path, cannot be NULL
+ *  @param subddir [in] null-terminated subdirectory to add to the path, can be NULL
+ *  @param filename [in] null-terminated filename (or path/filename), cannot be NULL
+ *  @param res [out] preallocated buffer, large enough to store the result
+ *
+ *  @return true if path constructed successfully, or false otherwise
+ **/
+static bool
 rnp_path_compose(const char *dir, const char *subdir, const char *filename, char *res)
 {
     int pos;
 
     /* checking input parameters for conrrectness */
     if (!dir || !filename || !res) {
-        return RNP_FAIL;
+        return false;
     }
 
     /* concatenating dir, subdir and filename */
@@ -359,10 +398,10 @@ rnp_path_compose(const char *dir, const char *subdir, const char *filename, char
 
     strcpy(res + pos, filename);
 
-    return RNP_OK;
+    return true;
 }
 
-static int
+static bool
 parse_ks_format(enum key_store_format_t *key_store_format, const char *format)
 {
     if (rnp_strcasecmp(format, CFG_KEYSTORE_GPG) == 0) {
@@ -373,9 +412,9 @@ parse_ks_format(enum key_store_format_t *key_store_format, const char *format)
         *key_store_format = SSH_KEY_STORE;
     } else {
         fprintf(stderr, "rnp: unsupported keystore format: \"%s\"\n", format);
-        return RNP_FAIL;
+        return false;
     }
-    return RNP_OK;
+    return true;
 }
 
 /* helper function : get key storage subdir in case when user didn't specify homedir */
@@ -399,10 +438,17 @@ rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg, int defhomedir, enum key_store_format_t ks
     return subdir;
 }
 
-int
+/**
+ * @brief Fill the keyring pathes according to user-specified settings
+ *
+ *  @param cfg [in] rnp config, must be allocated and initialized
+ *  @param params [out] in this structure public and secret keyring pathes  will be filled
+ *  @return true on success or false if something went wrong
+ */
+static bool
 rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
 {
-    int         defhomedir = 0;
+    bool        defhomedir = false;
     const char *homedir;
     const char *format;
     const char *subdir;
@@ -414,7 +460,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
      * considered as the final path, no .rnp/.ssh is added */
     if ((homedir = rnp_cfg_get(cfg, CFG_HOMEDIR)) == NULL) {
         homedir = getenv("HOME");
-        defhomedir = 1;
+        defhomedir = true;
     }
 
     /* detecting key storage format */
@@ -436,7 +482,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
     }
 
     if (!parse_ks_format(&params->ks_format, format)) {
-        return RNP_FAIL;
+        return false;
     }
 
     /* building pubring/secring pathes */
@@ -447,39 +493,50 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
         rnp_path_compose(homedir, NULL, subdir, pubpath);
         if (mkdir(pubpath, 0700) == -1 && errno != EEXIST) {
             fprintf(stderr, "cannot mkdir '%s' errno = %d \n", pubpath, errno);
-            return RNP_FAIL;
+            return false;
         }
     }
 
     if (params->ks_format == GPG_KEY_STORE) {
-        rnp_path_compose(homedir, subdir, PUBRING_GPG, pubpath);
+        if (!rnp_path_compose(homedir, subdir, PUBRING_GPG, pubpath) ||
+            !rnp_path_compose(homedir, subdir, SECRING_GPG, secpath)) {
+            return false;
+        }
         params->pubpath = strdup(pubpath);
-        rnp_path_compose(homedir, subdir, SECRING_GPG, secpath);
         params->secpath = strdup(secpath);
     } else if (params->ks_format == KBX_KEY_STORE) {
-        rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath);
+        if (!rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath) ||
+            !rnp_path_compose(homedir, subdir, SECRING_KBX, secpath)) {
+            return false;
+        }
         params->pubpath = strdup(pubpath);
-        rnp_path_compose(homedir, subdir, SECRING_KBX, secpath);
         params->secpath = strdup(secpath);
     } else {
         fprintf(stderr, "rnp: unsupported keystore format: \"%d\"\n", (int) params->ks_format);
-        return RNP_FAIL;
+        return false;
     }
 
-    return RNP_OK;
+    return true;
 }
 
-int
+/**
+ * @brief Attempt to get the default key id/name in a number of ways
+ * Tries to find via user-specified parameters and  GnuPG conffile.
+ *
+ *  @param cfg [in] rnp config, must be allocated and initialized
+ *  @param params [out] in this structure defkey will be filled if found
+ */
+static void
 rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
 {
     char        id[MAX_ID_LENGTH];
     const char *userid;
     const char *homedir;
-    int         defhomedir = 0;
+    bool        defhomedir = false;
 
     if ((homedir = rnp_cfg_get(cfg, CFG_HOMEDIR)) == NULL) {
         homedir = getenv("HOME");
-        defhomedir = 1;
+        defhomedir = true;
     }
 
     /* If a userid has been given, we'll use it. */
@@ -497,8 +554,6 @@ rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
     } else {
         params->defkey = strdup(userid);
     }
-
-    return RNP_OK;
 }
 
 /**
@@ -509,7 +564,7 @@ rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
  * @return true on success or false otherwise
  */
 
-bool
+static bool
 grabdate(const char *s, int64_t *t)
 {
     static regex_t r;

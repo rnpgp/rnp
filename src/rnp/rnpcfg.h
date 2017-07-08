@@ -74,23 +74,18 @@ typedef struct rnp_cfg_t {
     char **  vals;  /* values */
 } rnp_cfg_t;
 
-int rnp_cfg_init(rnp_cfg_t *cfg);
-int rnp_cfg_load_defaults(rnp_cfg_t *cfg);
-int rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params);
-int rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val);
-int rnp_cfg_unset(rnp_cfg_t *cfg, const char *key);
-int rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val);
+bool rnp_cfg_init(rnp_cfg_t *cfg);
+void rnp_cfg_load_defaults(rnp_cfg_t *cfg);
+bool rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params);
+bool rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val);
+bool rnp_cfg_unset(rnp_cfg_t *cfg, const char *key);
+bool rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val);
 const char *rnp_cfg_get(rnp_cfg_t *cfg, const char *key);
 int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
 void rnp_cfg_free(rnp_cfg_t *cfg);
-
-int rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);
-int rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
 int rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
 
 /* rnp CLI helper functions */
-int rnp_path_compose(const char *dir, const char *subdir, const char *filename, char *res);
-bool grabdate(const char *s, int64_t *t);
 uint64_t get_duration(const char *s);
 int64_t get_birthtime(const char *s);
 

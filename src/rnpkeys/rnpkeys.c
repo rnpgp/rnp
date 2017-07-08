@@ -39,8 +39,6 @@
 #include "../rnp/rnpcfg.h"
 #include "rnpkeys.h"
 
-#define DEFAULT_HASH_ALG "SHA256"
-
 extern char *__progname;
 
 const char *usage = "--help OR\n"

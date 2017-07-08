@@ -46,6 +46,12 @@
 #define MAX_PASSPHRASE_ATTEMPTS 3
 #define INFINITE_ATTEMPTS -1
 
+/* SHA1 is now looking as though it should not be used.  Let's
+ * pre-empt this by specifying SHA256 - gpg interoperates just fine
+ * with SHA256 - agc, 20090522
+ */
+#define DEFAULT_HASH_ALG "SHA256"
+
 /* Function return codes, more will be added later */
 
 #define RNP_OK 1
