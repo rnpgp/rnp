@@ -111,6 +111,23 @@ AC_DEFUN([AX_CHECK_BOTAN], [
             AC_MSG_RESULT([no])
             $2
         ])
+
+    AC_MSG_CHECKING([for botan version >= 2.2])
+    AC_COMPILE_IFELSE(
+      [AC_LANG_PROGRAM([[#include <botan/build.h>]], [[
+      #if BOTAN_VERSION_MAJOR >= 2 && BOTAN_VERSION_MINOR >= 2
+      #else
+      #error Botan version is too old
+      #endif
+      ]])],
+      [
+          AC_MSG_RESULT([ok])
+          $1
+      ], [
+          AC_MSG_RESULT([failed])
+          $2
+      ]
+    )
     CPPFLAGS="$save_CPPFLAGS"
     LDFLAGS="$save_LDFLAGS"
     LIBS="$save_LIBS"

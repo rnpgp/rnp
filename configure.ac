@@ -92,9 +92,6 @@ AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
 # Check for Botan
-
-# TODO: check botan version (2.1 or higher required)
-
 AX_CHECK_BOTAN(, [AC_MSG_ERROR([Missing Botan])])
 AX_CHECK_BOTAN_DEFINES()
 
