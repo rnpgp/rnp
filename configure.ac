@@ -93,8 +93,6 @@ AC_TYPE_UINT8_T
 
 # Check for Botan
 
-m4_include([ax_check_botan.m4])
-
 # TODO: check botan version (2.1 or higher required)
 
 AX_CHECK_BOTAN([CFLAGS="$CFLAGS $BOTAN_INCLUDES"
