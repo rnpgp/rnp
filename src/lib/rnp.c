@@ -703,13 +703,11 @@ rnp_end(rnp_t *rnp)
 }
 
 /* rnp_params_t : initialize and free internals */
-int
+void
 rnp_params_init(rnp_params_t *params)
 {
     memset(params, '\0', sizeof(*params));
     params->passfd = -1;
-
-    return RNP_OK;
 }
 
 void

@@ -48,7 +48,7 @@ main(int argc, char **argv)
     rnp_t        rnp;
     rnp_cfg_t    cfg;
     rnp_params_t rnp_params;
-    int          cmd;
+    optdefs_t    cmd;
     int          optindex;
     int          ret;
     int          ch;
@@ -62,11 +62,7 @@ main(int argc, char **argv)
     memset(&rnp, '\0', sizeof(rnp));
     memset(&rnp_params, '\0', sizeof(rnp_params));
 
-    if (!rnp_cfg_init(&cfg)) {
-        fputs("fatal: cannot initialise cfg\n", stderr);
-        return EXIT_ERROR;
-    }
-
+    rnp_cfg_init(&cfg);
     rnp_cfg_load_defaults(&cfg);
     rnp_cfg_setint(&cfg, CFG_NUMBITS, DEFAULT_RSA_NUMBITS);
     rnp_cfg_set(&cfg, CFG_IO_RESS, "<stdout>");

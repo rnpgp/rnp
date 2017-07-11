@@ -6,7 +6,7 @@
 #define EXIT_ERROR 2
 #define DEFAULT_RSA_NUMBITS 2048
 
-enum optdefs {
+typedef enum {
     /* commands */
     CMD_LIST_KEYS = 260,
     CMD_LIST_SIGS,
@@ -38,13 +38,13 @@ enum optdefs {
 
     /* debug */
     OPT_DEBUG
-};
+} optdefs_t;
 
 pgp_errcode_t rnp_generate_key_expert_mode(rnp_t *rnp);
-int rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f);
-int setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg);
+int rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f);
+int setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg);
 void print_praise(void);
 void print_usage(const char *usagemsg);
-int parse_option(rnp_cfg_t *cfg, int *cmd, const char *s);
+int parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s);
 
 #endif /* _rnpkeys_ */

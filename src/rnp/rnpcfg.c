@@ -42,12 +42,10 @@
  */
 #define DEFAULT_HASH_ALG "SHA256"
 
-int
+void
 rnp_cfg_init(rnp_cfg_t *cfg)
 {
     memset((void *) cfg, '\0', sizeof(rnp_cfg_t));
-
-    return RNP_OK;
 }
 
 int

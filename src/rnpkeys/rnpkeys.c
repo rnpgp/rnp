@@ -168,7 +168,7 @@ print_usage(const char *usagemsg)
 
 /* do a command once for a specified file 'f' */
 int
-rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
+rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
 {
     const char *key;
     char *      s;
@@ -233,7 +233,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 
 /* set the option */
 int
-setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
+setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
 {
     switch (val) {
     case OPT_COREDUMPS:
@@ -344,7 +344,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
 
 /* we have -o option=value -- parse, and process */
 int
-parse_option(rnp_cfg_t *cfg, int *cmd, const char *s)
+parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s)
 {
     static regex_t opt;
     struct option *op;

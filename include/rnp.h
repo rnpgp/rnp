@@ -105,7 +105,7 @@ int rnp_init(rnp_t *, const rnp_params_t *);
 void rnp_end(rnp_t *);
 
 /* rnp initialization parameters : init and free */
-int  rnp_params_init(rnp_params_t *);
+void rnp_params_init(rnp_params_t *);
 void rnp_params_free(rnp_params_t *);
 
 /* init, reset and free rnp operation context */
