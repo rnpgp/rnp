@@ -1,6 +1,6 @@
 #include <stdbool.h>
 #include <crypto.h>
-#include "../rnp/rnpcfg.h"
+#include "rnp/rnpcfg.h"
 
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
