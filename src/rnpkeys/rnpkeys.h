@@ -41,7 +41,7 @@ typedef enum {
     OPT_DEBUG
 } optdefs_t;
 
-pgp_errcode_t rnp_generate_key_expert_mode(rnp_t *rnp);
+pgp_errcode_t rnp_generate_key_expert_mode(rnp_t *rnp, const rnp_cfg_t *cfg);
 int rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f);
 int setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg);
 void print_praise(void);

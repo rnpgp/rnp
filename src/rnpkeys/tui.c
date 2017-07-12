@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <crypto.h>
+#include "../rnp/rnpcfg.h"
 
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
@@ -137,16 +138,19 @@ ask_bitlen(FILE *input_fp)
  *
  * @param   rnp [in]  Initialized rnp_t struture.
  *              [out] Function fills corresponding to key type and length
+ * @param   cfg [in]  Requested configuration
  *
  * @returns PGP_E_OK on success
  *          PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG algorithm not supported
+ *          PGP_E_FAIL indicates bug in the implementation
  *
 -------------------------------------------------------------------------------- */
 pgp_errcode_t
-rnp_generate_key_expert_mode(rnp_t *rnp)
+rnp_generate_key_expert_mode(rnp_t *rnp, const rnp_cfg_t *cfg)
 {
     FILE *input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
     rnp->action.generate_key_ctx.key_alg = (pgp_pubkey_alg_t) ask_algorithm(input_fd);
+    rnp_keygen_desc_t *key_desc = &rnp->action.generate_key_ctx;
 
     // get more details about the key
     switch (rnp->action.generate_key_ctx.key_alg) {
@@ -157,9 +161,40 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
         rnp->action.generate_key_ctx.rsa.modulus_bit_len = ask_bitlen(input_fd);
         break;
     case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDSA: {
         rnp->action.generate_key_ctx.ecc.curve = ask_curve(input_fd);
-        break;
+        if (PGP_HASH_UNKNOWN == key_desc->hash_alg) {
+            return PGP_E_ALG_UNSUPPORTED_HASH_ALG;
+        }
+
+        size_t digest_length = 0;
+        if (!pgp_hash_digest_length(key_desc->hash_alg, &digest_length)) {
+            // Implementation error
+            return PGP_E_FAIL;
+        }
+
+        // Adjust hash to curve
+        switch (key_desc->ecc.curve) {
+        case PGP_CURVE_NIST_P_256:
+            if (digest_length < 32) {
+                key_desc->hash_alg = PGP_HASH_SHA256;
+            }
+            break;
+        case PGP_CURVE_NIST_P_384:
+            if (digest_length < 48) {
+                key_desc->hash_alg = PGP_HASH_SHA384;
+            }
+            break;
+        case PGP_CURVE_NIST_P_521:
+            if (digest_length < 64) {
+                key_desc->hash_alg = PGP_HASH_SHA512;
+            }
+            break;
+        default:
+            // Should never happen as ask_curve checks it
+            return PGP_E_FAIL;
+        }
+    } break;
     case PGP_PKA_EDDSA:
         rnp->action.generate_key_ctx.ecc.curve = PGP_CURVE_ED25519;
         break;

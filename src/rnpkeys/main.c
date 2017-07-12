@@ -95,7 +95,7 @@ main(int argc, char **argv)
     }
 
     rnp_cfg_t cfg = {0};
-    if (!rnpkeys_init(&cfg, &rnp, &opt_cfg, cmd != CMD_GENERATE_KEY)) {
+    if (!rnpkeys_init(&cfg, &rnp, &opt_cfg, true)) {
         return EXIT_ERROR;
     }
 
