@@ -55,7 +55,8 @@ int parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s);
  * @param   [out] cfg configuration to be used by rnd_cmd
  * @param   [out[ rnp initialized rnp context
  * @param   [in]  opt_cfg configuration with settings from command line
- * @param   [in]  load_keys wether to load existing keys from keystore
+ * @param   [in]  load_keys wether rnpkeys should be configured to
+ *                run key generation
  *
  * @pre     cfg and rnp must be not NULL
  *
@@ -63,6 +64,6 @@ int parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s);
  *          memory allocation was done.
  *
 -------------------------------------------------------------------------------- */
-bool rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *opt_cfg, bool load_keys);
+bool rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *opt_cfg, bool is_generate_key);
 
 #endif /* _rnpkeys_ */

@@ -362,7 +362,7 @@ parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s)
 }
 
 bool
-rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, optdefs_t cmd)
+rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, bool is_generate_key)
 {
     bool         ret = true;
     rnp_params_t rnp_params;
@@ -389,13 +389,11 @@ rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, optdefs_
         goto end;
     }
 
-    if (!rnp_key_store_load_keys(rnp, 1)) {
-        if (cmd != CMD_GENERATE_KEY) {
-            /* Keys mightn't loaded if this is a key generation step. */
-            fputs("fatal: failed to load keys\n", stderr);
-            ret = false;
-            goto end;
-        }
+    if (!rnp_key_store_load_keys(rnp, 1) && !is_generate_key) {
+        /* Keys mightn't loaded if this is a key generation step. */
+        fputs("fatal: failed to load keys\n", stderr);
+        ret = false;
+        goto end;
     }
 
 end:
