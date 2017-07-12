@@ -191,7 +191,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
             key_desc->rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
         } else if (rnp_generate_key_expert_mode(rnp, cfg) != PGP_E_OK) {
             RNP_LOG("Critical error: Key generation failed");
-            exit(EXIT_ERROR);
+            return RNP_FAIL;
         }
         return rnp_generate_key(rnp, key);
     case CMD_GET_KEY:
@@ -207,7 +207,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
     case CMD_HELP:
     default:
         print_usage(usage);
-        exit(EXIT_SUCCESS);
+        return RNP_FAIL;
     }
 }
 

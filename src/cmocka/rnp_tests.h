@@ -64,6 +64,12 @@ void ecdsa_signverify_success(void **state);
 
 void rnpkeys_generatekey_testExpertMode(void **state);
 
+void generatekey_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state);
+
+void generatekey_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state);
+
+void generatekey_explicitlySetWrongDigest_ShouldFail(void **state);
+
 #define rnp_assert_int_equal(state, a, b)           \
     do {                                            \
         int _rnp_a = (a);                           \

@@ -491,18 +491,26 @@ rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
     rnp_end(&rnp);
 }
 
-static void
-ask_expert_details(rnp_test_state_t *state, rnp_t *ctx, const char *rsp, size_t rsp_len)
+static bool
+ask_expert_details(rnp_t *ctx, rnp_cfg_t *ops, const char *rsp, size_t rsp_len)
 {
     /* Run tests*/
+    bool      ret = true;
     rnp_cfg_t cfg = {0};
-    rnp_assert_true(state, rnpkeys_init(&cfg, ctx, NULL, false));
-    rnp_assert_true(state, rnp_cfg_setint(&cfg, CFG_EXPERT, 1));
+    if (setup_rnp_common(ctx, GPG_KEY_STORE, NULL, NULL) != RNP_OK) {
+        return false;
+    }
+    if (!rnpkeys_init(&cfg, ctx, ops, true)) {
+        return false;
+    }
 
     int pipefd[2] = {0};
 
     /* Write response to fd */
-    rnp_assert_int_not_equal(state, pipe(pipefd), -1);
+    if (pipe(pipefd) == -1) {
+        ret = false;
+        goto end;
+    }
     for (int i = 0; i < rsp_len;) {
         i += write(pipefd[1], rsp + i, rsp_len - i);
     }
@@ -511,12 +519,22 @@ ask_expert_details(rnp_test_state_t *state, rnp_t *ctx, const char *rsp, size_t 
     /* Mock user-input*/
     ctx->user_input_fp = fdopen(pipefd[0], "r");
 
-    rnp_assert_int_equal(state, rnp_cmd(&cfg, ctx, CMD_GENERATE_KEY, NULL), RNP_OK);
+    if (rnp_cmd(&cfg, ctx, CMD_GENERATE_KEY, NULL) != RNP_OK) {
+        ret = false;
+        goto end;
+    }
 
+end:
     /* Close & clean fd*/
-    fclose(ctx->user_input_fp);
-    ctx->user_input_fp = NULL;
-    close(pipefd[0]);
+    if (ctx->user_input_fp) {
+        fclose(ctx->user_input_fp);
+        ctx->user_input_fp = NULL;
+    }
+    if (pipefd[0]) {
+        close(pipefd[0]);
+    }
+    rnp_cfg_free(&cfg);
+    return ret;
 }
 
 void
@@ -524,7 +542,9 @@ rnpkeys_generatekey_testExpertMode(void **state)
 {
     rnp_test_state_t *rstate = *state;
     rnp_t             rnp;
+    rnp_cfg_t         ops = {0};
 
+    // Setup directories and cleanup context
     static const char test_ecdsa_256[] = "19\n1\n";
     static const char test_ecdsa_384[] = "19\n2\n";
     static const char test_ecdsa_521[] = "19\n3\n";
@@ -532,33 +552,101 @@ rnpkeys_generatekey_testExpertMode(void **state)
     static const char test_rsa_1024[] = "1\n1024\n";
     static const char test_rsa_ask_twice_4096[] = "1\n1023\n4096\n";
 
-    ask_expert_details(rstate, &rnp, test_ecdsa_256, sizeof(test_ecdsa_256));
+    rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_EXPERT, 1));
+
+    rnp_assert_true(rstate,
+                    ask_expert_details(&rnp, &ops, test_ecdsa_256, sizeof(test_ecdsa_256)));
     rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_ECDSA);
     rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_NIST_P_256);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA256);
     rnp_end(&rnp);
 
-    ask_expert_details(rstate, &rnp, test_ecdsa_384, sizeof(test_ecdsa_384));
+    rnp_assert_true(rstate,
+                    ask_expert_details(&rnp, &ops, test_ecdsa_384, sizeof(test_ecdsa_384)));
     rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_ECDSA);
     rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_NIST_P_384);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA384);
     rnp_end(&rnp);
 
-    ask_expert_details(rstate, &rnp, test_ecdsa_521, sizeof(test_ecdsa_521));
+    rnp_assert_true(rstate,
+                    ask_expert_details(&rnp, &ops, test_ecdsa_521, sizeof(test_ecdsa_521)));
     rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_ECDSA);
     rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_NIST_P_521);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA512);
     rnp_end(&rnp);
 
-    ask_expert_details(rstate, &rnp, test_eddsa, sizeof(test_eddsa));
+    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, test_eddsa, sizeof(test_eddsa)));
     rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_EDDSA);
     rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_ED25519);
     rnp_end(&rnp);
 
-    ask_expert_details(rstate, &rnp, test_rsa_1024, sizeof(test_rsa_1024));
+    rnp_assert_true(rstate,
+                    ask_expert_details(&rnp, &ops, test_rsa_1024, sizeof(test_rsa_1024)));
     rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_RSA);
     rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.rsa.modulus_bit_len, 1024);
     rnp_end(&rnp);
 
-    ask_expert_details(rstate, &rnp, test_rsa_ask_twice_4096, sizeof(test_rsa_ask_twice_4096));
+    rnp_assert_true(rstate,
+                    ask_expert_details(
+                      &rnp, &ops, test_rsa_ask_twice_4096, sizeof(test_rsa_ask_twice_4096)));
     rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_RSA);
     rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.rsa.modulus_bit_len, 4096);
     rnp_end(&rnp);
+
+    rnp_cfg_free(&ops);
+}
+
+void
+generatekey_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state)
+{
+    rnp_test_state_t *rstate = *state;
+    rnp_t             rnp;
+    rnp_cfg_t         ops = {0};
+
+    static const char test_ecdsa_384[] = "19\n2\n";
+
+    rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_EXPERT, 1));
+    rnp_assert_true(rstate, rnp_cfg_set(&ops, CFG_HASH, "SHA1"));
+
+    rnp_assert_true(rstate,
+                    ask_expert_details(&rnp, &ops, test_ecdsa_384, sizeof(test_ecdsa_384)));
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA384);
+
+    rnp_cfg_free(&ops);
+}
+
+void
+generatekey_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
+{
+    rnp_test_state_t *rstate = *state;
+    rnp_t             rnp;
+    rnp_cfg_t         ops = {0};
+
+    static const char test_ecdsa_384[] = "19\n2\n";
+
+    rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_EXPERT, 1));
+    rnp_assert_true(rstate, rnp_cfg_set(&ops, CFG_HASH, "SHA512"));
+
+    rnp_assert_true(rstate,
+                    ask_expert_details(&rnp, &ops, test_ecdsa_384, sizeof(test_ecdsa_384)));
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA512);
+
+    rnp_cfg_free(&ops);
+}
+
+void
+generatekey_explicitlySetWrongDigest_ShouldFail(void **state)
+{
+    rnp_test_state_t *rstate = *state;
+    rnp_t             rnp;
+    rnp_cfg_t         ops = {0};
+
+    static const char test_ecdsa_384[] = "19\n2\n";
+
+    rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_EXPERT, 1));
+    rnp_assert_true(rstate, rnp_cfg_set(&ops, CFG_HASH, "WRONG_DIGEST_ALGORITHM"));
+
+    rnp_assert_false(rstate,
+                     ask_expert_details(&rnp, &ops, test_ecdsa_384, sizeof(test_ecdsa_384)));
+    rnp_cfg_free(&ops);
 }
