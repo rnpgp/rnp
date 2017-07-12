@@ -103,7 +103,7 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
 
 /* find the value name in the rnp_cfg */
 static int
-rnp_cfg_find(rnp_cfg_t *cfg, const char *key)
+rnp_cfg_find(const rnp_cfg_t *cfg, const char *key)
 {
     unsigned i;
 
@@ -216,7 +216,7 @@ rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val)
 
 /* get value for the key. Returns NULL if there is no value */
 const char *
-rnp_cfg_get(rnp_cfg_t *cfg, const char *key)
+rnp_cfg_get(const rnp_cfg_t *cfg, const char *key)
 {
     int i;
 

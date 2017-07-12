@@ -79,7 +79,7 @@ int rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params);
 int rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val);
 int rnp_cfg_unset(rnp_cfg_t *cfg, const char *key);
 int rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val);
-const char *rnp_cfg_get(rnp_cfg_t *cfg, const char *key);
+const char *rnp_cfg_get(const rnp_cfg_t *cfg, const char *key);
 int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
 void rnp_cfg_free(rnp_cfg_t *cfg);
 
