@@ -45,10 +45,10 @@
 void
 rnp_cfg_init(rnp_cfg_t *cfg)
 {
-    memset((void *) cfg, '\0', sizeof(rnp_cfg_t));
+    memset(cfg, '\0', sizeof(rnp_cfg_t));
 }
 
-int
+void
 rnp_cfg_load_defaults(rnp_cfg_t *cfg)
 {
     rnp_cfg_setint(cfg, CFG_OVERWRITE, 1);
@@ -59,8 +59,6 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_set(cfg, CFG_SUBDIRGPG, SUBDIRECTORY_RNP);
     rnp_cfg_set(cfg, CFG_SUBDIRSSH, SUBDIRECTORY_SSH);
     rnp_cfg_setint(cfg, CFG_NUMTRIES, MAX_PASSPHRASE_ATTEMPTS);
-
-    return RNP_OK;
 }
 
 int
@@ -497,4 +495,16 @@ rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
     }
 
     return RNP_OK;
+}
+
+void
+rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src)
+{
+    if (!src) {
+        return;
+    }
+
+    for (unsigned i = 0; i < src->count; i++) {
+        rnp_cfg_set(dst, src->keys[i], src->vals[i]);
+    }
 }
