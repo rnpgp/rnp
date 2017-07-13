@@ -141,12 +141,11 @@ int rnp_key_store_remove_key_by_id(pgp_io_t *, rnp_key_store_t *, const uint8_t 
 
 const pgp_key_t *rnp_key_store_get_key_by_id(
   pgp_io_t *, const rnp_key_store_t *, const unsigned char *, unsigned *, pgp_pubkey_t **);
-const pgp_key_t *rnp_key_store_get_key_by_name(pgp_io_t *,
-                                               const rnp_key_store_t *,
-                                               const char *);
-const pgp_key_t *rnp_key_store_get_next_key_by_name(pgp_io_t *,
-                                                    const rnp_key_store_t *,
-                                                    const char *,
-                                                    unsigned *);
+unsigned rnp_key_store_get_key_by_name(pgp_io_t *,
+                                       const rnp_key_store_t *,
+                                       const char *,
+                                       const pgp_key_t **);
+unsigned rnp_key_store_get_next_key_by_name(
+  pgp_io_t *, const rnp_key_store_t *, const char *, unsigned *, const pgp_key_t **);
 
 #endif /* KEY_STORE_H_ */

@@ -666,8 +666,12 @@ str2keyid(const char *userid, uint8_t *keyid, size_t len)
 }
 
 /* return the next key which matches, starting searching at *from */
-static const pgp_key_t *
-get_key_by_name(pgp_io_t *io, const rnp_key_store_t *keyring, const char *name, unsigned *from)
+static unsigned
+get_key_by_name(pgp_io_t *             io,
+                const rnp_key_store_t *keyring,
+                const char *           name,
+                unsigned *             from,
+                const pgp_key_t **     key)
 {
     const pgp_key_t *kp;
     uint8_t **       uidp;
@@ -678,8 +682,10 @@ get_key_by_name(pgp_io_t *io, const rnp_key_store_t *keyring, const char *name, 
     uint8_t          keyid[PGP_KEY_ID_SIZE + 1];
     size_t           len;
 
+    *key = NULL;
+
     if (!keyring || !name || !from) {
-        return NULL;
+        return RNP_OK;
     }
     len = strlen(name);
     if (rnp_get_debug(__FILE__)) {
@@ -693,14 +699,18 @@ get_key_by_name(pgp_io_t *io, const rnp_key_store_t *keyring, const char *name, 
     }
     savedstart = *from;
     if ((kp = rnp_key_store_get_key_by_id(io, keyring, keyid, from, NULL)) != NULL) {
-        return kp;
+        *key = kp;
+        return RNP_OK;
     }
     *from = savedstart;
     if (rnp_get_debug(__FILE__)) {
         (void) fprintf(io->outs, "regex match '%s' from %u\n", name, *from);
     }
     /* match on full name or email address as a NOSUB, ICASE regexp */
-    (void) regcomp(&r, name, REG_EXTENDED | REG_ICASE);
+    if (regcomp(&r, name, REG_EXTENDED | REG_ICASE) != 0) {
+        (void) fprintf(io->errs, "Can't compile regex from string: '%s'\n", name);
+        return RNP_FAIL;
+    }
     for (keyp = &keyring->keys[*from]; *from < keyring->keyc; *from += 1, keyp++) {
         uidp = keyp->uids;
         for (i = 0; i < keyp->uidc; i++, uidp++) {
@@ -712,12 +722,13 @@ get_key_by_name(pgp_io_t *io, const rnp_key_store_t *keyring, const char *name, 
                                    len);
                 }
                 regfree(&r);
-                return keyp;
+                *key = keyp;
+                return RNP_OK;
             }
         }
     }
     regfree(&r);
-    return NULL;
+    return RNP_OK;
 }
 
 /**
@@ -734,20 +745,24 @@ get_key_by_name(pgp_io_t *io, const rnp_key_store_t *keyring, const char *name, 
    copy.  Do not free it.
 
 */
-const pgp_key_t *
-rnp_key_store_get_key_by_name(pgp_io_t *io, const rnp_key_store_t *keyring, const char *name)
+unsigned
+rnp_key_store_get_key_by_name(pgp_io_t *             io,
+                              const rnp_key_store_t *keyring,
+                              const char *           name,
+                              const pgp_key_t **     key)
 {
     unsigned from;
 
     from = 0;
-    return get_key_by_name(io, keyring, name, &from);
+    return get_key_by_name(io, keyring, name, &from, key);
 }
 
-const pgp_key_t *
+unsigned
 rnp_key_store_get_next_key_by_name(pgp_io_t *             io,
                                    const rnp_key_store_t *keyring,
                                    const char *           name,
-                                   unsigned *             n)
+                                   unsigned *             n,
+                                   const pgp_key_t **     key)
 {
-    return get_key_by_name(io, keyring, name, n);
+    return get_key_by_name(io, keyring, name, n, key);
 }
