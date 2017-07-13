@@ -189,7 +189,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         if (!rnp_cfg_getint(cfg, CFG_EXPERT)) {
             key_desc->key_alg = PGP_PKA_RSA;
             key_desc->rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
-        } else if (rnp_generate_key_expert_mode(rnp, cfg) != PGP_E_OK) {
+        } else if (rnp_generate_key_expert_mode(rnp) != PGP_E_OK) {
             RNP_LOG("Critical error: Key generation failed");
             return RNP_FAIL;
         }

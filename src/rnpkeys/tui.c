@@ -146,7 +146,7 @@ ask_bitlen(FILE *input_fp)
  *
 -------------------------------------------------------------------------------- */
 pgp_errcode_t
-rnp_generate_key_expert_mode(rnp_t *rnp, const rnp_cfg_t *cfg)
+rnp_generate_key_expert_mode(rnp_t *rnp)
 {
     FILE *input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
     rnp->action.generate_key_ctx.key_alg = (pgp_pubkey_alg_t) ask_algorithm(input_fd);
