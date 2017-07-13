@@ -1153,8 +1153,12 @@ grabdate(const char *s, int64_t *t)
 
     if (!compiled) {
         compiled = 1;
-        (void) regcomp(
-          &r, "([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])", REG_EXTENDED);
+        if (regcomp(&r,
+                    "([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])",
+                    REG_EXTENDED) != 0) {
+            fprintf(stderr, "Can't compile regex\n");
+            return -1;
+        }
     }
     if (regexec(&r, s, 10, matches, 0) == 0) {
         (void) memset(&tm, 0x0, sizeof(tm));
@@ -1193,7 +1197,7 @@ get_duration(const char *s)
             return now * 60 * 60 * 24 * 365;
         }
     }
-    if (grabdate(s, &t)) {
+    if (grabdate(s, &t) > 0) {
         return t;
     }
     return (uint64_t) strtoll(s, NULL, 10);
@@ -1208,7 +1212,7 @@ get_birthtime(const char *s)
     if (s == NULL) {
         return time(NULL);
     }
-    if (grabdate(s, &t)) {
+    if (grabdate(s, &t) > 0) {
         return t;
     }
     return (uint64_t) strtoll(s, NULL, 10);

@@ -355,7 +355,10 @@ parse_option(rnp_cfg_t *cfg, int *cmd, const char *s)
 
     if (!compiled) {
         compiled = 1;
-        (void) regcomp(&opt, "([^=]{1,128})(=(.*))?", REG_EXTENDED);
+        if (regcomp(&opt, "([^=]{1,128})(=(.*))?", REG_EXTENDED) != 0) {
+            fprintf(stderr, "Can't compile regex\n");
+            return 0;
+        }
     }
     if (regexec(&opt, s, 10, matches, 0) == 0) {
         (void) snprintf(option,
