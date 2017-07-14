@@ -480,7 +480,8 @@ readsshkeys(rnp_t *rnp, const char *pubpath, const char *secpath)
         (void) fprintf(stderr, "readsshkeys: bad alloc\n");
         return RNP_FAIL;
     }
-    /* openssh2 keys use md5 by default. actually this hashtype makes no sense and should be removed later */
+    /* openssh2 keys use md5 by default. actually this hashtype makes no sense and should be
+     * removed later */
     pubring->hashtype = PGP_HASH_MD5;
     if (!ssh2_readkeys(rnp->io, pubring, NULL, pubpath, NULL)) {
         free(pubring);

@@ -519,7 +519,8 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
                 !rnp_path_compose(homedir, subdir, "id_rsa", secpath)) {
                 return false;
             }
-        } else if ((strlen(sshfile) < 4) || (strcmp(&sshfile[strlen(sshfile) - 4], ".pub") != 0)) {
+        } else if ((strlen(sshfile) < 4) ||
+                   (strcmp(&sshfile[strlen(sshfile) - 4], ".pub") != 0)) {
             /* got ssh keys, but no .pub extension */
             (void) snprintf(pubpath, sizeof(pubpath), "%s.pub", sshfile);
             (void) snprintf(secpath, sizeof(secpath), "%s", sshfile);

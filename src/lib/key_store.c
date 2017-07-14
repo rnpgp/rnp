@@ -78,7 +78,8 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
     pgp_io_t *io = rnp->io;
 
     if (rnp->key_store_format == SSH_KEY_STORE) {
-        return rnp_key_store_ssh_load_keys(rnp, rnp->pubpath, loadsecret ? rnp->secpath : NULL);
+        return rnp_key_store_ssh_load_keys(
+          rnp, rnp->pubpath, loadsecret ? rnp->secpath : NULL);
     }
 
     newring = rnp_key_store_read_keyring(rnp, rnp->pubpath);
