@@ -168,7 +168,7 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
         }
 
         size_t digest_length = 0;
-        if (!pgp_hash_digest_length(key_desc->hash_alg, &digest_length)) {
+        if (!pgp_digest_length(key_desc->hash_alg, &digest_length)) {
             // Implementation error
             return PGP_E_FAIL;
         }

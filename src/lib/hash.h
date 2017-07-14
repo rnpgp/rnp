@@ -96,6 +96,6 @@ pgp_hash_alg_t pgp_str_to_hash_alg(const char *);
  *          correctly retrieved, otherwise false
  *
 -------------------------------------------------------------------------------- */
-bool pgp_hash_digest_length(pgp_hash_alg_t alg, size_t *output_length);
+bool pgp_digest_length(pgp_hash_alg_t alg, size_t *output_length);
 
 #endif

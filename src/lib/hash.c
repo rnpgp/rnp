@@ -281,7 +281,7 @@ pgp_is_hash_alg_supported(const pgp_hash_alg_t *hash_alg)
 }
 
 bool
-pgp_hash_digest_length(pgp_hash_alg_t alg, size_t *output_length)
+pgp_digest_length(pgp_hash_alg_t alg, size_t *output_length)
 {
     bool ret = true;
 
