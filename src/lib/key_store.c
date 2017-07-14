@@ -685,7 +685,8 @@ get_key_by_name(pgp_io_t *             io,
     *key = NULL;
 
     if (!keyring || !name || !from) {
-        return RNP_OK;
+        (void) fprintf(io->errs, "keyring, name and from shouldn't be NULL\n");
+        return RNP_FAIL;
     }
     len = strlen(name);
     if (rnp_get_debug(__FILE__)) {
