@@ -465,50 +465,26 @@ ssh2_readkeys(pgp_io_t *       io,
 
 /* read keys from ssh key files */
 static int
-readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
+readsshkeys(rnp_t *rnp, const char *pubpath, const char *secpath)
 {
     rnp_key_store_t *pubring;
     rnp_key_store_t *secring;
     struct stat      st;
-    pgp_hash_alg_t   hashtype;
-    char *           hash;
-    char             f[MAXPATHLEN];
-    char *           filename;
 
-    if ((filename = rnp_getvar(rnp, "sshkeyfile")) == NULL) {
-        /* set reasonable default for RSA key */
-        (void) snprintf(f, sizeof(f), "%s/id_rsa.pub", homedir);
-        filename = f;
-    } else if (strcmp(&filename[strlen(filename) - 4], ".pub") != 0) {
-        /* got ssh keys, check for pub file name */
-        (void) snprintf(f, sizeof(f), "%s.pub", filename);
-        filename = f;
-    }
     /* check the pub file exists */
-    if (stat(filename, &st) != 0) {
-        (void) fprintf(stderr, "readsshkeys: bad pubkey filename '%s'\n", filename);
+    if (stat(pubpath, &st) != 0) {
+        (void) fprintf(stderr, "readsshkeys: bad pubkey filename '%s'\n", pubpath);
         return RNP_FAIL;
     }
     if ((pubring = calloc(1, sizeof(*pubring))) == NULL) {
         (void) fprintf(stderr, "readsshkeys: bad alloc\n");
         return RNP_FAIL;
     }
-    /* openssh2 keys use md5 by default */
-    hashtype = PGP_HASH_MD5;
-    if ((hash = rnp_getvar(rnp, "hash")) != NULL) {
-        /* openssh 2 hasn't really caught up to anything else yet */
-        if (rnp_strcasecmp(hash, "md5") == 0) {
-            hashtype = PGP_HASH_MD5;
-        } else if (rnp_strcasecmp(hash, "sha1") == 0) {
-            hashtype = PGP_HASH_SHA1;
-        } else if (rnp_strcasecmp(hash, "sha256") == 0) {
-            hashtype = PGP_HASH_SHA256;
-        }
-    }
-    pubring->hashtype = hashtype;
-    if (!ssh2_readkeys(rnp->io, pubring, NULL, filename, NULL)) {
+    /* openssh2 keys use md5 by default. actually this hashtype makes no sense and should be removed later */
+    pubring->hashtype = PGP_HASH_MD5;
+    if (!ssh2_readkeys(rnp->io, pubring, NULL, pubpath, NULL)) {
         free(pubring);
-        (void) fprintf(stderr, "readsshkeys: cannot read %s\n", filename);
+        (void) fprintf(stderr, "readsshkeys: cannot read %s\n", pubpath);
         return RNP_FAIL;
     }
     if (rnp->pubring == NULL) {
@@ -517,24 +493,17 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
         rnp_key_store_append_keyring(rnp->pubring, pubring);
     }
 
-    if (needseckey) {
-        /* try to take the ".pub" off the end */
-        if (filename == f) {
-            f[strlen(f) - 4] = 0x0;
-        } else {
-            (void) snprintf(f, sizeof(f), "%.*s", (int) strlen(filename) - 4, filename);
-            filename = f;
-        }
+    if (secpath) {
         if ((secring = calloc(1, sizeof(*secring))) == NULL) {
             free(pubring);
             (void) fprintf(stderr, "readsshkeys: bad alloc\n");
             return RNP_FAIL;
         }
-        secring->hashtype = hashtype;
-        if (!ssh2_readkeys(rnp->io, pubring, secring, NULL, filename)) {
+        secring->hashtype = PGP_HASH_MD5;
+        if (!ssh2_readkeys(rnp->io, pubring, secring, NULL, secpath)) {
             free(pubring);
             free(secring);
-            (void) fprintf(stderr, "readsshkeys: cannot read sec %s\n", filename);
+            (void) fprintf(stderr, "readsshkeys: cannot read sec %s\n", secpath);
             return RNP_FAIL;
         }
         rnp->secring = secring;
@@ -543,31 +512,11 @@ readsshkeys(rnp_t *rnp, char *homedir, const char *needseckey)
 }
 
 int
-rnp_key_store_ssh_load_keys(rnp_t *rnp, char *homedir)
+rnp_key_store_ssh_load_keys(rnp_t *rnp, const char *pubpath, const char *secpath)
 {
-    int       last = (rnp->pubring != NULL);
-    char      id[MAX_ID_LENGTH];
-    char *    userid;
-    pgp_io_t *io = rnp->io;
-
-    /* TODO: Double-check whether or not ID needs to be zeroed. */
-
-    if (!readsshkeys(rnp, homedir, rnp_getvar(rnp, "need seckey"))) {
-        fprintf(io->errs, "cannot read ssh keys\n");
+    if (!readsshkeys(rnp, pubpath, secpath)) {
+        fprintf(rnp->io->errs, "cannot read ssh keys\n");
         return RNP_FAIL;
-    }
-    if ((userid = rnp_getvar(rnp, "userid")) == NULL) {
-        /* TODO: Handle get_first_ring() failure. */
-        rnp_key_store_get_first_ring(rnp->pubring, id, sizeof(id), last);
-        rnp_setvar(rnp, "userid", userid = id);
-    }
-    if (userid == NULL) {
-        if (rnp_getvar(rnp, "need userid") != NULL) {
-            fprintf(io->errs, "cannot find user id\n");
-            return RNP_FAIL;
-        }
-    } else {
-        rnp_setvar(rnp, "userid", userid);
     }
 
     return RNP_OK;

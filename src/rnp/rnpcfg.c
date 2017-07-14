@@ -452,6 +452,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
     const char *homedir;
     const char *format;
     const char *subdir;
+    const char *sshfile;
     char        pubpath[MAXPATHLEN] = {0};
     char        secpath[MAXPATHLEN] = {0};
     struct stat st;
@@ -509,6 +510,26 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
             !rnp_path_compose(homedir, subdir, SECRING_KBX, secpath)) {
             return false;
         }
+        params->pubpath = strdup(pubpath);
+        params->secpath = strdup(secpath);
+    } else if (params->ks_format == SSH_KEY_STORE) {
+        if ((sshfile = rnp_cfg_get(cfg, CFG_SSHKEYFILE)) == NULL) {
+            /* set reasonable default for RSA key */
+            if (!rnp_path_compose(homedir, subdir, "id_rsa.pub", pubpath) ||
+                !rnp_path_compose(homedir, subdir, "id_rsa", secpath)) {
+                return false;
+            }
+        } else if ((strlen(sshfile) < 4) || (strcmp(&sshfile[strlen(sshfile) - 4], ".pub") != 0)) {
+            /* got ssh keys, but no .pub extension */
+            (void) snprintf(pubpath, sizeof(pubpath), "%s.pub", sshfile);
+            (void) snprintf(secpath, sizeof(secpath), "%s", sshfile);
+        } else {
+            /* got ssh key name with .pub extension */
+            strncpy(pubpath, sshfile, sizeof(pubpath));
+            strncpy(secpath, sshfile, sizeof(secpath));
+            secpath[strlen(sshfile) - 4] = 0;
+        }
+
         params->pubpath = strdup(pubpath);
         params->secpath = strdup(secpath);
     } else {

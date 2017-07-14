@@ -34,7 +34,7 @@
 #include "rnp.h"
 #include "key_store.h"
 
-int rnp_key_store_ssh_load_keys(rnp_t *rnp, char *homedir);
+int rnp_key_store_ssh_load_keys(rnp_t *rnp, const char *pubpath, const char *secpath);
 
 int rnp_key_store_ssh_from_file(pgp_io_t *, rnp_key_store_t *, const char *);
 int rnp_key_store_ssh_from_mem(pgp_io_t *, rnp_key_store_t *, pgp_memory_t *);
