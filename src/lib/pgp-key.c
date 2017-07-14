@@ -140,16 +140,16 @@ pgp_get_pubkey(const pgp_key_t *keydata)
                                                        &keydata->key.seckey.pubkey;
 }
 
-/**
-\ingroup HighLevel_KeyGeneral
-
-\brief Check whether this is a secret key or not.
-*/
-
-unsigned
-pgp_is_key_secret(const pgp_key_t *data)
+bool
+pgp_is_key_public(const pgp_key_t *key)
 {
-    return data->type != PGP_PTAG_CT_PUBLIC_KEY;
+    return key->type == PGP_PTAG_CT_PUBLIC_KEY || key->type == PGP_PTAG_CT_PUBLIC_SUBKEY;
+}
+
+bool
+pgp_is_key_secret(const pgp_key_t *key)
+{
+    return !pgp_is_key_public(key);
 }
 
 /**

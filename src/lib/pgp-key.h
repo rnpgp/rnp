@@ -52,6 +52,7 @@
 #ifndef RNP_PACKET_KEY_H
 #define RNP_PACKET_KEY_H
 
+#include <stdbool.h>
 #include <stdio.h>
 #include "packet.h"
 
@@ -61,7 +62,9 @@ void pgp_keydata_free(pgp_key_t *);
 
 const pgp_pubkey_t *pgp_get_pubkey(const pgp_key_t *);
 
-unsigned pgp_is_key_secret(const pgp_key_t *);
+bool pgp_is_key_public(const pgp_key_t *);
+
+bool pgp_is_key_secret(const pgp_key_t *);
 
 const struct pgp_seckey_t *pgp_get_seckey(const pgp_key_t *);
 
