@@ -202,13 +202,13 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         key = f ? f : rnp_cfg_get(cfg, CFG_USERID);
         rnp_keygen_desc_t *key_desc = &rnp->action.generate_key_ctx;
 
-        if (rnp_cfg_getint(cfg, CFG_EXPERT) &&
-            (rnp_generate_key_expert_mode(rnp) != PGP_E_OK)) {
-            (void) fprintf(stderr, "Critical error: Key generation failed\n");
-            exit(EXIT_ERROR);
-        } else {
+        if (!rnp_cfg_getint(cfg, CFG_EXPERT)) {
             key_desc->key_alg = PGP_PKA_RSA;
             key_desc->rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
+        } else if (rnp_generate_key_expert_mode(rnp) != PGP_E_OK) {
+            // Should never happen
+            RNP_LOG("Critical error: Key generation failed");
+            exit(EXIT_ERROR);
         }
         adjust_key_params(key_desc, rnp_cfg_get(cfg, CFG_HASH), rnp_cfg_get(cfg, CFG_CIPHER));
         return rnp_generate_key(rnp, key);

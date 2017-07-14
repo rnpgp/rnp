@@ -92,18 +92,8 @@ AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
 # Check for Botan
-
-m4_include([ax_check_botan.m4])
-
-# TODO: check botan version (2.1 or higher required)
-
-AX_CHECK_BOTAN([CFLAGS="$CFLAGS $BOTAN_INCLUDES"
-                LDFLAGS="$LDFLAGS $BOTAN_LDFLAGS $BOTAN_LIBS"],
-               [AC_MSG_ERROR([Missing Botan])])
-
-
-AX_CHECK_BOTAN_DEFINES([CFLAGS="$CFLAGS $BOTAN_INCLUDES"
-                       LDFLAGS="$LDFLAGS $BOTAN_LDFLAGS $BOTAN_LIBS"])
+AX_CHECK_BOTAN(, [AC_MSG_ERROR([Missing Botan])])
+AX_CHECK_BOTAN_DEFINES()
 
 # Checks for library functions.
 #

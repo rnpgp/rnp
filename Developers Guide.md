@@ -7,6 +7,8 @@ contributors.
 
 ## Pull Requests
 
+See also: [Guides - Code Review](https://github.com/riboseinc/guides/tree/master/code-review)
+
 Pull Requests should be used for any non-trivial changes. This presents
 an opportunity for feedback and allows the CI tests to complete prior to
 merging.
@@ -28,8 +30,12 @@ Pull Requests should be:
 * Approved by **2** reviewers before merging.
   (Updates related to policies, like this section, should be approved by
   the project owner)
+* Merged by a reviewer via the most appropriate method
+  (see [here](https://github.com/riboseinc/guides/tree/master/protocol/git)).
 
 ## Branches
+
+See also: [Guides - Protocol / Git](https://github.com/riboseinc/guides/tree/master/protocol/git)
 
 Git branches should be used generously. Most branches should be topic branches,
 created for adding a specific feature or fixing a specific bug.
@@ -319,14 +325,33 @@ Do:
   [here](https://help.github.com/articles/closing-issues-via-commit-messages/).
 * Do declare functions `static` when they do not need to be referenced
   outside the current source file.
-* Do omit braces for simple one-line conditionals. (Unless attached to
-  another conditional with multiple lines.)
+* Do always use braces for conditionals, even if the block only contains a
+  single statement.
+  ```c
+  if (something) {
+    return val;
+  }
+  ```
 
 Do not:
-* Do not use the static storage class for variables. In short, this
-  means no variable declarations with the word `static`, such as
-  `static char buffer[256]`. These tend to cause surprises and thread
-  safety issues.
+* Do not use the static storage class for local variables, *unless* they
+  are constant.
+  
+  **Not OK**
+  ```c
+  int somefunc() {
+    static char buffer[256];
+    //...
+  }
+  ```
+  **OK**
+  ```c
+  int somefunc() {
+    static const uint16_t some_data[] = {
+      0x00, 0x01, 0x02, //...
+    };
+  }
+  ```
 * Do not use `pragma`, and try to avoid `__attribute__` as well.
 
 
@@ -348,10 +373,10 @@ General:
 
 Data formats:
 
-* OpenPGP Packet: @randombit, @maheitsec, @catap, @ni4
-* Keystore: @catap, @maheitsec
-* JSON: @zgyarmati, @maheitsec
-* SSH: @maheitsec, @ni4
+* OpenPGP Packet: @randombit, @catap, @ni4
+* Keystore: @catap
+* JSON: @zgyarmati
+* SSH: @ni4
 
 Bindings:
 

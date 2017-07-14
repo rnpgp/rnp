@@ -43,6 +43,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <stdbool.h>
 
 extern char *__progname;
 
@@ -221,20 +223,49 @@ stdin_to_mem(rnp_cfg_t *cfg, char **temp, char **out, unsigned *maxsize)
 
 /* output the text to stdout */
 static bool
-show_output(char *out, int size, const char *header)
+show_output(rnp_cfg_t *cfg, char *out, int size, const char *header)
 {
-    int cc;
-    int n;
+    int         cc;
+    int         n;
+    int         flags;
+    int         overwrite;
+    const char *outfile;
+    int         fd = STDOUT_FILENO;
 
     if (size <= 0) {
         fprintf(stderr, "%s\n", header);
         return false;
     }
+
+    if ((outfile = rnp_cfg_get(cfg, CFG_OUTFILE))) {
+        overwrite = rnp_cfg_getint(cfg, CFG_OVERWRITE);
+        flags = O_WRONLY | O_CREAT;
+        if (overwrite)
+            flags |= O_TRUNC;
+        else
+            flags |= O_EXCL;
+
+        fd = open(outfile, flags, 0600);
+        if (fd < 0) {
+            fprintf(stderr, "Failed to write to the %s : %s.\n", outfile, strerror(errno));
+            return RNP_FAIL;
+        }
+    }
+
     for (cc = 0; cc < size; cc += n) {
-        if ((n = write(STDOUT_FILENO, &out[cc], size - cc)) <= 0) {
+        if ((n = write(fd, &out[cc], size - cc)) <= 0) {
+            if (n < 0) {
+                fprintf(stderr, "Write failed: %s.\n", strerror(errno));
+            }
+
             break;
         }
     }
+
+    if (fd != STDOUT_FILENO) {
+        close(fd);
+    }
+
     if (cc < size) {
         fputs("Short write\n", stderr);
         return false;
@@ -289,7 +320,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
             sz = rnp_encrypt_memory(&ctx, userid, in, cc, out, maxsize);
-            ret = show_output(out, sz, "Bad memory encryption");
+            ret = show_output(cfg, out, sz, "Bad memory encryption");
         } else {
             ret = rnp_encrypt_file(&ctx, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
         }
@@ -298,7 +329,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
             sz = rnp_decrypt_memory(&ctx, in, cc, out, maxsize);
-            ret = show_output(out, sz, "Bad memory decryption");
+            ret = show_output(cfg, out, sz, "Bad memory decryption");
         } else {
             ret = rnp_decrypt_file(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
         }
@@ -316,10 +347,12 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.sigcreate = get_birthtime(rnp_cfg_get(cfg, CFG_BIRTHTIME));
         ctx.sigexpire = get_duration(rnp_cfg_get(cfg, CFG_DURATION));
 
+        clearsign = (cmd == CMD_CLEARSIGN) ? true : false;
+
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
             sz = rnp_sign_memory(&ctx, userid, in, cc, out, maxsize, clearsign);
-            ret = show_output(out, sz, "Bad memory signature");
+            ret = show_output(cfg, out, sz, "Bad memory signature");
         } else {
             ret = rnp_sign_file(&ctx,
                                 userid,
@@ -339,7 +372,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
                                    (cmd == CMD_VERIFY_CAT) ? out : NULL,
                                    (cmd == CMD_VERIFY_CAT) ? maxsize : 0,
                                    ctx.armour);
-            ret = show_output(out, sz, "Bad memory verification");
+            ret = show_output(cfg, out, sz, "Bad memory verification");
         } else {
             outf = rnp_cfg_get(cfg, CFG_OUTFILE);
             ret = rnp_verify_file(

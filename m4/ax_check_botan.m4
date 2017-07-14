@@ -111,6 +111,23 @@ AC_DEFUN([AX_CHECK_BOTAN], [
             AC_MSG_RESULT([no])
             $2
         ])
+
+    AC_MSG_CHECKING([for botan version >= 2.2])
+    AC_COMPILE_IFELSE(
+      [AC_LANG_PROGRAM([[#include <botan/build.h>]], [[
+      #if BOTAN_VERSION_MAJOR >= 2 && BOTAN_VERSION_MINOR >= 2
+      #else
+      #error Botan version is too old
+      #endif
+      ]])],
+      [
+          AC_MSG_RESULT([ok])
+          $1
+      ], [
+          AC_MSG_RESULT([failed])
+          $2
+      ]
+    )
     CPPFLAGS="$save_CPPFLAGS"
     LDFLAGS="$save_LDFLAGS"
     LIBS="$save_LIBS"
@@ -120,8 +137,10 @@ AC_DEFUN([AX_CHECK_BOTAN], [
     AC_SUBST([BOTAN_LDFLAGS])
 ])
 
-
+# Requires BOTAN_INCLUDES to be set
 AC_DEFUN([AX_CHECK_BOTAN_DEFINES], [
+    save_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$BOTAN_INCLUDES"
     AC_CHECK_DECLS([BOTAN_HAS_AES,BOTAN_HAS_CAST,BOTAN_HAS_MD5,BOTAN_HAS_SHA1,BOTAN_HAS_RSA,BOTAN_HAS_EMSA_PKCS1,BOTAN_HAS_PGP_S2K],
         [
             $1
@@ -130,4 +149,5 @@ AC_DEFUN([AX_CHECK_BOTAN_DEFINES], [
             $2
         ],
         [#include <botan/build.h>])
+    CPPFLAGS="$save_CPPFLAGS"
 ])
