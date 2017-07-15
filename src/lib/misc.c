@@ -375,11 +375,10 @@ hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
  * \param key The key for which the fingerprint is calculated
  */
 int
-pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t hashtype)
+pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
 {
     pgp_memory_t *mem;
     pgp_hash_t    hash = {0};
-    const char *  type;
     uint32_t      len;
 
     if (key->version == 2 || key->version == 3) {
@@ -398,32 +397,7 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "v2/v3 fingerprint", fp->fingerprint, fp->length);
         }
-    } else if (hashtype == PGP_HASH_MD5) {
-        if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
-            (void) fprintf(stderr, "pgp_fingerprint: bad md5 alloc\n");
-            return RNP_FAIL;
-        }
-        type = (key->alg == PGP_PKA_RSA) ? "ssh-rsa" : "ssh-dss";
-        hash_string(&hash, (const uint8_t *) (const void *) type, (unsigned) strlen(type));
-        switch (key->alg) {
-        case PGP_PKA_RSA:
-            hash_bignum(&hash, key->key.rsa.e);
-            hash_bignum(&hash, key->key.rsa.n);
-            break;
-        case PGP_PKA_DSA:
-            hash_bignum(&hash, key->key.dsa.p);
-            hash_bignum(&hash, key->key.dsa.q);
-            hash_bignum(&hash, key->key.dsa.g);
-            hash_bignum(&hash, key->key.dsa.y);
-            break;
-        default:
-            break;
-        }
-        fp->length = pgp_hash_finish(&hash, fp->fingerprint);
-        if (rnp_get_debug(__FILE__)) {
-            hexdump(stderr, "md5 fingerprint", fp->fingerprint, fp->length);
-        }
-    } else {
+    } else if (key->version == 4) {
         mem = pgp_memory_new();
         if (mem == NULL) {
             (void) fprintf(stderr, "can't allocate mem\n");
@@ -444,6 +418,9 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "sha1 fingerprint", fp->fingerprint, fp->length);
         }
+    } else {
+        (void) fprintf(stderr, "pgp_fingerprint: unsupported key version\n");
+        return RNP_FAIL;
     }
     return RNP_OK;
 }
@@ -456,7 +433,7 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key, pgp_hash_alg_t h
  */
 
 int
-pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key, pgp_hash_alg_t hashtype)
+pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key)
 {
     pgp_fingerprint_t finger;
 
@@ -477,7 +454,7 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key, pgp_hash_
         BN_bn2bin(key->key.rsa.n, bn);
         (void) memcpy(keyid, bn + n - idlen, idlen);
     } else {
-        pgp_fingerprint(&finger, key, hashtype);
+        pgp_fingerprint(&finger, key);
         (void) memcpy(keyid, finger.fingerprint + finger.length - idlen, idlen);
     }
     return RNP_OK;

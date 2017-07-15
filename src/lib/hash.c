@@ -279,3 +279,18 @@ pgp_is_hash_alg_supported(const pgp_hash_alg_t *hash_alg)
 {
     return pgp_hash_name_botan(*hash_alg) != NULL;
 }
+
+bool
+pgp_digest_length(pgp_hash_alg_t alg, size_t *output_length)
+{
+    bool ret = true;
+
+    botan_hash_t handle = NULL;
+    if (botan_hash_init(&handle, pgp_hash_name_botan(alg), 0) ||
+        botan_hash_output_length(handle, output_length)) {
+        ret = false;
+    }
+
+    botan_hash_destroy(handle);
+    return ret;
+}

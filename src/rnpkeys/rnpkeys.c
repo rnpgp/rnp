@@ -105,26 +105,6 @@ struct option options[] = {
   {NULL, 0, NULL, 0},
 };
 
-static void
-adjust_key_params(rnp_keygen_desc_t *key_desc, const char *hash_str, const char *symalg_str)
-{
-    switch (key_desc->key_alg) {
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_ECDH:
-        key_desc->hash_alg = hash_str ? pgp_str_to_hash_alg(hash_str) :
-                                        (key_desc->ecc.curve == PGP_CURVE_NIST_P_256) ?
-                                        PGP_HASH_SHA256 :
-                                        (key_desc->ecc.curve == PGP_CURVE_NIST_P_384) ?
-                                        PGP_HASH_SHA384 :
-                                        /*PGP_CURVE_NIST_P_521*/ PGP_HASH_SHA512;
-        break;
-    default:
-        key_desc->hash_alg = hash_str ? pgp_str_to_hash_alg(hash_str) : PGP_HASH_SHA1;
-    }
-
-    key_desc->sym_alg = pgp_str_to_cipher(symalg_str);
-}
-
 /* match keys, decoding from json if we do find any */
 static int
 match_keys(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, char *f, const int psigs)
@@ -166,7 +146,7 @@ print_usage(const char *usagemsg)
 
 /* do a command once for a specified file 'f' */
 int
-rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
+rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
 {
     const char *key;
     char *      s;
@@ -201,16 +181,16 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     case CMD_GENERATE_KEY:
         key = f ? f : rnp_cfg_get(cfg, CFG_USERID);
         rnp_keygen_desc_t *key_desc = &rnp->action.generate_key_ctx;
+        key_desc->hash_alg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
+        key_desc->sym_alg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
 
         if (!rnp_cfg_getint(cfg, CFG_EXPERT)) {
             key_desc->key_alg = PGP_PKA_RSA;
             key_desc->rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
         } else if (rnp_generate_key_expert_mode(rnp) != PGP_E_OK) {
-            // Should never happen
             RNP_LOG("Critical error: Key generation failed");
-            exit(EXIT_ERROR);
+            return RNP_FAIL;
         }
-        adjust_key_params(key_desc, rnp_cfg_get(cfg, CFG_HASH), rnp_cfg_get(cfg, CFG_CIPHER));
         return rnp_generate_key(rnp, key);
     case CMD_GET_KEY:
         key = rnp_get_key(rnp, f, rnp_cfg_get(cfg, CFG_KEYFORMAT));
@@ -225,13 +205,13 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     case CMD_HELP:
     default:
         print_usage(usage);
-        exit(EXIT_SUCCESS);
+        return RNP_FAIL;
     }
 }
 
 /* set the option */
 int
-setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
+setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
 {
     switch (val) {
     case OPT_COREDUMPS:
@@ -342,7 +322,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
 
 /* we have -o option=value -- parse, and process */
 int
-parse_option(rnp_cfg_t *cfg, int *cmd, const char *s)
+parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s)
 {
     static regex_t opt;
     struct option *op;
@@ -377,4 +357,48 @@ parse_option(rnp_cfg_t *cfg, int *cmd, const char *s)
         }
     }
     return 0;
+}
+
+bool
+rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, bool is_generate_key)
+{
+    bool         ret = true;
+    rnp_params_t rnp_params;
+
+    rnp_params_init(&rnp_params);
+    rnp_cfg_init(cfg);
+
+    rnp_cfg_load_defaults(cfg);
+    rnp_cfg_setint(cfg, CFG_NUMBITS, DEFAULT_RSA_NUMBITS);
+    rnp_cfg_set(cfg, CFG_IO_RESS, "<stdout>");
+    rnp_cfg_set(cfg, CFG_KEYFORMAT, "human");
+    rnp_cfg_copy(cfg, override_cfg);
+
+    if (!rnp_cfg_apply(cfg, &rnp_params)) {
+        fputs("fatal: cannot apply configuration\n", stderr);
+        ret = false;
+        goto end;
+    }
+
+    memset(rnp, '\0', sizeof(rnp_t));
+    if (!rnp_init(rnp, &rnp_params)) {
+        fputs("fatal: failed to initialize rnpkeys\n", stderr);
+        ret = false;
+        goto end;
+    }
+
+    if (!rnp_key_store_load_keys(rnp, 1) && !is_generate_key) {
+        /* Keys mightn't loaded if this is a key generation step. */
+        fputs("fatal: failed to load keys\n", stderr);
+        ret = false;
+        goto end;
+    }
+
+end:
+    rnp_params_free(&rnp_params);
+    if (!ret) {
+        rnp_cfg_free(cfg);
+        rnp_end(rnp);
+    }
+    return ret;
 }

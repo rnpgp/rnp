@@ -157,24 +157,6 @@ getbignum(bufgap_t *bg, char *buf, const char *header)
     return bignum;
 }
 
-#if 0
-static int
-putbignum(bufgap_t *bg, BIGNUM *bignum)
-{
-    uint32_t     len;
-
-    len = BN_num_bytes(bignum);
-    (void) bufgap_insert(bg, &len, sizeof(len));
-    (void) bufgap_insert(bg, buf, len);
-    bignum = BN_bin2bn((const uint8_t *)buf, (int)len, NULL);
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, header, buf, (int)len);
-    }
-    (void) bufgap_seek(bg, len, BGFromHere, BGByte);
-    return bignum;
-}
-#endif
-
 static str_t pkatypes[] = {{"ssh-rsa", 7, PGP_PKA_RSA},
                            {"ssh-dss", 7, PGP_PKA_DSA},
                            {"ssh-dsa", 7, PGP_PKA_DSA},
@@ -194,9 +176,59 @@ findstr(str_t *array, const char *name)
     return -1;
 }
 
+/* ssh-style fingerprint calculation, moved here from the pgp_fingerprint */
+static int
+ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
+{
+    pgp_memory_t *mem;
+    pgp_hash_t    hash = {0};
+    const char *  type;
+    uint32_t      len;
+
+    if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
+        (void) fprintf(stderr, "ssh_fingerprint: bad md5 alloc\n");
+        return RNP_FAIL;
+    }
+
+    type = (key->alg == PGP_PKA_RSA) ? "ssh-rsa" : "ssh-dss";
+    hash_string(&hash, (const uint8_t *) (const void *) type, (unsigned) strlen(type));
+    switch (key->alg) {
+    case PGP_PKA_RSA:
+        hash_bignum(&hash, key->key.rsa.e);
+        hash_bignum(&hash, key->key.rsa.n);
+        break;
+    case PGP_PKA_DSA:
+        hash_bignum(&hash, key->key.dsa.p);
+        hash_bignum(&hash, key->key.dsa.q);
+        hash_bignum(&hash, key->key.dsa.g);
+        hash_bignum(&hash, key->key.dsa.y);
+        break;
+    default:
+        break;
+    }
+
+    fp->length = pgp_hash_finish(&hash, fp->fingerprint);
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, "md5 ssh fingerprint", fp->fingerprint, fp->length);
+    }
+
+    return RNP_OK;
+}
+
+static int
+ssh_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key)
+{
+    pgp_fingerprint_t finger;
+
+    ssh_fingerprint(&finger, key);
+    (void) memcpy(keyid, finger.fingerprint + finger.length - idlen, idlen);
+
+    return RNP_OK;
+}
+
 /* convert an ssh (host) pubkey to a pgp pubkey */
 static int
-ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
+ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
 {
     pgp_pubkey_t *pubkey;
     struct stat   st;
@@ -339,9 +371,9 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
             snprintf(buffer, buffer_size, "%s (%s) <%s>", hostname, f, owner);
             userid = (uint8_t *) buffer;
         }
-        pgp_keyid(key->sigid, sizeof(key->sigid), pubkey, hashtype);
+        ssh_keyid(key->sigid, sizeof(key->sigid), pubkey);
         pgp_add_userid(key, userid);
-        pgp_fingerprint(&key->sigfingerprint, pubkey, hashtype);
+        ssh_fingerprint(&key->sigfingerprint, pubkey);
 
         free((void *) userid);
 
@@ -358,8 +390,7 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_hash_alg_t hashtype)
 
 /* convert an ssh (host) seckey to a pgp seckey */
 static int
-ssh2seckey(
-  pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey, pgp_hash_alg_t hashtype)
+ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
 {
     pgp_crypt_t crypted;
     uint8_t     sesskey[PGP_MAX_KEY_SIZE];
@@ -406,8 +437,8 @@ ssh2seckey(
     pgp_cipher_set_iv(&crypted, key->key.seckey.iv);
     pgp_cipher_set_key(&crypted, sesskey);
     pgp_encrypt_init(&crypted);
-    pgp_fingerprint(&key->sigfingerprint, pubkey, hashtype);
-    pgp_keyid(key->sigid, sizeof(key->sigid), pubkey, hashtype);
+    ssh_fingerprint(&key->sigfingerprint, pubkey);
+    ssh_keyid(key->sigid, sizeof(key->sigid), pubkey);
     return RNP_OK;
 }
 
@@ -429,7 +460,7 @@ ssh2_readkeys(pgp_io_t *       io,
         if (rnp_get_debug(__FILE__)) {
             (void) fprintf(io->errs, "ssh2_readkeys: pubfile '%s'\n", pubfile);
         }
-        if (!ssh2pubkey(io, pubfile, &key, pubring->hashtype)) {
+        if (!ssh2pubkey(io, pubfile, &key)) {
             (void) fprintf(io->errs, "ssh2_readkeys: can't read pubkeys '%s'\n", pubfile);
             return RNP_FAIL;
         }
@@ -448,7 +479,7 @@ ssh2_readkeys(pgp_io_t *       io,
         if (pubkey == NULL) {
             pubkey = &pubring->keys[0];
         }
-        if (!ssh2seckey(io, secfile, &key, &pubkey->key.pubkey, secring->hashtype)) {
+        if (!ssh2seckey(io, secfile, &key, &pubkey->key.pubkey)) {
             (void) fprintf(io->errs, "ssh2_readkeys: can't read seckeys '%s'\n", secfile);
             return RNP_FAIL;
         }
@@ -538,7 +569,7 @@ rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *
           io->errs, "rnp_key_store_ssh_from_file: read as pubkey '%s'\n", filename);
     }
 
-    if (ssh2pubkey(io, filename, &key, keyring->hashtype)) {
+    if (ssh2pubkey(io, filename, &key)) {
         (void) fprintf(io->errs, "rnp_key_store_ssh_from_file: it's pubkeys '%s'\n", filename);
         rnp_key_store_add_key(io, keyring, &key, PGP_PTAG_CT_PUBLIC_KEY);
         return RNP_OK;
@@ -550,13 +581,13 @@ rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *
     }
 
     (void) snprintf(f, sizeof(f), "%s.pub", filename);
-    if (!ssh2pubkey(io, filename, &pubkey, keyring->hashtype)) {
+    if (!ssh2pubkey(io, filename, &pubkey)) {
         (void) fprintf(
           io->errs, "rnp_key_store_ssh_from_file: can't read pubkey from '%s'\n", f);
         return RNP_FAIL;
     }
 
-    if (ssh2seckey(io, filename, &key, &pubkey.key.pubkey, keyring->hashtype)) {
+    if (ssh2seckey(io, filename, &key, &pubkey.key.pubkey)) {
         (void) fprintf(io->errs, "rnp_key_store_ssh_from_file: it's seckey '%s'\n", filename);
         rnp_key_store_add_key(io, keyring, &key, PGP_PTAG_CT_SECRET_KEY);
         return RNP_OK;

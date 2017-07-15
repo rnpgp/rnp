@@ -36,12 +36,10 @@
 #include "rnpsdk.h"
 #include "constants.h"
 
-bool
+void
 rnp_cfg_init(rnp_cfg_t *cfg)
 {
-    memset((void *) cfg, '\0', sizeof(rnp_cfg_t));
-
-    return true;
+    memset(cfg, '\0', sizeof(rnp_cfg_t));
 }
 
 void
@@ -109,7 +107,7 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
 
 /* find the value name in the rnp_cfg */
 static int
-rnp_cfg_find(rnp_cfg_t *cfg, const char *key)
+rnp_cfg_find(const rnp_cfg_t *cfg, const char *key)
 {
     unsigned i;
 
@@ -249,7 +247,7 @@ rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val)
  *  @return true if operation succeeds or false otherwise
  **/
 const char *
-rnp_cfg_get(rnp_cfg_t *cfg, const char *key)
+rnp_cfg_get(const rnp_cfg_t *cfg, const char *key)
 {
     int i;
 
@@ -677,4 +675,16 @@ get_birthtime(const char *s)
         return t;
     }
     return (uint64_t) strtoll(s, NULL, 10);
+}
+
+void
+rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src)
+{
+    if (!src) {
+        return;
+    }
+
+    for (unsigned i = 0; i < src->count; i++) {
+        rnp_cfg_set(dst, src->keys[i], src->vals[i]);
+    }
 }
