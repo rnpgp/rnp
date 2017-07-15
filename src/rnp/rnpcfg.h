@@ -80,7 +80,7 @@ bool rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params);
 bool rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val);
 bool rnp_cfg_unset(rnp_cfg_t *cfg, const char *key);
 bool rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val);
-const char *rnp_cfg_get(rnp_cfg_t *cfg, const char *key);
+const char *rnp_cfg_get(const rnp_cfg_t *cfg, const char *key);
 int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
 void rnp_cfg_free(rnp_cfg_t *cfg);
 
@@ -96,9 +96,8 @@ void rnp_cfg_free(rnp_cfg_t *cfg);
 -------------------------------------------------------------------------------- */
 void rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src);
 
-int rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);
-int rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
->>>>>>> master
+bool rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);
+void rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
 int rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
 
 /* rnp CLI helper functions */

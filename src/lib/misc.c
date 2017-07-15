@@ -326,7 +326,7 @@ hash_uint32(pgp_hash_t *hash, uint32_t n)
 }
 
 /* hash a string - first length, then string itself */
-static int
+int
 hash_string(pgp_hash_t *hash, const uint8_t *buf, uint32_t len)
 {
     if (rnp_get_debug(__FILE__)) {
@@ -338,7 +338,7 @@ hash_string(pgp_hash_t *hash, const uint8_t *buf, uint32_t len)
 }
 
 /* hash a bignum, possibly padded - first length, then string itself */
-static int
+int
 hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
 {
     uint8_t *bn;

@@ -176,14 +176,15 @@ findstr(str_t *array, const char *name)
     return -1;
 }
 
+int hash_string(pgp_hash_t *hash, const uint8_t *buf, uint32_t len);
+int hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum);
+
 /* ssh-style fingerprint calculation, moved here from the pgp_fingerprint */
 static int
 ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
 {
-    pgp_memory_t *mem;
     pgp_hash_t    hash = {0};
     const char *  type;
-    uint32_t      len;
 
     if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
         (void) fprintf(stderr, "ssh_fingerprint: bad md5 alloc\n");
@@ -511,9 +512,6 @@ readsshkeys(rnp_t *rnp, const char *pubpath, const char *secpath)
         (void) fprintf(stderr, "readsshkeys: bad alloc\n");
         return RNP_FAIL;
     }
-    /* openssh2 keys use md5 by default. actually this hashtype makes no sense and should be
-     * removed later */
-    pubring->hashtype = PGP_HASH_MD5;
     if (!ssh2_readkeys(rnp->io, pubring, NULL, pubpath, NULL)) {
         free(pubring);
         (void) fprintf(stderr, "readsshkeys: cannot read %s\n", pubpath);
@@ -531,7 +529,6 @@ readsshkeys(rnp_t *rnp, const char *pubpath, const char *secpath)
             (void) fprintf(stderr, "readsshkeys: bad alloc\n");
             return RNP_FAIL;
         }
-        secring->hashtype = PGP_HASH_MD5;
         if (!ssh2_readkeys(rnp->io, pubring, secring, NULL, secpath)) {
             free(pubring);
             free(secring);

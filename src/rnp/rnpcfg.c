@@ -55,9 +55,6 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_setint(cfg, CFG_NUMTRIES, MAX_PASSPHRASE_ATTEMPTS);
 }
 
-static void rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
-static bool rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);
-
 /** @brief apply configuration from keys-vals storage to rnp_params_t structure
  *  @param cfg [in] rnp config, must be allocated and initialized
  *  @param params [out] this structure will be filled so can be further feed into rnp_init
@@ -443,7 +440,7 @@ rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg, int defhomedir, enum key_store_format_t ks
  *  @param params [out] in this structure public and secret keyring pathes  will be filled
  *  @return true on success or false if something went wrong
  */
-static bool
+bool
 rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
 {
     bool        defhomedir = false;
@@ -546,7 +543,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
  *  @param cfg [in] rnp config, must be allocated and initialized
  *  @param params [out] in this structure defkey will be filled if found
  */
-static void
+void
 rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
 {
     char        id[MAX_ID_LENGTH];
