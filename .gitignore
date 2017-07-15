@@ -40,10 +40,6 @@ src/rnp/rnp-rnp.o
 src/rnpkeys/Makefile
 src/rnpkeys/Makefile.in
 src/rnpkeys/rnpkeys
-src/rnpv/Makefile
-src/rnpv/Makefile.in
-src/rnpv/config.h
-src/rnpv/rnpv
 src/cmocka/Makefile
 src/cmocka/Makefile.in
 src/cmocka/config.h
@@ -56,10 +52,6 @@ tests/Makefile
 tests/Makefile.in
 tests/atconfig
 tests/atlocal
-src/rnpv/stamp-h2
 src/rnp/rnp
 src/rnpkeys/rnpkeys
-src/rnpv/config.h
-src/rnpv/rnpv
-src/rnpv/stamp-h2
 *.swp

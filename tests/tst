@@ -95,7 +95,7 @@ marktest 9 $good
 echo "======> version information"
 /usr/bin/rnp --version && good=10
 marktest 10 $good
-echo "======> rnpv file"
+echo "======> rnp file"
 /usr/bin/rnp -v < a.gpg && good=11
 marktest 11 $good
 echo "======> attempt to verify an unsigned file"

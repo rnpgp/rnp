@@ -115,7 +115,6 @@ message together with the signature as a 'signed message'.
 This type of file can be verified by:
 
 * `rnp --verify --homedir=${keyringdir} ${filename}.gpg`
-* `rnpv -k ${keyringdir}/pubring.gpg ${filename}.gpg`
 
 
 ### Signing in binary detatched format
@@ -132,8 +131,6 @@ format, that only contains the signature.
 This type of file can be verified by:
 
 * `rnp --verify --homedir=${keyringdir} ${filename}.sig`
-* `rnpv -k ${keyringdir}/pubring.gpg ${filename}.sig`
-
 
 
 ### Signing in Armored (ASCII-Armored) format
@@ -151,9 +148,6 @@ message'.
 This type of file can be verified by:
 
 * `rnp --verify --homedir=${keyringdir} ${filename}.asc`
-
-But this file (and its `--detach` cousin) cannot be verified by
-`rnpv` yet.
 
 
 ### Other options
@@ -195,7 +189,6 @@ Creates: `${filename}`
 
 * `rnp`
 * `rnpkeys`
-* `rnpv`
 
 ## On macOS using Homebrew
 
