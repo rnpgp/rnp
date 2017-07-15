@@ -107,7 +107,10 @@ main(void)
       cmocka_unit_test(rnpkeys_generatekey_verifykeyNonexistingHomeDir),
       cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirNoPermission),
       cmocka_unit_test(rnpkeys_exportkey_verifyUserId),
-      cmocka_unit_test(rnpkeys_generatekey_testExpertMode)};
+      cmocka_unit_test(rnpkeys_generatekey_testExpertMode),
+      cmocka_unit_test(generatekey_explicitlySetSmallOutputDigest_DigestAlgAdjusted),
+      cmocka_unit_test(generatekey_explicitlySetBiggerThanNeededDigest_ShouldSuceed),
+      cmocka_unit_test(generatekey_explicitlySetWrongDigest_ShouldFail)};
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */

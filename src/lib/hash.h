@@ -34,6 +34,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "../common/utils.h"
 
 /** Hashing Algorithm Numbers.
@@ -84,5 +85,17 @@ const char *pgp_hash_name(const pgp_hash_t *hash);
 pgp_hash_alg_t pgp_hash_alg_type(const pgp_hash_t *hash);
 
 pgp_hash_alg_t pgp_str_to_hash_alg(const char *);
+
+/* -----------------------------------------------------------------------------
+ * @brief   Returns output size of an digest algorithm
+ *
+ * @param   [in] alg
+ * @param   [out] output_length: must be not NULL
+ *
+ * @return  true if provided algorithm is supported and it's size was
+ *          correctly retrieved, otherwise false
+ *
+-------------------------------------------------------------------------------- */
+bool pgp_digest_length(pgp_hash_alg_t alg, size_t *output_length);
 
 #endif

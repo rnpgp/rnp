@@ -42,15 +42,13 @@
  */
 #define DEFAULT_HASH_ALG "SHA256"
 
-int
+void
 rnp_cfg_init(rnp_cfg_t *cfg)
 {
-    memset((void *) cfg, '\0', sizeof(rnp_cfg_t));
-
-    return RNP_OK;
+    memset(cfg, '\0', sizeof(rnp_cfg_t));
 }
 
-int
+void
 rnp_cfg_load_defaults(rnp_cfg_t *cfg)
 {
     rnp_cfg_setint(cfg, CFG_OVERWRITE, 1);
@@ -61,8 +59,6 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_set(cfg, CFG_SUBDIRGPG, SUBDIRECTORY_RNP);
     rnp_cfg_set(cfg, CFG_SUBDIRSSH, SUBDIRECTORY_SSH);
     rnp_cfg_setint(cfg, CFG_NUMTRIES, MAX_PASSPHRASE_ATTEMPTS);
-
-    return RNP_OK;
 }
 
 int
@@ -107,7 +103,7 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
 
 /* find the value name in the rnp_cfg */
 static int
-rnp_cfg_find(rnp_cfg_t *cfg, const char *key)
+rnp_cfg_find(const rnp_cfg_t *cfg, const char *key)
 {
     unsigned i;
 
@@ -220,7 +216,7 @@ rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val)
 
 /* get value for the key. Returns NULL if there is no value */
 const char *
-rnp_cfg_get(rnp_cfg_t *cfg, const char *key)
+rnp_cfg_get(const rnp_cfg_t *cfg, const char *key)
 {
     int i;
 
@@ -499,4 +495,16 @@ rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
     }
 
     return RNP_OK;
+}
+
+void
+rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src)
+{
+    if (!src) {
+        return;
+    }
+
+    for (unsigned i = 0; i < src->count; i++) {
+        rnp_cfg_set(dst, src->keys[i], src->vals[i]);
+    }
 }
