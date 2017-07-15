@@ -1265,7 +1265,7 @@ pgp_write_one_pass_sig(pgp_output_t *       output,
 {
     uint8_t keyid[PGP_KEY_ID_SIZE];
 
-    pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey, PGP_HASH_SHA1); /* XXX - hardcoded */
+    pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey);
     return pgp_write_ptag(output, PGP_PTAG_CT_1_PASS_SIG) &&
            pgp_write_length(output, 1 + 1 + 1 + 1 + 8 + 1) &&
            pgp_write_scalar(output, 3, 1) /* version */ &&

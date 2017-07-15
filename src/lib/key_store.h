@@ -111,7 +111,6 @@ typedef struct {
 typedef struct rnp_key_store_t {
     DYNARRAY(pgp_key_t, key);
     DYNARRAY(kbx_blob_t *, blob);
-    pgp_hash_alg_t hashtype;
 } rnp_key_store_t;
 
 int rnp_key_store_load_keys(rnp_t *rnp, int loadsecret);

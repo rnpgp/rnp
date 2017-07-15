@@ -1053,7 +1053,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
             return RNP_FAIL;
         }
 
-        pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey, hash_alg);
+        pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey);
         ret = pgp_add_issuer_keyid(sig, keyid) && pgp_end_hashed_subpkts(sig) &&
               pgp_write_sig(output, sig, &seckey->pubkey, seckey);
 
@@ -1083,7 +1083,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
         pgp_add_time(sig, (int64_t) ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
         pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
         /* add key id to signature */
-        pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey, hash_alg);
+        pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey);
         pgp_add_issuer_keyid(sig, keyid);
         pgp_end_hashed_subpkts(sig);
         pgp_write_sig(output, sig, &seckey->pubkey, seckey);
@@ -1179,7 +1179,7 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
         if (ret == 0) {
             return NULL;
         }
-        pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey, hash_alg);
+        pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey);
         ret = pgp_add_issuer_keyid(sig, keyid) && pgp_end_hashed_subpkts(sig) &&
               pgp_write_sig(output, sig, &seckey->pubkey, seckey);
 
@@ -1214,7 +1214,7 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
         pgp_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
         pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
         /* add key id to signature */
-        pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey, hash_alg);
+        pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey);
         pgp_add_issuer_keyid(sig, keyid);
         pgp_end_hashed_subpkts(sig);
 
@@ -1287,7 +1287,7 @@ pgp_sign_detached(
     /* calculate the signature */
     pgp_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
     pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
-    pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey, hash_alg);
+    pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey);
     pgp_add_issuer_keyid(sig, keyid);
     pgp_end_hashed_subpkts(sig);
     pgp_write_sig(output, sig, &seckey->pubkey, seckey);
