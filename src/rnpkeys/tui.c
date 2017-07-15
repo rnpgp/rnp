@@ -173,7 +173,15 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
             return PGP_E_FAIL;
         }
 
-        // Adjust hash to curve
+        /*
+         * Adjust hash to curve - see point 14 of RFC 4880 bis 01
+         * and/or ECDSA spec.
+         *
+         * Minimal size of digest for curve:
+         *    P-256  32 bytes
+         *    P-384  48 bytes
+         *    P-521  64 bytes
+         */
         switch (key_desc->ecc.curve) {
         case PGP_CURVE_NIST_P_256:
             if (digest_length < 32) {
