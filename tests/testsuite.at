@@ -2,7 +2,7 @@
 
 AT_INIT([rnp])
 
-AT_TESTED([rnp rnpv])
+AT_TESTED([rnp])
 
 m4_include([userid.at])
 

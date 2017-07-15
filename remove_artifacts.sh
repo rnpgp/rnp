@@ -22,8 +22,6 @@ artifacts="
   src/lib/config.h.in~
   src/rnp/Makefile.in
   src/rnpkeys/Makefile.in
-  src/rnpv/Makefile.in
-  src/rnpv/config.h
   tests/Makefile.in
 "
 
