@@ -46,9 +46,10 @@
 #define MAX_PASSPHRASE_ATTEMPTS 3
 #define INFINITE_ATTEMPTS -1
 
-/* SHA1 is now looking as though it should not be used.  Let's
- * pre-empt this by specifying SHA256 - gpg interoperates just fine
- * with SHA256 - agc, 20090522
+/* SHA1 is not considered secured anymore and SHOULD NOT be used to create messages (as per
+ * Appendix C of RFC 4880-bis-02). SHA2 MUST be implemented.
+ * Let's pre-empt this by specifying SHA256 - gpg interoperates just fine with SHA256 - agc,
+ * 20090522
  */
 #define DEFAULT_HASH_ALG "SHA256"
 
