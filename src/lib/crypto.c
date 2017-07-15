@@ -277,12 +277,10 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
     }
     seckey->checksum = 0;
 
-    if (pgp_keyid(
-          keydata->sigid, PGP_KEY_ID_SIZE, &keydata->key.seckey.pubkey, seckey->hash_alg) != 1)
+    if (pgp_keyid(keydata->sigid, PGP_KEY_ID_SIZE, &keydata->key.seckey.pubkey) != RNP_OK)
         goto end;
 
-    if (pgp_fingerprint(
-          &keydata->sigfingerprint, &keydata->key.seckey.pubkey, seckey->hash_alg) != 1)
+    if (pgp_fingerprint(&keydata->sigfingerprint, &keydata->key.seckey.pubkey) != RNP_OK)
         goto end;
 
     /* Generate checksum */
