@@ -27,6 +27,7 @@
 #define __RNP__CFG_H__
 
 #include <rnp.h>
+#include <stdbool.h>
 
 /* cfg variables known by rnp */
 #define CFG_OVERWRITE "overwrite" /* overwrite output file if it is already exist or fail */
@@ -75,12 +76,14 @@ typedef struct rnp_cfg_t {
 
 void rnp_cfg_init(rnp_cfg_t *cfg);
 void rnp_cfg_load_defaults(rnp_cfg_t *cfg);
-int rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params);
-int rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val);
-int rnp_cfg_unset(rnp_cfg_t *cfg, const char *key);
-int rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val);
+bool rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params);
+bool rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val);
+bool rnp_cfg_unset(rnp_cfg_t *cfg, const char *key);
+bool rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val);
+bool rnp_cfg_setbool(rnp_cfg_t *cfg, const char *key, bool val);
 const char *rnp_cfg_get(const rnp_cfg_t *cfg, const char *key);
 int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
+bool rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key);
 void rnp_cfg_free(rnp_cfg_t *cfg);
 
 /* -----------------------------------------------------------------------------
@@ -95,9 +98,12 @@ void rnp_cfg_free(rnp_cfg_t *cfg);
 -------------------------------------------------------------------------------- */
 void rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src);
 
-int rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);
-int rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
+bool rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);
+void rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
 int rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
-int rnp_path_compose(const char *dir, const char *subdir, const char *filename, char *res);
+
+/* rnp CLI helper functions */
+uint64_t get_duration(const char *s);
+int64_t get_birthtime(const char *s);
 
 #endif

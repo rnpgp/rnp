@@ -27,21 +27,18 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "rnpcfg.h"
-#include <rnpsdk.h>
-#include <../common/constants.h>
-
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <regex.h>
 
-/* SHA1 is now looking as though it should not be used.  Let's
- * pre-empt this by specifying SHA256 - gpg interoperates just fine
- * with SHA256 - agc, 20090522
- */
-#define DEFAULT_HASH_ALG "SHA256"
+#include "rnpcfg.h"
+#include "rnpsdk.h"
+#include "constants.h"
 
+/** @brief initialize rnp_cfg structure internals. When structure is not needed anymore
+ *  it should be freed via rnp_cfg_free function call
+ **/
 void
 rnp_cfg_init(rnp_cfg_t *cfg)
 {
@@ -61,14 +58,21 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_setint(cfg, CFG_NUMTRIES, MAX_PASSPHRASE_ATTEMPTS);
 }
 
-int
+/** @brief apply configuration from keys-vals storage to rnp_params_t structure
+ *  @param cfg [in] rnp config, must be allocated and initialized
+ *  @param params [out] this structure will be filled so can be further feed into rnp_init.
+ *                Must be later freed using the rnp_params_free even if rnp_cfg_apply fails.
+ *
+ *  @return true on success, false if something went wrong
+ **/
+bool
 rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
 {
     int         passfd;
     const char *stream;
 
     /* enabling core dumps if user wants this */
-    if (rnp_cfg_getint(cfg, CFG_COREDUMPS)) {
+    if (rnp_cfg_getbool(cfg, CFG_COREDUMPS)) {
         params->enable_coredumps = 1;
     }
 
@@ -91,14 +95,15 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
     }
 
     /* detecting keystore pathes and format */
-    if (!rnp_cfg_get_ks_info(cfg, params))
-        return RNP_FAIL;
+    if (!rnp_cfg_get_ks_info(cfg, params)) {
+        fprintf(stderr, "rnp_cfg_apply: cannot obtain keystore path(es) \n");
+        return false;
+    }
 
     /* default key/userid */
-    if (!rnp_cfg_get_defkey(cfg, params))
-        return RNP_FAIL;
+    rnp_cfg_get_defkey(cfg, params);
 
-    return RNP_OK;
+    return true;
 }
 
 /* find the value name in the rnp_cfg */
@@ -112,8 +117,12 @@ rnp_cfg_find(const rnp_cfg_t *cfg, const char *key)
     return (i == cfg->count) ? -1 : (int) i;
 }
 
-/* resize keys/vals arrays to the new size. Only expanding is supported */
-static int
+/** @brief resize keys/vals arrays to the new size. Only expanding is supported now.
+ *  Pointers keys and vals will be freed in rnp_cfg_free
+ *
+ *  @return true on success, false if allocation fails.
+ **/
+static bool
 rnp_cfg_resize(rnp_cfg_t *cfg, unsigned newsize)
 {
     char **temp;
@@ -123,9 +132,9 @@ rnp_cfg_resize(rnp_cfg_t *cfg, unsigned newsize)
         cfg->keys = calloc(sizeof(char *), newsize);
         cfg->vals = calloc(sizeof(char *), newsize);
 
-        if ((cfg->keys == NULL) || (cfg->keys == NULL)) {
+        if ((cfg->keys == NULL) || (cfg->vals == NULL)) {
             (void) fprintf(stderr, "rnp_cfg_resize: bad alloc\n");
-            return RNP_FAIL;
+            return false;
         }
         cfg->size = newsize;
     } else if (cfg->count == cfg->size) {
@@ -133,24 +142,30 @@ rnp_cfg_resize(rnp_cfg_t *cfg, unsigned newsize)
         temp = realloc(cfg->keys, sizeof(char *) * newsize);
         if (temp == NULL) {
             (void) fprintf(stderr, "rnp_cfg_resize: bad realloc\n");
-            return RNP_FAIL;
+            return false;
         }
         cfg->keys = temp;
 
         temp = realloc(cfg->vals, sizeof(char *) * newsize);
         if (temp == NULL) {
             (void) fprintf(stderr, "rnp_cfg_resize: bad realloc\n");
-            return RNP_FAIL;
+            return false;
         }
         cfg->vals = temp;
         cfg->size = newsize;
     }
 
-    return RNP_OK;
+    return true;
 }
 
-/* set val for the key in config. key and val are duplicated */
-int
+/** @brief set val for the key in config, copying them
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *  @param val value, must be null-terminated string
+ *
+ *  @return false if allocation is failed. keys and vals fields will be freed in rnp_cfg_free
+ **/
+bool
 rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val)
 {
     char *newval = NULL;
@@ -162,7 +177,7 @@ rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val)
         newval = rnp_strdup(val);
         if (newval == NULL) {
             (void) fprintf(stderr, "rnp_cfg_set: bad alloc\n");
-            return RNP_FAIL;
+            return false;
         }
     }
 
@@ -172,12 +187,13 @@ rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val)
             newkey = rnp_strdup(key);
             if (newkey == NULL) {
                 (void) fprintf(stderr, "rnp_cfg_set: bad alloc\n");
-                return RNP_FAIL;
+                free(newval);
+                return false;
             }
             cfg->keys[i = cfg->count++] = newkey;
         } else {
             free(newval);
-            return RNP_FAIL;
+            return false;
         }
     } else {
         /* replace the element in the array */
@@ -188,11 +204,16 @@ rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val)
     }
 
     cfg->vals[i] = newval;
-    return RNP_OK;
+    return true;
 }
 
-/* unset var for key, setting it to NULL if it exists in cfg */
-int
+/** @brief unset value for the key in config, making it NULL
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return true if value was found and set to NULL or false otherwise
+ **/
+bool
 rnp_cfg_unset(rnp_cfg_t *cfg, const char *key)
 {
     int i;
@@ -200,21 +221,45 @@ rnp_cfg_unset(rnp_cfg_t *cfg, const char *key)
     if ((i = rnp_cfg_find(cfg, key)) >= 0) {
         free(cfg->vals[i]);
         cfg->vals[i] = NULL;
-        return RNP_OK;
+        return true;
     }
-    return RNP_FAIL;
+    return false;
 }
 
-/* set int value for the key */
-int
+/** @brief set integer value for the key in config
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *  @param val value, which will be set
+ *
+ *  @return true if operation succeeds or false otherwise
+ **/
+bool
 rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val)
 {
     char st[16] = {0};
-    sprintf(st, "%d", val);
+    snprintf(st, sizeof(st), "%d", val);
     return rnp_cfg_set(cfg, key, st);
 }
 
-/* get value for the key. Returns NULL if there is no value */
+/** @brief set boolean value for the key in config
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *  @param val value, which will be set
+ *
+ *  @return true if operation succeeds or false otherwise
+ **/
+bool
+rnp_cfg_setbool(rnp_cfg_t *cfg, const char *key, bool val)
+{
+    return rnp_cfg_set(cfg, key, val ? "true" : "false");
+}
+
+/** @brief return value for the key if there is one
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return true if operation succeeds or false otherwise
+ **/
 const char *
 rnp_cfg_get(const rnp_cfg_t *cfg, const char *key)
 {
@@ -223,7 +268,12 @@ rnp_cfg_get(const rnp_cfg_t *cfg, const char *key)
     return ((i = rnp_cfg_find(cfg, key)) < 0) ? NULL : cfg->vals[i];
 }
 
-/* get int value for the key */
+/** @brief return integer value for the key if there is one
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return integer value or 0 if there is no value or it is non-integer
+ **/
 int
 rnp_cfg_getint(rnp_cfg_t *cfg, const char *key)
 {
@@ -231,7 +281,32 @@ rnp_cfg_getint(rnp_cfg_t *cfg, const char *key)
     return val ? atoi(val) : 0;
 }
 
-/* free the memory, used by cfg internally */
+/** @brief return boolean value for the key if there is one
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return true if 'true', 'True', or non-zero integer is stored in value, false otherwise
+ **/
+bool
+rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key)
+{
+    const char *val = rnp_cfg_get(cfg, key);
+
+    if (val) {
+        if ((strcmp(val, "true") == 0) || (strcmp(val, "True") == 0)) {
+            return true;
+        } else if (atoi(val) > 0) {
+            return true;
+        } else
+            return false;
+    } else {
+        return false;
+    }
+}
+
+/** @brief free the memory allocated in rnp_cfg_t
+ *  @param cfg rnp config, must be allocated and initialized
+ **/
 void
 rnp_cfg_free(rnp_cfg_t *cfg)
 {
@@ -303,7 +378,10 @@ conffile(const char *homedir, char *userid, size_t length)
         return RNP_FAIL;
     }
     (void) memset(&keyre, 0x0, sizeof(keyre));
-    (void) regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED);
+    if (regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED) != 0) {
+        (void) fprintf(stderr, "conffile: failed to compile regular expression");
+        return RNP_FAIL;
+    }
     while (fgets(buf, (int) sizeof(buf), fp) != NULL) {
         if (regexec(&keyre, buf, 10, matchv, 0) == 0) {
             (void) memcpy(userid,
@@ -321,19 +399,22 @@ conffile(const char *homedir, char *userid, size_t length)
     return RNP_OK;
 }
 
-/*
-  Compose path from dir, subdir and filename. subdir can be null, then just dir and filename
-  will be used.
-  res should point to the allocated buffer.
-*/
-int
+/** @brief compose path from dir, subdir and filename, and store it in the res
+ *  @param dir [in] null-terminated directory path, cannot be NULL
+ *  @param subddir [in] null-terminated subdirectory to add to the path, can be NULL
+ *  @param filename [in] null-terminated filename (or path/filename), cannot be NULL
+ *  @param res [out] preallocated buffer, large enough to store the result
+ *
+ *  @return true if path constructed successfully, or false otherwise
+ **/
+static bool
 rnp_path_compose(const char *dir, const char *subdir, const char *filename, char *res)
 {
     int pos;
 
     /* checking input parameters for conrrectness */
     if (!dir || !filename || !res) {
-        return RNP_FAIL;
+        return false;
     }
 
     /* concatenating dir, subdir and filename */
@@ -355,10 +436,10 @@ rnp_path_compose(const char *dir, const char *subdir, const char *filename, char
 
     strcpy(res + pos, filename);
 
-    return RNP_OK;
+    return true;
 }
 
-static int
+static bool
 parse_ks_format(enum key_store_format_t *key_store_format, const char *format)
 {
     if (rnp_strcasecmp(format, CFG_KEYSTORE_GPG) == 0) {
@@ -369,9 +450,9 @@ parse_ks_format(enum key_store_format_t *key_store_format, const char *format)
         *key_store_format = SSH_KEY_STORE;
     } else {
         fprintf(stderr, "rnp: unsupported keystore format: \"%s\"\n", format);
-        return RNP_FAIL;
+        return false;
     }
-    return RNP_OK;
+    return true;
 }
 
 /* helper function : get key storage subdir in case when user didn't specify homedir */
@@ -395,13 +476,21 @@ rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg, int defhomedir, enum key_store_format_t ks
     return subdir;
 }
 
-int
+/**
+ * @brief Fill the keyring pathes according to user-specified settings
+ *
+ *  @param cfg [in] rnp config, must be allocated and initialized
+ *  @param params [out] in this structure public and secret keyring pathes  will be filled
+ *  @return true on success or false if something went wrong
+ */
+bool
 rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
 {
-    int         defhomedir = 0;
+    bool        defhomedir = false;
     const char *homedir;
     const char *format;
     const char *subdir;
+    const char *sshfile;
     char        pubpath[MAXPATHLEN] = {0};
     char        secpath[MAXPATHLEN] = {0};
     struct stat st;
@@ -410,7 +499,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
      * considered as the final path, no .rnp/.ssh is added */
     if ((homedir = rnp_cfg_get(cfg, CFG_HOMEDIR)) == NULL) {
         homedir = getenv("HOME");
-        defhomedir = 1;
+        defhomedir = true;
     }
 
     /* detecting key storage format */
@@ -432,7 +521,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
     }
 
     if (!parse_ks_format(&params->ks_format, format)) {
-        return RNP_FAIL;
+        return false;
     }
 
     /* building pubring/secring pathes */
@@ -443,39 +532,71 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
         rnp_path_compose(homedir, NULL, subdir, pubpath);
         if (mkdir(pubpath, 0700) == -1 && errno != EEXIST) {
             fprintf(stderr, "cannot mkdir '%s' errno = %d \n", pubpath, errno);
-            return RNP_FAIL;
+            return false;
         }
     }
 
     if (params->ks_format == GPG_KEY_STORE) {
-        rnp_path_compose(homedir, subdir, PUBRING_GPG, pubpath);
+        if (!rnp_path_compose(homedir, subdir, PUBRING_GPG, pubpath) ||
+            !rnp_path_compose(homedir, subdir, SECRING_GPG, secpath)) {
+            return false;
+        }
         params->pubpath = strdup(pubpath);
-        rnp_path_compose(homedir, subdir, SECRING_GPG, secpath);
         params->secpath = strdup(secpath);
     } else if (params->ks_format == KBX_KEY_STORE) {
-        rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath);
+        if (!rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath) ||
+            !rnp_path_compose(homedir, subdir, SECRING_KBX, secpath)) {
+            return false;
+        }
         params->pubpath = strdup(pubpath);
-        rnp_path_compose(homedir, subdir, SECRING_KBX, secpath);
+        params->secpath = strdup(secpath);
+    } else if (params->ks_format == SSH_KEY_STORE) {
+        if ((sshfile = rnp_cfg_get(cfg, CFG_SSHKEYFILE)) == NULL) {
+            /* set reasonable default for RSA key */
+            if (!rnp_path_compose(homedir, subdir, "id_rsa.pub", pubpath) ||
+                !rnp_path_compose(homedir, subdir, "id_rsa", secpath)) {
+                return false;
+            }
+        } else if ((strlen(sshfile) < 4) ||
+                   (strcmp(&sshfile[strlen(sshfile) - 4], ".pub") != 0)) {
+            /* got ssh keys, but no .pub extension */
+            (void) snprintf(pubpath, sizeof(pubpath), "%s.pub", sshfile);
+            (void) snprintf(secpath, sizeof(secpath), "%s", sshfile);
+        } else {
+            /* got ssh key name with .pub extension */
+            strncpy(pubpath, sshfile, sizeof(pubpath));
+            strncpy(secpath, sshfile, sizeof(secpath));
+            secpath[strlen(sshfile) - 4] = 0;
+        }
+
+        params->pubpath = strdup(pubpath);
         params->secpath = strdup(secpath);
     } else {
         fprintf(stderr, "rnp: unsupported keystore format: \"%d\"\n", (int) params->ks_format);
-        return RNP_FAIL;
+        return false;
     }
 
-    return RNP_OK;
+    return true;
 }
 
-int
+/**
+ * @brief Attempt to get the default key id/name in a number of ways
+ * Tries to find via user-specified parameters and  GnuPG conffile.
+ *
+ *  @param cfg [in] rnp config, must be allocated and initialized
+ *  @param params [out] in this structure defkey will be filled if found
+ */
+void
 rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
 {
     char        id[MAX_ID_LENGTH];
     const char *userid;
     const char *homedir;
-    int         defhomedir = 0;
+    bool        defhomedir = false;
 
     if ((homedir = rnp_cfg_get(cfg, CFG_HOMEDIR)) == NULL) {
         homedir = getenv("HOME");
-        defhomedir = 1;
+        defhomedir = true;
     }
 
     /* If a userid has been given, we'll use it. */
@@ -493,8 +614,111 @@ rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
     } else {
         params->defkey = strdup(userid);
     }
+}
 
-    return RNP_OK;
+/**
+ * @brief Grabs date from the string in %Y-%m-%d format
+ *
+ * @param s [in] NULL-terminated string with the date
+ * @param t [out] On successfull return result will be placed here
+ * @return true on success or false otherwise
+ */
+
+static bool
+grabdate(const char *s, int64_t *t)
+{
+    static regex_t r;
+    static int     compiled;
+    regmatch_t     matches[10];
+    struct tm      tm;
+
+    if (!compiled) {
+        compiled = 1;
+        if (regcomp(&r,
+                    "([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])",
+                    REG_EXTENDED) != 0) {
+            fprintf(stderr, "grabdate: failed to compile regexp");
+            return false;
+        }
+    }
+    if (regexec(&r, s, 10, matches, 0) == 0) {
+        (void) memset(&tm, 0x0, sizeof(tm));
+        tm.tm_year = (int) strtol(&s[(int) matches[1].rm_so], NULL, 10);
+        tm.tm_mon = (int) strtol(&s[(int) matches[2].rm_so], NULL, 10) - 1;
+        tm.tm_mday = (int) strtol(&s[(int) matches[3].rm_so], NULL, 10);
+        *t = mktime(&tm);
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Get signature validity duration time from the user input
+ *
+ * Signature duration may be specified in different formats:
+ * - 10d : 10 days (you can use [h]ours, d[ays], [w]eeks, [m]onthes)
+ * - 2017-07-12 : as the exact date when signature becomes invalid
+ * - 60000 : number of seconds
+ *
+ * @param s [in] NULL-terminated string with the date
+ * @param t [out] On successfull return result will be placed here
+ * @return duration time in seconds
+ */
+
+uint64_t
+get_duration(const char *s)
+{
+    uint64_t now;
+    int64_t  t;
+    char *   mult;
+
+    if ((s == NULL) || (strlen(s) < 1)) {
+        return 0;
+    }
+    now = (uint64_t) strtoull(s, NULL, 10);
+    if ((mult = strchr("hdwmy", s[strlen(s) - 1])) != NULL) {
+        switch (*mult) {
+        case 'h':
+            return now * 60 * 60;
+        case 'd':
+            return now * 60 * 60 * 24;
+        case 'w':
+            return now * 60 * 60 * 24 * 7;
+        case 'm':
+            return now * 60 * 60 * 24 * 31;
+        case 'y':
+            return now * 60 * 60 * 24 * 365;
+        }
+    }
+    if (grabdate(s, &t)) {
+        return t;
+    }
+    return (uint64_t) strtoll(s, NULL, 10);
+}
+
+/**
+ * @brief Get signature validity start time from the user input
+ *
+ * Signature validity may be specified in different formats:
+ * - 2017-07-12 : as the exact date when signature becomes invalid
+ * - 1499334073 : timestamp
+ *
+ * @param s [in] NULL-terminated string with the date
+ * @return timestamp of the validity start
+ */
+
+int64_t
+get_birthtime(const char *s)
+{
+    int64_t t;
+
+    if (s == NULL) {
+        return time(NULL);
+    }
+    if (grabdate(s, &t)) {
+        return t;
+    }
+    return (uint64_t) strtoll(s, NULL, 10);
 }
 
 void

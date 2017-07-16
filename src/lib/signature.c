@@ -89,7 +89,7 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 #include "rnpdefs.h"
 #include "rnpdigest.h"
 #include "signature.h"
-#include "../common/utils.h"
+#include "utils.h"
 
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
@@ -974,7 +974,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
               const char *        inname,
               const char *        outname,
               const pgp_seckey_t *seckey,
-              const unsigned      cleartext)
+              bool                cleartext)
 {
     pgp_create_sig_t *sig;
     pgp_sig_type_t    sig_type;
@@ -1117,7 +1117,7 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
              const void *        input,
              const size_t        insize,
              const pgp_seckey_t *seckey,
-             const unsigned      cleartext)
+             const bool          cleartext)
 {
     pgp_litdata_enum  ld_type;
     pgp_create_sig_t *sig;

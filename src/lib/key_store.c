@@ -40,9 +40,7 @@
 #include "packet-key.h"
 #include "packet.h"
 
-#ifdef ENABLE_SSH
 #include "key_store_ssh.h"
-#endif
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -73,18 +71,15 @@ rnp_key_store_read_keyring(rnp_t *rnp, const char *path)
 }
 
 int
-rnp_key_store_load_keys(rnp_t *rnp, int loadsecret)
+rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 {
     char      id[MAX_ID_LENGTH];
     void *    newring;
     pgp_io_t *io = rnp->io;
 
     if (rnp->key_store_format == SSH_KEY_STORE) {
-#ifdef ENABLE_SSH
-        return rnp_key_store_ssh_load_keys(rnp, homedir);
-#else
-        return RNP_FAIL;
-#endif
+        return rnp_key_store_ssh_load_keys(
+          rnp, rnp->pubpath, loadsecret ? rnp->secpath : NULL);
     }
 
     newring = rnp_key_store_read_keyring(rnp, rnp->pubpath);
@@ -156,11 +151,7 @@ rnp_key_store_load_from_file(rnp_t *          rnp,
     pgp_memory_t mem = {0};
 
     if (rnp->key_store_format == SSH_KEY_STORE) {
-#ifdef ENABLE_SSH
         return rnp_key_store_ssh_from_file(rnp->io, key_store, filename);
-#else
-        return RNP_FAIL;
-#endif
     }
 
     if (!pgp_mem_readfile(&mem, filename)) {
@@ -186,11 +177,7 @@ rnp_key_store_load_from_mem(rnp_t *          rnp,
         return rnp_key_store_kbx_from_mem(rnp->io, key_store, memory);
 
     case SSH_KEY_STORE:
-#ifdef ENABLE_SSH
         return rnp_key_store_ssh_from_mem(rnp->io, key_store, memory);
-#else
-        return RNP_FAIL;
-#endif
     }
 
     return RNP_FAIL;
@@ -207,11 +194,7 @@ rnp_key_store_write_to_file(rnp_t *          rnp,
     pgp_memory_t mem = {0};
 
     if (rnp->key_store_format == SSH_KEY_STORE) {
-#ifdef ENABLE_SSH
         return rnp_key_store_ssh_to_file(rnp->io, key_store, passphrase, filename);
-#else
-        return RNP_FAIL;
-#endif
     }
 
     if (!rnp_key_store_write_to_mem(rnp, key_store, passphrase, armour, &mem)) {
@@ -238,11 +221,7 @@ rnp_key_store_write_to_mem(rnp_t *          rnp,
         return rnp_key_store_kbx_to_mem(rnp->io, key_store, passphrase, memory);
 
     case SSH_KEY_STORE:
-#ifdef ENABLE_SSH
         return rnp_key_store_ssh_to_mem(rnp->io, key_store, passphrase, memory);
-#else
-        return RNP_FAIL;
-#endif
     }
 
     return RNP_FAIL;

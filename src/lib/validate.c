@@ -621,7 +621,7 @@ fmtsecs(int64_t n, char *buf, size_t size)
  * \return 0 if any invalid signatures or unknown signers
         or no valid signatures; else 1
  */
-static unsigned
+static bool
 validate_result_status(FILE *errs, const char *f, pgp_validation_t *val)
 {
     time_t now;
@@ -640,7 +640,7 @@ validate_result_status(FILE *errs, const char *f, pgp_validation_t *val)
                        "signature not valid until %.24s (%s)\n",
                        ctime(&val->birthtime),
                        fmtsecs((int64_t)(val->birthtime - now), buf, sizeof(buf)));
-        return 0;
+        return false;
     }
     if (val->duration != 0 && now > val->birthtime + val->duration) {
         /* signature has expired */
@@ -654,7 +654,7 @@ validate_result_status(FILE *errs, const char *f, pgp_validation_t *val)
                        "signature not valid after %.24s (%s ago)\n",
                        ctime(&t),
                        fmtsecs((int64_t)(now - t), buf, sizeof(buf)));
-        return 0;
+        return false;
     }
     return val->validc && !val->invalidc && !val->unknownc;
 }
@@ -670,7 +670,7 @@ validate_result_status(FILE *errs, const char *f, pgp_validation_t *val)
  * \note It is the caller's responsiblity to free result after use.
  * \sa pgp_validate_result_free()
  */
-unsigned
+bool
 pgp_validate_key_sigs(pgp_validation_t *     result,
                       const pgp_key_t *      key,
                       const rnp_key_store_t *keyring,
@@ -678,7 +678,7 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
 {
     pgp_stream_t *    stream;
     validate_key_cb_t keysigs;
-    const int         printerrors = 1;
+    const bool        printerrors = true;
 
     (void) memset(&keysigs, 0x0, sizeof(keysigs));
     keysigs.result = result;
@@ -719,7 +719,7 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
    \note It is the caller's responsibility to free result after use.
    \sa pgp_validate_result_free()
 */
-unsigned
+bool
 pgp_validate_all_sigs(pgp_validation_t *     result,
                       const rnp_key_store_t *ring,
                       pgp_cb_ret_t cb_get_passphrase(const pgp_packet_t *, pgp_cbdata_t *))
@@ -771,23 +771,23 @@ pgp_validate_result_free(pgp_validation_t *result)
    \note It is the caller's responsiblity to call
         pgp_validate_result_free(result) after use.
 */
-unsigned
+bool
 pgp_validate_file(pgp_io_t *             io,
                   pgp_validation_t *     result,
                   const char *           infile,
                   const char *           outfile,
-                  const int              user_says_armoured,
+                  const bool             user_says_armoured,
                   const rnp_key_store_t *keyring)
 {
     validate_data_cb_t validation;
     pgp_stream_t *     parse = NULL;
     struct stat        st;
     const char *       signame;
-    const int          printerrors = 1;
-    unsigned           ret;
+    bool               printerrors = true;
+    bool               ret;
     char               f[MAXPATHLEN];
     char *             dataname;
-    int                realarmour;
+    bool               realarmour;
     int                outfd = 0;
     int                infd;
     int                cc;
@@ -812,7 +812,7 @@ pgp_validate_file(pgp_io_t *             io,
         /* set dataname to name of file which was signed */
         dataname = f;
         signame = infile;
-        realarmour = 1;
+        realarmour = true;
     } else {
         signame = infile;
     }
@@ -832,7 +832,7 @@ pgp_validate_file(pgp_io_t *             io,
     validation.mem = pgp_memory_new();
     if (validation.mem == NULL) {
         (void) fprintf(stderr, "can't allocate mem\n");
-        return 0;
+        return false;
     }
     pgp_memory_init(validation.mem, 128);
     /* Note: Coverity incorrectly reports an error that validation.reader */
@@ -867,7 +867,7 @@ pgp_validate_file(pgp_io_t *             io,
             /* even if the signature was good, we can't
              * write the file, so send back a bad return
              * code */
-            ret = 0;
+            ret = false;
         } else if (validate_result_status(io->errs, infile, result)) {
             unsigned len;
             char *   cp;
@@ -879,7 +879,7 @@ pgp_validate_file(pgp_io_t *             io,
                 cc = (int) write(outfd, &cp[i], (unsigned) (len - i));
                 if (cc < 0) {
                     (void) fprintf(io->errs, "rnp: short write\n");
-                    ret = 0;
+                    ret = false;
                     break;
                 }
             }
@@ -908,22 +908,22 @@ pgp_validate_file(pgp_io_t *             io,
         pgp_validate_result_free(result) after use.
 */
 
-unsigned
+bool
 pgp_validate_mem(pgp_io_t *             io,
                  pgp_validation_t *     result,
                  pgp_memory_t *         mem,
                  pgp_memory_t **        cat,
-                 const int              user_says_armoured,
+                 const bool             user_says_armoured,
                  const rnp_key_store_t *keyring)
 {
     validate_data_cb_t validation;
     pgp_stream_t *     stream = NULL;
     const int          printerrors = 1;
-    int                realarmour;
+    bool               realarmour;
 
     if (!pgp_setup_memory_read(io, &stream, mem, &validation, validate_data_cb, 1)) {
         (void) fprintf(io->errs, "can't setup memory read\n");
-        return 0;
+        return false;
     }
     /* Set verification reader and handling options */
     (void) memset(&validation, 0x0, sizeof(validation));
@@ -932,16 +932,16 @@ pgp_validate_mem(pgp_io_t *             io,
     validation.mem = pgp_memory_new();
     if (validation.mem == NULL) {
         (void) fprintf(stderr, "can't allocate mem\n");
-        return 0;
+        return false;
     }
     pgp_memory_init(validation.mem, 128);
     /* Note: Coverity incorrectly reports an error that validation.reader */
     /* is never used. */
     validation.reader = stream->readinfo.arg;
 
-    if ((realarmour = user_says_armoured) != 0 ||
+    if ((realarmour = user_says_armoured) ||
         strncmp(pgp_mem_data(mem), "-----BEGIN PGP MESSAGE-----", 27) == 0) {
-        realarmour = 1;
+        realarmour = true;
     }
     if (realarmour) {
         pgp_reader_push_dearmour(stream);

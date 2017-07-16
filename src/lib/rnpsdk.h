@@ -35,7 +35,7 @@
 #include "crypto.h"
 #include "signature.h"
 #include "packet-show.h"
-#include "../common/constants.h"
+#include "constants.h"
 
 #ifndef __printflike
 #define __printflike(n, m) __attribute__((format(printf, n, m)))
@@ -54,14 +54,14 @@ typedef struct pgp_validation_t {
 
 void pgp_validate_result_free(pgp_validation_t *);
 
-unsigned pgp_validate_key_sigs(pgp_validation_t *,
-                               const pgp_key_t *,
-                               const rnp_key_store_t *,
-                               pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
+bool pgp_validate_key_sigs(pgp_validation_t *,
+                           const pgp_key_t *,
+                           const rnp_key_store_t *,
+                           pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
 
-unsigned pgp_validate_all_sigs(pgp_validation_t *,
-                               const rnp_key_store_t *,
-                               pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
+bool pgp_validate_all_sigs(pgp_validation_t *,
+                           const rnp_key_store_t *,
+                           pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
 
 unsigned pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 
@@ -77,9 +77,5 @@ char *rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *
 int64_t rnp_filemtime(const char *path);
 
 const char *rnp_filename(const char *path);
-
-int grabdate(const char *s, int64_t *t);
-uint64_t get_duration(const char *s);
-int64_t get_birthtime(const char *s);
 
 #endif

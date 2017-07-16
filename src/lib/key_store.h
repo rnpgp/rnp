@@ -35,6 +35,7 @@
 #include <json.h>
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "packet.h"
 #include "memory.h"
@@ -113,7 +114,7 @@ typedef struct rnp_key_store_t {
     DYNARRAY(kbx_blob_t *, blob);
 } rnp_key_store_t;
 
-int rnp_key_store_load_keys(rnp_t *rnp, int loadsecret);
+int rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret);
 
 int rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *, const unsigned, const char *);
 int rnp_key_store_load_from_mem(rnp_t *rnp, rnp_key_store_t *, const unsigned, pgp_memory_t *);

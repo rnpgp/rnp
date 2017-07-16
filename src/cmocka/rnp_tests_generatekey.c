@@ -66,11 +66,11 @@ rnpkeys_generatekey_testSignature(void **state)
         rnp_assert_ok(rstate, rnp_generate_key(&rnp, userId));
 
         /* Load the newly generated rnp key */
-        rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
+        rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
         rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
         /* Make sure just generated key is present in the keyring */
-        rnp_assert_ok(rstate, rnp_find_key(&rnp, userId));
+        rnp_assert_true(rstate, rnp_find_key(&rnp, userId));
 
         /* Cleanup */
         close(pipefd[0]);
@@ -89,7 +89,7 @@ rnpkeys_generatekey_testSignature(void **state)
                 rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
 
                 /* Load keyring */
-                rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
+                rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
                 rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0);
 
                 /* Setup signing context */
@@ -170,11 +170,11 @@ rnpkeys_generatekey_testEncryption(void **state)
     rnp_assert_ok(rstate, rnp_generate_key(&rnp, userId));
 
     /* Load keyring */
-    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
+    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
     rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
     /* Make sure just generated key is present in the keyring */
-    rnp_assert_ok(rstate, rnp_find_key(&rnp, userId));
+    rnp_assert_true(rstate, rnp_find_key(&rnp, userId));
 
     /* Cleanup */
     close(pipefd[0]);
@@ -186,7 +186,7 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, NULL));
 
             /* Load keyring */
-            rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 0));
+            rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, false));
             rnp_assert_int_equal(rstate, 0, rnp_secret_count(&rnp));
 
             /* setting the cipher and armored flags */
@@ -215,7 +215,7 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
 
             /* Loading the keyrings */
-            rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
+            rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
             rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0);
 
             /* Setting the decryption context */
@@ -263,10 +263,10 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
             rnp_assert_ok(rstate, rnp_generate_key(&rnp, NULL));
 
             /* Load the newly generated rnp key */
-            rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
+            rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
             rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
-            rnp_assert_ok(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
+            rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
             /* Close pipe and free allocated memory */
             close(pipefd[0]);
@@ -310,9 +310,9 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
             rnp_assert_ok(rstate, rnp_generate_key(&rnp, userId));
 
             /*Load the newly generated rnp key*/
-            rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
+            rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
             rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
-            rnp_assert_ok(rstate, rnp_find_key(&rnp, userId));
+            rnp_assert_true(rstate, rnp_find_key(&rnp, userId));
 
             /* Close pipe and free allocated memory */
             close(pipefd[0]);
@@ -348,10 +348,10 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     rnp_assert_true(rstate, path_file_exists(ourdir, ".rnp/secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
+    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
     rnp_assert_int_equal(rstate, 1, rnp_secret_count(&rnp));
     rnp_assert_int_equal(rstate, 1, rnp_public_count(&rnp));
-    rnp_assert_ok(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
+    rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
     close(pipefd[0]);
     rnp_end(&rnp);
@@ -379,11 +379,11 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     rnp_assert_true(rstate, path_file_exists(newhome, "secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
+    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
     rnp_assert_int_equal(rstate, 1, rnp_secret_count(&rnp));
     rnp_assert_int_equal(rstate, 1, rnp_public_count(&rnp));
     /* We should not find this key */
-    rnp_assert_fail(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
+    rnp_assert_false(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
     close(pipefd[0]);
     rnp_end(&rnp); // Free memory and other allocated resources.
@@ -420,10 +420,10 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
     rnp_assert_false(rstate, path_file_exists(ourdir, ".rnp/secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
+    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
     rnp_assert_int_equal(rstate, 1, rnp_secret_count(&rnp));
     rnp_assert_int_equal(rstate, 1, rnp_public_count(&rnp));
-    rnp_assert_ok(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
+    rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
     close(pipefd[0]);
     rnp_end(&rnp);
@@ -452,11 +452,11 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
     rnp_assert_false(rstate, path_file_exists(newhome, "secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
+    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
     rnp_assert_int_equal(rstate, 1, rnp_secret_count(&rnp));
     rnp_assert_int_equal(rstate, 1, rnp_public_count(&rnp));
     /* We should not find this key */
-    rnp_assert_fail(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
+    rnp_assert_false(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
     close(pipefd[0]);
     rnp_end(&rnp);
@@ -552,7 +552,7 @@ rnpkeys_generatekey_testExpertMode(void **state)
     static const char test_rsa_1024[] = "1\n1024\n";
     static const char test_rsa_ask_twice_4096[] = "1\n1023\n4096\n";
 
-    rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_EXPERT, 1));
+    rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_256, sizeof(test_ecdsa_256)));
@@ -605,7 +605,7 @@ generatekey_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state)
 
     static const char test_ecdsa_384[] = "19\n2\n";
 
-    rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_EXPERT, 1));
+    rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
     rnp_assert_true(rstate, rnp_cfg_set(&ops, CFG_HASH, "SHA1"));
 
     rnp_assert_true(rstate,
@@ -624,7 +624,7 @@ generatekey_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
 
     static const char test_ecdsa_384[] = "19\n2\n";
 
-    rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_EXPERT, 1));
+    rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
     rnp_assert_true(rstate, rnp_cfg_set(&ops, CFG_HASH, "SHA512"));
 
     rnp_assert_true(rstate,
@@ -643,7 +643,7 @@ generatekey_explicitlySetWrongDigest_ShouldFail(void **state)
 
     static const char test_ecdsa_384[] = "19\n2\n";
 
-    rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_EXPERT, 1));
+    rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
     rnp_assert_true(rstate, rnp_cfg_set(&ops, CFG_HASH, "WRONG_DIGEST_ALGORITHM"));
 
     rnp_assert_false(rstate,

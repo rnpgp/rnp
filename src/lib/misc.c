@@ -326,7 +326,7 @@ hash_uint32(pgp_hash_t *hash, uint32_t n)
 }
 
 /* hash a string - first length, then string itself */
-static int
+int
 hash_string(pgp_hash_t *hash, const uint8_t *buf, uint32_t len)
 {
     if (rnp_get_debug(__FILE__)) {
@@ -338,7 +338,7 @@ hash_string(pgp_hash_t *hash, const uint8_t *buf, uint32_t len)
 }
 
 /* hash a bignum, possibly padded - first length, then string itself */
-static int
+int
 hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
 {
     uint8_t *bn;
@@ -739,7 +739,7 @@ pgp_mem_data(pgp_memory_t *mem)
 }
 
 /* read a gile into an pgp_memory_t */
-int
+bool
 pgp_mem_readfile(pgp_memory_t *mem, const char *f)
 {
     struct stat st;
@@ -748,7 +748,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
 
     if ((fp = fopen(f, "rb")) == NULL) {
         (void) fprintf(stderr, "pgp_mem_readfile: can't open \"%s\"\n", f);
-        return RNP_FAIL;
+        return false;
     }
     (void) fstat(fileno(fp), &st);
     mem->allocated = (size_t) st.st_size;
@@ -758,7 +758,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
         if ((mem->buf = calloc(1, mem->allocated)) == NULL) {
             (void) fprintf(stderr, "pgp_mem_readfile: calloc\n");
             (void) fclose(fp);
-            return RNP_FAIL;
+            return false;
         }
         /* read into contents of mem */
         for (mem->length = 0; (cc = (int) read(fileno(fp),
@@ -771,7 +771,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
         mem->mmapped = 1;
     }
     (void) fclose(fp);
-    return (mem->allocated == mem->length) ? RNP_OK : RNP_FAIL;
+    return (mem->allocated == mem->length);
 }
 
 int
@@ -1117,80 +1117,4 @@ rnp_filename(const char *path)
     } else {
         return res + 1;
     }
-}
-
-/* find the time - in a specific %Y-%m-%d format - using a regexp */
-int
-grabdate(const char *s, int64_t *t)
-{
-    static regex_t r;
-    static int     compiled;
-    regmatch_t     matches[10];
-    struct tm      tm;
-
-    if (!compiled) {
-        compiled = 1;
-        if (regcomp(&r,
-                    "([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])",
-                    REG_EXTENDED) != 0) {
-            fprintf(stderr, "Can't compile regex\n");
-            return -1;
-        }
-    }
-    if (regexec(&r, s, 10, matches, 0) == 0) {
-        (void) memset(&tm, 0x0, sizeof(tm));
-        tm.tm_year = (int) strtol(&s[(int) matches[1].rm_so], NULL, 10);
-        tm.tm_mon = (int) strtol(&s[(int) matches[2].rm_so], NULL, 10) - 1;
-        tm.tm_mday = (int) strtol(&s[(int) matches[3].rm_so], NULL, 10);
-        *t = mktime(&tm);
-        return 1;
-    }
-    return 0;
-}
-
-/* get expiration in seconds */
-uint64_t
-get_duration(const char *s)
-{
-    uint64_t now;
-    int64_t  t;
-    char *   mult;
-
-    if (s == NULL) {
-        return 0;
-    }
-    now = (uint64_t) strtoull(s, NULL, 10);
-    if ((mult = strchr("hdwmy", s[strlen(s) - 1])) != NULL) {
-        switch (*mult) {
-        case 'h':
-            return now * 60 * 60;
-        case 'd':
-            return now * 60 * 60 * 24;
-        case 'w':
-            return now * 60 * 60 * 24 * 7;
-        case 'm':
-            return now * 60 * 60 * 24 * 31;
-        case 'y':
-            return now * 60 * 60 * 24 * 365;
-        }
-    }
-    if (grabdate(s, &t) > 0) {
-        return t;
-    }
-    return (uint64_t) strtoll(s, NULL, 10);
-}
-
-/* get birthtime in seconds */
-int64_t
-get_birthtime(const char *s)
-{
-    int64_t t;
-
-    if (s == NULL) {
-        return time(NULL);
-    }
-    if (grabdate(s, &t) > 0) {
-        return t;
-    }
-    return (uint64_t) strtoll(s, NULL, 10);
 }

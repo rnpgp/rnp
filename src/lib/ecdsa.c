@@ -34,7 +34,7 @@
 #include "packet.h"
 #include "readerwriter.h"
 #include "rnpdefs.h"
-#include "../common/utils.h"
+#include "utils.h"
 
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
