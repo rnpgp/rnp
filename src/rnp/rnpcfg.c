@@ -68,7 +68,7 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
     const char *stream;
 
     /* enabling core dumps if user wants this */
-    if (rnp_cfg_getint(cfg, CFG_COREDUMPS)) {
+    if (rnp_cfg_getbool(cfg, CFG_COREDUMPS)) {
         params->enable_coredumps = 1;
     }
 
@@ -237,6 +237,23 @@ rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val)
     return rnp_cfg_set(cfg, key, st);
 }
 
+/** @brief set boolean value for the key in config
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *  @param val value, which will be set
+ *
+ *  @return true if operation succeeds or false otherwise
+ **/
+bool
+rnp_cfg_setbool(rnp_cfg_t *cfg, const char *key, bool val)
+{
+    if (val) {
+        rnp_cfg_set(cfg, key, "true");
+    } else {
+        rnp_cfg_set(cfg, key, "false");
+    }
+}
+
 /** @brief return value for the key if there is one
  *  @param cfg rnp config, must be allocated and initialized
  *  @param key must be null-terminated string
@@ -262,6 +279,29 @@ rnp_cfg_getint(rnp_cfg_t *cfg, const char *key)
 {
     const char *val = rnp_cfg_get(cfg, key);
     return val ? atoi(val) : 0;
+}
+
+/** @brief return boolean value for the key if there is one
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return true if 'true', 'True', or non-zero integer is stored in value, false otherwise
+ **/
+bool 
+rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key)
+{
+    const char *val = rnp_cfg_get(cfg, key);
+
+    if (val) {
+        if ((strcmp(val, "true") == 0) || (strcmp(val, "True") == 0)) {
+            return true;
+        } else if (atoi(val) > 0) {
+            return true;
+        } else
+            return false;
+    } else {
+        return false;
+    }
 }
 
 /** @brief free the memory allocated in rnp_cfg_t

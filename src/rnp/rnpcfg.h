@@ -80,8 +80,10 @@ bool rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params);
 bool rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val);
 bool rnp_cfg_unset(rnp_cfg_t *cfg, const char *key);
 bool rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val);
+bool rnp_cfg_setbool(rnp_cfg_t *cfg, const char *key, bool val);
 const char *rnp_cfg_get(const rnp_cfg_t *cfg, const char *key);
 int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
+bool rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key);
 void rnp_cfg_free(rnp_cfg_t *cfg);
 
 /* -----------------------------------------------------------------------------

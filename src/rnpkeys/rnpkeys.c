@@ -184,7 +184,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         key_desc->hash_alg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
         key_desc->sym_alg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
 
-        if (!rnp_cfg_getint(cfg, CFG_EXPERT)) {
+        if (!rnp_cfg_getbool(cfg, CFG_EXPERT)) {
             key_desc->key_alg = PGP_PKA_RSA;
             key_desc->rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
         } else if (rnp_generate_key_expert_mode(rnp) != PGP_E_OK) {
@@ -215,14 +215,14 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
 {
     switch (val) {
     case OPT_COREDUMPS:
-        rnp_cfg_setint(cfg, CFG_COREDUMPS, 1);
+        rnp_cfg_setbool(cfg, CFG_COREDUMPS, true);
         break;
     case CMD_GENERATE_KEY:
-        rnp_cfg_setint(cfg, CFG_NEEDSSECKEY, 1);
+        rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
         *cmd = val;
         break;
     case OPT_EXPERT:
-        rnp_cfg_setint(cfg, CFG_EXPERT, 1);
+        rnp_cfg_setbool(cfg, CFG_EXPERT, true);
         break;
     case CMD_LIST_KEYS:
     case CMD_LIST_SIGS:

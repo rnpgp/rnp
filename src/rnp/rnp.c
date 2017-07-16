@@ -289,7 +289,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     rnp_ctx_t   ctx;
 
     /* checking userid for the upcoming operation */
-    if (rnp_cfg_getint(cfg, CFG_NEEDSUSERID)) {
+    if (rnp_cfg_getbool(cfg, CFG_NEEDSUSERID)) {
         userid = rnp_cfg_get(cfg, CFG_USERID);
 
         if (!userid && rnp->defkey) {
@@ -359,7 +359,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
                                 f,
                                 rnp_cfg_get(cfg, CFG_OUTFILE),
                                 clearsign,
-                                (bool) rnp_cfg_getint(cfg, CFG_DETACHED)) == RNP_OK;
+                                rnp_cfg_getbool(cfg, CFG_DETACHED)) == RNP_OK;
         }
         goto done;
     case CMD_VERIFY:
@@ -410,23 +410,23 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
 {
     switch (val) {
     case OPT_COREDUMPS:
-        rnp_cfg_setint(cfg, CFG_COREDUMPS, 1);
+        rnp_cfg_setbool(cfg, CFG_COREDUMPS, true);
         break;
     case CMD_ENCRYPT:
         /* for encryption, we need a userid */
-        rnp_cfg_setint(cfg, CFG_NEEDSUSERID, 1);
+        rnp_cfg_setbool(cfg, CFG_NEEDSUSERID, true);
         *cmd = val;
         break;
     case CMD_SIGN:
     case CMD_CLEARSIGN:
         /* for signing, we need a userid and a seckey */
-        rnp_cfg_setint(cfg, CFG_NEEDSUSERID, 1);
-        rnp_cfg_setint(cfg, CFG_NEEDSSECKEY, 1);
+        rnp_cfg_setbool(cfg, CFG_NEEDSUSERID, true);
+        rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
         *cmd = val;
         break;
     case CMD_DECRYPT:
         /* for decryption, we need a seckey */
-        rnp_cfg_setint(cfg, CFG_NEEDSSECKEY, 1);
+        rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
         *cmd = val;
         break;
     case CMD_VERIFY:
@@ -470,7 +470,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         rnp_cfg_setint(cfg, CFG_ARMOUR, 1);
         break;
     case OPT_DETACHED:
-        rnp_cfg_setint(cfg, CFG_DETACHED, 1);
+        rnp_cfg_setbool(cfg, CFG_DETACHED, true);
         break;
     case OPT_VERBOSE:
         rnp_cfg_setint(cfg, CFG_VERBOSE, rnp_cfg_getint(cfg, CFG_VERBOSE) + 1);
@@ -624,12 +624,12 @@ main(int argc, char **argv)
                 exit(EXIT_SUCCESS);
             case 'd':
                 /* for decryption, we need the seckey */
-                rnp_cfg_setint(&cfg, CFG_NEEDSSECKEY, 1);
+                rnp_cfg_setbool(&cfg, CFG_NEEDSSECKEY, true);
                 cmd = CMD_DECRYPT;
                 break;
             case 'e':
                 /* for encryption, we need a userid */
-                rnp_cfg_setint(&cfg, CFG_NEEDSUSERID, 1);
+                rnp_cfg_setbool(&cfg, CFG_NEEDSUSERID, true);
                 cmd = CMD_ENCRYPT;
                 break;
             case 'o':
@@ -639,8 +639,8 @@ main(int argc, char **argv)
                 break;
             case 's':
                 /* for signing, we need a userid and a seckey */
-                rnp_cfg_setint(&cfg, CFG_NEEDSSECKEY, 1);
-                rnp_cfg_setint(&cfg, CFG_NEEDSUSERID, 1);
+                rnp_cfg_setbool(&cfg, CFG_NEEDSSECKEY, true);
+                rnp_cfg_setbool(&cfg, CFG_NEEDSUSERID, true);
                 cmd = CMD_SIGN;
                 break;
             case 'v':
@@ -666,7 +666,7 @@ main(int argc, char **argv)
 
     rnp_params_free(&rnp_params);
 
-    if (!rnp_key_store_load_keys(&rnp, (bool) rnp_cfg_getint(&cfg, CFG_NEEDSSECKEY))) {
+    if (!rnp_key_store_load_keys(&rnp, rnp_cfg_getbool(&cfg, CFG_NEEDSSECKEY))) {
         fputs("fatal: failed to load keys\n", stderr);
         return EXIT_ERROR;
     }
