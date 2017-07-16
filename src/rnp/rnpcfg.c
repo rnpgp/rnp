@@ -374,7 +374,10 @@ conffile(const char *homedir, char *userid, size_t length)
         return RNP_FAIL;
     }
     (void) memset(&keyre, 0x0, sizeof(keyre));
-    (void) regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED);
+    if (regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED) != 0) {
+        (void) fprintf(stderr, "conffile: failed to compile regular expression");
+        return RNP_FAIL;
+    }
     while (fgets(buf, (int) sizeof(buf), fp) != NULL) {
         if (regexec(&keyre, buf, 10, matchv, 0) == 0) {
             (void) memcpy(userid,
@@ -627,8 +630,10 @@ grabdate(const char *s, int64_t *t)
 
     if (!compiled) {
         compiled = 1;
-        (void) regcomp(
-          &r, "([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])", REG_EXTENDED);
+        if (regcomp(&r, "([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])", REG_EXTENDED) != 0) {
+            fprintf(stderr, "grabdate: failed to compile regexp");
+            return false;
+        }
     }
     if (regexec(&r, s, 10, matches, 0) == 0) {
         (void) memset(&tm, 0x0, sizeof(tm));
