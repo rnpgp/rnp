@@ -233,7 +233,7 @@ bool
 rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val)
 {
     char st[16] = {0};
-    sprintf(st, "%d", val);
+    snprintf(st, sizeof(st), "%d", val);
     return rnp_cfg_set(cfg, key, st);
 }
 
@@ -247,11 +247,7 @@ rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val)
 bool
 rnp_cfg_setbool(rnp_cfg_t *cfg, const char *key, bool val)
 {
-    if (val) {
-        rnp_cfg_set(cfg, key, "true");
-    } else {
-        rnp_cfg_set(cfg, key, "false");
-    }
+    return rnp_cfg_set(cfg, key, val ? "true" : "false");
 }
 
 /** @brief return value for the key if there is one
