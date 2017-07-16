@@ -36,6 +36,9 @@
 #include "rnpsdk.h"
 #include "constants.h"
 
+/** @brief initialize rnp_cfg structure internals. When structure is not needed anymore 
+ *  it should be freed via rnp_cfg_free function call
+ **/
 void
 rnp_cfg_init(rnp_cfg_t *cfg)
 {
@@ -57,7 +60,8 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
 
 /** @brief apply configuration from keys-vals storage to rnp_params_t structure
  *  @param cfg [in] rnp config, must be allocated and initialized
- *  @param params [out] this structure will be filled so can be further feed into rnp_init
+ *  @param params [out] this structure will be filled so can be further feed into rnp_init. 
+ *                Must be later freed using the rnp_params_free even if rnp_cfg_apply fails.
  *
  *  @return true on success, false if something went wrong
  **/
