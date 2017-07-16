@@ -16,7 +16,6 @@ URL: https://github.com/riboseinc/rnp
 Summary: Freely licensed PGP implementation
 Source: SOURCE_TARBALL_NAME
 BuildRequires: openssl-devel, zlib-devel, bzip2-devel, chrpath, autoconf, automake, libtool, libcmocka-devel
-Requires: rnpv = %{version}-%{release}
 
 %prep
 %setup -q
@@ -86,17 +85,6 @@ Librnp provides cryptographic routines and support for PGP.
 %defattr(-,root,root)
 %attr(0644,root,root) %{_libdir}/librnp.a
 
-
-%package -n rnpv
-Summary: Command line utility to verify signatures
-
-%description -n rnpv
-rnpv verifies PGP signatures.
-
-%files -n rnpv
-%defattr(-,root,root)
-%attr(0755,root,root) %{_prefix}/bin/rnpv
-%attr(0644,root,root) %{_mandir}/man1/rnpv.1.gz
 
 %changelog
 * Sun Mar 26 2017 Zoltan Gyarmati <mr.zoltan.gyarmati@gmail.com> - 3.99.18-2

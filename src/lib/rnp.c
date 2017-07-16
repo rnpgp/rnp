@@ -167,14 +167,14 @@ resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
         userid += 2;
     }
     io = rnp->io;
-    if ((key = rnp_key_store_get_key_by_name(io, keyring, userid)) == NULL) {
+    if (rnp_key_store_get_key_by_name(io, keyring, userid, &key) != RNP_OK) {
         (void) fprintf(io->errs, "cannot find key '%s'\n", userid);
     }
     return key;
 }
 
 /* return 1 if the file contains ascii-armoured text */
-static unsigned
+static int
 isarmoured(pgp_io_t *io, const char *f, const void *memory, const char *text)
 {
     regmatch_t matches[10];
@@ -184,7 +184,10 @@ isarmoured(pgp_io_t *io, const char *f, const void *memory, const char *text)
     char       buf[BUFSIZ];
 
     armoured = 0;
-    (void) regcomp(&r, text, REG_EXTENDED);
+    if (regcomp(&r, text, REG_EXTENDED) != 0) {
+        fprintf(io->errs, "Can't compile regex\n");
+        return -1;
+    }
     if (f) {
         if ((fp = fopen(f, "r")) == NULL) {
             (void) fprintf(io->errs, "isarmoured: cannot open '%s'\n", f);
@@ -797,7 +800,10 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
     (void) memset(&pubs, 0x0, sizeof(pubs));
     k = 0;
     do {
-        key = rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k);
+        if (rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k, &key) !=
+            RNP_OK) {
+            return 0;
+        }
         if (key != NULL) {
             ALLOC(char *, pubs.v, pubs.size, pubs.c, 10, 10, "rnp_match_keys", return 0);
             if (strcmp(fmt, "mr") == 0) {
@@ -848,7 +854,10 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
     k = 0;
     *json = NULL;
     do {
-        key = rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k);
+        if (rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k, &key) !=
+            RNP_OK) {
+            return 0;
+        }
         if (key != NULL) {
             if (strcmp(fmt, "mr") == 0) {
                 pgp_hkp_sprint_keydata(
@@ -884,7 +893,10 @@ rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
 
     k = 0;
     do {
-        key = rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k);
+        if (rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k, &key) !=
+            RNP_OK) {
+            return 0;
+        }
         if (key != NULL) {
             cc = pgp_sprint_pubkey(key, out, sizeof(out));
             (void) fprintf(fp, "%.*s", (int) cc, out);
@@ -898,15 +910,18 @@ rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
 bool
 rnp_find_key(rnp_t *rnp, const char *id)
 {
-    pgp_io_t *io;
+    pgp_io_t *       io;
+    const pgp_key_t *key;
 
     io = rnp->io;
     if (id == NULL) {
         (void) fprintf(io->errs, "NULL id to search for\n");
         return RNP_FAIL;
     }
-    return rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, id) != NULL ? RNP_OK :
-                                                                              RNP_FAIL;
+    if (rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, id, &key) != RNP_OK) {
+        return RNP_FAIL;
+    }
+    return key != NULL ? RNP_OK : RNP_FAIL;
 }
 
 /* get a key in a keyring */
@@ -962,11 +977,14 @@ int
 rnp_import_key(rnp_t *rnp, char *f)
 {
     pgp_io_t *io;
-    unsigned  realarmor;
+    int       realarmor;
     int       done;
 
     io = rnp->io;
     realarmor = isarmoured(io, f, NULL, IMPORT_ARMOR_HEAD);
+    if (realarmor < 0) {
+        return RNP_FAIL;
+    }
     done = rnp_key_store_load_from_file(rnp, rnp->pubring, realarmor, f);
     if (!done) {
         (void) fprintf(io->errs, "cannot import key from file %s\n", f);
@@ -1104,7 +1122,7 @@ int
 rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
 {
     pgp_io_t *io;
-    unsigned  realarmor;
+    int       realarmor;
     unsigned  sshkeys;
 
     io = ctx->rnp->io;
@@ -1113,6 +1131,9 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
         return RNP_FAIL;
     }
     realarmor = isarmoured(io, f, NULL, ARMOR_HEAD);
+    if (realarmor < 0) {
+        return RNP_FAIL;
+    }
     sshkeys = (unsigned) use_ssh_keys(ctx->rnp);
     return pgp_decrypt_file(ctx->rnp->io,
                             f,
@@ -1160,7 +1181,10 @@ rnp_sign_file(rnp_ctx_t * ctx,
          i++) {
         if (ctx->rnp->user_input_fp == NULL) {
             /* print out the user id */
-            pubkey = rnp_key_store_get_key_by_name(io, ctx->rnp->pubring, userid);
+            if (rnp_key_store_get_key_by_name(io, ctx->rnp->pubring, userid, &pubkey) !=
+                RNP_OK) {
+                return RNP_FAIL;
+            }
             if (pubkey == NULL) {
                 (void) fprintf(io->errs, "rnp: warning - using pubkey from secring\n");
                 pgp_print_keydata(io,
@@ -1206,7 +1230,7 @@ rnp_verify_file(rnp_ctx_t *ctx, const char *in, const char *out, int armored)
 {
     pgp_validation_t result;
     pgp_io_t *       io;
-    unsigned         realarmor;
+    int              realarmor;
 
     __PGP_USED(armored);
     (void) memset(&result, 0x0, sizeof(result));
@@ -1216,6 +1240,9 @@ rnp_verify_file(rnp_ctx_t *ctx, const char *in, const char *out, int armored)
         return RNP_FAIL;
     }
     realarmor = isarmoured(io, in, NULL, ARMOR_SIG_HEAD);
+    if (realarmor < 0) {
+        return RNP_FAIL;
+    }
     if (pgp_validate_file(io, &result, in, out, (const int) realarmor, ctx->rnp->pubring)) {
         resultp(io, in, &result, ctx->rnp->pubring);
         return RNP_OK;
@@ -1258,19 +1285,22 @@ rnp_sign_memory(rnp_ctx_t * ctx,
     io = ctx->rnp->io;
     if (mem == NULL) {
         (void) fprintf(io->errs, "rnp_sign_memory: no memory to sign\n");
-        return 0;
+        return RNP_FAIL;
     }
     if ((keypair = resolve_userid(ctx->rnp, ctx->rnp->secring, userid)) == NULL) {
-        return 0;
+        return RNP_FAIL;
     }
-    ret = 1;
+    ret = RNP_OK;
     attempts = ctx->rnp->pswdtries;
 
     for (i = 0, seckey = NULL; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS);
          i++) {
         if (ctx->rnp->user_input_fp == NULL) {
             /* print out the user id */
-            pubkey = rnp_key_store_get_key_by_name(io, ctx->rnp->pubring, userid);
+            if (rnp_key_store_get_key_by_name(io, ctx->rnp->pubring, userid, &pubkey) !=
+                RNP_OK) {
+                return RNP_FAIL;
+            }
             if (pubkey == NULL) {
                 (void) fprintf(io->errs, "rnp: warning - using pubkey from secring\n");
                 pgp_print_keydata(io,
@@ -1296,7 +1326,7 @@ rnp_sign_memory(rnp_ctx_t * ctx,
     }
     if (seckey == NULL) {
         (void) fprintf(io->errs, "Bad passphrase\n");
-        return 0;
+        return RNP_FAIL;
     }
     /* sign file */
     (void) memset(out, 0x0, outsize);
@@ -1309,7 +1339,7 @@ rnp_sign_memory(rnp_ctx_t * ctx,
         pgp_memory_free(signedmem);
         ret = (int) m;
     } else {
-        ret = 0;
+        ret = RNP_FAIL;
     }
     pgp_forget(seckey, sizeof(*seckey));
     return ret;
@@ -1422,7 +1452,7 @@ rnp_decrypt_memory(
 {
     pgp_memory_t *mem;
     pgp_io_t *    io;
-    unsigned      realarmour;
+    int           realarmour;
     unsigned      sshkeys;
     size_t        m;
     int           attempts;
@@ -1433,6 +1463,9 @@ rnp_decrypt_memory(
         return 0;
     }
     realarmour = isarmoured(io, NULL, input, ARMOR_HEAD);
+    if (realarmour < 0) {
+        return RNP_FAIL;
+    }
     sshkeys = (unsigned) use_ssh_keys(ctx->rnp);
     attempts = ctx->rnp->pswdtries;
     mem = pgp_decrypt_buf(ctx->rnp->io,
@@ -1565,7 +1598,10 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
     }
     /* get rsa key */
     k = 0;
-    key = rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, userid, &k);
+    if (rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, userid, &k, &key) !=
+        RNP_OK) {
+        goto done;
+    }
     if (key == NULL) {
         (void) fprintf(stderr, "no key found for '%s'\n", userid);
         goto done;

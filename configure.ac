@@ -22,7 +22,6 @@ AS_SHELL_SANITIZE
 AC_CONFIG_SRCDIR([src/rnp/rnp.c])
 AC_CONFIG_AUX_DIR([buildaux])
 AC_CONFIG_HEADER([src/lib/config.h])
-AC_CONFIG_HEADER([src/rnpv/config.h])
 
 AM_INIT_AUTOMAKE([-Wall -Wextra foreign])
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
@@ -115,7 +114,6 @@ AC_CONFIG_FILES([
         src/lib/Makefile
         src/rnp/Makefile
         src/rnpkeys/Makefile
-        src/rnpv/Makefile
         src/cmocka/Makefile
         src/fuzzing/Makefile
         tests/Makefile

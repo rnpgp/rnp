@@ -3,7 +3,7 @@
 TOPSRCDIR=@abs_top_srcdir@
 export TOPSRCDIR
 
-PATH=@abs_top_builddir@/src/rnp:@abs_top_builddir@/src/rnpv:$PATH
+PATH=@abs_top_builddir@/src/rnp:$PATH
 export PATH
 
 testhomedir=@abs_builddir@/homedir
