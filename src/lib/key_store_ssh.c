@@ -183,8 +183,8 @@ int hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum);
 static int
 ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
 {
-    pgp_hash_t    hash = {0};
-    const char *  type;
+    pgp_hash_t  hash = {0};
+    const char *type;
 
     if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
         (void) fprintf(stderr, "ssh_fingerprint: bad md5 alloc\n");

@@ -36,7 +36,7 @@
 #include "rnpsdk.h"
 #include "constants.h"
 
-/** @brief initialize rnp_cfg structure internals. When structure is not needed anymore 
+/** @brief initialize rnp_cfg structure internals. When structure is not needed anymore
  *  it should be freed via rnp_cfg_free function call
  **/
 void
@@ -60,7 +60,7 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
 
 /** @brief apply configuration from keys-vals storage to rnp_params_t structure
  *  @param cfg [in] rnp config, must be allocated and initialized
- *  @param params [out] this structure will be filled so can be further feed into rnp_init. 
+ *  @param params [out] this structure will be filled so can be further feed into rnp_init.
  *                Must be later freed using the rnp_params_free even if rnp_cfg_apply fails.
  *
  *  @return true on success, false if something went wrong
@@ -287,7 +287,7 @@ rnp_cfg_getint(rnp_cfg_t *cfg, const char *key)
  *
  *  @return true if 'true', 'True', or non-zero integer is stored in value, false otherwise
  **/
-bool 
+bool
 rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key)
 {
     const char *val = rnp_cfg_get(cfg, key);
@@ -634,7 +634,9 @@ grabdate(const char *s, int64_t *t)
 
     if (!compiled) {
         compiled = 1;
-        if (regcomp(&r, "([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])", REG_EXTENDED) != 0) {
+        if (regcomp(&r,
+                    "([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])",
+                    REG_EXTENDED) != 0) {
             fprintf(stderr, "grabdate: failed to compile regexp");
             return false;
         }
