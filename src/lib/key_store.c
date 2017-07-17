@@ -504,6 +504,7 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
         pgp_fingerprint(&key->sigfingerprint, &keydata->pubkey);
         key->type = tag;
         key->key = *keydata;
+        key->loaded = 1;
     } else {
         // it's is a subkey, adding as enckey to master that was before the key
         // TODO: move to the right way — support multiple subkeys

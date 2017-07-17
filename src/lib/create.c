@@ -512,18 +512,23 @@ pgp_write_xfer_pubkey(pgp_output_t *         output,
         pgp_writer_push_armoured(output, PGP_PGP_PUBLIC_KEY_BLOCK);
     }
     /* public key */
-    if (!write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &key->key.pubkey)) {
+    if (key->loaded) {
+        if ((key->packetc < 1) ||
+            (!pgp_write(output, key->packets[0].raw, (unsigned) key->packets[0].length))) {
+            return RNP_FAIL;
+        }
+    } else if (!write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &key->key.pubkey)) {
         return RNP_FAIL;
     }
 
     /* TODO: revocation signatures go here */
-
+    /* TODO: the following is wrong, and works only for single uid */
     /* user ids and corresponding signatures */
     for (i = 0; i < key->uidc; i++) {
-        if (!pgp_write_struct_userid(output, key->uids[i])) {
+        if (!key->loaded && !pgp_write_struct_userid(output, key->uids[i])) {
             return RNP_FAIL;
         }
-        for (j = 0; j < key->packetc; j++) {
+        for (j = key->loaded ? 1 : 0; j < key->packetc; j++) {
             if (!pgp_write(output, key->packets[j].raw, (unsigned) key->packets[j].length)) {
                 return RNP_FAIL;
             }
