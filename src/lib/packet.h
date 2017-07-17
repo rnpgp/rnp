@@ -1022,10 +1022,10 @@ typedef struct pgp_key_t {
     uint8_t           flags;           /* key flags */
     pgp_pubkey_t      sigkey;          /* signature key */
     uint8_t           sigid[PGP_KEY_ID_SIZE];
-    pgp_fingerprint_t sigfingerprint; /* pgp signature fingerprint */
+    pgp_fingerprint_t sigfingerprint; /* pgp key fingerprint */
     pgp_pubkey_t      enckey;         /* encryption key */
     uint8_t           encid[PGP_KEY_ID_SIZE];
-    pgp_fingerprint_t encfingerprint; /* pgp encryption id fingerprint */
+    pgp_fingerprint_t encfingerprint; /* deprecated (see GH #277) */
     uint32_t          uid0;           /* primary uid index in uids array */
     uint8_t           revoked;        /* key has been revoked */
     pgp_revoke_t      revocation;     /* revocation reason */
