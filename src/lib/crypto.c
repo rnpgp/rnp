@@ -109,7 +109,7 @@ const ec_curve_desc_t ec_curves[] = {
    {0x2b, 0x06, 0x01, 0x04, 0x01, 0xda, 0x47, 0x0f, 0x01},
    9,
    "Ed25519",
-   "Curve 25519"}};
+   "Ed25519"}};
 
 /**
 \ingroup Core_MPI
