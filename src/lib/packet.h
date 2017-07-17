@@ -908,9 +908,8 @@ struct pgp_packet_t {
 
 /** pgp_fingerprint_t */
 typedef struct pgp_fingerprint_t {
-    uint8_t        fingerprint[PGP_FINGERPRINT_SIZE];
-    unsigned       length;
-    pgp_hash_alg_t hashtype;
+    uint8_t  fingerprint[PGP_FINGERPRINT_SIZE];
+    unsigned length;
 } pgp_fingerprint_t;
 
 int pgp_keyid(uint8_t *, const size_t, const pgp_pubkey_t *);

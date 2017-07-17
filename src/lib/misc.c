@@ -397,7 +397,6 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "v2/v3 fingerprint", fp->fingerprint, fp->length);
         }
-        fp->hashtype = PGP_HASH_MD5;
     } else if (key->version == 4) {
         mem = pgp_memory_new();
         if (mem == NULL) {
@@ -419,7 +418,6 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "sha1 fingerprint", fp->fingerprint, fp->length);
         }
-        fp->hashtype = PGP_HASH_SHA1;
     } else {
         (void) fprintf(stderr, "pgp_fingerprint: unsupported key version\n");
         return RNP_FAIL;
