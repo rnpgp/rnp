@@ -5,8 +5,8 @@ set -eux
 
 CORES="2" && [ -r /proc/cpuinfo ] && CORES=$(grep -c '^$' /proc/cpuinfo)
 
-LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${CMOCKA_INSTALL}/lib:${JSONC_INSTALL}/lib:${CMOCKA_INSTALL}/lib"
-CFLAGS="-I${CMOCKA_INSTALL}/include"
+LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${CMOCKA_INSTALL}/lib:${JSONC_INSTALL}/lib"
+CFLAGS=""
 
 [ "$BUILD_MODE" = "coverage" ] && CFLAGS+=" -O0 --coverage"
 
@@ -19,7 +19,7 @@ CFLAGS="-I${CMOCKA_INSTALL}/include"
 # No leak detection for main sanitize run (only for sanitize-leaks)
 [ "$BUILD_MODE" = "sanitize" ] && export ASAN_OPTIONS=detect_leaks=0
 
-export LD_LIBRARY_PATH CFLAGS LDFLAGS
+export LD_LIBRARY_PATH CFLAGS
 
 autoreconf -vfi
 ./configure \
