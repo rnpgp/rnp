@@ -22,6 +22,7 @@ artifacts="
   src/lib/config.h.in~
   src/rnp/Makefile.in
   src/rnpkeys/Makefile.in
+  src/fuzzing/Makefile.in
   tests/Makefile.in
 "
 
