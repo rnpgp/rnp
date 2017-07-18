@@ -148,7 +148,7 @@ resultp(pgp_io_t *io, const char *f, pgp_validation_t *res, rnp_key_store_t *rin
 
 /* TODO: Make these const; currently their consumers don't preserve const. */
 
-static int
+static bool
 use_ssh_keys(rnp_t *rnp)
 {
     return rnp->key_store_format == SSH_KEY_STORE;
@@ -404,7 +404,7 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
 }
 
 /* save a pgp pubkey to a temp file */
-static int
+static bool
 savepubkey(char *res, char *f, size_t size)
 {
     size_t len;
@@ -415,13 +415,13 @@ savepubkey(char *res, char *f, size_t size)
     (void) snprintf(f, size, "/tmp/pgp2ssh.XXXXXXX");
     if ((fd = mkstemp(f)) < 0) {
         (void) fprintf(stderr, "cannot create temp file '%s'\n", f);
-        return RNP_FAIL;
+        return false;
     }
     len = strlen(res);
     for (cc = 0; (wc = (int) write(fd, &res[cc], len - (size_t) cc)) > 0; cc += wc) {
     }
     (void) close(fd);
-    return RNP_OK;
+    return true;
 }
 
 /* format a uint32_t */
@@ -551,16 +551,16 @@ disable_core_dumps(void)
  *       be in or around rnp_init(). Because the error message requires
  *       passfd to be available this is complicated.
  */
-static int
+static bool
 set_pass_fd(rnp_t *rnp, int passfd)
 {
     rnp->user_input_fp = fdopen(passfd, "r");
     if (rnp->user_input_fp == NULL) {
         fprintf(rnp->io->errs, "cannot open fd %d for reading\n", passfd);
-        return RNP_FAIL;
+        return false;
     }
 
-    return RNP_OK;
+    return true;
 }
 
 /* Initialize a RNP context's io stream handles with a user-supplied
@@ -568,7 +568,7 @@ set_pass_fd(rnp_t *rnp, int passfd)
  * responsibility to de-allocate a dynamically allocated io struct
  * upon failure.
  */
-static int
+static bool
 init_io(rnp_t *rnp, pgp_io_t *io, const char *outs, const char *errs, const char *ress)
 {
     /* TODO: I think refactoring can go even further here. */
@@ -595,13 +595,12 @@ init_io(rnp_t *rnp, pgp_io_t *io, const char *outs, const char *errs, const char
     } else {
         if ((io->res = fopen(ress, "w")) == NULL) {
             fprintf(io->errs, "cannot open results %s for writing\n", ress);
-            return RNP_FAIL;
+            return false;
         }
     }
 
     rnp->io = io;
-
-    return RNP_OK;
+    return true;
 }
 
 /* Allocate a new io struct and initialize a rnp context with it.
@@ -609,18 +608,18 @@ init_io(rnp_t *rnp, pgp_io_t *io, const char *outs, const char *errs, const char
  *
  * TODO: Set errno with a suitable error code.
  */
-static int
+static bool
 init_new_io(rnp_t *rnp, const char *outs, const char *errs, const char *ress)
 {
     pgp_io_t *io = (pgp_io_t *) calloc(1, sizeof(*io));
 
     if (io != NULL) {
         if (init_io(rnp, io, outs, errs, ress))
-            return RNP_OK;
+            return true;
         free((void *) io);
     }
 
-    return RNP_FAIL;
+    return false;
 }
 
 /*************************************************************************/

@@ -359,29 +359,6 @@ pgp_get_userid(const pgp_key_t *key, unsigned subscript)
     return key->uids[subscript];
 }
 
-/**
-   \ingroup HighLevel_Supported
-   \brief Checks whether key's algorithm and type are supported by OpenPGP::SDK
-   \param keydata Key to be checked
-   \return 1 if key algorithm and type are supported by OpenPGP::SDK; 0 if not
-*/
-
-unsigned
-pgp_is_key_supported(const pgp_key_t *key)
-{
-    if (key->type == PGP_PTAG_CT_PUBLIC_KEY) {
-        switch (key->key.pubkey.alg) {
-        case PGP_PKA_RSA:
-        case PGP_PKA_DSA:
-        case PGP_PKA_ELGAMAL:
-            return RNP_OK;
-        default:
-            break;
-        }
-    }
-    return RNP_FAIL;
-}
-
 /* \todo check where userid pointers are copied */
 /**
 \ingroup Core_Keys

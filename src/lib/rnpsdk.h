@@ -63,7 +63,7 @@ bool pgp_validate_all_sigs(pgp_validation_t *,
                            const rnp_key_store_t *,
                            pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
 
-unsigned pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
+bool pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 
 const char *rnp_get_info(const char *type);
 

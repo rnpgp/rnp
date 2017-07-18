@@ -77,8 +77,6 @@ unsigned pgp_get_userid_count(const pgp_key_t *);
 
 const unsigned char *pgp_get_userid(const pgp_key_t *, unsigned);
 
-unsigned pgp_is_key_supported(const pgp_key_t *);
-
 unsigned char *pgp_add_userid(pgp_key_t *, const unsigned char *);
 
 struct pgp_subpacket_t *pgp_add_subpacket(pgp_key_t *, const pgp_subpacket_t *);

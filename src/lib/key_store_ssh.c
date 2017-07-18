@@ -180,15 +180,15 @@ int hash_string(pgp_hash_t *hash, const uint8_t *buf, uint32_t len);
 int hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum);
 
 /* ssh-style fingerprint calculation, moved here from the pgp_fingerprint */
-static int
+static bool
 ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
 {
     pgp_hash_t  hash = {0};
     const char *type;
 
     if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
-        (void) fprintf(stderr, "ssh_fingerprint: bad md5 alloc\n");
-        return RNP_FAIL;
+        RNP_LOG("bad md5 alloc\n");
+        return false;
     }
 
     type = (key->alg == PGP_PKA_RSA) ? "ssh-rsa" : "ssh-dss";
@@ -205,7 +205,10 @@ ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
         hash_bignum(&hash, key->key.dsa.y);
         break;
     default:
-        break;
+        pgp_hash_finish(&hash, fp->fingerprint);
+        fp->length = 0;
+        RNP_LOG("Algorithm not supported");
+        return false;
     }
 
     fp->length = pgp_hash_finish(&hash, fp->fingerprint);
@@ -213,7 +216,7 @@ ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
         hexdump(stderr, "md5 ssh fingerprint", fp->fingerprint, fp->length);
     }
 
-    return RNP_OK;
+    return true;
 }
 
 static int
@@ -444,7 +447,7 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
 }
 
 /* read a key from the ssh file, and add it to a keyring */
-static int
+static bool
 ssh2_readkeys(pgp_io_t *       io,
               rnp_key_store_t *pubring,
               rnp_key_store_t *secring,
@@ -459,15 +462,15 @@ ssh2_readkeys(pgp_io_t *       io,
     (void) memset(&key, 0x0, sizeof(key));
     if (pubfile) {
         if (rnp_get_debug(__FILE__)) {
-            (void) fprintf(io->errs, "ssh2_readkeys: pubfile '%s'\n", pubfile);
+            RNP_LOG("pubfile '%s'", pubfile);
         }
         if (!ssh2pubkey(io, pubfile, &key)) {
-            (void) fprintf(io->errs, "ssh2_readkeys: can't read pubkeys '%s'\n", pubfile);
-            return RNP_FAIL;
+            RNP_LOG("can't read pubkeys '%s'", pubfile);
+            return false;
         }
         EXPAND_ARRAY(pubring, key);
         if (pubring->keys == NULL) {
-            return RNP_FAIL;
+            return false;
         }
         pubkey = &pubring->keys[pubring->keyc++];
         (void) memcpy(pubkey, &key, sizeof(key));
@@ -475,28 +478,28 @@ ssh2_readkeys(pgp_io_t *       io,
     }
     if (secfile) {
         if (rnp_get_debug(__FILE__)) {
-            (void) fprintf(io->errs, "ssh2_readkeys: secfile '%s'\n", secfile);
+            RNP_LOG("secfile '%s'", secfile);
         }
         if (pubkey == NULL) {
             pubkey = &pubring->keys[0];
         }
         if (!ssh2seckey(io, secfile, &key, &pubkey->key.pubkey)) {
-            (void) fprintf(io->errs, "ssh2_readkeys: can't read seckeys '%s'\n", secfile);
-            return RNP_FAIL;
+            RNP_LOG("can't read seckeys '%s'", secfile);
+            return false;
         }
         EXPAND_ARRAY(secring, key);
         if (secring->keys == NULL) {
-            return RNP_FAIL;
+            return false;
         }
         seckey = &secring->keys[secring->keyc++];
         (void) memcpy(seckey, &key, sizeof(key));
         seckey->type = PGP_PTAG_CT_SECRET_KEY;
     }
-    return RNP_OK;
+    return true;
 }
 
 /* read keys from ssh key files */
-static int
+static bool
 readsshkeys(rnp_t *rnp, const char *pubpath, const char *secpath)
 {
     rnp_key_store_t *pubring;
@@ -505,17 +508,17 @@ readsshkeys(rnp_t *rnp, const char *pubpath, const char *secpath)
 
     /* check the pub file exists */
     if (stat(pubpath, &st) != 0) {
-        (void) fprintf(stderr, "readsshkeys: bad pubkey filename '%s'\n", pubpath);
-        return RNP_FAIL;
+        RNP_LOG("bad pubkey filename '%s'", pubpath);
+        return false;
     }
     if ((pubring = calloc(1, sizeof(*pubring))) == NULL) {
-        (void) fprintf(stderr, "readsshkeys: bad alloc\n");
-        return RNP_FAIL;
+        RNP_LOG("bad alloc");
+        return false;
     }
     if (!ssh2_readkeys(rnp->io, pubring, NULL, pubpath, NULL)) {
         free(pubring);
-        (void) fprintf(stderr, "readsshkeys: cannot read %s\n", pubpath);
-        return RNP_FAIL;
+        RNP_LOG("cannot read %s", pubpath);
+        return false;
     }
     if (rnp->pubring == NULL) {
         rnp->pubring = pubring;
@@ -526,18 +529,18 @@ readsshkeys(rnp_t *rnp, const char *pubpath, const char *secpath)
     if (secpath) {
         if ((secring = calloc(1, sizeof(*secring))) == NULL) {
             free(pubring);
-            (void) fprintf(stderr, "readsshkeys: bad alloc\n");
-            return RNP_FAIL;
+            RNP_LOG("bad alloc");
+            return false;
         }
         if (!ssh2_readkeys(rnp->io, pubring, secring, NULL, secpath)) {
             free(pubring);
             free(secring);
-            (void) fprintf(stderr, "readsshkeys: cannot read sec %s\n", secpath);
-            return RNP_FAIL;
+            RNP_LOG("cannot read sec %s", secpath);
+            return false;
         }
         rnp->secring = secring;
     }
-    return RNP_OK;
+    return true;
 }
 
 int

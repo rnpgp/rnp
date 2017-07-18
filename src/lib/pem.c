@@ -86,14 +86,14 @@
 #include "rnpdefs.h"
 #include "bn.h"
 
-int
+bool
 read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
 {
     uint8_t keybuf[RNP_BUFSIZ] = {0};
     FILE *  fp;
     char    prompt[BUFSIZ];
     char *  pass;
-    int     ok;
+    bool    ok;
     size_t  read;
 
     botan_rng_t     rng;
@@ -104,14 +104,14 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
         if (verbose) {
             (void) fprintf(stderr, "can't open '%s'\n", f);
         }
-        return RNP_FAIL;
+        return false;
     }
 
     read = fread(keybuf, 1, RNP_BUFSIZ, fp);
 
     if (!feof(fp)) {
         (void) fclose(fp);
-        return RNP_FAIL;
+        return false;
     }
     (void) fclose(fp);
 
@@ -129,7 +129,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
         }
 
         if (botan_privkey_check_key(priv_key, rng, 0) != 0) {
-            return RNP_FAIL;
+            return false;
         }
 
         {
@@ -150,7 +150,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
         }
     } else if (strcmp(type, "ssh-dss") == 0) {
         if (botan_privkey_load(&priv_key, rng, keybuf, read, NULL) != 0) {
-            ok = RNP_FAIL;
+            ok = false;
         } else {
             botan_mp_t x;
             botan_mp_init(&x);
@@ -160,7 +160,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
             ok = RNP_OK;
         }
     } else {
-        ok = RNP_FAIL;
+        ok = false;
     }
 
     botan_rng_destroy(rng);

@@ -117,7 +117,7 @@ pgp_memory_t *pgp_decrypt_buf(pgp_io_t *,
                               int,
                               pgp_cbfunc_t *);
 
-int read_pem_seckey(const char *, pgp_key_t *, const char *, int);
+bool read_pem_seckey(const char *, pgp_key_t *, const char *, int);
 
 /** pgp_reader_t */
 struct pgp_reader_t {

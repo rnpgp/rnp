@@ -142,7 +142,7 @@ pgp_dump_sig(pgp_sig_t *sig)
 
 /* XXX: both this and verify would be clearer if the signature were */
 /* treated as an MPI. */
-static int
+static bool
 rsa_sign(pgp_hash_t *            hash,
          const pgp_rsa_pubkey_t *pubrsa,
          const pgp_rsa_seckey_t *secrsa,
@@ -169,15 +169,15 @@ rsa_sign(pgp_hash_t *            hash,
       sigbuf, sizeof(sigbuf), hash_alg, hashbuf, hash_size, secrsa, pubrsa);
     if (sig_size == 0) {
         (void) fprintf(stderr, "rsa_sign: pgp_rsa_pkcs1_sign_hash failed\n");
-        return RNP_FAIL;
+        return false;
     }
     bn = BN_bin2bn(sigbuf, sig_size, NULL);
     pgp_write_mpi(out, bn);
     BN_free(bn);
-    return RNP_OK;
+    return true;
 }
 
-static int
+static bool
 dsa_sign(pgp_hash_t *            hash,
          const pgp_dsa_pubkey_t *dsa,
          const pgp_dsa_seckey_t *sdsa,
@@ -198,7 +198,7 @@ dsa_sign(pgp_hash_t *            hash,
     t = pgp_hash_finish(hash, &hashbuf[0]);
     if (t != 20) {
         (void) fprintf(stderr, "dsa_sign: hashfinish not 20\n");
-        return RNP_FAIL;
+        return false;
     }
 
     pgp_write(output, &hashbuf[0], 2);
@@ -210,10 +210,10 @@ dsa_sign(pgp_hash_t *            hash,
     pgp_write_mpi(output, dsasig->r);
     pgp_write_mpi(output, dsasig->s);
     DSA_SIG_free(dsasig);
-    return RNP_OK;
+    return true;
 }
 
-static int
+static bool
 ecdsa_sign(pgp_hash_t *            hash,
            const pgp_ecc_pubkey_t *pub_key,
            const pgp_ecc_seckey_t *prv_key,
@@ -226,21 +226,21 @@ ecdsa_sign(pgp_hash_t *            hash,
     // "-2" because ECDSA on P-521 must work with SHA-512 digest
     if (curve_byte_size - 2 > pgp_hash_output_length(hash)) {
         RNP_LOG("Message hash to small");
-        return RNP_FAIL;
+        return false;
     }
 
     /* finalise hash */
     size_t hashsize = pgp_hash_finish(hash, hashbuf);
     if (!pgp_write(output, &hashbuf[0], 2))
-        return RNP_FAIL;
+        return false;
 
     /* write signature to buf */
     if (pgp_ecdsa_sign_hash(&sig, hashbuf, hashsize, prv_key, pub_key) != PGP_E_OK) {
-        return RNP_FAIL;
+        return false;
     }
 
     /* convert and write the sig out to memory */
-    int ret = !!pgp_write_mpi(output, sig.r);
+    bool ret = !!pgp_write_mpi(output, sig.r);
     ret &= !!pgp_write_mpi(output, sig.s);
 
     BN_free(sig.r);
@@ -248,14 +248,14 @@ ecdsa_sign(pgp_hash_t *            hash,
     return ret;
 }
 
-static int
+static bool
 eddsa_sign(pgp_hash_t *            hash,
            const pgp_ecc_pubkey_t *pubkey,
            const pgp_ecc_seckey_t *seckey,
            pgp_output_t *          output)
 {
     uint8_t hashbuf[RNP_BUFSIZ];
-    int     ret = 0;
+    bool    ret = false;
 
     /* finalise hash */
     unsigned hashsize = pgp_hash_finish(hash, &hashbuf[0]);
@@ -275,7 +275,7 @@ eddsa_sign(pgp_hash_t *            hash,
     /* convert and write the sig out to memory */
     pgp_write_mpi(output, r);
     pgp_write_mpi(output, s);
-    ret = 1;
+    ret = true;
 
 end:
     BN_free(r);
@@ -372,13 +372,13 @@ hash_add_trailer(pgp_hash_t *hash, const pgp_sig_t *sig, const uint8_t *raw_pack
    \param signer The signer's public key
    \return 1 if good; else 0
 */
-unsigned
+bool
 pgp_check_sig(const uint8_t *     hash,
               unsigned            length,
               const pgp_sig_t *   sig,
               const pgp_pubkey_t *signer)
 {
-    unsigned ret = 0;
+    unsigned ret = false;
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stdout, "hash", hash, length);
@@ -405,13 +405,13 @@ pgp_check_sig(const uint8_t *     hash,
 
     default:
         RNP_LOG("Unknown algorithm");
-        ret = 0;
+        return false;
     }
 
     return ret;
 }
 
-static unsigned
+static bool
 hash_and_check_sig(pgp_hash_t *hash, const pgp_sig_t *sig, const pgp_pubkey_t *signer)
 {
     uint8_t  hashout[PGP_MAX_HASH_SIZE];
@@ -421,7 +421,7 @@ hash_and_check_sig(pgp_hash_t *hash, const pgp_sig_t *sig, const pgp_pubkey_t *s
     return pgp_check_sig(hashout, n, sig, signer);
 }
 
-static unsigned
+static bool
 finalise_sig(pgp_hash_t *        hash,
              const pgp_sig_t *   sig,
              const pgp_pubkey_t *signer,
@@ -441,9 +441,9 @@ finalise_sig(pgp_hash_t *        hash,
  * \param sig The signature.
  * \param signer The public key of the signer.
  * \param raw_packet The raw signature packet.
- * \return 1 if OK; else 0
+ * \return true if OK
  */
-unsigned
+bool
 pgp_check_useridcert_sig(const pgp_pubkey_t *key,
                          const uint8_t *     id,
                          const pgp_sig_t *   sig,
@@ -473,9 +473,9 @@ pgp_check_useridcert_sig(const pgp_pubkey_t *key,
  * \param sig The signature.
  * \param signer The public key of the signer.
  * \param raw_packet The raw signature packet.
- * \return 1 if OK; else 0
+ * \return true if OK
  */
-unsigned
+bool
 pgp_check_userattrcert_sig(const pgp_pubkey_t *key,
                            const pgp_data_t *  attribute,
                            const pgp_sig_t *   sig,
@@ -503,9 +503,9 @@ pgp_check_userattrcert_sig(const pgp_pubkey_t *key,
  * \param sig The signature.
  * \param signer The public key of the signer.
  * \param raw_packet The raw signature packet.
- * \return 1 if OK; else 0
+ * \return true if OK
  */
-unsigned
+bool
 pgp_check_subkey_sig(const pgp_pubkey_t *key,
                      const pgp_pubkey_t *subkey,
                      const pgp_sig_t *   sig,
@@ -513,12 +513,10 @@ pgp_check_subkey_sig(const pgp_pubkey_t *key,
                      const uint8_t *     raw_packet)
 {
     pgp_hash_t hash;
-    unsigned   ret;
 
     init_key_sig(&hash, sig, key);
     hash_add_key(&hash, subkey);
-    ret = finalise_sig(&hash, sig, signer, raw_packet);
-    return ret;
+    return finalise_sig(&hash, sig, signer, raw_packet);
 }
 
 /**
@@ -530,9 +528,9 @@ pgp_check_subkey_sig(const pgp_pubkey_t *key,
  * \param sig The signature.
  * \param signer The public key of the signer.
  * \param raw_packet The raw signature packet.
- * \return 1 if OK; else 0
+ * \return true if OK
  */
-unsigned
+bool
 pgp_check_direct_sig(const pgp_pubkey_t *key,
                      const pgp_sig_t *   sig,
                      const pgp_pubkey_t *signer,
@@ -558,12 +556,11 @@ pgp_check_direct_sig(const pgp_pubkey_t *key,
  * \param signer The public key of the signer.
  * \return 1 if OK; else 0
  */
-unsigned
+bool
 pgp_check_hash_sig(pgp_hash_t *hash, const pgp_sig_t *sig, const pgp_pubkey_t *signer)
 {
-    return (sig->info.hash_alg == pgp_hash_alg_type(hash)) ?
-             finalise_sig(hash, sig, signer, NULL) :
-             0;
+    return (sig->info.hash_alg == pgp_hash_alg_type(hash)) &&
+           finalise_sig(hash, sig, signer, NULL);
 }
 
 static void
