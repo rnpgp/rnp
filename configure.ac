@@ -80,6 +80,7 @@ AC_CHECK_HEADERS([bzlib.h],
                  [AC_MSG_FAILURE([missing <bzlib.h>; is bzip2 installed?])])
 
 AX_CHECK_JSONC([], AC_MSG_ERROR([missing json-c library]))
+AX_CHECK_CMOCKA([], AC_MSG_ERROR([missing cmocka library]))
 
 # Checks for typedefs, structures, and compiler characteristics.
 #
@@ -96,7 +97,6 @@ AX_CHECK_BOTAN_DEFINES()
 
 # Checks for library functions.
 #
-AC_SEARCH_LIBS([_cmocka_run_group_tests], [cmocka],,AC_MSG_ERROR(CMocka not found!))
 AC_SEARCH_LIBS([gzopen], [z],,AC_MSG_ERROR(libz not found!))
 AC_SEARCH_LIBS([BZ2_bzDecompress], [bz2],,AC_MSG_ERROR(Libbz2 not found!))
 
