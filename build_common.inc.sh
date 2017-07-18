@@ -25,9 +25,7 @@ rnpbuild_reconf() {
 }
 
 rnpbuild_configure() {
-	LDFLAGS="$(pkg-config --libs cmocka) $(pkg-config --libs json-c)"
-	CFLAGS="-g3 -O0 $(pkg-config --cflags json-c)"
-	export LDFLAGS CFLAGS
+	export CFLAGS="-g3 -O0"
 	./configure
 }
 
