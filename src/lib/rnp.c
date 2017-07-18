@@ -79,7 +79,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "key_store.h"
 #include "errors.h"
 #include "packet-show.h"
-#include "create.h"
+#include "packet-create.h"
 #include "rnpsdk.h"
 #include "memory.h"
 #include "validate.h"
@@ -89,7 +89,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "bn.h"
 #include "defs.h"
 #include "constants.h"
-#include "packet-key.h"
+#include "pgp-key.h"
 
 #include <json.h>
 

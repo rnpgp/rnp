@@ -50,7 +50,7 @@
  */
 
 #include "key_store_pgp.h"
-#include "packet-key.h"
+#include "pgp-key.h"
 #include "signature.h"
 #include "rnpdefs.h"
 #include "rnpsdk.h"

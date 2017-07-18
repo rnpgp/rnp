@@ -10,7 +10,6 @@ librnp_la_SOURCES	= \
 	bn.c \
 	bufgap.c \
 	compress.c \
-	create.c \
 	crypto.c \
 	dsa.c \
 	ecdsa.c \
@@ -22,11 +21,12 @@ librnp_la_SOURCES	= \
 	key_store_kbx.c \
 	key_store_ssh.c \
 	misc.c \
+	packet-create.c \
 	packet-parse.c \
 	packet-print.c \
 	packet-show.c \
-	packet-key.c \
 	pem.c \
+	pgp-key.c \
 	reader.c \
 	rnp.c \
 	rsa.c \
