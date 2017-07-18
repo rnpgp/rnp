@@ -22,7 +22,7 @@ configure
 include/Makefile
 include/Makefile.in
 libtool
-m4/
+m4/l*.m4
 src/Makefile
 src/Makefile.in
 src/lib/Makefile
