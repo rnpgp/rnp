@@ -69,8 +69,8 @@ AC_DEFUN([AX_CHECK_CMOCKA], [
         CMOCKA_INCLUDES=
         for cmockadir in $cmockadirs; do
             AC_MSG_CHECKING([for cmocka.h in $cmockadir])
-            if test -f "$cmockadir/include/cmocka/cmocka.h"; then
-                CMOCKA_INCLUDES="-I$cmockadir/include/cmocka"
+            if test -f "$cmockadir/include/cmocka.h"; then
+                CMOCKA_INCLUDES="-I$cmockadir/include"
                 CMOCKA_LDFLAGS="-L$cmockadir/lib"
                 CMOCKA_LIBS="-lcmocka"
                 found=true
