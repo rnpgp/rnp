@@ -228,7 +228,7 @@ run the tests (or any executable):
 ``` sh
 env CC=clang CFLAGS="-fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" ./configure
 make -j4
-src/cmocka/rnp_tests
+src/tests/rnp_tests
 ```
 
 Here we are using the

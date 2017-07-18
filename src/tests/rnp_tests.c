@@ -29,7 +29,7 @@
 #include <cmocka.h>
 
 #include "rnp_tests.h"
-#include "rnp_tests_support.h"
+#include "support.h"
 
 static int
 setup_test(void **state)

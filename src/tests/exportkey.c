@@ -28,7 +28,7 @@
 #include <rnp.h>
 #include <key_store.h>
 #include "rnp_tests.h"
-#include "rnp_tests_support.h"
+#include "support.h"
 
 void
 rnpkeys_exportkey_verifyUserId(void **state)
