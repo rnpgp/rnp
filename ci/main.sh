@@ -32,6 +32,6 @@ make -j${CORES}
 : "${COVERITY_SCAN_BRANCH:=0}"
 [[ ${COVERITY_SCAN_BRANCH} = 1 ]] && exit 0
 
-cd src/cmocka
+cd src/tests
 ./rnp_tests
 

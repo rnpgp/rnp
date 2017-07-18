@@ -24,11 +24,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "rnp_tests_support.h"
 #include "rnp.h"
 #include "key_store.h"
 #include "rnp_tests.h"
-#include "rnp_tests_support.h"
+#include "support.h"
 #include "symmetric.h"
 #include "../rnp/rnpcfg.h"
 #include "../rnpkeys/rnpkeys.h"

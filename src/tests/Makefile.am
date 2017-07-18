@@ -4,8 +4,8 @@ rnp_tests_CPPFLAGS	= -I$(top_srcdir)/include -I$(top_srcdir)/src/lib $(JSONC_INC
 rnp_tests_LDADD		= ../lib/librnp.la ../rnpkeys/librnpkeys.la $(JSONC_LIBS) $(CMOCKA_LIBS)
 rnp_tests_LDFLAGS	= $(JSONC_LDFLAGS) $(CMOCKA_LDFLAGS)
 rnp_tests_SOURCES   = \
-    rnp_tests_support.c \
-    rnp_tests_cipher.c \
-    rnp_tests_generatekey.c \
-    rnp_tests_exportkey.c \
+    support.c \
+    cipher.c \
+    generatekey.c \
+    exportkey.c \
     rnp_tests.c

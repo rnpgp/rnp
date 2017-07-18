@@ -40,10 +40,10 @@ src/rnp/rnp-rnp.o
 src/rnpkeys/Makefile
 src/rnpkeys/Makefile.in
 src/rnpkeys/rnpkeys
-src/cmocka/Makefile
-src/cmocka/Makefile.in
-src/cmocka/config.h
-src/cmocka/rnp_tests
+src/tests/Makefile
+src/tests/Makefile.in
+src/tests/config.h
+src/tests/rnp_tests
 src/fuzzing/Makefile
 src/fuzzing/Makefile.in
 src/fuzzing/config.h

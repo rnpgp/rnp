@@ -1,1 +1,1 @@
-SUBDIRS = lib rnp rnpkeys cmocka fuzzing
+SUBDIRS = lib rnp rnpkeys tests fuzzing

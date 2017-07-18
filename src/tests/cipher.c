@@ -37,7 +37,7 @@
 #include <ecdsa.h>
 
 #include "rnp_tests.h"
-#include "rnp_tests_support.h"
+#include "support.h"
 
 void
 hash_test_success(void **state)
