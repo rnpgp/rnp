@@ -37,7 +37,7 @@
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
 #include "packet-print.h"
-#include "packet-key.h"
+#include "pgp-key.h"
 #include "packet.h"
 
 #include "key_store_ssh.h"

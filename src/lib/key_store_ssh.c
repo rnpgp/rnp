@@ -64,7 +64,7 @@
 #include "rnpsdk.h"
 #include "crypto.h"
 #include "s2k.h"
-#include "packet-key.h"
+#include "pgp-key.h"
 #include "key_store_internal.h"
 #include "packet.h"
 

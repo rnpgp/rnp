@@ -41,7 +41,7 @@
 #include <crypto.h>
 #include <key_store_pgp.h>
 #include <packet.h>
-#include <packet-key.h>
+#include <pgp-key.h>
 #include <bn.h>
 
 #include <rnp.h>

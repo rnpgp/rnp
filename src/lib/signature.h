@@ -61,7 +61,7 @@
 #include <inttypes.h>
 
 #include "packet.h"
-#include "create.h"
+#include "packet-create.h"
 #include "memory.h"
 
 typedef struct pgp_create_sig_t pgp_create_sig_t;

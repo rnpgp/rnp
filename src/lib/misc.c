@@ -84,7 +84,7 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include "packet.h"
 #include "crypto.h"
 #include "bn.h"
-#include "create.h"
+#include "packet-create.h"
 #include "packet-parse.h"
 #include "packet-show.h"
 #include "signature.h"
