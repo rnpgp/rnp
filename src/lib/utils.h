@@ -27,7 +27,14 @@
 #define __RNP__UTILS_H__
 
 #define RNP_MSG(msg) (void) fprintf(stdout, msg);
-#define RNP_LOG(msg) (void) fprintf(stderr, "%s:%d:%s " msg "\n", __FILE__, __LINE__, __func__)
+#define RNP_LOG_FD(fd, ...)                                                  \
+    do {                                                                     \
+        (void) fprintf((fd), "[%s() %s:%d] ", __func__, __FILE__, __LINE__); \
+        (void) fprintf((fd), __VA_ARGS__);                                   \
+        (void) fprintf((fd), "\n");                                          \
+    } while (0)
+
+#define RNP_LOG(...) RNP_LOG_FD(stderr, __VA_ARGS__)
 
 #define CHECK(exp, val, err)                          \
     do {                                              \

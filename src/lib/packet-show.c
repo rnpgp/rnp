@@ -322,7 +322,7 @@ list_free(pgp_list_t *list)
     list_init(list);
 }
 
-static unsigned
+static rnp_result
 list_resize(pgp_list_t *list)
 {
     /*
@@ -337,20 +337,20 @@ list_resize(pgp_list_t *list)
     if (newstrings) {
         list->strings = newstrings;
         list->size = newsize;
-        return RNP_OK;
+        return RNP_SUCCESS;
     }
     (void) fprintf(stderr, "list_resize - bad alloc\n");
-    return RNP_FAIL;
+    return RNP_ERROR_GENERIC;
 }
 
-static unsigned
+static bool
 add_str(pgp_list_t *list, const char *str)
 {
-    if (list->size == list->used && !list_resize(list)) {
-        return RNP_FAIL;
+    if (list->size == list->used && list_resize(list)) {
+        return false;
     }
     list->strings[list->used++] = __UNCONST(str);
-    return RNP_OK;
+    return true;
 }
 
 /* find a bitfield in a map - serial search */
@@ -398,7 +398,7 @@ pgp_text_free(pgp_text_t *text)
 
 /* XXX: should this (and many others) be unsigned? */
 /* ! generic function which adds text derived from single octet map to text */
-static unsigned
+static rnp_result
 add_str_from_octet_map(pgp_text_t *map, char *str, uint8_t octet)
 {
     if (str && !add_str(&map->known, str)) {
@@ -407,7 +407,7 @@ add_str_from_octet_map(pgp_text_t *map, char *str, uint8_t octet)
          * list
          */
         /* XXX - should print out error msg here, Ben? - rachel */
-        return RNP_FAIL;
+        return RNP_ERROR_GENERIC;
     } else if (!str) {
         /*
          * value not recognised and there was a problem adding it to
@@ -417,30 +417,28 @@ add_str_from_octet_map(pgp_text_t *map, char *str, uint8_t octet)
                                    * single octet in hex
                                    * format, 1 for NUL */
         if ((str = calloc(1, len)) == NULL) {
-            (void) fprintf(stderr, "add_str_from_octet_map: bad alloc\n");
-            return RNP_FAIL;
+            RNP_LOG("Bad alloc");
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         (void) snprintf(str, len, "0x%x", octet);
         if (!add_str(&map->unknown, str)) {
-            return RNP_FAIL;
+            return RNP_ERROR_GENERIC;
         }
         free(str);
     }
-    return RNP_OK;
+    return RNP_SUCCESS;
 }
 
 /* ! generic function which adds text derived from single bit map to text */
-static unsigned
+static bool
 add_bitmap_entry(pgp_text_t *map, const char *str, uint8_t bit)
 {
-    int status = RNP_OK;
-
     if (str && !add_str(&map->known, str)) {
         /* Value recognised, but there was a problem adding it to the
          * list
          */
         /* XXX - should print out error msg here, Ben? - rachel */
-        return RNP_FAIL;
+        return false;
 
         /* Value not recognised and there was a problem adding it to
          * the unknown list.
@@ -459,21 +457,20 @@ add_bitmap_entry(pgp_text_t *map, const char *str, uint8_t bit)
 
         if (newstr == NULL) {
             fprintf(stderr, "add_bitmap_entry: bad alloc\n");
-            return RNP_FAIL;
+            return false;
         }
         snprintf(newstr, sizeof(message_format), message_format, bit);
 
-        if (!add_str(&map->unknown, newstr))
-            status = RNP_FAIL;
-
+        bool ret = add_str(&map->unknown, newstr);
         /* Remember that if the buffer has been allocated it is
          * important that flow reaches here, even in the event
          * of an error.
          */
         free((void *) newstr);
+        if (!ret)
+            return false;
     }
-
-    return status;
+    return true;
 }
 
 /**
@@ -507,7 +504,7 @@ text_from_bytemapped_octets(const pgp_data_t *data, const char *(*text_fn)(uint8
         str = (*text_fn)(data->contents[i]);
 
         /* ! and add to text */
-        if (!add_str_from_octet_map(text, rnp_strdup(str), data->contents[i])) {
+        if (add_str_from_octet_map(text, rnp_strdup(str), data->contents[i])) {
             pgp_text_free(text);
             return NULL;
         }

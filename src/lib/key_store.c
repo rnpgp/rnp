@@ -28,6 +28,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/types.h>
+#include <sys/param.h>
+
+#include <stdio.h>
+#include <regex.h>
+#include <string.h>
+#include <stdint.h>
+#include <stdlib.h>
+
 #include "config.h"
 
 #include "rnp.h"
@@ -39,17 +48,9 @@
 #include "packet-print.h"
 #include "pgp-key.h"
 #include "packet.h"
+#include "utils.h"
 
 #include "key_store_ssh.h"
-
-#include <sys/types.h>
-#include <sys/param.h>
-
-#include <stdio.h>
-#include <regex.h>
-#include <string.h>
-#include <stdint.h>
-#include <stdlib.h>
 
 static void *
 rnp_key_store_read_keyring(rnp_t *rnp, const char *path)
@@ -646,7 +647,7 @@ str2keyid(const char *userid, uint8_t *keyid, size_t len)
 }
 
 /* return the next key which matches, starting searching at *from */
-static unsigned
+static bool
 get_key_by_name(pgp_io_t *             io,
                 const rnp_key_store_t *keyring,
                 const char *           name,
@@ -665,12 +666,12 @@ get_key_by_name(pgp_io_t *             io,
     *key = NULL;
 
     if (!keyring || !name || !from) {
-        (void) fprintf(io->errs, "keyring, name and from shouldn't be NULL\n");
-        return RNP_FAIL;
+        RNP_LOG_FD(io->errs, "keyring, name and from shouldn't be NULL");
+        return false;
     }
     len = strlen(name);
     if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(io->outs, "[%u] name '%s', len %zu\n", *from, name, len);
+        RNP_LOG_FD(io->outs, "[%u] name '%s', len %zu", *from, name, len);
     }
     /* first try name as a keyid */
     (void) memset(keyid, 0x0, sizeof(keyid));
@@ -681,35 +682,33 @@ get_key_by_name(pgp_io_t *             io,
     savedstart = *from;
     if ((kp = rnp_key_store_get_key_by_id(io, keyring, keyid, from, NULL)) != NULL) {
         *key = kp;
-        return RNP_OK;
+        return true;
     }
     *from = savedstart;
     if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(io->outs, "regex match '%s' from %u\n", name, *from);
+        RNP_LOG_FD(io->outs, "regex match '%s' from %u", name, *from);
     }
     /* match on full name or email address as a NOSUB, ICASE regexp */
     if (regcomp(&r, name, REG_EXTENDED | REG_ICASE) != 0) {
-        (void) fprintf(io->errs, "Can't compile regex from string: '%s'\n", name);
-        return RNP_FAIL;
+        RNP_LOG_FD(io->errs, "Can't compile regex from string: '%s'", name);
+        return false;
     }
     for (keyp = &keyring->keys[*from]; *from < keyring->keyc; *from += 1, keyp++) {
         uidp = keyp->uids;
         for (i = 0; i < keyp->uidc; i++, uidp++) {
             if (regexec(&r, (char *) *uidp, 0, NULL, 0) == 0) {
                 if (rnp_get_debug(__FILE__)) {
-                    (void) fprintf(io->outs,
-                                   "MATCHED keyid \"%s\" len %" PRIsize "u\n",
-                                   (char *) *uidp,
-                                   len);
+                    RNP_LOG_FD(
+                      io->outs, "MATCHED keyid \"%s\" len %" PRIsize "u", (char *) *uidp, len);
                 }
                 regfree(&r);
                 *key = keyp;
-                return RNP_OK;
+                return true;
             }
         }
     }
     regfree(&r);
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -735,7 +734,7 @@ rnp_key_store_get_key_by_name(pgp_io_t *             io,
     unsigned from;
 
     from = 0;
-    return get_key_by_name(io, keyring, name, &from, key);
+    return get_key_by_name(io, keyring, name, &from, key) ? RNP_OK : RNP_FAIL;
 }
 
 unsigned
@@ -745,5 +744,5 @@ rnp_key_store_get_next_key_by_name(pgp_io_t *             io,
                                    unsigned *             n,
                                    const pgp_key_t **     key)
 {
-    return get_key_by_name(io, keyring, name, n, key);
+    return get_key_by_name(io, keyring, name, n, key) ? RNP_OK : RNP_FAIL;
 }

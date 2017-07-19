@@ -72,9 +72,9 @@ unsigned pgp_block_size(pgp_symm_alg_t);
 unsigned pgp_key_size(pgp_symm_alg_t);
 unsigned pgp_is_sa_supported(pgp_symm_alg_t);
 
-int pgp_crypt_any(pgp_crypt_t *, pgp_symm_alg_t);
-int pgp_decrypt_init(pgp_crypt_t *);
-int pgp_encrypt_init(pgp_crypt_t *);
+int  pgp_crypt_any(pgp_crypt_t *, pgp_symm_alg_t);
+bool pgp_decrypt_init(pgp_crypt_t *);
+bool pgp_encrypt_init(pgp_crypt_t *);
 
 // Deallocate all storage
 int pgp_cipher_finish(pgp_crypt_t *cipher);

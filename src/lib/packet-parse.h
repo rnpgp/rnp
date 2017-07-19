@@ -127,7 +127,7 @@ pgp_cb_ret_t  pgp_callback(const pgp_packet_t *, pgp_cbdata_t *);
 pgp_cb_ret_t  pgp_stacked_callback(const pgp_packet_t *, pgp_cbdata_t *);
 pgp_reader_t *pgp_readinfo(pgp_stream_t *);
 
-int pgp_parse(pgp_stream_t *, const int);
+bool pgp_parse(pgp_stream_t *, const int);
 
 /** Used to specify whether subpackets should be returned raw, parsed
  * or ignored.  */
@@ -163,6 +163,6 @@ pgp_reader_func_t pgp_stacked_read;
 int      pgp_decompress(pgp_region_t *, pgp_stream_t *, pgp_compression_type_t);
 unsigned pgp_writez(pgp_output_t *, const uint8_t *, const unsigned);
 
-int pgp_parse_and_accumulate(pgp_io_t *io, rnp_key_store_t *, pgp_stream_t *);
+bool pgp_parse_and_accumulate(pgp_io_t *io, rnp_key_store_t *, pgp_stream_t *);
 
 #endif /* PACKET_PARSE_H_ */

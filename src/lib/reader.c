@@ -667,7 +667,7 @@ process_dash_escaped(pgp_stream_t *stream,
     return total;
 }
 
-static int
+static bool
 add_header(dearmour_t *dearmour, const char *key, const char *value)
 {
     int n;
@@ -683,14 +683,14 @@ add_header(dearmour_t *dearmour, const char *key, const char *value)
           realloc(dearmour->headers.headers, (n + 1) * sizeof(*dearmour->headers.headers));
         if (dearmour->headers.headers == NULL) {
             (void) fprintf(stderr, "add_header: bad alloc\n");
-            return RNP_FAIL;
+            return false;
         }
         dearmour->headers.headers[n].key = rnp_strdup(key);
         dearmour->headers.headers[n].value = rnp_strdup(value);
         dearmour->headers.headerc = n + 1;
-        return RNP_OK;
+        return true;
     }
-    return RNP_FAIL;
+    return false;
 }
 
 static int
@@ -857,7 +857,7 @@ pgp_crc24(unsigned checksum, uint8_t c)
     return (unsigned) (checksum & 0xffffffL);
 }
 
-static int
+static bool
 decode64(pgp_stream_t *stream,
          dearmour_t *  dearmour,
          pgp_error_t **errors,
@@ -872,18 +872,18 @@ decode64(pgp_stream_t *stream,
 
     if (dearmour->buffered) {
         (void) fprintf(stderr, "decode64: bad dearmour->buffered\n");
-        return RNP_FAIL;
+        return false;
     }
 
     ret = read4(stream, dearmour, errors, readinfo, cbinfo, &c, &n, &l);
     if (ret < 0) {
         PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly formed base64");
-        return RNP_FAIL;
+        return false;
     }
     if (n == 3) {
         if (c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated base64 (2)");
-            return RNP_FAIL;
+            return false;
         }
         dearmour->buffered = 2;
         dearmour->eof64 = 1;
@@ -891,7 +891,7 @@ decode64(pgp_stream_t *stream,
     } else if (n == 2) {
         if (c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated base64 (3)");
-            return RNP_FAIL;
+            return false;
         }
         dearmour->buffered = 1;
         dearmour->eof64 = 1;
@@ -899,23 +899,23 @@ decode64(pgp_stream_t *stream,
         c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0);
         if (c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated base64");
-            return RNP_FAIL;
+            return false;
         }
     } else if (n == 0) {
         if (!dearmour->prev_nl || c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated base64 (4)");
-            return RNP_FAIL;
+            return false;
         }
         dearmour->buffered = 0;
     } else {
         if (n != 4) {
             (void) fprintf(stderr, "decode64: bad n (!= 4)\n");
-            return RNP_FAIL;
+            return false;
         }
         dearmour->buffered = 3;
         if (c == '-' || c == '=') {
             (void) fprintf(stderr, "decode64: bad c\n");
-            return RNP_FAIL;
+            return false;
         }
     }
 
@@ -923,17 +923,17 @@ decode64(pgp_stream_t *stream,
         /* then we saw padding */
         if (c != '=') {
             (void) fprintf(stderr, "decode64: bad c (=)\n");
-            return RNP_FAIL;
+            return false;
         }
         c = read_and_eat_whitespace(stream, dearmour, errors, readinfo, cbinfo, 1);
         if (c != '\n') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No newline at base64 end");
-            return RNP_FAIL;
+            return false;
         }
         c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0);
         if (c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No checksum at base64 end");
-            return RNP_FAIL;
+            return false;
         }
     }
     if (c == '=') {
@@ -942,32 +942,32 @@ decode64(pgp_stream_t *stream,
           read4(stream, dearmour, errors, readinfo, cbinfo, &c, &n, &dearmour->read_checksum);
         if (ret < 0 || n != 4) {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Error in checksum");
-            return RNP_FAIL;
+            return false;
         }
         c = read_char(stream, dearmour, errors, readinfo, cbinfo, 1);
         if (dearmour->allow_trailing_whitespace)
             c = eat_whitespace(stream, c, dearmour, errors, readinfo, cbinfo, 1);
         if (c != '\n') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated checksum");
-            return RNP_FAIL;
+            return false;
         }
         c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0);
         if (c != '-') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Bad base64 trailer (2)");
-            return RNP_FAIL;
+            return false;
         }
     }
     if (c == '-') {
         for (n = 0; n < 4; ++n)
             if (read_char(stream, dearmour, errors, readinfo, cbinfo, 0) != '-') {
                 PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Bad base64 trailer");
-                return RNP_FAIL;
+                return false;
             }
         dearmour->eof64 = 1;
     } else {
         if (!dearmour->buffered) {
             (void) fprintf(stderr, "decode64: not buffered\n");
-            return RNP_FAIL;
+            return false;
         }
     }
 
@@ -981,9 +981,9 @@ decode64(pgp_stream_t *stream,
 
     if (dearmour->eof64 && dearmour->read_checksum != dearmour->checksum) {
         PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Checksum mismatch");
-        return RNP_FAIL;
+        return false;
     }
-    return RNP_OK;
+    return true;
 }
 
 static void

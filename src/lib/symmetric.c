@@ -328,25 +328,25 @@ pgp_key_size(pgp_symm_alg_t alg)
     }
 }
 
-int
+bool
 pgp_encrypt_init(pgp_crypt_t *encrypt)
 {
     /* \todo should there be a separate pgp_encrypt_init? */
     return pgp_decrypt_init(encrypt);
 }
 
-int
+bool
 pgp_decrypt_init(pgp_crypt_t *crypt)
 {
     if (botan_block_cipher_set_key(crypt->block_cipher_obj, crypt->key, crypt->keysize) != 0) {
         (void) fprintf(stderr, "Failure setting key on block cipher object\n");
-        return RNP_FAIL;
+        return false;
     }
 
     pgp_cipher_block_encrypt(crypt, crypt->siv, crypt->iv);
     (void) memcpy(crypt->civ, crypt->siv, crypt->blocksize);
     crypt->num = 0;
-    return RNP_OK;
+    return true;
 }
 
 size_t

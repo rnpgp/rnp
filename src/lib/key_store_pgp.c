@@ -252,7 +252,7 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
     pgp_stream_t * stream;
     const unsigned noaccum = 0;
     keyringcb_t    cb;
-    unsigned       res;
+    int            res;
 
     (void) memset(&cb, 0x0, sizeof(cb));
     cb.keyring = keyring;
@@ -264,7 +264,7 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
     if (armour) {
         pgp_reader_push_dearmour(stream);
     }
-    res = (unsigned) pgp_parse_and_accumulate(io, keyring, stream);
+    res = pgp_parse_and_accumulate(io, keyring, stream);
     pgp_print_errors(pgp_stream_get_errors(stream));
     if (armour) {
         pgp_reader_pop_dearmour(stream);
