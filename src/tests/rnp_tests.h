@@ -32,6 +32,8 @@ typedef struct {
     int   not_fatal;
 } rnp_test_state_t;
 
+enum tests_type { TST_LIB, TST_CLI, TST_PERF };
+
 void rnpkeys_exportkey_verifyUserId(void **state);
 
 void rnpkeys_generatekey_testSignature(void **state);
@@ -69,6 +71,12 @@ void generatekey_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state);
 void generatekey_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state);
 
 void generatekey_explicitlySetWrongDigest_ShouldFail(void **state);
+
+void cli_rnp(void **state);
+
+void cli_rnpkeys(void **state);
+
+void cli_performance(void **state);
 
 #define rnp_assert_int_equal(state, a, b)           \
     do {                                            \

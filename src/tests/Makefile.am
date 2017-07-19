@@ -8,4 +8,5 @@ rnp_tests_SOURCES   = \
     cipher.c \
     generatekey.c \
     exportkey.c \
+    cli.c \
     rnp_tests.c
