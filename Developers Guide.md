@@ -307,7 +307,7 @@ different things.
 
 * Functions: `some_function`
 * Variables: `some_variable`
-* Filenames: `crypto.c`
+* Filenames: `packet-parse.c` `packet-parse.h`
 * Struct: `pgp_key_t`
 * Typedefed Enums: `pgp_pubkey_alg_t`
 * Enum Values: `PGP_PKA_RSA = 1`
