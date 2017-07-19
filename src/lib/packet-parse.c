@@ -3144,7 +3144,7 @@ parse_mdc(pgp_region_t *region, pgp_stream_t *stream)
  * \param *stream    How to parse
  * \param *pktlen    On return, will contain number of bytes in packet
  * \return 1 on success, 0 on error, -1 on EOF */
-static int
+static rnp_result
 parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
 {
     pgp_packet_t pkt = {0};
@@ -3158,12 +3158,12 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
     ret = base_read(&ptag, 1, stream);
 
     if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr, "parse_packet: base_read returned %d, ptag %d\n", ret, ptag);
+        RNP_LOG("base_read returned %d, ptag %d\n", ret, ptag);
     }
 
     /* errors in the base read are effectively EOF. */
     if (ret <= 0) {
-        return RNP_EOF;
+        return RNP_ERROR_EOF;
     }
 
     *pktlen = 0;
@@ -3171,14 +3171,14 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
     if (!(ptag & PGP_PTAG_ALWAYS_SET)) {
         pkt.u.error = "Format error (ptag bit not set)";
         CALLBACK(PGP_PARSER_ERROR, &stream->cbinfo, &pkt);
-        return RNP_FAIL;
+        return RNP_ERROR_GENERIC;
     }
     pkt.u.ptag.new_format = !!(ptag & PGP_PTAG_NEW_FORMAT);
     if (pkt.u.ptag.new_format) {
         pkt.u.ptag.type = (ptag & PGP_PTAG_NF_CONTENT_TAG_MASK);
         pkt.u.ptag.length_type = 0;
         if (!read_new_length(&pkt.u.ptag.length, stream)) {
-            return RNP_FAIL;
+            return RNP_ERROR_GENERIC;
         }
     } else {
         unsigned rb;
@@ -3207,7 +3207,7 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
             break;
         }
         if (!rb) {
-            return RNP_FAIL;
+            return RNP_ERROR_GENERIC;
         }
     }
 
@@ -3277,14 +3277,14 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
     default:
         PGP_ERROR_1(
           &stream->errors, PGP_E_P_UNKNOWN_TAG, "Unknown content tag 0x%x", pkt.u.ptag.type);
-        ret = RNP_FAIL;
+        ret = -1;
     }
 
     /* Ensure that the entire packet has been consumed */
 
     if (region.length != region.readc && !region.indeterminate) {
         if (!consume_packet(&region, stream, 0)) {
-            ret = RNP_EOF;
+            ret = -1;
         }
     }
 
@@ -3293,7 +3293,7 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
     /* indeterminate packet */
     if (ret == 0) {
         if (!consume_packet(&region, stream, 0)) {
-            ret = RNP_EOF;
+            ret = -1;
         }
     }
     /* set pktlen */
@@ -3311,7 +3311,7 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
     }
     stream->readinfo.alength = 0;
 
-    return (ret < 0) ? RNP_EOF : (ret) ? RNP_OK : RNP_FAIL;
+    return (ret == 1) ? RNP_SUCCESS : (ret < 0) ? RNP_ERROR_EOF : RNP_ERROR_GENERIC;
 }
 
 /**
@@ -3346,12 +3346,12 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
 bool
 pgp_parse(pgp_stream_t *stream, const int perrors)
 {
-    uint32_t pktlen;
-    int      r;
+    uint32_t   pktlen;
+    rnp_result res;
 
     do {
-        r = parse_packet(stream, &pktlen);
-    } while (r != -1);
+        res = parse_packet(stream, &pktlen);
+    } while (RNP_ERROR_EOF != res);
     if (perrors) {
         pgp_print_errors(stream->errors);
     }

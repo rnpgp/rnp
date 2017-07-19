@@ -55,6 +55,8 @@
 
 /*
  * rnp_result is the type used for return codes from the APIs.
+ *
+ * RNP_OK can be treated as 0
  */
 typedef enum {
 
@@ -84,13 +86,13 @@ typedef enum {
     RNP_ERROR_NOT_ENOUGH_DATA = 0x13000000,
     RNP_ERROR_UNKNOWN_TAG,
     RNP_ERROR_PACKET_NOT_CONSUMED,
-    RNP_ERROR_NO_USERID
+    RNP_ERROR_NO_USERID,
+    RNP_ERROR_EOF
 
 } rnp_result;
 
 // Obsolete
 #define RNP_OK 1
 #define RNP_FAIL 0
-#define RNP_EOF -1
 
 #endif

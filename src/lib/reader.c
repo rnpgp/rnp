@@ -693,31 +693,31 @@ add_header(dearmour_t *dearmour, const char *key, const char *value)
     return false;
 }
 
-static int
+static rnp_result
 parse_headers(pgp_stream_t *stream,
               dearmour_t *  dearmour,
               pgp_error_t **errors,
               pgp_reader_t *readinfo,
               pgp_cbdata_t *cbinfo)
 {
-    unsigned nbuf;
-    unsigned size;
-    unsigned first = 1;
-    char *   buf;
-    int      ret = RNP_OK;
+    unsigned   nbuf;
+    unsigned   size;
+    unsigned   first = 1;
+    char *     buf;
+    rnp_result ret = RNP_SUCCESS;
 
     nbuf = 0;
     size = 80;
     if ((buf = calloc(1, size)) == NULL) {
-        (void) fprintf(stderr, "parse_headers: bad calloc\n");
-        return RNP_FAIL;
+        RNP_LOG("bad calloc");
+        return RNP_ERROR_GENERIC;
     }
     for (;;) {
         int c;
 
         if ((c = read_char(stream, dearmour, errors, readinfo, cbinfo, 1)) < 0) {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Unexpected EOF");
-            ret = RNP_EOF;
+            ret = RNP_ERROR_EOF;
             break;
         }
         if (c == '\n') {
@@ -728,8 +728,8 @@ parse_headers(pgp_stream_t *stream,
             }
 
             if (nbuf >= size) {
-                (void) fprintf(stderr, "parse_headers: bad size\n");
-                return RNP_EOF;
+                RNP_LOG("bad size");
+                return RNP_ERROR_EOF;
             }
             buf[nbuf] = '\0';
 
@@ -740,7 +740,7 @@ parse_headers(pgp_stream_t *stream,
                      * armour
                      */
                     PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No colon in armour header");
-                    ret = RNP_EOF;
+                    ret = RNP_ERROR_EOF;
                     break;
                 } else {
                     if (first &&
@@ -758,7 +758,7 @@ parse_headers(pgp_stream_t *stream,
                          */
                         buf[nbuf] = '\n';
                         push_back(dearmour, (uint8_t *) buf, nbuf + 1);
-                        ret = RNP_EOF;
+                        ret = RNP_ERROR_EOF;
                         break;
                     }
                 }
@@ -766,12 +766,12 @@ parse_headers(pgp_stream_t *stream,
                 *s = '\0';
                 if (s[1] != ' ') {
                     PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No space in armour header");
-                    ret = RNP_EOF;
+                    ret = RNP_ERROR_EOF;
                     goto end;
                 }
                 if (!add_header(dearmour, buf, s + 2)) {
                     PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "Invalid header %s", buf);
-                    ret = RNP_EOF;
+                    ret = RNP_ERROR_EOF;
                     goto end;
                 }
                 nbuf = 0;
@@ -783,7 +783,7 @@ parse_headers(pgp_stream_t *stream,
                 buf = realloc(buf, size);
                 if (buf == NULL) {
                     (void) fprintf(stderr, "bad alloc\n");
-                    ret = RNP_EOF;
+                    ret = RNP_ERROR_EOF;
                     goto end;
                 }
             }
@@ -1013,7 +1013,7 @@ armoured_data_reader(pgp_stream_t *stream,
     uint8_t *    dest = dest_;
     char         buf[1024];
     int          saved;
-    int          ret;
+    rnp_result   ret;
 
     dearmour = pgp_reader_get_arg(readinfo);
     saved = (int) length;
@@ -1116,7 +1116,7 @@ armoured_data_reader(pgp_stream_t *stream,
              * But now we've seen a header line, then errors are
              * EARLY_EOF
              */
-            if ((ret = parse_headers(stream, dearmour, errors, readinfo, cbinfo)) <= 0) {
+            if (parse_headers(stream, dearmour, errors, readinfo, cbinfo)) {
                 return -1;
             }
 
@@ -1229,8 +1229,9 @@ armoured_data_reader(pgp_stream_t *stream,
                 if (!set_lastseen_headerline(dearmour, buf, errors)) {
                     return -1;
                 }
-                if ((ret = parse_headers(stream, dearmour, errors, readinfo, cbinfo)) <= 0) {
-                    return ret;
+                ret = parse_headers(stream, dearmour, errors, readinfo, cbinfo);
+                if (ret) {
+                    return ret == RNP_ERROR_EOF ? -1 : 0;
                 }
                 content.u.armour_header.type = buf;
                 content.u.armour_header.headers = dearmour->headers;
