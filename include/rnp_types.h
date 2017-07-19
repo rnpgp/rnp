@@ -24,14 +24,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef  __RNP_TYPES__
-#define  __RNP_TYPES__
+#ifndef __RNP_TYPES__
+#define __RNP_TYPES__
 
 #include <stdint.h>
 #include "packet.h"
-
-/* rnp_result is the type used for return codes from the APIs.*/
-typedef uint32_t rnp_result;
 
 enum key_store_format_t { GPG_KEY_STORE, SSH_KEY_STORE, KBX_KEY_STORE };
 
@@ -84,6 +81,5 @@ typedef struct rnp_ctx_t {
     int            overwrite; /* allow to overwrite output file if exists */
     int            armour;    /* use ASCII armour on output */
 } rnp_ctx_t;
-
 
 #endif // __RNP_TYPES__

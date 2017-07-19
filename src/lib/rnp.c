@@ -29,6 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "config.h"
+#include <assert.h>
 
 #ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
@@ -72,6 +73,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #endif
 
 #include <rnp.h>
+#include "rnp_defs.h"
 
 #include "packet.h"
 #include "packet-parse.h"
@@ -1628,3 +1630,9 @@ done:
     }
     return (int) cc;
 }
+
+/*
+ * Ensures rnp_result is same size as int in order to
+ * enforce binary compatiblity.
+ */
+static_assert(sizeof(rnp_result) == sizeof(int), "Incompatibility detected");
