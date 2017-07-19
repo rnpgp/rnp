@@ -60,8 +60,8 @@ def setup():
     WORKDIR = tempfile.mkdtemp()
     rnpdir = path.join(WORKDIR, '.rnp')
     gpgdir = path.join(WORKDIR, '.gnupg')
-    os.mkdir(rnpdir)
-    os.mkdir(gpgdir)
+    os.mkdir(rnpdir, 0700)
+    os.mkdir(gpgdir, 0700)
 
     print 'Copying test data to {} ...'.format(WORKDIR)
 
@@ -73,7 +73,7 @@ def setup():
     SMALLSIZE = path.getsize(path.join(srcpath, SMALLFILE))
 
     # Importing keys to GnuPG so it can build trustdb and so on
-    run_proc_iterative(GPG, ['--homedir', gpgdir, '--import', path.join(rnpdir, 'pubring.gpg'), path.join(rnpdir, 'secring.gpg')])
+    run_proc_iterative(GPG, ['--batch', '--passphrase', '', '--homedir', gpgdir, '--import', path.join(rnpdir, 'pubring.gpg'), path.join(rnpdir, 'secring.gpg')])
 
     # Generating large file for tests
     print 'Generating large file of size {}'.format(size_to_readable(LARGESIZE))
@@ -116,7 +116,7 @@ def print_test_results(fsize, iterations, rnptime, gpgtime, operation):
 
 
 def run_tests():
-    rnphome = ['--homedir', WORKDIR]
+    rnphome = ['--homedir', path.join(WORKDIR, '.rnp')]
     gpghome = ['--homedir', path.join(WORKDIR, '.gnupg')]
 
     # Running each operation iteratively for a small and large file(s), calculating the average
