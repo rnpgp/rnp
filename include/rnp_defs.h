@@ -23,8 +23,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef __RNP__CONSTANTS_H__
-#define __RNP__CONSTANTS_H__
+#ifndef __RNP__DEFS_H__
+#define __RNP__DEFS_H__
 
 /* The dot directory relative to the user's home directory where keys
  * are stored.
@@ -54,11 +54,6 @@
 #define DEFAULT_HASH_ALG "SHA256"
 
 /* Function return codes, more will be added later */
-
-#define RNP_OK 1
-#define RNP_FAIL 0
-#define RNP_EOF -1
-
 enum {
     /* Error codes definitions */
     RNP_SUCCESS = 0x00000000,
@@ -72,7 +67,7 @@ enum {
     RNP_ERROR_SHORT_BUFFER,
 
     /* Storage */
-    RNP_ERROR_STORAGE_NOT_AVAILABLE = 0x72000001,
+    RNP_ERROR_STORAGE_NOT_AVAILABLE = 0x72000000,
     RNP_ERROR_READ,
     RNP_ERROR_WRITE,
 
@@ -88,5 +83,10 @@ enum {
     RNP_ERROR_PACKET_NOT_CONSUMED,
     RNP_ERROR_NO_USERID,
 };
+
+// Obsolete
+#define RNP_OK 1
+#define RNP_FAIL 0
+#define RNP_EOF -1
 
 #endif

@@ -84,7 +84,7 @@
 #include "bn.h"
 
 #include "utils.h"
-#include "constants.h"
+#include "rnp_defs.h"
 
 /**
    \ingroup Core_Crypto

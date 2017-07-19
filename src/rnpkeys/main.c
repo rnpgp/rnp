@@ -35,7 +35,7 @@
 
 #include "rnp.h"
 #include "crypto.h"
-#include "constants.h"
+#include "rnp_defs.h"
 #include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
 

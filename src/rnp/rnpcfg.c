@@ -34,7 +34,7 @@
 
 #include "rnpcfg.h"
 #include "rnpsdk.h"
-#include "constants.h"
+#include "rnp_defs.h"
 
 /** @brief initialize rnp_cfg structure internals. When structure is not needed anymore
  *  it should be freed via rnp_cfg_free function call
