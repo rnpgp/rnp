@@ -82,7 +82,7 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "packet-show.h"
 #include "signature.h"
 #include "readerwriter.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rnpsdk.h"
 #include "packet.h"
 #include "rnpdigest.h"
@@ -577,7 +577,7 @@ format_key_usage(char *buffer, size_t size, uint8_t flags)
     };
 
     *buffer = '\0';
-    for (size_t i = 0; i < PGP_ARRAY_SIZE(flags_map); i++) {
+    for (size_t i = 0; i < array_size(flags_map); i++) {
         if (flags & flags_map[i].mask) {
             const size_t current_length = strlen(buffer);
             if (current_length == size - 1) {

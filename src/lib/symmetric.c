@@ -66,7 +66,7 @@ __RCSID("$NetBSD: symmetric.c,v 1.18 2010/11/07 08:39:59 agc Exp $");
 
 #include "crypto.h"
 #include "packet-show.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rnpsdk.h"
 
 int

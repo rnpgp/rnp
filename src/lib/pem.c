@@ -83,7 +83,7 @@
 #endif
 
 #include "crypto.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "bn.h"
 
 bool

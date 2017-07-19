@@ -75,7 +75,7 @@
 
 #include "hash.h"
 #include "types.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rnpsdk.h"
 #include <botan/ffi.h>
 #include <stdio.h>

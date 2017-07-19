@@ -90,7 +90,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "writer.h"
 #include "readerwriter.h"
 #include "memory.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rnpdigest.h"
 #include "pgp-key.h"
 #include "rnpsdk.h"

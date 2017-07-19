@@ -72,7 +72,7 @@ __RCSID("$NetBSD: packet-show.c,v 1.21 2011/08/14 11:19:51 christos Exp $");
 #include "packet-show.h"
 
 #include "rnpsdk.h"
-#include "rnpdefs.h"
+#include "utils.h"
 
 /*
  * Arrays of value->text maps
@@ -715,7 +715,7 @@ pgp_showall_ss_skapref(const pgp_data_t *ss_skapref)
 static const char *
 show_ss_feature(uint8_t octet, unsigned offset)
 {
-    if (offset >= PGP_ARRAY_SIZE(ss_feature_map)) {
+    if (offset >= array_size(ss_feature_map)) {
         return "Unknown";
     }
     return find_bitfield(ss_feature_map[offset], octet);
@@ -882,5 +882,5 @@ pgp_text_t *
 pgp_showall_notation(pgp_ss_notation_t ss_notation)
 {
     return showall_octets_bits(
-      &ss_notation.flags, ss_notation_map, PGP_ARRAY_SIZE(ss_notation_map));
+      &ss_notation.flags, ss_notation_map, array_size(ss_notation_map));
 }

@@ -117,7 +117,7 @@ __RCSID("$NetBSD: reader.c,v 1.49 2012/03/05 02:20:18 christos Exp $");
 #include "key_store_pgp.h"
 #include "readerwriter.h"
 #include "rnpsdk.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rnpdigest.h"
 #include "pgp-key.h"
 

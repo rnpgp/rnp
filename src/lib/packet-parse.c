@@ -88,7 +88,7 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "packet-show.h"
 #include "packet-create.h"
 #include "readerwriter.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "crypto.h"
 #include "rnpdigest.h"
 #include "s2k.h"

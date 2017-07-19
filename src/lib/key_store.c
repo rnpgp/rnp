@@ -40,7 +40,7 @@
 #include "config.h"
 
 #include "rnp.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "key_store.h"
 #include "key_store_internal.h"
 #include "key_store_pgp.h"

@@ -60,7 +60,7 @@
 
 #include "bn.h"
 #include "packet-parse.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rnpsdk.h"
 #include "crypto.h"
 #include "s2k.h"

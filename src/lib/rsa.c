@@ -79,7 +79,7 @@
 #include <stdbool.h>
 
 #include "config.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rsa.h"
 #include "bn.h"
 

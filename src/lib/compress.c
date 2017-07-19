@@ -78,7 +78,7 @@ __RCSID("$NetBSD: compress.c,v 1.23 2012/03/05 02:20:18 christos Exp $");
 #include "rnp_defs.h"
 #include "packet-parse.h"
 #include "errors.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "crypto.h"
 #include "memory.h"
 #include "writer.h"

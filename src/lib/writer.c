@@ -81,7 +81,7 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 #include "packet-parse.h"
 #include "readerwriter.h"
 #include "memory.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rnpdigest.h"
 
 /*
