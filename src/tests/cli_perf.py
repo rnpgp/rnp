@@ -31,11 +31,11 @@ def find_utility(name, exitifnone = True):
     path = distutils.spawn.find_executable(name)
     if not path and exitifnone:
         print 'Cannot find utility {}. Exiting.'.format(name)
-        sys.exit()
+        sys.exit(1)
 
     return path
 
-def run_proc_iterative(proc, params, iterations = 1, nooutput = True):    
+def run_proc_iterative(proc, params, iterations = 1, nooutput = True):
     fnull = open(os.devnull, 'w') if nooutput else None
 
     tstart = perf_timer()
@@ -89,7 +89,7 @@ def setup():
 
     return
 
-def generate_keys():    
+def generate_keys():
     return
 
 def run_rnp_and_gpg(rnpparams, gpgparams, iterations = 1):
@@ -117,7 +117,6 @@ def print_test_results(fsize, iterations, rnptime, gpgtime, operation):
     print '{}:RNP vs GPG:{:.2f}'.format(operation, rnptime/gpgtime)
 
     return
-
 
 def run_tests():
     rnphome = ['--homedir', path.join(WORKDIR, '.rnp')]
@@ -158,29 +157,6 @@ def run_tests():
 
     return
 
-'''
-    pubring = '~/.rnp/pubring.gpg'
-    secring = '~/.rnp/secring.gpg'
-    gpgpub = '~/.gnupg/pubring.gpg'
-    gpgsec = '~/.gnupg/secring.gpg'
-    renames = []
-
-    for path in [pubring, secring, gpgpub, gpgsec]:
-        path = os.path.expanduser(path)
-        if os.path.exists(path):
-            print 'Found existing keyring at path {}. Renaming it to .old'.format(path)
-            os.rename(path, path + '.old')
-            renames.append(path + '.old')
-        
-    try:
-        
-        pass
-    finally:
-        print('Renaming back keyrings...')
-        for path in renames:
-            os.rename(path, path[:-4])
-'''
-
 def cleanup():
     shutil.rmtree(WORKDIR)
     return
@@ -188,4 +164,4 @@ def cleanup():
 if __name__ == '__main__':
     setup()
     run_tests()
-    #cleanup()
+    cleanup()
