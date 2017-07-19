@@ -32,8 +32,13 @@ cli_rnp(void **state)
 {
     rnp_test_state_t *rstate = *state;
     int               res;
+    char *            cwd;
+    char              cmd[PATH_MAX];
 
-    res = system("./cli_tests.py rnp");
+    rnp_assert_non_null(rstate, cwd = getenv("ORIGCWD"));
+    rnp_assert_true(rstate, snprintf(cmd, sizeof(cmd), "%s/cli_tests.py rnp", cwd) > 0);
+
+    res = system(cmd);
     res = WEXITSTATUS(res);
     rnp_assert_int_equal(rstate, res, 0);
 }
@@ -43,8 +48,13 @@ cli_rnpkeys(void **state)
 {
     rnp_test_state_t *rstate = *state;
     int               res;
+    char *            cwd;
+    char              cmd[PATH_MAX];
 
-    res = system("./cli_tests.py rnpkeys");
+    rnp_assert_non_null(rstate, cwd = getenv("ORIGCWD"));
+    rnp_assert_true(rstate, snprintf(cmd, sizeof(cmd), "%s/cli_tests.py rnp", cwd) > 0);
+
+    res = system(cmd);
     res = WEXITSTATUS(res);
     rnp_assert_int_equal(rstate, res, 0);
 }
@@ -54,8 +64,13 @@ cli_performance(void **state)
 {
     rnp_test_state_t *rstate = *state;
     int               res;
+    char *            cwd;
+    char              cmd[PATH_MAX];
 
-    res = system("./cli_perf.py");
+    rnp_assert_non_null(rstate, cwd = getenv("ORIGCWD"));
+    rnp_assert_true(rstate, snprintf(cmd, sizeof(cmd), "%s/cli_perf.py", cwd) > 0);
+
+    res = system(cmd);
     res = WEXITSTATUS(res);
     rnp_assert_int_equal(rstate, res, 0);
 }

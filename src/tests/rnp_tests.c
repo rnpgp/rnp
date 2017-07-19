@@ -162,8 +162,16 @@ print_usage()
 int
 main(int argc, char **argv)
 {
-    int ret;
-    int tests = TST_LIB;
+    int  ret;
+    int  tests = TST_LIB;
+    char cwd[PATH_MAX];
+
+    /* Saving original working directory so we can use it later while calling python scripts.
+     * Currently they work only if called from the original directory
+     */
+    assert_non_null(getcwd(cwd, sizeof(cwd)));
+    assert_int_equal(0, setenv("ORIGCWD", cwd, 1));
+
     /* Create a temporary HOME.
      * This is just an extra guard to protect against accidental
      * modifications of a user's HOME.

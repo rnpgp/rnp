@@ -55,33 +55,37 @@ def setup():
     RNP = find_utility(RNP)
     GPG = find_utility(GPG)
     RNP_KEYS = find_utility(RNP_KEYS)
+    WORKDIR = tempfile.mkdtemp()
+
+    print 'Setting up test in {} ...'.format(WORKDIR)
 
     # Creating working directory and populating it with test files
-    WORKDIR = tempfile.mkdtemp()
     rnpdir = path.join(WORKDIR, '.rnp')
     gpgdir = path.join(WORKDIR, '.gnupg')
     os.mkdir(rnpdir, 0700)
     os.mkdir(gpgdir, 0700)
 
-    print 'Copying test data to {} ...'.format(WORKDIR)
-
-    srcpath = os.path.dirname(os.path.realpath(__file__))
-    for fname in ['pubring.gpg', 'secring.gpg']:
-        shutil.copyfile(path.join(srcpath, fname), path.join(rnpdir, fname))
-        
-    shutil.copyfile(path.join(srcpath, SMALLFILE), path.join(WORKDIR, SMALLFILE))
-    SMALLSIZE = path.getsize(path.join(srcpath, SMALLFILE))
+    # Generating key
+    pr, pw = os.pipe()
+    with os.fdopen(pw, 'w') as fw:
+        fw.write('password')
+    run_proc_iterative(RNP_KEYS, ['--homedir', rnpdir, '--pass-fd', str(pr), '--userid', 'performance@rnp', '--generate-key'])
 
     # Importing keys to GnuPG so it can build trustdb and so on
     run_proc_iterative(GPG, ['--batch', '--passphrase', '', '--homedir', gpgdir, '--import', path.join(rnpdir, 'pubring.gpg'), path.join(rnpdir, 'secring.gpg')])
 
+    # Generating small file for tests
+    SMALLSIZE = 3312;
+    st = 'lorem ipsum dol ' * (SMALLSIZE/16)
+    with open(path.join(WORKDIR, SMALLFILE), 'w+') as small_file:
+        small_file.write(st)
+
     # Generating large file for tests
     print 'Generating large file of size {}'.format(size_to_readable(LARGESIZE))
-    fd = open(path.join(WORKDIR, LARGEFILE), 'w')
     st = '0123456789ABCDEF' * (1024/16)
-    for i in range(0, LARGESIZE / 1024 - 1):
-        fd.write(st)
-    fd.close()
+    with open(path.join(WORKDIR, LARGEFILE), 'w') as fd:
+        for i in range(0, LARGESIZE / 1024 - 1):
+            fd.write(st)
 
     return
 
@@ -100,7 +104,7 @@ def run_rnp_and_gpg(rnpparams, gpgparams, iterations = 1):
 
 def print_test_results(fsize, iterations, rnptime, gpgtime, operation):
     if not rnptime or not gpgtime:
-        print '{}:TEST FAILED:{}:{}:{}:{}'.format(operation, fsize, iterations, rnptime, gpgtime)
+        print '{}:TEST FAILED'.format(operation)
         return
 
     if fsize == SMALLSIZE:        
@@ -142,15 +146,15 @@ def run_tests():
         #gpg2 --homedir /tmp/tmpyr3xUT/.gnupg --batch --yes --trust-model always -r performance@rnp --compress-level 0 --output /tmp/tmpyr3xUT/largetest.txt-gpg-encrypted --encrypt /tmp/tmpyr3xUT/largetest.txt
 
         # 2. Decryption
-        print '\n#2. Decryption\n'
+        #print '\n#2. Decryption\n'
         # 3. Signing
-        print '\n#3. Signing\n'
+        #print '\n#3. Signing\n'
         # 4. Verification
-        print '\n#4. Verification\n'
+        #print '\n#4. Verification\n'
         # 5. Cleartext signing
-        print '\n#5. Cleartext signing and verification\n'
+        #print '\n#5. Cleartext signing and verification\n'
         # 6. Detached signature
-        print '\n#6. Detached signing and verification\n'
+        #print '\n#6. Detached signing and verification\n'
 
     return
 
