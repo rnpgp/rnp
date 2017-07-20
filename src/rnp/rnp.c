@@ -45,6 +45,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include "rnp_obsolete_defs.h"
 
 extern char *__progname;
 

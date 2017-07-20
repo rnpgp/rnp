@@ -52,7 +52,7 @@
 #include "key_store_pgp.h"
 #include "pgp-key.h"
 #include "signature.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rnpsdk.h"
 #include "readerwriter.h"
 #include "validate.h"
@@ -459,9 +459,9 @@ pgp_add_subpacket(pgp_key_t *keydata, const pgp_subpacket_t *packet)
 \brief Add selfsigned User ID to key
 \param keydata Key to which to add user ID
 \param userid Self-signed User ID to add
-\return 1 if OK; else 0
+\return true if OK; else false
 */
-unsigned
+bool
 pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
 {
     struct pgp_create_sig_t *sig;
@@ -478,7 +478,7 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
     /* create userid pkt */
     if (!pgp_setup_memory_write(NULL, &useridoutput, &mem_userid, 128)) {
         (void) fprintf(stderr, "cat't setup memory write\n");
-        return RNP_FAIL;
+        return false;
     }
     pgp_write_struct_userid(useridoutput, userid);
 
@@ -493,7 +493,7 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
 
     if (!pgp_setup_memory_write(NULL, &sigoutput, &mem_sig, 128)) {
         (void) fprintf(stderr, "can't setup memory write\n");
-        return RNP_FAIL;
+        return false;
     }
     pgp_write_sig(sigoutput, sig, &key->key.seckey.pubkey, &key->key.seckey);
 
@@ -512,7 +512,7 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
     pgp_memory_free(mem_userid);
     pgp_memory_free(mem_sig);
 
-    return RNP_OK;
+    return true;
 }
 
 /**

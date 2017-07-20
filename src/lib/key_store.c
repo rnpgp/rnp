@@ -40,7 +40,7 @@
 #include "config.h"
 
 #include "rnp.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "key_store.h"
 #include "key_store_internal.h"
 #include "key_store_pgp.h"
@@ -71,7 +71,7 @@ rnp_key_store_read_keyring(rnp_t *rnp, const char *path)
     return key_store;
 }
 
-int
+bool
 rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 {
     char      id[MAX_ID_LENGTH];
@@ -87,7 +87,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 
     if (newring == NULL) {
         fprintf(io->errs, "cannot read pub keyring\n");
-        return RNP_FAIL;
+        return false;
     }
 
     if (rnp->pubring) {
@@ -99,7 +99,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 
     if (((rnp_key_store_t *) rnp->pubring)->keyc < 1) {
         fprintf(io->errs, "pub keyring is empty\n");
-        return RNP_FAIL;
+        return false;
     }
 
     /* Only read secret keys if we need to */
@@ -108,7 +108,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 
         if (newring == NULL) {
             fprintf(io->errs, "cannot read sec keyring\n");
-            return RNP_FAIL;
+            return false;
         }
 
         if (rnp->secring) {
@@ -120,7 +120,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 
         if (((rnp_key_store_t *) rnp->secring)->keyc < 1) {
             fprintf(io->errs, "sec keyring is empty\n");
-            return RNP_FAIL;
+            return false;
         }
 
         /* Now, if we don't have a valid user, use the first
@@ -139,7 +139,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
         }
     }
 
-    return RNP_OK;
+    return true;
 }
 
 int
@@ -156,7 +156,7 @@ rnp_key_store_load_from_file(rnp_t *          rnp,
     }
 
     if (!pgp_mem_readfile(&mem, filename)) {
-        return RNP_FAIL;
+        return false;
     }
 
     rc = rnp_key_store_load_from_mem(rnp, key_store, armour, &mem);
@@ -164,7 +164,7 @@ rnp_key_store_load_from_file(rnp_t *          rnp,
     return rc;
 }
 
-int
+bool
 rnp_key_store_load_from_mem(rnp_t *          rnp,
                             rnp_key_store_t *key_store,
                             const unsigned   armour,
@@ -181,17 +181,17 @@ rnp_key_store_load_from_mem(rnp_t *          rnp,
         return rnp_key_store_ssh_from_mem(rnp->io, key_store, memory);
     }
 
-    return RNP_FAIL;
+    return false;
 }
 
-int
+bool
 rnp_key_store_write_to_file(rnp_t *          rnp,
                             rnp_key_store_t *key_store,
                             const uint8_t *  passphrase,
                             const unsigned   armour,
                             const char *     filename)
 {
-    int          rc;
+    bool         rc;
     pgp_memory_t mem = {0};
 
     if (rnp->key_store_format == SSH_KEY_STORE) {
@@ -199,7 +199,7 @@ rnp_key_store_write_to_file(rnp_t *          rnp,
     }
 
     if (!rnp_key_store_write_to_mem(rnp, key_store, passphrase, armour, &mem)) {
-        return RNP_FAIL;
+        return false;
     }
 
     rc = pgp_mem_writefile(&mem, filename);
@@ -207,7 +207,7 @@ rnp_key_store_write_to_file(rnp_t *          rnp,
     return rc;
 }
 
-int
+bool
 rnp_key_store_write_to_mem(rnp_t *          rnp,
                            rnp_key_store_t *key_store,
                            const uint8_t *  passphrase,
@@ -225,7 +225,7 @@ rnp_key_store_write_to_mem(rnp_t *          rnp,
         return rnp_key_store_ssh_to_mem(rnp->io, key_store, passphrase, memory);
     }
 
-    return RNP_FAIL;
+    return false;
 }
 
 /* Format a PGP key to a readable hexadecimal string in a user supplied
@@ -266,7 +266,7 @@ rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len)
  * TODO: Check upstream calls to this function - they likely won't
  *       handle the new error condition.
  */
-int
+bool
 rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int last)
 {
     uint8_t *src;
@@ -284,7 +284,7 @@ rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int la
 
     if (ring == NULL || ring->keyc < 1) {
         errno = EINVAL;
-        return RNP_FAIL;
+        return false;
     }
 
     memset(id, 0x0, len);
@@ -292,7 +292,7 @@ rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int la
     src = (uint8_t *) &ring->keys[(last) ? ring->keyc - 1 : 0].sigid;
     rnp_key_store_format_key(id, src, len);
 
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -343,7 +343,7 @@ rnp_key_store_free(rnp_key_store_t *keyring)
 
    \return none
 */
-int
+bool
 rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring, const int psigs)
 {
     pgp_key_t *key;
@@ -353,7 +353,7 @@ rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring, const int psigs
     (void) fprintf(io->res, "%u key%s\n", keyc, (keyc == 1) ? "" : "s");
 
     if (keyring == NULL) {
-        return RNP_OK;
+        return true;
     }
 
     for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
@@ -364,10 +364,10 @@ rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring, const int psigs
         }
         (void) fputc('\n', io->res);
     }
-    return RNP_OK;
+    return true;
 }
 
-int
+bool
 rnp_key_store_json(pgp_io_t *             io,
                    const rnp_key_store_t *keyring,
                    json_object *          obj,
@@ -384,11 +384,11 @@ rnp_key_store_json(pgp_io_t *             io,
         }
         json_object_array_add(obj, jso);
     }
-    return RNP_OK;
+    return true;
 }
 
 /* append one keyring to another */
-int
+bool
 rnp_key_store_append_keyring(rnp_key_store_t *keyring, rnp_key_store_t *newring)
 {
     unsigned i;
@@ -396,7 +396,7 @@ rnp_key_store_append_keyring(rnp_key_store_t *keyring, rnp_key_store_t *newring)
     for (i = 0; i < newring->keyc; i++) {
         EXPAND_ARRAY(keyring, key);
         if (keyring->keys == NULL) {
-            return RNP_FAIL;
+            return false;
         }
         (void) memcpy(
           &keyring->keys[keyring->keyc], &newring->keys[i], sizeof(newring->keys[i]));
@@ -406,17 +406,17 @@ rnp_key_store_append_keyring(rnp_key_store_t *keyring, rnp_key_store_t *newring)
     for (i = 0; i < newring->blobc; i++) {
         EXPAND_ARRAY(keyring, blob);
         if (keyring->blobs == NULL) {
-            return RNP_FAIL;
+            return false;
         }
         (void) memcpy(
           &keyring->blobs[keyring->blobc], &newring->blobs[i], sizeof(newring->blobs[i]));
         keyring->blobc += 1;
     }
-    return RNP_OK;
+    return true;
 }
 
 /* add a key to keyring */
-int
+bool
 rnp_key_store_add_key(pgp_io_t *       io,
                       rnp_key_store_t *keyring,
                       pgp_key_t *      key,
@@ -431,7 +431,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
 
     EXPAND_ARRAY(keyring, key);
     if (keyring->keys == NULL) {
-        return RNP_FAIL;
+        return false;
     }
     newkey = &keyring->keys[keyring->keyc++];
     memcpy((uint8_t *) newkey + offsetof(pgp_key_t, type),
@@ -442,7 +442,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
     for (i = 0; i < key->uidc; i++) {
         EXPAND_ARRAY(newkey, uid);
         if (newkey->uids == NULL) {
-            return RNP_FAIL;
+            return false;
         }
         memcpy(&newkey->uids[newkey->uidc], &key->uids[i], sizeof(uint8_t *));
         newkey->uidc++;
@@ -451,7 +451,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
     for (i = 0; i < key->packetc; i++) {
         EXPAND_ARRAY(newkey, packet);
         if (newkey->packets == NULL) {
-            return RNP_FAIL;
+            return false;
         }
         memcpy(&newkey->packets[newkey->packetc], &key->packets[i], sizeof(pgp_subpacket_t));
         newkey->packetc++;
@@ -460,7 +460,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
     for (i = 0; i < key->subsigc; i++) {
         EXPAND_ARRAY(newkey, subsig);
         if (newkey->subsigs == NULL) {
-            return RNP_FAIL;
+            return false;
         }
         memcpy(&newkey->subsigs[newkey->subsigc], &key->subsigs[i], sizeof(pgp_subsig_t));
         newkey->subsigc++;
@@ -469,7 +469,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
     for (i = 0; i < key->revokec; i++) {
         EXPAND_ARRAY(newkey, revoke);
         if (newkey->revokes == NULL) {
-            return RNP_FAIL;
+            return false;
         }
         memcpy(&newkey->revokes[newkey->revokec], &key->revokes[i], sizeof(pgp_revoke_t));
         newkey->revokec++;
@@ -479,10 +479,10 @@ rnp_key_store_add_key(pgp_io_t *       io,
         fprintf(io->errs, "rnp_key_store_add_key: keyc %u\n", keyring->keyc);
     }
 
-    return RNP_OK;
+    return true;
 }
 
-int
+bool
 rnp_key_store_add_keydata(pgp_io_t *         io,
                           rnp_key_store_t *  keyring,
                           pgp_keydata_key_t *keydata,
@@ -497,7 +497,7 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
     if (tag != PGP_PTAG_CT_PUBLIC_SUBKEY) {
         EXPAND_ARRAY(keyring, key);
         if (keyring->keys == NULL) {
-            return RNP_FAIL;
+            return false;
         }
         key = &keyring->keys[keyring->keyc++];
         (void) memset(key, 0x0, sizeof(*key));
@@ -520,10 +520,10 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
         fprintf(io->errs, "rnp_key_store_add_keydata: keyc %u\n", keyring->keyc);
     }
 
-    return RNP_OK;
+    return true;
 }
 
-int
+bool
 rnp_key_store_remove_key(pgp_io_t *io, rnp_key_store_t *keyring, const pgp_key_t *key)
 {
     int i;
@@ -534,14 +534,14 @@ rnp_key_store_remove_key(pgp_io_t *io, rnp_key_store_t *keyring, const pgp_key_t
                     &keyring->keys[i + 1],
                     sizeof(pgp_key_t) * (keyring->keyc - i));
             keyring->keyc--;
-            return RNP_OK;
+            return true;
         }
     }
 
-    return RNP_FAIL;
+    return false;
 }
 
-int
+bool
 rnp_key_store_remove_key_by_id(pgp_io_t *io, rnp_key_store_t *keyring, const uint8_t *keyid)
 {
     unsigned         from;
@@ -554,7 +554,7 @@ rnp_key_store_remove_key_by_id(pgp_io_t *io, rnp_key_store_t *keyring, const uin
         return rnp_key_store_remove_key(io, keyring, key);
     }
 
-    return RNP_FAIL;
+    return false;
 }
 
 /**
@@ -725,7 +725,7 @@ get_key_by_name(pgp_io_t *             io,
    copy.  Do not free it.
 
 */
-unsigned
+bool
 rnp_key_store_get_key_by_name(pgp_io_t *             io,
                               const rnp_key_store_t *keyring,
                               const char *           name,
@@ -734,15 +734,15 @@ rnp_key_store_get_key_by_name(pgp_io_t *             io,
     unsigned from;
 
     from = 0;
-    return get_key_by_name(io, keyring, name, &from, key) ? RNP_OK : RNP_FAIL;
+    return get_key_by_name(io, keyring, name, &from, key);
 }
 
-unsigned
+bool
 rnp_key_store_get_next_key_by_name(pgp_io_t *             io,
                                    const rnp_key_store_t *keyring,
                                    const char *           name,
                                    unsigned *             n,
                                    const pgp_key_t **     key)
 {
-    return get_key_by_name(io, keyring, name, n, key) ? RNP_OK : RNP_FAIL;
+    return get_key_by_name(io, keyring, name, n, key);
 }

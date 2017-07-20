@@ -82,7 +82,7 @@ void pgp_writer_set_memory(pgp_output_t *, pgp_memory_t *);
 size_t pgp_mem_len(const pgp_memory_t *);
 void * pgp_mem_data(pgp_memory_t *);
 bool   pgp_mem_readfile(pgp_memory_t *, const char *);
-int    pgp_mem_writefile(pgp_memory_t *, const char *);
+bool   pgp_mem_writefile(pgp_memory_t *, const char *);
 
 int pgp_random(void *, size_t);
 

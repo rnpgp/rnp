@@ -75,7 +75,7 @@
 
 #include "hash.h"
 #include "types.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rnpsdk.h"
 #include <botan/ffi.h>
 #include <stdio.h>
@@ -174,7 +174,7 @@ pgp_hash_name_botan(pgp_hash_alg_t hash)
 \param hash Hash to set up
 \param alg Hash algorithm to use
 */
-int
+bool
 pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
 {
     const char * hash_name = pgp_hash_name_botan(alg);
@@ -183,26 +183,26 @@ pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
     int          rc;
 
     if (hash_name == NULL) {
-        return RNP_FAIL;
+        return false;
     }
 
     rc = botan_hash_init(&impl, hash_name, 0);
     if (rc != 0) {
         (void) fprintf(stderr, "Error creating hash object for '%s'", hash_name);
-        return RNP_FAIL;
+        return false;
     }
 
     rc = botan_hash_output_length(impl, &outlen);
     if (rc != 0) {
         botan_hash_destroy(hash->handle);
         (void) fprintf(stderr, "In pgp_hash_create, botan_hash_output_length failed");
-        return RNP_FAIL;
+        return false;
     }
 
     hash->_output_len = outlen;
     hash->_alg = alg;
     hash->handle = impl;
-    return RNP_OK;
+    return true;
 }
 
 void

@@ -81,7 +81,7 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 #include "signature.h"
 #include "rnpsdk.h"
 #include "readerwriter.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "memory.h"
 #include "packet.h"
 #include "crypto.h"
@@ -146,7 +146,7 @@ copy_sig_info(pgp_sig_info_t *dst, const pgp_sig_info_t *src)
     }
 }
 
-static int
+static bool
 add_sig_to_list(const pgp_sig_info_t *sig, pgp_sig_info_t **sigs, unsigned *count)
 {
     pgp_sig_info_t *newsigs;
@@ -158,12 +158,12 @@ add_sig_to_list(const pgp_sig_info_t *sig, pgp_sig_info_t **sigs, unsigned *coun
     }
     if (newsigs == NULL) {
         (void) fprintf(stderr, "add_sig_to_list: alloc failure\n");
-        return 0;
+        return false;
     }
     *sigs = newsigs;
     copy_sig_info(&(*sigs)[*count], sig);
     *count += 1;
-    return RNP_OK;
+    return true;
 }
 
 /*

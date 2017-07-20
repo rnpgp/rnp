@@ -126,22 +126,22 @@ void generatekey_explicitlySetWrongDigest_ShouldFail(void **state);
         assert_null(_rnp_a);                      \
     } while (0)
 
-#define rnp_assert_ok(state, a)                     \
-    {                                               \
-        int _rnp_a = (a);                           \
-        if (state->not_fatal && _rnp_a != RNP_OK) { \
-            return;                                 \
-        }                                           \
-        assert_int_equal(_rnp_a, RNP_OK);           \
+#define rnp_assert_ok(state, a)                   \
+    {                                             \
+        int _rnp_a = (a);                         \
+        if (state->not_fatal && _rnp_a != true) { \
+            return;                               \
+        }                                         \
+        assert_int_equal(_rnp_a, true);           \
     }
 
-#define rnp_assert_fail(state, a)                     \
-    {                                                 \
-        int _rnp_a = (a);                             \
-        if (state->not_fatal && _rnp_a != RNP_FAIL) { \
-            return;                                   \
-        }                                             \
-        assert_int_equal(_rnp_a, RNP_FAIL);           \
+#define rnp_assert_fail(state, a)         \
+    {                                     \
+        int _rnp_a = (a);                 \
+        if (state->not_fatal && _rnp_a) { \
+            return;                       \
+        }                                 \
+        assert_int_equal(_rnp_a, false);  \
     }
 
 #endif // RNP_TESTS_H

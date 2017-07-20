@@ -66,7 +66,7 @@ __RCSID("$NetBSD: symmetric.c,v 1.18 2010/11/07 08:39:59 agc Exp $");
 
 #include "crypto.h"
 #include "packet-show.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rnpsdk.h"
 
 int
@@ -254,12 +254,12 @@ pgp_sa_to_botan_string(pgp_symm_alg_t alg)
     }
 }
 
-int
+bool
 pgp_crypt_any(pgp_crypt_t *crypt, pgp_symm_alg_t alg)
 {
     const char *cipher_name = pgp_sa_to_botan_string(alg);
     if (cipher_name == NULL)
-        return 0;
+        return false;
 
     memset(crypt, 0x0, sizeof(*crypt));
 
@@ -269,10 +269,10 @@ pgp_crypt_any(pgp_crypt_t *crypt, pgp_symm_alg_t alg)
 
     if (botan_block_cipher_init(&(crypt->block_cipher_obj), cipher_name) != 0) {
         (void) fprintf(stderr, "Block cipher '%s' not available\n", cipher_name);
-        return 0;
+        return false;
     }
 
-    return RNP_OK;
+    return true;
 }
 
 unsigned
@@ -405,15 +405,15 @@ pgp_encrypt_se(pgp_crypt_t *encrypt, void *outvoid, const void *invoid, size_t c
 \param alg Symmetric Algorithm to check
 \return 1 if supported; else 0
 */
-unsigned
+bool
 pgp_is_sa_supported(pgp_symm_alg_t alg)
 {
     const char *cipher_name = pgp_sa_to_botan_string(alg);
     if (cipher_name != NULL)
-        return RNP_OK;
+        return true;
 
     fprintf(stderr, "\nWarning: %s not supported\n", pgp_show_symm_alg(alg));
-    return 0;
+    return false;
 }
 
 size_t

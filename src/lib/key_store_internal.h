@@ -40,6 +40,6 @@
 #include "key_store.h"
 
 void rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len);
-int rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int last);
+bool rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int last);
 
 #endif /* KEY_STORE_INTERNAL_H_ */

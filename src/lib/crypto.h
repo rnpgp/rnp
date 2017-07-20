@@ -90,19 +90,18 @@ int pgp_decrypt_decode_mpi(
 struct pgp_key_data;
 void pgp_writer_push_encrypt(pgp_output_t *, const struct pgp_key_data *);
 
-unsigned pgp_encrypt_file(
-  rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_key_t *);
-unsigned pgp_decrypt_file(pgp_io_t *,
-                          const char *,
-                          const char *,
-                          rnp_key_store_t *,
-                          rnp_key_store_t *,
-                          const unsigned,
-                          const unsigned,
-                          const unsigned,
-                          void *,
-                          int,
-                          pgp_cbfunc_t *);
+bool pgp_encrypt_file(rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_key_t *);
+bool pgp_decrypt_file(pgp_io_t *,
+                      const char *,
+                      const char *,
+                      rnp_key_store_t *,
+                      rnp_key_store_t *,
+                      const unsigned,
+                      const unsigned,
+                      const unsigned,
+                      void *,
+                      int,
+                      pgp_cbfunc_t *);
 
 pgp_memory_t *pgp_encrypt_buf(
   rnp_ctx_t *, pgp_io_t *, const void *, const size_t, const pgp_key_t *);

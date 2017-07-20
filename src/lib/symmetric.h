@@ -70,9 +70,9 @@ struct pgp_crypt_t {
 pgp_symm_alg_t pgp_str_to_cipher(const char *name);
 unsigned pgp_block_size(pgp_symm_alg_t);
 unsigned pgp_key_size(pgp_symm_alg_t);
-unsigned pgp_is_sa_supported(pgp_symm_alg_t);
+bool     pgp_is_sa_supported(pgp_symm_alg_t);
 
-int  pgp_crypt_any(pgp_crypt_t *, pgp_symm_alg_t);
+bool pgp_crypt_any(pgp_crypt_t *, pgp_symm_alg_t);
 bool pgp_decrypt_init(pgp_crypt_t *);
 bool pgp_encrypt_init(pgp_crypt_t *);
 

@@ -26,6 +26,9 @@
 #ifndef __RNP__UTILS_H__
 #define __RNP__UTILS_H__
 
+#include <stdio.h>
+#include "types.h"
+
 #define RNP_MSG(msg) (void) fprintf(stdout, msg);
 #define RNP_LOG_FD(fd, ...)                                                  \
     do {                                                                     \
@@ -45,6 +48,46 @@
         }                                             \
     } while (false)
 
+#define CALLBACK(t, cbinfo, pkt)                               \
+    do {                                                       \
+        (pkt)->tag = (t);                                      \
+        if (pgp_callback(pkt, cbinfo) == PGP_RELEASE_MEMORY) { \
+            pgp_parser_content_free(pkt);                      \
+        }                                                      \
+    } while (/* CONSTCOND */ 0)
+
+/* Formating helpers */
+#define PRItime "ll"
+
+#ifdef WIN32
+#define PRIsize "I"
+#else
+#define PRIsize "z"
+#endif
+
+/* TODO: Review usage of this variable */
+#define RNP_BUFSIZ 8192
+
+/* for silencing unused parameter warnings */
+#define __PGP_USED(x) /*LINTED*/ (void) &(x)
+
+#ifndef __UNCONST
+#define __UNCONST(a) ((void *) (unsigned long) (const void *) (a))
+#endif
+
+/* Portable way to convert bits to bytes */
 #define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
+
+/* number of elements in an array */
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
+
+/* debugging helpers*/
+int  rnp_set_debug(const char *);
+int  rnp_get_debug(const char *);
+void hexdump(FILE *, const char *, const uint8_t *, size_t);
+
+const char *pgp_str_from_map(int, pgp_map_t *);
+void *      pgp_new(size_t);
+void        pgp_forget(void *, size_t);
 
 #endif

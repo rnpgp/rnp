@@ -75,10 +75,10 @@ __RCSID("$NetBSD: compress.c,v 1.23 2012/03/05 02:20:18 christos Exp $");
 #include <string.h>
 #include <stdlib.h>
 
-#include "constants.h"
+#include "rnp_def.h"
 #include "packet-parse.h"
 #include "errors.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "crypto.h"
 #include "memory.h"
 #include "writer.h"
@@ -282,7 +282,7 @@ bzip2_compressed_data_reader(pgp_stream_t *stream,
  * \param type Which compression type to expect
  */
 
-int
+bool
 pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_t type)
 {
     z_decompress_t z;
@@ -290,7 +290,6 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
     bz_decompress_t bz;
 #endif
     const int printerrors = 1;
-    int       ret;
 
     switch (type) {
     case PGP_C_ZIP:
@@ -333,9 +332,10 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                     PGP_E_ALG_UNSUPPORTED_COMPRESS_ALG,
                     "Compression algorithm %d is not yet supported",
                     type);
-        return RNP_FAIL;
+        return false;
     }
 
+    int ret;
     switch (type) {
     case PGP_C_ZIP:
         /* LINTED */ /* this is a lint problem in zlib.h header */
@@ -358,7 +358,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                     PGP_E_ALG_UNSUPPORTED_COMPRESS_ALG,
                     "Compression algorithm %d is not yet supported",
                     type);
-        return RNP_FAIL;
+        return false;
     }
 
     switch (type) {
@@ -369,7 +369,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                         PGP_E_P_DECOMPRESSION_ERROR,
                         "Cannot initialise ZIP or ZLIB stream for decompression: error=%d",
                         ret);
-            return RNP_FAIL;
+            return false;
         }
         pgp_reader_push(stream, zlib_compressed_data_reader, NULL, &z);
         break;
@@ -381,7 +381,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                         PGP_E_P_DECOMPRESSION_ERROR,
                         "Cannot initialise BZIP2 stream for decompression: error=%d",
                         ret);
-            return RNP_FAIL;
+            return false;
         }
         pgp_reader_push(stream, bzip2_compressed_data_reader, NULL, &bz);
         break;
@@ -392,14 +392,12 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                     PGP_E_ALG_UNSUPPORTED_COMPRESS_ALG,
                     "Compression algorithm %d is not yet supported",
                     type);
-        return RNP_FAIL;
+        return false;
     }
 
-    ret = pgp_parse(stream, !printerrors);
-
+    bool res = pgp_parse(stream, !printerrors);
     pgp_reader_pop(stream);
-
-    return ret;
+    return res;
 }
 
 /**

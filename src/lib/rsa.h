@@ -60,12 +60,12 @@ int pgp_rsa_decrypt_pkcs1(uint8_t *               out,
 /*
  * Returns 1 for valid 0 for invalid/error
  */
-int pgp_rsa_pkcs1_verify_hash(const uint8_t *         sig_buf,
-                              size_t                  sig_buf_size,
-                              pgp_hash_alg_t          hash_alg,
-                              const uint8_t *         hash,
-                              size_t                  hash_len,
-                              const pgp_rsa_pubkey_t *pubkey);
+bool pgp_rsa_pkcs1_verify_hash(const uint8_t *         sig_buf,
+                               size_t                  sig_buf_size,
+                               pgp_hash_alg_t          hash_alg,
+                               const uint8_t *         hash,
+                               size_t                  hash_len,
+                               const pgp_rsa_pubkey_t *pubkey);
 
 /*
  * Returns # bytes written to sig_buf on success, 0 on error

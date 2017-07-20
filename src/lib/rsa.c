@@ -79,12 +79,12 @@
 #include <stdbool.h>
 
 #include "config.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rsa.h"
 #include "bn.h"
 
 #include "utils.h"
-#include "constants.h"
+#include "rnp_def.h"
 
 /**
    \ingroup Core_Crypto
@@ -135,7 +135,7 @@ done:
     return retval;
 }
 
-int
+bool
 pgp_rsa_pkcs1_verify_hash(const uint8_t *         sig_buf,
                           size_t                  sig_buf_size,
                           pgp_hash_alg_t          hash_alg,
@@ -147,7 +147,7 @@ pgp_rsa_pkcs1_verify_hash(const uint8_t *         sig_buf,
     botan_pubkey_t       rsa_key = NULL;
     botan_pk_op_verify_t verify_op = NULL;
     botan_rng_t          rng = NULL;
-    int                  result = RNP_FAIL;
+    bool                 result = false;
 
     snprintf(padding_name,
              sizeof(padding_name),
@@ -170,8 +170,7 @@ pgp_rsa_pkcs1_verify_hash(const uint8_t *         sig_buf,
         goto done;
     }
 
-    result =
-      (botan_pk_op_verify_finish(verify_op, sig_buf, sig_buf_size) == 0) ? RNP_OK : RNP_FAIL;
+    result = (botan_pk_op_verify_finish(verify_op, sig_buf, sig_buf_size) == 0);
 
 done:
     botan_pk_op_verify_destroy(verify_op);
