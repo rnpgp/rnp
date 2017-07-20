@@ -72,8 +72,6 @@ int path_file_exists(const char *first, ...);
  */
 void path_mkdir(mode_t mode, const char *first, ...);
 
-int remove_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf);
-
 /* Recursively remove a directory.
  * The path must be a full path and must be located in /tmp, for safety.
  */
