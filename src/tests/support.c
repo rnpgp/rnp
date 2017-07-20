@@ -149,7 +149,7 @@ path_mkdir(mode_t mode, const char *first, ...)
     assert_int_equal(0, mkdir(buffer, mode));
 }
 
-int
+static int
 remove_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
     int ret = remove(fpath);
