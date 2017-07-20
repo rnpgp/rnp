@@ -715,7 +715,7 @@ pgp_showall_ss_skapref(const pgp_data_t *ss_skapref)
 static const char *
 show_ss_feature(uint8_t octet, unsigned offset)
 {
-    if (offset >= array_size(ss_feature_map)) {
+    if (offset >= ARRAY_SIZE(ss_feature_map)) {
         return "Unknown";
     }
     return find_bitfield(ss_feature_map[offset], octet);
@@ -882,5 +882,5 @@ pgp_text_t *
 pgp_showall_notation(pgp_ss_notation_t ss_notation)
 {
     return showall_octets_bits(
-      &ss_notation.flags, ss_notation_map, array_size(ss_notation_map));
+      &ss_notation.flags, ss_notation_map, ARRAY_SIZE(ss_notation_map));
 }

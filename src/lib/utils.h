@@ -79,7 +79,7 @@
 #define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
 
 /* number of elements in an array */
-#define array_size(a) (sizeof(a) / sizeof(*(a)))
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
 /* debugging helpers*/
 int  rnp_set_debug(const char *);

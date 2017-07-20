@@ -577,7 +577,7 @@ format_key_usage(char *buffer, size_t size, uint8_t flags)
     };
 
     *buffer = '\0';
-    for (size_t i = 0; i < array_size(flags_map); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(flags_map); i++) {
         if (flags & flags_map[i].mask) {
             const size_t current_length = strlen(buffer);
             if (current_length == size - 1) {

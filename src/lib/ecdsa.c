@@ -41,7 +41,7 @@ extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 pgp_curve_t
 find_curve_by_OID(const uint8_t *oid, size_t oid_len)
 {
-    for (size_t i = 0; i < array_size(ec_curves); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(ec_curves); i++) {
         if ((oid_len == ec_curves[i].OIDhex_len) &&
             (!memcmp(oid, ec_curves[i].OIDhex, oid_len))) {
             return i;
