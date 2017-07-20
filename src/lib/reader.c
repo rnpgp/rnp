@@ -142,7 +142,7 @@ read_partial_data(pgp_stream_t *stream, void *dest, size_t length)
 }
 
 /* get a pass phrase from the user */
-int
+bool
 pgp_getpassphrase(void *in, char *phrase, size_t size)
 {
     char * p;
@@ -155,7 +155,7 @@ pgp_getpassphrase(void *in, char *phrase, size_t size)
     } else {
         memset(phrase, 0, size);
         if (fgets(phrase, (int) size, in) == NULL) {
-            return RNP_FAIL;
+            return false;
         }
 
         len = strlen(phrase);
@@ -163,7 +163,7 @@ pgp_getpassphrase(void *in, char *phrase, size_t size)
             phrase[len - 1] = '\0';
         }
     }
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -193,7 +193,7 @@ pgp_reader_set(pgp_stream_t *          stream,
  * \param destroyer Reader's destroyer
  * \param vp Reader-specific arg
  */
-int
+bool
 pgp_reader_push(pgp_stream_t *          stream,
                 pgp_reader_func_t *     reader,
                 pgp_reader_destroyer_t *destroyer,
@@ -203,7 +203,7 @@ pgp_reader_push(pgp_stream_t *          stream,
 
     if ((readinfo = calloc(1, sizeof(*readinfo))) == NULL) {
         (void) fprintf(stderr, "pgp_reader_push: bad alloc\n");
-        return RNP_FAIL;
+        return false;
     }
 
     *readinfo = stream->readinfo;
@@ -215,7 +215,7 @@ pgp_reader_push(pgp_stream_t *          stream,
     stream->readinfo.accumulate = readinfo->accumulate;
 
     pgp_reader_set(stream, reader, destroyer, vp);
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -359,7 +359,7 @@ findheaderline(char *headerline)
     return hp->type;
 }
 
-static int
+static bool
 set_lastseen_headerline(dearmour_t *dearmour, char *hdr, pgp_error_t **errors)
 {
     int lastseen;
@@ -368,7 +368,7 @@ set_lastseen_headerline(dearmour_t *dearmour, char *hdr, pgp_error_t **errors)
     prev = dearmour->lastseen;
     if ((lastseen = findheaderline(hdr)) == -1) {
         PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "Unrecognised Header Line %s", hdr);
-        return RNP_FAIL;
+        return false;
     }
     dearmour->lastseen = lastseen;
     if (rnp_get_debug(__FILE__)) {
@@ -427,7 +427,7 @@ set_lastseen_headerline(dearmour_t *dearmour, char *hdr, pgp_error_t **errors)
     case BEGIN_PGP_SIGNED_MESSAGE:
         break;
     }
-    return RNP_OK;
+    return true;
 }
 
 static int
@@ -1826,7 +1826,7 @@ pgp_reader_set_memory(pgp_stream_t *stream, const void *buffer, size_t length)
  \note It is the caller's responsiblity to free output and mem.
  \sa pgp_teardown_memory_write()
 */
-int
+bool
 pgp_setup_memory_write(rnp_ctx_t *ctx, pgp_output_t **output, pgp_memory_t **mem, size_t bufsz)
 {
     /*
@@ -1835,19 +1835,19 @@ pgp_setup_memory_write(rnp_ctx_t *ctx, pgp_output_t **output, pgp_memory_t **mem
 
     *output = pgp_output_new();
     if (*output == NULL) {
-        return RNP_FAIL;
+        return false;
     }
     *mem = pgp_memory_new();
     if (*mem == NULL) {
         free(*output);
-        return RNP_FAIL;
+        return false;
     }
 
     (*output)->ctx = ctx;
     pgp_memory_init(*mem, bufsz);
     pgp_writer_set_memory(*output, *mem);
 
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -1889,7 +1889,7 @@ pgp_setup_memory_read(pgp_io_t *     io,
 {
     *stream = pgp_new(sizeof(**stream));
     if (*stream == NULL) {
-        return RNP_FAIL;
+        return false;
     }
     (*stream)->io = (*stream)->cbinfo.io = io;
     pgp_set_callback(*stream, callback, vp);
@@ -1898,7 +1898,7 @@ pgp_setup_memory_read(pgp_io_t *     io,
         (*stream)->readinfo.accumulate = 1;
     }
 
-    return RNP_OK;
+    return true;
 }
 
 /**

@@ -146,7 +146,7 @@ copy_sig_info(pgp_sig_info_t *dst, const pgp_sig_info_t *src)
     }
 }
 
-static int
+static bool
 add_sig_to_list(const pgp_sig_info_t *sig, pgp_sig_info_t **sigs, unsigned *count)
 {
     pgp_sig_info_t *newsigs;
@@ -158,12 +158,12 @@ add_sig_to_list(const pgp_sig_info_t *sig, pgp_sig_info_t **sigs, unsigned *coun
     }
     if (newsigs == NULL) {
         (void) fprintf(stderr, "add_sig_to_list: alloc failure\n");
-        return 0;
+        return false;
     }
     *sigs = newsigs;
     copy_sig_info(&(*sigs)[*count], sig);
     *count += 1;
-    return RNP_OK;
+    return true;
 }
 
 /*

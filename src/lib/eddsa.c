@@ -31,15 +31,15 @@
 #include "utils.h"
 #include "rnp_defs.h"
 
-int
+bool
 pgp_genkey_eddsa(pgp_seckey_t *seckey, size_t curve_len)
 {
     if (curve_len != 255)
-        return RNP_FAIL;
+        return false;
 
     botan_privkey_t eddsa = NULL;
     botan_rng_t     rng = NULL;
-    int             retval = RNP_FAIL;
+    bool            retval = false;
     uint8_t         key_bits[64];
 
     if (botan_rng_init(&rng, NULL) != 0)
@@ -61,7 +61,7 @@ pgp_genkey_eddsa(pgp_seckey_t *seckey, size_t curve_len)
     key_bits[31] = 0x40;
     seckey->pubkey.key.ecc.point = BN_bin2bn(key_bits + 31, 33, NULL);
 
-    retval = RNP_OK;
+    retval = true;
 
 end:
     botan_rng_destroy(rng);

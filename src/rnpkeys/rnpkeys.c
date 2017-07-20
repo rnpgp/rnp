@@ -145,7 +145,7 @@ print_usage(const char *usagemsg)
 }
 
 /* do a command once for a specified file 'f' */
-int
+bool
 rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
 {
     const char *key;
@@ -167,7 +167,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         if (key) {
             if ((s = rnp_export_key(rnp, key)) != NULL) {
                 printf("%s", s);
-                return RNP_OK;
+                return true;
             }
         }
         (void) fprintf(stderr, "key '%s' not found\n", f);
@@ -175,7 +175,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
     case CMD_IMPORT_KEY:
         if (f == NULL) {
             (void) fprintf(stderr, "import file isn't specified\n");
-            return 0;
+            return false;
         }
         return rnp_import_key(rnp, f);
     case CMD_GENERATE_KEY:
@@ -189,23 +189,23 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
             key_desc->rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
         } else if (rnp_generate_key_expert_mode(rnp) != PGP_E_OK) {
             RNP_LOG("Critical error: Key generation failed");
-            return RNP_FAIL;
+            return false;
         }
         return rnp_generate_key(rnp, key);
     case CMD_GET_KEY:
         key = rnp_get_key(rnp, f, rnp_cfg_get(cfg, CFG_KEYFORMAT));
         if (key) {
             printf("%s", key);
-            return RNP_OK;
+            return true;
         }
         (void) fprintf(stderr, "key '%s' not found\n", f);
-        return 0;
+        return false;
     case CMD_TRUSTED_KEYS:
         return rnp_match_pubkeys(rnp, f, stdout);
     case CMD_HELP:
     default:
         print_usage(usage);
-        return RNP_FAIL;
+        return false;
     }
 }
 
@@ -317,7 +317,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         *cmd = CMD_HELP;
         break;
     }
-    return RNP_OK;
+    return true;
 }
 
 /* we have -o option=value -- parse, and process */

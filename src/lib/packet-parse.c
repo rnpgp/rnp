@@ -403,7 +403,7 @@ _read_scalar(unsigned *result, unsigned length, pgp_stream_t *stream)
  * \param cbinfo    Callback info
  * \return        1 on success, 0 on error
  */
-unsigned
+bool
 pgp_limited_read(pgp_stream_t *stream,
                  uint8_t *     dest,
                  size_t        length,
@@ -417,33 +417,33 @@ pgp_limited_read(pgp_stream_t *stream,
 
     if (!region->indeterminate && region->readc + length > region->length) {
         PGP_ERROR_1(errors, PGP_E_P_NOT_ENOUGH_DATA, "%s", "Not enough data");
-        return RNP_FAIL;
+        return false;
     }
     r = full_read(stream, dest, length, &lr, errors, readinfo, cbinfo);
     if (lr < 0) {
         PGP_ERROR_1(errors, PGP_E_R_READ_FAILED, "%s", "Read failed");
-        return RNP_FAIL;
+        return false;
     }
     if (!region->indeterminate && r != length) {
         PGP_ERROR_1(errors, PGP_E_R_READ_FAILED, "%s", "Read failed");
-        return RNP_FAIL;
+        return false;
     }
     region->last_read = (unsigned) r;
     do {
         region->readc += (unsigned) r;
         if (region->parent && region->length > region->parent->length) {
             (void) fprintf(stderr, "ops_limited_read: bad length\n");
-            return RNP_FAIL;
+            return false;
         }
     } while ((region = region->parent) != NULL);
-    return RNP_OK;
+    return true;
 }
 
 /**
    \ingroup Core_ReadPackets
    \brief Call pgp_limited_read on next in stack
 */
-unsigned
+bool
 pgp_stacked_limited_read(pgp_stream_t *stream,
                          uint8_t *     dest,
                          unsigned      length,
@@ -455,17 +455,17 @@ pgp_stacked_limited_read(pgp_stream_t *stream,
     return pgp_limited_read(stream, dest, length, region, errors, readinfo->next, cbinfo);
 }
 
-static unsigned
+static bool
 limread(uint8_t *dest, unsigned length, pgp_region_t *region, pgp_stream_t *info)
 {
     return pgp_limited_read(
       info, dest, length, region, &info->errors, &info->readinfo, &info->cbinfo);
 }
 
-static unsigned
+static bool
 exact_limread(uint8_t *dest, unsigned len, pgp_region_t *region, pgp_stream_t *stream)
 {
-    unsigned ret;
+    bool ret;
 
     stream->exact_read = 1;
     ret = limread(dest, len, region, stream);
@@ -485,7 +485,7 @@ exact_limread(uint8_t *dest, unsigned len, pgp_region_t *region, pgp_stream_t *s
  * \return        1 on success, 0 on error (calls the cb with PGP_PARSER_ERROR in
  * limread()).
  */
-static int
+static bool
 limskip(unsigned length, pgp_region_t *region, pgp_stream_t *stream)
 {
     uint8_t buf[RNP_BUFSIZ];
@@ -494,11 +494,11 @@ limskip(unsigned length, pgp_region_t *region, pgp_stream_t *stream)
         unsigned n = length % RNP_BUFSIZ;
 
         if (!limread(buf, n, region, stream)) {
-            return RNP_FAIL;
+            return false;
         }
         length -= n;
     }
-    return RNP_OK;
+    return true;
 }
 
 /** Read a scalar.
@@ -518,7 +518,7 @@ limskip(unsigned length, pgp_region_t *region, pgp_stream_t *stream)
  *
  * \see RFC4880 3.1
  */
-static int
+static bool
 limread_scalar(unsigned *dest, unsigned len, pgp_region_t *region, pgp_stream_t *stream)
 {
     uint8_t  c[4] = "";
@@ -527,21 +527,21 @@ limread_scalar(unsigned *dest, unsigned len, pgp_region_t *region, pgp_stream_t 
 
     if (len > 4) {
         (void) fprintf(stderr, "limread_scalar: bad length\n");
-        return RNP_FAIL;
+        return false;
     }
     /*LINTED*/
     if (/*CONSTCOND*/ sizeof(*dest) < 4) {
         (void) fprintf(stderr, "limread_scalar: bad dest\n");
-        return RNP_FAIL;
+        return false;
     }
     if (!limread(c, len, region, stream)) {
-        return RNP_FAIL;
+        return false;
     }
     for (t = 0, n = 0; n < len; ++n) {
         t = (t << 8) + c[n];
     }
     *dest = t;
-    return RNP_OK;
+    return true;
 }
 
 /** Read a scalar.
@@ -564,7 +564,7 @@ limread_scalar(unsigned *dest, unsigned len, pgp_region_t *region, pgp_stream_t 
  *
  * \see RFC4880 3.1
  */
-static int
+static bool
 limread_size_t(size_t *dest, unsigned length, pgp_region_t *region, pgp_stream_t *stream)
 {
     unsigned tmp;
@@ -574,10 +574,10 @@ limread_size_t(size_t *dest, unsigned length, pgp_region_t *region, pgp_stream_t
      * size_t is bigger than usigned
      */
     if (!limread_scalar(&tmp, length, region, stream))
-        return RNP_FAIL;
+        return false;
 
     *dest = tmp;
-    return RNP_OK;
+    return true;
 }
 
 /** Read a timestamp.
@@ -768,7 +768,7 @@ read_new_length(unsigned *length, pgp_stream_t *stream)
     if (c < 192) {
         /* 1. One-octet packet */
         *length = c;
-        return RNP_OK;
+        return true;
     }
     if (c < 224) {
         /* 2. Two-octet packet */
@@ -778,7 +778,7 @@ read_new_length(unsigned *length, pgp_stream_t *stream)
             return false;
         }
         *length = t + c + 192;
-        return RNP_OK;
+        return true;
     }
     if (c < 255) {
         /* 3. Partial Body Length */
@@ -817,7 +817,7 @@ read_new_length(unsigned *length, pgp_stream_t *stream)
  * \see RFC4880 4.2.2
  * \see pgp_ptag_t
  */
-static int
+static bool
 limited_read_new_length(unsigned *length, pgp_region_t *region, pgp_stream_t *stream)
 {
     uint8_t c = 0x0;
@@ -1244,7 +1244,7 @@ pgp_pubkey_free(pgp_pubkey_t *p)
 /**
    \ingroup Core_ReadPackets
 */
-static int
+static bool
 parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
 {
     uint8_t c = 0x0;
@@ -1252,10 +1252,10 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
     if (region->readc != 0) {
         /* We should not have read anything so far */
         (void) fprintf(stderr, "parse_pubkey_data: bad length\n");
-        return RNP_FAIL;
+        return false;
     }
     if (!limread(&c, 1, region, stream)) {
-        return RNP_FAIL;
+        return false;
     }
     key->version = (pgp_version_t) c;
     switch (key->version) {
@@ -1268,20 +1268,20 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
                     PGP_E_PROTO_BAD_PUBLIC_KEY_VRSN,
                     "Bad public key version (0x%02x)",
                     key->version);
-        return RNP_FAIL;
+        return false;
     }
     if (!limited_read_time(&key->birthtime, region, stream)) {
-        return RNP_FAIL;
+        return false;
     }
 
     key->days_valid = 0;
     if ((key->version == 2 || key->version == 3) &&
         !limread_scalar(&key->days_valid, 2, region, stream)) {
-        return RNP_FAIL;
+        return false;
     }
 
     if (!limread(&c, 1, region, stream)) {
-        return RNP_FAIL;
+        return false;
     }
     key->alg = c;
 
@@ -1291,7 +1291,7 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
             !limread_mpi(&key->key.dsa.q, region, stream) ||
             !limread_mpi(&key->key.dsa.g, region, stream) ||
             !limread_mpi(&key->key.dsa.y, region, stream)) {
-            return RNP_FAIL;
+            return false;
         }
         break;
 
@@ -1300,7 +1300,7 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_RSA_SIGN_ONLY:
         if (!limread_mpi(&key->key.rsa.n, region, stream) ||
             !limread_mpi(&key->key.rsa.e, region, stream)) {
-            return RNP_FAIL;
+            return false;
         }
         break;
 
@@ -1309,7 +1309,7 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
         if (!limread_mpi(&key->key.elgamal.p, region, stream) ||
             !limread_mpi(&key->key.elgamal.g, region, stream) ||
             !limread_mpi(&key->key.elgamal.y, region, stream)) {
-            return RNP_FAIL;
+            return false;
         }
         break;
 
@@ -1319,19 +1319,19 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
         unsigned   OID_len = 0;
         if (!limread_scalar(&OID_len, 1, region, stream) || (OID_len == 0x00) ||
             (OID_len == 0xFF)) { // values reserved for future extensions
-            return RNP_FAIL;
+            return false;
         }
 
         if (!limread_data(&OID, OID_len, region, stream) ||
             !limread_mpi(&key->key.ecc.point, region, stream)) {
-            return RNP_FAIL;
+            return false;
         }
 
         const pgp_curve_t curve = find_curve_by_OID(OID.contents, OID.len);
         if (PGP_CURVE_MAX == curve) {
             RNP_LOG("Unsupported curve");
             pgp_data_free(&OID);
-            return RNP_FAIL;
+            return false;
         }
         key->key.ecc.curve = curve;
         pgp_data_free(&OID);
@@ -1342,10 +1342,10 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
                     PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG,
                     "Unsupported Public Key algorithm (%s)",
                     pgp_show_pka(key->alg));
-        return RNP_FAIL;
+        return false;
     }
 
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -1365,7 +1365,7 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
  *
  * \see RFC4880 5.5.2
  */
-static int
+static bool
 parse_pubkey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 {
     pgp_packet_t pkt;
@@ -1373,7 +1373,7 @@ parse_pubkey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 
     if (!parse_pubkey_data(&pkt.u.pubkey, region, stream)) {
         (void) fprintf(stderr, "parse_pubkey: parse_pubkey_data failed\n");
-        return RNP_FAIL;
+        return false;
     }
 
     /* XXX: this test should be done for all packets, surely? */
@@ -1382,11 +1382,11 @@ parse_pubkey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
                     PGP_E_R_UNCONSUMED_DATA,
                     "Unconsumed data (%d)",
                     region->length - region->readc);
-        return RNP_FAIL;
+        return false;
     }
     CALLBACK(tag, &stream->cbinfo, &pkt);
 
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -1397,7 +1397,7 @@ parse_pubkey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
  * For now, handle the whole packet as raw data.
  */
 
-static int
+static bool
 parse_userattr(pgp_region_t *region, pgp_stream_t *stream)
 {
     pgp_packet_t pkt = {0};
@@ -1409,13 +1409,13 @@ parse_userattr(pgp_region_t *region, pgp_stream_t *stream)
     if (region->readc != 0) {
         /* We should not have read anything so far */
         (void) fprintf(stderr, "parse_userattr: bad length\n");
-        return RNP_FAIL;
+        return false;
     }
     if (!read_data(&pkt.u.userattr, region, stream)) {
-        return RNP_FAIL;
+        return false;
     }
     CALLBACK(PGP_PTAG_CT_USER_ATTR, &stream->cbinfo, &pkt);
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -1455,7 +1455,7 @@ pgp_userid_free(uint8_t **id)
  *
  * \see RFC4880 5.11
  */
-static int
+static bool
 parse_userid(pgp_region_t *region, pgp_stream_t *stream)
 {
     pgp_packet_t pkt = {0};
@@ -1463,22 +1463,22 @@ parse_userid(pgp_region_t *region, pgp_stream_t *stream)
     if (region->readc != 0) {
         /* We should not have read anything so far */
         (void) fprintf(stderr, "parse_userid: bad length\n");
-        return RNP_FAIL;
+        return false;
     }
 
     if ((pkt.u.userid = calloc(1, region->length + 1)) == NULL) {
         (void) fprintf(stderr, "parse_userid: bad alloc\n");
-        return RNP_FAIL;
+        return false;
     }
 
     if (region->length && !limread(pkt.u.userid, region->length, region, stream)) {
         pgp_userid_free(&pkt.u.userid);
-        return RNP_FAIL;
+        return false;
     }
     pkt.u.userid[region->length] = 0x0;
     CALLBACK(PGP_PTAG_CT_USER_ID, &stream->cbinfo, &pkt);
     pgp_userid_free(&pkt.u.userid);
-    return RNP_OK;
+    return true;
 }
 
 static pgp_hash_t *
@@ -2212,14 +2212,14 @@ parse_sig(pgp_region_t *region, pgp_stream_t *stream)
  \ingroup Core_ReadPackets
  \brief Parse Compressed packet
 */
-static int
+static bool
 parse_compressed(pgp_region_t *region, pgp_stream_t *stream)
 {
     pgp_packet_t pkt = {0};
     uint8_t      c = 0x0;
 
     if (!limread(&c, 1, region, stream)) {
-        return RNP_FAIL;
+        return false;
     }
 
     pkt.u.compressed = (pgp_compression_type_t) c;
@@ -2582,7 +2582,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
             } else {
                 CALLBACK(PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY, &stream->cbinfo, &pkt);
             }
-            return RNP_OK;
+            return true;
         }
         keysize = pgp_key_size(pkt.u.seckey.alg);
         if (keysize == 0) {
@@ -3613,7 +3613,7 @@ pgp_parse_and_accumulate(pgp_io_t *io, rnp_key_store_t *keyring, pgp_stream_t *p
 
     if (parse->readinfo.accumulate) {
         (void) fprintf(io->errs, "pgp_parse_and_accumulate: already init\n");
-        return RNP_FAIL;
+        return false;
     }
 
     (void) memset(&accumulate, 0x0, sizeof(accumulate));

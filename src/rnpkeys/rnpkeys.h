@@ -42,7 +42,7 @@ typedef enum {
 } optdefs_t;
 
 pgp_errcode_t rnp_generate_key_expert_mode(rnp_t *rnp);
-int rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f);
+bool rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f);
 int setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg);
 void print_praise(void);
 void print_usage(const char *usagemsg);

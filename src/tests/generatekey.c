@@ -496,7 +496,7 @@ ask_expert_details(rnp_t *ctx, rnp_cfg_t *ops, const char *rsp, size_t rsp_len)
     /* Run tests*/
     bool      ret = true;
     rnp_cfg_t cfg = {0};
-    if (setup_rnp_common(ctx, GPG_KEY_STORE, NULL, NULL) != RNP_OK) {
+    if (setup_rnp_common(ctx, GPG_KEY_STORE, NULL, NULL) != true) {
         return false;
     }
     if (!rnpkeys_init(&cfg, ctx, ops, true)) {
@@ -518,7 +518,7 @@ ask_expert_details(rnp_t *ctx, rnp_cfg_t *ops, const char *rsp, size_t rsp_len)
     /* Mock user-input*/
     ctx->user_input_fp = fdopen(pipefd[0], "r");
 
-    if (rnp_cmd(&cfg, ctx, CMD_GENERATE_KEY, NULL) != RNP_OK) {
+    if (!rnp_cmd(&cfg, ctx, CMD_GENERATE_KEY, NULL)) {
         ret = false;
         goto end;
     }

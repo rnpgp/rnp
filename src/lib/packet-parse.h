@@ -118,7 +118,7 @@ void  pgp_callback_push(pgp_stream_t *, pgp_cbfunc_t *, void *);
 void *pgp_callback_arg(pgp_cbdata_t *);
 void *pgp_callback_errors(pgp_cbdata_t *);
 void  pgp_reader_set(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
-int   pgp_reader_push(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
+bool  pgp_reader_push(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
 void  pgp_reader_pop(pgp_stream_t *);
 
 void *pgp_reader_get_arg(pgp_reader_t *);
@@ -139,20 +139,20 @@ typedef enum {
 
 void pgp_parse_options(pgp_stream_t *, pgp_content_enum, pgp_parse_type_t);
 
-unsigned pgp_limited_read(pgp_stream_t *,
-                          uint8_t *,
-                          size_t,
-                          pgp_region_t *,
-                          pgp_error_t **,
-                          pgp_reader_t *,
-                          pgp_cbdata_t *);
-unsigned pgp_stacked_limited_read(pgp_stream_t *,
-                                  uint8_t *,
-                                  unsigned,
-                                  pgp_region_t *,
-                                  pgp_error_t **,
-                                  pgp_reader_t *,
-                                  pgp_cbdata_t *);
+bool pgp_limited_read(pgp_stream_t *,
+                      uint8_t *,
+                      size_t,
+                      pgp_region_t *,
+                      pgp_error_t **,
+                      pgp_reader_t *,
+                      pgp_cbdata_t *);
+bool pgp_stacked_limited_read(pgp_stream_t *,
+                              uint8_t *,
+                              unsigned,
+                              pgp_region_t *,
+                              pgp_error_t **,
+                              pgp_reader_t *,
+                              pgp_cbdata_t *);
 void        pgp_parse_hash_init(pgp_stream_t *, pgp_hash_alg_t, const uint8_t *);
 void        pgp_parse_hash_data(pgp_stream_t *, const void *, size_t);
 void        pgp_parse_hash_finish(pgp_stream_t *);
@@ -160,7 +160,7 @@ pgp_hash_t *pgp_parse_hash_find(pgp_stream_t *, const uint8_t *);
 
 pgp_reader_func_t pgp_stacked_read;
 
-int      pgp_decompress(pgp_region_t *, pgp_stream_t *, pgp_compression_type_t);
+bool     pgp_decompress(pgp_region_t *, pgp_stream_t *, pgp_compression_type_t);
 unsigned pgp_writez(pgp_output_t *, const uint8_t *, const unsigned);
 
 bool pgp_parse_and_accumulate(pgp_io_t *io, rnp_key_store_t *, pgp_stream_t *);

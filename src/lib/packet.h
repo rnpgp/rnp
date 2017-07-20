@@ -931,7 +931,7 @@ void pgp_parser_content_free(pgp_packet_t *);
 void pgp_seckey_free(pgp_seckey_t *);
 void pgp_pk_sesskey_free(pgp_pk_sesskey_t *);
 
-int pgp_print_packet(pgp_printstate_t *, const pgp_packet_t *);
+bool pgp_print_packet(pgp_printstate_t *, const pgp_packet_t *);
 
 /* A macro for defining a dynamic array. It expands to the following
  * members:

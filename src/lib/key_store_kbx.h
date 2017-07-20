@@ -30,7 +30,7 @@
 #include "rnp.h"
 #include "key_store.h"
 
-int rnp_key_store_kbx_from_mem(pgp_io_t *, rnp_key_store_t *, pgp_memory_t *);
-int rnp_key_store_kbx_to_mem(pgp_io_t *, rnp_key_store_t *, const uint8_t *, pgp_memory_t *);
+bool rnp_key_store_kbx_from_mem(pgp_io_t *, rnp_key_store_t *, pgp_memory_t *);
+bool rnp_key_store_kbx_to_mem(pgp_io_t *, rnp_key_store_t *, const uint8_t *, pgp_memory_t *);
 
 #endif // RNP_KEY_STORE_KBX_H

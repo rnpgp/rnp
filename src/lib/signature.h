@@ -104,16 +104,16 @@ void pgp_start_sig(pgp_create_sig_t *,
 void        pgp_sig_add_data(pgp_create_sig_t *, const void *, size_t);
 pgp_hash_t *pgp_sig_get_hash(pgp_create_sig_t *);
 unsigned    pgp_end_hashed_subpkts(pgp_create_sig_t *);
-unsigned    pgp_write_sig(pgp_output_t *,
-                       pgp_create_sig_t *,
-                       const pgp_pubkey_t *,
-                       const pgp_seckey_t *);
+bool        pgp_write_sig(pgp_output_t *,
+                   pgp_create_sig_t *,
+                   const pgp_pubkey_t *,
+                   const pgp_seckey_t *);
 unsigned pgp_add_time(pgp_create_sig_t *, int64_t, pgp_content_enum);
 unsigned pgp_add_issuer_keyid(pgp_create_sig_t *, const uint8_t *);
 void     pgp_add_primary_userid(pgp_create_sig_t *, unsigned);
 
 /* Standard Interface */
-unsigned pgp_sign_file(
+bool pgp_sign_file(
   rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_seckey_t *, bool cleartext);
 
 int pgp_sign_detached(rnp_ctx_t *, pgp_io_t *, const char *, const char *, pgp_seckey_t *);
@@ -123,9 +123,9 @@ unsigned pgp_crc24(unsigned, uint8_t);
 
 void pgp_reader_push_dearmour(pgp_stream_t *);
 
-void     pgp_reader_pop_dearmour(pgp_stream_t *);
-unsigned pgp_writer_push_clearsigned(pgp_output_t *, pgp_create_sig_t *);
-void     pgp_writer_push_armor_msg(pgp_output_t *);
+bool pgp_writer_push_clearsigned(pgp_output_t *, pgp_create_sig_t *);
+void pgp_reader_pop_dearmour(pgp_stream_t *);
+void pgp_writer_push_armor_msg(pgp_output_t *);
 
 typedef enum {
     PGP_PGP_MESSAGE = 1,
@@ -138,7 +138,7 @@ typedef enum {
 
 #define CRC24_INIT 0xb704ceL
 
-unsigned pgp_writer_use_armored_sig(pgp_output_t *);
+bool pgp_writer_use_armored_sig(pgp_output_t *);
 
 void pgp_writer_push_armoured(pgp_output_t *, pgp_armor_type_t);
 

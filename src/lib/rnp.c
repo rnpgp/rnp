@@ -93,6 +93,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "rnp_defs.h"
 #include "pgp-key.h"
 
+#include "rnp_obsolete_defs.h"
 #include <json.h>
 
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
@@ -979,7 +980,7 @@ rnp_import_key(rnp_t *rnp, char *f)
 {
     pgp_io_t *io;
     int       realarmor;
-    int       done;
+    bool      done;
 
     io = rnp->io;
     realarmor = isarmoured(io, f, NULL, IMPORT_ARMOR_HEAD);

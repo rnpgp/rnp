@@ -245,13 +245,13 @@ uint_to_string(char *buff, const int buffsize, unsigned int num, int base)
     return ptr;
 }
 
-int
+bool
 setupPassphrasefd(int *pipefd)
 {
     ssize_t r, p;
     if (pipe(pipefd) == -1) {
         perror("pipe");
-        return RNP_FAIL;
+        return false;
     }
 
     /*Write and close fd*/
@@ -261,16 +261,16 @@ setupPassphrasefd(int *pipefd)
         p = write(pipefd[1], password, r);
         if (p <= 0) {
             perror("write");
-            return 0;
+            return false;
         }
         password += p;
         r -= p;
     } while (r);
     close(pipefd[1]);
-    return RNP_OK;
+    return true;
 }
 
-int
+bool
 setup_rnp_common(rnp_t *                 rnp,
                  enum key_store_format_t ks_format,
                  const char *            homedir,
@@ -302,11 +302,11 @@ setup_rnp_common(rnp_t *                 rnp,
     }
 
     if (homedir == NULL) {
-        return RNP_FAIL;
+        return false;
     }
 
     if ((ks_format != GPG_KEY_STORE) && (ks_format != KBX_KEY_STORE)) {
-        return RNP_FAIL;
+        return false;
     }
 
     paths_concat(pubpath,
@@ -330,7 +330,7 @@ setup_rnp_common(rnp_t *                 rnp,
     }
     rnp_params_free(&params);
 
-    return RNP_OK;
+    return true;
 }
 
 void
