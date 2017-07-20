@@ -29,6 +29,7 @@
 
 typedef struct {
     char *home;
+    char *data_dir;
     int   not_fatal;
 } rnp_test_state_t;
 
