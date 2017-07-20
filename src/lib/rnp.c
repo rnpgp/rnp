@@ -73,7 +73,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #endif
 
 #include <rnp.h>
-#include "rnp_defs.h"
+#include "rnp_def.h"
 
 #include "packet.h"
 #include "packet-parse.h"
@@ -90,7 +90,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "crypto.h"
 #include "bn.h"
 #include "defs.h"
-#include "rnp_defs.h"
+#include "rnp_def.h"
 #include "pgp-key.h"
 
 #include "rnp_obsolete_defs.h"

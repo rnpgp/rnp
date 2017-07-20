@@ -84,7 +84,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "s2k.h"
 #include "ecdsa.h"
 #include "utils.h"
-#include "rnp_defs.h"
+#include "rnp_def.h"
 
 /**
  * EC Curves definition used by implementation

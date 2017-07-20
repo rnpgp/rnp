@@ -35,7 +35,7 @@
 #include <stdbool.h>
 
 #include "packet.h"
-#include "rnp_defs.h"
+#include "rnp_def.h"
 #include "rnp_types.h"
 
 #ifndef __BEGIN_DECLS
