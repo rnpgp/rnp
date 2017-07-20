@@ -356,14 +356,19 @@ Do not:
 
 ### Documentation
 Documentation is done in Doxygen comments format, which must be put in header files.
-Exception are static or not exposed to the public API functions - they should be documented in 
-the code.
+
+Exception are static or having only definition functions - it is not required to document them,
+however if they are documented then this should be done in the source file and using the @private tag.
 
 Comments should use doxygen markdown style, like the following example:
 
 ```c
-/** @brief brief description of the sample function which does something
- *         Which may be continued here
+/** Some comments regarding the file purpose, like 'PGP packet parsing utilities'
+ *  @file
+ */
+
+/** brief description of the sample function which does something, keyword 'brief' is ommitted
+ *  Which may be continued here
  *
  *  After an empty line you may add detailed description in case it is needed. You may put 
  *  details about the memory allocation, what happens if function fails and so on.
@@ -378,7 +383,7 @@ Comments should use doxygen markdown style, like the following example:
  *          if error code is E_BUF_TOOSMALL then size will contain the required size to store
  *          the result
  **/
-uint32_t
+rnp_result
 rnp_do_operation(const char *param1, const int param2, int *size, char *buffer);
 ```
 
