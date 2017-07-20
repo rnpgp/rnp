@@ -31,19 +31,64 @@
 #include "rnp_tests.h"
 #include "support.h"
 
+static const char *exe_path = NULL;
+static char        original_dir[PATH_MAX];
+
+static char *
+get_data_dir(void)
+{
+    char  data_dir[PATH_MAX];
+    char *exe_dir = directory_from_file_path(exe_path, original_dir);
+
+    if (!exe_dir) {
+        return NULL;
+    }
+    paths_concat(data_dir, sizeof(data_dir), exe_dir, "../data", NULL);
+    free(exe_dir);
+    return realpath(data_dir, NULL);
+}
+
+static int
+setup_test_group(void **state)
+{
+    rnp_test_state_t *rstate = calloc(1, sizeof(rnp_test_state_t));
+
+    if (!rstate) {
+        return -1;
+    }
+    rstate->data_dir = get_data_dir();
+    if (!rstate->data_dir) {
+        free(rstate);
+        return -1;
+    }
+    *state = rstate;
+    return 0;
+}
+
+static int
+teardown_test_group(void **state)
+{
+    rnp_test_state_t *rstate = *state;
+
+    if (!rstate) {
+        return -1;
+    }
+    free(rstate->data_dir);
+    rstate->data_dir = NULL;
+
+    free(rstate);
+
+    *state = NULL;
+    return 0;
+}
+
 static int
 setup_test(void **state)
 {
-    rnp_test_state_t *rstate;
-    rstate = calloc(1, sizeof(rnp_test_state_t));
-    if (rstate == NULL) {
-        *state = NULL;
-        return -1;
-    }
+    rnp_test_state_t *rstate = *state;
+
     rstate->home = make_temp_dir();
     if (rstate->home == NULL) {
-        free(rstate);
-        *state = NULL;
         return -1;
     }
     if (getenv("RNP_TEST_NOT_FATAL")) {
@@ -51,7 +96,6 @@ setup_test(void **state)
     } else {
         rstate->not_fatal = 0;
     }
-    *state = rstate;
     assert_int_equal(0, setenv("HOME", rstate->home, 1));
     assert_int_equal(0, chdir(rstate->home));
     return 0;
@@ -63,30 +107,23 @@ teardown_test(void **state)
     rnp_test_state_t *rstate = *state;
     delete_recursively(rstate->home);
     free(rstate->home);
-    free(rstate);
-    *state = NULL;
+    rstate->home = NULL;
     return 0;
 }
 
 int
-main(void)
+main(int argc, char *argv[])
 {
-    int ret, i, j;
-    /* Create a temporary HOME.
-     * This is just an extra guard to protect against accidental
-     * modifications of a user's HOME.
-     */
-    char *tmphome = make_temp_dir();
-    assert_int_equal(0, setenv("HOME", tmphome, 1));
-    assert_int_equal(0, chdir(tmphome));
+    exe_path = argv[0];
+    assert_non_null(getcwd(original_dir, sizeof(original_dir)));
 
     /* We use LOGNAME in a few places within the tests
      * and it isn't always set in every environment.
      */
-    if (!getenv("LOGNAME"))
+    if (!getenv("LOGNAME")) {
         setenv("LOGNAME", "test-user", 1);
-
-    int iteration = 0;
+    }
+    int iteration = 1;
     if (getenv("RNP_TEST_ITERATIONS")) {
         iteration = atoi(getenv("RNP_TEST_ITERATIONS"));
     }
@@ -114,29 +151,18 @@ main(void)
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */
-    for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+    for (int i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
         tests[i].setup_func = setup_test;
         tests[i].teardown_func = teardown_test;
     }
 
-    if (iteration == 0) {
-        ret = cmocka_run_group_tests(tests, NULL, NULL);
-    } else {
-        for (i = 0; i < iteration; i++) {
-            for (j = 0; j < sizeof(tests) / sizeof(tests[0]); j++) {
-                printf("Run iteration %d, test: %s\n", i, tests[j].name);
-                void *state;
-                if (setup_test(&state)) {
-                    continue;
-                }
-                tests[j].test_func(&state);
-                teardown_test(&state);
-            }
+    int ret = 0;
+    for (int i = 0; i < iteration; i++) {
+        printf("Iteration %d\n", i);
+        ret = cmocka_run_group_tests(tests, setup_test_group, teardown_test_group);
+        if (ret != 0) {
+            break;
         }
-        ret = 0;
     }
-
-    delete_recursively(tmphome);
-    free(tmphome);
     return ret;
 }
