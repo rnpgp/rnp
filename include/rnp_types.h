@@ -32,6 +32,9 @@
 
 enum key_store_format_t { GPG_KEY_STORE, SSH_KEY_STORE, KBX_KEY_STORE };
 
+/* rnp_result is the type used for return codes from the APIs. */
+typedef uint32_t rnp_result;
+
 /* structure used to keep application-wide rnp configuration: keyrings, password io, whatever
  * else */
 typedef struct rnp_t {

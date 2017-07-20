@@ -1631,9 +1631,3 @@ done:
     }
     return (int) cc;
 }
-
-/*
- * Ensures rnp_result is same size as int in order to
- * enforce binary compatiblity.
- */
-static_assert(sizeof(rnp_result) == sizeof(int), "Incompatibility detected");

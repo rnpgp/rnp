@@ -54,11 +54,9 @@
 #define DEFAULT_HASH_ALG "SHA256"
 
 /*
- * rnp_result is the type used for return codes from the APIs.
- *
- * true can be treated as 0
+ * Error code definitions
  */
-typedef enum {
+enum {
 
     RNP_SUCCESS = 0x00000000,
 
@@ -89,6 +87,6 @@ typedef enum {
     RNP_ERROR_NO_USERID,
     RNP_ERROR_EOF
 
-} rnp_result;
+};
 
 #endif
