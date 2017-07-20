@@ -373,11 +373,11 @@ Comments should use doxygen markdown style, like the following example:
  *  After an empty line you may add detailed description in case it is needed. You may put 
  *  details about the memory allocation, what happens if function fails and so on.
  *
- *  @param [in] param1 first parameter, null-terminated string which should not be NULL
- *  @param [in] param2 integer, some number representing something
- *  @param [in, out] size number of bytes available to store in buffer
- *  @param [out] buffer buffer to store results, may be NULL. In this case size can be used to 
- *                      obtain the required buffer length
+ *  @param param1 first parameter, null-terminated string which should not be NULL
+ *  @param param2 integer, some number representing something
+ *  @param size number of bytes available to store in buffer
+ *  @param buffer buffer to store results, may be NULL. In this case size can be used to 
+ *                obtain the required buffer length
  *  @return 0 if operation succeeds, or error code otherwise. If operation succeeds then buffer 
  *          is populated with the resulting data, and size contains the length of this data.
  *          if error code is E_BUF_TOOSMALL then size will contain the required size to store
