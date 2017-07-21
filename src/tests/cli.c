@@ -52,7 +52,7 @@ cli_rnpkeys(void **state)
     char              cmd[PATH_MAX];
 
     rnp_assert_non_null(rstate, cwd = getenv("ORIGCWD"));
-    rnp_assert_true(rstate, snprintf(cmd, sizeof(cmd), "%s/cli_tests.py rnp", cwd) > 0);
+    rnp_assert_true(rstate, snprintf(cmd, sizeof(cmd), "%s/cli_tests.py rnpkeys", cwd) > 0);
 
     res = system(cmd);
     res = WEXITSTATUS(res);

@@ -7,6 +7,8 @@ from os import path
 import os
 import shutil
 import subprocess
+from subprocess import Popen, PIPE
+from cli_common import find_utility, run_proc, pswd_pipe
 
 def setup():
     return
@@ -16,6 +18,18 @@ def run_rnp_tests():
     return
 
 def run_rnpkeys_tests():
+    RNPDIR = path.join(os.getcwd(), '.rnp')
+    RNPK = find_utility('rnpkeys')
+    os.mkdir(RNPDIR, 0700)
+
+    retcode, output, err = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pswd_pipe('password')), '--userid', 'rsa@rnp', '--generate-key'])
+
+    if retcode != 0:
+        print err
+        raise NameError('rnpkeys failed')
+    else:
+        print output
+
     return
 
 def run_tests():
