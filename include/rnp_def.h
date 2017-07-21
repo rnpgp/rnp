@@ -23,8 +23,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef __RNP__CONSTANTS_H__
-#define __RNP__CONSTANTS_H__
+#ifndef __RNP__DEFS_H__
+#define __RNP__DEFS_H__
 
 /* The dot directory relative to the user's home directory where keys
  * are stored.
@@ -53,17 +53,15 @@
  */
 #define DEFAULT_HASH_ALG "SHA256"
 
-/* Function return codes, more will be added later */
-
-#define RNP_OK 1
-#define RNP_FAIL 0
-#define RNP_EOF -1
-
+/*
+ * Error code definitions
+ */
 enum {
-    /* Error codes definitions */
+
     RNP_SUCCESS = 0x00000000,
 
-    RNP_ERROR_GENERIC = 0x71000000,
+    /* Common error codes */
+    RNP_ERROR_GENERIC = 0x10000000,
     RNP_ERROR_BAD_FORMAT,
     RNP_ERROR_BAD_PARAMETERS,
     RNP_ERROR_NOT_IMPLEMENTED,
@@ -72,21 +70,23 @@ enum {
     RNP_ERROR_SHORT_BUFFER,
 
     /* Storage */
-    RNP_ERROR_STORAGE_NOT_AVAILABLE = 0x72000001,
+    RNP_ERROR_STORAGE_NOT_AVAILABLE = 0x11000000,
     RNP_ERROR_READ,
     RNP_ERROR_WRITE,
 
     /* Crypto */
-    RNP_ERROR_BAD_STATE = 0x73000000,
+    RNP_ERROR_BAD_STATE = 0x12000000,
     RNP_ERROR_MAC_INVALID,
     RNP_ERROR_SIGNATURE_INVALID,
     RNP_ERROR_KEY_GENERATION,
 
     /* Parsing */
-    RNP_ERROR_NOT_ENOUGH_DATA = 0x74000000,
+    RNP_ERROR_NOT_ENOUGH_DATA = 0x13000000,
     RNP_ERROR_UNKNOWN_TAG,
     RNP_ERROR_PACKET_NOT_CONSUMED,
     RNP_ERROR_NO_USERID,
+    RNP_ERROR_EOF
+
 };
 
 #endif

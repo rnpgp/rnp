@@ -29,6 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "config.h"
+#include <assert.h>
 
 #ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
@@ -72,6 +73,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #endif
 
 #include <rnp.h>
+#include "rnp_def.h"
 
 #include "packet.h"
 #include "packet-parse.h"
@@ -84,13 +86,14 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "memory.h"
 #include "validate.h"
 #include "readerwriter.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "crypto.h"
 #include "bn.h"
 #include "defs.h"
-#include "constants.h"
+#include "rnp_def.h"
 #include "pgp-key.h"
 
+#include "rnp_obsolete_defs.h"
 #include <json.h>
 
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
@@ -977,7 +980,7 @@ rnp_import_key(rnp_t *rnp, char *f)
 {
     pgp_io_t *io;
     int       realarmor;
-    int       done;
+    bool      done;
 
     io = rnp->io;
     realarmor = isarmoured(io, f, NULL, IMPORT_ARMOR_HEAD);

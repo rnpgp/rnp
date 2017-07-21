@@ -89,7 +89,7 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include "packet-show.h"
 #include "signature.h"
 #include "rnpsdk.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "memory.h"
 #include "readerwriter.h"
 #include "rnpdigest.h"
@@ -287,10 +287,10 @@ pgp_has_error(pgp_error_t *errstack, pgp_errcode_t errcode)
 
     for (err = errstack; err != NULL; err = err->next) {
         if (err->errcode == errcode) {
-            return RNP_OK;
+            return true;
         }
     }
-    return RNP_FAIL;
+    return false;
 }
 
 /**
@@ -385,11 +385,11 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
         if (key->alg != PGP_PKA_RSA && key->alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
             key->alg != PGP_PKA_RSA_SIGN_ONLY) {
             (void) fprintf(stderr, "pgp_fingerprint: bad algorithm\n");
-            return RNP_FAIL;
+            return false;
         }
         if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad md5 alloc\n");
-            return RNP_FAIL;
+            return false;
         }
         hash_bignum(&hash, key->key.rsa.n);
         hash_bignum(&hash, key->key.rsa.e);
@@ -401,13 +401,13 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
         mem = pgp_memory_new();
         if (mem == NULL) {
             (void) fprintf(stderr, "can't allocate mem\n");
-            return RNP_FAIL;
+            return false;
         }
         pgp_build_pubkey(mem, key, 0);
         if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad sha1 alloc\n");
             pgp_memory_free(mem);
-            return RNP_FAIL;
+            return false;
         }
         len = (unsigned) pgp_mem_len(mem);
         pgp_hash_add_int(&hash, 0x99, 1);
@@ -420,9 +420,9 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
         }
     } else {
         (void) fprintf(stderr, "pgp_fingerprint: unsupported key version\n");
-        return RNP_FAIL;
+        return false;
     }
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -444,12 +444,12 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key)
         n = (unsigned) BN_num_bytes(key->key.rsa.n);
         if (n > sizeof(bn)) {
             (void) fprintf(stderr, "pgp_keyid: bad num bytes\n");
-            return RNP_FAIL;
+            return false;
         }
         if (key->alg != PGP_PKA_RSA && key->alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
             key->alg != PGP_PKA_RSA_SIGN_ONLY) {
             (void) fprintf(stderr, "pgp_keyid: bad algorithm\n");
-            return RNP_FAIL;
+            return false;
         }
         BN_bn2bin(key->key.rsa.n, bn);
         (void) memcpy(keyid, bn + n - idlen, idlen);
@@ -457,7 +457,7 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key)
         pgp_fingerprint(&finger, key);
         (void) memcpy(keyid, finger.fingerprint + finger.length - idlen, idlen);
     }
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -570,24 +570,24 @@ pgp_memory_pad(pgp_memory_t *mem, size_t length)
 
     if (mem->allocated < mem->length) {
         (void) fprintf(stderr, "pgp_memory_pad: bad alloc in\n");
-        return RNP_FAIL;
+        return false;
     }
     if (mem->allocated < mem->length + length) {
         mem->allocated = mem->allocated * 2 + length;
         temp = realloc(mem->buf, mem->allocated);
         if (temp == NULL) {
             (void) fprintf(stderr, "pgp_memory_pad: bad alloc\n");
-            return RNP_FAIL;
+            return false;
         } else {
             mem->buf = temp;
         }
     }
     if (mem->allocated < mem->length + length) {
         (void) fprintf(stderr, "pgp_memory_pad: bad alloc out\n");
-        return RNP_FAIL;
+        return false;
     }
 
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -601,11 +601,11 @@ int
 pgp_memory_add(pgp_memory_t *mem, const uint8_t *src, size_t length)
 {
     if (!pgp_memory_pad(mem, length)) {
-        return RNP_FAIL;
+        return false;
     }
     (void) memcpy(mem->buf + mem->length, src, length);
     mem->length += length;
-    return RNP_OK;
+    return true;
 }
 
 /* XXX: this could be refactored via the writer, but an awful lot of */
@@ -774,7 +774,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
     return (mem->allocated == mem->length);
 }
 
-int
+bool
 pgp_mem_writefile(pgp_memory_t *mem, const char *f)
 {
     FILE *fp;
@@ -786,19 +786,19 @@ pgp_mem_writefile(pgp_memory_t *mem, const char *f)
     fd = mkstemp(tmp);
     if (fd < 0) {
         fprintf(stderr, "pgp_mem_writefile: can't open temp file: %s\n", strerror(errno));
-        return RNP_FAIL;
+        return false;
     }
 
     if ((fp = fdopen(fd, "wb")) == NULL) {
         fprintf(stderr, "pgp_mem_writefile: can't open \"%s\"\n", strerror(errno));
-        return RNP_FAIL;
+        return false;
     }
 
     fwrite(mem->buf, mem->length, 1, fp);
     if (ferror(fp)) {
         fprintf(stderr, "pgp_mem_writefile: can't write to file\n");
         fclose(fp);
-        return RNP_FAIL;
+        return false;
     }
 
     fclose(fp);
@@ -806,10 +806,10 @@ pgp_mem_writefile(pgp_memory_t *mem, const char *f)
     if (rename(tmp, f)) {
         fprintf(
           stderr, "pgp_mem_writefile: can't rename to traget file: %s\n", strerror(errno));
-        return RNP_FAIL;
+        return false;
     }
 
-    return RNP_OK;
+    return true;
 }
 
 typedef struct {
@@ -997,10 +997,10 @@ rnp_set_debug(const char *f)
         }
     }
     if (i == MAX_DEBUG_NAMES) {
-        return RNP_FAIL;
+        return false;
     }
     debugv[debugc++] = rnp_strdup(name);
-    return RNP_OK;
+    return true;
 }
 
 /* get the debugging level per filename */

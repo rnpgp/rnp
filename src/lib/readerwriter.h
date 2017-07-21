@@ -77,14 +77,14 @@ unsigned pgp_write_se_ip_pktset(pgp_output_t *,
                                 const unsigned,
                                 pgp_crypt_t *);
 void pgp_push_enc_crypt(pgp_output_t *, pgp_crypt_t *);
-int  pgp_push_enc_se_ip(pgp_output_t *, const pgp_key_t *, pgp_symm_alg_t);
+bool pgp_push_enc_se_ip(pgp_output_t *, const pgp_key_t *, pgp_symm_alg_t);
 
 /* Secret Key checksum */
 void     pgp_push_checksum_writer(pgp_output_t *, pgp_seckey_t *);
 unsigned pgp_pop_skey_checksum_writer(pgp_output_t *);
 
 /* memory writing */
-int  pgp_setup_memory_write(rnp_ctx_t *, pgp_output_t **, pgp_memory_t **, size_t);
+bool pgp_setup_memory_write(rnp_ctx_t *, pgp_output_t **, pgp_memory_t **, size_t);
 void pgp_teardown_memory_write(pgp_output_t *, pgp_memory_t *);
 
 /* memory reading */
@@ -120,6 +120,6 @@ pgp_cb_ret_t pgp_litdata_cb(const pgp_packet_t *, pgp_cbdata_t *);
 pgp_cb_ret_t pgp_pk_sesskey_cb(const pgp_packet_t *, pgp_cbdata_t *);
 pgp_cb_ret_t pgp_get_seckey_cb(const pgp_packet_t *, pgp_cbdata_t *);
 
-int pgp_getpassphrase(void *, char *, size_t);
+bool pgp_getpassphrase(void *, char *, size_t);
 
 #endif /* READERWRITER_H_ */

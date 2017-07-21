@@ -83,7 +83,7 @@
 #endif
 
 #include "crypto.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "bn.h"
 
 bool
@@ -146,7 +146,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
             botan_privkey_get_field(x, priv_key, "q");
             key->key.seckey.key.rsa.q = new_BN_take_mp(x);
             botan_privkey_destroy(priv_key);
-            ok = RNP_OK;
+            ok = true;
         }
     } else if (strcmp(type, "ssh-dss") == 0) {
         if (botan_privkey_load(&priv_key, rng, keybuf, read, NULL) != 0) {
@@ -157,7 +157,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
             botan_privkey_get_field(x, priv_key, "x");
             key->key.seckey.key.dsa.x = new_BN_take_mp(x);
             botan_privkey_destroy(priv_key);
-            ok = RNP_OK;
+            ok = true;
         }
     } else {
         ok = false;

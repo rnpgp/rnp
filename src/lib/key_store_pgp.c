@@ -76,7 +76,7 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "signature.h"
 #include "rnpsdk.h"
 #include "readerwriter.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "packet.h"
 
 void print_packet_hex(const pgp_subpacket_t *pkt);
@@ -229,7 +229,7 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
    \param armour 1 if file is armoured; else 0
    \param mem Pointer to a pgp_memory_t struct containing keyring to be read
 
-   \return pgp 1 if OK; 0 on error
+   \return pgp true if OK; false on error
 
    \note Keyring struct must already exist.
 
@@ -243,7 +243,7 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
    \sa pgp_keyring_fileread
    \sa pgp_keyring_free
 */
-int
+bool
 rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
                                 rnp_key_store_t *keyring,
                                 const unsigned   armour,
@@ -252,13 +252,13 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
     pgp_stream_t * stream;
     const unsigned noaccum = 0;
     keyringcb_t    cb;
-    int            res;
+    bool           res;
 
     (void) memset(&cb, 0x0, sizeof(cb));
     cb.keyring = keyring;
     if (!pgp_setup_memory_read(io, &stream, mem, &cb, cb_keyring_read, noaccum)) {
         (void) fprintf(io->errs, "can't setup memory read\n");
-        return RNP_FAIL;
+        return false;
     }
     pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
     if (armour) {
@@ -293,7 +293,7 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
         key = &key_store->keys[i];
 
         if (!pgp_write_xfer_anykey(&output, key, passphrase, NULL, armour)) {
-            return RNP_FAIL;
+            return false;
         }
     }
 

@@ -354,6 +354,38 @@ Do not:
   ```
 * Do not use `pragma`, and try to avoid `__attribute__` as well.
 
+### Documentation
+Documentation is done in Doxygen comments format, which must be put in header files.
+
+Exception are static or having only definition functions - it is not required to document them,
+however if they are documented then this should be done in the source file and using the @private tag.
+
+Comments should use doxygen markdown style, like the following example:
+
+```c
+/** Some comments regarding the file purpose, like 'PGP packet parsing utilities'
+ *  @file
+ */
+
+/** brief description of the sample function which does something, keyword 'brief' is ommitted
+ *  Which may be continued here
+ *
+ *  After an empty line you may add detailed description in case it is needed. You may put 
+ *  details about the memory allocation, what happens if function fails and so on.
+ *
+ *  @param param1 first parameter, null-terminated string which should not be NULL
+ *  @param param2 integer, some number representing something
+ *  @param size number of bytes available to store in buffer
+ *  @param buffer buffer to store results, may be NULL. In this case size can be used to 
+ *                obtain the required buffer length
+ *  @return 0 if operation succeeds, or error code otherwise. If operation succeeds then buffer 
+ *          is populated with the resulting data, and size contains the length of this data.
+ *          if error code is E_BUF_TOOSMALL then size will contain the required size to store
+ *          the result
+ **/
+rnp_result
+rnp_do_operation(const char *param1, const int param2, int *size, char *buffer);
+```
 
 # Reviewers and Responsibility areas
 

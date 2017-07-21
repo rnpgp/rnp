@@ -34,7 +34,7 @@
 
 #include "rnpcfg.h"
 #include "rnpsdk.h"
-#include "constants.h"
+#include "rnp_def.h"
 
 /** @brief initialize rnp_cfg structure internals. When structure is not needed anymore
  *  it should be freed via rnp_cfg_free function call
@@ -338,7 +338,7 @@ rnp_cfg_get_pswdtries(rnp_cfg_t *cfg)
     }
 }
 
-int
+bool
 rnp_cfg_check_homedir(rnp_cfg_t *cfg, char *homedir)
 {
     struct stat st;
@@ -346,26 +346,26 @@ rnp_cfg_check_homedir(rnp_cfg_t *cfg, char *homedir)
 
     if (homedir == NULL) {
         fputs("rnp: homedir option and HOME environment variable are not set \n", stderr);
-        return RNP_FAIL;
+        return false;
     } else if ((ret = stat(homedir, &st)) == 0 && !S_ISDIR(st.st_mode)) {
         /* file exists in place of homedir */
         fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", homedir);
-        return RNP_FAIL;
+        return false;
     } else if (ret != 0 && errno == ENOENT) {
         /* If the path doesn't exist then fail. */
         fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", homedir);
-        return RNP_FAIL;
+        return false;
     } else if (ret != 0) {
         /* If any other occurred then fail. */
         fprintf(stderr, "rnp: an unspecified error occurred\n");
-        return RNP_FAIL;
+        return false;
     }
 
-    return RNP_OK;
+    return true;
 }
 
 /* read any gpg config file */
-static int
+static bool
 conffile(const char *homedir, char *userid, size_t length)
 {
     regmatch_t matchv[10];
@@ -375,12 +375,12 @@ conffile(const char *homedir, char *userid, size_t length)
 
     (void) snprintf(buf, sizeof(buf), "%s/.gnupg/gpg.conf", homedir);
     if ((fp = fopen(buf, "r")) == NULL) {
-        return RNP_FAIL;
+        return false;
     }
     (void) memset(&keyre, 0x0, sizeof(keyre));
     if (regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED) != 0) {
         (void) fprintf(stderr, "conffile: failed to compile regular expression");
-        return RNP_FAIL;
+        return false;
     }
     while (fgets(buf, (int) sizeof(buf), fp) != NULL) {
         if (regexec(&keyre, buf, 10, matchv, 0) == 0) {
@@ -396,7 +396,7 @@ conffile(const char *homedir, char *userid, size_t length)
     }
     (void) fclose(fp);
     regfree(&keyre);
-    return RNP_OK;
+    return true;
 }
 
 /** @brief compose path from dir, subdir and filename, and store it in the res

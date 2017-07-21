@@ -81,16 +81,16 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 #include "packet-parse.h"
 #include "readerwriter.h"
 #include "memory.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rnpdigest.h"
 
 /*
- * return 1 if OK, otherwise 0
+ * return true if OK, otherwise false
  */
-static unsigned
+static bool
 base_write(pgp_output_t *out, const void *src, unsigned len)
 {
-    return out->writer.writer(src, len, &out->errors, &out->writer);
+    return !!out->writer.writer(src, len, &out->errors, &out->writer);
 }
 
 /**
@@ -102,7 +102,7 @@ base_write(pgp_output_t *out, const void *src, unsigned len)
  * \return 1 if OK, otherwise 0
  */
 
-unsigned
+bool
 pgp_write(pgp_output_t *output, const void *src, unsigned len)
 {
     return base_write(output, src, len);
@@ -116,7 +116,7 @@ pgp_write(pgp_output_t *output, const void *src, unsigned len)
  * \return 1 if OK, otherwise 0
  */
 
-unsigned
+bool
 pgp_write_scalar(pgp_output_t *output, unsigned n, unsigned len)
 {
     uint8_t c;
@@ -124,10 +124,10 @@ pgp_write_scalar(pgp_output_t *output, unsigned n, unsigned len)
     while (len-- > 0) {
         c = n >> (len * 8);
         if (!base_write(output, &c, 1)) {
-            return 0;
+            return false;
         }
     }
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -137,7 +137,7 @@ pgp_write_scalar(pgp_output_t *output, unsigned n, unsigned len)
  * \return 1 if OK, otherwise 0
  */
 
-unsigned
+bool
 pgp_write_mpi(pgp_output_t *output, const BIGNUM *bn)
 {
     unsigned bits;
@@ -146,7 +146,7 @@ pgp_write_mpi(pgp_output_t *output, const BIGNUM *bn)
     bits = (unsigned) BN_num_bits(bn);
     if (bits > 65535) {
         (void) fprintf(stderr, "pgp_write_mpi: too large %u\n", bits);
-        return 0;
+        return false;
     }
     BN_bn2bin(bn, buf);
     return pgp_write_scalar(output, bits, 2) && pgp_write(output, buf, BITS_TO_BYTES(bits));
@@ -159,7 +159,7 @@ pgp_write_mpi(pgp_output_t *output, const BIGNUM *bn)
  * \return 1 if OK, otherwise 0
  */
 
-unsigned
+bool
 pgp_write_ptag(pgp_output_t *output, pgp_content_enum tag)
 {
     uint8_t c;
@@ -175,7 +175,7 @@ pgp_write_ptag(pgp_output_t *output, pgp_content_enum tag)
  * \return 1 if OK, otherwise 0
  */
 
-unsigned
+bool
 pgp_write_length(pgp_output_t *output, unsigned len)
 {
     uint8_t c[2];
@@ -243,7 +243,7 @@ pgp_writer_info_delete(pgp_writer_t *writer)
  * \param destroyer
  * \param arg The argument for the writer and destroyer
  */
-int
+bool
 pgp_writer_set(pgp_output_t *          output,
                pgp_writer_func_t *     writer,
                pgp_writer_finaliser_t *finaliser,
@@ -252,14 +252,14 @@ pgp_writer_set(pgp_output_t *          output,
 {
     if (output->writer.writer) {
         (void) fprintf(stderr, "pgp_writer_set: already set\n");
-        return 0;
+        return false;
     }
     output->writer.writer = writer;
     output->writer.finaliser = finaliser;
     output->writer.destroyer = destroyer;
     output->writer.arg = arg;
     output->writer.ctx = output->ctx;
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -273,7 +273,7 @@ pgp_writer_set(pgp_output_t *          output,
  * \param destroyer
  * \param arg The argument for the writer and destroyer
  */
-int
+bool
 pgp_writer_push(pgp_output_t *          output,
                 pgp_writer_func_t *     writer,
                 pgp_writer_finaliser_t *finaliser,
@@ -284,7 +284,7 @@ pgp_writer_push(pgp_output_t *          output,
 
     if ((copy = calloc(1, sizeof(*copy))) == NULL) {
         (void) fprintf(stderr, "pgp_writer_push: bad alloc\n");
-        return 0;
+        return false;
     }
 
     if (output->writer.writer == NULL) {
@@ -292,7 +292,7 @@ pgp_writer_push(pgp_output_t *          output,
             free(copy);
         }
         (void) fprintf(stderr, "pgp_writer_push: no orig writer\n");
-        return 0;
+        return false;
     }
 
     *copy = output->writer;
@@ -303,7 +303,7 @@ pgp_writer_push(pgp_output_t *          output,
     output->writer.destroyer = destroyer;
     output->writer.arg = arg;
     output->writer.ctx = output->ctx;
-    return RNP_OK;
+    return true;
 }
 
 void
@@ -369,10 +369,10 @@ pgp_writer_get_arg(pgp_writer_t *writer)
  * \param errors A place to store errors.
  * \return Success - if 0, then errors should contain the error.
  */
-static unsigned
+static bool
 stacked_write(pgp_writer_t *writer, const void *src, unsigned len, pgp_error_t **errors)
 {
-    return writer->next->writer(src, len, errors, writer->next);
+    return !!writer->next->writer(src, len, errors, writer->next);
 }
 
 /**
@@ -416,7 +416,7 @@ typedef struct {
     pgp_memory_t *    trailing;
 } dashesc_t;
 
-static unsigned
+static bool
 dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer_t *writer)
 {
     dashesc_t *dash = pgp_writer_get_arg(writer);
@@ -442,7 +442,7 @@ dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writ
 
         if (dash->seen_nl) {
             if (src[n] == '-' && !stacked_write(writer, "- ", 2, errors)) {
-                return 0;
+                return false;
             }
             dash->seen_nl = 0;
         }
@@ -450,20 +450,20 @@ dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writ
 
         if (dash->seen_nl && !dash->seen_cr) {
             if (!stacked_write(writer, "\r", 1, errors)) {
-                return 0;
+                return false;
             }
             pgp_sig_add_data(dash->sig, "\r", 1);
         }
         dash->seen_cr = src[n] == '\r';
 
         if (!stacked_write(writer, &src[n], 1, errors)) {
-            return 0;
+            return false;
         }
 
         /* trailing whitespace isn't included in the signature */
         if (src[n] == ' ' || src[n] == '\t') {
             if (!pgp_memory_add(dash->trailing, &src[n], 1)) {
-                return 0;
+                return false;
             }
         } else {
             if ((l = (unsigned) pgp_mem_len(dash->trailing)) != 0) {
@@ -475,7 +475,7 @@ dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writ
             pgp_sig_add_data(dash->sig, &src[n], 1);
         }
     }
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -497,27 +497,26 @@ dash_escaped_destroyer(pgp_writer_t *writer)
  * \param output
  * \param sig
  */
-unsigned
+bool
 pgp_writer_push_clearsigned(pgp_output_t *output, pgp_create_sig_t *sig)
 {
     static const char header[] = "-----BEGIN PGP SIGNED MESSAGE-----\r\nHash: ";
     const char *      hash;
     dashesc_t *       dash;
-    unsigned          ret;
 
     hash = pgp_hash_name(pgp_sig_get_hash(sig));
     if ((dash = calloc(1, sizeof(*dash))) == NULL) {
         PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Bad alloc");
         return 0;
     }
-    ret =
+    bool ret =
       (pgp_write(output, header, (unsigned) (sizeof(header) - 1)) &&
        pgp_write(output, hash, (unsigned) strlen(hash)) && pgp_write(output, "\r\n\r\n", 4));
 
-    if (ret == 0) {
+    if (!ret) {
         PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Error pushing clearsigned header");
         free(dash);
-        return ret;
+        return false;
     }
     dash->seen_nl = 1;
     dash->sig = sig;
@@ -529,9 +528,9 @@ pgp_writer_push_clearsigned(pgp_output_t *output, pgp_create_sig_t *sig)
     }
     if (!pgp_writer_push(output, dash_esc_writer, NULL, dash_escaped_destroyer, dash)) {
         free(dash);
-        return 0;
+        return false;
     }
-    return ret;
+    return true;
 }
 
 /**
@@ -546,7 +545,7 @@ typedef struct {
 static const char b64map[] =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-static unsigned
+static bool
 base64_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer_t *writer)
 {
     base64_t *base64;
@@ -558,7 +557,7 @@ base64_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer
         if (base64->pos == 0) {
             /* XXXXXX00 00000000 00000000 */
             if (!stacked_write(writer, &b64map[(unsigned) src[n] >> 2], 1, errors)) {
-                return 0;
+                return false;
             }
 
             /* 000000XX xxxx0000 00000000 */
@@ -568,7 +567,7 @@ base64_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer
             /* 000000xx XXXX0000 00000000 */
             base64->t += (unsigned) src[n] >> 4;
             if (!stacked_write(writer, &b64map[base64->t], 1, errors)) {
-                return 0;
+                return false;
             }
 
             /* 00000000 0000XXXX xx000000 */
@@ -578,22 +577,22 @@ base64_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer
             /* 00000000 0000xxxx XX000000 */
             base64->t += (unsigned) src[n] >> 6;
             if (!stacked_write(writer, &b64map[base64->t], 1, errors)) {
-                return 0;
+                return false;
             }
 
             /* 00000000 00000000 00XXXXXX */
             if (!stacked_write(writer, &b64map[src[n++] & 0x3f], 1, errors)) {
-                return 0;
+                return false;
             }
 
             base64->pos = 0;
         }
     }
 
-    return RNP_OK;
+    return true;
 }
 
-static unsigned
+static bool
 sig_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 {
     static const char trail[] = "\r\n-----END PGP SIGNATURE-----\r\n";
@@ -603,18 +602,18 @@ sig_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
     base64 = pgp_writer_get_arg(writer);
     if (base64->pos) {
         if (!stacked_write(writer, &b64map[base64->t], 1, errors)) {
-            return 0;
+            return false;
         }
         if (base64->pos == 1 && !stacked_write(writer, "==", 2, errors)) {
-            return 0;
+            return false;
         }
         if (base64->pos == 2 && !stacked_write(writer, "=", 1, errors)) {
-            return 0;
+            return false;
         }
     }
     /* Ready for the checksum */
     if (!stacked_write(writer, "\r\n=", 3, errors)) {
-        return 0;
+        return false;
     }
 
     base64->pos = 0; /* get ready to write the checksum */
@@ -624,7 +623,7 @@ sig_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
     c[2] = base64->checksum;
     /* push the checksum through our own writer */
     if (!base64_writer(c, 3, errors, writer)) {
-        return 0;
+        return false;
     }
 
     return stacked_write(writer, trail, (unsigned) (sizeof(trail) - 1), errors);
@@ -639,7 +638,7 @@ typedef struct {
 
 #define BREAKPOS 76
 
-static unsigned
+static bool
 linebreak_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer_t *writer)
 {
     linebreak_t *linebreak;
@@ -652,16 +651,16 @@ linebreak_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_wri
         }
         if (linebreak->pos == BREAKPOS) {
             if (!stacked_write(writer, "\r\n", 2, errors)) {
-                return 0;
+                return false;
             }
             linebreak->pos = 0;
         }
         if (!stacked_write(writer, &src[n], 1, errors)) {
-            return 0;
+            return false;
         }
     }
 
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -669,7 +668,7 @@ linebreak_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_wri
  * \brief Push armoured signature on stack
  * \param output
  */
-unsigned
+bool
 pgp_writer_use_armored_sig(pgp_output_t *output)
 {
     static const char header[] =
@@ -680,30 +679,30 @@ pgp_writer_use_armored_sig(pgp_output_t *output)
     pgp_writer_pop(output);
     if (pgp_write(output, header, (unsigned) (sizeof(header) - 1)) == 0) {
         PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Error switching to armoured signature");
-        return 0;
+        return false;
     }
     if ((linebreak = calloc(1, sizeof(*linebreak))) == NULL) {
         PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "pgp_writer_use_armored_sig: Bad alloc");
-        return 0;
+        return false;
     }
     if (!pgp_writer_push(output, linebreak_writer, NULL, generic_destroyer, linebreak)) {
         free(linebreak);
-        return 0;
+        return false;
     }
     base64 = calloc(1, sizeof(*base64));
     if (!base64) {
         PGP_MEMORY_ERROR(&output->errors);
-        return 0;
+        return false;
     }
     base64->checksum = CRC24_INIT;
     if (!pgp_writer_push(output, base64_writer, sig_finaliser, generic_destroyer, base64)) {
         free(base64);
-        return 0;
+        return false;
     }
-    return RNP_OK;
+    return true;
 }
 
-static unsigned
+static bool
 armoured_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 {
     /* TODO: This is same as sig_finaliser apart from trailer. */
@@ -714,18 +713,18 @@ armoured_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
     base64 = pgp_writer_get_arg(writer);
     if (base64->pos) {
         if (!stacked_write(writer, &b64map[base64->t], 1, errors)) {
-            return 0;
+            return false;
         }
         if (base64->pos == 1 && !stacked_write(writer, "==", 2, errors)) {
-            return 0;
+            return false;
         }
         if (base64->pos == 2 && !stacked_write(writer, "=", 1, errors)) {
-            return 0;
+            return false;
         }
     }
     /* Ready for the checksum */
     if (!stacked_write(writer, "\r\n=", 3, errors)) {
-        return 0;
+        return false;
     }
 
     base64->pos = 0; /* get ready to write the checksum */
@@ -735,7 +734,7 @@ armoured_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
     c[2] = base64->checksum;
     /* push the checksum through our own writer */
     if (!base64_writer(c, 3, errors, writer)) {
-        return 0;
+        return false;
     }
 
     return stacked_write(writer, trailer, (unsigned) strlen(trailer), errors);
@@ -775,7 +774,7 @@ pgp_writer_push_armor_msg(pgp_output_t *output)
     }
 }
 
-static unsigned
+static bool
 armoured_finaliser(pgp_armor_type_t type, pgp_error_t **errors, pgp_writer_t *writer)
 {
     static const char tail_pubkey[] = "\r\n-----END PGP PUBLIC KEY BLOCK-----\r\n";
@@ -798,23 +797,23 @@ armoured_finaliser(pgp_armor_type_t type, pgp_error_t **errors, pgp_writer_t *wr
 
     default:
         (void) fprintf(stderr, "armoured_finaliser: unusual type\n");
-        return 0;
+        return false;
     }
     base64 = pgp_writer_get_arg(writer);
     if (base64->pos) {
         if (!stacked_write(writer, &b64map[base64->t], 1, errors)) {
-            return 0;
+            return false;
         }
         if (base64->pos == 1 && !stacked_write(writer, "==", 2, errors)) {
-            return 0;
+            return false;
         }
         if (base64->pos == 2 && !stacked_write(writer, "=", 1, errors)) {
-            return 0;
+            return false;
         }
     }
     /* Ready for the checksum */
     if (!stacked_write(writer, "\r\n=", 3, errors)) {
-        return 0;
+        return false;
     }
     base64->pos = 0; /* get ready to write the checksum */
     c[0] = base64->checksum >> 16;
@@ -822,18 +821,18 @@ armoured_finaliser(pgp_armor_type_t type, pgp_error_t **errors, pgp_writer_t *wr
     c[2] = base64->checksum;
     /* push the checksum through our own writer */
     if (!base64_writer(c, 3, errors, writer)) {
-        return 0;
+        return false;
     }
     return stacked_write(writer, tail, tailsize, errors);
 }
 
-static unsigned
+static bool
 armored_pubkey_fini(pgp_error_t **errors, pgp_writer_t *writer)
 {
     return armoured_finaliser(PGP_PGP_PUBLIC_KEY_BLOCK, errors, writer);
 }
 
-static unsigned
+static bool
 armored_privkey_fini(pgp_error_t **errors, pgp_writer_t *writer)
 {
     return armoured_finaliser(PGP_PGP_PRIVATE_KEY_BLOCK, errors, writer);
@@ -852,7 +851,7 @@ pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
     static char hdr_private_key[] =
       "-----BEGIN PGP PRIVATE KEY BLOCK-----\r\nVersion: " PACKAGE_STRING "\r\n\r\n";
     unsigned hdrsize = 0;
-    unsigned (*finaliser)(pgp_error_t **, pgp_writer_t *);
+    bool (*finaliser)(pgp_error_t **, pgp_writer_t *);
     base64_t *   base64;
     linebreak_t *linebreak;
     char *       header = NULL;
@@ -907,7 +906,7 @@ typedef struct {
  * encrypts it with the given key
  * and outputs the resulting encrypted text
  */
-static unsigned
+static bool
 encrypt_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer_t *writer)
 {
 #define BUFSZ 1024 /* arbitrary number */
@@ -920,7 +919,7 @@ encrypt_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_write
     pgp_encrypt = (crypt_t *) pgp_writer_get_arg(writer);
     if (!pgp_is_sa_supported(pgp_encrypt->crypt->alg)) {
         (void) fprintf(stderr, "encrypt_writer: not supported\n");
-        return 0;
+        return false;
     }
     while (remaining > 0) {
         unsigned size = (remaining < BUFSZ) ? remaining : BUFSZ;
@@ -936,13 +935,13 @@ encrypt_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_write
             if (rnp_get_debug(__FILE__)) {
                 fprintf(stderr, "encrypted_writer: stacked write\n");
             }
-            return 0;
+            return false;
         }
         remaining -= size;
         done += size;
     }
 
-    return RNP_OK;
+    return true;
 }
 
 static void
@@ -987,10 +986,7 @@ typedef struct {
     pgp_crypt_t *crypt;
 } encrypt_se_ip_t;
 
-static unsigned encrypt_se_ip_writer(const uint8_t *,
-                                     unsigned,
-                                     pgp_error_t **,
-                                     pgp_writer_t *);
+static bool encrypt_se_ip_writer(const uint8_t *, unsigned, pgp_error_t **, pgp_writer_t *);
 static void encrypt_se_ip_destroyer(pgp_writer_t *);
 
 /* */
@@ -999,7 +995,7 @@ static void encrypt_se_ip_destroyer(pgp_writer_t *);
 \ingroup Core_WritersNext
 \brief Push Encrypted SE IP Writer onto stack
 */
-int
+bool
 pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t cipher)
 {
     pgp_pk_sesskey_t *encrypted_pk_sesskey;
@@ -1009,14 +1005,14 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t
 
     if ((se_ip = calloc(1, sizeof(*se_ip))) == NULL) {
         (void) fprintf(stderr, "pgp_push_enc_se_ip: bad alloc\n");
-        return 0;
+        return false;
     }
 
     /* Create and write encrypted PK session key */
     if ((encrypted_pk_sesskey = pgp_create_pk_sesskey(pubkey, cipher)) == NULL) {
         (void) fprintf(stderr, "pgp_push_enc_se_ip: null pk sesskey\n");
         free(se_ip);
-        return 0;
+        return false;
     }
     pgp_write_pk_sesskey(output, encrypted_pk_sesskey);
 
@@ -1026,7 +1022,7 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t
         pgp_pk_sesskey_free(encrypted_pk_sesskey);
         free(encrypted_pk_sesskey);
         (void) fprintf(stderr, "pgp_push_enc_se_ip: bad alloc\n");
-        return 0;
+        return false;
     }
     pgp_crypt_any(encrypted, encrypted_pk_sesskey->symm_alg);
     if ((iv = calloc(1, encrypted->blocksize)) == NULL) {
@@ -1035,7 +1031,7 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t
         free(encrypted_pk_sesskey);
         free(encrypted);
         (void) fprintf(stderr, "pgp_push_enc_se_ip: bad alloc\n");
-        return 0;
+        return false;
     }
     pgp_cipher_set_iv(encrypted, iv);
     pgp_cipher_set_key(encrypted, &encrypted_pk_sesskey->key[0]);
@@ -1050,16 +1046,16 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t
         free(encrypted_pk_sesskey);
         free(encrypted);
         free(iv);
-        return 0;
+        return false;
     }
     /* tidy up */
     pgp_pk_sesskey_free(encrypted_pk_sesskey);
     free(encrypted_pk_sesskey);
     free(iv);
-    return RNP_OK;
+    return true;
 }
 
-static unsigned
+static bool
 encrypt_se_ip_writer(const uint8_t *src,
                      unsigned       len,
                      pgp_error_t ** errors,
@@ -1073,13 +1069,13 @@ encrypt_se_ip_writer(const uint8_t *src,
     pgp_memory_t *   litmem;
     pgp_memory_t *   zmem;
     pgp_memory_t *   localmem;
-    unsigned         ret = 1;
+    bool             ret = true;
 
     if (!pgp_setup_memory_write(writer->ctx, &litoutput, &litmem, bufsz) ||
         !pgp_setup_memory_write(writer->ctx, &zoutput, &zmem, bufsz) ||
         !pgp_setup_memory_write(writer->ctx, &output, &localmem, bufsz)) {
         (void) fprintf(stderr, "can't setup memory write\n");
-        return 0;
+        return false;
     }
 
     /* create literal data packet from source data */
@@ -1089,7 +1085,7 @@ encrypt_se_ip_writer(const uint8_t *src,
         pgp_teardown_memory_write(litoutput, litmem);
         pgp_teardown_memory_write(zoutput, zmem);
         pgp_teardown_memory_write(output, localmem);
-        return 0;
+        return false;
     }
 
     /* create compressed packet from literal data packet */
@@ -1100,7 +1096,7 @@ encrypt_se_ip_writer(const uint8_t *src,
       output, pgp_mem_data(zmem), (unsigned) pgp_mem_len(zmem), se_ip->crypt);
     if (pgp_mem_len(localmem) <= pgp_mem_len(zmem)) {
         (void) fprintf(stderr, "encrypt_se_ip_writer: bad comp len\n");
-        return 0;
+        return false;
     }
 
     /* now write memory to next writer */
@@ -1197,14 +1193,14 @@ pgp_write_se_ip_pktset(pgp_output_t * output,
     pgp_teardown_memory_write(mdcoutput, mdc);
     free(preamble);
 
-    return RNP_OK;
+    return 1;
 }
 
 typedef struct {
     int fd;
 } writer_fd_t;
 
-static unsigned
+static bool
 fd_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer_t *writer)
 {
     writer_fd_t *writerfd;
@@ -1215,13 +1211,13 @@ fd_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer_t *
     if (n == -1) {
         PGP_SYSTEM_ERROR_1(
           errors, PGP_E_W_WRITE_FAILED, "write", "file descriptor %d", writerfd->fd);
-        return 0;
+        return false;
     }
     if ((unsigned) n != len) {
         PGP_ERROR_1(errors, PGP_E_W_WRITE_TOO_SHORT, "file descriptor %d", writerfd->fd);
-        return 0;
+        return false;
     }
-    return RNP_OK;
+    return true;
 }
 
 static void
@@ -1258,7 +1254,7 @@ pgp_writer_set_fd(pgp_output_t *output, int fd)
     }
 }
 
-static unsigned
+static bool
 memory_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer_t *writer)
 {
     pgp_memory_t *mem;
@@ -1266,9 +1262,9 @@ memory_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer
     __PGP_USED(errors);
     mem = pgp_writer_get_arg(writer);
     if (!pgp_memory_add(mem, src, len)) {
-        return 0;
+        return false;
     }
-    return RNP_OK;
+    return true;
 }
 
 /**
@@ -1297,25 +1293,22 @@ typedef struct {
     uint8_t *      hashed;
 } skey_checksum_t;
 
-static unsigned
+static bool
 skey_checksum_writer(const uint8_t *src,
                      const unsigned len,
                      pgp_error_t ** errors,
                      pgp_writer_t * writer)
 {
     skey_checksum_t *sum;
-    unsigned         ret = 1;
 
     sum = pgp_writer_get_arg(writer);
     /* add contents to hash */
     pgp_hash_add(&sum->hash, src, len);
     /* write to next stacked writer */
-    ret = stacked_write(writer, src, len, errors);
-    /* tidy up and return */
-    return ret;
+    return stacked_write(writer, src, len, errors);
 }
 
-static unsigned
+static bool
 skey_checksum_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 {
     skey_checksum_t *sum;
@@ -1323,17 +1316,17 @@ skey_checksum_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
     sum = pgp_writer_get_arg(writer);
     if (sum == NULL) {
         printf("sum is NULL\n");
-        return 0;
+        return false;
     }
     if (sum->hashed == NULL) {
         printf("sum->hashed is NULL\n");
-        return 0;
+        return false;
     }
     if (errors && *errors) {
         printf("errors in skey_checksum_finaliser\n");
     }
     pgp_hash_finish(&sum->hash, sum->hashed);
-    return RNP_OK;
+    return true;
 }
 
 static void
@@ -1396,12 +1389,12 @@ typedef struct {
     pgp_hash_t    hash;
 } str_enc_se_ip_t;
 
-static unsigned str_enc_se_ip_writer(const uint8_t *src,
-                                     unsigned       len,
-                                     pgp_error_t ** errors,
-                                     pgp_writer_t * writer);
+static bool str_enc_se_ip_writer(const uint8_t *src,
+                                 unsigned       len,
+                                 pgp_error_t ** errors,
+                                 pgp_writer_t * writer);
 
-static unsigned str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer);
+static bool str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer);
 
 static void str_enc_se_ip_destroyer(pgp_writer_t *writer);
 
@@ -1521,7 +1514,7 @@ write_partial_len(pgp_output_t *output, unsigned len)
     return pgp_write(output, &c, 1);
 }
 
-static unsigned
+static void
 stream_write_litdata(pgp_output_t *output, const uint8_t *data, unsigned len)
 {
     size_t pdlen;
@@ -1533,10 +1526,9 @@ stream_write_litdata(pgp_output_t *output, const uint8_t *data, unsigned len)
         data += pdlen;
         len -= (unsigned) pdlen;
     }
-    return RNP_OK;
 }
 
-static unsigned
+static bool
 stream_write_litdata_first(pgp_output_t *         output,
                            const uint8_t *        data,
                            unsigned               len,
@@ -1559,7 +1551,7 @@ stream_write_litdata_first(pgp_output_t *         output,
         if (flen > 255) {
             (void) fprintf(
               stderr, "stream_write_litdata_first : filename %s too long\n", fname);
-            return 0;
+            return false;
         }
     }
 
@@ -1567,7 +1559,7 @@ stream_write_litdata_first(pgp_output_t *         output,
     sz_pd = (size_t) partial_data_len(sz_towrite);
     if (sz_pd < 512) {
         (void) fprintf(stderr, "stream_write_litdata_first: bad sz_pd\n");
-        return 0;
+        return false;
     }
     pgp_write_ptag(output, PGP_PTAG_CT_LITDATA);
     write_partial_len(output, (unsigned) sz_pd);
@@ -1582,7 +1574,8 @@ stream_write_litdata_first(pgp_output_t *         output,
     data += (sz_pd - 6);
     sz_towrite -= (unsigned) sz_pd;
 
-    return stream_write_litdata(output, data, (unsigned) sz_towrite);
+    stream_write_litdata(output, data, (unsigned) sz_towrite);
+    return true;
 }
 
 static unsigned
@@ -1592,7 +1585,7 @@ stream_write_litdata_last(pgp_output_t *output, const uint8_t *data, unsigned le
     return pgp_write(output, data, len);
 }
 
-static unsigned
+static void
 stream_write_se_ip(pgp_output_t *   output,
                    const uint8_t *  data,
                    unsigned         len,
@@ -1613,7 +1606,6 @@ stream_write_se_ip(pgp_output_t *   output,
         data += pdlen;
         len -= (unsigned) pdlen;
     }
-    return RNP_OK;
 }
 
 static unsigned
@@ -1666,7 +1658,7 @@ stream_write_se_ip_first(pgp_output_t *   output,
     pgp_writer_pop(output);
     stream_write_se_ip(output, data, (unsigned) sz_towrite, se_ip);
     free(preamble);
-    return RNP_OK;
+    return 1;
 }
 
 static unsigned
@@ -1713,17 +1705,17 @@ stream_write_se_ip_last(pgp_output_t *   output,
 
     pgp_teardown_memory_write(mdcoutput, mdcmem);
 
-    return RNP_OK;
+    return 1;
 }
 
-static unsigned
+static bool
 str_enc_se_ip_writer(const uint8_t *src,
                      unsigned       len,
                      pgp_error_t ** errors,
                      pgp_writer_t * writer)
 {
     str_enc_se_ip_t *se_ip;
-    unsigned         ret;
+    bool             ret;
     size_t           datalength;
 
     se_ip = pgp_writer_get_arg(writer);
@@ -1731,19 +1723,19 @@ str_enc_se_ip_writer(const uint8_t *src,
         /* first literal data chunk is not yet written */
 
         if (!pgp_memory_add(se_ip->mem_data, src, len)) {
-            return 0;
+            return false;
         }
         datalength = pgp_mem_len(se_ip->mem_data);
 
         /* 4.2.2.4. Partial Body Lengths */
         /* The first partial length MUST be at least 512 octets long. */
         if (datalength < 512) {
-            return RNP_OK; /* will wait for more data or
+            return true; /* will wait for more data or
                        * end of stream             */
         }
         if (!pgp_setup_memory_write(
               writer->ctx, &se_ip->litoutput, &se_ip->litmem, datalength + 32)) {
-            return 0;
+            return false;
         }
         stream_write_litdata_first(se_ip->litoutput,
                                    pgp_mem_data(se_ip->mem_data),
@@ -1775,7 +1767,7 @@ str_enc_se_ip_writer(const uint8_t *src,
 }
 
 /* write last chunk of data */
-static unsigned
+static bool
 str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 {
     str_enc_se_ip_t *se_ip;
@@ -1790,7 +1782,7 @@ str_enc_se_ip_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
                                     &se_ip->litoutput,
                                     &se_ip->litmem,
                                     pgp_mem_len(se_ip->mem_data) + 32)) {
-            return 0;
+            return false;
         }
 
         pgp_write_litdata(se_ip->litoutput,

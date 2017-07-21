@@ -82,7 +82,7 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "packet-show.h"
 #include "signature.h"
 #include "readerwriter.h"
-#include "rnpdefs.h"
+#include "utils.h"
 #include "rnpsdk.h"
 #include "packet.h"
 #include "rnpdigest.h"
@@ -415,7 +415,7 @@ isrevoked(const pgp_key_t *key, unsigned uid)
     return -1;
 }
 
-static int
+static bool
 iscompromised(const pgp_key_t *key, unsigned uid)
 {
     int r = isrevoked(key, uid);
@@ -426,7 +426,7 @@ iscompromised(const pgp_key_t *key, unsigned uid)
 /* Formats a public key expiration notice. Assumes that the public key
  * expires. Return 1 on success and 0 on failure.
  */
-static int
+static bool
 format_pubkey_expiration_notice(char *              buffer,
                                 const pgp_pubkey_t *pubkey,
                                 time_t              time,
@@ -439,7 +439,7 @@ format_pubkey_expiration_notice(char *              buffer,
     /* Write the opening bracket. */
     buffer += snprintf(buffer, buffer_end - buffer, "%s", "[");
     if (buffer >= buffer_end)
-        return RNP_FAIL;
+        return false;
 
     /* Write the expiration state label. */
     buffer += snprintf(buffer,
@@ -449,20 +449,20 @@ format_pubkey_expiration_notice(char *              buffer,
 
     /* Ensure that there will be space for tihe time. */
     if (buffer_end - buffer < PTIMESTR_LEN + 1)
-        return RNP_FAIL;
+        return false;
 
     /* Write the expiration time. */
     ptimestr(buffer, buffer_end - buffer, pubkey->birthtime + pubkey->duration);
     buffer += PTIMESTR_LEN;
     if (buffer >= buffer_end)
-        return RNP_FAIL;
+        return false;
 
     /* Write the closing bracket. */
     buffer += snprintf(buffer, buffer_end - buffer, "%s", "]");
     if (buffer >= buffer_end)
-        return RNP_FAIL;
+        return false;
 
-    return RNP_OK;
+    return true;
 }
 
 static int
@@ -577,7 +577,7 @@ format_key_usage(char *buffer, size_t size, uint8_t flags)
     };
 
     *buffer = '\0';
-    for (size_t i = 0; i < PGP_ARRAY_SIZE(flags_map); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(flags_map); i++) {
         if (flags & flags_map[i].mask) {
             const size_t current_length = strlen(buffer);
             if (current_length == size - 1) {
@@ -807,7 +807,7 @@ pgp_sprint_json(pgp_io_t *             io,
                __LINE__,
                json_object_to_json_string(keyjson));
     }
-    return RNP_OK;
+    return 1;
 }
 
 int
@@ -1137,7 +1137,7 @@ end_subpacket(int *indent)
 \ingroup Core_Print
 \param contents
 */
-int
+bool
 pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 {
     const pgp_contents_t *content = &pkt->u;
@@ -1278,7 +1278,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 
         default:
             (void) fprintf(stderr, "pgp_print_packet: Unusual algorithm\n");
-            return RNP_FAIL;
+            return false;
         }
 
         if (content->sig.hash)
@@ -1325,7 +1325,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
     case PGP_PTAG_RAW_SS:
         if (pkt->critical) {
             (void) fprintf(stderr, "contents are critical\n");
-            return RNP_FAIL;
+            return false;
         }
         start_subpacket(&print->indent, pkt->tag);
         print_uint(print->indent,
@@ -1642,7 +1642,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 
         default:
             (void) fprintf(stderr, "pgp_print_packet: Unusual key algorithm\n");
-            return RNP_FAIL;
+            return false;
         }
         break;
 
@@ -1711,9 +1711,9 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
     default:
         print_tagname(print->indent, "UNKNOWN PACKET TYPE");
         fprintf(stderr, "pgp_print_packet: unknown tag=%d (0x%x)\n", pkt->tag, pkt->tag);
-        return RNP_FAIL;
+        return false;
     }
-    return RNP_OK;
+    return true;
 }
 
 static pgp_cb_ret_t
@@ -1755,7 +1755,7 @@ pgp_list_packets(pgp_io_t *       io,
     }
     pgp_parse(stream, printerrors);
     pgp_teardown_file_read(stream, fd);
-    return RNP_OK;
+    return true;
 }
 
 /* this interface isn't right - hook into callback for getting passphrase */
