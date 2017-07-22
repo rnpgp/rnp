@@ -106,7 +106,7 @@ pgp_keydata_free(pgp_key_t *keydata)
 
     if (keydata->packets != NULL) {
         for (n = 0; n < keydata->packetc; ++n) {
-            pgp_subpacket_free(&keydata->packets[n]);
+            pgp_rawpacket_free(&keydata->packets[n]);
         }
         free(keydata->packets);
         keydata->packets = NULL;
@@ -392,8 +392,8 @@ copy_userid(uint8_t **dst, const uint8_t *src)
 \param src Source packet
 \note If dst already has a packet, it will be freed.
 */
-static pgp_subpacket_t *
-copy_packet(pgp_subpacket_t *dst, const pgp_subpacket_t *src)
+static pgp_rawpacket_t *
+copy_packet(pgp_rawpacket_t *dst, const pgp_rawpacket_t *src)
 {
     if (dst->raw) {
         free(dst->raw);
@@ -437,10 +437,10 @@ pgp_add_userid(pgp_key_t *key, const uint8_t *userid)
 \param packet Packet to add
 \return Pointer to new packet
 */
-pgp_subpacket_t *
-pgp_add_subpacket(pgp_key_t *keydata, const pgp_subpacket_t *packet)
+pgp_rawpacket_t *
+pgp_add_rawpacket(pgp_key_t *keydata, const pgp_rawpacket_t *packet)
 {
-    pgp_subpacket_t *subpktp;
+    pgp_rawpacket_t *subpktp;
 
     EXPAND_ARRAY(keydata, packet);
     if (keydata->packets == NULL) {
@@ -465,7 +465,7 @@ bool
 pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
 {
     struct pgp_create_sig_t *sig;
-    pgp_subpacket_t          sigpacket;
+    pgp_rawpacket_t          sigpacket;
     struct pgp_memory_t *    mem_userid = NULL;
     pgp_output_t *           useridoutput = NULL;
     struct pgp_memory_t *    mem_sig = NULL;
@@ -503,7 +503,7 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
 
     /* add userid to key */
     (void) pgp_add_userid(key, userid);
-    (void) pgp_add_subpacket(key, &sigpacket);
+    (void) pgp_add_rawpacket(key, &sigpacket);
 
     /* cleanup */
     pgp_create_sig_delete(sig);

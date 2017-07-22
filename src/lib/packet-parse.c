@@ -881,7 +881,7 @@ string_free(char **str)
 */
 /* ! Free packet memory, set pointer to NULL */
 void
-pgp_subpacket_free(pgp_subpacket_t *packet)
+pgp_rawpacket_free(pgp_rawpacket_t *packet)
 {
     if (packet->raw == NULL) {
         return;
@@ -1136,7 +1136,7 @@ pgp_parser_content_free(pgp_packet_t *c)
         break;
 
     case PGP_PARSER_PACKET_END:
-        pgp_subpacket_free(&c->u.packet);
+        pgp_rawpacket_free(&c->u.packet);
         break;
 
     case PGP_PTAG_RAW_SS:
@@ -3577,7 +3577,7 @@ accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         return PGP_KEEP_MEMORY;
     case PGP_PARSER_PACKET_END:
         if (keyring->keyc > 0) {
-            pgp_add_subpacket(&keyring->keys[keyring->keyc - 1], &content->packet);
+            pgp_add_rawpacket(&keyring->keys[keyring->keyc - 1], &content->packet);
             return PGP_KEEP_MEMORY;
         }
         return PGP_RELEASE_MEMORY;

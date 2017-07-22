@@ -79,7 +79,7 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "utils.h"
 #include "packet.h"
 
-void print_packet_hex(const pgp_subpacket_t *pkt);
+void print_packet_hex(const pgp_rawpacket_t *pkt);
 
 /* used to point to data during keyring read */
 typedef struct keyringcb_t {

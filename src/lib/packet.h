@@ -709,11 +709,11 @@ typedef struct pgp_ss_sig_target_t {
     pgp_data_t       hash;
 } pgp_ss_sig_target_t;
 
-/** pgp_subpacket_t */
-typedef struct pgp_subpacket_t {
+/** pgp_rawpacket_t */
+typedef struct pgp_rawpacket_t {
     size_t   length;
     uint8_t *raw;
-} pgp_subpacket_t;
+} pgp_rawpacket_t;
 
 /** Types of Compression */
 typedef enum {
@@ -860,7 +860,7 @@ typedef union {
     time_t                  ss_time;
     uint8_t                 ss_issuer[PGP_KEY_ID_SIZE];
     pgp_ss_notation_t       ss_notation;
-    pgp_subpacket_t         packet;
+    pgp_rawpacket_t         packet;
     pgp_compression_type_t  compressed;
     pgp_one_pass_sig_t      one_pass_sig;
     pgp_data_t              ss_skapref;
@@ -926,7 +926,7 @@ void pgp_ss_notation_free(pgp_ss_notation_t *);
 void pgp_ss_revocation_free(pgp_ss_revocation_t *);
 void pgp_ss_sig_target_free(pgp_ss_sig_target_t *);
 
-void pgp_subpacket_free(pgp_subpacket_t *);
+void pgp_rawpacket_free(pgp_rawpacket_t *);
 void pgp_parser_content_free(pgp_packet_t *);
 void pgp_seckey_free(pgp_seckey_t *);
 void pgp_pk_sesskey_free(pgp_pk_sesskey_t *);
@@ -993,7 +993,7 @@ typedef union {
 /* sigpacket_t */
 typedef struct sigpacket_t {
     uint8_t **       userid;
-    pgp_subpacket_t *packet;
+    pgp_rawpacket_t *packet;
 } sigpacket_t;
 
 /* user revocation info */
@@ -1014,7 +1014,7 @@ typedef struct pgp_subsig_t {
 /* describes a user's key */
 typedef struct pgp_key_t {
     DYNARRAY(uint8_t *, uid);          /* array of user ids */
-    DYNARRAY(pgp_subpacket_t, packet); /* array of raw subpackets */
+    DYNARRAY(pgp_rawpacket_t, packet); /* array of raw packets */
     DYNARRAY(pgp_subsig_t, subsig);    /* array of signature subkeys */
     DYNARRAY(pgp_revoke_t, revoke);    /* array of signature revocations */
     pgp_content_enum  type;            /* type of key */
