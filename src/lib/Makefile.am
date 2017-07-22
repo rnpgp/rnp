@@ -20,6 +20,7 @@ librnp_la_SOURCES	= \
 	key_store_pgp.c \
 	key_store_kbx.c \
 	key_store_ssh.c \
+	list.c \
 	misc.c \
 	packet-create.c \
 	packet-parse.c \
