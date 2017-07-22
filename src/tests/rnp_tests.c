@@ -147,7 +147,9 @@ main(int argc, char *argv[])
       cmocka_unit_test(rnpkeys_generatekey_testExpertMode),
       cmocka_unit_test(generatekey_explicitlySetSmallOutputDigest_DigestAlgAdjusted),
       cmocka_unit_test(generatekey_explicitlySetBiggerThanNeededDigest_ShouldSuceed),
-      cmocka_unit_test(generatekey_explicitlySetWrongDigest_ShouldFail)};
+      cmocka_unit_test(generatekey_explicitlySetWrongDigest_ShouldFail),
+      cmocka_unit_test(test_utils_list),
+    };
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */
