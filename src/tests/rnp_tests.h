@@ -73,6 +73,8 @@ void generatekey_explicitlySetWrongDigest_ShouldFail(void **state);
 
 void test_utils_list(void **state);
 
+void pgp_parse_keyrings_1_pubring(void **state);
+
 #define rnp_assert_int_equal(state, a, b)           \
     do {                                            \
         int _rnp_a = (a);                           \
