@@ -453,7 +453,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
         if (newkey->packets == NULL) {
             return false;
         }
-        memcpy(&newkey->packets[newkey->packetc], &key->packets[i], sizeof(pgp_subpacket_t));
+        memcpy(&newkey->packets[newkey->packetc], &key->packets[i], sizeof(pgp_rawpacket_t));
         newkey->packetc++;
     }
 

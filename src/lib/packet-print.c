@@ -192,7 +192,7 @@ print_bn(int indent, const char *name, const BIGNUM *bn)
 }
 
 static void
-print_packet_hex(const pgp_subpacket_t *pkt)
+print_packet_hex(const pgp_rawpacket_t *pkt)
 {
     hexdump(stdout, "packet contents:", pkt->raw, pkt->length);
 }
