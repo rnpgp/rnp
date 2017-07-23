@@ -8,4 +8,6 @@ rnp_tests_SOURCES   = \
     cipher.c \
     generatekey.c \
     exportkey.c \
-    rnp_tests.c
+    rnp_tests.c \
+    utils-list.c \
+    pgp-parse.c
