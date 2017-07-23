@@ -31,19 +31,64 @@
 #include "rnp_tests.h"
 #include "support.h"
 
+static const char *exe_path = NULL;
+static char        original_dir[PATH_MAX];
+
+static char *
+get_data_dir(void)
+{
+    char  data_dir[PATH_MAX];
+    char *exe_dir = directory_from_file_path(exe_path, original_dir);
+
+    if (!exe_dir) {
+        return NULL;
+    }
+    paths_concat(data_dir, sizeof(data_dir), exe_dir, "../data", NULL);
+    free(exe_dir);
+    return realpath(data_dir, NULL);
+}
+
+static int
+setup_test_group(void **state)
+{
+    rnp_test_state_t *rstate = calloc(1, sizeof(rnp_test_state_t));
+
+    if (!rstate) {
+        return -1;
+    }
+    rstate->data_dir = get_data_dir();
+    if (!rstate->data_dir) {
+        free(rstate);
+        return -1;
+    }
+    *state = rstate;
+    return 0;
+}
+
+static int
+teardown_test_group(void **state)
+{
+    rnp_test_state_t *rstate = *state;
+
+    if (!rstate) {
+        return -1;
+    }
+    free(rstate->data_dir);
+    rstate->data_dir = NULL;
+
+    free(rstate);
+
+    *state = NULL;
+    return 0;
+}
+
 static int
 setup_test(void **state)
 {
-    rnp_test_state_t *rstate;
-    rstate = calloc(1, sizeof(rnp_test_state_t));
-    if (rstate == NULL) {
-        *state = NULL;
-        return -1;
-    }
+    rnp_test_state_t *rstate = *state;
+
     rstate->home = make_temp_dir();
     if (rstate->home == NULL) {
-        free(rstate);
-        *state = NULL;
         return -1;
     }
     if (getenv("RNP_TEST_NOT_FATAL")) {
@@ -51,7 +96,6 @@ setup_test(void **state)
     } else {
         rstate->not_fatal = 0;
     }
-    *state = rstate;
     assert_int_equal(0, setenv("HOME", rstate->home, 1));
     assert_int_equal(0, chdir(rstate->home));
     return 0;
@@ -63,8 +107,7 @@ teardown_test(void **state)
     rnp_test_state_t *rstate = *state;
     delete_recursively(rstate->home);
     free(rstate->home);
-    free(rstate);
-    *state = NULL;
+    rstate->home = NULL;
     return 0;
 }
 
@@ -96,7 +139,7 @@ run_lib(int iterations)
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */
-    for (i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+    for (int i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
         tests[i].setup_func = setup_test;
         tests[i].teardown_func = teardown_test;
     }
@@ -115,7 +158,6 @@ run_lib(int iterations)
                 teardown_test(&state);
             }
         }
-        ret = 0;
     }
 
     return ret;
@@ -166,8 +208,12 @@ main(int argc, char **argv)
     int  tests = TST_LIB;
     char cwd[PATH_MAX];
 
+    exe_path = argv[0];
+    assert_non_null(getcwd(original_dir, sizeof(original_dir)));
+
     /* Saving original working directory so we can use it later while calling python scripts.
-     * Currently they work only if called from the original directory
+     * Currently they work only if called from the original directory.
+     * This was done before exe_path was introduced in parallel branches, needs review
      */
     assert_non_null(getcwd(cwd, sizeof(cwd)));
     assert_int_equal(0, setenv("ORIGCWD", cwd, 1));
@@ -223,5 +269,6 @@ main(int argc, char **argv)
 
     delete_recursively(tmphome);
     free(tmphome);
+
     return ret;
 }

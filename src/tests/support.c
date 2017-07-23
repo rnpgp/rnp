@@ -149,7 +149,7 @@ path_mkdir(mode_t mode, const char *first, ...)
     assert_int_equal(0, mkdir(buffer, mode));
 }
 
-int
+static int
 remove_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
     int ret = remove(fpath);
@@ -185,6 +185,65 @@ make_temp_dir()
     }
     strncpy(buffer, template, strlen(template));
     return mkdtemp(buffer);
+}
+
+static char *
+directory_from_absolute_file_path(const char *file_path)
+{
+    const char *last_sep = strrchr(file_path, '/');
+    if (!last_sep) {
+        return NULL;
+    }
+
+    size_t file_path_len = (last_sep - file_path);
+    size_t dir_len = file_path_len + 1;
+    char * dir = calloc(1, dir_len);
+    if (!dir) {
+        return NULL;
+    }
+    strncpy(dir, file_path, file_path_len);
+
+    char *full_dir = realpath(dir, NULL);
+    free(dir);
+    dir = NULL;
+    return full_dir;
+}
+
+static char *
+directory_from_relative_file_path(const char *file_path, const char *reldir)
+{
+    const char *last_sep = strrchr(file_path, '/');
+    if (!last_sep) {
+        return NULL;
+    }
+
+    size_t file_path_len = (last_sep - file_path);
+    size_t dir_len = strlen(reldir) + 1 + file_path_len + 1;
+    char * dir = calloc(1, dir_len);
+    if (!dir) {
+        return NULL;
+    }
+
+    strncpy(dir, reldir, dir_len);
+    strncat(dir, "/", dir_len);
+    strncat(dir, file_path, file_path_len);
+
+    char *full_dir = realpath(dir, NULL);
+    free(dir);
+    dir = NULL;
+    return full_dir;
+}
+
+char *
+directory_from_file_path(const char *file_path, const char *reldir)
+{
+    if (!file_path) {
+        return NULL;
+    }
+    if (*file_path == '/') {
+        return directory_from_absolute_file_path(file_path);
+    }
+    return directory_from_relative_file_path(file_path, reldir);
 }
 
 // returns new string containing hex value
