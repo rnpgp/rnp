@@ -711,8 +711,9 @@ typedef struct pgp_ss_sig_target_t {
 
 /** pgp_rawpacket_t */
 typedef struct pgp_rawpacket_t {
-    size_t   length;
-    uint8_t *raw;
+    pgp_content_enum tag;
+    size_t           length;
+    uint8_t *        raw;
 } pgp_rawpacket_t;
 
 /** Types of Compression */

@@ -3147,11 +3147,12 @@ parse_mdc(pgp_region_t *region, pgp_stream_t *stream)
 static rnp_result
 parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
 {
-    pgp_packet_t pkt = {0};
-    pgp_region_t region = {0};
-    uint8_t      ptag;
-    unsigned     indeterminate = 0;
-    int          ret;
+    pgp_packet_t     pkt = {0};
+    pgp_region_t     region = {0};
+    uint8_t          ptag;
+    unsigned         indeterminate = 0;
+    int              ret;
+    pgp_content_enum tag;
 
     pkt.u.ptag.position = stream->readinfo.position;
 
@@ -3210,6 +3211,7 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
             return RNP_ERROR_GENERIC;
         }
     }
+    tag = pkt.u.ptag.type;
 
     CALLBACK(PGP_PARSER_PTAG, &stream->cbinfo, &pkt);
 
@@ -3305,6 +3307,7 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
     if (ret > 0 && stream->readinfo.accumulate) {
         pkt.u.packet.length = stream->readinfo.alength;
         pkt.u.packet.raw = stream->readinfo.accumulated;
+        pkt.u.packet.tag = tag;
         stream->readinfo.accumulated = NULL;
         stream->readinfo.asize = 0;
         CALLBACK(PGP_PARSER_PACKET_END, &stream->cbinfo, &pkt);
