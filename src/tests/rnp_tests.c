@@ -58,6 +58,7 @@ setup_test_group(void **state)
     }
     rstate->data_dir = get_data_dir();
     if (!rstate->data_dir) {
+        printf("setup_test_group: failed to obtain data_dir\n");
         free(rstate);
         return -1;
     }
@@ -145,7 +146,7 @@ run_lib(int iterations)
     }
 
     if (iterations == 0) {
-        ret = cmocka_run_group_tests(tests, NULL, NULL);
+        ret = cmocka_run_group_tests(tests, setup_test_group, teardown_test_group);
     } else {
         for (i = 0; i < iterations; i++) {
             for (j = 0; j < sizeof(tests) / sizeof(tests[0]); j++) {
@@ -158,6 +159,7 @@ run_lib(int iterations)
                 teardown_test(&state);
             }
         }
+        ret = 0;
     }
 
     return ret;
@@ -175,7 +177,7 @@ run_cli()
         clitests[i].teardown_func = teardown_test;
     }
 
-    ret = cmocka_run_group_tests(clitests, NULL, NULL);
+    ret = cmocka_run_group_tests(clitests, setup_test_group, teardown_test_group);
     return ret;
 }
 
@@ -191,7 +193,7 @@ run_perf()
         perftests[i].teardown_func = teardown_test;
     }
 
-    ret = cmocka_run_group_tests(perftests, NULL, NULL);
+    ret = cmocka_run_group_tests(perftests, setup_test_group, teardown_test_group);
     return ret;
 }
 
