@@ -40,6 +40,7 @@ src/rnp/rnp-rnp.o
 src/rnpkeys/Makefile
 src/rnpkeys/Makefile.in
 src/rnpkeys/rnpkeys
+src/tests/*.pyc
 src/tests/Makefile
 src/tests/Makefile.in
 src/tests/config.h
