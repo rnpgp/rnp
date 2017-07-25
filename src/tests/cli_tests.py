@@ -101,7 +101,7 @@ def raise_err(msg, log = None):
     if log: print log
     raise NameError(msg)
 
-def rnpkey_generate_rsa(bits = None):
+def rnpkey_generate_rsa(bits = None, cleanup = True):
     # setup command line params
     if bits: 
         params = ['--numbits', str(bits)]
@@ -114,33 +114,36 @@ def rnpkey_generate_rsa(bits = None):
     # open pipe for password
     pipe = pswd_pipe(PASSWORD) 
     params = params + ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', userid, '--generate-key']
-    # run key generation
+    # Run key generation
     ret, out, err = run_proc(RNPK, params)
     os.close(pipe)
-
     if ret != 0: raise_err('key generation failed', err)
-    # check packets using the gpg
+    # Check packets using the gpg
     match = check_packets(path.join(RNPDIR, 'pubring.gpg'), RE_RSA_KEY)
     if not match : raise_err('generated key check failed')
     keybits = int(match.group(1))
     if keybits > bits or keybits <= bits - 8 : raise_err('wrong key bits')
     keyid = match.group(2)
     if not match.group(3) == userid: raise_err('wrong user id')
-    # list keys using the rnpkeys
+    # List keys using the rnpkeys
     ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
     if ret != 0: raise_err('key list failed', err)
     match = re.match(RE_RSA_KEY_LIST, out)
-    # compare key ids
+    # Compare key ids
     if not match: raise_err('wrong key list output', out)
     if not match.group(3)[-16:] == match.group(2) or not match.group(2) == keyid.lower():
         raise_err('wrong key ids')
     if not match.group(1) == str(bits):
         raise_err('wrong key bits in list')
-    # import key to the gnupg
+    # Import key to the gnupg
     ret, out, err = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir', GPGDIR, '--import', path.join(RNPDIR, 'pubring.gpg'), path.join(RNPDIR, 'secring.gpg')])
     if ret != 0: raise_err('gpg key import failed', err)
-
-    return
+    # Cleanup and return
+    if cleanup: 
+        clear_keyrings()
+        return None
+    else:
+        return keyid
 
 def rnpkey_generate_multiple():
     print 'rnpkey_generate_multiple'
@@ -167,9 +170,11 @@ def rnpkey_generate_multiple():
     match = re.match(RE_MULTIPLE_KEY_5, out)
     if not match: raise_err('wrong key list output', out)
 
+    # Cleanup and return
+    clear_keyrings()
     return
 
-def rnpkey_import_from_gpg():
+def rnpkey_import_from_gpg(cleanup = True):
     print 'rnpkey_import_from_gpg'
     # Generate key in GnuPG
     ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--passphrase', '', '--quick-generate-key', 'rsakey@gpg', 'rsa'])
@@ -185,36 +190,52 @@ def rnpkey_import_from_gpg():
     pubpath = path.join(RNPDIR, keyfp + '-pub.asc')
     with open(pubpath, 'w+') as f:
         f.write(out)
-    # Export generated secret key
+    # Exporting generated secret key
     ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--armour', '--export-secret-key', keyfp])
     if ret != 0: raise_err('gpg : secret key export failed', err)
     secpath = path.join(RNPDIR, keyfp + '-sec.asc')
     with open(secpath, 'w+') as f:
         f.write(out)
-    # Import public key
+    # Importing public key to rnp
     ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', pubpath])
     if ret != 0: raise_err('rnp : public key import failed', err)
-
-    # Import secret key
+    # Importing secret key to rnp
     ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', secpath])
     if ret != 0: raise_err('rnp : secret key import failed', err)
 
+    if cleanup: clear_keyrings()
+
     return
 
-def rnpkey_export_to_gpg():
+def rnpkey_export_to_gpg(cleanup = True):
+    print 'rnpkey_export_to_gpg'
+    # Open pipe for password
+    pipe = pswd_pipe(PASSWORD) 
+    # Run key generation
+    ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', 'rsakey@rnp', '--generate-key'])
+    os.close(pipe)
+    if ret != 0: raise_err('key generation failed', err)
+    # Export key
+    ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'rsakey@rnp'])
+    if ret != 0: raise_err('key export failed', err)
+    pubpath = path.join(RNPDIR, 'rnpkey-pub.asc')
+    with open(pubpath, 'w+') as f:
+        f.write(out)
+    # Import key with GPG
+    ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--import', pubpath])
+    if ret != 0: raise_err('gpg : public key import failed', err)
+
+    if cleanup: clear_keyrings()
 
     return
 
 def run_rnpkeys_tests():
     # 1. Generate default RSA key
     rnpkey_generate_rsa()
-    clear_keyrings()
     # 2. Generate 4096-bit RSA key
     rnpkey_generate_rsa(4096)
-    clear_keyrings()
     # 3. Generate multiple RSA keys and check if they are all available
     rnpkey_generate_multiple()
-    clear_keyrings()
     # 4. Generate key with GnuPG and import it to rnp
     rnpkey_import_from_gpg()
     # 5. Generate key with RNP and export it and then import to GnuPG
@@ -222,19 +243,42 @@ def run_rnpkeys_tests():
 
     return
 
+def rnp_encryption():
+    print 'rnp_encryption'
+    # RNP encrypt -> GPG decrypt
+    # Generate key in GnuPG
+    ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--passphrase', '', '--quick-generate-key', 'rsakey@gpg', 'rsa'])
+    if ret != 0: raise_err('gpg key generation failed', err)
+    # Exporting generated public key
+    ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--armour', '--export', keyfp])
+    if ret != 0: raise_err('gpg : public key export failed', err)
+    pubpath = path.join(RNPDIR, keyfp + '-pub.asc')
+    with open(pubpath, 'w+') as f:
+        f.write(out)
+    # Importing public key to rnp
+    ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', pubpath])
+    if ret != 0: raise_err('rnp : public key import failed', err)
+
+    return
+
 def run_rnp_tests():
+    # 1. Encryption
+    rnp_encryption()
     
     return
 
 def run_tests():
     if not len(sys.argv) == 2:
-        print "Wrong usage. Run cli_tests [rnp | rnpkeys]"
+        print "Wrong usage. Run cli_tests [rnp | rnpkeys | all]"
         sys.exit(1)
 
     if sys.argv[1] == 'rnp':
         run_rnp_tests()
     elif sys.argv[1] == 'rnpkeys':
         run_rnpkeys_tests()
+    elif sys.argv[1] == 'all':
+        run_rnpkeys_tests()
+        run_rnp_tests()
     else:
         print "Wrong parameter {}".format(sys.argv[1])
         sys.exit(1)
