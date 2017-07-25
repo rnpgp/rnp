@@ -41,7 +41,7 @@
 
 #include "rnp.h"
 #include "utils.h"
-#include "key_store.h"
+#include <rnp_key_store.h>
 #include "key_store_internal.h"
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"

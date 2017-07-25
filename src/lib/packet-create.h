@@ -58,7 +58,7 @@
 #include "packet.h"
 #include "crypto.h"
 #include "errors.h"
-#include "key_store.h"
+#include <rnp_key_store.h>
 #include "writer.h"
 #include "memory.h"
 

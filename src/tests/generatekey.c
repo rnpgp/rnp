@@ -25,7 +25,7 @@
  */
 
 #include "rnp.h"
-#include "key_store.h"
+#include <rnp_key_store.h>
 #include "rnp_tests.h"
 #include "support.h"
 #include "symmetric.h"

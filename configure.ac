@@ -111,6 +111,7 @@ AC_CONFIG_FILES([
         Makefile
         include/Makefile
         src/Makefile
+        src/librekey/Makefile
         src/lib/Makefile
         src/rnp/Makefile
         src/rnpkeys/Makefile

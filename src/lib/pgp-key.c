@@ -49,7 +49,6 @@
  * limitations under the License.
  */
 
-#include "key_store_pgp.h"
 #include "pgp-key.h"
 #include "signature.h"
 #include "utils.h"

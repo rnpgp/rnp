@@ -83,7 +83,6 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "packet-parse.h"
 #include "packet-print.h"
 #include "pgp-key.h"
-#include "key_store_pgp.h"
 #include "errors.h"
 #include "packet-show.h"
 #include "packet-create.h"

@@ -2,10 +2,6 @@
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -28,18 +24,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef KEY_STORE_INTERNAL_H_
-#define KEY_STORE_INTERNAL_H_
+#ifndef RNP_KEY_STORE_KBX_H
+#define RNP_KEY_STORE_KBX_H
 
-#include <rnp.h>
-#include <json.h>
+#include "rnp.h"
+#include <rnp_key_store.h>
 
-#include <stdint.h>
+bool rnp_key_store_kbx_from_mem(pgp_io_t *, rnp_key_store_t *, pgp_memory_t *);
+bool rnp_key_store_kbx_to_mem(pgp_io_t *, rnp_key_store_t *, const uint8_t *, pgp_memory_t *);
 
-#include "packet.h"
-#include "key_store.h"
-
-void rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len);
-bool rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int last);
-
-#endif /* KEY_STORE_INTERNAL_H_ */
+#endif // RNP_KEY_STORE_KBX_H

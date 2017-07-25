@@ -31,7 +31,7 @@
 #include <stdint.h>
 
 #include "packet-create.h"
-#include "key_store.h"
+#include <rnp_key_store.h>
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
 
