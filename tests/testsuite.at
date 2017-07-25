@@ -12,3 +12,5 @@ m4_include([cat.at])
 m4_include([crypt.at])
 m4_include([detached.at])
 m4_include([verify.at])
+
+m4_include([rnp_tests.at])
