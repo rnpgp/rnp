@@ -34,7 +34,7 @@
 #include "crypto.h"
 #include "signature.h"
 #include "packet-show.h"
-#include "rnp_def.h"
+#include <rnp_def.h>
 
 #ifndef __printflike
 #define __printflike(n, m) __attribute__((format(printf, n, m)))

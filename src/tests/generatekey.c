@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "rnp.h"
+#include <rnp.h>
 #include <rnp_key_store.h>
 #include "rnp_tests.h"
 #include "support.h"

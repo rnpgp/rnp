@@ -27,7 +27,7 @@
 #ifndef RNP_KEY_STORE_KBX_H
 #define RNP_KEY_STORE_KBX_H
 
-#include "rnp.h"
+#include <rnp.h>
 #include <rnp_key_store.h>
 
 bool rnp_key_store_kbx_from_mem(pgp_io_t *, rnp_key_store_t *, pgp_memory_t *);

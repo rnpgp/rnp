@@ -29,7 +29,7 @@
 #include <string.h>
 #include <botan/ffi.h>
 #include "utils.h"
-#include "rnp_def.h"
+#include <rnp_def.h>
 
 bool
 pgp_genkey_eddsa(pgp_seckey_t *seckey, size_t curve_len)

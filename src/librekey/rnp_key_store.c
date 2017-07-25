@@ -39,7 +39,7 @@
 
 #include "config.h"
 
-#include "rnp.h"
+#include <rnp.h>
 #include "utils.h"
 #include <rnp_key_store.h>
 #include "key_store_internal.h"

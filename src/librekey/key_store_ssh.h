@@ -31,7 +31,7 @@
 #ifndef KEY_STORE_SSH_H_
 #define KEY_STORE_SSH_H_
 
-#include "rnp.h"
+#include <rnp.h>
 #include <rnp_key_store.h>
 
 int rnp_key_store_ssh_load_keys(rnp_t *rnp, const char *pubpath, const char *secpath);
