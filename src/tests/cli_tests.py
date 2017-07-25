@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import re
 from subprocess import Popen, PIPE
-from cli_common import find_utility, run_proc, pswd_pipe
+from cli_common import find_utility, run_proc, pswd_pipe, rnp_file_path
 
 WORKDIR = ''
 RNP = ''
@@ -17,6 +17,7 @@ RNPK = ''
 GPG = ''
 RNPDIR = ''
 PASSWORD = 'password'
+RMWORKDIR = False
 
 RE_RSA_KEY = r'^' \
 r'# off=0 ctb=c6 tag=6 hlen=3 plen=\d+ new-ctb\s+' \
@@ -42,25 +43,40 @@ r'signature  (\d{4})/RSA \(Encrypt or Sign\) ([0-9a-z]{16}) \d{4}-\d{2}-\d{2} \[
 r'Key fingerprint: ([0-9a-z]{40})\s+' \
 r'uid\s+(.+)\s*$'
 
+RE_MULTIPLE_KEY_LIST = r'(?s)^\s*(\d+) (?:key|keys) found.*$'
+RE_MULTIPLE_KEY_5 = r'(?s)^\s*' \
+r'5 keys found.*' \
+r'.+uid\s+0@rnp-multiple' \
+r'.+uid\s+1@rnp-multiple' \
+r'.+uid\s+2@rnp-multiple' \
+r'.+uid\s+3@rnp-multiple' \
+r'.+uid\s+4@rnp-multiple.*$'
+
+RE_GPG_SINGLE_RSA_KEY = r'(?s)^\s*' \
+r'.+-+\s*' \
+r'pub\s+rsa.+' \
+r'\s+([0-9A-F]{40})\s*' \
+r'uid\s+.+rsakey@gpg.*'
+
 def setup():
     # Setting up directories.
-    global WORKDIR, RNPDIR, RNPK, GPG, GPGDIR
+    global RMWORKDIR, WORKDIR, RNPDIR, RNPK, GPG, GPGDIR
     WORKDIR = os.getcwd()
     if not '/tmp/' in WORKDIR:
         WORKDIR = tempfile.mkdtemp()
+        RMWORKDIR = True
+
+    print 'Running in ' + WORKDIR
 
     RNPDIR = path.join(WORKDIR, '.rnp')
-    GPGDIR = path.join(WORKDIR, '.gpg')
-    RNP = find_utility('rnp')
-    RNPK = find_utility('rnpkeys')
-    GPG = find_utility('gpg')
+    RNP = rnp_file_path('src/rnp/rnp')
+    RNPK = rnp_file_path('src/rnpkeys/rnpkeys')
     os.mkdir(RNPDIR, 0700)
+
+    GPGDIR = path.join(WORKDIR, '.gpg')
+    GPG = find_utility('gpg')
     os.mkdir(GPGDIR, 0700)
 
-    return
-
-def run_rnp_tests():
-    
     return
 
 def check_packets(fname, regexp):
@@ -126,13 +142,88 @@ def rnpkey_generate_rsa(bits = None):
 
     return
 
+def rnpkey_generate_multiple():
+    print 'rnpkey_generate_multiple'
+    
+    # Generate 5 keys with different user ids
+    for i in range(0, 5):
+        # generate the next key
+        pipe = pswd_pipe(PASSWORD)
+        userid = str(i) + '@rnp-multiple'
+        ret, out, err = run_proc(RNPK, ['--numbits', '2048', '--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', userid, '--generate-key'])
+        os.close(pipe)
+        if ret != 0: raise_err('key generation failed', err)
+        # list keys using the rnpkeys, checking whether it reports correct key number
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if ret != 0: raise_err('key list failed', err)
+        match = re.match(RE_MULTIPLE_KEY_LIST, out)
+        if not match: raise_err('wrong key list output', out)
+        if not match.group(1) == str(i + 1):
+            raise_err('wrong key count')
+
+    # Checking the 5 keys output
+    ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+    if ret != 0: raise_err('key list failed', err)
+    match = re.match(RE_MULTIPLE_KEY_5, out)
+    if not match: raise_err('wrong key list output', out)
+
+    return
+
+def rnpkey_import_from_gpg():
+    print 'rnpkey_import_from_gpg'
+    # Generate key in GnuPG
+    ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--passphrase', '', '--quick-generate-key', 'rsakey@gpg', 'rsa'])
+    if ret != 0: raise_err('gpg key generation failed', err)
+    # Getting fingerprint of the generated key
+    ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--list-keys'])
+    match = re.match(RE_GPG_SINGLE_RSA_KEY, out)
+    if not match: raise_err('wrong gpg key list output', out)
+    keyfp = match.group(1)
+    # Exporting generated public key
+    ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--armour', '--export', keyfp])
+    if ret != 0: raise_err('gpg : public key export failed', err)
+    pubpath = path.join(RNPDIR, keyfp + '-pub.asc')
+    with open(pubpath, 'w+') as f:
+        f.write(out)
+    # Export generated secret key
+    ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--armour', '--export-secret-key', keyfp])
+    if ret != 0: raise_err('gpg : secret key export failed', err)
+    secpath = path.join(RNPDIR, keyfp + '-sec.asc')
+    with open(secpath, 'w+') as f:
+        f.write(out)
+    # Import public key
+    ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', pubpath])
+    if ret != 0: raise_err('rnp : public key import failed', err)
+
+    # Import secret key
+    ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', secpath])
+    if ret != 0: raise_err('rnp : secret key import failed', err)
+
+    return
+
+def rnpkey_export_to_gpg():
+
+    return
+
 def run_rnpkeys_tests():
     # 1. Generate default RSA key
     rnpkey_generate_rsa()
     clear_keyrings()
     # 2. Generate 4096-bit RSA key
     rnpkey_generate_rsa(4096)
+    clear_keyrings()
+    # 3. Generate multiple RSA keys and check if they are all available
+    rnpkey_generate_multiple()
+    clear_keyrings()
+    # 4. Generate key with GnuPG and import it to rnp
+    rnpkey_import_from_gpg()
+    # 5. Generate key with RNP and export it and then import to GnuPG
+    rnpkey_export_to_gpg()
 
+    return
+
+def run_rnp_tests():
+    
     return
 
 def run_tests():
@@ -151,6 +242,12 @@ def run_tests():
     return
 
 def cleanup():
+    if RMWORKDIR:
+        shutil.rmtree(WORKDIR)
+    else:
+        shutil.rmtree(RNPDIR)
+        shutil.rmtree(GPGDIR)
+
     return
 
 if __name__ == '__main__':
