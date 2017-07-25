@@ -7,6 +7,8 @@ import shutil
 from subprocess import Popen, PIPE
 from timeit import default_timer as perf_timer
 
+RNP_ROOT = None
+
 def size_to_readable(num, suffix = 'B'):
     for unit in ['','K','M','G','T','P','E','Z']:
         if abs(num) < 1024.0:
@@ -27,6 +29,19 @@ def find_utility(name, exitifnone = True):
         sys.exit(1)
 
     return path
+
+def rnp_file_path(relpath, check = True):
+    global RNP_ROOT
+    if not RNP_ROOT:
+        pypath = path.dirname(__file__)
+        RNP_ROOT = path.realpath(path.join(pypath, '../..'))
+
+    fpath = path.realpath(path.join(RNP_ROOT, relpath))
+
+    if check and not os.path.isfile(fpath):
+        raise NameError('rnp: file ' + relpath + ' not found')
+
+    return fpath
 
 def run_proc(proc, params):
     process = Popen([proc] + params, stdout=PIPE, stderr=PIPE)
