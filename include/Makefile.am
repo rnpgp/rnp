@@ -4,6 +4,7 @@ include_HEADERS		= \
     rnp.h \
     rnp/rnp.h \
     rnp/rnp_def.h \
+    rnp/rnp_sdk.h \
     rnp/rnp_obsolete_defs.h \
     rnp/rnp_types.h \
     rekey/rnp_key_store.h

@@ -82,7 +82,7 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "signature.h"
 #include "readerwriter.h"
 #include "utils.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 #include "packet.h"
 #include "rnpdigest.h"
 

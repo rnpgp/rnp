@@ -67,7 +67,7 @@ __RCSID("$NetBSD: symmetric.c,v 1.18 2010/11/07 08:39:59 agc Exp $");
 #include "crypto.h"
 #include "packet-show.h"
 #include "utils.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 
 int
 pgp_cipher_set_iv(pgp_crypt_t *cipher, const uint8_t *iv)

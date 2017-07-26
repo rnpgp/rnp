@@ -118,6 +118,8 @@ bool pgp_sign_file(
 
 int pgp_sign_detached(rnp_ctx_t *, pgp_io_t *, const char *, const char *, pgp_seckey_t *);
 
+bool pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
+
 /* armoured stuff */
 unsigned pgp_crc24(unsigned, uint8_t);
 

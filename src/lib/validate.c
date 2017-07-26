@@ -78,7 +78,7 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 #include "packet-parse.h"
 #include "packet-show.h"
 #include "signature.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 #include "readerwriter.h"
 #include "utils.h"
 #include "memory.h"

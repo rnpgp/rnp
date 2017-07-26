@@ -61,7 +61,7 @@
 #include "bn.h"
 #include "packet-parse.h"
 #include "utils.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 #include "crypto.h"
 #include "s2k.h"
 #include "pgp-key.h"

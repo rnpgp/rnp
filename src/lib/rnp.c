@@ -82,9 +82,10 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "errors.h"
 #include "packet-show.h"
 #include "packet-create.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 #include "memory.h"
 #include "validate.h"
+#include "signature.h"
 #include "readerwriter.h"
 #include "utils.h"
 #include "crypto.h"

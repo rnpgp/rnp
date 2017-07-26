@@ -37,15 +37,17 @@
 #include <getopt.h>
 #include <regex.h>
 #include <rnp/rnp.h>
-#include <rnpsdk.h>
-#include <rnpcfg.h>
+#include <rnp/rnp_sdk.h>
+#include "rnpcfg.h"
+#include "symmetric.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdbool.h>
-#include "rnp/rnp_obsolete_defs.h"
+#include <rnp/rnp_obsolete_defs.h>
+#include <rekey/rnp_key_store.h>
 
 extern char *__progname;
 

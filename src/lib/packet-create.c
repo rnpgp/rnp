@@ -92,7 +92,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "utils.h"
 #include "rnpdigest.h"
 #include "pgp-key.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 #include "ecdsa.h"
 #include <rnp/rnp_def.h>
 

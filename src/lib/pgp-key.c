@@ -52,7 +52,7 @@
 #include "pgp-key.h"
 #include "signature.h"
 #include "utils.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 #include "readerwriter.h"
 #include "validate.h"
 
