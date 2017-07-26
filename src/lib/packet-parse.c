@@ -970,6 +970,7 @@ sig_free(pgp_sig_t *sig)
 
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
         free_BN(&sig->info.sig.ecc.r);
         free_BN(&sig->info.sig.ecc.s);
         break;
@@ -1217,7 +1218,9 @@ pgp_pubkey_free(pgp_pubkey_t *p)
         free_BN(&p->key.dsa.y);
         break;
 
+    case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         free_BN(&p->key.ecc.point);
         break;
 
@@ -1226,10 +1229,6 @@ pgp_pubkey_free(pgp_pubkey_t *p)
         free_BN(&p->key.elgamal.p);
         free_BN(&p->key.elgamal.g);
         free_BN(&p->key.elgamal.y);
-        break;
-
-    case PGP_PKA_ECDSA:
-        free_BN(&p->key.ecc.point);
         break;
 
     case PGP_PKA_NOTHING:
@@ -1313,8 +1312,9 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
         }
         break;
 
+    case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
-    case PGP_PKA_ECDSA: {
+    case PGP_PKA_SM2: {
         pgp_data_t OID = {0};
         unsigned   OID_len = 0;
         if (!limread_scalar(&OID_len, 1, region, stream) || (OID_len == 0x00) ||
@@ -1579,6 +1579,7 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
 
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
         if (!limread_mpi(&pkt.u.sig.info.sig.ecc.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.ecc.s, region, stream)) {
             return false;
@@ -2115,6 +2116,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
 
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
         if (!limread_mpi(&pkt.u.sig.info.sig.ecc.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.ecc.s, region, stream)) {
             free(pkt.u.sig.info.v4_hashed);
@@ -2416,6 +2418,7 @@ pgp_seckey_free(pgp_seckey_t *key)
 
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
         free_BN(&key->key.ecc.x);
         break;
 
@@ -2689,6 +2692,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
         if (!limread_mpi(&pkt.u.seckey.key.ecc.x, region, stream)) {
             ret = 0;
         }

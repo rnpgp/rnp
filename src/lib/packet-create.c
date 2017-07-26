@@ -161,8 +161,9 @@ pubkey_length(const pgp_pubkey_t *key)
         return mpi_length(key->key.dsa.p) + mpi_length(key->key.dsa.q) +
                mpi_length(key->key.dsa.g) + mpi_length(key->key.dsa.y);
 
-    case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         return 1 + // length of curve OID
                +ec_curves[key->key.ecc.curve].OIDhex_len + mpi_length(key->key.ecc.point);
 
@@ -182,8 +183,9 @@ seckey_length(const pgp_seckey_t *key)
 
     len = 0;
     switch (key->pubkey.alg) {
-    case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         return mpi_length(key->key.ecc.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_DSA:
         return (unsigned) (mpi_length(key->key.dsa.x) + pubkey_length(&key->pubkey));
@@ -225,6 +227,7 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
                pgp_write_mpi(output, key->key.dsa.g) && pgp_write_mpi(output, key->key.dsa.y);
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         return (ec_serialize_pubkey(output, &key->key.ecc) == PGP_E_OK);
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -295,8 +298,9 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result)
     case PGP_PKA_DSA:
         hash_bn(&hash, key->key.dsa.x);
         break;
-    case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         hash_bn(&hash, key->key.ecc.x);
         break;
     case PGP_PKA_ELGAMAL:
@@ -447,8 +451,9 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
         if (!pgp_write_mpi(output, key->key.dsa.x))
             return false;
         break;
-    case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         if (!pgp_write_mpi(output, key->key.ecc.x))
             return false;
         break;

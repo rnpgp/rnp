@@ -548,10 +548,17 @@ rnpkeys_generatekey_testExpertMode(void **state)
     static const char test_ecdsa_384[] = "19\n2\n";
     static const char test_ecdsa_521[] = "19\n3\n";
     static const char test_eddsa[] = "22\n";
+    static const char test_sm2[] = "99\n";
     static const char test_rsa_1024[] = "1\n1024\n";
     static const char test_rsa_ask_twice_4096[] = "1\n1023\n4096\n";
 
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
+
+    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, test_sm2, sizeof(test_sm2)));
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_SM2);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_SM2_P_256);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SM3);
+    rnp_end(&rnp);
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_256, sizeof(test_ecdsa_256)));

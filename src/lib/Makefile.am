@@ -33,6 +33,7 @@ librnp_la_SOURCES	= \
 	rsa.c \
 	s2k.c \
 	signature.c \
+	sm2.c \
 	symmetric.c \
 	validate.c \
 	writer.c

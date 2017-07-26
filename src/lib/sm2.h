@@ -1,10 +1,6 @@
-/*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+/*-
+ * Copyright (c) 2017 Ribose Inc.
  * All rights reserved.
- *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,28 +24,35 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RNP_ED25519_H_
-#define RNP_ED25519_H_
+#ifndef RNP_SM2_H_
+#define RNP_SM2_H_
 
-#include "packet-parse.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include "errors.h"
+#include "rnp.h"
+#include "packet.h"
 
-/*
-* curve_len must be 255 currently (for Ed25519)
-* If Ed448 was supported in the future curve_len=448 would also be allowed.
-*/
-bool pgp_genkey_eddsa(pgp_seckey_t *seckey, size_t numbits);
+/* -----------------------------------------------------------------------------
+ * @brief   Generate SM2 keypair
+ *
+ * @param   seckey[out] private part of the key
+ * @param   curve       underlying ECC curve ID
+ *
+ * @returns success PGP_E_OK, error code otherwise
+ *
+-------------------------------------------------------------------------------- */
+pgp_errcode_t pgp_sm2_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve);
 
-int pgp_eddsa_verify_hash(const BIGNUM *          r,
-                          const BIGNUM *          s,
-                          const uint8_t *         hash,
-                          size_t                  hash_len,
-                          const pgp_ecc_pubkey_t *pubkey);
+pgp_errcode_t pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
+                                const uint8_t *         hashbuf,
+                                size_t                  hash_len,
+                                const pgp_ecc_seckey_t *prvkey,
+                                const pgp_ecc_pubkey_t *pubkey);
 
-int pgp_eddsa_sign_hash(BIGNUM *       r,
-                        BIGNUM *       s,
-                        const uint8_t *hash,
-                        size_t         hash_len,
-                        const pgp_ecc_seckey_t *,
-                        const pgp_ecc_pubkey_t *);
+pgp_errcode_t pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
+                                  const uint8_t *         hash,
+                                  size_t                  hash_len,
+                                  const pgp_ecc_pubkey_t *pubkey);
 
-#endif
+#endif // EC_H_
