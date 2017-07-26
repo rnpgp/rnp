@@ -32,7 +32,7 @@
 #include <packet.h>
 #include <pgp-key.h>
 #include <bn.h>
-#include <rnp.h>
+#include <rnp/rnp.h>
 #include <ecdsa.h>
 #include <readerwriter.h>
 

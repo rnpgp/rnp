@@ -56,7 +56,7 @@
 
 #include "types.h"
 #include "packet.h"
-#include <rnp_key_store.h>
+#include <rekey/rnp_key_store.h>
 
 int pgp_sprint_keydata(pgp_io_t *,
                        const rnp_key_store_t *,

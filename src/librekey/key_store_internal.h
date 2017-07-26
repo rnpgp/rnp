@@ -31,11 +31,11 @@
 #ifndef KEY_STORE_INTERNAL_H_
 #define KEY_STORE_INTERNAL_H_
 
-#include <rnp.h>
+#include <rnp/rnp.h>
 
 #include <stdint.h>
 
-#include <rnp_key_store.h>
+#include <rekey/rnp_key_store.h>
 
 void rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len);
 bool rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int last);

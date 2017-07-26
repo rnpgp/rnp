@@ -57,7 +57,7 @@
 
 #include "packet.h"
 #include "packet-parse.h"
-#include <rnp_key_store.h>
+#include <rekey/rnp_key_store.h>
 #include "memory.h"
 
 bool rnp_key_store_pgp_read_from_mem(pgp_io_t *,

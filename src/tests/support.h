@@ -36,7 +36,7 @@
 #include <ftw.h>
 #include <sys/stat.h>
 #include <cmocka.h>
-#include <rnp.h>
+#include <rnp/rnp.h>
 
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .

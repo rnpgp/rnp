@@ -39,9 +39,9 @@
 
 #include "config.h"
 
-#include <rnp.h>
+#include <rnp/rnp.h>
 #include "utils.h"
-#include <rnp_key_store.h>
+#include <rekey/rnp_key_store.h>
 #include "key_store_internal.h"
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"

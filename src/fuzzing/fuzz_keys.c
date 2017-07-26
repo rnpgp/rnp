@@ -1,5 +1,5 @@
-#include <rnp.h>
-#include <rnp_key_store.h>
+#include <rnp/rnp.h>
+#include <rekey/rnp_key_store.h>
 
 int
 main(int argc, char *argv[])

@@ -31,7 +31,7 @@
 #ifndef KEY_STORE_H_
 #define KEY_STORE_H_
 
-#include <rnp.h>
+#include <rnp/rnp.h>
 #include <json.h>
 
 #include <stdint.h>

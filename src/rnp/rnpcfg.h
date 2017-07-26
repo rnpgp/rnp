@@ -26,7 +26,7 @@
 #ifndef __RNP__CFG_H__
 #define __RNP__CFG_H__
 
-#include <rnp.h>
+#include <rnp/rnp.h>
 #include <stdbool.h>
 
 /* cfg variables known by rnp */

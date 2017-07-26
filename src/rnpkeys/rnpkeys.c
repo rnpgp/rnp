@@ -33,9 +33,9 @@
 #include <getopt.h>
 #include <regex.h>
 #include <string.h>
-#include <rnp.h>
+#include <rnp/rnp.h>
 #include "crypto.h"
-#include <rnp_def.h>
+#include <rnp/rnp_def.h>
 #include "../rnp/rnpcfg.h"
 #include "rnpkeys.h"
 

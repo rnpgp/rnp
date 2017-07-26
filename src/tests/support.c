@@ -43,7 +43,7 @@
 #include <pgp-key.h>
 #include <bn.h>
 
-#include <rnp.h>
+#include <rnp/rnp.h>
 #include <sys/stat.h>
 
 /* Check if a file exists.

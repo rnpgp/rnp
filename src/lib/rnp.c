@@ -72,13 +72,13 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <limits.h>
 #endif
 
-#include <rnp.h>
-#include <rnp_def.h>
+#include <rnp/rnp.h>
+#include <rnp/rnp_def.h>
 
 #include "packet.h"
 #include "packet-parse.h"
 #include "packet-print.h"
-#include <rnp_key_store.h>
+#include <rekey/rnp_key_store.h>
 #include "errors.h"
 #include "packet-show.h"
 #include "packet-create.h"
@@ -90,10 +90,10 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "crypto.h"
 #include "bn.h"
 #include "defs.h"
-#include <rnp_def.h>
+#include <rnp/rnp_def.h>
 #include "pgp-key.h"
 
-#include "rnp_obsolete_defs.h"
+#include "rnp/rnp_obsolete_defs.h"
 #include <json.h>
 
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];

@@ -36,7 +36,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <regex.h>
-#include <rnp.h>
+#include <rnp/rnp.h>
 #include <rnpsdk.h>
 #include <rnpcfg.h>
 #include <stdio.h>
@@ -45,7 +45,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdbool.h>
-#include "rnp_obsolete_defs.h"
+#include "rnp/rnp_obsolete_defs.h"
 
 extern char *__progname;
 
