@@ -37,20 +37,18 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "config.h"
-
 #include <rnp/rnp.h>
-#include "utils.h"
 #include <rekey/rnp_key_store.h>
+
 #include "key_store_internal.h"
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
+#include "key_store_ssh.h"
+
 #include "packet-print.h"
 #include "pgp-key.h"
 #include "packet.h"
 #include "utils.h"
-
-#include "key_store_ssh.h"
 
 static void *
 rnp_key_store_read_keyring(rnp_t *rnp, const char *path)

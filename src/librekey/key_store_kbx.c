@@ -30,10 +30,10 @@
 #include <string.h>
 #include <stdint.h>
 
-#include "packet-create.h"
-#include <rekey/rnp_key_store.h>
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
+
+#include "packet-create.h"
 
 #define BLOB_SIZE_LIMIT (5 * 1024 * 1024) // same limit with GnuPG 2.1
 

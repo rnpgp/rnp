@@ -30,19 +30,12 @@
  */
 #include "config.h"
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
 
 #include <netinet/in.h>
 
-#include <arpa/inet.h>
-
-#include <ctype.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,21 +45,13 @@
 #include <unistd.h>
 #endif
 
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif
-
-#include "bufgap.h"
+#include "key_store_internal.h"
 
 #include "bn.h"
-#include "packet-parse.h"
-#include "utils.h"
-#include <rnp/rnp_sdk.h>
+#include "bufgap.h"
 #include "crypto.h"
 #include "s2k.h"
 #include "pgp-key.h"
-#include "key_store_internal.h"
-#include "packet.h"
 
 /* structure for earching for constant strings */
 typedef struct str_t {
