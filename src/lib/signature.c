@@ -78,6 +78,7 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 
 #include "bn.h"
 #include "ecdsa.h"
+#include "sm2.h"
 #include "dsa.h"
 #include "eddsa.h"
 #include "hash.h"
@@ -249,6 +250,41 @@ ecdsa_sign(pgp_hash_t *            hash,
 }
 
 static bool
+sm2_sign(pgp_hash_t *            hash,
+         const pgp_ecc_pubkey_t *pub_key,
+         const pgp_ecc_seckey_t *prv_key,
+         pgp_output_t *          output)
+{
+    uint8_t       hashbuf[PGP_MAX_HASH_SIZE];
+    pgp_ecc_sig_t sig = {NULL, NULL};
+
+    const size_t curve_byte_size = BITS_TO_BYTES(ec_curves[pub_key->curve].bitlen);
+    // "-2" because SM2 on P-521 must work with SHA-512 digest
+    if (curve_byte_size - 2 > pgp_hash_output_length(hash)) {
+        RNP_LOG("Message hash to small");
+        return false;
+    }
+
+    /* finalise hash */
+    size_t hashsize = pgp_hash_finish(hash, hashbuf);
+    if (!pgp_write(output, &hashbuf[0], 2))
+        return false;
+
+    /* write signature to buf */
+    if (pgp_sm2_sign_hash(&sig, hashbuf, hashsize, prv_key, pub_key) != PGP_E_OK) {
+        return false;
+    }
+
+    /* convert and write the sig out to memory */
+    bool ret = !!pgp_write_mpi(output, sig.r);
+    ret &= !!pgp_write_mpi(output, sig.s);
+
+    BN_free(sig.r);
+    BN_free(sig.s);
+    return ret;
+}
+
+static bool
 eddsa_sign(pgp_hash_t *            hash,
            const pgp_ecc_pubkey_t *pubkey,
            const pgp_ecc_seckey_t *seckey,
@@ -391,6 +427,11 @@ pgp_check_sig(const uint8_t *     hash,
 
     case PGP_PKA_EDDSA:
         ret = eddsa_verify(hash, length, &sig->info.sig.ecc, &signer->key.ecc);
+        break;
+
+    case PGP_PKA_SM2:
+        ret = pgp_sm2_verify_hash(&sig->info.sig.ecdsa, hash, length, &signer->key.ecc) ==
+              PGP_E_OK;
         break;
 
     case PGP_PKA_RSA:
@@ -762,6 +803,7 @@ pgp_write_sig(pgp_output_t *      output,
 
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
         if (seckey->key.ecc.x == NULL) {
             (void) fprintf(stderr, "pgp_write_sig: null ecc.x\n");
             return false;
@@ -810,6 +852,13 @@ pgp_write_sig(pgp_output_t *      output,
     case PGP_PKA_EDDSA:
         if (!eddsa_sign(&sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
             RNP_LOG("eddsa_sign failure");
+            return false;
+        }
+        break;
+
+    case PGP_PKA_SM2:
+        if (!sm2_sign(&sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
+            RNP_LOG("sm2_sign failure");
             return false;
         }
         break;

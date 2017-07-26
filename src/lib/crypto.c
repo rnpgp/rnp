@@ -83,6 +83,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "pgp-key.h"
 #include "s2k.h"
 #include "ecdsa.h"
+#include "sm2.h"
 #include "utils.h"
 #include "rnp_def.h"
 
@@ -109,7 +110,14 @@ const ec_curve_desc_t ec_curves[] = {
    {0x2b, 0x06, 0x01, 0x04, 0x01, 0xda, 0x47, 0x0f, 0x01},
    9,
    "Ed25519",
-   "Ed25519"}};
+   "Ed25519"},
+  {PGP_CURVE_SM2_P_256,
+   256,
+   {0x2A, 0x81, 0x1C, 0xCF, 0x55, 0x01, 0x82, 0x2D},
+   8,
+   "sm2p256v1",
+   "SM2 P-256"},
+};
 
 /**
 \ingroup Core_MPI
@@ -259,6 +267,10 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
     } else if (seckey->pubkey.alg == PGP_PKA_EDDSA) {
         if (pgp_genkey_eddsa(seckey, ec_curves[PGP_CURVE_ED25519].bitlen) != 1)
             goto end;
+    } else if (seckey->pubkey.alg == PGP_PKA_SM2) {
+        seckey->pubkey.key.ecc.curve = key_desc->ecc.curve;
+        if (pgp_sm2_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK)
+            goto end;
     } else if (seckey->pubkey.alg == PGP_PKA_ECDSA) {
         seckey->pubkey.key.ecc.curve = key_desc->ecc.curve;
         if (pgp_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK)
@@ -298,7 +310,7 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
             !pgp_write_mpi(output, seckey->key.rsa.u))
             goto end;
     } else if ((seckey->pubkey.alg == PGP_PKA_EDDSA) ||
-               (seckey->pubkey.alg == PGP_PKA_ECDSA)) {
+               (seckey->pubkey.alg == PGP_PKA_ECDSA) || (seckey->pubkey.alg == PGP_PKA_SM2)) {
         if (!pgp_write_mpi(output, seckey->key.ecc.x))
             goto end;
     } else {

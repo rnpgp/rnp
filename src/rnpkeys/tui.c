@@ -66,6 +66,7 @@ is_keygen_supported_for_alg(pgp_pubkey_alg_t id)
     case PGP_PKA_RSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         // Not yet really supported (at least key generation)
         //
         // case PGP_PKA_ECDH:
@@ -111,6 +112,7 @@ ask_algorithm(FILE *input_fp)
                // "\t(18) ECDH\n"
                "\t(19) ECDSA\n"
                "\t(22) EDDSA\n"
+               "\t(99) SM2\n"
                "> ");
 
     } while (!rnp_secure_get_long_from_fd(input_fp, &result) ||
@@ -205,6 +207,10 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
     } break;
     case PGP_PKA_EDDSA:
         rnp->action.generate_key_ctx.ecc.curve = PGP_CURVE_ED25519;
+        break;
+    case PGP_PKA_SM2:
+        key_desc->hash_alg = PGP_HASH_SM3;
+        rnp->action.generate_key_ctx.ecc.curve = PGP_CURVE_SM2_P_256;
         break;
     default:
         return PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG;

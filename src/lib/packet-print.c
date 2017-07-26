@@ -351,6 +351,7 @@ numkeybits(const pgp_pubkey_t *pubkey)
 
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         // BN_num_bytes returns value <= curve order
         return ec_curves[pubkey->key.ecc.curve].bitlen;
 
@@ -1003,6 +1004,7 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
           &out[cc], outsize - cc, "point=%s\n", BN_bn2hex(key->key.pubkey.key.ecc.point));
         break;
     case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
         cc += snprintf(&out[cc],
                        outsize - cc,
                        "curve=%s\npoint=%s\n",
@@ -1068,6 +1070,7 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
 
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         print_bn(0, "x", seckey->key.ecc.x);
         break;
 
@@ -1265,8 +1268,9 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
             print_bn(print->indent, "s", content->sig.info.sig.dsa.s);
             break;
 
-        case PGP_PKA_EDDSA:
         case PGP_PKA_ECDSA:
+        case PGP_PKA_EDDSA:
+        case PGP_PKA_SM2:
             print_bn(print->indent, "r", content->sig.info.sig.ecc.r);
             print_bn(print->indent, "s", content->sig.info.sig.ecc.s);
             break;
@@ -1615,8 +1619,9 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
             print_bn(print->indent, "s", content->sig.info.sig.dsa.s);
             break;
 
-        case PGP_PKA_EDDSA:
         case PGP_PKA_ECDSA:
+        case PGP_PKA_EDDSA:
+        case PGP_PKA_SM2:
             print_bn(print->indent, "r", content->sig.info.sig.ecc.r);
             print_bn(print->indent, "s", content->sig.info.sig.ecc.s);
             break;

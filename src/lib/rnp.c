@@ -1006,6 +1006,7 @@ get_numbits(const rnp_keygen_desc_t *key)
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         return ec_curves[key->ecc.curve].bitlen;
     default:
         return 0;

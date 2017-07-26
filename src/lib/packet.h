@@ -365,17 +365,20 @@ typedef enum {
                                * (X9.42, as defined for
                                * IETF-S/MIME) */
     PGP_PKA_EDDSA = 22,       /* EdDSA from draft-ietf-openpgp-rfc4880bis */
-    PGP_PKA_PRIVATE00 = 100,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE01 = 101,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE02 = 102,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE03 = 103,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE04 = 104,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE05 = 105,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE06 = 106,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE07 = 107,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE08 = 108,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE09 = 109,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE10 = 110   /* Private/Experimental Algorithm */
+
+    PGP_PKA_SM2 = 99, /* SM2 signatures */
+
+    PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE01 = 101, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE02 = 102, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE03 = 103, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE04 = 104, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE05 = 105, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE06 = 106, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE07 = 107, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE08 = 108, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE09 = 109, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE10 = 110  /* Private/Experimental Algorithm */
 } pgp_pubkey_alg_t;
 
 /**
@@ -390,6 +393,8 @@ typedef enum {
     PGP_CURVE_NIST_P_384,
     PGP_CURVE_NIST_P_521,
     PGP_CURVE_ED25519,
+
+    PGP_CURVE_SM2_P_256,
 
     // Keep always last one
     PGP_CURVE_MAX
