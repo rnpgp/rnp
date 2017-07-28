@@ -31,6 +31,8 @@
 #ifndef RNPSDK_H_
 #define RNPSDK_H_
 
+#include <stdint.h>
+
 #include <rnp/rnp_def.h>
 
 #ifndef __printflike

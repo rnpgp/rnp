@@ -563,7 +563,7 @@ pgp_memory_init(pgp_memory_t *mem, size_t needed)
 \param mem Memory to use
 \param length New size
 */
-int
+bool
 pgp_memory_pad(pgp_memory_t *mem, size_t length)
 {
     uint8_t *temp;
@@ -597,7 +597,7 @@ pgp_memory_pad(pgp_memory_t *mem, size_t length)
 \param src Data to add
 \param length Length of data to add
 */
-int
+bool
 pgp_memory_add(pgp_memory_t *mem, const uint8_t *src, size_t length)
 {
     if (!pgp_memory_pad(mem, length)) {

@@ -432,12 +432,8 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
 }
 
 /* read a key from the ssh file, and add it to a keyring */
-static bool
-ssh2_readkeys(pgp_io_t *       io,
-              rnp_key_store_t *pubring,
-              rnp_key_store_t *secring,
-              const char *     pubfile,
-              const char *     secfile)
+bool
+rnp_key_store_ssh_load_keys(rnp_t *rnp, rnp_key_store_t *pubring, rnp_key_store_t *secring)
 {
     pgp_key_t *pubkey;
     pgp_key_t *seckey;
@@ -445,12 +441,12 @@ ssh2_readkeys(pgp_io_t *       io,
 
     pubkey = NULL;
     (void) memset(&key, 0x0, sizeof(key));
-    if (pubfile) {
+    if (pubring) {
         if (rnp_get_debug(__FILE__)) {
-            RNP_LOG("pubfile '%s'", pubfile);
+            RNP_LOG("pubfile '%s'", pubring->path);
         }
-        if (!ssh2pubkey(io, pubfile, &key)) {
-            RNP_LOG("can't read pubkeys '%s'", pubfile);
+        if (!ssh2pubkey(rnp->io, pubring->path, &key)) {
+            RNP_LOG("can't read pubkeys '%s'", pubring->path);
             return false;
         }
         EXPAND_ARRAY(pubring, key);
@@ -461,15 +457,15 @@ ssh2_readkeys(pgp_io_t *       io,
         (void) memcpy(pubkey, &key, sizeof(key));
         pubkey->type = PGP_PTAG_CT_PUBLIC_KEY;
     }
-    if (secfile) {
+    if (secring) {
         if (rnp_get_debug(__FILE__)) {
-            RNP_LOG("secfile '%s'", secfile);
+            RNP_LOG("secfile '%s'", secring->path);
         }
         if (pubkey == NULL) {
             pubkey = &pubring->keys[0];
         }
-        if (!ssh2seckey(io, secfile, &key, &pubkey->key.pubkey)) {
-            RNP_LOG("can't read seckeys '%s'", secfile);
+        if (!ssh2seckey(rnp->io, secring->path, &key, &pubkey->key.pubkey)) {
+            RNP_LOG("can't read seckeys '%s'", secring->path);
             return false;
         }
         EXPAND_ARRAY(secring, key);
@@ -479,61 +475,6 @@ ssh2_readkeys(pgp_io_t *       io,
         seckey = &secring->keys[secring->keyc++];
         (void) memcpy(seckey, &key, sizeof(key));
         seckey->type = PGP_PTAG_CT_SECRET_KEY;
-    }
-    return true;
-}
-
-/* read keys from ssh key files */
-static bool
-readsshkeys(rnp_t *rnp, const char *pubpath, const char *secpath)
-{
-    rnp_key_store_t *pubring;
-    rnp_key_store_t *secring;
-    struct stat      st;
-
-    /* check the pub file exists */
-    if (stat(pubpath, &st) != 0) {
-        RNP_LOG("bad pubkey filename '%s'", pubpath);
-        return false;
-    }
-    if ((pubring = calloc(1, sizeof(*pubring))) == NULL) {
-        RNP_LOG("bad alloc");
-        return false;
-    }
-    if (!ssh2_readkeys(rnp->io, pubring, NULL, pubpath, NULL)) {
-        free(pubring);
-        RNP_LOG("cannot read %s", pubpath);
-        return false;
-    }
-    if (rnp->pubring == NULL) {
-        rnp->pubring = pubring;
-    } else {
-        rnp_key_store_append_keyring(rnp->pubring, pubring);
-    }
-
-    if (secpath) {
-        if ((secring = calloc(1, sizeof(*secring))) == NULL) {
-            free(pubring);
-            RNP_LOG("bad alloc");
-            return false;
-        }
-        if (!ssh2_readkeys(rnp->io, pubring, secring, NULL, secpath)) {
-            free(pubring);
-            free(secring);
-            RNP_LOG("cannot read sec %s", secpath);
-            return false;
-        }
-        rnp->secring = secring;
-    }
-    return true;
-}
-
-bool
-rnp_key_store_ssh_load_keys(rnp_t *rnp, const char *pubpath, const char *secpath)
-{
-    if (!readsshkeys(rnp, pubpath, secpath)) {
-        fprintf(rnp->io->errs, "cannot read ssh keys\n");
-        return false;
     }
     return true;
 }
@@ -577,36 +518,5 @@ rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *
         return true;
     }
 
-    return false;
-}
-
-bool
-rnp_key_store_ssh_from_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_t *memory)
-{
-    // we can't read SSH key from memory because it doesn't keep two different part for public
-    // and secret key
-    fprintf(io->errs, "rnp hasn't support reading SSH key from memory yet\n");
-    return false;
-}
-
-bool
-rnp_key_store_ssh_to_file(pgp_io_t *       io,
-                          rnp_key_store_t *key_store,
-                          const uint8_t *  passphase,
-                          const char *     file)
-{
-    fprintf(io->errs, "rnp hasn't support writing SSH key to file yet\n");
-    return false;
-}
-
-bool
-rnp_key_store_ssh_to_mem(pgp_io_t *       io,
-                         rnp_key_store_t *key_store,
-                         const uint8_t *  passphase,
-                         pgp_memory_t *   memory)
-{
-    // we can't write SSH key to memory because it doesn't keep two different part for public
-    // and secret key
-    fprintf(io->errs, "rnp hasn't support writing SSH key to memory yet\n");
     return false;
 }

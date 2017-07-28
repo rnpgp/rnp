@@ -239,7 +239,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         exit(EXIT_SUCCESS);
     /* options */
     case OPT_SSHKEYS:
-        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
+        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
         break;
     case OPT_KEYRING:
         if (arg == NULL) {
@@ -301,7 +301,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         rnp_cfg_set(cfg, CFG_IO_RESS, arg);
         break;
     case OPT_SSHKEYFILE:
-        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
+        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
         rnp_cfg_set(cfg, CFG_SSHKEYFILE, arg);
         break;
     case OPT_FORMAT:

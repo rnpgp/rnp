@@ -60,11 +60,6 @@
 #define CFG_KEYFORMAT "format"    /* key format : "human" for human-readable or ... */
 #define CFG_EXPERT "expert"       /* expert key generation mode */
 
-/* additional cfg constants */
-#define CFG_KEYSTORE_GPG "GPG" /* GPG keyring format */
-#define CFG_KEYSTORE_KBX "KBX" /* GPG new keyring format : KBX */
-#define CFG_KEYSTORE_SSH "SSH" /* SSH keyring format */
-
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */
 typedef struct rnp_cfg_t {

@@ -7,4 +7,5 @@ librekey_la_SOURCES	 = \
 	rnp_key_store.c \
 	key_store_pgp.c \
 	key_store_kbx.c \
+	key_store_g10.c \
 	key_store_ssh.c

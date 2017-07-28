@@ -446,7 +446,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         exit(EXIT_SUCCESS);
     /* options */
     case OPT_SSHKEYS:
-        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
+        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
         break;
     case OPT_KEYRING:
         if (arg == NULL) {
@@ -515,7 +515,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         rnp_cfg_set(cfg, CFG_RESULTS, arg);
         break;
     case OPT_SSHKEYFILE:
-        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
+        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
         rnp_cfg_set(cfg, CFG_SSHKEYFILE, arg);
         break;
     case OPT_MAX_MEM_ALLOC:
@@ -619,7 +619,7 @@ main(int argc, char **argv)
         } else {
             switch (ch) {
             case 'S':
-                rnp_cfg_set(&cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
+                rnp_cfg_set(&cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
                 rnp_cfg_set(&cfg, CFG_SSHKEYFILE, optarg);
                 break;
             case 'V':

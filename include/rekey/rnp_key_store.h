@@ -109,24 +109,45 @@ typedef struct {
     uint32_t blob_created_at;
 } kbx_pgp_blob_t;
 
-typedef struct rnp_key_store_t {
+enum key_store_format_t {
+    UNKNOW_KEY_STORE = 0,
+    GPG_KEY_STORE,
+    SSH_KEY_STORE,
+    KBX_KEY_STORE,
+    G10_KEY_STORE,
+};
+
+#define RNP_KEYSTORE_GPG "GPG" /* GPG keystore format */
+#define RNP_KEYSTORE_KBX "KBX" /* KBX keystore format */
+#define RNP_KEYSTORE_SSH "SSH" /* SSH keystore format */
+#define RNP_KEYSTORE_G10 "G10" /* G10 keystore format */
+
+typedef struct {
+    const char *            path;
+    enum key_store_format_t format;
+
     DYNARRAY(pgp_key_t, key);
     DYNARRAY(kbx_blob_t *, blob);
 } rnp_key_store_t;
 
+rnp_key_store_t *rnp_key_store_new(const char *format, const char *path);
+
 bool rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret);
 
-int rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *, const unsigned, const char *);
+int rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *, const unsigned);
 bool rnp_key_store_load_from_mem(rnp_t *rnp,
                                  rnp_key_store_t *,
                                  const unsigned,
                                  pgp_memory_t *);
 
-bool rnp_key_store_write_to_file(
-  rnp_t *rnp, rnp_key_store_t *, const uint8_t *, const unsigned, const char *);
+bool rnp_key_store_write_to_file(rnp_t *rnp,
+                                 rnp_key_store_t *,
+                                 const uint8_t *,
+                                 const unsigned);
 bool rnp_key_store_write_to_mem(
   rnp_t *rnp, rnp_key_store_t *, const uint8_t *, const unsigned, pgp_memory_t *);
 
+void rnp_key_store_clear(rnp_key_store_t *);
 void rnp_key_store_free(rnp_key_store_t *);
 
 bool rnp_key_store_list(pgp_io_t *, const rnp_key_store_t *, const int);
