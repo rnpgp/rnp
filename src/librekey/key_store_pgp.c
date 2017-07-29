@@ -88,18 +88,6 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         /* we get these because we didn't prompt */
         break;
     case PGP_PTAG_CT_SIGNATURE_HEADER:
-        if (keyring->keyc == 0) {
-            break;
-        }
-        key = &keyring->keys[keyring->keyc - 1];
-        EXPAND_ARRAY(key, subsig);
-        if (key->subsigs == NULL) {
-            break;
-        }
-        key->subsigs[key->subsigc].uid = key->uidc - 1;
-        (void) memcpy(&key->subsigs[key->subsigc].sig, &pkt->u.sig, sizeof(pkt->u.sig));
-        key->subsigc += 1;
-        break;
     case PGP_PTAG_CT_SIGNATURE:
         if (keyring->keyc == 0) {
             break;
