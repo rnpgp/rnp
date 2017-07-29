@@ -114,7 +114,8 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
     }
 
     if (((rnp_key_store_t *) rnp->pubring)->keyc < 1) {
-        fprintf(io->errs, "pub keyring is empty\n");
+        fprintf(
+          io->errs, "pub keyring '%s' is empty\n", ((rnp_key_store_t *) rnp->pubring)->path);
         return false;
     }
 
@@ -127,7 +128,9 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
         }
 
         if (((rnp_key_store_t *) rnp->secring)->keyc < 1) {
-            fprintf(io->errs, "sec keyring is empty\n");
+            fprintf(io->errs,
+                    "sec keyring '%s' is empty\n",
+                    ((rnp_key_store_t *) rnp->secring)->path);
             return false;
         }
 
@@ -171,21 +174,21 @@ rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsig
         }
 
         while ((ent = readdir(dir)) != NULL) {
-            if (ent->d_type != DT_REG && ent->d_type != DT_LNK) {
-                continue;
-            }
             if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) {
                 continue;
             }
 
             snprintf(path, MAXPATHLEN, "%s/%s", key_store->path, ent->d_name);
 
+            memset(&mem, 0, sizeof(mem));
+
             if (!pgp_mem_readfile(&mem, path)) {
-                return false;
+                fprintf(rnp->io->errs, "Can't read file '%s' to memory\n", path);
+                continue;
             }
 
             // G10 may don't read one file, so, ignore it!
-            if (!rnp_key_store_load_from_mem(rnp, key_store, armour, &mem)) {
+            if (!rnp_key_store_g10_from_mem(rnp->io, key_store, &mem)) {
                 fprintf(rnp->io->errs, "Can't parse file: %s\n", path);
             }
             pgp_memory_release(&mem);
@@ -240,7 +243,7 @@ rnp_key_store_write_to_file(rnp_t *          rnp,
     if (key_store->format == G10_KEY_STORE) {
         char    path[MAXPATHLEN];
         uint8_t grip[PGP_FINGERPRINT_SIZE];
-        char    grips[PGP_FINGERPRINT_SIZE * 2];
+        char    grips[PGP_FINGERPRINT_HEX_SIZE];
 
         struct stat path_stat;
         if (stat(key_store->path, &path_stat) != -1) {

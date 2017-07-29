@@ -29,6 +29,8 @@
 #include <limits.h>
 #include <packet.h>
 
+#include <rnp/rnp_sdk.h>
+
 #include "key_store_pgp.h"
 #include "key_store_g10.h"
 
@@ -250,7 +252,19 @@ read_bignum(s_exp_t *s_exp, const char *name)
         return NULL;
     }
 
-    return PGPV_BN_bin2bn(var->bytes, (int) var->len, NULL);
+    BIGNUM *res = PGPV_BN_bin2bn(var->bytes, (int) var->len, NULL);
+    if (res == NULL) {
+        char *buf = malloc((var->len * 3) + 1);
+        if (buf == NULL) {
+            fprintf(stderr, "Can't allocate memory\n");
+            return NULL;
+        }
+        fprintf(stderr,
+                "Can't convert variable '%s' to bignum. The value is: '%s'\n",
+                name,
+                rnp_strhexdump(buf, var->bytes, var->len, ""));
+    }
+    return res;
 }
 
 static bool
@@ -354,7 +368,6 @@ parse_pubkey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 
     default:
         fprintf(stderr, "Unsupported public key algorithm: %d\n", alg);
-        free(keydata);
         return NULL;
     }
 
@@ -419,7 +432,6 @@ parse_seckey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 
     default:
         fprintf(stderr, "Unsupported public key algorithm: %d\n", alg);
-        free(keydata);
         return NULL;
     }
 

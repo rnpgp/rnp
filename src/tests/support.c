@@ -338,7 +338,7 @@ setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pi
     char         pubpath[MAXPATHLEN];
     char         secpath[MAXPATHLEN];
     char         homepath[MAXPATHLEN];
-    rnp_params_t params = {};
+    rnp_params_t params = {0};
 
     rnp_params_init(&params);
 
