@@ -60,6 +60,25 @@
 #include <string.h>
 #include <stdlib.h>
 
+static void
+subsig_free(pgp_subsig_t *subsig)
+{
+    if (!subsig) {
+        return;
+    }
+    pgp_sig_free(&subsig->sig);
+}
+
+static void
+revoke_free(pgp_revoke_t *revoke)
+{
+    if (!revoke) {
+        return;
+    }
+    free(revoke->reason);
+    revoke->reason = NULL;
+}
+
 /**
    \ingroup HighLevel_Keyring
 
@@ -111,6 +130,26 @@ pgp_keydata_free(pgp_key_t *keydata)
         keydata->packets = NULL;
         keydata->packetc = 0;
     }
+
+    if (keydata->subsigs) {
+        for (n = 0; n < keydata->subsigc; ++n) {
+            subsig_free(&keydata->subsigs[n]);
+        }
+        free(keydata->subsigs);
+        keydata->subsigs = NULL;
+        keydata->subsigc = 0;
+    }
+
+    if (keydata->revokes) {
+        for (n = 0; n < keydata->revokec; ++n) {
+            revoke_free(&keydata->revokes[n]);
+        }
+        free(keydata->revokes);
+        keydata->revokes = NULL;
+        keydata->revokec = 0;
+
+    }
+    revoke_free(&keydata->revocation);
 
     if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
         pgp_pubkey_free(&keydata->key.pubkey);

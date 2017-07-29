@@ -926,9 +926,7 @@ void pgp_finish(void);
 void pgp_pubkey_free(pgp_pubkey_t *);
 void pgp_userid_free(uint8_t **);
 void pgp_data_free(pgp_data_t *);
-// TODO: Interesting that this function doesn't even exist.
-//       What does it mean? Is this struct ever freed?
-// void pgp_sig_free(pgp_sig_t *);
+void pgp_sig_free(pgp_sig_t *);
 void pgp_ss_notation_free(pgp_ss_notation_t *);
 void pgp_ss_revocation_free(pgp_ss_revocation_t *);
 void pgp_ss_sig_target_free(pgp_ss_sig_target_t *);

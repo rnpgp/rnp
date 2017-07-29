@@ -943,8 +943,8 @@ free_BN(BIGNUM **pp)
  * \brief Free the memory used when parsing a signature
  * \param sig
  */
-static void
-sig_free(pgp_sig_t *sig)
+void
+pgp_sig_free(pgp_sig_t *sig)
 {
     switch (sig->info.key_alg) {
     case PGP_PKA_RSA:
@@ -984,7 +984,7 @@ sig_free(pgp_sig_t *sig)
         break;
 
     default:
-        (void) fprintf(stderr, "sig_free: bad sig type\n");
+        (void) fprintf(stderr, "pgp_sig_free: bad sig type\n");
     }
 }
 
@@ -1039,7 +1039,7 @@ pgp_parser_content_free(pgp_packet_t *c)
 
     case PGP_PTAG_CT_SIGNATURE:
     case PGP_PTAG_CT_SIGNATURE_FOOTER:
-        sig_free(&c->u.sig);
+        pgp_sig_free(&c->u.sig);
         break;
 
     case PGP_PTAG_CT_PUBLIC_KEY:
