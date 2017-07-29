@@ -63,6 +63,7 @@
 #include "packet-parse.h"
 #include "symmetric.h"
 #include "bn.h"
+#include <rekey/rnp_key_store.h>
 
 #define PGP_MIN_HASH_SIZE 16
 #define MAX_CURVE_BYTELEN BITS_TO_BYTES(521) /* Length of NIST P-521 */
