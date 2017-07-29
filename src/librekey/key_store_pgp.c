@@ -94,14 +94,14 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
     case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
         keydata.seckey = content->seckey;
-        if (!rnp_key_store_add_keydata(io, keyring, &keydata, pkt->tag)) {
+        if (!rnp_key_store_add_keydata(io, keyring, &keydata, NULL, pkt->tag)) {
             return PGP_FINISHED;
         }
         return PGP_KEEP_MEMORY;
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
         keydata.pubkey = content->pubkey;
-        if (!rnp_key_store_add_keydata(io, keyring, &keydata, pkt->tag)) {
+        if (!rnp_key_store_add_keydata(io, keyring, &keydata, NULL, pkt->tag)) {
             return PGP_FINISHED;
         }
         return PGP_KEEP_MEMORY;

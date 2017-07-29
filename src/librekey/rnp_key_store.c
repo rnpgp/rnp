@@ -592,6 +592,7 @@ bool
 rnp_key_store_add_keydata(pgp_io_t *         io,
                           rnp_key_store_t *  keyring,
                           pgp_keydata_key_t *keydata,
+                          pgp_key_t **       inserted,
                           pgp_content_enum   tag)
 {
     pgp_key_t *key;
@@ -620,6 +621,9 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
         pgp_fingerprint(&key->encfingerprint, &keydata->pubkey);
         (void) memcpy(&key->enckey, &keydata->pubkey, sizeof(key->enckey));
         key->enckey.duration = key->key.pubkey.duration;
+    }
+    if (inserted) {
+        *inserted = key;
     }
 
     if (rnp_get_debug(__FILE__)) {

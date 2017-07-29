@@ -570,8 +570,12 @@ rnp_key_store_g10_from_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_
 
     destroy_s_exp(&s_exp);
 
-    return rnp_key_store_add_keydata(
-      io, key_store, &keydata, private_key ? PGP_PTAG_CT_SECRET_KEY : PGP_PTAG_CT_PUBLIC_KEY);
+    return rnp_key_store_add_keydata(io,
+                                     key_store,
+                                     &keydata,
+                                     NULL,
+                                     private_key ? PGP_PTAG_CT_SECRET_KEY :
+                                                   PGP_PTAG_CT_PUBLIC_KEY);
 }
 
 #define MAX_SIZE_T_LEN ((3 * sizeof(size_t) * CHAR_BIT / 8) + 2)
