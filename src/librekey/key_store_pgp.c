@@ -113,7 +113,7 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         (void) memcpy(&key->subsigs[key->subsigc].sig, &pkt->u.sig, sizeof(pkt->u.sig));
         key->subsigc += 1;
         break;
-    case PGP_PTAG_CT_TRUST:
+    case PGP_PTAG_SS_TRUST:
         if (keyring->keyc == 0) {
             break;
         }
