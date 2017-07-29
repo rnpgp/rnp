@@ -33,9 +33,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "rnp.h"
+#include <rnp/rnp.h>
 #include "crypto.h"
-#include "rnp_def.h"
+#include <rnp/rnp_def.h>
 #include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
 
@@ -67,7 +67,7 @@ main(int argc, char **argv)
         } else {
             switch (ch) {
             case 'S':
-                rnp_cfg_set(&opt_cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
+                rnp_cfg_set(&opt_cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
                 rnp_cfg_set(&opt_cfg, CFG_SSHKEYFILE, optarg);
                 break;
             case 'V':

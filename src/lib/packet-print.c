@@ -78,12 +78,11 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "bn.h"
 #include "crypto.h"
 #include "ecdsa.h"
-#include "key_store_pgp.h"
 #include "packet-show.h"
 #include "signature.h"
 #include "readerwriter.h"
 #include "utils.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 #include "packet.h"
 #include "rnpdigest.h"
 
@@ -614,7 +613,7 @@ pgp_sprint_keydata(pgp_io_t *             io,
     char *   string;
     int      total_length;
     char     keyid[PGP_KEY_ID_SIZE * 3];
-    char     fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
+    char     fingerprint[PGP_FINGERPRINT_HEX_SIZE];
     char     expiration_notice[128];
     char     birthtime[32];
     char     key_usage[8];
@@ -706,7 +705,7 @@ pgp_sprint_json(pgp_io_t *             io,
                 const int              psigs)
 {
     char     keyid[PGP_KEY_ID_SIZE * 3];
-    char     fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
+    char     fp[PGP_FINGERPRINT_HEX_SIZE];
     char     key_usage[8];
     int      r;
     unsigned i;
@@ -825,7 +824,7 @@ pgp_hkp_sprint_keydata(pgp_io_t *             io,
     unsigned         j;
     char             keyid[PGP_KEY_ID_SIZE * 3];
     char             uidbuf[KB(128)];
-    char             fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
+    char             fingerprint[PGP_FINGERPRINT_HEX_SIZE];
     int              n;
 
     if (key->revoked) {
@@ -967,7 +966,7 @@ pgp_print_pubkey(const pgp_pubkey_t *pubkey)
 int
 pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
 {
-    char fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
+    char fp[PGP_FINGERPRINT_HEX_SIZE];
     int  cc;
 
     cc =

@@ -25,8 +25,8 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <rnp.h>
-#include <key_store.h>
+#include <rnp/rnp.h>
+#include <rekey/rnp_key_store.h>
 #include "rnp_tests.h"
 #include "support.h"
 
@@ -40,7 +40,7 @@ rnpkeys_exportkey_verifyUserId(void **state)
     char *            exportedkey = NULL;
 
     /* Initialize the rnp structure. */
-    rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
+    rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
 
     /* Generate the key */
     set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);

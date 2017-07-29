@@ -68,11 +68,11 @@ __RCSID("$NetBSD: packet-show.c,v 1.21 2011/08/14 11:19:51 christos Exp $");
 #include <stdlib.h>
 #include <string.h>
 
-#include "rnp_def.h"
-#include "packet-show.h"
+#include <rnp/rnp_def.h>
+#include <rnp/rnp_sdk.h>
+#include <rnp/rnp_types.h>
 
-#include "rnpsdk.h"
-#include "utils.h"
+#include "packet-show.h"
 
 /*
  * Arrays of value->text maps

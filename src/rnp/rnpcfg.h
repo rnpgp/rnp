@@ -26,7 +26,7 @@
 #ifndef __RNP__CFG_H__
 #define __RNP__CFG_H__
 
-#include <rnp.h>
+#include <rnp/rnp.h>
 #include <stdbool.h>
 
 /* cfg variables known by rnp */
@@ -59,11 +59,6 @@
 #define CFG_NUMBITS "numbits"     /* number of bits in generated key */
 #define CFG_KEYFORMAT "format"    /* key format : "human" for human-readable or ... */
 #define CFG_EXPERT "expert"       /* expert key generation mode */
-
-/* additional cfg constants */
-#define CFG_KEYSTORE_GPG "GPG" /* GPG keyring format */
-#define CFG_KEYSTORE_KBX "KBX" /* GPG new keyring format : KBX */
-#define CFG_KEYSTORE_SSH "SSH" /* SSH keyring format */
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */

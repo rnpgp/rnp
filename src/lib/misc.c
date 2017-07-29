@@ -88,7 +88,7 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include "packet-parse.h"
 #include "packet-show.h"
 #include "signature.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 #include "utils.h"
 #include "memory.h"
 #include "readerwriter.h"
@@ -563,7 +563,7 @@ pgp_memory_init(pgp_memory_t *mem, size_t needed)
 \param mem Memory to use
 \param length New size
 */
-int
+bool
 pgp_memory_pad(pgp_memory_t *mem, size_t length)
 {
     uint8_t *temp;
@@ -597,7 +597,7 @@ pgp_memory_pad(pgp_memory_t *mem, size_t length)
 \param src Data to add
 \param length Length of data to add
 */
-int
+bool
 pgp_memory_add(pgp_memory_t *mem, const uint8_t *src, size_t length)
 {
     if (!pgp_memory_pad(mem, length)) {

@@ -29,11 +29,10 @@
 #include <eddsa.h>
 #include <elgamal.h>
 #include <crypto.h>
-#include <key_store_pgp.h>
 #include <packet.h>
 #include <pgp-key.h>
 #include <bn.h>
-#include <rnp.h>
+#include <rnp/rnp.h>
 #include <ecdsa.h>
 #include <readerwriter.h>
 

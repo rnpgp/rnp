@@ -646,6 +646,7 @@ typedef pgp_dsa_sig_t pgp_ecc_sig_t;
 
 #define PGP_KEY_ID_SIZE 8
 #define PGP_FINGERPRINT_SIZE 20
+#define PGP_FINGERPRINT_HEX_SIZE (PGP_FINGERPRINT_SIZE * 3) + 1
 
 /** Struct to hold a signature packet.
  *

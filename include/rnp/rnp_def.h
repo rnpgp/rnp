@@ -42,6 +42,8 @@
 #define SECRING_KBX "secring.kbx"
 #define PUBRING_GPG "pubring.gpg"
 #define SECRING_GPG "secring.gpg"
+#define PUBRING_G10 "public-keys-v1.d"
+#define SECRING_G10 "private-keys-v1.d"
 
 #define MAX_PASSPHRASE_ATTEMPTS 3
 #define INFINITE_ATTEMPTS -1
@@ -88,5 +90,7 @@ enum {
     RNP_ERROR_EOF
 
 };
+
+enum { MAX_ID_LENGTH = 128, MAX_PASSPHRASE_LENGTH = 256 };
 
 #endif

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2009-2010 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -27,19 +28,28 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-
-#ifndef KEY_STORE_INTERNAL_H_
-#define KEY_STORE_INTERNAL_H_
-
-#include <rnp.h>
-#include <json.h>
+#ifndef RNPSDK_H_
+#define RNPSDK_H_
 
 #include <stdint.h>
 
-#include "packet.h"
-#include "key_store.h"
+#include <rnp/rnp_def.h>
 
-void rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len);
-bool rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int last);
+#ifndef __printflike
+#define __printflike(n, m) __attribute__((format(printf, n, m)))
+#endif
 
-#endif /* KEY_STORE_INTERNAL_H_ */
+const char *rnp_get_info(const char *type);
+
+void rnp_log(const char *, ...) __printflike(1, 2);
+
+int   rnp_strcasecmp(const char *, const char *);
+char *rnp_strdup(const char *);
+
+char *rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep);
+
+int64_t rnp_filemtime(const char *path);
+
+const char *rnp_filename(const char *path);
+
+#endif

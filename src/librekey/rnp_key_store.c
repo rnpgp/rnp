@@ -28,6 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/param.h>
 
@@ -36,37 +37,57 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <dirent.h>
 
-#include "config.h"
+#include <rnp/rnp.h>
+#include <rnp/rnp_sdk.h>
+#include <rekey/rnp_key_store.h>
 
-#include "rnp.h"
-#include "utils.h"
-#include "key_store.h"
 #include "key_store_internal.h"
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
+#include "key_store_ssh.h"
+#include "key_store_g10.h"
+
 #include "packet-print.h"
 #include "pgp-key.h"
-#include "packet.h"
-#include "utils.h"
 
-#include "key_store_ssh.h"
-
-static void *
-rnp_key_store_read_keyring(rnp_t *rnp, const char *path)
+static bool
+parse_ks_format(enum key_store_format_t *key_store_format, const char *format)
 {
-    rnp_key_store_t *key_store;
+    if (strcmp(format, RNP_KEYSTORE_GPG) == 0) {
+        *key_store_format = GPG_KEY_STORE;
+    } else if (strcmp(format, RNP_KEYSTORE_KBX) == 0) {
+        *key_store_format = KBX_KEY_STORE;
+    } else if (strcmp(format, RNP_KEYSTORE_SSH) == 0) {
+        *key_store_format = SSH_KEY_STORE;
+    } else if (strcmp(format, RNP_KEYSTORE_G10) == 0) {
+        *key_store_format = G10_KEY_STORE;
+    } else {
+        fprintf(stderr, "rnp: unsupported keystore format: \"%s\"\n", format);
+        return false;
+    }
+    return true;
+}
 
-    if ((key_store = calloc(1, sizeof(*key_store))) == NULL) {
-        (void) fprintf(stderr, "rnp_key_store_read_keyring: bad alloc\n");
+rnp_key_store_t *
+rnp_key_store_new(const char *format, const char *path)
+{
+    rnp_key_store_t *       key_store = NULL;
+    enum key_store_format_t key_store_format = UNKNOW_KEY_STORE;
+
+    if (!parse_ks_format(&key_store_format, format)) {
+        return false;
+    }
+
+    key_store = calloc(1, sizeof(*key_store));
+    if (key_store == NULL) {
+        fprintf(stderr, "Can't allocate memory\n");
         return NULL;
     }
 
-    if (!rnp_key_store_load_from_file(rnp, key_store, 0, path)) {
-        free(key_store);
-        (void) fprintf(stderr, "rnp_key_store_read_keyring: cannot read %s\n", path);
-        return NULL;
-    }
+    key_store->format = key_store_format;
+    key_store->path = strdup(path);
 
     return key_store;
 }
@@ -75,51 +96,41 @@ bool
 rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 {
     char      id[MAX_ID_LENGTH];
-    void *    newring;
     pgp_io_t *io = rnp->io;
 
-    if (rnp->key_store_format == SSH_KEY_STORE) {
+    rnp_key_store_t *pubring = rnp->pubring;
+    rnp_key_store_t *secring = rnp->secring;
+
+    rnp_key_store_clear(rnp->pubring);
+
+    if (pubring->format == SSH_KEY_STORE || secring->format == SSH_KEY_STORE) {
         return rnp_key_store_ssh_load_keys(
-          rnp, rnp->pubpath, loadsecret ? rnp->secpath : NULL);
+          rnp, rnp->pubring, loadsecret ? rnp->secring : NULL);
     }
 
-    newring = rnp_key_store_read_keyring(rnp, rnp->pubpath);
-
-    if (newring == NULL) {
+    if (!rnp_key_store_load_from_file(rnp, rnp->pubring, 0)) {
         fprintf(io->errs, "cannot read pub keyring\n");
         return false;
     }
 
-    if (rnp->pubring) {
-        rnp_key_store_free(rnp->pubring);
-        free(rnp->pubring);
-    }
-
-    rnp->pubring = newring;
-
     if (((rnp_key_store_t *) rnp->pubring)->keyc < 1) {
-        fprintf(io->errs, "pub keyring is empty\n");
+        fprintf(
+          io->errs, "pub keyring '%s' is empty\n", ((rnp_key_store_t *) rnp->pubring)->path);
         return false;
     }
 
     /* Only read secret keys if we need to */
     if (loadsecret) {
-        newring = rnp_key_store_read_keyring(rnp, rnp->secpath);
-
-        if (newring == NULL) {
+        rnp_key_store_clear(rnp->secring);
+        if (!rnp_key_store_load_from_file(rnp, rnp->secring, 0)) {
             fprintf(io->errs, "cannot read sec keyring\n");
             return false;
         }
 
-        if (rnp->secring) {
-            rnp_key_store_free(rnp->secring);
-            free(rnp->secring);
-        }
-
-        rnp->secring = newring;
-
         if (((rnp_key_store_t *) rnp->secring)->keyc < 1) {
-            fprintf(io->errs, "sec keyring is empty\n");
+            fprintf(io->errs,
+                    "sec keyring '%s' is empty\n",
+                    ((rnp_key_store_t *) rnp->secring)->path);
             return false;
         }
 
@@ -143,19 +154,50 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 }
 
 int
-rnp_key_store_load_from_file(rnp_t *          rnp,
-                             rnp_key_store_t *key_store,
-                             const unsigned   armour,
-                             const char *     filename)
+rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsigned armour)
 {
-    int          rc;
-    pgp_memory_t mem = {0};
+    DIR *          dir;
+    bool           rc;
+    pgp_memory_t   mem = {0};
+    struct dirent *ent;
+    char           path[MAXPATHLEN];
 
-    if (rnp->key_store_format == SSH_KEY_STORE) {
-        return rnp_key_store_ssh_from_file(rnp->io, key_store, filename);
+    if (key_store->format == SSH_KEY_STORE) {
+        return rnp_key_store_ssh_from_file(rnp->io, key_store, key_store->path);
     }
 
-    if (!pgp_mem_readfile(&mem, filename)) {
+    if (key_store->format == G10_KEY_STORE) {
+        dir = opendir(key_store->path);
+        if (dir == NULL) {
+            fprintf(rnp->io->errs, "Can't open G10 directory: %s\n", strerror(errno));
+            return false;
+        }
+
+        while ((ent = readdir(dir)) != NULL) {
+            if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..")) {
+                continue;
+            }
+
+            snprintf(path, MAXPATHLEN, "%s/%s", key_store->path, ent->d_name);
+
+            memset(&mem, 0, sizeof(mem));
+
+            if (!pgp_mem_readfile(&mem, path)) {
+                fprintf(rnp->io->errs, "Can't read file '%s' to memory\n", path);
+                continue;
+            }
+
+            // G10 may don't read one file, so, ignore it!
+            if (!rnp_key_store_g10_from_mem(rnp->io, key_store, &mem)) {
+                fprintf(rnp->io->errs, "Can't parse file: %s\n", path);
+            }
+            pgp_memory_release(&mem);
+        }
+
+        return true;
+    }
+
+    if (!pgp_mem_readfile(&mem, key_store->path)) {
         return false;
     }
 
@@ -170,15 +212,20 @@ rnp_key_store_load_from_mem(rnp_t *          rnp,
                             const unsigned   armour,
                             pgp_memory_t *   memory)
 {
-    switch (rnp->key_store_format) {
+    switch (key_store->format) {
     case GPG_KEY_STORE:
         return rnp_key_store_pgp_read_from_mem(rnp->io, key_store, armour, memory);
 
     case KBX_KEY_STORE:
         return rnp_key_store_kbx_from_mem(rnp->io, key_store, memory);
 
-    case SSH_KEY_STORE:
-        return rnp_key_store_ssh_from_mem(rnp->io, key_store, memory);
+    case G10_KEY_STORE:
+        return rnp_key_store_g10_from_mem(rnp->io, key_store, memory);
+
+    default:
+        fprintf(rnp->io->errs,
+                "Unsupported load from memory for key-store format: %d\n",
+                key_store->format);
     }
 
     return false;
@@ -188,21 +235,70 @@ bool
 rnp_key_store_write_to_file(rnp_t *          rnp,
                             rnp_key_store_t *key_store,
                             const uint8_t *  passphrase,
-                            const unsigned   armour,
-                            const char *     filename)
+                            const unsigned   armour)
 {
     bool         rc;
     pgp_memory_t mem = {0};
 
-    if (rnp->key_store_format == SSH_KEY_STORE) {
-        return rnp_key_store_ssh_to_file(rnp->io, key_store, passphrase, filename);
+    if (key_store->format == G10_KEY_STORE) {
+        char    path[MAXPATHLEN];
+        uint8_t grip[PGP_FINGERPRINT_SIZE];
+        char    grips[PGP_FINGERPRINT_HEX_SIZE];
+
+        struct stat path_stat;
+        if (stat(key_store->path, &path_stat) != -1) {
+            if (!S_ISDIR(path_stat.st_mode)) {
+                fprintf(
+                  rnp->io->errs, "G10 keystore should be a directory: %s\n", key_store->path);
+                return false;
+            }
+        } else {
+            if (errno != ENOENT) {
+                fprintf(rnp->io->errs, "stat(%s): %s\n", key_store->path, strerror(errno));
+                return false;
+            }
+            if (mkdir(key_store->path, S_IRWXU) != 0) {
+                fprintf(
+                  rnp->io->errs, "mkdir(%s, S_IRWXU): %s\n", key_store->path, strerror(errno));
+                return false;
+            }
+        }
+
+        for (int i = 0; i < key_store->keyc; i++) {
+            if (!rnp_key_store_g10_key_grip(&key_store->keys[i].key.pubkey, grip)) {
+                return false;
+            }
+
+            snprintf(path,
+                     MAXPATHLEN,
+                     "%s/%s.key",
+                     key_store->path,
+                     rnp_strhexdump(grips, grip, 20, ""));
+
+            memset(&mem, 0, sizeof(mem));
+            if (!rnp_key_store_g10_key_to_mem(
+                  rnp->io, &key_store->keys[i], passphrase, &mem)) {
+                pgp_memory_release(&mem);
+                return false;
+            }
+
+            rc = pgp_mem_writefile(&mem, path);
+            pgp_memory_release(&mem);
+
+            if (!rc) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     if (!rnp_key_store_write_to_mem(rnp, key_store, passphrase, armour, &mem)) {
+        pgp_memory_release(&mem);
         return false;
     }
 
-    rc = pgp_mem_writefile(&mem, filename);
+    rc = pgp_mem_writefile(&mem, key_store->path);
     pgp_memory_release(&mem);
     return rc;
 }
@@ -214,15 +310,17 @@ rnp_key_store_write_to_mem(rnp_t *          rnp,
                            const unsigned   armour,
                            pgp_memory_t *   memory)
 {
-    switch (rnp->key_store_format) {
+    switch (key_store->format) {
     case GPG_KEY_STORE:
         return rnp_key_store_pgp_write_to_mem(rnp->io, key_store, passphrase, armour, memory);
 
     case KBX_KEY_STORE:
         return rnp_key_store_kbx_to_mem(rnp->io, key_store, passphrase, memory);
 
-    case SSH_KEY_STORE:
-        return rnp_key_store_ssh_to_mem(rnp->io, key_store, passphrase, memory);
+    default:
+        fprintf(rnp->io->errs,
+                "Unsupported write to memory for key-store format: %d\n",
+                key_store->format);
     }
 
     return false;
@@ -295,17 +393,8 @@ rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int la
     return true;
 }
 
-/**
-   \ingroup HighLevel_KeyringRead
-
-   \brief Frees keyring's contents (but not keyring itself)
-
-   \param keyring Keyring whose data is to be freed
-
-   \note This does not free keyring itself, just the memory alloc-ed in it.
- */
 void
-rnp_key_store_free(rnp_key_store_t *keyring)
+rnp_key_store_clear(rnp_key_store_t *keyring)
 {
     int i;
 
@@ -315,8 +404,8 @@ rnp_key_store_free(rnp_key_store_t *keyring)
             FREE_ARRAY((&keyring->keys[i]), subsig);
             FREE_ARRAY((&keyring->keys[i]), revoke);
         }
+        keyring->keyc = 0;
     }
-    FREE_ARRAY(keyring, key);
 
     if (keyring->blobs != NULL) {
         for (i = 0; i < keyring->blobc; i++) {
@@ -330,8 +419,25 @@ rnp_key_store_free(rnp_key_store_t *keyring)
             }
             free(keyring->blobs[i]);
         }
+        keyring->blobc = 0;
     }
+}
+
+void
+rnp_key_store_free(rnp_key_store_t *keyring)
+{
+    if (keyring == NULL) {
+        return;
+    }
+
+    rnp_key_store_clear(keyring);
+
+    FREE_ARRAY(keyring, key);
     FREE_ARRAY(keyring, blob);
+
+    free((void *) keyring->path);
+
+    free(keyring);
 }
 
 /**

@@ -54,30 +54,16 @@ __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights rese
 __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #endif
 
-#ifdef HAVE_FCNTL_H
-#include <fcntl.h>
-#endif
-
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef HAVE_TERMIOS_H
-#include <termios.h>
-#endif
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#include <json.h>
+#include <rnp/rnp_sdk.h>
 
 #include "types.h"
 #include "key_store_pgp.h"
 #include "signature.h"
-#include "rnpsdk.h"
+#include "packet-show.h"
 #include "readerwriter.h"
-#include "utils.h"
-#include "packet.h"
 
 void print_packet_hex(const pgp_rawpacket_t *pkt);
 

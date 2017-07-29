@@ -1,11 +1,6 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
- *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,14 +24,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RNP_RNP_H
-#define RNP_RNP_H
+#ifndef RNP_KEY_STORE_KBX_H
+#define RNP_KEY_STORE_KBX_H
 
 #include <rnp/rnp.h>
-#include <rnp/rnp_def.h>
-#include <rnp/rnp_obsolete_defs.h>
-#include <rnp/rnp_types.h>
-
 #include <rekey/rnp_key_store.h>
 
-#endif // RNP_RNP_H
+bool rnp_key_store_kbx_from_mem(pgp_io_t *, rnp_key_store_t *, pgp_memory_t *);
+bool rnp_key_store_kbx_to_mem(pgp_io_t *, rnp_key_store_t *, const uint8_t *, pgp_memory_t *);
+
+#endif // RNP_KEY_STORE_KBX_H
