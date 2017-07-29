@@ -39,6 +39,7 @@ matrix:
             - clang-format-4.0
   allow_failures:
     - env: BUILD_MODE=sanitize-leaks
+    - env: BUILD_MODE=style-check
 
 cache:
   directories:
