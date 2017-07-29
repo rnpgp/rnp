@@ -905,7 +905,7 @@ pgp_add_time(pgp_create_sig_t *sig, int64_t when, pgp_content_enum tag)
     }
 
     /* just do 32-bit timestamps for just now - it's in the protocol */
-    return pgp_write_ss_header(sig->output, 5, tag) &&
+    return pgp_write_ss_header(sig->output, 4, tag) &&
            pgp_write_scalar(sig->output, (uint32_t) when, (unsigned) sizeof(uint32_t));
 }
 
@@ -921,7 +921,7 @@ pgp_add_time(pgp_create_sig_t *sig, int64_t when, pgp_content_enum tag)
 unsigned
 pgp_add_issuer_keyid(pgp_create_sig_t *sig, const uint8_t keyid[PGP_KEY_ID_SIZE])
 {
-    return pgp_write_ss_header(sig->output, PGP_KEY_ID_SIZE + 1, PGP_PTAG_SS_ISSUER_KEY_ID) &&
+    return pgp_write_ss_header(sig->output, PGP_KEY_ID_SIZE, PGP_PTAG_SS_ISSUER_KEY_ID) &&
            pgp_write(sig->output, keyid, PGP_KEY_ID_SIZE);
 }
 
@@ -936,8 +936,51 @@ pgp_add_issuer_keyid(pgp_create_sig_t *sig, const uint8_t keyid[PGP_KEY_ID_SIZE]
 void
 pgp_add_primary_userid(pgp_create_sig_t *sig, unsigned primary)
 {
-    pgp_write_ss_header(sig->output, 2, PGP_PTAG_SS_PRIMARY_USER_ID);
+    pgp_write_ss_header(sig->output, 1, PGP_PTAG_SS_PRIMARY_USER_ID);
     pgp_write_scalar(sig->output, primary, 1);
+}
+
+unsigned
+pgp_sig_add_key_flags(pgp_create_sig_t *sig, const uint8_t *key_flags, size_t octet_count)
+{
+    return pgp_write_ss_header(sig->output, octet_count, PGP_PTAG_SS_KEY_FLAGS) &&
+           pgp_write(sig->output, key_flags, octet_count);
+}
+
+unsigned
+pgp_sig_add_pref_symm_algs(pgp_create_sig_t *sig, const uint8_t *algs, size_t octet_count)
+{
+    return pgp_write_ss_header(sig->output, octet_count, PGP_PTAG_SS_PREFERRED_SKA) &&
+           pgp_write(sig->output, algs, octet_count);
+}
+
+unsigned
+pgp_sig_add_pref_hash_algs(pgp_create_sig_t *sig, const uint8_t *algs, size_t octet_count)
+{
+    return pgp_write_ss_header(sig->output, octet_count, PGP_PTAG_SS_PREFERRED_HASH) &&
+           pgp_write(sig->output, algs, octet_count);
+}
+
+unsigned
+pgp_sig_add_pref_compress_algs(pgp_create_sig_t *sig, const uint8_t *algs, size_t octet_count)
+{
+    return pgp_write_ss_header(sig->output, octet_count, PGP_PTAG_SS_PREF_COMPRESS) &&
+           pgp_write(sig->output, algs, octet_count);
+}
+
+unsigned
+pgp_sig_add_key_server_prefs(pgp_create_sig_t *sig, const uint8_t *flags, size_t octet_count)
+{
+    return pgp_write_ss_header(sig->output, octet_count, PGP_PTAG_SS_KEYSERV_PREFS) &&
+           pgp_write(sig->output, flags, octet_count);
+}
+
+unsigned
+pgp_sig_add_preferred_key_server(pgp_create_sig_t *sig, const uint8_t *uri)
+{
+    size_t length = strlen((const char *) uri);
+    return pgp_write_ss_header(sig->output, (unsigned) length, PGP_PTAG_SS_PREF_KEYSERV) &&
+           pgp_write(sig->output, uri, length);
 }
 
 /**

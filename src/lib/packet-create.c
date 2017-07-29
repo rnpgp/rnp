@@ -109,7 +109,8 @@ extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 unsigned
 pgp_write_ss_header(pgp_output_t *output, unsigned length, pgp_content_enum type)
 {
-    return pgp_write_length(output, length) &&
+    // add 1 here since length includes the 1-octet subpacket type
+    return pgp_write_length(output, length + 1) &&
            pgp_write_scalar(
              output, (unsigned) (type - (unsigned) PGP_PTAG_SIG_SUBPKT_BASE), 1);
 }
