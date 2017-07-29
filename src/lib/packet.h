@@ -1012,10 +1012,11 @@ typedef struct pgp_revoke_t {
 
 /** signature subpackets */
 typedef struct pgp_subsig_t {
-    uint32_t  uid;         /* index in userid array in key */
-    pgp_sig_t sig;         /* trust signature */
-    uint8_t   trustlevel;  /* level of trust */
-    uint8_t   trustamount; /* amount of trust */
+    uint32_t  uid;          /* index in userid array in key */
+    pgp_sig_t sig;          /* trust signature */
+    uint8_t   trustlevel;   /* level of trust */
+    uint8_t   trustamount;  /* amount of trust */
+    uint8_t   key_flags;    /* key flags */
 } pgp_subsig_t;
 
 /* describes a user's key */

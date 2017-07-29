@@ -72,7 +72,32 @@ void print_packet_hex(const pgp_rawpacket_t *pkt);
 typedef struct keyringcb_t {
     rnp_key_store_t *keyring; /* the keyring we're reading */
     pgp_io_t *       io;
+    pgp_key_t *      key;    /* the key we're currently loading */
+    pgp_subsig_t *   subsig; /* the signature we're currently loading */
 } keyringcb_t;
+
+#define KEY_REQUIRED_BEFORE(str)                                                            \
+    do {                                                                                    \
+        if (!(key)) {                                                                       \
+            RNP_LOG("Key packet expected before %s.", (str));                               \
+            PGP_ERROR_1(                                                                    \
+              cbinfo->errors, PGP_E_R_BAD_FORMAT, "Key packet expected before %s.", (str)); \
+            return PGP_FINISHED;                                                            \
+        }                                                                                   \
+    } while (0)
+
+#define SUBSIG_REQUIRED_BEFORE(str)                                 \
+    do {                                                            \
+        KEY_REQUIRED_BEFORE((str));                                 \
+        if (!(key->subsigc) || !(subsig)) {                         \
+            RNP_LOG("Signature packet expected before %s.", (str)); \
+            PGP_ERROR_1(cbinfo->errors,                             \
+                        PGP_E_R_BAD_FORMAT,                         \
+                        "Signature packet expected before %s.",     \
+                        (str));                                     \
+            return PGP_FINISHED;                                    \
+        }                                                           \
+    } while (0)
 
 static pgp_cb_ret_t
 cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
@@ -80,125 +105,106 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     const pgp_contents_t *content = &pkt->u;
     rnp_key_store_t *     keyring;
     pgp_revoke_t *        revocation;
-    pgp_key_t *           key;
     keyringcb_t *         cb;
     pgp_io_t *            io;
+    pgp_key_t *           key;
+    pgp_subsig_t *        subsig;
     pgp_keydata_key_t     keydata;
 
     cb = pgp_callback_arg(cbinfo);
     keyring = cb->keyring;
     io = cb->io;
+    key = cb->key;
+    subsig = cb->subsig;
+
     switch (pkt->tag) {
     case PGP_PTAG_CT_SECRET_KEY:
     case PGP_PTAG_CT_SECRET_SUBKEY:
     case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
     case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
         keydata.seckey = content->seckey;
-        if (!rnp_key_store_add_keydata(io, keyring, &keydata, NULL, pkt->tag)) {
+        if (!rnp_key_store_add_keydata(io, keyring, &keydata, &cb->key, pkt->tag)) {
+            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to add keydata to key store.");
             return PGP_FINISHED;
         }
+        cb->subsig = NULL;
         return PGP_KEEP_MEMORY;
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
         keydata.pubkey = content->pubkey;
-        if (!rnp_key_store_add_keydata(io, keyring, &keydata, NULL, pkt->tag)) {
+        if (!rnp_key_store_add_keydata(io, keyring, &keydata, &cb->key, pkt->tag)) {
+            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to add keydata to key store.");
             return PGP_FINISHED;
         }
+        cb->subsig = NULL;
         return PGP_KEEP_MEMORY;
     case PGP_PTAG_CT_USER_ID:
-        if (keyring->keyc == 0) {
-            PGP_ERROR_1(cbinfo->errors, PGP_E_P_NO_USERID, "%s", "No userid found");
-        } else {
-            pgp_add_userid(&keyring->keys[keyring->keyc - 1], content->userid);
+        KEY_REQUIRED_BEFORE("userid");
+        if (!pgp_add_userid(key, content->userid)) {
+            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to add userid to key.");
+            return PGP_FINISHED;
         }
         break;
     case PGP_PARSER_PACKET_END:
-        if (keyring->keyc > 0) {
-            pgp_add_rawpacket(&keyring->keys[keyring->keyc - 1], &content->packet);
-            return PGP_KEEP_MEMORY;
+        KEY_REQUIRED_BEFORE("raw packet");
+        // TODO: pgp_add_rawpacket allocates and copies the data, which we could probably
+        // avoid and just use PGP_KEEP_MEMORY.
+        if (!pgp_add_rawpacket(key, &content->packet)) {
+            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to add raw packet to key.");
+            return PGP_FINISHED;
         }
         break;
     case PGP_PARSER_ERROR:
-        (void) fprintf(stderr, "Error: %s\n", content->error);
+        RNP_LOG("Error: %s\n", content->error);
         return PGP_FINISHED;
     case PGP_PARSER_ERRCODE:
-        (void) fprintf(stderr, "parse error: %s\n", pgp_errcode(content->errcode.errcode));
+        RNP_LOG("parse error: %s\n", pgp_errcode(content->errcode.errcode));
         break;
     case PGP_PTAG_CT_SIGNATURE_HEADER:
     case PGP_PTAG_CT_SIGNATURE:
-        if (keyring->keyc == 0) {
-            break;
-        }
-        key = &keyring->keys[keyring->keyc - 1];
+        KEY_REQUIRED_BEFORE("signature");
         EXPAND_ARRAY(key, subsig);
         if (key->subsigs == NULL) {
-            break;
+            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
+            return PGP_FINISHED;
         }
-        key->subsigs[key->subsigc].uid = key->uidc - 1;
-        (void) memcpy(&key->subsigs[key->subsigc].sig, &pkt->u.sig, sizeof(pkt->u.sig));
-        key->subsigc += 1;
-        break;
+        subsig = cb->subsig = &key->subsigs[key->subsigc];
+        subsig->uid = key->uidc - 1;
+        memcpy(&subsig->sig, &pkt->u.sig, sizeof(pkt->u.sig));
+        key->subsigc++;
+        return PGP_KEEP_MEMORY;
     case PGP_PTAG_SS_TRUST:
-        if (keyring->keyc == 0) {
-            break;
-        }
-        key = &keyring->keys[keyring->keyc - 1];
-        if (key->subsigc == 0) {
-            break;
-        }
-        key->subsigs[key->subsigc - 1].trustlevel = pkt->u.ss_trust.level;
-        key->subsigs[key->subsigc - 1].trustamount = pkt->u.ss_trust.amount;
+        SUBSIG_REQUIRED_BEFORE("ss trust");
+        subsig->trustlevel = pkt->u.ss_trust.level;
+        subsig->trustamount = pkt->u.ss_trust.amount;
         break;
     case PGP_PTAG_SS_KEY_EXPIRY:
-        EXPAND_ARRAY(keyring, key);
-        if (keyring->keys == NULL) {
-            break;
-        }
-        if (keyring->keyc > 0) {
-            keyring->keys[keyring->keyc - 1].key.pubkey.duration = pkt->u.ss_time;
-        }
+        KEY_REQUIRED_BEFORE("ss key expiry");
+        key->key.pubkey.duration = pkt->u.ss_time;
         break;
     case PGP_PTAG_SS_ISSUER_KEY_ID:
-        if (keyring->keyc == 0) {
-            break;
-        }
-        key = &keyring->keys[keyring->keyc - 1];
-        if (key->subsigc == 0) {
-            break;
-        }
-        (void) memcpy(&key->subsigs[key->subsigc - 1].sig.info.signer_id,
+        SUBSIG_REQUIRED_BEFORE("ss issuer key id");
+        memcpy(&subsig->sig.info.signer_id,
                       pkt->u.ss_issuer,
                       sizeof(pkt->u.ss_issuer));
-        key->subsigs[key->subsigc - 1].sig.info.signer_id_set = 1;
+        subsig->sig.info.signer_id_set = 1;
         break;
     case PGP_PTAG_SS_CREATION_TIME:
-        if (keyring->keyc == 0) {
-            break;
-        }
-        key = &keyring->keys[keyring->keyc - 1];
-        if (key->subsigc == 0) {
-            break;
-        }
-        key->subsigs[key->subsigc - 1].sig.info.birthtime = pkt->u.ss_time;
-        key->subsigs[key->subsigc - 1].sig.info.birthtime_set = 1;
+        SUBSIG_REQUIRED_BEFORE("ss creation time");
+        subsig->sig.info.birthtime = pkt->u.ss_time;
+        subsig->sig.info.birthtime_set = 1;
         break;
     case PGP_PTAG_SS_EXPIRATION_TIME:
-        if (keyring->keyc == 0) {
-            break;
-        }
-        key = &keyring->keys[keyring->keyc - 1];
-        if (key->subsigc == 0) {
-            break;
-        }
-        key->subsigs[key->subsigc - 1].sig.info.duration = pkt->u.ss_time;
-        key->subsigs[key->subsigc - 1].sig.info.duration_set = 1;
+        SUBSIG_REQUIRED_BEFORE("ss expiration time");
+        subsig->sig.info.duration = pkt->u.ss_time;
+        subsig->sig.info.duration_set = 1;
         break;
     case PGP_PTAG_SS_PRIMARY_USER_ID:
-        key = &keyring->keys[keyring->keyc - 1];
+        KEY_REQUIRED_BEFORE("ss primary userid");
         key->uid0 = key->uidc - 1;
         break;
     case PGP_PTAG_SS_REVOCATION_REASON:
-        key = &keyring->keys[keyring->keyc - 1];
+        SUBSIG_REQUIRED_BEFORE("ss revocation reason");
         if (key->uidc == 0) {
             /* revoke whole key */
             key->revoked = 1;
@@ -207,7 +213,8 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             /* revoke the user id */
             EXPAND_ARRAY(key, revoke);
             if (key->revokes == NULL) {
-                break;
+                PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
+                return PGP_FINISHED;
             }
             revocation = &key->revokes[key->revokec];
             key->revokes[key->revokec].uid = key->uidc - 1;
@@ -217,8 +224,9 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         revocation->reason = rnp_strdup(pgp_show_ss_rr_code(pkt->u.ss_revocation.code));
         break;
     case PGP_PTAG_SS_KEY_FLAGS:
-        key = &keyring->keys[keyring->keyc - 1];
-        key->flags = pkt->u.ss_key_flags.contents[0];
+        SUBSIG_REQUIRED_BEFORE("ss key flags");
+        subsig->key_flags = pkt->u.ss_key_flags.contents[0];
+        key->flags = subsig->key_flags;
         break;
     default:
         break;
