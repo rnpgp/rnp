@@ -218,7 +218,7 @@ pkcs1_rsa_test_success(void **state)
     test_value_equal("RSA 1024 decrypt", "616263", decrypted, 3);
 
     rnp_assert_int_equal(rstate, decrypted_size, 3);
-    pgp_keydata_free(pgp_key);
+    pgp_key_free(pgp_key);
 }
 
 void
@@ -262,7 +262,7 @@ rnp_test_eddsa(void **state)
 
     BN_free(r);
     BN_free(s);
-    pgp_keydata_free(pgp_key);
+    pgp_key_free(pgp_key);
 }
 
 void
@@ -406,7 +406,7 @@ ecdsa_signverify_success(void **state)
 
         BN_clear_free(sig.r);
         BN_clear_free(sig.s);
-        pgp_keydata_free(pgp_key1);
-        pgp_keydata_free(pgp_key2);
+        pgp_key_free(pgp_key1);
+        pgp_key_free(pgp_key2);
     }
 }

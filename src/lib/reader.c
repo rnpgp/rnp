@@ -2133,9 +2133,9 @@ pgp_pk_sesskey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             return (pgp_cb_ret_t) 0;
         }
         from = 0;
-        cbinfo->cryptinfo.keydata = rnp_key_store_get_key_by_id(
+        cbinfo->cryptinfo.key = rnp_key_store_get_key_by_id(
           io, cbinfo->cryptinfo.secring, content->pk_sesskey.key_id, &from, NULL);
-        if (!cbinfo->cryptinfo.keydata) {
+        if (!cbinfo->cryptinfo.key) {
             break;
         }
         break;
@@ -2184,12 +2184,12 @@ pgp_get_seckey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
           io, cbinfo->cryptinfo.pubring, content->get_seckey.pk_sesskey->key_id, &from, NULL);
         /* validate key from secring */
         from = 0;
-        cbinfo->cryptinfo.keydata = rnp_key_store_get_key_by_id(
+        cbinfo->cryptinfo.key = rnp_key_store_get_key_by_id(
           io, cbinfo->cryptinfo.secring, content->get_seckey.pk_sesskey->key_id, &from, NULL);
-        if (!cbinfo->cryptinfo.keydata || !pgp_is_key_secret(cbinfo->cryptinfo.keydata)) {
+        if (!cbinfo->cryptinfo.key || !pgp_is_key_secret(cbinfo->cryptinfo.key)) {
             return (pgp_cb_ret_t) 0;
         }
-        keypair = cbinfo->cryptinfo.keydata;
+        keypair = cbinfo->cryptinfo.key;
         if (pubkey == NULL) {
             pubkey = keypair;
         }
@@ -2197,7 +2197,7 @@ pgp_get_seckey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         cbinfo->gotpass = 0;
         for (i = 0; cbinfo->numtries == -1 || i < cbinfo->numtries; i++) {
             /* print out the user id */
-            pgp_print_keydata(
+            pgp_print_key(
               io, cbinfo->cryptinfo.pubring, pubkey, "signature ", &pubkey->key.pubkey, 0);
             /* now decrypt key */
             secret = pgp_decrypt_seckey(keypair, cbinfo->passfp);
@@ -2237,15 +2237,15 @@ get_passphrase_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     if (rnp_get_debug(__FILE__)) {
         pgp_print_packet(&cbinfo->printstate, pkt);
     }
-    if (cbinfo->cryptinfo.keydata == NULL) {
-        (void) fprintf(io->errs, "get_passphrase_cb: NULL keydata\n");
+    if (cbinfo->cryptinfo.key == NULL) {
+        (void) fprintf(io->errs, "get_passphrase_cb: NULL key\n");
     } else {
-        pgp_print_keydata(io,
-                          cbinfo->cryptinfo.pubring,
-                          cbinfo->cryptinfo.keydata,
-                          "signature ",
-                          &cbinfo->cryptinfo.keydata->key.pubkey,
-                          0);
+        pgp_print_key(io,
+                      cbinfo->cryptinfo.pubring,
+                      cbinfo->cryptinfo.key,
+                      "signature ",
+                      &cbinfo->cryptinfo.key->key.pubkey,
+                      0);
     }
     switch (pkt->tag) {
     case PGP_GET_PASSPHRASE:

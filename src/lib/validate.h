@@ -109,7 +109,7 @@ bool pgp_validate_all_sigs(pgp_validation_t *,
                            const rnp_key_store_t *,
                            pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
 
-void pgp_keydata_reader_set(pgp_stream_t *, const pgp_key_t *);
+void pgp_key_reader_set(pgp_stream_t *, const pgp_key_t *);
 
 pgp_cb_ret_t pgp_validate_key_cb(const pgp_packet_t *, pgp_cbdata_t *);
 

@@ -58,13 +58,13 @@
 #include "packet.h"
 #include <rekey/rnp_key_store.h>
 
-int pgp_sprint_keydata(pgp_io_t *,
-                       const rnp_key_store_t *,
-                       const pgp_key_t *,
-                       char **,
-                       const char *,
-                       const pgp_pubkey_t *,
-                       const int);
+int pgp_sprint_key(pgp_io_t *,
+                   const rnp_key_store_t *,
+                   const pgp_key_t *,
+                   char **,
+                   const char *,
+                   const pgp_pubkey_t *,
+                   const int);
 int pgp_sprint_json(pgp_io_t *,
                     const rnp_key_store_t *,
                     const pgp_key_t *,
@@ -72,18 +72,18 @@ int pgp_sprint_json(pgp_io_t *,
                     const char *,
                     const pgp_pubkey_t *,
                     const int);
-int pgp_hkp_sprint_keydata(pgp_io_t *,
-                           const rnp_key_store_t *,
-                           const pgp_key_t *,
-                           char **,
-                           const pgp_pubkey_t *,
-                           const int);
-void pgp_print_keydata(pgp_io_t *,
+int pgp_hkp_sprint_key(pgp_io_t *,
                        const rnp_key_store_t *,
                        const pgp_key_t *,
-                       const char *,
+                       char **,
                        const pgp_pubkey_t *,
                        const int);
+void pgp_print_key(pgp_io_t *,
+                   const rnp_key_store_t *,
+                   const pgp_key_t *,
+                   const char *,
+                   const pgp_pubkey_t *,
+                   const int);
 void pgp_print_pubkey(const pgp_pubkey_t *);
 int  pgp_sprint_pubkey(const pgp_key_t *, char *, size_t);
 
