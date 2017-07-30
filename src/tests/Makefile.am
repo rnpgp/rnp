@@ -9,6 +9,7 @@ rnp_tests_SOURCES   = \
     generatekey.c \
     exportkey.c \
     rnp_tests.c \
+    user-prefs.c \
     utils-list.c \
     pgp-parse.c
 

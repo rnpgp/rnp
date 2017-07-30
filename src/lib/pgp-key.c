@@ -66,6 +66,15 @@ subsig_free(pgp_subsig_t *subsig)
     if (!subsig) {
         return;
     }
+    // user prefs
+    pgp_user_prefs_t *prefs = &subsig->prefs;
+    FREE_ARRAY(prefs, symm_alg);
+    FREE_ARRAY(prefs, hash_alg);
+    FREE_ARRAY(prefs, compress_alg);
+    FREE_ARRAY(prefs, key_server_pref);
+    free(prefs->key_server);
+    prefs->key_server = NULL;
+
     pgp_sig_free(&subsig->sig);
 }
 
