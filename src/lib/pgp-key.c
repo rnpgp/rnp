@@ -95,17 +95,8 @@ pgp_key_new(void)
     return calloc(1, sizeof(pgp_key_t));
 }
 
-/**
- \ingroup HighLevel_Keyring
-
- \brief Frees key and its memory
-
- \param key Key to be freed.
-
- \note This frees the key itself, as well as any other memory alloc-ed by it.
-*/
 void
-pgp_key_free(pgp_key_t *key)
+pgp_key_free_data(pgp_key_t *key)
 {
     unsigned n;
 
@@ -155,7 +146,12 @@ pgp_key_free(pgp_key_t *key)
     } else {
         pgp_seckey_free(&key->key.seckey);
     }
+}
 
+void
+pgp_key_free(pgp_key_t *key)
+{
+    pgp_key_free_data(key);
     free(key);
 }
 
