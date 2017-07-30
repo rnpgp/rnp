@@ -395,8 +395,8 @@ setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pi
 void
 set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc, pgp_hash_alg_t hashalg)
 {
-    key_desc->key_alg = PGP_PKA_RSA;
-    key_desc->sym_alg = PGP_SA_DEFAULT_CIPHER;
-    key_desc->rsa.modulus_bit_len = 1024;
-    key_desc->hash_alg = hashalg;
+    key_desc->crypto.key_alg = PGP_PKA_RSA;
+    key_desc->crypto.sym_alg = PGP_SA_DEFAULT_CIPHER;
+    key_desc->crypto.rsa.modulus_bit_len = 1024;
+    key_desc->crypto.hash_alg = hashalg;
 }

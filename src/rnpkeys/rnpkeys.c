@@ -181,12 +181,12 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
     case CMD_GENERATE_KEY:
         key = f ? f : rnp_cfg_get(cfg, CFG_USERID);
         rnp_keygen_desc_t *key_desc = &rnp->action.generate_key_ctx;
-        key_desc->hash_alg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
-        key_desc->sym_alg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
+        key_desc->crypto.hash_alg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
+        key_desc->crypto.sym_alg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
 
         if (!rnp_cfg_getbool(cfg, CFG_EXPERT)) {
-            key_desc->key_alg = PGP_PKA_RSA;
-            key_desc->rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
+            key_desc->crypto.key_alg = PGP_PKA_RSA;
+            key_desc->crypto.rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
         } else if (rnp_generate_key_expert_mode(rnp) != PGP_E_OK) {
             RNP_LOG("Critical error: Key generation failed");
             return false;

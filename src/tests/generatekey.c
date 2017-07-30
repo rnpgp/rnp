@@ -255,7 +255,7 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
             set_default_rsa_key_desc(&rnp.action.generate_key_ctx,
                                      pgp_str_to_hash_alg(hashAlg[i]));
             rnp_assert_int_not_equal(
-              rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_UNKNOWN);
+              rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_UNKNOWN);
 
             /* Generate key with specified parameters */
             rnp_assert_ok(rstate, rnp_generate_key(&rnp, NULL));
@@ -560,48 +560,53 @@ rnpkeys_generatekey_testExpertMode(void **state)
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
 
     rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, test_sm2, sizeof(test_sm2)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_SM2);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_SM2_P_256);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SM3);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_SM2);
+    rnp_assert_int_equal(
+      rstate, rnp.action.generate_key_ctx.crypto.ecc.curve, PGP_CURVE_SM2_P_256);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SM3);
     rnp_end(&rnp);
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_256, sizeof(test_ecdsa_256)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_ECDSA);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_NIST_P_256);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA256);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_ECDSA);
+    rnp_assert_int_equal(
+      rstate, rnp.action.generate_key_ctx.crypto.ecc.curve, PGP_CURVE_NIST_P_256);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SHA256);
     rnp_end(&rnp);
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_384, sizeof(test_ecdsa_384)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_ECDSA);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_NIST_P_384);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA384);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_ECDSA);
+    rnp_assert_int_equal(
+      rstate, rnp.action.generate_key_ctx.crypto.ecc.curve, PGP_CURVE_NIST_P_384);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SHA384);
     rnp_end(&rnp);
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_521, sizeof(test_ecdsa_521)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_ECDSA);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_NIST_P_521);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA512);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_ECDSA);
+    rnp_assert_int_equal(
+      rstate, rnp.action.generate_key_ctx.crypto.ecc.curve, PGP_CURVE_NIST_P_521);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SHA512);
     rnp_end(&rnp);
 
     rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, test_eddsa, sizeof(test_eddsa)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_EDDSA);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_ED25519);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_EDDSA);
+    rnp_assert_int_equal(
+      rstate, rnp.action.generate_key_ctx.crypto.ecc.curve, PGP_CURVE_ED25519);
     rnp_end(&rnp);
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_rsa_1024, sizeof(test_rsa_1024)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_RSA);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.rsa.modulus_bit_len, 1024);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_RSA);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.rsa.modulus_bit_len, 1024);
     rnp_end(&rnp);
 
     rnp_assert_true(rstate,
                     ask_expert_details(
                       &rnp, &ops, test_rsa_ask_twice_4096, sizeof(test_rsa_ask_twice_4096)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_RSA);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.rsa.modulus_bit_len, 4096);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_RSA);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.rsa.modulus_bit_len, 4096);
     rnp_end(&rnp);
 
     rnp_cfg_free(&ops);
@@ -621,7 +626,7 @@ generatekey_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state)
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_384, sizeof(test_ecdsa_384)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA384);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SHA384);
 
     rnp_cfg_free(&ops);
 }
@@ -640,7 +645,7 @@ generatekey_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_384, sizeof(test_ecdsa_384)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA512);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SHA512);
 
     rnp_cfg_free(&ops);
 }

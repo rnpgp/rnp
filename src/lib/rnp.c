@@ -1012,18 +1012,18 @@ rnp_import_key(rnp_t *rnp, char *f)
 }
 
 static uint32_t
-get_numbits(const rnp_keygen_desc_t *key)
+get_numbits(const rnp_keygen_crypto_params_t *crypto)
 {
-    switch (key->key_alg) {
+    switch (crypto->key_alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return key->rsa.modulus_bit_len;
+        return crypto->rsa.modulus_bit_len;
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        return ec_curves[key->ecc.curve].bitlen;
+        return ec_curves[crypto->ecc.curve].bitlen;
     default:
         return 0;
     }
@@ -1065,8 +1065,8 @@ rnp_generate_key(rnp_t *rnp, const char *id)
         snprintf(newid,
                  sizeof(newid),
                  "%s %d-bit key <%s@localhost>",
-                 pgp_show_pka(rnp->action.generate_key_ctx.key_alg),
-                 get_numbits(&rnp->action.generate_key_ctx),
+                 pgp_show_pka(rnp->action.generate_key_ctx.crypto.key_alg),
+                 get_numbits(&rnp->action.generate_key_ctx.crypto),
                  getenv("LOGNAME"));
     }
     uid = (uint8_t *) newid;

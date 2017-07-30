@@ -72,7 +72,8 @@
 
 void pgp_crypto_finish(void);
 
-/* Key generation */
+/* raw key generation */
+bool pgp_generate_seckey(const rnp_keygen_crypto_params_t *params, pgp_seckey_t *seckey);
 
 pgp_key_t *pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid);
 
