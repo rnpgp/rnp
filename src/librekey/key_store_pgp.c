@@ -228,6 +228,74 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         subsig->key_flags = pkt->u.ss_key_flags.contents[0];
         key->flags = subsig->key_flags;
         break;
+    case PGP_PTAG_SS_PREFERRED_SKA:
+        SUBSIG_REQUIRED_BEFORE("ss preferred symmetric key algs");
+        {
+            const pgp_data_t *data = &content->ss_skapref;
+            pgp_user_prefs_t *prefs = &subsig->prefs;
+            for (int i = 0; i < data->len; i++) {
+                EXPAND_ARRAY(prefs, symm_alg);
+                if (!subsig->prefs.symm_algs) {
+                    PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
+                    return PGP_FINISHED;
+                }
+                subsig->prefs.symm_algs[i] = data->contents[i];
+                subsig->prefs.symm_algc++;
+            }
+        }
+        break;
+    case PGP_PTAG_SS_PREFERRED_HASH:
+        SUBSIG_REQUIRED_BEFORE("ss preferred hash algs");
+        {
+            const pgp_data_t *data = &content->ss_hashpref;
+            pgp_user_prefs_t *prefs = &subsig->prefs;
+            for (int i = 0; i < data->len; i++) {
+                EXPAND_ARRAY(prefs, hash_alg);
+                if (!subsig->prefs.hash_algs) {
+                    PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
+                    return PGP_FINISHED;
+                }
+                subsig->prefs.hash_algs[i] = data->contents[i];
+                subsig->prefs.hash_algc++;
+            }
+        }
+        break;
+    case PGP_PTAG_SS_PREF_COMPRESS:
+        SUBSIG_REQUIRED_BEFORE("ss preferred compression algs");
+        {
+            const pgp_data_t *data = &content->ss_zpref;
+            pgp_user_prefs_t *prefs = &subsig->prefs;
+            for (int i = 0; i < data->len; i++) {
+                EXPAND_ARRAY(prefs, compress_alg);
+                if (!subsig->prefs.compress_algs) {
+                    PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
+                    return PGP_FINISHED;
+                }
+                subsig->prefs.compress_algs[i] = data->contents[i];
+                subsig->prefs.compress_algc++;
+            }
+        }
+        break;
+    case PGP_PTAG_SS_KEYSERV_PREFS:
+        SUBSIG_REQUIRED_BEFORE("ss key server prefs");
+        {
+            const pgp_data_t *data = &content->ss_key_server_prefs;
+            pgp_user_prefs_t *prefs = &subsig->prefs;
+            for (int i = 0; i < data->len; i++) {
+                EXPAND_ARRAY(prefs, key_server_pref);
+                if (!subsig->prefs.key_server_prefs) {
+                    PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
+                    return PGP_FINISHED;
+                }
+                subsig->prefs.key_server_prefs[i] = data->contents[i];
+                subsig->prefs.key_server_prefc++;
+            }
+        }
+        break;
+    case PGP_PTAG_SS_PREF_KEYSERV:
+        SUBSIG_REQUIRED_BEFORE("ss preferred key server");
+        subsig->prefs.key_server = (uint8_t*)content->ss_keyserv;
+        return PGP_KEEP_MEMORY;
     default:
         break;
     }

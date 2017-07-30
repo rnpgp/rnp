@@ -730,6 +730,11 @@ typedef enum {
     PGP_C_BZIP2 = 3
 } pgp_compression_type_t;
 
+typedef enum {
+    /* first octet */
+    PGP_KEY_SERVER_NO_MODIFY = 0x80
+} pgp_key_server_prefs_t;
+
 /** pgp_one_pass_sig_t */
 typedef struct {
     uint8_t          version;
@@ -1006,13 +1011,27 @@ typedef struct pgp_revoke_t {
     char *   reason; /* c'mon, spill the beans */
 } pgp_revoke_t;
 
+typedef struct pgp_user_prefs_t {
+    // preferred symmetric algs (pgp_symm_alg_t)
+    DYNARRAY(uint8_t, symm_alg);
+    // preferred hash algs (pgp_hash_alg_t)
+    DYNARRAY(uint8_t, hash_alg);
+    // preferred compression algs (pgp_compression_type_t)
+    DYNARRAY(uint8_t, compress_alg);
+    // key server preferences (pgp_key_server_prefs_t)
+    DYNARRAY(uint8_t, key_server_pref);
+    // preferred key server
+    uint8_t *key_server;
+} pgp_user_prefs_t;
+
 /** signature subpackets */
 typedef struct pgp_subsig_t {
-    uint32_t  uid;          /* index in userid array in key */
-    pgp_sig_t sig;          /* trust signature */
-    uint8_t   trustlevel;   /* level of trust */
-    uint8_t   trustamount;  /* amount of trust */
-    uint8_t   key_flags;    /* key flags */
+    uint32_t         uid;         /* index in userid array in key */
+    pgp_sig_t        sig;         /* trust signature */
+    uint8_t          trustlevel;  /* level of trust */
+    uint8_t          trustamount; /* amount of trust */
+    uint8_t          key_flags;   /* key flags */
+    pgp_user_prefs_t prefs;       /* user preferences */
 } pgp_subsig_t;
 
 /* describes a user's key */
