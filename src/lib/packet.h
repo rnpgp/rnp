@@ -978,14 +978,12 @@ bool pgp_print_packet(pgp_printstate_t *, const pgp_packet_t *);
         }                                                                             \
     } while (/*CONSTCOND*/ 0)
 
-#define FREE_ARRAY(str, arr)       \
-    do {                           \
-        if (str->arr##s != NULL) { \
-            free(str->arr##s);     \
-            str->arr##s = NULL;    \
-            str->arr##c = 0;       \
-            str->arr##vsize = 0;   \
-        }                          \
+#define FREE_ARRAY(str, arr) \
+    do {                     \
+        free(str->arr##s);   \
+        str->arr##s = NULL;  \
+        str->arr##c = 0;     \
+        str->arr##vsize = 0; \
     } while (/*CONSTCOND*/ 0)
 
 /** pgp_keydata_key_t
