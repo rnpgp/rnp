@@ -56,9 +56,9 @@
 #include <stdio.h>
 #include "packet.h"
 
-struct pgp_key_t *pgp_keydata_new(void);
+struct pgp_key_t *pgp_key_new(void);
 
-void pgp_keydata_free(pgp_key_t *);
+void pgp_key_free(pgp_key_t *);
 
 const pgp_pubkey_t *pgp_get_pubkey(const pgp_key_t *);
 
@@ -86,6 +86,6 @@ struct pgp_rawpacket_t *pgp_add_rawpacket(pgp_key_t *, const pgp_rawpacket_t *);
 
 bool pgp_add_selfsigned_userid(pgp_key_t *, const unsigned char *);
 
-void pgp_keydata_init(pgp_key_t *, const pgp_content_enum);
+void pgp_key_init(pgp_key_t *, const pgp_content_enum);
 
 #endif // RNP_PACKET_KEY_H

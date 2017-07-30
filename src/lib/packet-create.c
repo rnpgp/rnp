@@ -500,7 +500,7 @@ write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, const pgp_pubkey
 
    \brief Writes a transferable PGP public key to the given output stream.
 
-   \param keydata Key to be written
+   \param key Key to be written
    \param armoured Flag is set for armoured output
    \param output Output stream
 
@@ -577,7 +577,7 @@ pgp_write_xfer_pubkey(pgp_output_t *         output,
 
    \brief Writes a transferable PGP secret key to the given output stream.
 
-   \param keydata Key to be written
+   \param key Key to be written
    \param passphrase
    \param pplen
    \param armoured Flag is set for armoured output
@@ -905,8 +905,8 @@ create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, pgp_crypt_t *cipherinfo, uint8
 
 /**
  \ingroup Core_Create
-\brief Creates an pgp_pk_sesskey_t struct from keydata
-\param key Keydata to use
+\brief Creates an pgp_pk_sesskey_t struct from key
+\param key Key to use
 \param cipher Encryption algorithm used
 \return pgp_pk_sesskey_t struct
 \note It is the caller's responsiblity to free the returned pointer

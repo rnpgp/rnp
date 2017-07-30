@@ -598,13 +598,13 @@ format_key_usage(char *buffer, size_t size, uint8_t flags)
 
 /* print into a string (malloc'ed) the pubkeydata */
 int
-pgp_sprint_keydata(pgp_io_t *             io,
-                   const rnp_key_store_t *keyring,
-                   const pgp_key_t *      key,
-                   char **                buf,
-                   const char *           header,
-                   const pgp_pubkey_t *   pubkey,
-                   const int              psigs)
+pgp_sprint_key(pgp_io_t *             io,
+               const rnp_key_store_t *keyring,
+               const pgp_key_t *      key,
+               char **                buf,
+               const char *           header,
+               const pgp_pubkey_t *   pubkey,
+               const int              psigs)
 {
     unsigned i;
     time_t   now;
@@ -811,12 +811,12 @@ pgp_sprint_json(pgp_io_t *             io,
 }
 
 int
-pgp_hkp_sprint_keydata(pgp_io_t *             io,
-                       const rnp_key_store_t *keyring,
-                       const pgp_key_t *      key,
-                       char **                buf,
-                       const pgp_pubkey_t *   pubkey,
-                       const int              psigs)
+pgp_hkp_sprint_key(pgp_io_t *             io,
+                   const rnp_key_store_t *keyring,
+                   const pgp_key_t *      key,
+                   char **                buf,
+                   const pgp_pubkey_t *   pubkey,
+                   const int              psigs)
 {
     const pgp_key_t *trustkey;
     unsigned         from;
@@ -901,16 +901,16 @@ pgp_hkp_sprint_keydata(pgp_io_t *             io,
 
 /* print the key data for a pub or sec key */
 void
-pgp_print_keydata(pgp_io_t *             io,
-                  const rnp_key_store_t *keyring,
-                  const pgp_key_t *      key,
-                  const char *           header,
-                  const pgp_pubkey_t *   pubkey,
-                  const int              psigs)
+pgp_print_key(pgp_io_t *             io,
+              const rnp_key_store_t *keyring,
+              const pgp_key_t *      key,
+              const char *           header,
+              const pgp_pubkey_t *   pubkey,
+              const int              psigs)
 {
     char *cp;
 
-    if (pgp_sprint_keydata(io, keyring, key, &cp, header, pubkey, psigs) >= 0) {
+    if (pgp_sprint_key(io, keyring, key, &cp, header, pubkey, psigs) >= 0) {
         (void) fprintf(io->res, "%s", cp);
         free(cp);
     }
@@ -1764,7 +1764,7 @@ pgp_list_packets(pgp_io_t *       io,
 
 /* this interface isn't right - hook into callback for getting passphrase */
 char *
-pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
+pgp_export_key(pgp_io_t *io, const pgp_key_t *key, uint8_t *passphrase)
 {
     pgp_output_t *output;
     pgp_memory_t *mem;
@@ -1776,10 +1776,10 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
         return NULL;
     }
 
-    if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
-        pgp_write_xfer_pubkey(output, keydata, NULL, 1);
+    if (key->type == PGP_PTAG_CT_PUBLIC_KEY) {
+        pgp_write_xfer_pubkey(output, key, NULL, 1);
     } else {
-        pgp_write_xfer_seckey(output, keydata, passphrase, NULL, 1);
+        pgp_write_xfer_seckey(output, key, passphrase, NULL, 1);
     }
 
     const size_t mem_len = pgp_mem_len(mem) + 1;

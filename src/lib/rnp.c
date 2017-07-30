@@ -146,7 +146,7 @@ resultp(pgp_io_t *io, const char *f, pgp_validation_t *res, rnp_key_store_t *rin
                            "WARNING: signature for %s made with encryption key\n",
                            (f) ? f : "<stdin>");
         }
-        pgp_print_keydata(io, ring, key, "signature ", &key->key.pubkey, 0);
+        pgp_print_key(io, ring, key, "signature ", &key->key.pubkey, 0);
     }
 }
 
@@ -814,16 +814,16 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
         if (key != NULL) {
             ALLOC(char *, pubs.v, pubs.size, pubs.c, 10, 10, "rnp_match_keys", return 0);
             if (strcmp(fmt, "mr") == 0) {
-                pgp_hkp_sprint_keydata(
+                pgp_hkp_sprint_key(
                   rnp->io, rnp->pubring, key, &pubs.v[pubs.c], &key->key.pubkey, psigs);
             } else {
-                pgp_sprint_keydata(rnp->io,
-                                   rnp->pubring,
-                                   key,
-                                   &pubs.v[pubs.c],
-                                   "signature ",
-                                   &key->key.pubkey,
-                                   psigs);
+                pgp_sprint_key(rnp->io,
+                               rnp->pubring,
+                               key,
+                               &pubs.v[pubs.c],
+                               "signature ",
+                               &key->key.pubkey,
+                               psigs);
             }
             if (pubs.v[pubs.c] != NULL) {
                 pubs.c += 1;
@@ -867,8 +867,7 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
         }
         if (key != NULL) {
             if (strcmp(fmt, "mr") == 0) {
-                pgp_hkp_sprint_keydata(
-                  rnp->io, rnp->pubring, key, &newkey, &key->key.pubkey, 0);
+                pgp_hkp_sprint_key(rnp->io, rnp->pubring, key, &newkey, &key->key.pubkey, 0);
                 if (newkey) {
                     printf("%s\n", newkey);
                     free(newkey);
@@ -942,12 +941,12 @@ rnp_get_key(rnp_t *rnp, const char *name, const char *fmt)
         return NULL;
     }
     if (strcmp(fmt, "mr") == 0) {
-        return (pgp_hkp_sprint_keydata(
-                  rnp->io, rnp->pubring, key, &newkey, &key->key.pubkey, 0) > 0) ?
+        return (pgp_hkp_sprint_key(rnp->io, rnp->pubring, key, &newkey, &key->key.pubkey, 0) >
+                0) ?
                  newkey :
                  NULL;
     }
-    return (pgp_sprint_keydata(
+    return (pgp_sprint_key(
               rnp->io, rnp->pubring, key, &newkey, "signature", &key->key.pubkey, 0) > 0) ?
              newkey :
              NULL;
@@ -1080,11 +1079,11 @@ rnp_generate_key(rnp_t *rnp, const char *id)
 
     if (!rnp_key_store_add_key(io, rnp->pubring, key, PGP_PTAG_CT_PUBLIC_KEY) ||
         !rnp_key_store_add_key(io, rnp->secring, key, PGP_PTAG_CT_SECRET_KEY)) {
-        pgp_keydata_free(key);
+        pgp_key_free(key);
         return RNP_FAIL;
     }
 
-    pgp_sprint_keydata(rnp->io, NULL, key, &cp, "signature ", &key->key.seckey.pubkey, 0);
+    pgp_sprint_key(rnp->io, NULL, key, &cp, "signature ", &key->key.seckey.pubkey, 0);
     (void) fprintf(stdout, "%s", cp);
     free(cp);
 
@@ -1095,16 +1094,16 @@ rnp_generate_key(rnp_t *rnp, const char *id)
 
     /* write keypair */
     if (!rnp_key_store_write_to_file(rnp, rnp->secring, (uint8_t *) passphrase, 0)) {
-        pgp_keydata_free(key);
+        pgp_key_free(key);
         return RNP_FAIL;
     }
 
     if (!rnp_key_store_write_to_file(rnp, rnp->pubring, (uint8_t *) passphrase, 0)) {
-        pgp_keydata_free(key);
+        pgp_key_free(key);
         return RNP_FAIL;
     }
 
-    pgp_keydata_free(key);
+    pgp_key_free(key);
     return RNP_OK;
 }
 
@@ -1205,14 +1204,14 @@ rnp_sign_file(rnp_ctx_t * ctx,
             }
             if (pubkey == NULL) {
                 (void) fprintf(io->errs, "rnp: warning - using pubkey from secring\n");
-                pgp_print_keydata(io,
-                                  ctx->rnp->pubring,
-                                  keypair,
-                                  "signature ",
-                                  &keypair->key.seckey.pubkey,
-                                  0);
+                pgp_print_key(io,
+                              ctx->rnp->pubring,
+                              keypair,
+                              "signature ",
+                              &keypair->key.seckey.pubkey,
+                              0);
             } else {
-                pgp_print_keydata(
+                pgp_print_key(
                   io, ctx->rnp->pubring, pubkey, "signature ", &pubkey->key.pubkey, 0);
             }
         }
@@ -1321,14 +1320,14 @@ rnp_sign_memory(rnp_ctx_t * ctx,
             }
             if (pubkey == NULL) {
                 (void) fprintf(io->errs, "rnp: warning - using pubkey from secring\n");
-                pgp_print_keydata(io,
-                                  ctx->rnp->pubring,
-                                  keypair,
-                                  "signature ",
-                                  &keypair->key.seckey.pubkey,
-                                  0);
+                pgp_print_key(io,
+                              ctx->rnp->pubring,
+                              keypair,
+                              "signature ",
+                              &keypair->key.seckey.pubkey,
+                              0);
             } else {
-                pgp_print_keydata(
+                pgp_print_key(
                   io, ctx->rnp->pubring, pubkey, "signature ", &pubkey->key.pubkey, 0);
             }
         }

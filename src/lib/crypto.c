@@ -240,15 +240,15 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
     pgp_seckey_t *seckey = NULL;
     pgp_output_t *output = NULL;
     pgp_memory_t *mem = NULL;
-    pgp_key_t *   keydata = NULL;
+    pgp_key_t *   key = NULL;
     bool          ok = false;
 
-    keydata = pgp_keydata_new();
-    if (!keydata)
+    key = pgp_key_new();
+    if (!key)
         goto end;
 
-    pgp_keydata_init(keydata, PGP_PTAG_CT_SECRET_KEY);
-    seckey = pgp_get_writable_seckey(keydata);
+    pgp_key_init(key, PGP_PTAG_CT_SECRET_KEY);
+    seckey = pgp_get_writable_seckey(key);
     if (!seckey)
         goto end;
 
@@ -289,10 +289,10 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
     }
     seckey->checksum = 0;
 
-    if (!pgp_keyid(keydata->sigid, PGP_KEY_ID_SIZE, &keydata->key.seckey.pubkey))
+    if (!pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, &key->key.seckey.pubkey))
         goto end;
 
-    if (!pgp_fingerprint(&keydata->sigfingerprint, &keydata->key.seckey.pubkey))
+    if (!pgp_fingerprint(&key->sigfingerprint, &key->key.seckey.pubkey))
         goto end;
 
     /* Generate checksum */
@@ -318,7 +318,7 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
         goto end;
     }
 
-    if (userid != NULL && !pgp_add_selfsigned_userid(keydata, userid)) {
+    if (userid != NULL && !pgp_add_selfsigned_userid(key, userid)) {
         goto end;
     }
 
@@ -330,12 +330,12 @@ end:
     }
 
     if (ok == false) {
-        if (keydata != NULL) {
-            pgp_keydata_free(keydata);
+        if (key != NULL) {
+            pgp_key_free(key);
         }
         return NULL;
     }
-    return keydata;
+    return key;
 }
 
 static pgp_cb_ret_t

@@ -464,9 +464,9 @@ rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring, const int psigs
 
     for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
         if (pgp_is_key_secret(key)) {
-            pgp_print_keydata(io, keyring, key, "sec", &key->key.seckey.pubkey, 0);
+            pgp_print_key(io, keyring, key, "sec", &key->key.seckey.pubkey, 0);
         } else {
-            pgp_print_keydata(io, keyring, key, "signature ", &key->key.pubkey, psigs);
+            pgp_print_key(io, keyring, key, "signature ", &key->key.pubkey, psigs);
         }
         (void) fputc('\n', io->res);
     }

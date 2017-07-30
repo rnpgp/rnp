@@ -86,11 +86,11 @@ revoke_free(pgp_revoke_t *revoke)
 
    \return A new pgp_key_t struct, initialised to zero.
 
-   \note The returned pgp_key_t struct must be freed after use with pgp_keydata_free.
+   \note The returned pgp_key_t struct must be freed after use with pgp_key_free.
 */
 
 pgp_key_t *
-pgp_keydata_new(void)
+pgp_key_new(void)
 {
     return calloc(1, sizeof(pgp_key_t));
 }
@@ -98,73 +98,72 @@ pgp_keydata_new(void)
 /**
  \ingroup HighLevel_Keyring
 
- \brief Frees keydata and its memory
+ \brief Frees key and its memory
 
- \param keydata Key to be freed.
+ \param key Key to be freed.
 
- \note This frees the keydata itself, as well as any other memory alloc-ed by it.
+ \note This frees the key itself, as well as any other memory alloc-ed by it.
 */
 void
-pgp_keydata_free(pgp_key_t *keydata)
+pgp_key_free(pgp_key_t *key)
 {
     unsigned n;
 
-    if (keydata == NULL) {
+    if (key == NULL) {
         return;
     }
 
-    if (keydata->uids != NULL) {
-        for (n = 0; n < keydata->uidc; ++n) {
-            pgp_userid_free(&keydata->uids[n]);
+    if (key->uids != NULL) {
+        for (n = 0; n < key->uidc; ++n) {
+            pgp_userid_free(&key->uids[n]);
         }
-        free(keydata->uids);
-        keydata->uids = NULL;
-        keydata->uidc = 0;
+        free(key->uids);
+        key->uids = NULL;
+        key->uidc = 0;
     }
 
-    if (keydata->packets != NULL) {
-        for (n = 0; n < keydata->packetc; ++n) {
-            pgp_rawpacket_free(&keydata->packets[n]);
+    if (key->packets != NULL) {
+        for (n = 0; n < key->packetc; ++n) {
+            pgp_rawpacket_free(&key->packets[n]);
         }
-        free(keydata->packets);
-        keydata->packets = NULL;
-        keydata->packetc = 0;
+        free(key->packets);
+        key->packets = NULL;
+        key->packetc = 0;
     }
 
-    if (keydata->subsigs) {
-        for (n = 0; n < keydata->subsigc; ++n) {
-            subsig_free(&keydata->subsigs[n]);
+    if (key->subsigs) {
+        for (n = 0; n < key->subsigc; ++n) {
+            subsig_free(&key->subsigs[n]);
         }
-        free(keydata->subsigs);
-        keydata->subsigs = NULL;
-        keydata->subsigc = 0;
+        free(key->subsigs);
+        key->subsigs = NULL;
+        key->subsigc = 0;
     }
 
-    if (keydata->revokes) {
-        for (n = 0; n < keydata->revokec; ++n) {
-            revoke_free(&keydata->revokes[n]);
+    if (key->revokes) {
+        for (n = 0; n < key->revokec; ++n) {
+            revoke_free(&key->revokes[n]);
         }
-        free(keydata->revokes);
-        keydata->revokes = NULL;
-        keydata->revokec = 0;
-
+        free(key->revokes);
+        key->revokes = NULL;
+        key->revokec = 0;
     }
-    revoke_free(&keydata->revocation);
+    revoke_free(&key->revocation);
 
-    if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
-        pgp_pubkey_free(&keydata->key.pubkey);
+    if (key->type == PGP_PTAG_CT_PUBLIC_KEY) {
+        pgp_pubkey_free(&key->key.pubkey);
     } else {
-        pgp_seckey_free(&keydata->key.seckey);
+        pgp_seckey_free(&key->key.seckey);
     }
 
-    free(keydata);
+    free(key);
 }
 
 /**
  \ingroup HighLevel_KeyGeneral
 
- \brief Returns the public key in the given keydata.
- \param keydata
+ \brief Returns the public key in the given key.
+ \param key
 
   \return Pointer to public key
 
@@ -172,10 +171,9 @@ pgp_keydata_free(pgp_key_t *keydata)
 */
 
 const pgp_pubkey_t *
-pgp_get_pubkey(const pgp_key_t *keydata)
+pgp_get_pubkey(const pgp_key_t *key)
 {
-    return (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) ? &keydata->key.pubkey :
-                                                       &keydata->key.seckey.pubkey;
+    return (key->type == PGP_PTAG_CT_PUBLIC_KEY) ? &key->key.pubkey : &key->key.seckey.pubkey;
 }
 
 bool
@@ -193,7 +191,7 @@ pgp_is_key_secret(const pgp_key_t *key)
 /**
  \ingroup HighLevel_KeyGeneral
 
- \brief Returns the secret key in the given keydata.
+ \brief Returns the secret key in the given key.
 
  \note This is not a copy, do not free it after use.
 
@@ -210,7 +208,7 @@ pgp_get_seckey(const pgp_key_t *data)
 /**
  \ingroup HighLevel_KeyGeneral
 
-  \brief Returns the secret key in the given keydata.
+  \brief Returns the secret key in the given key.
 
   \note This is not a copy, do not free it after use.
 
@@ -312,7 +310,7 @@ decrypt_cb_empty(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
 /**
 \ingroup Core_Keys
-\brief Decrypts secret key from given keydata with given passphrase
+\brief Decrypts secret key from given key with given passphrase
 \param key Key from which to get secret key
 \param passphrase Passphrase to use to decrypt secret key
 \return secret key
@@ -329,7 +327,7 @@ pgp_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
 
     decrypt.key = key;
     stream = pgp_new(sizeof(*stream));
-    pgp_keydata_reader_set(stream, key);
+    pgp_key_reader_set(stream, key);
     pgp_set_callback(stream, decrypt_cb_empty, &decrypt);
     stream->readinfo.accumulate = 1;
     pgp_parse(stream, !printerrors);
@@ -341,7 +339,7 @@ pgp_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     /* ask for a passphrase */
     decrypt.passfp = passfp;
     stream = pgp_new(sizeof(*stream));
-    pgp_keydata_reader_set(stream, key);
+    pgp_key_reader_set(stream, key);
     pgp_set_callback(stream, decrypt_cb, &decrypt);
     stream->readinfo.accumulate = 1;
     pgp_parse(stream, !printerrors);
@@ -352,7 +350,7 @@ pgp_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
 \ingroup Core_Keys
 \brief Set secret key in content
 \param content Content to be set
-\param key Keydata to get secret key from
+\param key Key to get secret key from
 */
 void
 pgp_set_seckey(pgp_contents_t *cont, const pgp_key_t *key)
@@ -362,9 +360,9 @@ pgp_set_seckey(pgp_contents_t *cont, const pgp_key_t *key)
 
 /**
 \ingroup Core_Keys
-\brief Get Key ID from keydata
-\param key Keydata to get Key ID from
-\return Pointer to Key ID inside keydata
+\brief Get Key ID from key
+\param key Key to get Key ID from
+\return Pointer to Key ID inside key
 */
 const uint8_t *
 pgp_get_key_id(const pgp_key_t *key)
@@ -375,7 +373,7 @@ pgp_get_key_id(const pgp_key_t *key)
 /**
 \ingroup Core_Keys
 \brief How many User IDs in this key?
-\param key Keydata to check
+\param key Key to check
 \return Num of user ids
 */
 unsigned
@@ -471,21 +469,21 @@ pgp_add_userid(pgp_key_t *key, const uint8_t *userid)
 /**
 \ingroup Core_Keys
 \brief Add packet to key
-\param keydata Key to which to add packet
+\param key Key to which to add packet
 \param packet Packet to add
 \return Pointer to new packet
 */
 pgp_rawpacket_t *
-pgp_add_rawpacket(pgp_key_t *keydata, const pgp_rawpacket_t *packet)
+pgp_add_rawpacket(pgp_key_t *key, const pgp_rawpacket_t *packet)
 {
     pgp_rawpacket_t *subpktp;
 
-    EXPAND_ARRAY(keydata, packet);
-    if (keydata->packets == NULL) {
+    EXPAND_ARRAY(key, packet);
+    if (key->packets == NULL) {
         return NULL;
     }
     /* initialise new entry in array */
-    subpktp = &keydata->packets[keydata->packetc++];
+    subpktp = &key->packets[key->packetc++];
     subpktp->length = 0;
     subpktp->raw = NULL;
     /* now copy it */
@@ -495,7 +493,7 @@ pgp_add_rawpacket(pgp_key_t *keydata, const pgp_rawpacket_t *packet)
 /**
 \ingroup Core_Keys
 \brief Add selfsigned User ID to key
-\param keydata Key to which to add user ID
+\param key Key to which to add user ID
 \param userid Self-signed User ID to add
 \return true if OK; else false
 */
@@ -556,17 +554,17 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
 /**
 \ingroup Core_Keys
 \brief Initialise pgp_key_t
-\param keydata Keydata to initialise
+\param key Key to initialise
 \param type PGP_PTAG_CT_PUBLIC_KEY or PGP_PTAG_CT_SECRET_KEY
 */
 void
-pgp_keydata_init(pgp_key_t *keydata, const pgp_content_enum type)
+pgp_key_init(pgp_key_t *key, const pgp_content_enum type)
 {
-    if (keydata->type != PGP_PTAG_CT_RESERVED) {
-        (void) fprintf(stderr, "pgp_keydata_init: wrong keydata type\n");
+    if (key->type != PGP_PTAG_CT_RESERVED) {
+        (void) fprintf(stderr, "pgp_key_init: wrong key type\n");
     } else if (type != PGP_PTAG_CT_PUBLIC_KEY && type != PGP_PTAG_CT_SECRET_KEY) {
-        (void) fprintf(stderr, "pgp_keydata_init: wrong type\n");
+        (void) fprintf(stderr, "pgp_key_init: wrong type\n");
     } else {
-        keydata->type = type;
+        key->type = type;
     }
 }

@@ -138,7 +138,7 @@ struct pgp_reader_t {
 struct pgp_cryptinfo_t {
     char *           passphrase;
     rnp_key_store_t *secring;
-    const pgp_key_t *keydata;
+    const pgp_key_t *key;
     pgp_cbfunc_t *   getpassphrase;
     rnp_key_store_t *pubring;
 };
