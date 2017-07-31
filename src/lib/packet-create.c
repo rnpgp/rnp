@@ -1059,7 +1059,7 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "encrypted mpi", encmpibuf, out_len);
         }
-    } else {
+    } else if (key->key.pubkey.alg == PGP_PKA_ELGAMAL) {
         /* ElGamal case */
         uint8_t encmpibuf[RNP_BUFSIZ];
         uint8_t g_to_k[RNP_BUFSIZ];
@@ -1079,6 +1079,9 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
             hexdump(stderr, "elgamal g^k", g_to_k, n / 2);
             hexdump(stderr, "encrypted mpi", encmpibuf, n / 2);
         }
+    } else {
+        RNP_LOG("Unknown algorithm %d", key->key.pubkey.alg);
+        goto error;
     }
 
 done:

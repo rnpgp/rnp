@@ -145,6 +145,7 @@ compute_kek(uint8_t *              kek,
         return false;
     }
 
+    // OZAPTF: use KDF from botan
     do {
         ret = botan_pk_op_key_agreement_create(&op_key_agreement, ec_prvkey, "Raw", 0);
         if (ret) {
