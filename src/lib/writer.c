@@ -995,7 +995,7 @@ static void encrypt_se_ip_destroyer(pgp_writer_t *);
 \brief Push Encrypted SE IP Writer onto stack
 */
 bool
-pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t cipher)
+pgp_push_enc_se_ip(pgp_output_t *output, const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
 {
     pgp_pk_sesskey_t *encrypted_pk_sesskey;
     encrypt_se_ip_t * se_ip;
@@ -1014,7 +1014,8 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t
         return false;
     }
     if (!pgp_write_pk_sesskey(output, encrypted_pk_sesskey)) {
-        return 0;
+        free(se_ip);
+        return false;
     }
 
     /* Setup the se_ip */
@@ -1407,7 +1408,9 @@ static void str_enc_se_ip_destroyer(pgp_writer_t *writer);
 \param pubkey
 */
 void
-pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t cipher)
+pgp_push_stream_enc_se_ip(pgp_output_t *      output,
+                          const pgp_pubkey_t *pubkey,
+                          pgp_symm_alg_t      cipher)
 {
     pgp_pk_sesskey_t *encrypted_pk_sesskey;
     str_enc_se_ip_t * se_ip;
@@ -1420,7 +1423,14 @@ pgp_push_stream_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_sym
         return;
     }
     encrypted_pk_sesskey = pgp_create_pk_sesskey(pubkey, cipher);
-    pgp_write_pk_sesskey(output, encrypted_pk_sesskey);
+    if (!encrypted_pk_sesskey) {
+        RNP_LOG("pgp_create_pk_sesskey failed");
+        return;
+    }
+    if (!pgp_write_pk_sesskey(output, encrypted_pk_sesskey)) {
+        RNP_LOG("pgp_write_pk_sesskey failed");
+        return;
+    }
 
     /* Setup the se_ip */
     if ((encrypted = calloc(1, sizeof(*encrypted))) == NULL) {

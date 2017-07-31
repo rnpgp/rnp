@@ -494,8 +494,11 @@ Encrypt a file
 \return true if OK
 */
 bool
-pgp_encrypt_file(
-  rnp_ctx_t *ctx, pgp_io_t *io, const char *infile, const char *outfile, const pgp_key_t *key)
+pgp_encrypt_file(rnp_ctx_t *         ctx,
+                 pgp_io_t *          io,
+                 const char *        infile,
+                 const char *        outfile,
+                 const pgp_pubkey_t *pubkey)
 {
     pgp_output_t *output;
     pgp_memory_t *inmem;
@@ -523,7 +526,7 @@ pgp_encrypt_file(
     }
 
     /* Push the encrypted writer */
-    if (!pgp_push_enc_se_ip(output, key, ctx->ealg)) {
+    if (!pgp_push_enc_se_ip(output, pubkey, ctx->ealg)) {
         pgp_memory_free(inmem);
         return false;
     }
@@ -540,11 +543,11 @@ pgp_encrypt_file(
 
 /* encrypt the contents of the input buffer, and return the mem structure */
 pgp_memory_t *
-pgp_encrypt_buf(rnp_ctx_t *      ctx,
-                pgp_io_t *       io,
-                const void *     input,
-                const size_t     insize,
-                const pgp_key_t *pubkey)
+pgp_encrypt_buf(rnp_ctx_t *         ctx,
+                pgp_io_t *          io,
+                const void *        input,
+                const size_t        insize,
+                const pgp_pubkey_t *pubkey)
 {
     pgp_output_t *output;
     pgp_memory_t *outmem;
