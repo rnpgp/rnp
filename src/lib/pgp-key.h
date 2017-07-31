@@ -78,6 +78,16 @@ bool pgp_is_key_public(const pgp_key_t *);
 
 bool pgp_is_key_secret(const pgp_key_t *);
 
+bool pgp_key_can_sign(const pgp_key_t *key);
+bool pgp_key_can_certify(const pgp_key_t *key);
+bool pgp_key_can_encrypt(const pgp_key_t *key);
+
+bool pgp_is_primary_key_tag(pgp_content_enum tag);
+bool pgp_is_subkey_tag(pgp_content_enum tag);
+
+bool pgp_key_is_primary_key(const pgp_key_t *key);
+bool pgp_key_is_subkey(const pgp_key_t *key);
+
 const struct pgp_seckey_t *pgp_get_seckey(const pgp_key_t *);
 
 pgp_seckey_t *pgp_get_writable_seckey(pgp_key_t *);
