@@ -1042,7 +1042,7 @@ typedef struct pgp_key_t {
     DYNARRAY(pgp_revoke_t, revoke);    /* array of signature revocations */
     pgp_content_enum  type;            /* type of key */
     pgp_keydata_key_t key;             /* pubkey/seckey data */
-    uint8_t           flags;           /* key flags */
+    uint8_t           key_flags;       /* key flags */
     pgp_pubkey_t      sigkey;          /* signature key */
     uint8_t           sigid[PGP_KEY_ID_SIZE];
     pgp_fingerprint_t sigfingerprint; /* pgp key fingerprint */
