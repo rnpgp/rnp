@@ -30,7 +30,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "errors.h"
-#include "rnp.h"
+#include "rnp/rnp.h"
 #include "packet.h"
 
 /* -----------------------------------------------------------------------------
