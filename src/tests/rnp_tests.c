@@ -145,13 +145,14 @@ main(int argc, char *argv[])
       cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirNoPermission),
       cmocka_unit_test(rnpkeys_exportkey_verifyUserId),
       cmocka_unit_test(rnpkeys_generatekey_testExpertMode),
-      cmocka_unit_test(generatekey_explicitlySetSmallOutputDigest_DigestAlgAdjusted),
-      cmocka_unit_test(generatekey_explicitlySetBiggerThanNeededDigest_ShouldSuceed),
-      cmocka_unit_test(generatekey_explicitlySetWrongDigest_ShouldFail),
+      cmocka_unit_test(generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted),
+      cmocka_unit_test(generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed),
+      cmocka_unit_test(generatekeyECDSA_explicitlySetWrongDigest_ShouldFail),
       cmocka_unit_test(test_utils_list),
       cmocka_unit_test(pgp_parse_keyrings_1_pubring),
       cmocka_unit_test(test_load_user_prefs),
-      cmocka_unit_test(ecdh_roundtrip)
+      cmocka_unit_test(ecdh_roundtrip),
+      cmocka_unit_test(ecdh_decryptionNegativeCases)
     };
 
     /* Each test entry will invoke setup_test before running

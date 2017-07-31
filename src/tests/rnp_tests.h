@@ -65,11 +65,11 @@ void ecdsa_signverify_success(void **state);
 
 void rnpkeys_generatekey_testExpertMode(void **state);
 
-void generatekey_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state);
+void generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state);
 
-void generatekey_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state);
+void generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state);
 
-void generatekey_explicitlySetWrongDigest_ShouldFail(void **state);
+void generatekeyECDSA_explicitlySetWrongDigest_ShouldFail(void **state);
 
 void test_utils_list(void **state);
 
@@ -78,6 +78,8 @@ void pgp_parse_keyrings_1_pubring(void **state);
 void test_load_user_prefs(void **state);
 
 void ecdh_roundtrip(void **state);
+
+void ecdh_decryptionNegativeCases(void **state);
 
 #define rnp_assert_int_equal(state, a, b)           \
     do {                                            \

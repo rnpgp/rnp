@@ -306,7 +306,8 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
     uint8_t         key[OBFUSCATED_KEY_SIZE] = {0};
     size_t          key_len = sizeof(key);
 
-    if (!pubkey || !seckey->x || !seckey->x->mp) {
+    if (!session_key_len || !session_key_len || !wrapped_key || !pubkey || !seckey ||
+        !seckey->x || !seckey->x->mp) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
