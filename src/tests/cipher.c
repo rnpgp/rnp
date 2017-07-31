@@ -578,8 +578,8 @@ ecdh_decryptionNegativeCases(void **state)
                                                 &ecdh_key1->sigfingerprint),
                          RNP_ERROR_SHORT_BUFFER);
 
-    int key_wrapping_alg = ecdh_key1->key.pubkey.key.ecdh.kdf.wrap_alg;
-    ecdh_key1->key.pubkey.key.ecdh.kdf.wrap_alg = PGP_SA_IDEA;
+    int key_wrapping_alg = ecdh_key1->key.pubkey.key.ecdh.key_wrap_alg;
+    ecdh_key1->key.pubkey.key.ecdh.key_wrap_alg = PGP_SA_IDEA;
     rnp_assert_int_equal(rstate,
                          pgp_ecdh_decrypt_pkcs5(result,
                                                 &result_len,
@@ -590,7 +590,7 @@ ecdh_decryptionNegativeCases(void **state)
                                                 &ecdh_key1->key.pubkey.key.ecdh,
                                                 &ecdh_key1->sigfingerprint),
                          RNP_ERROR_NOT_SUPPORTED);
-    ecdh_key1->key.pubkey.key.ecdh.kdf.wrap_alg = key_wrapping_alg;
+    ecdh_key1->key.pubkey.key.ecdh.key_wrap_alg = key_wrapping_alg;
 
     // Change ephemeral key, so that it fails to decrypt
     botan_mp_clear(tmp_eph_key);

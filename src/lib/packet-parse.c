@@ -1363,8 +1363,8 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
         if (!limread_scalar(&tmp, 1, region, stream) || (tmp != 1)) {
             return false;
         }
-        if (!limread_scalar(&key->key.ecdh.kdf.hash, 1, region, stream) ||
-            !limread_scalar(&key->key.ecdh.kdf.wrap_alg, 1, region, stream)) {
+        if (!limread_scalar(&key->key.ecdh.kdf_hash_alg, 1, region, stream) ||
+            !limread_scalar(&key->key.ecdh.key_wrap_alg, 1, region, stream)) {
             return false;
         }
         break;

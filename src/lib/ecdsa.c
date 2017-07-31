@@ -161,8 +161,8 @@ pgp_ecdh_ecdsa_genkeypair(pgp_seckey_t *seckey, const pgp_curve_t curve)
     }
 
     if (seckey->pubkey.alg == PGP_PKA_ECDH) {
-        seckey->pubkey.key.ecdh.kdf.hash = ecdh_params[curve].hash;
-        seckey->pubkey.key.ecdh.kdf.wrap_alg = ecdh_params[curve].wrap_alg;
+        seckey->pubkey.key.ecdh.kdf_hash_alg = ecdh_params[curve].hash;
+        seckey->pubkey.key.ecdh.key_wrap_alg = ecdh_params[curve].wrap_alg;
     }
 
     // All good now

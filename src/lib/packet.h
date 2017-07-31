@@ -487,10 +487,8 @@ typedef struct {
  */
 typedef struct pgp_ecdh_pubkey_t {
     pgp_ecc_pubkey_t ec;
-    struct {
-        pgp_hash_alg_t hash;     /* Hash used by kdf */
-        pgp_symm_alg_t wrap_alg; /* Symmetric algorithm used to wrap KEK*/
-    } kdf;
+    pgp_hash_alg_t   kdf_hash_alg; /* Hash used by kdf */
+    pgp_symm_alg_t   key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
 } pgp_ecdh_pubkey_t;
 
 /** Version.

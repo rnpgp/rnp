@@ -214,10 +214,10 @@ pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
     // See 13.5 of RFC 4880 for definition of other_info_size
     const size_t other_info_size = (pubkey->ec.curve == PGP_CURVE_NIST_P_256) ? 54 : 51;
     const size_t key_len = BITS_TO_BYTES(curve_desc->bitlen) * 2 + 1;
-    const size_t kek_len = pgp_key_size(pubkey->kdf.wrap_alg);
+    const size_t kek_len = pgp_key_size(pubkey->key_wrap_alg);
 
     size_t tmp_len = kdf_other_info_serialize(
-      other_info, curve_desc, fingerprint, pubkey->kdf.hash, pubkey->kdf.wrap_alg);
+      other_info, curve_desc, fingerprint, pubkey->kdf_hash_alg, pubkey->key_wrap_alg);
 
     if (tmp_len != other_info_size) {
         RNP_LOG("Serialization of other info failed");
@@ -240,7 +240,7 @@ pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
                      curve_desc,
                      pubkey->ec.point->mp,
                      eph_prv_key,
-                     pubkey->kdf.hash)) {
+                     pubkey->kdf_hash_alg)) {
         RNP_LOG("KEK computation failed");
         goto end;
     }
@@ -317,8 +317,8 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
-    const pgp_symm_alg_t wrap_alg = pubkey->kdf.wrap_alg;
-    const pgp_hash_alg_t kdf_hash = pubkey->kdf.hash;
+    const pgp_symm_alg_t wrap_alg = pubkey->key_wrap_alg;
+    const pgp_hash_alg_t kdf_hash = pubkey->kdf_hash_alg;
     /* Ensure that AES is used for wrapping */
     if ((wrap_alg != PGP_SA_AES_128) && (wrap_alg != PGP_SA_AES_192) &&
         (wrap_alg != PGP_SA_AES_256)) {

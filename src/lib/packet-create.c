@@ -246,8 +246,8 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
         return ec_serialize_pubkey(output, &key->key.ecdh.ec) &&
                pgp_write_scalar(output, 3 /*size of following attributes*/, 1) &&
                pgp_write_scalar(output, 1 /*reserved*/, 1) &&
-               pgp_write_scalar(output, (uint8_t) key->key.ecdh.kdf.hash, 1) &&
-               pgp_write_scalar(output, (uint8_t) key->key.ecdh.kdf.wrap_alg, 1);
+               pgp_write_scalar(output, (uint8_t) key->key.ecdh.kdf_hash_alg, 1) &&
+               pgp_write_scalar(output, (uint8_t) key->key.ecdh.key_wrap_alg, 1);
     case PGP_PKA_ELGAMAL:
         return pgp_write_mpi(output, key->key.elgamal.p) &&
                pgp_write_mpi(output, key->key.elgamal.g) &&
