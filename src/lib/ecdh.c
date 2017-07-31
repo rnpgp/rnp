@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -307,8 +307,8 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
     uint8_t         key[OBFUSCATED_KEY_SIZE] = {0};
     size_t          key_len = sizeof(key);
 
-    if (!session_key_len || !session_key_len || !wrapped_key || !pubkey || !seckey ||
-        !seckey->x || !seckey->x->mp) {
+    if (!session_key_len || !session_key_len || !wrapped_key || !seckey || !seckey->x ||
+        !seckey->x->mp || !pubkey) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -317,17 +317,19 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
+    const pgp_symm_alg_t wrap_alg = pubkey->kdf.wrap_alg;
+    const pgp_hash_alg_t kdf_hash = pubkey->kdf.hash;
     /* Ensure that AES is used for wrapping */
-    if ((pubkey->kdf.wrap_alg != PGP_SA_AES_128) && (pubkey->kdf.wrap_alg != PGP_SA_AES_192) &&
-        (pubkey->kdf.wrap_alg != PGP_SA_AES_256)) {
+    if ((wrap_alg != PGP_SA_AES_128) && (wrap_alg != PGP_SA_AES_192) &&
+        (wrap_alg != PGP_SA_AES_256)) {
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
     // See 13.5 of RFC 4880 for definition of other_info_size
     const size_t other_info_size =
       (curve_desc->rnp_curve_id == PGP_CURVE_NIST_P_256) ? 54 : 51;
-    const size_t tmp_len = kdf_other_info_serialize(
-      other_info, curve_desc, fingerprint, pubkey->kdf.hash, pubkey->kdf.wrap_alg);
+    const size_t tmp_len =
+      kdf_other_info_serialize(other_info, curve_desc, fingerprint, kdf_hash, wrap_alg);
 
     if (other_info_size != tmp_len) {
         RNP_LOG("Serialization of other info failed");
@@ -338,7 +340,10 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
         goto end;
     }
 
-    size_t kek_len = pgp_key_size(pubkey->kdf.wrap_alg);
+    /* Security: Always return same error code in case compute_kek,
+     *           botan_key_unwrap3394 or unpad_pkcs7 fails
+     */
+    size_t kek_len = pgp_key_size(wrap_alg);
     if (!compute_kek(kek,
                      kek_len,
                      other_info,
@@ -346,15 +351,15 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
                      curve_desc,
                      ephemeral_key,
                      prv_key,
-                     pubkey->kdf.hash)) {
-        goto end;
-    }
-
-    if (botan_key_unwrap3394(wrapped_key, wrapped_key_len, kek, kek_len, key, &key_len)) {
+                     kdf_hash)) {
         goto end;
     }
 
     size_t offset = 0;
+    if (botan_key_unwrap3394(wrapped_key, wrapped_key_len, kek, kek_len, key, &key_len)) {
+        goto end;
+    }
+
     if (!unpad_pkcs7(key, key_len, &offset)) {
         goto end;
     }

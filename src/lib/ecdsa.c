@@ -72,6 +72,11 @@ get_curve_desc(const pgp_curve_t curve_id)
     return (curve_id < PGP_CURVE_MAX) ? &ec_curves[curve_id] : NULL;
 }
 
+/*
+ * TODO: This code is common to ECDSA, ECDH, SM2.
+ *       Put it to ec_utils.c together with the code above and
+ *       some ohter stuff common to EC.
+ */
 pgp_errcode_t
 pgp_ecdh_ecdsa_genkeypair(pgp_seckey_t *seckey, const pgp_curve_t curve)
 {
