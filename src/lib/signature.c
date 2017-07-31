@@ -899,11 +899,15 @@ pgp_sig_write(pgp_output_t *      output,
 unsigned
 pgp_sig_add_time(pgp_create_sig_t *sig, int64_t when, pgp_content_enum tag)
 {
-    if ((tag != PGP_PTAG_SS_CREATION_TIME) && (tag != PGP_PTAG_SS_EXPIRATION_TIME)) {
+    switch (tag) {
+    case PGP_PTAG_SS_CREATION_TIME:
+    case PGP_PTAG_SS_EXPIRATION_TIME:
+    case PGP_PTAG_SS_KEY_EXPIRY:
+        break;
+    default:
         (void) fprintf(stderr, "Wrong pgp signature time tag");
         return false;
     }
-
     /* just do 32-bit timestamps for just now - it's in the protocol */
     return pgp_write_ss_header(sig->output, 4, tag) &&
            pgp_write_scalar(sig->output, (uint32_t) when, (unsigned) sizeof(uint32_t));
