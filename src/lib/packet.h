@@ -623,8 +623,11 @@ typedef enum {
     PGP_KF_SPLIT = 0x10,           /* The private component of this key may have been split
                                             by a secret-sharing mechanism. */
     PGP_KF_AUTH = 0x20,            /* This key may be used for authentication. */
-    PGP_KF_SHARED = 0x80           /* The private component of this key may be in the
+    PGP_KF_SHARED = 0x80,          /* The private component of this key may be in the
                                             possession of more than one person. */
+    /* pseudo flags */
+    PGP_KF_NONE = 0x00,
+    PGP_KF_ENCRYPT = PGP_KF_ENCRYPT_COMMS | PGP_KF_ENCRYPT_STORAGE,
 } pgp_key_flags_t;
 
 /** Struct to hold params of an RSA signature */
