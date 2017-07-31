@@ -150,7 +150,7 @@ pgp_key_free_data(pgp_key_t *key)
     }
     revoke_free(&key->revocation);
 
-    if (key->type == PGP_PTAG_CT_PUBLIC_KEY) {
+    if (pgp_is_key_public(key)) {
         pgp_pubkey_free(&key->key.pubkey);
     } else {
         pgp_seckey_free(&key->key.seckey);
@@ -178,7 +178,7 @@ pgp_key_free(pgp_key_t *key)
 const pgp_pubkey_t *
 pgp_get_pubkey(const pgp_key_t *key)
 {
-    return (key->type == PGP_PTAG_CT_PUBLIC_KEY) ? &key->key.pubkey : &key->key.seckey.pubkey;
+    return pgp_is_key_public(key) ? &key->key.pubkey : &key->key.seckey.pubkey;
 }
 
 bool
@@ -261,9 +261,9 @@ pgp_key_is_subkey(const pgp_key_t *key)
 */
 
 const pgp_seckey_t *
-pgp_get_seckey(const pgp_key_t *data)
+pgp_get_seckey(const pgp_key_t *key)
 {
-    return (data->type == PGP_PTAG_CT_SECRET_KEY) ? &data->key.seckey : NULL;
+    return pgp_is_key_secret(key) ? &key->key.seckey : NULL;
 }
 
 /**
@@ -278,9 +278,9 @@ pgp_get_seckey(const pgp_key_t *data)
 */
 
 pgp_seckey_t *
-pgp_get_writable_seckey(pgp_key_t *data)
+pgp_get_writable_seckey(pgp_key_t *key)
 {
-    return (data->type == PGP_PTAG_CT_SECRET_KEY) ? &data->key.seckey : NULL;
+    return pgp_is_key_secret(key) ? &key->key.seckey : NULL;
 }
 
 typedef struct {
@@ -623,9 +623,18 @@ pgp_key_init(pgp_key_t *key, const pgp_content_enum type)
 {
     if (key->type != PGP_PTAG_CT_RESERVED) {
         (void) fprintf(stderr, "pgp_key_init: wrong key type\n");
-    } else if (type != PGP_PTAG_CT_PUBLIC_KEY && type != PGP_PTAG_CT_SECRET_KEY) {
-        (void) fprintf(stderr, "pgp_key_init: wrong type\n");
-    } else {
-        key->type = type;
     }
+    switch (type) {
+      case PGP_PTAG_CT_PUBLIC_KEY:
+      case PGP_PTAG_CT_PUBLIC_SUBKEY:
+      case PGP_PTAG_CT_SECRET_KEY:
+      case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
+      case PGP_PTAG_CT_SECRET_SUBKEY:
+      case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
+        break;
+      default:
+        RNP_LOG("invalid key type: %d", type);
+        break;
+    }
+    key->type = type;
 }
