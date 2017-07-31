@@ -184,9 +184,7 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         break;
     case PGP_PTAG_SS_ISSUER_KEY_ID:
         SUBSIG_REQUIRED_BEFORE("ss issuer key id");
-        memcpy(&subsig->sig.info.signer_id,
-                      pkt->u.ss_issuer,
-                      sizeof(pkt->u.ss_issuer));
+        memcpy(&subsig->sig.info.signer_id, pkt->u.ss_issuer, sizeof(pkt->u.ss_issuer));
         subsig->sig.info.signer_id_set = 1;
         break;
     case PGP_PTAG_SS_CREATION_TIME:
@@ -226,7 +224,7 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PTAG_SS_KEY_FLAGS:
         SUBSIG_REQUIRED_BEFORE("ss key flags");
         subsig->key_flags = pkt->u.ss_key_flags.contents[0];
-        key->flags = subsig->key_flags;
+        key->key_flags = subsig->key_flags;
         break;
     case PGP_PTAG_SS_PREFERRED_SKA:
         SUBSIG_REQUIRED_BEFORE("ss preferred symmetric key algs");
