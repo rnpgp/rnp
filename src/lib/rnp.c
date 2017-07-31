@@ -1119,7 +1119,7 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *
         (void) snprintf(outname, sizeof(outname), "%s%s", f, suffix);
         out = outname;
     }
-    return (int) pgp_encrypt_file(ctx, ctx->rnp->io, f, out, key);
+    return (int) pgp_encrypt_file(ctx, ctx->rnp->io, f, out, pgp_get_pubkey(key));
 }
 
 #define ARMOR_HEAD "-----BEGIN PGP MESSAGE-----"
@@ -1445,7 +1445,7 @@ rnp_encrypt_memory(
         (void) fprintf(io->errs, "rnp_encrypt_buf: input size is larger than output size\n");
         return 0;
     }
-    enc = pgp_encrypt_buf(ctx, io, in, insize, keypair);
+    enc = pgp_encrypt_buf(ctx, io, in, insize, pgp_get_pubkey(keypair));
     m = MIN(pgp_mem_len(enc), outsize);
     (void) memcpy(out, pgp_mem_data(enc), m);
     pgp_memory_free(enc);

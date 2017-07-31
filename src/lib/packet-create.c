@@ -932,7 +932,7 @@ create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, pgp_crypt_t *cipherinfo, uint8
 \note It is the caller's responsiblity to free the returned pointer
 */
 pgp_pk_sesskey_t *
-pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
+pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
 {
     /*
      * Creates a random session key and encrypts it for the given key
@@ -941,11 +941,10 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
      * can be any, we're hardcoding RSA for now
      */
 
-    const pgp_pubkey_t *pubkey = pgp_get_pubkey(key);
-    pgp_crypt_t         cipherinfo;
-    pgp_pk_sesskey_t *  sesskey = NULL;
-    uint8_t *           encoded_key = NULL;
-    size_t              sz_encoded_key = 0;
+    pgp_crypt_t       cipherinfo;
+    pgp_pk_sesskey_t *sesskey = NULL;
+    uint8_t *         encoded_key = NULL;
+    size_t            sz_encoded_key = 0;
 
     if (pubkey == NULL) {
         (void) fprintf(stderr, "pgp_create_pk_sesskey: bad pub key\n");
@@ -1003,13 +1002,16 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
     }
 
     if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "Encrypting for keyid", key->keyid, sizeof(sesskey->key_id));
+        hexdump(stderr, "Encrypting for keyid", sesskey->key_id, sizeof(sesskey->key_id));
         hexdump(stderr, "sesskey created", sesskey->key, cipherinfo.keysize);
         hexdump(stderr, "encoded key buf", encoded_key, cipherinfo.keysize + 1 + 2);
     }
 
     /* and encrypt it */
-    if (key->key.pubkey.alg == PGP_PKA_RSA) {
+    switch (pubkey->alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY: {
         uint8_t encmpibuf[RNP_BUFSIZ];
         int     n;
 
@@ -1027,9 +1029,17 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "encrypted mpi", encmpibuf, n);
         }
-    } else if (key->key.pubkey.alg == PGP_PKA_ECDH) {
+    } break;
+
+    case PGP_PKA_ECDH: {
         uint8_t encmpibuf[ECDH_WRAPPED_KEY_SIZE] = {0};
         size_t  out_len = sizeof(encmpibuf);
+        pgp_fingerprint_t fingerprint;
+
+        if (!pgp_fingerprint(&fingerprint, pubkey)) {
+            RNP_LOG("ECDH fingerprint calculation failed");
+            goto done;
+        }
 
         sesskey->params.ecdh.ephemeral_point = BN_new();
         if (!sesskey->params.ecdh.ephemeral_point) {
@@ -1041,8 +1051,8 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
                                                       encmpibuf,
                                                       &out_len,
                                                       sesskey->params.ecdh.ephemeral_point->mp,
-                                                      &key->key.pubkey.key.ecdh,
-                                                      &key->fingerprint);
+                                                      &pubkey->key.ecdh,
+                                                      &fingerprint);
         if (RNP_SUCCESS != err) {
             RNP_LOG("Encryption failed %d\n", err);
             goto error;
@@ -1052,8 +1062,10 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "encrypted mpi", encmpibuf, out_len);
         }
-    } else if (key->key.pubkey.alg == PGP_PKA_ELGAMAL) {
-        /* ElGamal case */
+    } break;
+
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
         uint8_t encmpibuf[RNP_BUFSIZ];
         uint8_t g_to_k[RNP_BUFSIZ];
         int     n;
@@ -1072,9 +1084,12 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
             hexdump(stderr, "elgamal g^k", g_to_k, n / 2);
             hexdump(stderr, "encrypted mpi", encmpibuf, n / 2);
         }
-    } else {
-        RNP_LOG("Unknown algorithm %d", key->key.pubkey.alg);
+    } break;
+
+    default:
+        RNP_LOG("unsupported alg: %d", pubkey->alg);
         goto error;
+        break;
     }
 
 done:
