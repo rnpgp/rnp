@@ -85,6 +85,7 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include <rnp/rnp_sdk.h>
 #include "packet.h"
 #include "rnpdigest.h"
+#include "pgp-key.h"
 
 #define F_REVOKED 1
 
@@ -390,13 +391,14 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
     char key_usage[8];
 
     format_key_usage(key_usage, sizeof(key_usage), key->key_flags);
+    const pgp_pubkey_t *pubkey = pgp_get_pubkey(key);
     return snprintf(buf,
                     size,
                     "encryption %d/%s %s %s [%s] %s\n",
-                    numkeybits(&key->enckey),
-                    pgp_show_pka(key->enckey.alg),
-                    rnp_strhexdump(keyid, key->encid, PGP_KEY_ID_SIZE, ""),
-                    ptimestr(t, sizeof(t), key->enckey.birthtime),
+                    numkeybits(pubkey),
+                    pgp_show_pka(pubkey->alg),
+                    rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, ""),
+                    ptimestr(t, sizeof(t), pubkey->birthtime),
                     key_usage,
                     expired);
 }
@@ -571,10 +573,7 @@ static bool
 format_key_usage(char *buffer, size_t size, uint8_t flags)
 {
     static const pgp_bit_map_t flags_map[] = {
-      {PGP_KF_ENCRYPT_COMMS | PGP_KF_ENCRYPT_STORAGE, "E"},
-      {PGP_KF_SIGN, "S"},
-      {PGP_KF_CERTIFY, "C"},
-      {PGP_KF_AUTH, "A"},
+      {PGP_KF_ENCRYPT, "E"}, {PGP_KF_SIGN, "S"}, {PGP_KF_CERTIFY, "C"}, {PGP_KF_AUTH, "A"},
     };
 
     *buffer = '\0';
@@ -654,11 +653,11 @@ pgp_sprint_key(pgp_io_t *             io,
                                                 NOTICE_BUFFER_SIZE - uid_notices_offset,
                                                 flags);
     }
+    uid_notices[uid_notices_offset] = '\0';
 
-    rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
+    rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, "");
 
-    rnp_strhexdump(
-      fingerprint, key->sigfingerprint.fingerprint, key->sigfingerprint.length, " ");
+    rnp_strhexdump(fingerprint, key->fingerprint.fingerprint, key->fingerprint.length, " ");
 
     ptimestr(birthtime, sizeof(birthtime), pubkey->birthtime);
 
@@ -677,7 +676,7 @@ pgp_sprint_key(pgp_io_t *             io,
     if (string != NULL) {
         total_length = snprintf(string,
                                 KB(16),
-                                "%s %d/%s %s %s [%s] %s\nKey fingerprint: %s\n%s",
+                                "%s %d/%s %s %s [%s] %s\n                 %s\n%s",
                                 header,
                                 numkeybits(pubkey),
                                 pgp_show_pka(pubkey->alg),
@@ -727,18 +726,18 @@ pgp_sprint_json(pgp_io_t *             io,
     json_object_object_add(
       keyjson,
       "key id",
-      json_object_new_string(rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "")));
-    json_object_object_add(
-      keyjson,
-      "fingerprint",
-      json_object_new_string(
-        rnp_strhexdump(fp, key->sigfingerprint.fingerprint, key->sigfingerprint.length, "")));
-    json_object_object_add(keyjson, "birthtime", json_object_new_int(pubkey->birthtime));
+      json_object_new_string(rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, "")));
+    json_object_object_add(keyjson,
+                           "fingerprint",
+                           json_object_new_string(rnp_strhexdump(
+                             fp, key->fingerprint.fingerprint, key->fingerprint.length, "")));
+    json_object_object_add(keyjson, "creation time", json_object_new_int(pubkey->birthtime));
     json_object_object_add(keyjson, "duration", json_object_new_int(pubkey->duration));
     json_object_object_add(keyjson, "flags", json_object_new_int(key->key_flags));
     json_object_object_add(keyjson, "usage", json_object_new_string(key_usage));
 
     // iterating through the uids
+    json_object *uid_arr = json_object_new_array();
     for (i = 0; i < key->uidc; i++) {
         if ((r = isrevoked(key, i)) >= 0 &&
             key->revokes[r].code == PGP_REVOCATION_COMPROMISED) {
@@ -746,11 +745,11 @@ pgp_sprint_json(pgp_io_t *             io,
         }
         // add an array of the uids (and checking whether is REVOKED and
         // indicate it as well)
-        json_object *uid_arr = json_object_new_array();
-        json_object_array_add(uid_arr, json_object_new_string((char *) key->uids[i]));
-        json_object_array_add(uid_arr, json_object_new_string((r >= 0) ? "[REVOKED]" : ""));
-        json_object_object_add(keyjson, "uid", uid_arr);
-
+        json_object *uidobj = json_object_new_object();
+        json_object_object_add(
+          uidobj, "user id", json_object_new_string((char *) key->uids[i]));
+        json_object_object_add(
+          uidobj, "revoked", json_object_new_boolean((r >= 0) ? TRUE : FALSE));
         for (j = 0; j < key->subsigc; j++) {
             if (psigs) {
                 if (key->subsigs[j].uid != i) {
@@ -762,51 +761,36 @@ pgp_sprint_json(pgp_io_t *             io,
                     continue;
                 }
             }
-            json_object *subsigc_arr = json_object_new_array();
+            json_object *subsigc = json_object_new_object();
+            json_object_object_add(
+              subsigc,
+              "signer id",
+              json_object_new_string(rnp_strhexdump(
+                keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, "")));
+            json_object_object_add(
+              subsigc,
+              "creation time",
+              json_object_new_int((int64_t)(key->subsigs[j].sig.info.birthtime)));
 
-            if (key->subsigs[j].sig.info.version == 4 &&
-                key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
-                json_object_array_add(subsigc_arr,
-                                      json_object_new_int((int64_t) numkeybits(&key->enckey)));
+            unsigned         from = 0;
+            const pgp_key_t *trustkey = rnp_key_store_get_key_by_id(
+              io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
 
-                json_object_array_add(
-                  subsigc_arr,
-                  json_object_new_string((const char *) pgp_show_pka(key->enckey.alg)));
-
-                json_object_array_add(subsigc_arr,
-                                      json_object_new_string(rnp_strhexdump(
-                                        keyid, key->encid, PGP_KEY_ID_SIZE, "")));
-
-                json_object_array_add(subsigc_arr,
-                                      json_object_new_int((int64_t) key->enckey.birthtime));
-
-                json_object_object_add(keyjson, "encryption", subsigc_arr);
-            } else {
-                json_object_array_add(
-                  subsigc_arr,
-                  json_object_new_string(rnp_strhexdump(
-                    keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, "")));
-                json_object_array_add(
-                  subsigc_arr,
-                  json_object_new_int((int64_t)(key->subsigs[j].sig.info.birthtime)));
-
-                unsigned         from = 0;
-                const pgp_key_t *trustkey = rnp_key_store_get_key_by_id(
-                  io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
-
-                json_object_array_add(
-                  subsigc_arr,
-                  json_object_new_string((trustkey) ? (char *) trustkey->uids[trustkey->uid0] :
-                                                      "[unknown]"));
-                json_object_object_add(keyjson, "sig", subsigc_arr);
-            }
-        } // for
-    }     // for uidc
+            json_object_object_add(
+              subsigc,
+              "user id",
+              json_object_new_string((trustkey) ? (char *) trustkey->uids[trustkey->uid0] :
+                                                  "[unknown]"));
+            json_object_object_add(uidobj, "signature", subsigc);
+        }
+        json_object_array_add(uid_arr, uidobj);
+    } // for uidc
+    json_object_object_add(keyjson, "user ids", uid_arr);
     if (rnp_get_debug(__FILE__)) {
         printf("%s,%d: The json object created: %s\n",
                __FILE__,
                __LINE__,
-               json_object_to_json_string(keyjson));
+               json_object_to_json_string_ext(keyjson, JSON_C_TO_STRING_PRETTY));
     }
     return 1;
 }
@@ -877,7 +861,7 @@ pgp_hkp_sprint_key(pgp_io_t *             io,
         }
     }
 
-    rnp_strhexdump(fingerprint, key->sigfingerprint.fingerprint, PGP_FINGERPRINT_SIZE, "");
+    rnp_strhexdump(fingerprint, key->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE, "");
 
     n = -1;
     {
@@ -971,16 +955,15 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
     char fp[PGP_FINGERPRINT_HEX_SIZE];
     int  cc;
 
-    cc =
-      snprintf(out,
-               outsize,
-               "key=%s\nname=%s\ncreation=%lld\nexpiry=%lld\nversion=%d\nalg=%d\n",
-               rnp_strhexdump(fp, key->sigfingerprint.fingerprint, PGP_FINGERPRINT_SIZE, ""),
-               key->uids[key->uid0],
-               (long long) key->key.pubkey.birthtime,
-               (long long) key->key.pubkey.days_valid,
-               key->key.pubkey.version,
-               key->key.pubkey.alg);
+    cc = snprintf(out,
+                  outsize,
+                  "key=%s\nname=%s\ncreation=%lld\nexpiry=%lld\nversion=%d\nalg=%d\n",
+                  rnp_strhexdump(fp, key->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE, ""),
+                  key->uids[key->uid0],
+                  (long long) key->key.pubkey.birthtime,
+                  (long long) key->key.pubkey.days_valid,
+                  key->key.pubkey.version,
+                  key->key.pubkey.alg);
     switch (key->key.pubkey.alg) {
     case PGP_PKA_DSA:
         cc += snprintf(&out[cc],

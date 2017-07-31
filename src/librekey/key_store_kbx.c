@@ -520,7 +520,7 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *     io,
         return false;
     }
 
-    if (!pgp_memory_add(m, key->sigfingerprint.fingerprint, PGP_FINGERPRINT_SIZE)) {
+    if (!pgp_memory_add(m, key->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE)) {
         return false;
     }
 

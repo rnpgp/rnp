@@ -454,7 +454,9 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key)
         BN_bn2bin(key->key.rsa.n, bn);
         (void) memcpy(keyid, bn + n - idlen, idlen);
     } else {
-        pgp_fingerprint(&finger, key);
+        if (!pgp_fingerprint(&finger, key)) {
+            return false;
+        }
         (void) memcpy(keyid, finger.fingerprint + finger.length - idlen, idlen);
     }
     return true;

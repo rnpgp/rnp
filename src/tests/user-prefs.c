@@ -29,8 +29,9 @@
 #include "rnp_tests.h"
 #include "support.h"
 
-static const pgp_subsig_t*
-find_subsig(const pgp_key_t *key, const char *userid) {
+static const pgp_subsig_t *
+find_subsig(const pgp_key_t *key, const char *userid)
+{
     // find the userid index
     int uididx = -1;
     for (int i = 0; i < key->uidc; i++) {
@@ -68,7 +69,7 @@ test_load_user_prefs(void **state)
 
     rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, homedir, pipefd));
     rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, false));
-    rnp_assert_true(rstate, rnp_secret_count(&rnp) == 0 && rnp_public_count(&rnp) == 2);
+    rnp_assert_true(rstate, rnp_secret_count(&rnp) == 0 && rnp_public_count(&rnp) == 7);
 
     {
         const char *userid = "key1-uid0";
@@ -110,7 +111,7 @@ test_load_user_prefs(void **state)
         }
         // preferred key server
         {
-            static const char* expected = "hkp://pgp.mit.edu";
+            static const char *expected = "hkp://pgp.mit.edu";
             assert_non_null(prefs->key_server);
             assert_int_equal(0, memcmp(prefs->key_server, expected, strlen(expected) + 1));
         }
@@ -132,13 +133,22 @@ test_load_user_prefs(void **state)
 
         // symm algs
         {
-            static const uint8_t expected[] = {PGP_SA_AES_256, PGP_SA_AES_192, PGP_SA_AES_128, PGP_SA_CAST5, PGP_SA_TRIPLEDES, PGP_SA_IDEA};
+            static const uint8_t expected[] = {PGP_SA_AES_256,
+                                               PGP_SA_AES_192,
+                                               PGP_SA_AES_128,
+                                               PGP_SA_CAST5,
+                                               PGP_SA_TRIPLEDES,
+                                               PGP_SA_IDEA};
             assert_int_equal(prefs->symm_algc, ARRAY_SIZE(expected));
             assert_int_equal(0, memcmp(prefs->symm_algs, expected, sizeof(expected)));
         }
         // hash algs
         {
-            static const uint8_t expected[] = {PGP_HASH_SHA256, PGP_HASH_SHA1, PGP_HASH_SHA384, PGP_HASH_SHA512, PGP_HASH_SHA224};
+            static const uint8_t expected[] = {PGP_HASH_SHA256,
+                                               PGP_HASH_SHA1,
+                                               PGP_HASH_SHA384,
+                                               PGP_HASH_SHA512,
+                                               PGP_HASH_SHA224};
             assert_int_equal(prefs->hash_algc, ARRAY_SIZE(expected));
             assert_int_equal(0, memcmp(prefs->hash_algs, expected, sizeof(expected)));
         }

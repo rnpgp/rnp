@@ -393,10 +393,10 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
     if (!pgp_generate_seckey(&key_desc->crypto, seckey)) {
         goto end;
     }
-    if (!pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, &key->key.seckey.pubkey)) {
+    if (!pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, &key->key.seckey.pubkey)) {
         goto end;
     }
-    if (!pgp_fingerprint(&key->sigfingerprint, &key->key.seckey.pubkey)) {
+    if (!pgp_fingerprint(&key->fingerprint, &key->key.seckey.pubkey)) {
         goto end;
     }
     if (userid != NULL && !pgp_add_selfsigned_userid(key, userid)) {

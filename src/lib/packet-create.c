@@ -941,20 +941,11 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
      * can be any, we're hardcoding RSA for now
      */
 
-    const pgp_pubkey_t *pubkey;
-    const uint8_t *     id = NULL;
+    const pgp_pubkey_t *pubkey = pgp_get_pubkey(key);
     pgp_crypt_t         cipherinfo;
     pgp_pk_sesskey_t *  sesskey = NULL;
     uint8_t *           encoded_key = NULL;
     size_t              sz_encoded_key = 0;
-
-    if (memcmp(key->encid, "\0\0\0\0\0\0\0\0", 8) == 0) {
-        pubkey = pgp_get_pubkey(key);
-        id = key->sigid;
-    } else {
-        pubkey = &key->enckey;
-        id = key->encid;
-    }
 
     if (pubkey == NULL) {
         (void) fprintf(stderr, "pgp_create_pk_sesskey: bad pub key\n");
@@ -995,7 +986,9 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
     }
 
     sesskey->version = PGP_PKSK_V3;
-    (void) memcpy(sesskey->key_id, id, sizeof(sesskey->key_id));
+    if (!pgp_keyid(sesskey->key_id, PGP_KEY_ID_SIZE, pubkey)) {
+        goto error;
+    }
     sesskey->alg = pubkey->alg;
     sesskey->symm_alg = cipher;
     if (pgp_random(sesskey->key, cipherinfo.keysize)) {
@@ -1010,7 +1003,7 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
     }
 
     if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "Encrypting for keyid", id, sizeof(sesskey->key_id));
+        hexdump(stderr, "Encrypting for keyid", key->keyid, sizeof(sesskey->key_id));
         hexdump(stderr, "sesskey created", sesskey->key, cipherinfo.keysize);
         hexdump(stderr, "encoded key buf", encoded_key, cipherinfo.keysize + 1 + 2);
     }
@@ -1049,7 +1042,7 @@ pgp_create_pk_sesskey(const pgp_key_t *key, pgp_symm_alg_t cipher)
                                                       &out_len,
                                                       sesskey->params.ecdh.ephemeral_point->mp,
                                                       &key->key.pubkey.key.ecdh,
-                                                      &key->sigfingerprint);
+                                                      &key->fingerprint);
         if (RNP_SUCCESS != err) {
             RNP_LOG("Encryption failed %d\n", err);
             goto error;
