@@ -96,4 +96,54 @@
         type *   v;              \
     } name
 
+/* A macro for defining a dynamic array. It expands to the following
+ * members:
+ *
+ * - arr##c:     the number of elements currently populating the array
+ * - arr##vsize: the current capacity of the array
+ * - arr##s      a pointer to the backing array
+ *
+ * If you aren't familiar with macro ## syntax DYNARRAY(int, number)
+ * would expand to:
+ *
+ * unsigned numberc;
+ * unsigned numbervsize;
+ * unsigned numbers;
+ */
+
+#define DYNARRAY(type, arr) \
+    unsigned arr##c;        \
+    unsigned arr##vsize;    \
+    type *   arr##s;
+
+#define EXPAND_ARRAY(str, arr)                                                        \
+    do {                                                                              \
+        if (str->arr##c == str->arr##vsize) {                                         \
+            void *   __newarr;                                                        \
+            char *   __newarrc;                                                       \
+            unsigned __newsize;                                                       \
+            __newsize = (str->arr##vsize * 2) + 10;                                   \
+            if ((__newarrc = __newarr =                                               \
+                   realloc(str->arr##s, __newsize * sizeof(*str->arr##s))) == NULL) { \
+                (void) fprintf(stderr, "EXPAND_ARRAY - bad realloc\n");               \
+            } else {                                                                  \
+                (void) memset(&__newarrc[str->arr##vsize * sizeof(*str->arr##s)],     \
+                              0x0,                                                    \
+                              (__newsize - str->arr##vsize) * sizeof(*str->arr##s));  \
+                str->arr##s = __newarr;                                               \
+                str->arr##vsize = __newsize;                                          \
+            }                                                                         \
+        }                                                                             \
+    } while (/*CONSTCOND*/ 0)
+
+#define FREE_ARRAY(str, arr) \
+    do {                     \
+        free(str->arr##s);   \
+        str->arr##s = NULL;  \
+        str->arr##c = 0;     \
+        str->arr##vsize = 0; \
+    } while (/*CONSTCOND*/ 0)
+
+#define DYNARRAY_IS_EMPTY(str, arr) (!(str)->arr##c || !(str)->arr##s || !(str)->arr##vsize)
+
 #endif /* !DEFS_H_ */
