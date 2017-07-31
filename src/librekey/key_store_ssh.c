@@ -360,9 +360,9 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
             snprintf(buffer, buffer_size, "%s (%s) <%s>", hostname, f, owner);
             userid = (uint8_t *) buffer;
         }
-        ssh_keyid(key->sigid, sizeof(key->sigid), pubkey);
+        ssh_keyid(key->keyid, sizeof(key->keyid), pubkey);
         pgp_add_userid(key, userid);
-        ssh_fingerprint(&key->sigfingerprint, pubkey);
+        ssh_fingerprint(&key->fingerprint, pubkey);
 
         free((void *) userid);
 
@@ -426,8 +426,8 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
     pgp_cipher_set_iv(&crypted, key->key.seckey.iv);
     pgp_cipher_set_key(&crypted, sesskey);
     pgp_encrypt_init(&crypted);
-    ssh_fingerprint(&key->sigfingerprint, pubkey);
-    ssh_keyid(key->sigid, sizeof(key->sigid), pubkey);
+    ssh_fingerprint(&key->fingerprint, pubkey);
+    ssh_keyid(key->keyid, sizeof(key->keyid), pubkey);
     return true;
 }
 

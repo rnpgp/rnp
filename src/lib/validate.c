@@ -303,7 +303,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             }
             break;
         }
-        if (sigkey == &signer->enckey) {
+        if (sigkey == &signer->key.pubkey) {
             (void) fprintf(io->errs, "WARNING: signature made with encryption key\n");
         }
         switch (content->sig.info.type) {
@@ -484,7 +484,7 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             }
             break;
         }
-        if (sigkey == &signer->enckey) {
+        if (sigkey == &signer->key.pubkey) {
             (void) fprintf(io->errs, "WARNING: signature made with encryption key\n");
         }
         if (content->sig.info.birthtime_set) {

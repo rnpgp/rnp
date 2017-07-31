@@ -142,11 +142,6 @@ resultp(pgp_io_t *io, const char *f, pgp_validation_t *res, rnp_key_store_t *rin
         from = 0;
         key = rnp_key_store_get_key_by_id(
           io, ring, (const uint8_t *) res->valid_sigs[i].signer_id, &from, &sigkey);
-        if (sigkey == &key->enckey) {
-            (void) fprintf(io->res,
-                           "WARNING: signature for %s made with encryption key\n",
-                           (f) ? f : "<stdin>");
-        }
         pgp_print_key(io, ring, key, "signature ", &key->key.pubkey, 0);
     }
 }
@@ -311,8 +306,11 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
 #endif
     json_object *tmp;
     if (json_object_object_get_ex(obj, "header", &tmp)) {
+        if (strcmp(json_object_get_string(tmp), "sub") != 0) {
+            p(fp, "\n", NULL);
+        }
         pobj(fp, tmp, 0);
-        p(fp, " ", NULL);
+        p(fp, "   ", NULL);
     }
 
     if (json_object_object_get_ex(obj, "key bits", &tmp)) {
@@ -329,7 +327,7 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
         pobj(fp, tmp, 0);
     }
 
-    if (json_object_object_get_ex(obj, "birthtime", &tmp)) {
+    if (json_object_object_get_ex(obj, "creation time", &tmp)) {
         birthtime = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
         p(fp, " ", ptimestr(tbuf, sizeof(tbuf), birthtime), NULL);
 
@@ -352,60 +350,48 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
     }
 
     if (json_object_object_get_ex(obj, "fingerprint", &tmp)) {
-        p(fp, "\n", "Key fingerprint: ", NULL);
+        p(fp, "\n", "      ", NULL);
         pobj(fp, tmp, 0);
         p(fp, "\n", NULL);
     }
 
-    if (json_object_object_get_ex(obj, "uid", &tmp)) {
-        if (!json_object_is_type(tmp, json_type_null)) {
+    if (json_object_object_get_ex(obj, "user ids", &tmp) &&
+        !json_object_is_type(tmp, json_type_null)) {
+        int count = json_object_array_length(tmp);
+        for (int i = 0; i < count; i++) {
+            json_object *uidobj = json_object_array_get_idx(tmp, i);
+            json_object *userid = NULL;
+
+            json_object_object_get_ex(uidobj, "user id", &userid);
             p(fp, "uid", NULL);
-            pobj(fp, json_object_array_get_idx(tmp, 0), (psigs) ? 4 : 14); /* human name */
-            pobj(fp, json_object_array_get_idx(tmp, 1), 1);                /* any revocation */
+            pobj(fp, userid, 11); /* human name */
+            json_object *revoked = NULL;
+            json_object_object_get_ex(uidobj, "revoked", &revoked);
+            p(fp, json_object_get_boolean(revoked) ? "[REVOKED]" : "", NULL);
             p(fp, "\n", NULL);
-        }
-    }
 
-    if (json_object_object_get_ex(obj, "encryption", &tmp)) {
-        if (!json_object_is_type(tmp, json_type_null)) {
-            json_object *usage;
-            p(fp, "encryption", NULL);
-            pobj(fp, json_object_array_get_idx(tmp, 0), 1); /* size */
-            p(fp, "/", NULL);
-            pobj(fp, json_object_array_get_idx(tmp, 1), 0); /* alg */
-            p(fp, " ", NULL);
-            pobj(fp, json_object_array_get_idx(tmp, 2), 0); /* id */
-            p(fp,
-              " ",
-              ptimestr(tbuf,
-                       sizeof(tbuf),
-                       (time_t) strtoll(
-                         json_object_get_string(json_object_array_get_idx(tmp, 3)), NULL, 10)),
-              NULL);
-            if (json_object_object_get_ex(obj, "usage", &usage)) {
-                p(fp, " [", json_object_get_string(usage), "]", NULL);
+            json_object *sig = NULL;
+            json_object_object_get_ex(uidobj, "signature", &sig);
+            if (sig && psigs) {
+                json_object *signer_id = NULL;
+                json_object *creation_time = NULL;
+                json_object_object_get_ex(sig, "signer id", &signer_id);
+                json_object_object_get_ex(sig, "creation time", &creation_time);
+                json_object_object_get_ex(sig, "user id", &userid);
+                if (signer_id && creation_time && userid) {
+                    p(fp, "sig", NULL);
+                    pobj(fp, signer_id, 11);
+                    p(fp,
+                      " ",
+                      ptimestr(tbuf, sizeof(tbuf), json_object_get_int(creation_time)),
+                      " ",
+                      NULL);
+                    pobj(fp, userid, 0);
+                    p(fp, "\n", NULL);
+                }
             }
-            p(fp, "\n", NULL);
         }
     }
-
-    if (json_object_object_get_ex(obj, "sig", &tmp)) {
-        if (!json_object_is_type(tmp, json_type_null)) {
-            p(fp, "sig", NULL);
-            pobj(fp, json_object_array_get_idx(tmp, 0), 8); /* size */
-            p(fp,
-              "  ",
-              ptimestr(tbuf,
-                       sizeof(tbuf),
-                       (time_t) strtoll(
-                         json_object_get_string(json_object_array_get_idx(tmp, 1)), NULL, 10)),
-              " ",
-              NULL);                                        /* time */
-            pobj(fp, json_object_array_get_idx(tmp, 2), 0); /* human name */
-            p(fp, "\n", NULL);
-        }
-    }
-    p(fp, "\n", NULL);
 }
 
 /* save a pgp pubkey to a temp file */
@@ -846,7 +832,7 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
 {
     int              ret = 1;
     const pgp_key_t *key;
-    unsigned         k;
+    unsigned         from;
     json_object *    id_array = json_object_new_array();
     char *           newkey;
     // remove 0x prefix, if any
@@ -854,10 +840,10 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
         name += 2;
     }
     printf("%s,%d, NAME: %s\n", __FILE__, __LINE__, name);
-    k = 0;
+    from = 0;
     *json = NULL;
     do {
-        if (rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k, &key) !=
+        if (rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &from, &key) !=
             RNP_OK) {
             return 0;
         }
@@ -870,10 +856,17 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
                     newkey = NULL;
                 }
             } else {
-                pgp_sprint_json(
-                  rnp->io, rnp->pubring, key, id_array, "signature ", &key->key.pubkey, psigs);
+                json_object *obj = json_object_new_object();
+                pgp_sprint_json(rnp->io,
+                                rnp->pubring,
+                                key,
+                                obj,
+                                pgp_is_primary_key_tag(key->type) ? "pub" : "sub",
+                                &key->key.pubkey,
+                                psigs);
+                json_object_array_add(id_array, obj);
             }
-            k += 1;
+            from += 1;
         }
     } while (key != NULL);
     const char *j = json_object_to_json_string(id_array);
@@ -963,7 +956,7 @@ rnp_export_key(rnp_t *rnp, const char *name)
     }
 
     if (key->type == PGP_PTAG_CT_ENCRYPTED_SECRET_KEY) {
-        rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
+        rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, "");
         memset(passphrase, 0, sizeof(passphrase));
         find_passphrase(
           rnp->user_input_fp, keyid, passphrase, sizeof(passphrase), rnp->pswdtries);
@@ -1085,7 +1078,7 @@ rnp_generate_key(rnp_t *rnp, const char *id)
     free(cp);
 
     /* get the passphrase */
-    rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
+    rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, "");
     memset(passphrase, 0, sizeof(passphrase));
     find_passphrase(rnp->user_input_fp, keyid, passphrase, sizeof(passphrase), rnp->pswdtries);
 
@@ -1563,6 +1556,7 @@ rnp_format_json(void *vp, const char *json, const int psigs)
         ;
         format_json_key(fp, item, psigs);
     }
+    fprintf(fp, "\n");
     /* clean up */
     json_object_put(ids);
     return idc;

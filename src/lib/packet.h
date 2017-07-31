@@ -1025,18 +1025,13 @@ typedef struct pgp_key_t {
     pgp_content_enum  type;            /* type of key */
     pgp_keydata_key_t key;             /* pubkey/seckey data */
     uint8_t           key_flags;       /* key flags */
-    pgp_pubkey_t      sigkey;          /* signature key */
-    uint8_t           sigid[PGP_KEY_ID_SIZE];
-    pgp_fingerprint_t sigfingerprint; /* pgp key fingerprint */
-    pgp_pubkey_t      enckey;         /* encryption key */
-    uint8_t           encid[PGP_KEY_ID_SIZE];
-    uint8_t           sig_grip[PGP_FINGERPRINT_SIZE];
-    uint8_t           enc_grip[PGP_FINGERPRINT_SIZE];
-    pgp_fingerprint_t encfingerprint; /* deprecated (see GH #277) */
-    uint32_t          uid0;           /* primary uid index in uids array */
-    uint8_t           revoked;        /* key has been revoked */
-    pgp_revoke_t      revocation;     /* revocation reason */
-    uint8_t           loaded;         /* key was loaded so has key packet in subpackets */
+    uint8_t           keyid[PGP_KEY_ID_SIZE];
+    pgp_fingerprint_t fingerprint;
+    uint8_t           grip[PGP_FINGERPRINT_SIZE];
+    uint32_t          uid0;       /* primary uid index in uids array */
+    uint8_t           revoked;    /* key has been revoked */
+    pgp_revoke_t      revocation; /* revocation reason */
+    uint8_t           loaded;     /* key was loaded so has key packet in subpackets */
     symmetric_key_t   session_key;
 } pgp_key_t;
 

@@ -452,7 +452,7 @@ ecdh_roundtrip(void **state)
                                                     &wrapped_key_len,
                                                     tmp_eph_key,
                                                     &ecdh_key1->key.pubkey.key.ecdh,
-                                                    &ecdh_key1->sigfingerprint),
+                                                    &ecdh_key1->fingerprint),
                              RNP_SUCCESS);
 
         size_t num_bytes = 0;
@@ -467,7 +467,7 @@ ecdh_roundtrip(void **state)
                                                     tmp_eph_key,
                                                     &ecdh_key1->key.seckey.key.ecc,
                                                     &ecdh_key1->key.pubkey.key.ecdh,
-                                                    &ecdh_key1->sigfingerprint),
+                                                    &ecdh_key1->fingerprint),
                              RNP_SUCCESS);
 
         rnp_assert_int_equal(rstate, plaintext_len, result_len);
@@ -507,7 +507,7 @@ ecdh_decryptionNegativeCases(void **state)
                                                 &wrapped_key_len,
                                                 tmp_eph_key,
                                                 &ecdh_key1->key.pubkey.key.ecdh,
-                                                &ecdh_key1->sigfingerprint),
+                                                &ecdh_key1->fingerprint),
                          RNP_SUCCESS);
 
     size_t num_bytes = 0;
@@ -522,7 +522,7 @@ ecdh_decryptionNegativeCases(void **state)
                                                 tmp_eph_key,
                                                 &ecdh_key1->key.seckey.key.ecc,
                                                 &ecdh_key1->key.pubkey.key.ecdh,
-                                                &ecdh_key1->sigfingerprint),
+                                                &ecdh_key1->fingerprint),
                          RNP_ERROR_BAD_PARAMETERS);
 
     rnp_assert_int_equal(rstate,
@@ -533,7 +533,7 @@ ecdh_decryptionNegativeCases(void **state)
                                                 tmp_eph_key,
                                                 NULL,
                                                 &ecdh_key1->key.pubkey.key.ecdh,
-                                                &ecdh_key1->sigfingerprint),
+                                                &ecdh_key1->fingerprint),
                          RNP_ERROR_BAD_PARAMETERS);
 
     rnp_assert_int_equal(rstate,
@@ -544,7 +544,7 @@ ecdh_decryptionNegativeCases(void **state)
                                                 tmp_eph_key,
                                                 &ecdh_key1->key.seckey.key.ecc,
                                                 &ecdh_key1->key.pubkey.key.ecdh,
-                                                &ecdh_key1->sigfingerprint),
+                                                &ecdh_key1->fingerprint),
                          RNP_ERROR_BAD_PARAMETERS);
 
     rnp_assert_int_equal(rstate,
@@ -555,7 +555,7 @@ ecdh_decryptionNegativeCases(void **state)
                                                 tmp_eph_key,
                                                 &ecdh_key1->key.seckey.key.ecc,
                                                 &ecdh_key1->key.pubkey.key.ecdh,
-                                                &ecdh_key1->sigfingerprint),
+                                                &ecdh_key1->fingerprint),
                          RNP_ERROR_GENERIC);
 
     rnp_assert_int_equal(rstate,
@@ -566,7 +566,7 @@ ecdh_decryptionNegativeCases(void **state)
                                                 tmp_eph_key,
                                                 &ecdh_key1->key.seckey.key.ecc,
                                                 &ecdh_key1->key.pubkey.key.ecdh,
-                                                &ecdh_key1->sigfingerprint),
+                                                &ecdh_key1->fingerprint),
                          RNP_ERROR_GENERIC);
 
     size_t tmp = result_len - 1;
@@ -578,7 +578,7 @@ ecdh_decryptionNegativeCases(void **state)
                                                 tmp_eph_key,
                                                 &ecdh_key1->key.seckey.key.ecc,
                                                 &ecdh_key1->key.pubkey.key.ecdh,
-                                                &ecdh_key1->sigfingerprint),
+                                                &ecdh_key1->fingerprint),
                          RNP_ERROR_SHORT_BUFFER);
 
     int key_wrapping_alg = ecdh_key1->key.pubkey.key.ecdh.key_wrap_alg;
@@ -591,7 +591,7 @@ ecdh_decryptionNegativeCases(void **state)
                                                 tmp_eph_key,
                                                 &ecdh_key1->key.seckey.key.ecc,
                                                 &ecdh_key1->key.pubkey.key.ecdh,
-                                                &ecdh_key1->sigfingerprint),
+                                                &ecdh_key1->fingerprint),
                          RNP_ERROR_NOT_SUPPORTED);
     ecdh_key1->key.pubkey.key.ecdh.key_wrap_alg = key_wrapping_alg;
 
@@ -605,7 +605,7 @@ ecdh_decryptionNegativeCases(void **state)
                                                 tmp_eph_key,
                                                 &ecdh_key1->key.seckey.key.ecc,
                                                 &ecdh_key1->key.pubkey.key.ecdh,
-                                                &ecdh_key1->sigfingerprint),
+                                                &ecdh_key1->fingerprint),
                          RNP_ERROR_GENERIC);
 
     rnp_assert_int_equal(rstate, plaintext_len, result_len);
