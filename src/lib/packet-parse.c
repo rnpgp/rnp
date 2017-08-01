@@ -1420,7 +1420,7 @@ parse_userattr(pgp_region_t *region, pgp_stream_t *stream)
 void
 pgp_userid_free(uint8_t **id)
 {
-    if (*id != NULL) {
+    if (!id) {
         return;
     }
     free(*id);
@@ -1471,7 +1471,6 @@ parse_userid(pgp_region_t *region, pgp_stream_t *stream)
     }
     pkt.u.userid[region->length] = 0x0;
     CALLBACK(PGP_PTAG_CT_USER_ID, &stream->cbinfo, &pkt);
-    pgp_userid_free(&pkt.u.userid);
     return true;
 }
 
