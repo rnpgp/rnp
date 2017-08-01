@@ -500,6 +500,7 @@ copy_packet(pgp_rawpacket_t *dst, const pgp_rawpacket_t *src)
     } else {
         dst->length = src->length;
         (void) memcpy(dst->raw, src->raw, src->length);
+        dst->tag = src->tag;
     }
     return dst;
 }
