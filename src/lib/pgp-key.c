@@ -60,6 +60,20 @@
 #include <string.h>
 #include <stdlib.h>
 
+void
+pgp_free_user_prefs(pgp_user_prefs_t *prefs)
+{
+    if (!prefs) {
+        return;
+    }
+    FREE_ARRAY(prefs, symm_alg);
+    FREE_ARRAY(prefs, hash_alg);
+    FREE_ARRAY(prefs, compress_alg);
+    FREE_ARRAY(prefs, key_server_pref);
+    free(prefs->key_server);
+    prefs->key_server = NULL;
+}
+
 static void
 subsig_free(pgp_subsig_t *subsig)
 {
@@ -68,12 +82,7 @@ subsig_free(pgp_subsig_t *subsig)
     }
     // user prefs
     pgp_user_prefs_t *prefs = &subsig->prefs;
-    FREE_ARRAY(prefs, symm_alg);
-    FREE_ARRAY(prefs, hash_alg);
-    FREE_ARRAY(prefs, compress_alg);
-    FREE_ARRAY(prefs, key_server_pref);
-    free(prefs->key_server);
-    prefs->key_server = NULL;
+    pgp_free_user_prefs(prefs);
 
     pgp_sig_free(&subsig->sig);
 }
