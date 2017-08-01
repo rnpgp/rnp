@@ -67,19 +67,19 @@ kdf_other_info_serialize(uint8_t                  other_info[MAX_SP800_56A_OTHER
     // Value reserved for future use
     *(buf_ptr++) = 0x01;
     // Hash used with KDF
-    *(buf_ptr++) = kdf_hash,
+    *(buf_ptr++) = kdf_hash;
     // Algorithm ID used for key wrapping
-      *(buf_ptr++) = wrap_alg;
+    *(buf_ptr++) = wrap_alg;
 
     /* KDF-OtherInfo: PartyUInfo
      *   20 bytes representing "Anonymous Sender "
      */
     memcpy(buf_ptr, ANONYMOUS_SENDER, sizeof(ANONYMOUS_SENDER));
+
     buf_ptr += sizeof(ANONYMOUS_SENDER);
 
     // keep 20, as per spec
     memcpy(buf_ptr, fingerprint->fingerprint, 20);
-
     return (buf_ptr - other_info) + 20 /*anonymous_sender*/;
 }
 
@@ -131,7 +131,7 @@ compute_kek(uint8_t *              kek,
             const pgp_hash_alg_t   hash_alg)
 {
     botan_pk_op_ka_t op_key_agreement = NULL;
-    uint8_t          point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
+    uint8_t          point_bytes[MAX_CURVE_BYTELEN * 2 + 1] = {0};
     bool             ret = true;
 
     // Name of Botan's KDF and backing hash algorithm

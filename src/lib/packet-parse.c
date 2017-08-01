@@ -1241,7 +1241,7 @@ pgp_pubkey_free(pgp_pubkey_t *p)
 }
 
 static bool
-parse_ecdsa_ecdh_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
+parse_ec_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
 {
     pgp_data_t OID = {0};
     unsigned   OID_len = 0;
@@ -1346,13 +1346,13 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        if (!parse_ecdsa_ecdh_pubkey_data(key, region, stream)) {
+        if (!parse_ec_pubkey_data(key, region, stream)) {
             return false;
         }
         break;
 
     case PGP_PKA_ECDH: {
-        if (!parse_ecdsa_ecdh_pubkey_data(key, region, stream)) {
+        if (!parse_ec_pubkey_data(key, region, stream)) {
             return false;
         }
 
