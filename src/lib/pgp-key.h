@@ -58,7 +58,19 @@
 
 struct pgp_key_t *pgp_key_new(void);
 
+/** free the internal data of a key *and* the key structure itself
+ *
+ *  @param key the key
+ **/
 void pgp_key_free(pgp_key_t *);
+
+/** free the internal data of a key
+ *
+ *  This does *not* free the key structure itself.
+ *
+ *  @param key the key
+ **/
+void pgp_key_free_data(pgp_key_t *);
 
 const pgp_pubkey_t *pgp_get_pubkey(const pgp_key_t *);
 

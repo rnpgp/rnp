@@ -234,12 +234,118 @@ pgp_elgamal_encrypt_mpi(const uint8_t *          encoded_m_buf,
     return true;
 }
 
+bool
+pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seckey)
+{
+    pgp_output_t *output = NULL;
+    pgp_memory_t *mem = NULL;
+    bool          ok = false;
+
+    if (!crypto || !seckey) {
+        RNP_LOG("NULL args");
+        goto end;
+    }
+    /* populate pgp key structure */
+    seckey->pubkey.version = PGP_V4;
+    seckey->pubkey.birthtime = time(NULL);
+    seckey->pubkey.alg = crypto->key_alg;
+    seckey->hash_alg =
+      (PGP_HASH_UNKNOWN == crypto->hash_alg) ? PGP_HASH_SHA1 : crypto->hash_alg;
+
+    switch (seckey->pubkey.alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        if (pgp_genkey_rsa(seckey, crypto->rsa.modulus_bit_len) != 1) {
+            goto end;
+        }
+        break;
+
+    case PGP_PKA_EDDSA:
+        if (pgp_genkey_eddsa(seckey, ec_curves[PGP_CURVE_ED25519].bitlen) != 1) {
+            goto end;
+        }
+        break;
+
+    case PGP_PKA_ECDSA:
+        seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
+        if (pgp_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK) {
+            goto end;
+        }
+        break;
+
+    case PGP_PKA_SM2:
+        seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
+        if (pgp_sm2_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK) {
+            goto end;
+        }
+        break;
+
+    default:
+        RNP_LOG("key generation not implemented for PK alg: %d", seckey->pubkey.alg);
+        goto end;
+        break;
+    }
+
+    seckey->s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
+    seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
+    seckey->alg = crypto->sym_alg;
+    if (pgp_random(&seckey->iv[0], pgp_block_size(seckey->alg))) {
+        (void) fprintf(stderr, "pgp_random failed\n");
+        goto end;
+    }
+    seckey->checksum = 0;
+
+    /* Generate checksum */
+    if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
+        RNP_LOG("can't setup memory write\n");
+        goto end;
+    }
+    pgp_push_checksum_writer(output, seckey);
+
+    switch (seckey->pubkey.alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        if (!pgp_write_mpi(output, seckey->key.rsa.d) ||
+            !pgp_write_mpi(output, seckey->key.rsa.p) ||
+            !pgp_write_mpi(output, seckey->key.rsa.q) ||
+            !pgp_write_mpi(output, seckey->key.rsa.u)) {
+            goto end;
+        }
+        break;
+
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+        if (!pgp_write_mpi(output, seckey->key.ecc.x)) {
+            goto end;
+        }
+        break;
+
+    default:
+        RNP_LOG("key generation not implemented for PK alg: %d", seckey->pubkey.alg);
+        goto end;
+        break;
+    }
+
+    ok = true;
+end:
+    if (output && mem) {
+        pgp_teardown_memory_write(output, mem);
+    }
+    if (!ok && seckey) {
+        RNP_LOG("failed, freeing internal seckey data");
+        pgp_seckey_free(seckey);
+    }
+    return ok;
+}
+
 pgp_key_t *
 pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
 {
     pgp_seckey_t *seckey = NULL;
-    pgp_output_t *output = NULL;
-    pgp_memory_t *mem = NULL;
     pgp_key_t *   key = NULL;
     bool          ok = false;
 
@@ -252,72 +358,15 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
     if (!seckey)
         goto end;
 
-    /* populate pgp key structure */
-    seckey->pubkey.version = PGP_V4;
-    seckey->pubkey.birthtime = time(NULL);
-    seckey->pubkey.days_valid = 0;
-    seckey->pubkey.alg = key_desc->key_alg;
-    seckey->hash_alg =
-      (PGP_HASH_UNKNOWN == key_desc->hash_alg) ? PGP_HASH_SHA1 : key_desc->hash_alg;
-
-    if (seckey->pubkey.alg == PGP_PKA_RSA || seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
-        seckey->pubkey.alg == PGP_PKA_RSA_SIGN_ONLY) {
-        if (pgp_genkey_rsa(seckey, key_desc->rsa.modulus_bit_len) != 1)
-            goto end;
-    } else if (seckey->pubkey.alg == PGP_PKA_EDDSA) {
-        if (pgp_genkey_eddsa(seckey, ec_curves[PGP_CURVE_ED25519].bitlen) != 1)
-            goto end;
-    } else if (seckey->pubkey.alg == PGP_PKA_SM2) {
-        seckey->pubkey.key.ecc.curve = key_desc->ecc.curve;
-        if (pgp_sm2_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK)
-            goto end;
-    } else if (seckey->pubkey.alg == PGP_PKA_ECDSA) {
-        seckey->pubkey.key.ecc.curve = key_desc->ecc.curve;
-        if (pgp_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK)
-            goto end;
-    } else {
+    if (!pgp_generate_seckey(&key_desc->crypto, seckey)) {
         goto end;
     }
-
-    seckey->s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
-    seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
-    seckey->alg = key_desc->sym_alg;
-    if (pgp_random(&seckey->iv[0], pgp_block_size(seckey->alg))) {
-        (void) fprintf(stderr, "pgp_random failed\n");
+    if (!pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, &key->key.seckey.pubkey)) {
         goto end;
     }
-    seckey->checksum = 0;
-
-    if (!pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, &key->key.seckey.pubkey))
-        goto end;
-
-    if (!pgp_fingerprint(&key->sigfingerprint, &key->key.seckey.pubkey))
-        goto end;
-
-    /* Generate checksum */
-    if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
-        RNP_LOG("can't setup memory write\n");
+    if (!pgp_fingerprint(&key->sigfingerprint, &key->key.seckey.pubkey)) {
         goto end;
     }
-    pgp_push_checksum_writer(output, seckey);
-
-    if (seckey->pubkey.alg == PGP_PKA_RSA || seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
-        seckey->pubkey.alg == PGP_PKA_RSA_SIGN_ONLY) {
-        if (!pgp_write_mpi(output, seckey->key.rsa.d) ||
-            !pgp_write_mpi(output, seckey->key.rsa.p) ||
-            !pgp_write_mpi(output, seckey->key.rsa.q) ||
-            !pgp_write_mpi(output, seckey->key.rsa.u))
-            goto end;
-    } else if ((seckey->pubkey.alg == PGP_PKA_EDDSA) ||
-               (seckey->pubkey.alg == PGP_PKA_ECDSA) || (seckey->pubkey.alg == PGP_PKA_SM2)) {
-        if (!pgp_write_mpi(output, seckey->key.ecc.x))
-            goto end;
-    } else {
-        RNP_LOG("Bad seckey->pubkey.alg");
-        goto end;
-    }
-
     if (userid != NULL && !pgp_add_selfsigned_userid(key, userid)) {
         goto end;
     }
@@ -325,12 +374,8 @@ pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
     ok = true;
 
 end:
-    if (output != NULL && mem != NULL) {
-        pgp_teardown_memory_write(output, mem);
-    }
-
-    if (ok == false) {
-        if (key != NULL) {
+    if (!ok) {
+        if (key) {
             pgp_key_free(key);
         }
         return NULL;

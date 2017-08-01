@@ -161,10 +161,10 @@ pkcs1_rsa_test_success(void **state)
     const pgp_rsa_pubkey_t *pub_rsa;
     const pgp_rsa_seckey_t *sec_rsa;
 
-    const rnp_keygen_desc_t key_desc = {.key_alg = PGP_PKA_RSA,
-                                        .hash_alg = PGP_HASH_SHA256,
-                                        .sym_alg = PGP_SA_AES_128,
-                                        .rsa = {.modulus_bit_len = 1024}};
+    const rnp_keygen_desc_t key_desc = {.crypto = {.key_alg = PGP_PKA_RSA,
+                                                   .hash_alg = PGP_HASH_SHA256,
+                                                   .sym_alg = PGP_SA_AES_128,
+                                                   .rsa = {.modulus_bit_len = 1024}}};
     pgp_key = pgp_generate_keypair(&key_desc, NULL);
     rnp_assert_non_null(rstate, pgp_key);
 
@@ -225,8 +225,9 @@ void
 rnp_test_eddsa(void **state)
 {
     rnp_test_state_t *      rstate = *state;
-    const rnp_keygen_desc_t key_desc = {
-      .key_alg = PGP_PKA_EDDSA, .hash_alg = PGP_HASH_SHA256, .sym_alg = PGP_SA_AES_128};
+    const rnp_keygen_desc_t key_desc = {.crypto = {.key_alg = PGP_PKA_EDDSA,
+                                                   .hash_alg = PGP_HASH_SHA256,
+                                                   .sym_alg = PGP_SA_AES_128}};
     pgp_key_t *pgp_key = pgp_generate_keypair(&key_desc, NULL);
     rnp_assert_non_null(rstate, pgp_key);
 
@@ -370,10 +371,10 @@ ecdsa_signverify_success(void **state)
 
     for (int i = 0; i < sizeof(curves) / sizeof(curves[0]); i++) {
         pgp_ecc_sig_t           sig = {NULL, NULL};
-        const rnp_keygen_desc_t key_desc = {.key_alg = PGP_PKA_ECDSA,
-                                            .hash_alg = PGP_HASH_SHA512,
-                                            .sym_alg = PGP_SA_AES_128,
-                                            .ecc = {.curve = curves[i].id}};
+        const rnp_keygen_desc_t key_desc = {.crypto = {.key_alg = PGP_PKA_ECDSA,
+                                                       .hash_alg = PGP_HASH_SHA512,
+                                                       .sym_alg = PGP_SA_AES_128,
+                                                       .ecc = {.curve = curves[i].id}}};
 
         pgp_key_t *pgp_key1 = pgp_generate_keypair(&key_desc, NULL);
         rnp_assert_non_null(rstate, pgp_key1);

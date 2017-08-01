@@ -150,27 +150,28 @@ ask_bitlen(FILE *input_fp)
 pgp_errcode_t
 rnp_generate_key_expert_mode(rnp_t *rnp)
 {
-    FILE *input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
-    rnp->action.generate_key_ctx.key_alg = (pgp_pubkey_alg_t) ask_algorithm(input_fd);
-    rnp_keygen_desc_t *key_desc = &rnp->action.generate_key_ctx;
+    FILE *                      input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
+    rnp_keygen_desc_t *         key_desc = &rnp->action.generate_key_ctx;
+    rnp_keygen_crypto_params_t *crypto = &key_desc->crypto;
 
+    crypto->key_alg = (pgp_pubkey_alg_t) ask_algorithm(input_fd);
     // get more details about the key
-    switch (rnp->action.generate_key_ctx.key_alg) {
+    switch (crypto->key_alg) {
     case PGP_PKA_RSA:
         // Those algorithms must _NOT_ be supported
         //  case PGP_PKA_RSA_ENCRYPT_ONLY:
         //  case PGP_PKA_RSA_SIGN_ONLY:
-        rnp->action.generate_key_ctx.rsa.modulus_bit_len = ask_bitlen(input_fd);
+        crypto->rsa.modulus_bit_len = ask_bitlen(input_fd);
         break;
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA: {
-        rnp->action.generate_key_ctx.ecc.curve = ask_curve(input_fd);
-        if (PGP_HASH_UNKNOWN == key_desc->hash_alg) {
+        crypto->ecc.curve = ask_curve(input_fd);
+        if (PGP_HASH_UNKNOWN == crypto->hash_alg) {
             return PGP_E_ALG_UNSUPPORTED_HASH_ALG;
         }
 
         size_t digest_length = 0;
-        if (!pgp_digest_length(key_desc->hash_alg, &digest_length)) {
+        if (!pgp_digest_length(crypto->hash_alg, &digest_length)) {
             // Implementation error
             return PGP_E_FAIL;
         }
@@ -184,20 +185,20 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
          *    P-384  48 bytes
          *    P-521  64 bytes
          */
-        switch (key_desc->ecc.curve) {
+        switch (crypto->ecc.curve) {
         case PGP_CURVE_NIST_P_256:
             if (digest_length < 32) {
-                key_desc->hash_alg = PGP_HASH_SHA256;
+                crypto->hash_alg = PGP_HASH_SHA256;
             }
             break;
         case PGP_CURVE_NIST_P_384:
             if (digest_length < 48) {
-                key_desc->hash_alg = PGP_HASH_SHA384;
+                crypto->hash_alg = PGP_HASH_SHA384;
             }
             break;
         case PGP_CURVE_NIST_P_521:
             if (digest_length < 64) {
-                key_desc->hash_alg = PGP_HASH_SHA512;
+                crypto->hash_alg = PGP_HASH_SHA512;
             }
             break;
         default:
@@ -206,11 +207,11 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
         }
     } break;
     case PGP_PKA_EDDSA:
-        rnp->action.generate_key_ctx.ecc.curve = PGP_CURVE_ED25519;
+        crypto->ecc.curve = PGP_CURVE_ED25519;
         break;
     case PGP_PKA_SM2:
-        key_desc->hash_alg = PGP_HASH_SM3;
-        rnp->action.generate_key_ctx.ecc.curve = PGP_CURVE_SM2_P_256;
+        crypto->hash_alg = PGP_HASH_SM3;
+        crypto->ecc.curve = PGP_CURVE_SM2_P_256;
         break;
     default:
         return PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG;
