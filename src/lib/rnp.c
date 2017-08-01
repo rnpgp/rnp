@@ -96,6 +96,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 
 #include "rnp/rnp_obsolete_defs.h"
 #include <json.h>
+#include <rnp.h>
 
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
@@ -671,18 +672,13 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
     rnp->pswdtries = MAX_PASSPHRASE_ATTEMPTS;
 
     /* set keystore type and pathes */
-    rnp->ks_format = params->ks_format;
-    rnp->pubring = rnp_key_store_new(params->ks_pub_format == NULL ? params->ks_format :
-                                                                     params->ks_pub_format,
-                                     params->pubpath);
+    rnp->pubring = rnp_key_store_new(params->ks_pub_format, params->pubpath);
     if (rnp->pubring == NULL) {
         fputs("rnp: can't create empty pubring keystore\n", io->errs);
         return RNP_FAIL;
     }
 
-    rnp->secring = rnp_key_store_new(params->ks_sec_format == NULL ? params->ks_format :
-                                                                     params->ks_sec_format,
-                                     params->secpath);
+    rnp->secring = rnp_key_store_new(params->ks_sec_format, params->secpath);
     if (rnp->secring == NULL) {
         fputs("rnp: can't create empty secring keystore\n", io->errs);
         return RNP_FAIL;
@@ -992,7 +988,8 @@ rnp_import_key(rnp_t *rnp, char *f)
         return RNP_FAIL;
     }
 
-    rnp_key_store_t *new_keystore = rnp_key_store_new(rnp->ks_format, f);
+    rnp_key_store_t *new_keystore =
+      rnp_key_store_new(((rnp_key_store_t *) rnp->pubring)->format_label, f);
     if (new_keystore == NULL) {
         return RNP_FAIL;
     }
