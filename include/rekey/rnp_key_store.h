@@ -122,8 +122,12 @@ enum key_store_format_t {
 #define RNP_KEYSTORE_SSH "SSH" /* SSH keystore format */
 #define RNP_KEYSTORE_G10 "G10" /* G10 keystore format */
 
+// combinated keystores
+#define RNP_KEYSTORE_GPG21 "GPG21" /* KBX + G10 keystore format */
+
 typedef struct {
     const char *            path;
+    const char *            format_label;
     enum key_store_format_t format;
 
     DYNARRAY(pgp_key_t, key);

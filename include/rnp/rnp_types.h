@@ -43,7 +43,6 @@ typedef struct rnp_t {
     char *    defkey;        /* default key id */
     int       pswdtries;     /* number of password tries, -1 for unlimited */
 
-    const char *ks_format;
     union {
         rnp_keygen_desc_t generate_key_ctx;
     } action;
@@ -60,7 +59,6 @@ typedef struct rnp_params_t {
     const char *errs;   /* error stream : may be <stdout> */
     const char *ress;   /* results stream : maye be <stdout>, <stderr> or file name/path */
 
-    const char *ks_format;     /* format of any key store */
     const char *ks_pub_format; /* format of the public key store */
     const char *ks_sec_format; /* format of the secret key store */
     char *      pubpath;       /* public keystore path */

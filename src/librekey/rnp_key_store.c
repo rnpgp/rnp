@@ -87,6 +87,7 @@ rnp_key_store_new(const char *format, const char *path)
     }
 
     key_store->format = key_store_format;
+    key_store->format_label = strdup(format);
     key_store->path = strdup(path);
 
     return key_store;
@@ -436,6 +437,7 @@ rnp_key_store_free(rnp_key_store_t *keyring)
     FREE_ARRAY(keyring, blob);
 
     free((void *) keyring->path);
+    free((void *) keyring->format_label);
 
     free(keyring);
 }
