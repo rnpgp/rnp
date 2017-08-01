@@ -131,10 +131,17 @@ compute_kek(uint8_t *              kek,
             const pgp_hash_alg_t   hash_alg)
 {
     botan_pk_op_ka_t op_key_agreement = NULL;
-    uint8_t          S[BITS_TO_BYTES(521) * 2 + 1] = {0};
-    size_t           S_len = BITS_TO_BYTES(curve_desc->bitlen) * 2 + 1;
     uint8_t          point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
-    int              ret = 0;
+    bool             ret = true;
+
+    // Name of Botan's KDF and backing hash algorithm
+    const char *hash_botan_name = pgp_hash_name_botan(hash_alg);
+    if (!hash_botan_name) {
+        return false;
+    }
+
+    char botan_kdf_name[64] = {0};
+    snprintf(botan_kdf_name, 64, "SP800-56A(%s)", hash_botan_name);
 
     if (botan_mp_to_bin(ec_pubkey, point_bytes) < 0) {
         return false;
@@ -145,38 +152,21 @@ compute_kek(uint8_t *              kek,
         return false;
     }
 
-    // OZAPTF: use KDF from botan
-    do {
-        ret = botan_pk_op_key_agreement_create(&op_key_agreement, ec_prvkey, "Raw", 0);
-        if (ret) {
-            break;
-        }
-        ret = botan_pk_op_key_agreement(
-          op_key_agreement, S, &S_len, point_bytes, num_bytes, NULL, 0);
-    } while (false);
-    ret |= botan_pk_op_key_agreement_destroy(op_key_agreement);
-
-    if (ret) {
-        RNP_LOG("ECDH key agreement failed");
-        return false;
+    if (botan_pk_op_key_agreement_create(&op_key_agreement, ec_prvkey, botan_kdf_name, 0) ||
+        botan_pk_op_key_agreement(op_key_agreement,
+                                  kek,
+                                  &kek_len,
+                                  point_bytes,
+                                  num_bytes,
+                                  other_info,
+                                  other_info_size)) {
+        ret = false;
+        goto end;
     }
 
-    // Name of Botan's KDF and backing hash algorithm
-    const char *hash_botan_name = pgp_hash_name_botan(hash_alg);
-    if (!hash_botan_name) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    char botan_kdf_name[64] = {0};
-    snprintf(botan_kdf_name, 64, "SP800-56A(%s)", hash_botan_name);
-
-    if (botan_kdf(
-          botan_kdf_name, kek, kek_len, S, S_len, NULL, 0, other_info, other_info_size)) {
-        RNP_LOG("Key derivation failed");
-        return false;
-    }
-
-    return true;
+end:
+    ret &= !botan_pk_op_key_agreement_destroy(op_key_agreement);
+    return ret;
 }
 
 rnp_result
