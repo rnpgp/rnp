@@ -175,4 +175,10 @@ bool rnp_key_store_get_key_by_name(pgp_io_t *,
 bool rnp_key_store_get_next_key_by_name(
   pgp_io_t *, const rnp_key_store_t *, const char *, unsigned *, const pgp_key_t **);
 
+bool rnp_key_store_get_key_grip(pgp_pubkey_t *, uint8_t *);
+bool rnp_key_store_get_key_by_grip(pgp_io_t *,
+                                   const rnp_key_store_t *,
+                                   const uint8_t *,
+                                   pgp_pubkey_t **);
+
 #endif /* KEY_STORE_H_ */

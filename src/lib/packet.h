@@ -1030,6 +1030,8 @@ typedef struct pgp_key_t {
     pgp_fingerprint_t sigfingerprint; /* pgp key fingerprint */
     pgp_pubkey_t      enckey;         /* encryption key */
     uint8_t           encid[PGP_KEY_ID_SIZE];
+    uint8_t           sig_grip[PGP_FINGERPRINT_SIZE];
+    uint8_t           enc_grip[PGP_FINGERPRINT_SIZE];
     pgp_fingerprint_t encfingerprint; /* deprecated (see GH #277) */
     uint32_t          uid0;           /* primary uid index in uids array */
     uint8_t           revoked;        /* key has been revoked */
