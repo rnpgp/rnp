@@ -30,9 +30,10 @@
 #include <rnp/rnp.h>
 #include <rekey/rnp_key_store.h>
 
-bool rnp_key_store_g10_from_mem(pgp_io_t *, rnp_key_store_t *, pgp_memory_t *);
+bool rnp_key_store_g10_from_mem(pgp_io_t *,
+                                rnp_key_store_t *,
+                                rnp_key_store_t *,
+                                pgp_memory_t *);
 bool rnp_key_store_g10_key_to_mem(pgp_io_t *, pgp_key_t *, const uint8_t *, pgp_memory_t *);
-
-bool rnp_key_store_g10_key_grip(pgp_pubkey_t *, uint8_t *);
 
 #endif // RNP_KEY_STORE_G10_H
