@@ -999,6 +999,14 @@ rnp_key_store_get_key_grip(pgp_pubkey_t *key, uint8_t *grip)
         }
         break;
 
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
+        if (!grip_hash_bignum(&hash, key->key.ecc.point)) {
+            return false;
+        }
+        break;
+
     default:
         (void) fprintf(stderr,
                        "rnp_key_store_get_key_grip: unsupported public-key algorithm %d\n",
