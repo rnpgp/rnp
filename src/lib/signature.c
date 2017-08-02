@@ -680,7 +680,7 @@ pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
     }
 
     sig->sig.info.version = PGP_V4;
-    sig->sig.info.hash_alg = PGP_HASH_SHA1;
+    sig->sig.info.hash_alg = hash_alg;
     sig->sig.info.key_alg = key->alg;
     sig->sig.info.type = type;
     sig->hashlen = (unsigned) -1;
