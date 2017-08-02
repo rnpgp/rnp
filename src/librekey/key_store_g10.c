@@ -573,6 +573,16 @@ rnp_key_store_g10_from_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_
 
     destroy_s_exp(&s_exp);
 
+    if (rnp_get_debug(__FILE__)) {
+        uint8_t grip[PGP_FINGERPRINT_SIZE];
+        char    grips[PGP_FINGERPRINT_HEX_SIZE];
+        if (!rnp_key_store_g10_key_grip(&keydata.pubkey, grip)) {
+            return false;
+        }
+        fprintf(
+          io->errs, "loaded G10 key with GRIP: %s\n", rnp_strhexdump(grips, grip, 20, ""));
+    }
+
     return rnp_key_store_add_keydata(io,
                                      key_store,
                                      &keydata,

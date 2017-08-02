@@ -183,6 +183,10 @@ rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsig
 
             memset(&mem, 0, sizeof(mem));
 
+            if (rnp_get_debug(__FILE__)) {
+                fprintf(rnp->io->errs, "Loading G10 key from file '%s'\n", path);
+            }
+
             if (!pgp_mem_readfile(&mem, path)) {
                 fprintf(rnp->io->errs, "Can't read file '%s' to memory\n", path);
                 continue;
@@ -600,7 +604,7 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
     pgp_key_t *key;
 
     if (rnp_get_debug(__FILE__)) {
-        fprintf(io->errs, "rnp_key_store_add_keydata\n");
+        fprintf(io->errs, "rnp_key_store_add_keydata to key_store: %p\n", keyring);
     }
 
     if (tag != PGP_PTAG_CT_PUBLIC_SUBKEY) {
@@ -629,6 +633,8 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
     }
 
     if (rnp_get_debug(__FILE__)) {
+        hexdump(io->errs, "added key->sigid", key->sigid, PGP_KEY_ID_SIZE);
+        hexdump(io->errs, "added key->encid", key->encid, PGP_KEY_ID_SIZE);
         fprintf(io->errs, "rnp_key_store_add_keydata: keyc %u\n", keyring->keyc);
     }
 
@@ -691,6 +697,10 @@ rnp_key_store_get_key_by_id(pgp_io_t *             io,
                             pgp_pubkey_t **        pubkey)
 {
     uint8_t nullid[PGP_KEY_ID_SIZE];
+
+    if (rnp_get_debug(__FILE__)) {
+        fprintf(io->errs, "looking keyring %p\n", keyring);
+    }
 
     (void) memset(nullid, 0x0, sizeof(nullid));
     for (; keyring && *from < keyring->keyc; *from += 1) {
