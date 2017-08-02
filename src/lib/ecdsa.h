@@ -42,7 +42,7 @@
  * @returns success PGP_E_OK, error code otherwise
  *
 -------------------------------------------------------------------------------- */
-pgp_errcode_t pgp_ecdsa_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve);
+pgp_errcode_t pgp_ecdh_ecdsa_genkeypair(pgp_seckey_t *seckey, const pgp_curve_t curve);
 
 pgp_errcode_t pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
                                   const uint8_t *         hashbuf,

@@ -75,6 +75,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "rsa.h"
 #include "elgamal.h"
 #include "eddsa.h"
+#include "ecdh.h"
 #include "crypto.h"
 #include "readerwriter.h"
 #include "memory.h"
@@ -137,14 +138,14 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
                        const pgp_seckey_t *seckey)
 {
     unsigned mpisize;
-    uint8_t  encmpibuf[RNP_BUFSIZ];
-    uint8_t  gkbuf[RNP_BUFSIZ];
+    uint8_t  encmpibuf[RNP_BUFSIZ] = {0};
+    uint8_t  gkbuf[RNP_BUFSIZ] = {0};
     int      n;
 
     mpisize = (unsigned) BN_num_bytes(encmpi);
     /* MPI can't be more than 65,536 */
     if (mpisize > sizeof(encmpibuf)) {
-        (void) fprintf(stderr, "mpisize too big %u\n", mpisize);
+        RNP_LOG("mpisize too big %u", mpisize);
         return -1;
     }
     switch (seckey->pubkey.alg) {
@@ -189,8 +190,39 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
             hexdump(stderr, "decoded m", buf, n);
         }
         return n;
+    case PGP_PKA_ECDH: {
+        pgp_fingerprint_t fingerprint;
+        size_t            out_len = buflen;
+        const size_t      encmpi_len = BN_num_bytes(encmpi);
+        if (BN_bn2bin(encmpi, encmpibuf)) {
+            RNP_LOG("Can't find session key");
+            return -1;
+        }
+
+        if (!pgp_fingerprint(&fingerprint, &seckey->pubkey)) {
+            RNP_LOG("ECDH fingerprint calculation failed");
+            return -1;
+        }
+
+        const rnp_result ret = pgp_ecdh_decrypt_pkcs5(buf,
+                                                      &out_len,
+                                                      encmpibuf,
+                                                      encmpi_len,
+                                                      g_to_k->mp,
+                                                      &seckey->key.ecc,
+                                                      &seckey->pubkey.key.ecdh,
+                                                      &fingerprint);
+
+        if (ret || (out_len > INT_MAX)) {
+            RNP_LOG("ECDH decryption error [%u]", ret);
+            return -1;
+        }
+
+        return (int) out_len;
+    }
+
     default:
-        (void) fprintf(stderr, "pubkey algorithm wrong\n");
+        RNP_LOG("Unsupported public key algorithm [%d]", seckey->pubkey.alg);
         return -1;
     }
 }
@@ -268,12 +300,12 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         break;
 
     case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
         seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
-        if (pgp_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK) {
+        if (pgp_ecdh_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK) {
             goto end;
         }
         break;
-
     case PGP_PKA_SM2:
         seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
         if (pgp_sm2_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK) {
@@ -292,14 +324,14 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
     seckey->alg = crypto->sym_alg;
     if (pgp_random(&seckey->iv[0], pgp_block_size(seckey->alg))) {
-        (void) fprintf(stderr, "pgp_random failed\n");
+        RNP_LOG("pgp_random failed");
         goto end;
     }
     seckey->checksum = 0;
 
     /* Generate checksum */
     if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
-        RNP_LOG("can't setup memory write\n");
+        RNP_LOG("can't setup memory write");
         goto end;
     }
     pgp_push_checksum_writer(output, seckey);
@@ -315,7 +347,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
             goto end;
         }
         break;
-
+    case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
@@ -679,13 +711,13 @@ pgp_decrypt_buf(pgp_io_t *       io,
     const int     printerrors = 1;
 
     if (input == NULL) {
-        (void) fprintf(io->errs, "pgp_encrypt_buf: null memory\n");
+        RNP_LOG_FD(io->errs, "null memory");
         return false;
     }
 
     inmem = pgp_memory_new();
     if (inmem == NULL) {
-        (void) fprintf(stderr, "can't allocate mem\n");
+        RNP_LOG("can't allocate mem");
         return NULL;
     }
 
@@ -695,13 +727,13 @@ pgp_decrypt_buf(pgp_io_t *       io,
 
     /* set up to read from memory */
     if (!pgp_setup_memory_read(io, &parse, inmem, NULL, write_parsed_cb, 0)) {
-        (void) fprintf(io->errs, "can't setup memory read\n");
+        RNP_LOG_FD(io->errs, "can't setup memory read");
         return NULL;
     }
 
     /* setup for writing decrypted contents to given output file */
     if (!pgp_setup_memory_write(NULL, &parse->cbinfo.output, &outmem, insize)) {
-        (void) fprintf(io->errs, "can't setup memory write\n");
+        RNP_LOG_FD(io->errs, "can't setup memory write");
         return NULL;
     }
 

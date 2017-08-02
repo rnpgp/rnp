@@ -54,6 +54,7 @@
 #ifndef CREATE_H_
 #define CREATE_H_
 
+#include <stdbool.h>
 #include "types.h"
 #include "packet.h"
 #include "crypto.h"
@@ -92,12 +93,12 @@ unsigned pgp_write_one_pass_sig(pgp_output_t *,
                                 const pgp_sig_type_t);
 unsigned pgp_write_litdata(pgp_output_t *, const uint8_t *, const int, const pgp_litdata_enum);
 pgp_pk_sesskey_t *pgp_create_pk_sesskey(const pgp_key_t *, pgp_symm_alg_t);
-unsigned          pgp_write_pk_sesskey(pgp_output_t *, pgp_pk_sesskey_t *);
+bool              pgp_write_pk_sesskey(pgp_output_t *, pgp_pk_sesskey_t *);
 unsigned          pgp_write_xfer_pubkey(pgp_output_t *,
                                const pgp_key_t *,
                                const rnp_key_store_t *,
                                const unsigned);
-unsigned pgp_write_xfer_seckey(
+bool pgp_write_xfer_seckey(
   pgp_output_t *, const pgp_key_t *, const uint8_t *, const rnp_key_store_t *, const unsigned);
 bool pgp_write_xfer_anykey(
   pgp_output_t *, const pgp_key_t *, const uint8_t *, const rnp_key_store_t *, const unsigned);

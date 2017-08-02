@@ -1013,7 +1013,9 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t
         free(se_ip);
         return false;
     }
-    pgp_write_pk_sesskey(output, encrypted_pk_sesskey);
+    if (!pgp_write_pk_sesskey(output, encrypted_pk_sesskey)) {
+        return 0;
+    }
 
     /* Setup the se_ip */
     if ((encrypted = calloc(1, sizeof(*encrypted))) == NULL) {

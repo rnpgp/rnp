@@ -747,7 +747,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
     int         cc;
 
     if ((fp = fopen(f, "rb")) == NULL) {
-        (void) fprintf(stderr, "pgp_mem_readfile: can't open \"%s\"\n", f);
+        RNP_LOG("can't open \"%s\"", f);
         return false;
     }
     (void) fstat(fileno(fp), &st);
@@ -756,7 +756,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
     if (mem->buf == MAP_FAILED) {
         /* mmap failed for some reason - try to allocate memory */
         if ((mem->buf = calloc(1, mem->allocated)) == NULL) {
-            (void) fprintf(stderr, "pgp_mem_readfile: calloc\n");
+            RNP_LOG("calloc failed");
             (void) fclose(fp);
             return false;
         }

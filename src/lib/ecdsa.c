@@ -38,6 +38,21 @@
 
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
+/* Used by ECDH keys. Specifies which hash and wrapping algorithm
+ * to be used (see point 15. of RFC 4880).
+ */
+struct {
+    pgp_hash_alg_t hash;     /* Hash used by kdf */
+    pgp_symm_alg_t wrap_alg; /* Symmetric algorithm used to wrap KEK*/
+} ecdh_params[] = {
+  // PGP_CURVE_NIST_P_256
+  {.hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
+  // PGP_CURVE_NIST_P_384
+  {.hash = PGP_HASH_SHA384, .wrap_alg = PGP_SA_AES_192},
+  // PGP_CURVE_NIST_P_521
+  {.hash = PGP_HASH_SHA512, .wrap_alg = PGP_SA_AES_256},
+};
+
 pgp_curve_t
 find_curve_by_OID(const uint8_t *oid, size_t oid_len)
 {
@@ -51,8 +66,19 @@ find_curve_by_OID(const uint8_t *oid, size_t oid_len)
     return PGP_CURVE_MAX;
 }
 
+const ec_curve_desc_t *
+get_curve_desc(const pgp_curve_t curve_id)
+{
+    return (curve_id < PGP_CURVE_MAX) ? &ec_curves[curve_id] : NULL;
+}
+
+/*
+ * TODO: This code is common to ECDSA, ECDH, SM2.
+ *       Put it to ec_utils.c together with the code above and
+ *       some ohter stuff common to EC.
+ */
 pgp_errcode_t
-pgp_ecdsa_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve)
+pgp_ecdh_ecdsa_genkeypair(pgp_seckey_t *seckey, const pgp_curve_t curve)
 {
     /**
      * Keeps "0x04 || x || y"
@@ -73,7 +99,11 @@ pgp_ecdsa_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve)
         goto end;
     }
 
-    if (botan_privkey_create_ecdsa(&pr_key, rng, ec_curves[curve].botan_name)) {
+    int bret = (seckey->pubkey.alg == PGP_PKA_ECDSA) ?
+                 botan_privkey_create_ecdsa(&pr_key, rng, ec_curves[curve].botan_name) :
+                 botan_privkey_create_ecdh(&pr_key, rng, ec_curves[curve].botan_name);
+
+    if (bret) {
         goto end;
     }
 
@@ -128,6 +158,11 @@ pgp_ecdsa_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve)
     seckey->pubkey.key.ecc.point = BN_bin2bn(point_bytes, (2 * filed_byte_size) + 1, NULL);
     if (!seckey->pubkey.key.ecc.point) {
         goto end;
+    }
+
+    if (seckey->pubkey.alg == PGP_PKA_ECDH) {
+        seckey->pubkey.key.ecdh.kdf_hash_alg = ecdh_params[curve].hash;
+        seckey->pubkey.key.ecdh.key_wrap_alg = ecdh_params[curve].wrap_alg;
     }
 
     // All good now
@@ -282,16 +317,15 @@ end:
     return ret;
 }
 
-pgp_errcode_t
+bool
 ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey)
 {
-    const ec_curve_desc_t *curve = &ec_curves[pubkey->curve];
-
-    if (pgp_write_scalar(output, curve->OIDhex_len, 1) &&
-        pgp_write(output, curve->OIDhex, curve->OIDhex_len) &&
-        pgp_write_mpi(output, pubkey->point)) {
-        return PGP_E_OK;
+    const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
+    if (!curve) {
+        return false;
     }
 
-    return PGP_E_W_WRITE_FAILED;
+    return pgp_write_scalar(output, curve->OIDhex_len, 1) &&
+           pgp_write(output, curve->OIDhex, curve->OIDhex_len) &&
+           pgp_write_mpi(output, pubkey->point);
 }

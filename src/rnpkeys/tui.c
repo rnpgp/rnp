@@ -64,12 +64,12 @@ is_keygen_supported_for_alg(pgp_pubkey_alg_t id)
 {
     switch (id) {
     case PGP_PKA_RSA:
-    case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_ECDSA:
         // Not yet really supported (at least key generation)
         //
-        // case PGP_PKA_ECDH:
         // case PGP_PKA_ELGAMAL:
         // case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         // case PGP_PKA_DSA:
@@ -109,7 +109,7 @@ ask_algorithm(FILE *input_fp)
     do {
         printf("Please select what kind of key you want:\n"
                "\t(1)  RSA (Encrypt or Sign)\n"
-               // "\t(18) ECDH\n"
+               "\t(18) ECDH\n"
                "\t(19) ECDSA\n"
                "\t(22) EDDSA\n"
                "\t(99) SM2\n"

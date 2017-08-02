@@ -12,6 +12,7 @@ librnp_la_SOURCES	= \
 	compress.c \
 	crypto.c \
 	dsa.c \
+	ecdh.c \
 	ecdsa.c \
 	eddsa.c \
 	elgamal.c \

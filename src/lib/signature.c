@@ -801,11 +801,12 @@ pgp_sig_write(pgp_output_t *      output,
         }
         break;
 
-    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
         if (seckey->key.ecc.x == NULL) {
-            (void) fprintf(stderr, "pgp_sig_write: null ecc.x\n");
+            RNP_LOG("null ecc.x");
             return false;
         }
         break;
@@ -815,8 +816,9 @@ pgp_sig_write(pgp_output_t *      output,
         return false;
     }
 
+    // TODO: Is this correct at all?
     if (sig->hashlen == (unsigned) -1) {
-        (void) fprintf(stderr, "ops_write_sig: bad hashed data len\n");
+        RNP_LOG("bad hashed data len");
         return false;
     }
 
@@ -870,6 +872,11 @@ pgp_sig_write(pgp_output_t *      output,
         }
         break;
 
+    /*
+     * ECDH is signed with ECDSA. This must be changed when ECDH will support
+     * X25519, but I need to check how it should be done exactly.
+     */
+    case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
         if (!ecdsa_sign(&sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
             RNP_LOG("ecdsa sign failure");
