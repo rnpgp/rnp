@@ -434,10 +434,10 @@ ecdh_roundtrip(void **state)
     rnp_assert_int_equal(rstate, botan_mp_init(&tmp_eph_key), 0);
 
     for (int i = 0; i < ARRAY_SIZE(curves); i++) {
-        const rnp_keygen_desc_t key_desc = {.key_alg = PGP_PKA_ECDH,
-                                            .hash_alg = PGP_HASH_SHA512,
-                                            .sym_alg = PGP_SA_AES_256,
-                                            .ecc = {.curve = curves[i].id}};
+        const rnp_keygen_desc_t key_desc = {.crypto = {.key_alg = PGP_PKA_ECDH,
+                                                       .hash_alg = PGP_HASH_SHA512,
+                                                       .sym_alg = PGP_SA_AES_256,
+                                                       .ecc = {.curve = curves[i].id}}};
 
         const size_t expected_result_byte_size = curves[i].size * 2 + 1;
         pgp_key_t *  ecdh_key1 = pgp_generate_keypair(&key_desc, NULL);
@@ -489,10 +489,10 @@ ecdh_decryptionNegativeCases(void **state)
 
     rnp_assert_int_equal(rstate, botan_mp_init(&tmp_eph_key), 0);
 
-    const rnp_keygen_desc_t key_desc = {.key_alg = PGP_PKA_ECDH,
-                                        .hash_alg = PGP_HASH_SHA512,
-                                        .sym_alg = PGP_SA_AES_256,
-                                        .ecc = {.curve = PGP_CURVE_NIST_P_256}};
+    const rnp_keygen_desc_t key_desc = {.crypto = {.key_alg = PGP_PKA_ECDH,
+                                                   .hash_alg = PGP_HASH_SHA512,
+                                                   .sym_alg = PGP_SA_AES_256,
+                                                   .ecc = {.curve = PGP_CURVE_NIST_P_256}}};
 
     const size_t expected_result_byte_size = 32 * 2 + 1;
     pgp_key_t *  ecdh_key1 = pgp_generate_keypair(&key_desc, NULL);
