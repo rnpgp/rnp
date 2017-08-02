@@ -98,13 +98,13 @@ pad_pkcs7(uint8_t *buf, size_t buf_len, size_t offset)
 static bool
 unpad_pkcs7(uint8_t *buf, size_t buf_len, size_t *offset)
 {
-    uint8_t        err = 0;
-    const uint8_t  pad_byte = buf[buf_len - 1];
-    const uint32_t pad_begin = buf_len - pad_byte;
-
     if (!buf || !offset || !buf_len) {
         return false;
     }
+
+    uint8_t        err = 0;
+    const uint8_t  pad_byte = buf[buf_len - 1];
+    const uint32_t pad_begin = buf_len - pad_byte;
 
     // TODO: Still >, <, and <=,==  are not constant time (maybe?)
     err |= (pad_byte > buf_len);
