@@ -368,7 +368,7 @@ parse_pubkey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 
     default:
         fprintf(stderr, "Unsupported public key algorithm: %d\n", alg);
-        return NULL;
+        return false;
     }
 
     return true;
@@ -377,12 +377,15 @@ parse_pubkey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 static bool
 parse_seckey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 {
-    keydata->seckey.pubkey.version = PGP_V4;
-    keydata->seckey.pubkey.birthtime = time(NULL);
-    keydata->seckey.pubkey.duration = 0;
-    keydata->seckey.pubkey.alg = alg;
+    if (keydata->seckey.pubkey.version != PGP_V2 && keydata->seckey.pubkey.version != PGP_V3 &&
+        keydata->seckey.pubkey.version != PGP_V4) {
+        fprintf(stderr, "You should run parse_seckey only after parse_pubkey\n");
+        return false;
+    }
 
     keydata->seckey.s2k_usage = PGP_S2KU_NONE;
+    keydata->seckey.alg = PGP_SA_DEFAULT_CIPHER;
+    keydata->seckey.hash_alg = PGP_DEFAULT_HASH_ALGORITHM;
 
     switch (alg) {
     case PGP_PKA_DSA:
@@ -432,7 +435,7 @@ parse_seckey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 
     default:
         fprintf(stderr, "Unsupported public key algorithm: %d\n", alg);
-        return NULL;
+        return false;
     }
 
     return true;
