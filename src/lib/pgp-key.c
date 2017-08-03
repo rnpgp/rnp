@@ -429,7 +429,9 @@ pgp_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
 
     decrypt.key = key;
     stream = pgp_new(sizeof(*stream));
-    pgp_key_reader_set(stream, key);
+    if (!pgp_key_reader_set(stream, key)) {
+        return NULL;
+    }
     pgp_set_callback(stream, decrypt_cb_empty, &decrypt);
     stream->readinfo.accumulate = 1;
     pgp_parse(stream, !printerrors);
@@ -445,7 +447,9 @@ pgp_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     /* ask for a passphrase */
     decrypt.passfp = passfp;
     stream = pgp_new(sizeof(*stream));
-    pgp_key_reader_set(stream, key);
+    if (!pgp_key_reader_set(stream, key)) {
+        return NULL;
+    }
     pgp_set_callback(stream, decrypt_cb, &decrypt);
     stream->readinfo.accumulate = 1;
     pgp_parse(stream, !printerrors);

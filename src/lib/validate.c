@@ -565,19 +565,24 @@ key_destroyer(pgp_reader_t *readinfo)
     free(pgp_reader_get_arg(readinfo));
 }
 
-void
+bool
 pgp_key_reader_set(pgp_stream_t *stream, const pgp_key_t *key)
 {
     validate_reader_t *data;
 
-    if ((data = calloc(1, sizeof(*data))) == NULL) {
+    data = calloc(1, sizeof(*data));
+
+    if (data == NULL) {
         (void) fprintf(stderr, "pgp_key_reader_set: bad alloc\n");
-    } else {
-        data->key = key;
-        data->packet = 0;
-        data->offset = 0;
-        pgp_reader_set(stream, key_reader, key_destroyer, data);
+        return false;
     }
+
+    data->key = key;
+    data->packet = 0;
+    data->offset = 0;
+    pgp_reader_set(stream, key_reader, key_destroyer, data);
+
+    return true;
 }
 
 static char *
@@ -689,7 +694,9 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
 
     pgp_set_callback(stream, pgp_validate_key_cb, &keysigs);
     stream->readinfo.accumulate = 1;
-    pgp_key_reader_set(stream, key);
+    if (!pgp_key_reader_set(stream, key)) {
+        return false;
+    }
 
     /* Note: Coverity incorrectly reports an error that keysigs.reader */
     /* is never used. */
