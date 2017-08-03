@@ -385,7 +385,7 @@ parse_seckey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 
     keydata->seckey.s2k_usage = PGP_S2KU_NONE;
     keydata->seckey.alg = PGP_SA_DEFAULT_CIPHER;
-    keydata->seckey.hash_alg = PGP_DEFAULT_HASH_ALGORITHM;
+    keydata->seckey.hash_alg = PGP_HASH_UNKNOWN;
 
     switch (alg) {
     case PGP_PKA_DSA:
