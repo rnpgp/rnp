@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -75,7 +75,6 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 #include "bn.h"
 #include "packet-create.h"
 #include "writer.h"
-#include "key_store_pgp.h"
 #include "signature.h"
 #include "packet.h"
 #include "packet-parse.h"
@@ -1014,7 +1013,9 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_key_t *pubkey, pgp_symm_alg_t
         free(se_ip);
         return false;
     }
-    pgp_write_pk_sesskey(output, encrypted_pk_sesskey);
+    if (!pgp_write_pk_sesskey(output, encrypted_pk_sesskey)) {
+        return 0;
+    }
 
     /* Setup the se_ip */
     if ((encrypted = calloc(1, sizeof(*encrypted))) == NULL) {

@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -70,8 +70,8 @@ typedef struct pgp_memory_t {
 pgp_memory_t *pgp_memory_new(void);
 void          pgp_memory_free(pgp_memory_t *);
 void          pgp_memory_init(pgp_memory_t *, size_t);
-int           pgp_memory_pad(pgp_memory_t *, size_t);
-int           pgp_memory_add(pgp_memory_t *, const uint8_t *, size_t);
+bool          pgp_memory_pad(pgp_memory_t *, size_t);
+bool          pgp_memory_add(pgp_memory_t *, const uint8_t *, size_t);
 void          pgp_memory_place_int(pgp_memory_t *, unsigned, unsigned, size_t);
 void          pgp_memory_make_packet(pgp_memory_t *, pgp_content_enum);
 void          pgp_memory_clear(pgp_memory_t *);

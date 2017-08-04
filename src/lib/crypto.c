@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -75,6 +75,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "rsa.h"
 #include "elgamal.h"
 #include "eddsa.h"
+#include "ecdh.h"
 #include "crypto.h"
 #include "readerwriter.h"
 #include "memory.h"
@@ -83,8 +84,9 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "pgp-key.h"
 #include "s2k.h"
 #include "ecdsa.h"
+#include "sm2.h"
 #include "utils.h"
-#include "rnp_def.h"
+#include <rnp/rnp_def.h>
 
 /**
  * EC Curves definition used by implementation
@@ -109,7 +111,14 @@ const ec_curve_desc_t ec_curves[] = {
    {0x2b, 0x06, 0x01, 0x04, 0x01, 0xda, 0x47, 0x0f, 0x01},
    9,
    "Ed25519",
-   "Ed25519"}};
+   "Ed25519"},
+  {PGP_CURVE_SM2_P_256,
+   256,
+   {0x2A, 0x81, 0x1C, 0xCF, 0x55, 0x01, 0x82, 0x2D},
+   8,
+   "sm2p256v1",
+   "SM2 P-256"},
+};
 
 /**
 \ingroup Core_MPI
@@ -129,14 +138,14 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
                        const pgp_seckey_t *seckey)
 {
     unsigned mpisize;
-    uint8_t  encmpibuf[RNP_BUFSIZ];
-    uint8_t  gkbuf[RNP_BUFSIZ];
+    uint8_t  encmpibuf[RNP_BUFSIZ] = {0};
+    uint8_t  gkbuf[RNP_BUFSIZ] = {0};
     int      n;
 
     mpisize = (unsigned) BN_num_bytes(encmpi);
     /* MPI can't be more than 65,536 */
     if (mpisize > sizeof(encmpibuf)) {
-        (void) fprintf(stderr, "mpisize too big %u\n", mpisize);
+        RNP_LOG("mpisize too big %u", mpisize);
         return -1;
     }
     switch (seckey->pubkey.alg) {
@@ -181,8 +190,39 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
             hexdump(stderr, "decoded m", buf, n);
         }
         return n;
+    case PGP_PKA_ECDH: {
+        pgp_fingerprint_t fingerprint;
+        size_t            out_len = buflen;
+        const size_t      encmpi_len = BN_num_bytes(encmpi);
+        if (BN_bn2bin(encmpi, encmpibuf)) {
+            RNP_LOG("Can't find session key");
+            return -1;
+        }
+
+        if (!pgp_fingerprint(&fingerprint, &seckey->pubkey)) {
+            RNP_LOG("ECDH fingerprint calculation failed");
+            return -1;
+        }
+
+        const rnp_result ret = pgp_ecdh_decrypt_pkcs5(buf,
+                                                      &out_len,
+                                                      encmpibuf,
+                                                      encmpi_len,
+                                                      g_to_k->mp,
+                                                      &seckey->key.ecc,
+                                                      &seckey->pubkey.key.ecdh,
+                                                      &fingerprint);
+
+        if (ret || (out_len > INT_MAX)) {
+            RNP_LOG("ECDH decryption error [%u]", ret);
+            return -1;
+        }
+
+        return (int) out_len;
+    }
+
     default:
-        (void) fprintf(stderr, "pubkey algorithm wrong\n");
+        RNP_LOG("Unsupported public key algorithm [%d]", seckey->pubkey.alg);
         return -1;
     }
 }
@@ -226,104 +266,153 @@ pgp_elgamal_encrypt_mpi(const uint8_t *          encoded_m_buf,
     return true;
 }
 
-pgp_key_t *
-pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
+bool
+pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seckey)
 {
-    pgp_seckey_t *seckey = NULL;
     pgp_output_t *output = NULL;
     pgp_memory_t *mem = NULL;
-    pgp_key_t *   keydata = NULL;
     bool          ok = false;
 
-    keydata = pgp_keydata_new();
-    if (!keydata)
+    if (!crypto || !seckey) {
+        RNP_LOG("NULL args");
         goto end;
-
-    pgp_keydata_init(keydata, PGP_PTAG_CT_SECRET_KEY);
-    seckey = pgp_get_writable_seckey(keydata);
-    if (!seckey)
-        goto end;
-
+    }
     /* populate pgp key structure */
     seckey->pubkey.version = PGP_V4;
     seckey->pubkey.birthtime = time(NULL);
-    seckey->pubkey.days_valid = 0;
-    seckey->pubkey.alg = key_desc->key_alg;
+    seckey->pubkey.alg = crypto->key_alg;
     seckey->hash_alg =
-      (PGP_HASH_UNKNOWN == key_desc->hash_alg) ? PGP_HASH_SHA1 : key_desc->hash_alg;
+      (PGP_HASH_UNKNOWN == crypto->hash_alg) ? PGP_HASH_SHA1 : crypto->hash_alg;
 
-    if (seckey->pubkey.alg == PGP_PKA_RSA || seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
-        seckey->pubkey.alg == PGP_PKA_RSA_SIGN_ONLY) {
-        if (pgp_genkey_rsa(seckey, key_desc->rsa.modulus_bit_len) != 1)
+    switch (seckey->pubkey.alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        if (pgp_genkey_rsa(seckey, crypto->rsa.modulus_bit_len) != 1) {
             goto end;
-    } else if (seckey->pubkey.alg == PGP_PKA_EDDSA) {
-        if (pgp_genkey_eddsa(seckey, ec_curves[PGP_CURVE_ED25519].bitlen) != 1)
+        }
+        break;
+
+    case PGP_PKA_EDDSA:
+        if (pgp_genkey_eddsa(seckey, ec_curves[PGP_CURVE_ED25519].bitlen) != 1) {
             goto end;
-    } else if (seckey->pubkey.alg == PGP_PKA_ECDSA) {
-        seckey->pubkey.key.ecc.curve = key_desc->ecc.curve;
-        if (pgp_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK)
+        }
+        break;
+
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
+        seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
+        if (pgp_ecdh_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK) {
             goto end;
-    } else {
+        }
+        break;
+    case PGP_PKA_SM2:
+        seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
+        if (pgp_sm2_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK) {
+            goto end;
+        }
+        break;
+
+    default:
+        RNP_LOG("key generation not implemented for PK alg: %d", seckey->pubkey.alg);
         goto end;
+        break;
     }
 
     seckey->s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
     seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
     seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
-    seckey->alg = key_desc->sym_alg;
+    seckey->alg = crypto->sym_alg;
     if (pgp_random(&seckey->iv[0], pgp_block_size(seckey->alg))) {
-        (void) fprintf(stderr, "pgp_random failed\n");
+        RNP_LOG("pgp_random failed");
         goto end;
     }
     seckey->checksum = 0;
 
-    if (!pgp_keyid(keydata->sigid, PGP_KEY_ID_SIZE, &keydata->key.seckey.pubkey))
-        goto end;
-
-    if (!pgp_fingerprint(&keydata->sigfingerprint, &keydata->key.seckey.pubkey))
-        goto end;
-
     /* Generate checksum */
     if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
-        RNP_LOG("can't setup memory write\n");
+        RNP_LOG("can't setup memory write");
         goto end;
     }
     pgp_push_checksum_writer(output, seckey);
 
-    if (seckey->pubkey.alg == PGP_PKA_RSA || seckey->pubkey.alg == PGP_PKA_RSA_ENCRYPT_ONLY ||
-        seckey->pubkey.alg == PGP_PKA_RSA_SIGN_ONLY) {
+    switch (seckey->pubkey.alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
         if (!pgp_write_mpi(output, seckey->key.rsa.d) ||
             !pgp_write_mpi(output, seckey->key.rsa.p) ||
             !pgp_write_mpi(output, seckey->key.rsa.q) ||
-            !pgp_write_mpi(output, seckey->key.rsa.u))
+            !pgp_write_mpi(output, seckey->key.rsa.u)) {
             goto end;
-    } else if ((seckey->pubkey.alg == PGP_PKA_EDDSA) ||
-               (seckey->pubkey.alg == PGP_PKA_ECDSA)) {
-        if (!pgp_write_mpi(output, seckey->key.ecc.x))
+        }
+        break;
+    case PGP_PKA_ECDH:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+        if (!pgp_write_mpi(output, seckey->key.ecc.x)) {
             goto end;
-    } else {
-        RNP_LOG("Bad seckey->pubkey.alg");
+        }
+        break;
+
+    default:
+        RNP_LOG("key generation not implemented for PK alg: %d", seckey->pubkey.alg);
         goto end;
+        break;
     }
 
-    if (userid != NULL && !pgp_add_selfsigned_userid(keydata, userid)) {
+    ok = true;
+end:
+    if (output && mem) {
+        pgp_teardown_memory_write(output, mem);
+    }
+    if (!ok && seckey) {
+        RNP_LOG("failed, freeing internal seckey data");
+        pgp_seckey_free(seckey);
+    }
+    return ok;
+}
+
+pgp_key_t *
+pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
+{
+    pgp_seckey_t *seckey = NULL;
+    pgp_key_t *   key = NULL;
+    bool          ok = false;
+
+    key = pgp_key_new();
+    if (!key)
+        goto end;
+
+    pgp_key_init(key, PGP_PTAG_CT_SECRET_KEY);
+    seckey = pgp_get_writable_seckey(key);
+    if (!seckey)
+        goto end;
+
+    if (!pgp_generate_seckey(&key_desc->crypto, seckey)) {
+        goto end;
+    }
+    if (!pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, &key->key.seckey.pubkey)) {
+        goto end;
+    }
+    if (!pgp_fingerprint(&key->sigfingerprint, &key->key.seckey.pubkey)) {
+        goto end;
+    }
+    if (userid != NULL && !pgp_add_selfsigned_userid(key, userid)) {
         goto end;
     }
 
     ok = true;
 
 end:
-    if (output != NULL && mem != NULL) {
-        pgp_teardown_memory_write(output, mem);
-    }
-
-    if (ok == false) {
-        if (keydata != NULL) {
-            pgp_keydata_free(keydata);
+    if (!ok) {
+        if (key) {
+            pgp_key_free(key);
         }
         return NULL;
     }
-    return keydata;
+    return key;
 }
 
 static pgp_cb_ret_t
@@ -622,13 +711,13 @@ pgp_decrypt_buf(pgp_io_t *       io,
     const int     printerrors = 1;
 
     if (input == NULL) {
-        (void) fprintf(io->errs, "pgp_encrypt_buf: null memory\n");
+        RNP_LOG_FD(io->errs, "null memory");
         return false;
     }
 
     inmem = pgp_memory_new();
     if (inmem == NULL) {
-        (void) fprintf(stderr, "can't allocate mem\n");
+        RNP_LOG("can't allocate mem");
         return NULL;
     }
 
@@ -638,13 +727,13 @@ pgp_decrypt_buf(pgp_io_t *       io,
 
     /* set up to read from memory */
     if (!pgp_setup_memory_read(io, &parse, inmem, NULL, write_parsed_cb, 0)) {
-        (void) fprintf(io->errs, "can't setup memory read\n");
+        RNP_LOG_FD(io->errs, "can't setup memory read");
         return NULL;
     }
 
     /* setup for writing decrypted contents to given output file */
     if (!pgp_setup_memory_write(NULL, &parse->cbinfo.output, &outmem, insize)) {
-        (void) fprintf(io->errs, "can't setup memory write\n");
+        RNP_LOG_FD(io->errs, "can't setup memory write");
         return NULL;
     }
 

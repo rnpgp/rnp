@@ -24,8 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "rnp.h"
-#include "key_store.h"
+#include <rnp/rnp.h>
+#include <rekey/rnp_key_store.h>
 #include "rnp_tests.h"
 #include "support.h"
 #include "symmetric.h"
@@ -54,7 +54,7 @@ rnpkeys_generatekey_testSignature(void **state)
 
     for (int i = 0; hashAlg[i] != NULL; i++) {
         /* Setup passphrase input and rnp structure */
-        rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
+        rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
 
         memset(userId, 0, sizeof(userId));
         strcpy(userId, "sigtest_");
@@ -85,7 +85,7 @@ rnpkeys_generatekey_testSignature(void **state)
                 }
 
                 /* Setup passphrase input and rnp structure */
-                rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
+                rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
 
                 /* Load keyring */
                 rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
@@ -161,7 +161,7 @@ rnpkeys_generatekey_testEncryption(void **state)
     char      userId[128] = {0};
 
     /* Setup passphrase input and rnp structure */
-    rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
+    rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
 
     strcpy(userId, "ciphertest");
     /* Generate the RSA key and make sure it was generated */
@@ -182,7 +182,7 @@ rnpkeys_generatekey_testEncryption(void **state)
     for (int i = 0; cipherAlg[i] != NULL; i++) {
         for (unsigned int armored = 0; armored <= 1; ++armored) {
             /* setting up rnp and encrypting memory */
-            rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, NULL));
+            rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, NULL));
 
             /* Load keyring */
             rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, false));
@@ -211,7 +211,7 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_end(&rnp);
 
             /* Setting up rnp again and decrypting memory */
-            rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
+            rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
 
             /* Loading the keyrings */
             rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
@@ -243,20 +243,19 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
 
     rnp_test_state_t *rstate = *state;
     const char *hashAlg[] = {"MD5", "SHA1", "SHA256", "SHA384", "SHA512", "SHA224", "SM3"};
-    enum key_store_format_t keystores[] = {GPG_KEY_STORE, KBX_KEY_STORE};
-    rnp_t                   rnp;
-    int                     pipefd[2];
+    const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_KBX, RNP_KEYSTORE_G10};
+    rnp_t       rnp;
+    int         pipefd[2];
 
     for (int i = 0; i < sizeof(hashAlg) / sizeof(hashAlg[0]); i++) {
         for (int j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
             /* Setting up rnp again and decrypting memory */
             rnp_assert_ok(rstate, setup_rnp_common(&rnp, keystores[j], NULL, pipefd));
-            rnp_assert_true(rstate, rnp.key_store_format == keystores[j]);
 
             set_default_rsa_key_desc(&rnp.action.generate_key_ctx,
                                      pgp_str_to_hash_alg(hashAlg[i]));
             rnp_assert_int_not_equal(
-              rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_UNKNOWN);
+              rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_UNKNOWN);
 
             /* Generate key with specified parameters */
             rnp_assert_ok(rstate, rnp_generate_key(&rnp, NULL));
@@ -265,7 +264,10 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
             rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
             rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
-            rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
+            // G10 doesn't support metadata
+            if (strcmp(keystores[j], RNP_KEYSTORE_G10) != 0) {
+                rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
+            }
 
             /* Close pipe and free allocated memory */
             close(pipefd[0]);
@@ -291,9 +293,9 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
                              "rnpkeys_generatekey_verifyUserIdOption_SHA512",
                              "rnpkeys_generatekey_verifyUserIdOption_SHA224"};
 
-    enum key_store_format_t keystores[] = {GPG_KEY_STORE, KBX_KEY_STORE};
-    rnp_t                   rnp;
-    int                     pipefd[2];
+    const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_KBX, RNP_KEYSTORE_G10};
+    rnp_t       rnp;
+    int         pipefd[2];
 
     for (int i = 0; i < sizeof(userIds) / sizeof(userIds[0]); i++) {
         for (int j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
@@ -302,7 +304,6 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
 
             /*Initialize the basic RNP structure. */
             rnp_assert_ok(rstate, setup_rnp_common(&rnp, keystores[j], NULL, pipefd));
-            rnp_assert_true(rstate, rnp.key_store_format == keystores[j]);
 
             set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
             /* Generate the key with corresponding userId */
@@ -311,7 +312,11 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
             /*Load the newly generated rnp key*/
             rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
             rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
-            rnp_assert_true(rstate, rnp_find_key(&rnp, userId));
+
+            // G10 doesn't support metadata
+            if (strcmp(keystores[j], RNP_KEYSTORE_G10) != 0) {
+                rnp_assert_true(rstate, rnp_find_key(&rnp, userId));
+            }
 
             /* Close pipe and free allocated memory */
             close(pipefd[0]);
@@ -332,7 +337,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     int               pipefd[2];
 
     /* Initialize the rnp structure. */
-    rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, NULL, pipefd));
+    rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
 
     /* Pubring and secring should not exist yet */
     rnp_assert_false(rstate, path_file_exists(ourdir, ".rnp/pubring.gpg", NULL));
@@ -363,7 +368,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     path_mkdir(0700, newhome, NULL);
 
     /* Initialize the rnp structure. */
-    rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, newhome, pipefd));
+    rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, newhome, pipefd));
 
     /* Pubring and secring should not exist yet */
     rnp_assert_false(rstate, path_file_exists(newhome, "pubring.gpg", NULL));
@@ -400,7 +405,7 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
     int               pipefd[2];
 
     /* Initialize the rnp structure. */
-    rnp_assert_ok(rstate, setup_rnp_common(&rnp, KBX_KEY_STORE, NULL, pipefd));
+    rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_KBX, NULL, pipefd));
 
     /* Pubring and secring should not exist yet */
     rnp_assert_false(rstate, path_file_exists(ourdir, ".rnp/pubring.kbx", NULL));
@@ -432,7 +437,7 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
     path_mkdir(0700, newhome, NULL);
 
     /* Initialize the rnp structure. */
-    rnp_assert_ok(rstate, setup_rnp_common(&rnp, KBX_KEY_STORE, newhome, pipefd));
+    rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_KBX, newhome, pipefd));
 
     /* Pubring and secring should not exist yet */
     rnp_assert_false(rstate, path_file_exists(newhome, "pubring.kbx", NULL));
@@ -480,7 +485,7 @@ rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
     path_mkdir(0000, nopermsdir, NULL);
 
     /* Initialize the rnp structure. */
-    rnp_assert_ok(rstate, setup_rnp_common(&rnp, GPG_KEY_STORE, nopermsdir, pipefd));
+    rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, nopermsdir, pipefd));
 
     /* Try to generate key in the directory and make sure generation fails */
     set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
@@ -496,7 +501,7 @@ ask_expert_details(rnp_t *ctx, rnp_cfg_t *ops, const char *rsp, size_t rsp_len)
     /* Run tests*/
     bool      ret = true;
     rnp_cfg_t cfg = {0};
-    if (setup_rnp_common(ctx, GPG_KEY_STORE, NULL, NULL) != true) {
+    if (setup_rnp_common(ctx, RNP_KEYSTORE_GPG, NULL, NULL) != true) {
         return false;
     }
     if (!rnpkeys_init(&cfg, ctx, ops, true)) {
@@ -544,59 +549,94 @@ rnpkeys_generatekey_testExpertMode(void **state)
     rnp_cfg_t         ops = {0};
 
     // Setup directories and cleanup context
+    static const char test_ecdh_256[] = "18\n1\n";
+    static const char test_ecdh_384[] = "18\n2\n";
+    static const char test_ecdh_521[] = "18\n3\n";
     static const char test_ecdsa_256[] = "19\n1\n";
     static const char test_ecdsa_384[] = "19\n2\n";
     static const char test_ecdsa_521[] = "19\n3\n";
     static const char test_eddsa[] = "22\n";
+    static const char test_sm2[] = "99\n";
     static const char test_rsa_1024[] = "1\n1024\n";
     static const char test_rsa_ask_twice_4096[] = "1\n1023\n4096\n";
 
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
 
     rnp_assert_true(rstate,
+                    ask_expert_details(&rnp, &ops, test_ecdh_256, sizeof(test_ecdh_256)));
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_ECDH);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.ecc.curve, PGP_CURVE_NIST_P_256);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SHA256);
+    rnp_end(&rnp);
+
+    rnp_assert_true(rstate,
+                    ask_expert_details(&rnp, &ops, test_ecdh_384, sizeof(test_ecdh_384)));
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_ECDH);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.ecc.curve, PGP_CURVE_NIST_P_384);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SHA384);
+    rnp_end(&rnp);
+
+    rnp_assert_true(rstate,
+                    ask_expert_details(&rnp, &ops, test_ecdh_521, sizeof(test_ecdh_521)));
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_ECDH);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.ecc.curve, PGP_CURVE_NIST_P_521);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SHA512);
+    rnp_end(&rnp);
+
+    rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_256, sizeof(test_ecdsa_256)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_ECDSA);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_NIST_P_256);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA256);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_ECDSA);
+    rnp_assert_int_equal(
+      rstate, rnp.action.generate_key_ctx.crypto.ecc.curve, PGP_CURVE_NIST_P_256);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SHA256);
     rnp_end(&rnp);
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_384, sizeof(test_ecdsa_384)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_ECDSA);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_NIST_P_384);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA384);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_ECDSA);
+    rnp_assert_int_equal(
+      rstate, rnp.action.generate_key_ctx.crypto.ecc.curve, PGP_CURVE_NIST_P_384);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SHA384);
     rnp_end(&rnp);
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_521, sizeof(test_ecdsa_521)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_ECDSA);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_NIST_P_521);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA512);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_ECDSA);
+    rnp_assert_int_equal(
+      rstate, rnp.action.generate_key_ctx.crypto.ecc.curve, PGP_CURVE_NIST_P_521);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SHA512);
     rnp_end(&rnp);
 
     rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, test_eddsa, sizeof(test_eddsa)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_EDDSA);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.ecc.curve, PGP_CURVE_ED25519);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_EDDSA);
+    rnp_assert_int_equal(
+      rstate, rnp.action.generate_key_ctx.crypto.ecc.curve, PGP_CURVE_ED25519);
     rnp_end(&rnp);
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_rsa_1024, sizeof(test_rsa_1024)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_RSA);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.rsa.modulus_bit_len, 1024);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_RSA);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.rsa.modulus_bit_len, 1024);
     rnp_end(&rnp);
 
     rnp_assert_true(rstate,
                     ask_expert_details(
                       &rnp, &ops, test_rsa_ask_twice_4096, sizeof(test_rsa_ask_twice_4096)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.key_alg, PGP_PKA_RSA);
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.rsa.modulus_bit_len, 4096);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_RSA);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.rsa.modulus_bit_len, 4096);
+    rnp_end(&rnp);
+
+    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, test_sm2, sizeof(test_sm2)));
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.key_alg, PGP_PKA_SM2);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.ecc.curve, PGP_CURVE_SM2_P_256);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SM3);
     rnp_end(&rnp);
 
     rnp_cfg_free(&ops);
 }
 
 void
-generatekey_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state)
+generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state)
 {
     rnp_test_state_t *rstate = *state;
     rnp_t             rnp;
@@ -609,13 +649,13 @@ generatekey_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state)
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_384, sizeof(test_ecdsa_384)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA384);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SHA384);
 
     rnp_cfg_free(&ops);
 }
 
 void
-generatekey_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
+generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
 {
     rnp_test_state_t *rstate = *state;
     rnp_t             rnp;
@@ -628,13 +668,13 @@ generatekey_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_384, sizeof(test_ecdsa_384)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.hash_alg, PGP_HASH_SHA512);
+    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.crypto.hash_alg, PGP_HASH_SHA512);
 
     rnp_cfg_free(&ops);
 }
 
 void
-generatekey_explicitlySetWrongDigest_ShouldFail(void **state)
+generatekeyECDSA_explicitlySetWrongDigest_ShouldFail(void **state)
 {
     rnp_test_state_t *rstate = *state;
     rnp_t             rnp;

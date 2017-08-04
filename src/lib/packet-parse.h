@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -58,7 +58,6 @@
 
 #include "types.h"
 #include "packet.h"
-#include "key_store.h"
 
 /** pgp_region_t */
 typedef struct pgp_region_t {
@@ -162,7 +161,5 @@ pgp_reader_func_t pgp_stacked_read;
 
 bool     pgp_decompress(pgp_region_t *, pgp_stream_t *, pgp_compression_type_t);
 unsigned pgp_writez(pgp_output_t *, const uint8_t *, const unsigned);
-
-bool pgp_parse_and_accumulate(pgp_io_t *io, rnp_key_store_t *, pgp_stream_t *);
 
 #endif /* PACKET_PARSE_H_ */

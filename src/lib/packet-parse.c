@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -53,6 +53,7 @@
  * \brief Parser for OpenPGP packets
  */
 #include "config.h"
+#include <assert.h>
 
 #ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
@@ -83,7 +84,6 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "packet-parse.h"
 #include "packet-print.h"
 #include "pgp-key.h"
-#include "key_store_pgp.h"
 #include "errors.h"
 #include "packet-show.h"
 #include "packet-create.h"
@@ -93,6 +93,7 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "rnpdigest.h"
 #include "s2k.h"
 #include "utils.h"
+#include "ecdh.h"
 
 #define ERRP(cbinfo, cont, err)                    \
     do {                                           \
@@ -101,11 +102,6 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
         return 0;                                  \
         /*NOTREACHED*/                             \
     } while (/*CONSTCOND*/ 0)
-
-typedef struct {
-    pgp_io_t *       io;
-    rnp_key_store_t *keyring;
-} accumulate_t;
 
 /**
  * limread_data reads the specified amount of the subregion's data
@@ -949,8 +945,8 @@ free_BN(BIGNUM **pp)
  * \brief Free the memory used when parsing a signature
  * \param sig
  */
-static void
-sig_free(pgp_sig_t *sig)
+void
+pgp_sig_free(pgp_sig_t *sig)
 {
     switch (sig->info.key_alg) {
     case PGP_PKA_RSA:
@@ -970,6 +966,8 @@ sig_free(pgp_sig_t *sig)
 
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
         free_BN(&sig->info.sig.ecc.r);
         free_BN(&sig->info.sig.ecc.s);
         break;
@@ -989,7 +987,7 @@ sig_free(pgp_sig_t *sig)
         break;
 
     default:
-        (void) fprintf(stderr, "sig_free: bad sig type\n");
+        RNP_LOG("bad sig type %u", sig->info.key_alg);
     }
 }
 
@@ -1044,7 +1042,7 @@ pgp_parser_content_free(pgp_packet_t *c)
 
     case PGP_PTAG_CT_SIGNATURE:
     case PGP_PTAG_CT_SIGNATURE_FOOTER:
-        sig_free(&c->u.sig);
+        pgp_sig_free(&c->u.sig);
         break;
 
     case PGP_PTAG_CT_PUBLIC_KEY:
@@ -1187,9 +1185,11 @@ pgp_pk_sesskey_free(pgp_pk_sesskey_t *sk)
         free_BN(&sk->params.elgamal.g_to_k);
         free_BN(&sk->params.elgamal.encrypted_m);
         break;
-
+    case PGP_PKA_ECDH:
+        free_BN(&sk->params.ecdh.ephemeral_point);
+        break;
     default:
-        (void) fprintf(stderr, "pgp_pk_sesskey_free: bad alg\n");
+        RNP_LOG("Unsupported algorithm");
         break;
     }
 }
@@ -1217,7 +1217,10 @@ pgp_pubkey_free(pgp_pubkey_t *p)
         free_BN(&p->key.dsa.y);
         break;
 
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         free_BN(&p->key.ecc.point);
         break;
 
@@ -1228,17 +1231,44 @@ pgp_pubkey_free(pgp_pubkey_t *p)
         free_BN(&p->key.elgamal.y);
         break;
 
-    case PGP_PKA_ECDSA:
-        free_BN(&p->key.ecc.point);
-        break;
-
     case PGP_PKA_NOTHING:
         /* nothing to free */
         break;
 
     default:
-        (void) fprintf(stderr, "pgp_pubkey_free: bad alg\n");
+        RNP_LOG("Unsupported algorithm");
     }
+}
+
+static bool
+parse_ec_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
+{
+    pgp_data_t OID = {0};
+    unsigned   OID_len = 0;
+    if (!limread_scalar(&OID_len, 1, region, stream) || (OID_len == 0x00) ||
+        (OID_len == 0xFF)) { // values reserved for future extensions
+        return false;
+    }
+
+    if (!limread_data(&OID, OID_len, region, stream)) {
+        return false;
+    }
+
+    if (!limread_mpi(&key->key.ecc.point, region, stream)) {
+        pgp_data_free(&OID);
+        return false;
+    }
+
+    const pgp_curve_t curve = find_curve_by_OID(OID.contents, OID.len);
+    if (PGP_CURVE_MAX == curve) {
+        RNP_LOG("Unsupported curve %u", curve);
+        pgp_data_free(&OID);
+        return false;
+    }
+
+    key->key.ecc.curve = curve;
+    pgp_data_free(&OID);
+    return true;
 }
 
 /**
@@ -1313,30 +1343,33 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
         }
         break;
 
+    case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
-    case PGP_PKA_ECDSA: {
-        pgp_data_t OID = {0};
-        unsigned   OID_len = 0;
-        if (!limread_scalar(&OID_len, 1, region, stream) || (OID_len == 0x00) ||
-            (OID_len == 0xFF)) { // values reserved for future extensions
+    case PGP_PKA_SM2:
+        if (!parse_ec_pubkey_data(key, region, stream)) {
+            return false;
+        }
+        break;
+
+    case PGP_PKA_ECDH: {
+        if (!parse_ec_pubkey_data(key, region, stream)) {
             return false;
         }
 
-        if (!limread_data(&OID, OID_len, region, stream) ||
-            !limread_mpi(&key->key.ecc.point, region, stream)) {
+        unsigned tmp = 0;
+        if (!limread_scalar(&tmp, 1, region, stream) || (tmp != 3)) {
             return false;
         }
-
-        const pgp_curve_t curve = find_curve_by_OID(OID.contents, OID.len);
-        if (PGP_CURVE_MAX == curve) {
-            RNP_LOG("Unsupported curve");
-            pgp_data_free(&OID);
+        if (!limread_scalar(&tmp, 1, region, stream) || (tmp != 1)) {
             return false;
         }
-        key->key.ecc.curve = curve;
-        pgp_data_free(&OID);
+        if (!limread_scalar(&key->key.ecdh.kdf_hash_alg, 1, region, stream) ||
+            !limread_scalar(&key->key.ecdh.key_wrap_alg, 1, region, stream)) {
+            return false;
+        }
         break;
     }
+
     default:
         PGP_ERROR_1(&stream->errors,
                     PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG,
@@ -1372,7 +1405,7 @@ parse_pubkey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     memset(&pkt, 0x00, sizeof(pgp_packet_t));
 
     if (!parse_pubkey_data(&pkt.u.pubkey, region, stream)) {
-        (void) fprintf(stderr, "parse_pubkey: parse_pubkey_data failed\n");
+        RNP_LOG("parse_pubkey_data failed");
         return false;
     }
 
@@ -1426,7 +1459,7 @@ parse_userattr(pgp_region_t *region, pgp_stream_t *stream)
 void
 pgp_userid_free(uint8_t **id)
 {
-    if (*id != NULL) {
+    if (!id) {
         return;
     }
     free(*id);
@@ -1477,7 +1510,6 @@ parse_userid(pgp_region_t *region, pgp_stream_t *stream)
     }
     pkt.u.userid[region->length] = 0x0;
     CALLBACK(PGP_PTAG_CT_USER_ID, &stream->cbinfo, &pkt);
-    pgp_userid_free(&pkt.u.userid);
     return true;
 }
 
@@ -1579,6 +1611,7 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
 
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
         if (!limread_mpi(&pkt.u.sig.info.sig.ecc.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.ecc.s, region, stream)) {
             return false;
@@ -2115,6 +2148,8 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
 
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
         if (!limread_mpi(&pkt.u.sig.info.sig.ecc.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.ecc.s, region, stream)) {
             free(pkt.u.sig.info.v4_hashed);
@@ -2415,7 +2450,9 @@ pgp_seckey_free(pgp_seckey_t *key)
         break;
 
     case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
         free_BN(&key->key.ecc.x);
         break;
 
@@ -2689,6 +2726,8 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
         if (!limread_mpi(&pkt.u.seckey.key.ecc.x, region, stream)) {
             ret = 0;
         }
@@ -2786,8 +2825,8 @@ parse_pk_sesskey(pgp_region_t *region, pgp_stream_t *stream)
     uint8_t             c = 0x0;
     uint8_t             cs[2];
     unsigned            k;
-    BIGNUM *            g_to_k;
-    BIGNUM *            enc_m;
+    BIGNUM *            g_to_k = NULL;
+    BIGNUM *            enc_m = NULL;
     int                 n;
     uint8_t             unencoded_m_buf[1024];
 
@@ -2838,6 +2877,23 @@ parse_pk_sesskey(pgp_region_t *region, pgp_stream_t *stream)
         enc_m = pkt.u.pk_sesskey.params.elgamal.encrypted_m;
         break;
 
+    case PGP_PKA_ECDH:
+        if (!limread_mpi(&pkt.u.pk_sesskey.params.ecdh.ephemeral_point, region, stream) ||
+            !limread_scalar(
+              &pkt.u.pk_sesskey.params.ecdh.encrypted_m_size, 1, region, stream) ||
+            (pkt.u.pk_sesskey.params.ecdh.encrypted_m_size > ECDH_WRAPPED_KEY_SIZE) ||
+            !limread(pkt.u.pk_sesskey.params.ecdh.encrypted_m,
+                     pkt.u.pk_sesskey.params.ecdh.encrypted_m_size,
+                     region,
+                     stream)) {
+            return false;
+        }
+        g_to_k = pkt.u.pk_sesskey.params.ecdh.ephemeral_point;
+        enc_m = BN_bin2bn(pkt.u.pk_sesskey.params.ecdh.encrypted_m,
+                          pkt.u.pk_sesskey.params.ecdh.encrypted_m_size,
+                          enc_m);
+        break;
+
     default:
         PGP_ERROR_1(&stream->errors,
                     PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG,
@@ -2864,6 +2920,7 @@ parse_pk_sesskey(pgp_region_t *region, pgp_stream_t *stream)
         CALLBACK(PGP_PTAG_CT_ENCRYPTED_PK_SESSION_KEY, &stream->cbinfo, &pkt);
         return true;
     }
+
     n = pgp_decrypt_decode_mpi(
       unencoded_m_buf, (unsigned) sizeof(unencoded_m_buf), g_to_k, enc_m, secret);
 
@@ -3538,94 +3595,4 @@ pgp_crypt_t *
 pgp_get_decrypt(pgp_stream_t *stream)
 {
     return (stream->decrypt.alg) ? &stream->decrypt : NULL;
-}
-
-/**
- * \ingroup Core_Callbacks
- */
-static pgp_cb_ret_t
-accumulate_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
-{
-    const pgp_contents_t *content = &pkt->u;
-    rnp_key_store_t *     keyring;
-    pgp_io_t *            io;
-    pgp_keydata_key_t     keydata;
-    accumulate_t *        accumulate;
-
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr, "accumulate callback: packet tag %u\n", pkt->tag);
-    }
-    accumulate = pgp_callback_arg(cbinfo);
-    io = accumulate->io;
-    keyring = accumulate->keyring;
-    switch (pkt->tag) {
-    case PGP_PTAG_CT_PUBLIC_KEY:
-    case PGP_PTAG_CT_PUBLIC_SUBKEY:
-    case PGP_PTAG_CT_SECRET_KEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-        keydata.seckey = content->seckey;
-        keydata.pubkey = content->pubkey;
-        rnp_key_store_add_keydata(io, keyring, &keydata, pkt->tag);
-        return PGP_KEEP_MEMORY;
-    case PGP_PTAG_CT_USER_ID:
-        if (rnp_get_debug(__FILE__)) {
-            (void) fprintf(
-              stderr, "User ID: %s for key %d\n", content->userid, keyring->keyc - 1);
-        }
-        if (keyring->keyc == 0) {
-            PGP_ERROR_1(cbinfo->errors, PGP_E_P_NO_USERID, "%s", "No userid found");
-        } else {
-            pgp_add_userid(&keyring->keys[keyring->keyc - 1], content->userid);
-        }
-        return PGP_KEEP_MEMORY;
-    case PGP_PARSER_PACKET_END:
-        if (keyring->keyc > 0) {
-            pgp_add_rawpacket(&keyring->keys[keyring->keyc - 1], &content->packet);
-            return PGP_KEEP_MEMORY;
-        }
-        return PGP_RELEASE_MEMORY;
-    case PGP_PARSER_ERROR:
-        (void) fprintf(stderr, "Error: %s\n", content->error);
-        return PGP_FINISHED;
-    case PGP_PARSER_ERRCODE:
-        (void) fprintf(stderr, "parse error: %s\n", pgp_errcode(content->errcode.errcode));
-        break;
-    default:
-        break;
-    }
-    /* XXX: we now exclude so many things, we should either drop this or */
-    /* do something to pass on copies of the stuff we keep */
-    return pgp_stacked_callback(pkt, cbinfo);
-}
-
-/**
- * \ingroup Core_Parse
- *
- * Parse packets from an input stream until EOF or error.
- *
- * Key data found in the parsed data is added to #keyring.
- *
- * \param keyring Pointer to an existing keyring
- * \param parse Options to use when parsing
- */
-bool
-pgp_parse_and_accumulate(pgp_io_t *io, rnp_key_store_t *keyring, pgp_stream_t *parse)
-{
-    accumulate_t accumulate;
-    const int    printerrors = 1;
-
-    if (parse->readinfo.accumulate) {
-        (void) fprintf(io->errs, "pgp_parse_and_accumulate: already init\n");
-        return false;
-    }
-
-    (void) memset(&accumulate, 0x0, sizeof(accumulate));
-
-    accumulate.io = io;
-    accumulate.keyring = keyring;
-
-    pgp_callback_push(parse, accumulate_cb, &accumulate);
-    parse->readinfo.accumulate = 1;
-    return pgp_parse(parse, !printerrors);
-    ;
 }

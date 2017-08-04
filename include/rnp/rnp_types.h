@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -30,8 +30,6 @@
 #include <stdint.h>
 #include "packet.h"
 
-enum key_store_format_t { GPG_KEY_STORE, SSH_KEY_STORE, KBX_KEY_STORE };
-
 /* rnp_result is the type used for return codes from the APIs. */
 typedef uint32_t rnp_result;
 
@@ -42,12 +40,10 @@ typedef struct rnp_t {
     void *    secring;       /* s3kr1t key ring */
     pgp_io_t *io;            /* the io struct for results/errs */
     void *    user_input_fp; /* file pointer for password input */
-    char *    pubpath;       /* path to the public keyring */
-    char *    secpath;       /* path to the secret keyring */
     char *    defkey;        /* default key id */
     int       pswdtries;     /* number of password tries, -1 for unlimited */
 
-    enum key_store_format_t key_store_format; /* keyring format */
+    const char *ks_format;
     union {
         rnp_keygen_desc_t generate_key_ctx;
     } action;
@@ -64,10 +60,12 @@ typedef struct rnp_params_t {
     const char *errs;   /* error stream : may be <stdout> */
     const char *ress;   /* results stream : maye be <stdout>, <stderr> or file name/path */
 
-    enum key_store_format_t ks_format; /* format of the key store */
-    char *                  pubpath;   /* public keystore path */
-    char *                  secpath;   /* secret keystore path */
-    char *                  defkey;    /* default/preferred key id */
+    const char *ks_format;     /* format of any key store */
+    const char *ks_pub_format; /* format of the public key store */
+    const char *ks_sec_format; /* format of the secret key store */
+    char *      pubpath;       /* public keystore path */
+    char *      secpath;       /* secret keystore path */
+    char *      defkey;        /* default/preferred key id */
 } rnp_params_t;
 
 /* rnp operation context : contains additional data about the currently ongoing operation */

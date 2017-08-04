@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -68,11 +68,11 @@ __RCSID("$NetBSD: packet-show.c,v 1.21 2011/08/14 11:19:51 christos Exp $");
 #include <stdlib.h>
 #include <string.h>
 
-#include "rnp_def.h"
-#include "packet-show.h"
+#include <rnp/rnp_def.h>
+#include <rnp/rnp_sdk.h>
+#include <rnp/rnp_types.h>
 
-#include "rnpsdk.h"
-#include "utils.h"
+#include "packet-show.h"
 
 /*
  * Arrays of value->text maps
@@ -212,11 +212,12 @@ static pgp_map_t pubkey_alg_map[] = {
   {PGP_PKA_RSA_SIGN_ONLY, "RSA Sign-Only"},
   {PGP_PKA_ELGAMAL, "Elgamal (Encrypt-Only)"},
   {PGP_PKA_DSA, "DSA"},
-  {PGP_PKA_ECDH, "Reserved for Elliptic Curve"},
+  {PGP_PKA_ECDH, "ECDH"},
   {PGP_PKA_ECDSA, "ECDSA"},
   {PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN, "Reserved (formerly Elgamal Encrypt or Sign"},
   {PGP_PKA_RESERVED_DH, "Reserved for Diffie-Hellman (X9.42)"},
   {PGP_PKA_EDDSA, "EdDSA"},
+  {PGP_PKA_SM2, "SM2"},
   {PGP_PKA_PRIVATE00, "Private/Experimental"},
   {PGP_PKA_PRIVATE01, "Private/Experimental"},
   {PGP_PKA_PRIVATE02, "Private/Experimental"},

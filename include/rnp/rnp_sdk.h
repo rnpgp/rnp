@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -31,39 +31,13 @@
 #ifndef RNPSDK_H_
 #define RNPSDK_H_
 
-#include "key_store_pgp.h"
-#include "crypto.h"
-#include "signature.h"
-#include "packet-show.h"
-#include "rnp_def.h"
+#include <stdint.h>
+
+#include <rnp/rnp_def.h>
 
 #ifndef __printflike
 #define __printflike(n, m) __attribute__((format(printf, n, m)))
 #endif
-
-typedef struct pgp_validation_t {
-    unsigned        validc;
-    pgp_sig_info_t *valid_sigs;
-    unsigned        invalidc;
-    pgp_sig_info_t *invalid_sigs;
-    unsigned        unknownc;
-    pgp_sig_info_t *unknown_sigs;
-    time_t          birthtime;
-    time_t          duration;
-} pgp_validation_t;
-
-void pgp_validate_result_free(pgp_validation_t *);
-
-bool pgp_validate_key_sigs(pgp_validation_t *,
-                           const pgp_key_t *,
-                           const rnp_key_store_t *,
-                           pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
-
-bool pgp_validate_all_sigs(pgp_validation_t *,
-                           const rnp_key_store_t *,
-                           pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
-
-bool pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 
 const char *rnp_get_info(const char *type);
 

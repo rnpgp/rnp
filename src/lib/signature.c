@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -78,11 +78,12 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 
 #include "bn.h"
 #include "ecdsa.h"
+#include "sm2.h"
 #include "dsa.h"
 #include "eddsa.h"
 #include "hash.h"
 #include "packet-create.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 #include "rsa.h"
 #include "readerwriter.h"
 #include "validate.h"
@@ -249,6 +250,41 @@ ecdsa_sign(pgp_hash_t *            hash,
 }
 
 static bool
+sm2_sign(pgp_hash_t *            hash,
+         const pgp_ecc_pubkey_t *pub_key,
+         const pgp_ecc_seckey_t *prv_key,
+         pgp_output_t *          output)
+{
+    uint8_t       hashbuf[PGP_MAX_HASH_SIZE];
+    pgp_ecc_sig_t sig = {NULL, NULL};
+
+    const size_t curve_byte_size = BITS_TO_BYTES(ec_curves[pub_key->curve].bitlen);
+    // "-2" because SM2 on P-521 must work with SHA-512 digest
+    if (curve_byte_size - 2 > pgp_hash_output_length(hash)) {
+        RNP_LOG("Message hash to small");
+        return false;
+    }
+
+    /* finalise hash */
+    size_t hashsize = pgp_hash_finish(hash, hashbuf);
+    if (!pgp_write(output, &hashbuf[0], 2))
+        return false;
+
+    /* write signature to buf */
+    if (pgp_sm2_sign_hash(&sig, hashbuf, hashsize, prv_key, pub_key) != PGP_E_OK) {
+        return false;
+    }
+
+    /* convert and write the sig out to memory */
+    bool ret = !!pgp_write_mpi(output, sig.r);
+    ret &= !!pgp_write_mpi(output, sig.s);
+
+    BN_free(sig.r);
+    BN_free(sig.s);
+    return ret;
+}
+
+static bool
 eddsa_sign(pgp_hash_t *            hash,
            const pgp_ecc_pubkey_t *pubkey,
            const pgp_ecc_seckey_t *seckey,
@@ -391,6 +427,11 @@ pgp_check_sig(const uint8_t *     hash,
 
     case PGP_PKA_EDDSA:
         ret = eddsa_verify(hash, length, &sig->info.sig.ecc, &signer->key.ecc);
+        break;
+
+    case PGP_PKA_SM2:
+        ret = pgp_sm2_verify_hash(&sig->info.sig.ecdsa, hash, length, &signer->key.ecc) ==
+              PGP_E_OK;
         break;
 
     case PGP_PKA_RSA:
@@ -639,7 +680,7 @@ pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
     }
 
     sig->sig.info.version = PGP_V4;
-    sig->sig.info.hash_alg = PGP_HASH_SHA1;
+    sig->sig.info.hash_alg = hash_alg;
     sig->sig.info.key_alg = key->alg;
     sig->sig.info.type = type;
     sig->hashlen = (unsigned) -1;
@@ -660,7 +701,7 @@ pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
  */
 
 void
-pgp_start_sig(pgp_create_sig_t *   sig,
+pgp_sig_start(pgp_create_sig_t *   sig,
               const pgp_seckey_t * key,
               const pgp_hash_alg_t hash,
               const pgp_sig_type_t type)
@@ -712,7 +753,7 @@ pgp_sig_add_data(pgp_create_sig_t *sig, const void *buf, size_t length)
  */
 
 unsigned
-pgp_end_hashed_subpkts(pgp_create_sig_t *sig)
+pgp_sig_end_hashed_subpkts(pgp_create_sig_t *sig)
 {
     sig->hashlen = (unsigned) (pgp_mem_len(sig->mem) - sig->hashoff - 2);
     pgp_memory_place_int(sig->mem, sig->hashoff, sig->hashlen, 2);
@@ -734,7 +775,7 @@ pgp_end_hashed_subpkts(pgp_create_sig_t *sig)
  */
 
 bool
-pgp_write_sig(pgp_output_t *      output,
+pgp_sig_write(pgp_output_t *      output,
               pgp_create_sig_t *  sig,
               const pgp_pubkey_t *key,
               const pgp_seckey_t *seckey)
@@ -748,22 +789,24 @@ pgp_write_sig(pgp_output_t *      output,
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
         if (seckey->key.rsa.d == NULL) {
-            (void) fprintf(stderr, "pgp_write_sig: null rsa.d\n");
+            (void) fprintf(stderr, "pgp_sig_write: null rsa.d\n");
             return false;
         }
         break;
 
     case PGP_PKA_DSA:
         if (seckey->key.dsa.x == NULL) {
-            (void) fprintf(stderr, "pgp_write_sig: null dsa.x\n");
+            (void) fprintf(stderr, "pgp_sig_write: null dsa.x\n");
             return false;
         }
         break;
 
-    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         if (seckey->key.ecc.x == NULL) {
-            (void) fprintf(stderr, "pgp_write_sig: null ecc.x\n");
+            RNP_LOG("null ecc.x");
             return false;
         }
         break;
@@ -773,8 +816,9 @@ pgp_write_sig(pgp_output_t *      output,
         return false;
     }
 
+    // TODO: Is this correct at all?
     if (sig->hashlen == (unsigned) -1) {
-        (void) fprintf(stderr, "ops_write_sig: bad hashed data len\n");
+        RNP_LOG("bad hashed data len");
         return false;
     }
 
@@ -814,6 +858,13 @@ pgp_write_sig(pgp_output_t *      output,
         }
         break;
 
+    case PGP_PKA_SM2:
+        if (!sm2_sign(&sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
+            RNP_LOG("sm2_sign failure");
+            return false;
+        }
+        break;
+
     case PGP_PKA_DSA:
         if (!dsa_sign(&sig->hash, &key->key.dsa, &seckey->key.dsa, sig->output)) {
             RNP_LOG("dsa_sign failure");
@@ -821,6 +872,11 @@ pgp_write_sig(pgp_output_t *      output,
         }
         break;
 
+    /*
+     * ECDH is signed with ECDSA. This must be changed when ECDH will support
+     * X25519, but I need to check how it should be done exactly.
+     */
+    case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
         if (!ecdsa_sign(&sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
             RNP_LOG("ecdsa sign failure");
@@ -848,15 +904,19 @@ pgp_write_sig(pgp_output_t *      output,
 
 /* add a time stamp to the output */
 unsigned
-pgp_add_time(pgp_create_sig_t *sig, int64_t when, pgp_content_enum tag)
+pgp_sig_add_time(pgp_create_sig_t *sig, int64_t when, pgp_content_enum tag)
 {
-    if ((tag != PGP_PTAG_SS_CREATION_TIME) && (tag != PGP_PTAG_SS_EXPIRATION_TIME)) {
+    switch (tag) {
+    case PGP_PTAG_SS_CREATION_TIME:
+    case PGP_PTAG_SS_EXPIRATION_TIME:
+    case PGP_PTAG_SS_KEY_EXPIRY:
+        break;
+    default:
         (void) fprintf(stderr, "Wrong pgp signature time tag");
         return false;
     }
-
     /* just do 32-bit timestamps for just now - it's in the protocol */
-    return pgp_write_ss_header(sig->output, 5, tag) &&
+    return pgp_write_ss_header(sig->output, 4, tag) &&
            pgp_write_scalar(sig->output, (uint32_t) when, (unsigned) sizeof(uint32_t));
 }
 
@@ -870,9 +930,9 @@ pgp_add_time(pgp_create_sig_t *sig, int64_t when, pgp_content_enum tag)
  */
 
 unsigned
-pgp_add_issuer_keyid(pgp_create_sig_t *sig, const uint8_t keyid[PGP_KEY_ID_SIZE])
+pgp_sig_add_issuer_keyid(pgp_create_sig_t *sig, const uint8_t keyid[PGP_KEY_ID_SIZE])
 {
-    return pgp_write_ss_header(sig->output, PGP_KEY_ID_SIZE + 1, PGP_PTAG_SS_ISSUER_KEY_ID) &&
+    return pgp_write_ss_header(sig->output, PGP_KEY_ID_SIZE, PGP_PTAG_SS_ISSUER_KEY_ID) &&
            pgp_write(sig->output, keyid, PGP_KEY_ID_SIZE);
 }
 
@@ -885,10 +945,53 @@ pgp_add_issuer_keyid(pgp_create_sig_t *sig, const uint8_t keyid[PGP_KEY_ID_SIZE]
  * \param primary
  */
 void
-pgp_add_primary_userid(pgp_create_sig_t *sig, unsigned primary)
+pgp_sig_add_primary_userid(pgp_create_sig_t *sig, unsigned primary)
 {
-    pgp_write_ss_header(sig->output, 2, PGP_PTAG_SS_PRIMARY_USER_ID);
+    pgp_write_ss_header(sig->output, 1, PGP_PTAG_SS_PRIMARY_USER_ID);
     pgp_write_scalar(sig->output, primary, 1);
+}
+
+unsigned
+pgp_sig_add_key_flags(pgp_create_sig_t *sig, const uint8_t *key_flags, size_t octet_count)
+{
+    return pgp_write_ss_header(sig->output, octet_count, PGP_PTAG_SS_KEY_FLAGS) &&
+           pgp_write(sig->output, key_flags, octet_count);
+}
+
+unsigned
+pgp_sig_add_pref_symm_algs(pgp_create_sig_t *sig, const uint8_t *algs, size_t octet_count)
+{
+    return pgp_write_ss_header(sig->output, octet_count, PGP_PTAG_SS_PREFERRED_SKA) &&
+           pgp_write(sig->output, algs, octet_count);
+}
+
+unsigned
+pgp_sig_add_pref_hash_algs(pgp_create_sig_t *sig, const uint8_t *algs, size_t octet_count)
+{
+    return pgp_write_ss_header(sig->output, octet_count, PGP_PTAG_SS_PREFERRED_HASH) &&
+           pgp_write(sig->output, algs, octet_count);
+}
+
+unsigned
+pgp_sig_add_pref_compress_algs(pgp_create_sig_t *sig, const uint8_t *algs, size_t octet_count)
+{
+    return pgp_write_ss_header(sig->output, octet_count, PGP_PTAG_SS_PREF_COMPRESS) &&
+           pgp_write(sig->output, algs, octet_count);
+}
+
+unsigned
+pgp_sig_add_key_server_prefs(pgp_create_sig_t *sig, const uint8_t *flags, size_t octet_count)
+{
+    return pgp_write_ss_header(sig->output, octet_count, PGP_PTAG_SS_KEYSERV_PREFS) &&
+           pgp_write(sig->output, flags, octet_count);
+}
+
+unsigned
+pgp_sig_add_preferred_key_server(pgp_create_sig_t *sig, const uint8_t *uri)
+{
+    size_t length = strlen((const char *) uri);
+    return pgp_write_ss_header(sig->output, (unsigned) length, PGP_PTAG_SS_PREF_KEYSERV) &&
+           pgp_write(sig->output, uri, length);
 }
 
 /**
@@ -1024,7 +1127,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
         return false;
     }
 
-    pgp_start_sig(sig, seckey, hash_alg, sig_type);
+    pgp_sig_start(sig, seckey, hash_alg, sig_type);
 
     if (cleartext) {
         if (pgp_writer_push_clearsigned(output, sig) != 1) {
@@ -1042,8 +1145,8 @@ pgp_sign_file(rnp_ctx_t *         ctx,
         /* - creation time */
         /* - key id */
         ret = pgp_writer_use_armored_sig(output) &&
-              pgp_add_time(sig, (int64_t) ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME) &&
-              pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
+              pgp_sig_add_time(sig, (int64_t) ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME) &&
+              pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
         if (ret == false) {
             pgp_teardown_file_write(output, fd_out);
             pgp_create_sig_delete(sig);
@@ -1051,8 +1154,8 @@ pgp_sign_file(rnp_ctx_t *         ctx,
         }
 
         pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey);
-        ret = pgp_add_issuer_keyid(sig, keyid) && pgp_end_hashed_subpkts(sig) &&
-              pgp_write_sig(output, sig, &seckey->pubkey, seckey);
+        ret = pgp_sig_add_issuer_keyid(sig, keyid) && pgp_sig_end_hashed_subpkts(sig) &&
+              pgp_sig_write(output, sig, &seckey->pubkey, seckey);
 
         if (ret == false) {
             PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Cannot sign file as cleartext");
@@ -1077,13 +1180,13 @@ pgp_sign_file(rnp_ctx_t *         ctx,
           output, pgp_mem_data(infile), (const int) pgp_mem_len(infile), PGP_LDT_BINARY);
 
         /* add creation time to signature */
-        pgp_add_time(sig, (int64_t) ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
-        pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
+        pgp_sig_add_time(sig, (int64_t) ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
+        pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
         /* add key id to signature */
         pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey);
-        pgp_add_issuer_keyid(sig, keyid);
-        pgp_end_hashed_subpkts(sig);
-        pgp_write_sig(output, sig, &seckey->pubkey, seckey);
+        pgp_sig_add_issuer_keyid(sig, keyid);
+        pgp_sig_end_hashed_subpkts(sig);
+        pgp_sig_write(output, sig, &seckey->pubkey, seckey);
 
         /* tidy up */
         pgp_teardown_file_write(output, fd_out);
@@ -1155,7 +1258,7 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
     if ((sig = pgp_create_sig_new()) == NULL) {
         return NULL;
     }
-    pgp_start_sig(sig, seckey, hash_alg, sig_type);
+    pgp_sig_start(sig, seckey, hash_alg, sig_type);
 
     /* setup writer */
     if (!pgp_setup_memory_write(ctx, &output, &mem, insize)) {
@@ -1171,14 +1274,14 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
         ret = pgp_writer_push_clearsigned(output, sig) &&
               pgp_write(output, input, (unsigned) insize) &&
               pgp_writer_use_armored_sig(output) &&
-              pgp_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME) &&
-              pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
+              pgp_sig_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME) &&
+              pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
         if (ret == 0) {
             return NULL;
         }
         pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey);
-        ret = pgp_add_issuer_keyid(sig, keyid) && pgp_end_hashed_subpkts(sig) &&
-              pgp_write_sig(output, sig, &seckey->pubkey, seckey);
+        ret = pgp_sig_add_issuer_keyid(sig, keyid) && pgp_sig_end_hashed_subpkts(sig) &&
+              pgp_sig_write(output, sig, &seckey->pubkey, seckey);
 
         pgp_writer_close(output);
         pgp_output_delete(output);
@@ -1208,15 +1311,15 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
         }
 
         /* add creation time to signature */
-        pgp_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
-        pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
+        pgp_sig_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
+        pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
         /* add key id to signature */
         pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey);
-        pgp_add_issuer_keyid(sig, keyid);
-        pgp_end_hashed_subpkts(sig);
+        pgp_sig_add_issuer_keyid(sig, keyid);
+        pgp_sig_end_hashed_subpkts(sig);
 
         /* write out sig */
-        pgp_write_sig(output, sig, &seckey->pubkey, seckey);
+        pgp_sig_write(output, sig, &seckey->pubkey, seckey);
 
         /* tidy up */
         pgp_writer_close(output);
@@ -1257,7 +1360,7 @@ pgp_sign_detached(
         (void) fprintf(stderr, "can't allocate mem\n");
         return false;
     }
-    pgp_start_sig(sig, seckey, hash_alg, PGP_SIG_BINARY);
+    pgp_sig_start(sig, seckey, hash_alg, PGP_SIG_BINARY);
 
     /* read the contents of 'f', and add that to the signature */
     mem = pgp_memory_new();
@@ -1269,7 +1372,7 @@ pgp_sign_detached(
     }
     if (!pgp_mem_readfile(mem, f)) {
         pgp_teardown_file_write(output, fd);
-        pgp_memory_free(sig->mem); /* free memory allocated in pgp_start_sig*/
+        pgp_memory_free(sig->mem); /* free memory allocated in pgp_sig_start*/
         pgp_create_sig_delete(sig);
         pgp_memory_free(mem);
         return false;
@@ -1282,12 +1385,12 @@ pgp_sign_detached(
     pgp_memory_free(mem);
 
     /* calculate the signature */
-    pgp_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
-    pgp_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
+    pgp_sig_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
+    pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
     pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey);
-    pgp_add_issuer_keyid(sig, keyid);
-    pgp_end_hashed_subpkts(sig);
-    pgp_write_sig(output, sig, &seckey->pubkey, seckey);
+    pgp_sig_add_issuer_keyid(sig, keyid);
+    pgp_sig_end_hashed_subpkts(sig);
+    pgp_sig_write(output, sig, &seckey->pubkey, seckey);
     pgp_teardown_file_write(output, fd);
     pgp_seckey_free(seckey);
 

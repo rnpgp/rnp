@@ -24,6 +24,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/types.h>
+#include <sys/param.h>
+
 #include <stdarg.h>
 #include <stddef.h>
 #include <setjmp.h>
@@ -39,12 +42,11 @@
 #include <cmocka.h>
 
 #include <crypto.h>
-#include <key_store_pgp.h>
 #include <packet.h>
 #include <pgp-key.h>
 #include <bn.h>
 
-#include <rnp.h>
+#include <rnp/rnp.h>
 #include <sys/stat.h>
 
 /* Check if a file exists.
@@ -330,16 +332,13 @@ setupPassphrasefd(int *pipefd)
 }
 
 bool
-setup_rnp_common(rnp_t *                 rnp,
-                 enum key_store_format_t ks_format,
-                 const char *            homedir,
-                 int *                   pipefd)
+setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd)
 {
     int          res;
-    char         pubpath[1024];
-    char         secpath[1024];
-    char         homepath[1024];
-    rnp_params_t params;
+    char         pubpath[MAXPATHLEN];
+    char         secpath[MAXPATHLEN];
+    char         homepath[MAXPATHLEN];
+    rnp_params_t params = {0};
 
     rnp_params_init(&params);
 
@@ -364,23 +363,24 @@ setup_rnp_common(rnp_t *                 rnp,
         return false;
     }
 
-    if ((ks_format != GPG_KEY_STORE) && (ks_format != KBX_KEY_STORE)) {
+    if (strcmp(ks_format, RNP_KEYSTORE_GPG) == 0) {
+        paths_concat(pubpath, MAXPATHLEN, homedir, PUBRING_GPG, NULL);
+        paths_concat(secpath, MAXPATHLEN, homedir, SECRING_GPG, NULL);
+    } else if (strcmp(ks_format, RNP_KEYSTORE_KBX) == 0) {
+        paths_concat(pubpath, MAXPATHLEN, homedir, PUBRING_KBX, NULL);
+        paths_concat(secpath, MAXPATHLEN, homedir, SECRING_KBX, NULL);
+    } else if (strcmp(ks_format, RNP_KEYSTORE_G10) == 0) {
+        paths_concat(pubpath, MAXPATHLEN, homedir, PUBRING_G10, NULL);
+        paths_concat(secpath, MAXPATHLEN, homedir, SECRING_G10, NULL);
+    } else {
         return false;
     }
 
-    paths_concat(pubpath,
-                 sizeof(pubpath),
-                 homedir,
-                 (ks_format == GPG_KEY_STORE) ? "pubring.gpg" : "pubring.kbx",
-                 NULL);
-    paths_concat(secpath,
-                 sizeof(secpath),
-                 homedir,
-                 (ks_format == GPG_KEY_STORE) ? "secring.gpg" : "secring.kbx",
-                 NULL);
     params.pubpath = strdup(pubpath);
     params.secpath = strdup(secpath);
     params.ks_format = ks_format;
+    params.ks_pub_format = ks_format;
+    params.ks_sec_format = ks_format;
 
     /*initialize the basic RNP structure. */
     memset(rnp, '\0', sizeof(*rnp));
@@ -395,8 +395,8 @@ setup_rnp_common(rnp_t *                 rnp,
 void
 set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc, pgp_hash_alg_t hashalg)
 {
-    key_desc->key_alg = PGP_PKA_RSA;
-    key_desc->sym_alg = PGP_SA_DEFAULT_CIPHER;
-    key_desc->rsa.modulus_bit_len = 1024;
-    key_desc->hash_alg = hashalg;
+    key_desc->crypto.key_alg = PGP_PKA_RSA;
+    key_desc->crypto.sym_alg = PGP_SA_DEFAULT_CIPHER;
+    key_desc->crypto.rsa.modulus_bit_len = 1024;
+    key_desc->crypto.hash_alg = hashalg;
 }

@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -88,7 +88,7 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include "packet-parse.h"
 #include "packet-show.h"
 #include "signature.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 #include "utils.h"
 #include "memory.h"
 #include "readerwriter.h"
@@ -563,7 +563,7 @@ pgp_memory_init(pgp_memory_t *mem, size_t needed)
 \param mem Memory to use
 \param length New size
 */
-int
+bool
 pgp_memory_pad(pgp_memory_t *mem, size_t length)
 {
     uint8_t *temp;
@@ -597,7 +597,7 @@ pgp_memory_pad(pgp_memory_t *mem, size_t length)
 \param src Data to add
 \param length Length of data to add
 */
-int
+bool
 pgp_memory_add(pgp_memory_t *mem, const uint8_t *src, size_t length)
 {
     if (!pgp_memory_pad(mem, length)) {
@@ -747,7 +747,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
     int         cc;
 
     if ((fp = fopen(f, "rb")) == NULL) {
-        (void) fprintf(stderr, "pgp_mem_readfile: can't open \"%s\"\n", f);
+        RNP_LOG("can't open \"%s\"", f);
         return false;
     }
     (void) fstat(fileno(fp), &st);
@@ -756,7 +756,7 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
     if (mem->buf == MAP_FAILED) {
         /* mmap failed for some reason - try to allocate memory */
         if ((mem->buf = calloc(1, mem->allocated)) == NULL) {
-            (void) fprintf(stderr, "pgp_mem_readfile: calloc\n");
+            RNP_LOG("calloc failed");
             (void) fclose(fp);
             return false;
         }

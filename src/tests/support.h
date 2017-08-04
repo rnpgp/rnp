@@ -36,7 +36,7 @@
 #include <ftw.h>
 #include <sys/stat.h>
 #include <cmocka.h>
-#include <rnp.h>
+#include <rnp/rnp.h>
 
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .
@@ -113,10 +113,7 @@ int setupPassphrasefd(int *pipefd);
 
 /* Common initialization of rnp structure : home path, keystore format and pointer to store
  * passphrase fd */
-int setup_rnp_common(rnp_t *                 rnp,
-                     enum key_store_format_t ks_format,
-                     const char *            homedir,
-                     int *                   pipefd);
+int setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd);
 
 /* Initialize key generation params with default values and specified hash algorithm */
 void set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc, pgp_hash_alg_t hashalg);

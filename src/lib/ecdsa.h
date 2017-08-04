@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -30,7 +30,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "errors.h"
-#include "rnp.h"
+#include <rnp/rnp.h>
 #include "packet.h"
 
 /* -----------------------------------------------------------------------------
@@ -42,7 +42,7 @@
  * @returns success PGP_E_OK, error code otherwise
  *
 -------------------------------------------------------------------------------- */
-pgp_errcode_t pgp_ecdsa_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve);
+pgp_errcode_t pgp_ecdh_ecdsa_genkeypair(pgp_seckey_t *seckey, const pgp_curve_t curve);
 
 pgp_errcode_t pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
                                   const uint8_t *         hashbuf,

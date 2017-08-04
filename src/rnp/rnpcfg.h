@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -26,7 +26,7 @@
 #ifndef __RNP__CFG_H__
 #define __RNP__CFG_H__
 
-#include <rnp.h>
+#include <rnp/rnp.h>
 #include <stdbool.h>
 
 /* cfg variables known by rnp */
@@ -59,11 +59,6 @@
 #define CFG_NUMBITS "numbits"     /* number of bits in generated key */
 #define CFG_KEYFORMAT "format"    /* key format : "human" for human-readable or ... */
 #define CFG_EXPERT "expert"       /* expert key generation mode */
-
-/* additional cfg constants */
-#define CFG_KEYSTORE_GPG "GPG" /* GPG keyring format */
-#define CFG_KEYSTORE_KBX "KBX" /* GPG new keyring format : KBX */
-#define CFG_KEYSTORE_SSH "SSH" /* SSH keyring format */
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */

@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -96,27 +96,45 @@ void pgp_sig_start_subkey_sig(pgp_create_sig_t *,
                               const pgp_pubkey_t *,
                               pgp_sig_type_t,
                               pgp_hash_alg_t);
-void pgp_start_sig(pgp_create_sig_t *,
+void pgp_sig_start(pgp_create_sig_t *,
                    const pgp_seckey_t *,
                    const pgp_hash_alg_t,
                    const pgp_sig_type_t);
 
 void        pgp_sig_add_data(pgp_create_sig_t *, const void *, size_t);
 pgp_hash_t *pgp_sig_get_hash(pgp_create_sig_t *);
-unsigned    pgp_end_hashed_subpkts(pgp_create_sig_t *);
-bool        pgp_write_sig(pgp_output_t *,
+unsigned    pgp_sig_end_hashed_subpkts(pgp_create_sig_t *);
+bool        pgp_sig_write(pgp_output_t *,
                    pgp_create_sig_t *,
                    const pgp_pubkey_t *,
                    const pgp_seckey_t *);
-unsigned pgp_add_time(pgp_create_sig_t *, int64_t, pgp_content_enum);
-unsigned pgp_add_issuer_keyid(pgp_create_sig_t *, const uint8_t *);
-void     pgp_add_primary_userid(pgp_create_sig_t *, unsigned);
+unsigned pgp_sig_add_time(pgp_create_sig_t *, int64_t, pgp_content_enum);
+unsigned pgp_sig_add_issuer_keyid(pgp_create_sig_t *, const uint8_t *);
+void     pgp_sig_add_primary_userid(pgp_create_sig_t *, unsigned);
+unsigned pgp_sig_add_key_flags(pgp_create_sig_t *sig,
+                               const uint8_t *   key_flags,
+                               size_t            octet_count);
+unsigned pgp_sig_add_pref_symm_algs(pgp_create_sig_t *sig,
+                                    const uint8_t *   algs,
+                                    size_t            octet_count);
+unsigned pgp_sig_add_pref_hash_algs(pgp_create_sig_t *sig,
+                                    const uint8_t *   algs,
+                                    size_t            octet_count);
+unsigned pgp_sig_add_pref_compress_algs(pgp_create_sig_t *sig,
+                                        const uint8_t *   algs,
+                                        size_t            octet_count);
+unsigned pgp_sig_add_key_server_prefs(pgp_create_sig_t *sig,
+                                      const uint8_t *   flags,
+                                      size_t            octet_count);
+unsigned pgp_sig_add_preferred_key_server(pgp_create_sig_t *sig, const uint8_t *uri);
 
 /* Standard Interface */
 bool pgp_sign_file(
   rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_seckey_t *, bool cleartext);
 
 int pgp_sign_detached(rnp_ctx_t *, pgp_io_t *, const char *, const char *, pgp_seckey_t *);
+
+bool pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 
 /* armoured stuff */
 unsigned pgp_crc24(unsigned, uint8_t);

@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -64,11 +64,15 @@
 /** error codes */
 /* Remember to add names to map in errors.c */
 typedef enum {
-    PGP_E_OK = 0x0000,            /* no error */
-    PGP_E_FAIL = 0x0001,          /* general error */
-    PGP_E_SYSTEM_ERROR = 0x0002,  /* system error, look at errno for
-                                   * details */
-    PGP_E_UNIMPLEMENTED = 0x0003, /* feature not yet implemented */
+    PGP_E_OK = 0x0000,               /* no error */
+    PGP_E_FAIL = 0x0001,             /* general error */
+    PGP_E_SYSTEM_ERROR = 0x0002,     /* system error, look at errno for
+                                      * details */
+    PGP_E_UNIMPLEMENTED = 0x0003,    /* feature not yet implemented */
+    PGP_E_BUFFER_TOO_SHORT = 0x0004, /* if the output buffer is not large enough
+                                        to contain the output */
+    PGP_E_BAD_PARAMETERS = 0x0005,   /* unexpected parameters supplied to the function */
+    PGP_E_OUT_OF_MEMORY = 0x0006,    /* Memory allocation failed */
 
     /* reader errors */
     PGP_E_R = 0x1000, /* general reader error */
@@ -159,6 +163,10 @@ int  pgp_has_error(pgp_error_t *, pgp_errcode_t);
         fprintf(stderr, "Memory error\n");  \
     } /* \todo placeholder for better error \
        * handling */
+#define PGP_ERROR(err, code, fmt)                              \
+    do {                                                       \
+        pgp_push_error(err, code, 0, __FILE__, __LINE__, fmt); \
+    } while (/*CONSTCOND*/ 0)
 #define PGP_ERROR_1(err, code, fmt, arg)                            \
     do {                                                            \
         pgp_push_error(err, code, 0, __FILE__, __LINE__, fmt, arg); \

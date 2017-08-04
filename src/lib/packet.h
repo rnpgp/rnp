@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -60,6 +60,7 @@
 #include <stdint.h>
 
 #include "types.h"
+#include "defs.h"
 #include "hash.h"
 #include "errors.h"
 
@@ -136,6 +137,15 @@ typedef struct {
  * \see RFC4880 bis01 - 9.2 ECC Curve OID
  */
 #define MAX_CURVE_OID_HEX_LEN 9U
+
+/* Maximum block size for symmetric crypto */
+#define PGP_MAX_BLOCK_SIZE 16
+
+/* Maximum key size for symmetric crypto */
+#define PGP_MAX_KEY_SIZE 32
+
+/* Salt size for hashing */
+#define PGP_SALT_SIZE 8
 
 /** Old Packet Format Lengths.
  * Defines the meanings of the 2 bits for length type in the
@@ -365,17 +375,20 @@ typedef enum {
                                * (X9.42, as defined for
                                * IETF-S/MIME) */
     PGP_PKA_EDDSA = 22,       /* EdDSA from draft-ietf-openpgp-rfc4880bis */
-    PGP_PKA_PRIVATE00 = 100,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE01 = 101,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE02 = 102,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE03 = 103,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE04 = 104,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE05 = 105,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE06 = 106,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE07 = 107,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE08 = 108,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE09 = 109,  /* Private/Experimental Algorithm */
-    PGP_PKA_PRIVATE10 = 110   /* Private/Experimental Algorithm */
+
+    PGP_PKA_SM2 = 99, /* SM2 signatures */
+
+    PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE01 = 101, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE02 = 102, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE03 = 103, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE04 = 104, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE05 = 105, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE06 = 106, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE07 = 107, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE08 = 108, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE09 = 109, /* Private/Experimental Algorithm */
+    PGP_PKA_PRIVATE10 = 110  /* Private/Experimental Algorithm */
 } pgp_pubkey_alg_t;
 
 /**
@@ -391,9 +404,42 @@ typedef enum {
     PGP_CURVE_NIST_P_521,
     PGP_CURVE_ED25519,
 
+    PGP_CURVE_SM2_P_256,
+
     // Keep always last one
     PGP_CURVE_MAX
 } pgp_curve_t;
+
+/** Symmetric Key Algorithm Numbers.
+ * OpenPGP assigns a unique Algorithm Number to each algorithm that is
+ * part of OpenPGP.
+ *
+ * This lists algorithm numbers for symmetric key algorithms.
+ *
+ * \see RFC4880 9.2
+ */
+typedef enum {
+    PGP_SA_PLAINTEXT = 0,     /* Plaintext or unencrypted data */
+    PGP_SA_IDEA = 1,          /* IDEA */
+    PGP_SA_TRIPLEDES = 2,     /* TripleDES */
+    PGP_SA_CAST5 = 3,         /* CAST5 */
+    PGP_SA_BLOWFISH = 4,      /* Blowfish */
+    PGP_SA_AES_128 = 7,       /* AES with 128-bit key (AES) */
+    PGP_SA_AES_192 = 8,       /* AES with 192-bit key */
+    PGP_SA_AES_256 = 9,       /* AES with 256-bit key */
+    PGP_SA_TWOFISH = 10,      /* Twofish with 256-bit key (TWOFISH) */
+    PGP_SA_CAMELLIA_128 = 11, /* Camellia with 128-bit key (CAMELLIA) */
+    PGP_SA_CAMELLIA_192 = 12, /* Camellia with 192-bit key */
+    PGP_SA_CAMELLIA_256 = 13, /* Camellia with 256-bit key */
+
+    PGP_SA_SM4 = 105 /* RNP extension - SM4 */
+} pgp_symm_alg_t;
+
+typedef struct symmetric_key_t {
+    pgp_symm_alg_t type;
+    uint8_t        key[PGP_MAX_KEY_SIZE];
+    size_t         key_size;
+} symmetric_key_t;
 
 /** Structure to hold one DSA public key params.
  *
@@ -436,6 +482,16 @@ typedef struct {
     BIGNUM *    point; /* octet string encoded as MPI */
 } pgp_ecc_pubkey_t;
 
+/** Structure to hold an ECDH public key params.
+ *
+ * \see RFC 6637
+ */
+typedef struct pgp_ecdh_pubkey_t {
+    pgp_ecc_pubkey_t ec;
+    pgp_hash_alg_t   kdf_hash_alg; /* Hash used by kdf */
+    pgp_symm_alg_t   key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
+} pgp_ecdh_pubkey_t;
+
 /** Version.
  * OpenPGP has two different protocol versions: version 3 and version 4.
  *
@@ -462,8 +518,10 @@ typedef struct pgp_pubkey_t {
         pgp_dsa_pubkey_t     dsa;     /* A DSA public key */
         pgp_rsa_pubkey_t     rsa;     /* An RSA public key */
         pgp_elgamal_pubkey_t elgamal; /* An ElGamal public key */
-        pgp_ecc_pubkey_t     ecc;     /* An ECC public key */
-    } key;                            /* Public Key Parameters */
+        /*TODO: This field is common to ECC signing algorithms only. Change it to ec_sign*/
+        pgp_ecc_pubkey_t  ecc;  /* An ECC public key */
+        pgp_ecdh_pubkey_t ecdh; /* Public Key Parameters for ECDH */
+    } key;                      /* Public Key Parameters */
 } pgp_pubkey_t;
 
 /** Structure to hold data for one RSA secret key
@@ -505,45 +563,11 @@ typedef enum {
     PGP_S2KS_ITERATED_AND_SALTED = 3
 } pgp_s2k_specifier_t;
 
-/** Symmetric Key Algorithm Numbers.
- * OpenPGP assigns a unique Algorithm Number to each algorithm that is
- * part of OpenPGP.
- *
- * This lists algorithm numbers for symmetric key algorithms.
- *
- * \see RFC4880 9.2
- */
-typedef enum {
-    PGP_SA_PLAINTEXT = 0,     /* Plaintext or unencrypted data */
-    PGP_SA_IDEA = 1,          /* IDEA */
-    PGP_SA_TRIPLEDES = 2,     /* TripleDES */
-    PGP_SA_CAST5 = 3,         /* CAST5 */
-    PGP_SA_BLOWFISH = 4,      /* Blowfish */
-    PGP_SA_AES_128 = 7,       /* AES with 128-bit key (AES) */
-    PGP_SA_AES_192 = 8,       /* AES with 192-bit key */
-    PGP_SA_AES_256 = 9,       /* AES with 256-bit key */
-    PGP_SA_TWOFISH = 10,      /* Twofish with 256-bit key (TWOFISH) */
-    PGP_SA_CAMELLIA_128 = 11, /* Camellia with 128-bit key (CAMELLIA) */
-    PGP_SA_CAMELLIA_192 = 12, /* Camellia with 192-bit key */
-    PGP_SA_CAMELLIA_256 = 13, /* Camellia with 256-bit key */
-
-    PGP_SA_SM4 = 105 /* RNP extension - SM4 */
-} pgp_symm_alg_t;
-
 #define PGP_SA_DEFAULT_CIPHER PGP_SA_CAST5
 
 void pgp_calc_mdc_hash(
   const uint8_t *, const size_t, const uint8_t *, const unsigned, uint8_t *);
 unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
-
-/* Maximum block size for symmetric crypto */
-#define PGP_MAX_BLOCK_SIZE 16
-
-/* Maximum key size for symmetric crypto */
-#define PGP_MAX_KEY_SIZE 32
-
-/* Salt size for hashing */
-#define PGP_SALT_SIZE 8
 
 /** pgp_seckey_t
  */
@@ -618,8 +642,11 @@ typedef enum {
     PGP_KF_SPLIT = 0x10,           /* The private component of this key may have been split
                                             by a secret-sharing mechanism. */
     PGP_KF_AUTH = 0x20,            /* This key may be used for authentication. */
-    PGP_KF_SHARED = 0x80           /* The private component of this key may be in the
+    PGP_KF_SHARED = 0x80,          /* The private component of this key may be in the
                                             possession of more than one person. */
+    /* pseudo flags */
+    PGP_KF_NONE = 0x00,
+    PGP_KF_ENCRYPT = PGP_KF_ENCRYPT_COMMS | PGP_KF_ENCRYPT_STORAGE,
 } pgp_key_flags_t;
 
 /** Struct to hold params of an RSA signature */
@@ -641,6 +668,7 @@ typedef pgp_dsa_sig_t pgp_ecc_sig_t;
 
 #define PGP_KEY_ID_SIZE 8
 #define PGP_FINGERPRINT_SIZE 20
+#define PGP_FINGERPRINT_HEX_SIZE (PGP_FINGERPRINT_SIZE * 3) + 1
 
 /** Struct to hold a signature packet.
  *
@@ -723,6 +751,11 @@ typedef enum {
     PGP_C_ZLIB = 2,
     PGP_C_BZIP2 = 3
 } pgp_compression_type_t;
+
+typedef enum {
+    /* first octet */
+    PGP_KEY_SERVER_NO_MODIFY = 0x80
+} pgp_key_server_prefs_t;
 
 /** pgp_one_pass_sig_t */
 typedef struct {
@@ -814,10 +847,18 @@ typedef struct {
     BIGNUM *encrypted_m;
 } pgp_pk_sesskey_params_elgamal_t;
 
+/** pgp_pk_sesskey_params_elgamal_t */
+typedef struct {
+    uint8_t  encrypted_m[48];  // wrapped_key
+    unsigned encrypted_m_size; // wrapped_key_size
+    BIGNUM * ephemeral_point;
+} pgp_pk_sesskey_params_ecdh_t;
+
 /** pgp_pk_sesskey_params_t */
 typedef union {
     pgp_pk_sesskey_params_rsa_t     rsa;
     pgp_pk_sesskey_params_elgamal_t elgamal;
+    pgp_pk_sesskey_params_ecdh_t    ecdh;
 } pgp_pk_sesskey_params_t;
 
 /** pgp_pk_sesskey_t */
@@ -920,9 +961,7 @@ void pgp_finish(void);
 void pgp_pubkey_free(pgp_pubkey_t *);
 void pgp_userid_free(uint8_t **);
 void pgp_data_free(pgp_data_t *);
-// TODO: Interesting that this function doesn't even exist.
-//       What does it mean? Is this struct ever freed?
-// void pgp_sig_free(pgp_sig_t *);
+void pgp_sig_free(pgp_sig_t *);
 void pgp_ss_notation_free(pgp_ss_notation_t *);
 void pgp_ss_revocation_free(pgp_ss_revocation_t *);
 void pgp_ss_sig_target_free(pgp_ss_sig_target_t *);
@@ -933,56 +972,6 @@ void pgp_seckey_free(pgp_seckey_t *);
 void pgp_pk_sesskey_free(pgp_pk_sesskey_t *);
 
 bool pgp_print_packet(pgp_printstate_t *, const pgp_packet_t *);
-
-/* A macro for defining a dynamic array. It expands to the following
- * members:
- *
- * - arr##c:     the number of elements currently populating the array
- * - arr##vsize: the current capacity of the array
- * - arr##s      a pointer to the backing array
- *
- * If you aren't familiar with macro ## syntax DYNARRAY(int, number)
- * would expand to:
- *
- * unsigned numberc;
- * unsigned numbervsize;
- * unsigned numbers;
- */
-
-#define DYNARRAY(type, arr) \
-    unsigned arr##c;        \
-    unsigned arr##vsize;    \
-    type *   arr##s;
-
-#define EXPAND_ARRAY(str, arr)                                                        \
-    do {                                                                              \
-        if (str->arr##c == str->arr##vsize) {                                         \
-            void *   __newarr;                                                        \
-            char *   __newarrc;                                                       \
-            unsigned __newsize;                                                       \
-            __newsize = (str->arr##vsize * 2) + 10;                                   \
-            if ((__newarrc = __newarr =                                               \
-                   realloc(str->arr##s, __newsize * sizeof(*str->arr##s))) == NULL) { \
-                (void) fprintf(stderr, "EXPAND_ARRAY - bad realloc\n");               \
-            } else {                                                                  \
-                (void) memset(&__newarrc[str->arr##vsize * sizeof(*str->arr##s)],     \
-                              0x0,                                                    \
-                              (__newsize - str->arr##vsize) * sizeof(*str->arr##s));  \
-                str->arr##s = __newarr;                                               \
-                str->arr##vsize = __newsize;                                          \
-            }                                                                         \
-        }                                                                             \
-    } while (/*CONSTCOND*/ 0)
-
-#define FREE_ARRAY(str, arr)       \
-    do {                           \
-        if (str->arr##s != NULL) { \
-            free(str->arr##s);     \
-            str->arr##s = NULL;    \
-            str->arr##c = 0;       \
-            str->arr##vsize = 0;   \
-        }                          \
-    } while (/*CONSTCOND*/ 0)
 
 /** pgp_keydata_key_t
  */
@@ -1004,12 +993,27 @@ typedef struct pgp_revoke_t {
     char *   reason; /* c'mon, spill the beans */
 } pgp_revoke_t;
 
+typedef struct pgp_user_prefs_t {
+    // preferred symmetric algs (pgp_symm_alg_t)
+    DYNARRAY(uint8_t, symm_alg);
+    // preferred hash algs (pgp_hash_alg_t)
+    DYNARRAY(uint8_t, hash_alg);
+    // preferred compression algs (pgp_compression_type_t)
+    DYNARRAY(uint8_t, compress_alg);
+    // key server preferences (pgp_key_server_prefs_t)
+    DYNARRAY(uint8_t, key_server_pref);
+    // preferred key server
+    uint8_t *key_server;
+} pgp_user_prefs_t;
+
 /** signature subpackets */
 typedef struct pgp_subsig_t {
-    uint32_t  uid;         /* index in userid array in key */
-    pgp_sig_t sig;         /* trust signature */
-    uint8_t   trustlevel;  /* level of trust */
-    uint8_t   trustamount; /* amount of trust */
+    uint32_t         uid;         /* index in userid array in key */
+    pgp_sig_t        sig;         /* trust signature */
+    uint8_t          trustlevel;  /* level of trust */
+    uint8_t          trustamount; /* amount of trust */
+    uint8_t          key_flags;   /* key flags */
+    pgp_user_prefs_t prefs;       /* user preferences */
 } pgp_subsig_t;
 
 /* describes a user's key */
@@ -1020,7 +1024,7 @@ typedef struct pgp_key_t {
     DYNARRAY(pgp_revoke_t, revoke);    /* array of signature revocations */
     pgp_content_enum  type;            /* type of key */
     pgp_keydata_key_t key;             /* pubkey/seckey data */
-    uint8_t           flags;           /* key flags */
+    uint8_t           key_flags;       /* key flags */
     pgp_pubkey_t      sigkey;          /* signature key */
     uint8_t           sigid[PGP_KEY_ID_SIZE];
     pgp_fingerprint_t sigfingerprint; /* pgp key fingerprint */
@@ -1031,10 +1035,11 @@ typedef struct pgp_key_t {
     uint8_t           revoked;        /* key has been revoked */
     pgp_revoke_t      revocation;     /* revocation reason */
     uint8_t           loaded;         /* key was loaded so has key packet in subpackets */
+    symmetric_key_t   session_key;
 } pgp_key_t;
 
 /* structure used to hold context of key generation */
-typedef struct rnp_keygen_desc_t {
+typedef struct rnp_keygen_crypto_params_t {
     // Asymmteric algorithm that user requesed key for
     pgp_pubkey_alg_t key_alg;
     // Hash to be used for key signature
@@ -1049,6 +1054,10 @@ typedef struct rnp_keygen_desc_t {
             uint32_t modulus_bit_len;
         } rsa;
     };
+} rnp_keygen_crypto_params_t;
+
+typedef struct rnp_keygen_desc_t {
+    rnp_keygen_crypto_params_t crypto;
 } rnp_keygen_desc_t;
 
 #endif /* PACKET_H_ */

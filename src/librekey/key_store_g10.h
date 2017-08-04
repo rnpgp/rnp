@@ -2,10 +2,6 @@
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -15,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE RIBOSE, INC. AND CONTRIBUTORS ``AS IS''
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -28,18 +24,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef KEY_STORE_INTERNAL_H_
-#define KEY_STORE_INTERNAL_H_
+#ifndef RNP_KEY_STORE_G10_H
+#define RNP_KEY_STORE_G10_H
 
-#include <rnp.h>
-#include <json.h>
+#include <rnp/rnp.h>
+#include <rekey/rnp_key_store.h>
 
-#include <stdint.h>
+bool rnp_key_store_g10_from_mem(pgp_io_t *, rnp_key_store_t *, pgp_memory_t *);
+bool rnp_key_store_g10_key_to_mem(pgp_io_t *, pgp_key_t *, const uint8_t *, pgp_memory_t *);
 
-#include "packet.h"
-#include "key_store.h"
+bool rnp_key_store_g10_key_grip(pgp_pubkey_t *, uint8_t *);
 
-void rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len);
-bool rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int last);
-
-#endif /* KEY_STORE_INTERNAL_H_ */
+#endif // RNP_KEY_STORE_G10_H

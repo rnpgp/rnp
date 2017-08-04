@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -56,15 +56,15 @@
 
 #include "types.h"
 #include "packet.h"
-#include "key_store.h"
+#include <rekey/rnp_key_store.h>
 
-int pgp_sprint_keydata(pgp_io_t *,
-                       const rnp_key_store_t *,
-                       const pgp_key_t *,
-                       char **,
-                       const char *,
-                       const pgp_pubkey_t *,
-                       const int);
+int pgp_sprint_key(pgp_io_t *,
+                   const rnp_key_store_t *,
+                   const pgp_key_t *,
+                   char **,
+                   const char *,
+                   const pgp_pubkey_t *,
+                   const int);
 int pgp_sprint_json(pgp_io_t *,
                     const rnp_key_store_t *,
                     const pgp_key_t *,
@@ -72,18 +72,18 @@ int pgp_sprint_json(pgp_io_t *,
                     const char *,
                     const pgp_pubkey_t *,
                     const int);
-int pgp_hkp_sprint_keydata(pgp_io_t *,
-                           const rnp_key_store_t *,
-                           const pgp_key_t *,
-                           char **,
-                           const pgp_pubkey_t *,
-                           const int);
-void pgp_print_keydata(pgp_io_t *,
+int pgp_hkp_sprint_key(pgp_io_t *,
                        const rnp_key_store_t *,
                        const pgp_key_t *,
-                       const char *,
+                       char **,
                        const pgp_pubkey_t *,
                        const int);
+void pgp_print_key(pgp_io_t *,
+                   const rnp_key_store_t *,
+                   const pgp_key_t *,
+                   const char *,
+                   const pgp_pubkey_t *,
+                   const int);
 void pgp_print_pubkey(const pgp_pubkey_t *);
 int  pgp_sprint_pubkey(const pgp_key_t *, char *, size_t);
 

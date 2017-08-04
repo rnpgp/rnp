@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -78,12 +78,11 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "bn.h"
 #include "crypto.h"
 #include "ecdsa.h"
-#include "key_store_pgp.h"
 #include "packet-show.h"
 #include "signature.h"
 #include "readerwriter.h"
 #include "utils.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 #include "packet.h"
 #include "rnpdigest.h"
 
@@ -349,8 +348,10 @@ numkeybits(const pgp_pubkey_t *pubkey)
     case PGP_PKA_ELGAMAL:
         return BN_num_bytes(pubkey->key.elgamal.y) * 8;
 
+    case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         // BN_num_bytes returns value <= curve order
         return ec_curves[pubkey->key.ecc.curve].bitlen;
 
@@ -388,7 +389,7 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
     char t[32];
     char key_usage[8];
 
-    format_key_usage(key_usage, sizeof(key_usage), key->flags);
+    format_key_usage(key_usage, sizeof(key_usage), key->key_flags);
     return snprintf(buf,
                     size,
                     "encryption %d/%s %s %s [%s] %s\n",
@@ -598,13 +599,13 @@ format_key_usage(char *buffer, size_t size, uint8_t flags)
 
 /* print into a string (malloc'ed) the pubkeydata */
 int
-pgp_sprint_keydata(pgp_io_t *             io,
-                   const rnp_key_store_t *keyring,
-                   const pgp_key_t *      key,
-                   char **                buf,
-                   const char *           header,
-                   const pgp_pubkey_t *   pubkey,
-                   const int              psigs)
+pgp_sprint_key(pgp_io_t *             io,
+               const rnp_key_store_t *keyring,
+               const pgp_key_t *      key,
+               char **                buf,
+               const char *           header,
+               const pgp_pubkey_t *   pubkey,
+               const int              psigs)
 {
     unsigned i;
     time_t   now;
@@ -613,7 +614,7 @@ pgp_sprint_keydata(pgp_io_t *             io,
     char *   string;
     int      total_length;
     char     keyid[PGP_KEY_ID_SIZE * 3];
-    char     fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
+    char     fingerprint[PGP_FINGERPRINT_HEX_SIZE];
     char     expiration_notice[128];
     char     birthtime[32];
     char     key_usage[8];
@@ -661,7 +662,7 @@ pgp_sprint_keydata(pgp_io_t *             io,
 
     ptimestr(birthtime, sizeof(birthtime), pubkey->birthtime);
 
-    if (!format_key_usage(key_usage, sizeof(key_usage), key->flags)) {
+    if (!format_key_usage(key_usage, sizeof(key_usage), key->key_flags)) {
         return -1;
     }
 
@@ -705,7 +706,7 @@ pgp_sprint_json(pgp_io_t *             io,
                 const int              psigs)
 {
     char     keyid[PGP_KEY_ID_SIZE * 3];
-    char     fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
+    char     fp[PGP_FINGERPRINT_HEX_SIZE];
     char     key_usage[8];
     int      r;
     unsigned i;
@@ -715,7 +716,7 @@ pgp_sprint_json(pgp_io_t *             io,
         return -1;
     }
 
-    if (!format_key_usage(key_usage, sizeof(key_usage), key->flags)) {
+    if (!format_key_usage(key_usage, sizeof(key_usage), key->key_flags)) {
         return -1;
     }
 
@@ -734,7 +735,7 @@ pgp_sprint_json(pgp_io_t *             io,
         rnp_strhexdump(fp, key->sigfingerprint.fingerprint, key->sigfingerprint.length, "")));
     json_object_object_add(keyjson, "birthtime", json_object_new_int(pubkey->birthtime));
     json_object_object_add(keyjson, "duration", json_object_new_int(pubkey->duration));
-    json_object_object_add(keyjson, "flags", json_object_new_int(key->flags));
+    json_object_object_add(keyjson, "flags", json_object_new_int(key->key_flags));
     json_object_object_add(keyjson, "usage", json_object_new_string(key_usage));
 
     // iterating through the uids
@@ -811,12 +812,12 @@ pgp_sprint_json(pgp_io_t *             io,
 }
 
 int
-pgp_hkp_sprint_keydata(pgp_io_t *             io,
-                       const rnp_key_store_t *keyring,
-                       const pgp_key_t *      key,
-                       char **                buf,
-                       const pgp_pubkey_t *   pubkey,
-                       const int              psigs)
+pgp_hkp_sprint_key(pgp_io_t *             io,
+                   const rnp_key_store_t *keyring,
+                   const pgp_key_t *      key,
+                   char **                buf,
+                   const pgp_pubkey_t *   pubkey,
+                   const int              psigs)
 {
     const pgp_key_t *trustkey;
     unsigned         from;
@@ -824,7 +825,7 @@ pgp_hkp_sprint_keydata(pgp_io_t *             io,
     unsigned         j;
     char             keyid[PGP_KEY_ID_SIZE * 3];
     char             uidbuf[KB(128)];
-    char             fingerprint[(PGP_FINGERPRINT_SIZE * 3) + 1];
+    char             fingerprint[PGP_FINGERPRINT_HEX_SIZE];
     int              n;
 
     if (key->revoked) {
@@ -901,16 +902,16 @@ pgp_hkp_sprint_keydata(pgp_io_t *             io,
 
 /* print the key data for a pub or sec key */
 void
-pgp_print_keydata(pgp_io_t *             io,
-                  const rnp_key_store_t *keyring,
-                  const pgp_key_t *      key,
-                  const char *           header,
-                  const pgp_pubkey_t *   pubkey,
-                  const int              psigs)
+pgp_print_key(pgp_io_t *             io,
+              const rnp_key_store_t *keyring,
+              const pgp_key_t *      key,
+              const char *           header,
+              const pgp_pubkey_t *   pubkey,
+              const int              psigs)
 {
     char *cp;
 
-    if (pgp_sprint_keydata(io, keyring, key, &cp, header, pubkey, psigs) >= 0) {
+    if (pgp_sprint_key(io, keyring, key, &cp, header, pubkey, psigs) >= 0) {
         (void) fprintf(io->res, "%s", cp);
         free(cp);
     }
@@ -952,6 +953,7 @@ pgp_print_pubkey(const pgp_pubkey_t *pubkey)
         print_bn(0, "y", pubkey->key.elgamal.y);
         break;
     case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
         print_string(0, "curve", ec_curves[pubkey->key.ecc.curve].botan_name);
         print_bn(0, "public point", pubkey->key.ecc.point);
         break;
@@ -966,7 +968,7 @@ pgp_print_pubkey(const pgp_pubkey_t *pubkey)
 int
 pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
 {
-    char fp[(PGP_FINGERPRINT_SIZE * 3) + 1];
+    char fp[PGP_FINGERPRINT_HEX_SIZE];
     int  cc;
 
     cc =
@@ -1003,6 +1005,8 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
           &out[cc], outsize - cc, "point=%s\n", BN_bn2hex(key->key.pubkey.key.ecc.point));
         break;
     case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
         cc += snprintf(&out[cc],
                        outsize - cc,
                        "curve=%s\npoint=%s\n",
@@ -1067,7 +1071,9 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
         break;
 
     case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
         print_bn(0, "x", seckey->key.ecc.x);
         break;
 
@@ -1265,8 +1271,9 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
             print_bn(print->indent, "s", content->sig.info.sig.dsa.s);
             break;
 
-        case PGP_PKA_EDDSA:
         case PGP_PKA_ECDSA:
+        case PGP_PKA_EDDSA:
+        case PGP_PKA_SM2:
             print_bn(print->indent, "r", content->sig.info.sig.ecc.r);
             print_bn(print->indent, "s", content->sig.info.sig.ecc.s);
             break;
@@ -1615,8 +1622,9 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
             print_bn(print->indent, "s", content->sig.info.sig.dsa.s);
             break;
 
-        case PGP_PKA_EDDSA:
         case PGP_PKA_ECDSA:
+        case PGP_PKA_EDDSA:
+        case PGP_PKA_SM2:
             print_bn(print->indent, "r", content->sig.info.sig.ecc.r);
             print_bn(print->indent, "s", content->sig.info.sig.ecc.s);
             break;
@@ -1760,7 +1768,7 @@ pgp_list_packets(pgp_io_t *       io,
 
 /* this interface isn't right - hook into callback for getting passphrase */
 char *
-pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
+pgp_export_key(pgp_io_t *io, const pgp_key_t *key, uint8_t *passphrase)
 {
     pgp_output_t *output;
     pgp_memory_t *mem;
@@ -1772,10 +1780,10 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *keydata, uint8_t *passphrase)
         return NULL;
     }
 
-    if (keydata->type == PGP_PTAG_CT_PUBLIC_KEY) {
-        pgp_write_xfer_pubkey(output, keydata, NULL, 1);
+    if (key->type == PGP_PTAG_CT_PUBLIC_KEY) {
+        pgp_write_xfer_pubkey(output, key, NULL, 1);
     } else {
-        pgp_write_xfer_seckey(output, keydata, passphrase, NULL, 1);
+        pgp_write_xfer_seckey(output, key, passphrase, NULL, 1);
     }
 
     const size_t mem_len = pgp_mem_len(mem) + 1;

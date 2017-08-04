@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -77,9 +77,8 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 
 #include "packet-parse.h"
 #include "packet-show.h"
-#include "key_store_pgp.h"
 #include "signature.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 #include "readerwriter.h"
 #include "utils.h"
 #include "memory.h"
@@ -93,12 +92,12 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 #endif
 
 static int
-keydata_reader(pgp_stream_t *stream,
-               void *        dest,
-               size_t        length,
-               pgp_error_t **errors,
-               pgp_reader_t *readinfo,
-               pgp_cbdata_t *cbinfo)
+key_reader(pgp_stream_t *stream,
+           void *        dest,
+           size_t        length,
+           pgp_error_t **errors,
+           pgp_reader_t *readinfo,
+           pgp_cbdata_t *cbinfo)
 {
     validate_reader_t *reader = pgp_reader_get_arg(readinfo);
 
@@ -118,7 +117,7 @@ keydata_reader(pgp_stream_t *stream,
      * read
      */
     if (reader->key->packets[reader->packet].length < reader->offset + length) {
-        (void) fprintf(stderr, "keydata_reader: weird length\n");
+        (void) fprintf(stderr, "key_reader: weird length\n");
         return 0;
     }
 
@@ -562,23 +561,23 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 }
 
 static void
-keydata_destroyer(pgp_reader_t *readinfo)
+key_destroyer(pgp_reader_t *readinfo)
 {
     free(pgp_reader_get_arg(readinfo));
 }
 
 void
-pgp_keydata_reader_set(pgp_stream_t *stream, const pgp_key_t *key)
+pgp_key_reader_set(pgp_stream_t *stream, const pgp_key_t *key)
 {
     validate_reader_t *data;
 
     if ((data = calloc(1, sizeof(*data))) == NULL) {
-        (void) fprintf(stderr, "pgp_keydata_reader_set: bad alloc\n");
+        (void) fprintf(stderr, "pgp_key_reader_set: bad alloc\n");
     } else {
         data->key = key;
         data->packet = 0;
         data->offset = 0;
-        pgp_reader_set(stream, keydata_reader, keydata_destroyer, data);
+        pgp_reader_set(stream, key_reader, key_destroyer, data);
     }
 }
 
@@ -691,7 +690,7 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
 
     pgp_set_callback(stream, pgp_validate_key_cb, &keysigs);
     stream->readinfo.accumulate = 1;
-    pgp_keydata_reader_set(stream, key);
+    pgp_key_reader_set(stream, key);
 
     /* Note: Coverity incorrectly reports an error that keysigs.reader */
     /* is never used. */

@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -61,13 +61,14 @@ __RCSID("$NetBSD: symmetric.c,v 1.18 2010/11/07 08:39:59 agc Exp $");
 
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include <botan/ffi.h>
 
 #include "crypto.h"
 #include "packet-show.h"
 #include "utils.h"
-#include "rnpsdk.h"
+#include <rnp/rnp_sdk.h>
 
 int
 pgp_cipher_set_iv(pgp_crypt_t *cipher, const uint8_t *iv)
@@ -304,6 +305,11 @@ pgp_block_size(pgp_symm_alg_t alg)
 unsigned
 pgp_key_size(pgp_symm_alg_t alg)
 {
+    /* Update MAX_SYMM_KEY_SIZE after adding algorithm
+     * with bigger key size.
+     */
+    static_assert(32 == MAX_SYMM_KEY_SIZE, "MAX_SYMM_KEY_SIZE must be updated");
+
     switch (alg) {
     case PGP_SA_IDEA:
     case PGP_SA_CAST5:

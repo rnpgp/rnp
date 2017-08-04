@@ -13,6 +13,7 @@ TESTSUITE_DEPS	= \
 	crypt.at \
 	detached.at \
 	verify.at \
+	rnp_tests.at \
 	package.m4 \
 	testsuite.at
 

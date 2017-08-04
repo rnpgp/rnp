@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -33,9 +33,9 @@
 #include <getopt.h>
 #include <regex.h>
 #include <string.h>
-#include "rnp.h"
+#include <rnp/rnp.h>
 #include "crypto.h"
-#include "rnp_def.h"
+#include <rnp/rnp_def.h>
 #include "../rnp/rnpcfg.h"
 #include "rnpkeys.h"
 
@@ -181,12 +181,12 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
     case CMD_GENERATE_KEY:
         key = f ? f : rnp_cfg_get(cfg, CFG_USERID);
         rnp_keygen_desc_t *key_desc = &rnp->action.generate_key_ctx;
-        key_desc->hash_alg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
-        key_desc->sym_alg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
+        key_desc->crypto.hash_alg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
+        key_desc->crypto.sym_alg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
 
         if (!rnp_cfg_getbool(cfg, CFG_EXPERT)) {
-            key_desc->key_alg = PGP_PKA_RSA;
-            key_desc->rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
+            key_desc->crypto.key_alg = PGP_PKA_RSA;
+            key_desc->crypto.rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
         } else if (rnp_generate_key_expert_mode(rnp) != PGP_E_OK) {
             RNP_LOG("Critical error: Key generation failed");
             return false;
@@ -239,7 +239,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         exit(EXIT_SUCCESS);
     /* options */
     case OPT_SSHKEYS:
-        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
+        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
         break;
     case OPT_KEYRING:
         if (arg == NULL) {
@@ -301,7 +301,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         rnp_cfg_set(cfg, CFG_IO_RESS, arg);
         break;
     case OPT_SSHKEYFILE:
-        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, CFG_KEYSTORE_SSH);
+        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
         rnp_cfg_set(cfg, CFG_SSHKEYFILE, arg);
         break;
     case OPT_FORMAT:

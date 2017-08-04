@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -56,15 +56,37 @@
 #include <stdio.h>
 #include "packet.h"
 
-struct pgp_key_t *pgp_keydata_new(void);
+struct pgp_key_t *pgp_key_new(void);
 
-void pgp_keydata_free(pgp_key_t *);
+/** free the internal data of a key *and* the key structure itself
+ *
+ *  @param key the key
+ **/
+void pgp_key_free(pgp_key_t *);
+
+/** free the internal data of a key
+ *
+ *  This does *not* free the key structure itself.
+ *
+ *  @param key the key
+ **/
+void pgp_key_free_data(pgp_key_t *);
 
 const pgp_pubkey_t *pgp_get_pubkey(const pgp_key_t *);
 
 bool pgp_is_key_public(const pgp_key_t *);
 
 bool pgp_is_key_secret(const pgp_key_t *);
+
+bool pgp_key_can_sign(const pgp_key_t *key);
+bool pgp_key_can_certify(const pgp_key_t *key);
+bool pgp_key_can_encrypt(const pgp_key_t *key);
+
+bool pgp_is_primary_key_tag(pgp_content_enum tag);
+bool pgp_is_subkey_tag(pgp_content_enum tag);
+
+bool pgp_key_is_primary_key(const pgp_key_t *key);
+bool pgp_key_is_subkey(const pgp_key_t *key);
 
 const struct pgp_seckey_t *pgp_get_seckey(const pgp_key_t *);
 
@@ -86,6 +108,6 @@ struct pgp_rawpacket_t *pgp_add_rawpacket(pgp_key_t *, const pgp_rawpacket_t *);
 
 bool pgp_add_selfsigned_userid(pgp_key_t *, const unsigned char *);
 
-void pgp_keydata_init(pgp_key_t *, const pgp_content_enum);
+void pgp_key_init(pgp_key_t *, const pgp_content_enum);
 
 #endif // RNP_PACKET_KEY_H

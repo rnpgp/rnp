@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -54,11 +54,12 @@
 #ifndef CREATE_H_
 #define CREATE_H_
 
+#include <stdbool.h>
 #include "types.h"
 #include "packet.h"
 #include "crypto.h"
 #include "errors.h"
-#include "key_store.h"
+#include <rekey/rnp_key_store.h>
 #include "writer.h"
 #include "memory.h"
 
@@ -92,12 +93,12 @@ unsigned pgp_write_one_pass_sig(pgp_output_t *,
                                 const pgp_sig_type_t);
 unsigned pgp_write_litdata(pgp_output_t *, const uint8_t *, const int, const pgp_litdata_enum);
 pgp_pk_sesskey_t *pgp_create_pk_sesskey(const pgp_key_t *, pgp_symm_alg_t);
-unsigned          pgp_write_pk_sesskey(pgp_output_t *, pgp_pk_sesskey_t *);
+bool              pgp_write_pk_sesskey(pgp_output_t *, pgp_pk_sesskey_t *);
 unsigned          pgp_write_xfer_pubkey(pgp_output_t *,
                                const pgp_key_t *,
                                const rnp_key_store_t *,
                                const unsigned);
-unsigned pgp_write_xfer_seckey(
+bool pgp_write_xfer_seckey(
   pgp_output_t *, const pgp_key_t *, const uint8_t *, const rnp_key_store_t *, const unsigned);
 bool pgp_write_xfer_anykey(
   pgp_output_t *, const pgp_key_t *, const uint8_t *, const rnp_key_store_t *, const unsigned);

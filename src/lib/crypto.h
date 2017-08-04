@@ -16,10 +16,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -58,21 +58,24 @@
 #include <limits.h>
 #include <botan/ffi.h>
 #include "hash.h"
-#include "key_store_pgp.h"
 #include "packet.h"
 #include "memory.h"
 #include "packet-parse.h"
 #include "symmetric.h"
 #include "bn.h"
+#include <rekey/rnp_key_store.h>
 
 #define PGP_MIN_HASH_SIZE 16
-#define MAX_CURVE_BYTELEN BITS_TO_BYTES(521) /* Length of NIST P-521 */
-
+/* Maximal byte size of elliptic curve order (NIST P-521) */
+#define MAX_CURVE_BYTELEN BITS_TO_BYTES(521)
+/* Maximal size of symmetric key */
+#define MAX_SYMM_KEY_SIZE 32
 #define NTAGS 0x100 /* == 256 */
 
 void pgp_crypto_finish(void);
 
-/* Key generation */
+/* raw key generation */
+bool pgp_generate_seckey(const rnp_keygen_crypto_params_t *params, pgp_seckey_t *seckey);
 
 pgp_key_t *pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid);
 
@@ -138,7 +141,7 @@ struct pgp_reader_t {
 struct pgp_cryptinfo_t {
     char *           passphrase;
     rnp_key_store_t *secring;
-    const pgp_key_t *keydata;
+    const pgp_key_t *key;
     pgp_cbfunc_t *   getpassphrase;
     rnp_key_store_t *pubring;
 };
@@ -245,10 +248,20 @@ pgp_curve_t find_curve_by_OID(const uint8_t *oid, size_t oid_len);
  * @pre     output      must be not null
  * @pre     pubkey      must be not null
  *
- * @returns success PGP_E_OK, error code otherwise
+ * @returns true on success
  *
  * @remarks see RFC 4880 bis 01 - 5.5.2 Public-Key Packet Formats
 -------------------------------------------------------------------------------- */
-pgp_errcode_t ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey);
+bool ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey);
+
+/* -----------------------------------------------------------------------------
+ * @brief   Returns pointer to the curve descriptor
+ *
+ * @param   Valid curve ID
+ *
+ * @returns NULL if wrong ID provided, otherwise descriptor
+ *
+-------------------------------------------------------------------------------- */
+const ec_curve_desc_t *get_curve_desc(const pgp_curve_t curve_id);
 
 #endif /* CRYPTO_H_ */
