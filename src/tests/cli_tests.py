@@ -60,7 +60,7 @@ r'uid\s+.+rsakey@gpg.*'
 
 def setup():
     # Setting up directories.
-    global RMWORKDIR, WORKDIR, RNPDIR, RNPK, GPG, GPGDIR
+    global RMWORKDIR, WORKDIR, RNPDIR, RNP, RNPK, GPG, GPGDIR
     WORKDIR = os.getcwd()
     if not '/tmp/' in WORKDIR:
         WORKDIR = tempfile.mkdtemp()
@@ -202,6 +202,7 @@ def rnpkey_import_from_gpg(cleanup = True):
     # Importing secret key to rnp
     ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', secpath])
     if ret != 0: raise_err('rnp : secret key import failed', err)
+    # We do not check keyrings after the import - imported by RNP keys are not saved yet
 
     if cleanup: clear_keyrings()
 
@@ -243,21 +244,50 @@ def run_rnpkeys_tests():
 
     return
 
+'''
+    Things to try here later on:
+    - different symmetric algorithms
+    - different file sizes (block len/packet len tests)
+    - different public key algorithms
+    - different compression levels/algorithms
+'''
+
+def rnp_encryption_single(cipher, filesize):
+    # Generate file of required size
+    print cipher + '  ' + str(filesize)
+    srcpath = path.join(WORKDIR, 'cleartext.txt')
+    dstpath = path.join(WORKDIR, 'cleartext.gpg')    
+    st = ('lorem ipsum dol ' * ((filesize + 15)/16))[:filesize]
+    with open(srcpath, 'w+') as srcfile:
+        srcfile.write(st)
+    # Encrypt cleartext file with GPG
+    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '-e', '-z', '0', '-r', 'encryption@rnp', '--batch', '--cipher-algo', cipher, '--trust-model', 'always', '--output', dstpath, srcpath])
+    if ret != 0: raise_err('gpg encryption failed for cipher ' + cipher, err)
+    # Decrypt encrypted file with RNP
+    pipe = pswd_pipe(PASSWORD)
+    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--decrypt', dstpath])
+    os.close(pipe)
+    if ret != 0: raise_err('rnp decryption failed for cipher ' + cipher, out + err)
+    
+    os.remove(srcpath)
+    os.remove(dstpath)
+
 def rnp_encryption():
     print 'rnp_encryption'
-    # RNP encrypt -> GPG decrypt
-    # Generate key in GnuPG
-    ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--passphrase', '', '--quick-generate-key', 'rsakey@gpg', 'rsa'])
-    if ret != 0: raise_err('gpg key generation failed', err)
-    # Exporting generated public key
-    ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--armour', '--export', keyfp])
-    if ret != 0: raise_err('gpg : public key export failed', err)
-    pubpath = path.join(RNPDIR, keyfp + '-pub.asc')
-    with open(pubpath, 'w+') as f:
-        f.write(out)
-    # Importing public key to rnp
-    ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', pubpath])
-    if ret != 0: raise_err('rnp : public key import failed', err)
+    # Generate keypair in RNP
+    pipe = pswd_pipe(PASSWORD)
+    ret, out, err = run_proc(RNPK, ['--numbits', '2048', '--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', 'encryption@rnp', '--generate-key'])
+    os.close(pipe)
+    if ret != 0: raise_err('key generation failed', err)
+    # Import keyring to the GPG
+    ret, out, err = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir', GPGDIR, '--import', path.join(RNPDIR, 'pubring.gpg')])
+    if ret != 0: raise_err('gpg key import failed', err)
+    # Encrypt cleartext file with GPG and decrypt it with RNP, using different ciphers and file sizes
+    ciphers = ['IDEA', '3DES', 'CAST5', 'BLOWFISH', 'AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
+    sizes = [20, 1023, 2043, 5095, 10029, 20129]
+    for cipher in ciphers:
+        for size in sizes:
+            rnp_encryption_single(cipher, size)
 
     return
 
@@ -296,5 +326,7 @@ def cleanup():
 
 if __name__ == '__main__':
     setup()
-    run_tests()
-    cleanup()
+    try:
+        run_tests()
+    finally:
+        cleanup()
