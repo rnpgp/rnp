@@ -29,6 +29,10 @@ def random_text(path, size):
     with open(path, 'w+') as f:
         f.write(st)
 
+def file_text(path):
+    with open(path, 'r') as f:
+        return f.read()
+
 def find_utility(name, exitifnone = True):
     path = distutils.spawn.find_executable(name)
     if not path and exitifnone:
