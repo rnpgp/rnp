@@ -368,7 +368,7 @@ parse_pubkey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 
     default:
         fprintf(stderr, "Unsupported public key algorithm: %d\n", alg);
-        return NULL;
+        return false;
     }
 
     return true;
@@ -377,12 +377,15 @@ parse_pubkey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 static bool
 parse_seckey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 {
-    keydata->seckey.pubkey.version = PGP_V4;
-    keydata->seckey.pubkey.birthtime = time(NULL);
-    keydata->seckey.pubkey.duration = 0;
-    keydata->seckey.pubkey.alg = alg;
+    if (keydata->seckey.pubkey.version != PGP_V2 && keydata->seckey.pubkey.version != PGP_V3 &&
+        keydata->seckey.pubkey.version != PGP_V4) {
+        fprintf(stderr, "You should run parse_seckey only after parse_pubkey\n");
+        return false;
+    }
 
     keydata->seckey.s2k_usage = PGP_S2KU_NONE;
+    keydata->seckey.alg = PGP_SA_DEFAULT_CIPHER;
+    keydata->seckey.hash_alg = PGP_HASH_UNKNOWN;
 
     switch (alg) {
     case PGP_PKA_DSA:
@@ -432,14 +435,17 @@ parse_seckey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 
     default:
         fprintf(stderr, "Unsupported public key algorithm: %d\n", alg);
-        return NULL;
+        return false;
     }
 
     return true;
 }
 
 bool
-rnp_key_store_g10_from_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_t *memory)
+rnp_key_store_g10_from_mem(pgp_io_t *       io,
+                           rnp_key_store_t *pubring,
+                           rnp_key_store_t *key_store,
+                           pgp_memory_t *   memory)
 {
     s_exp_t     s_exp = {};
     size_t      length = memory->length;
@@ -562,6 +568,18 @@ rnp_key_store_g10_from_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_
     }
 
     if (private_key) {
+        // lookup for exsited key from KBX storage for example to update metadata
+        if (pubring != NULL) {
+            uint8_t       grip[PGP_FINGERPRINT_SIZE];
+            pgp_pubkey_t *pubkey = NULL;
+            if (!rnp_key_store_get_key_grip(&keydata.pubkey, grip)) {
+                return false;
+            }
+            if (rnp_key_store_get_key_by_grip(io, pubring, grip, &pubkey)) {
+                keydata.pubkey.birthtime = pubkey->birthtime;
+                keydata.pubkey.duration = pubkey->duration;
+            }
+        }
         if (!parse_seckey(&keydata, algorithm_s_exp, alg)) {
             destroy_s_exp(&s_exp);
             return false;
@@ -569,6 +587,16 @@ rnp_key_store_g10_from_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_
     }
 
     destroy_s_exp(&s_exp);
+
+    if (rnp_get_debug(__FILE__)) {
+        uint8_t grip[PGP_FINGERPRINT_SIZE];
+        char    grips[PGP_FINGERPRINT_HEX_SIZE];
+        if (!rnp_key_store_get_key_grip(&keydata.pubkey, grip)) {
+            return false;
+        }
+        fprintf(
+          io->errs, "loaded G10 key with GRIP: %s\n", rnp_strhexdump(grips, grip, 20, ""));
+    }
 
     return rnp_key_store_add_keydata(io,
                                      key_store,
@@ -801,89 +829,4 @@ rnp_key_store_g10_key_to_mem(pgp_io_t *     io,
     rc = write_sexp(&s_exp, memory);
     destroy_s_exp(&s_exp);
     return rc;
-}
-
-bool
-grip_hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
-{
-    uint8_t *bn;
-    size_t   len;
-    int      padbyte;
-
-    if (BN_is_zero(bignum)) {
-        pgp_hash_add(hash, (const uint8_t *) &"\0", 1);
-        return true;
-    }
-    if ((len = (size_t) BN_num_bytes(bignum)) < 1) {
-        (void) fprintf(stderr, "grip_hash_bignum: bad size: %zu\n", len);
-        return false;
-    }
-    if ((bn = calloc(1, len + 1)) == NULL) {
-        (void) fprintf(stderr, "grip_hash_bignum: bad bn alloc\n");
-        return false;
-    }
-    BN_bn2bin(bignum, bn + 1);
-    bn[0] = 0x0;
-    padbyte = (bn[1] & 0x80) ? 1 : 0;
-    pgp_hash_add(hash, bn, (unsigned) (len + padbyte));
-    free(bn);
-    return true;
-}
-
-/* keygrip is subjectKeyHash from pkcs#15. */
-bool
-rnp_key_store_g10_key_grip(pgp_pubkey_t *key, uint8_t *grip)
-{
-    pgp_hash_t hash = {0};
-
-    if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
-        (void) fprintf(stderr, "rnp_key_store_g10_key_grip: bad md5 alloc\n");
-        return false;
-    }
-
-    switch (key->alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_SIGN_ONLY:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-        if (!grip_hash_bignum(&hash, key->key.rsa.n)) {
-            return false;
-        }
-        break;
-
-    case PGP_PKA_DSA:
-        if (!grip_hash_bignum(&hash, key->key.dsa.p)) {
-            return false;
-        }
-        if (!grip_hash_bignum(&hash, key->key.dsa.q)) {
-            return false;
-        }
-        if (!grip_hash_bignum(&hash, key->key.dsa.g)) {
-            return false;
-        }
-        if (!grip_hash_bignum(&hash, key->key.dsa.y)) {
-            return false;
-        }
-        break;
-
-    case PGP_PKA_ELGAMAL:
-        if (!grip_hash_bignum(&hash, key->key.elgamal.p)) {
-            return false;
-        }
-        if (!grip_hash_bignum(&hash, key->key.elgamal.g)) {
-            return false;
-        }
-        if (!grip_hash_bignum(&hash, key->key.elgamal.y)) {
-            return false;
-        }
-        break;
-
-    default:
-        (void) fprintf(stderr,
-                       "rnp_key_store_g10_key_grip: unsupported public-key algorithm %d\n",
-                       key->alg);
-        pgp_hash_finish(&hash, grip);
-        return false;
-    }
-
-    return pgp_hash_finish(&hash, grip) == PGP_FINGERPRINT_SIZE;
 }

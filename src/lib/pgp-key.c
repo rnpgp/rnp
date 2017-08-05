@@ -392,6 +392,11 @@ pgp_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     const int     printerrors = 1;
     decrypt_t     decrypt;
 
+    // key hasn't got raw packets, so, we can't decrypt it
+    if (key->packetc == 0) {
+        return (pgp_seckey_t *) &key->key.seckey;
+    }
+
     /* XXX first try with an empty passphrase */
     (void) memset(&decrypt, 0x0, sizeof(decrypt));
 

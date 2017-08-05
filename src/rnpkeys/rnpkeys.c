@@ -377,13 +377,14 @@ rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, bool is_
     rnp_cfg_set(cfg, CFG_KEYFORMAT, "human");
     rnp_cfg_copy(cfg, override_cfg);
 
+    memset(rnp, '\0', sizeof(rnp_t));
+
     if (!rnp_cfg_apply(cfg, &rnp_params)) {
         fputs("fatal: cannot apply configuration\n", stderr);
         ret = false;
         goto end;
     }
 
-    memset(rnp, '\0', sizeof(rnp_t));
     if (!rnp_init(rnp, &rnp_params)) {
         fputs("fatal: failed to initialize rnpkeys\n", stderr);
         ret = false;

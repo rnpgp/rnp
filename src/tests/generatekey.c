@@ -243,9 +243,10 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
 
     rnp_test_state_t *rstate = *state;
     const char *hashAlg[] = {"MD5", "SHA1", "SHA256", "SHA384", "SHA512", "SHA224", "SM3"};
-    const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_KBX, RNP_KEYSTORE_G10};
-    rnp_t       rnp;
-    int         pipefd[2];
+    const char *keystores[] = {
+      RNP_KEYSTORE_GPG, RNP_KEYSTORE_GPG21, RNP_KEYSTORE_KBX, RNP_KEYSTORE_G10};
+    rnp_t rnp;
+    int   pipefd[2];
 
     for (int i = 0; i < sizeof(hashAlg) / sizeof(hashAlg[0]); i++) {
         for (int j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
@@ -293,9 +294,10 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
                              "rnpkeys_generatekey_verifyUserIdOption_SHA512",
                              "rnpkeys_generatekey_verifyUserIdOption_SHA224"};
 
-    const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_KBX, RNP_KEYSTORE_G10};
-    rnp_t       rnp;
-    int         pipefd[2];
+    const char *keystores[] = {
+      RNP_KEYSTORE_GPG, RNP_KEYSTORE_GPG21, RNP_KEYSTORE_KBX, RNP_KEYSTORE_G10};
+    rnp_t rnp;
+    int   pipefd[2];
 
     for (int i = 0; i < sizeof(userIds) / sizeof(userIds[0]); i++) {
         for (int j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {

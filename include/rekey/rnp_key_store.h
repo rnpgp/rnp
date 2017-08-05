@@ -122,8 +122,12 @@ enum key_store_format_t {
 #define RNP_KEYSTORE_SSH "SSH" /* SSH keystore format */
 #define RNP_KEYSTORE_G10 "G10" /* G10 keystore format */
 
+// combinated keystores
+#define RNP_KEYSTORE_GPG21 "GPG21" /* KBX + G10 keystore format */
+
 typedef struct {
     const char *            path;
+    const char *            format_label;
     enum key_store_format_t format;
 
     DYNARRAY(pgp_key_t, key);
@@ -170,5 +174,11 @@ bool rnp_key_store_get_key_by_name(pgp_io_t *,
                                    const pgp_key_t **);
 bool rnp_key_store_get_next_key_by_name(
   pgp_io_t *, const rnp_key_store_t *, const char *, unsigned *, const pgp_key_t **);
+
+bool rnp_key_store_get_key_grip(pgp_pubkey_t *, uint8_t *);
+bool rnp_key_store_get_key_by_grip(pgp_io_t *,
+                                   const rnp_key_store_t *,
+                                   const uint8_t *,
+                                   pgp_pubkey_t **);
 
 #endif /* KEY_STORE_H_ */

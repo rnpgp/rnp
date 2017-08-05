@@ -474,6 +474,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
     const char *homedir;
     const char *subdir;
     const char *sshfile;
+    const char *ks_format;
     char        pubpath[MAXPATHLEN] = {0};
     char        secpath[MAXPATHLEN] = {0};
     struct stat st;
@@ -486,25 +487,33 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
     }
 
     /* detecting key storage format */
-    if ((params->ks_format = rnp_cfg_get(cfg, CFG_KEYSTOREFMT)) == NULL) {
+    if ((ks_format = rnp_cfg_get(cfg, CFG_KEYSTOREFMT)) == NULL) {
         if (rnp_cfg_get(cfg, CFG_SSHKEYFILE)) {
-            params->ks_format = RNP_KEYSTORE_SSH;
+            ks_format = RNP_KEYSTORE_SSH;
         } else {
             if ((subdir = rnp_cfg_get(cfg, CFG_SUBDIRGPG)) == NULL) {
                 subdir = SUBDIRECTORY_RNP;
             }
             rnp_path_compose(homedir, defhomedir ? subdir : NULL, PUBRING_KBX, pubpath);
+            rnp_path_compose(homedir, defhomedir ? subdir : NULL, SECRING_G10, secpath);
 
-            if (!stat(pubpath, &st)) {
-                params->ks_format = RNP_KEYSTORE_KBX;
+            bool pubpath_exists = stat(pubpath, &st) == 0;
+            bool secpath_exists = stat(secpath, &st) == 0;
+
+            if (pubpath_exists && secpath_exists) {
+                ks_format = RNP_KEYSTORE_GPG21;
+            } else if (secpath_exists) {
+                ks_format = RNP_KEYSTORE_G10;
+            } else if (pubpath_exists) {
+                ks_format = RNP_KEYSTORE_KBX;
             } else {
-                params->ks_format = RNP_KEYSTORE_GPG;
+                ks_format = RNP_KEYSTORE_GPG;
             }
         }
     }
 
     /* building pubring/secring pathes */
-    subdir = rnp_cfg_get_ks_subdir(cfg, defhomedir, params->ks_format);
+    subdir = rnp_cfg_get_ks_subdir(cfg, defhomedir, ks_format);
 
     /* creating home dir if needed */
     if (defhomedir && subdir) {
@@ -515,28 +524,43 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
         }
     }
 
-    if (strcmp(params->ks_format, RNP_KEYSTORE_GPG) == 0) {
+    if (strcmp(ks_format, RNP_KEYSTORE_GPG) == 0) {
         if (!rnp_path_compose(homedir, subdir, PUBRING_GPG, pubpath) ||
             !rnp_path_compose(homedir, subdir, SECRING_GPG, secpath)) {
             return false;
         }
         params->pubpath = strdup(pubpath);
         params->secpath = strdup(secpath);
-    } else if (strcmp(params->ks_format, RNP_KEYSTORE_KBX) == 0) {
+        params->ks_pub_format = RNP_KEYSTORE_GPG;
+        params->ks_sec_format = RNP_KEYSTORE_GPG;
+    } else if (strcmp(ks_format, RNP_KEYSTORE_GPG21) == 0) {
+        if (!rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath) ||
+            !rnp_path_compose(homedir, subdir, SECRING_G10, secpath)) {
+            return false;
+        }
+        params->pubpath = strdup(pubpath);
+        params->secpath = strdup(secpath);
+        params->ks_pub_format = RNP_KEYSTORE_KBX;
+        params->ks_sec_format = RNP_KEYSTORE_G10;
+    } else if (strcmp(ks_format, RNP_KEYSTORE_KBX) == 0) {
         if (!rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath) ||
             !rnp_path_compose(homedir, subdir, SECRING_KBX, secpath)) {
             return false;
         }
         params->pubpath = strdup(pubpath);
         params->secpath = strdup(secpath);
-    } else if (strcmp(params->ks_format, RNP_KEYSTORE_G10) == 0) {
+        params->ks_pub_format = RNP_KEYSTORE_KBX;
+        params->ks_sec_format = RNP_KEYSTORE_KBX;
+    } else if (strcmp(ks_format, RNP_KEYSTORE_G10) == 0) {
         if (!rnp_path_compose(homedir, subdir, PUBRING_G10, pubpath) ||
             !rnp_path_compose(homedir, subdir, SECRING_G10, secpath)) {
             return false;
         }
         params->pubpath = strdup(pubpath);
         params->secpath = strdup(secpath);
-    } else if (strcmp(params->ks_format, RNP_KEYSTORE_SSH) == 0) {
+        params->ks_pub_format = RNP_KEYSTORE_G10;
+        params->ks_sec_format = RNP_KEYSTORE_G10;
+    } else if (strcmp(ks_format, RNP_KEYSTORE_SSH) == 0) {
         if ((sshfile = rnp_cfg_get(cfg, CFG_SSHKEYFILE)) == NULL) {
             /* set reasonable default for RSA key */
             if (!rnp_path_compose(homedir, subdir, "id_rsa.pub", pubpath) ||
@@ -557,8 +581,10 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
 
         params->pubpath = strdup(pubpath);
         params->secpath = strdup(secpath);
+        params->ks_pub_format = RNP_KEYSTORE_SSH;
+        params->ks_sec_format = RNP_KEYSTORE_SSH;
     } else {
-        fprintf(stderr, "rnp: unsupported keystore format: \"%s\"\n", params->ks_format);
+        fprintf(stderr, "rnp: unsupported keystore format: \"%s\"\n", ks_format);
         return false;
     }
 

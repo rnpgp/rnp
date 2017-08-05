@@ -363,6 +363,9 @@ setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pi
         return false;
     }
 
+    params.ks_pub_format = ks_format;
+    params.ks_sec_format = ks_format;
+
     if (strcmp(ks_format, RNP_KEYSTORE_GPG) == 0) {
         paths_concat(pubpath, MAXPATHLEN, homedir, PUBRING_GPG, NULL);
         paths_concat(secpath, MAXPATHLEN, homedir, SECRING_GPG, NULL);
@@ -372,15 +375,17 @@ setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pi
     } else if (strcmp(ks_format, RNP_KEYSTORE_G10) == 0) {
         paths_concat(pubpath, MAXPATHLEN, homedir, PUBRING_G10, NULL);
         paths_concat(secpath, MAXPATHLEN, homedir, SECRING_G10, NULL);
+    } else if (strcmp(ks_format, RNP_KEYSTORE_GPG21) == 0) {
+        paths_concat(pubpath, MAXPATHLEN, homedir, PUBRING_KBX, NULL);
+        paths_concat(secpath, MAXPATHLEN, homedir, SECRING_G10, NULL);
+        params.ks_pub_format = RNP_KEYSTORE_KBX;
+        params.ks_sec_format = RNP_KEYSTORE_G10;
     } else {
         return false;
     }
 
     params.pubpath = strdup(pubpath);
     params.secpath = strdup(secpath);
-    params.ks_format = ks_format;
-    params.ks_pub_format = ks_format;
-    params.ks_sec_format = ks_format;
 
     /*initialize the basic RNP structure. */
     memset(rnp, '\0', sizeof(*rnp));
