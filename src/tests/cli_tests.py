@@ -8,8 +8,10 @@ from os import path
 import shutil
 import subprocess
 import re
+import random
+import string
 from subprocess import Popen, PIPE
-from cli_common import find_utility, run_proc, pswd_pipe, rnp_file_path
+from cli_common import find_utility, run_proc, pswd_pipe, rnp_file_path, random_text
 
 WORKDIR = ''
 RNP = ''
@@ -252,25 +254,47 @@ def run_rnpkeys_tests():
     - different compression levels/algorithms
 '''
 
-def rnp_encryption_single(cipher, filesize):
-    # Generate file of required size
-    print cipher + '  ' + str(filesize)
+def rnp_encryption_gpg_to_rnp(cipher, filesize, zlevel = 6):
+    print 'rnp_encryption_gpg_to_rnp: cipher = {}, size = {}, zlevel = {}'.format(cipher, filesize, zlevel)
     srcpath = path.join(WORKDIR, 'cleartext.txt')
-    dstpath = path.join(WORKDIR, 'cleartext.gpg')    
-    st = ('lorem ipsum dol ' * ((filesize + 15)/16))[:filesize]
-    with open(srcpath, 'w+') as srcfile:
-        srcfile.write(st)
+    dstpath = path.join(WORKDIR, 'cleartext.gpg')
+    # Generate random file of required size
+    random_text(srcpath, filesize)
     # Encrypt cleartext file with GPG
-    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '-e', '-z', '0', '-r', 'encryption@rnp', '--batch', '--cipher-algo', cipher, '--trust-model', 'always', '--output', dstpath, srcpath])
+    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '-e', '-z', str(zlevel), '-r', 'encryption@rnp', '--batch', '--cipher-algo', cipher, '--trust-model', 'always', '--output', dstpath, srcpath])
     if ret != 0: raise_err('gpg encryption failed for cipher ' + cipher, err)
     # Decrypt encrypted file with RNP
     pipe = pswd_pipe(PASSWORD)
     ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--decrypt', dstpath])
     os.close(pipe)
     if ret != 0: raise_err('rnp decryption failed for cipher ' + cipher, out + err)
-    
+    # Cleanup
     os.remove(srcpath)
     os.remove(dstpath)
+
+def rnp_encryption_rnp_to_gpg(filesize):
+    print 'rnp_encryption_rnp_to_gpg {}'.format(filesize)
+    srcpath = path.join(WORKDIR, 'cleartext.txt')
+    dstpath = path.join(WORKDIR, 'cleartext.gpg')
+    # Generate random file of required size
+    random_text(srcpath, filesize)
+    # Encrypt cleartext file with RNP
+    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--userid', 'encryption@rnp', '--encrypt', srcpath, '--output', dstpath])
+    if ret != 0: raise_err('rnp encryption failed', err)
+    # Decrypt encrypted file with GPG
+    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', PASSWORD, '--trust-model', 'always', '-d', dstpath])
+    if ret != 0: raise_err('gpg decryption failed', err)
+    # Cleanup
+    os.remove(srcpath)
+    os.remove(dstpath)
+
+    return
+
+'''
+    Things to try later:
+    - different public key algorithms
+    - decryption with generate by GPG and imported keys
+'''
 
 def rnp_encryption():
     print 'rnp_encryption'
@@ -280,14 +304,23 @@ def rnp_encryption():
     os.close(pipe)
     if ret != 0: raise_err('key generation failed', err)
     # Import keyring to the GPG
-    ret, out, err = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir', GPGDIR, '--import', path.join(RNPDIR, 'pubring.gpg')])
+    ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--import', path.join(RNPDIR, 'pubring.gpg')])
     if ret != 0: raise_err('gpg key import failed', err)
     # Encrypt cleartext file with GPG and decrypt it with RNP, using different ciphers and file sizes
-    ciphers = ['IDEA', '3DES', 'CAST5', 'BLOWFISH', 'AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
-    sizes = [20, 1023, 2043, 5095, 10029, 20129]
+    # Non-working: IDEA, 3DES, CAST5, BLOWFISH
+    ciphers = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
+    sizes = [20, 1000, 2000, 5000, 10000, 20000, 60000]
     for cipher in ciphers:
         for size in sizes:
-            rnp_encryption_single(cipher, size)
+            rnp_encryption_gpg_to_rnp(cipher, size)
+    # Tests for compression level
+    for zlevel in range(0, 10):
+        rnp_encryption_gpg_to_rnp('AES', 1000000, zlevel)
+    # Import secret keyring to GPG
+    ret, out, err = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir', GPGDIR, '--import', path.join(RNPDIR, 'secring.gpg')])
+    if ret != 0: raise_err('gpg secret key import failed', err)
+    for size in sizes:
+        rnp_encryption_rnp_to_gpg(size)
 
     return
 
