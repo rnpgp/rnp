@@ -4,6 +4,7 @@
 *.lo
 *.loT
 *.o
+*.pyc
 
 core.*
 vgcore.*

@@ -33,6 +33,8 @@ typedef struct {
     int   not_fatal;
 } rnp_test_state_t;
 
+enum tests_type { TST_LIB, TST_CLI, TST_PERF };
+
 void rnpkeys_exportkey_verifyUserId(void **state);
 
 void rnpkeys_generatekey_testSignature(void **state);
@@ -70,6 +72,12 @@ void generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **st
 void generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state);
 
 void generatekeyECDSA_explicitlySetWrongDigest_ShouldFail(void **state);
+
+void cli_rnp(void **state);
+
+void cli_rnpkeys(void **state);
+
+void cli_performance(void **state);
 
 void test_utils_list(void **state);
 
