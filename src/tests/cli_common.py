@@ -4,6 +4,8 @@ import tempfile
 from os import path
 import os
 import shutil
+import random
+import string
 from subprocess import Popen, PIPE
 from timeit import default_timer as perf_timer
 
@@ -21,6 +23,11 @@ def pswd_pipe(passphrase):
     with os.fdopen(pw, 'w') as fw:
         fw.write(passphrase)
     return pr
+
+def random_text(path, size):
+    st = ''.join(random.choice(string.printable) for _ in range(size))
+    with open(path, 'w+') as f:
+        f.write(st)
 
 def find_utility(name, exitifnone = True):
     path = distutils.spawn.find_executable(name)
