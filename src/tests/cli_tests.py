@@ -321,8 +321,8 @@ def rnp_encryption():
     # Import keyring to the GPG
     gpg_import_pubring()
     # Encrypt cleartext file with GPG and decrypt it with RNP, using different ciphers and file sizes
-    # Non-working: IDEA, 3DES, CAST5, BLOWFISH
-    ciphers = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
+    # Could be non working, see #353: IDEA, 3DES, CAST5, BLOWFISH
+    ciphers = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
     sizes = [20, 1000, 2000, 5000, 10000, 20000, 60000, 1000000]
     for cipher in ciphers:
         for size in sizes:
@@ -368,6 +368,14 @@ def rnp_signing_rnp_to_gpg(filesize):
 
     return
 
+
+'''
+    Things to try later:
+    - different public key algorithms
+    - different hash algorithms where applicable
+    - cleartext signing/verification
+    - detached signing/verification
+'''
 def rnp_signing():
     print 'rnp_signing'
     # Generate keypair in RNP
@@ -385,12 +393,18 @@ def rnp_signing():
 
 def run_rnp_tests():
     # 1. Encryption
-    #rnp_encryption()
+    rnp_encryption()
     # 2. Signing
     rnp_signing()
     
     return
 
+'''
+    Things to try here later on:
+    - different public key algorithms
+    - different key protection levels/algorithms
+    - armoured import/export
+'''
 def run_rnpkeys_tests():
     # 1. Generate default RSA key
     rnpkey_generate_rsa()
