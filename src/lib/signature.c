@@ -129,6 +129,9 @@ pgp_create_sig_new(void)
 void
 pgp_create_sig_delete(pgp_create_sig_t *sig)
 {
+    if (!sig) {
+        return;
+    }
     pgp_output_delete(sig->output);
     sig->output = NULL;
     free(sig);
