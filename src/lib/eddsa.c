@@ -134,7 +134,7 @@ pgp_eddsa_sign_hash(BIGNUM *                r,
     botan_pk_op_sign_t sign_op = NULL;
     botan_rng_t        rng = NULL;
     int                result = -1;
-    uint8_t            bn_buf[64];
+    uint8_t            bn_buf[64] = {0};
 
     // Check curve OID matches 25519
     if (pubkey->curve != PGP_CURVE_ED25519) {
@@ -148,7 +148,7 @@ pgp_eddsa_sign_hash(BIGNUM *                r,
     if (botan_rng_init(&rng, NULL) != 0)
         goto done;
 
-    BN_bn2bin(seckey->x, bn_buf);
+    BN_bn2bin(seckey->x, bn_buf + (32 - BN_num_bytes(seckey->x)));
 
     if (botan_privkey_load_ed25519(&eddsa, bn_buf) != 0)
         goto done;
