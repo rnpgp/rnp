@@ -415,16 +415,13 @@ bool
 get_random(uint8_t *data, size_t len)
 {
     bool ret = false;
-
-    static bool is_rng_initialized = false;
-    if (!is_rng_initialized) {
+    if (NULL == global_rng) {
         /* Initialize with HMAC_DRBG so that
          * it won't slow down test execution.
          */
         if (botan_rng_init(&global_rng, "user")) {
             goto end;
         }
-        is_rng_initialized = true;
     }
 
     if (botan_rng_get(global_rng, data, len)) {
@@ -439,4 +436,5 @@ void
 destroy_global_rng()
 {
     (void) botan_rng_destroy(global_rng);
+    global_rng = NULL;
 }
