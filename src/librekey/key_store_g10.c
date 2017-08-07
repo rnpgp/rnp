@@ -35,6 +35,9 @@
 #include "key_store_g10.h"
 
 #include "crypto/bn.h"
+#include "crypto/s2k.h"
+#include "symmetric.h"
+#include "readerwriter.h"
 
 typedef struct {
     size_t   len;
@@ -224,20 +227,45 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
     return true;
 }
 
-static s_exp_block_t *
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
+static unsigned
+block_to_unsigned(s_exp_block_t *block)
+{
+    char s[sizeof(STR(UINT_MAX)) + 1];
+    if (block->len >= sizeof(s)) {
+        return UINT_MAX;
+    }
+
+    memcpy(s, block->bytes, block->len);
+    return (unsigned int) atoi(s);
+}
+
+static bool
+add_unsigned_block_to_sexp(s_exp_t *s_exp, unsigned u)
+{
+    char s[sizeof(STR(UINT_MAX)) + 1];
+    snprintf(s, sizeof(s), "%u", u);
+    return add_block_to_sexp(s_exp, (uint8_t *) s, strlen(s));
+}
+
+static s_exp_t *
 lookup_variable(s_exp_t *s_exp, const char *name)
 {
+    size_t name_len = strlen(name);
     for (int i = 0; i < s_exp->sub_s_expc; i++) {
-        if (s_exp->sub_s_exps[i].blockc != 2) {
+        if (s_exp->sub_s_exps[i].blockc < 2) {
             fprintf(stderr,
-                    "Expected 2 block (<name> <value>) but has: %d\n",
+                    "Expected 2 or more blocks (<name> <value> [<value2>]+) but has: %d\n",
                     s_exp->sub_s_exps[i].blockc);
             return NULL;
         }
-        if (!strncmp(name,
+        if (name_len == s_exp->sub_s_exps[i].blocks[0].len &&
+            !strncmp(name,
                      (const char *) s_exp->sub_s_exps[i].blocks[0].bytes,
                      s_exp->sub_s_exps[i].blocks[0].len)) {
-            return &s_exp->sub_s_exps[i].blocks[1];
+            return &s_exp->sub_s_exps[i];
         }
     }
     fprintf(stderr, "Haven't got variable '%s'\n", name);
@@ -247,14 +275,14 @@ lookup_variable(s_exp_t *s_exp, const char *name)
 static BIGNUM *
 read_bignum(s_exp_t *s_exp, const char *name)
 {
-    s_exp_block_t *var = lookup_variable(s_exp, name);
+    s_exp_t *var = lookup_variable(s_exp, name);
     if (var == NULL) {
         return NULL;
     }
 
-    BIGNUM *res = PGPV_BN_bin2bn(var->bytes, (int) var->len, NULL);
+    BIGNUM *res = PGPV_BN_bin2bn(var->blocks[1].bytes, (int) var->blocks[1].len, NULL);
     if (res == NULL) {
-        char *buf = malloc((var->len * 3) + 1);
+        char *buf = malloc((var->blocks[1].len * 3) + 1);
         if (buf == NULL) {
             fprintf(stderr, "Can't allocate memory\n");
             return NULL;
@@ -262,7 +290,7 @@ read_bignum(s_exp_t *s_exp, const char *name)
         fprintf(stderr,
                 "Can't convert variable '%s' to bignum. The value is: '%s'\n",
                 name,
-                rnp_strhexdump(buf, var->bytes, var->len, ""));
+                rnp_strhexdump(buf, var->blocks[1].bytes, var->blocks[1].len, ""));
     }
     return res;
 }
@@ -294,73 +322,73 @@ write_bignum(s_exp_t *s_exp, const char *name, BIGNUM *bn)
 }
 
 static bool
-parse_pubkey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
+parse_pubkey(pgp_pubkey_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 {
-    keydata->pubkey.version = PGP_V4;
-    keydata->pubkey.birthtime = time(NULL);
-    keydata->pubkey.duration = 0;
-    keydata->pubkey.alg = alg;
+    pubkey->version = PGP_V4;
+    pubkey->birthtime = time(NULL);
+    pubkey->duration = 0;
+    pubkey->alg = alg;
 
     switch (alg) {
     case PGP_PKA_DSA:
-        keydata->pubkey.key.dsa.p = read_bignum(s_exp, "p");
-        if (keydata->pubkey.key.dsa.p == NULL) {
+        pubkey->key.dsa.p = read_bignum(s_exp, "p");
+        if (pubkey->key.dsa.p == NULL) {
             return false;
         }
 
-        keydata->pubkey.key.dsa.q = read_bignum(s_exp, "q");
-        if (keydata->pubkey.key.dsa.q == NULL) {
-            PGPV_BN_free(keydata->pubkey.key.dsa.p);
+        pubkey->key.dsa.q = read_bignum(s_exp, "q");
+        if (pubkey->key.dsa.q == NULL) {
+            PGPV_BN_free(pubkey->key.dsa.p);
             return false;
         }
 
-        keydata->pubkey.key.dsa.g = read_bignum(s_exp, "g");
-        if (keydata->pubkey.key.dsa.g == NULL) {
-            PGPV_BN_free(keydata->pubkey.key.dsa.p);
-            PGPV_BN_free(keydata->pubkey.key.dsa.q);
+        pubkey->key.dsa.g = read_bignum(s_exp, "g");
+        if (pubkey->key.dsa.g == NULL) {
+            PGPV_BN_free(pubkey->key.dsa.p);
+            PGPV_BN_free(pubkey->key.dsa.q);
             return false;
         }
 
-        keydata->pubkey.key.dsa.y = read_bignum(s_exp, "y");
-        if (keydata->pubkey.key.dsa.y == NULL) {
-            PGPV_BN_free(keydata->pubkey.key.dsa.p);
-            PGPV_BN_free(keydata->pubkey.key.dsa.q);
-            PGPV_BN_free(keydata->pubkey.key.dsa.g);
+        pubkey->key.dsa.y = read_bignum(s_exp, "y");
+        if (pubkey->key.dsa.y == NULL) {
+            PGPV_BN_free(pubkey->key.dsa.p);
+            PGPV_BN_free(pubkey->key.dsa.q);
+            PGPV_BN_free(pubkey->key.dsa.g);
             return false;
         }
 
         break;
 
     case PGP_PKA_RSA:
-        keydata->pubkey.key.rsa.n = read_bignum(s_exp, "n");
-        if (keydata->pubkey.key.rsa.n == NULL) {
+        pubkey->key.rsa.n = read_bignum(s_exp, "n");
+        if (pubkey->key.rsa.n == NULL) {
             return false;
         }
 
-        keydata->pubkey.key.rsa.e = read_bignum(s_exp, "e");
-        if (keydata->pubkey.key.rsa.e == NULL) {
-            PGPV_BN_free(keydata->pubkey.key.rsa.n);
+        pubkey->key.rsa.e = read_bignum(s_exp, "e");
+        if (pubkey->key.rsa.e == NULL) {
+            PGPV_BN_free(pubkey->key.rsa.n);
             return false;
         }
 
         break;
 
     case PGP_PKA_ELGAMAL:
-        keydata->pubkey.key.elgamal.p = read_bignum(s_exp, "p");
-        if (keydata->pubkey.key.elgamal.p == NULL) {
+        pubkey->key.elgamal.p = read_bignum(s_exp, "p");
+        if (pubkey->key.elgamal.p == NULL) {
             return false;
         }
 
-        keydata->pubkey.key.elgamal.g = read_bignum(s_exp, "g");
-        if (keydata->pubkey.key.elgamal.g == NULL) {
-            PGPV_BN_free(keydata->pubkey.key.elgamal.p);
+        pubkey->key.elgamal.g = read_bignum(s_exp, "g");
+        if (pubkey->key.elgamal.g == NULL) {
+            PGPV_BN_free(pubkey->key.elgamal.p);
             return false;
         }
 
-        keydata->pubkey.key.elgamal.y = read_bignum(s_exp, "y");
-        if (keydata->pubkey.key.elgamal.y == NULL) {
-            PGPV_BN_free(keydata->pubkey.key.elgamal.p);
-            PGPV_BN_free(keydata->pubkey.key.elgamal.g);
+        pubkey->key.elgamal.y = read_bignum(s_exp, "y");
+        if (pubkey->key.elgamal.y == NULL) {
+            PGPV_BN_free(pubkey->key.elgamal.p);
+            PGPV_BN_free(pubkey->key.elgamal.g);
             return false;
         }
 
@@ -375,59 +403,61 @@ parse_pubkey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 }
 
 static bool
-parse_seckey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
+parse_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg, bool has_header)
 {
-    if (keydata->seckey.pubkey.version != PGP_V2 && keydata->seckey.pubkey.version != PGP_V3 &&
-        keydata->seckey.pubkey.version != PGP_V4) {
+    if (seckey->pubkey.version != PGP_V2 && seckey->pubkey.version != PGP_V3 &&
+        seckey->pubkey.version != PGP_V4) {
         fprintf(stderr, "You should run parse_seckey only after parse_pubkey\n");
         return false;
     }
 
-    keydata->seckey.s2k_usage = PGP_S2KU_NONE;
-    keydata->seckey.alg = PGP_SA_DEFAULT_CIPHER;
-    keydata->seckey.hash_alg = PGP_HASH_UNKNOWN;
+    if (!has_header) {
+        seckey->s2k_usage = PGP_S2KU_NONE;
+        seckey->alg = PGP_SA_PLAINTEXT;
+        seckey->hash_alg = PGP_HASH_UNKNOWN;
+    }
 
     switch (alg) {
     case PGP_PKA_DSA:
-        keydata->seckey.key.dsa.x = read_bignum(s_exp, "x");
-        if (keydata->seckey.key.dsa.x == NULL) {
+        seckey->key.dsa.x = read_bignum(s_exp, "x");
+        if (seckey->key.dsa.x == NULL) {
             return false;
         }
 
         break;
 
     case PGP_PKA_RSA:
-        keydata->seckey.key.rsa.d = read_bignum(s_exp, "d");
-        if (keydata->seckey.key.rsa.d == NULL) {
+        seckey->key.rsa.d = read_bignum(s_exp, "d");
+        if (seckey->key.rsa.d == NULL) {
             return false;
         }
 
-        keydata->seckey.key.rsa.p = read_bignum(s_exp, "p");
-        if (keydata->seckey.key.rsa.p == NULL) {
-            PGPV_BN_free(keydata->seckey.key.rsa.d);
+        seckey->key.rsa.p = read_bignum(s_exp, "p");
+        if (seckey->key.rsa.p == NULL) {
+            PGPV_BN_free(seckey->key.rsa.d);
             return false;
         }
 
-        keydata->seckey.key.rsa.q = read_bignum(s_exp, "q");
-        if (keydata->seckey.key.rsa.q == NULL) {
-            PGPV_BN_free(keydata->seckey.key.rsa.d);
-            PGPV_BN_free(keydata->seckey.key.rsa.p);
+        seckey->key.rsa.q = read_bignum(s_exp, "q");
+        if (seckey->key.rsa.q == NULL) {
+            PGPV_BN_free(seckey->key.rsa.d);
+            PGPV_BN_free(seckey->key.rsa.p);
             return false;
         }
 
-        keydata->seckey.key.rsa.u = read_bignum(s_exp, "u");
-        if (keydata->seckey.key.rsa.u == NULL) {
-            PGPV_BN_free(keydata->seckey.key.rsa.d);
-            PGPV_BN_free(keydata->seckey.key.rsa.p);
-            PGPV_BN_free(keydata->seckey.key.rsa.q);
+        seckey->key.rsa.u = read_bignum(s_exp, "u");
+        if (seckey->key.rsa.u == NULL) {
+            PGPV_BN_free(seckey->key.rsa.d);
+            PGPV_BN_free(seckey->key.rsa.p);
+            PGPV_BN_free(seckey->key.rsa.q);
             return false;
         }
 
         break;
 
     case PGP_PKA_ELGAMAL:
-        keydata->seckey.key.elgamal.x = read_bignum(s_exp, "x");
-        if (keydata->seckey.key.elgamal.x == NULL) {
+        seckey->key.elgamal.x = read_bignum(s_exp, "x");
+        if (seckey->key.elgamal.x == NULL) {
             return false;
         }
 
@@ -439,6 +469,303 @@ parse_seckey(pgp_keydata_key_t *keydata, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
     }
 
     return true;
+}
+
+static pgp_seckey_t *
+g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
+{
+    uint8_t        derived_key[PGP_MAX_KEY_SIZE];
+    char *         passphrase;
+    char           pass[MAX_PASSPHRASE_LENGTH];
+    unsigned       keysize;
+    uint8_t *      decrypted;
+    pgp_seckey_t * seckey;
+    s_exp_t        s_exp = {};
+    size_t         output_written = 0;
+    size_t         input_consumed = 0;
+    botan_cipher_t decrypt;
+
+    if (key->key.seckey.encrypted_len <= 0) {
+        fprintf(stderr, "Hasn't got encrypted data!\n");
+        return NULL;
+    }
+
+    if (pgp_getpassphrase(passfp, pass, sizeof(pass)) == 0) {
+        pass[0] = '\0';
+    }
+
+    passphrase = rnp_strdup(pass);
+    pgp_forget(pass, sizeof(pass));
+
+    keysize = pgp_key_size(key->key.seckey.alg);
+    if (keysize == 0) {
+        (void) fprintf(stderr, "parse_seckey: unknown symmetric algo");
+        return false;
+    }
+
+    if (pgp_s2k_iterated(key->key.seckey.hash_alg,
+                         derived_key,
+                         keysize,
+                         passphrase,
+                         key->key.seckey.salt,
+                         key->key.seckey.s2k_iterations)) {
+        (void) fprintf(stderr, "pgp_s2k_iterated failed\n");
+        return false;
+    }
+
+    pgp_forget(passphrase, strlen(passphrase));
+
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, "input iv", key->key.seckey.iv, PGP_MAX_BLOCK_SIZE);
+        hexdump(stderr, "input nonce", key->key.seckey.nonce, PGP_NONCE_SIZE);
+        hexdump(stderr, "key", derived_key, keysize);
+        hexdump(stderr, "encrypted", key->key.seckey.encrypted, key->key.seckey.encrypted_len);
+    }
+
+    decrypted = malloc(key->key.seckey.encrypted_len);
+    if (decrypted == NULL) {
+        (void) fprintf(stderr, "can't allocate memory\n");
+        return false;
+    }
+
+    switch (key->key.seckey.block_cipher_mode) {
+    case PGP_BLOCK_CIPHER_MODE_CBC:
+        if (botan_cipher_init(&decrypt, "AES-128/CBC", BOTAN_CIPHER_INIT_FLAG_DECRYPT)) {
+            (void) fprintf(stderr, "botan_cipher_init failed\n");
+            return false;
+        }
+
+        if (botan_cipher_set_key(decrypt, derived_key, keysize)) {
+            botan_cipher_destroy(decrypt);
+            return false;
+        }
+
+        if (botan_cipher_start(decrypt, key->key.seckey.iv, PGP_MAX_BLOCK_SIZE)) {
+            botan_cipher_destroy(decrypt);
+            return false;
+        }
+
+        break;
+
+    case PGP_BLOCK_CIPHER_MODE_OCB:
+        if (botan_cipher_init(&decrypt, "AES-128/OCB", BOTAN_CIPHER_INIT_FLAG_DECRYPT)) {
+            (void) fprintf(stderr, "botan_cipher_init failed\n");
+            return false;
+        }
+
+        if (botan_cipher_set_key(decrypt, derived_key, keysize)) {
+            botan_cipher_destroy(decrypt);
+            return false;
+        }
+
+        if (botan_cipher_start(decrypt, key->key.seckey.nonce, PGP_NONCE_SIZE)) {
+            botan_cipher_destroy(decrypt);
+            return false;
+        }
+
+        break;
+
+    default:
+        (void) fprintf(
+          stderr, "Unsupported block cipher: %d\n", key->key.seckey.block_cipher_mode);
+        free(decrypted);
+        return false;
+    }
+
+    if (botan_cipher_update(decrypt,
+                            BOTAN_CIPHER_UPDATE_FLAG_FINAL,
+                            decrypted,
+                            key->key.seckey.encrypted_len,
+                            &output_written,
+                            key->key.seckey.encrypted,
+                            key->key.seckey.encrypted_len,
+                            &input_consumed)) {
+        (void) fprintf(stderr, "botan_cipher_update failed\n");
+        botan_cipher_destroy(decrypt);
+        return false;
+    }
+
+    botan_cipher_destroy(decrypt);
+
+    size_t      length = output_written;
+    const char *bytes = (const char *) decrypted;
+
+    if (!parse_sexp(&s_exp, &bytes, &length)) {
+        pgp_forget(decrypted, key->key.seckey.encrypted_len);
+        free(decrypted);
+        return NULL;
+    }
+
+    // ignore padding data
+
+    pgp_forget(decrypted, key->key.seckey.encrypted_len);
+    free(decrypted);
+
+    if (s_exp.sub_s_expc == 0) {
+        destroy_s_exp(&s_exp);
+        (void) fprintf(stderr, "Hasn't got sub s-exp with key data.\n");
+        return NULL;
+    }
+
+    seckey = calloc(1, sizeof(*seckey));
+    if (seckey == NULL) {
+        destroy_s_exp(&s_exp);
+        (void) fprintf(stderr, "can't allocate memory\n");
+        return NULL;
+    }
+
+    seckey->pubkey = key->key.seckey.pubkey;
+
+    if (!parse_seckey(seckey, &s_exp.sub_s_exps[0], seckey->pubkey.alg, true)) {
+        destroy_s_exp(&s_exp);
+        return NULL;
+    }
+
+    destroy_s_exp(&s_exp);
+
+    return seckey;
+}
+
+static bool
+parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
+{
+    s_exp_t *var = lookup_variable(s_exp, "protected");
+    if (var == NULL) {
+        return NULL;
+    }
+
+    seckey->block_cipher_mode = PGP_BLOCK_CIPHER_MODE_NONE;
+
+    if (!strncmp("openpgp-s2k3-sha1-aes-cbc",
+                 (const char *) var->blocks[1].bytes,
+                 var->blocks[1].len)) {
+        seckey->block_cipher_mode = PGP_BLOCK_CIPHER_MODE_CBC;
+    } else if (!strncmp("openpgp-s2k3-ocb-aes",
+                        (const char *) var->blocks[1].bytes,
+                        var->blocks[1].len)) {
+        seckey->block_cipher_mode = PGP_BLOCK_CIPHER_MODE_OCB;
+    }
+
+    if (seckey->block_cipher_mode != PGP_BLOCK_CIPHER_MODE_NONE) {
+        if (var->sub_s_expc != 1) {
+            fprintf(
+              stderr, "Wrong count of sub-level s-exp: %d, should be 1\n", var->sub_s_expc);
+            return false;
+        }
+
+        s_exp_t *encrypted = &var->sub_s_exps[0];
+
+        if (encrypted->sub_s_expc != 1 && encrypted->blockc != 2) {
+            fprintf(stderr,
+                    "Wrong count of sub-level s-exp: %d or blocks: %d, should be 1 and 2\n",
+                    encrypted->sub_s_expc,
+                    encrypted->blockc);
+            return false;
+        }
+
+        s_exp_t *alg = &encrypted->sub_s_exps[0];
+
+        if (strncmp("sha1", (const char *) alg->blocks[0].bytes, alg->blocks[0].len) != 0) {
+            fprintf(stderr,
+                    "Wrong hashing algorithm, should be sha1 but %.*s\n",
+                    (int) alg->blocks[0].len,
+                    alg->blocks[0].bytes);
+            return false;
+        }
+
+        seckey->hash_alg = PGP_HASH_SHA1;
+        seckey->alg = PGP_SA_AES_128;
+        seckey->s2k_usage = PGP_S2KU_ENCRYPTED;
+        seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
+
+        if (alg->blocks[1].len != PGP_SALT_SIZE) {
+            fprintf(stderr,
+                    "Wrong salt size, should be %d but %d\n",
+                    PGP_SALT_SIZE,
+                    (int) alg->blocks[1].len);
+            return false;
+        }
+
+        memcpy(seckey->salt, alg->blocks[1].bytes, alg->blocks[1].len);
+        seckey->s2k_iterations = block_to_unsigned(&alg->blocks[2]);
+        if (seckey->s2k_iterations == UINT8_MAX) {
+            fprintf(stderr,
+                    "Wrong numbers of iteration, %.*s\n",
+                    (int) alg->blocks[2].len,
+                    alg->blocks[2].bytes);
+            return false;
+        }
+
+        if (seckey->block_cipher_mode == PGP_BLOCK_CIPHER_MODE_CBC) {
+            if (encrypted->blocks[0].len != PGP_MAX_BLOCK_SIZE) {
+                fprintf(stderr,
+                        "Wrong IV size, should be %d but %d\n",
+                        PGP_MAX_BLOCK_SIZE,
+                        (int) encrypted->blocks[0].len);
+                return false;
+            }
+
+            memcpy(seckey->iv, encrypted->blocks[0].bytes, encrypted->blocks[0].len);
+        } else if (seckey->block_cipher_mode == PGP_BLOCK_CIPHER_MODE_OCB) {
+            if (encrypted->blocks[0].len != PGP_NONCE_SIZE) {
+                fprintf(stderr,
+                        "Wrong nonce size, should be %d but %d\n",
+                        PGP_NONCE_SIZE,
+                        (int) encrypted->blocks[0].len);
+                return false;
+            }
+
+            memcpy(seckey->nonce, encrypted->blocks[0].bytes, encrypted->blocks[0].len);
+        }
+
+        if (var->blockc != 3) {
+            fprintf(stderr, "Hasn't got encrypted blob\n");
+            return false;
+        }
+
+        if (var->blocks[2].len <= 0) {
+            fprintf(stderr,
+                    "Wrong encrypted size, should be great 0 but %d\n",
+                    (int) var->blocks[2].len);
+            return false;
+        }
+
+        seckey->encrypted_len = var->blocks[2].len;
+
+        seckey->encrypted = malloc(seckey->encrypted_len);
+        if (seckey->encrypted == NULL) {
+            fprintf(stderr, "Can't allocate memory\n");
+            return false;
+        }
+
+        memcpy(seckey->encrypted, var->blocks[2].bytes, var->blocks[2].len);
+        seckey->decrypt_cb = g10_decrypt_seckey;
+
+        var = lookup_variable(s_exp, "protected-at");
+        if (var != NULL) {
+            if (var->blocks[1].len != PGP_PROTECTED_AT_SIZE) {
+                fprintf(stderr,
+                        "protected-at has wrong length: %zu, expected, %d\n",
+                        var->blocks[1].len,
+                        PGP_PROTECTED_AT_SIZE);
+                return false;
+            }
+            memcpy(seckey->protected_at, var->blocks[1].bytes, var->blocks[1].len);
+        }
+
+        return true;
+
+        //    } else if (!strncmp("openpgp-native", (const char *) var->blocks[1].bytes,
+        //    var->blocks[1].len)) {
+        //
+    } else {
+        fprintf(stderr,
+                "Unsupported protected mode: '%.*s'\n",
+                (int) var->blocks[1].len,
+                var->blocks[1].bytes);
+        destroy_s_exp(s_exp);
+        return false;
+    }
 }
 
 bool
@@ -478,11 +805,22 @@ rnp_key_store_g10_from_mem(pgp_io_t *       io,
     }
 
     bool private_key;
+    bool protected;
     if (!strncmp("private-key", (const char *) s_exp.blocks[0].bytes, s_exp.blocks[0].len)) {
         private_key = true;
+      protected
+        = false;
     } else if (!strncmp(
                  "public-key", (const char *) s_exp.blocks[0].bytes, s_exp.blocks[0].len)) {
         private_key = false;
+      protected
+        = false;
+    } else if (!strncmp("protected-private-key",
+                        (const char *) s_exp.blocks[0].bytes,
+                        s_exp.blocks[0].len)) {
+        private_key = true;
+      protected
+        = true;
     } else {
         fprintf(stderr,
                 "Unsupported top-level block: '%.*s'\n",
@@ -562,7 +900,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *       io,
 
     pgp_keydata_key_t keydata = {};
 
-    if (!parse_pubkey(&keydata, algorithm_s_exp, alg)) {
+    if (!parse_pubkey(&keydata.pubkey, algorithm_s_exp, alg)) {
         destroy_s_exp(&s_exp);
         return false;
     }
@@ -580,9 +918,16 @@ rnp_key_store_g10_from_mem(pgp_io_t *       io,
                 keydata.pubkey.duration = pubkey->duration;
             }
         }
-        if (!parse_seckey(&keydata, algorithm_s_exp, alg)) {
-            destroy_s_exp(&s_exp);
-            return false;
+        if (protected) {
+            if (!parse_protected_seckey(&keydata.seckey, algorithm_s_exp)) {
+                destroy_s_exp(&s_exp);
+                return false;
+            }
+        } else {
+            if (!parse_seckey(&keydata.seckey, algorithm_s_exp, alg, false)) {
+                destroy_s_exp(&s_exp);
+                return false;
+            }
         }
     }
 
@@ -727,10 +1072,6 @@ write_seckey(s_exp_t *s_exp, pgp_seckey_t *key)
 {
     switch (key->pubkey.alg) {
     case PGP_PKA_DSA:
-        if (!add_string_block_to_sexp(s_exp, "dsa")) {
-            return false;
-        }
-
         if (!write_bignum(s_exp, "x", key->key.dsa.x)) {
             return false;
         }
@@ -740,10 +1081,6 @@ write_seckey(s_exp_t *s_exp, pgp_seckey_t *key)
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA:
-        if (!add_string_block_to_sexp(s_exp, "rsa")) {
-            return false;
-        }
-
         if (!write_bignum(s_exp, "d", key->key.rsa.d)) {
             return false;
         }
@@ -763,10 +1100,6 @@ write_seckey(s_exp_t *s_exp, pgp_seckey_t *key)
         break;
 
     case PGP_PKA_ELGAMAL:
-        if (!add_string_block_to_sexp(s_exp, "elg")) {
-            return false;
-        }
-
         if (!write_bignum(s_exp, "x", key->key.elgamal.x)) {
             return false;
         }
@@ -774,6 +1107,276 @@ write_seckey(s_exp_t *s_exp, pgp_seckey_t *key)
     default:
         fprintf(stderr, "Unsupported public key algorithm: %d\n", key->pubkey.alg);
         return NULL;
+    }
+
+    return true;
+}
+
+static bool
+write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphrase)
+{
+    char *         type;
+    s_exp_t        raw_s_exp = {};
+    s_exp_t *      sub_s_exp, *sub_sub_s_exp, *sub_sub_sub_s_exp;
+    botan_cipher_t encrypt;
+    uint8_t        derived_key[PGP_MAX_KEY_SIZE];
+    unsigned       keysize;
+    uint8_t *      encrypted;
+    pgp_memory_t * raw;
+    char *         protected_at[PGP_PROTECTED_AT_SIZE + 1];
+    time_t         now;
+    size_t         output_written = 0;
+    size_t         input_consumed = 0;
+
+    if (key->s2k_specifier != PGP_S2KS_ITERATED_AND_SALTED) {
+        fprintf(stderr, "s2k should be iterated and salted\n");
+        return false;
+    }
+
+    if (key->hash_alg != PGP_HASH_SHA1) {
+        fprintf(stderr, "g10 should use only SHA-1 hashing\n");
+        return false;
+    }
+
+    switch (key->block_cipher_mode) {
+    case PGP_BLOCK_CIPHER_MODE_CBC:
+        type = "openpgp-s2k3-sha1-aes-cbc";
+        break;
+
+    case PGP_BLOCK_CIPHER_MODE_OCB:
+        type = "openpgp-s2k3-ocb-aes";
+        break;
+
+    default:
+        fprintf(stderr, "Unsupported block cipher mode: %d\n", key->block_cipher_mode);
+        return false;
+    }
+
+    if (!add_sub_sexp_to_sexp(&raw_s_exp, &sub_s_exp)) {
+        destroy_s_exp(&raw_s_exp);
+        return false;
+    }
+
+    if (!write_seckey(sub_s_exp, key)) {
+        destroy_s_exp(&raw_s_exp);
+        return false;
+    }
+
+    raw = pgp_memory_new();
+    if (raw == NULL) {
+        (void) fprintf(stderr, "Can't allocate memory\n");
+        destroy_s_exp(&raw_s_exp);
+        return false;
+    }
+
+    // allocated some memory
+    pgp_memory_init(raw, 1024);
+    if (raw->buf == NULL) {
+        destroy_s_exp(&raw_s_exp);
+        pgp_memory_free(raw);
+        return false;
+    }
+
+    if (!write_sexp(&raw_s_exp, raw)) {
+        destroy_s_exp(&raw_s_exp);
+        pgp_memory_free(raw);
+        return false;
+    }
+
+    keysize = pgp_key_size(key->alg);
+    if (keysize == 0) {
+        (void) fprintf(stderr, "parse_seckey: unknown symmetric algo");
+        destroy_s_exp(&raw_s_exp);
+        pgp_memory_free(raw);
+        return false;
+    }
+
+    if (pgp_s2k_iterated(key->hash_alg,
+                         derived_key,
+                         keysize,
+                         (const char *) passphrase,
+                         key->salt,
+                         key->s2k_iterations)) {
+        (void) fprintf(stderr, "pgp_s2k_iterated failed\n");
+        destroy_s_exp(&raw_s_exp);
+        pgp_memory_free(raw);
+        return false;
+    }
+
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, "input iv", key->iv, PGP_MAX_BLOCK_SIZE);
+        hexdump(stderr, "input nonce", key->nonce, PGP_NONCE_SIZE);
+        hexdump(stderr, "key", derived_key, keysize);
+    }
+
+    // add padding!
+    size_t encoded_length = 16 + raw->length;
+
+    encrypted = malloc(encoded_length);
+    if (encrypted == NULL) {
+        (void) fprintf(stderr, "can't allocate memory\n");
+        destroy_s_exp(&raw_s_exp);
+        pgp_memory_free(raw);
+        return false;
+    }
+
+    switch (key->block_cipher_mode) {
+    case PGP_BLOCK_CIPHER_MODE_CBC:
+        if (botan_cipher_init(&encrypt, "AES-128/CBC", BOTAN_CIPHER_INIT_FLAG_ENCRYPT)) {
+            (void) fprintf(stderr, "botan_cipher_init failed\n");
+            free(encrypted);
+            destroy_s_exp(&raw_s_exp);
+            pgp_memory_free(raw);
+            return false;
+        }
+
+        if (botan_cipher_set_key(encrypt, derived_key, keysize)) {
+            free(encrypted);
+            destroy_s_exp(&raw_s_exp);
+            pgp_memory_free(raw);
+            botan_cipher_destroy(encrypt);
+            return false;
+        }
+
+        if (botan_cipher_start(encrypt, key->iv, PGP_MAX_BLOCK_SIZE)) {
+            free(encrypted);
+            destroy_s_exp(&raw_s_exp);
+            pgp_memory_free(raw);
+            botan_cipher_destroy(encrypt);
+            return false;
+        }
+
+        break;
+
+    case PGP_BLOCK_CIPHER_MODE_OCB:
+        if (botan_cipher_init(&encrypt, "AES-128/OCB", BOTAN_CIPHER_INIT_FLAG_ENCRYPT)) {
+            (void) fprintf(stderr, "botan_cipher_init failed\n");
+            free(encrypted);
+            destroy_s_exp(&raw_s_exp);
+            pgp_memory_free(raw);
+            return false;
+        }
+
+        if (botan_cipher_set_key(encrypt, derived_key, keysize)) {
+            free(encrypted);
+            destroy_s_exp(&raw_s_exp);
+            pgp_memory_free(raw);
+            botan_cipher_destroy(encrypt);
+            return false;
+        }
+
+        if (botan_cipher_start(encrypt, key->nonce, PGP_NONCE_SIZE)) {
+            free(encrypted);
+            destroy_s_exp(&raw_s_exp);
+            pgp_memory_free(raw);
+            botan_cipher_destroy(encrypt);
+            return false;
+        }
+
+        break;
+
+    default:
+        (void) fprintf(stderr, "Unsupported block cipher: %d\n", key->block_cipher_mode);
+        free(encrypted);
+        destroy_s_exp(&raw_s_exp);
+        pgp_memory_free(raw);
+        return false;
+    }
+
+    if (botan_cipher_update(encrypt,
+                            BOTAN_CIPHER_UPDATE_FLAG_FINAL,
+                            encrypted,
+                            encoded_length,
+                            &output_written,
+                            raw->buf,
+                            raw->length,
+                            &input_consumed)) {
+        (void) fprintf(stderr, "botan_cipher_update failed\n");
+        free(encrypted);
+        destroy_s_exp(&raw_s_exp);
+        pgp_memory_free(raw);
+        botan_cipher_destroy(encrypt);
+        return false;
+    }
+
+    destroy_s_exp(&raw_s_exp);
+    pgp_memory_free(raw);
+    botan_cipher_destroy(encrypt);
+
+    if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
+        free(encrypted);
+        return false;
+    }
+
+    if (!add_string_block_to_sexp(sub_s_exp, "protected")) {
+        free(encrypted);
+        return false;
+    }
+
+    if (!add_string_block_to_sexp(sub_s_exp, type)) {
+        free(encrypted);
+        return false;
+    }
+
+    if (!add_sub_sexp_to_sexp(sub_s_exp, &sub_sub_s_exp)) {
+        free(encrypted);
+        return false;
+    }
+
+    if (!add_sub_sexp_to_sexp(sub_sub_s_exp, &sub_sub_sub_s_exp)) {
+        free(encrypted);
+        return false;
+    }
+
+    if (!add_string_block_to_sexp(sub_sub_sub_s_exp, "sha1")) {
+        free(encrypted);
+        return false;
+    }
+
+    if (!add_block_to_sexp(sub_sub_sub_s_exp, key->salt, PGP_SALT_SIZE)) {
+        free(encrypted);
+        return false;
+    }
+
+    if (!add_unsigned_block_to_sexp(sub_sub_sub_s_exp, key->s2k_iterations)) {
+        free(encrypted);
+        return false;
+    }
+
+    if (key->block_cipher_mode == PGP_BLOCK_CIPHER_MODE_CBC) {
+        if (!add_block_to_sexp(sub_sub_s_exp, key->iv, PGP_MAX_BLOCK_SIZE)) {
+            free(encrypted);
+            return false;
+        }
+    } else if (key->block_cipher_mode == PGP_BLOCK_CIPHER_MODE_OCB) {
+        if (!add_block_to_sexp(sub_sub_s_exp, key->nonce, PGP_NONCE_SIZE)) {
+            free(encrypted);
+            return false;
+        }
+    }
+
+    if (!add_block_to_sexp(sub_s_exp, encrypted, output_written)) {
+        free(encrypted);
+        return false;
+    }
+
+    free(encrypted);
+
+    if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
+        return false;
+    }
+
+    if (!add_string_block_to_sexp(sub_s_exp, "protected-at")) {
+        free(encrypted);
+        return false;
+    }
+
+    time(&now);
+    strftime((char *) protected_at, sizeof(protected_at), "%Y%m%dT%H%M%S", gmtime(&now));
+
+    if (!add_block_to_sexp(sub_s_exp, (uint8_t *) protected_at, PGP_PROTECTED_AT_SIZE)) {
+        free(encrypted);
+        return false;
     }
 
     return true;
@@ -796,7 +1399,7 @@ rnp_key_store_g10_key_to_mem(pgp_io_t *     io,
     switch (key->type) {
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        if (!add_block_to_sexp(&s_exp, (uint8_t *) "public-key", sizeof("public-key") - 1)) {
+        if (!add_string_block_to_sexp(&s_exp, "public-key")) {
             return false;
         }
 
@@ -808,17 +1411,52 @@ rnp_key_store_g10_key_to_mem(pgp_io_t *     io,
 
     case PGP_PTAG_CT_SECRET_KEY:
     case PGP_PTAG_CT_SECRET_SUBKEY:
-        if (!add_block_to_sexp(&s_exp, (uint8_t *) "private-key", sizeof("private-key") - 1)) {
-            return false;
+        if (key->key.seckey.alg == PGP_SA_PLAINTEXT) {
+            if (!add_string_block_to_sexp(&s_exp, "private-key")) {
+                return false;
+            }
+        } else {
+            if (!add_string_block_to_sexp(&s_exp, "protected-private-key")) {
+                return false;
+            }
+
+            // force switch to AES with CBC and SHA-1
+            if (key->key.seckey.alg != PGP_SA_AES_128) {
+                key->key.seckey.alg = PGP_SA_AES_128;
+            }
+
+            if (key->key.seckey.block_cipher_mode != PGP_BLOCK_CIPHER_MODE_CBC) {
+                key->key.seckey.block_cipher_mode = PGP_BLOCK_CIPHER_MODE_CBC;
+            }
+
+            if (key->key.seckey.hash_alg != PGP_HASH_SHA1) {
+                key->key.seckey.hash_alg = PGP_HASH_SHA1;
+            }
         }
 
         if (!write_pubkey(sub_s_exp, &key->key.pubkey)) {
             return false;
         }
 
-        if (!write_seckey(sub_s_exp, &key->key.seckey)) {
+        switch (key->key.seckey.alg) {
+        case PGP_SA_PLAINTEXT:
+            if (!write_seckey(sub_s_exp, &key->key.seckey)) {
+                return false;
+            }
+            break;
+
+        case PGP_SA_AES_128:
+            if (!write_protected_seckey(sub_s_exp, &key->key.seckey, passphrase)) {
+                return false;
+            }
+            break;
+
+        default:
+            fprintf(
+              stderr, "Unsupported private key symetric algorithm: %d\n", key->key.seckey.alg);
             return false;
         }
+
         break;
 
     default:
