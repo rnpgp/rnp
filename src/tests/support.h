@@ -34,6 +34,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <ftw.h>
+#include <botan/ffi.h>
 #include <sys/stat.h>
 #include <cmocka.h>
 #include <rnp/rnp.h>
@@ -117,3 +118,18 @@ int setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int
 
 /* Initialize key generation params with default values and specified hash algorithm */
 void set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc, pgp_hash_alg_t hashalg);
+
+/**
+ *  Helper used to retrieve random data. Function initializes
+ *  memory which needs to be released with `destroy_global_rng'
+ *  Function is not thread-safe.
+ *
+ *  @param data [out] output buffer of size at least `len`
+ *  @param len number of bytes to get
+ *
+ *  @return false indicates implementation error. true on success
+ **/
+bool get_random(uint8_t *data, size_t len);
+
+/** Ensures global handler for DRBG used in tests is destroyed. */
+void destroy_global_rng();

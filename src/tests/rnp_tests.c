@@ -108,6 +108,7 @@ teardown_test(void **state)
     delete_recursively(rstate->home);
     free(rstate->home);
     rstate->home = NULL;
+    destroy_global_rng();
     return 0;
 }
 
@@ -152,8 +153,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(pgp_parse_keyrings_1_pubring),
       cmocka_unit_test(test_load_user_prefs),
       cmocka_unit_test(ecdh_roundtrip),
-      cmocka_unit_test(ecdh_decryptionNegativeCases)
-    };
+      cmocka_unit_test(ecdh_decryptionNegativeCases)};
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */
