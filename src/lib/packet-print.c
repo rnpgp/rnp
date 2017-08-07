@@ -1763,7 +1763,7 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *key, uint8_t *passphrase)
         return NULL;
     }
 
-    if (key->type == PGP_PTAG_CT_PUBLIC_KEY) {
+    if (pgp_is_key_public(key)) {
         pgp_write_xfer_pubkey(output, key, NULL, 1);
     } else {
         pgp_write_xfer_seckey(output, key, passphrase, NULL, 1);

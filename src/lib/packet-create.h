@@ -83,6 +83,8 @@ void pgp_build_pubkey(pgp_memory_t *, const pgp_pubkey_t *, unsigned);
 unsigned pgp_calc_sesskey_checksum(pgp_pk_sesskey_t *, uint8_t *);
 unsigned pgp_write_struct_userid(pgp_output_t *, const uint8_t *);
 unsigned pgp_write_ss_header(pgp_output_t *, unsigned, pgp_content_enum);
+
+bool     pgp_write_struct_pubkey(pgp_output_t *, pgp_content_enum, const pgp_pubkey_t *);
 unsigned pgp_write_struct_seckey(pgp_content_enum,
                                  const pgp_seckey_t *,
                                  const uint8_t *,
@@ -106,5 +108,15 @@ bool pgp_write_xfer_anykey(
 unsigned pgp_write_userid(const uint8_t *, pgp_output_t *);
 unsigned pgp_fileread_litdata(const char *, const pgp_litdata_enum, pgp_output_t *);
 unsigned pgp_write_symm_enc_data(const uint8_t *, const int, pgp_output_t *);
+
+bool pgp_write_selfsig_cert(pgp_output_t *               output,
+                            const pgp_seckey_t *         seckey,
+                            const pgp_hash_alg_t         hash_alg,
+                            const rnp_selfsig_cert_info *cert);
+bool pgp_write_selfsig_binding(pgp_output_t *                  output,
+                               const pgp_seckey_t *            primary_sec,
+                               const pgp_hash_alg_t            hash_alg,
+                               const pgp_pubkey_t *            subkey,
+                               const rnp_selfsig_binding_info *binding);
 
 #endif /* CREATE_H_ */

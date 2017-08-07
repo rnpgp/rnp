@@ -80,7 +80,7 @@ bool  rnp_find_key(rnp_t *, const char *);
 char *rnp_get_key(rnp_t *, const char *, const char *);
 char *rnp_export_key(rnp_t *, const char *);
 int   rnp_import_key(rnp_t *, char *);
-int   rnp_generate_key(rnp_t *, const char *);
+int   rnp_generate_key(rnp_t *);
 int   rnp_secret_count(rnp_t *);
 int   rnp_public_count(rnp_t *);
 

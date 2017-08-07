@@ -16,6 +16,7 @@ librnp_la_SOURCES	= \
 	ecdsa.c \
 	eddsa.c \
 	elgamal.c \
+	generate-key.c \
 	hash.c \
 	list.c \
 	misc.c \

@@ -1202,6 +1202,9 @@ pgp_pk_sesskey_free(pgp_pk_sesskey_t *sk)
 void
 pgp_pubkey_free(pgp_pubkey_t *p)
 {
+    if (!p) {
+        return;
+    }
     switch (p->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -2434,6 +2437,9 @@ parse_litdata(pgp_region_t *region, pgp_stream_t *stream)
 void
 pgp_seckey_free(pgp_seckey_t *key)
 {
+    if (!key || !key->pubkey.alg) {
+        return;
+    }
     pgp_pubkey_free(&key->pubkey);
     switch (key->pubkey.alg) {
     case PGP_PKA_RSA:

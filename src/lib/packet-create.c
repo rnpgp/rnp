@@ -503,12 +503,43 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
  * \param output
  * \return 1 if OK, otherwise 0
  */
-static bool
-write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, const pgp_pubkey_t *key)
+bool
+pgp_write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, const pgp_pubkey_t *key)
 {
     return pgp_write_ptag(output, tag) &&
            pgp_write_length(output, 1 + 4 + 1 + pubkey_length(key)) &&
            write_pubkey_body(key, output);
+}
+
+static bool
+packet_matches(const pgp_rawpacket_t *pkt, const pgp_content_enum tags[], size_t tag_count)
+{
+    for (size_t i = 0; i < tag_count; i++) {
+        if (pkt->tag == tags[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool
+write_matching_packets(pgp_output_t *         output,
+                       const pgp_key_t *      key,
+                       const pgp_content_enum tags[],
+                       size_t                 tag_count)
+{
+    for (int i = 0; i < key->packetc; i++) {
+        pgp_rawpacket_t *pkt = &key->packets[i];
+
+        if (!packet_matches(pkt, tags, tag_count)) {
+            RNP_LOG("skipping packet with tag: %d", pkt->tag);
+            continue;
+        }
+        if (!pgp_write(output, pkt->raw, (unsigned) pkt->length)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /**
@@ -528,59 +559,16 @@ pgp_write_xfer_pubkey(pgp_output_t *         output,
                       const rnp_key_store_t *subkeys,
                       const unsigned         armoured)
 {
-    unsigned i, j;
-
+    static const pgp_content_enum permitted_tags[] = {PGP_PTAG_CT_PUBLIC_KEY,
+                                                      PGP_PTAG_CT_PUBLIC_SUBKEY,
+                                                      PGP_PTAG_CT_USER_ID,
+                                                      PGP_PTAG_CT_SIGNATURE};
     if (armoured) {
         pgp_writer_push_armoured(output, PGP_PGP_PUBLIC_KEY_BLOCK);
     }
-    /* public key */
-    if (key->loaded) {
-        if ((key->packetc < 1) ||
-            (!pgp_write(output, key->packets[0].raw, (unsigned) key->packets[0].length))) {
-            return false;
-        }
-    } else if (!write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &key->key.pubkey)) {
+    if (!write_matching_packets(output, key, permitted_tags, ARRAY_SIZE(permitted_tags))) {
         return false;
     }
-
-    /* TODO: revocation signatures go here */
-    /* TODO: the following is wrong, and works only for single uid */
-    /* user ids and corresponding signatures */
-    for (i = 0; i < key->uidc; i++) {
-        if (!key->loaded && !pgp_write_struct_userid(output, key->uids[i])) {
-            return false;
-        }
-        for (j = key->loaded ? 1 : 0; j < key->packetc; j++) {
-            if (!pgp_write(output, key->packets[j].raw, (unsigned) key->packets[j].length)) {
-                return false;
-            }
-        }
-    }
-
-    /* TODO: user attributes and corresponding signatures */
-    if (subkeys) {
-        for (i = 0; i < subkeys->keyc; i++) {
-            const pgp_key_t *subkey = &subkeys->keys[i];
-            if (subkey->type != PGP_PTAG_CT_PUBLIC_KEY) {
-                return false;
-            }
-            if (!write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_SUBKEY, &subkey->key.pubkey)) {
-                return false;
-            }
-            for (j = 0; j < subkey->packetc; j++) {
-                if (!pgp_write(
-                      output, subkey->packets[j].raw, (unsigned) subkey->packets[j].length)) {
-                    return false;
-                }
-            }
-        }
-    }
-
-    /*
-     * subkey packets and corresponding signatures and optional
-     * revocation
-     */
-
     if (armoured) {
         pgp_writer_info_finalise(&output->errors, &output->writer);
         pgp_writer_pop(output);
@@ -608,56 +596,16 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
                       const rnp_key_store_t *subkeys,
                       unsigned               armoured)
 {
-    unsigned i, j;
-
+    static const pgp_content_enum permitted_tags[] = {PGP_PTAG_CT_SECRET_KEY,
+                                                      PGP_PTAG_CT_SECRET_SUBKEY,
+                                                      PGP_PTAG_CT_USER_ID,
+                                                      PGP_PTAG_CT_SIGNATURE};
     if (armoured) {
         pgp_writer_push_armoured(output, PGP_PGP_PRIVATE_KEY_BLOCK);
     }
-    /* secret key */
-    if (!pgp_write_struct_seckey(
-          PGP_PTAG_CT_SECRET_KEY, &key->key.seckey, passphrase, output)) {
+    if (!write_matching_packets(output, key, permitted_tags, ARRAY_SIZE(permitted_tags))) {
         return false;
     }
-
-    /* TODO: revocation signatures go here */
-
-    /* user ids and corresponding signatures */
-    for (i = 0; i < key->uidc; i++) {
-        if (!pgp_write_struct_userid(output, key->uids[i])) {
-            return false;
-        }
-        for (j = 0; j < key->packetc; j++) {
-            if (!pgp_write(output, key->packets[j].raw, (unsigned) key->packets[j].length)) {
-                return false;
-            }
-        }
-    }
-
-    /* TODO: user attributes and corresponding signatures */
-
-    /*
-     * subkey packets and corresponding signatures and optional
-     * revocation
-     */
-    if (subkeys) {
-        for (i = 0; i < subkeys->keyc; i++) {
-            const pgp_key_t *subkey = &subkeys->keys[i];
-            if (subkey->type != PGP_PTAG_CT_SECRET_KEY) {
-                return false;
-            }
-            if (!pgp_write_struct_seckey(
-                  PGP_PTAG_CT_SECRET_SUBKEY, &subkey->key.seckey, passphrase, output)) {
-                return false;
-            }
-            for (j = 0; j < subkey->packetc; j++) {
-                if (!pgp_write(
-                      output, subkey->packets[j].raw, (unsigned) subkey->packets[j].length)) {
-                    return false;
-                }
-            }
-        }
-    }
-
     if (armoured) {
         pgp_writer_info_finalise(&output->errors, &output->writer);
         pgp_writer_pop(output);
@@ -1032,8 +980,8 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
     } break;
 
     case PGP_PKA_ECDH: {
-        uint8_t encmpibuf[ECDH_WRAPPED_KEY_SIZE] = {0};
-        size_t  out_len = sizeof(encmpibuf);
+        uint8_t           encmpibuf[ECDH_WRAPPED_KEY_SIZE] = {0};
+        size_t            out_len = sizeof(encmpibuf);
         pgp_fingerprint_t fingerprint;
 
         if (!pgp_fingerprint(&fingerprint, pubkey)) {
@@ -1357,4 +1305,149 @@ pgp_write_one_pass_sig(pgp_output_t *       output,
            pgp_write_scalar(output, (unsigned) hash_alg, 1) &&
            pgp_write_scalar(output, (unsigned) seckey->pubkey.alg, 1) &&
            pgp_write(output, keyid, 8) && pgp_write_scalar(output, 1, 1);
+}
+
+bool
+pgp_write_selfsig_cert(pgp_output_t *               output,
+                       const pgp_seckey_t *         seckey,
+                       const pgp_hash_alg_t         hash_alg,
+                       const rnp_selfsig_cert_info *cert)
+{
+    pgp_create_sig_t *sig = NULL;
+    bool              ok = false;
+    uint8_t           keyid[PGP_KEY_ID_SIZE];
+
+    if (!output || !seckey || !cert) {
+        RNP_LOG("invalid parameters");
+        goto end;
+    }
+
+    if (!pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey)) {
+        RNP_LOG("failed to calculate keyid");
+        goto end;
+    }
+
+    sig = pgp_create_sig_new();
+    if (!sig) {
+        RNP_LOG("create sig failed");
+        goto end;
+    }
+    pgp_sig_start_key_sig(sig, &seckey->pubkey, cert->userid, PGP_CERT_POSITIVE, hash_alg);
+    if (!pgp_sig_add_time(sig, (int64_t) time(NULL), PGP_PTAG_SS_CREATION_TIME)) {
+        RNP_LOG("failed to add creation time");
+        goto end;
+    }
+    if (cert->key_expiration &&
+        !pgp_sig_add_time(sig, cert->key_expiration, PGP_PTAG_SS_KEY_EXPIRY)) {
+        RNP_LOG("failed to add key expiration time");
+        goto end;
+    }
+    if (cert->key_flags && !pgp_sig_add_key_flags(sig, &cert->key_flags, 1)) {
+        RNP_LOG("failed to add key flags");
+        goto end;
+    }
+    if (cert->primary) {
+        pgp_sig_add_primary_userid(sig, 1);
+    }
+    const pgp_user_prefs_t *prefs = &cert->prefs;
+    if (!DYNARRAY_IS_EMPTY(prefs, symm_alg) &&
+        !pgp_sig_add_pref_symm_algs(sig, prefs->symm_algs, prefs->symm_algc)) {
+        RNP_LOG("failed to add symm alg prefs");
+        goto end;
+    }
+    if (!DYNARRAY_IS_EMPTY(prefs, hash_alg) &&
+        !pgp_sig_add_pref_hash_algs(sig, prefs->hash_algs, prefs->hash_algc)) {
+        RNP_LOG("failed to add hash alg prefs");
+        goto end;
+    }
+    if (!DYNARRAY_IS_EMPTY(prefs, compress_alg) &&
+        !pgp_sig_add_pref_compress_algs(sig, prefs->compress_algs, prefs->compress_algc)) {
+        RNP_LOG("failed to add compress alg prefs");
+        goto end;
+    }
+    if (!DYNARRAY_IS_EMPTY(prefs, key_server_pref) &&
+        !pgp_sig_add_key_server_prefs(sig, prefs->key_server_prefs, prefs->key_server_prefc)) {
+        RNP_LOG("failed to add key server prefs");
+        goto end;
+    }
+    if (prefs->key_server && !pgp_sig_add_preferred_key_server(sig, prefs->key_server)) {
+        RNP_LOG("failed to add preferred key server");
+        goto end;
+    }
+    if (!pgp_sig_add_issuer_keyid(sig, keyid)) {
+        RNP_LOG("failed to add issuer key id");
+        goto end;
+    }
+    if (!pgp_sig_end_hashed_subpkts(sig)) {
+        RNP_LOG("failed to finalize hashed subpkts");
+        goto end;
+    }
+
+    if (!pgp_sig_write(output, sig, &seckey->pubkey, seckey)) {
+        RNP_LOG("failed to write signature");
+        goto end;
+    }
+    ok = true;
+end:
+    pgp_create_sig_delete(sig);
+    return ok;
+}
+
+bool
+pgp_write_selfsig_binding(pgp_output_t *                  output,
+                          const pgp_seckey_t *            primary_sec,
+                          const pgp_hash_alg_t            hash_alg,
+                          const pgp_pubkey_t *            subkey,
+                          const rnp_selfsig_binding_info *binding)
+{
+    pgp_create_sig_t *sig = NULL;
+    bool              ok = false;
+    uint8_t           keyid[PGP_KEY_ID_SIZE];
+
+    if (!output || !primary_sec || !subkey || !binding) {
+        RNP_LOG("invalid parameters");
+        goto end;
+    }
+
+    if (!pgp_keyid(keyid, sizeof(keyid), &primary_sec->pubkey)) {
+        RNP_LOG("failed to calculate keyid");
+        goto end;
+    }
+
+    sig = pgp_create_sig_new();
+    if (!sig) {
+        RNP_LOG("create sig failed");
+        goto end;
+    }
+    pgp_sig_start_subkey_sig(sig, &primary_sec->pubkey, subkey, PGP_SIG_SUBKEY, hash_alg);
+    if (!pgp_sig_add_time(sig, (int64_t) time(NULL), PGP_PTAG_SS_CREATION_TIME)) {
+        RNP_LOG("failed to add creation time");
+        goto end;
+    }
+    if (binding->key_expiration &&
+        !pgp_sig_add_time(sig, binding->key_expiration, PGP_PTAG_SS_KEY_EXPIRY)) {
+        RNP_LOG("failed to add key expiration time");
+        goto end;
+    }
+    if (binding->key_flags && !pgp_sig_add_key_flags(sig, &binding->key_flags, 1)) {
+        RNP_LOG("failed to add key flags");
+        goto end;
+    }
+    if (!pgp_sig_add_issuer_keyid(sig, keyid)) {
+        RNP_LOG("failed to add issuer key id");
+        goto end;
+    }
+    if (!pgp_sig_end_hashed_subpkts(sig)) {
+        RNP_LOG("failed to finalize hashed subpkts");
+        goto end;
+    }
+
+    if (!pgp_sig_write(output, sig, &primary_sec->pubkey, primary_sec)) {
+        RNP_LOG("failed to write signature");
+        goto end;
+    }
+    ok = true;
+end:
+    pgp_create_sig_delete(sig);
+    return ok;
 }
