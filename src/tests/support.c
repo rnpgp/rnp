@@ -311,29 +311,44 @@ uint_to_string(char *buff, const int buffsize, unsigned int num, int base)
     return ptr;
 }
 
+bool write_pass_to_pipe(int fd, size_t count) {
+    const char * const password = "passwordforkeygeneration\n";
+    for (size_t i = 0; i < count; i++) {
+        const char *p = password;
+        ssize_t remaining = strlen(p);
+
+        do {
+            ssize_t written = write(fd, p, remaining);
+            if (written <= 0) {
+                perror("write");
+                return false;
+            }
+            p += written;
+            remaining -= written;
+        } while (remaining);
+    }
+    return true;
+}
+
 bool
 setupPassphrasefd(int *pipefd)
 {
-    ssize_t r, p;
+    bool ok = false;
+
     if (pipe(pipefd) == -1) {
         perror("pipe");
-        return false;
+        goto end;
     }
+    // write it twice for normal keygen (primary+sub)
+    if (!write_pass_to_pipe(pipefd[1], 2)) {
+        close(pipefd[1]);
+        goto end;
+    }
+    ok = true;
 
-    /*Write and close fd*/
-    const char *password = "passwordforkeygeneration\0";
-    r = strlen(password);
-    do {
-        p = write(pipefd[1], password, r);
-        if (p <= 0) {
-            perror("write");
-            return false;
-        }
-        password += p;
-        r -= p;
-    } while (r);
+end:
     close(pipefd[1]);
-    return true;
+    return ok;
 }
 
 bool
@@ -405,10 +420,18 @@ setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pi
 void
 set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc, pgp_hash_alg_t hashalg)
 {
-    key_desc->crypto.key_alg = PGP_PKA_RSA;
-    key_desc->crypto.sym_alg = PGP_SA_DEFAULT_CIPHER;
-    key_desc->crypto.rsa.modulus_bit_len = 1024;
-    key_desc->crypto.hash_alg = hashalg;
+    rnp_keygen_primary_desc_t *primary = &key_desc->primary;
+    rnp_keygen_subkey_desc_t * subkey = &key_desc->subkey;
+
+    primary->crypto.key_alg = PGP_PKA_RSA;
+    primary->crypto.sym_alg = PGP_SA_DEFAULT_CIPHER;
+    primary->crypto.rsa.modulus_bit_len = 1024;
+    primary->crypto.hash_alg = hashalg;
+
+    subkey->crypto.key_alg = PGP_PKA_RSA;
+    subkey->crypto.sym_alg = PGP_SA_DEFAULT_CIPHER;
+    subkey->crypto.rsa.modulus_bit_len = 1024;
+    subkey->crypto.hash_alg = hashalg;
 }
 
 bool

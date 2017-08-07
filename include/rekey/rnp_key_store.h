@@ -159,7 +159,7 @@ bool rnp_key_store_json(pgp_io_t *, const rnp_key_store_t *, json_object *, cons
 
 bool rnp_key_store_append_keyring(rnp_key_store_t *, rnp_key_store_t *);
 
-bool rnp_key_store_add_key(pgp_io_t *, rnp_key_store_t *, pgp_key_t *, pgp_content_enum);
+bool rnp_key_store_add_key(pgp_io_t *, rnp_key_store_t *, pgp_key_t *);
 bool rnp_key_store_add_keydata(
   pgp_io_t *, rnp_key_store_t *, pgp_keydata_key_t *, pgp_key_t **, pgp_content_enum);
 

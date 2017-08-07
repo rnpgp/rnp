@@ -44,12 +44,12 @@ rnpkeys_exportkey_verifyUserId(void **state)
 
     /* Generate the key */
     set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
-    rnp_assert_ok(rstate, rnp_generate_key(&rnp, NULL));
+    rnp_assert_ok(rstate, rnp_generate_key(&rnp));
 
     /* Loading keyrings and checking whether they have correct key */
     rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
-    rnp_assert_ok(rstate, rnp_secret_count(&rnp));
-    rnp_assert_ok(rstate, rnp_public_count(&rnp));
+    rnp_assert_int_not_equal(rstate, 0, rnp_secret_count(&rnp));
+    rnp_assert_int_not_equal(rstate, 0, rnp_public_count(&rnp));
     rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
 
     /* Try to export the key without passing userid from the interface : this should fail*/

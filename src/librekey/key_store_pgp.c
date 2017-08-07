@@ -72,8 +72,9 @@ void print_packet_hex(const pgp_rawpacket_t *pkt);
 typedef struct keyringcb_t {
     rnp_key_store_t *keyring; /* the keyring we're reading */
     pgp_io_t *       io;
-    pgp_key_t *      key;    /* the key we're currently loading */
-    pgp_subsig_t *   subsig; /* the signature we're currently loading */
+    pgp_key_t *      key;          /* the key we're currently loading */
+    pgp_key_t *      last_primary; /* the last primary key we loaded */
+    pgp_subsig_t *   subsig;       /* the signature we're currently loading */
 } keyringcb_t;
 
 #define KEY_REQUIRED_BEFORE(str)                                                            \
@@ -122,21 +123,28 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PTAG_CT_SECRET_SUBKEY:
     case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
     case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
-        keydata.seckey = content->seckey;
-        if (!rnp_key_store_add_keydata(io, keyring, &keydata, &cb->key, pkt->tag)) {
-            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to add keydata to key store.");
-            return PGP_FINISHED;
-        }
-        cb->subsig = NULL;
-        return PGP_KEEP_MEMORY;
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        keydata.pubkey = content->pubkey;
+        if (pgp_is_secret_key_tag(pkt->tag)) {
+            keydata.seckey = content->seckey;
+        } else {
+            keydata.pubkey = content->pubkey;
+        }
         if (!rnp_key_store_add_keydata(io, keyring, &keydata, &cb->key, pkt->tag)) {
             PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to add keydata to key store.");
             return PGP_FINISHED;
         }
         cb->subsig = NULL;
+        if (pgp_is_subkey_tag(pkt->tag) && cb->last_primary) {
+            EXPAND_ARRAY(cb->last_primary, subkey);
+            if (!cb->last_primary->subkeys) {
+                PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
+                return PGP_FINISHED;
+            }
+            cb->last_primary->subkeys[cb->last_primary->subkeyc++] = cb->key;
+        } else if (pgp_is_primary_key_tag(pkt->tag)) {
+            cb->last_primary = cb->key;
+        }
         return PGP_KEEP_MEMORY;
     case PGP_PTAG_CT_USER_ID:
         KEY_REQUIRED_BEFORE("userid");
@@ -292,7 +300,7 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         break;
     case PGP_PTAG_SS_PREF_KEYSERV:
         SUBSIG_REQUIRED_BEFORE("ss preferred key server");
-        subsig->prefs.key_server = (uint8_t*)content->ss_keyserv;
+        subsig->prefs.key_server = (uint8_t *) content->ss_keyserv;
         return PGP_KEEP_MEMORY;
     default:
         break;
@@ -363,7 +371,6 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
                                const unsigned   armour,
                                pgp_memory_t *   mem)
 {
-    int          i;
     unsigned     rc;
     pgp_key_t *  key;
     pgp_output_t output = {};
@@ -371,14 +378,26 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
     __PGP_USED(io);
     pgp_writer_set_memory(&output, mem);
 
-    for (i = 0; i < key_store->keyc; i++) {
-        key = &key_store->keys[i];
+    if (armour) {
+        pgp_armor_type_t type = PGP_PGP_PUBLIC_KEY_BLOCK;
+        if (key_store->keyc && pgp_is_key_secret(&key_store->keys[0])) {
+            type = PGP_PGP_PRIVATE_KEY_BLOCK;
+        }
+        pgp_writer_push_armoured(&output, type);
+    }
+    for (int ikey = 0; ikey < key_store->keyc; ikey++) {
+        key = &key_store->keys[ikey];
 
-        if (!pgp_write_xfer_anykey(&output, key, passphrase, NULL, armour)) {
-            return false;
+        for (int ipkt = 0; ipkt < key->packetc; ipkt++) {
+            pgp_rawpacket_t *pkt = &key->packets[ipkt];
+            if (!pgp_write(&output, pkt->raw, pkt->length)) {
+                return false;
+            }
         }
     }
-
+    if (armour) {
+        pgp_writer_pop(&output);
+    }
     rc = pgp_writer_close(&output);
     pgp_writer_info_delete(&output.writer);
 

@@ -87,8 +87,8 @@ ask_curve(FILE *input_fp)
     bool        ok = false;
     do {
         printf("Please select which elliptic curve you want:\n");
-        for (int i = 0; (i < PGP_CURVE_MAX) && (i != PGP_CURVE_ED25519); i++) {
-            printf("\t(%u) %s\n", i + 1, ec_curves[i].pgp_name);
+        for (int i = 1; (i < PGP_CURVE_MAX) && (i != PGP_CURVE_ED25519); i++) {
+            printf("\t(%u) %s\n", i, ec_curves[i].pgp_name);
         }
         printf("> ");
         ok = rnp_secure_get_long_from_fd(input_fp, &val);
@@ -96,7 +96,7 @@ ask_curve(FILE *input_fp)
     } while (!ok);
 
     if (ok) {
-        result = (pgp_curve_t)(val - 1);
+        result = (pgp_curve_t)(val);
     }
 
     return result;
@@ -152,7 +152,7 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
 {
     FILE *                      input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
     rnp_keygen_desc_t *         key_desc = &rnp->action.generate_key_ctx;
-    rnp_keygen_crypto_params_t *crypto = &key_desc->crypto;
+    rnp_keygen_crypto_params_t *crypto = &key_desc->primary.crypto;
 
     crypto->key_alg = (pgp_pubkey_alg_t) ask_algorithm(input_fd);
     // get more details about the key
@@ -216,6 +216,8 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
     default:
         return PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG;
     }
+    // TODO this is mostly to get tests passing
+    key_desc->subkey.crypto = key_desc->primary.crypto;
 
     return PGP_E_OK;
 }
