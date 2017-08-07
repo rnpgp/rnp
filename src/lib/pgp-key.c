@@ -345,6 +345,7 @@ decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         return PGP_FINISHED;
 
     case PGP_PTAG_CT_SECRET_KEY:
+    case PGP_PTAG_CT_SECRET_SUBKEY:
         if ((decrypt->seckey = calloc(1, sizeof(*decrypt->seckey))) == NULL) {
             (void) fprintf(stderr, "decrypt_cb: bad alloc\n");
             return PGP_FINISHED;
