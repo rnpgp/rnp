@@ -640,10 +640,17 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
                  (const char *) var->blocks[1].bytes,
                  var->blocks[1].len)) {
         seckey->block_cipher_mode = PGP_BLOCK_CIPHER_MODE_CBC;
+        seckey->alg = PGP_SA_AES_128;
+    } else if (!strncmp("openpgp-s2k3-sha1-aes256-cbc",
+                        (const char *) var->blocks[1].bytes,
+                        var->blocks[1].len)) {
+        seckey->block_cipher_mode = PGP_BLOCK_CIPHER_MODE_CBC;
+        seckey->alg = PGP_SA_AES_256;
     } else if (!strncmp("openpgp-s2k3-ocb-aes",
                         (const char *) var->blocks[1].bytes,
                         var->blocks[1].len)) {
         seckey->block_cipher_mode = PGP_BLOCK_CIPHER_MODE_OCB;
+        seckey->alg = PGP_SA_AES_128;
     }
 
     if (seckey->block_cipher_mode != PGP_BLOCK_CIPHER_MODE_NONE) {
@@ -674,7 +681,6 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
         }
 
         seckey->hash_alg = PGP_HASH_SHA1;
-        seckey->alg = PGP_SA_AES_128;
         seckey->s2k_usage = PGP_S2KU_ENCRYPTED;
         seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
 
@@ -1140,11 +1146,21 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
 
     switch (key->block_cipher_mode) {
     case PGP_BLOCK_CIPHER_MODE_CBC:
-        type = "openpgp-s2k3-sha1-aes-cbc";
+        if (key->alg == PGP_SA_AES_128) {
+            type = "openpgp-s2k3-sha1-aes-cbc";
+        } else if (key->alg == PGP_SA_AES_256) {
+            type = "openpgp-s2k3-sha1-aes256-cbc";
+        } else {
+            fprintf(stderr, "Unsupported algorithm: %d\n", key->alg);
+        }
         break;
 
     case PGP_BLOCK_CIPHER_MODE_OCB:
-        type = "openpgp-s2k3-ocb-aes";
+        if (key->alg == PGP_SA_AES_128) {
+            type = "openpgp-s2k3-ocb-aes";
+        } else {
+            fprintf(stderr, "Unsupported algorithm: %d\n", key->alg);
+        }
         break;
 
     default:
@@ -1446,6 +1462,7 @@ rnp_key_store_g10_key_to_mem(pgp_io_t *     io,
             break;
 
         case PGP_SA_AES_128:
+        case PGP_SA_AES_256:
             if (!write_protected_seckey(sub_s_exp, &key->key.seckey, passphrase)) {
                 return false;
             }
