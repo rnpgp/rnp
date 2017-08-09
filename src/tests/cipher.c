@@ -392,22 +392,26 @@ ecdsa_signverify_success(void **state)
 
         rnp_assert_int_equal(
           rstate,
-          pgp_ecdsa_sign_hash(&sig, message, curves[i].size, prv_key1, pub_key1),
+          pgp_ecdsa_sign_hash(&sig, message, key_desc.crypto.hash_alg, prv_key1, pub_key1),
           PGP_E_OK);
 
         rnp_assert_int_equal(
-          rstate, pgp_ecdsa_verify_hash(&sig, message, curves[i].size, pub_key1), PGP_E_OK);
+          rstate,
+          pgp_ecdsa_verify_hash(&sig, message, key_desc.crypto.hash_alg, pub_key1),
+          PGP_E_OK);
 
         // Fails because of different key used
-        rnp_assert_int_equal(rstate,
-                             pgp_ecdsa_verify_hash(&sig, message, curves[i].size, pub_key2),
-                             PGP_E_V_BAD_SIGNATURE);
+        rnp_assert_int_equal(
+          rstate,
+          pgp_ecdsa_verify_hash(&sig, message, key_desc.crypto.hash_alg, pub_key2),
+          PGP_E_V_BAD_SIGNATURE);
 
         // Fails because message won't verify
         message[0] = ~message[0];
-        rnp_assert_int_equal(rstate,
-                             pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key1),
-                             PGP_E_V_BAD_SIGNATURE);
+        rnp_assert_int_equal(
+          rstate,
+          pgp_ecdsa_verify_hash(&sig, message, key_desc.crypto.hash_alg, pub_key1),
+          PGP_E_V_BAD_SIGNATURE);
 
         BN_clear_free(sig.r);
         BN_clear_free(sig.s);
