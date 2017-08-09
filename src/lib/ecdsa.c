@@ -195,7 +195,7 @@ end:
 pgp_errcode_t
 pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
                     const uint8_t *         hashbuf,
-                    size_t                  hash_len,
+                    pgp_hash_alg_t          hash_alg,
                     const pgp_ecc_seckey_t *seckey,
                     const pgp_ecc_pubkey_t *pubkey)
 {
@@ -203,8 +203,14 @@ pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
     botan_privkey_t    key = NULL;
     botan_rng_t        rng = NULL;
     pgp_errcode_t      ret = PGP_E_FAIL;
+    size_t             hash_len = 0;
     uint8_t            out_buf[2 * MAX_CURVE_BYTELEN] = {0};
     const size_t       sign_half_len = BITS_TO_BYTES(ec_curves[pubkey->curve].bitlen);
+
+    if (!pgp_digest_length(hash_alg, &hash_len)) {
+        RNP_LOG("Unknown hash algorithm %d", hash_alg);
+        goto end;
+    }
 
     if (sign->r || sign->s) {
         // Caller must not allocate r and s
@@ -220,7 +226,9 @@ pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
         goto end;
     }
 
-    if (botan_pk_op_sign_create(&signer, key, "Raw", 0)) {
+    char emsa_hash[32] = {0};
+    snprintf(emsa_hash, sizeof(emsa_hash), "EMSA1(%s)", pgp_hash_name_botan(hash_alg));
+    if (botan_pk_op_sign_create(&signer, key, emsa_hash, 0)) {
         goto end;
     }
 
@@ -259,7 +267,7 @@ end:
 pgp_errcode_t
 pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
                       const uint8_t *         hash,
-                      size_t                  hash_len,
+                      pgp_hash_alg_t          hash_alg,
                       const pgp_ecc_pubkey_t *pubkey)
 {
     botan_mp_t           public_x = NULL;
@@ -270,6 +278,12 @@ pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
     uint8_t              sign_buf[2 * MAX_CURVE_BYTELEN] = {0};
     const size_t         sign_half_len = BITS_TO_BYTES(ec_curves[pubkey->curve].bitlen);
     uint8_t              point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
+    size_t               hash_len = 0;
+
+    if (!pgp_digest_length(hash_alg, &hash_len)) {
+        RNP_LOG("Unknown hash algorithm %d", hash_alg);
+        goto end;
+    }
 
     if ((BN_num_bytes(pubkey->point) > sizeof(point_bytes)) ||
         BN_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
@@ -289,7 +303,9 @@ pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
         goto end;
     }
 
-    if (botan_pk_op_verify_create(&verifier, pub, "Raw", 0)) {
+    char emsa_hash[32] = {0};
+    snprintf(emsa_hash, sizeof(emsa_hash), "EMSA1(%s)", pgp_hash_name_botan(hash_alg));
+    if (botan_pk_op_verify_create(&verifier, pub, emsa_hash, 0)) {
         goto end;
     }
 

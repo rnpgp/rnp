@@ -231,12 +231,11 @@ ecdsa_sign(pgp_hash_t *            hash,
     }
 
     /* finalise hash */
-    size_t hashsize = pgp_hash_finish(hash, hashbuf);
     if (!pgp_write(output, &hashbuf[0], 2))
         return false;
 
     /* write signature to buf */
-    if (pgp_ecdsa_sign_hash(&sig, hashbuf, hashsize, prv_key, pub_key) != PGP_E_OK) {
+    if (pgp_ecdsa_sign_hash(&sig, hashbuf, hash->_alg, prv_key, pub_key) != PGP_E_OK) {
         return false;
     }
 
@@ -440,8 +439,9 @@ pgp_check_sig(const uint8_t *     hash,
         break;
 
     case PGP_PKA_ECDSA:
-        ret = (pgp_ecdsa_verify_hash(&sig->info.sig.ecdsa, hash, length, &signer->key.ecc) ==
-               PGP_E_OK);
+        ret =
+          (pgp_ecdsa_verify_hash(
+             &sig->info.sig.ecdsa, hash, sig->info.hash_alg, &signer->key.ecc) == PGP_E_OK);
         break;
 
     default:
