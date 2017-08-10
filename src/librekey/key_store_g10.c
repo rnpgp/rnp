@@ -1454,24 +1454,31 @@ rnp_key_store_g10_key_to_mem(pgp_io_t *     io,
             return false;
         }
 
-        switch (key->key.seckey.alg) {
-        case PGP_SA_PLAINTEXT:
+        if (passphrase == NULL || *passphrase == '\0') {
             if (!write_seckey(sub_s_exp, &key->key.seckey)) {
                 return false;
             }
-            break;
+        } else {
+            switch (key->key.seckey.alg) {
+            case PGP_SA_PLAINTEXT:
+                if (!write_seckey(sub_s_exp, &key->key.seckey)) {
+                    return false;
+                }
+                break;
 
-        case PGP_SA_AES_128:
-        case PGP_SA_AES_256:
-            if (!write_protected_seckey(sub_s_exp, &key->key.seckey, passphrase)) {
+            case PGP_SA_AES_128:
+            case PGP_SA_AES_256:
+                if (!write_protected_seckey(sub_s_exp, &key->key.seckey, passphrase)) {
+                    return false;
+                }
+                break;
+
+            default:
+                fprintf(stderr,
+                        "Unsupported private key symetric algorithm: %d\n",
+                        key->key.seckey.alg);
                 return false;
             }
-            break;
-
-        default:
-            fprintf(
-              stderr, "Unsupported private key symetric algorithm: %d\n", key->key.seckey.alg);
-            return false;
         }
 
         break;
