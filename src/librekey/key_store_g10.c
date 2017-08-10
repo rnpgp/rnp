@@ -489,7 +489,7 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     size_t         input_consumed = 0;
     botan_cipher_t decrypt;
 
-    if (key->key.seckey.encrypted_len <= 0) {
+    if (key->key.seckey.encrypted_len == 0) {
         fprintf(stderr, "Hasn't got encrypted data!\n");
         return NULL;
     }
@@ -500,10 +500,16 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
 
     passphrase = rnp_strdup(pass);
     pgp_forget(pass, sizeof(pass));
+    if (passphrase == NULL) {
+        (void) fprintf(stderr, "bad allocation\n");
+        return false;
+    }
 
     keysize = pgp_key_size(key->key.seckey.alg);
     if (keysize == 0) {
-        (void) fprintf(stderr, "parse_seckey: unknown symmetric algo");
+        (void) fprintf(stderr, "parse_seckey: unknown symmetric algo\n");
+        pgp_forget(passphrase, strlen(passphrase));
+        free(passphrase);
         return false;
     }
 
@@ -514,10 +520,13 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
                          key->key.seckey.salt,
                          key->key.seckey.s2k_iterations)) {
         (void) fprintf(stderr, "pgp_s2k_iterated failed\n");
+        pgp_forget(passphrase, strlen(passphrase));
+        free(passphrase);
         return false;
     }
 
     pgp_forget(passphrase, strlen(passphrase));
+    free(passphrase);
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "input iv", key->key.seckey.iv, G10_CBC_IV_SIZE);
@@ -1243,32 +1252,15 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
     case PGP_CIPHER_MODE_CBC:
         if (botan_cipher_init(&encrypt, "AES-128/CBC", BOTAN_CIPHER_INIT_FLAG_ENCRYPT)) {
             (void) fprintf(stderr, "botan_cipher_init failed\n");
-            free(key->encrypted);
-            key->encrypted = NULL;
-            key->encrypted_len = 0;
-            destroy_s_exp(&raw_s_exp);
-            pgp_memory_release(&raw);
-            return false;
+            goto error;
         }
 
         if (botan_cipher_set_key(encrypt, derived_key, keysize)) {
-            free(key->encrypted);
-            key->encrypted = NULL;
-            key->encrypted_len = 0;
-            destroy_s_exp(&raw_s_exp);
-            pgp_memory_release(&raw);
-            botan_cipher_destroy(encrypt);
-            return false;
+            goto error;
         }
 
         if (botan_cipher_start(encrypt, key->iv, G10_CBC_IV_SIZE)) {
-            free(key->encrypted);
-            key->encrypted = NULL;
-            key->encrypted_len = 0;
-            destroy_s_exp(&raw_s_exp);
-            pgp_memory_release(&raw);
-            botan_cipher_destroy(encrypt);
-            return false;
+            goto error;
         }
 
         break;
@@ -1276,44 +1268,22 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
     case PGP_CIPHER_MODE_OCB:
         if (botan_cipher_init(&encrypt, "AES-128/OCB", BOTAN_CIPHER_INIT_FLAG_ENCRYPT)) {
             (void) fprintf(stderr, "botan_cipher_init failed\n");
-            free(key->encrypted);
-            key->encrypted = NULL;
-            key->encrypted_len = 0;
-            destroy_s_exp(&raw_s_exp);
-            pgp_memory_release(&raw);
-            return false;
+            goto error;
         }
 
         if (botan_cipher_set_key(encrypt, derived_key, keysize)) {
-            free(key->encrypted);
-            key->encrypted = NULL;
-            key->encrypted_len = 0;
-            destroy_s_exp(&raw_s_exp);
-            pgp_memory_release(&raw);
-            botan_cipher_destroy(encrypt);
-            return false;
+            goto error;
         }
 
         if (botan_cipher_start(encrypt, key->iv, G10_OCB_NONCE_SIZE)) {
-            free(key->encrypted);
-            key->encrypted = NULL;
-            key->encrypted_len = 0;
-            destroy_s_exp(&raw_s_exp);
-            pgp_memory_release(&raw);
-            botan_cipher_destroy(encrypt);
-            return false;
+            goto error;
         }
 
         break;
 
     default:
         (void) fprintf(stderr, "Unsupported block cipher: %d\n", key->cipher_mode);
-        free(key->encrypted);
-        key->encrypted = NULL;
-        key->encrypted_len = 0;
-        destroy_s_exp(&raw_s_exp);
-        pgp_memory_release(&raw);
-        return false;
+        goto error;
     }
 
     if (botan_cipher_update(encrypt,
@@ -1325,13 +1295,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
                             raw.length,
                             &input_consumed)) {
         (void) fprintf(stderr, "botan_cipher_update failed\n");
-        free(key->encrypted);
-        key->encrypted = NULL;
-        key->encrypted_len = 0;
-        destroy_s_exp(&raw_s_exp);
-        pgp_memory_release(&raw);
-        botan_cipher_destroy(encrypt);
-        return false;
+        goto error;
     }
 
     destroy_s_exp(&raw_s_exp);
@@ -1404,6 +1368,15 @@ write:
     }
 
     return true;
+
+error:
+    free(key->encrypted);
+    key->encrypted = NULL;
+    key->encrypted_len = 0;
+    destroy_s_exp(&raw_s_exp);
+    pgp_memory_release(&raw);
+    botan_cipher_destroy(encrypt);
+    return false;
 }
 
 bool
