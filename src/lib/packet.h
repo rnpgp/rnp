@@ -611,7 +611,7 @@ typedef struct pgp_seckey_t {
     size_t                encrypted_len;
     uint8_t *             encrypted;
     pgp_seckey_decrypt_t *decrypt_cb;
-    const char *          protected_at[PGP_PROTECTED_AT_SIZE];
+    const char *          protected_at[PGP_PROTECTED_AT_SIZE + 1]; // keep 1 byte for \0 and padding
 } pgp_seckey_t;
 
 /** Signature Type.

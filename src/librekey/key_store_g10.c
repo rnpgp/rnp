@@ -1130,9 +1130,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
     botan_cipher_t encrypt;
     uint8_t        derived_key[PGP_MAX_KEY_SIZE];
     unsigned       keysize;
-    uint8_t *      encrypted;
     pgp_memory_t   raw = {0};
-    char *         protected_at[PGP_PROTECTED_AT_SIZE + 1];
     time_t         now;
     size_t         output_written = 0;
     size_t         input_consumed = 0;
@@ -1145,6 +1143,11 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
     if (key->hash_alg != PGP_HASH_SHA1) {
         fprintf(stderr, "g10 should use only SHA-1 hashing\n");
         return false;
+    }
+
+    // if we had encrypted block, don't renecrypt
+    if (key->encrypted_len > 0 && key->encrypted != NULL) {
+        goto write;
     }
 
     // randomize IV and salt
@@ -1226,10 +1229,10 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
     }
 
     // add padding!
-    size_t encoded_length = 16 + raw.length;
+    key->encrypted_len = 16 + raw.length;
 
-    encrypted = malloc(encoded_length);
-    if (encrypted == NULL) {
+    key->encrypted = malloc(key->encrypted_len);
+    if (key->encrypted == NULL) {
         (void) fprintf(stderr, "can't allocate memory\n");
         destroy_s_exp(&raw_s_exp);
         pgp_memory_release(&raw);
@@ -1240,14 +1243,18 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
     case PGP_BLOCK_CIPHER_MODE_CBC:
         if (botan_cipher_init(&encrypt, "AES-128/CBC", BOTAN_CIPHER_INIT_FLAG_ENCRYPT)) {
             (void) fprintf(stderr, "botan_cipher_init failed\n");
-            free(encrypted);
+            free(key->encrypted);
+            key->encrypted = NULL;
+            key->encrypted_len = 0;
             destroy_s_exp(&raw_s_exp);
             pgp_memory_release(&raw);
             return false;
         }
 
         if (botan_cipher_set_key(encrypt, derived_key, keysize)) {
-            free(encrypted);
+            free(key->encrypted);
+            key->encrypted = NULL;
+            key->encrypted_len = 0;
             destroy_s_exp(&raw_s_exp);
             pgp_memory_release(&raw);
             botan_cipher_destroy(encrypt);
@@ -1255,7 +1262,9 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         }
 
         if (botan_cipher_start(encrypt, key->iv, G10_CBC_IV_SIZE)) {
-            free(encrypted);
+            free(key->encrypted);
+            key->encrypted = NULL;
+            key->encrypted_len = 0;
             destroy_s_exp(&raw_s_exp);
             pgp_memory_release(&raw);
             botan_cipher_destroy(encrypt);
@@ -1267,14 +1276,18 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
     case PGP_BLOCK_CIPHER_MODE_OCB:
         if (botan_cipher_init(&encrypt, "AES-128/OCB", BOTAN_CIPHER_INIT_FLAG_ENCRYPT)) {
             (void) fprintf(stderr, "botan_cipher_init failed\n");
-            free(encrypted);
+            free(key->encrypted);
+            key->encrypted = NULL;
+            key->encrypted_len = 0;
             destroy_s_exp(&raw_s_exp);
             pgp_memory_release(&raw);
             return false;
         }
 
         if (botan_cipher_set_key(encrypt, derived_key, keysize)) {
-            free(encrypted);
+            free(key->encrypted);
+            key->encrypted = NULL;
+            key->encrypted_len = 0;
             destroy_s_exp(&raw_s_exp);
             pgp_memory_release(&raw);
             botan_cipher_destroy(encrypt);
@@ -1282,7 +1295,9 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         }
 
         if (botan_cipher_start(encrypt, key->iv, G10_OCB_NONCE_SIZE)) {
-            free(encrypted);
+            free(key->encrypted);
+            key->encrypted = NULL;
+            key->encrypted_len = 0;
             destroy_s_exp(&raw_s_exp);
             pgp_memory_release(&raw);
             botan_cipher_destroy(encrypt);
@@ -1293,7 +1308,9 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
 
     default:
         (void) fprintf(stderr, "Unsupported block cipher: %d\n", key->block_cipher_mode);
-        free(encrypted);
+        free(key->encrypted);
+        key->encrypted = NULL;
+        key->encrypted_len = 0;
         destroy_s_exp(&raw_s_exp);
         pgp_memory_release(&raw);
         return false;
@@ -1301,14 +1318,16 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
 
     if (botan_cipher_update(encrypt,
                             BOTAN_CIPHER_UPDATE_FLAG_FINAL,
-                            encrypted,
-                            encoded_length,
+                            key->encrypted,
+                            key->encrypted_len,
                             &output_written,
                             raw.buf,
                             raw.length,
                             &input_consumed)) {
         (void) fprintf(stderr, "botan_cipher_update failed\n");
-        free(encrypted);
+        free(key->encrypted);
+        key->encrypted = NULL;
+        key->encrypted_len = 0;
         destroy_s_exp(&raw_s_exp);
         pgp_memory_release(&raw);
         botan_cipher_destroy(encrypt);
@@ -1319,79 +1338,68 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
     pgp_memory_release(&raw);
     botan_cipher_destroy(encrypt);
 
+    key->encrypted_len = output_written;
+
+    time(&now);
+    strftime(
+      (char *) key->protected_at, sizeof(key->protected_at), "%Y%m%dT%H%M%S", gmtime(&now));
+
+write:
     if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
-        free(encrypted);
         return false;
     }
 
     if (!add_string_block_to_sexp(sub_s_exp, "protected")) {
-        free(encrypted);
         return false;
     }
 
     if (!add_string_block_to_sexp(sub_s_exp, type)) {
-        free(encrypted);
         return false;
     }
 
     if (!add_sub_sexp_to_sexp(sub_s_exp, &sub_sub_s_exp)) {
-        free(encrypted);
         return false;
     }
 
     if (!add_sub_sexp_to_sexp(sub_sub_s_exp, &sub_sub_sub_s_exp)) {
-        free(encrypted);
         return false;
     }
 
     if (!add_string_block_to_sexp(sub_sub_sub_s_exp, "sha1")) {
-        free(encrypted);
         return false;
     }
 
     if (!add_block_to_sexp(sub_sub_sub_s_exp, key->salt, PGP_SALT_SIZE)) {
-        free(encrypted);
         return false;
     }
 
     if (!add_unsigned_block_to_sexp(sub_sub_sub_s_exp, key->s2k_iterations)) {
-        free(encrypted);
         return false;
     }
 
     if (key->block_cipher_mode == PGP_BLOCK_CIPHER_MODE_CBC) {
         if (!add_block_to_sexp(sub_sub_s_exp, key->iv, G10_CBC_IV_SIZE)) {
-            free(encrypted);
             return false;
         }
     } else if (key->block_cipher_mode == PGP_BLOCK_CIPHER_MODE_OCB) {
         if (!add_block_to_sexp(sub_sub_s_exp, key->iv, G10_OCB_NONCE_SIZE)) {
-            free(encrypted);
             return false;
         }
     }
 
-    if (!add_block_to_sexp(sub_s_exp, encrypted, output_written)) {
-        free(encrypted);
+    if (!add_block_to_sexp(sub_s_exp, key->encrypted, key->encrypted_len)) {
         return false;
     }
-
-    free(encrypted);
 
     if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
         return false;
     }
 
     if (!add_string_block_to_sexp(sub_s_exp, "protected-at")) {
-        free(encrypted);
         return false;
     }
 
-    time(&now);
-    strftime((char *) protected_at, sizeof(protected_at), "%Y%m%dT%H%M%S", gmtime(&now));
-
-    if (!add_block_to_sexp(sub_s_exp, (uint8_t *) protected_at, PGP_PROTECTED_AT_SIZE)) {
-        free(encrypted);
+    if (!add_block_to_sexp(sub_s_exp, (uint8_t *) key->protected_at, PGP_PROTECTED_AT_SIZE)) {
         return false;
     }
 
