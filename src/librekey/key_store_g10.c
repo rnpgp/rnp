@@ -1166,6 +1166,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
             type = "openpgp-s2k3-sha1-aes256-cbc";
         } else {
             fprintf(stderr, "Unsupported algorithm: %d\n", key->alg);
+            return false;
         }
         break;
 
@@ -1174,6 +1175,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
             type = "openpgp-s2k3-ocb-aes";
         } else {
             fprintf(stderr, "Unsupported algorithm: %d\n", key->alg);
+            return false;
         }
         break;
 
