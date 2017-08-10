@@ -150,7 +150,7 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
     size_t      length = *r_length;
     const char *bytes = *r_bytes;
 
-    s_exp_t new_s_exp = {};
+    s_exp_t new_s_exp = {0};
 
     if (bytes == NULL || length == 0) {
         fprintf(stderr, "empty s-exp\n");
@@ -484,7 +484,7 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     unsigned       keysize;
     uint8_t *      decrypted;
     pgp_seckey_t * seckey;
-    s_exp_t        s_exp = {};
+    s_exp_t        s_exp = {0};
     size_t         output_written = 0;
     size_t         input_consumed = 0;
     botan_cipher_t decrypt;
@@ -783,7 +783,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *       io,
                            rnp_key_store_t *key_store,
                            pgp_memory_t *   memory)
 {
-    s_exp_t     s_exp = {};
+    s_exp_t     s_exp = {0};
     size_t      length = memory->length;
     const char *bytes = (const char *) memory->buf;
 
@@ -1125,7 +1125,7 @@ static bool
 write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphrase)
 {
     char *         type;
-    s_exp_t        raw_s_exp = {};
+    s_exp_t        raw_s_exp = {0};
     s_exp_t *      sub_s_exp, *sub_sub_s_exp, *sub_sub_sub_s_exp;
     botan_cipher_t encrypt;
     uint8_t        derived_key[PGP_MAX_KEY_SIZE];
@@ -1413,7 +1413,7 @@ rnp_key_store_g10_key_to_mem(pgp_io_t *     io,
                              pgp_memory_t * memory)
 {
     bool     rc;
-    s_exp_t  s_exp = {};
+    s_exp_t  s_exp = {0};
     s_exp_t *sub_s_exp;
 
     if (!add_sub_sexp_to_sexp(&s_exp, &sub_s_exp)) {
