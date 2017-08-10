@@ -439,11 +439,11 @@ typedef enum {
 } pgp_symm_alg_t;
 
 typedef enum {
-    PGP_BLOCK_CIPHER_MODE_NONE = 0,
-    PGP_BLOCK_CIPHER_MODE_CFB = 1,
-    PGP_BLOCK_CIPHER_MODE_CBC = 2,
-    PGP_BLOCK_CIPHER_MODE_OCB = 3,
-} pgp_block_cipher_t;
+    PGP_CIPHER_MODE_NONE = 0,
+    PGP_CIPHER_MODE_CFB = 1,
+    PGP_CIPHER_MODE_CBC = 2,
+    PGP_CIPHER_MODE_OCB = 3,
+} pgp_cipher_t;
 
 typedef struct symmetric_key_t {
     pgp_symm_alg_t type;
@@ -573,7 +573,7 @@ typedef enum {
     PGP_S2KS_ITERATED_AND_SALTED = 3
 } pgp_s2k_specifier_t;
 
-#define PGP_SA_DEFAULT_BLOCK_CIPHER_MODE PGP_BLOCK_CIPHER_MODE_CFB
+#define PGP_SA_DEFAULT_CIPHER_MODE PGP_CIPHER_MODE_CFB
 
 void pgp_calc_mdc_hash(
   const uint8_t *, const size_t, const uint8_t *, const unsigned, uint8_t *);
@@ -593,9 +593,9 @@ typedef struct pgp_seckey_t {
     pgp_pubkey_t        pubkey; /* public key */
     pgp_s2k_usage_t     s2k_usage;
     pgp_s2k_specifier_t s2k_specifier;
-    pgp_symm_alg_t      alg;               /* symmetric alg */
-    pgp_block_cipher_t  block_cipher_mode; /* block cipher mode */
-    pgp_hash_alg_t      hash_alg;          /* hash algorithm */
+    pgp_symm_alg_t      alg;         /* symmetric alg */
+    pgp_cipher_t        cipher_mode; /* block cipher mode */
+    pgp_hash_alg_t      hash_alg;    /* hash algorithm */
     uint8_t             salt[PGP_SALT_SIZE];
     unsigned            s2k_iterations;
     uint8_t             iv[PGP_MAX_BLOCK_SIZE];

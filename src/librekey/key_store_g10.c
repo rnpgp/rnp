@@ -531,8 +531,8 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
         return false;
     }
 
-    switch (key->key.seckey.block_cipher_mode) {
-    case PGP_BLOCK_CIPHER_MODE_CBC:
+    switch (key->key.seckey.cipher_mode) {
+    case PGP_CIPHER_MODE_CBC:
         if (botan_cipher_init(&decrypt, "AES-128/CBC", BOTAN_CIPHER_INIT_FLAG_DECRYPT)) {
             (void) fprintf(stderr, "botan_cipher_init failed\n");
             return false;
@@ -550,7 +550,7 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
 
         break;
 
-    case PGP_BLOCK_CIPHER_MODE_OCB:
+    case PGP_CIPHER_MODE_OCB:
         if (botan_cipher_init(&decrypt, "AES-128/OCB", BOTAN_CIPHER_INIT_FLAG_DECRYPT)) {
             (void) fprintf(stderr, "botan_cipher_init failed\n");
             return false;
@@ -569,8 +569,7 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
         break;
 
     default:
-        (void) fprintf(
-          stderr, "Unsupported block cipher: %d\n", key->key.seckey.block_cipher_mode);
+        (void) fprintf(stderr, "Unsupported block cipher: %d\n", key->key.seckey.cipher_mode);
         free(decrypted);
         return false;
     }
@@ -637,26 +636,26 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
         return NULL;
     }
 
-    seckey->block_cipher_mode = PGP_BLOCK_CIPHER_MODE_NONE;
+    seckey->cipher_mode = PGP_CIPHER_MODE_NONE;
 
     if (!strncmp("openpgp-s2k3-sha1-aes-cbc",
                  (const char *) var->blocks[1].bytes,
                  var->blocks[1].len)) {
-        seckey->block_cipher_mode = PGP_BLOCK_CIPHER_MODE_CBC;
+        seckey->cipher_mode = PGP_CIPHER_MODE_CBC;
         seckey->alg = PGP_SA_AES_128;
     } else if (!strncmp("openpgp-s2k3-sha1-aes256-cbc",
                         (const char *) var->blocks[1].bytes,
                         var->blocks[1].len)) {
-        seckey->block_cipher_mode = PGP_BLOCK_CIPHER_MODE_CBC;
+        seckey->cipher_mode = PGP_CIPHER_MODE_CBC;
         seckey->alg = PGP_SA_AES_256;
     } else if (!strncmp("openpgp-s2k3-ocb-aes",
                         (const char *) var->blocks[1].bytes,
                         var->blocks[1].len)) {
-        seckey->block_cipher_mode = PGP_BLOCK_CIPHER_MODE_OCB;
+        seckey->cipher_mode = PGP_CIPHER_MODE_OCB;
         seckey->alg = PGP_SA_AES_128;
     }
 
-    if (seckey->block_cipher_mode != PGP_BLOCK_CIPHER_MODE_NONE) {
+    if (seckey->cipher_mode != PGP_CIPHER_MODE_NONE) {
         if (var->sub_s_expc != 1) {
             fprintf(
               stderr, "Wrong count of sub-level s-exp: %d, should be 1\n", var->sub_s_expc);
@@ -705,7 +704,7 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
             return false;
         }
 
-        if (seckey->block_cipher_mode == PGP_BLOCK_CIPHER_MODE_CBC) {
+        if (seckey->cipher_mode == PGP_CIPHER_MODE_CBC) {
             if (encrypted->blocks[0].len != G10_CBC_IV_SIZE) {
                 fprintf(stderr,
                         "Wrong IV size, should be %d but %d\n",
@@ -715,7 +714,7 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
             }
 
             memcpy(seckey->iv, encrypted->blocks[0].bytes, encrypted->blocks[0].len);
-        } else if (seckey->block_cipher_mode == PGP_BLOCK_CIPHER_MODE_OCB) {
+        } else if (seckey->cipher_mode == PGP_CIPHER_MODE_OCB) {
             if (encrypted->blocks[0].len != G10_OCB_NONCE_SIZE) {
                 fprintf(stderr,
                         "Wrong nonce size, should be %d but %d\n",
@@ -1161,8 +1160,8 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         return false;
     }
 
-    switch (key->block_cipher_mode) {
-    case PGP_BLOCK_CIPHER_MODE_CBC:
+    switch (key->cipher_mode) {
+    case PGP_CIPHER_MODE_CBC:
         if (key->alg == PGP_SA_AES_128) {
             type = "openpgp-s2k3-sha1-aes-cbc";
         } else if (key->alg == PGP_SA_AES_256) {
@@ -1173,7 +1172,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         }
         break;
 
-    case PGP_BLOCK_CIPHER_MODE_OCB:
+    case PGP_CIPHER_MODE_OCB:
         if (key->alg == PGP_SA_AES_128) {
             type = "openpgp-s2k3-ocb-aes";
         } else {
@@ -1183,7 +1182,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         break;
 
     default:
-        fprintf(stderr, "Unsupported block cipher mode: %d\n", key->block_cipher_mode);
+        fprintf(stderr, "Unsupported block cipher mode: %d\n", key->cipher_mode);
         return false;
     }
 
@@ -1239,8 +1238,8 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         return false;
     }
 
-    switch (key->block_cipher_mode) {
-    case PGP_BLOCK_CIPHER_MODE_CBC:
+    switch (key->cipher_mode) {
+    case PGP_CIPHER_MODE_CBC:
         if (botan_cipher_init(&encrypt, "AES-128/CBC", BOTAN_CIPHER_INIT_FLAG_ENCRYPT)) {
             (void) fprintf(stderr, "botan_cipher_init failed\n");
             free(key->encrypted);
@@ -1273,7 +1272,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
 
         break;
 
-    case PGP_BLOCK_CIPHER_MODE_OCB:
+    case PGP_CIPHER_MODE_OCB:
         if (botan_cipher_init(&encrypt, "AES-128/OCB", BOTAN_CIPHER_INIT_FLAG_ENCRYPT)) {
             (void) fprintf(stderr, "botan_cipher_init failed\n");
             free(key->encrypted);
@@ -1307,7 +1306,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         break;
 
     default:
-        (void) fprintf(stderr, "Unsupported block cipher: %d\n", key->block_cipher_mode);
+        (void) fprintf(stderr, "Unsupported block cipher: %d\n", key->cipher_mode);
         free(key->encrypted);
         key->encrypted = NULL;
         key->encrypted_len = 0;
@@ -1377,11 +1376,11 @@ write:
         return false;
     }
 
-    if (key->block_cipher_mode == PGP_BLOCK_CIPHER_MODE_CBC) {
+    if (key->cipher_mode == PGP_CIPHER_MODE_CBC) {
         if (!add_block_to_sexp(sub_sub_s_exp, key->iv, G10_CBC_IV_SIZE)) {
             return false;
         }
-    } else if (key->block_cipher_mode == PGP_BLOCK_CIPHER_MODE_OCB) {
+    } else if (key->cipher_mode == PGP_CIPHER_MODE_OCB) {
         if (!add_block_to_sexp(sub_sub_s_exp, key->iv, G10_OCB_NONCE_SIZE)) {
             return false;
         }
@@ -1449,8 +1448,8 @@ rnp_key_store_g10_key_to_mem(pgp_io_t *     io,
                 key->key.seckey.alg = PGP_SA_AES_128;
             }
 
-            if (key->key.seckey.block_cipher_mode != PGP_BLOCK_CIPHER_MODE_CBC) {
-                key->key.seckey.block_cipher_mode = PGP_BLOCK_CIPHER_MODE_CBC;
+            if (key->key.seckey.cipher_mode != PGP_CIPHER_MODE_CBC) {
+                key->key.seckey.cipher_mode = PGP_CIPHER_MODE_CBC;
             }
 
             if (key->key.seckey.hash_alg != PGP_HASH_SHA1) {
