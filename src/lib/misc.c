@@ -1095,6 +1095,19 @@ rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep)
     return dest;
 }
 
+char *
+rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *sep)
+{
+    unsigned i;
+    int      n;
+
+    for (n = 0, i = 0; i < length; i += 2) {
+        n += snprintf(&dest[n], 3, "%02X", *src++);
+        n += snprintf(&dest[n], 10, "%02X%s", *src++, sep);
+    }
+    return dest;
+}
+
 /* return the file modification time */
 int64_t
 rnp_filemtime(const char *path)

@@ -294,7 +294,7 @@ read_bignum(s_exp_t *s_exp, const char *name)
         fprintf(stderr,
                 "Can't convert variable '%s' to bignum. The value is: '%s'\n",
                 name,
-                rnp_strhexdump(buf, var->blocks[1].bytes, var->blocks[1].len, ""));
+                rnp_strhexdump_upper(buf, var->blocks[1].bytes, var->blocks[1].len, ""));
     }
     return res;
 }
@@ -947,8 +947,9 @@ rnp_key_store_g10_from_mem(pgp_io_t *       io,
         if (!rnp_key_store_get_key_grip(&keydata.pubkey, grip)) {
             return false;
         }
-        fprintf(
-          io->errs, "loaded G10 key with GRIP: %s\n", rnp_strhexdump(grips, grip, 20, ""));
+        fprintf(io->errs,
+                "loaded G10 key with GRIP: %s\n",
+                rnp_strhexdump_upper(grips, grip, 20, ""));
     }
 
     return rnp_key_store_add_keydata(io,
