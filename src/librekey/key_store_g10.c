@@ -1147,6 +1147,17 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         return false;
     }
 
+    // randomize IV and salt
+    if (pgp_random(&key->iv[0], sizeof(key->iv))) {
+        RNP_LOG("pgp_random failed");
+        return false;
+    }
+
+    if (pgp_random(&key->salt[0], sizeof(key->salt))) {
+        RNP_LOG("pgp_random failed");
+        return false;
+    }
+
     switch (key->block_cipher_mode) {
     case PGP_BLOCK_CIPHER_MODE_CBC:
         if (key->alg == PGP_SA_AES_128) {
