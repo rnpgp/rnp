@@ -350,10 +350,6 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         RNP_LOG("pgp_random failed");
         goto end;
     }
-    if (pgp_random(&seckey->nonce[0], PGP_NONCE_SIZE)) {
-        RNP_LOG("pgp_random failed");
-        goto end;
-    }
     seckey->checksum = 0;
 
     /* Generate checksum */

@@ -579,17 +579,6 @@ void pgp_calc_mdc_hash(
   const uint8_t *, const size_t, const uint8_t *, const unsigned, uint8_t *);
 unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
 
-/* Maximum block size for symmetric crypto */
-#define PGP_MAX_BLOCK_SIZE 16
-
-/* Maximum key size for symmetric crypto */
-#define PGP_MAX_KEY_SIZE 32
-
-/* Salt size for hashing */
-#define PGP_SALT_SIZE 8
-
-#define PGP_NONCE_SIZE 12
-
 #define PGP_PROTECTED_AT_SIZE 15
 
 typedef struct pgp_key_t pgp_key_t;
@@ -610,7 +599,6 @@ typedef struct pgp_seckey_t {
     uint8_t             salt[PGP_SALT_SIZE];
     unsigned            s2k_iterations;
     uint8_t             iv[PGP_MAX_BLOCK_SIZE];
-    uint8_t             nonce[PGP_NONCE_SIZE];
     union {
         pgp_rsa_seckey_t     rsa;
         pgp_dsa_seckey_t     dsa;
