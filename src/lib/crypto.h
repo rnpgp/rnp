@@ -72,6 +72,10 @@
 #define MAX_SYMM_KEY_SIZE 32
 #define NTAGS 0x100 /* == 256 */
 
+/* SHA1 Hash Size */
+#define PGP_SHA1_HASH_SIZE 20
+#define PGP_CHECKHASH_SIZE PGP_SHA1_HASH_SIZE
+
 void pgp_crypto_finish(void);
 
 /* raw key generation */

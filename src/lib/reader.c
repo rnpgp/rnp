@@ -118,7 +118,7 @@ __RCSID("$NetBSD: reader.c,v 1.49 2012/03/05 02:20:18 christos Exp $");
 #include "readerwriter.h"
 #include <rnp/rnp_sdk.h>
 #include "utils.h"
-#include "rnpdigest.h"
+
 #include "pgp-key.h"
 
 /* data from partial blocks is queued up in virtual block in stream */

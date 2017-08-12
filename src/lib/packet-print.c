@@ -84,7 +84,6 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "utils.h"
 #include <rnp/rnp_sdk.h>
 #include "packet.h"
-#include "rnpdigest.h"
 #include "pgp-key.h"
 
 #define F_REVOKED 1
