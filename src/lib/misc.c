@@ -92,7 +92,6 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include "utils.h"
 #include "memory.h"
 #include "readerwriter.h"
-#include "rnpdigest.h"
 
 #ifdef WIN32
 #define vsnprintf _vsnprintf
