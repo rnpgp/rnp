@@ -152,10 +152,6 @@ bool pgp_stacked_limited_read(pgp_stream_t *,
                               pgp_error_t **,
                               pgp_reader_t *,
                               pgp_cbdata_t *);
-void        pgp_parse_hash_init(pgp_stream_t *, pgp_hash_alg_t, const uint8_t *);
-void        pgp_parse_hash_data(pgp_stream_t *, const void *, size_t);
-void        pgp_parse_hash_finish(pgp_stream_t *);
-pgp_hash_t *pgp_parse_hash_find(pgp_stream_t *, const uint8_t *);
 
 pgp_reader_func_t pgp_stacked_read;
 
