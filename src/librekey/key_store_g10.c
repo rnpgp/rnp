@@ -1133,10 +1133,10 @@ write_seckey(s_exp_t *s_exp, pgp_seckey_t *key)
 static bool
 write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphrase)
 {
-    char *         type;
+    char *         type = NULL;
     s_exp_t        raw_s_exp = {0};
     s_exp_t *      sub_s_exp, *sub_sub_s_exp, *sub_sub_sub_s_exp;
-    botan_cipher_t encrypt;
+    botan_cipher_t encrypt = NULL;
     uint8_t        derived_key[PGP_MAX_KEY_SIZE];
     unsigned       keysize;
     pgp_memory_t   raw = {0};
