@@ -443,7 +443,7 @@ typedef enum {
     PGP_CIPHER_MODE_CFB = 1,
     PGP_CIPHER_MODE_CBC = 2,
     PGP_CIPHER_MODE_OCB = 3,
-} pgp_cipher_t;
+} pgp_cipher_mode_t;
 
 typedef struct symmetric_key_t {
     pgp_symm_alg_t type;
@@ -594,7 +594,7 @@ typedef struct pgp_seckey_t {
     pgp_s2k_usage_t     s2k_usage;
     pgp_s2k_specifier_t s2k_specifier;
     pgp_symm_alg_t      alg;         /* symmetric alg */
-    pgp_cipher_t        cipher_mode; /* block cipher mode */
+    pgp_cipher_mode_t   cipher_mode; /* block cipher mode */
     pgp_hash_alg_t      hash_alg;    /* hash algorithm */
     uint8_t             salt[PGP_SALT_SIZE];
     unsigned            s2k_iterations;

@@ -56,6 +56,58 @@ struct s_exp {
     DYNARRAY(s_exp_t, sub_s_exp);
 };
 
+typedef struct format_info {
+    pgp_symm_alg_t    cipher;
+    pgp_cipher_mode_t cipher_mode;
+    pgp_hash_alg_t    hash_alg;
+    const char *      botan_cipher_name;
+    const char *      g10_type;
+    size_t            iv_size;
+} format_info;
+
+static const format_info formats[] = {{PGP_SA_AES_128,
+                                       PGP_CIPHER_MODE_CBC,
+                                       PGP_HASH_SHA1,
+                                       "AES-128/CBC",
+                                       "openpgp-s2k3-sha1-aes-cbc",
+                                       G10_CBC_IV_SIZE},
+                                      {PGP_SA_AES_256,
+                                       PGP_CIPHER_MODE_CBC,
+                                       PGP_HASH_SHA1,
+                                       "AES-256/CBC",
+                                       "openpgp-s2k3-sha1-aes256-cbc",
+                                       G10_CBC_IV_SIZE},
+                                      {PGP_SA_AES_128,
+                                       PGP_CIPHER_MODE_OCB,
+                                       PGP_HASH_SHA1,
+                                       "AES-128/OCB",
+                                       "openpgp-s2k3-ocb-aes",
+                                       G10_OCB_NONCE_SIZE}};
+
+static const format_info *
+find_format(pgp_symm_alg_t cipher, pgp_cipher_mode_t mode, pgp_hash_alg_t hash_alg)
+{
+    for (size_t i = 0; i < ARRAY_SIZE(formats); i++) {
+        if (formats[i].cipher == cipher && formats[i].cipher_mode == mode &&
+            formats[i].hash_alg == hash_alg) {
+            return &formats[i];
+        }
+    }
+    return NULL;
+}
+
+static const format_info *
+parse_format(const char *format, size_t format_len)
+{
+    for (size_t i = 0; i < ARRAY_SIZE(formats); i++) {
+        if (strlen(formats[i].g10_type) == format_len &&
+            !strncmp(formats[i].g10_type, format, format_len)) {
+            return &formats[i];
+        }
+    }
+    return NULL;
+}
+
 static void
 destroy_s_exp(s_exp_t *s_exp)
 {
@@ -640,149 +692,131 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
 static bool
 parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
 {
+    const format_info *format;
+
     s_exp_t *var = lookup_variable(s_exp, "protected");
     if (var == NULL) {
         return NULL;
     }
 
-    seckey->cipher_mode = PGP_CIPHER_MODE_NONE;
-
-    if (!strncmp("openpgp-s2k3-sha1-aes-cbc",
-                 (const char *) var->blocks[1].bytes,
-                 var->blocks[1].len)) {
-        seckey->cipher_mode = PGP_CIPHER_MODE_CBC;
-        seckey->alg = PGP_SA_AES_128;
-    } else if (!strncmp("openpgp-s2k3-sha1-aes256-cbc",
-                        (const char *) var->blocks[1].bytes,
-                        var->blocks[1].len)) {
-        seckey->cipher_mode = PGP_CIPHER_MODE_CBC;
-        seckey->alg = PGP_SA_AES_256;
-    } else if (!strncmp("openpgp-s2k3-ocb-aes",
-                        (const char *) var->blocks[1].bytes,
-                        var->blocks[1].len)) {
-        seckey->cipher_mode = PGP_CIPHER_MODE_OCB;
-        seckey->alg = PGP_SA_AES_128;
-    }
-
-    if (seckey->cipher_mode != PGP_CIPHER_MODE_NONE) {
-        if (var->sub_s_expc != 1) {
-            fprintf(
-              stderr, "Wrong count of sub-level s-exp: %d, should be 1\n", var->sub_s_expc);
-            return false;
-        }
-
-        s_exp_t *encrypted = &var->sub_s_exps[0];
-
-        if (encrypted->sub_s_expc != 1 && encrypted->blockc != 2) {
-            fprintf(stderr,
-                    "Wrong count of sub-level s-exp: %d or blocks: %d, should be 1 and 2\n",
-                    encrypted->sub_s_expc,
-                    encrypted->blockc);
-            return false;
-        }
-
-        s_exp_t *alg = &encrypted->sub_s_exps[0];
-
-        if (strncmp("sha1", (const char *) alg->blocks[0].bytes, alg->blocks[0].len) != 0) {
-            fprintf(stderr,
-                    "Wrong hashing algorithm, should be sha1 but %.*s\n",
-                    (int) alg->blocks[0].len,
-                    alg->blocks[0].bytes);
-            return false;
-        }
-
-        seckey->hash_alg = PGP_HASH_SHA1;
-        seckey->s2k_usage = PGP_S2KU_ENCRYPTED;
-        seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
-
-        if (alg->blocks[1].len != PGP_SALT_SIZE) {
-            fprintf(stderr,
-                    "Wrong salt size, should be %d but %d\n",
-                    PGP_SALT_SIZE,
-                    (int) alg->blocks[1].len);
-            return false;
-        }
-
-        memcpy(seckey->salt, alg->blocks[1].bytes, alg->blocks[1].len);
-        seckey->s2k_iterations = block_to_unsigned(&alg->blocks[2]);
-        if (seckey->s2k_iterations == UINT8_MAX) {
-            fprintf(stderr,
-                    "Wrong numbers of iteration, %.*s\n",
-                    (int) alg->blocks[2].len,
-                    alg->blocks[2].bytes);
-            return false;
-        }
-
-        if (seckey->cipher_mode == PGP_CIPHER_MODE_CBC) {
-            if (encrypted->blocks[0].len != G10_CBC_IV_SIZE) {
-                fprintf(stderr,
-                        "Wrong IV size, should be %d but %d\n",
-                        G10_CBC_IV_SIZE,
-                        (int) encrypted->blocks[0].len);
-                return false;
-            }
-
-            memcpy(seckey->iv, encrypted->blocks[0].bytes, encrypted->blocks[0].len);
-        } else if (seckey->cipher_mode == PGP_CIPHER_MODE_OCB) {
-            if (encrypted->blocks[0].len != G10_OCB_NONCE_SIZE) {
-                fprintf(stderr,
-                        "Wrong nonce size, should be %d but %d\n",
-                        G10_OCB_NONCE_SIZE,
-                        (int) encrypted->blocks[0].len);
-                return false;
-            }
-
-            memcpy(seckey->iv, encrypted->blocks[0].bytes, encrypted->blocks[0].len);
-        }
-
-        if (var->blockc != 3) {
-            fprintf(stderr, "Hasn't got encrypted blob\n");
-            return false;
-        }
-
-        if (var->blocks[2].len <= 0) {
-            fprintf(stderr,
-                    "Wrong encrypted size, should be great 0 but %d\n",
-                    (int) var->blocks[2].len);
-            return false;
-        }
-
-        seckey->encrypted_len = var->blocks[2].len;
-
-        seckey->encrypted = malloc(seckey->encrypted_len);
-        if (seckey->encrypted == NULL) {
-            fprintf(stderr, "Can't allocate memory\n");
-            return false;
-        }
-
-        memcpy(seckey->encrypted, var->blocks[2].bytes, var->blocks[2].len);
-        seckey->decrypt_cb = g10_decrypt_seckey;
-
-        var = lookup_variable(s_exp, "protected-at");
-        if (var != NULL) {
-            if (var->blocks[1].len != PGP_PROTECTED_AT_SIZE) {
-                fprintf(stderr,
-                        "protected-at has wrong length: %zu, expected, %d\n",
-                        var->blocks[1].len,
-                        PGP_PROTECTED_AT_SIZE);
-                return false;
-            }
-            memcpy(seckey->protected_at, var->blocks[1].bytes, var->blocks[1].len);
-        }
-
-        return true;
-
-        //    } else if (!strncmp("openpgp-native", (const char *) var->blocks[1].bytes,
-        //    var->blocks[1].len)) {
-        //
-    } else {
+    format = parse_format((const char *) var->blocks[1].bytes, var->blocks[1].len);
+    if (format == NULL) {
         fprintf(stderr,
                 "Unsupported protected mode: '%.*s'\n",
                 (int) var->blocks[1].len,
                 var->blocks[1].bytes);
-        destroy_s_exp(s_exp);
         return false;
     }
+
+    seckey->alg = format->cipher;
+    seckey->cipher_mode = format->cipher_mode;
+    seckey->hash_alg = format->hash_alg;
+
+    if (var->sub_s_expc != 1) {
+        fprintf(stderr, "Wrong count of sub-level s-exp: %d, should be 1\n", var->sub_s_expc);
+        return false;
+    }
+
+    s_exp_t *encrypted = &var->sub_s_exps[0];
+
+    if (encrypted->sub_s_expc != 1 && encrypted->blockc != 2) {
+        fprintf(stderr,
+                "Wrong count of sub-level s-exp: %d or blocks: %d, should be 1 and 2\n",
+                encrypted->sub_s_expc,
+                encrypted->blockc);
+        return false;
+    }
+
+    s_exp_t *alg = &encrypted->sub_s_exps[0];
+
+    if (strncmp("sha1", (const char *) alg->blocks[0].bytes, alg->blocks[0].len) != 0) {
+        fprintf(stderr,
+                "Wrong hashing algorithm, should be sha1 but %.*s\n",
+                (int) alg->blocks[0].len,
+                alg->blocks[0].bytes);
+        return false;
+    }
+
+    seckey->hash_alg = PGP_HASH_SHA1;
+    seckey->s2k_usage = PGP_S2KU_ENCRYPTED;
+    seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
+
+    if (alg->blocks[1].len != PGP_SALT_SIZE) {
+        fprintf(stderr,
+                "Wrong salt size, should be %d but %d\n",
+                PGP_SALT_SIZE,
+                (int) alg->blocks[1].len);
+        return false;
+    }
+
+    memcpy(seckey->salt, alg->blocks[1].bytes, alg->blocks[1].len);
+    seckey->s2k_iterations = block_to_unsigned(&alg->blocks[2]);
+    if (seckey->s2k_iterations == UINT8_MAX) {
+        fprintf(stderr,
+                "Wrong numbers of iteration, %.*s\n",
+                (int) alg->blocks[2].len,
+                alg->blocks[2].bytes);
+        return false;
+    }
+
+    if (seckey->cipher_mode == PGP_CIPHER_MODE_CBC) {
+        if (encrypted->blocks[0].len != G10_CBC_IV_SIZE) {
+            fprintf(stderr,
+                    "Wrong IV size, should be %d but %d\n",
+                    G10_CBC_IV_SIZE,
+                    (int) encrypted->blocks[0].len);
+            return false;
+        }
+
+        memcpy(seckey->iv, encrypted->blocks[0].bytes, encrypted->blocks[0].len);
+    } else if (seckey->cipher_mode == PGP_CIPHER_MODE_OCB) {
+        if (encrypted->blocks[0].len != G10_OCB_NONCE_SIZE) {
+            fprintf(stderr,
+                    "Wrong nonce size, should be %d but %d\n",
+                    G10_OCB_NONCE_SIZE,
+                    (int) encrypted->blocks[0].len);
+            return false;
+        }
+
+        memcpy(seckey->iv, encrypted->blocks[0].bytes, encrypted->blocks[0].len);
+    }
+
+    if (var->blockc != 3) {
+        fprintf(stderr, "Hasn't got encrypted blob\n");
+        return false;
+    }
+
+    if (var->blocks[2].len <= 0) {
+        fprintf(stderr,
+                "Wrong encrypted size, should be great 0 but %d\n",
+                (int) var->blocks[2].len);
+        return false;
+    }
+
+    seckey->encrypted_len = var->blocks[2].len;
+
+    seckey->encrypted = malloc(seckey->encrypted_len);
+    if (seckey->encrypted == NULL) {
+        fprintf(stderr, "Can't allocate memory\n");
+        return false;
+    }
+
+    memcpy(seckey->encrypted, var->blocks[2].bytes, var->blocks[2].len);
+    seckey->decrypt_cb = g10_decrypt_seckey;
+
+    var = lookup_variable(s_exp, "protected-at");
+    if (var != NULL) {
+        if (var->blocks[1].len != PGP_PROTECTED_AT_SIZE) {
+            fprintf(stderr,
+                    "protected-at has wrong length: %zu, expected, %d\n",
+                    var->blocks[1].len,
+                    PGP_PROTECTED_AT_SIZE);
+            return false;
+        }
+        memcpy(seckey->protected_at, var->blocks[1].bytes, var->blocks[1].len);
+    }
+
+    return true;
 }
 
 bool
@@ -1133,24 +1167,29 @@ write_seckey(s_exp_t *s_exp, pgp_seckey_t *key)
 static bool
 write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphrase)
 {
-    char *         type = NULL;
-    s_exp_t        raw_s_exp = {0};
-    s_exp_t *      sub_s_exp, *sub_sub_s_exp, *sub_sub_sub_s_exp;
-    botan_cipher_t encrypt = NULL;
-    uint8_t        derived_key[PGP_MAX_KEY_SIZE];
-    unsigned       keysize;
-    pgp_memory_t   raw = {0};
-    time_t         now;
-    size_t         output_written = 0;
-    size_t         input_consumed = 0;
+    const format_info *format;
+    s_exp_t            raw_s_exp = {0};
+    s_exp_t *          sub_s_exp, *sub_sub_s_exp, *sub_sub_sub_s_exp;
+    botan_cipher_t     encrypt = NULL;
+    uint8_t            derived_key[PGP_MAX_KEY_SIZE];
+    unsigned           keysize;
+    pgp_memory_t       raw = {0};
+    time_t             now;
+    size_t             output_written = 0;
+    size_t             input_consumed = 0;
 
     if (key->s2k_specifier != PGP_S2KS_ITERATED_AND_SALTED) {
         fprintf(stderr, "s2k should be iterated and salted\n");
         return false;
     }
 
-    if (key->hash_alg != PGP_HASH_SHA1) {
-        fprintf(stderr, "g10 should use only SHA-1 hashing\n");
+    format = find_format(key->alg, key->cipher_mode, key->hash_alg);
+    if (format == NULL) {
+        fprintf(stderr,
+                "Unsupported format, alg: %d, chiper_mode: %d, hash: %d\n",
+                key->alg,
+                key->cipher_mode,
+                key->hash_alg);
         return false;
     }
 
@@ -1167,32 +1206,6 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
 
     if (pgp_random(&key->salt[0], sizeof(key->salt))) {
         RNP_LOG("pgp_random failed");
-        return false;
-    }
-
-    switch (key->cipher_mode) {
-    case PGP_CIPHER_MODE_CBC:
-        if (key->alg == PGP_SA_AES_128) {
-            type = "openpgp-s2k3-sha1-aes-cbc";
-        } else if (key->alg == PGP_SA_AES_256) {
-            type = "openpgp-s2k3-sha1-aes256-cbc";
-        } else {
-            fprintf(stderr, "Unsupported algorithm: %d\n", key->alg);
-            return false;
-        }
-        break;
-
-    case PGP_CIPHER_MODE_OCB:
-        if (key->alg == PGP_SA_AES_128) {
-            type = "openpgp-s2k3-ocb-aes";
-        } else {
-            fprintf(stderr, "Unsupported algorithm: %d\n", key->alg);
-            return false;
-        }
-        break;
-
-    default:
-        fprintf(stderr, "Unsupported block cipher mode: %d\n", key->cipher_mode);
         return false;
     }
 
@@ -1220,7 +1233,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         return false;
     }
 
-    if (pgp_s2k_iterated(key->hash_alg,
+    if (pgp_s2k_iterated(format->hash_alg,
                          derived_key,
                          keysize,
                          (const char *) passphrase,
@@ -1248,41 +1261,17 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         return false;
     }
 
-    switch (key->cipher_mode) {
-    case PGP_CIPHER_MODE_CBC:
-        if (botan_cipher_init(&encrypt, "AES-128/CBC", BOTAN_CIPHER_INIT_FLAG_ENCRYPT)) {
-            (void) fprintf(stderr, "botan_cipher_init failed\n");
-            goto error;
-        }
+    if (botan_cipher_init(
+          &encrypt, format->botan_cipher_name, BOTAN_CIPHER_INIT_FLAG_ENCRYPT)) {
+        (void) fprintf(stderr, "botan_cipher_init failed\n");
+        goto error;
+    }
 
-        if (botan_cipher_set_key(encrypt, derived_key, keysize)) {
-            goto error;
-        }
+    if (botan_cipher_set_key(encrypt, derived_key, keysize)) {
+        goto error;
+    }
 
-        if (botan_cipher_start(encrypt, key->iv, G10_CBC_IV_SIZE)) {
-            goto error;
-        }
-
-        break;
-
-    case PGP_CIPHER_MODE_OCB:
-        if (botan_cipher_init(&encrypt, "AES-128/OCB", BOTAN_CIPHER_INIT_FLAG_ENCRYPT)) {
-            (void) fprintf(stderr, "botan_cipher_init failed\n");
-            goto error;
-        }
-
-        if (botan_cipher_set_key(encrypt, derived_key, keysize)) {
-            goto error;
-        }
-
-        if (botan_cipher_start(encrypt, key->iv, G10_OCB_NONCE_SIZE)) {
-            goto error;
-        }
-
-        break;
-
-    default:
-        (void) fprintf(stderr, "Unsupported block cipher: %d\n", key->cipher_mode);
+    if (botan_cipher_start(encrypt, key->iv, format->iv_size)) {
         goto error;
     }
 
@@ -1317,7 +1306,7 @@ write:
         return false;
     }
 
-    if (!add_string_block_to_sexp(sub_s_exp, type)) {
+    if (!add_string_block_to_sexp(sub_s_exp, format->g10_type)) {
         return false;
     }
 
