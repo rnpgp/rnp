@@ -519,6 +519,10 @@ def run_tests():
             print 'Wrong parameter: {}. Run cli_tests -h for help.'.format(arg)
             sys.exit(2)
 
+    if len(tests) == 0:
+        print 'You must specify at least one test group to run. See cli_tests -h for help.'
+        sys.exit(2)
+
     # Parameters are ok so we can proceed
     setup()
 

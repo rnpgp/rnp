@@ -49,6 +49,11 @@
 #include <rnp/rnp.h>
 #include <sys/stat.h>
 
+/*
+ * Handler used to access DRBG.
+ */
+botan_rng_t global_rng = NULL;
+
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .
  */
@@ -404,4 +409,32 @@ set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc, pgp_hash_alg_t hashalg)
     key_desc->crypto.sym_alg = PGP_SA_DEFAULT_CIPHER;
     key_desc->crypto.rsa.modulus_bit_len = 1024;
     key_desc->crypto.hash_alg = hashalg;
+}
+
+bool
+get_random(uint8_t *data, size_t len)
+{
+    bool ret = false;
+    if (NULL == global_rng) {
+        /* Initialize with HMAC_DRBG so that
+         * it won't slow down test execution.
+         */
+        if (botan_rng_init(&global_rng, "user")) {
+            goto end;
+        }
+    }
+
+    if (botan_rng_get(global_rng, data, len)) {
+        goto end;
+    }
+    ret = true;
+end:
+    return ret;
+}
+
+void
+destroy_global_rng()
+{
+    (void) botan_rng_destroy(global_rng);
+    global_rng = NULL;
 }

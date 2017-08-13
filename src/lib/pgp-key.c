@@ -345,6 +345,7 @@ decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         return PGP_FINISHED;
 
     case PGP_PTAG_CT_SECRET_KEY:
+    case PGP_PTAG_CT_SECRET_SUBKEY:
         if ((decrypt->seckey = calloc(1, sizeof(*decrypt->seckey))) == NULL) {
             (void) fprintf(stderr, "decrypt_cb: bad alloc\n");
             return PGP_FINISHED;
@@ -576,12 +577,13 @@ pgp_add_rawpacket(pgp_key_t *key, const pgp_rawpacket_t *packet)
 bool
 pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
 {
-    struct pgp_create_sig_t *sig;
+    struct pgp_create_sig_t *sig = NULL;
     pgp_rawpacket_t          sigpacket;
     struct pgp_memory_t *    mem_userid = NULL;
     pgp_output_t *           useridoutput = NULL;
     struct pgp_memory_t *    mem_sig = NULL;
     pgp_output_t *           sigoutput = NULL;
+    bool                     ok = false;
 
     /*
      * create signature packet for this userid
@@ -589,8 +591,8 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
 
     /* create userid pkt */
     if (!pgp_setup_memory_write(NULL, &useridoutput, &mem_userid, 128)) {
-        (void) fprintf(stderr, "cat't setup memory write\n");
-        return false;
+        RNP_LOG("failed to set up memory write");
+        goto end;
     }
     pgp_write_struct_userid(useridoutput, userid);
 
@@ -604,10 +606,13 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
     pgp_sig_end_hashed_subpkts(sig);
 
     if (!pgp_setup_memory_write(NULL, &sigoutput, &mem_sig, 128)) {
-        (void) fprintf(stderr, "can't setup memory write\n");
-        return false;
+        RNP_LOG("failed to set up memory write");
+        goto end;
     }
-    pgp_sig_write(sigoutput, sig, &key->key.seckey.pubkey, &key->key.seckey);
+    if (!pgp_sig_write(sigoutput, sig, &key->key.seckey.pubkey, &key->key.seckey)) {
+        RNP_LOG("failed to write sig");
+        goto end;
+    }
 
     /* add this packet to key */
     sigpacket.length = pgp_mem_len(mem_sig);
@@ -617,6 +622,9 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
     (void) pgp_add_userid(key, userid);
     (void) pgp_add_rawpacket(key, &sigpacket);
 
+    ok = true;
+end:
+
     /* cleanup */
     pgp_create_sig_delete(sig);
     pgp_output_delete(useridoutput);
@@ -624,7 +632,7 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
     pgp_memory_free(mem_userid);
     pgp_memory_free(mem_sig);
 
-    return true;
+    return ok;
 }
 
 /**

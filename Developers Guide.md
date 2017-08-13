@@ -353,6 +353,7 @@ Do not:
   }
   ```
 * Do not use `pragma`, and try to avoid `__attribute__` as well.
+* Do not use uninitialized memory. Try to ensure your code will not cause any errors in valgrind and other memory checkers.
 
 ### Documentation
 Documentation is done in Doxygen comments format, which must be put in header files.
