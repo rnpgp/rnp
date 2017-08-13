@@ -335,9 +335,11 @@ pgp_writer_pop(pgp_output_t *output)
 unsigned
 pgp_writer_close(pgp_output_t *output)
 {
-    unsigned ret;
+    if (!output) {
+        return 0;
+    }
 
-    ret = pgp_writer_info_finalise(&output->errors, &output->writer);
+    unsigned ret = pgp_writer_info_finalise(&output->errors, &output->writer);
     pgp_writer_info_delete(&output->writer);
     return ret;
 }
