@@ -589,6 +589,30 @@ format_key_usage(char *buffer, size_t size, uint8_t flags)
     return true;
 }
 
+static bool
+format_key_usage_json(json_object *arr, uint8_t flags)
+{
+    static const pgp_bit_map_t flags_map[] = {
+      {PGP_KF_ENCRYPT, "encrypt"},
+      {PGP_KF_SIGN, "sign"},
+      {PGP_KF_CERTIFY, "certify"},
+      {PGP_KF_AUTH, "authenticate"},
+    };
+
+    for (size_t i = 0; i < ARRAY_SIZE(flags_map); i++) {
+        if (flags & flags_map[i].mask) {
+            json_object *str = json_object_new_string(flags_map[i].string);
+            if (!str) {
+                return false;
+            }
+            if (json_object_array_add(arr, str) != 0) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 #ifndef KB
 #define KB(x) ((x) *1024)
 #endif
@@ -706,16 +730,11 @@ pgp_sprint_json(pgp_io_t *             io,
 {
     char     keyid[PGP_KEY_ID_SIZE * 3];
     char     fp[PGP_FINGERPRINT_HEX_SIZE];
-    char     key_usage[8];
     int      r;
     unsigned i;
     unsigned j;
 
     if (key == NULL || key->revoked) {
-        return -1;
-    }
-
-    if (!format_key_usage(key_usage, sizeof(key_usage), key->key_flags)) {
         return -1;
     }
 
@@ -733,8 +752,10 @@ pgp_sprint_json(pgp_io_t *             io,
                              fp, key->fingerprint.fingerprint, key->fingerprint.length, "")));
     json_object_object_add(keyjson, "creation time", json_object_new_int(pubkey->birthtime));
     json_object_object_add(keyjson, "duration", json_object_new_int(pubkey->duration));
-    json_object_object_add(keyjson, "flags", json_object_new_int(key->key_flags));
-    json_object_object_add(keyjson, "usage", json_object_new_string(key_usage));
+    json_object_object_add(keyjson, "key flags", json_object_new_int(key->key_flags));
+    json_object *usage_arr = json_object_new_array();
+    format_key_usage_json(usage_arr, key->key_flags);
+    json_object_object_add(keyjson, "usage", usage_arr);
 
     // iterating through the uids
     json_object *uid_arr = json_object_new_array();

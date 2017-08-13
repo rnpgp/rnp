@@ -60,6 +60,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <time.h>
 
 #ifdef HAVE_UNISTD_H
@@ -330,8 +331,16 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
         p(fp, " ", ptimestr(tbuf, sizeof(tbuf), birthtime), NULL);
 
         if (json_object_object_get_ex(obj, "usage", &tmp)) {
-            p(fp, " [", json_object_get_string(tmp), "]", NULL);
-        }
+            p(fp, " [", NULL);
+            int count = json_object_array_length(tmp);
+            for (int i = 0; i < count; i++) {
+                json_object *str = json_object_array_get_idx(tmp, i);
+                char buff[2] = {0};
+                buff[0] = toupper(*json_object_get_string(str));
+                p(fp, buff, NULL);
+            }
+            p(fp, "]", NULL);
+         }
 
         if (json_object_object_get_ex(obj, "duration", &tmp)) {
             duration = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
