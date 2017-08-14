@@ -132,6 +132,8 @@ pgp_create_sig_delete(pgp_create_sig_t *sig)
     if (!sig) {
         return;
     }
+    pgp_memory_free(sig->mem);
+    sig->mem = NULL;
     pgp_output_delete(sig->output);
     sig->output = NULL;
     free(sig);
@@ -898,6 +900,7 @@ pgp_sig_write(pgp_output_t *      output,
               pgp_write(output, pgp_mem_data(sig->mem), (unsigned) len);
     }
     pgp_memory_free(sig->mem);
+    sig->mem = NULL;
 
     if (ret == false) {
         PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Cannot write signature");
@@ -1079,128 +1082,88 @@ pgp_sign_file(rnp_ctx_t *         ctx,
               const pgp_seckey_t *seckey,
               bool                cleartext)
 {
-    pgp_create_sig_t *sig;
-    pgp_sig_type_t    sig_type;
+    pgp_create_sig_t *sig = NULL;
+    pgp_sig_type_t    sig_type = PGP_SIG_BINARY;
     pgp_hash_alg_t    hash_alg;
-    pgp_memory_t *    infile;
-    pgp_output_t *    output;
-    pgp_hash_t *      hash;
-    bool              ret;
+    pgp_memory_t *    infile = NULL;
+    pgp_output_t *    output = NULL;
+    pgp_hash_t *      hash = NULL;
+    bool              ok = false;
     uint8_t           keyid[PGP_KEY_ID_SIZE];
-    int               fd_out;
-
-    sig = NULL;
-    sig_type = PGP_SIG_BINARY;
-    infile = NULL;
-    output = NULL;
-    hash = NULL;
-    fd_out = 0;
+    int               fd_out = 0;
 
     /* find the hash algorithm */
     if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
         (void) fprintf(
           io->errs, "pgp_sign_file: cannot pick hash algorithm: %d\n", (int) ctx->halg);
-        return false;
+        goto done;
     }
 
     /* read input file into buf */
     infile = pgp_memory_new();
     if (infile == NULL) {
         (void) fprintf(stderr, "can't allocate mem\n");
-        return false;
+        goto done;
     }
     if (!pgp_mem_readfile(infile, inname)) {
-        pgp_memory_free(infile);
-        return false;
+        goto done;
     }
 
     /* setup output file */
     fd_out = open_output_file(
       ctx, &output, inname, outname, (ctx->armour) ? "asc" : "gpg", ctx->overwrite);
     if (fd_out < 0) {
-        pgp_memory_free(infile);
-        return false;
+        goto done;
     }
 
     /* set up signature */
     sig = pgp_create_sig_new();
     if (!sig) {
-        pgp_memory_free(infile);
-        pgp_teardown_file_write(output, fd_out);
-        return false;
+        goto done;
     }
 
     pgp_sig_start(sig, seckey, hash_alg, sig_type);
 
     if (cleartext) {
-        if (pgp_writer_push_clearsigned(output, sig) != 1) {
-            pgp_memory_free(infile);
-            pgp_teardown_file_write(output, fd_out);
-            pgp_create_sig_delete(sig);
-            return false;
+        if (!pgp_writer_push_clearsigned(output, sig) ||
+            !pgp_write(output, pgp_mem_data(infile), (unsigned) pgp_mem_len(infile)) ||
+            !pgp_writer_use_armored_sig(output)) {
+            goto done;
         }
-
-        /* Do the signing */
-        pgp_write(output, pgp_mem_data(infile), (unsigned) pgp_mem_len(infile));
-        pgp_memory_free(infile);
-
-        /* add signature with subpackets: */
-        /* - creation time */
-        /* - key id */
-        ret = pgp_writer_use_armored_sig(output) &&
-              pgp_sig_add_time(sig, (int64_t) ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME) &&
-              pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
-        if (ret == false) {
-            pgp_teardown_file_write(output, fd_out);
-            pgp_create_sig_delete(sig);
-            return false;
-        }
-
-        pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey);
-        ret = pgp_sig_add_issuer_keyid(sig, keyid) && pgp_sig_end_hashed_subpkts(sig) &&
-              pgp_sig_write(output, sig, &seckey->pubkey, seckey);
-
-        if (ret == false) {
-            PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Cannot sign file as cleartext");
-        }
-
-        pgp_teardown_file_write(output, fd_out);
     } else {
         /* set armoured/not armoured here */
         if (ctx->armour) {
             pgp_writer_push_armor_msg(output);
         }
-
-        /* write one_pass_sig */
-        pgp_write_one_pass_sig(output, seckey, hash_alg, sig_type);
-
         /* hash file contents */
         hash = pgp_sig_get_hash(sig);
         pgp_hash_add(hash, pgp_mem_data(infile), (unsigned) pgp_mem_len(infile));
 
-        /* output file contents as Literal Data packet */
-        pgp_write_litdata(
-          output, pgp_mem_data(infile), (const int) pgp_mem_len(infile), PGP_LDT_BINARY);
-
-        /* add creation time to signature */
-        pgp_sig_add_time(sig, (int64_t) ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
-        pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
-        /* add key id to signature */
-        pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey);
-        pgp_sig_add_issuer_keyid(sig, keyid);
-        pgp_sig_end_hashed_subpkts(sig);
-        pgp_sig_write(output, sig, &seckey->pubkey, seckey);
-
-        /* tidy up */
-        pgp_teardown_file_write(output, fd_out);
-
-        pgp_create_sig_delete(sig);
-        pgp_memory_free(infile);
-
-        ret = true;
+        if (!pgp_write_one_pass_sig(output, seckey, hash_alg, sig_type) ||
+            !pgp_write_litdata(
+              output, pgp_mem_data(infile), (const int) pgp_mem_len(infile), PGP_LDT_BINARY)) {
+            goto done;
+        }
     }
+    if (!pgp_sig_add_time(sig, (int64_t) ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME) ||
+        !pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME) ||
+        !pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey) ||
+        !pgp_sig_add_issuer_keyid(sig, keyid) || !pgp_sig_end_hashed_subpkts(sig) ||
+        !pgp_sig_write(output, sig, &seckey->pubkey, seckey)) {
+        goto done;
+    }
+    ok = true;
 
-    return ret;
+done:
+    if (!ok) {
+        PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Failed to sign file");
+    }
+    pgp_create_sig_delete(sig);
+    pgp_memory_free(infile);
+    if (output) {
+        pgp_teardown_file_write(output, fd_out);
+    }
+    return ok;
 }
 
 /**
@@ -1223,30 +1186,24 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
              const bool          cleartext)
 {
     pgp_litdata_enum  ld_type;
-    pgp_create_sig_t *sig;
-    pgp_sig_type_t    sig_type;
+    pgp_create_sig_t *sig = NULL;
+    pgp_sig_type_t    sig_type = PGP_SIG_BINARY;
     pgp_hash_alg_t    hash_alg;
-    pgp_output_t *    output;
+    pgp_output_t *    output = NULL;
     pgp_memory_t *    mem;
     uint8_t           keyid[PGP_KEY_ID_SIZE];
-    pgp_hash_t *      hash;
-    unsigned          ret;
+    pgp_hash_t *      hash = NULL;
+    bool              ok = false;
 
-    sig = NULL;
-    sig_type = PGP_SIG_BINARY;
-    output = NULL;
     mem = pgp_memory_new();
-    hash = NULL;
-    ret = 0;
-
     if (mem == NULL) {
         (void) fprintf(stderr, "can't allocate mem\n");
-        return NULL;
+        goto done;
     }
 
     if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
         (void) fprintf(io->errs, "pgp_sign_buf: cannot pick hash algorithm: %d\n", ctx->halg);
-        return NULL;
+        goto done;
     }
 
     /* setup literal data packet type */
@@ -1254,80 +1211,59 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
 
     if (input == NULL) {
         (void) fprintf(io->errs, "pgp_sign_buf: null input\n");
-        return NULL;
+        goto done;
     }
 
     /* set up signature */
     if ((sig = pgp_create_sig_new()) == NULL) {
-        return NULL;
+        goto done;
     }
     pgp_sig_start(sig, seckey, hash_alg, sig_type);
 
     /* setup writer */
     if (!pgp_setup_memory_write(ctx, &output, &mem, insize)) {
         (void) fprintf(io->errs, "can't setup memory write\n");
-        return NULL;
+        goto done;
     }
 
     if (cleartext) {
-        /* Do the signing */
-        /* add signature with subpackets: */
-        /* - creation time */
-        /* - key id */
-        ret = pgp_writer_push_clearsigned(output, sig) &&
-              pgp_write(output, input, (unsigned) insize) &&
-              pgp_writer_use_armored_sig(output) &&
-              pgp_sig_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME) &&
-              pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
-        if (ret == 0) {
-            return NULL;
+        if (!pgp_writer_push_clearsigned(output, sig) ||
+            !pgp_write(output, input, (unsigned) insize) ||
+            !pgp_writer_use_armored_sig(output)) {
+            goto done;
         }
-        pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey);
-        ret = pgp_sig_add_issuer_keyid(sig, keyid) && pgp_sig_end_hashed_subpkts(sig) &&
-              pgp_sig_write(output, sig, &seckey->pubkey, seckey);
 
-        pgp_writer_close(output);
-        pgp_output_delete(output);
-        pgp_create_sig_delete(sig);
     } else {
         /* set armoured/not armoured here */
         if (ctx->armour) {
             pgp_writer_push_armor_msg(output);
         }
-        if (rnp_get_debug(__FILE__)) {
-            fprintf(io->errs, "** Writing out one pass sig\n");
-        }
-        /* write one_pass_sig */
-        pgp_write_one_pass_sig(output, seckey, hash_alg, sig_type);
-
         /* hash memory */
         hash = pgp_sig_get_hash(sig);
         pgp_hash_add(hash, input, (unsigned) insize);
 
-        /* output file contents as Literal Data packet */
-        if (rnp_get_debug(__FILE__)) {
-            (void) fprintf(stderr, "** Writing out data now\n");
+        if (!pgp_write_one_pass_sig(output, seckey, hash_alg, sig_type) ||
+            !pgp_write_litdata(output, input, (const int) insize, ld_type)) {
+            goto done;
         }
-        pgp_write_litdata(output, input, (const int) insize, ld_type);
-        if (rnp_get_debug(__FILE__)) {
-            fprintf(stderr, "** After Writing out data now\n");
-        }
-
-        /* add creation time to signature */
-        pgp_sig_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
-        pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
-        /* add key id to signature */
-        pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey);
-        pgp_sig_add_issuer_keyid(sig, keyid);
-        pgp_sig_end_hashed_subpkts(sig);
-
-        /* write out sig */
-        pgp_sig_write(output, sig, &seckey->pubkey, seckey);
-
-        /* tidy up */
-        pgp_writer_close(output);
-        pgp_create_sig_delete(sig);
     }
+    if (!pgp_sig_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME) ||
+        !pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME) ||
+        !pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey) ||
+        !pgp_sig_add_issuer_keyid(sig, keyid) || !pgp_sig_end_hashed_subpkts(sig) ||
+        !pgp_sig_write(output, sig, &seckey->pubkey, seckey)) {
+        goto done;
+    }
+    ok = true;
+
+done:
+    if (!ok) {
+        pgp_memory_free(mem);
+        mem = NULL;
+    }
+    pgp_writer_close(output);
+    pgp_output_delete(output);
+    pgp_create_sig_delete(sig);
     return mem;
 }
 
@@ -1336,17 +1272,18 @@ int
 pgp_sign_detached(
   rnp_ctx_t *ctx, pgp_io_t *io, const char *f, const char *sigfile, pgp_seckey_t *seckey)
 {
-    pgp_create_sig_t *sig;
+    pgp_create_sig_t *sig = NULL;
     pgp_hash_alg_t    hash_alg;
-    pgp_output_t *    output;
-    pgp_memory_t *    mem;
+    pgp_output_t *    output = NULL;
+    pgp_memory_t *    mem = NULL;
     uint8_t           keyid[PGP_KEY_ID_SIZE];
-    int               fd;
+    int               fd = 0;
+    bool              ok = false;
 
     /* find out which hash algorithm to use */
     if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
         (void) fprintf(io->errs, "cannot pick hash algorithm: %d\n", ctx->halg);
-        return false;
+        goto done;
     }
 
     /* setup output file */
@@ -1354,50 +1291,44 @@ pgp_sign_detached(
       ctx, &output, f, sigfile, (ctx->armour) ? "asc" : "sig", ctx->overwrite);
     if (fd < 0) {
         (void) fprintf(io->errs, "Can't open output file: %s\n", f);
-        return false;
+        goto done;
     }
 
     /* create a new signature */
     sig = pgp_create_sig_new();
     if (sig == NULL) {
         (void) fprintf(stderr, "can't allocate mem\n");
-        return false;
+        goto done;
     }
     pgp_sig_start(sig, seckey, hash_alg, PGP_SIG_BINARY);
 
     /* read the contents of 'f', and add that to the signature */
     mem = pgp_memory_new();
     if (mem == NULL) {
-        pgp_teardown_file_write(output, fd);
-        pgp_create_sig_delete(sig);
         (void) fprintf(stderr, "can't allocate mem\n");
-        return false;
+        goto done;
     }
     if (!pgp_mem_readfile(mem, f)) {
-        pgp_teardown_file_write(output, fd);
-        pgp_memory_free(sig->mem); /* free memory allocated in pgp_sig_start*/
-        pgp_create_sig_delete(sig);
-        pgp_memory_free(mem);
-        return false;
+        goto done;
     }
     /* set armoured/not armoured here */
     if (ctx->armour) {
         pgp_writer_push_armor_msg(output);
     }
     pgp_sig_add_data(sig, pgp_mem_data(mem), pgp_mem_len(mem));
-    pgp_memory_free(mem);
 
-    /* calculate the signature */
-    pgp_sig_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME);
-    pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME);
-    pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey);
-    pgp_sig_add_issuer_keyid(sig, keyid);
-    pgp_sig_end_hashed_subpkts(sig);
-    pgp_sig_write(output, sig, &seckey->pubkey, seckey);
+    if (!pgp_sig_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME) ||
+        !pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME) ||
+        !pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey) ||
+        !pgp_sig_add_issuer_keyid(sig, keyid) || !pgp_sig_end_hashed_subpkts(sig) ||
+        !pgp_sig_write(output, sig, &seckey->pubkey, seckey)) {
+        goto done;
+    }
+    ok = true;
+
+done:
     pgp_teardown_file_write(output, fd);
-    pgp_seckey_free(seckey);
-
-    /* free  the memory allocated for the signature.*/
     pgp_create_sig_delete(sig);
-    return true;
+    pgp_memory_free(mem);
+    return ok;
 }
