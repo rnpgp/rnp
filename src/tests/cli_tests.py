@@ -456,24 +456,33 @@ def rnp_encryption():
     return
 
 def rnp_signing_rnp_to_gpg(filesize):
-    src, sig, ver = map(lambda x: path.join(WORKDIR, 'cleartext' + x), ['.txt', '.sig', '.ver'])
+    src, sig, asc, ver = map(lambda x: path.join(WORKDIR, 'cleartext' + x), ['.txt', '.sig', '.asc', '.ver'])
     try:
         # Generate random file of required size
         random_text(src, filesize)
-        for armour in [False, True]:
-            # Sign file with RNP
-            rnp_sign_file(src, sig, 'signing@rnp', armour)
-            # Verify signed file with RNP
-            rnp_verify_file(sig, ver, 'signing@rnp')
-            compare_files(src, ver, 'rnp verified data differs')
-            remove_files(ver)
-            # Verify signed message with GPG
-            gpg_verify_file(sig, ver, 'signing@rnp')
-            compare_files(src, ver, 'gpg verified data differs')
-            remove_files(ver)
+        # Sign file with RNP
+        rnp_sign_file(src, sig, 'signing@rnp')
+        # Verify signed file with RNP
+        rnp_verify_file(sig, ver, 'signing@rnp')
+        compare_files(src, ver, 'rnp verified data differs')
+        remove_files(ver)
+        # Verify signed message with GPG
+        gpg_verify_file(sig, ver, 'signing@rnp')
+        compare_files(src, ver, 'gpg verified data differs')
+        remove_files(ver)
+        # Armored signing test
+        rnp_sign_file(src, asc, 'signing@rnp', armour = True)
+        # Verify signed file with RNP
+        rnp_verify_file(asc, ver, 'signing@rnp')
+        compare_files(src, ver, 'rnp verified data differs')
+        remove_files(ver)
+        # Verify signed message with GPG
+        gpg_verify_file(asc, ver, 'signing@rnp')
+        compare_files(src, ver, 'gpg verified data differs')
+        remove_files(ver)
     finally:
         # Cleanup
-        remove_files(src, sig, ver)
+        remove_files(src, sig, asc, ver)
 
     return
 
@@ -489,9 +498,8 @@ def rnp_detached_signing_rnp_to_gpg(filesize):
         # Verify signed message with GPG
         gpg_verify_detached(src, sig, 'signing@rnp')
     finally:
-        pass
         # Cleanup
-        #remove_files(src, sig)
+        remove_files(src, sig)
 
     return
 
