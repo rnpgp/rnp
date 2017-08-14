@@ -16,6 +16,7 @@ artifacts="
   m4/ltsugar.m4
   m4/ltversion.m4
   src/Makefile.in
+  src/compat/Makefile.in
   src/tests/Makefile.in
   src/lib/Makefile.in
   src/lib/config.h.in

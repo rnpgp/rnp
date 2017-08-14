@@ -179,11 +179,27 @@ pgp_new(size_t size)
     return vp;
 }
 
+#if defined(USE_BUNDLED_EXPLICIT_BZERO)
+void
+explicit_bzero(void *buf, size_t len);
+#endif
+
 /* utility function to zero out memory */
 void
 pgp_forget(void *vp, size_t size)
 {
-    (void) memset(vp, 0x0, size);
+#if defined(HAVE_EXPLICIT_BZERO)
+    explicit_bzero(vp, size);
+#elif defined(HAVE_EXPLICIT_MEMSET)
+    explicit_memset(vp, 0x0, size);
+#elif defined(HAVE_MEMSET_S)
+    memset_s(vp, size, 0, size);
+#elif defined(USE_BUNDLED_EXPLICIT_BZERO)
+    // use our bundled implementation of explicit_bzero as a last resort
+    explicit_bzero(vp, size);
+#else
+#error "configuration error, missing secure memory wipe implementation"
+#endif
 }
 
 /**
