@@ -27,33 +27,43 @@ DEBUG = False
 TESTS_SUCCEEDED = []
 TESTS_FAILED = []
 
-RE_RSA_KEY = r'^' \
-r'# off=0 ctb=c6 tag=6 hlen=3 plen=\d+ new-ctb\s+' \
+RE_RSA_KEY = r'(?s)^' \
+r'# .*' \
 r':public key packet:\s+' \
 r'version 4, algo 1, created \d+, expires 0\s+' \
 r'pkey\[0\]: \[(\d{4}) bits\]\s+' \
 r'pkey\[1\]: \[17 bits\]\s+' \
 r'keyid: ([0-9A-F]{16})\s+' \
-r'# off=\d+ ctb=cd tag=13 hlen=\d+ plen=\d+ new-ctb\s+' \
+r'# .*' \
 r':user ID packet: "(.+)"\s+' \
-r'# off=\d+ ctb=c2 tag=2 hlen=3 plen=\d+ new-ctb\s+' \
+r'# .*' \
 r':signature packet: algo 1, keyid \2\s+' \
-r'version 4, created \d+, md5len 0, sigclass 0x13\s+' \
-r'digest algo 8, begin of digest [0-9a-f]{2} [0-9a-f]{2}\s+' \
-r'hashed subpkt 2 len 4 \(sig created \d{4}-\d{2}-\d{2}\)\s+' \
-r'hashed subpkt 16 len 8 \(issuer key ID \2\)\s+' \
-r'hashed subpkt 25 len 1 \(primary user ID\)\s+' \
-r'data: \[\d{4} bits\]$'
+r'.*' \
+r'# .*' \
+r':public sub key packet:' \
+r'.*' \
+r':signature packet: algo 1, keyid \2\s+' \
+r'.*$'
 
 RE_RSA_KEY_LIST = r'^\s*' \
-r'1 key found\s+' \
-r'signature  (\d{4})/RSA \(Encrypt or Sign\) ([0-9a-z]{16}) \d{4}-\d{2}-\d{2} \[\]\s+' \
-r'Key fingerprint: ([0-9a-z]{40})\s+' \
-r'uid\s+(.+)\s*$'
+r'2 keys found\s+' \
+r'pub\s+(\d{4})/RSA \(Encrypt or Sign\) ([0-9a-z]{16}) \d{4}-\d{2}-\d{2} \[.*\]\s+' \
+r'([0-9a-z]{40})\s+' \
+r'uid\s+(.+)\s+' \
+r'sub.+\s+' \
+r'[0-9a-z]{40}\s+$'
+
+'''
+pub   2048/RSA (Encrypt or Sign) 9d11515f507fe5f2 2017-08-14 [SC]
+      d496f4b2192cc1af2508203d9d11515f507fe5f2
+uid           2048@rnptest
+sub   2048/RSA (Encrypt or Sign) ffffaa3655390c6c 2017-08-14 [E]
+      b945a8216a8597267ccf5732ffffaa3655390c6c
+'''
 
 RE_MULTIPLE_KEY_LIST = r'(?s)^\s*(\d+) (?:key|keys) found.*$'
 RE_MULTIPLE_KEY_5 = r'(?s)^\s*' \
-r'5 keys found.*' \
+r'10 keys found.*' \
 r'.+uid\s+0@rnp-multiple' \
 r'.+uid\s+1@rnp-multiple' \
 r'.+uid\s+2@rnp-multiple' \
@@ -104,7 +114,8 @@ def check_packets(fname, regexp):
         return None
     else:
         result = re.match(regexp, output)
-        if not result: print 'Wrong packets: \n' + output
+        if not result and DEBUG:
+            print 'Wrong packets: \n' + output
         return result
 
 def clear_keyrings():
@@ -200,14 +211,15 @@ def rnpkey_generate_multiple():
         if ret != 0: raise_err('key list failed', err)
         match = re.match(RE_MULTIPLE_KEY_LIST, out)
         if not match: raise_err('wrong key list output', out)
-        if not match.group(1) == str(i + 1):
-            raise_err('wrong key count')
+        if not match.group(1) == str((i + 1) * 2):
+            raise_err('wrong key count', out)
 
     # Checking the 5 keys output
     ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
     if ret != 0: raise_err('key list failed', err)
     match = re.match(RE_MULTIPLE_KEY_5, out)
-    if not match: raise_err('wrong key list output', out)
+    if not match: 
+        raise_err('wrong key list output', out)
 
     # Cleanup and return
     clear_keyrings()

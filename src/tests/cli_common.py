@@ -23,6 +23,9 @@ def pswd_pipe(passphrase):
     pr, pw = os.pipe()
     with os.fdopen(pw, 'w') as fw:
         fw.write(passphrase)
+        fw.write('\n')
+        fw.write(passphrase)
+        
     return pr
 
 def random_text(path, size):
