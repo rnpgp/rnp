@@ -186,8 +186,8 @@ zlib_compressed_data_reader(pgp_stream_t *stream,
             return 0;
         }
         len = (size_t)(z->zstream.next_out - &z->out[z->offset]);
-        if (len > length) {
-            len = length;
+        if (len + cc > length) {
+            len = length - cc;
         }
         (void) memcpy(&cdest[cc], &z->out[z->offset], len);
         z->offset += len;
