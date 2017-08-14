@@ -336,7 +336,7 @@ rnp_key_store_write_to_mem(rnp_t *          rnp,
  * buffer.
  *
  * buffer: the buffer to write into
- * sigid:  the PGP key ID to format
+ * keyid:  the PGP key ID to format
  * len:    the length of buffer, including the null terminator
  *
  * TODO: There is no error checking here.
@@ -344,7 +344,7 @@ rnp_key_store_write_to_mem(rnp_t *          rnp,
  */
 
 void
-rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len)
+rnp_key_store_format_key(char *buffer, uint8_t *keyid, int len)
 {
     unsigned int i;
     unsigned int n;
@@ -359,7 +359,7 @@ rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len)
      * this function.
      */
     for (i = 0, n = 0; i < PGP_KEY_ID_SIZE; i += 2) {
-        n += snprintf(&buffer[n], len - n, "%02x%02x", sigid[i], sigid[i + 1]);
+        n += snprintf(&buffer[n], len - n, "%02x%02x", keyid[i], keyid[i + 1]);
     }
     buffer[n] = 0x0;
 }
@@ -393,7 +393,7 @@ rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int la
 
     memset(id, 0x0, len);
 
-    src = (uint8_t *) &ring->keys[(last) ? ring->keyc - 1 : 0].sigid;
+    src = (uint8_t *) &ring->keys[(last) ? ring->keyc - 1 : 0].keyid;
     rnp_key_store_format_key(id, src, len);
 
     return true;
@@ -406,9 +406,7 @@ rnp_key_store_clear(rnp_key_store_t *keyring)
 
     if (keyring->keys != NULL) {
         for (i = 0; i < keyring->keyc; i++) {
-            FREE_ARRAY((&keyring->keys[i]), uid);
-            FREE_ARRAY((&keyring->keys[i]), subsig);
-            FREE_ARRAY((&keyring->keys[i]), revoke);
+            pgp_key_free_data(&keyring->keys[i]);
         }
         keyring->keyc = 0;
     }
@@ -473,7 +471,7 @@ rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring, const int psigs
         if (pgp_is_key_secret(key)) {
             pgp_print_key(io, keyring, key, "sec", &key->key.seckey.pubkey, 0);
         } else {
-            pgp_print_key(io, keyring, key, "signature ", &key->key.pubkey, psigs);
+            pgp_print_key(io, keyring, key, "pub", &key->key.pubkey, psigs);
         }
         (void) fputc('\n', io->res);
     }
@@ -489,12 +487,17 @@ rnp_key_store_json(pgp_io_t *             io,
     pgp_key_t *key;
     unsigned   n;
     for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
-        json_object *jso = json_object_new_object();
-        if (pgp_is_key_secret(key)) {
-            pgp_sprint_json(io, keyring, key, jso, "sec", &key->key.seckey.pubkey, psigs);
+        json_object * jso = json_object_new_object();
+        pgp_pubkey_t *pubkey = &key->key.pubkey;
+        const char *  header = NULL;
+        if (pgp_is_key_secret(key)) { /* secret key is always shown as "sec" */
+            header = "sec";
+        } else if (pgp_key_is_primary_key(key)) { /* top-level public key */
+            header = "pub";
         } else {
-            pgp_sprint_json(io, keyring, key, jso, "signature ", &key->key.pubkey, psigs);
+            header = "sub"; /* subkey */
         }
+        pgp_sprint_json(io, keyring, key, jso, header, pubkey, psigs);
         json_object_array_add(obj, jso);
     }
     return true;
@@ -530,12 +533,8 @@ rnp_key_store_append_keyring(rnp_key_store_t *keyring, rnp_key_store_t *newring)
 
 /* add a key to keyring */
 bool
-rnp_key_store_add_key(pgp_io_t *       io,
-                      rnp_key_store_t *keyring,
-                      pgp_key_t *      key,
-                      pgp_content_enum tag)
+rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *key)
 {
-    int        i;
     pgp_key_t *newkey;
 
     if (rnp_get_debug(__FILE__)) {
@@ -547,47 +546,7 @@ rnp_key_store_add_key(pgp_io_t *       io,
         return false;
     }
     newkey = &keyring->keys[keyring->keyc++];
-    memcpy((uint8_t *) newkey + offsetof(pgp_key_t, type),
-           (uint8_t *) key + offsetof(pgp_key_t, type),
-           sizeof(pgp_key_t) - offsetof(pgp_key_t, type));
-    newkey->type = tag;
-
-    for (i = 0; i < key->uidc; i++) {
-        EXPAND_ARRAY(newkey, uid);
-        if (newkey->uids == NULL) {
-            return false;
-        }
-        memcpy(&newkey->uids[newkey->uidc], &key->uids[i], sizeof(uint8_t *));
-        newkey->uidc++;
-    }
-
-    for (i = 0; i < key->packetc; i++) {
-        EXPAND_ARRAY(newkey, packet);
-        if (newkey->packets == NULL) {
-            return false;
-        }
-        memcpy(&newkey->packets[newkey->packetc], &key->packets[i], sizeof(pgp_rawpacket_t));
-        newkey->packetc++;
-    }
-
-    for (i = 0; i < key->subsigc; i++) {
-        EXPAND_ARRAY(newkey, subsig);
-        if (newkey->subsigs == NULL) {
-            return false;
-        }
-        memcpy(&newkey->subsigs[newkey->subsigc], &key->subsigs[i], sizeof(pgp_subsig_t));
-        newkey->subsigc++;
-    }
-
-    for (i = 0; i < key->revokec; i++) {
-        EXPAND_ARRAY(newkey, revoke);
-        if (newkey->revokes == NULL) {
-            return false;
-        }
-        memcpy(&newkey->revokes[newkey->revokec], &key->revokes[i], sizeof(pgp_revoke_t));
-        newkey->revokec++;
-    }
-
+    *newkey = *key;
     if (rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "rnp_key_store_add_key: keyc %u\n", keyring->keyc);
     }
@@ -608,48 +567,29 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
         fprintf(io->errs, "rnp_key_store_add_keydata to key_store: %p\n", keyring);
     }
 
-    if (tag != PGP_PTAG_CT_PUBLIC_SUBKEY) {
-        EXPAND_ARRAY(keyring, key);
-        if (keyring->keys == NULL) {
-            return false;
-        }
-        key = &keyring->keys[keyring->keyc++];
-        (void) memset(key, 0x0, sizeof(*key));
-        if (!pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, &keydata->pubkey)) {
-            return false;
-        }
-        if (!pgp_fingerprint(&key->sigfingerprint, &keydata->pubkey)) {
-            return false;
-        }
-        if (!rnp_key_store_get_key_grip(&keydata->pubkey, key->sig_grip)) {
-            return false;
-        }
-        key->type = tag;
-        key->key = *keydata;
-        key->loaded = 1;
-    } else {
-        // it's is a subkey, adding as enckey to master that was before the key
-        // TODO: move to the right way — support multiple subkeys
-        key = &keyring->keys[keyring->keyc - 1];
-        if (!pgp_keyid(key->encid, PGP_KEY_ID_SIZE, &keydata->pubkey)) {
-            return false;
-        }
-        if (!pgp_fingerprint(&key->encfingerprint, &keydata->pubkey)) {
-            return false;
-        }
-        if (!rnp_key_store_get_key_grip(&keydata->pubkey, key->enc_grip)) {
-            return false;
-        }
-        (void) memcpy(&key->enckey, &keydata->pubkey, sizeof(key->enckey));
-        key->enckey.duration = key->key.pubkey.duration;
+    EXPAND_ARRAY(keyring, key);
+    if (keyring->keys == NULL) {
+        return false;
     }
+    key = &keyring->keys[keyring->keyc++];
+    (void) memset(key, 0x0, sizeof(*key));
+    if (!pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, &keydata->pubkey)) {
+        return false;
+    }
+    if (!pgp_fingerprint(&key->fingerprint, &keydata->pubkey)) {
+        return false;
+    }
+    if (!rnp_key_store_get_key_grip(&keydata->pubkey, key->grip)) {
+        return false;
+    }
+    key->type = tag;
+    key->key = *keydata;
     if (inserted) {
         *inserted = key;
     }
 
     if (rnp_get_debug(__FILE__)) {
-        hexdump(io->errs, "added key->sigid", key->sigid, PGP_KEY_ID_SIZE);
-        hexdump(io->errs, "added key->encid", key->encid, PGP_KEY_ID_SIZE);
+        hexdump(io->errs, "added key->keyid", key->keyid, PGP_KEY_ID_SIZE);
         fprintf(io->errs, "rnp_key_store_add_keydata: keyc %u\n", keyring->keyc);
     }
 
@@ -711,36 +651,21 @@ rnp_key_store_get_key_by_id(pgp_io_t *             io,
                             unsigned *             from,
                             pgp_pubkey_t **        pubkey)
 {
-    uint8_t nullid[PGP_KEY_ID_SIZE];
-
     if (rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "looking keyring %p\n", keyring);
     }
 
-    (void) memset(nullid, 0x0, sizeof(nullid));
     for (; keyring && *from < keyring->keyc; *from += 1) {
         if (rnp_get_debug(__FILE__)) {
-            hexdump(io->errs, "keyring keyid", keyring->keys[*from].sigid, PGP_KEY_ID_SIZE);
+            hexdump(io->errs, "keyring keyid", keyring->keys[*from].keyid, PGP_KEY_ID_SIZE);
             hexdump(io->errs, "keyid", keyid, PGP_KEY_ID_SIZE);
         }
-        if (memcmp(keyring->keys[*from].sigid, keyid, PGP_KEY_ID_SIZE) == 0 ||
-            memcmp(&keyring->keys[*from].sigid[PGP_KEY_ID_SIZE / 2],
+        if (memcmp(keyring->keys[*from].keyid, keyid, PGP_KEY_ID_SIZE) == 0 ||
+            memcmp(&keyring->keys[*from].keyid[PGP_KEY_ID_SIZE / 2],
                    keyid,
                    PGP_KEY_ID_SIZE / 2) == 0) {
             if (pubkey) {
                 *pubkey = &keyring->keys[*from].key.pubkey;
-            }
-            return &keyring->keys[*from];
-        }
-        if (memcmp(&keyring->keys[*from].encid, nullid, sizeof(nullid)) == 0) {
-            continue;
-        }
-        if (memcmp(&keyring->keys[*from].encid, keyid, PGP_KEY_ID_SIZE) == 0 ||
-            memcmp(&keyring->keys[*from].encid[PGP_KEY_ID_SIZE / 2],
-                   keyid,
-                   PGP_KEY_ID_SIZE / 2) == 0) {
-            if (pubkey) {
-                *pubkey = &keyring->keys[*from].enckey;
             }
             return &keyring->keys[*from];
         }
@@ -754,34 +679,19 @@ rnp_key_store_get_key_by_grip(pgp_io_t *             io,
                               const uint8_t *        grip,
                               pgp_pubkey_t **        pubkey)
 {
-    uint8_t nullid[PGP_FINGERPRINT_SIZE];
-
     if (rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "looking keyring %p\n", keyring);
     }
 
-    (void) memset(nullid, 0x0, sizeof(nullid));
     *pubkey = NULL;
     for (int i = 0; keyring && i < keyring->keyc; i++) {
         if (rnp_get_debug(__FILE__)) {
             hexdump(io->errs, "looking for grip", grip, PGP_FINGERPRINT_SIZE);
-            hexdump(
-              io->errs, "keyring sig_grip", keyring->keys[i].sig_grip, PGP_FINGERPRINT_SIZE);
-            hexdump(
-              io->errs, "keyring enc_grip", keyring->keys[i].enc_grip, PGP_FINGERPRINT_SIZE);
+            hexdump(io->errs, "keyring grip", keyring->keys[i].grip, PGP_FINGERPRINT_SIZE);
         }
-        if (memcmp(keyring->keys[i].sig_grip, grip, PGP_FINGERPRINT_SIZE) == 0) {
+        if (memcmp(keyring->keys[i].grip, grip, PGP_FINGERPRINT_SIZE) == 0) {
             if (pubkey) {
                 *pubkey = &keyring->keys[i].key.pubkey;
-            }
-            return true;
-        }
-        if (memcmp(&keyring->keys[i].enc_grip, nullid, sizeof(nullid)) == 0) {
-            continue;
-        }
-        if (memcmp(&keyring->keys[i].enc_grip, grip, PGP_FINGERPRINT_SIZE) == 0) {
-            if (pubkey) {
-                *pubkey = &keyring->keys[i].enckey;
             }
             return true;
         }

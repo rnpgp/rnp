@@ -98,6 +98,8 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
  */
 // TODO: Check size of this array against PGP_CURVE_MAX with static assert
 const ec_curve_desc_t ec_curves[] = {
+  {PGP_CURVE_UNKNOWN, 0, {0}, 0, NULL, NULL},
+
   {PGP_CURVE_NIST_P_256,
    256,
    {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07},
@@ -286,15 +288,15 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
 
     switch (seckey->pubkey.alg) {
     case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
         if (pgp_genkey_rsa(seckey, crypto->rsa.modulus_bit_len) != 1) {
+            RNP_LOG("failed to generate RSA key");
             goto end;
         }
         break;
 
     case PGP_PKA_EDDSA:
         if (pgp_genkey_eddsa(seckey, ec_curves[PGP_CURVE_ED25519].bitlen) != 1) {
+            RNP_LOG("failed to generate EDDSA key");
             goto end;
         }
         break;
@@ -303,12 +305,14 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     case PGP_PKA_ECDH:
         seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
         if (pgp_ecdh_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK) {
+            RNP_LOG("failed to generate ECDSA key");
             goto end;
         }
         break;
     case PGP_PKA_SM2:
         seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
         if (pgp_sm2_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK) {
+            RNP_LOG("failed to generate SM2 key");
             goto end;
         }
         break;
@@ -344,6 +348,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
             !pgp_write_mpi(output, seckey->key.rsa.p) ||
             !pgp_write_mpi(output, seckey->key.rsa.q) ||
             !pgp_write_mpi(output, seckey->key.rsa.u)) {
+            RNP_LOG("failed to write MPIs");
             goto end;
         }
         break;
@@ -352,6 +357,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
         if (!pgp_write_mpi(output, seckey->key.ecc.x)) {
+            RNP_LOG("failed to write MPIs");
             goto end;
         }
         break;
@@ -372,47 +378,6 @@ end:
         pgp_seckey_free(seckey);
     }
     return ok;
-}
-
-pgp_key_t *
-pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid)
-{
-    pgp_seckey_t *seckey = NULL;
-    pgp_key_t *   key = NULL;
-    bool          ok = false;
-
-    key = pgp_key_new();
-    if (!key)
-        goto end;
-
-    pgp_key_init(key, PGP_PTAG_CT_SECRET_KEY);
-    seckey = pgp_get_writable_seckey(key);
-    if (!seckey)
-        goto end;
-
-    if (!pgp_generate_seckey(&key_desc->crypto, seckey)) {
-        goto end;
-    }
-    if (!pgp_keyid(key->sigid, PGP_KEY_ID_SIZE, &key->key.seckey.pubkey)) {
-        goto end;
-    }
-    if (!pgp_fingerprint(&key->sigfingerprint, &key->key.seckey.pubkey)) {
-        goto end;
-    }
-    if (userid != NULL && !pgp_add_selfsigned_userid(key, userid)) {
-        goto end;
-    }
-
-    ok = true;
-
-end:
-    if (!ok) {
-        if (key) {
-            pgp_key_free(key);
-        }
-        return NULL;
-    }
-    return key;
 }
 
 static pgp_cb_ret_t
@@ -494,8 +459,11 @@ Encrypt a file
 \return true if OK
 */
 bool
-pgp_encrypt_file(
-  rnp_ctx_t *ctx, pgp_io_t *io, const char *infile, const char *outfile, const pgp_key_t *key)
+pgp_encrypt_file(rnp_ctx_t *         ctx,
+                 pgp_io_t *          io,
+                 const char *        infile,
+                 const char *        outfile,
+                 const pgp_pubkey_t *pubkey)
 {
     pgp_output_t *output;
     pgp_memory_t *inmem;
@@ -523,7 +491,7 @@ pgp_encrypt_file(
     }
 
     /* Push the encrypted writer */
-    if (!pgp_push_enc_se_ip(output, key, ctx->ealg)) {
+    if (!pgp_push_enc_se_ip(output, pubkey, ctx->ealg)) {
         pgp_memory_free(inmem);
         return false;
     }
@@ -540,11 +508,11 @@ pgp_encrypt_file(
 
 /* encrypt the contents of the input buffer, and return the mem structure */
 pgp_memory_t *
-pgp_encrypt_buf(rnp_ctx_t *      ctx,
-                pgp_io_t *       io,
-                const void *     input,
-                const size_t     insize,
-                const pgp_key_t *pubkey)
+pgp_encrypt_buf(rnp_ctx_t *         ctx,
+                pgp_io_t *          io,
+                const void *        input,
+                const size_t        insize,
+                const pgp_pubkey_t *pubkey)
 {
     pgp_output_t *output;
     pgp_memory_t *outmem;

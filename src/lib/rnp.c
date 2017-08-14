@@ -98,8 +98,6 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <json.h>
 #include <rnp.h>
 
-extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
-
 /* small function to pretty print an 8-character raw userid */
 static char *
 userid_to_id(const uint8_t *userid, char *id)
@@ -142,11 +140,6 @@ resultp(pgp_io_t *io, const char *f, pgp_validation_t *res, rnp_key_store_t *rin
         from = 0;
         key = rnp_key_store_get_key_by_id(
           io, ring, (const uint8_t *) res->valid_sigs[i].signer_id, &from, &sigkey);
-        if (sigkey == &key->enckey) {
-            (void) fprintf(io->res,
-                           "WARNING: signature for %s made with encryption key\n",
-                           (f) ? f : "<stdin>");
-        }
         pgp_print_key(io, ring, key, "signature ", &key->key.pubkey, 0);
     }
 }
@@ -311,8 +304,11 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
 #endif
     json_object *tmp;
     if (json_object_object_get_ex(obj, "header", &tmp)) {
+        if (strcmp(json_object_get_string(tmp), "sub") != 0) {
+            p(fp, "\n", NULL);
+        }
         pobj(fp, tmp, 0);
-        p(fp, " ", NULL);
+        p(fp, "   ", NULL);
     }
 
     if (json_object_object_get_ex(obj, "key bits", &tmp)) {
@@ -329,7 +325,7 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
         pobj(fp, tmp, 0);
     }
 
-    if (json_object_object_get_ex(obj, "birthtime", &tmp)) {
+    if (json_object_object_get_ex(obj, "creation time", &tmp)) {
         birthtime = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
         p(fp, " ", ptimestr(tbuf, sizeof(tbuf), birthtime), NULL);
 
@@ -352,60 +348,48 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
     }
 
     if (json_object_object_get_ex(obj, "fingerprint", &tmp)) {
-        p(fp, "\n", "Key fingerprint: ", NULL);
+        p(fp, "\n", "      ", NULL);
         pobj(fp, tmp, 0);
         p(fp, "\n", NULL);
     }
 
-    if (json_object_object_get_ex(obj, "uid", &tmp)) {
-        if (!json_object_is_type(tmp, json_type_null)) {
+    if (json_object_object_get_ex(obj, "user ids", &tmp) &&
+        !json_object_is_type(tmp, json_type_null)) {
+        int count = json_object_array_length(tmp);
+        for (int i = 0; i < count; i++) {
+            json_object *uidobj = json_object_array_get_idx(tmp, i);
+            json_object *userid = NULL;
+
+            json_object_object_get_ex(uidobj, "user id", &userid);
             p(fp, "uid", NULL);
-            pobj(fp, json_object_array_get_idx(tmp, 0), (psigs) ? 4 : 14); /* human name */
-            pobj(fp, json_object_array_get_idx(tmp, 1), 1);                /* any revocation */
+            pobj(fp, userid, 11); /* human name */
+            json_object *revoked = NULL;
+            json_object_object_get_ex(uidobj, "revoked", &revoked);
+            p(fp, json_object_get_boolean(revoked) ? "[REVOKED]" : "", NULL);
             p(fp, "\n", NULL);
-        }
-    }
 
-    if (json_object_object_get_ex(obj, "encryption", &tmp)) {
-        if (!json_object_is_type(tmp, json_type_null)) {
-            json_object *usage;
-            p(fp, "encryption", NULL);
-            pobj(fp, json_object_array_get_idx(tmp, 0), 1); /* size */
-            p(fp, "/", NULL);
-            pobj(fp, json_object_array_get_idx(tmp, 1), 0); /* alg */
-            p(fp, " ", NULL);
-            pobj(fp, json_object_array_get_idx(tmp, 2), 0); /* id */
-            p(fp,
-              " ",
-              ptimestr(tbuf,
-                       sizeof(tbuf),
-                       (time_t) strtoll(
-                         json_object_get_string(json_object_array_get_idx(tmp, 3)), NULL, 10)),
-              NULL);
-            if (json_object_object_get_ex(obj, "usage", &usage)) {
-                p(fp, " [", json_object_get_string(usage), "]", NULL);
+            json_object *sig = NULL;
+            json_object_object_get_ex(uidobj, "signature", &sig);
+            if (sig && psigs) {
+                json_object *signer_id = NULL;
+                json_object *creation_time = NULL;
+                json_object_object_get_ex(sig, "signer id", &signer_id);
+                json_object_object_get_ex(sig, "creation time", &creation_time);
+                json_object_object_get_ex(sig, "user id", &userid);
+                if (signer_id && creation_time && userid) {
+                    p(fp, "sig", NULL);
+                    pobj(fp, signer_id, 11);
+                    p(fp,
+                      " ",
+                      ptimestr(tbuf, sizeof(tbuf), json_object_get_int(creation_time)),
+                      " ",
+                      NULL);
+                    pobj(fp, userid, 0);
+                    p(fp, "\n", NULL);
+                }
             }
-            p(fp, "\n", NULL);
         }
     }
-
-    if (json_object_object_get_ex(obj, "sig", &tmp)) {
-        if (!json_object_is_type(tmp, json_type_null)) {
-            p(fp, "sig", NULL);
-            pobj(fp, json_object_array_get_idx(tmp, 0), 8); /* size */
-            p(fp,
-              "  ",
-              ptimestr(tbuf,
-                       sizeof(tbuf),
-                       (time_t) strtoll(
-                         json_object_get_string(json_object_array_get_idx(tmp, 1)), NULL, 10)),
-              " ",
-              NULL);                                        /* time */
-            pobj(fp, json_object_array_get_idx(tmp, 2), 0); /* human name */
-            p(fp, "\n", NULL);
-        }
-    }
-    p(fp, "\n", NULL);
 }
 
 /* save a pgp pubkey to a temp file */
@@ -473,40 +457,67 @@ formatbignum(char *buffer, BIGNUM *bn)
 }
 
 /* get the passphrase from the user */
-static int
+static bool
 find_passphrase(FILE *passfp, const char *id, char *passphrase, size_t size, int attempts)
 {
     char  prompt[BUFSIZ];
     char  buf[128];
     char *cp;
-    int   cc;
     int   i;
 
     if (passfp) {
+        memset(passphrase, 0, size);
+
         if (fgets(passphrase, (int) size, passfp) == NULL) {
-            return 0;
+            // if we're using passfp and get an EOF, consider it a
+            // failure (instead the user should provide a blank
+            // passphrase)
+            return false;
         }
-        return (int) strlen(passphrase);
+        size_t len = strlen(passphrase);
+        if (len >= 1 && passphrase[len - 1] == '\n') {
+            passphrase[len - 1] = '\0';
+        }
+        // may be a blank passphrase, but allow it
+        return true;
     }
     for (i = 0; i < attempts; i++) {
         (void) snprintf(prompt, sizeof(prompt), "Enter passphrase for %.16s: ", id);
         if ((cp = getpass(prompt)) == NULL) {
             break;
         }
-        cc = snprintf(buf, sizeof(buf), "%s", cp);
+        snprintf(buf, sizeof(buf), "%s", cp);
         (void) snprintf(prompt, sizeof(prompt), "Repeat passphrase for %.16s: ", id);
         if ((cp = getpass(prompt)) == NULL) {
             break;
         }
-        cc = snprintf(passphrase, size, "%s", cp);
+        snprintf(passphrase, size, "%s", cp);
         if (strcmp(buf, passphrase) == 0) {
             (void) memset(buf, 0x0, sizeof(buf));
-            return cc;
+            return true;
         }
     }
     (void) memset(buf, 0x0, sizeof(buf));
     (void) memset(passphrase, 0x0, size);
-    return 0;
+    return false;
+}
+
+/* find a subkey that includes any of the desired key flags */
+static const pgp_key_t *
+find_suitable_subkey(const pgp_key_t *primary, uint8_t desired_usage)
+{
+    if (!primary || DYNARRAY_IS_EMPTY(primary, subkey)) {
+        return NULL;
+    }
+    // search in reverse with the assumption that the last
+    // in the list would be the newest created subkey, for now
+    for (unsigned i = primary->subkeyc; i-- > 0;) {
+        pgp_key_t *subkey = primary->subkeys[i];
+        if (subkey->key_flags & desired_usage) {
+            return subkey;
+        }
+    }
+    return NULL;
 }
 
 #ifdef HAVE_SYS_RESOURCE_H
@@ -846,7 +857,7 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
 {
     int              ret = 1;
     const pgp_key_t *key;
-    unsigned         k;
+    unsigned         from;
     json_object *    id_array = json_object_new_array();
     char *           newkey;
     // remove 0x prefix, if any
@@ -854,10 +865,10 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
         name += 2;
     }
     printf("%s,%d, NAME: %s\n", __FILE__, __LINE__, name);
-    k = 0;
+    from = 0;
     *json = NULL;
     do {
-        if (rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k, &key) !=
+        if (rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &from, &key) !=
             RNP_OK) {
             return 0;
         }
@@ -870,10 +881,17 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
                     newkey = NULL;
                 }
             } else {
-                pgp_sprint_json(
-                  rnp->io, rnp->pubring, key, id_array, "signature ", &key->key.pubkey, psigs);
+                json_object *obj = json_object_new_object();
+                pgp_sprint_json(rnp->io,
+                                rnp->pubring,
+                                key,
+                                obj,
+                                pgp_is_primary_key_tag(key->type) ? "pub" : "sub",
+                                &key->key.pubkey,
+                                psigs);
+                json_object_array_add(id_array, obj);
             }
-            k += 1;
+            from += 1;
         }
     } while (key != NULL);
     const char *j = json_object_to_json_string(id_array);
@@ -962,8 +980,9 @@ rnp_export_key(rnp_t *rnp, const char *name)
         return NULL;
     }
 
-    if (key->type == PGP_PTAG_CT_ENCRYPTED_SECRET_KEY) {
-        rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
+    // TODO: exporting a subkey is actually a bit more involved
+    if (key->type == PGP_PTAG_CT_ENCRYPTED_SECRET_KEY || key->type == PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY) {
+        rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, "");
         memset(passphrase, 0, sizeof(passphrase));
         find_passphrase(
           rnp->user_input_fp, keyid, passphrase, sizeof(passphrase), rnp->pswdtries);
@@ -1008,24 +1027,6 @@ rnp_import_key(rnp_t *rnp, char *f)
     return rnp_key_store_list(io, rnp->pubring, 0);
 }
 
-static uint32_t
-get_numbits(const rnp_keygen_crypto_params_t *crypto)
-{
-    switch (crypto->key_alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        return crypto->rsa.modulus_bit_len;
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_ECDH:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-        return ec_curves[crypto->ecc.curve].bitlen;
-    default:
-        return 0;
-    }
-}
-
 int
 rnp_secret_count(rnp_t *rnp)
 {
@@ -1038,70 +1039,85 @@ rnp_public_count(rnp_t *rnp)
     return rnp->pubring ? ((rnp_key_store_t *) rnp->pubring)->keyc : 0;
 }
 
-/* generate a new key */
-/* TODO: Does this need to take into account SSH keys? */
 int
-rnp_generate_key(rnp_t *rnp, const char *id)
+rnp_generate_key(rnp_t *rnp)
 {
     RNP_MSG("Generating a new key...\n");
 
-    pgp_key_t *key;
-    pgp_io_t * io;
-    uint8_t *  uid;
-    char       passphrase[MAX_PASSPHRASE_LENGTH] = {0};
-    char       newid[1024] = {0};
-    char       keyid[2 * PGP_KEY_ID_SIZE + 1] = {0};
-    char *     cp = NULL;
+    rnp_keygen_desc_t *desc = &rnp->action.generate_key_ctx;
+    pgp_key_t *        primary_sec = NULL;
+    pgp_key_t *        primary_pub = NULL;
+    pgp_key_t *        subkey_sec = NULL;
+    pgp_key_t *        subkey_pub = NULL;
+    char *             cp = NULL;
+    bool               ok = false;
 
-    io = rnp->io;
-
-    /* generate a new key */
-    if (id) {
-        snprintf(newid, sizeof(newid), "%s", id);
-    } else {
-        snprintf(newid,
-                 sizeof(newid),
-                 "%s %d-bit key <%s@localhost>",
-                 pgp_show_pka(rnp->action.generate_key_ctx.crypto.key_alg),
-                 get_numbits(&rnp->action.generate_key_ctx.crypto),
-                 getenv("LOGNAME"));
+    // currently we need passphrases before generating the keys
+    if (!find_passphrase(rnp->user_input_fp,
+                         "new primary key",
+                         (char *) desc->primary.crypto.passphrase,
+                         sizeof(desc->primary.crypto.passphrase),
+                         rnp->pswdtries)) {
+        RNP_LOG("passphrase required for key generation");
+        return false;
     }
-    uid = (uint8_t *) newid;
-
-    key = pgp_generate_keypair(&rnp->action.generate_key_ctx, uid);
-    if (key == NULL) {
-        (void) fprintf(io->errs, "cannot generate key\n");
-        return RNP_FAIL;
+    if (!find_passphrase(rnp->user_input_fp,
+                         "new subkey",
+                         (char *) desc->subkey.crypto.passphrase,
+                         sizeof(desc->subkey.crypto.passphrase),
+                         rnp->pswdtries)) {
+        RNP_LOG("passphrase required for key generation");
+        return false;
     }
 
-    if (!rnp_key_store_add_key(io, rnp->pubring, key, PGP_PTAG_CT_PUBLIC_KEY) ||
-        !rnp_key_store_add_key(io, rnp->secring, key, PGP_PTAG_CT_SECRET_KEY)) {
-        pgp_key_free(key);
-        return RNP_FAIL;
+    primary_sec = calloc(1, sizeof(*primary_sec));
+    primary_pub = calloc(1, sizeof(*primary_pub));
+    subkey_sec = calloc(1, sizeof(*subkey_sec));
+    subkey_pub = calloc(1, sizeof(*subkey_pub));
+    if (!primary_sec || !primary_pub || !subkey_sec || !subkey_pub) {
+        goto end;
+    }
+    if (!pgp_generate_keypair(desc, true, primary_sec, primary_pub, subkey_sec, subkey_pub)) {
+        RNP_LOG("failed to generate keys");
+        goto end;
     }
 
-    pgp_sprint_key(rnp->io, NULL, key, &cp, "signature ", &key->key.seckey.pubkey, 0);
+    if (!rnp_key_store_add_key(rnp->io, rnp->secring, primary_sec) ||
+        !rnp_key_store_add_key(rnp->io, rnp->secring, subkey_sec) ||
+        !rnp_key_store_add_key(rnp->io, rnp->pubring, primary_pub) ||
+        !rnp_key_store_add_key(rnp->io, rnp->pubring, subkey_pub)) {
+        RNP_LOG("failed to add keys to key store");
+        goto end;
+    }
+
+    // show the primary key
+    pgp_sprint_key(rnp->io, NULL, primary_pub, &cp, "pub", &primary_pub->key.pubkey, 0);
+    (void) fprintf(stdout, "%s", cp);
+    free(cp);
+    // show the subkey
+    pgp_sprint_key(rnp->io, NULL, subkey_pub, &cp, "sub", &subkey_pub->key.pubkey, 0);
     (void) fprintf(stdout, "%s", cp);
     free(cp);
 
-    /* get the passphrase */
-    rnp_strhexdump(keyid, key->sigid, PGP_KEY_ID_SIZE, "");
-    memset(passphrase, 0, sizeof(passphrase));
-    find_passphrase(rnp->user_input_fp, keyid, passphrase, sizeof(passphrase), rnp->pswdtries);
-
-    /* write keypair */
-    if (!rnp_key_store_write_to_file(rnp, rnp->secring, (uint8_t *) passphrase, 0)) {
-        pgp_key_free(key);
-        return RNP_FAIL;
+    // update the keyring on disk
+    if (!rnp_key_store_write_to_file(rnp, rnp->secring, NULL, 0) ||
+        !rnp_key_store_write_to_file(rnp, rnp->pubring, NULL, 0)) {
+        RNP_LOG("failed to write keyring");
+        goto end;
     }
 
-    if (!rnp_key_store_write_to_file(rnp, rnp->pubring, (uint8_t *) passphrase, 0)) {
-        pgp_key_free(key);
-        return RNP_FAIL;
-    }
+    ok = true;
+end:
+    // always free data and scrub passphrases
+    pgp_free_user_prefs(&desc->primary.cert.prefs);
+    pgp_forget(desc->primary.crypto.passphrase, sizeof(*desc->primary.crypto.passphrase));
+    pgp_forget(desc->subkey.crypto.passphrase, sizeof(*desc->subkey.crypto.passphrase));
 
-    pgp_key_free(key);
-    return RNP_OK;
+    free(primary_sec);
+    free(primary_pub);
+    free(subkey_sec);
+    free(subkey_pub);
+    return ok;
 }
 
 /* encrypt a file */
@@ -1120,13 +1136,17 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *
     if ((key = resolve_userid(ctx->rnp, ctx->rnp->pubring, userid)) == NULL) {
         return RNP_FAIL;
     }
+    if (!pgp_key_can_encrypt(key) && !(key = find_suitable_subkey(key, PGP_KF_ENCRYPT))) {
+        RNP_LOG("this key can not encrypt");
+        return RNP_FAIL;
+    }
     /* generate output file name if needed */
     if (out == NULL) {
         suffix = (ctx->armour) ? ".asc" : ".gpg";
         (void) snprintf(outname, sizeof(outname), "%s%s", f, suffix);
         out = outname;
     }
-    return (int) pgp_encrypt_file(ctx, ctx->rnp->io, f, out, key);
+    return (int) pgp_encrypt_file(ctx, ctx->rnp->io, f, out, pgp_get_pubkey(key));
 }
 
 #define ARMOR_HEAD "-----BEGIN PGP MESSAGE-----"
@@ -1186,6 +1206,11 @@ rnp_sign_file(rnp_ctx_t * ctx,
     }
     /* get key with which to sign */
     if ((keypair = resolve_userid(ctx->rnp, ctx->rnp->secring, userid)) == NULL) {
+        return RNP_FAIL;
+    }
+    if (!pgp_key_can_sign(keypair) &&
+        !(keypair = find_suitable_subkey(keypair, PGP_KF_SIGN))) {
+        RNP_LOG("this key can not sign");
         return RNP_FAIL;
     }
     ret = RNP_OK;
@@ -1302,6 +1327,11 @@ rnp_sign_memory(rnp_ctx_t * ctx,
         return RNP_FAIL;
     }
     if ((keypair = resolve_userid(ctx->rnp, ctx->rnp->secring, userid)) == NULL) {
+        return RNP_FAIL;
+    }
+    if (!pgp_key_can_sign(keypair) &&
+        !(keypair = find_suitable_subkey(keypair, PGP_KF_SIGN))) {
+        RNP_LOG("this key can not sign");
         return RNP_FAIL;
     }
     ret = RNP_OK;
@@ -1443,6 +1473,11 @@ rnp_encrypt_memory(
         (void) fprintf(io->errs, "%s: public key not available\n", userid);
         return 0;
     }
+    if (!pgp_key_can_encrypt(keypair) &&
+        !(keypair = find_suitable_subkey(keypair, PGP_KF_ENCRYPT))) {
+        RNP_LOG("this key can not encrypt");
+        return RNP_FAIL;
+    }
     if (in == out) {
         (void) fprintf(io->errs,
                        "rnp_encrypt_buf: input and output bufs need to be different\n");
@@ -1452,7 +1487,7 @@ rnp_encrypt_memory(
         (void) fprintf(io->errs, "rnp_encrypt_buf: input size is larger than output size\n");
         return 0;
     }
-    enc = pgp_encrypt_buf(ctx, io, in, insize, keypair);
+    enc = pgp_encrypt_buf(ctx, io, in, insize, pgp_get_pubkey(keypair));
     m = MIN(pgp_mem_len(enc), outsize);
     (void) memcpy(out, pgp_mem_data(enc), m);
     pgp_memory_free(enc);
@@ -1563,6 +1598,7 @@ rnp_format_json(void *vp, const char *json, const int psigs)
         ;
         format_json_key(fp, item, psigs);
     }
+    fprintf(fp, "\n");
     /* clean up */
     json_object_put(ids);
     return idc;

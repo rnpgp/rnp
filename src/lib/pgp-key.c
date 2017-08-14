@@ -193,13 +193,13 @@ pgp_get_pubkey(const pgp_key_t *key)
 bool
 pgp_is_key_public(const pgp_key_t *key)
 {
-    return key->type == PGP_PTAG_CT_PUBLIC_KEY || key->type == PGP_PTAG_CT_PUBLIC_SUBKEY;
+    return pgp_is_public_key_tag(key->type);
 }
 
 bool
 pgp_is_key_secret(const pgp_key_t *key)
 {
-    return !pgp_is_key_public(key);
+    return pgp_is_secret_key_tag(key->type);
 }
 
 bool
@@ -218,6 +218,32 @@ bool
 pgp_key_can_encrypt(const pgp_key_t *key)
 {
     return key->key_flags & PGP_KF_ENCRYPT;
+}
+
+bool
+pgp_is_secret_key_tag(pgp_content_enum tag)
+{
+    switch (tag) {
+    case PGP_PTAG_CT_SECRET_KEY:
+    case PGP_PTAG_CT_SECRET_SUBKEY:
+    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
+    case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool
+pgp_is_public_key_tag(pgp_content_enum tag)
+{
+    switch (tag) {
+    case PGP_PTAG_CT_PUBLIC_KEY:
+    case PGP_PTAG_CT_PUBLIC_SUBKEY:
+        return true;
+    default:
+        return false;
+    }
 }
 
 bool
@@ -443,7 +469,7 @@ pgp_set_seckey(pgp_contents_t *cont, const pgp_key_t *key)
 const uint8_t *
 pgp_get_key_id(const pgp_key_t *key)
 {
-    return key->sigid;
+    return key->keyid;
 }
 
 /**
@@ -601,7 +627,7 @@ pgp_add_selfsigned_userid(pgp_key_t *key, const uint8_t *userid)
     pgp_sig_start_key_sig(
       sig, &key->key.seckey.pubkey, userid, PGP_CERT_POSITIVE, key->key.seckey.hash_alg);
     pgp_sig_add_time(sig, (int64_t) time(NULL), PGP_PTAG_SS_CREATION_TIME);
-    pgp_sig_add_issuer_keyid(sig, key->sigid);
+    pgp_sig_add_issuer_keyid(sig, key->keyid);
     pgp_sig_add_primary_userid(sig, 1);
     pgp_sig_end_hashed_subpkts(sig);
 
@@ -648,14 +674,14 @@ pgp_key_init(pgp_key_t *key, const pgp_content_enum type)
         (void) fprintf(stderr, "pgp_key_init: wrong key type\n");
     }
     switch (type) {
-      case PGP_PTAG_CT_PUBLIC_KEY:
-      case PGP_PTAG_CT_PUBLIC_SUBKEY:
-      case PGP_PTAG_CT_SECRET_KEY:
-      case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-      case PGP_PTAG_CT_SECRET_SUBKEY:
-      case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
+    case PGP_PTAG_CT_PUBLIC_KEY:
+    case PGP_PTAG_CT_PUBLIC_SUBKEY:
+    case PGP_PTAG_CT_SECRET_KEY:
+    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
+    case PGP_PTAG_CT_SECRET_SUBKEY:
+    case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
         break;
-      default:
+    default:
         RNP_LOG("invalid key type: %d", type);
         break;
     }

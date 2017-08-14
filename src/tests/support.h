@@ -109,6 +109,7 @@ int test_value_equal(const char *  what,
  */
 char *uint_to_string(char *buff, const int buffsize, unsigned int num, int base);
 
+bool write_pass_to_pipe(int fd, size_t count);
 /* Setup readable pipe with default passphrase inside */
 int setupPassphrasefd(int *pipefd);
 

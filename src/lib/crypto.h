@@ -77,7 +77,63 @@ void pgp_crypto_finish(void);
 /* raw key generation */
 bool pgp_generate_seckey(const rnp_keygen_crypto_params_t *params, pgp_seckey_t *seckey);
 
-pgp_key_t *pgp_generate_keypair(const rnp_keygen_desc_t *key_desc, const uint8_t *userid);
+/** generate a new primary key
+ *
+ *  @param desc keygen description
+ *  @param merge_defaults true if you want defaults to be set for unset
+ *         keygen description parameters.
+ *  @param primary_sec pointer to store the generated secret key, must not be NULL
+ *  @param primary_pub pointer to store the generated public key, must not be NULL
+ *  @param decrypted_seckey optional pointer to store the decrypted secret key
+ *         before encryption, may be NULL
+ *  @return true if successful, false otherwise.
+ **/
+bool pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
+                              bool                       merge_defaults,
+                              pgp_key_t *                primary_sec,
+                              pgp_key_t *                primary_pub,
+                              pgp_seckey_t *             decrypted_seckey);
+
+/** generate a new subkey
+ *
+ *  @param desc keygen description
+ *  @param merge_defaults true if you want defaults to be set for unset
+ *         keygen description parameters.
+ *  @param primary_sec pointer to the primary secret key that will own this
+ *         subkey, must not be NULL
+ *  @param primary_pub pointer to the primary public key that will own this
+ *         subkey, must not be NULL
+ *  @param primary_seckey the decrypted primary secret key that will be used to
+ *         create the subkey binding signature, must not be NULL
+ *  @param subkey_sec pointer to store the generated secret key, must not be NULL
+ *  @param subkey_pub pointer to store the generated public key, must not be NULL
+ *  @return true if successful, false otherwise.
+ **/
+bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *desc,
+                         bool                      merge_defaults,
+                         pgp_key_t *               primary_sec,
+                         pgp_key_t *               primary_pub,
+                         const pgp_seckey_t *      primary_decrypted,
+                         pgp_key_t *               subkey_sec,
+                         pgp_key_t *               subkey_pub);
+
+/** generate a new primary key and subkey
+ *
+ *  @param desc keygen description
+ *  @param merge_defaults true if you want defaults to be set for unset
+ *         keygen description parameters.
+ *  @param primary_sec pointer to store the generated secret key, must not be NULL
+ *  @param primary_pub pointer to store the generated public key, must not be NULL
+ *  @param subkey_sec pointer to store the generated secret key, must not be NULL
+ *  @param subkey_pub pointer to store the generated public key, must not be NULL
+ *  @return true if successful, false otherwise.
+ **/
+bool pgp_generate_keypair(rnp_keygen_desc_t *desc,
+                          bool               merge_defaults,
+                          pgp_key_t *        primary_sec,
+                          pgp_key_t *        primary_pub,
+                          pgp_key_t *        subkey_sec,
+                          pgp_key_t *        subkey_pub);
 
 void pgp_reader_push_decrypt(pgp_stream_t *, pgp_crypt_t *, pgp_region_t *);
 void pgp_reader_pop_decrypt(pgp_stream_t *);
@@ -93,7 +149,8 @@ int pgp_decrypt_decode_mpi(
 struct pgp_key_data;
 void pgp_writer_push_encrypt(pgp_output_t *, const struct pgp_key_data *);
 
-bool pgp_encrypt_file(rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_key_t *);
+bool pgp_encrypt_file(
+  rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_pubkey_t *);
 bool pgp_decrypt_file(pgp_io_t *,
                       const char *,
                       const char *,
@@ -107,7 +164,7 @@ bool pgp_decrypt_file(pgp_io_t *,
                       pgp_cbfunc_t *);
 
 pgp_memory_t *pgp_encrypt_buf(
-  rnp_ctx_t *, pgp_io_t *, const void *, const size_t, const pgp_key_t *);
+  rnp_ctx_t *, pgp_io_t *, const void *, const size_t, const pgp_pubkey_t *);
 pgp_memory_t *pgp_decrypt_buf(pgp_io_t *,
                               const void *,
                               const size_t,

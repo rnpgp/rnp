@@ -32,6 +32,7 @@
 
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
+#include "pgp-key.h"
 
 #include "packet-create.h"
 
@@ -520,7 +521,7 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *     io,
         return false;
     }
 
-    if (!pgp_memory_add(m, key->sigfingerprint.fingerprint, PGP_FINGERPRINT_SIZE)) {
+    if (!pgp_memory_add(m, key->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE)) {
         return false;
     }
 
@@ -623,8 +624,20 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *     io,
 
     pgp_writer_set_memory(&output, m);
 
-    if (!pgp_write_xfer_anykey(&output, key, passphrase, NULL, 0)) {
-        return false;
+    for (unsigned ipkt = 0; ipkt < key->packetc; ipkt++) {
+        pgp_rawpacket_t *pkt = &key->packets[ipkt];
+        if (!pgp_write(&output, pkt->raw, pkt->length)) {
+            return false;
+        }
+    }
+    for (unsigned isub = 0; isub < key->subkeyc; isub++) {
+        const pgp_key_t *subkey = key->subkeys[isub];
+        for (unsigned ipkt = 0; ipkt < subkey->packetc; ipkt++) {
+            pgp_rawpacket_t *pkt = &subkey->packets[ipkt];
+            if (!pgp_write(&output, pkt->raw, pkt->length)) {
+                return false;
+            }
+        }
     }
 
     rc = pgp_writer_close(&output);
@@ -704,6 +717,9 @@ rnp_key_store_kbx_to_mem(pgp_io_t *       io,
     }
 
     for (i = 0; i < key_store->keyc; i++) {
+        if (!pgp_key_is_primary_key(&key_store->keys[i])) {
+            continue;
+        }
         if (!rnp_key_store_kbx_write_pgp(io, &key_store->keys[i], passphrase, memory)) {
             RNP_LOG_FD(io->errs, "Can't write PGP blobs for key %d\n", i);
             return false;

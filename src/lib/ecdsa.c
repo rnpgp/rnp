@@ -40,11 +40,14 @@ extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
 /* Used by ECDH keys. Specifies which hash and wrapping algorithm
  * to be used (see point 15. of RFC 4880).
+ *
+ * Note: sync with ec_curves.
  */
 struct {
     pgp_hash_alg_t hash;     /* Hash used by kdf */
     pgp_symm_alg_t wrap_alg; /* Symmetric algorithm used to wrap KEK*/
 } ecdh_params[] = {
+  {0},
   // PGP_CURVE_NIST_P_256
   {.hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
   // PGP_CURVE_NIST_P_384
@@ -69,7 +72,7 @@ find_curve_by_OID(const uint8_t *oid, size_t oid_len)
 const ec_curve_desc_t *
 get_curve_desc(const pgp_curve_t curve_id)
 {
-    return (curve_id < PGP_CURVE_MAX) ? &ec_curves[curve_id] : NULL;
+    return (curve_id < PGP_CURVE_MAX && curve_id > 0) ? &ec_curves[curve_id] : NULL;
 }
 
 /*

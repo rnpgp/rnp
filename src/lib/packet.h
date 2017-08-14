@@ -59,6 +59,7 @@
 #include <time.h>
 #include <stdint.h>
 
+#include <rnp/rnp_def.h>
 #include "types.h"
 #include "defs.h"
 #include "hash.h"
@@ -399,7 +400,8 @@ typedef enum {
  * Values in this enum correspond to order in ec_curve array (in ec.c)
  */
 typedef enum {
-    PGP_CURVE_NIST_P_256 = 0,
+    PGP_CURVE_UNKNOWN = 0,
+    PGP_CURVE_NIST_P_256,
     PGP_CURVE_NIST_P_384,
     PGP_CURVE_NIST_P_521,
     PGP_CURVE_ED25519,
@@ -562,8 +564,6 @@ typedef enum {
     PGP_S2KS_SALTED = 1,
     PGP_S2KS_ITERATED_AND_SALTED = 3
 } pgp_s2k_specifier_t;
-
-#define PGP_SA_DEFAULT_CIPHER PGP_SA_CAST5
 
 void pgp_calc_mdc_hash(
   const uint8_t *, const size_t, const uint8_t *, const unsigned, uint8_t *);
@@ -1022,21 +1022,16 @@ typedef struct pgp_key_t {
     DYNARRAY(pgp_rawpacket_t, packet); /* array of raw packets */
     DYNARRAY(pgp_subsig_t, subsig);    /* array of signature subkeys */
     DYNARRAY(pgp_revoke_t, revoke);    /* array of signature revocations */
-    pgp_content_enum  type;            /* type of key */
-    pgp_keydata_key_t key;             /* pubkey/seckey data */
-    uint8_t           key_flags;       /* key flags */
-    pgp_pubkey_t      sigkey;          /* signature key */
-    uint8_t           sigid[PGP_KEY_ID_SIZE];
-    pgp_fingerprint_t sigfingerprint; /* pgp key fingerprint */
-    pgp_pubkey_t      enckey;         /* encryption key */
-    uint8_t           encid[PGP_KEY_ID_SIZE];
-    uint8_t           sig_grip[PGP_FINGERPRINT_SIZE];
-    uint8_t           enc_grip[PGP_FINGERPRINT_SIZE];
-    pgp_fingerprint_t encfingerprint; /* deprecated (see GH #277) */
-    uint32_t          uid0;           /* primary uid index in uids array */
-    uint8_t           revoked;        /* key has been revoked */
-    pgp_revoke_t      revocation;     /* revocation reason */
-    uint8_t           loaded;         /* key was loaded so has key packet in subpackets */
+    DYNARRAY(struct pgp_key_t *, subkey);
+    pgp_content_enum  type;      /* type of key */
+    pgp_keydata_key_t key;       /* pubkey/seckey data */
+    uint8_t           key_flags; /* key flags */
+    uint8_t           keyid[PGP_KEY_ID_SIZE];
+    pgp_fingerprint_t fingerprint;
+    uint8_t           grip[PGP_FINGERPRINT_SIZE];
+    uint32_t          uid0;       /* primary uid index in uids array */
+    uint8_t           revoked;    /* key has been revoked */
+    pgp_revoke_t      revocation; /* revocation reason */
     symmetric_key_t   session_key;
 } pgp_key_t;
 
@@ -1056,10 +1051,46 @@ typedef struct rnp_keygen_crypto_params_t {
             uint32_t modulus_bit_len;
         } rsa;
     };
+
+    uint8_t passphrase[MAX_PASSPHRASE_LENGTH];
 } rnp_keygen_crypto_params_t;
 
-typedef struct rnp_keygen_desc_t {
+typedef struct rnp_selfsig_cert_info {
+    uint8_t          userid[MAX_ID_LENGTH]; /* userid, required */
+    uint8_t          key_flags;             /* key flags */
+    uint32_t         key_expiration;        /* key expiration time (sec), 0 = no expiration */
+    pgp_user_prefs_t prefs;                 /* user preferences, optional */
+    unsigned         primary : 1;           /* mark this as the primary user id */
+} rnp_selfsig_cert_info;
+
+typedef struct rnp_selfsig_binding_info {
+    uint8_t  key_flags;
+    uint32_t key_expiration;
+} rnp_selfsig_binding_info;
+
+typedef struct rnp_keygen_primary_desc_t {
     rnp_keygen_crypto_params_t crypto;
+    rnp_selfsig_cert_info      cert;
+} rnp_keygen_primary_desc_t;
+
+typedef struct rnp_keygen_subkey_desc_t {
+    rnp_keygen_crypto_params_t crypto;
+    rnp_selfsig_binding_info   binding;
+} rnp_keygen_subkey_desc_t;
+
+typedef struct rnp_keygen_desc_t {
+    rnp_keygen_primary_desc_t primary;
+    rnp_keygen_subkey_desc_t  subkey;
 } rnp_keygen_desc_t;
+
+#define DEFAULT_PK_ALG PGP_PKA_RSA
+#define DEFAULT_RSA_NUMBITS 2048
+static const pgp_symm_alg_t DEFAULT_SYMMETRIC_ALGS[] = {
+  PGP_SA_AES_256, PGP_SA_AES_192, PGP_SA_AES_128, PGP_SA_TRIPLEDES};
+static const pgp_hash_alg_t DEFAULT_HASH_ALGS[] = {
+  PGP_HASH_SHA256, PGP_HASH_SHA384, PGP_HASH_SHA512, PGP_HASH_SHA224, PGP_HASH_SHA1};
+static const pgp_compression_type_t DEFAULT_COMPRESS_ALGS[] = {
+  PGP_C_ZLIB, PGP_C_BZIP2, PGP_C_ZIP, PGP_C_NONE};
+#define PGP_SA_DEFAULT_CIPHER PGP_SA_AES_256
 
 #endif /* PACKET_H_ */

@@ -72,6 +72,8 @@ void pgp_key_free(pgp_key_t *);
  **/
 void pgp_key_free_data(pgp_key_t *);
 
+void pgp_free_user_prefs(pgp_user_prefs_t *prefs);
+
 const pgp_pubkey_t *pgp_get_pubkey(const pgp_key_t *);
 
 bool pgp_is_key_public(const pgp_key_t *);
@@ -84,6 +86,8 @@ bool pgp_key_can_encrypt(const pgp_key_t *key);
 
 bool pgp_is_primary_key_tag(pgp_content_enum tag);
 bool pgp_is_subkey_tag(pgp_content_enum tag);
+bool pgp_is_secret_key_tag(pgp_content_enum tag);
+bool pgp_is_public_key_tag(pgp_content_enum tag);
 
 bool pgp_key_is_primary_key(const pgp_key_t *key);
 bool pgp_key_is_subkey(const pgp_key_t *key);
@@ -109,5 +113,4 @@ struct pgp_rawpacket_t *pgp_add_rawpacket(pgp_key_t *, const pgp_rawpacket_t *);
 bool pgp_add_selfsigned_userid(pgp_key_t *, const unsigned char *);
 
 void pgp_key_init(pgp_key_t *, const pgp_content_enum);
-
 #endif // RNP_PACKET_KEY_H

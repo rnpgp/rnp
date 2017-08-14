@@ -236,7 +236,6 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     const pgp_contents_t *content = &pkt->u;
     const pgp_key_t *     signer;
     validate_key_cb_t *   key;
-    pgp_pubkey_t *        sigkey;
     pgp_error_t **        errors;
     pgp_io_t *            io;
     unsigned              from;
@@ -294,7 +293,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PTAG_CT_SIGNATURE_FOOTER: /* V4 sigs */
         from = 0;
         signer = rnp_key_store_get_key_by_id(
-          io, key->keyring, content->sig.info.signer_id, &from, &sigkey);
+          io, key->keyring, content->sig.info.signer_id, &from, NULL);
         if (!signer) {
             if (!add_sig_to_list(
                   &content->sig.info, &key->result->unknown_sigs, &key->result->unknownc)) {
@@ -303,8 +302,8 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             }
             break;
         }
-        if (sigkey == &signer->enckey) {
-            (void) fprintf(io->errs, "WARNING: signature made with encryption key\n");
+        if (!pgp_key_can_sign(signer)) {
+            (void) fprintf(io->errs, "WARNING: signature made with key that can not sign\n");
         }
         switch (content->sig.info.type) {
         case PGP_CERT_GENERIC:
@@ -412,7 +411,6 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     const pgp_contents_t *content = &pkt->u;
     const pgp_key_t *     signer;
     validate_data_cb_t *  data;
-    pgp_pubkey_t *        sigkey;
     pgp_error_t **        errors;
     pgp_io_t *            io;
     unsigned              from;
@@ -474,7 +472,7 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         }
         from = 0;
         signer = rnp_key_store_get_key_by_id(
-          io, data->keyring, content->sig.info.signer_id, &from, &sigkey);
+          io, data->keyring, content->sig.info.signer_id, &from, NULL);
         if (!signer) {
             PGP_ERROR_1(errors, PGP_E_V_UNKNOWN_SIGNER, "%s", "Unknown Signer");
             if (!add_sig_to_list(
@@ -484,8 +482,8 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             }
             break;
         }
-        if (sigkey == &signer->enckey) {
-            (void) fprintf(io->errs, "WARNING: signature made with encryption key\n");
+        if (!pgp_key_can_sign(signer)) {
+            (void) fprintf(io->errs, "WARNING: signature made with key that can not sign\n");
         }
         if (content->sig.info.birthtime_set) {
             data->result->birthtime = content->sig.info.birthtime;
