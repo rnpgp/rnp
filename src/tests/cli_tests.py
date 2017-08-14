@@ -13,6 +13,7 @@ import random
 import string
 from subprocess import Popen, PIPE
 from cli_common import find_utility, run_proc, pswd_pipe, rnp_file_path, random_text, file_text
+import cli_common
 
 WORKDIR = ''
 RNP = ''
@@ -282,9 +283,12 @@ def rnp_decrypt_file(src, dst):
     if ret != 0: 
         raise_err('rnp decryption failed', out + err)
 
-def rnp_sign_file(src, dst, signer):
+def rnp_sign_file(src, dst, signer, armour = False):
     pipe = pswd_pipe(PASSWORD)
-    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', signer, '--sign', src, '--output', dst])
+    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', signer, '--sign', src, '--output', dst]
+    if armour:
+        params += ['--armor']
+    ret, out, err = run_proc(RNP, params)
     os.close(pipe)
     if ret != 0: 
         raise_err('rnp signing failed', err)
@@ -297,7 +301,8 @@ def rnp_sign_detached(src, signer):
         raise_err('rnp detached signing failed', err)
 
 def rnp_verify_file(src, dst, signer = None):
-    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--verify-cat', src, '--output', dst])
+    params = ['--homedir', RNPDIR, '--verify-cat', src, '--output', dst]
+    ret, out, err = run_proc(RNP, params)
     if ret != 0: 
         raise_err('rnp verification failed', err + out)
     # Check RNP output
@@ -365,12 +370,12 @@ def gpg_verify_detached(src, sig, signer = None):
         raise_err('gpg detached verification failed, wrong signer')
 
 def gpg_sign_file(src, dst, signer):
-    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '-z', '0', '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '-o', dst, '-s', src])
+    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '-o', dst, '-s', src])
     if ret != 0: 
         raise_err('gpg signing failed', err)
 
 def gpg_sign_detached(src, signer):
-    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '-z', '0', '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '--detach-sign', src])
+    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '--detach-sign', src])
     if ret != 0: 
         raise_err('gpg detached signing failed', err)
 
@@ -455,15 +460,17 @@ def rnp_signing_rnp_to_gpg(filesize):
     try:
         # Generate random file of required size
         random_text(src, filesize)
-        # Sign file with RNP
-        rnp_sign_file(src, sig, 'signing@rnp')
-        # Verify signed file with RNP
-        rnp_verify_file(sig, ver, 'signing@rnp')
-        compare_files(src, ver, 'rnp verified data differs')
-        remove_files(ver)
-        # Verify signed message with GPG
-        gpg_verify_file(sig, ver, 'signing@rnp')
-        compare_files(src, ver, 'gpg verified data differs')
+        for armour in [False, True]:
+            # Sign file with RNP
+            rnp_sign_file(src, sig, 'signing@rnp', armour)
+            # Verify signed file with RNP
+            rnp_verify_file(sig, ver, 'signing@rnp')
+            compare_files(src, ver, 'rnp verified data differs')
+            remove_files(ver)
+            # Verify signed message with GPG
+            gpg_verify_file(sig, ver, 'signing@rnp')
+            compare_files(src, ver, 'gpg verified data differs')
+            remove_files(ver)
     finally:
         # Cleanup
         remove_files(src, sig, ver)
@@ -550,7 +557,7 @@ def rnp_signing():
 
 def run_rnp_tests():
     # 1. Encryption / decryption against GPG
-    #rnp_encryption()
+    rnp_encryption()
     # 2. Signing / verification against GPG
     rnp_signing()
     
@@ -594,6 +601,7 @@ def run_tests():
             sys.exit(0)
         elif arg in ['-d', '--debug']:
             DEBUG = True
+            cli_common.DEBUG = True
         elif arg == 'all':
             tests += ['rnp', 'rnpkeys']
         elif arg in ['rnp', 'rnpkeys']:

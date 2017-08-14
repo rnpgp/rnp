@@ -10,6 +10,7 @@ from subprocess import Popen, PIPE
 from timeit import default_timer as perf_timer
 
 RNP_ROOT = None
+DEBUG = False
 
 def size_to_readable(num, suffix = 'B'):
     for unit in ['','K','M','G','T','P','E','Z']:
@@ -55,6 +56,8 @@ def rnp_file_path(relpath, check = True):
     return fpath
 
 def run_proc(proc, params):
+    if DEBUG:
+        sys.stderr.write(proc + ' ' + ' '.join(params) + '\n')
     process = Popen([proc] + params, stdout=PIPE, stderr=PIPE)
     output, errout = process.communicate()
     retcode = process.poll()
