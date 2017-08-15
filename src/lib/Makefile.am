@@ -5,6 +5,11 @@ AM_LDFLAGS          = $(BOTAN_LDFLAGS) $(JSONC_LDFLAGS)
 lib_LTLIBRARIES		= librnp.la
 librnp_la_CPPFLAGS	= -I$(top_srcdir)/include
 librnp_la_LIBADD	= $(BOTAN_LIBS) $(JSONC_LIBS) ../librekey/librekey.la
+
+if USE_BUNDLED_EXPLICIT_BZERO
+librnp_la_LIBADD	+= ../compat/libcompatnoopt.la
+endif
+
 dist_man_MANS		= librnp.3
 librnp_la_SOURCES	= \
 	bn.c \

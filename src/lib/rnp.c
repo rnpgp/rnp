@@ -461,9 +461,6 @@ static bool
 find_passphrase(FILE *passfp, const char *id, char *passphrase, size_t size, int attempts)
 {
     char  prompt[BUFSIZ];
-    char  buf[128];
-    char *cp;
-    int   i;
 
     if (passfp) {
         memset(passphrase, 0, size);
@@ -481,24 +478,29 @@ find_passphrase(FILE *passfp, const char *id, char *passphrase, size_t size, int
         // may be a blank passphrase, but allow it
         return true;
     }
-    for (i = 0; i < attempts; i++) {
+
+    char  buf[128];
+    char *cp;
+    for (int i = 0; i < attempts; i++) {
         (void) snprintf(prompt, sizeof(prompt), "Enter passphrase for %.16s: ", id);
         if ((cp = getpass(prompt)) == NULL) {
             break;
         }
         snprintf(buf, sizeof(buf), "%s", cp);
+        pgp_forget(cp, strlen(cp));
         (void) snprintf(prompt, sizeof(prompt), "Repeat passphrase for %.16s: ", id);
         if ((cp = getpass(prompt)) == NULL) {
             break;
         }
         snprintf(passphrase, size, "%s", cp);
+        pgp_forget(cp, strlen(cp));
         if (strcmp(buf, passphrase) == 0) {
-            (void) memset(buf, 0x0, sizeof(buf));
+            pgp_forget(buf, sizeof(buf));
             return true;
         }
     }
-    (void) memset(buf, 0x0, sizeof(buf));
-    (void) memset(passphrase, 0x0, size);
+    pgp_forget(buf, sizeof(buf));
+    pgp_forget(passphrase, size);
     return false;
 }
 
