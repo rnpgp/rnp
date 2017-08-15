@@ -1,8 +1,9 @@
-#!/usr/bin/python
+#!/usr/bin/env python2
 
 import sys
 import distutils.spawn
 import tempfile
+import getopt
 import os
 from os import path
 import shutil
@@ -12,6 +13,7 @@ import random
 import string
 from subprocess import Popen, PIPE
 from cli_common import find_utility, run_proc, pswd_pipe, rnp_file_path, random_text, file_text
+import cli_common
 
 WORKDIR = ''
 RNP = ''
@@ -20,34 +22,48 @@ GPG = ''
 RNPDIR = ''
 PASSWORD = 'password'
 RMWORKDIR = False
+# Set DEBUG to True to halt on the first error
+DEBUG = False
+TESTS_SUCCEEDED = []
+TESTS_FAILED = []
 
-RE_RSA_KEY = r'^' \
-r'# off=0 ctb=c6 tag=6 hlen=3 plen=\d+ new-ctb\s+' \
+RE_RSA_KEY = r'(?s)^' \
+r'# .*' \
 r':public key packet:\s+' \
 r'version 4, algo 1, created \d+, expires 0\s+' \
 r'pkey\[0\]: \[(\d{4}) bits\]\s+' \
 r'pkey\[1\]: \[17 bits\]\s+' \
 r'keyid: ([0-9A-F]{16})\s+' \
-r'# off=\d+ ctb=cd tag=13 hlen=\d+ plen=\d+ new-ctb\s+' \
+r'# .*' \
 r':user ID packet: "(.+)"\s+' \
-r'# off=\d+ ctb=c2 tag=2 hlen=3 plen=\d+ new-ctb\s+' \
+r'# .*' \
 r':signature packet: algo 1, keyid \2\s+' \
-r'version 4, created \d+, md5len 0, sigclass 0x13\s+' \
-r'digest algo 8, begin of digest [0-9a-f]{2} [0-9a-f]{2}\s+' \
-r'hashed subpkt 2 len 4 \(sig created \d{4}-\d{2}-\d{2}\)\s+' \
-r'hashed subpkt 16 len 8 \(issuer key ID \2\)\s+' \
-r'hashed subpkt 25 len 1 \(primary user ID\)\s+' \
-r'data: \[\d{4} bits\]$'
+r'.*' \
+r'# .*' \
+r':public sub key packet:' \
+r'.*' \
+r':signature packet: algo 1, keyid \2\s+' \
+r'.*$'
 
 RE_RSA_KEY_LIST = r'^\s*' \
-r'1 key found\s+' \
-r'signature  (\d{4})/RSA \(Encrypt or Sign\) ([0-9a-z]{16}) \d{4}-\d{2}-\d{2} \[\]\s+' \
-r'Key fingerprint: ([0-9a-z]{40})\s+' \
-r'uid\s+(.+)\s*$'
+r'2 keys found\s+' \
+r'pub\s+(\d{4})/RSA \(Encrypt or Sign\) ([0-9a-z]{16}) \d{4}-\d{2}-\d{2} \[.*\]\s+' \
+r'([0-9a-z]{40})\s+' \
+r'uid\s+(.+)\s+' \
+r'sub.+\s+' \
+r'[0-9a-z]{40}\s+$'
+
+'''
+pub   2048/RSA (Encrypt or Sign) 9d11515f507fe5f2 2017-08-14 [SC]
+      d496f4b2192cc1af2508203d9d11515f507fe5f2
+uid           2048@rnptest
+sub   2048/RSA (Encrypt or Sign) ffffaa3655390c6c 2017-08-14 [E]
+      b945a8216a8597267ccf5732ffffaa3655390c6c
+'''
 
 RE_MULTIPLE_KEY_LIST = r'(?s)^\s*(\d+) (?:key|keys) found.*$'
 RE_MULTIPLE_KEY_5 = r'(?s)^\s*' \
-r'5 keys found.*' \
+r'10 keys found.*' \
 r'.+uid\s+0@rnp-multiple' \
 r'.+uid\s+1@rnp-multiple' \
 r'.+uid\s+2@rnp-multiple' \
@@ -63,6 +79,12 @@ r'uid\s+.+rsakey@gpg.*'
 RE_GPG_GOOD_SIGNATURE = r'(?s)^\s*' \
 r'gpg: Signature made .*' \
 r'gpg: Good signature from "(.*)".*'
+
+RE_RNP_GOOD_SIGNATURE = r'(?s)^.*' \
+r'Good signature for .* made .*' \
+r'signature.*' \
+r'Key fingerprint:.*' \
+r'uid\s+(.*)\s*$'
 
 def setup():
     # Setting up directories.
@@ -92,7 +114,8 @@ def check_packets(fname, regexp):
         return None
     else:
         result = re.match(regexp, output)
-        if not result: print 'Wrong packets: \n' + output
+        if not result and DEBUG:
+            print 'Wrong packets: \n' + output
         return result
 
 def clear_keyrings():
@@ -101,23 +124,46 @@ def clear_keyrings():
     os.mkdir(RNPDIR, 0700)
     os.mkdir(GPGDIR, 0700)
 
-    return
+def compare_files(src, dst, message):
+    if file_text(src) != file_text(dst):
+        raise_err(message)
+
+def remove_files(*args):
+    try:
+        for fpath in args:
+            os.remove(fpath)
+    except:
+        pass
 
 def raise_err(msg, log = None):
-    if log: print log
+    if log and DEBUG:
+        print log
     raise NameError(msg)
 
+def run_test(func, *args):
+    global TESTS_SUCCEEDED, TESTS_FAILED
+    name = '{}({})'.format(func.__name__, ', '.join(map(str, args)))
+    try:
+        func(*args)
+        print 'SUCCESS : ' + name
+        TESTS_SUCCEEDED += [name]
+    except Exception as e:
+        TESTS_FAILED += [name]
+        if DEBUG:
+            raise
+        else:
+            print 'FAILURE : {}'.format(name)
+
 def rnpkey_generate_rsa(bits = None, cleanup = True):
-    # setup command line params
+    # Setup command line params
     if bits: 
         params = ['--numbits', str(bits)]
     else:
         params = []
         bits = 2048
 
-    print 'rnpkey_generate_rsa {}'.format(bits)
     userid = str(bits) + '@rnptest'
-    # open pipe for password
+    # Open pipe for password
     pipe = pswd_pipe(PASSWORD) 
     params = params + ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', userid, '--generate-key']
     # Run key generation
@@ -152,8 +198,6 @@ def rnpkey_generate_rsa(bits = None, cleanup = True):
         return keyid
 
 def rnpkey_generate_multiple():
-    print 'rnpkey_generate_multiple'
-    
     # Generate 5 keys with different user ids
     for i in range(0, 5):
         # generate the next key
@@ -167,21 +211,21 @@ def rnpkey_generate_multiple():
         if ret != 0: raise_err('key list failed', err)
         match = re.match(RE_MULTIPLE_KEY_LIST, out)
         if not match: raise_err('wrong key list output', out)
-        if not match.group(1) == str(i + 1):
-            raise_err('wrong key count')
+        if not match.group(1) == str((i + 1) * 2):
+            raise_err('wrong key count', out)
 
     # Checking the 5 keys output
     ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
     if ret != 0: raise_err('key list failed', err)
     match = re.match(RE_MULTIPLE_KEY_5, out)
-    if not match: raise_err('wrong key list output', out)
+    if not match: 
+        raise_err('wrong key list output', out)
 
     # Cleanup and return
     clear_keyrings()
     return
 
 def rnpkey_import_from_gpg(cleanup = True):
-    print 'rnpkey_import_from_gpg'
     # Generate key in GnuPG
     ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--passphrase', '', '--quick-generate-key', 'rsakey@gpg', 'rsa'])
     if ret != 0: raise_err('gpg key generation failed', err)
@@ -210,12 +254,10 @@ def rnpkey_import_from_gpg(cleanup = True):
     if ret != 0: raise_err('rnp : secret key import failed', err)
     # We do not check keyrings after the import - imported by RNP keys are not saved yet
 
-    if cleanup: clear_keyrings()
-
-    return
+    if cleanup:
+        clear_keyrings()
 
 def rnpkey_export_to_gpg(cleanup = True):
-    print 'rnpkey_export_to_gpg'
     # Open pipe for password
     pipe = pswd_pipe(PASSWORD) 
     # Run key generation
@@ -234,8 +276,6 @@ def rnpkey_export_to_gpg(cleanup = True):
 
     if cleanup: clear_keyrings()
 
-    return
-
 def rnp_genkey_rsa(userid, bits = 2048):
     pipe = pswd_pipe(PASSWORD)
     ret, out, err = run_proc(RNPK, ['--numbits', str(bits), '--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', userid, '--generate-key'])
@@ -243,19 +283,113 @@ def rnp_genkey_rsa(userid, bits = 2048):
     if ret != 0:
         raise_err('rsa key generation failed', err)
 
+def rnp_encrypt_file(recipient, src, dst):
+    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--userid', recipient, '--encrypt', src, '--output', dst])
+    if ret != 0: 
+        raise_err('rnp encryption failed', err)
+
+def rnp_decrypt_file(src, dst):
+    pipe = pswd_pipe(PASSWORD)
+    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--decrypt', src, '--output', dst])
+    os.close(pipe)
+    if ret != 0: 
+        raise_err('rnp decryption failed', out + err)
+
+def rnp_sign_file(src, dst, signer, armour = False):
+    pipe = pswd_pipe(PASSWORD)
+    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', signer, '--sign', src, '--output', dst]
+    if armour:
+        params += ['--armor']
+    ret, out, err = run_proc(RNP, params)
+    os.close(pipe)
+    if ret != 0: 
+        raise_err('rnp signing failed', err)
+
+def rnp_sign_detached(src, signer):
+    pipe = pswd_pipe(PASSWORD)
+    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', signer, '--sign', '--detach', src])
+    os.close(pipe)
+    if ret != 0: 
+        raise_err('rnp detached signing failed', err)
+
+def rnp_verify_file(src, dst, signer = None):
+    params = ['--homedir', RNPDIR, '--verify-cat', src, '--output', dst]
+    ret, out, err = run_proc(RNP, params)
+    if ret != 0: 
+        raise_err('rnp verification failed', err + out)
+    # Check RNP output
+    match = re.match(RE_RNP_GOOD_SIGNATURE, err)
+    if not match: 
+        raise_err('wrong rnp verification output', err)
+    if signer and (not match.group(1).strip() == signer.strip()):
+        raise_err('rnp verification failed, wrong signer')
+
+def rnp_verify_detached(sig, signer = None):
+    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--verify', sig])
+    if ret != 0: 
+        raise_err('rnp detached verification failed', err + out)
+    # Check RNP output
+    match = re.match(RE_RNP_GOOD_SIGNATURE, err)
+    if not match: 
+        raise_err('wrong rnp detached verification output', err)
+    if signer and (not match.group(1).strip() == signer.strip()):
+        raise_err('rnp detached verification failed, wrong signer')
+
 def gpg_import_pubring(kpath = None):
     if not kpath:
         kpath = path.join(RNPDIR, 'pubring.gpg')
     ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--import', kpath])
-    if ret != 0: raise_err('gpg key import failed', err)
-    return
+    if ret != 0: 
+        raise_err('gpg key import failed', err)
 
 def gpg_import_secring(kpath = None):
     if not kpath:
         kpath = path.join(RNPDIR, 'secring.gpg')
     ret, out, err = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir', GPGDIR, '--import', kpath])
-    if ret != 0: raise_err('gpg secret key import failed', err)
-    return
+    if ret != 0: 
+        raise_err('gpg secret key import failed', err)
+
+def gpg_encrypt_file(src, dst, cipher = 'AES', zlevel = 6):
+    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '-e', '-z', str(zlevel), '-r', 'encryption@rnp', '--batch', '--cipher-algo', cipher, '--trust-model', 'always', '--output', dst, src])
+    if ret != 0: 
+        raise_err('gpg encryption failed for cipher ' + cipher, err)
+
+def gpg_decrypt_file(src, dst, keypass):
+    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', keypass, '--trust-model', 'always', '-o', dst, '-d', src])
+    if ret != 0: 
+        raise_err('gpg decryption failed', err)
+
+def gpg_verify_file(src, dst, signer = None):
+    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--batch', '--yes', '--trust-model', 'always', '-o', dst, '--verify', src])
+    if ret != 0: 
+        raise_err('gpg verification failed', err)
+    # Check GPG output
+    match = re.match(RE_GPG_GOOD_SIGNATURE, err)
+    if not match: 
+        raise_err('wrong gpg verification output', err)
+    if signer and (not match.group(1) == signer):
+        raise_err('gpg verification failed, wrong signer')
+
+def gpg_verify_detached(src, sig, signer = None):
+    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--batch', '--yes', '--trust-model', 'always', '--verify', sig, src])
+    if ret != 0: 
+        raise_err('gpg detached verification failed', err)
+    # Check GPG output
+    match = re.match(RE_GPG_GOOD_SIGNATURE, err)
+    if not match: 
+        raise_err('wrong gpg detached verification output', err)
+    if signer and (not match.group(1) == signer):
+        raise_err('gpg detached verification failed, wrong signer')
+
+def gpg_sign_file(src, dst, signer):
+    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '-o', dst, '-s', src])
+    if ret != 0: 
+        raise_err('gpg signing failed', err)
+
+def gpg_sign_detached(src, signer):
+    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '--detach-sign', src])
+    if ret != 0: 
+        raise_err('gpg detached signing failed', err)
 
 '''
     Things to try here later on:
@@ -266,42 +400,35 @@ def gpg_import_secring(kpath = None):
 '''
 
 def rnp_encryption_gpg_to_rnp(cipher, filesize, zlevel = 6):
-    print 'rnp_encryption_gpg_to_rnp: cipher = {}, size = {}, zlevel = {}'.format(cipher, filesize, zlevel)
-    src = path.join(WORKDIR, 'cleartext.txt')
-    dst = path.join(WORKDIR, 'cleartext.gpg')
-    dec = path.join(WORKDIR, 'cleartext.rnp')
-    # Generate random file of required size
-    random_text(src, filesize)
-    # Encrypt cleartext file with GPG
-    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '-e', '-z', str(zlevel), '-r', 'encryption@rnp', '--batch', '--cipher-algo', cipher, '--trust-model', 'always', '--output', dst, src])
-    if ret != 0: raise_err('gpg encryption failed for cipher ' + cipher, err)
-    # Decrypt encrypted file with RNP
-    pipe = pswd_pipe(PASSWORD)
-    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--decrypt', dst, '--output', dec])
-    os.close(pipe)
-    if ret != 0: raise_err('rnp decryption failed for cipher ' + cipher, out + err)
-    if file_text(dec) != file_text(src): raise_err('rnp decrypted data differs')
-    # Cleanup
-    for p in [src, dst, dec]: 
-        os.remove(p)
+    src, dst, dec = map(lambda x: path.join(WORKDIR, 'cleartext' + x), ['.txt', '.gpg', '.rnp'])
+    try:
+        # Generate random file of required size
+        random_text(src, filesize)
+        # Encrypt cleartext file with GPG
+        gpg_encrypt_file(src, dst, cipher, zlevel)
+        # Decrypt encrypted file with RNP
+        rnp_decrypt_file(dst, dec)
+        compare_files(src, dec, 'rnp decrypted data differs')
+    finally:
+        # Cleanup
+        remove_files(src, dst, dec)
 
 def rnp_encryption_rnp_to_gpg(filesize):
-    print 'rnp_encryption_rnp_to_gpg {}'.format(filesize)
-    src = path.join(WORKDIR, 'cleartext.txt')
-    dst = path.join(WORKDIR, 'cleartext.gpg')
-    enc = path.join(WORKDIR, 'cleartext.rnp')
-    # Generate random file of required size
-    random_text(src, filesize)
-    # Encrypt cleartext file with RNP
-    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--userid', 'encryption@rnp', '--encrypt', src, '--output', enc])
-    if ret != 0: raise_err('rnp encryption failed', err)
-    # Decrypt encrypted file with GPG
-    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', PASSWORD, '--trust-model', 'always', '-o', dst, '-d', enc])
-    if ret != 0: raise_err('gpg decryption failed', err)
-    if file_text(src) != file_text(dst): raise_err('gpg decrypted data differs')
-    # Cleanup
-    for p in [src, dst, enc]:
-        os.remove(p)
+    src, dst, enc = map(lambda x: path.join(WORKDIR, 'cleartext' + x), ['.txt', '.gpg', '.rnp'])
+    try:
+        # Generate random file of required size
+        random_text(src, filesize)
+        # Encrypt cleartext file with RNP
+        rnp_encrypt_file('encryption@rnp', src, enc)
+        # Decrypt encrypted file with GPG
+        gpg_decrypt_file(enc, dst, PASSWORD)
+        compare_files(src, dst, 'gpg decrypted data differs')
+        # Decrypt encrypted file with RNP
+        rnp_decrypt_file(enc, dst)
+        compare_files(src, dst, 'rnp decrypted data differs')
+    finally:
+        # Cleanup
+        remove_files(src, dst, enc)
 
     return
 
@@ -312,7 +439,6 @@ def rnp_encryption_rnp_to_gpg(filesize):
 '''
 
 def rnp_encryption():
-    print 'rnp_encryption'
     # Generate keypair in RNP
     rnp_genkey_rsa('encryption@rnp')
     # Add some other keys to the keyring
@@ -323,51 +449,102 @@ def rnp_encryption():
     # Encrypt cleartext file with GPG and decrypt it with RNP, using different ciphers and file sizes
     # Could be non working, see #353: IDEA, 3DES, CAST5, BLOWFISH
     ciphers = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
+    #ciphers = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
     sizes = [20, 1000, 2000, 5000, 10000, 20000, 60000, 1000000]
     for cipher in ciphers:
         for size in sizes:
-            rnp_encryption_gpg_to_rnp(cipher, size)
+            run_test(rnp_encryption_gpg_to_rnp, cipher, size)
+    
     # Tests for compression level
     for zlevel in range(0, 10):
-        rnp_encryption_gpg_to_rnp('AES', 500000, zlevel)
+        run_test(rnp_encryption_gpg_to_rnp, 'AES', 500000, zlevel)
     # Import secret keyring to GPG
     gpg_import_secring()
     # Encrypt cleartext with RNP and decrypt with GPG
     for size in sizes:
-        rnp_encryption_rnp_to_gpg(size)
+        run_test(rnp_encryption_rnp_to_gpg, size)
     # Cleanup
     clear_keyrings()
     return
 
 def rnp_signing_rnp_to_gpg(filesize):
-    print 'rnp_signing_rnp_to_gpg {}'.format(filesize)
-    src = path.join(WORKDIR, 'cleartext.txt')
-    sig = path.join(WORKDIR, 'cleartext.sig')
-    ver = path.join(WORKDIR, 'cleartext.ver')
-    # Generate random file of required size
-    random_text(src, filesize)
-    # Sign file with RNP
-    pipe = pswd_pipe(PASSWORD)
-    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', 'signing@rnp', '--sign', src, '--output', sig])
-    os.close(pipe)
-    if ret != 0: raise_err('rnp signing failed', err)
-    # Verify signed message with GPG
-    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--batch', '--yes', '--trust-model', 'always', '-o', ver, '--verify', sig])
-    if ret != 0: raise_err('gpg verification failed', err)
-    # Check GPG output
-    match = re.match(RE_GPG_GOOD_SIGNATURE, err)
-    if not match: raise_err('wrong gpg verification output', err)
-    if not match.group(1) == 'signing@rnp':
-        raise_err('gpg verification wrong signer')
-    # Check unwrapped file contents
-    if file_text(ver) != file_text(src): raise_err('gpg verified data differs')
-
-    # Cleanup
-    for p in [src, sig, ver]:
-        os.remove(p)
+    src, sig, asc, ver = map(lambda x: path.join(WORKDIR, 'cleartext' + x), ['.txt', '.sig', '.asc', '.ver'])
+    try:
+        # Generate random file of required size
+        random_text(src, filesize)
+        # Sign file with RNP
+        rnp_sign_file(src, sig, 'signing@rnp')
+        # Verify signed file with RNP
+        rnp_verify_file(sig, ver, 'signing@rnp')
+        compare_files(src, ver, 'rnp verified data differs')
+        remove_files(ver)
+        # Verify signed message with GPG
+        gpg_verify_file(sig, ver, 'signing@rnp')
+        compare_files(src, ver, 'gpg verified data differs')
+        remove_files(ver)
+        # Armored signing test
+        rnp_sign_file(src, asc, 'signing@rnp', armour = True)
+        # Verify signed file with RNP
+        rnp_verify_file(asc, ver, 'signing@rnp')
+        compare_files(src, ver, 'rnp verified data differs')
+        remove_files(ver)
+        # Verify signed message with GPG
+        gpg_verify_file(asc, ver, 'signing@rnp')
+        compare_files(src, ver, 'gpg verified data differs')
+        remove_files(ver)
+    finally:
+        # Cleanup
+        remove_files(src, sig, asc, ver)
 
     return
 
+def rnp_detached_signing_rnp_to_gpg(filesize):
+    src, sig = map(lambda x: path.join(WORKDIR, 'cleartext' + x), ['.txt', '.txt.sig'])
+    try:
+        # Generate random file of required size
+        random_text(src, filesize)
+        # Sign file with RNP
+        rnp_sign_detached(src, 'signing@rnp')
+        # Verify signature with RNP
+        rnp_verify_detached(sig, 'signing@rnp')
+        # Verify signed message with GPG
+        gpg_verify_detached(src, sig, 'signing@rnp')
+    finally:
+        # Cleanup
+        remove_files(src, sig)
+
+    return
+
+def rnp_signing_gpg_to_rnp(filesize):
+    src, sig, ver = map(lambda x: path.join(WORKDIR, 'cleartext' + x), ['.txt', '.sig', '.ver'])
+    try:
+        # Generate random file of required size
+        random_text(src, filesize)
+        # Sign file with GPG
+        gpg_sign_file(src, sig, 'signing@gpg')
+        # Verify file with RNP
+        rnp_verify_file(sig, ver, 'signing@gpg')
+        compare_files(src, ver, 'rnp verified data differs')
+    finally:
+        # Cleanup
+        remove_files(src, sig, ver)
+    
+    return
+
+def rnp_detached_signing_gpg_to_rnp(filesize):
+    src, sig = map(lambda x: path.join(WORKDIR, 'cleartext' + x), ['.txt', '.txt.sig'])
+    try:
+        # Generate random file of required size
+        random_text(src, filesize)
+        # Sign file with GPG
+        gpg_sign_detached(src, 'signing@gpg')
+        # Verify file with RNP
+        rnp_verify_detached(sig, 'signing@gpg')
+    finally:
+        # Cleanup
+        remove_files(src, sig)
+    
+    return
 
 '''
     Things to try later:
@@ -377,7 +554,6 @@ def rnp_signing_rnp_to_gpg(filesize):
     - detached signing/verification
 '''
 def rnp_signing():
-    print 'rnp_signing'
     # Generate keypair in RNP
     rnp_genkey_rsa('signing@rnp')
     # Add some other keys to the keyring
@@ -387,14 +563,22 @@ def rnp_signing():
     gpg_import_pubring()
     sizes = [20, 1000, 2000, 5000, 10000, 20000, 60000, 1000000]
     for size in sizes:
-        rnp_signing_rnp_to_gpg(size)
+        run_test(rnp_signing_rnp_to_gpg, size)
+        run_test(rnp_detached_signing_rnp_to_gpg, size)
+    # Generate additional keypair in RNP
+    rnp_genkey_rsa('signing@gpg')
+    # Import secret keyring to the GPG
+    gpg_import_secring()
+    for size in sizes:
+        run_test(rnp_signing_gpg_to_rnp, size)
+        run_test(rnp_detached_signing_gpg_to_rnp, size)
 
     return
 
 def run_rnp_tests():
-    # 1. Encryption
+    # 1. Encryption / decryption against GPG
     rnp_encryption()
-    # 2. Signing
+    # 2. Signing / verification against GPG
     rnp_signing()
     
     return
@@ -407,47 +591,80 @@ def run_rnp_tests():
 '''
 def run_rnpkeys_tests():
     # 1. Generate default RSA key
-    rnpkey_generate_rsa()
+    run_test(rnpkey_generate_rsa)
     # 2. Generate 4096-bit RSA key
-    rnpkey_generate_rsa(4096)
+    run_test(rnpkey_generate_rsa, 4096)
     # 3. Generate multiple RSA keys and check if they are all available
-    rnpkey_generate_multiple()
+    run_test(rnpkey_generate_multiple)
     # 4. Generate key with GnuPG and import it to rnp
-    rnpkey_import_from_gpg()
+    run_test(rnpkey_import_from_gpg)
     # 5. Generate key with RNP and export it and then import to GnuPG
-    rnpkey_export_to_gpg()
+    run_test(rnpkey_export_to_gpg)
 
     return
 
 def run_tests():
-    if not len(sys.argv) == 2:
-        print "Wrong usage. Run cli_tests [rnp | rnpkeys | all]"
-        sys.exit(1)
+    global DEBUG
 
-    if sys.argv[1] == 'rnp':
-        run_rnp_tests()
-    elif sys.argv[1] == 'rnpkeys':
-        run_rnpkeys_tests()
-    elif sys.argv[1] == 'all':
-        run_rnpkeys_tests()
-        run_rnp_tests()
-    else:
-        print "Wrong parameter {}".format(sys.argv[1])
-        sys.exit(1)
+    # Parsing command line parameters
+    try:
+        opts, args = getopt.getopt(sys.argv, 'hd', ['help', 'debug'])
+    except getopt.GetoptError:
+        print "Wrong usage. Run cli_tests --help"
+        sys.exit(2)
 
-    return
+    tests = []
+
+    for arg in args[1:]:
+        if arg in ['-h', '--help']:
+            print 'Usage:\ncli_tests [-h | --help] [rnp] [rnpkeys] [all] [-d | --debug]'
+            sys.exit(0)
+        elif arg in ['-d', '--debug']:
+            DEBUG = True
+            cli_common.DEBUG = True
+        elif arg == 'all':
+            tests += ['rnp', 'rnpkeys']
+        elif arg in ['rnp', 'rnpkeys']:
+            tests += [arg]
+        else:
+            print 'Wrong parameter: {}. Run cli_tests -h for help.'.format(arg)
+            sys.exit(2)
+
+    if len(tests) == 0:
+        print 'You must specify at least one test group to run. See cli_tests -h for help.'
+        sys.exit(2)
+
+    # Parameters are ok so we can proceed
+    setup()
+
+    if 'rnpkeys' in tests:
+        run_rnpkeys_tests()
+    if 'rnp' in tests:
+        run_rnp_tests()
+
+    succeeded = len(TESTS_SUCCEEDED)
+    failed = len(TESTS_FAILED)
+    print '\nRun {} tests, {} succeeded and {} failed.\n'.format(succeeded + failed, succeeded, failed)
+    if failed > 0:
+        print 'Failed tests:\n' + '\n'.join(TESTS_FAILED)
+        sys.exit(1)
 
 def cleanup():
-    if RMWORKDIR:
-        shutil.rmtree(WORKDIR)
-    else:
-        shutil.rmtree(RNPDIR)
-        shutil.rmtree(GPGDIR)
+    if DEBUG:
+        return
+
+    try:
+        if RMWORKDIR:
+            shutil.rmtree(WORKDIR)
+        else:
+            shutil.rmtree(RNPDIR)
+            shutil.rmtree(GPGDIR)
+    except:
+        pass
 
     return
 
 if __name__ == '__main__':
-    setup()
     try:
         run_tests()
     finally:
