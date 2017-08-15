@@ -540,6 +540,7 @@ typedef struct {
     unsigned pos;
     uint8_t  t;
     unsigned checksum;
+    pgp_armor_type_t type;
 } base64_t;
 
 static const char b64map[] =
@@ -592,43 +593,6 @@ base64_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer
     return true;
 }
 
-static bool
-sig_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
-{
-    static const char trail[] = "\r\n-----END PGP SIGNATURE-----\r\n";
-    base64_t *        base64;
-    uint8_t           c[3];
-
-    base64 = pgp_writer_get_arg(writer);
-    if (base64->pos) {
-        if (!stacked_write(writer, &b64map[base64->t], 1, errors)) {
-            return false;
-        }
-        if (base64->pos == 1 && !stacked_write(writer, "==", 2, errors)) {
-            return false;
-        }
-        if (base64->pos == 2 && !stacked_write(writer, "=", 1, errors)) {
-            return false;
-        }
-    }
-    /* Ready for the checksum */
-    if (!stacked_write(writer, "\r\n=", 3, errors)) {
-        return false;
-    }
-
-    base64->pos = 0; /* get ready to write the checksum */
-
-    c[0] = base64->checksum >> 16;
-    c[1] = base64->checksum >> 8;
-    c[2] = base64->checksum;
-    /* push the checksum through our own writer */
-    if (!base64_writer(c, 3, errors, writer)) {
-        return false;
-    }
-
-    return stacked_write(writer, trail, (unsigned) (sizeof(trail) - 1), errors);
-}
-
 /**
  * \struct linebreak_t
  */
@@ -663,54 +627,40 @@ linebreak_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_wri
     return true;
 }
 
-/**
- * \ingroup Core_WritersNext
- * \brief Push armoured signature on stack
- * \param output
- */
-bool
-pgp_writer_use_armored_sig(pgp_output_t *output)
-{
-    static const char header[] =
-      "\r\n-----BEGIN PGP SIGNATURE-----\r\nVersion: " PACKAGE_STRING "\r\n\r\n";
-    linebreak_t *linebreak;
-    base64_t *   base64;
-
-    pgp_writer_pop(output);
-    if (pgp_write(output, header, (unsigned) (sizeof(header) - 1)) == 0) {
-        PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Error switching to armoured signature");
-        return false;
-    }
-    if ((linebreak = calloc(1, sizeof(*linebreak))) == NULL) {
-        PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "pgp_writer_use_armored_sig: Bad alloc");
-        return false;
-    }
-    if (!pgp_writer_push(output, linebreak_writer, NULL, generic_destroyer, linebreak)) {
-        free(linebreak);
-        return false;
-    }
-    base64 = calloc(1, sizeof(*base64));
-    if (!base64) {
-        PGP_MEMORY_ERROR(&output->errors);
-        return false;
-    }
-    base64->checksum = CRC24_INIT;
-    if (!pgp_writer_push(output, base64_writer, sig_finaliser, generic_destroyer, base64)) {
-        free(base64);
-        return false;
-    }
-    return true;
-}
-
 static bool
 armoured_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 {
     /* TODO: This is same as sig_finaliser apart from trailer. */
-    static const char trailer[] = "\r\n-----END PGP MESSAGE-----\r\n";
+    static const char trl_message[] = "\r\n-----END PGP MESSAGE-----\r\n";
+    static const char trl_pubkey[] = "\r\n-----END PGP PUBLIC KEY BLOCK-----\r\n";
+    static const char trl_seckey[] = "\r\n-----END PGP PRIVATE KEY BLOCK-----\r\n";
+    static const char trl_signature[] = "\r\n-----END PGP SIGNATURE-----\r\n";
+    
     base64_t *        base64;
     uint8_t           c[3];
+    const char *      trailer = NULL;
 
     base64 = pgp_writer_get_arg(writer);
+
+    switch (base64->type) {
+    case PGP_PGP_MESSAGE:
+        trailer = trl_message;
+        break;
+    case PGP_PGP_PUBLIC_KEY_BLOCK:
+        trailer = trl_pubkey;
+        break;
+    case PGP_PGP_PRIVATE_KEY_BLOCK:
+        trailer = trl_seckey;
+        break;
+    case PGP_PGP_SIGNATURE:
+    case PGP_PGP_CLEARTEXT_SIGNATURE:
+        trailer = trl_signature;
+        break;
+    default:
+        fprintf(stderr, "armoured_message_finaliser: unusual type\n");
+        return false;
+    }
+
     if (base64->pos) {
         if (!stacked_write(writer, &b64map[base64->t], 1, errors)) {
             return false;
@@ -742,156 +692,82 @@ armoured_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 
 /**
  \ingroup Core_WritersNext
- \brief Write a PGP MESSAGE
- \todo replace with generic function
-*/
-void
-pgp_writer_push_armor_msg(pgp_output_t *output)
-{
-    static const char header[] = "-----BEGIN PGP MESSAGE-----\r\n";
-    linebreak_t *     linebreak;
-    base64_t *        base64;
-
-    pgp_write(output, header, (unsigned) (sizeof(header) - 1));
-    pgp_write(output, "\r\n", 2);
-    if ((linebreak = calloc(1, sizeof(*linebreak))) == NULL) {
-        (void) fprintf(stderr, "pgp_writer_push_armor_msg: bad lb alloc\n");
-        return;
-    }
-    if (!pgp_writer_push(output, linebreak_writer, NULL, generic_destroyer, linebreak)) {
-        free(linebreak);
-        return;
-    }
-    if ((base64 = calloc(1, sizeof(*base64))) == NULL) {
-        (void) fprintf(stderr, "pgp_writer_push_armor_msg: bad alloc\n");
-        return;
-    }
-    base64->checksum = CRC24_INIT;
-    if (!pgp_writer_push(
-          output, base64_writer, armoured_message_finaliser, generic_destroyer, base64)) {
-        free(base64);
-        return;
-    }
-}
-
-static bool
-armoured_finaliser(pgp_armor_type_t type, pgp_error_t **errors, pgp_writer_t *writer)
-{
-    static const char tail_pubkey[] = "\r\n-----END PGP PUBLIC KEY BLOCK-----\r\n";
-    static const char tail_private_key[] = "\r\n-----END PGP PRIVATE KEY BLOCK-----\r\n";
-    const char *      tail = NULL;
-    unsigned          tailsize = 0;
-    base64_t *        base64;
-    uint8_t           c[3];
-
-    switch (type) {
-    case PGP_PGP_PUBLIC_KEY_BLOCK:
-        tail = tail_pubkey;
-        tailsize = sizeof(tail_pubkey) - 1;
-        break;
-
-    case PGP_PGP_PRIVATE_KEY_BLOCK:
-        tail = tail_private_key;
-        tailsize = sizeof(tail_private_key) - 1;
-        break;
-
-    default:
-        (void) fprintf(stderr, "armoured_finaliser: unusual type\n");
-        return false;
-    }
-    base64 = pgp_writer_get_arg(writer);
-    if (base64->pos) {
-        if (!stacked_write(writer, &b64map[base64->t], 1, errors)) {
-            return false;
-        }
-        if (base64->pos == 1 && !stacked_write(writer, "==", 2, errors)) {
-            return false;
-        }
-        if (base64->pos == 2 && !stacked_write(writer, "=", 1, errors)) {
-            return false;
-        }
-    }
-    /* Ready for the checksum */
-    if (!stacked_write(writer, "\r\n=", 3, errors)) {
-        return false;
-    }
-    base64->pos = 0; /* get ready to write the checksum */
-    c[0] = base64->checksum >> 16;
-    c[1] = base64->checksum >> 8;
-    c[2] = base64->checksum;
-    /* push the checksum through our own writer */
-    if (!base64_writer(c, 3, errors, writer)) {
-        return false;
-    }
-    return stacked_write(writer, tail, tailsize, errors);
-}
-
-static bool
-armored_pubkey_fini(pgp_error_t **errors, pgp_writer_t *writer)
-{
-    return armoured_finaliser(PGP_PGP_PUBLIC_KEY_BLOCK, errors, writer);
-}
-
-static bool
-armored_privkey_fini(pgp_error_t **errors, pgp_writer_t *writer)
-{
-    return armoured_finaliser(PGP_PGP_PRIVATE_KEY_BLOCK, errors, writer);
-}
-
-/* \todo use this for other armoured types */
-/**
- \ingroup Core_WritersNext
  \brief Push Armoured Writer on stack (generic)
 */
-void
+bool
 pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
 {
-    static char hdr_pubkey[] =
-      "-----BEGIN PGP PUBLIC KEY BLOCK-----\r\nVersion: " PACKAGE_STRING "\r\n\r\n";
-    static char hdr_private_key[] =
-      "-----BEGIN PGP PRIVATE KEY BLOCK-----\r\nVersion: " PACKAGE_STRING "\r\n\r\n";
-    unsigned hdrsize = 0;
-    bool (*finaliser)(pgp_error_t **, pgp_writer_t *);
+    static char hdr_pubkey[] = "-----BEGIN PGP PUBLIC KEY BLOCK-----\r\n";
+    static char hdr_privkey[] = "-----BEGIN PGP PRIVATE KEY BLOCK-----\r\n";
+    static char hdr_message[] = "-----BEGIN PGP MESSAGE-----\r\n";
+    static char hdr_signature[] = "-----BEGIN PGP SIGNATURE-----\r\n";
+    static char hdr_version[] = "Version: " PACKAGE_STRING "\r\n\r\n";
+    static char hdr_crlf[] = "\r\n";
+
     base64_t *   base64;
     linebreak_t *linebreak;
-    char *       header = NULL;
 
-    finaliser = NULL;
+    if ((linebreak = calloc(1, sizeof(*linebreak))) == NULL) {
+        (void) fprintf(stderr, "pgp_writer_push_armoured: bad alloc\n");
+        return false;
+    }
+
     switch (type) {
+    case PGP_PGP_MESSAGE:
+        pgp_write(output, hdr_message, sizeof(hdr_message) - 1);
+        pgp_write(output, hdr_crlf, sizeof(hdr_crlf) - 1);
+        break;
+
     case PGP_PGP_PUBLIC_KEY_BLOCK:
-        header = hdr_pubkey;
-        hdrsize = sizeof(hdr_pubkey) - 1;
-        finaliser = armored_pubkey_fini;
+        pgp_write(output, hdr_pubkey, sizeof(hdr_pubkey) - 1);
+        pgp_write(output, hdr_version, sizeof(hdr_version) - 1);
         break;
 
     case PGP_PGP_PRIVATE_KEY_BLOCK:
-        header = hdr_private_key;
-        hdrsize = sizeof(hdr_private_key) - 1;
-        finaliser = armored_privkey_fini;
+        pgp_write(output, hdr_privkey, sizeof(hdr_privkey) - 1);
+        pgp_write(output, hdr_version, sizeof(hdr_version) - 1);
+        break;
+
+    case PGP_PGP_SIGNATURE:
+        pgp_write(output, hdr_signature, sizeof(hdr_signature) - 1);
+        pgp_write(output, hdr_crlf, sizeof(hdr_crlf) - 1);
+        break;
+
+    case PGP_PGP_CLEARTEXT_SIGNATURE:
+        pgp_writer_pop(output);
+        if (!pgp_write(output, hdr_crlf, sizeof(hdr_crlf) - 1) ||
+            !pgp_write(output, hdr_signature, sizeof(hdr_signature) - 1) ||
+            !pgp_write(output, hdr_version, sizeof(hdr_version) - 1)) {
+            PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Error switching to armoured signature");
+            free(linebreak);
+            return false;
+        }
         break;
 
     default:
+        free(linebreak);
         (void) fprintf(stderr, "pgp_writer_push_armoured: unusual type\n");
-        return;
+        return false;
     }
-    if ((linebreak = calloc(1, sizeof(*linebreak))) == NULL) {
-        (void) fprintf(stderr, "pgp_writer_push_armoured: bad alloc\n");
-        return;
-    }
-    pgp_write(output, header, hdrsize);
+
     if (!pgp_writer_push(output, linebreak_writer, NULL, generic_destroyer, linebreak)) {
         free(linebreak);
-        return;
+        return false;
     }
+
     if ((base64 = calloc(1, sizeof(*base64))) == NULL) {
         (void) fprintf(stderr, "pgp_writer_push_armoured: bad alloc\n");
-        return;
+        return false;
     }
     base64->checksum = CRC24_INIT;
-    if (!pgp_writer_push(output, base64_writer, finaliser, generic_destroyer, base64)) {
+    base64->type = type;
+
+    if (!pgp_writer_push(output, base64_writer, armoured_message_finaliser, generic_destroyer, base64)) {
         free(base64);
-        return;
+        return false;
     }
+
+    return true;
 }
 
 /**************************************************************************/

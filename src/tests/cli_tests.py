@@ -82,8 +82,8 @@ r'gpg: Good signature from "(.*)".*'
 
 RE_RNP_GOOD_SIGNATURE = r'(?s)^.*' \
 r'Good signature for .* made .*' \
-r'signature.*' \
-r'Key fingerprint:.*' \
+r'using .* key .*' \
+r'signature .*' \
 r'uid\s+(.*)\s*$'
 
 def setup():
