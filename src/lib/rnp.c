@@ -1268,7 +1268,11 @@ rnp_sign_file(rnp_ctx_t * ctx,
     } else {
         ret = pgp_sign_file(ctx, io, f, out, seckey, cleartext);
     }
-    pgp_forget(seckey, sizeof(*seckey));
+
+    if (!use_ssh_keys(ctx->rnp)) {
+        pgp_seckey_free(seckey);
+        free(seckey);
+    }
     return ret;
 }
 
@@ -1396,7 +1400,11 @@ rnp_sign_memory(rnp_ctx_t * ctx,
     } else {
         ret = RNP_FAIL;
     }
-    pgp_forget(seckey, sizeof(*seckey));
+
+    if (!use_ssh_keys(ctx->rnp)) {
+        pgp_seckey_free(seckey);
+        free(seckey);
+    }
     return ret;
 }
 
