@@ -1127,13 +1127,13 @@ pgp_sign_file(rnp_ctx_t *         ctx,
     if (cleartext) {
         if (!pgp_writer_push_clearsigned(output, sig) ||
             !pgp_write(output, pgp_mem_data(infile), (unsigned) pgp_mem_len(infile)) ||
-            !pgp_writer_use_armored_sig(output)) {
+            !pgp_writer_push_armoured(output, PGP_PGP_CLEARTEXT_SIGNATURE)) {
             goto done;
         }
     } else {
         /* set armoured/not armoured here */
         if (ctx->armour) {
-            pgp_writer_push_armor_msg(output);
+            pgp_writer_push_armoured(output, PGP_PGP_MESSAGE);
         }
         /* hash file contents */
         hash = pgp_sig_get_hash(sig);
@@ -1229,14 +1229,14 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
     if (cleartext) {
         if (!pgp_writer_push_clearsigned(output, sig) ||
             !pgp_write(output, input, (unsigned) insize) ||
-            !pgp_writer_use_armored_sig(output)) {
+            !pgp_writer_push_armoured(output, PGP_PGP_CLEARTEXT_SIGNATURE)) {
             goto done;
         }
 
     } else {
         /* set armoured/not armoured here */
         if (ctx->armour) {
-            pgp_writer_push_armor_msg(output);
+            pgp_writer_push_armoured(output, PGP_PGP_MESSAGE);
         }
         /* hash memory */
         hash = pgp_sig_get_hash(sig);
@@ -1313,7 +1313,7 @@ pgp_sign_detached(
     }
     /* set armoured/not armoured here */
     if (ctx->armour) {
-        pgp_writer_push_armor_msg(output);
+        pgp_writer_push_armoured(output, PGP_PGP_SIGNATURE);
     }
     pgp_sig_add_data(sig, pgp_mem_data(mem), pgp_mem_len(mem));
 

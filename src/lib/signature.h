@@ -143,7 +143,6 @@ void pgp_reader_push_dearmour(pgp_stream_t *);
 
 bool pgp_writer_push_clearsigned(pgp_output_t *, pgp_create_sig_t *);
 void pgp_reader_pop_dearmour(pgp_stream_t *);
-void pgp_writer_push_armor_msg(pgp_output_t *);
 
 typedef enum {
     PGP_PGP_MESSAGE = 1,
@@ -151,14 +150,13 @@ typedef enum {
     PGP_PGP_PRIVATE_KEY_BLOCK,
     PGP_PGP_MULTIPART_MESSAGE_PART_X_OF_Y,
     PGP_PGP_MULTIPART_MESSAGE_PART_X,
-    PGP_PGP_SIGNATURE
+    PGP_PGP_SIGNATURE,
+    PGP_PGP_CLEARTEXT_SIGNATURE
 } pgp_armor_type_t;
 
 #define CRC24_INIT 0xb704ceL
 
-bool pgp_writer_use_armored_sig(pgp_output_t *);
-
-void pgp_writer_push_armoured(pgp_output_t *, pgp_armor_type_t);
+bool pgp_writer_push_armoured(pgp_output_t *, pgp_armor_type_t);
 
 pgp_memory_t *pgp_sign_buf(
   rnp_ctx_t *, pgp_io_t *, const void *, const size_t, const pgp_seckey_t *, const bool);

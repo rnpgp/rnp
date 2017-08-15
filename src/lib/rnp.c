@@ -1272,7 +1272,7 @@ rnp_sign_file(rnp_ctx_t * ctx,
     return ret;
 }
 
-#define ARMOR_SIG_HEAD "-----BEGIN PGP (SIGNATURE|SIGNED MESSAGE)-----"
+#define ARMOR_SIG_HEAD "-----BEGIN PGP (SIGNATURE|SIGNED MESSAGE|MESSAGE)-----"
 
 /* verify a file */
 int

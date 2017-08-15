@@ -487,7 +487,7 @@ pgp_encrypt_file(rnp_ctx_t *         ctx,
 
     /* set armoured/not armoured here */
     if (ctx->armour) {
-        pgp_writer_push_armor_msg(output);
+        pgp_writer_push_armoured(output, PGP_PGP_MESSAGE);
     }
 
     /* Push the encrypted writer */
@@ -530,7 +530,7 @@ pgp_encrypt_buf(rnp_ctx_t *         ctx,
 
     /* set armoured/not armoured here */
     if (ctx->armour) {
-        pgp_writer_push_armor_msg(output);
+        pgp_writer_push_armoured(output, PGP_PGP_MESSAGE);
     }
 
     /* Push the encrypted writer */
