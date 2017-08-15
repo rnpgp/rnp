@@ -24,16 +24,16 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <rsa.h>
-#include <dsa.h>
-#include <eddsa.h>
-#include <elgamal.h>
+#include <crypto/rsa.h>
+#include <crypto/dsa.h>
+#include <crypto/eddsa.h>
+#include <crypto/elgamal.h>
 #include <crypto.h>
 #include <packet.h>
 #include <pgp-key.h>
-#include <bn.h>
+#include <crypto/bn.h>
 #include <rnp/rnp.h>
-#include <ecdsa.h>
+#include <crypto/ecdsa.h>
 #include <readerwriter.h>
 
 #include "rnp_tests.h"

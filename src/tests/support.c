@@ -44,7 +44,7 @@
 #include <crypto.h>
 #include <packet.h>
 #include <pgp-key.h>
-#include <bn.h>
+#include <crypto/bn.h>
 
 #include <rnp/rnp.h>
 #include <sys/stat.h>
@@ -311,11 +311,13 @@ uint_to_string(char *buff, const int buffsize, unsigned int num, int base)
     return ptr;
 }
 
-bool write_pass_to_pipe(int fd, size_t count) {
-    const char * const password = "passwordforkeygeneration\n";
+bool
+write_pass_to_pipe(int fd, size_t count)
+{
+    const char *const password = "passwordforkeygeneration\n";
     for (size_t i = 0; i < count; i++) {
         const char *p = password;
-        ssize_t remaining = strlen(p);
+        ssize_t     remaining = strlen(p);
 
         do {
             ssize_t written = write(fd, p, remaining);

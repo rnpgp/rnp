@@ -80,8 +80,7 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #endif
 
 #include "packet.h"
-#include "bn.h"
-#include "packet-parse.h"
+#include "crypto/bn.h"
 #include "packet-print.h"
 #include "pgp-key.h"
 #include "errors.h"
@@ -91,9 +90,9 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "utils.h"
 #include "crypto.h"
 #include "rnpdigest.h"
-#include "s2k.h"
+#include "crypto/s2k.h"
 #include "utils.h"
-#include "ecdh.h"
+#include "crypto/ecdh.h"
 
 #define ERRP(cbinfo, cont, err)                    \
     do {                                           \

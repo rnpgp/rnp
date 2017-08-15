@@ -26,7 +26,7 @@
 #include <stdlib.h>
 
 #include "crypto.h"
-#include "bn.h"
+#include "crypto/bn.h"
 
 #ifndef USE_ARG
 #define USE_ARG(x) /*LINTED*/ (void) &x

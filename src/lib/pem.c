@@ -84,7 +84,7 @@
 
 #include "crypto.h"
 #include "utils.h"
-#include "bn.h"
+#include "crypto/bn.h"
 
 bool
 read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)

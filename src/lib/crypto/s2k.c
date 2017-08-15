@@ -28,7 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "s2k.h"
+#include "crypto/s2k.h"
 #include "packet.h"
 #include <botan/ffi.h>
 #include <stdio.h>

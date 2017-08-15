@@ -47,10 +47,10 @@
 
 #include "key_store_internal.h"
 
-#include "bn.h"
+#include "crypto/bn.h"
 #include "bufgap.h"
 #include "crypto.h"
-#include "s2k.h"
+#include "crypto/s2k.h"
 #include "pgp-key.h"
 
 /* structure for earching for constant strings */

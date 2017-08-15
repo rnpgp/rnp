@@ -75,9 +75,9 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include <assert.h>
 #endif
 
-#include "bn.h"
+#include "crypto/bn.h"
 #include "crypto.h"
-#include "ecdsa.h"
+#include "crypto/ecdsa.h"
 #include "packet-show.h"
 #include "signature.h"
 #include "readerwriter.h"
