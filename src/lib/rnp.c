@@ -1235,7 +1235,7 @@ rnp_sign_file(rnp_ctx_t * ctx,
 
     if (!use_ssh_keys(ctx->rnp)) {
         pgp_seckey_free(seckey);	
-	free(seckey);
+	    free(seckey);
     }
     return ret;
 }
