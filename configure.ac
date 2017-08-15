@@ -90,18 +90,6 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT64_T
 AC_TYPE_UINT8_T
 
-# Check for a secure memory wipe implementation.
-AC_CHECK_FUNCS([explicit_bzero explicit_memset memset_s])
-AS_IF([test $ac_cv_func_explicit_bzero = no &&
-       test $ac_cv_func_explicit_memset = no &&
-       test $ac_cv_func_memset_s = no],
-      [
-        AM_CONDITIONAL([USE_BUNDLED_EXPLICIT_BZERO], [true])
-        AC_DEFINE([USE_BUNDLED_EXPLICIT_BZERO], [1], [use the bundled explicit_bzero])
-      ], [
-        AM_CONDITIONAL([USE_BUNDLED_EXPLICIT_BZERO], [false])
-      ])
-
 # Check for Botan
 AX_CHECK_BOTAN(, [AC_MSG_ERROR([Missing Botan])])
 AX_CHECK_BOTAN_DEFINES()
@@ -122,7 +110,6 @@ AC_CONFIG_FILES([
         Makefile
         include/Makefile
         src/Makefile
-        src/compat/Makefile
         src/librekey/Makefile
         src/lib/Makefile
         src/rnp/Makefile
