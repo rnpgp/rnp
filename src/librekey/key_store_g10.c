@@ -34,7 +34,7 @@
 #include "key_store_pgp.h"
 #include "key_store_g10.h"
 
-#include "bn.h"
+#include "crypto/bn.h"
 
 typedef struct {
     size_t   len;

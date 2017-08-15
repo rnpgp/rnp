@@ -31,7 +31,7 @@
 #ifndef RNP_ED25519_H_
 #define RNP_ED25519_H_
 
-#include "packet-parse.h"
+#include "packet.h"
 
 /*
 * curve_len must be 255 currently (for Ed25519)

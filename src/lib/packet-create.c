@@ -79,13 +79,13 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include <unistd.h>
 #endif
 
-#include "bn.h"
-#include "rsa.h"
-#include "elgamal.h"
+#include "crypto/bn.h"
+#include "crypto/rsa.h"
+#include "crypto/elgamal.h"
 #include "packet-create.h"
 #include "packet.h"
 #include "signature.h"
-#include "s2k.h"
+#include "crypto/s2k.h"
 #include "writer.h"
 #include "readerwriter.h"
 #include "memory.h"
@@ -93,9 +93,9 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "rnpdigest.h"
 #include "pgp-key.h"
 #include <rnp/rnp_sdk.h>
-#include "ecdsa.h"
+#include "crypto/ecdsa.h"
 #include <rnp/rnp_def.h>
-#include "ecdh.h"
+#include "crypto/ecdh.h"
 
 extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 

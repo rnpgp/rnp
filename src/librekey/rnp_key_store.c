@@ -51,7 +51,7 @@
 
 #include "packet-print.h"
 #include "pgp-key.h"
-#include "bn.h"
+#include "crypto/bn.h"
 
 static bool
 parse_ks_format(enum key_store_format_t *key_store_format, const char *format)

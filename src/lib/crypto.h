@@ -62,7 +62,7 @@
 #include "memory.h"
 #include "packet-parse.h"
 #include "symmetric.h"
-#include "bn.h"
+#include "crypto/bn.h"
 #include <rekey/rnp_key_store.h>
 
 #define PGP_MIN_HASH_SIZE 16

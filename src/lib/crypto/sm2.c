@@ -29,7 +29,7 @@
 #include <string.h>
 #include <botan/ffi.h>
 
-#include "sm2.h"
+#include "crypto/sm2.h"
 #include "crypto.h"
 #include "packet.h"
 #include "readerwriter.h"

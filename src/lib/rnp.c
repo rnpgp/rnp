@@ -90,7 +90,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "readerwriter.h"
 #include "utils.h"
 #include "crypto.h"
-#include "bn.h"
+#include "crypto/bn.h"
 #include "defs.h"
 #include <rnp/rnp_def.h>
 #include "pgp-key.h"
@@ -992,7 +992,8 @@ rnp_export_key(rnp_t *rnp, const char *name)
     }
 
     // TODO: exporting a subkey is actually a bit more involved
-    if (key->type == PGP_PTAG_CT_ENCRYPTED_SECRET_KEY || key->type == PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY) {
+    if (key->type == PGP_PTAG_CT_ENCRYPTED_SECRET_KEY ||
+        key->type == PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY) {
         rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, "");
         memset(passphrase, 0, sizeof(passphrase));
         find_passphrase(

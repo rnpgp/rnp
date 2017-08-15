@@ -71,20 +71,20 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include <stdbool.h>
 
 #include "types.h"
-#include "bn.h"
-#include "rsa.h"
-#include "elgamal.h"
-#include "eddsa.h"
-#include "ecdh.h"
+#include "crypto/bn.h"
+#include "crypto/rsa.h"
+#include "crypto/elgamal.h"
+#include "crypto/eddsa.h"
+#include "crypto/ecdh.h"
 #include "crypto.h"
 #include "readerwriter.h"
 #include "memory.h"
 #include "utils.h"
 #include "signature.h"
 #include "pgp-key.h"
-#include "s2k.h"
-#include "ecdsa.h"
-#include "sm2.h"
+#include "crypto/s2k.h"
+#include "crypto/ecdsa.h"
+#include "crypto/sm2.h"
 #include "utils.h"
 #include <rnp/rnp_def.h>
 

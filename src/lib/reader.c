@@ -106,12 +106,13 @@ __RCSID("$NetBSD: reader.c,v 1.49 2012/03/05 02:20:18 christos Exp $");
 #include <limits.h>
 #endif
 
+#include "packet-parse.h"
+
 #include "errors.h"
 #include "crypto.h"
 #include "packet-create.h"
 #include "signature.h"
 #include "packet.h"
-#include "packet-parse.h"
 #include "packet-show.h"
 #include "packet-print.h"
 #include "readerwriter.h"

@@ -80,8 +80,8 @@
 
 #include "config.h"
 #include "utils.h"
-#include "rsa.h"
-#include "bn.h"
+#include "crypto/rsa.h"
+#include "crypto/bn.h"
 
 #include "utils.h"
 #include <rnp/rnp_def.h>

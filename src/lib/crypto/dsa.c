@@ -76,8 +76,8 @@
 /** \file
  */
 #include <stdlib.h>
-#include "dsa.h"
-#include "bn.h"
+#include "crypto/dsa.h"
+#include "crypto/bn.h"
 
 unsigned
 pgp_dsa_verify(const uint8_t *         hash,

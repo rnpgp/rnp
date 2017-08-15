@@ -25,7 +25,7 @@
  */
 
 #include "eddsa.h"
-#include "bn.h"
+#include "crypto/bn.h"
 #include <string.h>
 #include <botan/ffi.h>
 #include "utils.h"
