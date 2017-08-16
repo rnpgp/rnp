@@ -692,3 +692,42 @@ pgp_key_init(pgp_key_t *key, const pgp_content_enum type)
     }
     key->type = type;
 }
+
+pgp_key_flags_t
+pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
+{
+    switch (alg) {
+    case PGP_PKA_RSA:
+        return PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH | PGP_KF_ENCRYPT;
+
+    case PGP_PKA_RSA_SIGN_ONLY:
+        // deprecated, but still usable
+        return PGP_KF_SIGN;
+
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+        // deprecated, but still usable
+        return PGP_KF_ENCRYPT;
+
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: /* deprecated */
+        // These are no longer permitted per the RFC
+        return PGP_KF_NONE;
+
+    case PGP_PKA_DSA:
+        return PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH;
+
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
+        return PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH;
+
+    case PGP_PKA_ECDH:
+        return PGP_KF_ENCRYPT;
+
+    case PGP_PKA_ELGAMAL:
+        return PGP_KF_ENCRYPT;
+
+    default:
+        RNP_LOG("unknown pk alg: %d\n", alg);
+        return PGP_KF_NONE;
+    }
+}

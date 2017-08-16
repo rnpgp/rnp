@@ -113,4 +113,7 @@ struct pgp_rawpacket_t *pgp_add_rawpacket(pgp_key_t *, const pgp_rawpacket_t *);
 bool pgp_add_selfsigned_userid(pgp_key_t *, const unsigned char *);
 
 void pgp_key_init(pgp_key_t *, const pgp_content_enum);
+
+pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
+
 #endif // RNP_PACKET_KEY_H
