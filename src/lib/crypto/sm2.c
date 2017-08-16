@@ -36,7 +36,7 @@
 #include "utils.h"
 #include "utils.h"
 
-pgp_errcode_t
+rnp_result
 pgp_sm2_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve_id)
 {
     /**
@@ -54,7 +54,7 @@ pgp_sm2_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve_id)
     botan_rng_t     rng = NULL;
     BIGNUM *        public_x = NULL;
     BIGNUM *        public_y = NULL;
-    pgp_errcode_t   ret = PGP_E_C_KEY_GENERATION_FAILED;
+    rnp_result      ret = RNP_ERROR_KEY_GENERATION;
 
     if (curve == NULL) {
         goto end;
@@ -129,7 +129,7 @@ pgp_sm2_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve_id)
     }
 
     // All good now
-    ret = PGP_E_OK;
+    ret = RNP_SUCCESS;
 
 end:
     if (rng != NULL) {
@@ -147,7 +147,7 @@ end:
     if (public_y != NULL) {
         BN_free(public_y);
     }
-    if (PGP_E_OK != ret) {
+    if (RNP_SUCCESS != ret) {
         RNP_LOG("SM2 key generation failed");
         pgp_seckey_free(seckey);
     }
@@ -155,7 +155,7 @@ end:
     return ret;
 }
 
-pgp_errcode_t
+rnp_result
 pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
                   const uint8_t *         hashbuf,
                   size_t                  hash_len,
@@ -166,22 +166,22 @@ pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
     botan_pk_op_sign_t     signer = NULL;
     botan_privkey_t        key = NULL;
     botan_rng_t            rng = NULL;
-    pgp_errcode_t          ret = PGP_E_FAIL;
+    rnp_result             ret = RNP_ERROR_GENERIC;
     uint8_t                out_buf[2 * MAX_CURVE_BYTELEN] = {0};
 
     if (curve == NULL) {
-        return PGP_E_FAIL;
+        return RNP_ERROR_GENERIC;
     }
     const size_t sign_half_len = BITS_TO_BYTES(curve->bitlen);
 
     if (sign->r || sign->s) {
         // Caller must not allocate r and s
-        return PGP_E_FAIL;
+        return RNP_ERROR_GENERIC;
     }
 
     if (botan_privkey_load_sm2(&key, seckey->x->mp, curve->botan_name)) {
         RNP_LOG("Can't load private key");
-        return PGP_E_FAIL;
+        return RNP_ERROR_BAD_FORMAT;
     }
 
     if (botan_rng_init(&rng, NULL)) {
@@ -210,10 +210,10 @@ pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
     }
 
     // All good now
-    ret = PGP_E_OK;
+    ret = RNP_SUCCESS;
 
 end:
-    if (ret != PGP_E_OK) {
+    if (ret != RNP_SUCCESS) {
         BN_clear_free(sign->r);
         BN_clear_free(sign->s);
     }
@@ -224,7 +224,7 @@ end:
     return ret;
 }
 
-pgp_errcode_t
+rnp_result
 pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
                     const uint8_t *         hash,
                     size_t                  hash_len,
@@ -236,12 +236,12 @@ pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
     botan_mp_t           public_y = NULL;
     botan_pubkey_t       pub = NULL;
     botan_pk_op_verify_t verifier = NULL;
-    pgp_errcode_t        ret = PGP_E_V_BAD_SIGNATURE;
+    rnp_result           ret = RNP_ERROR_SIGNATURE_INVALID;
     uint8_t              sign_buf[2 * MAX_CURVE_BYTELEN] = {0};
     uint8_t              point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
 
     if (curve == NULL) {
-        return PGP_E_FAIL;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     const size_t sign_half_len = BITS_TO_BYTES(curve->bitlen);
@@ -280,8 +280,8 @@ pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
     BN_bn2bin(sign->s, &sign_buf[sign_half_len + sign_half_len - BN_num_bytes(sign->s)]);
 
     ret = botan_pk_op_verify_finish(verifier, sign_buf, sign_half_len * 2) ?
-            PGP_E_V_BAD_SIGNATURE :
-            PGP_E_OK;
+            RNP_ERROR_SIGNATURE_INVALID :
+            RNP_SUCCESS;
 
 end:
     botan_mp_destroy(public_x);
@@ -291,14 +291,14 @@ end:
     return ret;
 }
 
-pgp_errcode_t
+rnp_result
 pgp_sm2_encrypt(uint8_t *               out,
                 size_t *                out_len,
                 const uint8_t *         key,
                 size_t                  key_len,
                 const pgp_ecc_pubkey_t *pubkey)
 {
-    pgp_errcode_t retval = PGP_E_FAIL;
+    rnp_result retval = RNP_ERROR_GENERIC;
 
     const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
     botan_mp_t             public_x = NULL;
@@ -308,7 +308,7 @@ pgp_sm2_encrypt(uint8_t *               out,
     botan_rng_t            rng = NULL;
 
     if (curve == NULL) {
-        return PGP_E_FAIL;
+        return RNP_ERROR_GENERIC;
     }
 
     const size_t point_len = BITS_TO_BYTES(curve->bitlen);
@@ -367,7 +367,7 @@ pgp_sm2_encrypt(uint8_t *               out,
     }
 
     if (botan_pk_op_encrypt(enc_op, rng, out, out_len, key, key_len) == 0) {
-        retval = PGP_E_OK;
+        retval = RNP_SUCCESS;
     }
 
 done:
@@ -379,7 +379,7 @@ done:
     return retval;
 }
 
-pgp_errcode_t
+rnp_result
 pgp_sm2_decrypt(uint8_t *               out,
                 size_t *                out_len,
                 const uint8_t *         ctext,
@@ -391,7 +391,7 @@ pgp_sm2_decrypt(uint8_t *               out,
     botan_pk_op_decrypt_t  decrypt_op = NULL;
     botan_privkey_t        key = NULL;
     botan_rng_t            rng = NULL;
-    pgp_errcode_t          retval = PGP_E_FAIL;
+    rnp_result             retval = RNP_ERROR_GENERIC;
 
     if (curve == NULL) {
         goto done;
@@ -411,7 +411,7 @@ pgp_sm2_decrypt(uint8_t *               out,
     }
 
     if (botan_pk_op_decrypt(decrypt_op, out, out_len, ctext, ctext_len) == 0) {
-        retval = PGP_E_OK;
+        retval = RNP_SUCCESS;
     }
 
 done:
