@@ -61,6 +61,10 @@ pgp_sm2_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve)
         goto end;
     }
 
+    /*
+    * SM2 encryption and signature keys share the same form, only difference
+    * is the OID used for the X.509 encoding (which is not used by OpenPGP).
+    */
     if (botan_privkey_create(&pr_key, "SM2_Sig", ec_curves[curve].botan_name, rng)) {
         goto end;
     }
@@ -268,4 +272,125 @@ end:
     botan_pubkey_destroy(pub);
     botan_pk_op_verify_destroy(verifier);
     return ret;
+}
+
+pgp_errcode_t
+pgp_sm2_encrypt(uint8_t *               out,
+                size_t *                out_len,
+                const uint8_t *         key,
+                size_t                  key_len,
+                const pgp_ecc_pubkey_t *pubkey)
+{
+    pgp_errcode_t retval = PGP_E_FAIL;
+
+    botan_mp_t            public_x = NULL;
+    botan_mp_t            public_y = NULL;
+    botan_pubkey_t        sm2_key = NULL;
+    botan_pk_op_encrypt_t enc_op = NULL;
+    botan_rng_t           rng = NULL;
+
+    const size_t point_len = BITS_TO_BYTES(ec_curves[pubkey->curve].bitlen);
+    uint8_t      point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
+    uint8_t *    ctext_buf = NULL;
+
+    /*
+    * Format of SM2 ciphertext is a point (1+point_len*2) plus
+    * the masked ciphertext (out_len) plus a SM3 hash (32 bytes)
+    */
+    const size_t ctext_len = 1 + point_len * 2 + key_len + 32;
+
+    if (*out_len < ctext_len) {
+        RNP_LOG("output buffer for SM2 encryption too short");
+        goto done;
+    }
+
+    ctext_buf = malloc(ctext_len);
+    if (ctext_buf == NULL) {
+        RNP_LOG("malloc failed");
+        goto done;
+    }
+
+    if ((BN_num_bytes(pubkey->point) > sizeof(point_bytes)) ||
+        BN_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
+        RNP_LOG("Failed to load public key");
+        goto done;
+    }
+
+    if (botan_mp_init(&public_x) || botan_mp_init(&public_y) ||
+        botan_mp_from_bin(public_x, &point_bytes[1], point_len) ||
+        botan_mp_from_bin(public_y, &point_bytes[1 + point_len], point_len)) {
+        goto done;
+    }
+
+    const char *curve_name = ec_curves[pubkey->curve].botan_name;
+    if (botan_pubkey_load_sm2_enc(&sm2_key, public_x, public_y, curve_name)) {
+        RNP_LOG("Failed to load public key");
+        goto done;
+    }
+
+    if (botan_rng_init(&rng, NULL) != 0) {
+        goto done;
+    }
+
+    if (botan_pubkey_check_key(sm2_key, rng, 1) != 0) {
+        goto done;
+    }
+
+    /*
+    SM2 encryption doesn't have any kind of format specifier because it's
+    an all in one scheme
+    */
+    if (botan_pk_op_encrypt_create(&enc_op, sm2_key, "", 0) != 0) {
+        goto done;
+    }
+
+    if (botan_pk_op_encrypt(enc_op, rng, out, out_len, key, key_len) == 0) {
+        retval = PGP_E_OK;
+    }
+
+done:
+    free(ctext_buf);
+    botan_pk_op_encrypt_destroy(enc_op);
+    botan_pubkey_destroy(sm2_key);
+    botan_rng_destroy(rng);
+
+    return retval;
+}
+
+pgp_errcode_t
+pgp_sm2_decrypt(uint8_t *               out,
+                size_t *                out_len,
+                const uint8_t *         ctext,
+                size_t                  ctext_len,
+                const pgp_ecc_seckey_t *privkey,
+                const pgp_ecc_pubkey_t *pubkey)
+{
+    botan_pk_op_decrypt_t decrypt_op = NULL;
+    botan_privkey_t       key = NULL;
+    botan_rng_t           rng = NULL;
+    pgp_errcode_t         retval = PGP_E_FAIL;
+
+    if (botan_privkey_load_sm2_enc(
+          &key, privkey->x->mp, ec_curves[pubkey->curve].botan_name)) {
+        RNP_LOG("Can't load private key");
+        goto done;
+    }
+
+    if (botan_rng_init(&rng, NULL)) {
+        goto done;
+    }
+
+    if (botan_pk_op_decrypt_create(&decrypt_op, key, "", 0) != 0) {
+        goto done;
+    }
+
+    if (botan_pk_op_decrypt(decrypt_op, out, out_len, ctext, ctext_len) == 0) {
+        retval = PGP_E_OK;
+    }
+
+done:
+    botan_rng_destroy(rng);
+    botan_privkey_destroy(key);
+    botan_pk_op_decrypt_destroy(decrypt_op);
+    return retval;
 }

@@ -377,6 +377,7 @@ typedef enum {
                                * IETF-S/MIME) */
     PGP_PKA_EDDSA = 22,       /* EdDSA from draft-ietf-openpgp-rfc4880bis */
 
+    PGP_PKA_SM2_ENCRYPT = 98, /* SM2 encryption */
     PGP_PKA_SM2 = 99, /* SM2 signatures */
 
     PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
@@ -847,6 +848,11 @@ typedef struct {
     BIGNUM *encrypted_m;
 } pgp_pk_sesskey_params_elgamal_t;
 
+/** pgp_pk_sesskey_params_sm2_t */
+typedef struct {
+    BIGNUM *encrypted_m;
+} pgp_pk_sesskey_params_sm2_t;
+
 /** pgp_pk_sesskey_params_elgamal_t */
 typedef struct {
     uint8_t  encrypted_m[48];  // wrapped_key
@@ -859,6 +865,7 @@ typedef union {
     pgp_pk_sesskey_params_rsa_t     rsa;
     pgp_pk_sesskey_params_elgamal_t elgamal;
     pgp_pk_sesskey_params_ecdh_t    ecdh;
+    pgp_pk_sesskey_params_sm2_t     sm2;
 } pgp_pk_sesskey_params_t;
 
 /** pgp_pk_sesskey_t */

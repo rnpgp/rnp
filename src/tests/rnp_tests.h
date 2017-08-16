@@ -81,6 +81,8 @@ void ecdh_roundtrip(void **state);
 
 void ecdh_decryptionNegativeCases(void **state);
 
+void sm2_roundtrip(void **state);
+
 void test_load_v3_keyring_pgp(void **state);
 
 void test_load_v4_keyring_pgp(void **state);

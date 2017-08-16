@@ -67,6 +67,7 @@ is_keygen_supported_for_alg(pgp_pubkey_alg_t id)
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
     case PGP_PKA_ECDSA:
         // Not yet really supported (at least key generation)
         //
@@ -210,6 +211,7 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
         crypto->ecc.curve = PGP_CURVE_ED25519;
         break;
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
         crypto->hash_alg = PGP_HASH_SM3;
         crypto->ecc.curve = PGP_CURVE_SM2_P_256;
         break;
@@ -218,6 +220,9 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
     }
     // TODO this is mostly to get tests passing
     key_desc->subkey.crypto = key_desc->primary.crypto;
+
+    if(crypto->key_alg == PGP_PKA_SM2)
+       key_desc->subkey.crypto.key_alg = PGP_PKA_SM2_ENCRYPT;
 
     return PGP_E_OK;
 }
