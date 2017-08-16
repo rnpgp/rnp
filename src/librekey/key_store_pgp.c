@@ -134,6 +134,8 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to add keydata to key store.");
             return PGP_FINISHED;
         }
+        // shortcut
+        key = cb->key;
         cb->subsig = NULL;
         if (pgp_is_subkey_tag(pkt->tag) && cb->last_primary) {
             EXPAND_ARRAY(cb->last_primary, subkey);
@@ -141,10 +143,13 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
                 PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
                 return PGP_FINISHED;
             }
-            cb->last_primary->subkeys[cb->last_primary->subkeyc++] = cb->key;
+            cb->last_primary->subkeys[cb->last_primary->subkeyc++] = key;
         } else if (pgp_is_primary_key_tag(pkt->tag)) {
-            cb->last_primary = cb->key;
+            cb->last_primary = key;
         }
+        // Set some default key flags which will be overridden by signature
+        // subpackets for V4 keys.
+        key->key_flags = pgp_pk_alg_capabilities(pgp_get_pubkey(key)->alg);
         return PGP_KEEP_MEMORY;
     case PGP_PTAG_CT_USER_ID:
         KEY_REQUIRED_BEFORE("userid");
