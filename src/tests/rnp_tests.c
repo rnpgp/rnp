@@ -153,7 +153,9 @@ main(int argc, char *argv[])
       cmocka_unit_test(pgp_parse_keyrings_1_pubring),
       cmocka_unit_test(test_load_user_prefs),
       cmocka_unit_test(ecdh_roundtrip),
-      cmocka_unit_test(ecdh_decryptionNegativeCases)};
+      cmocka_unit_test(ecdh_decryptionNegativeCases),
+      cmocka_unit_test(test_load_v3_keyring_pgp),
+      cmocka_unit_test(test_load_v4_keyring_pgp)};
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */

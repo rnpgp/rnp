@@ -11,7 +11,8 @@ rnp_tests_SOURCES   = \
     rnp_tests.c \
     user-prefs.c \
     utils-list.c \
-    pgp-parse.c
+    pgp-parse.c \
+    load-pgp.c
 
 # don't install any test stuff
 install-binPROGRAMS:
