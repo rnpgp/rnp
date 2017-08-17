@@ -60,9 +60,9 @@ void rnp_params_init(rnp_params_t *);
 void rnp_params_free(rnp_params_t *);
 
 /* init, reset and free rnp operation context */
-int  rnp_ctx_init(rnp_ctx_t *, rnp_t *);
-void rnp_ctx_reset(rnp_ctx_t *);
-void rnp_ctx_free(rnp_ctx_t *);
+rnp_result rnp_ctx_init(rnp_ctx_t *, rnp_t *);
+void       rnp_ctx_reset(rnp_ctx_t *);
+void       rnp_ctx_free(rnp_ctx_t *);
 
 /* debugging, reflection and information */
 int         rnp_set_debug(const char *);

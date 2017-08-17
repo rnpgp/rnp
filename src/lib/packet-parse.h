@@ -154,7 +154,6 @@ bool pgp_stacked_limited_read(pgp_stream_t *,
 
 pgp_reader_func_t pgp_stacked_read;
 
-bool     pgp_decompress(pgp_region_t *, pgp_stream_t *, pgp_compression_type_t);
-unsigned pgp_writez(pgp_output_t *, const uint8_t *, const unsigned);
+bool pgp_decompress(pgp_region_t *, pgp_stream_t *, pgp_compression_type_t);
 
 #endif /* PACKET_PARSE_H_ */

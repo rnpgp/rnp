@@ -131,7 +131,7 @@ zlib_compressed_data_reader(pgp_stream_t *stream,
     char *          cdest = dest;
 
     if (z->type != PGP_C_ZIP && z->type != PGP_C_ZLIB) {
-        (void) fprintf(stderr, "zlib_compressed_data_reader: weird type %d\n", z->type);
+        RNP_LOG("weird type %d\n", z->type);
         return 0;
     }
 
@@ -139,7 +139,7 @@ zlib_compressed_data_reader(pgp_stream_t *stream,
         return 0;
     }
     if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr, "zlib_compressed_data_reader: length %" PRIsize "d\n", length);
+        RNP_LOG("length %" PRIsize "d", length);
     }
     for (cc = 0; cc < length; cc += len) {
         if (&z->out[z->offset] == z->zstream.next_out) {
@@ -182,7 +182,7 @@ zlib_compressed_data_reader(pgp_stream_t *stream,
             z->inflate_ret = ret;
         }
         if (z->zstream.next_out <= &z->out[z->offset]) {
-            (void) fprintf(stderr, "Out of memory in buffer\n");
+            RNP_LOG("Out of memory in buffer");
             return 0;
         }
         len = (size_t)(z->zstream.next_out - &z->out[z->offset]);
@@ -269,18 +269,9 @@ bzip2_compressed_data_reader(pgp_stream_t *stream,
         (void) memcpy(&cdest[cc], &bz->out[bz->offset], len);
         bz->offset += len;
     }
-
     return (int) length;
 }
 #endif
-
-/**
- * \ingroup Core_Compress
- *
- * \param *region     Pointer to a region
- * \param *stream     How to parse
- * \param type Which compression type to expect
- */
 
 bool
 pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_t type)
@@ -290,6 +281,11 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
     bz_decompress_t bz;
 #endif
     const int printerrors = 1;
+    bool      res = false;
+
+    if (!region || !stream) {
+        return false;
+    }
 
     switch (type) {
     case PGP_C_ZIP:
@@ -332,7 +328,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                     PGP_E_ALG_UNSUPPORTED_COMPRESS_ALG,
                     "Compression algorithm %d is not yet supported",
                     type);
-        return false;
+        goto end;
     }
 
     int ret;
@@ -358,7 +354,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                     PGP_E_ALG_UNSUPPORTED_COMPRESS_ALG,
                     "Compression algorithm %d is not yet supported",
                     type);
-        return false;
+        goto end;
     }
 
     switch (type) {
@@ -369,7 +365,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                         PGP_E_P_DECOMPRESSION_ERROR,
                         "Cannot initialise ZIP or ZLIB stream for decompression: error=%d",
                         ret);
-            return false;
+            goto end;
         }
         pgp_reader_push(stream, zlib_compressed_data_reader, NULL, &z);
         break;
@@ -381,7 +377,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                         PGP_E_P_DECOMPRESSION_ERROR,
                         "Cannot initialise BZIP2 stream for decompression: error=%d",
                         ret);
-            return false;
+            goto end;
         }
         pgp_reader_push(stream, bzip2_compressed_data_reader, NULL, &bz);
         break;
@@ -392,72 +388,68 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
                     PGP_E_ALG_UNSUPPORTED_COMPRESS_ALG,
                     "Compression algorithm %d is not yet supported",
                     type);
-        return false;
+        goto end;
     }
 
-    bool res = pgp_parse(stream, !printerrors);
+    res = pgp_parse(stream, !printerrors);
     pgp_reader_pop(stream);
+
+end:
+#ifdef HAVE_BZLIB_H
+    if (type == PGP_C_BZIP2) {
+        BZ2_bzCompressEnd(&bz.bzstream);
+    } else
+#endif
+    {
+        inflateEnd(&z.zstream);
+    }
+
     return res;
 }
 
-/**
-\ingroup Core_WritePackets
-\brief Writes Compressed packet
-\param data Data to write out
-\param len Length of data
-\param output Write settings
-\return 1 if OK; else 0
-*/
-
-unsigned
-pgp_writez(pgp_output_t *out, const uint8_t *data, const unsigned len)
+bool
+pgp_writez(pgp_output_t *out, const uint8_t *data, const unsigned data_len)
 {
-    compress_t *zip;
-    size_t      sz_in;
-    size_t      sz_out;
-    int         ret;
-    int         r = 0;
+    compress_t * zip;
+    int          r = 0;
+    bool         ret = false;
+    const size_t sz_in = data_len * sizeof(uint8_t);
+    const size_t sz_out = ((101 * sz_in) / 100) + 12; /* from zlib webpage */
+
+    /* Sanity checks */
+    if (data_len == 0) {
+        return true;
+    }
+
+    if (!out || !data) {
+        return false;
+    }
 
     /* compress the data */
     const int level = Z_DEFAULT_COMPRESSION; /* \todo allow varying
                                               * levels */
-
     if ((zip = calloc(1, sizeof(*zip))) == NULL) {
-        (void) fprintf(stderr, "pgp_writez: bad alloc\n");
-        return 0;
+        RNP_LOG("bad alloc\n");
+        return false;
     }
-    zip->stream.zalloc = Z_NULL;
-    zip->stream.zfree = Z_NULL;
-    zip->stream.opaque = NULL;
+    zip->src = calloc(1, sz_in);
+    zip->dst = calloc(1, sz_out);
+
+    if ((NULL == zip->src) || (NULL == zip->dst)) {
+        goto end;
+    }
 
     /* all other fields set to zero by use of calloc */
+    zip->stream.zalloc = Z_NULL;
+    zip->stream.zfree = Z_NULL;
 
     /* LINTED */ /* this is a lint problem in zlib.h header */
     if ((int) deflateInit(&zip->stream, level) != Z_OK) {
-        (void) fprintf(stderr, "pgp_writez: can't initialise\n");
-        return 0;
-    }
-    /* do necessary transformation */
-    /* copy input to maintain const'ness of src */
-    if (zip->src != NULL || zip->dst != NULL) {
-        (void) fprintf(stderr, "pgp_writez: non-null streams\n");
-        return 0;
+        RNP_LOG("can't initialise");
+        goto end;
     }
 
-    sz_in = len * sizeof(uint8_t);
-    sz_out = ((101 * sz_in) / 100) + 12; /* from zlib webpage */
-    if ((zip->src = calloc(1, sz_in)) == NULL) {
-        free(zip);
-        (void) fprintf(stderr, "pgp_writez: bad alloc2\n");
-        return 0;
-    }
-    if ((zip->dst = calloc(1, sz_out)) == NULL) {
-        free(zip->src);
-        free(zip);
-        (void) fprintf(stderr, "pgp_writez: bad alloc3\n");
-        return 0;
-    }
-    (void) memcpy(zip->src, data, len);
+    (void) memcpy(zip->src, data, data_len);
 
     /* setup stream */
     zip->stream.next_in = zip->src;
@@ -478,8 +470,10 @@ pgp_writez(pgp_output_t *out, const uint8_t *data, const unsigned len)
           pgp_write_scalar(out, PGP_C_ZLIB, 1) &&
           pgp_write(out, zip->dst, (unsigned) zip->stream.total_out);
 
+end:
     free(zip->src);
     free(zip->dst);
+    (void) deflateEnd(&zip->stream);
     free(zip);
     return ret;
 }

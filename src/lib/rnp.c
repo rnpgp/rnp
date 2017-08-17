@@ -747,16 +747,16 @@ rnp_params_free(rnp_params_t *params)
 }
 
 /* rnp_ctx_t : init, reset, free internal pointers */
-int
+rnp_result
 rnp_ctx_init(rnp_ctx_t *ctx, rnp_t *rnp)
 {
     if (rnp == NULL) {
-        return RNP_FAIL;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     memset(ctx, '\0', sizeof(*ctx));
     ctx->rnp = rnp;
-    return RNP_OK;
+    return RNP_SUCCESS;
 }
 
 void
