@@ -54,16 +54,15 @@
 
 /** pgp_crypt_t */
 struct pgp_crypt_t {
-    pgp_symm_alg_t alg;
-    size_t         blocksize;
-    size_t         num; // offset for CFB
+    pgp_symm_alg_t                    alg;
+    size_t                            blocksize;
+    size_t                            offset; // offset for CFB
+    struct botan_block_cipher_struct *obj;
 
     uint8_t iv[PGP_MAX_BLOCK_SIZE];
     uint8_t civ[PGP_MAX_BLOCK_SIZE];
     uint8_t siv[PGP_MAX_BLOCK_SIZE];
     /* siv is needed for weird v3 resync */
-
-    struct botan_block_cipher_struct *block_cipher_obj;
 };
 
 pgp_symm_alg_t pgp_str_to_cipher(const char *name);
@@ -84,17 +83,14 @@ bool pgp_cipher_start(pgp_crypt_t *  cipher,
 int pgp_cipher_finish(pgp_crypt_t *cipher);
 
 int pgp_cipher_block_size(pgp_crypt_t *cipher);
-int pgp_cipher_key_size(pgp_crypt_t *cipher);
 pgp_symm_alg_t pgp_cipher_alg_id(pgp_crypt_t *cipher);
-
-// Encrypt a single block
-int pgp_cipher_block_encrypt(const pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in);
 
 // CFB encryption/decryption
 int pgp_cipher_cfb_encrypt(pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in, size_t len);
 int pgp_cipher_cfb_decrypt(pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in, size_t len);
 
 int pgp_cipher_cfb_resync(pgp_crypt_t *cipher);
+int pgp_cipher_cfb_resync_v2(pgp_crypt_t *cipher);
 
 // Higher level operations
 size_t pgp_encrypt_se(pgp_crypt_t *, void *, const void *, size_t);

@@ -286,7 +286,7 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
     bool          ok = false;
     pgp_output_t *output = NULL;
     pgp_memory_t *mem = NULL;
-    pgp_seckey_t seckey;
+    pgp_seckey_t  seckey;
 
     memset(&seckey, 0, sizeof(seckey));
 

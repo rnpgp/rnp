@@ -443,7 +443,9 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
         RNP_LOG("Memory allcoation failed");
         return false;
     }
-    pgp_cipher_start(crypted, key->alg, sesskey, key->iv);
+    if (!pgp_cipher_start(crypted, key->alg, sesskey, key->iv)) {
+        return false;
+    }
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "writing: iv=", key->iv, pgp_block_size(key->alg));
@@ -980,22 +982,18 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
     } break;
 
     case PGP_PKA_SM2_ENCRYPT: {
-       uint8_t encmpibuf[RNP_BUFSIZ];
-       size_t out_len = sizeof(encmpibuf);
-       rnp_result err = pgp_sm2_encrypt(encmpibuf,
-                                        &out_len,
-                                        encoded_key,
-                                        sz_encoded_key,
-                                        &pubkey->key.ecc);
+        uint8_t    encmpibuf[RNP_BUFSIZ];
+        size_t     out_len = sizeof(encmpibuf);
+        rnp_result err =
+          pgp_sm2_encrypt(encmpibuf, &out_len, encoded_key, sz_encoded_key, &pubkey->key.ecc);
 
-       if (err != RNP_SUCCESS) {
-          goto done;
-       }
+        if (err != RNP_SUCCESS) {
+            goto done;
+        }
 
-       sesskey->params.sm2.encrypted_m = BN_bin2bn(encmpibuf, out_len, NULL);
+        sesskey->params.sm2.encrypted_m = BN_bin2bn(encmpibuf, out_len, NULL);
 
     } break;
-
 
     case PGP_PKA_ECDH: {
         uint8_t           encmpibuf[ECDH_WRAPPED_KEY_SIZE] = {0};

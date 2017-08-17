@@ -537,9 +537,9 @@ pgp_writer_push_clearsigned(pgp_output_t *output, pgp_create_sig_t *sig)
  * \struct base64_t
  */
 typedef struct {
-    unsigned pos;
-    uint8_t  t;
-    unsigned checksum;
+    unsigned         pos;
+    uint8_t          t;
+    unsigned         checksum;
     pgp_armor_type_t type;
 } base64_t;
 
@@ -635,10 +635,10 @@ armoured_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
     static const char trl_pubkey[] = "\r\n-----END PGP PUBLIC KEY BLOCK-----\r\n";
     static const char trl_seckey[] = "\r\n-----END PGP PRIVATE KEY BLOCK-----\r\n";
     static const char trl_signature[] = "\r\n-----END PGP SIGNATURE-----\r\n";
-    
-    base64_t *        base64;
-    uint8_t           c[3];
-    const char *      trailer = NULL;
+
+    base64_t *  base64;
+    uint8_t     c[3];
+    const char *trailer = NULL;
 
     base64 = pgp_writer_get_arg(writer);
 
@@ -738,7 +738,8 @@ pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
         if (!pgp_write(output, hdr_crlf, sizeof(hdr_crlf) - 1) ||
             !pgp_write(output, hdr_signature, sizeof(hdr_signature) - 1) ||
             !pgp_write(output, hdr_version, sizeof(hdr_version) - 1)) {
-            PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Error switching to armoured signature");
+            PGP_ERROR_1(
+              &output->errors, PGP_E_W, "%s", "Error switching to armoured signature");
             free(linebreak);
             return false;
         }
@@ -762,7 +763,8 @@ pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
     base64->checksum = CRC24_INIT;
     base64->type = type;
 
-    if (!pgp_writer_push(output, base64_writer, armoured_message_finaliser, generic_destroyer, base64)) {
+    if (!pgp_writer_push(
+          output, base64_writer, armoured_message_finaliser, generic_destroyer, base64)) {
         free(base64);
         return false;
     }
@@ -793,10 +795,6 @@ encrypt_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_write
 
     remaining = len;
     pgp_encrypt = (crypt_t *) pgp_writer_get_arg(writer);
-    if (!pgp_is_sa_supported(pgp_encrypt->crypt->alg)) {
-        (void) fprintf(stderr, "encrypt_writer: not supported\n");
-        return false;
-    }
     while (remaining > 0) {
         unsigned size = (remaining < BUFSZ) ? remaining : BUFSZ;
 
@@ -903,8 +901,14 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_pubkey_t *pubkey, pgp_symm_al
         return false;
     }
 
-    pgp_cipher_start(encrypted, encrypted_pk_sesskey->symm_alg,
-                     &encrypted_pk_sesskey->key[0], NULL);
+    if (!pgp_cipher_start(
+          encrypted, encrypted_pk_sesskey->symm_alg, &encrypted_pk_sesskey->key[0], NULL)) {
+        free(se_ip);
+        pgp_pk_sesskey_free(encrypted_pk_sesskey);
+        free(encrypted_pk_sesskey);
+        free(encrypted);
+        return false;
+    }
 
     se_ip->crypt = encrypted;
 
@@ -1304,8 +1308,12 @@ pgp_push_stream_enc_se_ip(pgp_output_t *      output,
         (void) fprintf(stderr, "pgp_push_stream_enc_se_ip: bad alloc\n");
         return;
     }
-    pgp_cipher_start(encrypted, encrypted_pk_sesskey->symm_alg,
-                     &encrypted_pk_sesskey->key[0], NULL);
+
+    if (!pgp_cipher_start(
+          encrypted, encrypted_pk_sesskey->symm_alg, &encrypted_pk_sesskey->key[0], NULL)) {
+        free(se_ip);
+        return;
+    }
 
     se_ip->crypt = encrypted;
 
@@ -1480,10 +1488,10 @@ stream_write_se_ip_first(pgp_output_t *   output,
                          unsigned         len,
                          str_enc_se_ip_t *se_ip)
 {
-    uint8_t *preamble;
-    size_t   preamblesize;
-    size_t   sz_towrite;
-    size_t   sz_pd;
+    uint8_t *    preamble;
+    size_t       preamblesize;
+    size_t       sz_towrite;
+    size_t       sz_pd;
     const size_t blocksize = pgp_cipher_block_size(se_ip->crypt);
 
     preamblesize = blocksize + 2;

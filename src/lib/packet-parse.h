@@ -110,7 +110,6 @@ typedef void pgp_reader_destroyer_t(pgp_reader_t *);
 
 void         pgp_stream_delete(pgp_stream_t *);
 pgp_error_t *pgp_stream_get_errors(pgp_stream_t *);
-pgp_crypt_t *pgp_get_decrypt(pgp_stream_t *);
 
 void  pgp_set_callback(pgp_stream_t *, pgp_cbfunc_t *, void *);
 void  pgp_callback_push(pgp_stream_t *, pgp_cbfunc_t *, void *);

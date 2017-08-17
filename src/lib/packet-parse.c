@@ -2674,7 +2674,9 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
             hexdump(stderr, "key", derived_key, keysize);
         }
 
-        pgp_cipher_start(&decrypt, pkt.u.seckey.alg, derived_key, pkt.u.seckey.iv);
+        if (!pgp_cipher_start(&decrypt, pkt.u.seckey.alg, derived_key, pkt.u.seckey.iv)) {
+            return false;
+        }
 
         /* now read encrypted data */
 
@@ -3015,9 +3017,17 @@ parse_pk_sesskey(pgp_region_t *region, pgp_stream_t *stream)
         (void) fprintf(stderr, "got pk session key via callback\n");
     }
 
-    pgp_cipher_start(&stream->decrypt, pkt.u.pk_sesskey.symm_alg, pkt.u.pk_sesskey.key, NULL);
+    if (!pgp_cipher_start(
+          &stream->decrypt, pkt.u.pk_sesskey.symm_alg, pkt.u.pk_sesskey.key, NULL))
+        return false;
 
     return true;
+}
+
+static pgp_crypt_t *
+pgp_get_decrypt(pgp_stream_t *stream)
+{
+    return (stream->decrypt.alg) ? &stream->decrypt : NULL;
 }
 
 static bool
@@ -3053,8 +3063,7 @@ decrypt_se_data(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream
             return false;
         }
         if (tag == PGP_PTAG_CT_SE_DATA_BODY) {
-            pgp_cipher_cfb_resync(decrypt);
-            pgp_cipher_block_encrypt(decrypt, decrypt->civ, decrypt->civ);
+            pgp_cipher_cfb_resync_v2(decrypt);
         }
         r = pgp_parse(stream, !printerrors);
 
@@ -3600,10 +3609,4 @@ pgp_error_t *
 pgp_stream_get_errors(pgp_stream_t *stream)
 {
     return stream->errors;
-}
-
-pgp_crypt_t *
-pgp_get_decrypt(pgp_stream_t *stream)
-{
-    return (stream->decrypt.alg) ? &stream->decrypt : NULL;
 }
