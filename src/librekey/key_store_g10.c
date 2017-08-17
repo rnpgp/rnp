@@ -789,7 +789,7 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
 
     memcpy(seckey->salt, alg->blocks[1].bytes, alg->blocks[1].len);
     seckey->s2k_iterations = block_to_unsigned(&alg->blocks[2]);
-    if (seckey->s2k_iterations == UINT8_MAX) {
+    if (seckey->s2k_iterations == UINT_MAX) {
         fprintf(stderr,
                 "Wrong numbers of iteration, %.*s\n",
                 (int) alg->blocks[2].len,
