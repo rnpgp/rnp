@@ -56,14 +56,13 @@
 struct pgp_crypt_t {
     pgp_symm_alg_t alg;
     size_t         blocksize;
-    size_t         keysize;
-    uint8_t        iv[PGP_MAX_BLOCK_SIZE];
-    uint8_t        civ[PGP_MAX_BLOCK_SIZE];
-    uint8_t        siv[PGP_MAX_BLOCK_SIZE];
+    size_t         num; // offset for CFB
+
+    uint8_t iv[PGP_MAX_BLOCK_SIZE];
+    uint8_t civ[PGP_MAX_BLOCK_SIZE];
+    uint8_t siv[PGP_MAX_BLOCK_SIZE];
     /* siv is needed for weird v3 resync */
-    uint8_t key[PGP_MAX_KEY_SIZE];
-    int     num;
-    /* num is offset for CFB */
+
     struct botan_block_cipher_struct *block_cipher_obj;
 };
 
@@ -72,19 +71,24 @@ unsigned pgp_block_size(pgp_symm_alg_t);
 unsigned pgp_key_size(pgp_symm_alg_t);
 bool     pgp_is_sa_supported(pgp_symm_alg_t);
 
-bool pgp_crypt_any(pgp_crypt_t *, pgp_symm_alg_t);
-bool pgp_decrypt_init(pgp_crypt_t *);
-bool pgp_encrypt_init(pgp_crypt_t *);
+/**
+* Initialize a cipher object.
+* @param iv if null an all-zero IV is assumed
+*/
+bool pgp_cipher_start(pgp_crypt_t *  cipher,
+                      pgp_symm_alg_t alg,
+                      const uint8_t *key,
+                      const uint8_t *iv);
 
 // Deallocate all storage
 int pgp_cipher_finish(pgp_crypt_t *cipher);
 
-int pgp_cipher_set_key(pgp_crypt_t *cipher, const uint8_t *key);
-int pgp_cipher_set_iv(pgp_crypt_t *cipher, const uint8_t *iv);
+int pgp_cipher_block_size(pgp_crypt_t *cipher);
+int pgp_cipher_key_size(pgp_crypt_t *cipher);
+pgp_symm_alg_t pgp_cipher_alg_id(pgp_crypt_t *cipher);
 
-// Encrypt or decrypt a single block
+// Encrypt a single block
 int pgp_cipher_block_encrypt(const pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in);
-int pgp_cipher_block_decrypt(const pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in);
 
 // CFB encryption/decryption
 int pgp_cipher_cfb_encrypt(pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in, size_t len);
@@ -93,9 +97,7 @@ int pgp_cipher_cfb_decrypt(pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in,
 int pgp_cipher_cfb_resync(pgp_crypt_t *cipher);
 
 // Higher level operations
-size_t pgp_decrypt_se(pgp_crypt_t *, void *, const void *, size_t);
 size_t pgp_encrypt_se(pgp_crypt_t *, void *, const void *, size_t);
 size_t pgp_decrypt_se_ip(pgp_crypt_t *, void *, const void *, size_t);
-size_t pgp_encrypt_se_ip(pgp_crypt_t *, void *, const void *, size_t);
 
 #endif

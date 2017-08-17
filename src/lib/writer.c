@@ -877,7 +877,6 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_pubkey_t *pubkey, pgp_symm_al
     pgp_pk_sesskey_t *encrypted_pk_sesskey;
     encrypt_se_ip_t * se_ip;
     pgp_crypt_t *     encrypted;
-    uint8_t *         iv;
 
     if ((se_ip = calloc(1, sizeof(*se_ip))) == NULL) {
         (void) fprintf(stderr, "pgp_push_enc_se_ip: bad alloc\n");
@@ -903,18 +902,9 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_pubkey_t *pubkey, pgp_symm_al
         (void) fprintf(stderr, "pgp_push_enc_se_ip: bad alloc\n");
         return false;
     }
-    pgp_crypt_any(encrypted, encrypted_pk_sesskey->symm_alg);
-    if ((iv = calloc(1, encrypted->blocksize)) == NULL) {
-        free(se_ip);
-        pgp_pk_sesskey_free(encrypted_pk_sesskey);
-        free(encrypted_pk_sesskey);
-        free(encrypted);
-        (void) fprintf(stderr, "pgp_push_enc_se_ip: bad alloc\n");
-        return false;
-    }
-    pgp_cipher_set_iv(encrypted, iv);
-    pgp_cipher_set_key(encrypted, &encrypted_pk_sesskey->key[0]);
-    pgp_encrypt_init(encrypted);
+
+    pgp_cipher_start(encrypted, encrypted_pk_sesskey->symm_alg,
+                     &encrypted_pk_sesskey->key[0], NULL);
 
     se_ip->crypt = encrypted;
 
@@ -924,13 +914,11 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_pubkey_t *pubkey, pgp_symm_al
         pgp_pk_sesskey_free(encrypted_pk_sesskey);
         free(encrypted_pk_sesskey);
         free(encrypted);
-        free(iv);
         return false;
     }
     /* tidy up */
     pgp_pk_sesskey_free(encrypted_pk_sesskey);
     free(encrypted_pk_sesskey);
-    free(iv);
     return true;
 }
 
@@ -1013,7 +1001,9 @@ pgp_write_se_ip_pktset(pgp_output_t * output,
     size_t        preamblesize;
     size_t        bufsize;
 
-    preamblesize = crypted->blocksize + 2;
+    const size_t blocksize = pgp_cipher_block_size(crypted);
+
+    preamblesize = blocksize + 2;
     if ((preamble = calloc(1, preamblesize)) == NULL) {
         (void) fprintf(stderr, "pgp_write_se_ip_pktset: bad alloc\n");
         return 0;
@@ -1026,12 +1016,12 @@ pgp_write_se_ip_pktset(pgp_output_t * output,
         free(preamble);
         return 0;
     }
-    if (pgp_random(preamble, crypted->blocksize)) {
+    if (pgp_random(preamble, blocksize)) {
         (void) fprintf(stderr, "pgp_random failed\n");
         return 0;
     }
-    preamble[crypted->blocksize] = preamble[crypted->blocksize - 2];
-    preamble[crypted->blocksize + 1] = preamble[crypted->blocksize - 1];
+    preamble[blocksize] = preamble[blocksize - 2];
+    preamble[blocksize + 1] = preamble[blocksize - 1];
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "preamble", preamble, preamblesize);
@@ -1293,7 +1283,6 @@ pgp_push_stream_enc_se_ip(pgp_output_t *      output,
     str_enc_se_ip_t * se_ip;
     const unsigned    bufsz = 1024;
     pgp_crypt_t *     encrypted;
-    uint8_t *         iv;
 
     if ((se_ip = calloc(1, sizeof(*se_ip))) == NULL) {
         (void) fprintf(stderr, "pgp_push_stream_enc_se_ip: bad alloc\n");
@@ -1315,22 +1304,13 @@ pgp_push_stream_enc_se_ip(pgp_output_t *      output,
         (void) fprintf(stderr, "pgp_push_stream_enc_se_ip: bad alloc\n");
         return;
     }
-    pgp_crypt_any(encrypted, encrypted_pk_sesskey->symm_alg);
-    if ((iv = calloc(1, encrypted->blocksize)) == NULL) {
-        free(encrypted);
-        free(se_ip);
-        (void) fprintf(stderr, "pgp_push_stream_enc_se_ip: bad alloc\n");
-        return;
-    }
-    pgp_cipher_set_iv(encrypted, iv);
-    pgp_cipher_set_key(encrypted, &encrypted_pk_sesskey->key[0]);
-    pgp_encrypt_init(encrypted);
+    pgp_cipher_start(encrypted, encrypted_pk_sesskey->symm_alg,
+                     &encrypted_pk_sesskey->key[0], NULL);
 
     se_ip->crypt = encrypted;
 
     se_ip->mem_data = pgp_memory_new();
     if (se_ip->mem_data == NULL) {
-        free(iv);
         free(encrypted);
         free(se_ip);
         (void) fprintf(stderr, "can't allocate mem\n");
@@ -1342,7 +1322,6 @@ pgp_push_stream_enc_se_ip(pgp_output_t *      output,
     se_ip->litoutput = NULL;
 
     if (!pgp_setup_memory_write(output->ctx, &se_ip->se_ip_out, &se_ip->se_ip_mem, bufsz)) {
-        free(iv);
         free(encrypted);
         free(se_ip);
         (void) fprintf(stderr, "can't setup memory write\n");
@@ -1359,7 +1338,6 @@ pgp_push_stream_enc_se_ip(pgp_output_t *      output,
     }
     /* tidy up */
     free(encrypted_pk_sesskey);
-    free(iv);
 }
 
 /* calculate the partial data length */
@@ -1503,12 +1481,11 @@ stream_write_se_ip_first(pgp_output_t *   output,
                          str_enc_se_ip_t *se_ip)
 {
     uint8_t *preamble;
-    size_t   blocksize;
     size_t   preamblesize;
     size_t   sz_towrite;
     size_t   sz_pd;
+    const size_t blocksize = pgp_cipher_block_size(se_ip->crypt);
 
-    blocksize = se_ip->crypt->blocksize;
     preamblesize = blocksize + 2;
     sz_towrite = preamblesize + 1 + len;
     if ((preamble = calloc(1, preamblesize)) == NULL) {

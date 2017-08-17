@@ -2669,13 +2669,12 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 
         pgp_forget(passphrase, strlen(passphrase));
 
-        pgp_crypt_any(&decrypt, pkt.u.seckey.alg);
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "input iv", pkt.u.seckey.iv, pgp_block_size(pkt.u.seckey.alg));
             hexdump(stderr, "key", derived_key, keysize);
         }
-        pgp_cipher_set_iv(&decrypt, pkt.u.seckey.iv);
-        pgp_cipher_set_key(&decrypt, derived_key);
+
+        pgp_cipher_start(&decrypt, pkt.u.seckey.alg, derived_key, pkt.u.seckey.iv);
 
         /* now read encrypted data */
 
@@ -2836,7 +2835,6 @@ parse_pk_sesskey(pgp_region_t *region, pgp_stream_t *stream)
     const pgp_seckey_t *secret;
     pgp_packet_t        sesskey;
     pgp_packet_t        pkt;
-    uint8_t *           iv;
     uint8_t             c = 0x0;
     uint8_t             cs[2];
     unsigned            k;
@@ -3017,16 +3015,8 @@ parse_pk_sesskey(pgp_region_t *region, pgp_stream_t *stream)
         (void) fprintf(stderr, "got pk session key via callback\n");
     }
 
-    pgp_crypt_any(&stream->decrypt, pkt.u.pk_sesskey.symm_alg);
-    iv = calloc(1, stream->decrypt.blocksize);
-    if (iv == NULL) {
-        (void) fprintf(stderr, "parse_pk_sesskey: bad alloc\n");
-        return false;
-    }
-    pgp_cipher_set_iv(&stream->decrypt, iv);
-    pgp_cipher_set_key(&stream->decrypt, pkt.u.pk_sesskey.key);
-    pgp_encrypt_init(&stream->decrypt);
-    free(iv);
+    pgp_cipher_start(&stream->decrypt, pkt.u.pk_sesskey.symm_alg, pkt.u.pk_sesskey.key, NULL);
+
     return true;
 }
 
@@ -3040,7 +3030,7 @@ decrypt_se_data(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream
     decrypt = pgp_get_decrypt(stream);
     if (decrypt) {
         pgp_region_t encregion;
-        unsigned     b = (unsigned) decrypt->blocksize;
+        unsigned     b = (unsigned) pgp_cipher_block_size(decrypt);
         uint8_t      buf[PGP_MAX_BLOCK_SIZE + 2] = "";
 
         pgp_reader_push_decrypt(stream, decrypt, region);
