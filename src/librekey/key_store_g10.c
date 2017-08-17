@@ -43,6 +43,8 @@
 
 #define G10_OCB_NONCE_SIZE 12
 
+#define G10_SHA1_HASH_SIZE 20
+
 typedef struct {
     size_t   len;
     uint8_t *bytes;
@@ -64,6 +66,8 @@ typedef struct format_info {
     const char *      g10_type;
     size_t            iv_size;
 } format_info;
+
+static bool g10_calculated_hash(pgp_seckey_t *key, uint8_t *checksum);
 
 static const format_info formats[] = {{PGP_SA_AES_128,
                                        PGP_CIPHER_MODE_CBC,
@@ -537,9 +541,11 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     uint8_t *      decrypted;
     pgp_seckey_t * seckey;
     s_exp_t        s_exp = {0};
+    s_exp_t *      var;
     size_t         output_written = 0;
     size_t         input_consumed = 0;
     botan_cipher_t decrypt;
+    uint8_t        checksum[G10_SHA1_HASH_SIZE];
 
     if (key->key.seckey.encrypted_len == 0) {
         fprintf(stderr, "Hasn't got encrypted data!\n");
@@ -656,7 +662,7 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     if (!parse_sexp(&s_exp, &bytes, &length)) {
         pgp_forget(decrypted, key->key.seckey.encrypted_len);
         free(decrypted);
-        return NULL;
+        return false;
     }
 
     // ignore padding data
@@ -667,21 +673,49 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     if (s_exp.sub_s_expc == 0) {
         destroy_s_exp(&s_exp);
         (void) fprintf(stderr, "Hasn't got sub s-exp with key data.\n");
-        return NULL;
+        return false;
     }
 
     seckey = calloc(1, sizeof(*seckey));
     if (seckey == NULL) {
         destroy_s_exp(&s_exp);
         (void) fprintf(stderr, "can't allocate memory\n");
-        return NULL;
+        return false;
     }
 
     seckey->pubkey = key->key.seckey.pubkey;
 
     if (!parse_seckey(seckey, &s_exp.sub_s_exps[0], seckey->pubkey.alg, true)) {
         destroy_s_exp(&s_exp);
-        return NULL;
+        return false;
+    }
+
+    if (!g10_calculated_hash(seckey, checksum)) {
+        destroy_s_exp(&s_exp);
+        return false;
+    }
+
+    // hash is optional
+    var = lookup_variable(&s_exp.sub_s_exps[0], "hash");
+    if (var != NULL) {
+        if (var->blockc != 3) {
+            destroy_s_exp(&s_exp);
+            (void) fprintf(stderr, "Has got wrong hash block at encrypted key data.\n");
+            return false;
+        }
+
+        if (strncmp("sha1", (const char *) var->blocks[1].bytes, var->blocks[1].len) != 0) {
+            destroy_s_exp(&s_exp);
+            (void) fprintf(stderr, "Supported only sha1 hash at encrypted private key.\n");
+            return false;
+        }
+
+        if (var->blocks[2].len != G10_SHA1_HASH_SIZE ||
+            memcmp(checksum, var->blocks[2].bytes, G10_SHA1_HASH_SIZE) != 0) {
+            destroy_s_exp(&s_exp);
+            (void) fprintf(stderr, "Incorrect hash at encrypted private key.\n");
+            return false;
+        }
     }
 
     destroy_s_exp(&s_exp);
@@ -992,7 +1026,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *       io,
         }
         fprintf(io->errs,
                 "loaded G10 key with GRIP: %s\n",
-                rnp_strhexdump_upper(grips, grip, 20, ""));
+                rnp_strhexdump_upper(grips, grip, PGP_FINGERPRINT_SIZE, ""));
     }
 
     return rnp_key_store_add_keydata(io,
@@ -1165,6 +1199,67 @@ write_seckey(s_exp_t *s_exp, pgp_seckey_t *key)
 }
 
 static bool
+g10_calculated_hash(pgp_seckey_t *key, uint8_t *checksum)
+{
+    s_exp_t      s_exp = {0};
+    s_exp_t *    sub_s_exp;
+    pgp_memory_t mem = {0};
+    pgp_hash_t   hash = {0};
+
+    if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
+        goto error;
+    }
+
+    if (hash._output_len != G10_SHA1_HASH_SIZE) {
+        fprintf(stderr,
+                "wrong hash size %zu, should be %d bytes\n",
+                hash._output_len,
+                G10_SHA1_HASH_SIZE);
+        goto error;
+    }
+
+    if (!write_pubkey(&s_exp, &key->pubkey)) {
+        goto error;
+    }
+
+    if (!write_seckey(&s_exp, key)) {
+        goto error;
+    }
+
+    if (!add_sub_sexp_to_sexp(&s_exp, &sub_s_exp)) {
+        goto error;
+    }
+
+    if (!add_string_block_to_sexp(sub_s_exp, "protected-at")) {
+        goto error;
+    }
+
+    if (!add_block_to_sexp(sub_s_exp, (uint8_t *) key->protected_at, PGP_PROTECTED_AT_SIZE)) {
+        goto error;
+    }
+
+    if (!write_sexp(&s_exp, &mem)) {
+        goto error;
+    }
+
+    destroy_s_exp(&s_exp);
+
+    pgp_hash_add(&hash, mem.buf, mem.length);
+
+    pgp_memory_release(&mem);
+
+    if (!pgp_hash_finish(&hash, checksum)) {
+        goto error;
+    }
+
+    return true;
+
+error:
+    destroy_s_exp(&s_exp);
+    return false;
+}
+
+static bool
 write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphrase)
 {
     const format_info *format;
@@ -1174,6 +1269,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
     uint8_t            derived_key[PGP_MAX_KEY_SIZE];
     unsigned           keysize;
     pgp_memory_t       raw = {0};
+    uint8_t            checksum[G10_SHA1_HASH_SIZE];
     time_t             now;
     size_t             output_written = 0;
     size_t             input_consumed = 0;
@@ -1216,6 +1312,39 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
 
     if (!write_seckey(sub_s_exp, key)) {
         destroy_s_exp(&raw_s_exp);
+        return false;
+    }
+
+    // calculated hash
+    time(&now);
+    strftime(
+      (char *) key->protected_at, sizeof(key->protected_at), "%Y%m%dT%H%M%S", gmtime(&now));
+
+    if (!g10_calculated_hash(key, checksum)) {
+        destroy_s_exp(&raw_s_exp);
+        return false;
+    }
+
+    if (!add_sub_sexp_to_sexp(sub_s_exp, &sub_s_exp)) {
+        destroy_s_exp(&raw_s_exp);
+        return false;
+    }
+
+    if (!add_string_block_to_sexp(sub_s_exp, "hash")) {
+        destroy_s_exp(&raw_s_exp);
+        pgp_memory_release(&raw);
+        return false;
+    }
+
+    if (!add_string_block_to_sexp(sub_s_exp, "sha1")) {
+        destroy_s_exp(&raw_s_exp);
+        pgp_memory_release(&raw);
+        return false;
+    }
+
+    if (!add_block_to_sexp(sub_s_exp, checksum, sizeof(checksum))) {
+        destroy_s_exp(&raw_s_exp);
+        pgp_memory_release(&raw);
         return false;
     }
 
@@ -1292,10 +1421,6 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
     botan_cipher_destroy(encrypt);
 
     key->encrypted_len = output_written;
-
-    time(&now);
-    strftime(
-      (char *) key->protected_at, sizeof(key->protected_at), "%Y%m%dT%H%M%S", gmtime(&now));
 
 write:
     if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
