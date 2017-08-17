@@ -948,11 +948,11 @@ armoured_data_reader(pgp_stream_t *stream,
     unsigned     first;
     uint8_t *    dest = dest_;
     char         buf[1024];
-    int          saved;
+    size_t       saved;
     rnp_result   ret;
 
     dearmour = pgp_reader_get_arg(readinfo);
-    saved = (int) length;
+    saved = length;
     if (dearmour->eof64 && !dearmour->buffered) {
         if (dearmour->state != OUTSIDE_BLOCK && dearmour->state != AT_TRAILER_NAME) {
             (void) fprintf(stderr, "armoured_data_reader: bad dearmour state\n");
@@ -1092,11 +1092,13 @@ armoured_data_reader(pgp_stream_t *stream,
                                            "armoured_data_reader: bad dearmour eof64\n");
                             return 0;
                         }
+                        dearmour->state = AT_TRAILER_NAME;
+
                         if (first) {
-                            dearmour->state = AT_TRAILER_NAME;
                             goto reloop;
+                        } else {
+                            return saved - length;
                         }
-                        return -1;
                     }
                 }
                 if (!dearmour->buffered) {
