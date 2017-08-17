@@ -366,7 +366,9 @@ write_bignum(s_exp_t *s_exp, const char *name, BIGNUM *bn)
 
     s_exp_t *sub_s_exp;
 
-    if (PGPV_BN_bn2bin(bn, bnbuf) < 0) {
+    bnbuf[0] = 0;
+
+    if (PGPV_BN_bn2bin(bn, bnbuf + 1) < 0) {
         return false;
     }
 
@@ -378,8 +380,14 @@ write_bignum(s_exp_t *s_exp, const char *name, BIGNUM *bn)
         return false;
     }
 
-    if (!add_block_to_sexp(sub_s_exp, bnbuf, (size_t) BN_num_bytes(bn))) {
-        return false;
+    if (bnbuf[1] & 0x80) {
+        if (!add_block_to_sexp(sub_s_exp, bnbuf, (size_t) BN_num_bytes(bn) + 1)) {
+            return false;
+        }
+    } else {
+        if (!add_block_to_sexp(sub_s_exp, bnbuf + 1, (size_t) BN_num_bytes(bn))) {
+            return false;
+        }
     }
 
     return true;
