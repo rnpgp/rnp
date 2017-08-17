@@ -534,18 +534,19 @@ parse_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg, bool ha
 static pgp_seckey_t *
 g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
 {
-    uint8_t        derived_key[PGP_MAX_KEY_SIZE];
-    char *         passphrase;
-    char           pass[MAX_PASSPHRASE_LENGTH];
-    unsigned       keysize;
-    uint8_t *      decrypted;
-    pgp_seckey_t * seckey;
-    s_exp_t        s_exp = {0};
-    s_exp_t *      var;
-    size_t         output_written = 0;
-    size_t         input_consumed = 0;
-    botan_cipher_t decrypt;
-    uint8_t        checksum[G10_SHA1_HASH_SIZE];
+    uint8_t            derived_key[PGP_MAX_KEY_SIZE];
+    char *             passphrase;
+    char               pass[MAX_PASSPHRASE_LENGTH];
+    unsigned           keysize;
+    uint8_t *          decrypted;
+    pgp_seckey_t *     seckey;
+    s_exp_t            s_exp = {0};
+    s_exp_t *          var;
+    size_t             output_written = 0;
+    size_t             input_consumed = 0;
+    botan_cipher_t     decrypt;
+    uint8_t            checksum[G10_SHA1_HASH_SIZE];
+    const format_info *info;
 
     if (key->key.seckey.encrypted_len == 0) {
         fprintf(stderr, "Hasn't got encrypted data!\n");
@@ -598,46 +599,29 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
         return false;
     }
 
-    switch (key->key.seckey.cipher_mode) {
-    case PGP_CIPHER_MODE_CBC:
-        if (botan_cipher_init(&decrypt, "AES-128/CBC", BOTAN_CIPHER_INIT_FLAG_DECRYPT)) {
-            (void) fprintf(stderr, "botan_cipher_init failed\n");
-            return false;
-        }
+    info =
+      find_format(key->key.seckey.alg, key->key.seckey.cipher_mode, key->key.seckey.hash_alg);
+    if (info == NULL) {
+        fprintf(stderr,
+                "Unsupported format, alg: %d, chiper_mode: %d, hash: %d\n",
+                key->key.seckey.alg,
+                key->key.seckey.cipher_mode,
+                key->key.seckey.hash_alg);
+        return false;
+    }
 
-        if (botan_cipher_set_key(decrypt, derived_key, keysize)) {
-            botan_cipher_destroy(decrypt);
-            return false;
-        }
+    if (botan_cipher_init(&decrypt, info->botan_cipher_name, BOTAN_CIPHER_INIT_FLAG_DECRYPT)) {
+        (void) fprintf(stderr, "botan_cipher_init failed\n");
+        return false;
+    }
 
-        if (botan_cipher_start(decrypt, key->key.seckey.iv, G10_CBC_IV_SIZE)) {
-            botan_cipher_destroy(decrypt);
-            return false;
-        }
+    if (botan_cipher_set_key(decrypt, derived_key, keysize)) {
+        botan_cipher_destroy(decrypt);
+        return false;
+    }
 
-        break;
-
-    case PGP_CIPHER_MODE_OCB:
-        if (botan_cipher_init(&decrypt, "AES-128/OCB", BOTAN_CIPHER_INIT_FLAG_DECRYPT)) {
-            (void) fprintf(stderr, "botan_cipher_init failed\n");
-            return false;
-        }
-
-        if (botan_cipher_set_key(decrypt, derived_key, keysize)) {
-            botan_cipher_destroy(decrypt);
-            return false;
-        }
-
-        if (botan_cipher_start(decrypt, key->key.seckey.iv, G10_OCB_NONCE_SIZE)) {
-            botan_cipher_destroy(decrypt);
-            return false;
-        }
-
-        break;
-
-    default:
-        (void) fprintf(stderr, "Unsupported block cipher: %d\n", key->key.seckey.cipher_mode);
-        free(decrypted);
+    if (botan_cipher_start(decrypt, key->key.seckey.iv, info->iv_size)) {
+        botan_cipher_destroy(decrypt);
         return false;
     }
 
@@ -793,27 +777,15 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
         return false;
     }
 
-    if (seckey->cipher_mode == PGP_CIPHER_MODE_CBC) {
-        if (encrypted->blocks[0].len != G10_CBC_IV_SIZE) {
-            fprintf(stderr,
-                    "Wrong IV size, should be %d but %d\n",
-                    G10_CBC_IV_SIZE,
-                    (int) encrypted->blocks[0].len);
-            return false;
-        }
-
-        memcpy(seckey->iv, encrypted->blocks[0].bytes, encrypted->blocks[0].len);
-    } else if (seckey->cipher_mode == PGP_CIPHER_MODE_OCB) {
-        if (encrypted->blocks[0].len != G10_OCB_NONCE_SIZE) {
-            fprintf(stderr,
-                    "Wrong nonce size, should be %d but %d\n",
-                    G10_OCB_NONCE_SIZE,
-                    (int) encrypted->blocks[0].len);
-            return false;
-        }
-
-        memcpy(seckey->iv, encrypted->blocks[0].bytes, encrypted->blocks[0].len);
+    if (encrypted->blocks[0].len != format->iv_size) {
+        fprintf(stderr,
+                "Wrong nonce size, should be %zu but %d\n",
+                format->iv_size,
+                (int) encrypted->blocks[0].len);
+        return false;
     }
+
+    memcpy(seckey->iv, encrypted->blocks[0].bytes, encrypted->blocks[0].len);
 
     if (var->blockc != 3) {
         fprintf(stderr, "Hasn't got encrypted blob\n");
@@ -1455,14 +1427,8 @@ write:
         return false;
     }
 
-    if (key->cipher_mode == PGP_CIPHER_MODE_CBC) {
-        if (!add_block_to_sexp(sub_sub_s_exp, key->iv, G10_CBC_IV_SIZE)) {
-            return false;
-        }
-    } else if (key->cipher_mode == PGP_CIPHER_MODE_OCB) {
-        if (!add_block_to_sexp(sub_sub_s_exp, key->iv, G10_OCB_NONCE_SIZE)) {
-            return false;
-        }
+    if (!add_block_to_sexp(sub_sub_s_exp, key->iv, format->iv_size)) {
+        return false;
     }
 
     if (!add_block_to_sexp(sub_s_exp, key->encrypted, key->encrypted_len)) {
