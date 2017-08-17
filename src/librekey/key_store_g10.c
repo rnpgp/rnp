@@ -63,6 +63,7 @@ typedef struct format_info {
     pgp_cipher_mode_t cipher_mode;
     pgp_hash_alg_t    hash_alg;
     const char *      botan_cipher_name;
+    size_t            chiper_block_size;
     const char *      g10_type;
     size_t            iv_size;
 } format_info;
@@ -72,19 +73,22 @@ static bool g10_calculated_hash(pgp_seckey_t *key, uint8_t *checksum);
 static const format_info formats[] = {{PGP_SA_AES_128,
                                        PGP_CIPHER_MODE_CBC,
                                        PGP_HASH_SHA1,
-                                       "AES-128/CBC",
+                                       "AES-128/CBC/NoPadding",
+                                       16,
                                        "openpgp-s2k3-sha1-aes-cbc",
                                        G10_CBC_IV_SIZE},
                                       {PGP_SA_AES_256,
                                        PGP_CIPHER_MODE_CBC,
                                        PGP_HASH_SHA1,
-                                       "AES-256/CBC",
+                                       "AES-256/CBC/NoPadding",
+                                       16,
                                        "openpgp-s2k3-sha1-aes256-cbc",
                                        G10_CBC_IV_SIZE},
                                       {PGP_SA_AES_128,
                                        PGP_CIPHER_MODE_OCB,
                                        PGP_HASH_SHA1,
-                                       "AES-128/OCB",
+                                       "AES-128/OCB/NoPadding",
+                                       16,
                                        "openpgp-s2k3-ocb-aes",
                                        G10_OCB_NONCE_SIZE}};
 
@@ -541,7 +545,6 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     uint8_t *          decrypted;
     pgp_seckey_t *     seckey;
     s_exp_t            s_exp = {0};
-    s_exp_t *          var;
     size_t             output_written = 0;
     size_t             input_consumed = 0;
     botan_cipher_t     decrypt;
@@ -643,6 +646,10 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     size_t      length = output_written;
     const char *bytes = (const char *) decrypted;
 
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, "decrypted data", decrypted, length);
+    }
+
     if (!parse_sexp(&s_exp, &bytes, &length)) {
         pgp_forget(decrypted, key->key.seckey.encrypted_len);
         free(decrypted);
@@ -674,28 +681,41 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
         return false;
     }
 
+    memcpy(seckey->protected_at, key->key.seckey.protected_at, PGP_PROTECTED_AT_SIZE);
+
     if (!g10_calculated_hash(seckey, checksum)) {
         destroy_s_exp(&s_exp);
         return false;
     }
 
     // hash is optional
-    var = lookup_variable(&s_exp.sub_s_exps[0], "hash");
-    if (var != NULL) {
-        if (var->blockc != 3) {
+    if (s_exp.sub_s_expc > 1) {
+        if (s_exp.sub_s_exps[1].blockc != 3 ||
+            strncmp("hash",
+                    (const char *) s_exp.sub_s_exps[1].blocks[0].bytes,
+                    s_exp.sub_s_exps[1].blocks[0].len) != 0) {
             destroy_s_exp(&s_exp);
             (void) fprintf(stderr, "Has got wrong hash block at encrypted key data.\n");
             return false;
         }
 
-        if (strncmp("sha1", (const char *) var->blocks[1].bytes, var->blocks[1].len) != 0) {
+        if (strncmp("sha1",
+                    (const char *) s_exp.sub_s_exps[1].blocks[1].bytes,
+                    s_exp.sub_s_exps[1].blocks[1].len) != 0) {
             destroy_s_exp(&s_exp);
             (void) fprintf(stderr, "Supported only sha1 hash at encrypted private key.\n");
             return false;
         }
 
-        if (var->blocks[2].len != G10_SHA1_HASH_SIZE ||
-            memcmp(checksum, var->blocks[2].bytes, G10_SHA1_HASH_SIZE) != 0) {
+        if (s_exp.sub_s_exps[1].blocks[2].len != G10_SHA1_HASH_SIZE ||
+            memcmp(checksum, s_exp.sub_s_exps[1].blocks[2].bytes, G10_SHA1_HASH_SIZE) != 0) {
+            if (rnp_get_debug(__FILE__)) {
+                hexdump(stderr, "Expected hash", checksum, G10_SHA1_HASH_SIZE);
+                hexdump(stderr,
+                        "Has hash",
+                        s_exp.sub_s_exps[1].blocks[2].bytes,
+                        s_exp.sub_s_exps[1].blocks[2].len);
+            }
             destroy_s_exp(&s_exp);
             (void) fprintf(stderr, "Incorrect hash at encrypted private key.\n");
             return false;
@@ -1216,6 +1236,10 @@ g10_calculated_hash(pgp_seckey_t *key, uint8_t *checksum)
 
     destroy_s_exp(&s_exp);
 
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, "data for hashing", mem.buf, mem.length);
+    }
+
     pgp_hash_add(&hash, mem.buf, mem.length);
 
     pgp_memory_release(&mem);
@@ -1346,13 +1370,16 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         return false;
     }
 
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "input iv", key->iv, G10_CBC_IV_SIZE);
-        hexdump(stderr, "key", derived_key, keysize);
+    // add padding!
+    for (int i = (int) (format->chiper_block_size - raw.length % format->chiper_block_size);
+         i > 0;
+         i--) {
+        if (!pgp_memory_add(&raw, (const uint8_t *) "X", 1)) {
+            return false;
+        }
     }
 
-    // add padding!
-    key->encrypted_len = 16 + raw.length;
+    key->encrypted_len = raw.length;
 
     key->encrypted = malloc(key->encrypted_len);
     if (key->encrypted == NULL) {
@@ -1360,6 +1387,12 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         destroy_s_exp(&raw_s_exp);
         pgp_memory_release(&raw);
         return false;
+    }
+
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, "input iv", key->iv, G10_CBC_IV_SIZE);
+        hexdump(stderr, "key", derived_key, keysize);
+        hexdump(stderr, "raw data", raw.buf, raw.length);
     }
 
     if (botan_cipher_init(
