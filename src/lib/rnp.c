@@ -335,12 +335,12 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
             int count = json_object_array_length(tmp);
             for (int i = 0; i < count; i++) {
                 json_object *str = json_object_array_get_idx(tmp, i);
-                char buff[2] = {0};
+                char         buff[2] = {0};
                 buff[0] = toupper(*json_object_get_string(str));
                 p(fp, buff, NULL);
             }
             p(fp, "]", NULL);
-         }
+        }
 
         if (json_object_object_get_ex(obj, "duration", &tmp)) {
             duration = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
@@ -469,7 +469,7 @@ formatbignum(char *buffer, BIGNUM *bn)
 static bool
 find_passphrase(FILE *passfp, const char *id, char *passphrase, size_t size, int attempts)
 {
-    char  prompt[BUFSIZ];
+    char prompt[BUFSIZ];
 
     if (passfp) {
         memset(passphrase, 0, size);
@@ -747,16 +747,16 @@ rnp_params_free(rnp_params_t *params)
 }
 
 /* rnp_ctx_t : init, reset, free internal pointers */
-int
+rnp_result
 rnp_ctx_init(rnp_ctx_t *ctx, rnp_t *rnp)
 {
     if (rnp == NULL) {
-        return RNP_FAIL;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     memset(ctx, '\0', sizeof(*ctx));
     ctx->rnp = rnp;
-    return RNP_OK;
+    return RNP_SUCCESS;
 }
 
 void

@@ -81,6 +81,7 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 #include "readerwriter.h"
 #include "memory.h"
 #include "utils.h"
+#include "compress.h"
 
 /*
  * return true if OK, otherwise false
@@ -537,9 +538,9 @@ pgp_writer_push_clearsigned(pgp_output_t *output, pgp_create_sig_t *sig)
  * \struct base64_t
  */
 typedef struct {
-    unsigned pos;
-    uint8_t  t;
-    unsigned checksum;
+    unsigned         pos;
+    uint8_t          t;
+    unsigned         checksum;
     pgp_armor_type_t type;
 } base64_t;
 
@@ -635,10 +636,10 @@ armoured_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
     static const char trl_pubkey[] = "\r\n-----END PGP PUBLIC KEY BLOCK-----\r\n";
     static const char trl_seckey[] = "\r\n-----END PGP PRIVATE KEY BLOCK-----\r\n";
     static const char trl_signature[] = "\r\n-----END PGP SIGNATURE-----\r\n";
-    
-    base64_t *        base64;
-    uint8_t           c[3];
-    const char *      trailer = NULL;
+
+    base64_t *  base64;
+    uint8_t     c[3];
+    const char *trailer = NULL;
 
     base64 = pgp_writer_get_arg(writer);
 
@@ -738,7 +739,8 @@ pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
         if (!pgp_write(output, hdr_crlf, sizeof(hdr_crlf) - 1) ||
             !pgp_write(output, hdr_signature, sizeof(hdr_signature) - 1) ||
             !pgp_write(output, hdr_version, sizeof(hdr_version) - 1)) {
-            PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Error switching to armoured signature");
+            PGP_ERROR_1(
+              &output->errors, PGP_E_W, "%s", "Error switching to armoured signature");
             free(linebreak);
             return false;
         }
@@ -762,7 +764,8 @@ pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
     base64->checksum = CRC24_INIT;
     base64->type = type;
 
-    if (!pgp_writer_push(output, base64_writer, armoured_message_finaliser, generic_destroyer, base64)) {
+    if (!pgp_writer_push(
+          output, base64_writer, armoured_message_finaliser, generic_destroyer, base64)) {
         free(base64);
         return false;
     }
