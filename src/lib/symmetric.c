@@ -222,30 +222,6 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     return 0;
 }
 
-size_t
-pgp_encrypt_se(pgp_crypt_t *encrypt, void *outvoid, const void *invoid, size_t count)
-{
-    const size_t   saved_count = count;
-    const uint8_t *in = invoid;
-    uint8_t *      out = outvoid;
-
-    /*
-     * in order to support v3's weird resyncing we have to implement CFB
-     * mode ourselves
-     */
-    while (count-- > 0) {
-        if (encrypt->offset == encrypt->blocksize) {
-            (void) memcpy(encrypt->siv, encrypt->civ, encrypt->blocksize);
-            botan_block_cipher_encrypt_blocks(encrypt->obj, encrypt->civ, encrypt->civ, 1);
-            encrypt->offset = 0;
-        }
-        encrypt->civ[encrypt->offset] = *out++ = encrypt->civ[encrypt->offset] ^ *in++;
-        ++encrypt->offset;
-    }
-
-    return saved_count;
-}
-
 pgp_symm_alg_t
 pgp_cipher_alg_id(pgp_crypt_t *cipher)
 {
