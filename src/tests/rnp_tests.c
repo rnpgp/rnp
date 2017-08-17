@@ -154,6 +154,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_load_user_prefs),
       cmocka_unit_test(ecdh_roundtrip),
       cmocka_unit_test(ecdh_decryptionNegativeCases),
+      cmocka_unit_test(sm2_roundtrip),
       cmocka_unit_test(test_load_v3_keyring_pgp),
       cmocka_unit_test(test_load_v4_keyring_pgp)};
 

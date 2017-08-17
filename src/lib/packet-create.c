@@ -86,6 +86,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "packet.h"
 #include "signature.h"
 #include "crypto/s2k.h"
+#include "crypto/sm2.h"
 #include "writer.h"
 #include "readerwriter.h"
 #include "memory.h"
@@ -171,6 +172,7 @@ pubkey_length(const pgp_pubkey_t *key)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
         return 1 + // length of curve OID
                +ec_curves[key->key.ecc.curve].OIDhex_len + mpi_length(key->key.ecc.point);
 
@@ -194,6 +196,7 @@ seckey_length(const pgp_seckey_t *key)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
         return mpi_length(key->key.ecc.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_DSA:
         return (unsigned) (mpi_length(key->key.dsa.x) + pubkey_length(&key->pubkey));
@@ -237,6 +240,7 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
         return ec_serialize_pubkey(output, &key->key.ecc);
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -316,6 +320,7 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
         hash_bn(&hash, key->key.ecc.x);
         break;
     case PGP_PKA_ELGAMAL:
@@ -469,6 +474,7 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
     case PGP_PKA_ECDH:
         if (!pgp_write_mpi(output, key->key.ecc.x))
             return false;
@@ -904,6 +910,7 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
     case PGP_PKA_DSA:
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ECDH:
+    case PGP_PKA_SM2_ENCRYPT:
         break;
     default:
         RNP_LOG("Bad public key encryption algorithm");
@@ -978,6 +985,24 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
             hexdump(stderr, "encrypted mpi", encmpibuf, n);
         }
     } break;
+
+    case PGP_PKA_SM2_ENCRYPT: {
+       uint8_t encmpibuf[RNP_BUFSIZ];
+       size_t out_len = sizeof(encmpibuf);
+       rnp_result err = pgp_sm2_encrypt(encmpibuf,
+                                        &out_len,
+                                        encoded_key,
+                                        sz_encoded_key,
+                                        &pubkey->key.ecc);
+
+       if (err != RNP_SUCCESS) {
+          goto done;
+       }
+
+       sesskey->params.sm2.encrypted_m = BN_bin2bn(encmpibuf, out_len, NULL);
+
+    } break;
+
 
     case PGP_PKA_ECDH: {
         uint8_t           encmpibuf[ECDH_WRAPPED_KEY_SIZE] = {0};
@@ -1078,6 +1103,16 @@ pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
                pgp_write_mpi(output, pksk->params.rsa.encrypted_m)
           /* ??    && pgp_write_scalar(output, 0, 2); */
           ;
+    case PGP_PKA_SM2_ENCRYPT:
+        return pgp_write_ptag(output, PGP_PTAG_CT_PK_SESSION_KEY) &&
+               pgp_write_length(
+                 output,
+                 (unsigned) (1 + 8 + 1 + BN_num_bytes(pksk->params.rsa.encrypted_m) + 2)) &&
+               pgp_write_scalar(output, (unsigned) pksk->version, 1) &&
+               pgp_write(output, pksk->key_id, 8) &&
+               pgp_write_scalar(output, (unsigned) pksk->alg, 1) &&
+               pgp_write_mpi(output, pksk->params.sm2.encrypted_m);
+
     case PGP_PKA_DSA:
     case PGP_PKA_ELGAMAL:
         return pgp_write_ptag(output, PGP_PTAG_CT_PK_SESSION_KEY) &&

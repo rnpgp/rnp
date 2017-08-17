@@ -913,6 +913,7 @@ rnp_key_store_get_key_grip(pgp_pubkey_t *key, uint8_t *grip)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
         if (!grip_hash_bignum(&hash, key->key.ecc.point)) {
             return false;
         }

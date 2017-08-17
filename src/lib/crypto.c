@@ -170,6 +170,23 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
             hexdump(stderr, "decoded m", buf, n);
         }
         return n;
+    case PGP_PKA_SM2_ENCRYPT:
+        BN_bn2bin(encmpi, encmpibuf);
+
+        size_t out_len = buflen;
+        rnp_result err = pgp_sm2_decrypt(buf,
+                                         &out_len,
+                                         encmpibuf,
+                                         BITS_TO_BYTES(BN_num_bits(encmpi)),
+                                         &seckey->key.ecc,
+                                         &seckey->pubkey.key.ecc);
+
+        if (err != RNP_SUCCESS) {
+            RNP_LOG("Error in SM2 decryption");
+            return -1;
+        }
+        return out_len;
+
     case PGP_PKA_DSA:
     case PGP_PKA_ELGAMAL:
         (void) BN_bn2bin(g_to_k, gkbuf);
@@ -310,8 +327,9 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         }
         break;
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
         seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
-        if (pgp_sm2_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK) {
+        if (pgp_sm2_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != RNP_SUCCESS) {
             RNP_LOG("failed to generate SM2 key");
             goto end;
         }
@@ -356,6 +374,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
         if (!pgp_write_mpi(output, seckey->key.ecc.x)) {
             RNP_LOG("failed to write MPIs");
             goto end;

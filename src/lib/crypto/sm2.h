@@ -34,7 +34,7 @@
 #include "packet.h"
 
 /* -----------------------------------------------------------------------------
- * @brief   Generate SM2 keypair
+ * @brief   Generate SM2 keypair (can be used for either encryption or signing)
  *
  * @param   seckey[out] private part of the key
  * @param   curve       underlying ECC curve ID
@@ -42,17 +42,30 @@
  * @returns success PGP_E_OK, error code otherwise
  *
 -------------------------------------------------------------------------------- */
-pgp_errcode_t pgp_sm2_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve);
+rnp_result pgp_sm2_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve);
 
-pgp_errcode_t pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
-                                const uint8_t *         hashbuf,
-                                size_t                  hash_len,
-                                const pgp_ecc_seckey_t *prvkey,
-                                const pgp_ecc_pubkey_t *pubkey);
+rnp_result pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
+                             const uint8_t *         hashbuf,
+                             size_t                  hash_len,
+                             const pgp_ecc_seckey_t *prvkey,
+                             const pgp_ecc_pubkey_t *pubkey);
 
-pgp_errcode_t pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
-                                  const uint8_t *         hash,
-                                  size_t                  hash_len,
-                                  const pgp_ecc_pubkey_t *pubkey);
+rnp_result pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
+                               const uint8_t *         hash,
+                               size_t                  hash_len,
+                               const pgp_ecc_pubkey_t *pubkey);
 
-#endif // EC_H_
+rnp_result pgp_sm2_encrypt(uint8_t *               out,
+                           size_t *                out_len,
+                           const uint8_t *         key,
+                           size_t                  key_len,
+                           const pgp_ecc_pubkey_t *pubkey);
+
+rnp_result pgp_sm2_decrypt(uint8_t *               out,
+                           size_t *                out_len,
+                           const uint8_t *         ciphertext,
+                           size_t                  ciphertext_len,
+                           const pgp_ecc_seckey_t *privkey,
+                           const pgp_ecc_pubkey_t *pubkey);
+
+#endif // SM2_H_

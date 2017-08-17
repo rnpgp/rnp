@@ -36,10 +36,8 @@
 #include "utils.h"
 #include "utils.h"
 
-extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
-
-pgp_errcode_t
-pgp_sm2_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve)
+rnp_result
+pgp_sm2_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve_id)
 {
     /**
      * Keeps "0x04 || x || y"
@@ -48,20 +46,31 @@ pgp_sm2_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve)
      * P-521 is biggest supported curve for SM2, though ordinarilly
      * it uses the 256-bit SM2 recommended curve.
      */
+    const ec_curve_desc_t *curve = get_curve_desc(curve_id);
+
     uint8_t         point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
-    const size_t    filed_byte_size = BITS_TO_BYTES(ec_curves[curve].bitlen);
     botan_privkey_t pr_key = NULL;
     botan_pubkey_t  pu_key = NULL;
     botan_rng_t     rng = NULL;
     BIGNUM *        public_x = NULL;
     BIGNUM *        public_y = NULL;
-    pgp_errcode_t   ret = PGP_E_C_KEY_GENERATION_FAILED;
+    rnp_result      ret = RNP_ERROR_KEY_GENERATION;
+
+    if (curve == NULL) {
+        goto end;
+    }
+
+    const size_t filed_byte_size = BITS_TO_BYTES(curve->bitlen);
 
     if (botan_rng_init(&rng, NULL)) {
         goto end;
     }
 
-    if (botan_privkey_create(&pr_key, "SM2_Sig", ec_curves[curve].botan_name, rng)) {
+    /*
+    * SM2 encryption and signature keys share the same form, only difference
+    * is the OID used for the X.509 encoding (which is not used by OpenPGP).
+    */
+    if (botan_privkey_create(&pr_key, "SM2_Sig", curve->botan_name, rng)) {
         goto end;
     }
 
@@ -95,6 +104,7 @@ pgp_sm2_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve)
     const size_t y_bytes = BN_num_bytes(public_y);
 
     // Safety check
+
     if ((x_bytes > filed_byte_size) || (y_bytes > filed_byte_size)) {
         RNP_LOG("Key generation failed");
         goto end;
@@ -119,7 +129,7 @@ pgp_sm2_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve)
     }
 
     // All good now
-    ret = PGP_E_OK;
+    ret = RNP_SUCCESS;
 
 end:
     if (rng != NULL) {
@@ -137,7 +147,7 @@ end:
     if (public_y != NULL) {
         BN_free(public_y);
     }
-    if (PGP_E_OK != ret) {
+    if (RNP_SUCCESS != ret) {
         RNP_LOG("SM2 key generation failed");
         pgp_seckey_free(seckey);
     }
@@ -145,28 +155,33 @@ end:
     return ret;
 }
 
-pgp_errcode_t
+rnp_result
 pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
                   const uint8_t *         hashbuf,
                   size_t                  hash_len,
                   const pgp_ecc_seckey_t *seckey,
                   const pgp_ecc_pubkey_t *pubkey)
 {
-    botan_pk_op_sign_t signer = NULL;
-    botan_privkey_t    key = NULL;
-    botan_rng_t        rng = NULL;
-    pgp_errcode_t      ret = PGP_E_FAIL;
-    uint8_t            out_buf[2 * MAX_CURVE_BYTELEN] = {0};
-    const size_t       sign_half_len = BITS_TO_BYTES(ec_curves[pubkey->curve].bitlen);
+    const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
+    botan_pk_op_sign_t     signer = NULL;
+    botan_privkey_t        key = NULL;
+    botan_rng_t            rng = NULL;
+    rnp_result             ret = RNP_ERROR_GENERIC;
+    uint8_t                out_buf[2 * MAX_CURVE_BYTELEN] = {0};
+
+    if (curve == NULL) {
+        return RNP_ERROR_GENERIC;
+    }
+    const size_t sign_half_len = BITS_TO_BYTES(curve->bitlen);
 
     if (sign->r || sign->s) {
         // Caller must not allocate r and s
-        return PGP_E_FAIL;
+        return RNP_ERROR_GENERIC;
     }
 
-    if (botan_privkey_load_sm2(&key, seckey->x->mp, ec_curves[pubkey->curve].botan_name)) {
+    if (botan_privkey_load_sm2(&key, seckey->x->mp, curve->botan_name)) {
         RNP_LOG("Can't load private key");
-        return PGP_E_FAIL;
+        return RNP_ERROR_BAD_FORMAT;
     }
 
     if (botan_rng_init(&rng, NULL)) {
@@ -195,10 +210,10 @@ pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
     }
 
     // All good now
-    ret = PGP_E_OK;
+    ret = RNP_SUCCESS;
 
 end:
-    if (ret != PGP_E_OK) {
+    if (ret != RNP_SUCCESS) {
         BN_clear_free(sign->r);
         BN_clear_free(sign->s);
     }
@@ -209,20 +224,27 @@ end:
     return ret;
 }
 
-pgp_errcode_t
+rnp_result
 pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
                     const uint8_t *         hash,
                     size_t                  hash_len,
                     const pgp_ecc_pubkey_t *pubkey)
 {
+    const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
+
     botan_mp_t           public_x = NULL;
     botan_mp_t           public_y = NULL;
     botan_pubkey_t       pub = NULL;
     botan_pk_op_verify_t verifier = NULL;
-    pgp_errcode_t        ret = PGP_E_V_BAD_SIGNATURE;
+    rnp_result           ret = RNP_ERROR_SIGNATURE_INVALID;
     uint8_t              sign_buf[2 * MAX_CURVE_BYTELEN] = {0};
-    const size_t         sign_half_len = BITS_TO_BYTES(ec_curves[pubkey->curve].bitlen);
     uint8_t              point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
+
+    if (curve == NULL) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    const size_t sign_half_len = BITS_TO_BYTES(curve->bitlen);
 
     if ((BN_num_bytes(pubkey->point) > sizeof(point_bytes)) ||
         BN_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
@@ -236,8 +258,7 @@ pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
         goto end;
     }
 
-    const char *curve_name = ec_curves[pubkey->curve].botan_name;
-    if (botan_pubkey_load_sm2(&pub, public_x, public_y, curve_name)) {
+    if (botan_pubkey_load_sm2(&pub, public_x, public_y, curve->botan_name)) {
         RNP_LOG("Failed to load public key");
         goto end;
     }
@@ -259,8 +280,8 @@ pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
     BN_bn2bin(sign->s, &sign_buf[sign_half_len + sign_half_len - BN_num_bytes(sign->s)]);
 
     ret = botan_pk_op_verify_finish(verifier, sign_buf, sign_half_len * 2) ?
-            PGP_E_V_BAD_SIGNATURE :
-            PGP_E_OK;
+            RNP_ERROR_SIGNATURE_INVALID :
+            RNP_SUCCESS;
 
 end:
     botan_mp_destroy(public_x);
@@ -268,4 +289,134 @@ end:
     botan_pubkey_destroy(pub);
     botan_pk_op_verify_destroy(verifier);
     return ret;
+}
+
+rnp_result
+pgp_sm2_encrypt(uint8_t *               out,
+                size_t *                out_len,
+                const uint8_t *         key,
+                size_t                  key_len,
+                const pgp_ecc_pubkey_t *pubkey)
+{
+    rnp_result retval = RNP_ERROR_GENERIC;
+
+    const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
+    botan_mp_t             public_x = NULL;
+    botan_mp_t             public_y = NULL;
+    botan_pubkey_t         sm2_key = NULL;
+    botan_pk_op_encrypt_t  enc_op = NULL;
+    botan_rng_t            rng = NULL;
+
+    if (curve == NULL) {
+        return RNP_ERROR_GENERIC;
+    }
+
+    const size_t point_len = BITS_TO_BYTES(curve->bitlen);
+    uint8_t      point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
+    uint8_t *    ctext_buf = NULL;
+
+    /*
+    * Format of SM2 ciphertext is a point (1+point_len*2) plus
+    * the masked ciphertext (out_len) plus a SM3 hash (32 bytes)
+    */
+    const size_t ctext_len = 1 + point_len * 2 + key_len + 32;
+
+    if (*out_len < ctext_len) {
+        RNP_LOG("output buffer for SM2 encryption too short");
+        goto done;
+    }
+
+    ctext_buf = malloc(ctext_len);
+    if (ctext_buf == NULL) {
+        RNP_LOG("malloc failed");
+        goto done;
+    }
+
+    if ((BN_num_bytes(pubkey->point) > sizeof(point_bytes)) ||
+        BN_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
+        RNP_LOG("Failed to load public key");
+        goto done;
+    }
+
+    if (botan_mp_init(&public_x) || botan_mp_init(&public_y) ||
+        botan_mp_from_bin(public_x, &point_bytes[1], point_len) ||
+        botan_mp_from_bin(public_y, &point_bytes[1 + point_len], point_len)) {
+        goto done;
+    }
+
+    const char *curve_name = curve->botan_name;
+    if (botan_pubkey_load_sm2_enc(&sm2_key, public_x, public_y, curve_name)) {
+        RNP_LOG("Failed to load public key");
+        goto done;
+    }
+
+    if (botan_rng_init(&rng, NULL) != 0) {
+        goto done;
+    }
+
+    if (botan_pubkey_check_key(sm2_key, rng, 1) != 0) {
+        goto done;
+    }
+
+    /*
+    SM2 encryption doesn't have any kind of format specifier because it's
+    an all in one scheme
+    */
+    if (botan_pk_op_encrypt_create(&enc_op, sm2_key, "", 0) != 0) {
+        goto done;
+    }
+
+    if (botan_pk_op_encrypt(enc_op, rng, out, out_len, key, key_len) == 0) {
+        retval = RNP_SUCCESS;
+    }
+
+done:
+    free(ctext_buf);
+    botan_pk_op_encrypt_destroy(enc_op);
+    botan_pubkey_destroy(sm2_key);
+    botan_rng_destroy(rng);
+
+    return retval;
+}
+
+rnp_result
+pgp_sm2_decrypt(uint8_t *               out,
+                size_t *                out_len,
+                const uint8_t *         ctext,
+                size_t                  ctext_len,
+                const pgp_ecc_seckey_t *privkey,
+                const pgp_ecc_pubkey_t *pubkey)
+{
+    const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
+    botan_pk_op_decrypt_t  decrypt_op = NULL;
+    botan_privkey_t        key = NULL;
+    botan_rng_t            rng = NULL;
+    rnp_result             retval = RNP_ERROR_GENERIC;
+
+    if (curve == NULL) {
+        goto done;
+    }
+
+    if (botan_privkey_load_sm2_enc(&key, privkey->x->mp, curve->botan_name)) {
+        RNP_LOG("Can't load private key");
+        goto done;
+    }
+
+    if (botan_rng_init(&rng, NULL)) {
+        goto done;
+    }
+
+    if (botan_pk_op_decrypt_create(&decrypt_op, key, "", 0) != 0) {
+        goto done;
+    }
+
+    if (botan_pk_op_decrypt(decrypt_op, out, out_len, ctext, ctext_len) == 0) {
+        retval = RNP_SUCCESS;
+    }
+
+done:
+    botan_rng_destroy(rng);
+    botan_privkey_destroy(key);
+    botan_pk_op_decrypt_destroy(decrypt_op);
+    return retval;
 }

@@ -966,6 +966,7 @@ pgp_sig_free(pgp_sig_t *sig)
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
     case PGP_PKA_ECDH:
         free_BN(&sig->info.sig.ecc.r);
         free_BN(&sig->info.sig.ecc.s);
@@ -1179,6 +1180,9 @@ pgp_pk_sesskey_free(pgp_pk_sesskey_t *sk)
     case PGP_PKA_RSA:
         free_BN(&sk->params.rsa.encrypted_m);
         break;
+    case PGP_PKA_SM2_ENCRYPT:
+        free_BN(&sk->params.sm2.encrypted_m);
+        break;
 
     case PGP_PKA_ELGAMAL:
         free_BN(&sk->params.elgamal.g_to_k);
@@ -1223,6 +1227,7 @@ pgp_pubkey_free(pgp_pubkey_t *p)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
         free_BN(&p->key.ecc.point);
         break;
 
@@ -1348,6 +1353,7 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
         if (!parse_ec_pubkey_data(key, region, stream)) {
             return false;
         }
@@ -1614,6 +1620,7 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
         if (!limread_mpi(&pkt.u.sig.info.sig.ecc.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.ecc.s, region, stream)) {
             return false;
@@ -2151,6 +2158,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
     case PGP_PKA_ECDH:
         if (!limread_mpi(&pkt.u.sig.info.sig.ecc.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.ecc.s, region, stream)) {
@@ -2458,6 +2466,7 @@ pgp_seckey_free(pgp_seckey_t *key)
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
         free_BN(&key->key.ecc.x);
         break;
 
@@ -2732,6 +2741,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
     case PGP_PKA_ECDH:
         if (!limread_mpi(&pkt.u.seckey.key.ecc.x, region, stream)) {
             ret = 0;
@@ -2870,6 +2880,12 @@ parse_pk_sesskey(pgp_region_t *region, pgp_stream_t *stream)
         }
         enc_m = pkt.u.pk_sesskey.params.rsa.encrypted_m;
         g_to_k = NULL;
+        break;
+    case PGP_PKA_SM2_ENCRYPT:
+        if (!limread_mpi(&pkt.u.pk_sesskey.params.sm2.encrypted_m, region, stream)) {
+            return false;
+        }
+        enc_m = pkt.u.pk_sesskey.params.sm2.encrypted_m;
         break;
 
     case PGP_PKA_DSA:
