@@ -173,7 +173,7 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
     case PGP_PKA_SM2_ENCRYPT:
         BN_bn2bin(encmpi, encmpibuf);
 
-        size_t out_len = buflen;
+        size_t     out_len = buflen;
         rnp_result err = pgp_sm2_decrypt(buf,
                                          &out_len,
                                          encmpibuf,

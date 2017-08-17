@@ -97,19 +97,10 @@ cipher_test_success(void **state)
     pgp_symm_alg_t    alg = PGP_SA_AES_128;
     pgp_crypt_t       crypt;
 
-    uint8_t block[16] = {0};
     uint8_t cfb_data[20] = {0};
     memset(iv, 0x42, sizeof(iv));
 
     rnp_assert_int_equal(rstate, 1, pgp_cipher_start(&crypt, alg, key, iv));
-
-    rnp_assert_int_equal(rstate, 0, pgp_cipher_block_encrypt(&crypt, block, block));
-
-    rnp_assert_int_equal(
-      rstate,
-      0,
-      test_value_equal(
-        "AES ECB encrypt", "66E94BD4EF8A2C3B884CFA59CA342B2E", block, sizeof(block)));
 
     rnp_assert_int_equal(
       rstate, 0, pgp_cipher_cfb_encrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data)));
