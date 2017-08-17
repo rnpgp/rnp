@@ -92,8 +92,4 @@ int pgp_cipher_cfb_decrypt(pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in,
 int pgp_cipher_cfb_resync(pgp_crypt_t *cipher);
 int pgp_cipher_cfb_resync_v2(pgp_crypt_t *cipher);
 
-// Higher level operations
-size_t pgp_encrypt_se(pgp_crypt_t *, void *, const void *, size_t);
-size_t pgp_decrypt_se_ip(pgp_crypt_t *, void *, const void *, size_t);
-
 #endif
