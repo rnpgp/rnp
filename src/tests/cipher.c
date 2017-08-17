@@ -99,14 +99,10 @@ cipher_test_success(void **state)
 
     uint8_t block[16] = {0};
     uint8_t cfb_data[20] = {0};
-
-    rnp_assert_int_equal(rstate, 1, pgp_crypt_any(&crypt, alg));
-
-    rnp_assert_int_equal(rstate, 1, pgp_encrypt_init(&crypt));
-
     memset(iv, 0x42, sizeof(iv));
 
-    rnp_assert_int_equal(rstate, 0, pgp_cipher_set_key(&crypt, key));
+    rnp_assert_int_equal(rstate, 1, pgp_cipher_start(&crypt, alg, key, iv));
+
     rnp_assert_int_equal(rstate, 0, pgp_cipher_block_encrypt(&crypt, block, block));
 
     rnp_assert_int_equal(
@@ -115,15 +111,6 @@ cipher_test_success(void **state)
       test_value_equal(
         "AES ECB encrypt", "66E94BD4EF8A2C3B884CFA59CA342B2E", block, sizeof(block)));
 
-    rnp_assert_int_equal(rstate, 0, pgp_cipher_block_decrypt(&crypt, block, block));
-
-    rnp_assert_int_equal(
-      rstate,
-      0,
-      test_value_equal(
-        "AES ECB decrypt", "00000000000000000000000000000000", block, sizeof(block)));
-
-    rnp_assert_int_equal(rstate, 0, pgp_cipher_set_iv(&crypt, iv));
     rnp_assert_int_equal(
       rstate, 0, pgp_cipher_cfb_encrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data)));
 
@@ -133,8 +120,9 @@ cipher_test_success(void **state)
                                           "BFDAA57CB812189713A950AD9947887983021617",
                                           cfb_data,
                                           sizeof(cfb_data)));
+    rnp_assert_int_equal(rstate, 0, pgp_cipher_finish(&crypt));
 
-    rnp_assert_int_equal(rstate, 0, pgp_cipher_set_iv(&crypt, iv));
+    rnp_assert_int_equal(rstate, 1, pgp_cipher_start(&crypt, alg, key, iv));
     rnp_assert_int_equal(
       rstate, 0, pgp_cipher_cfb_decrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data)));
     rnp_assert_int_equal(rstate,
