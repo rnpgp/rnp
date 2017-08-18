@@ -774,8 +774,9 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
 
     if (protected->sub_elementc != 4 || !protected->sub_elements[1].is_block ||
         protected->sub_elements[2].is_block || !protected->sub_elements[3].is_block) {
-        fprintf(stderr, "Wrong protected format, expected: (protected mode (parms) "
-                        "encrypted_octet_string)\n");
+        fprintf(stderr,
+                "Wrong protected format, expected: (protected mode (parms) "
+                "encrypted_octet_string)\n");
         return false;
     }
 
@@ -1534,14 +1535,14 @@ rnp_key_store_g10_key_to_mem(pgp_io_t *     io,
     s_exp_t  s_exp = {0};
     s_exp_t *sub_s_exp;
 
-    if (!add_sub_sexp_to_sexp(&s_exp, &sub_s_exp)) {
-        return false;
-    }
-
     switch (key->type) {
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
         if (!add_string_block_to_sexp(&s_exp, "public-key")) {
+            return false;
+        }
+
+        if (!add_sub_sexp_to_sexp(&s_exp, &sub_s_exp)) {
             return false;
         }
 
@@ -1574,6 +1575,10 @@ rnp_key_store_g10_key_to_mem(pgp_io_t *     io,
             if (key->key.seckey.hash_alg != PGP_HASH_SHA1) {
                 key->key.seckey.hash_alg = PGP_HASH_SHA1;
             }
+        }
+
+        if (!add_sub_sexp_to_sexp(&s_exp, &sub_s_exp)) {
+            return false;
         }
 
         if (!write_pubkey(sub_s_exp, &key->key.pubkey)) {
