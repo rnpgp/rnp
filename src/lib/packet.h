@@ -164,8 +164,6 @@ typedef struct {
     BIGNUM *x;
 } pgp_ecc_seckey_t;
 
-#define PGP_SA_DEFAULT_CIPHER_MODE PGP_CIPHER_MODE_CFB
-
 void pgp_calc_mdc_hash(
   const uint8_t *, const size_t, const uint8_t *, const unsigned, uint8_t *);
 unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
@@ -622,15 +620,5 @@ typedef struct rnp_keygen_desc_t {
     rnp_keygen_primary_desc_t primary;
     rnp_keygen_subkey_desc_t  subkey;
 } rnp_keygen_desc_t;
-
-#define DEFAULT_PK_ALG PGP_PKA_RSA
-#define DEFAULT_RSA_NUMBITS 2048
-static const pgp_symm_alg_t DEFAULT_SYMMETRIC_ALGS[] = {
-  PGP_SA_AES_256, PGP_SA_AES_192, PGP_SA_AES_128, PGP_SA_TRIPLEDES};
-static const pgp_hash_alg_t DEFAULT_HASH_ALGS[] = {
-  PGP_HASH_SHA256, PGP_HASH_SHA384, PGP_HASH_SHA512, PGP_HASH_SHA224, PGP_HASH_SHA1};
-static const pgp_compression_type_t DEFAULT_COMPRESS_ALGS[] = {
-  PGP_C_ZLIB, PGP_C_BZIP2, PGP_C_ZIP, PGP_C_NONE};
-#define PGP_SA_DEFAULT_CIPHER PGP_SA_AES_256
 
 #endif /* PACKET_H_ */

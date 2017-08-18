@@ -35,6 +35,13 @@
 #include "packet.h"
 #include "pgp-key.h"
 
+static const pgp_symm_alg_t DEFAULT_SYMMETRIC_ALGS[] = {
+  PGP_SA_AES_256, PGP_SA_AES_192, PGP_SA_AES_128, PGP_SA_TRIPLEDES};
+static const pgp_hash_alg_t DEFAULT_HASH_ALGS[] = {
+  PGP_HASH_SHA256, PGP_HASH_SHA384, PGP_HASH_SHA512, PGP_HASH_SHA224, PGP_HASH_SHA1};
+static const pgp_compression_type_t DEFAULT_COMPRESS_ALGS[] = {
+  PGP_C_ZLIB, PGP_C_BZIP2, PGP_C_ZIP, PGP_C_NONE};
+
 /* Shortcut to load a single key from memory. */
 static bool
 load_generated_key(pgp_output_t **output, pgp_memory_t **mem, pgp_key_t *dst)
