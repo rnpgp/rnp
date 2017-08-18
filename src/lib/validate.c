@@ -75,12 +75,13 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 #include <fcntl.h>
 #endif
 
-#include "packet-parse.h"
+#include <repgp/rnp_repgp.h>
 #include <rnp/rnp_sdk.h>
+#include <repgp/rnp_repgp.h>
 
-#include "packet-show.h"
+#include <librepgp/packet-show.h>
+#include <librepgp/reader.h>
 #include "signature.h"
-#include "readerwriter.h"
 #include "utils.h"
 #include "memory.h"
 #include "packet.h"

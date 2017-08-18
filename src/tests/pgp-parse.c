@@ -25,6 +25,10 @@
  */
 
 #include <rnp/rnp.h>
+
+#include <librepgp/packet-parse.h>
+#include <librepgp/reader.h>
+
 #include <crypto.h>
 #include <crypto/bn.h>
 #include <crypto/rsa.h>

@@ -28,45 +28,47 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-/*
- * Copyright (c) 2005-2008 Nominet UK (www.nic.uk)
- * All rights reserved.
- * Contributors: Ben Laurie, Rachel Willmer. The Contributors have asserted
- * their moral rights under the UK Copyright Design and Patents Act 1988 to
- * be recorded as the authors of this copyright work.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License.
- *
- * You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 
-/** \file
- */
+#ifndef READER_H_
+#define READER_H_
 
-#ifndef KEY_STORE_PGP_H_
-#define KEY_STORE_PGP_H_
+#include "packet-create.h"
 
-#include <rekey/rnp_key_store.h>
-#include <librepgp/packet-parse.h>
+/* if this is defined, we'll use mmap in preference to file ops */
+#define USE_MMAP_FOR_FILES 1
 
-#include "packet.h"
-#include "memory.h"
+void pgp_reader_set_fd(pgp_stream_t *, int);
+void pgp_reader_set_mmap(pgp_stream_t *, int);
+void pgp_reader_set_memory(pgp_stream_t *, const void *, size_t);
 
-bool rnp_key_store_pgp_read_from_mem(pgp_io_t *,
-                                     rnp_key_store_t *,
-                                     const unsigned,
-                                     pgp_memory_t *);
+/* Do a sum mod 65536 of all bytes read (as needed for secret keys) */
+void     pgp_reader_push_sum16(pgp_stream_t *);
+uint16_t pgp_reader_pop_sum16(pgp_stream_t *);
 
-int rnp_key_store_pgp_write_to_mem(
-  pgp_io_t *, rnp_key_store_t *, const uint8_t *, const unsigned, pgp_memory_t *);
+void pgp_reader_push_se_ip_data(pgp_stream_t *, pgp_crypt_t *, pgp_region_t *);
+void pgp_reader_pop_se_ip_data(pgp_stream_t *);
 
-#endif /* KEY_STORE_PGP_H_ */
+unsigned pgp_reader_set_accumulate(pgp_stream_t *, unsigned);
+
+/* file reading */
+int pgp_setup_file_read(pgp_io_t *,
+                        pgp_stream_t **,
+                        const char *,
+                        void *,
+                        pgp_cb_ret_t callback(const pgp_packet_t *, pgp_cbdata_t *),
+                        unsigned);
+void pgp_teardown_file_read(pgp_stream_t *, int);
+
+/* memory reading */
+int pgp_setup_memory_read(pgp_io_t *,
+                          pgp_stream_t **,
+                          pgp_memory_t *,
+                          void *,
+                          pgp_cb_ret_t callback(const pgp_packet_t *, pgp_cbdata_t *),
+                          unsigned);
+void pgp_teardown_memory_read(pgp_stream_t *, pgp_memory_t *);
+
+void pgp_reader_push_dearmour(pgp_stream_t *);
+void pgp_reader_pop_dearmour(pgp_stream_t *);
+
+#endif /* READER_H_ */

@@ -66,10 +66,6 @@ __RCSID("$NetBSD: reader.c,v 1.49 2012/03/05 02:20:18 christos Exp $");
 #include <sys/mman.h>
 #endif
 
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
@@ -78,48 +74,13 @@ __RCSID("$NetBSD: reader.c,v 1.49 2012/03/05 02:20:18 christos Exp $");
 #include <unistd.h>
 #endif
 
-#ifdef HAVE_DIRECT_H
-#include <direct.h>
-#endif
+#include <repgp/rnp_repgp.h>
 
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#endif
-
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-
-#ifdef HAVE_TERMIOS_H
-#include <termios.h>
-#endif
-
-#ifdef HAVE_ERRNO_H
-#include <errno.h>
-#endif
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif
-
-#include "packet-parse.h"
-
-#include "errors.h"
-#include "crypto.h"
-#include "packet-create.h"
-#include "signature.h"
-#include "packet.h"
-#include "packet-show.h"
-#include "packet-print.h"
-#include "readerwriter.h"
 #include <rnp/rnp_sdk.h>
-#include "utils.h"
-
+#include "signature.h"
 #include "pgp-key.h"
+
+#include "packet-print.h"
 
 /* data from partial blocks is queued up in virtual block in stream */
 static int
@@ -1821,69 +1782,6 @@ pgp_reader_set_memory(pgp_stream_t *stream, const void *buffer, size_t length)
 
 /**************************************************************************/
 
-/**
- \ingroup Core_Writers
- \brief Create and initialise output and mem; Set for writing to mem
- \param ctx Operation context, may be NULL
- \param output Address where new output pointer will be set
- \param mem Address when new mem pointer will be set
- \param bufsz Initial buffer size (will automatically be increased when necessary)
- \note It is the caller's responsiblity to free output and mem.
- \sa pgp_teardown_memory_write()
-*/
-bool
-pgp_setup_memory_write(rnp_ctx_t *ctx, pgp_output_t **output, pgp_memory_t **mem, size_t bufsz)
-{
-    /*
-     * initialise needed structures for writing to memory
-     */
-
-    *output = pgp_output_new();
-    if (*output == NULL) {
-        return false;
-    }
-    *mem = pgp_memory_new();
-    if (*mem == NULL) {
-        free(*output);
-        return false;
-    }
-
-    (*output)->ctx = ctx;
-    pgp_memory_init(*mem, bufsz);
-    pgp_writer_set_memory(*output, *mem);
-
-    return true;
-}
-
-/**
-   \ingroup Core_Writers
-   \brief Closes writer and frees output and mem
-   \param output
-   \param mem
-   \sa pgp_setup_memory_write()
-*/
-void
-pgp_teardown_memory_write(pgp_output_t *output, pgp_memory_t *mem)
-{
-    if (output) {
-        pgp_writer_close(output); /* new */
-    }
-    pgp_output_delete(output);
-    pgp_memory_free(mem);
-}
-
-/**
-   \ingroup Core_Readers
-   \brief Create parse_info and sets to read from memory
-   \param stream Address where new parse_info will be set
-   \param mem Memory to read from
-   \param arg Reader-specific arg
-   \param callback Callback to use with reader
-   \param accumulate Set if we need to accumulate as we read. (Usually 0 unless doing signature
-   verification)
-   \note It is the caller's responsiblity to free parse_info
-   \sa pgp_teardown_memory_read()
-*/
 int
 pgp_setup_memory_read(pgp_io_t *     io,
                       pgp_stream_t **stream,
@@ -2203,7 +2101,7 @@ pgp_get_seckey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         cbinfo->gotpass = 0;
         for (i = 0; cbinfo->numtries == -1 || i < cbinfo->numtries; i++) {
             /* print out the user id */
-            pgp_print_key(
+            repgp_print_key(
               io, cbinfo->cryptinfo.pubring, pubkey, "signature ", &pubkey->key.pubkey, 0);
             /* now decrypt key */
             secret = pgp_decrypt_seckey(keypair, cbinfo->passfp);
@@ -2224,42 +2122,6 @@ pgp_get_seckey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         break;
     }
 
-    return PGP_RELEASE_MEMORY;
-}
-
-/**
- \ingroup HighLevel_Callbacks
- \brief Callback to use when you need to prompt user for passphrase
- \param contents
- \param cbinfo
-*/
-pgp_cb_ret_t
-get_passphrase_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
-{
-    const pgp_contents_t *content = &pkt->u;
-    pgp_io_t *            io;
-
-    io = cbinfo->io;
-    if (rnp_get_debug(__FILE__)) {
-        pgp_print_packet(&cbinfo->printstate, pkt);
-    }
-    if (cbinfo->cryptinfo.key == NULL) {
-        (void) fprintf(io->errs, "get_passphrase_cb: NULL key\n");
-    } else {
-        pgp_print_key(io,
-                      cbinfo->cryptinfo.pubring,
-                      cbinfo->cryptinfo.key,
-                      "signature ",
-                      &cbinfo->cryptinfo.key->key.pubkey,
-                      0);
-    }
-    switch (pkt->tag) {
-    case PGP_GET_PASSPHRASE:
-        *(content->skey_passphrase.passphrase) = rnp_strdup(getpass("rnp passphrase: "));
-        return PGP_KEEP_MEMORY;
-    default:
-        break;
-    }
     return PGP_RELEASE_MEMORY;
 }
 

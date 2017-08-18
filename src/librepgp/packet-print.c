@@ -54,37 +54,21 @@
  */
 #include "config.h"
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
 #if defined(__NetBSD__)
 __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights reserved.");
 __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
-#endif
-
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
 #endif
 
 #ifdef RNP_DEBUG
 #include <assert.h>
 #endif
 
-#include "crypto/bn.h"
-#include "crypto.h"
-#include "crypto/ecdsa.h"
 #include "packet-show.h"
 #include "signature.h"
-#include "readerwriter.h"
-#include "utils.h"
 #include <rnp/rnp_sdk.h>
 #include "packet.h"
 #include "pgp-key.h"
+#include "reader.h"
 
 #define F_REVOKED 1
 
@@ -720,13 +704,13 @@ pgp_sprint_key(pgp_io_t *             io,
 
 /* return the key info as a JSON encoded string */
 int
-pgp_sprint_json(pgp_io_t *             io,
-                const rnp_key_store_t *keyring,
-                const pgp_key_t *      key,
-                json_object *          keyjson,
-                const char *           header,
-                const pgp_pubkey_t *   pubkey,
-                const int              psigs)
+repgp_sprint_json(pgp_io_t *             io,
+                  const rnp_key_store_t *keyring,
+                  const pgp_key_t *      key,
+                  json_object *          keyjson,
+                  const char *           header,
+                  const pgp_pubkey_t *   pubkey,
+                  const int              psigs)
 {
     char     keyid[PGP_KEY_ID_SIZE * 3];
     char     fp[PGP_FINGERPRINT_HEX_SIZE];
@@ -907,12 +891,12 @@ pgp_hkp_sprint_key(pgp_io_t *             io,
 
 /* print the key data for a pub or sec key */
 void
-pgp_print_key(pgp_io_t *             io,
-              const rnp_key_store_t *keyring,
-              const pgp_key_t *      key,
-              const char *           header,
-              const pgp_pubkey_t *   pubkey,
-              const int              psigs)
+repgp_print_key(pgp_io_t *             io,
+                const rnp_key_store_t *keyring,
+                const pgp_key_t *      key,
+                const char *           header,
+                const pgp_pubkey_t *   pubkey,
+                const int              psigs)
 {
     char *cp;
 

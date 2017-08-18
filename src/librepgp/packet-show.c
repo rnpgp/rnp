@@ -56,19 +56,13 @@
  */
 #include "config.h"
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
 #if defined(__NetBSD__)
 __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights reserved.");
 __RCSID("$NetBSD: packet-show.c,v 1.21 2011/08/14 11:19:51 christos Exp $");
 #endif
 
-#include <stdlib.h>
-#include <string.h>
+#include <stddef.h>
 
-#include <rnp/rnp_def.h>
 #include <rnp/rnp_sdk.h>
 #include <rnp/rnp_types.h>
 

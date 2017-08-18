@@ -59,11 +59,12 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 
 #include <rnp/rnp_sdk.h>
 #include <packet.h>
+#include <librepgp/packet-show.h>
+#include <librepgp/reader.h>
 
 #include "types.h"
 #include "key_store_pgp.h"
 #include "signature.h"
-#include "packet-show.h"
 #include "readerwriter.h"
 #include "pgp-key.h"
 

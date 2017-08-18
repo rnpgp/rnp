@@ -52,10 +52,6 @@
 #ifndef PACKET_PRINT_H_
 #define PACKET_PRINT_H_
 
-#include <json.h>
-
-#include "types.h"
-#include "packet.h"
 #include "packet-parse.h"
 #include <rekey/rnp_key_store.h>
 
@@ -90,7 +86,5 @@ int  pgp_sprint_pubkey(const pgp_key_t *, char *, size_t);
 
 int pgp_list_packets(
   pgp_io_t *, char *, unsigned, rnp_key_store_t *, rnp_key_store_t *, void *, pgp_cbfunc_t *);
-
-char *pgp_export_key(pgp_io_t *, const pgp_key_t *, uint8_t *);
 
 #endif /* PACKET_PRINT_H_ */

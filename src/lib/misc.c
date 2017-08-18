@@ -85,8 +85,7 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include "crypto.h"
 #include "crypto/bn.h"
 #include "packet-create.h"
-#include "packet-parse.h"
-#include "packet-show.h"
+#include <repgp/rnp_repgp.h>
 #include "signature.h"
 #include <rnp/rnp_sdk.h>
 #include "utils.h"
@@ -543,7 +542,7 @@ pgp_memory_init(pgp_memory_t *mem, size_t needed)
     if (mem->buf) {
         if (mem->allocated < needed) {
             if ((temp = realloc(mem->buf, needed)) == NULL) {
-                (void) fprintf(stderr, "pgp_memory_init: bad alloc\n");
+                RNP_LOG("bad alloc");
             } else {
                 mem->buf = temp;
                 mem->allocated = needed;
@@ -551,7 +550,7 @@ pgp_memory_init(pgp_memory_t *mem, size_t needed)
         }
     } else {
         if ((mem->buf = calloc(1, needed)) == NULL) {
-            (void) fprintf(stderr, "pgp_memory_init: bad alloc\n");
+            RNP_LOG("bad alloc");
         } else {
             mem->allocated = needed;
         }

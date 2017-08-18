@@ -60,7 +60,7 @@
 #include "hash.h"
 #include "packet.h"
 #include "memory.h"
-#include "packet-parse.h"
+#include <librepgp/packet-parse.h>
 #include "symmetric.h"
 #include "crypto/bn.h"
 #include <rekey/rnp_key_store.h>

@@ -75,15 +75,15 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 
 #include <rnp/rnp.h>
 #include <rnp/rnp_def.h>
+#include <rnp/rnp_sdk.h>
+#include <rekey/rnp_key_store.h>
 
 #include "packet.h"
-#include "packet-parse.h"
-#include "packet-print.h"
-#include <rekey/rnp_key_store.h>
+#include <repgp/rnp_repgp.h>
+#include <librepgp/packet-print.h>
+#include <librepgp/packet-show.h>
 #include "errors.h"
-#include "packet-show.h"
 #include "packet-create.h"
-#include <rnp/rnp_sdk.h>
 #include "memory.h"
 #include "validate.h"
 #include "signature.h"
@@ -141,7 +141,7 @@ resultp(pgp_io_t *io, const char *f, pgp_validation_t *res, rnp_key_store_t *rin
         from = 0;
         key = rnp_key_store_get_key_by_id(
           io, ring, (const uint8_t *) res->valid_sigs[i].signer_id, &from, &sigkey);
-        pgp_print_key(io, ring, key, "signature ", &key->key.pubkey, 0);
+        repgp_print_key(io, ring, key, "signature ", &key->key.pubkey, 0);
     }
 }
 
@@ -649,6 +649,41 @@ init_new_io(rnp_t *rnp, const char *outs, const char *errs, const char *ress)
     return false;
 }
 
+/**
+ \ingroup HighLevel_Callbacks
+ \brief Callback to use when you need to prompt user for passphrase
+ \param contents
+ \param cbinfo
+*/
+pgp_cb_ret_t static get_passphrase_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
+{
+    const pgp_contents_t *content = &pkt->u;
+    pgp_io_t *            io;
+
+    io = cbinfo->io;
+    if (rnp_get_debug(__FILE__)) {
+        pgp_print_packet(&cbinfo->printstate, pkt);
+    }
+    if (cbinfo->cryptinfo.key == NULL) {
+        (void) fprintf(io->errs, "get_passphrase_cb: NULL key\n");
+    } else {
+        repgp_print_key(io,
+                        cbinfo->cryptinfo.pubring,
+                        cbinfo->cryptinfo.key,
+                        "signature ",
+                        &cbinfo->cryptinfo.key->key.pubkey,
+                        0);
+    }
+    switch (pkt->tag) {
+    case PGP_GET_PASSPHRASE:
+        *(content->skey_passphrase.passphrase) = rnp_strdup(getpass("rnp passphrase: "));
+        return PGP_KEEP_MEMORY;
+    default:
+        break;
+    }
+    return PGP_RELEASE_MEMORY;
+}
+
 /*************************************************************************/
 /* exported functions start here                                         */
 /*************************************************************************/
@@ -893,13 +928,13 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
                 }
             } else {
                 json_object *obj = json_object_new_object();
-                pgp_sprint_json(rnp->io,
-                                rnp->pubring,
-                                key,
-                                obj,
-                                pgp_is_primary_key_tag(key->type) ? "pub" : "sub",
-                                &key->key.pubkey,
-                                psigs);
+                repgp_sprint_json(rnp->io,
+                                  rnp->pubring,
+                                  key,
+                                  obj,
+                                  pgp_is_primary_key_tag(key->type) ? "pub" : "sub",
+                                  &key->key.pubkey,
+                                  psigs);
                 json_object_array_add(id_array, obj);
             }
             from += 1;
@@ -1238,14 +1273,14 @@ rnp_sign_file(rnp_ctx_t * ctx,
             }
             if (pubkey == NULL) {
                 (void) fprintf(io->errs, "rnp: warning - using pubkey from secring\n");
-                pgp_print_key(io,
-                              ctx->rnp->pubring,
-                              keypair,
-                              "signature ",
-                              &keypair->key.seckey.pubkey,
-                              0);
+                repgp_print_key(io,
+                                ctx->rnp->pubring,
+                                keypair,
+                                "signature ",
+                                &keypair->key.seckey.pubkey,
+                                0);
             } else {
-                pgp_print_key(
+                repgp_print_key(
                   io, ctx->rnp->pubring, pubkey, "signature ", &pubkey->key.pubkey, 0);
             }
         }
@@ -1363,14 +1398,14 @@ rnp_sign_memory(rnp_ctx_t * ctx,
             }
             if (pubkey == NULL) {
                 (void) fprintf(io->errs, "rnp: warning - using pubkey from secring\n");
-                pgp_print_key(io,
-                              ctx->rnp->pubring,
-                              keypair,
-                              "signature ",
-                              &keypair->key.seckey.pubkey,
-                              0);
+                repgp_print_key(io,
+                                ctx->rnp->pubring,
+                                keypair,
+                                "signature ",
+                                &keypair->key.seckey.pubkey,
+                                0);
             } else {
-                pgp_print_key(
+                repgp_print_key(
                   io, ctx->rnp->pubring, pubkey, "signature ", &pubkey->key.pubkey, 0);
             }
         }

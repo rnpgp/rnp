@@ -32,7 +32,6 @@
 #include "crypto/sm2.h"
 #include "crypto.h"
 #include "packet.h"
-#include "readerwriter.h"
 #include "utils.h"
 #include "utils.h"
 

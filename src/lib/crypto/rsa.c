@@ -82,6 +82,7 @@
 #include "utils.h"
 #include "crypto/rsa.h"
 #include "crypto/bn.h"
+#include "packet.h"
 
 #include "utils.h"
 #include <rnp/rnp_def.h>

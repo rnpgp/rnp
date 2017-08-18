@@ -53,10 +53,16 @@
  * Parser for OpenPGP packets - headers.
  */
 
-#ifndef PACKET_PARSE_H_
-#define PACKET_PARSE_H_
+#ifndef _RNP_REPGP_H_
+#define _RNP_REPGP_H_
 
-#include "types.h"
+#include <stddef.h>
+#include <stdbool.h>
+#include <stdint.h>
+
+#include <rekey/rnp_key_store.h>
+
+#include "rnp_repgp_def.h"
 #include "packet.h"
 
 /** pgp_region_t */
@@ -75,10 +81,7 @@ void pgp_init_subregion(pgp_region_t *, pgp_region_t *);
 typedef enum { PGP_RELEASE_MEMORY, PGP_KEEP_MEMORY, PGP_FINISHED } pgp_cb_ret_t;
 
 typedef struct pgp_cbdata_t pgp_cbdata_t;
-
-typedef pgp_cb_ret_t pgp_cbfunc_t(const pgp_packet_t *, pgp_cbdata_t *);
-
-pgp_cb_ret_t get_passphrase_cb(const pgp_packet_t *, pgp_cbdata_t *);
+typedef pgp_cb_ret_t        pgp_cbfunc_t(const pgp_packet_t *, pgp_cbdata_t *);
 
 typedef struct pgp_stream_t    pgp_stream_t;
 typedef struct pgp_reader_t    pgp_reader_t;
@@ -125,7 +128,7 @@ pgp_cb_ret_t  pgp_callback(const pgp_packet_t *, pgp_cbdata_t *);
 pgp_cb_ret_t  pgp_stacked_callback(const pgp_packet_t *, pgp_cbdata_t *);
 pgp_reader_t *pgp_readinfo(pgp_stream_t *);
 
-bool pgp_parse(pgp_stream_t *, const int);
+bool pgp_parse(pgp_stream_t *, const bool show_erros);
 
 /** Used to specify whether subpackets should be returned raw, parsed
  * or ignored.  */
@@ -135,7 +138,18 @@ typedef enum {
     PGP_PARSE_IGNORE  /* Don't callback */
 } pgp_parse_type_t;
 
-void pgp_parse_options(pgp_stream_t *, pgp_content_enum, pgp_parse_type_t);
+/**
+ * @brief Specifies whether one or more signature subpacket types
+ *        should be returned parsed; or raw; or ignored.
+ *
+ * @param    stream   Pointer to previously allocated structure
+ * @param    tag      Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one individual
+ *                    signature subpacket tag
+ * @param    type     Parse type
+ *
+ * @todo Make all packet types optional, not just subpackets
+ */
+void pgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, pgp_parse_type_t type);
 
 bool pgp_limited_read(pgp_stream_t *,
                       uint8_t *,
@@ -152,8 +166,24 @@ bool pgp_stacked_limited_read(pgp_stream_t *,
                               pgp_reader_t *,
                               pgp_cbdata_t *);
 
+void pgp_parser_content_free(pgp_packet_t *);
+
 pgp_reader_func_t pgp_stacked_read;
 
-bool pgp_decompress(pgp_region_t *, pgp_stream_t *, pgp_compression_type_t);
+/* ----------------------------- printing -----------------------------*/
+void repgp_print_key(pgp_io_t *,
+                     const rnp_key_store_t *,
+                     const pgp_key_t *,
+                     const char *,
+                     const pgp_pubkey_t *,
+                     const int);
 
-#endif /* PACKET_PARSE_H_ */
+int repgp_sprint_json(pgp_io_t *,
+                      const rnp_key_store_t *,
+                      const pgp_key_t *,
+                      json_object *,
+                      const char *,
+                      const pgp_pubkey_t *,
+                      const int);
+
+#endif /* _RNP_REPGP_H_ */

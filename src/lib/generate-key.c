@@ -26,13 +26,14 @@
 #include <stdint.h>
 
 #include <rekey/rnp_key_store.h>
-#include "../librekey/key_store_pgp.h"
+
+#include <librekey/key_store_pgp.h>
+#include <librepgp/packet-show.h>
 
 #include "readerwriter.h"
 #include "memory.h"
 #include "packet.h"
 #include "pgp-key.h"
-#include "packet-show.h"
 
 /* Shortcut to load a single key from memory. */
 static bool

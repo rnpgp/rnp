@@ -77,7 +77,7 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 #include "writer.h"
 #include "signature.h"
 #include "packet.h"
-#include "packet-parse.h"
+#include <repgp/rnp_repgp.h>
 #include "readerwriter.h"
 #include "memory.h"
 #include "utils.h"
@@ -961,13 +961,16 @@ encrypt_se_ip_writer(const uint8_t *src,
     }
 
     /* create compressed packet from literal data packet */
-    pgp_writez(zoutput, pgp_mem_data(litmem), (unsigned) pgp_mem_len(litmem));
+    if (!pgp_writez(zoutput, pgp_mem_data(litmem), (unsigned) pgp_mem_len(litmem))) {
+        RNP_LOG("Compression failed");
+        return false;
+    }
 
     /* create SE IP packet set from this compressed literal data */
     pgp_write_se_ip_pktset(
       output, pgp_mem_data(zmem), (unsigned) pgp_mem_len(zmem), se_ip->crypt);
     if (pgp_mem_len(localmem) <= pgp_mem_len(zmem)) {
-        (void) fprintf(stderr, "encrypt_se_ip_writer: bad comp len\n");
+        RNP_LOG("bad comp len");
         return false;
     }
 
@@ -1700,4 +1703,55 @@ str_enc_se_ip_destroyer(pgp_writer_t *writer)
 
     free(se_ip->crypt);
     free(se_ip);
+}
+
+/**
+ \ingroup Core_Writers
+ \brief Create and initialise output and mem; Set for writing to mem
+ \param ctx Operation context, may be NULL
+ \param output Address where new output pointer will be set
+ \param mem Address when new mem pointer will be set
+ \param bufsz Initial buffer size (will automatically be increased when necessary)
+ \note It is the caller's responsiblity to free output and mem.
+ \sa pgp_teardown_memory_write()
+*/
+bool
+pgp_setup_memory_write(rnp_ctx_t *ctx, pgp_output_t **output, pgp_memory_t **mem, size_t bufsz)
+{
+    /*
+     * initialise needed structures for writing to memory
+     */
+
+    *output = pgp_output_new();
+    if (*output == NULL) {
+        return false;
+    }
+    *mem = pgp_memory_new();
+    if (*mem == NULL) {
+        free(*output);
+        return false;
+    }
+
+    (*output)->ctx = ctx;
+    pgp_memory_init(*mem, bufsz);
+    pgp_writer_set_memory(*output, *mem);
+
+    return true;
+}
+
+/**
+   \ingroup Core_Writers
+   \brief Closes writer and frees output and mem
+   \param output
+   \param mem
+   \sa pgp_setup_memory_write()
+*/
+void
+pgp_teardown_memory_write(pgp_output_t *output, pgp_memory_t *mem)
+{
+    if (output) {
+        pgp_writer_close(output); /* new */
+    }
+    pgp_output_delete(output);
+    pgp_memory_free(mem);
 }
