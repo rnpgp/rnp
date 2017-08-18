@@ -87,6 +87,8 @@ void test_load_v3_keyring_pgp(void **state);
 
 void test_load_v4_keyring_pgp(void **state);
 
+void test_load_keyring_and_count_pgp(void **state);
+
 void pgp_compress_roundtrip(void **state);
 
 #define rnp_assert_int_equal(state, a, b)           \
