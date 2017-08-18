@@ -107,7 +107,6 @@ bool pgp_write_xfer_anykey(
 
 unsigned pgp_write_userid(const uint8_t *, pgp_output_t *);
 unsigned pgp_fileread_litdata(const char *, const pgp_litdata_enum, pgp_output_t *);
-unsigned pgp_write_symm_enc_data(const uint8_t *, const int, pgp_output_t *);
 
 bool pgp_write_selfsig_cert(pgp_output_t *               output,
                             const pgp_seckey_t *         seckey,

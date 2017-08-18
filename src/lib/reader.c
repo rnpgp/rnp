@@ -1359,6 +1359,12 @@ encrypted_data_reader(pgp_stream_t *stream,
 
     encrypted = pgp_reader_get_arg(readinfo);
     saved = (int) length;
+
+    if (!pgp_is_sa_supported(encrypted->decrypt->alg)) {
+        RNP_LOG("Unsupported symmetric cipher algorithm");
+        return 0;
+    }
+
     /*
      * V3 MPIs have the count plain and the cipher is reset after each
      * count
@@ -1426,8 +1432,8 @@ encrypted_data_reader(pgp_stream_t *stream,
                 return -1;
             }
             if (!readinfo->parent->reading_v3_secret || !readinfo->parent->reading_mpi_len) {
-                encrypted->c =
-                  pgp_decrypt_se_ip(encrypted->decrypt, encrypted->decrypted, buffer, n);
+                pgp_cipher_cfb_decrypt(encrypted->decrypt, encrypted->decrypted, buffer, n);
+                encrypted->c = n;
 
                 if (rnp_get_debug(__FILE__)) {
                     hexdump(stderr, "encrypted", buffer, 16);
@@ -1471,7 +1477,6 @@ pgp_reader_push_decrypt(pgp_stream_t *stream, pgp_crypt_t *decrypt, pgp_region_t
     } else {
         encrypted->decrypt = decrypt;
         encrypted->region = region;
-        pgp_decrypt_init(encrypted->decrypt);
         if (!pgp_reader_push(
               stream, encrypted_data_reader, encrypted_data_destroyer, encrypted)) {
             free(encrypted);
@@ -1535,7 +1540,6 @@ se_ip_data_reader(pgp_stream_t *stream,
         uint8_t *  mdc;
         uint8_t *  mdc_hash;
         pgp_hash_t hash = {0};
-        size_t     b;
         size_t     sz_preamble;
         size_t     sz_mdc_hash;
         size_t     sz_mdc;
@@ -1567,18 +1571,19 @@ se_ip_data_reader(pgp_stream_t *stream,
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "SE IP packet", buf, decrypted_region.length);
         }
+        const size_t blocksize = pgp_cipher_block_size(se_ip->decrypt);
+
         /* verify leading preamble */
         if (rnp_get_debug(__FILE__)) {
-            hexdump(stderr, "preamble", buf, se_ip->decrypt->blocksize);
+            hexdump(stderr, "preamble", buf, blocksize);
         }
-        b = se_ip->decrypt->blocksize;
-        if (buf[b - 2] != buf[b] || buf[b - 1] != buf[b + 1]) {
+        if (buf[blocksize - 2] != buf[blocksize] || buf[blocksize - 1] != buf[blocksize + 1]) {
             fprintf(stderr,
                     "Bad symmetric decrypt (%02x%02x vs %02x%02x)\n",
-                    buf[b - 2],
-                    buf[b - 1],
-                    buf[b],
-                    buf[b + 1]);
+                    buf[blocksize - 2],
+                    buf[blocksize - 1],
+                    buf[blocksize],
+                    buf[blocksize + 1]);
             PGP_ERROR_1(errors,
                         PGP_E_PROTO_BAD_SYMMETRIC_DECRYPT,
                         "%s",
@@ -1589,7 +1594,7 @@ se_ip_data_reader(pgp_stream_t *stream,
         }
         /* Verify trailing MDC hash */
 
-        sz_preamble = se_ip->decrypt->blocksize + 2;
+        sz_preamble = blocksize + 2;
         sz_mdc_hash = PGP_SHA1_HASH_SIZE;
         sz_mdc = 1 + 1 + sz_mdc_hash;
         sz_plaintext = (decrypted_region.length - sz_preamble) - sz_mdc;

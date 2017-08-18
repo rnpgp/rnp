@@ -443,10 +443,9 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
         RNP_LOG("Memory allcoation failed");
         return false;
     }
-    pgp_crypt_any(crypted, key->alg);
-    pgp_cipher_set_iv(crypted, key->iv);
-    pgp_cipher_set_key(crypted, sesskey);
-    pgp_encrypt_init(crypted);
+    if (!pgp_cipher_start(crypted, key->alg, sesskey, key->iv)) {
+        return false;
+    }
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "writing: iv=", key->iv, pgp_block_size(key->alg));
@@ -854,7 +853,7 @@ pgp_calc_sesskey_checksum(pgp_pk_sesskey_t *sesskey, uint8_t cs[2])
 }
 
 static unsigned
-create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, pgp_crypt_t *cipherinfo, uint8_t *m_buf)
+create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, size_t cipher_key_len, uint8_t *m_buf)
 {
     unsigned i;
 
@@ -868,13 +867,13 @@ create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, pgp_crypt_t *cipherinfo, uint8
      *   m = symm_alg_ID || session key || checksum
      */
     m_buf[0] = sesskey->symm_alg;
-    for (i = 0; i < cipherinfo->keysize; i++) {
+    for (i = 0; i < cipher_key_len; i++) {
         /* XXX - Flexelint - Warning 679: Suspicious Truncation in arithmetic expression
          * combining with pointer */
         m_buf[1 + i] = sesskey->key[i];
     }
 
-    return pgp_calc_sesskey_checksum(sesskey, m_buf + 1 + cipherinfo->keysize);
+    return pgp_calc_sesskey_checksum(sesskey, m_buf + 1 + cipher_key_len);
 }
 
 /**
@@ -895,10 +894,10 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
      * can be any, we're hardcoding RSA for now
      */
 
-    pgp_crypt_t       cipherinfo;
     pgp_pk_sesskey_t *sesskey = NULL;
     uint8_t *         encoded_key = NULL;
     size_t            sz_encoded_key = 0;
+    size_t            sz_cipher_key = 0;
 
     if (pubkey == NULL) {
         (void) fprintf(stderr, "pgp_create_pk_sesskey: bad pub key\n");
@@ -917,17 +916,13 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
         return NULL;
     }
 
-    (void) memset(&cipherinfo, 0x0, sizeof(cipherinfo));
-
-    if (pgp_crypt_any(&cipherinfo, cipher) == 0) {
-        return NULL;
-    }
+    sz_cipher_key = pgp_key_size(cipher);
 
     /* allocate encoded_key here */
 
     /* The buffer stores the key plus alg_id (1 byte) + checksum (2 bytes) */
 
-    sz_encoded_key = cipherinfo.keysize + 1 + 2;
+    sz_encoded_key = sz_cipher_key + 1 + 2;
     encoded_key = calloc(1, sz_encoded_key);
     if (encoded_key == NULL) {
         (void) fprintf(stderr, "pgp_create_pk_sesskey: can't allocate\n");
@@ -945,12 +940,12 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
     }
     sesskey->alg = pubkey->alg;
     sesskey->symm_alg = cipher;
-    if (pgp_random(sesskey->key, cipherinfo.keysize)) {
+    if (pgp_random(sesskey->key, sz_cipher_key)) {
         (void) fprintf(stderr, "pgp_random failed\n");
         goto error;
     }
 
-    if (create_unencoded_m_buf(sesskey, &cipherinfo, &encoded_key[0]) == 0) {
+    if (create_unencoded_m_buf(sesskey, sz_cipher_key, &encoded_key[0]) == 0) {
         free(sesskey);
         sesskey = NULL;
         goto done;
@@ -958,8 +953,8 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "Encrypting for keyid", sesskey->key_id, sizeof(sesskey->key_id));
-        hexdump(stderr, "sesskey created", sesskey->key, cipherinfo.keysize);
-        hexdump(stderr, "encoded key buf", encoded_key, cipherinfo.keysize + 1 + 2);
+        hexdump(stderr, "sesskey created", sesskey->key, sz_cipher_key);
+        hexdump(stderr, "encoded key buf", encoded_key, sz_cipher_key + 1 + 2);
     }
 
     /* and encrypt it */
@@ -987,22 +982,18 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
     } break;
 
     case PGP_PKA_SM2_ENCRYPT: {
-       uint8_t encmpibuf[RNP_BUFSIZ];
-       size_t out_len = sizeof(encmpibuf);
-       rnp_result err = pgp_sm2_encrypt(encmpibuf,
-                                        &out_len,
-                                        encoded_key,
-                                        sz_encoded_key,
-                                        &pubkey->key.ecc);
+        uint8_t    encmpibuf[RNP_BUFSIZ];
+        size_t     out_len = sizeof(encmpibuf);
+        rnp_result err =
+          pgp_sm2_encrypt(encmpibuf, &out_len, encoded_key, sz_encoded_key, &pubkey->key.ecc);
 
-       if (err != RNP_SUCCESS) {
-          goto done;
-       }
+        if (err != RNP_SUCCESS) {
+            goto done;
+        }
 
-       sesskey->params.sm2.encrypted_m = BN_bin2bn(encmpibuf, out_len, NULL);
+        sesskey->params.sm2.encrypted_m = BN_bin2bn(encmpibuf, out_len, NULL);
 
     } break;
-
 
     case PGP_PKA_ECDH: {
         uint8_t           encmpibuf[ECDH_WRAPPED_KEY_SIZE] = {0};
@@ -1274,45 +1265,6 @@ pgp_filewrite(const char *   filename,
     }
 
     return (close(fd) == 0);
-}
-
-/**
-\ingroup Core_WritePackets
-\brief Write Symmetrically Encrypted packet
-\param data Data to encrypt
-\param len Length of data
-\param output Write settings
-\return 1 if OK; else 0
-\note Hard-coded to use AES256
-*/
-unsigned
-pgp_write_symm_enc_data(const uint8_t *data, const int len, pgp_output_t *output)
-{
-    pgp_crypt_t crypt_info;
-    uint8_t *   encrypted = (uint8_t *) NULL;
-    size_t      encrypted_sz;
-    int         done = 0;
-
-    /* \todo assume AES256 for now */
-    pgp_crypt_any(&crypt_info, PGP_SA_AES_256);
-    pgp_encrypt_init(&crypt_info);
-
-    encrypted_sz = (size_t)(len + crypt_info.blocksize + 2);
-    if ((encrypted = calloc(1, encrypted_sz)) == NULL) {
-        (void) fprintf(stderr, "can't allocate %" PRIsize "d\n", encrypted_sz);
-        return false;
-    }
-
-    done = (int) pgp_encrypt_se(&crypt_info, encrypted, data, (unsigned) len);
-    if (done != len) {
-        (void) fprintf(stderr, "pgp_write_symm_enc_data: done != len\n");
-        free(encrypted);
-        return false;
-    }
-
-    return pgp_write_ptag(output, PGP_PTAG_CT_SE_DATA) &&
-           pgp_write_length(output, (unsigned) (1 + encrypted_sz)) &&
-           pgp_write(output, data, (unsigned) len);
 }
 
 /**

@@ -81,6 +81,7 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 #include "readerwriter.h"
 #include "memory.h"
 #include "utils.h"
+#include "compress.h"
 
 /*
  * return true if OK, otherwise false
@@ -537,9 +538,9 @@ pgp_writer_push_clearsigned(pgp_output_t *output, pgp_create_sig_t *sig)
  * \struct base64_t
  */
 typedef struct {
-    unsigned pos;
-    uint8_t  t;
-    unsigned checksum;
+    unsigned         pos;
+    uint8_t          t;
+    unsigned         checksum;
     pgp_armor_type_t type;
 } base64_t;
 
@@ -635,10 +636,10 @@ armoured_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
     static const char trl_pubkey[] = "\r\n-----END PGP PUBLIC KEY BLOCK-----\r\n";
     static const char trl_seckey[] = "\r\n-----END PGP PRIVATE KEY BLOCK-----\r\n";
     static const char trl_signature[] = "\r\n-----END PGP SIGNATURE-----\r\n";
-    
-    base64_t *        base64;
-    uint8_t           c[3];
-    const char *      trailer = NULL;
+
+    base64_t *  base64;
+    uint8_t     c[3];
+    const char *trailer = NULL;
 
     base64 = pgp_writer_get_arg(writer);
 
@@ -738,7 +739,8 @@ pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
         if (!pgp_write(output, hdr_crlf, sizeof(hdr_crlf) - 1) ||
             !pgp_write(output, hdr_signature, sizeof(hdr_signature) - 1) ||
             !pgp_write(output, hdr_version, sizeof(hdr_version) - 1)) {
-            PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Error switching to armoured signature");
+            PGP_ERROR_1(
+              &output->errors, PGP_E_W, "%s", "Error switching to armoured signature");
             free(linebreak);
             return false;
         }
@@ -762,7 +764,8 @@ pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
     base64->checksum = CRC24_INIT;
     base64->type = type;
 
-    if (!pgp_writer_push(output, base64_writer, armoured_message_finaliser, generic_destroyer, base64)) {
+    if (!pgp_writer_push(
+          output, base64_writer, armoured_message_finaliser, generic_destroyer, base64)) {
         free(base64);
         return false;
     }
@@ -793,10 +796,6 @@ encrypt_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_write
 
     remaining = len;
     pgp_encrypt = (crypt_t *) pgp_writer_get_arg(writer);
-    if (!pgp_is_sa_supported(pgp_encrypt->crypt->alg)) {
-        (void) fprintf(stderr, "encrypt_writer: not supported\n");
-        return false;
-    }
     while (remaining > 0) {
         unsigned size = (remaining < BUFSZ) ? remaining : BUFSZ;
 
@@ -877,7 +876,6 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_pubkey_t *pubkey, pgp_symm_al
     pgp_pk_sesskey_t *encrypted_pk_sesskey;
     encrypt_se_ip_t * se_ip;
     pgp_crypt_t *     encrypted;
-    uint8_t *         iv;
 
     if ((se_ip = calloc(1, sizeof(*se_ip))) == NULL) {
         (void) fprintf(stderr, "pgp_push_enc_se_ip: bad alloc\n");
@@ -903,18 +901,15 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_pubkey_t *pubkey, pgp_symm_al
         (void) fprintf(stderr, "pgp_push_enc_se_ip: bad alloc\n");
         return false;
     }
-    pgp_crypt_any(encrypted, encrypted_pk_sesskey->symm_alg);
-    if ((iv = calloc(1, encrypted->blocksize)) == NULL) {
+
+    if (!pgp_cipher_start(
+          encrypted, encrypted_pk_sesskey->symm_alg, &encrypted_pk_sesskey->key[0], NULL)) {
         free(se_ip);
         pgp_pk_sesskey_free(encrypted_pk_sesskey);
         free(encrypted_pk_sesskey);
         free(encrypted);
-        (void) fprintf(stderr, "pgp_push_enc_se_ip: bad alloc\n");
         return false;
     }
-    pgp_cipher_set_iv(encrypted, iv);
-    pgp_cipher_set_key(encrypted, &encrypted_pk_sesskey->key[0]);
-    pgp_encrypt_init(encrypted);
 
     se_ip->crypt = encrypted;
 
@@ -924,13 +919,11 @@ pgp_push_enc_se_ip(pgp_output_t *output, const pgp_pubkey_t *pubkey, pgp_symm_al
         pgp_pk_sesskey_free(encrypted_pk_sesskey);
         free(encrypted_pk_sesskey);
         free(encrypted);
-        free(iv);
         return false;
     }
     /* tidy up */
     pgp_pk_sesskey_free(encrypted_pk_sesskey);
     free(encrypted_pk_sesskey);
-    free(iv);
     return true;
 }
 
@@ -1013,7 +1006,9 @@ pgp_write_se_ip_pktset(pgp_output_t * output,
     size_t        preamblesize;
     size_t        bufsize;
 
-    preamblesize = crypted->blocksize + 2;
+    const size_t blocksize = pgp_cipher_block_size(crypted);
+
+    preamblesize = blocksize + 2;
     if ((preamble = calloc(1, preamblesize)) == NULL) {
         (void) fprintf(stderr, "pgp_write_se_ip_pktset: bad alloc\n");
         return 0;
@@ -1026,12 +1021,12 @@ pgp_write_se_ip_pktset(pgp_output_t * output,
         free(preamble);
         return 0;
     }
-    if (pgp_random(preamble, crypted->blocksize)) {
+    if (pgp_random(preamble, blocksize)) {
         (void) fprintf(stderr, "pgp_random failed\n");
         return 0;
     }
-    preamble[crypted->blocksize] = preamble[crypted->blocksize - 2];
-    preamble[crypted->blocksize + 1] = preamble[crypted->blocksize - 1];
+    preamble[blocksize] = preamble[blocksize - 2];
+    preamble[blocksize + 1] = preamble[blocksize - 1];
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "preamble", preamble, preamblesize);
@@ -1293,7 +1288,6 @@ pgp_push_stream_enc_se_ip(pgp_output_t *      output,
     str_enc_se_ip_t * se_ip;
     const unsigned    bufsz = 1024;
     pgp_crypt_t *     encrypted;
-    uint8_t *         iv;
 
     if ((se_ip = calloc(1, sizeof(*se_ip))) == NULL) {
         (void) fprintf(stderr, "pgp_push_stream_enc_se_ip: bad alloc\n");
@@ -1315,22 +1309,17 @@ pgp_push_stream_enc_se_ip(pgp_output_t *      output,
         (void) fprintf(stderr, "pgp_push_stream_enc_se_ip: bad alloc\n");
         return;
     }
-    pgp_crypt_any(encrypted, encrypted_pk_sesskey->symm_alg);
-    if ((iv = calloc(1, encrypted->blocksize)) == NULL) {
-        free(encrypted);
+
+    if (!pgp_cipher_start(
+          encrypted, encrypted_pk_sesskey->symm_alg, &encrypted_pk_sesskey->key[0], NULL)) {
         free(se_ip);
-        (void) fprintf(stderr, "pgp_push_stream_enc_se_ip: bad alloc\n");
         return;
     }
-    pgp_cipher_set_iv(encrypted, iv);
-    pgp_cipher_set_key(encrypted, &encrypted_pk_sesskey->key[0]);
-    pgp_encrypt_init(encrypted);
 
     se_ip->crypt = encrypted;
 
     se_ip->mem_data = pgp_memory_new();
     if (se_ip->mem_data == NULL) {
-        free(iv);
         free(encrypted);
         free(se_ip);
         (void) fprintf(stderr, "can't allocate mem\n");
@@ -1342,7 +1331,6 @@ pgp_push_stream_enc_se_ip(pgp_output_t *      output,
     se_ip->litoutput = NULL;
 
     if (!pgp_setup_memory_write(output->ctx, &se_ip->se_ip_out, &se_ip->se_ip_mem, bufsz)) {
-        free(iv);
         free(encrypted);
         free(se_ip);
         (void) fprintf(stderr, "can't setup memory write\n");
@@ -1359,7 +1347,6 @@ pgp_push_stream_enc_se_ip(pgp_output_t *      output,
     }
     /* tidy up */
     free(encrypted_pk_sesskey);
-    free(iv);
 }
 
 /* calculate the partial data length */
@@ -1502,13 +1489,12 @@ stream_write_se_ip_first(pgp_output_t *   output,
                          unsigned         len,
                          str_enc_se_ip_t *se_ip)
 {
-    uint8_t *preamble;
-    size_t   blocksize;
-    size_t   preamblesize;
-    size_t   sz_towrite;
-    size_t   sz_pd;
+    uint8_t *    preamble;
+    size_t       preamblesize;
+    size_t       sz_towrite;
+    size_t       sz_pd;
+    const size_t blocksize = pgp_cipher_block_size(se_ip->crypt);
 
-    blocksize = se_ip->crypt->blocksize;
     preamblesize = blocksize + 2;
     sz_towrite = preamblesize + 1 + len;
     if ((preamble = calloc(1, preamblesize)) == NULL) {
