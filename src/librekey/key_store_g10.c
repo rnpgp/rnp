@@ -893,6 +893,10 @@ rnp_key_store_g10_from_mem(pgp_io_t *       io,
     size_t      length = memory->length;
     const char *bytes = (const char *) memory->buf;
 
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, "S-exp", (const uint8_t *) bytes, length);
+    }
+
     if (!parse_sexp(&s_exp, &bytes, &length)) {
         return false;
     }
@@ -1354,7 +1358,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         return false;
     }
 
-    if (!add_sub_sexp_to_sexp(sub_s_exp, &sub_s_exp)) {
+    if (!add_sub_sexp_to_sexp(&raw_s_exp, &sub_s_exp)) {
         destroy_s_exp(&raw_s_exp);
         return false;
     }
