@@ -50,12 +50,18 @@ typedef struct {
     uint8_t *bytes;
 } s_exp_block_t;
 
-typedef struct s_exp s_exp_t;
+typedef struct sub_element_t sub_element_t;
 
-struct s_exp {
-    DYNARRAY(s_exp_block_t, block);
+typedef struct {
+    DYNARRAY(sub_element_t, sub_element);
+} s_exp_t;
 
-    DYNARRAY(s_exp_t, sub_s_exp);
+struct sub_element_t {
+    bool is_block;
+    union {
+        s_exp_t       s_exp;
+        s_exp_block_t block;
+    };
 };
 
 typedef struct format_info {
@@ -125,52 +131,55 @@ destroy_s_exp(s_exp_t *s_exp)
         return;
     }
 
-    if (s_exp->blocks != NULL) {
-        for (i = 0; i < s_exp->blockc; i++) {
-            if (s_exp->blocks[i].len > 0 && s_exp->blocks[i].bytes != NULL) {
-                free(s_exp->blocks[i].bytes);
-                s_exp->blocks[i].bytes = NULL;
-                s_exp->blocks[i].len = 0;
+    if (s_exp->sub_elements != NULL) {
+        for (i = 0; i < s_exp->sub_elementc; i++) {
+            if (s_exp->sub_elements[i].is_block) {
+                if (s_exp->sub_elements[i].block.len > 0 &&
+                    s_exp->sub_elements[i].block.bytes != NULL) {
+                    free(s_exp->sub_elements[i].block.bytes);
+                    s_exp->sub_elements[i].block.bytes = NULL;
+                    s_exp->sub_elements[i].block.len = 0;
+                }
+            } else {
+                destroy_s_exp(&s_exp->sub_elements[i].s_exp);
             }
         }
-        FREE_ARRAY(s_exp, block);
-    }
-
-    if (s_exp->sub_s_exps != NULL) {
-        for (i = 0; i < s_exp->sub_s_expc; i++) {
-            destroy_s_exp(&s_exp->sub_s_exps[i]);
-        }
-        FREE_ARRAY(s_exp, sub_s_exp);
+        FREE_ARRAY(s_exp, sub_element);
     }
 }
 
 static bool
 add_block_to_sexp(s_exp_t *s_exp, uint8_t *bytes, size_t len)
 {
-    s_exp_block_t *block;
+    sub_element_t *sub_element;
 
-    for (int i = 0; i < s_exp->blockc; i++) {
-        if (len == s_exp->blocks[i].len && !memcmp(s_exp->blocks[i].bytes, bytes, len)) {
+    for (int i = 0; i < s_exp->sub_elementc; i++) {
+        if (!s_exp->sub_elements[i].is_block) {
+            continue;
+        }
+        if (len == s_exp->sub_elements[i].block.len &&
+            !memcmp(s_exp->sub_elements[i].block.bytes, bytes, len)) {
             // do not duplicate blocks
             return true;
         }
     }
 
-    EXPAND_ARRAY(s_exp, block);
-    if (s_exp->blocks == NULL) {
+    EXPAND_ARRAY(s_exp, sub_element);
+    if (s_exp->sub_elements == NULL) {
         return false;
     }
 
-    block = &s_exp->blocks[s_exp->blockc++];
+    sub_element = &s_exp->sub_elements[s_exp->sub_elementc++];
 
-    block->len = (size_t) len;
-    block->bytes = malloc(block->len);
-    if (block->bytes == NULL) {
+    sub_element->is_block = true;
+    sub_element->block.len = (size_t) len;
+    sub_element->block.bytes = malloc(sub_element->block.len);
+    if (sub_element->block.bytes == NULL) {
         fprintf(stderr, "can't allocate memory\n");
         return false;
     }
 
-    memcpy(block->bytes, bytes, block->len);
+    memcpy(sub_element->block.bytes, bytes, sub_element->block.len);
     return true;
 }
 
@@ -183,12 +192,16 @@ add_string_block_to_sexp(s_exp_t *s_exp, const char *s)
 static bool
 add_sub_sexp_to_sexp(s_exp_t *s_exp, s_exp_t **sub_s_exp)
 {
-    EXPAND_ARRAY(s_exp, sub_s_exp);
-    if (s_exp->sub_s_exps == NULL) {
+    sub_element_t *sub_element;
+
+    EXPAND_ARRAY(s_exp, sub_element);
+    if (s_exp->sub_elements == NULL) {
         return false;
     }
 
-    *sub_s_exp = &s_exp->sub_s_exps[s_exp->sub_s_expc++];
+    sub_element = &s_exp->sub_elements[s_exp->sub_elementc++];
+    sub_element->is_block = false;
+    *sub_s_exp = &sub_element->s_exp;
 
     return true;
 }
@@ -318,18 +331,20 @@ static s_exp_t *
 lookup_variable(s_exp_t *s_exp, const char *name)
 {
     size_t name_len = strlen(name);
-    for (int i = 0; i < s_exp->sub_s_expc; i++) {
-        if (s_exp->sub_s_exps[i].blockc < 2) {
-            fprintf(stderr,
-                    "Expected 2 or more blocks (<name> <value> [<value2>]+) but has: %d\n",
-                    s_exp->sub_s_exps[i].blockc);
+    for (int i = 0; i < s_exp->sub_elementc; i++) {
+        if (s_exp->sub_elements[i].is_block) {
+            continue;
+        }
+        if (s_exp->sub_elements[i].s_exp.sub_elementc < 2 ||
+            !s_exp->sub_elements[i].s_exp.sub_elements[0].is_block) {
+            fprintf(stderr, "Expected sub-s-exp with 2 first blocks\n");
             return NULL;
         }
-        if (name_len == s_exp->sub_s_exps[i].blocks[0].len &&
+        if (name_len == s_exp->sub_elements[i].s_exp.sub_elements[0].block.len &&
             !strncmp(name,
-                     (const char *) s_exp->sub_s_exps[i].blocks[0].bytes,
-                     s_exp->sub_s_exps[i].blocks[0].len)) {
-            return &s_exp->sub_s_exps[i];
+                     (const char *) s_exp->sub_elements[i].s_exp.sub_elements[0].block.bytes,
+                     s_exp->sub_elements[i].s_exp.sub_elements[0].block.len)) {
+            return &s_exp->sub_elements[i].s_exp;
         }
     }
     fprintf(stderr, "Haven't got variable '%s'\n", name);
@@ -344,9 +359,15 @@ read_bignum(s_exp_t *s_exp, const char *name)
         return NULL;
     }
 
-    BIGNUM *res = PGPV_BN_bin2bn(var->blocks[1].bytes, (int) var->blocks[1].len, NULL);
+    if (!var->sub_elements[1].is_block) {
+        fprintf(stderr, "Expected block value\n");
+        return NULL;
+    }
+
+    BIGNUM *res = PGPV_BN_bin2bn(
+      var->sub_elements[1].block.bytes, (int) var->sub_elements[1].block.len, NULL);
     if (res == NULL) {
-        char *buf = malloc((var->blocks[1].len * 3) + 1);
+        char *buf = malloc((var->sub_elements[1].block.len * 3) + 1);
         if (buf == NULL) {
             fprintf(stderr, "Can't allocate memory\n");
             return NULL;
@@ -354,7 +375,8 @@ read_bignum(s_exp_t *s_exp, const char *name)
         fprintf(stderr,
                 "Can't convert variable '%s' to bignum. The value is: '%s'\n",
                 name,
-                rnp_strhexdump_upper(buf, var->blocks[1].bytes, var->blocks[1].len, ""));
+                rnp_strhexdump_upper(
+                  buf, var->sub_elements[1].block.bytes, var->sub_elements[1].block.len, ""));
     }
     return res;
 }
@@ -669,7 +691,7 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     pgp_forget(decrypted, key->key.seckey.encrypted_len);
     free(decrypted);
 
-    if (s_exp.sub_s_expc == 0) {
+    if (s_exp.sub_elementc == 0 || s_exp.sub_elements[0].is_block) {
         destroy_s_exp(&s_exp);
         (void) fprintf(stderr, "Hasn't got sub s-exp with key data.\n");
         return false;
@@ -684,7 +706,7 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
 
     seckey->pubkey = key->key.seckey.pubkey;
 
-    if (!parse_seckey(seckey, &s_exp.sub_s_exps[0], seckey->pubkey.alg, true)) {
+    if (!parse_seckey(seckey, &s_exp.sub_elements[0].s_exp, seckey->pubkey.alg, true)) {
         destroy_s_exp(&s_exp);
         return false;
     }
@@ -697,32 +719,37 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     }
 
     // hash is optional
-    if (s_exp.sub_s_expc > 1) {
-        if (s_exp.sub_s_exps[1].blockc != 3 ||
+    if (s_exp.sub_elementc > 1) {
+        if (s_exp.sub_elements[1].is_block || s_exp.sub_elements[1].s_exp.sub_elementc < 3 ||
+            !s_exp.sub_elements[1].s_exp.sub_elements[0].is_block ||
+            !s_exp.sub_elements[1].s_exp.sub_elements[1].is_block ||
+            !s_exp.sub_elements[1].s_exp.sub_elements[2].is_block ||
             strncmp("hash",
-                    (const char *) s_exp.sub_s_exps[1].blocks[0].bytes,
-                    s_exp.sub_s_exps[1].blocks[0].len) != 0) {
+                    (const char *) s_exp.sub_elements[1].s_exp.sub_elements[0].block.bytes,
+                    s_exp.sub_elements[1].s_exp.sub_elements[0].block.len) != 0) {
             destroy_s_exp(&s_exp);
             (void) fprintf(stderr, "Has got wrong hash block at encrypted key data.\n");
             return false;
         }
 
         if (strncmp("sha1",
-                    (const char *) s_exp.sub_s_exps[1].blocks[1].bytes,
-                    s_exp.sub_s_exps[1].blocks[1].len) != 0) {
+                    (const char *) s_exp.sub_elements[1].s_exp.sub_elements[1].block.bytes,
+                    s_exp.sub_elements[1].s_exp.sub_elements[1].block.len) != 0) {
             destroy_s_exp(&s_exp);
             (void) fprintf(stderr, "Supported only sha1 hash at encrypted private key.\n");
             return false;
         }
 
-        if (s_exp.sub_s_exps[1].blocks[2].len != G10_SHA1_HASH_SIZE ||
-            memcmp(checksum, s_exp.sub_s_exps[1].blocks[2].bytes, G10_SHA1_HASH_SIZE) != 0) {
+        if (s_exp.sub_elements[1].s_exp.sub_elements[2].block.len != G10_SHA1_HASH_SIZE ||
+            memcmp(checksum,
+                   s_exp.sub_elements[1].s_exp.sub_elements[2].block.bytes,
+                   G10_SHA1_HASH_SIZE) != 0) {
             if (rnp_get_debug(__FILE__)) {
                 hexdump(stderr, "Expected hash", checksum, G10_SHA1_HASH_SIZE);
                 hexdump(stderr,
                         "Has hash",
-                        s_exp.sub_s_exps[1].blocks[2].bytes,
-                        s_exp.sub_s_exps[1].blocks[2].len);
+                        s_exp.sub_elements[1].s_exp.sub_elements[2].block.bytes,
+                        s_exp.sub_elements[1].s_exp.sub_elements[2].block.len);
             }
             destroy_s_exp(&s_exp);
             (void) fprintf(stderr, "Incorrect hash at encrypted private key.\n");
@@ -740,17 +767,25 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
 {
     const format_info *format;
 
-    s_exp_t *var = lookup_variable(s_exp, "protected");
-    if (var == NULL) {
+    s_exp_t *protected = lookup_variable(s_exp, "protected");
+    if (protected == NULL) {
         return NULL;
     }
 
-    format = parse_format((const char *) var->blocks[1].bytes, var->blocks[1].len);
+    if (protected->sub_elementc != 4 || !protected->sub_elements[1].is_block ||
+        protected->sub_elements[2].is_block || !protected->sub_elements[3].is_block) {
+        fprintf(stderr, "Wrong protected format, expected: (protected mode (parms) "
+                        "encrypted_octet_string)\n");
+        return false;
+    }
+
+    format = parse_format((const char *) protected->sub_elements[1].block.bytes,
+                          protected->sub_elements[1].block.len);
     if (format == NULL) {
         fprintf(stderr,
                 "Unsupported protected mode: '%.*s'\n",
-                (int) var->blocks[1].len,
-                var->blocks[1].bytes);
+                (int) protected->sub_elements[1].block.len,
+                protected->sub_elements[1].block.bytes);
         return false;
     }
 
@@ -758,28 +793,30 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
     seckey->cipher_mode = format->cipher_mode;
     seckey->hash_alg = format->hash_alg;
 
-    if (var->sub_s_expc != 1) {
-        fprintf(stderr, "Wrong count of sub-level s-exp: %d, should be 1\n", var->sub_s_expc);
+    s_exp_t *params = &protected->sub_elements[2].s_exp;
+
+    if (params->sub_elementc != 2 || params->sub_elements[0].is_block ||
+        !params->sub_elements[1].is_block) {
+        fprintf(stderr, "Wrong params format, expected: ((hash salt no_of_iterations) iv)\n");
         return false;
     }
 
-    s_exp_t *encrypted = &var->sub_s_exps[0];
+    s_exp_t *alg = &params->sub_elements[0].s_exp;
 
-    if (encrypted->sub_s_expc != 1 && encrypted->blockc != 2) {
+    if (alg->sub_elementc != 3 || !alg->sub_elements[0].is_block ||
+        !alg->sub_elements[1].is_block || !alg->sub_elements[2].is_block) {
         fprintf(stderr,
-                "Wrong count of sub-level s-exp: %d or blocks: %d, should be 1 and 2\n",
-                encrypted->sub_s_expc,
-                encrypted->blockc);
+                "Wrong params sub-level format, expected: (hash salt no_of_iterations)\n");
         return false;
     }
 
-    s_exp_t *alg = &encrypted->sub_s_exps[0];
-
-    if (strncmp("sha1", (const char *) alg->blocks[0].bytes, alg->blocks[0].len) != 0) {
+    if (strncmp("sha1",
+                (const char *) alg->sub_elements[0].block.bytes,
+                alg->sub_elements[0].block.len) != 0) {
         fprintf(stderr,
                 "Wrong hashing algorithm, should be sha1 but %.*s\n",
-                (int) alg->blocks[0].len,
-                alg->blocks[0].bytes);
+                (int) alg->sub_elements[0].block.len,
+                alg->sub_elements[0].block.bytes);
         return false;
     }
 
@@ -787,47 +824,35 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
     seckey->s2k_usage = PGP_S2KU_ENCRYPTED;
     seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
 
-    if (alg->blocks[1].len != PGP_SALT_SIZE) {
+    if (alg->sub_elements[1].block.len != PGP_SALT_SIZE) {
         fprintf(stderr,
                 "Wrong salt size, should be %d but %d\n",
                 PGP_SALT_SIZE,
-                (int) alg->blocks[1].len);
+                (int) alg->sub_elements[1].block.len);
         return false;
     }
 
-    memcpy(seckey->salt, alg->blocks[1].bytes, alg->blocks[1].len);
-    seckey->s2k_iterations = block_to_unsigned(&alg->blocks[2]);
+    memcpy(seckey->salt, alg->sub_elements[1].block.bytes, alg->sub_elements[1].block.len);
+    seckey->s2k_iterations = block_to_unsigned(&alg->sub_elements[2].block);
     if (seckey->s2k_iterations == UINT_MAX) {
         fprintf(stderr,
                 "Wrong numbers of iteration, %.*s\n",
-                (int) alg->blocks[2].len,
-                alg->blocks[2].bytes);
+                (int) alg->sub_elements[2].block.len,
+                alg->sub_elements[2].block.bytes);
         return false;
     }
 
-    if (encrypted->blocks[0].len != format->iv_size) {
+    if (params->sub_elements[1].block.len != format->iv_size) {
         fprintf(stderr,
                 "Wrong nonce size, should be %zu but %d\n",
                 format->iv_size,
-                (int) encrypted->blocks[0].len);
+                (int) params->sub_elements[1].block.len);
         return false;
     }
 
-    memcpy(seckey->iv, encrypted->blocks[0].bytes, encrypted->blocks[0].len);
+    memcpy(seckey->iv, params->sub_elements[1].block.bytes, params->sub_elements[1].block.len);
 
-    if (var->blockc != 3) {
-        fprintf(stderr, "Hasn't got encrypted blob\n");
-        return false;
-    }
-
-    if (var->blocks[2].len <= 0) {
-        fprintf(stderr,
-                "Wrong encrypted size, should be great 0 but %d\n",
-                (int) var->blocks[2].len);
-        return false;
-    }
-
-    seckey->encrypted_len = var->blocks[2].len;
+    seckey->encrypted_len = protected->sub_elements[3].block.len;
 
     seckey->encrypted = malloc(seckey->encrypted_len);
     if (seckey->encrypted == NULL) {
@@ -835,19 +860,23 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
         return false;
     }
 
-    memcpy(seckey->encrypted, var->blocks[2].bytes, var->blocks[2].len);
+    memcpy(seckey->encrypted,
+           protected->sub_elements[3].block.bytes,
+           protected->sub_elements[3].block.len);
     seckey->decrypt_cb = g10_decrypt_seckey;
 
-    var = lookup_variable(s_exp, "protected-at");
-    if (var != NULL) {
-        if (var->blocks[1].len != PGP_PROTECTED_AT_SIZE) {
+    s_exp_t *protected_at = lookup_variable(s_exp, "protected-at");
+    if (protected_at != NULL && protected_at->sub_elements[1].is_block) {
+        if (protected_at->sub_elements[1].block.len != PGP_PROTECTED_AT_SIZE) {
             fprintf(stderr,
                     "protected-at has wrong length: %zu, expected, %d\n",
-                    var->blocks[1].len,
+                    protected_at->sub_elements[1].block.len,
                     PGP_PROTECTED_AT_SIZE);
             return false;
         }
-        memcpy(seckey->protected_at, var->blocks[1].bytes, var->blocks[1].len);
+        memcpy(seckey->protected_at,
+               protected_at->sub_elements[1].block.bytes,
+               protected_at->sub_elements[1].block.len);
     }
 
     return true;
@@ -876,59 +905,54 @@ rnp_key_store_g10_from_mem(pgp_io_t *       io,
      *  )
      */
 
-    if (s_exp.blockc != 1) {
-        fprintf(stderr, "Wrong count of top-level block: %d, should be 1\n", s_exp.blockc);
-        destroy_s_exp(&s_exp);
-        return false;
-    }
-
-    if (s_exp.sub_s_expc != 1) {
-        fprintf(
-          stderr, "Wrong count of top-level sub-s-exp: %d, should be 1\n", s_exp.sub_s_expc);
+    if (s_exp.sub_elementc != 2 || !s_exp.sub_elements[0].is_block ||
+        s_exp.sub_elements[1].is_block) {
+        fprintf(stderr, "Wrong format, expected: (<type> (...))\n");
         destroy_s_exp(&s_exp);
         return false;
     }
 
     bool private_key;
     bool protected;
-    if (!strncmp("private-key", (const char *) s_exp.blocks[0].bytes, s_exp.blocks[0].len)) {
+    if (!strncmp("private-key",
+                 (const char *) s_exp.sub_elements[0].block.bytes,
+                 s_exp.sub_elements[0].block.len)) {
         private_key = true;
       protected
         = false;
-    } else if (!strncmp(
-                 "public-key", (const char *) s_exp.blocks[0].bytes, s_exp.blocks[0].len)) {
+    } else if (!strncmp("public-key",
+                        (const char *) s_exp.sub_elements[0].block.bytes,
+                        s_exp.sub_elements[0].block.len)) {
         private_key = false;
       protected
         = false;
     } else if (!strncmp("protected-private-key",
-                        (const char *) s_exp.blocks[0].bytes,
-                        s_exp.blocks[0].len)) {
+                        (const char *) s_exp.sub_elements[0].block.bytes,
+                        s_exp.sub_elements[0].block.len)) {
         private_key = true;
       protected
         = true;
     } else {
         fprintf(stderr,
                 "Unsupported top-level block: '%.*s'\n",
-                (int) s_exp.blocks[0].len,
-                s_exp.blocks[0].bytes);
+                (int) s_exp.sub_elements[0].block.len,
+                s_exp.sub_elements[0].block.bytes);
         destroy_s_exp(&s_exp);
         return false;
     }
 
-    s_exp_t *algorithm_s_exp = &s_exp.sub_s_exps[0];
+    s_exp_t *algorithm_s_exp = &s_exp.sub_elements[1].s_exp;
 
-    if (algorithm_s_exp->blockc != 1) {
+    if (algorithm_s_exp->sub_elementc < 2) {
         fprintf(stderr,
-                "Wrong count of algorithm-level block: %d, should be 1\n",
-                algorithm_s_exp->blockc);
+                "Wrong count of algorithm-level elements: %d, should great than 1\n",
+                algorithm_s_exp->sub_elementc);
         destroy_s_exp(&s_exp);
         return false;
     }
 
-    if (algorithm_s_exp->sub_s_expc == 0) {
-        fprintf(stderr,
-                "Wrong count of algorithm-level sub-s-exp: %d, should be bigger than 0\n",
-                algorithm_s_exp->sub_s_expc);
+    if (!algorithm_s_exp->sub_elements[0].is_block) {
+        fprintf(stderr, "Expected block with algorithm name, but has s-exp\n");
         destroy_s_exp(&s_exp);
         return false;
     }
@@ -936,49 +960,49 @@ rnp_key_store_g10_from_mem(pgp_io_t *       io,
     pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
 
     if (!strncmp("rsa",
-                 (const char *) algorithm_s_exp->blocks[0].bytes,
-                 algorithm_s_exp->blocks[0].len)) {
+                 (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
+                 algorithm_s_exp->sub_elements[0].block.len)) {
         alg = PGP_PKA_RSA;
     } else if (!strncmp("openpgp-rsa",
-                        (const char *) algorithm_s_exp->blocks[0].bytes,
-                        algorithm_s_exp->blocks[0].len)) {
+                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
+                        algorithm_s_exp->sub_elements[0].block.len)) {
         alg = PGP_PKA_RSA;
     } else if (!strncmp("oid.1.2.840.113549.1.1.1",
-                        (const char *) algorithm_s_exp->blocks[0].bytes,
-                        algorithm_s_exp->blocks[0].len)) {
+                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
+                        algorithm_s_exp->sub_elements[0].block.len)) {
         alg = PGP_PKA_RSA;
 
     } else if (!strncmp("elg",
-                        (const char *) algorithm_s_exp->blocks[0].bytes,
-                        algorithm_s_exp->blocks[0].len)) {
+                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
+                        algorithm_s_exp->sub_elements[0].block.len)) {
         alg = PGP_PKA_ELGAMAL;
     } else if (!strncmp("elgamal",
-                        (const char *) algorithm_s_exp->blocks[0].bytes,
-                        algorithm_s_exp->blocks[0].len)) {
+                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
+                        algorithm_s_exp->sub_elements[0].block.len)) {
         alg = PGP_PKA_ELGAMAL;
     } else if (!strncmp("openpgp-elg",
-                        (const char *) algorithm_s_exp->blocks[0].bytes,
-                        algorithm_s_exp->blocks[0].len)) {
+                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
+                        algorithm_s_exp->sub_elements[0].block.len)) {
         alg = PGP_PKA_ELGAMAL;
     } else if (!strncmp("openpgp-elg-sig",
-                        (const char *) algorithm_s_exp->blocks[0].bytes,
-                        algorithm_s_exp->blocks[0].len)) {
+                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
+                        algorithm_s_exp->sub_elements[0].block.len)) {
         alg = PGP_PKA_ELGAMAL;
 
     } else if (!strncmp("dsa",
-                        (const char *) algorithm_s_exp->blocks[0].bytes,
-                        algorithm_s_exp->blocks[0].len)) {
+                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
+                        algorithm_s_exp->sub_elements[0].block.len)) {
         alg = PGP_PKA_DSA;
     } else if (!strncmp("openpgp-dsa",
-                        (const char *) algorithm_s_exp->blocks[0].bytes,
-                        algorithm_s_exp->blocks[0].len)) {
+                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
+                        algorithm_s_exp->sub_elements[0].block.len)) {
         alg = PGP_PKA_DSA;
 
     } else {
         fprintf(stderr,
                 "Unsupported algorithm: '%.*s'\n",
-                (int) s_exp.blocks[0].len,
-                s_exp.blocks[0].bytes);
+                (int) s_exp.sub_elements[0].block.len,
+                s_exp.sub_elements[0].block.bytes);
         destroy_s_exp(&s_exp);
         return false;
     }
@@ -1069,15 +1093,15 @@ write_sexp(s_exp_t *s_exp, pgp_memory_t *mem)
         return false;
     }
 
-    for (i = 0; i < s_exp->blockc; i++) {
-        if (!write_block(&s_exp->blocks[i], mem)) {
-            return false;
-        }
-    }
-
-    for (i = 0; i < s_exp->sub_s_expc; i++) {
-        if (!write_sexp(&s_exp->sub_s_exps[i], mem)) {
-            return false;
+    for (i = 0; i < s_exp->sub_elementc; i++) {
+        if (s_exp->sub_elements[i].is_block) {
+            if (!write_block(&s_exp->sub_elements[i].block, mem)) {
+                return false;
+            }
+        } else {
+            if (!write_sexp(&s_exp->sub_elements[i].s_exp, mem)) {
+                return false;
+            }
         }
     }
 
