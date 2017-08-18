@@ -950,9 +950,21 @@ armoured_data_reader(pgp_stream_t *stream,
     char         buf[1024];
     size_t       saved;
     rnp_result   ret;
+    int          n;
 
     dearmour = pgp_reader_get_arg(readinfo);
     saved = length;
+
+    if (!stream->coalescing && stream->virtualc && stream->virtualoff < stream->virtualc) {
+        n = read_partial_data(stream, dest_, length);
+        if ((n < 0) || (n == length)) {
+            return n;
+        } else {
+            length -= n;
+            dest_ = (char*)dest_ + n;
+        }
+    }
+
     if (dearmour->eof64 && !dearmour->buffered) {
         if (dearmour->state != OUTSIDE_BLOCK && dearmour->state != AT_TRAILER_NAME) {
             (void) fprintf(stderr, "armoured_data_reader: bad dearmour state\n");
