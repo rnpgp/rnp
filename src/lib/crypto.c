@@ -345,6 +345,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
     seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
     seckey->alg = crypto->sym_alg;
+    seckey->cipher_mode = PGP_SA_DEFAULT_CIPHER_MODE;
     if (pgp_random(&seckey->iv[0], pgp_block_size(seckey->alg))) {
         RNP_LOG("pgp_random failed");
         goto end;

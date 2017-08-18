@@ -438,6 +438,13 @@ typedef enum {
     PGP_SA_SM4 = 105 /* RNP extension - SM4 */
 } pgp_symm_alg_t;
 
+typedef enum {
+    PGP_CIPHER_MODE_NONE = 0,
+    PGP_CIPHER_MODE_CFB = 1,
+    PGP_CIPHER_MODE_CBC = 2,
+    PGP_CIPHER_MODE_OCB = 3,
+} pgp_cipher_mode_t;
+
 typedef struct symmetric_key_t {
     pgp_symm_alg_t type;
     uint8_t        key[PGP_MAX_KEY_SIZE];
@@ -566,9 +573,19 @@ typedef enum {
     PGP_S2KS_ITERATED_AND_SALTED = 3
 } pgp_s2k_specifier_t;
 
+#define PGP_SA_DEFAULT_CIPHER_MODE PGP_CIPHER_MODE_CFB
+
 void pgp_calc_mdc_hash(
   const uint8_t *, const size_t, const uint8_t *, const unsigned, uint8_t *);
 unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
+
+#define PGP_PROTECTED_AT_SIZE 15
+
+typedef struct pgp_key_t pgp_key_t;
+
+struct pgp_seckey_t;
+
+typedef struct pgp_seckey_t *pgp_seckey_decrypt_t(const pgp_key_t *key, FILE *passfp);
 
 /** pgp_seckey_t
  */
@@ -576,8 +593,9 @@ typedef struct pgp_seckey_t {
     pgp_pubkey_t        pubkey; /* public key */
     pgp_s2k_usage_t     s2k_usage;
     pgp_s2k_specifier_t s2k_specifier;
-    pgp_symm_alg_t      alg;      /* symmetric alg */
-    pgp_hash_alg_t      hash_alg; /* hash algorithm */
+    pgp_symm_alg_t      alg;         /* symmetric alg */
+    pgp_cipher_mode_t   cipher_mode; /* block cipher mode */
+    pgp_hash_alg_t      hash_alg;    /* hash algorithm */
     uint8_t             salt[PGP_SALT_SIZE];
     unsigned            s2k_iterations;
     uint8_t             iv[PGP_MAX_BLOCK_SIZE];
@@ -589,6 +607,11 @@ typedef struct pgp_seckey_t {
     } key;
     unsigned checksum;
     uint8_t *checkhash;
+
+    size_t                encrypted_len;
+    uint8_t *             encrypted;
+    pgp_seckey_decrypt_t *decrypt_cb;
+    const char *          protected_at[PGP_PROTECTED_AT_SIZE + 1]; // keep 1 byte for \0 and padding
 } pgp_seckey_t;
 
 /** Signature Type.
@@ -1024,7 +1047,7 @@ typedef struct pgp_subsig_t {
 } pgp_subsig_t;
 
 /* describes a user's key */
-typedef struct pgp_key_t {
+struct pgp_key_t {
     DYNARRAY(uint8_t *, uid);          /* array of user ids */
     DYNARRAY(pgp_rawpacket_t, packet); /* array of raw packets */
     DYNARRAY(pgp_subsig_t, subsig);    /* array of signature subkeys */
@@ -1040,7 +1063,7 @@ typedef struct pgp_key_t {
     uint8_t           revoked;    /* key has been revoked */
     pgp_revoke_t      revocation; /* revocation reason */
     symmetric_key_t   session_key;
-} pgp_key_t;
+};
 
 /* structure used to hold context of key generation */
 typedef struct rnp_keygen_crypto_params_t {

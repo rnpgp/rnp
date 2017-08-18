@@ -58,6 +58,7 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <string.h>
 
 #include <rnp/rnp_sdk.h>
+#include <packet.h>
 
 #include "types.h"
 #include "key_store_pgp.h"
@@ -123,6 +124,14 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PTAG_CT_SECRET_SUBKEY:
     case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
     case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
+        keydata.seckey = content->seckey;
+        keydata.seckey.decrypt_cb = pgp_decrypt_seckey_parser;
+        if (!rnp_key_store_add_keydata(io, keyring, &keydata, &cb->key, pkt->tag)) {
+            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to add keydata to key store.");
+            return PGP_FINISHED;
+        }
+        cb->subsig = NULL;
+        return PGP_KEEP_MEMORY;
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
         if (pgp_is_secret_key_tag(pkt->tag)) {

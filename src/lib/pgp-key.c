@@ -55,6 +55,7 @@
 #include <rnp/rnp_sdk.h>
 #include "readerwriter.h"
 #include "validate.h"
+#include "packet.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -405,31 +406,21 @@ decrypt_cb_empty(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     }
 }
 
-/**
-\ingroup Core_Keys
-\brief Decrypts secret key from given key with given passphrase
-\param key Key from which to get secret key
-\param passphrase Passphrase to use to decrypt secret key
-\return secret key
-*/
 pgp_seckey_t *
-pgp_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
+pgp_decrypt_seckey_parser(const pgp_key_t *key, FILE *passfp)
 {
     pgp_stream_t *stream;
     const int     printerrors = 1;
     decrypt_t     decrypt;
-
-    // key hasn't got raw packets, so, we can't decrypt it
-    if (key->packetc == 0) {
-        return (pgp_seckey_t *) &key->key.seckey;
-    }
 
     /* XXX first try with an empty passphrase */
     (void) memset(&decrypt, 0x0, sizeof(decrypt));
 
     decrypt.key = key;
     stream = pgp_new(sizeof(*stream));
-    pgp_key_reader_set(stream, key);
+    if (!pgp_key_reader_set(stream, key)) {
+        return NULL;
+    }
     pgp_set_callback(stream, decrypt_cb_empty, &decrypt);
     stream->readinfo.accumulate = 1;
     pgp_parse(stream, !printerrors);
@@ -445,12 +436,31 @@ pgp_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     /* ask for a passphrase */
     decrypt.passfp = passfp;
     stream = pgp_new(sizeof(*stream));
-    pgp_key_reader_set(stream, key);
+    if (!pgp_key_reader_set(stream, key)) {
+        return NULL;
+    }
     pgp_set_callback(stream, decrypt_cb, &decrypt);
     stream->readinfo.accumulate = 1;
     pgp_parse(stream, !printerrors);
     pgp_stream_delete(stream);
     return decrypt.seckey;
+}
+
+/**
+\ingroup Core_Keys
+\brief Decrypts secret key from given key with given passphrase
+\param key Key from which to get secret key
+\param passphrase Passphrase to use to decrypt secret key
+\return secret key
+*/
+pgp_seckey_t *
+pgp_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
+{
+    if (key->key.seckey.decrypt_cb == NULL) {
+        return NULL;
+    }
+
+    return key->key.seckey.decrypt_cb(key, passfp);
 }
 
 /**

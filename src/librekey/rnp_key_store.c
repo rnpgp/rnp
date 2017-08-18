@@ -279,7 +279,7 @@ rnp_key_store_write_to_file(rnp_t *          rnp,
                      MAXPATHLEN,
                      "%s/%s.key",
                      key_store->path,
-                     rnp_strhexdump(grips, grip, 20, ""));
+                     rnp_strhexdump_upper(grips, grip, 20, ""));
 
             memset(&mem, 0, sizeof(mem));
             if (!rnp_key_store_g10_key_to_mem(
