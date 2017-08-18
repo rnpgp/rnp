@@ -633,34 +633,52 @@ process_dash_escaped(pgp_stream_t *stream,
             }
         }
         if (c == '\n' && body->length) {
-            if (memchr(body->data + 1, '\n', body->length - 1) != NULL) {
+            if (memchr(body->data + 2, '\n', body->length - 2) != NULL) {
                 (void) fprintf(stderr, "process_dash_escaped: newline found\n");
                 return -1;
             }
             if (rnp_get_debug(__FILE__)) {
-                fprintf(stderr, "Got body:\n%s\n", body->data);
+                fprintf(stderr, "Got body:\n%.*s\n", body->length, body->data);
             }
+
+            // Removing trailing whitespaces as per RFC
+            while ((body->length > 0) && ((body->data[body->length - 1] == 0x20) ||
+                                          (body->data[body->length - 1] == 0x09))) {
+                body->length--;
+            }
+
             CALLBACK(PGP_PTAG_CT_SIGNED_CLEARTEXT_BODY, cbinfo, &content);
             body->length = 0;
         }
-        body->data[body->length++] = c;
-        total += 1;
-        if (body->length == sizeof(body->data)) {
+
+        if (c != '\r') {
+            if (c == '\n') {
+                body->data[body->length++] = '\r';
+                total++;
+            }
+            body->data[body->length++] = c;
+            total++;
+        }
+
+        if (body->length == sizeof(body->data) - 1) {
             if (rnp_get_debug(__FILE__)) {
-                (void) fprintf(stderr, "Got body (2):\n%s\n", body->data);
+                (void) fprintf(stderr, "Got body (2):\n%.*s\n", body->length, body->data);
             }
             CALLBACK(PGP_PTAG_CT_SIGNED_CLEARTEXT_BODY, cbinfo, &content);
             body->length = 0;
         }
     }
-    if (body->data[0] != '\n') {
+
+    if (body->data[1] != '\n') {
         (void) fprintf(stderr, "process_dash_escaped: no newline in body data\n");
         return -1;
     }
-    if (body->length != 1) {
+
+    if (body->length != 2) {
         (void) fprintf(stderr, "process_dash_escaped: bad body length\n");
         return -1;
     }
+
     /* don't send that one character, because it's part of the trailer */
     (void) memset(&content2, 0x0, sizeof(content2));
     CALLBACK(PGP_PTAG_CT_SIGNED_CLEARTEXT_TRAILER, cbinfo, &content2);
