@@ -109,13 +109,14 @@ int test_value_equal(const char *  what,
  */
 char *uint_to_string(char *buff, const int buffsize, unsigned int num, int base);
 
-bool write_pass_to_pipe(int fd, size_t count);
+bool write_pass_to_pipe(int fd, const char *password, size_t count);
 /* Setup readable pipe with default passphrase inside */
-int setupPassphrasefd(int *pipefd);
+int setupPassphrasefd(int *pipefd, const char *password);
 
 /* Common initialization of rnp structure : home path, keystore format and pointer to store
  * passphrase fd */
-int setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd);
+int setup_rnp_common(
+  rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd, const char *password);
 
 /* Initialize key generation params with default values and specified hash algorithm */
 void set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc, pgp_hash_alg_t hashalg);

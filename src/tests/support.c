@@ -312,9 +312,8 @@ uint_to_string(char *buff, const int buffsize, unsigned int num, int base)
 }
 
 bool
-write_pass_to_pipe(int fd, size_t count)
+write_pass_to_pipe(int fd, const char *password, size_t count)
 {
-    const char *const password = "passwordforkeygeneration\n";
     for (size_t i = 0; i < count; i++) {
         const char *p = password;
         ssize_t     remaining = strlen(p);
@@ -333,7 +332,7 @@ write_pass_to_pipe(int fd, size_t count)
 }
 
 bool
-setupPassphrasefd(int *pipefd)
+setupPassphrasefd(int *pipefd, const char *password)
 {
     bool ok = false;
 
@@ -342,7 +341,7 @@ setupPassphrasefd(int *pipefd)
         goto end;
     }
     // write it twice for normal keygen (primary+sub)
-    if (!write_pass_to_pipe(pipefd[1], 2)) {
+    if (!write_pass_to_pipe(pipefd[1], password, 2)) {
         close(pipefd[1]);
         goto end;
     }
@@ -354,7 +353,8 @@ end:
 }
 
 bool
-setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd)
+setup_rnp_common(
+  rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd, const char *password)
 {
     int          res;
     char         pubpath[MAXPATHLEN];
@@ -365,8 +365,8 @@ setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pi
     rnp_params_init(&params);
 
     /* set password fd if any */
-    if (pipefd) {
-        if ((res = setupPassphrasefd(pipefd)) != 1) {
+    if (pipefd && password) {
+        if ((res = setupPassphrasefd(pipefd, password)) != 1) {
             return res;
         }
         params.passfd = pipefd[0];

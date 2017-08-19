@@ -40,7 +40,9 @@ rnpkeys_exportkey_verifyUserId(void **state)
     char *            exportedkey = NULL;
 
     /* Initialize the rnp structure. */
-    rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
+    rnp_assert_ok(
+      rstate,
+      setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd, "passwordforkeygeneration\n"));
 
     /* Generate the key */
     set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
