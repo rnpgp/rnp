@@ -457,7 +457,16 @@ pgp_seckey_t *
 pgp_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
 {
     if (key->key.seckey.decrypt_cb == NULL) {
-        return NULL;
+        pgp_seckey_t *seckey = calloc(1, sizeof(*seckey));
+        if (seckey == NULL) {
+            (void) fprintf(stderr, "can't allocate memory\n");
+            return NULL;
+        }
+
+        // copy secret key for don't crash at free when the key doesn't need anymore
+        memcpy(seckey, &key->key.seckey, sizeof(*seckey));
+
+        return seckey;
     }
 
     return key->key.seckey.decrypt_cb(key, passfp);
