@@ -30,6 +30,7 @@
 #include <librekey/key_store_pgp.h>
 #include <librepgp/packet-show.h>
 
+#include "crypto/ec.h"
 #include "readerwriter.h"
 #include "memory.h"
 #include "packet.h"
@@ -207,8 +208,6 @@ validate_keygen_primary(const rnp_keygen_primary_desc_t *desc)
     return true;
 }
 
-extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
-
 static uint32_t
 get_numbits(const rnp_keygen_crypto_params_t *crypto)
 {
@@ -221,8 +220,10 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
-        return ec_curves[crypto->ecc.curve].bitlen;
+    case PGP_PKA_SM2_ENCRYPT: {
+        const ec_curve_desc_t *curve = get_curve_desc(crypto->ecc.curve);
+        return curve ? curve->bitlen : 0;
+    }
     default:
         return 0;
     }

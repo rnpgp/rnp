@@ -29,14 +29,12 @@
 #include <string.h>
 #include <botan/ffi.h>
 
+#include "ec.h"
 #include "ecdsa.h"
 #include "crypto.h"
 #include "packet.h"
 #include "readerwriter.h"
 #include "utils.h"
-#include "utils.h"
-
-extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
 /* Used by ECDH keys. Specifies which hash and wrapping algorithm
  * to be used (see point 15. of RFC 4880).
@@ -56,25 +54,6 @@ struct {
   {.hash = PGP_HASH_SHA512, .wrap_alg = PGP_SA_AES_256},
 };
 
-pgp_curve_t
-find_curve_by_OID(const uint8_t *oid, size_t oid_len)
-{
-    for (size_t i = 0; i < ARRAY_SIZE(ec_curves); i++) {
-        if ((oid_len == ec_curves[i].OIDhex_len) &&
-            (!memcmp(oid, ec_curves[i].OIDhex, oid_len))) {
-            return i;
-        }
-    }
-
-    return PGP_CURVE_MAX;
-}
-
-const ec_curve_desc_t *
-get_curve_desc(const pgp_curve_t curve_id)
-{
-    return (curve_id < PGP_CURVE_MAX && curve_id > 0) ? &ec_curves[curve_id] : NULL;
-}
-
 /*
  * TODO: This code is common to ECDSA, ECDH, SM2.
  *       Put it to ec_utils.c together with the code above and
@@ -90,7 +69,6 @@ pgp_ecdh_ecdsa_genkeypair(pgp_seckey_t *seckey, const pgp_curve_t curve)
      * P-521 is biggest supported curve for ECDSA
      */
     uint8_t         point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
-    const size_t    filed_byte_size = BITS_TO_BYTES(ec_curves[curve].bitlen);
     botan_privkey_t pr_key = NULL;
     botan_pubkey_t  pu_key = NULL;
     botan_rng_t     rng = NULL;
@@ -98,13 +76,19 @@ pgp_ecdh_ecdsa_genkeypair(pgp_seckey_t *seckey, const pgp_curve_t curve)
     BIGNUM *        public_y = NULL;
     pgp_errcode_t   ret = PGP_E_C_KEY_GENERATION_FAILED;
 
+    const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
+    if (!ec_desc) {
+        goto end;
+    }
+    const size_t filed_byte_size = BITS_TO_BYTES(ec_desc->bitlen);
+
     if (botan_rng_init(&rng, NULL)) {
         goto end;
     }
 
     int bret = (seckey->pubkey.alg == PGP_PKA_ECDSA) ?
-                 botan_privkey_create_ecdsa(&pr_key, rng, ec_curves[curve].botan_name) :
-                 botan_privkey_create_ecdh(&pr_key, rng, ec_curves[curve].botan_name);
+                 botan_privkey_create_ecdsa(&pr_key, rng, ec_desc->botan_name) :
+                 botan_privkey_create_ecdh(&pr_key, rng, ec_desc->botan_name);
 
     if (bret) {
         goto end;
@@ -331,17 +315,4 @@ end:
     botan_pubkey_destroy(pub);
     botan_pk_op_verify_destroy(verifier);
     return ret;
-}
-
-bool
-ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey)
-{
-    const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
-    if (!curve) {
-        return false;
-    }
-
-    return pgp_write_scalar(output, curve->OIDhex_len, 1) &&
-           pgp_write(output, curve->OIDhex, curve->OIDhex_len) &&
-           pgp_write_mpi(output, pubkey->point);
 }

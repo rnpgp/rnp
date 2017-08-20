@@ -30,9 +30,9 @@
 #include <botan/ffi.h>
 
 #include "crypto/sm2.h"
+#include "ec.h"
 #include "crypto.h"
 #include "packet.h"
-#include "utils.h"
 #include "utils.h"
 
 rnp_result

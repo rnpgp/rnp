@@ -70,6 +70,7 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include <repgp/repgp.h>
 #include <repgp/repgp_def.h>
 #include "crypto/bn.h"
+#include "crypto/ec.h"
 #include "crypto/ecdh.h"
 #include "crypto/s2k.h"
 #include "crypto/dsa.h"

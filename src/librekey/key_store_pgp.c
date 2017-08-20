@@ -171,10 +171,10 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         }
         break;
     case PGP_PARSER_ERROR:
-        RNP_LOG("Error: %s\n", content->error);
+        RNP_LOG("Error: %s", content->error);
         return PGP_FINISHED;
     case PGP_PARSER_ERRCODE:
-        RNP_LOG("parse error: %s\n", pgp_errcode(content->errcode.errcode));
+        RNP_LOG("parse error: %s", pgp_errcode(content->errcode.errcode));
         break;
     case PGP_PTAG_CT_SIGNATURE_HEADER:
     case PGP_PTAG_CT_SIGNATURE:

@@ -229,18 +229,6 @@ typedef struct {
     uint8_t    keyid[PGP_KEY_ID_SIZE];
 } pgp_hashtype_t;
 
-/**
- * Structure holds description of elliptic curve
- */
-typedef struct ec_curve_desc_t {
-    const pgp_curve_t rnp_curve_id;
-    const size_t      bitlen;
-    const uint8_t     OIDhex[MAX_CURVE_OID_HEX_LEN];
-    const size_t      OIDhex_len;
-    const char *      botan_name;
-    const char *      pgp_name;
-} ec_curve_desc_t;
-
 /** \brief Structure to hold information about a packet parse.
  *
  *  This information includes options about the parse:
@@ -286,43 +274,5 @@ struct pgp_stream_t {
     unsigned virtualoff;
     uint8_t *virtualpkt;
 };
-
-/* -----------------------------------------------------------------------------
- * @brief   Finds curve ID by hex representation of OID
- *
- * @param   oid       buffer with OID in hex
- * @param   oid_len   length of oid buffer
- *
- * @returns success curve ID
- *          failure PGP_CURVE_MAX is returned
- *
- * @remarks see RFC 4880 bis 01 - 9.2 ECC Curve OID
--------------------------------------------------------------------------------- */
-pgp_curve_t find_curve_by_OID(const uint8_t *oid, size_t oid_len);
-
-/* -----------------------------------------------------------------------------
- * @brief   Serialize EC public to octet string
- *
- * @param   output      generated output
- * @param   pubkey      initialized ECDSA public key
- *
- * @pre     output      must be not null
- * @pre     pubkey      must be not null
- *
- * @returns true on success
- *
- * @remarks see RFC 4880 bis 01 - 5.5.2 Public-Key Packet Formats
--------------------------------------------------------------------------------- */
-bool ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey);
-
-/* -----------------------------------------------------------------------------
- * @brief   Returns pointer to the curve descriptor
- *
- * @param   Valid curve ID
- *
- * @returns NULL if wrong ID provided, otherwise descriptor
- *
--------------------------------------------------------------------------------- */
-const ec_curve_desc_t *get_curve_desc(const pgp_curve_t curve_id);
 
 #endif /* CRYPTO_H_ */

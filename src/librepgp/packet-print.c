@@ -69,6 +69,7 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include "packet.h"
 #include "pgp-key.h"
 #include "reader.h"
+#include "crypto/ec.h"
 
 #define F_REVOKED 1
 
@@ -84,7 +85,6 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 
 /* static functions */
 static bool format_key_usage(char *buffer, size_t size, uint8_t flags);
-extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
 static void
 print_indent(int indent)
@@ -336,10 +336,11 @@ numkeybits(const pgp_pubkey_t *pubkey)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
+    case PGP_PKA_SM2_ENCRYPT: {
         // BN_num_bytes returns value <= curve order
-        return ec_curves[pubkey->key.ecc.curve].bitlen;
-
+        const ec_curve_desc_t *curve = get_curve_desc(pubkey->key.ecc.curve);
+        return curve ? curve->bitlen : 0;
+    }
     default:
         (void) fprintf(stderr, "Unknown public key alg in numkeybits\n");
         return -1;
@@ -942,11 +943,14 @@ pgp_print_pubkey(const pgp_pubkey_t *pubkey)
         print_bn(0, "y", pubkey->key.elgamal.y);
         break;
     case PGP_PKA_ECDSA:
-    case PGP_PKA_ECDH:
-        print_string(0, "curve", ec_curves[pubkey->key.ecc.curve].botan_name);
-        print_bn(0, "public point", pubkey->key.ecc.point);
+    case PGP_PKA_ECDH: {
+        const ec_curve_desc_t *curve = get_curve_desc(pubkey->key.ecc.curve);
+        if (curve) {
+            print_string(0, "curve", curve->botan_name);
+            print_bn(0, "public point", pubkey->key.ecc.point);
+        }
         break;
-
+    }
     default:
         (void) fprintf(stderr, "pgp_print_pubkey: Unusual algorithm\n");
     }
@@ -995,13 +999,17 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_SM2_ENCRYPT:
-    case PGP_PKA_ECDH:
-        cc += snprintf(&out[cc],
-                       outsize - cc,
-                       "curve=%s\npoint=%s\n",
-                       ec_curves[key->key.pubkey.key.ecc.curve].botan_name,
-                       BN_bn2hex(key->key.pubkey.key.ecc.point));
+    case PGP_PKA_ECDH: {
+        const ec_curve_desc_t *curve = get_curve_desc(key->key.pubkey.key.ecc.curve);
+        if (curve) {
+            cc += snprintf(&out[cc],
+                           outsize - cc,
+                           "curve=%s\npoint=%s\n",
+                           curve->botan_name,
+                           BN_bn2hex(key->key.pubkey.key.ecc.point));
+        }
         break;
+    }
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         cc += snprintf(&out[cc],
