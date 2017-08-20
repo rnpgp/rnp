@@ -73,6 +73,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "types.h"
 #include "crypto/bn.h"
 #include "crypto/rsa.h"
+#include "crypto/ec.h"
 #include "crypto/elgamal.h"
 #include "crypto/eddsa.h"
 #include "crypto/ecdh.h"
@@ -88,40 +89,6 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "utils.h"
 #include <rnp/rnp_def.h>
 #include "../librepgp/reader.h"
-
-/**
- * EC Curves definition used by implementation
- *
- * \see RFC4880 bis01 - 9.2. ECC Curve OID
- *
- * Order of the elements in this array corresponds to
- * values in pgp_curve_t enum.
- */
-// TODO: Check size of this array against PGP_CURVE_MAX with static assert
-const ec_curve_desc_t ec_curves[] = {
-  {PGP_CURVE_UNKNOWN, 0, {0}, 0, NULL, NULL},
-
-  {PGP_CURVE_NIST_P_256,
-   256,
-   {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07},
-   8,
-   "secp256r1",
-   "NIST P-256"},
-  {PGP_CURVE_NIST_P_384, 384, {0x2B, 0x81, 0x04, 0x00, 0x22}, 5, "secp384r1", "NIST P-384"},
-  {PGP_CURVE_NIST_P_521, 521, {0x2B, 0x81, 0x04, 0x00, 0x23}, 5, "secp521r1", "NIST P-521"},
-  {PGP_CURVE_ED25519,
-   255,
-   {0x2b, 0x06, 0x01, 0x04, 0x01, 0xda, 0x47, 0x0f, 0x01},
-   9,
-   "Ed25519",
-   "Ed25519"},
-  {PGP_CURVE_SM2_P_256,
-   256,
-   {0x2A, 0x81, 0x1C, 0xCF, 0x55, 0x01, 0x82, 0x2D},
-   8,
-   "sm2p256v1",
-   "SM2 P-256"},
-};
 
 /**
 \ingroup Core_MPI
@@ -313,7 +280,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         break;
 
     case PGP_PKA_EDDSA:
-        if (pgp_genkey_eddsa(seckey, ec_curves[PGP_CURVE_ED25519].bitlen) != 1) {
+        if (!pgp_genkey_eddsa(seckey, get_curve_desc(PGP_CURVE_ED25519)->bitlen)) {
             RNP_LOG("failed to generate EDDSA key");
             goto end;
         }

@@ -9,6 +9,7 @@ dist_man_MANS		= librnp.3
 librnp_la_SOURCES	= \
 	crypto/bn.c \
 	crypto/dsa.c \
+	crypto/ec.c \
 	crypto/ecdh.c \
 	crypto/ecdsa.c \
 	crypto/eddsa.c \

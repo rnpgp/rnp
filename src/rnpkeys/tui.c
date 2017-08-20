@@ -1,8 +1,7 @@
 #include <stdbool.h>
-#include <crypto.h>
+#include "crypto.h"
+#include "crypto/ec.h"
 #include "rnp/rnpcfg.h"
-
-extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
 /* -----------------------------------------------------------------------------
  * @brief   Reads input from file pointer and converts it securelly to ints
@@ -89,7 +88,7 @@ ask_curve(FILE *input_fp)
     do {
         printf("Please select which elliptic curve you want:\n");
         for (int i = 1; (i < PGP_CURVE_MAX) && (i != PGP_CURVE_ED25519); i++) {
-            printf("\t(%u) %s\n", i, ec_curves[i].pgp_name);
+            printf("\t(%u) %s\n", i, get_curve_desc(i)->pgp_name);
         }
         printf("> ");
         ok = rnp_secure_get_long_from_fd(input_fp, &val);
@@ -221,8 +220,8 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
     // TODO this is mostly to get tests passing
     key_desc->subkey.crypto = key_desc->primary.crypto;
 
-    if(crypto->key_alg == PGP_PKA_SM2)
-       key_desc->subkey.crypto.key_alg = PGP_PKA_SM2_ENCRYPT;
+    if (crypto->key_alg == PGP_PKA_SM2)
+        key_desc->subkey.crypto.key_alg = PGP_PKA_SM2_ENCRYPT;
 
     return PGP_E_OK;
 }

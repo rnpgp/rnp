@@ -28,6 +28,7 @@
 #include <assert.h>
 #include <botan/ffi.h>
 #include "packet.h"
+#include "ec.h"
 #include "ecdh.h"
 #include "ecdsa.h"
 #include "crypto.h"

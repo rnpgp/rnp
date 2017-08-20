@@ -85,6 +85,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "packet-create.h"
 #include "packet.h"
 #include "signature.h"
+#include "crypto/ec.h"
 #include "crypto/s2k.h"
 #include "crypto/sm2.h"
 #include "writer.h"
@@ -97,8 +98,6 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "crypto/ecdsa.h"
 #include <rnp/rnp_def.h>
 #include "crypto/ecdh.h"
-
-extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
 /**
  * \ingroup Core_Create
@@ -162,23 +161,32 @@ pubkey_length(const pgp_pubkey_t *key)
     case PGP_PKA_DSA:
         return mpi_length(key->key.dsa.p) + mpi_length(key->key.dsa.q) +
                mpi_length(key->key.dsa.g) + mpi_length(key->key.dsa.y);
-    case PGP_PKA_ECDH:
-        return 1 // length of curve OID
-               + ec_curves[key->key.ecc.curve].OIDhex_len + mpi_length(key->key.ecc.point) +
-               1    // Size of following fields
+    case PGP_PKA_RSA:
+        return mpi_length(key->key.rsa.n) + mpi_length(key->key.rsa.e);
+    case PGP_PKA_ECDH: {
+        const ec_curve_desc_t *c = get_curve_desc(key->key.ecc.curve);
+        if (!c) {
+            RNP_LOG("Unknown curve");
+            return 0;
+        }
+        return 1                                                    // length of curve OID
+               + c->OIDhex_len + mpi_length(key->key.ecc.point) + 1 // Size of following fields
                + 1  // Value 1 reserved for future use
                + 1  // Hash function ID used with KDF
                + 1; // Symmetric algorithm used to wrap symmetric key
+    }
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
+    case PGP_PKA_SM2_ENCRYPT: {
+        const ec_curve_desc_t *c = get_curve_desc(key->key.ecc.curve);
+        if (!c) {
+            RNP_LOG("Unknown curve");
+            return 0;
+        }
         return 1 + // length of curve OID
-               +ec_curves[key->key.ecc.curve].OIDhex_len + mpi_length(key->key.ecc.point);
-
-    case PGP_PKA_RSA:
-        return mpi_length(key->key.rsa.n) + mpi_length(key->key.rsa.e);
-
+               c->OIDhex_len + mpi_length(key->key.ecc.point);
+    }
     default:
         RNP_LOG("unknown key algorithm");
     }
