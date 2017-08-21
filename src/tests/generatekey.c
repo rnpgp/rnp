@@ -521,29 +521,34 @@ ask_expert_details(rnp_t *ctx, rnp_cfg_t *ops, const char *rsp, size_t rsp_len)
     /* Run tests*/
     bool      ret = true;
     rnp_cfg_t cfg = {0};
+    int       pipefd[2] = {0};
     if (setup_rnp_common(ctx, RNP_KEYSTORE_GPG, NULL, NULL) != true) {
         return false;
     }
-    if (!rnpkeys_init(&cfg, ctx, ops, true)) {
-        return false;
-    }
-
-    int pipefd[2] = {0};
-
-    /* Write response to fd */
     if (pipe(pipefd) == -1) {
         ret = false;
         goto end;
     }
-    for (int i = 0; i < rsp_len;) {
-        i += write(pipefd[1], rsp + i, rsp_len - i);
+    rnp_cfg_setint(ops, CFG_PASSFD, pipefd[0]);
+    write_pass_to_pipe(pipefd[1], 2);
+    if (!rnpkeys_init(&cfg, ctx, ops, true)) {
+        return false;
     }
-    // write the pass 4 times (primary key+confirmation and subkey+confirmation)
-    write_pass_to_pipe(pipefd[1], 4);
-    close(pipefd[1]);
+
+    int user_input_pipefd[2] = {0};
+
+    /* Write response to fd */
+    if (pipe(user_input_pipefd) == -1) {
+        ret = false;
+        goto end;
+    }
+    for (int i = 0; i < rsp_len;) {
+        i += write(user_input_pipefd[1], rsp + i, rsp_len - i);
+    }
+    close(user_input_pipefd[1]);
 
     /* Mock user-input*/
-    ctx->user_input_fp = fdopen(pipefd[0], "r");
+    ctx->user_input_fp = fdopen(user_input_pipefd[0], "r");
 
     if (!rnp_cmd(&cfg, ctx, CMD_GENERATE_KEY, NULL)) {
         ret = false;
@@ -556,8 +561,8 @@ end:
         fclose(ctx->user_input_fp);
         ctx->user_input_fp = NULL;
     }
-    if (pipefd[0]) {
-        close(pipefd[0]);
+    if (user_input_pipefd[0]) {
+        close(user_input_pipefd[0]);
     }
     rnp_cfg_free(&cfg);
     return ret;
@@ -714,7 +719,8 @@ generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_384, strlen(test_ecdsa_384)));
-    rnp_assert_int_equal(rstate, rnp.action.generate_key_ctx.primary.crypto.hash_alg, PGP_HASH_SHA512);
+    rnp_assert_int_equal(
+      rstate, rnp.action.generate_key_ctx.primary.crypto.hash_alg, PGP_HASH_SHA512);
 
     rnp_cfg_free(&ops);
 }

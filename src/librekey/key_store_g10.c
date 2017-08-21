@@ -566,11 +566,9 @@ parse_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg, bool ha
 }
 
 static pgp_seckey_t *
-g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
+g10_decrypt_seckey(const pgp_key_t *key, const char *passphrase)
 {
     uint8_t            derived_key[PGP_MAX_KEY_SIZE];
-    char *             passphrase;
-    char               pass[MAX_PASSPHRASE_LENGTH];
     unsigned           keysize;
     uint8_t *          decrypted;
     pgp_seckey_t *     seckey;
@@ -581,27 +579,14 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     uint8_t            checksum[G10_SHA1_HASH_SIZE];
     const format_info *info;
 
-    if (key->key.seckey.encrypted_len == 0) {
+    if (key->key.seckey.encrypted_data_len == 0) {
         fprintf(stderr, "Hasn't got encrypted data!\n");
         return NULL;
-    }
-
-    if (pgp_getpassphrase(passfp, pass, sizeof(pass)) == 0) {
-        pass[0] = '\0';
-    }
-
-    passphrase = rnp_strdup(pass);
-    pgp_forget(pass, sizeof(pass));
-    if (passphrase == NULL) {
-        (void) fprintf(stderr, "bad allocation\n");
-        return false;
     }
 
     keysize = pgp_key_size(key->key.seckey.alg);
     if (keysize == 0) {
         (void) fprintf(stderr, "parse_seckey: unknown symmetric algo\n");
-        pgp_forget(passphrase, strlen(passphrase));
-        free(passphrase);
         return false;
     }
 
@@ -612,21 +597,19 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
                          key->key.seckey.salt,
                          key->key.seckey.s2k_iterations)) {
         (void) fprintf(stderr, "pgp_s2k_iterated failed\n");
-        pgp_forget(passphrase, strlen(passphrase));
-        free(passphrase);
         return false;
     }
-
-    pgp_forget(passphrase, strlen(passphrase));
-    free(passphrase);
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "input iv", key->key.seckey.iv, G10_CBC_IV_SIZE);
         hexdump(stderr, "key", derived_key, keysize);
-        hexdump(stderr, "encrypted", key->key.seckey.encrypted, key->key.seckey.encrypted_len);
+        hexdump(stderr,
+                "encrypted",
+                key->key.seckey.encrypted_data,
+                key->key.seckey.encrypted_data_len);
     }
 
-    decrypted = malloc(key->key.seckey.encrypted_len);
+    decrypted = malloc(key->key.seckey.encrypted_data_len);
     if (decrypted == NULL) {
         (void) fprintf(stderr, "can't allocate memory\n");
         return false;
@@ -661,10 +644,10 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     if (botan_cipher_update(decrypt,
                             BOTAN_CIPHER_UPDATE_FLAG_FINAL,
                             decrypted,
-                            key->key.seckey.encrypted_len,
+                            key->key.seckey.encrypted_data_len,
                             &output_written,
-                            key->key.seckey.encrypted,
-                            key->key.seckey.encrypted_len,
+                            key->key.seckey.encrypted_data,
+                            key->key.seckey.encrypted_data_len,
                             &input_consumed)) {
         (void) fprintf(stderr, "botan_cipher_update failed\n");
         botan_cipher_destroy(decrypt);
@@ -681,14 +664,14 @@ g10_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
     }
 
     if (!parse_sexp(&s_exp, &bytes, &length)) {
-        pgp_forget(decrypted, key->key.seckey.encrypted_len);
+        pgp_forget(decrypted, key->key.seckey.encrypted_data_len);
         free(decrypted);
         return false;
     }
 
     // ignore padding data
 
-    pgp_forget(decrypted, key->key.seckey.encrypted_len);
+    pgp_forget(decrypted, key->key.seckey.encrypted_data_len);
     free(decrypted);
 
     if (s_exp.sub_elementc == 0 || s_exp.sub_elements[0].is_block) {
@@ -853,15 +836,15 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp)
 
     memcpy(seckey->iv, params->sub_elements[1].block.bytes, params->sub_elements[1].block.len);
 
-    seckey->encrypted_len = protected->sub_elements[3].block.len;
+    seckey->encrypted_data_len = protected->sub_elements[3].block.len;
 
-    seckey->encrypted = malloc(seckey->encrypted_len);
-    if (seckey->encrypted == NULL) {
+    seckey->encrypted_data = malloc(seckey->encrypted_data_len);
+    if (seckey->encrypted_data == NULL) {
         fprintf(stderr, "Can't allocate memory\n");
         return false;
     }
 
-    memcpy(seckey->encrypted,
+    memcpy(seckey->encrypted_data,
            protected->sub_elements[3].block.bytes,
            protected->sub_elements[3].block.len);
     seckey->decrypt_cb = g10_decrypt_seckey;
@@ -1323,7 +1306,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
     }
 
     // if we had encrypted block, don't renecrypt
-    if (key->encrypted_len > 0 && key->encrypted != NULL) {
+    if (key->encrypted_data_len > 0 && key->encrypted_data != NULL) {
         goto write;
     }
 
@@ -1416,10 +1399,10 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
         }
     }
 
-    key->encrypted_len = raw.length;
+    key->encrypted_data_len = raw.length;
 
-    key->encrypted = malloc(key->encrypted_len);
-    if (key->encrypted == NULL) {
+    key->encrypted_data = malloc(key->encrypted_data_len);
+    if (key->encrypted_data == NULL) {
         (void) fprintf(stderr, "can't allocate memory\n");
         destroy_s_exp(&raw_s_exp);
         pgp_memory_release(&raw);
@@ -1448,8 +1431,8 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
 
     if (botan_cipher_update(encrypt,
                             BOTAN_CIPHER_UPDATE_FLAG_FINAL,
-                            key->encrypted,
-                            key->encrypted_len,
+                            key->encrypted_data,
+                            key->encrypted_data_len,
                             &output_written,
                             raw.buf,
                             raw.length,
@@ -1462,7 +1445,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const uint8_t *passphr
     pgp_memory_release(&raw);
     botan_cipher_destroy(encrypt);
 
-    key->encrypted_len = output_written;
+    key->encrypted_data_len = output_written;
 
 write:
     if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
@@ -1501,7 +1484,7 @@ write:
         return false;
     }
 
-    if (!add_block_to_sexp(sub_s_exp, key->encrypted, key->encrypted_len)) {
+    if (!add_block_to_sexp(sub_s_exp, key->encrypted_data, key->encrypted_data_len)) {
         return false;
     }
 
@@ -1520,9 +1503,9 @@ write:
     return true;
 
 error:
-    free(key->encrypted);
-    key->encrypted = NULL;
-    key->encrypted_len = 0;
+    free(key->encrypted_data);
+    key->encrypted_data = NULL;
+    key->encrypted_data_len = 0;
     destroy_s_exp(&raw_s_exp);
     pgp_memory_release(&raw);
     botan_cipher_destroy(encrypt);

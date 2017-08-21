@@ -102,31 +102,6 @@ read_partial_data(pgp_stream_t *stream, void *dest, size_t length)
     return (int) n;
 }
 
-/* get a pass phrase from the user */
-bool
-pgp_getpassphrase(void *in, char *phrase, size_t size)
-{
-    char * p;
-    size_t len;
-
-    if (in == NULL) {
-        while ((p = getpass("rnp passphrase: ")) == NULL) {
-        }
-        (void) snprintf(phrase, size, "%s", p);
-    } else {
-        memset(phrase, 0, size);
-        if (fgets(phrase, (int) size, in) == NULL) {
-            return false;
-        }
-
-        len = strlen(phrase);
-        if (len >= 1 && phrase[len - 1] == '\n') {
-            phrase[len - 1] = '\0';
-        }
-    }
-    return true;
-}
-
 /**
  * \ingroup Internal_Readers_Generic
  * \brief Starts reader stack
@@ -2098,13 +2073,23 @@ pgp_get_seckey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             pubkey = keypair;
         }
         secret = NULL;
+        if (!pgp_key_is_locked(keypair)) {
+            cbinfo->gotpass = 1;
+            *content->get_seckey.seckey = pgp_get_seckey(keypair);
+            break;
+        }
         cbinfo->gotpass = 0;
         for (i = 0; cbinfo->numtries == -1 || i < cbinfo->numtries; i++) {
             /* print out the user id */
             repgp_print_key(
               io, cbinfo->cryptinfo.pubring, pubkey, "signature ", &pubkey->key.pubkey, 0);
             /* now decrypt key */
-            secret = pgp_decrypt_seckey(keypair, cbinfo->passfp);
+            secret =
+              pgp_decrypt_seckey(keypair,
+                                 &cbinfo->cryptinfo.passphrase_provider,
+                                 &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT,
+                                                         .pubkey = pgp_get_pubkey(keypair),
+                                                         .key_type = keypair->type});
             if (secret != NULL) {
                 break;
             }

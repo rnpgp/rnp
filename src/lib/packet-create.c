@@ -346,7 +346,7 @@ hash_key_material(const pgp_seckey_t *key, uint8_t *result)
  * verification.
  */
 static bool
-write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output_t *output)
+write_seckey_body(const pgp_seckey_t *key, const char *passphrase, pgp_output_t *output)
 {
     /* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
 
@@ -605,7 +605,6 @@ pgp_write_xfer_pubkey(pgp_output_t *         output,
 bool
 pgp_write_xfer_seckey(pgp_output_t *         output,
                       const pgp_key_t *      key,
-                      const uint8_t *        passphrase,
                       const rnp_key_store_t *subkeys,
                       unsigned               armoured)
 {
@@ -613,6 +612,11 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
                                                       PGP_PTAG_CT_SECRET_SUBKEY,
                                                       PGP_PTAG_CT_USER_ID,
                                                       PGP_PTAG_CT_SIGNATURE};
+
+    if (!key->packetc || !key->packets) {
+        return false;
+    }
+
     if (armoured) {
         pgp_writer_push_armoured(output, PGP_PGP_PRIVATE_KEY_BLOCK);
     }
@@ -623,54 +627,6 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
         pgp_writer_info_finalise(&output->errors, &output->writer);
         pgp_writer_pop(output);
     }
-    return true;
-}
-
-bool
-pgp_write_xfer_anykey(pgp_output_t *         output,
-                      const pgp_key_t *      key,
-                      const uint8_t *        passphrase,
-                      const rnp_key_store_t *subkeys,
-                      unsigned               armoured)
-{
-    int i;
-
-    switch (key->type) {
-    case PGP_PTAG_CT_PUBLIC_KEY:
-    case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        if (!pgp_write_xfer_pubkey(output, key, NULL, armoured)) {
-            fprintf(stderr, "Can't write public key\n");
-            return false;
-        }
-        break;
-
-    case PGP_PTAG_CT_SECRET_KEY:
-    case PGP_PTAG_CT_SECRET_SUBKEY:
-        if (!pgp_write_xfer_seckey(output, key, passphrase, NULL, armoured)) {
-            RNP_LOG("Can't write private key");
-            return false;
-        }
-        break;
-
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
-        if (key->packetc == 0) {
-            fprintf(stderr, "Can't write encrypted private key without RAW packed.\n");
-            return false;
-        }
-        for (i = 0; i < key->packetc; i++) {
-            if (!pgp_write(output, key->packets[i].raw, key->packets[i].length)) {
-                fprintf(stderr, "Can't write part of encrypted private key\n");
-                return false;
-            }
-        }
-        break;
-
-    default:
-        fprintf(stderr, "Can't write key type: %d\n", key->type);
-        return false;
-    }
-
     return true;
 }
 
@@ -712,7 +668,7 @@ pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key, unsigned make_packe
 unsigned
 pgp_write_struct_seckey(pgp_content_enum    tag,
                         const pgp_seckey_t *key,
-                        const uint8_t *     passphrase,
+                        const char *        passphrase,
                         pgp_output_t *      output)
 {
     int length = 0;

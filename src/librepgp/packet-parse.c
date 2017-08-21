@@ -1139,8 +1139,6 @@ pgp_parser_content_free(pgp_packet_t *c)
 
     case PGP_PTAG_CT_SECRET_KEY:
     case PGP_PTAG_CT_SECRET_SUBKEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
         pgp_seckey_free(&c->u.seckey);
         break;
 
@@ -2421,6 +2419,44 @@ parse_litdata(pgp_region_t *region, pgp_stream_t *stream)
     return true;
 }
 
+void
+pgp_seckey_free_secret_mpis(pgp_seckey_t *seckey)
+{
+    switch (seckey->pubkey.alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        free_BN(&seckey->key.rsa.d);
+        free_BN(&seckey->key.rsa.p);
+        free_BN(&seckey->key.rsa.q);
+        free_BN(&seckey->key.rsa.u);
+        break;
+
+    case PGP_PKA_DSA:
+        free_BN(&seckey->key.dsa.x);
+        break;
+
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_SM2_ENCRYPT:
+        free_BN(&seckey->key.ecc.x);
+        break;
+
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        free_BN(&seckey->key.elgamal.x);
+        break;
+
+    default:
+        (void) fprintf(stderr,
+                       "pgp_seckey_free: Unknown algorithm: %d (%s)\n",
+                       seckey->pubkey.alg,
+                       pgp_show_pka(seckey->pubkey.alg));
+    }
+}
+
 /**
  * \ingroup Core_Create
  *
@@ -2436,40 +2472,8 @@ pgp_seckey_free(pgp_seckey_t *key)
     if (!key || !key->pubkey.alg) {
         return;
     }
+    pgp_seckey_free_secret_mpis(key);
     pgp_pubkey_free(&key->pubkey);
-    switch (key->pubkey.alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        free_BN(&key->key.rsa.d);
-        free_BN(&key->key.rsa.p);
-        free_BN(&key->key.rsa.q);
-        free_BN(&key->key.rsa.u);
-        break;
-
-    case PGP_PKA_DSA:
-        free_BN(&key->key.dsa.x);
-        break;
-
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
-        free_BN(&key->key.ecc.x);
-        break;
-
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        free_BN(&key->key.elgamal.x);
-        break;
-
-    default:
-        (void) fprintf(stderr,
-                       "pgp_seckey_free: Unknown algorithm: %d (%s)\n",
-                       key->pubkey.alg,
-                       pgp_show_pka(key->pubkey.alg));
-    }
     if (key->checkhash != NULL) {
         free(key->checkhash);
     }
@@ -2515,7 +2519,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     pgp_crypt_t   decrypt;
     pgp_hash_t    checkhash;
     unsigned      blocksize;
-    unsigned      crypted;
+    bool          crypted;
     uint8_t       c = 0x0;
     int           ret = 1;
 
@@ -2584,6 +2588,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     }
     crypted = pkt.u.seckey.s2k_usage == PGP_S2KU_ENCRYPTED ||
               pkt.u.seckey.s2k_usage == PGP_S2KU_ENCRYPTED_AND_HASHED;
+    pkt.u.seckey.encrypted = crypted;
 
     if (crypted) {
         pgp_packet_t seckey;
@@ -2616,12 +2621,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
             if (!consume_packet(region, stream, 0)) {
                 return false;
             }
-            if (tag == PGP_PTAG_CT_SECRET_KEY) {
-                CALLBACK(PGP_PTAG_CT_ENCRYPTED_SECRET_KEY, &stream->cbinfo, &pkt);
-
-            } else {
-                CALLBACK(PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY, &stream->cbinfo, &pkt);
-            }
+            CALLBACK(tag, &stream->cbinfo, &pkt);
             return true;
         }
         keysize = pgp_key_size(pkt.u.seckey.alg);
@@ -2670,6 +2670,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         /* now read encrypted data */
 
         pgp_reader_push_decrypt(stream, &decrypt, region);
+        pkt.u.seckey.encrypted = false;
 
         /*
          * Since all known encryption for PGP doesn't compress, we

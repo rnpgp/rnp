@@ -54,6 +54,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <repgp/repgp.h>
 #include "packet.h"
 
 struct pgp_key_t *pgp_key_new(void);
@@ -96,9 +97,11 @@ const struct pgp_seckey_t *pgp_get_seckey(const pgp_key_t *);
 
 pgp_seckey_t *pgp_get_writable_seckey(pgp_key_t *);
 
-pgp_seckey_t *pgp_decrypt_seckey_parser(const pgp_key_t *, FILE *);
+pgp_seckey_t *pgp_decrypt_seckey_parser(const pgp_key_t *, const char *);
 
-pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *, FILE *);
+pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *,
+                                 const pgp_passphrase_provider_t *,
+                                 const pgp_passphrase_ctx_t *);
 
 void pgp_set_seckey(pgp_contents_t *, const pgp_key_t *);
 
@@ -118,6 +121,10 @@ void pgp_key_init(pgp_key_t *, const pgp_content_enum);
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 
-char *pgp_export_key(pgp_io_t *, const pgp_key_t *, uint8_t *);
+char *pgp_export_key(pgp_io_t *, const pgp_key_t *, const pgp_passphrase_provider_t *);
+
+bool pgp_key_is_locked(const pgp_key_t *key);
+bool pgp_key_unlock(pgp_key_t *key, const pgp_passphrase_provider_t *provider);
+void pgp_key_lock(pgp_key_t *key);
 
 #endif // RNP_PACKET_KEY_H

@@ -705,13 +705,13 @@ pgp_sprint_key(pgp_io_t *             io,
 
 /* return the key info as a JSON encoded string */
 int
-repgp_sprint_json(pgp_io_t *             io,
-                  const rnp_key_store_t *keyring,
-                  const pgp_key_t *      key,
-                  json_object *          keyjson,
-                  const char *           header,
-                  const pgp_pubkey_t *   pubkey,
-                  const int              psigs)
+repgp_sprint_json(pgp_io_t *                    io,
+                  const struct rnp_key_store_t *keyring,
+                  const pgp_key_t *             key,
+                  json_object *                 keyjson,
+                  const char *                  header,
+                  const pgp_pubkey_t *          pubkey,
+                  const int                     psigs)
 {
     char     keyid[PGP_KEY_ID_SIZE * 3];
     char     fp[PGP_FINGERPRINT_HEX_SIZE];
@@ -802,12 +802,12 @@ repgp_sprint_json(pgp_io_t *             io,
 }
 
 int
-pgp_hkp_sprint_key(pgp_io_t *             io,
-                   const rnp_key_store_t *keyring,
-                   const pgp_key_t *      key,
-                   char **                buf,
-                   const pgp_pubkey_t *   pubkey,
-                   const int              psigs)
+pgp_hkp_sprint_key(pgp_io_t *                    io,
+                   const struct rnp_key_store_t *keyring,
+                   const pgp_key_t *             key,
+                   char **                       buf,
+                   const pgp_pubkey_t *          pubkey,
+                   const int                     psigs)
 {
     const pgp_key_t *trustkey;
     unsigned         from;
@@ -1052,7 +1052,7 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
         print_hexdump(0, "IV", seckey->iv, pgp_block_size(seckey->alg));
     }
     /* no more set if encrypted */
-    if (type == PGP_PTAG_CT_ENCRYPTED_SECRET_KEY) {
+    if (seckey->encrypted) {
         return;
     }
     switch (seckey->pubkey.alg) {
@@ -1661,11 +1661,6 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
         print_seckey_verbose(pkt->tag, &content->seckey);
         break;
 
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-        print_tagname(print->indent, "PGP_PTAG_CT_ENCRYPTED_SECRET_KEY");
-        print_seckey_verbose(pkt->tag, &content->seckey);
-        break;
-
     case PGP_PTAG_CT_ARMOUR_HEADER:
         print_tagname(print->indent, "ARMOUR HEADER");
         print_string(print->indent, "type", content->armour_header.type);
@@ -1737,13 +1732,12 @@ cb_list_packets(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 \param cb_get_passphrase
 */
 int
-pgp_list_packets(pgp_io_t *       io,
-                 char *           filename,
-                 unsigned         armour,
-                 rnp_key_store_t *secring,
-                 rnp_key_store_t *pubring,
-                 void *           passfp,
-                 pgp_cbfunc_t *   cb_get_passphrase)
+pgp_list_packets(pgp_io_t *                       io,
+                 char *                           filename,
+                 unsigned                         armour,
+                 rnp_key_store_t *                secring,
+                 rnp_key_store_t *                pubring,
+                 const pgp_passphrase_provider_t *passphrase_provider)
 {
     pgp_stream_t * stream = NULL;
     const unsigned accumulate = 1;
@@ -1754,8 +1748,7 @@ pgp_list_packets(pgp_io_t *       io,
     pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
     stream->cryptinfo.secring = secring;
     stream->cryptinfo.pubring = pubring;
-    stream->cbinfo.passfp = passfp;
-    stream->cryptinfo.getpassphrase = cb_get_passphrase;
+    stream->cryptinfo.passphrase_provider = *passphrase_provider;
     if (armour) {
         pgp_reader_push_dearmour(stream);
     }

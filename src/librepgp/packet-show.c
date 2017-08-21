@@ -134,7 +134,6 @@ static pgp_map_t packet_tag_map[] = {
   {PGP_PTAG_CT_SIGNED_CLEARTEXT_BODY, "CT: Signed Cleartext Body"},
   {PGP_PTAG_CT_SIGNED_CLEARTEXT_TRAILER, "CT: Signed Cleartext Trailer"},
   {PGP_PTAG_CT_UNARMOURED_TEXT, "CT: Unarmoured Text"},
-  {PGP_PTAG_CT_ENCRYPTED_SECRET_KEY, "CT: Encrypted Secret Key"},
   {PGP_PTAG_CT_SE_DATA_HEADER, "CT: Sym Encrypted Data Header"},
   {PGP_PTAG_CT_SE_DATA_BODY, "CT: Sym Encrypted Data Body"},
   {PGP_PTAG_CT_SE_IP_DATA_HEADER, "CT: Sym Encrypted IP Data Header"},

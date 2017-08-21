@@ -174,7 +174,8 @@ typedef struct pgp_key_t pgp_key_t;
 
 struct pgp_seckey_t;
 
-typedef struct pgp_seckey_t *pgp_seckey_decrypt_t(const pgp_key_t *key, FILE *passfp);
+typedef struct pgp_seckey_t *pgp_seckey_decrypt_t(const pgp_key_t *key,
+                                                  const char *     passphrase);
 
 /** pgp_seckey_t
  */
@@ -188,17 +189,31 @@ typedef struct pgp_seckey_t {
     uint8_t             salt[PGP_SALT_SIZE];
     unsigned            s2k_iterations;
     uint8_t             iv[PGP_MAX_BLOCK_SIZE];
+
+    /* This indicates the current state of the key union below.
+     * If false, the key union contains valid secret key material
+     * and is immediately available for operations.
+     * If true, the key union does not contain any valid secret
+     * key material and must be decrypted prior to use.
+     */
+    bool encrypted;
+
+    /*************************************************************
+     * Note: Consider all fields below to be invalid/unpopulated *
+     * unless this seckey has been decrypted.                    *
+     *************************************************************/
     union {
         pgp_rsa_seckey_t     rsa;
         pgp_dsa_seckey_t     dsa;
         pgp_elgamal_seckey_t elgamal;
         pgp_ecc_seckey_t     ecc;
     } key;
+
     unsigned checksum;
     uint8_t *checkhash;
 
-    size_t                encrypted_len;
-    uint8_t *             encrypted;
+    size_t                encrypted_data_len;
+    uint8_t *             encrypted_data;
     pgp_seckey_decrypt_t *decrypt_cb;
     const char *protected_at[PGP_PROTECTED_AT_SIZE + 1]; // keep 1 byte for \0 and padding
 } pgp_seckey_t;
@@ -507,6 +522,7 @@ void pgp_ss_sig_target_free(pgp_ss_sig_target_t *);
 
 void pgp_rawpacket_free(pgp_rawpacket_t *);
 void pgp_seckey_free(pgp_seckey_t *);
+void pgp_seckey_free_secret_mpis(pgp_seckey_t *);
 void pgp_pk_sesskey_free(pgp_pk_sesskey_t *);
 
 bool pgp_print_packet(pgp_printstate_t *, const pgp_packet_t *);
@@ -589,8 +605,6 @@ typedef struct rnp_keygen_crypto_params_t {
             uint32_t modulus_bit_len;
         } rsa;
     };
-
-    uint8_t passphrase[MAX_PASSPHRASE_LENGTH];
 } rnp_keygen_crypto_params_t;
 
 typedef struct rnp_selfsig_cert_info {

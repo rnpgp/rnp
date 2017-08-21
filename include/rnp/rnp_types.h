@@ -29,6 +29,7 @@
 
 #include <stdint.h>
 #include "packet.h"
+#include <repgp/repgp.h>
 
 /* rnp_result is the type used for return codes from the APIs. */
 typedef uint32_t rnp_result;
@@ -39,13 +40,16 @@ typedef struct rnp_t {
     void *    pubring;       /* public key ring */
     void *    secring;       /* s3kr1t key ring */
     pgp_io_t *io;            /* the io struct for results/errs */
-    void *    user_input_fp; /* file pointer for password input */
+    void *    user_input_fp; /* file pointer for user input */
+    void *    passfp;        /* file pointer for password input */
     char *    defkey;        /* default key id */
     int       pswdtries;     /* number of password tries, -1 for unlimited */
 
     union {
         rnp_keygen_desc_t generate_key_ctx;
     } action;
+
+    pgp_passphrase_provider_t passphrase_provider;
 } rnp_t;
 
 /* rnp initialization parameters : keyring pathes, flags, whatever else */
@@ -54,16 +58,19 @@ typedef struct rnp_params_t {
                                   default to not leak confidential information */
 
     int         passfd; /* password file descriptor */
-    const char *outs;   /* output stream : may be <stderr> , most likel these are subject for
-                           refactoring  */
-    const char *errs;   /* error stream : may be <stdout> */
-    const char *ress;   /* results stream : maye be <stdout>, <stderr> or file name/path */
+    int         userinputfd;
+    const char *outs; /* output stream : may be <stderr> , most likel these are subject for
+                         refactoring  */
+    const char *errs; /* error stream : may be <stdout> */
+    const char *ress; /* results stream : maye be <stdout>, <stderr> or file name/path */
 
     const char *ks_pub_format; /* format of the public key store */
     const char *ks_sec_format; /* format of the secret key store */
     char *      pubpath;       /* public keystore path */
     char *      secpath;       /* secret keystore path */
     char *      defkey;        /* default/preferred key id */
+
+    pgp_passphrase_provider_t passphrase_provider;
 } rnp_params_t;
 
 /* rnp operation context : contains additional data about the currently ongoing operation */
