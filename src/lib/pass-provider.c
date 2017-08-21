@@ -33,7 +33,7 @@
 #include <pgp-key.h>
 #include <rnp/rnp_sdk.h>
 
-bool
+static bool
 rnp_getpass(const char *prompt, char *buffer, size_t size)
 {
     struct termios saved_flags, noecho_flags;

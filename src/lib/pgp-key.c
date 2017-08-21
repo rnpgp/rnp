@@ -701,7 +701,7 @@ pgp_export_key(pgp_io_t *                       io,
 
     RNP_USED(io);
     if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
-        (void) fprintf(io->errs, "can't setup memory write\n");
+        RNP_LOG_FD(io->errs, "can't setup memory write\n");
         return NULL;
     }
 
@@ -779,17 +779,15 @@ bool
 pgp_key_unlock(pgp_key_t *key, const pgp_passphrase_provider_t *provider)
 {
     pgp_seckey_t *decrypted_seckey = NULL;
-    bool          ok = false;
 
     // sanity checks
     if (!key || !provider) {
-        goto done;
+        return false;
     }
 
     // see if it's already unlocked
     if (!pgp_key_is_locked(key)) {
-        ok = true;
-        goto done;
+        return true;
     }
 
     decrypted_seckey = pgp_decrypt_seckey(
@@ -797,12 +795,7 @@ pgp_key_unlock(pgp_key_t *key, const pgp_passphrase_provider_t *provider)
       provider,
       &(pgp_passphrase_ctx_t){
         .op = PGP_OP_UNLOCK, .pubkey = pgp_get_pubkey(key), .key_type = key->type});
-    if (!decrypted_seckey) {
-        goto done;
-    }
-    ok = true;
 
-done:
     if (decrypted_seckey) {
         // this shouldn't really be necessary, but just in case
         pgp_seckey_free_secret_mpis(&key->key.seckey);
@@ -818,8 +811,9 @@ done:
         pgp_seckey_free(decrypted_seckey);
         // free the actual structure
         free(decrypted_seckey);
+        return true;
     }
-    return ok;
+    return false;
 }
 
 void
