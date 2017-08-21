@@ -713,7 +713,7 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *key, uint8_t *passphrase)
 
     RNP_USED(io);
     if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
-        (void) fprintf(io->errs, "can't setup memory write\n");
+        RNP_LOG("Can't setup memory write");
         return NULL;
     }
 
