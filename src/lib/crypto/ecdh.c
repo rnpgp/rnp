@@ -36,6 +36,20 @@
 #define MAX_SP800_56A_OTHER_INFO 54
 #define OBFUSCATED_KEY_SIZE 40
 
+/* Used by ECDH keys. Specifies which hash and wrapping algorithm
+ * to be used (see point 15. of RFC 4880).
+ *
+ * Note: sync with ec_curves.
+ */
+static const struct ecdh_params_t {
+    pgp_curve_t    curve;    /* Curve ID */
+    pgp_hash_alg_t hash;     /* Hash used by kdf */
+    pgp_symm_alg_t wrap_alg; /* Symmetric algorithm used to wrap KEK*/
+} ecdh_params[] = {
+  {.curve = PGP_CURVE_NIST_P_256, .hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
+  {.curve = PGP_CURVE_NIST_P_384, .hash = PGP_HASH_SHA384, .wrap_alg = PGP_SA_AES_192},
+  {.curve = PGP_CURVE_NIST_P_521, .hash = PGP_HASH_SHA512, .wrap_alg = PGP_SA_AES_256}};
+
 // "Anonymous Sender " in hex
 static const unsigned char ANONYMOUS_SENDER[] = {0x41, 0x6E, 0x6F, 0x6E, 0x79, 0x6D, 0x6F,
                                                  0x75, 0x73, 0x20, 0x53, 0x65, 0x6E, 0x64,
@@ -168,6 +182,20 @@ compute_kek(uint8_t *              kek,
 end:
     ret &= !botan_pk_op_key_agreement_destroy(op_key_agreement);
     return ret;
+}
+
+bool
+set_ecdh_params(pgp_seckey_t *seckey, pgp_curve_t curve_id)
+{
+    for (int i = 0; i < ARRAY_SIZE(ecdh_params); i++) {
+        if (ecdh_params[i].curve == curve_id) {
+            seckey->pubkey.key.ecdh.kdf_hash_alg = ecdh_params[i].hash;
+            seckey->pubkey.key.ecdh.key_wrap_alg = ecdh_params[i].wrap_alg;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 rnp_result

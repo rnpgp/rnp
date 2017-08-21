@@ -285,24 +285,22 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
             goto end;
         }
         break;
-
-    case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
-        seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
-        if (pgp_ecdh_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK) {
-            RNP_LOG("failed to generate ECDSA key");
+        if (!set_ecdh_params(seckey, crypto->ecc.curve)) {
+            RNP_LOG("Unsupoorted curve [ID=%d]", crypto->ecc.curve);
             goto end;
         }
-        break;
+    /* FALLTHROUGH */
+    case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_SM2_ENCRYPT:
-        seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
-        if (pgp_sm2_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != RNP_SUCCESS) {
-            RNP_LOG("failed to generate SM2 key");
+        if (pgp_genkey_ec_uncompressed(seckey, seckey->pubkey.alg, crypto->ecc.curve) !=
+            RNP_SUCCESS) {
+            RNP_LOG("failed to generate EC key");
             goto end;
         }
+        seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
         break;
-
     default:
         RNP_LOG("key generation not implemented for PK alg: %d", seckey->pubkey.alg);
         goto end;

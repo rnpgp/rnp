@@ -31,6 +31,7 @@
 #ifndef _EC_H_
 #define _EC_H_
 
+#include <rnp/rnp_types.h>
 #include "packet.h"
 
 /**
@@ -52,7 +53,7 @@ typedef struct ec_curve_desc_t {
     const char *      pgp_name;
 } ec_curve_desc_t;
 
-/* -----------------------------------------------------------------------------
+/*
  * @brief   Finds curve ID by hex representation of OID
  *
  * @param   oid       buffer with OID in hex
@@ -62,10 +63,10 @@ typedef struct ec_curve_desc_t {
  *          failure PGP_CURVE_MAX is returned
  *
  * @remarks see RFC 4880 bis 01 - 9.2 ECC Curve OID
--------------------------------------------------------------------------------- */
+ */
 pgp_curve_t find_curve_by_OID(const uint8_t *oid, size_t oid_len);
 
-/* -----------------------------------------------------------------------------
+/*
  * @brief   Serialize EC public to octet string
  *
  * @param   output      generated output
@@ -77,17 +78,34 @@ pgp_curve_t find_curve_by_OID(const uint8_t *oid, size_t oid_len);
  * @returns true on success
  *
  * @remarks see RFC 4880 bis 01 - 5.5.2 Public-Key Packet Formats
--------------------------------------------------------------------------------- */
+ */
 bool ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey);
 
-/* -----------------------------------------------------------------------------
+/*
  * @brief   Returns pointer to the curve descriptor
  *
  * @param   Valid curve ID
  *
  * @returns NULL if wrong ID provided, otherwise descriptor
  *
--------------------------------------------------------------------------------- */
+ */
 const ec_curve_desc_t *get_curve_desc(const pgp_curve_t curve_id);
+
+/*
+ * @brief   Generates EC key in uncompressed format
+ *
+ * @param   seckey[out] private part of the key
+ * @param   alg_id ID of EC algorithm
+ * @param   curve underlying ECC curve ID
+ *
+ * @pre     alg_id MUST be supported algorithm
+ *
+ * @returns RNP_ERROR_BAD_PARAMETERS unknown curve_id
+ * @returns RNP_ERROR_OUT_OF_MEMORY memory allocation failed
+ * @returns RNP_ERROR_KEY_GENERATION implementation error
+ */
+rnp_result pgp_genkey_ec_uncompressed(pgp_seckey_t *         seckey,
+                                      const pgp_pubkey_alg_t alg_id,
+                                      const pgp_curve_t      curve);
 
 #endif
