@@ -60,7 +60,7 @@
 #include <stdint.h>
 
 #include <rnp/rnp_def.h>
-#include <repgp/rnp_repgp_def.h>
+#include <repgp/repgp_def.h>
 #include "types.h"
 #include "defs.h"
 #include "hash.h"

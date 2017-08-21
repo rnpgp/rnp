@@ -32,7 +32,7 @@
 #ifndef PACKET_PARSE_H_
 #define PACKET_PARSE_H_
 
-#include <repgp/rnp_repgp.h>
+#include <repgp/repgp.h>
 #include "types.h"
 
 void pgp_pubkey_free(pgp_pubkey_t *);

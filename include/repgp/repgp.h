@@ -1,3 +1,6 @@
+#ifndef REPGP_H_
+#define REPGP_H_
+
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -53,16 +56,13 @@
  * Parser for OpenPGP packets - headers.
  */
 
-#ifndef RNP_REPGP_H_
-#define RNP_REPGP_H_
-
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 
 #include <rekey/rnp_key_store.h>
 
-#include "rnp_repgp_def.h"
+#include "repgp_def.h"
 #include "packet.h"
 
 /** pgp_region_t */
@@ -186,4 +186,4 @@ int repgp_sprint_json(pgp_io_t *,
                       const pgp_pubkey_t *,
                       const int);
 
-#endif /* _RNP_REPGP_H_ */
+#endif /* REPGP_H_ */

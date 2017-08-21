@@ -77,7 +77,7 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 #include "writer.h"
 #include "signature.h"
 #include "packet.h"
-#include <repgp/rnp_repgp.h>
+#include <repgp/repgp.h>
 #include "readerwriter.h"
 #include "memory.h"
 #include "utils.h"

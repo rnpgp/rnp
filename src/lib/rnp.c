@@ -79,7 +79,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <rekey/rnp_key_store.h>
 
 #include "packet.h"
-#include <repgp/rnp_repgp.h>
+#include <repgp/repgp.h>
 #include <librepgp/packet-print.h>
 #include <librepgp/packet-show.h>
 #include "errors.h"

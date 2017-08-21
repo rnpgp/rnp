@@ -43,7 +43,7 @@
 #include <rnp/rnp_sdk.h>
 #include <rekey/rnp_key_store.h>
 
-#include <repgp/rnp_repgp.h>
+#include <repgp/repgp.h>
 
 #include "key_store_internal.h"
 #include "key_store_pgp.h"

@@ -74,7 +74,7 @@ __RCSID("$NetBSD: reader.c,v 1.49 2012/03/05 02:20:18 christos Exp $");
 #include <unistd.h>
 #endif
 
-#include <repgp/rnp_repgp.h>
+#include <repgp/repgp.h>
 
 #include <rnp/rnp_sdk.h>
 #include "signature.h"
