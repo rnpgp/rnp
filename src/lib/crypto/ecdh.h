@@ -41,6 +41,17 @@
 #define ECDH_WRAPPED_KEY_SIZE 48
 
 /*
+ * @brief   Sets hash algorithm and key wrapping algo
+ *          based on curve_id
+ *
+ * @param   seckey[out] private part of the key
+ * @param   curve       underlying ECC curve ID
+ *
+ * @returns false if curve is not supported, otherwise true
+ */
+bool set_ecdh_params(pgp_seckey_t *seckey, pgp_curve_t curve_id);
+
+/*
  * Encrypts session key with a KEK agreed during ECDH as specified in
  * RFC 4880 bis 01, 13.5
  *

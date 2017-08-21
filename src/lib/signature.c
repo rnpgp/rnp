@@ -245,7 +245,7 @@ ecdsa_sign(pgp_hash_t *            hash,
         return false;
 
     /* write signature to buf */
-    if (pgp_ecdsa_sign_hash(&sig, hashbuf, hashsize, prv_key, pub_key) != PGP_E_OK) {
+    if (pgp_ecdsa_sign_hash(&sig, hashbuf, hashsize, prv_key, pub_key) != RNP_SUCCESS) {
         return false;
     }
 
@@ -455,7 +455,7 @@ pgp_check_sig(const uint8_t *     hash,
 
     case PGP_PKA_ECDSA:
         ret = (pgp_ecdsa_verify_hash(&sig->info.sig.ecdsa, hash, length, &signer->key.ecc) ==
-               PGP_E_OK);
+               RNP_SUCCESS);
         break;
 
     default:

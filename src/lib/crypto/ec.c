@@ -29,6 +29,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <botan/ffi.h>
+
 #include "ec.h"
 #include "packet.h"
 #include "writer.h"
@@ -41,8 +43,7 @@
  * Order of the elements in this array corresponds to
  * values in pgp_curve_t enum.
  */
-// TODO: Check size of this array against PGP_CURVE_MAX with static assert
-const ec_curve_desc_t ec_curves[] = {
+static const ec_curve_desc_t ec_curves[] = {
   {PGP_CURVE_UNKNOWN, 0, {0}, 0, NULL, NULL},
 
   {PGP_CURVE_NIST_P_256,
@@ -65,6 +66,13 @@ const ec_curve_desc_t ec_curves[] = {
    8,
    "sm2p256v1",
    "SM2 P-256"},
+};
+
+static pgp_map_t ec_algo_to_botan[] = {
+  {PGP_PKA_ECDH, "ECDH"},
+  {PGP_PKA_ECDSA, "ECDSA"},
+  {PGP_PKA_SM2, "SM2_Sig"},
+  {PGP_PKA_SM2_ENCRYPT, "SM2_Sig"}, // Same name as for PGP_PKA_SM2
 };
 
 pgp_curve_t
@@ -97,4 +105,121 @@ ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey)
     return pgp_write_scalar(output, curve->OIDhex_len, 1) &&
            pgp_write(output, curve->OIDhex, curve->OIDhex_len) &&
            pgp_write_mpi(output, pubkey->point);
+}
+
+rnp_result
+pgp_genkey_ec_uncompressed(pgp_seckey_t *         seckey,
+                           const pgp_pubkey_alg_t alg_id,
+                           const pgp_curve_t      curve)
+{
+    /**
+     * Keeps "0x04 || x || y"
+     * \see 13.2.  ECDSA, ECDH, SM2 Conversion Primitives
+     *
+     * P-521 is biggest supported curve
+     */
+    uint8_t         point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
+    botan_privkey_t pr_key = NULL;
+    botan_pubkey_t  pu_key = NULL;
+    botan_rng_t     rng = NULL;
+    BIGNUM *        public_x = NULL;
+    BIGNUM *        public_y = NULL;
+    rnp_result      ret = RNP_ERROR_KEY_GENERATION;
+
+    const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
+    if (!ec_desc) {
+        ret = RNP_ERROR_BAD_PARAMETERS;
+        goto end;
+    }
+    const size_t filed_byte_size = BITS_TO_BYTES(ec_desc->bitlen);
+
+    if (botan_rng_init(&rng, NULL)) {
+        goto end;
+    }
+
+    // at this point it must succeed
+    if (botan_privkey_create(
+          &pr_key, pgp_str_from_map(alg_id, ec_algo_to_botan), ec_desc->botan_name, rng)) {
+        goto end;
+    }
+
+    if (botan_privkey_export_pubkey(&pu_key, pr_key)) {
+        goto end;
+    }
+
+    // Crash if seckey is null. It's clean and easy to debug design
+    public_x = BN_new();
+    public_y = BN_new();
+    seckey->key.ecc.x = BN_new();
+
+    if (!public_x || !public_y || !seckey->key.ecc.x) {
+        RNP_LOG("Allocation failed");
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto end;
+    }
+
+    if (botan_pubkey_get_field(public_x->mp, pu_key, "public_x")) {
+        goto end;
+    }
+
+    if (botan_pubkey_get_field(public_y->mp, pu_key, "public_y")) {
+        goto end;
+    }
+
+    if (botan_privkey_get_field(seckey->key.ecc.x->mp, pr_key, "x")) {
+        goto end;
+    }
+
+    const size_t x_bytes = BN_num_bytes(public_x);
+    const size_t y_bytes = BN_num_bytes(public_y);
+
+    // Safety check
+    if ((x_bytes > filed_byte_size) || (y_bytes > filed_byte_size)) {
+        RNP_LOG("Key generation failed");
+        ret = RNP_ERROR_BAD_PARAMETERS;
+        goto end;
+    }
+
+    /*
+     * Convert coordinates to MPI stored as
+     * "0x04 || x || y"
+     *
+     *  \see 13.2.  ECDSA and ECDH Conversion Primitives
+     *
+     * Note: Generated pk/sk may not always have exact number of bytes
+     *       which is important when converting to octet-string
+     */
+    point_bytes[0] = 0x04;
+    BN_bn2bin(public_x, &point_bytes[1 + filed_byte_size - x_bytes]);
+    BN_bn2bin(public_y, &point_bytes[1 + filed_byte_size + (filed_byte_size - y_bytes)]);
+
+    seckey->pubkey.key.ecc.point = BN_bin2bn(point_bytes, (2 * filed_byte_size) + 1, NULL);
+    if (!seckey->pubkey.key.ecc.point) {
+        goto end;
+    }
+
+    ret = RNP_SUCCESS;
+
+end:
+    if (rng != NULL) {
+        botan_rng_destroy(rng);
+    }
+    if (pr_key != NULL) {
+        botan_privkey_destroy(pr_key);
+    }
+    if (pu_key != NULL) {
+        botan_pubkey_destroy(pu_key);
+    }
+    if (public_x != NULL) {
+        BN_free(public_x);
+    }
+    if (public_y != NULL) {
+        BN_free(public_y);
+    }
+    if (RNP_SUCCESS != ret) {
+        RNP_LOG("EC key generation failed");
+        pgp_seckey_free(seckey);
+    }
+
+    return ret;
 }
