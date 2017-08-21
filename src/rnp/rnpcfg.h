@@ -23,8 +23,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef __RNP__CFG_H__
-#define __RNP__CFG_H__
+#ifndef RNP_CFG_H_
+#define RNP_CFG_H_
 
 #include <rnp/rnp.h>
 #include <stdbool.h>

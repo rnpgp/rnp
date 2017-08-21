@@ -392,7 +392,7 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
 
     case PGP_S2KS_SALTED:
         /* 8-octet salt value */
-        if (pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE)) {
+        if (pgp_random(RNP_UNCONST(&key->salt[0]), PGP_SALT_SIZE)) {
             RNP_LOG("pgp_random failed");
             return false;
         }
@@ -408,7 +408,7 @@ write_seckey_body(const pgp_seckey_t *key, const uint8_t *passphrase, pgp_output
 
     case PGP_S2KS_ITERATED_AND_SALTED:
         /* 8-octet salt value */
-        if (pgp_random(__UNCONST(&key->salt[0]), PGP_SALT_SIZE)) {
+        if (pgp_random(RNP_UNCONST(&key->salt[0]), PGP_SALT_SIZE)) {
             RNP_LOG("pgp_random failed");
             return false;
         }

@@ -29,8 +29,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _MISC_H_
-#define _MISC_H_
+#ifndef MISC_H_
+#define MISC_H_
 
 int pgp_keyid(uint8_t *, const size_t, const pgp_pubkey_t *);
 

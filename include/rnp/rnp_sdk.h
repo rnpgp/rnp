@@ -35,13 +35,13 @@
 
 #include <rnp/rnp_def.h>
 
-#ifndef __printflike
-#define __printflike(n, m) __attribute__((format(printf, n, m)))
+#ifndef PRINTFLIKE
+#define PRINTFLIKE(n, m) __attribute__((format(printf, n, m)))
 #endif
 
 const char *rnp_get_info(const char *type);
 
-void rnp_log(const char *, ...) __printflike(1, 2);
+void rnp_log(const char *, ...) PRINTFLIKE(1, 2);
 
 int   rnp_strcasecmp(const char *, const char *);
 char *rnp_strdup(const char *);

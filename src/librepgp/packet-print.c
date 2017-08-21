@@ -1764,7 +1764,7 @@ pgp_export_key(pgp_io_t *io, const pgp_key_t *key, uint8_t *passphrase)
     pgp_memory_t *mem;
     char *        cp;
 
-    __PGP_USED(io);
+    RNP_USED(io);
     if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
         (void) fprintf(io->errs, "can't setup memory write\n");
         return NULL;

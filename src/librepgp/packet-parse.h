@@ -29,8 +29,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _PACKET_PARSE_H_
-#define _PACKET_PARSE_H_
+#ifndef PACKET_PARSE_H_
+#define PACKET_PARSE_H_
 
 #include <repgp/rnp_repgp.h>
 #include "types.h"

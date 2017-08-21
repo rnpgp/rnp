@@ -103,9 +103,9 @@ key_reader(pgp_stream_t *stream,
 {
     validate_reader_t *reader = pgp_reader_get_arg(readinfo);
 
-    __PGP_USED(stream);
-    __PGP_USED(errors);
-    __PGP_USED(cbinfo);
+    RNP_USED(stream);
+    RNP_USED(errors);
+    RNP_USED(cbinfo);
     if (reader->offset == reader->key->packets[reader->packet].length) {
         reader->packet += 1;
         reader->offset = 0;

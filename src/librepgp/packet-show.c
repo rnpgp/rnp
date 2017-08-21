@@ -346,7 +346,7 @@ add_str(pgp_list_t *list, const char *str)
     if (list->size == list->used && list_resize(list)) {
         return false;
     }
-    list->strings[list->used++] = __UNCONST(str);
+    list->strings[list->used++] = RNP_UNCONST(str);
     return true;
 }
 

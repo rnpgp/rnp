@@ -53,8 +53,8 @@
  * Parser for OpenPGP packets - headers.
  */
 
-#ifndef _RNP_REPGP_H_
-#define _RNP_REPGP_H_
+#ifndef RNP_REPGP_H_
+#define RNP_REPGP_H_
 
 #include <stddef.h>
 #include <stdbool.h>

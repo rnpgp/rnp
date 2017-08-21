@@ -1136,7 +1136,7 @@ memory_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer
 {
     pgp_memory_t *mem;
 
-    __PGP_USED(errors);
+    RNP_USED(errors);
     mem = pgp_writer_get_arg(writer);
     if (!pgp_memory_add(mem, src, len)) {
         return false;

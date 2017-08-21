@@ -38,17 +38,17 @@
 #include <rnp/rnp_def.h>
 #include <rnp/rnp_types.h>
 
-#ifndef __BEGIN_DECLS
+#ifndef BEGIN_DECLS__
 #if defined(__cplusplus)
-#define __BEGIN_DECLS extern "C" {
-#define __END_DECLS }
+#define BEGIN_DECLS__ extern "C" {
+#define END_DECLS__ }
 #else
-#define __BEGIN_DECLS
-#define __END_DECLS
+#define BEGIN_DECLS__
+#define END_DECLS__
 #endif
 #endif
 
-__BEGIN_DECLS
+BEGIN_DECLS__
 
 /* initialize rnp using the init structure  */
 int rnp_init(rnp_t *, const rnp_params_t *);
@@ -107,6 +107,6 @@ bool rnp_validate_sigs(rnp_t *);
 /* save pgp key in ssh format */
 int rnp_write_sshkey(rnp_t *, char *, const char *, char *, size_t);
 
-__END_DECLS
+END_DECLS__
 
 #endif /* !RNP_H_ */

@@ -1674,7 +1674,7 @@ fd_reader(pgp_stream_t *stream,
     mmap_reader_t *reader;
     int            n;
 
-    __PGP_USED(cbinfo);
+    RNP_USED(cbinfo);
     reader = pgp_reader_get_arg(readinfo);
     if (!stream->coalescing && stream->virtualc && stream->virtualoff < stream->virtualc) {
         n = read_partial_data(stream, dest, length);
@@ -1735,8 +1735,8 @@ mem_reader(pgp_stream_t *stream,
     reader_mem_t *reader = pgp_reader_get_arg(readinfo);
     unsigned      n;
 
-    __PGP_USED(cbinfo);
-    __PGP_USED(errors);
+    RNP_USED(cbinfo);
+    RNP_USED(errors);
     if (!stream->coalescing && stream->virtualc && stream->virtualoff < stream->virtualc) {
         n = read_partial_data(stream, dest, length);
     } else {
@@ -2185,8 +2185,8 @@ mmap_reader(pgp_stream_t *stream,
     unsigned       n;
     char *         cmem = mem->mem;
 
-    __PGP_USED(errors);
-    __PGP_USED(cbinfo);
+    RNP_USED(errors);
+    RNP_USED(cbinfo);
     if (!stream->coalescing && stream->virtualc && stream->virtualoff < stream->virtualc) {
         n = read_partial_data(stream, dest, length);
     } else {

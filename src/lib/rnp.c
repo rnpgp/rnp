@@ -1322,7 +1322,7 @@ rnp_verify_file(rnp_ctx_t *ctx, const char *in, const char *out, int armored)
     pgp_io_t *       io;
     int              realarmor;
 
-    __PGP_USED(armored);
+    RNP_USED(armored);
     (void) memset(&result, 0x0, sizeof(result));
     io = ctx->rnp->io;
     if (in == NULL) {
