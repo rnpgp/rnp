@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009-2010 The NetBSD Foundation, Inc.
+ * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -28,30 +28,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RNPSDK_H_
-#define RNPSDK_H_
 
-#include <stdint.h>
+#ifndef MISC_H_
+#define MISC_H_
 
-#include <rnp/rnp_def.h>
+int pgp_keyid(uint8_t *, const size_t, const pgp_pubkey_t *);
 
-#ifndef PRINTFLIKE
-#define PRINTFLIKE(n, m) __attribute__((format(printf, n, m)))
-#endif
-
-const char *rnp_get_info(const char *type);
-
-void rnp_log(const char *, ...) PRINTFLIKE(1, 2);
-
-int   rnp_strcasecmp(const char *, const char *);
-char *rnp_strdup(const char *);
-
-char *rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep);
-
-char *rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *sep);
-
-int64_t rnp_filemtime(const char *path);
-
-const char *rnp_filename(const char *path);
+int pgp_fingerprint(pgp_fingerprint_t *, const pgp_pubkey_t *);
 
 #endif

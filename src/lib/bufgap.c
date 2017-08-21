@@ -68,8 +68,8 @@
 
 #define BGCHUNKSIZE KiB(4)
 
-#ifndef __UNCONST
-#define __UNCONST(a) ((void *) (unsigned long) (const void *) (a))
+#ifndef RNP_UNCONST
+#define RNP_UNCONST(a) ((void *) (unsigned long) (const void *) (a))
 #endif
 
 #ifndef USE_UTF
@@ -151,7 +151,7 @@ bufgap_open(bufgap_t *bp, const char *f)
             FREE(bp->buf);
             return 0;
         }
-        bp->name = strnsave(__UNCONST(f), (int) utfbytes(__UNCONST(f)));
+        bp->name = strnsave(RNP_UNCONST(f), (int) utfbytes(RNP_UNCONST(f)));
         bp->bbc = s.st_size;
         cp = &BEFSUB(bp, cc);
         for (;;) {
@@ -409,7 +409,7 @@ bufgap_insert(bufgap_t *bp, const char *s, int n)
             RENEW(char, bp->buf, bp->size, "bufgap_insert", return 0);
             (void) bufgap_seek(bp, off, BGFromBOF, BGChar);
         }
-        if ((rlen = chartorune(&r, __UNCONST(s))) == 1) {
+        if ((rlen = chartorune(&r, RNP_UNCONST(s))) == 1) {
             AFTSUB(bp, bp->abc) = *s;
         } else {
             (void) memmove(&AFTSUB(bp, bp->abc), s, (size_t) rlen);

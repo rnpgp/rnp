@@ -54,37 +54,21 @@
  */
 #include "config.h"
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
 #if defined(__NetBSD__)
 __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights reserved.");
 __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
-#endif
-
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
 #endif
 
 #ifdef RNP_DEBUG
 #include <assert.h>
 #endif
 
-#include "crypto/bn.h"
-#include "crypto.h"
-#include "crypto/ecdsa.h"
 #include "packet-show.h"
 #include "signature.h"
-#include "readerwriter.h"
-#include "utils.h"
 #include <rnp/rnp_sdk.h>
 #include "packet.h"
 #include "pgp-key.h"
+#include "reader.h"
 
 #define F_REVOKED 1
 
@@ -720,13 +704,13 @@ pgp_sprint_key(pgp_io_t *             io,
 
 /* return the key info as a JSON encoded string */
 int
-pgp_sprint_json(pgp_io_t *             io,
-                const rnp_key_store_t *keyring,
-                const pgp_key_t *      key,
-                json_object *          keyjson,
-                const char *           header,
-                const pgp_pubkey_t *   pubkey,
-                const int              psigs)
+repgp_sprint_json(pgp_io_t *             io,
+                  const rnp_key_store_t *keyring,
+                  const pgp_key_t *      key,
+                  json_object *          keyjson,
+                  const char *           header,
+                  const pgp_pubkey_t *   pubkey,
+                  const int              psigs)
 {
     char     keyid[PGP_KEY_ID_SIZE * 3];
     char     fp[PGP_FINGERPRINT_HEX_SIZE];
@@ -907,12 +891,12 @@ pgp_hkp_sprint_key(pgp_io_t *             io,
 
 /* print the key data for a pub or sec key */
 void
-pgp_print_key(pgp_io_t *             io,
-              const rnp_key_store_t *keyring,
-              const pgp_key_t *      key,
-              const char *           header,
-              const pgp_pubkey_t *   pubkey,
-              const int              psigs)
+repgp_print_key(pgp_io_t *             io,
+                const rnp_key_store_t *keyring,
+                const pgp_key_t *      key,
+                const char *           header,
+                const pgp_pubkey_t *   pubkey,
+                const int              psigs)
 {
     char *cp;
 
@@ -1770,36 +1754,4 @@ pgp_list_packets(pgp_io_t *       io,
     pgp_parse(stream, printerrors);
     pgp_teardown_file_read(stream, fd);
     return true;
-}
-
-/* this interface isn't right - hook into callback for getting passphrase */
-char *
-pgp_export_key(pgp_io_t *io, const pgp_key_t *key, uint8_t *passphrase)
-{
-    pgp_output_t *output;
-    pgp_memory_t *mem;
-    char *        cp;
-
-    __PGP_USED(io);
-    if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
-        (void) fprintf(io->errs, "can't setup memory write\n");
-        return NULL;
-    }
-
-    if (pgp_is_key_public(key)) {
-        pgp_write_xfer_pubkey(output, key, NULL, 1);
-    } else {
-        pgp_write_xfer_seckey(output, key, passphrase, NULL, 1);
-    }
-
-    const size_t mem_len = pgp_mem_len(mem) + 1;
-    if ((cp = (char *) malloc(mem_len)) == NULL) {
-        pgp_teardown_memory_write(output, mem);
-        return NULL;
-    }
-
-    memcpy(cp, pgp_mem_data(mem), mem_len);
-    pgp_teardown_memory_write(output, mem);
-    cp[mem_len - 1] = '\0';
-    return cp;
 }

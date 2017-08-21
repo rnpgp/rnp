@@ -52,24 +52,12 @@
 /** \file
  * \brief Parser for OpenPGP packets
  */
-#include "config.h"
-#include <assert.h>
-
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
 #if defined(__NetBSD__)
 __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights reserved.");
 __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #endif
 
-#include <sys/types.h>
-#include <sys/param.h>
-
-#include <stdarg.h>
-#include <stdlib.h>
-#include <string.h>
+#include "config.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -79,20 +67,20 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include <limits.h>
 #endif
 
-#include "packet.h"
+#include <repgp/repgp.h>
+#include <repgp/repgp_def.h>
 #include "crypto/bn.h"
-#include "packet-print.h"
-#include "pgp-key.h"
-#include "errors.h"
-#include "packet-show.h"
-#include "packet-create.h"
-#include "readerwriter.h"
-#include "utils.h"
-#include "crypto.h"
-
-#include "crypto/s2k.h"
-#include "utils.h"
 #include "crypto/ecdh.h"
+#include "crypto/s2k.h"
+#include "crypto/dsa.h"
+#include "crypto/rsa.h"
+#include "crypto/elgamal.h"
+
+#include "packet.h"
+#include "compress.h"
+#include "packet-print.h"
+#include "packet-show.h"
+#include "reader.h"
 
 #define ERRP(cbinfo, cont, err)                    \
     do {                                           \
@@ -3424,7 +3412,7 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
  */
 
 bool
-pgp_parse(pgp_stream_t *stream, const int perrors)
+pgp_parse(pgp_stream_t *stream, const bool show_errors)
 {
     uint32_t   pktlen;
     rnp_result res;
@@ -3432,24 +3420,12 @@ pgp_parse(pgp_stream_t *stream, const int perrors)
     do {
         res = parse_packet(stream, &pktlen);
     } while (RNP_ERROR_EOF != res);
-    if (perrors) {
+    if (show_errors) {
         pgp_print_errors(stream->errors);
     }
     return (stream->errors == NULL);
 }
 
-/**
- * \ingroup Core_ReadPackets
- *
- * \brief Specifies whether one or more signature
- * subpacket types should be returned parsed; or raw; or ignored.
- *
- * \param    stream    Pointer to previously allocated structure
- * \param    tag    Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one individual
- * signature
- * subpacket tag
- * \param    type    Parse type
- * \todo Make all packet types optional, not just subpackets */
 void
 pgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, pgp_parse_type_t type)
 {

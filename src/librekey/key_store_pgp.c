@@ -59,11 +59,12 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 
 #include <rnp/rnp_sdk.h>
 #include <packet.h>
+#include <librepgp/packet-show.h>
+#include <librepgp/reader.h>
 
 #include "types.h"
 #include "key_store_pgp.h"
 #include "signature.h"
-#include "packet-show.h"
 #include "readerwriter.h"
 #include "pgp-key.h"
 
@@ -382,7 +383,7 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
     pgp_key_t *  key;
     pgp_output_t output = {};
 
-    __PGP_USED(io);
+    RNP_USED(io);
     pgp_writer_set_memory(&output, mem);
 
     if (armour) {

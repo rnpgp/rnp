@@ -118,4 +118,6 @@ void pgp_key_init(pgp_key_t *, const pgp_content_enum);
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 
+char *pgp_export_key(pgp_io_t *, const pgp_key_t *, uint8_t *);
+
 #endif // RNP_PACKET_KEY_H

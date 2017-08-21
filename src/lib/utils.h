@@ -23,8 +23,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef __RNP__UTILS_H__
-#define __RNP__UTILS_H__
+#ifndef RNP_UTILS_H_
+#define RNP_UTILS_H_
 
 #include <stdio.h>
 #include "types.h"
@@ -69,10 +69,10 @@
 #define RNP_BUFSIZ 8192
 
 /* for silencing unused parameter warnings */
-#define __PGP_USED(x) /*LINTED*/ (void) &(x)
+#define RNP_USED(x) /*LINTED*/ (void) &(x)
 
-#ifndef __UNCONST
-#define __UNCONST(a) ((void *) (unsigned long) (const void *) (a))
+#ifndef RNP_UNCONST
+#define RNP_UNCONST(a) ((void *) (unsigned long) (const void *) (a))
 #endif
 
 /* Portable way to convert bits to bytes */

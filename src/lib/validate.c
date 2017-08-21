@@ -75,12 +75,13 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 #include <fcntl.h>
 #endif
 
-#include "packet-parse.h"
+#include <repgp/repgp.h>
 #include <rnp/rnp_sdk.h>
+#include <repgp/repgp.h>
 
-#include "packet-show.h"
+#include <librepgp/packet-show.h>
+#include <librepgp/reader.h>
 #include "signature.h"
-#include "readerwriter.h"
 #include "utils.h"
 #include "memory.h"
 #include "packet.h"
@@ -102,9 +103,9 @@ key_reader(pgp_stream_t *stream,
 {
     validate_reader_t *reader = pgp_reader_get_arg(readinfo);
 
-    __PGP_USED(stream);
-    __PGP_USED(errors);
-    __PGP_USED(cbinfo);
+    RNP_USED(stream);
+    RNP_USED(errors);
+    RNP_USED(cbinfo);
     if (reader->offset == reader->key->packets[reader->packet].length) {
         reader->packet += 1;
         reader->offset = 0;

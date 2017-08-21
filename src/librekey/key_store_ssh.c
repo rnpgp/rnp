@@ -368,7 +368,7 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
 
         if (rnp_get_debug(__FILE__)) {
             /*pgp_print_keydata(io, keyring, key, "pub", pubkey, 0);*/
-            __PGP_USED(io); /* XXX */
+            RNP_USED(io); /* XXX */
         }
     }
     free((void *) bin);
@@ -385,7 +385,7 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
     uint8_t     sesskey[PGP_MAX_KEY_SIZE];
     unsigned    sesskey_len;
 
-    __PGP_USED(io);
+    RNP_USED(io);
     /* XXX - check for rsa/dsa */
     if (!read_pem_seckey(f, key, "ssh-rsa", 0)) {
         return false;

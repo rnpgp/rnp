@@ -110,6 +110,7 @@ AC_CONFIG_FILES([
         Makefile
         include/Makefile
         src/Makefile
+        src/librepgp/Makefile
         src/librekey/Makefile
         src/lib/Makefile
         src/rnp/Makefile

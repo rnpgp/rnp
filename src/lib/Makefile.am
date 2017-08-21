@@ -3,8 +3,8 @@
 AM_CFLAGS			= $(WARNCFLAGS) $(BOTAN_INCLUDES) $(JSONC_INCLUDES)
 AM_LDFLAGS          = $(BOTAN_LDFLAGS) $(JSONC_LDFLAGS)
 lib_LTLIBRARIES		= librnp.la
-librnp_la_CPPFLAGS	= -I$(top_srcdir)/include
-librnp_la_LIBADD	= $(BOTAN_LIBS) $(JSONC_LIBS) ../librekey/librekey.la
+librnp_la_CPPFLAGS	= -I$(top_srcdir)/include -I$(top_srcdir)/src
+librnp_la_LIBADD	= $(BOTAN_LIBS) $(JSONC_LIBS) ../librekey/librekey.la ../librekey/librekey.la ../librepgp/librepgp.la
 dist_man_MANS		= librnp.3
 librnp_la_SOURCES	= \
 	crypto/bn.c \
@@ -24,12 +24,8 @@ librnp_la_SOURCES	= \
 	list.c \
 	misc.c \
 	packet-create.c \
-	packet-parse.c \
-	packet-print.c \
-	packet-show.c \
 	pem.c \
 	pgp-key.c \
-	reader.c \
 	rnp.c \
 	signature.c \
 	symmetric.c \

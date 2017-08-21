@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009-2010 The NetBSD Foundation, Inc.
+ * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -28,30 +28,25 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RNPSDK_H_
-#define RNPSDK_H_
 
-#include <stdint.h>
+#ifndef PACKET_PARSE_H_
+#define PACKET_PARSE_H_
 
-#include <rnp/rnp_def.h>
+#include <repgp/repgp.h>
+#include "types.h"
 
-#ifndef PRINTFLIKE
-#define PRINTFLIKE(n, m) __attribute__((format(printf, n, m)))
-#endif
+void pgp_pubkey_free(pgp_pubkey_t *);
 
-const char *rnp_get_info(const char *type);
+void pgp_seckey_free(pgp_seckey_t *);
 
-void rnp_log(const char *, ...) PRINTFLIKE(1, 2);
+void pgp_pk_sesskey_free(pgp_pk_sesskey_t *);
 
-int   rnp_strcasecmp(const char *, const char *);
-char *rnp_strdup(const char *);
+void pgp_userid_free(uint8_t **);
 
-char *rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep);
+void pgp_data_free(pgp_data_t *);
 
-char *rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *sep);
+void pgp_sig_free(pgp_sig_t *);
 
-int64_t rnp_filemtime(const char *path);
-
-const char *rnp_filename(const char *path);
+void pgp_rawpacket_free(pgp_rawpacket_t *);
 
 #endif

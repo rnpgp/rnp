@@ -703,6 +703,38 @@ pgp_key_init(pgp_key_t *key, const pgp_content_enum type)
     key->type = type;
 }
 
+/* this interface isn't right - hook into callback for getting passphrase */
+char *
+pgp_export_key(pgp_io_t *io, const pgp_key_t *key, uint8_t *passphrase)
+{
+    pgp_output_t *output;
+    pgp_memory_t *mem;
+    char *        cp;
+
+    RNP_USED(io);
+    if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
+        RNP_LOG("Can't setup memory write");
+        return NULL;
+    }
+
+    if (key->type == PGP_PTAG_CT_PUBLIC_KEY) {
+        pgp_write_xfer_pubkey(output, key, NULL, 1);
+    } else {
+        pgp_write_xfer_seckey(output, key, passphrase, NULL, 1);
+    }
+
+    const size_t mem_len = pgp_mem_len(mem) + 1;
+    if ((cp = (char *) malloc(mem_len)) == NULL) {
+        pgp_teardown_memory_write(output, mem);
+        return NULL;
+    }
+
+    memcpy(cp, pgp_mem_data(mem), mem_len);
+    pgp_teardown_memory_write(output, mem);
+    cp[mem_len - 1] = '\0';
+    return cp;
+}
+
 pgp_key_flags_t
 pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 {

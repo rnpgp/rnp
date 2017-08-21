@@ -139,7 +139,9 @@ bool pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubke
 /* armoured stuff */
 unsigned pgp_crc24(unsigned, uint8_t);
 
+// TODO: This should endup in reader.h or armour.h
 void pgp_reader_push_dearmour(pgp_stream_t *);
+void pgp_reader_pop_dearmour(pgp_stream_t *);
 
 bool pgp_writer_push_clearsigned(pgp_output_t *, pgp_create_sig_t *);
 void pgp_reader_pop_dearmour(pgp_stream_t *);

@@ -8,6 +8,6 @@ rnp_SOURCES		= \
 
 rnp_CPPFLAGS		= -I$(top_srcdir)/include $(JSONC_INCLUDES) $(BOTAN_INCLUDES)
 
-rnp_LDADD		= ../lib/librnp.la ../librekey/librekey.la
+rnp_LDADD		= ../lib/librnp.la ../librekey/librekey.la ../librepgp/librepgp.la
 
 dist_man_MANS		= rnp.1

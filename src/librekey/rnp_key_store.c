@@ -43,13 +43,14 @@
 #include <rnp/rnp_sdk.h>
 #include <rekey/rnp_key_store.h>
 
+#include <repgp/repgp.h>
+
 #include "key_store_internal.h"
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
 #include "key_store_ssh.h"
 #include "key_store_g10.h"
 
-#include "packet-print.h"
 #include "pgp-key.h"
 #include "crypto/bn.h"
 
@@ -469,9 +470,9 @@ rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring, const int psigs
 
     for (n = 0, key = keyring->keys; n < keyring->keyc; ++n, ++key) {
         if (pgp_is_key_secret(key)) {
-            pgp_print_key(io, keyring, key, "sec", &key->key.seckey.pubkey, 0);
+            repgp_print_key(io, keyring, key, "sec", &key->key.seckey.pubkey, 0);
         } else {
-            pgp_print_key(io, keyring, key, "pub", &key->key.pubkey, psigs);
+            repgp_print_key(io, keyring, key, "pub", &key->key.pubkey, psigs);
         }
         (void) fputc('\n', io->res);
     }
@@ -497,7 +498,7 @@ rnp_key_store_json(pgp_io_t *             io,
         } else {
             header = "sub"; /* subkey */
         }
-        pgp_sprint_json(io, keyring, key, jso, header, pubkey, psigs);
+        repgp_sprint_json(io, keyring, key, jso, header, pubkey, psigs);
         json_object_array_add(obj, jso);
     }
     return true;

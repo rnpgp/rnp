@@ -23,8 +23,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef __RNP__DEFS_H__
-#define __RNP__DEFS_H__
+#ifndef RNP_DEF_H_
+#define RNP_DEF_H_
 
 /* The dot directory relative to the user's home directory where keys
  * are stored.
@@ -54,6 +54,10 @@
  * 20090522
  */
 #define DEFAULT_HASH_ALG "SHA256"
+#define PGP_SA_DEFAULT_CIPHER_MODE PGP_CIPHER_MODE_CFB
+#define DEFAULT_PK_ALG PGP_PKA_RSA
+#define DEFAULT_RSA_NUMBITS 2048
+#define PGP_SA_DEFAULT_CIPHER PGP_SA_AES_256
 
 /*
  * Error code definitions

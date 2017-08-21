@@ -87,6 +87,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "crypto/sm2.h"
 #include "utils.h"
 #include <rnp/rnp_def.h>
+#include "../librepgp/reader.h"
 
 /**
  * EC Curves definition used by implementation
@@ -489,7 +490,7 @@ pgp_encrypt_file(rnp_ctx_t *         ctx,
     pgp_memory_t *inmem;
     int           fd_out;
 
-    __PGP_USED(io);
+    RNP_USED(io);
     inmem = pgp_memory_new();
     if (inmem == NULL) {
         (void) fprintf(stderr, "can't allocate mem\n");
@@ -537,7 +538,7 @@ pgp_encrypt_buf(rnp_ctx_t *         ctx,
     pgp_output_t *output;
     pgp_memory_t *outmem;
 
-    __PGP_USED(io);
+    RNP_USED(io);
     if (input == NULL) {
         (void) fprintf(io->errs, "pgp_encrypt_buf: null memory\n");
         return false;

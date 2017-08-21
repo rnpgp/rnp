@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009-2010 The NetBSD Foundation, Inc.
+ * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -28,30 +28,47 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RNPSDK_H_
-#define RNPSDK_H_
 
-#include <stdint.h>
+#ifndef READER_H_
+#define READER_H_
 
-#include <rnp/rnp_def.h>
+#include "packet-create.h"
 
-#ifndef PRINTFLIKE
-#define PRINTFLIKE(n, m) __attribute__((format(printf, n, m)))
-#endif
+/* if this is defined, we'll use mmap in preference to file ops */
+#define USE_MMAP_FOR_FILES 1
 
-const char *rnp_get_info(const char *type);
+void pgp_reader_set_fd(pgp_stream_t *, int);
+void pgp_reader_set_mmap(pgp_stream_t *, int);
+void pgp_reader_set_memory(pgp_stream_t *, const void *, size_t);
 
-void rnp_log(const char *, ...) PRINTFLIKE(1, 2);
+/* Do a sum mod 65536 of all bytes read (as needed for secret keys) */
+void     pgp_reader_push_sum16(pgp_stream_t *);
+uint16_t pgp_reader_pop_sum16(pgp_stream_t *);
 
-int   rnp_strcasecmp(const char *, const char *);
-char *rnp_strdup(const char *);
+void pgp_reader_push_se_ip_data(pgp_stream_t *, pgp_crypt_t *, pgp_region_t *);
+void pgp_reader_pop_se_ip_data(pgp_stream_t *);
 
-char *rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep);
+unsigned pgp_reader_set_accumulate(pgp_stream_t *, unsigned);
 
-char *rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *sep);
+/* file reading */
+int pgp_setup_file_read(pgp_io_t *,
+                        pgp_stream_t **,
+                        const char *,
+                        void *,
+                        pgp_cb_ret_t callback(const pgp_packet_t *, pgp_cbdata_t *),
+                        unsigned);
+void pgp_teardown_file_read(pgp_stream_t *, int);
 
-int64_t rnp_filemtime(const char *path);
+/* memory reading */
+int pgp_setup_memory_read(pgp_io_t *,
+                          pgp_stream_t **,
+                          pgp_memory_t *,
+                          void *,
+                          pgp_cb_ret_t callback(const pgp_packet_t *, pgp_cbdata_t *),
+                          unsigned);
+void pgp_teardown_memory_read(pgp_stream_t *, pgp_memory_t *);
 
-const char *rnp_filename(const char *path);
+void pgp_reader_push_dearmour(pgp_stream_t *);
+void pgp_reader_pop_dearmour(pgp_stream_t *);
 
-#endif
+#endif /* READER_H_ */
