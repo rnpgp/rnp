@@ -60,10 +60,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <rekey/rnp_key_store.h>
-
+#include <json.h>
 #include "repgp_def.h"
 #include "packet.h"
+
+struct rnp_key_store_t;
 
 /** pgp_region_t */
 typedef struct pgp_region_t {
@@ -172,18 +173,39 @@ pgp_reader_func_t pgp_stacked_read;
 
 /* ----------------------------- printing -----------------------------*/
 void repgp_print_key(pgp_io_t *,
-                     const rnp_key_store_t *,
+                     const struct rnp_key_store_t *,
                      const pgp_key_t *,
                      const char *,
                      const pgp_pubkey_t *,
                      const int);
 
 int repgp_sprint_json(pgp_io_t *,
-                      const rnp_key_store_t *,
+                      const struct rnp_key_store_t *,
                       const pgp_key_t *,
                       json_object *,
                       const char *,
                       const pgp_pubkey_t *,
                       const int);
+
+typedef struct pgp_passphrase_ctx_t {
+    uint8_t             op;
+    const pgp_pubkey_t *pubkey;
+    uint8_t             key_type;
+} pgp_passphrase_ctx_t;
+
+typedef bool pgp_passphrase_callback_t(const pgp_passphrase_ctx_t *ctx,
+                                       char *                      passphrase,
+                                       size_t                      passphrase_size,
+                                       void *                      userdata);
+
+typedef struct pgp_passphrase_provider_t {
+    pgp_passphrase_callback_t *callback;
+    void *                     userdata;
+} pgp_passphrase_provider_t;
+
+bool pgp_request_passphrase(const pgp_passphrase_provider_t *provider,
+                            const pgp_passphrase_ctx_t *     ctx,
+                            char *                           passphrase,
+                            size_t                           passphrase_size);
 
 #endif /* REPGP_H_ */

@@ -91,9 +91,9 @@ int rnp_sign_file(rnp_ctx_t *, const char *, const char *, const char *, bool, b
 int rnp_verify_file(rnp_ctx_t *, const char *, const char *, int);
 
 /* memory signing and encryption */
-int rnp_sign_memory(rnp_ctx_t *, const char *, char *, size_t, char *, size_t, bool);
+int rnp_sign_memory(rnp_ctx_t *, const char *, const char *, size_t, char *, size_t, bool);
 int rnp_verify_memory(rnp_ctx_t *, const void *, const size_t, void *, size_t, const int);
-int rnp_encrypt_memory(rnp_ctx_t *, const char *, void *, const size_t, char *, size_t);
+int rnp_encrypt_memory(rnp_ctx_t *, const char *, const void *, const size_t, char *, size_t);
 int rnp_decrypt_memory(rnp_ctx_t *, const void *, const size_t, char *, size_t);
 
 /* match and hkp-related functions */

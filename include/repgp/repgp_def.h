@@ -222,11 +222,6 @@ typedef enum {
     PGP_PTAG_CT_SIGNED_CLEARTEXT_BODY = 0x300 + 7,
     PGP_PTAG_CT_SIGNED_CLEARTEXT_TRAILER = 0x300 + 8,
     PGP_PTAG_CT_UNARMOURED_TEXT = 0x300 + 9,
-    PGP_PTAG_CT_ENCRYPTED_SECRET_KEY = 0x300 + 10, /* In this case the
-                                                    * algorithm specific
-                                                    * fields will not be
-                                                    * initialised */
-    PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY = 0x300 + 11,
     PGP_PTAG_CT_SE_DATA_HEADER = 0x300 + 12,
     PGP_PTAG_CT_SE_DATA_BODY = 0x300 + 13,
     PGP_PTAG_CT_SE_IP_DATA_HEADER = 0x300 + 14,
@@ -431,5 +426,13 @@ typedef enum {
     PGP_V3 = 3, /* Version 3 */
     PGP_V4 = 4  /* Version 4 */
 } pgp_version_t;
+
+typedef enum pgp_op_t {
+    PGP_OP_UNKNOWN = 0,
+    PGP_OP_GENERATE_KEY = 1,
+    PGP_OP_SIGN = 2,
+    PGP_OP_DECRYPT = 3,
+    PGP_OP_UNLOCK = 4
+} pgp_op_t;
 
 #endif

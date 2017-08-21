@@ -24,6 +24,7 @@ librnp_la_SOURCES	= \
 	list.c \
 	misc.c \
 	packet-create.c \
+	pass-provider.c \
 	pem.c \
 	pgp-key.c \
 	rnp.c \

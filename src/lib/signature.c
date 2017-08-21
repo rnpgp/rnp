@@ -1270,7 +1270,7 @@ done:
 /* sign a file, and put the signature in a separate file */
 int
 pgp_sign_detached(
-  rnp_ctx_t *ctx, pgp_io_t *io, const char *f, const char *sigfile, pgp_seckey_t *seckey)
+  rnp_ctx_t *ctx, pgp_io_t *io, const char *f, const char *sigfile, const pgp_seckey_t *seckey)
 {
     pgp_create_sig_t *sig = NULL;
     pgp_hash_alg_t    hash_alg;

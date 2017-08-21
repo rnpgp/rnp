@@ -82,6 +82,4 @@ pgp_cb_ret_t pgp_litdata_cb(const pgp_packet_t *, pgp_cbdata_t *);
 pgp_cb_ret_t pgp_pk_sesskey_cb(const pgp_packet_t *, pgp_cbdata_t *);
 pgp_cb_ret_t pgp_get_seckey_cb(const pgp_packet_t *, pgp_cbdata_t *);
 
-bool pgp_getpassphrase(void *, char *, size_t);
-
 #endif /* READERWRITER_H_ */

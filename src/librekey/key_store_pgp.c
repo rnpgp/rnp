@@ -123,8 +123,6 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     switch (pkt->tag) {
     case PGP_PTAG_CT_SECRET_KEY:
     case PGP_PTAG_CT_SECRET_SUBKEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
         if (pgp_is_secret_key_tag(pkt->tag)) {

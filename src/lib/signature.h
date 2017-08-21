@@ -132,7 +132,8 @@ unsigned pgp_sig_add_preferred_key_server(pgp_create_sig_t *sig, const uint8_t *
 bool pgp_sign_file(
   rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_seckey_t *, bool cleartext);
 
-int pgp_sign_detached(rnp_ctx_t *, pgp_io_t *, const char *, const char *, pgp_seckey_t *);
+int pgp_sign_detached(
+  rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_seckey_t *);
 
 bool pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 

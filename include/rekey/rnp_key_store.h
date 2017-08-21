@@ -125,7 +125,7 @@ enum key_store_format_t {
 // combinated keystores
 #define RNP_KEYSTORE_GPG21 "GPG21" /* KBX + G10 keystore format */
 
-typedef struct {
+typedef struct rnp_key_store_t {
     const char *            path;
     const char *            format_label;
     enum key_store_format_t format;

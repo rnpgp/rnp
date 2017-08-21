@@ -43,22 +43,23 @@
 #define CFG_COREDUMPS "coredumps"     /* enable/disable core dumps. 1 or 0. */
 #define CFG_NEEDSUSERID "needsuserid" /* needs user id for the ongoing operation */
 #define CFG_NEEDSSECKEY "needsseckey" /* needs secret key for the ongoing operation */
-#define CFG_KEYRING "keyring"     /* path to the keyring ?? seems not to be used anywhere */
-#define CFG_USERID "userid"       /* userid for the ongoing operation */
-#define CFG_VERBOSE "verbose"     /* verbose logging */
-#define CFG_HOMEDIR "homedir"     /* home directory - folder with keyrings and so on */
-#define CFG_PASSFD "pass-fd"      /* password file descriptor */
-#define CFG_NUMTRIES "numtries"   /* number of password request tries, or 'unlimited' */
-#define CFG_DURATION "duration"   /* signature validity duration */
-#define CFG_BIRTHTIME "birthtime" /* signature validity start */
-#define CFG_CIPHER "cipher"       /* symmetric encryption algorithm as string */
-#define CFG_HASH "hash"           /* hash algorithm used, string like 'SHA1'*/
-#define CFG_IO_OUTS "outs"        /* output stream */
-#define CFG_IO_ERRS "errs"        /* error stream */
-#define CFG_IO_RESS "ress"        /* results stream */
-#define CFG_NUMBITS "numbits"     /* number of bits in generated key */
-#define CFG_KEYFORMAT "format"    /* key format : "human" for human-readable or ... */
-#define CFG_EXPERT "expert"       /* expert key generation mode */
+#define CFG_KEYRING "keyring" /* path to the keyring ?? seems not to be used anywhere */
+#define CFG_USERID "userid"   /* userid for the ongoing operation */
+#define CFG_VERBOSE "verbose" /* verbose logging */
+#define CFG_HOMEDIR "homedir" /* home directory - folder with keyrings and so on */
+#define CFG_PASSFD "pass-fd"  /* password file descriptor */
+#define CFG_USERINPUTFD "user-input-fd" /* user input file descriptor */
+#define CFG_NUMTRIES "numtries"         /* number of password request tries, or 'unlimited' */
+#define CFG_DURATION "duration"         /* signature validity duration */
+#define CFG_BIRTHTIME "birthtime"       /* signature validity start */
+#define CFG_CIPHER "cipher"             /* symmetric encryption algorithm as string */
+#define CFG_HASH "hash"                 /* hash algorithm used, string like 'SHA1'*/
+#define CFG_IO_OUTS "outs"              /* output stream */
+#define CFG_IO_ERRS "errs"              /* error stream */
+#define CFG_IO_RESS "ress"              /* results stream */
+#define CFG_NUMBITS "numbits"           /* number of bits in generated key */
+#define CFG_KEYFORMAT "format"          /* key format : "human" for human-readable or ... */
+#define CFG_EXPERT "expert"             /* expert key generation mode */
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */

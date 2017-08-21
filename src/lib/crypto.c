@@ -439,9 +439,6 @@ write_parsed_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         }
         return pgp_get_seckey_cb(pkt, cbinfo);
 
-    case PGP_GET_PASSPHRASE:
-        return cbinfo->cryptinfo.getpassphrase(pkt, cbinfo);
-
     case PGP_PTAG_CT_LITDATA_BODY:
         return pgp_litdata_cb(pkt, cbinfo);
 
@@ -580,17 +577,16 @@ pgp_encrypt_buf(rnp_ctx_t *         ctx,
 */
 
 bool
-pgp_decrypt_file(pgp_io_t *       io,
-                 const char *     infile,
-                 const char *     outfile,
-                 rnp_key_store_t *secring,
-                 rnp_key_store_t *pubring,
-                 const unsigned   use_armour,
-                 const unsigned   allow_overwrite,
-                 const unsigned   sshkeys,
-                 void *           passfp,
-                 int              numtries,
-                 pgp_cbfunc_t *   getpassfunc)
+pgp_decrypt_file(pgp_io_t *                       io,
+                 const char *                     infile,
+                 const char *                     outfile,
+                 rnp_key_store_t *                secring,
+                 rnp_key_store_t *                pubring,
+                 const unsigned                   use_armour,
+                 const unsigned                   allow_overwrite,
+                 const unsigned                   sshkeys,
+                 int                              numtries,
+                 const pgp_passphrase_provider_t *passphrase_provider)
 {
     pgp_stream_t *parse = NULL;
     const int     printerrors = 1;
@@ -645,8 +641,7 @@ pgp_decrypt_file(pgp_io_t *       io,
 
     /* setup keyring and passphrase callback */
     parse->cbinfo.cryptinfo.secring = secring;
-    parse->cbinfo.passfp = passfp;
-    parse->cbinfo.cryptinfo.getpassphrase = getpassfunc;
+    parse->cbinfo.cryptinfo.passphrase_provider = *passphrase_provider;
     parse->cbinfo.cryptinfo.pubring = pubring;
     parse->cbinfo.sshseckey = (sshkeys) ? &secring->keys[0].key.seckey : NULL;
     parse->cbinfo.numtries = numtries;
@@ -665,7 +660,8 @@ pgp_decrypt_file(pgp_io_t *       io,
     }
 
     /* if we didn't get the passphrase, unlink output file */
-    if (!parse->cbinfo.gotpass) {
+    const bool gotpass = parse->cbinfo.gotpass;
+    if (!gotpass) {
         (void) unlink((filename) ? filename : outfile);
     }
 
@@ -675,7 +671,7 @@ pgp_decrypt_file(pgp_io_t *       io,
     }
 
     /* \todo cleardown crypt */
-    ret = (ret && parse->cbinfo.gotpass);
+    ret = (ret && gotpass);
 
     pgp_teardown_file_read(parse, fd_in);
     return ret;
@@ -683,16 +679,15 @@ pgp_decrypt_file(pgp_io_t *       io,
 
 /* decrypt an area of memory */
 pgp_memory_t *
-pgp_decrypt_buf(pgp_io_t *       io,
-                const void *     input,
-                const size_t     insize,
-                rnp_key_store_t *secring,
-                rnp_key_store_t *pubring,
-                const unsigned   use_armour,
-                const unsigned   sshkeys,
-                void *           passfp,
-                int              numtries,
-                pgp_cbfunc_t *   getpassfunc)
+pgp_decrypt_buf(pgp_io_t *                       io,
+                const void *                     input,
+                const size_t                     insize,
+                rnp_key_store_t *                secring,
+                rnp_key_store_t *                pubring,
+                const unsigned                   use_armour,
+                const unsigned                   sshkeys,
+                int                              numtries,
+                const pgp_passphrase_provider_t *passphrase_provider)
 {
     pgp_stream_t *parse = NULL;
     pgp_memory_t *outmem;
@@ -729,8 +724,7 @@ pgp_decrypt_buf(pgp_io_t *       io,
     /* setup keyring and passphrase callback */
     parse->cbinfo.cryptinfo.secring = secring;
     parse->cbinfo.cryptinfo.pubring = pubring;
-    parse->cbinfo.passfp = passfp;
-    parse->cbinfo.cryptinfo.getpassphrase = getpassfunc;
+    parse->cbinfo.cryptinfo.passphrase_provider = *passphrase_provider;
     parse->cbinfo.sshseckey = (sshkeys) ? &secring->keys[0].key.seckey : NULL;
     parse->cbinfo.numtries = numtries;
 
