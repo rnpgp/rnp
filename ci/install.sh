@@ -32,7 +32,7 @@ fi
 
 # json-c
 if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && [ ! -e "${JSONC_INSTALL}/lib/libjson-c.dylib" ]; then
-  mkdir "${LOCAL_BUILDS}/json-c"
+  mkdir -p "${LOCAL_BUILDS}/json-c"
   cd "${LOCAL_BUILDS}/json-c"
   wget https://s3.amazonaws.com/json-c_releases/releases/json-c-0.12.1.tar.gz -O json-c.tar.gz
   tar xzf json-c.tar.gz --strip 1
@@ -44,7 +44,7 @@ fi
 
 # gpg21
 if [ ! -e "${GPG21_INSTALL}/bin/gpg2" ]; then
-  mkdir "${LOCAL_BUILDS}/gpg21"
+  mkdir -p "${LOCAL_BUILDS}/gpg21"
   cd "${LOCAL_BUILDS}/gpg21"
 
   gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 249B39D24F25E3B6 04376F3EE0856959 2071B08A33BD3F06 8A861B1C7EFD60D9
