@@ -74,8 +74,6 @@
 #define MAX_SYMM_KEY_SIZE 32
 #define NTAGS 0x100 /* == 256 */
 
-void pgp_crypto_finish(void);
-
 /* raw key generation */
 bool pgp_generate_seckey(const rnp_keygen_crypto_params_t *params, pgp_seckey_t *seckey);
 
@@ -201,12 +199,12 @@ struct pgp_reader_t {
 /** pgp_cryptinfo_t
  Encrypt/decrypt settings
 */
-struct pgp_cryptinfo_t {
+typedef struct pgp_cryptinfo_t {
     rnp_key_store_t *         secring;
     const pgp_key_t *         key;
     pgp_passphrase_provider_t passphrase_provider;
     rnp_key_store_t *         pubring;
-};
+} pgp_cryptinfo_t;
 
 /** pgp_cbdata_t */
 struct pgp_cbdata_t {

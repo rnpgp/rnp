@@ -1220,42 +1220,41 @@ rnp_sign_file(rnp_ctx_t * ctx,
 #define ARMOR_SIG_HEAD "-----BEGIN PGP (SIGNATURE|SIGNED MESSAGE|MESSAGE)-----"
 
 /* verify a file */
-int
-rnp_verify_file(rnp_ctx_t *ctx, const char *in, const char *out, int armored)
+rnp_result
+rnp_verify_file(rnp_ctx_t *ctx, const char *in, const char *out)
 {
     pgp_validation_t result;
     pgp_io_t *       io;
     int              realarmor;
 
-    RNP_USED(armored);
     (void) memset(&result, 0x0, sizeof(result));
     io = ctx->rnp->io;
     if (in == NULL) {
-        (void) fprintf(io->errs, "rnp_verify_file: no filename specified\n");
-        return RNP_FAIL;
+        RNP_LOG_FD(io->errs, "rnp_verify_file: no filename specified");
+        return RNP_ERROR_GENERIC;
     }
     realarmor = isarmoured(io, in, NULL, ARMOR_SIG_HEAD);
     if (realarmor < 0) {
-        return RNP_FAIL;
+        return RNP_ERROR_SIGNATURE_INVALID;
     }
     if (pgp_validate_file(io, &result, in, out, (const int) realarmor, ctx->rnp->pubring)) {
         resultp(io, in, &result, ctx->rnp->pubring);
-        return RNP_OK;
+        return RNP_SUCCESS;
     }
     if (result.validc + result.invalidc + result.unknownc == 0) {
-        (void) fprintf(io->errs, "\"%s\": No signatures found - is this a signed file?\n", in);
+        RNP_LOG_FD(io->errs, "\"%s\": No signatures found - is this a signed file?", in);
     } else if (result.invalidc == 0 && result.unknownc == 0) {
-        (void) fprintf(
+        RNP_LOG_FD(
           io->errs, "\"%s\": file verification failure: invalid signature time\n", in);
     } else {
-        (void) fprintf(
+        RNP_LOG_FD(
           io->errs,
-          "\"%s\": verification failure: %u invalid signatures, %u unknown signatures\n",
+          "\"%s\": verification failure: %u invalid signatures, %u unknown signatures",
           in,
           result.invalidc,
           result.unknownc);
     }
-    return RNP_FAIL;
+    return RNP_ERROR_SIGNATURE_INVALID;
 }
 
 /* sign some memory */

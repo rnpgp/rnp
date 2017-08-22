@@ -3351,7 +3351,6 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
     *pktlen = stream->readinfo.alength;
 
     /* do callback on entire packet, if desired and there was no error */
-
     if (ret > 0 && stream->readinfo.accumulate) {
         pkt.u.packet.length = stream->readinfo.alength;
         pkt.u.packet.raw = stream->readinfo.accumulated;

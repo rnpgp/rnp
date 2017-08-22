@@ -49,6 +49,7 @@
 #include <stdbool.h>
 #include <rnp/rnp_obsolete_defs.h>
 #include <rekey/rnp_key_store.h>
+#include <repgp/repgp.h>
 
 #include "hash.h"
 
@@ -211,7 +212,10 @@ stdin_to_mem(rnp_cfg_t *cfg, char **temp, char **out, unsigned *maxsize)
     char *   loc;
     int      n;
 
-    *maxsize = (unsigned) rnp_cfg_getint(cfg, CFG_MAXALLOC);
+    if (cfg) {
+        *maxsize = (unsigned) rnp_cfg_getint(cfg, CFG_MAXALLOC);
+    }
+
     size = 0;
     *temp = NULL;
     while ((n = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
@@ -293,16 +297,17 @@ show_output(rnp_cfg_t *cfg, char *out, int size, const char *header)
 static bool
 rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 {
-    unsigned    maxsize;
-    char *      out = NULL;
-    char *      in = NULL;
-    const char *outf;
-    const char *userid = NULL;
-    bool        ret = false;
-    int         cc;
-    int         sz;
-    bool        clearsign = (cmd == CMD_CLEARSIGN);
-    rnp_ctx_t   ctx;
+    unsigned          maxsize;
+    char *            out = NULL;
+    char *            in = NULL;
+    const char *      outf = NULL;
+    const char *      userid = NULL;
+    bool              ret = false;
+    int               cc;
+    int               sz;
+    bool              clearsign = (cmd == CMD_CLEARSIGN);
+    rnp_ctx_t         ctx;
+    static const char stdout_marker[2] = "-";
 
     /* checking userid for the upcoming operation */
     if (rnp_cfg_getbool(cfg, CFG_NEEDSUSERID)) {
@@ -383,24 +388,23 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
                                 rnp_cfg_getbool(cfg, CFG_DETACHED)) == RNP_OK;
         }
         goto done;
-    case CMD_VERIFY:
     case CMD_VERIFY_CAT:
-        if (f == NULL) {
-            cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            sz = rnp_verify_memory(&ctx,
-                                   in,
-                                   cc,
-                                   (cmd == CMD_VERIFY_CAT) ? out : NULL,
-                                   (cmd == CMD_VERIFY_CAT) ? maxsize : 0,
-                                   ctx.armour);
-            ret = show_output(cfg, out, sz, "Bad memory verification");
-        } else {
-            outf = rnp_cfg_get(cfg, CFG_OUTFILE);
-            ret = rnp_verify_file(
-                    &ctx, f, (cmd == CMD_VERIFY) ? NULL : (outf) ? outf : "-", ctx.armour) ==
-                  RNP_OK;
+        outf = rnp_cfg_get(cfg, CFG_OUTFILE);
+        if (!outf) {
+            outf = &stdout_marker[0];
         }
+    /* FALLTHROUGH */
+    case CMD_VERIFY: {
+        repgp_stream_t stream = REPGP_STREAM_NULL;
+
+        stream = (f) ? create_file_stream(f, strlen(f)) : create_stdin_stream();
+
+        const rnp_result rnp_res = repgp_verify(&ctx, stream, outf);
+        destroy_stream(stream);
+
+        ret = (rnp_res == RNP_SUCCESS);
         goto done;
+    }
     case CMD_LIST_PACKETS:
         if (f == NULL) {
             fprintf(stderr, "%s: No filename provided\n", __progname);

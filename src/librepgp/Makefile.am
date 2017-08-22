@@ -8,4 +8,5 @@ librepgp_la_SOURCES     =  \
     packet-print.c \
     packet-show.c \
     pass-provider.c \
-    reader.c
+    reader.c \
+    repgp.c
