@@ -88,10 +88,10 @@ int   rnp_secret_count(rnp_t *);
 int   rnp_public_count(rnp_t *);
 
 /* file management */
-int rnp_encrypt_file(rnp_ctx_t *, const char *, const char *, const char *);
-int rnp_decrypt_file(rnp_ctx_t *, const char *, const char *);
-int rnp_sign_file(rnp_ctx_t *, const char *, const char *, const char *, bool, bool);
-int rnp_verify_file(rnp_ctx_t *, const char *, const char *, int);
+int        rnp_encrypt_file(rnp_ctx_t *, const char *, const char *, const char *);
+int        rnp_decrypt_file(rnp_ctx_t *, const char *, const char *);
+int        rnp_sign_file(rnp_ctx_t *, const char *, const char *, const char *, bool, bool);
+rnp_result rnp_verify_file(rnp_ctx_t *, const char *, const char *);
 
 /* memory signing and encryption */
 int rnp_sign_memory(rnp_ctx_t *, const char *, const char *, size_t, char *, size_t, bool);

@@ -1,5 +1,5 @@
-#ifndef REPGP_DEF_
-#define REPGP_DEF_
+#ifndef REPGP_DEF_H_
+#define REPGP_DEF_H_
 
 /************************************/
 /* Packet Tags - RFC4880, 4.2 */

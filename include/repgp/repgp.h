@@ -31,26 +31,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-/*
- * Copyright (c) 2005-2008 Nominet UK (www.nic.uk)
- * All rights reserved.
- * Contributors: Ben Laurie, Rachel Willmer. The Contributors have asserted
- * their moral rights under the UK Copyright Design and Patents Act 1988 to
- * be recorded as the authors of this copyright work.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License.
- *
- * You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 
 /** \file
  * Parser for OpenPGP packets - headers.
@@ -59,32 +39,56 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
-
 #include <json.h>
+
 #include "repgp_def.h"
 #include "errors.h"
 
 struct rnp_key_store_t;
-typedef struct pgp_packet_t    pgp_packet_t;
-typedef struct pgp_cbdata_t    pgp_cbdata_t;
-typedef struct pgp_stream_t    pgp_stream_t;
-typedef struct pgp_reader_t    pgp_reader_t;
-typedef struct pgp_cryptinfo_t pgp_cryptinfo_t;
-typedef struct pgp_io_t        pgp_io_t;
-typedef struct pgp_key_t       pgp_key_t;
-typedef struct pgp_pubkey_t    pgp_pubkey_t;
+typedef struct pgp_packet_t pgp_packet_t;
+typedef struct pgp_cbdata_t pgp_cbdata_t;
+typedef struct pgp_stream_t pgp_stream_t;
+typedef struct pgp_reader_t pgp_reader_t;
+typedef struct pgp_io_t     pgp_io_t;
+typedef struct pgp_key_t    pgp_key_t;
+typedef struct pgp_pubkey_t pgp_pubkey_t;
+typedef void *              repgp_stream_t;
 
-/** pgp_region_t */
-typedef struct pgp_region_t {
-    struct pgp_region_t *parent;
-    unsigned             length;
-    unsigned             readc; /* length read */
-    unsigned             last_read;
-    /* length of last read, only valid in deepest child */
-    unsigned indeterminate : 1;
-} pgp_region_t;
+#define REPGP_STREAM_NULL ((repgp_stream_t) 0)
 
-void pgp_init_subregion(pgp_region_t *, pgp_region_t *);
+// OZAPTF
+typedef uint32_t rnp_result;
+
+/** Used to specify whether subpackets should be returned raw, parsed
+ * or ignored.  */
+typedef enum {
+    PGP_PARSE_RAW,    /* Callback Raw */
+    PGP_PARSE_PARSED, /* Callback Parsed */
+    PGP_PARSE_IGNORE  /* Don't callback */
+} pgp_parse_type_t;
+
+repgp_stream_t create_file_stream(const char *filename, size_t filename_len);
+
+repgp_stream_t create_stdin_stream(void);
+
+void destroy_stream(repgp_stream_t stream);
+
+rnp_result repgp_verify(const void *ctx, repgp_stream_t stream, const char *output_file);
+
+/**
+ * @brief Specifies whether one or more signature subpacket types
+ *        should be returned parsed; or raw; or ignored.
+ *
+ * @param    stream   Pointer to previously allocated structure
+ * @param    tag      Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one individual
+ *                    signature subpacket tag
+ * @param    type     Parse type
+ *
+ * @todo Make all packet types optional, not just subpackets
+ */
+void pgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, pgp_parse_type_t type);
+
+void pgp_parser_content_free(pgp_packet_t *);
 
 /** pgp_cb_ret_t */
 typedef enum { PGP_RELEASE_MEMORY, PGP_KEEP_MEMORY, PGP_FINISHED } pgp_cb_ret_t;
@@ -112,6 +116,8 @@ typedef pgp_cb_ret_t pgp_cbfunc_t(const pgp_packet_t *, pgp_cbdata_t *);
 typedef int pgp_reader_func_t(
   pgp_stream_t *, void *, size_t, pgp_error_t **, pgp_reader_t *, pgp_cbdata_t *);
 
+pgp_reader_func_t pgp_stacked_read;
+
 typedef void pgp_reader_destroyer_t(pgp_reader_t *);
 
 void         pgp_stream_delete(pgp_stream_t *);
@@ -132,46 +138,6 @@ pgp_cb_ret_t  pgp_stacked_callback(const pgp_packet_t *, pgp_cbdata_t *);
 pgp_reader_t *pgp_readinfo(pgp_stream_t *);
 
 bool pgp_parse(pgp_stream_t *, const bool show_erros);
-
-/** Used to specify whether subpackets should be returned raw, parsed
- * or ignored.  */
-typedef enum {
-    PGP_PARSE_RAW,    /* Callback Raw */
-    PGP_PARSE_PARSED, /* Callback Parsed */
-    PGP_PARSE_IGNORE  /* Don't callback */
-} pgp_parse_type_t;
-
-/**
- * @brief Specifies whether one or more signature subpacket types
- *        should be returned parsed; or raw; or ignored.
- *
- * @param    stream   Pointer to previously allocated structure
- * @param    tag      Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one individual
- *                    signature subpacket tag
- * @param    type     Parse type
- *
- * @todo Make all packet types optional, not just subpackets
- */
-void pgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, pgp_parse_type_t type);
-
-bool pgp_limited_read(pgp_stream_t *,
-                      uint8_t *,
-                      size_t,
-                      pgp_region_t *,
-                      pgp_error_t **,
-                      pgp_reader_t *,
-                      pgp_cbdata_t *);
-bool pgp_stacked_limited_read(pgp_stream_t *,
-                              uint8_t *,
-                              unsigned,
-                              pgp_region_t *,
-                              pgp_error_t **,
-                              pgp_reader_t *,
-                              pgp_cbdata_t *);
-
-void pgp_parser_content_free(pgp_packet_t *);
-
-pgp_reader_func_t pgp_stacked_read;
 
 /* ----------------------------- printing -----------------------------*/
 void repgp_print_key(pgp_io_t *,

@@ -35,6 +35,34 @@
 #include <repgp/repgp.h>
 #include "types.h"
 
+/** pgp_region_t */
+typedef struct pgp_region_t {
+    struct pgp_region_t *parent;
+    unsigned             length;
+    unsigned             readc; /* length read */
+    unsigned             last_read;
+    /* length of last read, only valid in deepest child */
+    unsigned indeterminate : 1;
+} pgp_region_t;
+
+bool pgp_limited_read(pgp_stream_t *,
+                      uint8_t *,
+                      size_t,
+                      pgp_region_t *,
+                      pgp_error_t **,
+                      pgp_reader_t *,
+                      pgp_cbdata_t *);
+
+bool pgp_stacked_limited_read(pgp_stream_t *,
+                              uint8_t *,
+                              unsigned,
+                              pgp_region_t *,
+                              pgp_error_t **,
+                              pgp_reader_t *,
+                              pgp_cbdata_t *);
+
+void pgp_init_subregion(pgp_region_t *, pgp_region_t *);
+
 void pgp_pubkey_free(pgp_pubkey_t *);
 
 void pgp_seckey_free(pgp_seckey_t *);

@@ -680,9 +680,3 @@ pgp_decrypt_buf(pgp_io_t *                       io,
     /* if we didn't get the passphrase, return NULL */
     return gotpass ? outmem : NULL;
 }
-
-void
-pgp_crypto_finish(void)
-{
-    // currently empty implementation
-}
