@@ -102,7 +102,10 @@ def setup():
     os.mkdir(RNPDIR, 0700)
 
     GPGDIR = path.join(WORKDIR, '.gpg')
-    GPG = find_utility('gpg')
+    GPG = find_utility('gpg2', False)
+    if not GPG:
+        GPG = find_utility('gpg')
+
     os.mkdir(GPGDIR, 0700)
 
     return

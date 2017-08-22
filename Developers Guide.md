@@ -97,9 +97,11 @@ git clone https://github.com/riboseinc/rnp
 # or if testing local copy
 # git clone /usr/local/rnp
 cd rnp
-export BOTAN_INSTALL="$HOME/builds/botan-install"
-export CMOCKA_INSTALL="$HOME/builds/cmocka-install"
-export JSONC_INSTALL="$HOME/builds/json-c-install"
+export LOCAL_BUILDS="$HOME/local-builds"
+export BOTAN_INSTALL="${LOCAL_BUILDS}/botan-install"
+export CMOCKA_INSTALL="${LOCAL_BUILDS}/cmocka-install"
+export JSONC_INSTALL="${LOCAL_BUILDS}/jsonc-install"
+export GPG21_INSTALL="${LOCAL_BUILDS}/gpg21-install"
 export BUILD_MODE=normal
 ci/install.sh
 env CC=clang ci/main.sh
