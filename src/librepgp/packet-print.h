@@ -52,8 +52,19 @@
 #ifndef PACKET_PRINT_H_
 #define PACKET_PRINT_H_
 
+#include <time.h>
+
 #include "packet-parse.h"
 #include <rekey/rnp_key_store.h>
+
+/* structure to keep track of printing state variables */
+typedef struct pgp_printstate_t {
+    unsigned unarmoured;
+    unsigned skipping;
+    int      indent;
+} pgp_printstate_t;
+
+bool pgp_print_packet(pgp_printstate_t *, const pgp_packet_t *);
 
 int pgp_sprint_key(pgp_io_t *,
                    const rnp_key_store_t *,

@@ -60,7 +60,6 @@
 
 #include <inttypes.h>
 
-#include "packet.h"
 #include "packet-create.h"
 #include "memory.h"
 

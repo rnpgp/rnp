@@ -55,7 +55,7 @@
 #ifndef PACKET_SHOW_H_
 #define PACKET_SHOW_H_
 
-#include "packet.h"
+#include "types.h"
 
 /** pgp_list_t
  */

@@ -55,7 +55,7 @@
 #include <rnp/rnp_sdk.h>
 #include "readerwriter.h"
 #include "validate.h"
-#include "packet.h"
+#include "misc.h"
 
 #include <stdio.h>
 #include <string.h>

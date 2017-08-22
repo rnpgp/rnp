@@ -55,11 +55,11 @@
 #define CREATE_H_
 
 #include <stdbool.h>
+#include <rekey/rnp_key_store.h>
+
 #include "types.h"
-#include "packet.h"
 #include "crypto.h"
 #include "errors.h"
-#include <rekey/rnp_key_store.h>
 #include "writer.h"
 #include "memory.h"
 

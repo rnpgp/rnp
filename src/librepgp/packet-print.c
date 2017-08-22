@@ -63,13 +63,13 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 #include <assert.h>
 #endif
 
+#include <rnp/rnp_sdk.h>
+
+#include "crypto/ec.h"
 #include "packet-show.h"
 #include "signature.h"
-#include <rnp/rnp_sdk.h>
-#include "packet.h"
 #include "pgp-key.h"
 #include "reader.h"
-#include "crypto/ec.h"
 
 #define F_REVOKED 1
 

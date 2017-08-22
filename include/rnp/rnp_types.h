@@ -28,11 +28,9 @@
 #define __RNP_TYPES__
 
 #include <stdint.h>
-#include "packet.h"
 #include <repgp/repgp.h>
 
-/* rnp_result is the type used for return codes from the APIs. */
-typedef uint32_t rnp_result;
+#include "types.h"
 
 /* structure used to keep application-wide rnp configuration: keyrings, password io, whatever
  * else */

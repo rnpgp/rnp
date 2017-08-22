@@ -50,6 +50,12 @@ typedef struct pgp_elgamal_seckey_t {
     BIGNUM *x;
 } pgp_elgamal_seckey_t;
 
+/** Struct to hold params of a Elgamal signature */
+typedef struct pgp_elgamal_sig_t {
+    BIGNUM *r;
+    BIGNUM *s;
+} pgp_elgamal_sig_t;
+
 /*
  * Performs ElGamal encryption
  * Result of an encryption is composed of two parts - g2k and encm

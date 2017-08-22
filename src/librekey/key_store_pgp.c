@@ -58,7 +58,6 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <string.h>
 
 #include <rnp/rnp_sdk.h>
-#include <packet.h>
 #include <librepgp/packet-show.h>
 #include <librepgp/reader.h>
 

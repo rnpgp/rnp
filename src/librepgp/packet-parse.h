@@ -49,4 +49,6 @@ void pgp_sig_free(pgp_sig_t *);
 
 void pgp_rawpacket_free(pgp_rawpacket_t *);
 
+void pgp_seckey_free_secret_mpis(pgp_seckey_t *);
+
 #endif

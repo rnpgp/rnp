@@ -29,6 +29,8 @@
 
 #include "rnp_tests.h"
 #include "support.h"
+#include "utils.h"
+#include "hash.h"
 
 // this is a passphrase callback that will always fail
 static bool

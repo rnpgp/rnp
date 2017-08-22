@@ -29,9 +29,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "errors.h"
-#include "rnp.h"
-#include "packet.h"
+#include "ec.h"
 
 /* Size of wrapped and obfuscated key size
  *
@@ -39,6 +37,20 @@
  * then 8 bytes is added by 3394.
  */
 #define ECDH_WRAPPED_KEY_SIZE 48
+
+/* Forward declarations */
+typedef struct rnp_keygen_desc_t rnp_keygen_desc_t;
+typedef struct pgp_fingerprint_t pgp_fingerprint_t;
+
+/** Structure to hold an ECDH public key params.
+ *
+ * \see RFC 6637
+ */
+typedef struct pgp_ecdh_pubkey_t {
+    pgp_ecc_pubkey_t ec;
+    pgp_hash_alg_t   kdf_hash_alg; /* Hash used by kdf */
+    pgp_symm_alg_t   key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
+} pgp_ecdh_pubkey_t;
 
 /*
  * @brief   Sets hash algorithm and key wrapping algo

@@ -33,6 +33,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 
+#include <time.h>
 #include <errno.h>
 #include <getopt.h>
 #include <regex.h>
@@ -48,6 +49,8 @@
 #include <stdbool.h>
 #include <rnp/rnp_obsolete_defs.h>
 #include <rekey/rnp_key_store.h>
+
+#include "hash.h"
 
 extern char *__progname;
 

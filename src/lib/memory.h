@@ -56,7 +56,8 @@
 
 #include <sys/types.h>
 #include <stdbool.h>
-#include "packet.h"
+
+typedef struct pgp_output_t pgp_output_t;
 
 /** pgp_memory_t
  */

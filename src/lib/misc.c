@@ -81,7 +81,6 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include <botan/ffi.h>
 
 #include "errors.h"
-#include "packet.h"
 #include "crypto.h"
 #include "crypto/bn.h"
 #include "packet-create.h"
@@ -885,20 +884,6 @@ hexdump(FILE *fp, const char *header, const uint8_t *src, size_t length)
         line[LINELEN] = 0x0;
         (void) fprintf(fp, " | %s\n", line);
     }
-}
-
-/**
- * \ingroup HighLevel_Functions
- * \brief Closes down OpenPGP::SDK.
- *
- * Close down OpenPGP:SDK, release any resources under the control of
- * the library.
- */
-
-void
-pgp_finish(void)
-{
-    pgp_crypto_finish();
 }
 
 static int

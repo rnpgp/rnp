@@ -31,7 +31,6 @@
 #include <stdbool.h>
 #include "errors.h"
 #include "rnp.h"
-#include "packet.h"
 
 rnp_result pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
                              const uint8_t *         hashbuf,

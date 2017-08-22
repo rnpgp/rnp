@@ -29,7 +29,6 @@
 #include <crypto/eddsa.h>
 #include <crypto/elgamal.h>
 #include <crypto.h>
-#include <packet.h>
 #include <pgp-key.h>
 #include <crypto/bn.h>
 #include <rnp/rnp.h>
@@ -39,6 +38,7 @@
 
 #include "rnp_tests.h"
 #include "support.h"
+#include "misc.h"
 
 void
 hash_test_success(void **state)

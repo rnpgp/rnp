@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <repgp/repgp.h>
-#include "packet.h"
 
 bool
 pgp_request_passphrase(const pgp_passphrase_provider_t *provider,

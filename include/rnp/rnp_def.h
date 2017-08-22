@@ -26,6 +26,8 @@
 #ifndef RNP_DEF_H_
 #define RNP_DEF_H_
 
+#include <stdint.h>
+
 /* The dot directory relative to the user's home directory where keys
  * are stored.
  *
@@ -58,6 +60,7 @@
 #define DEFAULT_PK_ALG PGP_PKA_RSA
 #define DEFAULT_RSA_NUMBITS 2048
 #define PGP_SA_DEFAULT_CIPHER PGP_SA_AES_256
+#define PGP_DEFAULT_HASH_ALGORITHM PGP_HASH_SHA256
 
 /*
  * Error code definitions
@@ -94,6 +97,9 @@ enum {
     RNP_ERROR_EOF
 
 };
+
+/* rnp_result is the type used for return codes from the APIs. */
+typedef uint32_t rnp_result;
 
 enum { MAX_ID_LENGTH = 128, MAX_PASSPHRASE_LENGTH = 256 };
 

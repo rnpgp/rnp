@@ -31,10 +31,9 @@
 #ifndef RNP_RSA_H_
 #define RNP_RSA_H_
 
-#include <stdint.h>
+#include <rnp/rnp_sdk.h>
+#include <repgp/repgp_def.h>
 #include "crypto/bn.h"
-#include "crypto/rsa.h"
-#include "hash.h"
 
 typedef struct pgp_seckey_t     pgp_seckey_t;
 typedef struct pgp_rsa_seckey_t pgp_rsa_seckey_t;

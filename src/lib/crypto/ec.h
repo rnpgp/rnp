@@ -27,11 +27,14 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _EC_H_
-#define _EC_H_
+#ifndef EC_H_
+#define EC_H_
 
-#include <rnp/rnp_types.h>
-#include "packet.h"
+#include <rnp/rnp_sdk.h>
+#include <repgp/repgp_def.h>
+#include "crypto/bn.h"
+
+typedef struct pgp_seckey_t pgp_seckey_t;
 
 /**
  * Maximal length of the OID in hex representation.
@@ -51,6 +54,28 @@ typedef struct ec_curve_desc_t {
     const char *      botan_name;
     const char *      pgp_name;
 } ec_curve_desc_t;
+
+/** Structure to hold an ECC public key params.
+ *
+ * \see RFC 6637
+ */
+typedef struct {
+    pgp_curve_t curve;
+    BIGNUM *    point; /* octet string encoded as MPI */
+} pgp_ecc_pubkey_t;
+
+/** pgp_ecc_seckey_t */
+typedef struct {
+    BIGNUM *x;
+} pgp_ecc_seckey_t;
+
+/** Struct to hold params of a ECDSA/EDDSA/SM2 signature */
+typedef struct pgp_ecc_sig_t {
+    BIGNUM *r;
+    BIGNUM *s;
+} pgp_ecc_sig_t;
+
+typedef struct pgp_output_t pgp_output_t;
 
 /*
  * @brief   Finds curve ID by hex representation of OID
