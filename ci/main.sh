@@ -3,7 +3,7 @@ set -eux
 
 [ "$BUILD_MODE" = "style-check" ] && exec ci/style-check.sh
 
-CORES="2" && [ -r /proc/cpuinfo ] && CORES=$(grep -c '^$' /proc/cpuinfo)
+: "${CORES:=2}"
 
 LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${CMOCKA_INSTALL}/lib:${JSONC_INSTALL}/lib"
 CFLAGS=""
