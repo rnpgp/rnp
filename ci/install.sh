@@ -43,7 +43,7 @@ if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && [ ! -e "${JSONC_INSTALL}/lib/
 fi
 
 # gpg21
-if [ ! -e "${GPG21_INSTALL}/bin/gpg2" ]; then
+if [ ! -e "${GPG21_INSTALL}/bin/gpg" ]; then
   mkdir -p "${LOCAL_BUILDS}/gpg21"
   cd "${LOCAL_BUILDS}/gpg21"
 
