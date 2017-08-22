@@ -9,10 +9,11 @@ branches:
 
 env:
   global:
-    - BOTAN_INSTALL="$HOME/builds/botan-install"
-    - CMOCKA_INSTALL="$HOME/builds/cmocka-install"
-    - JSONC_INSTALL="$HOME/builds/jsonc-install"
-    - GPG21_INSTALL="$HOME/builds/gpg21-install"
+    - LOCAL_BUILDS="$HOME/local-builds"
+    - BOTAN_INSTALL="${LOCAL_BUILDS}/botan-install"
+    - CMOCKA_INSTALL="${LOCAL_BUILDS}/cmocka-install"
+    - JSONC_INSTALL="${LOCAL_BUILDS}/jsonc-install"
+    - GPG21_INSTALL="${LOCAL_BUILDS}/gpg21-install"
     - LOGNAME="Travis"
     - CLANG_FORMAT_DIFF="clang-format-diff-4.0"
 
