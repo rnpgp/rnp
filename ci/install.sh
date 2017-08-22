@@ -107,11 +107,11 @@ if [ ! -e "${GPG21_INSTALL}/bin/gpg2" ]; then
   make -j${CORES} install
   cd ..
 
-  wget -c https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-2.1.22.tar.bz2
-  wget -c https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-2.1.22.tar.bz2.sig
-  gpg --verify gnupg-2.1.22.tar.bz2.sig
-  tar -xjf gnupg-2.1.22.tar.bz2
-  cd gnupg-2.1.22
+  wget -c https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-2.1.23.tar.bz2
+  wget -c https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-2.1.23.tar.bz2.sig
+  gpg --verify gnupg-2.1.23.tar.bz2.sig
+  tar -xjf gnupg-2.1.23.tar.bz2
+  cd gnupg-2.1.23
   ./configure --prefix="${GPG21_INSTALL}" \
     --with-libgpg-error-prefix="${GPG21_INSTALL}" \
     --with-libgcrypt-prefix="${GPG21_INSTALL}" \
