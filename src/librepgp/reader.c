@@ -1296,9 +1296,9 @@ encrypted_data_reader(pgp_stream_t *stream,
             (void) fprintf(stderr, "encrypted_data_reader: bad v3 secret\n");
             return -1;
         }
-        pgp_cipher_cfb_resync(encrypted->decrypt);
         encrypted->prevplain = 0;
     } else if (readinfo->parent->reading_v3_secret && readinfo->parent->reading_mpi_len) {
+        pgp_cipher_cfb_resync(encrypted->decrypt);
         encrypted->prevplain = 1;
     }
     while (length > 0) {
@@ -1358,11 +1358,11 @@ encrypted_data_reader(pgp_stream_t *stream,
                 encrypted->c = n;
 
                 if (rnp_get_debug(__FILE__)) {
-                    hexdump(stderr, "encrypted", buffer, 16);
-                    hexdump(stderr, "decrypted", encrypted->decrypted, 16);
+                    hexdump(stderr, "encrypted", buffer, n);
+                    hexdump(stderr, "decrypted", encrypted->decrypted, n);
                 }
             } else {
-                (void) memcpy(&encrypted->decrypted[encrypted->off], buffer, n);
+                (void) memcpy(&encrypted->decrypted[0], buffer, n);
                 encrypted->c = n;
             }
 

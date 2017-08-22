@@ -127,7 +127,6 @@ pgp_cipher_start(pgp_crypt_t *crypt, pgp_symm_alg_t alg, const uint8_t *key, con
     if (cipher_name == NULL)
         return false;
 
-    crypt->offset = 0;
     crypt->alg = alg;
     crypt->blocksize = pgp_block_size(alg);
 
@@ -149,22 +148,24 @@ pgp_cipher_start(pgp_crypt_t *crypt, pgp_symm_alg_t alg, const uint8_t *key, con
         memcpy(crypt->iv, iv, crypt->blocksize);
     }
 
-    botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->siv, 1);
-    (void) memcpy(crypt->civ, crypt->siv, crypt->blocksize);
+    memcpy(crypt->prev_iv, crypt->iv, crypt->blocksize);
+    crypt->remaining = 0;
+
     return true;
 }
 
 int
-pgp_cipher_cfb_resync(pgp_crypt_t *decrypt)
+pgp_cipher_cfb_resync(pgp_crypt_t *crypt)
 {
-    if (decrypt->offset == decrypt->blocksize) {
+    if (crypt->remaining == 0) {
         return 0;
     }
 
-    const size_t shift = decrypt->blocksize - decrypt->offset;
-    memmove(decrypt->civ + shift, decrypt->civ, decrypt->offset);
-    memmove(decrypt->civ, decrypt->siv + decrypt->offset, shift);
-    decrypt->offset = 0;
+    const size_t shift = crypt->blocksize - crypt->remaining;
+    memmove(crypt->iv + crypt->remaining, crypt->iv, shift);
+    memmove(crypt->iv, crypt->prev_iv + shift, crypt->remaining);
+    crypt->remaining = 0;
+
     return 0;
 }
 
@@ -172,7 +173,7 @@ int
 pgp_cipher_cfb_resync_v2(pgp_crypt_t *crypt)
 {
     pgp_cipher_cfb_resync(crypt);
-    botan_block_cipher_encrypt_blocks(crypt->obj, crypt->civ, crypt->civ, 1);
+    botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
     return 0;
 }
 
@@ -190,32 +191,45 @@ pgp_cipher_finish(pgp_crypt_t *crypt)
 int
 pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
 {
-    for (size_t i = 0; i < bytes; ++i) {
-        if (crypt->offset == 0) {
+    while (bytes) {
+        if (crypt->remaining == 0) {
+            memcpy(crypt->prev_iv, crypt->iv, crypt->blocksize);
             botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
+            crypt->remaining = crypt->blocksize;
         }
-        out[i] = in[i] ^ crypt->iv[crypt->offset];
-        crypt->iv[crypt->offset] = out[i];
 
-        crypt->offset = (crypt->offset + 1) % crypt->blocksize;
+        if (crypt->remaining > 0) {
+            *out = *in ^ crypt->iv[crypt->blocksize - crypt->remaining];
+            crypt->iv[crypt->blocksize - crypt->remaining] = *out;
+            crypt->remaining -= 1;
+            out++;
+            in++;
+            bytes--;
+        }
     }
+
     return 0;
 }
 
 int
 pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
 {
-    for (size_t i = 0; i < bytes; ++i) {
-        uint8_t ciphertext = in[i];
-
-        if (crypt->offset == 0) {
+    while (bytes) {
+        if (crypt->remaining == 0) {
+            memcpy(crypt->prev_iv, crypt->iv, crypt->blocksize);
             botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
+            crypt->remaining = crypt->blocksize;
         }
 
-        out[i] = in[i] ^ crypt->iv[crypt->offset];
-        crypt->iv[crypt->offset] = ciphertext;
-
-        crypt->offset = (crypt->offset + 1) % crypt->blocksize;
+        if (crypt->remaining > 0) {
+            uint8_t c = *in;
+            *out = c ^ crypt->iv[crypt->blocksize - crypt->remaining];
+            crypt->iv[crypt->blocksize - crypt->remaining] = c;
+            crypt->remaining -= 1;
+            out++;
+            in++;
+            bytes--;
+        }
     }
     return 0;
 }
