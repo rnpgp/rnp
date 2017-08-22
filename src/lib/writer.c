@@ -961,7 +961,8 @@ encrypt_se_ip_writer(const uint8_t *src,
     }
 
     /* create compressed packet from literal data packet */
-    if (!pgp_writez(zoutput, pgp_mem_data(litmem), (unsigned) pgp_mem_len(litmem))) {
+    if (!pgp_writez(zoutput, pgp_mem_data(litmem), (unsigned) pgp_mem_len(litmem),
+                    PGP_C_ZLIB, 6)) {
         RNP_LOG("Compression failed");
         return false;
     }
