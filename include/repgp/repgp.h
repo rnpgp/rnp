@@ -62,9 +62,17 @@
 
 #include <json.h>
 #include "repgp_def.h"
-#include "packet.h"
+#include "errors.h"
 
 struct rnp_key_store_t;
+typedef struct pgp_packet_t    pgp_packet_t;
+typedef struct pgp_cbdata_t    pgp_cbdata_t;
+typedef struct pgp_stream_t    pgp_stream_t;
+typedef struct pgp_reader_t    pgp_reader_t;
+typedef struct pgp_cryptinfo_t pgp_cryptinfo_t;
+typedef struct pgp_io_t        pgp_io_t;
+typedef struct pgp_key_t       pgp_key_t;
+typedef struct pgp_pubkey_t    pgp_pubkey_t;
 
 /** pgp_region_t */
 typedef struct pgp_region_t {
@@ -80,13 +88,7 @@ void pgp_init_subregion(pgp_region_t *, pgp_region_t *);
 
 /** pgp_cb_ret_t */
 typedef enum { PGP_RELEASE_MEMORY, PGP_KEEP_MEMORY, PGP_FINISHED } pgp_cb_ret_t;
-
-typedef struct pgp_cbdata_t pgp_cbdata_t;
-typedef pgp_cb_ret_t        pgp_cbfunc_t(const pgp_packet_t *, pgp_cbdata_t *);
-
-typedef struct pgp_stream_t    pgp_stream_t;
-typedef struct pgp_reader_t    pgp_reader_t;
-typedef struct pgp_cryptinfo_t pgp_cryptinfo_t;
+typedef pgp_cb_ret_t pgp_cbfunc_t(const pgp_packet_t *, pgp_cbdata_t *);
 
 /*
    A reader MUST read at least one byte if it can, and should read up

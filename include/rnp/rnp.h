@@ -34,7 +34,6 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#include "packet.h"
 #include <rnp/rnp_def.h>
 #include <rnp/rnp_types.h>
 
@@ -49,6 +48,10 @@
 #endif
 
 BEGIN_DECLS__
+
+typedef struct rnp_t        rnp_t;
+typedef struct rnp_params_t rnp_params_t;
+typedef struct rnp_ctx_t    rnp_ctx_t;
 
 /* initialize rnp using the init structure  */
 int rnp_init(rnp_t *, const rnp_params_t *);

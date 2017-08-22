@@ -29,10 +29,11 @@
 #include <string.h>
 #include <botan/ffi.h>
 
+#include <librepgp/packet-parse.h>
+
 #include "ec.h"
 #include "ecdsa.h"
 #include "crypto.h"
-#include "packet.h"
 #include "readerwriter.h"
 #include "utils.h"
 

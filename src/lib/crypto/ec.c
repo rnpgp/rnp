@@ -27,7 +27,6 @@
 #include <botan/ffi.h>
 
 #include "ec.h"
-#include "packet.h"
 #include "writer.h"
 
 /**

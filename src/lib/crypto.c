@@ -67,28 +67,29 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #endif
 
 #include <string.h>
-#include <stdlib.h>
-#include <stdbool.h>
+#include <rnp/rnp_sdk.h>
+#include <rnp/rnp_def.h>
+
+#include <librepgp/reader.h>
 
 #include "types.h"
 #include "crypto/bn.h"
-#include "crypto/rsa.h"
 #include "crypto/ec.h"
-#include "crypto/elgamal.h"
-#include "crypto/eddsa.h"
 #include "crypto/ecdh.h"
+#include "crypto/ecdsa.h"
+#include "crypto/eddsa.h"
+#include "crypto/elgamal.h"
+#include "crypto/rsa.h"
+#include "crypto/s2k.h"
+#include "crypto/sm2.h"
 #include "crypto.h"
 #include "readerwriter.h"
 #include "memory.h"
 #include "utils.h"
 #include "signature.h"
 #include "pgp-key.h"
-#include "crypto/s2k.h"
-#include "crypto/ecdsa.h"
-#include "crypto/sm2.h"
 #include "utils.h"
-#include <rnp/rnp_def.h>
-#include "../librepgp/reader.h"
+#include "misc.h"
 
 /**
 \ingroup Core_MPI

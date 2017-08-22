@@ -52,8 +52,14 @@
 #ifndef SYMMETRIC_CRYPTO_H_
 #define SYMMETRIC_CRYPTO_H_
 
+typedef struct symmetric_key_t {
+    pgp_symm_alg_t type;
+    uint8_t        key[PGP_MAX_KEY_SIZE];
+    size_t         key_size;
+} symmetric_key_t;
+
 /** pgp_crypt_t */
-struct pgp_crypt_t {
+typedef struct pgp_crypt_t {
     pgp_symm_alg_t                    alg;
     size_t                            blocksize;
     size_t                            remaining;
@@ -61,7 +67,7 @@ struct pgp_crypt_t {
 
     uint8_t iv[PGP_MAX_BLOCK_SIZE];
     uint8_t prev_iv[PGP_MAX_BLOCK_SIZE];
-};
+} pgp_crypt_t;
 
 pgp_symm_alg_t pgp_str_to_cipher(const char *name);
 unsigned pgp_block_size(pgp_symm_alg_t);

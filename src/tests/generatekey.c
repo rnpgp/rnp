@@ -26,11 +26,13 @@
 
 #include <rnp/rnp.h>
 #include <rekey/rnp_key_store.h>
+#include <rnp/rnpcfg.h>
+#include <rnpkeys/rnpkeys.h>
+
 #include "rnp_tests.h"
 #include "support.h"
 #include "symmetric.h"
-#include "../rnp/rnpcfg.h"
-#include "../rnpkeys/rnpkeys.h"
+#include "hash.h"
 
 void
 rnpkeys_generatekey_testSignature(void **state)

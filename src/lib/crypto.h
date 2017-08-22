@@ -57,10 +57,12 @@
 
 #include <limits.h>
 #include <botan/ffi.h>
-#include "hash.h"
-#include "packet.h"
-#include "memory.h"
+
 #include <librepgp/packet-parse.h>
+#include <librepgp/packet-print.h>
+
+#include "hash.h"
+#include "memory.h"
 #include "symmetric.h"
 #include "crypto/bn.h"
 #include <rekey/rnp_key_store.h>

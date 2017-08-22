@@ -53,6 +53,8 @@
 
 #include "pgp-key.h"
 #include "crypto/bn.h"
+#include "misc.h"
+#include "hash.h"
 
 static bool
 parse_ks_format(enum key_store_format_t *key_store_format, const char *format)

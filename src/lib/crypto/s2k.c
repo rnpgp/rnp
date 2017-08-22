@@ -28,10 +28,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "crypto/s2k.h"
-#include "packet.h"
-#include <botan/ffi.h>
 #include <stdio.h>
+#include <botan/ffi.h>
+
+#include "crypto/s2k.h"
 
 int
 pgp_s2k_simple(pgp_hash_alg_t alg, uint8_t *out, size_t output_len, const char *passphrase)

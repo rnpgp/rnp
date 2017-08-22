@@ -56,7 +56,6 @@
 #define WRITER_H_
 
 #include "types.h"
-#include "packet.h"
 #include "crypto.h"
 #include "errors.h"
 

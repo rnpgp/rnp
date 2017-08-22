@@ -88,6 +88,5 @@ void hexdump(FILE *, const char *, const uint8_t *, size_t);
 
 const char *pgp_str_from_map(int, pgp_map_t *);
 void *      pgp_new(size_t);
-void        pgp_forget(void *, size_t);
 
 #endif

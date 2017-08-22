@@ -28,6 +28,7 @@
 #include <rekey/rnp_key_store.h>
 #include "rnp_tests.h"
 #include "support.h"
+#include "utils.h"
 
 static const pgp_subsig_t *
 find_subsig(const pgp_key_t *key, const char *userid)

@@ -36,7 +36,6 @@
 #include <crypto/eddsa.h>
 #include <crypto/elgamal.h>
 #include <crypto/ecdsa.h>
-#include <packet.h>
 #include <pgp-key.h>
 #include <rnp/rnp.h>
 

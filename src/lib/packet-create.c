@@ -79,25 +79,25 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include <unistd.h>
 #endif
 
+#include <rnp/rnp_def.h>
+#include <rnp/rnp_sdk.h>
+
 #include "crypto/bn.h"
-#include "crypto/rsa.h"
-#include "crypto/elgamal.h"
-#include "packet-create.h"
-#include "packet.h"
-#include "signature.h"
 #include "crypto/ec.h"
+#include "crypto/ecdh.h"
+#include "crypto/ecdsa.h"
+#include "crypto/elgamal.h"
+#include "crypto/rsa.h"
 #include "crypto/s2k.h"
 #include "crypto/sm2.h"
-#include "writer.h"
-#include "readerwriter.h"
+#include "packet-create.h"
+#include "signature.h"
 #include "memory.h"
-#include "utils.h"
-
+#include "misc.h"
 #include "pgp-key.h"
-#include <rnp/rnp_sdk.h>
-#include "crypto/ecdsa.h"
-#include <rnp/rnp_def.h>
-#include "crypto/ecdh.h"
+#include "readerwriter.h"
+#include "utils.h"
+#include "writer.h"
 
 /**
  * \ingroup Core_Create

@@ -76,21 +76,21 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 #include <unistd.h>
 #endif
 
+#include <rnp/rnp_sdk.h>
+
 #include "crypto/bn.h"
 #include "crypto/ec.h"
 #include "crypto/ecdsa.h"
-#include "crypto/sm2.h"
-#include "crypto/dsa.h"
 #include "crypto/eddsa.h"
+#include "crypto/dsa.h"
+#include "crypto/sm2.h"
+#include "crypto/rsa.h"
 #include "hash.h"
 #include "packet-create.h"
-#include <rnp/rnp_sdk.h>
-#include "crypto/rsa.h"
 #include "readerwriter.h"
-#include "validate.h"
-#include "utils.h"
-
+#include "misc.h"
 #include "signature.h"
+#include "validate.h"
 #include "utils.h"
 
 /** \ingroup Core_Create

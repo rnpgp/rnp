@@ -32,6 +32,8 @@
 #define RNPSDK_H_
 
 #include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
 
 #include <rnp/rnp_def.h>
 

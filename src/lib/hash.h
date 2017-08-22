@@ -32,34 +32,11 @@
 #ifndef CRYPTO_HASH_H_
 #define CRYPTO_HASH_H_
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
+#include <rnp/rnp_sdk.h>
+#include <repgp/repgp_def.h>
+#include "types.h"
 #include "utils.h"
 
-/** Hashing Algorithm Numbers.
- * OpenPGP assigns a unique Algorithm Number to each algorithm that is
- * part of OpenPGP.
- *
- * This lists algorithm numbers for hash algorithms.
- *
- * \see RFC4880 9.4
- */
-typedef enum {
-    PGP_HASH_UNKNOWN = 0, /* used to indicate errors */
-    PGP_HASH_MD5 = 1,     /* MD5 */
-    PGP_HASH_SHA1 = 2,    /* SHA-1 */
-    PGP_HASH_RIPEMD = 3,  /* RIPEMD160 */
-
-    PGP_HASH_SHA256 = 8,  /* SHA256 */
-    PGP_HASH_SHA384 = 9,  /* SHA384 */
-    PGP_HASH_SHA512 = 10, /* SHA512 */
-    PGP_HASH_SHA224 = 11, /* SHA224 */
-
-    PGP_HASH_SM3 = 105 /* SM3 - temporary allocation in private range */
-} pgp_hash_alg_t;
-
-#define PGP_DEFAULT_HASH_ALGORITHM PGP_HASH_SHA256
 /**
  * Output size (in bytes) of biggest supported hash algo
  */
@@ -85,6 +62,11 @@ const char *pgp_hash_name(const pgp_hash_t *hash);
 pgp_hash_alg_t pgp_hash_alg_type(const pgp_hash_t *hash);
 
 pgp_hash_alg_t pgp_str_to_hash_alg(const char *);
+
+unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
+
+void pgp_calc_mdc_hash(
+  const uint8_t *, const size_t, const uint8_t *, const unsigned, uint8_t *);
 
 /* -----------------------------------------------------------------------------
  * @brief   Returns output size of an digest algorithm

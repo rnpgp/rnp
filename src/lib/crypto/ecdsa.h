@@ -24,14 +24,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef EC_H_
-#define EC_H_
+#ifndef ECDSA_H_
+#define ECDSA_H_
 
 #include <stdint.h>
-#include <stdbool.h>
-#include "errors.h"
-#include <rnp/rnp.h>
-#include "packet.h"
+#include "ec.h"
 
 rnp_result pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
                                const uint8_t *         hashbuf,
@@ -44,4 +41,4 @@ rnp_result pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
                                  size_t                  hash_len,
                                  const pgp_ecc_pubkey_t *pubkey);
 
-#endif // EC_H_
+#endif // ECDSA_H_

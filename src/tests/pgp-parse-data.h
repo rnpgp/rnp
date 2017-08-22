@@ -26,7 +26,7 @@
 #ifndef PGP_PARSE_DATA_H
 #define PGP_PARSE_DATA_H
 
-#include <packet.h>
+#include <repgp/repgp_def.h>
 
 static const pgp_content_enum tags_keyrings_1_pubring[] = {
   PGP_PARSER_PTAG,

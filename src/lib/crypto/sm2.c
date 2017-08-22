@@ -29,10 +29,11 @@
 #include <string.h>
 #include <botan/ffi.h>
 
+#include <librepgp/packet-parse.h>
+
 #include "crypto/sm2.h"
 #include "ec.h"
 #include "crypto.h"
-#include "packet.h"
 #include "utils.h"
 
 rnp_result

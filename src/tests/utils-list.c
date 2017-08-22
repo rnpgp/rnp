@@ -27,6 +27,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "list.h"
+#include "utils.h"
 
 static void
 validate_int_list(list l, const int *expected, size_t count)

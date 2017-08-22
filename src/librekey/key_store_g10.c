@@ -27,7 +27,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
-#include <packet.h>
 
 #include <rnp/rnp_sdk.h>
 
@@ -38,6 +37,7 @@
 #include "crypto/s2k.h"
 #include "symmetric.h"
 #include "readerwriter.h"
+#include "misc.h"
 
 #define G10_CBC_IV_SIZE 16
 

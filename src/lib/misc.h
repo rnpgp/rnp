@@ -36,4 +36,6 @@ int pgp_keyid(uint8_t *, const size_t, const pgp_pubkey_t *);
 
 int pgp_fingerprint(pgp_fingerprint_t *, const pgp_pubkey_t *);
 
+void pgp_forget(void *, size_t);
+
 #endif

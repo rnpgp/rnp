@@ -37,8 +37,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "packet.h"
 #include "memory.h"
+#include "pgp-key.h"
+
+typedef struct rnp_t rnp_t;
 
 typedef enum {
     KBX_EMPTY_BLOB = 0,

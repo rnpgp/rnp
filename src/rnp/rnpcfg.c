@@ -31,6 +31,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <regex.h>
+#include <time.h>
 
 #include "rnpcfg.h"
 #include <rnp/rnp_sdk.h>
