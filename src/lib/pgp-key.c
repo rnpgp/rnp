@@ -747,11 +747,10 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
         return PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH;
 
-    case PGP_PKA_SM2_ENCRYPT:
-        return PGP_KF_ENCRYPT;
+    case PGP_PKA_SM2:
+        return PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH | PGP_KF_ENCRYPT;
 
     case PGP_PKA_ECDH:
         return PGP_KF_ENCRYPT;

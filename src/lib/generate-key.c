@@ -137,7 +137,6 @@ keygen_merge_crypto_defaults(rnp_keygen_crypto_params_t *crypto)
         break;
 
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
         if (!crypto->hash_alg) {
             crypto->hash_alg = PGP_HASH_SM3;
         }
@@ -215,8 +214,7 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT: {
+    case PGP_PKA_SM2: {
         const ec_curve_desc_t *curve = get_curve_desc(crypto->ecc.curve);
         return curve ? curve->bitlen : 0;
     }

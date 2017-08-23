@@ -139,7 +139,7 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
             hexdump(stderr, "decoded m", buf, n);
         }
         return n;
-    case PGP_PKA_SM2_ENCRYPT:
+    case PGP_PKA_SM2:
         BN_bn2bin(encmpi, encmpibuf);
 
         size_t     out_len = buflen;
@@ -294,7 +294,6 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     /* FALLTHROUGH */
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
         if (pgp_genkey_ec_uncompressed(seckey, seckey->pubkey.alg, crypto->ecc.curve) !=
             RNP_SUCCESS) {
             RNP_LOG("failed to generate EC key");
@@ -342,7 +341,6 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
         if (!pgp_write_mpi(output, seckey->key.ecc.x)) {
             RNP_LOG("failed to write MPIs");
             goto end;

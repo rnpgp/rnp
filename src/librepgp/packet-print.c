@@ -335,8 +335,7 @@ numkeybits(const pgp_pubkey_t *pubkey)
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT: {
+    case PGP_PKA_SM2: {
         // BN_num_bytes returns value <= curve order
         const ec_curve_desc_t *curve = get_curve_desc(pubkey->key.ecc.curve);
         return curve ? curve->bitlen : 0;
@@ -998,7 +997,6 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
     case PGP_PKA_ECDH: {
         const ec_curve_desc_t *curve = get_curve_desc(key->key.pubkey.key.ecc.curve);
         if (curve) {
@@ -1071,7 +1069,6 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
         print_bn(0, "x", seckey->key.ecc.x);
         break;
 

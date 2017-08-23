@@ -66,7 +66,6 @@ static pgp_map_t ec_algo_to_botan[] = {
   {PGP_PKA_ECDH, "ECDH"},
   {PGP_PKA_ECDSA, "ECDSA"},
   {PGP_PKA_SM2, "SM2_Sig"},
-  {PGP_PKA_SM2_ENCRYPT, "SM2_Sig"}, // Same name as for PGP_PKA_SM2
 };
 
 pgp_curve_t
