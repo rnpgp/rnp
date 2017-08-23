@@ -1148,7 +1148,7 @@ rnp_sign_file(rnp_ctx_t * ctx,
         return RNP_FAIL;
     }
     /* get key with which to sign */
-    if ((keypair = resolve_userid(ctx->rnp, ctx->rnp->secring, userid)) == NULL) {
+    if ((keypair = resolve_userid(ctx->rnp, ctx->rnp->pubring, userid)) == NULL) {
         return RNP_FAIL;
     }
     if (!pgp_key_can_sign(keypair) &&
@@ -1276,7 +1276,7 @@ rnp_sign_memory(rnp_ctx_t * ctx,
         (void) fprintf(io->errs, "rnp_sign_memory: no memory to sign\n");
         return RNP_FAIL;
     }
-    if ((keypair = resolve_userid(ctx->rnp, ctx->rnp->secring, userid)) == NULL) {
+    if ((keypair = resolve_userid(ctx->rnp, ctx->rnp->pubring, userid)) == NULL) {
         return RNP_FAIL;
     }
     if (!pgp_key_can_sign(keypair) &&
