@@ -616,7 +616,7 @@ sm2_roundtrip(void **state)
     uint8_t ctext_buf[1024];
     uint8_t decrypted[32];
 
-    const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_SM2_ENCRYPT,
+    const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_SM2,
                                                  .hash_alg = PGP_HASH_SM3,
                                                  .sym_alg = PGP_SA_SM4,
                                                  .ecc = {.curve = PGP_CURVE_SM2_P_256}};

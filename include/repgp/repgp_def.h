@@ -266,8 +266,7 @@ typedef enum {
                                * IETF-S/MIME) */
     PGP_PKA_EDDSA = 22,       /* EdDSA from draft-ietf-openpgp-rfc4880bis */
 
-    PGP_PKA_SM2_ENCRYPT = 98, /* SM2 encryption */
-    PGP_PKA_SM2 = 99,         /* SM2 signatures */
+    PGP_PKA_SM2 = 99,         /* SM2 encryption/signature schemes */
 
     PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE01 = 101, /* Private/Experimental Algorithm */
