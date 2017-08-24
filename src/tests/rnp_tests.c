@@ -157,7 +157,9 @@ main(int argc, char *argv[])
       cmocka_unit_test(sm2_roundtrip),
       cmocka_unit_test(test_load_v3_keyring_pgp),
       cmocka_unit_test(test_load_v4_keyring_pgp),
-      cmocka_unit_test(pgp_compress_roundtrip)};
+      cmocka_unit_test(test_load_keyring_and_count_pgp),
+      cmocka_unit_test(pgp_compress_roundtrip),
+      cmocka_unit_test(test_key_unlock_pgp)};
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */

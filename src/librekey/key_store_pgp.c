@@ -58,11 +58,12 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <string.h>
 
 #include <rnp/rnp_sdk.h>
+#include <librepgp/packet-show.h>
+#include <librepgp/reader.h>
 
 #include "types.h"
 #include "key_store_pgp.h"
 #include "signature.h"
-#include "packet-show.h"
 #include "readerwriter.h"
 #include "pgp-key.h"
 
@@ -121,12 +122,11 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     switch (pkt->tag) {
     case PGP_PTAG_CT_SECRET_KEY:
     case PGP_PTAG_CT_SECRET_SUBKEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
         if (pgp_is_secret_key_tag(pkt->tag)) {
             keydata.seckey = content->seckey;
+            keydata.seckey.decrypt_cb = pgp_decrypt_seckey_parser;
         } else {
             keydata.pubkey = content->pubkey;
         }
@@ -168,10 +168,10 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         }
         break;
     case PGP_PARSER_ERROR:
-        RNP_LOG("Error: %s\n", content->error);
+        RNP_LOG("Error: %s", content->error);
         return PGP_FINISHED;
     case PGP_PARSER_ERRCODE:
-        RNP_LOG("parse error: %s\n", pgp_errcode(content->errcode.errcode));
+        RNP_LOG("parse error: %s", pgp_errcode(content->errcode.errcode));
         break;
     case PGP_PTAG_CT_SIGNATURE_HEADER:
     case PGP_PTAG_CT_SIGNATURE:
@@ -380,7 +380,7 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
     pgp_key_t *  key;
     pgp_output_t output = {};
 
-    __PGP_USED(io);
+    RNP_USED(io);
     pgp_writer_set_memory(&output, mem);
 
     if (armour) {

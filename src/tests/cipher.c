@@ -29,7 +29,6 @@
 #include <crypto/eddsa.h>
 #include <crypto/elgamal.h>
 #include <crypto.h>
-#include <packet.h>
 #include <pgp-key.h>
 #include <crypto/bn.h>
 #include <rnp/rnp.h>
@@ -39,6 +38,7 @@
 
 #include "rnp_tests.h"
 #include "support.h"
+#include "misc.h"
 
 void
 hash_test_success(void **state)
@@ -369,21 +369,21 @@ ecdsa_signverify_success(void **state)
         rnp_assert_int_equal(
           rstate,
           pgp_ecdsa_sign_hash(&sig, message, curves[i].size, prv_key1, pub_key1),
-          PGP_E_OK);
+          RNP_SUCCESS);
 
         rnp_assert_int_equal(
-          rstate, pgp_ecdsa_verify_hash(&sig, message, curves[i].size, pub_key1), PGP_E_OK);
+          rstate, pgp_ecdsa_verify_hash(&sig, message, curves[i].size, pub_key1), RNP_SUCCESS);
 
         // Fails because of different key used
         rnp_assert_int_equal(rstate,
                              pgp_ecdsa_verify_hash(&sig, message, curves[i].size, pub_key2),
-                             PGP_E_V_BAD_SIGNATURE);
+                             RNP_ERROR_SIGNATURE_INVALID);
 
         // Fails because message won't verify
         message[0] = ~message[0];
         rnp_assert_int_equal(rstate,
                              pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key1),
-                             PGP_E_V_BAD_SIGNATURE);
+                             RNP_ERROR_SIGNATURE_INVALID);
 
         BN_clear_free(sig.r);
         BN_clear_free(sig.s);
@@ -616,7 +616,7 @@ sm2_roundtrip(void **state)
     uint8_t ctext_buf[1024];
     uint8_t decrypted[32];
 
-    const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_SM2_ENCRYPT,
+    const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_SM2,
                                                  .hash_alg = PGP_HASH_SM3,
                                                  .sym_alg = PGP_SA_SM4,
                                                  .ecc = {.curve = PGP_CURVE_SM2_P_256}};

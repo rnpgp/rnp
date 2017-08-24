@@ -31,18 +31,6 @@
 #include <stdbool.h>
 #include "errors.h"
 #include "rnp.h"
-#include "packet.h"
-
-/* -----------------------------------------------------------------------------
- * @brief   Generate SM2 keypair (can be used for either encryption or signing)
- *
- * @param   seckey[out] private part of the key
- * @param   curve       underlying ECC curve ID
- *
- * @returns success PGP_E_OK, error code otherwise
- *
--------------------------------------------------------------------------------- */
-rnp_result pgp_sm2_genkeypair(pgp_seckey_t *seckey, pgp_curve_t curve);
 
 rnp_result pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
                              const uint8_t *         hashbuf,

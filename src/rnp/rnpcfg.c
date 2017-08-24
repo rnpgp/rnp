@@ -31,6 +31,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <regex.h>
+#include <time.h>
 
 #include "rnpcfg.h"
 #include <rnp/rnp_sdk.h>
@@ -68,7 +69,7 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
 bool
 rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
 {
-    int         passfd;
+    int         fd;
     const char *stream;
 
     /* enabling core dumps if user wants this */
@@ -77,8 +78,13 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
     }
 
     /* checking if password input was specified */
-    if ((passfd = rnp_cfg_getint(cfg, CFG_PASSFD))) {
-        params->passfd = passfd;
+    if ((fd = rnp_cfg_getint(cfg, CFG_PASSFD))) {
+        params->passfd = fd;
+    }
+
+    /* checking if user input was specified */
+    if ((fd = rnp_cfg_getint(cfg, CFG_USERINPUTFD))) {
+        params->userinputfd = fd;
     }
 
     /* stdout/stderr and results redirection */

@@ -77,14 +77,15 @@
  */
 #include <string.h>
 #include <stdbool.h>
+#include <rnp/rnp_def.h>
 
 #include "config.h"
+#include "types.h"
 #include "utils.h"
 #include "crypto/rsa.h"
 #include "crypto/bn.h"
 
-#include "utils.h"
-#include <rnp/rnp_def.h>
+#include "hash.h"
 
 /**
    \ingroup Core_Crypto

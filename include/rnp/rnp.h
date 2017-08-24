@@ -34,21 +34,24 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#include "packet.h"
 #include <rnp/rnp_def.h>
 #include <rnp/rnp_types.h>
 
-#ifndef __BEGIN_DECLS
+#ifndef BEGIN_DECLS__
 #if defined(__cplusplus)
-#define __BEGIN_DECLS extern "C" {
-#define __END_DECLS }
+#define BEGIN_DECLS__ extern "C" {
+#define END_DECLS__ }
 #else
-#define __BEGIN_DECLS
-#define __END_DECLS
+#define BEGIN_DECLS__
+#define END_DECLS__
 #endif
 #endif
 
-__BEGIN_DECLS
+BEGIN_DECLS__
+
+typedef struct rnp_t        rnp_t;
+typedef struct rnp_params_t rnp_params_t;
+typedef struct rnp_ctx_t    rnp_ctx_t;
 
 /* initialize rnp using the init structure  */
 int rnp_init(rnp_t *, const rnp_params_t *);
@@ -91,9 +94,9 @@ int rnp_sign_file(rnp_ctx_t *, const char *, const char *, const char *, bool, b
 int rnp_verify_file(rnp_ctx_t *, const char *, const char *, int);
 
 /* memory signing and encryption */
-int rnp_sign_memory(rnp_ctx_t *, const char *, char *, size_t, char *, size_t, bool);
+int rnp_sign_memory(rnp_ctx_t *, const char *, const char *, size_t, char *, size_t, bool);
 int rnp_verify_memory(rnp_ctx_t *, const void *, const size_t, void *, size_t, const int);
-int rnp_encrypt_memory(rnp_ctx_t *, const char *, void *, const size_t, char *, size_t);
+int rnp_encrypt_memory(rnp_ctx_t *, const char *, const void *, const size_t, char *, size_t);
 int rnp_decrypt_memory(rnp_ctx_t *, const void *, const size_t, char *, size_t);
 
 /* match and hkp-related functions */
@@ -107,6 +110,6 @@ bool rnp_validate_sigs(rnp_t *);
 /* save pgp key in ssh format */
 int rnp_write_sshkey(rnp_t *, char *, const char *, char *, size_t);
 
-__END_DECLS
+END_DECLS__
 
 #endif /* !RNP_H_ */

@@ -53,9 +53,32 @@
 #define RNP_DSA_H_
 
 #include <stdint.h>
-#include "packet.h"
+#include "crypto/bn.h"
 
 /* TODO key generation */
+
+/** Structure to hold one DSA public key params.
+ *
+ * \see RFC4880 5.5.2
+ */
+typedef struct {
+    BIGNUM *p; /* DSA prime p */
+    BIGNUM *q; /* DSA group order q */
+    BIGNUM *g; /* DSA group generator g */
+    BIGNUM *y; /* DSA public key value y (= g^x mod p
+                * with x being the secret) */
+} pgp_dsa_pubkey_t;
+
+/** pgp_dsa_seckey_t */
+typedef struct pgp_dsa_seckey_t {
+    BIGNUM *x;
+} pgp_dsa_seckey_t;
+
+/** Struct to hold params of a DSA signature */
+typedef struct pgp_dsa_sig_t {
+    BIGNUM *r; /* DSA value r */
+    BIGNUM *s; /* DSA value s */
+} pgp_dsa_sig_t;
 
 /* DSA signature/verify */
 

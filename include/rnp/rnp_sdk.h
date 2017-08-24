@@ -32,21 +32,25 @@
 #define RNPSDK_H_
 
 #include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
 
 #include <rnp/rnp_def.h>
 
-#ifndef __printflike
-#define __printflike(n, m) __attribute__((format(printf, n, m)))
+#ifndef PRINTFLIKE
+#define PRINTFLIKE(n, m) __attribute__((format(printf, n, m)))
 #endif
 
 const char *rnp_get_info(const char *type);
 
-void rnp_log(const char *, ...) __printflike(1, 2);
+void rnp_log(const char *, ...) PRINTFLIKE(1, 2);
 
 int   rnp_strcasecmp(const char *, const char *);
 char *rnp_strdup(const char *);
 
 char *rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep);
+
+char *rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *sep);
 
 int64_t rnp_filemtime(const char *path);
 

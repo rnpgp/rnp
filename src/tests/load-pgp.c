@@ -25,6 +25,7 @@
  */
 
 #include "../librekey/key_store_pgp.h"
+#include "pgp-key.h"
 
 #include "rnp_tests.h"
 #include "support.h"
@@ -53,12 +54,13 @@ test_load_v3_keyring_pgp(void **state)
 
     // find the key by keyid
     static const uint8_t keyid[] = {0xDC, 0x70, 0xC1, 0x24, 0xA5, 0x02, 0x83, 0xF1};
-    unsigned from = 0;
-    const pgp_key_t *key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    unsigned             from = 0;
+    const pgp_key_t *    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
     assert_non_null(key);
 
     // confirm the key flags are correct
-    assert_int_equal(key->key_flags, PGP_KF_ENCRYPT | PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
+    assert_int_equal(key->key_flags,
+                     PGP_KF_ENCRYPT | PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 
     // cleanup
     rnp_key_store_free(key_store);
@@ -90,8 +92,8 @@ test_load_v4_keyring_pgp(void **state)
 
     // find the key by keyid
     static const uint8_t keyid[] = {0x8a, 0x05, 0xb8, 0x9f, 0xad, 0x5a, 0xde, 0xd1};
-    unsigned from = 0;
-    const pgp_key_t *key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    unsigned             from = 0;
+    const pgp_key_t *    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
     assert_non_null(key);
 
     // confirm the key flags are correct
@@ -100,4 +102,76 @@ test_load_v4_keyring_pgp(void **state)
     // cleanup
     rnp_key_store_free(key_store);
     pgp_memory_release(&mem);
+}
+
+/* Just a helper for the below test */
+static void
+check_pgp_keyring_counts(const char *   path,
+                         unsigned       primary_count,
+                         const unsigned subkey_counts[])
+{
+    pgp_io_t     io = {.errs = stderr, .res = stdout, .outs = stdout};
+    pgp_memory_t mem = {0};
+
+    // read the keyring into memory
+    assert_true(pgp_mem_readfile(&mem, path));
+
+    rnp_key_store_t *key_store = calloc(1, sizeof(*key_store));
+    assert_non_null(key_store);
+
+    // load it in to the key store
+    assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, 0, &mem));
+
+    // count primary keys first
+    unsigned total_primary_count = 0;
+    for (unsigned i = 0; i < key_store->keyc; i++) {
+        pgp_key_t *key = &key_store->keys[i];
+        if (pgp_key_is_primary_key(key)) {
+            total_primary_count++;
+        }
+    }
+    assert_int_equal(primary_count, total_primary_count);
+
+    // now count subkeys in each primary key
+    unsigned total_subkey_count = 0;
+    unsigned primary = 0;
+    for (unsigned i = 0; i < key_store->keyc; i++) {
+        pgp_key_t *key = &key_store->keys[i];
+        if (pgp_key_is_primary_key(key)) {
+            // check the subkey count for this primary key
+            assert_int_equal(key->subkeyc, subkey_counts[primary++]);
+        } else if (pgp_key_is_subkey(key)) {
+            total_subkey_count++;
+        }
+    }
+
+    // check the total (not really needed)
+    assert_int_equal(key_store->keyc, total_primary_count + total_subkey_count);
+
+    // cleanup
+    rnp_key_store_free(key_store);
+    pgp_memory_release(&mem);
+}
+
+/* This test loads a pubring.gpg and secring.gpg and confirms
+ * that it contains the expected number of primary keys
+ * and the expected number of subkeys for each primary key.
+ */
+void
+test_load_keyring_and_count_pgp(void **state)
+{
+    rnp_test_state_t *rstate = *state;
+    char              path[PATH_MAX];
+    static const struct {
+        unsigned primary_count;
+        unsigned subkey_counts[];
+    } expected = {2, {3, 2}};
+
+    // check pubring
+    paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/pubring.gpg", NULL);
+    check_pgp_keyring_counts(path, expected.primary_count, expected.subkey_counts);
+
+    // check secring
+    paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/secring.gpg", NULL);
+    check_pgp_keyring_counts(path, expected.primary_count, expected.subkey_counts);
 }

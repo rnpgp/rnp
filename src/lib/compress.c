@@ -76,14 +76,14 @@ __RCSID("$NetBSD: compress.c,v 1.23 2012/03/05 02:20:18 christos Exp $");
 #include <stdlib.h>
 
 #include <rnp/rnp_def.h>
-#include "packet-parse.h"
+#include <repgp/repgp.h>
 #include "errors.h"
 #include "utils.h"
 #include "crypto.h"
 #include "memory.h"
 #include "writer.h"
 
-#define DECOMPRESS_BUFFER 1024
+#define DECOMPRESS_BUFFER (1024)
 
 typedef struct {
     pgp_compression_type_t type;
@@ -106,12 +106,6 @@ typedef struct {
     int                    inflate_ret;
 } bz_decompress_t;
 #endif
-
-typedef struct {
-    z_stream stream;
-    uint8_t *src;
-    uint8_t *dst;
-} compress_t;
 
 /*
  * \todo remove code duplication between this and
@@ -176,12 +170,13 @@ zlib_compressed_data_reader(pgp_stream_t *stream,
                                 "Compressed stream ended before packet end.");
                 }
             } else if (ret != Z_OK) {
-                (void) fprintf(stderr, "ret=%d\n", ret);
+                (void) fprintf(stderr, "zlib error %d\n", ret);
                 PGP_ERROR_1(cbinfo->errors, PGP_E_P_DECOMPRESSION_ERROR, "%s", z->zstream.msg);
+                return 0;
             }
             z->inflate_ret = ret;
         }
-        if (z->zstream.next_out <= &z->out[z->offset]) {
+        if (z->zstream.next_out < &z->out[z->offset]) {
             RNP_LOG("Out of memory in buffer");
             return 0;
         }
@@ -221,7 +216,6 @@ bzip2_compressed_data_reader(pgp_stream_t *stream,
     for (cc = 0; cc < length; cc += len) {
         if (&bz->out[bz->offset] == bz->bzstream.next_out) {
             int ret;
-
             bz->bzstream.next_out = (char *) bz->out;
             bz->bzstream.avail_out = sizeof(bz->out);
             bz->offset = 0;
@@ -258,13 +252,14 @@ bzip2_compressed_data_reader(pgp_stream_t *stream,
             }
             bz->inflate_ret = ret;
         }
-        if (bz->bzstream.next_out <= &bz->out[bz->offset]) {
-            (void) fprintf(stderr, "Out of bz memroy\n");
+
+        if (bz->bzstream.next_out < &bz->out[bz->offset]) {
+            (void) fprintf(stderr, "Out of bz memory\n");
             return 0;
         }
         len = (size_t)(bz->bzstream.next_out - &bz->out[bz->offset]);
-        if (len > length) {
-            len = length;
+        if (len + cc > length) {
+            len = length - cc;
         }
         (void) memcpy(&cdest[cc], &bz->out[bz->offset], len);
         bz->offset += len;
@@ -345,7 +340,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
 
 #ifdef HAVE_BZLIB_H
     case PGP_C_BZIP2:
-        ret = BZ2_bzDecompressInit(&bz.bzstream, 1, 0);
+        ret = BZ2_bzDecompressInit(&bz.bzstream, 0, 0);
         break;
 #endif
 
@@ -397,7 +392,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
 end:
 #ifdef HAVE_BZLIB_H
     if (type == PGP_C_BZIP2) {
-        BZ2_bzCompressEnd(&bz.bzstream);
+        BZ2_bzDecompressEnd(&bz.bzstream);
     } else
 #endif
     {
@@ -407,73 +402,126 @@ end:
     return res;
 }
 
-bool
-pgp_writez(pgp_output_t *out, const uint8_t *data, const unsigned data_len)
+static size_t
+estimate_output_sz(pgp_compression_type_t type, size_t input_len)
 {
-    compress_t * zip;
-    int          r = 0;
+    if (type == PGP_C_BZIP2) {
+        /*
+        Despite claims on the bzip2 website, it has worst-case expansion
+        much worse than .5% even after accounting for the ~50 byte constant
+        overhead. Eg compressing 4096 random bytes results in a 4591 byte
+        compression, hundreds of bytes more than the docs would imply.
+        It is up to 3x higher for very small inputs.
+
+        These estimates are still guesswork and might fail for certain inputs.
+        */
+        if (input_len <= 128)
+            return (4 * input_len);
+        else if (input_len <= 4096)
+            return (3 * input_len);
+        else if (input_len <= 8192)
+            return (2 * input_len);
+        else {
+            // trust the docs...
+            return (105 * input_len) / 100 + 64;
+        }
+    } else {
+        return (105 * input_len) / 100 + 64;
+    }
+}
+
+bool
+pgp_writez(pgp_output_t *         out_stream,
+           const uint8_t *        input,
+           size_t                 input_len,
+           pgp_compression_type_t type,
+           int                    level)
+{
+    uint8_t *    output = NULL;
     bool         ret = false;
-    const size_t sz_in = data_len * sizeof(uint8_t);
-    const size_t sz_out = ((101 * sz_in) / 100) + 12; /* from zlib webpage */
+    const size_t output_len = estimate_output_sz(type, input_len);
+    unsigned int output_produced = 0;
 
-    /* Sanity checks */
-    if (data_len == 0) {
-        return true;
-    }
-
-    if (!out || !data) {
+    if (!out_stream || !input) {
         return false;
     }
 
-    /* compress the data */
-    const int level = Z_DEFAULT_COMPRESSION; /* \todo allow varying
-                                              * levels */
-    if ((zip = calloc(1, sizeof(*zip))) == NULL) {
-        RNP_LOG("bad alloc\n");
-        return false;
-    }
-    zip->src = calloc(1, sz_in);
-    zip->dst = calloc(1, sz_out);
-
-    if ((NULL == zip->src) || (NULL == zip->dst)) {
+    output = calloc(1, output_len);
+    if (!output) {
         goto end;
     }
 
-    /* all other fields set to zero by use of calloc */
-    zip->stream.zalloc = Z_NULL;
-    zip->stream.zfree = Z_NULL;
+    if (type == PGP_C_BZIP2) {
+#if defined(HAVE_BZLIB_H)
+        bz_stream stream;
+        memset(&stream, 0, sizeof(stream));
 
-    /* LINTED */ /* this is a lint problem in zlib.h header */
-    if ((int) deflateInit(&zip->stream, level) != Z_OK) {
-        RNP_LOG("can't initialise");
+        if (BZ2_bzCompressInit(&stream, level, 0, 0) != BZ_OK) {
+            RNP_LOG("can't initialise bzlib");
+            goto end;
+        }
+
+        stream.next_in = (char *) input;
+        stream.avail_in = (unsigned) input_len;
+        stream.next_out = (char *) output;
+        stream.avail_out = (unsigned) output_len;
+
+        int r;
+        do {
+            r = BZ2_bzCompress(&stream, BZ_FINISH);
+        } while (r != BZ_STREAM_END);
+
+        BZ2_bzCompressEnd(&stream);
+        output_produced = stream.total_out_lo32;
+#else
+        RNP_LOG("bzip2 support missing");
         goto end;
-    }
+#endif
+    } else if (type == PGP_C_ZLIB || type == PGP_C_ZIP) {
+#if defined(HAVE_ZLIB_H)
+        z_stream stream;
+        memset(&stream, 0, sizeof(stream));
 
-    (void) memcpy(zip->src, data, data_len);
+        if (type == PGP_C_ZIP) {
+            if (deflateInit2(&stream, level, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY) != Z_OK) {
+                RNP_LOG("can't initialise zlib");
+                goto end;
+            }
+
+        } else {
+            if (deflateInit(&stream, level) != Z_OK) {
+                RNP_LOG("can't initialise zlib");
+                goto end;
+            }
+        }
+
+        stream.next_in = (uint8_t *) input;
+        stream.avail_in = (unsigned) input_len;
+        stream.next_out = output;
+        stream.avail_out = (unsigned) output_len;
+
+        int r;
+        do {
+            r = deflate(&stream, Z_FINISH);
+        } while (r != Z_STREAM_END);
+
+        output_produced = stream.total_out;
+        deflateEnd(&stream);
+#else
+        RNP_LOG("zlib support missing");
+        goto end;
+#endif
+    }
 
     /* setup stream */
-    zip->stream.next_in = zip->src;
-    zip->stream.avail_in = (unsigned) sz_in;
-    zip->stream.total_in = 0;
-
-    zip->stream.next_out = zip->dst;
-    zip->stream.avail_out = (unsigned) sz_out;
-    zip->stream.total_out = 0;
-
-    do {
-        r = deflate(&zip->stream, Z_FINISH);
-    } while (r != Z_STREAM_END);
 
     /* write it out */
-    ret = pgp_write_ptag(out, PGP_PTAG_CT_COMPRESSED) &&
-          pgp_write_length(out, (unsigned) (zip->stream.total_out + 1)) &&
-          pgp_write_scalar(out, PGP_C_ZLIB, 1) &&
-          pgp_write(out, zip->dst, (unsigned) zip->stream.total_out);
+    ret = pgp_write_ptag(out_stream, PGP_PTAG_CT_COMPRESSED) &&
+          pgp_write_length(out_stream, (unsigned) (output_produced + 1)) &&
+          pgp_write_scalar(out_stream, type, 1) &&
+          pgp_write(out_stream, output, output_produced);
 
 end:
-    free(zip->src);
-    free(zip->dst);
-    (void) deflateEnd(&zip->stream);
-    free(zip);
+    free(output);
     return ret;
 }

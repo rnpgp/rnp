@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CORES="2" && [ -r /proc/cpuinfo ] && CORES=$(grep -c '^$' /proc/cpuinfo)
+: "${CORES:=2}"
 
 [ "x${RNP_BUILD_DIR}" = "x" ] && \
   export RNP_BUILD_DIR=$(mktemp -d)

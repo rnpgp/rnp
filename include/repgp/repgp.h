@@ -1,3 +1,6 @@
+#ifndef REPGP_H_
+#define REPGP_H_
+
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -53,11 +56,23 @@
  * Parser for OpenPGP packets - headers.
  */
 
-#ifndef PACKET_PARSE_H_
-#define PACKET_PARSE_H_
+#include <stddef.h>
+#include <stdbool.h>
+#include <stdint.h>
 
-#include "types.h"
-#include "packet.h"
+#include <json.h>
+#include "repgp_def.h"
+#include "errors.h"
+
+struct rnp_key_store_t;
+typedef struct pgp_packet_t    pgp_packet_t;
+typedef struct pgp_cbdata_t    pgp_cbdata_t;
+typedef struct pgp_stream_t    pgp_stream_t;
+typedef struct pgp_reader_t    pgp_reader_t;
+typedef struct pgp_cryptinfo_t pgp_cryptinfo_t;
+typedef struct pgp_io_t        pgp_io_t;
+typedef struct pgp_key_t       pgp_key_t;
+typedef struct pgp_pubkey_t    pgp_pubkey_t;
 
 /** pgp_region_t */
 typedef struct pgp_region_t {
@@ -73,16 +88,7 @@ void pgp_init_subregion(pgp_region_t *, pgp_region_t *);
 
 /** pgp_cb_ret_t */
 typedef enum { PGP_RELEASE_MEMORY, PGP_KEEP_MEMORY, PGP_FINISHED } pgp_cb_ret_t;
-
-typedef struct pgp_cbdata_t pgp_cbdata_t;
-
 typedef pgp_cb_ret_t pgp_cbfunc_t(const pgp_packet_t *, pgp_cbdata_t *);
-
-pgp_cb_ret_t get_passphrase_cb(const pgp_packet_t *, pgp_cbdata_t *);
-
-typedef struct pgp_stream_t    pgp_stream_t;
-typedef struct pgp_reader_t    pgp_reader_t;
-typedef struct pgp_cryptinfo_t pgp_cryptinfo_t;
 
 /*
    A reader MUST read at least one byte if it can, and should read up
@@ -125,7 +131,7 @@ pgp_cb_ret_t  pgp_callback(const pgp_packet_t *, pgp_cbdata_t *);
 pgp_cb_ret_t  pgp_stacked_callback(const pgp_packet_t *, pgp_cbdata_t *);
 pgp_reader_t *pgp_readinfo(pgp_stream_t *);
 
-bool pgp_parse(pgp_stream_t *, const int);
+bool pgp_parse(pgp_stream_t *, const bool show_erros);
 
 /** Used to specify whether subpackets should be returned raw, parsed
  * or ignored.  */
@@ -135,7 +141,18 @@ typedef enum {
     PGP_PARSE_IGNORE  /* Don't callback */
 } pgp_parse_type_t;
 
-void pgp_parse_options(pgp_stream_t *, pgp_content_enum, pgp_parse_type_t);
+/**
+ * @brief Specifies whether one or more signature subpacket types
+ *        should be returned parsed; or raw; or ignored.
+ *
+ * @param    stream   Pointer to previously allocated structure
+ * @param    tag      Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one individual
+ *                    signature subpacket tag
+ * @param    type     Parse type
+ *
+ * @todo Make all packet types optional, not just subpackets
+ */
+void pgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, pgp_parse_type_t type);
 
 bool pgp_limited_read(pgp_stream_t *,
                       uint8_t *,
@@ -152,8 +169,45 @@ bool pgp_stacked_limited_read(pgp_stream_t *,
                               pgp_reader_t *,
                               pgp_cbdata_t *);
 
+void pgp_parser_content_free(pgp_packet_t *);
+
 pgp_reader_func_t pgp_stacked_read;
 
-bool pgp_decompress(pgp_region_t *, pgp_stream_t *, pgp_compression_type_t);
+/* ----------------------------- printing -----------------------------*/
+void repgp_print_key(pgp_io_t *,
+                     const struct rnp_key_store_t *,
+                     const pgp_key_t *,
+                     const char *,
+                     const pgp_pubkey_t *,
+                     const int);
 
-#endif /* PACKET_PARSE_H_ */
+int repgp_sprint_json(pgp_io_t *,
+                      const struct rnp_key_store_t *,
+                      const pgp_key_t *,
+                      json_object *,
+                      const char *,
+                      const pgp_pubkey_t *,
+                      const int);
+
+typedef struct pgp_passphrase_ctx_t {
+    uint8_t             op;
+    const pgp_pubkey_t *pubkey;
+    uint8_t             key_type;
+} pgp_passphrase_ctx_t;
+
+typedef bool pgp_passphrase_callback_t(const pgp_passphrase_ctx_t *ctx,
+                                       char *                      passphrase,
+                                       size_t                      passphrase_size,
+                                       void *                      userdata);
+
+typedef struct pgp_passphrase_provider_t {
+    pgp_passphrase_callback_t *callback;
+    void *                     userdata;
+} pgp_passphrase_provider_t;
+
+bool pgp_request_passphrase(const pgp_passphrase_provider_t *provider,
+                            const pgp_passphrase_ctx_t *     ctx,
+                            char *                           passphrase,
+                            size_t                           passphrase_size);
+
+#endif /* REPGP_H_ */

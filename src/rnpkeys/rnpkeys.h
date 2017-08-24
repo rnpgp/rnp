@@ -1,5 +1,5 @@
-#ifndef _rnpkeys_H_
-#define _rnpkeys_H_
+#ifndef RNPKEYS_H_
+#define RNPKEYS_H_
 
 #include <stdbool.h>
 #include <sys/param.h>

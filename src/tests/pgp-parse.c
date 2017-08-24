@@ -25,6 +25,10 @@
  */
 
 #include <rnp/rnp.h>
+
+#include <librepgp/packet-parse.h>
+#include <librepgp/reader.h>
+
 #include <crypto.h>
 #include <crypto/bn.h>
 #include <crypto/rsa.h>
@@ -32,7 +36,6 @@
 #include <crypto/eddsa.h>
 #include <crypto/elgamal.h>
 #include <crypto/ecdsa.h>
-#include <packet.h>
 #include <pgp-key.h>
 #include <rnp/rnp.h>
 
@@ -149,66 +152,75 @@ pgp_parse_keyrings_1_pubring(void **state)
 void
 pgp_compress_roundtrip(void **state)
 {
-    uint8_t           file_buf[4096] = {0};
-    size_t            file_buf_size = sizeof(file_buf);
-    rnp_ctx_t         ctx = {0};
-    rnp_t             rnp = {0};
-    pgp_output_t *    out = NULL;
-    pgp_memory_t *    mem = NULL;
-    pgp_stream_t *    stream = NULL;
-    list              taglist = NULL;
-    pgp_io_t          io = {0};
     rnp_test_state_t *rstate = *state;
 
-    assert_true(read_file_to_memory(
-      rstate, file_buf, &file_buf_size, (const uint8_t *) "keyrings/1/pubring.gpg"));
+    const pgp_compression_type_t algs[] = {PGP_C_ZLIB, PGP_C_ZIP, PGP_C_BZIP2, PGP_C_NONE};
 
-    set_io(&io);
+    for (size_t i = 0; algs[i] != PGP_C_NONE; ++i) {
+        for (size_t level = 1; level <= 9; ++level) {
+            printf("alg %d level %zd\n", algs[i], level);
 
-    /* Perform write */
-    assert_int_equal(rnp_ctx_init(&ctx, &rnp), RNP_SUCCESS);
-    assert_true(pgp_setup_memory_write(&ctx, &out, &mem, 4096));
-    assert_true(pgp_writez(out, file_buf, file_buf_size));
+            uint8_t       file_buf[4096] = {0};
+            size_t        file_buf_size = sizeof(file_buf);
+            rnp_ctx_t     ctx = {0};
+            rnp_t         rnp = {0};
+            pgp_output_t *out = NULL;
+            pgp_memory_t *mem = NULL;
+            pgp_stream_t *stream = NULL;
+            list          taglist = NULL;
+            pgp_io_t      io = {0};
 
-    assert_true(pgp_setup_memory_read(&io, &stream, mem, &taglist, tag_collector, 1));
-    pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
-    assert_true(pgp_parse(stream, true));
+            assert_true(read_file_to_memory(
+              rstate, file_buf, &file_buf_size, (const uint8_t *) "keyrings/1/pubring.gpg"));
 
-    pgp_teardown_memory_write(out, mem);
-    mem = NULL;
-    pgp_teardown_memory_read(stream, mem);
-    stream = NULL;
+            set_io(&io);
 
-    assert_int_equal(list_length(taglist), ARRAY_SIZE(tags_keyrings_1_pubring) + 3);
+            /* Perform write */
+            assert_int_equal(rnp_ctx_init(&ctx, &rnp), RNP_SUCCESS);
+            assert_true(pgp_setup_memory_write(&ctx, &out, &mem, 4096));
+            assert_true(pgp_writez(out, file_buf, file_buf_size, algs[i], level));
 
-    list_item *item = list_front(taglist);
-    assert_int_equal(PGP_PARSER_PTAG, *((int *) item));
+            assert_true(pgp_setup_memory_read(&io, &stream, mem, &taglist, tag_collector, 1));
+            pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
+            assert_true(pgp_parse(stream, true));
 
-    item = list_next(item);
-    assert_int_equal(PGP_PTAG_CT_COMPRESSED, *((int *) item));
+            pgp_teardown_memory_write(out, mem);
+            mem = NULL;
+            pgp_teardown_memory_read(stream, mem);
+            stream = NULL;
 
-    item = list_next(item);
-    assert_int_equal(PGP_PARSER_PTAG, *((int *) item));
+            assert_int_equal(list_length(taglist), ARRAY_SIZE(tags_keyrings_1_pubring) + 3);
 
-    item = list_next(item);
-    assert_int_equal(PGP_PTAG_CT_PUBLIC_KEY, *((int *) item));
+            list_item *item = list_front(taglist);
+            assert_int_equal(PGP_PARSER_PTAG, *((int *) item));
 
-    item = list_next(item);
-    assert_int_equal(PGP_PARSER_PACKET_END, *((int *) item));
+            item = list_next(item);
+            assert_int_equal(PGP_PTAG_CT_COMPRESSED, *((int *) item));
 
-    /* From now all all packets are the same as in tags_keyrings_1_pubring
-     * except the last one.
-     */
-    item = list_next(item);
-    for (size_t i = 3; i < ARRAY_SIZE(tags_keyrings_1_pubring); i++) {
-        pgp_content_enum tag = *(pgp_content_enum *) item;
-        assert_int_equal(tag, tags_keyrings_1_pubring[i]);
-        item = list_next(item);
+            item = list_next(item);
+            assert_int_equal(PGP_PARSER_PTAG, *((int *) item));
+
+            item = list_next(item);
+            assert_int_equal(PGP_PTAG_CT_PUBLIC_KEY, *((int *) item));
+
+            item = list_next(item);
+            assert_int_equal(PGP_PARSER_PACKET_END, *((int *) item));
+
+            /* From now all all packets are the same as in tags_keyrings_1_pubring
+            * except the last one.
+            */
+            item = list_next(item);
+            for (size_t i = 3; i < ARRAY_SIZE(tags_keyrings_1_pubring); i++) {
+                pgp_content_enum tag = *(pgp_content_enum *) item;
+                assert_int_equal(tag, tags_keyrings_1_pubring[i]);
+                item = list_next(item);
+            }
+
+            pgp_content_enum tag = *(pgp_content_enum *) item;
+            assert_int_equal(tag, PGP_PARSER_PACKET_END);
+            assert_non_null(!list_next(item));
+
+            list_destroy(&taglist);
+        }
     }
-
-    pgp_content_enum tag = *(pgp_content_enum *) item;
-    assert_int_equal(tag, PGP_PARSER_PACKET_END);
-    assert_non_null(!list_next(item));
-
-    list_destroy(&taglist);
 }

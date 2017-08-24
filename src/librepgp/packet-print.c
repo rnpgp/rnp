@@ -54,37 +54,22 @@
  */
 #include "config.h"
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
 #if defined(__NetBSD__)
 __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights reserved.");
 __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
-#endif
-
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
 #endif
 
 #ifdef RNP_DEBUG
 #include <assert.h>
 #endif
 
-#include "crypto/bn.h"
-#include "crypto.h"
-#include "crypto/ecdsa.h"
+#include <rnp/rnp_sdk.h>
+
+#include "crypto/ec.h"
 #include "packet-show.h"
 #include "signature.h"
-#include "readerwriter.h"
-#include "utils.h"
-#include <rnp/rnp_sdk.h>
-#include "packet.h"
 #include "pgp-key.h"
+#include "reader.h"
 
 #define F_REVOKED 1
 
@@ -100,7 +85,6 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 
 /* static functions */
 static bool format_key_usage(char *buffer, size_t size, uint8_t flags);
-extern ec_curve_desc_t ec_curves[PGP_CURVE_MAX];
 
 static void
 print_indent(int indent)
@@ -351,11 +335,11 @@ numkeybits(const pgp_pubkey_t *pubkey)
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
+    case PGP_PKA_SM2: {
         // BN_num_bytes returns value <= curve order
-        return ec_curves[pubkey->key.ecc.curve].bitlen;
-
+        const ec_curve_desc_t *curve = get_curve_desc(pubkey->key.ecc.curve);
+        return curve ? curve->bitlen : 0;
+    }
     default:
         (void) fprintf(stderr, "Unknown public key alg in numkeybits\n");
         return -1;
@@ -720,13 +704,13 @@ pgp_sprint_key(pgp_io_t *             io,
 
 /* return the key info as a JSON encoded string */
 int
-pgp_sprint_json(pgp_io_t *             io,
-                const rnp_key_store_t *keyring,
-                const pgp_key_t *      key,
-                json_object *          keyjson,
-                const char *           header,
-                const pgp_pubkey_t *   pubkey,
-                const int              psigs)
+repgp_sprint_json(pgp_io_t *                    io,
+                  const struct rnp_key_store_t *keyring,
+                  const pgp_key_t *             key,
+                  json_object *                 keyjson,
+                  const char *                  header,
+                  const pgp_pubkey_t *          pubkey,
+                  const int                     psigs)
 {
     char     keyid[PGP_KEY_ID_SIZE * 3];
     char     fp[PGP_FINGERPRINT_HEX_SIZE];
@@ -817,12 +801,12 @@ pgp_sprint_json(pgp_io_t *             io,
 }
 
 int
-pgp_hkp_sprint_key(pgp_io_t *             io,
-                   const rnp_key_store_t *keyring,
-                   const pgp_key_t *      key,
-                   char **                buf,
-                   const pgp_pubkey_t *   pubkey,
-                   const int              psigs)
+pgp_hkp_sprint_key(pgp_io_t *                    io,
+                   const struct rnp_key_store_t *keyring,
+                   const pgp_key_t *             key,
+                   char **                       buf,
+                   const pgp_pubkey_t *          pubkey,
+                   const int                     psigs)
 {
     const pgp_key_t *trustkey;
     unsigned         from;
@@ -907,12 +891,12 @@ pgp_hkp_sprint_key(pgp_io_t *             io,
 
 /* print the key data for a pub or sec key */
 void
-pgp_print_key(pgp_io_t *             io,
-              const rnp_key_store_t *keyring,
-              const pgp_key_t *      key,
-              const char *           header,
-              const pgp_pubkey_t *   pubkey,
-              const int              psigs)
+repgp_print_key(pgp_io_t *             io,
+                const rnp_key_store_t *keyring,
+                const pgp_key_t *      key,
+                const char *           header,
+                const pgp_pubkey_t *   pubkey,
+                const int              psigs)
 {
     char *cp;
 
@@ -958,11 +942,14 @@ pgp_print_pubkey(const pgp_pubkey_t *pubkey)
         print_bn(0, "y", pubkey->key.elgamal.y);
         break;
     case PGP_PKA_ECDSA:
-    case PGP_PKA_ECDH:
-        print_string(0, "curve", ec_curves[pubkey->key.ecc.curve].botan_name);
-        print_bn(0, "public point", pubkey->key.ecc.point);
+    case PGP_PKA_ECDH: {
+        const ec_curve_desc_t *curve = get_curve_desc(pubkey->key.ecc.curve);
+        if (curve) {
+            print_string(0, "curve", curve->botan_name);
+            print_bn(0, "public point", pubkey->key.ecc.point);
+        }
         break;
-
+    }
     default:
         (void) fprintf(stderr, "pgp_print_pubkey: Unusual algorithm\n");
     }
@@ -1010,14 +997,17 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
-    case PGP_PKA_ECDH:
-        cc += snprintf(&out[cc],
-                       outsize - cc,
-                       "curve=%s\npoint=%s\n",
-                       ec_curves[key->key.pubkey.key.ecc.curve].botan_name,
-                       BN_bn2hex(key->key.pubkey.key.ecc.point));
+    case PGP_PKA_ECDH: {
+        const ec_curve_desc_t *curve = get_curve_desc(key->key.pubkey.key.ecc.curve);
+        if (curve) {
+            cc += snprintf(&out[cc],
+                           outsize - cc,
+                           "curve=%s\npoint=%s\n",
+                           curve->botan_name,
+                           BN_bn2hex(key->key.pubkey.key.ecc.point));
+        }
         break;
+    }
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         cc += snprintf(&out[cc],
@@ -1060,7 +1050,7 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
         print_hexdump(0, "IV", seckey->iv, pgp_block_size(seckey->alg));
     }
     /* no more set if encrypted */
-    if (type == PGP_PTAG_CT_ENCRYPTED_SECRET_KEY) {
+    if (seckey->encrypted) {
         return;
     }
     switch (seckey->pubkey.alg) {
@@ -1079,7 +1069,6 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
         print_bn(0, "x", seckey->key.ecc.x);
         break;
 
@@ -1669,11 +1658,6 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
         print_seckey_verbose(pkt->tag, &content->seckey);
         break;
 
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-        print_tagname(print->indent, "PGP_PTAG_CT_ENCRYPTED_SECRET_KEY");
-        print_seckey_verbose(pkt->tag, &content->seckey);
-        break;
-
     case PGP_PTAG_CT_ARMOUR_HEADER:
         print_tagname(print->indent, "ARMOUR HEADER");
         print_string(print->indent, "type", content->armour_header.type);
@@ -1745,13 +1729,12 @@ cb_list_packets(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 \param cb_get_passphrase
 */
 int
-pgp_list_packets(pgp_io_t *       io,
-                 char *           filename,
-                 unsigned         armour,
-                 rnp_key_store_t *secring,
-                 rnp_key_store_t *pubring,
-                 void *           passfp,
-                 pgp_cbfunc_t *   cb_get_passphrase)
+pgp_list_packets(pgp_io_t *                       io,
+                 char *                           filename,
+                 unsigned                         armour,
+                 rnp_key_store_t *                secring,
+                 rnp_key_store_t *                pubring,
+                 const pgp_passphrase_provider_t *passphrase_provider)
 {
     pgp_stream_t * stream = NULL;
     const unsigned accumulate = 1;
@@ -1762,44 +1745,11 @@ pgp_list_packets(pgp_io_t *       io,
     pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
     stream->cryptinfo.secring = secring;
     stream->cryptinfo.pubring = pubring;
-    stream->cbinfo.passfp = passfp;
-    stream->cryptinfo.getpassphrase = cb_get_passphrase;
+    stream->cryptinfo.passphrase_provider = *passphrase_provider;
     if (armour) {
         pgp_reader_push_dearmour(stream);
     }
     pgp_parse(stream, printerrors);
     pgp_teardown_file_read(stream, fd);
     return true;
-}
-
-/* this interface isn't right - hook into callback for getting passphrase */
-char *
-pgp_export_key(pgp_io_t *io, const pgp_key_t *key, uint8_t *passphrase)
-{
-    pgp_output_t *output;
-    pgp_memory_t *mem;
-    char *        cp;
-
-    __PGP_USED(io);
-    if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
-        (void) fprintf(io->errs, "can't setup memory write\n");
-        return NULL;
-    }
-
-    if (pgp_is_key_public(key)) {
-        pgp_write_xfer_pubkey(output, key, NULL, 1);
-    } else {
-        pgp_write_xfer_seckey(output, key, passphrase, NULL, 1);
-    }
-
-    const size_t mem_len = pgp_mem_len(mem) + 1;
-    if ((cp = (char *) malloc(mem_len)) == NULL) {
-        pgp_teardown_memory_write(output, mem);
-        return NULL;
-    }
-
-    memcpy(cp, pgp_mem_data(mem), mem_len);
-    pgp_teardown_memory_write(output, mem);
-    cp[mem_len - 1] = '\0';
-    return cp;
 }

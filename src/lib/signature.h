@@ -60,7 +60,6 @@
 
 #include <inttypes.h>
 
-#include "packet.h"
 #include "packet-create.h"
 #include "memory.h"
 
@@ -132,14 +131,17 @@ unsigned pgp_sig_add_preferred_key_server(pgp_create_sig_t *sig, const uint8_t *
 bool pgp_sign_file(
   rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_seckey_t *, bool cleartext);
 
-int pgp_sign_detached(rnp_ctx_t *, pgp_io_t *, const char *, const char *, pgp_seckey_t *);
+int pgp_sign_detached(
+  rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_seckey_t *);
 
 bool pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 
 /* armoured stuff */
 unsigned pgp_crc24(unsigned, uint8_t);
 
+// TODO: This should endup in reader.h or armour.h
 void pgp_reader_push_dearmour(pgp_stream_t *);
+void pgp_reader_pop_dearmour(pgp_stream_t *);
 
 bool pgp_writer_push_clearsigned(pgp_output_t *, pgp_create_sig_t *);
 void pgp_reader_pop_dearmour(pgp_stream_t *);

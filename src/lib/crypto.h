@@ -57,10 +57,12 @@
 
 #include <limits.h>
 #include <botan/ffi.h>
+
+#include <librepgp/packet-parse.h>
+#include <librepgp/packet-print.h>
+
 #include "hash.h"
-#include "packet.h"
 #include "memory.h"
-#include "packet-parse.h"
 #include "symmetric.h"
 #include "crypto/bn.h"
 #include <rekey/rnp_key_store.h>
@@ -90,13 +92,15 @@ bool pgp_generate_seckey(const rnp_keygen_crypto_params_t *params, pgp_seckey_t 
  *  @param primary_pub pointer to store the generated public key, must not be NULL
  *  @param decrypted_seckey optional pointer to store the decrypted secret key
  *         before encryption, may be NULL
+ *  @param passphrase_provider pointer to the passphrase provider, must not be NULL
  *  @return true if successful, false otherwise.
  **/
-bool pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
-                              bool                       merge_defaults,
-                              pgp_key_t *                primary_sec,
-                              pgp_key_t *                primary_pub,
-                              pgp_seckey_t *             decrypted_seckey);
+bool pgp_generate_primary_key(rnp_keygen_primary_desc_t *      desc,
+                              bool                             merge_defaults,
+                              pgp_key_t *                      primary_sec,
+                              pgp_key_t *                      primary_pub,
+                              pgp_seckey_t *                   decrypted_seckey,
+                              const pgp_passphrase_provider_t *passphrase_provider);
 
 /** generate a new subkey
  *
@@ -111,15 +115,17 @@ bool pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
  *         create the subkey binding signature, must not be NULL
  *  @param subkey_sec pointer to store the generated secret key, must not be NULL
  *  @param subkey_pub pointer to store the generated public key, must not be NULL
+ *  @param passphrase_provider pointer to the passphrase provider, must not be NULL
  *  @return true if successful, false otherwise.
  **/
-bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *desc,
-                         bool                      merge_defaults,
-                         pgp_key_t *               primary_sec,
-                         pgp_key_t *               primary_pub,
-                         const pgp_seckey_t *      primary_decrypted,
-                         pgp_key_t *               subkey_sec,
-                         pgp_key_t *               subkey_pub);
+bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
+                         bool                             merge_defaults,
+                         pgp_key_t *                      primary_sec,
+                         pgp_key_t *                      primary_pub,
+                         const pgp_seckey_t *             primary_decrypted,
+                         pgp_key_t *                      subkey_sec,
+                         pgp_key_t *                      subkey_pub,
+                         const pgp_passphrase_provider_t *passphrase_provider);
 
 /** generate a new primary key and subkey
  *
@@ -130,14 +136,16 @@ bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *desc,
  *  @param primary_pub pointer to store the generated public key, must not be NULL
  *  @param subkey_sec pointer to store the generated secret key, must not be NULL
  *  @param subkey_pub pointer to store the generated public key, must not be NULL
+ *  @param passphrase_provider pointer to the passphrase provider, must not be NULL
  *  @return true if successful, false otherwise.
  **/
-bool pgp_generate_keypair(rnp_keygen_desc_t *desc,
-                          bool               merge_defaults,
-                          pgp_key_t *        primary_sec,
-                          pgp_key_t *        primary_pub,
-                          pgp_key_t *        subkey_sec,
-                          pgp_key_t *        subkey_pub);
+bool pgp_generate_keypair(rnp_keygen_desc_t *              desc,
+                          bool                             merge_defaults,
+                          pgp_key_t *                      primary_sec,
+                          pgp_key_t *                      primary_pub,
+                          pgp_key_t *                      subkey_sec,
+                          pgp_key_t *                      subkey_pub,
+                          const pgp_passphrase_provider_t *passphrase_provider);
 
 void pgp_reader_push_decrypt(pgp_stream_t *, pgp_crypt_t *, pgp_region_t *);
 void pgp_reader_pop_decrypt(pgp_stream_t *);
@@ -163,9 +171,8 @@ bool pgp_decrypt_file(pgp_io_t *,
                       const unsigned,
                       const unsigned,
                       const unsigned,
-                      void *,
                       int,
-                      pgp_cbfunc_t *);
+                      const pgp_passphrase_provider_t *);
 
 pgp_memory_t *pgp_encrypt_buf(
   rnp_ctx_t *, pgp_io_t *, const void *, const size_t, const pgp_pubkey_t *);
@@ -176,9 +183,8 @@ pgp_memory_t *pgp_decrypt_buf(pgp_io_t *,
                               rnp_key_store_t *,
                               const unsigned,
                               const unsigned,
-                              void *,
                               int,
-                              pgp_cbfunc_t *);
+                              const pgp_passphrase_provider_t *);
 
 bool read_pem_seckey(const char *, pgp_key_t *, const char *, int);
 
@@ -200,11 +206,10 @@ struct pgp_reader_t {
  Encrypt/decrypt settings
 */
 struct pgp_cryptinfo_t {
-    char *           passphrase;
-    rnp_key_store_t *secring;
-    const pgp_key_t *key;
-    pgp_cbfunc_t *   getpassphrase;
-    rnp_key_store_t *pubring;
+    rnp_key_store_t *         secring;
+    const pgp_key_t *         key;
+    pgp_passphrase_provider_t passphrase_provider;
+    rnp_key_store_t *         pubring;
 };
 
 /** pgp_cbdata_t */
@@ -215,7 +220,6 @@ struct pgp_cbdata_t {
     pgp_cbdata_t *   next;
     pgp_output_t *   output;     /* when writing out parsed info */
     pgp_io_t *       io;         /* error/output messages */
-    void *           passfp;     /* fp for passphrase input */
     pgp_cryptinfo_t  cryptinfo;  /* used when decrypting */
     pgp_printstate_t printstate; /* used to keep printing state */
     pgp_seckey_t *   sshseckey;  /* secret key for ssh */
@@ -228,18 +232,6 @@ typedef struct {
     pgp_hash_t hash; /* hashes we should hash data with */
     uint8_t    keyid[PGP_KEY_ID_SIZE];
 } pgp_hashtype_t;
-
-/**
- * Structure holds description of elliptic curve
- */
-typedef struct ec_curve_desc_t {
-    const pgp_curve_t rnp_curve_id;
-    const size_t      bitlen;
-    const uint8_t     OIDhex[MAX_CURVE_OID_HEX_LEN];
-    const size_t      OIDhex_len;
-    const char *      botan_name;
-    const char *      pgp_name;
-} ec_curve_desc_t;
 
 /** \brief Structure to hold information about a packet parse.
  *
@@ -286,43 +278,5 @@ struct pgp_stream_t {
     unsigned virtualoff;
     uint8_t *virtualpkt;
 };
-
-/* -----------------------------------------------------------------------------
- * @brief   Finds curve ID by hex representation of OID
- *
- * @param   oid       buffer with OID in hex
- * @param   oid_len   length of oid buffer
- *
- * @returns success curve ID
- *          failure PGP_CURVE_MAX is returned
- *
- * @remarks see RFC 4880 bis 01 - 9.2 ECC Curve OID
--------------------------------------------------------------------------------- */
-pgp_curve_t find_curve_by_OID(const uint8_t *oid, size_t oid_len);
-
-/* -----------------------------------------------------------------------------
- * @brief   Serialize EC public to octet string
- *
- * @param   output      generated output
- * @param   pubkey      initialized ECDSA public key
- *
- * @pre     output      must be not null
- * @pre     pubkey      must be not null
- *
- * @returns true on success
- *
- * @remarks see RFC 4880 bis 01 - 5.5.2 Public-Key Packet Formats
--------------------------------------------------------------------------------- */
-bool ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey);
-
-/* -----------------------------------------------------------------------------
- * @brief   Returns pointer to the curve descriptor
- *
- * @param   Valid curve ID
- *
- * @returns NULL if wrong ID provided, otherwise descriptor
- *
--------------------------------------------------------------------------------- */
-const ec_curve_desc_t *get_curve_desc(const pgp_curve_t curve_id);
 
 #endif /* CRYPTO_H_ */

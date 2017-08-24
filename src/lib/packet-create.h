@@ -55,11 +55,11 @@
 #define CREATE_H_
 
 #include <stdbool.h>
+#include <rekey/rnp_key_store.h>
+
 #include "types.h"
-#include "packet.h"
 #include "crypto.h"
 #include "errors.h"
-#include <rekey/rnp_key_store.h>
 #include "writer.h"
 #include "memory.h"
 
@@ -87,7 +87,7 @@ unsigned pgp_write_ss_header(pgp_output_t *, unsigned, pgp_content_enum);
 bool     pgp_write_struct_pubkey(pgp_output_t *, pgp_content_enum, const pgp_pubkey_t *);
 unsigned pgp_write_struct_seckey(pgp_content_enum,
                                  const pgp_seckey_t *,
-                                 const uint8_t *,
+                                 const char *,
                                  pgp_output_t *);
 unsigned pgp_write_one_pass_sig(pgp_output_t *,
                                 const pgp_seckey_t *,
@@ -100,10 +100,10 @@ unsigned          pgp_write_xfer_pubkey(pgp_output_t *,
                                const pgp_key_t *,
                                const rnp_key_store_t *,
                                const unsigned);
-bool pgp_write_xfer_seckey(
-  pgp_output_t *, const pgp_key_t *, const uint8_t *, const rnp_key_store_t *, const unsigned);
-bool pgp_write_xfer_anykey(
-  pgp_output_t *, const pgp_key_t *, const uint8_t *, const rnp_key_store_t *, const unsigned);
+bool pgp_write_xfer_seckey(pgp_output_t *,
+                           const pgp_key_t *,
+                           const rnp_key_store_t *,
+                           const unsigned);
 
 unsigned pgp_write_userid(const uint8_t *, pgp_output_t *);
 unsigned pgp_fileread_litdata(const char *, const pgp_litdata_enum, pgp_output_t *);

@@ -103,6 +103,7 @@ def setup():
 
     GPGDIR = path.join(WORKDIR, '.gpg')
     GPG = find_utility('gpg')
+
     os.mkdir(GPGDIR, 0700)
 
     return

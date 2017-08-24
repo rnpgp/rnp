@@ -23,8 +23,10 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef __RNP__DEFS_H__
-#define __RNP__DEFS_H__
+#ifndef RNP_DEF_H_
+#define RNP_DEF_H_
+
+#include <stdint.h>
 
 /* The dot directory relative to the user's home directory where keys
  * are stored.
@@ -54,6 +56,11 @@
  * 20090522
  */
 #define DEFAULT_HASH_ALG "SHA256"
+#define PGP_SA_DEFAULT_CIPHER_MODE PGP_CIPHER_MODE_CFB
+#define DEFAULT_PK_ALG PGP_PKA_RSA
+#define DEFAULT_RSA_NUMBITS 2048
+#define PGP_SA_DEFAULT_CIPHER PGP_SA_AES_256
+#define PGP_DEFAULT_HASH_ALGORITHM PGP_HASH_SHA256
 
 /*
  * Error code definitions
@@ -90,6 +97,9 @@ enum {
     RNP_ERROR_EOF
 
 };
+
+/* rnp_result is the type used for return codes from the APIs. */
+typedef uint32_t rnp_result;
 
 enum { MAX_ID_LENGTH = 128, MAX_PASSPHRASE_LENGTH = 256 };
 

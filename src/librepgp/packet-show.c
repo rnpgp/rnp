@@ -56,23 +56,18 @@
  */
 #include "config.h"
 
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
 #if defined(__NetBSD__)
 __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights reserved.");
 __RCSID("$NetBSD: packet-show.c,v 1.21 2011/08/14 11:19:51 christos Exp $");
 #endif
 
-#include <stdlib.h>
-#include <string.h>
+#include <stddef.h>
 
-#include <rnp/rnp_def.h>
 #include <rnp/rnp_sdk.h>
 #include <rnp/rnp_types.h>
 
 #include "packet-show.h"
+#include "utils.h"
 
 /*
  * Arrays of value->text maps
@@ -140,7 +135,6 @@ static pgp_map_t packet_tag_map[] = {
   {PGP_PTAG_CT_SIGNED_CLEARTEXT_BODY, "CT: Signed Cleartext Body"},
   {PGP_PTAG_CT_SIGNED_CLEARTEXT_TRAILER, "CT: Signed Cleartext Trailer"},
   {PGP_PTAG_CT_UNARMOURED_TEXT, "CT: Unarmoured Text"},
-  {PGP_PTAG_CT_ENCRYPTED_SECRET_KEY, "CT: Encrypted Secret Key"},
   {PGP_PTAG_CT_SE_DATA_HEADER, "CT: Sym Encrypted Data Header"},
   {PGP_PTAG_CT_SE_DATA_BODY, "CT: Sym Encrypted Data Body"},
   {PGP_PTAG_CT_SE_IP_DATA_HEADER, "CT: Sym Encrypted IP Data Header"},
@@ -218,7 +212,6 @@ static pgp_map_t pubkey_alg_map[] = {
   {PGP_PKA_RESERVED_DH, "Reserved for Diffie-Hellman (X9.42)"},
   {PGP_PKA_EDDSA, "EdDSA"},
   {PGP_PKA_SM2, "SM2"},
-  {PGP_PKA_SM2_ENCRYPT, "SM2 Encryption"},
   {PGP_PKA_PRIVATE00, "Private/Experimental"},
   {PGP_PKA_PRIVATE01, "Private/Experimental"},
   {PGP_PKA_PRIVATE02, "Private/Experimental"},
@@ -352,7 +345,7 @@ add_str(pgp_list_t *list, const char *str)
     if (list->size == list->used && list_resize(list)) {
         return false;
     }
-    list->strings[list->used++] = __UNCONST(str);
+    list->strings[list->used++] = RNP_UNCONST(str);
     return true;
 }
 

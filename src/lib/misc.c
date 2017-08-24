@@ -81,17 +81,16 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include <botan/ffi.h>
 
 #include "errors.h"
-#include "packet.h"
 #include "crypto.h"
 #include "crypto/bn.h"
 #include "packet-create.h"
-#include "packet-parse.h"
-#include "packet-show.h"
+#include <repgp/repgp.h>
 #include "signature.h"
 #include <rnp/rnp_sdk.h>
 #include "utils.h"
 #include "memory.h"
 #include "readerwriter.h"
+#include "pgp-key.h"
 
 #ifdef WIN32
 #define vsnprintf _vsnprintf
@@ -543,7 +542,7 @@ pgp_memory_init(pgp_memory_t *mem, size_t needed)
     if (mem->buf) {
         if (mem->allocated < needed) {
             if ((temp = realloc(mem->buf, needed)) == NULL) {
-                (void) fprintf(stderr, "pgp_memory_init: bad alloc\n");
+                RNP_LOG("bad alloc");
             } else {
                 mem->buf = temp;
                 mem->allocated = needed;
@@ -551,7 +550,7 @@ pgp_memory_init(pgp_memory_t *mem, size_t needed)
         }
     } else {
         if ((mem->buf = calloc(1, needed)) == NULL) {
-            (void) fprintf(stderr, "pgp_memory_init: bad alloc\n");
+            RNP_LOG("bad alloc");
         } else {
             mem->allocated = needed;
         }
@@ -887,20 +886,6 @@ hexdump(FILE *fp, const char *header, const uint8_t *src, size_t length)
     }
 }
 
-/**
- * \ingroup HighLevel_Functions
- * \brief Closes down OpenPGP::SDK.
- *
- * Close down OpenPGP:SDK, release any resources under the control of
- * the library.
- */
-
-void
-pgp_finish(void)
-{
-    pgp_crypto_finish();
-}
-
 static int
 sum16_reader(pgp_stream_t *stream,
              void *        dest_,
@@ -1091,6 +1076,19 @@ rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep)
     for (n = 0, i = 0; i < length; i += 2) {
         n += snprintf(&dest[n], 3, "%02x", *src++);
         n += snprintf(&dest[n], 10, "%02x%s", *src++, sep);
+    }
+    return dest;
+}
+
+char *
+rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *sep)
+{
+    unsigned i;
+    int      n;
+
+    for (n = 0, i = 0; i < length; i += 2) {
+        n += snprintf(&dest[n], 3, "%02X", *src++);
+        n += snprintf(&dest[n], 10, "%02X%s", *src++, sep);
     }
     return dest;
 }

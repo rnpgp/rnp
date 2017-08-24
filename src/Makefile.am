@@ -1,1 +1,1 @@
-SUBDIRS = librekey lib rnp rnpkeys tests fuzzing
+SUBDIRS = librepgp librekey lib rnp rnpkeys tests fuzzing

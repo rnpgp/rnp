@@ -52,24 +52,12 @@
 /** \file
  * \brief Parser for OpenPGP packets
  */
-#include "config.h"
-#include <assert.h>
-
-#ifdef HAVE_SYS_CDEFS_H
-#include <sys/cdefs.h>
-#endif
-
 #if defined(__NetBSD__)
 __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights reserved.");
 __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #endif
 
-#include <sys/types.h>
-#include <sys/param.h>
-
-#include <stdarg.h>
-#include <stdlib.h>
-#include <string.h>
+#include "config.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -79,20 +67,21 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include <limits.h>
 #endif
 
-#include "packet.h"
+#include <repgp/repgp.h>
+#include <repgp/repgp_def.h>
 #include "crypto/bn.h"
-#include "packet-print.h"
-#include "pgp-key.h"
-#include "errors.h"
-#include "packet-show.h"
-#include "packet-create.h"
-#include "readerwriter.h"
-#include "utils.h"
-#include "crypto.h"
-
-#include "crypto/s2k.h"
-#include "utils.h"
 #include "crypto/ecdh.h"
+#include "crypto/s2k.h"
+#include "crypto/dsa.h"
+#include "crypto/rsa.h"
+#include "crypto/elgamal.h"
+#include "pgp-key.h"
+
+#include "compress.h"
+#include "packet-print.h"
+#include "packet-show.h"
+#include "reader.h"
+#include "misc.h"
 
 #define ERRP(cbinfo, cont, err)                    \
     do {                                           \
@@ -966,7 +955,6 @@ pgp_sig_free(pgp_sig_t *sig)
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
     case PGP_PKA_ECDH:
         free_BN(&sig->info.sig.ecc.r);
         free_BN(&sig->info.sig.ecc.s);
@@ -1150,8 +1138,6 @@ pgp_parser_content_free(pgp_packet_t *c)
 
     case PGP_PTAG_CT_SECRET_KEY:
     case PGP_PTAG_CT_SECRET_SUBKEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
         pgp_seckey_free(&c->u.seckey);
         break;
 
@@ -1180,7 +1166,7 @@ pgp_pk_sesskey_free(pgp_pk_sesskey_t *sk)
     case PGP_PKA_RSA:
         free_BN(&sk->params.rsa.encrypted_m);
         break;
-    case PGP_PKA_SM2_ENCRYPT:
+    case PGP_PKA_SM2:
         free_BN(&sk->params.sm2.encrypted_m);
         break;
 
@@ -1227,7 +1213,6 @@ pgp_pubkey_free(pgp_pubkey_t *p)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
         free_BN(&p->key.ecc.point);
         break;
 
@@ -1353,7 +1338,6 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
         if (!parse_ec_pubkey_data(key, region, stream)) {
             return false;
         }
@@ -1620,7 +1604,6 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
         if (!limread_mpi(&pkt.u.sig.info.sig.ecc.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.ecc.s, region, stream)) {
             return false;
@@ -2158,7 +2141,6 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
     case PGP_PKA_ECDH:
         if (!limread_mpi(&pkt.u.sig.info.sig.ecc.r, region, stream) ||
             !limread_mpi(&pkt.u.sig.info.sig.ecc.s, region, stream)) {
@@ -2432,6 +2414,43 @@ parse_litdata(pgp_region_t *region, pgp_stream_t *stream)
     return true;
 }
 
+void
+pgp_seckey_free_secret_mpis(pgp_seckey_t *seckey)
+{
+    switch (seckey->pubkey.alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        free_BN(&seckey->key.rsa.d);
+        free_BN(&seckey->key.rsa.p);
+        free_BN(&seckey->key.rsa.q);
+        free_BN(&seckey->key.rsa.u);
+        break;
+
+    case PGP_PKA_DSA:
+        free_BN(&seckey->key.dsa.x);
+        break;
+
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+        free_BN(&seckey->key.ecc.x);
+        break;
+
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        free_BN(&seckey->key.elgamal.x);
+        break;
+
+    default:
+        (void) fprintf(stderr,
+                       "pgp_seckey_free: Unknown algorithm: %d (%s)\n",
+                       seckey->pubkey.alg,
+                       pgp_show_pka(seckey->pubkey.alg));
+    }
+}
+
 /**
  * \ingroup Core_Create
  *
@@ -2447,40 +2466,8 @@ pgp_seckey_free(pgp_seckey_t *key)
     if (!key || !key->pubkey.alg) {
         return;
     }
+    pgp_seckey_free_secret_mpis(key);
     pgp_pubkey_free(&key->pubkey);
-    switch (key->pubkey.alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        free_BN(&key->key.rsa.d);
-        free_BN(&key->key.rsa.p);
-        free_BN(&key->key.rsa.q);
-        free_BN(&key->key.rsa.u);
-        break;
-
-    case PGP_PKA_DSA:
-        free_BN(&key->key.dsa.x);
-        break;
-
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
-        free_BN(&key->key.ecc.x);
-        break;
-
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        free_BN(&key->key.elgamal.x);
-        break;
-
-    default:
-        (void) fprintf(stderr,
-                       "pgp_seckey_free: Unknown algorithm: %d (%s)\n",
-                       key->pubkey.alg,
-                       pgp_show_pka(key->pubkey.alg));
-    }
     if (key->checkhash != NULL) {
         free(key->checkhash);
     }
@@ -2526,7 +2513,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     pgp_crypt_t   decrypt;
     pgp_hash_t    checkhash;
     unsigned      blocksize;
-    unsigned      crypted;
+    bool          crypted;
     uint8_t       c = 0x0;
     int           ret = 1;
 
@@ -2595,6 +2582,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     }
     crypted = pkt.u.seckey.s2k_usage == PGP_S2KU_ENCRYPTED ||
               pkt.u.seckey.s2k_usage == PGP_S2KU_ENCRYPTED_AND_HASHED;
+    pkt.u.seckey.encrypted = crypted;
 
     if (crypted) {
         pgp_packet_t seckey;
@@ -2627,12 +2615,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
             if (!consume_packet(region, stream, 0)) {
                 return false;
             }
-            if (tag == PGP_PTAG_CT_SECRET_KEY) {
-                CALLBACK(PGP_PTAG_CT_ENCRYPTED_SECRET_KEY, &stream->cbinfo, &pkt);
-
-            } else {
-                CALLBACK(PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY, &stream->cbinfo, &pkt);
-            }
+            CALLBACK(tag, &stream->cbinfo, &pkt);
             return true;
         }
         keysize = pgp_key_size(pkt.u.seckey.alg);
@@ -2681,6 +2664,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         /* now read encrypted data */
 
         pgp_reader_push_decrypt(stream, &decrypt, region);
+        pkt.u.seckey.encrypted = false;
 
         /*
          * Since all known encryption for PGP doesn't compress, we
@@ -2742,7 +2726,6 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
     case PGP_PKA_ECDH:
         if (!limread_mpi(&pkt.u.seckey.key.ecc.x, region, stream)) {
             ret = 0;
@@ -2881,7 +2864,7 @@ parse_pk_sesskey(pgp_region_t *region, pgp_stream_t *stream)
         enc_m = pkt.u.pk_sesskey.params.rsa.encrypted_m;
         g_to_k = NULL;
         break;
-    case PGP_PKA_SM2_ENCRYPT:
+    case PGP_PKA_SM2:
         if (!limread_mpi(&pkt.u.pk_sesskey.params.sm2.encrypted_m, region, stream)) {
             return false;
         }
@@ -3424,7 +3407,7 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
  */
 
 bool
-pgp_parse(pgp_stream_t *stream, const int perrors)
+pgp_parse(pgp_stream_t *stream, const bool show_errors)
 {
     uint32_t   pktlen;
     rnp_result res;
@@ -3432,24 +3415,12 @@ pgp_parse(pgp_stream_t *stream, const int perrors)
     do {
         res = parse_packet(stream, &pktlen);
     } while (RNP_ERROR_EOF != res);
-    if (perrors) {
+    if (show_errors) {
         pgp_print_errors(stream->errors);
     }
     return (stream->errors == NULL);
 }
 
-/**
- * \ingroup Core_ReadPackets
- *
- * \brief Specifies whether one or more signature
- * subpacket types should be returned parsed; or raw; or ignored.
- *
- * \param    stream    Pointer to previously allocated structure
- * \param    tag    Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one individual
- * signature
- * subpacket tag
- * \param    type    Parse type
- * \todo Make all packet types optional, not just subpackets */
 void
 pgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, pgp_parse_type_t type)
 {

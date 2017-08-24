@@ -54,7 +54,29 @@
 
 #include <stdbool.h>
 #include <stdio.h>
-#include "packet.h"
+#include <repgp/repgp.h>
+#include "types.h"
+#include "defs.h"
+#include "symmetric.h"
+
+/* describes a user's key */
+struct pgp_key_t {
+    DYNARRAY(uint8_t *, uid);          /* array of user ids */
+    DYNARRAY(pgp_rawpacket_t, packet); /* array of raw packets */
+    DYNARRAY(pgp_subsig_t, subsig);    /* array of signature subkeys */
+    DYNARRAY(pgp_revoke_t, revoke);    /* array of signature revocations */
+    DYNARRAY(struct pgp_key_t *, subkey);
+    pgp_content_enum  type;      /* type of key */
+    pgp_keydata_key_t key;       /* pubkey/seckey data */
+    uint8_t           key_flags; /* key flags */
+    uint8_t           keyid[PGP_KEY_ID_SIZE];
+    pgp_fingerprint_t fingerprint;
+    uint8_t           grip[PGP_FINGERPRINT_SIZE];
+    uint32_t          uid0;       /* primary uid index in uids array */
+    uint8_t           revoked;    /* key has been revoked */
+    pgp_revoke_t      revocation; /* revocation reason */
+    symmetric_key_t   session_key;
+};
 
 struct pgp_key_t *pgp_key_new(void);
 
@@ -96,7 +118,11 @@ const struct pgp_seckey_t *pgp_get_seckey(const pgp_key_t *);
 
 pgp_seckey_t *pgp_get_writable_seckey(pgp_key_t *);
 
-pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *, FILE *);
+pgp_seckey_t *pgp_decrypt_seckey_parser(const pgp_key_t *, const char *);
+
+pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *,
+                                 const pgp_passphrase_provider_t *,
+                                 const pgp_passphrase_ctx_t *);
 
 void pgp_set_seckey(pgp_contents_t *, const pgp_key_t *);
 
@@ -115,5 +141,11 @@ bool pgp_add_selfsigned_userid(pgp_key_t *, const unsigned char *);
 void pgp_key_init(pgp_key_t *, const pgp_content_enum);
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
+
+char *pgp_export_key(pgp_io_t *, const pgp_key_t *, const pgp_passphrase_provider_t *);
+
+bool pgp_key_is_locked(const pgp_key_t *key);
+bool pgp_key_unlock(pgp_key_t *key, const pgp_passphrase_provider_t *provider);
+void pgp_key_lock(pgp_key_t *key);
 
 #endif // RNP_PACKET_KEY_H

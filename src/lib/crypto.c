@@ -67,60 +67,29 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #endif
 
 #include <string.h>
-#include <stdlib.h>
-#include <stdbool.h>
+#include <rnp/rnp_sdk.h>
+#include <rnp/rnp_def.h>
+
+#include <librepgp/reader.h>
 
 #include "types.h"
 #include "crypto/bn.h"
-#include "crypto/rsa.h"
-#include "crypto/elgamal.h"
-#include "crypto/eddsa.h"
+#include "crypto/ec.h"
 #include "crypto/ecdh.h"
+#include "crypto/ecdsa.h"
+#include "crypto/eddsa.h"
+#include "crypto/elgamal.h"
+#include "crypto/rsa.h"
+#include "crypto/s2k.h"
+#include "crypto/sm2.h"
 #include "crypto.h"
 #include "readerwriter.h"
 #include "memory.h"
 #include "utils.h"
 #include "signature.h"
 #include "pgp-key.h"
-#include "crypto/s2k.h"
-#include "crypto/ecdsa.h"
-#include "crypto/sm2.h"
 #include "utils.h"
-#include <rnp/rnp_def.h>
-
-/**
- * EC Curves definition used by implementation
- *
- * \see RFC4880 bis01 - 9.2. ECC Curve OID
- *
- * Order of the elements in this array corresponds to
- * values in pgp_curve_t enum.
- */
-// TODO: Check size of this array against PGP_CURVE_MAX with static assert
-const ec_curve_desc_t ec_curves[] = {
-  {PGP_CURVE_UNKNOWN, 0, {0}, 0, NULL, NULL},
-
-  {PGP_CURVE_NIST_P_256,
-   256,
-   {0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x03, 0x01, 0x07},
-   8,
-   "secp256r1",
-   "NIST P-256"},
-  {PGP_CURVE_NIST_P_384, 384, {0x2B, 0x81, 0x04, 0x00, 0x22}, 5, "secp384r1", "NIST P-384"},
-  {PGP_CURVE_NIST_P_521, 521, {0x2B, 0x81, 0x04, 0x00, 0x23}, 5, "secp521r1", "NIST P-521"},
-  {PGP_CURVE_ED25519,
-   255,
-   {0x2b, 0x06, 0x01, 0x04, 0x01, 0xda, 0x47, 0x0f, 0x01},
-   9,
-   "Ed25519",
-   "Ed25519"},
-  {PGP_CURVE_SM2_P_256,
-   256,
-   {0x2A, 0x81, 0x1C, 0xCF, 0x55, 0x01, 0x82, 0x2D},
-   8,
-   "sm2p256v1",
-   "SM2 P-256"},
-};
+#include "misc.h"
 
 /**
 \ingroup Core_MPI
@@ -170,7 +139,7 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
             hexdump(stderr, "decoded m", buf, n);
         }
         return n;
-    case PGP_PKA_SM2_ENCRYPT:
+    case PGP_PKA_SM2:
         BN_bn2bin(encmpi, encmpibuf);
 
         size_t     out_len = buflen;
@@ -312,29 +281,26 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         break;
 
     case PGP_PKA_EDDSA:
-        if (pgp_genkey_eddsa(seckey, ec_curves[PGP_CURVE_ED25519].bitlen) != 1) {
+        if (!pgp_genkey_eddsa(seckey, get_curve_desc(PGP_CURVE_ED25519)->bitlen)) {
             RNP_LOG("failed to generate EDDSA key");
             goto end;
         }
         break;
-
-    case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
-        seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
-        if (pgp_ecdh_ecdsa_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != PGP_E_OK) {
-            RNP_LOG("failed to generate ECDSA key");
+        if (!set_ecdh_params(seckey, crypto->ecc.curve)) {
+            RNP_LOG("Unsupoorted curve [ID=%d]", crypto->ecc.curve);
             goto end;
         }
-        break;
+    /* FALLTHROUGH */
+    case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
-        seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
-        if (pgp_sm2_genkeypair(seckey, seckey->pubkey.key.ecc.curve) != RNP_SUCCESS) {
-            RNP_LOG("failed to generate SM2 key");
+        if (pgp_genkey_ec_uncompressed(seckey, seckey->pubkey.alg, crypto->ecc.curve) !=
+            RNP_SUCCESS) {
+            RNP_LOG("failed to generate EC key");
             goto end;
         }
+        seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
         break;
-
     default:
         RNP_LOG("key generation not implemented for PK alg: %d", seckey->pubkey.alg);
         goto end;
@@ -345,6 +311,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
     seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
     seckey->alg = crypto->sym_alg;
+    seckey->cipher_mode = PGP_SA_DEFAULT_CIPHER_MODE;
     if (pgp_random(&seckey->iv[0], pgp_block_size(seckey->alg))) {
         RNP_LOG("pgp_random failed");
         goto end;
@@ -374,7 +341,6 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-    case PGP_PKA_SM2_ENCRYPT:
         if (!pgp_write_mpi(output, seckey->key.ecc.x)) {
             RNP_LOG("failed to write MPIs");
             goto end;
@@ -437,9 +403,6 @@ write_parsed_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         }
         return pgp_get_seckey_cb(pkt, cbinfo);
 
-    case PGP_GET_PASSPHRASE:
-        return cbinfo->cryptinfo.getpassphrase(pkt, cbinfo);
-
     case PGP_PTAG_CT_LITDATA_BODY:
         return pgp_litdata_cb(pkt, cbinfo);
 
@@ -488,7 +451,7 @@ pgp_encrypt_file(rnp_ctx_t *         ctx,
     pgp_memory_t *inmem;
     int           fd_out;
 
-    __PGP_USED(io);
+    RNP_USED(io);
     inmem = pgp_memory_new();
     if (inmem == NULL) {
         (void) fprintf(stderr, "can't allocate mem\n");
@@ -536,7 +499,7 @@ pgp_encrypt_buf(rnp_ctx_t *         ctx,
     pgp_output_t *output;
     pgp_memory_t *outmem;
 
-    __PGP_USED(io);
+    RNP_USED(io);
     if (input == NULL) {
         (void) fprintf(io->errs, "pgp_encrypt_buf: null memory\n");
         return false;
@@ -578,17 +541,16 @@ pgp_encrypt_buf(rnp_ctx_t *         ctx,
 */
 
 bool
-pgp_decrypt_file(pgp_io_t *       io,
-                 const char *     infile,
-                 const char *     outfile,
-                 rnp_key_store_t *secring,
-                 rnp_key_store_t *pubring,
-                 const unsigned   use_armour,
-                 const unsigned   allow_overwrite,
-                 const unsigned   sshkeys,
-                 void *           passfp,
-                 int              numtries,
-                 pgp_cbfunc_t *   getpassfunc)
+pgp_decrypt_file(pgp_io_t *                       io,
+                 const char *                     infile,
+                 const char *                     outfile,
+                 rnp_key_store_t *                secring,
+                 rnp_key_store_t *                pubring,
+                 const unsigned                   use_armour,
+                 const unsigned                   allow_overwrite,
+                 const unsigned                   sshkeys,
+                 int                              numtries,
+                 const pgp_passphrase_provider_t *passphrase_provider)
 {
     pgp_stream_t *parse = NULL;
     const int     printerrors = 1;
@@ -643,8 +605,7 @@ pgp_decrypt_file(pgp_io_t *       io,
 
     /* setup keyring and passphrase callback */
     parse->cbinfo.cryptinfo.secring = secring;
-    parse->cbinfo.passfp = passfp;
-    parse->cbinfo.cryptinfo.getpassphrase = getpassfunc;
+    parse->cbinfo.cryptinfo.passphrase_provider = *passphrase_provider;
     parse->cbinfo.cryptinfo.pubring = pubring;
     parse->cbinfo.sshseckey = (sshkeys) ? &secring->keys[0].key.seckey : NULL;
     parse->cbinfo.numtries = numtries;
@@ -663,7 +624,8 @@ pgp_decrypt_file(pgp_io_t *       io,
     }
 
     /* if we didn't get the passphrase, unlink output file */
-    if (!parse->cbinfo.gotpass) {
+    const bool gotpass = parse->cbinfo.gotpass;
+    if (!gotpass) {
         (void) unlink((filename) ? filename : outfile);
     }
 
@@ -673,7 +635,7 @@ pgp_decrypt_file(pgp_io_t *       io,
     }
 
     /* \todo cleardown crypt */
-    ret = (ret && parse->cbinfo.gotpass);
+    ret = (ret && gotpass);
 
     pgp_teardown_file_read(parse, fd_in);
     return ret;
@@ -681,16 +643,15 @@ pgp_decrypt_file(pgp_io_t *       io,
 
 /* decrypt an area of memory */
 pgp_memory_t *
-pgp_decrypt_buf(pgp_io_t *       io,
-                const void *     input,
-                const size_t     insize,
-                rnp_key_store_t *secring,
-                rnp_key_store_t *pubring,
-                const unsigned   use_armour,
-                const unsigned   sshkeys,
-                void *           passfp,
-                int              numtries,
-                pgp_cbfunc_t *   getpassfunc)
+pgp_decrypt_buf(pgp_io_t *                       io,
+                const void *                     input,
+                const size_t                     insize,
+                rnp_key_store_t *                secring,
+                rnp_key_store_t *                pubring,
+                const unsigned                   use_armour,
+                const unsigned                   sshkeys,
+                int                              numtries,
+                const pgp_passphrase_provider_t *passphrase_provider)
 {
     pgp_stream_t *parse = NULL;
     pgp_memory_t *outmem;
@@ -727,8 +688,7 @@ pgp_decrypt_buf(pgp_io_t *       io,
     /* setup keyring and passphrase callback */
     parse->cbinfo.cryptinfo.secring = secring;
     parse->cbinfo.cryptinfo.pubring = pubring;
-    parse->cbinfo.passfp = passfp;
-    parse->cbinfo.cryptinfo.getpassphrase = getpassfunc;
+    parse->cbinfo.cryptinfo.passphrase_provider = *passphrase_provider;
     parse->cbinfo.sshseckey = (sshkeys) ? &secring->keys[0].key.seckey : NULL;
     parse->cbinfo.numtries = numtries;
 

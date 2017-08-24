@@ -32,7 +32,29 @@
 #define RNP_ELG_H_
 
 #include <stdint.h>
-#include "packet.h"
+#include "crypto/bn.h"
+
+/** Structure to hold an ElGamal public key params.
+ *
+ * \see RFC4880 5.5.2
+ */
+typedef struct {
+    BIGNUM *p; /* ElGamal prime p */
+    BIGNUM *g; /* ElGamal group generator g */
+    BIGNUM *y; /* ElGamal public key value y (= g^x mod p
+                * with x being the secret) */
+} pgp_elgamal_pubkey_t;
+
+/** pgp_elgamal_seckey_t */
+typedef struct pgp_elgamal_seckey_t {
+    BIGNUM *x;
+} pgp_elgamal_seckey_t;
+
+/** Struct to hold params of a Elgamal signature */
+typedef struct pgp_elgamal_sig_t {
+    BIGNUM *r;
+    BIGNUM *s;
+} pgp_elgamal_sig_t;
 
 /*
  * Performs ElGamal encryption

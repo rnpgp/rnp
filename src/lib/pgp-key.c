@@ -55,6 +55,7 @@
 #include <rnp/rnp_sdk.h>
 #include "readerwriter.h"
 #include "validate.h"
+#include "misc.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -226,8 +227,6 @@ pgp_is_secret_key_tag(pgp_content_enum tag)
     switch (tag) {
     case PGP_PTAG_CT_SECRET_KEY:
     case PGP_PTAG_CT_SECRET_SUBKEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
         return true;
     default:
         return false;
@@ -252,7 +251,6 @@ pgp_is_primary_key_tag(pgp_content_enum tag)
     switch (tag) {
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_SECRET_KEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
         return true;
     default:
         return false;
@@ -271,7 +269,6 @@ pgp_is_subkey_tag(pgp_content_enum tag)
     switch (tag) {
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
     case PGP_PTAG_CT_SECRET_SUBKEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
         return true;
     default:
         return false;
@@ -319,9 +316,8 @@ pgp_get_writable_seckey(pgp_key_t *key)
 }
 
 typedef struct {
-    FILE *           passfp;
+    const char *     passphrase;
     const pgp_key_t *key;
-    char *           passphrase;
     pgp_seckey_t *   seckey;
 } decrypt_t;
 
@@ -330,7 +326,6 @@ decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
     const pgp_contents_t *content = &pkt->u;
     decrypt_t *           decrypt;
-    char                  pass[MAX_PASSPHRASE_LENGTH];
 
     decrypt = pgp_callback_arg(cbinfo);
     switch (pkt->tag) {
@@ -343,11 +338,7 @@ decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         break;
 
     case PGP_GET_PASSPHRASE:
-        if (pgp_getpassphrase(decrypt->passfp, pass, sizeof(pass)) == 0) {
-            pass[0] = '\0';
-        }
-        *content->skey_passphrase.passphrase = rnp_strdup(pass);
-        pgp_forget(pass, sizeof(pass));
+        *content->skey_passphrase.passphrase = rnp_strdup(decrypt->passphrase);
         return PGP_KEEP_MEMORY;
 
     case PGP_PARSER_ERRCODE:
@@ -391,18 +382,29 @@ decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     return PGP_RELEASE_MEMORY;
 }
 
-static pgp_cb_ret_t
-decrypt_cb_empty(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
+pgp_seckey_t *
+pgp_decrypt_seckey_parser(const pgp_key_t *key, const char *passphrase)
 {
-    const pgp_contents_t *content = &pkt->u;
+    pgp_stream_t *stream;
+    const int     printerrors = 1;
+    decrypt_t     decrypt = {0};
 
-    switch (pkt->tag) {
-    case PGP_GET_PASSPHRASE:
-        *content->skey_passphrase.passphrase = rnp_strdup("");
-        return PGP_KEEP_MEMORY;
-    default:
-        return decrypt_cb(pkt, cbinfo);
+    if (!key->packetc || !key->packets) {
+        RNP_LOG("can not decrypt secret key without raw packets");
+        return NULL;
     }
+
+    decrypt.passphrase = passphrase;
+    decrypt.key = key;
+    stream = pgp_new(sizeof(*stream));
+    if (!pgp_key_reader_set(stream, key)) {
+        return NULL;
+    }
+    pgp_set_callback(stream, decrypt_cb, &decrypt);
+    stream->readinfo.accumulate = 1;
+    pgp_parse(stream, !printerrors);
+    pgp_stream_delete(stream);
+    return decrypt.seckey;
 }
 
 /**
@@ -413,44 +415,41 @@ decrypt_cb_empty(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 \return secret key
 */
 pgp_seckey_t *
-pgp_decrypt_seckey(const pgp_key_t *key, FILE *passfp)
+pgp_decrypt_seckey(const pgp_key_t *                key,
+                   const pgp_passphrase_provider_t *provider,
+                   const pgp_passphrase_ctx_t *     ctx)
 {
-    pgp_stream_t *stream;
-    const int     printerrors = 1;
-    decrypt_t     decrypt;
+    pgp_seckey_t *        decrypted_seckey = NULL;
+    pgp_seckey_decrypt_t *decryptor = NULL;
+    char                  passphrase[MAX_PASSPHRASE_LENGTH] = {0};
 
-    // key hasn't got raw packets, so, we can't decrypt it
-    if (key->packetc == 0) {
-        return (pgp_seckey_t *) &key->key.seckey;
+    // sanity checks
+    if (!key || !pgp_is_key_secret(key) || !provider) {
+        RNP_LOG("invalid args");
+        goto done;
+    }
+    decryptor = key->key.seckey.decrypt_cb;
+    if (!decryptor) {
+        RNP_LOG("missing decrypt callback");
+        goto done;
     }
 
-    /* XXX first try with an empty passphrase */
-    (void) memset(&decrypt, 0x0, sizeof(decrypt));
-
-    decrypt.key = key;
-    stream = pgp_new(sizeof(*stream));
-    pgp_key_reader_set(stream, key);
-    pgp_set_callback(stream, decrypt_cb_empty, &decrypt);
-    stream->readinfo.accumulate = 1;
-    pgp_parse(stream, !printerrors);
-
-    if (decrypt.seckey != NULL) {
-        pgp_stream_delete(stream);
-        return decrypt.seckey;
+    // try an empty passphrase first
+    decrypted_seckey = decryptor(key, "");
+    if (decrypted_seckey) {
+        goto done;
     }
 
-    /*Remove old stream*/
-    pgp_stream_delete(stream);
+    // ask the provider for a passphrase
+    if (!pgp_request_passphrase(provider, ctx, passphrase, sizeof(passphrase))) {
+        goto done;
+    }
+    // attempt to decrypt with the provided passphrase
+    decrypted_seckey = decryptor(key, passphrase);
 
-    /* ask for a passphrase */
-    decrypt.passfp = passfp;
-    stream = pgp_new(sizeof(*stream));
-    pgp_key_reader_set(stream, key);
-    pgp_set_callback(stream, decrypt_cb, &decrypt);
-    stream->readinfo.accumulate = 1;
-    pgp_parse(stream, !printerrors);
-    pgp_stream_delete(stream);
-    return decrypt.seckey;
+done:
+    pgp_forget(passphrase, sizeof(passphrase));
+    return decrypted_seckey;
 }
 
 /**
@@ -682,15 +681,46 @@ pgp_key_init(pgp_key_t *key, const pgp_content_enum type)
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
     case PGP_PTAG_CT_SECRET_KEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_KEY:
     case PGP_PTAG_CT_SECRET_SUBKEY:
-    case PGP_PTAG_CT_ENCRYPTED_SECRET_SUBKEY:
         break;
     default:
         RNP_LOG("invalid key type: %d", type);
         break;
     }
     key->type = type;
+}
+
+char *
+pgp_export_key(pgp_io_t *                       io,
+               const pgp_key_t *                key,
+               const pgp_passphrase_provider_t *passphrase_provider)
+{
+    pgp_output_t *output;
+    pgp_memory_t *mem;
+    char *        cp;
+
+    RNP_USED(io);
+    if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
+        RNP_LOG_FD(io->errs, "can't setup memory write\n");
+        return NULL;
+    }
+
+    if (pgp_is_key_public(key)) {
+        pgp_write_xfer_pubkey(output, key, NULL, 1);
+    } else {
+        pgp_write_xfer_seckey(output, key, NULL, 1);
+    }
+
+    const size_t mem_len = pgp_mem_len(mem) + 1;
+    if ((cp = (char *) malloc(mem_len)) == NULL) {
+        pgp_teardown_memory_write(output, mem);
+        return NULL;
+    }
+
+    memcpy(cp, pgp_mem_data(mem), mem_len);
+    pgp_teardown_memory_write(output, mem);
+    cp[mem_len - 1] = '\0';
+    return cp;
 }
 
 pgp_key_flags_t
@@ -717,11 +747,10 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
         return PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH;
 
-    case PGP_PKA_SM2_ENCRYPT:
-        return PGP_KF_ENCRYPT;
+    case PGP_PKA_SM2:
+        return PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH | PGP_KF_ENCRYPT;
 
     case PGP_PKA_ECDH:
         return PGP_KF_ENCRYPT;
@@ -733,4 +762,73 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
         RNP_LOG("unknown pk alg: %d\n", alg);
         return PGP_KF_NONE;
     }
+}
+
+bool
+pgp_key_is_locked(const pgp_key_t *key)
+{
+    if (!pgp_is_key_secret(key)) {
+        RNP_LOG("key is not a secret key");
+        return false;
+    }
+    return key->key.seckey.encrypted;
+}
+
+bool
+pgp_key_unlock(pgp_key_t *key, const pgp_passphrase_provider_t *provider)
+{
+    pgp_seckey_t *decrypted_seckey = NULL;
+
+    // sanity checks
+    if (!key || !provider) {
+        return false;
+    }
+
+    // see if it's already unlocked
+    if (!pgp_key_is_locked(key)) {
+        return true;
+    }
+
+    decrypted_seckey = pgp_decrypt_seckey(
+      key,
+      provider,
+      &(pgp_passphrase_ctx_t){
+        .op = PGP_OP_UNLOCK, .pubkey = pgp_get_pubkey(key), .key_type = key->type});
+
+    if (decrypted_seckey) {
+        // this shouldn't really be necessary, but just in case
+        pgp_seckey_free_secret_mpis(&key->key.seckey);
+        // copy the decrypted mpis into the pgp_key_t
+        key->key.seckey.key = decrypted_seckey->key;
+        key->key.seckey.encrypted = false;
+
+        // zero out the key material union in the decrypted seckey, since
+        // ownership has changed
+        pgp_seckey_t nullkey = {{0}};
+        decrypted_seckey->key = nullkey.key;
+        // now free the rest of the internal seckey
+        pgp_seckey_free(decrypted_seckey);
+        // free the actual structure
+        free(decrypted_seckey);
+        return true;
+    }
+    return false;
+}
+
+void
+pgp_key_lock(pgp_key_t *key)
+{
+    // sanity checks
+    if (!key || !pgp_is_key_secret(key)) {
+        RNP_LOG("invalid args");
+        return;
+    }
+
+    // see if it's already locked
+    if (pgp_key_is_locked(key)) {
+        return;
+    }
+
+    pgp_seckey_free_secret_mpis(&key->key.seckey);
+    key->key.seckey.encrypted = true;
 }

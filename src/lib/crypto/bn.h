@@ -31,17 +31,17 @@
 
 #include <botan/ffi.h>
 
-#ifndef __BEGIN_DECLS
+#ifndef BEGIN_DECLS__
 #if defined(__cplusplus)
-#define __BEGIN_DECLS extern "C" {
-#define __END_DECLS }
+#define BEGIN_DECLS__ extern "C" {
+#define END_DECLS__ }
 #else
-#define __BEGIN_DECLS
-#define __END_DECLS
+#define BEGIN_DECLS__
+#define END_DECLS__
 #endif
 #endif
 
-__BEGIN_DECLS
+BEGIN_DECLS__
 
 #define USE_BN_INTERFACE
 
@@ -215,6 +215,6 @@ typedef struct DSA_SIG_st {
 DSA_SIG *DSA_SIG_new();
 void DSA_SIG_free(DSA_SIG *sig);
 
-__END_DECLS
+END_DECLS__
 
 #endif
