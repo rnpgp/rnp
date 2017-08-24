@@ -580,6 +580,7 @@ process_dash_escaped(pgp_stream_t *stream,
     pgp_packet_t      content;
     const char *      hashstr;
     int               total;
+    bool              hadcr = false;
     pgp_hash_alg_t    alg = PGP_HASH_MD5; // default
 
     body = &content.u.cleartext_body;
@@ -632,8 +633,20 @@ process_dash_escaped(pgp_stream_t *stream,
                 return -1;
             }
         }
+
+        // treating CR as newline, and then skipping LF
+        if (c == '\r') {
+            c = '\n';
+            hadcr = true;
+        } else if ((c == '\n') && hadcr) {
+            continue;
+        } else {
+            hadcr = false;
+        }
+
         if (c == '\n' && body->length) {
-            if (memchr(body->data + 2, '\n', body->length - 2) != NULL) {
+            if ((body->length > 2) && 
+                (memchr(body->data + 2, '\n', body->length - 2) != NULL)) {
                 (void) fprintf(stderr, "process_dash_escaped: newline found\n");
                 return -1;
             }
@@ -651,14 +664,12 @@ process_dash_escaped(pgp_stream_t *stream,
             body->length = 0;
         }
 
-        if (c != '\r') {
-            if (c == '\n') {
-                body->data[body->length++] = '\r';
-                total++;
-            }
-            body->data[body->length++] = c;
+        if (c == '\n') {
+            body->data[body->length++] = '\r';
             total++;
         }
+        body->data[body->length++] = c;
+        total++;
 
         if (body->length == sizeof(body->data) - 1) {
             if (rnp_get_debug(__FILE__)) {
