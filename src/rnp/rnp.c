@@ -67,6 +67,7 @@ static const char *usage = "--help OR\n"
                            "where options are:\n"
                            "\t[--armor] AND/OR\n"
                            "\t[--cipher=<ciphername>] AND/OR\n"
+                           "\t[--zip, --zlib, --bzip, -z 0..9] AND/OR\n"
                            "\t[--coredumps] AND/OR\n"
                            "\t[--homedir=<homedir>] AND/OR\n"
                            "\t[--keyring=<keyring>] AND/OR\n"
@@ -109,6 +110,10 @@ enum optdefs {
     OPT_BIRTHTIME,
     OPT_CIPHER,
     OPT_NUMTRIES,
+    OPT_ZALG_ZIP,
+    OPT_ZALG_ZLIB,
+    OPT_ZALG_BZIP,
+    OPT_ZLEVEL,
 
     /* debug */
     OPT_DEBUG
@@ -171,6 +176,11 @@ static struct option options[] = {
   {"num-tries", required_argument, NULL, OPT_NUMTRIES},
   {"numtries", required_argument, NULL, OPT_NUMTRIES},
   {"attempts", required_argument, NULL, OPT_NUMTRIES},
+  {"zip", no_argument, NULL, OPT_ZALG_ZIP},
+  {"zlib", no_argument, NULL, OPT_ZALG_ZLIB},
+  {"bzip", no_argument, NULL, OPT_ZALG_BZIP},
+  {"bzip2", no_argument, NULL, OPT_ZALG_BZIP},
+
   {NULL, 0, NULL, 0},
 };
 
@@ -322,6 +332,8 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     switch (cmd) {
     case CMD_ENCRYPT:
         ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
+        ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
+        ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
 
         if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
@@ -349,6 +361,9 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
             ret = false;
             goto done;
         }
+
+        ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
+        ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
 
         ctx.sigcreate = get_birthtime(rnp_cfg_get(cfg, CFG_BIRTHTIME));
         ctx.sigexpire = get_duration(rnp_cfg_get(cfg, CFG_DURATION));
@@ -536,6 +551,15 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
     case OPT_NUMTRIES:
         rnp_cfg_set(cfg, CFG_NUMTRIES, arg);
         break;
+    case OPT_ZALG_ZIP:
+        rnp_cfg_setint(cfg, CFG_ZALG, PGP_C_ZIP);
+        break;
+    case OPT_ZALG_ZLIB:
+        rnp_cfg_setint(cfg, CFG_ZALG, PGP_C_ZLIB);
+        break;
+    case OPT_ZALG_BZIP:
+        rnp_cfg_setint(cfg, CFG_ZALG, PGP_C_BZIP2);
+        break;
     case OPT_DEBUG:
         rnp_set_debug(arg);
         break;
@@ -613,7 +637,7 @@ main(int argc, char **argv)
     optindex = 0;
 
     /* TODO: These options should be set after initialising the context. */
-    while ((ch = getopt_long(argc, argv, "S:Vdeo:sv", options, &optindex)) != -1) {
+    while ((ch = getopt_long(argc, argv, "S:Vdeo:svz:", options, &optindex)) != -1) {
         if (ch >= CMD_ENCRYPT) {
             /* getopt_long returns 0 for long options */
             if (!setoption(&cfg, &cmd, options[optindex].val, optarg)) {
@@ -651,6 +675,13 @@ main(int argc, char **argv)
                 break;
             case 'v':
                 cmd = CMD_VERIFY;
+                break;
+            case 'z':
+                if ((strlen(optarg) != 1) || (optarg[0] < '0') || (optarg[0] > '9')) {
+                    fprintf(stderr, "Bad compression level: %s. Should be 0..9\n", optarg);
+                } else {
+                    rnp_cfg_setint(&cfg, CFG_ZLEVEL, (int)(optarg[0] - '0'));
+                }
                 break;
             default:
                 cmd = CMD_HELP;

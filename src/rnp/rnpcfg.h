@@ -60,6 +60,9 @@
 #define CFG_NUMBITS "numbits"           /* number of bits in generated key */
 #define CFG_KEYFORMAT "format"          /* key format : "human" for human-readable or ... */
 #define CFG_EXPERT "expert"             /* expert key generation mode */
+#define CFG_ZLEVEL "zlevel"             /* compression level: 0..9 (0 for no compression) */
+#define CFG_ZALG "zalg"                 /* compression algorithm: zip, zlib or bzip2 */
+
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */
