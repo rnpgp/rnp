@@ -120,8 +120,11 @@ def check_packets(fname, regexp):
         return result
 
 def clear_keyrings():
-    shutil.rmtree(RNPDIR)
-    shutil.rmtree(GPGDIR)
+    try:
+        shutil.rmtree(RNPDIR)
+        shutil.rmtree(GPGDIR)
+    except:
+        pass
     os.mkdir(RNPDIR, 0700)
     os.mkdir(GPGDIR, 0700)
 
@@ -319,6 +322,13 @@ def rnp_sign_detached(src, signer, armour = False):
     if ret != 0: 
         raise_err('rnp detached signing failed', err)
 
+def rnp_sign_cleartext(src, dst, signer):
+    pipe = pswd_pipe(PASSWORD)
+    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', signer, '--output', dst, '--clearsign', src])
+    os.close(pipe)
+    if ret != 0: 
+        raise_err('rnp cleartext signing failed', err)
+
 def rnp_verify_file(src, dst, signer = None):
     params = ['--homedir', RNPDIR, '--verify-cat', src, '--output', dst]
     ret, out, err = run_proc(RNP, params)
@@ -341,6 +351,18 @@ def rnp_verify_detached(sig, signer = None):
         raise_err('wrong rnp detached verification output', err)
     if signer and (not match.group(1).strip() == signer.strip()):
         raise_err('rnp detached verification failed, wrong signer')
+
+def rnp_verify_cleartext(src, signer = None):
+    params = ['--homedir', RNPDIR, '--verify', src]
+    ret, out, err = run_proc(RNP, params)
+    if ret != 0: 
+        raise_err('rnp verification failed', err + out)
+    # Check RNP output
+    match = re.match(RE_RNP_GOOD_SIGNATURE, err)
+    if not match: 
+        raise_err('wrong rnp verification output', err)
+    if signer and (not match.group(1).strip() == signer.strip()):
+        raise_err('rnp verification failed, wrong signer')
 
 def gpg_import_pubring(kpath = None):
     if not kpath:
@@ -391,6 +413,17 @@ def gpg_verify_detached(src, sig, signer = None):
     if signer and (not match.group(1) == signer):
         raise_err('gpg detached verification failed, wrong signer')
 
+def gpg_verify_cleartext(src, signer = None):
+    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--batch', '--yes', '--trust-model', 'always', '--verify', src])
+    if ret != 0: 
+        raise_err('gpg cleartext verification failed', err)
+    # Check GPG output
+    match = re.match(RE_GPG_GOOD_SIGNATURE, err)
+    if not match: 
+        raise_err('wrong gpg verification output', err)
+    if signer and (not match.group(1) == signer):
+        raise_err('gpg verification failed, wrong signer')
+
 def gpg_sign_file(src, dst, signer, armour = False):
     params = ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '-o', dst, '-s', src]
     if armour: 
@@ -406,6 +439,12 @@ def gpg_sign_detached(src, signer, armour = False):
     ret, out, err = run_proc(GPG, params)
     if ret != 0: 
         raise_err('gpg detached signing failed', err)
+
+def gpg_sign_cleartext(src, dst, signer):
+    params = ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '-o', dst, '--clearsign', src]
+    ret, out, err = run_proc(GPG, params)
+    if ret != 0: 
+        raise_err('gpg cleartext signing failed', err)
 
 '''
     Things to try here later on:
@@ -520,6 +559,21 @@ def rnp_detached_signing_rnp_to_gpg(filesize):
         # Cleanup
         remove_files(src, sig, asc)
 
+def rnp_cleartext_signing_rnp_to_gpg(filesize):
+    src, asc = map(lambda x: path.join(WORKDIR, 'cleartext' + x), ['.txt', '.txt.asc'])
+    try:
+        # Generate random file of required size
+        random_text(src, filesize)
+        # Sign file with RNP
+        rnp_sign_cleartext(src, asc, 'signing@rnp')
+        # Verify signature with RNP
+        rnp_verify_cleartext(asc, 'signing@rnp')
+        # Verify signed message with GPG
+        gpg_verify_cleartext(asc, 'signing@rnp')
+    finally:
+        # Cleanup
+        remove_files(src, asc)
+
 def rnp_signing_gpg_to_rnp(filesize):
     src, sig, ver = map(lambda x: path.join(WORKDIR, 'cleartext' + x), ['.txt', '.sig', '.ver'])
     try:
@@ -552,6 +606,20 @@ def rnp_detached_signing_gpg_to_rnp(filesize):
         # Cleanup
         remove_files(src, sig, asc)
 
+def rnp_cleartext_signing_gpg_to_rnp(filesize):
+    src, asc = map(lambda x: path.join(WORKDIR, 'cleartext' + x), ['.txt', '.txt.asc'])
+    try:
+        # Generate random file of required size
+        random_text(src, filesize)
+        # Sign file with GPG
+        gpg_sign_cleartext(src, asc, 'signing@rnp')
+        # Verify signature with RNP
+        rnp_verify_cleartext(asc, 'signing@rnp')
+        # Verify signed message with GPG
+        gpg_verify_cleartext(asc, 'signing@rnp')
+    finally:
+        remove_files(src, asc)
+
 '''
     Things to try later:
     - different public key algorithms
@@ -571,6 +639,7 @@ def rnp_signing():
     for size in sizes:
         run_test(rnp_signing_rnp_to_gpg, size)
         run_test(rnp_detached_signing_rnp_to_gpg, size)
+        run_test(rnp_cleartext_signing_rnp_to_gpg, size)
     # Generate additional keypair in RNP
     rnp_genkey_rsa('signing@gpg')
     # Import secret keyring to the GPG
@@ -578,6 +647,7 @@ def rnp_signing():
     for size in sizes:
         run_test(rnp_signing_gpg_to_rnp, size)
         run_test(rnp_detached_signing_gpg_to_rnp, size)
+        run_test(rnp_cleartext_signing_gpg_to_rnp, size)
 
 def run_rnp_tests():
     # 1. Encryption / decryption against GPG

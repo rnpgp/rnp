@@ -422,6 +422,7 @@ dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writ
 {
     dashesc_t *dash = pgp_writer_get_arg(writer);
     unsigned   n;
+    bool       escape;
 
     if (rnp_get_debug(__FILE__)) {
         unsigned i = 0;
@@ -441,11 +442,11 @@ dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writ
     for (n = 0; n < len; ++n) {
         unsigned l;
 
-        if (dash->seen_nl) {
-            if (src[n] == '-' && !stacked_write(writer, "- ", 2, errors)) {
-                return false;
+        escape = false;
+        if (dash->seen_nl || dash->seen_cr) {
+            if (src[n] == '-') {
+                escape = true;
             }
-            dash->seen_nl = 0;
         }
         dash->seen_nl = src[n] == '\n';
 
@@ -455,7 +456,17 @@ dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writ
             }
             pgp_sig_add_data(dash->sig, "\r", 1);
         }
+        if (dash->seen_cr && !dash->seen_nl) {
+            if (!stacked_write(writer, "\n", 1, errors)) {
+                return false;
+            }
+            pgp_sig_add_data(dash->sig, "\n", 1);
+        }
         dash->seen_cr = src[n] == '\r';
+
+        if (escape && !stacked_write(writer, "- ", 2, errors)) {
+            return false;
+        }
 
         if (!stacked_write(writer, &src[n], 1, errors)) {
             return false;

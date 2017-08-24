@@ -29,7 +29,8 @@ def pswd_pipe(passphrase):
     return pr
 
 def random_text(path, size):
-    st = ''.join(random.choice(string.printable) for _ in range(size))
+    #st = ''.join(random.choice(string.printable) for _ in range(size))
+    st = ''.join(random.choice(string.ascii_letters + string.digits + " \t\n-,.") for _ in range(size))
     with open(path, 'w+') as f:
         f.write(st)
 
