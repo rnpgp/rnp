@@ -955,16 +955,17 @@ encrypt_se_ip_writer(const uint8_t *src,
 {
     const unsigned   bufsz = 128;
     encrypt_se_ip_t *se_ip = pgp_writer_get_arg(writer);
-    pgp_output_t *   litoutput;
-    pgp_output_t *   zoutput;
-    pgp_output_t *   output;
-    pgp_memory_t *   litmem;
-    pgp_memory_t *   zmem;
-    pgp_memory_t *   localmem;
+    pgp_output_t *   litoutput = NULL;
+    pgp_output_t *   zoutput = NULL;
+    pgp_output_t *   output = NULL;
+    pgp_memory_t *   litmem = NULL;
+    pgp_memory_t *   zmem = NULL;
+    pgp_memory_t *   localmem = NULL;
     bool             ret = true;
+    bool             compress = writer->ctx->zlevel > 0;
 
     if (!pgp_setup_memory_write(writer->ctx, &litoutput, &litmem, bufsz) ||
-        !pgp_setup_memory_write(writer->ctx, &zoutput, &zmem, bufsz) ||
+        (compress && !pgp_setup_memory_write(writer->ctx, &zoutput, &zmem, bufsz)) ||
         !pgp_setup_memory_write(writer->ctx, &output, &localmem, bufsz)) {
         (void) fprintf(stderr, "can't setup memory write\n");
         return false;
@@ -975,19 +976,24 @@ encrypt_se_ip_writer(const uint8_t *src,
     if (pgp_mem_len(litmem) <= len) {
         (void) fprintf(stderr, "encrypt_se_ip_writer: bad len\n");
         pgp_teardown_memory_write(litoutput, litmem);
-        pgp_teardown_memory_write(zoutput, zmem);
+        if (compress) {
+            pgp_teardown_memory_write(zoutput, zmem);
+        }
         pgp_teardown_memory_write(output, localmem);
         return false;
     }
 
     /* create compressed packet from literal data packet */
-    if (!pgp_writez(zoutput, pgp_mem_data(litmem), (unsigned) pgp_mem_len(litmem),
-                    PGP_C_ZLIB, 6)) {
+    if (compress && !pgp_writez(zoutput, pgp_mem_data(litmem), (unsigned) pgp_mem_len(litmem),
+                    writer->ctx->zalg, writer->ctx->zlevel)) {
         RNP_LOG("Compression failed");
         return false;
     }
 
     /* create SE IP packet set from this compressed literal data */
+    if (!compress) {
+        zmem = litmem;
+    }
     pgp_write_se_ip_pktset(
       output, pgp_mem_data(zmem), (unsigned) pgp_mem_len(zmem), se_ip->crypt);
     if (pgp_mem_len(localmem) <= pgp_mem_len(zmem)) {
@@ -1000,7 +1006,9 @@ encrypt_se_ip_writer(const uint8_t *src,
       stacked_write(writer, pgp_mem_data(localmem), (unsigned) pgp_mem_len(localmem), errors);
 
     pgp_memory_free(localmem);
-    pgp_memory_free(zmem);
+    if (compress) {
+        pgp_memory_free(zmem);
+    }
     pgp_memory_free(litmem);
 
     return ret;
