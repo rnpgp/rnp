@@ -417,6 +417,15 @@ typedef struct {
     pgp_memory_t *    trailing;
 } dashesc_t;
 
+#define CH_CR ('\r')
+#define CH_LF ('\n')
+#define CH_DASH ('-')
+#define CH_SPACE (' ')
+#define CH_TAB ('\t')
+#define STR_CR ("\r")
+#define STR_LF ("\n")
+#define STR_DASHESC ("- ")
+
 static bool
 dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writer_t *writer)
 {
@@ -431,12 +440,12 @@ dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writ
         for (i = 0; i < len; i++) {
             fprintf(stderr, "0x%02x ", src[i]);
             if (((i + 1) % 16) == 0) {
-                (void) fprintf(stderr, "\n");
+                (void) fprintf(stderr, STR_LF);
             } else if (((i + 1) % 8) == 0) {
                 (void) fprintf(stderr, "  ");
             }
         }
-        (void) fprintf(stderr, "\n");
+        (void) fprintf(stderr, STR_LF);
     }
     /* XXX: make this efficient */
     for (n = 0; n < len; ++n) {
@@ -444,27 +453,27 @@ dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writ
 
         escape = false;
         if (dash->seen_nl || dash->seen_cr) {
-            if (src[n] == '-') {
+            if (src[n] == CH_DASH) {
                 escape = true;
             }
         }
-        dash->seen_nl = src[n] == '\n';
+        dash->seen_nl = src[n] == CH_LF;
 
         if (dash->seen_nl && !dash->seen_cr) {
-            if (!stacked_write(writer, "\r", 1, errors)) {
+            if (!stacked_write(writer, STR_CR, 1, errors)) {
                 return false;
             }
-            pgp_sig_add_data(dash->sig, "\r", 1);
+            pgp_sig_add_data(dash->sig, STR_CR, 1);
         }
         if (dash->seen_cr && !dash->seen_nl) {
-            if (!stacked_write(writer, "\n", 1, errors)) {
+            if (!stacked_write(writer, STR_LF, 1, errors)) {
                 return false;
             }
-            pgp_sig_add_data(dash->sig, "\n", 1);
+            pgp_sig_add_data(dash->sig, STR_LF, 1);
         }
-        dash->seen_cr = src[n] == '\r';
+        dash->seen_cr = src[n] == CH_CR;
 
-        if (escape && !stacked_write(writer, "- ", 2, errors)) {
+        if (escape && !stacked_write(writer, STR_DASHESC, 2, errors)) {
             return false;
         }
 
@@ -473,7 +482,7 @@ dash_esc_writer(const uint8_t *src, unsigned len, pgp_error_t **errors, pgp_writ
         }
 
         /* trailing whitespace isn't included in the signature */
-        if (src[n] == ' ' || src[n] == '\t') {
+        if (src[n] == CH_SPACE || src[n] == CH_TAB) {
             if (!pgp_memory_add(dash->trailing, &src[n], 1)) {
                 return false;
             }
