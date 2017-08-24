@@ -517,27 +517,30 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *     io,
         return false;
     }
 
-    if (!pu16(m, 1) || !pu16(m, 28)) {
+    if (!pu16(m, 1 + key->subkeyc)) { // number of keys in keyblock
+        return false;
+    }
+    if (!pu16(m, 28)) { // size of key info structure)
         return false;
     }
 
-    if (!pgp_memory_add(m, key->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE)) {
+    if (!pgp_memory_add(m, key->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE) ||
+        !pu32(m, m->length - start - 8) || // offset to keyid (part of fpr for V4)
+        !pu16(m, 0) ||                     // flags, not used by GnuPG
+        !pu16(m, 0)) {                     // RFU
         return false;
     }
 
-    if (!pu32(m, (m->length - PGP_FINGERPRINT_SIZE + 8) - start)) {
-        return false;
+    // same as above, for each subkey
+    for (unsigned i = 0; i < key->subkeyc; i++) {
+        const pgp_key_t *subkey = key->subkeys[i];
+        if (!pgp_memory_add(m, subkey->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE) ||
+            !pu32(m, m->length - start - 8) || // offset to keyid (part of fpr for V4)
+            !pu16(m, 0) ||                     // flags, not used by GnuPG
+            !pu16(m, 0)) {                     // RFU
+            return false;
+        }
     }
-
-    if (!pu16(m, 0)) { // flags, not used by GnuPG
-        return false;
-    }
-
-    if (!pu16(m, 0)) { // RFU
-        return false;
-    }
-
-    // here we can add something to padding, but we keep 28 byte per record
 
     if (!pu16(m, 0)) { // Zero size of serial number
         return false;
@@ -565,6 +568,8 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *     io,
         }
     }
 
+    // TODO: add subkey subsigc too, or leave this field zero
+    // since it seems to be deprecated in GnuPG
     if (!pu16(m, key->subsigc) || !pu16(m, 4)) {
         return false;
     }
