@@ -581,7 +581,7 @@ process_dash_escaped(pgp_stream_t *stream,
         }
 
         if (c == '\n' && body->length) {
-            if ((body->length > 2) && 
+            if ((body->length > 2) &&
                 (memchr(body->data + 2, '\n', body->length - 2) != NULL)) {
                 (void) fprintf(stderr, "process_dash_escaped: newline found\n");
                 return -1;
@@ -990,7 +990,7 @@ armoured_data_reader(pgp_stream_t *stream,
             return n;
         } else {
             length -= n;
-            dest_ = (char*)dest_ + n;
+            dest_ = (char *) dest_ + n;
         }
     }
 

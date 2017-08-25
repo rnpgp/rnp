@@ -680,7 +680,7 @@ main(int argc, char **argv)
                 if ((strlen(optarg) != 1) || (optarg[0] < '0') || (optarg[0] > '9')) {
                     fprintf(stderr, "Bad compression level: %s. Should be 0..9\n", optarg);
                 } else {
-                    rnp_cfg_setint(&cfg, CFG_ZLEVEL, (int)(optarg[0] - '0'));
+                    rnp_cfg_setint(&cfg, CFG_ZLEVEL, (int) (optarg[0] - '0'));
                 }
                 break;
             default:
