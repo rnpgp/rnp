@@ -65,6 +65,9 @@ def run_proc(proc, params):
     process = Popen([proc] + params, stdout=PIPE, stderr=PIPE)
     output, errout = process.communicate()
     retcode = process.poll()
+    if DEBUG:
+        print errout
+        print output
 
     return (retcode, output, errout)
 
