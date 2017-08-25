@@ -125,12 +125,14 @@ def check_packets(fname, regexp):
         return result
 
 def clear_keyrings():
-    try:
-        shutil.rmtree(RNPDIR)
-        shutil.rmtree(GPGDIR)
-    except:
-        pass
+    shutil.rmtree(RNPDIR, ignore_errors=True)
     os.mkdir(RNPDIR, 0700)
+
+    while os.path.isdir(GPGDIR):
+        try:
+            shutil.rmtree(GPGDIR)
+        except:
+            time.sleep(0.1)
     os.mkdir(GPGDIR, 0700)
 
 def compare_files(src, dst, message):
