@@ -258,6 +258,11 @@ bzip2_compressed_data_reader(pgp_stream_t *stream,
             return 0;
         }
         len = (size_t)(bz->bzstream.next_out - &bz->out[bz->offset]);
+
+        if ((len == 0) && (bz->inflate_ret == BZ_STREAM_END)) {
+            return cc;
+        }
+
         if (len + cc > length) {
             len = length - cc;
         }
