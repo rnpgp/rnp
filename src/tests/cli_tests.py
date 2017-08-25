@@ -11,6 +11,7 @@ import subprocess
 import re
 import random
 import string
+import time
 from subprocess import Popen, PIPE
 from cli_common import find_utility, run_proc, pswd_pipe, rnp_file_path, random_text, file_text
 import cli_common
