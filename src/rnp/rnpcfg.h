@@ -63,7 +63,6 @@
 #define CFG_ZLEVEL "zlevel"             /* compression level: 0..9 (0 for no compression) */
 #define CFG_ZALG "zalg"                 /* compression algorithm: zip, zlib or bzip2 */
 
-
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */
 typedef struct rnp_cfg_t {
