@@ -1,39 +1,28 @@
 #!/usr/bin/python
 
 import sys
-import distutils.spawn
 import tempfile
 from os import path
 import os
 import shutil
 import subprocess
 from timeit import default_timer as perf_timer
+from cli_common import find_utility, run_proc, pswd_pipe, rnp_file_path, random_text, file_text, size_to_readable
 
-RNP = 'rnp'
-RNP_KEYS = 'rnpkeys'
-GPG = 'gpg2'
-WORKDIR = '/tmp'
-SMALL_ITERATIONS = 10
-LARGE_ITERATIONS = 2
+RNP = ''
+RNPK = ''
+GPG = ''
+WORKDIR = ''
+RNPDIR = ''
+GPGDIR = ''
+RMWORKDIR = False
+SMALL_ITERATIONS = 30
+LARGE_ITERATIONS = 5
 LARGESIZE = 1024*1024*100
 SMALLSIZE = 0
 SMALLFILE = 'smalltest.txt'
 LARGEFILE = 'largetest.txt'
-
-def size_to_readable(num, suffix = 'B'):
-    for unit in ['','K','M','G','T','P','E','Z']:
-        if abs(num) < 1024.0:
-            return "%3.1f%s%s" % (num, unit, suffix)
-        num /= 1024.0
-    return "%.1f%s%s" % (num, 'Yi', suffix)
-
-def find_utility(name, exitifnone = True):
-    path = distutils.spawn.find_executable(name)
-    if not path and exitifnone:
-        print 'Cannot find utility {}. Exiting.'.format(name)
-        sys.exit(1)
-
-    return path
+PASSWORD = 'password'
 
 def run_proc_iterative(proc, params, iterations = 1, nooutput = True):
     fnull = open(os.devnull, 'w') if nooutput else None
@@ -51,28 +40,32 @@ def run_proc_iterative(proc, params, iterations = 1, nooutput = True):
 
 def setup():
     # Searching for rnp and gnupg
-    global RNP, GPG, RNP_KEYS, WORKDIR, SMALLSIZE
-    RNP = find_utility(RNP)
-    GPG = find_utility(GPG)
-    RNP_KEYS = find_utility(RNP_KEYS)
-    WORKDIR = tempfile.mkdtemp()
+    global RNP, GPG, RNPK, WORKDIR, RNPDIR, GPGDIR, SMALLSIZE, RMWORKDIR
+    RNP = rnp_file_path('src/rnp/rnp')
+    RNPK = rnp_file_path('src/rnpkeys/rnpkeys')
+    GPG = find_utility('gpg')
+    WORKDIR = os.getcwd()
+    if not '/tmp/' in WORKDIR:
+        WORKDIR = tempfile.mkdtemp()
+        RMWORKDIR = True
 
     print 'Setting up test in {} ...'.format(WORKDIR)
 
     # Creating working directory and populating it with test files
-    rnpdir = path.join(WORKDIR, '.rnp')
-    gpgdir = path.join(WORKDIR, '.gnupg')
-    os.mkdir(rnpdir, 0700)
-    os.mkdir(gpgdir, 0700)
+    RNPDIR = path.join(WORKDIR, '.rnp')
+    GPGDIR = path.join(WORKDIR, '.gpg')
+    os.mkdir(RNPDIR, 0700)
+    os.mkdir(GPGDIR, 0700)
 
     # Generating key
-    pr, pw = os.pipe()
-    with os.fdopen(pw, 'w') as fw:
-        fw.write('password')
-    run_proc_iterative(RNP_KEYS, ['--homedir', rnpdir, '--pass-fd', str(pr), '--userid', 'performance@rnp', '--generate-key'])
+    pipe = pswd_pipe(PASSWORD) 
+    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', 'performance@rnp', '--generate-key']
+    # Run key generation
+    ret, out, err = run_proc(RNPK, params)
+    os.close(pipe)
 
     # Importing keys to GnuPG so it can build trustdb and so on
-    run_proc_iterative(GPG, ['--batch', '--passphrase', '', '--homedir', gpgdir, '--import', path.join(rnpdir, 'pubring.gpg'), path.join(rnpdir, 'secring.gpg')])
+    ret, out, err = run_proc(GPG, ['--batch', '--passphrase', '', '--homedir', GPGDIR, '--import', path.join(RNPDIR, 'pubring.gpg'), path.join(RNPDIR, 'secring.gpg')])
 
     # Generating small file for tests
     SMALLSIZE = 3312;
@@ -119,8 +112,8 @@ def print_test_results(fsize, iterations, rnptime, gpgtime, operation):
     return
 
 def run_tests():
-    rnphome = ['--homedir', path.join(WORKDIR, '.rnp')]
-    gpghome = ['--homedir', path.join(WORKDIR, '.gnupg')]
+    rnphome = ['--homedir', RNPDIR]
+    gpghome = ['--homedir', GPGDIR]
 
     # Running each operation iteratively for a small and large file(s), calculating the average
     for filesize in ['small', 'large']:
@@ -136,13 +129,9 @@ def run_tests():
         print 'Running tests for {} file, iterations {}'.format(filesize, iterations)
         # 1. Encryption
         print '#1. Encryption'
-        #rnpcmd = ' '.join([rnphome, '--encrypt', infile, '--output', rnpout])
-        #print rnpcmd
         tmrnp = run_proc_iterative(RNP, rnphome + ['--encrypt', infile, '--output', rnpout], iterations, nooutput = False)
         tmgpg = run_proc_iterative(GPG, gpghome + ['--batch', '--yes', '--trust-model', 'always', '-r', 'performance@rnp', '--compress-level', '0', '--output', gpgout, '--encrypt', infile], iterations, nooutput = False)
         print_test_results(fsize, iterations, tmrnp, tmgpg, 'ENCRYPT')
-        #rnpcmd = 'rnp --homedir /tmp/tmpyr3xUT --encrypt /tmp/tmpyr3xUT/smalltest.txt --output=/tmp/tmpyr3xUT/smalltest.txt-rnp-encrypted'
-        #gpg2 --homedir /tmp/tmpyr3xUT/.gnupg --batch --yes --trust-model always -r performance@rnp --compress-level 0 --output /tmp/tmpyr3xUT/largetest.txt-gpg-encrypted --encrypt /tmp/tmpyr3xUT/largetest.txt
 
         # 2. Decryption
         #print '\n#2. Decryption\n'
@@ -158,7 +147,10 @@ def run_tests():
     return
 
 def cleanup():
-    shutil.rmtree(WORKDIR)
+    try:
+        shutil.rmtree(WORKDIR)
+    except:
+        pass
     return
 
 if __name__ == '__main__':
