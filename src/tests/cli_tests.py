@@ -1,18 +1,15 @@
 #!/usr/bin/env python2
 
 import sys
-import distutils.spawn
 import tempfile
 import getopt
 import os
 from os import path
 import shutil
-import subprocess
 import re
 import random
 import string
 import time
-from subprocess import Popen, PIPE
 from cli_common import find_utility, run_proc, pswd_pipe, rnp_file_path, random_text, file_text
 import cli_common
 
@@ -92,6 +89,17 @@ r'using .* key .*' \
 r'signature .*' \
 r'uid\s+(.*)\s*$'
 
+class CLIError(Exception):
+    def __init__(self, message, log = None):
+        super(Exception, self).__init__(message)
+        self.log = log
+
+    def __str__(self):
+        if DEBUG and self.log:
+            return self.message + '\n' + self.log
+        else:
+            return self.message
+
 def setup():
     # Setting up directories.
     global RMWORKDIR, WORKDIR, RNPDIR, RNP, RNPK, GPG, GPGDIR
@@ -148,9 +156,10 @@ def remove_files(*args):
         pass
 
 def raise_err(msg, log = None):
-    if log and DEBUG:
-        print log
-    raise NameError(msg)
+    #if log and DEBUG:
+    #    print log
+    #raise NameError(msg)
+    raise CLIError(msg, log)
 
 def reg_workfiles(mainname, *exts):
     global TEST_WORKFILES
@@ -727,6 +736,7 @@ def run_tests():
         sys.exit(2)
 
     # Parameters are ok so we can proceed
+
     setup()
 
     if 'rnpkeys' in tests:
