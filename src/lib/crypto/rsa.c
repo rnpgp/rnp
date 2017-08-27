@@ -301,7 +301,8 @@ pgp_genkey_rsa(pgp_seckey_t *seckey, size_t numbits)
 {
     botan_privkey_t rsa_key = NULL;
     botan_rng_t     rng = NULL;
-    int             ret = 0;
+    int             ret = 0, cmp;
+    BIGNUM *        t;
 
     seckey->pubkey.key.rsa.n = BN_new();
     seckey->pubkey.key.rsa.e = BN_new();
@@ -330,6 +331,14 @@ pgp_genkey_rsa(pgp_seckey_t *seckey, size_t numbits)
     (void) botan_privkey_rsa_get_d(seckey->key.rsa.d->mp, rsa_key);
     (void) botan_privkey_rsa_get_p(seckey->key.rsa.p->mp, rsa_key);
     (void) botan_privkey_rsa_get_q(seckey->key.rsa.q->mp, rsa_key);
+
+    /* RFC 4880, 5.5.3 tells that p < q. GnuPG relies on this. */
+    (void) botan_mp_cmp(&cmp, seckey->key.rsa.p->mp, seckey->key.rsa.q->mp);
+    if (cmp > 0) {
+        t = seckey->key.rsa.p;
+        seckey->key.rsa.p = seckey->key.rsa.q;
+        seckey->key.rsa.q = t;
+    }
 
     if (botan_mp_mod_inverse(
           seckey->key.rsa.u->mp, seckey->key.rsa.p->mp, seckey->key.rsa.q->mp) != 0) {
