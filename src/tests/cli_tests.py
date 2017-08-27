@@ -508,6 +508,7 @@ def rnp_encryption_gpg_to_rnp(cipher, filesize, zlevel = 6, zalgo = 1):
         # Decrypt encrypted file with RNP
         rnp_decrypt_file(dst, dec)
         compare_files(src, dec, 'rnp decrypted data differs')
+        remove_files(dst, dec)
 
 def rnp_encryption_rnp_to_gpg(filesize, zlevel = 6, zalgo = 'zip'):
     src, dst, enc = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
@@ -519,9 +520,11 @@ def rnp_encryption_rnp_to_gpg(filesize, zlevel = 6, zalgo = 'zip'):
         # Decrypt encrypted file with GPG
         gpg_decrypt_file(enc, dst, PASSWORD)
         compare_files(src, dst, 'gpg decrypted data differs')
+        remove_files(dst)
         # Decrypt encrypted file with RNP
         rnp_decrypt_file(enc, dst)
         compare_files(src, dst, 'rnp decrypted data differs')
+        remove_files(enc, dst)
 
 '''
     Things to try later:
@@ -566,7 +569,7 @@ def rnp_signing_rnp_to_gpg(filesize):
         # Verify signed message with GPG
         gpg_verify_file(sig, ver, KEY_SIGN_RNP)
         compare_files(src, ver, 'gpg verified data differs')
-        remove_files(ver)
+        remove_files(sig, ver)
 
 def rnp_detached_signing_rnp_to_gpg(filesize):
     src, sig, asc = reg_workfiles('cleartext', '.txt', '.txt.sig', '.txt.asc')
@@ -603,6 +606,7 @@ def rnp_signing_gpg_to_rnp(filesize, zlevel = 6, zalgo = 1):
         # Verify file with RNP
         rnp_verify_file(sig, ver, KEY_SIGN_GPG)
         compare_files(src, ver, 'rnp verified data differs')
+        remove_files(sig, ver)
 
 def rnp_detached_signing_gpg_to_rnp(filesize):
     src, sig, asc = reg_workfiles('cleartext', '.txt', '.txt.sig', '.txt.asc')
