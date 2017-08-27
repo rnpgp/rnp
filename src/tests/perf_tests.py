@@ -46,7 +46,7 @@ def setup():
     GPG = find_utility('gpg')
     WORKDIR = os.getcwd()
     if not '/tmp/' in WORKDIR:
-        WORKDIR = tempfile.mkdtemp()
+        WORKDIR = tempfile.mkdtemp(prefix = 'rnpptmp')
         RMWORKDIR = True
 
     print 'Setting up test in {} ...'.format(WORKDIR)

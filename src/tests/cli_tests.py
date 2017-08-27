@@ -105,7 +105,7 @@ def setup():
     global RMWORKDIR, WORKDIR, RNPDIR, RNP, RNPK, GPG, GPGDIR
     WORKDIR = os.getcwd()
     if not '/tmp/' in WORKDIR:
-        WORKDIR = tempfile.mkdtemp()
+        WORKDIR = tempfile.mkdtemp(prefix = 'rnpctmp')
         RMWORKDIR = True
 
     print 'Running in ' + WORKDIR
