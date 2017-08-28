@@ -65,7 +65,7 @@
  */
 
 typedef struct pgp_writer_t pgp_writer_t;
-typedef bool pgp_writer_func_t(const uint8_t *, unsigned, pgp_error_t **, pgp_writer_t *);
+typedef bool pgp_writer_func_t(const uint8_t *, size_t, pgp_error_t **, pgp_writer_t *);
 typedef bool pgp_writer_finaliser_t(pgp_error_t **, pgp_writer_t *);
 typedef void pgp_writer_destroyer_t(pgp_writer_t *);
 
@@ -98,7 +98,7 @@ unsigned pgp_writer_passthrough(const uint8_t *, unsigned, pgp_error_t **, pgp_w
 void     pgp_writer_set_fd(pgp_output_t *, int);
 unsigned pgp_writer_close(pgp_output_t *);
 
-bool pgp_write(pgp_output_t *, const void *, unsigned);
+bool pgp_write(pgp_output_t *, const void *, size_t);
 bool pgp_write_length(pgp_output_t *, unsigned);
 bool pgp_write_ptag(pgp_output_t *, pgp_content_enum);
 bool pgp_write_scalar(pgp_output_t *, unsigned, unsigned);
@@ -107,7 +107,7 @@ bool pgp_write_mpi(pgp_output_t *, const BIGNUM *);
 void     pgp_writer_info_delete(pgp_writer_t *);
 unsigned pgp_writer_info_finalise(pgp_error_t **, pgp_writer_t *);
 
-void pgp_push_stream_enc_se_ip(pgp_output_t *, const pgp_pubkey_t *, pgp_symm_alg_t);
+bool pgp_push_stream_enc_se_ip(pgp_output_t *, const pgp_pubkey_t *, pgp_symm_alg_t);
 
 /* memory writing */
 bool pgp_setup_memory_write(rnp_ctx_t *, pgp_output_t **, pgp_memory_t **, size_t);

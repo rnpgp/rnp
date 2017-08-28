@@ -124,8 +124,10 @@ pgp_cipher_start(pgp_crypt_t *crypt, pgp_symm_alg_t alg, const uint8_t *key, con
     memset(crypt, 0x0, sizeof(*crypt));
 
     const char *cipher_name = pgp_sa_to_botan_string(alg);
-    if (cipher_name == NULL)
+    if (cipher_name == NULL) {
+        fprintf(stderr, "Unsupported algorithm: %d\n", alg);
         return false;
+    }
 
     crypt->alg = alg;
     crypt->blocksize = pgp_block_size(alg);
@@ -240,7 +242,7 @@ pgp_cipher_alg_id(pgp_crypt_t *cipher)
     return cipher->alg;
 }
 
-int
+size_t
 pgp_cipher_block_size(pgp_crypt_t *cipher)
 {
     return cipher->blocksize;

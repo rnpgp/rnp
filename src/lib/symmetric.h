@@ -86,7 +86,7 @@ bool pgp_cipher_start(pgp_crypt_t *  cipher,
 // Deallocate all storage
 int pgp_cipher_finish(pgp_crypt_t *cipher);
 
-int pgp_cipher_block_size(pgp_crypt_t *cipher);
+size_t pgp_cipher_block_size(pgp_crypt_t *cipher);
 pgp_symm_alg_t pgp_cipher_alg_id(pgp_crypt_t *cipher);
 
 // CFB encryption/decryption
