@@ -473,17 +473,20 @@ pgp_encrypt_file(rnp_ctx_t *         ctx,
     }
 
     /* Push the encrypted writer */
-    if (!pgp_push_enc_se_ip(output, pubkey, ctx->ealg)) {
+    if (!pgp_push_enc_se_ip(output, pubkey, ctx->ealg, pgp_mem_len(inmem))) {
         pgp_memory_free(inmem);
         return false;
     }
 
     /* This does the writing */
-    pgp_write(output, pgp_mem_data(inmem), (unsigned) pgp_mem_len(inmem));
+    if (!pgp_write(output, pgp_mem_data(inmem), pgp_mem_len(inmem))) {
+        pgp_memory_free(inmem);
+        return false;
+    }
 
     /* tidy up */
-    pgp_memory_free(inmem);
     pgp_teardown_file_write(output, fd_out);
+    pgp_memory_free(inmem);
 
     return true;
 }
@@ -516,10 +519,18 @@ pgp_encrypt_buf(rnp_ctx_t *         ctx,
     }
 
     /* Push the encrypted writer */
-    pgp_push_enc_se_ip(output, pubkey, ctx->ealg);
+    if (!pgp_push_enc_se_ip(output, pubkey, ctx->ealg, insize)) {
+        pgp_writer_close(output);
+        pgp_output_delete(output);
+        return false;
+    }
 
     /* This does the writing */
-    pgp_write(output, input, (unsigned) insize);
+    if (!pgp_write(output, input, insize)) {
+        pgp_writer_close(output);
+        pgp_output_delete(output);
+        return false;
+    }
 
     /* tidy up */
     pgp_writer_close(output);
