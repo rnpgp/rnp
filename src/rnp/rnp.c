@@ -297,17 +297,24 @@ show_output(rnp_cfg_t *cfg, char *out, int size, const char *header)
 static bool
 rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 {
-    unsigned          maxsize;
-    char *            out = NULL;
-    char *            in = NULL;
-    const char *      outf = NULL;
-    const char *      userid = NULL;
-    bool              ret = false;
-    int               cc;
-    int               sz;
-    bool              clearsign = (cmd == CMD_CLEARSIGN);
-    rnp_ctx_t         ctx;
+    unsigned    maxsize;
+    char *      out = NULL;
+    char *      in = NULL;
+    const char *outf = NULL;
+    const char *userid = NULL;
+    bool        ret = false;
+    int         cc;
+    int         sz;
+    bool        clearsign = (cmd == CMD_CLEARSIGN);
+    rnp_ctx_t   ctx;
+    // TODO: Probably something smarter should be done here
     static const char stdout_marker[2] = "-";
+    repgp_io_t        io = repgp_create_io();
+
+    if (io == REPGP_HANDLE_NULL) {
+        RNP_LOG("Allocation failed");
+        return false;
+    }
 
     /* checking userid for the upcoming operation */
     if (rnp_cfg_getbool(cfg, CFG_NEEDSUSERID)) {
@@ -347,16 +354,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         } else {
             ret = rnp_encrypt_file(&ctx, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
         }
-        goto done;
-    case CMD_DECRYPT:
-        if (f == NULL) {
-            cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            sz = rnp_decrypt_memory(&ctx, in, cc, out, maxsize);
-            ret = show_output(cfg, out, sz, "Bad memory decryption");
-        } else {
-            ret = rnp_decrypt_file(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
-        }
-        goto done;
+        break;
     case CMD_CLEARSIGN:
     case CMD_SIGN:
         ctx.halg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
@@ -364,7 +362,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         if (ctx.halg == PGP_HASH_UNKNOWN) {
             fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_cfg_get(cfg, CFG_HASH));
             ret = false;
-            goto done;
+            break;
         }
 
         ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
@@ -387,41 +385,56 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
                                 clearsign,
                                 rnp_cfg_getbool(cfg, CFG_DETACHED)) == RNP_OK;
         }
-        goto done;
-    case CMD_VERIFY_CAT:
-        outf = rnp_cfg_get(cfg, CFG_OUTFILE);
-        if (!outf) {
-            outf = &stdout_marker[0];
+        break;
+    case CMD_DECRYPT: {
+        if (f) {
+            const char *out = rnp_cfg_get(cfg, CFG_OUTFILE);
+            repgp_set_input(io, create_filepath_stream(f, strlen(f)));
+            repgp_set_output(io, create_filepath_stream(out, strlen(out)));
+        } else {
+            repgp_set_input(io, create_stdin_stream());
+            repgp_set_output(io,
+                             create_buffer_stream((size_t) rnp_cfg_getint(cfg, CFG_MAXALLOC)));
         }
+        ret = (RNP_SUCCESS == repgp_decrypt(&ctx, io));
+        break;
+    }
+    case CMD_VERIFY_CAT: {
+        repgp_stream_t os = REPGP_HANDLE_NULL;
+        if (f == NULL) {
+            os = create_buffer_stream((size_t) rnp_cfg_getint(cfg, CFG_MAXALLOC));
+        } else {
+            outf = rnp_cfg_get(cfg, CFG_OUTFILE);
+            os = (outf) ? create_filepath_stream(outf, strlen(outf)) :
+                          create_filepath_stream(stdout_marker, strlen(stdout_marker));
+        }
+        repgp_set_output(io, os);
+    }
     /* FALLTHROUGH */
     case CMD_VERIFY: {
-        repgp_stream_t stream = REPGP_STREAM_NULL;
-
-        stream = (f) ? create_file_stream(f, strlen(f)) : create_stdin_stream();
-
-        const rnp_result rnp_res = repgp_verify(&ctx, stream, outf);
-        destroy_stream(stream);
-
-        ret = (rnp_res == RNP_SUCCESS);
-        goto done;
+        repgp_stream_t is = (f) ? create_filepath_stream(f, strlen(f)) : create_stdin_stream();
+        repgp_set_input(io, is);
+        ret = (RNP_SUCCESS == repgp_verify(&ctx, io));
+        break;
     }
     case CMD_LIST_PACKETS:
-        if (f == NULL) {
-            fprintf(stderr, "%s: No filename provided\n", __progname);
+        if (!f) {
+            RNP_LOG("%s: No filename provided", __progname);
             ret = false;
-        } else {
-            ret = rnp_list_packets(rnp, f, ctx.armour) == RNP_OK;
+            break;
         }
-        goto done;
+        ret = rnp_list_packets(rnp, f, ctx.armour) == RNP_OK;
+        break;
     case CMD_SHOW_KEYS:
         ret = rnp_validate_sigs(rnp);
-        goto done;
+        break;
     default:
         print_usage(usage);
         exit(EXIT_SUCCESS);
     }
 
 done:
+    repgp_destroy_io(io);
     free(in);
     free(out);
     rnp_ctx_free(&ctx);

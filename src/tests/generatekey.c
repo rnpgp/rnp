@@ -120,8 +120,9 @@ rnpkeys_generatekey_testSignature(void **state)
 
                 /* Verify the memory */
                 rnp_ctx_init(&ctx, &rnp);
+                ctx.armour = armored;
                 retVal = rnp_verify_memory(
-                  &ctx, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig), armored);
+                  &ctx, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig));
                 /* Ensure signature verification passed */
                 rnp_assert_int_equal(rstate, retVal, strlen(memToSign) - (skip_null ? 1 : 0));
                 assert_string_equal(recoveredSig, memToSign);
@@ -131,7 +132,7 @@ rnpkeys_generatekey_testSignature(void **state)
                 signatureBuf[50] ^= 0x0C;
 
                 retVal = rnp_verify_memory(
-                  &ctx, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig), armored);
+                  &ctx, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig));
                 /* Ensure that signature verification fails */
                 rnp_assert_int_equal(rstate, retVal, 0);
                 rnp_end(&rnp);
