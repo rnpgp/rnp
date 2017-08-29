@@ -223,7 +223,7 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
     }
 }
 
-bool
+static bool
 set_default_user_prefs(pgp_user_prefs_t *prefs)
 {
     if (!prefs->symm_algs) {
@@ -530,7 +530,7 @@ end:
     return ok;
 }
 
-void
+static void
 keygen_merge_defaults(rnp_keygen_desc_t *desc)
 {
     if (!desc->primary.cert.key_flags && !desc->subkey.binding.key_flags) {
@@ -542,7 +542,7 @@ keygen_merge_defaults(rnp_keygen_desc_t *desc)
     }
 }
 
-void
+static void
 print_keygen_crypto(const rnp_keygen_crypto_params_t *crypto)
 {
     printf("key_alg: %s (%d)\n", pgp_show_pka(crypto->key_alg), crypto->key_alg);
@@ -558,14 +558,14 @@ print_keygen_crypto(const rnp_keygen_crypto_params_t *crypto)
     // printf("passphrase: '%s'\n", (char *) crypto->passphrase);
 }
 
-void
+static void
 print_keygen_primary(const rnp_keygen_primary_desc_t *desc)
 {
     printf("Keygen (primary)\n");
     print_keygen_crypto(&desc->crypto);
 }
 
-void
+static void
 print_keygen_subkey(const rnp_keygen_subkey_desc_t *desc)
 {
     printf("Keygen (subkey)\n");
