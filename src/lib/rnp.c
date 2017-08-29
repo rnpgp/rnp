@@ -1095,7 +1095,7 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *
 #define ARMOR_HEAD "-----BEGIN PGP MESSAGE-----"
 
 /* decrypt a file */
-int
+rnp_result
 rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
 {
     pgp_io_t *io;
@@ -1104,24 +1104,28 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
 
     io = ctx->rnp->io;
     if (f == NULL) {
-        (void) fprintf(io->errs, "rnp_decrypt_file: no filename specified\n");
-        return RNP_FAIL;
+        RNP_LOG("No filename specified");
+        return RNP_ERROR_BAD_PARAMETERS;
     }
+
     realarmor = isarmoured(io, f, NULL, ARMOR_HEAD);
     if (realarmor < 0) {
-        return RNP_FAIL;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
+
     sshkeys = (unsigned) use_ssh_keys(ctx->rnp);
-    return pgp_decrypt_file(ctx->rnp->io,
-                            f,
-                            out,
-                            ctx->rnp->secring,
-                            ctx->rnp->pubring,
-                            realarmor,
-                            ctx->overwrite,
-                            sshkeys,
-                            ctx->rnp->pswdtries,
-                            &ctx->rnp->passphrase_provider);
+    const bool ret = pgp_decrypt_file(ctx->rnp->io,
+                                      f,
+                                      out,
+                                      ctx->rnp->secring,
+                                      ctx->rnp->pubring,
+                                      realarmor,
+                                      ctx->overwrite,
+                                      sshkeys,
+                                      ctx->rnp->pswdtries,
+                                      &ctx->rnp->passphrase_provider);
+
+    return ret ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 }
 
 /* sign a file */
@@ -1361,12 +1365,7 @@ rnp_sign_memory(rnp_ctx_t * ctx,
 
 /* verify memory */
 int
-rnp_verify_memory(rnp_ctx_t *  ctx,
-                  const void * in,
-                  const size_t size,
-                  void *       out,
-                  size_t       outsize,
-                  const int    armored)
+rnp_verify_memory(rnp_ctx_t *ctx, const void *in, const size_t size, void *out, size_t outsize)
 {
     pgp_validation_t result;
     pgp_memory_t *   signedmem;
@@ -1397,7 +1396,7 @@ rnp_verify_memory(rnp_ctx_t *  ctx,
         }
     }
     ret = pgp_validate_mem(
-      io, &result, signedmem, (out) ? &cat : NULL, armored, ctx->rnp->pubring);
+      io, &result, signedmem, (out) ? &cat : NULL, ctx->armour, ctx->rnp->pubring);
     /* signedmem is freed from pgp_validate_mem */
     if (ret) {
         resultp(io, "<stdin>", &result, ctx->rnp->pubring);
@@ -1482,12 +1481,13 @@ rnp_decrypt_memory(
 
     io = ctx->rnp->io;
     if (input == NULL) {
-        (void) fprintf(io->errs, "rnp_decrypt_memory: no memory\n");
+        RNP_LOG("Input NULL");
         return 0;
     }
     realarmour = isarmoured(io, NULL, input, ARMOR_HEAD);
     if (realarmour < 0) {
-        return RNP_FAIL;
+        RNP_LOG("Can't figure out file format");
+        return 0;
     }
     sshkeys = (unsigned) use_ssh_keys(ctx->rnp);
     attempts = ctx->rnp->pswdtries;
@@ -1503,6 +1503,7 @@ rnp_decrypt_memory(
     if (mem == NULL) {
         return -1;
     }
+    // TODO: we should actually fail if output buffer is too small
     m = MIN(pgp_mem_len(mem), outsize);
     (void) memcpy(out, pgp_mem_data(mem), m);
     pgp_memory_free(mem);

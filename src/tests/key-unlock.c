@@ -152,15 +152,15 @@ test_key_unlock_pgp(void **state)
 
     // verify
     rnp_ctx_init(&ctx, &rnp);
-    rnp_assert_int_equal(
-      rstate, 1, rnp_verify_memory(&ctx, signature, siglen, NULL, 0, false));
+    ctx.armour = false;
+    rnp_assert_int_equal(rstate, 1, rnp_verify_memory(&ctx, signature, siglen, NULL, 0));
     rnp_ctx_free(&ctx);
 
     // verify (negative)
     rnp_ctx_init(&ctx, &rnp);
     signature[siglen / 2] ^= 0xff;
-    rnp_assert_int_equal(
-      rstate, 0, rnp_verify_memory(&ctx, signature, siglen, NULL, 0, false));
+    ctx.armour = false;
+    rnp_assert_int_equal(rstate, 0, rnp_verify_memory(&ctx, signature, siglen, NULL, 0));
     rnp_ctx_free(&ctx);
 
     // lock the signing key

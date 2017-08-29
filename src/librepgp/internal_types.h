@@ -1,16 +1,33 @@
-typedef enum { REPGP_INPUT_FILE, REPGP_INPUT_STDIN, REPGP_INPUT_BUFFER } repgp_input_t;
+typedef enum {
+
+    /* Operates on standard input/output */
+    REPGP_STREAM_FILE,
+
+    /* Stores filepath to file */
+    REPGP_STREAM_STD,
+
+    /* Operates on memory buffer */
+    REPGP_STREAM_BUFFER
+
+} repgp_stream_type_t;
 
 struct repgp_stream {
-    repgp_input_t type;
+    repgp_stream_type_t type;
 
     union {
-        /* Used by REPGP_INPUT_FILE */
+        /* Used by REPGP_STREAM_FILE */
         char *filepath;
 
-        /* Used by REPGP_INPUT_STDIN */
-        struct stdin_input {
+        /* Used by REPGP_STREAM_STD
+         * or REPGP_STREAM_BUFFER */
+        struct {
+            unsigned char *data;
             size_t         size;
-            unsigned char *in;
-        } std_in;
+        } std, buffer;
     };
+};
+
+struct repgp_io {
+    struct repgp_stream *in;
+    struct repgp_stream *out;
 };

@@ -53,8 +53,9 @@ typedef struct pgp_io_t     pgp_io_t;
 typedef struct pgp_key_t    pgp_key_t;
 typedef struct pgp_pubkey_t pgp_pubkey_t;
 typedef void *              repgp_stream_t;
+typedef void *              repgp_io_t;
 
-#define REPGP_STREAM_NULL ((repgp_stream_t) 0)
+#define REPGP_HANDLE_NULL ((void *) 0)
 
 // OZAPTF
 typedef uint32_t rnp_result;
@@ -67,13 +68,23 @@ typedef enum {
     PGP_PARSE_IGNORE  /* Don't callback */
 } pgp_parse_type_t;
 
-repgp_stream_t create_file_stream(const char *filename, size_t filename_len);
+repgp_stream_t create_filepath_stream(const char *filename, size_t filename_len);
 
+// it will do realloc
 repgp_stream_t create_stdin_stream(void);
 
-void destroy_stream(repgp_stream_t stream);
+repgp_stream_t create_buffer_stream(const size_t buffer_size);
 
-rnp_result repgp_verify(const void *ctx, repgp_stream_t stream, const char *output_file);
+void repgp_destroy_stream(repgp_stream_t stream);
+
+repgp_io_t repgp_create_io(void);
+void repgp_destroy_io(repgp_io_t io);
+
+void repgp_set_input(repgp_io_t io, /*const?*/ repgp_stream_t stream);
+void repgp_set_output(repgp_io_t io, /*const?*/ repgp_stream_t stream);
+
+rnp_result repgp_verify(const void *ctx, repgp_io_t io);
+rnp_result repgp_decrypt(const void *ctx, repgp_io_t io);
 
 /**
  * @brief Specifies whether one or more signature subpacket types
