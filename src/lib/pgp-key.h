@@ -75,7 +75,6 @@ struct pgp_key_t {
     uint32_t          uid0;       /* primary uid index in uids array */
     uint8_t           revoked;    /* key has been revoked */
     pgp_revoke_t      revocation; /* revocation reason */
-    symmetric_key_t   session_key;
 };
 
 struct pgp_key_t *pgp_key_new(void);
