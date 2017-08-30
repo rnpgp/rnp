@@ -458,34 +458,8 @@ write_seckey_body(const pgp_seckey_t *key, const char *passphrase, pgp_output_t 
     }
     pgp_push_enc_crypt(output, crypted);
 
-    switch (key->pubkey.alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        if (!pgp_write_mpi(output, key->key.rsa.d) || !pgp_write_mpi(output, key->key.rsa.p) ||
-            !pgp_write_mpi(output, key->key.rsa.q) || !pgp_write_mpi(output, key->key.rsa.u)) {
-            if (rnp_get_debug(__FILE__)) {
-                RNP_LOG("4 x mpi not written - problem");
-            }
-            return false;
-        }
-        break;
-    case PGP_PKA_DSA:
-        if (!pgp_write_mpi(output, key->key.dsa.x))
-            return false;
-        break;
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDH:
-        if (!pgp_write_mpi(output, key->key.ecc.x))
-            return false;
-        break;
-    case PGP_PKA_ELGAMAL:
-        if (!pgp_write_mpi(output, key->key.elgamal.x))
-            return false;
-        break;
-    default:
+    if (!pgp_write_secret_mpis(output, key)) {
+        RNP_LOG("failed to write MPIs");
         return false;
     }
 
@@ -1394,5 +1368,45 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
     ok = true;
 end:
     pgp_create_sig_delete(sig);
+    return ok;
+}
+
+bool
+pgp_write_secret_mpis(pgp_output_t *output, const pgp_seckey_t *seckey)
+{
+    bool ok = false;
+
+    switch (seckey->pubkey.alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        ok = pgp_write_mpi(output, seckey->key.rsa.d) &&
+             pgp_write_mpi(output, seckey->key.rsa.p) &&
+             pgp_write_mpi(output, seckey->key.rsa.q) &&
+             pgp_write_mpi(output, seckey->key.rsa.u);
+        break;
+
+    case PGP_PKA_DSA:
+        ok = pgp_write_mpi(output, seckey->key.dsa.x);
+        break;
+
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
+        ok = pgp_write_mpi(output, seckey->key.ecc.x);
+        break;
+
+    case PGP_PKA_ELGAMAL:
+        ok = pgp_write_mpi(output, seckey->key.elgamal.x);
+        break;
+
+    default:
+        RNP_LOG("unsupported pk alg %d", seckey->pubkey.alg);
+        break;
+    }
+    if (!ok) {
+        RNP_LOG("failed to write MPIs for pk alg %d", seckey->pubkey.alg);
+    }
     return ok;
 }

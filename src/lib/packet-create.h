@@ -118,4 +118,6 @@ bool pgp_write_selfsig_binding(pgp_output_t *                  output,
                                const pgp_pubkey_t *            subkey,
                                const rnp_selfsig_binding_info *binding);
 
+bool pgp_write_secret_mpis(pgp_output_t *output, const pgp_seckey_t *seckey);
+
 #endif /* CREATE_H_ */
