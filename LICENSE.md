@@ -1,7 +1,7 @@
 Licenses & Copyright
 ====================
 
-This license file adhers to the formatting guidelines of
+This license file adheres to the formatting guidelines of
 [readable-licenses](https://github.com/nevir/readable-licenses).
 
 
