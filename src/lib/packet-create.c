@@ -195,9 +195,6 @@ pubkey_length(const pgp_pubkey_t *key)
 static unsigned
 seckey_length(const pgp_seckey_t *key)
 {
-    int len;
-
-    len = 0;
     switch (key->pubkey.alg) {
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
@@ -205,12 +202,11 @@ seckey_length(const pgp_seckey_t *key)
     case PGP_PKA_SM2:
         return mpi_length(key->key.ecc.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_DSA:
-        return (unsigned) (mpi_length(key->key.dsa.x) + pubkey_length(&key->pubkey));
+        return mpi_length(key->key.dsa.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_RSA:
-        len = mpi_length(key->key.rsa.d) + mpi_length(key->key.rsa.p) +
-              mpi_length(key->key.rsa.q) + mpi_length(key->key.rsa.u);
-
-        return (unsigned) (len + pubkey_length(&key->pubkey));
+        return mpi_length(key->key.rsa.d) + mpi_length(key->key.rsa.p) +
+               mpi_length(key->key.rsa.q) + mpi_length(key->key.rsa.u) +
+               pubkey_length(&key->pubkey);
     default:
         RNP_LOG("unknown key algorithm");
     }
