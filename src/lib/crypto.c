@@ -257,9 +257,7 @@ pgp_elgamal_encrypt_mpi(const uint8_t *          encoded_m_buf,
 bool
 pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seckey)
 {
-    pgp_output_t *output = NULL;
-    pgp_memory_t *mem = NULL;
-    bool          ok = false;
+    bool ok = false;
 
     if (!crypto || !seckey) {
         RNP_LOG("NULL args");
@@ -312,48 +310,9 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
     seckey->alg = crypto->sym_alg;
     seckey->cipher_mode = PGP_SA_DEFAULT_CIPHER_MODE;
-    seckey->checksum = 0;
-
-    /* Generate checksum */
-    if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
-        RNP_LOG("can't setup memory write");
-        goto end;
-    }
-    pgp_push_checksum_writer(output, seckey);
-
-    switch (seckey->pubkey.alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        if (!pgp_write_mpi(output, seckey->key.rsa.d) ||
-            !pgp_write_mpi(output, seckey->key.rsa.p) ||
-            !pgp_write_mpi(output, seckey->key.rsa.q) ||
-            !pgp_write_mpi(output, seckey->key.rsa.u)) {
-            RNP_LOG("failed to write MPIs");
-            goto end;
-        }
-        break;
-    case PGP_PKA_ECDH:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2:
-        if (!pgp_write_mpi(output, seckey->key.ecc.x)) {
-            RNP_LOG("failed to write MPIs");
-            goto end;
-        }
-        break;
-
-    default:
-        RNP_LOG("key generation not implemented for PK alg: %d", seckey->pubkey.alg);
-        goto end;
-        break;
-    }
-
     ok = true;
+
 end:
-    if (output && mem) {
-        pgp_teardown_memory_write(output, mem);
-    }
     if (!ok && seckey) {
         RNP_LOG("failed, freeing internal seckey data");
         pgp_seckey_free(seckey);
