@@ -86,6 +86,7 @@ enum optdefs {
     CMD_CLEARSIGN,
     CMD_VERIFY,
     CMD_VERIFY_CAT,
+    CMD_SYM_DECRYPT,
     CMD_LIST_PACKETS,
     CMD_SHOW_KEYS,
     CMD_VERSION,
@@ -134,6 +135,7 @@ static struct option options[] = {
   {"verify-cat", no_argument, NULL, CMD_VERIFY_CAT},
   {"verify-show", no_argument, NULL, CMD_VERIFY_CAT},
   {"verifyshow", no_argument, NULL, CMD_VERIFY_CAT},
+  {"sym-decrypt", no_argument, NULL, CMD_SYM_DECRYPT},
   /* file listing commands */
   {"list-packets", no_argument, NULL, CMD_LIST_PACKETS},
   /* debugging commands */
@@ -355,6 +357,18 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
             ret = rnp_encrypt_file(&ctx, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
         }
         break;
+    case CMD_DECRYPT:
+        if (f == NULL) {
+            cc = stdin_to_mem(cfg, &in, &out, &maxsize);
+            sz = rnp_decrypt_memory(&ctx, in, cc, out, maxsize);
+            ret = show_output(cfg, out, sz, "Bad memory decryption");
+        } else {
+            ret = rnp_decrypt_file(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
+        }
+        break;
+    case CMD_SYM_DECRYPT:
+        ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
+        break;
     case CMD_CLEARSIGN:
     case CMD_SIGN:
         ctx.halg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
@@ -467,6 +481,9 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
     case CMD_DECRYPT:
         /* for decryption, we need a seckey */
         rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
+        *cmd = val;
+        break;
+    case CMD_SYM_DECRYPT:
         *cmd = val;
         break;
     case CMD_VERIFY:
