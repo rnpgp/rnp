@@ -432,7 +432,11 @@ write_seckey_body(const pgp_seckey_t *key, const char *passphrase, pgp_output_t 
         break;
     }
 
-    if (!pgp_write(output, &key->iv[0], pgp_block_size(key->alg))) {
+    size_t blocksize = pgp_block_size(key->alg);
+    if (pgp_random(RNP_UNCONST(&key->iv[0]), blocksize)) {
+        return false;
+    }
+    if (!pgp_write(output, &key->iv[0], blocksize)) {
         return false;
     }
 
