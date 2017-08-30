@@ -163,8 +163,7 @@ ssize_t src_skip(pgp_source_t *src, size_t len)
 
         if (buf == NULL) {
             return -1;
-        } else 
-        {
+        } else {
             res = src_read(src, buf, len);
             free(buf);
             return res;
@@ -203,7 +202,7 @@ void file_src_close(pgp_source_t *src)
     }
 }
 
-pgp_errcode_t init_file_src(pgp_source_t *src, char *path)
+pgp_errcode_t init_file_src(pgp_source_t *src, const char *path)
 {
     int                      fd;
     struct stat              st;
@@ -336,30 +335,30 @@ static ssize_t stream_read_pkt_len(pgp_source_t *src)
     uint8_t buf[6];
     ssize_t read;
 
-    read = src_peek(src, buf, 6);
+    read = src_read(src, buf, 2);
     if ((read < 2) || !(buf[0] & PGP_PTAG_ALWAYS_SET)) {
         return -1;
     }
 
     if (buf[0] & PGP_PTAG_NEW_FORMAT) {
         if (buf[1] < 192) {
-            src_read(src, buf, 2);
             return (ssize_t)buf[1];
         } else if (buf[1] < 224) {
             if (read < 3) {
                 return -1;
             } else {
-                src_read(src, buf, 3);
+                if (src_read(src, &buf[2], 1) < 1) {
+                    return -1;
+                }
                 return ((ssize_t)(buf[1] - 192) << 8) + (ssize_t)buf[2] + 192;
             }
         } else if (buf[1] < 255) {
             // we do not allow partial length here
             return -1;
         } else {
-            if (read < 6) {
+            if (src_read(src, &buf[2], 4) < 4) {
                 return -1;
             } else {
-                src_read(src, buf, 6);
                 return ((ssize_t)buf[2] << 24) | ((ssize_t)buf[3] << 16) | ((ssize_t)buf[4] << 8) | (ssize_t)buf[5];
             }
         }
@@ -368,17 +367,16 @@ static ssize_t stream_read_pkt_len(pgp_source_t *src)
             case PGP_PTAG_OLD_LEN_1:
                 return (ssize_t)buf[1];
             case PGP_PTAG_OLD_LEN_2:
-                if (read < 3) {
+                if (src_read(src, &buf[2], 1) < 1) {
                     return -1;
                 } else {
-                    src_read(src, buf, 3);
+                    src_read(src, &buf[2], 1);
                     return ((ssize_t)buf[1] << 8) | ((ssize_t)buf[2]);
                 }
             case PGP_PTAG_OLD_LEN_4:
-                if (read < 5) {
+                if (src_read(src, &buf[2], 3) < 3) {
                     return -1;
                 } else {
-                    src_read(src, buf, 5);
                     return ((ssize_t)buf[1] << 24) | ((ssize_t)buf[2] << 16) | ((ssize_t)buf[3] << 8) | (ssize_t)buf[4];
                 }
             default:
@@ -430,7 +428,7 @@ static pgp_errcode_t stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t
             if (len < PGP_SALT_SIZE) {
                 return RNP_ERROR_BAD_FORMAT;
             }
-            if ((read = src_read(src, skey->salt, PGP_SALT_SIZE)) != PGP_SALT_SIZE) {
+            if (src_read(src, skey->salt, PGP_SALT_SIZE) != PGP_SALT_SIZE) {
                 return RNP_ERROR_READ;
             }
             len -= PGP_SALT_SIZE;
@@ -440,12 +438,13 @@ static pgp_errcode_t stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t
                 if (len < 1) {
                     return RNP_ERROR_BAD_FORMAT;
                 }
-                if ((read = src_read(src, buf, 1)) != 1) {
+                if (src_read(src, buf, 1) != 1) {
                     return RNP_ERROR_READ;
                 }
                 skey->s2k_iterations = (unsigned)buf[0];
                 len--;
             }
+            break;
         default:
             (void) fprintf(stderr, "stream_parse_sk_sesskey: wrong s2k specifier\n");
             return RNP_ERROR_BAD_FORMAT;
@@ -457,9 +456,12 @@ static pgp_errcode_t stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t
             (void) fprintf(stderr, "stream_parse_sk_sesskey: too long encrypted session key\n");
             return RNP_ERROR_BAD_FORMAT;
         }
-        if ((read = src_read(src, skey->sesskey, len)) != len) {
+        if (src_read(src, skey->enckey, len) != len) {
             return RNP_ERROR_READ;
         }
+        skey->enckeylen = len;
+    } else {
+        skey->enckeylen = 0;
     }
 
     return RNP_SUCCESS;
@@ -472,7 +474,7 @@ pgp_errcode_t init_encrypted_src(pgp_source_t *src, pgp_source_t *readsrc)
     pgp_source_encrypted_param_t *param; 
     uint8_t                       ptag;
     int                           ptype;
-    pgp_sk_sesskey_t              skey;
+    pgp_sk_sesskey_t              skey = {0};
 
     if ((src->cache = calloc(1, sizeof(pgp_source_cache_t))) == NULL) {
         return RNP_ERROR_OUT_OF_MEMORY;

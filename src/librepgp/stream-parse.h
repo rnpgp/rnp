@@ -105,7 +105,7 @@ ssize_t src_peek(pgp_source_t *src, void *buf, size_t len);
  **/
 ssize_t src_skip(pgp_source_t *src, size_t len);
 
-pgp_errcode_t init_file_src(pgp_source_t *src, char *path);
+pgp_errcode_t init_file_src(pgp_source_t *src, const char *path);
 pgp_errcode_t init_stdin_src(pgp_source_t *src);
 pgp_errcode_t init_mem_src(pgp_source_t *src, void *mem, size_t len);
 

@@ -95,6 +95,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <rnp/rnp_def.h>
 #include "pgp-key.h"
 #include "list.h"
+#include <librepgp/stream-parse.h>
 
 #include "rnp/rnp_obsolete_defs.h"
 #include <json.h>
@@ -1221,6 +1222,31 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
                                       &ctx->rnp->passphrase_provider);
 
     return ret ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+}
+
+/* process the pgp stream */
+int 
+rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
+{
+    pgp_source_t  src;
+    pgp_errcode_t err;
+
+    if (in) {
+        err = init_file_src(&src, in);
+    } else {
+        err = init_stdin_src(&src);
+    }
+
+    if (err != RNP_SUCCESS) {
+        return RNP_FAIL;
+    }
+
+    err = process_pgp_source(&src);
+    if (err == RNP_SUCCESS) {
+        return RNP_OK;
+    } else {
+        return RNP_FAIL;
+    }
 }
 
 /* sign a file */
