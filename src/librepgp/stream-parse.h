@@ -46,7 +46,9 @@ typedef enum {
     PGP_SOURCE_PACKET,
     PGP_SOURCE_PARLEN_PACKET,
     PGP_SOURCE_LITERAL,
+    PGP_SOURCE_COMPRESSED,
     PGP_SOURCE_ENCRYPTED,
+    PGP_SOURCE_SIGNED,
     PGP_SOURCE_ARMOURED,
     PGP_SOURCE_CLEARTEXT
 } pgp_source_type_t;
@@ -107,6 +109,12 @@ pgp_errcode_t init_file_src(pgp_source_t *src, char *path);
 pgp_errcode_t init_stdin_src(pgp_source_t *src);
 pgp_errcode_t init_mem_src(pgp_source_t *src, void *mem, size_t len);
 
+/* @brief Process the PGP source: file, memory, stdin
+ * Function will parse input data, provided by any source conforming to pgp_source_t, 
+ * autodetecting whether it is armoured, cleartext or binary.
+ * @param src initialized source with cache
+ * @return PGP_E_OK on success or error code otherwise
+ **/
 pgp_errcode_t process_pgp_source(pgp_source_t *src);
 
 #endif
