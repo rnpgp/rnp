@@ -428,6 +428,17 @@ typedef struct {
     uint16_t                checksum;
 } pgp_pk_sesskey_t;
 
+/** pkp_sk_sesskey_t */
+typedef struct {
+    unsigned            version;
+    pgp_symm_alg_t      alg;
+    pgp_s2k_specifier_t s2k_specifier;
+    pgp_hash_alg_t      hash_alg;
+    uint8_t             salt[PGP_SALT_SIZE];
+    unsigned            s2k_iterations;
+    uint8_t             sesskey[PGP_MAX_KEY_SIZE + 1];
+} pgp_sk_sesskey_t;
+
 /** pgp_seckey_passphrase_t */
 typedef struct {
     const pgp_seckey_t *seckey;
