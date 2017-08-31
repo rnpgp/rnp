@@ -160,13 +160,13 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         break;
     case PGP_PARSER_PACKET_END:
         KEY_REQUIRED_BEFORE("raw packet");
-        // TODO: pgp_add_rawpacket allocates and copies the data, which we could probably
-        // avoid and just use PGP_KEEP_MEMORY.
-        if (!pgp_add_rawpacket(key, &content->packet)) {
-            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to add raw packet to key.");
-            return PGP_FINISHED;
+        EXPAND_ARRAY(key, packet);
+        if (!key->packets) {
+            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
+            return PGP_RELEASE_MEMORY;
         }
-        break;
+        key->packets[key->packetc++] = content->packet;
+        return PGP_KEEP_MEMORY;
     case PGP_PARSER_ERROR:
         RNP_LOG("Error: %s", content->error);
         return PGP_FINISHED;
