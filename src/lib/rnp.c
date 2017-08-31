@@ -1224,12 +1224,34 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
     return ret ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 }
 
+typedef struct pgp_handler_param_t {
+    rnp_ctx_t *ctx;
+    int        outfd;
+    char *     pass;
+} pgp_handler_param_t;
+
 /* process the pgp stream */
+
+void 
+rnp_handler_password_needed(pgp_operation_handler_t *handler, char *pass, int *passlen, pgp_operation_handler_action_t *action)
+{
+    *action = PGP_ACTION_ABORT;
+}
+
+void 
+rnp_handler_write(pgp_operation_handler_t *handler, void *buf, size_t len, pgp_operation_handler_action_t *action)
+{
+    *action = PGP_ACTION_ABORT;
+}
+
 int 
 rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 {
     pgp_source_t  src;
     pgp_errcode_t err;
+    pgp_operation_handler_t *handler = NULL;
+    pgp_handler_param_t *param = NULL;
+    int result;
 
     if (in) {
         err = init_file_src(&src, in);
@@ -1241,12 +1263,35 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
         return RNP_FAIL;
     }
 
-    err = process_pgp_source(&src);
-    if (err == RNP_SUCCESS) {
-        return RNP_OK;
-    } else {
-        return RNP_FAIL;
+    if ((handler = calloc(1, sizeof(*handler))) == NULL) {
+        result = RNP_FAIL;
+        goto finish;
     }
+
+    if ((param = calloc(1, sizeof(*param))) == NULL) {
+        result = RNP_FAIL;
+        goto finish;
+    }
+
+    handler->passfunc = rnp_handler_password_needed;
+    handler->writefunc = rnp_handler_write;
+    param->ctx = ctx;
+    param->outfd = 0;
+    param->pass = NULL;
+    handler->param = param;
+
+    err = process_pgp_source(handler, &src);
+    if (err == RNP_SUCCESS) {
+        result = RNP_OK;
+    } else {
+        result = RNP_FAIL;
+    }
+
+    finish:
+    src_close(&src);
+    free(handler);
+    free(param);
+    return result;
 }
 
 /* sign a file */
