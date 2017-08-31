@@ -182,6 +182,9 @@ pgp_cipher_cfb_resync_v2(pgp_crypt_t *crypt)
 int
 pgp_cipher_finish(pgp_crypt_t *crypt)
 {
+    if (!crypt) {
+        return 0;
+    }
     if (crypt->obj) {
         botan_block_cipher_destroy(crypt->obj);
         crypt->obj = NULL;
