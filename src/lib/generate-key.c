@@ -165,9 +165,6 @@ keygen_merge_crypto_defaults(rnp_keygen_crypto_params_t *crypto)
     if (!crypto->hash_alg) {
         crypto->hash_alg = DEFAULT_HASH_ALGS[0];
     }
-    if (!crypto->sym_alg) {
-        crypto->sym_alg = PGP_SA_DEFAULT_CIPHER;
-    }
 }
 
 static bool
@@ -280,18 +277,15 @@ keygen_primary_merge_defaults(rnp_keygen_primary_desc_t *desc)
 }
 
 bool
-pgp_generate_primary_key(rnp_keygen_primary_desc_t *      desc,
-                         bool                             merge_defaults,
-                         pgp_key_t *                      primary_sec,
-                         pgp_key_t *                      primary_pub,
-                         pgp_seckey_t *                   decrypted_seckey,
-                         const pgp_passphrase_provider_t *passphrase_provider)
+pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
+                         bool                       merge_defaults,
+                         pgp_key_t *                primary_sec,
+                         pgp_key_t *                primary_pub)
 {
     bool          ok = false;
     pgp_output_t *output = NULL;
     pgp_memory_t *mem = NULL;
     pgp_seckey_t  seckey;
-    char          passphrase[MAX_PASSPHRASE_LENGTH] = {0};
 
     memset(&seckey, 0, sizeof(seckey));
 
@@ -319,26 +313,11 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *      desc,
         goto end;
     }
 
-    // get a passphrase for the new key
-    if (!pgp_request_passphrase(passphrase_provider,
-                                &(pgp_passphrase_ctx_t){.op = PGP_OP_GENERATE_KEY,
-                                                        .pubkey = &seckey.pubkey,
-                                                        .key_type = PGP_PTAG_CT_SECRET_KEY},
-                                passphrase,
-                                sizeof(passphrase))) {
-        RNP_LOG("no passphrase provided for new key");
-        goto end;
-    }
-    if (passphrase[0] == '\0') {
-        // allow it, but warn
-        RNP_LOG("warning: blank passphrase for key generation");
-    }
-
     // write the secret key, userid, and self-signature
     if (!pgp_setup_memory_write(NULL, &output, &mem, 4096)) {
         goto end;
     }
-    if (!pgp_write_struct_seckey(output, PGP_PTAG_CT_SECRET_KEY, &seckey, passphrase) ||
+    if (!pgp_write_struct_seckey(output, PGP_PTAG_CT_SECRET_KEY, &seckey, NULL) ||
         !pgp_write_struct_userid(output, desc->cert.userid) ||
         !pgp_write_selfsig_cert(output, &seckey, desc->crypto.hash_alg, &desc->cert)) {
         RNP_LOG("failed to write out generated key+sigs");
@@ -366,8 +345,6 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *      desc,
 
     ok = true;
 end:
-    // always scrub passphrase
-    pgp_forget(passphrase, sizeof(passphrase));
     // free any user preferences
     pgp_free_user_prefs(&desc->cert.prefs);
 
@@ -376,14 +353,9 @@ end:
         output = NULL;
         mem = NULL;
     }
-    if (ok && decrypted_seckey) {
-        // caller wants a copy of the decrypted seckey
-        memcpy(decrypted_seckey, &seckey, sizeof(*decrypted_seckey));
-    } else {
-        // we don't need this as we have loaded the encrypted key
-        // into primary_sec
-        pgp_seckey_free(&seckey);
-    }
+    // we don't need this as we have loaded the encrypted key
+    // into primary_sec
+    pgp_seckey_free(&seckey);
     if (!ok) {
         pgp_key_free_data(primary_pub);
         pgp_key_free_data(primary_sec);
@@ -421,19 +393,18 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
                     bool                             merge_defaults,
                     pgp_key_t *                      primary_sec,
                     pgp_key_t *                      primary_pub,
-                    const pgp_seckey_t *             primary_decrypted,
                     pgp_key_t *                      subkey_sec,
                     pgp_key_t *                      subkey_pub,
                     const pgp_passphrase_provider_t *passphrase_provider)
 {
-    bool          ok = false;
-    pgp_output_t *output = NULL;
-    pgp_memory_t *mem = NULL;
-    char          passphrase[MAX_PASSPHRASE_LENGTH] = {0};
+    bool                ok = false;
+    pgp_output_t *      output = NULL;
+    pgp_memory_t *      mem = NULL;
+    const pgp_seckey_t *primary_seckey = NULL;
+    pgp_seckey_t *      decrypted_primary_seckey = NULL;
 
     // validate args
-    if (!desc || !primary_sec || !primary_pub || !primary_decrypted || !subkey_sec ||
-        !subkey_pub) {
+    if (!desc || !primary_sec || !primary_pub || !subkey_sec || !subkey_pub) {
         RNP_LOG("NULL args");
         goto end;
     }
@@ -457,6 +428,22 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
         goto end;
     }
 
+    // decrypt the primary seckey if needed (for signatures)
+    if (primary_sec->key.seckey.encrypted) {
+        decrypted_primary_seckey =
+          pgp_decrypt_seckey(primary_sec,
+                             passphrase_provider,
+                             &(pgp_passphrase_ctx_t){.op = PGP_OP_ADD_SUBKEY,
+                                                     .pubkey = pgp_get_pubkey(primary_sec),
+                                                     .key_type = primary_sec->type});
+        if (!decrypted_primary_seckey) {
+            goto end;
+        }
+        primary_seckey = decrypted_primary_seckey;
+    } else {
+        primary_seckey = pgp_get_seckey(primary_sec);
+    }
+
     // prepare to add subkeys
     EXPAND_ARRAY(primary_sec, subkey);
     EXPAND_ARRAY(primary_pub, subkey);
@@ -471,28 +458,13 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
         goto end;
     }
 
-    // get a passphrase for the new key
-    if (!pgp_request_passphrase(passphrase_provider,
-                                &(pgp_passphrase_ctx_t){.op = PGP_OP_GENERATE_KEY,
-                                                        .pubkey = &seckey.pubkey,
-                                                        .key_type = PGP_PTAG_CT_SECRET_SUBKEY},
-                                passphrase,
-                                sizeof(passphrase))) {
-        RNP_LOG("no passphrase provided for new key");
-        goto end;
-    }
-    if (passphrase[0] == '\0') {
-        // allow it, but warn
-        RNP_LOG("warning: blank passphrase for key generation");
-    }
-
     // write the secret subkey, userid, and binding self-signature
     if (!pgp_setup_memory_write(NULL, &output, &mem, 4096)) {
         goto end;
     }
-    if (!pgp_write_struct_seckey(output, PGP_PTAG_CT_SECRET_SUBKEY, &seckey, passphrase) ||
+    if (!pgp_write_struct_seckey(output, PGP_PTAG_CT_SECRET_SUBKEY, &seckey, NULL) ||
         !pgp_write_selfsig_binding(
-          output, primary_decrypted, desc->crypto.hash_alg, &seckey.pubkey, &desc->binding)) {
+          output, primary_seckey, desc->crypto.hash_alg, &seckey.pubkey, &desc->binding)) {
         RNP_LOG("failed to write out generated key+sigs");
         goto end;
     }
@@ -508,7 +480,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
     }
     if (!pgp_write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_SUBKEY, &seckey.pubkey) ||
         !pgp_write_selfsig_binding(
-          output, primary_decrypted, desc->crypto.hash_alg, &seckey.pubkey, &desc->binding)) {
+          output, primary_seckey, desc->crypto.hash_alg, &seckey.pubkey, &desc->binding)) {
         RNP_LOG("failed to write out generated key+sigs");
         goto end;
     }
@@ -520,9 +492,11 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
 
     ok = true;
 end:
-    // always scrub passphrase
-    pgp_forget(passphrase, sizeof(passphrase));
     pgp_seckey_free(&seckey);
+    if (decrypted_primary_seckey) {
+        pgp_seckey_free(decrypted_primary_seckey);
+        free(decrypted_primary_seckey);
+    }
     if (!ok) {
         pgp_key_free_data(subkey_pub);
         pgp_key_free_data(subkey_sec);
@@ -552,10 +526,6 @@ print_keygen_crypto(const rnp_keygen_crypto_params_t *crypto)
         printf("curve: %d\n", crypto->ecc.curve);
     }
     printf("hash_alg: %s (%d)\n", pgp_show_hash_alg(crypto->hash_alg), crypto->hash_alg);
-    printf("sym_alg: %s (%d)\n", pgp_show_symm_alg(crypto->sym_alg), crypto->sym_alg);
-
-    // only for debugging!
-    // printf("passphrase: '%s'\n", (char *) crypto->passphrase);
 }
 
 static void
@@ -573,18 +543,14 @@ print_keygen_subkey(const rnp_keygen_subkey_desc_t *desc)
 }
 
 bool
-pgp_generate_keypair(rnp_keygen_desc_t *              desc,
-                     bool                             merge_defaults,
-                     pgp_key_t *                      primary_sec,
-                     pgp_key_t *                      primary_pub,
-                     pgp_key_t *                      subkey_sec,
-                     pgp_key_t *                      subkey_pub,
-                     const pgp_passphrase_provider_t *passphrase_provider)
+pgp_generate_keypair(rnp_keygen_desc_t *desc,
+                     bool               merge_defaults,
+                     pgp_key_t *        primary_sec,
+                     pgp_key_t *        primary_pub,
+                     pgp_key_t *        subkey_sec,
+                     pgp_key_t *        subkey_pub)
 {
-    bool         ok = false;
-    pgp_seckey_t decrypted_primary;
-
-    memset(&decrypted_primary, 0, sizeof(decrypted_primary));
+    bool ok = false;
 
     if (rnp_get_debug(__FILE__)) {
         print_keygen_primary(&desc->primary);
@@ -603,12 +569,7 @@ pgp_generate_keypair(rnp_keygen_desc_t *              desc,
     }
 
     // generate the primary key
-    if (!pgp_generate_primary_key(&desc->primary,
-                                  merge_defaults,
-                                  primary_sec,
-                                  primary_pub,
-                                  &decrypted_primary,
-                                  passphrase_provider)) {
+    if (!pgp_generate_primary_key(&desc->primary, merge_defaults, primary_sec, primary_pub)) {
         RNP_LOG("failed to generate primary key");
         goto end;
     }
@@ -618,16 +579,13 @@ pgp_generate_keypair(rnp_keygen_desc_t *              desc,
                              merge_defaults,
                              primary_sec,
                              primary_pub,
-                             &decrypted_primary,
                              subkey_sec,
                              subkey_pub,
-                             passphrase_provider)) {
+                             NULL)) {
         RNP_LOG("failed to generate subkey");
         goto end;
     }
     ok = true;
 end:
-    // this will complain if it's still all zeroed, but it's safe (won't crash)
-    pgp_seckey_free(&decrypted_primary);
     return ok;
 }

@@ -295,7 +295,6 @@ typedef enum {
                                * (X9.42, as defined for
                                * IETF-S/MIME) */
     PGP_PKA_EDDSA = 22,       /* EdDSA from draft-ietf-openpgp-rfc4880bis */
-
     PGP_PKA_SM2 = 99,         /* SM2 encryption/signature schemes */
 
     PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
@@ -462,9 +461,10 @@ typedef enum {
 typedef enum pgp_op_t {
     PGP_OP_UNKNOWN = 0,
     PGP_OP_GENERATE_KEY = 1,
-    PGP_OP_SIGN = 2,
-    PGP_OP_DECRYPT = 3,
-    PGP_OP_UNLOCK = 4
+    PGP_OP_ADD_SUBKEY = 2,
+    PGP_OP_SIGN = 3,
+    PGP_OP_DECRYPT = 4,
+    PGP_OP_UNLOCK = 5
 } pgp_op_t;
 
 /** Hashing Algorithm Numbers.

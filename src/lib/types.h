@@ -542,8 +542,6 @@ typedef struct rnp_keygen_crypto_params_t {
     pgp_pubkey_alg_t key_alg;
     // Hash to be used for key signature
     pgp_hash_alg_t hash_alg;
-    // Symmetric algorithm to be used for secret key encryption
-    pgp_symm_alg_t sym_alg;
     union {
         struct ecc_t {
             pgp_curve_t curve;
