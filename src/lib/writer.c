@@ -1683,6 +1683,27 @@ str_enc_se_ip_destroyer(pgp_writer_t *writer)
     free(se_ip);
 }
 
+static bool
+hash_calculator(const uint8_t *src,
+                const size_t   len,
+                pgp_error_t ** errors,
+                pgp_writer_t * writer)
+{
+    pgp_hash_t *hash = pgp_writer_get_arg(writer);
+
+    pgp_hash_add(hash, src, len);
+    return stacked_write(writer, src, len, errors);
+}
+
+bool
+pgp_writer_push_hash(pgp_output_t *output, pgp_hash_t *hash)
+{
+    if (!hash) {
+        return false;
+    }
+    return pgp_writer_push(output, hash_calculator, NULL, NULL, hash);
+}
+
 /**
  \ingroup Core_Writers
  \brief Create and initialise output and mem; Set for writing to mem
