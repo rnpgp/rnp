@@ -80,7 +80,6 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "crypto/eddsa.h"
 #include "crypto/elgamal.h"
 #include "crypto/rsa.h"
-#include "crypto/s2k.h"
 #include "crypto/sm2.h"
 #include "crypto.h"
 #include "readerwriter.h"
@@ -267,8 +266,6 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     seckey->pubkey.version = PGP_V4;
     seckey->pubkey.birthtime = time(NULL);
     seckey->pubkey.alg = crypto->key_alg;
-    seckey->hash_alg =
-      (PGP_HASH_UNKNOWN == crypto->hash_alg) ? PGP_HASH_SHA1 : crypto->hash_alg;
 
     switch (seckey->pubkey.alg) {
     case PGP_PKA_RSA:
@@ -304,12 +301,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         goto end;
         break;
     }
-
-    seckey->s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
-    seckey->s2k_iterations = pgp_s2k_round_iterations(65536);
-    seckey->alg = crypto->sym_alg;
-    seckey->cipher_mode = PGP_SA_DEFAULT_CIPHER_MODE;
+    seckey->s2k_usage = PGP_S2KU_NONE;
     ok = true;
 
 end:

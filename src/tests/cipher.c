@@ -143,7 +143,6 @@ pkcs1_rsa_test_success(void **state)
 
     const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_RSA,
                                                  .hash_alg = PGP_HASH_SHA256,
-                                                 .sym_alg = PGP_SA_AES_128,
                                                  .rsa = {.modulus_bit_len = 1024}};
     sec_key = calloc(1, sizeof(*sec_key));
     assert_non_null(sec_key);
@@ -207,7 +206,7 @@ rnp_test_eddsa(void **state)
 {
     rnp_test_state_t *               rstate = *state;
     const rnp_keygen_crypto_params_t key_desc = {
-      .key_alg = PGP_PKA_EDDSA, .hash_alg = PGP_HASH_SHA256, .sym_alg = PGP_SA_AES_128};
+      .key_alg = PGP_PKA_EDDSA, .hash_alg = PGP_HASH_SHA256};
 
     pgp_seckey_t *seckey = calloc(1, sizeof(*seckey));
     assert_non_null(seckey);
@@ -350,7 +349,6 @@ ecdsa_signverify_success(void **state)
         pgp_ecc_sig_t                    sig = {NULL, NULL};
         const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDSA,
                                                      .hash_alg = PGP_HASH_SHA512,
-                                                     .sym_alg = PGP_SA_AES_128,
                                                      .ecc = {.curve = curves[i].id}};
 
         pgp_seckey_t *seckey1 = calloc(1, sizeof(*seckey1));
@@ -417,7 +415,6 @@ ecdh_roundtrip(void **state)
     for (int i = 0; i < ARRAY_SIZE(curves); i++) {
         const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDH,
                                                      .hash_alg = PGP_HASH_SHA512,
-                                                     .sym_alg = PGP_SA_AES_256,
                                                      .ecc = {.curve = curves[i].id}};
 
         const size_t expected_result_byte_size = curves[i].size * 2 + 1;
@@ -478,7 +475,6 @@ ecdh_decryptionNegativeCases(void **state)
 
     const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDH,
                                                  .hash_alg = PGP_HASH_SHA512,
-                                                 .sym_alg = PGP_SA_AES_256,
                                                  .ecc = {.curve = PGP_CURVE_NIST_P_256}};
 
     const size_t expected_result_byte_size = 32 * 2 + 1;
@@ -618,7 +614,6 @@ sm2_roundtrip(void **state)
 
     const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_SM2,
                                                  .hash_alg = PGP_HASH_SM3,
-                                                 .sym_alg = PGP_SA_SM4,
                                                  .ecc = {.curve = PGP_CURVE_SM2_P_256}};
 
     pgp_seckey_t *sec_key = calloc(1, sizeof(*sec_key));

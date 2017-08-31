@@ -425,12 +425,10 @@ set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc, pgp_hash_alg_t hashalg)
     rnp_keygen_subkey_desc_t * subkey = &key_desc->subkey;
 
     primary->crypto.key_alg = PGP_PKA_RSA;
-    primary->crypto.sym_alg = PGP_SA_DEFAULT_CIPHER;
     primary->crypto.rsa.modulus_bit_len = 1024;
     primary->crypto.hash_alg = hashalg;
 
     subkey->crypto.key_alg = PGP_PKA_RSA;
-    subkey->crypto.sym_alg = PGP_SA_DEFAULT_CIPHER;
     subkey->crypto.rsa.modulus_bit_len = 1024;
     subkey->crypto.hash_alg = hashalg;
 }
