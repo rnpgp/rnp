@@ -59,7 +59,7 @@
 /* */
 unsigned pgp_write_mdc(pgp_output_t *, const uint8_t *);
 unsigned pgp_write_se_ip_pktset(pgp_output_t *, const uint8_t *, const size_t, pgp_crypt_t *);
-void     pgp_push_enc_crypt(pgp_output_t *, pgp_crypt_t *);
+bool     pgp_push_enc_crypt(pgp_output_t *, pgp_crypt_t *);
 bool     pgp_push_enc_se_ip(pgp_output_t *, const pgp_pubkey_t *, pgp_symm_alg_t, size_t);
 
 /* file writing */
