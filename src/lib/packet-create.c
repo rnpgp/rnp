@@ -265,74 +265,6 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
     return false;
 }
 
-static bool
-hash_bn(pgp_hash_t *hash, BIGNUM *bignum)
-{
-    uint8_t *bn;
-    size_t   bits;
-    size_t   bytes;
-    uint8_t  length[2];
-
-    if (BN_is_zero(bignum)) {
-        length[0] = length[1] = 0;
-        pgp_hash_add(hash, length, 2);
-        return true;
-    }
-    if ((bits = (size_t) BN_num_bits(bignum)) < 1) {
-        RNP_LOG("bad size");
-        return false;
-    }
-    if ((bytes = (size_t) BN_num_bytes(bignum)) < 1) {
-        RNP_LOG("bad size");
-        return false;
-    }
-    if ((bn = calloc(1, bytes)) == NULL) {
-        RNP_LOG("bad bn alloc");
-        return false;
-    }
-    BN_bn2bin(bignum, bn);
-    length[0] = (uint8_t)((bits >> 8) & 0xff);
-    length[1] = (uint8_t)(bits & 0xff);
-    pgp_hash_add(hash, length, 2);
-    pgp_hash_add(hash, bn, bytes);
-    free(bn);
-    return true;
-}
-
-static bool
-hash_key_material(const pgp_seckey_t *key, uint8_t *result)
-{
-    pgp_hash_t hash = {0};
-    pgp_hash_create(&hash, PGP_HASH_SHA1);
-
-    switch (key->pubkey.alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        hash_bn(&hash, key->key.rsa.d);
-        hash_bn(&hash, key->key.rsa.p);
-        hash_bn(&hash, key->key.rsa.q);
-        hash_bn(&hash, key->key.rsa.u);
-        break;
-    case PGP_PKA_DSA:
-        hash_bn(&hash, key->key.dsa.x);
-        break;
-    case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-        hash_bn(&hash, key->key.ecc.x);
-        break;
-    case PGP_PKA_ELGAMAL:
-        hash_bn(&hash, key->key.elgamal.x);
-        break;
-    default:
-        return false;
-    }
-    pgp_hash_finish(&hash, result);
-    return true;
-}
-
 /*
  * Note that we support v3 keys here because they're needed for
  * verification.
@@ -458,23 +390,32 @@ write_seckey_body(const pgp_seckey_t *key, const char *passphrase, pgp_output_t 
     }
     pgp_push_enc_crypt(output, crypted);
 
+    pgp_hash_t *hash = calloc(1, sizeof(*hash));
+    if (!hash) {
+        return false;
+    }
+    if (!pgp_hash_create(hash, PGP_HASH_SHA1)) {
+        return false;
+    }
+    if (!pgp_writer_push_hash(output, hash)) {
+        return false;
+    }
     if (!pgp_write_secret_mpis(output, key)) {
         RNP_LOG("failed to write MPIs");
         return false;
     }
-
-    if (key->checkhash) {
-        memcpy(checkhash, key->checkhash, PGP_CHECKHASH_SIZE);
-    } else if (!hash_key_material(key, checkhash)) {
+    pgp_writer_pop(output); // hash
+    if (!pgp_hash_finish(hash, checkhash)) {
         return false;
     }
     if (!pgp_write(output, checkhash, PGP_CHECKHASH_SIZE)) {
         return false;
     }
 
-    pgp_writer_pop(output);
+    pgp_writer_pop(output); // crypt
     pgp_cipher_finish(crypted);
     free(crypted);
+    free(hash);
     return true;
 }
 
