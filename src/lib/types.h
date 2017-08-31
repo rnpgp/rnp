@@ -64,6 +64,10 @@
 #define PGP_KEY_ID_SIZE 8
 #define PGP_FINGERPRINT_HEX_SIZE (PGP_FINGERPRINT_SIZE * 3) + 1
 
+/* SHA1 Hash Size */
+#define PGP_SHA1_HASH_SIZE 20
+#define PGP_CHECKHASH_SIZE PGP_SHA1_HASH_SIZE
+
 /** General-use structure for variable-length data
  */
 
@@ -202,7 +206,7 @@ typedef struct pgp_seckey_t {
     } key;
 
     unsigned checksum;
-    uint8_t *checkhash;
+    uint8_t  checkhash[PGP_CHECKHASH_SIZE];
 
     size_t                encrypted_data_len;
     uint8_t *             encrypted_data;

@@ -275,7 +275,6 @@ write_seckey_body(pgp_seckey_t *key, const char *passphrase, pgp_output_t *outpu
     /* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
 
     uint8_t sesskey[PGP_MAX_KEY_SIZE];
-    uint8_t checkhash[PGP_CHECKHASH_SIZE];
     size_t  sesskey_size;
 
     sesskey_size = pgp_key_size(key->alg);
@@ -405,10 +404,10 @@ write_seckey_body(pgp_seckey_t *key, const char *passphrase, pgp_output_t *outpu
         return false;
     }
     pgp_writer_pop(output); // hash
-    if (!pgp_hash_finish(hash, checkhash)) {
+    if (!pgp_hash_finish(hash, key->checkhash)) {
         return false;
     }
-    if (!pgp_write(output, checkhash, PGP_CHECKHASH_SIZE)) {
+    if (!pgp_write(output, key->checkhash, PGP_CHECKHASH_SIZE)) {
         return false;
     }
 

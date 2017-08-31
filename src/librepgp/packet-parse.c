@@ -2468,10 +2468,6 @@ pgp_seckey_free(pgp_seckey_t *key)
     }
     pgp_seckey_free_secret_mpis(key);
     pgp_pubkey_free(&key->pubkey);
-    if (key->checkhash != NULL) {
-        free(key->checkhash);
-    }
-    key->checkhash = NULL;
 }
 
 static int
@@ -2683,19 +2679,11 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         fprintf(stderr, "parse_seckey: end of crypted passphrase\n");
     }
     if (pkt.u.seckey.s2k_usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
-        /* XXX - Hard-coded SHA1 here ?? Check */
-        pkt.u.seckey.checkhash = calloc(1, PGP_SHA1_HASH_SIZE);
-        if (pkt.u.seckey.checkhash == NULL) {
-            (void) fprintf(stderr, "parse_seckey: bad alloc\n");
-            return false;
-        }
         if (!pgp_hash_create(&checkhash, PGP_HASH_SHA1)) {
-            free(pkt.u.seckey.checkhash);
             (void) fprintf(stderr, "parse_seckey: bad alloc\n");
             return false;
         }
         if (!pgp_reader_push_hash(stream, &checkhash)) {
-            free(pkt.u.seckey.checkhash);
             (void) fprintf(stderr, "parse_seckey: bad alloc\n");
             return false;
         }
