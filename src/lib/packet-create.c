@@ -581,7 +581,7 @@ pgp_write_struct_seckey(pgp_content_enum    tag,
                         const char *        passphrase,
                         pgp_output_t *      output)
 {
-    int length = 0;
+    unsigned length = 0;
 
     if (key->pubkey.version != 4) {
         (void) fprintf(stderr, "pgp_write_struct_seckey: public key version\n");
@@ -591,7 +591,7 @@ pgp_write_struct_seckey(pgp_content_enum    tag,
     /* Ref: RFC4880 Section 5.5.3 */
 
     /* pubkey, excluding MPIs */
-    length += 1 + 4 + 1 + 1;
+    length += 1 + 4 + 1;
 
     /* s2k usage */
     length += 1;
@@ -605,6 +605,7 @@ pgp_write_struct_seckey(pgp_content_enum    tag,
     case PGP_S2KU_ENCRYPTED:            /* 255 */
 
         /* Ref: RFC4880 Section 3.7 */
+        length += 1; /* symm alg */
         length += 1; /* s2k_specifier */
 
         switch (key->s2k_specifier) {
@@ -656,7 +657,6 @@ pgp_write_struct_seckey(pgp_content_enum    tag,
     length += (unsigned) seckey_length(key);
 
     return pgp_write_ptag(output, tag) &&
-           /* pgp_write_length(output,1+4+1+1+seckey_length(key)+2) && */
            pgp_write_length(output, (unsigned) length) &&
            write_seckey_body(key, passphrase, output);
 }
