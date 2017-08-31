@@ -53,9 +53,20 @@ typedef enum {
     PGP_SOURCE_CLEARTEXT
 } pgp_source_type_t;
 
+typedef enum {
+    PGP_ACTION_OK,
+    PGP_ACTION_SKIP,
+    PGP_ACTION_ABORT,
+    PGP_ACTION_MEMORY
+} pgp_operation_handler_action_t;
+
 typedef struct pgp_source_t pgp_source_t;
+typedef struct pgp_operation_handler_t pgp_operation_handler_t;
+
 typedef ssize_t pgp_source_read_func_t(pgp_source_t *src, void *buf, size_t len);
 typedef void pgp_source_close_func_t(pgp_source_t *src);
+typedef void pgp_password_needed_func_t(pgp_operation_handler_t *handler, char *pass, int *passlen, pgp_operation_handler_action_t *action);
+typedef void pgp_output_funct_t(pgp_operation_handler_t *handler, void *buf, size_t len, pgp_operation_handler_action_t *action);
 
 /* statically preallocated cache for sources. Not used for input filters */
 typedef struct pgp_source_cache_t {
@@ -77,6 +88,13 @@ typedef struct pgp_source_t {
     unsigned            eof : 1;   /* end of data as reported by readfunc and empty cache */
     unsigned            knownsize : 1; /* we know the size of the stream */
 } pgp_source_t;
+
+typedef struct pgp_operation_handler_t {
+    pgp_password_needed_func_t *passfunc;
+    pgp_output_funct_t         *writefunc;
+
+    void * param;
+} pgp_operation_handler_t;
 
 /** @brief read up to len bytes from the source
  *  While this function tries to read as much bytes as possible however it may return
@@ -105,16 +123,38 @@ ssize_t src_peek(pgp_source_t *src, void *buf, size_t len);
  **/
 ssize_t src_skip(pgp_source_t *src, size_t len);
 
+/** @brief close the source and deallocate all internal resources if any
+ **/
+void src_close(pgp_source_t *src);
+
+/** @brief init file source
+ *  @param src pre-allocate source structure
+ *  @param path path to the file
+ *  @return RNP_SUCCESS or error code
+ **/
 pgp_errcode_t init_file_src(pgp_source_t *src, const char *path);
+
+/** @brief init stdin source
+ *  @param src pre-allocate source structure
+ *  @return RNP_SUCCESS or error code
+ **/
 pgp_errcode_t init_stdin_src(pgp_source_t *src);
+
+/** @brief init memory source
+ *  @param src pre-allocate source structure
+ *  @param mem memory to read from
+ *  @param len number of bytes in input
+ *  @return RNP_SUCCESS or error code
+ **/
 pgp_errcode_t init_mem_src(pgp_source_t *src, void *mem, size_t len);
 
 /* @brief Process the PGP source: file, memory, stdin
  * Function will parse input data, provided by any source conforming to pgp_source_t, 
  * autodetecting whether it is armoured, cleartext or binary.
+ * @param handler handler to respond on stream reader callbacks
  * @param src initialized source with cache
  * @return PGP_E_OK on success or error code otherwise
  **/
-pgp_errcode_t process_pgp_source(pgp_source_t *src);
+pgp_errcode_t process_pgp_source(pgp_operation_handler_t *handler, pgp_source_t *src);
 
 #endif
