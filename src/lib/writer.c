@@ -857,7 +857,7 @@ encrypt_destroyer(pgp_writer_t *writer)
 \ingroup Core_WritersNext
 \brief Push Encrypted Writer onto stack (create SE packets)
 */
-void
+bool
 pgp_push_enc_crypt(pgp_output_t *output, pgp_crypt_t *pgp_crypt)
 {
     /* Create encrypt to be used with this writer */
@@ -866,15 +866,18 @@ pgp_push_enc_crypt(pgp_output_t *output, pgp_crypt_t *pgp_crypt)
 
     if ((pgp_encrypt = calloc(1, sizeof(*pgp_encrypt))) == NULL) {
         (void) fprintf(stderr, "pgp_push_enc_crypt: bad alloc\n");
+        return false;
     } else {
         /* Setup the encrypt */
         pgp_encrypt->crypt = pgp_crypt;
         pgp_encrypt->free_crypt = 0;
         /* And push writer on stack */
         if (!pgp_writer_push(output, encrypt_writer, NULL, encrypt_destroyer, pgp_encrypt)) {
+            return false;
             free(pgp_encrypt);
         }
     }
+    return true;
 }
 
 /**************************************************************************/
@@ -1728,9 +1731,11 @@ pgp_writer_push_sum16(pgp_output_t *output)
     return pgp_writer_push(output, sum16_calculator, NULL, generic_destroyer, sum);
 }
 
-uint16_t pgp_writer_pop_sum16(pgp_output_t *output) {
-    uint16_t* sum = pgp_writer_get_arg(&output->writer);
-    uint16_t value = *sum;
+uint16_t
+pgp_writer_pop_sum16(pgp_output_t *output)
+{
+    uint16_t *sum = pgp_writer_get_arg(&output->writer);
+    uint16_t  value = *sum;
 
     pgp_writer_pop(output);
     return value;

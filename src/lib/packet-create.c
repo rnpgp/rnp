@@ -265,156 +265,196 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
     return false;
 }
 
+/* This starts writing right after the s2k usage. */
+static bool
+write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const char *passphrase)
+{
+    uint8_t     sesskey[PGP_MAX_KEY_SIZE];
+    size_t      sesskey_size = pgp_key_size(seckey->alg);
+    unsigned    block_size = pgp_block_size(seckey->alg);
+    pgp_crypt_t crypt = {0};
+    pgp_hash_t  hash = {0};
+    unsigned    writers_pushed = 0;
+    bool        ret = false;
+
+    // sanity checks
+    if (seckey->s2k_usage != PGP_S2KU_ENCRYPTED_AND_HASHED) {
+        RNP_LOG("s2k usage");
+        goto done;
+    }
+    if (seckey->s2k_specifier != PGP_S2KS_SIMPLE && seckey->s2k_specifier != PGP_S2KS_SALTED &&
+        seckey->s2k_specifier != PGP_S2KS_ITERATED_AND_SALTED) {
+        RNP_LOG("invalid/unsupported s2k specifier %d", seckey->s2k_specifier);
+        goto done;
+    }
+    if (!sesskey_size || !block_size) {
+        RNP_LOG("unknown encryption algorithm");
+        goto done;
+    }
+
+    // start writing
+    if (!pgp_write_scalar(output, (unsigned) seckey->alg, 1) ||
+        !pgp_write_scalar(output, (unsigned) seckey->s2k_specifier, 1) ||
+        !pgp_write_scalar(output, (unsigned) seckey->hash_alg, 1)) {
+        RNP_LOG("writes failed");
+        goto done;
+    }
+
+    // s2k
+    switch (seckey->s2k_specifier) {
+    case PGP_S2KS_SIMPLE:
+        // derive key
+        if (pgp_s2k_simple(seckey->hash_alg, sesskey, sesskey_size, passphrase) < 0) {
+            RNP_LOG("pgp_s2k_simple failed");
+            goto done;
+        }
+        break;
+
+    case PGP_S2KS_SALTED:
+        // randomize and write salt
+        if (pgp_random(seckey->salt, PGP_SALT_SIZE)) {
+            RNP_LOG("pgp_random failed");
+            goto done;
+        }
+        if (!pgp_write(output, seckey->salt, PGP_SALT_SIZE)) {
+            goto done;
+        }
+
+        // derive key
+        if (pgp_s2k_salted(
+              seckey->hash_alg, sesskey, sesskey_size, passphrase, seckey->salt)) {
+            RNP_LOG("pgp_s2k_salted failed");
+            goto done;
+        }
+        break;
+
+    case PGP_S2KS_ITERATED_AND_SALTED:
+        // randomize and write salt
+        if (pgp_random(seckey->salt, PGP_SALT_SIZE)) {
+            RNP_LOG("pgp_random failed");
+            goto done;
+        }
+        if (!pgp_write(output, seckey->salt, PGP_SALT_SIZE)) {
+            goto done;
+        }
+
+        // derive key
+        if (pgp_s2k_iterated(seckey->hash_alg,
+                             sesskey,
+                             sesskey_size,
+                             passphrase,
+                             seckey->salt,
+                             seckey->s2k_iterations)) {
+            RNP_LOG("pgp_s2k_iterated failed");
+            goto done;
+        }
+
+        // encode and write iteration count
+        uint8_t encoded_iterations = pgp_s2k_encode_iterations(seckey->s2k_iterations);
+        if (!pgp_write_scalar(output, encoded_iterations, 1)) {
+            RNP_LOG("write failed");
+            goto done;
+        }
+        break;
+    }
+
+    // randomize and write IV
+    if (pgp_random(seckey->iv, block_size)) {
+        goto done;
+    }
+    if (!pgp_write(output, seckey->iv, block_size)) {
+        goto done;
+    }
+
+    // use the session key to encrypt
+    if (!pgp_cipher_start(&crypt, seckey->alg, sesskey, seckey->iv)) {
+        goto done;
+    }
+    // debugging
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, "writing: iv=", seckey->iv, pgp_block_size(seckey->alg));
+        hexdump(stderr, "key= ", sesskey, sesskey_size);
+        (void) fprintf(stderr, "\nturning encryption on...\n");
+    }
+    if (!pgp_push_enc_crypt(output, &crypt)) {
+        goto done;
+    }
+    writers_pushed++;
+
+    // compute checkhash
+    if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
+        goto done;
+    }
+    if (!pgp_writer_push_hash(output, &hash)) {
+        goto done;
+    }
+    writers_pushed++;
+    // write key material
+    if (!pgp_write_secret_mpis(output, seckey)) {
+        goto done;
+    }
+    pgp_writer_pop(output); // hash
+    writers_pushed--;
+    // write checkhash
+    pgp_hash_finish(&hash, seckey->checkhash);
+    if (!pgp_write(output, seckey->checkhash, PGP_CHECKHASH_SIZE)) {
+        goto done;
+    }
+
+    ret = true;
+done:
+    // pop any remaining writers we pushed
+    for (unsigned i = 0; i < writers_pushed; i++) {
+        pgp_writer_pop(output);
+    }
+    pgp_cipher_finish(&crypt);
+    return ret;
+}
+
 /*
  * Note that we support v3 keys here because they're needed for
  * verification.
  */
 static bool
-write_seckey_body(pgp_seckey_t *key, const char *passphrase, pgp_output_t *output)
+write_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const char *passphrase)
 {
     /* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
 
-    uint8_t sesskey[PGP_MAX_KEY_SIZE];
-    size_t  sesskey_size;
-
-    sesskey_size = pgp_key_size(key->alg);
-
-    if (sesskey_size == 0) {
-        RNP_LOG("unknown encryption algorithm");
+    if (!write_pubkey_body(&seckey->pubkey, output)) {
+        RNP_LOG("failed to write pubkey body");
         return false;
     }
-
-    if (!write_pubkey_body(&key->pubkey, output)) {
+    if (!pgp_write_scalar(output, (unsigned) seckey->s2k_usage, 1)) {
+        RNP_LOG("failed tow rite s2k usage");
         return false;
     }
-    if (key->s2k_usage != PGP_S2KU_ENCRYPTED_AND_HASHED) {
-        RNP_LOG("s2k usage");
-        return false;
-    }
-    if (!pgp_write_scalar(output, (unsigned) key->s2k_usage, 1)) {
-        return false;
-    }
-    if (!pgp_write_scalar(output, (unsigned) key->alg, 1)) {
-        return false;
-    }
-
-    if (key->s2k_specifier != PGP_S2KS_SIMPLE && key->s2k_specifier != PGP_S2KS_SALTED &&
-        key->s2k_specifier != PGP_S2KS_ITERATED_AND_SALTED) {
-        RNP_LOG("invalid/unsupported s2k specifier %d", key->s2k_specifier);
-        return false;
-    }
-    if (!pgp_write_scalar(output, (unsigned) key->s2k_specifier, 1)) {
-        return false;
-    }
-
-    if (!pgp_write_scalar(output, (unsigned) key->hash_alg, 1)) {
-        return false;
-    }
-
-    switch (key->s2k_specifier) {
-    case PGP_S2KS_SIMPLE:
-        /* no data to write */
-        if (pgp_s2k_simple(key->hash_alg, sesskey, sesskey_size, (const char *) passphrase) <
-            0) {
-            RNP_LOG("pgp_s2k_simple failed");
+    switch (seckey->s2k_usage) {
+    case PGP_S2KU_NONE:
+        if (!pgp_writer_push_sum16(output)) {
+            RNP_LOG("failed to push checksum calculator");
+            return false;
+        }
+        if (!pgp_write_secret_mpis(output, seckey)) {
+            pgp_writer_pop(output); // sum16
+            RNP_LOG("failed to write secret MPIs");
+            return false;
+        }
+        seckey->checksum = pgp_writer_pop_sum16(output);
+        if (!pgp_write_scalar(output, seckey->checksum, 2)) {
+            RNP_LOG("failed to write checksum");
             return false;
         }
         break;
-
-    case PGP_S2KS_SALTED:
-        /* 8-octet salt value */
-        if (pgp_random(&key->salt[0], PGP_SALT_SIZE)) {
-            RNP_LOG("pgp_random failed");
-            return false;
-        }
-        if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
-            return false;
-        }
-        if (pgp_s2k_salted(
-              key->hash_alg, sesskey, sesskey_size, (const char *) passphrase, key->salt)) {
-            RNP_LOG("pgp_s2k_salted failed");
+    case PGP_S2KU_ENCRYPTED_AND_HASHED:
+        if (!write_protected_seckey_body(output, seckey, passphrase)) {
+            RNP_LOG("failed to write protected secret key body");
             return false;
         }
         break;
-
-    case PGP_S2KS_ITERATED_AND_SALTED:
-        /* 8-octet salt value */
-        if (pgp_random(&key->salt[0], PGP_SALT_SIZE)) {
-            RNP_LOG("pgp_random failed");
-            return false;
-        }
-        if (pgp_s2k_iterated(key->hash_alg,
-                             sesskey,
-                             sesskey_size,
-                             (const char *) passphrase,
-                             key->salt,
-                             key->s2k_iterations)) {
-            RNP_LOG("pgp_s2k_iterated failed");
-            return false;
-        }
-        uint8_t encoded_iterations = pgp_s2k_encode_iterations(key->s2k_iterations);
-
-        if (!pgp_write(output, key->salt, PGP_SALT_SIZE)) {
-            return false;
-        }
-        if (!pgp_write_scalar(output, encoded_iterations, 1)) {
-            return false;
-        }
-        break;
-    }
-
-    size_t blocksize = pgp_block_size(key->alg);
-    if (pgp_random(&key->iv[0], blocksize)) {
+    default:
+        RNP_LOG("unsupported s2k usage");
         return false;
     }
-    if (!pgp_write(output, &key->iv[0], blocksize)) {
-        return false;
-    }
-
-    /* use this session key to encrypt */
-
-    pgp_crypt_t *crypted = malloc(sizeof(pgp_crypt_t));
-    if (!crypted) {
-        RNP_LOG("Memory allcoation failed");
-        return false;
-    }
-    if (!pgp_cipher_start(crypted, key->alg, sesskey, key->iv)) {
-        return false;
-    }
-
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "writing: iv=", key->iv, pgp_block_size(key->alg));
-        hexdump(stderr, "key= ", sesskey, sesskey_size);
-        (void) fprintf(stderr, "\nturning encryption on...\n");
-    }
-    pgp_push_enc_crypt(output, crypted);
-
-    pgp_hash_t *hash = calloc(1, sizeof(*hash));
-    if (!hash) {
-        return false;
-    }
-    if (!pgp_hash_create(hash, PGP_HASH_SHA1)) {
-        return false;
-    }
-    if (!pgp_writer_push_hash(output, hash)) {
-        return false;
-    }
-    if (!pgp_write_secret_mpis(output, key)) {
-        RNP_LOG("failed to write MPIs");
-        return false;
-    }
-    pgp_writer_pop(output); // hash
-    if (!pgp_hash_finish(hash, key->checkhash)) {
-        return false;
-    }
-    if (!pgp_write(output, key->checkhash, PGP_CHECKHASH_SIZE)) {
-        return false;
-    }
-
-    pgp_writer_pop(output); // crypt
-    pgp_cipher_finish(crypted);
-    free(crypted);
-    free(hash);
     return true;
 }
 
@@ -575,10 +615,10 @@ pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key, unsigned make_packe
  * \return 1 if OK; else 0
  */
 unsigned
-pgp_write_struct_seckey(pgp_content_enum tag,
+pgp_write_struct_seckey(pgp_output_t *   output,
+                        pgp_content_enum tag,
                         pgp_seckey_t *   key,
-                        const char *     passphrase,
-                        pgp_output_t *   output)
+                        const char *     passphrase)
 {
     unsigned length = 0;
 
@@ -656,7 +696,7 @@ pgp_write_struct_seckey(pgp_content_enum tag,
     length += (unsigned) seckey_length(key);
 
     return pgp_write_ptag(output, tag) && pgp_write_length(output, (unsigned) length) &&
-           write_seckey_body(key, passphrase, output);
+           write_seckey_body(output, key, passphrase);
 }
 
 /**
