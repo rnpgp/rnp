@@ -270,7 +270,7 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
  * verification.
  */
 static bool
-write_seckey_body(const pgp_seckey_t *key, const char *passphrase, pgp_output_t *output)
+write_seckey_body(pgp_seckey_t *key, const char *passphrase, pgp_output_t *output)
 {
     /* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
 
@@ -324,7 +324,7 @@ write_seckey_body(const pgp_seckey_t *key, const char *passphrase, pgp_output_t 
 
     case PGP_S2KS_SALTED:
         /* 8-octet salt value */
-        if (pgp_random(RNP_UNCONST(&key->salt[0]), PGP_SALT_SIZE)) {
+        if (pgp_random(&key->salt[0], PGP_SALT_SIZE)) {
             RNP_LOG("pgp_random failed");
             return false;
         }
@@ -340,7 +340,7 @@ write_seckey_body(const pgp_seckey_t *key, const char *passphrase, pgp_output_t 
 
     case PGP_S2KS_ITERATED_AND_SALTED:
         /* 8-octet salt value */
-        if (pgp_random(RNP_UNCONST(&key->salt[0]), PGP_SALT_SIZE)) {
+        if (pgp_random(&key->salt[0], PGP_SALT_SIZE)) {
             RNP_LOG("pgp_random failed");
             return false;
         }
@@ -365,7 +365,7 @@ write_seckey_body(const pgp_seckey_t *key, const char *passphrase, pgp_output_t 
     }
 
     size_t blocksize = pgp_block_size(key->alg);
-    if (pgp_random(RNP_UNCONST(&key->iv[0]), blocksize)) {
+    if (pgp_random(&key->iv[0], blocksize)) {
         return false;
     }
     if (!pgp_write(output, &key->iv[0], blocksize)) {
@@ -576,10 +576,10 @@ pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key, unsigned make_packe
  * \return 1 if OK; else 0
  */
 unsigned
-pgp_write_struct_seckey(pgp_content_enum    tag,
-                        const pgp_seckey_t *key,
-                        const char *        passphrase,
-                        pgp_output_t *      output)
+pgp_write_struct_seckey(pgp_content_enum tag,
+                        pgp_seckey_t *   key,
+                        const char *     passphrase,
+                        pgp_output_t *   output)
 {
     unsigned length = 0;
 
@@ -656,8 +656,7 @@ pgp_write_struct_seckey(pgp_content_enum    tag,
     /* secret key and public key MPIs */
     length += (unsigned) seckey_length(key);
 
-    return pgp_write_ptag(output, tag) &&
-           pgp_write_length(output, (unsigned) length) &&
+    return pgp_write_ptag(output, tag) && pgp_write_length(output, (unsigned) length) &&
            write_seckey_body(key, passphrase, output);
 }
 
