@@ -1704,6 +1704,38 @@ pgp_writer_push_hash(pgp_output_t *output, pgp_hash_t *hash)
     return pgp_writer_push(output, hash_calculator, NULL, NULL, hash);
 }
 
+static bool
+sum16_calculator(const uint8_t *src,
+                 const size_t   len,
+                 pgp_error_t ** errors,
+                 pgp_writer_t * writer)
+{
+    uint16_t *sum = pgp_writer_get_arg(writer);
+
+    for (size_t i = 0; i < len; i++) {
+        *sum += src[i];
+    }
+    return stacked_write(writer, src, len, errors);
+}
+
+bool
+pgp_writer_push_sum16(pgp_output_t *output)
+{
+    uint16_t *sum = calloc(1, sizeof(*sum));
+    if (!sum) {
+        return false;
+    }
+    return pgp_writer_push(output, sum16_calculator, NULL, generic_destroyer, sum);
+}
+
+uint16_t pgp_writer_pop_sum16(pgp_output_t *output) {
+    uint16_t* sum = pgp_writer_get_arg(&output->writer);
+    uint16_t value = *sum;
+
+    pgp_writer_pop(output);
+    return value;
+}
+
 /**
  \ingroup Core_Writers
  \brief Create and initialise output and mem; Set for writing to mem

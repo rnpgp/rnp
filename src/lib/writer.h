@@ -109,7 +109,9 @@ unsigned pgp_writer_info_finalise(pgp_error_t **, pgp_writer_t *);
 
 bool pgp_push_stream_enc_se_ip(pgp_output_t *, const pgp_pubkey_t *, pgp_symm_alg_t);
 
-bool pgp_writer_push_hash(pgp_output_t *, pgp_hash_t *);
+bool     pgp_writer_push_hash(pgp_output_t *, pgp_hash_t *);
+bool     pgp_writer_push_sum16(pgp_output_t *);
+uint16_t pgp_writer_pop_sum16(pgp_output_t *);
 
 /* memory writing */
 bool pgp_setup_memory_write(rnp_ctx_t *, pgp_output_t **, pgp_memory_t **, size_t);
