@@ -1783,18 +1783,20 @@ mem_destroyer(pgp_reader_t *readinfo)
    \brief Starts stack with memory reader
 */
 
-void
+bool
 pgp_reader_set_memory(pgp_stream_t *stream, const void *buffer, size_t length)
 {
     reader_mem_t *mem;
 
     if ((mem = calloc(1, sizeof(*mem))) == NULL) {
         (void) fprintf(stderr, "pgp_reader_set_memory: bad alloc\n");
+        return false;
     } else {
         mem->buffer = buffer;
         mem->length = length;
         mem->offset = 0;
         pgp_reader_set(stream, mem_reader, mem_destroyer, mem);
+        return true;
     }
 }
 

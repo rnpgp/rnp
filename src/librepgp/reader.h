@@ -39,7 +39,7 @@
 
 void pgp_reader_set_fd(pgp_stream_t *, int);
 void pgp_reader_set_mmap(pgp_stream_t *, int);
-void pgp_reader_set_memory(pgp_stream_t *, const void *, size_t);
+bool pgp_reader_set_memory(pgp_stream_t *, const void *, size_t);
 
 /* Do a sum mod 65536 of all bytes read (as needed for secret keys) */
 void     pgp_reader_push_sum16(pgp_stream_t *);
