@@ -464,7 +464,8 @@ typedef enum pgp_op_t {
     PGP_OP_DECRYPT = 3,    /* decrypting file or data */
     PGP_OP_UNLOCK = 4,     /* unlocking a key with pgp_key_unlock */
     PGP_OP_PROTECT = 5,    /* adding protection to a key */
-    PGP_OP_UNPROTECT = 6   /* removing protection from a (locked) key */
+    PGP_OP_UNPROTECT = 6,  /* removing protection from a (locked) key */
+    PGP_OP_DECRYPT_SYM = 7 /* symmetric decryption */
 } pgp_op_t;
 
 /** Hashing Algorithm Numbers.
