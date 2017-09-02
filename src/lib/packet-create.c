@@ -821,6 +821,7 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
     case PGP_PKA_DSA:
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ECDH:
+    case PGP_PKA_SM2:
         break;
     default:
         RNP_LOG("Bad public key encryption algorithm");
