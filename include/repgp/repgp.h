@@ -55,6 +55,8 @@ typedef struct pgp_pubkey_t pgp_pubkey_t;
 typedef void *              repgp_stream_t;
 typedef void *              repgp_io_t;
 
+/* New interfaces */
+
 #define REPGP_HANDLE_NULL ((void *) 0)
 
 // OZAPTF
@@ -85,6 +87,7 @@ void repgp_set_output(repgp_io_t io, /*const?*/ repgp_stream_t stream);
 
 rnp_result repgp_verify(const void *ctx, repgp_io_t io);
 rnp_result repgp_decrypt(const void *ctx, repgp_io_t io);
+rnp_result repgp_list_packets(const void *ctx, repgp_stream_t input);
 
 /**
  * @brief Specifies whether one or more signature subpacket types
@@ -98,6 +101,8 @@ rnp_result repgp_decrypt(const void *ctx, repgp_io_t io);
  * @todo Make all packet types optional, not just subpackets
  */
 void pgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, pgp_parse_type_t type);
+
+/* Old interfaces */
 
 void pgp_parser_content_free(pgp_packet_t *);
 

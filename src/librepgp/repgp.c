@@ -4,18 +4,27 @@
 #include <unistd.h>
 #include <assert.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#include <rnp/rnp_def.h>
 #include <rnp/rnp.h>
 #include <rnp/rnpcfg.h>
 #include <repgp/repgp.h>
-#include <rnp/rnp_def.h>
+#include <rekey/rnp_key_store.h>
 
 #include "internal_types.h"
+#include "packet-print.h"
 #include "memory.h"
 #include "utils.h"
 
 repgp_stream_t
 create_filepath_stream(const char *filename, size_t filename_len)
 {
+    if ((filename == NULL) || (filename_len == 0)) {
+        return REPGP_HANDLE_NULL;
+    }
+
     struct repgp_stream *s = calloc(sizeof(struct repgp_stream), 1);
     if (!s) {
         return REPGP_HANDLE_NULL;
@@ -201,4 +210,41 @@ repgp_destroy_io(repgp_io_t io)
         repgp_destroy_stream(rio->in);
         repgp_destroy_stream(rio->out);
     }
+}
+
+rnp_result
+repgp_list_packets(const void *ctx, const repgp_stream_t input)
+{
+    const rnp_ctx_t *rctx = (rnp_ctx_t *) ctx;
+    if ((rctx == NULL) || (rctx->rnp == NULL) || (input == REPGP_HANDLE_NULL)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    const struct repgp_stream *i = (struct repgp_stream *) input;
+    if ((i == REPGP_HANDLE_NULL) || (i->type != REPGP_STREAM_FILE)) {
+        // Currently only file input is supported
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    struct stat st;
+    if (stat(i->filepath, &st) < 0) {
+        RNP_LOG("No such file '%s'", i->filepath);
+        return RNP_ERROR_ACCESS;
+    }
+
+    const rnp_t *rnp = rctx->rnp;
+    if (!rnp_key_store_load_from_file(
+          /*unconst */ (rnp_t *) rnp, rnp->pubring, rctx->armour)) {
+        RNP_LOG("Keystore can't load data");
+        return RNP_ERROR_GENERIC;
+    }
+
+    pgp_list_packets(rctx->rnp->io,
+                     i->filepath,
+                     rctx->armour,
+                     rnp->secring,
+                     rnp->pubring,
+                     &rnp->passphrase_provider);
+
+    return RNP_SUCCESS;
 }

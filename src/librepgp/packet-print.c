@@ -1728,7 +1728,7 @@ cb_list_packets(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 \param keyring
 \param cb_get_passphrase
 */
-int
+void
 pgp_list_packets(pgp_io_t *                       io,
                  char *                           filename,
                  unsigned                         armour,
@@ -1751,5 +1751,4 @@ pgp_list_packets(pgp_io_t *                       io,
     }
     pgp_parse(stream, printerrors);
     pgp_teardown_file_read(stream, fd);
-    return true;
 }
