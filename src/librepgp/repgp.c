@@ -17,6 +17,8 @@
 #include "packet-print.h"
 #include "memory.h"
 #include "utils.h"
+#include "crypto.h"
+#include "reader.h"
 
 repgp_stream_t
 create_filepath_stream(const char *filename, size_t filename_len)
@@ -212,6 +214,13 @@ repgp_destroy_io(repgp_io_t io)
     }
 }
 
+static pgp_cb_ret_t
+cb_list_packets(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
+{
+    pgp_print_packet(&cbinfo->printstate, pkt);
+    return PGP_RELEASE_MEMORY;
+}
+
 rnp_result
 repgp_list_packets(const void *ctx, const repgp_stream_t input)
 {
@@ -239,12 +248,21 @@ repgp_list_packets(const void *ctx, const repgp_stream_t input)
         return RNP_ERROR_GENERIC;
     }
 
-    pgp_list_packets(rctx->rnp->io,
-                     i->filepath,
-                     rctx->armour,
-                     rnp->secring,
-                     rnp->pubring,
-                     &rnp->passphrase_provider);
+    pgp_stream_t *stream = NULL;
+    int           fd =
+      pgp_setup_file_read(rctx->rnp->io, &stream, i->filepath, NULL, cb_list_packets, 1);
+    pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
+    stream->cryptinfo.secring = rnp->secring;
+    stream->cryptinfo.pubring = rnp->pubring;
+    stream->cryptinfo.passphrase_provider = rnp->passphrase_provider;
+    if (rctx->armour) {
+        pgp_reader_push_dearmour(stream);
+    }
 
+    if (!pgp_parse(stream, true)) {
+        pgp_teardown_file_read(stream, fd);
+        return RNP_ERROR_GENERIC;
+    }
+    pgp_teardown_file_read(stream, fd);
     return RNP_SUCCESS;
 }

@@ -95,11 +95,4 @@ void pgp_print_key(pgp_io_t *,
 void pgp_print_pubkey(const pgp_pubkey_t *);
 int  pgp_sprint_pubkey(const pgp_key_t *, char *, size_t);
 
-void pgp_list_packets(pgp_io_t *,
-                      char *,
-                      unsigned,
-                      rnp_key_store_t *,
-                      rnp_key_store_t *,
-                      const pgp_passphrase_provider_t *);
-
 #endif /* PACKET_PRINT_H_ */
