@@ -1141,6 +1141,7 @@ rnp_sign_file(rnp_ctx_t * ctx,
     int                 attempts;
     int                 ret;
     int                 i;
+    unsigned            from;
 
     io = ctx->rnp->io;
     if (f == NULL) {
@@ -1154,6 +1155,12 @@ rnp_sign_file(rnp_ctx_t * ctx,
     if (!pgp_key_can_sign(keypair) &&
         !(keypair = find_suitable_subkey(keypair, PGP_KF_SIGN))) {
         RNP_LOG("this key can not sign");
+        return RNP_FAIL;
+    }
+    // key exist and might be used to sign, trying get it from secring
+    from = 0;
+    if ((keypair = rnp_key_store_get_key_by_id(
+           io, ctx->rnp->secring, keypair->keyid, &from, NULL)) == NULL) {
         return RNP_FAIL;
     }
     ret = RNP_OK;
@@ -1270,6 +1277,7 @@ rnp_sign_memory(rnp_ctx_t * ctx,
     int                 attempts;
     int                 ret;
     int                 i;
+    unsigned            from;
 
     io = ctx->rnp->io;
     if (mem == NULL) {
@@ -1282,6 +1290,12 @@ rnp_sign_memory(rnp_ctx_t * ctx,
     if (!pgp_key_can_sign(keypair) &&
         !(keypair = find_suitable_subkey(keypair, PGP_KF_SIGN))) {
         RNP_LOG("this key can not sign");
+        return RNP_FAIL;
+    }
+    // key exist and might be used to sign, trying get it from secring
+    from = 0;
+    if ((keypair = rnp_key_store_get_key_by_id(
+           io, ctx->rnp->secring, keypair->keyid, &from, NULL)) == NULL) {
         return RNP_FAIL;
     }
     ret = RNP_OK;
