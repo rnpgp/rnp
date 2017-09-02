@@ -417,14 +417,17 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ret = (RNP_SUCCESS == repgp_verify(&ctx, io));
         break;
     }
-    case CMD_LIST_PACKETS:
-        if (!f) {
+    case CMD_LIST_PACKETS: {
+        repgp_stream_t input = create_filepath_stream(f, strlen(f));
+        if (input == REPGP_HANDLE_NULL) {
             RNP_LOG("%s: No filename provided", __progname);
             ret = false;
             break;
         }
-        ret = rnp_list_packets(rnp, f, ctx.armour) == RNP_OK;
+        ret = (RNP_SUCCESS == repgp_list_packets(&ctx, input));
+        repgp_destroy_stream(input);
         break;
+    }
     case CMD_SHOW_KEYS:
         ret = rnp_validate_sigs(rnp);
         break;

@@ -1510,32 +1510,6 @@ rnp_decrypt_memory(
     return (int) m;
 }
 
-/* list all the packets in a file */
-int
-rnp_list_packets(rnp_t *rnp, char *f, int armor)
-{
-    const unsigned noarmor = 0;
-    struct stat    st;
-    pgp_io_t *     io;
-    int            ret;
-
-    io = rnp->io;
-    if (f == NULL) {
-        (void) fprintf(io->errs, "No file containing packets\n");
-        return RNP_FAIL;
-    }
-    if (stat(f, &st) < 0) {
-        (void) fprintf(io->errs, "No such file '%s'\n", f);
-        return RNP_FAIL;
-    }
-    if (!rnp_key_store_load_from_file(rnp, rnp->pubring, noarmor)) {
-        return RNP_FAIL;
-    }
-    ret = pgp_list_packets(
-      io, f, (unsigned) armor, rnp->secring, rnp->pubring, &rnp->passphrase_provider);
-    return ret;
-}
-
 /* validate all sigs in the pub keyring */
 bool
 rnp_validate_sigs(rnp_t *rnp)
