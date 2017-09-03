@@ -680,6 +680,10 @@ rnp_end(rnp_t *rnp)
         rnp_key_store_free(rnp->secring);
         rnp->secring = NULL;
     }
+    if (rnp->defkey) {
+        free(rnp->defkey);
+        rnp->defkey = NULL;
+    }
     free(rnp->io);
 }
 
