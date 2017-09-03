@@ -390,7 +390,7 @@ rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, bool is_
         goto end;
     }
 
-    if (!rnp_init(rnp, &rnp_params)) {
+    if (rnp_init(rnp, &rnp_params) != RNP_SUCCESS) {
         fputs("fatal: failed to initialize rnpkeys\n", stderr);
         ret = false;
         goto end;

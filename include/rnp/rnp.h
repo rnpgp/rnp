@@ -54,7 +54,7 @@ typedef struct rnp_params_t rnp_params_t;
 typedef struct rnp_ctx_t    rnp_ctx_t;
 
 /* initialize rnp using the init structure  */
-int rnp_init(rnp_t *, const rnp_params_t *);
+rnp_result rnp_init(rnp_t *, const rnp_params_t *);
 /* finish work with rnp and cleanup the memory */
 void rnp_end(rnp_t *);
 

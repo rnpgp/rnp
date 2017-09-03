@@ -174,7 +174,7 @@ resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
 
 /* return 1 if the file contains ascii-armoured text */
 static int
-isarmoured(pgp_io_t *io, const char *f, const void *memory, const char *text)
+isarmoured(const char *f, const void *memory, const char *text)
 {
     regmatch_t matches[10];
     unsigned   armoured;
@@ -184,12 +184,12 @@ isarmoured(pgp_io_t *io, const char *f, const void *memory, const char *text)
 
     armoured = 0;
     if (regcomp(&r, text, REG_EXTENDED) != 0) {
-        fprintf(io->errs, "Can't compile regex\n");
+        RNP_LOG("Can't compile regex");
         return -1;
     }
     if (f) {
         if ((fp = fopen(f, "r")) == NULL) {
-            (void) fprintf(io->errs, "isarmoured: cannot open '%s'\n", f);
+            RNP_LOG("isarmoured: cannot open '%s'", f);
             regfree(&r);
             return 0;
         }
@@ -595,7 +595,7 @@ init_new_io(rnp_t *rnp, const char *outs, const char *errs, const char *ress)
 /*************************************************************************/
 
 /* Initialize a rnp_t structure */
-int
+rnp_result
 rnp_init(rnp_t *rnp, const rnp_params_t *params)
 {
     int       coredumps = -1; /* -1 : cannot disable, 1 : disabled, 0 : enabled */
@@ -622,7 +622,7 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
 
     /* Initialize the context's io streams apparatus. */
     if (!init_new_io(rnp, params->outs, params->errs, params->ress)) {
-        return RNP_FAIL;
+        return RNP_ERROR_GENERIC;
     }
     io = rnp->io;
 
@@ -633,7 +633,7 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
     // setup file/pipe password input if requested
     if (params->passfd >= 0) {
         if (!set_pass_fd(rnp, params->passfd)) {
-            return RNP_FAIL;
+            return RNP_ERROR_GENERIC;
         }
         rnp->passphrase_provider.callback = rnp_passphrase_provider_file;
         rnp->passphrase_provider.userdata = rnp->passfp;
@@ -646,7 +646,7 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
     if (params->userinputfd >= 0) {
         rnp->user_input_fp = fdopen(params->userinputfd, "r");
         if (!rnp->user_input_fp) {
-            return RNP_FAIL;
+            return RNP_ERROR_BAD_PARAMETERS;
         }
     }
 
@@ -656,16 +656,16 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
     rnp->pubring = rnp_key_store_new(params->ks_pub_format, params->pubpath);
     if (rnp->pubring == NULL) {
         fputs("rnp: can't create empty pubring keystore\n", io->errs);
-        return RNP_FAIL;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     rnp->secring = rnp_key_store_new(params->ks_sec_format, params->secpath);
     if (rnp->secring == NULL) {
         fputs("rnp: can't create empty secring keystore\n", io->errs);
-        return RNP_FAIL;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    return RNP_OK;
+    return RNP_SUCCESS;
 }
 
 /* finish off with the rnp_t struct */
@@ -962,7 +962,7 @@ rnp_import_key(rnp_t *rnp, char *f)
     bool      done;
 
     io = rnp->io;
-    realarmor = isarmoured(io, f, NULL, IMPORT_ARMOR_HEAD);
+    realarmor = isarmoured(f, NULL, IMPORT_ARMOR_HEAD);
     if (realarmor < 0) {
         return RNP_FAIL;
     }
@@ -1098,17 +1098,15 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *
 rnp_result
 rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
 {
-    pgp_io_t *io;
-    int       realarmor;
-    unsigned  sshkeys;
+    int      realarmor;
+    unsigned sshkeys;
 
-    io = ctx->rnp->io;
     if (f == NULL) {
         RNP_LOG("No filename specified");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    realarmor = isarmoured(io, f, NULL, ARMOR_HEAD);
+    realarmor = isarmoured(f, NULL, ARMOR_HEAD);
     if (realarmor < 0) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1237,7 +1235,7 @@ rnp_verify_file(rnp_ctx_t *ctx, const char *in, const char *out)
         RNP_LOG_FD(io->errs, "rnp_verify_file: no filename specified");
         return RNP_ERROR_GENERIC;
     }
-    realarmor = isarmoured(io, in, NULL, ARMOR_SIG_HEAD);
+    realarmor = isarmoured(in, NULL, ARMOR_SIG_HEAD);
     if (realarmor < 0) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
@@ -1473,18 +1471,16 @@ rnp_decrypt_memory(
   rnp_ctx_t *ctx, const void *input, const size_t insize, char *out, size_t outsize)
 {
     pgp_memory_t *mem;
-    pgp_io_t *    io;
     int           realarmour;
     unsigned      sshkeys;
     size_t        m;
     int           attempts;
 
-    io = ctx->rnp->io;
     if (input == NULL) {
         RNP_LOG("Input NULL");
         return 0;
     }
-    realarmour = isarmoured(io, NULL, input, ARMOR_HEAD);
+    realarmour = isarmoured(NULL, input, ARMOR_HEAD);
     if (realarmour < 0) {
         RNP_LOG("Can't figure out file format");
         return 0;

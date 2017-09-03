@@ -410,8 +410,8 @@ setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pi
 
     /*initialize the basic RNP structure. */
     memset(rnp, '\0', sizeof(*rnp));
-    if ((res = rnp_init(rnp, &params)) != 1) {
-        return res;
+    if (rnp_init(rnp, &params) != RNP_SUCCESS) {
+        return false;
     }
     rnp_params_free(&params);
 
