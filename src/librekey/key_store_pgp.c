@@ -355,11 +355,11 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
         (void) fprintf(io->errs, "can't setup memory read\n");
         return false;
     }
-    pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
+    repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
     if (armour) {
         pgp_reader_push_dearmour(stream);
     }
-    res = pgp_parse(stream, printerrors);
+    res = repgp_parse(stream, printerrors);
     pgp_print_errors(pgp_stream_get_errors(stream));
     if (armour) {
         pgp_reader_pop_dearmour(stream);

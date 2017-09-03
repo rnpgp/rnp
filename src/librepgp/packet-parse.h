@@ -45,6 +45,11 @@ typedef struct pgp_region_t {
     unsigned indeterminate : 1;
 } pgp_region_t;
 
+/** pgp_cb_ret_t */
+typedef enum { PGP_RELEASE_MEMORY, PGP_KEEP_MEMORY, PGP_FINISHED } pgp_cb_ret_t;
+
+typedef pgp_cb_ret_t pgp_cbfunc_t(const pgp_packet_t *, pgp_cbdata_t *);
+
 bool pgp_limited_read(pgp_stream_t *,
                       uint8_t *,
                       size_t,
@@ -78,5 +83,17 @@ void pgp_sig_free(pgp_sig_t *);
 void pgp_rawpacket_free(pgp_rawpacket_t *);
 
 void pgp_seckey_free_secret_mpis(pgp_seckey_t *);
+
+void  pgp_set_callback(pgp_stream_t *, pgp_cbfunc_t *, void *);
+void  pgp_callback_push(pgp_stream_t *, pgp_cbfunc_t *, void *);
+void *pgp_callback_arg(pgp_cbdata_t *);
+void *pgp_callback_errors(pgp_cbdata_t *);
+
+void         pgp_stream_delete(pgp_stream_t *);
+pgp_error_t *pgp_stream_get_errors(pgp_stream_t *);
+
+pgp_cb_ret_t  pgp_callback(const pgp_packet_t *, pgp_cbdata_t *);
+pgp_cb_ret_t  pgp_stacked_callback(const pgp_packet_t *, pgp_cbdata_t *);
+pgp_reader_t *pgp_readinfo(pgp_stream_t *);
 
 #endif

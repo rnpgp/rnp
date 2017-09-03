@@ -582,7 +582,7 @@ pgp_decrypt_file(pgp_io_t *                       io,
     }
 
     /* Do it */
-    ret = pgp_parse(parse, printerrors);
+    ret = repgp_parse(parse, printerrors);
 
     /* Unsetup */
     if (use_armour) {
@@ -664,7 +664,7 @@ pgp_decrypt_buf(pgp_io_t *                       io,
     }
 
     /* Do it */
-    pgp_parse(parse, printerrors);
+    repgp_parse(parse, printerrors);
 
     /* Unsetup */
     if (use_armour) {

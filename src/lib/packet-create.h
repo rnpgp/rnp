@@ -63,16 +63,6 @@
 #include "writer.h"
 #include "memory.h"
 
-/**
- * \ingroup Create
- * This struct contains the required information about how to write this stream
- */
-struct pgp_output_t {
-    pgp_writer_t writer;
-    pgp_error_t *errors; /* error stack */
-    rnp_ctx_t *  ctx;    /* current operation context */
-};
-
 pgp_output_t *pgp_output_new(void);
 void          pgp_output_delete(pgp_output_t *);
 

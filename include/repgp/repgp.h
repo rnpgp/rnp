@@ -65,10 +65,10 @@ typedef uint32_t rnp_result;
 /** Used to specify whether subpackets should be returned raw, parsed
  * or ignored.  */
 typedef enum {
-    PGP_PARSE_RAW,    /* Callback Raw */
-    PGP_PARSE_PARSED, /* Callback Parsed */
-    PGP_PARSE_IGNORE  /* Don't callback */
-} pgp_parse_type_t;
+    REPGP_PARSE_RAW,    /* Callback Raw */
+    REPGP_PARSE_PARSED, /* Callback Parsed */
+    REPGP_PARSE_IGNORE  /* Don't callback */
+} repgp_parse_type_t;
 
 repgp_stream_t create_filepath_stream(const char *filename, size_t filename_len);
 
@@ -100,60 +100,13 @@ rnp_result repgp_validate_pubkeys_signatures(const void *ctx);
  *
  * @todo Make all packet types optional, not just subpackets
  */
-void pgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, pgp_parse_type_t type);
+void repgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, repgp_parse_type_t type);
 
 /* Old interfaces */
 
-void pgp_parser_content_free(pgp_packet_t *);
+void repgp_parser_content_free(pgp_packet_t *);
 
-/** pgp_cb_ret_t */
-typedef enum { PGP_RELEASE_MEMORY, PGP_KEEP_MEMORY, PGP_FINISHED } pgp_cb_ret_t;
-typedef pgp_cb_ret_t pgp_cbfunc_t(const pgp_packet_t *, pgp_cbdata_t *);
-
-/*
-   A reader MUST read at least one byte if it can, and should read up
-   to the number asked for. Whether it reads more for efficiency is
-   its own decision, but if it is a stacked reader it should never
-   read more than the length of the region it operates in (which it
-   would have to be given when it is stacked).
-
-   If a read is short because of EOF, then it should return the short
-   read (obviously this will be zero on the second attempt, if not the
-   first). Because a reader is not obliged to do a full read, only a
-   zero return can be taken as an indication of EOF.
-
-   If there is an error, then the callback should be notified, the
-   error stacked, and -1 should be returned.
-
-   Note that although length is a size_t, a reader will never be asked
-   to read more than INT_MAX in one go.
-
- */
-typedef int pgp_reader_func_t(
-  pgp_stream_t *, void *, size_t, pgp_error_t **, pgp_reader_t *, pgp_cbdata_t *);
-
-pgp_reader_func_t pgp_stacked_read;
-
-typedef void pgp_reader_destroyer_t(pgp_reader_t *);
-
-void         pgp_stream_delete(pgp_stream_t *);
-pgp_error_t *pgp_stream_get_errors(pgp_stream_t *);
-
-void  pgp_set_callback(pgp_stream_t *, pgp_cbfunc_t *, void *);
-void  pgp_callback_push(pgp_stream_t *, pgp_cbfunc_t *, void *);
-void *pgp_callback_arg(pgp_cbdata_t *);
-void *pgp_callback_errors(pgp_cbdata_t *);
-void  pgp_reader_set(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
-bool  pgp_reader_push(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
-void  pgp_reader_pop(pgp_stream_t *);
-
-void *pgp_reader_get_arg(pgp_reader_t *);
-
-pgp_cb_ret_t  pgp_callback(const pgp_packet_t *, pgp_cbdata_t *);
-pgp_cb_ret_t  pgp_stacked_callback(const pgp_packet_t *, pgp_cbdata_t *);
-pgp_reader_t *pgp_readinfo(pgp_stream_t *);
-
-bool pgp_parse(pgp_stream_t *, const bool show_erros);
+bool repgp_parse(pgp_stream_t *, const bool show_erros);
 
 /* ----------------------------- printing -----------------------------*/
 void repgp_print_key(pgp_io_t *,
