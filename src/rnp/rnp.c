@@ -635,8 +635,8 @@ parse_option(rnp_cfg_t *cfg, int *cmd, const char *s)
 int
 main(int argc, char **argv)
 {
-    rnp_params_t rnp_params;
-    rnp_t        rnp;
+    rnp_params_t rnp_params = {0};
+    rnp_t        rnp = {0};
     rnp_cfg_t    cfg;
     int          optindex;
     int          ret;
@@ -648,9 +648,6 @@ main(int argc, char **argv)
         print_usage(usage);
         exit(EXIT_ERROR);
     }
-
-    memset(&rnp, '\0', sizeof(rnp));
-    memset(&rnp_params, '\0', sizeof(rnp_params));
 
     rnp_cfg_init(&cfg);
     rnp_cfg_load_defaults(&cfg);
@@ -716,7 +713,7 @@ main(int argc, char **argv)
         return EXIT_ERROR;
     }
 
-    if (!rnp_init(&rnp, &rnp_params)) {
+    if (rnp_init(&rnp, &rnp_params) != RNP_SUCCESS) {
         fputs("fatal: cannot initialise\n", stderr);
         return EXIT_ERROR;
     }
