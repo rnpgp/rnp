@@ -252,7 +252,7 @@ repgp_list_packets(const void *ctx, const repgp_stream_t input)
     pgp_stream_t *stream = NULL;
     int           fd =
       pgp_setup_file_read(rctx->rnp->io, &stream, i->filepath, NULL, cb_list_packets, 1);
-    pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
+    repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
     stream->cryptinfo.secring = rnp->secring;
     stream->cryptinfo.pubring = rnp->pubring;
     stream->cryptinfo.passphrase_provider = rnp->passphrase_provider;
@@ -260,7 +260,7 @@ repgp_list_packets(const void *ctx, const repgp_stream_t input)
         pgp_reader_push_dearmour(stream);
     }
 
-    if (!pgp_parse(stream, true)) {
+    if (!repgp_parse(stream, true)) {
         pgp_teardown_file_read(stream, fd);
         return RNP_ERROR_GENERIC;
     }

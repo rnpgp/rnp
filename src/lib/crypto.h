@@ -60,6 +60,7 @@
 
 #include <librepgp/packet-parse.h>
 #include <librepgp/packet-print.h>
+#include <librepgp/reader.h>
 
 #include "hash.h"
 #include "memory.h"
@@ -181,6 +182,11 @@ pgp_memory_t *pgp_decrypt_buf(pgp_io_t *,
                               const pgp_passphrase_provider_t *);
 
 bool read_pem_seckey(const char *, pgp_key_t *, const char *, int);
+
+typedef int pgp_reader_func_t(
+  pgp_stream_t *, void *, size_t, pgp_error_t **, pgp_reader_t *, pgp_cbdata_t *);
+
+typedef void pgp_reader_destroyer_t(pgp_reader_t *);
 
 /** pgp_reader_t */
 struct pgp_reader_t {

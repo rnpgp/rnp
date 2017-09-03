@@ -80,6 +80,16 @@ struct pgp_writer_t {
     rnp_ctx_t *             ctx;       /* Operation context */
 };
 
+/**
+ * \ingroup Create
+ * This struct contains the required information about how to write this stream
+ */
+struct pgp_output_t {
+    pgp_writer_t writer;
+    pgp_error_t *errors; /* error stack */
+    rnp_ctx_t *  ctx;    /* current operation context */
+};
+
 void *pgp_writer_get_arg(pgp_writer_t *);
 
 bool pgp_writer_set(pgp_output_t *,

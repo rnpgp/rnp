@@ -37,6 +37,37 @@
 /* if this is defined, we'll use mmap in preference to file ops */
 #define USE_MMAP_FOR_FILES 1
 
+/*
+   A reader MUST read at least one byte if it can, and should read up
+   to the number asked for. Whether it reads more for efficiency is
+   its own decision, but if it is a stacked reader it should never
+   read more than the length of the region it operates in (which it
+   would have to be given when it is stacked).
+
+   If a read is short because of EOF, then it should return the short
+   read (obviously this will be zero on the second attempt, if not the
+   first). Because a reader is not obliged to do a full read, only a
+   zero return can be taken as an indication of EOF.
+
+   If there is an error, then the callback should be notified, the
+   error stacked, and -1 should be returned.
+
+   Note that although length is a size_t, a reader will never be asked
+   to read more than INT_MAX in one go.
+
+ */
+typedef int pgp_reader_func_t(
+  pgp_stream_t *, void *, size_t, pgp_error_t **, pgp_reader_t *, pgp_cbdata_t *);
+
+typedef void pgp_reader_destroyer_t(pgp_reader_t *);
+
+pgp_reader_func_t pgp_stacked_read;
+
+void  pgp_reader_set(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
+bool  pgp_reader_push(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
+void  pgp_reader_pop(pgp_stream_t *);
+void *pgp_reader_get_arg(pgp_reader_t *);
+
 void pgp_reader_set_fd(pgp_stream_t *, int);
 void pgp_reader_set_mmap(pgp_stream_t *, int);
 void pgp_reader_set_memory(pgp_stream_t *, const void *, size_t);

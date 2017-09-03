@@ -101,8 +101,8 @@ pgp_parse_keyrings_1_pubring(void **state)
         assert_false(fd < 0);
         assert_non_null(stream);
 
-        pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
-        assert_true(pgp_parse(stream, 1));
+        repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
+        assert_true(repgp_parse(stream, 1));
         pgp_teardown_file_read(stream, fd);
         stream = NULL;
 
@@ -130,8 +130,8 @@ pgp_parse_keyrings_1_pubring(void **state)
         assert_true(pgp_setup_memory_read(&io, &stream, mem, &taglist, tag_collector, 1));
         assert_non_null(stream);
 
-        pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
-        assert_true(pgp_parse(stream, 1));
+        repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
+        assert_true(repgp_parse(stream, 1));
         pgp_teardown_memory_read(stream, mem);
         stream = NULL;
 
@@ -181,8 +181,8 @@ pgp_compress_roundtrip(void **state)
             assert_true(pgp_writez(out, file_buf, file_buf_size, algs[i], level));
 
             assert_true(pgp_setup_memory_read(&io, &stream, mem, &taglist, tag_collector, 1));
-            pgp_parse_options(stream, PGP_PTAG_SS_ALL, PGP_PARSE_PARSED);
-            assert_true(pgp_parse(stream, true));
+            repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
+            assert_true(repgp_parse(stream, true));
 
             pgp_teardown_memory_write(out, mem);
             mem = NULL;

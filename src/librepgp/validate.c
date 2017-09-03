@@ -728,7 +728,7 @@ pgp_validate_file(pgp_io_t *             io,
     }
 
     /* Do the verification */
-    pgp_parse(parse, !printerrors);
+    repgp_parse(parse, !printerrors);
 
     /* Tidy up */
     if (realarmour) {
@@ -832,7 +832,7 @@ pgp_validate_mem(pgp_io_t *             io,
     }
 
     /* Do the verification */
-    pgp_parse(stream, !printerrors);
+    repgp_parse(stream, !printerrors);
 
     /* Tidy up */
     if (realarmour) {
@@ -918,7 +918,7 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
     /* is never used. */
     keysigs.reader = stream->readinfo.arg;
 
-    pgp_parse(stream, !printerrors);
+    repgp_parse(stream, !printerrors);
 
     pgp_pubkey_free(&keysigs.pubkey);
     if (keysigs.subkey.version) {

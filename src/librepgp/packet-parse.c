@@ -985,7 +985,7 @@ pgp_sig_free(pgp_sig_t *sig)
 */
 /* ! Free any memory allocated when parsing the packet content */
 void
-pgp_parser_content_free(pgp_packet_t *c)
+repgp_parser_content_free(pgp_packet_t *c)
 {
     switch (c->tag) {
     case PGP_PARSER_PTAG:
@@ -1930,7 +1930,7 @@ parse_one_sig_subpacket(pgp_sig_t *sig, pgp_region_t *region, pgp_stream_t *stre
             return false;
         }
         if (doread) {
-            pgp_parser_content_free(&pkt);
+            repgp_parser_content_free(&pkt);
         }
         return true;
     }
@@ -3036,7 +3036,7 @@ decrypt_se_data(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream
         if (tag == PGP_PTAG_CT_SE_DATA_BODY) {
             pgp_cipher_cfb_resync_v2(decrypt);
         }
-        r = pgp_parse(stream, !printerrors);
+        r = repgp_parse(stream, !printerrors);
 
         pgp_reader_pop_decrypt(stream);
     } else {
@@ -3075,7 +3075,7 @@ decrypt_se_ip_data(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *str
         pgp_reader_push_decrypt(stream, decrypt, region);
         pgp_reader_push_se_ip_data(stream, decrypt, region);
 
-        r = pgp_parse(stream, !printerrors);
+        r = repgp_parse(stream, !printerrors);
 
         pgp_reader_pop_se_ip_data(stream);
         pgp_reader_pop_decrypt(stream);
@@ -3370,7 +3370,7 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
  * \brief Parse packets from an input stream until EOF or error.
  *
  * \details Setup the necessary parsing configuration in "stream"
- * before calling pgp_parse().
+ * before calling repgp_parse().
  *
  * That information includes :
  *
@@ -3394,7 +3394,7 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
  */
 
 bool
-pgp_parse(pgp_stream_t *stream, const bool show_errors)
+repgp_parse(pgp_stream_t *stream, const bool show_errors)
 {
     uint32_t   pktlen;
     rnp_result res;
@@ -3409,7 +3409,7 @@ pgp_parse(pgp_stream_t *stream, const bool show_errors)
 }
 
 void
-pgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, pgp_parse_type_t type)
+repgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, repgp_parse_type_t type)
 {
     unsigned t7;
     unsigned t8;
@@ -3418,28 +3418,28 @@ pgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, pgp_parse_type_t t
         int n;
 
         for (n = 0; n < 256; ++n) {
-            pgp_parse_options(stream, PGP_PTAG_SIG_SUBPKT_BASE + n, type);
+            repgp_parse_options(stream, PGP_PTAG_SIG_SUBPKT_BASE + n, type);
         }
         return;
     }
     if (tag < PGP_PTAG_SIG_SUBPKT_BASE || tag > PGP_PTAG_SIG_SUBPKT_BASE + NTAGS - 1) {
-        (void) fprintf(stderr, "pgp_parse_options: bad tag\n");
+        (void) fprintf(stderr, "repgp_parse_options: bad tag\n");
         return;
     }
     t8 = (tag - PGP_PTAG_SIG_SUBPKT_BASE) / 8;
     t7 = 1 << ((tag - PGP_PTAG_SIG_SUBPKT_BASE) & 7);
     switch (type) {
-    case PGP_PARSE_RAW:
+    case REPGP_PARSE_RAW:
         stream->ss_raw[t8] |= t7;
         stream->ss_parsed[t8] &= ~t7;
         break;
 
-    case PGP_PARSE_PARSED:
+    case REPGP_PARSE_PARSED:
         stream->ss_raw[t8] &= ~t7;
         stream->ss_parsed[t8] |= t7;
         break;
 
-    case PGP_PARSE_IGNORE:
+    case REPGP_PARSE_IGNORE:
         stream->ss_raw[t8] &= ~t7;
         stream->ss_parsed[t8] &= ~t7;
         break;

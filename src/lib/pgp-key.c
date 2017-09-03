@@ -403,7 +403,7 @@ pgp_decrypt_seckey_parser(const pgp_key_t *key, const char *passphrase)
     }
     pgp_set_callback(stream, decrypt_cb, &decrypt);
     stream->readinfo.accumulate = 1;
-    pgp_parse(stream, !printerrors);
+    repgp_parse(stream, !printerrors);
     pgp_stream_delete(stream);
     return decrypt.seckey;
 }

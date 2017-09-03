@@ -396,7 +396,7 @@ pgp_decompress(pgp_region_t *region, pgp_stream_t *stream, pgp_compression_type_
         goto end;
     }
 
-    res = pgp_parse(stream, !printerrors);
+    res = repgp_parse(stream, !printerrors);
     pgp_reader_pop(stream);
 
 end:

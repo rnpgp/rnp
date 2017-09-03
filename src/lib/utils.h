@@ -52,7 +52,7 @@
     do {                                                       \
         (pkt)->tag = (t);                                      \
         if (pgp_callback(pkt, cbinfo) == PGP_RELEASE_MEMORY) { \
-            pgp_parser_content_free(pkt);                      \
+            repgp_parser_content_free(pkt);                    \
         }                                                      \
     } while (/* CONSTCOND */ 0)
 
