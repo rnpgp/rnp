@@ -36,6 +36,7 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include "errors.h"
+#include <repgp/repgp.h>
 
 #define PGP_INPUT_CACHE_SIZE 32768
 
@@ -90,8 +91,8 @@ typedef struct pgp_source_t {
 } pgp_source_t;
 
 typedef struct pgp_operation_handler_t {
-    pgp_password_needed_func_t *passfunc;
-    pgp_output_funct_t         *writefunc;
+    pgp_passphrase_provider_t *passphrase_provider;
+    pgp_output_funct_t *       writefunc;
 
     void * param;
 } pgp_operation_handler_t;

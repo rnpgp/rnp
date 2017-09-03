@@ -1233,12 +1233,6 @@ typedef struct pgp_handler_param_t {
 /* process the pgp stream */
 
 void 
-rnp_handler_password_needed(pgp_operation_handler_t *handler, char *pass, int *passlen, pgp_operation_handler_action_t *action)
-{
-    *action = PGP_ACTION_ABORT;
-}
-
-void 
 rnp_handler_write(pgp_operation_handler_t *handler, void *buf, size_t len, pgp_operation_handler_action_t *action)
 {
     *action = PGP_ACTION_ABORT;
@@ -1253,11 +1247,7 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     pgp_handler_param_t *param = NULL;
     int result;
 
-    if (in) {
-        err = init_file_src(&src, in);
-    } else {
-        err = init_stdin_src(&src);
-    }
+    err = in ? init_file_src(&src, in) : init_stdin_src(&src);
 
     if (err != RNP_SUCCESS) {
         return RNP_FAIL;
@@ -1273,7 +1263,7 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
         goto finish;
     }
 
-    handler->passfunc = rnp_handler_password_needed;
+    handler->passphrase_provider = &ctx->rnp->passphrase_provider;
     handler->writefunc = rnp_handler_write;
     param->ctx = ctx;
     param->outfd = 0;
