@@ -7,7 +7,6 @@ librepgp_la_SOURCES     =  \
     packet-parse.c \
     packet-print.c \
     packet-show.c \
-    pass-provider.c \
     reader.c \
     repgp.c \
     validate.c

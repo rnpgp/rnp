@@ -54,7 +54,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>
-#include <repgp/repgp.h>
+#include "pass-provider.h"
 #include "types.h"
 #include "defs.h"
 #include "symmetric.h"

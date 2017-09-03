@@ -31,6 +31,7 @@
 #include <repgp/repgp.h>
 
 #include "types.h"
+#include "pass-provider.h"
 
 /* structure used to keep application-wide rnp configuration: keyrings, password io, whatever
  * else */

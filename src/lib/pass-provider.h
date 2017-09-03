@@ -26,7 +26,30 @@
 #ifndef RNP_PASS_PROVIDER_H
 #define RNP_PASS_PROVIDER_H
 
-#include <repgp/repgp.h>
+#include <rnp/rnp_sdk.h>
+
+typedef struct pgp_pubkey_t pgp_pubkey_t;
+
+typedef struct pgp_passphrase_ctx_t {
+    uint8_t             op;
+    const pgp_pubkey_t *pubkey;
+    uint8_t             key_type;
+} pgp_passphrase_ctx_t;
+
+typedef bool pgp_passphrase_callback_t(const pgp_passphrase_ctx_t *ctx,
+                                       char *                      passphrase,
+                                       size_t                      passphrase_size,
+                                       void *                      userdata);
+
+typedef struct pgp_passphrase_provider_t {
+    pgp_passphrase_callback_t *callback;
+    void *                     userdata;
+} pgp_passphrase_provider_t;
+
+bool pgp_request_passphrase(const pgp_passphrase_provider_t *provider,
+                            const pgp_passphrase_ctx_t *     ctx,
+                            char *                           passphrase,
+                            size_t                           passphrase_size);
 
 bool rnp_passphrase_provider_stdin(const pgp_passphrase_ctx_t *ctx,
                                    char *                      passphrase,
