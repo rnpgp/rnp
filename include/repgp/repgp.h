@@ -42,16 +42,9 @@
 #include <json.h>
 
 #include "repgp_def.h"
-#include "errors.h"
 
-struct rnp_key_store_t;
 typedef struct pgp_packet_t pgp_packet_t;
-typedef struct pgp_cbdata_t pgp_cbdata_t;
 typedef struct pgp_stream_t pgp_stream_t;
-typedef struct pgp_reader_t pgp_reader_t;
-typedef struct pgp_io_t     pgp_io_t;
-typedef struct pgp_key_t    pgp_key_t;
-typedef struct pgp_pubkey_t pgp_pubkey_t;
 typedef void *              repgp_stream_t;
 typedef void *              repgp_io_t;
 
@@ -107,42 +100,5 @@ void repgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, repgp_parse
 void repgp_parser_content_free(pgp_packet_t *);
 
 bool repgp_parse(pgp_stream_t *, const bool show_erros);
-
-/* ----------------------------- printing -----------------------------*/
-void repgp_print_key(pgp_io_t *,
-                     const struct rnp_key_store_t *,
-                     const pgp_key_t *,
-                     const char *,
-                     const pgp_pubkey_t *,
-                     const int);
-
-int repgp_sprint_json(pgp_io_t *,
-                      const struct rnp_key_store_t *,
-                      const pgp_key_t *,
-                      json_object *,
-                      const char *,
-                      const pgp_pubkey_t *,
-                      const int);
-
-typedef struct pgp_passphrase_ctx_t {
-    uint8_t             op;
-    const pgp_pubkey_t *pubkey;
-    uint8_t             key_type;
-} pgp_passphrase_ctx_t;
-
-typedef bool pgp_passphrase_callback_t(const pgp_passphrase_ctx_t *ctx,
-                                       char *                      passphrase,
-                                       size_t                      passphrase_size,
-                                       void *                      userdata);
-
-typedef struct pgp_passphrase_provider_t {
-    pgp_passphrase_callback_t *callback;
-    void *                     userdata;
-} pgp_passphrase_provider_t;
-
-bool pgp_request_passphrase(const pgp_passphrase_provider_t *provider,
-                            const pgp_passphrase_ctx_t *     ctx,
-                            char *                           passphrase,
-                            size_t                           passphrase_size);
 
 #endif /* REPGP_H_ */

@@ -42,8 +42,7 @@
 #include <rnp/rnp.h>
 #include <rnp/rnp_sdk.h>
 #include <rekey/rnp_key_store.h>
-
-#include <repgp/repgp.h>
+#include <librepgp/packet-print.h>
 
 #include "key_store_internal.h"
 #include "key_store_pgp.h"

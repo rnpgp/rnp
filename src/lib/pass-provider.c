@@ -154,3 +154,15 @@ rnp_passphrase_provider_file(const pgp_passphrase_ctx_t *ctx,
     }
     return true;
 }
+
+bool
+pgp_request_passphrase(const pgp_passphrase_provider_t *provider,
+                       const pgp_passphrase_ctx_t *     ctx,
+                       char *                           passphrase,
+                       size_t                           passphrase_size)
+{
+    if (!provider || !provider->callback || !ctx || !passphrase || !passphrase_size) {
+        return false;
+    }
+    return provider->callback(ctx, passphrase, passphrase_size, provider->userdata);
+}

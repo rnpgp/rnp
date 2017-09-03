@@ -35,6 +35,9 @@
 #include <repgp/repgp.h>
 #include "types.h"
 
+typedef struct pgp_cbdata_t pgp_cbdata_t;
+typedef struct pgp_reader_t pgp_reader_t;
+
 /** pgp_region_t */
 typedef struct pgp_region_t {
     struct pgp_region_t *parent;
