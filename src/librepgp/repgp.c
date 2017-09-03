@@ -113,6 +113,7 @@ repgp_destroy_handle(repgp_handle_t stream)
         /* Must never happen */
         assert(false);
     }
+    free(s);
 }
 
 rnp_result
@@ -215,6 +216,7 @@ repgp_destroy_io(repgp_io_t io)
         repgp_destroy_handle(rio->in);
         repgp_destroy_handle(rio->out);
     }
+    free(rio);
 }
 
 static pgp_cb_ret_t
