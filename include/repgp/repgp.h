@@ -88,7 +88,7 @@ void repgp_set_output(repgp_io_t io, /*const?*/ repgp_stream_t stream);
 rnp_result repgp_verify(const void *ctx, repgp_io_t io);
 rnp_result repgp_decrypt(const void *ctx, repgp_io_t io);
 rnp_result repgp_list_packets(const void *ctx, repgp_stream_t input);
-
+rnp_result repgp_validate_pubkeys_signatures(const void *ctx);
 /**
  * @brief Specifies whether one or more signature subpacket types
  *        should be returned parsed; or raw; or ignored.

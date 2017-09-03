@@ -429,7 +429,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         break;
     }
     case CMD_SHOW_KEYS:
-        ret = rnp_validate_sigs(rnp);
+        ret = (repgp_validate_pubkeys_signatures(&ctx) == RNP_SUCCESS);
         break;
     default:
         print_usage(usage);

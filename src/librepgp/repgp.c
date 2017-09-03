@@ -19,6 +19,7 @@
 #include "utils.h"
 #include "crypto.h"
 #include "reader.h"
+#include "validate.h"
 
 repgp_stream_t
 create_filepath_stream(const char *filename, size_t filename_len)
@@ -225,7 +226,7 @@ rnp_result
 repgp_list_packets(const void *ctx, const repgp_stream_t input)
 {
     const rnp_ctx_t *rctx = (rnp_ctx_t *) ctx;
-    if ((rctx == NULL) || (rctx->rnp == NULL) || (input == REPGP_HANDLE_NULL)) {
+    if (!rctx || !rctx->rnp || (input == REPGP_HANDLE_NULL)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -265,4 +266,174 @@ repgp_list_packets(const void *ctx, const repgp_stream_t input)
     }
     pgp_teardown_file_read(stream, fd);
     return RNP_SUCCESS;
+}
+
+/**
+ * \ingroup HighLevel_Verify
+ * \brief Validate all signatures on a single key against the given keyring
+ * \param result Where to put the result
+ * \param key Key to validate
+ * \param keyring Keyring to use for validation
+ * \param cb_get_passphrase Callback to use to get passphrase
+ * \return 1 if all signatures OK; else 0
+ * \note It is the caller's responsiblity to free result after use.
+ * \sa pgp_validate_result_free()
+ */
+static rnp_result
+pgp_validate_key_sigs(pgp_validation_t *     result,
+                      const pgp_key_t *      key,
+                      const rnp_key_store_t *keyring,
+                      pgp_cb_ret_t cb_get_passphrase(const pgp_packet_t *, pgp_cbdata_t *))
+{
+    pgp_stream_t *    stream;
+    validate_key_cb_t keysigs;
+    const bool        printerrors = true;
+
+    (void) memset(&keysigs, 0x0, sizeof(keysigs));
+    keysigs.result = result;
+    keysigs.getpassphrase = cb_get_passphrase;
+
+    stream = pgp_new(sizeof(*stream));
+    /* pgp_parse_options(&opt,PGP_PTAG_CT_SIGNATURE,PGP_PARSE_PARSED); */
+
+    keysigs.keyring = keyring;
+
+    pgp_set_callback(stream, pgp_validate_key_cb, &keysigs);
+    stream->readinfo.accumulate = 1;
+    if (!pgp_key_reader_set(stream, key)) {
+        return false;
+    }
+
+    /* Note: Coverity incorrectly reports an error that keysigs.reader */
+    /* is never used. */
+    keysigs.reader = stream->readinfo.arg;
+
+    pgp_parse(stream, !printerrors);
+
+    pgp_pubkey_free(&keysigs.pubkey);
+    if (keysigs.subkey.version) {
+        pgp_pubkey_free(&keysigs.subkey);
+    }
+    pgp_userid_free(&keysigs.userid);
+    pgp_data_free(&keysigs.userattr);
+
+    pgp_stream_delete(stream);
+
+    return (!result->invalidc && !result->unknownc && result->validc);
+}
+
+static char *
+fmtsecs(int64_t n, char *buf, size_t size)
+{
+    if (n > 365 * 24 * 60 * 60) {
+        n /= (365 * 24 * 60 * 60);
+        (void) snprintf(buf, size, "%" PRId64 " year%s", n, (n == 1) ? "" : "s");
+        return buf;
+    }
+    if (n > 30 * 24 * 60 * 60) {
+        n /= (30 * 24 * 60 * 60);
+        (void) snprintf(buf, size, "%" PRId64 " month%s", n, (n == 1) ? "" : "s");
+        return buf;
+    }
+    if (n > 24 * 60 * 60) {
+        n /= (24 * 60 * 60);
+        (void) snprintf(buf, size, "%" PRId64 " day%s", n, (n == 1) ? "" : "s");
+        return buf;
+    }
+    if (n > 60 * 60) {
+        n /= (60 * 60);
+        (void) snprintf(buf, size, "%" PRId64 " hour%s", n, (n == 1) ? "" : "s");
+        return buf;
+    }
+    if (n > 60) {
+        n /= 60;
+        (void) snprintf(buf, size, "%" PRId64 " minute%s", n, (n == 1) ? "" : "s");
+        return buf;
+    }
+    (void) snprintf(buf, size, "%" PRId64 " second%s", n, (n == 1) ? "" : "s");
+    return buf;
+}
+
+/**
+ * \ingroup HighLevel_Verify
+ * \brief Indicicates whether any errors were found
+ * \param result Validation result to check
+ * \return 0 if any invalid signatures or unknown signers
+        or no valid signatures; else 1
+ */
+static bool
+validate_result_status(const char *f, pgp_validation_t *val)
+{
+    time_t now;
+    time_t t;
+    char   buf[128];
+
+    now = time(NULL);
+    if (now < val->birthtime) {
+        /* signature is not valid yet! */
+        if (f) {
+            (void) fprintf(stderr, "\"%s\": ", f);
+        } else {
+            (void) fprintf(stderr, "memory ");
+        }
+        (void) fprintf(stderr,
+                       "signature not valid until %.24s (%s)\n",
+                       ctime(&val->birthtime),
+                       fmtsecs((int64_t)(val->birthtime - now), buf, sizeof(buf)));
+        return false;
+    }
+    if (val->duration != 0 && now > val->birthtime + val->duration) {
+        /* signature has expired */
+        t = val->duration + val->birthtime;
+        if (f) {
+            (void) fprintf(stderr, "\"%s\": ", f);
+        } else {
+            (void) fprintf(stderr, "memory ");
+        }
+        (void) fprintf(stderr,
+                       "signature not valid after %.24s (%s ago)\n",
+                       ctime(&t),
+                       fmtsecs((int64_t)(now - t), buf, sizeof(buf)));
+        return false;
+    }
+    return val->validc && !val->invalidc && !val->unknownc;
+}
+
+/**
+ * \ingroup HighLevel_Verify
+ * \brief Validate all signatures on a single key against the given keyring
+ * \param result Where to put the result
+ * \param key Key to validate
+ * \param keyring Keyring to use for validation
+ * \param cb_get_passphrase Callback to use to get passphrase
+ * \return 1 if all signatures OK; else 0
+ * \note It is the caller's responsiblity to free result after use.
+ * \sa pgp_validate_result_free()
+ */
+/**
+   \ingroup HighLevel_Verify
+   \param result Where to put the result
+   \param ring Keyring to use
+   \param cb_get_passphrase Callback to use to get passphrase
+   \note It is the caller's responsibility to free result after use.
+   \sa pgp_validate_result_free()
+*/
+rnp_result
+repgp_validate_pubkeys_signatures(const void *ctx)
+{
+    const struct rnp_ctx_t *rctx = (rnp_ctx_t *) ctx;
+    if (!rctx || !rctx->rnp) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    const rnp_key_store_t *ring = rctx->rnp->pubring;
+    pgp_validation_t       result = {0};
+    for (size_t n = 0; n < ring->keyc; ++n) {
+        /* TODO: return value probably should be checked
+         *       but I need to double check it
+         */
+        (void) pgp_validate_key_sigs(
+          &result, &ring->keys[n], ring, NULL /* no pwd callback; validating public keys */);
+    }
+    return validate_result_status("keyring", &result);
 }

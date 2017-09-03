@@ -82,10 +82,10 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <repgp/repgp.h>
 #include <librepgp/packet-print.h>
 #include <librepgp/packet-show.h>
+#include <librepgp/validate.h>
 #include "errors.h"
 #include "packet-create.h"
 #include "memory.h"
-#include "validate.h"
 #include "signature.h"
 #include "readerwriter.h"
 #include "utils.h"
@@ -1508,15 +1508,6 @@ rnp_decrypt_memory(
     (void) memcpy(out, pgp_mem_data(mem), m);
     pgp_memory_free(mem);
     return (int) m;
-}
-
-/* validate all sigs in the pub keyring */
-bool
-rnp_validate_sigs(rnp_t *rnp)
-{
-    pgp_validation_t result;
-
-    return pgp_validate_all_sigs(&result, rnp->pubring, NULL);
 }
 
 /* print the json out on 'fp' */
