@@ -31,5 +31,4 @@ librnp_la_SOURCES	= \
 	rnp.c \
 	signature.c \
 	symmetric.c \
-	validate.c \
 	writer.c

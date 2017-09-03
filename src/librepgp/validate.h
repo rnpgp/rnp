@@ -51,6 +51,8 @@
 #ifndef VALIDATE_H_
 #define VALIDATE_H_ 1
 
+#include "hash.h"
+
 typedef struct pgp_validation_t {
     unsigned        validc;
     pgp_sig_info_t *valid_sigs;
@@ -99,15 +101,6 @@ typedef struct {
 } validate_data_cb_t;
 
 void pgp_validate_result_free(pgp_validation_t *);
-
-bool pgp_validate_key_sigs(pgp_validation_t *,
-                           const pgp_key_t *,
-                           const rnp_key_store_t *,
-                           pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
-
-bool pgp_validate_all_sigs(pgp_validation_t *,
-                           const rnp_key_store_t *,
-                           pgp_cb_ret_t cb(const pgp_packet_t *, pgp_cbdata_t *));
 
 bool pgp_key_reader_set(pgp_stream_t *, const pgp_key_t *);
 

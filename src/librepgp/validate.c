@@ -625,7 +625,7 @@ fmtsecs(int64_t n, char *buf, size_t size)
         or no valid signatures; else 1
  */
 static bool
-validate_result_status(FILE *errs, const char *f, pgp_validation_t *val)
+validate_result_status(const char *f, pgp_validation_t *val)
 {
     time_t now;
     time_t t;
@@ -635,11 +635,11 @@ validate_result_status(FILE *errs, const char *f, pgp_validation_t *val)
     if (now < val->birthtime) {
         /* signature is not valid yet! */
         if (f) {
-            (void) fprintf(errs, "\"%s\": ", f);
+            (void) fprintf(stderr, "\"%s\": ", f);
         } else {
-            (void) fprintf(errs, "memory ");
+            (void) fprintf(stderr, "memory ");
         }
-        (void) fprintf(errs,
+        (void) fprintf(stderr,
                        "signature not valid until %.24s (%s)\n",
                        ctime(&val->birthtime),
                        fmtsecs((int64_t)(val->birthtime - now), buf, sizeof(buf)));
@@ -649,93 +649,17 @@ validate_result_status(FILE *errs, const char *f, pgp_validation_t *val)
         /* signature has expired */
         t = val->duration + val->birthtime;
         if (f) {
-            (void) fprintf(errs, "\"%s\": ", f);
+            (void) fprintf(stderr, "\"%s\": ", f);
         } else {
-            (void) fprintf(errs, "memory ");
+            (void) fprintf(stderr, "memory ");
         }
-        (void) fprintf(errs,
+        (void) fprintf(stderr,
                        "signature not valid after %.24s (%s ago)\n",
                        ctime(&t),
                        fmtsecs((int64_t)(now - t), buf, sizeof(buf)));
         return false;
     }
     return val->validc && !val->invalidc && !val->unknownc;
-}
-
-/**
- * \ingroup HighLevel_Verify
- * \brief Validate all signatures on a single key against the given keyring
- * \param result Where to put the result
- * \param key Key to validate
- * \param keyring Keyring to use for validation
- * \param cb_get_passphrase Callback to use to get passphrase
- * \return 1 if all signatures OK; else 0
- * \note It is the caller's responsiblity to free result after use.
- * \sa pgp_validate_result_free()
- */
-bool
-pgp_validate_key_sigs(pgp_validation_t *     result,
-                      const pgp_key_t *      key,
-                      const rnp_key_store_t *keyring,
-                      pgp_cb_ret_t cb_get_passphrase(const pgp_packet_t *, pgp_cbdata_t *))
-{
-    pgp_stream_t *    stream;
-    validate_key_cb_t keysigs;
-    const bool        printerrors = true;
-
-    (void) memset(&keysigs, 0x0, sizeof(keysigs));
-    keysigs.result = result;
-    keysigs.getpassphrase = cb_get_passphrase;
-
-    stream = pgp_new(sizeof(*stream));
-    /* pgp_parse_options(&opt,PGP_PTAG_CT_SIGNATURE,PGP_PARSE_PARSED); */
-
-    keysigs.keyring = keyring;
-
-    pgp_set_callback(stream, pgp_validate_key_cb, &keysigs);
-    stream->readinfo.accumulate = 1;
-    if (!pgp_key_reader_set(stream, key)) {
-        return false;
-    }
-
-    /* Note: Coverity incorrectly reports an error that keysigs.reader */
-    /* is never used. */
-    keysigs.reader = stream->readinfo.arg;
-
-    pgp_parse(stream, !printerrors);
-
-    pgp_pubkey_free(&keysigs.pubkey);
-    if (keysigs.subkey.version) {
-        pgp_pubkey_free(&keysigs.subkey);
-    }
-    pgp_userid_free(&keysigs.userid);
-    pgp_data_free(&keysigs.userattr);
-
-    pgp_stream_delete(stream);
-
-    return (!result->invalidc && !result->unknownc && result->validc);
-}
-
-/**
-   \ingroup HighLevel_Verify
-   \param result Where to put the result
-   \param ring Keyring to use
-   \param cb_get_passphrase Callback to use to get passphrase
-   \note It is the caller's responsibility to free result after use.
-   \sa pgp_validate_result_free()
-*/
-bool
-pgp_validate_all_sigs(pgp_validation_t *     result,
-                      const rnp_key_store_t *ring,
-                      pgp_cb_ret_t cb_get_passphrase(const pgp_packet_t *, pgp_cbdata_t *))
-{
-    unsigned n;
-
-    (void) memset(result, 0x0, sizeof(*result));
-    for (n = 0; n < ring->keyc; ++n) {
-        pgp_validate_key_sigs(result, &ring->keys[n], ring, cb_get_passphrase);
-    }
-    return validate_result_status(stderr, "keyring", result);
 }
 
 /**
@@ -857,7 +781,7 @@ pgp_validate_file(pgp_io_t *             io,
     }
     pgp_teardown_file_read(parse, infd);
 
-    ret = validate_result_status(io->errs, infile, result);
+    ret = validate_result_status(infile, result);
 
     /* this is triggered only for --cat output */
     if (outfile) {
@@ -873,7 +797,7 @@ pgp_validate_file(pgp_io_t *             io,
              * write the file, so send back a bad return
              * code */
             ret = false;
-        } else if (validate_result_status(io->errs, infile, result)) {
+        } else if (validate_result_status(infile, result)) {
             unsigned len;
             char *   cp;
             int      i;
@@ -969,5 +893,5 @@ pgp_validate_mem(pgp_io_t *             io,
         pgp_memory_free(validation.mem);
     }
 
-    return validate_result_status(io->errs, NULL, result);
+    return validate_result_status(NULL, result);
 }
