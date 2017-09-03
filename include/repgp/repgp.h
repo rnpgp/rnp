@@ -64,24 +64,21 @@ typedef enum {
 } repgp_parse_type_t;
 
 repgp_handle_t create_filepath_handle(const char *filename, size_t filename_len);
-
 // it will do realloc
 repgp_handle_t create_stdin_handle(void);
-
 repgp_handle_t create_buffer_handle(const size_t buffer_size);
-
 void repgp_destroy_handle(repgp_handle_t handle);
 
 repgp_io_t repgp_create_io(void);
-void repgp_destroy_io(repgp_io_t io);
-
 void repgp_set_input(repgp_io_t io, repgp_handle_t handle);
 void repgp_set_output(repgp_io_t io, repgp_handle_t handle);
+void repgp_destroy_io(repgp_io_t io);
 
 rnp_result repgp_verify(const void *ctx, repgp_io_t io);
 rnp_result repgp_decrypt(const void *ctx, repgp_io_t io);
 rnp_result repgp_list_packets(const void *ctx, repgp_handle_t input);
 rnp_result repgp_validate_pubkeys_signatures(const void *ctx);
+
 /**
  * @brief Specifies whether one or more signature subpacket types
  *        should be returned parsed; or raw; or ignored.
@@ -95,10 +92,8 @@ rnp_result repgp_validate_pubkeys_signatures(const void *ctx);
  */
 void repgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, repgp_parse_type_t type);
 
-/* Old interfaces */
+bool repgp_parse(pgp_stream_t *, const bool show_erros);
 
 void repgp_parser_content_free(pgp_packet_t *);
-
-bool repgp_parse(pgp_stream_t *, const bool show_erros);
 
 #endif /* REPGP_H_ */
