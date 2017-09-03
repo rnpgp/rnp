@@ -1009,7 +1009,7 @@ pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
         return pgp_write_ptag(output, PGP_PTAG_CT_PK_SESSION_KEY) &&
                pgp_write_length(
                  output,
-                 (unsigned) (1 + 8 + 1 + BN_num_bytes(pksk->params.rsa.encrypted_m) + 2)) &&
+                 (unsigned) (1 + 8 + 1 + BN_num_bytes(pksk->params.sm2.encrypted_m) + 2)) &&
                pgp_write_scalar(output, (unsigned) pksk->version, 1) &&
                pgp_write(output, pksk->key_id, 8) &&
                pgp_write_scalar(output, (unsigned) pksk->alg, 1) &&
