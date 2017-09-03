@@ -45,7 +45,7 @@
 
 typedef struct pgp_packet_t pgp_packet_t;
 typedef struct pgp_stream_t pgp_stream_t;
-typedef void *              repgp_stream_t;
+typedef void *              repgp_handle_t;
 typedef void *              repgp_io_t;
 
 /* New interfaces */
@@ -63,24 +63,24 @@ typedef enum {
     REPGP_PARSE_IGNORE  /* Don't callback */
 } repgp_parse_type_t;
 
-repgp_stream_t create_filepath_stream(const char *filename, size_t filename_len);
+repgp_handle_t create_filepath_handle(const char *filename, size_t filename_len);
 
 // it will do realloc
-repgp_stream_t create_stdin_stream(void);
+repgp_handle_t create_stdin_handle(void);
 
-repgp_stream_t create_buffer_stream(const size_t buffer_size);
+repgp_handle_t create_buffer_handle(const size_t buffer_size);
 
-void repgp_destroy_stream(repgp_stream_t stream);
+void repgp_destroy_handle(repgp_handle_t handle);
 
 repgp_io_t repgp_create_io(void);
 void repgp_destroy_io(repgp_io_t io);
 
-void repgp_set_input(repgp_io_t io, /*const?*/ repgp_stream_t stream);
-void repgp_set_output(repgp_io_t io, /*const?*/ repgp_stream_t stream);
+void repgp_set_input(repgp_io_t io, repgp_handle_t handle);
+void repgp_set_output(repgp_io_t io, repgp_handle_t handle);
 
 rnp_result repgp_verify(const void *ctx, repgp_io_t io);
 rnp_result repgp_decrypt(const void *ctx, repgp_io_t io);
-rnp_result repgp_list_packets(const void *ctx, repgp_stream_t input);
+rnp_result repgp_list_packets(const void *ctx, repgp_handle_t input);
 rnp_result repgp_validate_pubkeys_signatures(const void *ctx);
 /**
  * @brief Specifies whether one or more signature subpacket types
