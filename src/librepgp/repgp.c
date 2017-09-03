@@ -21,27 +21,27 @@
 #include "reader.h"
 #include "validate.h"
 
-repgp_stream_t
-create_filepath_stream(const char *filename, size_t filename_len)
+repgp_handle_t
+create_filepath_handle(const char *filename, size_t filename_len)
 {
     if ((filename == NULL) || (filename_len == 0)) {
         return REPGP_HANDLE_NULL;
     }
 
-    struct repgp_stream *s = calloc(sizeof(struct repgp_stream), 1);
+    struct repgp_handle *s = calloc(sizeof(struct repgp_handle), 1);
     if (!s) {
         return REPGP_HANDLE_NULL;
     }
 
     s->filepath = strndup(filename, filename_len);
-    s->type = REPGP_STREAM_FILE;
+    s->type = REPGP_HANDLE_FILE;
     return s;
 }
 
-repgp_stream_t
-create_buffer_stream(const size_t buffer_size)
+repgp_handle_t
+create_buffer_handle(const size_t buffer_size)
 {
-    struct repgp_stream *s = calloc(sizeof(struct repgp_stream), 1);
+    struct repgp_handle *s = calloc(sizeof(struct repgp_handle), 1);
     if (!s) {
         return REPGP_HANDLE_NULL;
     }
@@ -52,12 +52,12 @@ create_buffer_stream(const size_t buffer_size)
     }
 
     s->buffer.size = buffer_size;
-    s->type = REPGP_STREAM_BUFFER;
+    s->type = REPGP_HANDLE_BUFFER;
     return s;
 }
 
 /* Reads into memory everything from stdin */
-repgp_stream_t create_stdin_stream(
+repgp_handle_t create_stdin_handle(
   void) // OZAPTF: rename this to something that means "I've read from stdin all stuff"
 {
     char     buf[BUFSIZ * 8];
@@ -65,7 +65,7 @@ repgp_stream_t create_stdin_stream(
     size_t   size = 0;
     size_t   n;
 
-    struct repgp_stream *s = calloc(sizeof(struct repgp_stream), 1);
+    struct repgp_handle *s = calloc(sizeof(struct repgp_handle), 1);
     if (!s) {
         return REPGP_HANDLE_NULL;
     }
@@ -89,25 +89,25 @@ repgp_stream_t create_stdin_stream(
         size += n;
     }
 
-    s->type = REPGP_STREAM_STD;
+    s->type = REPGP_HANDLE_STD;
     s->std.size = size;
     s->std.data = data;
     return s;
 }
 
 void
-repgp_destroy_stream(repgp_stream_t stream)
+repgp_destroy_handle(repgp_handle_t stream)
 {
-    struct repgp_stream *s = (struct repgp_stream *) stream;
+    struct repgp_handle *s = (struct repgp_handle *) stream;
 
     if (!s)
         return;
 
-    if (s->type == REPGP_STREAM_STD) {
+    if (s->type == REPGP_HANDLE_STD) {
         free(s->filepath);
-    } else if (s->type == REPGP_STREAM_FILE) {
+    } else if (s->type == REPGP_HANDLE_FILE) {
         free(s->filepath);
-    } else if (s->type == REPGP_STREAM_BUFFER) {
+    } else if (s->type == REPGP_HANDLE_BUFFER) {
         free(s->buffer.data);
     } else {
         /* Must never happen */
@@ -129,13 +129,13 @@ repgp_verify(const void *ctx, repgp_io_t io)
     if (rio->out) {
         /* Where should I output */
         switch (rio->out->type) {
-        case REPGP_STREAM_FILE:
+        case REPGP_HANDLE_FILE:
             output = rio->out->filepath;
             break;
-        case REPGP_STREAM_STD:
+        case REPGP_HANDLE_STD:
             output = rio->out->std.data;
             break;
-        case REPGP_STREAM_BUFFER:
+        case REPGP_HANDLE_BUFFER:
             output = rio->out->buffer.data;
             output_size = rio->out->buffer.size;
             break;
@@ -145,9 +145,9 @@ repgp_verify(const void *ctx, repgp_io_t io)
         }
     }
 
-    if (rio->in->type == REPGP_STREAM_FILE) {
+    if (rio->in->type == REPGP_HANDLE_FILE) {
         return rnp_verify_file((rnp_ctx_t *) ctx, rio->in->filepath, output);
-    } else if (rio->in->type == REPGP_STREAM_STD) {
+    } else if (rio->in->type == REPGP_HANDLE_STD) {
         return rnp_verify_memory(
           (rnp_ctx_t *) ctx, rio->in->std.data, rio->in->std.size, output, output_size);
     }
@@ -164,9 +164,9 @@ repgp_decrypt(const void *ctx, repgp_io_t io)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (rio->in->type == REPGP_STREAM_FILE) {
+    if (rio->in->type == REPGP_HANDLE_FILE) {
         return rnp_decrypt_file((void *) ctx, rio->in->filepath, rio->out->filepath);
-    } else if (rio->in->type == REPGP_STREAM_STD) {
+    } else if (rio->in->type == REPGP_HANDLE_STD) {
         return rnp_decrypt_memory((void *) ctx,
                                   rio->in->std.data,
                                   rio->in->std.size,
@@ -178,20 +178,22 @@ repgp_decrypt(const void *ctx, repgp_io_t io)
 }
 
 void
-repgp_set_input(repgp_io_t io, repgp_stream_t stream)
+repgp_set_input(repgp_io_t io, repgp_handle_t stream)
 {
     struct repgp_io *rio = (struct repgp_io *) io;
     if (rio) {
-        rio->in = stream;
+        repgp_destroy_handle(rio->in);
+        rio->in = (struct repgp_handle *) stream;
     }
 }
 
 void
-repgp_set_output(repgp_io_t io, repgp_stream_t stream)
+repgp_set_output(repgp_io_t io, repgp_handle_t stream)
 {
     struct repgp_io *rio = (struct repgp_io *) io;
     if (rio) {
-        rio->out = stream;
+        repgp_destroy_handle(rio->out);
+        rio->out = (struct repgp_handle *) stream;
     }
 }
 
@@ -210,8 +212,8 @@ repgp_destroy_io(repgp_io_t io)
 {
     struct repgp_io *rio = (struct repgp_io *) io;
     if (rio) {
-        repgp_destroy_stream(rio->in);
-        repgp_destroy_stream(rio->out);
+        repgp_destroy_handle(rio->in);
+        repgp_destroy_handle(rio->out);
     }
 }
 
@@ -223,15 +225,15 @@ cb_list_packets(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 }
 
 rnp_result
-repgp_list_packets(const void *ctx, const repgp_stream_t input)
+repgp_list_packets(const void *ctx, const repgp_handle_t input)
 {
     const rnp_ctx_t *rctx = (rnp_ctx_t *) ctx;
     if (!rctx || !rctx->rnp || (input == REPGP_HANDLE_NULL)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    const struct repgp_stream *i = (struct repgp_stream *) input;
-    if ((i == REPGP_HANDLE_NULL) || (i->type != REPGP_STREAM_FILE)) {
+    const struct repgp_handle *i = (struct repgp_handle *) input;
+    if ((i == REPGP_HANDLE_NULL) || (i->type != REPGP_HANDLE_FILE)) {
         // Currently only file input is supported
         return RNP_ERROR_BAD_PARAMETERS;
     }

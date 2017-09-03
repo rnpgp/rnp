@@ -253,8 +253,9 @@ typedef struct {
  *  - the size of the buffer, and how much has been used
  *
  *  It has a linked list of errors.
+ * TODO1: Shouldn't this be in some other place than crypto.h?
+ * TODO2: This structure constains too many things which are unrealated
  */
-// TODO: Shouldn't this be in some other place than crypto.h?
 struct pgp_stream_t {
     uint8_t ss_raw[NTAGS / 8];
     /* 1 bit / sig-subpkt type; set to get raw data */
