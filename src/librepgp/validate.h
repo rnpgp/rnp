@@ -127,4 +127,30 @@ bool pgp_validate_mem(pgp_io_t *,
 
 pgp_cb_ret_t validate_data_cb(const pgp_packet_t *, pgp_cbdata_t *);
 
+/**
+ * \ingroup HighLevel_Verify
+ * \brief Validate all signatures on a single key against the given keyring
+ * \param result Where to put the result
+ * \param key Key to validate
+ * \param keyring Keyring to use for validation
+ * \param cb_get_passphrase Callback to use to get passphrase
+ * \return 1 if all signatures OK; else 0
+ * \note It is the caller's responsiblity to free result after use.
+ * \sa pgp_validate_result_free()
+ */
+rnp_result pgp_validate_key_sigs(pgp_validation_t *     result,
+                                 const pgp_key_t *      key,
+                                 const rnp_key_store_t *keyring,
+                                 pgp_cb_ret_t           cb_get_passphrase(const pgp_packet_t *,
+                                                                pgp_cbdata_t *));
+
+/**
+ * \ingroup HighLevel_Verify
+ * \brief Indicicates whether any errors were found
+ * \param result Validation result to check
+ * \return 0 if any invalid signatures or unknown signers
+        or no valid signatures; else 1
+ */
+bool validate_result_status(const char *f, pgp_validation_t *val);
+
 #endif /* !VALIDATE_H_ */
