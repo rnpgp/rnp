@@ -135,6 +135,7 @@ typedef enum {
 #define PGP_PTAG_NF_CONTENT_TAG_SHIFT 0
 
 #define MDC_PKT_TAG 0xd3
+#define MDC_V1_SIZE 22
 
 enum {
     PGP_REVOCATION_NO_REASON = 0,

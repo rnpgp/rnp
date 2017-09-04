@@ -292,8 +292,7 @@ pgp_errcode_t init_mem_src(pgp_source_t *src, void *mem, size_t len)
 
 typedef struct pgp_processing_ctx_t {
     pgp_operation_handler_t handler;
-
-    pgp_source_t *cleartext;   /* literal data packet or cleartext to read from as it is detected */
+    DYNARRAY(pgp_source_t, src);  /* sources stack */
 } pgp_processing_ctx_t;
 
 typedef struct pgp_source_encrypted_param_t {
@@ -303,7 +302,9 @@ typedef struct pgp_source_encrypted_param_t {
     pgp_source_t *origsrc;              /* original source passed to init_encrypted_src */
     bool          has_mdc;              /* encrypted with mdc, i.e. tag 18 */
     bool          partial;              /* partial length packet */
+    bool          indeterminate;        /* indeterminate length packet */
     pgp_crypt_t   decrypt;              /* decrypting crypto */
+    pgp_hash_t    mdc;                  /* mdc SHA1 hash */
 } pgp_source_encrypted_param_t;
 
 typedef struct pgp_source_partial_param_t {
@@ -544,13 +545,63 @@ pgp_errcode_t init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
 ssize_t encrypted_src_read(pgp_source_t *src, void *buf, size_t len)
 {
     pgp_source_encrypted_param_t *param = src->param;
+    ssize_t                       read;
+    ssize_t                       mdcread;
+    ssize_t                       mdcsub;
+    bool                          parsemdc = false;
+    uint8_t                       mdcbuf[MDC_V1_SIZE];
+    uint8_t                       hash[PGP_SHA1_HASH_SIZE];
 
     if (param == NULL) {
         return -1;
-    } else {
-        // not implemented yet
-        return -1;
     }
+
+    read = src_read(param->readsrc, buf, len);
+    if (read == -1) {
+        return read;
+    }
+
+    if (param->has_mdc) {
+        /* make sure there are always 20 bytes left on input */
+        mdcread = src_peek(param->readsrc, mdcbuf, MDC_V1_SIZE);
+        if (mdcread < MDC_V1_SIZE) {
+            if ((mdcread < 0) || (mdcread + read < MDC_V1_SIZE)) {
+                (void) fprintf(stderr, "encrypted_src_read: wrong mdc read state\n");
+                return -1;
+            }
+
+            mdcsub = MDC_V1_SIZE - mdcread;
+            memmove(&mdcbuf[mdcsub], mdcbuf, mdcread);
+            memcpy(mdcbuf, (uint8_t*)buf + read - mdcsub, mdcsub);
+            read -= mdcsub;
+            parsemdc = true;
+        }
+    }
+
+    pgp_cipher_cfb_decrypt(&param->decrypt, buf, buf, read);
+
+    if (param->has_mdc) {
+        pgp_hash_add(&param->mdc, buf, read);
+
+        if (parsemdc) {
+            pgp_cipher_cfb_decrypt(&param->decrypt, mdcbuf, mdcbuf, MDC_V1_SIZE);
+            pgp_cipher_finish(&param->decrypt);
+            pgp_hash_add(&param->mdc, mdcbuf, 2);
+            pgp_hash_finish(&param->mdc, hash);
+
+            if ((mdcbuf[0] != MDC_PKT_TAG) || (mdcbuf[1] != MDC_V1_SIZE - 2)) {
+                (void) fprintf(stderr, "encrypted_src_read: mdc header check failed\n");
+                return -1;
+            }
+
+            if (memcmp(&mdcbuf[2], hash, PGP_SHA1_HASH_SIZE) != 0) {
+                (void) fprintf(stderr, "encrypted_src_read: mdc hash check failed\n");
+                return -1;
+            }
+        }
+    }
+
+    return read;
 }
 
 void encrypted_src_close(pgp_source_t *src)
@@ -679,7 +730,6 @@ static int encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
     pgp_symm_alg_t                alg;
     uint8_t                       keybuf[PGP_MAX_KEY_SIZE + 1];
     uint8_t                       enchdr[PGP_MAX_BLOCK_SIZE + 2];
-    uint8_t                       dechdr[PGP_MAX_BLOCK_SIZE + 2];
     int                           keysize;
     int                           blsize;
     bool                          keyavail = false;
@@ -747,11 +797,22 @@ static int encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
         if (!pgp_cipher_start(&crypt, alg, keybuf, NULL)) {
             continue;
         }
-        pgp_cipher_cfb_decrypt(&crypt, dechdr, enchdr, blsize + 2);
-        if ((dechdr[blsize] == dechdr[blsize - 2]) && (dechdr[blsize + 1] == dechdr[blsize - 1])) {
+        pgp_cipher_cfb_decrypt(&crypt, enchdr, enchdr, blsize + 2);
+        if ((enchdr[blsize] == enchdr[blsize - 2]) && (enchdr[blsize + 1] == enchdr[blsize - 1])) {
             src_skip(param->readsrc, blsize + 2);
-            pgp_cipher_cfb_resync_v2(&crypt);
             param->decrypt = crypt;
+            /* init mdc if it is here */
+            /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB resynchronization is done after encrypting this prefix data. */
+            if (!param->has_mdc) {
+                pgp_cipher_cfb_resync_v2(&crypt);
+            } else {
+                if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
+                    (void) fprintf(stderr, "encrypted_check_passphrase: cannot create sha1 hash\n");
+                    return -1;
+                }
+                pgp_hash_add(&param->mdc, enchdr, blsize + 2);
+            }
+
             return 1;
         } else {
             pgp_cipher_finish(&crypt);
@@ -767,7 +828,17 @@ static int encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
     }
 }
 
-pgp_errcode_t init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
+static pgp_errcode_t init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static pgp_errcode_t init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static pgp_errcode_t init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
 {
     bool                          sk_read = false;
     pgp_errcode_t                 errcode;
@@ -816,8 +887,7 @@ pgp_errcode_t init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, p
             if (errcode != RNP_SUCCESS) {
                 goto finish;
             }
-
-            EXPAND_ARRAY(param, symenc);
+            EXPAND_ARRAY_EX(param, symenc, 1);
             param->symencs[param->symencc++] = skey;
         } else if (ptype == PGP_PTAG_CT_PK_SESSION_KEY) {
             errcode = stream_parse_pk_sesskey(readsrc, &pkey);
@@ -835,9 +905,8 @@ pgp_errcode_t init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, p
     }
 
     param->origsrc = NULL;
-
+    // initialize partial reader if needed
     if (stream_partial_pkt_len(readsrc)) {
-        // initialize partial reader
         if ((partsrc = calloc(1, sizeof(*partsrc))) == NULL) {
             errcode = RNP_ERROR_OUT_OF_MEMORY;
             goto finish;
@@ -852,6 +921,7 @@ pgp_errcode_t init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, p
         param->origsrc = readsrc;
         param->readsrc = partsrc;
     } else if (stream_intedeterminate_pkt_len(readsrc)) {
+        param->indeterminate = true;
         (void) src_skip(readsrc, 1);
     } else {
         if ((src->size = stream_read_pkt_len(readsrc)) < 0) {
@@ -901,11 +971,7 @@ pgp_errcode_t init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, p
         } while (1);
     } else {
         errcode = RNP_ERROR_NOT_SUPPORTED;
-        goto finish;
     }
-
-    errcode = RNP_ERROR_NOT_IMPLEMENTED;
-    // Initializing encryption
 
     finish:
     if (errcode != RNP_SUCCESS) {
@@ -916,7 +982,8 @@ pgp_errcode_t init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, p
     return  errcode;
 }
 
-/** @brief parse first packet in PGP sequence and decide which content type it is
+/** @brief build PGP source sequence down to the literal data packet
+ *  
  **/
 static pgp_errcode_t init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
 {
@@ -924,41 +991,57 @@ static pgp_errcode_t init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_
     ssize_t       read;
     int           type;
     pgp_source_t  psrc;
+    pgp_source_t *lsrc = src;
     pgp_errcode_t ret;
+    bool          litfound = false;
 
-    read = src_peek(src, &ptag, 1);
-    if (read < 1) {
-        (void) fprintf(stderr, "process_packet_sequence: cannot read packet tag\n");
-        return RNP_ERROR_READ;
-    }
+    while (!litfound) {
+        read = src_peek(lsrc, &ptag, 1);
+        if (read < 1) {
+            (void) fprintf(stderr, "process_packet_sequence: cannot read packet tag\n");
+            return RNP_ERROR_READ;
+        }
 
-    type = stream_packet_type(ptag);
-    if (type < 0) {
-        (void) fprintf(stderr, "process_packet_sequence: wrong packet tag %d\n", (int)ptag);
-        return RNP_ERROR_BAD_FORMAT;
-    }
+        type = stream_packet_type(ptag);
+        if (type < 0) {
+            (void) fprintf(stderr, "process_packet_sequence: wrong packet tag %d\n", (int)ptag);
+            return RNP_ERROR_BAD_FORMAT;
+        }
 
-    if ((type == PGP_PTAG_CT_PK_SESSION_KEY) || (type == PGP_PTAG_CT_SK_SESSION_KEY)) {
-        ret = init_encrypted_src(ctx, &psrc, src);
+        if ((type == PGP_PTAG_CT_PK_SESSION_KEY) || (type == PGP_PTAG_CT_SK_SESSION_KEY)) {
+            ret = init_encrypted_src(ctx, &psrc, lsrc);
+        } else if (type == PGP_PTAG_CT_1_PASS_SIG) {
+            (void) fprintf(stderr, "process_packet_sequence: signed data processing is not implemented yet\n");
+            ret = RNP_ERROR_NOT_IMPLEMENTED;
+        } else if (type == PGP_PTAG_CT_COMPRESSED) {
+            if ((lsrc->type != PGP_SOURCE_ENCRYPTED) && (lsrc->type != PGP_SOURCE_SIGNED)) {
+                (void) fprintf(stderr, "process_packet_sequence: invalid sequence: unexpected compressed packet\n");
+                ret = RNP_ERROR_BAD_FORMAT;
+            } else {
+                ret = init_compressed_src(ctx, &psrc, lsrc);
+            }
+        } else if (type == PGP_PTAG_CT_LITDATA) {
+            if ((lsrc->type != PGP_SOURCE_ENCRYPTED) && (lsrc->type != PGP_SOURCE_SIGNED) && (lsrc->type != PGP_SOURCE_COMPRESSED)) {
+                (void) fprintf(stderr, "process_packet_sequence: invalid sequence: unexpected literal packet\n");
+                ret = RNP_ERROR_BAD_FORMAT;
+            } else {
+                ret = init_literal_src(ctx, &psrc, lsrc);
+            }
+        } else {
+            (void) fprintf(stderr, "process_packet_sequence: unexpected packet type %d\n", type);
+            ret = RNP_ERROR_BAD_FORMAT;
+        }
+
         if (ret != RNP_SUCCESS) {
             return ret;
         }
-    } else if (type == PGP_PTAG_CT_1_PASS_SIG) {
-        (void) fprintf(stderr, "process_packet_sequence: signed data processing is not implemented yet\n");
-        return RNP_ERROR_NOT_IMPLEMENTED;
-    } else if (type == PGP_PTAG_CT_COMPRESSED) {
-        if ((src->type != PGP_SOURCE_ENCRYPTED) && (src->type != PGP_SOURCE_SIGNED)) {
-            (void) fprintf(stderr, "process_packet_sequence: invalid sequence: unexpected compressed packet\n");
-            return RNP_ERROR_BAD_FORMAT;
+
+        EXPAND_ARRAY_EX(ctx, src, 1);
+        ctx->srcs[ctx->srcc++] = psrc;
+        lsrc = &(ctx->srcs[ctx->srcc - 1]);
+        if (lsrc->type == PGP_SOURCE_LITERAL) {
+            litfound = true;
         }
-    } else if (type == PGP_PTAG_CT_LITDATA) {
-        if ((src->type != PGP_SOURCE_ENCRYPTED) && (src->type != PGP_SOURCE_SIGNED) && (src->type != PGP_SOURCE_COMPRESSED)) {
-            (void) fprintf(stderr, "process_packet_sequence: invalid sequence: unexpected literal packet\n");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-    } else {
-        (void) fprintf(stderr, "process_packet_sequence: unexpected packet type %d\n", type);
-        return RNP_ERROR_BAD_FORMAT;
     }
 
     return RNP_SUCCESS;
@@ -966,26 +1049,30 @@ static pgp_errcode_t init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_
 
 pgp_errcode_t process_pgp_source(pgp_operation_handler_t *handler, pgp_source_t *src)
 {
-    static const char armor_start[] = "-----BEGIN PGP";
-    uint8_t              buf[128];
-    ssize_t              read;
-    pgp_errcode_t        res;
-    pgp_processing_ctx_t ctx;
+    static const char     armor_start[] = "-----BEGIN PGP";
+    uint8_t               buf[128];
+    ssize_t               read;
+    pgp_errcode_t         res;
+    pgp_processing_ctx_t *ctx;
 
-    ctx.handler = *handler;
-    ctx.cleartext = NULL;
+    if ((ctx = calloc(1, sizeof(*ctx))) == NULL) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    ctx->handler = *handler;
 
     read = src_peek(src, buf, sizeof(buf));
     if (read < 2) {
         (void) fprintf(stderr, "process_pgp_source: can't read enough data from source\n");
-        return RNP_ERROR_READ;
+        res = RNP_ERROR_READ;
+        goto finish;
     }
 
     // Checking whether it is binary data
     if (buf[0] & PGP_PTAG_ALWAYS_SET) {
-        res = init_packet_sequence(&ctx, src);
+        res = init_packet_sequence(ctx, src);
         if (res != RNP_SUCCESS) {
-            return res;
+            goto finish;
         }
     } else {
         // Trying armored data
@@ -993,14 +1080,18 @@ pgp_errcode_t process_pgp_source(pgp_operation_handler_t *handler, pgp_source_t 
         if (strstr((char*)buf, armor_start) != NULL) {
             // TODO: push cleartext source or dearmoring source and call process_packet_sequence 
             (void) fprintf(stderr, "process_pgp_source: armored input is not supported yet\n");
-            return RNP_ERROR_NOT_IMPLEMENTED;
+            res = RNP_ERROR_NOT_IMPLEMENTED;
+            goto finish;
         } else {
             (void) fprintf(stderr, "process_pgp_source: not an OpenPGP data provided\n");
-            return RNP_ERROR_BAD_FORMAT;
+            res = RNP_ERROR_BAD_FORMAT;
+            goto finish;
         }
     }
 
-    // Processing data
+    res = RNP_ERROR_NOT_IMPLEMENTED;
 
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    finish:
+    free(ctx);
+    return res;
 }
