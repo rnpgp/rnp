@@ -40,7 +40,7 @@
 #include <rnp/rnp.h>             // for rnp_t, rnp_ctx_t et. all
 #include <rekey/rnp_key_store.h> // for keystore stuff
 
-#define RING "/home/flowher/.rnp/"
+#define RING "keyring"
 
 static bool
 configure_rnp(rnp_t *rnp)
@@ -86,8 +86,8 @@ verification()
     rnp_ctx_init(&ctx, &rnp);
 
     repgp_io_t io = repgp_create_io();
-    repgp_set_input(io, create_filepath_handle("data/signed", 11));
-    repgp_set_output(io, create_filepath_handle("/tmp/signed_out", 15));
+    repgp_set_input(io, create_filepath_handle("signed.gpg", 11));
+    repgp_set_output(io, create_filepath_handle("signed_out", 15));
     printf("RES = %d\n", repgp_verify(&ctx, io) == RNP_SUCCESS);
 
 end:
@@ -116,7 +116,7 @@ decryption()
     uint8_t in_buf[4096] = {0};
     size_t  in_buf_size = sizeof(in_buf);
 
-    FILE *f = fopen("data/encrypted.gpg", "rb");
+    FILE *f = fopen("encrypted.gpg", "rb");
     in_buf_size = fread(in_buf, 1, in_buf_size, f);
     fclose(f);
 
@@ -153,7 +153,7 @@ list()
     }
 
     rnp_ctx_init(&ctx, &rnp);
-    repgp_handle_t handle = create_filepath_handle("data/encrypted.gpg", 18);
+    repgp_handle_t handle = create_filepath_handle("encrypted.gpg", 18);
     printf("RES = %d\n", repgp_list_packets(&ctx, handle) == RNP_SUCCESS);
 
 end:
@@ -189,8 +189,8 @@ end:
 int
 main()
 {
-    // verification();
+    verification();
     decryption();
-    // list();
-    // validate_pubkeys();
+    list();
+    validate_pubkeys();
 }
