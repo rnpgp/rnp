@@ -193,6 +193,7 @@ pgp_cipher_finish(pgp_crypt_t *crypt)
     return 0;
 }
 
+/* we rely on fact that in and out could be the same */
 int
 pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
 {
@@ -216,6 +217,7 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     return 0;
 }
 
+/* we rely on fact that in and out could be the same */
 int
 pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
 {
