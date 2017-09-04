@@ -105,8 +105,8 @@ create_data_handle(const uint8_t *data, size_t data_len)
 }
 
 /* Reads into memory everything from stdin */
-repgp_handle_t create_stdin_handle(
-  void) // OZAPTF: rename this to something that means "I've read from stdin all stuff"
+repgp_handle_t
+create_stdin_handle(void)
 {
     char     buf[BUFSIZ * 8];
     uint8_t *data = NULL;
@@ -124,8 +124,7 @@ repgp_handle_t create_stdin_handle(
      */
     while ((n = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
         /* round up the allocation */
-        size_t newsize = size + ((n / BUFSIZ) + 1) * BUFSIZ;
-        // OZAPTF: Check it
+        size_t   newsize = size + ((n / BUFSIZ) + 1) * BUFSIZ;
         uint8_t *loc = realloc(data, newsize);
         if (loc == NULL) {
             RNP_LOG("Short read");
