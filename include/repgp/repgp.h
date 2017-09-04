@@ -60,13 +60,12 @@ typedef enum {
 /*
  * @brief   Creates handle to be used with file input
  *
- * @param   filename string with full path to the file
- * @param   filename_len length of the `filename' string
+ * @param   filename NULL-terminated string with full path to the file
  *
  * @return  Initialized handle on success or REPGP_HANDLE_NULL
  *          if input parameters are invalid.
  */
-repgp_handle_t create_filepath_handle(const char *filename, size_t filename_len);
+repgp_handle_t create_filepath_handle(const char *filename);
 
 /*
  * @brief   Creates handle to data read from stdin.

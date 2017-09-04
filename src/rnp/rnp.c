@@ -389,8 +389,8 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     case CMD_DECRYPT: {
         if (f) {
             const char *out = rnp_cfg_get(cfg, CFG_OUTFILE);
-            repgp_set_input(io, create_filepath_handle(f, strlen(f)));
-            repgp_set_output(io, create_filepath_handle(out, strlen(out)));
+            repgp_set_input(io, create_filepath_handle(f));
+            repgp_set_output(io, create_filepath_handle(out));
         } else {
             repgp_set_input(io, create_stdin_handle());
             repgp_set_output(io,
@@ -405,20 +405,19 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
             os = create_buffer_handle((size_t) rnp_cfg_getint(cfg, CFG_MAXALLOC));
         } else {
             outf = rnp_cfg_get(cfg, CFG_OUTFILE);
-            os = (outf) ? create_filepath_handle(outf, strlen(outf)) :
-                          create_filepath_handle(stdout_marker, strlen(stdout_marker));
+            os = (outf) ? create_filepath_handle(outf) : create_filepath_handle(stdout_marker);
         }
         repgp_set_output(io, os);
     }
     /* FALLTHROUGH */
     case CMD_VERIFY: {
-        repgp_handle_t is = (f) ? create_filepath_handle(f, strlen(f)) : create_stdin_handle();
+        repgp_handle_t is = (f) ? create_filepath_handle(f) : create_stdin_handle();
         repgp_set_input(io, is);
         ret = (RNP_SUCCESS == repgp_verify(&ctx, io));
         break;
     }
     case CMD_LIST_PACKETS: {
-        repgp_handle_t input = create_filepath_handle(f, strlen(f));
+        repgp_handle_t input = create_filepath_handle(f);
         if (input == REPGP_HANDLE_NULL) {
             RNP_LOG("%s: No filename provided", __progname);
             ret = false;
