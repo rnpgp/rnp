@@ -1157,7 +1157,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
 
 done:
     if (!ok) {
-        PGP_ERROR_1(&output->errors, PGP_E_W, "%s", "Failed to sign file");
+        RNP_LOG("Failed to sign file");
     }
     pgp_create_sig_delete(sig);
     pgp_memory_free(infile);
