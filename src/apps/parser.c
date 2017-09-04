@@ -86,8 +86,9 @@ verification()
     rnp_ctx_init(&ctx, &rnp);
 
     repgp_io_t io = repgp_create_io();
-    repgp_set_input(io, create_filepath_handle("signed.gpg", 11));
-    repgp_set_output(io, create_filepath_handle("signed_out", 15));
+
+    repgp_set_input(io, create_filepath_handle("signed.gpg"));
+    repgp_set_output(io, create_filepath_handle("signed_out"));
     printf("RES = %d\n", repgp_verify(&ctx, io) == RNP_SUCCESS);
 
 end:
@@ -153,7 +154,7 @@ list()
     }
 
     rnp_ctx_init(&ctx, &rnp);
-    repgp_handle_t handle = create_filepath_handle("encrypted.gpg", 18);
+    repgp_handle_t handle = create_filepath_handle("encrypted.gpg");
     printf("RES = %d\n", repgp_list_packets(&ctx, handle) == RNP_SUCCESS);
 
 end:

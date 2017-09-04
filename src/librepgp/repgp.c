@@ -51,9 +51,9 @@
 #include "validate.h"
 
 repgp_handle_t
-create_filepath_handle(const char *filename, size_t filename_len)
+create_filepath_handle(const char *filename)
 {
-    if ((filename == NULL) || (filename_len == 0)) {
+    if (filename == NULL) {
         return REPGP_HANDLE_NULL;
     }
 
@@ -62,7 +62,7 @@ create_filepath_handle(const char *filename, size_t filename_len)
         return REPGP_HANDLE_NULL;
     }
 
-    s->filepath = strndup(filename, filename_len);
+    s->filepath = strndup(filename, strlen(filename));
     s->type = REPGP_HANDLE_FILE;
     return s;
 }
