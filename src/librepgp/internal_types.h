@@ -3,9 +3,6 @@ typedef enum {
     /* Operates on standard input/output */
     REPGP_HANDLE_FILE,
 
-    /* Stores filepath to file */
-    REPGP_HANDLE_STD,
-
     /* Operates on memory buffer */
     REPGP_HANDLE_BUFFER
 
@@ -18,12 +15,11 @@ struct repgp_handle {
         /* Used by REPGP_HANDLE_FILE */
         char *filepath;
 
-        /* Used by REPGP_HANDLE_STD
-         * or REPGP_HANDLE_BUFFER */
+        /* Used by REPGP_HANDLE_BUFFER */
         struct {
             unsigned char *data;
             size_t         size;
-        } std, buffer;
+        } buffer;
     };
 };
 

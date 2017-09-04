@@ -67,6 +67,12 @@ repgp_handle_t create_filepath_handle(const char *filename, size_t filename_len)
 // it will do realloc
 repgp_handle_t create_stdin_handle(void);
 repgp_handle_t create_buffer_handle(const size_t buffer_size);
+repgp_handle_t create_data_handle(const uint8_t *data, size_t data_len);
+
+rnp_result repgp_copy_buffer_from_handle(uint8_t *            out,
+                                         size_t *             out_size,
+                                         const repgp_handle_t handle);
+
 void repgp_destroy_handle(repgp_handle_t handle);
 
 repgp_io_t repgp_create_io(void);

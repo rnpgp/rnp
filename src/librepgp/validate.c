@@ -889,7 +889,7 @@ validate_result_status(const char *f, pgp_validation_t *val)
     return val->validc && !val->invalidc && !val->unknownc;
 }
 
-rnp_result
+bool
 pgp_validate_key_sigs(pgp_validation_t *     result,
                       const pgp_key_t *      key,
                       const rnp_key_store_t *keyring,
@@ -897,7 +897,6 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
 {
     pgp_stream_t *    stream;
     validate_key_cb_t keysigs;
-    const bool        printerrors = true;
 
     (void) memset(&keysigs, 0x0, sizeof(keysigs));
     keysigs.result = result;
@@ -918,7 +917,7 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
     /* is never used. */
     keysigs.reader = stream->readinfo.arg;
 
-    repgp_parse(stream, !printerrors);
+    repgp_parse(stream, true);
 
     pgp_pubkey_free(&keysigs.pubkey);
     if (keysigs.subkey.version) {

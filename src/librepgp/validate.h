@@ -138,11 +138,11 @@ pgp_cb_ret_t validate_data_cb(const pgp_packet_t *, pgp_cbdata_t *);
  * \note It is the caller's responsiblity to free result after use.
  * \sa pgp_validate_result_free()
  */
-rnp_result pgp_validate_key_sigs(pgp_validation_t *     result,
-                                 const pgp_key_t *      key,
-                                 const rnp_key_store_t *keyring,
-                                 pgp_cb_ret_t           cb_get_passphrase(const pgp_packet_t *,
-                                                                pgp_cbdata_t *));
+bool pgp_validate_key_sigs(pgp_validation_t *     result,
+                           const pgp_key_t *      key,
+                           const rnp_key_store_t *keyring,
+                           pgp_cb_ret_t           cb_get_passphrase(const pgp_packet_t *,
+                                                          pgp_cbdata_t *));
 
 /**
  * \ingroup HighLevel_Verify
