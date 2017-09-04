@@ -903,6 +903,9 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
     keysigs.getpassphrase = cb_get_passphrase;
 
     stream = pgp_new(sizeof(*stream));
+    if (stream == NULL) {
+        return false;
+    }
     /* pgp_parse_options(&opt,PGP_PTAG_CT_SIGNATURE,PGP_PARSE_PARSED); */
 
     keysigs.keyring = keyring;
