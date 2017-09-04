@@ -1,14 +1,9 @@
-#ifndef REPGP_H_
-#define REPGP_H_
-
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
+ * This code is originally derived from software contributed by
+ * Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,6 +27,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef REPGP_H_
+#define REPGP_H_
+
 /** \file
  * Parser for OpenPGP packets - headers.
  */
@@ -43,17 +41,13 @@
 
 #include "repgp_def.h"
 
-typedef struct pgp_packet_t pgp_packet_t;
-typedef struct pgp_stream_t pgp_stream_t;
-typedef void *              repgp_handle_t;
-typedef void *              repgp_io_t;
-
-/* New interfaces */
-
 #define REPGP_HANDLE_NULL ((void *) 0)
 
-// OZAPTF
-typedef uint32_t rnp_result;
+typedef struct pgp_packet_t  pgp_packet_t;
+typedef struct pgp_stream_t  pgp_stream_t;
+typedef struct repgp_handle *repgp_handle_t;
+typedef struct repgp_io *    repgp_io_t;
+typedef uint32_t             rnp_result;
 
 /** Used to specify whether subpackets should be returned raw, parsed
  * or ignored.  */
@@ -63,43 +57,169 @@ typedef enum {
     REPGP_PARSE_IGNORE  /* Don't callback */
 } repgp_parse_type_t;
 
+/*
+ * @brief   Creates handle to be used with file input
+ *
+ * @param   filename string with full path to the file
+ * @param   filename_len length of the `filename' string
+ *
+ * @return  Initialized handle on success or REPGP_HANDLE_NULL
+ *          if input parameters are invalid.
+ */
 repgp_handle_t create_filepath_handle(const char *filename, size_t filename_len);
-// it will do realloc
+
+/*
+ * @brief   Creates handle to data read from stdin.
+ *          Currently internally this function reads
+ *          all the data from standard input and coppies
+ *          it to internal buffer.
+ *
+ * @return  Initialized handle on success or REPGP_HANDLE_NULL
+ *          if input parameters are invalid.
+ */
 repgp_handle_t create_stdin_handle(void);
+
+/*
+ * @brief   Creates handle to data kept in the buffer
+ *          memory. Function allocates buffer internally
+ *
+ * @param   buffer_size size of the buffer to allocate
+ *
+ * @return  Initialized handle on success or REPGP_HANDLE_NULL
+ *          if input parameters are invalid.
+ */
 repgp_handle_t create_buffer_handle(const size_t buffer_size);
+
+/*
+ * @brief   Creates handle to data kept in the buffer
+ *          memory. Function internally allocates buffer
+ *          internally and copies data provided by the caller
+ *          to the internal buffer.
+ *
+ * @param   data data provided by the caller
+ * @param   data_len length of the data
+ *
+ * @return  Initialized handle on success or REPGP_HANDLE_NULL
+ *          if input parameters are invalid.
+ */
 repgp_handle_t create_data_handle(const uint8_t *data, size_t data_len);
 
+/*
+ * @brief   Destroys previously allocated buffer. Can be safely
+ *          called with RNP_HANDLER_NULL (in which case function
+ *          simply returns).
+ */
+void repgp_destroy_handle(repgp_handle_t handle);
+
+/*
+ * @brief   Copies data from internal buffer into buffer
+ *          provided by the caller
+ *
+ * @param   out [out] destination buffer
+ * @param   out_size [in/out]
+ *            - on input size of the out buffer
+ *            - on output amount of data coppied into `out' buffer
+ *
+ * @return  RNP_SUCCESS
+ *          RNP_ERROR_BAD_PARAMETERS wrong input parameters
+ *          RNP_ERROR_SHORT_BUFFER out buffer to short. `out_size'
+ *          will be assigned minimal required value
+ *
+ */
 rnp_result repgp_copy_buffer_from_handle(uint8_t *            out,
                                          size_t *             out_size,
                                          const repgp_handle_t handle);
 
-void repgp_destroy_handle(repgp_handle_t handle);
-
+/*
+ * @brief   Creates opaque repgp_io_t object
+ *
+ * @returns Initialized repgp_io_t object or REPGP_HANDLE_NULL on
+ *          error.
+ */
 repgp_io_t repgp_create_io(void);
+
+/*
+ * @brief   Sets input handler. If another handler was already
+ *          set, it gets destroyed in order to make sure no
+ *          memory leak is introduced.
+ *          Function can be called with handle set to REPGP_HANDLE_NULL
+ *
+ * @param   io input/output object on which input handler will be set
+ * @param   handle handle object to be set
+ */
 void repgp_set_input(repgp_io_t io, repgp_handle_t handle);
+
+/*
+ * @brief   Sets output handler. If another handler was already
+ *          set, it gets destroyed in order to make sure no
+ *          memory leak is introduced.
+ *          Function can be called with handle set to REPGP_HANDLE_NULL
+ *
+ * @param   io input/output object on which input handler will be set
+ * @param   handle handle object to be set
+ */
 void repgp_set_output(repgp_io_t io, repgp_handle_t handle);
+
+/*
+ * @brief   Destroys `repgp_io_t' object
+ */
 void repgp_destroy_io(repgp_io_t io);
 
+/**
+ * @brief   Performs PGP signature verification
+ *
+ * @param   ctx Initialized context
+ * @param   io input/output object. If output handle is set then
+ *          then signature data is removed from input and is then
+ *          written to the output handle.
+ *
+ * @pre     Input handles must be correctly set
+ *
+ * @returns RNP_SUCCESS signature is valid
+ *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
+ *          RNP_ERROR_SIGNATURE_INVALID Signature is invalid
+ */
 rnp_result repgp_verify(const void *ctx, repgp_io_t io);
-rnp_result repgp_decrypt(const void *ctx, repgp_io_t io);
-rnp_result repgp_list_packets(const void *ctx, repgp_handle_t input);
-rnp_result repgp_validate_pubkeys_signatures(const void *ctx);
 
 /**
- * @brief Specifies whether one or more signature subpacket types
- *        should be returned parsed; or raw; or ignored.
+ * @brief   Performs PGP decryption
  *
- * @param    stream   Pointer to previously allocated structure
- * @param    tag      Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one individual
- *                    signature subpacket tag
- * @param    type     Parse type
+ * @param   ctx Initialized context
+ * @param   io input/output object. Currently input and output
+ *          must either read/write to file or of memory, but
+ *          it can't be mixed (i.e. reading from file and outputing
+ *          to memory).
  *
- * @todo Make all packet types optional, not just subpackets
+ * @pre     Both, input and output, handles must be correctly set
+ *
+ * @returns RNP_SUCCESS operation successful
+ *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
+ *          RNP_ERROR_GENERIC Decryption could not be correctly performed
  */
-void repgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, repgp_parse_type_t type);
+rnp_result repgp_decrypt(const void *ctx, repgp_io_t io);
 
-bool repgp_parse(pgp_stream_t *, const bool show_erros);
+/**
+ * @brief   Lists all the packets from the input. Packets are printed
+ *          to standard output.
+ *
+ * @param   ctx Initialized context
+ * @param   input Input handle
+ *
+ * @returns RNP_SUCCESS operation successful
+ *          RNP_ERROR_GENERIC Implementation error
+ *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
+ */
+rnp_result repgp_list_packets(const void *ctx, repgp_handle_t input);
 
-void repgp_parser_content_free(pgp_packet_t *);
+/**
+ * @brief   Validate all signatures on a single key against the given keyring
+ *
+ * @param   ctx Context initialized with key ring
+ *
+ * @returns RNP_SUCCESS all signatures valid
+ *          RNP_ERROR_GENERIC at least one signature is invalid
+ *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
+ */
+rnp_result repgp_validate_pubkeys_signatures(const void *ctx);
 
 #endif /* REPGP_H_ */
