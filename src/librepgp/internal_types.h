@@ -28,6 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* Enumerates types of handles */
 typedef enum {
     /* Operates on standard input/output */
     REPGP_HANDLE_FILE,
@@ -37,6 +38,7 @@ typedef enum {
 
 } repgp_handle_type_t;
 
+/* Data handle */
 struct repgp_handle {
     repgp_handle_type_t type;
 
@@ -52,6 +54,7 @@ struct repgp_handle {
     };
 };
 
+/* Defines input/output object */
 struct repgp_io {
     struct repgp_handle *in;
     struct repgp_handle *out;
