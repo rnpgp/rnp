@@ -1,3 +1,32 @@
+/*
+ * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * All rights reserved.
+ *
+ * This code is originally derived from software contributed by
+ * Ribose Inc (https://www.ribose.com).
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -176,7 +205,7 @@ repgp_verify(const void *ctx, repgp_io_t io)
             output_size = rio->out->buffer.size;
             break;
         default:
-            RNP_LOG("Unsupported output stream");
+            RNP_LOG("Unsupported output handle");
             return RNP_ERROR_BAD_PARAMETERS;
         }
     }
@@ -189,7 +218,7 @@ repgp_verify(const void *ctx, repgp_io_t io)
         return i ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
     }
 
-    RNP_LOG("Unsupported input stream");
+    RNP_LOG("Unsupported input handle");
     return RNP_ERROR_BAD_PARAMETERS;
 }
 
@@ -243,6 +272,10 @@ repgp_io_t
 repgp_create_io(void)
 {
     struct repgp_io *io = malloc(sizeof(struct repgp_io));
+    if (io == NULL) {
+        return REPGP_HANDLE_NULL;
+    }
+
     io->in = REPGP_HANDLE_NULL;
     io->out = REPGP_HANDLE_NULL;
 
@@ -277,7 +310,7 @@ repgp_list_packets(const void *ctx, const repgp_handle_t input)
 
     const struct repgp_handle *i = (struct repgp_handle *) input;
     if ((i == REPGP_HANDLE_NULL) || (i->type != REPGP_HANDLE_FILE)) {
-        // Currently only file input is supported
+        RNP_LOG("Incorrectly initialized input handle");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -313,25 +346,6 @@ repgp_list_packets(const void *ctx, const repgp_handle_t input)
     return RNP_SUCCESS;
 }
 
-/**
- * \ingroup HighLevel_Verify
- * \brief Validate all signatures on a single key against the given keyring
- * \param result Where to put the result
- * \param key Key to validate
- * \param keyring Keyring to use for validation
- * \param cb_get_passphrase Callback to use to get passphrase
- * \return 1 if all signatures OK; else 0
- * \note It is the caller's responsiblity to free result after use.
- * \sa pgp_validate_result_free()
- */
-/**
-   \ingroup HighLevel_Verify
-   \param result Where to put the result
-   \param ring Keyring to use
-   \param cb_get_passphrase Callback to use to get passphrase
-   \note It is the caller's responsibility to free result after use.
-   \sa pgp_validate_result_free()
-*/
 rnp_result
 repgp_validate_pubkeys_signatures(const void *ctx)
 {

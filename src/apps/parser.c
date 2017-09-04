@@ -40,7 +40,7 @@
 #include <rnp/rnp.h>             // for rnp_t, rnp_ctx_t et. all
 #include <rekey/rnp_key_store.h> // for keystore stuff
 
-#define RING "$HOME/.rnp/"
+#define RING "/home/flowher/.rnp/"
 
 static bool
 configure_rnp(rnp_t *rnp)
@@ -124,12 +124,13 @@ decryption()
     repgp_set_input(io, create_data_handle(in_buf, in_buf_size));
     repgp_handle_t out_buf_handle = create_buffer_handle(4096);
     repgp_set_output(io, out_buf_handle);
-
     printf("RES = %d\n", repgp_decrypt(&ctx, io) == RNP_SUCCESS);
 
     if (repgp_copy_buffer_from_handle(out_buf, &out_buf_size, out_buf_handle) != RNP_SUCCESS) {
         assert(false);
     }
+
+    out_buf[sizeof(out_buf) - 1] = '\0';
     printf("%s\n", out_buf);
 
 end:
@@ -188,8 +189,8 @@ end:
 int
 main()
 {
-    verification();
+    // verification();
     decryption();
-    list();
-    validate_pubkeys();
+    // list();
+    // validate_pubkeys();
 }
