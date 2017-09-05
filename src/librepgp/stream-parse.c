@@ -340,6 +340,9 @@ typedef struct pgp_source_compressed_param_t {
 
 typedef struct pgp_source_literal_param_t {
     pgp_source_packet_param_t pkt;      /* underlying packet-related params */
+    bool text;                          /* data is text */
+    char filename[256];
+    uint32_t timestamp;
 } pgp_source_literal_param_t;
 
 typedef struct pgp_source_partial_param_t {
@@ -573,7 +576,12 @@ pgp_errcode_t init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
 
 ssize_t literal_src_read(pgp_source_t *src, void *buf, size_t len)
 {
-    return -1;
+    pgp_source_literal_param_t *param = src->param;
+    if (!param) {
+        return -1;
+    }
+
+    return src_read(param->pkt.readsrc, buf, len);
 }
 
 void literal_src_close(pgp_source_t *src)
@@ -1037,8 +1045,9 @@ static pgp_errcode_t init_packet_params(pgp_source_t *src, pgp_source_packet_par
 
 static pgp_errcode_t init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
 {
-    pgp_errcode_t               errcode;
+    pgp_errcode_t               errcode = RNP_SUCCESS;
     pgp_source_literal_param_t *param;
+    uint8_t                     bt;
 
     if (!init_source_cache(src, sizeof(pgp_source_literal_param_t))) {
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -1060,7 +1069,49 @@ static pgp_errcode_t init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *s
         goto finish;
     }
 
-    errcode = RNP_ERROR_NOT_IMPLEMENTED;
+    /* data format */
+    if (src_read(param->pkt.readsrc, &bt, 1) != 1) {
+        (void) fprintf(stderr, "init_literal_src: failed to read data format\n");
+        errcode = RNP_ERROR_READ;
+        goto finish;
+    }
+
+    switch (bt) {
+        case 'b':
+            param->text = false;
+            break;
+        case 't':
+        case 'u':
+        case 'l':
+        case '1':
+            param->text = true;
+            break;
+        default:
+            (void) fprintf(stderr, "init_literal_src: unknown data format %d\n", (int)bt);
+            errcode = RNP_ERROR_BAD_FORMAT;
+            goto finish;
+    }
+
+    /* file name */
+    if (src_read(param->pkt.readsrc, &bt, 1) != 1) {
+        (void) fprintf(stderr, "init_literal_src: failed to read file name length\n");
+        errcode = RNP_ERROR_READ;
+        goto finish;
+    }
+    if (bt > 0) {
+        if (src_read(param->pkt.readsrc, param->filename, bt) < bt) {
+            (void) fprintf(stderr, "init_literal_src: failed to read file name\n");
+            errcode = RNP_ERROR_READ;
+            goto finish;
+        }
+    }
+    param->filename[bt] = 0;
+    /* timestamp */
+    if (src_read(param->pkt.readsrc, &param->timestamp, 4) != 4) {
+        (void) fprintf(stderr, "init_literal_src: failed to read file timestamp\n");
+        errcode = RNP_ERROR_READ;
+        goto finish;
+    }
 
     finish:
     if (errcode != RNP_SUCCESS) {
@@ -1071,7 +1122,7 @@ static pgp_errcode_t init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *s
 
 static pgp_errcode_t init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
 {
-    pgp_errcode_t                 errcode;
+    pgp_errcode_t                 errcode = RNP_SUCCESS;
     pgp_source_compressed_param_t *param;
     uint8_t                        alg;
     int                            zret;
@@ -1143,7 +1194,7 @@ static pgp_errcode_t init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t
 static pgp_errcode_t init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
 {
     bool                          sk_read = false;
-    pgp_errcode_t                 errcode;
+    pgp_errcode_t                 errcode = RNP_SUCCESS;
     pgp_source_encrypted_param_t *param;
     uint8_t                       ptag;
     uint8_t                       mdcver;
