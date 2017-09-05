@@ -84,7 +84,7 @@ typedef struct rnp_ctx_t {
     int            zalg;      /* compression algorithm used */
     int            zlevel;    /* compression level */
     int            overwrite; /* allow to overwrite output file if exists */
-    bool           armour;    /* whether too use ASCII armour on output */
+    bool           armour;    /* whether to use ASCII armour on output */
 } rnp_ctx_t;
 
 #endif // __RNP_TYPES__
