@@ -44,10 +44,10 @@
 
 #define REPGP_HANDLE_NULL ((void *) 0)
 
-typedef struct pgp_packet_t  pgp_packet_t;
-typedef struct pgp_stream_t  pgp_stream_t;
-typedef struct repgp_handle *repgp_handle_t;
-typedef struct repgp_io *    repgp_io_t;
+typedef struct pgp_packet_t pgp_packet_t;
+typedef struct pgp_stream_t pgp_stream_t;
+typedef struct repgp_handle repgp_handle_t;
+typedef struct repgp_io     repgp_io_t;
 
 /** Used to specify whether subpackets should be returned raw, parsed
  * or ignored.  */
@@ -65,7 +65,7 @@ typedef enum {
  * @return  Initialized handle on success or REPGP_HANDLE_NULL
  *          if input parameters are invalid.
  */
-repgp_handle_t create_filepath_handle(const char *filename);
+repgp_handle_t *create_filepath_handle(const char *filename);
 
 /*
  * @brief   Creates handle to data read from stdin.
@@ -76,7 +76,7 @@ repgp_handle_t create_filepath_handle(const char *filename);
  * @return  Initialized handle on success or REPGP_HANDLE_NULL
  *          if input parameters are invalid.
  */
-repgp_handle_t create_stdin_handle(void);
+repgp_handle_t *create_stdin_handle(void);
 
 /*
  * @brief   Creates handle to data kept in the buffer
@@ -87,7 +87,7 @@ repgp_handle_t create_stdin_handle(void);
  * @return  Initialized handle on success or REPGP_HANDLE_NULL
  *          if input parameters are invalid.
  */
-repgp_handle_t create_buffer_handle(const size_t buffer_size);
+repgp_handle_t *create_buffer_handle(const size_t buffer_size);
 
 /*
  * @brief   Creates handle to data kept in the buffer
@@ -101,14 +101,14 @@ repgp_handle_t create_buffer_handle(const size_t buffer_size);
  * @return  Initialized handle on success or REPGP_HANDLE_NULL
  *          if input parameters are invalid.
  */
-repgp_handle_t create_data_handle(const uint8_t *data, size_t data_len);
+repgp_handle_t *create_data_handle(const uint8_t *data, size_t data_len);
 
 /*
  * @brief   Destroys previously allocated buffer. Can be safely
  *          called with RNP_HANDLER_NULL (in which case function
  *          simply returns).
  */
-void repgp_destroy_handle(repgp_handle_t handle);
+void repgp_destroy_handle(repgp_handle_t *handle);
 
 /*
  * @brief   Copies data from internal buffer into buffer
@@ -125,9 +125,9 @@ void repgp_destroy_handle(repgp_handle_t handle);
  *          will be assigned minimal required value
  *
  */
-rnp_result repgp_copy_buffer_from_handle(uint8_t *            out,
-                                         size_t *             out_size,
-                                         const repgp_handle_t handle);
+rnp_result repgp_copy_buffer_from_handle(uint8_t *             out,
+                                         size_t *              out_size,
+                                         const repgp_handle_t *handle);
 
 /*
  * @brief   Creates opaque repgp_io_t object
@@ -135,7 +135,7 @@ rnp_result repgp_copy_buffer_from_handle(uint8_t *            out,
  * @returns Initialized repgp_io_t object or REPGP_HANDLE_NULL on
  *          error.
  */
-repgp_io_t repgp_create_io(void);
+repgp_io_t *repgp_create_io(void);
 
 /*
  * @brief   Sets input handler. If another handler was already
@@ -146,7 +146,7 @@ repgp_io_t repgp_create_io(void);
  * @param   io input/output object on which input handler will be set
  * @param   handle handle object to be set
  */
-void repgp_set_input(repgp_io_t io, repgp_handle_t handle);
+void repgp_set_input(repgp_io_t *io, repgp_handle_t *handle);
 
 /*
  * @brief   Sets output handler. If another handler was already
@@ -157,12 +157,12 @@ void repgp_set_input(repgp_io_t io, repgp_handle_t handle);
  * @param   io input/output object on which input handler will be set
  * @param   handle handle object to be set
  */
-void repgp_set_output(repgp_io_t io, repgp_handle_t handle);
+void repgp_set_output(repgp_io_t *io, repgp_handle_t *handle);
 
 /*
  * @brief   Destroys `repgp_io_t' object
  */
-void repgp_destroy_io(repgp_io_t io);
+void repgp_destroy_io(repgp_io_t *io);
 
 /**
  * @brief   Performs PGP signature verification
@@ -178,7 +178,7 @@ void repgp_destroy_io(repgp_io_t io);
  *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
  *          RNP_ERROR_SIGNATURE_INVALID Signature is invalid
  */
-rnp_result repgp_verify(const void *ctx, repgp_io_t io);
+rnp_result repgp_verify(const void *ctx, repgp_io_t *io);
 
 /**
  * @brief   Performs PGP decryption
@@ -195,7 +195,7 @@ rnp_result repgp_verify(const void *ctx, repgp_io_t io);
  *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
  *          RNP_ERROR_GENERIC Decryption could not be correctly performed
  */
-rnp_result repgp_decrypt(const void *ctx, repgp_io_t io);
+rnp_result repgp_decrypt(const void *ctx, repgp_io_t *io);
 
 /**
  * @brief   Lists all the packets from the input. Packets are printed
@@ -208,7 +208,7 @@ rnp_result repgp_decrypt(const void *ctx, repgp_io_t io);
  *          RNP_ERROR_GENERIC Implementation error
  *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
  */
-rnp_result repgp_list_packets(const void *ctx, repgp_handle_t input);
+rnp_result repgp_list_packets(const void *ctx, const repgp_handle_t *input);
 
 /**
  * @brief   Validate all signatures on a single key against the given keyring

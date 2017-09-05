@@ -309,7 +309,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     rnp_ctx_t   ctx;
     // TODO: Probably something smarter should be done here
     static const char stdout_marker[2] = "-";
-    repgp_io_t        io = repgp_create_io();
+    repgp_io_t *      io = repgp_create_io();
 
     if (io == REPGP_HANDLE_NULL) {
         RNP_LOG("Allocation failed");
@@ -400,7 +400,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         break;
     }
     case CMD_VERIFY_CAT: {
-        repgp_handle_t os = REPGP_HANDLE_NULL;
+        repgp_handle_t *os = REPGP_HANDLE_NULL;
         if (f == NULL) {
             os = create_buffer_handle((size_t) rnp_cfg_getint(cfg, CFG_MAXALLOC));
         } else {
@@ -411,13 +411,13 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     }
     /* FALLTHROUGH */
     case CMD_VERIFY: {
-        repgp_handle_t is = (f) ? create_filepath_handle(f) : create_stdin_handle();
+        repgp_handle_t *is = (f) ? create_filepath_handle(f) : create_stdin_handle();
         repgp_set_input(io, is);
         ret = (RNP_SUCCESS == repgp_verify(&ctx, io));
         break;
     }
     case CMD_LIST_PACKETS: {
-        repgp_handle_t input = create_filepath_handle(f);
+        repgp_handle_t *input = create_filepath_handle(f);
         if (input == REPGP_HANDLE_NULL) {
             RNP_LOG("%s: No filename provided", __progname);
             ret = false;
