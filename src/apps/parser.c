@@ -51,11 +51,19 @@ configure_rnp(rnp_t *rnp)
     // IO
     pgp_io_t pgpio = {.errs = stderr, .res = stdout, .outs = stdout};
     rnp->io = malloc(sizeof(pgp_io_t));
+    if (!rnp->io) {
+        return false;
+    }
+
     memcpy(rnp->io, &pgpio, sizeof(pgp_io_t));
 
     // RNP
     params.pubpath = strdup(RING "pubring.gpg");
     params.secpath = strdup(RING "secring.gpg");
+    if (!params.pubpath || !params.secpath) {
+        res = false;
+        goto end;
+    }
     params.ks_pub_format = RNP_KEYSTORE_GPG;
     params.ks_sec_format = RNP_KEYSTORE_GPG;
     if (rnp_init(rnp, &params) != RNP_SUCCESS) {
@@ -74,18 +82,17 @@ end:
     return res;
 }
 
-int
+void
 verification()
 {
     rnp_t     rnp = {0};
     rnp_ctx_t ctx = {0};
 
-    if (!configure_rnp(&rnp)) {
-        return 1;
-    }
+    assert(configure_rnp(&rnp));
     rnp_ctx_init(&ctx, &rnp);
 
     repgp_io_t io = repgp_create_io();
+    assert(io != REPGP_HANDLE_NULL);
 
     repgp_set_input(io, create_filepath_handle("signed.gpg"));
     repgp_set_output(io, create_filepath_handle("signed_out"));
@@ -96,19 +103,15 @@ end:
     free(rnp.io);
     rnp.io = NULL;
     rnp_end(&rnp);
-
-    return 0;
 }
 
-int
+void
 decryption()
 {
     rnp_t     rnp = {0};
     rnp_ctx_t ctx = {0};
 
-    if (!configure_rnp(&rnp)) {
-        return 1;
-    }
+    assert(configure_rnp(&rnp));
     rnp_ctx_init(&ctx, &rnp);
 
     /* ----- perform decryption ----- */
@@ -118,10 +121,14 @@ decryption()
     size_t  in_buf_size = sizeof(in_buf);
 
     FILE *f = fopen("encrypted.gpg", "rb");
+    assert(f != NULL);
     in_buf_size = fread(in_buf, 1, in_buf_size, f);
+    assert(in_buf_size > 0);
     fclose(f);
 
     repgp_io_t io = repgp_create_io();
+    assert (io);
+
     repgp_set_input(io, create_data_handle(in_buf, in_buf_size));
     repgp_handle_t out_buf_handle = create_buffer_handle(4096);
     repgp_set_output(io, out_buf_handle);
@@ -139,20 +146,15 @@ end:
     free(rnp.io);
     rnp.io = NULL;
     rnp_end(&rnp);
-
-    return 0;
 }
 
-int
+void
 list()
 {
     rnp_t     rnp = {0};
     rnp_ctx_t ctx = {0};
 
-    if (!configure_rnp(&rnp)) {
-        return 1;
-    }
-
+    assert(configure_rnp(&rnp));
     rnp_ctx_init(&ctx, &rnp);
     repgp_handle_t handle = create_filepath_handle("encrypted.gpg");
     printf("RES = %d\n", repgp_list_packets(&ctx, handle) == RNP_SUCCESS);
@@ -162,20 +164,15 @@ end:
     free(rnp.io);
     rnp.io = NULL;
     rnp_end(&rnp);
-
-    return 0;
 }
 
-int
+void
 validate_pubkeys()
 {
     rnp_t     rnp = {0};
     rnp_ctx_t ctx = {0};
 
-    if (!configure_rnp(&rnp)) {
-        return 1;
-    }
-
+    assert(configure_rnp(&rnp));
     rnp_ctx_init(&ctx, &rnp);
     printf("RES = %d\n", repgp_validate_pubkeys_signatures(&ctx) == RNP_SUCCESS);
 
@@ -183,8 +180,6 @@ end:
     free(rnp.io);
     rnp.io = NULL;
     rnp_end(&rnp);
-
-    return 0;
 }
 
 int
@@ -194,4 +189,5 @@ main()
     decryption();
     list();
     validate_pubkeys();
+    return 0;
 }
