@@ -254,7 +254,7 @@ typedef struct {
  *
  *  It has a linked list of errors.
  * TODO1: Shouldn't this be in some other place than crypto.h?
- * TODO2: This structure constains too many things which are unrealated
+ * TODO2: This structure contains too many things which are unrelated
  */
 struct pgp_stream_t {
     uint8_t ss_raw[NTAGS / 8];
