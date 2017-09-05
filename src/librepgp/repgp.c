@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <assert.h>
+#include <errno.h>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -50,7 +51,7 @@
 repgp_handle_t
 create_filepath_handle(const char *filename)
 {
-    if (filename == NULL) {
+    if (!filename) {
         return REPGP_HANDLE_NULL;
     }
 
@@ -133,6 +134,12 @@ create_stdin_handle(void)
         size += n;
     }
 
+    if (n < 0) {
+        RNP_LOG("Error while reading from stdin [%s]", strerror(errno));
+        free(data);
+        return REPGP_HANDLE_NULL;
+    }
+
     s->type = REPGP_HANDLE_BUFFER;
     s->buffer.size = size;
     s->buffer.data = data;
@@ -142,7 +149,7 @@ create_stdin_handle(void)
 rnp_result
 repgp_copy_buffer_from_handle(uint8_t *out, size_t *out_size, const repgp_handle_t handle)
 {
-    if (!out || (*out_size == 0) || (handle == REPGP_HANDLE_NULL)) {
+    if (!out || !out_size || (*out_size == 0) || (handle == REPGP_HANDLE_NULL)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -268,7 +275,7 @@ repgp_io_t
 repgp_create_io(void)
 {
     struct repgp_io *io = malloc(sizeof(struct repgp_io));
-    if (io == NULL) {
+    if (!io) {
         return REPGP_HANDLE_NULL;
     }
 
@@ -354,9 +361,6 @@ repgp_validate_pubkeys_signatures(const void *ctx)
     pgp_validation_t       result = {0};
     bool                   ret = true;
     for (size_t n = 0; n < ring->keyc; ++n) {
-        /* TODO: return value probably should be checked
-         *       but I need to double check it
-         */
         ret &= pgp_validate_key_sigs(
           &result, &ring->keys[n], ring, NULL /* no pwd callback; validating public keys */);
     }

@@ -39,6 +39,7 @@
 #include <stdint.h>
 #include <json.h>
 
+#include <rnp/rnp_def.h>
 #include "repgp_def.h"
 
 #define REPGP_HANDLE_NULL ((void *) 0)
@@ -47,7 +48,6 @@ typedef struct pgp_packet_t  pgp_packet_t;
 typedef struct pgp_stream_t  pgp_stream_t;
 typedef struct repgp_handle *repgp_handle_t;
 typedef struct repgp_io *    repgp_io_t;
-typedef uint32_t             rnp_result;
 
 /** Used to specify whether subpackets should be returned raw, parsed
  * or ignored.  */
