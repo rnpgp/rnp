@@ -676,8 +676,8 @@ pgp_validate_file(pgp_io_t *             io,
     int                infd;
     int                cc;
 
-    if ((stat(infile, &st) < 0) && io) {
-        (void) fprintf(io->errs, "pgp_validate_file: can't open '%s'\n", infile);
+    if (stat(infile, &st) < 0) {
+        RNP_LOG("Can't open %s", infile);
         return 0;
     }
     realarmour = user_says_armoured;
