@@ -2,9 +2,6 @@
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
- * This code is originally derived from software contributed by
- * Ribose Inc (https://www.ribose.com).
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
