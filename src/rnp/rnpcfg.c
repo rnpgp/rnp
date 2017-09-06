@@ -411,7 +411,7 @@ conffile(const char *homedir, char *userid, size_t length)
  *  @param dir [in] null-terminated directory path, cannot be NULL
  *  @param subddir [in] null-terminated subdirectory to add to the path, can be NULL
  *  @param filename [in] null-terminated filename (or path/filename), cannot be NULL
- *  @param res [out] preallocated buffer, large enough to store the result
+ *  @param res [out] preallocated buffer
  *
  *  @return true if path constructed successfully, or false otherwise
  **/
@@ -426,6 +426,9 @@ rnp_path_compose(const char *dir, const char *subdir, const char *filename, char
     }
 
     /* concatenating dir, subdir and filename */
+    if (strlen(dir) > MAXPATHLEN - 1)
+        return false;
+
     strcpy(res, dir);
     pos = strlen(dir);
 
@@ -434,6 +437,9 @@ rnp_path_compose(const char *dir, const char *subdir, const char *filename, char
             res[pos++] = '/';
         }
 
+        if (strlen(subdir) + pos > MAXPATHLEN - 1)
+            return false;
+
         strcpy(res + pos, subdir);
         pos += strlen(subdir);
     }
@@ -441,6 +447,9 @@ rnp_path_compose(const char *dir, const char *subdir, const char *filename, char
     if ((pos > 0) && (res[pos - 1] != '/')) {
         res[pos++] = '/';
     }
+
+    if (strlen(filename) + pos > MAXPATHLEN - 1)
+        return false;
 
     strcpy(res + pos, filename);
 
