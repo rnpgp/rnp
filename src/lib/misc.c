@@ -401,7 +401,11 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
             (void) fprintf(stderr, "can't allocate mem\n");
             return false;
         }
-        pgp_build_pubkey(mem, key, 0);
+        if (!pgp_build_pubkey(mem, key, 0)) {
+            RNP_LOG("failed to build pubkey");
+            pgp_memory_free(mem);
+            return false;
+        }
         if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
             (void) fprintf(stderr, "pgp_fingerprint: bad sha1 alloc\n");
             pgp_memory_free(mem);
