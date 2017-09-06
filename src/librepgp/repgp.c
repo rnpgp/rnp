@@ -55,7 +55,7 @@ create_filepath_handle(const char *filename)
         return REPGP_HANDLE_NULL;
     }
 
-    struct repgp_handle *s = calloc(sizeof(struct repgp_handle), 1);
+    repgp_handle_t *s = calloc(sizeof(*s), 1);
     if (!s) {
         return REPGP_HANDLE_NULL;
     }
@@ -68,7 +68,7 @@ create_filepath_handle(const char *filename)
 repgp_handle_t *
 create_buffer_handle(const size_t buffer_size)
 {
-    struct repgp_handle *s = calloc(sizeof(struct repgp_handle), 1);
+    repgp_handle_t *s = calloc(sizeof(*s), 1);
     if (!s) {
         return REPGP_HANDLE_NULL;
     }
@@ -86,7 +86,7 @@ create_buffer_handle(const size_t buffer_size)
 repgp_handle_t *
 create_data_handle(const uint8_t *data, size_t data_len)
 {
-    struct repgp_handle *s = calloc(sizeof(struct repgp_handle), 1);
+    repgp_handle_t *s = calloc(sizeof(*s), 1);
     if (!s) {
         return REPGP_HANDLE_NULL;
     }
@@ -111,7 +111,7 @@ create_stdin_handle(void)
     size_t   size = 0;
     ssize_t  n;
 
-    struct repgp_handle *s = calloc(sizeof(struct repgp_handle), 1);
+    repgp_handle_t *s = calloc(sizeof(*s), 1);
     if (!s) {
         return REPGP_HANDLE_NULL;
     }
@@ -153,16 +153,15 @@ repgp_copy_buffer_from_handle(uint8_t *out, size_t *out_size, const repgp_handle
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    const struct repgp_handle *rhandle = (const struct repgp_handle *) handle;
-    if (rhandle->type != REPGP_HANDLE_BUFFER) {
+    if (handle->type != REPGP_HANDLE_BUFFER) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    *out_size = rhandle->buffer.size;
-    if (rhandle->buffer.size > *out_size) {
+    *out_size = handle->buffer.size;
+    if (handle->buffer.size > *out_size) {
         return RNP_ERROR_SHORT_BUFFER;
     }
-    memcpy(out, rhandle->buffer.data, rhandle->buffer.size);
+    memcpy(out, handle->buffer.data, handle->buffer.size);
 
     return RNP_SUCCESS;
 }
@@ -252,7 +251,7 @@ repgp_set_input(repgp_io_t *io, repgp_handle_t *stream)
 {
     if (io) {
         repgp_destroy_handle(io->in);
-        io->in = (struct repgp_handle *) stream;
+        io->in = (repgp_handle_t *) stream;
     }
 }
 
@@ -261,14 +260,14 @@ repgp_set_output(repgp_io_t *io, repgp_handle_t *stream)
 {
     if (io) {
         repgp_destroy_handle(io->out);
-        io->out = (struct repgp_handle *) stream;
+        io->out = (repgp_handle_t *) stream;
     }
 }
 
 repgp_io_t *
 repgp_create_io(void)
 {
-    struct repgp_io *io = malloc(sizeof(struct repgp_io));
+    repgp_io_t *io = malloc(sizeof(*io));
     if (!io) {
         return REPGP_HANDLE_NULL;
     }
@@ -304,7 +303,7 @@ repgp_list_packets(const void *ctx, const repgp_handle_t *input)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    const struct repgp_handle *i = (struct repgp_handle *) input;
+    const repgp_handle_t *i = (repgp_handle_t *) input;
     if ((i == REPGP_HANDLE_NULL) || (i->type != REPGP_HANDLE_FILE)) {
         RNP_LOG("Incorrectly initialized input handle");
         return RNP_ERROR_BAD_PARAMETERS;
