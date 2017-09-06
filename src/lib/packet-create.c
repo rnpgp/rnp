@@ -585,24 +585,30 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
  * \param key
  * \param make_packet
  */
-
-void
+bool
 pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key, unsigned make_packet)
 {
-    pgp_output_t *output;
+    pgp_output_t *output = NULL;
+    bool          ret = false;
 
     output = pgp_output_new();
     if (output == NULL) {
         fprintf(stderr, "Can't allocate memory\n");
-        return;
+        goto done;
     }
     pgp_memory_init(out, 128);
     pgp_writer_set_memory(output, out);
-    write_pubkey_body(key, output);
+    if (!write_pubkey_body(key, output)) {
+        goto done;
+    }
     if (make_packet) {
         pgp_memory_make_packet(out, PGP_PTAG_CT_PUBLIC_KEY);
     }
+    ret = true;
+
+done:
     pgp_output_delete(output);
+    return ret;
 }
 
 /**

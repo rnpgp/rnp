@@ -78,7 +78,7 @@ void          pgp_output_delete(pgp_output_t *);
 
 int pgp_filewrite(const char *, const char *, const size_t, const unsigned);
 
-void pgp_build_pubkey(pgp_memory_t *, const pgp_pubkey_t *, unsigned);
+bool pgp_build_pubkey(pgp_memory_t *, const pgp_pubkey_t *, unsigned);
 
 unsigned pgp_calc_sesskey_checksum(pgp_pk_sesskey_t *, uint8_t *);
 unsigned pgp_write_struct_userid(pgp_output_t *, const uint8_t *);
