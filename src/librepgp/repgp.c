@@ -109,7 +109,7 @@ create_stdin_handle(void)
     char     buf[BUFSIZ * 8];
     uint8_t *data = NULL;
     size_t   size = 0;
-    size_t   n;
+    ssize_t  n;
 
     struct repgp_handle *s = calloc(sizeof(struct repgp_handle), 1);
     if (!s) {
