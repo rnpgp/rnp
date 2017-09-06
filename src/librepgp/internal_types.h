@@ -35,7 +35,7 @@ typedef enum {
 } repgp_handle_type_t;
 
 /* Data handle */
-struct repgp_handle {
+typedef struct repgp_handle_t {
     repgp_handle_type_t type;
 
     union {
@@ -48,10 +48,10 @@ struct repgp_handle {
             size_t         size;
         } buffer;
     };
-};
+} repgp_handle_t;
 
 /* Defines input/output object */
-struct repgp_io {
-    struct repgp_handle *in;
-    struct repgp_handle *out;
-};
+typedef struct repgp_io_t {
+    struct repgp_handle_t *in;
+    struct repgp_handle_t *out;
+} repgp_io_t;
