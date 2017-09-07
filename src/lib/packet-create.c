@@ -896,8 +896,8 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
     case PGP_PKA_SM2: {
         uint8_t    encmpibuf[RNP_BUFSIZ];
         size_t     out_len = sizeof(encmpibuf);
-        rnp_result err =
-          pgp_sm2_encrypt(encmpibuf, &out_len, encoded_key, sz_encoded_key, &pubkey->key.ecc);
+        rnp_result err = pgp_sm2_encrypt(
+          encmpibuf, &out_len, encoded_key, sz_encoded_key, PGP_HASH_SM3, &pubkey->key.ecc);
 
         if (err != RNP_SUCCESS) {
             goto done;

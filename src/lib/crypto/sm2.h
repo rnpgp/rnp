@@ -47,6 +47,7 @@ rnp_result pgp_sm2_encrypt(uint8_t *               out,
                            size_t *                out_len,
                            const uint8_t *         key,
                            size_t                  key_len,
+                           pgp_hash_alg_t          hash_algo,
                            const pgp_ecc_pubkey_t *pubkey);
 
 rnp_result pgp_sm2_decrypt(uint8_t *               out,

@@ -177,6 +177,7 @@ pgp_sm2_encrypt(uint8_t *               out,
                 size_t *                out_len,
                 const uint8_t *         key,
                 size_t                  key_len,
+                pgp_hash_alg_t          hash_algo,
                 const pgp_ecc_pubkey_t *pubkey)
 {
     rnp_result retval = RNP_ERROR_GENERIC;
@@ -188,28 +189,27 @@ pgp_sm2_encrypt(uint8_t *               out,
     botan_pk_op_encrypt_t  enc_op = NULL;
     botan_rng_t            rng = NULL;
 
+    const size_t point_len = BITS_TO_BYTES(curve->bitlen);
+    uint8_t      point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
+    size_t       hash_alg_len;
+
     if (curve == NULL) {
         return RNP_ERROR_GENERIC;
     }
 
-    const size_t point_len = BITS_TO_BYTES(curve->bitlen);
-    uint8_t      point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
-    uint8_t *    ctext_buf = NULL;
-
-    /*
-    * Format of SM2 ciphertext is a point (1+point_len*2) plus
-    * the masked ciphertext (out_len) plus a SM3 hash (32 bytes)
-    */
-    const size_t ctext_len = 1 + point_len * 2 + key_len + 32;
-
-    if (*out_len < ctext_len) {
-        RNP_LOG("output buffer for SM2 encryption too short");
+    if (!pgp_digest_length(hash_algo, &hash_alg_len)) {
+        RNP_LOG("Unknown hash algorithm for SM2 encryption");
         goto done;
     }
 
-    ctext_buf = malloc(ctext_len);
-    if (ctext_buf == NULL) {
-        RNP_LOG("malloc failed");
+    /*
+    * Format of SM2 ciphertext is a point (2*point_len+1) plus
+    * the masked ciphertext (out_len) plus a hash.
+    */
+    const size_t ctext_len = (2 * point_len + 1) + key_len + hash_alg_len;
+
+    if (*out_len < ctext_len) {
+        RNP_LOG("output buffer for SM2 encryption too short");
         goto done;
     }
 
@@ -240,19 +240,21 @@ pgp_sm2_encrypt(uint8_t *               out,
     }
 
     /*
-    SM2 encryption doesn't have any kind of format specifier because it's
-    an all in one scheme
+    SM2 encryption doesn't have any kind of format specifier because
+    it's an all in one scheme, only the hash (used for the integrity
+    check) is specified.
     */
-    if (botan_pk_op_encrypt_create(&enc_op, sm2_key, "", 0) != 0) {
+    if (botan_pk_op_encrypt_create(&enc_op, sm2_key, pgp_hash_name_botan(hash_algo), 0) != 0) {
         goto done;
     }
 
     if (botan_pk_op_encrypt(enc_op, rng, out, out_len, key, key_len) == 0) {
+        out[*out_len] = hash_algo;
+        *out_len += 1;
         retval = RNP_SUCCESS;
     }
 
 done:
-    free(ctext_buf);
     botan_pk_op_encrypt_destroy(enc_op);
     botan_pubkey_destroy(sm2_key);
     botan_rng_destroy(rng);
@@ -274,7 +276,7 @@ pgp_sm2_decrypt(uint8_t *               out,
     botan_rng_t            rng = NULL;
     rnp_result             retval = RNP_ERROR_GENERIC;
 
-    if (curve == NULL) {
+    if (curve == NULL || ctext_len < 64) {
         goto done;
     }
 
@@ -287,11 +289,19 @@ pgp_sm2_decrypt(uint8_t *               out,
         goto done;
     }
 
-    if (botan_pk_op_decrypt_create(&decrypt_op, key, "", 0) != 0) {
+    const uint8_t hash_id = ctext[ctext_len - 1];
+
+    const char *hash_name = pgp_hash_name_botan(hash_id);
+    if (!hash_name) {
+        RNP_LOG("Unknown hash used in SM2 ciphertext");
         goto done;
     }
 
-    if (botan_pk_op_decrypt(decrypt_op, out, out_len, ctext, ctext_len) == 0) {
+    if (botan_pk_op_decrypt_create(&decrypt_op, key, hash_name, 0) != 0) {
+        goto done;
+    }
+
+    if (botan_pk_op_decrypt(decrypt_op, out, out_len, ctext, ctext_len - 1) == 0) {
         retval = RNP_SUCCESS;
     }
 
