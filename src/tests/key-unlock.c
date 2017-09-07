@@ -32,40 +32,6 @@
 #include "utils.h"
 #include "hash.h"
 
-// this is a passphrase callback that will always fail
-static bool
-failing_passphrase_callback(const pgp_passphrase_ctx_t *ctx,
-                            char *                      passphrase,
-                            size_t                      passphrase_size,
-                            void *                      userdata)
-{
-    return false;
-}
-
-// this is a passphrase callback that should never be called
-static bool
-asserting_passphrase_callback(const pgp_passphrase_ctx_t *ctx,
-                              char *                      passphrase,
-                              size_t                      passphrase_size,
-                              void *                      userdata)
-{
-    assert_false(true);
-    return false;
-}
-
-// this is a passphrase callback that just copies the string in userdata to
-// the passphrase buffer
-static bool
-string_copy_passphrase_callback(const pgp_passphrase_ctx_t *ctx,
-                                char *                      passphrase,
-                                size_t                      passphrase_size,
-                                void *                      userdata)
-{
-    const char *str = (const char *) userdata;
-    strncpy(passphrase, str, passphrase_size - 1);
-    return true;
-}
-
 void
 test_key_unlock_pgp(void **state)
 {
