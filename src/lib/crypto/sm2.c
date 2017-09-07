@@ -69,7 +69,7 @@ pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
         goto end;
     }
 
-    if (botan_pk_op_sign_create(&signer, key, "Raw", 0)) {
+    if (botan_pk_op_sign_create(&signer, key, "", 0)) {
         goto end;
     }
 
@@ -144,7 +144,7 @@ pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
         goto end;
     }
 
-    if (botan_pk_op_verify_create(&verifier, pub, "Raw", 0)) {
+    if (botan_pk_op_verify_create(&verifier, pub, "", 0)) {
         goto end;
     }
 
