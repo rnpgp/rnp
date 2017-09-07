@@ -119,6 +119,8 @@ create_stdin_handle(void)
     /* Read in everything and keeps it in memory.
      * For stdin it kind of makes sense as no one
      * should provide a lot of data on stdin.
+     *
+     * TODO: This issues should be addressed in GH #238
      */
     while ((n = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
         /* round up the allocation */
