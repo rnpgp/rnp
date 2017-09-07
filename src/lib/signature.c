@@ -444,7 +444,7 @@ pgp_check_sig(const uint8_t *     hash,
         break;
 
     case PGP_PKA_SM2:
-        ret = pgp_sm2_verify_hash(&sig->info.sig.ecdsa, hash, length, &signer->key.ecc) ==
+        ret = pgp_sm2_verify_hash(&sig->info.sig.ecc, hash, length, &signer->key.ecc) ==
               RNP_SUCCESS;
         break;
 
@@ -454,7 +454,7 @@ pgp_check_sig(const uint8_t *     hash,
         break;
 
     case PGP_PKA_ECDSA:
-        ret = (pgp_ecdsa_verify_hash(&sig->info.sig.ecdsa, hash, length, &signer->key.ecc) ==
+        ret = (pgp_ecdsa_verify_hash(&sig->info.sig.ecc, hash, length, &signer->key.ecc) ==
                RNP_SUCCESS);
         break;
 
@@ -467,23 +467,16 @@ pgp_check_sig(const uint8_t *     hash,
 }
 
 static bool
-hash_and_check_sig(pgp_hash_t *hash, const pgp_sig_t *sig, const pgp_pubkey_t *signer)
-{
-    uint8_t  hashout[PGP_MAX_HASH_SIZE];
-    unsigned n;
-
-    n = pgp_hash_finish(hash, hashout);
-    return pgp_check_sig(hashout, n, sig, signer);
-}
-
-static bool
 finalise_sig(pgp_hash_t *        hash,
              const pgp_sig_t *   sig,
              const pgp_pubkey_t *signer,
              const uint8_t *     raw_packet)
 {
     hash_add_trailer(hash, sig, raw_packet);
-    return hash_and_check_sig(hash, sig, signer);
+
+    uint8_t  hashout[PGP_MAX_HASH_SIZE];
+    size_t hash_len = pgp_hash_finish(hash, hashout);
+    return pgp_check_sig(hashout, hash_len, sig, signer);
 }
 
 /**
