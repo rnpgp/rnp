@@ -134,3 +134,22 @@ bool get_random(uint8_t *data, size_t len);
 
 /** Ensures global handler for DRBG used in tests is destroyed. */
 void destroy_global_rng();
+
+// this is a passphrase callback that will always fail
+bool failing_passphrase_callback(const pgp_passphrase_ctx_t *ctx,
+                                 char *                      passphrase,
+                                 size_t                      passphrase_size,
+                                 void *                      userdata);
+
+// this is a passphrase callback that should never be called
+bool asserting_passphrase_callback(const pgp_passphrase_ctx_t *ctx,
+                                   char *                      passphrase,
+                                   size_t                      passphrase_size,
+                                   void *                      userdata);
+
+// this is a passphrase callback that just copies the string in userdata to
+// the passphrase buffer
+bool string_copy_passphrase_callback(const pgp_passphrase_ctx_t *ctx,
+                                     char *                      passphrase,
+                                     size_t                      passphrase_size,
+                                     void *                      userdata);
