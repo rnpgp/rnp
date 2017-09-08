@@ -116,8 +116,18 @@ test_key_unlock_pgp(void **state)
     rnp_ctx_free(&ctx);
 
     // grab the signing key to unlock
+    key = NULL;
     rnp_assert_true(rstate,
                     rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyids[0], &key));
+    rnp_assert_non_null(rstate, key);
+
+    // confirm that this key is indeed RSA first
+    assert_int_equal(key->key.pubkey.alg, PGP_PKA_RSA);
+    // confirm the secret MPIs are now filled in
+    assert_null(key->key.seckey.key.rsa.d);
+    assert_null(key->key.seckey.key.rsa.p);
+    assert_null(key->key.seckey.key.rsa.q);
+    assert_null(key->key.seckey.key.rsa.u);
 
     // try to unlock with a failing passphrase provider
     provider =
@@ -131,11 +141,17 @@ test_key_unlock_pgp(void **state)
     rnp_assert_false(rstate, pgp_key_unlock((pgp_key_t *) key, &provider));
     rnp_assert_true(rstate, pgp_key_is_locked(key));
 
-    // unlock with the signing key
+    // unlock the signing key
     provider = (pgp_passphrase_provider_t){.callback = string_copy_passphrase_callback,
                                            .userdata = "password"};
     rnp_assert_true(rstate, pgp_key_unlock((pgp_key_t *) key, &provider));
     rnp_assert_false(rstate, pgp_key_is_locked(key));
+
+    // confirm the secret MPIs are NULL
+    assert_non_null(key->key.seckey.key.rsa.d);
+    assert_non_null(key->key.seckey.key.rsa.p);
+    assert_non_null(key->key.seckey.key.rsa.q);
+    assert_non_null(key->key.seckey.key.rsa.u);
 
     // now the signing key is unlocked, confirm that no passphrase is required for signing
     rnp.passphrase_provider =
