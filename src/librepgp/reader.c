@@ -2133,8 +2133,7 @@ pgp_get_seckey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
               pgp_decrypt_seckey(keypair,
                                  &cbinfo->cryptinfo.passphrase_provider,
                                  &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT,
-                                                         .pubkey = pgp_get_pubkey(keypair),
-                                                         .key_type = keypair->type});
+                                                         .pubkey = pgp_get_pubkey(keypair)});
             if (secret != NULL) {
                 break;
             }

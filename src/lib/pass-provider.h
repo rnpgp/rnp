@@ -33,7 +33,6 @@ typedef struct pgp_pubkey_t pgp_pubkey_t;
 typedef struct pgp_passphrase_ctx_t {
     uint8_t             op;
     const pgp_pubkey_t *pubkey;
-    uint8_t             key_type;
 } pgp_passphrase_ctx_t;
 
 typedef bool pgp_passphrase_callback_t(const pgp_passphrase_ctx_t *ctx,

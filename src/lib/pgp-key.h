@@ -55,6 +55,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "pass-provider.h"
+#include <repgp/repgp.h>
+#include <rekey/rnp_key_store.h>
+#include "memory.h"
 #include "types.h"
 #include "defs.h"
 #include "symmetric.h"
@@ -66,15 +69,16 @@ struct pgp_key_t {
     DYNARRAY(pgp_subsig_t, subsig);    /* array of signature subkeys */
     DYNARRAY(pgp_revoke_t, revoke);    /* array of signature revocations */
     DYNARRAY(struct pgp_key_t *, subkey);
-    pgp_content_enum  type;      /* type of key */
-    pgp_keydata_key_t key;       /* pubkey/seckey data */
-    uint8_t           key_flags; /* key flags */
-    uint8_t           keyid[PGP_KEY_ID_SIZE];
-    pgp_fingerprint_t fingerprint;
-    uint8_t           grip[PGP_FINGERPRINT_SIZE];
-    uint32_t          uid0;       /* primary uid index in uids array */
-    uint8_t           revoked;    /* key has been revoked */
-    pgp_revoke_t      revocation; /* revocation reason */
+    pgp_content_enum   type;      /* type of key */
+    pgp_keydata_key_t  key;       /* pubkey/seckey data */
+    uint8_t            key_flags; /* key flags */
+    uint8_t            keyid[PGP_KEY_ID_SIZE];
+    pgp_fingerprint_t  fingerprint;
+    uint8_t            grip[PGP_FINGERPRINT_SIZE];
+    uint32_t           uid0;       /* primary uid index in uids array */
+    uint8_t            revoked;    /* key has been revoked */
+    pgp_revoke_t       revocation; /* revocation reason */
+    key_store_format_t format;     /* the format of the key in packets[0] */
 };
 
 struct pgp_key_t *pgp_key_new(void);
@@ -117,7 +121,10 @@ const struct pgp_seckey_t *pgp_get_seckey(const pgp_key_t *);
 
 pgp_seckey_t *pgp_get_writable_seckey(pgp_key_t *);
 
-pgp_seckey_t *pgp_decrypt_seckey_parser(const pgp_key_t *, const char *);
+pgp_seckey_t *pgp_decrypt_seckey_pgp(const uint8_t *,
+                                     size_t,
+                                     const pgp_pubkey_t *,
+                                     const char *);
 
 pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *,
                                  const pgp_passphrase_provider_t *,
@@ -141,8 +148,33 @@ pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 
 char *pgp_export_key(pgp_io_t *, const pgp_key_t *, const pgp_passphrase_provider_t *);
 
+/** check if a key is currently locked
+ *
+ *  Note: Key locking does not apply to unprotected keys.
+ *
+ *  @param key the key
+ *  @return true if the key is locked, false otherwise
+ **/
 bool pgp_key_is_locked(const pgp_key_t *key);
+
+/** unlock a key
+ *
+ *  Note: Key locking does not apply to unprotected keys.
+ *
+ *  @param key the key
+ *  @param pass_provider the passphrase provider that may be used
+ *         to unlock the key, if necessary
+ *  @return true if the key was unlocked, false otherwise
+ **/
 bool pgp_key_unlock(pgp_key_t *key, const pgp_passphrase_provider_t *provider);
+
+/** lock a key
+ *
+ *  Note: Key locking does not apply to unprotected keys.
+ *
+ *  @param key the key
+ *  @return true if the key was unlocked, false otherwise
+ **/
 void pgp_key_lock(pgp_key_t *key);
 
 #endif // RNP_PACKET_KEY_H

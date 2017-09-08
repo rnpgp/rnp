@@ -90,7 +90,8 @@ bool pgp_generate_seckey(const rnp_keygen_crypto_params_t *params, pgp_seckey_t 
 bool pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
                               bool                       merge_defaults,
                               pgp_key_t *                primary_sec,
-                              pgp_key_t *                primary_pub);
+                              pgp_key_t *                primary_pub,
+                              key_store_format_t         secformat);
 
 /** generate a new subkey
  *
@@ -113,7 +114,8 @@ bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
                          pgp_key_t *                      primary_pub,
                          pgp_key_t *                      subkey_sec,
                          pgp_key_t *                      subkey_pub,
-                         const pgp_passphrase_provider_t *passphrase_provider);
+                         const pgp_passphrase_provider_t *passphrase_provider,
+                         key_store_format_t               secformat);
 
 /** generate a new primary key and subkey
  *
@@ -131,7 +133,8 @@ bool pgp_generate_keypair(rnp_keygen_desc_t *desc,
                           pgp_key_t *        primary_sec,
                           pgp_key_t *        primary_pub,
                           pgp_key_t *        subkey_sec,
-                          pgp_key_t *        subkey_pub);
+                          pgp_key_t *        subkey_pub,
+                          key_store_format_t secformat);
 
 void pgp_reader_push_decrypt(pgp_stream_t *, pgp_crypt_t *, pgp_region_t *);
 void pgp_reader_pop_decrypt(pgp_stream_t *);

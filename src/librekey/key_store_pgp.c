@@ -126,7 +126,6 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
         if (pgp_is_secret_key_tag(pkt->tag)) {
             keydata.seckey = content->seckey;
-            keydata.seckey.decrypt_cb = pgp_decrypt_seckey_parser;
         } else {
             keydata.pubkey = content->pubkey;
         }
@@ -137,6 +136,7 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         // shortcut
         key = cb->key;
         cb->subsig = NULL;
+        key->format = GPG_KEY_STORE;
         if (pgp_is_subkey_tag(pkt->tag) && cb->last_primary) {
             EXPAND_ARRAY(cb->last_primary, subkey);
             if (!cb->last_primary->subkeys) {
@@ -393,6 +393,10 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
     for (int ikey = 0; ikey < key_store->keyc; ikey++) {
         key = &key_store->keys[ikey];
 
+        if (key->format != GPG_KEY_STORE) {
+            RNP_LOG("incorrect format (conversions not supported): %d", key->format);
+            return false;
+        }
         for (int ipkt = 0; ipkt < key->packetc; ipkt++) {
             pgp_rawpacket_t *pkt = &key->packets[ipkt];
             if (!pgp_write(&output, pkt->raw, pkt->length)) {

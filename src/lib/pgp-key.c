@@ -52,8 +52,12 @@
 #include "pgp-key.h"
 #include "signature.h"
 #include "utils.h"
+#include <librepgp/reader.h>
+#include <librekey/key_store_pgp.h>
+#include <librekey/key_store_g10.h>
 #include "readerwriter.h"
 #include "misc.h"
+#include "crypto/s2k.h"
 
 #include <rnp/rnp_sdk.h>
 #include <librepgp/validate.h>
@@ -317,9 +321,8 @@ pgp_get_writable_seckey(pgp_key_t *key)
 }
 
 typedef struct {
-    const char *     passphrase;
-    const pgp_key_t *key;
-    pgp_seckey_t *   seckey;
+    const char *  passphrase;
+    pgp_seckey_t *seckey;
 } decrypt_t;
 
 static pgp_cb_ret_t
@@ -384,26 +387,27 @@ decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 }
 
 pgp_seckey_t *
-pgp_decrypt_seckey_parser(const pgp_key_t *key, const char *passphrase)
+pgp_decrypt_seckey_pgp(const uint8_t *     data,
+                       size_t              data_len,
+                       const pgp_pubkey_t *pubkey,
+                       const char *        passphrase)
 {
-    pgp_stream_t *stream;
+    pgp_stream_t *stream = NULL;
     const int     printerrors = 1;
     decrypt_t     decrypt = {0};
 
-    if (!key->packetc || !key->packets) {
-        RNP_LOG("can not decrypt secret key without raw packets");
-        return NULL;
-    }
-
+    // we don't really use this, G10 does
+    RNP_USED(pubkey);
     decrypt.passphrase = passphrase;
-    decrypt.key = key;
     stream = pgp_new(sizeof(*stream));
-    if (!pgp_key_reader_set(stream, key)) {
-        return NULL;
+    if (!pgp_reader_set_memory(stream, data, data_len)) {
+        goto done;
     }
     pgp_set_callback(stream, decrypt_cb, &decrypt);
     stream->readinfo.accumulate = 1;
     repgp_parse(stream, !printerrors);
+
+done:
     pgp_stream_delete(stream);
     return decrypt.seckey;
 }
@@ -420,7 +424,11 @@ pgp_decrypt_seckey(const pgp_key_t *                key,
                    const pgp_passphrase_provider_t *provider,
                    const pgp_passphrase_ctx_t *     ctx)
 {
-    pgp_seckey_t *        decrypted_seckey = NULL;
+    pgp_seckey_t *               decrypted_seckey = NULL;
+    typedef struct pgp_seckey_t *pgp_seckey_decrypt_t(const uint8_t *     data,
+                                                      size_t              data_len,
+                                                      const pgp_pubkey_t *pubkey,
+                                                      const char *        passphrase);
     pgp_seckey_decrypt_t *decryptor = NULL;
     char                  passphrase[MAX_PASSPHRASE_LENGTH] = {0};
 
@@ -429,7 +437,18 @@ pgp_decrypt_seckey(const pgp_key_t *                key,
         RNP_LOG("invalid args");
         goto done;
     }
-    decryptor = key->key.seckey.decrypt_cb;
+    switch (key->format) {
+    case GPG_KEY_STORE:
+    case KBX_KEY_STORE:
+        decryptor = pgp_decrypt_seckey_pgp;
+        break;
+    case G10_KEY_STORE:
+        decryptor = g10_decrypt_seckey;
+        break;
+    default:
+        goto done;
+        break;
+    }
     if (!decryptor) {
         RNP_LOG("missing decrypt callback");
         goto done;
@@ -440,7 +459,8 @@ pgp_decrypt_seckey(const pgp_key_t *                key,
         goto done;
     }
     // attempt to decrypt with the provided passphrase
-    decrypted_seckey = decryptor(key, passphrase);
+    decrypted_seckey =
+      decryptor(key->packets[0].raw, key->packets[0].length, pgp_get_pubkey(key), passphrase);
 
 done:
     pgp_forget(passphrase, sizeof(passphrase));
@@ -710,6 +730,10 @@ pgp_key_unlock(pgp_key_t *key, const pgp_passphrase_provider_t *provider)
     if (!key || !provider) {
         return false;
     }
+    if (!pgp_is_key_secret(key)) {
+        RNP_LOG("key is not a secret key");
+        return false;
+    }
 
     // see if it's already unlocked
     if (!pgp_key_is_locked(key)) {
@@ -719,8 +743,7 @@ pgp_key_unlock(pgp_key_t *key, const pgp_passphrase_provider_t *provider)
     decrypted_seckey = pgp_decrypt_seckey(
       key,
       provider,
-      &(pgp_passphrase_ctx_t){
-        .op = PGP_OP_UNLOCK, .pubkey = pgp_get_pubkey(key), .key_type = key->type});
+      &(pgp_passphrase_ctx_t){.op = PGP_OP_UNLOCK, .pubkey = pgp_get_pubkey(key)});
 
     if (decrypted_seckey) {
         // this shouldn't really be necessary, but just in case

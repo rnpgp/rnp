@@ -105,18 +105,13 @@ rnp_passphrase_provider_stdin(const pgp_passphrase_ctx_t *ctx,
         goto done;
     }
     rnp_strhexdump(keyidhex, keyid, PGP_KEY_ID_SIZE, "");
-    snprintf(target,
-             sizeof(target),
-             "%s%s 0x%s",
-             ctx->op == PGP_OP_GENERATE_KEY ? "new " : "",
-             pgp_is_primary_key_tag(ctx->key_type) ? "primary key" : "subkey",
-             keyidhex);
+    snprintf(target, sizeof(target), "key 0x%s", keyidhex);
 start:
     snprintf(prompt, sizeof(prompt), "Enter passphrase for %s: ", target);
     if (!rnp_getpass(prompt, passphrase, passphrase_size)) {
         goto done;
     }
-    if (ctx->op == PGP_OP_GENERATE_KEY) {
+    if (ctx->op == PGP_OP_PROTECT) {
         snprintf(prompt, sizeof(prompt), "Repeat passphrase for %s: ", target);
         if (!rnp_getpass(prompt, buffer, sizeof(buffer))) {
             goto done;

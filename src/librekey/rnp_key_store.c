@@ -654,7 +654,7 @@ rnp_key_store_get_key_by_id(pgp_io_t *             io,
                             pgp_pubkey_t **        pubkey)
 {
     if (rnp_get_debug(__FILE__)) {
-        fprintf(io->errs, "looking keyring %p\n", keyring);
+        fprintf(io->errs, "searching keyring %p\n", keyring);
     }
 
     for (; keyring && *from < keyring->keyc; *from += 1) {
@@ -675,30 +675,23 @@ rnp_key_store_get_key_by_id(pgp_io_t *             io,
     return NULL;
 }
 
-bool
-rnp_key_store_get_key_by_grip(pgp_io_t *             io,
-                              const rnp_key_store_t *keyring,
-                              const uint8_t *        grip,
-                              pgp_pubkey_t **        pubkey)
+pgp_key_t *
+rnp_key_store_get_key_by_grip(pgp_io_t *io, rnp_key_store_t *keyring, const uint8_t *grip)
 {
     if (rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "looking keyring %p\n", keyring);
     }
 
-    *pubkey = NULL;
     for (int i = 0; keyring && i < keyring->keyc; i++) {
         if (rnp_get_debug(__FILE__)) {
             hexdump(io->errs, "looking for grip", grip, PGP_FINGERPRINT_SIZE);
             hexdump(io->errs, "keyring grip", keyring->keys[i].grip, PGP_FINGERPRINT_SIZE);
         }
         if (memcmp(keyring->keys[i].grip, grip, PGP_FINGERPRINT_SIZE) == 0) {
-            if (pubkey) {
-                *pubkey = &keyring->keys[i].key.pubkey;
-            }
-            return true;
+            return &keyring->keys[i];
         }
     }
-    return false;
+    return NULL;
 }
 
 /* convert a string keyid into a binary keyid */

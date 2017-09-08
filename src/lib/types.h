@@ -53,8 +53,10 @@
 
 #include <stdint.h>
 #include <rnp/rnp_def.h>
+#include "memory.h"
 #include "defs.h"
 #include "errors.h"
+#include "memory.h"
 #include "crypto/rsa.h"
 #include "crypto/dsa.h"
 #include "crypto/elgamal.h"
@@ -168,11 +170,6 @@ unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
 
 typedef struct pgp_key_t pgp_key_t;
 
-struct pgp_seckey_t;
-
-typedef struct pgp_seckey_t *pgp_seckey_decrypt_t(const pgp_key_t *key,
-                                                  const char *     passphrase);
-
 /** pgp_seckey_t
  */
 typedef struct pgp_seckey_t {
@@ -207,11 +204,6 @@ typedef struct pgp_seckey_t {
 
     unsigned checksum;
     uint8_t  checkhash[PGP_CHECKHASH_SIZE];
-
-    size_t                encrypted_data_len;
-    uint8_t *             encrypted_data;
-    pgp_seckey_decrypt_t *decrypt_cb;
-    const char *protected_at[PGP_PROTECTED_AT_SIZE + 1]; // keep 1 byte for \0 and padding
 } pgp_seckey_t;
 
 /** Struct to hold a signature packet.
