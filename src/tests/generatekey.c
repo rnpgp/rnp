@@ -252,8 +252,7 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
 
     rnp_test_state_t *rstate = *state;
     const char *hashAlg[] = {"MD5", "SHA1", "SHA256", "SHA384", "SHA512", "SHA224", "SM3"};
-    const char *keystores[] = {RNP_KEYSTORE_GPG, /* RNP_KEYSTORE_GPG21, */ RNP_KEYSTORE_KBX,
-                               /* RNP_KEYSTORE_G10 */};
+    const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_GPG21, RNP_KEYSTORE_KBX};
     rnp_t rnp;
     int   pipefd[2];
 
@@ -306,8 +305,7 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
                              "rnpkeys_generatekey_verifyUserIdOption_SHA512",
                              "rnpkeys_generatekey_verifyUserIdOption_SHA224"};
 
-    const char *keystores[] = {RNP_KEYSTORE_GPG, /* RNP_KEYSTORE_GPG21,*/ RNP_KEYSTORE_KBX,
-                               /* RNP_KEYSTORE_G10 */};
+    const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_GPG21, RNP_KEYSTORE_KBX};
     rnp_t rnp;
     int   pipefd[2];
 
