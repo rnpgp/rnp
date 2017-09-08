@@ -646,7 +646,7 @@ rnp_key_store_remove_key_by_id(pgp_io_t *io, rnp_key_store_t *keyring, const uin
    not a copy.  Do not free it after use.
 
 */
-const pgp_key_t *
+pgp_key_t *
 rnp_key_store_get_key_by_id(pgp_io_t *             io,
                             const rnp_key_store_t *keyring,
                             const uint8_t *        keyid,
@@ -735,9 +735,9 @@ get_key_by_name(pgp_io_t *             io,
                 const rnp_key_store_t *keyring,
                 const char *           name,
                 unsigned *             from,
-                const pgp_key_t **     key)
+                pgp_key_t **     key)
 {
-    const pgp_key_t *kp;
+    pgp_key_t *kp;
     uint8_t **       uidp;
     unsigned         i = 0;
     pgp_key_t *      keyp;
@@ -809,10 +809,10 @@ get_key_by_name(pgp_io_t *             io,
 
 */
 bool
-rnp_key_store_get_key_by_name(pgp_io_t *             io,
-                              const rnp_key_store_t *keyring,
-                              const char *           name,
-                              const pgp_key_t **     key)
+rnp_key_store_get_key_by_name(pgp_io_t *              io,
+                              const rnp_key_store_t * keyring,
+                              const char *            name,
+                              pgp_key_t **key)
 {
     unsigned from;
 
@@ -825,7 +825,7 @@ rnp_key_store_get_next_key_by_name(pgp_io_t *             io,
                                    const rnp_key_store_t *keyring,
                                    const char *           name,
                                    unsigned *             n,
-                                   const pgp_key_t **     key)
+                                   pgp_key_t **     key)
 {
     return get_key_by_name(io, keyring, name, n, key);
 }

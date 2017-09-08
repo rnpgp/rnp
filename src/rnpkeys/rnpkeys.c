@@ -180,17 +180,23 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         return rnp_import_key(rnp, f);
     case CMD_GENERATE_KEY:
         key = f ? f : rnp_cfg_get(cfg, CFG_USERID);
-        rnp_keygen_desc_t *key_desc = &rnp->action.generate_key_ctx;
-        memset(key_desc, 0, sizeof(*key_desc));
+        rnp_action_keygen_t *        action = &rnp->action.generate_key_ctx;
+        rnp_keygen_primary_desc_t *  primary_desc = &action->primary.keygen;
+        rnp_key_protection_params_t *protection = &action->primary.protection;
+        memset(action, 0, sizeof(*action));
         if (key) {
-            strcpy((char *) key_desc->primary.cert.userid, key);
+            strcpy((char *) primary_desc->cert.userid, key);
         }
-        key_desc->primary.crypto.hash_alg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
+        primary_desc->crypto.hash_alg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
+        protection->hash_alg = primary_desc->crypto.hash_alg;
+        protection->symm_alg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
 
         if (!rnp_cfg_getbool(cfg, CFG_EXPERT)) {
-            key_desc->primary.crypto.key_alg = PGP_PKA_RSA;
-            key_desc->primary.crypto.rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
-            key_desc->subkey.crypto = key_desc->primary.crypto;
+            primary_desc->crypto.key_alg = PGP_PKA_RSA;
+            primary_desc->crypto.rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
+            // copy keygen crypto and protection from primary to subkey
+            action->subkey.keygen.crypto = primary_desc->crypto;
+            action->subkey.protection = *protection;
         } else if (rnp_generate_key_expert_mode(rnp) != PGP_E_OK) {
             RNP_LOG("Critical error: Key generation failed");
             return false;

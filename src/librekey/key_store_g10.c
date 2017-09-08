@@ -1068,6 +1068,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *       io,
     memcpy(key->packets[0].raw, memory->buf, memory->length);
     key->packetc++;
     key->format = G10_KEY_STORE;
+    key->is_protected = keydata.seckey.encrypted;
     ret = true;
 
 done:

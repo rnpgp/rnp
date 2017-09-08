@@ -154,11 +154,11 @@ use_ssh_keys(rnp_t *rnp)
 }
 
 /* resolve the userid */
-static const pgp_key_t *
+static pgp_key_t *
 resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
 {
-    const pgp_key_t *key;
-    pgp_io_t *       io;
+    pgp_key_t *key;
+    pgp_io_t * io;
 
     if (userid == NULL) {
         return NULL;
@@ -466,7 +466,7 @@ formatbignum(char *buffer, BIGNUM *bn)
 }
 
 /* find a subkey that includes any of the desired key flags */
-static const pgp_key_t *
+static pgp_key_t *
 find_suitable_subkey(const pgp_key_t *primary, uint8_t desired_usage)
 {
     if (!primary || DYNARRAY_IS_EMPTY(primary, subkey)) {
@@ -778,10 +778,10 @@ DEFINE_ARRAY(strings_t, char *);
 int
 rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psigs)
 {
-    const pgp_key_t *key;
-    unsigned         k;
-    strings_t        pubs;
-    FILE *           fp = (FILE *) vp;
+    pgp_key_t *key;
+    unsigned   k;
+    strings_t  pubs;
+    FILE *     fp = (FILE *) vp;
 
     if (name[0] == '0' && name[1] == 'x') {
         name += 2;
@@ -830,11 +830,11 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
 int
 rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const int psigs)
 {
-    int              ret = 1;
-    const pgp_key_t *key;
-    unsigned         from;
-    json_object *    id_array = json_object_new_array();
-    char *           newkey;
+    int          ret = 1;
+    pgp_key_t *  key;
+    unsigned     from;
+    json_object *id_array = json_object_new_array();
+    char *       newkey;
     // remove 0x prefix, if any
     if (name[0] == '0' && name[1] == 'x') {
         name += 2;
@@ -880,11 +880,11 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
 int
 rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
 {
-    const pgp_key_t *key;
-    unsigned         k;
-    ssize_t          cc;
-    char             out[1024 * 64];
-    FILE *           fp = (FILE *) vp;
+    pgp_key_t *key;
+    unsigned   k;
+    ssize_t    cc;
+    char       out[1024 * 64];
+    FILE *     fp = (FILE *) vp;
 
     k = 0;
     do {
@@ -905,8 +905,8 @@ rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
 bool
 rnp_find_key(rnp_t *rnp, const char *id)
 {
-    pgp_io_t *       io;
-    const pgp_key_t *key;
+    pgp_io_t * io;
+    pgp_key_t *key;
 
     io = rnp->io;
     if (id == NULL) {
@@ -1008,14 +1008,14 @@ rnp_generate_key(rnp_t *rnp)
 {
     RNP_MSG("Generating a new key...\n");
 
-    rnp_keygen_desc_t *desc = &rnp->action.generate_key_ctx;
-    pgp_key_t *        primary_sec = NULL;
-    pgp_key_t *        primary_pub = NULL;
-    pgp_key_t *        subkey_sec = NULL;
-    pgp_key_t *        subkey_pub = NULL;
-    char *             cp = NULL;
-    bool               ok = false;
-    key_store_format_t key_format = ((rnp_key_store_t *) rnp->secring)->format;
+    rnp_action_keygen_t *action = &rnp->action.generate_key_ctx;
+    pgp_key_t *          primary_sec = NULL;
+    pgp_key_t *          primary_pub = NULL;
+    pgp_key_t *          subkey_sec = NULL;
+    pgp_key_t *          subkey_pub = NULL;
+    char *               cp = NULL;
+    bool                 ok = false;
+    key_store_format_t   key_format = ((rnp_key_store_t *) rnp->secring)->format;
 
     primary_sec = calloc(1, sizeof(*primary_sec));
     primary_pub = calloc(1, sizeof(*primary_pub));
@@ -1024,9 +1024,22 @@ rnp_generate_key(rnp_t *rnp)
     if (!primary_sec || !primary_pub || !subkey_sec || !subkey_pub) {
         goto end;
     }
-    if (!pgp_generate_keypair(
-          desc, true, primary_sec, primary_pub, subkey_sec, subkey_pub, key_format)) {
+    if (!pgp_generate_keypair(&action->primary.keygen,
+                              &action->subkey.keygen,
+                              true,
+                              primary_sec,
+                              primary_pub,
+                              subkey_sec,
+                              subkey_pub,
+                              key_format)) {
         RNP_LOG("failed to generate keys");
+        goto end;
+    }
+    if (!pgp_key_protect(
+          primary_sec, key_format, &action->primary.protection, &rnp->passphrase_provider) ||
+        !pgp_key_protect(
+          subkey_sec, key_format, &action->subkey.protection, &rnp->passphrase_provider)) {
+        RNP_LOG("failed to protect keys");
         goto end;
     }
 
@@ -1135,8 +1148,8 @@ rnp_sign_file(rnp_ctx_t * ctx,
               bool        cleartext,
               bool        detached)
 {
-    const pgp_key_t *   keypair;
-    const pgp_key_t *   pubkey;
+    pgp_key_t *         keypair;
+    pgp_key_t *         pubkey;
     const pgp_seckey_t *seckey = NULL;
     pgp_seckey_t *      decrypted_seckey = NULL;
     pgp_io_t *          io;
@@ -1268,8 +1281,8 @@ rnp_sign_memory(rnp_ctx_t * ctx,
                 size_t      outsize,
                 bool        cleartext)
 {
-    const pgp_key_t *   keypair;
-    const pgp_key_t *   pubkey;
+    pgp_key_t *         keypair;
+    pgp_key_t *         pubkey;
     const pgp_seckey_t *seckey = NULL;
     pgp_seckey_t *      decrypted_seckey = NULL;
     pgp_memory_t *      signedmem;
@@ -1536,11 +1549,11 @@ rnp_format_json(void *vp, const char *json, const int psigs)
 int
 rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size)
 {
-    const pgp_key_t *key;
-    pgp_io_t *       io;
-    unsigned         k;
-    size_t           cc;
-    char             f[MAXPATHLEN];
+    pgp_key_t *key;
+    pgp_io_t * io;
+    unsigned   k;
+    size_t     cc;
+    char       f[MAXPATHLEN];
 
     io = NULL;
     cc = 0;

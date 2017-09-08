@@ -118,7 +118,7 @@ int setupPassphrasefd(int *pipefd);
 int setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd);
 
 /* Initialize key generation params with default values and specified hash algorithm */
-void set_default_rsa_key_desc(rnp_keygen_desc_t *key_desc, pgp_hash_alg_t hashalg);
+void set_default_rsa_key_desc(rnp_action_keygen_t *action, pgp_hash_alg_t hashalg);
 
 /**
  *  Helper used to retrieve random data. Function initializes

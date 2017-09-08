@@ -137,6 +137,9 @@ cb_keyring_read(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         key = cb->key;
         cb->subsig = NULL;
         key->format = GPG_KEY_STORE;
+        if (pgp_is_key_secret(key)) {
+            key->is_protected = key->key.seckey.encrypted;
+        }
         if (pgp_is_subkey_tag(pkt->tag) && cb->last_primary) {
             EXPAND_ARRAY(cb->last_primary, subkey);
             if (!cb->last_primary->subkeys) {
