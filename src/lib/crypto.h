@@ -119,7 +119,8 @@ bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
 
 /** generate a new primary key and subkey
  *
- *  @param desc keygen description
+ *  @param primary_desc primary keygen description
+ *  @param subkey_desc subkey keygen description
  *  @param merge_defaults true if you want defaults to be set for unset
  *         keygen description parameters.
  *  @param primary_sec pointer to store the generated secret key, must not be NULL
@@ -128,13 +129,14 @@ bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
  *  @param subkey_pub pointer to store the generated public key, must not be NULL
  *  @return true if successful, false otherwise.
  **/
-bool pgp_generate_keypair(rnp_keygen_desc_t *desc,
-                          bool               merge_defaults,
-                          pgp_key_t *        primary_sec,
-                          pgp_key_t *        primary_pub,
-                          pgp_key_t *        subkey_sec,
-                          pgp_key_t *        subkey_pub,
-                          key_store_format_t secformat);
+bool pgp_generate_keypair(rnp_keygen_primary_desc_t *primary_desc,
+                          rnp_keygen_subkey_desc_t * subkey_desc,
+                          bool                       merge_defaults,
+                          pgp_key_t *                primary_sec,
+                          pgp_key_t *                primary_pub,
+                          pgp_key_t *                subkey_sec,
+                          pgp_key_t *                subkey_pub,
+                          key_store_format_t         secformat);
 
 void pgp_reader_push_decrypt(pgp_stream_t *, pgp_crypt_t *, pgp_region_t *);
 void pgp_reader_pop_decrypt(pgp_stream_t *);

@@ -579,11 +579,6 @@ typedef struct rnp_keygen_subkey_desc_t {
     rnp_selfsig_binding_info   binding;
 } rnp_keygen_subkey_desc_t;
 
-typedef struct rnp_keygen_desc_t {
-    rnp_keygen_primary_desc_t primary;
-    rnp_keygen_subkey_desc_t  subkey;
-} rnp_keygen_desc_t;
-
 typedef struct rnp_key_protection_params_t {
     pgp_symm_alg_t    symm_alg;
     pgp_cipher_mode_t cipher_mode;

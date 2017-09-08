@@ -77,7 +77,7 @@ test_load_user_prefs(void **state)
         const char *userid = "key1-uid0";
 
         // find the key
-        const pgp_key_t *key = NULL;
+        pgp_key_t *key = NULL;
         rnp_assert_true(rstate,
                         rnp_key_store_get_key_by_name(rnp.io, rnp.pubring, userid, &key));
         assert_non_null(key);
@@ -123,7 +123,7 @@ test_load_user_prefs(void **state)
         const char *userid = "key0-uid0";
 
         // find the key
-        const pgp_key_t *key = NULL;
+        pgp_key_t *key = NULL;
         rnp_assert_true(rstate,
                         rnp_key_store_get_key_by_name(rnp.io, rnp.pubring, userid, &key));
         assert_non_null(key);

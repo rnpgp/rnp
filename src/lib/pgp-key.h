@@ -79,6 +79,8 @@ struct pgp_key_t {
     uint8_t            revoked;    /* key has been revoked */
     pgp_revoke_t       revocation; /* revocation reason */
     key_store_format_t format;     /* the format of the key in packets[0] */
+
+    bool is_protected; /* whether the key in packets[0] is encrypted (for secret keys) */
 };
 
 struct pgp_key_t *pgp_key_new(void);
@@ -175,6 +177,33 @@ bool pgp_key_unlock(pgp_key_t *key, const pgp_passphrase_provider_t *provider);
  *  @param key the key
  *  @return true if the key was unlocked, false otherwise
  **/
-void pgp_key_lock(pgp_key_t *key);
+bool pgp_key_lock(pgp_key_t *key);
+
+/** add protection to a key
+ *
+ *  @param key
+ *  @param format
+ *  @param passphrase_provider
+ *  @return true if key was successfully protected, false otherwise
+ **/
+bool pgp_key_protect(pgp_key_t *                      key,
+                     key_store_format_t               format,
+                     rnp_key_protection_params_t *    protection,
+                     const pgp_passphrase_provider_t *passphrase_provider);
+
+/** remove protection from a key
+ *
+ *  @param key
+ *  @param passphrase_provider
+ *  @return true if protection was successfully removed, false otherwise
+ **/
+bool pgp_key_unprotect(pgp_key_t *key, const pgp_passphrase_provider_t *passphrase_provider);
+
+/** check if a key is currently protected
+ *
+ *  @param key
+ *  @return true if the key is protected, false otherwise
+ **/
+bool pgp_key_is_protected(const pgp_key_t *key);
 
 #endif // RNP_PACKET_KEY_H

@@ -53,8 +53,8 @@ load_generated_key(pgp_output_t **    output,
                    key_store_format_t format,
                    pgp_key_t *        pubkey)
 {
-    bool     ok = false;
-    pgp_io_t io = {.errs = stderr, .res = stdout, .outs = stdout};
+    bool             ok = false;
+    pgp_io_t         io = {.errs = stderr, .res = stdout, .outs = stdout};
     rnp_key_store_t *pubring = NULL;
 
     // this would be better on the stack but the key store does not allow it
@@ -570,14 +570,15 @@ end:
 }
 
 static void
-keygen_merge_defaults(rnp_keygen_desc_t *desc)
+keygen_merge_defaults(rnp_keygen_primary_desc_t *primary_desc,
+                      rnp_keygen_subkey_desc_t * subkey_desc)
 {
-    if (!desc->primary.cert.key_flags && !desc->subkey.binding.key_flags) {
+    if (!primary_desc->cert.key_flags && !subkey_desc->binding.key_flags) {
         // if no flags are set for either the primary key nor subkey,
         // we can set up some typical defaults here (these are validated
         // later against the alg capabilities)
-        desc->primary.cert.key_flags = PGP_KF_SIGN | PGP_KF_CERTIFY;
-        desc->subkey.binding.key_flags = PGP_KF_ENCRYPT;
+        primary_desc->cert.key_flags = PGP_KF_SIGN | PGP_KF_CERTIFY;
+        subkey_desc->binding.key_flags = PGP_KF_ENCRYPT;
     }
 }
 
@@ -608,41 +609,43 @@ print_keygen_subkey(const rnp_keygen_subkey_desc_t *desc)
 }
 
 bool
-pgp_generate_keypair(rnp_keygen_desc_t *desc,
-                     bool               merge_defaults,
-                     pgp_key_t *        primary_sec,
-                     pgp_key_t *        primary_pub,
-                     pgp_key_t *        subkey_sec,
-                     pgp_key_t *        subkey_pub,
-                     key_store_format_t secformat)
+pgp_generate_keypair(rnp_keygen_primary_desc_t *primary_desc,
+                     rnp_keygen_subkey_desc_t * subkey_desc,
+                     bool                       merge_defaults,
+                     pgp_key_t *                primary_sec,
+                     pgp_key_t *                primary_pub,
+                     pgp_key_t *                subkey_sec,
+                     pgp_key_t *                subkey_pub,
+                     key_store_format_t         secformat)
 {
     bool ok = false;
 
     if (rnp_get_debug(__FILE__)) {
-        print_keygen_primary(&desc->primary);
-        print_keygen_subkey(&desc->subkey);
+        print_keygen_primary(primary_desc);
+        print_keygen_subkey(subkey_desc);
     }
 
     // validate args
-    if (!desc || !primary_sec || !primary_pub || !subkey_sec || !subkey_pub) {
+    if (!primary_desc || !subkey_desc || !primary_sec || !primary_pub || !subkey_sec ||
+        !subkey_pub) {
         RNP_LOG("NULL args");
         goto end;
     }
 
     // merge some defaults in, if requested
     if (merge_defaults) {
-        keygen_merge_defaults(desc);
+        keygen_merge_defaults(primary_desc, subkey_desc);
     }
 
     // generate the primary key
     if (!pgp_generate_primary_key(
-          &desc->primary, merge_defaults, primary_sec, primary_pub, secformat)) {
+          primary_desc, merge_defaults, primary_sec, primary_pub, secformat)) {
         RNP_LOG("failed to generate primary key");
         goto end;
     }
 
     // generate the subkey
-    if (!pgp_generate_subkey(&desc->subkey,
+    if (!pgp_generate_subkey(subkey_desc,
                              merge_defaults,
                              primary_sec,
                              primary_pub,

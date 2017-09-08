@@ -149,9 +149,13 @@ ask_bitlen(FILE *input_fp)
 pgp_errcode_t
 rnp_generate_key_expert_mode(rnp_t *rnp)
 {
-    FILE *                      input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
-    rnp_keygen_desc_t *         key_desc = &rnp->action.generate_key_ctx;
-    rnp_keygen_crypto_params_t *crypto = &key_desc->primary.crypto;
+    FILE *                       input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
+    rnp_action_keygen_t *        action = &rnp->action.generate_key_ctx;
+    rnp_keygen_primary_desc_t *  primary_desc = &action->primary.keygen;
+    rnp_key_protection_params_t *primary_protection = &action->primary.protection;
+    rnp_keygen_subkey_desc_t *   subkey_desc = &action->subkey.keygen;
+    rnp_key_protection_params_t *subkey_protection = &action->subkey.protection;
+    rnp_keygen_crypto_params_t * crypto = &primary_desc->crypto;
 
     crypto->key_alg = (pgp_pubkey_alg_t) ask_algorithm(input_fd);
     // get more details about the key
@@ -216,7 +220,9 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
         return PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG;
     }
     // TODO this is mostly to get tests passing
-    key_desc->subkey.crypto = key_desc->primary.crypto;
+    subkey_desc->crypto = primary_desc->crypto;
+    primary_protection->hash_alg = crypto->hash_alg;
+    *subkey_protection = *primary_protection;
 
     return PGP_E_OK;
 }

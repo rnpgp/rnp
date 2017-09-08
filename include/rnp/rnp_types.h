@@ -33,6 +33,17 @@
 #include "types.h"
 #include "pass-provider.h"
 
+typedef struct rnp_action_keygen_t {
+    struct {
+        rnp_keygen_primary_desc_t   keygen;
+        rnp_key_protection_params_t protection;
+    } primary;
+    struct {
+        rnp_keygen_subkey_desc_t    keygen;
+        rnp_key_protection_params_t protection;
+    } subkey;
+} rnp_action_keygen_t;
+
 /* structure used to keep application-wide rnp configuration: keyrings, password io, whatever
  * else */
 typedef struct rnp_t {
@@ -45,7 +56,7 @@ typedef struct rnp_t {
     int       pswdtries;     /* number of password tries, -1 for unlimited */
 
     union {
-        rnp_keygen_desc_t generate_key_ctx;
+        rnp_action_keygen_t generate_key_ctx;
     } action;
 
     pgp_passphrase_provider_t passphrase_provider;
