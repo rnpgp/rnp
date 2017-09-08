@@ -434,12 +434,6 @@ pgp_decrypt_seckey(const pgp_key_t *                key,
         goto done;
     }
 
-    // try an empty passphrase first
-    decrypted_seckey = decryptor(key, "");
-    if (decrypted_seckey) {
-        goto done;
-    }
-
     // ask the provider for a passphrase
     if (!pgp_request_passphrase(provider, ctx, passphrase, sizeof(passphrase))) {
         goto done;
