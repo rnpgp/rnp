@@ -460,11 +460,11 @@ typedef enum {
 
 typedef enum pgp_op_t {
     PGP_OP_UNKNOWN = 0,
-    PGP_OP_GENERATE_KEY = 1,
-    PGP_OP_ADD_SUBKEY = 2,
-    PGP_OP_SIGN = 3,
-    PGP_OP_DECRYPT = 4,
-    PGP_OP_UNLOCK = 5
+    PGP_OP_ADD_SUBKEY = 1, /* adding a subkey, primary key passphrase required */
+    PGP_OP_SIGN = 2,       /* signing file or data */
+    PGP_OP_DECRYPT = 3,    /* decrypting file or data */
+    PGP_OP_UNLOCK = 4,     /* unlocking a key with pgp_key_unlock */
+    PGP_OP_PROTECT = 5,    /* adding protection to a key */
 } pgp_op_t;
 
 /** Hashing Algorithm Numbers.

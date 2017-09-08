@@ -56,6 +56,7 @@
 
 #include <sys/types.h>
 #include <stdbool.h>
+#include <repgp/repgp_def.h>
 
 typedef struct pgp_output_t pgp_output_t;
 
