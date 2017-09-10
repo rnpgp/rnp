@@ -412,11 +412,12 @@ conffile(const char *homedir, char *userid, size_t length)
  *  @param subddir [in] null-terminated subdirectory to add to the path, can be NULL
  *  @param filename [in] null-terminated filename (or path/filename), cannot be NULL
  *  @param res [out] preallocated buffer
+ *  @param res_size [in] size of output res buffer
  *
  *  @return true if path constructed successfully, or false otherwise
  **/
 static bool
-rnp_path_compose(const char *dir, const char *subdir, const char *filename, char *res)
+rnp_path_compose(const char *dir, const char *subdir, const char *filename, char *res, size_t res_size)
 {
     int pos;
 
@@ -426,8 +427,9 @@ rnp_path_compose(const char *dir, const char *subdir, const char *filename, char
     }
 
     /* concatenating dir, subdir and filename */
-    if (strlen(dir) > MAXPATHLEN - 1)
+    if (strlen(dir) > res_size - 1) {
         return false;
+    }
 
     strcpy(res, dir);
     pos = strlen(dir);
@@ -437,8 +439,9 @@ rnp_path_compose(const char *dir, const char *subdir, const char *filename, char
             res[pos++] = '/';
         }
 
-        if (strlen(subdir) + pos > MAXPATHLEN - 1)
+        if (strlen(subdir) + pos > res_size - 1) {
             return false;
+        }
 
         strcpy(res + pos, subdir);
         pos += strlen(subdir);
@@ -448,8 +451,9 @@ rnp_path_compose(const char *dir, const char *subdir, const char *filename, char
         res[pos++] = '/';
     }
 
-    if (strlen(filename) + pos > MAXPATHLEN - 1)
+    if (strlen(filename) + pos > res_size - 1) {
         return false;
+    }
 
     strcpy(res + pos, filename);
 
@@ -511,8 +515,8 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
             if ((subdir = rnp_cfg_get(cfg, CFG_SUBDIRGPG)) == NULL) {
                 subdir = SUBDIRECTORY_RNP;
             }
-            rnp_path_compose(homedir, defhomedir ? subdir : NULL, PUBRING_KBX, pubpath);
-            rnp_path_compose(homedir, defhomedir ? subdir : NULL, SECRING_G10, secpath);
+            rnp_path_compose(homedir, defhomedir ? subdir : NULL, PUBRING_KBX, pubpath, sizeof(pubpath));
+            rnp_path_compose(homedir, defhomedir ? subdir : NULL, SECRING_G10, secpath, sizeof(secpath));
 
             bool pubpath_exists = stat(pubpath, &st) == 0;
             bool secpath_exists = stat(secpath, &st) == 0;
@@ -534,7 +538,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
 
     /* creating home dir if needed */
     if (defhomedir && subdir) {
-        rnp_path_compose(homedir, NULL, subdir, pubpath);
+        rnp_path_compose(homedir, NULL, subdir, pubpath, sizeof(pubpath));
         if (mkdir(pubpath, 0700) == -1 && errno != EEXIST) {
             fprintf(stderr, "cannot mkdir '%s' errno = %d \n", pubpath, errno);
             return false;
@@ -542,8 +546,8 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
     }
 
     if (strcmp(ks_format, RNP_KEYSTORE_GPG) == 0) {
-        if (!rnp_path_compose(homedir, subdir, PUBRING_GPG, pubpath) ||
-            !rnp_path_compose(homedir, subdir, SECRING_GPG, secpath)) {
+        if (!rnp_path_compose(homedir, subdir, PUBRING_GPG, pubpath, sizeof(pubpath)) ||
+            !rnp_path_compose(homedir, subdir, SECRING_GPG, secpath, sizeof(secpath))) {
             return false;
         }
         params->pubpath = strdup(pubpath);
@@ -551,8 +555,8 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
         params->ks_pub_format = RNP_KEYSTORE_GPG;
         params->ks_sec_format = RNP_KEYSTORE_GPG;
     } else if (strcmp(ks_format, RNP_KEYSTORE_GPG21) == 0) {
-        if (!rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath) ||
-            !rnp_path_compose(homedir, subdir, SECRING_G10, secpath)) {
+        if (!rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath, sizeof(pubpath)) ||
+            !rnp_path_compose(homedir, subdir, SECRING_G10, secpath, sizeof(secpath))) {
             return false;
         }
         params->pubpath = strdup(pubpath);
@@ -560,8 +564,8 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
         params->ks_pub_format = RNP_KEYSTORE_KBX;
         params->ks_sec_format = RNP_KEYSTORE_G10;
     } else if (strcmp(ks_format, RNP_KEYSTORE_KBX) == 0) {
-        if (!rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath) ||
-            !rnp_path_compose(homedir, subdir, SECRING_KBX, secpath)) {
+        if (!rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath, sizeof(pubpath)) ||
+            !rnp_path_compose(homedir, subdir, SECRING_KBX, secpath, sizeof(secpath))) {
             return false;
         }
         params->pubpath = strdup(pubpath);
@@ -569,8 +573,8 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
         params->ks_pub_format = RNP_KEYSTORE_KBX;
         params->ks_sec_format = RNP_KEYSTORE_KBX;
     } else if (strcmp(ks_format, RNP_KEYSTORE_G10) == 0) {
-        if (!rnp_path_compose(homedir, subdir, PUBRING_G10, pubpath) ||
-            !rnp_path_compose(homedir, subdir, SECRING_G10, secpath)) {
+        if (!rnp_path_compose(homedir, subdir, PUBRING_G10, pubpath, sizeof(pubpath)) ||
+            !rnp_path_compose(homedir, subdir, SECRING_G10, secpath, sizeof(secpath))) {
             return false;
         }
         params->pubpath = strdup(pubpath);
@@ -580,8 +584,8 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
     } else if (strcmp(ks_format, RNP_KEYSTORE_SSH) == 0) {
         if ((sshfile = rnp_cfg_get(cfg, CFG_SSHKEYFILE)) == NULL) {
             /* set reasonable default for RSA key */
-            if (!rnp_path_compose(homedir, subdir, "id_rsa.pub", pubpath) ||
-                !rnp_path_compose(homedir, subdir, "id_rsa", secpath)) {
+            if (!rnp_path_compose(homedir, subdir, "id_rsa.pub", pubpath, sizeof(pubpath)) ||
+                !rnp_path_compose(homedir, subdir, "id_rsa", secpath, sizeof(secpath))) {
                 return false;
             }
         } else if ((strlen(sshfile) < 4) ||
