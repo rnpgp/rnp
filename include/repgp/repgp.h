@@ -42,7 +42,7 @@
 #include <rnp/rnp_def.h>
 #include "repgp_def.h"
 
-#define REPGP_HANDLE_NULL ((void *) 0)
+#define REPGP_HANDLE_NULL NULL
 
 typedef struct pgp_packet_t   pgp_packet_t;
 typedef struct pgp_stream_t   pgp_stream_t;
