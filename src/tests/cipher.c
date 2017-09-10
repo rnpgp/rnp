@@ -633,9 +633,9 @@ sm2_roundtrip(void **state)
     const pgp_ecc_pubkey_t *pub_ecc = &pub_key->key.ecc;
     const pgp_ecc_seckey_t *sec_ecc = &sec_key->key.ecc;
 
-    uint8_t hashes[] = {PGP_HASH_SM3, PGP_HASH_SHA256, PGP_HASH_SHA512, 0};
+    uint8_t hashes[] = {PGP_HASH_SM3, PGP_HASH_SHA256, PGP_HASH_SHA512};
 
-    for (size_t i = 0; hashes[i] != 0; ++i) {
+    for (size_t i = 0; i < ARRAY_SIZE(hashes); ++i) {
         size_t        ctext_size = sizeof(ctext_buf);
         pgp_errcode_t enc_result =
           pgp_sm2_encrypt(ctext_buf, &ctext_size, key, sizeof(key), hashes[i], pub_ecc);
