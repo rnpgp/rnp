@@ -610,11 +610,11 @@ sm2_roundtrip(void **state)
 {
     rnp_test_state_t *rstate = *state;
 
-    uint8_t key[32] = {0};
+    uint8_t key[27] = {0};
     pgp_random(key, sizeof(key));
 
     uint8_t ctext_buf[1024];
-    uint8_t decrypted[32];
+    uint8_t decrypted[27];
 
     const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_SM2,
                                                  .hash_alg = PGP_HASH_SM3,
@@ -633,20 +633,29 @@ sm2_roundtrip(void **state)
     const pgp_ecc_pubkey_t *pub_ecc = &pub_key->key.ecc;
     const pgp_ecc_seckey_t *sec_ecc = &sec_key->key.ecc;
 
-    size_t        ctext_size = sizeof(ctext_buf);
-    pgp_errcode_t enc_result =
-      pgp_sm2_encrypt(ctext_buf, &ctext_size, key, sizeof(key), pub_ecc);
-    rnp_assert_int_equal(rstate, enc_result, PGP_E_OK);
+    uint8_t hashes[] = {PGP_HASH_SM3, PGP_HASH_SHA256, PGP_HASH_SHA512};
 
-    memset(decrypted, 0, sizeof(decrypted));
-    size_t        decrypted_size = sizeof(decrypted);
-    pgp_errcode_t dec_result =
-      pgp_sm2_decrypt(decrypted, &decrypted_size, ctext_buf, ctext_size, sec_ecc, pub_ecc);
-    rnp_assert_int_equal(rstate, dec_result, PGP_E_OK);
+    for (size_t i = 0; i < ARRAY_SIZE(hashes); ++i) {
+        size_t        ctext_size = sizeof(ctext_buf);
+        pgp_errcode_t enc_result =
+          pgp_sm2_encrypt(ctext_buf, &ctext_size, key, sizeof(key), hashes[i], pub_ecc);
+        rnp_assert_int_equal(rstate, enc_result, PGP_E_OK);
 
-    rnp_assert_int_equal(rstate, decrypted_size, sizeof(key));
-    for (size_t i = 0; i != decrypted_size; ++i)
-        rnp_assert_int_equal(rstate, key[i], decrypted[i]);
+        size_t size_of_hash;
+        pgp_digest_length(hashes[i], &size_of_hash);
+        rnp_assert_int_equal(rstate, ctext_size, 1 + 2 * 32 + sizeof(key) + size_of_hash + 1);
+
+        memset(decrypted, 0, sizeof(decrypted));
+        size_t        decrypted_size = sizeof(decrypted);
+        pgp_errcode_t dec_result =
+          pgp_sm2_decrypt(decrypted, &decrypted_size, ctext_buf, ctext_size, sec_ecc, pub_ecc);
+        rnp_assert_int_equal(rstate, dec_result, PGP_E_OK);
+
+        rnp_assert_int_equal(rstate, decrypted_size, sizeof(key));
+        for (size_t i = 0; i != decrypted_size; ++i)
+            rnp_assert_int_equal(rstate, key[i], decrypted[i]);
+    }
+
     pgp_seckey_free(sec_key);
     free(sec_key);
 }
