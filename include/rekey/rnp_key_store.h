@@ -38,9 +38,9 @@
 #include <stdbool.h>
 
 #include "memory.h"
-#include "pgp-key.h"
 
 typedef struct rnp_t rnp_t;
+typedef struct pgp_key_t pgp_key_t;
 
 typedef enum {
     KBX_EMPTY_BLOB = 0,

@@ -47,6 +47,7 @@
 #include "crypto.h"
 #include "reader.h"
 #include "validate.h"
+#include "pgp-key.h"
 
 repgp_handle_t *
 create_filepath_handle(const char *filename)
