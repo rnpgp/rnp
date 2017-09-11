@@ -38,6 +38,7 @@
 #include "symmetric.h"
 #include "readerwriter.h"
 #include "misc.h"
+#include "pgp-key.h"
 
 #define G10_CBC_IV_SIZE 16
 
