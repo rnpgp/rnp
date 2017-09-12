@@ -301,7 +301,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         goto end;
         break;
     }
-    seckey->s2k_usage = PGP_S2KU_NONE;
+    seckey->protection.s2k.usage = PGP_S2KU_NONE;
     ok = true;
 
 end:

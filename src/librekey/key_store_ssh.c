@@ -397,12 +397,12 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
     /* let's add some sane defaults */
     (void) memcpy(&key->key.seckey.pubkey, pubkey, sizeof(*pubkey));
     key->key.seckey.pubkey.alg = PGP_PKA_RSA;
-    key->key.seckey.s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    key->key.seckey.alg = PGP_SA_CAST5;
-    key->key.seckey.s2k_specifier = PGP_S2KS_SALTED;
-    key->key.seckey.hash_alg = PGP_HASH_SHA1;
+    key->key.seckey.protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    key->key.seckey.protection.symm_alg = PGP_SA_CAST5;
+    key->key.seckey.protection.s2k.specifier = PGP_S2KS_SALTED;
+    key->key.seckey.protection.s2k.hash_alg = PGP_HASH_SHA1;
 
-    if (pgp_random(key->key.seckey.salt, PGP_SALT_SIZE)) {
+    if (pgp_random(key->key.seckey.protection.s2k.salt, PGP_SALT_SIZE)) {
         (void) fprintf(stderr, "pgp_random failed\n");
         return false;
     }
@@ -414,15 +414,19 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
         key->key.seckey.key.rsa.q = tmp;
     }
 
-    sesskey_len = pgp_key_size(key->key.seckey.alg);
+    sesskey_len = pgp_key_size(key->key.seckey.protection.symm_alg);
 
-    if (pgp_s2k_salted(
-          key->key.seckey.hash_alg, sesskey, sesskey_len, "", key->key.seckey.salt)) {
+    if (pgp_s2k_salted(key->key.seckey.protection.s2k.hash_alg,
+                       sesskey,
+                       sesskey_len,
+                       "",
+                       key->key.seckey.protection.s2k.salt)) {
         (void) fprintf(stderr, "pgp_s2k_salted failed\n");
         return false;
     }
 
-    pgp_cipher_start(&crypted, key->key.seckey.alg, sesskey, key->key.seckey.iv);
+    pgp_cipher_start(
+      &crypted, key->key.seckey.protection.symm_alg, sesskey, key->key.seckey.protection.iv);
     ssh_fingerprint(&key->fingerprint, pubkey);
     ssh_keyid(key->keyid, sizeof(key->keyid), pubkey);
     return true;
