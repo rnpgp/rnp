@@ -2534,19 +2534,19 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     if (!limread(&c, 1, region, stream)) {
         return false;
     }
-    pkt.u.seckey.s2k_usage = (pgp_s2k_usage_t) c;
+    pkt.u.seckey.protection.s2k.usage = (pgp_s2k_usage_t) c;
 
-    if (pkt.u.seckey.s2k_usage == PGP_S2KU_ENCRYPTED ||
-        pkt.u.seckey.s2k_usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
+    if (pkt.u.seckey.protection.s2k.usage == PGP_S2KU_ENCRYPTED ||
+        pkt.u.seckey.protection.s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
         if (!limread(&c, 1, region, stream)) {
             return false;
         }
-        pkt.u.seckey.alg = (pgp_symm_alg_t) c;
+        pkt.u.seckey.protection.symm_alg = (pgp_symm_alg_t) c;
         if (!limread(&c, 1, region, stream)) {
             return false;
         }
-        pkt.u.seckey.s2k_specifier = (pgp_s2k_specifier_t) c;
-        switch (pkt.u.seckey.s2k_specifier) {
+        pkt.u.seckey.protection.s2k.specifier = (pgp_s2k_specifier_t) c;
+        switch (pkt.u.seckey.protection.s2k.specifier) {
         case PGP_S2KS_SIMPLE:
         case PGP_S2KS_SALTED:
         case PGP_S2KS_ITERATED_AND_SALTED:
@@ -2558,26 +2558,26 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         if (!limread(&c, 1, region, stream)) {
             return false;
         }
-        pkt.u.seckey.hash_alg = (pgp_hash_alg_t) c;
-        if (pkt.u.seckey.s2k_specifier != PGP_S2KS_SIMPLE &&
-            !limread(pkt.u.seckey.salt, PGP_SALT_SIZE, region, stream)) {
+        pkt.u.seckey.protection.s2k.hash_alg = (pgp_hash_alg_t) c;
+        if (pkt.u.seckey.protection.s2k.specifier != PGP_S2KS_SIMPLE &&
+            !limread(pkt.u.seckey.protection.s2k.salt, PGP_SALT_SIZE, region, stream)) {
             return false;
         }
-        if (pkt.u.seckey.s2k_specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+        if (pkt.u.seckey.protection.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
             if (!limread(&c, 1, region, stream)) {
                 return false;
             }
-            pkt.u.seckey.s2k_iterations = pgp_s2k_decode_iterations(c);
+            pkt.u.seckey.protection.s2k.iterations = pgp_s2k_decode_iterations(c);
         }
-    } else if (pkt.u.seckey.s2k_usage != PGP_S2KU_NONE) {
+    } else if (pkt.u.seckey.protection.s2k.usage != PGP_S2KU_NONE) {
         /* this is V3 style, looks just like a V4 simple hash */
-        pkt.u.seckey.alg = (pgp_symm_alg_t) c;
-        pkt.u.seckey.s2k_usage = PGP_S2KU_ENCRYPTED;
-        pkt.u.seckey.s2k_specifier = PGP_S2KS_SIMPLE;
-        pkt.u.seckey.hash_alg = PGP_HASH_MD5;
+        pkt.u.seckey.protection.symm_alg = (pgp_symm_alg_t) c;
+        pkt.u.seckey.protection.s2k.usage = PGP_S2KU_ENCRYPTED;
+        pkt.u.seckey.protection.s2k.specifier = PGP_S2KS_SIMPLE;
+        pkt.u.seckey.protection.s2k.hash_alg = PGP_HASH_MD5;
     }
-    crypted = pkt.u.seckey.s2k_usage == PGP_S2KU_ENCRYPTED ||
-              pkt.u.seckey.s2k_usage == PGP_S2KU_ENCRYPTED_AND_HASHED;
+    crypted = pkt.u.seckey.protection.s2k.usage == PGP_S2KU_ENCRYPTED ||
+              pkt.u.seckey.protection.s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED;
     pkt.u.seckey.encrypted = crypted;
 
     if (crypted) {
@@ -2589,13 +2589,13 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         if (rnp_get_debug(__FILE__)) {
             (void) fprintf(stderr, "crypted seckey\n");
         }
-        blocksize = pgp_block_size(pkt.u.seckey.alg);
+        blocksize = pgp_block_size(pkt.u.seckey.protection.symm_alg);
         if (blocksize == 0 || blocksize > PGP_MAX_BLOCK_SIZE) {
             (void) fprintf(stderr, "parse_seckey: bad blocksize\n");
             return false;
         }
 
-        if (!limread(pkt.u.seckey.iv, blocksize, region, stream)) {
+        if (!limread(pkt.u.seckey.protection.iv, blocksize, region, stream)) {
             return false;
         }
         (void) memset(&seckey, 0x0, sizeof(seckey));
@@ -2614,33 +2614,34 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
             CALLBACK(tag, &stream->cbinfo, &pkt);
             return true;
         }
-        keysize = pgp_key_size(pkt.u.seckey.alg);
+        keysize = pgp_key_size(pkt.u.seckey.protection.symm_alg);
         if (keysize == 0) {
             (void) fprintf(stderr, "parse_seckey: unknown symmetric algo");
             return false;
         }
 
-        if (pkt.u.seckey.s2k_specifier == PGP_S2KS_SIMPLE) {
-            if (pgp_s2k_simple(pkt.u.seckey.hash_alg, derived_key, keysize, passphrase)) {
+        if (pkt.u.seckey.protection.s2k.specifier == PGP_S2KS_SIMPLE) {
+            if (pgp_s2k_simple(
+                  pkt.u.seckey.protection.s2k.hash_alg, derived_key, keysize, passphrase)) {
                 (void) fprintf(stderr, "pgp_s2k_simple failed\n");
                 return false;
             }
-        } else if (pkt.u.seckey.s2k_specifier == PGP_S2KS_SALTED) {
-            if (pgp_s2k_salted(pkt.u.seckey.hash_alg,
+        } else if (pkt.u.seckey.protection.s2k.specifier == PGP_S2KS_SALTED) {
+            if (pgp_s2k_salted(pkt.u.seckey.protection.s2k.hash_alg,
                                derived_key,
                                keysize,
                                passphrase,
-                               pkt.u.seckey.salt)) {
+                               pkt.u.seckey.protection.s2k.salt)) {
                 (void) fprintf(stderr, "pgp_s2k_salted failed\n");
                 return false;
             }
-        } else if (pkt.u.seckey.s2k_specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-            if (pgp_s2k_iterated(pkt.u.seckey.hash_alg,
+        } else if (pkt.u.seckey.protection.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+            if (pgp_s2k_iterated(pkt.u.seckey.protection.s2k.hash_alg,
                                  derived_key,
                                  keysize,
                                  passphrase,
-                                 pkt.u.seckey.salt,
-                                 pkt.u.seckey.s2k_iterations)) {
+                                 pkt.u.seckey.protection.s2k.salt,
+                                 pkt.u.seckey.protection.s2k.iterations)) {
                 (void) fprintf(stderr, "pgp_s2k_iterated failed\n");
                 return false;
             }
@@ -2649,11 +2650,17 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         pgp_forget(passphrase, strlen(passphrase));
 
         if (rnp_get_debug(__FILE__)) {
-            hexdump(stderr, "input iv", pkt.u.seckey.iv, pgp_block_size(pkt.u.seckey.alg));
+            hexdump(stderr,
+                    "input iv",
+                    pkt.u.seckey.protection.iv,
+                    pgp_block_size(pkt.u.seckey.protection.symm_alg));
             hexdump(stderr, "key", derived_key, keysize);
         }
 
-        if (!pgp_cipher_start(&decrypt, pkt.u.seckey.alg, derived_key, pkt.u.seckey.iv)) {
+        if (!pgp_cipher_start(&decrypt,
+                              pkt.u.seckey.protection.symm_alg,
+                              derived_key,
+                              pkt.u.seckey.protection.iv)) {
             return false;
         }
 
@@ -2678,7 +2685,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     if (rnp_get_debug(__FILE__)) {
         fprintf(stderr, "parse_seckey: end of crypted passphrase\n");
     }
-    if (pkt.u.seckey.s2k_usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
+    if (pkt.u.seckey.protection.s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
         if (!pgp_hash_create(&checkhash, PGP_HASH_SHA1)) {
             (void) fprintf(stderr, "parse_seckey: bad alloc\n");
             return false;
@@ -2740,7 +2747,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     }
     stream->reading_v3_secret = 0;
 
-    if (pkt.u.seckey.s2k_usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
+    if (pkt.u.seckey.protection.s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
         uint8_t hash[PGP_CHECKHASH_SIZE];
 
         pgp_reader_pop_hash(stream);

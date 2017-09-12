@@ -1034,20 +1034,26 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
     printf("------- SECRET KEY or ENCRYPTED SECRET KEY ------\n");
     print_tagname(0, (type == PGP_PTAG_CT_SECRET_KEY) ? "SECRET_KEY" : "ENCRYPTED_SECRET_KEY");
     /* pgp_print_pubkey(key); */
-    printf("S2K Usage: %d\n", seckey->s2k_usage);
-    if (seckey->s2k_usage != PGP_S2KU_NONE) {
-        printf("S2K Specifier: %d\n", seckey->s2k_specifier);
-        printf("Symmetric algorithm: %d (%s)\n", seckey->alg, pgp_show_symm_alg(seckey->alg));
+    printf("S2K Usage: %d\n", seckey->protection.s2k.usage);
+    if (seckey->protection.s2k.usage != PGP_S2KU_NONE) {
+        printf("S2K Specifier: %d\n", seckey->protection.s2k.specifier);
+        printf("Symmetric algorithm: %d (%s)\n",
+               seckey->protection.symm_alg,
+               pgp_show_symm_alg(seckey->protection.symm_alg));
         printf("Hash algorithm: %d (%s)\n",
-               seckey->hash_alg,
-               pgp_show_hash_alg((uint8_t) seckey->hash_alg));
-        if (seckey->s2k_specifier != PGP_S2KS_SIMPLE) {
-            print_hexdump(0, "Salt", seckey->salt, (unsigned) sizeof(seckey->salt));
+               seckey->protection.s2k.hash_alg,
+               pgp_show_hash_alg((uint8_t) seckey->protection.s2k.hash_alg));
+        if (seckey->protection.s2k.specifier != PGP_S2KS_SIMPLE) {
+            print_hexdump(0,
+                          "Salt",
+                          seckey->protection.s2k.salt,
+                          (unsigned) sizeof(seckey->protection.s2k.salt));
         }
-        if (seckey->s2k_specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-            printf("Octet count: %u\n", seckey->s2k_iterations);
+        if (seckey->protection.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+            printf("Octet count: %u\n", seckey->protection.s2k.iterations);
         }
-        print_hexdump(0, "IV", seckey->iv, pgp_block_size(seckey->alg));
+        print_hexdump(
+          0, "IV", seckey->protection.iv, pgp_block_size(seckey->protection.symm_alg));
     }
     /* no more set if encrypted */
     if (seckey->encrypted) {
@@ -1075,7 +1081,7 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
     default:
         (void) fprintf(stderr, "print_seckey_verbose: unusual algorithm\n");
     }
-    if (seckey->s2k_usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
+    if (seckey->protection.s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
         print_hexdump(0, "Checkhash", seckey->checkhash, PGP_CHECKHASH_SIZE);
     } else {
         printf("Checksum: %04x\n", seckey->checksum);

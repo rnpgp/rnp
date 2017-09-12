@@ -270,21 +270,22 @@ static bool
 write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const char *passphrase)
 {
     uint8_t     sesskey[PGP_MAX_KEY_SIZE];
-    size_t      sesskey_size = pgp_key_size(seckey->alg);
-    unsigned    block_size = pgp_block_size(seckey->alg);
+    size_t      sesskey_size = pgp_key_size(seckey->protection.symm_alg);
+    unsigned    block_size = pgp_block_size(seckey->protection.symm_alg);
     pgp_crypt_t crypt = {0};
     pgp_hash_t  hash = {0};
     unsigned    writers_pushed = 0;
     bool        ret = false;
 
     // sanity checks
-    if (seckey->s2k_usage != PGP_S2KU_ENCRYPTED_AND_HASHED) {
+    if (seckey->protection.s2k.usage != PGP_S2KU_ENCRYPTED_AND_HASHED) {
         RNP_LOG("s2k usage");
         goto done;
     }
-    if (seckey->s2k_specifier != PGP_S2KS_SIMPLE && seckey->s2k_specifier != PGP_S2KS_SALTED &&
-        seckey->s2k_specifier != PGP_S2KS_ITERATED_AND_SALTED) {
-        RNP_LOG("invalid/unsupported s2k specifier %d", seckey->s2k_specifier);
+    if (seckey->protection.s2k.specifier != PGP_S2KS_SIMPLE &&
+        seckey->protection.s2k.specifier != PGP_S2KS_SALTED &&
+        seckey->protection.s2k.specifier != PGP_S2KS_ITERATED_AND_SALTED) {
+        RNP_LOG("invalid/unsupported s2k specifier %d", seckey->protection.s2k.specifier);
         goto done;
     }
     if (!sesskey_size || !block_size) {
@@ -293,18 +294,19 @@ write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const ch
     }
 
     // start writing
-    if (!pgp_write_scalar(output, (unsigned) seckey->alg, 1) ||
-        !pgp_write_scalar(output, (unsigned) seckey->s2k_specifier, 1) ||
-        !pgp_write_scalar(output, (unsigned) seckey->hash_alg, 1)) {
+    if (!pgp_write_scalar(output, (unsigned) seckey->protection.symm_alg, 1) ||
+        !pgp_write_scalar(output, (unsigned) seckey->protection.s2k.specifier, 1) ||
+        !pgp_write_scalar(output, (unsigned) seckey->protection.s2k.hash_alg, 1)) {
         RNP_LOG("writes failed");
         goto done;
     }
 
     // s2k
-    switch (seckey->s2k_specifier) {
+    switch (seckey->protection.s2k.specifier) {
     case PGP_S2KS_SIMPLE:
         // derive key
-        if (pgp_s2k_simple(seckey->hash_alg, sesskey, sesskey_size, passphrase) < 0) {
+        if (pgp_s2k_simple(
+              seckey->protection.s2k.hash_alg, sesskey, sesskey_size, passphrase) < 0) {
             RNP_LOG("pgp_s2k_simple failed");
             goto done;
         }
@@ -312,17 +314,20 @@ write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const ch
 
     case PGP_S2KS_SALTED:
         // randomize and write salt
-        if (pgp_random(seckey->salt, PGP_SALT_SIZE)) {
+        if (pgp_random(seckey->protection.s2k.salt, PGP_SALT_SIZE)) {
             RNP_LOG("pgp_random failed");
             goto done;
         }
-        if (!pgp_write(output, seckey->salt, PGP_SALT_SIZE)) {
+        if (!pgp_write(output, seckey->protection.s2k.salt, PGP_SALT_SIZE)) {
             goto done;
         }
 
         // derive key
-        if (pgp_s2k_salted(
-              seckey->hash_alg, sesskey, sesskey_size, passphrase, seckey->salt)) {
+        if (pgp_s2k_salted(seckey->protection.s2k.hash_alg,
+                           sesskey,
+                           sesskey_size,
+                           passphrase,
+                           seckey->protection.s2k.salt)) {
             RNP_LOG("pgp_s2k_salted failed");
             goto done;
         }
@@ -330,27 +335,28 @@ write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const ch
 
     case PGP_S2KS_ITERATED_AND_SALTED:
         // randomize and write salt
-        if (pgp_random(seckey->salt, PGP_SALT_SIZE)) {
+        if (pgp_random(seckey->protection.s2k.salt, PGP_SALT_SIZE)) {
             RNP_LOG("pgp_random failed");
             goto done;
         }
-        if (!pgp_write(output, seckey->salt, PGP_SALT_SIZE)) {
+        if (!pgp_write(output, seckey->protection.s2k.salt, PGP_SALT_SIZE)) {
             goto done;
         }
 
         // derive key
-        if (pgp_s2k_iterated(seckey->hash_alg,
+        if (pgp_s2k_iterated(seckey->protection.s2k.hash_alg,
                              sesskey,
                              sesskey_size,
                              passphrase,
-                             seckey->salt,
-                             seckey->s2k_iterations)) {
+                             seckey->protection.s2k.salt,
+                             seckey->protection.s2k.iterations)) {
             RNP_LOG("pgp_s2k_iterated failed");
             goto done;
         }
 
         // encode and write iteration count
-        uint8_t encoded_iterations = pgp_s2k_encode_iterations(seckey->s2k_iterations);
+        uint8_t encoded_iterations =
+          pgp_s2k_encode_iterations(seckey->protection.s2k.iterations);
         if (!pgp_write_scalar(output, encoded_iterations, 1)) {
             RNP_LOG("write failed");
             goto done;
@@ -359,20 +365,24 @@ write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const ch
     }
 
     // randomize and write IV
-    if (pgp_random(seckey->iv, block_size)) {
+    if (pgp_random(seckey->protection.iv, block_size)) {
         goto done;
     }
-    if (!pgp_write(output, seckey->iv, block_size)) {
+    if (!pgp_write(output, seckey->protection.iv, block_size)) {
         goto done;
     }
 
     // use the session key to encrypt
-    if (!pgp_cipher_start(&crypt, seckey->alg, sesskey, seckey->iv)) {
+    if (!pgp_cipher_start(
+          &crypt, seckey->protection.symm_alg, sesskey, seckey->protection.iv)) {
         goto done;
     }
     // debugging
     if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "writing: iv=", seckey->iv, pgp_block_size(seckey->alg));
+        hexdump(stderr,
+                "writing: iv=",
+                seckey->protection.iv,
+                pgp_block_size(seckey->protection.symm_alg));
         hexdump(stderr, "key= ", sesskey, sesskey_size);
         (void) fprintf(stderr, "\nturning encryption on...\n");
     }
@@ -424,11 +434,11 @@ write_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const char *passph
         RNP_LOG("failed to write pubkey body");
         return false;
     }
-    if (!pgp_write_scalar(output, (unsigned) seckey->s2k_usage, 1)) {
+    if (!pgp_write_scalar(output, (unsigned) seckey->protection.s2k.usage, 1)) {
         RNP_LOG("failed tow rite s2k usage");
         return false;
     }
-    switch (seckey->s2k_usage) {
+    switch (seckey->protection.s2k.usage) {
     case PGP_S2KU_NONE:
         if (!pgp_writer_push_sum16(output)) {
             RNP_LOG("failed to push checksum calculator");
@@ -623,12 +633,12 @@ done:
 unsigned
 pgp_write_struct_seckey(pgp_output_t *   output,
                         pgp_content_enum tag,
-                        pgp_seckey_t *   key,
+                        pgp_seckey_t *   seckey,
                         const char *     passphrase)
 {
     unsigned length = 0;
 
-    if (key->pubkey.version != 4) {
+    if (seckey->pubkey.version != 4) {
         (void) fprintf(stderr, "pgp_write_struct_seckey: public key version\n");
         return false;
     }
@@ -641,7 +651,7 @@ pgp_write_struct_seckey(pgp_output_t *   output,
     /* s2k usage */
     length += 1;
 
-    switch (key->s2k_usage) {
+    switch (seckey->protection.s2k.usage) {
     case PGP_S2KU_NONE:
         /* nothing to add */
         break;
@@ -653,7 +663,7 @@ pgp_write_struct_seckey(pgp_output_t *   output,
         length += 1; /* symm alg */
         length += 1; /* s2k_specifier */
 
-        switch (key->s2k_specifier) {
+        switch (seckey->protection.s2k.specifier) {
         case PGP_S2KS_SIMPLE:
             length += 1; /* hash algorithm */
             break;
@@ -679,11 +689,11 @@ pgp_write_struct_seckey(pgp_output_t *   output,
     }
 
     /* IV */
-    if (key->s2k_usage) {
-        length += pgp_block_size(key->alg);
+    if (seckey->protection.s2k.usage) {
+        length += pgp_block_size(seckey->protection.symm_alg);
     }
     /* checksum or hash */
-    switch (key->s2k_usage) {
+    switch (seckey->protection.s2k.usage) {
     case PGP_S2KU_NONE:
     case PGP_S2KU_ENCRYPTED:
         length += 2;
@@ -699,10 +709,10 @@ pgp_write_struct_seckey(pgp_output_t *   output,
     }
 
     /* secret key and public key MPIs */
-    length += (unsigned) seckey_length(key);
+    length += (unsigned) seckey_length(seckey);
 
     return pgp_write_ptag(output, tag) && pgp_write_length(output, (unsigned) length) &&
-           write_seckey_body(output, key, passphrase);
+           write_seckey_body(output, seckey, passphrase);
 }
 
 /**

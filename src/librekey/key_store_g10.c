@@ -574,33 +574,35 @@ decrypt_protected_section(const uint8_t *     encrypted_data,
     bool               ret = false;
 
     // sanity checks
-    keysize = pgp_key_size(seckey->alg);
+    keysize = pgp_key_size(seckey->protection.symm_alg);
     if (!keysize) {
         RNP_LOG("parse_seckey: unknown symmetric algo");
         goto done;
     }
     // find the protection format in our table
-    info = find_format(seckey->alg, seckey->cipher_mode, seckey->hash_alg);
+    info = find_format(seckey->protection.symm_alg,
+                       seckey->protection.cipher_mode,
+                       seckey->protection.s2k.hash_alg);
     if (!info) {
         RNP_LOG("Unsupported format, alg: %d, chiper_mode: %d, hash: %d",
-                seckey->alg,
-                seckey->cipher_mode,
-                seckey->hash_alg);
+                seckey->protection.symm_alg,
+                seckey->protection.cipher_mode,
+                seckey->protection.s2k.hash_alg);
         goto done;
     }
 
     // derive the key
-    if (pgp_s2k_iterated(seckey->hash_alg,
+    if (pgp_s2k_iterated(seckey->protection.s2k.hash_alg,
                          derived_key,
                          keysize,
                          passphrase,
-                         seckey->salt,
-                         seckey->s2k_iterations)) {
+                         seckey->protection.s2k.salt,
+                         seckey->protection.s2k.iterations)) {
         RNP_LOG("pgp_s2k_iterated failed");
         goto done;
     }
     if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "input iv", seckey->iv, G10_CBC_IV_SIZE);
+        hexdump(stderr, "input iv", seckey->protection.iv, G10_CBC_IV_SIZE);
         hexdump(stderr, "key", derived_key, keysize);
         hexdump(stderr, "encrypted", encrypted_data, encrypted_data_len);
     }
@@ -616,7 +618,7 @@ decrypt_protected_section(const uint8_t *     encrypted_data,
         goto done;
     }
     if (botan_cipher_set_key(decrypt, derived_key, keysize) ||
-        botan_cipher_start(decrypt, seckey->iv, info->iv_size)) {
+        botan_cipher_start(decrypt, seckey->protection.iv, info->iv_size)) {
         goto done;
     }
     if (botan_cipher_update(decrypt,
@@ -689,9 +691,9 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passphr
     }
 
     // fill in some fields based on the lookup above
-    seckey->alg = format->cipher;
-    seckey->cipher_mode = format->cipher_mode;
-    seckey->hash_alg = format->hash_alg;
+    seckey->protection.symm_alg = format->cipher;
+    seckey->protection.cipher_mode = format->cipher_mode;
+    seckey->protection.s2k.hash_alg = format->hash_alg;
 
     // locate and validate the protection parameters
     s_exp_t *params = &protected->sub_elements[2].s_exp;
@@ -718,9 +720,9 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passphr
     }
 
     // fill in some constant values
-    seckey->hash_alg = PGP_HASH_SHA1;
-    seckey->s2k_usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    seckey->s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
+    seckey->protection.s2k.hash_alg = PGP_HASH_SHA1;
+    seckey->protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    seckey->protection.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
 
     // check salt size
     if (alg->sub_elements[1].block.len != PGP_SALT_SIZE) {
@@ -731,9 +733,11 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passphr
     }
 
     // salt
-    memcpy(seckey->salt, alg->sub_elements[1].block.bytes, alg->sub_elements[1].block.len);
-    seckey->s2k_iterations = block_to_unsigned(&alg->sub_elements[2].block);
-    if (seckey->s2k_iterations == UINT_MAX) {
+    memcpy(seckey->protection.s2k.salt,
+           alg->sub_elements[1].block.bytes,
+           alg->sub_elements[1].block.len);
+    seckey->protection.s2k.iterations = block_to_unsigned(&alg->sub_elements[2].block);
+    if (seckey->protection.s2k.iterations == UINT_MAX) {
         RNP_LOG("Wrong numbers of iteration, %.*s\n",
                 (int) alg->sub_elements[2].block.len,
                 alg->sub_elements[2].block.bytes);
@@ -747,7 +751,9 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passphr
                 (int) params->sub_elements[1].block.len);
         goto done;
     }
-    memcpy(seckey->iv, params->sub_elements[1].block.bytes, params->sub_elements[1].block.len);
+    memcpy(seckey->protection.iv,
+           params->sub_elements[1].block.bytes,
+           params->sub_elements[1].block.len);
 
     // we're all done if no passphrase was provided (decryption not requested)
     if (!passphrase) {
@@ -973,9 +979,9 @@ g10_parse_seckey(pgp_io_t *       io,
             goto done;
         }
     } else {
-        seckey->s2k_usage = PGP_S2KU_NONE;
-        seckey->alg = PGP_SA_PLAINTEXT;
-        seckey->hash_alg = PGP_HASH_UNKNOWN;
+        seckey->protection.s2k.usage = PGP_S2KU_NONE;
+        seckey->protection.symm_alg = PGP_SA_PLAINTEXT;
+        seckey->protection.s2k.hash_alg = PGP_HASH_UNKNOWN;
         if (!parse_seckey(seckey, algorithm_s_exp, alg)) {
             RNP_LOG("failed to parse seckey");
             goto done;
@@ -1234,7 +1240,7 @@ write_seckey(s_exp_t *s_exp, const pgp_seckey_t *key)
 }
 
 static bool
-write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const char *passphrase)
+write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passphrase)
 {
     const format_info *format;
     s_exp_t            raw_s_exp = {0};
@@ -1248,24 +1254,26 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const char *passphrase
     size_t             output_written = 0;
     size_t             input_consumed = 0;
 
-    if (key->s2k_specifier != PGP_S2KS_ITERATED_AND_SALTED) {
+    if (seckey->protection.s2k.specifier != PGP_S2KS_ITERATED_AND_SALTED) {
         fprintf(stderr, "s2k should be iterated and salted\n");
         return false;
     }
 
-    format = find_format(key->alg, key->cipher_mode, key->hash_alg);
+    format = find_format(seckey->protection.symm_alg,
+                         seckey->protection.cipher_mode,
+                         seckey->protection.s2k.hash_alg);
     if (format == NULL) {
         fprintf(stderr,
                 "Unsupported format, alg: %d, chiper_mode: %d, hash: %d\n",
-                key->alg,
-                key->cipher_mode,
-                key->hash_alg);
+                seckey->protection.symm_alg,
+                seckey->protection.cipher_mode,
+                seckey->protection.s2k.hash_alg);
         return false;
     }
 
     // randomize IV and salt
-    if (pgp_random(&key->iv[0], sizeof(key->iv)) ||
-        pgp_random(&key->salt[0], sizeof(key->salt))) {
+    if (pgp_random(&seckey->protection.iv[0], sizeof(seckey->protection.iv)) ||
+        pgp_random(&seckey->protection.s2k.salt[0], sizeof(seckey->protection.s2k.salt))) {
         RNP_LOG("pgp_random failed");
         return false;
     }
@@ -1275,7 +1283,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const char *passphrase
         return false;
     }
 
-    if (!write_seckey(sub_s_exp, key)) {
+    if (!write_seckey(sub_s_exp, seckey)) {
         destroy_s_exp(&raw_s_exp);
         return false;
     }
@@ -1285,7 +1293,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const char *passphrase
     char protected_at[PGP_PROTECTED_AT_SIZE + 1];
     strftime(protected_at, sizeof(protected_at), "%Y%m%dT%H%M%S", gmtime(&now));
 
-    if (!g10_calculated_hash(key, protected_at, checksum)) {
+    if (!g10_calculated_hash(seckey, protected_at, checksum)) {
         destroy_s_exp(&raw_s_exp);
         return false;
     }
@@ -1319,7 +1327,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const char *passphrase
         return false;
     }
 
-    keysize = pgp_key_size(key->alg);
+    keysize = pgp_key_size(seckey->protection.symm_alg);
     if (keysize == 0) {
         (void) fprintf(stderr, "parse_seckey: unknown symmetric algo");
         destroy_s_exp(&raw_s_exp);
@@ -1331,8 +1339,8 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const char *passphrase
                          derived_key,
                          keysize,
                          (const char *) passphrase,
-                         key->salt,
-                         key->s2k_iterations)) {
+                         seckey->protection.s2k.salt,
+                         seckey->protection.s2k.iterations)) {
         (void) fprintf(stderr, "pgp_s2k_iterated failed\n");
         destroy_s_exp(&raw_s_exp);
         pgp_memory_release(&raw);
@@ -1358,7 +1366,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const char *passphrase
     }
 
     if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "input iv", key->iv, G10_CBC_IV_SIZE);
+        hexdump(stderr, "input iv", seckey->protection.iv, G10_CBC_IV_SIZE);
         hexdump(stderr, "key", derived_key, keysize);
         hexdump(stderr, "raw data", raw.buf, raw.length);
     }
@@ -1373,7 +1381,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const char *passphrase
         goto error;
     }
 
-    if (botan_cipher_start(encrypt, key->iv, format->iv_size)) {
+    if (botan_cipher_start(encrypt, seckey->protection.iv, format->iv_size)) {
         goto error;
     }
 
@@ -1413,15 +1421,15 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *key, const char *passphrase
         return false;
     }
 
-    if (!add_block_to_sexp(sub_sub_sub_s_exp, key->salt, PGP_SALT_SIZE)) {
+    if (!add_block_to_sexp(sub_sub_sub_s_exp, seckey->protection.s2k.salt, PGP_SALT_SIZE)) {
         return false;
     }
 
-    if (!add_unsigned_block_to_sexp(sub_sub_sub_s_exp, key->s2k_iterations)) {
+    if (!add_unsigned_block_to_sexp(sub_sub_sub_s_exp, seckey->protection.s2k.iterations)) {
         return false;
     }
 
-    if (!add_block_to_sexp(sub_sub_s_exp, key->iv, format->iv_size)) {
+    if (!add_block_to_sexp(sub_sub_s_exp, seckey->protection.iv, format->iv_size)) {
         return false;
     }
 
@@ -1460,7 +1468,7 @@ g10_write_seckey(pgp_output_t *output, pgp_seckey_t *seckey, const char *passphr
     bool protected = true;
     bool ret = false;
 
-    switch (seckey->s2k_usage) {
+    switch (seckey->protection.s2k.usage) {
     case PGP_S2KU_NONE:
       protected
         = false;
@@ -1469,9 +1477,9 @@ g10_write_seckey(pgp_output_t *output, pgp_seckey_t *seckey, const char *passphr
       protected
         = true;
         // TODO: these are forced for now, until openpgp-native is implemented
-        seckey->alg = PGP_SA_AES_128;
-        seckey->cipher_mode = PGP_CIPHER_MODE_CBC;
-        seckey->hash_alg = PGP_HASH_SHA1;
+        seckey->protection.symm_alg = PGP_SA_AES_128;
+        seckey->protection.cipher_mode = PGP_CIPHER_MODE_CBC;
+        seckey->protection.s2k.hash_alg = PGP_HASH_SHA1;
         break;
     default:
         RNP_LOG("unsupported s2k usage");

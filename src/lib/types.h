@@ -170,18 +170,30 @@ unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
 
 typedef struct pgp_key_t pgp_key_t;
 
+typedef struct pgp_s2k {
+    pgp_s2k_usage_t usage;
+
+    /* below fields may not all be valid, depending on the usage field above */
+    pgp_s2k_specifier_t specifier;
+    pgp_hash_alg_t      hash_alg;
+    uint8_t             salt[PGP_SALT_SIZE];
+    unsigned            iterations;
+} pgp_s2k;
+
+typedef struct pgp_key_protection_t {
+    pgp_s2k           s2k;         /* string-to-key kdf params */
+    pgp_symm_alg_t    symm_alg;    /* symmetric alg */
+    pgp_cipher_mode_t cipher_mode; /* block cipher mode */
+    uint8_t           iv[PGP_MAX_BLOCK_SIZE];
+} pgp_key_protection_t;
+
 /** pgp_seckey_t
  */
 typedef struct pgp_seckey_t {
-    pgp_pubkey_t        pubkey; /* public key */
-    pgp_s2k_usage_t     s2k_usage;
-    pgp_s2k_specifier_t s2k_specifier;
-    pgp_symm_alg_t      alg;         /* symmetric alg */
-    pgp_cipher_mode_t   cipher_mode; /* block cipher mode */
-    pgp_hash_alg_t      hash_alg;    /* hash algorithm */
-    uint8_t             salt[PGP_SALT_SIZE];
-    unsigned            s2k_iterations;
-    uint8_t             iv[PGP_MAX_BLOCK_SIZE];
+    /* Note: Keep this as the first field. */
+    pgp_pubkey_t pubkey; /* public key */
+
+    pgp_key_protection_t protection;
 
     /* This indicates the current state of the key union below.
      * If false, the key union contains valid secret key material
@@ -571,5 +583,12 @@ typedef struct rnp_keygen_desc_t {
     rnp_keygen_primary_desc_t primary;
     rnp_keygen_subkey_desc_t  subkey;
 } rnp_keygen_desc_t;
+
+typedef struct rnp_key_protection_params_t {
+    pgp_symm_alg_t    symm_alg;
+    pgp_cipher_mode_t cipher_mode;
+    unsigned          iterations;
+    pgp_hash_alg_t    hash_alg;
+} rnp_key_protection_params_t;
 
 #endif /* TYPES_H_ */
