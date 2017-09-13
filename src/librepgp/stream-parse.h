@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include "errors.h"
 #include <repgp/repgp.h>
+#include <rnp/rnp.h>
 #include "stream-common.h"
 
 typedef struct pgp_parse_handler_t pgp_parse_handler_t;
@@ -45,7 +46,7 @@ typedef struct pgp_parse_handler_t {
 } pgp_parse_handler_t;
 
 /* @brief Process the OpenPGP source: file, memory, stdin
- * Function will parse input data, provided by any source conforming to pgp_source_t, 
+ * Function will parse input data, provided by any source conforming to pgp_source_t,
  * autodetecting whether it is armoured, cleartext or binary.
  * @param handler handler to respond on stream reader callbacks
  * @param src initialized source with cache
