@@ -481,11 +481,10 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
 
     // decrypt the primary seckey if needed (for signatures)
     if (primary_sec->key.seckey.encrypted) {
-        decrypted_primary_seckey =
-          pgp_decrypt_seckey(primary_sec,
-                             passphrase_provider,
-                             &(pgp_passphrase_ctx_t){.op = PGP_OP_ADD_SUBKEY,
-                                                     .pubkey = pgp_get_pubkey(primary_sec)});
+        decrypted_primary_seckey = pgp_decrypt_seckey(
+          primary_sec,
+          passphrase_provider,
+          &(pgp_passphrase_ctx_t){.op = PGP_OP_ADD_SUBKEY, .key = primary_sec});
         if (!decrypted_primary_seckey) {
             goto end;
         }

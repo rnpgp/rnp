@@ -737,9 +737,7 @@ pgp_key_unlock(pgp_key_t *key, const pgp_passphrase_provider_t *provider)
     }
 
     decrypted_seckey = pgp_decrypt_seckey(
-      key,
-      provider,
-      &(pgp_passphrase_ctx_t){.op = PGP_OP_UNLOCK, .pubkey = pgp_get_pubkey(key)});
+      key, provider, &(pgp_passphrase_ctx_t){.op = PGP_OP_UNLOCK, .key = key});
 
     if (decrypted_seckey) {
         // this shouldn't really be necessary, but just in case
@@ -860,11 +858,10 @@ pgp_key_protect(pgp_key_t *                      key,
     }
 
     // ask the provider for a passphrase
-    if (!pgp_request_passphrase(
-          passphrase_provider,
-          &(pgp_passphrase_ctx_t){.op = PGP_OP_PROTECT, .pubkey = pgp_get_pubkey(key)},
-          passphrase,
-          sizeof(passphrase))) {
+    if (!pgp_request_passphrase(passphrase_provider,
+                                &(pgp_passphrase_ctx_t){.op = PGP_OP_PROTECT, .key = key},
+                                passphrase,
+                                sizeof(passphrase))) {
         goto done;
     }
 
@@ -928,10 +925,10 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_passphrase_provider_t *passphrase_pr
 
     seckey = &key->key.seckey;
     if (seckey->encrypted) {
-        decrypted_seckey = pgp_decrypt_seckey(
-          key,
-          passphrase_provider,
-          &(pgp_passphrase_ctx_t){.op = PGP_OP_UNPROTECT, .pubkey = pgp_get_pubkey(key)});
+        decrypted_seckey =
+          pgp_decrypt_seckey(key,
+                             passphrase_provider,
+                             &(pgp_passphrase_ctx_t){.op = PGP_OP_UNPROTECT, .key = key});
         if (!decrypted_seckey) {
             goto done;
         }

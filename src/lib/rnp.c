@@ -1205,11 +1205,10 @@ rnp_sign_file(rnp_ctx_t * ctx,
         }
         if (!use_ssh_keys(ctx->rnp)) {
             if (pgp_key_is_locked(keypair)) {
-                decrypted_seckey =
-                  pgp_decrypt_seckey(keypair,
-                                     &ctx->rnp->passphrase_provider,
-                                     &(pgp_passphrase_ctx_t){
-                                       .op = PGP_OP_SIGN, .pubkey = pgp_get_pubkey(keypair)});
+                decrypted_seckey = pgp_decrypt_seckey(
+                  keypair,
+                  &ctx->rnp->passphrase_provider,
+                  &(pgp_passphrase_ctx_t){.op = PGP_OP_SIGN, .key = keypair});
                 if (decrypted_seckey == NULL) {
                     (void) fprintf(io->errs, "Bad passphrase\n");
                 }
@@ -1338,11 +1337,10 @@ rnp_sign_memory(rnp_ctx_t * ctx,
         }
         if (!use_ssh_keys(ctx->rnp)) {
             if (pgp_key_is_locked(keypair)) {
-                decrypted_seckey =
-                  pgp_decrypt_seckey(keypair,
-                                     &ctx->rnp->passphrase_provider,
-                                     &(pgp_passphrase_ctx_t){
-                                       .op = PGP_OP_SIGN, .pubkey = pgp_get_pubkey(keypair)});
+                decrypted_seckey = pgp_decrypt_seckey(
+                  keypair,
+                  &ctx->rnp->passphrase_provider,
+                  &(pgp_passphrase_ctx_t){.op = PGP_OP_SIGN, .key = keypair});
                 if (decrypted_seckey == NULL) {
                     (void) fprintf(io->errs, "Bad passphrase\n");
                 }

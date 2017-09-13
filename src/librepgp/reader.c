@@ -2129,11 +2129,10 @@ pgp_get_seckey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             repgp_print_key(
               io, cbinfo->cryptinfo.pubring, pubkey, "signature ", &pubkey->key.pubkey, 0);
             /* now decrypt key */
-            secret =
-              pgp_decrypt_seckey(keypair,
-                                 &cbinfo->cryptinfo.passphrase_provider,
-                                 &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT,
-                                                         .pubkey = pgp_get_pubkey(keypair)});
+            secret = pgp_decrypt_seckey(
+              keypair,
+              &cbinfo->cryptinfo.passphrase_provider,
+              &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT, .key = keypair});
             if (secret != NULL) {
                 break;
             }
