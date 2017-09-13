@@ -35,7 +35,12 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #include <rnp/rnp_def.h>
 #include "defs.h"
 #include "types.h"
@@ -226,7 +231,7 @@ void file_src_close(pgp_source_t *src)
 {
     pgp_source_file_param_t *param = src->param;
     if (param) {
-        if (src->type == PGP_SOURCE_FILE) {
+        if (src->type == PGP_STREAM_FILE) {
             close(param->fd);
         }
         free(src->param);
@@ -268,7 +273,7 @@ pgp_errcode_t init_file_src(pgp_source_t *src, const char *path)
     param->fd = fd;
     src->readfunc = file_src_read;
     src->closefunc = file_src_close;
-    src->type = PGP_SOURCE_FILE;
+    src->type = PGP_STREAM_FILE;
     src->size = st.st_size;
     src->read = 0;
     src->knownsize = 1;
@@ -289,7 +294,7 @@ pgp_errcode_t init_stdin_src(pgp_source_t *src)
     param->fd = 0;
     src->readfunc = file_src_read;
     src->closefunc = file_src_close;
-    src->type = PGP_SOURCE_STDIN;
+    src->type = PGP_STREAM_STDIN;
     src->size = 0;
     src->read = 0;
     src->knownsize = 0;
@@ -306,6 +311,7 @@ pgp_errcode_t init_mem_src(pgp_source_t *src, void *mem, size_t len)
 typedef struct pgp_processing_ctx_t {
     pgp_operation_handler_t handler;
     DYNARRAY(pgp_source_t, src);  /* pgp sources stack */
+    pgp_dest_t output;
 } pgp_processing_ctx_t;
 
 /* common fields for encrypted, compressed and literal data */
@@ -565,7 +571,7 @@ pgp_errcode_t init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
 
     src->readfunc = partial_pkt_src_read;
     src->closefunc = partial_pkt_src_close;
-    src->type = PGP_SOURCE_PARLEN_PACKET;
+    src->type = PGP_STREAM_PARLEN_PACKET;
     src->size = 0;
     src->read = 0;
     src->knownsize = 0;
@@ -608,7 +614,6 @@ ssize_t compressed_src_read(pgp_source_t *src, void *buf, size_t len)
     ssize_t                        read = 0;
     int                            ret;
     pgp_source_compressed_param_t *param = src->param;
-
 
     if (param == NULL) {
         return -1;
@@ -1057,7 +1062,7 @@ static pgp_errcode_t init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *s
     param->pkt.readsrc = readsrc;
     src->readfunc = literal_src_read;
     src->closefunc = literal_src_close;
-    src->type = PGP_SOURCE_LITERAL;
+    src->type = PGP_STREAM_LITERAL;
     src->size = 0;
     src->read = 0;
     src->knownsize = 0;
@@ -1135,7 +1140,7 @@ static pgp_errcode_t init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t
     param->pkt.readsrc = readsrc;
     src->readfunc = compressed_src_read;
     src->closefunc = compressed_src_close;
-    src->type = PGP_SOURCE_COMPRESSED;
+    src->type = PGP_STREAM_COMPRESSED;
     src->size = 0;
     src->read = 0;
     src->knownsize = 0;
@@ -1211,7 +1216,7 @@ static pgp_errcode_t init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t 
     param->pkt.readsrc = readsrc;
     src->readfunc = encrypted_src_read;
     src->closefunc = encrypted_src_close;
-    src->type = PGP_SOURCE_ENCRYPTED;
+    src->type = PGP_STREAM_ENCRYPTED;
     src->size = 0;
     src->read = 0;
     src->knownsize = 0;
@@ -1306,6 +1311,19 @@ static pgp_errcode_t init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t 
     return  errcode;
 }
 
+static void init_processing_ctx(pgp_processing_ctx_t *ctx)
+{
+    memset(ctx, 0, sizeof(*ctx));
+}
+
+static void free_processing_ctx(pgp_processing_ctx_t *ctx)
+{
+    for (int i = ctx->srcc - 1; i >= 0; i--) {
+        src_close(&ctx->srcs[i]);
+    }
+    FREE_ARRAY(ctx, src);
+}
+
 /** @brief build PGP source sequence down to the literal data packet
  *  
  **/
@@ -1317,9 +1335,8 @@ static pgp_errcode_t init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_
     pgp_source_t  psrc;
     pgp_source_t *lsrc = src;
     pgp_errcode_t ret;
-    bool          litfound = false;
 
-    while (!litfound) {
+    while (1) {
         read = src_peek(lsrc, &ptag, 1);
         if (read < 1) {
             (void) fprintf(stderr, "process_packet_sequence: cannot read packet tag\n");
@@ -1338,14 +1355,14 @@ static pgp_errcode_t init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_
             (void) fprintf(stderr, "process_packet_sequence: signed data processing is not implemented yet\n");
             ret = RNP_ERROR_NOT_IMPLEMENTED;
         } else if (type == PGP_PTAG_CT_COMPRESSED) {
-            if ((lsrc->type != PGP_SOURCE_ENCRYPTED) && (lsrc->type != PGP_SOURCE_SIGNED)) {
+            if ((lsrc->type != PGP_STREAM_ENCRYPTED) && (lsrc->type != PGP_STREAM_SIGNED)) {
                 (void) fprintf(stderr, "process_packet_sequence: invalid sequence: unexpected compressed packet\n");
                 ret = RNP_ERROR_BAD_FORMAT;
             } else {
                 ret = init_compressed_src(ctx, &psrc, lsrc);
             }
         } else if (type == PGP_PTAG_CT_LITDATA) {
-            if ((lsrc->type != PGP_SOURCE_ENCRYPTED) && (lsrc->type != PGP_SOURCE_SIGNED) && (lsrc->type != PGP_SOURCE_COMPRESSED)) {
+            if ((lsrc->type != PGP_STREAM_ENCRYPTED) && (lsrc->type != PGP_STREAM_SIGNED) && (lsrc->type != PGP_STREAM_COMPRESSED)) {
                 (void) fprintf(stderr, "process_packet_sequence: invalid sequence: unexpected literal packet\n");
                 ret = RNP_ERROR_BAD_FORMAT;
             } else {
@@ -1363,8 +1380,8 @@ static pgp_errcode_t init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_
         EXPAND_ARRAY_EX(ctx, src, 1);
         ctx->srcs[ctx->srcc++] = psrc;
         lsrc = &(ctx->srcs[ctx->srcc - 1]);
-        if (lsrc->type == PGP_SOURCE_LITERAL) {
-            litfound = true;
+        if (lsrc->type == PGP_STREAM_LITERAL) {
+            break;
         }
     }
 
@@ -1376,14 +1393,15 @@ pgp_errcode_t process_pgp_source(pgp_operation_handler_t *handler, pgp_source_t 
     static const char     armor_start[] = "-----BEGIN PGP";
     uint8_t               buf[128];
     ssize_t               read;
-    pgp_errcode_t         res;
-    pgp_processing_ctx_t *ctx;
+    pgp_errcode_t         res = RNP_ERROR_BAD_FORMAT;
+    pgp_processing_ctx_t  ctx;
+    pgp_source_t *        litsrc;
+    pgp_source_literal_param_t *litparam;
+    pgp_dest_t            outdest;
+    uint8_t *             readbuf = NULL;
 
-    if ((ctx = calloc(1, sizeof(*ctx))) == NULL) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    ctx->handler = *handler;
+    init_processing_ctx(&ctx);
+    ctx.handler = *handler;
 
     read = src_peek(src, buf, sizeof(buf));
     if (read < 2) {
@@ -1392,14 +1410,14 @@ pgp_errcode_t process_pgp_source(pgp_operation_handler_t *handler, pgp_source_t 
         goto finish;
     }
 
-    // Checking whether it is binary data
+    /* Building readers sequence.  Checking whether it is binary data */
     if (buf[0] & PGP_PTAG_ALWAYS_SET) {
-        res = init_packet_sequence(ctx, src);
+        res = init_packet_sequence(&ctx, src);
         if (res != RNP_SUCCESS) {
             goto finish;
         }
     } else {
-        // Trying armored data
+        /* Trying armored data: not implemented yet */
         buf[read - 1] = 0;
         if (strstr((char*)buf, armor_start) != NULL) {
             // TODO: push cleartext source or dearmoring source and call process_packet_sequence 
@@ -1413,9 +1431,41 @@ pgp_errcode_t process_pgp_source(pgp_operation_handler_t *handler, pgp_source_t 
         }
     }
 
-    res = RNP_ERROR_NOT_IMPLEMENTED;
+    /* Reading data from literal source and writing it to the output */
+    if (res == RNP_SUCCESS) {
+        litsrc = &ctx.srcs[ctx.srcc - 1];
+        litparam = litsrc->param;
+        if ((readbuf = calloc(1, PGP_INPUT_CACHE_SIZE)) == NULL) {
+            (void) fprintf(stderr, "process_pgp_source: allocation failure\n");
+            res = RNP_ERROR_OUT_OF_MEMORY;
+            goto finish;
+        }
+
+        memset(&outdest, 0, sizeof(outdest));
+        if (!handler->dest_provider || !handler->dest_provider(handler, &outdest, litparam->filename)) {
+            res = RNP_ERROR_WRITE;
+            goto finish;
+        }
+
+        while (!litsrc->eof) {
+            read = src_read(litsrc, readbuf, PGP_INPUT_CACHE_SIZE);
+            if (read < 0) {
+                res = RNP_ERROR_GENERIC;
+                break;
+            } else if (read > 0) {
+                if (!dst_write(&outdest, readbuf, read)) {
+                    (void) fprintf(stderr, "process_pgp_source: failed to output data\n");
+                    res = RNP_ERROR_WRITE;
+                    break;
+                }
+            }
+        }
+
+        dst_close(&outdest, res != RNP_SUCCESS);
+    }
 
     finish:
-    free(ctx);
+    free_processing_ctx(&ctx);
+    free(readbuf);
     return res;
 }
