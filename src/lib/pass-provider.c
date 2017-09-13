@@ -117,7 +117,7 @@ start:
             goto done;
         }
         if (strcmp(passphrase, buffer) != 0) {
-            printf("Passphrases do not match!\n\n");
+            puts("\nPassphrases do not match!");
             // currently will loop forever
             goto start;
         }
@@ -125,6 +125,7 @@ start:
     ok = true;
 
 done:
+    puts("");
     pgp_forget(buffer, sizeof(buffer));
     return ok;
 }
