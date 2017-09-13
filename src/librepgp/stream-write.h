@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include "errors.h"
 #include <repgp/repgp.h>
+#include <rnp/rnp.h>
 #include "stream-common.h"
 
 typedef struct pgp_write_handler_t {

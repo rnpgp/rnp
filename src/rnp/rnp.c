@@ -357,18 +357,6 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
             ret = rnp_encrypt_file(&ctx, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
         }
         break;
-    case CMD_DECRYPT:
-        if (f == NULL) {
-            cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            sz = rnp_decrypt_memory(&ctx, in, cc, out, maxsize);
-            ret = show_output(cfg, out, sz, "Bad memory decryption");
-        } else {
-            ret = rnp_decrypt_file(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
-        }
-        break;
-    case CMD_SYM_DECRYPT:
-        ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
-        break;
     case CMD_CLEARSIGN:
     case CMD_SIGN:
         ctx.halg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
@@ -411,6 +399,10 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
                              create_buffer_handle((size_t) rnp_cfg_getint(cfg, CFG_MAXALLOC)));
         }
         ret = (RNP_SUCCESS == repgp_decrypt(&ctx, io));
+        break;
+    }
+    case CMD_SYM_DECRYPT: {
+        ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
         break;
     }
     case CMD_VERIFY_CAT: {
