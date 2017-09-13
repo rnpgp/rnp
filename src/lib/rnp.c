@@ -1035,14 +1035,31 @@ rnp_generate_key(rnp_t *rnp)
         RNP_LOG("failed to generate keys");
         goto end;
     }
+
+    // show the primary key
+    pgp_sprint_key(rnp->io, NULL, primary_pub, &cp, "pub", &primary_pub->key.pubkey, 0);
+    (void) fprintf(stdout, "%s", cp);
+    free(cp);
+
+    // protect the primary key
     if (!pgp_key_protect(
-          primary_sec, key_format, &action->primary.protection, &rnp->passphrase_provider) ||
-        !pgp_key_protect(
+          primary_sec, key_format, &action->primary.protection, &rnp->passphrase_provider)) {
+        goto end;
+    }
+
+    // show the subkey
+    pgp_sprint_key(rnp->io, NULL, subkey_pub, &cp, "sub", &subkey_pub->key.pubkey, 0);
+    (void) fprintf(stdout, "%s", cp);
+    free(cp);
+
+    // protect the subkey
+    if (!pgp_key_protect(
           subkey_sec, key_format, &action->subkey.protection, &rnp->passphrase_provider)) {
         RNP_LOG("failed to protect keys");
         goto end;
     }
 
+    // add them all to the key store
     if (!rnp_key_store_add_key(rnp->io, rnp->secring, primary_sec) ||
         !rnp_key_store_add_key(rnp->io, rnp->secring, subkey_sec) ||
         !rnp_key_store_add_key(rnp->io, rnp->pubring, primary_pub) ||
@@ -1050,15 +1067,6 @@ rnp_generate_key(rnp_t *rnp)
         RNP_LOG("failed to add keys to key store");
         goto end;
     }
-
-    // show the primary key
-    pgp_sprint_key(rnp->io, NULL, primary_pub, &cp, "pub", &primary_pub->key.pubkey, 0);
-    (void) fprintf(stdout, "%s", cp);
-    free(cp);
-    // show the subkey
-    pgp_sprint_key(rnp->io, NULL, subkey_pub, &cp, "sub", &subkey_pub->key.pubkey, 0);
-    (void) fprintf(stdout, "%s", cp);
-    free(cp);
 
     // update the keyring on disk
     if (!rnp_key_store_write_to_file(rnp, rnp->secring, NULL, 0) ||
