@@ -37,5 +37,5 @@ cd src/tests
 
 LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${GPG21_INSTALL}/lib"
 export LD_LIBRARY_PATH
-env PATH="${GPG21_INSTALL}/bin:$PATH" python2 cli_tests.py all --debug
+env RNPC_GPG_PATH="${GPG21_INSTALL}/bin/gpg" python2 cli_tests.py all --debug
 
