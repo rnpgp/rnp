@@ -116,7 +116,7 @@ def setup():
     os.mkdir(RNPDIR, 0700)
 
     GPGDIR = path.join(WORKDIR, '.gpg')
-    GPG = find_utility('gpg')
+    GPG = os.getenv('RNPC_GPG_PATH') or find_utility('gpg')
 
     os.mkdir(GPGDIR, 0700)
 
