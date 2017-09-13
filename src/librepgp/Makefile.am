@@ -10,4 +10,5 @@ librepgp_la_SOURCES     =  \
     reader.c \
     repgp.c \
     validate.c \
-    stream-parse.c
+    stream-parse.c \
+    stream-write.c
