@@ -28,11 +28,11 @@
 
 #include <rnp/rnp_sdk.h>
 
-typedef struct pgp_pubkey_t pgp_pubkey_t;
+typedef struct pgp_key_t pgp_key_t;
 
 typedef struct pgp_passphrase_ctx_t {
-    uint8_t             op;
-    const pgp_pubkey_t *pubkey;
+    uint8_t          op;
+    const pgp_key_t *key;
 } pgp_passphrase_ctx_t;
 
 typedef bool pgp_passphrase_callback_t(const pgp_passphrase_ctx_t *ctx,

@@ -91,20 +91,16 @@ rnp_passphrase_provider_stdin(const pgp_passphrase_ctx_t *ctx,
                               size_t                      passphrase_size,
                               void *                      userdata)
 {
-    uint8_t keyid[PGP_KEY_ID_SIZE];
-    char    keyidhex[PGP_KEY_ID_SIZE * 2 + 1];
-    char    target[sizeof(keyidhex) + 16];
-    char    prompt[128];
-    char    buffer[MAX_PASSPHRASE_LENGTH];
-    bool    ok = false;
+    char keyidhex[PGP_KEY_ID_SIZE * 2 + 1];
+    char target[sizeof(keyidhex) + 16];
+    char prompt[128];
+    char buffer[MAX_PASSPHRASE_LENGTH];
+    bool ok = false;
 
     if (!ctx || !passphrase || !passphrase_size) {
         goto done;
     }
-    if (!pgp_keyid(keyid, PGP_KEY_ID_SIZE, ctx->pubkey)) {
-        goto done;
-    }
-    rnp_strhexdump(keyidhex, keyid, PGP_KEY_ID_SIZE, "");
+    rnp_strhexdump(keyidhex, ctx->key->keyid, PGP_KEY_ID_SIZE, "");
     snprintf(target, sizeof(target), "key 0x%s", keyidhex);
 start:
     snprintf(prompt, sizeof(prompt), "Enter passphrase for %s: ", target);
