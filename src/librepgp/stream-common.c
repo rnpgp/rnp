@@ -79,7 +79,7 @@ ssize_t src_read(pgp_source_t *src, void *buf, size_t len)
     // If we got here then we have empty cache or no cache at all
     while (left > 0) {
         if (!cache || (left > sizeof(cache->buf))) {
-            // If there is no cache or chunk large then read directly
+            // If there is no cache or chunk is larger then read directly
             read = src->readfunc(src, buf, left);
             if (read > 0) {
                 left -= read;
