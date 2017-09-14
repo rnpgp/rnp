@@ -52,7 +52,7 @@
 
 typedef struct pgp_processing_ctx_t {
     pgp_parse_handler_t handler;
-    DYNARRAY(pgp_source_t, src);  /* pgp sources stack */
+    DYNARRAY(pgp_source_t *, src);  /* pgp sources stack */
     pgp_dest_t output;
 } pgp_processing_ctx_t;
 
@@ -218,7 +218,7 @@ ssize_t partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len)
                 return write;
             }
             // reading next chunk
-            read = src_peek(param->readsrc, hdr, 1);
+            read = src_read(param->readsrc, hdr, 1);
             if (read < 0) {
                 (void) fprintf(stderr, "partial_src_read: failed to read header\n");
                 return read;
@@ -227,20 +227,19 @@ ssize_t partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len)
                 return -1;
             }
             if ((hdr[0] >= 224) && (hdr[0] < 255)) {
-                src_skip(param->readsrc, 1);
                 param->psize = stream_part_len(hdr[0]);
                 param->pleft = param->psize;
             } else {
                 if (hdr[0] < 192) {
                     read = hdr[0];
                 } else if (hdr[0] < 224) {
-                    if (src_read(param->readsrc, hdr, 2) < 2) {
+                    if (src_read(param->readsrc, &hdr[1], 1) < 1) {
                         (void) fprintf(stderr, "partial_src_read: wrong 2-byte length\n");
                         return -1;
                     }
                     read = ((ssize_t)(hdr[0] - 192) << 8) + (ssize_t)hdr[1] + 192;
                 } else {
-                    if (src_read(param->readsrc, hdr, 5) < 5) {
+                    if (src_read(param->readsrc, &hdr[1], 4) < 4) {
                         (void) fprintf(stderr, "partial_src_read: wrong 4-byte length\n");
                         return -1;
                     }
@@ -272,7 +271,7 @@ ssize_t partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len)
         }
     }
 
-    return len;
+    return write;
 }
 
 void partial_pkt_src_close(pgp_source_t *src)
@@ -930,6 +929,8 @@ static pgp_errcode_t init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t
             goto finish;
     }
     param->alg = alg;
+    param->inlen = 0;
+    param->inpos = 0;
 
     finish:
     if (errcode != RNP_SUCCESS) {
@@ -1061,7 +1062,8 @@ static void init_processing_ctx(pgp_processing_ctx_t *ctx)
 static void free_processing_ctx(pgp_processing_ctx_t *ctx)
 {
     for (int i = ctx->srcc - 1; i >= 0; i--) {
-        src_close(&ctx->srcs[i]);
+        src_close(ctx->srcs[i]);
+        free(ctx->srcs[i]);
     }
     FREE_ARRAY(ctx, src);
 }
@@ -1074,7 +1076,7 @@ static pgp_errcode_t init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_
     uint8_t       ptag;
     ssize_t       read;
     int           type;
-    pgp_source_t  psrc;
+    pgp_source_t *psrc = NULL;
     pgp_source_t *lsrc = src;
     pgp_errcode_t ret;
 
@@ -1091,8 +1093,10 @@ static pgp_errcode_t init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_
             return RNP_ERROR_BAD_FORMAT;
         }
 
+        psrc = calloc(1, sizeof(*psrc));
+
         if ((type == PGP_PTAG_CT_PK_SESSION_KEY) || (type == PGP_PTAG_CT_SK_SESSION_KEY)) {
-            ret = init_encrypted_src(ctx, &psrc, lsrc);
+            ret = init_encrypted_src(ctx, psrc, lsrc);
         } else if (type == PGP_PTAG_CT_1_PASS_SIG) {
             (void) fprintf(stderr, "process_packet_sequence: signed data processing is not implemented yet\n");
             ret = RNP_ERROR_NOT_IMPLEMENTED;
@@ -1101,33 +1105,32 @@ static pgp_errcode_t init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_
                 (void) fprintf(stderr, "process_packet_sequence: invalid sequence: unexpected compressed packet\n");
                 ret = RNP_ERROR_BAD_FORMAT;
             } else {
-                ret = init_compressed_src(ctx, &psrc, lsrc);
+                ret = init_compressed_src(ctx, psrc, lsrc);
             }
         } else if (type == PGP_PTAG_CT_LITDATA) {
             if ((lsrc->type != PGP_STREAM_ENCRYPTED) && (lsrc->type != PGP_STREAM_SIGNED) && (lsrc->type != PGP_STREAM_COMPRESSED)) {
                 (void) fprintf(stderr, "process_packet_sequence: invalid sequence: unexpected literal packet\n");
                 ret = RNP_ERROR_BAD_FORMAT;
             } else {
-                ret = init_literal_src(ctx, &psrc, lsrc);
+                ret = init_literal_src(ctx, psrc, lsrc);
             }
         } else {
             (void) fprintf(stderr, "process_packet_sequence: unexpected packet type %d\n", type);
             ret = RNP_ERROR_BAD_FORMAT;
         }
 
-        if (ret != RNP_SUCCESS) {
+        if (ret == RNP_SUCCESS) {
+            EXPAND_ARRAY_EX(ctx, src, 1);
+            ctx->srcs[ctx->srcc++] = psrc;
+            lsrc = psrc;
+            if (lsrc->type == PGP_STREAM_LITERAL) {
+                return RNP_SUCCESS;
+            }
+        } else {
+            free(psrc);
             return ret;
         }
-
-        EXPAND_ARRAY_EX(ctx, src, 1);
-        ctx->srcs[ctx->srcc++] = psrc;
-        lsrc = &(ctx->srcs[ctx->srcc - 1]);
-        if (lsrc->type == PGP_STREAM_LITERAL) {
-            break;
-        }
     }
-
-    return RNP_SUCCESS;
 }
 
 pgp_errcode_t process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
@@ -1175,7 +1178,7 @@ pgp_errcode_t process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src
 
     /* Reading data from literal source and writing it to the output */
     if (res == RNP_SUCCESS) {
-        litsrc = &ctx.srcs[ctx.srcc - 1];
+        litsrc = ctx.srcs[ctx.srcc - 1];
         litparam = litsrc->param;
         if ((readbuf = calloc(1, PGP_INPUT_CACHE_SIZE)) == NULL) {
             (void) fprintf(stderr, "process_pgp_source: allocation failure\n");
