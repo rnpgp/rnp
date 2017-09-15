@@ -78,6 +78,7 @@
 #include <stdlib.h>
 #include "crypto/dsa.h"
 #include "crypto/bn.h"
+#include <botan/ffi.h>
 
 unsigned
 pgp_dsa_verify(const uint8_t *         hash,

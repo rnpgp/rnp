@@ -27,6 +27,7 @@
 
 #include "crypto.h"
 #include "crypto/bn.h"
+#include <botan/ffi.h>
 
 #ifndef USE_ARG
 #define USE_ARG(x) /*LINTED*/ (void) &x
@@ -572,24 +573,6 @@ int
 PGPV_BN_gcd(PGPV_BIGNUM *r, PGPV_BIGNUM *a, PGPV_BIGNUM *b)
 {
     return botan_mp_gcd(r->mp, a->mp, b->mp);
-}
-
-BIGNUM *
-new_BN_take_mp(botan_mp_t mp)
-{
-    PGPV_BIGNUM *a;
-    a = calloc(1, sizeof(*a));
-    if (a) {
-        a->mp = mp;
-    }
-    return a;
-}
-
-void
-destroy_BN_mp(BIGNUM **a)
-{
-    free(*a);
-    *a = NULL;
 }
 
 DSA_SIG *

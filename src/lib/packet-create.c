@@ -943,7 +943,7 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
                                  sz_encoded_key,
                                  encmpibuf,
                                  &out_len,
-                                 sesskey->params.ecdh.ephemeral_point->mp,
+                                 sesskey->params.ecdh.ephemeral_point,
                                  &pubkey->key.ecdh,
                                  &fingerprint);
         if (RNP_SUCCESS != err) {

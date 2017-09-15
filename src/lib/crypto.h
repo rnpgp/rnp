@@ -56,7 +56,6 @@
 #define CRYPTO_H_
 
 #include <limits.h>
-#include <botan/ffi.h>
 
 #include <librepgp/packet-parse.h>
 #include <librepgp/packet-print.h>

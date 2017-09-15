@@ -195,7 +195,7 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
                                                         &out_len,
                                                         encmpibuf,
                                                         encmpi_len,
-                                                        g_to_k->mp,
+                                                        g_to_k,
                                                         &seckey->key.ecc,
                                                         &seckey->pubkey.key.ecdh,
                                                         &fingerprint);

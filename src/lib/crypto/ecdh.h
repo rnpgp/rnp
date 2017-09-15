@@ -90,7 +90,7 @@ rnp_result_t pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
                                     size_t                   session_key_len,
                                     uint8_t *                wrapped_key,
                                     size_t *                 wrapped_key_len,
-                                    botan_mp_t               ephemeral_key,
+                                    BIGNUM *                 ephemeral_key,
                                     const pgp_ecdh_pubkey_t *pubkey,
                                     const pgp_fingerprint_t *fingerprint);
 
@@ -118,7 +118,7 @@ rnp_result_t pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
                                     size_t *                 session_key_len,
                                     uint8_t *                wrapped_key,
                                     size_t                   wrapped_key_len,
-                                    const botan_mp_t         ephemeral_key,
+                                    const BIGNUM *           ephemeral_key,
                                     const pgp_ecc_seckey_t * seckey,
                                     const pgp_ecdh_pubkey_t *pubkey,
                                     const pgp_fingerprint_t *fingerprint);

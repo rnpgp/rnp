@@ -34,7 +34,6 @@
 #include <unistd.h>
 #include <limits.h>
 #include <ftw.h>
-#include <botan/ffi.h>
 #include <sys/stat.h>
 #include <cmocka.h>
 #include <rnp/rnp.h>
