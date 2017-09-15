@@ -1031,8 +1031,8 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
 static void
 print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
 {
-    printf("------- SECRET KEY or ENCRYPTED SECRET KEY ------\n");
-    print_tagname(0, (type == PGP_PTAG_CT_SECRET_KEY) ? "SECRET_KEY" : "ENCRYPTED_SECRET_KEY");
+    printf("------- SECRET KEY ------\n");
+    print_tagname(0, (type == PGP_PTAG_CT_SECRET_KEY) ? "SECRET_KEY" : "SECRET_SUBKEY");
     /* pgp_print_pubkey(key); */
     printf("S2K Usage: %d\n", seckey->protection.s2k.usage);
     if (seckey->protection.s2k.usage != PGP_S2KU_NONE) {
@@ -1086,7 +1086,7 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
     } else {
         printf("Checksum: %04x\n", seckey->checksum);
     }
-    printf("------- end of SECRET KEY or ENCRYPTED SECRET KEY ------\n");
+    printf("------- end of SECRET KEY ------\n");
 }
 
 /**
@@ -1661,6 +1661,11 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 
     case PGP_PTAG_CT_SECRET_KEY:
         print_tagname(print->indent, "PGP_PTAG_CT_SECRET_KEY");
+        print_seckey_verbose(pkt->tag, &content->seckey);
+        break;
+
+    case PGP_PTAG_CT_SECRET_SUBKEY:
+        print_tagname(print->indent, "PGP_PTAG_CT_SECRET_SUBKEY");
         print_seckey_verbose(pkt->tag, &content->seckey);
         break;
 
