@@ -1331,13 +1331,13 @@ rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 
     err = is_stdin ? init_stdin_src(&src) : init_file_src(&src, in);
     if (err != RNP_SUCCESS) {
-        (void) fprintf(stderr, "rnp_encrypt_stream: failed to initialize reading");
+        (void) fprintf(stderr, "rnp_encrypt_stream: failed to initialize reading\n");
         return RNP_FAIL;
     }
 
     err = is_stdout ? init_stdout_dest(&dst) : init_file_dest(&dst, out);
     if (err != RNP_SUCCESS) {
-        (void) fprintf(stderr, "rnp_encrypt_stream: failed to initialize writing");
+        (void) fprintf(stderr, "rnp_encrypt_stream: failed to initialize writing\n");
         src_close(&src);
         return RNP_FAIL;
     }
