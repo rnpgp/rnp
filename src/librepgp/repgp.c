@@ -306,15 +306,14 @@ repgp_list_packets(const void *ctx, const repgp_handle_t *input)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    const repgp_handle_t *i = (repgp_handle_t *) input;
-    if ((i == NULL) || (i->type != REPGP_HANDLE_FILE)) {
+    if ((input == NULL) || (input->type != REPGP_HANDLE_FILE)) {
         RNP_LOG("Incorrectly initialized input handle");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     struct stat st;
-    if (stat(i->filepath, &st) < 0) {
-        RNP_LOG("No such file '%s'", i->filepath);
+    if (stat(input->filepath, &st) < 0) {
+        RNP_LOG("No such file '%s'", input->filepath);
         return RNP_ERROR_ACCESS;
     }
 
@@ -327,7 +326,7 @@ repgp_list_packets(const void *ctx, const repgp_handle_t *input)
 
     pgp_stream_t *stream = NULL;
     int           fd =
-      pgp_setup_file_read(rctx->rnp->io, &stream, i->filepath, NULL, cb_list_packets, 1);
+      pgp_setup_file_read(rctx->rnp->io, &stream, input->filepath, NULL, cb_list_packets, 1);
     repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
     stream->cryptinfo.secring = rnp->secring;
     stream->cryptinfo.pubring = rnp->pubring;
@@ -362,4 +361,54 @@ repgp_validate_pubkeys_signatures(const void *ctx)
 
     ret &= validate_result_status("keyring", &result);
     return ret ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+}
+
+rnp_result
+repgp_dump_packets(const void *ctx, const repgp_handle_t *input)
+{
+    const rnp_ctx_t *rctx = (rnp_ctx_t *) ctx;
+    pgp_stream_t *   stream;
+    int              fd;
+
+    if (!rctx || !rctx->rnp || (input == NULL)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if ((input == NULL) || (input->type != REPGP_HANDLE_FILE)) {
+        RNP_LOG("Incorrectly initialized input handle");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    struct stat st;
+    if (stat(input->filepath, &st) < 0) {
+        RNP_LOG("No such file '%s'", input->filepath);
+        return RNP_ERROR_ACCESS;
+    }
+
+    fd =
+      pgp_setup_file_read(rctx->rnp->io, &stream, input->filepath, NULL, cb_list_packets, 1);
+    repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
+
+    const rnp_t *rnp = rctx->rnp;
+    if (rnp->pubring && rnp->secring) {
+        if (!rnp_key_store_load_from_file(
+              /*unconst */ (rnp_t *) rnp, rnp->pubring, rctx->armour)) {
+            RNP_LOG("Keystore can't load data");
+            return RNP_ERROR_GENERIC;
+        }
+        stream->cryptinfo.secring = rnp->secring;
+        stream->cryptinfo.pubring = rnp->pubring;
+        stream->cryptinfo.passphrase_provider = rnp->passphrase_provider;
+    }
+
+    if (rctx->armour) {
+        pgp_reader_push_dearmour(stream);
+    }
+
+    if (!repgp_parse(stream, true)) {
+        pgp_teardown_file_read(stream, fd);
+        return RNP_ERROR_GENERIC;
+    }
+    pgp_teardown_file_read(stream, fd);
+    return RNP_SUCCESS;
 }
