@@ -101,21 +101,29 @@ rnp_passphrase_provider_stdin(const pgp_passphrase_ctx_t *ctx,
         goto done;
     }
 
-    if (ctx->op != PGP_OP_DECRYPT_SYM) {
+    if ((ctx->op != PGP_OP_DECRYPT_SYM) && (ctx->op != PGP_OP_ENCRYPT_SYM) {
         rnp_strhexdump(keyidhex, ctx->key->keyid, PGP_KEY_ID_SIZE, "");
         snprintf(target, sizeof(target), "key 0x%s", keyidhex);
     }
 start:
-    if (ctx->op != PGP_OP_DECRYPT_SYM) {
-        snprintf(prompt, sizeof(prompt), "Enter passphrase for %s: ", target);
-    } else {
+    if (ctx->op == PGP_OP_DECRYPT_SYM) {
         snprintf(prompt, sizeof(prompt), "Enter passphrase to decrypt data: ");
+    } else if (ctx->op == PGP_OP_ENCRYPT_SYM) {
+        snprintf(prompt, sizeof(prompt), "Enter passphrase to encrypt data: ");
+    } else {
+        snprintf(prompt, sizeof(prompt), "Enter passphrase for %s: ", target);
     }
+    
     if (!rnp_getpass(prompt, passphrase, passphrase_size)) {
         goto done;
     }
-    if (ctx->op == PGP_OP_PROTECT) {
-        snprintf(prompt, sizeof(prompt), "Repeat passphrase for %s: ", target);
+    if ((ctx->op == PGP_OP_PROTECT) || (ctx->op == PGP_OP_ENCRYPT_SYM)) {
+        if (ctx->op == PGP_OP_PROTECT) {
+            snprintf(prompt, sizeof(prompt), "Repeat passphrase for %s: ", target);
+        } else {
+            snprintf(prompt, sizeof(prompt), "Repeat passphrase: ");
+        }
+        
         if (!rnp_getpass(prompt, buffer, sizeof(buffer))) {
             goto done;
         }
