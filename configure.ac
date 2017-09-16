@@ -117,6 +117,8 @@ AC_CONFIG_FILES([
         src/rnpkeys/Makefile
         src/tests/Makefile
         src/fuzzing/Makefile
+        src/apps/Makefile
+        src/apps/packet-dumper/Makefile
         tests/Makefile
         tests/atlocal
 ])
