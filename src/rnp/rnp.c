@@ -311,7 +311,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     static const char stdout_marker[2] = "-";
     repgp_io_t *      io = repgp_create_io();
 
-    if (io == REPGP_HANDLE_NULL) {
+    if (io == NULL) {
         RNP_LOG("Allocation failed");
         return false;
     }
@@ -400,7 +400,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         break;
     }
     case CMD_VERIFY_CAT: {
-        repgp_handle_t *os = REPGP_HANDLE_NULL;
+        repgp_handle_t *os = NULL;
         if (f == NULL) {
             os = create_buffer_handle((size_t) rnp_cfg_getint(cfg, CFG_MAXALLOC));
         } else {
@@ -418,7 +418,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     }
     case CMD_LIST_PACKETS: {
         repgp_handle_t *input = create_filepath_handle(f);
-        if (input == REPGP_HANDLE_NULL) {
+        if (input == NULL) {
             RNP_LOG("%s: No filename provided", __progname);
             ret = false;
             break;

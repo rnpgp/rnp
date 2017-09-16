@@ -42,8 +42,6 @@
 #include <rnp/rnp_def.h>
 #include "repgp_def.h"
 
-#define REPGP_HANDLE_NULL NULL
-
 typedef struct pgp_packet_t   pgp_packet_t;
 typedef struct pgp_stream_t   pgp_stream_t;
 typedef struct repgp_handle_t repgp_handle_t;
@@ -62,7 +60,7 @@ typedef enum {
  *
  * @param   filename NULL-terminated string with full path to the file
  *
- * @return  Initialized handle on success or REPGP_HANDLE_NULL
+ * @return  Initialized handle on success or NULL
  *          if input parameters are invalid.
  */
 repgp_handle_t *create_filepath_handle(const char *filename);
@@ -73,7 +71,7 @@ repgp_handle_t *create_filepath_handle(const char *filename);
  *          all the data from standard input and coppies
  *          it to internal buffer.
  *
- * @return  Initialized handle on success or REPGP_HANDLE_NULL
+ * @return  Initialized handle on success or NULL
  *          if input parameters are invalid.
  */
 repgp_handle_t *create_stdin_handle(void);
@@ -84,7 +82,7 @@ repgp_handle_t *create_stdin_handle(void);
  *
  * @param   buffer_size size of the buffer to allocate
  *
- * @return  Initialized handle on success or REPGP_HANDLE_NULL
+ * @return  Initialized handle on success or NULL
  *          if input parameters are invalid.
  */
 repgp_handle_t *create_buffer_handle(const size_t buffer_size);
@@ -98,7 +96,7 @@ repgp_handle_t *create_buffer_handle(const size_t buffer_size);
  * @param   data data provided by the caller
  * @param   data_len length of the data
  *
- * @return  Initialized handle on success or REPGP_HANDLE_NULL
+ * @return  Initialized handle on success or NULL
  *          if input parameters are invalid.
  */
 repgp_handle_t *create_data_handle(const uint8_t *data, size_t data_len);
@@ -132,7 +130,7 @@ rnp_result repgp_copy_buffer_from_handle(uint8_t *             out,
 /*
  * @brief   Creates opaque repgp_io_t object
  *
- * @returns Initialized repgp_io_t object or REPGP_HANDLE_NULL on
+ * @returns Initialized repgp_io_t object or NULL on
  *          error.
  */
 repgp_io_t *repgp_create_io(void);
@@ -141,7 +139,7 @@ repgp_io_t *repgp_create_io(void);
  * @brief   Sets input handler. If another handler was already
  *          set, it gets destroyed in order to make sure no
  *          memory leak is introduced.
- *          Function can be called with handle set to REPGP_HANDLE_NULL
+ *          Function can be called with handle set to NULL
  *
  * @param   io input/output object on which input handler will be set
  * @param   handle handle object to be set
@@ -152,7 +150,7 @@ void repgp_set_input(repgp_io_t *io, repgp_handle_t *handle);
  * @brief   Sets output handler. If another handler was already
  *          set, it gets destroyed in order to make sure no
  *          memory leak is introduced.
- *          Function can be called with handle set to REPGP_HANDLE_NULL
+ *          Function can be called with handle set to NULL
  *
  * @param   io input/output object on which input handler will be set
  * @param   handle handle object to be set
