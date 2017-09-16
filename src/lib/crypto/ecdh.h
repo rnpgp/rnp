@@ -75,13 +75,13 @@ bool set_ecdh_params(pgp_seckey_t *seckey, pgp_curve_t curve_id);
  *        Current implementation always produces 48 bytes as key
  *        is padded with PKCS-5/7
  * @param ephemeral_key [out] public ephemeral ECDH key used for key
- *        agreement (private part).
+ *        agreement (private part). Must be initialized
  * @param pubkey public key to be used for encryption
  * @param fingerprint fingerprint of the pubkey
  *
  * @return RNP_SUCCESS on success and output parameters are populated
  * @return RNP_ERROR_NOT_SUPPORTED unknown curve
- * @return RNP_ERROR_BAD_PARAMETERS unexpected value of input one or many arguments
+ * @return RNP_ERROR_BAD_PARAMETERS unexpected input provided
  * @return RNP_ERROR_SHORT_BUFFER `wrapped_key_len' to small to store result
  * @return RNP_ERROR_OUT_OF_MEMORY failed to allocated memory
  * @return RNP_ERROR_GENERIC implementation error
@@ -104,13 +104,13 @@ rnp_result pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
  *        in RFC 3394
  * @param wrapped_key_len length of the `wrapped_key' buffer
  * @param ephemeral_key public ephemeral ECDH key comming from
- *        encrypted packet
+ *        encrypted packet.
  * @param seckey secret key to be used for decryption
  * @param fingerprint fingerprint of the key
  *
  * @return RNP_SUCCESS on success and output parameters are populated
  * @return RNP_ERROR_NOT_SUPPORTED unknown curve
- * @return RNP_ERROR_BAD_PARAMETERS unexpected value of input one or many arguments
+ * @return RNP_ERROR_BAD_PARAMETERS unexpected input provided
  * @return RNP_ERROR_SHORT_BUFFER `session_key_len' to small to store result
  * @return RNP_ERROR_GENERIC decryption failed or implementation error
  */
