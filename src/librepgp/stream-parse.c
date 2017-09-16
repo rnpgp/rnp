@@ -794,6 +794,7 @@ static pgp_errcode_t init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *s
     pgp_errcode_t               errcode = RNP_SUCCESS;
     pgp_source_literal_param_t *param;
     uint8_t                     bt;
+    uint8_t                     tstbuf[4];
 
     if (!init_source_cache(src, sizeof(pgp_source_literal_param_t))) {
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -853,11 +854,12 @@ static pgp_errcode_t init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *s
     }
     param->filename[bt] = 0;
     /* timestamp */
-    if (src_read(param->pkt.readsrc, &param->timestamp, 4) != 4) {
+    if (src_read(param->pkt.readsrc, tstbuf, 4) != 4) {
         (void) fprintf(stderr, "init_literal_src: failed to read file timestamp\n");
         errcode = RNP_ERROR_READ;
         goto finish;
     }
+    param->timestamp = ((uint32_t)tstbuf[0] << 24) | ((uint32_t)tstbuf[1] << 16) | ((uint32_t)tstbuf[2] << 8) | (uint32_t)tstbuf[3];
 
     finish:
     if (errcode != RNP_SUCCESS) {
@@ -1198,7 +1200,8 @@ pgp_errcode_t process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src
                 res = RNP_ERROR_GENERIC;
                 break;
             } else if (read > 0) {
-                if (!dst_write(&outdest, readbuf, read)) {
+                dst_write(&outdest, readbuf, read);
+                if (outdest.werr != RNP_SUCCESS) {
                     (void) fprintf(stderr, "process_pgp_source: failed to output data\n");
                     res = RNP_ERROR_WRITE;
                     break;

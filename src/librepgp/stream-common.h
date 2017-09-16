@@ -56,7 +56,7 @@ typedef struct pgp_dest_t pgp_dest_t;
 typedef ssize_t pgp_source_read_func_t(pgp_source_t *src, void *buf, size_t len);
 typedef void pgp_source_close_func_t(pgp_source_t *src);
 
-typedef bool pgp_dest_write_func_t(pgp_dest_t *dst, void *buf, size_t len);
+typedef void pgp_dest_write_func_t(pgp_dest_t *dst, void *buf, size_t len);
 typedef void pgp_dest_close_func_t(pgp_dest_t *dst, bool discard);
 
 
@@ -141,6 +141,7 @@ typedef struct pgp_dest_t {
     pgp_dest_write_func_t *writefunc;
     pgp_dest_close_func_t *closefunc;
     pgp_stream_type_t      type;
+    pgp_errcode_t          werr; /* write function may set this to some error code */
 
     int64_t             write;  /* number of bytes written */
     void *              param;  /* source-specific additional data */
@@ -153,7 +154,7 @@ typedef struct pgp_dest_t {
  *  @param len number of bytes to write
  *  @return true on success or false otherwise
  **/
-bool dst_write(pgp_dest_t *dst, void *buf, size_t len);
+void dst_write(pgp_dest_t *dst, void *buf, size_t len);
 
 /** @brief close the destination
  *
