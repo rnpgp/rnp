@@ -597,11 +597,11 @@ static pgp_errcode_t stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t
     skey->alg = buf[1];
 
     // s2k
-    skey->s2k_specifier = buf[2];
-    skey->hash_alg = buf[3];
+    skey->s2k.specifier = buf[2];
+    skey->s2k.hash_alg = buf[3];
     len -= 4;
 
-    switch (skey->s2k_specifier) {
+    switch (skey->s2k.specifier) {
         case PGP_S2KS_SIMPLE:
             break;
         case PGP_S2KS_SALTED:
@@ -610,20 +610,20 @@ static pgp_errcode_t stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t
             if (len < PGP_SALT_SIZE) {
                 return RNP_ERROR_BAD_FORMAT;
             }
-            if (src_read(src, skey->salt, PGP_SALT_SIZE) != PGP_SALT_SIZE) {
+            if (src_read(src, skey->s2k.salt, PGP_SALT_SIZE) != PGP_SALT_SIZE) {
                 return RNP_ERROR_READ;
             }
             len -= PGP_SALT_SIZE;
 
             // iterations
-            if (skey->s2k_specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+            if (skey->s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
                 if (len < 1) {
                     return RNP_ERROR_BAD_FORMAT;
                 }
                 if (src_read(src, buf, 1) != 1) {
                     return RNP_ERROR_READ;
                 }
-                skey->s2k_iterations = (unsigned)buf[0];
+                skey->s2k.iterations = (unsigned)buf[0];
                 len--;
             }
             break;
@@ -671,21 +671,21 @@ static int encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
             continue;
         }
 
-        switch (symkey->s2k_specifier) {
+        switch (symkey->s2k.specifier) {
             case PGP_S2KS_SIMPLE:
                 break;
             case PGP_S2KS_SALTED:
-                saltptr = &symkey->salt[0];
+                saltptr = &symkey->s2k.salt[0];
                 break;
             case PGP_S2KS_ITERATED_AND_SALTED:
-                saltptr = &symkey->salt[0];
-                iterations = pgp_s2k_decode_iterations(symkey->s2k_iterations);
+                saltptr = &symkey->s2k.salt[0];
+                iterations = pgp_s2k_decode_iterations(symkey->s2k.iterations);
                 break;
             default:
                 continue;
         }
 
-        if (pgp_s2k_iterated(symkey->hash_alg, keybuf, keysize, passphrase, saltptr, iterations)) {
+        if (pgp_s2k_iterated(symkey->s2k.hash_alg, keybuf, keysize, passphrase, saltptr, iterations)) {
             (void) fprintf(stderr, "encrypted_check_passphrase: s2k failed\n");
             continue;
         }
@@ -1027,7 +1027,7 @@ static pgp_errcode_t init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t 
 
     if (param->symencc > 0) {
         do {
-            if (!pgp_request_passphrase(ctx->handler.passphrase_provider, &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT_SYM, .pubkey = NULL, .key_type = 0}, passphrase, sizeof(passphrase))) {
+            if (!pgp_request_passphrase(ctx->handler.passphrase_provider, &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT_SYM, .key = NULL}, passphrase, sizeof(passphrase))) {
                 goto finish;
             }
 
