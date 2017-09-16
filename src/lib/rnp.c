@@ -1257,7 +1257,14 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     pgp_parse_handler_param_t *param = NULL;
     int result;
 
-    if ((strlen(in) > sizeof(param->in)) || (strlen(out) > sizeof(param->out))) {
+
+    if (in && (strlen(in) > sizeof(param->in))) {
+        (void) fprintf(stderr, "rnp_process_stream: too long input path\n");
+        return RNP_FAIL;
+    }
+    
+    if (out && (strlen(out) > sizeof(param->out))) {
+        (void) fprintf(stderr, "rnp_process_stream: too long output path\n");
         return RNP_FAIL;
     }
 
@@ -1316,20 +1323,27 @@ rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     pgp_errcode_t err;
     pgp_write_handler_t *handler = NULL;
     int result;
+    bool          is_stdin;
+    bool          is_stdout;
 
-    err = in ? init_file_src(&src, in) : init_stdin_src(&src);
+    is_stdin = !in || (strlen(in) == 0) || (strcmp(in, "-") == 0);
+    is_stdout = !out || (strlen(out) == 0) || (strcmp(out, "-") == 0);
 
+    err = is_stdin ? init_stdin_src(&src) : init_file_src(&src, in);
     if (err != RNP_SUCCESS) {
+        (void) fprintf(stderr, "rnp_encrypt_stream: failed to initialize reading");
         return RNP_FAIL;
     }
 
-    err = out ? init_file_dest(&dst, out) : init_stdout_dest(&dst);
+    err = is_stdout ? init_stdout_dest(&dst) : init_file_dest(&dst, out);
     if (err != RNP_SUCCESS) {
+        (void) fprintf(stderr, "rnp_encrypt_stream: failed to initialize writing");
         src_close(&src);
         return RNP_FAIL;
     }
 
     if ((handler = calloc(1, sizeof(*handler))) == NULL) {
+        err = RNP_ERROR_OUT_OF_MEMORY;
         result = RNP_FAIL;
         goto finish;
     }
