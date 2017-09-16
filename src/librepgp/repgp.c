@@ -53,12 +53,12 @@ repgp_handle_t *
 create_filepath_handle(const char *filename)
 {
     if (!filename) {
-        return REPGP_HANDLE_NULL;
+        return NULL;
     }
 
     repgp_handle_t *s = calloc(sizeof(*s), 1);
     if (!s) {
-        return REPGP_HANDLE_NULL;
+        return NULL;
     }
 
     s->filepath = strndup(filename, strlen(filename));
@@ -71,12 +71,12 @@ create_buffer_handle(const size_t buffer_size)
 {
     repgp_handle_t *s = calloc(sizeof(*s), 1);
     if (!s) {
-        return REPGP_HANDLE_NULL;
+        return NULL;
     }
 
     s->buffer.data = (unsigned char *) malloc(buffer_size);
     if (!s->buffer.data) {
-        return REPGP_HANDLE_NULL;
+        return NULL;
     }
 
     s->buffer.size = buffer_size;
@@ -89,12 +89,12 @@ create_data_handle(const uint8_t *data, size_t data_len)
 {
     repgp_handle_t *s = calloc(sizeof(*s), 1);
     if (!s) {
-        return REPGP_HANDLE_NULL;
+        return NULL;
     }
 
     s->buffer.data = (unsigned char *) malloc(data_len);
     if (!s->buffer.data) {
-        return REPGP_HANDLE_NULL;
+        return NULL;
     }
     memcpy(s->buffer.data, data, data_len);
 
@@ -114,7 +114,7 @@ create_stdin_handle(void)
 
     repgp_handle_t *s = calloc(sizeof(*s), 1);
     if (!s) {
-        return REPGP_HANDLE_NULL;
+        return NULL;
     }
 
     /* Read in everything and keeps it in memory.
@@ -130,7 +130,7 @@ create_stdin_handle(void)
         if (loc == NULL) {
             RNP_LOG("Short read");
             free(data);
-            return REPGP_HANDLE_NULL;
+            return NULL;
         }
         data = loc;
         memcpy(data + size, buf, n);
@@ -140,7 +140,7 @@ create_stdin_handle(void)
     if (n < 0) {
         RNP_LOG("Error while reading from stdin [%s]", strerror(errno));
         free(data);
-        return REPGP_HANDLE_NULL;
+        return NULL;
     }
 
     s->type = REPGP_HANDLE_BUFFER;
@@ -152,7 +152,7 @@ create_stdin_handle(void)
 rnp_result
 repgp_copy_buffer_from_handle(uint8_t *out, size_t *out_size, const repgp_handle_t *handle)
 {
-    if (!out || !out_size || (*out_size == 0) || (handle == REPGP_HANDLE_NULL)) {
+    if (!out || !out_size || (*out_size == 0) || (handle == NULL)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -272,11 +272,11 @@ repgp_create_io(void)
 {
     repgp_io_t *io = malloc(sizeof(*io));
     if (!io) {
-        return REPGP_HANDLE_NULL;
+        return NULL;
     }
 
-    io->in = REPGP_HANDLE_NULL;
-    io->out = REPGP_HANDLE_NULL;
+    io->in = NULL;
+    io->out = NULL;
 
     return (repgp_io_t *) io;
 }
@@ -302,12 +302,12 @@ rnp_result
 repgp_list_packets(const void *ctx, const repgp_handle_t *input)
 {
     const rnp_ctx_t *rctx = (rnp_ctx_t *) ctx;
-    if (!rctx || !rctx->rnp || (input == REPGP_HANDLE_NULL)) {
+    if (!rctx || !rctx->rnp || (input == NULL)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     const repgp_handle_t *i = (repgp_handle_t *) input;
-    if ((i == REPGP_HANDLE_NULL) || (i->type != REPGP_HANDLE_FILE)) {
+    if ((i == NULL) || (i->type != REPGP_HANDLE_FILE)) {
         RNP_LOG("Incorrectly initialized input handle");
         return RNP_ERROR_BAD_PARAMETERS;
     }
