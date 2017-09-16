@@ -432,10 +432,7 @@ typedef struct {
 typedef struct {
     unsigned            version;
     pgp_symm_alg_t      alg;
-    pgp_s2k_specifier_t s2k_specifier;
-    pgp_hash_alg_t      hash_alg;
-    uint8_t             salt[PGP_SALT_SIZE];
-    unsigned            s2k_iterations;
+    pgp_s2k             s2k;
     uint8_t             enckey[PGP_MAX_KEY_SIZE + 1];
     unsigned            enckeylen;
 } pgp_sk_sesskey_t;

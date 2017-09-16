@@ -334,18 +334,18 @@ bool stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
 
     res = add_packet_body_byte(&pktbody, 4) &&
           add_packet_body_byte(&pktbody, skey->alg) &&
-          add_packet_body_byte(&pktbody, skey->s2k_specifier) &&
-          add_packet_body_byte(&pktbody, skey->hash_alg);
+          add_packet_body_byte(&pktbody, skey->s2k.specifier) &&
+          add_packet_body_byte(&pktbody, skey->s2k.hash_alg);
 
-    switch (skey->s2k_specifier) {
+    switch (skey->s2k.specifier) {
         case PGP_S2KS_SIMPLE:
             break;
         case PGP_S2KS_SALTED:
-            res = res && add_packet_body(&pktbody, skey->salt, sizeof(skey->salt));
+            res = res && add_packet_body(&pktbody, skey->s2k.salt, sizeof(skey->s2k.salt));
             break;
         case PGP_S2KS_ITERATED_AND_SALTED:
-            res = res && add_packet_body(&pktbody, skey->salt, sizeof(skey->salt)) &&
-                         add_packet_body_byte(&pktbody, skey->s2k_iterations);
+            res = res && add_packet_body(&pktbody, skey->s2k.salt, sizeof(skey->s2k.salt)) &&
+                         add_packet_body_byte(&pktbody, skey->s2k.iterations);
             break;
     }
 
@@ -454,18 +454,18 @@ pgp_errcode_t init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, 
 
     skey.version = 4;
     skey.alg = ealg;
-    skey.s2k_specifier = PGP_S2KS_ITERATED_AND_SALTED;
-    skey.s2k_iterations = pgp_s2k_encode_iterations(PGP_S2K_DEFAULT_ITERATIONS);
-    skey.hash_alg = handler->ctx->halg == PGP_HASH_UNKNOWN ? PGP_HASH_SHA256 : handler->ctx->halg;
-    pgp_random(skey.salt, sizeof(skey.salt));
+    skey.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
+    skey.s2k.iterations = pgp_s2k_encode_iterations(PGP_S2K_DEFAULT_ITERATIONS);
+    skey.s2k.hash_alg = handler->ctx->halg == PGP_HASH_UNKNOWN ? PGP_HASH_SHA256 : handler->ctx->halg;
+    pgp_random(skey.s2k.salt, sizeof(skey.s2k.salt));
 
-    if (!pgp_request_passphrase(handler->passphrase_provider, &(pgp_passphrase_ctx_t){.op = PGP_OP_ENCRYPT_SYM, .pubkey = NULL, .key_type = 0}, passphrase, sizeof(passphrase))) {
+    if (!pgp_request_passphrase(handler->passphrase_provider, &(pgp_passphrase_ctx_t){.op = PGP_OP_ENCRYPT_SYM, .key = NULL}, passphrase, sizeof(passphrase))) {
         (void) fprintf(stderr, "init_encrypted_dst: no encryption passphrase\n");
         ret = RNP_ERROR_BAD_PASSPHRASE;
         goto finish;
     }
 
-    if (pgp_s2k_iterated(skey.hash_alg, s2key, keylen, passphrase, skey.salt, pgp_s2k_decode_iterations(skey.s2k_iterations))) {
+    if (pgp_s2k_iterated(skey.s2k.hash_alg, s2key, keylen, passphrase, skey.s2k.salt, pgp_s2k_decode_iterations(skey.s2k.iterations))) {
         (void) fprintf(stderr, "init_encrypted_dst: s2k failed\n");
         ret = RNP_ERROR_GENERIC;
         goto finish;

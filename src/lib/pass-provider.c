@@ -101,7 +101,7 @@ rnp_passphrase_provider_stdin(const pgp_passphrase_ctx_t *ctx,
         goto done;
     }
 
-    if ((ctx->op != PGP_OP_DECRYPT_SYM) && (ctx->op != PGP_OP_ENCRYPT_SYM) {
+    if ((ctx->op != PGP_OP_DECRYPT_SYM) && (ctx->op != PGP_OP_ENCRYPT_SYM)) {
         rnp_strhexdump(keyidhex, ctx->key->keyid, PGP_KEY_ID_SIZE, "");
         snprintf(target, sizeof(target), "key 0x%s", keyidhex);
     }
