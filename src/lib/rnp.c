@@ -96,6 +96,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "pgp-key.h"
 #include "list.h"
 #include <librepgp/stream-parse.h>
+#include <librepgp/stream-write.h>
 
 #include "rnp/rnp_obsolete_defs.h"
 #include <json.h>
@@ -1224,17 +1225,17 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
     return ret ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 }
 
-typedef struct pgp_handler_param_t {
+typedef struct pgp_parse_handler_param_t {
     char       in[PATH_MAX];
     char       out[PATH_MAX];
-} pgp_handler_param_t;
+} pgp_parse_handler_param_t;
 
 /* process the pgp stream */
 
 bool
-rnp_handler_dest(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char *filename)
+rnp_parse_handler_dest(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char *filename)
 {
-    pgp_handler_param_t *param = handler->param;
+    pgp_parse_handler_param_t *param = handler->param;
 
     if (!param) {
         return false;
@@ -1253,7 +1254,7 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     pgp_source_t  src;
     pgp_errcode_t err;
     pgp_parse_handler_t *handler = NULL;
-    pgp_handler_param_t *param = NULL;
+    pgp_parse_handler_param_t *param = NULL;
     int result;
 
     if ((strlen(in) > sizeof(param->in)) || (strlen(out) > sizeof(param->out))) {
@@ -1289,13 +1290,14 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     }
 
     handler->passphrase_provider = &ctx->rnp->passphrase_provider;
-    handler->dest_provider = rnp_handler_dest;
+    handler->dest_provider = rnp_parse_handler_dest;
     handler->param = param;
 
     err = process_pgp_source(handler, &src);
     if (err == RNP_SUCCESS) {
         result = RNP_OK;
     } else {
+        (void) fprintf(stderr, "processing failed: error %d", err);
         result = RNP_FAIL;
     }
 
@@ -1303,6 +1305,51 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     src_close(&src);
     free(handler);
     free(param);
+    return result;
+}
+
+int
+rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
+{
+    pgp_source_t  src;
+    pgp_dest_t    dst;
+    pgp_errcode_t err;
+    pgp_write_handler_t *handler = NULL;
+    int result;
+
+    err = in ? init_file_src(&src, in) : init_stdin_src(&src);
+
+    if (err != RNP_SUCCESS) {
+        return RNP_FAIL;
+    }
+
+    err = out ? init_file_dest(&dst, out) : init_stdout_dest(&dst);
+    if (err != RNP_SUCCESS) {
+        src_close(&src);
+        return RNP_FAIL;
+    }
+
+    if ((handler = calloc(1, sizeof(*handler))) == NULL) {
+        result = RNP_FAIL;
+        goto finish;
+    }
+
+    handler->passphrase_provider = &ctx->rnp->passphrase_provider;
+    handler->ctx = ctx;
+    handler->param = NULL;
+
+    err = rnp_encrypt_src(handler, &src, &dst);
+    if (err == RNP_SUCCESS) {
+        result = RNP_OK;
+    } else {
+        (void) printf("rnp_encrypt_stream: encryption failed with error code %d\n", (int)err);
+        result = RNP_FAIL;
+    }
+
+    finish:
+    src_close(&src);
+    dst_close(&dst, err != RNP_SUCCESS);
+    free(handler);
     return result;
 }
 

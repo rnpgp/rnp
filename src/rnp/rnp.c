@@ -86,6 +86,7 @@ enum optdefs {
     CMD_CLEARSIGN,
     CMD_VERIFY,
     CMD_VERIFY_CAT,
+    CMD_SYM_ENCRYPT,
     CMD_SYM_DECRYPT,
     CMD_LIST_PACKETS,
     CMD_SHOW_KEYS,
@@ -136,6 +137,7 @@ static struct option options[] = {
   {"verify-show", no_argument, NULL, CMD_VERIFY_CAT},
   {"verifyshow", no_argument, NULL, CMD_VERIFY_CAT},
   {"sym-decrypt", no_argument, NULL, CMD_SYM_DECRYPT},
+  {"symmetric", no_argument, NULL, CMD_SYM_ENCRYPT},
   /* file listing commands */
   {"list-packets", no_argument, NULL, CMD_LIST_PACKETS},
   /* debugging commands */
@@ -405,6 +407,13 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
         break;
     }
+    case CMD_SYM_ENCRYPT: {
+        ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
+        ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
+        ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
+        ret = rnp_encrypt_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
+        break;
+    }
     case CMD_VERIFY_CAT: {
         repgp_handle_t *os = NULL;
         if (f == NULL) {
@@ -476,6 +485,9 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         *cmd = val;
         break;
     case CMD_SYM_DECRYPT:
+        *cmd = val;
+        break;
+    case CMD_SYM_ENCRYPT:
         *cmd = val;
         break;
     case CMD_VERIFY:
@@ -662,7 +674,7 @@ main(int argc, char **argv)
     optindex = 0;
 
     /* TODO: These options should be set after initialising the context. */
-    while ((ch = getopt_long(argc, argv, "S:Vdeo:svz:", options, &optindex)) != -1) {
+    while ((ch = getopt_long(argc, argv, "S:Vdeco:svz:", options, &optindex)) != -1) {
         if (ch >= CMD_ENCRYPT) {
             /* getopt_long returns 0 for long options */
             if (!setoption(&cfg, &cmd, options[optindex].val, optarg)) {
@@ -686,6 +698,9 @@ main(int argc, char **argv)
                 /* for encryption, we need a userid */
                 rnp_cfg_setbool(&cfg, CFG_NEEDSUSERID, true);
                 cmd = CMD_ENCRYPT;
+                break;
+            case 'c':
+                cmd = CMD_SYM_ENCRYPT;
                 break;
             case 'o':
                 if (!parse_option(&cfg, &cmd, optarg)) {
