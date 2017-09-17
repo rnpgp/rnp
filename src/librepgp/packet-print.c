@@ -86,47 +86,48 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 /* static functions */
 static bool format_key_usage(char *buffer, size_t size, uint8_t flags);
 
-static void
+static inline void
 print_indent(int indent)
 {
-    int i;
-
-    for (i = 0; i < indent; i++) {
-        printf("  ");
-    }
+    printf("%*c", indent * 2, '\0');
 }
 
 static void
 print_name(int indent, const char *name)
 {
-    print_indent(indent);
     if (name) {
+        print_indent(indent);
         printf("%s: ", name);
     }
 }
 
-static void
+static inline void
 print_hexdump(int indent, const char *name, const uint8_t *data, unsigned len)
 {
     print_name(indent, name);
     hexdump(stdout, NULL, data, len);
 }
 
-static void
-hexdump_data(int indent, const char *name, const uint8_t *data, unsigned len)
+static inline void
+print_packet_hex(const pgp_rawpacket_t *pkt)
 {
-    print_name(indent, name);
-    hexdump(stdout, NULL, data, len);
+    hexdump(stdout, "packet contents:", pkt->raw, pkt->length);
 }
 
-static void
+static inline void
+print_data(int indent, const char *name, const pgp_data_t *data)
+{
+    print_hexdump(indent, name, data->contents, (unsigned) data->len);
+}
+
+static inline void
 print_uint(int indent, const char *name, unsigned val)
 {
     print_name(indent, name);
     printf("%u\n", val);
 }
 
-static void
+static inline void
 showtime(const char *name, time_t t)
 {
     printf("%s=%" PRItime "d (%.24s)", name, (long long) t, ctime(&t));
@@ -156,12 +157,6 @@ print_tagname(int indent, const char *str)
 }
 
 static void
-print_data(int indent, const char *name, const pgp_data_t *data)
-{
-    print_hexdump(indent, name, data->contents, (unsigned) data->len);
-}
-
-static void
 print_bn(int indent, const char *name, const BIGNUM *bn)
 {
     print_indent(indent);
@@ -172,12 +167,6 @@ print_bn(int indent, const char *name, const BIGNUM *bn)
     } else {
         puts("(unset)");
     }
-}
-
-static void
-print_packet_hex(const pgp_rawpacket_t *pkt)
-{
-    hexdump(stdout, "packet contents:", pkt->raw, pkt->length);
 }
 
 static void
@@ -201,7 +190,7 @@ print_string(int indent, const char *name, const char *str)
     putchar('\n');
 }
 
-static void
+static inline void
 print_utf8_string(int indent, const char *name, const uint8_t *str)
 {
     /* \todo Do this better for non-English character sets */
@@ -233,7 +222,7 @@ print_duration(int indent, const char *name, time_t t)
     printf(")\n");
 }
 
-static void
+static inline void
 print_boolean(int indent, const char *name, uint8_t boolval)
 {
     print_name(indent, name);
@@ -1134,10 +1123,20 @@ start_subpacket(int *indent, int type)
            type - PGP_PTAG_SIG_SUBPKT_BASE);
 }
 
-static void
+inline static void
 end_subpacket(int *indent)
 {
     *indent -= 1;
+}
+
+inline static void
+print_packet_length_type(int indent, const pgp_ptag_t *ptag)
+{
+    /* Applicable only if old format */
+    if (ptag->new_format == 0) {
+        print_indent(indent);
+        printf("Length type: %d", ptag->length_type);
+    }
 }
 
 /**
@@ -1145,7 +1144,7 @@ end_subpacket(int *indent)
 \param contents
 */
 bool
-pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
+pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_hex)
 {
     const pgp_contents_t *content = &pkt->u;
     pgp_text_t *          text;
@@ -1158,7 +1157,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
     if (pkt->tag == PGP_PARSER_PTAG) {
         printf("=> PGP_PARSER_PTAG: %s\n",
                pgp_show_packet_tag((pgp_content_enum) content->ptag.type));
-    } else {
+    } else if (rnp_get_debug(__FILE__)) {
         printf("=> %s\n", pgp_show_packet_tag(pkt->tag));
     }
 
@@ -1172,7 +1171,9 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
         break;
 
     case PGP_PARSER_PACKET_END:
-        print_packet_hex(&content->packet);
+        if (print_hex)
+            print_packet_hex(&content->packet);
+        print->indent = 0;
         break;
 
     case PGP_PARSER_PTAG:
@@ -1182,17 +1183,13 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
         }
         printf("\n");
         print_indent(print->indent);
-        printf("==== ptag new_format=%u type=%u length_type=%d"
-               " length=0x%x (%u) position=0x%x (%u)\n",
-               content->ptag.new_format,
-               content->ptag.type,
-               content->ptag.length_type,
-               content->ptag.length,
+        printf("[ PACKET: %s (%u bytes) offset=0x%x format=%s ]\n",
+               pgp_show_packet_tag((pgp_content_enum) content->ptag.type),
                content->ptag.length,
                content->ptag.position,
-               content->ptag.position);
-        print_tagname(print->indent,
-                      pgp_show_packet_tag((pgp_content_enum) content->ptag.type));
+               content->ptag.new_format ? "new" : "old");
+        print->indent = 4;
+        print_packet_length_type(print->indent, &content->ptag);
         break;
 
     case PGP_PTAG_CT_SE_DATA_HEADER:
@@ -1206,7 +1203,8 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 
     case PGP_PTAG_CT_SE_IP_DATA_BODY:
         print_tagname(print->indent, "SYMMETRIC ENCRYPTED INTEGRITY PROTECTED DATA BODY");
-        hexdump(stdout, "data", content->se_data_body.data, content->se_data_body.length);
+        if (print_hex)
+            hexdump(stdout, "data", content->se_data_body.data, content->se_data_body.length);
         break;
 
     case PGP_PTAG_CT_PUBLIC_KEY:
@@ -1244,10 +1242,10 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
                                content->sig.info.type);
 
         if (content->sig.info.signer_id_set) {
-            hexdump_data(print->indent,
-                         "Signer ID",
-                         content->sig.info.signer_id,
-                         (unsigned) sizeof(content->sig.info.signer_id));
+            print_hexdump(print->indent,
+                          "Signer ID",
+                          content->sig.info.signer_id,
+                          (unsigned) sizeof(content->sig.info.signer_id));
         }
 
         print_string_and_value(print->indent,
@@ -1260,7 +1258,8 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
                                (uint8_t) content->sig.info.hash_alg);
         print_uint(print->indent, "Hashed data len", (unsigned) content->sig.info.v4_hashlen);
         print_indent(print->indent);
-        hexdump_data(print->indent, "hash2", &content->sig.hash2[0], 2);
+        if (print_hex)
+            print_hexdump(print->indent, "hash2", &content->sig.hash2[0], 2);
         switch (content->sig.info.key_alg) {
         case PGP_PKA_RSA:
         case PGP_PKA_RSA_SIGN_ONLY:
@@ -1315,10 +1314,10 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
                                "Public Key Algorithm",
                                pgp_show_pka(content->one_pass_sig.key_alg),
                                content->one_pass_sig.key_alg);
-        hexdump_data(print->indent,
-                     "Signer ID",
-                     content->one_pass_sig.keyid,
-                     (unsigned) sizeof(content->one_pass_sig.keyid));
+        print_hexdump(print->indent,
+                      "Signer ID",
+                      content->one_pass_sig.keyid,
+                      (unsigned) sizeof(content->one_pass_sig.keyid));
         print_uint(print->indent, "Nested", content->one_pass_sig.nested);
         break;
 
@@ -1339,8 +1338,13 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
         print_uint(print->indent,
                    "Raw Signature Subpacket: tag",
                    (unsigned) (content->ss_raw.tag - (unsigned) PGP_PTAG_SIG_SUBPKT_BASE));
-        print_hexdump(
-          print->indent, "Raw Data", content->ss_raw.raw, (unsigned) content->ss_raw.length);
+
+        if (print_hex) {
+            print_hexdump(print->indent,
+                          "Raw Data",
+                          content->ss_raw.raw,
+                          (unsigned) content->ss_raw.length);
+        }
         break;
 
     case PGP_PTAG_SS_CREATION_TIME:
@@ -1592,10 +1596,10 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
                                pgp_show_sig_type(content->sig.info.type),
                                content->sig.info.type);
         if (content->sig.info.signer_id_set) {
-            hexdump_data(print->indent,
-                         "Signer ID",
-                         content->sig.info.signer_id,
-                         (unsigned) sizeof(content->sig.info.signer_id));
+            print_hexdump(print->indent,
+                          "Signer ID",
+                          content->sig.info.signer_id,
+                          (unsigned) sizeof(content->sig.info.signer_id));
         }
         print_string_and_value(print->indent,
                                "Public Key Algorithm",
@@ -1611,7 +1615,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt)
 
     case PGP_PTAG_CT_SIGNATURE_FOOTER:
         print_indent(print->indent);
-        hexdump_data(print->indent, "hash2", &content->sig.hash2[0], 2);
+        print_hexdump(print->indent, "hash2", &content->sig.hash2[0], 2);
 
         switch (content->sig.info.key_alg) {
         case PGP_PKA_RSA:
