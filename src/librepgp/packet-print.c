@@ -150,13 +150,6 @@ print_string_and_value(int indent, const char *name, const char *str, uint8_t va
 }
 
 static void
-print_tagname(int indent, const char *str)
-{
-    print_indent(indent);
-    printf("%s packet\n", str);
-}
-
-static void
 print_bn(int indent, const char *name, const BIGNUM *bn)
 {
     print_indent(indent);
@@ -1020,8 +1013,7 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
 static void
 print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
 {
-    printf("------- SECRET KEY ------\n");
-    print_tagname(0, (type == PGP_PTAG_CT_SECRET_KEY) ? "SECRET_KEY" : "SECRET_SUBKEY");
+    printf("------- SECRET KEY or ENCRYPTED SECRET KEY ------\n");
     /* pgp_print_pubkey(key); */
     printf("S2K Usage: %d\n", seckey->protection.s2k.usage);
     if (seckey->protection.s2k.usage != PGP_S2KU_NONE) {
@@ -1086,9 +1078,6 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
 static void
 print_pk_sesskey(pgp_content_enum tag, const pgp_pk_sesskey_t *key)
 {
-    print_tagname(0,
-                  (tag == PGP_PTAG_CT_PK_SESSION_KEY) ? "PUBLIC KEY SESSION KEY" :
-                                                        "ENCRYPTED PUBLIC KEY SESSION KEY");
     printf("Version: %d\n", key->version);
     print_hexdump(0, "Key ID", key->key_id, (unsigned) sizeof(key->key_id));
     printf("Algorithm: %d (%s)\n", key->alg, pgp_show_pka(key->alg));
@@ -1193,39 +1182,31 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PTAG_CT_SE_DATA_HEADER:
-        print_tagname(print->indent, "SYMMETRIC ENCRYPTED DATA");
         break;
 
     case PGP_PTAG_CT_SE_IP_DATA_HEADER:
-        print_tagname(print->indent, "SYMMETRIC ENCRYPTED INTEGRITY PROTECTED DATA HEADER");
         printf("Version: %d\n", content->se_ip_data_header);
         break;
 
     case PGP_PTAG_CT_SE_IP_DATA_BODY:
-        print_tagname(print->indent, "SYMMETRIC ENCRYPTED INTEGRITY PROTECTED DATA BODY");
         if (print_hex)
             hexdump(stdout, "data", content->se_data_body.data, content->se_data_body.length);
         break;
 
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        print_tagname(print->indent,
-                      (pkt->tag == PGP_PTAG_CT_PUBLIC_KEY) ? "PUBLIC KEY" : "PUBLIC SUBKEY");
         pgp_print_pubkey(&content->pubkey);
         break;
 
     case PGP_PTAG_CT_TRUST:
-        print_tagname(print->indent, "TRUST");
         print_data(print->indent, "Trust", &content->trust);
         break;
 
     case PGP_PTAG_CT_USER_ID:
-        print_tagname(print->indent, "USER ID");
         print_utf8_string(print->indent, "userid", content->userid);
         break;
 
     case PGP_PTAG_CT_SIGNATURE:
-        print_tagname(print->indent, "SIGNATURE");
         print_indent(print->indent);
         print_uint(print->indent, "Signature Version", (unsigned) content->sig.info.version);
         if (content->sig.info.birthtime_set) {
@@ -1294,13 +1275,10 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PTAG_CT_COMPRESSED:
-        print_tagname(print->indent, "COMPRESSED");
         print_uint(print->indent, "Compressed Data Type", (unsigned) content->compressed);
         break;
 
     case PGP_PTAG_CT_1_PASS_SIG:
-        print_tagname(print->indent, "ONE PASS SIGNATURE");
-
         print_uint(print->indent, "Version", (unsigned) content->one_pass_sig.version);
         print_string_and_value(print->indent,
                                "Signature Type",
@@ -1322,7 +1300,6 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PTAG_CT_USER_ATTR:
-        print_tagname(print->indent, "USER ATTRIBUTE");
         print_hexdump(print->indent,
                       "User Attribute",
                       content->userattr.contents,
@@ -1564,7 +1541,6 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PTAG_CT_LITDATA_HEADER:
-        print_tagname(print->indent, "LITERAL DATA HEADER");
         printf("  literal data header format=%c filename='%s'\n",
                content->litdata_header.format,
                content->litdata_header.filename);
@@ -1573,7 +1549,6 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PTAG_CT_LITDATA_BODY:
-        print_tagname(print->indent, "LITERAL DATA BODY");
         printf("  literal data body length=%u\n", content->litdata_body.length);
         printf("    data=");
         print_escaped(content->litdata_body.data, content->litdata_body.length);
@@ -1581,7 +1556,6 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PTAG_CT_SIGNATURE_HEADER:
-        print_tagname(print->indent, "SIGNATURE");
         print_indent(print->indent);
         print_uint(print->indent, "Signature Version", (unsigned) content->sig.info.version);
         if (content->sig.info.birthtime_set) {
@@ -1660,11 +1634,9 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_GET_PASSPHRASE:
-        print_tagname(print->indent, "PGP_GET_PASSPHRASE");
         break;
 
     case PGP_PTAG_CT_SECRET_KEY:
-        print_tagname(print->indent, "PGP_PTAG_CT_SECRET_KEY");
         print_seckey_verbose(pkt->tag, &content->seckey);
         break;
 
@@ -1674,17 +1646,14 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PTAG_CT_ARMOUR_HEADER:
-        print_tagname(print->indent, "ARMOUR HEADER");
         print_string(print->indent, "type", content->armour_header.type);
         break;
 
     case PGP_PTAG_CT_SIGNED_CLEARTEXT_HEADER:
-        print_tagname(print->indent, "SIGNED CLEARTEXT HEADER");
         print_headers(&content->cleartext_head);
         break;
 
     case PGP_PTAG_CT_SIGNED_CLEARTEXT_BODY:
-        print_tagname(print->indent, "SIGNED CLEARTEXT BODY");
         print_block(print->indent,
                     "signed cleartext",
                     content->cleartext_body.data,
@@ -1692,14 +1661,12 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PTAG_CT_SIGNED_CLEARTEXT_TRAILER:
-        print_tagname(print->indent, "SIGNED CLEARTEXT TRAILER");
         printf("hash algorithm: %d\n", pgp_hash_alg_type(content->cleartext_trailer));
         printf("\n");
         break;
 
     case PGP_PTAG_CT_UNARMOURED_TEXT:
         if (!print->unarmoured) {
-            print_tagname(print->indent, "UNARMOURED TEXT");
             print->unarmoured = 1;
         }
         putchar('[');
@@ -1708,7 +1675,6 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PTAG_CT_ARMOUR_TRAILER:
-        print_tagname(print->indent, "ARMOUR TRAILER");
         print_string(print->indent, "type", content->armour_header.type);
         break;
 
@@ -1722,7 +1688,6 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     default:
-        print_tagname(print->indent, "UNKNOWN PACKET TYPE");
         fprintf(stderr, "pgp_print_packet: unknown tag=%d (0x%x)\n", pkt->tag, pkt->tag);
         return false;
     }
