@@ -197,7 +197,7 @@ set_ecdh_params(pgp_seckey_t *seckey, pgp_curve_t curve_id)
     return false;
 }
 
-rnp_result
+rnp_result_t
 pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
                        size_t                   session_key_len,
                        uint8_t *                wrapped_key,
@@ -208,7 +208,7 @@ pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
 {
     botan_privkey_t eph_prv_key = NULL;
     botan_rng_t     rng = NULL;
-    rnp_result      ret = RNP_ERROR_GENERIC;
+    rnp_result_t    ret = RNP_ERROR_GENERIC;
     uint8_t         m[OBFUSCATED_KEY_SIZE];
     size_t          m_len = sizeof(m);
     uint8_t         other_info[MAX_SP800_56A_OTHER_INFO];
@@ -307,7 +307,7 @@ end:
     return ret;
 }
 
-rnp_result
+rnp_result_t
 pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
                        size_t *                 session_key_len,
                        uint8_t *                wrapped_key,
@@ -317,7 +317,7 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
                        const pgp_ecdh_pubkey_t *pubkey,
                        const pgp_fingerprint_t *fingerprint)
 {
-    rnp_result ret = RNP_ERROR_GENERIC;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
     // Size of SHA-256 or smaller
     uint8_t         kek[MAX_SYMM_KEY_SIZE];
     uint8_t         other_info[MAX_SP800_56A_OTHER_INFO];

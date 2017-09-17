@@ -36,7 +36,7 @@
 #include "crypto.h"
 #include "utils.h"
 
-rnp_result
+rnp_result_t
 pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
                   const uint8_t *         hashbuf,
                   size_t                  hash_len,
@@ -47,7 +47,7 @@ pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
     botan_pk_op_sign_t     signer = NULL;
     botan_privkey_t        key = NULL;
     botan_rng_t            rng = NULL;
-    rnp_result             ret = RNP_ERROR_GENERIC;
+    rnp_result_t           ret = RNP_ERROR_GENERIC;
     uint8_t                out_buf[2 * MAX_CURVE_BYTELEN] = {0};
 
     if (curve == NULL) {
@@ -105,7 +105,7 @@ end:
     return ret;
 }
 
-rnp_result
+rnp_result_t
 pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
                     const uint8_t *         hash,
                     size_t                  hash_len,
@@ -117,7 +117,7 @@ pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
     botan_mp_t           public_y = NULL;
     botan_pubkey_t       pub = NULL;
     botan_pk_op_verify_t verifier = NULL;
-    rnp_result           ret = RNP_ERROR_SIGNATURE_INVALID;
+    rnp_result_t         ret = RNP_ERROR_SIGNATURE_INVALID;
     uint8_t              sign_buf[2 * MAX_CURVE_BYTELEN] = {0};
     uint8_t              point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
 
@@ -172,7 +172,7 @@ end:
     return ret;
 }
 
-rnp_result
+rnp_result_t
 pgp_sm2_encrypt(uint8_t *               out,
                 size_t *                out_len,
                 const uint8_t *         key,
@@ -180,7 +180,7 @@ pgp_sm2_encrypt(uint8_t *               out,
                 pgp_hash_alg_t          hash_algo,
                 const pgp_ecc_pubkey_t *pubkey)
 {
-    rnp_result retval = RNP_ERROR_GENERIC;
+    rnp_result_t retval = RNP_ERROR_GENERIC;
 
     const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
     botan_mp_t             public_x = NULL;
@@ -262,7 +262,7 @@ done:
     return retval;
 }
 
-rnp_result
+rnp_result_t
 pgp_sm2_decrypt(uint8_t *               out,
                 size_t *                out_len,
                 const uint8_t *         ctext,
@@ -274,7 +274,7 @@ pgp_sm2_decrypt(uint8_t *               out,
     botan_pk_op_decrypt_t  decrypt_op = NULL;
     botan_privkey_t        key = NULL;
     botan_rng_t            rng = NULL;
-    rnp_result             retval = RNP_ERROR_GENERIC;
+    rnp_result_t           retval = RNP_ERROR_GENERIC;
 
     if (curve == NULL || ctext_len < 64) {
         goto done;

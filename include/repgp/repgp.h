@@ -123,9 +123,9 @@ void repgp_destroy_handle(repgp_handle_t *handle);
  *          will be assigned minimal required value
  *
  */
-rnp_result repgp_copy_buffer_from_handle(uint8_t *             out,
-                                         size_t *              out_size,
-                                         const repgp_handle_t *handle);
+rnp_result_t repgp_copy_buffer_from_handle(uint8_t *             out,
+                                           size_t *              out_size,
+                                           const repgp_handle_t *handle);
 
 /*
  * @brief   Creates opaque repgp_io_t object
@@ -176,7 +176,7 @@ void repgp_destroy_io(repgp_io_t *io);
  *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
  *          RNP_ERROR_SIGNATURE_INVALID Signature is invalid
  */
-rnp_result repgp_verify(const void *ctx, repgp_io_t *io);
+rnp_result_t repgp_verify(const void *ctx, repgp_io_t *io);
 
 /**
  * @brief   Performs PGP decryption
@@ -193,7 +193,7 @@ rnp_result repgp_verify(const void *ctx, repgp_io_t *io);
  *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
  *          RNP_ERROR_GENERIC Decryption could not be correctly performed
  */
-rnp_result repgp_decrypt(const void *ctx, repgp_io_t *io);
+rnp_result_t repgp_decrypt(const void *ctx, repgp_io_t *io);
 
 /**
  * @brief   Lists all the packets from the input. Packets are printed
@@ -206,7 +206,7 @@ rnp_result repgp_decrypt(const void *ctx, repgp_io_t *io);
  *          RNP_ERROR_GENERIC Implementation error
  *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
  */
-rnp_result repgp_list_packets(const void *ctx, const repgp_handle_t *input);
+rnp_result_t repgp_list_packets(const void *ctx, const repgp_handle_t *input);
 
 /**
  * @brief   Validate all signatures on a single key against the given keyring
@@ -217,6 +217,6 @@ rnp_result repgp_list_packets(const void *ctx, const repgp_handle_t *input);
  *          RNP_ERROR_GENERIC at least one signature is invalid
  *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
  */
-rnp_result repgp_validate_pubkeys_signatures(const void *ctx);
+rnp_result_t repgp_validate_pubkeys_signatures(const void *ctx);
 
 #endif /* REPGP_H_ */

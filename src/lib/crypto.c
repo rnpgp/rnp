@@ -141,13 +141,13 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
     case PGP_PKA_SM2:
         BN_bn2bin(encmpi, encmpibuf);
 
-        size_t     out_len = buflen;
-        rnp_result err = pgp_sm2_decrypt(buf,
-                                         &out_len,
-                                         encmpibuf,
-                                         BITS_TO_BYTES(BN_num_bits(encmpi)),
-                                         &seckey->key.ecc,
-                                         &seckey->pubkey.key.ecc);
+        size_t       out_len = buflen;
+        rnp_result_t err = pgp_sm2_decrypt(buf,
+                                           &out_len,
+                                           encmpibuf,
+                                           BITS_TO_BYTES(BN_num_bits(encmpi)),
+                                           &seckey->key.ecc,
+                                           &seckey->pubkey.key.ecc);
 
         if (err != RNP_SUCCESS) {
             RNP_LOG("Error in SM2 decryption");
@@ -191,14 +191,14 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
             return -1;
         }
 
-        const rnp_result ret = pgp_ecdh_decrypt_pkcs5(buf,
-                                                      &out_len,
-                                                      encmpibuf,
-                                                      encmpi_len,
-                                                      g_to_k->mp,
-                                                      &seckey->key.ecc,
-                                                      &seckey->pubkey.key.ecdh,
-                                                      &fingerprint);
+        const rnp_result_t ret = pgp_ecdh_decrypt_pkcs5(buf,
+                                                        &out_len,
+                                                        encmpibuf,
+                                                        encmpi_len,
+                                                        g_to_k->mp,
+                                                        &seckey->key.ecc,
+                                                        &seckey->pubkey.key.ecdh,
+                                                        &fingerprint);
 
         if (ret || (out_len > INT_MAX)) {
             RNP_LOG("ECDH decryption error [%u]", ret);

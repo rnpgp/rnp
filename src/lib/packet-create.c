@@ -910,9 +910,9 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
     } break;
 
     case PGP_PKA_SM2: {
-        uint8_t    encmpibuf[RNP_BUFSIZ];
-        size_t     out_len = sizeof(encmpibuf);
-        rnp_result err = pgp_sm2_encrypt(
+        uint8_t      encmpibuf[RNP_BUFSIZ];
+        size_t       out_len = sizeof(encmpibuf);
+        rnp_result_t err = pgp_sm2_encrypt(
           encmpibuf, &out_len, encoded_key, sz_encoded_key, PGP_HASH_SM3, &pubkey->key.ecc);
 
         if (err != RNP_SUCCESS) {
@@ -938,13 +938,14 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
             goto done;
         }
 
-        const rnp_result err = pgp_ecdh_encrypt_pkcs5(encoded_key,
-                                                      sz_encoded_key,
-                                                      encmpibuf,
-                                                      &out_len,
-                                                      sesskey->params.ecdh.ephemeral_point->mp,
-                                                      &pubkey->key.ecdh,
-                                                      &fingerprint);
+        const rnp_result_t err =
+          pgp_ecdh_encrypt_pkcs5(encoded_key,
+                                 sz_encoded_key,
+                                 encmpibuf,
+                                 &out_len,
+                                 sesskey->params.ecdh.ephemeral_point->mp,
+                                 &pubkey->key.ecdh,
+                                 &fingerprint);
         if (RNP_SUCCESS != err) {
             RNP_LOG("Encryption failed %d\n", err);
             goto error;

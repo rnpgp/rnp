@@ -318,7 +318,7 @@ list_free(pgp_list_t *list)
     list_init(list);
 }
 
-static rnp_result
+static rnp_result_t
 list_resize(pgp_list_t *list)
 {
     /*
@@ -394,7 +394,7 @@ pgp_text_free(pgp_text_t *text)
 
 /* XXX: should this (and many others) be unsigned? */
 /* ! generic function which adds text derived from single octet map to text */
-static rnp_result
+static rnp_result_t
 add_str_from_octet_map(pgp_text_t *map, char *str, uint8_t octet)
 {
     if (str && !add_str(&map->known, str)) {

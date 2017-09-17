@@ -63,9 +63,7 @@ static const ec_curve_desc_t ec_curves[] = {
 };
 
 static pgp_map_t ec_algo_to_botan[] = {
-  {PGP_PKA_ECDH, "ECDH"},
-  {PGP_PKA_ECDSA, "ECDSA"},
-  {PGP_PKA_SM2, "SM2_Sig"},
+  {PGP_PKA_ECDH, "ECDH"}, {PGP_PKA_ECDSA, "ECDSA"}, {PGP_PKA_SM2, "SM2_Sig"},
 };
 
 pgp_curve_t
@@ -100,7 +98,7 @@ ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey)
            pgp_write_mpi(output, pubkey->point);
 }
 
-rnp_result
+rnp_result_t
 pgp_genkey_ec_uncompressed(pgp_seckey_t *         seckey,
                            const pgp_pubkey_alg_t alg_id,
                            const pgp_curve_t      curve)
@@ -117,7 +115,7 @@ pgp_genkey_ec_uncompressed(pgp_seckey_t *         seckey,
     botan_rng_t     rng = NULL;
     BIGNUM *        public_x = NULL;
     BIGNUM *        public_y = NULL;
-    rnp_result      ret = RNP_ERROR_KEY_GENERATION;
+    rnp_result_t    ret = RNP_ERROR_KEY_GENERATION;
 
     const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
     if (!ec_desc) {
