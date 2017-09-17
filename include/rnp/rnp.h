@@ -54,7 +54,7 @@ typedef struct rnp_params_t rnp_params_t;
 typedef struct rnp_ctx_t    rnp_ctx_t;
 
 /* initialize rnp using the init structure  */
-rnp_result rnp_init(rnp_t *, const rnp_params_t *);
+rnp_result_t rnp_init(rnp_t *, const rnp_params_t *);
 /* finish work with rnp and cleanup the memory */
 void rnp_end(rnp_t *);
 
@@ -63,9 +63,9 @@ void rnp_params_init(rnp_params_t *);
 void rnp_params_free(rnp_params_t *);
 
 /* init, reset and free rnp operation context */
-rnp_result rnp_ctx_init(rnp_ctx_t *, rnp_t *);
-void       rnp_ctx_reset(rnp_ctx_t *);
-void       rnp_ctx_free(rnp_ctx_t *);
+rnp_result_t rnp_ctx_init(rnp_ctx_t *, rnp_t *);
+void         rnp_ctx_reset(rnp_ctx_t *);
+void         rnp_ctx_free(rnp_ctx_t *);
 
 /* debugging, reflection and information */
 int         rnp_set_debug(const char *);
@@ -88,10 +88,10 @@ int   rnp_secret_count(rnp_t *);
 int   rnp_public_count(rnp_t *);
 
 /* file management */
-int        rnp_encrypt_file(rnp_ctx_t *, const char *, const char *, const char *);
-rnp_result rnp_decrypt_file(rnp_ctx_t *, const char *, const char *);
-int        rnp_sign_file(rnp_ctx_t *, const char *, const char *, const char *, bool, bool);
-rnp_result rnp_verify_file(rnp_ctx_t *, const char *, const char *);
+int          rnp_encrypt_file(rnp_ctx_t *, const char *, const char *, const char *);
+rnp_result_t rnp_decrypt_file(rnp_ctx_t *, const char *, const char *);
+int          rnp_sign_file(rnp_ctx_t *, const char *, const char *, const char *, bool, bool);
+rnp_result_t rnp_verify_file(rnp_ctx_t *, const char *, const char *);
 
 /* memory signing and encryption */
 int rnp_sign_memory(rnp_ctx_t *, const char *, const char *, size_t, char *, size_t, bool);

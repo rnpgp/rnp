@@ -86,13 +86,13 @@ bool set_ecdh_params(pgp_seckey_t *seckey, pgp_curve_t curve_id);
  * @return RNP_ERROR_OUT_OF_MEMORY failed to allocated memory
  * @return RNP_ERROR_GENERIC implementation error
  */
-rnp_result pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
-                                  size_t                   session_key_len,
-                                  uint8_t *                wrapped_key,
-                                  size_t *                 wrapped_key_len,
-                                  botan_mp_t               ephemeral_key,
-                                  const pgp_ecdh_pubkey_t *pubkey,
-                                  const pgp_fingerprint_t *fingerprint);
+rnp_result_t pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
+                                    size_t                   session_key_len,
+                                    uint8_t *                wrapped_key,
+                                    size_t *                 wrapped_key_len,
+                                    botan_mp_t               ephemeral_key,
+                                    const pgp_ecdh_pubkey_t *pubkey,
+                                    const pgp_fingerprint_t *fingerprint);
 
 /*
  * Decrypts session key with a KEK agreed during ECDH as specified in
@@ -114,12 +114,12 @@ rnp_result pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
  * @return RNP_ERROR_SHORT_BUFFER `session_key_len' to small to store result
  * @return RNP_ERROR_GENERIC decryption failed or implementation error
  */
-rnp_result pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
-                                  size_t *                 session_key_len,
-                                  uint8_t *                wrapped_key,
-                                  size_t                   wrapped_key_len,
-                                  const botan_mp_t         ephemeral_key,
-                                  const pgp_ecc_seckey_t * seckey,
-                                  const pgp_ecdh_pubkey_t *pubkey,
-                                  const pgp_fingerprint_t *fingerprint);
+rnp_result_t pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
+                                    size_t *                 session_key_len,
+                                    uint8_t *                wrapped_key,
+                                    size_t                   wrapped_key_len,
+                                    const botan_mp_t         ephemeral_key,
+                                    const pgp_ecc_seckey_t * seckey,
+                                    const pgp_ecdh_pubkey_t *pubkey,
+                                    const pgp_fingerprint_t *fingerprint);
 #endif // ECDH_H_

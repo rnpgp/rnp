@@ -3199,7 +3199,7 @@ parse_mdc(pgp_region_t *region, pgp_stream_t *stream)
  * \param *stream    How to parse
  * \param *pktlen    On return, will contain number of bytes in packet
  * \return 1 on success, 0 on error, -1 on EOF */
-static rnp_result
+static rnp_result_t
 parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
 {
     pgp_packet_t     pkt = {0};
@@ -3403,8 +3403,8 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
 bool
 repgp_parse(pgp_stream_t *stream, const bool show_errors)
 {
-    uint32_t   pktlen;
-    rnp_result res;
+    uint32_t     pktlen;
+    rnp_result_t res;
 
     do {
         res = parse_packet(stream, &pktlen);

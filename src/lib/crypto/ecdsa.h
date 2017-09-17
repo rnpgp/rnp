@@ -30,15 +30,15 @@
 #include <stdint.h>
 #include "ec.h"
 
-rnp_result pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
-                               const uint8_t *         hashbuf,
-                               size_t                  hash_len,
-                               const pgp_ecc_seckey_t *prvkey,
-                               const pgp_ecc_pubkey_t *pubkey);
-
-rnp_result pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
-                                 const uint8_t *         hash,
+rnp_result_t pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
+                                 const uint8_t *         hashbuf,
                                  size_t                  hash_len,
+                                 const pgp_ecc_seckey_t *prvkey,
                                  const pgp_ecc_pubkey_t *pubkey);
+
+rnp_result_t pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
+                                   const uint8_t *         hash,
+                                   size_t                  hash_len,
+                                   const pgp_ecc_pubkey_t *pubkey);
 
 #endif // ECDSA_H_

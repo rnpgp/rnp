@@ -658,18 +658,18 @@ add_header(dearmour_t *dearmour, const char *key, const char *value)
     return false;
 }
 
-static rnp_result
+static rnp_result_t
 parse_headers(pgp_stream_t *stream,
               dearmour_t *  dearmour,
               pgp_error_t **errors,
               pgp_reader_t *readinfo,
               pgp_cbdata_t *cbinfo)
 {
-    unsigned   nbuf;
-    unsigned   size;
-    unsigned   first = 1;
-    char *     buf;
-    rnp_result ret = RNP_SUCCESS;
+    unsigned     nbuf;
+    unsigned     size;
+    unsigned     first = 1;
+    char *       buf;
+    rnp_result_t ret = RNP_SUCCESS;
 
     nbuf = 0;
     size = 80;
@@ -978,7 +978,7 @@ armoured_data_reader(pgp_stream_t *stream,
     uint8_t *    dest = dest_;
     char         buf[1024];
     size_t       saved;
-    rnp_result   ret;
+    rnp_result_t ret;
     int          n;
 
     dearmour = pgp_reader_get_arg(readinfo);

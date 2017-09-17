@@ -386,7 +386,7 @@ Comments should use doxygen markdown style, like the following example:
  *          if error code is E_BUF_TOOSMALL then size will contain the required size to store
  *          the result
  **/
-rnp_result
+rnp_result_t
 rnp_do_operation(const char *param1, const int param2, int *size, char *buffer);
 ```
 

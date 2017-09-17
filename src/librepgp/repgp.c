@@ -149,7 +149,7 @@ create_stdin_handle(void)
     return s;
 }
 
-rnp_result
+rnp_result_t
 repgp_copy_buffer_from_handle(uint8_t *out, size_t *out_size, const repgp_handle_t *handle)
 {
     if (!out || !out_size || (*out_size == 0) || (handle == REPGP_HANDLE_NULL)) {
@@ -186,7 +186,7 @@ repgp_destroy_handle(repgp_handle_t *stream)
     free(stream);
 }
 
-rnp_result
+rnp_result_t
 repgp_verify(const void *ctx, repgp_io_t *io)
 {
     if (!io || !io->in) {
@@ -224,7 +224,7 @@ repgp_verify(const void *ctx, repgp_io_t *io)
     return RNP_ERROR_BAD_PARAMETERS;
 }
 
-rnp_result
+rnp_result_t
 repgp_decrypt(const void *ctx, repgp_io_t *io)
 {
     if (!io || !io->in || !io->out) {
@@ -298,7 +298,7 @@ cb_list_packets(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     return PGP_RELEASE_MEMORY;
 }
 
-rnp_result
+rnp_result_t
 repgp_list_packets(const void *ctx, const repgp_handle_t *input)
 {
     const rnp_ctx_t *rctx = (rnp_ctx_t *) ctx;
@@ -344,7 +344,7 @@ repgp_list_packets(const void *ctx, const repgp_handle_t *input)
     return RNP_SUCCESS;
 }
 
-rnp_result
+rnp_result_t
 repgp_validate_pubkeys_signatures(const void *ctx)
 {
     const struct rnp_ctx_t *rctx = (rnp_ctx_t *) ctx;

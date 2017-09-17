@@ -595,7 +595,7 @@ init_new_io(rnp_t *rnp, const char *outs, const char *errs, const char *ress)
 /*************************************************************************/
 
 /* Initialize a rnp_t structure */
-rnp_result
+rnp_result_t
 rnp_init(rnp_t *rnp, const rnp_params_t *params)
 {
     int       coredumps = -1; /* -1 : cannot disable, 1 : disabled, 0 : enabled */
@@ -711,7 +711,7 @@ rnp_params_free(rnp_params_t *params)
 }
 
 /* rnp_ctx_t : init, reset, free internal pointers */
-rnp_result
+rnp_result_t
 rnp_ctx_init(rnp_ctx_t *ctx, rnp_t *rnp)
 {
     if (rnp == NULL) {
@@ -1116,7 +1116,7 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *
 #define ARMOR_HEAD "-----BEGIN PGP MESSAGE-----"
 
 /* decrypt a file */
-rnp_result
+rnp_result_t
 rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
 {
     int      realarmor;
@@ -1241,7 +1241,7 @@ rnp_sign_file(rnp_ctx_t * ctx,
 #define ARMOR_SIG_HEAD "-----BEGIN PGP (SIGNATURE|SIGNED MESSAGE|MESSAGE)-----"
 
 /* verify a file */
-rnp_result
+rnp_result_t
 rnp_verify_file(rnp_ctx_t *ctx, const char *in, const char *out)
 {
     pgp_validation_t result;

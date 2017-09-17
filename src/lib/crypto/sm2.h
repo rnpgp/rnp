@@ -32,29 +32,29 @@
 #include "errors.h"
 #include "rnp.h"
 
-rnp_result pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
-                             const uint8_t *         hashbuf,
-                             size_t                  hash_len,
-                             const pgp_ecc_seckey_t *prvkey,
-                             const pgp_ecc_pubkey_t *pubkey);
-
-rnp_result pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
-                               const uint8_t *         hash,
+rnp_result_t pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
+                               const uint8_t *         hashbuf,
                                size_t                  hash_len,
+                               const pgp_ecc_seckey_t *prvkey,
                                const pgp_ecc_pubkey_t *pubkey);
 
-rnp_result pgp_sm2_encrypt(uint8_t *               out,
-                           size_t *                out_len,
-                           const uint8_t *         key,
-                           size_t                  key_len,
-                           pgp_hash_alg_t          hash_algo,
-                           const pgp_ecc_pubkey_t *pubkey);
+rnp_result_t pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
+                                 const uint8_t *         hash,
+                                 size_t                  hash_len,
+                                 const pgp_ecc_pubkey_t *pubkey);
 
-rnp_result pgp_sm2_decrypt(uint8_t *               out,
-                           size_t *                out_len,
-                           const uint8_t *         ciphertext,
-                           size_t                  ciphertext_len,
-                           const pgp_ecc_seckey_t *privkey,
-                           const pgp_ecc_pubkey_t *pubkey);
+rnp_result_t pgp_sm2_encrypt(uint8_t *               out,
+                             size_t *                out_len,
+                             const uint8_t *         key,
+                             size_t                  key_len,
+                             pgp_hash_alg_t          hash_algo,
+                             const pgp_ecc_pubkey_t *pubkey);
+
+rnp_result_t pgp_sm2_decrypt(uint8_t *               out,
+                             size_t *                out_len,
+                             const uint8_t *         ciphertext,
+                             size_t                  ciphertext_len,
+                             const pgp_ecc_seckey_t *privkey,
+                             const pgp_ecc_pubkey_t *pubkey);
 
 #endif // SM2_H_
