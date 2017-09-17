@@ -83,7 +83,7 @@ int repgp_sprint_json(pgp_io_t *,
                       const pgp_pubkey_t *,
                       const int);
 
-bool pgp_print_packet(pgp_printstate_t *, const pgp_packet_t *);
+bool pgp_print_packet(pgp_printstate_t *, const pgp_packet_t *, bool print_hex);
 
 int pgp_sprint_key(pgp_io_t *,
                    const rnp_key_store_t *,

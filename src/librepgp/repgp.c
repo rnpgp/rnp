@@ -294,7 +294,7 @@ repgp_destroy_io(repgp_io_t *io)
 static pgp_cb_ret_t
 cb_list_packets(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
-    pgp_print_packet(&cbinfo->printstate, pkt);
+    pgp_print_packet(&cbinfo->printstate, pkt, false);
     return PGP_RELEASE_MEMORY;
 }
 
