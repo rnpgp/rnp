@@ -52,24 +52,24 @@
 #endif
 
 /* 8192 bytes, as GnuPG */
-#define PARTIAL_PKT_SIZE_BITS   (13)
-#define PARTIAL_PKT_BLOCK_SIZE  (1 << PARTIAL_PKT_SIZE_BITS)
+#define PARTIAL_PKT_SIZE_BITS (13)
+#define PARTIAL_PKT_BLOCK_SIZE (1 << PARTIAL_PKT_SIZE_BITS)
 
 /* structure to write non-stream packets without need to precalculate the length */
 typedef struct pgp_packet_body_t {
-    int      tag;        /* packet tag */
-    uint8_t *data;       /* packet body data */
-    size_t   len;        /* current len of the data */
-    size_t   allocated;  /* allocated bytes in data */
+    int      tag;       /* packet tag */
+    uint8_t *data;      /* packet body data */
+    size_t   len;       /* current len of the data */
+    size_t   allocated; /* allocated bytes in data */
 } pgp_packet_body_t;
 
 /* common fields for encrypted, compressed and literal data */
 typedef struct pgp_dest_packet_param_t {
-    pgp_dest_t   *writedst;             /* source to write to, could be partial */
-    pgp_dest_t   *origdst;              /* original dest passed to init_*_dst */
-    bool          partial;              /* partial length packet */
-    bool          indeterminate;        /* indeterminate length packet */
-    int           tag;                  /* packet tag */
+    pgp_dest_t *writedst;      /* source to write to, could be partial */
+    pgp_dest_t *origdst;       /* original dest passed to init_*_dst */
+    bool        partial;       /* partial length packet */
+    bool        indeterminate; /* indeterminate length packet */
+    int         tag;           /* packet tag */
 } pgp_dest_packet_param_t;
 
 typedef struct pgp_dest_compressed_param_t {
@@ -79,28 +79,29 @@ typedef struct pgp_dest_compressed_param_t {
         z_stream  z;
         bz_stream bz;
     };
-    bool                    zstarted; /* whether we initialize zlib/bzip2  */
-    uint8_t                 cache[PGP_INPUT_CACHE_SIZE / 2]; /* pre-allocated cache for compression */
-    size_t                  len; /* number of bytes cached */
+    bool    zstarted;                        /* whether we initialize zlib/bzip2  */
+    uint8_t cache[PGP_INPUT_CACHE_SIZE / 2]; /* pre-allocated cache for compression */
+    size_t  len;                             /* number of bytes cached */
 } pgp_dest_compressed_param_t;
 
 typedef struct pgp_dest_encrypted_param_t {
-    pgp_dest_packet_param_t pkt;        /* underlying packet-related params */
-    bool          has_mdc;              /* encrypted with mdc, i.e. tag 18 */
-    pgp_crypt_t   encrypt;              /* encrypting crypto */
-    pgp_hash_t    mdc;                  /* mdc SHA1 hash */
-    uint8_t       cache[PGP_INPUT_CACHE_SIZE]; /* pre-allocated cache for encryption */
+    pgp_dest_packet_param_t pkt;         /* underlying packet-related params */
+    bool                    has_mdc;     /* encrypted with mdc, i.e. tag 18 */
+    pgp_crypt_t             encrypt;     /* encrypting crypto */
+    pgp_hash_t              mdc;         /* mdc SHA1 hash */
+    uint8_t cache[PGP_INPUT_CACHE_SIZE]; /* pre-allocated cache for encryption */
 } pgp_dest_encrypted_param_t;
 
 typedef struct pgp_dest_partial_param_t {
     pgp_dest_t *writedst;
     uint8_t     part[PARTIAL_PKT_BLOCK_SIZE];
-    uint8_t     parthdr;    /* header byte for the current part */
-    size_t      partlen;    /* length of the current part, up to PARTIAL_PKT_BLOCK_SIZE */
-    size_t      len;        /* bytes cached in part */
+    uint8_t     parthdr; /* header byte for the current part */
+    size_t      partlen; /* length of the current part, up to PARTIAL_PKT_BLOCK_SIZE */
+    size_t      len;     /* bytes cached in part */
 } pgp_dest_partial_param_t;
 
-bool init_packet_body(pgp_packet_body_t *body, int tag)
+bool
+init_packet_body(pgp_packet_body_t *body, int tag)
 {
     body->data = malloc(16);
     if (!body->data) {
@@ -112,7 +113,8 @@ bool init_packet_body(pgp_packet_body_t *body, int tag)
     return true;
 }
 
-bool add_packet_body(pgp_packet_body_t *body, void *data, size_t len)
+bool
+add_packet_body(pgp_packet_body_t *body, void *data, size_t len)
 {
     void * newdata;
     size_t newlen;
@@ -133,7 +135,8 @@ bool add_packet_body(pgp_packet_body_t *body, void *data, size_t len)
     return true;
 }
 
-bool add_packet_body_byte(pgp_packet_body_t *body, uint8_t byte)
+bool
+add_packet_body_byte(pgp_packet_body_t *body, uint8_t byte)
 {
     if (body->len < body->allocated) {
         body->data[body->len] = byte;
@@ -144,7 +147,8 @@ bool add_packet_body_byte(pgp_packet_body_t *body, uint8_t byte)
     }
 }
 
-size_t write_packet_len(uint8_t *buf, size_t len)
+size_t
+write_packet_len(uint8_t *buf, size_t len)
 {
     if (len < 192) {
         buf[0] = len;
@@ -163,7 +167,8 @@ size_t write_packet_len(uint8_t *buf, size_t len)
     }
 }
 
-void flush_packet_body(pgp_packet_body_t *body, pgp_dest_t *dst)
+void
+flush_packet_body(pgp_packet_body_t *body, pgp_dest_t *dst)
 {
     uint8_t hdr[6];
     size_t  hlen;
@@ -175,13 +180,15 @@ void flush_packet_body(pgp_packet_body_t *body, pgp_dest_t *dst)
     free(body->data);
 }
 
-void free_packet_body(pgp_packet_body_t *body)
+void
+free_packet_body(pgp_packet_body_t *body)
 {
     free(body->data);
     body->data = NULL;
 }
 
-void stream_write_pkt_tag(int tag, pgp_dest_t *dst)
+void
+stream_write_pkt_tag(int tag, pgp_dest_t *dst)
 {
     uint8_t bt;
 
@@ -189,7 +196,8 @@ void stream_write_pkt_tag(int tag, pgp_dest_t *dst)
     dst_write(dst, &bt, 1);
 }
 
-void stream_write_indeterminate_pkt_tag(int tag, pgp_dest_t *dst)
+void
+stream_write_indeterminate_pkt_tag(int tag, pgp_dest_t *dst)
 {
     uint8_t bt;
 
@@ -197,11 +205,12 @@ void stream_write_indeterminate_pkt_tag(int tag, pgp_dest_t *dst)
     dst_write(dst, &bt, 1);
 }
 
-void partial_dst_write(pgp_dest_t *dst, void *buf, size_t len)
+void
+partial_dst_write(pgp_dest_t *dst, void *buf, size_t len)
 {
     pgp_dest_partial_param_t *param = dst->param;
     int                       wrlen;
-    
+
     if (!param) {
         (void) fprintf(stderr, "partial_dst_write: wrong param\n");
         dst->werr = RNP_ERROR_BAD_PARAMETERS;
@@ -215,7 +224,7 @@ void partial_dst_write(pgp_dest_t *dst, void *buf, size_t len)
         dst_write(param->writedst, param->part, param->len);
         dst_write(param->writedst, buf, wrlen);
 
-        buf = (uint8_t*)buf + wrlen;
+        buf = (uint8_t *) buf + wrlen;
         len -= wrlen;
         param->len = 0;
 
@@ -223,7 +232,7 @@ void partial_dst_write(pgp_dest_t *dst, void *buf, size_t len)
         while (len >= param->partlen) {
             dst_write(param->writedst, &param->parthdr, 1);
             dst_write(param->writedst, buf, param->partlen);
-            buf = (uint8_t*)buf + param->partlen;
+            buf = (uint8_t *) buf + param->partlen;
             len -= param->partlen;
         }
     }
@@ -237,11 +246,12 @@ void partial_dst_write(pgp_dest_t *dst, void *buf, size_t len)
     dst->werr = RNP_SUCCESS;
 }
 
-void partial_dst_close(pgp_dest_t *dst, bool discard)
+void
+partial_dst_close(pgp_dest_t *dst, bool discard)
 {
     pgp_dest_partial_param_t *param = dst->param;
-    uint8_t hdr[5];
-    int     lenlen;
+    uint8_t                   hdr[5];
+    int                       lenlen;
 
     if (!param) {
         return;
@@ -257,7 +267,8 @@ void partial_dst_close(pgp_dest_t *dst, bool discard)
     dst->param = NULL;
 }
 
-pgp_errcode_t init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
+pgp_errcode_t
+init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_partial_param_t *param;
 
@@ -282,7 +293,8 @@ pgp_errcode_t init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
 /** @brief helper function for streamed packets (literal, encrypted and compressed).
  *  Allocates part len destination if needed and writes header
  **/
-bool init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
+bool
+init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
 {
     pgp_errcode_t ret;
 
@@ -302,7 +314,8 @@ bool init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
         param->origdst = dst;
     } else if (param->indeterminate) {
         if (param->tag > 0xf) {
-            (void) fprintf(stderr, "init_streamed_packet: tag > 0xf for indeterminate packet\n");
+            (void) fprintf(stderr,
+                           "init_streamed_packet: tag > 0xf for indeterminate packet\n");
         }
         stream_write_indeterminate_pkt_tag(param->tag, dst);
         param->writedst = dst;
@@ -315,7 +328,8 @@ bool init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
     return true;
 }
 
-void close_streamed_packet(pgp_dest_packet_param_t *param, bool discard)
+void
+close_streamed_packet(pgp_dest_packet_param_t *param, bool discard)
 {
     if (param->partial) {
         dst_close(param->writedst, discard);
@@ -324,30 +338,30 @@ void close_streamed_packet(pgp_dest_packet_param_t *param, bool discard)
     }
 }
 
-bool stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
+bool
+stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
 {
     pgp_packet_body_t pktbody;
     bool              res;
-    
+
     if (!init_packet_body(&pktbody, PGP_PTAG_CT_SK_SESSION_KEY)) {
         return false;
     }
 
-    res = add_packet_body_byte(&pktbody, 4) &&
-          add_packet_body_byte(&pktbody, skey->alg) &&
+    res = add_packet_body_byte(&pktbody, 4) && add_packet_body_byte(&pktbody, skey->alg) &&
           add_packet_body_byte(&pktbody, skey->s2k.specifier) &&
           add_packet_body_byte(&pktbody, skey->s2k.hash_alg);
 
     switch (skey->s2k.specifier) {
-        case PGP_S2KS_SIMPLE:
-            break;
-        case PGP_S2KS_SALTED:
-            res = res && add_packet_body(&pktbody, skey->s2k.salt, sizeof(skey->s2k.salt));
-            break;
-        case PGP_S2KS_ITERATED_AND_SALTED:
-            res = res && add_packet_body(&pktbody, skey->s2k.salt, sizeof(skey->s2k.salt)) &&
-                         add_packet_body_byte(&pktbody, skey->s2k.iterations);
-            break;
+    case PGP_S2KS_SIMPLE:
+        break;
+    case PGP_S2KS_SALTED:
+        res = res && add_packet_body(&pktbody, skey->s2k.salt, sizeof(skey->s2k.salt));
+        break;
+    case PGP_S2KS_ITERATED_AND_SALTED:
+        res = res && add_packet_body(&pktbody, skey->s2k.salt, sizeof(skey->s2k.salt)) &&
+              add_packet_body_byte(&pktbody, skey->s2k.iterations);
+        break;
     }
 
     if (skey->enckeylen > 0) {
@@ -363,11 +377,12 @@ bool stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
     }
 }
 
-void encrypted_dst_write(pgp_dest_t *dst, void *buf, size_t len)
+void
+encrypted_dst_write(pgp_dest_t *dst, void *buf, size_t len)
 {
     pgp_dest_encrypted_param_t *param = dst->param;
-    size_t sz;
-    
+    size_t                      sz;
+
     if (!param) {
         (void) fprintf(stderr, "encrypted_dst_write: wrong param\n");
         dst->werr = RNP_ERROR_BAD_PARAMETERS;
@@ -383,15 +398,16 @@ void encrypted_dst_write(pgp_dest_t *dst, void *buf, size_t len)
         pgp_cipher_cfb_encrypt(&param->encrypt, param->cache, buf, sz);
         dst_write(param->pkt.writedst, param->cache, sz);
         len -= sz;
-        buf = (uint8_t*)buf + sz;
+        buf = (uint8_t *) buf + sz;
     }
 
     dst->werr = RNP_SUCCESS;
 }
 
-void encrypted_dst_close(pgp_dest_t *dst, bool discard)
+void
+encrypted_dst_close(pgp_dest_t *dst, bool discard)
 {
-    uint8_t mdcbuf[MDC_V1_SIZE];
+    uint8_t                     mdcbuf[MDC_V1_SIZE];
     pgp_dest_encrypted_param_t *param = dst->param;
     if (!param) {
         return;
@@ -415,20 +431,21 @@ void encrypted_dst_close(pgp_dest_t *dst, bool discard)
     dst->param = NULL;
 }
 
-pgp_errcode_t init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
+pgp_errcode_t
+init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_encrypted_param_t *param;
     pgp_sk_sesskey_t            skey = {0};
     pgp_crypt_t                 kcrypt;
     int                         pkeycount = 0;
-    uint8_t                     enckey[PGP_MAX_KEY_SIZE];  /* content encryption key */
-    uint8_t                     s2key[PGP_MAX_KEY_SIZE];   /* s2k calculated key */
+    uint8_t                     enckey[PGP_MAX_KEY_SIZE];       /* content encryption key */
+    uint8_t                     s2key[PGP_MAX_KEY_SIZE];        /* s2k calculated key */
     uint8_t                     enchdr[PGP_MAX_BLOCK_SIZE + 2]; /* encrypted header */
     uint8_t                     mdcver = 1;
     char                        passphrase[MAX_PASSPHRASE_LENGTH] = {0};
     int                         keylen;
     int                         blsize;
-    pgp_symm_alg_t              ealg;  /* content encryption algorithm */
+    pgp_symm_alg_t              ealg; /* content encryption algorithm */
     pgp_errcode_t               ret = RNP_SUCCESS;
 
     /* currently we implement only single-password symmetric encryption */
@@ -458,16 +475,25 @@ pgp_errcode_t init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, 
     skey.alg = ealg;
     skey.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
     skey.s2k.iterations = pgp_s2k_encode_iterations(PGP_S2K_DEFAULT_ITERATIONS);
-    skey.s2k.hash_alg = handler->ctx->halg == PGP_HASH_UNKNOWN ? PGP_HASH_SHA256 : handler->ctx->halg;
+    skey.s2k.hash_alg =
+      handler->ctx->halg == PGP_HASH_UNKNOWN ? PGP_HASH_SHA256 : handler->ctx->halg;
     pgp_random(skey.s2k.salt, sizeof(skey.s2k.salt));
 
-    if (!pgp_request_passphrase(handler->passphrase_provider, &(pgp_passphrase_ctx_t){.op = PGP_OP_ENCRYPT_SYM, .key = NULL}, passphrase, sizeof(passphrase))) {
+    if (!pgp_request_passphrase(handler->passphrase_provider,
+                                &(pgp_passphrase_ctx_t){.op = PGP_OP_ENCRYPT_SYM, .key = NULL},
+                                passphrase,
+                                sizeof(passphrase))) {
         (void) fprintf(stderr, "init_encrypted_dst: no encryption passphrase\n");
         ret = RNP_ERROR_BAD_PASSPHRASE;
         goto finish;
     }
 
-    if (pgp_s2k_iterated(skey.s2k.hash_alg, s2key, keylen, passphrase, skey.s2k.salt, pgp_s2k_decode_iterations(skey.s2k.iterations))) {
+    if (pgp_s2k_iterated(skey.s2k.hash_alg,
+                         s2key,
+                         keylen,
+                         passphrase,
+                         skey.s2k.salt,
+                         pgp_s2k_decode_iterations(skey.s2k.iterations))) {
         (void) fprintf(stderr, "init_encrypted_dst: s2k failed\n");
         ret = RNP_ERROR_GENERIC;
         goto finish;
@@ -533,15 +559,16 @@ pgp_errcode_t init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, 
     enchdr[blsize + 1] = enchdr[blsize - 1];
     if (param->has_mdc) {
         pgp_hash_add(&param->mdc, enchdr, blsize + 2);
-    }    
+    }
     pgp_cipher_cfb_encrypt(&param->encrypt, enchdr, enchdr, blsize + 2);
-    /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB resynchronization is done after encrypting this prefix data. */
+    /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB
+     * resynchronization is done after encrypting this prefix data. */
     if (!param->has_mdc) {
         pgp_cipher_cfb_resync(&param->encrypt);
     }
     dst_write(param->pkt.writedst, enchdr, blsize + 2);
 
-    finish:
+finish:
     pgp_forget(enckey, sizeof(enckey));
     pgp_forget(s2key, sizeof(s2key));
     pgp_forget(passphrase, sizeof(passphrase));
@@ -552,11 +579,12 @@ pgp_errcode_t init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, 
     return ret;
 }
 
-void compressed_dst_write(pgp_dest_t *dst, void *buf, size_t len)
+void
+compressed_dst_write(pgp_dest_t *dst, void *buf, size_t len)
 {
     pgp_dest_compressed_param_t *param = dst->param;
-    int zret;
-    
+    int                          zret;
+
     if (!param) {
         (void) fprintf(stderr, "compressed_dst_write: wrong param\n");
         dst->werr = RNP_ERROR_BAD_PARAMETERS;
@@ -568,7 +596,7 @@ void compressed_dst_write(pgp_dest_t *dst, void *buf, size_t len)
         param->z.avail_in = len;
         param->z.next_out = param->cache + param->len;
         param->z.avail_out = sizeof(param->cache) - param->len;
-    
+
         while (param->z.avail_in > 0) {
             zret = deflate(&param->z, Z_NO_FLUSH);
             /* Z_OK, Z_BUF_ERROR are ok for us, Z_STREAM_END will not happen here */
@@ -577,7 +605,7 @@ void compressed_dst_write(pgp_dest_t *dst, void *buf, size_t len)
                 dst->werr = RNP_ERROR_BAD_STATE;
                 return;
             }
-    
+
             /* writing only full blocks, the rest will be written in close */
             if (param->z.avail_out == 0) {
                 dst_write(param->pkt.writedst, param->cache, sizeof(param->cache));
@@ -589,12 +617,12 @@ void compressed_dst_write(pgp_dest_t *dst, void *buf, size_t len)
 
         param->len = sizeof(param->cache) - param->z.avail_out;
     } else if (param->alg == PGP_C_BZIP2) {
-        #ifdef HAVE_BZLIB_H
+#ifdef HAVE_BZLIB_H
         param->bz.next_in = buf;
         param->bz.avail_in = len;
-        param->bz.next_out = (char*)(param->cache + param->len);
+        param->bz.next_out = (char *) (param->cache + param->len);
         param->bz.avail_out = sizeof(param->cache) - param->len;
-    
+
         while (param->bz.avail_in > 0) {
             zret = BZ2_bzCompress(&param->bz, BZ_RUN);
             if (zret < 0) {
@@ -602,29 +630,29 @@ void compressed_dst_write(pgp_dest_t *dst, void *buf, size_t len)
                 dst->werr = RNP_ERROR_BAD_STATE;
                 return;
             }
-    
+
             /* writing only full blocks, the rest will be written in close */
             if (param->bz.avail_out == 0) {
                 dst_write(param->pkt.writedst, param->cache, sizeof(param->cache));
                 param->len = 0;
-                param->bz.next_out = (char*)param->cache;
+                param->bz.next_out = (char *) param->cache;
                 param->bz.avail_out = sizeof(param->cache);
             }
         }
 
         param->len = sizeof(param->cache) - param->bz.avail_out;
-        #endif
-    }
-    else {
+#endif
+    } else {
         (void) fprintf(stderr, "compressed_dst_write: unknown algorithm\n");
         dst->werr = RNP_ERROR_BAD_PARAMETERS;
     }
 }
 
-void compressed_dst_close(pgp_dest_t *dst, bool discard)
+void
+compressed_dst_close(pgp_dest_t *dst, bool discard)
 {
     pgp_dest_compressed_param_t *param = dst->param;
-    int zret;
+    int                          zret;
 
     if (!param) {
         return;
@@ -638,12 +666,12 @@ void compressed_dst_close(pgp_dest_t *dst, bool discard)
             param->z.avail_out = sizeof(param->cache) - param->len;
             do {
                 zret = deflate(&param->z, Z_FINISH);
-    
+
                 if (zret == Z_STREAM_ERROR) {
                     (void) fprintf(stderr, "compressed_dst_close: wrong deflate state\n");
                     break;
                 }
-        
+
                 if (param->z.avail_out == 0) {
                     dst_write(param->pkt.writedst, param->cache, sizeof(param->cache));
                     param->len = 0;
@@ -655,32 +683,33 @@ void compressed_dst_close(pgp_dest_t *dst, bool discard)
             param->len = sizeof(param->cache) - param->z.avail_out;
             dst_write(param->pkt.writedst, param->cache, param->len);
         } else if (param->alg == PGP_C_BZIP2) {
-            #ifdef HAVE_BZLIB_H
+#ifdef HAVE_BZLIB_H
             param->bz.next_in = NULL;
             param->bz.avail_in = 0;
-            param->bz.next_out = (char*)(param->cache + param->len);
+            param->bz.next_out = (char *) (param->cache + param->len);
             param->bz.avail_out = sizeof(param->cache) - param->len;
-        
+
             do {
                 zret = BZ2_bzCompress(&param->bz, BZ_FINISH);
                 if (zret < 0) {
-                    (void) fprintf(stderr, "compressed_dst_write: wrong bzip2 state %d\n", zret);
+                    (void) fprintf(
+                      stderr, "compressed_dst_write: wrong bzip2 state %d\n", zret);
                     dst->werr = RNP_ERROR_BAD_STATE;
                     return;
                 }
-        
+
                 /* writing only full blocks, the rest will be written in close */
                 if (param->bz.avail_out == 0) {
                     dst_write(param->pkt.writedst, param->cache, sizeof(param->cache));
                     param->len = 0;
-                    param->bz.next_out = (char*)param->cache;
+                    param->bz.next_out = (char *) param->cache;
                     param->bz.avail_out = sizeof(param->cache);
                 }
             } while (zret != BZ_STREAM_END);
 
             param->len = sizeof(param->cache) - param->bz.avail_out;
             dst_write(param->pkt.writedst, param->cache, param->len);
-            #endif
+#endif
         }
     }
 
@@ -688,9 +717,9 @@ void compressed_dst_close(pgp_dest_t *dst, bool discard)
         if ((param->alg == PGP_C_ZIP) || (param->alg == PGP_C_ZLIB)) {
             deflateEnd(&param->z);
         } else if (param->alg == PGP_C_BZIP2) {
-            #ifdef HAVE_BZLIB_H
+#ifdef HAVE_BZLIB_H
             BZ2_bzCompressEnd(&param->bz);
-            #endif
+#endif
         }
     }
 
@@ -699,7 +728,8 @@ void compressed_dst_close(pgp_dest_t *dst, bool discard)
     dst->param = NULL;
 }
 
-pgp_errcode_t init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
+pgp_errcode_t
+init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_compressed_param_t *param;
     pgp_errcode_t                ret = RNP_SUCCESS;
@@ -736,40 +766,42 @@ pgp_errcode_t init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst,
 
     /* initializing compression */
     switch (param->alg) {
-        case PGP_C_ZIP:
-        case PGP_C_ZLIB:
-            (void) memset(&param->z, 0x0, sizeof(param->z));
-            if (param->alg == PGP_C_ZIP) {
-                zret = deflateInit2(&param->z, handler->ctx->zlevel, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY);
-            } else {
-                zret = deflateInit(&param->z, handler->ctx->zlevel);
-            }
+    case PGP_C_ZIP:
+    case PGP_C_ZLIB:
+        (void) memset(&param->z, 0x0, sizeof(param->z));
+        if (param->alg == PGP_C_ZIP) {
+            zret = deflateInit2(
+              &param->z, handler->ctx->zlevel, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY);
+        } else {
+            zret = deflateInit(&param->z, handler->ctx->zlevel);
+        }
 
-            if (zret != Z_OK) {
-                (void) fprintf(stderr, "init_compressed_dst: failed to init zlib, error %d\n", zret);
-                ret = RNP_ERROR_NOT_SUPPORTED;
-                goto finish;
-            }
-            break;
-#ifdef HAVE_BZLIB_H
-        case PGP_C_BZIP2:
-            (void) memset(&param->bz, 0x0, sizeof(param->bz));
-            zret = BZ2_bzCompressInit(&param->bz, handler->ctx->zlevel, 0, 0);
-            if (zret != BZ_OK) {
-                (void) fprintf(stderr, "init_compressed_dst: failed to init bz, error %d\n", zret);
-                ret = RNP_ERROR_NOT_SUPPORTED;
-                goto finish;
-            }
-            break;
-#endif
-        default:
-            (void) fprintf(stderr, "init_compressed_dst: unknown compression algorithm\n");
+        if (zret != Z_OK) {
+            (void) fprintf(
+              stderr, "init_compressed_dst: failed to init zlib, error %d\n", zret);
             ret = RNP_ERROR_NOT_SUPPORTED;
             goto finish;
+        }
+        break;
+#ifdef HAVE_BZLIB_H
+    case PGP_C_BZIP2:
+        (void) memset(&param->bz, 0x0, sizeof(param->bz));
+        zret = BZ2_bzCompressInit(&param->bz, handler->ctx->zlevel, 0, 0);
+        if (zret != BZ_OK) {
+            (void) fprintf(stderr, "init_compressed_dst: failed to init bz, error %d\n", zret);
+            ret = RNP_ERROR_NOT_SUPPORTED;
+            goto finish;
+        }
+        break;
+#endif
+    default:
+        (void) fprintf(stderr, "init_compressed_dst: unknown compression algorithm\n");
+        ret = RNP_ERROR_NOT_SUPPORTED;
+        goto finish;
     }
     param->zstarted = true;
-    
-    finish:
+
+finish:
     if (ret != RNP_SUCCESS) {
         compressed_dst_close(dst, true);
     }
@@ -777,10 +809,11 @@ pgp_errcode_t init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst,
     return ret;
 }
 
-void literal_dst_write(pgp_dest_t *dst, void *buf, size_t len)
+void
+literal_dst_write(pgp_dest_t *dst, void *buf, size_t len)
 {
     pgp_dest_packet_param_t *param = dst->param;
-    
+
     if (!param) {
         (void) fprintf(stderr, "literal_dst_write: wrong param\n");
         dst->werr = RNP_ERROR_BAD_PARAMETERS;
@@ -791,7 +824,8 @@ void literal_dst_write(pgp_dest_t *dst, void *buf, size_t len)
     dst->werr = RNP_SUCCESS;
 }
 
-void literal_dst_close(pgp_dest_t *dst, bool discard)
+void
+literal_dst_close(pgp_dest_t *dst, bool discard)
 {
     pgp_dest_packet_param_t *param = dst->param;
 
@@ -804,7 +838,8 @@ void literal_dst_close(pgp_dest_t *dst, bool discard)
     dst->param = NULL;
 }
 
-pgp_errcode_t init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
+pgp_errcode_t
+init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_packet_param_t *param;
     pgp_errcode_t            ret = RNP_SUCCESS;
@@ -832,7 +867,7 @@ pgp_errcode_t init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pg
         goto finish;
     }
     /* content type - forcing binary now */
-    buf[0] = (uint8_t)'b';
+    buf[0] = (uint8_t) 'b';
     /* filename */
     if (handler->ctx->filename) {
         flen = strlen(handler->ctx->filename);
@@ -843,7 +878,7 @@ pgp_errcode_t init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pg
     } else {
         flen = 0;
     }
-    buf[1] = (uint8_t)flen;
+    buf[1] = (uint8_t) flen;
     dst_write(param->writedst, buf, 2);
     if (flen > 0) {
         dst_write(param->writedst, handler->ctx->filename, flen);
@@ -854,8 +889,8 @@ pgp_errcode_t init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pg
     buf[2] = (uint8_t)(handler->ctx->filemtime >> 8);
     buf[3] = (uint8_t)(handler->ctx->filemtime);
     dst_write(param->writedst, buf, 4);
-    
-    finish:
+
+finish:
     if (ret != RNP_SUCCESS) {
         literal_dst_close(dst, true);
     }
@@ -863,12 +898,14 @@ pgp_errcode_t init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pg
     return ret;
 }
 
-pgp_errcode_t init_armored_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
+pgp_errcode_t
+init_armored_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     return RNP_ERROR_NOT_IMPLEMENTED;
 }
 
-pgp_errcode_t rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
+pgp_errcode_t
+rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
 {
     /* stack of the streams would be as following:
        [armoring stream] - if armoring is enabled
@@ -927,7 +964,7 @@ pgp_errcode_t rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, p
         if (read > 0) {
             dst_write(&dests[destc - 1], readbuf, read);
 
-            for (int i = destc - 1; i >=0; i--) {
+            for (int i = destc - 1; i >= 0; i--) {
                 if (dests[i].werr != RNP_SUCCESS) {
                     (void) fprintf(stderr, "rnp_encrypt_src: failed to process data\n");
                     ret = RNP_ERROR_WRITE;
@@ -937,9 +974,9 @@ pgp_errcode_t rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, p
         }
     }
 
-    finish:
+finish:
     discard = ret != RNP_SUCCESS;
-    for (int i = destc - 1; i >= 0 ; i--) {
+    for (int i = destc - 1; i >= 0; i--) {
         dst_close(&dests[i], discard);
     }
 

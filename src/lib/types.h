@@ -222,17 +222,17 @@ typedef struct pgp_seckey_t {
  * \see RFC4880 5.2.3
  */
 typedef struct pgp_sig_info_t {
-    pgp_version_t  version;                    /* signature version number */
-    pgp_sig_type_t type;                       /* signature type value */
+    pgp_version_t  version; /* signature version number */
+    pgp_sig_type_t type;    /* signature type value */
 
     /* **Note**: the following 3 fields are only valid if
      * their corresponding bitfields are 1 (see below). */
-    time_t  birthtime;                         /* creation time of the signature */
-    time_t  duration;                          /* number of seconds it's valid for */
-    uint8_t signer_id[PGP_KEY_ID_SIZE];        /* Eight-octet key ID
-                                                * of signer */
-    pgp_pubkey_alg_t key_alg;                  /* public key algorithm number */
-    pgp_hash_alg_t   hash_alg;                 /* hashing algorithm number */
+    time_t  birthtime;                  /* creation time of the signature */
+    time_t  duration;                   /* number of seconds it's valid for */
+    uint8_t signer_id[PGP_KEY_ID_SIZE]; /* Eight-octet key ID
+                                         * of signer */
+    pgp_pubkey_alg_t key_alg;           /* public key algorithm number */
+    pgp_hash_alg_t   hash_alg;          /* hashing algorithm number */
     union {
         pgp_rsa_sig_t     rsa;     /* An RSA Signature */
         pgp_dsa_sig_t     dsa;     /* A DSA Signature */
@@ -430,11 +430,11 @@ typedef struct {
 
 /** pkp_sk_sesskey_t */
 typedef struct {
-    unsigned            version;
-    pgp_symm_alg_t      alg;
-    pgp_s2k             s2k;
-    uint8_t             enckey[PGP_MAX_KEY_SIZE + 1];
-    unsigned            enckeylen;
+    unsigned       version;
+    pgp_symm_alg_t alg;
+    pgp_s2k        s2k;
+    uint8_t        enckey[PGP_MAX_KEY_SIZE + 1];
+    unsigned       enckeylen;
 } pgp_sk_sesskey_t;
 
 /** pgp_seckey_passphrase_t */

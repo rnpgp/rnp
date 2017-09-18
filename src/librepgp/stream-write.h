@@ -37,9 +37,9 @@
 
 typedef struct pgp_write_handler_t {
     pgp_passphrase_provider_t *passphrase_provider;
-    rnp_ctx_t *ctx;
+    rnp_ctx_t *                ctx;
 
-    void * param;
+    void *param;
 } pgp_write_handler_t;
 
 /** @brief symmetrically encrypt the input data
@@ -47,6 +47,8 @@ typedef struct pgp_write_handler_t {
  *  @param src input source: file, stdin, memory, whatever else conforming to pgp_source_t
  *  @param dst output destination: file, stdout, memory, whatever else conforming to pgp_dest_t
  **/
-pgp_errcode_t rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst);
+pgp_errcode_t rnp_encrypt_src(pgp_write_handler_t *handler,
+                              pgp_source_t *       src,
+                              pgp_dest_t *         dst);
 
 #endif

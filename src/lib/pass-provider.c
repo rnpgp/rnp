@@ -113,7 +113,7 @@ start:
     } else {
         snprintf(prompt, sizeof(prompt), "Enter passphrase for %s: ", target);
     }
-    
+
     if (!rnp_getpass(prompt, passphrase, passphrase_size)) {
         goto done;
     }
@@ -123,7 +123,7 @@ start:
         } else {
             snprintf(prompt, sizeof(prompt), "Repeat passphrase: ");
         }
-        
+
         if (!rnp_getpass(prompt, buffer, sizeof(buffer))) {
             goto done;
         }

@@ -51,7 +51,7 @@ typedef enum {
 } pgp_stream_type_t;
 
 typedef struct pgp_source_t pgp_source_t;
-typedef struct pgp_dest_t pgp_dest_t;
+typedef struct pgp_dest_t   pgp_dest_t;
 
 typedef ssize_t pgp_source_read_func_t(pgp_source_t *src, void *buf, size_t len);
 typedef void pgp_source_close_func_t(pgp_source_t *src);
@@ -59,26 +59,26 @@ typedef void pgp_source_close_func_t(pgp_source_t *src);
 typedef void pgp_dest_write_func_t(pgp_dest_t *dst, void *buf, size_t len);
 typedef void pgp_dest_close_func_t(pgp_dest_t *dst, bool discard);
 
-
 /* statically preallocated cache for sources. Not used for input filters */
 typedef struct pgp_source_cache_t {
-    uint8_t buf[PGP_INPUT_CACHE_SIZE];
+    uint8_t  buf[PGP_INPUT_CACHE_SIZE];
     unsigned pos;
     unsigned len;
 } pgp_source_cache_t;
 
 typedef struct pgp_source_t {
-    pgp_source_read_func_t  *read;
+    pgp_source_read_func_t * read;
     pgp_source_close_func_t *close;
     pgp_stream_type_t        type;
 
-    uint64_t            size;  /* size of the data if available, 0 otherwise */
-    uint64_t            readb; /* number of bytes read from the stream via src_read. Do not confuse with number of bytes as returned via the read since data may be cached */
+    uint64_t size;  /* size of the data if available, 0 otherwise */
+    uint64_t readb; /* number of bytes read from the stream via src_read. Do not confuse with
+                       number of bytes as returned via the read since data may be cached */
     pgp_source_cache_t *cache; /* cache if used */
     void *              param; /* source-specific additional data */
-    
-    unsigned            eof : 1;   /* end of data as reported by read and empty cache */
-    unsigned            knownsize : 1; /* we know the size of the stream */
+
+    unsigned eof : 1;       /* end of data as reported by read and empty cache */
+    unsigned knownsize : 1; /* we know the size of the stream */
 } pgp_source_t;
 
 /** @brief helper function to allocate memory for source's cache and param
@@ -143,8 +143,8 @@ typedef struct pgp_dest_t {
     pgp_stream_type_t      type;
     pgp_errcode_t          werr; /* write function may set this to some error code */
 
-    int64_t             writeb; /* number of bytes written */
-    void *              param;  /* source-specific additional data */
+    int64_t writeb; /* number of bytes written */
+    void *  param;  /* source-specific additional data */
 } pgp_dest_t;
 
 /** @brief write buffer to the destination
