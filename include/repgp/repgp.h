@@ -201,12 +201,13 @@ rnp_result_t repgp_decrypt(const void *ctx, repgp_io_t *io);
  *
  * @param   ctx Initialized context
  * @param   input Input handle
+ * @param   dump_content Indicates wether to dump whole packets in hex
  *
  * @returns RNP_SUCCESS operation successful
  *          RNP_ERROR_GENERIC Implementation error
  *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
  */
-rnp_result_t repgp_list_packets(const void *ctx, const repgp_handle_t *input);
+rnp_result_t repgp_list_packets(const void *ctx, const repgp_handle_t *input, bool dump_content);
 
 /**
  * @brief   Validate all signatures on a single key against the given keyring
@@ -218,7 +219,5 @@ rnp_result_t repgp_list_packets(const void *ctx, const repgp_handle_t *input);
  *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
  */
 rnp_result_t repgp_validate_pubkeys_signatures(const void *ctx);
-
-rnp_result repgp_dump_packets(const void *ctx, const repgp_handle_t *input, bool);
 
 #endif /* REPGP_H_ */

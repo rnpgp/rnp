@@ -1663,8 +1663,7 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
         break;
 
     case PGP_PTAG_CT_SECRET_SUBKEY:
-        print_tagname(print->indent, "PGP_PTAG_CT_SECRET_SUBKEY");
-        print_seckey_verbose(pkt->tag, &content->seckey);
+        print_seckey_verbose(print, pkt->tag, &content->seckey);
         break;
 
     case PGP_PTAG_CT_ARMOUR_HEADER:
@@ -1708,9 +1707,6 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
     case PGP_GET_SECKEY:
         print_pk_sesskey(
           print, PGP_PTAG_CT_ENCRYPTED_PK_SESSION_KEY, content->get_seckey.pk_sesskey);
-        break;
-
-    case PGP_PTAG_CT_SECRET_SUBKEY:
         break;
 
     default:

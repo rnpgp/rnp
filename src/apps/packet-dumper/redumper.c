@@ -64,7 +64,7 @@ main(int argc, char *const argv[])
     }
 
     repgp_handle_t *handle = create_filepath_handle(opts.input_file);
-    rnp_result      res = repgp_dump_packets(&ctx, handle, opts.dump_content);
+    rnp_result_t    res = repgp_list_packets(&ctx, handle, opts.dump_content);
     repgp_destroy_handle(handle);
     rnp_end(&rnp);
 
