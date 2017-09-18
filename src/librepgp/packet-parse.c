@@ -2527,7 +2527,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     }
     if (rnp_get_debug(__FILE__)) {
         fprintf(stderr, "parse_seckey: public key parsed\n");
-        pgp_print_pubkey(&pkt.u.seckey.pubkey);
+        pgp_print_pubkey(0, &pkt.u.seckey.pubkey);
     }
     stream->reading_v3_secret = (pkt.u.seckey.pubkey.version != PGP_V4);
 

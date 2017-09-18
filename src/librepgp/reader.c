@@ -2009,7 +2009,7 @@ pgp_litdata_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
     if (rnp_get_debug(__FILE__)) {
         printf("pgp_litdata_cb: ");
-        pgp_print_packet(&cbinfo->printstate, pkt, true);
+        pgp_print_packet(cbinfo, pkt);
     }
     /* Read data from packet into static buffer */
     switch (pkt->tag) {
@@ -2044,7 +2044,7 @@ pgp_pk_sesskey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
     io = cbinfo->io;
     if (rnp_get_debug(__FILE__)) {
-        pgp_print_packet(&cbinfo->printstate, pkt, true);
+        pgp_print_packet(cbinfo, pkt);
     }
     /* Read data from packet into static buffer */
     switch (pkt->tag) {
@@ -2098,7 +2098,7 @@ pgp_get_seckey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
     io = cbinfo->io;
     if (rnp_get_debug(__FILE__)) {
-        pgp_print_packet(&cbinfo->printstate, pkt, true);
+        pgp_print_packet(cbinfo, pkt);
     }
     switch (pkt->tag) {
     case PGP_GET_SECKEY:

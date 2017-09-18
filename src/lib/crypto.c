@@ -319,7 +319,7 @@ write_parsed_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
     if (rnp_get_debug(__FILE__)) {
         printf("write_parsed_cb: ");
-        pgp_print_packet(&cbinfo->printstate, pkt, true);
+        pgp_print_packet(cbinfo, pkt);
     }
     if (pkt->tag != PGP_PTAG_CT_UNARMOURED_TEXT && cbinfo->printstate.skipping) {
         puts("...end of skip");
