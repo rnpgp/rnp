@@ -116,8 +116,8 @@ static void
 print_hex_data_size(
   int indent, const char *name, const char *header, const uint8_t *data, size_t data_len)
 {
-    print_indent(indent);
-    printf("Size: %lu bytes\n", data_len);
+    print_name(indent, name);
+    printf("[data size: %lu bytes]\n", data_len);
 }
 
 static inline void
@@ -1010,17 +1010,18 @@ print_seckey_verbose(pgp_printstate_t *     printstate,
                      const pgp_content_enum type,
                      const pgp_seckey_t *   seckey)
 {
-    printf("------- SECRET KEY or ENCRYPTED SECRET KEY ------\n");
     /* pgp_print_pubkey(key); */
-    printf("S2K Usage: %d\n", seckey->protection.s2k.usage);
+    print_uint(printstate->indent, "S2K Usage", seckey->protection.s2k.usage);
     if (seckey->protection.s2k.usage != PGP_S2KU_NONE) {
-        printf("S2K Specifier: %d\n", seckey->protection.s2k.specifier);
-        printf("Symmetric algorithm: %d (%s)\n",
-               seckey->protection.symm_alg,
-               pgp_show_symm_alg(seckey->protection.symm_alg));
-        printf("Hash algorithm: %d (%s)\n",
-               seckey->protection.s2k.hash_alg,
-               pgp_show_hash_alg((uint8_t) seckey->protection.s2k.hash_alg));
+        print_uint(printstate->indent, "S2K Specifier", seckey->protection.s2k.specifier);
+        print_string_and_value(printstate->indent,
+                               "Symmetric algorithm",
+                               pgp_show_symm_alg(seckey->protection.symm_alg),
+                               seckey->protection.symm_alg);
+        print_string_and_value(printstate->indent,
+                               "Hash algorithm",
+                               pgp_show_hash_alg((uint8_t) seckey->protection.s2k.hash_alg),
+                               seckey->protection.s2k.hash_alg);
         if (seckey->protection.s2k.specifier != PGP_S2KS_SIMPLE) {
             printstate->content_printer(printstate->indent,
                                         "Salt",
@@ -1029,7 +1030,7 @@ print_seckey_verbose(pgp_printstate_t *     printstate,
                                         (unsigned) sizeof(seckey->protection.s2k.salt));
         }
         if (seckey->protection.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-            printf("Octet count: %u\n", seckey->protection.s2k.iterations);
+            print_uint(printstate->indent, "Octet count", seckey->protection.s2k.iterations);
         }
         printstate->content_printer(printstate->indent,
                                     "IV",
@@ -1067,9 +1068,8 @@ print_seckey_verbose(pgp_printstate_t *     printstate,
         printstate->content_printer(
           printstate->indent, "Checkhash", NULL, seckey->checkhash, PGP_CHECKHASH_SIZE);
     } else {
-        printf("Checksum: %04x\n", seckey->checksum);
+        print_uint(printstate->indent, "Checksum", seckey->checksum);
     }
-    printf("------- end of SECRET KEY ------\n");
 }
 
 static void
@@ -1077,29 +1077,33 @@ print_pk_sesskey(pgp_printstate_t *      printstate,
                  pgp_content_enum        tag,
                  const pgp_pk_sesskey_t *key)
 {
-    printf("Version: %d\n", key->version);
+    print_uint(printstate->indent, "Version", key->version);
     printstate->content_printer(
       printstate->indent, "Key ID", NULL, key->key_id, sizeof(key->key_id));
-    printf("Algorithm: %d (%s)\n", key->alg, pgp_show_pka(key->alg));
+    print_string_and_value(printstate->indent, "Algorithm", pgp_show_pka(key->alg), key->alg);
+
     switch (key->alg) {
     case PGP_PKA_RSA:
-        print_bn(0, "encrypted_m", key->params.rsa.encrypted_m);
+        print_bn(printstate->indent, "encrypted_m", key->params.rsa.encrypted_m);
         break;
 
     case PGP_PKA_ELGAMAL:
-        print_bn(0, "g^k", key->params.elgamal.g_to_k);
-        print_bn(0, "encrypted_m", key->params.elgamal.encrypted_m);
+        print_bn(printstate->indent, "g^k", key->params.elgamal.g_to_k);
+        print_bn(printstate->indent, "encrypted_m", key->params.elgamal.encrypted_m);
         break;
 
     default:
         (void) fprintf(stderr, "print_pk_sesskey: unusual algorithm\n");
     }
+
     if (tag == PGP_PTAG_CT_PK_SESSION_KEY) {
-        printf(
-          "Symmetric algorithm: %d (%s)\n", key->symm_alg, pgp_show_symm_alg(key->symm_alg));
+        print_string_and_value(printstate->indent,
+                               "Symmetric algorithm",
+                               pgp_show_symm_alg(key->symm_alg),
+                               key->symm_alg);
         printstate->content_printer(
           printstate->indent, "Key", NULL, key->key, pgp_key_size(key->symm_alg));
-        printf("Checksum: %04x\n", key->checksum);
+        print_uint(printstate->indent, "Checksum", key->checksum);
     }
 }
 
@@ -1176,8 +1180,13 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
         break;
 
     case PGP_PARSER_PACKET_END:
-        print->content_printer(
-          print->indent, NULL, "Packet contents", content->packet.raw, content->packet.length);
+        if (print_full_content) {
+            print_hex_data_full(print->indent,
+                                NULL,
+                                "Packet contents",
+                                content->packet.raw,
+                                content->packet.length);
+        }
         print->indent = 0;
         break;
 
