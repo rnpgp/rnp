@@ -423,7 +423,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
             ret = false;
             break;
         }
-        ret = (RNP_SUCCESS == repgp_list_packets(&ctx, input));
+        ret = (RNP_SUCCESS == repgp_list_packets(&ctx, input, true));
         repgp_destroy_handle(input);
         break;
     }
