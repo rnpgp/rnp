@@ -101,23 +101,23 @@ print_name(int indent, const char *name)
     }
 }
 
-static inline void
-print_hexdump(int indent, const char *name, const uint8_t *data, unsigned len)
+static void
+print_hex_data_full(
+  int indent, const char *name, const char *header, const uint8_t *data, size_t data_len)
 {
-    print_name(indent, name);
-    hexdump(stdout, NULL, data, len);
+    if (name) {
+        print_name(indent, name);
+    }
+    print_indent(indent);
+    hexdump(stdout, header, data, data_len);
 }
 
-static inline void
-print_packet_hex(const pgp_rawpacket_t *pkt)
+static void
+print_hex_data_size(
+  int indent, const char *name, const char *header, const uint8_t *data, size_t data_len)
 {
-    hexdump(stdout, "packet contents:", pkt->raw, pkt->length);
-}
-
-static inline void
-print_data(int indent, const char *name, const pgp_data_t *data)
-{
-    print_hexdump(indent, name, data->contents, (unsigned) data->len);
+    print_indent(indent);
+    printf("Size: %lu bytes\n", data_len);
 }
 
 static inline void
@@ -153,10 +153,10 @@ static void
 print_bn(int indent, const char *name, const BIGNUM *bn)
 {
     print_indent(indent);
-    printf("%s=", name);
+    printf("%s = ", name);
     if (bn) {
         BN_print_fp(stdout, bn);
-        putchar('\n');
+        printf(" (%d bits)\n", BN_num_bits(bn));
     } else {
         puts("(unset)");
     }
@@ -893,42 +893,42 @@ repgp_print_key(pgp_io_t *             io,
 \param pubkey
 */
 void
-pgp_print_pubkey(const pgp_pubkey_t *pubkey)
+pgp_print_pubkey(size_t indent, const pgp_pubkey_t *pubkey)
 {
     printf("------- PUBLIC KEY ------\n");
-    print_uint(0, "Version", (unsigned) pubkey->version);
-    print_time(0, "Creation Time", pubkey->birthtime);
+    print_uint(indent, "Version", (unsigned) pubkey->version);
+    print_time(indent, "Creation Time", pubkey->birthtime);
     if (pubkey->version == PGP_V3) {
         print_uint(0, "Days Valid", pubkey->days_valid);
     }
-    print_string_and_value(0, "Algorithm", pgp_show_pka(pubkey->alg), pubkey->alg);
+    print_string_and_value(indent, "Algorithm", pgp_show_pka(pubkey->alg), pubkey->alg);
     switch (pubkey->alg) {
     case PGP_PKA_DSA:
-        print_bn(0, "p", pubkey->key.dsa.p);
-        print_bn(0, "q", pubkey->key.dsa.q);
-        print_bn(0, "g", pubkey->key.dsa.g);
-        print_bn(0, "y", pubkey->key.dsa.y);
+        print_bn(indent, "p", pubkey->key.dsa.p);
+        print_bn(indent, "q", pubkey->key.dsa.q);
+        print_bn(indent, "g", pubkey->key.dsa.g);
+        print_bn(indent, "y", pubkey->key.dsa.y);
         break;
 
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        print_bn(0, "n", pubkey->key.rsa.n);
-        print_bn(0, "e", pubkey->key.rsa.e);
+        print_bn(indent, "n", pubkey->key.rsa.n);
+        print_bn(indent, "e", pubkey->key.rsa.e);
         break;
 
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        print_bn(0, "p", pubkey->key.elgamal.p);
-        print_bn(0, "g", pubkey->key.elgamal.g);
-        print_bn(0, "y", pubkey->key.elgamal.y);
+        print_bn(indent, "p", pubkey->key.elgamal.p);
+        print_bn(indent, "g", pubkey->key.elgamal.g);
+        print_bn(indent, "y", pubkey->key.elgamal.y);
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH: {
         const ec_curve_desc_t *curve = get_curve_desc(pubkey->key.ecc.curve);
         if (curve) {
-            print_string(0, "curve", curve->botan_name);
-            print_bn(0, "public point", pubkey->key.ecc.point);
+            print_string(indent, "curve", curve->botan_name);
+            print_bn(indent, "public point", pubkey->key.ecc.point);
         }
         break;
     }
@@ -1005,13 +1005,10 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
     return cc;
 }
 
-/**
-\ingroup Core_Print
-\param type
-\param seckey
-*/
 static void
-print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
+print_seckey_verbose(pgp_printstate_t *     printstate,
+                     const pgp_content_enum type,
+                     const pgp_seckey_t *   seckey)
 {
     printf("------- SECRET KEY or ENCRYPTED SECRET KEY ------\n");
     /* pgp_print_pubkey(key); */
@@ -1025,16 +1022,20 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
                seckey->protection.s2k.hash_alg,
                pgp_show_hash_alg((uint8_t) seckey->protection.s2k.hash_alg));
         if (seckey->protection.s2k.specifier != PGP_S2KS_SIMPLE) {
-            print_hexdump(0,
-                          "Salt",
-                          seckey->protection.s2k.salt,
-                          (unsigned) sizeof(seckey->protection.s2k.salt));
+            printstate->content_printer(printstate->indent,
+                                        "Salt",
+                                        NULL,
+                                        seckey->protection.s2k.salt,
+                                        (unsigned) sizeof(seckey->protection.s2k.salt));
         }
         if (seckey->protection.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
             printf("Octet count: %u\n", seckey->protection.s2k.iterations);
         }
-        print_hexdump(
-          0, "IV", seckey->protection.iv, pgp_block_size(seckey->protection.symm_alg));
+        printstate->content_printer(printstate->indent,
+                                    "IV",
+                                    NULL,
+                                    seckey->protection.iv,
+                                    pgp_block_size(seckey->protection.symm_alg));
     }
     /* no more set if encrypted */
     if (seckey->encrypted) {
@@ -1042,44 +1043,43 @@ print_seckey_verbose(const pgp_content_enum type, const pgp_seckey_t *seckey)
     }
     switch (seckey->pubkey.alg) {
     case PGP_PKA_RSA:
-        print_bn(0, "d", seckey->key.rsa.d);
-        print_bn(0, "p", seckey->key.rsa.p);
-        print_bn(0, "q", seckey->key.rsa.q);
-        print_bn(0, "u", seckey->key.rsa.u);
+        print_bn(printstate->indent, "d", seckey->key.rsa.d);
+        print_bn(printstate->indent, "p", seckey->key.rsa.p);
+        print_bn(printstate->indent, "q", seckey->key.rsa.q);
+        print_bn(printstate->indent, "u", seckey->key.rsa.u);
         break;
 
     case PGP_PKA_DSA:
-        print_bn(0, "x", seckey->key.dsa.x);
+        print_bn(printstate->indent, "x", seckey->key.dsa.x);
         break;
 
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        print_bn(0, "x", seckey->key.ecc.x);
+        print_bn(printstate->indent, "x", seckey->key.ecc.x);
         break;
 
     default:
         (void) fprintf(stderr, "print_seckey_verbose: unusual algorithm\n");
     }
     if (seckey->protection.s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
-        print_hexdump(0, "Checkhash", seckey->checkhash, PGP_CHECKHASH_SIZE);
+        printstate->content_printer(
+          printstate->indent, "Checkhash", NULL, seckey->checkhash, PGP_CHECKHASH_SIZE);
     } else {
         printf("Checksum: %04x\n", seckey->checksum);
     }
     printf("------- end of SECRET KEY ------\n");
 }
 
-/**
-\ingroup Core_Print
-\param tag
-\param key
-*/
 static void
-print_pk_sesskey(pgp_content_enum tag, const pgp_pk_sesskey_t *key)
+print_pk_sesskey(pgp_printstate_t *      printstate,
+                 pgp_content_enum        tag,
+                 const pgp_pk_sesskey_t *key)
 {
     printf("Version: %d\n", key->version);
-    print_hexdump(0, "Key ID", key->key_id, (unsigned) sizeof(key->key_id));
+    printstate->content_printer(
+      printstate->indent, "Key ID", NULL, key->key_id, sizeof(key->key_id));
     printf("Algorithm: %d (%s)\n", key->alg, pgp_show_pka(key->alg));
     switch (key->alg) {
     case PGP_PKA_RSA:
@@ -1087,7 +1087,7 @@ print_pk_sesskey(pgp_content_enum tag, const pgp_pk_sesskey_t *key)
         break;
 
     case PGP_PKA_ELGAMAL:
-        print_bn(0, "g_to_k", key->params.elgamal.g_to_k);
+        print_bn(0, "g^k", key->params.elgamal.g_to_k);
         print_bn(0, "encrypted_m", key->params.elgamal.encrypted_m);
         break;
 
@@ -1097,7 +1097,8 @@ print_pk_sesskey(pgp_content_enum tag, const pgp_pk_sesskey_t *key)
     if (tag == PGP_PTAG_CT_PK_SESSION_KEY) {
         printf(
           "Symmetric algorithm: %d (%s)\n", key->symm_alg, pgp_show_symm_alg(key->symm_alg));
-        print_hexdump(0, "Key", key->key, pgp_key_size(key->symm_alg));
+        printstate->content_printer(
+          printstate->indent, "Key", NULL, key->key, pgp_key_size(key->symm_alg));
         printf("Checksum: %04x\n", key->checksum);
     }
 }
@@ -1105,17 +1106,17 @@ print_pk_sesskey(pgp_content_enum tag, const pgp_pk_sesskey_t *key)
 static void
 start_subpacket(int *indent, int type)
 {
-    *indent += 1;
     print_indent(*indent);
-    printf("-- %s (type 0x%02x)\n",
+    printf("* %s (type 0x%02x)\n",
            pgp_show_ss_type((pgp_content_enum) type),
            type - PGP_PTAG_SIG_SUBPKT_BASE);
+    *indent += 4;
 }
 
 inline static void
 end_subpacket(int *indent)
 {
-    *indent -= 1;
+    *indent -= 4;
 }
 
 inline static void
@@ -1133,21 +1134,36 @@ print_packet_length_type(int indent, const pgp_ptag_t *ptag)
 \param contents
 */
 bool
-pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_hex)
+pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
 {
+#define print_data(indent, name, pgp_data) \
+    print->content_printer(indent, name, NULL, (pgp_data)->contents, (pgp_data)->len)
+#define print_hexdump(indent, name, data, len) \
+    print->content_printer(indent, name, NULL, data, len)
+
+    if (!cbinfo || !pkt) {
+        return false;
+    }
+
     const pgp_contents_t *content = &pkt->u;
     pgp_text_t *          text;
     const char *          str;
+    pgp_printstate_t *    print = &cbinfo->printstate;
+    const bool            print_full_content = (cbinfo->arg) ? *((bool *) cbinfo->arg) : true;
+    print->content_printer = print_full_content ? &print_hex_data_full : &print_hex_data_size;
 
     if (print->unarmoured && pkt->tag != PGP_PTAG_CT_UNARMOURED_TEXT) {
         print->unarmoured = 0;
         puts("UNARMOURED TEXT ends");
     }
-    if (pkt->tag == PGP_PARSER_PTAG) {
-        printf("=> PGP_PARSER_PTAG: %s\n",
-               pgp_show_packet_tag((pgp_content_enum) content->ptag.type));
-    } else if (rnp_get_debug(__FILE__)) {
-        printf("=> %s\n", pgp_show_packet_tag(pkt->tag));
+
+    if (rnp_get_debug(__FILE__)) {
+        if (pkt->tag == PGP_PARSER_PTAG) {
+            printf("=> PGP_PARSER_PTAG: %s\n",
+                   pgp_show_packet_tag((pgp_content_enum) content->ptag.type));
+        } else {
+            printf("=> %s\n", pgp_show_packet_tag(pkt->tag));
+        }
     }
 
     switch (pkt->tag) {
@@ -1160,8 +1176,8 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PARSER_PACKET_END:
-        if (print_hex)
-            print_packet_hex(&content->packet);
+        print->content_printer(
+          print->indent, NULL, "Packet contents", content->packet.raw, content->packet.length);
         print->indent = 0;
         break;
 
@@ -1172,8 +1188,9 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         }
         printf("\n");
         print_indent(print->indent);
-        printf("[ PACKET: %s (%u bytes) offset=0x%x format=%s ]\n",
+        printf("* PACKET: %s (tag %u) (%u bytes) offset=0x%x format=%s\n",
                pgp_show_packet_tag((pgp_content_enum) content->ptag.type),
+               content->ptag.type,
                content->ptag.length,
                content->ptag.position,
                content->ptag.new_format ? "new" : "old");
@@ -1189,13 +1206,16 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PTAG_CT_SE_IP_DATA_BODY:
-        if (print_hex)
-            hexdump(stdout, "data", content->se_data_body.data, content->se_data_body.length);
+        print->content_printer(print->indent,
+                               NULL,
+                               "data",
+                               content->se_data_body.data,
+                               content->se_data_body.length);
         break;
 
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        pgp_print_pubkey(&content->pubkey);
+        pgp_print_pubkey(print->indent, &content->pubkey);
         break;
 
     case PGP_PTAG_CT_TRUST:
@@ -1207,8 +1227,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PTAG_CT_SIGNATURE:
-        print_indent(print->indent);
-        print_uint(print->indent, "Signature Version", (unsigned) content->sig.info.version);
+        print_uint(print->indent, "Version", (unsigned) content->sig.info.version);
         if (content->sig.info.birthtime_set) {
             print_time(print->indent, "Signature Creation Time", content->sig.info.birthtime);
         }
@@ -1239,12 +1258,11 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
                                (uint8_t) content->sig.info.hash_alg);
         print_uint(print->indent, "Hashed data len", (unsigned) content->sig.info.v4_hashlen);
         print_indent(print->indent);
-        if (print_hex)
-            print_hexdump(print->indent, "hash2", &content->sig.hash2[0], 2);
+        print_hexdump(print->indent, "hash2", &content->sig.hash2[0], 2);
         switch (content->sig.info.key_alg) {
         case PGP_PKA_RSA:
         case PGP_PKA_RSA_SIGN_ONLY:
-            print_bn(print->indent, "sig", content->sig.info.sig.rsa.sig);
+            print_bn(print->indent, "RSA sign", content->sig.info.sig.rsa.sig);
             break;
 
         case PGP_PKA_DSA:
@@ -1316,12 +1334,8 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
                    "Raw Signature Subpacket: tag",
                    (unsigned) (content->ss_raw.tag - (unsigned) PGP_PTAG_SIG_SUBPKT_BASE));
 
-        if (print_hex) {
-            print_hexdump(print->indent,
-                          "Raw Data",
-                          content->ss_raw.raw,
-                          (unsigned) content->ss_raw.length);
-        }
+        print_hexdump(
+          print->indent, "Raw Data", content->ss_raw.raw, (unsigned) content->ss_raw.length);
         break;
 
     case PGP_PTAG_SS_CREATION_TIME:
@@ -1556,8 +1570,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PTAG_CT_SIGNATURE_HEADER:
-        print_indent(print->indent);
-        print_uint(print->indent, "Signature Version", (unsigned) content->sig.info.version);
+        print_uint(print->indent, "Version", (unsigned) content->sig.info.version);
         if (content->sig.info.birthtime_set) {
             print_time(print->indent, "Signature Creation Time", content->sig.info.birthtime);
         }
@@ -1593,7 +1606,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
 
         switch (content->sig.info.key_alg) {
         case PGP_PKA_RSA:
-            print_bn(print->indent, "sig", content->sig.info.sig.rsa.sig);
+            print_bn(print->indent, "RSA sign", content->sig.info.sig.rsa.sig);
             break;
 
         case PGP_PKA_DSA:
@@ -1637,7 +1650,7 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
         break;
 
     case PGP_PTAG_CT_SECRET_KEY:
-        print_seckey_verbose(pkt->tag, &content->seckey);
+        print_seckey_verbose(print, pkt->tag, &content->seckey);
         break;
 
     case PGP_PTAG_CT_SECRET_SUBKEY:
@@ -1680,11 +1693,12 @@ pgp_print_packet(pgp_printstate_t *print, const pgp_packet_t *pkt, bool print_he
 
     case PGP_PTAG_CT_PK_SESSION_KEY:
     case PGP_PTAG_CT_ENCRYPTED_PK_SESSION_KEY:
-        print_pk_sesskey(pkt->tag, &content->pk_sesskey);
+        print_pk_sesskey(print, pkt->tag, &content->pk_sesskey);
         break;
 
     case PGP_GET_SECKEY:
-        print_pk_sesskey(PGP_PTAG_CT_ENCRYPTED_PK_SESSION_KEY, content->get_seckey.pk_sesskey);
+        print_pk_sesskey(
+          print, PGP_PTAG_CT_ENCRYPTED_PK_SESSION_KEY, content->get_seckey.pk_sesskey);
         break;
 
     case PGP_PTAG_CT_SECRET_SUBKEY:

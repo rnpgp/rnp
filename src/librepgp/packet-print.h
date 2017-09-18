@@ -62,10 +62,13 @@ typedef struct pgp_io_t     pgp_io_t;
 typedef struct pgp_key_t    pgp_key_t;
 
 /* structure to keep track of printing state variables */
+typedef void (*content_printer_t)(int, const char *, const char *, const uint8_t *, size_t);
+
 typedef struct pgp_printstate_t {
-    unsigned unarmoured;
-    unsigned skipping;
-    int      indent;
+    unsigned          unarmoured;
+    unsigned          skipping;
+    int               indent;
+    content_printer_t content_printer;
 } pgp_printstate_t;
 
 void repgp_print_key(pgp_io_t *,
@@ -83,7 +86,7 @@ int repgp_sprint_json(pgp_io_t *,
                       const pgp_pubkey_t *,
                       const int);
 
-bool pgp_print_packet(pgp_printstate_t *, const pgp_packet_t *, bool print_hex);
+bool pgp_print_packet(pgp_cbdata_t *, const pgp_packet_t *);
 
 int pgp_sprint_key(pgp_io_t *,
                    const rnp_key_store_t *,
@@ -111,7 +114,7 @@ void pgp_print_key(pgp_io_t *,
                    const char *,
                    const pgp_pubkey_t *,
                    const int);
-void pgp_print_pubkey(const pgp_pubkey_t *);
-int  pgp_sprint_pubkey(const pgp_key_t *, char *, size_t);
+void pgp_print_pubkey(size_t indent, const pgp_pubkey_t *);
+int pgp_sprint_pubkey(const pgp_key_t *, char *, size_t);
 
 #endif /* PACKET_PRINT_H_ */

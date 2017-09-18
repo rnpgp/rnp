@@ -294,7 +294,7 @@ repgp_destroy_io(repgp_io_t *io)
 static pgp_cb_ret_t
 print_packet_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
-    pgp_print_packet(&cbinfo->printstate, pkt, true);
+    pgp_print_packet(cbinfo, pkt);
     return PGP_RELEASE_MEMORY;
 }
 
@@ -366,7 +366,7 @@ repgp_validate_pubkeys_signatures(const void *ctx)
 static pgp_cb_ret_t
 dump_packet_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
-    pgp_print_packet(&cbinfo->printstate, pkt, false);
+    pgp_print_packet(cbinfo, pkt);
     return PGP_RELEASE_MEMORY;
 }
 rnp_result
@@ -391,7 +391,9 @@ repgp_dump_packets(const void *ctx, const repgp_handle_t *input)
         return RNP_ERROR_ACCESS;
     }
 
-    fd = pgp_setup_file_read(rctx->rnp->io, &stream, input->filepath, NULL, dump_packet_cb, 1);
+    bool print_hex = false;
+    fd = pgp_setup_file_read(
+      rctx->rnp->io, &stream, input->filepath, &print_hex, dump_packet_cb, 1);
     repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
 
     const rnp_t *rnp = rctx->rnp;
