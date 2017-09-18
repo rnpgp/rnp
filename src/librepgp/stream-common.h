@@ -121,13 +121,13 @@ void src_close(pgp_source_t *src);
  *  @param path path to the file
  *  @return RNP_SUCCESS or error code
  **/
-pgp_errcode_t init_file_src(pgp_source_t *src, const char *path);
+rnp_result_t init_file_src(pgp_source_t *src, const char *path);
 
 /** @brief init stdin source
  *  @param src pre-allocated source structure
  *  @return RNP_SUCCESS or error code
  **/
-pgp_errcode_t init_stdin_src(pgp_source_t *src);
+rnp_result_t init_stdin_src(pgp_source_t *src);
 
 /** @brief init memory source
  *  @param src pre-allocated source structure
@@ -135,13 +135,13 @@ pgp_errcode_t init_stdin_src(pgp_source_t *src);
  *  @param len number of bytes in input
  *  @return RNP_SUCCESS or error code
  **/
-pgp_errcode_t init_mem_src(pgp_source_t *src, void *mem, size_t len);
+rnp_result_t init_mem_src(pgp_source_t *src, void *mem, size_t len);
 
 typedef struct pgp_dest_t {
     pgp_dest_write_func_t *write;
     pgp_dest_close_func_t *close;
     pgp_stream_type_t      type;
-    pgp_errcode_t          werr; /* write function may set this to some error code */
+    rnp_result_t           werr; /* write function may set this to some error code */
 
     int64_t writeb; /* number of bytes written */
     void *  param;  /* source-specific additional data */
@@ -169,18 +169,18 @@ void dst_close(pgp_dest_t *dst, bool discard);
  *  @param path path to the file
  *  @return RNP_SUCCESS or error code
  **/
-pgp_errcode_t init_file_dest(pgp_dest_t *dst, const char *path);
+rnp_result_t init_file_dest(pgp_dest_t *dst, const char *path);
 
 /** @brief init stdout destination
  *  @param dst pre-allocated dest structure
  *  @return RNP_SUCCESS or error code
  **/
-pgp_errcode_t init_stdout_dest(pgp_dest_t *dst);
+rnp_result_t init_stdout_dest(pgp_dest_t *dst);
 
 /** @brief init memory source
  *  @param dst pre-allocated dest structure
  *  @return RNP_SUCCESS or error code
  **/
-pgp_errcode_t init_mem_dest(pgp_dest_t *dst);
+rnp_result_t init_mem_dest(pgp_dest_t *dst);
 
 #endif

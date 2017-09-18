@@ -245,7 +245,7 @@ file_src_close(pgp_source_t *src)
     }
 }
 
-pgp_errcode_t
+rnp_result_t
 init_file_src(pgp_source_t *src, const char *path)
 {
     int                      fd;
@@ -285,7 +285,7 @@ init_file_src(pgp_source_t *src, const char *path)
     return RNP_SUCCESS;
 }
 
-pgp_errcode_t
+rnp_result_t
 init_stdin_src(pgp_source_t *src)
 {
     pgp_source_file_param_t *param;
@@ -307,7 +307,7 @@ init_stdin_src(pgp_source_t *src)
     return RNP_SUCCESS;
 }
 
-pgp_errcode_t
+rnp_result_t
 init_mem_src(pgp_source_t *src, void *mem, size_t len)
 {
     return RNP_ERROR_NOT_IMPLEMENTED;
@@ -376,7 +376,7 @@ file_dst_close(pgp_dest_t *dst, bool discard)
     }
 }
 
-pgp_errcode_t
+rnp_result_t
 init_file_dest(pgp_dest_t *dst, const char *path)
 {
     int                    fd;
@@ -419,7 +419,7 @@ init_file_dest(pgp_dest_t *dst, const char *path)
     return RNP_SUCCESS;
 }
 
-pgp_errcode_t
+rnp_result_t
 init_stdout_dest(pgp_dest_t *dst)
 {
     pgp_dest_file_param_t *param;
@@ -438,7 +438,7 @@ init_stdout_dest(pgp_dest_t *dst)
     return RNP_SUCCESS;
 }
 
-pgp_errcode_t
+rnp_result_t
 init_mem_dest(pgp_dest_t *dst)
 {
     return RNP_ERROR_NOT_IMPLEMENTED;
