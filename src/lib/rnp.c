@@ -1226,8 +1226,8 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
 }
 
 typedef struct pgp_parse_handler_param_t {
-    char       in[PATH_MAX];
-    char       out[PATH_MAX];
+    char in[PATH_MAX];
+    char out[PATH_MAX];
 } pgp_parse_handler_param_t;
 
 /* process the pgp stream */
@@ -1251,18 +1251,17 @@ rnp_parse_handler_dest(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char
 int
 rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 {
-    pgp_source_t  src;
-    pgp_errcode_t err;
-    pgp_parse_handler_t *handler = NULL;
+    pgp_source_t               src;
+    pgp_errcode_t              err;
+    pgp_parse_handler_t *      handler = NULL;
     pgp_parse_handler_param_t *param = NULL;
-    int result;
-
+    int                        result;
 
     if (in && (strlen(in) > sizeof(param->in))) {
         (void) fprintf(stderr, "rnp_process_stream: too long input path\n");
         return RNP_FAIL;
     }
-    
+
     if (out && (strlen(out) > sizeof(param->out))) {
         (void) fprintf(stderr, "rnp_process_stream: too long output path\n");
         return RNP_FAIL;
@@ -1308,7 +1307,7 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
         result = RNP_FAIL;
     }
 
-    finish:
+finish:
     src_close(&src);
     free(handler);
     free(param);
@@ -1318,13 +1317,13 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 int
 rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 {
-    pgp_source_t  src;
-    pgp_dest_t    dst;
-    pgp_errcode_t err;
+    pgp_source_t         src;
+    pgp_dest_t           dst;
+    pgp_errcode_t        err;
     pgp_write_handler_t *handler = NULL;
-    int result;
-    bool          is_stdin;
-    bool          is_stdout;
+    int                  result;
+    bool                 is_stdin;
+    bool                 is_stdout;
 
     is_stdin = !in || (strlen(in) == 0) || (strcmp(in, "-") == 0);
     is_stdout = !out || (strlen(out) == 0) || (strcmp(out, "-") == 0);
@@ -1356,11 +1355,12 @@ rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     if (err == RNP_SUCCESS) {
         result = RNP_OK;
     } else {
-        (void) printf("rnp_encrypt_stream: encryption failed with error code 0x%x\n", (int)err);
+        (void) printf("rnp_encrypt_stream: encryption failed with error code 0x%x\n",
+                      (int) err);
         result = RNP_FAIL;
     }
 
-    finish:
+finish:
     src_close(&src);
     dst_close(&dst, err != RNP_SUCCESS);
     free(handler);

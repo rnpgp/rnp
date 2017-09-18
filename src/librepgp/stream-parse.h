@@ -36,13 +36,15 @@
 #include "stream-common.h"
 
 typedef struct pgp_parse_handler_t pgp_parse_handler_t;
-typedef bool pgp_destination_func_t(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char *filename);
+typedef bool pgp_destination_func_t(pgp_parse_handler_t *handler,
+                                    pgp_dest_t *         dst,
+                                    const char *         filename);
 
 typedef struct pgp_parse_handler_t {
     pgp_passphrase_provider_t *passphrase_provider;
-    pgp_destination_func_t    *dest_provider;
+    pgp_destination_func_t *   dest_provider;
 
-    void * param;
+    void *param;
 } pgp_parse_handler_t;
 
 /* @brief Process the OpenPGP source: file, memory, stdin

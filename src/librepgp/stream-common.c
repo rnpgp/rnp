@@ -50,7 +50,8 @@
 #include <bzlib.h>
 #endif
 
-ssize_t src_read(pgp_source_t *src, void *buf, size_t len)
+ssize_t
+src_read(pgp_source_t *src, void *buf, size_t len)
 {
     size_t              left = len;
     ssize_t             read;
@@ -70,7 +71,7 @@ ssize_t src_read(pgp_source_t *src, void *buf, size_t len)
         } else {
             memcpy(buf, &cache->buf[cache->pos], read);
             cache->pos += read;
-            buf = (uint8_t*)buf + read;
+            buf = (uint8_t *) buf + read;
             left = len - read;
         }
     }
@@ -82,7 +83,7 @@ ssize_t src_read(pgp_source_t *src, void *buf, size_t len)
             read = src->read(src, buf, left);
             if (read > 0) {
                 left -= read;
-                buf = (uint8_t*)buf + read;
+                buf = (uint8_t *) buf + read;
             } else if (read == 0) {
                 src->eof = 1;
                 len = len - left;
@@ -102,7 +103,7 @@ ssize_t src_read(pgp_source_t *src, void *buf, size_t len)
             } else if (read < left) {
                 memcpy(buf, &cache->buf[0], read);
                 left -= read;
-                buf = (uint8_t*)buf + read;
+                buf = (uint8_t *) buf + read;
             } else {
                 memcpy(buf, &cache->buf[0], left);
                 cache->pos = left;
@@ -111,13 +112,14 @@ ssize_t src_read(pgp_source_t *src, void *buf, size_t len)
             }
         }
     }
-    
-    finish:
+
+finish:
     src->readb += len;
     return len;
 }
 
-ssize_t src_peek(pgp_source_t *src, void *buf, size_t len)
+ssize_t
+src_peek(pgp_source_t *src, void *buf, size_t len)
 {
     ssize_t             read;
     pgp_source_cache_t *cache = src->cache;
@@ -160,12 +162,13 @@ ssize_t src_peek(pgp_source_t *src, void *buf, size_t len)
     return -1;
 }
 
-ssize_t src_skip(pgp_source_t *src, size_t len)
+ssize_t
+src_skip(pgp_source_t *src, size_t len)
 {
     ssize_t res;
     void *  buf;
     uint8_t sbuf[16];
-     
+
     if (len < sizeof(sbuf)) {
         return src_read(src, sbuf, len);
     } else {
@@ -181,14 +184,16 @@ ssize_t src_skip(pgp_source_t *src, size_t len)
     }
 }
 
-void src_close(pgp_source_t *src)
+void
+src_close(pgp_source_t *src)
 {
     if (src->close) {
         src->close(src);
     }
 }
 
-bool init_source_cache(pgp_source_t *src, size_t paramsize)
+bool
+init_source_cache(pgp_source_t *src, size_t paramsize)
 {
     if ((src->cache = calloc(1, sizeof(pgp_source_cache_t))) == NULL) {
         return false;
@@ -211,7 +216,8 @@ typedef struct pgp_source_file_param_t {
     int fd;
 } pgp_source_file_param_t;
 
-ssize_t file_src_read(pgp_source_t *src, void *buf, size_t len)
+ssize_t
+file_src_read(pgp_source_t *src, void *buf, size_t len)
 {
     pgp_source_file_param_t *param = src->param;
 
@@ -222,7 +228,8 @@ ssize_t file_src_read(pgp_source_t *src, void *buf, size_t len)
     }
 }
 
-void file_src_close(pgp_source_t *src)
+void
+file_src_close(pgp_source_t *src)
 {
     pgp_source_file_param_t *param = src->param;
     if (param) {
@@ -238,7 +245,8 @@ void file_src_close(pgp_source_t *src)
     }
 }
 
-pgp_errcode_t init_file_src(pgp_source_t *src, const char *path)
+pgp_errcode_t
+init_file_src(pgp_source_t *src, const char *path)
 {
     int                      fd;
     struct stat              st;
@@ -277,7 +285,8 @@ pgp_errcode_t init_file_src(pgp_source_t *src, const char *path)
     return RNP_SUCCESS;
 }
 
-pgp_errcode_t init_stdin_src(pgp_source_t *src)
+pgp_errcode_t
+init_stdin_src(pgp_source_t *src)
 {
     pgp_source_file_param_t *param;
 
@@ -298,12 +307,14 @@ pgp_errcode_t init_stdin_src(pgp_source_t *src)
     return RNP_SUCCESS;
 }
 
-pgp_errcode_t init_mem_src(pgp_source_t *src, void *mem, size_t len)
+pgp_errcode_t
+init_mem_src(pgp_source_t *src, void *mem, size_t len)
 {
     return RNP_ERROR_NOT_IMPLEMENTED;
 }
 
-void dst_write(pgp_dest_t *dst, void *buf, size_t len)
+void
+dst_write(pgp_dest_t *dst, void *buf, size_t len)
 {
     if ((len > 0) && (dst->write)) {
         dst->write(dst, buf, len);
@@ -311,7 +322,8 @@ void dst_write(pgp_dest_t *dst, void *buf, size_t len)
     }
 }
 
-void dst_close(pgp_dest_t *dst, bool discard)
+void
+dst_close(pgp_dest_t *dst, bool discard)
 {
     if (dst->close) {
         dst->close(dst, discard);
@@ -324,7 +336,8 @@ typedef struct pgp_dest_file_param_t {
     char path[PATH_MAX];
 } pgp_dest_file_param_t;
 
-void file_dst_write(pgp_dest_t *dst, void *buf, size_t len)
+void
+file_dst_write(pgp_dest_t *dst, void *buf, size_t len)
 {
     ssize_t                ret;
     pgp_dest_file_param_t *param = dst->param;
@@ -347,7 +360,8 @@ void file_dst_write(pgp_dest_t *dst, void *buf, size_t len)
     }
 }
 
-void file_dst_close(pgp_dest_t *dst, bool discard)
+void
+file_dst_close(pgp_dest_t *dst, bool discard)
 {
     pgp_dest_file_param_t *param = dst->param;
 
@@ -362,7 +376,8 @@ void file_dst_close(pgp_dest_t *dst, bool discard)
     }
 }
 
-pgp_errcode_t init_file_dest(pgp_dest_t *dst, const char *path)
+pgp_errcode_t
+init_file_dest(pgp_dest_t *dst, const char *path)
 {
     int                    fd;
     int                    flags;
@@ -404,7 +419,8 @@ pgp_errcode_t init_file_dest(pgp_dest_t *dst, const char *path)
     return RNP_SUCCESS;
 }
 
-pgp_errcode_t init_stdout_dest(pgp_dest_t *dst)
+pgp_errcode_t
+init_stdout_dest(pgp_dest_t *dst)
 {
     pgp_dest_file_param_t *param;
 
@@ -422,7 +438,8 @@ pgp_errcode_t init_stdout_dest(pgp_dest_t *dst)
     return RNP_SUCCESS;
 }
 
-pgp_errcode_t init_mem_dest(pgp_dest_t *dst)
+pgp_errcode_t
+init_mem_dest(pgp_dest_t *dst)
 {
     return RNP_ERROR_NOT_IMPLEMENTED;
 }
