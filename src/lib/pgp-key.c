@@ -833,8 +833,31 @@ pgp_key_protect(pgp_key_t *                      key,
                 rnp_key_protection_params_t *    protection,
                 const pgp_passphrase_provider_t *passphrase_provider)
 {
+    char passphrase[MAX_PASSPHRASE_LENGTH] = {0};
+
+    if (!passphrase_provider)
+        return false;
+
+    // ask the provider for a passphrase
+    if (!pgp_request_passphrase(passphrase_provider,
+                                &(pgp_passphrase_ctx_t){.op = PGP_OP_PROTECT, .key = key},
+                                passphrase,
+                                sizeof(passphrase))) {
+        return false;
+    }
+
+    bool ret = pgp_key_protect_passphrase(key, format, protection, passphrase);
+    pgp_forget(passphrase, sizeof(passphrase));
+    return ret;
+}
+
+bool
+pgp_key_protect_passphrase(pgp_key_t *                  key,
+                           key_store_format_t           format,
+                           rnp_key_protection_params_t *protection,
+                           const char *                 passphrase)
+{
     bool                        ret = false;
-    char                        passphrase[MAX_PASSPHRASE_LENGTH] = {0};
     rnp_key_protection_params_t default_protection = {.symm_alg = PGP_SA_DEFAULT_CIPHER,
                                                       .cipher_mode =
                                                         PGP_SA_DEFAULT_CIPHER_MODE,
@@ -842,7 +865,7 @@ pgp_key_protect(pgp_key_t *                      key,
                                                       .hash_alg = PGP_DEFAULT_HASH_ALGORITHM};
 
     // sanity check
-    if (!key || !passphrase_provider) {
+    if (!key || !passphrase) {
         RNP_LOG("NULL args");
         goto done;
     }
@@ -853,14 +876,6 @@ pgp_key_protect(pgp_key_t *                      key,
     // must be unlocked first
     if (key->key.seckey.encrypted) {
         RNP_LOG("Key must be unlocked to (re)protect");
-        goto done;
-    }
-
-    // ask the provider for a passphrase
-    if (!pgp_request_passphrase(passphrase_provider,
-                                &(pgp_passphrase_ctx_t){.op = PGP_OP_PROTECT, .key = key},
-                                passphrase,
-                                sizeof(passphrase))) {
         goto done;
     }
 
@@ -900,7 +915,6 @@ pgp_key_protect(pgp_key_t *                      key,
     ret = true;
 
 done:
-    pgp_forget(passphrase, sizeof(passphrase));
     return ret;
 }
 

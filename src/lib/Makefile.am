@@ -30,6 +30,7 @@ librnp_la_SOURCES	= \
 	pem.c \
 	pgp-key.c \
 	rnp.c \
+	rnp2.c \
 	signature.c \
 	symmetric.c \
 	writer.c

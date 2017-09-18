@@ -39,7 +39,6 @@
 #define ECDH_WRAPPED_KEY_SIZE 48
 
 /* Forward declarations */
-typedef struct rnp_keygen_desc_t rnp_keygen_desc_t;
 typedef struct pgp_fingerprint_t pgp_fingerprint_t;
 
 /** Structure to hold an ECDH public key params.
@@ -122,4 +121,5 @@ rnp_result_t pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
                                     const pgp_ecc_seckey_t * seckey,
                                     const pgp_ecdh_pubkey_t *pubkey,
                                     const pgp_fingerprint_t *fingerprint);
+
 #endif // ECDH_H_

@@ -192,6 +192,19 @@ bool pgp_key_protect(pgp_key_t *                      key,
                      rnp_key_protection_params_t *    protection,
                      const pgp_passphrase_provider_t *passphrase_provider);
 
+/** add protection to a key
+ *
+ *  @param key
+ *  @param format
+ *  @param protection
+ *  @param passphrase
+ *  @return true if key was successfully protected, false otherwise
+ **/
+bool pgp_key_protect_passphrase(pgp_key_t *                  key,
+                                key_store_format_t           format,
+                                rnp_key_protection_params_t *protection,
+                                const char *                 passphrase);
+
 /** remove protection from a key
  *
  *  @param key

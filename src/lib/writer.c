@@ -1036,6 +1036,8 @@ encrypt_se_ip_destroyer(pgp_writer_t *writer)
     encrypt_se_ip_t *se_ip;
 
     se_ip = pgp_writer_get_arg(writer);
+
+    pgp_cipher_finish(se_ip->crypt);
     free(se_ip->crypt);
     free(se_ip);
 }
