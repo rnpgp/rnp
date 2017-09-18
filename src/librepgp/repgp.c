@@ -370,7 +370,7 @@ dump_packet_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     return PGP_RELEASE_MEMORY;
 }
 rnp_result
-repgp_dump_packets(const void *ctx, const repgp_handle_t *input)
+repgp_dump_packets(const void *ctx, const repgp_handle_t *input, bool dump_packet_content)
 {
     const rnp_ctx_t *rctx = (rnp_ctx_t *) ctx;
     pgp_stream_t *   stream;
@@ -391,9 +391,8 @@ repgp_dump_packets(const void *ctx, const repgp_handle_t *input)
         return RNP_ERROR_ACCESS;
     }
 
-    bool print_hex = false;
     fd = pgp_setup_file_read(
-      rctx->rnp->io, &stream, input->filepath, &print_hex, dump_packet_cb, 1);
+      rctx->rnp->io, &stream, input->filepath, &dump_packet_content, dump_packet_cb, 1);
     repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
 
     const rnp_t *rnp = rctx->rnp;

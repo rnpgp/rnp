@@ -219,6 +219,6 @@ rnp_result_t repgp_list_packets(const void *ctx, const repgp_handle_t *input);
  */
 rnp_result_t repgp_validate_pubkeys_signatures(const void *ctx);
 
-rnp_result repgp_dump_packets(const void *ctx, const repgp_handle_t *input);
+rnp_result repgp_dump_packets(const void *ctx, const repgp_handle_t *input, bool);
 
 #endif /* REPGP_H_ */
