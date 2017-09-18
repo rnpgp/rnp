@@ -166,8 +166,6 @@ void pgp_calc_mdc_hash(
   const uint8_t *, const size_t, const uint8_t *, const unsigned, uint8_t *);
 unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
 
-#define PGP_PROTECTED_AT_SIZE 15
-
 typedef struct pgp_key_t pgp_key_t;
 
 typedef struct pgp_s2k {
