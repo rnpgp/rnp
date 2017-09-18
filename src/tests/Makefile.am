@@ -6,6 +6,7 @@ rnp_tests_LDFLAGS	= $(JSONC_LDFLAGS) $(CMOCKA_LDFLAGS) $(BOTAN_LDFLAGS)
 rnp_tests_SOURCES   = \
     support.c \
     cipher.c \
+    ffi.c \
     generatekey.c \
     exportkey.c \
     rnp_tests.c \
