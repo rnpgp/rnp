@@ -46,6 +46,8 @@
 
 #define G10_SHA1_HASH_SIZE 20
 
+#define G10_PROTECTED_AT_SIZE 15
+
 typedef struct {
     size_t   len;
     uint8_t *bytes;
@@ -772,12 +774,12 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passphr
     }
     // see if we have a protected-at section
     s_exp_t *protected_at_s_exp = lookup_variable(s_exp, "protected-at");
-    char     protected_at[PGP_PROTECTED_AT_SIZE];
+    char     protected_at[G10_PROTECTED_AT_SIZE];
     if (protected_at_s_exp != NULL && protected_at_s_exp->sub_elements[1].is_block) {
-        if (protected_at_s_exp->sub_elements[1].block.len != PGP_PROTECTED_AT_SIZE) {
+        if (protected_at_s_exp->sub_elements[1].block.len != G10_PROTECTED_AT_SIZE) {
             RNP_LOG("protected-at has wrong length: %zu, expected, %d\n",
                     protected_at_s_exp->sub_elements[1].block.len,
-                    PGP_PROTECTED_AT_SIZE);
+                    G10_PROTECTED_AT_SIZE);
             goto done;
         }
         memcpy(protected_at,
@@ -1291,7 +1293,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passphr
 
     // calculated hash
     time(&now);
-    char protected_at[PGP_PROTECTED_AT_SIZE + 1];
+    char protected_at[G10_PROTECTED_AT_SIZE + 1];
     strftime(protected_at, sizeof(protected_at), "%Y%m%dT%H%M%S", gmtime(&now));
 
     if (!g10_calculated_hash(seckey, protected_at, checksum)) {
@@ -1446,7 +1448,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passphr
         return false;
     }
 
-    if (!add_block_to_sexp(sub_s_exp, (uint8_t *) protected_at, PGP_PROTECTED_AT_SIZE)) {
+    if (!add_block_to_sexp(sub_s_exp, (uint8_t *) protected_at, G10_PROTECTED_AT_SIZE)) {
         return false;
     }
 
@@ -1550,7 +1552,7 @@ g10_calculated_hash(const pgp_seckey_t *key, const char *protected_at, uint8_t *
         goto error;
     }
 
-    if (!add_block_to_sexp(sub_s_exp, (uint8_t *) protected_at, PGP_PROTECTED_AT_SIZE)) {
+    if (!add_block_to_sexp(sub_s_exp, (uint8_t *) protected_at, G10_PROTECTED_AT_SIZE)) {
         goto error;
     }
 
