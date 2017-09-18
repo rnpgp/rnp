@@ -47,8 +47,6 @@ typedef struct pgp_write_handler_t {
  *  @param src input source: file, stdin, memory, whatever else conforming to pgp_source_t
  *  @param dst output destination: file, stdout, memory, whatever else conforming to pgp_dest_t
  **/
-pgp_errcode_t rnp_encrypt_src(pgp_write_handler_t *handler,
-                              pgp_source_t *       src,
-                              pgp_dest_t *         dst);
+rnp_result_t rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst);
 
 #endif

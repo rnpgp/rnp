@@ -1252,7 +1252,7 @@ int
 rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 {
     pgp_source_t               src;
-    pgp_errcode_t              err;
+    rnp_result_t               err;
     pgp_parse_handler_t *      handler = NULL;
     pgp_parse_handler_param_t *param = NULL;
     int                        result;
@@ -1319,7 +1319,7 @@ rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 {
     pgp_source_t         src;
     pgp_dest_t           dst;
-    pgp_errcode_t        err;
+    rnp_result_t         err;
     pgp_write_handler_t *handler = NULL;
     int                  result;
     bool                 is_stdin;

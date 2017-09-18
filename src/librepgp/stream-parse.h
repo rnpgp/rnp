@@ -54,6 +54,6 @@ typedef struct pgp_parse_handler_t {
  * @param src initialized source with cache
  * @return PGP_E_OK on success or error code otherwise
  **/
-pgp_errcode_t process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src);
+rnp_result_t process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src);
 
 #endif

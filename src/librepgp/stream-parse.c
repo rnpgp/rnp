@@ -293,7 +293,7 @@ partial_pkt_src_close(pgp_source_t *src)
     }
 }
 
-pgp_errcode_t
+rnp_result_t
 init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
 {
     pgp_source_partial_param_t *param;
@@ -568,7 +568,7 @@ encrypted_src_close(pgp_source_t *src)
     }
 }
 
-static pgp_errcode_t
+static rnp_result_t
 stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
 {
     ssize_t len;
@@ -583,7 +583,7 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
     return RNP_SUCCESS;
 }
 
-static pgp_errcode_t
+static rnp_result_t
 stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
 {
     uint8_t buf[4];
@@ -779,11 +779,11 @@ encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
 }
 
 /** @brief Initialize common to stream packets params, including partial data source */
-static pgp_errcode_t
+static rnp_result_t
 init_packet_params(pgp_source_t *src, pgp_source_packet_param_t *param)
 {
     pgp_source_t *partsrc;
-    pgp_errcode_t errcode;
+    rnp_result_t  errcode;
     ssize_t       len;
 
     param->origsrc = NULL;
@@ -816,10 +816,10 @@ init_packet_params(pgp_source_t *src, pgp_source_packet_param_t *param)
     return RNP_SUCCESS;
 }
 
-static pgp_errcode_t
+static rnp_result_t
 init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
 {
-    pgp_errcode_t               errcode = RNP_SUCCESS;
+    rnp_result_t                errcode = RNP_SUCCESS;
     pgp_source_literal_param_t *param;
     uint8_t                     bt;
     uint8_t                     tstbuf[4];
@@ -897,10 +897,10 @@ finish:
     return errcode;
 }
 
-static pgp_errcode_t
+static rnp_result_t
 init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
 {
-    pgp_errcode_t                  errcode = RNP_SUCCESS;
+    rnp_result_t                   errcode = RNP_SUCCESS;
     pgp_source_compressed_param_t *param;
     uint8_t                        alg;
     int                            zret;
@@ -973,11 +973,11 @@ finish:
     return errcode;
 }
 
-static pgp_errcode_t
+static rnp_result_t
 init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
 {
     bool                          sk_read = false;
-    pgp_errcode_t                 errcode = RNP_SUCCESS;
+    rnp_result_t                  errcode = RNP_SUCCESS;
     pgp_source_encrypted_param_t *param;
     uint8_t                       ptag;
     uint8_t                       mdcver;
@@ -1114,7 +1114,7 @@ free_processing_ctx(pgp_processing_ctx_t *ctx)
 /** @brief build PGP source sequence down to the literal data packet
  *
  **/
-static pgp_errcode_t
+static rnp_result_t
 init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
 {
     uint8_t       ptag;
@@ -1122,7 +1122,7 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
     int           type;
     pgp_source_t *psrc = NULL;
     pgp_source_t *lsrc = src;
-    pgp_errcode_t ret;
+    rnp_result_t  ret;
 
     while (1) {
         read = src_peek(lsrc, &ptag, 1);
@@ -1210,13 +1210,13 @@ is_pgp_sequence(uint8_t *buf, int size)
     }
 }
 
-pgp_errcode_t
+rnp_result_t
 process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
 {
     static const char           armor_start[] = "-----BEGIN PGP";
     uint8_t                     buf[128];
     ssize_t                     read;
-    pgp_errcode_t               res = RNP_ERROR_BAD_FORMAT;
+    rnp_result_t                res = RNP_ERROR_BAD_FORMAT;
     pgp_processing_ctx_t        ctx;
     pgp_source_t *              litsrc;
     pgp_source_literal_param_t *litparam;

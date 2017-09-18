@@ -267,7 +267,7 @@ partial_dst_close(pgp_dest_t *dst, bool discard)
     dst->param = NULL;
 }
 
-pgp_errcode_t
+rnp_result_t
 init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_partial_param_t *param;
@@ -296,7 +296,7 @@ init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
 bool
 init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
 {
-    pgp_errcode_t ret;
+    rnp_result_t ret;
 
     if (param->partial) {
         stream_write_pkt_tag(param->tag, dst);
@@ -431,7 +431,7 @@ encrypted_dst_close(pgp_dest_t *dst, bool discard)
     dst->param = NULL;
 }
 
-pgp_errcode_t
+rnp_result_t
 init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_encrypted_param_t *param;
@@ -446,7 +446,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     int                         keylen;
     int                         blsize;
     pgp_symm_alg_t              ealg; /* content encryption algorithm */
-    pgp_errcode_t               ret = RNP_SUCCESS;
+    rnp_result_t                ret = RNP_SUCCESS;
 
     /* currently we implement only single-password symmetric encryption */
 
@@ -728,11 +728,11 @@ compressed_dst_close(pgp_dest_t *dst, bool discard)
     dst->param = NULL;
 }
 
-pgp_errcode_t
+rnp_result_t
 init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_compressed_param_t *param;
-    pgp_errcode_t                ret = RNP_SUCCESS;
+    rnp_result_t                 ret = RNP_SUCCESS;
     uint8_t                      buf;
     int                          zret;
 
@@ -838,11 +838,11 @@ literal_dst_close(pgp_dest_t *dst, bool discard)
     dst->param = NULL;
 }
 
-pgp_errcode_t
+rnp_result_t
 init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_packet_param_t *param;
-    pgp_errcode_t            ret = RNP_SUCCESS;
+    rnp_result_t             ret = RNP_SUCCESS;
     int                      flen;
     uint8_t                  buf[4];
 
@@ -898,13 +898,13 @@ finish:
     return ret;
 }
 
-pgp_errcode_t
+rnp_result_t
 init_armored_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     return RNP_ERROR_NOT_IMPLEMENTED;
 }
 
-pgp_errcode_t
+rnp_result_t
 rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
 {
     /* stack of the streams would be as following:
@@ -913,12 +913,12 @@ rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst
        [compressing stream, partial writing stream] - if compression is enabled
        literal data stream, partial writing stream
     */
-    uint8_t       readbuf[PGP_INPUT_CACHE_SIZE];
-    ssize_t       read;
-    pgp_dest_t    dests[4];
-    int           destc = 0;
-    pgp_errcode_t ret = RNP_SUCCESS;
-    bool          discard;
+    uint8_t      readbuf[PGP_INPUT_CACHE_SIZE];
+    ssize_t      read;
+    pgp_dest_t   dests[4];
+    int          destc = 0;
+    rnp_result_t ret = RNP_SUCCESS;
+    bool         discard;
 
     /* pushing armoring stream, which will write to the output */
     if (handler->ctx->armour) {
