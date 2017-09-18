@@ -131,14 +131,10 @@ static ssize_t stream_read_pkt_len(pgp_source_t *src)
         if (buf[1] < 192) {
             return (ssize_t)buf[1];
         } else if (buf[1] < 224) {
-            if (read < 3) {
+            if (src_read(src, &buf[2], 1) < 1) {
                 return -1;
-            } else {
-                if (src_read(src, &buf[2], 1) < 1) {
-                    return -1;
-                }
-                return ((ssize_t)(buf[1] - 192) << 8) + (ssize_t)buf[2] + 192;
             }
+            return ((ssize_t)(buf[1] - 192) << 8) + (ssize_t)buf[2] + 192;
         } else if (buf[1] < 255) {
             // we do not allow partial length here
             return -1;
@@ -156,15 +152,13 @@ static ssize_t stream_read_pkt_len(pgp_source_t *src)
             case PGP_PTAG_OLD_LEN_2:
                 if (src_read(src, &buf[2], 1) < 1) {
                     return -1;
-                } else {
-                    return ((ssize_t)buf[1] << 8) | ((ssize_t)buf[2]);
                 }
+                return ((ssize_t)buf[1] << 8) | ((ssize_t)buf[2]);
             case PGP_PTAG_OLD_LEN_4:
                 if (src_read(src, &buf[2], 3) < 3) {
                     return -1;
-                } else {
-                    return ((ssize_t)buf[1] << 24) | ((ssize_t)buf[2] << 16) | ((ssize_t)buf[3] << 8) | (ssize_t)buf[4];
                 }
+                return ((ssize_t)buf[1] << 24) | ((ssize_t)buf[2] << 16) | ((ssize_t)buf[3] << 8) | (ssize_t)buf[4];
             default:
                 return -1;
         }
@@ -310,11 +304,11 @@ pgp_errcode_t init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
     param->last = false;
     param->readsrc = readsrc;
 
-    src->readfunc = partial_pkt_src_read;
-    src->closefunc = partial_pkt_src_close;
+    src->read = partial_pkt_src_read;
+    src->close = partial_pkt_src_close;
     src->type = PGP_STREAM_PARLEN_PACKET;
     src->size = 0;
-    src->read = 0;
+    src->readb = 0;
     src->knownsize = 0;
     src->eof = 0;
     
@@ -336,7 +330,7 @@ void literal_src_close(pgp_source_t *src)
     pgp_source_literal_param_t *param = src->param;
     if (param) {
         if (param->pkt.partial) {
-            param->pkt.readsrc->closefunc(param->pkt.readsrc);
+            param->pkt.readsrc->close(param->pkt.readsrc);
             free(param->pkt.readsrc);
             param->pkt.readsrc = NULL;
         }
@@ -442,7 +436,7 @@ void compressed_src_close(pgp_source_t *src)
     pgp_source_compressed_param_t *param = src->param;
     if (param) {
         if (param->pkt.partial) {
-            param->pkt.readsrc->closefunc(param->pkt.readsrc);
+            param->pkt.readsrc->close(param->pkt.readsrc);
             free(param->pkt.readsrc);
             param->pkt.readsrc = NULL;
         }
@@ -539,7 +533,7 @@ void encrypted_src_close(pgp_source_t *src)
         FREE_ARRAY(param, pubenc);
 
         if (param->pkt.partial) {
-            param->pkt.readsrc->closefunc(param->pkt.readsrc);
+            param->pkt.readsrc->close(param->pkt.readsrc);
             free(param->pkt.readsrc);
             param->pkt.readsrc = NULL;
         }
@@ -731,7 +725,7 @@ static int encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
             /* init mdc if it is here */
             /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB resynchronization is done after encrypting this prefix data. */
             if (!param->has_mdc) {
-                pgp_cipher_cfb_resync_v2(&crypt);
+                pgp_cipher_cfb_resync(&param->decrypt);
             } else {
                 if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
                     (void) fprintf(stderr, "encrypted_check_passphrase: cannot create sha1 hash\n");
@@ -760,6 +754,7 @@ static pgp_errcode_t init_packet_params(pgp_source_t *src, pgp_source_packet_par
 {
     pgp_source_t *partsrc;
     pgp_errcode_t errcode;
+    ssize_t       len;
 
     param->origsrc = NULL;
     // initialize partial reader if needed
@@ -779,10 +774,12 @@ static pgp_errcode_t init_packet_params(pgp_source_t *src, pgp_source_packet_par
         param->indeterminate = true;
         (void) src_skip(param->readsrc, 1);
     } else {
-        if ((src->size = stream_read_pkt_len(param->readsrc)) < 0) {
+        len = stream_read_pkt_len(param->readsrc);
+        if (len < 0) {
             (void) fprintf(stderr, "init_packet_params: cannot read pkt len\n");
             return RNP_ERROR_BAD_FORMAT;
         }
+        src->size = len;
         src->knownsize = 1;
     }
 
@@ -802,11 +799,11 @@ static pgp_errcode_t init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *s
 
     param = src->param;
     param->pkt.readsrc = readsrc;
-    src->readfunc = literal_src_read;
-    src->closefunc = literal_src_close;
+    src->read = literal_src_read;
+    src->close = literal_src_close;
     src->type = PGP_STREAM_LITERAL;
     src->size = 0;
-    src->read = 0;
+    src->readb = 0;
     src->knownsize = 0;
     src->eof = 0;
 
@@ -881,11 +878,11 @@ static pgp_errcode_t init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t
 
     param = src->param;
     param->pkt.readsrc = readsrc;
-    src->readfunc = compressed_src_read;
-    src->closefunc = compressed_src_close;
+    src->read = compressed_src_read;
+    src->close = compressed_src_close;
     src->type = PGP_STREAM_COMPRESSED;
     src->size = 0;
-    src->read = 0;
+    src->readb = 0;
     src->knownsize = 0;
     src->eof = 0;
 
@@ -959,11 +956,11 @@ static pgp_errcode_t init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t 
     }
     param = src->param;
     param->pkt.readsrc = readsrc;
-    src->readfunc = encrypted_src_read;
-    src->closefunc = encrypted_src_close;
+    src->read = encrypted_src_read;
+    src->close = encrypted_src_close;
     src->type = PGP_STREAM_ENCRYPTED;
     src->size = 0;
-    src->read = 0;
+    src->readb = 0;
     src->knownsize = 0;
     src->eof = 0;
 
@@ -1135,6 +1132,29 @@ static pgp_errcode_t init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_
     }
 }
 
+bool is_pgp_sequence(uint8_t *buf, int size)
+{
+    int tag;
+
+    if (size < 1) {
+        return false;
+    }
+
+    tag = stream_packet_type(buf[0]);
+    switch (tag) {
+        case PGP_PTAG_CT_PK_SESSION_KEY:
+        case PGP_PTAG_CT_SK_SESSION_KEY:
+        case PGP_PTAG_CT_1_PASS_SIG:
+        case PGP_PTAG_CT_SE_DATA:
+        case PGP_PTAG_CT_SE_IP_DATA:
+        case PGP_PTAG_CT_COMPRESSED:
+        case PGP_PTAG_CT_LITDATA:
+            return true;
+        default:
+            return false;
+    }
+}
+
 pgp_errcode_t process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
 {
     static const char     armor_start[] = "-----BEGIN PGP";
@@ -1158,7 +1178,7 @@ pgp_errcode_t process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src
     }
 
     /* Building readers sequence.  Checking whether it is binary data */
-    if (buf[0] & PGP_PTAG_ALWAYS_SET) {
+    if (is_pgp_sequence(buf, read)) {
         res = init_packet_sequence(&ctx, src);
         if (res != RNP_SUCCESS) {
             goto finish;
