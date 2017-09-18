@@ -101,6 +101,15 @@ typedef struct pgp_source_partial_param_t {
     bool          last;    /* current part is last */
 } pgp_source_partial_param_t;
 
+typedef struct pgp_source_armored_param_t {
+    pgp_source_t *readsrc; /* source to read from */
+    char *        armorheader; /* BEGIN PGP MESSAGE - like header */
+    char *        version;     /* Version: header if any */
+    char *        comment;     /* Comment: header if any */
+    char *        hash;        /* Hash: header if any */
+    char *        charset;     /* Charset: header if any */
+} pgp_source_armored_param_t;
+
 static int
 stream_packet_type(uint8_t ptag)
 {
@@ -1095,6 +1104,60 @@ finish:
     return errcode;
 }
 
+static ssize_t
+armored_src_read(pgp_source_t *src, void *buf, size_t len)
+{
+    return -1;
+}
+
+static void
+armored_src_close(pgp_source_t *src)
+{
+    pgp_source_armored_param_t *param = src->param;
+
+    if (!param) {
+        return;
+    }
+
+    free(param->armorheader);
+    free(param->version);
+    free(param->comment);
+    free(param->hash);
+    free(param->charset);
+    free(param);
+    param = NULL;
+}
+
+static pgp_errcode_t
+init_armored_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
+{
+    pgp_errcode_t               errcode = RNP_SUCCESS;
+    pgp_source_armored_param_t *param;
+
+    if (!init_source_cache(src, sizeof(*param))) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    param = src->param;
+    param->readsrc = readsrc;
+    src->read = armored_src_read;
+    src->close = armored_src_close;
+    src->type = PGP_STREAM_ARMOURED;
+    src->size = 0;
+    src->readb = 0;
+    src->knownsize = 0;
+    src->eof = 0;
+
+    errcode = RNP_ERROR_NOT_IMPLEMENTED;
+    goto finish;
+
+    finish:
+    if (errcode != RNP_SUCCESS) {
+        armored_src_close(src);
+    }
+    return  errcode;
+}
+
 static void
 init_processing_ctx(pgp_processing_ctx_t *ctx)
 {
@@ -1219,6 +1282,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
     rnp_result_t                res = RNP_ERROR_BAD_FORMAT;
     pgp_processing_ctx_t        ctx;
     pgp_source_t *              litsrc;
+    pgp_source_t *              armorsrc = NULL;
     pgp_source_literal_param_t *litparam;
     pgp_dest_t                  outdest;
     uint8_t *                   readbuf = NULL;
@@ -1243,11 +1307,20 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
         /* Trying armored data: not implemented yet */
         buf[read - 1] = 0;
         if (strstr((char *) buf, armor_start) != NULL) {
-            // TODO: push cleartext source or dearmoring source and call
-            // process_packet_sequence
-            (void) fprintf(stderr, "process_pgp_source: armored input is not supported yet\n");
-            res = RNP_ERROR_NOT_IMPLEMENTED;
-            goto finish;
+            if ((armorsrc = calloc(1, sizeof(*armorsrc))) == NULL) {
+                (void) fprintf(stderr, "process_pgp_source: allocation failed\n");
+                goto finish;
+            }
+
+            res = init_armored_src(&ctx, armorsrc, src);
+
+            if (res == RNP_SUCCESS) {
+                EXPAND_ARRAY_EX((&ctx), src, 1);
+                ctx.srcs[ctx.srcc++] = armorsrc;
+            } else {
+                free(armorsrc);
+                goto finish;
+            }
         } else {
             (void) fprintf(stderr, "process_pgp_source: not an OpenPGP data provided\n");
             res = RNP_ERROR_BAD_FORMAT;
