@@ -271,9 +271,10 @@ pgp_errcode_t init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
     param->parthdr = 0xE0 | PARTIAL_PKT_SIZE_BITS;
     param->len = 0;
     dst->param = param;
-    dst->writefunc = partial_dst_write;
-    dst->closefunc = partial_dst_close;
+    dst->write = partial_dst_write;
+    dst->close = partial_dst_close;
     dst->type = PGP_STREAM_PARLEN_PACKET;
+    dst->writeb = 0;
 
     return RNP_SUCCESS;
 }
@@ -445,9 +446,10 @@ pgp_errcode_t init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, 
     }
 
     dst->param = param;
-    dst->writefunc = encrypted_dst_write;
-    dst->closefunc = encrypted_dst_close;
+    dst->write = encrypted_dst_write;
+    dst->close = encrypted_dst_close;
     dst->type = PGP_STREAM_ENCRYPTED;
+    dst->writeb = 0;
     param->has_mdc = true;
 
     /* configuring and writing sym-encrypted session key */
@@ -535,7 +537,7 @@ pgp_errcode_t init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, 
     pgp_cipher_cfb_encrypt(&param->encrypt, enchdr, enchdr, blsize + 2);
     /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB resynchronization is done after encrypting this prefix data. */
     if (!param->has_mdc) {
-        pgp_cipher_cfb_resync_v2(&param->encrypt);
+        pgp_cipher_cfb_resync(&param->encrypt);
     }
     dst_write(param->pkt.writedst, enchdr, blsize + 2);
 
@@ -595,8 +597,8 @@ void compressed_dst_write(pgp_dest_t *dst, void *buf, size_t len)
     
         while (param->bz.avail_in > 0) {
             zret = BZ2_bzCompress(&param->bz, BZ_RUN);
-            if (zret != BZ_OK) {
-                (void) fprintf(stderr, "compressed_dst_write: wrong bzip2 state\n");
+            if (zret < 0) {
+                (void) fprintf(stderr, "compressed_dst_write: error %d\n", zret);
                 dst->werr = RNP_ERROR_BAD_STATE;
                 return;
             }
@@ -661,7 +663,7 @@ void compressed_dst_close(pgp_dest_t *dst, bool discard)
         
             do {
                 zret = BZ2_bzCompress(&param->bz, BZ_FINISH);
-                if ((zret != BZ_OK) && (zret != BZ_STREAM_END)) {
+                if (zret < 0) {
                     (void) fprintf(stderr, "compressed_dst_write: wrong bzip2 state %d\n", zret);
                     dst->werr = RNP_ERROR_BAD_STATE;
                     return;
@@ -711,9 +713,10 @@ pgp_errcode_t init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst,
     }
 
     dst->param = param;
-    dst->writefunc = compressed_dst_write;
-    dst->closefunc = compressed_dst_close;
+    dst->write = compressed_dst_write;
+    dst->close = compressed_dst_close;
     dst->type = PGP_STREAM_COMPRESSED;
+    dst->writeb = 0;
     param->alg = handler->ctx->zalg;
     param->len = 0;
     param->pkt.partial = true;
@@ -814,9 +817,10 @@ pgp_errcode_t init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pg
     }
 
     dst->param = param;
-    dst->writefunc = literal_dst_write;
-    dst->closefunc = literal_dst_close;
+    dst->write = literal_dst_write;
+    dst->close = literal_dst_close;
     dst->type = PGP_STREAM_LITERAL;
+    dst->writeb = 0;
     param->partial = true;
     param->indeterminate = false;
     param->tag = PGP_PTAG_CT_LITDATA;
@@ -925,7 +929,7 @@ pgp_errcode_t rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, p
 
             for (int i = destc - 1; i >=0; i--) {
                 if (dests[i].werr != RNP_SUCCESS) {
-                    (void) fprintf(stderr, "rnp_encrypt_src: failed to output data\n");
+                    (void) fprintf(stderr, "rnp_encrypt_src: failed to process data\n");
                     ret = RNP_ERROR_WRITE;
                     goto finish;
                 }

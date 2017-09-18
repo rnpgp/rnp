@@ -66,8 +66,7 @@ ssize_t src_read(pgp_source_t *src, void *buf, size_t len)
         if (read >= len) {
             memcpy(buf, &cache->buf[cache->pos], len);
             cache->pos += len;
-            src->read += len;
-            return len;
+            goto finish;
         } else {
             memcpy(buf, &cache->buf[cache->pos], read);
             cache->pos += read;
@@ -80,24 +79,24 @@ ssize_t src_read(pgp_source_t *src, void *buf, size_t len)
     while (left > 0) {
         if (!cache || (left > sizeof(cache->buf))) {
             // If there is no cache or chunk is larger then read directly
-            read = src->readfunc(src, buf, left);
+            read = src->read(src, buf, left);
             if (read > 0) {
                 left -= read;
                 buf = (uint8_t*)buf + read;
             } else if (read == 0) {
                 src->eof = 1;
-                src->read += len - left;
-                return len - left;
+                len = len - left;
+                goto finish;
             } else {
                 return -1;
             }
         } else {
             // Try to fill the cache to avoid small reads
-            read = src->readfunc(src, &cache->buf[0], sizeof(cache->buf));
+            read = src->read(src, &cache->buf[0], sizeof(cache->buf));
             if (read == 0) {
                 src->eof = 1;
-                src->read += len - left;
-                return len - left;
+                len = len - left;
+                goto finish;
             } else if (read < 0) {
                 return -1;
             } else if (read < left) {
@@ -108,13 +107,13 @@ ssize_t src_read(pgp_source_t *src, void *buf, size_t len)
                 memcpy(buf, &cache->buf[0], left);
                 cache->pos = left;
                 cache->len = read;
-                src->read += len;
-                return len;
+                goto finish;
             }
         }
     }
     
-    src->read += len;
+    finish:
+    src->readb += len;
     return len;
 }
 
@@ -143,7 +142,7 @@ ssize_t src_peek(pgp_source_t *src, void *buf, size_t len)
     }
 
     while (cache->len < len) {
-        read = src->readfunc(src, &cache->buf[cache->len], sizeof(cache->buf) - cache->len);
+        read = src->read(src, &cache->buf[cache->len], sizeof(cache->buf) - cache->len);
         if (read == 0) {
             memcpy(buf, &cache->buf[0], cache->len);
             return cache->len;
@@ -184,8 +183,8 @@ ssize_t src_skip(pgp_source_t *src, size_t len)
 
 void src_close(pgp_source_t *src)
 {
-    if (src->closefunc) {
-        src->closefunc(src);
+    if (src->close) {
+        src->close(src);
     }
 }
 
@@ -267,11 +266,11 @@ pgp_errcode_t init_file_src(pgp_source_t *src, const char *path)
 
     param = src->param;
     param->fd = fd;
-    src->readfunc = file_src_read;
-    src->closefunc = file_src_close;
+    src->read = file_src_read;
+    src->close = file_src_close;
     src->type = PGP_STREAM_FILE;
     src->size = st.st_size;
-    src->read = 0;
+    src->readb = 0;
     src->knownsize = 1;
     src->eof = 0;
 
@@ -288,11 +287,11 @@ pgp_errcode_t init_stdin_src(pgp_source_t *src)
 
     param = src->param;
     param->fd = 0;
-    src->readfunc = file_src_read;
-    src->closefunc = file_src_close;
+    src->read = file_src_read;
+    src->close = file_src_close;
     src->type = PGP_STREAM_STDIN;
     src->size = 0;
-    src->read = 0;
+    src->readb = 0;
     src->knownsize = 0;
     src->eof = 0;
 
@@ -306,16 +305,16 @@ pgp_errcode_t init_mem_src(pgp_source_t *src, void *mem, size_t len)
 
 void dst_write(pgp_dest_t *dst, void *buf, size_t len)
 {
-    if ((len > 0) && (dst->writefunc)) {
-        dst->writefunc(dst, buf, len);
-        dst->write += len;
+    if ((len > 0) && (dst->write)) {
+        dst->write(dst, buf, len);
+        dst->writeb += len;
     }
 }
 
 void dst_close(pgp_dest_t *dst, bool discard)
 {
-    if (dst->closefunc) {
-        dst->closefunc(dst, discard);
+    if (dst->close) {
+        dst->close(dst, discard);
     }
 }
 
@@ -397,10 +396,10 @@ pgp_errcode_t init_file_dest(pgp_dest_t *dst, const char *path)
     dst->param = param;
     param->fd = fd;
     strcpy(param->path, path);
-    dst->writefunc = file_dst_write;
-    dst->closefunc = file_dst_close;
+    dst->write = file_dst_write;
+    dst->close = file_dst_close;
     dst->type = PGP_STREAM_FILE;
-    dst->write = 0;
+    dst->writeb = 0;
 
     return RNP_SUCCESS;
 }
@@ -415,10 +414,10 @@ pgp_errcode_t init_stdout_dest(pgp_dest_t *dst)
 
     dst->param = param;
     param->fd = STDOUT_FILENO;
-    dst->writefunc = file_dst_write;
-    dst->closefunc = file_dst_close;
+    dst->write = file_dst_write;
+    dst->close = file_dst_close;
     dst->type = PGP_STREAM_STDOUT;
-    dst->write = 0;
+    dst->writeb = 0;
 
     return RNP_SUCCESS;
 }

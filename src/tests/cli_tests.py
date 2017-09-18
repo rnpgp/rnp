@@ -339,12 +339,29 @@ def rnp_encrypt_file(recipient, src, dst, zlevel = 6, zalgo = 'zip', armour = Fa
     if ret != 0: 
         raise_err('rnp encryption failed', err)
 
+def rnp_symencrypt_file(src, dst, cipher, zlevel = 6, zalgo = 'zip', armour = False):
+    pipe = pswd_pipe(PASSWORD)
+    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--cipher', cipher, '-z', str(zlevel), '--' + zalgo, '-c', src, '--output', dst]
+    if armour:
+        params += ['--armor']
+    ret, out, err = run_proc(RNP, params)
+    os.close(pipe)
+    if ret != 0: 
+        raise_err('rnp symmetric encryption failed', err)
+
 def rnp_decrypt_file(src, dst):
     pipe = pswd_pipe(PASSWORD)
     ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--decrypt', src, '--output', dst])
     os.close(pipe)
     if ret != 0:
         raise_err('rnp decryption failed', out + err)
+
+def rnp_symdecrypt_file(src, dst):
+    pipe = pswd_pipe(PASSWORD)
+    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--sym-decrypt', src, '--output', dst])
+    os.close(pipe)
+    if ret != 0:
+        raise_err('rnp symmetric decryption failed', out + err)
 
 def rnp_sign_file(src, dst, signer, armour = False):
     pipe = pswd_pipe(PASSWORD)
@@ -429,6 +446,14 @@ def gpg_encrypt_file(src, dst, cipher = 'AES', zlevel = 6, zalgo = 1, armour = F
     ret, out, err = run_proc(GPG, params)
     if ret != 0:
         raise_err('gpg encryption failed for cipher ' + cipher, err)
+
+def gpg_symencrypt_file(src, dst, cipher = 'AES', zlevel = 6, zalgo = 1, armour = False):
+    params = ['--homedir', GPGDIR, '-c', '-z', str(zlevel), '--compress-algo', str(zalgo), '--batch', '--passphrase', PASSWORD, '--cipher-algo', cipher, '--output', dst, src]
+    if armour:
+        params.insert(2, '--armor')
+    ret, out, err = run_proc(GPG, params)
+    if ret != 0:
+        raise_err('gpg symmetric encryption failed for cipher ' + cipher, err)
 
 def gpg_decrypt_file(src, dst, keypass):
     ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', keypass, '--trust-model', 'always', '-o', dst, '-d', src])
@@ -542,7 +567,7 @@ def rnp_encryption():
     gpg_import_pubring()
     # Encrypt cleartext file with GPG and decrypt it with RNP, using different ciphers and file sizes
     ciphers = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
-    sizes = [20, 1000, 2000, 5000, 10000, 20000, 60000, 1000000]
+    sizes = [20, 1000, 5000, 20000, 150000, 1000000]
     for cipher in ciphers:
         for size in sizes:
             run_test(rnp_encryption_gpg_to_rnp, cipher, size)
@@ -554,6 +579,57 @@ def rnp_encryption():
         run_test(rnp_encryption_rnp_to_gpg, size)
     # Cleanup
     clear_keyrings()
+
+def rnp_sym_encryption_gpg_to_rnp(cipher, filesize, zlevel = 6, zalgo = 1):
+    src, dst, dec = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
+    # Generate random file of required size
+    random_text(src, filesize)
+    for armour in [False, False]:
+        # Encrypt cleartext file with GPG
+        gpg_symencrypt_file(src, dst, cipher, zlevel, zalgo, armour)
+        # Decrypt encrypted file with RNP
+        rnp_symdecrypt_file(dst, dec)
+        compare_files(src, dec, 'rnp decrypted data differs')
+        remove_files(dst, dec)
+
+def rnp_sym_encryption_rnp_to_gpg(cipher, filesize, zlevel = 6, zalgo = 'zip'):
+    src, dst, enc = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
+    # Generate random file of required size
+    random_text(src, filesize)
+    for armour in [False, False]:
+        # Encrypt cleartext file with RNP
+        rnp_symencrypt_file(src, enc, cipher, zlevel, zalgo, armour)
+        # Decrypt encrypted file with GPG
+        gpg_decrypt_file(enc, dst, PASSWORD)
+        compare_files(src, dst, 'gpg decrypted data differs')
+        remove_files(dst)
+        # Decrypt encrypted file with RNP
+        rnp_symdecrypt_file(enc, dst)
+        compare_files(src, dst, 'rnp decrypted data differs')
+        remove_files(enc, dst)
+
+def rnp_sym_encryption():
+    # Currently rnp fails when keyring is empty
+    rnp_genkey_rsa(KEY_ENCRYPT)
+    # Encrypt cleartext with GPG and decrypt with RNP
+    ciphers = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
+    sizes = [20, 1000, 5000, 20000, 150000, 1000000]
+
+    for cipher in ciphers:
+        for size in sizes:
+            run_test(rnp_sym_encryption_gpg_to_rnp, cipher, size, 0, 1)
+            run_test(rnp_sym_encryption_gpg_to_rnp, cipher, size, 6, 1)
+            run_test(rnp_sym_encryption_gpg_to_rnp, cipher, size, 6, 2)
+            run_test(rnp_sym_encryption_gpg_to_rnp, cipher, size, 6, 3)
+
+    ciphers = ['cast5', 'idea', 'blowfish', 'twofish', 'aes128', 'aes192', 'aes256', 'camellia128', 'camellia192', 'camellia256', 'tripledes']
+    # Encrypt cleartext with RNP and decrypt with GPG
+    for cipher in ciphers:
+        for size in sizes:
+            run_test(rnp_sym_encryption_rnp_to_gpg, cipher, size, 0)
+            run_test(rnp_sym_encryption_rnp_to_gpg, cipher, size, 6, 'zip')
+            run_test(rnp_sym_encryption_rnp_to_gpg, cipher, size, 6, 'zlib')
+            run_test(rnp_sym_encryption_rnp_to_gpg, cipher, size, 6, 'bzip2')
 
 def rnp_signing_rnp_to_gpg(filesize):
     src, sig, ver = reg_workfiles('cleartext', '.txt', '.sig', '.ver')
@@ -645,7 +721,7 @@ def rnp_signing():
     rnp_genkey_rsa('dummy2@rnp', 1024)
     # Import keyring to the GPG
     gpg_import_pubring()
-    sizes = [20, 1000, 2000, 5000, 10000, 20000, 60000, 1000000]
+    sizes = [20, 1000, 5000, 20000, 150000, 1000000]
     for size in sizes:
         run_test(rnp_signing_rnp_to_gpg, size)
         run_test(rnp_detached_signing_rnp_to_gpg, size)
@@ -671,7 +747,7 @@ def rnp_compression():
     levels = [0, 2, 4, 6, 9]
     algosrnp = ['zip', 'zlib', 'bzip2']
     algosgpg = [1, 2, 3]
-    sizes = [20, 5000, 10000, 15000, 20000, 100000]
+    sizes = [20, 1000, 5000, 20000, 150000, 1000000]
 
     for size in sizes:
         for algo in [0, 1, 2]:
@@ -689,6 +765,8 @@ def run_rnp_tests():
     rnp_signing()
     # 3. Compression / decompression
     rnp_compression()
+    # 4. Symmetric encryption
+    rnp_sym_encryption()
 
 '''
     Things to try here later on:
