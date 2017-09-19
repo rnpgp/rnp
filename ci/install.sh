@@ -11,15 +11,15 @@ botan_build=${LOCAL_BUILDS}/botan
 if [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ] && \
    [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.dylib" ]; then
 
-	if [ -d "${botan_build}" ]; then
-		rm -rf "${botan_build}"
-	fi
+  if [ -d "${botan_build}" ]; then
+    rm -rf "${botan_build}"
+  fi
 
   git clone https://github.com/randombit/botan "${botan_build}"
   pushd "${botan_build}"
   ./configure.py --prefix="${BOTAN_INSTALL}"
   ${MAKE} -j${CORES} install
-	popd
+  popd
 fi
 
 # cmocka
@@ -27,9 +27,9 @@ cmocka_build=${LOCAL_BUILDS}/cmocka
 if [ ! -e "${CMOCKA_INSTALL}/lib/libcmocka.so" ] && \
    [ ! -e "${CMOCKA_INSTALL}/lib/libcmocka.dylib" ]; then
 
-	if [ -d "${cmocka_build}" ]; then
-		rm -rf "${cmocka_build}"
-	fi
+  if [ -d "${cmocka_build}" ]; then
+    rm -rf "${cmocka_build}"
+  fi
 
   git clone git://git.cryptomilk.org/projects/cmocka.git ${cmocka_build}
   cd ${cmocka_build}
@@ -49,11 +49,11 @@ fi
 # json-c
 jsonc_build=${LOCAL_BUILDS}/json-c
 if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \
-	 [ ! -e "${JSONC_INSTALL}/lib/libjson-c.dylib" ]; then
+   [ ! -e "${JSONC_INSTALL}/lib/libjson-c.dylib" ]; then
 
- 	if [ -d "${jsonc_build}" ]; then
- 		rm -rf "${jsonc_build}"
- 	fi
+   if [ -d "${jsonc_build}" ]; then
+     rm -rf "${jsonc_build}"
+   fi
 
   mkdir -p "${jsonc_build}"
   pushd ${jsonc_build}
@@ -63,7 +63,7 @@ if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \
   autoreconf -ivf
   ./configure --prefix="${JSONC_INSTALL}"
   ${MAKE} -j${CORES} install
-	popd
+  popd
 fi
 
 # gpg21
@@ -74,35 +74,35 @@ if [ ! -e "${GPG21_INSTALL}/bin/gpg" ]; then
 
   gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 249B39D24F25E3B6 04376F3EE0856959 2071B08A33BD3F06 8A861B1C7EFD60D9
 
-	for archive in npth:1.5 libgpg-error:1.27; do
-		pkgname="${archive%:*}"
-		version="${archive#*:}"
+  for archive in npth:1.5 libgpg-error:1.27; do
+    pkgname="${archive%:*}"
+    version="${archive#*:}"
 
-	  wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2
-	  wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2.sig
-	  gpg --verify ${pkgname}-${version}.tar.bz2.sig
-	  tar -xjf ${pkgname}-${version}.tar.bz2
-	  cd ${pkgname}-${version}/
-	  # autoreconf -ivf
-		./configure --prefix="${GPG21_INSTALL}"
-	  ${MAKE} -j${CORES} install
-	  cd ..
-	done
+    wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2
+    wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2.sig
+    gpg --verify ${pkgname}-${version}.tar.bz2.sig
+    tar -xjf ${pkgname}-${version}.tar.bz2
+    cd ${pkgname}-${version}/
+    # autoreconf -ivf
+    ./configure --prefix="${GPG21_INSTALL}"
+    ${MAKE} -j${CORES} install
+    cd ..
+  done
 
-	for archive in libgcrypt:1.8.0 libassuan:2.4.3 libksba:1.3.5; do
-		pkgname="${archive%:*}"
-		version="${archive#*:}"
+  for archive in libgcrypt:1.8.0 libassuan:2.4.3 libksba:1.3.5; do
+    pkgname="${archive%:*}"
+    version="${archive#*:}"
 
-	  wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2
-	  wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2.sig
-	  gpg --verify ${pkgname}-${version}.tar.bz2.sig
-	  tar -xjf ${pkgname}-${version}.tar.bz2
-	  cd ${pkgname}-${version}/
-	  # autoreconf -ivf
-	  ./configure --prefix="${GPG21_INSTALL}" --with-libgpg-error-prefix="${GPG21_INSTALL}"
-	  ${MAKE} -j${CORES} install
-	  cd ..
-	done
+    wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2
+    wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2.sig
+    gpg --verify ${pkgname}-${version}.tar.bz2.sig
+    tar -xjf ${pkgname}-${version}.tar.bz2
+    cd ${pkgname}-${version}/
+    # autoreconf -ivf
+    ./configure --prefix="${GPG21_INSTALL}" --with-libgpg-error-prefix="${GPG21_INSTALL}"
+    ${MAKE} -j${CORES} install
+    cd ..
+  done
 
   wget -c https://www.gnupg.org/ftp/gcrypt/pinentry/pinentry-1.0.0.tar.bz2
   wget -c https://www.gnupg.org/ftp/gcrypt/pinentry/pinentry-1.0.0.tar.bz2.sig
