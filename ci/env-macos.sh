@@ -10,3 +10,7 @@ export GPG21_INSTALL="${LOCAL_BUILDS}/builds/gpg21-install"
 export BUILD_MODE=normal
 export CLANG_FORMAT_DIFF="clang-format-diff-4.0"
 export CC=clang
+
+brew_prefix=$(brew --prefix)
+export CFLAGS="${CFLAGS} -I${brew_prefix}/include"
+export LDFLAGS="$LDFLAGS -L${brew_prefix}/lib"
