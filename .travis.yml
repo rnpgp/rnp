@@ -50,6 +50,9 @@ cache:
     - "$JSONC_INSTALL"
     - "$GPG21_INSTALL"
 
+before_install:
+  - ./ci/before_install.sh
+
 install:
   - ./ci/install.sh
 
