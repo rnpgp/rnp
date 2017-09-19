@@ -2,16 +2,21 @@
 #include <unistd.h>      /* getopt() */
 #include <repgp/repgp.h> /* repgp API */
 #include <rnp/rnp.h>     /* rnp_t, rnp_ctx_t et. all */
+#include <libgen.h>      /* basename() */
 
 #define PFX "redumper: "
 
 void
-print_usage(const char *program_name)
+print_usage(char *program_name)
 {
     fprintf(stderr,
-            PFX "Program dumps PGP packets.\n"
-                "\tUsage: %s -i input.pgp [-d] [-h]\n",
-            program_name);
+            PFX
+            "Program dumps PGP packets. \n\nUsage:\n"
+            "\t%s -i input.pgp [-d] [-h]\n"
+            "\t  -i input_file [mandatory]: input file\n"
+            "\t  -d : indicates whether to print packet content. Data is represented as hex\n"
+            "\t  -h : prints help and exists\n",
+            basename(program_name));
 }
 
 int
