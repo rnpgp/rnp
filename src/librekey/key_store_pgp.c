@@ -180,6 +180,7 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
         break;
     case PGP_PTAG_SS_PRIMARY_USER_ID:
         key->uid0 = key->uidc - 1;
+        key->uid0_set = 1;
         break;
     case PGP_PTAG_SS_REVOCATION_REASON: {
         SUBSIG_REQUIRED_BEFORE("ss revocation reason");

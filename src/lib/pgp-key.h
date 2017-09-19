@@ -75,10 +75,11 @@ struct pgp_key_t {
     uint8_t            keyid[PGP_KEY_ID_SIZE];
     pgp_fingerprint_t  fingerprint;
     uint8_t            grip[PGP_FINGERPRINT_SIZE];
-    uint32_t           uid0;       /* primary uid index in uids array */
-    uint8_t            revoked;    /* key has been revoked */
-    pgp_revoke_t       revocation; /* revocation reason */
-    key_store_format_t format;     /* the format of the key in packets[0] */
+    uint32_t           uid0;         /* primary uid index in uids array */
+    unsigned           uid0_set : 1; /* flag for the above */
+    uint8_t            revoked;      /* key has been revoked */
+    pgp_revoke_t       revocation;   /* revocation reason */
+    key_store_format_t format;       /* the format of the key in packets[0] */
 
     bool is_protected; /* whether the key in packets[0] is encrypted (for secret keys) */
 };
