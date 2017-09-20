@@ -189,7 +189,6 @@ typedef enum {
     PGP_PARSER_PACKET_END = 0x103,
 
     /* signature subpackets (0x200-2ff) (type+0x200) */
-    /* only those we can parse are listed here */
     PGP_PTAG_SIG_SUBPKT_BASE = 0x200,        /* Base for signature
                                               * subpacket types - All
                                               * signature type values

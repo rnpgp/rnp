@@ -955,3 +955,78 @@ pgp_key_is_protected(const pgp_key_t *key)
     }
     return key->is_protected;
 }
+
+static bool
+key_has_userid(const pgp_key_t *key, const uint8_t *userid)
+{
+    for (unsigned i = 0; i < key->uidc; i++) {
+        if (strcmp((char *) key->uids[i], (char *) userid) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool
+pgp_key_add_userid(pgp_key_t *            key,
+                   const pgp_seckey_t *   seckey,
+                   pgp_hash_alg_t         hash_alg,
+                   rnp_selfsig_cert_info *cert)
+{
+    bool          ret = false;
+    pgp_output_t *output = NULL;
+    pgp_memory_t *mem = NULL;
+
+    // sanity checks
+    if (!key || !seckey || !cert || !cert->userid[0]) {
+        goto done;
+    }
+    // userids are only valid for primary keys, not subkeys
+    if (!pgp_key_is_primary_key(key)) {
+        RNP_LOG("cannot add a userid to a subkey");
+        goto done;
+    }
+    // see if the key already has this userid
+    if (key_has_userid(key, cert->userid)) {
+        RNP_LOG("key already has this userid");
+        goto done;
+    }
+    // this isn't really valid for this format
+    if (key->format == G10_KEY_STORE) {
+        goto done;
+    }
+    // We only support modifying v4 and newer keys
+    if (key->key.pubkey.version < PGP_V4) {
+        RNP_LOG("adding a userid to V2/V3 key is not supported");
+        goto done;
+    }
+    // TODO: changing the primary userid is not currently supported
+    if (key->uid0_set && cert->primary) {
+        RNP_LOG("changing the primary userid is not supported");
+        goto done;
+    }
+
+    // write the packets
+    if (!pgp_setup_memory_write(NULL, &output, &mem, 4096)) {
+        goto done;
+    }
+    // write userid and selfsig packets
+    if (!pgp_write_struct_userid(output, cert->userid) ||
+        !pgp_write_selfsig_cert(output, seckey, hash_alg, cert)) {
+        RNP_LOG("failed to write userid + selfsig");
+        goto done;
+    }
+
+    // parse the packets back into the key structure
+    if (!pgp_parse_key_attrs(key, mem->buf, mem->length)) {
+        RNP_LOG("failed to parse key attributes back in");
+        goto done;
+    }
+    ret = true;
+
+done:
+    if (output && mem) {
+        pgp_teardown_memory_write(output, mem);
+    }
+    return ret;
+}

@@ -160,7 +160,9 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_load_keyring_and_count_pgp),
       cmocka_unit_test(pgp_compress_roundtrip),
       cmocka_unit_test(test_key_unlock_pgp),
-      cmocka_unit_test(test_key_protect_load_pgp)};
+      cmocka_unit_test(test_key_protect_load_pgp),
+      cmocka_unit_test(test_key_add_userid),
+    };
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */

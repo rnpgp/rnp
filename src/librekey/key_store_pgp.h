@@ -68,4 +68,6 @@ bool rnp_key_store_pgp_read_from_mem(pgp_io_t *,
 int rnp_key_store_pgp_write_to_mem(
   pgp_io_t *, rnp_key_store_t *, const uint8_t *, const unsigned, pgp_memory_t *);
 
+bool pgp_parse_key_attrs(pgp_key_t *key, const uint8_t *data, size_t data_len);
+
 #endif /* KEY_STORE_PGP_H_ */

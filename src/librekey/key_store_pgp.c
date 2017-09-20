@@ -296,6 +296,37 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
 }
 
 static pgp_cb_ret_t
+cb_keyattrs_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
+{
+    pgp_key_t *key = pgp_callback_arg(cbinfo);
+    return parse_key_attributes(key, pkt, cbinfo);
+}
+
+bool
+pgp_parse_key_attrs(pgp_key_t *key, const uint8_t *data, size_t data_len)
+{
+    pgp_stream_t *stream = NULL;
+    bool          ret = false;
+
+    stream = pgp_new(sizeof(*stream));
+    if (!stream) {
+        goto done;
+    }
+    if (!pgp_reader_set_memory(stream, data, data_len)) {
+        goto done;
+    }
+    pgp_set_callback(stream, cb_keyattrs_parse, key);
+    stream->readinfo.accumulate = 1;
+    repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
+    ret = repgp_parse(stream, 0);
+    pgp_print_errors(stream->errors);
+
+done:
+    pgp_stream_delete(stream);
+    return ret;
+}
+
+static pgp_cb_ret_t
 cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
     const pgp_contents_t *content = &pkt->u;
