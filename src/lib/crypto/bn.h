@@ -29,20 +29,6 @@
 #include <inttypes.h>
 #include <stdio.h>
 
-#include <botan/ffi.h>
-
-#ifndef BEGIN_DECLS__
-#if defined(__cplusplus)
-#define BEGIN_DECLS__ extern "C" {
-#define END_DECLS__ }
-#else
-#define BEGIN_DECLS__
-#define END_DECLS__
-#endif
-#endif
-
-BEGIN_DECLS__
-
 #define USE_BN_INTERFACE
 
 #ifdef USE_BN_INTERFACE
@@ -73,7 +59,6 @@ BEGIN_DECLS__
 #define BN_mul PGPV_BN_mul
 #define BN_div PGPV_BN_div
 #define BN_swap PGPV_BN_swap
-#define BN_bitop PGPV_BN_bitop
 #define BN_lshift PGPV_BN_lshift
 #define BN_lshift1 PGPV_BN_lshift1
 #define BN_rshift PGPV_BN_rshift
@@ -96,6 +81,8 @@ BEGIN_DECLS__
 #define BN_gcd PGPV_BN_gcd
 #define BN_words_used PGPV_BN_words_used
 #endif /* USE_BN_INTERFACE */
+
+typedef struct botan_mp_struct* botan_mp_t;
 
 /*
  * PGPV_BIGNUM struct
@@ -152,10 +139,6 @@ int PGPV_BN_div(PGPV_BIGNUM * /*q*/,
                 const PGPV_BIGNUM * /*a*/,
                 const PGPV_BIGNUM * /*b*/);
 void PGPV_BN_swap(PGPV_BIGNUM * /*a*/, PGPV_BIGNUM * /*b*/);
-int  PGPV_BN_bitop(PGPV_BIGNUM * /*r*/,
-                  const PGPV_BIGNUM * /*a*/,
-                  char /*op*/,
-                  const PGPV_BIGNUM * /*b*/);
 int PGPV_BN_lshift(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, int /*n*/);
 int PGPV_BN_lshift1(PGPV_BIGNUM * /*r*/, PGPV_BIGNUM * /*a*/);
 int PGPV_BN_rshift(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, int /*n*/);
@@ -197,12 +180,6 @@ int                PGPV_BN_is_bit_set(const PGPV_BIGNUM * /*a*/, int /*n*/);
 
 int PGPV_BN_gcd(PGPV_BIGNUM * /*r*/, PGPV_BIGNUM * /*a*/, PGPV_BIGNUM * /*b*/);
 
-/**
- * \brief Allocates BIGNUM and mp value assigned
- */
-BIGNUM *new_BN_take_mp(botan_mp_t mp);
-void destroy_BN_mp(BIGNUM **a);
-
 /*
 * This type is used to represent any signature where
 * a pair of MPIs is used (DSA, ECDSA, EdDSA, ...)
@@ -214,7 +191,5 @@ typedef struct DSA_SIG_st {
 
 DSA_SIG *DSA_SIG_new();
 void DSA_SIG_free(DSA_SIG *sig);
-
-END_DECLS__
 
 #endif

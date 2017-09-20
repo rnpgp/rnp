@@ -39,6 +39,7 @@
 #include "readerwriter.h"
 #include "misc.h"
 #include "pgp-key.h"
+#include <botan/ffi.h>
 
 #define G10_CBC_IV_SIZE 16
 

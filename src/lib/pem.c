@@ -86,6 +86,7 @@
 #include "utils.h"
 #include "crypto/bn.h"
 #include "pgp-key.h"
+#include <botan/ffi.h>
 
 bool
 read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
@@ -134,18 +135,15 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
         }
 
         {
-            botan_mp_t x;
-            botan_mp_init(&x);
-            botan_privkey_get_field(x, priv_key, "d");
-            key->key.seckey.key.rsa.d = new_BN_take_mp(x);
+            pgp_rsa_seckey_t* rsa = &(key->key.seckey.key.rsa);
+            botan_mp_init(&rsa->d->mp);
+            botan_privkey_get_field(rsa->d->mp, priv_key, "d");
 
-            botan_mp_init(&x);
-            botan_privkey_get_field(x, priv_key, "p");
-            key->key.seckey.key.rsa.p = new_BN_take_mp(x);
+            botan_mp_init(&rsa->p->mp);
+            botan_privkey_get_field(rsa->p->mp, priv_key, "p");
 
-            botan_mp_init(&x);
-            botan_privkey_get_field(x, priv_key, "q");
-            key->key.seckey.key.rsa.q = new_BN_take_mp(x);
+            botan_mp_init(&rsa->q->mp);
+            botan_privkey_get_field(rsa->q->mp, priv_key, "q");
             botan_privkey_destroy(priv_key);
             ok = true;
         }
@@ -153,10 +151,8 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
         if (botan_privkey_load(&priv_key, rng, keybuf, read, NULL) != 0) {
             ok = false;
         } else {
-            botan_mp_t x;
-            botan_mp_init(&x);
-            botan_privkey_get_field(x, priv_key, "x");
-            key->key.seckey.key.dsa.x = new_BN_take_mp(x);
+            botan_mp_init(&key->key.seckey.key.dsa.x->mp);
+            botan_privkey_get_field(key->key.seckey.key.dsa.x->mp, priv_key, "x");
             botan_privkey_destroy(priv_key);
             ok = true;
         }

@@ -408,9 +408,11 @@ ecdh_roundtrip(void **state)
     size_t            plaintext_len = sizeof(plaintext);
     uint8_t           result[32] = {0};
     size_t            result_len = sizeof(result);
-    botan_mp_t        tmp_eph_key;
+    BIGNUM *          tmp_eph_key;
 
-    rnp_assert_int_equal(rstate, botan_mp_init(&tmp_eph_key), 0);
+    tmp_eph_key = BN_new();
+
+    rnp_assert_true(rstate, tmp_eph_key != NULL);
 
     for (int i = 0; i < ARRAY_SIZE(curves); i++) {
         const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDH,
@@ -436,9 +438,7 @@ ecdh_roundtrip(void **state)
                                                     &ecdh_key1_fpr),
                              RNP_SUCCESS);
 
-        size_t num_bytes = 0;
-        rnp_assert_int_equal(rstate, botan_mp_num_bytes(tmp_eph_key, &num_bytes), 0);
-        rnp_assert_int_equal(rstate, num_bytes, expected_result_byte_size);
+        rnp_assert_int_equal(rstate, BN_num_bytes(tmp_eph_key), expected_result_byte_size);
 
         rnp_assert_int_equal(rstate,
                              pgp_ecdh_decrypt_pkcs5(result,
@@ -456,7 +456,7 @@ ecdh_roundtrip(void **state)
         pgp_seckey_free(&ecdh_key1);
     }
 
-    botan_mp_destroy(tmp_eph_key);
+    BN_free(tmp_eph_key);
 }
 
 void
@@ -469,9 +469,10 @@ ecdh_decryptionNegativeCases(void **state)
     size_t            plaintext_len = sizeof(plaintext);
     uint8_t           result[32] = {0};
     size_t            result_len = sizeof(result);
-    botan_mp_t        tmp_eph_key;
+    BIGNUM *          tmp_eph_key;
 
-    rnp_assert_int_equal(rstate, botan_mp_init(&tmp_eph_key), 0);
+    tmp_eph_key = BN_new();
+    rnp_assert_true(rstate, tmp_eph_key != NULL);
 
     const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDH,
                                                  .hash_alg = PGP_HASH_SHA512,
@@ -496,9 +497,7 @@ ecdh_decryptionNegativeCases(void **state)
                                                 &ecdh_key1_fpr),
                          RNP_SUCCESS);
 
-    size_t num_bytes = 0;
-    rnp_assert_int_equal(rstate, botan_mp_num_bytes(tmp_eph_key, &num_bytes), 0);
-    rnp_assert_int_equal(rstate, num_bytes, expected_result_byte_size);
+    rnp_assert_int_equal(rstate, BN_num_bytes(tmp_eph_key), expected_result_byte_size);
 
     rnp_assert_int_equal(rstate,
                          pgp_ecdh_decrypt_pkcs5(NULL,
@@ -582,7 +581,8 @@ ecdh_decryptionNegativeCases(void **state)
     ecdh_key1.pubkey.key.ecdh.key_wrap_alg = key_wrapping_alg;
 
     // Change ephemeral key, so that it fails to decrypt
-    botan_mp_clear(tmp_eph_key);
+
+    BN_clear(tmp_eph_key);
     rnp_assert_int_equal(rstate,
                          pgp_ecdh_decrypt_pkcs5(result,
                                                 &result_len,
@@ -598,7 +598,7 @@ ecdh_decryptionNegativeCases(void **state)
     rnp_assert_int_equal(rstate, memcmp(plaintext, result, result_len), 0);
     pgp_seckey_free(&ecdh_key1);
 
-    botan_mp_destroy(tmp_eph_key);
+    BN_free(tmp_eph_key);
 }
 
 void

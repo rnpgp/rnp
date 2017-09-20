@@ -43,10 +43,10 @@
 
 #include <crypto.h>
 #include <pgp-key.h>
-#include <crypto/bn.h>
 
 #include <rnp/rnp.h>
 #include <sys/stat.h>
+#include <botan/ffi.h>
 
 /*
  * Handler used to access DRBG.

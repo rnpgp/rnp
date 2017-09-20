@@ -84,6 +84,7 @@
 #include "utils.h"
 #include "crypto/rsa.h"
 #include "crypto/bn.h"
+#include <botan/ffi.h>
 
 #include "hash.h"
 

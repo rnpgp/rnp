@@ -80,6 +80,7 @@
 #include <string.h>
 #include "crypto/elgamal.h"
 #include "crypto/bn.h"
+#include <botan/ffi.h>
 
 #define FAIL(str)                                                                      \
     do {                                                                               \

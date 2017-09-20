@@ -202,7 +202,7 @@ pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
                        size_t                   session_key_len,
                        uint8_t *                wrapped_key,
                        size_t *                 wrapped_key_len,
-                       botan_mp_t               ephemeral_key,
+                       BIGNUM *                 ephemeral_key,
                        const pgp_ecdh_pubkey_t *pubkey,
                        const pgp_fingerprint_t *fingerprint)
 {
@@ -215,8 +215,8 @@ pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
     uint8_t *       tmp_buf = NULL;
     uint8_t         kek[32] = {0}; // Size of SHA-256 or smaller
 
-    if ((session_key_len > OBFUSCATED_KEY_SIZE) || !ephemeral_key || !pubkey || !wrapped_key ||
-        !wrapped_key_len || !fingerprint || !pubkey->ec.point) {
+    if ((session_key_len > OBFUSCATED_KEY_SIZE) || !ephemeral_key || !ephemeral_key->mp ||
+        !pubkey || !wrapped_key || !wrapped_key_len || !fingerprint || !pubkey->ec.point) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -293,7 +293,7 @@ pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
         goto end;
     }
 
-    if (botan_mp_from_bin(ephemeral_key, tmp_buf, tmp_len)) {
+    if (botan_mp_from_bin(ephemeral_key->mp, tmp_buf, tmp_len)) {
         goto end;
     }
 
@@ -312,7 +312,7 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
                        size_t *                 session_key_len,
                        uint8_t *                wrapped_key,
                        size_t                   wrapped_key_len,
-                       const botan_mp_t         ephemeral_key,
+                       const BIGNUM *           ephemeral_key,
                        const pgp_ecc_seckey_t * seckey,
                        const pgp_ecdh_pubkey_t *pubkey,
                        const pgp_fingerprint_t *fingerprint)
@@ -326,7 +326,7 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
     size_t          key_len = sizeof(key);
 
     if (!session_key_len || !session_key_len || !wrapped_key || !seckey || !seckey->x ||
-        !seckey->x->mp || !pubkey) {
+        !seckey->x->mp || !pubkey || !ephemeral_key || !ephemeral_key->mp) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -367,7 +367,7 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
                      other_info,
                      other_info_size,
                      curve_desc,
-                     ephemeral_key,
+                     ephemeral_key->mp,
                      prv_key,
                      kdf_hash)) {
         goto end;
