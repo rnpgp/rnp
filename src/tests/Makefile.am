@@ -14,7 +14,8 @@ rnp_tests_SOURCES   = \
     pgp-parse.c \
     load-pgp.c \
     key-unlock.c \
-    key-protect.c
+    key-protect.c \
+    key-add-userid.c
 
 # don't install any test stuff
 install-binPROGRAMS:

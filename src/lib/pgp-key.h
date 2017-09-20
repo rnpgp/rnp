@@ -207,4 +207,9 @@ bool pgp_key_unprotect(pgp_key_t *key, const pgp_passphrase_provider_t *passphra
  **/
 bool pgp_key_is_protected(const pgp_key_t *key);
 
+bool pgp_key_add_userid(pgp_key_t *            key,
+                        const pgp_seckey_t *   seckey,
+                        pgp_hash_alg_t         hash_alg,
+                        rnp_selfsig_cert_info *cert);
+
 #endif // RNP_PACKET_KEY_H

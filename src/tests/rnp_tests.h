@@ -95,6 +95,8 @@ void test_key_unlock_pgp(void **state);
 
 void test_key_protect_load_pgp(void **state);
 
+void test_key_add_userid(void **state);
+
 #define rnp_assert_int_equal(state, a, b)           \
     do {                                            \
         int _rnp_a = (a);                           \
