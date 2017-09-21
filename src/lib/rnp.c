@@ -1367,6 +1367,45 @@ finish:
     return result;
 }
 
+int
+rnp_dearmor_stream(rnp_ctx_t *ctx, const char *in, const char *out)
+{
+    pgp_source_t         src;
+    pgp_dest_t           dst;
+    rnp_result_t         err;
+    int                  result;
+    bool                 is_stdin;
+    bool                 is_stdout;
+
+    is_stdin = !in || (strlen(in) == 0) || (strcmp(in, "-") == 0);
+    is_stdout = !out || (strlen(out) == 0) || (strcmp(out, "-") == 0);
+
+    err = is_stdin ? init_stdin_src(&src) : init_file_src(&src, in);
+    if (err != RNP_SUCCESS) {
+        (void) fprintf(stderr, "rnp_dearmor_stream: failed to initialize reading\n");
+        return RNP_FAIL;
+    }
+
+    err = is_stdout ? init_stdout_dest(&dst) : init_file_dest(&dst, out);
+    if (err != RNP_SUCCESS) {
+        (void) fprintf(stderr, "rnp_dearmor_stream: failed to initialize writing\n");
+        src_close(&src);
+        return RNP_FAIL;
+    }
+
+    err = dearmor_pgp_source(&src, &dst);
+    if (err == RNP_SUCCESS) {
+        result = RNP_OK;
+    } else {
+        (void) printf("rnp_dearmor_stream: error code 0x%x\n", (int) err);
+        result = RNP_FAIL;
+    }
+
+    src_close(&src);
+    dst_close(&dst, err != RNP_SUCCESS);
+    return result;
+}
+
 /* sign a file */
 int
 rnp_sign_file(rnp_ctx_t * ctx,

@@ -56,4 +56,13 @@ typedef struct pgp_parse_handler_t {
  **/
 rnp_result_t process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src);
 
+/* @brief Dearmor the source, outputing binary data
+ * Function will parse input PGP armoured data, provided by any source conforming to pgp_source_t,
+ * @param handler handler to respond on stream reader callbacks
+ * @param src initialized source with cache
+ * @return PGP_E_OK on success or error code otherwise
+ **/
+rnp_result_t dearmor_pgp_source(pgp_source_t *src, pgp_dest_t *dst);
+
+
 #endif
