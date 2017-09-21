@@ -1170,6 +1170,7 @@ armour_crc24(unsigned crc, uint8_t *buf, size_t len)
                 crc ^= 0x1864cfbL;
         }
     }
+
     return crc & 0xFFFFFFL;
 }
 
@@ -1302,7 +1303,7 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
     uint8_t  decbuf[ARMOURED_BLOCK_SIZE + 4]; /* decoded 6-bit values */
     uint8_t *bufptr = buf; /* for better readability below */
     uint8_t *bptr, *bend; /* pointer to input data in b64buf */
-    uint8_t *dptr, *dend; /* pointer to decoded data in decbuf */
+    uint8_t *dptr, *dend, *pend; /* pointers to decoded data in decbuf: working pointer, last available byte, last byte to process */
     uint8_t  bval;
     uint32_t b24;
     ssize_t  read;
@@ -1318,6 +1319,7 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
         if (param->restlen - param->restpos >= len) {
             memcpy(bufptr, &param->rest[param->restpos], len);
             param->restpos += len;
+            param->crc = armour_crc24(param->crc, bufptr, len);
             return len;
         } else {
             left = len - (param->restlen - param->restpos);
@@ -1332,7 +1334,7 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
     }
 
     memcpy(decbuf, param->brest, param->brestlen);
-    dptr = decbuf + param->brestlen;
+    dend = decbuf + param->brestlen;
 
     do {
         read = src_peek(param->readsrc, b64buf, sizeof(b64buf));
@@ -1340,6 +1342,7 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
             return read;
         }
 
+        dptr = dend;
         bptr = b64buf;
         bend = b64buf + read;
         /* checking input data, stripping away whitespaces, checking for end of the b64 data */
@@ -1361,15 +1364,15 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
         /* Processing full 4s which will go directly to the buf.
            After this left < 3 or decbuf has < 4 bytes */
         if ((dend - dptr) / 4 * 3 < left) {
-            bend = decbuf + (dend - dptr) / 4 * 4;
+            pend = decbuf + (dend - dptr) / 4 * 4;
             left -= (dend - dptr) / 4 * 3;
         } else {
-            bend = decbuf + (left / 3) * 4;
+            pend = decbuf + (left / 3) * 4;
             left -= left / 3 * 3;
         }
         
         /* this one would the most performance-consuming part for large chunks */
-        while (dptr < bend) {
+        while (dptr < pend) {
             b24 = *dptr++ << 18;
             b24 |= *dptr++ << 12;
             b24 |= *dptr++ << 6;
@@ -1382,7 +1385,6 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
         /* moving rest to the beginning of decbuf */
         memmove(decbuf, dptr, dend - dptr);
         dend = decbuf + (dend - dptr);
-        dptr = decbuf;
 
         if (param->eofb64) {
             /* '=' reached, bptr points on it */
@@ -1413,9 +1415,11 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
     } while (left >= 3);
 
     /* process bytes left in decbuf */
-    bend = dptr + (dend - dptr) / 4 * 4;
+
+    dptr = decbuf;
+    pend = decbuf + (dend - decbuf) / 4 * 4;
     bptr = param->rest;
-    while (dptr < bend) {
+    while (dptr < pend) {
         b24 = *dptr++ << 18;
         b24 |= *dptr++ << 12;
         b24 |= *dptr++ << 6;
@@ -1426,11 +1430,10 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
     }
 
     param->crc = armour_crc24(param->crc, buf, bufptr - (uint8_t*)buf);
-    param->crc = armour_crc24(param->crc, param->rest, bptr - param->rest);
 
     if (param->eofb64) {
         if ((dend - dptr + eqcount) % 4 != 0) {
-            (void) fprintf(stderr, "armoured_src_read: wrong padding\n");
+            (void) fprintf(stderr, "armoured_src_read: wrong b64 padding\n");
             return -1;
         }
 
@@ -1438,15 +1441,16 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
             b24 = (*dptr << 10) | (*(dptr + 1) << 4) | (*(dptr + 2) >> 2);
             *bptr++ = b24 >> 8;
             *bptr++ = b24 & 0xff;
-            param->crc = armour_crc24(param->crc, bptr - 2, 2);
         } else if (eqcount == 2) {
             *bptr++ = (*dptr << 2 ) | (*(dptr + 1) >> 4);
-            param->crc = armour_crc24(param->crc, bptr - 1, 1);
         }
-        
+
+        param->crc = armour_crc24(param->crc, param->rest, bptr - param->rest);
+
+        /* we calculate crc when input stream finished instead of when all data is read */
         if (param->crc != param->readcrc) {
             (void) fprintf(stderr, "armoured_src_read: CRC mismatch\n");
-            //return -1;
+            return -1;
         }
     } else {
         /* few bytes which do not fit to 4 boundary */
@@ -1462,6 +1466,9 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
     if ((left > 0) && (param->restlen > 0)) {
         read = left > param->restlen ? param->restlen : left;
         memcpy(bufptr, param->rest, read);
+        if (!param->eofb64) {
+            param->crc = armour_crc24(param->crc, bufptr, read);
+        }
         left -= read;
         param->restpos += read;
     }

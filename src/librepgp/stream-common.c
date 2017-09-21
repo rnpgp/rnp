@@ -380,6 +380,9 @@ file_dst_close(pgp_dest_t *dst, bool discard)
     if (discard && (dst->type == PGP_STREAM_FILE)) {
         unlink(param->path);
     }
+
+    free(param);
+    dst->param = NULL;
 }
 
 rnp_result_t
