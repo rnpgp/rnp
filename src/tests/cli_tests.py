@@ -448,7 +448,7 @@ def gpg_encrypt_file(src, dst, cipher = 'AES', zlevel = 6, zalgo = 1, armour = F
         raise_err('gpg encryption failed for cipher ' + cipher, err)
 
 def gpg_symencrypt_file(src, dst, cipher = 'AES', zlevel = 6, zalgo = 1, armour = False):
-    params = ['--homedir', GPGDIR, '-c', '-z', str(zlevel), '--compress-algo', str(zalgo), '--batch', '--passphrase', PASSWORD, '--cipher-algo', cipher, '--output', dst, src]
+    params = ['--homedir', GPGDIR, '-c', '-z', str(zlevel), '--s2k-count', '65536', '--compress-algo', str(zalgo), '--batch', '--passphrase', PASSWORD, '--cipher-algo', cipher, '--output', dst, src]
     if armour:
         params.insert(2, '--armor')
     ret, out, err = run_proc(GPG, params)
@@ -584,7 +584,7 @@ def rnp_sym_encryption_gpg_to_rnp(cipher, filesize, zlevel = 6, zalgo = 1):
     src, dst, dec = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
     # Generate random file of required size
     random_text(src, filesize)
-    for armour in [False, False]:
+    for armour in [False, True]:
         # Encrypt cleartext file with GPG
         gpg_symencrypt_file(src, dst, cipher, zlevel, zalgo, armour)
         # Decrypt encrypted file with RNP
