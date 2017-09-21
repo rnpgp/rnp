@@ -7,18 +7,17 @@
 ## Usage
 
 ```           
-    redumper -i input.pgp [-d] [-h]
-        -i input_file [mandatory]: input file
+    redumper [-d|-h] input.pgp
         -d : indicates whether to print packet content. Data is represented as hex
         -h : prints help and exists
 ```
 
 ## Example
 
-In order to visualise OpenPGP formated data, simply call ``redumper`` with ``-i`` option:
+In order to visualise OpenPGP formated data, simply call ``redumper`` with PGP as an argument:
 
 ```
-    ./redumper -i input.pgp
+    ./redumper input.pgp
 ```
 
 Example output:
@@ -88,7 +87,7 @@ Each OpenPGP packet that's found in the input, starts with ``* PACKET ...`` line
 it will only display size of the packet content. Nevertheless it is possible to dump packet content by providing ``-d`` flag.
 
 ```
-> ./redumper -i encrypted.gpg -d
+> ./redumper encrypted.gpg -d
 
 * PACKET: Public-Key Encrypted Session Key (tag 1) (268 bytes) offset=0x0 format=new
        Version: 3
