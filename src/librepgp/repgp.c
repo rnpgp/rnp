@@ -303,25 +303,35 @@ repgp_list_packets(const void *ctx, const repgp_handle_t *input, bool dump_conte
 {
     const rnp_ctx_t *rctx = (rnp_ctx_t *) ctx;
     pgp_stream_t *   stream = NULL;
-    int              fd;
+    int              fd = 0;
+    rnp_result_t     ret = RNP_SUCCESS;
+    pgp_memory_t     mem = {0};
 
     if (!rctx || !rctx->rnp || (input == NULL)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if ((input == NULL) || (input->type != REPGP_HANDLE_FILE)) {
+    if (input == NULL) {
         RNP_LOG("Incorrectly initialized input handle");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    struct stat st;
-    if (stat(input->filepath, &st) < 0) {
-        RNP_LOG("No such file '%s'", input->filepath);
-        return RNP_ERROR_ACCESS;
+    if (input->type == REPGP_HANDLE_FILE) {
+        struct stat st;
+        if (stat(input->filepath, &st) < 0) {
+            RNP_LOG("No such file '%s'", input->filepath);
+            return RNP_ERROR_ACCESS;
+        }
+
+        fd = pgp_setup_file_read(
+          rctx->rnp->io, &stream, input->filepath, &dump_content, print_packet_cb, 1);
+    } else if (input->type == REPGP_HANDLE_BUFFER) {
+        pgp_memory_ref(&mem, input->buffer.data, input->buffer.size);
+        pgp_setup_memory_read(rctx->rnp->io, &stream, &mem, &dump_content, print_packet_cb, 1);
+    } else {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    fd = pgp_setup_file_read(
-      rctx->rnp->io, &stream, input->filepath, &dump_content, print_packet_cb, 1);
     repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
 
     const rnp_t *rnp = rctx->rnp;
@@ -341,11 +351,17 @@ repgp_list_packets(const void *ctx, const repgp_handle_t *input, bool dump_conte
     }
 
     if (!repgp_parse(stream, true)) {
-        pgp_teardown_file_read(stream, fd);
-        return RNP_ERROR_GENERIC;
+        ret = RNP_ERROR_GENERIC;
+        goto end;
     }
-    pgp_teardown_file_read(stream, fd);
-    return RNP_SUCCESS;
+
+end:
+    if (fd) {
+        pgp_teardown_file_read(stream, fd);
+    } else {
+        pgp_teardown_memory_read(stream, NULL);
+    }
+    return ret;
 }
 
 rnp_result_t

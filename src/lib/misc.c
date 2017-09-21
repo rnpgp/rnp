@@ -561,6 +561,15 @@ pgp_memory_init(pgp_memory_t *mem, size_t needed)
     }
 }
 
+void
+pgp_memory_ref(pgp_memory_t *mem, uint8_t *data, size_t data_len)
+{
+    mem->buf = data;
+    mem->length = data_len;
+    mem->allocated = 0;
+    mem->mmapped = 0;
+}
+
 /**
 \ingroup HighLevel_Memory
 \brief Pad memory to required length
