@@ -1629,7 +1629,7 @@ static bool armour_parse_headers(pgp_source_t *src)
 
 
 static rnp_result_t
-init_armoured_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
+init_armoured_src(pgp_source_t *src, pgp_source_t *readsrc)
 {
     rnp_result_t                errcode = RNP_SUCCESS;
     pgp_source_armored_param_t *param;
@@ -1831,7 +1831,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
                 goto finish;
             }
 
-            res = init_armoured_src(&ctx, armorsrc, src);
+            res = init_armoured_src(armorsrc, src);
 
             if (res == RNP_SUCCESS) {
                 EXPAND_ARRAY_EX((&ctx), src, 1);
@@ -1891,3 +1891,62 @@ finish:
     free(readbuf);
     return res;
 }
+
+rnp_result_t 
+dearmor_pgp_source(pgp_source_t *src, pgp_dest_t *dst)
+{
+    const char                  armor_start[] = "-----BEGIN PGP";
+    const char                  clear_start[] = "-----BEGIN PGP SIGNED MESSAGE-----";
+    rnp_result_t                res = RNP_ERROR_BAD_FORMAT;
+    pgp_source_t                armorsrc;
+    uint8_t                     readbuf[PGP_INPUT_CACHE_SIZE];
+    ssize_t                     read;
+    
+    read = src_peek(src, readbuf, sizeof(clear_start));
+    if (read < sizeof(armor_start)) {
+        (void) fprintf(stderr, "dearmor_pgp_source: can't read enough data from source\n");
+        res = RNP_ERROR_READ;
+        goto finish;
+    }
+
+    /* Trying armored or cleartext data */
+    readbuf[read - 1] = 0;
+    if (strstr((char *) readbuf, armor_start)) {
+        /* checking whether it is cleartext */
+        if (strstr((char *) readbuf, clear_start)) {
+            (void) fprintf(stderr, "dearmor_pgp_source: source is cleartext, not armored\n");
+            goto finish;
+        }
+
+        /* initializing armoured message */
+        res = init_armoured_src(&armorsrc, src);
+
+        if (res != RNP_SUCCESS) {
+            goto finish;
+        }
+    } else {
+        (void) fprintf(stderr, "dearmor_pgp_source: source is not armored data\n");
+        goto finish;
+    }
+
+    /* Reading data from armored source and writing it to the output */
+    while (!armorsrc.eof) {
+        read = src_read(&armorsrc, readbuf, PGP_INPUT_CACHE_SIZE);
+        if (read < 0) {
+            res = RNP_ERROR_GENERIC;
+            break;
+        } else if (read > 0) {
+            dst_write(dst, readbuf, read);
+            if (dst->werr != RNP_SUCCESS) {
+                (void) fprintf(stderr, "dearmor_pgp_source: failed to output data\n");
+                res = RNP_ERROR_WRITE;
+                break;
+            }
+        }
+    }
+
+finish:
+    src_close(&armorsrc);
+    return res;
+}
+

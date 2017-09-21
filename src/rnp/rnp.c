@@ -64,6 +64,7 @@ static const char *usage = "--help OR\n"
                            "\t--cat [--output=file] [options] files... OR\n"
                            "\t--clearsign [--output=file] [options] files... OR\n"
                            "\t--list-packets [options] OR\n"
+                           "\t--dearmor [--output=file] file OR\n"
                            "\t--version\n"
                            "where options are:\n"
                            "\t[--armor] AND/OR\n"
@@ -88,6 +89,7 @@ enum optdefs {
     CMD_VERIFY_CAT,
     CMD_SYM_ENCRYPT,
     CMD_SYM_DECRYPT,
+    CMD_DEARMOR,
     CMD_LIST_PACKETS,
     CMD_SHOW_KEYS,
     CMD_VERSION,
@@ -138,6 +140,7 @@ static struct option options[] = {
   {"verifyshow", no_argument, NULL, CMD_VERIFY_CAT},
   {"sym-decrypt", no_argument, NULL, CMD_SYM_DECRYPT},
   {"symmetric", no_argument, NULL, CMD_SYM_ENCRYPT},
+  {"dearmor", no_argument, NULL, CMD_DEARMOR},
   /* file listing commands */
   {"list-packets", no_argument, NULL, CMD_LIST_PACKETS},
   /* debugging commands */
@@ -442,6 +445,10 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         repgp_destroy_handle(input);
         break;
     }
+    case CMD_DEARMOR: {
+        ret = rnp_dearmor_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
+        break;
+    }
     case CMD_SHOW_KEYS:
         ret = (repgp_validate_pubkeys_signatures(&ctx) == RNP_SUCCESS);
         break;
@@ -485,15 +492,12 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         *cmd = val;
         break;
     case CMD_SYM_DECRYPT:
-        *cmd = val;
-        break;
     case CMD_SYM_ENCRYPT:
-        *cmd = val;
-        break;
     case CMD_VERIFY:
     case CMD_VERIFY_CAT:
     case CMD_LIST_PACKETS:
     case CMD_SHOW_KEYS:
+    case CMD_DEARMOR:
         *cmd = val;
         break;
     case CMD_HELP:
