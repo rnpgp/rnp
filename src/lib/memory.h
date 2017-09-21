@@ -74,10 +74,24 @@ void          pgp_memory_free(pgp_memory_t *);
 void          pgp_memory_init(pgp_memory_t *, size_t);
 bool          pgp_memory_pad(pgp_memory_t *, size_t);
 bool          pgp_memory_add(pgp_memory_t *, const uint8_t *, size_t);
-void          pgp_memory_place_int(pgp_memory_t *, unsigned, unsigned, size_t);
-void          pgp_memory_make_packet(pgp_memory_t *, pgp_content_enum);
-void          pgp_memory_clear(pgp_memory_t *);
-void          pgp_memory_release(pgp_memory_t *);
+
+/* -----------------------------------------------------------------------------
+ * @brief   Helper useful to setup reference to previously allocated memory.
+ *          Calling `pgp_memory_free` or any other function which changes content
+ *          of the memory set with this function is probably bad idea.
+ *
+ * @param   mem [out]   pointer to `pgp_memory_t` object
+ * @param   data        data to be referenced
+ * @param   data_len    length of the `data`
+ *
+ * @pre     `data` must be valid pointer
+ *
+-------------------------------------------------------------------------------- */
+void pgp_memory_ref(pgp_memory_t *mem, uint8_t *data, size_t data_len);
+void pgp_memory_place_int(pgp_memory_t *, unsigned, unsigned, size_t);
+void pgp_memory_make_packet(pgp_memory_t *, pgp_content_enum);
+void pgp_memory_clear(pgp_memory_t *);
+void pgp_memory_release(pgp_memory_t *);
 
 void pgp_writer_set_memory(pgp_output_t *, pgp_memory_t *);
 
