@@ -169,6 +169,12 @@ src_skip(pgp_source_t *src, size_t len)
     void *  buf;
     uint8_t sbuf[16];
 
+    if (src->cache && (src->cache->len - src->cache->pos >= len)) {
+        src->readb += len;
+        src->cache->pos += len;
+        return len;
+    }
+
     if (len < sizeof(sbuf)) {
         return src_read(src, sbuf, len);
     } else {

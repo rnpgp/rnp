@@ -50,6 +50,15 @@ typedef enum {
     PGP_STREAM_CLEARTEXT
 } pgp_stream_type_t;
 
+typedef enum {
+    PGP_ARMOURED_UNKNOWN,
+    PGP_ARMOURED_MESSAGE,
+    PGP_ARMOURED_PUBLIC_KEY,
+    PGP_ARMOURED_SECRET_KEY,
+    PGP_ARMOURED_SIGNATURE,
+    PGP_ARMOURED_CLEARTEXT
+} pgp_armoured_msg_t;
+
 typedef struct pgp_source_t pgp_source_t;
 typedef struct pgp_dest_t   pgp_dest_t;
 
