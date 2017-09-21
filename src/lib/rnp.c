@@ -94,6 +94,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "defs.h"
 #include <rnp/rnp_def.h>
 #include "pgp-key.h"
+#include "list.h"
 
 #include "rnp/rnp_obsolete_defs.h"
 #include <json.h>
@@ -955,40 +956,115 @@ rnp_export_key(rnp_t *rnp, const char *name)
     return pgp_export_key(io, key, &rnp->passphrase_provider);
 }
 
-#define IMPORT_ARMOR_HEAD "-----BEGIN PGP PUBLIC KEY BLOCK-----"
+#define IMPORT_ARMOR_HEAD "-----BEGIN PGP (PUBLIC)|(PRIVATE) KEY BLOCK-----"
 
 /* import a key into our keyring */
 int
 rnp_import_key(rnp_t *rnp, char *f)
 {
-    pgp_io_t *io;
-    int       realarmor;
-    bool      done;
+    int              realarmor;
+    rnp_key_store_t *tmp_keystore = NULL;
+    bool             ret = false;
+    list             imported_grips = NULL;
+    list_item *      item = NULL;
 
-    io = rnp->io;
     realarmor = isarmoured(f, NULL, IMPORT_ARMOR_HEAD);
     if (realarmor < 0) {
-        return RNP_FAIL;
+        goto done;
     }
 
-    rnp_key_store_t *new_keystore =
-      rnp_key_store_new(((rnp_key_store_t *) rnp->pubring)->format_label, f);
-    if (new_keystore == NULL) {
-        return RNP_FAIL;
+    // guess the key format (TODO: surely this can be improved)
+    size_t fname_len = strlen(f);
+    if (fname_len < 4) {
+        goto done;
+    }
+    const char *suffix = f + fname_len - 4;
+    const char *fmt = NULL;
+    if (strcmp(suffix, ".asc") == 0 || strcmp(suffix, ".gpg") == 0) {
+        fmt = RNP_KEYSTORE_GPG;
+    } else if (strcmp(suffix, ".kbx") == 0) {
+        fmt = RNP_KEYSTORE_KBX;
+    } else if (strcmp(suffix, ".key") == 0) {
+        fmt = RNP_KEYSTORE_G10;
+    } else {
+        RNP_LOG("Warning: failed to guess key format, assuming GPG.");
+        fmt = RNP_KEYSTORE_GPG;
     }
 
-    done = rnp_key_store_load_from_file(rnp, new_keystore, realarmor);
-    if (!done) {
-        (void) fprintf(io->errs, "cannot import key from file %s\n", f);
-        return RNP_FAIL;
+    // create a temporary key store
+    tmp_keystore = rnp_key_store_new(fmt, f);
+    if (!tmp_keystore) {
+        goto done;
     }
 
-    if (!rnp_key_store_append_keyring(rnp->pubring, new_keystore)) {
-        (void) fprintf(io->errs, "cannot append key from file %s to keystore\n", f);
-        return RNP_FAIL;
+    // load the key(s)
+    if (!rnp_key_store_load_from_file(rnp, tmp_keystore, realarmor)) {
+        RNP_LOG("failed to load key from file %s", f);
+        goto done;
+    }
+    if (!tmp_keystore->keyc) {
+        RNP_LOG("failed to load any keys to import");
+        goto done;
     }
 
-    return rnp_key_store_list(io, rnp->pubring, 0);
+    // loop through each key
+    for (unsigned i = 0; i < tmp_keystore->keyc; i++) {
+        pgp_key_t *      key = &tmp_keystore->keys[i];
+        pgp_key_t *      importedkey = NULL;
+        rnp_key_store_t *dest = pgp_is_key_secret(key) ? rnp->secring : rnp->pubring;
+        const char *     header = pgp_is_key_secret(key) ? "sec" : "pub";
+
+        // check if it already exists
+        importedkey = rnp_key_store_get_key_by_grip(rnp->io, dest, key->grip);
+        if (!importedkey) {
+            // print it out
+            repgp_print_key(rnp->io, tmp_keystore, key, header, pgp_get_pubkey(key), 0);
+
+            // add it to the dest store
+            if (!rnp_key_store_add_key(rnp->io, dest, key)) {
+                RNP_LOG("failed to add key to destination key store");
+                goto done;
+            }
+            // keep track of what keys have been imported
+            list_append(&imported_grips, key->grip, sizeof(key->grip));
+            importedkey = rnp_key_store_get_key_by_grip(rnp->io, dest, key->grip);
+            for (unsigned j = 0; j < key->subkeyc; j++) {
+                pgp_key_t *subkey = key->subkeys[j];
+
+                if (!rnp_key_store_add_key(rnp->io, dest, subkey)) {
+                    RNP_LOG("failed to add key to destination key store");
+                    goto done;
+                }
+                // fix up the subkeys dynarray pointers...
+                importedkey->subkeys[j] =
+                  rnp_key_store_get_key_by_grip(rnp->io, dest, subkey->grip);
+                // keep track of what keys have been imported
+                list_append(&imported_grips, subkey->grip, sizeof(subkey->grip));
+            }
+        }
+    }
+
+    // update the keyrings on disk
+    if (!rnp_key_store_write_to_file(rnp, rnp->secring, NULL, 0) ||
+        !rnp_key_store_write_to_file(rnp, rnp->pubring, NULL, 0)) {
+        RNP_LOG("failed to write keyring");
+        goto done;
+    }
+    ret = true;
+
+done:
+    // remove all the imported keys from the temporary store,
+    // since we're taking ownership of their internal data
+    item = list_front(imported_grips);
+    while (item) {
+        uint8_t *grip = (uint8_t *) item;
+        rnp_key_store_remove_key(
+          rnp->io, tmp_keystore, rnp_key_store_get_key_by_grip(rnp->io, tmp_keystore, grip));
+        item = list_next(item);
+    }
+    list_destroy(&imported_grips);
+    rnp_key_store_free(tmp_keystore);
+    return ret;
 }
 
 int
