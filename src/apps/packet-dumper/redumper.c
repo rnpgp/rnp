@@ -6,14 +6,15 @@
 
 #define PFX "redumper: "
 
+// extern int optind;
+
 void
 print_usage(char *program_name)
 {
     fprintf(stderr,
             PFX
             "Program dumps PGP packets. \n\nUsage:\n"
-            "\t%s -i input.pgp [-d] [-h]\n"
-            "\t  -i input_file [mandatory]: input file\n"
+            "\t%s [-d|-h] [input.pgp]\n"
             "\t  -d : indicates whether to print packet content. Data is represented as hex\n"
             "\t  -h : prints help and exists\n",
             basename(program_name));
@@ -37,16 +38,10 @@ main(int argc, char *const argv[])
             -h : prints help and exists
         -------------------------------------------------------------------------*/
     int opt = 0;
-    while ((opt = getopt(argc, argv, "i:dh")) != -1) {
-        switch (opt) {
-        case 'i':
-            opts.input_file = optarg;
-            break;
-        case 'd':
+    while ((opt = getopt(argc, argv, "dh")) != -1) {
+        if (opt == 'd') {
             opts.dump_content = true;
-            break;
-        case 'h':
-        default:
+        } else {
             print_usage(argv[0]);
             return 1;
         }
@@ -55,9 +50,8 @@ main(int argc, char *const argv[])
     /*  -------------------------------------------------------------------------
         Input file is mandatory - ensure it was provided
         -------------------------------------------------------------------------*/
-    if (!opts.input_file) {
-        print_usage(argv[0]);
-        return 1;
+    if (optind < argc) {
+        opts.input_file = argv[optind];
     }
 
     /*  -------------------------------------------------------------------------
@@ -68,8 +62,9 @@ main(int argc, char *const argv[])
         return 1;
     }
 
-    repgp_handle_t *handle = create_filepath_handle(opts.input_file);
-    rnp_result_t    res = repgp_list_packets(&ctx, handle, opts.dump_content);
+    repgp_handle_t *handle =
+      opts.input_file ? create_filepath_handle(opts.input_file) : create_stdin_handle();
+    rnp_result_t res = repgp_list_packets(&ctx, handle, opts.dump_content);
     repgp_destroy_handle(handle);
     rnp_end(&rnp);
 
