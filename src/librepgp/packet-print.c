@@ -1010,7 +1010,7 @@ print_seckey_verbose(pgp_printstate_t *     printstate,
                      const pgp_content_enum type,
                      const pgp_seckey_t *   seckey)
 {
-    /* pgp_print_pubkey(key); */
+    pgp_print_pubkey(printstate->indent, &seckey->pubkey);
     print_uint(printstate->indent, "S2K Usage", seckey->protection.s2k.usage);
     if (seckey->protection.s2k.usage != PGP_S2KU_NONE) {
         print_uint(printstate->indent, "S2K Specifier", seckey->protection.s2k.specifier);
@@ -1129,7 +1129,7 @@ print_packet_length_type(int indent, const pgp_ptag_t *ptag)
     /* Applicable only if old format */
     if (ptag->new_format == 0) {
         print_indent(indent);
-        printf("Length type: %d", ptag->length_type);
+        printf("Length type: %d\n", ptag->length_type);
     }
 }
 

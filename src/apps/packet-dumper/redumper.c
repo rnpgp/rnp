@@ -6,8 +6,6 @@
 
 #define PFX "redumper: "
 
-// extern int optind;
-
 void
 print_usage(char *program_name)
 {
