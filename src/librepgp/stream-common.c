@@ -320,7 +320,7 @@ init_mem_src(pgp_source_t *src, void *mem, size_t len)
 }
 
 void
-dst_write(pgp_dest_t *dst, void *buf, size_t len)
+dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     if ((len > 0) && (dst->write)) {
         dst->write(dst, buf, len);
@@ -343,7 +343,7 @@ typedef struct pgp_dest_file_param_t {
 } pgp_dest_file_param_t;
 
 void
-file_dst_write(pgp_dest_t *dst, void *buf, size_t len)
+file_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     ssize_t                ret;
     pgp_dest_file_param_t *param = dst->param;

@@ -95,6 +95,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <rnp/rnp_def.h>
 #include "pgp-key.h"
 #include "list.h"
+#include <librepgp/stream-armour.h>
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-write.h>
 
@@ -1393,7 +1394,7 @@ rnp_dearmor_stream(rnp_ctx_t *ctx, const char *in, const char *out)
         return RNP_FAIL;
     }
 
-    err = dearmor_pgp_source(&src, &dst);
+    err = dearmour_source(&src, &dst);
     if (err == RNP_SUCCESS) {
         result = RNP_OK;
     } else {
