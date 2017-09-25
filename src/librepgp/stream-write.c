@@ -593,7 +593,7 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     }
 
     if ((param->alg == PGP_C_ZIP) || (param->alg == PGP_C_ZLIB)) {
-        param->z.next_in = (unsigned char*) buf;
+        param->z.next_in = (unsigned char *) buf;
         param->z.avail_in = len;
         param->z.next_out = param->cache + param->len;
         param->z.avail_out = sizeof(param->cache) - param->len;
@@ -619,7 +619,7 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         param->len = sizeof(param->cache) - param->z.avail_out;
     } else if (param->alg == PGP_C_BZIP2) {
 #ifdef HAVE_BZLIB_H
-        param->bz.next_in = (char*) buf;
+        param->bz.next_in = (char *) buf;
         param->bz.avail_in = len;
         param->bz.next_out = (char *) (param->cache + param->len);
         param->bz.avail_out = sizeof(param->cache) - param->len;

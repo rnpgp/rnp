@@ -1144,7 +1144,7 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
         if ((type == PGP_PTAG_CT_PK_SESSION_KEY) || (type == PGP_PTAG_CT_SK_SESSION_KEY)) {
             ret = init_encrypted_src(ctx, psrc, lsrc);
         } else if (type == PGP_PTAG_CT_1_PASS_SIG) {
-            (void) fprintf( stderr, "process_packet_sequence: signed data not implemented\n");
+            (void) fprintf(stderr, "process_packet_sequence: signed data not implemented\n");
             ret = RNP_ERROR_NOT_IMPLEMENTED;
         } else if (type == PGP_PTAG_CT_COMPRESSED) {
             if ((lsrc->type != PGP_STREAM_ENCRYPTED) && (lsrc->type != PGP_STREAM_SIGNED)) {
@@ -1156,7 +1156,7 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
         } else if (type == PGP_PTAG_CT_LITDATA) {
             if ((lsrc->type != PGP_STREAM_ENCRYPTED) && (lsrc->type != PGP_STREAM_SIGNED) &&
                 (lsrc->type != PGP_STREAM_COMPRESSED)) {
-                (void) fprintf( stderr, "process_packet_sequence: unexpected literal pkt\n");
+                (void) fprintf(stderr, "process_packet_sequence: unexpected literal pkt\n");
                 ret = RNP_ERROR_BAD_FORMAT;
             } else {
                 ret = init_literal_src(ctx, psrc, lsrc);

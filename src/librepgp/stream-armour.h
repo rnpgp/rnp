@@ -51,7 +51,9 @@ rnp_result_t init_armoured_src(pgp_source_t *src, pgp_source_t *readsrc);
  * @param msgtype type of the message (see pgp_armoured_msg_t)
  * @return RNP_SUCCESS on success or error code otherwise
  **/
-rnp_result_t init_armoured_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armoured_msg_t msgtype);
+rnp_result_t init_armoured_dst(pgp_dest_t *       dst,
+                               pgp_dest_t *       writedst,
+                               pgp_armoured_msg_t msgtype);
 
 /* @brief Dearmour the source, outputing binary data
  * @param src initialized source with armoured data
@@ -68,5 +70,4 @@ rnp_result_t rnp_dearmour_source(pgp_source_t *src, pgp_dest_t *dst);
  **/
 rnp_result_t rnp_armour_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armoured_msg_t msgtype);
 
- #endif
-
+#endif
