@@ -596,7 +596,7 @@ def rnp_sym_encryption_rnp_to_gpg(cipher, filesize, zlevel = 6, zalgo = 'zip'):
     src, dst, enc = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
     # Generate random file of required size
     random_text(src, filesize)
-    for armour in [False, False]:
+    for armour in [False, True]:
         # Encrypt cleartext file with RNP
         rnp_symencrypt_file(src, enc, cipher, zlevel, zalgo, armour)
         # Decrypt encrypted file with GPG

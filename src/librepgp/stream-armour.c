@@ -135,7 +135,7 @@ armour_skip_eol(pgp_source_t *readsrc)
     if ((read >= 1) && (eol[0] == '\n')) {
         src_skip(readsrc, 1);
         return true;
-    } else if ((read == 2) && (eol[0] == '\r') && (eol[0] == '\n')) {
+    } else if ((read == 2) && (eol[0] == '\r') && (eol[1] == '\n')) {
         src_skip(readsrc, 2);
         return true;
     }
@@ -614,13 +614,13 @@ init_armoured_src(pgp_source_t *src, pgp_source_t *readsrc)
     }
     /* eol */
     if (!armour_skip_eol(param->readsrc)) {
-        (void) fprintf(stderr, "init_armored_src: no eol after the armour header\n");
+        (void) fprintf(stderr, "init_armoured_src: no eol after the armour header\n");
         errcode = RNP_ERROR_BAD_FORMAT;
         goto finish;
     }
     /* parsing headers */
     if (!armour_parse_headers(src)) {
-        (void) fprintf(stderr, "init_armored_src: failed to parse headers\n");
+        (void) fprintf(stderr, "init_armoured_src: failed to parse headers\n");
         errcode = RNP_ERROR_BAD_FORMAT;
         goto finish;
     }
@@ -667,7 +667,7 @@ armour_message_header(pgp_armoured_msg_t type, bool finish, char *buf)
     strncpy(buf, str, strlen(str));
     buf += strlen(str);
     strncpy(buf, "-----", 5);
-    *buf = '\0';
+    buf[5] = '\0';
     return true;
 }
 
@@ -777,7 +777,7 @@ armoured_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         if (inlend > bufend) {
             /* no enough input for the full line */
             inlend = bufptr + (bufend - bufptr) / 3 * 3;
-            param->lout = (inlend - bufptr) / 3 * 3;
+            param->lout += (inlend - bufptr) / 3 * 4;
         } else {
             /* we have full line of input */
             param->lout = 0;
@@ -806,7 +806,7 @@ armoured_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 
     /* saving tail */
     param->tailc = bufend - bufptr;
-    memcpy(bufptr, param->tail, param->tailc);
+    memcpy(param->tail, bufptr, param->tailc);
 }
 
 void
@@ -815,6 +815,7 @@ armoured_dst_close(pgp_dest_t *dst, bool discard)
     uint8_t buf[64];
     uint8_t crcbuf[3];
     pgp_dest_armoured_param_t *param = dst->param;
+
     if (!param) {
         return;
     }
@@ -846,6 +847,7 @@ armoured_dst_close(pgp_dest_t *dst, bool discard)
         crcbuf[1] = (param->crc >> 8) & 0xff;
         crcbuf[2] = param->crc & 0xff;
         armoured_encode3(&buf[1], crcbuf);
+        dst_write(param->writedst, buf, 5);
         armour_write_eol(param);
 
         /* writing armour header */
@@ -875,6 +877,7 @@ init_armoured_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armoured_msg_t msgt
     dst->type = PGP_STREAM_ARMOURED;
     dst->writeb = 0;
     dst->param = param;
+    param->writedst = writedst;
     param->type = msgtype;
     param->usecrlf = true;
     param->crc = 0xb704ceL;
@@ -887,11 +890,11 @@ init_armoured_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armoured_msg_t msgt
     }
 
     /* armour header */
-    dst_write(dst, hdr, strlen(hdr));
+    dst_write(writedst, hdr, strlen(hdr));
     armour_write_eol(param);
     /* version string */
-    strncpy(hdr, "Version: " VERSION, sizeof(hdr));
-    dst_write(dst, hdr, strlen(hdr));
+    strncpy(hdr, "Version: " PACKAGE_STRING, sizeof(hdr));
+    dst_write(writedst, hdr, strlen(hdr));
     armour_write_eol(param);
     /* empty line */
     armour_write_eol(param);
@@ -905,7 +908,7 @@ init_armoured_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armoured_msg_t msgt
 }
 
 rnp_result_t
-dearmour_pgp_source(pgp_source_t *src, pgp_dest_t *dst)
+rnp_dearmour_source(pgp_source_t *src, pgp_dest_t *dst)
 {
     const char                  armor_start[] = "-----BEGIN PGP";
     const char                  clear_start[] = "-----BEGIN PGP SIGNED MESSAGE-----";
@@ -916,7 +919,7 @@ dearmour_pgp_source(pgp_source_t *src, pgp_dest_t *dst)
     
     read = src_peek(src, readbuf, sizeof(clear_start));
     if (read < sizeof(armor_start)) {
-        (void) fprintf(stderr, "dearmor_pgp_source: can't read enough data from source\n");
+        (void) fprintf(stderr, "rnp_dearmour_source: can't read enough data from source\n");
         res = RNP_ERROR_READ;
         goto finish;
     }
@@ -926,7 +929,7 @@ dearmour_pgp_source(pgp_source_t *src, pgp_dest_t *dst)
     if (strstr((char *) readbuf, armor_start)) {
         /* checking whether it is cleartext */
         if (strstr((char *) readbuf, clear_start)) {
-            (void) fprintf(stderr, "dearmor_pgp_source: source is cleartext, not armored\n");
+            (void) fprintf(stderr, "rnp_dearmour_source: source is cleartext, not armored\n");
             goto finish;
         }
 
@@ -937,7 +940,7 @@ dearmour_pgp_source(pgp_source_t *src, pgp_dest_t *dst)
             goto finish;
         }
     } else {
-        (void) fprintf(stderr, "dearmor_pgp_source: source is not armored data\n");
+        (void) fprintf(stderr, "rnp_dearmour_source: source is not armored data\n");
         goto finish;
     }
 
@@ -950,7 +953,7 @@ dearmour_pgp_source(pgp_source_t *src, pgp_dest_t *dst)
         } else if (read > 0) {
             dst_write(dst, readbuf, read);
             if (dst->werr != RNP_SUCCESS) {
-                (void) fprintf(stderr, "dearmor_pgp_source: failed to output data\n");
+                (void) fprintf(stderr, "rnp_dearmour_source: failed to output data\n");
                 res = RNP_ERROR_WRITE;
                 break;
             }
@@ -963,7 +966,7 @@ finish:
 }
 
 rnp_result_t
-armour_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armoured_msg_t msgtype)
+rnp_armour_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armoured_msg_t msgtype)
 {
     pgp_dest_t   armordst = {0};
     rnp_result_t res = RNP_ERROR_GENERIC;
@@ -983,7 +986,7 @@ armour_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armoured_msg_t msgtype)
         } else if (read > 0) {
             dst_write(&armordst, readbuf, read);
             if (armordst.werr != RNP_SUCCESS) {
-                (void) fprintf(stderr, "armour_source: failed to output data\n");
+                (void) fprintf(stderr, "rnp_armour_source: failed to output data\n");
                 res = RNP_ERROR_WRITE;
                 break;
             }

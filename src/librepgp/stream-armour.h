@@ -53,15 +53,12 @@ rnp_result_t init_armoured_src(pgp_source_t *src, pgp_source_t *readsrc);
  **/
 rnp_result_t init_armoured_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armoured_msg_t msgtype);
 
-/** @brief calculate crc-24 over the chunk of data */
-unsigned armour_crc24(unsigned crc, const uint8_t *buf, size_t len);
-
 /* @brief Dearmour the source, outputing binary data
  * @param src initialized source with armoured data
  * @param dst initialized dest to write binary data to
  * @return RNP_SUCCESS on success or error code otherwise
  **/
-rnp_result_t dearmour_source(pgp_source_t *src, pgp_dest_t *dst);
+rnp_result_t rnp_dearmour_source(pgp_source_t *src, pgp_dest_t *dst);
 
 /* @brief Armour the source, outputing base64-encoded data with headers
  * @param src initialized source with binary data
@@ -69,7 +66,7 @@ rnp_result_t dearmour_source(pgp_source_t *src, pgp_dest_t *dst);
  * @msgtype type of the message, to write correct armour headers
  * @return RNP_SUCCESS on success or error code otherwise
  **/
-rnp_result_t armour_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armoured_msg_t msgtype);
+rnp_result_t rnp_armour_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armoured_msg_t msgtype);
 
  #endif
 
