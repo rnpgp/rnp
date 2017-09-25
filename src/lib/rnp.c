@@ -1371,12 +1371,12 @@ finish:
 int
 rnp_dearmor_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 {
-    pgp_source_t         src;
-    pgp_dest_t           dst;
-    rnp_result_t         err;
-    int                  result;
-    bool                 is_stdin;
-    bool                 is_stdout;
+    pgp_source_t src;
+    pgp_dest_t   dst;
+    rnp_result_t err;
+    int          result;
+    bool         is_stdin;
+    bool         is_stdout;
 
     is_stdin = !in || (strlen(in) == 0) || (strcmp(in, "-") == 0);
     is_stdout = !out || (strlen(out) == 0) || (strcmp(out, "-") == 0);
