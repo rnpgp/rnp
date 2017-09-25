@@ -1394,7 +1394,7 @@ rnp_dearmor_stream(rnp_ctx_t *ctx, const char *in, const char *out)
         return RNP_FAIL;
     }
 
-    err = dearmour_source(&src, &dst);
+    err = rnp_dearmour_source(&src, &dst);
     if (err == RNP_SUCCESS) {
         result = RNP_OK;
     } else {
