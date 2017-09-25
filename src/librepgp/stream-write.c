@@ -26,6 +26,7 @@
 
 #include "config.h"
 #include "stream-write.h"
+#include "stream-armour.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -206,7 +207,7 @@ stream_write_indeterminate_pkt_tag(int tag, pgp_dest_t *dst)
 }
 
 void
-partial_dst_write(pgp_dest_t *dst, void *buf, size_t len)
+partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_partial_param_t *param = dst->param;
     int                       wrlen;
@@ -378,7 +379,7 @@ stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
 }
 
 void
-encrypted_dst_write(pgp_dest_t *dst, void *buf, size_t len)
+encrypted_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_encrypted_param_t *param = dst->param;
     size_t                      sz;
@@ -580,7 +581,7 @@ finish:
 }
 
 void
-compressed_dst_write(pgp_dest_t *dst, void *buf, size_t len)
+compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_compressed_param_t *param = dst->param;
     int                          zret;
@@ -592,7 +593,7 @@ compressed_dst_write(pgp_dest_t *dst, void *buf, size_t len)
     }
 
     if ((param->alg == PGP_C_ZIP) || (param->alg == PGP_C_ZLIB)) {
-        param->z.next_in = buf;
+        param->z.next_in = (unsigned char*) buf;
         param->z.avail_in = len;
         param->z.next_out = param->cache + param->len;
         param->z.avail_out = sizeof(param->cache) - param->len;
@@ -618,7 +619,7 @@ compressed_dst_write(pgp_dest_t *dst, void *buf, size_t len)
         param->len = sizeof(param->cache) - param->z.avail_out;
     } else if (param->alg == PGP_C_BZIP2) {
 #ifdef HAVE_BZLIB_H
-        param->bz.next_in = buf;
+        param->bz.next_in = (char*) buf;
         param->bz.avail_in = len;
         param->bz.next_out = (char *) (param->cache + param->len);
         param->bz.avail_out = sizeof(param->cache) - param->len;
@@ -810,7 +811,7 @@ finish:
 }
 
 void
-literal_dst_write(pgp_dest_t *dst, void *buf, size_t len)
+literal_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_packet_param_t *param = dst->param;
 
@@ -899,12 +900,6 @@ finish:
 }
 
 rnp_result_t
-init_armored_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
-{
-    return RNP_ERROR_NOT_IMPLEMENTED;
-}
-
-rnp_result_t
 rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
 {
     /* stack of the streams would be as following:
@@ -922,7 +917,7 @@ rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst
 
     /* pushing armoring stream, which will write to the output */
     if (handler->ctx->armour) {
-        ret = init_armored_dst(handler, &dests[destc], dst);
+        ret = init_armoured_dst(&dests[destc], dst, PGP_ARMOURED_MESSAGE);
         if (ret != RNP_SUCCESS) {
             goto finish;
         }

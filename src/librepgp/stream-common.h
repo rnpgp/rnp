@@ -50,22 +50,13 @@ typedef enum {
     PGP_STREAM_CLEARTEXT
 } pgp_stream_type_t;
 
-typedef enum {
-    PGP_ARMOURED_UNKNOWN,
-    PGP_ARMOURED_MESSAGE,
-    PGP_ARMOURED_PUBLIC_KEY,
-    PGP_ARMOURED_SECRET_KEY,
-    PGP_ARMOURED_SIGNATURE,
-    PGP_ARMOURED_CLEARTEXT
-} pgp_armoured_msg_t;
-
 typedef struct pgp_source_t pgp_source_t;
 typedef struct pgp_dest_t   pgp_dest_t;
 
 typedef ssize_t pgp_source_read_func_t(pgp_source_t *src, void *buf, size_t len);
 typedef void pgp_source_close_func_t(pgp_source_t *src);
 
-typedef void pgp_dest_write_func_t(pgp_dest_t *dst, void *buf, size_t len);
+typedef void pgp_dest_write_func_t(pgp_dest_t *dst, const void *buf, size_t len);
 typedef void pgp_dest_close_func_t(pgp_dest_t *dst, bool discard);
 
 /* statically preallocated cache for sources. Not used for input filters */
@@ -163,7 +154,7 @@ typedef struct pgp_dest_t {
  *  @param len number of bytes to write
  *  @return true on success or false otherwise
  **/
-void dst_write(pgp_dest_t *dst, void *buf, size_t len);
+void dst_write(pgp_dest_t *dst, const void *buf, size_t len);
 
 /** @brief close the destination
  *
