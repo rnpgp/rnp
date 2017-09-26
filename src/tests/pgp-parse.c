@@ -277,17 +277,17 @@ end:
 }
 
 void
-repgp_decryption(void **state)
+test_repgp_decrypt(void **state)
 {
     rnp_t     rnp = {0};
     rnp_ctx_t ctx = {0};
 
     rnp_test_state_t *rstate = *state;
 
-    uint8_t out_buf[4096] = {0};
-    char    input_file[4096] = {0};
+    uint8_t out_buf[1024] = {0};
+    char    input_file[1024] = {0};
     size_t  out_buf_size = sizeof(out_buf);
-    uint8_t in_buf[4096] = {0};
+    uint8_t in_buf[1024] = {0};
     size_t  in_buf_size = sizeof(in_buf);
     char    plaintext[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890\n";
 
@@ -315,7 +315,7 @@ repgp_decryption(void **state)
     repgp_io_t *io = repgp_create_io();
     assert_non_null(io);
     repgp_set_input(io, create_data_handle(in_buf, in_buf_size));
-    repgp_handle_t *out_buf_handle = create_buffer_handle(4096);
+    repgp_handle_t *out_buf_handle = create_buffer_handle(1024);
     repgp_set_output(io, out_buf_handle);
     assert_int_equal(repgp_decrypt(&ctx, io), RNP_SUCCESS);
     assert_int_equal(repgp_copy_buffer_from_handle(out_buf, &out_buf_size, out_buf_handle),
@@ -365,4 +365,58 @@ repgp_decryption(void **state)
     delete_recursively(tmpdir);
     free(tmpdir);
     free(tmp_filename);
+}
+
+void
+test_repgp_verify(void **state)
+{
+    rnp_t     rnp = {0};
+    rnp_ctx_t ctx = {0};
+
+    rnp_test_state_t *rstate = *state;
+    char              input_file[1024] = {0};
+    uint8_t           input_buf[1024] = {0};
+
+    /* -------------------------------------------------------------------------
+        Setup keystore
+         This text was signed with keys stored in keyrings/1/..
+       -------------------------------------------------------------------------*/
+    setup_keystore_1(rstate, &rnp);
+    assert_int_equal(rnp_ctx_init(&ctx, &rnp), RNP_SUCCESS);
+
+    paths_concat(
+      (char *) input_file, sizeof(input_file), rstate->data_dir, "signed.gpg", NULL);
+
+    /* -------------------------------------------------------------------------
+        Test verification from file
+       -------------------------------------------------------------------------*/
+    repgp_io_t *io = repgp_create_io();
+    assert_non_null(io);
+    repgp_set_input(io, create_filepath_handle(input_file));
+    repgp_set_output(io, create_filepath_handle("-"));
+    rnp_assert_int_equal(rstate, repgp_verify(&ctx, io), RNP_SUCCESS);
+    repgp_destroy_io(io);
+
+    /* -------------------------------------------------------------------------
+        Test verification from memory
+       -------------------------------------------------------------------------*/
+    FILE *f = fopen(input_file, "rb");
+    assert_non_null(f);
+    size_t in_buf_size = fread(input_buf, 1, sizeof(input_buf), f);
+    assert_true(in_buf_size > 0);
+    fclose(f);
+
+    io = repgp_create_io();
+    assert_non_null(io);
+    repgp_set_input(io, create_data_handle(input_buf, in_buf_size));
+    repgp_set_output(io, create_buffer_handle(1024));
+    rnp_assert_int_equal(rstate, repgp_verify(&ctx, io), RNP_SUCCESS);
+    repgp_destroy_io(io);
+
+    /* -------------------------------------------------------------------------
+        Cleanup
+       -------------------------------------------------------------------------*/
+    free(rnp.io);
+    rnp.io = NULL;
+    rnp_end(&rnp);
 }
