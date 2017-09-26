@@ -56,4 +56,5 @@ tests/atconfig
 tests/atlocal
 src/rnp/rnp
 src/rnpkeys/rnpkeys
+src/apps/packet-dumper/redumper
 *.swp

@@ -1249,48 +1249,52 @@ rnp_parse_handler_dest(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char
     }
 }
 
-int
+rnp_result_t
 rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 {
     pgp_source_t               src;
-    rnp_result_t               err;
     pgp_parse_handler_t *      handler = NULL;
     pgp_parse_handler_param_t *param = NULL;
-    int                        result;
+    rnp_result_t               result;
+    bool                       is_stdin;
+    bool                       is_stdout;
 
-    if (in && (strlen(in) > sizeof(param->in))) {
+    is_stdin = !in || (strlen(in) == 0) || (strcmp(in, "-") == 0);
+    is_stdout = !out || (strlen(out) == 0) || (strcmp(out, "-") == 0);
+
+    if (!is_stdin && (strlen(in) > sizeof(param->in))) {
         (void) fprintf(stderr, "rnp_process_stream: too long input path\n");
-        return RNP_FAIL;
+        return RNP_ERROR_GENERIC;
     }
 
-    if (out && (strlen(out) > sizeof(param->out))) {
+    if (!is_stdout && (strlen(out) > sizeof(param->out))) {
         (void) fprintf(stderr, "rnp_process_stream: too long output path\n");
-        return RNP_FAIL;
+        return RNP_ERROR_GENERIC;
     }
 
-    err = in ? init_file_src(&src, in) : init_stdin_src(&src);
+    result = is_stdin ? init_stdin_src(&src) : init_file_src(&src, in);
 
-    if (err != RNP_SUCCESS) {
-        return RNP_FAIL;
+    if (result != RNP_SUCCESS) {
+        return RNP_ERROR_READ;
     }
 
     if ((handler = calloc(1, sizeof(*handler))) == NULL) {
-        result = RNP_FAIL;
+        result = RNP_ERROR_OUT_OF_MEMORY;
         goto finish;
     }
 
     if ((param = calloc(1, sizeof(*param))) == NULL) {
-        result = RNP_FAIL;
+        result = RNP_ERROR_OUT_OF_MEMORY;
         goto finish;
     }
 
-    if (in) {
+    if (!is_stdin) {
         strcpy(param->in, in);
     } else {
         param->in[0] = 0;
     }
 
-    if (out) {
+    if (!is_stdout) {
         strcpy(param->out, out);
     } else {
         param->out[0] = 0;
@@ -1300,12 +1304,9 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     handler->dest_provider = rnp_parse_handler_dest;
     handler->param = param;
 
-    err = process_pgp_source(handler, &src);
-    if (err == RNP_SUCCESS) {
-        result = RNP_OK;
-    } else {
-        (void) fprintf(stderr, "processing failed: error 0x%x\n", err);
-        result = RNP_FAIL;
+    result = process_pgp_source(handler, &src);
+    if (result != RNP_SUCCESS) {
+        (void) fprintf(stderr, "rnp_process_stream: error 0x%x\n", result);
     }
 
 finish:
@@ -1315,36 +1316,34 @@ finish:
     return result;
 }
 
-int
+rnp_result_t
 rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 {
     pgp_source_t         src;
     pgp_dest_t           dst;
-    rnp_result_t         err;
     pgp_write_handler_t *handler = NULL;
-    int                  result;
+    rnp_result_t         result;
     bool                 is_stdin;
     bool                 is_stdout;
 
     is_stdin = !in || (strlen(in) == 0) || (strcmp(in, "-") == 0);
     is_stdout = !out || (strlen(out) == 0) || (strcmp(out, "-") == 0);
 
-    err = is_stdin ? init_stdin_src(&src) : init_file_src(&src, in);
-    if (err != RNP_SUCCESS) {
+    result = is_stdin ? init_stdin_src(&src) : init_file_src(&src, in);
+    if (result != RNP_SUCCESS) {
         (void) fprintf(stderr, "rnp_encrypt_stream: failed to initialize reading\n");
-        return RNP_FAIL;
+        return RNP_ERROR_READ;
     }
 
-    err = is_stdout ? init_stdout_dest(&dst) : init_file_dest(&dst, out);
-    if (err != RNP_SUCCESS) {
+    result = is_stdout ? init_stdout_dest(&dst) : init_file_dest(&dst, out);
+    if (result != RNP_SUCCESS) {
         (void) fprintf(stderr, "rnp_encrypt_stream: failed to initialize writing\n");
         src_close(&src);
-        return RNP_FAIL;
+        return RNP_ERROR_WRITE;
     }
 
     if ((handler = calloc(1, sizeof(*handler))) == NULL) {
-        err = RNP_ERROR_OUT_OF_MEMORY;
-        result = RNP_FAIL;
+        result = RNP_ERROR_OUT_OF_MEMORY;
         goto finish;
     }
 
@@ -1352,58 +1351,50 @@ rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     handler->ctx = ctx;
     handler->param = NULL;
 
-    err = rnp_encrypt_src(handler, &src, &dst);
-    if (err == RNP_SUCCESS) {
-        result = RNP_OK;
-    } else {
-        (void) printf("rnp_encrypt_stream: encryption failed with error code 0x%x\n",
-                      (int) err);
-        result = RNP_FAIL;
+    result = rnp_encrypt_src(handler, &src, &dst);
+    if (result != RNP_SUCCESS) {
+        (void) printf("rnp_encrypt_stream: failed with error code 0x%x\n", (int) result);
     }
 
 finish:
     src_close(&src);
-    dst_close(&dst, err != RNP_SUCCESS);
+    dst_close(&dst, result != RNP_SUCCESS);
     free(handler);
     return result;
 }
 
-int
+rnp_result_t
 rnp_dearmor_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 {
     pgp_source_t src;
     pgp_dest_t   dst;
-    rnp_result_t err;
-    int          result;
+    rnp_result_t result;
     bool         is_stdin;
     bool         is_stdout;
 
     is_stdin = !in || (strlen(in) == 0) || (strcmp(in, "-") == 0);
     is_stdout = !out || (strlen(out) == 0) || (strcmp(out, "-") == 0);
 
-    err = is_stdin ? init_stdin_src(&src) : init_file_src(&src, in);
-    if (err != RNP_SUCCESS) {
+    result = is_stdin ? init_stdin_src(&src) : init_file_src(&src, in);
+    if (result != RNP_SUCCESS) {
         (void) fprintf(stderr, "rnp_dearmor_stream: failed to initialize reading\n");
-        return RNP_FAIL;
+        return RNP_ERROR_READ;
     }
 
-    err = is_stdout ? init_stdout_dest(&dst) : init_file_dest(&dst, out);
-    if (err != RNP_SUCCESS) {
+    result = is_stdout ? init_stdout_dest(&dst) : init_file_dest(&dst, out);
+    if (result != RNP_SUCCESS) {
         (void) fprintf(stderr, "rnp_dearmor_stream: failed to initialize writing\n");
         src_close(&src);
-        return RNP_FAIL;
+        return RNP_ERROR_WRITE;
     }
 
-    err = rnp_dearmour_source(&src, &dst);
-    if (err == RNP_SUCCESS) {
-        result = RNP_OK;
-    } else {
-        (void) printf("rnp_dearmor_stream: error code 0x%x\n", (int) err);
-        result = RNP_FAIL;
+    result = rnp_dearmour_source(&src, &dst);
+    if (result != RNP_SUCCESS) {
+        (void) printf("rnp_dearmor_stream: error code 0x%x\n", (int) result);
     }
 
     src_close(&src);
-    dst_close(&dst, err != RNP_SUCCESS);
+    dst_close(&dst, result != RNP_SUCCESS);
     return result;
 }
 
