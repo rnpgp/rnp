@@ -749,6 +749,7 @@ init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *w
     dst->close = compressed_dst_close;
     dst->type = PGP_STREAM_COMPRESSED;
     dst->writeb = 0;
+    dst->werr = RNP_SUCCESS;
     param->alg = handler->ctx->zalg;
     param->len = 0;
     param->pkt.partial = true;
@@ -857,6 +858,7 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
     dst->close = literal_dst_close;
     dst->type = PGP_STREAM_LITERAL;
     dst->writeb = 0;
+    dst->werr = RNP_SUCCESS;
     param->partial = true;
     param->indeterminate = false;
     param->tag = PGP_PTAG_CT_LITDATA;
