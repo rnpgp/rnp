@@ -80,25 +80,27 @@ create_buffer_handle(const size_t buffer_size)
     }
 
     s->buffer.size = buffer_size;
+    s->buffer.data_len = 0;
     s->type = REPGP_HANDLE_BUFFER;
     return s;
 }
 
 repgp_handle_t *
-create_data_handle(const uint8_t *data, size_t data_len)
+create_data_handle(const uint8_t *data, size_t size)
 {
     repgp_handle_t *s = calloc(sizeof(*s), 1);
     if (!s) {
         return NULL;
     }
 
-    s->buffer.data = (unsigned char *) malloc(data_len);
+    s->buffer.data = (unsigned char *) malloc(size);
     if (!s->buffer.data) {
         return NULL;
     }
-    memcpy(s->buffer.data, data, data_len);
+    memcpy(s->buffer.data, data, size);
 
-    s->buffer.size = data_len;
+    s->buffer.size = size;
+    s->buffer.data_len = size;
     s->type = REPGP_HANDLE_BUFFER;
     return s;
 }
@@ -145,6 +147,7 @@ create_stdin_handle(void)
 
     s->type = REPGP_HANDLE_BUFFER;
     s->buffer.size = size;
+    s->buffer.data_len = size;
     s->buffer.data = data;
     return s;
 }
@@ -160,11 +163,11 @@ repgp_copy_buffer_from_handle(uint8_t *out, size_t *out_size, const repgp_handle
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    *out_size = handle->buffer.size;
-    if (handle->buffer.size > *out_size) {
+    if (handle->buffer.data_len > *out_size) {
         return RNP_ERROR_SHORT_BUFFER;
     }
-    memcpy(out, handle->buffer.data, handle->buffer.size);
+    *out_size = handle->buffer.data_len;
+    memcpy(out, handle->buffer.data, *out_size);
 
     return RNP_SUCCESS;
 }
@@ -238,12 +241,16 @@ repgp_decrypt(const void *ctx, repgp_io_t *io)
         }
         return rnp_decrypt_file((void *) ctx, io->in->filepath, io->out->filepath);
     } else if (io->in->type == REPGP_HANDLE_BUFFER) {
-        const int ret = rnp_decrypt_memory((void *) ctx,
-                                           io->in->buffer.data,
-                                           io->in->buffer.size,
-                                           (char *) io->out->buffer.data,
-                                           io->out->buffer.size);
-        return ret ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+        size_t             tmp = io->out->buffer.size;
+        const rnp_result_t ret = rnp_decrypt_memory((void *) ctx,
+                                                    io->in->buffer.data,
+                                                    io->in->buffer.data_len,
+                                                    (char *) io->out->buffer.data,
+                                                    &tmp);
+        if (ret == RNP_SUCCESS) {
+            io->out->buffer.data_len = tmp;
+        }
+        return ret;
     }
 
     return RNP_ERROR_BAD_PARAMETERS;

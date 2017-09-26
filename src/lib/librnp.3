@@ -143,10 +143,10 @@ The following functions are used for file management:
 .Fc
 .Pp
 The following functions are used for memory signing and encryption:
-.Ft int
+.Ft rnp_result_t
 .Fo rnp_encrypt_memory
 .Fa "rnp_t *rnp" "char *userid" "void *in" "const size_t insize"
-.Fa "char *out" "size_t outsize" "int armored"
+.Fa "char *out" "size_t *outsize" "int armored"
 .Fc
 .Ft int
 .Fo rnp_decrypt_memory

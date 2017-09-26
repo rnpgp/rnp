@@ -38,7 +38,7 @@ test_key_unlock_pgp(void **state)
     rnp_test_state_t *        rstate = *state;
     char                      path[PATH_MAX];
     rnp_t                     rnp;
-    pgp_key_t *         key = NULL;
+    pgp_key_t *               key = NULL;
     rnp_ctx_t                 ctx;
     const char *              data = "my test data";
     char                      signature[512] = {0};
@@ -46,7 +46,6 @@ test_key_unlock_pgp(void **state)
     char                      encrypted[512] = {0};
     int                       enclen = 0;
     char                      decrypted[512] = {0};
-    int                       declen = 0;
     pgp_passphrase_provider_t provider = {0};
     static const char *       keyids[] = {"7bc6709b15c23a4a", // primary
                                    "1ed63ee56fadc34d",
@@ -173,8 +172,10 @@ test_key_unlock_pgp(void **state)
     rnp.passphrase_provider =
       (pgp_passphrase_provider_t){.callback = failing_passphrase_callback, .userdata = NULL};
     rnp_ctx_init(&ctx, &rnp);
-    declen = rnp_decrypt_memory(&ctx, encrypted, enclen, decrypted, sizeof(decrypted));
-    rnp_assert_true(rstate, declen <= 0);
+    size_t tmp = sizeof(decrypted);
+    rnp_assert_int_equal(rstate,
+                         rnp_decrypt_memory(&ctx, encrypted, enclen, decrypted, &tmp),
+                         RNP_ERROR_BAD_PARAMETERS);
     rnp_ctx_free(&ctx);
 
     // grab the encrypting key to unlock
@@ -190,8 +191,11 @@ test_key_unlock_pgp(void **state)
 
     // decrypt, with no passphrase
     rnp_ctx_init(&ctx, &rnp);
-    declen = rnp_decrypt_memory(&ctx, encrypted, enclen, decrypted, sizeof(decrypted));
-    rnp_assert_int_equal(rstate, declen, strlen(data));
+    size_t out_len = sizeof(decrypted);
+    rnp_assert_int_equal(
+      rstate, rnp_decrypt_memory(&ctx, encrypted, enclen, decrypted, &out_len), RNP_SUCCESS);
+
+    rnp_assert_int_equal(rstate, out_len, strlen(data));
     assert_string_equal(data, decrypted);
     rnp_ctx_free(&ctx);
 
@@ -203,8 +207,10 @@ test_key_unlock_pgp(void **state)
 
     // decrypt, with no passphrase (should now fail)
     rnp_ctx_init(&ctx, &rnp);
-    declen = rnp_decrypt_memory(&ctx, encrypted, enclen, decrypted, sizeof(decrypted));
-    rnp_assert_true(rstate, declen <= 0);
+    out_len = sizeof(decrypted);
+    rnp_assert_int_equal(rstate,
+                         rnp_decrypt_memory(&ctx, encrypted, enclen, decrypted, &out_len),
+                         RNP_ERROR_BAD_PARAMETERS);
     rnp_ctx_free(&ctx);
 
     // cleanup
