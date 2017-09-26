@@ -206,7 +206,7 @@ stream_write_indeterminate_pkt_tag(int tag, pgp_dest_t *dst)
     dst_write(dst, &bt, 1);
 }
 
-void
+rnp_result_t
 partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_partial_param_t *param = dst->param;
@@ -214,8 +214,7 @@ partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 
     if (!param) {
         (void) fprintf(stderr, "partial_dst_write: wrong param\n");
-        dst->werr = RNP_ERROR_BAD_PARAMETERS;
-        return;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     if (len > param->partlen - param->len) {
@@ -244,7 +243,7 @@ partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         param->len += len;
     }
 
-    dst->werr = RNP_SUCCESS;
+    return RNP_SUCCESS;
 }
 
 void
@@ -287,6 +286,7 @@ init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
     dst->close = partial_dst_close;
     dst->type = PGP_STREAM_PARLEN_PACKET;
     dst->writeb = 0;
+    dst->werr = RNP_SUCCESS;
 
     return RNP_SUCCESS;
 }
@@ -378,7 +378,7 @@ stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
     }
 }
 
-void
+rnp_result_t
 encrypted_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_encrypted_param_t *param = dst->param;
@@ -386,8 +386,7 @@ encrypted_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 
     if (!param) {
         (void) fprintf(stderr, "encrypted_dst_write: wrong param\n");
-        dst->werr = RNP_ERROR_BAD_PARAMETERS;
-        return;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     if (param->has_mdc) {
@@ -402,7 +401,7 @@ encrypted_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         buf = (uint8_t *) buf + sz;
     }
 
-    dst->werr = RNP_SUCCESS;
+    return RNP_SUCCESS;
 }
 
 void
@@ -468,6 +467,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     dst->close = encrypted_dst_close;
     dst->type = PGP_STREAM_ENCRYPTED;
     dst->writeb = 0;
+    dst->werr = RNP_SUCCESS;
     param->has_mdc = true;
 
     /* configuring and writing sym-encrypted session key */
@@ -580,7 +580,7 @@ finish:
     return ret;
 }
 
-void
+rnp_result_t
 compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_compressed_param_t *param = dst->param;
@@ -588,8 +588,7 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 
     if (!param) {
         (void) fprintf(stderr, "compressed_dst_write: wrong param\n");
-        dst->werr = RNP_ERROR_BAD_PARAMETERS;
-        return;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     if ((param->alg == PGP_C_ZIP) || (param->alg == PGP_C_ZLIB)) {
@@ -603,8 +602,7 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
             /* Z_OK, Z_BUF_ERROR are ok for us, Z_STREAM_END will not happen here */
             if (zret == Z_STREAM_ERROR) {
                 (void) fprintf(stderr, "compressed_dst_write: wrong deflate state\n");
-                dst->werr = RNP_ERROR_BAD_STATE;
-                return;
+                return RNP_ERROR_BAD_STATE;
             }
 
             /* writing only full blocks, the rest will be written in close */
@@ -617,6 +615,7 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         }
 
         param->len = sizeof(param->cache) - param->z.avail_out;
+        return RNP_SUCCESS;
     } else if (param->alg == PGP_C_BZIP2) {
 #ifdef HAVE_BZLIB_H
         param->bz.next_in = (char *) buf;
@@ -628,8 +627,7 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
             zret = BZ2_bzCompress(&param->bz, BZ_RUN);
             if (zret < 0) {
                 (void) fprintf(stderr, "compressed_dst_write: error %d\n", zret);
-                dst->werr = RNP_ERROR_BAD_STATE;
-                return;
+                return RNP_ERROR_BAD_STATE;
             }
 
             /* writing only full blocks, the rest will be written in close */
@@ -642,10 +640,13 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         }
 
         param->len = sizeof(param->cache) - param->bz.avail_out;
+        return RNP_SUCCESS;
+#else
+        return RNP_ERROR_NOT_IMPLEMENTED;
 #endif
     } else {
         (void) fprintf(stderr, "compressed_dst_write: unknown algorithm\n");
-        dst->werr = RNP_ERROR_BAD_PARAMETERS;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 }
 
@@ -810,19 +811,18 @@ finish:
     return ret;
 }
 
-void
+rnp_result_t
 literal_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_packet_param_t *param = dst->param;
 
     if (!param) {
         (void) fprintf(stderr, "literal_dst_write: wrong param\n");
-        dst->werr = RNP_ERROR_BAD_PARAMETERS;
-        return;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     dst_write(param->writedst, buf, len);
-    dst->werr = RNP_SUCCESS;
+    return RNP_SUCCESS;
 }
 
 void

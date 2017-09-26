@@ -322,8 +322,9 @@ init_mem_src(pgp_source_t *src, void *mem, size_t len)
 void
 dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    if ((len > 0) && (dst->write)) {
-        dst->write(dst, buf, len);
+    /* we call write function only if all previous calls succeeded */
+    if ((len > 0) && (dst->write) && (dst->werr == RNP_SUCCESS)) {
+        dst->werr = dst->write(dst, buf, len);
         dst->writeb += len;
     }
 }
@@ -342,7 +343,7 @@ typedef struct pgp_dest_file_param_t {
     char path[PATH_MAX];
 } pgp_dest_file_param_t;
 
-void
+rnp_result_t
 file_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     ssize_t                ret;
@@ -350,19 +351,18 @@ file_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 
     if (!param) {
         (void) fprintf(stderr, "file_dst_write: wrong param\n");
-        dst->werr = RNP_ERROR_BAD_PARAMETERS;
-        return;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     /* we assyme that blocking I/O is used so everything is written or error received */
     ret = write(param->fd, buf, len);
     if (ret < 0) {
-        dst->werr = RNP_ERROR_WRITE;
         param->errcode = errno;
         (void) fprintf(stderr, "file_dst_write: write failed, error %d\n", param->errcode);
+        return RNP_ERROR_WRITE;
     } else {
-        dst->werr = RNP_SUCCESS;
         param->errcode = 0;
+        return RNP_SUCCESS;
     }
 }
 
@@ -424,6 +424,7 @@ init_file_dest(pgp_dest_t *dst, const char *path)
     dst->close = file_dst_close;
     dst->type = PGP_STREAM_FILE;
     dst->writeb = 0;
+    dst->werr = RNP_SUCCESS;
 
     return RNP_SUCCESS;
 }
@@ -443,6 +444,7 @@ init_stdout_dest(pgp_dest_t *dst)
     dst->close = file_dst_close;
     dst->type = PGP_STREAM_STDOUT;
     dst->writeb = 0;
+    dst->werr = RNP_SUCCESS;
 
     return RNP_SUCCESS;
 }

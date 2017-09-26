@@ -56,7 +56,7 @@ typedef struct pgp_dest_t   pgp_dest_t;
 typedef ssize_t pgp_source_read_func_t(pgp_source_t *src, void *buf, size_t len);
 typedef void pgp_source_close_func_t(pgp_source_t *src);
 
-typedef void pgp_dest_write_func_t(pgp_dest_t *dst, const void *buf, size_t len);
+typedef rnp_result_t pgp_dest_write_func_t(pgp_dest_t *dst, const void *buf, size_t len);
 typedef void pgp_dest_close_func_t(pgp_dest_t *dst, bool discard);
 
 /* statically preallocated cache for sources. Not used for input filters */
