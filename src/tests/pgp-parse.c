@@ -420,3 +420,54 @@ test_repgp_verify(void **state)
     rnp.io = NULL;
     rnp_end(&rnp);
 }
+
+void
+test_repgp_list_packets(void **state)
+{
+    rnp_t     rnp = {0};
+    rnp_ctx_t ctx = {0};
+
+    rnp_test_state_t *rstate = *state;
+    char              input_file[1024] = {0};
+    uint8_t           input_buf[1024] = {0};
+
+    /* -------------------------------------------------------------------------
+        Setup keystore
+         This text was signed with keys stored in keyrings/1/..
+       -------------------------------------------------------------------------*/
+    assert_int_equal(rnp_ctx_init(&ctx, &rnp), RNP_SUCCESS);
+
+    paths_concat(
+      (char *) input_file, sizeof(input_file), rstate->data_dir, "signed.gpg", NULL);
+
+    /* -------------------------------------------------------------------------
+        Test listing from file
+       -------------------------------------------------------------------------*/
+    repgp_io_t *io = repgp_create_io();
+    assert_non_null(io);
+    repgp_handle_t *input = create_filepath_handle(input_file);
+    rnp_assert_int_equal(rstate, repgp_list_packets(&ctx, input, false), RNP_SUCCESS);
+    repgp_destroy_handle(input);
+
+    /* -------------------------------------------------------------------------
+        Test listing from memory
+       -------------------------------------------------------------------------*/
+    FILE *f = fopen(input_file, "rb");
+    assert_non_null(f);
+    size_t in_buf_size = fread(input_buf, 1, sizeof(input_buf), f);
+    assert_true(in_buf_size > 0);
+    fclose(f);
+
+    io = repgp_create_io();
+    assert_non_null(io);
+    input = create_filepath_handle(input_file);
+    rnp_assert_int_equal(rstate, repgp_list_packets(&ctx, input, false), RNP_SUCCESS);
+    repgp_destroy_handle(input);
+
+    /* -------------------------------------------------------------------------
+        Cleanup
+       -------------------------------------------------------------------------*/
+    free(rnp.io);
+    rnp.io = NULL;
+    rnp_end(&rnp);
+}
