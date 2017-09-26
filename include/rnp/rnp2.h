@@ -28,18 +28,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/*
-* Currently we use some definitions/enums from other others, including
-* - rnp_result_t
-*
-* It might be good to consolidate these definitions into one spot, or
-* else replicate them here in new enums and make this header freestanding.
-*/
-#include <rnp/rnp_def.h>
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+/**
+* Function return type. 0 == SUCCESS, all other values indicate an error.
+*/
+typedef uint32_t rnp_result_t;
+
+const char* rnp_result_to_string(rnp_result_t result);
 
 /*
 * Opaque structures for key types

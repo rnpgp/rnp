@@ -76,6 +76,69 @@ rnp_passphrase_cb_bounce(const pgp_passphrase_ctx_t *ctx,
     return (rc == 0);
 }
 
+const char *
+rnp_result_to_string(rnp_result_t result)
+{
+    switch (result) {
+    case RNP_SUCCESS:
+        return "Success";
+
+    case RNP_ERROR_GENERIC:
+        return "Unknown error";
+    case RNP_ERROR_BAD_FORMAT:
+        return "Bad format";
+    case RNP_ERROR_BAD_PARAMETERS:
+        return "Bad parameters";
+    case RNP_ERROR_NOT_IMPLEMENTED:
+        return "Not implemented";
+    case RNP_ERROR_NOT_SUPPORTED:
+        return "Not supported";
+    case RNP_ERROR_OUT_OF_MEMORY:
+        return "Out of memory";
+    case RNP_ERROR_SHORT_BUFFER:
+        return "Buffer too short";
+    case RNP_ERROR_NULL_POINTER:
+        return "Null pointer";
+
+    case RNP_ERROR_ACCESS:
+        return "Error accessing file";
+    case RNP_ERROR_READ:
+        return "Error reading file";
+    case RNP_ERROR_WRITE:
+        return "Error writing file";
+
+    case RNP_ERROR_BAD_STATE:
+        return "Bad state";
+    case RNP_ERROR_MAC_INVALID:
+        return "Invalid MAC";
+    case RNP_ERROR_SIGNATURE_INVALID:
+        return "Invalid signature";
+    case RNP_ERROR_KEY_GENERATION:
+        return "Error during key generation";
+    case RNP_ERROR_KEY_NOT_FOUND:
+        return "Key not found";
+    case RNP_ERROR_NO_SUITABLE_KEY:
+        return "Not suitable key";
+    case RNP_ERROR_DECRYPT_FAILED:
+        return "Decryption failed";
+    case RNP_ERROR_NO_SIGNATURES_FOUND:
+        return "No signatures found cannot verify";
+
+    case RNP_ERROR_NOT_ENOUGH_DATA:
+        return "Not enough data";
+    case RNP_ERROR_UNKNOWN_TAG:
+        return "Unknown tag";
+    case RNP_ERROR_PACKET_NOT_CONSUMED:
+        return "Packet not consumed";
+    case RNP_ERROR_NO_USERID:
+        return "Not userid";
+    case RNP_ERROR_EOF:
+        return "EOF detected";
+    }
+
+    return "Unknown error";
+}
+
 rnp_result_t
 rnp_keyring_open(rnp_keyring_t *   keyring,
                  const char *      keyring_format,
@@ -276,7 +339,7 @@ rnp_sign(rnp_keyring_t keyring,
     if (pgp_key_can_sign(keypair) == false) {
         keypair = find_suitable_subkey(keypair, PGP_KF_SIGN);
         if (!keypair)
-            return RNP_ERROR_NO_SUITABLE_KEY_FOR_OPERATION;
+            return RNP_ERROR_NO_SUITABLE_KEY;
     }
 
     // key exist and might be used to sign, trying get it from secring
@@ -476,7 +539,7 @@ rnp_encrypt(rnp_keyring_t keyring,
     if (pgp_key_can_encrypt(keypair) == false) {
         keypair = find_suitable_subkey(keypair, PGP_KF_ENCRYPT);
         if (!keypair)
-            return RNP_ERROR_NO_SUITABLE_KEY_FOR_OPERATION;
+            return RNP_ERROR_NO_SUITABLE_KEY;
     }
 
     pgp_memory_t *enc =
