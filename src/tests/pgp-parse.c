@@ -24,7 +24,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <rnp/rnp.h>
+#include <repgp/repgp.h>
 
 #include <librepgp/packet-parse.h>
 #include <librepgp/reader.h>
@@ -45,6 +47,8 @@
 #include "list.h"
 #include "pgp-parse-data.h"
 #include "compress.h"
+
+static const char *KEYRING_1_PASSWORD = "password";
 
 static bool
 read_file_to_memory(rnp_test_state_t *rstate,
@@ -223,4 +227,142 @@ pgp_compress_roundtrip(void **state)
             list_destroy(&taglist);
         }
     }
+}
+
+static bool
+setup_keystore_1(rnp_test_state_t *state, rnp_t *rnp)
+{
+    rnp_params_t params = {0};
+    bool         res = true;
+    char         path[PATH_MAX] = {0};
+
+    // IO
+    pgp_io_t pgpio = {.errs = stderr, .res = stdout, .outs = stdout};
+    rnp->io = malloc(sizeof(pgp_io_t));
+    if (!rnp->io) {
+        return false;
+    }
+
+    memcpy(rnp->io, &pgpio, sizeof(pgp_io_t));
+    assert(state->data_dir);
+
+    paths_concat(path, sizeof(path), state->data_dir, "keyrings/1/pubring.gpg", NULL);
+    params.pubpath = strdup(path);
+    paths_concat(path, sizeof(path), state->data_dir, "keyrings/1/secring.gpg", NULL);
+    params.secpath = strdup(path);
+    if (!params.pubpath || !params.secpath) {
+        res = false;
+        goto end;
+    }
+    params.ks_pub_format = RNP_KEYSTORE_GPG;
+    params.ks_sec_format = RNP_KEYSTORE_GPG;
+    if (rnp_init(rnp, &params) != RNP_SUCCESS) {
+        res = false;
+        goto end;
+    }
+
+    // Load keys
+    if (!rnp_key_store_load_keys(rnp, true)) {
+        res = false;
+        goto end;
+    }
+
+    // Set password
+    rnp->passphrase_provider.callback = string_copy_passphrase_callback;
+    rnp->passphrase_provider.userdata = /*unconst*/ (char *) KEYRING_1_PASSWORD;
+
+end:
+    rnp_params_free(&params);
+    return res;
+}
+
+void
+repgp_decryption(void **state)
+{
+    rnp_t     rnp = {0};
+    rnp_ctx_t ctx = {0};
+
+    rnp_test_state_t *rstate = *state;
+
+    uint8_t out_buf[4096] = {0};
+    char    input_file[4096] = {0};
+    size_t  out_buf_size = sizeof(out_buf);
+    uint8_t in_buf[4096] = {0};
+    size_t  in_buf_size = sizeof(in_buf);
+    char    plaintext[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890\n";
+
+    /* -------------------------------------------------------------------------
+        Setup keystore
+         This text was encrypted with keys stored in keyrings/1/..
+       -------------------------------------------------------------------------*/
+    setup_keystore_1(rstate, &rnp);
+    assert_int_equal(rnp_ctx_init(&ctx, &rnp), RNP_SUCCESS);
+
+    /* -------------------------------------------------------------------------
+       Read encrypted file
+       -------------------------------------------------------------------------*/
+    paths_concat(
+      (char *) input_file, sizeof(input_file), rstate->data_dir, "encrypted_text.gpg\0", NULL);
+    FILE *f = fopen(input_file, "rb");
+    assert_non_null(f);
+    in_buf_size = fread(in_buf, 1, in_buf_size, f);
+    assert_true(in_buf_size > 0);
+    fclose(f);
+
+    /* -------------------------------------------------------------------------
+       Decrypt buffer
+       -------------------------------------------------------------------------*/
+    repgp_io_t *io = repgp_create_io();
+    assert_non_null(io);
+    repgp_set_input(io, create_data_handle(in_buf, in_buf_size));
+    repgp_handle_t *out_buf_handle = create_buffer_handle(4096);
+    repgp_set_output(io, out_buf_handle);
+    assert_int_equal(repgp_decrypt(&ctx, io), RNP_SUCCESS);
+    assert_int_equal(repgp_copy_buffer_from_handle(out_buf, &out_buf_size, out_buf_handle),
+                     RNP_SUCCESS);
+    repgp_destroy_io(io);
+
+    /* -------------------------------------------------------------------------
+       Check if same as encryption input
+       -------------------------------------------------------------------------*/
+    assert_int_equal(memcmp(plaintext, out_buf, out_buf_size), 0);
+
+    /* -------------------------------------------------------------------------
+       Decrypt file to temporary file.
+       - Create temporary directory with file called "o" in it
+       - Try to decrypt to "o"
+       -------------------------------------------------------------------------*/
+    char *tmpdir = make_temp_dir();
+    char *tmp_filename = malloc(strlen(tmpdir) + 2);
+    memcpy(tmp_filename, tmpdir, strlen(tmpdir));
+    memcpy(tmp_filename + strlen(tmpdir), "/o", 2);
+
+    io = repgp_create_io();
+    out_buf_size = sizeof(out_buf);
+    assert_non_null(io);
+    repgp_set_input(io, create_filepath_handle(input_file));
+    repgp_set_output(io, create_filepath_handle(tmp_filename));
+    assert_int_equal(repgp_decrypt(&ctx, io), RNP_SUCCESS);
+
+    repgp_destroy_io(io);
+
+    /* -------------------------------------------------------------------------
+       Check if same as encryption input
+       -------------------------------------------------------------------------*/
+    f = fopen(tmp_filename, "rb");
+    assert_non_null(f);
+    in_buf_size = fread(in_buf, 1, in_buf_size, f);
+    assert_true(in_buf_size > 0);
+    fclose(f);
+    assert_int_equal(memcmp(plaintext, in_buf, in_buf_size), 0);
+
+    /* -------------------------------------------------------------------------
+       Cleanup
+       -------------------------------------------------------------------------*/
+    free(rnp.io);
+    rnp.io = NULL;
+    rnp_end(&rnp);
+    delete_recursively(tmpdir);
+    free(tmpdir);
+    free(tmp_filename);
 }

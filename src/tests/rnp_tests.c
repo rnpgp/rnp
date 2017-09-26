@@ -162,7 +162,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_key_unlock_pgp),
       cmocka_unit_test(test_key_protect_load_pgp),
       cmocka_unit_test(test_key_add_userid),
-    };
+      cmocka_unit_test(repgp_decryption)};
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */

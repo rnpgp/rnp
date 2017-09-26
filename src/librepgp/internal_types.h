@@ -44,8 +44,9 @@ typedef struct repgp_handle_t {
 
         /* Used by REPGP_HANDLE_BUFFER */
         struct {
-            unsigned char *data;
-            size_t         size;
+            unsigned char *data;     // buffer which stores data
+            size_t         data_len; // length of data in the `data buffer' (in bytes)
+            size_t         size;     // size of the buffer (in bytes)
         } buffer;
     };
 } repgp_handle_t;

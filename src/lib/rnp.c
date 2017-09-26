@@ -1734,9 +1734,9 @@ rnp_encrypt_memory(rnp_ctx_t *  ctx,
 }
 
 /* decrypt a chunk of memory */
-int
+rnp_result_t
 rnp_decrypt_memory(
-  rnp_ctx_t *ctx, const void *input, const size_t insize, char *out, size_t outsize)
+  rnp_ctx_t *ctx, const void *input, const size_t insize, char *out, size_t *outsize)
 {
     pgp_memory_t *mem;
     int           realarmour;
@@ -1746,12 +1746,12 @@ rnp_decrypt_memory(
 
     if (input == NULL) {
         RNP_LOG("Input NULL");
-        return 0;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     realarmour = isarmoured(NULL, input, ARMOR_HEAD);
     if (realarmour < 0) {
         RNP_LOG("Can't figure out file format");
-        return 0;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     sshkeys = (unsigned) use_ssh_keys(ctx->rnp);
     attempts = ctx->rnp->pswdtries;
@@ -1765,13 +1765,15 @@ rnp_decrypt_memory(
                           attempts,
                           &ctx->rnp->passphrase_provider);
     if (mem == NULL) {
-        return -1;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     // TODO: we should actually fail if output buffer is too small
-    m = MIN(pgp_mem_len(mem), outsize);
+    m = MIN(pgp_mem_len(mem), *outsize);
     (void) memcpy(out, pgp_mem_data(mem), m);
     pgp_memory_free(mem);
-    return (int) m;
+
+    *outsize = m;
+    return RNP_SUCCESS;
 }
 
 /* print the json out on 'fp' */

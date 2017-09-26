@@ -100,7 +100,7 @@ rnp_result_t rnp_dearmor_stream(rnp_ctx_t *, const char *, const char *);
 int rnp_sign_memory(rnp_ctx_t *, const char *, const char *, size_t, char *, size_t, bool);
 int rnp_verify_memory(rnp_ctx_t *, const void *, const size_t, void *, size_t);
 int rnp_encrypt_memory(rnp_ctx_t *, const char *, const void *, const size_t, char *, size_t);
-int rnp_decrypt_memory(rnp_ctx_t *, const void *, const size_t, char *, size_t);
+rnp_result_t rnp_decrypt_memory(rnp_ctx_t *, const void *, const size_t, char *, size_t *);
 
 /* match and hkp-related functions */
 int rnp_match_keys_json(rnp_t *, char **, char *, const char *, const int);

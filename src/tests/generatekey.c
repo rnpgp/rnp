@@ -231,11 +231,14 @@ rnpkeys_generatekey_testEncryption(void **state)
             ctx.armour = armored;
 
             /* Decrypting the memory */
-            retVal = rnp_decrypt_memory(
-              &ctx, ciphertextBuf, ctextLen, plaintextBuf, sizeof(plaintextBuf));
+            size_t tmp = sizeof(plaintextBuf);
+            rnp_assert_int_equal(
+              rstate,
+              rnp_decrypt_memory(&ctx, ciphertextBuf, ctextLen, plaintextBuf, &tmp),
+              RNP_SUCCESS);
 
             /* Ensure plaintext recovered */
-            rnp_assert_int_equal(rstate, retVal, strlen(memToEncrypt));
+            rnp_assert_int_equal(rstate, tmp, strlen(memToEncrypt));
             assert_string_equal(memToEncrypt, plaintextBuf);
             close(pipefd[0]);
             rnp_ctx_free(&ctx);
