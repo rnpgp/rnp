@@ -1,1 +1,1 @@
-SUBDIRS = packet-dumper repgp-examples
+SUBDIRS = packet-dumper
