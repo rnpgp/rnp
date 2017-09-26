@@ -700,7 +700,7 @@ armoured_encode3(uint8_t *out, uint8_t *in)
     out[3] = B64ENC[in[2] & 0xff];
 }
 
-void
+rnp_result_t
 armoured_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     uint8_t                    encbuf[PGP_INPUT_CACHE_SIZE / 2];
@@ -716,8 +716,7 @@ armoured_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 
     if (!param) {
         (void) fprintf(stderr, "armoured_dst_write: wrong param\n");
-        dst->werr = RNP_ERROR_BAD_PARAMETERS;
-        return;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     /* update crc */
@@ -727,7 +726,7 @@ armoured_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     if (len + param->tailc < 3) {
         memcpy(&param->tail[param->tailc], buf, len);
         param->tailc += len;
-        return;
+        return RNP_SUCCESS;
     } else if (param->tailc > 0) {
         memcpy(dec3, param->tail, param->tailc);
         memcpy(&dec3[param->tailc], bufptr, 3 - param->tailc);
@@ -793,6 +792,8 @@ armoured_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     /* saving tail */
     param->tailc = bufend - bufptr;
     memcpy(param->tail, bufptr, param->tailc);
+
+    return RNP_SUCCESS;
 }
 
 void
@@ -863,6 +864,7 @@ init_armoured_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armoured_msg_t msgt
     dst->type = PGP_STREAM_ARMOURED;
     dst->writeb = 0;
     dst->param = param;
+    dst->werr = RNP_SUCCESS;
     param->writedst = writedst;
     param->type = msgtype;
     param->usecrlf = true;
