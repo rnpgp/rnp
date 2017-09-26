@@ -407,14 +407,14 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         break;
     }
     case CMD_SYM_DECRYPT: {
-        ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
+        ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
     }
     case CMD_SYM_ENCRYPT: {
         ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
         ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
         ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
-        ret = rnp_encrypt_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
+        ret = rnp_encrypt_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
     }
     case CMD_VERIFY_CAT: {
@@ -446,7 +446,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         break;
     }
     case CMD_DEARMOR: {
-        ret = rnp_dearmor_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
+        ret = rnp_dearmor_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
     }
     case CMD_SHOW_KEYS:
