@@ -222,7 +222,7 @@ typedef struct pgp_source_file_param_t {
     int fd;
 } pgp_source_file_param_t;
 
-ssize_t
+static ssize_t
 file_src_read(pgp_source_t *src, void *buf, size_t len)
 {
     pgp_source_file_param_t *param = src->param;
@@ -234,7 +234,7 @@ file_src_read(pgp_source_t *src, void *buf, size_t len)
     }
 }
 
-void
+static void
 file_src_close(pgp_source_t *src)
 {
     pgp_source_file_param_t *param = src->param;
@@ -341,7 +341,7 @@ typedef struct pgp_dest_file_param_t {
     char path[PATH_MAX];
 } pgp_dest_file_param_t;
 
-rnp_result_t
+static rnp_result_t
 file_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     ssize_t                ret;
@@ -364,7 +364,7 @@ file_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     }
 }
 
-void
+static void
 file_dst_close(pgp_dest_t *dst, bool discard)
 {
     pgp_dest_file_param_t *param = dst->param;

@@ -101,7 +101,7 @@ typedef struct pgp_dest_partial_param_t {
     size_t      len;     /* bytes cached in part */
 } pgp_dest_partial_param_t;
 
-bool
+static bool
 init_packet_body(pgp_packet_body_t *body, int tag)
 {
     body->data = malloc(16);
@@ -114,7 +114,7 @@ init_packet_body(pgp_packet_body_t *body, int tag)
     return true;
 }
 
-bool
+static bool
 add_packet_body(pgp_packet_body_t *body, void *data, size_t len)
 {
     void * newdata;
@@ -136,7 +136,7 @@ add_packet_body(pgp_packet_body_t *body, void *data, size_t len)
     return true;
 }
 
-bool
+static bool
 add_packet_body_byte(pgp_packet_body_t *body, uint8_t byte)
 {
     if (body->len < body->allocated) {
@@ -148,7 +148,7 @@ add_packet_body_byte(pgp_packet_body_t *body, uint8_t byte)
     }
 }
 
-size_t
+static size_t
 write_packet_len(uint8_t *buf, size_t len)
 {
     if (len < 192) {
@@ -168,7 +168,7 @@ write_packet_len(uint8_t *buf, size_t len)
     }
 }
 
-void
+static void
 flush_packet_body(pgp_packet_body_t *body, pgp_dest_t *dst)
 {
     uint8_t hdr[6];
@@ -181,14 +181,14 @@ flush_packet_body(pgp_packet_body_t *body, pgp_dest_t *dst)
     free(body->data);
 }
 
-void
+static void
 free_packet_body(pgp_packet_body_t *body)
 {
     free(body->data);
     body->data = NULL;
 }
 
-void
+static void
 stream_write_pkt_tag(int tag, pgp_dest_t *dst)
 {
     uint8_t bt;
@@ -197,7 +197,7 @@ stream_write_pkt_tag(int tag, pgp_dest_t *dst)
     dst_write(dst, &bt, 1);
 }
 
-void
+static void
 stream_write_indeterminate_pkt_tag(int tag, pgp_dest_t *dst)
 {
     uint8_t bt;
@@ -206,7 +206,7 @@ stream_write_indeterminate_pkt_tag(int tag, pgp_dest_t *dst)
     dst_write(dst, &bt, 1);
 }
 
-rnp_result_t
+static rnp_result_t
 partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_partial_param_t *param = dst->param;
@@ -246,7 +246,7 @@ partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     return RNP_SUCCESS;
 }
 
-void
+static void
 partial_dst_close(pgp_dest_t *dst, bool discard)
 {
     pgp_dest_partial_param_t *param = dst->param;
@@ -267,7 +267,7 @@ partial_dst_close(pgp_dest_t *dst, bool discard)
     dst->param = NULL;
 }
 
-rnp_result_t
+static rnp_result_t
 init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_partial_param_t *param;
@@ -294,7 +294,7 @@ init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
 /** @brief helper function for streamed packets (literal, encrypted and compressed).
  *  Allocates part len destination if needed and writes header
  **/
-bool
+static bool
 init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
 {
     rnp_result_t ret;
@@ -329,7 +329,7 @@ init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
     return true;
 }
 
-void
+static void
 close_streamed_packet(pgp_dest_packet_param_t *param, bool discard)
 {
     if (param->partial) {
@@ -339,7 +339,7 @@ close_streamed_packet(pgp_dest_packet_param_t *param, bool discard)
     }
 }
 
-bool
+static bool
 stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
 {
     pgp_packet_body_t pktbody;
@@ -378,7 +378,7 @@ stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
     }
 }
 
-rnp_result_t
+static rnp_result_t
 encrypted_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_encrypted_param_t *param = dst->param;
@@ -404,7 +404,7 @@ encrypted_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     return RNP_SUCCESS;
 }
 
-void
+static void
 encrypted_dst_close(pgp_dest_t *dst, bool discard)
 {
     uint8_t                     mdcbuf[MDC_V1_SIZE];
@@ -431,7 +431,7 @@ encrypted_dst_close(pgp_dest_t *dst, bool discard)
     dst->param = NULL;
 }
 
-rnp_result_t
+static rnp_result_t
 init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_encrypted_param_t *param;
@@ -580,7 +580,7 @@ finish:
     return ret;
 }
 
-rnp_result_t
+static rnp_result_t
 compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_compressed_param_t *param = dst->param;
@@ -650,7 +650,7 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     }
 }
 
-void
+static void
 compressed_dst_close(pgp_dest_t *dst, bool discard)
 {
     pgp_dest_compressed_param_t *param = dst->param;
@@ -730,7 +730,7 @@ compressed_dst_close(pgp_dest_t *dst, bool discard)
     dst->param = NULL;
 }
 
-rnp_result_t
+static rnp_result_t
 init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_compressed_param_t *param;
@@ -812,7 +812,7 @@ finish:
     return ret;
 }
 
-rnp_result_t
+static rnp_result_t
 literal_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_packet_param_t *param = dst->param;
@@ -826,7 +826,7 @@ literal_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     return RNP_SUCCESS;
 }
 
-void
+static void
 literal_dst_close(pgp_dest_t *dst, bool discard)
 {
     pgp_dest_packet_param_t *param = dst->param;
@@ -840,7 +840,7 @@ literal_dst_close(pgp_dest_t *dst, bool discard)
     dst->param = NULL;
 }
 
-rnp_result_t
+static rnp_result_t
 init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_packet_param_t *param;
