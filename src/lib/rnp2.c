@@ -44,6 +44,10 @@ struct rnp_keyring_st {
     struct rnp_passphrase_cb_data cb;
 };
 
+struct rnp_key_st {
+   pgp_key_t * key;
+};
+
 static pgp_key_t *
 find_suitable_subkey(const pgp_key_t *primary, uint8_t desired_usage)
 {
@@ -295,23 +299,44 @@ done:
     return rc;
 }
 
-rnp_result_t
-rnp_export_public_key(rnp_keyring_t keyring, const char *userid, char **exported_key)
-{
-    const pgp_key_t *key = resolve_userid(&keyring->rnp_ctx, keyring->rnp_ctx.pubring, userid);
+rnp_result_t rnp_export_public_key(rnp_key_t key,
+                                   uint32_t  flags,
+                                   char **   buf,
+                                   size_t *  buf_len)
+   {
+    pgp_output_t *output;
+    pgp_memory_t *mem;
+
+    bool armor = (flags & RNP_EXPORT_FLAG_ARMORED);
 
     if (key == NULL) {
-        printf("no key\n");
-        return RNP_ERROR_KEY_NOT_FOUND;
+       return RNP_ERROR_NULL_POINTER;
     }
 
-    *exported_key = pgp_export_key(keyring->rnp_ctx.io, key, NULL);
+    if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
 
-    if (*exported_key == NULL)
-        return RNP_ERROR_GENERIC;
-    else
-        return RNP_SUCCESS;
-}
+    pgp_write_xfer_pubkey(output, key->key, NULL, armor);
+
+    *buf_len = pgp_mem_len(mem);
+    if(armor)
+       *buf_len += 1;
+
+    *buf = malloc(*buf_len);
+
+    if(*buf == NULL) {
+       pgp_teardown_memory_write(output, mem);
+       return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    memcpy(*buf, pgp_mem_data(mem), pgp_mem_len(mem));
+
+    if(armor)
+       buf[*buf_len - 1] = 0;
+
+    return RNP_SUCCESS;
+   }
 
 rnp_result_t
 rnp_sign(rnp_keyring_t keyring,
