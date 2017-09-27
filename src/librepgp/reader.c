@@ -79,6 +79,7 @@ __RCSID("$NetBSD: reader.c,v 1.49 2012/03/05 02:20:18 christos Exp $");
 #include <rnp/rnp_sdk.h>
 #include "signature.h"
 #include "pgp-key.h"
+#include "readerwriter.h"
 
 #include "packet-print.h"
 

@@ -38,7 +38,7 @@
 
 #include "rnp_tests.h"
 #include "support.h"
-#include "misc.h"
+#include "fingerprint.h"
 
 void
 hash_test_success(void **state)

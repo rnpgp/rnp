@@ -1,11 +1,6 @@
-/*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009 The NetBSD Foundation, Inc.
+/*-
+ * Copyright (c) 2017 Ribose Inc.
  * All rights reserved.
- *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,13 +24,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef MISC_H_
-#define MISC_H_
+#ifndef RNP_FINGERPRINT_H_
+#define RNP_FINGERPRINT_H_
 
-int pgp_keyid(uint8_t *, const size_t, const pgp_pubkey_t *);
+#include <rnp/rnp_def.h>
+#include <stdint.h>
+#include <stdlib.h>
 
-int pgp_fingerprint(pgp_fingerprint_t *, const pgp_pubkey_t *);
+typedef struct pgp_fingerprint_t pgp_fingerprint_t;
+typedef struct pgp_pubkey_t      pgp_pubkey_t;
 
-void pgp_forget(void *, size_t);
+rnp_result_t ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key);
+rnp_result_t pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key);
+
+rnp_result_t pgp_keyid(uint8_t *out, const size_t len, const pgp_pubkey_t *key);
 
 #endif

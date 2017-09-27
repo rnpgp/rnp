@@ -44,16 +44,18 @@ typedef struct rnp_action_keygen_t {
     } subkey;
 } rnp_action_keygen_t;
 
+typedef struct rnp_key_store_t rnp_key_store_t;
+
 /* structure used to keep application-wide rnp configuration: keyrings, password io, whatever
  * else */
 typedef struct rnp_t {
-    void *    pubring;       /* public key ring */
-    void *    secring;       /* s3kr1t key ring */
-    pgp_io_t *io;            /* the io struct for results/errs */
-    void *    user_input_fp; /* file pointer for user input */
-    void *    passfp;        /* file pointer for password input */
-    char *    defkey;        /* default key id */
-    int       pswdtries;     /* number of password tries, -1 for unlimited */
+    rnp_key_store_t *pubring;       /* public key ring */
+    rnp_key_store_t *secring;       /* s3kr1t key ring */
+    pgp_io_t *       io;            /* the io struct for results/errs */
+    FILE *           user_input_fp; /* file pointer for user input */
+    FILE *           passfp;        /* file pointer for password input */
+    char *           defkey;        /* default key id */
+    int              pswdtries;     /* number of password tries, -1 for unlimited */
 
     union {
         rnp_action_keygen_t generate_key_ctx;

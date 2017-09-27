@@ -46,12 +46,14 @@
 #endif
 
 #include "key_store_internal.h"
+#include "key_store_ssh.h"
 
 #include "crypto/bn.h"
 #include "bufgap.h"
 #include "crypto.h"
 #include "crypto/s2k.h"
 #include "pgp-key.h"
+#include "fingerprint.h"
 
 /* structure for earching for constant strings */
 typedef struct str_t {
@@ -159,49 +161,6 @@ findstr(str_t *array, const char *name)
         }
     }
     return -1;
-}
-
-int hash_string(pgp_hash_t *hash, const uint8_t *buf, uint32_t len);
-int hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum);
-
-/* ssh-style fingerprint calculation, moved here from the pgp_fingerprint */
-static bool
-ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
-{
-    pgp_hash_t  hash = {0};
-    const char *type;
-
-    if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
-        RNP_LOG("bad md5 alloc\n");
-        return false;
-    }
-
-    type = (key->alg == PGP_PKA_RSA) ? "ssh-rsa" : "ssh-dss";
-    hash_string(&hash, (const uint8_t *) (const void *) type, (unsigned) strlen(type));
-    switch (key->alg) {
-    case PGP_PKA_RSA:
-        hash_bignum(&hash, key->key.rsa.e);
-        hash_bignum(&hash, key->key.rsa.n);
-        break;
-    case PGP_PKA_DSA:
-        hash_bignum(&hash, key->key.dsa.p);
-        hash_bignum(&hash, key->key.dsa.q);
-        hash_bignum(&hash, key->key.dsa.g);
-        hash_bignum(&hash, key->key.dsa.y);
-        break;
-    default:
-        pgp_hash_finish(&hash, fp->fingerprint);
-        fp->length = 0;
-        RNP_LOG("Algorithm not supported");
-        return false;
-    }
-
-    fp->length = pgp_hash_finish(&hash, fp->fingerprint);
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "md5 ssh fingerprint", fp->fingerprint, fp->length);
-    }
-
-    return true;
 }
 
 static int

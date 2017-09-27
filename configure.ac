@@ -57,7 +57,7 @@ AC_PROG_AR
 #
 AC_MSG_CHECKING([if using gcc])
 AS_IF([test "$GCC" = "yes"],
-      [WARNCFLAGS="-Werror -Wall -Wpointer-arith"
+      [WARNCFLAGS="-Werror -Wall -Wpointer-arith  -Wmissing-declarations -Wmissing-prototypes"
        AC_MSG_RESULT([yes; adding to CFLAGS: "$WARNCFLAGS"])],
       [WARNCFLAGS=""
        AC_MSG_RESULT([no])])

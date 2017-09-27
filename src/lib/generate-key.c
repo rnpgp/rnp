@@ -36,7 +36,6 @@
 #include "readerwriter.h"
 #include "pgp-key.h"
 #include "memory.h"
-#include "misc.h"
 
 static const pgp_symm_alg_t DEFAULT_SYMMETRIC_ALGS[] = {
   PGP_SA_AES_256, PGP_SA_AES_192, PGP_SA_AES_128, PGP_SA_TRIPLEDES};

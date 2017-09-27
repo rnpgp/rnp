@@ -2,6 +2,7 @@
 #include "crypto.h"
 #include "crypto/ec.h"
 #include "rnp/rnpcfg.h"
+#include "rnpkeys.h"
 
 /* -----------------------------------------------------------------------------
  * @brief   Reads input from file pointer and converts it securelly to ints

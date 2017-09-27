@@ -44,7 +44,6 @@
 #include "symmetric.h"
 #include "crypto/s2k.h"
 #include "signature.h"
-#include "misc.h"
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
 #endif
@@ -201,7 +200,7 @@ stream_partial_pkt_len(pgp_source_t *src)
     }
 }
 
-ssize_t
+static ssize_t
 partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len)
 {
     pgp_source_partial_param_t *param = src->param;
@@ -281,7 +280,7 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len)
     return write;
 }
 
-void
+static void
 partial_pkt_src_close(pgp_source_t *src)
 {
     pgp_source_partial_param_t *param = src->param;
@@ -295,7 +294,7 @@ partial_pkt_src_close(pgp_source_t *src)
     }
 }
 
-rnp_result_t
+static rnp_result_t
 init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
 {
     pgp_source_partial_param_t *param;
@@ -329,7 +328,7 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
     return RNP_SUCCESS;
 }
 
-ssize_t
+static ssize_t
 literal_src_read(pgp_source_t *src, void *buf, size_t len)
 {
     pgp_source_literal_param_t *param = src->param;
@@ -340,7 +339,7 @@ literal_src_read(pgp_source_t *src, void *buf, size_t len)
     return src_read(param->pkt.readsrc, buf, len);
 }
 
-void
+static void
 literal_src_close(pgp_source_t *src)
 {
     pgp_source_literal_param_t *param = src->param;
@@ -360,7 +359,7 @@ literal_src_close(pgp_source_t *src)
     }
 }
 
-ssize_t
+static ssize_t
 compressed_src_read(pgp_source_t *src, void *buf, size_t len)
 {
     ssize_t                        read = 0;
@@ -450,7 +449,7 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len)
     }
 }
 
-void
+static void
 compressed_src_close(pgp_source_t *src)
 {
     pgp_source_compressed_param_t *param = src->param;
@@ -479,7 +478,7 @@ compressed_src_close(pgp_source_t *src)
     }
 }
 
-ssize_t
+static ssize_t
 encrypted_src_read(pgp_source_t *src, void *buf, size_t len)
 {
     pgp_source_encrypted_param_t *param = src->param;
@@ -546,7 +545,7 @@ encrypted_src_read(pgp_source_t *src, void *buf, size_t len)
     return read;
 }
 
-void
+static void
 encrypted_src_close(pgp_source_t *src)
 {
     pgp_source_encrypted_param_t *param = src->param;
@@ -1175,7 +1174,7 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
     }
 }
 
-bool
+static bool
 is_pgp_sequence(uint8_t *buf, int size)
 {
     int tag;

@@ -24,6 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "support.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 

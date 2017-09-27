@@ -20,6 +20,7 @@ librnp_la_SOURCES	= \
 	bufgap.c \
 	compress.c \
 	crypto.c \
+	fingerprint.c \
 	generate-key.c \
 	hash.c \
 	list.c \

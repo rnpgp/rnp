@@ -6,7 +6,7 @@
 
 #define PFX "redumper: "
 
-void
+static void
 print_usage(char *program_name)
 {
     fprintf(stderr,

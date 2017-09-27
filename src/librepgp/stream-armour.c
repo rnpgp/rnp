@@ -34,7 +34,6 @@
 #include "defs.h"
 #include "types.h"
 #include "symmetric.h"
-#include "misc.h"
 
 #define ARMOURED_BLOCK_SIZE (4096)
 
@@ -67,7 +66,7 @@ typedef struct pgp_dest_armoured_param_t {
     unsigned           crc;
 } pgp_dest_armoured_param_t;
 
-unsigned
+static unsigned
 armour_crc24(unsigned crc, const uint8_t *buf, size_t len)
 {
     while (len--) {
@@ -623,7 +622,7 @@ finish:
 }
 
 /** @brief Copy armour header of tail to the buffer. Buffer should be at least ~40 chars. */
-bool
+static bool
 armour_message_header(pgp_armoured_msg_t type, bool finish, char *buf)
 {
     char *str;
@@ -662,7 +661,7 @@ static const uint8_t LF = 0x0a;
 static const uint8_t EQ = 0x3d;
 static const uint8_t CRLF[2] = {0x0d, 0x0a};
 
-void
+static void
 armour_write_eol(pgp_dest_armoured_param_t *param)
 {
     if (param->usecrlf) {
@@ -690,7 +689,7 @@ static const uint8_t B64ENC[256] = {
   'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7',
   '8', '9', '+', '/'};
 
-void
+static void
 armoured_encode3(uint8_t *out, uint8_t *in)
 {
     out[0] = B64ENC[in[0] >> 2];
@@ -699,7 +698,7 @@ armoured_encode3(uint8_t *out, uint8_t *in)
     out[3] = B64ENC[in[2] & 0xff];
 }
 
-rnp_result_t
+static rnp_result_t
 armoured_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     uint8_t                    encbuf[PGP_INPUT_CACHE_SIZE / 2];
@@ -795,7 +794,7 @@ armoured_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     return RNP_SUCCESS;
 }
 
-void
+static void
 armoured_dst_close(pgp_dest_t *dst, bool discard)
 {
     uint8_t                    buf[64];

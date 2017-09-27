@@ -1233,7 +1233,7 @@ typedef struct pgp_parse_handler_param_t {
 
 /* process the pgp stream */
 
-bool
+static bool
 rnp_parse_handler_dest(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char *filename)
 {
     pgp_parse_handler_param_t *param = handler->param;

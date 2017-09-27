@@ -93,7 +93,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "packet-create.h"
 #include "signature.h"
 #include "memory.h"
-#include "misc.h"
+#include "fingerprint.h"
 #include "pgp-key.h"
 #include "readerwriter.h"
 #include "utils.h"

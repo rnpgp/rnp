@@ -37,7 +37,6 @@
 #include "crypto/s2k.h"
 #include "symmetric.h"
 #include "readerwriter.h"
-#include "misc.h"
 #include "pgp-key.h"
 #include <botan/ffi.h>
 
@@ -844,7 +843,7 @@ done:
     return ret;
 }
 
-bool
+static bool
 g10_parse_seckey(pgp_io_t *       io,
                  pgp_seckey_t *   seckey,
                  const uint8_t *  data,

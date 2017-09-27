@@ -346,6 +346,7 @@ rnp_cfg_get_pswdtries(rnp_cfg_t *cfg)
     }
 }
 
+#if 0
 bool
 rnp_cfg_check_homedir(rnp_cfg_t *cfg, char *homedir)
 {
@@ -371,6 +372,7 @@ rnp_cfg_check_homedir(rnp_cfg_t *cfg, char *homedir)
 
     return true;
 }
+#endif
 
 /* read any gpg config file */
 static bool
@@ -461,7 +463,7 @@ rnp_path_compose(const char *dir, const char *subdir, const char *filename, char
 }
 
 /* helper function : get key storage subdir in case when user didn't specify homedir */
-const char *
+static const char *
 rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg, int defhomedir, const char *ksfmt)
 {
     const char *subdir;
