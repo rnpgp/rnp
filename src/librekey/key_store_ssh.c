@@ -46,12 +46,14 @@
 #endif
 
 #include "key_store_internal.h"
+#include "key_store_ssh.h"
 
 #include "crypto/bn.h"
 #include "bufgap.h"
 #include "crypto.h"
 #include "crypto/s2k.h"
 #include "pgp-key.h"
+#include "misc.h"
 
 /* structure for earching for constant strings */
 typedef struct str_t {
@@ -160,9 +162,6 @@ findstr(str_t *array, const char *name)
     }
     return -1;
 }
-
-int hash_string(pgp_hash_t *hash, const uint8_t *buf, uint32_t len);
-int hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum);
 
 /* ssh-style fingerprint calculation, moved here from the pgp_fingerprint */
 static bool

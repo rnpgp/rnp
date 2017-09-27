@@ -844,7 +844,7 @@ done:
     return ret;
 }
 
-bool
+static bool
 g10_parse_seckey(pgp_io_t *       io,
                  pgp_seckey_t *   seckey,
                  const uint8_t *  data,

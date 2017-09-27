@@ -80,9 +80,9 @@ typedef struct {
 } pgp_data_t;
 
 typedef struct pgp_io_t {
-    void *outs; /* output file stream */
-    void *errs; /* file stream to put error messages */
-    void *res;  /* file stream to put results */
+    FILE *outs; /* output file stream */
+    FILE *errs; /* file stream to put error messages */
+    FILE *res;  /* file stream to put results */
 } pgp_io_t;
 
 /** pgp_map_t

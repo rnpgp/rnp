@@ -189,7 +189,7 @@ typedef struct DSA_SIG_st {
     BIGNUM *s;
 } DSA_SIG;
 
-DSA_SIG *DSA_SIG_new();
+DSA_SIG *DSA_SIG_new(void);
 void DSA_SIG_free(DSA_SIG *sig);
 
 #endif

@@ -32,10 +32,15 @@
 #ifndef MISC_H_
 #define MISC_H_
 
+#include "types.h"
+
 int pgp_keyid(uint8_t *, const size_t, const pgp_pubkey_t *);
 
 int pgp_fingerprint(pgp_fingerprint_t *, const pgp_pubkey_t *);
 
 void pgp_forget(void *, size_t);
+
+int hash_string(pgp_hash_t *hash, const uint8_t *buf, uint32_t len);
+int hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum);
 
 #endif

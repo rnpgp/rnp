@@ -214,6 +214,7 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
     }
 }
 
+#if 0
 /**
 \ingroup Core_MPI
 \brief Elgamal-encrypt an MPI
@@ -252,6 +253,7 @@ pgp_elgamal_encrypt_mpi(const uint8_t *          encoded_m_buf,
     }
     return true;
 }
+#endif
 
 bool
 pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seckey)

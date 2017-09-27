@@ -41,12 +41,15 @@
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .
  */
-int file_exists(const char *path);
+bool file_exists(const char *path);
 
 /* Check if a file is empty
  * Use with assert_true and rnp_assert_false(rstate, .
  */
-int file_empty(const char *path);
+bool file_empty(const char *path);
+
+/* Check if a directory exists */
+bool dir_exists(const char *path);
 
 /* Concatenate multiple strings into a full path.
  * A directory separator is added between components.
@@ -80,7 +83,7 @@ void delete_recursively(const char *path);
 /* Creates and returns a temporary directory path.
  * Caller must free the string.
  */
-char *make_temp_dir();
+char *make_temp_dir(void);
 
 /** get an absolute directory from a file path
  *
@@ -110,11 +113,11 @@ char *uint_to_string(char *buff, const int buffsize, unsigned int num, int base)
 
 bool write_pass_to_pipe(int fd, size_t count);
 /* Setup readable pipe with default passphrase inside */
-int setupPassphrasefd(int *pipefd);
+bool setupPassphrasefd(int *pipefd);
 
 /* Common initialization of rnp structure : home path, keystore format and pointer to store
  * passphrase fd */
-int setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd);
+bool setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd);
 
 /* Initialize key generation params with default values and specified hash algorithm */
 void set_default_rsa_key_desc(rnp_action_keygen_t *action, pgp_hash_alg_t hashalg);
@@ -132,7 +135,7 @@ void set_default_rsa_key_desc(rnp_action_keygen_t *action, pgp_hash_alg_t hashal
 bool get_random(uint8_t *data, size_t len);
 
 /** Ensures global handler for DRBG used in tests is destroyed. */
-void destroy_global_rng();
+void destroy_global_rng(void);
 
 // this is a passphrase callback that will always fail
 bool failing_passphrase_callback(const pgp_passphrase_ctx_t *ctx,

@@ -52,6 +52,7 @@
 /** \file
  */
 #include "config.h"
+#include "compress.h"
 
 #ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>
