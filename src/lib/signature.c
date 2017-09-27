@@ -88,7 +88,7 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 #include "hash.h"
 #include "packet-create.h"
 #include "readerwriter.h"
-#include "misc.h"
+#include "fingerprint.h"
 #include "signature.h"
 #include "utils.h"
 

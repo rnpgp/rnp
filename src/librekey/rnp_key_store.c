@@ -52,7 +52,7 @@
 
 #include "pgp-key.h"
 #include "crypto/bn.h"
-#include "misc.h"
+#include "fingerprint.h"
 #include "hash.h"
 
 static bool
