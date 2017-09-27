@@ -125,7 +125,9 @@ src_peek(pgp_source_t *src, void *buf, size_t len)
     }
 
     if (cache->len - cache->pos >= len) {
-        memcpy(buf, &cache->buf[cache->pos], len);
+        if (buf) {
+            memcpy(buf, &cache->buf[cache->pos], len);
+        }
         return len;
     }
 
@@ -138,14 +140,18 @@ src_peek(pgp_source_t *src, void *buf, size_t len)
     while (cache->len < len) {
         read = src->read(src, &cache->buf[cache->len], sizeof(cache->buf) - cache->len);
         if (read == 0) {
-            memcpy(buf, &cache->buf[0], cache->len);
+            if (buf) {
+                memcpy(buf, &cache->buf[0], cache->len);
+            }
             return cache->len;
         } else if (read < 0) {
             return -1;
         } else {
             cache->len += read;
             if (cache->len >= len) {
-                memcpy(buf, &cache->buf[0], len);
+                if (buf) {
+                    memcpy(buf, &cache->buf[0], len);
+                }
                 return len;
             }
         }
