@@ -333,9 +333,9 @@ test_repgp_decrypt(void **state)
        - Try to decrypt to "o"
        -------------------------------------------------------------------------*/
     char *tmpdir = make_temp_dir();
-    char *tmp_filename = malloc(strlen(tmpdir) + 2);
+    char *tmp_filename = malloc(strlen(tmpdir) + 3);
     memcpy(tmp_filename, tmpdir, strlen(tmpdir));
-    memcpy(tmp_filename + strlen(tmpdir), "/o", 2);
+    memcpy(tmp_filename + strlen(tmpdir), "/o", 3);
 
     io = repgp_create_io();
     out_buf_size = sizeof(out_buf);
