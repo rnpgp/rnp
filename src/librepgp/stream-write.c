@@ -26,6 +26,7 @@
 
 #include "config.h"
 #include "stream-write.h"
+#include "stream-packet.h"
 #include "stream-armour.h"
 #include <sys/stat.h>
 #include <stdlib.h>
@@ -54,14 +55,6 @@
 /* 8192 bytes, as GnuPG */
 #define PARTIAL_PKT_SIZE_BITS (13)
 #define PARTIAL_PKT_BLOCK_SIZE (1 << PARTIAL_PKT_SIZE_BITS)
-
-/* structure to write non-stream packets without need to precalculate the length */
-typedef struct pgp_packet_body_t {
-    int      tag;       /* packet tag */
-    uint8_t *data;      /* packet body data */
-    size_t   len;       /* current len of the data */
-    size_t   allocated; /* allocated bytes in data */
-} pgp_packet_body_t;
 
 /* common fields for encrypted, compressed and literal data */
 typedef struct pgp_dest_packet_param_t {
@@ -100,112 +93,7 @@ typedef struct pgp_dest_partial_param_t {
     size_t      len;     /* bytes cached in part */
 } pgp_dest_partial_param_t;
 
-static bool
-init_packet_body(pgp_packet_body_t *body, int tag)
-{
-    body->data = malloc(16);
-    if (!body->data) {
-        return false;
-    }
-    body->allocated = 16;
-    body->tag = tag;
-    body->len = 0;
-    return true;
-}
-
-static bool
-add_packet_body(pgp_packet_body_t *body, void *data, size_t len)
-{
-    void * newdata;
-    size_t newlen;
-
-    if (body->len + len > body->allocated) {
-        newlen = (body->len + len) * 2;
-        newdata = realloc(body->data, newlen);
-        if (!newdata) {
-            return false;
-        }
-        body->data = newdata;
-        body->allocated = newlen;
-    }
-
-    memcpy(body->data + body->len, data, len);
-    body->len += len;
-
-    return true;
-}
-
-static bool
-add_packet_body_byte(pgp_packet_body_t *body, uint8_t byte)
-{
-    if (body->len < body->allocated) {
-        body->data[body->len] = byte;
-        body->len++;
-        return true;
-    } else {
-        return add_packet_body(body, &byte, 1);
-    }
-}
-
-static size_t
-write_packet_len(uint8_t *buf, size_t len)
-{
-    if (len < 192) {
-        buf[0] = len;
-        return 1;
-    } else if (len < 8192 + 192) {
-        buf[0] = ((len - 192) >> 8) + 192;
-        buf[1] = (len - 192) & 0xff;
-        return 2;
-    } else {
-        buf[0] = 0xff;
-        buf[1] = (uint8_t)(len >> 24);
-        buf[2] = (uint8_t)(len >> 16);
-        buf[3] = (uint8_t)(len >> 8);
-        buf[4] = (uint8_t)(len);
-        return 5;
-    }
-}
-
-static void
-flush_packet_body(pgp_packet_body_t *body, pgp_dest_t *dst)
-{
-    uint8_t hdr[6];
-    size_t  hlen;
-
-    hdr[0] = body->tag | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
-    hlen = 1 + write_packet_len(&hdr[1], body->len);
-    dst_write(dst, hdr, hlen);
-    dst_write(dst, body->data, body->len);
-    free(body->data);
-}
-
-static void
-free_packet_body(pgp_packet_body_t *body)
-{
-    free(body->data);
-    body->data = NULL;
-}
-
-static void
-stream_write_pkt_tag(int tag, pgp_dest_t *dst)
-{
-    uint8_t bt;
-
-    bt = tag | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
-    dst_write(dst, &bt, 1);
-}
-
-static void
-stream_write_indeterminate_pkt_tag(int tag, pgp_dest_t *dst)
-{
-    uint8_t bt;
-
-    bt = ((tag & 0xf) << PGP_PTAG_OF_CONTENT_TAG_SHIFT) | PGP_PTAG_OLD_LEN_INDETERMINATE;
-    dst_write(dst, &bt, 1);
-}
-
-static rnp_result_t
+rnp_result_t
 partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_partial_param_t *param = dst->param;
@@ -297,9 +185,11 @@ static bool
 init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
 {
     rnp_result_t ret;
+    uint8_t bt;
 
     if (param->partial) {
-        stream_write_pkt_tag(param->tag, dst);
+        bt = param->tag | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
+        dst_write(dst, &bt, 1);
 
         if ((param->writedst = calloc(1, sizeof(*param->writedst))) == NULL) {
             (void) fprintf(stderr, "init_streamed_packet: part len dest allocation failed\n");
@@ -314,10 +204,12 @@ init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
         param->origdst = dst;
     } else if (param->indeterminate) {
         if (param->tag > 0xf) {
-            (void) fprintf(stderr,
-                           "init_streamed_packet: tag > 0xf for indeterminate packet\n");
+            (void) fprintf(stderr, "init_streamed_packet: indeterminate tag > 0xf\n");
         }
-        stream_write_indeterminate_pkt_tag(param->tag, dst);
+
+        bt = ((param->tag & 0xf) << PGP_PTAG_OF_CONTENT_TAG_SHIFT) | PGP_PTAG_OLD_LEN_INDETERMINATE;
+        dst_write(dst, &bt, 1);
+
         param->writedst = dst;
         param->origdst = dst;
     } else {
@@ -338,46 +230,7 @@ close_streamed_packet(pgp_dest_packet_param_t *param, bool discard)
     }
 }
 
-static bool
-stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
-{
-    pgp_packet_body_t pktbody;
-    bool              res;
-
-    if (!init_packet_body(&pktbody, PGP_PTAG_CT_SK_SESSION_KEY)) {
-        return false;
-    }
-
-    res = add_packet_body_byte(&pktbody, 4) && add_packet_body_byte(&pktbody, skey->alg) &&
-          add_packet_body_byte(&pktbody, skey->s2k.specifier) &&
-          add_packet_body_byte(&pktbody, skey->s2k.hash_alg);
-
-    switch (skey->s2k.specifier) {
-    case PGP_S2KS_SIMPLE:
-        break;
-    case PGP_S2KS_SALTED:
-        res = res && add_packet_body(&pktbody, skey->s2k.salt, sizeof(skey->s2k.salt));
-        break;
-    case PGP_S2KS_ITERATED_AND_SALTED:
-        res = res && add_packet_body(&pktbody, skey->s2k.salt, sizeof(skey->s2k.salt)) &&
-              add_packet_body_byte(&pktbody, skey->s2k.iterations);
-        break;
-    }
-
-    if (skey->enckeylen > 0) {
-        res = res && add_packet_body(&pktbody, skey->enckey, skey->enckeylen);
-    }
-
-    if (res) {
-        flush_packet_body(&pktbody, dst);
-        return true;
-    } else {
-        free_packet_body(&pktbody);
-        return false;
-    }
-}
-
-static rnp_result_t
+rnp_result_t
 encrypted_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_encrypted_param_t *param = dst->param;

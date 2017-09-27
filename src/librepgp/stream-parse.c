@@ -27,6 +27,7 @@
 #include "config.h"
 #include "stream-parse.h"
 #include "stream-armour.h"
+#include "stream-packet.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -102,77 +103,8 @@ typedef struct pgp_source_partial_param_t {
     bool          last;    /* current part is last */
 } pgp_source_partial_param_t;
 
-static int
-stream_packet_type(uint8_t ptag)
-{
-    if (!(ptag & PGP_PTAG_ALWAYS_SET)) {
-        return -1;
-    }
-
-    if (ptag & PGP_PTAG_NEW_FORMAT) {
-        return (int) (ptag & PGP_PTAG_NF_CONTENT_TAG_MASK);
-    } else {
-        return (int) ((ptag & PGP_PTAG_OF_CONTENT_TAG_MASK) >> PGP_PTAG_OF_CONTENT_TAG_SHIFT);
-    }
-}
-
-/** @brief Read packet len for fixed-size (say, small) packet. Returns -1 on error.
- *  We do not allow partial length here as well as large packets (so ignoring possible 32 bit
- *int overflow)
- **/
-static ssize_t
-stream_read_pkt_len(pgp_source_t *src)
-{
-    uint8_t buf[6];
-    ssize_t read;
-
-    read = src_read(src, buf, 2);
-    if ((read < 2) || !(buf[0] & PGP_PTAG_ALWAYS_SET)) {
-        return -1;
-    }
-
-    if (buf[0] & PGP_PTAG_NEW_FORMAT) {
-        if (buf[1] < 192) {
-            return (ssize_t) buf[1];
-        } else if (buf[1] < 224) {
-            if (src_read(src, &buf[2], 1) < 1) {
-                return -1;
-            }
-            return ((ssize_t)(buf[1] - 192) << 8) + (ssize_t) buf[2] + 192;
-        } else if (buf[1] < 255) {
-            // we do not allow partial length here
-            return -1;
-        } else {
-            if (src_read(src, &buf[2], 4) < 4) {
-                return -1;
-            } else {
-                return ((ssize_t) buf[2] << 24) | ((ssize_t) buf[3] << 16) |
-                       ((ssize_t) buf[4] << 8) | (ssize_t) buf[5];
-            }
-        }
-    } else {
-        switch (buf[0] & PGP_PTAG_OF_LENGTH_TYPE_MASK) {
-        case PGP_PTAG_OLD_LEN_1:
-            return (ssize_t) buf[1];
-        case PGP_PTAG_OLD_LEN_2:
-            if (src_read(src, &buf[2], 1) < 1) {
-                return -1;
-            }
-            return ((ssize_t) buf[1] << 8) | ((ssize_t) buf[2]);
-        case PGP_PTAG_OLD_LEN_4:
-            if (src_read(src, &buf[2], 3) < 3) {
-                return -1;
-            }
-            return ((ssize_t) buf[1] << 24) | ((ssize_t) buf[2] << 16) |
-                   ((ssize_t) buf[3] << 8) | (ssize_t) buf[4];
-        default:
-            return -1;
-        }
-    }
-}
-
 static size_t
-stream_part_len(uint8_t blen)
+get_part_len(uint8_t blen)
 {
     return 1 << (blen & 0x1f);
 }
@@ -232,7 +164,7 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len)
                 return -1;
             }
             if ((hdr[0] >= 224) && (hdr[0] < 255)) {
-                param->psize = stream_part_len(hdr[0]);
+                param->psize = get_part_len(hdr[0]);
                 param->pleft = param->psize;
             } else {
                 if (hdr[0] < 192) {
@@ -312,8 +244,8 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
     /* we are sure that there are 2 bytes in readsrc */
     param = src->param;
     (void) src_read(readsrc, buf, 2);
-    param->type = stream_packet_type(buf[0]);
-    param->psize = stream_part_len(buf[1]);
+    param->type = get_packet_type(buf[0]);
+    param->psize = get_part_len(buf[1]);
     param->pleft = param->psize;
     param->last = false;
     param->readsrc = readsrc;
@@ -566,105 +498,6 @@ encrypted_src_close(pgp_source_t *src)
         free(src->cache);
         src->cache = NULL;
     }
-}
-
-static rnp_result_t
-stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
-{
-    ssize_t len;
-
-    len = stream_read_pkt_len(src);
-    if (len < 0) {
-        return RNP_ERROR_READ;
-    }
-
-    (void) fprintf(stderr, "skipping public key encrypted session key\n");
-    src_skip(src, len);
-    return RNP_SUCCESS;
-}
-
-static rnp_result_t
-stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
-{
-    uint8_t buf[4];
-    ssize_t len;
-    ssize_t read;
-
-    // read packet length
-    len = stream_read_pkt_len(src);
-    if (len < 0) {
-        return RNP_ERROR_READ;
-    } else if (len < 4) {
-        return RNP_ERROR_BAD_FORMAT;
-    }
-
-    // version + symalg + s2k type + hash alg
-    if ((read = src_read(src, buf, 4)) < 4) {
-        return RNP_ERROR_READ;
-    }
-
-    // version
-    skey->version = buf[0];
-    if (skey->version != 4) {
-        (void) fprintf(stderr, "stream_parse_sk_sesskey: wrong packet version\n");
-        return RNP_ERROR_BAD_FORMAT;
-    }
-
-    // symmetric algorithm
-    skey->alg = buf[1];
-
-    // s2k
-    skey->s2k.specifier = buf[2];
-    skey->s2k.hash_alg = buf[3];
-    len -= 4;
-
-    switch (skey->s2k.specifier) {
-    case PGP_S2KS_SIMPLE:
-        break;
-    case PGP_S2KS_SALTED:
-    case PGP_S2KS_ITERATED_AND_SALTED:
-        // salt
-        if (len < PGP_SALT_SIZE) {
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        if (src_read(src, skey->s2k.salt, PGP_SALT_SIZE) != PGP_SALT_SIZE) {
-            return RNP_ERROR_READ;
-        }
-        len -= PGP_SALT_SIZE;
-
-        // iterations
-        if (skey->s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-            if (len < 1) {
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            if (src_read(src, buf, 1) != 1) {
-                return RNP_ERROR_READ;
-            }
-            skey->s2k.iterations = (unsigned) buf[0];
-            len--;
-        }
-        break;
-    default:
-        (void) fprintf(stderr, "stream_parse_sk_sesskey: wrong s2k specifier\n");
-        return RNP_ERROR_BAD_FORMAT;
-    }
-
-    // encrypted session key if present
-    if (len > 0) {
-        if (len > PGP_MAX_KEY_SIZE + 1) {
-            (void) fprintf(stderr,
-                           "stream_parse_sk_sesskey: too long encrypted session key\n");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        if (src_read(src, skey->enckey, len) != len) {
-            return RNP_ERROR_READ;
-        }
-        skey->enckeylen = len;
-    } else {
-        skey->enckeylen = 0;
-    }
-
-    return RNP_SUCCESS;
 }
 
 static int
@@ -988,7 +821,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             goto finish;
         }
 
-        ptype = stream_packet_type(ptag);
+        ptype = get_packet_type(ptag);
 
         if (ptype == PGP_PTAG_CT_SK_SESSION_KEY) {
             errcode = stream_parse_sk_sesskey(readsrc, &skey);
@@ -1006,9 +839,8 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             sk_read = true;
             break;
         } else {
-            (void) fprintf(
-              stderr, "init_encrypted_src: unknown or unsupported packet type: %d\n", ptype);
-            errcode = RNP_ERROR_READ;
+            (void) fprintf(stderr, "init_encrypted_src: unknown packet type: %d\n", ptype);
+            errcode = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
     }
@@ -1026,8 +858,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             goto finish;
         }
         if (mdcver != 1) {
-            (void) fprintf(
-              stderr, "init_encrypted_src: unknown mdc version: %d\n", (int) mdcver);
+            (void) fprintf(stderr, "init_encrypted_src: unknown mdc ver: %d\n", (int) mdcver);
             errcode = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
@@ -1112,7 +943,7 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
             return RNP_ERROR_READ;
         }
 
-        type = stream_packet_type(ptag);
+        type = get_packet_type(ptag);
         if (type < 0) {
             (void) fprintf(stderr, "process_packet_sequence: wrong pkt tag %d\n", (int) ptag);
             return RNP_ERROR_BAD_FORMAT;
@@ -1168,7 +999,7 @@ is_pgp_sequence(uint8_t *buf, int size)
         return false;
     }
 
-    tag = stream_packet_type(buf[0]);
+    tag = get_packet_type(buf[0]);
     switch (tag) {
     case PGP_PTAG_CT_PK_SESSION_KEY:
     case PGP_PTAG_CT_SK_SESSION_KEY:

@@ -70,6 +70,9 @@
 #define PGP_SHA1_HASH_SIZE 20
 #define PGP_CHECKHASH_SIZE PGP_SHA1_HASH_SIZE
 
+/* 16384 bits should be pretty enough for now */
+#define PGP_MPINT_SIZE  (2048 + 2)
+
 /** General-use structure for variable-length data
  */
 
@@ -427,6 +430,25 @@ typedef struct {
     uint8_t                 key[PGP_MAX_KEY_SIZE];
     uint16_t                checksum;
 } pgp_pk_sesskey_t;
+
+/** public-key encrypted session key packet, should replace pgp_pk_sesskey_t later */
+typedef struct {
+    unsigned                version;
+    uint8_t                 key_id[PGP_KEY_ID_SIZE];
+    pgp_pubkey_alg_t        alg;
+    union {
+        uint8_t rsa_m[PGP_MPINT_SIZE];
+        struct {
+            uint8_t eg_g[PGP_MPINT_SIZE];
+            uint8_t eg_m[PGP_MPINT_SIZE];
+        };
+        uint8_t sm2_m[PGP_MPINT_SIZE];
+        struct {
+            uint8_t ecdh_p[PGP_MPINT_SIZE];
+            uint8_t ecdh_m[256];
+        };
+    };
+} pgp_pk_sesskey_pkt_t;
 
 /** pkp_sk_sesskey_t */
 typedef struct {
