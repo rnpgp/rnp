@@ -260,7 +260,7 @@ init_file_src(pgp_source_t *src, const char *path)
 
     if (stat(path, &st) != 0) {
         (void) fprintf(stderr, "can't stat \"%s\"\n", path);
-        return PGP_E_R_READ_FAILED;
+        return RNP_ERROR_READ;
     }
 
 #ifdef O_BINARY
@@ -285,7 +285,6 @@ init_file_src(pgp_source_t *src, const char *path)
     src->type = PGP_STREAM_FILE;
     src->size = st.st_size;
     src->readb = 0;
-    src->knownsize = 1;
     src->eof = 0;
 
     return RNP_SUCCESS;
@@ -307,7 +306,6 @@ init_stdin_src(pgp_source_t *src)
     src->type = PGP_STREAM_STDIN;
     src->size = 0;
     src->readb = 0;
-    src->knownsize = 0;
     src->eof = 0;
 
     return RNP_SUCCESS;

@@ -78,7 +78,6 @@ typedef struct pgp_source_t {
     void *              param; /* source-specific additional data */
 
     unsigned eof : 1;       /* end of data as reported by read and empty cache */
-    unsigned knownsize : 1; /* we know the size of the stream */
 } pgp_source_t;
 
 /** @brief helper function to allocate memory for source's cache and param
