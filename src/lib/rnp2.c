@@ -41,6 +41,7 @@ struct rnp_passphrase_cb_data {
 
 struct rnp_keyring_st {
     rnp_t                         rnp_ctx;
+    rnp_key_store_t *             store;
     struct rnp_passphrase_cb_data cb;
 };
 
@@ -171,8 +172,77 @@ rnp_keyring_open(rnp_keyring_t *   keyring,
       .callback = rnp_passphrase_cb_bounce, .userdata = &((*keyring)->cb)};
 
     rnp_result_t res = rnp_init(&(*keyring)->rnp_ctx, &rnp_params);
-
     return res;
+}
+
+rnp_result_t
+rnp_keyring_find_key(rnp_key_t *key, rnp_keyring_t ring, const char *identifer)
+{
+    if (key == NULL || ring == NULL || identifer == NULL)
+        return RNP_ERROR_NULL_POINTER;
+
+    *key = malloc(sizeof(rnp_key_t));
+    if (!key)
+        return RNP_ERROR_OUT_OF_MEMORY;
+
+    bool ok = rnp_key_store_get_key_by_name(NULL, ring->store, identifer, &(*key)->key);
+
+    if (ok == false) {
+        free(key);
+        *key = NULL;
+        return RNP_ERROR_GENERIC;
+    }
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_keyring_add_key(rnp_keyring_t ring, rnp_key_t key)
+{
+    bool ok = rnp_key_store_add_key(ring->rnp_ctx.io, ring->store, key->key);
+
+    if (ok)
+        return RNP_SUCCESS;
+    else
+        return RNP_ERROR_GENERIC;
+}
+
+rnp_result_t
+rnp_keyring_save_to_file(rnp_keyring_t ring, const char *path)
+{
+    const char *cur_path = ring->store->path;
+    bool        armor = false;
+    const char *passphrase = "fixme";
+
+    if (path)
+        ring->store->path = path;
+
+    bool ok = rnp_key_store_write_to_file(
+      &ring->rnp_ctx, ring->store, (const uint8_t *) passphrase, armor);
+
+    if (path)
+        ring->store->path = cur_path;
+
+    if (ok == false)
+        return RNP_ERROR_WRITE;
+
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_keyring_save_to_mem(
+  rnp_keyring_t ring, int flags, const char *passphrase, uint8_t *buf[], size_t *buf_len)
+{
+    bool         armor = (flags & RNP_EXPORT_FLAG_ARMORED);
+    pgp_memory_t memory;
+
+    bool ok = rnp_key_store_write_to_mem(
+      NULL, ring->store, (const uint8_t *) passphrase, armor, &memory);
+
+    if (!ok)
+        return RNP_ERROR_GENERIC;
+
+    return RNP_ERROR_NOT_IMPLEMENTED;
 }
 
 static pgp_key_t *
@@ -336,24 +406,13 @@ rnp_export_public_key(rnp_key_t key, uint32_t flags, char **buf, size_t *buf_len
     return RNP_SUCCESS;
 }
 
-rnp_result_t
-rnp_sign(rnp_keyring_t keyring,
-         const char *  userid,
-         const char *  hash_fn,
-         bool          clearsign,
-         bool          armor,
-         const uint8_t msg[],
-         size_t        msg_len,
-         uint8_t **    sig,
-         size_t *      sig_len)
+static rnp_result_t
+find_key_for(rnp_keyring_t   keyring,
+             const char *    userid,
+             pgp_key_flags_t flags,
+             pgp_seckey_t ** key)
 {
-    if (msg == NULL) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-
-    if (clearsign == true && armor == false) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
+    key = NULL;
 
     pgp_key_t *keypair = resolve_userid(&keyring->rnp_ctx, keyring->rnp_ctx.pubring, userid);
     if (keypair == NULL) {
@@ -375,22 +434,49 @@ rnp_sign(rnp_keyring_t keyring,
         return RNP_ERROR_KEY_NOT_FOUND;
     }
 
-    const pgp_seckey_t *seckey = NULL;
-    pgp_seckey_t *      decrypted_seckey = NULL;
-
-    if (pgp_key_is_locked(keypair)) {
-        decrypted_seckey =
-          pgp_decrypt_seckey(keypair,
-                             &keyring->rnp_ctx.passphrase_provider,
-                             &(pgp_passphrase_ctx_t){.op = PGP_OP_SIGN, .key = keypair});
-        if (decrypted_seckey == NULL) {
-            return RNP_ERROR_DECRYPT_FAILED;
-        }
-        seckey = decrypted_seckey;
-    } else {
-        seckey = &keypair->key.seckey;
+    if (pgp_key_is_locked(keypair) == false) {
+        *key = &keypair->key.seckey;
+        return RNP_SUCCESS;
     }
 
+    pgp_seckey_t *decrypted_seckey =
+      pgp_decrypt_seckey(keypair,
+                         &keyring->rnp_ctx.passphrase_provider,
+                         &(pgp_passphrase_ctx_t){.op = PGP_OP_SIGN, .key = keypair});
+
+    if (decrypted_seckey == NULL) {
+        return RNP_ERROR_DECRYPT_FAILED;
+    }
+
+    *key = decrypted_seckey;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_sign(rnp_keyring_t keyring,
+         const char *  userid,
+         const char *  hash_fn,
+         bool          clearsign,
+         bool          armor,
+         const uint8_t msg[],
+         size_t        msg_len,
+         uint8_t **    sig,
+         size_t *      sig_len)
+{
+    if (msg == NULL) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    if (clearsign == true && armor == false) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    pgp_seckey_t *seckey = NULL;
+    rnp_result_t  res = find_key_for(keyring, userid, PGP_KF_SIGN, &seckey);
+
+    if (res != RNP_SUCCESS) {
+        return res;
+    }
     if (!seckey) {
         return RNP_ERROR_DECRYPT_FAILED;
     }
@@ -415,16 +501,16 @@ rnp_sign(rnp_keyring_t keyring,
 
     *sig = calloc(1, *sig_len);
     if (*sig == NULL) {
-        pgp_seckey_free(decrypted_seckey);
-        free(decrypted_seckey);
+        pgp_seckey_free(seckey);
+        free(seckey);
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     memcpy(*sig, pgp_mem_data(signedmem), pgp_mem_len(signedmem));
     pgp_memory_free(signedmem);
 
-    pgp_seckey_free(decrypted_seckey);
-    free(decrypted_seckey);
+    pgp_seckey_free(seckey);
+    free(seckey);
     return RNP_SUCCESS;
 }
 
@@ -483,7 +569,7 @@ rnp_verify(
 
 rnp_result_t
 rnp_sign_detached(rnp_keyring_t keyring,
-                  const char *  ident,
+                  const char *  userid,
                   const char *  hash_fn,
                   bool          armor,
                   const uint8_t msg[],
@@ -491,7 +577,23 @@ rnp_sign_detached(rnp_keyring_t keyring,
                   uint8_t **    sig,
                   size_t *      sig_len)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    pgp_seckey_t *seckey = NULL;
+
+    if (hash_fn == NULL || msg == NULL || sig == NULL || sig_len == NULL) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    rnp_result_t res = find_key_for(keyring, userid, PGP_KF_SIGN, &seckey);
+
+    if (res != RNP_SUCCESS) {
+        return res;
+    }
+    if (!seckey) {
+        return RNP_ERROR_DECRYPT_FAILED;
+    }
+
+    rnp_ctx_t ctx;
+    return pgp_sign_memory_detached(&ctx, seckey, msg, msg_len, sig, sig_len);
 }
 
 rnp_result_t
@@ -794,6 +896,14 @@ done:
     return RNP_SUCCESS;
 }
 
+rnp_result_t
+rnp_key_free(rnp_key_t *key)
+{
+    // This does not free key->key which is owned by the keyring
+    free(key);
+    return RNP_SUCCESS;
+}
+
 void
 rnp_buffer_free(void *ptr)
 {
@@ -830,7 +940,7 @@ rnp_key_get_uid_at(rnp_key_t key, size_t idx, char **uid)
     if (idx > key->key->uidc)
         return RNP_ERROR_BAD_PARAMETERS;
 
-    size_t uid_len = strlen((const char*)key->key->uids[idx]);
+    size_t uid_len = strlen((const char *) key->key->uids[idx]);
     *uid = calloc(uid_len + 1, 1);
 
     if (*uid == NULL)

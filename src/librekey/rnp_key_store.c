@@ -297,7 +297,7 @@ rnp_key_store_write_to_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsign
         return true;
     }
 
-    if (!rnp_key_store_write_to_mem(rnp, key_store, armour, &mem)) {
+    if (!rnp_key_store_write_to_mem(rnp->io, key_store, armour, &mem)) {
         pgp_memory_release(&mem);
         return false;
     }
@@ -308,20 +308,20 @@ rnp_key_store_write_to_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsign
 }
 
 bool
-rnp_key_store_write_to_mem(rnp_t *          rnp,
+rnp_key_store_write_to_mem(pgp_io_t *          io,
                            rnp_key_store_t *key_store,
                            const unsigned   armour,
                            pgp_memory_t *   memory)
 {
     switch (key_store->format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_write_to_mem(rnp->io, key_store, armour, memory);
+        return rnp_key_store_pgp_write_to_mem(io, key_store, armour, memory);
 
     case KBX_KEY_STORE:
-        return rnp_key_store_kbx_to_mem(rnp->io, key_store, memory);
+        return rnp_key_store_kbx_to_mem(io, key_store, memory);
 
     default:
-        fprintf(rnp->io->errs,
+        fprintf(io->errs,
                 "Unsupported write to memory for key-store format: %d\n",
                 key_store->format);
     }
