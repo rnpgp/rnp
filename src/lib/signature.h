@@ -134,6 +134,14 @@ bool pgp_sign_file(
 int pgp_sign_detached(
   rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_seckey_t *);
 
+rnp_result_t
+pgp_sign_memory_detached(rnp_ctx_t *         ctx,
+                         const pgp_seckey_t *seckey,
+                         const uint8_t       membuf[],
+                         size_t              membuf_len,
+                         uint8_t **          sig_output,
+                         size_t *            sig_output_len);
+
 bool pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 
 /* armoured stuff */

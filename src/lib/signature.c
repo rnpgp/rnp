@@ -473,8 +473,8 @@ finalise_sig(pgp_hash_t *        hash,
 {
     hash_add_trailer(hash, sig, raw_packet);
 
-    uint8_t  hashout[PGP_MAX_HASH_SIZE];
-    size_t hash_len = pgp_hash_finish(hash, hashout);
+    uint8_t hashout[PGP_MAX_HASH_SIZE];
+    size_t  hash_len = pgp_hash_finish(hash, hashout);
     return pgp_check_sig(hashout, hash_len, sig, signer);
 }
 
@@ -747,7 +747,7 @@ pgp_sig_start(pgp_create_sig_t *   sig,
 void
 pgp_sig_add_data(pgp_create_sig_t *sig, const void *buf, size_t length)
 {
-    pgp_hash_add(&sig->hash, buf, (unsigned) length);
+    pgp_hash_add(&sig->hash, buf, length);
 }
 
 /**
@@ -1332,4 +1332,70 @@ done:
     pgp_create_sig_delete(sig);
     pgp_memory_free(mem);
     return ok;
+}
+
+rnp_result_t
+pgp_sign_memory_detached(rnp_ctx_t *         ctx,
+                         const pgp_seckey_t *seckey,
+                         const uint8_t       membuf[],
+                         size_t              membuf_len,
+                         uint8_t **          sig_output,
+                         size_t *            sig_output_len)
+{
+    pgp_create_sig_t *sig = NULL;
+    pgp_memory_t *    mem = NULL;
+    pgp_output_t *    output = NULL;
+    uint8_t           keyid[PGP_KEY_ID_SIZE];
+    rnp_result_t      rc = RNP_ERROR_GENERIC;
+
+    /* create a new signature */
+    sig = pgp_create_sig_new();
+    if (sig == NULL) {
+        rc = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    mem = pgp_memory_new();
+    if (mem == NULL) {
+        rc = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    if (!pgp_setup_memory_write(ctx, &output, &mem, membuf_len)) {
+        goto done;
+    }
+    pgp_sig_start(sig, seckey, ctx->halg, PGP_SIG_BINARY);
+
+    if (ctx->armour) {
+        pgp_writer_push_armoured(output, PGP_PGP_SIGNATURE);
+    }
+    pgp_sig_add_data(sig, membuf, membuf_len);
+
+    if (!pgp_sig_add_time(sig, ctx->sigcreate, PGP_PTAG_SS_CREATION_TIME) ||
+        !pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME) ||
+        !pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey) ||
+        !pgp_sig_add_issuer_keyid(sig, keyid) || !pgp_sig_end_hashed_subpkts(sig) ||
+        !pgp_sig_write(output, sig, &seckey->pubkey, seckey)) {
+        goto done;
+    }
+
+    *sig_output_len = pgp_mem_len(mem);
+    if (ctx->armour)
+        *sig_output_len += 1;
+
+    *sig_output = calloc(*sig_output_len, 1);
+
+    if (*sig_output == NULL) {
+        rc = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    memcpy(*sig_output, pgp_mem_data(mem), pgp_mem_len(mem));
+
+    rc = RNP_SUCCESS;
+
+done:
+    pgp_memory_free(mem);
+    pgp_create_sig_delete(sig);
+    return rc;
 }

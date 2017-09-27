@@ -37,6 +37,11 @@ extern "C" {
 */
 typedef uint32_t rnp_result_t;
 
+#define RNP_EXPORT_FLAG_ARMORED (1U << 0)
+
+/**
+* Return a constant string describing the result code
+*/
 const char *rnp_result_to_string(rnp_result_t result);
 
 /*
@@ -90,7 +95,10 @@ rnp_result_t rnp_keyring_load(rnp_keyring_t *ring,
                               const uint8_t  buf[],
                               size_t         buf_len);
 
-rnp_key_t *rnp_keyring_find_key(rnp_keyring_t ring, const char *identifer);
+rnp_result_t rnp_keyring_find_key(rnp_key_t* key,
+                                  rnp_keyring_t ring,
+                                  const char *identifer);
+
 rnp_result_t rnp_keyring_add_key(rnp_keyring_t ring, rnp_key_t key);
 
 /** save a keyring to a file
@@ -102,8 +110,14 @@ rnp_result_t rnp_keyring_add_key(rnp_keyring_t ring, rnp_key_t key);
  */
 rnp_result_t rnp_keyring_save_to_file(rnp_keyring_t ring, const char *path);
 
-rnp_result_t rnp_keyring_save_to_mem(rnp_keyring_t ring, uint8_t *buf[], size_t *buf_len);
+rnp_result_t rnp_keyring_save_to_mem(rnp_keyring_t ring,
+                                     int flags,
+                                     const char* passphrase,
+                                     uint8_t *buf[], size_t *buf_len);
+
 rnp_result_t rnp_keyring_free(rnp_keyring_t *ring);
+
+rnp_result_t rnp_key_free(rnp_key_t *key);
 
 /* TODO: keyring iteration */
 
@@ -126,7 +140,6 @@ rnp_result_t rnp_generate_key_json(rnp_key_t * primarykey,
 /**
 * Export a public key from the keyring
 */
-#define RNP_EXPORT_FLAG_ARMORED (1U << 0)
 rnp_result_t rnp_export_public_key(rnp_key_t key,
                                    uint32_t  flags,
                                    char **   output,
