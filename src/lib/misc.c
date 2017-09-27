@@ -82,16 +82,11 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include <botan/ffi.h>
 
 #include "errors.h"
-#include "crypto.h"
-#include "crypto/bn.h"
-#include "packet-create.h"
 #include <repgp/repgp.h>
-#include "signature.h"
 #include <rnp/rnp_sdk.h>
 #include "utils.h"
 #include "memory.h"
 #include "readerwriter.h"
-#include "pgp-key.h"
 
 #ifdef WIN32
 #define vsnprintf _vsnprintf
