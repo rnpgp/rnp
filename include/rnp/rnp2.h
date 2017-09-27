@@ -138,8 +138,7 @@ rnp_result_t rnp_key_get_primary_uid(rnp_key_t key, char **uid);
 rnp_result_t rnp_key_get_uid_count(rnp_key_t key, size_t *count);
 rnp_result_t rnp_key_get_uid_at(rnp_key_t key, size_t idx, char **uid);
 
-/* TODO: should these be NULL-terminated hex strings, or just
- the raw data? Document which. */
+/* The following output hex encoded strings */
 rnp_result_t rnp_key_get_fprint(rnp_key_t key, char **fprint);
 rnp_result_t rnp_key_get_keyid(rnp_key_t key, char **keyid);
 rnp_result_t rnp_key_get_grip(rnp_key_t key, char **grip);

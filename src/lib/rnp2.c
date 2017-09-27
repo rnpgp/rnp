@@ -45,7 +45,7 @@ struct rnp_keyring_st {
 };
 
 struct rnp_key_st {
-   pgp_key_t * key;
+    pgp_key_t *key;
 };
 
 static pgp_key_t *
@@ -299,18 +299,16 @@ done:
     return rc;
 }
 
-rnp_result_t rnp_export_public_key(rnp_key_t key,
-                                   uint32_t  flags,
-                                   char **   buf,
-                                   size_t *  buf_len)
-   {
+rnp_result_t
+rnp_export_public_key(rnp_key_t key, uint32_t flags, char **buf, size_t *buf_len)
+{
     pgp_output_t *output;
     pgp_memory_t *mem;
 
     bool armor = (flags & RNP_EXPORT_FLAG_ARMORED);
 
     if (key == NULL) {
-       return RNP_ERROR_NULL_POINTER;
+        return RNP_ERROR_NULL_POINTER;
     }
 
     if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
@@ -320,23 +318,23 @@ rnp_result_t rnp_export_public_key(rnp_key_t key,
     pgp_write_xfer_pubkey(output, key->key, NULL, armor);
 
     *buf_len = pgp_mem_len(mem);
-    if(armor)
-       *buf_len += 1;
+    if (armor)
+        *buf_len += 1;
 
     *buf = malloc(*buf_len);
 
-    if(*buf == NULL) {
-       pgp_teardown_memory_write(output, mem);
-       return RNP_ERROR_OUT_OF_MEMORY;
+    if (*buf == NULL) {
+        pgp_teardown_memory_write(output, mem);
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     memcpy(*buf, pgp_mem_data(mem), pgp_mem_len(mem));
 
-    if(armor)
-       buf[*buf_len - 1] = 0;
+    if (armor)
+        buf[*buf_len - 1] = 0;
 
     return RNP_SUCCESS;
-   }
+}
 
 rnp_result_t
 rnp_sign(rnp_keyring_t keyring,
@@ -800,4 +798,169 @@ void
 rnp_buffer_free(void *ptr)
 {
     free(ptr);
+}
+
+rnp_result_t
+rnp_key_get_primary_uid(rnp_key_t key, char **uid)
+{
+    if (key == NULL || key->key == NULL || uid == NULL)
+        return RNP_ERROR_NULL_POINTER;
+
+    if (key->key->uid0_set)
+        return rnp_key_get_uid_at(key, key->key->uid0, uid);
+    else
+        return rnp_key_get_uid_at(key, 0, uid);
+}
+
+rnp_result_t
+rnp_key_get_uid_count(rnp_key_t key, size_t *count)
+{
+    if (key == NULL || key->key == NULL || count == NULL)
+        return RNP_ERROR_NULL_POINTER;
+
+    *count = key->key->uidc;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_get_uid_at(rnp_key_t key, size_t idx, char **uid)
+{
+    if (key == NULL || key->key == NULL || uid == NULL)
+        return RNP_ERROR_NULL_POINTER;
+    if (idx > key->key->uidc)
+        return RNP_ERROR_BAD_PARAMETERS;
+
+    size_t uid_len = strlen((const char*)key->key->uids[idx]);
+    *uid = calloc(uid_len + 1, 1);
+
+    if (*uid == NULL)
+        return RNP_ERROR_OUT_OF_MEMORY;
+
+    memcpy(*uid, key->key->uids[idx], uid_len);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_get_fprint(rnp_key_t key, char **fprint)
+{
+    if (key == NULL || key->key == NULL || fprint == NULL)
+        return RNP_ERROR_NULL_POINTER;
+
+    *fprint = calloc(PGP_FINGERPRINT_HEX_SIZE + 1, 1);
+    if (*fprint == NULL)
+        return RNP_ERROR_OUT_OF_MEMORY;
+
+    rnp_strhexdump(
+      *fprint, key->key->fingerprint.fingerprint, key->key->fingerprint.length, " ");
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_get_keyid(rnp_key_t key, char **keyid)
+{
+    if (key == NULL || key->key == NULL || keyid == NULL)
+        return RNP_ERROR_NULL_POINTER;
+
+    *keyid = calloc(PGP_KEY_ID_SIZE * 2 + 1, 1);
+    if (*keyid == NULL)
+        return RNP_ERROR_OUT_OF_MEMORY;
+
+    rnp_strhexdump(*keyid, key->key->keyid, PGP_KEY_ID_SIZE, "");
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_get_grip(rnp_key_t key, char **grip)
+{
+    if (key == NULL || key->key == NULL || grip == NULL)
+        return RNP_ERROR_NULL_POINTER;
+
+    *grip = calloc(PGP_FINGERPRINT_SIZE * 2 + 1, 1);
+    if (*grip == NULL)
+        return RNP_ERROR_OUT_OF_MEMORY;
+
+    rnp_strhexdump(*grip, key->key->grip, PGP_FINGERPRINT_SIZE, "");
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_is_locked(rnp_key_t key, bool *result)
+{
+    if (key == NULL || key->key == NULL || result == NULL)
+        return RNP_ERROR_NULL_POINTER;
+
+    *result = pgp_key_is_locked(key->key);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_unlock(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx)
+{
+    if (key == NULL || key->key == NULL || cb == NULL)
+        return RNP_ERROR_NULL_POINTER;
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_key_is_protected(rnp_key_t key, bool *result)
+{
+    if (key == NULL || key->key == NULL || result == NULL)
+        return RNP_ERROR_NULL_POINTER;
+    *result = pgp_key_is_protected(key->key);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_protect(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx)
+{
+    if (key == NULL || key->key == NULL || cb == NULL)
+        return RNP_ERROR_NULL_POINTER;
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_key_unprotect(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx)
+{
+    if (key == NULL || key->key == NULL || cb == NULL)
+        return RNP_ERROR_NULL_POINTER;
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_key_is_primary_key(rnp_key_t key, bool *result)
+{
+    if (key == NULL || key->key == NULL || result == NULL)
+        return RNP_ERROR_NULL_POINTER;
+    *result = pgp_key_is_primary_key(key->key);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_is_subkey(rnp_key_t key, bool *result)
+{
+    if (key == NULL || key->key == NULL || result == NULL)
+        return RNP_ERROR_NULL_POINTER;
+    *result = pgp_key_is_subkey(key->key);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_is_secret(rnp_key_t key, bool *result)
+{
+    if (key == NULL || key->key == NULL || result == NULL)
+        return RNP_ERROR_NULL_POINTER;
+    *result = pgp_is_key_secret(key->key);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_is_public(rnp_key_t key, bool *result)
+{
+    if (key == NULL || key->key == NULL || result == NULL)
+        return RNP_ERROR_NULL_POINTER;
+    *result = pgp_is_key_public(key->key);
+    return RNP_SUCCESS;
 }
