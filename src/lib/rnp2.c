@@ -47,6 +47,7 @@ struct rnp_keyring_st {
 
 struct rnp_key_st {
     pgp_key_t *key;
+    rnp_keyring_t* keyring; // associated keyring, may be null
 };
 
 static pgp_key_t *
@@ -144,6 +145,14 @@ rnp_result_to_string(rnp_result_t result)
     return "Unknown error";
 }
 
+rnp_result_t rnp_keyring_load_homedir(rnp_keyring_t *secring,
+                                      rnp_keyring_t *pubring,
+                                      const char *   format,
+                                      const char *   path)
+   {
+   return RNP_ERROR_NOT_IMPLEMENTED;
+   }
+
 rnp_result_t
 rnp_keyring_open(rnp_keyring_t *   keyring,
                  const char *      keyring_format,
@@ -178,15 +187,18 @@ rnp_keyring_open(rnp_keyring_t *   keyring,
 rnp_result_t
 rnp_keyring_find_key(rnp_key_t *key, rnp_keyring_t ring, const char *identifer)
 {
-    if (key == NULL || ring == NULL || identifer == NULL)
+    if (key == NULL || ring == NULL || ring->store == NULL || identifer == NULL)
         return RNP_ERROR_NULL_POINTER;
 
     *key = malloc(sizeof(rnp_key_t));
     if (!key)
         return RNP_ERROR_OUT_OF_MEMORY;
 
+    (*key)->key = pgp_key_new();
+
     bool ok = rnp_key_store_get_key_by_name(NULL, ring->store, identifer, &(*key)->key);
 
+    printf("some error %d\n", ok);
     if (ok == false) {
         free(key);
         *key = NULL;
@@ -212,13 +224,11 @@ rnp_keyring_save_to_file(rnp_keyring_t ring, const char *path)
 {
     const char *cur_path = ring->store->path;
     bool        armor = false;
-    const char *passphrase = "fixme";
 
     if (path)
         ring->store->path = path;
 
-    bool ok = rnp_key_store_write_to_file(
-      &ring->rnp_ctx, ring->store, (const uint8_t *) passphrase, armor);
+    bool ok = rnp_key_store_write_to_file(&ring->rnp_ctx, ring->store, armor);
 
     if (path)
         ring->store->path = cur_path;
@@ -236,8 +246,7 @@ rnp_keyring_save_to_mem(
     bool         armor = (flags & RNP_EXPORT_FLAG_ARMORED);
     pgp_memory_t memory;
 
-    bool ok = rnp_key_store_write_to_mem(
-      NULL, ring->store, (const uint8_t *) passphrase, armor, &memory);
+    bool ok = rnp_key_store_write_to_mem(NULL, ring->store, armor, &memory);
 
     if (!ok)
         return RNP_ERROR_GENERIC;
@@ -269,7 +278,7 @@ resolve_public_key(rnp_t *rnp, const char *userid)
 }
 
 rnp_result_t
-rnp_keyring_close(rnp_keyring_t keyring)
+rnp_keyring_free(rnp_keyring_t keyring)
 {
     if (keyring != NULL) {
         rnp_end(&keyring->rnp_ctx);
@@ -278,15 +287,7 @@ rnp_keyring_close(rnp_keyring_t keyring)
     return RNP_SUCCESS;
 }
 
-rnp_result_t
-rnp_insert_public_key(rnp_keyring_t keyring,
-                      const char *  key_format,
-                      const uint8_t key_bits[],
-                      size_t        key_len)
-{
-    return RNP_ERROR_NOT_IMPLEMENTED;
-}
-
+#if 0
 rnp_result_t
 rnp_insert_armored_public_key(rnp_keyring_t keyring, const char *key)
 {
@@ -368,6 +369,7 @@ done:
     rnp_key_store_free(tmp_keystore);
     return rc;
 }
+#endif
 
 rnp_result_t
 rnp_export_public_key(rnp_key_t key, uint32_t flags, char **buf, size_t *buf_len)
@@ -897,7 +899,7 @@ done:
 }
 
 rnp_result_t
-rnp_key_free(rnp_key_t *key)
+rnp_key_free(rnp_key_t key)
 {
     // This does not free key->key which is owned by the keyring
     free(key);
@@ -1011,7 +1013,16 @@ rnp_key_unlock(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx)
 {
     if (key == NULL || key->key == NULL || cb == NULL)
         return RNP_ERROR_NULL_POINTER;
-    return RNP_ERROR_NOT_IMPLEMENTED;
+
+    if(pgp_key_is_locked(key->key) == false)
+       return RNP_SUCCESS;
+
+    pgp_passphrase_provider_t pass_provider;
+    bool ok = pgp_key_unlock(key->key, &pass_provider);
+    if(ok == false)
+       return RNP_ERROR_GENERIC;
+
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -1024,11 +1035,23 @@ rnp_key_is_protected(rnp_key_t key, bool *result)
 }
 
 rnp_result_t
-rnp_key_protect(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx)
+rnp_key_protect(rnp_key_t key, const char* passphrase)
 {
-    if (key == NULL || key->key == NULL || cb == NULL)
+    if (key == NULL || key->key == NULL || passphrase == NULL)
         return RNP_ERROR_NULL_POINTER;
-    return RNP_ERROR_NOT_IMPLEMENTED;
+
+    if(key->keyring == NULL)
+       return RNP_ERROR_BAD_STATE;
+
+    // TODO allow setting protection params
+    bool ok = pgp_key_protect_passphrase(key->key,
+                                         (*key->keyring)->store->format,
+                                         NULL,
+                                         passphrase);
+
+    if(ok)
+       return RNP_SUCCESS;
+    return RNP_ERROR_GENERIC;
 }
 
 rnp_result_t

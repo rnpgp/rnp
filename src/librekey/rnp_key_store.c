@@ -534,7 +534,7 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *key)
 {
     pgp_key_t *newkey;
 
-    if (rnp_get_debug(__FILE__)) {
+    if (io && rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "rnp_key_store_add_key\n");
     }
 
@@ -544,7 +544,7 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *key)
     }
     newkey = &keyring->keys[keyring->keyc++];
     *newkey = *key;
-    if (rnp_get_debug(__FILE__)) {
+    if (io && rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "rnp_key_store_add_key: keyc %u\n", keyring->keyc);
     }
 
