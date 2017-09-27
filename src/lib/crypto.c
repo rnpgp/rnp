@@ -215,47 +215,6 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
     }
 }
 
-#if 0
-/**
-\ingroup Core_MPI
-\brief Elgamal-encrypt an MPI
-*/
-bool
-pgp_elgamal_encrypt_mpi(const uint8_t *          encoded_m_buf,
-                        const size_t             sz_encoded_m_buf,
-                        const pgp_pubkey_t *     pubkey,
-                        pgp_pk_sesskey_params_t *skp)
-{
-    uint8_t encmpibuf[RNP_BUFSIZ];
-    uint8_t g_to_k[RNP_BUFSIZ];
-    int     n;
-
-    if (sz_encoded_m_buf != (size_t) BN_num_bytes(pubkey->key.elgamal.p)) {
-        (void) fprintf(stderr, "sz_encoded_m_buf wrong\n");
-        return false;
-    }
-
-    n = pgp_elgamal_public_encrypt_pkcs1(
-      g_to_k, encmpibuf, encoded_m_buf, sz_encoded_m_buf, &pubkey->key.elgamal);
-    if (n == -1) {
-        (void) fprintf(stderr, "pgp_elgamal_public_encrypt failure\n");
-        return false;
-    }
-
-    if (n <= 0) {
-        return false;
-    }
-
-    skp->elgamal.g_to_k = BN_bin2bn(g_to_k, n / 2, NULL);
-    skp->elgamal.encrypted_m = BN_bin2bn(encmpibuf, n / 2, NULL);
-
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "encrypted mpi", encmpibuf, 16);
-    }
-    return true;
-}
-#endif
-
 bool
 pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seckey)
 {
