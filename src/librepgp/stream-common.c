@@ -41,14 +41,6 @@
 #include "defs.h"
 #include "types.h"
 #include "symmetric.h"
-#include "crypto/s2k.h"
-#include "misc.h"
-#ifdef HAVE_ZLIB_H
-#include <zlib.h>
-#endif
-#ifdef HAVE_BZLIB_H
-#include <bzlib.h>
-#endif
 
 ssize_t
 src_read(pgp_source_t *src, void *buf, size_t len)

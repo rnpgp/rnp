@@ -52,7 +52,6 @@
 /** \file
  */
 #include "config.h"
-#include "misc.h"
 
 #ifdef HAVE_SYS_CDEFS_H
 #include <sys/cdefs.h>

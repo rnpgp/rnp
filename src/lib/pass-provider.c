@@ -32,8 +32,6 @@
 #include <pgp-key.h>
 #include <rnp/rnp_sdk.h>
 
-#include "misc.h"
-
 static bool
 rnp_getpass(const char *prompt, char *buffer, size_t size)
 {

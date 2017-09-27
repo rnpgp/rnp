@@ -34,7 +34,6 @@
 #include "defs.h"
 #include "types.h"
 #include "symmetric.h"
-#include "misc.h"
 
 #define ARMOURED_BLOCK_SIZE (4096)
 

@@ -37,7 +37,6 @@
 #include "crypto/s2k.h"
 #include "symmetric.h"
 #include "readerwriter.h"
-#include "misc.h"
 #include "pgp-key.h"
 #include <botan/ffi.h>
 

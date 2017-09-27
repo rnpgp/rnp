@@ -44,7 +44,6 @@
 #include "symmetric.h"
 #include "crypto/s2k.h"
 #include "crypto.h"
-#include "misc.h"
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
 #endif
