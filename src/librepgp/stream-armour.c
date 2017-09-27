@@ -244,7 +244,7 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
     uint32_t b24;
     ssize_t  read;
     ssize_t  left = len;
-    int      eqcount; /* number of '=' at the end of base64 stream */
+    int      eqcount = 0; /* number of '=' at the end of base64 stream */
 
     if (!param) {
         return -1;
@@ -591,7 +591,6 @@ init_armoured_src(pgp_source_t *src, pgp_source_t *readsrc)
     src->type = PGP_STREAM_ARMOURED;
     src->size = 0;
     src->readb = 0;
-    src->knownsize = 0;
     src->eof = 0;
 
     /* parsing armoured header */

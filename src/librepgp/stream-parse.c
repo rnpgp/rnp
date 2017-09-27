@@ -324,7 +324,6 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
     src->type = PGP_STREAM_PARLEN_PACKET;
     src->size = 0;
     src->readb = 0;
-    src->knownsize = 0;
     src->eof = 0;
 
     return RNP_SUCCESS;
@@ -812,7 +811,6 @@ init_packet_params(pgp_source_t *src, pgp_source_packet_param_t *param)
             return RNP_ERROR_BAD_FORMAT;
         }
         src->size = len;
-        src->knownsize = 1;
     }
 
     return RNP_SUCCESS;
@@ -837,7 +835,6 @@ init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *rea
     src->type = PGP_STREAM_LITERAL;
     src->size = 0;
     src->readb = 0;
-    src->knownsize = 0;
     src->eof = 0;
 
     /* Reading packet length/checking whether it is partial */
@@ -918,7 +915,6 @@ init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *
     src->type = PGP_STREAM_COMPRESSED;
     src->size = 0;
     src->readb = 0;
-    src->knownsize = 0;
     src->eof = 0;
 
     /* Reading packet length/checking whether it is partial */
@@ -999,7 +995,6 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     src->type = PGP_STREAM_ENCRYPTED;
     src->size = 0;
     src->readb = 0;
-    src->knownsize = 0;
     src->eof = 0;
 
     /* Reading pk/sk encrypted session key(s) */
