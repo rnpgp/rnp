@@ -82,6 +82,29 @@ rnp_result_t rnp_keyring_load_homedir(rnp_keyring_t *secring,
                                       const char *   format,
                                       const char *   path);
 
+rnp_result_t
+rnp_keyring_open(rnp_keyring_t *   keyring,
+                 const char *      keyring_format,
+                 const char *      pub_path,
+                 const char *      sec_path,
+                 rnp_passphrase_cb cb,
+                 void *            cb_data);
+
+rnp_result_t
+rnp_generate_private_key(rnp_keyring_t keyring,
+                         const char *  userid,
+                         const char *  signature_hash,
+                         const char *  prikey_algo,
+                         const char *  prikey_params,
+                         const char *  primary_passphrase,
+                         uint32_t      primary_expiration,
+                         const char *  subkey_algo,
+                         const char *  subkey_params,
+                         const char *  subkey_passphrase,
+                         uint32_t      subkey_expiration);
+
+
+
 /** load a keyring
  *
  * @param ring the keyring
@@ -101,6 +124,7 @@ rnp_result_t rnp_keyring_find_key(rnp_key_t* key,
 
 rnp_result_t rnp_keyring_add_key(rnp_keyring_t ring, rnp_key_t key);
 
+
 /** save a keyring to a file
  *
  * @param ring the keyring
@@ -115,9 +139,9 @@ rnp_result_t rnp_keyring_save_to_mem(rnp_keyring_t ring,
                                      const char* passphrase,
                                      uint8_t *buf[], size_t *buf_len);
 
-rnp_result_t rnp_keyring_free(rnp_keyring_t *ring);
+rnp_result_t rnp_keyring_free(rnp_keyring_t ring);
 
-rnp_result_t rnp_key_free(rnp_key_t *key);
+rnp_result_t rnp_key_free(rnp_key_t key);
 
 /* TODO: keyring iteration */
 
@@ -160,7 +184,7 @@ rnp_result_t rnp_key_is_locked(rnp_key_t key, bool *result);
 rnp_result_t rnp_key_unlock(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx);
 
 rnp_result_t rnp_key_is_protected(rnp_key_t key, bool *result);
-rnp_result_t rnp_key_protect(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx);
+rnp_result_t rnp_key_protect(rnp_key_t key, const char* passphrase);
 rnp_result_t rnp_key_unprotect(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx);
 
 rnp_result_t rnp_key_is_primary_key(rnp_key_t key, bool *result);
