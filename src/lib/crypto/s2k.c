@@ -34,7 +34,7 @@
 #include "crypto/s2k.h"
 
 bool
-pgp_s2k_derive_key(pgp_s2k *s2k, const char *passphrase, uint8_t *key, int keysize)
+pgp_s2k_derive_key(pgp_s2k_t *s2k, const char *passphrase, uint8_t *key, int keysize)
 {
     uint8_t *saltptr = NULL;
     unsigned iterations = 1;

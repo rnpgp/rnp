@@ -68,6 +68,6 @@ size_t pgp_s2k_round_iterations(size_t iterations);
  *  @param keysize number of bytes in the key.
  *  @return true on success or false otherwise
 */
-bool pgp_s2k_derive_key(pgp_s2k *s2k, const char *passphrase, uint8_t *key, int keysize);
+bool pgp_s2k_derive_key(pgp_s2k_t *s2k, const char *passphrase, uint8_t *key, int keysize);
 
 #endif

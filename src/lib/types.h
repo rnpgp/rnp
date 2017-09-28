@@ -168,7 +168,7 @@ unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
 
 typedef struct pgp_key_t pgp_key_t;
 
-typedef struct pgp_s2k {
+typedef struct pgp_s2k_t {
     pgp_s2k_usage_t usage;
 
     /* below fields may not all be valid, depending on the usage field above */
@@ -176,10 +176,10 @@ typedef struct pgp_s2k {
     pgp_hash_alg_t      hash_alg;
     uint8_t             salt[PGP_SALT_SIZE];
     unsigned            iterations;
-} pgp_s2k;
+} pgp_s2k_t;
 
 typedef struct pgp_key_protection_t {
-    pgp_s2k           s2k;         /* string-to-key kdf params */
+    pgp_s2k_t         s2k;         /* string-to-key kdf params */
     pgp_symm_alg_t    symm_alg;    /* symmetric alg */
     pgp_cipher_mode_t cipher_mode; /* block cipher mode */
     uint8_t           iv[PGP_MAX_BLOCK_SIZE];
@@ -432,7 +432,7 @@ typedef struct {
 typedef struct {
     unsigned       version;
     pgp_symm_alg_t alg;
-    pgp_s2k        s2k;
+    pgp_s2k_t      s2k;
     uint8_t        enckey[PGP_MAX_KEY_SIZE + 1];
     unsigned       enckeylen;
 } pgp_sk_sesskey_t;
