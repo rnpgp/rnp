@@ -175,7 +175,7 @@ test_key_unlock_pgp(void **state)
     size_t tmp = sizeof(decrypted);
     rnp_assert_int_equal(rstate,
                          rnp_decrypt_memory(&ctx, encrypted, enclen, decrypted, &tmp),
-                         RNP_ERROR_BAD_PARAMETERS);
+                         RNP_ERROR_OUT_OF_MEMORY);
     rnp_ctx_free(&ctx);
 
     // grab the encrypting key to unlock
@@ -210,7 +210,7 @@ test_key_unlock_pgp(void **state)
     out_len = sizeof(decrypted);
     rnp_assert_int_equal(rstate,
                          rnp_decrypt_memory(&ctx, encrypted, enclen, decrypted, &out_len),
-                         RNP_ERROR_BAD_PARAMETERS);
+                         RNP_ERROR_OUT_OF_MEMORY);
     rnp_ctx_free(&ctx);
 
     // cleanup

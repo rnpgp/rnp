@@ -1566,7 +1566,6 @@ rnp_decrypt_memory(
     pgp_memory_t *mem;
     int           realarmour;
     unsigned      sshkeys;
-    size_t        m;
     int           attempts;
 
     if (input == NULL) {
@@ -1590,14 +1589,16 @@ rnp_decrypt_memory(
                           attempts,
                           &ctx->rnp->passphrase_provider);
     if (mem == NULL) {
-        return RNP_ERROR_BAD_PARAMETERS;
+        return RNP_ERROR_OUT_OF_MEMORY;
+    } else if (*outsize <
+               pgp_mem_len(mem)) { // TODO: This should be checked earlier in pgp_decrypt_buf
+        pgp_memory_free(mem);
+        return RNP_ERROR_SHORT_BUFFER;
     }
-    // TODO: we should actually fail if output buffer is too small
-    m = MIN(pgp_mem_len(mem), *outsize);
-    (void) memcpy(out, pgp_mem_data(mem), m);
-    pgp_memory_free(mem);
 
-    *outsize = m;
+    (void) memcpy(out, pgp_mem_data(mem), pgp_mem_len(mem));
+    *outsize = pgp_mem_len(mem);
+    pgp_memory_free(mem);
     return RNP_SUCCESS;
 }
 
