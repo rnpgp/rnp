@@ -47,7 +47,11 @@ pgp_s2k_derive_key(pgp_s2k_t *s2k, const char *passphrase, uint8_t *key, int key
         break;
     case PGP_S2KS_ITERATED_AND_SALTED:
         saltptr = s2k->salt;
-        iterations = pgp_s2k_decode_iterations(s2k->iterations);
+        if (s2k->iterations < 256) {
+            iterations = pgp_s2k_decode_iterations(s2k->iterations);
+        } else {
+            iterations = s2k->iterations;
+        }
         break;
     default:
         return false;
