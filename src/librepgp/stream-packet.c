@@ -36,7 +36,6 @@
 #include "symmetric.h"
 #include "crypto/s2k.h"
 #include "signature.h"
-#include "misc.h"
 #include "stream-packet.h"
 
 size_t

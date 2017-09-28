@@ -93,7 +93,7 @@ typedef struct pgp_dest_partial_param_t {
     size_t      len;     /* bytes cached in part */
 } pgp_dest_partial_param_t;
 
-rnp_result_t
+static rnp_result_t
 partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_partial_param_t *param = dst->param;
@@ -230,7 +230,7 @@ close_streamed_packet(pgp_dest_packet_param_t *param, bool discard)
     }
 }
 
-rnp_result_t
+static rnp_result_t
 encrypted_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_encrypted_param_t *param = dst->param;
