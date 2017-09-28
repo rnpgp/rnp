@@ -291,16 +291,11 @@ test_repgp_decrypt(void **state)
     size_t  in_buf_size = sizeof(in_buf);
     char    plaintext[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890\n";
 
-    /* -------------------------------------------------------------------------
-        Setup keystore
-         This text was encrypted with keys stored in keyrings/1/..
-       -------------------------------------------------------------------------*/
+    /*  Setup keystore. This text was encrypted with keys stored in keyrings/1/.. */
     setup_keystore_1(rstate, &rnp);
     assert_int_equal(rnp_ctx_init(&ctx, &rnp), RNP_SUCCESS);
 
-    /* -------------------------------------------------------------------------
-       Read encrypted file
-       -------------------------------------------------------------------------*/
+    /* Read encrypted file */
     paths_concat(
       (char *) input_file, sizeof(input_file), rstate->data_dir, "encrypted_text.gpg\0", NULL);
     FILE *f = fopen(input_file, "rb");
@@ -309,9 +304,7 @@ test_repgp_decrypt(void **state)
     assert_true(in_buf_size > 0);
     fclose(f);
 
-    /* -------------------------------------------------------------------------
-       Decrypt buffer
-       -------------------------------------------------------------------------*/
+    /* Decrypt buffer */
     repgp_io_t *io = repgp_create_io();
     assert_non_null(io);
     repgp_set_input(io, create_data_handle(in_buf, in_buf_size));
@@ -322,16 +315,12 @@ test_repgp_decrypt(void **state)
                      RNP_SUCCESS);
     repgp_destroy_io(io);
 
-    /* -------------------------------------------------------------------------
-       Check if same as encryption input
-       -------------------------------------------------------------------------*/
+    /* Check if same as encryption input */
     assert_int_equal(memcmp(plaintext, out_buf, out_buf_size), 0);
 
-    /* -------------------------------------------------------------------------
-       Decrypt file to temporary file.
+    /* Decrypt file to temporary file.
        - Create temporary directory with file called "o" in it
-       - Try to decrypt to "o"
-       -------------------------------------------------------------------------*/
+       - Try to decrypt to "o" */
     char *tmpdir = make_temp_dir();
     char *tmp_filename = malloc(strlen(tmpdir) + 3);
     memcpy(tmp_filename, tmpdir, strlen(tmpdir));
@@ -346,9 +335,7 @@ test_repgp_decrypt(void **state)
 
     repgp_destroy_io(io);
 
-    /* -------------------------------------------------------------------------
-       Check if same as encryption input
-       -------------------------------------------------------------------------*/
+    /* Check if same as encryption input */
     f = fopen(tmp_filename, "rb");
     assert_non_null(f);
     in_buf_size = fread(in_buf, 1, in_buf_size, f);
@@ -356,9 +343,7 @@ test_repgp_decrypt(void **state)
     fclose(f);
     assert_int_equal(memcmp(plaintext, in_buf, in_buf_size), 0);
 
-    /* -------------------------------------------------------------------------
-       Cleanup
-       -------------------------------------------------------------------------*/
+    /* Cleanup */
     free(rnp.io);
     rnp.io = NULL;
     rnp_end(&rnp);
@@ -377,19 +362,14 @@ test_repgp_verify(void **state)
     char              input_file[1024] = {0};
     uint8_t           input_buf[1024] = {0};
 
-    /* -------------------------------------------------------------------------
-        Setup keystore
-         This text was signed with keys stored in keyrings/1/..
-       -------------------------------------------------------------------------*/
+    /* Setup keystore. This text was signed with keys stored in keyrings/1/.. */
     setup_keystore_1(rstate, &rnp);
     assert_int_equal(rnp_ctx_init(&ctx, &rnp), RNP_SUCCESS);
 
     paths_concat(
       (char *) input_file, sizeof(input_file), rstate->data_dir, "signed.gpg", NULL);
 
-    /* -------------------------------------------------------------------------
-        Test verification from file
-       -------------------------------------------------------------------------*/
+    /* Test verification from file */
     repgp_io_t *io = repgp_create_io();
     assert_non_null(io);
     repgp_set_input(io, create_filepath_handle(input_file));
@@ -397,9 +377,7 @@ test_repgp_verify(void **state)
     rnp_assert_int_equal(rstate, repgp_verify(&ctx, io), RNP_SUCCESS);
     repgp_destroy_io(io);
 
-    /* -------------------------------------------------------------------------
-        Test verification from memory
-       -------------------------------------------------------------------------*/
+    /* Test verification from memory */
     FILE *f = fopen(input_file, "rb");
     assert_non_null(f);
     size_t in_buf_size = fread(input_buf, 1, sizeof(input_buf), f);
@@ -413,9 +391,7 @@ test_repgp_verify(void **state)
     rnp_assert_int_equal(rstate, repgp_verify(&ctx, io), RNP_SUCCESS);
     repgp_destroy_io(io);
 
-    /* -------------------------------------------------------------------------
-        Cleanup
-       -------------------------------------------------------------------------*/
+    /* Cleanup */
     free(rnp.io);
     rnp.io = NULL;
     rnp_end(&rnp);
@@ -431,27 +407,20 @@ test_repgp_list_packets(void **state)
     char              input_file[1024] = {0};
     uint8_t           input_buf[1024] = {0};
 
-    /* -------------------------------------------------------------------------
-        Setup keystore
-         This text was signed with keys stored in keyrings/1/..
-       -------------------------------------------------------------------------*/
+    /* Setup keystore. This text was signed with keys stored in keyrings/1/.. */
     assert_int_equal(rnp_ctx_init(&ctx, &rnp), RNP_SUCCESS);
 
     paths_concat(
       (char *) input_file, sizeof(input_file), rstate->data_dir, "signed.gpg", NULL);
 
-    /* -------------------------------------------------------------------------
-        Test listing from file
-       -------------------------------------------------------------------------*/
+    /* Test listing from file */
     repgp_io_t *io = repgp_create_io();
     assert_non_null(io);
     repgp_handle_t *input = create_filepath_handle(input_file);
     rnp_assert_int_equal(rstate, repgp_list_packets(&ctx, input, false), RNP_SUCCESS);
     repgp_destroy_handle(input);
 
-    /* -------------------------------------------------------------------------
-        Test listing from memory
-       -------------------------------------------------------------------------*/
+    /* Test listing from memory */
     FILE *f = fopen(input_file, "rb");
     assert_non_null(f);
     size_t in_buf_size = fread(input_buf, 1, sizeof(input_buf), f);
@@ -464,9 +433,7 @@ test_repgp_list_packets(void **state)
     rnp_assert_int_equal(rstate, repgp_list_packets(&ctx, input, false), RNP_SUCCESS);
     repgp_destroy_handle(input);
 
-    /* -------------------------------------------------------------------------
-        Cleanup
-       -------------------------------------------------------------------------*/
+    /* Cleanup */
     free(rnp.io);
     rnp.io = NULL;
     rnp_end(&rnp);
