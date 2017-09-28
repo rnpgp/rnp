@@ -1582,10 +1582,7 @@ error:
 }
 
 bool
-rnp_key_store_g10_key_to_mem(pgp_io_t *     io,
-                             pgp_key_t *    key,
-                             const uint8_t *passphrase,
-                             pgp_memory_t * memory)
+rnp_key_store_g10_key_to_mem(pgp_io_t *io, pgp_key_t *key, pgp_memory_t *memory)
 {
     if (DYNARRAY_IS_EMPTY(key, packet)) {
         return false;

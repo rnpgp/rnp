@@ -240,10 +240,7 @@ rnp_key_store_load_from_mem(rnp_t *          rnp,
 }
 
 bool
-rnp_key_store_write_to_file(rnp_t *          rnp,
-                            rnp_key_store_t *key_store,
-                            const uint8_t *  passphrase,
-                            const unsigned   armour)
+rnp_key_store_write_to_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsigned armour)
 {
     bool         rc;
     pgp_memory_t mem = {0};
@@ -284,8 +281,7 @@ rnp_key_store_write_to_file(rnp_t *          rnp,
                      rnp_strhexdump_upper(grips, grip, 20, ""));
 
             memset(&mem, 0, sizeof(mem));
-            if (!rnp_key_store_g10_key_to_mem(
-                  rnp->io, &key_store->keys[i], passphrase, &mem)) {
+            if (!rnp_key_store_g10_key_to_mem(rnp->io, &key_store->keys[i], &mem)) {
                 pgp_memory_release(&mem);
                 return false;
             }
@@ -301,7 +297,7 @@ rnp_key_store_write_to_file(rnp_t *          rnp,
         return true;
     }
 
-    if (!rnp_key_store_write_to_mem(rnp, key_store, passphrase, armour, &mem)) {
+    if (!rnp_key_store_write_to_mem(rnp, key_store, armour, &mem)) {
         pgp_memory_release(&mem);
         return false;
     }
@@ -314,16 +310,15 @@ rnp_key_store_write_to_file(rnp_t *          rnp,
 bool
 rnp_key_store_write_to_mem(rnp_t *          rnp,
                            rnp_key_store_t *key_store,
-                           const uint8_t *  passphrase,
                            const unsigned   armour,
                            pgp_memory_t *   memory)
 {
     switch (key_store->format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_write_to_mem(rnp->io, key_store, passphrase, armour, memory);
+        return rnp_key_store_pgp_write_to_mem(rnp->io, key_store, armour, memory);
 
     case KBX_KEY_STORE:
-        return rnp_key_store_kbx_to_mem(rnp->io, key_store, passphrase, memory);
+        return rnp_key_store_kbx_to_mem(rnp->io, key_store, memory);
 
     default:
         fprintf(rnp->io->errs,
@@ -735,16 +730,16 @@ get_key_by_name(pgp_io_t *             io,
                 const rnp_key_store_t *keyring,
                 const char *           name,
                 unsigned *             from,
-                pgp_key_t **     key)
+                pgp_key_t **           key)
 {
     pgp_key_t *kp;
-    uint8_t **       uidp;
-    unsigned         i = 0;
-    pgp_key_t *      keyp;
-    unsigned         savedstart;
-    regex_t          r;
-    uint8_t          keyid[PGP_KEY_ID_SIZE + 1];
-    size_t           len;
+    uint8_t ** uidp;
+    unsigned   i = 0;
+    pgp_key_t *keyp;
+    unsigned   savedstart;
+    regex_t    r;
+    uint8_t    keyid[PGP_KEY_ID_SIZE + 1];
+    size_t     len;
 
     *key = NULL;
 
@@ -809,10 +804,10 @@ get_key_by_name(pgp_io_t *             io,
 
 */
 bool
-rnp_key_store_get_key_by_name(pgp_io_t *              io,
-                              const rnp_key_store_t * keyring,
-                              const char *            name,
-                              pgp_key_t **key)
+rnp_key_store_get_key_by_name(pgp_io_t *             io,
+                              const rnp_key_store_t *keyring,
+                              const char *           name,
+                              pgp_key_t **           key)
 {
     unsigned from;
 
@@ -821,11 +816,8 @@ rnp_key_store_get_key_by_name(pgp_io_t *              io,
 }
 
 bool
-rnp_key_store_get_next_key_by_name(pgp_io_t *             io,
-                                   const rnp_key_store_t *keyring,
-                                   const char *           name,
-                                   unsigned *             n,
-                                   pgp_key_t **     key)
+rnp_key_store_get_next_key_by_name(
+  pgp_io_t *io, const rnp_key_store_t *keyring, const char *name, unsigned *n, pgp_key_t **key)
 {
     return get_key_by_name(io, keyring, name, n, key);
 }

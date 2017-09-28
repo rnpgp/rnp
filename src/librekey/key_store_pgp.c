@@ -434,7 +434,6 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
 int
 rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
                                rnp_key_store_t *key_store,
-                               const uint8_t *  passphrase,
                                const unsigned   armour,
                                pgp_memory_t *   mem)
 {
