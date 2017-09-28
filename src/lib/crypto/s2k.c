@@ -33,6 +33,34 @@
 
 #include "crypto/s2k.h"
 
+bool
+pgp_s2k_derive_key(pgp_s2k *s2k, const char *passphrase, uint8_t *key, int keysize)
+{
+    uint8_t *saltptr = NULL;
+    unsigned iterations = 1;
+
+    switch (s2k->specifier) {
+    case PGP_S2KS_SIMPLE:
+        break;
+    case PGP_S2KS_SALTED:
+        saltptr = s2k->salt;
+        break;
+    case PGP_S2KS_ITERATED_AND_SALTED:
+        saltptr = s2k->salt;
+        iterations = pgp_s2k_decode_iterations(s2k->iterations);
+        break;
+    default:
+        return false;
+    }
+
+    if (pgp_s2k_iterated(s2k->hash_alg, key, keysize, passphrase, saltptr, iterations)) {
+        (void) fprintf(stderr, "s2k_derive_key: s2k failed\n");
+        return false;
+    }
+
+    return true;
+}
+
 int
 pgp_s2k_simple(pgp_hash_alg_t alg, uint8_t *out, size_t output_len, const char *passphrase)
 {

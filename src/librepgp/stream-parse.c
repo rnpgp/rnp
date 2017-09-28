@@ -679,34 +679,13 @@ encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
     int                           keysize;
     int                           blsize;
     bool                          keyavail = false;
-    uint8_t *                     saltptr = NULL;
-    size_t                        iterations = 1;
+    int                           res;
 
     for (int i = 0; i < param->symencc; i++) {
         /* deriving symmetric key from passphrase */
         symkey = &param->symencs[i];
         keysize = pgp_key_size(symkey->alg);
-        if (!keysize) {
-            continue;
-        }
-
-        switch (symkey->s2k.specifier) {
-        case PGP_S2KS_SIMPLE:
-            break;
-        case PGP_S2KS_SALTED:
-            saltptr = &symkey->s2k.salt[0];
-            break;
-        case PGP_S2KS_ITERATED_AND_SALTED:
-            saltptr = &symkey->s2k.salt[0];
-            iterations = pgp_s2k_decode_iterations(symkey->s2k.iterations);
-            break;
-        default:
-            continue;
-        }
-
-        if (pgp_s2k_iterated(
-              symkey->s2k.hash_alg, keybuf, keysize, passphrase, saltptr, iterations)) {
-            (void) fprintf(stderr, "encrypted_check_passphrase: s2k failed\n");
+        if (!keysize || !pgp_s2k_derive_key(&symkey->s2k, passphrase, keybuf, keysize)) {
             continue;
         }
 
@@ -756,14 +735,15 @@ encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
                 pgp_cipher_cfb_resync(&param->decrypt);
             } else {
                 if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
-                    (void) fprintf(stderr,
-                                   "encrypted_check_passphrase: cannot create sha1 hash\n");
-                    return -1;
+                    (void) fprintf(stderr, "%s: cannot create sha1 hash\n", __func__);
+                    res = -1;
+                    goto finish;
                 }
                 pgp_hash_add(&param->mdc, enchdr, blsize + 2);
             }
 
-            return 1;
+            res = 1;
+            goto finish;
         } else {
             pgp_cipher_finish(&crypt);
             continue;
@@ -771,11 +751,15 @@ encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
     }
 
     if (!keyavail) {
-        (void) fprintf(stderr, "encrypted_check_passphrase: no supported sk available\n");
-        return -1;
+        (void) fprintf(stderr, "%s: no supported sk available\n", __func__);
+        res = -1;
     } else {
-        return 0;
+        res = 0;
     }
+
+finish:
+    pgp_forget(keybuf, sizeof(keybuf));
+    return res;
 }
 
 /** @brief Initialize common to stream packets params, including partial data source */
@@ -1053,7 +1037,8 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     /* Obtaining the symmetric key */
     if (!ctx->handler.passphrase_provider) {
         (void) fprintf(stderr, "init_encrypted_src: no passphrase provider\n");
-        return RNP_ERROR_BAD_PARAMETERS;
+        errcode = RNP_ERROR_BAD_PARAMETERS;
+        goto finish;
     }
 
     if (param->symencc > 0) {

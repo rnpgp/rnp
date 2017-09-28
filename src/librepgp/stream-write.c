@@ -488,12 +488,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         goto finish;
     }
 
-    if (pgp_s2k_iterated(skey.s2k.hash_alg,
-                         s2key,
-                         keylen,
-                         passphrase,
-                         skey.s2k.salt,
-                         pgp_s2k_decode_iterations(skey.s2k.iterations))) {
+    if (!pgp_s2k_derive_key(&skey.s2k, passphrase, s2key, keylen)) {
         (void) fprintf(stderr, "init_encrypted_dst: s2k failed\n");
         ret = RNP_ERROR_GENERIC;
         goto finish;
