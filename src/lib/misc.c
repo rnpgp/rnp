@@ -913,7 +913,7 @@ rnp_strcasecmp(const char *s1, const char *s2)
 {
     int n;
 
-    for (n = 0; *s1 && *s2 && (n = tolower((uint8_t) *s1) - tolower((uint8_t) *s2)) == 0;
+    for (n = 0; (n = tolower((uint8_t) *s1) - tolower((uint8_t) *s2)) == 0 && *s1;
          s1++, s2++) {
     }
     return n;
