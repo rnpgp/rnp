@@ -192,6 +192,8 @@ rnp_result_t repgp_verify(const void *ctx, repgp_io_t *io);
  * @returns RNP_SUCCESS operation successful
  *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
  *          RNP_ERROR_GENERIC Decryption could not be correctly performed
+ *          RNP_ERROR_SHORT_BUFFER Output buffer too small
+ *          RNP_ERROR_OUT_OF_MEMORY Not enough memory to perform operation
  */
 rnp_result_t repgp_decrypt(const void *ctx, repgp_io_t *io);
 
@@ -207,7 +209,9 @@ rnp_result_t repgp_decrypt(const void *ctx, repgp_io_t *io);
  *          RNP_ERROR_GENERIC Implementation error
  *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
  */
-rnp_result_t repgp_list_packets(const void *ctx, const repgp_handle_t *input, bool dump_content);
+rnp_result_t repgp_list_packets(const void *          ctx,
+                                const repgp_handle_t *input,
+                                bool                  dump_content);
 
 /**
  * @brief   Validate all signatures on a single key against the given keyring
