@@ -61,7 +61,7 @@ uint8_t pgp_s2k_encode_iterations(size_t iterations);
 size_t pgp_s2k_round_iterations(size_t iterations);
 
 /** @brief Derive key from passphrase using the information stored in s2k structure
- *  @param s2k pointer to s2k structure, filled according to RFC 4880. 
+ *  @param s2k pointer to s2k structure, filled according to RFC 4880.
  *  Iterations field may contain encoded ( < 256) or decoded ( > 256) value.
  *  @param passphrase NULL-terminated passphrase
  *  @param key buffer to store the derived key, must have at least keysize bytes

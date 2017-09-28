@@ -901,14 +901,13 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
             goto done;
         }
 
-        const rnp_result_t err =
-          pgp_ecdh_encrypt_pkcs5(encoded_key,
-                                 sz_encoded_key,
-                                 encmpibuf,
-                                 &out_len,
-                                 sesskey->params.ecdh.ephemeral_point,
-                                 &pubkey->key.ecdh,
-                                 &fingerprint);
+        const rnp_result_t err = pgp_ecdh_encrypt_pkcs5(encoded_key,
+                                                        sz_encoded_key,
+                                                        encmpibuf,
+                                                        &out_len,
+                                                        sesskey->params.ecdh.ephemeral_point,
+                                                        &pubkey->key.ecdh,
+                                                        &fingerprint);
         if (RNP_SUCCESS != err) {
             RNP_LOG("Encryption failed %d\n", err);
             goto error;

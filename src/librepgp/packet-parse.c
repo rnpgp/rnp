@@ -2619,7 +2619,8 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
             return false;
         }
 
-        if (!pgp_s2k_derive_key(&pkt.u.seckey.protection.s2k, passphrase, derived_key, keysize)) {
+        if (!pgp_s2k_derive_key(
+              &pkt.u.seckey.protection.s2k, passphrase, derived_key, keysize)) {
             (void) fprintf(stderr, "pgp_s2k_derive_key failed\n");
             pgp_forget(passphrase, strlen(passphrase));
             return false;
