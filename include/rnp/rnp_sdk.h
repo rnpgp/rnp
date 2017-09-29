@@ -59,4 +59,8 @@ const char *rnp_filename(const char *path);
 char *rnp_compose_path(const char *first, ...);
 char *rnp_compose_path_ex(char **buf, size_t *buf_len, const char *first, ...);
 
+bool rnp_path_exists(const char *path);
+bool rnp_dir_exists(const char *path);
+bool rnp_file_exists(const char *path);
+
 #endif
