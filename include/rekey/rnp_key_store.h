@@ -41,7 +41,7 @@
 
 typedef struct rnp_t     rnp_t;
 typedef struct pgp_key_t pgp_key_t;
-typedef struct pgp_io_t pgp_io_t;
+typedef struct pgp_io_t  pgp_io_t;
 
 typedef enum {
     KBX_EMPTY_BLOB = 0,
@@ -141,11 +141,12 @@ rnp_key_store_t *rnp_key_store_new(const char *format, const char *path);
 
 bool rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret);
 
-int rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *, const unsigned);
-bool rnp_key_store_load_from_mem(rnp_t *rnp,
+int rnp_key_store_load_from_file(pgp_io_t *io,
                                  rnp_key_store_t *,
                                  const unsigned,
-                                 pgp_memory_t *);
+                                 rnp_key_store_t *);
+bool rnp_key_store_load_from_mem(
+  pgp_io_t *io, rnp_key_store_t *, const unsigned, rnp_key_store_t *, pgp_memory_t *);
 
 bool rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *, const unsigned);
 bool rnp_key_store_write_to_mem(pgp_io_t *io,

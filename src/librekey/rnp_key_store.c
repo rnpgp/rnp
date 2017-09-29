@@ -112,7 +112,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
           rnp, rnp->pubring, loadsecret ? rnp->secring : NULL);
     }
 
-    if (!rnp_key_store_load_from_file(rnp, rnp->pubring, 0)) {
+    if (!rnp_key_store_load_from_file(rnp->io, rnp->pubring, 0, rnp->pubring)) {
         fprintf(io->errs, "cannot read pub keyring\n");
         return false;
     }
@@ -126,7 +126,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
     /* Only read secret keys if we need to */
     if (loadsecret) {
         rnp_key_store_clear(rnp->secring);
-        if (!rnp_key_store_load_from_file(rnp, rnp->secring, 0)) {
+        if (!rnp_key_store_load_from_file(rnp->io, rnp->secring, 0, rnp->pubring)) {
             fprintf(io->errs, "cannot read sec keyring\n");
             return false;
         }
@@ -158,7 +158,10 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 }
 
 int
-rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsigned armour)
+rnp_key_store_load_from_file(pgp_io_t *       io,
+                             rnp_key_store_t *key_store,
+                             const unsigned   armour,
+                             rnp_key_store_t *pubring)
 {
     DIR *          dir;
     bool           rc;
@@ -167,13 +170,13 @@ rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsig
     char           path[MAXPATHLEN];
 
     if (key_store->format == SSH_KEY_STORE) {
-        return rnp_key_store_ssh_from_file(rnp->io, key_store, key_store->path);
+        return rnp_key_store_ssh_from_file(io, key_store, key_store->path);
     }
 
     if (key_store->format == G10_KEY_STORE) {
         dir = opendir(key_store->path);
         if (dir == NULL) {
-            fprintf(rnp->io->errs, "Can't open G10 directory: %s\n", strerror(errno));
+            fprintf(io->errs, "Can't open G10 directory: %s\n", strerror(errno));
             return false;
         }
 
@@ -187,17 +190,17 @@ rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsig
             memset(&mem, 0, sizeof(mem));
 
             if (rnp_get_debug(__FILE__)) {
-                fprintf(rnp->io->errs, "Loading G10 key from file '%s'\n", path);
+                fprintf(io->errs, "Loading G10 key from file '%s'\n", path);
             }
 
             if (!pgp_mem_readfile(&mem, path)) {
-                fprintf(rnp->io->errs, "Can't read file '%s' to memory\n", path);
+                fprintf(io->errs, "Can't read file '%s' to memory\n", path);
                 continue;
             }
 
             // G10 may don't read one file, so, ignore it!
-            if (!rnp_key_store_g10_from_mem(rnp->io, rnp->pubring, key_store, &mem)) {
-                fprintf(rnp->io->errs, "Can't parse file: %s\n", path);
+            if (!rnp_key_store_g10_from_mem(io, pubring, key_store, &mem)) {
+                fprintf(io->errs, "Can't parse file: %s\n", path);
             }
             pgp_memory_release(&mem);
         }
@@ -209,29 +212,30 @@ rnp_key_store_load_from_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsig
         return false;
     }
 
-    rc = rnp_key_store_load_from_mem(rnp, key_store, armour, &mem);
+    rc = rnp_key_store_load_from_mem(io, key_store, armour, pubring, &mem);
     pgp_memory_release(&mem);
     return rc;
 }
 
 bool
-rnp_key_store_load_from_mem(rnp_t *          rnp,
+rnp_key_store_load_from_mem(pgp_io_t *       io,
                             rnp_key_store_t *key_store,
                             const unsigned   armour,
+                            rnp_key_store_t *pubring,
                             pgp_memory_t *   memory)
 {
     switch (key_store->format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_read_from_mem(rnp->io, key_store, armour, memory);
+        return rnp_key_store_pgp_read_from_mem(io, key_store, armour, memory);
 
     case KBX_KEY_STORE:
-        return rnp_key_store_kbx_from_mem(rnp->io, key_store, memory);
+        return rnp_key_store_kbx_from_mem(io, key_store, memory);
 
     case G10_KEY_STORE:
-        return rnp_key_store_g10_from_mem(rnp->io, rnp->pubring, key_store, memory);
+        return rnp_key_store_g10_from_mem(io, pubring, key_store, memory);
 
     default:
-        fprintf(rnp->io->errs,
+        fprintf(io->errs,
                 "Unsupported load from memory for key-store format: %d\n",
                 key_store->format);
     }
@@ -253,8 +257,7 @@ rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *key_store, const unsi
         struct stat path_stat;
         if (stat(key_store->path, &path_stat) != -1) {
             if (!S_ISDIR(path_stat.st_mode)) {
-                fprintf(
-                  io->errs, "G10 keystore should be a directory: %s\n", key_store->path);
+                fprintf(io->errs, "G10 keystore should be a directory: %s\n", key_store->path);
                 return false;
             }
         } else {
@@ -308,7 +311,7 @@ rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *key_store, const unsi
 }
 
 bool
-rnp_key_store_write_to_mem(pgp_io_t *          io,
+rnp_key_store_write_to_mem(pgp_io_t *       io,
                            rnp_key_store_t *key_store,
                            const unsigned   armour,
                            pgp_memory_t *   memory)

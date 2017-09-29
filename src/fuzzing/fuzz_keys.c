@@ -12,7 +12,7 @@ main(int argc, char *argv[])
     if (key_store == NULL) {
         return 1;
     }
-    rnp_key_store_load_from_file(&rnp, key_store, 1);
+    rnp_key_store_load_from_file(rnp.io, key_store, 1, NULL);
     rnp_key_store_free(key_store);
     return 0;
 }
