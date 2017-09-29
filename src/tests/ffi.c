@@ -54,46 +54,49 @@ test_ffi_api(void **state)
 {
     rnp_test_state_t *rstate = *state;
 
+    rnp_set_io(stdout, stderr, stdout);
+
     // FIXME
     const char *test_userid = "Test userid";
     const char *sec_path = "/tmp/secring";
     const char *pub_path = "/tmp/pubring";
     const char *plaintext_message = "Hi there\n";
 
-    rnp_keyring_t keyring;
+    rnp_keyring_t secring, pubring;
     rnp_result_t  result;
 
-    result = rnp_keyring_open(&keyring, "GPG", pub_path, sec_path, test_ffi_cb, NULL);
+    result = rnp_keyring_open(&secring, &pubring, sec_path, pub_path, "GPG", test_ffi_cb, NULL);
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
-    result = rnp_generate_private_key(keyring,
+    rnp_key_t pubkey, seckey;
+
+    result = rnp_generate_private_key(&pubkey,
+                                      &seckey,
+                                      pubring,
+                                      secring,
                                       test_userid,
-                                      "SHA1",
-                                      "RSA",
-                                      "1024",
-                                      "primary pass",
-                                      0,
-                                      "RSA",
-                                      "1024",
-                                      "subkey pass",
-                                      0);
+                                      "my secret pass",
+                                      "SHA1");
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
-    rnp_key_t key;
-    result = rnp_keyring_find_key(&key, keyring, test_userid);
+    rnp_key_t restored;
+    result = rnp_keyring_find_key(&restored, pubring, test_userid);
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
     char *exported_key = NULL;
     size_t exported_key_len = 0;
-    result = rnp_export_public_key(key, 1, &exported_key, &exported_key_len);
+    result = rnp_export_public_key(restored, 1, &exported_key, &exported_key_len);
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
     printf("%s\n", exported_key);
 
     uint8_t *ciphertext = NULL;
     size_t   ctext_len = 0;
-    result = rnp_encrypt(keyring,
-                         test_userid,
+
+    const char* const recipients[1] = { test_userid };
+    result = rnp_encrypt(pubring,
+                         recipients,
+                         1,
                          "AES-128",
                          "zlib",
                          6,
@@ -108,7 +111,7 @@ test_ffi_api(void **state)
 
     uint8_t *decrypted;
     size_t   decrypted_len;
-    result = rnp_decrypt(keyring, ciphertext, ctext_len, &decrypted, &decrypted_len);
+    result = rnp_decrypt(secring, ciphertext, ctext_len, &decrypted, &decrypted_len);
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
     printf("Decrypted=");
@@ -121,7 +124,7 @@ test_ffi_api(void **state)
 
     uint8_t *sig = NULL;
     size_t   sig_len = 0;
-    result = rnp_sign(keyring,
+    result = rnp_sign(secring,
                       test_userid,
                       "SHA256",
                       false,
@@ -136,12 +139,13 @@ test_ffi_api(void **state)
 
     uint8_t *recovered_msg;
     size_t   recovered_msg_len;
-    result = rnp_verify(keyring, sig, sig_len, &recovered_msg, &recovered_msg_len);
+    result = rnp_verify(pubring, sig, sig_len, &recovered_msg, &recovered_msg_len);
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
     //result = rnp_insert_armored_public_key(keyring, test_pub_key);
     //rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
     // TODO test the key we just loaded (eg verify a signature)
 
-    rnp_keyring_free(keyring);
+    rnp_keyring_free(pubring);
+    rnp_keyring_free(secring);
 }

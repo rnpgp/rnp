@@ -27,6 +27,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -64,6 +65,10 @@ typedef int (*rnp_passphrase_cb)(void *      app_ctx,
                                  char        buf[],
                                  size_t      buf_len);
 
+void rnp_set_io(FILE* output_stream,
+                FILE* error_stream,
+                FILE* result_stream);
+
 /* Operations on key rings */
 
 /** load keyrings from a home directory
@@ -83,27 +88,13 @@ rnp_result_t rnp_keyring_load_homedir(rnp_keyring_t *secring,
                                       const char *   path);
 
 rnp_result_t
-rnp_keyring_open(rnp_keyring_t *   keyring,
-                 const char *      keyring_format,
-                 const char *      pub_path,
+rnp_keyring_open(rnp_keyring_t *   secring,
+                 rnp_keyring_t *   pubring,
                  const char *      sec_path,
+                 const char *      pub_path,
+                 const char *      keyring_format,
                  rnp_passphrase_cb cb,
                  void *            cb_data);
-
-rnp_result_t
-rnp_generate_private_key(rnp_keyring_t keyring,
-                         const char *  userid,
-                         const char *  signature_hash,
-                         const char *  prikey_algo,
-                         const char *  prikey_params,
-                         const char *  primary_passphrase,
-                         uint32_t      primary_expiration,
-                         const char *  subkey_algo,
-                         const char *  subkey_params,
-                         const char *  subkey_passphrase,
-                         uint32_t      subkey_expiration);
-
-
 
 /** load a keyring
  *
@@ -135,13 +126,13 @@ rnp_result_t rnp_keyring_add_key(rnp_keyring_t ring, rnp_key_t key);
 rnp_result_t rnp_keyring_save_to_file(rnp_keyring_t ring, const char *path);
 
 rnp_result_t rnp_keyring_save_to_mem(rnp_keyring_t ring,
-                                     int flags,
-                                     const char* passphrase,
-                                     uint8_t *buf[], size_t *buf_len);
+                                     int           flags,
+                                     uint8_t *     buf[],
+                                     size_t *      buf_len);
 
 rnp_result_t rnp_keyring_free(rnp_keyring_t ring);
 
-rnp_result_t rnp_key_free(rnp_key_t key);
+rnp_result_t rnp_key_free(rnp_key_t* key);
 
 /* TODO: keyring iteration */
 
@@ -158,6 +149,16 @@ rnp_result_t rnp_key_free(rnp_key_t key);
 rnp_result_t rnp_generate_key_json(rnp_key_t * primarykey,
                                    rnp_key_t * subkey,
                                    const char *jsondata);
+
+rnp_result_t
+rnp_generate_private_key(rnp_key_t* pubkey,
+                         rnp_key_t* seckey,
+                         rnp_keyring_t pubring,
+                         rnp_keyring_t secring,
+                         const char *  userid,
+                         const char * passphrase,
+                         const char *  signature_hash);
+
 
 /* Key operations */
 
@@ -280,7 +281,8 @@ rnp_result_t rnp_verify_detached_file(rnp_keyring_t keyring,
 /* Encryption/decryption operations */
 
 rnp_result_t rnp_encrypt(rnp_keyring_t keyring,
-                         const char *  ident,
+                         const char * const recipients[],
+                         size_t recipients_len,
                          const char *  cipher,
                          const char *  z_alg,
                          size_t        z_level,

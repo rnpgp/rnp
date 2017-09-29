@@ -1048,8 +1048,8 @@ rnp_import_key(rnp_t *rnp, char *f)
     }
 
     // update the keyrings on disk
-    if (!rnp_key_store_write_to_file(rnp, rnp->secring, 0) ||
-        !rnp_key_store_write_to_file(rnp, rnp->pubring, 0)) {
+    if (!rnp_key_store_write_to_file(rnp->io, rnp->secring, 0) ||
+        !rnp_key_store_write_to_file(rnp->io, rnp->pubring, 0)) {
         RNP_LOG("failed to write keyring");
         goto done;
     }
@@ -1148,8 +1148,8 @@ rnp_generate_key(rnp_t *rnp)
     }
 
     // update the keyring on disk
-    if (!rnp_key_store_write_to_file(rnp, rnp->secring, 0) ||
-        !rnp_key_store_write_to_file(rnp, rnp->pubring, 0)) {
+    if (!rnp_key_store_write_to_file(rnp->io, rnp->secring, 0) ||
+        !rnp_key_store_write_to_file(rnp->io, rnp->pubring, 0)) {
         RNP_LOG("failed to write keyring");
         goto end;
     }
