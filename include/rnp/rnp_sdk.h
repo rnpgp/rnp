@@ -56,4 +56,7 @@ int64_t rnp_filemtime(const char *path);
 
 const char *rnp_filename(const char *path);
 
+char *rnp_compose_path(const char *first, ...);
+char *rnp_compose_path_ex(char **buf, size_t *buf_len, const char *first, ...);
+
 #endif

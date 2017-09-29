@@ -970,3 +970,116 @@ rnp_filename(const char *path)
         return res + 1;
     }
 }
+
+static char *
+vcompose_path(char **buf, size_t *buf_len, const char *first, va_list ap)
+{
+    size_t curlen = 0;
+    char * tmp_buf = NULL;
+    size_t tmp_buf_len = 0;
+
+    if (!first) {
+        return NULL;
+    }
+    if (!buf) {
+        buf = &tmp_buf;
+    }
+    if (!buf_len) {
+        buf_len = &tmp_buf_len;
+    }
+
+    const char *s = first;
+    do {
+        size_t len = strlen(s);
+
+        // current string len + NULL terminator + possible '/' +
+        // len of this path component
+        size_t reqsize = curlen + 1 + 1 + len;
+        if (*buf_len < reqsize) {
+            char *newbuf = realloc(*buf, reqsize);
+            if (!newbuf) {
+                // realloc failed, bail
+                free(*buf);
+                *buf = NULL;
+                break;
+            }
+            *buf = newbuf;
+            *buf_len = reqsize;
+        }
+
+        if (s != first) {
+            if ((*buf)[curlen - 1] != '/' && *s != '/') {
+                // add missing separator
+                (*buf)[curlen] = '/';
+                curlen += 1;
+            } else if ((*buf)[curlen - 1] == '/' && *s == '/') {
+                // skip duplicate separator
+                s++;
+                len--;
+            }
+        }
+        memcpy(*buf + curlen, s, len + 1);
+        curlen += len;
+    } while ((s = va_arg(ap, const char *)));
+
+    return *buf;
+}
+
+/** compose a path from one or more components
+ *
+ *  Notes:
+ *  - The final argument must be NULL.
+ *  - The caller must free the returned buffer.
+ *  - The returned buffer is always NULL-terminated.
+ *
+ *  @param first the first path component
+ *  @return the composed path buffer. The caller must free it.
+ */
+char *
+rnp_compose_path(const char *first, ...)
+{
+    va_list ap;
+    va_start(ap, first);
+    char *path = vcompose_path(NULL, NULL, first, ap);
+    va_end(ap);
+    return path;
+}
+
+/** compose a path from one or more components
+ *
+ *  This version is useful when a function is composing
+ *  multiple paths and wants to try to avoid unnecessary
+ *  allocations.
+ *
+ *  Notes:
+ *  - The final argument must be NULL.
+ *  - The caller must free the returned buffer.
+ *  - The returned buffer is always NULL-terminated.
+ *
+ *  @code
+ *  char *buf = NULL;
+ *  size_t buf_len = 0;
+ *  rnp_compose_path_ex(&buf, &buf_len, "/tmp", dir1, file1, NULL);
+ *  // the calls below will realloc the buffer if needed
+ *  rnp_compose_path_ex(&buf, &buf_len, "/tmp", dir3, NULL);
+ *  rnp_compose_path_ex(&buf, &buf_len, "/tmp", something, NULL);
+ *  free(buf);
+ *  @endcode
+ *
+ *  @param buf pointer to the buffer where the result will be stored.
+ *         If buf is NULL, the caller must use the returned value.
+ *         If *buf is NULL, a new buffer will be allocated.
+ *  @param buf_len pointer to the allocated buffer size.
+ *         Can be NULL.
+ *  @param first the first path component
+ *  @return the composed path buffer. The caller must free it.
+ */
+char *
+rnp_compose_path_ex(char **buf, size_t *buf_len, const char *first, ...)
+{
+    va_list ap;
+    va_start(ap, first);
+    char *path = vcompose_path(buf, buf_len, first, ap);
+    va_end(ap);
+    return path;
+}
