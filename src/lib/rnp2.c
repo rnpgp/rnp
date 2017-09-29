@@ -68,6 +68,18 @@ find_suitable_subkey(const pgp_key_t *primary, uint8_t desired_usage)
     return NULL;
 }
 
+static pgp_io_t g_ffi_io;
+
+void rnp_set_io(FILE* output_stream,
+                FILE* error_stream,
+                FILE* result_stream)
+   {
+   g_ffi_io.outs = output_stream;
+   g_ffi_io.errs = error_stream;
+   g_ffi_io.res = result_stream;
+   }
+
+/*
 static bool
 rnp_passphrase_cb_bounce(const pgp_passphrase_ctx_t *ctx,
                          char *                      passphrase,
@@ -81,6 +93,7 @@ rnp_passphrase_cb_bounce(const pgp_passphrase_ctx_t *ctx,
 
     return (rc == 0);
 }
+*/
 
 const char *
 rnp_result_to_string(rnp_result_t result)
@@ -150,38 +163,40 @@ rnp_result_t rnp_keyring_load_homedir(rnp_keyring_t *secring,
                                       const char *   format,
                                       const char *   path)
    {
+   if(secring == NULL || pubring == NULL || path == NULL)
+      return RNP_ERROR_NULL_POINTER;
+
    return RNP_ERROR_NOT_IMPLEMENTED;
    }
 
 rnp_result_t
-rnp_keyring_open(rnp_keyring_t *   keyring,
-                 const char *      keyring_format,
-                 const char *      pub_path,
+rnp_keyring_open(rnp_keyring_t *   secring,
+                 rnp_keyring_t *   pubring,
                  const char *      sec_path,
+                 const char *      pub_path,
+                 const char *      keyring_format,
                  rnp_passphrase_cb cb,
                  void *            cb_data)
 {
-    *keyring = calloc(1, sizeof(struct rnp_keyring_st));
-    if (!keyring)
+    *secring = calloc(1, sizeof(struct rnp_keyring_st));
+    if (!secring)
         return RNP_ERROR_OUT_OF_MEMORY;
 
-    (*keyring)->cb.cb_fn = cb;
-    (*keyring)->cb.cb_data = cb_data;
+    *pubring = calloc(1, sizeof(struct rnp_keyring_st));
+    if (!pubring)
+       {
+       free(*secring);
+       return RNP_ERROR_OUT_OF_MEMORY;
+       }
 
-    rnp_params_t rnp_params;
-    memset(&rnp_params, 0, sizeof(rnp_params));
+    // pubring doesn't need a callback...
+    (*secring)->cb.cb_fn = cb;
+    (*secring)->cb.cb_data = cb_data;
 
-    rnp_params.ks_pub_format = keyring_format;
-    rnp_params.ks_sec_format = keyring_format;
+    (*secring)->store = rnp_key_store_new(keyring_format, sec_path);
+    (*pubring)->store = rnp_key_store_new(keyring_format, pub_path);
 
-    rnp_params.pubpath = (char *) pub_path;
-    rnp_params.secpath = (char *) sec_path;
-
-    rnp_params.passphrase_provider = (pgp_passphrase_provider_t){
-      .callback = rnp_passphrase_cb_bounce, .userdata = &((*keyring)->cb)};
-
-    rnp_result_t res = rnp_init(&(*keyring)->rnp_ctx, &rnp_params);
-    return res;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -211,7 +226,7 @@ rnp_keyring_find_key(rnp_key_t *key, rnp_keyring_t ring, const char *identifer)
 rnp_result_t
 rnp_keyring_add_key(rnp_keyring_t ring, rnp_key_t key)
 {
-    bool ok = rnp_key_store_add_key(ring->rnp_ctx.io, ring->store, key->key);
+    bool ok = rnp_key_store_add_key(&g_ffi_io, ring->store, key->key);
 
     if (ok)
         return RNP_SUCCESS;
@@ -228,7 +243,7 @@ rnp_keyring_save_to_file(rnp_keyring_t ring, const char *path)
     if (path)
         ring->store->path = path;
 
-    bool ok = rnp_key_store_write_to_file(&ring->rnp_ctx, ring->store, armor);
+    bool ok = rnp_key_store_write_to_file(&g_ffi_io, ring->store, armor);
 
     if (path)
         ring->store->path = cur_path;
@@ -241,7 +256,7 @@ rnp_keyring_save_to_file(rnp_keyring_t ring, const char *path)
 
 rnp_result_t
 rnp_keyring_save_to_mem(
-  rnp_keyring_t ring, int flags, const char *passphrase, uint8_t *buf[], size_t *buf_len)
+  rnp_keyring_t ring, int flags, uint8_t *buf[], size_t *buf_len)
 {
     bool         armor = (flags & RNP_EXPORT_FLAG_ARMORED);
     pgp_memory_t memory;
@@ -255,7 +270,7 @@ rnp_keyring_save_to_mem(
 }
 
 static pgp_key_t *
-resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
+resolve_userid(const rnp_key_store_t *keyring, const char *userid)
 {
     pgp_key_t *key = NULL;
 
@@ -267,14 +282,8 @@ resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
         userid += 2;
     }
 
-    rnp_key_store_get_key_by_name(rnp->io, keyring, userid, &key);
+    rnp_key_store_get_key_by_name(&g_ffi_io, keyring, userid, &key);
     return key;
-}
-
-static pgp_key_t *
-resolve_public_key(rnp_t *rnp, const char *userid)
-{
-    return resolve_userid(rnp, rnp->pubring, userid);
 }
 
 rnp_result_t
@@ -414,25 +423,30 @@ find_key_for(rnp_keyring_t   keyring,
              pgp_key_flags_t flags,
              pgp_seckey_t ** key)
 {
-    key = NULL;
+    *key = NULL;
 
-    pgp_key_t *keypair = resolve_userid(&keyring->rnp_ctx, keyring->rnp_ctx.pubring, userid);
+    pgp_key_t *keypair = resolve_userid(keyring->store, userid);
     if (keypair == NULL) {
+    printf("No key for %s\n", userid);
         return RNP_ERROR_KEY_NOT_FOUND;
     }
     if (pgp_key_can_sign(keypair) == false) {
         keypair = find_suitable_subkey(keypair, PGP_KF_SIGN);
         if (!keypair)
+           {
+           printf("Can't find any signing key\n");
             return RNP_ERROR_NO_SUITABLE_KEY;
+           }
     }
 
     // key exist and might be used to sign, trying get it from secring
     unsigned from = 0;
 
     keypair = rnp_key_store_get_key_by_id(
-      keyring->rnp_ctx.io, keyring->rnp_ctx.secring, keypair->keyid, &from, NULL);
+      keyring->rnp_ctx.io, keyring->store, keypair->keyid, &from, NULL);
 
     if (keypair == NULL) {
+    printf("No key by ID\n");
         return RNP_ERROR_KEY_NOT_FOUND;
     }
 
@@ -504,7 +518,6 @@ rnp_sign(rnp_keyring_t keyring,
     *sig = calloc(1, *sig_len);
     if (*sig == NULL) {
         pgp_seckey_free(seckey);
-        free(seckey);
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -512,7 +525,6 @@ rnp_sign(rnp_keyring_t keyring,
     pgp_memory_free(signedmem);
 
     pgp_seckey_free(seckey);
-    free(seckey);
     return RNP_SUCCESS;
 }
 
@@ -548,7 +560,7 @@ rnp_verify(
     pgp_validation_t result;
     (void) memset(&result, 0x0, sizeof(result));
     bool ok = pgp_validate_mem(
-      keyring->rnp_ctx.io, &result, signedmem, &cat, false, keyring->rnp_ctx.pubring);
+       keyring->rnp_ctx.io, &result, signedmem, &cat, false, keyring->store);
 
     /* signedmem is freed from pgp_validate_mem */
 
@@ -562,6 +574,7 @@ rnp_verify(
 
     pgp_memory_free(cat);
 
+    printf("%d %d %d\n", result.validc, result.invalidc, result.unknownc);
     if (result.validc + result.invalidc + result.unknownc == 0) {
         return RNP_ERROR_NO_SIGNATURES_FOUND;
     }
@@ -638,7 +651,8 @@ pgp_str_to_zalg(const char *z_alg)
 
 rnp_result_t
 rnp_encrypt(rnp_keyring_t keyring,
-            const char *  userid,
+            const char * const recipients[],
+            size_t recipients_len,
             const char *  cipher,
             const char *  z_alg,
             size_t        z_level,
@@ -659,7 +673,10 @@ rnp_encrypt(rnp_keyring_t keyring,
     *output = NULL;
     *output_len = 0;
 
-    const pgp_key_t *keypair = resolve_public_key(ctx.rnp, userid);
+    if(recipients_len != 1)
+       return RNP_ERROR_BAD_PARAMETERS;
+
+    const pgp_key_t *keypair = resolve_userid(keyring->store, recipients[0]);
     if (!keypair)
         return RNP_ERROR_KEY_NOT_FOUND;
 
@@ -710,28 +727,33 @@ rnp_decrypt(rnp_keyring_t keyring,
     *output = NULL;
     *output_len = 0;
 
+
+    printf("hi chappy\n");
     if (input == NULL) {
+    printf("null\n");
         return RNP_ERROR_NULL_POINTER;
     }
 
     if (input_len < 32) {
+    printf("goo short!\n");
         return RNP_ERROR_SHORT_BUFFER;
     }
 
     const char *armor_head = "-----BEGIN PGP MESSAGE-----";
     const int   armored = (memcmp(input, armor_head, strlen(armor_head)) == 0);
 
-    pgp_memory_t *mem = pgp_decrypt_buf(keyring->rnp_ctx.io,
+    pgp_memory_t *mem = pgp_decrypt_buf(&g_ffi_io,
                                         input,
                                         input_len,
-                                        keyring->rnp_ctx.secring,
-                                        keyring->rnp_ctx.pubring,
+                                        keyring->store,
+                                        NULL,
                                         armored,
                                         /*use_ssh*/ 0,
                                         1,
                                         &keyring->rnp_ctx.passphrase_provider);
 
     if (mem == NULL) {
+    printf("decrypt failed\n");
         return RNP_ERROR_DECRYPT_FAILED;
     }
 
@@ -740,14 +762,17 @@ rnp_decrypt(rnp_keyring_t keyring,
     *output = malloc(*output_len);
     if (*output == NULL) {
         pgp_memory_free(mem);
+        printf("oom\n");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     memcpy(*output, pgp_mem_data(mem), *output_len);
     pgp_memory_free(mem);
+    printf("ok!\n");
     return RNP_SUCCESS;
 }
 
+/*
 static pgp_pubkey_alg_t
 pgp_str_to_pka(const char *str)
 {
@@ -765,34 +790,26 @@ pgp_str_to_pka(const char *str)
 
     return PGP_PKA_NOTHING;
 }
+*/
 
 rnp_result_t
-rnp_generate_private_key(rnp_keyring_t keyring,
+rnp_generate_private_key(rnp_key_t* pubkey,
+                         rnp_key_t* seckey,
+                         rnp_keyring_t pubring,
+                         rnp_keyring_t secring,
                          const char *  userid,
-                         const char *  signature_hash,
-                         const char *  prikey_algo,
-                         const char *  prikey_params,
-                         const char *  primary_passphrase,
-                         uint32_t      primary_expiration,
-                         const char *  subkey_algo,
-                         const char *  subkey_params,
-                         const char *  subkey_passphrase,
-                         uint32_t      subkey_expiration)
+                         const char * passphrase,
+                         const char *  signature_hash)
 {
     rnp_result_t rc = RNP_ERROR_GENERIC;
-
-    const pgp_hash_alg_t   hash_alg = pgp_str_to_hash_alg(signature_hash);
-    const pgp_pubkey_alg_t pri_alg = pgp_str_to_pka(prikey_algo);
-    const pgp_pubkey_alg_t sub_alg = pgp_str_to_pka(subkey_algo);
-
     pgp_key_t *primary_sec = NULL;
     pgp_key_t *primary_pub = NULL;
     pgp_key_t *subkey_sec = NULL;
     pgp_key_t *subkey_pub = NULL;
+    const pgp_hash_alg_t   hash_alg = pgp_str_to_hash_alg(signature_hash);
 
-    if (hash_alg == PGP_HASH_UNKNOWN || pri_alg == PGP_PKA_NOTHING ||
-        sub_alg == PGP_PKA_NOTHING) {
-        rc = RNP_ERROR_BAD_PARAMETERS;
+    if (hash_alg == PGP_HASH_UNKNOWN) {
+    rc = RNP_ERROR_BAD_PARAMETERS;
         goto done;
     }
 
@@ -806,31 +823,22 @@ rnp_generate_private_key(rnp_keyring_t keyring,
     memset(&primary_desc, 0, sizeof(primary_desc));
     memset(&subkey_desc, 0, sizeof(subkey_desc));
 
+    const pgp_pubkey_alg_t pri_alg = PGP_PKA_RSA;
+    const pgp_pubkey_alg_t sub_alg = PGP_PKA_RSA;
+
     primary_desc.crypto.key_alg = pri_alg;
+    primary_desc.crypto.rsa.modulus_bit_len = 1024;
     primary_desc.crypto.hash_alg = hash_alg;
-
-    if (pri_alg == PGP_PKA_RSA) {
-        primary_desc.crypto.rsa.modulus_bit_len = strtol(prikey_params, NULL, 0);
-    } else {
-        // primary_desc.crypto.ecc.curve; // TODO
-    }
-
     strcpy((char *) primary_desc.cert.userid, userid);
-    primary_desc.cert.key_flags = pgp_pk_alg_capabilities(pri_alg); // fixme
-    primary_desc.cert.key_expiration = primary_expiration;
+    primary_desc.cert.key_flags = pgp_pk_alg_capabilities(pri_alg);
+    primary_desc.cert.key_expiration = 0;
     primary_desc.cert.primary = 1;
 
-    subkey_desc.crypto.key_alg = pri_alg;
+    subkey_desc.crypto.key_alg = sub_alg;
+    subkey_desc.crypto.rsa.modulus_bit_len = 1024;
     subkey_desc.crypto.hash_alg = hash_alg;
-
-    if (pri_alg == PGP_PKA_RSA) {
-        subkey_desc.crypto.rsa.modulus_bit_len = strtol(prikey_params, NULL, 0);
-    } else {
-        // subkey_desc.crypto.ecc.curve; // TODO
-    }
-
     subkey_desc.binding.key_flags = pgp_pk_alg_capabilities(sub_alg); // fixme
-    subkey_desc.binding.key_expiration = subkey_expiration;
+    subkey_desc.binding.key_expiration = 0;
 
     primary_sec = calloc(1, sizeof(*primary_sec));
     primary_pub = calloc(1, sizeof(*primary_pub));
@@ -841,8 +849,7 @@ rnp_generate_private_key(rnp_keyring_t keyring,
         goto done;
     }
 
-    const key_store_format_t key_format =
-      ((rnp_key_store_t *) keyring->rnp_ctx.secring)->format;
+    const key_store_format_t key_format = secring->store->format;
 
     if (!pgp_generate_keypair(&primary_desc,
                               &subkey_desc,
@@ -856,30 +863,28 @@ rnp_generate_private_key(rnp_keyring_t keyring,
         goto done;
     }
 
-    if (!pgp_key_protect_passphrase(primary_sec, key_format, NULL, primary_passphrase)) {
+    if (!pgp_key_protect_passphrase(primary_sec, key_format, NULL, passphrase)) {
         rc = RNP_ERROR_GENERIC;
         goto done;
     }
 
-    if (!pgp_key_protect_passphrase(subkey_sec, key_format, NULL, subkey_passphrase)) {
+    if (!pgp_key_protect_passphrase(subkey_sec, key_format, NULL, passphrase)) {
         rc = RNP_ERROR_GENERIC;
         goto done;
     }
-
-    rnp_t *rnp = &keyring->rnp_ctx;
 
     // add them all to the key store
-    if (!rnp_key_store_add_key(rnp->io, rnp->secring, primary_sec) ||
-        !rnp_key_store_add_key(rnp->io, rnp->secring, subkey_sec) ||
-        !rnp_key_store_add_key(rnp->io, rnp->pubring, primary_pub) ||
-        !rnp_key_store_add_key(rnp->io, rnp->pubring, subkey_pub)) {
+    if (!rnp_key_store_add_key(&g_ffi_io, secring->store, primary_sec) ||
+        !rnp_key_store_add_key(&g_ffi_io, secring->store, subkey_sec) ||
+        !rnp_key_store_add_key(&g_ffi_io, pubring->store, primary_pub) ||
+        !rnp_key_store_add_key(&g_ffi_io, pubring->store, subkey_pub)) {
         rc = RNP_ERROR_WRITE;
         goto done;
     }
 
     // update the keyring on disk
-    if (!rnp_key_store_write_to_file(rnp, rnp->secring, 0) ||
-        !rnp_key_store_write_to_file(rnp, rnp->pubring, 0)) {
+    if (!rnp_key_store_write_to_file(&g_ffi_io, secring->store, 0) ||
+        !rnp_key_store_write_to_file(&g_ffi_io, pubring->store, 0)) {
         rc = RNP_ERROR_WRITE;
         goto done;
     }
@@ -892,17 +897,15 @@ done:
     free(subkey_sec);
     free(subkey_pub);
 
-    if (rc != RNP_SUCCESS) {
-        return rc;
-    }
-    return RNP_SUCCESS;
+    return rc;
 }
 
 rnp_result_t
-rnp_key_free(rnp_key_t key)
+rnp_key_free(rnp_key_t* key)
 {
     // This does not free key->key which is owned by the keyring
     free(key);
+    *key = NULL;
     return RNP_SUCCESS;
 }
 

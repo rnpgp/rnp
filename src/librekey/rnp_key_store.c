@@ -240,7 +240,7 @@ rnp_key_store_load_from_mem(rnp_t *          rnp,
 }
 
 bool
-rnp_key_store_write_to_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsigned armour)
+rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *key_store, const unsigned armour)
 {
     bool         rc;
     pgp_memory_t mem = {0};
@@ -254,17 +254,17 @@ rnp_key_store_write_to_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsign
         if (stat(key_store->path, &path_stat) != -1) {
             if (!S_ISDIR(path_stat.st_mode)) {
                 fprintf(
-                  rnp->io->errs, "G10 keystore should be a directory: %s\n", key_store->path);
+                  io->errs, "G10 keystore should be a directory: %s\n", key_store->path);
                 return false;
             }
         } else {
             if (errno != ENOENT) {
-                fprintf(rnp->io->errs, "stat(%s): %s\n", key_store->path, strerror(errno));
+                fprintf(io->errs, "stat(%s): %s\n", key_store->path, strerror(errno));
                 return false;
             }
             if (mkdir(key_store->path, S_IRWXU) != 0) {
                 fprintf(
-                  rnp->io->errs, "mkdir(%s, S_IRWXU): %s\n", key_store->path, strerror(errno));
+                  io->errs, "mkdir(%s, S_IRWXU): %s\n", key_store->path, strerror(errno));
                 return false;
             }
         }
@@ -281,7 +281,7 @@ rnp_key_store_write_to_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsign
                      rnp_strhexdump_upper(grips, grip, 20, ""));
 
             memset(&mem, 0, sizeof(mem));
-            if (!rnp_key_store_g10_key_to_mem(rnp->io, &key_store->keys[i], &mem)) {
+            if (!rnp_key_store_g10_key_to_mem(io, &key_store->keys[i], &mem)) {
                 pgp_memory_release(&mem);
                 return false;
             }
@@ -297,7 +297,7 @@ rnp_key_store_write_to_file(rnp_t *rnp, rnp_key_store_t *key_store, const unsign
         return true;
     }
 
-    if (!rnp_key_store_write_to_mem(rnp->io, key_store, armour, &mem)) {
+    if (!rnp_key_store_write_to_mem(io, key_store, armour, &mem)) {
         pgp_memory_release(&mem);
         return false;
     }

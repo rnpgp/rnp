@@ -147,7 +147,7 @@ bool rnp_key_store_load_from_mem(rnp_t *rnp,
                                  const unsigned,
                                  pgp_memory_t *);
 
-bool rnp_key_store_write_to_file(rnp_t *rnp, rnp_key_store_t *, const unsigned);
+bool rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *, const unsigned);
 bool rnp_key_store_write_to_mem(pgp_io_t *io,
                                 rnp_key_store_t *,
                                 const unsigned,
