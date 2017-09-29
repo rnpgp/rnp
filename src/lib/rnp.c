@@ -1001,7 +1001,7 @@ rnp_import_key(rnp_t *rnp, char *f)
     }
 
     // load the key(s)
-    if (!rnp_key_store_load_from_file(rnp, tmp_keystore, realarmor)) {
+    if (!rnp_key_store_load_from_file(rnp->io, tmp_keystore, realarmor, rnp->pubring)) {
         RNP_LOG("failed to load key from file %s", f);
         goto done;
     }
@@ -1837,7 +1837,7 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
         goto done;
     }
 
-    if (!rnp_key_store_load_from_file(rnp, rnp->pubring, 1)) {
+    if (!rnp_key_store_load_from_file(rnp->io, rnp->pubring, 1, NULL)) {
         (void) fprintf(stderr, "cannot import key\n");
         goto done;
     }
