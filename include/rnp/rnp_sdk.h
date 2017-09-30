@@ -41,6 +41,8 @@
 #define PRINTFLIKE(n, m) __attribute__((format(printf, n, m)))
 #endif
 
+typedef enum { RNP_HEX_LOWERCASE, RNP_HEX_UPPERCASE } rnp_hex_format_t;
+
 const char *rnp_get_info(const char *type);
 
 void rnp_log(const char *, ...) PRINTFLIKE(1, 2);
@@ -62,5 +64,9 @@ char *rnp_compose_path_ex(char **buf, size_t *buf_len, const char *first, ...);
 bool rnp_path_exists(const char *path);
 bool rnp_dir_exists(const char *path);
 bool rnp_file_exists(const char *path);
+
+bool rnp_hex_encode(
+  const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format);
+bool rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len);
 
 #endif
