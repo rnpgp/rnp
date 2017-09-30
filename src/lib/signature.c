@@ -1379,6 +1379,8 @@ pgp_sign_memory_detached(rnp_ctx_t *         ctx,
         goto done;
     }
 
+    pgp_writer_close(output);
+
     *sig_output_len = pgp_mem_len(mem);
     if (ctx->armour)
         *sig_output_len += 1;
@@ -1395,6 +1397,7 @@ pgp_sign_memory_detached(rnp_ctx_t *         ctx,
     rc = RNP_SUCCESS;
 
 done:
+    pgp_writer_close(output);
     pgp_memory_free(mem);
     pgp_create_sig_delete(sig);
     return rc;
