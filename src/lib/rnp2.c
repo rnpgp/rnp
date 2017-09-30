@@ -852,13 +852,11 @@ find_key_for(rnp_keyring_t   keyring,
 
     pgp_key_t *keypair = resolve_userid(keyring->store, userid);
     if (keypair == NULL) {
-        printf("No key for %s\n", userid);
         return RNP_ERROR_KEY_NOT_FOUND;
     }
     if (pgp_key_can_sign(keypair) == false) {
         keypair = find_suitable_subkey(keypair, PGP_KF_SIGN);
         if (!keypair) {
-            printf("Can't find any signing key\n");
             return RNP_ERROR_NO_SUITABLE_KEY;
         }
     }
@@ -870,7 +868,6 @@ find_key_for(rnp_keyring_t   keyring,
       rnp_key_store_get_key_by_id(&g_ffi_io, keyring->store, keypair->keyid, &from, NULL);
 
     if (keypair == NULL) {
-        printf("No key by ID\n");
         return RNP_ERROR_KEY_NOT_FOUND;
     }
 
@@ -998,7 +995,6 @@ rnp_verify(
 
     pgp_memory_free(cat);
 
-    printf("%d %d %d\n", result.validc, result.invalidc, result.unknownc);
     if (result.validc + result.invalidc + result.unknownc == 0) {
         return RNP_ERROR_NO_SIGNATURES_FOUND;
     }
@@ -1032,6 +1028,11 @@ rnp_sign_detached(rnp_keyring_t keyring,
     }
 
     rnp_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.rnp = &keyring->rnp_ctx;
+    ctx.halg = pgp_str_to_hash_alg(hash_fn);
+    ctx.armour = armor;
+
     return pgp_sign_memory_detached(&ctx, seckey, msg, msg_len, sig, sig_len);
 }
 
@@ -1151,14 +1152,11 @@ rnp_decrypt(rnp_keyring_t keyring,
     *output = NULL;
     *output_len = 0;
 
-    printf("hi chappy\n");
     if (input == NULL) {
-        printf("null\n");
         return RNP_ERROR_NULL_POINTER;
     }
 
     if (input_len < 32) {
-        printf("goo short!\n");
         return RNP_ERROR_SHORT_BUFFER;
     }
 
@@ -1176,7 +1174,6 @@ rnp_decrypt(rnp_keyring_t keyring,
                                         &keyring->rnp_ctx.passphrase_provider);
 
     if (mem == NULL) {
-        printf("decrypt failed\n");
         return RNP_ERROR_DECRYPT_FAILED;
     }
 
@@ -1185,13 +1182,11 @@ rnp_decrypt(rnp_keyring_t keyring,
     *output = malloc(*output_len);
     if (*output == NULL) {
         pgp_memory_free(mem);
-        printf("oom\n");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     memcpy(*output, pgp_mem_data(mem), *output_len);
     pgp_memory_free(mem);
-    printf("ok!\n");
     return RNP_SUCCESS;
 }
 

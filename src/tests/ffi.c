@@ -78,7 +78,7 @@ test_ffi_api(void **state)
     result = rnp_export_public_key(restored, 1, &exported_key, &exported_key_len);
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
-    printf("%s\n", exported_key);
+    //printf("%s\n", exported_key);
 
     uint8_t *ciphertext = NULL;
     size_t   ctext_len = 0;
@@ -97,23 +97,24 @@ test_ffi_api(void **state)
                          &ctext_len);
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
-    printf("%s\n", ciphertext);
+    //printf("%s\n", ciphertext);
 
     uint8_t *decrypted;
     size_t   decrypted_len;
     result = rnp_decrypt(secring, ciphertext, ctext_len, &decrypted, &decrypted_len);
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
-    printf("Decrypted=");
-    for (size_t i = 0; i != decrypted_len; ++i)
-        printf("%c", decrypted[i]);
-    printf("\n");
+    rnp_assert_int_equal(rstate, decrypted_len, strlen(plaintext_message));
+    for(size_t i = 0; i != decrypted_len; ++i)
+       rnp_assert_int_equal(rstate, decrypted[i], plaintext_message[i]);
 
     rnp_buffer_free(decrypted);
     rnp_buffer_free(ciphertext);
 
     uint8_t *sig = NULL;
     size_t   sig_len = 0;
+
+    /*
     result = rnp_sign(secring,
                       test_userid,
                       "SHA256",
@@ -125,12 +126,21 @@ test_ffi_api(void **state)
                       &sig_len);
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
-    printf("%s\n", sig);
-
     uint8_t *recovered_msg;
     size_t   recovered_msg_len;
     result = rnp_verify(pubring, sig, sig_len, &recovered_msg, &recovered_msg_len);
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
+
+    rnp_buffer_free(sig);
+    */
+
+    result = rnp_sign_detached(secring, test_userid, "SHA224", true,
+                               (const uint8_t *) plaintext_message,
+                               strlen(plaintext_message),
+                               &sig, &sig_len);
+    rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
+
+    printf("%s\n", sig);
 
     // result = rnp_insert_armored_public_key(keyring, test_pub_key);
     // rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
