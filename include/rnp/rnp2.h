@@ -48,55 +48,97 @@ const char *rnp_result_to_string(rnp_result_t result);
 /*
 * Opaque structures
 */
-typedef struct rnp_keyring_st *rnp_keyring_t;
-typedef struct rnp_key_st *    rnp_key_t;
+typedef struct rnp_keyring_st *    rnp_keyring_t;
+typedef struct rnp_key_st *        rnp_key_t;
+typedef struct rnp_op_generate_st *rnp_op_generate_t;
 
 /**
 * Callback used for getting a passphrase.
-* @param app_ctx provided by application in rnp_keyring_open
+* @param app_ctx provided by application
+* @param key the key, if any, for which the passphrase is being requested
 * @param pgp_context a descriptive string for what is being decrypted
 * @param pass to which the callback should write the returned
 * passphrase, NULL terminated.
 * @param pass_len the size of pass buffer
 * @return 0 on success, or any other value to stop decryption.
 */
-typedef int (*rnp_passphrase_cb)(void *      app_ctx,
-                                 const char *pgp_context,
-                                 char        buf[],
-                                 size_t      buf_len);
+typedef int (*rnp_passphrase_cb)(
+  void *app_ctx, rnp_key_t key, const char *pgp_context, char buf[], size_t buf_len);
 
-void rnp_set_io(FILE* output_stream,
-                FILE* error_stream,
-                FILE* result_stream);
+/**
+* Callback used for getting a key.
+* @param app_ctx provided by application in rnp_keyring_open
+* @param identifier_type the type of identifier ("userid", "keyid", "fingerprint")
+* @param identifier the identifier for locating the key
+* @param secret true if a secret key is being requested
+* @return the key, or NULL if not found
+*/
+typedef rnp_key_t (*rnp_get_key_cb)(void *      app_ctx,
+                                    const char *identifier_type,
+                                    const char *identifier,
+                                    bool        secret);
+
+void rnp_set_io(FILE *output_stream, FILE *error_stream, FILE *result_stream);
 
 /* Operations on key rings */
 
-/** load keyrings from a home directory
+/** retrieve the default homedir (example: /home/user/.rnp)
  *
- * @param secring keyring that will hold the secret keys
- *        (from secring.gpg, private-keys-v1.d, etc.)
- * @param pubring keyring that will hold the public keys
- *        (from pubring.gpg, pubring.kbx, etc.)
- * @param format the format of the keyring (GPG or GPG21), or NULL to guess
- * @param path the path to the directory to load from (example: /home/foo/.rnp),
- *        or NULL to determine it automatically based on the current user.
+ * @param homedir pointer where the homedir string will be stored.
+ *        The caller should free this with rnp_buffer_free.
  * @return 0 on success, or any other value on error
  */
-rnp_result_t rnp_keyring_load_homedir(rnp_keyring_t *secring,
+rnp_result_t rnp_get_default_homedir(char **homedir);
+
+/** try to detect the formats of the homedir keyrings
+ *
+ * @param homedir the path to the home directory (example: /home/user/.rnp)
+ * @param pub_format pointer where the the format of the public keyring will
+ *        be stored. The caller should free this with rnp_buffer_free.
+ * @param sec_format pointer where the the format of the secret keyring will
+ *        be stored. The caller should free this with rnp_buffer_free.
+ * @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_detect_homedir_formats(const char *homedir,
+                                        char **     pub_format,
+                                        char **     sec_format);
+
+/** try to detect the key format of the provided data
+ *
+ * @param buf the key data
+ * @param pub_format pointer where the the format of the public keyring will
+ *        be stored. The caller should free this with rnp_buffer_free.
+ * @param sec_format pointer where the the format of the secret keyring will
+ *        be stored. The caller should free this with rnp_buffer_free.
+ * @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_detect_key_format(const uint8_t buf[], size_t buf_len, char **format);
+
+/** load keyrings from a home directory
+ *
+ * @param homedir the path to the home directory (example: /home/user/.rnp)
+ * @param pub_format the format of the public keyring (example: GPG)
+ * @param sec_format the format of the secret keyring (example: GPG)
+ * @param pubring keyring that will hold the public keys
+ *        (from pubring.gpg, pubring.kbx, etc.)
+ * @param secring keyring that will hold the secret keys
+ *        (from secring.gpg, private-keys-v1.d, etc.)
+ * @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_keyring_load_homedir(const char *   homedir,
+                                      const char *   pub_format,
+                                      const char *   sec_format,
                                       rnp_keyring_t *pubring,
-                                      const char *   format,
-                                      const char *   path);
+                                      rnp_keyring_t *secring);
 
-rnp_result_t
-rnp_keyring_open(rnp_keyring_t *   secring,
-                 rnp_keyring_t *   pubring,
-                 const char *      sec_path,
-                 const char *      pub_path,
-                 const char *      keyring_format,
-                 rnp_passphrase_cb cb,
-                 void *            cb_data);
+rnp_result_t rnp_keyring_create(rnp_keyring_t *ring, const char *format, const char *path);
+rnp_result_t rnp_keyring_destroy(rnp_keyring_t *ring);
+rnp_result_t rnp_keyring_get_format(rnp_keyring_t ring, char **format);
+rnp_result_t rnp_keyring_get_path(rnp_keyring_t ring, char **path);
+rnp_result_t rnp_keyring_get_key_count(rnp_keyring_t ring, size_t *count);
+rnp_result_t rnp_keyring_get_key_at(rnp_keyring_t ring, size_t idx, rnp_key_t *key);
 
-/** load a keyring
+/** load a keyring from a data buffer
  *
  * @param ring the keyring
  * @param format the format of the keyring (GPG or GPG21), or NULL to guess
@@ -109,12 +151,22 @@ rnp_result_t rnp_keyring_load(rnp_keyring_t *ring,
                               const uint8_t  buf[],
                               size_t         buf_len);
 
-rnp_result_t rnp_keyring_find_key(rnp_key_t* key,
-                                  rnp_keyring_t ring,
-                                  const char *identifer);
+/** find a key in a keyring
+ *
+ *  @param ring the keyring
+ *  @param identifier_type the type of identifier to use for the search.
+ *         Example: "userid", "keyid", "grip".
+ *         Use NULL to perform a fuzzy userid/keyid search.
+ *  @param identifier the identifier to search for
+ *  @param key pointer where the found key will be set (if any)
+ *  @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_keyring_find_key(rnp_keyring_t ring,
+                                  const char *  identifier_type,
+                                  const char *  identifier,
+                                  rnp_key_t *   key);
 
 rnp_result_t rnp_keyring_add_key(rnp_keyring_t ring, rnp_key_t key);
-
 
 /** save a keyring to a file
  *
@@ -130,35 +182,44 @@ rnp_result_t rnp_keyring_save_to_mem(rnp_keyring_t ring,
                                      uint8_t *     buf[],
                                      size_t *      buf_len);
 
-rnp_result_t rnp_keyring_free(rnp_keyring_t ring);
-
-rnp_result_t rnp_key_free(rnp_key_t* key);
+rnp_result_t rnp_key_free(rnp_key_t *key);
 
 /* TODO: keyring iteration */
 
-/** generate a key (or pair of keys)
+/** generate a key or pair of keys using a JSON description
  *
- * @param primarykey the primary key pointer that will be populated,
- *        must not be NULL
- * @param subkey the subkey key pointer that will be populated,
- *        must not be NULL
- * @param jsondata the JSON string that describes the key generation,
- *        must not be NULL
+ * @param pubring the keyring where the generated public keys will
+ *        be stored. May be NULL.
+ * @param secring the keyring where the generated secret keys will
+ *        be stored. May be NULL.
+ * @param getkeycb the callback to retrieve keys. This is only used
+ *        if the desired key is not already present in the provided
+ *        rings, and generally only when adding a subkey to an
+ *        already-existant primary. May be NULL.
+ * @param getpasscb the callback to retrieve passphrases. This is
+ *        generally only used when adding a subkey to an
+ *        already-existant primary. May be NULL.
+*  @param app_ctx provided by application
+*  @param json the json data that describes the key generation.
+*         The caller should free this with rnp_buffer_free.
  * @return 0 on success, or any other value on error
  */
-rnp_result_t rnp_generate_key_json(rnp_key_t * primarykey,
-                                   rnp_key_t * subkey,
-                                   const char *jsondata);
 
-rnp_result_t
-rnp_generate_private_key(rnp_key_t* pubkey,
-                         rnp_key_t* seckey,
-                         rnp_keyring_t pubring,
-                         rnp_keyring_t secring,
-                         const char *  userid,
-                         const char * passphrase,
-                         const char *  signature_hash);
+rnp_result_t rnp_generate_key_json(rnp_keyring_t     pubring,
+                                   rnp_keyring_t     secring,
+                                   rnp_get_key_cb    getkeycb,
+                                   rnp_passphrase_cb getpasscb,
+                                   void *            app_ctx,
+                                   const char *      json,
+                                   char **           results);
 
+rnp_result_t rnp_generate_private_key(rnp_key_t *   pubkey,
+                                      rnp_key_t *   seckey,
+                                      rnp_keyring_t pubring,
+                                      rnp_keyring_t secring,
+                                      const char *  userid,
+                                      const char *  passphrase,
+                                      const char *  signature_hash);
 
 /* Key operations */
 
@@ -185,7 +246,7 @@ rnp_result_t rnp_key_is_locked(rnp_key_t key, bool *result);
 rnp_result_t rnp_key_unlock(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx);
 
 rnp_result_t rnp_key_is_protected(rnp_key_t key, bool *result);
-rnp_result_t rnp_key_protect(rnp_key_t key, const char* passphrase);
+rnp_result_t rnp_key_protect(rnp_key_t key, const char *passphrase);
 rnp_result_t rnp_key_unprotect(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx);
 
 rnp_result_t rnp_key_is_primary_key(rnp_key_t key, bool *result);
@@ -280,17 +341,17 @@ rnp_result_t rnp_verify_detached_file(rnp_keyring_t keyring,
 
 /* Encryption/decryption operations */
 
-rnp_result_t rnp_encrypt(rnp_keyring_t keyring,
-                         const char * const recipients[],
-                         size_t recipients_len,
-                         const char *  cipher,
-                         const char *  z_alg,
-                         size_t        z_level,
-                         bool          armored,
-                         const uint8_t msg[],
-                         size_t        msg_len,
-                         uint8_t **    output,
-                         size_t *      output_len);
+rnp_result_t rnp_encrypt(rnp_keyring_t     keyring,
+                         const char *const recipients[],
+                         size_t            recipients_len,
+                         const char *      cipher,
+                         const char *      z_alg,
+                         size_t            z_level,
+                         bool              armored,
+                         const uint8_t     msg[],
+                         size_t            msg_len,
+                         uint8_t **        output,
+                         size_t *          output_len);
 
 /**
 * Decrypt a message
