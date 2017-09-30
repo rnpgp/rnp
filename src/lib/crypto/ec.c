@@ -79,6 +79,18 @@ find_curve_by_OID(const uint8_t *oid, size_t oid_len)
     return PGP_CURVE_MAX;
 }
 
+pgp_curve_t
+find_curve_by_name(const char *name)
+{
+    for (size_t i = 1; i < PGP_CURVE_MAX; i++) {
+        if (!strcmp(ec_curves[i].pgp_name, name)) {
+            return ec_curves[i].rnp_curve_id;
+        }
+    }
+
+    return PGP_CURVE_MAX;
+}
+
 const ec_curve_desc_t *
 get_curve_desc(const pgp_curve_t curve_id)
 {
