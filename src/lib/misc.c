@@ -1104,3 +1104,22 @@ rnp_file_exists(const char *path)
     struct stat st;
     return stat(path, &st) == 0 && S_ISREG(st.st_mode);
 }
+
+bool
+rnp_hex_encode(
+  const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format)
+{
+    uint32_t flags = format == RNP_HEX_LOWERCASE ? BOTAN_FFI_HEX_LOWER_CASE : 0;
+
+    if (hex_len < (buf_len * 2 + 1)) {
+        return false;
+    }
+    hex[buf_len * 2] = '\0';
+    return botan_hex_encode(buf, buf_len, hex, flags) == 0;
+}
+
+bool
+rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len)
+{
+    return botan_hex_decode(hex, strlen(hex), buf, &buf_len) == 0;
+}
