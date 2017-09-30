@@ -636,10 +636,6 @@ sm2_roundtrip(void **state)
           pgp_sm2_encrypt(ctext_buf, &ctext_size, key, sizeof(key), hashes[i], pub_ecc);
         rnp_assert_int_equal(rstate, enc_result, PGP_E_OK);
 
-        size_t size_of_hash;
-        pgp_digest_length(hashes[i], &size_of_hash);
-        rnp_assert_int_equal(rstate, ctext_size, 1 + 2 * 32 + sizeof(key) + size_of_hash + 1);
-
         memset(decrypted, 0, sizeof(decrypted));
         size_t        decrypted_size = sizeof(decrypted);
         pgp_errcode_t dec_result =
