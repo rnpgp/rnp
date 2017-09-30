@@ -164,6 +164,9 @@ pgp_key_free_data(pgp_key_t *key)
     }
     revoke_free(&key->revocation);
 
+    free(key->subkeys);
+    key->subkeys = NULL;
+
     if (pgp_is_key_public(key)) {
         pgp_pubkey_free(&key->key.pubkey);
     } else {
