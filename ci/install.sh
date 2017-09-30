@@ -5,6 +5,7 @@ set -exu
 
 : "${CORES:=2}"
 : "${MAKE:=make}"
+: "${GPG:=gpg}"
 
 # botan
 botan_build=${LOCAL_BUILDS}/botan
@@ -58,6 +59,8 @@ if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \
   mkdir -p "${jsonc_build}"
   pushd ${jsonc_build}
   wget https://s3.amazonaws.com/json-c_releases/releases/json-c-0.12.1.tar.gz -O json-c.tar.gz
+
+  # TODO: this doesn't work on OpenBSD tar
   tar xzf json-c.tar.gz --strip 1
 
   autoreconf -ivf
@@ -72,7 +75,7 @@ if [ ! -e "${GPG21_INSTALL}/bin/gpg" ]; then
   mkdir -p "${gpg21_build}"
   cd "${gpg21_build}"
 
-  gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 249B39D24F25E3B6 04376F3EE0856959 2071B08A33BD3F06 8A861B1C7EFD60D9
+  ${GPG} --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 249B39D24F25E3B6 04376F3EE0856959 2071B08A33BD3F06 8A861B1C7EFD60D9
 
   for archive in npth:1.5 libgpg-error:1.27; do
     pkgname="${archive%:*}"
@@ -80,7 +83,7 @@ if [ ! -e "${GPG21_INSTALL}/bin/gpg" ]; then
 
     wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2
     wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2.sig
-    gpg --verify ${pkgname}-${version}.tar.bz2.sig
+    ${GPG} --verify ${pkgname}-${version}.tar.bz2.sig
     tar -xjf ${pkgname}-${version}.tar.bz2
     cd ${pkgname}-${version}/
     # autoreconf -ivf
@@ -95,7 +98,7 @@ if [ ! -e "${GPG21_INSTALL}/bin/gpg" ]; then
 
     wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2
     wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2.sig
-    gpg --verify ${pkgname}-${version}.tar.bz2.sig
+    ${GPG} --verify ${pkgname}-${version}.tar.bz2.sig
     tar -xjf ${pkgname}-${version}.tar.bz2
     cd ${pkgname}-${version}/
     # autoreconf -ivf
@@ -106,7 +109,7 @@ if [ ! -e "${GPG21_INSTALL}/bin/gpg" ]; then
 
   wget -c https://www.gnupg.org/ftp/gcrypt/pinentry/pinentry-1.0.0.tar.bz2
   wget -c https://www.gnupg.org/ftp/gcrypt/pinentry/pinentry-1.0.0.tar.bz2.sig
-  gpg --verify pinentry-1.0.0.tar.bz2.sig
+  ${GPG} --verify pinentry-1.0.0.tar.bz2.sig
   tar -xjf pinentry-1.0.0.tar.bz2
   cd pinentry-1.0.0
   ./configure --prefix="${GPG21_INSTALL}" \
@@ -119,7 +122,7 @@ if [ ! -e "${GPG21_INSTALL}/bin/gpg" ]; then
 
   wget -c https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-2.1.23.tar.bz2
   wget -c https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-2.1.23.tar.bz2.sig
-  gpg --verify gnupg-2.1.23.tar.bz2.sig
+  ${GPG} --verify gnupg-2.1.23.tar.bz2.sig
   tar -xjf gnupg-2.1.23.tar.bz2
   cd gnupg-2.1.23
   ./configure --prefix="${GPG21_INSTALL}" \
