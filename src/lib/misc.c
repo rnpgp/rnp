@@ -1123,3 +1123,14 @@ rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len)
 {
     return botan_hex_decode(hex, strlen(hex), buf, &buf_len) == 0;
 }
+
+char *
+rnp_strlwr(char *s)
+{
+    char *p = s;
+    while (*p) {
+        *p = tolower((unsigned char) *p);
+        p++;
+    }
+    return s;
+}
