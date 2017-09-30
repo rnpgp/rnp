@@ -90,6 +90,8 @@ typedef struct pgp_output_t pgp_output_t;
  */
 pgp_curve_t find_curve_by_OID(const uint8_t *oid, size_t oid_len);
 
+pgp_curve_t find_curve_by_name(const char *name);
+
 /*
  * @brief   Serialize EC public to octet string
  *
