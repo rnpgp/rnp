@@ -67,12 +67,12 @@ typedef struct pgp_source_packet_param_t {
 } pgp_source_packet_param_t;
 
 typedef struct pgp_source_encrypted_param_t {
-    pgp_source_packet_param_t pkt;      /* underlying packet-related params */
-    DYNARRAY(pgp_sk_sesskey_t, symenc); /* array of sym-encrypted session keys */
-    DYNARRAY(pgp_pk_sesskey_t, pubenc); /* array of pk-encrypted session keys */
-    bool        has_mdc;                /* encrypted with mdc, i.e. tag 18 */
-    pgp_crypt_t decrypt;                /* decrypting crypto */
-    pgp_hash_t  mdc;                    /* mdc SHA1 hash */
+    pgp_source_packet_param_t pkt;          /* underlying packet-related params */
+    DYNARRAY(pgp_sk_sesskey_t, symenc);     /* array of sym-encrypted session keys */
+    DYNARRAY(pgp_pk_sesskey_pkt_t, pubenc); /* array of pk-encrypted session keys */
+    bool        has_mdc;                    /* encrypted with mdc, i.e. tag 18 */
+    pgp_crypt_t decrypt;                    /* decrypting crypto */
+    pgp_hash_t  mdc;                        /* mdc SHA1 hash */
 } pgp_source_encrypted_param_t;
 
 typedef struct pgp_source_compressed_param_t {
@@ -790,14 +790,13 @@ finish:
 static rnp_result_t
 init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
 {
-    bool                          sk_read = false;
     rnp_result_t                  errcode = RNP_SUCCESS;
     pgp_source_encrypted_param_t *param;
     uint8_t                       ptag;
     uint8_t                       mdcver;
     int                           ptype;
     pgp_sk_sesskey_t              skey = {0};
-    pgp_pk_sesskey_t              pkey = {0};
+    pgp_pk_sesskey_pkt_t          pkey = {0};
     char                          passphrase[MAX_PASSPHRASE_LENGTH] = {0};
     int                           intres;
 
@@ -814,7 +813,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     src->eof = 0;
 
     /* Reading pk/sk encrypted session key(s) */
-    while (!sk_read) {
+    while (true) {
         if (src_peek(readsrc, &ptag, 1) < 1) {
             (void) fprintf(stderr, "init_encrypted_src: failed to read packet header\n");
             errcode = RNP_ERROR_READ;
@@ -835,8 +834,9 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             if (errcode != RNP_SUCCESS) {
                 goto finish;
             }
+            EXPAND_ARRAY_EX(param, pubenc, 1);
+            param->pubencs[param->pubencc++] = pkey;
         } else if ((ptype == PGP_PTAG_CT_SE_DATA) || (ptype == PGP_PTAG_CT_SE_IP_DATA)) {
-            sk_read = true;
             break;
         } else {
             (void) fprintf(stderr, "init_encrypted_src: unknown packet type: %d\n", ptype);

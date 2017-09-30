@@ -123,6 +123,54 @@ stream_read_pkt_len(pgp_source_t *src)
     }
 }
 
+/** @brief read mpi from the source
+ *  @param src source to read from
+ *  @param mpi preallocated mpi body buffer of PGP_MPINT_SIZE bytes
+ *  @param maxlen maximum length of the MPI (including header), or zero if we should not care
+ *  @return number of bytes in mpi body or -1 on error
+ **/
+static ssize_t
+stream_read_mpi(pgp_source_t *src, uint8_t *mpi, size_t maxlen)
+{
+    uint8_t  hdr[2];
+    unsigned bits;
+    unsigned bytes;
+    unsigned hbits;
+    ssize_t  read;
+
+    if ((maxlen > 0) && (maxlen < 2)) {
+        return -1;
+    }
+
+    if ((read = src_read(src, hdr, 2)) < 2) {
+        return -1;
+    }
+
+    bits = ((unsigned) hdr[0] << 8) | hdr[1];
+    if (!bits || (bits > PGP_MPINT_BITS)) {
+        (void) fprintf(stderr, "%s: too large or zero mpi, %d bits", __func__, bits);
+        return -1;
+    }
+
+    bytes = (bits + 7) >> 3;
+    if ((maxlen > 0) && (bytes > maxlen - 2)) {
+        (void) fprintf(stderr, "%s: mpi out of bounds", __func__);
+        return -1;
+    }
+
+    if ((read = src_read(src, mpi, bytes)) < bytes) {
+        return -1;
+    }
+
+    hbits = bits & 7 ? bits & 7 : 8;
+    if ((((unsigned) mpi[0] >> hbits) != 0) || !((unsigned) mpi[0] & (1U << (hbits - 1)))) {
+        (void) fprintf(stderr, "%s: wrong mpi bit count", __func__);
+        return -1;
+    }
+
+    return bytes;
+}
+
 bool
 init_packet_body(pgp_packet_body_t *body, int tag)
 {
@@ -201,19 +249,24 @@ stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
         return RNP_ERROR_READ;
     }
 
-    body->tag = get_packet_type(buf[0]);
+    if ((body->tag = get_packet_type(buf[0])) < 0) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
 
-    if ((len = stream_read_pkt_len(src)) <= 0) {
+    len = stream_read_pkt_len(src);
+    if (len <= 0) {
         return RNP_ERROR_READ;
+    } else if (len > PGP_MAX_PKT_SIZE) {
+        return RNP_ERROR_BAD_FORMAT;
     }
 
     if (!(body->data = malloc(len))) {
-        (void) fprintf(stderr, "%s: malloc of %d bytes failed\n", __func__, (int)len);
+        (void) fprintf(stderr, "%s: malloc of %d bytes failed\n", __func__, (int) len);
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     if ((read = src_read(src, body->data, read)) < len) {
-        (void) fprintf(stderr, "%s: read %d instead of %d\n", __func__, (int)read, (int)len);
+        (void) fprintf(stderr, "%s: read %d instead of %d\n", __func__, (int) read, (int) len);
         free(body->data);
         body->data = NULL;
         return RNP_ERROR_READ;
@@ -353,11 +406,12 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
 }
 
 rnp_result_t
-stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
+stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pkey)
 {
     ssize_t len;
     ssize_t read;
     uint8_t buf[10];
+    uint8_t mpi[PGP_MPINT_SIZE];
 
     len = stream_read_pkt_len(src);
     if (len < 0) {
@@ -382,22 +436,65 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
     /* pk alg */
     pkey->alg = buf[9];
 
+    len -= 10;
+
+    /* all algos have first mpi, so let's save some code lines */
+    if ((read = stream_read_mpi(src, mpi, len)) < 0) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    len -= read + 2;
+
     switch (pkey->alg) {
-        case PGP_PKA_RSA:
-            break;
-        case PGP_PKA_ELGAMAL:
-            break;
-        case PGP_PKA_SM2:
-            break;
-        case PGP_PKA_ECDH:
-            break;
-        default:
-            (void) fprintf(stderr, "%s: unknown pk alg %d\n", __func__, (int)pkey->alg);
+    case PGP_PKA_RSA:
+        /* RSA m */
+        pkey->params.rsa.mlen = read;
+        memcpy(pkey->params.rsa.m, mpi, read);
+        break;
+    case PGP_PKA_ELGAMAL:
+        /* ElGamal g */
+        pkey->params.eg.glen = read;
+        memcpy(pkey->params.eg.g, mpi, read);
+        /* ElGamal m */
+        if ((read = stream_read_mpi(src, pkey->params.eg.m, len)) < 0) {
             return RNP_ERROR_BAD_FORMAT;
+        }
+        pkey->params.eg.mlen = read;
+        len -= read + 2;
+        break;
+    case PGP_PKA_SM2:
+        /* SM2 m */
+        pkey->params.sm2.mlen = read;
+        memcpy(pkey->params.sm2.m, mpi, read);
+        break;
+    case PGP_PKA_ECDH:
+        /* ECDH ephemeral point */
+        pkey->params.ecdh.plen = read;
+        memcpy(pkey->params.ecdh.p, mpi, read);
+        /* ECDH m */
+        if ((len < 1) || ((read = src_read(src, buf, 1)) < 1)) {
+            return RNP_ERROR_READ;
+        }
+        len--;
+        if ((buf[0] > ECDH_WRAPPED_KEY_SIZE) || (len < buf[0])) {
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        pkey->params.ecdh.mlen = buf[0];
+
+        if ((read = src_read(src, pkey->params.ecdh.m, buf[0])) < buf[0]) {
+            return RNP_ERROR_READ;
+        }
+        len -= buf[0];
+
+        break;
+    default:
+        (void) fprintf(stderr, "%s: unknown pk alg %d\n", __func__, (int) pkey->alg);
+        return RNP_ERROR_BAD_FORMAT;
     }
 
-    (void) fprintf(stderr, "skipping public key encrypted session key\n");
-    src_skip(src, len);
+    if (len > 0) {
+        (void) fprintf(stderr, "%s: extra %d bytes\n", __func__, (int) len);
+        return RNP_ERROR_BAD_FORMAT;
+    }
 
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    return RNP_SUCCESS;
 }

@@ -35,6 +35,9 @@
 #include <rnp/rnp.h>
 #include "stream-common.h"
 
+/* maximum size of the 'small' packet */
+#define PGP_MAX_PKT_SIZE 0x100000
+
 /* structure to write non-stream packets without need to precalculate the length */
 typedef struct pgp_packet_body_t {
     int      tag;       /* packet tag */
@@ -57,8 +60,9 @@ size_t write_packet_len(uint8_t *buf, size_t len);
 int get_packet_type(uint8_t ptag);
 
 /** @brief Read packet length for fixed-size (say, small) packet. Returns -1 on error.
- *  Will also read packet tag byte. We do not allow partial length here as well as large packets (so ignoring possible ssize_t overflow)
- * 
+ *  Will also read packet tag byte. We do not allow partial length here as well as large
+ *packets (so ignoring possible ssize_t overflow)
+ *
  *  @param src source to read length from
  *  @return length of the packet or -1 if there is read error or packet length is ill-formed
  **/
@@ -94,7 +98,7 @@ void free_packet_body(pgp_packet_body_t *body);
 
 /** @brief write packet header, length and body to the dest
  *  This will also deallocate internally used memory, so no free_packet_body call is needed
- * 
+ *
  *  @param body populated with data packet body
  *  @param dst destination to write to
  *  @return void
@@ -116,7 +120,6 @@ bool stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *skey, pgp_dest_t *dst);
 
 rnp_result_t stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey);
 
-rnp_result_t stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey);
-
+rnp_result_t stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pkey);
 
 #endif
