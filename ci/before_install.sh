@@ -47,6 +47,7 @@ openbsd_install() {
   sudo pkg_add gettext-tools
   sudo pkg_add gnupg-2.1.15p2
   sudo pkg_add wget
+  sudo pkg_add libiconv
 }
 
 netbsd_install() {
