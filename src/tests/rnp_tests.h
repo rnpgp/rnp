@@ -105,6 +105,10 @@ void test_repgp_list_packets(void **state);
 
 void test_ffi_api(void **state);
 
+void test_ffi_homedir(void **state);
+
+void test_ffi_keygen_json(void **state);
+
 #define rnp_assert_int_equal(state, a, b)           \
     do {                                            \
         int _rnp_a = (a);                           \
