@@ -11,4 +11,6 @@ export BUILD_MODE=normal
 export CLANG_FORMAT_DIFF="clang-format-diff-4.0"
 export CC=clang
 export MAKE=gmake
-
+export AUTOCONF_VERSION=2.69
+export AUTOMAKE_VERSION=1.15
+export GPG=gpg2
