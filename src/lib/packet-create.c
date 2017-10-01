@@ -301,19 +301,8 @@ write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const ch
         goto done;
     }
 
-    // s2k
-    switch (seckey->protection.s2k.specifier) {
-    case PGP_S2KS_SIMPLE:
-        // derive key
-        if (pgp_s2k_simple(
-              seckey->protection.s2k.hash_alg, sesskey, sesskey_size, passphrase) < 0) {
-            RNP_LOG("pgp_s2k_simple failed");
-            goto done;
-        }
-        break;
-
-    case PGP_S2KS_SALTED:
-        // randomize and write salt
+    // salt
+    if (seckey->protection.s2k.specifier != PGP_S2KS_SIMPLE) {
         if (pgp_random(seckey->protection.s2k.salt, PGP_SALT_SIZE)) {
             RNP_LOG("pgp_random failed");
             goto done;
@@ -321,47 +310,21 @@ write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const ch
         if (!pgp_write(output, seckey->protection.s2k.salt, PGP_SALT_SIZE)) {
             goto done;
         }
+    }
 
-        // derive key
-        if (pgp_s2k_salted(seckey->protection.s2k.hash_alg,
-                           sesskey,
-                           sesskey_size,
-                           passphrase,
-                           seckey->protection.s2k.salt)) {
-            RNP_LOG("pgp_s2k_salted failed");
-            goto done;
-        }
-        break;
-
-    case PGP_S2KS_ITERATED_AND_SALTED:
-        // randomize and write salt
-        if (pgp_random(seckey->protection.s2k.salt, PGP_SALT_SIZE)) {
-            RNP_LOG("pgp_random failed");
-            goto done;
-        }
-        if (!pgp_write(output, seckey->protection.s2k.salt, PGP_SALT_SIZE)) {
-            goto done;
-        }
-
-        // derive key
-        if (pgp_s2k_iterated(seckey->protection.s2k.hash_alg,
-                             sesskey,
-                             sesskey_size,
-                             passphrase,
-                             seckey->protection.s2k.salt,
-                             seckey->protection.s2k.iterations)) {
-            RNP_LOG("pgp_s2k_iterated failed");
-            goto done;
-        }
-
-        // encode and write iteration count
-        uint8_t encoded_iterations =
-          pgp_s2k_encode_iterations(seckey->protection.s2k.iterations);
-        if (!pgp_write_scalar(output, encoded_iterations, 1)) {
+    // iterations
+    if (seckey->protection.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+        uint8_t enc_it = pgp_s2k_encode_iterations(seckey->protection.s2k.iterations);
+        if (!pgp_write_scalar(output, enc_it, 1)) {
             RNP_LOG("write failed");
             goto done;
         }
-        break;
+    }
+
+    // derive key
+    if (!pgp_s2k_derive_key(&seckey->protection.s2k, passphrase, sesskey, sesskey_size)) {
+        RNP_LOG("failed to derive key");
+        goto done;
     }
 
     // randomize and write IV
@@ -938,14 +901,13 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
             goto done;
         }
 
-        const rnp_result_t err =
-          pgp_ecdh_encrypt_pkcs5(encoded_key,
-                                 sz_encoded_key,
-                                 encmpibuf,
-                                 &out_len,
-                                 sesskey->params.ecdh.ephemeral_point,
-                                 &pubkey->key.ecdh,
-                                 &fingerprint);
+        const rnp_result_t err = pgp_ecdh_encrypt_pkcs5(encoded_key,
+                                                        sz_encoded_key,
+                                                        encmpibuf,
+                                                        &out_len,
+                                                        sesskey->params.ecdh.ephemeral_point,
+                                                        &pubkey->key.ecdh,
+                                                        &fingerprint);
         if (RNP_SUCCESS != err) {
             RNP_LOG("Encryption failed %d\n", err);
             goto error;
