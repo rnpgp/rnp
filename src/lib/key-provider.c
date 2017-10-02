@@ -43,29 +43,29 @@ bool
 rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *userdata)
 {
     rnp_t *    rnp = (rnp_t *) userdata;
-    pgp_key_t *pkey, *skey;
+    pgp_key_t *ks_key;
     unsigned   from = 0;
 
     *key = NULL;
     if (ctx->stype == PGP_KEY_SEARCH_KEYID) {
         if (ctx->secret) {
-            skey =
+            ks_key =
               rnp_key_store_get_key_by_id(rnp->io, rnp->secring, ctx->search.id, &from, NULL);
-            if (skey && pgp_key_unlock(skey, ctx->pass_provider)) {
-                *key = skey;
+            if (ks_key && pgp_key_unlock(ks_key, ctx->pass_provider)) {
+                *key = ks_key;
             }
         } else {
-            pkey =
+            ks_key =
               rnp_key_store_get_key_by_id(rnp->io, rnp->pubring, ctx->search.id, &from, NULL);
-            if (pkey) {
-                *key = pkey;
+            if (ks_key) {
+                *key = ks_key;
             } else {
                 /* searching for public key in secret keyring as well */
                 from = 0;
-                skey = rnp_key_store_get_key_by_id(
+                ks_key = rnp_key_store_get_key_by_id(
                   rnp->io, rnp->pubring, ctx->search.id, &from, NULL);
-                if (skey) {
-                    *key = skey;
+                if (ks_key) {
+                    *key = ks_key;
                 }
             }
         }
