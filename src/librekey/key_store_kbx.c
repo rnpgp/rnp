@@ -626,19 +626,13 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *io, pgp_key_t *key, pgp_memory_t *m)
 
     pgp_writer_set_memory(&output, m);
 
-    for (unsigned ipkt = 0; ipkt < key->packetc; ipkt++) {
-        pgp_rawpacket_t *pkt = &key->packets[ipkt];
-        if (!pgp_write(&output, pkt->raw, pkt->length)) {
-            return false;
-        }
+    if (!pgp_key_write_packets(key, &output)) {
+        return false;
     }
     for (unsigned isub = 0; isub < key->subkeyc; isub++) {
         const pgp_key_t *subkey = key->subkeys[isub];
-        for (unsigned ipkt = 0; ipkt < subkey->packetc; ipkt++) {
-            pgp_rawpacket_t *pkt = &subkey->packets[ipkt];
-            if (!pgp_write(&output, pkt->raw, pkt->length)) {
-                return false;
-            }
+        if (!pgp_key_write_packets(subkey, &output)) {
+            return false;
         }
     }
 
