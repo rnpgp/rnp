@@ -25,15 +25,51 @@
  */
 
 #include "key-provider.h"
+#include "pgp-key.h"
+#include <rekey/rnp_key_store.h>
 
 bool
-pgp_key_needed(const pgp_key_provider_t *provider, const pgp_key_request_ctx_t *ctx, pgp_key_t **key)
+pgp_key_needed(const pgp_key_provider_t *   provider,
+               const pgp_key_request_ctx_t *ctx,
+               pgp_key_t **                 key)
 {
-    return false;
+    if (!provider || !provider->callback || !ctx || !key) {
+        return false;
+    }
+    return provider->callback(ctx, key, provider->userdata);
 }
 
 bool
 rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *userdata)
 {
-    return false;
+    rnp_t *    rnp = (rnp_t *) userdata;
+    pgp_key_t *pkey, *skey;
+    unsigned   from = 0;
+
+    *key = NULL;
+    if (ctx->stype == PGP_KEY_SEARCH_KEYID) {
+        if (ctx->secret) {
+            skey =
+              rnp_key_store_get_key_by_id(rnp->io, rnp->secring, ctx->search.id, &from, NULL);
+            if (skey && pgp_key_unlock(skey, ctx->pass_provider)) {
+                *key = skey;
+            }
+        } else {
+            pkey =
+              rnp_key_store_get_key_by_id(rnp->io, rnp->pubring, ctx->search.id, &from, NULL);
+            if (pkey) {
+                *key = pkey;
+            } else {
+                /* searching for public key in secret keyring as well */
+                from = 0;
+                skey = rnp_key_store_get_key_by_id(
+                  rnp->io, rnp->pubring, ctx->search.id, &from, NULL);
+                if (skey) {
+                    *key = skey;
+                }
+            }
+        }
+    }
+
+    return (*key != NULL);
 }

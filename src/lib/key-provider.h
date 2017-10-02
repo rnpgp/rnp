@@ -32,27 +32,49 @@
 
 typedef struct pgp_key_t pgp_key_t;
 
+typedef enum {
+    PGP_KEY_SEARCH_KEYID,
+    PGP_KEY_SEARCH_GRIP,
+    PGP_KEY_SEARCH_USERID
+} pgp_key_search_t;
+
 typedef struct pgp_key_request_ctx_t {
     pgp_passphrase_provider_t *pass_provider;
-    uint8_t op;
-    bool    secret;
-    unsigned has_keyid : 1;
-    unsigned has_keygrip : 1;
-    unsigned has_userid : 1;
-    uint8_t keyid[PGP_KEY_ID_SIZE];
-    uint8_t keygrip[PGP_FINGERPRINT_SIZE];
-    char *  userid;
+    uint8_t                    op;
+    bool                       secret;
+    pgp_key_search_t           stype;
+    union {
+        uint8_t id[PGP_KEY_ID_SIZE];
+        uint8_t grip[PGP_FINGERPRINT_SIZE];
+        char *  userid;
+    } search;
 } pgp_key_request_ctx_t;
 
-typedef bool pgp_key_callback_t(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *userdata);
+typedef bool pgp_key_callback_t(const pgp_key_request_ctx_t *ctx,
+                                pgp_key_t **                 key,
+                                void *                       userdata);
 
 typedef struct pgp_key_provider_t {
     pgp_key_callback_t *callback;
     void *              userdata;
 } pgp_key_provider_t;
 
-bool pgp_key_needed(const pgp_key_provider_t *provider, const pgp_key_request_ctx_t *ctx, pgp_key_t **key);
+/** @brief request public or secret pgp key, according to information stored in ctx
+ *  @param provider key provider structure
+ *  @param ctx information about the request - which operation requested the key, which search
+ *criteria should be used and whether secret or public key is needed
+ *  @param key pointer to the key structure will be stored here on success
+ *  @return true on success, or false if key was not found otherwise
+ **/
+bool pgp_key_needed(const pgp_key_provider_t *   provider,
+                    const pgp_key_request_ctx_t *ctx,
+                    pgp_key_t **                 key);
 
-bool rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *userdata);
+/** @brief key provider callback which searches for key in rnp_key_store_t. userdata must be
+  *pointer to the rnp_t structure
+ **/
+bool rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx,
+                              pgp_key_t **                 key,
+                              void *                       userdata);
 
 #endif
