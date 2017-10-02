@@ -458,11 +458,8 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
             RNP_LOG("incorrect format (conversions not supported): %d", key->format);
             return false;
         }
-        for (int ipkt = 0; ipkt < key->packetc; ipkt++) {
-            pgp_rawpacket_t *pkt = &key->packets[ipkt];
-            if (!pgp_write(&output, pkt->raw, pkt->length)) {
-                return false;
-            }
+        if (!pgp_key_write_packets(key, &output)) {
+            return false;
         }
     }
     if (armour) {

@@ -225,4 +225,6 @@ bool pgp_key_add_userid(pgp_key_t *            key,
                         pgp_hash_alg_t         hash_alg,
                         rnp_selfsig_cert_info *cert);
 
+bool pgp_key_write_packets(const pgp_key_t *key, pgp_output_t *output);
+
 #endif // RNP_PACKET_KEY_H

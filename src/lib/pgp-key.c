@@ -1046,3 +1046,21 @@ done:
     }
     return ret;
 }
+
+bool
+pgp_key_write_packets(const pgp_key_t *key, pgp_output_t *output)
+{
+    if (DYNARRAY_IS_EMPTY(key, packet)) {
+        return false;
+    }
+    for (unsigned i = 0; i < key->packetc; i++) {
+        pgp_rawpacket_t *pkt = &key->packets[i];
+        if (!pkt->raw || !pkt->length) {
+            return false;
+        }
+        if (!pgp_write(output, pkt->raw, pkt->length)) {
+            return false;
+        }
+    }
+    return true;
+}
