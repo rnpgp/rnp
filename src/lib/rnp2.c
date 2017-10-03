@@ -2158,7 +2158,7 @@ rnp_key_unprotect(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx)
 }
 
 rnp_result_t
-rnp_key_is_primary_key(rnp_key_t key, bool *result)
+rnp_key_is_primary(rnp_key_t key, bool *result)
 {
     if (key == NULL || key->key == NULL || result == NULL)
         return RNP_ERROR_NULL_POINTER;
@@ -2167,7 +2167,7 @@ rnp_key_is_primary_key(rnp_key_t key, bool *result)
 }
 
 rnp_result_t
-rnp_key_is_subkey(rnp_key_t key, bool *result)
+rnp_key_is_sub(rnp_key_t key, bool *result)
 {
     if (key == NULL || key->key == NULL || result == NULL)
         return RNP_ERROR_NULL_POINTER;

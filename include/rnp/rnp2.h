@@ -250,8 +250,8 @@ rnp_result_t rnp_key_is_protected(rnp_key_t key, bool *result);
 rnp_result_t rnp_key_protect(rnp_key_t key, const char *passphrase);
 rnp_result_t rnp_key_unprotect(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx);
 
-rnp_result_t rnp_key_is_primary_key(rnp_key_t key, bool *result);
-rnp_result_t rnp_key_is_subkey(rnp_key_t key, bool *result);
+rnp_result_t rnp_key_is_primary(rnp_key_t key, bool *result);
+rnp_result_t rnp_key_is_sub(rnp_key_t key, bool *result);
 rnp_result_t rnp_key_is_secret(rnp_key_t key, bool *result);
 rnp_result_t rnp_key_is_public(rnp_key_t key, bool *result);
 
