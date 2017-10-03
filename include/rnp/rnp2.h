@@ -243,6 +243,7 @@ rnp_result_t rnp_key_get_keyid(rnp_key_t key, char **keyid);
 rnp_result_t rnp_key_get_grip(rnp_key_t key, char **grip);
 
 rnp_result_t rnp_key_is_locked(rnp_key_t key, bool *result);
+rnp_result_t rnp_key_lock(rnp_key_t key);
 rnp_result_t rnp_key_unlock(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx);
 
 rnp_result_t rnp_key_is_protected(rnp_key_t key, bool *result);
