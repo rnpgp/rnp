@@ -204,6 +204,7 @@ rnp_key_store_load_from_file(pgp_io_t *       io,
             }
             pgp_memory_release(&mem);
         }
+        closedir(dir);
 
         return true;
     }
