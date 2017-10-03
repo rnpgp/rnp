@@ -46,7 +46,6 @@ struct rnp_keyring_st {
 
 struct rnp_key_st {
     pgp_key_t *    key;
-    rnp_keyring_t *keyring; // associated keyring, may be null
 };
 
 static pgp_key_t *
@@ -2141,12 +2140,9 @@ rnp_key_protect(rnp_key_t key, const char *passphrase)
     if (key == NULL || key->key == NULL || passphrase == NULL)
         return RNP_ERROR_NULL_POINTER;
 
-    if (key->keyring == NULL)
-        return RNP_ERROR_BAD_STATE;
-
     // TODO allow setting protection params
     bool ok =
-      pgp_key_protect_passphrase(key->key, (*key->keyring)->store->format, NULL, passphrase);
+      pgp_key_protect_passphrase(key->key, key->key->format, NULL, passphrase);
 
     if (ok)
         return RNP_SUCCESS;
