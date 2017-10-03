@@ -83,7 +83,13 @@ rnp_passphrase_cb_bounce(const pgp_passphrase_ctx_t *ctx,
                          void *                      userdata_void)
 {
     struct rnp_passphrase_cb_data *userdata = (struct rnp_passphrase_cb_data *) userdata_void;
-    rnp_key_t                      key = calloc(1, sizeof(*key));
+    rnp_key_t key = NULL;
+
+    if (!userdata->cb_fn) {
+        return false;
+    }
+
+    key = calloc(1, sizeof(*key));
     if (!key) {
         return false;
     }
