@@ -107,7 +107,15 @@ void test_ffi_api(void **state);
 
 void test_ffi_homedir(void **state);
 
-void test_ffi_keygen_json(void **state);
+void test_ffi_keygen_json_pair(void **state);
+
+void test_ffi_keygen_json_primary(void **state);
+
+void test_ffi_keygen_json_sub_same_ring(void **state);
+
+void test_ffi_keygen_json_sub_different_ring(void **state);
+
+void test_ffi_keygen_json_sub_pass_required(void **state);
 
 #define rnp_assert_int_equal(state, a, b)           \
     do {                                            \

@@ -167,7 +167,11 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_repgp_list_packets),
       cmocka_unit_test(test_ffi_api),
       cmocka_unit_test(test_ffi_homedir),
-      cmocka_unit_test(test_ffi_keygen_json)};
+      cmocka_unit_test(test_ffi_keygen_json_pair),
+      cmocka_unit_test(test_ffi_keygen_json_primary),
+      cmocka_unit_test(test_ffi_keygen_json_sub_same_ring),
+      cmocka_unit_test(test_ffi_keygen_json_sub_different_ring),
+      cmocka_unit_test(test_ffi_keygen_json_sub_pass_required)};
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */
