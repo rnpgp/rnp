@@ -1649,8 +1649,9 @@ rnp_result_t
 rnp_generate_key_json(rnp_keyring_t     pubring,
                       rnp_keyring_t     secring,
                       rnp_get_key_cb    getkeycb,
+                      void * getkeycb_ctx,
                       rnp_passphrase_cb getpasscb,
-                      void *            app_ctx,
+                      void *            getpasscb_ctx,
                       const char *      json,
                       char **           results)
 {
@@ -1809,13 +1810,13 @@ rnp_generate_key_json(rnp_keyring_t     pubring,
             goto done;
         }
         if (!primary_pub) {
-            rnp_key_t found = getkeycb(app_ctx, identifier_type, identifier, false);
+            rnp_key_t found = getkeycb(getkeycb_ctx, identifier_type, identifier, false);
             if (found) {
                 primary_pub = found->key;
             }
         }
         if (!primary_sec) {
-            rnp_key_t found = getkeycb(app_ctx, identifier_type, identifier, true);
+            rnp_key_t found = getkeycb(getkeycb_ctx, identifier_type, identifier, true);
             if (found) {
                 primary_sec = found->key;
             }
@@ -1831,7 +1832,7 @@ rnp_generate_key_json(rnp_keyring_t     pubring,
         const pgp_passphrase_provider_t provider = {
           .callback = rnp_passphrase_cb_bounce,
           .userdata =
-            &(struct rnp_passphrase_cb_data){.cb_fn = getpasscb, .cb_data = app_ctx}};
+            &(struct rnp_passphrase_cb_data){.cb_fn = getpasscb, .cb_data = getpasscb_ctx}};
         pgp_key_t sub_pub = {0};
         pgp_key_t sub_sec = {0};
         if (!pgp_generate_subkey(&sub_desc,

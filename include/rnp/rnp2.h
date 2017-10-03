@@ -208,8 +208,9 @@ rnp_result_t rnp_key_free(rnp_key_t *key);
 rnp_result_t rnp_generate_key_json(rnp_keyring_t     pubring,
                                    rnp_keyring_t     secring,
                                    rnp_get_key_cb    getkeycb,
+                                   void *            getkeycb_ctx,
                                    rnp_passphrase_cb getpasscb,
-                                   void *            app_ctx,
+                                   void *            getpasscb_ctx,
                                    const char *      json,
                                    char **           results);
 
