@@ -76,6 +76,30 @@ rnp_set_io(FILE *output_stream, FILE *error_stream, FILE *result_stream)
     g_ffi_io.res = result_stream;
 }
 
+static const char *
+operation_description(uint8_t op) {
+    switch (op) {
+      case PGP_OP_ADD_SUBKEY:
+        return "add subkey";
+      case PGP_OP_SIGN:
+        return "sign";
+      case PGP_OP_DECRYPT:
+        return "decrypt";
+      case PGP_OP_UNLOCK:
+        return "unlock";
+      case PGP_OP_PROTECT:
+        return "protect";
+      case PGP_OP_UNPROTECT:
+        return "unprotect";
+      case PGP_OP_DECRYPT_SYM:
+        return "decrypt (symmetric)";
+      case PGP_OP_ENCRYPT_SYM:
+        return "encrypt (symmetric)";
+      default:
+        return "unknown";
+    }
+}
+
 static bool
 rnp_passphrase_cb_bounce(const pgp_passphrase_ctx_t *ctx,
                          char *                      passphrase,
@@ -94,9 +118,8 @@ rnp_passphrase_cb_bounce(const pgp_passphrase_ctx_t *ctx,
         return false;
     }
     key->key = (pgp_key_t *) ctx->key;
-
     int rc = userdata->cb_fn(
-      userdata->cb_data, key, "TODO create a context string", passphrase, passphrase_size);
+      userdata->cb_data, key, operation_description(ctx->op), passphrase, passphrase_size);
     free(key);
     return (rc == 0);
 }
