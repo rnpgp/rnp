@@ -452,6 +452,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
     pgp_memory_t *      mem = NULL;
     const pgp_seckey_t *primary_seckey = NULL;
     pgp_seckey_t *      decrypted_primary_seckey = NULL;
+    pgp_seckey_t        seckey = {{0}};
 
     // validate args
     if (!desc || !primary_sec || !primary_pub || !subkey_sec || !subkey_pub) {
@@ -500,8 +501,6 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
     }
 
     // generate the raw key pair
-    pgp_seckey_t seckey;
-    memset(&seckey, 0, sizeof(seckey));
     if (!pgp_generate_seckey(&desc->crypto, &seckey)) {
         goto end;
     }
