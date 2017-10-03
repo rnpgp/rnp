@@ -865,7 +865,7 @@ rnp_export_public_key(rnp_key_t key, uint32_t flags, char **buf, size_t *buf_len
     memcpy(*buf, pgp_mem_data(mem), pgp_mem_len(mem));
 
     if (armor)
-        buf[*buf_len - 1] = 0;
+        (*buf)[*buf_len - 1] = 0;
 
     return RNP_SUCCESS;
 }
