@@ -2098,6 +2098,18 @@ rnp_key_is_locked(rnp_key_t key, bool *result)
 }
 
 rnp_result_t
+rnp_key_lock(rnp_key_t key)
+{
+    if (key == NULL || key->key == NULL)
+        return RNP_ERROR_NULL_POINTER;
+
+    if (!pgp_key_lock(key->key)) {
+        return RNP_ERROR_GENERIC;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_key_unlock(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx)
 {
     if (key == NULL || key->key == NULL || cb == NULL)
