@@ -253,78 +253,580 @@ load_test_data(const char *data_dir, const char *file, char **data, size_t *size
     free(path);
 }
 
+static rnp_key_t
+unused_getkeycb(void *      app_ctx,
+                const char *identifier_type,
+                const char *identifier,
+                bool        secret)
+{
+    assert_true(false);
+    return NULL;
+}
+
+typedef struct {
+    rnp_keyring_t pubring;
+    rnp_keyring_t secring;
+} getkeycb_data_t;
+
+static rnp_key_t
+getkeycb(void *app_ctx, const char *identifier_type, const char *identifier, bool secret)
+{
+    const getkeycb_data_t *keyrings = app_ctx;
+    rnp_key_t              found = NULL;
+    rnp_keyring_t          kr = NULL;
+
+    if (secret) {
+        kr = keyrings->secring;
+    } else {
+        kr = keyrings->pubring;
+    }
+    if (rnp_keyring_find_key(kr, identifier_type, identifier, &found)) {
+        assert_true(false);
+        return NULL;
+    }
+    return found;
+}
+
+static int
+unused_getpasscb(
+  void *app_ctx, rnp_key_t key, const char *pgp_context, char *buf, size_t buf_len)
+{
+    assert_true(false);
+    return 0;
+}
+
+static int
+getpasscb(void *app_ctx, rnp_key_t key, const char *pgp_context, char *buf, size_t buf_len)
+{
+    strcpy(buf, (const char *) app_ctx);
+    return 0;
+}
+
+static void
+check_key_properties(rnp_key_t key, bool primary, bool secret)
+{
+    bool isprimary = !primary;
+    assert_int_equal(RNP_SUCCESS, rnp_key_is_primary(key, &isprimary));
+    assert_true(isprimary == primary);
+    bool issub = primary;
+    assert_int_equal(RNP_SUCCESS, rnp_key_is_sub(key, &issub));
+    assert_true(issub == !primary);
+    bool ispublic = secret;
+    assert_int_equal(RNP_SUCCESS, rnp_key_is_public(key, &ispublic));
+    assert_true(ispublic == !secret);
+    bool issecret = !secret;
+    assert_int_equal(RNP_SUCCESS, rnp_key_is_secret(key, &issecret));
+    assert_true(issecret == secret);
+}
+
 void
-test_ffi_keygen_json(void **state)
+test_ffi_keygen_json_pair(void **state)
 {
     rnp_test_state_t *rstate = *state;
-    rnp_keyring_t     secring = NULL, pubring = NULL;
+    rnp_keyring_t     pubring = NULL, secring = NULL;
     char *            json = NULL;
     char *            results = NULL;
     size_t            count = 0;
+    rnp_key_t         key;
 
     rnp_set_io(stdout, stderr, stdout);
 
+    // create keyrings
     assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&pubring, "GPG", NULL));
     assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&secring, "GPG", NULL));
+
+    // load our JSON
     load_test_data(rstate->data_dir, "json/generate-pair.json", &json, NULL);
+
+    // generate the keys
     assert_int_equal(
       RNP_SUCCESS,
-      rnp_generate_key_json(pubring, secring, NULL, NULL, NULL, NULL, json, &results));
+      rnp_generate_key_json(
+        pubring, secring, unused_getkeycb, NULL, unused_getpasscb, NULL, json, &results));
     free(json);
+    json = NULL;
     assert_non_null(results);
-    printf("%s\n", results);
+
+    // make sure valid JSON was produced
+    json_object *parsed_results = json_tokener_parse(results);
+    assert_non_null(parsed_results);
     rnp_buffer_free(results);
+    json_object_put(parsed_results);
+
+    // check the key counts
     assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(pubring, &count));
     assert_int_equal(2, count);
     assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(secring, &count));
     assert_int_equal(2, count);
+
+    // check some key properties
+    // primary pub
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(pubring, 0, &key));
+    check_key_properties(key, true, false);
+    rnp_key_free(&key);
+    key = NULL;
+    // sub pub
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(pubring, 1, &key));
+    check_key_properties(key, false, false);
+    rnp_key_free(&key);
+    key = NULL;
+    // primary sec
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(secring, 0, &key));
+    check_key_properties(key, true, true);
+    rnp_key_free(&key);
+    key = NULL;
+    // sub sec
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(secring, 1, &key));
+    check_key_properties(key, false, true);
+    rnp_key_free(&key);
+    key = NULL;
+
+    // cleanup
     rnp_keyring_destroy(&pubring);
     rnp_keyring_destroy(&secring);
+}
 
+void
+test_ffi_keygen_json_primary(void **state)
+{
+    rnp_test_state_t *rstate = *state;
+    rnp_keyring_t     pubring = NULL, secring = NULL;
+    char *            json = NULL;
+    char *            results = NULL;
+    size_t            count = 0;
+    rnp_key_t         key;
+
+    rnp_set_io(stdout, stderr, stdout);
+
+    // create keyrings
     assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&pubring, "GPG", NULL));
     assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&secring, "GPG", NULL));
+
+    // load our JSON
+    load_test_data(rstate->data_dir, "json/generate-primary.json", &json, NULL);
+
+    // generate the keys
+    assert_int_equal(
+      RNP_SUCCESS,
+      rnp_generate_key_json(
+        pubring, secring, unused_getkeycb, NULL, unused_getpasscb, NULL, json, &results));
+    assert_non_null(results);
+
+    // make sure valid JSON was produced
+    json_object *parsed_results = json_tokener_parse(results);
+    assert_non_null(parsed_results);
+
+    // check the key counts
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(pubring, &count));
+    assert_int_equal(1, count);
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(secring, &count));
+    assert_int_equal(1, count);
+
+    // check some key properties
+    // primary pub
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(pubring, 0, &key));
+    check_key_properties(key, true, false);
+    rnp_key_free(&key);
+    key = NULL;
+    // primary sec
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(secring, 0, &key));
+    check_key_properties(key, true, true);
+    rnp_key_free(&key);
+    key = NULL;
+
+    // cleanup
+    json_object_put(parsed_results);
+    rnp_buffer_free(results);
+    free(json);
+    rnp_keyring_destroy(&pubring);
+    rnp_keyring_destroy(&secring);
+}
+
+// same ring
+// diff ring
+// req pass
+
+/* This test generates a primary key, and then a subkey (in the same keyring).
+ */
+void
+test_ffi_keygen_json_sub_same_ring(void **state)
+{
+    rnp_test_state_t *rstate = *state;
+    char *            json = NULL;
+    char *            results = NULL;
+    size_t            count = 0;
+    rnp_keyring_t     pubring = NULL, secring = NULL;
+    rnp_key_t         key = NULL;
+    char *            primary_grip = NULL;
+
+    rnp_set_io(stdout, stderr, stdout);
+
+    // create keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&pubring, "GPG", NULL));
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&secring, "GPG", NULL));
+
+    // generate our primary key
     load_test_data(rstate->data_dir, "json/generate-primary.json", &json, NULL);
     assert_int_equal(
       RNP_SUCCESS,
-      rnp_generate_key_json(pubring, secring, NULL, NULL, NULL, NULL, json, &results));
+      rnp_generate_key_json(
+        pubring, secring, unused_getkeycb, NULL, unused_getpasscb, NULL, json, &results));
     free(json);
     assert_non_null(results);
-    printf("%s\n", results);
     rnp_buffer_free(results);
+    results = NULL;
+    // check key counts
     assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(pubring, &count));
     assert_int_equal(1, count);
     assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(secring, &count));
     assert_int_equal(1, count);
-    char *    primary_grip;
-    rnp_key_t key;
+
+    // retrieve the grip of the primary key, for later
     assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(pubring, 0, &key));
     assert_int_equal(RNP_SUCCESS, rnp_key_get_grip(key, &primary_grip));
+    rnp_key_free(&key);
+    key = NULL;
 
+    // load our JSON
     load_test_data(rstate->data_dir, "json/generate-sub.json", &json, NULL);
+    // modify our JSON
     json_object *jso = json_tokener_parse(json);
+    free(json);
+    json = NULL;
     json_object *jsosub;
     json_object *jsoprimary;
     assert_true(json_object_object_get_ex(jso, "subkey", &jsosub));
     assert_true(json_object_object_get_ex(jsosub, "primary", &jsoprimary));
     json_object_object_del(jsoprimary, "grip");
     json_object_object_add(jsoprimary, "grip", json_object_new_string(primary_grip));
+    assert_int_equal(1, json_object_object_length(jsoprimary));
     json = strdup(json_object_to_json_string_ext(jso, JSON_C_TO_STRING_PRETTY));
     json_object_put(jso);
     rnp_key_free(&key);
+    key = NULL;
     rnp_buffer_free(primary_grip);
-    //
+    primary_grip = NULL;
+
+    // generate the subkey
     assert_int_equal(
       RNP_SUCCESS,
-      rnp_generate_key_json(pubring, secring, NULL, NULL, NULL, NULL, json, &results));
+      rnp_generate_key_json(
+        pubring, secring, unused_getkeycb, NULL, unused_getpasscb, NULL, json, &results));
     free(json);
+    json = NULL;
     assert_non_null(results);
-    printf("%s\n", results);
+    // make sure valid JSON was produced
+    json_object *parsed_results = json_tokener_parse(results);
+    assert_non_null(parsed_results);
+    json_object_put(parsed_results);
+    parsed_results = NULL;
     rnp_buffer_free(results);
+    results = NULL;
+
+    // check the key counts
     assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(pubring, &count));
     assert_int_equal(2, count);
     assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(secring, &count));
     assert_int_equal(2, count);
 
+    // check some key properties
+    // primary pub
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(pubring, 0, &key));
+    check_key_properties(key, true, false);
+    rnp_key_free(&key);
+    key = NULL;
+    // primary sec
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(secring, 0, &key));
+    check_key_properties(key, true, true);
+    rnp_key_free(&key);
+    key = NULL;
+    // sub pub
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(pubring, 1, &key));
+    check_key_properties(key, false, false);
+    rnp_key_free(&key);
+    key = NULL;
+    // sub sec
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(secring, 1, &key));
+    check_key_properties(key, false, true);
+    rnp_key_free(&key);
+    key = NULL;
+
+    // cleanup
+    rnp_keyring_destroy(&pubring);
+    rnp_keyring_destroy(&secring);
+}
+
+void
+test_ffi_keygen_json_sub_different_ring(void **state)
+{
+    rnp_test_state_t *rstate = *state;
+    char *            json = NULL;
+    char *            results = NULL;
+    size_t            count = 0;
+    rnp_keyring_t     primary_pubring = NULL, primary_secring = NULL;
+    rnp_keyring_t     pubring = NULL, secring = NULL;
+    rnp_key_t         key = NULL;
+    char *            primary_grip = NULL;
+
+    rnp_set_io(stdout, stderr, stdout);
+
+    // create keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&primary_pubring, "GPG", NULL));
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&primary_secring, "GPG", NULL));
+
+    // generate our primary key
+    load_test_data(rstate->data_dir, "json/generate-primary.json", &json, NULL);
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_generate_key_json(primary_pubring,
+                                           primary_secring,
+                                           unused_getkeycb,
+                                           NULL,
+                                           unused_getpasscb,
+                                           NULL,
+                                           json,
+                                           &results));
+    free(json);
+    assert_non_null(results);
+    rnp_buffer_free(results);
+    results = NULL;
+    // check key counts
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(primary_pubring, &count));
+    assert_int_equal(1, count);
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(primary_secring, &count));
+    assert_int_equal(1, count);
+
+    // retrieve the grip of the primary key, for later
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(primary_pubring, 0, &key));
+    assert_int_equal(RNP_SUCCESS, rnp_key_get_grip(key, &primary_grip));
+    rnp_key_free(&key);
+    key = NULL;
+
+    // load our JSON
+    load_test_data(rstate->data_dir, "json/generate-sub.json", &json, NULL);
+    // modify our JSON
+    json_object *jso = json_tokener_parse(json);
+    free(json);
+    json = NULL;
+    json_object *jsosub;
+    json_object *jsoprimary;
+    assert_true(json_object_object_get_ex(jso, "subkey", &jsosub));
+    assert_true(json_object_object_get_ex(jsosub, "primary", &jsoprimary));
+    json_object_object_del(jsoprimary, "grip");
+    json_object_object_add(jsoprimary, "grip", json_object_new_string(primary_grip));
+    assert_int_equal(1, json_object_object_length(jsoprimary));
+    json = strdup(json_object_to_json_string_ext(jso, JSON_C_TO_STRING_PRETTY));
+    json_object_put(jso);
+    rnp_key_free(&key);
+    key = NULL;
+    rnp_buffer_free(primary_grip);
+    primary_grip = NULL;
+
+    // create keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&pubring, "GPG", NULL));
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&secring, "GPG", NULL));
+
+    // generate the subkey (no getkeycb, should fail)
+    assert_int_not_equal(
+      RNP_SUCCESS,
+      rnp_generate_key_json(
+        pubring, secring, NULL, NULL, unused_getpasscb, NULL, json, &results));
+
+    // generate the subkey
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_generate_key_json(pubring,
+                                           secring,
+                                           getkeycb,
+                                           &(getkeycb_data_t){.pubring = primary_pubring,
+                                                              .secring = primary_secring},
+                                           unused_getpasscb,
+                                           NULL,
+                                           json,
+                                           &results));
+    free(json);
+    json = NULL;
+    assert_non_null(results);
+    // make sure valid JSON was produced
+    json_object *parsed_results = json_tokener_parse(results);
+    assert_non_null(parsed_results);
+    json_object_put(parsed_results);
+    parsed_results = NULL;
+    rnp_buffer_free(results);
+    results = NULL;
+
+    // check the key counts
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(pubring, &count));
+    assert_int_equal(1, count);
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(secring, &count));
+    assert_int_equal(1, count);
+
+    // check some key properties
+    // sub pub
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(pubring, 0, &key));
+    check_key_properties(key, false, false);
+    rnp_key_free(&key);
+    key = NULL;
+    // sub sec
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(secring, 0, &key));
+    check_key_properties(key, false, true);
+    rnp_key_free(&key);
+    key = NULL;
+
+    // cleanup
+    rnp_keyring_destroy(&primary_pubring);
+    rnp_keyring_destroy(&primary_secring);
+    rnp_keyring_destroy(&pubring);
+    rnp_keyring_destroy(&secring);
+}
+
+void
+test_ffi_keygen_json_sub_pass_required(void **state)
+{
+    rnp_test_state_t *rstate = *state;
+    char *            json = NULL;
+    char *            results = NULL;
+    size_t            count = 0;
+    rnp_keyring_t     primary_pubring = NULL, primary_secring = NULL;
+    rnp_keyring_t     pubring = NULL, secring = NULL;
+    rnp_key_t         key = NULL;
+    char *            primary_grip = NULL;
+
+    rnp_set_io(stdout, stderr, stdout);
+
+    // create keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&primary_pubring, "GPG", NULL));
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&primary_secring, "GPG", NULL));
+
+    // generate our primary key
+    load_test_data(rstate->data_dir, "json/generate-primary.json", &json, NULL);
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_generate_key_json(primary_pubring,
+                                           primary_secring,
+                                           unused_getkeycb,
+                                           NULL,
+                                           unused_getpasscb,
+                                           NULL,
+                                           json,
+                                           &results));
+    free(json);
+    assert_non_null(results);
+    rnp_buffer_free(results);
+    results = NULL;
+    // check key counts
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(primary_pubring, &count));
+    assert_int_equal(1, count);
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(primary_secring, &count));
+    assert_int_equal(1, count);
+
+    // retrieve the grip of the primary key, for later
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(primary_pubring, 0, &key));
+    assert_int_equal(RNP_SUCCESS, rnp_key_get_grip(key, &primary_grip));
+    rnp_key_free(&key);
+    key = NULL;
+
+    // protect+lock the primary key
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(primary_secring, 0, &key));
+    assert_int_equal(RNP_SUCCESS, rnp_key_protect(key, "pass123"));
+    assert_int_equal(RNP_SUCCESS, rnp_key_lock(key));
+    rnp_key_free(&key);
+    key = NULL;
+
+    // load our JSON
+    load_test_data(rstate->data_dir, "json/generate-sub.json", &json, NULL);
+    // modify our JSON
+    json_object *jso = json_tokener_parse(json);
+    free(json);
+    json = NULL;
+    json_object *jsosub;
+    json_object *jsoprimary;
+    assert_true(json_object_object_get_ex(jso, "subkey", &jsosub));
+    assert_true(json_object_object_get_ex(jsosub, "primary", &jsoprimary));
+    json_object_object_del(jsoprimary, "grip");
+    json_object_object_add(jsoprimary, "grip", json_object_new_string(primary_grip));
+    assert_int_equal(1, json_object_object_length(jsoprimary));
+    json = strdup(json_object_to_json_string_ext(jso, JSON_C_TO_STRING_PRETTY));
+    json_object_put(jso);
+    rnp_key_free(&key);
+    key = NULL;
+    rnp_buffer_free(primary_grip);
+    primary_grip = NULL;
+
+    // create keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&pubring, "GPG", NULL));
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&secring, "GPG", NULL));
+
+    // generate the subkey (no getkeycb, should fail)
+    assert_int_not_equal(
+      RNP_SUCCESS,
+      rnp_generate_key_json(
+        pubring, secring, NULL, NULL, unused_getpasscb, NULL, json, &results));
+
+    // generate the subkey (no getpasscb, should fail)
+    assert_int_not_equal(RNP_SUCCESS,
+                         rnp_generate_key_json(pubring,
+                                               secring,
+                                               getkeycb,
+                                               &(getkeycb_data_t){.pubring = primary_pubring,
+                                                                  .secring = primary_secring},
+                                               NULL,
+                                               NULL,
+                                               json,
+                                               &results));
+
+    // generate the subkey (wrong pass, should fail)
+    assert_int_not_equal(RNP_SUCCESS,
+                         rnp_generate_key_json(pubring,
+                                               secring,
+                                               getkeycb,
+                                               &(getkeycb_data_t){.pubring = primary_pubring,
+                                                                  .secring = primary_secring},
+                                               getpasscb,
+                                               "wrong",
+                                               json,
+                                               &results));
+
+    // generate the subkey
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_generate_key_json(pubring,
+                                           secring,
+                                           getkeycb,
+                                           &(getkeycb_data_t){.pubring = primary_pubring,
+                                                              .secring = primary_secring},
+                                           getpasscb,
+                                           "pass123",
+                                           json,
+                                           &results));
+    free(json);
+    json = NULL;
+    assert_non_null(results);
+    // make sure valid JSON was produced
+    json_object *parsed_results = json_tokener_parse(results);
+    assert_non_null(parsed_results);
+    json_object_put(parsed_results);
+    parsed_results = NULL;
+    rnp_buffer_free(results);
+    results = NULL;
+
+    // check the key counts
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(pubring, &count));
+    assert_int_equal(1, count);
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(secring, &count));
+    assert_int_equal(1, count);
+
+    // check some key properties
+    // sub pub
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(pubring, 0, &key));
+    check_key_properties(key, false, false);
+    rnp_key_free(&key);
+    key = NULL;
+    // sub sec
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_at(secring, 0, &key));
+    check_key_properties(key, false, true);
+    rnp_key_free(&key);
+    key = NULL;
+
+    // cleanup
+    rnp_keyring_destroy(&primary_pubring);
+    rnp_keyring_destroy(&primary_secring);
     rnp_keyring_destroy(&pubring);
     rnp_keyring_destroy(&secring);
 }
