@@ -188,23 +188,26 @@ rnp_result_t rnp_key_free(rnp_key_t *key);
 
 /** generate a key or pair of keys using a JSON description
  *
- * @param pubring the keyring where the generated public keys will
- *        be stored. May be NULL.
- * @param secring the keyring where the generated secret keys will
- *        be stored. May be NULL.
- * @param getkeycb the callback to retrieve keys. This is only used
- *        if the desired key is not already present in the provided
- *        rings, and generally only when adding a subkey to an
- *        already-existant primary. May be NULL.
- * @param getpasscb the callback to retrieve passphrases. This is
- *        generally only used when adding a subkey to an
- *        already-existant primary. May be NULL.
-*  @param app_ctx provided by application
-*  @param json the json data that describes the key generation.
-*         The caller should free this with rnp_buffer_free.
- * @return 0 on success, or any other value on error
+ *  @param pubring the keyring where the generated public keys will
+ *         be stored. Must not be NULL.
+ *  @param secring the keyring where the generated secret keys will
+ *         be stored. Must not be NULL.
+ *  @param getkeycb the callback to retrieve keys. This only used
+ *         when adding a subkey to an existing primary, and only
+ *         if the primary is not already present in the provided
+ *         rings. May be NULL.
+ *  @param getkeycb_ctx application context for the getkeycb callback
+ *  @param getpasscb the callback to retrieve passphrases. This is
+ *         only used when adding a subkey to an existing primary that
+ *         is locked. May be NULL.
+ *  @param getpasscb_ctx application context for the getpasscb callback
+ *  @param json the json data that describes the key generation.
+ *         Must not be NULL.
+ *  @param results pointer where results JSON will be stored.
+ *         Must not be NULL.
+ *         The caller should free this with rnp_buffer_free.
+ *  @return 0 on success, or any other value on error
  */
-
 rnp_result_t rnp_generate_key_json(rnp_keyring_t     pubring,
                                    rnp_keyring_t     secring,
                                    rnp_get_key_cb    getkeycb,
