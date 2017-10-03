@@ -268,7 +268,8 @@ test_ffi_keygen_json(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&secring, "GPG", NULL));
     load_test_data(rstate->data_dir, "json/generate-pair.json", &json, NULL);
     assert_int_equal(
-      RNP_SUCCESS, rnp_generate_key_json(pubring, secring, NULL, NULL, NULL, json, &results));
+      RNP_SUCCESS,
+      rnp_generate_key_json(pubring, secring, NULL, NULL, NULL, NULL, json, &results));
     free(json);
     assert_non_null(results);
     printf("%s\n", results);
@@ -284,7 +285,8 @@ test_ffi_keygen_json(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_keyring_create(&secring, "GPG", NULL));
     load_test_data(rstate->data_dir, "json/generate-primary.json", &json, NULL);
     assert_int_equal(
-      RNP_SUCCESS, rnp_generate_key_json(pubring, secring, NULL, NULL, NULL, json, &results));
+      RNP_SUCCESS,
+      rnp_generate_key_json(pubring, secring, NULL, NULL, NULL, NULL, json, &results));
     free(json);
     assert_non_null(results);
     printf("%s\n", results);
@@ -312,7 +314,8 @@ test_ffi_keygen_json(void **state)
     rnp_buffer_free(primary_grip);
     //
     assert_int_equal(
-      RNP_SUCCESS, rnp_generate_key_json(pubring, secring, NULL, NULL, NULL, json, &results));
+      RNP_SUCCESS,
+      rnp_generate_key_json(pubring, secring, NULL, NULL, NULL, NULL, json, &results));
     free(json);
     assert_non_null(results);
     printf("%s\n", results);
