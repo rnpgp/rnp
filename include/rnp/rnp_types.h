@@ -32,6 +32,7 @@
 
 #include "types.h"
 #include "pass-provider.h"
+#include "key-provider.h"
 
 typedef struct rnp_action_keygen_t {
     struct {

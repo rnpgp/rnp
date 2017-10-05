@@ -55,6 +55,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "pass-provider.h"
+#include "key-provider.h"
 #include <repgp/repgp.h>
 #include <rekey/rnp_key_store.h>
 #include "memory.h"
