@@ -66,9 +66,9 @@ typedef struct pgp_key_provider_t {
  *  @param key pointer to the key structure will be stored here on success
  *  @return true on success, or false if key was not found otherwise
  **/
-bool pgp_key_needed(const pgp_key_provider_t *   provider,
-                    const pgp_key_request_ctx_t *ctx,
-                    pgp_key_t **                 key);
+bool pgp_request_key(const pgp_key_provider_t *   provider,
+                     const pgp_key_request_ctx_t *ctx,
+                     pgp_key_t **                 key);
 
 /** @brief key provider callback which searches for key in rnp_key_store_t. userdata must be
   *pointer to the rnp_t structure

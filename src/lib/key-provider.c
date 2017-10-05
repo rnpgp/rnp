@@ -29,9 +29,9 @@
 #include <rekey/rnp_key_store.h>
 
 bool
-pgp_key_needed(const pgp_key_provider_t *   provider,
-               const pgp_key_request_ctx_t *ctx,
-               pgp_key_t **                 key)
+pgp_request_key(const pgp_key_provider_t *   provider,
+                const pgp_key_request_ctx_t *ctx,
+                pgp_key_t **                 key)
 {
     if (!provider || !provider->callback || !ctx || !key) {
         return false;
