@@ -23,7 +23,6 @@ librnp_la_SOURCES	= \
 	fingerprint.c \
 	generate-key.c \
 	hash.c \
-	key-provider.c \
 	list.c \
 	misc.c \
 	packet-create.c \
