@@ -42,34 +42,34 @@ pgp_request_key(const pgp_key_provider_t *   provider,
 bool
 rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *userdata)
 {
-    rnp_t *    rnp = (rnp_t *) userdata;
-    pgp_key_t *ks_key;
-    unsigned   from = 0;
+    rnp_t *          rnp = (rnp_t *) userdata;
+    pgp_key_t *      ks_key = NULL;
+    rnp_key_store_t *ks;
+    unsigned         from = 0;
 
     *key = NULL;
+    ks = ctx->secret ? rnp->secring : rnp->pubring;
+
     if (ctx->stype == PGP_KEY_SEARCH_KEYID) {
-        if (ctx->secret) {
+        ks_key = rnp_key_store_get_key_by_id(rnp->io, ks, ctx->search.id, &from, NULL);
+        if (!ks_key && !ctx->secret) {
+            /* searching for public key in secret keyring as well */
+            from = 0;
             ks_key =
               rnp_key_store_get_key_by_id(rnp->io, rnp->secring, ctx->search.id, &from, NULL);
-            if (ks_key && pgp_key_unlock(ks_key, ctx->pass_provider)) {
-                *key = ks_key;
-            }
-        } else {
-            ks_key =
-              rnp_key_store_get_key_by_id(rnp->io, rnp->pubring, ctx->search.id, &from, NULL);
-            if (ks_key) {
-                *key = ks_key;
-            } else {
-                /* searching for public key in secret keyring as well */
-                from = 0;
-                ks_key = rnp_key_store_get_key_by_id(
-                  rnp->io, rnp->pubring, ctx->search.id, &from, NULL);
-                if (ks_key) {
-                    *key = ks_key;
-                }
-            }
+        }
+    } else if (ctx->stype == PGP_KEY_SEARCH_GRIP) {
+        ks_key = rnp_key_store_get_key_by_grip(rnp->io, ks, ctx->search.grip);
+        if (!ks_key && !ctx->secret) {
+            ks_key = rnp_key_store_get_key_by_grip(rnp->io, rnp->secring, ctx->search.grip);
+        }
+    } else if (ctx->stype == PGP_KEY_SEARCH_USERID) {
+        rnp_key_store_get_key_by_name(rnp->io, ks, ctx->search.userid, &ks_key);
+        if (!ks_key && !ctx->secret) {
+            rnp_key_store_get_key_by_name(rnp->io, rnp->secring, ctx->search.userid, &ks_key);
         }
     }
 
-    return (*key != NULL);
+    *key = ks_key;
+    return (ks_key != NULL);
 }

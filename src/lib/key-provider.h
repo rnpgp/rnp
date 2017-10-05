@@ -39,10 +39,9 @@ typedef enum {
 } pgp_key_search_t;
 
 typedef struct pgp_key_request_ctx_t {
-    pgp_passphrase_provider_t *pass_provider;
-    uint8_t                    op;
-    bool                       secret;
-    pgp_key_search_t           stype;
+    uint8_t          op;
+    bool             secret;
+    pgp_key_search_t stype;
     union {
         uint8_t id[PGP_KEY_ID_SIZE];
         uint8_t grip[PGP_FINGERPRINT_SIZE];
@@ -62,7 +61,7 @@ typedef struct pgp_key_provider_t {
 /** @brief request public or secret pgp key, according to information stored in ctx
  *  @param provider key provider structure
  *  @param ctx information about the request - which operation requested the key, which search
- *criteria should be used and whether secret or public key is needed
+ *  criteria should be used and whether secret or public key is needed
  *  @param key pointer to the key structure will be stored here on success
  *  @return true on success, or false if key was not found otherwise
  **/
