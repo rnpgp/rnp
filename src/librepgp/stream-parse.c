@@ -44,6 +44,9 @@
 #include "types.h"
 #include "symmetric.h"
 #include "crypto/s2k.h"
+#include "crypto/sm2.h"
+#include "fingerprint.h"
+#include "pgp-key.h"
 #include "signature.h"
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
@@ -500,6 +503,168 @@ encrypted_src_close(pgp_source_t *src)
     }
 }
 
+static bool
+encrypted_decrypt_header(pgp_source_t *src, pgp_symm_alg_t alg, uint8_t *key)
+{
+    pgp_source_encrypted_param_t *param = src->param;
+    pgp_crypt_t                   crypt;
+    uint8_t                       enchdr[PGP_MAX_BLOCK_SIZE + 2];
+    unsigned                      blsize;
+
+    if (!(blsize = pgp_block_size(alg))) {
+        return false;
+    }
+
+    /* reading encrypted header to check the password validity */
+    if (src_peek(param->pkt.readsrc, enchdr, blsize + 2) < blsize + 2) {
+        (void) fprintf(stderr, "%s: failed to read encrypted header\n", __func__);
+        return false;
+    }
+
+    /* having symmetric key in keybuf let's decrypt blocksize + 2 bytes and check them */
+    if (!pgp_cipher_start(&crypt, alg, key, NULL)) {
+        (void) fprintf(stderr, "%s: failed to start cipher\n", __func__);
+        return false;
+    }
+
+    pgp_cipher_cfb_decrypt(&crypt, enchdr, enchdr, blsize + 2);
+    if ((enchdr[blsize] == enchdr[blsize - 2]) && (enchdr[blsize + 1] == enchdr[blsize - 1])) {
+        src_skip(param->pkt.readsrc, blsize + 2);
+        param->decrypt = crypt;
+        /* init mdc if it is here */
+        /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB
+         * resynchronization is done after encrypting this prefix data. */
+        if (!param->has_mdc) {
+            pgp_cipher_cfb_resync(&param->decrypt);
+        } else {
+            if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
+                pgp_cipher_finish(&crypt);
+                (void) fprintf(stderr, "%s: cannot create sha1 hash\n", __func__);
+                return false;
+            }
+
+            pgp_hash_add(&param->mdc, enchdr, blsize + 2);
+        }
+
+        return true;
+    } else {
+        return false;
+    }
+}
+
+static bool
+encrypted_try_key(pgp_source_t *src, pgp_pk_sesskey_pkt_t *sesskey, pgp_key_t *key)
+{
+    uint8_t           decbuf[PGP_MPINT_SIZE];
+    rnp_result_t      err;
+    size_t            declen;
+    size_t            keylen;
+    pgp_fingerprint_t fingerprint;
+    pgp_seckey_t *    seckey = &key->key.seckey;
+    pgp_symm_alg_t    salg;
+    unsigned          checksum = 0;
+    BIGNUM *          ecdh_p;
+
+    /* Decrypting session key value */
+
+    switch (seckey->pubkey.alg) {
+    case PGP_PKA_RSA:
+        declen = pgp_rsa_decrypt_pkcs1(decbuf,
+                                       sizeof(decbuf),
+                                       sesskey->params.rsa.m,
+                                       sesskey->params.rsa.mlen,
+                                       &seckey->key.rsa,
+                                       &seckey->pubkey.key.rsa);
+        if (declen <= 0) {
+            (void) fprintf(stderr, "%s: RSA decryption failure\n", __func__);
+            return false;
+        }
+        break;
+    case PGP_PKA_SM2:
+        declen = sizeof(decbuf);
+        err = pgp_sm2_decrypt(decbuf,
+                              &declen,
+                              sesskey->params.sm2.m,
+                              sesskey->params.sm2.mlen,
+                              &seckey->key.ecc,
+                              &seckey->pubkey.key.ecc);
+
+        if (err != RNP_SUCCESS) {
+            (void) fprintf(
+              stderr, "%s: SM2 decryption failure, error %x\n", __func__, (int) err);
+            return false;
+        }
+        break;
+    case PGP_PKA_ELGAMAL:
+        declen = pgp_elgamal_private_decrypt_pkcs1(decbuf,
+                                                   sesskey->params.eg.g,
+                                                   sesskey->params.eg.m,
+                                                   sesskey->params.eg.mlen,
+                                                   &seckey->key.elgamal,
+                                                   &seckey->pubkey.key.elgamal);
+        if (declen <= 0) {
+            (void) fprintf(stderr, "%s: ElGamal decryption failure\n", __func__);
+            return false;
+        }
+        break;
+    case PGP_PKA_ECDH:
+        declen = sizeof(decbuf);
+
+        if (!pgp_fingerprint(&fingerprint, &seckey->pubkey)) {
+            (void) fprintf(stderr, "%s: ECDH fingerprint calculation failed\n", __func__);
+            return false;
+        }
+        ecdh_p = BN_bin2bn(sesskey->params.ecdh.p, sesskey->params.ecdh.plen, NULL);
+
+        err = pgp_ecdh_decrypt_pkcs5(decbuf,
+                                     &declen,
+                                     sesskey->params.ecdh.m,
+                                     sesskey->params.ecdh.mlen,
+                                     ecdh_p,
+                                     &seckey->key.ecc,
+                                     &seckey->pubkey.key.ecdh,
+                                     &fingerprint);
+        BN_free(ecdh_p);
+
+        if ((err != RNP_SUCCESS) || (declen > INT_MAX)) {
+            (void) fprintf(stderr, "%s: ECDH decryption error %u\n", __func__, err);
+            return false;
+        }
+        break;
+    default:
+        (void) fprintf(
+          stderr, "%s: unsupported public key algorithm %d\n", __func__, seckey->pubkey.alg);
+        return false;
+    }
+
+    /* Check algorithm and key length */
+    salg = decbuf[0];
+    if (!pgp_is_sa_supported(salg)) {
+        (void) fprintf(
+          stderr, "%s: unsupported symmetric algorithm %d\n", __func__, (int) salg);
+        return false;
+    }
+
+    keylen = pgp_key_size(salg);
+    if (declen != keylen + 3) {
+        (void) fprintf(stderr, "%s: invalid symmetric key length\n", __func__);
+        return false;
+    }
+
+    /* Validate checksum */
+    for (int i = 1; i <= keylen; i++) {
+        checksum += decbuf[i];
+    }
+
+    if ((checksum & 0xffff) != (decbuf[keylen + 2] | ((unsigned) decbuf[keylen + 1] << 8))) {
+        (void) fprintf(stderr, "%s: wrong checksum\n", __func__);
+        return false;
+    }
+
+    /* Decrypt header */
+    return encrypted_decrypt_header(src, salg, &decbuf[1]);
+}
+
 static int
 encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
 {
@@ -508,7 +673,6 @@ encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
     pgp_crypt_t                   crypt;
     pgp_symm_alg_t                alg;
     uint8_t                       keybuf[PGP_MAX_KEY_SIZE + 1];
-    uint8_t                       enchdr[PGP_MAX_BLOCK_SIZE + 2];
     int                           keysize;
     int                           blsize;
     bool                          keyavail = false;
@@ -548,39 +712,13 @@ encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
             keyavail = true;
         }
 
-        /* reading encrypted header to check the password validity */
-        if (src_peek(param->pkt.readsrc, enchdr, blsize + 2) < blsize + 2) {
+        /* decrypting header and checking key validity */
+        if (!encrypted_decrypt_header(src, alg, keybuf)) {
             continue;
         }
-        /* having symmetric key in keybuf let's decrypt blocksize + 2 bytes and check them */
-        if (!pgp_cipher_start(&crypt, alg, keybuf, NULL)) {
-            continue;
-        }
-        pgp_cipher_cfb_decrypt(&crypt, enchdr, enchdr, blsize + 2);
-        if ((enchdr[blsize] == enchdr[blsize - 2]) &&
-            (enchdr[blsize + 1] == enchdr[blsize - 1])) {
-            src_skip(param->pkt.readsrc, blsize + 2);
-            param->decrypt = crypt;
-            /* init mdc if it is here */
-            /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB
-             * resynchronization is done after encrypting this prefix data. */
-            if (!param->has_mdc) {
-                pgp_cipher_cfb_resync(&param->decrypt);
-            } else {
-                if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
-                    (void) fprintf(stderr, "%s: cannot create sha1 hash\n", __func__);
-                    res = -1;
-                    goto finish;
-                }
-                pgp_hash_add(&param->mdc, enchdr, blsize + 2);
-            }
 
-            res = 1;
-            goto finish;
-        } else {
-            pgp_cipher_finish(&crypt);
-            continue;
-        }
+        res = 1;
+        goto finish;
     }
 
     if (!keyavail) {
@@ -797,8 +935,11 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     int                           ptype;
     pgp_sk_sesskey_t              skey = {0};
     pgp_pk_sesskey_pkt_t          pkey = {0};
+    pgp_key_t *                   seckey = NULL;
+    pgp_key_request_ctx_t         keyctx;
     char                          passphrase[MAX_PASSPHRASE_LENGTH] = {0};
     int                           intres;
+    bool                          have_key = false;
 
     if (!init_source_cache(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -866,13 +1007,46 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     }
 
     /* Obtaining the symmetric key */
+    have_key = false;
+
     if (!ctx->handler.passphrase_provider) {
         (void) fprintf(stderr, "init_encrypted_src: no passphrase provider\n");
         errcode = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }
 
-    if (param->symencc > 0) {
+    /* Trying public-key decryption */
+    if (param->pubencc > 0) {
+        if (!ctx->handler.key_provider) {
+            (void) fprintf(stderr, "init_encrypted_src: no key provider\n");
+            errcode = RNP_ERROR_BAD_PARAMETERS;
+            goto finish;
+        }
+
+        keyctx.op = PGP_OP_DECRYPT_SYM;
+        keyctx.secret = true;
+        keyctx.stype = PGP_KEY_SEARCH_KEYID;
+
+        for (int i = 0; i < param->pubencc; i++) {
+            memcpy(keyctx.search.id, param->pubencs[i].key_id, sizeof(keyctx.search.id));
+            /* Get the key if any */
+            if (!pgp_request_key(ctx->handler.key_provider, &keyctx, &seckey)) {
+                continue;
+            }
+            /* Unlock key */
+            if (!pgp_key_unlock(seckey, ctx->handler.passphrase_provider)) {
+                continue;
+            }
+            /* Try to initialize the decryption */
+            if (encrypted_try_key(src, &param->pubencs[i], seckey)) {
+                have_key = true;
+                break;
+            }
+        }
+    }
+
+    /* Trying password-based decryption */
+    if (!have_key && (param->symencc > 0)) {
         do {
             if (!pgp_request_passphrase(
                   ctx->handler.passphrase_provider,
@@ -884,6 +1058,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
 
             intres = encrypted_check_passphrase(src, passphrase);
             if (intres == 1) {
+                have_key = true;
                 break;
             } else if (intres == -1) {
                 errcode = RNP_ERROR_NOT_SUPPORTED;
@@ -894,8 +1069,11 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
                 goto finish;
             }
         } while (1);
-    } else {
-        errcode = RNP_ERROR_NOT_SUPPORTED;
+    }
+
+    if (!have_key) {
+        (void) fprintf(stderr, "%s: failed to obtain decrypting key or password\n", __func__);
+        errcode = RNP_ERROR_NO_SUITABLE_KEY;
     }
 
 finish:

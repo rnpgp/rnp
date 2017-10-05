@@ -492,6 +492,9 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         *cmd = val;
         break;
     case CMD_SYM_DECRYPT:
+        rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
+        *cmd = val;
+        break;
     case CMD_SYM_ENCRYPT:
     case CMD_VERIFY:
     case CMD_VERIFY_CAT:

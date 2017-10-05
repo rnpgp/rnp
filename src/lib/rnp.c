@@ -79,6 +79,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <rekey/rnp_key_store.h>
 
 #include "pass-provider.h"
+#include "key-provider.h"
 #include <repgp/repgp.h>
 #include <librepgp/packet-print.h>
 #include <librepgp/packet-show.h>
@@ -1255,6 +1256,7 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     pgp_source_t               src;
     pgp_parse_handler_t *      handler = NULL;
     pgp_parse_handler_param_t *param = NULL;
+    pgp_key_provider_t         keyprov;
     rnp_result_t               result;
     bool                       is_stdin;
     bool                       is_stdout;
@@ -1301,10 +1303,14 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     }
 
     handler->passphrase_provider = &ctx->rnp->passphrase_provider;
+    keyprov.callback = rnp_key_provider_keyring;
+    keyprov.userdata = ctx->rnp;
+    handler->key_provider = &keyprov;
     handler->dest_provider = rnp_parse_handler_dest;
     handler->param = param;
 
     result = process_pgp_source(handler, &src);
+
     if (result != RNP_SUCCESS) {
         (void) fprintf(stderr, "rnp_process_stream: error 0x%x\n", result);
     }
