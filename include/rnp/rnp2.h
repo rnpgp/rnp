@@ -50,7 +50,6 @@ const char *rnp_result_to_string(rnp_result_t result);
 */
 typedef struct rnp_keyring_st *    rnp_keyring_t;
 typedef struct rnp_key_st *        rnp_key_t;
-typedef struct rnp_op_generate_st *rnp_op_generate_t;
 
 /**
 * Callback used for getting a passphrase.
