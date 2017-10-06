@@ -171,7 +171,8 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_keygen_json_primary),
       cmocka_unit_test(test_ffi_keygen_json_sub_same_ring),
       cmocka_unit_test(test_ffi_keygen_json_sub_different_ring),
-      cmocka_unit_test(test_ffi_keygen_json_sub_pass_required)};
+      cmocka_unit_test(test_ffi_keygen_json_sub_pass_required),
+      cmocka_unit_test(test_ffi_symenc)};
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */

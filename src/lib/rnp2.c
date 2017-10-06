@@ -30,6 +30,8 @@
 #include "signature.h"
 #include "pgp-key.h"
 #include <librepgp/validate.h>
+#include <librepgp/stream-common.h>
+#include <librepgp/stream-write.h>
 #include "hash.h"
 #include <rnp/rnp_types.h>
 #include <stdlib.h>
@@ -45,8 +47,34 @@ struct rnp_keyring_st {
 };
 
 struct rnp_key_st {
-    pgp_key_t *    key;
+    pgp_key_t *key;
 };
+
+struct rnp_input_st {
+    pgp_source_t        src;
+    rnp_input_reader_t *reader;
+    rnp_input_closer_t *closer;
+    void *              app_ctx;
+};
+
+struct rnp_output_st {
+    pgp_dest_t           dst;
+    rnp_output_writer_t *writer;
+    rnp_output_closer_t *closer;
+    void *               app_ctx;
+};
+
+struct rnp_op_symenc_st {
+    rnp_passphrase_cb getpasscb;
+    void *            getpasscb_ctx;
+    rnp_input_t       input;
+    rnp_output_t      output;
+    rnp_ctx_t         rnpctx;
+};
+
+static bool parse_symm_alg(const char *name, pgp_symm_alg_t *value);
+static bool parse_hash_alg(const char *name, pgp_hash_alg_t *value);
+static bool parse_compress_alg(const char *name, pgp_compression_type_t *value);
 
 static pgp_key_t *
 find_suitable_subkey(const pgp_key_t *primary, uint8_t desired_usage)
@@ -77,25 +105,26 @@ rnp_set_io(FILE *output_stream, FILE *error_stream, FILE *result_stream)
 }
 
 static const char *
-operation_description(uint8_t op) {
+operation_description(uint8_t op)
+{
     switch (op) {
-      case PGP_OP_ADD_SUBKEY:
+    case PGP_OP_ADD_SUBKEY:
         return "add subkey";
-      case PGP_OP_SIGN:
+    case PGP_OP_SIGN:
         return "sign";
-      case PGP_OP_DECRYPT:
+    case PGP_OP_DECRYPT:
         return "decrypt";
-      case PGP_OP_UNLOCK:
+    case PGP_OP_UNLOCK:
         return "unlock";
-      case PGP_OP_PROTECT:
+    case PGP_OP_PROTECT:
         return "protect";
-      case PGP_OP_UNPROTECT:
+    case PGP_OP_UNPROTECT:
         return "unprotect";
-      case PGP_OP_DECRYPT_SYM:
+    case PGP_OP_DECRYPT_SYM:
         return "decrypt (symmetric)";
-      case PGP_OP_ENCRYPT_SYM:
+    case PGP_OP_ENCRYPT_SYM:
         return "encrypt (symmetric)";
-      default:
+    default:
         return "unknown";
     }
 }
@@ -107,7 +136,7 @@ rnp_passphrase_cb_bounce(const pgp_passphrase_ctx_t *ctx,
                          void *                      userdata_void)
 {
     struct rnp_passphrase_cb_data *userdata = (struct rnp_passphrase_cb_data *) userdata_void;
-    rnp_key_t key = NULL;
+    rnp_key_t                      key = NULL;
 
     if (!userdata->cb_fn) {
         return false;
@@ -718,8 +747,7 @@ rnp_keyring_save_to_file(rnp_keyring_t ring, const char *path)
 }
 
 rnp_result_t
-rnp_keyring_save_to_mem(
-  rnp_keyring_t ring, int flags, uint8_t *buf[], size_t *buf_len)
+rnp_keyring_save_to_mem(rnp_keyring_t ring, int flags, uint8_t *buf[], size_t *buf_len)
 {
     bool         armor = (flags & RNP_EXPORT_FLAG_ARMORED);
     pgp_memory_t memory;
@@ -914,6 +942,340 @@ find_key_for(rnp_keyring_t   keyring,
     }
 
     *key = decrypted_seckey;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_input_from_file(rnp_input_t *input, const char *path)
+{
+    if (!input || !path) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *input = calloc(1, sizeof(**input));
+    if (!*input) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    rnp_result_t ret = init_file_src(&(*input)->src, path);
+    if (ret) {
+        free(*input);
+        *input = NULL;
+        return ret;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_input_from_memory(rnp_input_t *input, const uint8_t buf[], size_t buf_len)
+{
+    if (!input || !buf) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!buf_len) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static ssize_t
+input_reader_bounce(pgp_source_t *src, void *buf, size_t len)
+{
+    rnp_input_t input = src->param;
+    if (!input->reader) {
+        return -1;
+    }
+    return input->reader(input->app_ctx, buf, len);
+}
+
+static void
+input_closer_bounce(pgp_source_t *src)
+{
+    rnp_input_t input = src->param;
+    if (input->closer) {
+        input->closer(input->app_ctx);
+    }
+}
+
+rnp_result_t
+rnp_input_from_callback(rnp_input_t *       input,
+                        rnp_input_reader_t *reader,
+                        rnp_input_closer_t *closer,
+                        void *              app_ctx)
+{
+    // checks
+    if (!input || !reader) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *input = calloc(1, sizeof(**input));
+    if (!*input) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    pgp_source_t *src = &(*input)->src;
+    src->read = input_reader_bounce;
+    src->close = input_closer_bounce;
+    (*input)->reader = reader;
+    (*input)->closer = closer;
+    (*input)->app_ctx = app_ctx;
+    src->param = *input;
+    src->type = PGP_STREAM_MEMORY;
+    src->size = 0;
+    src->readb = 0;
+    src->eof = 0;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_input_destroy(rnp_input_t input)
+{
+    if (input) {
+        if (input->src.param) {
+            src_close(&input->src);
+            input->src.param = NULL;
+        }
+        free(input);
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_output_to_file(rnp_output_t *output, const char *path)
+{
+    // checks
+    if (!output || !path) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    *output = calloc(1, sizeof(**output));
+    if (!*output) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    rnp_result_t ret = init_file_dest(&(*output)->dst, path);
+    if (ret) {
+        free(*output);
+        *output = NULL;
+        return ret;
+    }
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+output_writer_bounce(pgp_dest_t *dst, const void *buf, size_t len)
+{
+    rnp_output_t output = dst->param;
+    if (!output->writer) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return output->writer(output->app_ctx, buf, len);
+}
+
+static void
+output_closer_bounce(pgp_dest_t *dst, bool discard)
+{
+    rnp_output_t output = dst->param;
+    if (output->closer) {
+        output->closer(output->app_ctx, discard);
+    }
+}
+
+rnp_result_t
+rnp_output_to_callback(rnp_output_t *       output,
+                       rnp_output_writer_t *writer,
+                       rnp_output_closer_t *closer,
+                       void *               app_ctx)
+{
+    // checks
+    if (!output || !writer) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    *output = calloc(1, sizeof(**output));
+    if (!*output) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    (*output)->writer = writer;
+    (*output)->closer = closer;
+    (*output)->app_ctx = app_ctx;
+
+    pgp_dest_t *dst = &(*output)->dst;
+    dst->write = output_writer_bounce;
+    dst->close = output_closer_bounce;
+    dst->param = *output;
+    dst->type = PGP_STREAM_MEMORY;
+    dst->writeb = 0;
+    dst->werr = RNP_SUCCESS;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_output_destroy(rnp_output_t output)
+{
+    if (output) {
+        if (output->dst.param) {
+            dst_close(&output->dst, true);
+            output->dst.param = NULL;
+        }
+        free(output);
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_symenc_create(rnp_op_symenc_t *op, rnp_passphrase_cb getpasscb, void *getpasscb_ctx)
+{
+    // checks
+    if (!op || !getpasscb) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    *op = calloc(1, sizeof(**op));
+    if (!*op) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    (*op)->getpasscb = getpasscb;
+    (*op)->getpasscb_ctx = getpasscb_ctx;
+    (*op)->rnpctx.ealg = PGP_SA_DEFAULT_CIPHER;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_symenc_set_pass_provider(rnp_op_symenc_t   op,
+                                rnp_passphrase_cb getpasscb,
+                                void *            getpasscb_ctx)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    op->getpasscb = getpasscb;
+    op->getpasscb_ctx = getpasscb_ctx;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_symenc_set_input(rnp_op_symenc_t op, rnp_input_t input)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    op->input = input;
+    if (input->src.type == PGP_STREAM_FILE) {
+        // TODO: set filename+mtime
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_symenc_set_output(rnp_op_symenc_t op, rnp_output_t output)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    op->output = output;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_symenc_set_armor(rnp_op_symenc_t op, bool armored)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    op->rnpctx.armour = armored;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_symenc_set_cipher(rnp_op_symenc_t op, const char *cipher)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!parse_symm_alg(cipher, &op->rnpctx.ealg)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_symenc_set_hash(rnp_op_symenc_t op, const char *hash)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!parse_hash_alg(hash, &op->rnpctx.halg)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_symenc_set_compression(rnp_op_symenc_t op, const char *compression, int level)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_compression_type_t zalg;
+    if (!parse_compress_alg(compression, &zalg)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    op->rnpctx.zalg = (int) zalg;
+    op->rnpctx.zlevel = level;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_symenc_set_file_name(rnp_op_symenc_t op, const char *filename)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_op_symenc_set_file_mtime(rnp_op_symenc_t op, uint32_t mtime)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_op_symenc_finish(rnp_op_symenc_t op)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_passphrase_provider_t provider = {
+      .callback = rnp_passphrase_cb_bounce,
+      .userdata = &(struct rnp_passphrase_cb_data){.cb_fn = op->getpasscb,
+                                                   .cb_data = op->getpasscb_ctx}};
+    pgp_write_handler_t handler = {
+      .passphrase_provider = &provider, .ctx = &op->rnpctx, .param = NULL};
+    rnp_result_t ret = rnp_encrypt_src(&handler, &op->input->src, &op->output->dst);
+    src_close(&op->input->src);
+    op->input->src.param = NULL;
+    dst_close(&op->output->dst, ret != RNP_SUCCESS);
+    op->output->dst.param = NULL;
+    return ret;
+}
+
+rnp_result_t
+rnp_op_symenc_destroy(rnp_op_symenc_t op)
+{
+    // checks
+    if (op) {
+        free(op);
+    }
     return RNP_SUCCESS;
 }
 
@@ -1678,7 +2040,7 @@ rnp_result_t
 rnp_generate_key_json(rnp_keyring_t     pubring,
                       rnp_keyring_t     secring,
                       rnp_get_key_cb    getkeycb,
-                      void * getkeycb_ctx,
+                      void *            getkeycb_ctx,
                       rnp_passphrase_cb getpasscb,
                       void *            getpasscb_ctx,
                       const char *      json,
@@ -2171,8 +2533,7 @@ rnp_key_protect(rnp_key_t key, const char *passphrase)
         return RNP_ERROR_NULL_POINTER;
 
     // TODO allow setting protection params
-    bool ok =
-      pgp_key_protect_passphrase(key->key, key->key->format, NULL, passphrase);
+    bool ok = pgp_key_protect_passphrase(key->key, key->key->format, NULL, passphrase);
 
     if (ok)
         return RNP_SUCCESS;
