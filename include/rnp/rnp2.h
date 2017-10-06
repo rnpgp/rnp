@@ -51,6 +51,15 @@ const char *rnp_result_to_string(rnp_result_t result);
 typedef struct rnp_keyring_st *    rnp_keyring_t;
 typedef struct rnp_key_st *        rnp_key_t;
 typedef struct rnp_op_generate_st *rnp_op_generate_t;
+typedef struct rnp_input_st *      rnp_input_t;
+typedef struct rnp_output_st *     rnp_output_t;
+typedef struct rnp_op_symenc_st *  rnp_op_symenc_t;
+
+/* Callbacks */
+typedef ssize_t rnp_input_reader_t(void *app_ctx, void *buf, size_t len);
+typedef void rnp_input_closer_t(void *app_ctx);
+typedef int rnp_output_writer_t(void *app_ctx, const void *buf, size_t len);
+typedef void rnp_output_closer_t(void *app_ctx, bool discard);
 
 /**
 * Callback used for getting a passphrase.
@@ -260,6 +269,41 @@ rnp_result_t rnp_key_is_secret(rnp_key_t key, bool *result);
 rnp_result_t rnp_key_is_public(rnp_key_t key, bool *result);
 
 /* TODO: function to add a userid to a key */
+
+rnp_result_t rnp_input_from_file(rnp_input_t *input, const char *path);
+rnp_result_t rnp_input_from_memory(rnp_input_t *input, const uint8_t buf[], size_t buf_len);
+rnp_result_t rnp_input_from_callback(rnp_input_t *       input,
+                                     rnp_input_reader_t *reader,
+                                     rnp_input_closer_t *closer,
+                                     void *              app_ctx);
+rnp_result_t rnp_input_destroy(rnp_input_t input);
+
+rnp_result_t rnp_output_to_file(rnp_output_t *output, const char *path);
+rnp_result_t rnp_output_to_callback(rnp_output_t *       output,
+                                    rnp_output_writer_t *writer,
+                                    rnp_output_closer_t *closer,
+                                    void *               app_ctx);
+rnp_result_t rnp_output_destroy(rnp_output_t output);
+
+rnp_result_t rnp_op_symenc_create(rnp_op_symenc_t * op,
+                                  rnp_passphrase_cb getpasscb,
+                                  void *            getpasscb_ctx);
+rnp_result_t rnp_op_symenc_set_pass_provider(rnp_op_symenc_t   op,
+                                             rnp_passphrase_cb getpasscb,
+                                             void *            getpasscb_ctx);
+rnp_result_t rnp_op_symenc_set_input(rnp_op_symenc_t op, rnp_input_t input);
+rnp_result_t rnp_op_symenc_set_output(rnp_op_symenc_t op, rnp_output_t output);
+rnp_result_t rnp_op_symenc_set_armor(rnp_op_symenc_t op, bool armored);
+rnp_result_t rnp_op_symenc_set_cipher(rnp_op_symenc_t op, const char *cipher);
+rnp_result_t rnp_op_symenc_set_hash(rnp_op_symenc_t op, const char *hash);
+rnp_result_t rnp_op_symenc_set_compression(rnp_op_symenc_t op,
+                                           const char *    compression,
+                                           int             level);
+rnp_result_t rnp_op_symenc_set_file_name(rnp_op_symenc_t op, const char *filename);
+rnp_result_t rnp_op_symenc_set_file_mtime(rnp_op_symenc_t op, uint32_t mtime);
+rnp_result_t rnp_op_symenc_set_s2k(rnp_op_symenc_t op, int iterations, const char *hash);
+rnp_result_t rnp_op_symenc_finish(rnp_op_symenc_t op);
+rnp_result_t rnp_op_symenc_destroy(rnp_op_symenc_t op);
 
 /* Signature/verification operations */
 

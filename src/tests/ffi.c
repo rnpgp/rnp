@@ -78,7 +78,7 @@ test_ffi_api(void **state)
     result = rnp_export_public_key(restored, 1, &exported_key, &exported_key_len);
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
-    //printf("%s\n", exported_key);
+    // printf("%s\n", exported_key);
 
     uint8_t *ciphertext = NULL;
     size_t   ctext_len = 0;
@@ -97,7 +97,7 @@ test_ffi_api(void **state)
                          &ctext_len);
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
-    //printf("%s\n", ciphertext);
+    // printf("%s\n", ciphertext);
 
     uint8_t *decrypted;
     size_t   decrypted_len;
@@ -105,8 +105,8 @@ test_ffi_api(void **state)
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
     rnp_assert_int_equal(rstate, decrypted_len, strlen(plaintext_message));
-    for(size_t i = 0; i != decrypted_len; ++i)
-       rnp_assert_int_equal(rstate, decrypted[i], plaintext_message[i]);
+    for (size_t i = 0; i != decrypted_len; ++i)
+        rnp_assert_int_equal(rstate, decrypted[i], plaintext_message[i]);
 
     rnp_buffer_free(decrypted);
     rnp_buffer_free(ciphertext);
@@ -134,10 +134,14 @@ test_ffi_api(void **state)
     rnp_buffer_free(sig);
     */
 
-    result = rnp_sign_detached(secring, test_userid, "SHA224", true,
+    result = rnp_sign_detached(secring,
+                               test_userid,
+                               "SHA224",
+                               true,
                                (const uint8_t *) plaintext_message,
                                strlen(plaintext_message),
-                               &sig, &sig_len);
+                               &sig,
+                               &sig_len);
     rnp_assert_int_equal(rstate, result, RNP_SUCCESS);
 
     printf("%s\n", sig);
@@ -829,4 +833,125 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     rnp_keyring_destroy(&primary_secring);
     rnp_keyring_destroy(&pubring);
     rnp_keyring_destroy(&secring);
+}
+
+typedef struct string_reader_state_t {
+    const char *data;
+    const char *p;
+} string_reader_state_t;
+
+/* reader that reads one byte at a time */
+static ssize_t
+string_input_reader(void *app_ctx, void *buf, size_t len)
+{
+    string_reader_state_t *state = app_ctx;
+
+    if (state->p == (state->data + strlen(state->data))) {
+        // all input consumed
+        return 0;
+    }
+    if (!state->p) {
+        // reading the first byte
+        state->p = state->data;
+    }
+    memcpy(buf, state->p++, 1);
+    return 1;
+}
+
+static void
+string_input_closer(void *app_ctx)
+{
+}
+
+static int
+string_output_writer(void *app_ctx, const void *buf, size_t len)
+{
+    char **strp = app_ctx;
+    size_t curlen = *strp ? strlen(*strp) : 0;
+
+    *strp = realloc(*strp, curlen + len + 1);
+    memcpy(*strp + curlen, buf, len);
+    (*strp)[curlen + len] = '\0';
+    return 0;
+}
+
+static void
+string_output_closer(void *app_ctx, bool discard)
+{
+}
+
+// TODO: decrypt and validate data
+void
+test_ffi_symenc(void **state)
+{
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_symenc_t op = NULL;
+
+    // write out some data
+    FILE *fp = fopen("input1", "w");
+    fwrite("data1", strlen("data1"), 1, fp);
+    fclose(fp);
+    // create input+output
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_file(&input, "input1"));
+    assert_int_equal(RNP_SUCCESS, rnp_output_to_file(&output, "output1"));
+    // create our operation
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_create(&op, getpasscb, "pass1"));
+    // set the parameters
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_set_input(op, input));
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_set_output(op, output));
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_set_cipher(op, "twofish"));
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_set_hash(op, "SHA384"));
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_set_compression(op, "zlib", 9));
+    // execute the operation
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_finish(op));
+    // destroy the input+output
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    // write out some data
+    fp = fopen("input2", "w");
+    fwrite("data2", strlen("data2"), 1, fp);
+    fclose(fp);
+    // create input+output
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_file(&input, "input2"));
+    assert_int_equal(RNP_SUCCESS, rnp_output_to_file(&output, "output2"));
+    // set the input+output
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_set_input(op, input));
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_set_output(op, output));
+    // modify some parameters (re-using most parameters from previous operation)
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_set_pass_provider(op, getpasscb, "pass2"));
+    // execute the operation
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_finish(op));
+    // destroy the input+output
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    // create input+output
+    string_reader_state_t reader_state = {.data = "data3"};
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_input_from_callback(
+                       &input, string_input_reader, string_input_closer, &reader_state));
+    char *result = NULL;
+    assert_int_equal(
+      RNP_SUCCESS,
+      rnp_output_to_callback(&output, string_output_writer, string_output_closer, &result));
+    // set the input+output
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_set_input(op, input));
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_set_output(op, output));
+    // modify some parameters (re-using most parameters from previous operation)
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_set_armor(op, true));
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_set_pass_provider(op, getpasscb, "pass3"));
+    // execute the operation
+    assert_int_equal(RNP_SUCCESS, rnp_op_symenc_finish(op));
+    // check for output
+    printf("%s\n", result);
+    assert_non_null(result);
+    free(result);
+    // destroy the input+output
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    // finally, destroy the op
+    rnp_op_symenc_destroy(op);
 }
