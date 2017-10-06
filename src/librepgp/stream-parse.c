@@ -563,6 +563,7 @@ encrypted_try_key(pgp_source_t *src, pgp_pk_sesskey_pkt_t *sesskey, pgp_key_t *k
     pgp_seckey_t *    seckey = &key->key.seckey;
     pgp_symm_alg_t    salg;
     unsigned          checksum = 0;
+    bool              res = false;
     BIGNUM *          ecdh_p;
 
     /* Decrypting session key value */
@@ -658,15 +659,21 @@ encrypted_try_key(pgp_source_t *src, pgp_pk_sesskey_pkt_t *sesskey, pgp_key_t *k
 
     if ((checksum & 0xffff) != (decbuf[keylen + 2] | ((unsigned) decbuf[keylen + 1] << 8))) {
         (void) fprintf(stderr, "%s: wrong checksum\n", __func__);
-        return false;
+        goto finish;
     }
 
     /* Decrypt header */
-    return encrypted_decrypt_header(src, salg, &decbuf[1]);
+    res = encrypted_decrypt_header(src, salg, &decbuf[1]);
+
+finish:
+    pgp_forget(&checksum, sizeof(checksum));
+    pgp_forget(decbuf, sizeof(decbuf));
+
+    return res;
 }
 
 static int
-encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
+encrypted_try_passphrase(pgp_source_t *src, const char *passphrase)
 {
     pgp_source_encrypted_param_t *param = src->param;
     pgp_sk_sesskey_t *            symkey;
@@ -1056,11 +1063,11 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
                 goto finish;
             }
 
-            intres = encrypted_check_passphrase(src, passphrase);
-            if (intres == 1) {
+            intres = encrypted_try_passphrase(src, passphrase);
+            if (intres > 0) {
                 have_key = true;
                 break;
-            } else if (intres == -1) {
+            } else if (intres < 0) {
                 errcode = RNP_ERROR_NOT_SUPPORTED;
                 goto finish;
             } else if (strlen(passphrase) == 0) {

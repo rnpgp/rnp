@@ -43,9 +43,9 @@ typedef struct pgp_key_request_ctx_t {
     bool             secret;
     pgp_key_search_t stype;
     union {
-        uint8_t id[PGP_KEY_ID_SIZE];
-        uint8_t grip[PGP_FINGERPRINT_SIZE];
-        char *  userid;
+        uint8_t     id[PGP_KEY_ID_SIZE];
+        uint8_t     grip[PGP_FINGERPRINT_SIZE];
+        const char *userid;
     } search;
 } pgp_key_request_ctx_t;
 

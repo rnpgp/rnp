@@ -33,6 +33,7 @@
 #include "types.h"
 #include "pass-provider.h"
 #include "key-provider.h"
+#include "list.h"
 
 typedef struct rnp_action_keygen_t {
     struct {
@@ -88,17 +89,19 @@ typedef struct rnp_params_t {
 
 /* rnp operation context : contains additional data about the currently ongoing operation */
 typedef struct rnp_ctx_t {
-    rnp_t *        rnp;       /* rnp structure */
-    char *         filename;  /* name of the input file to store in literal data packet */
-    int64_t        filemtime; /* file modification time to store in literal data packet */
-    int64_t        sigcreate; /* signature creation time */
-    uint64_t       sigexpire; /* signature expiration time */
-    pgp_hash_alg_t halg;      /* hash algorithm */
-    pgp_symm_alg_t ealg;      /* encryption algorithm */
-    int            zalg;      /* compression algorithm used */
-    int            zlevel;    /* compression level */
-    int            overwrite; /* allow to overwrite output file if exists */
-    bool           armour;    /* whether to use ASCII armour on output */
+    rnp_t *        rnp;        /* rnp structure */
+    char *         filename;   /* name of the input file to store in literal data packet */
+    int64_t        filemtime;  /* file modification time to store in literal data packet */
+    int64_t        sigcreate;  /* signature creation time */
+    uint64_t       sigexpire;  /* signature expiration time */
+    pgp_hash_alg_t halg;       /* hash algorithm */
+    pgp_symm_alg_t ealg;       /* encryption algorithm */
+    int            zalg;       /* compression algorithm used */
+    int            zlevel;     /* compression level */
+    int            overwrite;  /* allow to overwrite output file if exists */
+    bool           armour;     /* whether to use ASCII armour on output */
+    list           recipients; /* recipients of the encrypted message */
+    int            passwordc;  /* number of passwords to encrypt message for */
 } rnp_ctx_t;
 
 #endif // __RNP_TYPES__

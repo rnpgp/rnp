@@ -740,6 +740,7 @@ void
 rnp_ctx_free(rnp_ctx_t *ctx)
 {
     free(ctx->filename);
+    list_destroy(&ctx->recipients);
 }
 
 /* list the keys in a keyring */
@@ -1329,6 +1330,7 @@ rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     pgp_dest_t           dst;
     pgp_write_handler_t *handler = NULL;
     rnp_result_t         result;
+    pgp_key_provider_t   keyprov;
     bool                 is_stdin;
     bool                 is_stdout;
 
@@ -1354,6 +1356,9 @@ rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     }
 
     handler->passphrase_provider = &ctx->rnp->passphrase_provider;
+    keyprov.callback = rnp_key_provider_keyring;
+    keyprov.userdata = ctx->rnp;
+    handler->key_provider = &keyprov;
     handler->ctx = ctx;
     handler->param = NULL;
 

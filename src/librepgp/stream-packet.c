@@ -217,6 +217,30 @@ add_packet_body_byte(pgp_packet_body_t *body, uint8_t byte)
     }
 }
 
+bool
+add_packet_body_mpi(pgp_packet_body_t *body, uint8_t *mpi, unsigned len)
+{
+    unsigned bits;
+    unsigned idx = 0;
+    unsigned hibyte;
+    uint8_t  hdr[2];
+
+    while ((idx < len - 1) && (mpi[idx] == 0)) {
+        idx++;
+    }
+
+    bits = (len - idx - 1) << 3;
+    hibyte = mpi[idx];
+    while (hibyte > 0) {
+        bits++;
+        hibyte = hibyte >> 1;
+    }
+
+    hdr[0] = bits >> 8;
+    hdr[1] = bits & 0xff;
+    return add_packet_body(body, hdr, 2) && add_packet_body(body, mpi + idx, len - idx);
+}
+
 void
 free_packet_body(pgp_packet_body_t *body)
 {
@@ -287,7 +311,8 @@ stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
         return false;
     }
 
-    res = add_packet_body_byte(&pktbody, 4) && add_packet_body_byte(&pktbody, skey->alg) &&
+    res = add_packet_body_byte(&pktbody, skey->version) &&
+          add_packet_body_byte(&pktbody, skey->alg) &&
           add_packet_body_byte(&pktbody, skey->s2k.specifier) &&
           add_packet_body_byte(&pktbody, skey->s2k.hash_alg);
 
@@ -317,9 +342,49 @@ stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
 }
 
 bool
-stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *skey, pgp_dest_t *dst)
+stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *pkey, pgp_dest_t *dst)
 {
-    return false;
+    pgp_packet_body_t pktbody;
+    bool              res;
+
+    if (!init_packet_body(&pktbody, PGP_PTAG_CT_PK_SESSION_KEY)) {
+        return false;
+    }
+
+    res = add_packet_body_byte(&pktbody, pkey->version) &&
+          add_packet_body(&pktbody, pkey->key_id, sizeof(pkey->key_id)) &&
+          add_packet_body_byte(&pktbody, pkey->alg);
+
+    switch (pkey->alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+        res = res && add_packet_body_mpi(&pktbody, pkey->params.rsa.m, pkey->params.rsa.mlen);
+        break;
+    case PGP_PKA_SM2:
+        res = res && add_packet_body_mpi(&pktbody, pkey->params.sm2.m, pkey->params.sm2.mlen);
+        break;
+    case PGP_PKA_ECDH:
+        res = res &&
+              add_packet_body_mpi(&pktbody, pkey->params.ecdh.p, pkey->params.ecdh.plen) &&
+              add_packet_body_byte(&pktbody, pkey->params.ecdh.mlen) &&
+              add_packet_body(&pktbody, pkey->params.ecdh.m, pkey->params.ecdh.mlen);
+        break;
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        res = res && add_packet_body_mpi(&pktbody, pkey->params.eg.g, pkey->params.eg.glen) &&
+              add_packet_body_mpi(&pktbody, pkey->params.eg.m, pkey->params.eg.mlen);
+        break;
+    default:
+        res = false;
+    }
+
+    if (res) {
+        stream_flush_packet_body(&pktbody, dst);
+        return true;
+    } else {
+        free_packet_body(&pktbody);
+        return false;
+    }
 }
 
 rnp_result_t
@@ -425,10 +490,11 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pkey)
     }
 
     /* version */
-    if (buf[0] != 3) {
+    if (buf[0] != PGP_PKSK_V3) {
         (void) fprintf(stderr, "%s: wrong packet version\n", __func__);
         return RNP_ERROR_BAD_FORMAT;
     }
+    pkey->version = buf[0];
 
     /* key id */
     memcpy(pkey->key_id, &buf[1], 8);

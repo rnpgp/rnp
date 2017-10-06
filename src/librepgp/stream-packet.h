@@ -90,6 +90,14 @@ bool add_packet_body(pgp_packet_body_t *body, void *data, size_t len);
  **/
 bool add_packet_body_byte(pgp_packet_body_t *body, uint8_t byte);
 
+/** @brief add pgp mpi (including header) to packet body
+ *  @param body pointer to the structure, initialized with init_packet_body
+ *  @param mpi bytes of mpi to add
+ *  @param len length of the mpi in bytes
+ *  @return true if mpi was added successfully, or false otherwise
+ **/
+bool add_packet_body_mpi(pgp_packet_body_t *body, uint8_t *mpi, unsigned len);
+
 /** @brief deallocate data inside of packet body structure
  *  @param body initialized packet body
  *  @return void
@@ -116,7 +124,7 @@ rnp_result_t stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
 
 bool stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst);
 
-bool stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *skey, pgp_dest_t *dst);
+bool stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *pkey, pgp_dest_t *dst);
 
 rnp_result_t stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey);
 

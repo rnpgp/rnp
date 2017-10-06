@@ -40,10 +40,13 @@
 #include <limits.h>
 #endif
 #include <rnp/rnp_def.h>
+#include "pgp-key.h"
+#include "fingerprint.h"
 #include "defs.h"
 #include "types.h"
 #include "symmetric.h"
 #include "crypto/s2k.h"
+#include "crypto/sm2.h"
 #include "crypto.h"
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
@@ -81,6 +84,7 @@ typedef struct pgp_dest_encrypted_param_t {
     pgp_dest_packet_param_t pkt;         /* underlying packet-related params */
     bool                    has_mdc;     /* encrypted with mdc, i.e. tag 18 */
     pgp_crypt_t             encrypt;     /* encrypting crypto */
+    pgp_symm_alg_t          ealg;        /* encryption algorithm */
     pgp_hash_t              mdc;         /* mdc SHA1 hash */
     uint8_t cache[PGP_INPUT_CACHE_SIZE]; /* pre-allocated cache for encryption */
 } pgp_dest_encrypted_param_t;
@@ -185,7 +189,7 @@ static bool
 init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
 {
     rnp_result_t ret;
-    uint8_t bt;
+    uint8_t      bt;
 
     if (param->partial) {
         bt = param->tag | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
@@ -207,7 +211,8 @@ init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
             (void) fprintf(stderr, "init_streamed_packet: indeterminate tag > 0xf\n");
         }
 
-        bt = ((param->tag & 0xf) << PGP_PTAG_OF_CONTENT_TAG_SHIFT) | PGP_PTAG_OLD_LEN_INDETERMINATE;
+        bt = ((param->tag & 0xf) << PGP_PTAG_OF_CONTENT_TAG_SHIFT) |
+             PGP_PTAG_OLD_LEN_INDETERMINATE;
         dst_write(dst, &bt, 1);
 
         param->writedst = dst;
@@ -285,26 +290,234 @@ encrypted_dst_close(pgp_dest_t *dst, bool discard)
 }
 
 static rnp_result_t
+encrypted_add_recipient(pgp_write_handler_t *handler,
+                        pgp_dest_t *         dst,
+                        const char *         userid,
+                        const uint8_t *      key,
+                        const unsigned       keylen)
+{
+    pgp_key_request_ctx_t       keyctx = {0};
+    pgp_key_t *                 userkey;
+    pgp_pubkey_t *              pubkey;
+    uint8_t                     enckey[PGP_MAX_KEY_SIZE + 3];
+    unsigned                    checksum = 0;
+    pgp_pk_sesskey_pkt_t        pkey = {0};
+    pgp_dest_encrypted_param_t *param = dst->param;
+    rnp_result_t                ret = RNP_SUCCESS;
+
+    if (!handler->key_provider) {
+        (void) fprintf(stderr, "%s: no key provider\n", __func__);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    keyctx.op = PGP_OP_ENCRYPT_SYM;
+    keyctx.secret = false;
+    keyctx.stype = PGP_KEY_SEARCH_USERID;
+    keyctx.search.userid = userid;
+
+    /* Get the key if any */
+    if (!pgp_request_key(handler->key_provider, &keyctx, &userkey)) {
+        (void) fprintf(stderr, "%s: key for recipient '%s' not found\n", __func__, userid);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    pubkey = &userkey->key.pubkey;
+    /* Fill pkey */
+    pkey.version = PGP_PKSK_V3;
+    pkey.alg = pubkey->alg;
+    if (!pgp_keyid(pkey.key_id, PGP_KEY_ID_SIZE, pubkey)) {
+        (void) fprintf(stderr, "%s: key id calculation failed\n", __func__);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* Encrypt the session key */
+    enckey[0] = param->ealg;
+    memcpy(&enckey[1], key, keylen);
+
+    /* Calculate checksum */
+    for (int i = 1; i <= keylen; i++) {
+        checksum += enckey[i];
+    }
+    enckey[keylen + 1] = (checksum >> 8) & 0xff;
+    enckey[keylen + 2] = checksum & 0xff;
+
+    switch (pubkey->alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+        pkey.params.rsa.mlen = pgp_rsa_encrypt_pkcs1(
+          pkey.params.rsa.m, sizeof(pkey.params.rsa.m), enckey, keylen + 3, &pubkey->key.rsa);
+        if (pkey.params.rsa.mlen <= 0) {
+            (void) fprintf(stderr, "%s: pgp_rsa_encrypt_pkcs1 failed\n", __func__);
+            ret = RNP_ERROR_GENERIC;
+            goto finish;
+        }
+        break;
+    case PGP_PKA_SM2: {
+        size_t outlen = sizeof(pkey.params.sm2.m);
+        ret = pgp_sm2_encrypt(
+          pkey.params.sm2.m, &outlen, enckey, keylen + 3, PGP_HASH_SM3, &pubkey->key.ecc);
+
+        if (ret != RNP_SUCCESS) {
+            (void) fprintf(stderr, "%s: pgp_sm2_encrypt failed\n", __func__);
+            goto finish;
+        }
+
+        pkey.params.sm2.mlen = outlen;
+
+    } break;
+    case PGP_PKA_ECDH: {
+        pgp_fingerprint_t fingerprint;
+        size_t            outlen = sizeof(pkey.params.ecdh.m);
+        BIGNUM *          p;
+
+        if (!pgp_fingerprint(&fingerprint, pubkey)) {
+            (void) fprintf(stderr, "%s: ECDH fingerprint calculation failed", __func__);
+            ret = RNP_ERROR_GENERIC;
+            goto finish;
+        }
+
+        if (!(p = BN_new())) {
+            (void) fprintf(stderr, "%s: allocation failed", __func__);
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto finish;
+        }
+
+        ret = pgp_ecdh_encrypt_pkcs5(
+          enckey, keylen + 3, pkey.params.ecdh.m, &outlen, p, &pubkey->key.ecdh, &fingerprint);
+
+        if (ret != RNP_SUCCESS) {
+            (void) fprintf(stderr, "%s: ECDH encryption failed %d\n", __func__, ret);
+            BN_free(p);
+            goto finish;
+        }
+
+        pkey.params.ecdh.mlen = outlen;
+        pkey.params.ecdh.plen = BN_num_bytes(p);
+        BN_bn2bin(p, pkey.params.ecdh.p);
+        BN_free(p);
+    } break;
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
+        int outlen;
+
+        outlen = pgp_elgamal_public_encrypt_pkcs1(
+          pkey.params.eg.g, pkey.params.eg.m, enckey, keylen + 3, &pubkey->key.elgamal);
+        if (outlen <= 0) {
+            ret = RNP_ERROR_GENERIC;
+            (void) fprintf(stderr, "%s: pgp_elgamal_public_encrypt failed\n", __func__);
+            goto finish;
+        }
+
+        pkey.params.eg.glen = outlen / 2;
+        pkey.params.eg.mlen = outlen / 2;
+    } break;
+    default:
+        (void) fprintf(stderr, "%s: unsupported alg: %d", __func__, pubkey->alg);
+        goto finish;
+    }
+
+    /* Writing symmetric key encrypted session key packet */
+    if (!stream_write_pk_sesskey(&pkey, param->pkt.origdst)) {
+        ret = RNP_ERROR_WRITE;
+    }
+
+finish:
+    pgp_forget(enckey, sizeof(enckey));
+    pgp_forget(&checksum, sizeof(checksum));
+    return ret;
+}
+
+static rnp_result_t
+encrypted_add_passphrase(pgp_write_handler_t *handler,
+                         pgp_dest_t *         dst,
+                         uint8_t *            key,
+                         const unsigned       keylen,
+                         bool                 singlepass)
+{
+    pgp_sk_sesskey_t            skey = {0};
+    char                        passphrase[MAX_PASSPHRASE_LENGTH] = {0};
+    uint8_t                     s2key[PGP_MAX_KEY_SIZE]; /* s2k calculated key */
+    unsigned                    s2keylen;                /* length of the s2k key */
+    pgp_crypt_t                 kcrypt;
+    pgp_dest_encrypted_param_t *param = dst->param;
+    rnp_result_t                ret = RNP_SUCCESS;
+
+    skey.version = PGP_SKSK_V4;
+    /* Following algorithm may differ from ctx's one if not singlepass */
+    skey.alg = param->ealg;
+    if (singlepass) {
+        s2keylen = keylen;
+    } else if ((s2keylen = pgp_key_size(skey.alg)) == 0) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    skey.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
+    skey.s2k.iterations = pgp_s2k_encode_iterations(PGP_S2K_DEFAULT_ITERATIONS);
+    skey.s2k.hash_alg =
+      handler->ctx->halg == PGP_HASH_UNKNOWN ? PGP_HASH_SHA256 : handler->ctx->halg;
+    pgp_random(skey.s2k.salt, sizeof(skey.s2k.salt));
+
+    if (!pgp_request_passphrase(handler->passphrase_provider,
+                                &(pgp_passphrase_ctx_t){.op = PGP_OP_ENCRYPT_SYM, .key = NULL},
+                                passphrase,
+                                sizeof(passphrase))) {
+        (void) fprintf(stderr, "%s: no encryption passphrase\n", __func__);
+        ret = RNP_ERROR_BAD_PASSPHRASE;
+        goto finish;
+    }
+
+    if (!pgp_s2k_derive_key(&skey.s2k, passphrase, s2key, s2keylen)) {
+        (void) fprintf(stderr, "%s: s2k failed\n", __func__);
+        ret = RNP_ERROR_GENERIC;
+        goto finish;
+    }
+
+    if (singlepass) {
+        /* if there are no public keys then we do not encrypt session key in the packet */
+        skey.enckeylen = 0;
+        memcpy(key, s2key, s2keylen);
+    } else {
+        /* Currently we are using the same sym algo for key and stream encryption */
+        skey.enckeylen = keylen + 1;
+        skey.enckey[0] = param->ealg;
+        memcpy(&skey.enckey[1], key, keylen);
+        if (!pgp_cipher_start(&kcrypt, param->ealg, s2key, NULL)) {
+            (void) fprintf(stderr, "%s: key encryption failed\n", __func__);
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto finish;
+        }
+        pgp_cipher_cfb_encrypt(&kcrypt, skey.enckey, skey.enckey, skey.enckeylen);
+        pgp_cipher_finish(&kcrypt);
+    }
+
+    /* Writing symmetric key encrypted session key packet */
+    if (!stream_write_sk_sesskey(&skey, param->pkt.origdst)) {
+        ret = RNP_ERROR_WRITE;
+    }
+
+finish:
+    pgp_forget(s2key, sizeof(s2key));
+    pgp_forget(passphrase, sizeof(passphrase));
+    return ret;
+}
+
+static rnp_result_t
 init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_encrypted_param_t *param;
-    pgp_sk_sesskey_t            skey = {0};
-    pgp_crypt_t                 kcrypt;
-    int                         pkeycount = 0;
-    uint8_t                     enckey[PGP_MAX_KEY_SIZE];       /* content encryption key */
+    bool                        singlepass = true;
+    unsigned                    pkeycount = 0;
+    uint8_t                     enckey[PGP_MAX_KEY_SIZE] = {0}; /* content encryption key */
     uint8_t                     s2key[PGP_MAX_KEY_SIZE];        /* s2k calculated key */
     uint8_t                     enchdr[PGP_MAX_BLOCK_SIZE + 2]; /* encrypted header */
     uint8_t                     mdcver = 1;
     char                        passphrase[MAX_PASSPHRASE_LENGTH] = {0};
-    int                         keylen;
-    int                         blsize;
-    pgp_symm_alg_t              ealg; /* content encryption algorithm */
+    unsigned                    keylen;
+    unsigned                    blsize;
     rnp_result_t                ret = RNP_SUCCESS;
 
     /* currently we implement only single-password symmetric encryption */
 
-    ealg = handler->ctx->ealg;
-    keylen = pgp_key_size(ealg);
+    keylen = pgp_key_size(handler->ctx->ealg);
     if (!keylen) {
         (void) fprintf(stderr, "init_encrypted_dst: unknown symmetric algorithm\n");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -322,56 +535,37 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     dst->writeb = 0;
     dst->werr = RNP_SUCCESS;
     param->has_mdc = true;
+    param->ealg = handler->ctx->ealg;
+    param->pkt.origdst = writedst;
 
-    /* configuring and writing sym-encrypted session key */
-
-    skey.version = 4;
-    skey.alg = ealg;
-    skey.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
-    skey.s2k.iterations = pgp_s2k_encode_iterations(PGP_S2K_DEFAULT_ITERATIONS);
-    skey.s2k.hash_alg =
-      handler->ctx->halg == PGP_HASH_UNKNOWN ? PGP_HASH_SHA256 : handler->ctx->halg;
-    pgp_random(skey.s2k.salt, sizeof(skey.s2k.salt));
-
-    if (!pgp_request_passphrase(handler->passphrase_provider,
-                                &(pgp_passphrase_ctx_t){.op = PGP_OP_ENCRYPT_SYM, .key = NULL},
-                                passphrase,
-                                sizeof(passphrase))) {
-        (void) fprintf(stderr, "init_encrypted_dst: no encryption passphrase\n");
-        ret = RNP_ERROR_BAD_PASSPHRASE;
-        goto finish;
-    }
-
-    if (!pgp_s2k_derive_key(&skey.s2k, passphrase, s2key, keylen)) {
-        (void) fprintf(stderr, "init_encrypted_dst: s2k failed\n");
-        ret = RNP_ERROR_GENERIC;
-        goto finish;
-    }
-
-    if (pkeycount == 0) {
-        /* if there are no public keys then we do not encrypt session key in the packet */
-        skey.enckeylen = 0;
-        memcpy(enckey, s2key, keylen);
-    } else {
-        /* Currently we are using the same sym algo for key and stream encryption */
+    pkeycount = list_length(handler->ctx->recipients);
+    if ((pkeycount > 0) || (handler->ctx->passwordc > 1)) {
         pgp_random(enckey, keylen);
-        skey.enckeylen = keylen + 1;
-        skey.enckey[0] = skey.alg;
-        memcpy(&skey.enckey[1], enckey, keylen);
-        if (!pgp_cipher_start(&kcrypt, skey.alg, s2key, NULL)) {
-            (void) fprintf(stderr, "init_encrypted_dst: key encryption failed\n");
-            ret = RNP_ERROR_BAD_PARAMETERS;
+        singlepass = false;
+    }
+
+    /* Configuring and writing pk-encrypted session keys */
+    if (pkeycount > 0) {
+        list_item *userid = list_front(handler->ctx->recipients);
+        while (userid) {
+            ret = encrypted_add_recipient(handler, dst, (char *) userid, enckey, keylen);
+            if (ret != RNP_SUCCESS) {
+                goto finish;
+            }
+
+            userid = list_next(userid);
+        }
+    }
+
+    /* Configuring and writing sk-encrypted session key(s) */
+    for (int i = 0; i < handler->ctx->passwordc; i++) {
+        ret = encrypted_add_passphrase(handler, dst, enckey, keylen, singlepass);
+        if (ret != RNP_SUCCESS) {
             goto finish;
         }
-        pgp_cipher_cfb_encrypt(&kcrypt, skey.enckey, skey.enckey, skey.enckeylen);
-        pgp_cipher_finish(&kcrypt);
     }
 
-    /* writing session key packet */
-    if (!stream_write_sk_sesskey(&skey, writedst)) {
-        goto finish;
-    }
-
+    /* Initializing partial packet writer */
     param->pkt.partial = true;
     param->pkt.indeterminate = false;
     param->pkt.tag = param->has_mdc ? PGP_PTAG_CT_SE_IP_DATA : PGP_PTAG_CT_SE_DATA;
@@ -396,13 +590,13 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     }
 
     /* initializing the crypto */
-    if (!pgp_cipher_start(&param->encrypt, ealg, enckey, NULL)) {
+    if (!pgp_cipher_start(&param->encrypt, param->ealg, enckey, NULL)) {
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }
 
     /* generating and writing iv/password check bytes */
-    blsize = pgp_block_size(ealg);
+    blsize = pgp_block_size(param->ealg);
     pgp_random(enchdr, blsize);
     enchdr[blsize] = enchdr[blsize - 2];
     enchdr[blsize + 1] = enchdr[blsize - 1];

@@ -346,22 +346,12 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.filename = strdup(rnp_filename(f));
         ctx.filemtime = rnp_filemtime(f);
     }
+    if (userid) {
+        list_append(&ctx.recipients, userid, strlen(userid) + 1);
+    }
     rnp->pswdtries = rnp_cfg_get_pswdtries(cfg);
 
     switch (cmd) {
-    case CMD_ENCRYPT:
-        ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
-        ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
-        ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
-
-        if (f == NULL) {
-            cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            sz = rnp_encrypt_memory(&ctx, userid, in, cc, out, maxsize);
-            ret = show_output(cfg, out, sz, "Bad memory encryption");
-        } else {
-            ret = rnp_encrypt_file(&ctx, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
-        }
-        break;
     case CMD_CLEARSIGN:
     case CMD_SIGN:
         ctx.halg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
@@ -410,7 +400,10 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
     }
-    case CMD_SYM_ENCRYPT: {
+    case CMD_SYM_ENCRYPT:
+        ctx.passwordc = 1;
+    /* FALLTHROUGH */
+    case CMD_ENCRYPT: {
         ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
         ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
         ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
