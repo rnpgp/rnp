@@ -425,6 +425,7 @@ encrypted_dst_close(pgp_dest_t *dst, bool discard)
         }
     }
 
+    pgp_cipher_finish(&param->encrypt);
     close_streamed_packet(&param->pkt, discard);
     free(param);
     dst->param = NULL;
