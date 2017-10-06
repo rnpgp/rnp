@@ -253,6 +253,55 @@ load_test_data(const char *data_dir, const char *file, char **data, size_t *size
     free(path);
 }
 
+void
+test_ffi_detect_key_format(void **state)
+{
+    rnp_test_state_t *rstate = *state;
+    char *            data = NULL;
+    size_t            data_size = 0;
+    char *            format = NULL;
+
+    data = NULL;
+    format = NULL;
+    load_test_data(rstate->data_dir, "keyrings/1/pubring.gpg", &data, &data_size);
+    assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) data, data_size, &format));
+    assert_int_equal(0, strcmp(format, "GPG"));
+    free(data);
+    free(format);
+
+    data = NULL;
+    format = NULL;
+    load_test_data(rstate->data_dir, "keyrings/1/secring.gpg", &data, &data_size);
+    assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) data, data_size, &format));
+    assert_int_equal(0, strcmp(format, "GPG"));
+    free(data);
+    free(format);
+    format = NULL;
+
+    data = NULL;
+    format = NULL;
+    load_test_data(rstate->data_dir, "keyrings/3/pubring.kbx", &data, &data_size);
+    assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) data, data_size, &format));
+    assert_int_equal(0, strcmp(format, "KBX"));
+    free(data);
+    free(format);
+
+    data = NULL;
+    format = NULL;
+    load_test_data(rstate->data_dir,
+                   "keyrings/3/private-keys-v1.d/63E59092E4B1AE9F8E675B2F98AA2B8BD9F4EA59.key",
+                   &data,
+                   &data_size);
+    assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) data, data_size, &format));
+    assert_int_equal(0, strcmp(format, "G10"));
+    free(data);
+    free(format);
+
+    format = NULL;
+    assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) "ABC", 3, &format));
+    assert_null(format);
+}
+
 static rnp_key_t
 unused_getkeycb(void *      app_ctx,
                 const char *identifier_type,

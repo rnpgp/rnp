@@ -303,7 +303,7 @@ rnp_detect_key_format(const uint8_t buf[], size_t buf_len, char **format)
 
     // ordered from most reliable detection to least
     char *guess = NULL;
-    if (buf_len >= 12 && memcmp(buf + 8, "fXBK", 4) == 0) {
+    if (buf_len >= 12 && memcmp(buf + 8, "KBXf", 4) == 0) {
         // KBX has a magic KBXf marker
         guess = "KBX";
     } else if (buf[0] == '(' && buf[buf_len - 1] == ')') {
