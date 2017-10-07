@@ -412,7 +412,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         pkey.params.eg.mlen = outlen / 2;
     } break;
     default:
-        (void) fprintf(stderr, "%s: unsupported alg: %d", __func__, pubkey->alg);
+        (void) fprintf(stderr, "%s: unsupported alg: %d\n", __func__, pubkey->alg);
         goto finish;
     }
 
