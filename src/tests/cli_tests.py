@@ -358,7 +358,7 @@ def rnp_decrypt_file(src, dst):
 
 def rnp_symdecrypt_file(src, dst):
     pipe = pswd_pipe(PASSWORD)
-    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--sym-decrypt', src, '--output', dst])
+    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--decrypt', src, '--output', dst])
     os.close(pipe)
     if ret != 0:
         raise_err('rnp symmetric decryption failed', out + err)

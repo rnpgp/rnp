@@ -88,7 +88,6 @@ enum optdefs {
     CMD_VERIFY,
     CMD_VERIFY_CAT,
     CMD_SYM_ENCRYPT,
-    CMD_SYM_DECRYPT,
     CMD_DEARMOR,
     CMD_LIST_PACKETS,
     CMD_SHOW_KEYS,
@@ -138,7 +137,6 @@ static struct option options[] = {
   {"verify-cat", no_argument, NULL, CMD_VERIFY_CAT},
   {"verify-show", no_argument, NULL, CMD_VERIFY_CAT},
   {"verifyshow", no_argument, NULL, CMD_VERIFY_CAT},
-  {"sym-decrypt", no_argument, NULL, CMD_SYM_DECRYPT},
   {"symmetric", no_argument, NULL, CMD_SYM_ENCRYPT},
   {"dearmor", no_argument, NULL, CMD_DEARMOR},
   /* file listing commands */
@@ -383,23 +381,9 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
                                 rnp_cfg_getbool(cfg, CFG_DETACHED)) == RNP_OK;
         }
         break;
-    case CMD_DECRYPT: {
-        if (f) {
-            const char *out = rnp_cfg_get(cfg, CFG_OUTFILE);
-            repgp_set_input(io, create_filepath_handle(f));
-            repgp_set_output(io, create_filepath_handle(out));
-        } else {
-            repgp_set_input(io, create_stdin_handle());
-            repgp_set_output(io,
-                             create_buffer_handle((size_t) rnp_cfg_getint(cfg, CFG_MAXALLOC)));
-        }
-        ret = (RNP_SUCCESS == repgp_decrypt(&ctx, io));
-        break;
-    }
-    case CMD_SYM_DECRYPT: {
+    case CMD_DECRYPT:
         ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
-    }
     case CMD_SYM_ENCRYPT:
         ctx.passwordc = 1;
     /* FALLTHROUGH */
@@ -481,10 +465,6 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         break;
     case CMD_DECRYPT:
         /* for decryption, we need a seckey */
-        rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
-        *cmd = val;
-        break;
-    case CMD_SYM_DECRYPT:
         rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
         *cmd = val;
         break;
