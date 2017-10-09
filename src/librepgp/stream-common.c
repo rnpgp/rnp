@@ -321,14 +321,39 @@ dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     /* we call write function only if all previous calls succeeded */
     if ((len > 0) && (dst->write) && (dst->werr == RNP_SUCCESS)) {
-        dst->werr = dst->write(dst, buf, len);
-        dst->writeb += len;
+        /* if cache non-empty and len will overflow it then fill it and write out */
+        if ((dst->clen > 0) && (dst->clen + len > sizeof(dst->cache))) {
+            memcpy(dst->cache + dst->clen, buf, sizeof(dst->cache) - dst->clen);
+            buf = (uint8_t*)buf + sizeof(dst->cache) - dst->clen;
+            len -= sizeof(dst->cache) - dst->clen;
+            dst->werr = dst->write(dst, dst->cache, sizeof(dst->cache));
+            dst->writeb += sizeof(dst->cache);
+            dst->clen = 0;
+            if (dst->werr != RNP_SUCCESS) {
+                return;
+            }
+        }
+
+        /* here everything will fit into the cache or cache is empty */
+        if (len > sizeof(dst->cache)) {
+            dst->werr = dst->write(dst, buf, len);
+            dst->writeb += len;
+        } else {
+            memcpy(dst->cache + dst->clen, buf, len);
+            dst->clen += len;
+        }
     }
 }
 
 void
 dst_close(pgp_dest_t *dst, bool discard)
 {
+    if (!discard && (dst->clen > 0) && (dst->write) && (dst->werr == RNP_SUCCESS)) {
+        dst->werr = dst->write(dst, dst->cache, dst->clen);
+        dst->writeb += dst->clen;
+        dst->clen = 0;
+    }
+
     if (dst->close) {
         dst->close(dst, discard);
     }
@@ -421,6 +446,7 @@ init_file_dest(pgp_dest_t *dst, const char *path)
     dst->close = file_dst_close;
     dst->type = PGP_STREAM_FILE;
     dst->writeb = 0;
+    dst->clen = 0;
     dst->werr = RNP_SUCCESS;
 
     return RNP_SUCCESS;
@@ -441,6 +467,7 @@ init_stdout_dest(pgp_dest_t *dst)
     dst->close = file_dst_close;
     dst->type = PGP_STREAM_STDOUT;
     dst->writeb = 0;
+    dst->clen = 0;
     dst->werr = RNP_SUCCESS;
 
     return RNP_SUCCESS;

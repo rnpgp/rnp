@@ -177,6 +177,7 @@ init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
     dst->close = partial_dst_close;
     dst->type = PGP_STREAM_PARLEN_PACKET;
     dst->writeb = 0;
+    dst->clen = 0;
     dst->werr = RNP_SUCCESS;
 
     return RNP_SUCCESS;
@@ -533,6 +534,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     dst->close = encrypted_dst_close;
     dst->type = PGP_STREAM_ENCRYPTED;
     dst->writeb = 0;
+    dst->clen = 0;
     dst->werr = RNP_SUCCESS;
     param->has_mdc = true;
     param->ealg = handler->ctx->ealg;
@@ -790,6 +792,7 @@ init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *w
     dst->close = compressed_dst_close;
     dst->type = PGP_STREAM_COMPRESSED;
     dst->writeb = 0;
+    dst->clen = 0;
     dst->werr = RNP_SUCCESS;
     param->alg = handler->ctx->zalg;
     param->len = 0;
@@ -898,6 +901,7 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
     dst->close = literal_dst_close;
     dst->type = PGP_STREAM_LITERAL;
     dst->writeb = 0;
+    dst->clen = 0;
     dst->werr = RNP_SUCCESS;
     param->partial = true;
     param->indeterminate = false;
