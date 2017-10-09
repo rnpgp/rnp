@@ -41,6 +41,7 @@
 #include "defs.h"
 #include "types.h"
 #include "symmetric.h"
+#include "utils.h"
 
 ssize_t
 src_read(pgp_source_t *src, void *buf, size_t len)

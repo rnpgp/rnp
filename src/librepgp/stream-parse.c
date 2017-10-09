@@ -551,22 +551,20 @@ encrypted_decrypt_header(pgp_source_t *src, pgp_symm_alg_t alg, uint8_t *key)
 }
 
 static bool
-encrypted_try_key(pgp_source_t *src, pgp_pk_sesskey_pkt_t *sesskey, pgp_key_t *key)
+encrypted_try_key(pgp_source_t *src, pgp_pk_sesskey_pkt_t *sesskey, pgp_seckey_t *seckey)
 {
     uint8_t           decbuf[PGP_MPINT_SIZE];
     rnp_result_t      err;
     size_t            declen;
     size_t            keylen;
     pgp_fingerprint_t fingerprint;
-    pgp_seckey_t *    seckey = &key->key.seckey;
     pgp_symm_alg_t    salg;
     unsigned          checksum = 0;
     bool              res = false;
     BIGNUM *          ecdh_p;
 
     /* Decrypting session key value */
-
-    switch (seckey->pubkey.alg) {
+    switch (sesskey->alg) {
     case PGP_PKA_RSA:
         declen = pgp_rsa_decrypt_pkcs1(decbuf,
                                        sizeof(decbuf),
@@ -938,6 +936,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     pgp_pk_sesskey_pkt_t          pkey = {0};
     pgp_key_t *                   seckey = NULL;
     pgp_key_request_ctx_t         keyctx;
+    pgp_seckey_t *                decrypted_seckey = NULL;
     char                          passphrase[MAX_PASSPHRASE_LENGTH] = {0};
     int                           intres;
     bool                          have_key = false;
@@ -1034,13 +1033,29 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             if (!pgp_request_key(ctx->handler.key_provider, &keyctx, &seckey)) {
                 continue;
             }
-            /* Unlock key */
-            if (!pgp_key_unlock(seckey, ctx->handler.passphrase_provider)) {
-                continue;
+            /* Decrypt key */
+            if (seckey->key.seckey.encrypted) {
+                decrypted_seckey = pgp_decrypt_seckey(seckey, ctx->handler.passphrase_provider, &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT, .key = seckey});
+                if (!decrypted_seckey) {
+                    continue;
+                }
+            } else {
+                decrypted_seckey = &(seckey->key.seckey);
             }
+        
             /* Try to initialize the decryption */
-            if (encrypted_try_key(src, &param->pubencs[i], seckey)) {
+            if (encrypted_try_key(src, &param->pubencs[i], decrypted_seckey)) {
                 have_key = true;
+            }
+
+            /* Destroy decrypted key */
+            if (seckey->key.seckey.encrypted) {
+                pgp_seckey_free(decrypted_seckey);
+                free(decrypted_seckey);
+                decrypted_seckey = NULL;
+            }
+
+            if (have_key) {
                 break;
             }
         }
