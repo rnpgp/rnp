@@ -148,13 +148,13 @@ stream_read_mpi(pgp_source_t *src, uint8_t *mpi, size_t maxlen)
 
     bits = ((unsigned) hdr[0] << 8) | hdr[1];
     if (!bits || (bits > PGP_MPINT_BITS)) {
-        (void) fprintf(stderr, "%s: too large or zero mpi, %d bits", __func__, bits);
+        RNP_LOG("too large or zero mpi, %d bits", bits);
         return -1;
     }
 
     bytes = (bits + 7) >> 3;
     if ((maxlen > 0) && (bytes > maxlen - 2)) {
-        (void) fprintf(stderr, "%s: mpi out of bounds", __func__);
+        RNP_LOG("mpi out of bounds");
         return -1;
     }
 
@@ -164,7 +164,7 @@ stream_read_mpi(pgp_source_t *src, uint8_t *mpi, size_t maxlen)
 
     hbits = bits & 7 ? bits & 7 : 8;
     if ((((unsigned) mpi[0] >> hbits) != 0) || !((unsigned) mpi[0] & (1U << (hbits - 1)))) {
-        (void) fprintf(stderr, "%s: wrong mpi bit count", __func__);
+        RNP_LOG("wrong mpi bit count");
         return -1;
     }
 
@@ -285,12 +285,12 @@ stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
     }
 
     if (!(body->data = malloc(len))) {
-        (void) fprintf(stderr, "%s: malloc of %d bytes failed\n", __func__, (int) len);
+        RNP_LOG("malloc of %d bytes failed", (int) len);
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     if ((read = src_read(src, body->data, read)) < len) {
-        (void) fprintf(stderr, "%s: read %d instead of %d\n", __func__, (int) read, (int) len);
+        RNP_LOG("read %d instead of %d", (int) read, (int) len);
         free(body->data);
         body->data = NULL;
         return RNP_ERROR_READ;
@@ -410,7 +410,7 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
     /* version */
     skey->version = buf[0];
     if (skey->version != 4) {
-        (void) fprintf(stderr, "stream_parse_sk_sesskey: wrong packet version\n");
+        RNP_LOG("wrong packet version");
         return RNP_ERROR_BAD_FORMAT;
     }
 
@@ -449,14 +449,14 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
         }
         break;
     default:
-        (void) fprintf(stderr, "stream_parse_sk_sesskey: wrong s2k specifier\n");
+        RNP_LOG("wrong s2k specifier");
         return RNP_ERROR_BAD_FORMAT;
     }
 
     /* encrypted session key if present */
     if (len > 0) {
         if (len > PGP_MAX_KEY_SIZE + 1) {
-            (void) fprintf(stderr, "stream_parse_sk_sesskey: too long esk\n");
+            RNP_LOG("too long esk");
             return RNP_ERROR_BAD_FORMAT;
         }
         if (src_read(src, skey->enckey, len) != len) {
@@ -491,7 +491,7 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pkey)
 
     /* version */
     if (buf[0] != PGP_PKSK_V3) {
-        (void) fprintf(stderr, "%s: wrong packet version\n", __func__);
+        RNP_LOG("wrong packet version");
         return RNP_ERROR_BAD_FORMAT;
     }
     pkey->version = buf[0];
@@ -553,12 +553,12 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pkey)
 
         break;
     default:
-        (void) fprintf(stderr, "%s: unknown pk alg %d\n", __func__, (int) pkey->alg);
+        RNP_LOG("unknown pk alg %d", (int) pkey->alg);
         return RNP_ERROR_BAD_FORMAT;
     }
 
     if (len > 0) {
-        (void) fprintf(stderr, "%s: extra %d bytes\n", __func__, (int) len);
+        RNP_LOG("extra %d bytes", (int) len);
         return RNP_ERROR_BAD_FORMAT;
     }
 
