@@ -10,7 +10,7 @@ import re
 import random
 import string
 import time
-from cli_common import find_utility, run_proc, pswd_pipe, rnp_file_path, random_text, file_text
+from cli_common import find_utility, run_proc, pswd_pipe, rnp_file_path, random_text, file_text, raise_err
 import cli_common
 
 WORKDIR = ''
@@ -56,14 +56,6 @@ r'uid\s+(.+)\s+' \
 r'sub.+\s+' \
 r'[0-9a-z]{40}\s+$'
 
-'''
-pub   2048/RSA (Encrypt or Sign) 9d11515f507fe5f2 2017-08-14 [SC]
-      d496f4b2192cc1af2508203d9d11515f507fe5f2
-uid           2048@rnptest
-sub   2048/RSA (Encrypt or Sign) ffffaa3655390c6c 2017-08-14 [E]
-      b945a8216a8597267ccf5732ffffaa3655390c6c
-'''
-
 RE_MULTIPLE_KEY_LIST = r'(?s)^\s*(\d+) (?:key|keys) found.*$'
 RE_MULTIPLE_KEY_5 = r'(?s)^\s*' \
 r'10 keys found.*' \
@@ -88,17 +80,6 @@ r'Good signature for .* made .*' \
 r'using .* key .*' \
 r'signature .*' \
 r'uid\s+(.*)\s*$'
-
-class CLIError(Exception):
-    def __init__(self, message, log = None):
-        super(Exception, self).__init__(message)
-        self.log = log
-
-    def __str__(self):
-        if DEBUG and self.log:
-            return self.message + '\n' + self.log
-        else:
-            return self.message
 
 def setup():
     # Setting up directories.
@@ -154,12 +135,6 @@ def remove_files(*args):
             os.remove(fpath)
     except:
         pass
-
-def raise_err(msg, log = None):
-    #if log and DEBUG:
-    #    print log
-    #raise NameError(msg)
-    raise CLIError(msg, log)
 
 def reg_workfiles(mainname, *exts):
     global TEST_WORKFILES

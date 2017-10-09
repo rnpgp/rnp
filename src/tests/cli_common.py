@@ -12,6 +12,23 @@ from timeit import default_timer as perf_timer
 RNP_ROOT = None
 DEBUG = False
 
+class CLIError(Exception):
+    def __init__(self, message, log = None):
+        super(Exception, self).__init__(message)
+        self.log = log
+
+    def __str__(self):
+        if DEBUG and self.log:
+            return self.message + '\n' + self.log
+        else:
+            return self.message
+
+def raise_err(msg, log = None):
+    #if log and DEBUG:
+    #    print log
+    #raise NameError(msg)
+    raise CLIError(msg, log)
+
 def size_to_readable(num, suffix = 'B'):
     for unit in ['','K','M','G','T','P','E','Z']:
         if abs(num) < 1024.0:
