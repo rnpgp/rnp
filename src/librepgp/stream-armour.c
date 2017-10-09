@@ -894,6 +894,7 @@ init_armoured_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armoured_msg_t msgt
     dst->close = armoured_dst_close;
     dst->type = PGP_STREAM_ARMOURED;
     dst->writeb = 0;
+    dst->clen = 0;
     dst->param = param;
     dst->werr = RNP_SUCCESS;
     param->writedst = writedst;

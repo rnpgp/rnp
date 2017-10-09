@@ -34,6 +34,7 @@
 #include <repgp/repgp.h>
 
 #define PGP_INPUT_CACHE_SIZE 32768
+#define PGP_OUTPUT_CACHE_SIZE 32768
 
 typedef enum {
     PGP_STREAM_FILE,
@@ -145,6 +146,8 @@ typedef struct pgp_dest_t {
 
     int64_t writeb; /* number of bytes written */
     void *  param;  /* source-specific additional data */
+    uint8_t cache[PGP_OUTPUT_CACHE_SIZE];
+    unsigned clen;
 } pgp_dest_t;
 
 /** @brief write buffer to the destination
