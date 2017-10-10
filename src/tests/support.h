@@ -80,6 +80,8 @@ void path_mkdir(mode_t mode, const char *first, ...);
  */
 void delete_recursively(const char *path);
 
+void copy_recursively(const char *src, const char *dst);
+
 /* Creates and returns a temporary directory path.
  * Caller must free the string.
  */
