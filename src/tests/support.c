@@ -180,6 +180,18 @@ delete_recursively(const char *path)
     nftw(path, remove_cb, 64, FTW_DEPTH | FTW_PHYS);
 }
 
+void copy_recursively(const char *src, const char *dst) {
+    /* sanity check, we should only be copying things to /tmp/ */
+    assert_int_equal(strncmp(dst, "/tmp/", 5), 0);
+    assert_true(strlen(dst) > 5);
+
+
+    // TODO: maybe use fts or something less hacky
+    char buf[2048];
+    snprintf(buf, sizeof(buf), "/bin/cp -a '%s' '%s'", src, dst);
+    assert_int_equal(0, system(buf));
+}
+
 /* Creates and returns a temporary directory path.
  * Caller must free the string.
  */

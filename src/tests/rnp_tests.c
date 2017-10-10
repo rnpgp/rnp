@@ -56,11 +56,6 @@ setup_test_group(void **state)
     if (!rstate) {
         return -1;
     }
-    rstate->data_dir = get_data_dir();
-    if (!rstate->data_dir) {
-        free(rstate);
-        return -1;
-    }
     *state = rstate;
     return 0;
 }
@@ -73,8 +68,6 @@ teardown_test_group(void **state)
     if (!rstate) {
         return -1;
     }
-    free(rstate->data_dir);
-    rstate->data_dir = NULL;
 
     free(rstate);
 
@@ -91,6 +84,16 @@ setup_test(void **state)
     if (rstate->home == NULL) {
         return -1;
     }
+    rstate->data_dir = rnp_compose_path(rstate->home, "data", NULL);
+    if (!rstate->data_dir) {
+        return -1;
+    }
+    char *src_data = get_data_dir();
+    if (!src_data) {
+        return -1;
+    }
+    copy_recursively(src_data, rstate->data_dir);
+    free(src_data);
     if (getenv("RNP_TEST_NOT_FATAL")) {
         rstate->not_fatal = 1;
     } else {
@@ -108,6 +111,8 @@ teardown_test(void **state)
     delete_recursively(rstate->home);
     free(rstate->home);
     rstate->home = NULL;
+    free(rstate->data_dir);
+    rstate->data_dir = NULL;
     destroy_global_rng();
     return 0;
 }
