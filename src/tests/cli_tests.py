@@ -177,9 +177,9 @@ def reg_workfiles(mainname, *exts):
 def clear_workfiles():
     global TEST_WORKFILES
     for fpath in TEST_WORKFILES:
-        try: 
+        try:
             os.remove(fpath)
-        except: 
+        except:
             pass
     TEST_WORKFILES = []
 
@@ -211,7 +211,7 @@ def rnpkey_generate_rsa(bits = None, cleanup = True):
 
     userid = str(bits) + '@rnptest'
     # Open pipe for password
-    pipe = pswd_pipe(PASSWORD) 
+    pipe = pswd_pipe(PASSWORD)
     params = params + ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', userid, '--generate-key']
     # Run key generation
     ret, out, err = run_proc(RNPK, params)
@@ -238,7 +238,7 @@ def rnpkey_generate_rsa(bits = None, cleanup = True):
     ret, out, err = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir', GPGDIR, '--import', path.join(RNPDIR, 'pubring.gpg'), path.join(RNPDIR, 'secring.gpg')])
     if ret != 0: raise_err('gpg key import failed', err)
     # Cleanup and return
-    if cleanup: 
+    if cleanup:
         clear_keyrings()
         return None
     else:
@@ -358,7 +358,7 @@ def rnp_decrypt_file(src, dst):
 
 def rnp_symdecrypt_file(src, dst):
     pipe = pswd_pipe(PASSWORD)
-    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--sym-decrypt', src, '--output', dst])
+    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--decrypt', src, '--output', dst])
     os.close(pipe)
     if ret != 0:
         raise_err('rnp symmetric decryption failed', out + err)

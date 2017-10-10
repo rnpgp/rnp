@@ -34,6 +34,7 @@
 #include "defs.h"
 #include "types.h"
 #include "symmetric.h"
+#include "utils.h"
 
 #define ARMOURED_BLOCK_SIZE (4096)
 
@@ -289,9 +290,7 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
                 param->eofb64 = true;
                 break;
             } else if (bval == 0xff) {
-                (void) fprintf(stderr,
-                               "armoured_src_read: wrong base64 character %c\n",
-                               (char) *(bptr - 1));
+                RNP_LOG("wrong base64 character %c", (char) *(bptr - 1));
                 return -1;
             }
         }
@@ -329,18 +328,18 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
 
             /* reading b64 padding if any */
             if ((eqcount = armour_read_padding(src)) < 0) {
-                (void) fprintf(stderr, "armoured_src_read: wrong padding\n");
+                RNP_LOG("wrong padding");
                 return -1;
             }
 
             /* reading crc */
             if (!armour_read_crc(src)) {
-                (void) fprintf(stderr, "armoured_src_read: wrong crc line\n");
+                RNP_LOG("wrong crc line");
                 return -1;
             }
             /* reading armour trailing line */
             if (!armour_read_trailer(src)) {
-                (void) fprintf(stderr, "armoured_src_read: wrong armour trailer\n");
+                RNP_LOG("armoured_src_read: wrong armour trailer");
                 return -1;
             }
 
@@ -370,7 +369,7 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
 
     if (param->eofb64) {
         if ((dend - dptr + eqcount) % 4 != 0) {
-            (void) fprintf(stderr, "armoured_src_read: wrong b64 padding\n");
+            RNP_LOG("wrong b64 padding");
             return -1;
         }
 
@@ -386,7 +385,7 @@ armoured_src_read(pgp_source_t *src, void *buf, size_t len)
 
         /* we calculate crc when input stream finished instead of when all data is read */
         if (param->crc != param->readcrc) {
-            (void) fprintf(stderr, "armoured_src_read: CRC mismatch\n");
+            RNP_LOG("CRC mismatch");
             return -1;
         }
     } else {
@@ -495,22 +494,22 @@ armour_parse_header(pgp_source_t *src)
     }
 
     if (!(armhdr = find_armour_header(hdr, read, &armhdrlen))) {
-        (void) fprintf(stderr, "parse_armour_header: no armour header\n");
+        RNP_LOG("no armour header");
         return false;
     }
 
     if (armhdr > hdr) {
-        (void) fprintf(stderr, "parse_armour_header: extra data before the header line\n");
+        RNP_LOG("extra data before the header line");
     }
 
     param->type = armour_message_type(armhdr + 5, armhdrlen - 10);
     if (param->type == PGP_ARMOURED_UNKNOWN) {
-        (void) fprintf(stderr, "parse_armour_header: unknown armour header\n");
+        RNP_LOG("unknown armour header");
         return false;
     }
 
     if ((param->armourhdr = malloc(armhdrlen - 9)) == NULL) {
-        (void) fprintf(stderr, "parse_armour_header: allocation failed\n");
+        RNP_LOG("allocation failed");
         return false;
     }
 
@@ -530,13 +529,13 @@ armour_parse_headers(pgp_source_t *src)
 
     do {
         if (!armour_peek_line(param->readsrc, header, sizeof(header) - 1, &hdrlen)) {
-            (void) fprintf(stderr, "armour_parse_headers: failed to peek line\n");
+            RNP_LOG("failed to peek line");
             return false;
         }
 
         if (hdrlen > 0) {
             if ((hdrval = malloc(hdrlen + 1)) == NULL) {
-                (void) fprintf(stderr, "armour_parse_headers: malloc failed\n");
+                RNP_LOG("malloc failed");
                 return false;
             }
 
@@ -558,7 +557,7 @@ armour_parse_headers(pgp_source_t *src)
                 param->charset = hdrval;
             } else {
                 header[hdrlen] = '\0';
-                (void) fprintf(stderr, "armour_parse_headers: unknown header '%s'\n", header);
+                RNP_LOG("unknown header '%s'", header);
             }
 
             src_skip(param->readsrc, hdrlen);
@@ -599,13 +598,13 @@ init_armoured_src(pgp_source_t *src, pgp_source_t *readsrc)
     }
     /* eol */
     if (!armour_skip_eol(param->readsrc)) {
-        (void) fprintf(stderr, "init_armoured_src: no eol after the armour header\n");
+        RNP_LOG("no eol after the armour header");
         errcode = RNP_ERROR_BAD_FORMAT;
         goto finish;
     }
     /* parsing headers */
     if (!armour_parse_headers(src)) {
-        (void) fprintf(stderr, "init_armoured_src: failed to parse headers\n");
+        RNP_LOG("failed to parse headers");
         errcode = RNP_ERROR_BAD_FORMAT;
         goto finish;
     }
@@ -713,7 +712,7 @@ armoured_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     pgp_dest_armoured_param_t *param = dst->param;
 
     if (!param) {
-        (void) fprintf(stderr, "armoured_dst_write: wrong param\n");
+        RNP_LOG("wrong param");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -853,7 +852,7 @@ init_armoured_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armoured_msg_t msgt
     rnp_result_t               ret = RNP_SUCCESS;
 
     if ((param = calloc(1, sizeof(*param))) == NULL) {
-        (void) fprintf(stderr, "init_armoured_dst: allocation failed\n");
+        RNP_LOG("allocation failed");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -870,7 +869,7 @@ init_armoured_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armoured_msg_t msgt
     param->llen = 76; /* must be multiple of 4 */
 
     if (!armour_message_header(param->type, false, hdr)) {
-        (void) fprintf(stderr, "init_armoured_dst: unknown message type\n");
+        RNP_LOG("unknown message type");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }
@@ -905,7 +904,7 @@ rnp_dearmour_source(pgp_source_t *src, pgp_dest_t *dst)
 
     read = src_peek(src, readbuf, sizeof(clear_start));
     if (read < sizeof(armor_start)) {
-        (void) fprintf(stderr, "rnp_dearmour_source: can't read enough data from source\n");
+        RNP_LOG("can't read enough data from source");
         res = RNP_ERROR_READ;
         goto finish;
     }
@@ -915,7 +914,7 @@ rnp_dearmour_source(pgp_source_t *src, pgp_dest_t *dst)
     if (strstr((char *) readbuf, armor_start)) {
         /* checking whether it is cleartext */
         if (strstr((char *) readbuf, clear_start)) {
-            (void) fprintf(stderr, "rnp_dearmour_source: source is cleartext, not armored\n");
+            RNP_LOG("source is cleartext, not armored");
             goto finish;
         }
 
@@ -926,7 +925,7 @@ rnp_dearmour_source(pgp_source_t *src, pgp_dest_t *dst)
             goto finish;
         }
     } else {
-        (void) fprintf(stderr, "rnp_dearmour_source: source is not armored data\n");
+        RNP_LOG("source is not armored data");
         goto finish;
     }
 
@@ -939,7 +938,7 @@ rnp_dearmour_source(pgp_source_t *src, pgp_dest_t *dst)
         } else if (read > 0) {
             dst_write(dst, readbuf, read);
             if (dst->werr != RNP_SUCCESS) {
-                (void) fprintf(stderr, "rnp_dearmour_source: failed to output data\n");
+                RNP_LOG("failed to output data");
                 res = RNP_ERROR_WRITE;
                 break;
             }
@@ -972,7 +971,7 @@ rnp_armour_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armoured_msg_t msgtype
         } else if (read > 0) {
             dst_write(&armordst, readbuf, read);
             if (armordst.werr != RNP_SUCCESS) {
-                (void) fprintf(stderr, "rnp_armour_source: failed to output data\n");
+                RNP_LOG("failed to output data");
                 res = RNP_ERROR_WRITE;
                 break;
             }

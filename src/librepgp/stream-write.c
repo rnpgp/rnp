@@ -26,6 +26,7 @@
 
 #include "config.h"
 #include "stream-write.h"
+#include "stream-packet.h"
 #include "stream-armour.h"
 #include <sys/stat.h>
 #include <stdlib.h>
@@ -39,10 +40,13 @@
 #include <limits.h>
 #endif
 #include <rnp/rnp_def.h>
+#include "pgp-key.h"
+#include "fingerprint.h"
 #include "defs.h"
 #include "types.h"
 #include "symmetric.h"
 #include "crypto/s2k.h"
+#include "crypto/sm2.h"
 #include "crypto.h"
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
@@ -54,14 +58,6 @@
 /* 8192 bytes, as GnuPG */
 #define PARTIAL_PKT_SIZE_BITS (13)
 #define PARTIAL_PKT_BLOCK_SIZE (1 << PARTIAL_PKT_SIZE_BITS)
-
-/* structure to write non-stream packets without need to precalculate the length */
-typedef struct pgp_packet_body_t {
-    int      tag;       /* packet tag */
-    uint8_t *data;      /* packet body data */
-    size_t   len;       /* current len of the data */
-    size_t   allocated; /* allocated bytes in data */
-} pgp_packet_body_t;
 
 /* common fields for encrypted, compressed and literal data */
 typedef struct pgp_dest_packet_param_t {
@@ -88,6 +84,7 @@ typedef struct pgp_dest_encrypted_param_t {
     pgp_dest_packet_param_t pkt;         /* underlying packet-related params */
     bool                    has_mdc;     /* encrypted with mdc, i.e. tag 18 */
     pgp_crypt_t             encrypt;     /* encrypting crypto */
+    pgp_symm_alg_t          ealg;        /* encryption algorithm */
     pgp_hash_t              mdc;         /* mdc SHA1 hash */
     uint8_t cache[PGP_INPUT_CACHE_SIZE]; /* pre-allocated cache for encryption */
 } pgp_dest_encrypted_param_t;
@@ -100,111 +97,6 @@ typedef struct pgp_dest_partial_param_t {
     size_t      len;     /* bytes cached in part */
 } pgp_dest_partial_param_t;
 
-static bool
-init_packet_body(pgp_packet_body_t *body, int tag)
-{
-    body->data = malloc(16);
-    if (!body->data) {
-        return false;
-    }
-    body->allocated = 16;
-    body->tag = tag;
-    body->len = 0;
-    return true;
-}
-
-static bool
-add_packet_body(pgp_packet_body_t *body, void *data, size_t len)
-{
-    void * newdata;
-    size_t newlen;
-
-    if (body->len + len > body->allocated) {
-        newlen = (body->len + len) * 2;
-        newdata = realloc(body->data, newlen);
-        if (!newdata) {
-            return false;
-        }
-        body->data = newdata;
-        body->allocated = newlen;
-    }
-
-    memcpy(body->data + body->len, data, len);
-    body->len += len;
-
-    return true;
-}
-
-static bool
-add_packet_body_byte(pgp_packet_body_t *body, uint8_t byte)
-{
-    if (body->len < body->allocated) {
-        body->data[body->len] = byte;
-        body->len++;
-        return true;
-    } else {
-        return add_packet_body(body, &byte, 1);
-    }
-}
-
-static size_t
-write_packet_len(uint8_t *buf, size_t len)
-{
-    if (len < 192) {
-        buf[0] = len;
-        return 1;
-    } else if (len < 8192 + 192) {
-        buf[0] = ((len - 192) >> 8) + 192;
-        buf[1] = (len - 192) & 0xff;
-        return 2;
-    } else {
-        buf[0] = 0xff;
-        buf[1] = (uint8_t)(len >> 24);
-        buf[2] = (uint8_t)(len >> 16);
-        buf[3] = (uint8_t)(len >> 8);
-        buf[4] = (uint8_t)(len);
-        return 5;
-    }
-}
-
-static void
-flush_packet_body(pgp_packet_body_t *body, pgp_dest_t *dst)
-{
-    uint8_t hdr[6];
-    size_t  hlen;
-
-    hdr[0] = body->tag | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
-    hlen = 1 + write_packet_len(&hdr[1], body->len);
-    dst_write(dst, hdr, hlen);
-    dst_write(dst, body->data, body->len);
-    free(body->data);
-}
-
-static void
-free_packet_body(pgp_packet_body_t *body)
-{
-    free(body->data);
-    body->data = NULL;
-}
-
-static void
-stream_write_pkt_tag(int tag, pgp_dest_t *dst)
-{
-    uint8_t bt;
-
-    bt = tag | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
-    dst_write(dst, &bt, 1);
-}
-
-static void
-stream_write_indeterminate_pkt_tag(int tag, pgp_dest_t *dst)
-{
-    uint8_t bt;
-
-    bt = ((tag & 0xf) << PGP_PTAG_OF_CONTENT_TAG_SHIFT) | PGP_PTAG_OLD_LEN_INDETERMINATE;
-    dst_write(dst, &bt, 1);
-}
-
 static rnp_result_t
 partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
@@ -212,7 +104,7 @@ partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     int                       wrlen;
 
     if (!param) {
-        (void) fprintf(stderr, "partial_dst_write: wrong param\n");
+        RNP_LOG("wrong param");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -272,7 +164,7 @@ init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
     pgp_dest_partial_param_t *param;
 
     if ((param = calloc(1, sizeof(*param))) == NULL) {
-        (void) fprintf(stderr, "init_partial_pkt_dst: allocation failed\n");
+        RNP_LOG("allocation failed");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -297,12 +189,14 @@ static bool
 init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
 {
     rnp_result_t ret;
+    uint8_t      bt;
 
     if (param->partial) {
-        stream_write_pkt_tag(param->tag, dst);
+        bt = param->tag | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
+        dst_write(dst, &bt, 1);
 
         if ((param->writedst = calloc(1, sizeof(*param->writedst))) == NULL) {
-            (void) fprintf(stderr, "init_streamed_packet: part len dest allocation failed\n");
+            RNP_LOG("part len dest allocation failed");
             return false;
         }
         ret = init_partial_pkt_dst(param->writedst, dst);
@@ -314,14 +208,17 @@ init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
         param->origdst = dst;
     } else if (param->indeterminate) {
         if (param->tag > 0xf) {
-            (void) fprintf(stderr,
-                           "init_streamed_packet: tag > 0xf for indeterminate packet\n");
+            RNP_LOG("indeterminate tag > 0xf");
         }
-        stream_write_indeterminate_pkt_tag(param->tag, dst);
+
+        bt = ((param->tag & 0xf) << PGP_PTAG_OF_CONTENT_TAG_SHIFT) |
+             PGP_PTAG_OLD_LEN_INDETERMINATE;
+        dst_write(dst, &bt, 1);
+
         param->writedst = dst;
         param->origdst = dst;
     } else {
-        (void) fprintf(stderr, "init_streamed_packet: wrong call\n");
+        RNP_LOG("wrong call");
         return false;
     }
 
@@ -338,45 +235,6 @@ close_streamed_packet(pgp_dest_packet_param_t *param, bool discard)
     }
 }
 
-static bool
-stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
-{
-    pgp_packet_body_t pktbody;
-    bool              res;
-
-    if (!init_packet_body(&pktbody, PGP_PTAG_CT_SK_SESSION_KEY)) {
-        return false;
-    }
-
-    res = add_packet_body_byte(&pktbody, 4) && add_packet_body_byte(&pktbody, skey->alg) &&
-          add_packet_body_byte(&pktbody, skey->s2k.specifier) &&
-          add_packet_body_byte(&pktbody, skey->s2k.hash_alg);
-
-    switch (skey->s2k.specifier) {
-    case PGP_S2KS_SIMPLE:
-        break;
-    case PGP_S2KS_SALTED:
-        res = res && add_packet_body(&pktbody, skey->s2k.salt, sizeof(skey->s2k.salt));
-        break;
-    case PGP_S2KS_ITERATED_AND_SALTED:
-        res = res && add_packet_body(&pktbody, skey->s2k.salt, sizeof(skey->s2k.salt)) &&
-              add_packet_body_byte(&pktbody, skey->s2k.iterations);
-        break;
-    }
-
-    if (skey->enckeylen > 0) {
-        res = res && add_packet_body(&pktbody, skey->enckey, skey->enckeylen);
-    }
-
-    if (res) {
-        flush_packet_body(&pktbody, dst);
-        return true;
-    } else {
-        free_packet_body(&pktbody);
-        return false;
-    }
-}
-
 static rnp_result_t
 encrypted_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
@@ -384,7 +242,7 @@ encrypted_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     size_t                      sz;
 
     if (!param) {
-        (void) fprintf(stderr, "encrypted_dst_write: wrong param\n");
+        RNP_LOG("wrong param");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -432,48 +290,166 @@ encrypted_dst_close(pgp_dest_t *dst, bool discard)
 }
 
 static rnp_result_t
-init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
+encrypted_add_recipient(pgp_write_handler_t *handler,
+                        pgp_dest_t *         dst,
+                        const char *         userid,
+                        const uint8_t *      key,
+                        const unsigned       keylen)
 {
-    pgp_dest_encrypted_param_t *param;
-    pgp_sk_sesskey_t            skey = {0};
-    pgp_crypt_t                 kcrypt;
-    int                         pkeycount = 0;
-    uint8_t                     enckey[PGP_MAX_KEY_SIZE];       /* content encryption key */
-    uint8_t                     s2key[PGP_MAX_KEY_SIZE];        /* s2k calculated key */
-    uint8_t                     enchdr[PGP_MAX_BLOCK_SIZE + 2]; /* encrypted header */
-    uint8_t                     mdcver = 1;
-    char                        passphrase[MAX_PASSPHRASE_LENGTH] = {0};
-    int                         keylen;
-    int                         blsize;
-    pgp_symm_alg_t              ealg; /* content encryption algorithm */
+    pgp_key_request_ctx_t       keyctx = {0};
+    pgp_key_t *                 userkey;
+    pgp_pubkey_t *              pubkey;
+    uint8_t                     enckey[PGP_MAX_KEY_SIZE + 3];
+    unsigned                    checksum = 0;
+    pgp_pk_sesskey_pkt_t        pkey = {0};
+    pgp_dest_encrypted_param_t *param = dst->param;
     rnp_result_t                ret = RNP_SUCCESS;
 
-    /* currently we implement only single-password symmetric encryption */
-
-    ealg = handler->ctx->ealg;
-    keylen = pgp_key_size(ealg);
-    if (!keylen) {
-        (void) fprintf(stderr, "init_encrypted_dst: unknown symmetric algorithm\n");
+    if (!handler->key_provider) {
+        RNP_LOG("no key provider");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if ((param = calloc(1, sizeof(*param))) == NULL) {
-        (void) fprintf(stderr, "init_encrypted_dst: allocation failed\n");
-        return RNP_ERROR_OUT_OF_MEMORY;
+    keyctx.op = PGP_OP_ENCRYPT_SYM;
+    keyctx.secret = false;
+    keyctx.stype = PGP_KEY_SEARCH_USERID;
+    keyctx.search.userid = userid;
+
+    /* Get the key if any */
+    if (!pgp_request_key(handler->key_provider, &keyctx, &userkey)) {
+        RNP_LOG("key for recipient '%s' not found", userid);
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    dst->param = param;
-    dst->write = encrypted_dst_write;
-    dst->close = encrypted_dst_close;
-    dst->type = PGP_STREAM_ENCRYPTED;
-    dst->writeb = 0;
-    dst->werr = RNP_SUCCESS;
-    param->has_mdc = true;
+    pubkey = &userkey->key.pubkey;
+    /* Fill pkey */
+    pkey.version = PGP_PKSK_V3;
+    pkey.alg = pubkey->alg;
+    if (!pgp_keyid(pkey.key_id, PGP_KEY_ID_SIZE, pubkey)) {
+        RNP_LOG("key id calculation failed");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
 
-    /* configuring and writing sym-encrypted session key */
+    /* Encrypt the session key */
+    enckey[0] = param->ealg;
+    memcpy(&enckey[1], key, keylen);
 
-    skey.version = 4;
-    skey.alg = ealg;
+    /* Calculate checksum */
+    for (int i = 1; i <= keylen; i++) {
+        checksum += enckey[i];
+    }
+    enckey[keylen + 1] = (checksum >> 8) & 0xff;
+    enckey[keylen + 2] = checksum & 0xff;
+
+    switch (pubkey->alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+        pkey.params.rsa.mlen = pgp_rsa_encrypt_pkcs1(
+          pkey.params.rsa.m, sizeof(pkey.params.rsa.m), enckey, keylen + 3, &pubkey->key.rsa);
+        if (pkey.params.rsa.mlen <= 0) {
+            RNP_LOG("pgp_rsa_encrypt_pkcs1 failed");
+            ret = RNP_ERROR_GENERIC;
+            goto finish;
+        }
+        break;
+    case PGP_PKA_SM2: {
+        size_t outlen = sizeof(pkey.params.sm2.m);
+        ret = pgp_sm2_encrypt(
+          pkey.params.sm2.m, &outlen, enckey, keylen + 3, PGP_HASH_SM3, &pubkey->key.ecc);
+
+        if (ret != RNP_SUCCESS) {
+            RNP_LOG("pgp_sm2_encrypt failed");
+            goto finish;
+        }
+
+        pkey.params.sm2.mlen = outlen;
+
+    } break;
+    case PGP_PKA_ECDH: {
+        pgp_fingerprint_t fingerprint;
+        size_t            outlen = sizeof(pkey.params.ecdh.m);
+        BIGNUM *          p;
+
+        if (!pgp_fingerprint(&fingerprint, pubkey)) {
+            RNP_LOG("ECDH fingerprint calculation failed");
+            ret = RNP_ERROR_GENERIC;
+            goto finish;
+        }
+
+        if (!(p = BN_new())) {
+            RNP_LOG("allocation failed");
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto finish;
+        }
+
+        ret = pgp_ecdh_encrypt_pkcs5(
+          enckey, keylen + 3, pkey.params.ecdh.m, &outlen, p, &pubkey->key.ecdh, &fingerprint);
+
+        if (ret != RNP_SUCCESS) {
+            RNP_LOG("ECDH encryption failed %d", ret);
+            BN_free(p);
+            goto finish;
+        }
+
+        pkey.params.ecdh.mlen = outlen;
+        pkey.params.ecdh.plen = BN_num_bytes(p);
+        BN_bn2bin(p, pkey.params.ecdh.p);
+        BN_free(p);
+    } break;
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
+        int outlen;
+
+        outlen = pgp_elgamal_public_encrypt_pkcs1(
+          pkey.params.eg.g, pkey.params.eg.m, enckey, keylen + 3, &pubkey->key.elgamal);
+        if (outlen <= 0) {
+            ret = RNP_ERROR_GENERIC;
+            RNP_LOG("pgp_elgamal_public_encrypt failed");
+            goto finish;
+        }
+
+        pkey.params.eg.glen = outlen / 2;
+        pkey.params.eg.mlen = outlen / 2;
+    } break;
+    default:
+        RNP_LOG("unsupported alg: %d", pubkey->alg);
+        goto finish;
+    }
+
+    /* Writing symmetric key encrypted session key packet */
+    if (!stream_write_pk_sesskey(&pkey, param->pkt.origdst)) {
+        ret = RNP_ERROR_WRITE;
+    }
+
+finish:
+    pgp_forget(enckey, sizeof(enckey));
+    pgp_forget(&checksum, sizeof(checksum));
+    return ret;
+}
+
+static rnp_result_t
+encrypted_add_passphrase(pgp_write_handler_t *handler,
+                         pgp_dest_t *         dst,
+                         uint8_t *            key,
+                         const unsigned       keylen,
+                         bool                 singlepass)
+{
+    pgp_sk_sesskey_t            skey = {0};
+    char                        passphrase[MAX_PASSPHRASE_LENGTH] = {0};
+    uint8_t                     s2key[PGP_MAX_KEY_SIZE]; /* s2k calculated key */
+    unsigned                    s2keylen;                /* length of the s2k key */
+    pgp_crypt_t                 kcrypt;
+    pgp_dest_encrypted_param_t *param = dst->param;
+    rnp_result_t                ret = RNP_SUCCESS;
+
+    skey.version = PGP_SKSK_V4;
+    /* Following algorithm may differ from ctx's one if not singlepass */
+    skey.alg = param->ealg;
+    if (singlepass) {
+        s2keylen = keylen;
+    } else if ((s2keylen = pgp_key_size(skey.alg)) == 0) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
     skey.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
     skey.s2k.iterations = pgp_s2k_encode_iterations(PGP_S2K_DEFAULT_ITERATIONS);
     skey.s2k.hash_alg =
@@ -484,29 +460,28 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
                                 &(pgp_passphrase_ctx_t){.op = PGP_OP_ENCRYPT_SYM, .key = NULL},
                                 passphrase,
                                 sizeof(passphrase))) {
-        (void) fprintf(stderr, "init_encrypted_dst: no encryption passphrase\n");
+        RNP_LOG("no encryption passphrase");
         ret = RNP_ERROR_BAD_PASSPHRASE;
         goto finish;
     }
 
-    if (!pgp_s2k_derive_key(&skey.s2k, passphrase, s2key, keylen)) {
-        (void) fprintf(stderr, "init_encrypted_dst: s2k failed\n");
+    if (!pgp_s2k_derive_key(&skey.s2k, passphrase, s2key, s2keylen)) {
+        RNP_LOG("s2k failed");
         ret = RNP_ERROR_GENERIC;
         goto finish;
     }
 
-    if (pkeycount == 0) {
+    if (singlepass) {
         /* if there are no public keys then we do not encrypt session key in the packet */
         skey.enckeylen = 0;
-        memcpy(enckey, s2key, keylen);
+        memcpy(key, s2key, s2keylen);
     } else {
         /* Currently we are using the same sym algo for key and stream encryption */
-        pgp_random(enckey, keylen);
         skey.enckeylen = keylen + 1;
-        skey.enckey[0] = skey.alg;
-        memcpy(&skey.enckey[1], enckey, keylen);
-        if (!pgp_cipher_start(&kcrypt, skey.alg, s2key, NULL)) {
-            (void) fprintf(stderr, "init_encrypted_dst: key encryption failed\n");
+        skey.enckey[0] = param->ealg;
+        memcpy(&skey.enckey[1], key, keylen);
+        if (!pgp_cipher_start(&kcrypt, param->ealg, s2key, NULL)) {
+            RNP_LOG("key encryption failed");
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto finish;
         }
@@ -514,11 +489,83 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         pgp_cipher_finish(&kcrypt);
     }
 
-    /* writing session key packet */
-    if (!stream_write_sk_sesskey(&skey, writedst)) {
-        goto finish;
+    /* Writing symmetric key encrypted session key packet */
+    if (!stream_write_sk_sesskey(&skey, param->pkt.origdst)) {
+        ret = RNP_ERROR_WRITE;
     }
 
+finish:
+    pgp_forget(s2key, sizeof(s2key));
+    pgp_forget(passphrase, sizeof(passphrase));
+    return ret;
+}
+
+static rnp_result_t
+init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
+{
+    pgp_dest_encrypted_param_t *param;
+    bool                        singlepass = true;
+    unsigned                    pkeycount = 0;
+    uint8_t                     enckey[PGP_MAX_KEY_SIZE] = {0}; /* content encryption key */
+    uint8_t                     s2key[PGP_MAX_KEY_SIZE];        /* s2k calculated key */
+    uint8_t                     enchdr[PGP_MAX_BLOCK_SIZE + 2]; /* encrypted header */
+    uint8_t                     mdcver = 1;
+    char                        passphrase[MAX_PASSPHRASE_LENGTH] = {0};
+    unsigned                    keylen;
+    unsigned                    blsize;
+    rnp_result_t                ret = RNP_SUCCESS;
+
+    /* currently we implement only single-password symmetric encryption */
+
+    keylen = pgp_key_size(handler->ctx->ealg);
+    if (!keylen) {
+        RNP_LOG("unknown symmetric algorithm");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if ((param = calloc(1, sizeof(*param))) == NULL) {
+        RNP_LOG("allocation failed");
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    dst->param = param;
+    dst->write = encrypted_dst_write;
+    dst->close = encrypted_dst_close;
+    dst->type = PGP_STREAM_ENCRYPTED;
+    dst->writeb = 0;
+    dst->werr = RNP_SUCCESS;
+    param->has_mdc = true;
+    param->ealg = handler->ctx->ealg;
+    param->pkt.origdst = writedst;
+
+    pkeycount = list_length(handler->ctx->recipients);
+    if ((pkeycount > 0) || (handler->ctx->passwordc > 1)) {
+        pgp_random(enckey, keylen);
+        singlepass = false;
+    }
+
+    /* Configuring and writing pk-encrypted session keys */
+    if (pkeycount > 0) {
+        list_item *userid = list_front(handler->ctx->recipients);
+        while (userid) {
+            ret = encrypted_add_recipient(handler, dst, (char *) userid, enckey, keylen);
+            if (ret != RNP_SUCCESS) {
+                goto finish;
+            }
+
+            userid = list_next(userid);
+        }
+    }
+
+    /* Configuring and writing sk-encrypted session key(s) */
+    for (int i = 0; i < handler->ctx->passwordc; i++) {
+        ret = encrypted_add_passphrase(handler, dst, enckey, keylen, singlepass);
+        if (ret != RNP_SUCCESS) {
+            goto finish;
+        }
+    }
+
+    /* Initializing partial packet writer */
     param->pkt.partial = true;
     param->pkt.indeterminate = false;
     param->pkt.tag = param->has_mdc ? PGP_PTAG_CT_SE_IP_DATA : PGP_PTAG_CT_SE_DATA;
@@ -526,7 +573,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     /* initializing partial data length writer */
     /* we may use intederminate len packet here as well, for compatibility or so on */
     if (!init_streamed_packet(&param->pkt, writedst)) {
-        (void) fprintf(stderr, "init_encrypted_dst: failed to init streamed packet\n");
+        RNP_LOG("failed to init streamed packet");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }
@@ -536,20 +583,20 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         dst_write(param->pkt.writedst, &mdcver, 1);
 
         if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
-            (void) fprintf(stderr, "init_encrypted_dst: cannot create sha1 hash\n");
+            RNP_LOG("cannot create sha1 hash");
             ret = RNP_ERROR_GENERIC;
             goto finish;
         }
     }
 
     /* initializing the crypto */
-    if (!pgp_cipher_start(&param->encrypt, ealg, enckey, NULL)) {
+    if (!pgp_cipher_start(&param->encrypt, param->ealg, enckey, NULL)) {
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }
 
     /* generating and writing iv/password check bytes */
-    blsize = pgp_block_size(ealg);
+    blsize = pgp_block_size(param->ealg);
     pgp_random(enchdr, blsize);
     enchdr[blsize] = enchdr[blsize - 2];
     enchdr[blsize + 1] = enchdr[blsize - 1];
@@ -582,7 +629,7 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     int                          zret;
 
     if (!param) {
-        (void) fprintf(stderr, "compressed_dst_write: wrong param\n");
+        RNP_LOG("wrong param");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -596,7 +643,7 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
             zret = deflate(&param->z, Z_NO_FLUSH);
             /* Z_OK, Z_BUF_ERROR are ok for us, Z_STREAM_END will not happen here */
             if (zret == Z_STREAM_ERROR) {
-                (void) fprintf(stderr, "compressed_dst_write: wrong deflate state\n");
+                RNP_LOG("wrong deflate state");
                 return RNP_ERROR_BAD_STATE;
             }
 
@@ -621,7 +668,7 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         while (param->bz.avail_in > 0) {
             zret = BZ2_bzCompress(&param->bz, BZ_RUN);
             if (zret < 0) {
-                (void) fprintf(stderr, "compressed_dst_write: error %d\n", zret);
+                RNP_LOG("error %d", zret);
                 return RNP_ERROR_BAD_STATE;
             }
 
@@ -640,7 +687,7 @@ compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         return RNP_ERROR_NOT_IMPLEMENTED;
 #endif
     } else {
-        (void) fprintf(stderr, "compressed_dst_write: unknown algorithm\n");
+        RNP_LOG("unknown algorithm");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 }
@@ -665,7 +712,7 @@ compressed_dst_close(pgp_dest_t *dst, bool discard)
                 zret = deflate(&param->z, Z_FINISH);
 
                 if (zret == Z_STREAM_ERROR) {
-                    (void) fprintf(stderr, "compressed_dst_close: wrong deflate state\n");
+                    RNP_LOG("wrong deflate state");
                     break;
                 }
 
@@ -689,8 +736,7 @@ compressed_dst_close(pgp_dest_t *dst, bool discard)
             do {
                 zret = BZ2_bzCompress(&param->bz, BZ_FINISH);
                 if (zret < 0) {
-                    (void) fprintf(
-                      stderr, "compressed_dst_write: wrong bzip2 state %d\n", zret);
+                    RNP_LOG("wrong bzip2 state %d", zret);
                     dst->werr = RNP_ERROR_BAD_STATE;
                     return;
                 }
@@ -735,7 +781,7 @@ init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *w
 
     /* setting up param */
     if ((param = calloc(1, sizeof(*param))) == NULL) {
-        (void) fprintf(stderr, "init_compressed_dst: allocation failed\n");
+        RNP_LOG("allocation failed");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -753,7 +799,7 @@ init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *w
 
     /* initializing partial length or indeterminate packet, writing header */
     if (!init_streamed_packet(&param->pkt, writedst)) {
-        (void) fprintf(stderr, "init_compressed_dst: failed to init streamed packet\n");
+        RNP_LOG("failed to init streamed packet");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }
@@ -775,8 +821,7 @@ init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *w
         }
 
         if (zret != Z_OK) {
-            (void) fprintf(
-              stderr, "init_compressed_dst: failed to init zlib, error %d\n", zret);
+            RNP_LOG("failed to init zlib, error %d", zret);
             ret = RNP_ERROR_NOT_SUPPORTED;
             goto finish;
         }
@@ -786,14 +831,14 @@ init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *w
         (void) memset(&param->bz, 0x0, sizeof(param->bz));
         zret = BZ2_bzCompressInit(&param->bz, handler->ctx->zlevel, 0, 0);
         if (zret != BZ_OK) {
-            (void) fprintf(stderr, "init_compressed_dst: failed to init bz, error %d\n", zret);
+            RNP_LOG("failed to init bz, error %d", zret);
             ret = RNP_ERROR_NOT_SUPPORTED;
             goto finish;
         }
         break;
 #endif
     default:
-        (void) fprintf(stderr, "init_compressed_dst: unknown compression algorithm\n");
+        RNP_LOG("unknown compression algorithm");
         ret = RNP_ERROR_NOT_SUPPORTED;
         goto finish;
     }
@@ -813,7 +858,7 @@ literal_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     pgp_dest_packet_param_t *param = dst->param;
 
     if (!param) {
-        (void) fprintf(stderr, "literal_dst_write: wrong param\n");
+        RNP_LOG("wrong param");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -844,7 +889,7 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
     uint8_t                  buf[4];
 
     if ((param = calloc(1, sizeof(*param))) == NULL) {
-        (void) fprintf(stderr, "init_literal_dst: allocation failed\n");
+        RNP_LOG("allocation failed");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -860,7 +905,7 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
 
     /* initializing partial length or indeterminate packet, writing header */
     if (!init_streamed_packet(param, writedst)) {
-        (void) fprintf(stderr, "init_literal_dst: failed to init streamed packet\n");
+        RNP_LOG("failed to init streamed packet");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }
@@ -870,7 +915,7 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
     if (handler->ctx->filename) {
         flen = strlen(handler->ctx->filename);
         if (flen > 255) {
-            (void) fprintf(stderr, "init_literal_dst: filename too long, truncating\n");
+            RNP_LOG("filename too long, truncating");
             flen = 255;
         }
     } else {
@@ -948,7 +993,7 @@ rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst
     while (!src->eof) {
         read = src_read(src, readbuf, sizeof(readbuf));
         if (read < 0) {
-            (void) fprintf(stderr, "rnp_encrypt_src: failed to read from source\n");
+            RNP_LOG("failed to read from source");
             ret = RNP_ERROR_READ;
             goto finish;
         }
@@ -958,7 +1003,7 @@ rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst
 
             for (int i = destc - 1; i >= 0; i--) {
                 if (dests[i].werr != RNP_SUCCESS) {
-                    (void) fprintf(stderr, "rnp_encrypt_src: failed to process data\n");
+                    RNP_LOG("failed to process data");
                     ret = RNP_ERROR_WRITE;
                     goto finish;
                 }

@@ -445,7 +445,7 @@ typedef enum {
     PGP_C_BZIP2 = 3
 } pgp_compression_type_t;
 
-enum { PGP_SE_IP_DATA_VERSION = 1, PGP_PKSK_V3 = 3 };
+enum { PGP_SE_IP_DATA_VERSION = 1, PGP_PKSK_V3 = 3, PGP_SKSK_V4 = 4 };
 
 /** Version.
  * OpenPGP has two different protocol versions: version 3 and version 4.

@@ -41,6 +41,7 @@
 #include "defs.h"
 #include "types.h"
 #include "symmetric.h"
+#include "utils.h"
 
 ssize_t
 src_read(pgp_source_t *src, void *buf, size_t len)
@@ -125,7 +126,9 @@ src_peek(pgp_source_t *src, void *buf, size_t len)
     }
 
     if (cache->len - cache->pos >= len) {
-        memcpy(buf, &cache->buf[cache->pos], len);
+        if (buf) {
+            memcpy(buf, &cache->buf[cache->pos], len);
+        }
         return len;
     }
 
@@ -138,14 +141,18 @@ src_peek(pgp_source_t *src, void *buf, size_t len)
     while (cache->len < len) {
         read = src->read(src, &cache->buf[cache->len], sizeof(cache->buf) - cache->len);
         if (read == 0) {
-            memcpy(buf, &cache->buf[0], cache->len);
+            if (buf) {
+                memcpy(buf, &cache->buf[0], cache->len);
+            }
             return cache->len;
         } else if (read < 0) {
             return -1;
         } else {
             cache->len += read;
             if (cache->len >= len) {
-                memcpy(buf, &cache->buf[0], len);
+                if (buf) {
+                    memcpy(buf, &cache->buf[0], len);
+                }
                 return len;
             }
         }
@@ -251,7 +258,7 @@ init_file_src(pgp_source_t *src, const char *path)
     pgp_source_file_param_t *param;
 
     if (stat(path, &st) != 0) {
-        (void) fprintf(stderr, "can't stat \"%s\"\n", path);
+        RNP_LOG("can't stat '%s'", path);
         return RNP_ERROR_READ;
     }
 
@@ -261,7 +268,7 @@ init_file_src(pgp_source_t *src, const char *path)
     fd = open(path, O_RDONLY);
 #endif
     if (fd < 0) {
-        (void) fprintf(stderr, "can't open \"%s\"\n", path);
+        RNP_LOG("can't open '%s'", path);
         return RNP_ERROR_READ;
     }
 
@@ -340,7 +347,7 @@ file_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     pgp_dest_file_param_t *param = dst->param;
 
     if (!param) {
-        (void) fprintf(stderr, "file_dst_write: wrong param\n");
+        RNP_LOG("wrong param");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -348,7 +355,7 @@ file_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     ret = write(param->fd, buf, len);
     if (ret < 0) {
         param->errcode = errno;
-        (void) fprintf(stderr, "file_dst_write: write failed, error %d\n", param->errcode);
+        RNP_LOG("write failed, error %d", param->errcode);
         return RNP_ERROR_WRITE;
     } else {
         param->errcode = 0;
@@ -384,7 +391,7 @@ init_file_dest(pgp_dest_t *dst, const char *path)
     pgp_dest_file_param_t *param;
 
     if (strlen(path) > sizeof(param->path)) {
-        (void) fprintf(stderr, "init_file_dest: path too long\n");
+        RNP_LOG("path too long");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -393,7 +400,7 @@ init_file_dest(pgp_dest_t *dst, const char *path)
     }
 
     if (stat(path, &st) == 0) {
-        (void) fprintf(stderr, "init_file_dest: file already exists: \"%s\"\n", path);
+        RNP_LOG("file already exists: '%s'", path);
         return RNP_ERROR_WRITE;
     }
 
@@ -403,7 +410,7 @@ init_file_dest(pgp_dest_t *dst, const char *path)
 #endif
     fd = open(path, flags, 0600);
     if (fd < 0) {
-        (void) fprintf(stderr, "init_file_dest: failed to create file '%s'\n", path);
+        RNP_LOG("failed to create file '%s'", path);
         return false;
     }
 

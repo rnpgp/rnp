@@ -27,6 +27,7 @@
 #include "config.h"
 #include "stream-parse.h"
 #include "stream-armour.h"
+#include "stream-packet.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -43,6 +44,9 @@
 #include "types.h"
 #include "symmetric.h"
 #include "crypto/s2k.h"
+#include "crypto/sm2.h"
+#include "fingerprint.h"
+#include "pgp-key.h"
 #include "signature.h"
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
@@ -66,12 +70,12 @@ typedef struct pgp_source_packet_param_t {
 } pgp_source_packet_param_t;
 
 typedef struct pgp_source_encrypted_param_t {
-    pgp_source_packet_param_t pkt;      /* underlying packet-related params */
-    DYNARRAY(pgp_sk_sesskey_t, symenc); /* array of sym-encrypted session keys */
-    DYNARRAY(pgp_pk_sesskey_t, pubenc); /* array of pk-encrypted session keys */
-    bool        has_mdc;                /* encrypted with mdc, i.e. tag 18 */
-    pgp_crypt_t decrypt;                /* decrypting crypto */
-    pgp_hash_t  mdc;                    /* mdc SHA1 hash */
+    pgp_source_packet_param_t pkt;          /* underlying packet-related params */
+    DYNARRAY(pgp_sk_sesskey_t, symenc);     /* array of sym-encrypted session keys */
+    DYNARRAY(pgp_pk_sesskey_pkt_t, pubenc); /* array of pk-encrypted session keys */
+    bool        has_mdc;                    /* encrypted with mdc, i.e. tag 18 */
+    pgp_crypt_t decrypt;                    /* decrypting crypto */
+    pgp_hash_t  mdc;                        /* mdc SHA1 hash */
 } pgp_source_encrypted_param_t;
 
 typedef struct pgp_source_compressed_param_t {
@@ -102,77 +106,8 @@ typedef struct pgp_source_partial_param_t {
     bool          last;    /* current part is last */
 } pgp_source_partial_param_t;
 
-static int
-stream_packet_type(uint8_t ptag)
-{
-    if (!(ptag & PGP_PTAG_ALWAYS_SET)) {
-        return -1;
-    }
-
-    if (ptag & PGP_PTAG_NEW_FORMAT) {
-        return (int) (ptag & PGP_PTAG_NF_CONTENT_TAG_MASK);
-    } else {
-        return (int) ((ptag & PGP_PTAG_OF_CONTENT_TAG_MASK) >> PGP_PTAG_OF_CONTENT_TAG_SHIFT);
-    }
-}
-
-/** @brief Read packet len for fixed-size (say, small) packet. Returns -1 on error.
- *  We do not allow partial length here as well as large packets (so ignoring possible 32 bit
- *int overflow)
- **/
-static ssize_t
-stream_read_pkt_len(pgp_source_t *src)
-{
-    uint8_t buf[6];
-    ssize_t read;
-
-    read = src_read(src, buf, 2);
-    if ((read < 2) || !(buf[0] & PGP_PTAG_ALWAYS_SET)) {
-        return -1;
-    }
-
-    if (buf[0] & PGP_PTAG_NEW_FORMAT) {
-        if (buf[1] < 192) {
-            return (ssize_t) buf[1];
-        } else if (buf[1] < 224) {
-            if (src_read(src, &buf[2], 1) < 1) {
-                return -1;
-            }
-            return ((ssize_t)(buf[1] - 192) << 8) + (ssize_t) buf[2] + 192;
-        } else if (buf[1] < 255) {
-            // we do not allow partial length here
-            return -1;
-        } else {
-            if (src_read(src, &buf[2], 4) < 4) {
-                return -1;
-            } else {
-                return ((ssize_t) buf[2] << 24) | ((ssize_t) buf[3] << 16) |
-                       ((ssize_t) buf[4] << 8) | (ssize_t) buf[5];
-            }
-        }
-    } else {
-        switch (buf[0] & PGP_PTAG_OF_LENGTH_TYPE_MASK) {
-        case PGP_PTAG_OLD_LEN_1:
-            return (ssize_t) buf[1];
-        case PGP_PTAG_OLD_LEN_2:
-            if (src_read(src, &buf[2], 1) < 1) {
-                return -1;
-            }
-            return ((ssize_t) buf[1] << 8) | ((ssize_t) buf[2]);
-        case PGP_PTAG_OLD_LEN_4:
-            if (src_read(src, &buf[2], 3) < 3) {
-                return -1;
-            }
-            return ((ssize_t) buf[1] << 24) | ((ssize_t) buf[2] << 16) |
-                   ((ssize_t) buf[3] << 8) | (ssize_t) buf[4];
-        default:
-            return -1;
-        }
-    }
-}
-
 static size_t
-stream_part_len(uint8_t blen)
+get_part_len(uint8_t blen)
 {
     return 1 << (blen & 0x1f);
 }
@@ -225,27 +160,27 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len)
             // reading next chunk
             read = src_read(param->readsrc, hdr, 1);
             if (read < 0) {
-                (void) fprintf(stderr, "partial_src_read: failed to read header\n");
+                RNP_LOG("failed to read header");
                 return read;
             } else if (read < 1) {
-                (void) fprintf(stderr, "partial_src_read: wrong eof\n");
+                RNP_LOG("wrong eof");
                 return -1;
             }
             if ((hdr[0] >= 224) && (hdr[0] < 255)) {
-                param->psize = stream_part_len(hdr[0]);
+                param->psize = get_part_len(hdr[0]);
                 param->pleft = param->psize;
             } else {
                 if (hdr[0] < 192) {
                     read = hdr[0];
                 } else if (hdr[0] < 224) {
                     if (src_read(param->readsrc, &hdr[1], 1) < 1) {
-                        (void) fprintf(stderr, "partial_src_read: wrong 2-byte length\n");
+                        RNP_LOG("wrong 2-byte length");
                         return -1;
                     }
                     read = ((ssize_t)(hdr[0] - 192) << 8) + (ssize_t) hdr[1] + 192;
                 } else {
                     if (src_read(param->readsrc, &hdr[1], 4) < 4) {
-                        (void) fprintf(stderr, "partial_src_read: wrong 4-byte length\n");
+                        RNP_LOG("wrong 4-byte length");
                         return -1;
                     }
                     read = ((ssize_t) hdr[1] << 24) | ((ssize_t) hdr[2] << 16) |
@@ -264,10 +199,10 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len)
         read = param->pleft > len ? len : param->pleft;
         read = src_read(param->readsrc, buf, read);
         if (read == 0) {
-            (void) fprintf(stderr, "partial_src_read: unexpected eof\n");
+            RNP_LOG("unexpected eof");
             return write;
         } else if (read < 0) {
-            (void) fprintf(stderr, "partial_src_read: failed to read data chunk\n");
+            RNP_LOG("failed to read data chunk");
             return -1;
         } else {
             write += read;
@@ -301,7 +236,7 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
     uint8_t                     buf[2];
 
     if (!stream_partial_pkt_len(readsrc)) {
-        (void) fprintf(stderr, "init_partial_src: wrong call on non-partial len packet\n");
+        RNP_LOG("wrong call on non-partial len packet");
         return RNP_ERROR_BAD_FORMAT;
     }
 
@@ -312,8 +247,8 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
     /* we are sure that there are 2 bytes in readsrc */
     param = src->param;
     (void) src_read(readsrc, buf, 2);
-    param->type = stream_packet_type(buf[0]);
-    param->psize = stream_part_len(buf[1]);
+    param->type = get_packet_type(buf[0]);
+    param->psize = get_part_len(buf[1]);
     param->pleft = param->psize;
     param->last = false;
     param->readsrc = readsrc;
@@ -384,7 +319,7 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len)
             if (param->z.avail_in == 0) {
                 read = src_read(param->pkt.readsrc, param->in, sizeof(param->in));
                 if (read < 0) {
-                    (void) fprintf(stderr, "compressed_src_read: failed to read data\n");
+                    RNP_LOG("failed to read data");
                     return -1;
                 }
                 param->z.next_in = param->in;
@@ -396,11 +331,10 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len)
             if (ret == Z_STREAM_END) {
                 param->zend = true;
                 if (param->z.avail_in > 0) {
-                    (void) fprintf(stderr,
-                                   "compressed_src_read: data beyond the end of z stream\n");
+                    RNP_LOG("data beyond the end of z stream");
                 }
             } else if (ret != Z_OK) {
-                (void) fprintf(stderr, "compressed_src_read: inflate error %d\n", ret);
+                RNP_LOG("inflate error %d", ret);
                 return -1;
             }
         }
@@ -419,7 +353,7 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len)
             if (param->bz.avail_in == 0) {
                 read = src_read(param->pkt.readsrc, param->in, sizeof(param->in));
                 if (read < 0) {
-                    (void) fprintf(stderr, "compressed_src_read: failed to read data\n");
+                    RNP_LOG("failed to read data");
                     return -1;
                 }
                 param->bz.next_in = (char *) param->in;
@@ -431,11 +365,10 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len)
             if (ret == BZ_STREAM_END) {
                 param->zend = true;
                 if (param->bz.avail_in > 0) {
-                    (void) fprintf(stderr,
-                                   "compressed_src_read: data beyond the end of z stream\n");
+                    RNP_LOG("data beyond the end of z stream");
                 }
             } else if (ret != BZ_OK) {
-                (void) fprintf(stderr, "compressed_src_read: inflate error %d\n", ret);
+                RNP_LOG("inflate error %d", ret);
                 return -1;
             }
         }
@@ -507,7 +440,7 @@ encrypted_src_read(pgp_source_t *src, void *buf, size_t len)
         mdcread = src_peek(param->pkt.readsrc, mdcbuf, MDC_V1_SIZE);
         if (mdcread < MDC_V1_SIZE) {
             if ((mdcread < 0) || (mdcread + read < MDC_V1_SIZE)) {
-                (void) fprintf(stderr, "encrypted_src_read: wrong mdc read state\n");
+                RNP_LOG("wrong mdc read state");
                 return -1;
             }
 
@@ -531,12 +464,12 @@ encrypted_src_read(pgp_source_t *src, void *buf, size_t len)
             pgp_hash_finish(&param->mdc, hash);
 
             if ((mdcbuf[0] != MDC_PKT_TAG) || (mdcbuf[1] != MDC_V1_SIZE - 2)) {
-                (void) fprintf(stderr, "encrypted_src_read: mdc header check failed\n");
+                RNP_LOG("mdc header check failed");
                 return -1;
             }
 
             if (memcmp(&mdcbuf[2], hash, PGP_SHA1_HASH_SIZE) != 0) {
-                (void) fprintf(stderr, "encrypted_src_read: mdc hash check failed\n");
+                RNP_LOG("mdc hash check failed");
                 return -1;
             }
         }
@@ -568,114 +501,178 @@ encrypted_src_close(pgp_source_t *src)
     }
 }
 
-static rnp_result_t
-stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
+static bool
+encrypted_decrypt_header(pgp_source_t *src, pgp_symm_alg_t alg, uint8_t *key)
 {
-    ssize_t len;
+    pgp_source_encrypted_param_t *param = src->param;
+    pgp_crypt_t                   crypt;
+    uint8_t                       enchdr[PGP_MAX_BLOCK_SIZE + 2];
+    unsigned                      blsize;
 
-    len = stream_read_pkt_len(src);
-    if (len < 0) {
-        return RNP_ERROR_READ;
+    if (!(blsize = pgp_block_size(alg))) {
+        return false;
     }
 
-    (void) fprintf(stderr, "skipping public key encrypted session key\n");
-    src_skip(src, len);
-    return RNP_SUCCESS;
+    /* reading encrypted header to check the password validity */
+    if (src_peek(param->pkt.readsrc, enchdr, blsize + 2) < blsize + 2) {
+        RNP_LOG("failed to read encrypted header");
+        return false;
+    }
+
+    /* having symmetric key in keybuf let's decrypt blocksize + 2 bytes and check them */
+    if (!pgp_cipher_start(&crypt, alg, key, NULL)) {
+        RNP_LOG("failed to start cipher");
+        return false;
+    }
+
+    pgp_cipher_cfb_decrypt(&crypt, enchdr, enchdr, blsize + 2);
+    if ((enchdr[blsize] == enchdr[blsize - 2]) && (enchdr[blsize + 1] == enchdr[blsize - 1])) {
+        src_skip(param->pkt.readsrc, blsize + 2);
+        param->decrypt = crypt;
+        /* init mdc if it is here */
+        /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB
+         * resynchronization is done after encrypting this prefix data. */
+        if (!param->has_mdc) {
+            pgp_cipher_cfb_resync(&param->decrypt);
+        } else {
+            if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
+                pgp_cipher_finish(&crypt);
+                RNP_LOG("cannot create sha1 hash");
+                return false;
+            }
+
+            pgp_hash_add(&param->mdc, enchdr, blsize + 2);
+        }
+
+        return true;
+    } else {
+        return false;
+    }
 }
 
-static rnp_result_t
-stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
+static bool
+encrypted_try_key(pgp_source_t *src, pgp_pk_sesskey_pkt_t *sesskey, pgp_seckey_t *seckey)
 {
-    uint8_t buf[4];
-    ssize_t len;
-    ssize_t read;
+    uint8_t           decbuf[PGP_MPINT_SIZE];
+    rnp_result_t      err;
+    size_t            declen;
+    size_t            keylen;
+    pgp_fingerprint_t fingerprint;
+    pgp_symm_alg_t    salg;
+    unsigned          checksum = 0;
+    bool              res = false;
+    BIGNUM *          ecdh_p;
 
-    // read packet length
-    len = stream_read_pkt_len(src);
-    if (len < 0) {
-        return RNP_ERROR_READ;
-    } else if (len < 4) {
-        return RNP_ERROR_BAD_FORMAT;
-    }
-
-    // version + symalg + s2k type + hash alg
-    if ((read = src_read(src, buf, 4)) < 4) {
-        return RNP_ERROR_READ;
-    }
-
-    // version
-    skey->version = buf[0];
-    if (skey->version != 4) {
-        (void) fprintf(stderr, "stream_parse_sk_sesskey: wrong packet version\n");
-        return RNP_ERROR_BAD_FORMAT;
-    }
-
-    // symmetric algorithm
-    skey->alg = buf[1];
-
-    // s2k
-    skey->s2k.specifier = buf[2];
-    skey->s2k.hash_alg = buf[3];
-    len -= 4;
-
-    switch (skey->s2k.specifier) {
-    case PGP_S2KS_SIMPLE:
+    /* Decrypting session key value */
+    switch (sesskey->alg) {
+    case PGP_PKA_RSA:
+        declen = pgp_rsa_decrypt_pkcs1(decbuf,
+                                       sizeof(decbuf),
+                                       sesskey->params.rsa.m,
+                                       sesskey->params.rsa.mlen,
+                                       &seckey->key.rsa,
+                                       &seckey->pubkey.key.rsa);
+        if (declen <= 0) {
+            RNP_LOG("RSA decryption failure");
+            return false;
+        }
         break;
-    case PGP_S2KS_SALTED:
-    case PGP_S2KS_ITERATED_AND_SALTED:
-        // salt
-        if (len < PGP_SALT_SIZE) {
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        if (src_read(src, skey->s2k.salt, PGP_SALT_SIZE) != PGP_SALT_SIZE) {
-            return RNP_ERROR_READ;
-        }
-        len -= PGP_SALT_SIZE;
+    case PGP_PKA_SM2:
+        declen = sizeof(decbuf);
+        err = pgp_sm2_decrypt(decbuf,
+                              &declen,
+                              sesskey->params.sm2.m,
+                              sesskey->params.sm2.mlen,
+                              &seckey->key.ecc,
+                              &seckey->pubkey.key.ecc);
 
-        // iterations
-        if (skey->s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-            if (len < 1) {
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            if (src_read(src, buf, 1) != 1) {
-                return RNP_ERROR_READ;
-            }
-            skey->s2k.iterations = (unsigned) buf[0];
-            len--;
+        if (err != RNP_SUCCESS) {
+            RNP_LOG("SM2 decryption failure, error %x", (int) err);
+            return false;
+        }
+        break;
+    case PGP_PKA_ELGAMAL:
+        declen = pgp_elgamal_private_decrypt_pkcs1(decbuf,
+                                                   sesskey->params.eg.g,
+                                                   sesskey->params.eg.m,
+                                                   sesskey->params.eg.mlen,
+                                                   &seckey->key.elgamal,
+                                                   &seckey->pubkey.key.elgamal);
+        if (declen <= 0) {
+            RNP_LOG("ElGamal decryption failure");
+            return false;
+        }
+        break;
+    case PGP_PKA_ECDH:
+        declen = sizeof(decbuf);
+
+        if (!pgp_fingerprint(&fingerprint, &seckey->pubkey)) {
+            RNP_LOG("ECDH fingerprint calculation failed");
+            return false;
+        }
+        ecdh_p = BN_bin2bn(sesskey->params.ecdh.p, sesskey->params.ecdh.plen, NULL);
+
+        err = pgp_ecdh_decrypt_pkcs5(decbuf,
+                                     &declen,
+                                     sesskey->params.ecdh.m,
+                                     sesskey->params.ecdh.mlen,
+                                     ecdh_p,
+                                     &seckey->key.ecc,
+                                     &seckey->pubkey.key.ecdh,
+                                     &fingerprint);
+        BN_free(ecdh_p);
+
+        if (err != RNP_SUCCESS) {
+            RNP_LOG("ECDH decryption error %u", err);
+            return false;
         }
         break;
     default:
-        (void) fprintf(stderr, "stream_parse_sk_sesskey: wrong s2k specifier\n");
-        return RNP_ERROR_BAD_FORMAT;
+        RNP_LOG("unsupported public key algorithm %d\n", seckey->pubkey.alg);
+        return false;
     }
 
-    // encrypted session key if present
-    if (len > 0) {
-        if (len > PGP_MAX_KEY_SIZE + 1) {
-            (void) fprintf(stderr,
-                           "stream_parse_sk_sesskey: too long encrypted session key\n");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        if (src_read(src, skey->enckey, len) != len) {
-            return RNP_ERROR_READ;
-        }
-        skey->enckeylen = len;
-    } else {
-        skey->enckeylen = 0;
+    /* Check algorithm and key length */
+    salg = decbuf[0];
+    if (!pgp_is_sa_supported(salg)) {
+        RNP_LOG("unsupported symmetric algorithm %d", (int) salg);
+        return false;
     }
 
-    return RNP_SUCCESS;
+    keylen = pgp_key_size(salg);
+    if (declen != keylen + 3) {
+        RNP_LOG("invalid symmetric key length");
+        return false;
+    }
+
+    /* Validate checksum */
+    for (int i = 1; i <= keylen; i++) {
+        checksum += decbuf[i];
+    }
+
+    if ((checksum & 0xffff) != (decbuf[keylen + 2] | ((unsigned) decbuf[keylen + 1] << 8))) {
+        RNP_LOG("wrong checksum\n");
+        goto finish;
+    }
+
+    /* Decrypt header */
+    res = encrypted_decrypt_header(src, salg, &decbuf[1]);
+
+finish:
+    pgp_forget(&checksum, sizeof(checksum));
+    pgp_forget(decbuf, sizeof(decbuf));
+
+    return res;
 }
 
 static int
-encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
+encrypted_try_passphrase(pgp_source_t *src, const char *passphrase)
 {
     pgp_source_encrypted_param_t *param = src->param;
     pgp_sk_sesskey_t *            symkey;
     pgp_crypt_t                   crypt;
     pgp_symm_alg_t                alg;
     uint8_t                       keybuf[PGP_MAX_KEY_SIZE + 1];
-    uint8_t                       enchdr[PGP_MAX_BLOCK_SIZE + 2];
     int                           keysize;
     int                           blsize;
     bool                          keyavail = false;
@@ -715,43 +712,17 @@ encrypted_check_passphrase(pgp_source_t *src, const char *passphrase)
             keyavail = true;
         }
 
-        /* reading encrypted header to check the password validity */
-        if (src_peek(param->pkt.readsrc, enchdr, blsize + 2) < blsize + 2) {
+        /* decrypting header and checking key validity */
+        if (!encrypted_decrypt_header(src, alg, keybuf)) {
             continue;
         }
-        /* having symmetric key in keybuf let's decrypt blocksize + 2 bytes and check them */
-        if (!pgp_cipher_start(&crypt, alg, keybuf, NULL)) {
-            continue;
-        }
-        pgp_cipher_cfb_decrypt(&crypt, enchdr, enchdr, blsize + 2);
-        if ((enchdr[blsize] == enchdr[blsize - 2]) &&
-            (enchdr[blsize + 1] == enchdr[blsize - 1])) {
-            src_skip(param->pkt.readsrc, blsize + 2);
-            param->decrypt = crypt;
-            /* init mdc if it is here */
-            /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB
-             * resynchronization is done after encrypting this prefix data. */
-            if (!param->has_mdc) {
-                pgp_cipher_cfb_resync(&param->decrypt);
-            } else {
-                if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
-                    (void) fprintf(stderr, "%s: cannot create sha1 hash\n", __func__);
-                    res = -1;
-                    goto finish;
-                }
-                pgp_hash_add(&param->mdc, enchdr, blsize + 2);
-            }
 
-            res = 1;
-            goto finish;
-        } else {
-            pgp_cipher_finish(&crypt);
-            continue;
-        }
+        res = 1;
+        goto finish;
     }
 
     if (!keyavail) {
-        (void) fprintf(stderr, "%s: no supported sk available\n", __func__);
+        RNP_LOG("no supported sk available");
         res = -1;
     } else {
         res = 0;
@@ -790,7 +761,7 @@ init_packet_params(pgp_source_t *src, pgp_source_packet_param_t *param)
     } else {
         len = stream_read_pkt_len(param->readsrc);
         if (len < 0) {
-            (void) fprintf(stderr, "init_packet_params: cannot read pkt len\n");
+            RNP_LOG("cannot read pkt len");
             return RNP_ERROR_BAD_FORMAT;
         }
         src->size = len;
@@ -828,7 +799,7 @@ init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *rea
 
     /* data format */
     if (src_read(param->pkt.readsrc, &bt, 1) != 1) {
-        (void) fprintf(stderr, "init_literal_src: failed to read data format\n");
+        RNP_LOG("failed to read data format");
         errcode = RNP_ERROR_READ;
         goto finish;
     }
@@ -844,20 +815,20 @@ init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *rea
         param->text = true;
         break;
     default:
-        (void) fprintf(stderr, "init_literal_src: unknown data format %d\n", (int) bt);
+        RNP_LOG("unknown data format %d", (int) bt);
         errcode = RNP_ERROR_BAD_FORMAT;
         goto finish;
     }
 
     /* file name */
     if (src_read(param->pkt.readsrc, &bt, 1) != 1) {
-        (void) fprintf(stderr, "init_literal_src: failed to read file name length\n");
+        RNP_LOG("failed to read file name length");
         errcode = RNP_ERROR_READ;
         goto finish;
     }
     if (bt > 0) {
         if (src_read(param->pkt.readsrc, param->filename, bt) < bt) {
-            (void) fprintf(stderr, "init_literal_src: failed to read file name\n");
+            RNP_LOG("failed to read file name");
             errcode = RNP_ERROR_READ;
             goto finish;
         }
@@ -865,7 +836,7 @@ init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *rea
     param->filename[bt] = 0;
     /* timestamp */
     if (src_read(param->pkt.readsrc, tstbuf, 4) != 4) {
-        (void) fprintf(stderr, "init_literal_src: failed to read file timestamp\n");
+        RNP_LOG("failed to read file timestamp");
         errcode = RNP_ERROR_READ;
         goto finish;
     }
@@ -908,7 +879,7 @@ init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *
 
     /* Reading compression algorithm */
     if (src_read(param->pkt.readsrc, &alg, 1) != 1) {
-        (void) fprintf(stderr, "init_compressed_src: failed to read compression algorithm\n");
+        RNP_LOG("failed to read compression algorithm");
         errcode = RNP_ERROR_READ;
         goto finish;
     }
@@ -921,8 +892,7 @@ init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *
         zret =
           alg == PGP_C_ZIP ? (int) inflateInit2(&param->z, -15) : (int) inflateInit(&param->z);
         if (zret != Z_OK) {
-            (void) fprintf(
-              stderr, "init_compressed_src: failed to init zlib, error %d\n", zret);
+            RNP_LOG("failed to init zlib, error %d", zret);
             errcode = RNP_ERROR_READ;
             goto finish;
         }
@@ -932,14 +902,14 @@ init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *
         (void) memset(&param->bz, 0x0, sizeof(param->bz));
         zret = BZ2_bzDecompressInit(&param->bz, 0, 0);
         if (zret != BZ_OK) {
-            (void) fprintf(stderr, "init_compressed_src: failed to init bz, error %d\n", zret);
+            RNP_LOG("failed to init bz, error %d", zret);
             errcode = RNP_ERROR_READ;
             goto finish;
         }
         break;
 #endif
     default:
-        (void) fprintf(stderr, "init_compressed_src: unknown compression algorithm\n");
+        RNP_LOG("unknown compression algorithm");
         errcode = RNP_ERROR_BAD_FORMAT;
         goto finish;
     }
@@ -957,16 +927,19 @@ finish:
 static rnp_result_t
 init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
 {
-    bool                          sk_read = false;
     rnp_result_t                  errcode = RNP_SUCCESS;
     pgp_source_encrypted_param_t *param;
     uint8_t                       ptag;
     uint8_t                       mdcver;
     int                           ptype;
     pgp_sk_sesskey_t              skey = {0};
-    pgp_pk_sesskey_t              pkey = {0};
+    pgp_pk_sesskey_pkt_t          pkey = {0};
+    pgp_key_t *                   seckey = NULL;
+    pgp_key_request_ctx_t         keyctx;
+    pgp_seckey_t *                decrypted_seckey = NULL;
     char                          passphrase[MAX_PASSPHRASE_LENGTH] = {0};
     int                           intres;
+    bool                          have_key = false;
 
     if (!init_source_cache(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -981,14 +954,14 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     src->eof = 0;
 
     /* Reading pk/sk encrypted session key(s) */
-    while (!sk_read) {
+    while (true) {
         if (src_peek(readsrc, &ptag, 1) < 1) {
-            (void) fprintf(stderr, "init_encrypted_src: failed to read packet header\n");
+            RNP_LOG("failed to read packet header");
             errcode = RNP_ERROR_READ;
             goto finish;
         }
 
-        ptype = stream_packet_type(ptag);
+        ptype = get_packet_type(ptag);
 
         if (ptype == PGP_PTAG_CT_SK_SESSION_KEY) {
             errcode = stream_parse_sk_sesskey(readsrc, &skey);
@@ -1002,13 +975,13 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             if (errcode != RNP_SUCCESS) {
                 goto finish;
             }
+            EXPAND_ARRAY_EX(param, pubenc, 1);
+            param->pubencs[param->pubencc++] = pkey;
         } else if ((ptype == PGP_PTAG_CT_SE_DATA) || (ptype == PGP_PTAG_CT_SE_IP_DATA)) {
-            sk_read = true;
             break;
         } else {
-            (void) fprintf(
-              stderr, "init_encrypted_src: unknown or unsupported packet type: %d\n", ptype);
-            errcode = RNP_ERROR_READ;
+            RNP_LOG("unknown packet type: %d", ptype);
+            errcode = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
     }
@@ -1026,8 +999,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             goto finish;
         }
         if (mdcver != 1) {
-            (void) fprintf(
-              stderr, "init_encrypted_src: unknown mdc version: %d\n", (int) mdcver);
+            RNP_LOG("unknown mdc ver: %d", (int) mdcver);
             errcode = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
@@ -1035,13 +1007,62 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     }
 
     /* Obtaining the symmetric key */
+    have_key = false;
+
     if (!ctx->handler.passphrase_provider) {
-        (void) fprintf(stderr, "init_encrypted_src: no passphrase provider\n");
+        RNP_LOG("no passphrase provider");
         errcode = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }
 
-    if (param->symencc > 0) {
+    /* Trying public-key decryption */
+    if (param->pubencc > 0) {
+        if (!ctx->handler.key_provider) {
+            RNP_LOG("no key provider");
+            errcode = RNP_ERROR_BAD_PARAMETERS;
+            goto finish;
+        }
+
+        keyctx.op = PGP_OP_DECRYPT_SYM;
+        keyctx.secret = true;
+        keyctx.stype = PGP_KEY_SEARCH_KEYID;
+
+        for (int i = 0; i < param->pubencc; i++) {
+            memcpy(keyctx.search.id, param->pubencs[i].key_id, sizeof(keyctx.search.id));
+            /* Get the key if any */
+            if (!pgp_request_key(ctx->handler.key_provider, &keyctx, &seckey)) {
+                continue;
+            }
+            /* Decrypt key */
+            if (seckey->key.seckey.encrypted) {
+                decrypted_seckey = pgp_decrypt_seckey(seckey, ctx->handler.passphrase_provider, &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT, .key = seckey});
+                if (!decrypted_seckey) {
+                    continue;
+                }
+            } else {
+                decrypted_seckey = &(seckey->key.seckey);
+            }
+        
+            /* Try to initialize the decryption */
+            if (encrypted_try_key(src, &param->pubencs[i], decrypted_seckey)) {
+                have_key = true;
+            }
+
+            /* Destroy decrypted key */
+            if (seckey->key.seckey.encrypted) {
+                pgp_seckey_free(decrypted_seckey);
+                free(decrypted_seckey);
+                decrypted_seckey = NULL;
+            }
+
+            if (have_key) {
+                break;
+            }
+        }
+    }
+
+    /* Trying password-based decryption */
+    if (!have_key && (param->symencc > 0)) {
         do {
             if (!pgp_request_passphrase(
                   ctx->handler.passphrase_provider,
@@ -1051,20 +1072,24 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
                 goto finish;
             }
 
-            intres = encrypted_check_passphrase(src, passphrase);
-            if (intres == 1) {
+            intres = encrypted_try_passphrase(src, passphrase);
+            if (intres > 0) {
+                have_key = true;
                 break;
-            } else if (intres == -1) {
+            } else if (intres < 0) {
                 errcode = RNP_ERROR_NOT_SUPPORTED;
                 goto finish;
             } else if (strlen(passphrase) == 0) {
-                (void) fprintf(stderr, "init_encrypted_src: empty passphrase - canceling\n");
+                RNP_LOG("empty passphrase - canceling");
                 errcode = RNP_ERROR_BAD_PASSPHRASE;
                 goto finish;
             }
         } while (1);
-    } else {
-        errcode = RNP_ERROR_NOT_SUPPORTED;
+    }
+
+    if (!have_key) {
+        RNP_LOG("failed to obtain decrypting key or password");
+        errcode = RNP_ERROR_NO_SUITABLE_KEY;
     }
 
 finish:
@@ -1108,13 +1133,13 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
     while (1) {
         read = src_peek(lsrc, &ptag, 1);
         if (read < 1) {
-            (void) fprintf(stderr, "process_packet_sequence: cannot read packet tag\n");
+            RNP_LOG("cannot read packet tag");
             return RNP_ERROR_READ;
         }
 
-        type = stream_packet_type(ptag);
+        type = get_packet_type(ptag);
         if (type < 0) {
-            (void) fprintf(stderr, "process_packet_sequence: wrong pkt tag %d\n", (int) ptag);
+            RNP_LOG("wrong pkt tag %d", (int) ptag);
             return RNP_ERROR_BAD_FORMAT;
         }
 
@@ -1123,11 +1148,11 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
         if ((type == PGP_PTAG_CT_PK_SESSION_KEY) || (type == PGP_PTAG_CT_SK_SESSION_KEY)) {
             ret = init_encrypted_src(ctx, psrc, lsrc);
         } else if (type == PGP_PTAG_CT_1_PASS_SIG) {
-            (void) fprintf(stderr, "process_packet_sequence: signed data not implemented\n");
+            RNP_LOG("signed data not implemented");
             ret = RNP_ERROR_NOT_IMPLEMENTED;
         } else if (type == PGP_PTAG_CT_COMPRESSED) {
             if ((lsrc->type != PGP_STREAM_ENCRYPTED) && (lsrc->type != PGP_STREAM_SIGNED)) {
-                (void) fprintf(stderr, "process_packet_sequence: unexpected compressed pkt\n");
+                RNP_LOG("unexpected compressed pkt");
                 ret = RNP_ERROR_BAD_FORMAT;
             } else {
                 ret = init_compressed_src(ctx, psrc, lsrc);
@@ -1135,13 +1160,13 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
         } else if (type == PGP_PTAG_CT_LITDATA) {
             if ((lsrc->type != PGP_STREAM_ENCRYPTED) && (lsrc->type != PGP_STREAM_SIGNED) &&
                 (lsrc->type != PGP_STREAM_COMPRESSED)) {
-                (void) fprintf(stderr, "process_packet_sequence: unexpected literal pkt\n");
+                RNP_LOG("unexpected literal pkt");
                 ret = RNP_ERROR_BAD_FORMAT;
             } else {
                 ret = init_literal_src(ctx, psrc, lsrc);
             }
         } else {
-            (void) fprintf(stderr, "process_packet_sequence: unexpected pkt %d\n", type);
+            RNP_LOG("unexpected pkt %d", type);
             ret = RNP_ERROR_BAD_FORMAT;
         }
 
@@ -1168,7 +1193,7 @@ is_pgp_sequence(uint8_t *buf, int size)
         return false;
     }
 
-    tag = stream_packet_type(buf[0]);
+    tag = get_packet_type(buf[0]);
     switch (tag) {
     case PGP_PTAG_CT_PK_SESSION_KEY:
     case PGP_PTAG_CT_SK_SESSION_KEY:
@@ -1203,7 +1228,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
 
     read = src_peek(src, buf, sizeof(buf));
     if (read < 2) {
-        (void) fprintf(stderr, "process_pgp_source: can't read enough data from source\n");
+        RNP_LOG("can't read enough data from source");
         res = RNP_ERROR_READ;
         goto finish;
     }
@@ -1219,13 +1244,13 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
         if (strstr((char *) buf, armor_start)) {
             /* checking whether it is cleartext */
             if (strstr((char *) buf, clear_start)) {
-                (void) fprintf(stderr, "process_pgp_source: cleartext not supported yet\n");
+                RNP_LOG("cleartext not supported yet");
                 goto finish;
             }
 
             /* initializing armoured message */
             if ((armorsrc = calloc(1, sizeof(*armorsrc))) == NULL) {
-                (void) fprintf(stderr, "process_pgp_source: allocation failed\n");
+                RNP_LOG("allocation failed");
                 goto finish;
             }
 
@@ -1243,7 +1268,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
                 goto finish;
             }
         } else {
-            (void) fprintf(stderr, "process_pgp_source: not an OpenPGP data provided\n");
+            RNP_LOG("not an OpenPGP data provided");
             res = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
@@ -1254,7 +1279,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
         litsrc = ctx.srcs[ctx.srcc - 1];
         litparam = litsrc->param;
         if ((readbuf = calloc(1, PGP_INPUT_CACHE_SIZE)) == NULL) {
-            (void) fprintf(stderr, "process_pgp_source: allocation failure\n");
+            RNP_LOG("allocation failure");
             res = RNP_ERROR_OUT_OF_MEMORY;
             goto finish;
         }
@@ -1274,7 +1299,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
             } else if (read > 0) {
                 dst_write(&outdest, readbuf, read);
                 if (outdest.werr != RNP_SUCCESS) {
-                    (void) fprintf(stderr, "process_pgp_source: failed to output data\n");
+                    RNP_LOG("failed to output data");
                     res = RNP_ERROR_WRITE;
                     break;
                 }

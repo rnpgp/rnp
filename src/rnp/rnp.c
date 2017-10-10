@@ -88,7 +88,6 @@ enum optdefs {
     CMD_VERIFY,
     CMD_VERIFY_CAT,
     CMD_SYM_ENCRYPT,
-    CMD_SYM_DECRYPT,
     CMD_DEARMOR,
     CMD_LIST_PACKETS,
     CMD_SHOW_KEYS,
@@ -138,7 +137,6 @@ static struct option options[] = {
   {"verify-cat", no_argument, NULL, CMD_VERIFY_CAT},
   {"verify-show", no_argument, NULL, CMD_VERIFY_CAT},
   {"verifyshow", no_argument, NULL, CMD_VERIFY_CAT},
-  {"sym-decrypt", no_argument, NULL, CMD_SYM_DECRYPT},
   {"symmetric", no_argument, NULL, CMD_SYM_ENCRYPT},
   {"dearmor", no_argument, NULL, CMD_DEARMOR},
   /* file listing commands */
@@ -346,22 +344,12 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.filename = strdup(rnp_filename(f));
         ctx.filemtime = rnp_filemtime(f);
     }
+    if (userid) {
+        list_append(&ctx.recipients, userid, strlen(userid) + 1);
+    }
     rnp->pswdtries = rnp_cfg_get_pswdtries(cfg);
 
     switch (cmd) {
-    case CMD_ENCRYPT:
-        ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
-        ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
-        ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
-
-        if (f == NULL) {
-            cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            sz = rnp_encrypt_memory(&ctx, userid, in, cc, out, maxsize);
-            ret = show_output(cfg, out, sz, "Bad memory encryption");
-        } else {
-            ret = rnp_encrypt_file(&ctx, userid, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_OK;
-        }
-        break;
     case CMD_CLEARSIGN:
     case CMD_SIGN:
         ctx.halg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
@@ -393,24 +381,13 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
                                 rnp_cfg_getbool(cfg, CFG_DETACHED)) == RNP_OK;
         }
         break;
-    case CMD_DECRYPT: {
-        if (f) {
-            const char *out = rnp_cfg_get(cfg, CFG_OUTFILE);
-            repgp_set_input(io, create_filepath_handle(f));
-            repgp_set_output(io, create_filepath_handle(out));
-        } else {
-            repgp_set_input(io, create_stdin_handle());
-            repgp_set_output(io,
-                             create_buffer_handle((size_t) rnp_cfg_getint(cfg, CFG_MAXALLOC)));
-        }
-        ret = (RNP_SUCCESS == repgp_decrypt(&ctx, io));
-        break;
-    }
-    case CMD_SYM_DECRYPT: {
+    case CMD_DECRYPT:
         ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
-    }
-    case CMD_SYM_ENCRYPT: {
+    case CMD_SYM_ENCRYPT:
+        ctx.passwordc = 1;
+    /* FALLTHROUGH */
+    case CMD_ENCRYPT: {
         ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
         ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
         ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
@@ -491,7 +468,6 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
         *cmd = val;
         break;
-    case CMD_SYM_DECRYPT:
     case CMD_SYM_ENCRYPT:
     case CMD_VERIFY:
     case CMD_VERIFY_CAT:

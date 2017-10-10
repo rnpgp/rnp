@@ -37,6 +37,7 @@
 
 typedef struct pgp_write_handler_t {
     pgp_passphrase_provider_t *passphrase_provider;
+    pgp_key_provider_t *       key_provider;
     rnp_ctx_t *                ctx;
 
     void *param;

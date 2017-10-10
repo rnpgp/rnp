@@ -98,7 +98,8 @@ ssize_t src_read(pgp_source_t *src, void *buf, size_t len);
 /** @brief read up to len bytes and keep them in the cache/do not process
  *  Works only for streams with cache
  *  @param src source structure
- *  @param buf preallocated buffer which can store up to len bytes
+ *  @param buf preallocated buffer which can store up to len bytes, or NULL if data should be
+ *  discarded, just making sure that needed input is available in source
  *  @param len number of bytes to read. Must be less then PGP_INPUT_CACHE_SIZE.
  *  @return number of bytes read or -1 in case of error
  **/
