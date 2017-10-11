@@ -107,13 +107,27 @@ def print_test_results(fsize, iterations, rnptime, gpgtime, operation):
         return
 
     if fsize == SMALLSIZE:
-        print '{}:RNP:{:.2f} runs/sec'.format(operation, iterations / rnptime)
-        print '{}:GPG:{:.2f} runs/sec'.format(operation, iterations / gpgtime)
+        rnpruns = iterations / rnptime
+        gpgruns = iterations / gpgtime
+        runstr = '{:.2f} runs/sec vs {:.2f} runs/sec'.format(iterations/rnptime, iterations/gpgtime)
+
+        if rnpruns >= gpgruns:
+            percents = (rnpruns - gpgruns) / gpgruns * 100
+            print '{:<30}: RNP is {:>3.0f}% FASTER then GnuPG ({})'.format(operation, percents, runstr)
+        else:
+            percents = (gpgruns - rnpruns) / gpgruns * 100
+            print '{:<30}: RNP is {:>3.0f}% SLOWER then GnuPG ({})'.format(operation, percents, runstr)
     else:
-        print '{}:RNP:{:.2f} MB/sec'.format(operation, fsize * iterations / 1024.0 / 1024.0 / rnptime)
-        print '{}:GPG:{:.2f} MB/sec'.format(operation, fsize * iterations / 1024.0 / 1024.0 / gpgtime)
-    
-    print '{}:RNP vs GPG:{:.2f}'.format(operation, rnptime/gpgtime)
+        rnpspeed = fsize * iterations / 1024.0 / 1024.0 / rnptime
+        gpgspeed = fsize * iterations / 1024.0 / 1024.0 / gpgtime
+        spdstr = '{:.2f} MB/sec vs {:.2f} MB/sec'.format(rnpspeed, gpgspeed)
+
+        if rnpspeed >= gpgspeed:
+            percents = (rnpspeed - gpgspeed) / gpgspeed * 100
+            print '{:<30}: RNP is {:>3.0f}% FASTER then GnuPG ({})'.format(operation, percents, spdstr)
+        else:
+            percents = (gpgspeed - rnpspeed) / gpgspeed * 100
+            print '{:<30}: RNP is {:>3.0f}% SLOWER then GnuPG ({})'.format(operation, percents, spdstr)
 
     return
 
