@@ -78,7 +78,7 @@ typedef struct pgp_source_t {
     pgp_source_cache_t *cache; /* cache if used */
     void *              param; /* source-specific additional data */
 
-    unsigned eof : 1;       /* end of data as reported by read and empty cache */
+    unsigned eof : 1; /* end of data as reported by read and empty cache */
 } pgp_source_t;
 
 /** @brief helper function to allocate memory for source's cache and param
@@ -144,9 +144,9 @@ typedef struct pgp_dest_t {
     pgp_stream_type_t      type;
     rnp_result_t           werr; /* write function may set this to some error code */
 
-    int64_t writeb; /* number of bytes written */
-    void *  param;  /* source-specific additional data */
-    uint8_t cache[PGP_OUTPUT_CACHE_SIZE];
+    int64_t  writeb; /* number of bytes written */
+    void *   param;  /* source-specific additional data */
+    uint8_t  cache[PGP_OUTPUT_CACHE_SIZE];
     unsigned clen;
 } pgp_dest_t;
 
