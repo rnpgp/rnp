@@ -58,13 +58,6 @@
 #include <assert.h>
 #include <botan/ffi.h>
 
-/* Put it somewhere to the right place */
-#if defined(__LP64__) || defined(_WIN64) || (defined(__x86_64__) && !defined(__ILP32__) ) || defined(_M_X64) || defined(__ia64) || defined (_M_IA64) || defined(__aarch64__) || defined(__powerpc64__)
-#define RNP_64BIT 1
-#else
-#define RNP_32BIT 1
-#endif
-
 static const char *
 pgp_sa_to_botan_string(pgp_symm_alg_t alg)
 {
@@ -205,11 +198,7 @@ int
 pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
 {
     /* for better code readability */
-    #ifdef RNP_64BIT
     uint64_t *out64, *in64, *iv64_0, *iv64_1;
-    #else
-    uint32_t *out32, *in32, *iv32_0, *iv32_1, *iv32_2, *iv32_3;
-    #endif
     size_t blocks;
     unsigned blsize = crypt->blocksize;
 
@@ -232,63 +221,31 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     bytes -= blocks;
 
     if (blocks > 0) {
-        #ifdef RNP_64BIT
         out64 = (uint64_t*)out;
         in64 = (uint64_t*)in;
         iv64_0 = (uint64_t*)crypt->iv;
         iv64_1 = (uint64_t*)(&crypt->iv[8]);
-        #else
-        out32 = (uint32_t*)out;
-        in32 = (uint32_t*)in;
-        iv32_0 = (uint32_t*)crypt->iv;
-        iv32_1 = (uint32_t*)(&crypt->iv[4]);
-        iv32_2 = (uint32_t*)(&crypt->iv[8]);
-        iv32_3 = (uint32_t*)(&crypt->iv[12]);
-        #endif
     
         if (blsize == 16) {
             while (blocks) {
                 botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
-                #ifdef RNP_64BIT
                 *out64 = *in64++ ^ *iv64_0;
                 *iv64_0 = *out64++;
                 *out64 = *in64++ ^ *iv64_1;
                 *iv64_1 = *out64++;
-                #else
-                *out32 = *in32++ ^ *iv32_0;
-                *iv32_0 = *out32++;
-                *out32 = *in32++ ^ *iv32_1;
-                *iv32_1 = *out32++;
-                *out32 = *in32++ ^ *iv32_2;
-                *iv32_2 = *out32++;
-                *out32 = *in32++ ^ *iv32_3;
-                *iv32_3 = *out32++;
-                #endif
                 blocks -= blsize;
             }
         } else {
             while (blocks) {
                 botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
-                #ifdef RNP_64BIT
                 *out64 = *in64++ ^ *iv64_0;
                 *iv64_0 = *out64++;
-                #else
-                *out32 = *in32++ ^ *iv32_0;
-                *iv32_0 = *out32++;
-                *out32 = *in32++ ^ *iv32_1;
-                *iv32_1 = *out32++;
-                #endif
                 blocks -= blsize;
             }
         }
     
-        #ifdef RNP_64BIT
         out = (uint8_t*)out64;
         in = (uint8_t*)in64;
-        #else
-        out = (uint8_t*)out32;
-        in = (uint8_t*)in32;
-        #endif
     }
 
     /* filling prev_iv */
@@ -314,11 +271,7 @@ int
 pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
 {
     /* for better code readability */
-    #ifdef RNP_64BIT
     uint64_t *out64, *in64, *iv64_0, *iv64_1, c64;
-    #else
-    uint32_t *out32, *in32, *iv32_0, *iv32_1, *iv32_2, *iv32_3, c32;
-    #endif
     size_t blocks;
     unsigned blsize = crypt->blocksize;
 
@@ -342,72 +295,34 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     bytes -= blocks;
 
     if (blocks > 0) {
-        #ifdef RNP_64BIT
         out64 = (uint64_t*)out;
         in64 = (uint64_t*)in;
         iv64_0 = (uint64_t*)crypt->iv;
         iv64_1 = (uint64_t*)(&crypt->iv[8]);
-        #else
-        out32 = (uint32_t*)out;
-        in32 = (uint32_t*)in;
-        iv32_0 = (uint32_t*)crypt->iv;
-        iv32_1 = (uint32_t*)(&crypt->iv[4]);
-        iv32_2 = (uint32_t*)(&crypt->iv[8]);
-        iv32_3 = (uint32_t*)(&crypt->iv[12]);
-        #endif
 
         if (blsize == 16) {
             while (blocks) {
                 botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
-                #ifdef RNP_64BIT
                 c64 = *in64;
                 *out64++ = *in64++ ^ *iv64_0;
                 *iv64_0 = c64;
                 c64 = *in64;
                 *out64++ = *in64++ ^ *iv64_1;
                 *iv64_1 = c64;
-                #else
-                c32 = *in32;
-                *out32++ = *in32++ ^ *iv32_0;
-                *iv32_0 = c32;
-                c32 = *in32;
-                *out32++ = *in32++ ^ *iv32_1;
-                *iv32_1 = c32;
-                c32 = *in32;
-                *out32++ = *in32++ ^ *iv32_2;
-                *iv32_2 = c32;
-                c32 = *in32;
-                *out32++ = *in32++ ^ *iv32_3;
-                *iv32_3 = c32;
-                #endif
                 blocks -= blsize;
             }
         } else {
             while (blocks) {
                 botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
-                #ifdef RNP_64BIT
                 c64 = *in64;
                 *out64++ = *in64++ ^ *iv64_0;
                 *iv64_0 = c64;
-                #else
-                c32 = *in32;
-                *out32++ = *in32++ ^ *iv32_0;
-                *iv32_0 = c32;
-                c32 = *in32;
-                *out32++ = *in32++ ^ *iv32_1;
-                *iv32_1 = c32;
-                #endif
                 blocks -= blsize;
             }
         }
     
-        #ifdef RNP_64BIT
         out = (uint8_t*)out64;
         in = (uint8_t*)in64;
-        #else
-        out = (uint8_t*)out32;
-        in = (uint8_t*)in32;
-        #endif
     }
 
     /* filling prev_iv */
