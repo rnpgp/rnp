@@ -369,7 +369,7 @@ rsa_verify(pgp_hash_alg_t          hash_alg,
     return pgp_rsa_pkcs1_verify_hash(sigbuf, sigbuf_len, hash_alg, hash, hash_length, pubrsa);
 }
 
-static void
+static bool
 hash_add_key(pgp_hash_t *hash, const pgp_pubkey_t *key)
 {
     pgp_memory_t * mem = pgp_memory_new();
@@ -378,21 +378,24 @@ hash_add_key(pgp_hash_t *hash, const pgp_pubkey_t *key)
 
     if (mem == NULL) {
         (void) fprintf(stderr, "can't allocate mem\n");
-        return;
+        return false;
     }
-    pgp_build_pubkey(mem, key, dontmakepacket);
+    if (!pgp_build_pubkey(mem, key, dontmakepacket)) {
+        return false;
+    }
     len = pgp_mem_len(mem);
     pgp_hash_add_int(hash, 0x99, 1);
     pgp_hash_add_int(hash, (unsigned) len, 2);
     pgp_hash_add(hash, pgp_mem_data(mem), (unsigned) len);
     pgp_memory_free(mem);
+    return true;
 }
 
-static void
+static bool
 init_key_sig(pgp_hash_t *hash, const pgp_sig_t *sig, const pgp_pubkey_t *key)
 {
     pgp_hash_create(hash, sig->info.hash_alg);
-    hash_add_key(hash, key);
+    return hash_add_key(hash, key);
 }
 
 static void
@@ -501,7 +504,10 @@ pgp_check_useridcert_sig(const pgp_pubkey_t *key,
     size_t     userid_len;
 
     userid_len = strlen((const char *) id);
-    init_key_sig(&hash, sig, key);
+    if (!init_key_sig(&hash, sig, key)) {
+        RNP_LOG("failed to start key sig");
+        return false;
+    }
     if (sig->info.version == PGP_V4) {
         pgp_hash_add_int(&hash, 0xb4, 1);
         pgp_hash_add_int(&hash, (unsigned) userid_len, 4);
@@ -531,7 +537,10 @@ pgp_check_userattrcert_sig(const pgp_pubkey_t *key,
 {
     pgp_hash_t hash;
 
-    init_key_sig(&hash, sig, key);
+    if (!init_key_sig(&hash, sig, key)) {
+        RNP_LOG("failed to start key sig");
+        return false;
+    }
     if (sig->info.version == PGP_V4) {
         pgp_hash_add_int(&hash, 0xd1, 1);
         pgp_hash_add_int(&hash, (unsigned) attribute->len, 4);
@@ -561,8 +570,14 @@ pgp_check_subkey_sig(const pgp_pubkey_t *key,
 {
     pgp_hash_t hash;
 
-    init_key_sig(&hash, sig, key);
-    hash_add_key(&hash, subkey);
+    if (!init_key_sig(&hash, sig, key)) {
+        RNP_LOG("failed to start key sig");
+        return false;
+    }
+    if (!hash_add_key(&hash, subkey)) {
+        RNP_LOG("failed to hash key");
+        return false;
+    }
     return finalise_sig(&hash, sig, signer, raw_packet);
 }
 
@@ -586,7 +601,10 @@ pgp_check_direct_sig(const pgp_pubkey_t *key,
     pgp_hash_t hash;
     unsigned   ret;
 
-    init_key_sig(&hash, sig, key);
+    if (!init_key_sig(&hash, sig, key)) {
+        RNP_LOG("failed to start key sig");
+        return false;
+    }
     ret = finalise_sig(&hash, sig, signer, raw_packet);
     return ret;
 }
@@ -644,7 +662,7 @@ start_sig_in_mem(pgp_create_sig_t *sig)
  * \param id The user ID being bound to the key
  * \param type Signature type
  */
-void
+bool
 pgp_sig_start_key_sig(pgp_create_sig_t *  sig,
                       const pgp_pubkey_t *key,
                       const uint8_t *     id,
@@ -654,7 +672,7 @@ pgp_sig_start_key_sig(pgp_create_sig_t *  sig,
     sig->output = pgp_output_new();
     if (sig->output == NULL) {
         fprintf(stderr, "Can't allocate memory\n");
-        return;
+        return false;
     }
 
     /* XXX:  refactor with check (in several ways - check should
@@ -665,14 +683,18 @@ pgp_sig_start_key_sig(pgp_create_sig_t *  sig,
     sig->sig.info.key_alg = key->alg;
     sig->sig.info.type = type;
     sig->hashlen = (unsigned) -1;
-    init_key_sig(&sig->hash, &sig->sig, key);
+    if (!init_key_sig(&sig->hash, &sig->sig, key)) {
+        RNP_LOG("failed to start key sig");
+        return false;
+    }
     pgp_hash_add_int(&sig->hash, 0xb4, 1);
     pgp_hash_add_int(&sig->hash, (unsigned) strlen((const char *) id), 4);
     pgp_hash_add(&sig->hash, id, (unsigned) strlen((const char *) id));
     start_sig_in_mem(sig);
+    return true;
 }
 
-void
+bool
 pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
                          const pgp_pubkey_t *key,
                          const pgp_pubkey_t *subkey,
@@ -682,7 +704,7 @@ pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
     sig->output = pgp_output_new();
     if (sig->output == NULL) {
         fprintf(stderr, "Can't allocate memory\n");
-        return;
+        return false;
     }
 
     sig->sig.info.version = PGP_V4;
@@ -690,9 +712,16 @@ pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
     sig->sig.info.key_alg = key->alg;
     sig->sig.info.type = type;
     sig->hashlen = (unsigned) -1;
-    init_key_sig(&sig->hash, &sig->sig, key);
-    hash_add_key(&sig->hash, subkey);
+    if (!init_key_sig(&sig->hash, &sig->sig, key)) {
+        RNP_LOG("failed to start key sig");
+        return false;
+    }
+    if (!hash_add_key(&sig->hash, subkey)) {
+        RNP_LOG("failed to hash key");
+        return false;
+    }
     start_sig_in_mem(sig);
+    return true;
 }
 
 /**
