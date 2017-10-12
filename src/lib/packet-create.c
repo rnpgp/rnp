@@ -226,10 +226,19 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
         return false;
     }
 
-    if (key->version != 4 && !pgp_write_scalar(output, key->days_valid, 2)) {
+    switch (key->version) {
+    case PGP_V2:
+    case PGP_V3:
+        if (!pgp_write_scalar(output, key->days_valid, 2)) {
+            return false;
+        }
+        break;
+    case PGP_V4:
+        break;
+    default:
+        RNP_LOG("invalid pubkey version: %d", key->version);
         return false;
     }
-
     if (!pgp_write_scalar(output, (unsigned) key->alg, 1)) {
         return false;
     }
@@ -580,6 +589,9 @@ pgp_build_pubkey(pgp_memory_t *out, const pgp_pubkey_t *key, unsigned make_packe
     ret = true;
 
 done:
+    if (!ret) {
+        pgp_memory_release(out);
+    }
     pgp_output_delete(output);
     return ret;
 }
@@ -1210,7 +1222,11 @@ pgp_write_selfsig_cert(pgp_output_t *               output,
         RNP_LOG("create sig failed");
         goto end;
     }
-    pgp_sig_start_key_sig(sig, &seckey->pubkey, cert->userid, PGP_CERT_POSITIVE, hash_alg);
+    if (!pgp_sig_start_key_sig(
+          sig, &seckey->pubkey, cert->userid, PGP_CERT_POSITIVE, hash_alg)) {
+        RNP_LOG("failed to start key sig");
+        goto end;
+    }
     if (!pgp_sig_add_time(sig, (int64_t) time(NULL), PGP_PTAG_SS_CREATION_TIME)) {
         RNP_LOG("failed to add creation time");
         goto end;
@@ -1297,7 +1313,11 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
         RNP_LOG("create sig failed");
         goto end;
     }
-    pgp_sig_start_subkey_sig(sig, &primary_sec->pubkey, subkey, PGP_SIG_SUBKEY, hash_alg);
+    if (!pgp_sig_start_subkey_sig(
+          sig, &primary_sec->pubkey, subkey, PGP_SIG_SUBKEY, hash_alg)) {
+        RNP_LOG("failed to start subkey sig");
+        goto end;
+    }
     if (!pgp_sig_add_time(sig, (int64_t) time(NULL), PGP_PTAG_SS_CREATION_TIME)) {
         RNP_LOG("failed to add creation time");
         goto end;
