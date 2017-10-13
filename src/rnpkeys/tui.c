@@ -142,12 +142,12 @@ ask_bitlen(FILE *input_fp)
  *              [out] Function fills corresponding to key type and length
  * @param   cfg [in]  Requested configuration
  *
- * @returns PGP_E_OK on success
- *          PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG algorithm not supported
- *          PGP_E_FAIL indicates bug in the implementation
+ * @returns RNP_SUCCESS on success
+ *          RNP_ERROR_BAD_PARAMETERS unsupported parameters supplied
+ *          RNP_ERROR_GENERIC indicates problem in implementation
  *
 -------------------------------------------------------------------------------- */
-pgp_errcode_t
+rnp_result_t
 rnp_generate_key_expert_mode(rnp_t *rnp)
 {
     FILE *                       input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
@@ -171,13 +171,13 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
     case PGP_PKA_ECDSA: {
         crypto->ecc.curve = ask_curve(input_fd);
         if (PGP_HASH_UNKNOWN == crypto->hash_alg) {
-            return PGP_E_ALG_UNSUPPORTED_HASH_ALG;
+            return RNP_ERROR_BAD_PARAMETERS;
         }
 
         size_t digest_length = 0;
         if (!pgp_digest_length(crypto->hash_alg, &digest_length)) {
             // Implementation error
-            return PGP_E_FAIL;
+            return RNP_ERROR_BAD_PARAMETERS;
         }
 
         /*
@@ -207,7 +207,7 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
             break;
         default:
             // Should never happen as ask_curve checks it
-            return PGP_E_FAIL;
+            return RNP_ERROR_GENERIC;
         }
     } break;
     case PGP_PKA_EDDSA:
@@ -218,12 +218,12 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
         crypto->ecc.curve = PGP_CURVE_SM2_P_256;
         break;
     default:
-        return PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     // TODO this is mostly to get tests passing
     subkey_desc->crypto = primary_desc->crypto;
     primary_protection->hash_alg = crypto->hash_alg;
     *subkey_protection = *primary_protection;
 
-    return PGP_E_OK;
+    return RNP_SUCCESS;
 }
