@@ -1084,7 +1084,7 @@ rnp_public_count(rnp_t *rnp)
     return rnp->pubring ? ((rnp_key_store_t *) rnp->pubring)->keyc : 0;
 }
 
-int
+bool
 rnp_generate_key(rnp_t *rnp)
 {
     RNP_MSG("Generating a new key...\n");
