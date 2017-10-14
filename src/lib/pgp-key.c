@@ -1064,3 +1064,20 @@ pgp_key_write_packets(const pgp_key_t *key, pgp_output_t *output)
     }
     return true;
 }
+
+pgp_key_t *
+find_suitable_subkey(const pgp_key_t *primary, uint8_t desired_usage)
+{
+    // fixme copied fron rnp.c
+    if (!primary || DYNARRAY_IS_EMPTY(primary, subkey)) {
+        return NULL;
+    }
+
+    for (unsigned i = primary->subkeyc; i-- > 0;) {
+        pgp_key_t *subkey = primary->subkeys[i];
+        if (subkey->key_flags & desired_usage) {
+            return subkey;
+        }
+    }
+    return NULL;
+}

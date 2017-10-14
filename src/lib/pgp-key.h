@@ -228,4 +228,18 @@ bool pgp_key_add_userid(pgp_key_t *            key,
 
 bool pgp_key_write_packets(const pgp_key_t *key, pgp_output_t *output);
 
+/**
+ *
+ * @brief   Search the list of subkeys in reverse order with the
+ *          assumption that the last subkey in the list would be
+ *          the newest created.
+ *
+ * @param   primary
+ * @param   desired_usage
+ *
+ * @returns Last created subkey with desired usage flag set
+ *          or NULL if not found
+ */
+pgp_key_t *find_suitable_subkey(const pgp_key_t *primary, uint8_t desired_usage);
+
 #endif // RNP_PACKET_KEY_H

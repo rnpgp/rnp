@@ -470,24 +470,6 @@ formatbignum(char *buffer, BIGNUM *bn)
     return cc;
 }
 
-/* find a subkey that includes any of the desired key flags */
-static pgp_key_t *
-find_suitable_subkey(const pgp_key_t *primary, uint8_t desired_usage)
-{
-    if (!primary || DYNARRAY_IS_EMPTY(primary, subkey)) {
-        return NULL;
-    }
-    // search in reverse with the assumption that the last
-    // in the list would be the newest created subkey, for now
-    for (unsigned i = primary->subkeyc; i-- > 0;) {
-        pgp_key_t *subkey = primary->subkeys[i];
-        if (subkey->key_flags & desired_usage) {
-            return subkey;
-        }
-    }
-    return NULL;
-}
-
 #ifdef HAVE_SYS_RESOURCE_H
 
 /* When system resource consumption limit controls are available this
