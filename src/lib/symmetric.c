@@ -197,18 +197,17 @@ pgp_cipher_finish(pgp_crypt_t *crypt)
 int
 pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
 {
-    /* for better code readability */
-    uint64_t *out64, *in64, *iv64_0, *iv64_1;
-    size_t    blocks;
+    uint64_t *in64;
+    uint64_t  buf64[512]; // 4KB - page size
+    uint64_t  iv64[2];
+    size_t    blocks, blockb;
     unsigned  blsize = crypt->blocksize;
 
     /* encrypting till the block boundary */
     while (bytes && crypt->remaining) {
-        *out = *in ^ crypt->iv[blsize - crypt->remaining];
-        crypt->iv[blsize - crypt->remaining] = *out;
+        *out = *in++ ^ crypt->iv[blsize - crypt->remaining];
+        crypt->iv[blsize - crypt->remaining] = *out++;
         crypt->remaining--;
-        out++;
-        in++;
         bytes--;
     }
 
@@ -217,35 +216,43 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     }
 
     /* encrypting full blocks */
-    blocks = bytes & ~(blsize - 1);
-    bytes -= blocks;
-
-    if (blocks > 0) {
-        out64 = (uint64_t *) out;
-        in64 = (uint64_t *) in;
-        iv64_0 = (uint64_t *) crypt->iv;
-        iv64_1 = (uint64_t *) (&crypt->iv[8]);
-
-        if (blsize == 16) {
-            while (blocks) {
-                botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
-                *out64 = *in64++ ^ *iv64_0;
-                *iv64_0 = *out64++;
-                *out64 = *in64++ ^ *iv64_1;
-                *iv64_1 = *out64++;
-                blocks -= blsize;
+    if (bytes > blsize) {
+        memcpy(iv64, crypt->iv, blsize);
+        while ((blocks = bytes & ~(blsize - 1)) > 0) {
+            if (blocks > sizeof(buf64)) {
+                blocks = sizeof(buf64);
             }
-        } else {
-            while (blocks) {
-                botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
-                *out64 = *in64++ ^ *iv64_0;
-                *iv64_0 = *out64++;
-                blocks -= blsize;
+            bytes -= blocks;
+            blockb = blocks;
+            memcpy(buf64, in, blockb);
+            in64 = buf64;
+
+            if (blsize == 16) {
+                blocks >>= 4;
+                while (blocks--) {
+                    botan_block_cipher_encrypt_blocks(
+                      crypt->obj, (uint8_t *) iv64, (uint8_t *) iv64, 1);
+                    *in64 ^= iv64[0];
+                    iv64[0] = *in64++;
+                    *in64 ^= iv64[1];
+                    iv64[1] = *in64++;
+                }
+            } else {
+                blocks >>= 3;
+                while (blocks--) {
+                    botan_block_cipher_encrypt_blocks(
+                      crypt->obj, (uint8_t *) iv64, (uint8_t *) iv64, 1);
+                    *in64 ^= iv64[0];
+                    iv64[0] = *in64++;
+                }
             }
+
+            memcpy(out, buf64, blockb);
+            out += blockb;
+            in += blockb;
         }
 
-        out = (uint8_t *) out64;
-        in = (uint8_t *) in64;
+        memcpy(crypt->iv, iv64, blsize);
     }
 
     /* filling prev_iv */
@@ -255,11 +262,9 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
 
     /* encrypting tail */
     while (bytes) {
-        *out = *in ^ crypt->iv[blsize - crypt->remaining];
-        crypt->iv[blsize - crypt->remaining] = *out;
+        *out = *in++ ^ crypt->iv[blsize - crypt->remaining];
+        crypt->iv[blsize - crypt->remaining] = *out++;
         crypt->remaining--;
-        out++;
-        in++;
         bytes--;
     }
 
@@ -271,18 +276,19 @@ int
 pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t bytes)
 {
     /* for better code readability */
-    uint64_t *out64, *in64, *iv64_0, *iv64_1, c64;
-    size_t    blocks;
+    uint64_t *out64, *in64;
+    uint64_t  inbuf64[512]; // 4KB - page size
+    uint64_t  outbuf64[512];
+    uint64_t  iv64[2];
+    size_t    blocks, blockb;
     unsigned  blsize = crypt->blocksize;
 
     /* decrypting till the block boundary */
     while (bytes && crypt->remaining) {
-        uint8_t c = *in;
-        *out = c ^ crypt->iv[blsize - crypt->remaining];
+        uint8_t c = *in++;
+        *out++ = c ^ crypt->iv[blsize - crypt->remaining];
         crypt->iv[blsize - crypt->remaining] = c;
         crypt->remaining--;
-        out++;
-        in++;
         bytes--;
     }
 
@@ -291,38 +297,45 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     }
 
     /* decrypting full blocks */
-    blocks = bytes & ~(blsize - 1);
-    bytes -= blocks;
+    if (bytes > blsize) {
+        memcpy(iv64, crypt->iv, blsize);
 
-    if (blocks > 0) {
-        out64 = (uint64_t *) out;
-        in64 = (uint64_t *) in;
-        iv64_0 = (uint64_t *) crypt->iv;
-        iv64_1 = (uint64_t *) (&crypt->iv[8]);
+        while ((blocks = bytes & ~(blsize - 1)) > 0) {
+            if (blocks > sizeof(inbuf64)) {
+                blocks = sizeof(inbuf64);
+            }
+            bytes -= blocks;
+            blockb = blocks;
+            memcpy(inbuf64, in, blockb);
+            out64 = outbuf64;
+            in64 = inbuf64;
 
-        if (blsize == 16) {
-            while (blocks) {
-                botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
-                c64 = *in64;
-                *out64++ = *in64++ ^ *iv64_0;
-                *iv64_0 = c64;
-                c64 = *in64;
-                *out64++ = *in64++ ^ *iv64_1;
-                *iv64_1 = c64;
-                blocks -= blsize;
+            if (blsize == 16) {
+                blocks >>= 4;
+                while (blocks--) {
+                    botan_block_cipher_encrypt_blocks(
+                      crypt->obj, (uint8_t *) iv64, (uint8_t *) iv64, 1);
+                    *out64++ = *in64 ^ iv64[0];
+                    iv64[0] = *in64++;
+                    *out64++ = *in64 ^ iv64[1];
+                    iv64[1] = *in64++;
+                }
+            } else {
+                blocks >>= 3;
+                while (blocks--) {
+                    botan_block_cipher_encrypt_blocks(
+                      crypt->obj, (uint8_t *) iv64, (uint8_t *) iv64, 1);
+                    *out64++ = *in64 ^ iv64[0];
+                    iv64[0] = *in64++;
+                }
             }
-        } else {
-            while (blocks) {
-                botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
-                c64 = *in64;
-                *out64++ = *in64++ ^ *iv64_0;
-                *iv64_0 = c64;
-                blocks -= blsize;
-            }
+
+            memcpy(out, outbuf64, blockb);
+            out += blockb;
+            in += blockb;
         }
 
-        out = (uint8_t *) out64;
-        in = (uint8_t *) in64;
+        memcpy(crypt->iv, iv64, blsize);
     }
 
     /* filling prev_iv */
@@ -332,12 +345,10 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
 
     /* decrypting tail */
     while (bytes) {
-        uint8_t c = *in;
-        *out = c ^ crypt->iv[blsize - crypt->remaining];
+        uint8_t c = *in++;
+        *out++ = c ^ crypt->iv[blsize - crypt->remaining];
         crypt->iv[blsize - crypt->remaining] = c;
         crypt->remaining--;
-        out++;
-        in++;
         bytes--;
     }
 
