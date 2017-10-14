@@ -45,26 +45,8 @@ struct rnp_keyring_st {
 };
 
 struct rnp_key_st {
-    pgp_key_t *    key;
+    pgp_key_t *key;
 };
-
-static pgp_key_t *
-find_suitable_subkey(const pgp_key_t *primary, uint8_t desired_usage)
-{
-    // fixme copied fron rnp.c
-    if (!primary || DYNARRAY_IS_EMPTY(primary, subkey)) {
-        return NULL;
-    }
-    // search in reverse with the assumption that the last
-    // in the list would be the newest created subkey, for now
-    for (unsigned i = primary->subkeyc; i-- > 0;) {
-        pgp_key_t *subkey = primary->subkeys[i];
-        if (subkey->key_flags & desired_usage) {
-            return subkey;
-        }
-    }
-    return NULL;
-}
 
 static pgp_io_t g_ffi_io;
 
@@ -77,25 +59,26 @@ rnp_set_io(FILE *output_stream, FILE *error_stream, FILE *result_stream)
 }
 
 static const char *
-operation_description(uint8_t op) {
+operation_description(uint8_t op)
+{
     switch (op) {
-      case PGP_OP_ADD_SUBKEY:
+    case PGP_OP_ADD_SUBKEY:
         return "add subkey";
-      case PGP_OP_SIGN:
+    case PGP_OP_SIGN:
         return "sign";
-      case PGP_OP_DECRYPT:
+    case PGP_OP_DECRYPT:
         return "decrypt";
-      case PGP_OP_UNLOCK:
+    case PGP_OP_UNLOCK:
         return "unlock";
-      case PGP_OP_PROTECT:
+    case PGP_OP_PROTECT:
         return "protect";
-      case PGP_OP_UNPROTECT:
+    case PGP_OP_UNPROTECT:
         return "unprotect";
-      case PGP_OP_DECRYPT_SYM:
+    case PGP_OP_DECRYPT_SYM:
         return "decrypt (symmetric)";
-      case PGP_OP_ENCRYPT_SYM:
+    case PGP_OP_ENCRYPT_SYM:
         return "encrypt (symmetric)";
-      default:
+    default:
         return "unknown";
     }
 }
@@ -107,7 +90,7 @@ rnp_passphrase_cb_bounce(const pgp_passphrase_ctx_t *ctx,
                          void *                      userdata_void)
 {
     struct rnp_passphrase_cb_data *userdata = (struct rnp_passphrase_cb_data *) userdata_void;
-    rnp_key_t key = NULL;
+    rnp_key_t                      key = NULL;
 
     if (!userdata->cb_fn) {
         return false;
@@ -718,8 +701,7 @@ rnp_keyring_save_to_file(rnp_keyring_t ring, const char *path)
 }
 
 rnp_result_t
-rnp_keyring_save_to_mem(
-  rnp_keyring_t ring, int flags, uint8_t *buf[], size_t *buf_len)
+rnp_keyring_save_to_mem(rnp_keyring_t ring, int flags, uint8_t *buf[], size_t *buf_len)
 {
     bool         armor = (flags & RNP_EXPORT_FLAG_ARMORED);
     pgp_memory_t memory;
@@ -1678,7 +1660,7 @@ rnp_result_t
 rnp_generate_key_json(rnp_keyring_t     pubring,
                       rnp_keyring_t     secring,
                       rnp_get_key_cb    getkeycb,
-                      void * getkeycb_ctx,
+                      void *            getkeycb_ctx,
                       rnp_passphrase_cb getpasscb,
                       void *            getpasscb_ctx,
                       const char *      json,
@@ -2171,8 +2153,7 @@ rnp_key_protect(rnp_key_t key, const char *passphrase)
         return RNP_ERROR_NULL_POINTER;
 
     // TODO allow setting protection params
-    bool ok =
-      pgp_key_protect_passphrase(key->key, key->key->format, NULL, passphrase);
+    bool ok = pgp_key_protect_passphrase(key->key, key->key->format, NULL, passphrase);
 
     if (ok)
         return RNP_SUCCESS;
