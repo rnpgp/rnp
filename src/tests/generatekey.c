@@ -602,7 +602,9 @@ rnpkeys_generatekey_testExpertMode(void **state)
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdh_256, strlen(test_ecdh_256)));
     rnp_assert_int_equal(
-      rstate, rnp.action.generate_key_ctx.primary.keygen.crypto.key_alg, PGP_PKA_ECDH);
+      rstate, rnp.action.generate_key_ctx.primary.keygen.crypto.key_alg, PGP_PKA_ECDSA);
+    rnp_assert_int_equal(
+      rstate, rnp.action.generate_key_ctx.subkey.keygen.crypto.key_alg, PGP_PKA_ECDH);
     rnp_assert_int_equal(rstate,
                          rnp.action.generate_key_ctx.primary.keygen.crypto.ecc.curve,
                          PGP_CURVE_NIST_P_256);
@@ -613,7 +615,9 @@ rnpkeys_generatekey_testExpertMode(void **state)
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdh_384, strlen(test_ecdh_384)));
     rnp_assert_int_equal(
-      rstate, rnp.action.generate_key_ctx.primary.keygen.crypto.key_alg, PGP_PKA_ECDH);
+      rstate, rnp.action.generate_key_ctx.primary.keygen.crypto.key_alg, PGP_PKA_ECDSA);
+    rnp_assert_int_equal(
+      rstate, rnp.action.generate_key_ctx.subkey.keygen.crypto.key_alg, PGP_PKA_ECDH);
     rnp_assert_int_equal(rstate,
                          rnp.action.generate_key_ctx.primary.keygen.crypto.ecc.curve,
                          PGP_CURVE_NIST_P_384);
@@ -624,7 +628,9 @@ rnpkeys_generatekey_testExpertMode(void **state)
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdh_521, strlen(test_ecdh_521)));
     rnp_assert_int_equal(
-      rstate, rnp.action.generate_key_ctx.primary.keygen.crypto.key_alg, PGP_PKA_ECDH);
+      rstate, rnp.action.generate_key_ctx.primary.keygen.crypto.key_alg, PGP_PKA_ECDSA);
+    rnp_assert_int_equal(
+      rstate, rnp.action.generate_key_ctx.subkey.keygen.crypto.key_alg, PGP_PKA_ECDH);
     rnp_assert_int_equal(rstate,
                          rnp.action.generate_key_ctx.primary.keygen.crypto.ecc.curve,
                          PGP_CURVE_NIST_P_521);

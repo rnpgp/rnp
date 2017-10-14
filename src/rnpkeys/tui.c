@@ -132,6 +132,53 @@ ask_bitlen(FILE *input_fp)
     return result;
 }
 
+static rnp_result_t
+setup_ecdsa_key_params(rnp_keygen_crypto_params_t *params, FILE *input_fd)
+{
+    if (PGP_HASH_UNKNOWN == params->hash_alg) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    size_t digest_length = 0;
+    if (!pgp_digest_length(params->hash_alg, &digest_length)) {
+        // Implementation error
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    params->key_alg = PGP_PKA_ECDSA;
+    params->ecc.curve = ask_curve(input_fd);
+    /*
+     * Adjust hash to curve - see point 14 of RFC 4880 bis 01
+     * and/or ECDSA spec.
+     *
+     * Minimal size of digest for curve:
+     *    P-256  32 bytes
+     *    P-384  48 bytes
+     *    P-521  64 bytes
+     */
+    switch (params->ecc.curve) {
+    case PGP_CURVE_NIST_P_256:
+        if (digest_length < 32) {
+            params->hash_alg = PGP_HASH_SHA256;
+        }
+        break;
+    case PGP_CURVE_NIST_P_384:
+        if (digest_length < 48) {
+            params->hash_alg = PGP_HASH_SHA384;
+        }
+        break;
+    case PGP_CURVE_NIST_P_521:
+        if (digest_length < 64) {
+            params->hash_alg = PGP_HASH_SHA512;
+        }
+        break;
+    default:
+        // Should never happen as ask_curve checks it
+        return RNP_ERROR_GENERIC;
+    }
+    return RNP_SUCCESS;
+}
+
 /* -----------------------------------------------------------------------------
  * @brief   Asks user for details needed for the key to be generated (currently
  *          key type and key length only)
@@ -150,80 +197,52 @@ ask_bitlen(FILE *input_fp)
 rnp_result_t
 rnp_generate_key_expert_mode(rnp_t *rnp)
 {
-    FILE *                       input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
-    rnp_action_keygen_t *        action = &rnp->action.generate_key_ctx;
-    rnp_keygen_primary_desc_t *  primary_desc = &action->primary.keygen;
-    rnp_key_protection_params_t *primary_protection = &action->primary.protection;
-    rnp_keygen_subkey_desc_t *   subkey_desc = &action->subkey.keygen;
-    rnp_key_protection_params_t *subkey_protection = &action->subkey.protection;
-    rnp_keygen_crypto_params_t * crypto = &primary_desc->crypto;
+    FILE *                      input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
+    rnp_action_keygen_t *       action = &rnp->action.generate_key_ctx;
+    rnp_keygen_primary_desc_t * primary_desc = &action->primary.keygen;
+    rnp_keygen_crypto_params_t *crypto = &primary_desc->crypto;
 
     crypto->key_alg = (pgp_pubkey_alg_t) ask_algorithm(input_fd);
     // get more details about the key
-    switch (crypto->key_alg) {
+    const uint32_t key_alg = crypto->key_alg;
+    switch (key_alg) {
+        rnp_result_t ret;
+
     case PGP_PKA_RSA:
         // Those algorithms must _NOT_ be supported
         //  case PGP_PKA_RSA_ENCRYPT_ONLY:
         //  case PGP_PKA_RSA_SIGN_ONLY:
         crypto->rsa.modulus_bit_len = ask_bitlen(input_fd);
+        action->subkey.keygen.crypto = *crypto;
         break;
+
     case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA: {
-        crypto->ecc.curve = ask_curve(input_fd);
-        if (PGP_HASH_UNKNOWN == crypto->hash_alg) {
-            return RNP_ERROR_BAD_PARAMETERS;
+    case PGP_PKA_ECDSA:
+        ret = setup_ecdsa_key_params(&action->primary.keygen.crypto, input_fd);
+        if (ret != RNP_SUCCESS) {
+            return ret;
         }
+        /* Generate ECDH as a subkey of ECDSA */
+        action->subkey.keygen.crypto.key_alg = PGP_PKA_ECDH;
+        action->subkey.keygen.crypto.hash_alg = action->primary.keygen.crypto.hash_alg;
+        action->subkey.keygen.crypto.ecc.curve = action->primary.keygen.crypto.ecc.curve;
+        break;
 
-        size_t digest_length = 0;
-        if (!pgp_digest_length(crypto->hash_alg, &digest_length)) {
-            // Implementation error
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-
-        /*
-         * Adjust hash to curve - see point 14 of RFC 4880 bis 01
-         * and/or ECDSA spec.
-         *
-         * Minimal size of digest for curve:
-         *    P-256  32 bytes
-         *    P-384  48 bytes
-         *    P-521  64 bytes
-         */
-        switch (crypto->ecc.curve) {
-        case PGP_CURVE_NIST_P_256:
-            if (digest_length < 32) {
-                crypto->hash_alg = PGP_HASH_SHA256;
-            }
-            break;
-        case PGP_CURVE_NIST_P_384:
-            if (digest_length < 48) {
-                crypto->hash_alg = PGP_HASH_SHA384;
-            }
-            break;
-        case PGP_CURVE_NIST_P_521:
-            if (digest_length < 64) {
-                crypto->hash_alg = PGP_HASH_SHA512;
-            }
-            break;
-        default:
-            // Should never happen as ask_curve checks it
-            return RNP_ERROR_GENERIC;
-        }
-    } break;
     case PGP_PKA_EDDSA:
         crypto->ecc.curve = PGP_CURVE_ED25519;
         break;
+
     case PGP_PKA_SM2:
         crypto->hash_alg = PGP_HASH_SM3;
         crypto->ecc.curve = PGP_CURVE_SM2_P_256;
+        action->subkey.keygen.crypto = *crypto;
         break;
+
     default:
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    // TODO this is mostly to get tests passing
-    subkey_desc->crypto = primary_desc->crypto;
-    primary_protection->hash_alg = crypto->hash_alg;
-    *subkey_protection = *primary_protection;
 
+    action->primary.protection.hash_alg = crypto->hash_alg;
+    action->subkey.protection = action->primary.protection;
     return RNP_SUCCESS;
 }
