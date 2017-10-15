@@ -331,13 +331,6 @@ def rnp_decrypt_file(src, dst):
     if ret != 0:
         raise_err('rnp decryption failed', out + err)
 
-def rnp_symdecrypt_file(src, dst):
-    pipe = pswd_pipe(PASSWORD)
-    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--decrypt', src, '--output', dst])
-    os.close(pipe)
-    if ret != 0:
-        raise_err('rnp symmetric decryption failed', out + err)
-
 def rnp_sign_file(src, dst, signer, armour = False):
     pipe = pswd_pipe(PASSWORD)
     params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', signer, '--sign', src, '--output', dst]
@@ -563,7 +556,7 @@ def rnp_sym_encryption_gpg_to_rnp(cipher, filesize, zlevel = 6, zalgo = 1):
         # Encrypt cleartext file with GPG
         gpg_symencrypt_file(src, dst, cipher, zlevel, zalgo, armour)
         # Decrypt encrypted file with RNP
-        rnp_symdecrypt_file(dst, dec)
+        rnp_decrypt_file(dst, dec)
         compare_files(src, dec, 'rnp decrypted data differs')
         remove_files(dst, dec)
 
@@ -579,7 +572,7 @@ def rnp_sym_encryption_rnp_to_gpg(cipher, filesize, zlevel = 6, zalgo = 'zip'):
         compare_files(src, dst, 'gpg decrypted data differs')
         remove_files(dst)
         # Decrypt encrypted file with RNP
-        rnp_symdecrypt_file(enc, dst)
+        rnp_decrypt_file(enc, dst)
         compare_files(src, dst, 'rnp decrypted data differs')
         remove_files(enc, dst)
 
