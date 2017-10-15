@@ -165,6 +165,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_repgp_decrypt),
       cmocka_unit_test(test_repgp_verify),
       cmocka_unit_test(test_repgp_list_packets),
+      cmocka_unit_test(test_generated_key_sigs),
       cmocka_unit_test(test_ffi_api),
       cmocka_unit_test(test_ffi_homedir),
       cmocka_unit_test(test_ffi_keygen_json_pair),

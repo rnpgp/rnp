@@ -33,6 +33,9 @@
 #include "support.h"
 #include "symmetric.h"
 #include "hash.h"
+#include "pgp-key.h"
+#include "signature.h"
+#include "librepgp/validate.h"
 
 void
 rnpkeys_generatekey_testSignature(void **state)
@@ -754,4 +757,227 @@ generatekeyECDSA_explicitlySetWrongDigest_ShouldFail(void **state)
     rnp_assert_false(rstate,
                      ask_expert_details(&rnp, &ops, test_ecdsa_384, strlen(test_ecdsa_384)));
     rnp_cfg_free(&ops);
+}
+
+/* This tests some of the mid-level key generation functions and their
+ * generated sigs in the keyring.
+ */
+void
+test_generated_key_sigs(void **state)
+{
+    rnp_key_store_t *pubring = NULL;
+    rnp_key_store_t *secring = NULL;
+    pgp_io_t         io = {.errs = stderr, .res = stdout, .outs = stdout};
+    pgp_key_t *      primary_pub = NULL, *primary_sec = NULL;
+    pgp_key_t *      sub_pub = NULL, *sub_sec = NULL;
+
+    // create a couple keyrings
+    pubring = calloc(1, sizeof(*pubring));
+    secring = calloc(1, sizeof(*secring));
+    assert_non_null(pubring);
+    assert_non_null(secring);
+
+    // primary
+    {
+        pgp_key_t                 pub = {0};
+        pgp_key_t                 sec = {0};
+        rnp_keygen_primary_desc_t desc = {
+          .crypto = {.key_alg = PGP_PKA_RSA, .rsa.modulus_bit_len = 1024},
+          .cert = {.userid = "test"}};
+
+        // generate
+        assert_true(pgp_generate_primary_key(&desc, true, &sec, &pub, GPG_KEY_STORE));
+
+        // add to our rings
+        assert_true(rnp_key_store_add_key(&io, pubring, &pub));
+        assert_true(rnp_key_store_add_key(&io, secring, &sec));
+        // retrieve back from our rings (for later)
+        primary_pub = rnp_key_store_get_key_by_grip(&io, pubring, pub.grip);
+        primary_sec = rnp_key_store_get_key_by_grip(&io, secring, pub.grip);
+        assert_non_null(primary_pub);
+        assert_non_null(primary_sec);
+
+        // check packet and subsig counts
+        assert_int_equal(3, pub.packetc);
+        assert_int_equal(3, sec.packetc);
+        assert_int_equal(1, pub.subsigc);
+        assert_int_equal(1, sec.subsigc);
+        // make sure our sig MPI is not NULL
+        assert_non_null(pub.subsigs[0].sig.info.sig.rsa.sig);
+        assert_non_null(sec.subsigs[0].sig.info.sig.rsa.sig);
+        // make sure we're targeting the right packet
+        assert_int_equal(PGP_PTAG_CT_SIGNATURE, pub.packets[2].tag);
+        assert_int_equal(PGP_PTAG_CT_SIGNATURE, sec.packets[2].tag);
+        // validate the userid self-sig
+        assert_true(pgp_check_useridcert_sig(pgp_get_pubkey(&pub),
+                                             pub.uids[0],
+                                             &pub.subsigs[0].sig,
+                                             pgp_get_pubkey(&pub),
+                                             pub.packets[2].raw));
+        assert_true(pgp_check_useridcert_sig(pgp_get_pubkey(&sec),
+                                             sec.uids[0],
+                                             &sec.subsigs[0].sig,
+                                             pgp_get_pubkey(&sec),
+                                             sec.packets[2].raw));
+        // modify a hashed portion of the sig packets
+        pub.packets[2]
+          .raw[pub.subsigs[0].sig.v4_hashstart + pub.subsigs[0].sig.info.v4_hashlen - 1] ^=
+          0xff;
+        sec.packets[2]
+          .raw[sec.subsigs[0].sig.v4_hashstart + sec.subsigs[0].sig.info.v4_hashlen - 1] ^=
+          0xff;
+        // ensure validation fails
+        assert_false(pgp_check_useridcert_sig(pgp_get_pubkey(&pub),
+                                              pub.uids[0],
+                                              &pub.subsigs[0].sig,
+                                              pgp_get_pubkey(&pub),
+                                              pub.packets[2].raw));
+        assert_false(pgp_check_useridcert_sig(pgp_get_pubkey(&sec),
+                                              sec.uids[0],
+                                              &sec.subsigs[0].sig,
+                                              pgp_get_pubkey(&sec),
+                                              sec.packets[2].raw));
+        // restore the original data
+        pub.packets[2]
+          .raw[pub.subsigs[0].sig.v4_hashstart + pub.subsigs[0].sig.info.v4_hashlen - 1] ^=
+          0xff;
+        sec.packets[2]
+          .raw[sec.subsigs[0].sig.v4_hashstart + sec.subsigs[0].sig.info.v4_hashlen - 1] ^=
+          0xff;
+        // ensure validation fails with incorrect uid
+        assert_false(pgp_check_useridcert_sig(pgp_get_pubkey(&pub),
+                                              (const uint8_t *) "fake",
+                                              &pub.subsigs[0].sig,
+                                              pgp_get_pubkey(&pub),
+                                              pub.packets[2].raw));
+        assert_false(pgp_check_useridcert_sig(pgp_get_pubkey(&sec),
+                                              (const uint8_t *) "fake",
+                                              &sec.subsigs[0].sig,
+                                              pgp_get_pubkey(&sec),
+                                              sec.packets[2].raw));
+
+        // validate via an alternative method
+        pgp_validation_t *result = NULL;
+        // primary_pub + pubring
+        result = calloc(1, sizeof(*result));
+        assert_non_null(result);
+        assert_true(pgp_validate_key_sigs(result, primary_pub, pubring, NULL));
+        pgp_validate_result_free(result);
+        // primary_sec + pubring
+        result = calloc(1, sizeof(*result));
+        assert_non_null(result);
+        assert_true(pgp_validate_key_sigs(result, primary_sec, pubring, NULL));
+        pgp_validate_result_free(result);
+        // primary_pub + secring
+        result = calloc(1, sizeof(*result));
+        assert_non_null(result);
+        assert_true(pgp_validate_key_sigs(result, primary_pub, secring, NULL));
+        pgp_validate_result_free(result);
+        // primary_sec + secring
+        result = calloc(1, sizeof(*result));
+        assert_non_null(result);
+        assert_true(pgp_validate_key_sigs(result, primary_sec, secring, NULL));
+        pgp_validate_result_free(result);
+
+        // do at least one modification test for pgp_validate_key_sigs too
+        // modify a hashed portion of the sig packet
+        primary_pub->packets[2].raw[primary_pub->subsigs[0].sig.v4_hashstart +
+                                    primary_pub->subsigs[0].sig.info.v4_hashlen - 1] ^= 0xff;
+        // ensure validation fails
+        result = calloc(1, sizeof(*result));
+        assert_non_null(result);
+        assert_false(pgp_validate_key_sigs(result, primary_pub, pubring, NULL));
+        pgp_validate_result_free(result);
+        // restore the original data
+        primary_pub->packets[2].raw[primary_pub->subsigs[0].sig.v4_hashstart +
+                                    primary_pub->subsigs[0].sig.info.v4_hashlen - 1] ^= 0xff;
+    }
+
+    // sub
+    {
+        pgp_key_t                pub = {0};
+        pgp_key_t                sec = {0};
+        rnp_keygen_subkey_desc_t desc = {
+          .crypto = {.key_alg = PGP_PKA_RSA, .rsa.modulus_bit_len = 1024}, .binding = {0}};
+
+        // generate
+        assert_true(pgp_generate_subkey(
+          &desc, true, primary_sec, primary_pub, &sec, &pub, NULL, GPG_KEY_STORE));
+
+        // check packet and subsig counts
+        assert_int_equal(2, pub.packetc);
+        assert_int_equal(2, sec.packetc);
+        assert_int_equal(1, pub.subsigc);
+        assert_int_equal(1, sec.subsigc);
+        // make sure our sig MPI is not NULL
+        assert_non_null(pub.subsigs[0].sig.info.sig.rsa.sig);
+        assert_non_null(sec.subsigs[0].sig.info.sig.rsa.sig);
+        // make sure we're targeting the right packet
+        assert_int_equal(PGP_PTAG_CT_SIGNATURE, pub.packets[1].tag);
+        assert_int_equal(PGP_PTAG_CT_SIGNATURE, sec.packets[1].tag);
+        // validate the binding sig
+        assert_true(pgp_check_subkey_sig(pgp_get_pubkey(primary_pub),
+                                         pgp_get_pubkey(&pub),
+                                         &pub.subsigs[0].sig,
+                                         pgp_get_pubkey(primary_pub),
+                                         pub.packets[1].raw));
+        assert_true(pgp_check_subkey_sig(pgp_get_pubkey(primary_pub),
+                                         pgp_get_pubkey(&sec),
+                                         &sec.subsigs[0].sig,
+                                         pgp_get_pubkey(primary_pub),
+                                         sec.packets[1].raw));
+        // modify a hashed portion of the sig packets
+        pub.packets[1]
+          .raw[pub.subsigs[0].sig.v4_hashstart + pub.subsigs[0].sig.info.v4_hashlen - 1] ^=
+          0xff;
+        sec.packets[1]
+          .raw[sec.subsigs[0].sig.v4_hashstart + sec.subsigs[0].sig.info.v4_hashlen - 1] ^=
+          0xff;
+        // ensure validation fails
+        assert_false(pgp_check_subkey_sig(pgp_get_pubkey(primary_pub),
+                                          pgp_get_pubkey(&pub),
+                                          &pub.subsigs[0].sig,
+                                          pgp_get_pubkey(primary_pub),
+                                          pub.packets[1].raw));
+        assert_false(pgp_check_subkey_sig(pgp_get_pubkey(primary_pub),
+                                          pgp_get_pubkey(&sec),
+                                          &sec.subsigs[0].sig,
+                                          pgp_get_pubkey(primary_pub),
+                                          sec.packets[1].raw));
+        // restore the original data
+        pub.packets[1]
+          .raw[pub.subsigs[0].sig.v4_hashstart + pub.subsigs[0].sig.info.v4_hashlen - 1] ^=
+          0xff;
+        sec.packets[1]
+          .raw[sec.subsigs[0].sig.v4_hashstart + sec.subsigs[0].sig.info.v4_hashlen - 1] ^=
+          0xff;
+
+        // add to our rings
+        assert_true(rnp_key_store_add_key(&io, pubring, &pub));
+        assert_true(rnp_key_store_add_key(&io, secring, &sec));
+        // retrieve back from our rings
+        sub_pub = rnp_key_store_get_key_by_grip(&io, pubring, pub.grip);
+        sub_sec = rnp_key_store_get_key_by_grip(&io, secring, pub.grip);
+        assert_non_null(sub_pub);
+        assert_non_null(sub_sec);
+
+        // TODO: pgp_validate_key_sigs expects key->packets[] to contain
+        // both the primary and sub, so we have to fake it.
+        pgp_key_t  fake = {0};
+        pgp_key_t *pfake = &fake;
+        for (unsigned i = 0; i < primary_pub->packetc; i++) {
+            EXPAND_ARRAY(pfake, packet);
+            fake.packets[fake.packetc++] = primary_pub->packets[i];
+        }
+        for (unsigned i = 0; i < sub_pub->packetc; i++) {
+            EXPAND_ARRAY(pfake, packet);
+            fake.packets[fake.packetc++] = sub_pub->packets[i];
+        }
+        // validate via an alternative method
+        pgp_validation_t vres = {0};
+        assert_true(pgp_validate_key_sigs(&vres, &fake, pubring, NULL));
+    }
+
+    rnp_key_store_free(pubring);
+    rnp_key_store_free(secring);
 }
