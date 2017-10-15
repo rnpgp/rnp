@@ -17,7 +17,7 @@ RNPDIR = ''
 GPGDIR = ''
 RMWORKDIR = False
 SMALL_ITERATIONS = 100
-LARGE_ITERATIONS = 2
+LARGE_ITERATIONS = 5
 LARGESIZE = 1024*1024*100
 SMALLSIZE = 0
 SMALLFILE = 'smalltest.txt'
@@ -72,11 +72,17 @@ def setup():
     return
 
 def run_iterated(iterations, func, src, dst, *args):
-    tstart = perf_timer()
+    runtime = 0
+    
     for i in range(0, iterations):
+        tstart = perf_timer()
         func(src, dst, *args)
+        runtime += perf_timer() - tstart
         os.remove(dst)
-    return perf_timer() - tstart
+    
+    res = runtime / iterations
+    #print '{} average run time: {}'.format(func.__name__, res)
+    return res
 
 def rnp_symencrypt_file(src, dst, cipher, zlevel = 6, zalgo = 'zip', armour = False):
     pipe = pswd_pipe(PASSWORD)
@@ -108,15 +114,15 @@ def gpg_decrypt_file(src, dst, keypass):
     if ret != 0:
         raise_err('gpg decryption failed', err)
 
-def print_test_results(fsize, iterations, rnptime, gpgtime, operation):
+def print_test_results(fsize, rnptime, gpgtime, operation):
     if not rnptime or not gpgtime:
         print '{}:TEST FAILED'.format(operation)
         return
 
     if fsize == SMALLSIZE:
-        rnpruns = iterations / rnptime
-        gpgruns = iterations / gpgtime
-        runstr = '{:.2f} runs/sec vs {:.2f} runs/sec'.format(iterations/rnptime, iterations/gpgtime)
+        rnpruns = 1.0 / rnptime
+        gpgruns = 1.0 / gpgtime
+        runstr = '{:.2f} runs/sec vs {:.2f} runs/sec'.format(rnpruns, gpgruns)
 
         if rnpruns >= gpgruns:
             percents = (rnpruns - gpgruns) / gpgruns * 100
@@ -125,8 +131,8 @@ def print_test_results(fsize, iterations, rnptime, gpgtime, operation):
             percents = (gpgruns - rnpruns) / gpgruns * 100
             print '{:<30}: RNP is {:>3.0f}% SLOWER then GnuPG ({})'.format(operation, percents, runstr)
     else:
-        rnpspeed = fsize * iterations / 1024.0 / 1024.0 / rnptime
-        gpgspeed = fsize * iterations / 1024.0 / 1024.0 / gpgtime
+        rnpspeed = fsize / 1024.0 / 1024.0 / rnptime
+        gpgspeed = fsize / 1024.0 / 1024.0 / gpgtime
         spdstr = '{:.2f} MB/sec vs {:.2f} MB/sec'.format(rnpspeed, gpgspeed)
 
         if rnpspeed >= gpgspeed:
@@ -161,7 +167,7 @@ def run_tests():
         tmrnp = run_iterated(iterations, rnp_symencrypt_file, infile, rnpout, 'AES128', 0, 'zip', armour)
         tmgpg = run_iterated(iterations, gpg_symencrypt_file, infile, gpgout, 'AES128', 0, 1, armour)
         testname = 'ENCRYPT-SMALL-{}'.format('ARMOUR' if armour else 'BINARY')
-        print_test_results(fsize, iterations, tmrnp, tmgpg, testname)
+        print_test_results(fsize, tmrnp, tmgpg, testname)
 
     print '#2. Large file symmetric encryption'
     infile, rnpout, gpgout, iterations, fsize = get_file_params('large')
@@ -169,12 +175,12 @@ def run_tests():
         tmrnp = run_iterated(iterations, rnp_symencrypt_file, infile, rnpout, cipher, 0, 'zip', False)
         tmgpg = run_iterated(iterations, gpg_symencrypt_file, infile, gpgout, cipher, 0, 1, False)
         testname = 'ENCRYPT-{}-BINARY'.format(cipher)
-        print_test_results(fsize, iterations, tmrnp, tmgpg, testname)
+        print_test_results(fsize, tmrnp, tmgpg, testname)
 
     print '#3. Large file armoured encryption'
     tmrnp = run_iterated(iterations, rnp_symencrypt_file, infile, rnpout, 'AES128', 0, 'zip', True)
     tmgpg = run_iterated(iterations, gpg_symencrypt_file, infile, gpgout, 'AES128', 0, 1, True)
-    print_test_results(fsize, iterations, tmrnp, tmgpg, 'ENCRYPT-LARGE-ARMOUR')
+    print_test_results(fsize, tmrnp, tmgpg, 'ENCRYPT-LARGE-ARMOUR')
 
     print '#4. Small file symmetric decryption'
     infile, rnpout, gpgout, iterations, fsize = get_file_params('small')
@@ -184,7 +190,7 @@ def run_tests():
         tmrnp = run_iterated(iterations, rnp_decrypt_file, inenc, rnpout)
         tmgpg = run_iterated(iterations, gpg_decrypt_file, inenc, gpgout, PASSWORD)
         testname = 'DECRYPT-SMALL-{}'.format('ARMOUR' if armour else 'BINARY')
-        print_test_results(fsize, iterations, tmrnp, tmgpg, testname)
+        print_test_results(fsize, tmrnp, tmgpg, testname)
         os.remove(inenc)
 
     print '#5. Large file symmetric decryption'
@@ -195,14 +201,14 @@ def run_tests():
         tmrnp = run_iterated(iterations, rnp_decrypt_file, inenc, rnpout)
         tmgpg = run_iterated(iterations, gpg_decrypt_file, inenc, gpgout, PASSWORD)
         testname = 'DECRYPT-{}-BINARY'.format(cipher)
-        print_test_results(fsize, iterations, tmrnp, tmgpg, testname)
+        print_test_results(fsize, tmrnp, tmgpg, testname)
         os.remove(inenc)
 
     print '#6. Large file armoured decryption'
     gpg_symencrypt_file(infile, inenc, 'AES128', 0, 1, True)
     tmrnp = run_iterated(iterations, rnp_decrypt_file, inenc, rnpout)
     tmgpg = run_iterated(iterations, gpg_decrypt_file, inenc, gpgout, PASSWORD)
-    print_test_results(fsize, iterations, tmrnp, tmgpg, 'DECRYPT-LARGE-ARMOUR')
+    print_test_results(fsize, tmrnp, tmgpg, 'DECRYPT-LARGE-ARMOUR')
     os.remove(inenc)
 
     # 3. Signing
