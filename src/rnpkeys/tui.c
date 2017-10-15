@@ -204,7 +204,7 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
 
     crypto->key_alg = (pgp_pubkey_alg_t) ask_algorithm(input_fd);
     // get more details about the key
-    const uint32_t key_alg = crypto->key_alg;
+    const pgp_pubkey_alg_t key_alg = crypto->key_alg;
     switch (key_alg) {
         rnp_result_t ret;
 
