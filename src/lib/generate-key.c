@@ -208,8 +208,7 @@ validate_keygen_primary(const rnp_keygen_primary_desc_t *desc)
      */
     if (!(pgp_pk_alg_capabilities(desc->crypto.key_alg) & PGP_KF_CERTIFY)) {
         RNP_LOG("primary key alg (%d) must be able to sign", desc->crypto.key_alg);
-        // TODO (allowing for now)
-        // return false;
+        return false;
     }
 
     // check key flags
@@ -220,8 +219,7 @@ validate_keygen_primary(const rnp_keygen_primary_desc_t *desc)
     } else if (desc->cert.key_flags & ~pgp_pk_alg_capabilities(desc->crypto.key_alg)) {
         // check the flags against the alg capabilities
         RNP_LOG("usage not permitted for pk algorithm");
-        // TODO: (allowing for now)
-        // return false;
+        return false;
     }
 
     // require a userid
@@ -421,8 +419,7 @@ validate_keygen_subkey(rnp_keygen_subkey_desc_t *desc)
     } else if (desc->binding.key_flags & ~pgp_pk_alg_capabilities(desc->crypto.key_alg)) {
         // check the flags against the alg capabilities
         RNP_LOG("usage not permitted for pk algorithm");
-        // TODO: (allowing for now)
-        // return false;
+        return false;
     }
     return true;
 }
