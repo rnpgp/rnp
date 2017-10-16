@@ -25,7 +25,7 @@ rnpbuild_reconf() {
 }
 
 rnpbuild_configure() {
-	export CFLAGS="-g3 -O0"
+	export CFLAGS=${CFLAGS:-"-g3 -O0"}
 	./configure
 }
 
