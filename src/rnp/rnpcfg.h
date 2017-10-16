@@ -48,6 +48,7 @@
 #define CFG_VERBOSE "verbose" /* verbose logging */
 #define CFG_HOMEDIR "homedir" /* home directory - folder with keyrings and so on */
 #define CFG_PASSFD "pass-fd"  /* password file descriptor */
+#define CFG_PASSWD "password" /* password as command-line constant */
 #define CFG_USERINPUTFD "user-input-fd" /* user input file descriptor */
 #define CFG_NUMTRIES "numtries"         /* number of password request tries, or 'unlimited' */
 #define CFG_DURATION "duration"         /* signature validity duration */

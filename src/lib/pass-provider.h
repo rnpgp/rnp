@@ -58,4 +58,8 @@ bool rnp_passphrase_provider_file(const pgp_passphrase_ctx_t *ctx,
                                   char *                      passphrase,
                                   size_t                      passphrase_size,
                                   void *                      userdata);
+bool rnp_passphrase_provider_string(const pgp_passphrase_ctx_t *ctx,
+                                    char *                      passphrase,
+                                    size_t                      passphrase_size,
+                                    void *                      userdata);
 #endif

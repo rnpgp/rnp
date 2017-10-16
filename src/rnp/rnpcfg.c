@@ -318,7 +318,12 @@ rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key)
 void
 rnp_cfg_free(rnp_cfg_t *cfg)
 {
-    int i;
+    int         i;
+    const char *passwd = rnp_cfg_get(cfg, CFG_PASSWD);
+
+    if (passwd) {
+        pgp_forget((void *) passwd, strlen(passwd) + 1);
+    }
 
     for (i = 0; i < cfg->count; i++) {
         free(cfg->vals[i]);
@@ -419,7 +424,8 @@ conffile(const char *homedir, char *userid, size_t length)
  *  @return true if path constructed successfully, or false otherwise
  **/
 static bool
-rnp_path_compose(const char *dir, const char *subdir, const char *filename, char *res, size_t res_size)
+rnp_path_compose(
+  const char *dir, const char *subdir, const char *filename, char *res, size_t res_size)
 {
     int pos;
 
@@ -517,8 +523,10 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
             if ((subdir = rnp_cfg_get(cfg, CFG_SUBDIRGPG)) == NULL) {
                 subdir = SUBDIRECTORY_RNP;
             }
-            rnp_path_compose(homedir, defhomedir ? subdir : NULL, PUBRING_KBX, pubpath, sizeof(pubpath));
-            rnp_path_compose(homedir, defhomedir ? subdir : NULL, SECRING_G10, secpath, sizeof(secpath));
+            rnp_path_compose(
+              homedir, defhomedir ? subdir : NULL, PUBRING_KBX, pubpath, sizeof(pubpath));
+            rnp_path_compose(
+              homedir, defhomedir ? subdir : NULL, SECRING_G10, secpath, sizeof(secpath));
 
             bool pubpath_exists = stat(pubpath, &st) == 0;
             bool secpath_exists = stat(secpath, &st) == 0;

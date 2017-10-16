@@ -108,6 +108,7 @@ enum optdefs {
     OPT_VERBOSE,
     OPT_COREDUMPS,
     OPT_PASSWDFD,
+    OPT_PASSWD,
     OPT_SSHKEYFILE,
     OPT_MAX_MEM_ALLOC,
     OPT_DURATION,
@@ -167,6 +168,8 @@ static struct option options[] = {
   {"algorithm", required_argument, NULL, OPT_HASH_ALG},
   {"verbose", no_argument, NULL, OPT_VERBOSE},
   {"pass-fd", required_argument, NULL, OPT_PASSWDFD},
+  {"passphrase", required_argument, NULL, OPT_PASSWD},
+  {"password", required_argument, NULL, OPT_PASSWD},
   {"output", required_argument, NULL, OPT_OUTPUT},
   {"results", required_argument, NULL, OPT_RESULTS},
   {"maxmemalloc", required_argument, NULL, OPT_MAX_MEM_ALLOC},
@@ -334,6 +337,11 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
             ret = false;
             goto done;
         }
+    }
+
+    if (rnp_cfg_get(cfg, CFG_PASSWD)) {
+        rnp->passphrase_provider.callback = rnp_passphrase_provider_string;
+        rnp->passphrase_provider.userdata = (void *) rnp_cfg_get(cfg, CFG_PASSWD);
     }
 
     /* operation context initialization: writing all additional parameters */
@@ -538,6 +546,13 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         }
         rnp_cfg_set(cfg, CFG_PASSFD, arg);
         break;
+    case OPT_PASSWD:
+        if (arg == NULL) {
+            (void) fprintf(stderr, "No passphrase argument provided\n");
+            exit(EXIT_ERROR);
+        }
+        rnp_cfg_set(cfg, CFG_PASSWD, arg);
+        break;
     case OPT_OUTPUT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No output filename argument provided\n");
@@ -713,19 +728,20 @@ main(int argc, char **argv)
     rnp_params_init(&rnp_params);
     if (!rnp_cfg_apply(&cfg, &rnp_params)) {
         fputs("fatal: cannot apply configuration\n", stderr);
-        return EXIT_ERROR;
+        ret = EXIT_ERROR;
+        goto finish;
     }
 
     if (rnp_init(&rnp, &rnp_params) != RNP_SUCCESS) {
         fputs("fatal: cannot initialise\n", stderr);
-        return EXIT_ERROR;
+        ret = EXIT_ERROR;
+        goto finish;
     }
-
-    rnp_params_free(&rnp_params);
 
     if (!rnp_key_store_load_keys(&rnp, rnp_cfg_getbool(&cfg, CFG_NEEDSSECKEY))) {
         fputs("fatal: failed to load keys\n", stderr);
-        return EXIT_ERROR;
+        ret = EXIT_ERROR;
+        goto finish;
     }
 
     /* now do the required action for each of the command line args */
@@ -740,6 +756,10 @@ main(int argc, char **argv)
             }
         }
     }
+
+finish:
+    rnp_params_free(&rnp_params);
+    rnp_cfg_free(&cfg);
     rnp_end(&rnp);
 
     return ret;
