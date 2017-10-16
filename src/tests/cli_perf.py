@@ -31,7 +31,9 @@ def setup():
     RNPK = rnp_file_path('src/rnpkeys/rnpkeys')
     GPG = find_utility('gpg')
     WORKDIR = os.getcwd()
-    if not '/tmp/' in WORKDIR:
+    if len(sys.argv) > 1:
+        WORKDIR = sys.argv[1]
+    elif not '/tmp/' in WORKDIR:
         WORKDIR = tempfile.mkdtemp(prefix = 'rnpptmp')
         RMWORKDIR = True
 
@@ -220,6 +222,17 @@ def cleanup():
     except:
         pass
     return
+
+# Usage ./cli_perf.py [working_directory]
+#
+# It's better to use RAMDISK to perform tests
+# in order to speed up disk reads/writes
+#
+# On linux:
+# mkdir -p /tmp/working
+# sudo mount -t tmpfs -o size=512m tmpfs /tmp/working
+# ./cli_perf.py /tmp/working
+# sudo umount /tmp/working
 
 if __name__ == '__main__':
     setup()
