@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import sys
 import tempfile
@@ -44,7 +44,7 @@ def setup():
     os.mkdir(GPGDIR, 0700)
 
     # Generating key
-    pipe = pswd_pipe(PASSWORD) 
+    pipe = pswd_pipe(PASSWORD)
     params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', 'performance@rnp', '--generate-key']
     # Run key generation
     ret, out, err = run_proc(RNPK, params)
@@ -83,7 +83,7 @@ def rnp_symencrypt_file(src, dst, cipher, zlevel = 6, zalgo = 'zip', armour = Fa
         params += ['--armor']
     ret, out, err = run_proc(RNP, params)
     os.close(pipe)
-    if ret != 0: 
+    if ret != 0:
         raise_err('rnp symmetric encryption failed', err)
 
 def rnp_decrypt_file(src, dst):
@@ -103,7 +103,7 @@ def gpg_symencrypt_file(src, dst, cipher = 'AES', zlevel = 6, zalgo = 1, armour 
 
 def gpg_decrypt_file(src, dst, keypass):
     ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', keypass, '--trust-model', 'always', '-o', dst, '-d', src])
-    if ret != 0: 
+    if ret != 0:
         raise_err('gpg decryption failed', err)
 
 def print_test_results(fsize, iterations, rnptime, gpgtime, operation):
