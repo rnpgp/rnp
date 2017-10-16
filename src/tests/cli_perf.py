@@ -7,7 +7,8 @@ import os
 import shutil
 import subprocess
 from timeit import default_timer as perf_timer
-from cli_common import find_utility, run_proc, pswd_pipe, rnp_file_path, random_text, file_text, size_to_readable, raise_err
+from cli_common import find_utility, run_proc, run_proc_fast, pswd_pipe, rnp_file_path, random_text, file_text, size_to_readable, raise_err
+import cli_common
 
 RNP = ''
 RNPK = ''
@@ -56,7 +57,7 @@ def setup():
     ret, out, err = run_proc(GPG, ['--batch', '--passphrase', '', '--homedir', GPGDIR, '--import', path.join(RNPDIR, 'pubring.gpg'), path.join(RNPDIR, 'secring.gpg')])
 
     # Generating small file for tests
-    SMALLSIZE = 3312;
+    SMALLSIZE = 33120;
     st = 'lorem ipsum dol ' * (SMALLSIZE/16)
     with open(path.join(WORKDIR, SMALLFILE), 'w+') as small_file:
         small_file.write(st)
@@ -85,34 +86,30 @@ def run_iterated(iterations, func, src, dst, *args):
     return res
 
 def rnp_symencrypt_file(src, dst, cipher, zlevel = 6, zalgo = 'zip', armour = False):
-    pipe = pswd_pipe(PASSWORD)
-    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--cipher', cipher, '-z', str(zlevel), '--' + zalgo, '-c', src, '--output', dst]
+    params = ['--homedir', RNPDIR, '--passphrase', PASSWORD, '--cipher', cipher, '-z', str(zlevel), '--' + zalgo, '-c', src, '--output', dst]
     if armour:
         params += ['--armor']
-    ret, out, err = run_proc(RNP, params)
-    os.close(pipe)
+    ret = run_proc_fast(RNP, params)
     if ret != 0:
-        raise_err('rnp symmetric encryption failed', err)
+        raise_err('rnp symmetric encryption failed')
 
 def rnp_decrypt_file(src, dst):
-    pipe = pswd_pipe(PASSWORD)
-    ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--decrypt', src, '--output', dst])
-    os.close(pipe)
+    ret = run_proc_fast(RNP, ['--homedir', RNPDIR, '--passphrase', PASSWORD, '--decrypt', src, '--output', dst])
     if ret != 0:
-        raise_err('rnp decryption failed', out + err)
+        raise_err('rnp decryption failed')
 
 def gpg_symencrypt_file(src, dst, cipher = 'AES', zlevel = 6, zalgo = 1, armour = False):
     params = ['--homedir', GPGDIR, '-c', '-z', str(zlevel), '--s2k-count', '524288', '--compress-algo', str(zalgo), '--batch', '--passphrase', PASSWORD, '--cipher-algo', cipher, '--output', dst, src]
     if armour:
         params.insert(2, '--armor')
-    ret, out, err = run_proc(GPG, params)
+    ret = run_proc_fast(GPG, params)
     if ret != 0:
-        raise_err('gpg symmetric encryption failed for cipher ' + cipher, err)
+        raise_err('gpg symmetric encryption failed for cipher ' + cipher)
 
 def gpg_decrypt_file(src, dst, keypass):
-    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', keypass, '--trust-model', 'always', '-o', dst, '-d', src])
-    if ret != 0:
-        raise_err('gpg decryption failed', err)
+    ret = run_proc_fast(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', keypass, '--trust-model', 'always', '-o', dst, '-d', src])
+    if ret != 0: 
+        raise_err('gpg decryption failed')
 
 def print_test_results(fsize, rnptime, gpgtime, operation):
     if not rnptime or not gpgtime:

@@ -7,6 +7,7 @@ import shutil
 import random
 import string
 from subprocess import Popen, PIPE
+import subprocess
 from timeit import default_timer as perf_timer
 
 RNP_ROOT = None
@@ -90,4 +91,10 @@ def run_proc(proc, params):
         print output
 
     return (retcode, output, errout)
+
+def run_proc_fast(proc, params):
+    with open(os.devnull, 'w') as devnull:
+        proc = Popen([proc] + params, stdout=devnull, stderr=devnull)
+    return proc.wait()
+    #return subprocess.call([proc] + params)
 
