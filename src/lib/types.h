@@ -272,6 +272,53 @@ typedef struct pgp_sig_t {
     pgp_hash_t *hash;         /* the hash filled in for the data so far */
 } pgp_sig_t;
 
+typedef struct pgp_sig_subpkt_t {
+    uint8_t  type;
+    unsigned len;
+    uint8_t *data;
+    unsigned critical : 1;
+    unsigned hashed : 1;
+    unsigned raw : 1;
+} pgp_sig_subpkt_t;
+
+typedef struct pgp_signature_t {
+    pgp_version_t version;
+    /* common v3 and v4 fields */
+    pgp_sig_type_t   sigtype;
+    pgp_pubkey_alg_t palg;
+    pgp_hash_alg_t   halg;
+    uint16_t         lbits;
+    uint8_t *        hashed_data;
+
+    /* signature material */
+    union {
+        struct {
+            uint8_t  m[PGP_MPINT_SIZE];
+            unsigned mlen;
+        } rsa;
+        struct {
+            uint8_t  r[PGP_MPINT_SIZE];
+            uint8_t  s[PGP_MPINT_SIZE];
+            unsigned rlen;
+            unsigned slen;
+        } dsa;
+        struct {
+            uint8_t  r[PGP_MPINT_SIZE];
+            uint8_t  s[PGP_MPINT_SIZE];
+            unsigned rlen;
+            unsigned slen;
+        } ecc;
+    } material;
+
+    /* v3 - only fields */
+    uint32_t creation_time;
+    uint8_t  signer[PGP_KEY_ID_SIZE];
+
+    /* v4 - only fields */
+    DYNARRAY(pgp_sig_subpkt_t, subpkt);
+    unsigned hashed_subpkts;
+} pgp_signature_t;
+
 /** The raw bytes of a signature subpacket */
 
 typedef struct pgp_ss_raw_t {
