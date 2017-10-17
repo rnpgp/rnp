@@ -57,7 +57,7 @@ def setup():
     ret, out, err = run_proc(GPG, ['--batch', '--passphrase', '', '--homedir', GPGDIR, '--import', path.join(RNPDIR, 'pubring.gpg'), path.join(RNPDIR, 'secring.gpg')])
 
     # Generating small file for tests
-    SMALLSIZE = 33120;
+    SMALLSIZE = 3312;
     st = 'lorem ipsum dol ' * (SMALLSIZE/16)
     with open(path.join(WORKDIR, SMALLFILE), 'w+') as small_file:
         small_file.write(st)
