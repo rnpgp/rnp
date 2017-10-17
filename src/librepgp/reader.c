@@ -1333,7 +1333,8 @@ encrypted_data_reader(pgp_stream_t *stream,
         return 0;
     }
 
-    resync = stream->resync || (readinfo->parent->reading_v3_secret && !readinfo->parent->reading_mpi_len);
+    resync = stream->resync ||
+             (readinfo->parent->reading_v3_secret && !readinfo->parent->reading_mpi_len);
 
     while (length > 0) {
         if (encrypted->c) {
@@ -1357,7 +1358,7 @@ encrypted_data_reader(pgp_stream_t *stream,
             dest = cdest;
 
             if (resync && (length == 0)) {
-                /* for v3 keys we should resync CFB context after each MPI. 
+                /* for v3 keys we should resync CFB context after each MPI.
                    The same should be done after the encrypted header for sym-encrypted data */
                 pgp_cipher_cfb_resync(encrypted->decrypt, lastblock);
             }
@@ -1408,7 +1409,9 @@ encrypted_data_reader(pgp_stream_t *stream,
                         return -1;
                     }
 
-                    memcpy(lastblock, buffer + n - encrypted->decrypt->blocksize, encrypted->decrypt->blocksize);
+                    memcpy(lastblock,
+                           buffer + n - encrypted->decrypt->blocksize,
+                           encrypted->decrypt->blocksize);
                 }
             } else {
                 (void) memcpy(&encrypted->decrypted[0], buffer, n);

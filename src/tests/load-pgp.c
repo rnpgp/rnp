@@ -83,14 +83,15 @@ test_load_v3_keyring_pgp(void **state)
 
     // confirm the key flags are correct
     assert_int_equal(key->key_flags,
-        PGP_KF_ENCRYPT | PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
+                     PGP_KF_ENCRYPT | PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 
     // check if the key is secret and is locked
     assert_true(pgp_is_key_secret(key));
     assert_true(pgp_key_is_locked(key));
 
     // decrypt the key
-    pgp_seckey_t *seckey = pgp_decrypt_seckey_pgp(key->packets[0].raw, key->packets[0].length, pgp_get_pubkey(key), "password");
+    pgp_seckey_t *seckey = pgp_decrypt_seckey_pgp(
+      key->packets[0].raw, key->packets[0].length, pgp_get_pubkey(key), "password");
     assert_non_null(seckey);
 
     // cleanup

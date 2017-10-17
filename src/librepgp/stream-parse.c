@@ -1036,14 +1036,17 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             }
             /* Decrypt key */
             if (seckey->key.seckey.encrypted) {
-                decrypted_seckey = pgp_decrypt_seckey(seckey, ctx->handler.passphrase_provider, &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT, .key = seckey});
+                decrypted_seckey = pgp_decrypt_seckey(
+                  seckey,
+                  ctx->handler.passphrase_provider,
+                  &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT, .key = seckey});
                 if (!decrypted_seckey) {
                     continue;
                 }
             } else {
                 decrypted_seckey = &(seckey->key.seckey);
             }
-        
+
             /* Try to initialize the decryption */
             if (encrypted_try_key(src, &param->pubencs[i], decrypted_seckey)) {
                 have_key = true;

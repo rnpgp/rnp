@@ -242,7 +242,7 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     if (bytes) {
         botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
         crypt->remaining = blsize;
-    
+
         /* encrypting tail */
         while (bytes) {
             *out = *in++ ^ crypt->iv[blsize - crypt->remaining];
@@ -325,7 +325,7 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     if (bytes) {
         botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
         crypt->remaining = blsize;
-    
+
         /* decrypting tail */
         while (bytes) {
             uint8_t c = *in++;

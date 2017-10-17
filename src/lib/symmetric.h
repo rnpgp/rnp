@@ -64,7 +64,7 @@ typedef struct pgp_crypt_t {
     size_t                            blocksize;
     size_t                            remaining;
     struct botan_block_cipher_struct *obj;
-    uint8_t iv[PGP_MAX_BLOCK_SIZE];
+    uint8_t                           iv[PGP_MAX_BLOCK_SIZE];
 } pgp_crypt_t;
 
 pgp_symm_alg_t pgp_str_to_cipher(const char *name);
