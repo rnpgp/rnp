@@ -3005,9 +3005,11 @@ decrypt_se_data(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream
         pgp_init_subregion(&encregion, NULL);
         encregion.length = b + 2;
 
+        stream->resync = tag == PGP_PTAG_CT_SE_DATA_BODY;
         if (!exact_limread(buf, b + 2, &encregion, stream)) {
             return false;
         }
+        stream->resync = 0;
         if (buf[b - 2] != buf[b] || buf[b - 1] != buf[b + 1]) {
             pgp_reader_pop_decrypt(stream);
             PGP_ERROR_4(&stream->errors,
@@ -3018,9 +3020,6 @@ decrypt_se_data(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream
                         buf[b],
                         buf[b + 1]);
             return false;
-        }
-        if (tag == PGP_PTAG_CT_SE_DATA_BODY) {
-            pgp_cipher_cfb_resync_v2(decrypt);
         }
         r = repgp_parse(stream, !printerrors);
 
