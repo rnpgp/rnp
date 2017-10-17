@@ -189,6 +189,18 @@ src_skip(pgp_source_t *src, size_t len)
     }
 }
 
+rnp_result_t
+src_finish(pgp_source_t *src)
+{
+    rnp_result_t res = RNP_SUCCESS;
+    if (src->finish) {
+        res = src->finish(src);
+    }
+
+    return res;
+}
+
+
 void
 src_close(pgp_source_t *src)
 {
@@ -281,6 +293,7 @@ init_file_src(pgp_source_t *src, const char *path)
     param->fd = fd;
     src->read = file_src_read;
     src->close = file_src_close;
+    src->finish = NULL;
     src->type = PGP_STREAM_FILE;
     src->size = st.st_size;
     src->readb = 0;
@@ -302,6 +315,7 @@ init_stdin_src(pgp_source_t *src)
     param->fd = 0;
     src->read = file_src_read;
     src->close = file_src_close;
+    src->finish = NULL;
     src->type = PGP_STREAM_STDIN;
     src->size = 0;
     src->readb = 0;

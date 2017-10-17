@@ -61,7 +61,7 @@ int get_packet_type(uint8_t ptag);
 
 /** @brief Read packet length for fixed-size (say, small) packet. Returns -1 on error.
  *  Will also read packet tag byte. We do not allow partial length here as well as large
- *packets (so ignoring possible ssize_t overflow)
+ *  packets (so ignoring possible ssize_t overflow)
  *
  *  @param src source to read length from
  *  @return length of the packet or -1 if there is read error or packet length is ill-formed
@@ -126,8 +126,16 @@ bool stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst);
 
 bool stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *pkey, pgp_dest_t *dst);
 
+bool stream_write_one_pass(pgp_one_pass_sig_t *onepass, pgp_dest_t *dst);
+
+bool stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst);
+
 rnp_result_t stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey);
 
 rnp_result_t stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pkey);
+
+rnp_result_t stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass);
+
+rnp_result_t stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig);
 
 #endif

@@ -56,6 +56,7 @@ typedef struct pgp_dest_t   pgp_dest_t;
 
 typedef ssize_t pgp_source_read_func_t(pgp_source_t *src, void *buf, size_t len);
 typedef void pgp_source_close_func_t(pgp_source_t *src);
+typedef rnp_result_t pgp_source_finish_func_t(pgp_source_t *src);
 
 typedef rnp_result_t pgp_dest_write_func_t(pgp_dest_t *dst, const void *buf, size_t len);
 typedef void pgp_dest_close_func_t(pgp_dest_t *dst, bool discard);
@@ -70,6 +71,7 @@ typedef struct pgp_source_cache_t {
 typedef struct pgp_source_t {
     pgp_source_read_func_t * read;
     pgp_source_close_func_t *close;
+    pgp_source_finish_func_t *finish;
     pgp_stream_type_t        type;
 
     uint64_t size;  /* size of the data if available, 0 otherwise */
@@ -112,6 +114,12 @@ ssize_t src_peek(pgp_source_t *src, void *buf, size_t len);
  *  @return number of bytes skipped or -1 in case of error
  **/
 ssize_t src_skip(pgp_source_t *src, size_t len);
+
+/** @brief notify source that all reading is done, so final data processing may be started, i.e. signature reading and verification and so on. Do not misuse with src_close.
+ *  @param src allocated and initialized source structure
+ *  @return RNP_SUCCESS or error code. If source doesn't have finish handler then also RNP_SUCCESS is returned
+*/
+rnp_result_t src_finish(pgp_source_t *src);
 
 /** @brief close the source and deallocate all internal resources if any
  **/

@@ -78,6 +78,12 @@ typedef struct pgp_source_encrypted_param_t {
     pgp_hash_t  mdc;                        /* mdc SHA1 hash */
 } pgp_source_encrypted_param_t;
 
+typedef struct pgp_source_signed_param_t {
+    pgp_source_t *readsrc;                 /* source to read from */
+    DYNARRAY(pgp_one_pass_sig_t, onepass); /* array of one-pass singatures */
+    DYNARRAY(pgp_signature_t, sig);        /* array of signatures */
+} pgp_source_signed_param_t;
+
 typedef struct pgp_source_compressed_param_t {
     pgp_source_packet_param_t pkt; /* underlying packet-related params */
     pgp_compression_type_t    alg;
@@ -255,6 +261,7 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
 
     src->read = partial_pkt_src_read;
     src->close = partial_pkt_src_close;
+    src->finish = NULL;
     src->type = PGP_STREAM_PARLEN_PACKET;
     src->size = 0;
     src->readb = 0;
@@ -499,6 +506,73 @@ encrypted_src_close(pgp_source_t *src)
         free(src->cache);
         src->cache = NULL;
     }
+}
+
+static ssize_t
+signed_src_read(pgp_source_t *src, void *buf, size_t len)
+{
+    pgp_source_signed_param_t *param = src->param;
+
+    if (param == NULL) {
+        return -1;
+    } else {
+        return src_read(param->readsrc, buf, len);
+    }
+}
+
+static void
+signed_src_close(pgp_source_t *src)
+{
+    pgp_source_signed_param_t *param = src->param;
+
+    if (param) {
+        FREE_ARRAY(param, onepass);
+        free(src->param);
+        src->param = NULL;
+    }
+
+    if (src->cache) {
+        free(src->cache);
+        src->cache = NULL;
+    }
+}
+
+static rnp_result_t
+signed_src_finish(pgp_source_t *src)
+{
+    pgp_source_signed_param_t *param = src->param;
+    pgp_signature_t            sig;
+    uint8_t                    ptag;
+    int                        ptype;
+    rnp_result_t               ret = RNP_SUCCESS;
+
+    /* reading signatures */
+
+    EXPAND_ARRAY_EX(param, sig, param->onepassc);
+
+    for (int i = 0; i < param->onepassc; i++) {
+        if (src_peek(param->readsrc, &ptag, 1) < 1) {
+            RNP_LOG("failed to read packet header");
+            ret = RNP_ERROR_READ;
+            goto finish;
+        }
+
+        ptype = get_packet_type(ptag);
+
+        if (ptype == PGP_PTAG_CT_SIGNATURE) {
+            if ((ret = stream_parse_signature(param->readsrc, &sig)) != RNP_SUCCESS) {
+                goto finish;
+            }
+            param->sigs[param->sigc++] = sig;
+        } else {
+            RNP_LOG("unexpected packet %d", ptype);
+            ret = RNP_ERROR_BAD_FORMAT;
+            goto finish;
+        }
+    }
+
+finish:
+    return ret;
 }
 
 static bool
@@ -787,6 +861,7 @@ init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *rea
     param->pkt.readsrc = readsrc;
     src->read = literal_src_read;
     src->close = literal_src_close;
+    src->finish = NULL;
     src->type = PGP_STREAM_LITERAL;
     src->size = 0;
     src->readb = 0;
@@ -867,6 +942,7 @@ init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *
     param->pkt.readsrc = readsrc;
     src->read = compressed_src_read;
     src->close = compressed_src_close;
+    src->finish = NULL;
     src->type = PGP_STREAM_COMPRESSED;
     src->size = 0;
     src->readb = 0;
@@ -949,6 +1025,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     param->pkt.readsrc = readsrc;
     src->read = encrypted_src_read;
     src->close = encrypted_src_close;
+    src->finish = NULL;
     src->type = PGP_STREAM_ENCRYPTED;
     src->size = 0;
     src->readb = 0;
@@ -1106,6 +1183,66 @@ finish:
     return errcode;
 }
 
+static rnp_result_t
+init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
+{
+    rnp_result_t               errcode = RNP_SUCCESS;
+    pgp_source_signed_param_t *param;
+    uint8_t                    ptag;
+    int                        ptype;
+    pgp_one_pass_sig_t         onepass = {0};
+
+    if (!init_source_cache(src, sizeof(*param))) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    param = src->param;
+    param->readsrc = readsrc;
+    src->read = signed_src_read;
+    src->close = signed_src_close;
+    src->finish = signed_src_finish;
+    src->type = PGP_STREAM_SIGNED;
+    src->size = 0;
+    src->readb = 0;
+    src->eof = 0;
+
+    /* Reading one-pass signature packets */
+    while (true) {
+        if (src_peek(readsrc, &ptag, 1) < 1) {
+            RNP_LOG("failed to read packet header");
+            errcode = RNP_ERROR_READ;
+            goto finish;
+        }
+
+        ptype = get_packet_type(ptag);
+
+        if (ptype == PGP_PTAG_CT_1_PASS_SIG) {
+            errcode = stream_parse_one_pass(readsrc, &onepass);
+            if (errcode != RNP_SUCCESS) {
+                goto finish;
+            }
+            EXPAND_ARRAY_EX(param, onepass, 1);
+            param->onepasss[param->onepassc++] = onepass;
+
+            if (onepass.nested) {
+                /* despite the name non-zero value means that it is the last one-pass */
+                break;
+            }
+        } else {
+            RNP_LOG("unexpected packet %d", ptype);
+            errcode = RNP_ERROR_BAD_FORMAT;
+            goto finish;
+        }
+    }
+
+finish:
+    if (errcode != RNP_SUCCESS) {
+        signed_src_close(src);
+    }
+
+    return errcode;
+}
+
 static void
 init_processing_ctx(pgp_processing_ctx_t *ctx)
 {
@@ -1148,21 +1285,23 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
             return RNP_ERROR_BAD_FORMAT;
         }
 
-        psrc = calloc(1, sizeof(*psrc));
+        if ((psrc = calloc(1, sizeof(*psrc))) == NULL) {
+            RNP_LOG("allocation failed");
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
 
-        if ((type == PGP_PTAG_CT_PK_SESSION_KEY) || (type == PGP_PTAG_CT_SK_SESSION_KEY)) {
+        switch (type) {
+        case PGP_PTAG_CT_PK_SESSION_KEY:
+        case PGP_PTAG_CT_SK_SESSION_KEY:
             ret = init_encrypted_src(ctx, psrc, lsrc);
-        } else if (type == PGP_PTAG_CT_1_PASS_SIG) {
-            RNP_LOG("signed data not implemented");
-            ret = RNP_ERROR_NOT_IMPLEMENTED;
-        } else if (type == PGP_PTAG_CT_COMPRESSED) {
-            if ((lsrc->type != PGP_STREAM_ENCRYPTED) && (lsrc->type != PGP_STREAM_SIGNED)) {
-                RNP_LOG("unexpected compressed pkt");
-                ret = RNP_ERROR_BAD_FORMAT;
-            } else {
-                ret = init_compressed_src(ctx, psrc, lsrc);
-            }
-        } else if (type == PGP_PTAG_CT_LITDATA) {
+            break;
+        case PGP_PTAG_CT_1_PASS_SIG:
+            ret = init_signed_src(ctx, psrc, lsrc);
+            break;
+        case PGP_PTAG_CT_COMPRESSED:
+            ret = init_compressed_src(ctx, psrc, lsrc);
+            break;
+        case PGP_PTAG_CT_LITDATA:
             if ((lsrc->type != PGP_STREAM_ENCRYPTED) && (lsrc->type != PGP_STREAM_SIGNED) &&
                 (lsrc->type != PGP_STREAM_COMPRESSED)) {
                 RNP_LOG("unexpected literal pkt");
@@ -1170,7 +1309,8 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
             } else {
                 ret = init_literal_src(ctx, psrc, lsrc);
             }
-        } else {
+            break;
+        default:
             RNP_LOG("unexpected pkt %d", type);
             ret = RNP_ERROR_BAD_FORMAT;
         }
@@ -1221,6 +1361,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
     uint8_t                     buf[128];
     ssize_t                     read;
     rnp_result_t                res = RNP_ERROR_BAD_FORMAT;
+    rnp_result_t                fres;
     pgp_processing_ctx_t        ctx;
     pgp_source_t *              litsrc;
     pgp_source_t *              armorsrc = NULL;
@@ -1308,6 +1449,13 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
                     res = RNP_ERROR_WRITE;
                     break;
                 }
+            }
+        }
+
+        for (int i = ctx.srcc - 1; i >= 0; i--) {
+            fres = src_finish(ctx.srcs[i]);
+            if (fres != RNP_SUCCESS) {
+                res = fres;
             }
         }
 

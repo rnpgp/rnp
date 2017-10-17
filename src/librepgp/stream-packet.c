@@ -384,6 +384,38 @@ stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *pkey, pgp_dest_t *dst)
     }
 }
 
+bool
+stream_write_one_pass(pgp_one_pass_sig_t *onepass, pgp_dest_t *dst)
+{
+    pgp_packet_body_t pktbody;
+    bool              res;
+
+    if (!init_packet_body(&pktbody, PGP_PTAG_CT_1_PASS_SIG)) {
+        return false;
+    }
+
+    res = add_packet_body_byte(&pktbody, onepass->version) &&
+          add_packet_body_byte(&pktbody, onepass->sig_type) &&
+          add_packet_body_byte(&pktbody, onepass->hash_alg) &&
+          add_packet_body_byte(&pktbody, onepass->key_alg) &&
+          add_packet_body(&pktbody, onepass->keyid, PGP_KEY_ID_SIZE) &&
+          add_packet_body_byte(&pktbody, onepass->nested);
+
+    if (res) {
+        stream_flush_packet_body(&pktbody, dst);
+        return true;
+    } else {
+        free_packet_body(&pktbody);
+        return false;
+    }
+}
+
+bool
+stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst)
+{
+    return false;
+}
+
 rnp_result_t
 stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
 {
@@ -560,4 +592,54 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pkey)
     }
 
     return RNP_SUCCESS;
+}
+
+rnp_result_t
+stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass)
+{
+    ssize_t len;
+    ssize_t read;
+    uint8_t buf[13];
+
+    len = stream_read_pkt_len(src);
+    if (len < 0) {
+        return RNP_ERROR_READ;
+    } else if (len != 13) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    read = src_read(src, buf, 13);
+    if (read != 13) {
+        return RNP_ERROR_READ;
+    }
+
+    /* vesion */
+    if (buf[0] != 3) {
+        RNP_LOG("wrong packet version");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    onepass->version = buf[0];
+
+    /* signature type */
+    onepass->sig_type = buf[1];
+
+    /* hash algorithm */
+    onepass->hash_alg = buf[2];
+
+    /* pk algorithm */
+    onepass->key_alg = buf[3];
+
+    /* key id */
+    memcpy(onepass->keyid, &buf[4], PGP_KEY_ID_SIZE);
+
+    /* nested flag */
+    onepass->nested = !!buf[12];
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
 }
