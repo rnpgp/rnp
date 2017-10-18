@@ -266,6 +266,7 @@ struct pgp_stream_t {
     pgp_hashtype_t *hashes;
     unsigned        reading_v3_secret : 1;
     unsigned        reading_mpi_len : 1;
+    unsigned        resync : 1;
     unsigned        exact_read : 1;
     unsigned        partial_read : 1;
     unsigned        coalescing : 1;

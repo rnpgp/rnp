@@ -726,6 +726,57 @@ def rnp_compression():
     # Cleanup
     clear_keyrings()
 
+def rnp_encryption_no_mdc():
+    src, dst, dec = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
+    # Generate random file of required size
+    random_text(src, 64000)
+    # Encrypt cleartext file with GPG
+    params = ['--homedir', GPGDIR, '-c', '-z', '0', '--disable-mdc', '--s2k-count', '65536', '--batch', '--passphrase', PASSWORD, '--output', dst, src]
+    ret, out, err = run_proc(GPG, params)
+    if ret != 0:
+        raise_err('gpg symmetric encryption failed', err)
+    # Decrypt encrypted file with RNP
+    rnp_decrypt_file(dst, dec)
+    compare_files(src, dec, 'rnp decrypted data differs')
+    
+def rnp_encryption_s2k():
+    src, dst, dec = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
+    random_text(src, 64000)
+
+    ciphers = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
+    hashes = ['SHA1', 'RIPEMD160', 'SHA256', 'SHA384', 'SHA512', 'SHA224']
+    s2kmodes = [0, 1, 3]
+
+    def rnp_encryption_s2k_gpg(cipher, hash, s2k = None, iterations = None):
+        params = ['--homedir', GPGDIR, '-c', '--s2k-cipher-algo', cipher, '--s2k-digest-algo', hash, '--batch', '--passphrase', PASSWORD, '--output', dst, src]
+
+        if s2k is not None:
+            params.insert(7, '--s2k-mode')
+            params.insert(8, str(s2k))
+
+            if iterations is not None:
+                params.insert(9, '--s2k-count')
+                params.insert(10, str(iterations))
+
+        ret, out, err = run_proc(GPG, params)
+        if ret != 0:
+            raise_err('gpg symmetric encryption failed', err)
+        rnp_decrypt_file(dst, dec)
+        compare_files(src, dec, 'rnp decrypted data differs')
+        remove_files(dst, dec)
+
+    for i in range(0, 80):
+        rnp_encryption_s2k_gpg(ciphers[i % len(ciphers)], hashes[i % len(hashes)], s2kmodes[i % len(s2kmodes)])
+
+def rnp_misc_operations():
+    rnp_genkey_rsa(KEY_ENCRYPT)
+    rnp_genkey_rsa(KEY_SIGN_GPG)
+    gpg_import_pubring()
+    gpg_import_secring()
+
+    run_test(rnp_encryption_no_mdc)
+    run_test(rnp_encryption_s2k)
+
 def run_rnp_tests():
     # 1. Encryption / decryption against GPG
     rnp_encryption()
@@ -735,6 +786,8 @@ def run_rnp_tests():
     rnp_compression()
     # 4. Symmetric encryption
     rnp_sym_encryption()
+    # 5. Misc operations, edge cases and uncommon configurations
+    rnp_misc_operations()
 
 '''
     Things to try here later on:

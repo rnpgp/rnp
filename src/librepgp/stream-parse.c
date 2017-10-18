@@ -507,6 +507,7 @@ encrypted_decrypt_header(pgp_source_t *src, pgp_symm_alg_t alg, uint8_t *key)
     pgp_source_encrypted_param_t *param = src->param;
     pgp_crypt_t                   crypt;
     uint8_t                       enchdr[PGP_MAX_BLOCK_SIZE + 2];
+    uint8_t                       dechdr[PGP_MAX_BLOCK_SIZE + 2];
     unsigned                      blsize;
 
     if (!(blsize = pgp_block_size(alg))) {
@@ -525,15 +526,15 @@ encrypted_decrypt_header(pgp_source_t *src, pgp_symm_alg_t alg, uint8_t *key)
         return false;
     }
 
-    pgp_cipher_cfb_decrypt(&crypt, enchdr, enchdr, blsize + 2);
-    if ((enchdr[blsize] == enchdr[blsize - 2]) && (enchdr[blsize + 1] == enchdr[blsize - 1])) {
+    pgp_cipher_cfb_decrypt(&crypt, dechdr, enchdr, blsize + 2);
+    if ((dechdr[blsize] == dechdr[blsize - 2]) && (dechdr[blsize + 1] == dechdr[blsize - 1])) {
         src_skip(param->pkt.readsrc, blsize + 2);
         param->decrypt = crypt;
         /* init mdc if it is here */
         /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB
          * resynchronization is done after encrypting this prefix data. */
         if (!param->has_mdc) {
-            pgp_cipher_cfb_resync(&param->decrypt);
+            pgp_cipher_cfb_resync(&param->decrypt, enchdr + 2);
         } else {
             if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
                 pgp_cipher_finish(&crypt);
@@ -541,7 +542,7 @@ encrypted_decrypt_header(pgp_source_t *src, pgp_symm_alg_t alg, uint8_t *key)
                 return false;
             }
 
-            pgp_hash_add(&param->mdc, enchdr, blsize + 2);
+            pgp_hash_add(&param->mdc, dechdr, blsize + 2);
         }
 
         return true;
@@ -1035,14 +1036,17 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             }
             /* Decrypt key */
             if (seckey->key.seckey.encrypted) {
-                decrypted_seckey = pgp_decrypt_seckey(seckey, ctx->handler.passphrase_provider, &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT, .key = seckey});
+                decrypted_seckey = pgp_decrypt_seckey(
+                  seckey,
+                  ctx->handler.passphrase_provider,
+                  &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT, .key = seckey});
                 if (!decrypted_seckey) {
                     continue;
                 }
             } else {
                 decrypted_seckey = &(seckey->key.seckey);
             }
-        
+
             /* Try to initialize the decryption */
             if (encrypted_try_key(src, &param->pubencs[i], decrypted_seckey)) {
                 have_key = true;

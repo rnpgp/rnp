@@ -620,7 +620,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB
      * resynchronization is done after encrypting this prefix data. */
     if (!param->has_mdc) {
-        pgp_cipher_cfb_resync(&param->encrypt);
+        pgp_cipher_cfb_resync(&param->encrypt, enchdr + 2);
     }
     dst_write(param->pkt.writedst, enchdr, blsize + 2);
 

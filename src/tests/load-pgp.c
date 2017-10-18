@@ -65,6 +65,40 @@ test_load_v3_keyring_pgp(void **state)
     // cleanup
     rnp_key_store_free(key_store);
     pgp_memory_release(&mem);
+
+    // load secret keyring and decrypt the key
+    paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/4/secring.pgp", NULL);
+    assert_true(pgp_mem_readfile(&mem, path));
+
+    key_store = calloc(1, sizeof(*key_store));
+    assert_non_null(key_store);
+
+    assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, 0, &mem));
+    assert_int_equal(1, key_store->keyc);
+
+    static const uint8_t keyid2[] = {0x7D, 0x0B, 0xC1, 0x0E, 0x93, 0x34, 0x04, 0xC9};
+    from = 0;
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid2, &from, NULL);
+    assert_non_null(key);
+
+    // confirm the key flags are correct
+    assert_int_equal(key->key_flags,
+                     PGP_KF_ENCRYPT | PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
+
+    // check if the key is secret and is locked
+    assert_true(pgp_is_key_secret(key));
+    assert_true(pgp_key_is_locked(key));
+
+    // decrypt the key
+    pgp_seckey_t *seckey = pgp_decrypt_seckey_pgp(
+      key->packets[0].raw, key->packets[0].length, pgp_get_pubkey(key), "password");
+    assert_non_null(seckey);
+
+    // cleanup
+    pgp_seckey_free(seckey);
+    free(seckey);
+    rnp_key_store_free(key_store);
+    pgp_memory_release(&mem);
 }
 
 /* This test loads a .gpg pubring with multiple V4 keys,

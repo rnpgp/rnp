@@ -150,33 +150,17 @@ pgp_cipher_start(pgp_crypt_t *crypt, pgp_symm_alg_t alg, const uint8_t *key, con
         memcpy(crypt->iv, iv, crypt->blocksize);
     }
 
-    memcpy(crypt->prev_iv, crypt->iv, crypt->blocksize);
     crypt->remaining = 0;
 
     return true;
 }
 
-int
-pgp_cipher_cfb_resync(pgp_crypt_t *crypt)
+void
+pgp_cipher_cfb_resync(pgp_crypt_t *crypt, uint8_t *buf)
 {
-    if (crypt->remaining == 0) {
-        return 0;
-    }
-
-    const size_t shift = crypt->blocksize - crypt->remaining;
-    memmove(crypt->iv + crypt->remaining, crypt->iv, shift);
-    memmove(crypt->iv, crypt->prev_iv + shift, crypt->remaining);
+    /* iv will be encrypted in the upcoming call to encrypt/decrypt */
+    memcpy(crypt->iv, buf, crypt->blocksize);
     crypt->remaining = 0;
-
-    return 0;
-}
-
-int
-pgp_cipher_cfb_resync_v2(pgp_crypt_t *crypt)
-{
-    pgp_cipher_cfb_resync(crypt);
-    botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
-    return 0;
 }
 
 int
@@ -255,8 +239,10 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
         memcpy(crypt->iv, iv64, blsize);
     }
 
-    /* filling prev_iv */
-    memcpy(crypt->prev_iv, crypt->iv, blsize);
+    if (!bytes) {
+        return 0;
+    }
+
     botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
     crypt->remaining = blsize;
 
@@ -338,8 +324,10 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
         memcpy(crypt->iv, iv64, blsize);
     }
 
-    /* filling prev_iv */
-    memcpy(crypt->prev_iv, crypt->iv, blsize);
+    if (!bytes) {
+        return 0;
+    }
+
     botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
     crypt->remaining = blsize;
 

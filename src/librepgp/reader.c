@@ -1322,6 +1322,8 @@ encrypted_data_reader(pgp_stream_t *stream,
     encrypted_t *encrypted;
     char *       cdest;
     int          saved;
+    uint8_t      lastblock[PGP_MAX_BLOCK_SIZE];
+    bool         resync;
 
     encrypted = pgp_reader_get_arg(readinfo);
     saved = (int) length;
@@ -1331,20 +1333,9 @@ encrypted_data_reader(pgp_stream_t *stream,
         return 0;
     }
 
-    /*
-     * V3 MPIs have the count plain and the cipher is reset after each
-     * count
-     */
-    if (encrypted->prevplain && !readinfo->parent->reading_mpi_len) {
-        if (!readinfo->parent->reading_v3_secret) {
-            (void) fprintf(stderr, "encrypted_data_reader: bad v3 secret\n");
-            return -1;
-        }
-        encrypted->prevplain = 0;
-    } else if (readinfo->parent->reading_v3_secret && readinfo->parent->reading_mpi_len) {
-        pgp_cipher_cfb_resync(encrypted->decrypt);
-        encrypted->prevplain = 1;
-    }
+    resync = stream->resync ||
+             (readinfo->parent->reading_v3_secret && !readinfo->parent->reading_mpi_len);
+
     while (length > 0) {
         if (encrypted->c) {
             unsigned n;
@@ -1365,6 +1356,12 @@ encrypted_data_reader(pgp_stream_t *stream,
             cdest = dest;
             cdest += n;
             dest = cdest;
+
+            if (resync && (length == 0)) {
+                /* for v3 keys we should resync CFB context after each MPI.
+                   The same should be done after the encrypted header for sym-encrypted data */
+                pgp_cipher_cfb_resync(encrypted->decrypt, lastblock);
+            }
         } else {
             unsigned n = encrypted->region->length;
             uint8_t  buffer[1024];
@@ -1404,6 +1401,17 @@ encrypted_data_reader(pgp_stream_t *stream,
                 if (rnp_get_debug(__FILE__)) {
                     hexdump(stderr, "encrypted", buffer, n);
                     hexdump(stderr, "decrypted", encrypted->decrypted, n);
+                }
+
+                if (resync) {
+                    if (n < encrypted->decrypt->blocksize) {
+                        RNP_LOG("wrong resync attempt\n");
+                        return -1;
+                    }
+
+                    memcpy(lastblock,
+                           buffer + n - encrypted->decrypt->blocksize,
+                           encrypted->decrypt->blocksize);
                 }
             } else {
                 (void) memcpy(&encrypted->decrypted[0], buffer, n);

@@ -64,9 +64,7 @@ typedef struct pgp_crypt_t {
     size_t                            blocksize;
     size_t                            remaining;
     struct botan_block_cipher_struct *obj;
-
-    uint8_t iv[PGP_MAX_BLOCK_SIZE];
-    uint8_t prev_iv[PGP_MAX_BLOCK_SIZE];
+    uint8_t                           iv[PGP_MAX_BLOCK_SIZE];
 } pgp_crypt_t;
 
 pgp_symm_alg_t pgp_str_to_cipher(const char *name);
@@ -93,7 +91,6 @@ pgp_symm_alg_t pgp_cipher_alg_id(pgp_crypt_t *cipher);
 int pgp_cipher_cfb_encrypt(pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in, size_t len);
 int pgp_cipher_cfb_decrypt(pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in, size_t len);
 
-int pgp_cipher_cfb_resync(pgp_crypt_t *cipher);
-int pgp_cipher_cfb_resync_v2(pgp_crypt_t *cipher);
+void pgp_cipher_cfb_resync(pgp_crypt_t *crypt, uint8_t *buf);
 
 #endif
