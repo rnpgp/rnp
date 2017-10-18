@@ -32,10 +32,13 @@
 /* cfg variables known by rnp */
 #define CFG_OVERWRITE "overwrite" /* overwrite output file if it is already exist or fail */
 #define CFG_ARMOUR "armour"       /* armour output data or not */
-#define CFG_DETACHED "detached"   /* produce the detached signature */
-#define CFG_OUTFILE "outfile"     /* name/path of the output file */
-#define CFG_RESULTS "results"     /* name/path for results, not used right now */
-#define CFG_MAXALLOC "maxalloc"   /* maximum memory allocation during the reading from stdin */
+#define CFG_ARMOUR_DATA_TYPE                                                       \
+    "armour_type"               /* armour data type, used with ``enarmour`` option \
+                                   */
+#define CFG_DETACHED "detached" /* produce the detached signature */
+#define CFG_OUTFILE "outfile"   /* name/path of the output file */
+#define CFG_RESULTS "results"   /* name/path for results, not used right now */
+#define CFG_MAXALLOC "maxalloc" /* maximum memory allocation during the reading from stdin */
 #define CFG_KEYSTOREFMT "keystorefmt" /* keyring format : GPG, SSH */
 #define CFG_SSHKEYFILE "sshkeyfile"   /* SSH key file */
 #define CFG_SUBDIRGPG "subdirgpg"     /* gpg/rnp files subdirectory: .rnp by default */
@@ -85,7 +88,18 @@ int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
 bool rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key);
 void rnp_cfg_free(rnp_cfg_t *cfg);
 
-/* -----------------------------------------------------------------------------
+/**
+ *  @brief      Returns integer value for the key if there is one, or default value otherwise
+ *
+ *  @param cfg  rnp config, must be allocated and initialized
+ *  @param key  must be null-terminated string
+ *  @param def  value returned if key not found
+ *
+ *  @return     Integer value or def if there is no value or it is non-integer
+ **/
+int rnp_cfg_getint_default(rnp_cfg_t *cfg, const char *key, int def);
+
+/*
  * @brief   Copies or overrides configuration
  *
  * @param   dst resulting configuration object
@@ -94,7 +108,7 @@ void rnp_cfg_free(rnp_cfg_t *cfg);
  *
  * @pre     dst is correctly initialized and not NULL
  *
--------------------------------------------------------------------------------- */
+ */
 void rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src);
 
 bool rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);

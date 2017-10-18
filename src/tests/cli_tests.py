@@ -178,7 +178,7 @@ def run_test(func, *args):
 
 def rnpkey_generate_rsa(bits = None, cleanup = True):
     # Setup command line params
-    if bits: 
+    if bits:
         params = ['--numbits', str(bits)]
     else:
         params = []
@@ -240,7 +240,7 @@ def rnpkey_generate_multiple():
     ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
     if ret != 0: raise_err('key list failed', err)
     match = re.match(RE_MULTIPLE_KEY_5, out)
-    if not match: 
+    if not match:
         raise_err('wrong key list output', out)
 
     # Cleanup and return
@@ -281,7 +281,7 @@ def rnpkey_import_from_gpg(cleanup = True):
 
 def rnpkey_export_to_gpg(cleanup = True):
     # Open pipe for password
-    pipe = pswd_pipe(PASSWORD) 
+    pipe = pswd_pipe(PASSWORD)
     # Run key generation
     ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', 'rsakey@rnp', '--generate-key'])
     os.close(pipe)
@@ -311,7 +311,7 @@ def rnp_encrypt_file(recipient, src, dst, zlevel = 6, zalgo = 'zip', armour = Fa
     if armour:
         params += ['--armor']
     ret, out, err = run_proc(RNP, params)
-    if ret != 0: 
+    if ret != 0:
         raise_err('rnp encryption failed', err)
 
 def rnp_symencrypt_file(src, dst, cipher, zlevel = 6, zalgo = 'zip', armour = False):
@@ -321,7 +321,7 @@ def rnp_symencrypt_file(src, dst, cipher, zlevel = 6, zalgo = 'zip', armour = Fa
         params += ['--armor']
     ret, out, err = run_proc(RNP, params)
     os.close(pipe)
-    if ret != 0: 
+    if ret != 0:
         raise_err('rnp symmetric encryption failed', err)
 
 def rnp_decrypt_file(src, dst):
@@ -355,7 +355,7 @@ def rnp_sign_cleartext(src, dst, signer):
     pipe = pswd_pipe(PASSWORD)
     ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', signer, '--output', dst, '--clearsign', src])
     os.close(pipe)
-    if ret != 0: 
+    if ret != 0:
         raise_err('rnp cleartext signing failed', err)
 
 def rnp_verify_file(src, dst, signer = None):
@@ -384,11 +384,11 @@ def rnp_verify_detached(sig, signer = None):
 def rnp_verify_cleartext(src, signer = None):
     params = ['--homedir', RNPDIR, '--verify', src]
     ret, out, err = run_proc(RNP, params)
-    if ret != 0: 
+    if ret != 0:
         raise_err('rnp verification failed', err + out)
     # Check RNP output
     match = re.match(RE_RNP_GOOD_SIGNATURE, err)
-    if not match: 
+    if not match:
         raise_err('wrong rnp verification output', err)
     if signer and (not match.group(1).strip() == signer.strip()):
         raise_err('rnp verification failed, wrong signer')
@@ -425,48 +425,48 @@ def gpg_symencrypt_file(src, dst, cipher = 'AES', zlevel = 6, zalgo = 1, armour 
 
 def gpg_decrypt_file(src, dst, keypass):
     ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', keypass, '--trust-model', 'always', '-o', dst, '-d', src])
-    if ret != 0: 
+    if ret != 0:
         raise_err('gpg decryption failed', err)
 
 def gpg_verify_file(src, dst, signer = None):
     ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--batch', '--yes', '--trust-model', 'always', '-o', dst, '--verify', src])
-    if ret != 0: 
+    if ret != 0:
         raise_err('gpg verification failed', err)
     # Check GPG output
     match = re.match(RE_GPG_GOOD_SIGNATURE, err)
-    if not match: 
+    if not match:
         raise_err('wrong gpg verification output', err)
     if signer and (not match.group(1) == signer):
         raise_err('gpg verification failed, wrong signer')
 
 def gpg_verify_detached(src, sig, signer = None):
     ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--batch', '--yes', '--trust-model', 'always', '--verify', sig, src])
-    if ret != 0: 
+    if ret != 0:
         raise_err('gpg detached verification failed', err)
     # Check GPG output
     match = re.match(RE_GPG_GOOD_SIGNATURE, err)
-    if not match: 
+    if not match:
         raise_err('wrong gpg detached verification output', err)
     if signer and (not match.group(1) == signer):
         raise_err('gpg detached verification failed, wrong signer')
 
 def gpg_verify_cleartext(src, signer = None):
     ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--batch', '--yes', '--trust-model', 'always', '--verify', src])
-    if ret != 0: 
+    if ret != 0:
         raise_err('gpg cleartext verification failed', err)
     # Check GPG output
     match = re.match(RE_GPG_GOOD_SIGNATURE, err)
-    if not match: 
+    if not match:
         raise_err('wrong gpg verification output', err)
     if signer and (not match.group(1) == signer):
         raise_err('gpg verification failed, wrong signer')
 
 def gpg_sign_file(src, dst, signer, zlevel = 6, zalgo = 1, armour = False):
     params = ['--homedir', GPGDIR, '--pinentry-mode=loopback', '-z', str(zlevel), '--compress-algo', str(zalgo), '--batch', '--yes', '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '-o', dst, '-s', src]
-    if armour: 
+    if armour:
         params.insert(2, '--armor')
     ret, out, err = run_proc(GPG, params)
-    if ret != 0: 
+    if ret != 0:
         raise_err('gpg signing failed', err)
 
 def gpg_sign_detached(src, signer, armour = False):
@@ -474,13 +474,13 @@ def gpg_sign_detached(src, signer, armour = False):
     if armour:
         params.insert(2, '--armor')
     ret, out, err = run_proc(GPG, params)
-    if ret != 0: 
+    if ret != 0:
         raise_err('gpg detached signing failed', err)
 
 def gpg_sign_cleartext(src, dst, signer):
     params = ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '-o', dst, '--clearsign', src]
     ret, out, err = run_proc(GPG, params)
-    if ret != 0: 
+    if ret != 0:
         raise_err('gpg cleartext signing failed', err)
 
 '''
@@ -539,7 +539,7 @@ def rnp_encryption():
     for cipher in ciphers:
         for size in sizes:
             run_test(rnp_encryption_gpg_to_rnp, cipher, size)
-    
+
     # Import secret keyring to GPG
     gpg_import_secring()
     # Encrypt cleartext with RNP and decrypt with GPG
@@ -738,7 +738,7 @@ def rnp_encryption_no_mdc():
     # Decrypt encrypted file with RNP
     rnp_decrypt_file(dst, dec)
     compare_files(src, dec, 'rnp decrypted data differs')
-    
+
 def rnp_encryption_s2k():
     src, dst, dec = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
     random_text(src, 64000)
@@ -768,6 +768,21 @@ def rnp_encryption_s2k():
     for i in range(0, 80):
         rnp_encryption_s2k_gpg(ciphers[i % len(ciphers)], hashes[i % len(hashes)], s2kmodes[i % len(s2kmodes)])
 
+def rnp_armour():
+    for data_type in ['msg', 'pubkey', 'seckey', 'sign']:
+        src_beg,dst_beg = reg_workfiles('beg','.src','.dst')
+        src_mid, dst_mid = reg_workfiles('mid','.src', '.dst')
+        src_fin, dst_fin = reg_workfiles('fin','.src', '.dst')
+
+        random_text(src_beg, 10)
+
+        ret, out, err = run_proc(RNP, ['--enarmor', data_type, src_beg, '--output', dst_beg])
+        ret, out, err = run_proc(RNP, ['--dearmor', dst_beg, '--output', dst_mid])
+        ret, out, err = run_proc(RNP, ['--enarmor', data_type, dst_mid, '--output', dst_fin])
+        compare_files(dst_beg, dst_fin, "RNP armour/dearmour test failed")
+        compare_files(src_beg, dst_mid, "RNP armour/dearmour test failed")
+        clear_workfiles()
+
 def rnp_misc_operations():
     rnp_genkey_rsa(KEY_ENCRYPT)
     rnp_genkey_rsa(KEY_SIGN_GPG)
@@ -776,6 +791,7 @@ def rnp_misc_operations():
 
     run_test(rnp_encryption_no_mdc)
     run_test(rnp_encryption_s2k)
+    run_test(rnp_armour)
 
 def run_rnp_tests():
     # 1. Encryption / decryption against GPG
