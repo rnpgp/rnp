@@ -493,24 +493,35 @@ find_armour_header(const char *buf, size_t len, size_t *hdrlen)
     return NULL;
 }
 
-static pgp_armoured_msg_t
-armour_message_type(const char *hdr, size_t len)
+pgp_armoured_msg_t
+armour_str_to_data_type(const char *str, size_t len)
 {
-    if (!strncmp(hdr, "BEGIN PGP MESSAGE", len)) {
-        return PGP_ARMOURED_MESSAGE;
-    } else if (!strncmp(hdr, "BEGIN PGP PUBLIC KEY BLOCK", len) ||
-               !strncmp(hdr, "BEGIN PGP PUBLIC KEY", len)) {
-        return PGP_ARMOURED_PUBLIC_KEY;
-    } else if (!strncmp(hdr, "BEGIN PGP SECRET KEY BLOCK", len) ||
-               !strncmp(hdr, "BEGIN PGP SECRET KEY", len)) {
-        return PGP_ARMOURED_SECRET_KEY;
-    } else if (!strncmp(hdr, "BEGIN PGP SIGNATURE", len)) {
-        return PGP_ARMOURED_SIGNATURE;
-    } else if (!strncmp(hdr, "BEGIN PGP SIGNED MESSAGE", len)) {
-        return PGP_ARMOURED_CLEARTEXT;
-    } else {
+    if (!str) {
         return PGP_ARMOURED_UNKNOWN;
     }
+
+    if (!strncmp(str, "BEGIN PGP MESSAGE", len) || !strncmp("msg", str, len)) {
+        return PGP_ARMOURED_MESSAGE;
+    }
+
+    if (!strncmp(str, "BEGIN PGP PUBLIC KEY BLOCK", len) ||
+        !strncmp(str, "BEGIN PGP PUBLIC KEY", len) || !strncmp("pubkey", str, len)) {
+        return PGP_ARMOURED_PUBLIC_KEY;
+    }
+
+    if (!strncmp(str, "BEGIN PGP SECRET KEY BLOCK", len) ||
+        !strncmp(str, "BEGIN PGP SECRET KEY", len) || !strncmp("seckey", str, len)) {
+        return PGP_ARMOURED_SECRET_KEY;
+    }
+
+    if (!strncmp(str, "BEGIN PGP SIGNATURE", len) || !strncmp("sign", str, len)) {
+        return PGP_ARMOURED_SIGNATURE;
+    }
+
+    if (!strncmp(str, "BEGIN PGP SIGNED MESSAGE", len)) {
+        return PGP_ARMOURED_CLEARTEXT;
+    }
+    return PGP_ARMOURED_UNKNOWN;
 }
 
 static bool
@@ -536,7 +547,7 @@ armour_parse_header(pgp_source_t *src)
         RNP_LOG("extra data before the header line");
     }
 
-    param->type = armour_message_type(armhdr + 5, armhdrlen - 10);
+    param->type = armour_str_to_data_type(armhdr + 5, armhdrlen - 10);
     if (param->type == PGP_ARMOURED_UNKNOWN) {
         RNP_LOG("unknown armour header");
         return false;
@@ -904,7 +915,7 @@ init_armoured_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armoured_msg_t msgt
     param->llen = 76; /* must be multiple of 4 */
 
     if (!armour_message_header(param->type, false, hdr)) {
-        RNP_LOG("unknown message type");
+        RNP_LOG("unknown data type");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }
@@ -930,12 +941,12 @@ finish:
 rnp_result_t
 rnp_dearmour_source(pgp_source_t *src, pgp_dest_t *dst)
 {
-    const char   armor_start[] = "-----BEGIN PGP";
-    const char   clear_start[] = "-----BEGIN PGP SIGNED MESSAGE-----";
-    rnp_result_t res = RNP_ERROR_BAD_FORMAT;
-    pgp_source_t armorsrc;
-    uint8_t      readbuf[PGP_INPUT_CACHE_SIZE];
-    ssize_t      read;
+    static const char armor_start[] = "-----BEGIN PGP";
+    static const char clear_start[] = "-----BEGIN PGP SIGNED MESSAGE-----";
+    rnp_result_t      res = RNP_ERROR_BAD_FORMAT;
+    pgp_source_t      armorsrc;
+    uint8_t           readbuf[PGP_INPUT_CACHE_SIZE];
+    ssize_t           read;
 
     read = src_peek(src, readbuf, sizeof(clear_start));
     if (read < sizeof(armor_start)) {

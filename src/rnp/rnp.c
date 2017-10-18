@@ -48,8 +48,10 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <rnp/rnp_obsolete_defs.h>
+#include "rnpcfg.h"
 #include <rekey/rnp_key_store.h>
 #include <repgp/repgp.h>
+#include <librepgp/stream-armour.h>
 
 #include "hash.h"
 
@@ -57,7 +59,7 @@ extern char *__progname;
 
 static const char *usage = "--help OR\n"
                            "\t--encrypt [--output=file] [options] files... OR\n"
-                           "\t--decrypt [--output=file] [options] files... OR\n\n"
+                           "\t--decrypt [--output=file] [options] files... OR\n"
                            "\t--sign [--detach] [--hash=alg] [--output=file]\n"
                            "\t\t[options] files... OR\n"
                            "\t--verify [options] files... OR\n"
@@ -65,6 +67,8 @@ static const char *usage = "--help OR\n"
                            "\t--clearsign [--output=file] [options] files... OR\n"
                            "\t--list-packets [options] OR\n"
                            "\t--dearmor [--output=file] file OR\n"
+                           "\t--enarmor=<msg|pubkey|seckey|sign> \n"
+                           "\t\t[--output=file] file OR\n"
                            "\t--version\n"
                            "where options are:\n"
                            "\t[--armor] AND/OR\n"
@@ -89,6 +93,7 @@ enum optdefs {
     CMD_VERIFY_CAT,
     CMD_SYM_ENCRYPT,
     CMD_DEARMOR,
+    CMD_ENARMOR,
     CMD_LIST_PACKETS,
     CMD_SHOW_KEYS,
     CMD_VERSION,
@@ -140,6 +145,7 @@ static struct option options[] = {
   {"verifyshow", no_argument, NULL, CMD_VERIFY_CAT},
   {"symmetric", no_argument, NULL, CMD_SYM_ENCRYPT},
   {"dearmor", no_argument, NULL, CMD_DEARMOR},
+  {"enarmor", required_argument, NULL, CMD_ENARMOR},
   /* file listing commands */
   {"list-packets", no_argument, NULL, CMD_LIST_PACKETS},
   /* debugging commands */
@@ -430,8 +436,14 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         repgp_destroy_handle(input);
         break;
     }
-    case CMD_DEARMOR: {
-        ret = rnp_dearmor_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
+    case CMD_DEARMOR:
+    case CMD_ENARMOR: {
+        ret = !rnp_armour_stream(
+          &ctx,
+          f,
+          rnp_cfg_get(cfg, CFG_OUTFILE),
+          CMD_ENARMOR == cmd,
+          rnp_cfg_getint_default(cfg, CFG_ARMOUR_DATA_TYPE, PGP_ARMOURED_UNKNOWN));
         break;
     }
     case CMD_SHOW_KEYS:
@@ -482,8 +494,12 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
     case CMD_LIST_PACKETS:
     case CMD_SHOW_KEYS:
     case CMD_DEARMOR:
+    case CMD_ENARMOR: {
         *cmd = val;
+        rnp_cfg_setint(
+          cfg, CFG_ARMOUR_DATA_TYPE, armour_str_to_data_type(arg, arg ? strlen(arg) : 0));
         break;
+    }
     case CMD_HELP:
         print_usage(usage);
         exit(EXIT_SUCCESS);

@@ -70,4 +70,12 @@ rnp_result_t rnp_dearmour_source(pgp_source_t *src, pgp_dest_t *dst);
  **/
 rnp_result_t rnp_armour_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armoured_msg_t msgtype);
 
+/* @param  str   String containing armour data type
+ * @param  len   Length of the str
+ *
+ * @return Enum element corresponding to value in str or
+ *         PGP_ARMOURED_UNKNOWN if corresponding element not found
+ */
+pgp_armoured_msg_t armour_str_to_data_type(const char *str, size_t len);
+
 #endif

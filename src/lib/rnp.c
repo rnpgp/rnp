@@ -99,6 +99,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <librepgp/stream-armour.h>
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-write.h>
+#include <librepgp/stream-packet.h>
 
 #include "rnp/rnp_obsolete_defs.h"
 #include <json.h>
@@ -1343,7 +1344,8 @@ finish:
 }
 
 rnp_result_t
-rnp_dearmor_stream(rnp_ctx_t *ctx, const char *in, const char *out)
+rnp_armour_stream(
+  rnp_ctx_t *ctx, const char *in, const char *out, bool is_armour, unsigned data_type)
 {
     pgp_source_t src;
     pgp_dest_t   dst;
@@ -1356,20 +1358,23 @@ rnp_dearmor_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 
     result = is_stdin ? init_stdin_src(&src) : init_file_src(&src, in);
     if (result != RNP_SUCCESS) {
-        (void) fprintf(stderr, "rnp_dearmor_stream: failed to initialize reading\n");
+        RNP_LOG("failed to initialize reading");
         return RNP_ERROR_READ;
     }
 
     result = is_stdout ? init_stdout_dest(&dst) : init_file_dest(&dst, out);
     if (result != RNP_SUCCESS) {
-        (void) fprintf(stderr, "rnp_dearmor_stream: failed to initialize writing\n");
+        RNP_LOG("failed to initialize writing");
         src_close(&src);
         return RNP_ERROR_WRITE;
     }
 
-    result = rnp_dearmour_source(&src, &dst);
+    result = is_armour ? rnp_armour_source(&src, &dst, (pgp_armoured_msg_t) data_type) :
+                         rnp_dearmour_source(&src, &dst);
+
     if (result != RNP_SUCCESS) {
-        (void) printf("rnp_dearmor_stream: error code 0x%x\n", (int) result);
+        RNP_LOG("error code 0x%x", result);
+        return result;
     }
 
     src_close(&src);

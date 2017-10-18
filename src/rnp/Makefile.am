@@ -1,13 +1,9 @@
-AM_CFLAGS		= $(WARNCFLAGS)
+AM_CFLAGS       = $(WARNCFLAGS)
+dist_man_MANS   = rnp.1
 
-bin_PROGRAMS		= rnp
-
-rnp_SOURCES		= \
+bin_PROGRAMS	= rnp
+rnp_CPPFLAGS	= -I$(top_srcdir)/include -I$(top_srcdir)/src/ $(JSONC_INCLUDES) $(BOTAN_INCLUDES)
+rnp_LDADD		= ../lib/librnp.la ../librekey/librekey.la ../librepgp/librepgp.la
+rnp_SOURCES     = \
     rnp.c \
     rnpcfg.c
-
-rnp_CPPFLAGS		= -I$(top_srcdir)/include $(JSONC_INCLUDES) $(BOTAN_INCLUDES)
-
-rnp_LDADD		= ../lib/librnp.la ../librekey/librekey.la ../librepgp/librepgp.la
-
-dist_man_MANS		= rnp.1

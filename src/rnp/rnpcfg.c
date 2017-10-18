@@ -289,6 +289,13 @@ rnp_cfg_getint(rnp_cfg_t *cfg, const char *key)
     return val ? atoi(val) : 0;
 }
 
+int
+rnp_cfg_getint_default(rnp_cfg_t *cfg, const char *key, int def)
+{
+    int ret = rnp_cfg_getint(cfg, key);
+    return ret ? ret : def;
+}
+
 /** @brief return boolean value for the key if there is one
  *  @param cfg rnp config, must be allocated and initialized
  *  @param key must be null-terminated string
