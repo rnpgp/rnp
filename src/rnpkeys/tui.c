@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include "crypto.h"
 #include "crypto/ec.h"
+#include "crypto/ecdsa.h"
 #include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
 
@@ -156,26 +157,17 @@ setup_ecdsa_key_params(rnp_keygen_crypto_params_t *params, FILE *input_fd)
      *    P-384  48 bytes
      *    P-521  64 bytes
      */
-    switch (params->ecc.curve) {
-    case PGP_CURVE_NIST_P_256:
-        if (digest_length < 32) {
-            params->hash_alg = PGP_HASH_SHA256;
-        }
-        break;
-    case PGP_CURVE_NIST_P_384:
-        if (digest_length < 48) {
-            params->hash_alg = PGP_HASH_SHA384;
-        }
-        break;
-    case PGP_CURVE_NIST_P_521:
-        if (digest_length < 64) {
-            params->hash_alg = PGP_HASH_SHA512;
-        }
-        break;
-    default:
-        // Should never happen as ask_curve checks it
+    const pgp_hash_alg_t h_key = ecdsa_get_min_hash(params->ecc.curve);
+
+    size_t dlen_key;
+    if (!pgp_digest_length(h_key, &dlen_key)) {
         return RNP_ERROR_GENERIC;
     }
+
+    if (dlen_key > digest_length) {
+        params->hash_alg = h_key;
+    }
+
     return RNP_SUCCESS;
 }
 
