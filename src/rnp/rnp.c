@@ -493,13 +493,15 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
     case CMD_VERIFY_CAT:
     case CMD_LIST_PACKETS:
     case CMD_SHOW_KEYS:
+        *cmd = val;
+        break;
     case CMD_DEARMOR:
-    case CMD_ENARMOR: {
+    case CMD_ENARMOR:
         *cmd = val;
         rnp_cfg_setint(
           cfg, CFG_ARMOUR_DATA_TYPE, armour_str_to_data_type(arg, arg ? strlen(arg) : 0));
+        rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
         break;
-    }
     case CMD_HELP:
         print_usage(usage);
         exit(EXIT_SUCCESS);
@@ -754,7 +756,8 @@ main(int argc, char **argv)
         goto finish;
     }
 
-    if (!rnp_key_store_load_keys(&rnp, rnp_cfg_getbool(&cfg, CFG_NEEDSSECKEY))) {
+    if (!rnp_params.keystore_disabled &&
+        !rnp_key_store_load_keys(&rnp, rnp_cfg_getbool(&cfg, CFG_NEEDSSECKEY))) {
         fputs("fatal: failed to load keys\n", stderr);
         ret = EXIT_ERROR;
         goto finish;

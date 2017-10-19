@@ -517,6 +517,11 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
 
     /* getting path to keyrings. If it is specified by user in 'homedir' param then it is
      * considered as the final path, no .rnp/.ssh is added */
+    params->keystore_disabled = rnp_cfg_getint_default(cfg, CFG_KEYSTORE_DISABLED, 0);
+    if (params->keystore_disabled) {
+        return true;
+    }
+
     if ((homedir = rnp_cfg_get(cfg, CFG_HOMEDIR)) == NULL) {
         homedir = getenv("HOME");
         defhomedir = true;

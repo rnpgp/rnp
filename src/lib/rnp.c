@@ -641,16 +641,18 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
     rnp->pswdtries = MAX_PASSPHRASE_ATTEMPTS;
 
     /* set keystore type and pathes */
-    rnp->pubring = rnp_key_store_new(params->ks_pub_format, params->pubpath);
-    if (rnp->pubring == NULL) {
-        fputs("rnp: can't create empty pubring keystore\n", io->errs);
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
+    if (!params->keystore_disabled) {
+        rnp->pubring = rnp_key_store_new(params->ks_pub_format, params->pubpath);
+        if (rnp->pubring == NULL) {
+            fputs("rnp: can't create empty pubring keystore\n", io->errs);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
 
-    rnp->secring = rnp_key_store_new(params->ks_sec_format, params->secpath);
-    if (rnp->secring == NULL) {
-        fputs("rnp: can't create empty secring keystore\n", io->errs);
-        return RNP_ERROR_BAD_PARAMETERS;
+        rnp->secring = rnp_key_store_new(params->ks_sec_format, params->secpath);
+        if (rnp->secring == NULL) {
+            fputs("rnp: can't create empty secring keystore\n", io->errs);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
     }
 
     return RNP_SUCCESS;
