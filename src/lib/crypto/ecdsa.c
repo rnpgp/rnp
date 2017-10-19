@@ -174,3 +174,13 @@ end:
     botan_pk_op_verify_destroy(verifier);
     return ret;
 }
+
+pgp_hash_alg_t
+ecdsa_get_min_hash(pgp_curve_t curve)
+{
+    return (curve == PGP_CURVE_NIST_P_256) ?
+             PGP_HASH_SHA256 :
+             (curve == PGP_CURVE_NIST_P_384) ?
+             PGP_HASH_SHA384 :
+             (curve == PGP_CURVE_NIST_P_521) ? PGP_HASH_SHA512 : PGP_HASH_UNKNOWN;
+}

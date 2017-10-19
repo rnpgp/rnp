@@ -41,4 +41,14 @@ rnp_result_t pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
                                    size_t                  hash_len,
                                    const pgp_ecc_pubkey_t *pubkey);
 
+/*
+ * @brief   Returns hash wich should be used with the curve
+ *
+ * @param   curve Curve ID
+ *
+ * @returns  Either ID of the hash algorithm, or PGP_HASH_UNKNOWN
+ *           if not found
+ */
+pgp_hash_alg_t ecdsa_get_min_hash(pgp_curve_t curve);
+
 #endif // ECDSA_H_
