@@ -78,12 +78,12 @@ typedef struct rnp_params_t {
     const char *errs; /* error stream : may be <stdout> */
     const char *ress; /* results stream : maye be <stdout>, <stderr> or file name/path */
 
-    const char *ks_pub_format; /* format of the public key store */
-    const char *ks_sec_format; /* format of the secret key store */
-    char *      pubpath;       /* public keystore path */
-    char *      secpath;       /* secret keystore path */
-    char *      defkey;        /* default/preferred key id */
-
+    const char *ks_pub_format;     /* format of the public key store */
+    const char *ks_sec_format;     /* format of the secret key store */
+    char *      pubpath;           /* public keystore path */
+    char *      secpath;           /* secret keystore path */
+    char *      defkey;            /* default/preferred key id */
+    bool        keystore_disabled; /* indicates wether keystore must be initialized */
     pgp_passphrase_provider_t passphrase_provider;
 } rnp_params_t;
 
