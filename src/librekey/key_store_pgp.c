@@ -378,8 +378,8 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         // subpackets for V4 keys.
         cb->key->key_flags = pgp_pk_alg_capabilities(pgp_get_pubkey(cb->key)->alg);
         return PGP_KEEP_MEMORY;
-    case PGP_PTAG_CT_ARMOUR_HEADER:
-    case PGP_PTAG_CT_ARMOUR_TRAILER:
+    case PGP_PTAG_CT_ARMOR_HEADER:
+    case PGP_PTAG_CT_ARMOR_TRAILER:
         break;
     default:
         return parse_key_attributes(cb->key, pkt, cbinfo);
@@ -393,7 +393,7 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
    \brief Reads a keyring from memory
 
    \param keyring Pointer to existing keyring_t struct
-   \param armour 1 if file is armoured; else 0
+   \param armor 1 if file is armored; else 0
    \param mem Pointer to a pgp_memory_t struct containing keyring to be read
 
    \return pgp true if OK; false on error
@@ -413,7 +413,7 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 bool
 rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
                                 rnp_key_store_t *keyring,
-                                const unsigned   armour,
+                                const unsigned   armor,
                                 pgp_memory_t *   mem)
 {
     pgp_stream_t * stream;
@@ -429,13 +429,13 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
         return false;
     }
     repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
-    if (armour) {
-        pgp_reader_push_dearmour(stream);
+    if (armor) {
+        pgp_reader_push_dearmor(stream);
     }
     res = repgp_parse(stream, printerrors);
     pgp_print_errors(pgp_stream_get_errors(stream));
-    if (armour) {
-        pgp_reader_pop_dearmour(stream);
+    if (armor) {
+        pgp_reader_pop_dearmor(stream);
     }
     /* don't call teardown_memory_read because memory was passed in */
     pgp_stream_delete(stream);
@@ -445,7 +445,7 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
 int
 rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
                                rnp_key_store_t *key_store,
-                               const unsigned   armour,
+                               const unsigned   armor,
                                pgp_memory_t *   mem)
 {
     unsigned     rc;
@@ -455,12 +455,12 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
     RNP_USED(io);
     pgp_writer_set_memory(&output, mem);
 
-    if (armour) {
+    if (armor) {
         pgp_armor_type_t type = PGP_PGP_PUBLIC_KEY_BLOCK;
         if (key_store->keyc && pgp_is_key_secret(&key_store->keys[0])) {
             type = PGP_PGP_PRIVATE_KEY_BLOCK;
         }
-        pgp_writer_push_armoured(&output, type);
+        pgp_writer_push_armored(&output, type);
     }
     for (int ikey = 0; ikey < key_store->keyc; ikey++) {
         key = &key_store->keys[ikey];
@@ -473,7 +473,7 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
             return false;
         }
     }
-    if (armour) {
+    if (armor) {
         pgp_writer_pop(&output);
     }
     rc = pgp_writer_close(&output);

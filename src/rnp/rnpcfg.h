@@ -31,13 +31,11 @@
 
 /* cfg variables known by rnp */
 #define CFG_OVERWRITE "overwrite" /* overwrite output file if it is already exist or fail */
-#define CFG_ARMOUR "armour"       /* armour output data or not */
-#define CFG_ARMOUR_DATA_TYPE                                                       \
-    "armour_type"               /* armour data type, used with ``enarmour`` option \
-                                   */
-#define CFG_DETACHED "detached" /* produce the detached signature */
-#define CFG_OUTFILE "outfile"   /* name/path of the output file */
-#define CFG_RESULTS "results"   /* name/path for results, not used right now */
+#define CFG_ARMOR "armor"         /* armor output data or not */
+#define CFG_ARMOR_DATA_TYPE "armor_type" /* armor data type, used with ``enarmor`` option */
+#define CFG_DETACHED "detached"          /* produce the detached signature */
+#define CFG_OUTFILE "outfile"            /* name/path of the output file */
+#define CFG_RESULTS "results"            /* name/path for results, not used right now */
 #define CFG_MAXALLOC "maxalloc" /* maximum memory allocation during the reading from stdin */
 #define CFG_KEYSTOREFMT "keystorefmt" /* keyring format : GPG, SSH */
 #define CFG_SSHKEYFILE "sshkeyfile"   /* SSH key file */

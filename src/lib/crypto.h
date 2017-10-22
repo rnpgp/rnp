@@ -234,9 +234,9 @@ typedef struct {
  *  - whether the packet contents should be accumulated or not
  *  - whether signature subpackets should be parsed or left raw
  *
- *  It contains options specific to the parsing of armoured data:
- *  - whether headers are allowed in armoured data without a gap
- *  - whether a blank line is allowed at the start of the armoured data
+ *  It contains options specific to the parsing of armored data:
+ *  - whether headers are allowed in armored data without a gap
+ *  - whether a blank line is allowed at the start of the armored data
  *
  *  It also specifies :
  *  - the callback function to use and its arguments

@@ -101,7 +101,7 @@ rnpkeys_generatekey_testSignature(void **state)
 
                 /* Setup signing context */
                 rnp_ctx_init(&ctx, &rnp);
-                ctx.armour = armored;
+                ctx.armor = armored;
                 ctx.halg = pgp_str_to_hash_alg(hashAlg[i]);
                 ctx.filename = strdup("dummyfile.dat");
                 rnp_assert_int_not_equal(rstate, ctx.halg, PGP_HASH_UNKNOWN);
@@ -123,7 +123,7 @@ rnpkeys_generatekey_testSignature(void **state)
 
                 /* Verify the memory */
                 rnp_ctx_init(&ctx, &rnp);
-                ctx.armour = armored;
+                ctx.armor = armored;
                 retVal = rnp_verify_memory(
                   &ctx, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig));
                 /* Ensure signature verification passed */
@@ -202,7 +202,7 @@ rnpkeys_generatekey_testEncryption(void **state)
 
             /* setting the cipher and armored flags */
             rnp_ctx_init(&ctx, &rnp);
-            ctx.armour = armored;
+            ctx.armor = armored;
             ctx.filename = strdup("dummyfile.dat");
             ctx.ealg = pgp_str_to_cipher(cipherAlg[i]);
             /* checking whether we have correct cipher constant */
@@ -231,7 +231,7 @@ rnpkeys_generatekey_testEncryption(void **state)
 
             /* Setting the decryption context */
             rnp_ctx_init(&ctx, &rnp);
-            ctx.armour = armored;
+            ctx.armor = armored;
 
             /* Decrypting the memory */
             size_t tmp = sizeof(plaintextBuf);

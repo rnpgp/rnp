@@ -78,8 +78,7 @@ typedef enum {
     PGP_E_R = 0x1000, /* general reader error */
     PGP_E_R_READ_FAILED = PGP_E_R + 1,
     PGP_E_R_EARLY_EOF = PGP_E_R + 2,
-    PGP_E_R_BAD_FORMAT = PGP_E_R + 3, /* For example, malformed
-                                       * armour */
+    PGP_E_R_BAD_FORMAT = PGP_E_R + 3, /* For example, malformed armor */
     PGP_E_R_UNSUPPORTED = PGP_E_R + 4,
     PGP_E_R_UNCONSUMED_DATA = PGP_E_R + 5,
 

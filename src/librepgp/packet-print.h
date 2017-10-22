@@ -65,7 +65,7 @@ typedef struct pgp_key_t    pgp_key_t;
 typedef void (*content_printer_t)(int, const char *, const char *, const uint8_t *, size_t);
 
 typedef struct pgp_printstate_t {
-    unsigned          unarmoured;
+    unsigned          unarmored;
     unsigned          skipping;
     int               indent;
     content_printer_t content_printer;

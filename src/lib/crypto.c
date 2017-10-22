@@ -282,21 +282,20 @@ write_parsed_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         printf("write_parsed_cb: ");
         pgp_print_packet(cbinfo, pkt);
     }
-    if (pkt->tag != PGP_PTAG_CT_UNARMOURED_TEXT && cbinfo->printstate.skipping) {
+    if (pkt->tag != PGP_PTAG_CT_UNARMORED_TEXT && cbinfo->printstate.skipping) {
         puts("...end of skip");
         cbinfo->printstate.skipping = 0;
     }
     switch (pkt->tag) {
-    case PGP_PTAG_CT_UNARMOURED_TEXT:
-        printf("PGP_PTAG_CT_UNARMOURED_TEXT\n");
+    case PGP_PTAG_CT_UNARMORED_TEXT:
+        printf("PGP_PTAG_CT_UNARMORED_TEXT\n");
         if (!cbinfo->printstate.skipping) {
             puts("Skipping...");
             cbinfo->printstate.skipping = 1;
         }
-        if (fwrite(
-              content->unarmoured_text.data, 1, content->unarmoured_text.length, stdout) !=
-            content->unarmoured_text.length) {
-            fprintf(stderr, "unable to write unarmoured text data\n");
+        if (fwrite(content->unarmored_text.data, 1, content->unarmored_text.length, stdout) !=
+            content->unarmored_text.length) {
+            fprintf(stderr, "unable to write unarmored text data\n");
             cbinfo->printstate.skipping = 1;
         }
         break;
@@ -314,8 +313,8 @@ write_parsed_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PTAG_CT_LITDATA_BODY:
         return pgp_litdata_cb(pkt, cbinfo);
 
-    case PGP_PTAG_CT_ARMOUR_HEADER:
-    case PGP_PTAG_CT_ARMOUR_TRAILER:
+    case PGP_PTAG_CT_ARMOR_HEADER:
+    case PGP_PTAG_CT_ARMOR_TRAILER:
     case PGP_PTAG_CT_ENCRYPTED_PK_SESSION_KEY:
     case PGP_PTAG_CT_COMPRESSED:
     case PGP_PTAG_CT_LITDATA_HEADER:
@@ -375,9 +374,9 @@ pgp_encrypt_file(rnp_ctx_t *         ctx,
         return false;
     }
 
-    /* set armoured/not armoured here */
-    if (ctx->armour) {
-        pgp_writer_push_armoured(output, PGP_PGP_MESSAGE);
+    /* set armored/not armored here */
+    if (ctx->armor) {
+        pgp_writer_push_armored(output, PGP_PGP_MESSAGE);
     }
 
     /* Push the encrypted writer */
@@ -421,9 +420,9 @@ pgp_encrypt_buf(rnp_ctx_t *         ctx,
         return false;
     }
 
-    /* set armoured/not armoured here */
-    if (ctx->armour) {
-        pgp_writer_push_armoured(output, PGP_PGP_MESSAGE);
+    /* set armored/not armored here */
+    if (ctx->armor) {
+        pgp_writer_push_armored(output, PGP_PGP_MESSAGE);
     }
 
     /* Push the encrypted writer */
@@ -454,7 +453,7 @@ pgp_encrypt_buf(rnp_ctx_t *         ctx,
    \param outfile Name of file to write to. If NULL, the filename is constructed from the input
    filename, following GPG conventions.
    \param keyring Keyring to use
-   \param use_armour Expect armoured text, if set
+   \param use_armor Expect armored text, if set
    \param allow_overwrite Allow output file to overwritten, if set.
    \param getpassfunc Callback to use to get passphrase
 */
@@ -465,7 +464,7 @@ pgp_decrypt_file(pgp_io_t *                       io,
                  const char *                     outfile,
                  rnp_key_store_t *                secring,
                  rnp_key_store_t *                pubring,
-                 const unsigned                   use_armour,
+                 const unsigned                   use_armor,
                  const unsigned                   allow_overwrite,
                  const unsigned                   sshkeys,
                  int                              numtries,
@@ -518,7 +517,7 @@ pgp_decrypt_file(pgp_io_t *                       io,
         }
     }
 
-    /* \todo check for suffix matching armour param */
+    /* \todo check for suffix matching armor param */
 
     /* setup for writing decrypted contents to given output file */
 
@@ -529,17 +528,17 @@ pgp_decrypt_file(pgp_io_t *                       io,
     parse->cbinfo.sshseckey = (sshkeys) ? &secring->keys[0].key.seckey : NULL;
     parse->cbinfo.numtries = numtries;
 
-    /* Set up armour/passphrase options */
-    if (use_armour) {
-        pgp_reader_push_dearmour(parse);
+    /* Set up armor/passphrase options */
+    if (use_armor) {
+        pgp_reader_push_dearmor(parse);
     }
 
     /* Do it */
     ret = repgp_parse(parse, printerrors);
 
     /* Unsetup */
-    if (use_armour) {
-        pgp_reader_pop_dearmour(parse);
+    if (use_armor) {
+        pgp_reader_pop_dearmor(parse);
     }
 
     /* if we didn't get the passphrase, unlink output file */
@@ -567,7 +566,7 @@ pgp_decrypt_buf(pgp_io_t *                       io,
                 const size_t                     insize,
                 rnp_key_store_t *                secring,
                 rnp_key_store_t *                pubring,
-                const unsigned                   use_armour,
+                const unsigned                   use_armor,
                 const unsigned                   sshkeys,
                 int                              numtries,
                 const pgp_passphrase_provider_t *passphrase_provider)
@@ -611,17 +610,17 @@ pgp_decrypt_buf(pgp_io_t *                       io,
     parse->cbinfo.sshseckey = (sshkeys) ? &secring->keys[0].key.seckey : NULL;
     parse->cbinfo.numtries = numtries;
 
-    /* Set up armour/passphrase options */
-    if (use_armour) {
-        pgp_reader_push_dearmour(parse);
+    /* Set up armor/passphrase options */
+    if (use_armor) {
+        pgp_reader_push_dearmor(parse);
     }
 
     /* Do it */
     repgp_parse(parse, printerrors);
 
     /* Unsetup */
-    if (use_armour) {
-        pgp_reader_pop_dearmour(parse);
+    if (use_armor) {
+        pgp_reader_pop_dearmor(parse);
     }
 
     /* tidy up */

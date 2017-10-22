@@ -160,7 +160,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 int
 rnp_key_store_load_from_file(pgp_io_t *       io,
                              rnp_key_store_t *key_store,
-                             const unsigned   armour,
+                             const unsigned   armor,
                              rnp_key_store_t *pubring)
 {
     DIR *          dir;
@@ -213,7 +213,7 @@ rnp_key_store_load_from_file(pgp_io_t *       io,
         return false;
     }
 
-    rc = rnp_key_store_load_from_mem(io, key_store, armour, pubring, &mem);
+    rc = rnp_key_store_load_from_mem(io, key_store, armor, pubring, &mem);
     pgp_memory_release(&mem);
     return rc;
 }
@@ -221,13 +221,13 @@ rnp_key_store_load_from_file(pgp_io_t *       io,
 bool
 rnp_key_store_load_from_mem(pgp_io_t *       io,
                             rnp_key_store_t *key_store,
-                            const unsigned   armour,
+                            const unsigned   armor,
                             rnp_key_store_t *pubring,
                             pgp_memory_t *   memory)
 {
     switch (key_store->format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_read_from_mem(io, key_store, armour, memory);
+        return rnp_key_store_pgp_read_from_mem(io, key_store, armor, memory);
 
     case KBX_KEY_STORE:
         return rnp_key_store_kbx_from_mem(io, key_store, memory);
@@ -245,7 +245,7 @@ rnp_key_store_load_from_mem(pgp_io_t *       io,
 }
 
 bool
-rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *key_store, const unsigned armour)
+rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *key_store, const unsigned armor)
 {
     bool         rc;
     pgp_memory_t mem = {0};
@@ -301,7 +301,7 @@ rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *key_store, const unsi
         return true;
     }
 
-    if (!rnp_key_store_write_to_mem(io, key_store, armour, &mem)) {
+    if (!rnp_key_store_write_to_mem(io, key_store, armor, &mem)) {
         pgp_memory_release(&mem);
         return false;
     }
@@ -314,12 +314,12 @@ rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *key_store, const unsi
 bool
 rnp_key_store_write_to_mem(pgp_io_t *       io,
                            rnp_key_store_t *key_store,
-                           const unsigned   armour,
+                           const unsigned   armor,
                            pgp_memory_t *   memory)
 {
     switch (key_store->format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_write_to_mem(io, key_store, armour, memory);
+        return rnp_key_store_pgp_write_to_mem(io, key_store, armor, memory);
 
     case KBX_KEY_STORE:
         return rnp_key_store_kbx_to_mem(io, key_store, memory);

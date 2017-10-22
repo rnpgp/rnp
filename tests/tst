@@ -118,21 +118,21 @@ marktest 16 $good
 echo "======> find specific key information"
 /usr/bin/rnpkeys --get-key c0596823 agc@netbsd.org && good=17
 marktest 17 $good
-echo "======> ascii armoured signature"
+echo "======> ascii armored signature"
 cp Makefile.am g
 /usr/bin/rnp --sign --armor g && good=18
 marktest 18 $good
-echo "======> ascii armoured sig detection and verification"
+echo "======> ascii armored sig detection and verification"
 /usr/bin/rnp --verify g.asc && good=19
 marktest 19 $good
-echo "======> ascii armoured signature of large file"
+echo "======> ascii armored signature of large file"
 cp Makefile.in g
 /usr/bin/rnp --sign --armor g && good=20
 marktest 20 $good
-echo "======> ascii armoured sig detection and verification of large file"
+echo "======> ascii armored sig detection and verification of large file"
 /usr/bin/rnp --verify g.asc && good=21
 marktest 21 $good
-echo "======> verify memory by recognising ascii armour"
+echo "======> verify memory by recognising ascii armor"
 /usr/bin/rnp --cat < g.asc > g2
 diff g g2 && good=22
 marktest 22 $good
@@ -170,11 +170,11 @@ marktest 29 $good
 echo "======> generate a new RSA key"
 /usr/bin/rnpkeys --generate-key && good=30
 marktest 30 $good
-echo "======> ascii detached armoured signature"
+echo "======> ascii detached armored signature"
 cp Makefile.am i
 /usr/bin/rnp --sign --armor --detached i && good=31
 marktest 31 $good
-echo "======> ascii detached armoured sig detection and verification"
+echo "======> ascii detached armored sig detection and verification"
 /usr/bin/rnp --verify i.asc && good=32
 marktest 32 $good
 echo "======> host ssh fingerprint and rnp fingerprint"

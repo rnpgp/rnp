@@ -1106,7 +1106,7 @@ pgp_pick_hash_alg(rnp_ctx_t *ctx, const pgp_seckey_t *seckey)
 \param inname Input filename
 \param outname Output filename. If NULL, a name is constructed from the input filename.
 \param seckey Secret Key to use for signing
-\param armored Write armoured text, if set.
+\param armored Write armored text, if set.
 \param overwrite May overwrite existing file, if set.
 \return 1 if OK; else 0;
 
@@ -1148,7 +1148,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
 
     /* setup output file */
     fd_out = open_output_file(
-      ctx, &output, inname, outname, (ctx->armour) ? "asc" : "gpg", ctx->overwrite);
+      ctx, &output, inname, outname, (ctx->armor) ? "asc" : "gpg", ctx->overwrite);
     if (fd_out < 0) {
         goto done;
     }
@@ -1164,13 +1164,13 @@ pgp_sign_file(rnp_ctx_t *         ctx,
     if (cleartext) {
         if (!pgp_writer_push_clearsigned(output, sig) ||
             !pgp_write(output, pgp_mem_data(infile), (unsigned) pgp_mem_len(infile)) ||
-            !pgp_writer_push_armoured(output, PGP_PGP_CLEARTEXT_SIGNATURE)) {
+            !pgp_writer_push_armored(output, PGP_PGP_CLEARTEXT_SIGNATURE)) {
             goto done;
         }
     } else {
-        /* set armoured/not armoured here */
-        if (ctx->armour) {
-            pgp_writer_push_armoured(output, PGP_PGP_MESSAGE);
+        /* set armored/not armored here */
+        if (ctx->armor) {
+            pgp_writer_push_armored(output, PGP_PGP_MESSAGE);
         }
         /* hash file contents */
         hash = pgp_sig_get_hash(sig);
@@ -1266,14 +1266,14 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
     if (cleartext) {
         if (!pgp_writer_push_clearsigned(output, sig) ||
             !pgp_write(output, input, (unsigned) insize) ||
-            !pgp_writer_push_armoured(output, PGP_PGP_CLEARTEXT_SIGNATURE)) {
+            !pgp_writer_push_armored(output, PGP_PGP_CLEARTEXT_SIGNATURE)) {
             goto done;
         }
 
     } else {
-        /* set armoured/not armoured here */
-        if (ctx->armour) {
-            pgp_writer_push_armoured(output, PGP_PGP_MESSAGE);
+        /* set armored/not armored here */
+        if (ctx->armor) {
+            pgp_writer_push_armored(output, PGP_PGP_MESSAGE);
         }
         /* hash memory */
         hash = pgp_sig_get_hash(sig);
@@ -1324,8 +1324,8 @@ pgp_sign_detached(
     }
 
     /* setup output file */
-    fd = open_output_file(
-      ctx, &output, f, sigfile, (ctx->armour) ? "asc" : "sig", ctx->overwrite);
+    fd =
+      open_output_file(ctx, &output, f, sigfile, (ctx->armor) ? "asc" : "sig", ctx->overwrite);
     if (fd < 0) {
         (void) fprintf(io->errs, "Can't open output file: %s\n", f);
         goto done;
@@ -1348,9 +1348,9 @@ pgp_sign_detached(
     if (!pgp_mem_readfile(mem, f)) {
         goto done;
     }
-    /* set armoured/not armoured here */
-    if (ctx->armour) {
-        pgp_writer_push_armoured(output, PGP_PGP_SIGNATURE);
+    /* set armored/not armored here */
+    if (ctx->armor) {
+        pgp_writer_push_armored(output, PGP_PGP_SIGNATURE);
     }
     pgp_sig_add_data(sig, pgp_mem_data(mem), pgp_mem_len(mem));
 
@@ -1402,8 +1402,8 @@ pgp_sign_memory_detached(rnp_ctx_t *         ctx,
     }
     pgp_sig_start(sig, seckey, ctx->halg, PGP_SIG_BINARY);
 
-    if (ctx->armour) {
-        pgp_writer_push_armoured(output, PGP_PGP_SIGNATURE);
+    if (ctx->armor) {
+        pgp_writer_push_armored(output, PGP_PGP_SIGNATURE);
     }
     pgp_sig_add_data(sig, membuf, membuf_len);
 
@@ -1418,7 +1418,7 @@ pgp_sign_memory_detached(rnp_ctx_t *         ctx,
     pgp_writer_close(output);
 
     *sig_output_len = pgp_mem_len(mem);
-    if (ctx->armour)
+    if (ctx->armor)
         *sig_output_len += 1;
 
     *sig_output = calloc(*sig_output_len, 1);

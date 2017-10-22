@@ -576,8 +576,8 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     /* ignore these */
     case PGP_PARSER_PTAG:
     case PGP_PTAG_CT_SIGNATURE_HEADER:
-    case PGP_PTAG_CT_ARMOUR_HEADER:
-    case PGP_PTAG_CT_ARMOUR_TRAILER:
+    case PGP_PTAG_CT_ARMOR_HEADER:
+    case PGP_PTAG_CT_ARMOR_TRAILER:
     case PGP_PTAG_CT_1_PASS_SIG:
         break;
 
@@ -646,7 +646,7 @@ pgp_validate_result_free(pgp_validation_t *result)
    \brief Verifies the signatures in a signed file
    \param result Where to put the result
    \param filename Name of file to be validated
-   \param armoured Treat file as armoured, if set
+   \param armored Treat file as armored, if set
    \param keyring Keyring to use
    \return 1 if signatures validate successfully;
         0 if signatures fail or there are no signatures
@@ -660,7 +660,7 @@ pgp_validate_file(pgp_io_t *             io,
                   pgp_validation_t *     result,
                   const char *           infile,
                   const char *           outfile,
-                  const bool             user_says_armoured,
+                  const bool             user_says_armored,
                   const rnp_key_store_t *keyring)
 {
     validate_data_cb_t validation;
@@ -671,7 +671,7 @@ pgp_validate_file(pgp_io_t *             io,
     bool               ret;
     char               f[MAXPATHLEN];
     char *             dataname;
-    bool               realarmour;
+    bool               realarmor;
     int                outfd = 0;
     int                infd;
     int                cc;
@@ -680,7 +680,7 @@ pgp_validate_file(pgp_io_t *             io,
         RNP_LOG("Can't open %s", infile);
         return 0;
     }
-    realarmour = user_says_armoured;
+    realarmor = user_says_armored;
     dataname = NULL;
     signame = NULL;
     cc = snprintf(f, sizeof(f), "%s", infile);
@@ -696,7 +696,7 @@ pgp_validate_file(pgp_io_t *             io,
         /* set dataname to name of file which was signed */
         dataname = f;
         signame = infile;
-        realarmour = true;
+        realarmor = true;
     } else {
         signame = infile;
     }
@@ -723,16 +723,16 @@ pgp_validate_file(pgp_io_t *             io,
     /* is never used. */
     validation.reader = parse->readinfo.arg;
 
-    if (realarmour) {
-        pgp_reader_push_dearmour(parse);
+    if (realarmor) {
+        pgp_reader_push_dearmor(parse);
     }
 
     /* Do the verification */
     repgp_parse(parse, !printerrors);
 
     /* Tidy up */
-    if (realarmour) {
-        pgp_reader_pop_dearmour(parse);
+    if (realarmor) {
+        pgp_reader_pop_dearmor(parse);
     }
     pgp_teardown_file_read(parse, infd);
 
@@ -783,7 +783,7 @@ pgp_validate_file(pgp_io_t *             io,
    \brief Verifies the signatures in a pgp_memory_t struct
    \param result Where to put the result
    \param mem Memory to be validated
-   \param user_says_armoured Treat data as armoured, if set
+   \param user_says_armored Treat data as armored, if set
    \param keyring Keyring to use
    \return 1 if signature validates successfully; 0 if not
    \note After verification, result holds the details of all keys which
@@ -797,13 +797,13 @@ pgp_validate_mem(pgp_io_t *             io,
                  pgp_validation_t *     result,
                  pgp_memory_t *         mem,
                  pgp_memory_t **        cat,
-                 const bool             user_says_armoured,
+                 const bool             user_says_armored,
                  const rnp_key_store_t *keyring)
 {
     validate_data_cb_t validation;
     pgp_stream_t *     stream = NULL;
     const int          printerrors = 1;
-    bool               realarmour;
+    bool               realarmor;
 
     if (!pgp_setup_memory_read(io, &stream, mem, &validation, validate_data_cb, 1)) {
         (void) fprintf(io->errs, "can't setup memory read\n");
@@ -823,20 +823,20 @@ pgp_validate_mem(pgp_io_t *             io,
     /* is never used. */
     validation.reader = stream->readinfo.arg;
 
-    if ((realarmour = user_says_armoured) ||
+    if ((realarmor = user_says_armored) ||
         strncmp(pgp_mem_data(mem), "-----BEGIN PGP MESSAGE-----", 27) == 0) {
-        realarmour = true;
+        realarmor = true;
     }
-    if (realarmour) {
-        pgp_reader_push_dearmour(stream);
+    if (realarmor) {
+        pgp_reader_push_dearmor(stream);
     }
 
     /* Do the verification */
     repgp_parse(stream, !printerrors);
 
     /* Tidy up */
-    if (realarmour) {
-        pgp_reader_pop_dearmour(stream);
+    if (realarmor) {
+        pgp_reader_pop_dearmor(stream);
     }
     pgp_teardown_memory_read(stream, mem);
 

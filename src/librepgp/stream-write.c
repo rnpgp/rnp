@@ -973,8 +973,8 @@ rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst
     bool         discard;
 
     /* pushing armoring stream, which will write to the output */
-    if (handler->ctx->armour) {
-        ret = init_armoured_dst(&dests[destc], dst, PGP_ARMOURED_MESSAGE);
+    if (handler->ctx->armor) {
+        ret = init_armored_dst(&dests[destc], dst, PGP_ARMORED_MESSAGE);
         if (ret != RNP_SUCCESS) {
             goto finish;
         }

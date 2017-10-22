@@ -134,25 +134,24 @@ bool pgp_sign_file(
 int pgp_sign_detached(
   rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_seckey_t *);
 
-rnp_result_t
-pgp_sign_memory_detached(rnp_ctx_t *         ctx,
-                         const pgp_seckey_t *seckey,
-                         const uint8_t       membuf[],
-                         size_t              membuf_len,
-                         uint8_t **          sig_output,
-                         size_t *            sig_output_len);
+rnp_result_t pgp_sign_memory_detached(rnp_ctx_t *         ctx,
+                                      const pgp_seckey_t *seckey,
+                                      const uint8_t       membuf[],
+                                      size_t              membuf_len,
+                                      uint8_t **          sig_output,
+                                      size_t *            sig_output_len);
 
 bool pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 
-/* armoured stuff */
+/* armored stuff */
 unsigned pgp_crc24(unsigned, uint8_t);
 
-// TODO: This should endup in reader.h or armour.h
-void pgp_reader_push_dearmour(pgp_stream_t *);
-void pgp_reader_pop_dearmour(pgp_stream_t *);
+// TODO: This should endup in reader.h or armor.h
+void pgp_reader_push_dearmor(pgp_stream_t *);
+void pgp_reader_pop_dearmor(pgp_stream_t *);
 
 bool pgp_writer_push_clearsigned(pgp_output_t *, pgp_create_sig_t *);
-void pgp_reader_pop_dearmour(pgp_stream_t *);
+void pgp_reader_pop_dearmor(pgp_stream_t *);
 
 typedef enum {
     PGP_PGP_MESSAGE = 1,
@@ -166,7 +165,7 @@ typedef enum {
 
 #define CRC24_INIT 0xb704ceL
 
-bool pgp_writer_push_armoured(pgp_output_t *, pgp_armor_type_t);
+bool pgp_writer_push_armored(pgp_output_t *, pgp_armor_type_t);
 
 pgp_memory_t *pgp_sign_buf(
   rnp_ctx_t *, pgp_io_t *, const void *, const size_t, const pgp_seckey_t *, const bool);

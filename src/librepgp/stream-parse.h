@@ -50,7 +50,7 @@ typedef struct pgp_parse_handler_t {
 
 /* @brief Process the OpenPGP source: file, memory, stdin
  * Function will parse input data, provided by any source conforming to pgp_source_t,
- * autodetecting whether it is armoured, cleartext or binary.
+ * autodetecting whether it is armored, cleartext or binary.
  * @param handler handler to respond on stream reader callbacks
  * @param src initialized source with cache
  * @return RNP_SUCCESS on success or error code otherwise

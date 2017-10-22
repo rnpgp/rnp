@@ -85,9 +85,9 @@ def run_iterated(iterations, func, src, dst, *args):
     #print '{} average run time: {}'.format(func.__name__, res)
     return res
 
-def rnp_symencrypt_file(src, dst, cipher, zlevel = 6, zalgo = 'zip', armour = False):
+def rnp_symencrypt_file(src, dst, cipher, zlevel = 6, zalgo = 'zip', armor = False):
     params = ['--homedir', RNPDIR, '--passphrase', PASSWORD, '--cipher', cipher, '-z', str(zlevel), '--' + zalgo, '-c', src, '--output', dst]
-    if armour:
+    if armor:
         params += ['--armor']
     ret = run_proc_fast(RNP, params)
     if ret != 0:
@@ -98,9 +98,9 @@ def rnp_decrypt_file(src, dst):
     if ret != 0:
         raise_err('rnp decryption failed')
 
-def gpg_symencrypt_file(src, dst, cipher = 'AES', zlevel = 6, zalgo = 1, armour = False):
+def gpg_symencrypt_file(src, dst, cipher = 'AES', zlevel = 6, zalgo = 1, armor = False):
     params = ['--homedir', GPGDIR, '-c', '-z', str(zlevel), '--s2k-count', '524288', '--compress-algo', str(zalgo), '--batch', '--passphrase', PASSWORD, '--cipher-algo', cipher, '--output', dst, src]
-    if armour:
+    if armor:
         params.insert(2, '--armor')
     ret = run_proc_fast(GPG, params)
     if ret != 0:
@@ -160,10 +160,10 @@ def run_tests():
     # 1. Encryption
     print '#1. Small file symmetric encryption'
     infile, rnpout, gpgout, iterations, fsize = get_file_params('small')
-    for armour in [False, True]:
-        tmrnp = run_iterated(iterations, rnp_symencrypt_file, infile, rnpout, 'AES128', 0, 'zip', armour)
-        tmgpg = run_iterated(iterations, gpg_symencrypt_file, infile, gpgout, 'AES128', 0, 1, armour)
-        testname = 'ENCRYPT-SMALL-{}'.format('ARMOUR' if armour else 'BINARY')
+    for armor in [False, True]:
+        tmrnp = run_iterated(iterations, rnp_symencrypt_file, infile, rnpout, 'AES128', 0, 'zip', armor)
+        tmgpg = run_iterated(iterations, gpg_symencrypt_file, infile, gpgout, 'AES128', 0, 1, armor)
+        testname = 'ENCRYPT-SMALL-{}'.format('ARMOR' if armor else 'BINARY')
         print_test_results(fsize, tmrnp, tmgpg, testname)
 
     print '#2. Large file symmetric encryption'
@@ -174,19 +174,19 @@ def run_tests():
         testname = 'ENCRYPT-{}-BINARY'.format(cipher)
         print_test_results(fsize, tmrnp, tmgpg, testname)
 
-    print '#3. Large file armoured encryption'
+    print '#3. Large file armored encryption'
     tmrnp = run_iterated(iterations, rnp_symencrypt_file, infile, rnpout, 'AES128', 0, 'zip', True)
     tmgpg = run_iterated(iterations, gpg_symencrypt_file, infile, gpgout, 'AES128', 0, 1, True)
-    print_test_results(fsize, tmrnp, tmgpg, 'ENCRYPT-LARGE-ARMOUR')
+    print_test_results(fsize, tmrnp, tmgpg, 'ENCRYPT-LARGE-ARMOR')
 
     print '#4. Small file symmetric decryption'
     infile, rnpout, gpgout, iterations, fsize = get_file_params('small')
     inenc = infile + '.enc'
-    for armour in [False, True]:
-        gpg_symencrypt_file(infile, inenc, 'AES', 0, 1, armour)
+    for armor in [False, True]:
+        gpg_symencrypt_file(infile, inenc, 'AES', 0, 1, armor)
         tmrnp = run_iterated(iterations, rnp_decrypt_file, inenc, rnpout)
         tmgpg = run_iterated(iterations, gpg_decrypt_file, inenc, gpgout, PASSWORD)
-        testname = 'DECRYPT-SMALL-{}'.format('ARMOUR' if armour else 'BINARY')
+        testname = 'DECRYPT-SMALL-{}'.format('ARMOR' if armor else 'BINARY')
         print_test_results(fsize, tmrnp, tmgpg, testname)
         os.remove(inenc)
 
@@ -201,11 +201,11 @@ def run_tests():
         print_test_results(fsize, tmrnp, tmgpg, testname)
         os.remove(inenc)
 
-    print '#6. Large file armoured decryption'
+    print '#6. Large file armored decryption'
     gpg_symencrypt_file(infile, inenc, 'AES128', 0, 1, True)
     tmrnp = run_iterated(iterations, rnp_decrypt_file, inenc, rnpout)
     tmgpg = run_iterated(iterations, gpg_decrypt_file, inenc, gpgout, PASSWORD)
-    print_test_results(fsize, tmrnp, tmgpg, 'DECRYPT-LARGE-ARMOUR')
+    print_test_results(fsize, tmrnp, tmgpg, 'DECRYPT-LARGE-ARMOR')
     os.remove(inenc)
 
     # 3. Signing

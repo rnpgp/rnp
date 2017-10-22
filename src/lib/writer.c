@@ -651,7 +651,7 @@ linebreak_writer(const uint8_t *src, size_t len, pgp_error_t **errors, pgp_write
 }
 
 static bool
-armoured_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
+armored_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
 {
     /* TODO: This is same as sig_finaliser apart from trailer. */
     static const char trl_message[] = "\r\n-----END PGP MESSAGE-----\r\n";
@@ -680,7 +680,7 @@ armoured_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
         trailer = trl_signature;
         break;
     default:
-        fprintf(stderr, "armoured_message_finaliser: unusual type\n");
+        fprintf(stderr, "armored_message_finaliser: unusual type\n");
         return false;
     }
 
@@ -718,7 +718,7 @@ armoured_message_finaliser(pgp_error_t **errors, pgp_writer_t *writer)
  \brief Push Armoured Writer on stack (generic)
 */
 bool
-pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
+pgp_writer_push_armored(pgp_output_t *output, pgp_armor_type_t type)
 {
     static char hdr_pubkey[] = "-----BEGIN PGP PUBLIC KEY BLOCK-----\r\n";
     static char hdr_privkey[] = "-----BEGIN PGP PRIVATE KEY BLOCK-----\r\n";
@@ -731,7 +731,7 @@ pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
     linebreak_t *linebreak;
 
     if ((linebreak = calloc(1, sizeof(*linebreak))) == NULL) {
-        (void) fprintf(stderr, "pgp_writer_push_armoured: bad alloc\n");
+        (void) fprintf(stderr, "pgp_writer_push_armored: bad alloc\n");
         return false;
     }
 
@@ -762,7 +762,7 @@ pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
             !pgp_write(output, hdr_signature, sizeof(hdr_signature) - 1) ||
             !pgp_write(output, hdr_version, sizeof(hdr_version) - 1)) {
             PGP_ERROR_1(
-              &output->errors, PGP_E_W, "%s", "Error switching to armoured signature");
+              &output->errors, PGP_E_W, "%s", "Error switching to armored signature");
             free(linebreak);
             return false;
         }
@@ -770,7 +770,7 @@ pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
 
     default:
         free(linebreak);
-        (void) fprintf(stderr, "pgp_writer_push_armoured: unusual type\n");
+        (void) fprintf(stderr, "pgp_writer_push_armored: unusual type\n");
         return false;
     }
 
@@ -780,14 +780,14 @@ pgp_writer_push_armoured(pgp_output_t *output, pgp_armor_type_t type)
     }
 
     if ((base64 = calloc(1, sizeof(*base64))) == NULL) {
-        (void) fprintf(stderr, "pgp_writer_push_armoured: bad alloc\n");
+        (void) fprintf(stderr, "pgp_writer_push_armored: bad alloc\n");
         return false;
     }
     base64->checksum = CRC24_INIT;
     base64->type = type;
 
     if (!pgp_writer_push(
-          output, base64_writer, armoured_message_finaliser, generic_destroyer, base64)) {
+          output, base64_writer, armored_message_finaliser, generic_destroyer, base64)) {
         free(base64);
         return false;
     }
