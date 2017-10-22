@@ -25,7 +25,7 @@
  */
 
 #include "config.h"
-#include "stream-armour.h"
+#include "stream-armor.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
