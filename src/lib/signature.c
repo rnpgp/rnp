@@ -1057,7 +1057,6 @@ open_output_file(rnp_ctx_t *    ctx,
 
     /* setup output file */
     if (outname) {
-        fd = pgp_setup_file_write(ctx, output, outname, overwrite);
         if (strcmp(outname, "-") == 0) {
             fd = pgp_setup_file_write(ctx, output, NULL, overwrite);
         } else {
