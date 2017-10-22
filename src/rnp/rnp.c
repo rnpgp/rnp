@@ -51,7 +51,7 @@
 #include "rnpcfg.h"
 #include <rekey/rnp_key_store.h>
 #include <repgp/repgp.h>
-#include <librepgp/stream-armour.h>
+#include <librepgp/stream-armor.h>
 
 #include "hash.h"
 

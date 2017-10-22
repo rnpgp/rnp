@@ -96,7 +96,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <rnp/rnp_def.h>
 #include "pgp-key.h"
 #include "list.h"
-#include <librepgp/stream-armour.h>
+#include <librepgp/stream-armor.h>
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-write.h>
 #include <librepgp/stream-packet.h>

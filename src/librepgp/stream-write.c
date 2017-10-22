@@ -27,7 +27,7 @@
 #include "config.h"
 #include "stream-write.h"
 #include "stream-packet.h"
-#include "stream-armour.h"
+#include "stream-armor.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
