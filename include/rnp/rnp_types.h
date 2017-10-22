@@ -99,7 +99,7 @@ typedef struct rnp_ctx_t {
     int            zalg;       /* compression algorithm used */
     int            zlevel;     /* compression level */
     int            overwrite;  /* allow to overwrite output file if exists */
-    bool           armour;     /* whether to use ASCII armour on output */
+    bool           armor;      /* whether to use ASCII armor on output */
     list           recipients; /* recipients of the encrypted message */
     int            passwordc;  /* number of passwords to encrypt message for */
 } rnp_ctx_t;

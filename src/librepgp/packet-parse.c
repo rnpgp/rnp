@@ -1001,8 +1001,8 @@ repgp_parser_content_free(pgp_packet_t *c)
     case PGP_PTAG_CT_LITDATA_HEADER:
     case PGP_PTAG_CT_LITDATA_BODY:
     case PGP_PTAG_CT_SIGNED_CLEARTEXT_BODY:
-    case PGP_PTAG_CT_UNARMOURED_TEXT:
-    case PGP_PTAG_CT_ARMOUR_TRAILER:
+    case PGP_PTAG_CT_UNARMORED_TEXT:
+    case PGP_PTAG_CT_ARMOR_TRAILER:
     case PGP_PTAG_CT_SIGNATURE_HEADER:
     case PGP_PTAG_CT_SE_DATA_HEADER:
     case PGP_PTAG_CT_SE_IP_DATA_HEADER:
@@ -1015,8 +1015,8 @@ repgp_parser_content_free(pgp_packet_t *c)
         headers_free(&c->u.cleartext_head);
         break;
 
-    case PGP_PTAG_CT_ARMOUR_HEADER:
-        headers_free(&c->u.armour_header.headers);
+    case PGP_PTAG_CT_ARMOR_HEADER:
+        headers_free(&c->u.armor_header.headers);
         break;
 
     case PGP_PTAG_CT_SIGNED_CLEARTEXT_TRAILER:

@@ -203,7 +203,7 @@ enum {
 };
 
 /**
- * \struct dearmour_t
+ * \struct dearmor_t
  */
 typedef struct {
     enum { OUTSIDE_BLOCK = 0, BASE64, AT_TRAILER_NAME } state;
@@ -212,14 +212,14 @@ typedef struct {
     unsigned      seen_nl : 1;
     unsigned      prev_nl : 1;
     unsigned      allow_headers_without_gap : 1;
-    /* !< allow headers in armoured data that are
+    /* !< allow headers in armored data that are
      * not separated from the data by a blank line
      * */
     unsigned allow_no_gap : 1;
     /* !< allow no blank line at the start of
-     * armoured data */
+     * armored data */
     unsigned allow_trailing_whitespace : 1;
-    /* !< allow armoured stuff to have trailing
+    /* !< allow armored stuff to have trailing
      * whitespace where we wouldn't strictly expect
      * it */
     /* it is an error to get a cleartext message without a sig */
@@ -231,30 +231,30 @@ typedef struct {
     unsigned eof64;
     uint32_t checksum;
     uint32_t read_checksum;
-    /* unarmoured text blocks */
-    uint8_t unarmoured[RNP_BUFSIZ];
+    /* unarmored text blocks */
+    uint8_t unarmored[RNP_BUFSIZ];
     size_t  unarmoredc;
     /* pushed back data (stored backwards) */
     uint8_t *pushback;
     unsigned pushbackc;
-    /* armoured block headers */
+    /* armored block headers */
     pgp_headers_t headers;
-} dearmour_t;
+} dearmor_t;
 
 static void
-push_back(dearmour_t *dearmour, const uint8_t *buf, unsigned length)
+push_back(dearmor_t *dearmor, const uint8_t *buf, unsigned length)
 {
     unsigned n;
 
-    if (dearmour->pushback) {
+    if (dearmor->pushback) {
         (void) fprintf(stderr, "push_back: already pushed back\n");
-    } else if ((dearmour->pushback = calloc(1, length)) == NULL) {
+    } else if ((dearmor->pushback = calloc(1, length)) == NULL) {
         (void) fprintf(stderr, "push_back: bad alloc\n");
     } else {
         for (n = 0; n < length; ++n) {
-            dearmour->pushback[n] = buf[(length - n) - 1];
+            dearmor->pushback[n] = buf[(length - n) - 1];
         }
-        dearmour->pushbackc = length;
+        dearmor->pushbackc = length;
     }
 }
 
@@ -297,24 +297,22 @@ findheaderline(char *headerline)
 }
 
 static bool
-set_lastseen_headerline(dearmour_t *dearmour, char *hdr, pgp_error_t **errors)
+set_lastseen_headerline(dearmor_t *dearmor, char *hdr, pgp_error_t **errors)
 {
     int lastseen;
     int prev;
 
-    prev = dearmour->lastseen;
+    prev = dearmor->lastseen;
     if ((lastseen = findheaderline(hdr)) == -1) {
         PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "Unrecognised Header Line %s", hdr);
         return false;
     }
-    dearmour->lastseen = lastseen;
+    dearmor->lastseen = lastseen;
     if (rnp_get_debug(__FILE__)) {
-        printf("set header: hdr=%s, dearmour->lastseen=%d, prev=%d\n",
-               hdr,
-               dearmour->lastseen,
-               prev);
+        printf(
+          "set header: hdr=%s, dearmor->lastseen=%d, prev=%d\n", hdr, dearmor->lastseen, prev);
     }
-    switch (dearmour->lastseen) {
+    switch (dearmor->lastseen) {
     case NONE:
         PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "Unrecognised last seen Header Line %s", hdr);
         break;
@@ -369,7 +367,7 @@ set_lastseen_headerline(dearmour_t *dearmour, char *hdr, pgp_error_t **errors)
 
 static int
 read_char(pgp_stream_t *stream,
-          dearmour_t *  dearmour,
+          dearmor_t *   dearmor,
           pgp_error_t **errors,
           pgp_reader_t *readinfo,
           pgp_cbdata_t *cbinfo,
@@ -378,25 +376,25 @@ read_char(pgp_stream_t *stream,
     uint8_t c;
 
     do {
-        if (dearmour->pushbackc) {
-            c = dearmour->pushback[--dearmour->pushbackc];
-            if (dearmour->pushbackc == 0) {
-                free(dearmour->pushback);
-                dearmour->pushback = NULL;
+        if (dearmor->pushbackc) {
+            c = dearmor->pushback[--dearmor->pushbackc];
+            if (dearmor->pushbackc == 0) {
+                free(dearmor->pushback);
+                dearmor->pushback = NULL;
             }
         } else if (pgp_stacked_read(stream, &c, 1, errors, readinfo, cbinfo) != 1) {
             return -1;
         }
     } while (skip && c == '\r');
-    dearmour->prev_nl = dearmour->seen_nl;
-    dearmour->seen_nl = c == '\n';
+    dearmor->prev_nl = dearmor->seen_nl;
+    dearmor->seen_nl = c == '\n';
     return c;
 }
 
 static int
 eat_whitespace(pgp_stream_t *stream,
                int           first,
-               dearmour_t *  dearmour,
+               dearmor_t *   dearmor,
                pgp_error_t **errors,
                pgp_reader_t *readinfo,
                pgp_cbdata_t *cbinfo,
@@ -405,14 +403,14 @@ eat_whitespace(pgp_stream_t *stream,
     int c = first;
 
     while (c == ' ' || c == '\t') {
-        c = read_char(stream, dearmour, errors, readinfo, cbinfo, skip);
+        c = read_char(stream, dearmor, errors, readinfo, cbinfo, skip);
     }
     return c;
 }
 
 static int
 read_and_eat_whitespace(pgp_stream_t *stream,
-                        dearmour_t *  dearmour,
+                        dearmor_t *   dearmor,
                         pgp_error_t **errors,
                         pgp_reader_t *readinfo,
                         pgp_cbdata_t *cbinfo,
@@ -421,42 +419,42 @@ read_and_eat_whitespace(pgp_stream_t *stream,
     int c;
 
     do {
-        c = read_char(stream, dearmour, errors, readinfo, cbinfo, skip);
+        c = read_char(stream, dearmor, errors, readinfo, cbinfo, skip);
     } while (c == ' ' || c == '\t');
     return c;
 }
 
 static void
-flush(dearmour_t *dearmour, pgp_cbdata_t *cbinfo)
+flush(dearmor_t *dearmor, pgp_cbdata_t *cbinfo)
 {
     pgp_packet_t content;
 
-    if (dearmour->unarmoredc > 0) {
-        content.u.unarmoured_text.data = dearmour->unarmoured;
-        content.u.unarmoured_text.length = (unsigned) dearmour->unarmoredc;
-        CALLBACK(PGP_PTAG_CT_UNARMOURED_TEXT, cbinfo, &content);
-        dearmour->unarmoredc = 0;
+    if (dearmor->unarmoredc > 0) {
+        content.u.unarmored_text.data = dearmor->unarmored;
+        content.u.unarmored_text.length = (unsigned) dearmor->unarmoredc;
+        CALLBACK(PGP_PTAG_CT_UNARMORED_TEXT, cbinfo, &content);
+        dearmor->unarmoredc = 0;
     }
 }
 
 static int
-unarmoured_read_char(pgp_stream_t *stream,
-                     dearmour_t *  dearmour,
-                     pgp_error_t **errors,
-                     pgp_reader_t *readinfo,
-                     pgp_cbdata_t *cbinfo,
-                     unsigned      skip)
+unarmored_read_char(pgp_stream_t *stream,
+                    dearmor_t *   dearmor,
+                    pgp_error_t **errors,
+                    pgp_reader_t *readinfo,
+                    pgp_cbdata_t *cbinfo,
+                    unsigned      skip)
 {
     int c;
 
     do {
-        c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0);
+        c = read_char(stream, dearmor, errors, readinfo, cbinfo, 0);
         if (c < 0) {
             return c;
         }
-        dearmour->unarmoured[dearmour->unarmoredc++] = c;
-        if (dearmour->unarmoredc == sizeof(dearmour->unarmoured)) {
-            flush(dearmour, cbinfo);
+        dearmor->unarmored[dearmor->unarmoredc++] = c;
+        if (dearmor->unarmoredc == sizeof(dearmor->unarmored)) {
+            flush(dearmor, cbinfo);
         }
     } while (skip && c == '\r');
     return c;
@@ -507,7 +505,7 @@ dup_headers(pgp_headers_t *dest, const pgp_headers_t *src)
  */
 static int
 process_dash_escaped(pgp_stream_t *stream,
-                     dearmour_t *  dearmour,
+                     dearmor_t *   dearmor,
                      pgp_error_t **errors,
                      pgp_reader_t *readinfo,
                      pgp_cbdata_t *cbinfo)
@@ -521,7 +519,7 @@ process_dash_escaped(pgp_stream_t *stream,
     pgp_hash_alg_t    alg = PGP_HASH_MD5; // default
 
     body = &content.u.cleartext_body;
-    hashstr = find_header(&dearmour->headers, "Hash");
+    hashstr = find_header(&dearmor->headers, "Hash");
     if (hashstr) {
         alg = pgp_str_to_hash_alg(hashstr);
         if (!pgp_is_hash_alg_supported(&alg)) {
@@ -541,12 +539,12 @@ process_dash_escaped(pgp_stream_t *stream,
         int      c;
         unsigned count;
 
-        c = read_char(stream, dearmour, errors, readinfo, cbinfo, 1);
+        c = read_char(stream, dearmor, errors, readinfo, cbinfo, 1);
         if (c < 0) {
             return -1;
         }
-        if (dearmour->prev_nl && c == '-') {
-            if ((c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0)) < 0) {
+        if (dearmor->prev_nl && c == '-') {
+            if ((c = read_char(stream, dearmor, errors, readinfo, cbinfo, 0)) < 0) {
                 return -1;
             }
             if (c != ' ') {
@@ -555,18 +553,18 @@ process_dash_escaped(pgp_stream_t *stream,
                     PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Bad dash-escaping");
                 }
                 for (count = 2; count < 5; ++count) {
-                    if ((c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0)) < 0) {
+                    if ((c = read_char(stream, dearmor, errors, readinfo, cbinfo, 0)) < 0) {
                         return -1;
                     }
                     if (c != '-') {
                         PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Bad dash-escaping (2)");
                     }
                 }
-                dearmour->state = AT_TRAILER_NAME;
+                dearmor->state = AT_TRAILER_NAME;
                 break;
             }
             /* otherwise we read the next character */
-            if ((c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0)) < 0) {
+            if ((c = read_char(stream, dearmor, errors, readinfo, cbinfo, 0)) < 0) {
                 return -1;
             }
         }
@@ -634,7 +632,7 @@ process_dash_escaped(pgp_stream_t *stream,
 }
 
 static bool
-add_header(dearmour_t *dearmour, const char *key, const char *value)
+add_header(dearmor_t *dearmor, const char *key, const char *value)
 {
     int n;
 
@@ -644,16 +642,16 @@ add_header(dearmour_t *dearmour, const char *key, const char *value)
     if (strcmp(key, "Version") == 0 || strcmp(key, "Comment") == 0 ||
         strcmp(key, "MessageID") == 0 || strcmp(key, "Hash") == 0 ||
         strcmp(key, "Charset") == 0) {
-        n = dearmour->headers.headerc;
-        dearmour->headers.headers =
-          realloc(dearmour->headers.headers, (n + 1) * sizeof(*dearmour->headers.headers));
-        if (dearmour->headers.headers == NULL) {
+        n = dearmor->headers.headerc;
+        dearmor->headers.headers =
+          realloc(dearmor->headers.headers, (n + 1) * sizeof(*dearmor->headers.headers));
+        if (dearmor->headers.headers == NULL) {
             (void) fprintf(stderr, "add_header: bad alloc\n");
             return false;
         }
-        dearmour->headers.headers[n].key = rnp_strdup(key);
-        dearmour->headers.headers[n].value = rnp_strdup(value);
-        dearmour->headers.headerc = n + 1;
+        dearmor->headers.headers[n].key = rnp_strdup(key);
+        dearmor->headers.headers[n].value = rnp_strdup(value);
+        dearmor->headers.headerc = n + 1;
         return true;
     }
     return false;
@@ -661,7 +659,7 @@ add_header(dearmour_t *dearmour, const char *key, const char *value)
 
 static rnp_result_t
 parse_headers(pgp_stream_t *stream,
-              dearmour_t *  dearmour,
+              dearmor_t *   dearmor,
               pgp_error_t **errors,
               pgp_reader_t *readinfo,
               pgp_cbdata_t *cbinfo)
@@ -681,7 +679,7 @@ parse_headers(pgp_stream_t *stream,
     for (;;) {
         int c;
 
-        if ((c = read_char(stream, dearmour, errors, readinfo, cbinfo, 1)) < 0) {
+        if ((c = read_char(stream, dearmor, errors, readinfo, cbinfo, 1)) < 0) {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Unexpected EOF");
             ret = RNP_ERROR_EOF;
             break;
@@ -700,30 +698,23 @@ parse_headers(pgp_stream_t *stream,
             buf[nbuf] = '\0';
 
             if ((s = strchr(buf, ':')) == NULL) {
-                if (!first && !dearmour->allow_headers_without_gap) {
-                    /*
-                     * then we have seriously malformed
-                     * armour
-                     */
-                    PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No colon in armour header");
+                if (!first && !dearmor->allow_headers_without_gap) {
+                    /* then we have seriously malformed armor */
+                    PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No colon in armor header");
                     ret = RNP_ERROR_EOF;
                     break;
                 } else {
                     if (first &&
-                        !(dearmour->allow_headers_without_gap || dearmour->allow_no_gap)) {
+                        !(dearmor->allow_headers_without_gap || dearmor->allow_no_gap)) {
                         PGP_ERROR_1(errors,
                                     PGP_E_R_BAD_FORMAT,
                                     "%s",
                                     "No colon in"
-                                    " armour header (2)");
-                        /*
-                         * then we have a nasty
-                         * armoured block with no
-                         * headers, not even a blank
-                         * line.
-                         */
+                                    " armor header (2)");
+                        /* then we have a nasty armored block with no
+                         * headers, not even a blank line. */
                         buf[nbuf] = '\n';
-                        push_back(dearmour, (uint8_t *) buf, nbuf + 1);
+                        push_back(dearmor, (uint8_t *) buf, nbuf + 1);
                         ret = RNP_ERROR_EOF;
                         break;
                     }
@@ -731,11 +722,11 @@ parse_headers(pgp_stream_t *stream,
             } else {
                 *s = '\0';
                 if (s[1] != ' ') {
-                    PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No space in armour header");
+                    PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No space in armor header");
                     ret = RNP_ERROR_EOF;
                     goto end;
                 }
-                if (!add_header(dearmour, buf, s + 2)) {
+                if (!add_header(dearmor, buf, s + 2)) {
                     PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "Invalid header %s", buf);
                     ret = RNP_ERROR_EOF;
                     goto end;
@@ -765,7 +756,7 @@ end:
 
 static int
 read4(pgp_stream_t *stream,
-      dearmour_t *  dearmour,
+      dearmor_t *   dearmor,
       pgp_error_t **errors,
       pgp_reader_t *readinfo,
       pgp_cbdata_t *cbinfo,
@@ -777,9 +768,9 @@ read4(pgp_stream_t *stream,
     uint32_t l = 0;
 
     for (n = 0; n < 4; ++n) {
-        c = read_char(stream, dearmour, errors, readinfo, cbinfo, 1);
+        c = read_char(stream, dearmor, errors, readinfo, cbinfo, 1);
         if (c < 0) {
-            dearmour->eof64 = 1;
+            dearmor->eof64 = 1;
             return -1;
         }
         if (c == '-' || c == '=') {
@@ -825,7 +816,7 @@ pgp_crc24(unsigned checksum, uint8_t c)
 
 static bool
 decode64(pgp_stream_t *stream,
-         dearmour_t *  dearmour,
+         dearmor_t *   dearmor,
          pgp_error_t **errors,
          pgp_reader_t *readinfo,
          pgp_cbdata_t *cbinfo)
@@ -836,12 +827,12 @@ decode64(pgp_stream_t *stream,
     int      c;
     int      ret;
 
-    if (dearmour->buffered) {
-        (void) fprintf(stderr, "decode64: bad dearmour->buffered\n");
+    if (dearmor->buffered) {
+        (void) fprintf(stderr, "decode64: bad dearmor->buffered\n");
         return false;
     }
 
-    ret = read4(stream, dearmour, errors, readinfo, cbinfo, &c, &n, &l);
+    ret = read4(stream, dearmor, errors, readinfo, cbinfo, &c, &n, &l);
     if (ret < 0) {
         PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly formed base64");
         return false;
@@ -851,52 +842,52 @@ decode64(pgp_stream_t *stream,
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated base64 (2)");
             return false;
         }
-        dearmour->buffered = 2;
-        dearmour->eof64 = 1;
+        dearmor->buffered = 2;
+        dearmor->eof64 = 1;
         l >>= 2;
     } else if (n == 2) {
         if (c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated base64 (3)");
             return false;
         }
-        dearmour->buffered = 1;
-        dearmour->eof64 = 1;
+        dearmor->buffered = 1;
+        dearmor->eof64 = 1;
         l >>= 4;
-        c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0);
+        c = read_char(stream, dearmor, errors, readinfo, cbinfo, 0);
         if (c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated base64");
             return false;
         }
     } else if (n == 0) {
-        if (!dearmour->prev_nl || c != '=') {
+        if (!dearmor->prev_nl || c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated base64 (4)");
             return false;
         }
-        dearmour->buffered = 0;
+        dearmor->buffered = 0;
     } else {
         if (n != 4) {
             (void) fprintf(stderr, "decode64: bad n (!= 4)\n");
             return false;
         }
-        dearmour->buffered = 3;
+        dearmor->buffered = 3;
         if (c == '-' || c == '=') {
             (void) fprintf(stderr, "decode64: bad c\n");
             return false;
         }
     }
 
-    if (dearmour->buffered < 3 && dearmour->buffered > 0) {
+    if (dearmor->buffered < 3 && dearmor->buffered > 0) {
         /* then we saw padding */
         if (c != '=') {
             (void) fprintf(stderr, "decode64: bad c (=)\n");
             return false;
         }
-        c = read_and_eat_whitespace(stream, dearmour, errors, readinfo, cbinfo, 1);
+        c = read_and_eat_whitespace(stream, dearmor, errors, readinfo, cbinfo, 1);
         if (c != '\n') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No newline at base64 end");
             return false;
         }
-        c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0);
+        c = read_char(stream, dearmor, errors, readinfo, cbinfo, 0);
         if (c != '=') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "No checksum at base64 end");
             return false;
@@ -905,19 +896,19 @@ decode64(pgp_stream_t *stream,
     if (c == '=') {
         /* now we are at the checksum */
         ret =
-          read4(stream, dearmour, errors, readinfo, cbinfo, &c, &n, &dearmour->read_checksum);
+          read4(stream, dearmor, errors, readinfo, cbinfo, &c, &n, &dearmor->read_checksum);
         if (ret < 0 || n != 4) {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Error in checksum");
             return false;
         }
-        c = read_char(stream, dearmour, errors, readinfo, cbinfo, 1);
-        if (dearmour->allow_trailing_whitespace)
-            c = eat_whitespace(stream, c, dearmour, errors, readinfo, cbinfo, 1);
+        c = read_char(stream, dearmor, errors, readinfo, cbinfo, 1);
+        if (dearmor->allow_trailing_whitespace)
+            c = eat_whitespace(stream, c, dearmor, errors, readinfo, cbinfo, 1);
         if (c != '\n') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Badly terminated checksum");
             return false;
         }
-        c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0);
+        c = read_char(stream, dearmor, errors, readinfo, cbinfo, 0);
         if (c != '-') {
             PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Bad base64 trailer (2)");
             return false;
@@ -925,27 +916,27 @@ decode64(pgp_stream_t *stream,
     }
     if (c == '-') {
         for (n = 0; n < 4; ++n)
-            if (read_char(stream, dearmour, errors, readinfo, cbinfo, 0) != '-') {
+            if (read_char(stream, dearmor, errors, readinfo, cbinfo, 0) != '-') {
                 PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Bad base64 trailer");
                 return false;
             }
-        dearmour->eof64 = 1;
+        dearmor->eof64 = 1;
     } else {
-        if (!dearmour->buffered) {
+        if (!dearmor->buffered) {
             (void) fprintf(stderr, "decode64: not buffered\n");
             return false;
         }
     }
 
-    for (n = 0; n < dearmour->buffered; ++n) {
-        dearmour->buffer[n] = (uint8_t) l;
+    for (n = 0; n < dearmor->buffered; ++n) {
+        dearmor->buffer[n] = (uint8_t) l;
         l >>= 8;
     }
 
-    for (n2 = dearmour->buffered - 1; n2 >= 0; --n2)
-        dearmour->checksum = pgp_crc24((unsigned) dearmour->checksum, dearmour->buffer[n2]);
+    for (n2 = dearmor->buffered - 1; n2 >= 0; --n2)
+        dearmor->checksum = pgp_crc24((unsigned) dearmor->checksum, dearmor->buffer[n2]);
 
-    if (dearmour->eof64 && dearmour->read_checksum != dearmour->checksum) {
+    if (dearmor->eof64 && dearmor->read_checksum != dearmor->checksum) {
         PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Checksum mismatch");
         return false;
     }
@@ -953,12 +944,12 @@ decode64(pgp_stream_t *stream,
 }
 
 static void
-base64(dearmour_t *dearmour)
+base64(dearmor_t *dearmor)
 {
-    dearmour->state = BASE64;
-    dearmour->checksum = CRC24_INIT;
-    dearmour->eof64 = 0;
-    dearmour->buffered = 0;
+    dearmor->state = BASE64;
+    dearmor->checksum = CRC24_INIT;
+    dearmor->eof64 = 0;
+    dearmor->buffered = 0;
 }
 
 /* This reader is rather strange in that it can generate callbacks for */
@@ -966,15 +957,15 @@ base64(dearmour_t *dearmour)
 /* packets... it also calls back for the text between the blocks. */
 
 static int
-armoured_data_reader(pgp_stream_t *stream,
-                     void *        dest_,
-                     size_t        length,
-                     pgp_error_t **errors,
-                     pgp_reader_t *readinfo,
-                     pgp_cbdata_t *cbinfo)
+armored_data_reader(pgp_stream_t *stream,
+                    void *        dest_,
+                    size_t        length,
+                    pgp_error_t **errors,
+                    pgp_reader_t *readinfo,
+                    pgp_cbdata_t *cbinfo)
 {
     pgp_packet_t content;
-    dearmour_t * dearmour;
+    dearmor_t *  dearmor;
     unsigned     first;
     uint8_t *    dest = dest_;
     char         buf[1024];
@@ -982,7 +973,7 @@ armoured_data_reader(pgp_stream_t *stream,
     rnp_result_t ret;
     int          n;
 
-    dearmour = pgp_reader_get_arg(readinfo);
+    dearmor = pgp_reader_get_arg(readinfo);
     saved = length;
 
     if (!stream->coalescing && stream->virtualc && stream->virtualoff < stream->virtualc) {
@@ -995,9 +986,9 @@ armoured_data_reader(pgp_stream_t *stream,
         }
     }
 
-    if (dearmour->eof64 && !dearmour->buffered) {
-        if (dearmour->state != OUTSIDE_BLOCK && dearmour->state != AT_TRAILER_NAME) {
-            (void) fprintf(stderr, "armoured_data_reader: bad dearmour state\n");
+    if (dearmor->eof64 && !dearmor->buffered) {
+        if (dearmor->state != OUTSIDE_BLOCK && dearmor->state != AT_TRAILER_NAME) {
+            (void) fprintf(stderr, "armored_data_reader: bad dearmor state\n");
             return 0;
         }
     }
@@ -1007,16 +998,16 @@ armoured_data_reader(pgp_stream_t *stream,
         unsigned n;
         int      c;
 
-        flush(dearmour, cbinfo);
-        switch (dearmour->state) {
+        flush(dearmor, cbinfo);
+        switch (dearmor->state) {
         case OUTSIDE_BLOCK:
             /*
              * This code returns EOF rather than EARLY_EOF
              * because if we don't see a header line at all, then
              * it is just an EOF (and not a BLOCK_END)
              */
-            while (!dearmour->seen_nl) {
-                if ((c = unarmoured_read_char(stream, dearmour, errors, readinfo, cbinfo, 1)) <
+            while (!dearmor->seen_nl) {
+                if ((c = unarmored_read_char(stream, dearmor, errors, readinfo, cbinfo, 1)) <
                     0) {
                     return 0;
                 }
@@ -1027,10 +1018,10 @@ armoured_data_reader(pgp_stream_t *stream,
              * the header, and so we can easily erase it from the
              * buffer
              */
-            flush(dearmour, cbinfo);
+            flush(dearmor, cbinfo);
             /* Find and consume the 5 leading '-' */
             for (count = 0; count < 5; ++count) {
-                if ((c = unarmoured_read_char(stream, dearmour, errors, readinfo, cbinfo, 0)) <
+                if ((c = unarmored_read_char(stream, dearmor, errors, readinfo, cbinfo, 0)) <
                     0) {
                     return 0;
                 }
@@ -1041,7 +1032,7 @@ armoured_data_reader(pgp_stream_t *stream,
 
             /* Now find the block type */
             for (n = 0; n < sizeof(buf) - 1;) {
-                if ((c = unarmoured_read_char(stream, dearmour, errors, readinfo, cbinfo, 0)) <
+                if ((c = unarmored_read_char(stream, dearmor, errors, readinfo, cbinfo, 0)) <
                     0) {
                     return 0;
                 }
@@ -1058,7 +1049,7 @@ armoured_data_reader(pgp_stream_t *stream,
 
             /* Consume trailing '-' */
             for (count = 1; count < 5; ++count) {
-                if ((c = unarmoured_read_char(stream, dearmour, errors, readinfo, cbinfo, 0)) <
+                if ((c = unarmored_read_char(stream, dearmor, errors, readinfo, cbinfo, 0)) <
                     0) {
                     return 0;
                 }
@@ -1069,12 +1060,11 @@ armoured_data_reader(pgp_stream_t *stream,
             }
 
             /* Consume final NL */
-            if ((c = unarmoured_read_char(stream, dearmour, errors, readinfo, cbinfo, 1)) <
-                0) {
+            if ((c = unarmored_read_char(stream, dearmor, errors, readinfo, cbinfo, 1)) < 0) {
                 return 0;
             }
-            if (dearmour->allow_trailing_whitespace) {
-                if ((c = eat_whitespace(stream, c, dearmour, errors, readinfo, cbinfo, 1)) <
+            if (dearmor->allow_trailing_whitespace) {
+                if ((c = eat_whitespace(stream, c, dearmor, errors, readinfo, cbinfo, 1)) <
                     0) {
                     return 0;
                 }
@@ -1088,53 +1078,52 @@ armoured_data_reader(pgp_stream_t *stream,
              * Now we've seen the header, scrub it from the
              * buffer
              */
-            dearmour->unarmoredc = 0;
+            dearmor->unarmoredc = 0;
 
             /*
              * But now we've seen a header line, then errors are
              * EARLY_EOF
              */
-            if (parse_headers(stream, dearmour, errors, readinfo, cbinfo)) {
+            if (parse_headers(stream, dearmor, errors, readinfo, cbinfo)) {
                 return -1;
             }
 
-            if (!set_lastseen_headerline(dearmour, buf, errors)) {
+            if (!set_lastseen_headerline(dearmor, buf, errors)) {
                 return -1;
             }
 
             if (strcmp(buf, "BEGIN PGP SIGNED MESSAGE") == 0) {
-                dup_headers(&content.u.cleartext_head, &dearmour->headers);
+                dup_headers(&content.u.cleartext_head, &dearmor->headers);
                 CALLBACK(PGP_PTAG_CT_SIGNED_CLEARTEXT_HEADER, cbinfo, &content);
-                ret = process_dash_escaped(stream, dearmour, errors, readinfo, cbinfo);
+                ret = process_dash_escaped(stream, dearmor, errors, readinfo, cbinfo);
                 if (ret <= 0) {
                     return ret;
                 }
             } else {
-                content.u.armour_header.type = buf;
-                content.u.armour_header.headers = dearmour->headers;
-                (void) memset(&dearmour->headers, 0x0, sizeof(dearmour->headers));
-                CALLBACK(PGP_PTAG_CT_ARMOUR_HEADER, cbinfo, &content);
-                base64(dearmour);
+                content.u.armor_header.type = buf;
+                content.u.armor_header.headers = dearmor->headers;
+                (void) memset(&dearmor->headers, 0x0, sizeof(dearmor->headers));
+                CALLBACK(PGP_PTAG_CT_ARMOR_HEADER, cbinfo, &content);
+                base64(dearmor);
             }
             break;
 
         case BASE64:
             first = 1;
             while (length > 0) {
-                if (!dearmour->buffered) {
-                    if (!dearmour->eof64) {
-                        ret = decode64(stream, dearmour, errors, readinfo, cbinfo);
+                if (!dearmor->buffered) {
+                    if (!dearmor->eof64) {
+                        ret = decode64(stream, dearmor, errors, readinfo, cbinfo);
                         if (ret <= 0) {
                             return ret;
                         }
                     }
-                    if (!dearmour->buffered) {
-                        if (!dearmour->eof64) {
-                            (void) fprintf(stderr,
-                                           "armoured_data_reader: bad dearmour eof64\n");
+                    if (!dearmor->buffered) {
+                        if (!dearmor->eof64) {
+                            (void) fprintf(stderr, "armored_data_reader: bad dearmor eof64\n");
                             return 0;
                         }
-                        dearmour->state = AT_TRAILER_NAME;
+                        dearmor->state = AT_TRAILER_NAME;
 
                         if (first) {
                             goto reloop;
@@ -1143,23 +1132,23 @@ armoured_data_reader(pgp_stream_t *stream,
                         }
                     }
                 }
-                if (!dearmour->buffered) {
-                    (void) fprintf(stderr, "armoured_data_reader: bad dearmour buffered\n");
+                if (!dearmor->buffered) {
+                    (void) fprintf(stderr, "armored_data_reader: bad dearmor buffered\n");
                     return 0;
                 }
-                *dest = dearmour->buffer[--dearmour->buffered];
+                *dest = dearmor->buffer[--dearmor->buffered];
                 ++dest;
                 --length;
                 first = 0;
             }
-            if (dearmour->eof64 && !dearmour->buffered) {
-                dearmour->state = AT_TRAILER_NAME;
+            if (dearmor->eof64 && !dearmor->buffered) {
+                dearmor->state = AT_TRAILER_NAME;
             }
             break;
 
         case AT_TRAILER_NAME:
             for (n = 0; n < sizeof(buf) - 1;) {
-                if ((c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0)) < 0) {
+                if ((c = read_char(stream, dearmor, errors, readinfo, cbinfo, 0)) < 0) {
                     return -1;
                 }
                 if (c == '-') {
@@ -1168,60 +1157,60 @@ armoured_data_reader(pgp_stream_t *stream,
                 buf[n++] = c;
             }
             /* then I guess this wasn't a proper trailer */
-            PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Bad ASCII armour trailer");
+            PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Bad ASCII armor trailer");
             break;
 
         got_minus2:
             buf[n] = '\0';
 
-            if (!set_lastseen_headerline(dearmour, buf, errors)) {
+            if (!set_lastseen_headerline(dearmor, buf, errors)) {
                 return -1;
             }
 
             /* Consume trailing '-' */
             for (count = 1; count < 5; ++count) {
-                if ((c = read_char(stream, dearmour, errors, readinfo, cbinfo, 0)) < 0) {
+                if ((c = read_char(stream, dearmor, errors, readinfo, cbinfo, 0)) < 0) {
                     return -1;
                 }
                 if (c != '-') {
                     /* wasn't a trailer after all */
                     PGP_ERROR_1(
-                      errors, PGP_E_R_BAD_FORMAT, "%s", "Bad ASCII armour trailer (2)");
+                      errors, PGP_E_R_BAD_FORMAT, "%s", "Bad ASCII armor trailer (2)");
                 }
             }
 
             /* Consume final NL */
-            if ((c = read_char(stream, dearmour, errors, readinfo, cbinfo, 1)) < 0) {
+            if ((c = read_char(stream, dearmor, errors, readinfo, cbinfo, 1)) < 0) {
                 return -1;
             }
-            if (dearmour->allow_trailing_whitespace) {
-                if ((c = eat_whitespace(stream, c, dearmour, errors, readinfo, cbinfo, 1)) <
+            if (dearmor->allow_trailing_whitespace) {
+                if ((c = eat_whitespace(stream, c, dearmor, errors, readinfo, cbinfo, 1)) <
                     0) {
                     return 0;
                 }
             }
             if (c != '\n') {
                 /* wasn't a trailer line after all */
-                PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Bad ASCII armour trailer (3)");
+                PGP_ERROR_1(errors, PGP_E_R_BAD_FORMAT, "%s", "Bad ASCII armor trailer (3)");
             }
 
             if (strncmp(buf, "BEGIN ", 6) == 0) {
-                if (!set_lastseen_headerline(dearmour, buf, errors)) {
+                if (!set_lastseen_headerline(dearmor, buf, errors)) {
                     return -1;
                 }
-                ret = parse_headers(stream, dearmour, errors, readinfo, cbinfo);
+                ret = parse_headers(stream, dearmor, errors, readinfo, cbinfo);
                 if (ret) {
                     return ret == RNP_ERROR_EOF ? -1 : 0;
                 }
-                content.u.armour_header.type = buf;
-                content.u.armour_header.headers = dearmour->headers;
-                (void) memset(&dearmour->headers, 0x0, sizeof(dearmour->headers));
-                CALLBACK(PGP_PTAG_CT_ARMOUR_HEADER, cbinfo, &content);
-                base64(dearmour);
+                content.u.armor_header.type = buf;
+                content.u.armor_header.headers = dearmor->headers;
+                (void) memset(&dearmor->headers, 0x0, sizeof(dearmor->headers));
+                CALLBACK(PGP_PTAG_CT_ARMOR_HEADER, cbinfo, &content);
+                base64(dearmor);
             } else {
-                content.u.armour_trailer = buf;
-                CALLBACK(PGP_PTAG_CT_ARMOUR_TRAILER, cbinfo, &content);
-                dearmour->state = OUTSIDE_BLOCK;
+                content.u.armor_trailer = buf;
+                CALLBACK(PGP_PTAG_CT_ARMOR_TRAILER, cbinfo, &content);
+                dearmor->state = OUTSIDE_BLOCK;
             }
             break;
         }
@@ -1233,69 +1222,69 @@ armoured_data_reader(pgp_stream_t *stream,
 }
 
 static void
-armoured_data_destroyer(pgp_reader_t *readinfo)
+armored_data_destroyer(pgp_reader_t *readinfo)
 {
     free(pgp_reader_get_arg(readinfo));
 }
 
 /**
- * \ingroup Core_Readers_Armour
- * \brief Pushes dearmouring reader onto stack
+ * \ingroup Core_Readers_Armor
+ * \brief Pushes dearmoring reader onto stack
  * \param parse_info Usual structure containing information about to how to do the parse
- * \sa pgp_reader_pop_dearmour()
+ * \sa pgp_reader_pop_dearmor()
  */
 void
-pgp_reader_push_dearmour(pgp_stream_t *parse_info)
+pgp_reader_push_dearmor(pgp_stream_t *parse_info)
 /*
  * This function originally had these params to cater for packets which
  * didn't strictly match the RFC. The initial 0.5 release is only going to
  * support strict checking. If it becomes desirable to support loose checking
- * of armoured packets and these params are reinstated, parse_headers() must
+ * of armored packets and these params are reinstated, parse_headers() must
  * be fixed so that these flags work correctly.
  *
- * // Allow headers in armoured data that are not separated from the data by a
+ * // Allow headers in armored data that are not separated from the data by a
  * blank line unsigned without_gap,
  *
- * // Allow no blank line at the start of armoured data unsigned no_gap,
+ * // Allow no blank line at the start of armored data unsigned no_gap,
  *
- * //Allow armoured data to have trailing whitespace where we strictly would not
+ * //Allow armored data to have trailing whitespace where we strictly would not
  * expect it                  unsigned trailing_whitespace
  */
 {
-    dearmour_t *dearmour;
+    dearmor_t *dearmor;
 
-    if ((dearmour = calloc(1, sizeof(*dearmour))) == NULL) {
-        (void) fprintf(stderr, "pgp_reader_push_dearmour: bad alloc\n");
+    if ((dearmor = calloc(1, sizeof(*dearmor))) == NULL) {
+        (void) fprintf(stderr, "pgp_reader_push_dearmor: bad alloc\n");
     } else {
-        dearmour->seen_nl = 1;
+        dearmor->seen_nl = 1;
         /*
-            dearmour->allow_headers_without_gap=without_gap;
-            dearmour->allow_no_gap=no_gap;
-            dearmour->allow_trailing_whitespace=trailing_whitespace;
+            dearmor->allow_headers_without_gap=without_gap;
+            dearmor->allow_no_gap=no_gap;
+            dearmor->allow_trailing_whitespace=trailing_whitespace;
         */
-        dearmour->expect_sig = 0;
-        dearmour->got_sig = 0;
+        dearmor->expect_sig = 0;
+        dearmor->got_sig = 0;
 
         if (!pgp_reader_push(
-              parse_info, armoured_data_reader, armoured_data_destroyer, dearmour)) {
-            free(dearmour);
+              parse_info, armored_data_reader, armored_data_destroyer, dearmor)) {
+            free(dearmor);
         }
     }
 }
 
 /**
- * \ingroup Core_Readers_Armour
- * \brief Pops dearmour reader from stock
+ * \ingroup Core_Readers_armor
+ * \brief Pops dearmor reader from stock
  * \param stream
- * \sa pgp_reader_push_dearmour()
+ * \sa pgp_reader_push_dearmor()
  */
 void
-pgp_reader_pop_dearmour(pgp_stream_t *stream)
+pgp_reader_pop_dearmor(pgp_stream_t *stream)
 {
-    dearmour_t *dearmour;
+    dearmor_t *dearmor;
 
-    dearmour = pgp_reader_get_arg(pgp_readinfo(stream));
-    free(dearmour);
+    dearmor = pgp_reader_get_arg(pgp_readinfo(stream));
+    free(dearmor);
     pgp_reader_pop(stream);
 }
 

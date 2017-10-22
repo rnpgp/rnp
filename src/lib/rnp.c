@@ -178,40 +178,40 @@ resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
     return key;
 }
 
-/* return 1 if the file contains ascii-armoured text */
+/* return 1 if the file contains ascii-armored text */
 static int
-isarmoured(const char *f, const void *memory, const char *text)
+isarmored(const char *f, const void *memory, const char *text)
 {
     regmatch_t matches[10];
-    unsigned   armoured;
+    unsigned   armored;
     regex_t    r;
     FILE *     fp;
     char       buf[BUFSIZ];
 
-    armoured = 0;
+    armored = 0;
     if (regcomp(&r, text, REG_EXTENDED) != 0) {
         RNP_LOG("Can't compile regex");
         return -1;
     }
     if (f) {
         if ((fp = fopen(f, "r")) == NULL) {
-            RNP_LOG("isarmoured: cannot open '%s'", f);
+            RNP_LOG("isarmored: cannot open '%s'", f);
             regfree(&r);
             return 0;
         }
         if (fgets(buf, (int) sizeof(buf), fp) != NULL) {
             if (regexec(&r, buf, 10, matches, 0) == 0) {
-                armoured = 1;
+                armored = 1;
             }
         }
         (void) fclose(fp);
     } else {
         if (memory && regexec(&r, memory, 10, matches, 0) == 0) {
-            armoured = 1;
+            armored = 1;
         }
     }
     regfree(&r);
-    return armoured;
+    return armored;
 }
 
 /* vararg print function */
@@ -958,7 +958,7 @@ rnp_import_key(rnp_t *rnp, char *f)
     list             imported_grips = NULL;
     list_item *      item = NULL;
 
-    realarmor = isarmoured(f, NULL, IMPORT_ARMOR_HEAD);
+    realarmor = isarmored(f, NULL, IMPORT_ARMOR_HEAD);
     if (realarmor < 0) {
         goto done;
     }
@@ -1158,7 +1158,7 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *
     }
     /* generate output file name if needed */
     if (out == NULL) {
-        suffix = (ctx->armour) ? ".asc" : ".gpg";
+        suffix = (ctx->armor) ? ".asc" : ".gpg";
         (void) snprintf(outname, sizeof(outname), "%s%s", f, suffix);
         out = outname;
     }
@@ -1179,7 +1179,7 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    realarmor = isarmoured(f, NULL, ARMOR_HEAD);
+    realarmor = isarmored(f, NULL, ARMOR_HEAD);
     if (realarmor < 0) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1346,8 +1346,8 @@ finish:
 }
 
 rnp_result_t
-rnp_armour_stream(
-  rnp_ctx_t *ctx, const char *in, const char *out, bool is_armour, unsigned data_type)
+rnp_armor_stream(
+  rnp_ctx_t *ctx, const char *in, const char *out, bool is_armor, unsigned data_type)
 {
     pgp_source_t src;
     pgp_dest_t   dst;
@@ -1371,8 +1371,8 @@ rnp_armour_stream(
         return RNP_ERROR_WRITE;
     }
 
-    result = is_armour ? rnp_armour_source(&src, &dst, (pgp_armoured_msg_t) data_type) :
-                         rnp_dearmour_source(&src, &dst);
+    result = is_armor ? rnp_armor_source(&src, &dst, (pgp_armored_msg_t) data_type) :
+                        rnp_dearmor_source(&src, &dst);
 
     if (result != RNP_SUCCESS) {
         RNP_LOG("error code 0x%x", result);
@@ -1491,7 +1491,7 @@ rnp_verify_file(rnp_ctx_t *ctx, const char *in, const char *out)
         RNP_LOG_FD(io->errs, "rnp_verify_file: no filename specified");
         return RNP_ERROR_GENERIC;
     }
-    realarmor = isarmoured(in, NULL, ARMOR_SIG_HEAD);
+    realarmor = isarmored(in, NULL, ARMOR_SIG_HEAD);
     if (realarmor < 0) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
@@ -1648,7 +1648,7 @@ rnp_verify_memory(rnp_ctx_t *ctx, const void *in, const size_t size, void *out, 
         }
     }
     ret = pgp_validate_mem(
-      io, &result, signedmem, (out) ? &cat : NULL, ctx->armour, ctx->rnp->pubring);
+      io, &result, signedmem, (out) ? &cat : NULL, ctx->armor, ctx->rnp->pubring);
     /* signedmem is freed from pgp_validate_mem */
     if (ret) {
         resultp(io, "<stdin>", &result, ctx->rnp->pubring);
@@ -1725,7 +1725,7 @@ rnp_decrypt_memory(
   rnp_ctx_t *ctx, const void *input, const size_t insize, char *out, size_t *outsize)
 {
     pgp_memory_t *mem;
-    int           realarmour;
+    int           realarmor;
     unsigned      sshkeys;
     int           attempts;
 
@@ -1733,8 +1733,8 @@ rnp_decrypt_memory(
         RNP_LOG("Input NULL");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    realarmour = isarmoured(NULL, input, ARMOR_HEAD);
-    if (realarmour < 0) {
+    realarmor = isarmored(NULL, input, ARMOR_HEAD);
+    if (realarmor < 0) {
         RNP_LOG("Can't figure out file format");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1745,7 +1745,7 @@ rnp_decrypt_memory(
                           insize,
                           ctx->rnp->secring,
                           ctx->rnp->pubring,
-                          realarmour,
+                          realarmor,
                           sshkeys,
                           attempts,
                           &ctx->rnp->passphrase_provider);

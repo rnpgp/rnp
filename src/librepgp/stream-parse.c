@@ -1252,13 +1252,13 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
                 goto finish;
             }
 
-            /* initializing armoured message */
+            /* initializing armored message */
             if ((armorsrc = calloc(1, sizeof(*armorsrc))) == NULL) {
                 RNP_LOG("allocation failed");
                 goto finish;
             }
 
-            res = init_armoured_src(armorsrc, src);
+            res = init_armored_src(armorsrc, src);
 
             if (res == RNP_SUCCESS) {
                 EXPAND_ARRAY_EX((&ctx), src, 1);

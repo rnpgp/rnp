@@ -343,7 +343,7 @@ repgp_list_packets(const void *ctx, const repgp_handle_t *input, bool dump_conte
 
     const rnp_t *rnp = rctx->rnp;
     if (rnp->pubring && rnp->secring) {
-        if (!rnp_key_store_load_from_file(rnp->io, rnp->pubring, rctx->armour, rnp->pubring)) {
+        if (!rnp_key_store_load_from_file(rnp->io, rnp->pubring, rctx->armor, rnp->pubring)) {
             RNP_LOG("Keystore can't load data");
             return RNP_ERROR_GENERIC;
         }
@@ -352,8 +352,8 @@ repgp_list_packets(const void *ctx, const repgp_handle_t *input, bool dump_conte
         stream->cryptinfo.passphrase_provider = rnp->passphrase_provider;
     }
 
-    if (rctx->armour) {
-        pgp_reader_push_dearmour(stream);
+    if (rctx->armor) {
+        pgp_reader_push_dearmor(stream);
     }
 
     if (!repgp_parse(stream, true)) {

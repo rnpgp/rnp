@@ -1156,8 +1156,8 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
     const bool            print_full_content = (cbinfo->arg) ? *((bool *) cbinfo->arg) : true;
     print->content_printer = print_full_content ? &print_hex_data_full : &print_hex_data_size;
 
-    if (print->unarmoured && pkt->tag != PGP_PTAG_CT_UNARMOURED_TEXT) {
-        print->unarmoured = 0;
+    if (print->unarmored && pkt->tag != PGP_PTAG_CT_UNARMORED_TEXT) {
+        print->unarmored = 0;
         puts("UNARMOURED TEXT ends");
     }
 
@@ -1666,8 +1666,8 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
         print_seckey_verbose(print, pkt->tag, &content->seckey);
         break;
 
-    case PGP_PTAG_CT_ARMOUR_HEADER:
-        print_string(print->indent, "type", content->armour_header.type);
+    case PGP_PTAG_CT_ARMOR_HEADER:
+        print_string(print->indent, "type", content->armor_header.type);
         break;
 
     case PGP_PTAG_CT_SIGNED_CLEARTEXT_HEADER:
@@ -1686,17 +1686,17 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
         printf("\n");
         break;
 
-    case PGP_PTAG_CT_UNARMOURED_TEXT:
-        if (!print->unarmoured) {
-            print->unarmoured = 1;
+    case PGP_PTAG_CT_UNARMORED_TEXT:
+        if (!print->unarmored) {
+            print->unarmored = 1;
         }
         putchar('[');
-        print_escaped(content->unarmoured_text.data, content->unarmoured_text.length);
+        print_escaped(content->unarmored_text.data, content->unarmored_text.length);
         putchar(']');
         break;
 
-    case PGP_PTAG_CT_ARMOUR_TRAILER:
-        print_string(print->indent, "type", content->armour_header.type);
+    case PGP_PTAG_CT_ARMOR_TRAILER:
+        print_string(print->indent, "type", content->armor_header.type);
         break;
 
     case PGP_PTAG_CT_PK_SESSION_KEY:

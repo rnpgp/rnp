@@ -492,7 +492,7 @@ write_matching_packets(pgp_output_t *         output,
    \brief Writes a transferable PGP public key to the given output stream.
 
    \param key Key to be written
-   \param armoured Flag is set for armoured output
+   \param armored Flag is set for armored output
    \param output Output stream
 
 */
@@ -501,19 +501,19 @@ unsigned
 pgp_write_xfer_pubkey(pgp_output_t *         output,
                       const pgp_key_t *      key,
                       const rnp_key_store_t *subkeys,
-                      const unsigned         armoured)
+                      const unsigned         armored)
 {
     static const pgp_content_enum permitted_tags[] = {PGP_PTAG_CT_PUBLIC_KEY,
                                                       PGP_PTAG_CT_PUBLIC_SUBKEY,
                                                       PGP_PTAG_CT_USER_ID,
                                                       PGP_PTAG_CT_SIGNATURE};
-    if (armoured) {
-        pgp_writer_push_armoured(output, PGP_PGP_PUBLIC_KEY_BLOCK);
+    if (armored) {
+        pgp_writer_push_armored(output, PGP_PGP_PUBLIC_KEY_BLOCK);
     }
     if (!write_matching_packets(output, key, permitted_tags, ARRAY_SIZE(permitted_tags))) {
         return false;
     }
-    if (armoured) {
+    if (armored) {
         pgp_writer_info_finalise(&output->errors, &output->writer);
         pgp_writer_pop(output);
     }
@@ -528,7 +528,7 @@ pgp_write_xfer_pubkey(pgp_output_t *         output,
    \param key Key to be written
    \param passphrase
    \param pplen
-   \param armoured Flag is set for armoured output
+   \param armored Flag is set for armored output
    \param output Output stream
 
 */
@@ -537,7 +537,7 @@ bool
 pgp_write_xfer_seckey(pgp_output_t *         output,
                       const pgp_key_t *      key,
                       const rnp_key_store_t *subkeys,
-                      unsigned               armoured)
+                      unsigned               armored)
 {
     static const pgp_content_enum permitted_tags[] = {PGP_PTAG_CT_SECRET_KEY,
                                                       PGP_PTAG_CT_SECRET_SUBKEY,
@@ -548,13 +548,13 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
         return false;
     }
 
-    if (armoured) {
-        pgp_writer_push_armoured(output, PGP_PGP_PRIVATE_KEY_BLOCK);
+    if (armored) {
+        pgp_writer_push_armored(output, PGP_PGP_PRIVATE_KEY_BLOCK);
     }
     if (!write_matching_packets(output, key, permitted_tags, ARRAY_SIZE(permitted_tags))) {
         return false;
     }
-    if (armoured) {
+    if (armored) {
         pgp_writer_info_finalise(&output->errors, &output->writer);
         pgp_writer_pop(output);
     }

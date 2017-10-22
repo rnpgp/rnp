@@ -104,7 +104,7 @@ enum optdefs {
     OPT_KEYRING,
     OPT_KEY_STORE_FORMAT,
     OPT_USERID,
-    OPT_ARMOUR,
+    OPT_ARMOR,
     OPT_HOMEDIR,
     OPT_DETACHED,
     OPT_HASH_ALG,
@@ -164,9 +164,9 @@ static struct option options[] = {
   {"userid", required_argument, NULL, OPT_USERID},
   {"home", required_argument, NULL, OPT_HOMEDIR},
   {"homedir", required_argument, NULL, OPT_HOMEDIR},
-  {"ascii", no_argument, NULL, OPT_ARMOUR},
-  {"armor", no_argument, NULL, OPT_ARMOUR},
-  {"armour", no_argument, NULL, OPT_ARMOUR},
+  {"ascii", no_argument, NULL, OPT_ARMOR},
+  {"armor", no_argument, NULL, OPT_ARMOR},
+  {"armour", no_argument, NULL, OPT_ARMOR},
   {"detach", no_argument, NULL, OPT_DETACHED},
   {"detached", no_argument, NULL, OPT_DETACHED},
   {"hash-alg", required_argument, NULL, OPT_HASH_ALG},
@@ -352,7 +352,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 
     /* operation context initialization: writing all additional parameters */
     rnp_ctx_init(&ctx, rnp);
-    ctx.armour = rnp_cfg_getint(cfg, CFG_ARMOUR);
+    ctx.armor = rnp_cfg_getint(cfg, CFG_ARMOR);
     ctx.overwrite = rnp_cfg_getint(cfg, CFG_OVERWRITE);
     if (f) {
         ctx.filename = strdup(rnp_filename(f));
@@ -438,12 +438,12 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     }
     case CMD_DEARMOR:
     case CMD_ENARMOR: {
-        ret = !rnp_armour_stream(
+        ret = !rnp_armor_stream(
           &ctx,
           f,
           rnp_cfg_get(cfg, CFG_OUTFILE),
           CMD_ENARMOR == cmd,
-          rnp_cfg_getint_default(cfg, CFG_ARMOUR_DATA_TYPE, PGP_ARMOURED_UNKNOWN));
+          rnp_cfg_getint_default(cfg, CFG_ARMOR_DATA_TYPE, PGP_ARMORED_UNKNOWN));
         break;
     }
     case CMD_SHOW_KEYS:
@@ -499,7 +499,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
     case CMD_ENARMOR:
         *cmd = val;
         rnp_cfg_setint(
-          cfg, CFG_ARMOUR_DATA_TYPE, armour_str_to_data_type(arg, arg ? strlen(arg) : 0));
+          cfg, CFG_ARMOR_DATA_TYPE, armor_str_to_data_type(arg, arg ? strlen(arg) : 0));
         rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
         break;
     case CMD_HELP:
@@ -533,8 +533,8 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         }
         rnp_cfg_set(cfg, CFG_USERID, arg);
         break;
-    case OPT_ARMOUR:
-        rnp_cfg_setint(cfg, CFG_ARMOUR, 1);
+    case OPT_ARMOR:
+        rnp_cfg_setint(cfg, CFG_ARMOR, 1);
         break;
     case OPT_DETACHED:
         rnp_cfg_setbool(cfg, CFG_DETACHED, true);

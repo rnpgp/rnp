@@ -99,7 +99,7 @@ int pgp_setup_memory_read(pgp_io_t *,
                           unsigned);
 void pgp_teardown_memory_read(pgp_stream_t *, pgp_memory_t *);
 
-void pgp_reader_push_dearmour(pgp_stream_t *);
-void pgp_reader_pop_dearmour(pgp_stream_t *);
+void pgp_reader_push_dearmor(pgp_stream_t *);
+void pgp_reader_pop_dearmor(pgp_stream_t *);
 
 #endif /* READER_H_ */

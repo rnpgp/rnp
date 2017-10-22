@@ -116,13 +116,13 @@ int rnp_write_sshkey(rnp_t *, char *, const char *, char *, size_t);
  * @param   ctx         Initialized rnp context
  * @param   in          Input file path
  * @param   out         Output file path
- * @param   is_armour   True if convert to armour, false from armor to binary
- * @param   data_type   When converting to armour, type of the data to be converted
+ * @param   is_armor    True if convert to armor, false from armor to binary
+ * @param   data_type   When converting to armor, type of the data to be converted
  *
  * @return  RNP_SUCCESS on success, error code on failure
  */
-rnp_result_t rnp_armour_stream(
-  rnp_ctx_t *ctx, const char *in, const char *out, bool is_armour, unsigned data_type);
+rnp_result_t rnp_armor_stream(
+  rnp_ctx_t *ctx, const char *in, const char *out, bool is_armor, unsigned data_type);
 
 END_DECLS__
 

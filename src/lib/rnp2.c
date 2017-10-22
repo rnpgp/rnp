@@ -933,7 +933,7 @@ rnp_sign(rnp_keyring_t keyring,
     memset(&ctx, 0, sizeof(ctx));
     ctx.rnp = &keyring->rnp_ctx;
     ctx.halg = pgp_str_to_hash_alg(hash_fn);
-    ctx.armour = armor;
+    ctx.armor = armor;
 
     pgp_memory_t *signedmem =
       pgp_sign_buf(&ctx, keyring->rnp_ctx.io, msg, msg_len, seckey, clearsign);
@@ -943,7 +943,7 @@ rnp_sign(rnp_keyring_t keyring,
     }
 
     *sig_len = pgp_mem_len(signedmem);
-    if (ctx.armour)
+    if (ctx.armor)
         *sig_len += 1;
 
     *sig = calloc(1, *sig_len);
@@ -1041,7 +1041,7 @@ rnp_sign_detached(rnp_keyring_t keyring,
     memset(&ctx, 0, sizeof(ctx));
     ctx.rnp = &keyring->rnp_ctx;
     ctx.halg = pgp_str_to_hash_alg(hash_fn);
-    ctx.armour = armor;
+    ctx.armor = armor;
 
     return pgp_sign_memory_detached(&ctx, seckey, msg, msg_len, sig, sig_len);
 }
@@ -1103,7 +1103,7 @@ rnp_encrypt(rnp_keyring_t     keyring,
     ctx.ealg = pgp_str_to_cipher(cipher);
     ctx.zalg = pgp_str_to_zalg(z_alg);
     ctx.zlevel = z_level;
-    ctx.armour = armored;
+    ctx.armor = armored;
 
     *output = NULL;
     *output_len = 0;

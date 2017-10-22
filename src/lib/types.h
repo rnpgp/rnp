@@ -371,11 +371,11 @@ typedef struct {
     unsigned          headerc;
 } pgp_headers_t;
 
-/** pgp_armour_header_t */
+/** pgp_armor_header_t */
 typedef struct {
     const char *  type;
     pgp_headers_t headers;
-} pgp_armour_header_t;
+} pgp_armor_header_t;
 
 /** pgp_fixed_body_t */
 typedef struct pgp_fixed_body_t {
@@ -525,12 +525,12 @@ typedef union {
     pgp_ss_revocation_t     ss_revocation;
     pgp_seckey_t            seckey;
     uint8_t *               ss_signer;
-    pgp_armour_header_t     armour_header;
-    const char *            armour_trailer;
+    pgp_armor_header_t      armor_header;
+    const char *            armor_trailer;
     pgp_headers_t           cleartext_head;
     pgp_fixed_body_t        cleartext_body;
     struct pgp_hash_t *     cleartext_trailer;
-    pgp_dyn_body_t          unarmoured_text;
+    pgp_dyn_body_t          unarmored_text;
     pgp_pk_sesskey_t        pk_sesskey;
     pgp_seckey_passphrase_t skey_passphrase;
     unsigned                se_ip_data_header;
