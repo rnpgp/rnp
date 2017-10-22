@@ -124,6 +124,7 @@ enum optdefs {
     OPT_ZALG_ZLIB,
     OPT_ZALG_BZIP,
     OPT_ZLEVEL,
+    OPT_OVERWRITE,
 
     /* debug */
     OPT_DEBUG
@@ -195,6 +196,7 @@ static struct option options[] = {
   {"zlib", no_argument, NULL, OPT_ZALG_ZLIB},
   {"bzip", no_argument, NULL, OPT_ZALG_BZIP},
   {"bzip2", no_argument, NULL, OPT_ZALG_BZIP},
+  {"overwrite", no_argument, NULL, OPT_OVERWRITE},
 
   {NULL, 0, NULL, 0},
 };
@@ -262,7 +264,6 @@ show_output(rnp_cfg_t *cfg, char *out, int size, const char *header)
     int         cc;
     int         n;
     int         flags;
-    int         overwrite;
     const char *outfile;
     int         fd = STDOUT_FILENO;
 
@@ -272,12 +273,12 @@ show_output(rnp_cfg_t *cfg, char *out, int size, const char *header)
     }
 
     if ((outfile = rnp_cfg_get(cfg, CFG_OUTFILE))) {
-        overwrite = rnp_cfg_getint(cfg, CFG_OVERWRITE);
         flags = O_WRONLY | O_CREAT;
-        if (overwrite)
+        if (rnp_cfg_getbool(cfg, CFG_OVERWRITE)) {
             flags |= O_TRUNC;
-        else
+        } else {
             flags |= O_EXCL;
+        }
 
         fd = open(outfile, flags, 0600);
         if (fd < 0) {
@@ -353,7 +354,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     /* operation context initialization: writing all additional parameters */
     rnp_ctx_init(&ctx, rnp);
     ctx.armor = rnp_cfg_getint(cfg, CFG_ARMOR);
-    ctx.overwrite = rnp_cfg_getint(cfg, CFG_OVERWRITE);
+    ctx.overwrite = rnp_cfg_getbool(cfg, CFG_OVERWRITE);
     if (f) {
         ctx.filename = strdup(rnp_filename(f));
         ctx.filemtime = rnp_filemtime(f);
@@ -612,6 +613,9 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         break;
     case OPT_ZALG_BZIP:
         rnp_cfg_setint(cfg, CFG_ZALG, PGP_C_BZIP2);
+        break;
+    case OPT_OVERWRITE:
+        rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
         break;
     case OPT_DEBUG:
         rnp_set_debug(arg);

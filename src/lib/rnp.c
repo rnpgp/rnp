@@ -1191,7 +1191,7 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
                                       ctx->rnp->secring,
                                       ctx->rnp->pubring,
                                       realarmor,
-                                      ctx->overwrite,
+                                      1,
                                       sshkeys,
                                       ctx->rnp->pswdtries,
                                       &ctx->rnp->passphrase_provider);
@@ -1202,6 +1202,7 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
 typedef struct pgp_parse_handler_param_t {
     char in[PATH_MAX];
     char out[PATH_MAX];
+    rnp_ctx_t *ctx;
 } pgp_parse_handler_param_t;
 
 /* process the pgp stream */
@@ -1216,6 +1217,10 @@ rnp_parse_handler_dest(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char
     }
 
     if (strlen(param->out) > 0) {
+        if (param->ctx->overwrite) {
+            unlink(param->out);
+        }
+
         return init_file_dest(dst, param->out) == RNP_SUCCESS;
     } else {
         return init_stdout_dest(dst) == RNP_SUCCESS;
@@ -1236,18 +1241,7 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     is_stdin = !in || (strlen(in) == 0) || (strcmp(in, "-") == 0);
     is_stdout = !out || (strlen(out) == 0) || (strcmp(out, "-") == 0);
 
-    if (!is_stdin && (strlen(in) > sizeof(param->in))) {
-        (void) fprintf(stderr, "rnp_process_stream: too long input path\n");
-        return RNP_ERROR_GENERIC;
-    }
-
-    if (!is_stdout && (strlen(out) > sizeof(param->out))) {
-        (void) fprintf(stderr, "rnp_process_stream: too long output path\n");
-        return RNP_ERROR_GENERIC;
-    }
-
     result = is_stdin ? init_stdin_src(&src) : init_file_src(&src, in);
-
     if (result != RNP_SUCCESS) {
         return RNP_ERROR_READ;
     }
@@ -1257,26 +1251,37 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
         goto finish;
     }
 
+    /* destination provider param */
     if ((param = calloc(1, sizeof(*param))) == NULL) {
         result = RNP_ERROR_OUT_OF_MEMORY;
         goto finish;
     }
 
     if (!is_stdin) {
-        strcpy(param->in, in);
-    } else {
-        param->in[0] = 0;
+        if (strlen(in) > sizeof(param->in)) {
+            RNP_LOG("too long input path");
+            result = RNP_ERROR_BAD_PARAMETERS;
+            goto finish;
+        }
+        strncpy(param->in, in, sizeof(param->in) - 1);
     }
 
     if (!is_stdout) {
-        strcpy(param->out, out);
-    } else {
-        param->out[0] = 0;
+        if (strlen(out) > sizeof(param->out)) {
+            RNP_LOG("too long output path");
+            result = RNP_ERROR_GENERIC;
+            goto finish;
+        }
+        strncpy(param->out, out, sizeof(param->out) - 1);
     }
+    param->ctx = ctx;
 
-    handler->passphrase_provider = &ctx->rnp->passphrase_provider;
+    /* key provider */
     keyprov.callback = rnp_key_provider_keyring;
     keyprov.userdata = ctx->rnp;
+
+    /* handler */
+    handler->passphrase_provider = &ctx->rnp->passphrase_provider;
     handler->key_provider = &keyprov;
     handler->dest_provider = rnp_parse_handler_dest;
     handler->param = param;
