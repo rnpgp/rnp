@@ -35,6 +35,7 @@
 #include "types.h"
 #include "symmetric.h"
 #include "utils.h"
+#include "crc24_radix64.h"
 
 #define ARMORED_BLOCK_SIZE (4096)
 
@@ -66,55 +67,6 @@ typedef struct pgp_dest_armored_param_t {
     unsigned          tailc;   /* number of bytes in tail */
     unsigned          crc;
 } pgp_dest_armored_param_t;
-
-static const uint32_t CRCTABLE[256] = {
-  0x00000000, 0x00864cfb, 0x018ad50d, 0x010c99f6, 0x0393e6e1, 0x0315aa1a, 0x021933ec,
-  0x029f7f17, 0x07a18139, 0x0727cdc2, 0x062b5434, 0x06ad18cf, 0x043267d8, 0x04b42b23,
-  0x05b8b2d5, 0x053efe2e, 0x0fc54e89, 0x0f430272, 0x0e4f9b84, 0x0ec9d77f, 0x0c56a868,
-  0x0cd0e493, 0x0ddc7d65, 0x0d5a319e, 0x0864cfb0, 0x08e2834b, 0x09ee1abd, 0x09685646,
-  0x0bf72951, 0x0b7165aa, 0x0a7dfc5c, 0x0afbb0a7, 0x1f0cd1e9, 0x1f8a9d12, 0x1e8604e4,
-  0x1e00481f, 0x1c9f3708, 0x1c197bf3, 0x1d15e205, 0x1d93aefe, 0x18ad50d0, 0x182b1c2b,
-  0x192785dd, 0x19a1c926, 0x1b3eb631, 0x1bb8faca, 0x1ab4633c, 0x1a322fc7, 0x10c99f60,
-  0x104fd39b, 0x11434a6d, 0x11c50696, 0x135a7981, 0x13dc357a, 0x12d0ac8c, 0x1256e077,
-  0x17681e59, 0x17ee52a2, 0x16e2cb54, 0x166487af, 0x14fbf8b8, 0x147db443, 0x15712db5,
-  0x15f7614e, 0x3e19a3d2, 0x3e9fef29, 0x3f9376df, 0x3f153a24, 0x3d8a4533, 0x3d0c09c8,
-  0x3c00903e, 0x3c86dcc5, 0x39b822eb, 0x393e6e10, 0x3832f7e6, 0x38b4bb1d, 0x3a2bc40a,
-  0x3aad88f1, 0x3ba11107, 0x3b275dfc, 0x31dced5b, 0x315aa1a0, 0x30563856, 0x30d074ad,
-  0x324f0bba, 0x32c94741, 0x33c5deb7, 0x3343924c, 0x367d6c62, 0x36fb2099, 0x37f7b96f,
-  0x3771f594, 0x35ee8a83, 0x3568c678, 0x34645f8e, 0x34e21375, 0x2115723b, 0x21933ec0,
-  0x209fa736, 0x2019ebcd, 0x228694da, 0x2200d821, 0x230c41d7, 0x238a0d2c, 0x26b4f302,
-  0x2632bff9, 0x273e260f, 0x27b86af4, 0x252715e3, 0x25a15918, 0x24adc0ee, 0x242b8c15,
-  0x2ed03cb2, 0x2e567049, 0x2f5ae9bf, 0x2fdca544, 0x2d43da53, 0x2dc596a8, 0x2cc90f5e,
-  0x2c4f43a5, 0x2971bd8b, 0x29f7f170, 0x28fb6886, 0x287d247d, 0x2ae25b6a, 0x2a641791,
-  0x2b688e67, 0x2beec29c, 0x7c3347a4, 0x7cb50b5f, 0x7db992a9, 0x7d3fde52, 0x7fa0a145,
-  0x7f26edbe, 0x7e2a7448, 0x7eac38b3, 0x7b92c69d, 0x7b148a66, 0x7a181390, 0x7a9e5f6b,
-  0x7801207c, 0x78876c87, 0x798bf571, 0x790db98a, 0x73f6092d, 0x737045d6, 0x727cdc20,
-  0x72fa90db, 0x7065efcc, 0x70e3a337, 0x71ef3ac1, 0x7169763a, 0x74578814, 0x74d1c4ef,
-  0x75dd5d19, 0x755b11e2, 0x77c46ef5, 0x7742220e, 0x764ebbf8, 0x76c8f703, 0x633f964d,
-  0x63b9dab6, 0x62b54340, 0x62330fbb, 0x60ac70ac, 0x602a3c57, 0x6126a5a1, 0x61a0e95a,
-  0x649e1774, 0x64185b8f, 0x6514c279, 0x65928e82, 0x670df195, 0x678bbd6e, 0x66872498,
-  0x66016863, 0x6cfad8c4, 0x6c7c943f, 0x6d700dc9, 0x6df64132, 0x6f693e25, 0x6fef72de,
-  0x6ee3eb28, 0x6e65a7d3, 0x6b5b59fd, 0x6bdd1506, 0x6ad18cf0, 0x6a57c00b, 0x68c8bf1c,
-  0x684ef3e7, 0x69426a11, 0x69c426ea, 0x422ae476, 0x42aca88d, 0x43a0317b, 0x43267d80,
-  0x41b90297, 0x413f4e6c, 0x4033d79a, 0x40b59b61, 0x458b654f, 0x450d29b4, 0x4401b042,
-  0x4487fcb9, 0x461883ae, 0x469ecf55, 0x479256a3, 0x47141a58, 0x4defaaff, 0x4d69e604,
-  0x4c657ff2, 0x4ce33309, 0x4e7c4c1e, 0x4efa00e5, 0x4ff69913, 0x4f70d5e8, 0x4a4e2bc6,
-  0x4ac8673d, 0x4bc4fecb, 0x4b42b230, 0x49ddcd27, 0x495b81dc, 0x4857182a, 0x48d154d1,
-  0x5d26359f, 0x5da07964, 0x5cace092, 0x5c2aac69, 0x5eb5d37e, 0x5e339f85, 0x5f3f0673,
-  0x5fb94a88, 0x5a87b4a6, 0x5a01f85d, 0x5b0d61ab, 0x5b8b2d50, 0x59145247, 0x59921ebc,
-  0x589e874a, 0x5818cbb1, 0x52e37b16, 0x526537ed, 0x5369ae1b, 0x53efe2e0, 0x51709df7,
-  0x51f6d10c, 0x50fa48fa, 0x507c0401, 0x5542fa2f, 0x55c4b6d4, 0x54c82f22, 0x544e63d9,
-  0x56d11cce, 0x56575035, 0x575bc9c3, 0x57dd8538};
-
-static unsigned
-armor_crc24(unsigned crc, const uint8_t *buf, size_t len)
-{
-    for (; len; buf++, len--) {
-        crc = (crc << 8) ^ CRCTABLE[((crc >> 16) & 0xff) ^ *buf];
-    }
-
-    return crc & 0xFFFFFFL;
-}
 
 /*
    Table for base64 lookups:
@@ -289,7 +241,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
         if (param->restlen - param->restpos >= len) {
             memcpy(bufptr, &param->rest[param->restpos], len);
             param->restpos += len;
-            param->crc = armor_crc24(param->crc, bufptr, len);
+            param->crc = crc24_update(param->crc, bufptr, len);
             return len;
         } else {
             left = len - (param->restlen - param->restpos);
@@ -399,7 +351,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
         *bptr++ = b24 & 0xff;
     }
 
-    param->crc = armor_crc24(param->crc, buf, bufptr - (uint8_t *) buf);
+    param->crc = crc24_update(param->crc, buf, bufptr - (uint8_t *) buf);
 
     if (param->eofb64) {
         if ((dend - dptr + eqcount) % 4 != 0) {
@@ -415,10 +367,10 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
             *bptr++ = (*dptr << 2) | (*(dptr + 1) >> 4);
         }
 
-        param->crc = armor_crc24(param->crc, param->rest, bptr - param->rest);
+        param->crc = crc24_update(param->crc, param->rest, bptr - param->rest);
 
         /* we calculate crc when input stream finished instead of when all data is read */
-        if (param->crc != param->readcrc) {
+        if (param->crc != crc24_final(param->readcrc)) {
             RNP_LOG("CRC mismatch");
             return -1;
         }
@@ -437,7 +389,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
         read = left > param->restlen ? param->restlen : left;
         memcpy(bufptr, param->rest, read);
         if (!param->eofb64) {
-            param->crc = armor_crc24(param->crc, bufptr, read);
+            param->crc = crc24_update(param->crc, bufptr, read);
         }
         left -= read;
         param->restpos += read;
@@ -628,7 +580,7 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc)
 
     param = src->param;
     param->readsrc = readsrc;
-    param->crc = 0xb704ceL;
+    param->crc = CRC24_FAST_INIT;
     src->read = armored_src_read;
     src->close = armored_src_close;
     src->type = PGP_STREAM_ARMORED;
@@ -762,7 +714,7 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     }
 
     /* update crc */
-    param->crc = armor_crc24(param->crc, buf, len);
+    param->crc = crc24_update(param->crc, buf, len);
 
     /* processing tail if any */
     if (len + param->tailc < 3) {
@@ -872,9 +824,10 @@ armored_dst_close(pgp_dest_t *dst, bool discard)
 
         /* writing CRC and EOL */
         buf[0] = EQ;
-        crcbuf[0] = (param->crc >> 16) & 0xff;
-        crcbuf[1] = (param->crc >> 8) & 0xff;
-        crcbuf[2] = param->crc & 0xff;
+        uint32_t crc_fin = crc24_final(param->crc);
+        crcbuf[0] = (crc_fin >> 16) & 0xff;
+        crcbuf[1] = (crc_fin >> 8) & 0xff;
+        crcbuf[2] = crc_fin & 0xff;
         armored_encode3(&buf[1], crcbuf);
         dst_write(param->writedst, buf, 5);
         armor_write_eol(param);
@@ -911,7 +864,7 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     param->writedst = writedst;
     param->type = msgtype;
     param->usecrlf = true;
-    param->crc = 0xb704ceL;
+    param->crc = CRC24_FAST_INIT;
     param->llen = 76; /* must be multiple of 4 */
 
     if (!armor_message_header(param->type, false, hdr)) {

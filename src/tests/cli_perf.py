@@ -74,13 +74,13 @@ def setup():
 
 def run_iterated(iterations, func, src, dst, *args):
     runtime = 0
-    
+
     for i in range(0, iterations):
         tstart = perf_timer()
         func(src, dst, *args)
         runtime += perf_timer() - tstart
         os.remove(dst)
-    
+
     res = runtime / iterations
     #print '{} average run time: {}'.format(func.__name__, res)
     return res
@@ -108,7 +108,7 @@ def gpg_symencrypt_file(src, dst, cipher = 'AES', zlevel = 6, zalgo = 1, armor =
 
 def gpg_decrypt_file(src, dst, keypass):
     ret = run_proc_fast(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase', keypass, '--trust-model', 'always', '-o', dst, '-d', src])
-    if ret != 0: 
+    if ret != 0:
         raise_err('gpg decryption failed')
 
 def print_test_results(fsize, rnptime, gpgtime, operation):
