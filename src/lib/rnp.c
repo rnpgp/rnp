@@ -1200,12 +1200,116 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
 }
 
 typedef struct pgp_parse_handler_param_t {
-    char in[PATH_MAX];
-    char out[PATH_MAX];
+    char       in[PATH_MAX];
+    char       out[PATH_MAX];
     rnp_ctx_t *ctx;
 } pgp_parse_handler_param_t;
 
-/* process the pgp stream */
+/** @brief checks whether file exists already and asks user for the new filename
+ *  @param path output file name with path. May be NULL, then user is asked for it.
+ *  @param newpath preallocated pointer which will store the result on success
+ *  @param maxlen maximum number of chars in newfile, including the trailing \0
+ *  @param overwrite whether it is allowed to overwrite output file by default
+ *  @return true on success, or false otherwise (user cancels the operation)
+ **/
+
+static bool
+rnp_get_output_filename(const char *path, char *newpath, size_t maxlen, bool overwrite)
+{
+    char reply[10];
+
+    if (strlen(path) == 0) {
+        fprintf(stdout, "Please enter the filename: ");
+        if (fgets(newpath, maxlen, stdin) == NULL) {
+            return false;
+        }
+        rnp_strip_eol(newpath);
+    } else {
+        strncpy(newpath, path, maxlen);
+    }
+
+    while (true) {
+        if (rnp_file_exists(newpath)) {
+            if (overwrite) {
+                unlink(newpath);
+                return true;
+            }
+
+            fprintf(stdout,
+                    "File '%s' already exists. Would you like to overwrite it (y/N)?",
+                    newpath);
+
+            if (fgets(reply, sizeof(reply), stdin) == NULL) {
+                return false;
+            }
+            if (strlen(reply) > 0 && toupper(reply[0]) == 'Y') {
+                unlink(newpath);
+                return true;
+            }
+
+            fprintf(stdout, "Please enter the new filename: ");
+            if (fgets(newpath, maxlen, stdin) == NULL) {
+                return false;
+            }
+
+            rnp_strip_eol(newpath);
+
+            if (strlen(newpath) == 0) {
+                return false;
+            }
+        } else {
+            return true;
+        }
+    }
+}
+
+/** @brief Initialize input for streamed RNP operation, based on input filename/path
+ *  @param ctx Initialized RNP operation context
+ *  @param src Allocated source structure to put result in
+ *  @param in Input filename/path. For NULL or '-' stdin source will be created
+ *  @return true on success, or false otherwise
+ **/
+
+static bool
+rnp_initialize_input(rnp_ctx_t *ctx, pgp_source_t *src, const char *in)
+{
+    rnp_result_t res;
+    bool         is_stdin = in == NULL || in[0] == '\0' || strcmp(in, "-") == 0;
+
+    if (is_stdin) {
+        res = init_stdin_src(src);
+    } else {
+        res = init_file_src(src, in);
+    }
+
+    return res == RNP_SUCCESS;
+}
+
+/** @brief Initialize output for streamed RNP operation, based on output filename/path.
+ *         Will commuicate with user if file already exists and overwrite flag is not set.
+ *  @param ctx Initialized RNP operation context
+ *  @param dst Allocated dest structure to put result in
+ *  @param out Output filename/path as provided by user. For NULL or '-' stdout will be used.
+ *  @return true on success or false otherwise
+ **/
+
+static bool
+rnp_initialize_output(rnp_ctx_t *ctx, pgp_dest_t *dst, const char *out)
+{
+    char newname[PATH_MAX];
+    bool is_stdout = out == NULL || out[0] == '\0' || strcmp(out, "-") == 0;
+
+    if (!is_stdout) {
+        if (!rnp_get_output_filename(out, newname, sizeof(newname), ctx->overwrite)) {
+            RNP_LOG("Operation failed: file '%s' already exists.", out);
+            return false;
+        }
+
+        return init_file_dest(dst, newname) == RNP_SUCCESS;
+    } else {
+        return init_stdout_dest(dst) == RNP_SUCCESS;
+    }
+}
 
 static bool
 rnp_parse_handler_dest(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char *filename)
@@ -1216,15 +1320,8 @@ rnp_parse_handler_dest(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char
         return false;
     }
 
-    if (strlen(param->out) > 0) {
-        if (param->ctx->overwrite) {
-            unlink(param->out);
-        }
-
-        return init_file_dest(dst, param->out) == RNP_SUCCESS;
-    } else {
-        return init_stdout_dest(dst) == RNP_SUCCESS;
-    }
+    /* add some logic to build param->out, based on handler->in and filename */
+    return rnp_initialize_output(param->ctx, dst, param->out);
 }
 
 rnp_result_t
@@ -1235,14 +1332,8 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     pgp_parse_handler_param_t *param = NULL;
     pgp_key_provider_t         keyprov;
     rnp_result_t               result;
-    bool                       is_stdin;
-    bool                       is_stdout;
 
-    is_stdin = !in || (strlen(in) == 0) || (strcmp(in, "-") == 0);
-    is_stdout = !out || (strlen(out) == 0) || (strcmp(out, "-") == 0);
-
-    result = is_stdin ? init_stdin_src(&src) : init_file_src(&src, in);
-    if (result != RNP_SUCCESS) {
+    if (!rnp_initialize_input(ctx, &src, in)) {
         return RNP_ERROR_READ;
     }
 
@@ -1257,7 +1348,7 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
         goto finish;
     }
 
-    if (!is_stdin) {
+    if (in) {
         if (strlen(in) > sizeof(param->in)) {
             RNP_LOG("too long input path");
             result = RNP_ERROR_BAD_PARAMETERS;
@@ -1266,7 +1357,7 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
         strncpy(param->in, in, sizeof(param->in) - 1);
     }
 
-    if (!is_stdout) {
+    if (out) {
         if (strlen(out) > sizeof(param->out)) {
             RNP_LOG("too long output path");
             result = RNP_ERROR_GENERIC;
@@ -1307,21 +1398,14 @@ rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     pgp_write_handler_t *handler = NULL;
     rnp_result_t         result;
     pgp_key_provider_t   keyprov;
-    bool                 is_stdin;
-    bool                 is_stdout;
 
-    is_stdin = !in || (strlen(in) == 0) || (strcmp(in, "-") == 0);
-    is_stdout = !out || (strlen(out) == 0) || (strcmp(out, "-") == 0);
-
-    result = is_stdin ? init_stdin_src(&src) : init_file_src(&src, in);
-    if (result != RNP_SUCCESS) {
-        (void) fprintf(stderr, "rnp_encrypt_stream: failed to initialize reading\n");
+    if (!rnp_initialize_input(ctx, &src, in)) {
+        RNP_LOG("failed to initialize reading");
         return RNP_ERROR_READ;
     }
 
-    result = is_stdout ? init_stdout_dest(&dst) : init_file_dest(&dst, out);
-    if (result != RNP_SUCCESS) {
-        (void) fprintf(stderr, "rnp_encrypt_stream: failed to initialize writing\n");
+    if (!rnp_initialize_output(ctx, &dst, out)) {
+        RNP_LOG("failed to initialize writing");
         src_close(&src);
         return RNP_ERROR_WRITE;
     }
@@ -1340,7 +1424,7 @@ rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 
     result = rnp_encrypt_src(handler, &src, &dst);
     if (result != RNP_SUCCESS) {
-        (void) printf("rnp_encrypt_stream: failed with error code 0x%x\n", (int) result);
+        RNP_LOG("failed with error code 0x%x", (int) result);
     }
 
 finish:
@@ -1357,20 +1441,13 @@ rnp_armor_stream(
     pgp_source_t src;
     pgp_dest_t   dst;
     rnp_result_t result;
-    bool         is_stdin;
-    bool         is_stdout;
 
-    is_stdin = !in || (strlen(in) == 0) || (strcmp(in, "-") == 0);
-    is_stdout = !out || (strlen(out) == 0) || (strcmp(out, "-") == 0);
-
-    result = is_stdin ? init_stdin_src(&src) : init_file_src(&src, in);
-    if (result != RNP_SUCCESS) {
+    if (!rnp_initialize_input(ctx, &src, in)) {
         RNP_LOG("failed to initialize reading");
         return RNP_ERROR_READ;
     }
 
-    result = is_stdout ? init_stdout_dest(&dst) : init_file_dest(&dst, out);
-    if (result != RNP_SUCCESS) {
+    if (!rnp_initialize_output(ctx, &dst, out)) {
         RNP_LOG("failed to initialize writing");
         src_close(&src);
         return RNP_ERROR_WRITE;
