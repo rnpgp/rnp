@@ -69,12 +69,7 @@ rnp_getpass(const char *prompt, char *buffer, size_t size)
         goto end;
     }
 
-    // strip trailing newline if needed
-    size_t length = strlen(buffer);
-    if (length >= 1 && buffer[length - 1] == '\n') {
-        buffer[length - 1] = '\0';
-    }
-
+    rnp_strip_eol(buffer);
     ok = true;
 end:
     if (restore_ttyflags) {
@@ -153,10 +148,7 @@ rnp_passphrase_provider_file(const pgp_passphrase_ctx_t *ctx,
     if (!fgets(passphrase, passphrase_size, fp)) {
         return false;
     }
-    size_t length = strlen(passphrase);
-    if (passphrase[length - 1] == '\n') {
-        passphrase[length - 1] = '\0';
-    }
+    rnp_strip_eol(passphrase);
     return true;
 }
 

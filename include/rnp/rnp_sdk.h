@@ -71,4 +71,6 @@ bool rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len);
 
 char *rnp_strlwr(char *s);
 
+char *rnp_strip_eol(char *s);
+
 #endif

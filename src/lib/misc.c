@@ -1134,3 +1134,15 @@ rnp_strlwr(char *s)
     }
     return s;
 }
+
+char *
+rnp_strip_eol(char *s)
+{
+    size_t len = strlen(s);
+
+    while (len > 0 && (s[len - 1] == '\n' || s[len - 1] == '\r')) {
+        s[--len] = '\0';
+    }
+
+    return s;
+}
