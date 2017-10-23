@@ -70,6 +70,12 @@ rnp_result_t rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst);
  **/
 rnp_result_t rnp_armor_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armored_msg_t msgtype);
 
+/* @brief Guess the corresponding armored message type by first byte(s) of PGP message
+ * @param src initialized source with binary PGP message data
+ * @return corresponding enum element or PGP_ARMORED_UNKNOWN
+ **/
+pgp_armored_msg_t rnp_armor_guess_type(pgp_source_t *src);
+
 /* @param  str   String containing armor data type
  * @param  len   Length of the str
  *

@@ -88,7 +88,7 @@ int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
 bool rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key);
 void rnp_cfg_free(rnp_cfg_t *cfg);
 
-/**
+/*
  *  @brief      Returns integer value for the key if there is one, or default value otherwise
  *
  *  @param cfg  rnp config, must be allocated and initialized
@@ -108,7 +108,7 @@ int rnp_cfg_getint_default(rnp_cfg_t *cfg, const char *key, int def);
  *
  * @pre     dst is correctly initialized and not NULL
  *
- */
+ **/
 void rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src);
 
 bool rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);

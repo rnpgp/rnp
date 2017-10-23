@@ -438,15 +438,12 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         break;
     }
     case CMD_DEARMOR:
-    case CMD_ENARMOR: {
-        ret = !rnp_armor_stream(
-          &ctx,
-          f,
-          rnp_cfg_get(cfg, CFG_OUTFILE),
-          CMD_ENARMOR == cmd,
-          rnp_cfg_getint_default(cfg, CFG_ARMOR_DATA_TYPE, PGP_ARMORED_UNKNOWN));
+        ret = rnp_dearmor_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
-    }
+    case CMD_ENARMOR:
+        ctx.armortype = rnp_cfg_getint_default(cfg, CFG_ARMOR_DATA_TYPE, PGP_ARMORED_UNKNOWN);
+        ret = rnp_armor_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
+        break;
     case CMD_SHOW_KEYS:
         ret = (repgp_validate_pubkeys_signatures(&ctx) == RNP_SUCCESS);
         break;
@@ -497,12 +494,31 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         *cmd = val;
         break;
     case CMD_DEARMOR:
-    case CMD_ENARMOR:
         *cmd = val;
-        rnp_cfg_setint(
-          cfg, CFG_ARMOR_DATA_TYPE, armor_str_to_data_type(arg, arg ? strlen(arg) : 0));
+        break;
+    case CMD_ENARMOR: {
+        pgp_armored_msg_t msgt = PGP_ARMORED_UNKNOWN;
+        *cmd = val;
+
+        if (arg) {
+            if (!strncmp("msg", arg, strlen(arg))) {
+                msgt = PGP_ARMORED_MESSAGE;
+            } else if (!strncmp("pubkey", arg, strlen(arg))) {
+                msgt = PGP_ARMORED_PUBLIC_KEY;
+            } else if (!strncmp("seckey", arg, strlen(arg))) {
+                msgt = PGP_ARMORED_SECRET_KEY;
+            } else if (!strncmp("sign", arg, strlen(arg))) {
+                msgt = PGP_ARMORED_SIGNATURE;
+            } else {
+                fprintf(stderr, "Wrong enarmor argument: %s\n", arg);
+                exit(EXIT_ERROR);
+            }
+        }
+
+        rnp_cfg_setint(cfg, CFG_ARMOR_DATA_TYPE, msgt);
         rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
         break;
+    }
     case CMD_HELP:
         print_usage(usage);
         exit(EXIT_SUCCESS);
