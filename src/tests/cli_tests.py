@@ -769,19 +769,18 @@ def rnp_encryption_s2k():
         rnp_encryption_s2k_gpg(ciphers[i % len(ciphers)], hashes[i % len(hashes)], s2kmodes[i % len(s2kmodes)])
 
 def rnp_armor():
-    for data_type in ['msg', 'pubkey', 'seckey', 'sign']:
-        src_beg,dst_beg = reg_workfiles('beg','.src','.dst')
-        src_mid, dst_mid = reg_workfiles('mid','.src', '.dst')
-        src_fin, dst_fin = reg_workfiles('fin','.src', '.dst')
+    src_beg, dst_beg, dst_mid, dst_fin = reg_workfiles('beg','.src','.dst', '.mid.dst', '.fin.dst')
 
-        random_text(src_beg, 10)
+    for data_type in ['msg', 'pubkey', 'seckey', 'sign']:
+        random_text(src_beg, 1000)
 
         ret, out, err = run_proc(RNP, ['--enarmor', data_type, src_beg, '--output', dst_beg])
         ret, out, err = run_proc(RNP, ['--dearmor', dst_beg, '--output', dst_mid])
         ret, out, err = run_proc(RNP, ['--enarmor', data_type, dst_mid, '--output', dst_fin])
+
         compare_files(dst_beg, dst_fin, "RNP armor/dearmor test failed")
         compare_files(src_beg, dst_mid, "RNP armor/dearmor test failed")
-        clear_workfiles()
+        remove_files(dst_beg, dst_mid, dst_fin)
 
 def rnp_misc_operations():
     rnp_genkey_rsa(KEY_ENCRYPT)

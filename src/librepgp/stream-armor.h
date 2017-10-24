@@ -76,12 +76,4 @@ rnp_result_t rnp_armor_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armored_ms
  **/
 pgp_armored_msg_t rnp_armor_guess_type(pgp_source_t *src);
 
-/* @param  str   String containing armor data type
- * @param  len   Length of the str
- *
- * @return Enum element corresponding to value in str or
- *         PGP_ARMORED_UNKNOWN if corresponding element not found
- */
-pgp_armored_msg_t armor_str_to_data_type(const char *str, size_t len);
-
 #endif

@@ -446,7 +446,7 @@ find_armor_header(const char *buf, size_t len, size_t *hdrlen)
     return NULL;
 }
 
-pgp_armored_msg_t
+static pgp_armored_msg_t
 armor_str_to_data_type(const char *str, size_t len)
 {
     if (!str) {

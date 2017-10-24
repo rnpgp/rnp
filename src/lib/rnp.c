@@ -1424,9 +1424,10 @@ finish:
 rnp_result_t
 rnp_armor_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 {
-    pgp_source_t src;
-    pgp_dest_t   dst;
-    rnp_result_t result;
+    pgp_source_t      src;
+    pgp_dest_t        dst;
+    rnp_result_t      result;
+    pgp_armored_msg_t msgt;
 
     if (!rnp_initialize_input(ctx, &src, in)) {
         RNP_LOG("failed to initialize reading");
