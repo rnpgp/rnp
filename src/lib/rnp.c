@@ -1274,7 +1274,7 @@ static bool
 rnp_initialize_input(rnp_ctx_t *ctx, pgp_source_t *src, const char *in)
 {
     rnp_result_t res;
-    bool         is_stdin = in == NULL || in[0] == '\0' || strcmp(in, "-") == 0;
+    bool         is_stdin = (in == NULL) || (in[0] == '\0') || (strcmp(in, "-") == 0);
 
     if (is_stdin) {
         res = init_stdin_src(src);
@@ -1297,7 +1297,7 @@ static bool
 rnp_initialize_output(rnp_ctx_t *ctx, pgp_dest_t *dst, const char *out)
 {
     char newname[PATH_MAX];
-    bool is_stdout = out == NULL || out[0] == '\0' || strcmp(out, "-") == 0;
+    bool is_stdout = (out == NULL) || (out[0] == '\0') || (strcmp(out, "-") == 0);
 
     if (!is_stdout) {
         if (!rnp_get_output_filename(out, newname, sizeof(newname), ctx->overwrite)) {

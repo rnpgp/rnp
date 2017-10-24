@@ -306,12 +306,7 @@ bool
 rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key)
 {
     const char *val = rnp_cfg_get(cfg, key);
-    
-    if (val && ((strcmp(val, "true") == 0) || (strcmp(val, "True") == 0) || (atoi(val) > 0))) {
-        return true;
-    }
-
-    return false;
+    return val && ((strcasecmp(val, "true") == 0) || (atoi(val) > 0));
 }
 
 /** @brief free the memory allocated in rnp_cfg_t
