@@ -477,11 +477,12 @@ armor_str_to_data_type(const char *str, size_t len)
     return PGP_ARMORED_UNKNOWN;
 }
 
-pgp_armored_msg_t rnp_armor_guess_type(pgp_source_t *src)
+pgp_armored_msg_t
+rnp_armor_guess_type(pgp_source_t *src)
 {
     uint8_t ptag;
     ssize_t read;
-    int ptype;
+    int     ptype;
 
     read = src_peek(src, &ptag, 1);
     if (read < 1) {
@@ -491,22 +492,22 @@ pgp_armored_msg_t rnp_armor_guess_type(pgp_source_t *src)
     ptype = get_packet_type(ptag);
 
     switch (ptype) {
-        case PGP_PTAG_CT_PK_SESSION_KEY:
-        case PGP_PTAG_CT_SK_SESSION_KEY:
-        case PGP_PTAG_CT_1_PASS_SIG:
-        case PGP_PTAG_CT_SE_DATA:
-        case PGP_PTAG_CT_SE_IP_DATA:
-        case PGP_PTAG_CT_COMPRESSED:
-        case PGP_PTAG_CT_LITDATA:
-            return PGP_ARMORED_MESSAGE;
-        case PGP_PTAG_CT_PUBLIC_KEY:
-            return PGP_ARMORED_PUBLIC_KEY;
-        case PGP_PTAG_CT_SECRET_KEY:
-            return PGP_ARMORED_SECRET_KEY;
-        case PGP_PTAG_CT_SIGNATURE:
-            return PGP_ARMORED_SIGNATURE;
-        default:
-            return PGP_ARMORED_UNKNOWN;
+    case PGP_PTAG_CT_PK_SESSION_KEY:
+    case PGP_PTAG_CT_SK_SESSION_KEY:
+    case PGP_PTAG_CT_1_PASS_SIG:
+    case PGP_PTAG_CT_SE_DATA:
+    case PGP_PTAG_CT_SE_IP_DATA:
+    case PGP_PTAG_CT_COMPRESSED:
+    case PGP_PTAG_CT_LITDATA:
+        return PGP_ARMORED_MESSAGE;
+    case PGP_PTAG_CT_PUBLIC_KEY:
+        return PGP_ARMORED_PUBLIC_KEY;
+    case PGP_PTAG_CT_SECRET_KEY:
+        return PGP_ARMORED_SECRET_KEY;
+    case PGP_PTAG_CT_SIGNATURE:
+        return PGP_ARMORED_SIGNATURE;
+    default:
+        return PGP_ARMORED_UNKNOWN;
     }
 }
 
