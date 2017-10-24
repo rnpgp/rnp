@@ -71,6 +71,10 @@ bool rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len);
 
 char *rnp_strlwr(char *s);
 
+/** @brief strip eol symbols (\r, \n) from the end of the string
+ *  @param s NULL-terminated string, which will be modified
+ *  @return string s itself
+ */
 char *rnp_strip_eol(char *s);
 
 #endif
