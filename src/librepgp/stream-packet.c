@@ -70,6 +70,43 @@ get_packet_type(uint8_t ptag)
 }
 
 ssize_t
+stream_pkt_hdr_len(pgp_source_t *src)
+{
+    uint8_t buf[2];
+    ssize_t read;
+
+    read = src_peek(src, buf, 2);
+    if ((read < 2) || !(buf[0] & PGP_PTAG_ALWAYS_SET)) {
+        return -1;
+    }
+
+    if (buf[0] & PGP_PTAG_NEW_FORMAT) {
+        if (buf[1] < 192) {
+            return 2;
+        } else if (buf[1] < 224) {
+            return 3;
+        } else if (buf[1] < 255) {
+            return 2;
+        } else {
+            return 6;
+        }
+    } else {
+        switch (buf[0] & PGP_PTAG_OF_LENGTH_TYPE_MASK) {
+        case PGP_PTAG_OLD_LEN_1:
+            return 2;
+        case PGP_PTAG_OLD_LEN_2:
+            return 3;
+        case PGP_PTAG_OLD_LEN_4:
+            return 5;
+        case PGP_PTAG_OLD_LEN_INDETERMINATE:
+            return 1;
+        default:
+            return -1;
+        }
+    }
+}
+
+ssize_t
 stream_read_pkt_len(pgp_source_t *src)
 {
     uint8_t buf[6];

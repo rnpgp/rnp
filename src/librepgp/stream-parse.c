@@ -67,6 +67,8 @@ typedef struct pgp_source_packet_param_t {
     pgp_source_t *origsrc;       /* original source passed to init_*_src */
     bool          partial;       /* partial length packet */
     bool          indeterminate; /* indeterminate length packet */
+    size_t        hdrlen;        /* length of the header */
+    uint64_t      len;           /* packet body length if non-partial and non-indeterminate */
 } pgp_source_packet_param_t;
 
 typedef struct pgp_source_encrypted_param_t {
@@ -74,6 +76,7 @@ typedef struct pgp_source_encrypted_param_t {
     DYNARRAY(pgp_sk_sesskey_t, symenc);     /* array of sym-encrypted session keys */
     DYNARRAY(pgp_pk_sesskey_pkt_t, pubenc); /* array of pk-encrypted session keys */
     bool        has_mdc;                    /* encrypted with mdc, i.e. tag 18 */
+    bool        mdc_validated;              /* mdc was validated already */
     pgp_crypt_t decrypt;                    /* decrypting crypto */
     pgp_hash_t  mdc;                        /* mdc SHA1 hash */
 } pgp_source_encrypted_param_t;
@@ -264,6 +267,7 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
     src->finish = NULL;
     src->type = PGP_STREAM_PARLEN_PACKET;
     src->size = 0;
+    src->knownsize = 0;
     src->readb = 0;
     src->eof = 0;
 
@@ -479,10 +483,25 @@ encrypted_src_read(pgp_source_t *src, void *buf, size_t len)
                 RNP_LOG("mdc hash check failed");
                 return -1;
             }
+
+            param->mdc_validated = true;
         }
     }
 
     return read;
+}
+
+static rnp_result_t
+encrypted_src_finish(pgp_source_t *src)
+{
+    pgp_source_encrypted_param_t *param = src->param;
+
+    if (param->has_mdc && !param->mdc_validated) {
+        RNP_LOG("mdc was not validated");
+        return RNP_ERROR_BAD_STATE;
+    }
+
+    return RNP_SUCCESS;
 }
 
 static void
@@ -818,6 +837,7 @@ init_packet_params(pgp_source_t *src, pgp_source_packet_param_t *param)
 
     param->origsrc = NULL;
     // initialize partial reader if needed
+    param->hdrlen = stream_pkt_hdr_len(param->readsrc);
     if (stream_partial_pkt_len(param->readsrc)) {
         if ((partsrc = calloc(1, sizeof(*partsrc))) == NULL) {
             return RNP_ERROR_OUT_OF_MEMORY;
@@ -839,7 +859,7 @@ init_packet_params(pgp_source_t *src, pgp_source_packet_param_t *param)
             RNP_LOG("cannot read pkt len");
             return RNP_ERROR_BAD_FORMAT;
         }
-        src->size = len;
+        param->len = len;
     }
 
     return RNP_SUCCESS;
@@ -864,6 +884,7 @@ init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *rea
     src->finish = NULL;
     src->type = PGP_STREAM_LITERAL;
     src->size = 0;
+    src->knownsize = 0;
     src->readb = 0;
     src->eof = 0;
 
@@ -919,6 +940,11 @@ init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *rea
     param->timestamp = ((uint32_t) tstbuf[0] << 24) | ((uint32_t) tstbuf[1] << 16) |
                        ((uint32_t) tstbuf[2] << 8) | (uint32_t) tstbuf[3];
 
+    if (!param->pkt.indeterminate && !param->pkt.partial) {
+        src->size = param->pkt.len - (1 + 1 + bt + 4);
+        src->knownsize = 1;
+    }
+
 finish:
     if (errcode != RNP_SUCCESS) {
         literal_src_close(src);
@@ -945,6 +971,7 @@ init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *
     src->finish = NULL;
     src->type = PGP_STREAM_COMPRESSED;
     src->size = 0;
+    src->knownsize = 0;
     src->readb = 0;
     src->eof = 0;
 
@@ -1017,6 +1044,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     char                          password[MAX_PASSWORD_LENGTH] = {0};
     int                           intres;
     bool                          have_key = false;
+    uint64_t                      readb;
 
     if (!init_source_cache(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -1025,9 +1053,10 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     param->pkt.readsrc = readsrc;
     src->read = encrypted_src_read;
     src->close = encrypted_src_close;
-    src->finish = NULL;
+    src->finish = encrypted_src_finish;
     src->type = PGP_STREAM_ENCRYPTED;
     src->size = 0;
+    src->knownsize = 0;
     src->readb = 0;
     src->eof = 0;
 
@@ -1071,6 +1100,8 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     }
 
     /* Reading header of encrypted packet */
+    readb = param->pkt.readsrc->readb;
+
     if (ptype == PGP_PTAG_CT_SE_IP_DATA) {
         if (src_read(param->pkt.readsrc, &mdcver, 1) != 1) {
             errcode = RNP_ERROR_READ;
@@ -1082,6 +1113,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             goto finish;
         }
         param->has_mdc = true;
+        param->mdc_validated = false;
     }
 
     /* Obtaining the symmetric key */
@@ -1174,6 +1206,11 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
         errcode = RNP_ERROR_NO_SUITABLE_KEY;
     }
 
+    if (!param->pkt.partial && !param->pkt.indeterminate) {
+        src->knownsize = 1;
+        src->size = param->pkt.len - (param->pkt.readsrc->readb - readb);
+    }
+
 finish:
     if (errcode != RNP_SUCCESS) {
         encrypted_src_close(src);
@@ -1195,6 +1232,7 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
     if (!init_source_cache(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
+    src->cache->readahead = false;
 
     param = src->param;
     param->readsrc = readsrc;
@@ -1203,6 +1241,7 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
     src->finish = signed_src_finish;
     src->type = PGP_STREAM_SIGNED;
     src->size = 0;
+    src->knownsize = 0;
     src->readb = 0;
     src->eof = 0;
 

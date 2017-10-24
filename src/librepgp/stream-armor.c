@@ -642,6 +642,7 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc)
     src->close = armored_src_close;
     src->type = PGP_STREAM_ARMORED;
     src->size = 0;
+    src->knownsize = 0;
     src->readb = 0;
     src->eof = 0;
 
