@@ -495,6 +495,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         break;
     case CMD_DEARMOR:
         *cmd = val;
+        rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
         break;
     case CMD_ENARMOR: {
         pgp_armored_msg_t msgt = PGP_ARMORED_UNKNOWN;
