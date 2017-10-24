@@ -49,7 +49,7 @@ rnp_cfg_init(rnp_cfg_t *cfg)
 void
 rnp_cfg_load_defaults(rnp_cfg_t *cfg)
 {
-    rnp_cfg_setint(cfg, CFG_OVERWRITE, 1);
+    rnp_cfg_setbool(cfg, CFG_OVERWRITE, false);
     rnp_cfg_set(cfg, CFG_OUTFILE, NULL);
     rnp_cfg_set(cfg, CFG_HASH, DEFAULT_HASH_ALG);
     rnp_cfg_setint(cfg, CFG_ZALG, PGP_C_ZIP);
@@ -306,17 +306,7 @@ bool
 rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key)
 {
     const char *val = rnp_cfg_get(cfg, key);
-
-    if (val) {
-        if ((strcmp(val, "true") == 0) || (strcmp(val, "True") == 0)) {
-            return true;
-        } else if (atoi(val) > 0) {
-            return true;
-        } else
-            return false;
-    } else {
-        return false;
-    }
+    return val && ((strcasecmp(val, "true") == 0) || (atoi(val) > 0));
 }
 
 /** @brief free the memory allocated in rnp_cfg_t
