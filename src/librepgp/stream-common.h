@@ -61,11 +61,12 @@ typedef rnp_result_t pgp_source_finish_func_t(pgp_source_t *src);
 typedef rnp_result_t pgp_dest_write_func_t(pgp_dest_t *dst, const void *buf, size_t len);
 typedef void pgp_dest_close_func_t(pgp_dest_t *dst, bool discard);
 
-/* statically preallocated cache for sources. Not used for input filters */
+/* statically preallocated cache for sources */
 typedef struct pgp_source_cache_t {
     uint8_t  buf[PGP_INPUT_CACHE_SIZE];
-    unsigned pos;
-    unsigned len;
+    unsigned pos;       /* current position in cache */
+    unsigned len;       /* number of bytes available in cache */
+    bool     readahead; /* whether read-ahead with larger chunks allowed */
 } pgp_source_cache_t;
 
 typedef struct pgp_source_t {
@@ -74,13 +75,14 @@ typedef struct pgp_source_t {
     pgp_source_finish_func_t *finish;
     pgp_stream_type_t        type;
 
-    uint64_t size;  /* size of the data if available, 0 otherwise */
+    uint64_t size;  /* size of the data if available, see knownsize */
     uint64_t readb; /* number of bytes read from the stream via src_read. Do not confuse with
                        number of bytes as returned via the read since data may be cached */
     pgp_source_cache_t *cache; /* cache if used */
     void *              param; /* source-specific additional data */
 
     unsigned eof : 1; /* end of data as reported by read and empty cache */
+    unsigned knownsize : 1; /* whether size of the data is known */
 } pgp_source_t;
 
 /** @brief helper function to allocate memory for source's cache and param

@@ -59,6 +59,13 @@ size_t write_packet_len(uint8_t *buf, size_t len);
  **/
 int get_packet_type(uint8_t ptag);
 
+/** @brief Peek length of the packet header. Returns -1 on error.
+ *  @param src source to read length from
+ *  @return number of bytes in packet header or -1 if there is a read error or packet length 
+ *          is ill-formed
+ **/
+ssize_t stream_pkt_hdr_len(pgp_source_t *src);
+
 /** @brief Read packet length for fixed-size (say, small) packet. Returns -1 on error.
  *  Will also read packet tag byte. We do not allow partial length here as well as large
  *  packets (so ignoring possible ssize_t overflow)

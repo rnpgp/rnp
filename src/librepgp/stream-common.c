@@ -49,9 +49,17 @@ src_read(pgp_source_t *src, void *buf, size_t len)
     size_t              left = len;
     ssize_t             read;
     pgp_source_cache_t *cache = src->cache;
-
+    bool                readahead = cache->readahead;
+    
     if (src->eof || (len == 0)) {
         return 0;
+    }
+
+    // Do not read more then available if source size is known
+    if (src->size > 0 && src->readb + len > src->size) {
+        len = src->size - src->readb;
+        left = len;
+        readahead = false;
     }
 
     // Check whether we have cache and there is data inside
@@ -71,7 +79,7 @@ src_read(pgp_source_t *src, void *buf, size_t len)
 
     // If we got here then we have empty cache or no cache at all
     while (left > 0) {
-        if (!cache || (left > sizeof(cache->buf))) {
+        if (left > sizeof(cache->buf) || !readahead || !cache) {
             // If there is no cache or chunk is larger then read directly
             read = src->read(src, buf, left);
             if (read > 0) {
@@ -108,6 +116,11 @@ src_read(pgp_source_t *src, void *buf, size_t len)
 
 finish:
     src->readb += len;
+
+    if (src->knownsize && src->readb == src->size) {
+        src->eof = 1;
+    }
+
     return len;
 }
 
@@ -116,13 +129,20 @@ src_peek(pgp_source_t *src, void *buf, size_t len)
 {
     ssize_t             read;
     pgp_source_cache_t *cache = src->cache;
-
+    bool                readahead = cache->readahead;
+    
     if (!cache || (len > sizeof(cache->buf))) {
         return -1;
     }
 
     if (src->eof) {
         return 0;
+    }
+
+    // Do not read more then available if source size is known
+    if (src->size > 0 && src->readb + len > src->size) {
+        len = src->size - src->readb;
+        readahead = false;
     }
 
     if (cache->len - cache->pos >= len) {
@@ -139,7 +159,8 @@ src_peek(pgp_source_t *src, void *buf, size_t len)
     }
 
     while (cache->len < len) {
-        read = src->read(src, &cache->buf[cache->len], sizeof(cache->buf) - cache->len);
+        read = readahead ? sizeof(cache->buf) - cache->len : len - cache->len;
+        read = src->read(src, &cache->buf[cache->len], read);
         if (read == 0) {
             if (buf) {
                 memcpy(buf, &cache->buf[0], cache->len);
@@ -215,6 +236,7 @@ init_source_cache(pgp_source_t *src, size_t paramsize)
     if ((src->cache = calloc(1, sizeof(pgp_source_cache_t))) == NULL) {
         return false;
     }
+    src->cache->readahead = true;
 
     if (paramsize > 0) {
         if ((src->param = calloc(1, paramsize)) == NULL) {
@@ -296,6 +318,7 @@ init_file_src(pgp_source_t *src, const char *path)
     src->finish = NULL;
     src->type = PGP_STREAM_FILE;
     src->size = st.st_size;
+    src->knownsize = 1;
     src->readb = 0;
     src->eof = 0;
 
@@ -318,6 +341,7 @@ init_stdin_src(pgp_source_t *src)
     src->finish = NULL;
     src->type = PGP_STREAM_STDIN;
     src->size = 0;
+    src->knownsize = 0;
     src->readb = 0;
     src->eof = 0;
 
