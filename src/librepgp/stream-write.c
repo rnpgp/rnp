@@ -519,10 +519,8 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     bool                        singlepass = true;
     unsigned                    pkeycount = 0;
     uint8_t                     enckey[PGP_MAX_KEY_SIZE] = {0}; /* content encryption key */
-    uint8_t                     s2key[PGP_MAX_KEY_SIZE];        /* s2k calculated key */
     uint8_t                     enchdr[PGP_MAX_BLOCK_SIZE + 2]; /* encrypted header */
     uint8_t                     mdcver = 1;
-    char                        passphrase[MAX_PASSPHRASE_LENGTH] = {0};
     unsigned                    keylen;
     unsigned                    blsize;
     rnp_result_t                ret = RNP_SUCCESS;
@@ -626,8 +624,6 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
 finish:
     pgp_forget(enckey, sizeof(enckey));
-    pgp_forget(s2key, sizeof(s2key));
-    pgp_forget(passphrase, sizeof(passphrase));
     if (ret != RNP_SUCCESS) {
         encrypted_dst_close(dst, true);
     }
