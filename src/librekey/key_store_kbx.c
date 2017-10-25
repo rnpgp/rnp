@@ -456,12 +456,7 @@ static int
 pu32(pgp_memory_t *mem, uint32_t f)
 {
     uint8_t p[4];
-
-    p[0] = (uint8_t)(f >> 24);
-    p[1] = (uint8_t)(f >> 16);
-    p[2] = (uint8_t)(f >> 8);
-    p[3] = (uint8_t) f;
-
+    STORE32LE(p, f);
     return pgp_memory_add(mem, p, 4);
 }
 
@@ -598,31 +593,21 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *io, pgp_key_t *key, pgp_memory_t *m)
         p = m->buf + uid_start + (12 * i);
         pt = m->length - start;
 
-        p[0] = (uint8_t)(pt >> 24);
-        p[1] = (uint8_t)(pt >> 16);
-        p[2] = (uint8_t)(pt >> 8);
-        p[3] = (uint8_t) pt;
-
+        STORE32LE(p, pt);
         pt = strlen((const char *) key->uids[i]);
         if (!pgp_memory_add(m, key->uids[i], pt)) {
             return false;
         }
 
         p += 4;
-        p[0] = (uint8_t)(pt >> 24);
-        p[1] = (uint8_t)(pt >> 16);
-        p[2] = (uint8_t)(pt >> 8);
-        p[3] = (uint8_t) pt;
+        STORE32LE(p, pt);
     }
 
     // write keyblock and fix the offset/length
     key_start = m->length;
     pt = key_start - start;
     p = m->buf + start + 8;
-    p[0] = (uint8_t)(pt >> 24);
-    p[1] = (uint8_t)(pt >> 16);
-    p[2] = (uint8_t)(pt >> 8);
-    p[3] = (uint8_t) pt;
+    STORE32LE(p, pt);
 
     pgp_writer_set_memory(&output, m);
 
@@ -645,19 +630,13 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *io, pgp_key_t *key, pgp_memory_t *m)
     pt = m->length - key_start;
     p = m->buf + start + 12;
 
-    p[0] = (uint8_t)(pt >> 24);
-    p[1] = (uint8_t)(pt >> 16);
-    p[2] = (uint8_t)(pt >> 8);
-    p[3] = (uint8_t) pt;
+    STORE32LE(p, pt);
 
     // fix the length of blob
     pt = m->length - start + 20;
     p = m->buf + start;
 
-    p[0] = (uint8_t)(pt >> 24);
-    p[1] = (uint8_t)(pt >> 16);
-    p[2] = (uint8_t)(pt >> 8);
-    p[3] = (uint8_t) pt;
+    STORE32LE(p, pt);
 
     // checksum
     if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {

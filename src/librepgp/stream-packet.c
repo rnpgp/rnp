@@ -50,10 +50,7 @@ write_packet_len(uint8_t *buf, size_t len)
         return 2;
     } else {
         buf[0] = 0xff;
-        buf[1] = (uint8_t)(len >> 24);
-        buf[2] = (uint8_t)(len >> 16);
-        buf[3] = (uint8_t)(len >> 8);
-        buf[4] = (uint8_t)(len);
+        STORE32LE(&buf[1], len);
         return 5;
     }
 }

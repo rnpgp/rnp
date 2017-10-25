@@ -428,26 +428,13 @@ savepubkey(char *res, char *f, size_t size)
     return true;
 }
 
-/* format a uint32_t */
-static int
-formatu32(uint8_t *buffer, uint32_t value)
-{
-    buffer[0] = (uint8_t)(value >> 24) & 0xff;
-    buffer[1] = (uint8_t)(value >> 16) & 0xff;
-    buffer[2] = (uint8_t)(value >> 8) & 0xff;
-    buffer[3] = (uint8_t) value & 0xff;
-    return sizeof(uint32_t);
-}
-
 /* format a string as (len, string) */
 static int
 formatstring(char *buffer, const uint8_t *s, size_t len)
 {
-    int cc;
-
-    cc = formatu32((uint8_t *) buffer, (uint32_t) len);
-    (void) memcpy(&buffer[cc], s, len);
-    return cc + (int) len;
+    STORE32LE(buffer, len);
+    (void) memcpy(&buffer[4], s, len);
+    return 4 + (int) len;
 }
 
 /* format a bignum, checking for "interesting" high bit values */

@@ -942,10 +942,7 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
         dst_write(param->writedst, handler->ctx->filename, flen);
     }
     /* timestamp */
-    buf[0] = (uint8_t)(handler->ctx->filemtime >> 24);
-    buf[1] = (uint8_t)(handler->ctx->filemtime >> 16);
-    buf[2] = (uint8_t)(handler->ctx->filemtime >> 8);
-    buf[3] = (uint8_t)(handler->ctx->filemtime);
+    STORE32LE(buf, handler->ctx->filemtime);
     dst_write(param->writedst, buf, 4);
 
 finish:
