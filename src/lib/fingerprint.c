@@ -32,17 +32,14 @@
 #include "fingerprint.h"
 #include "hash.h"
 #include "packet-create.h"
+#include "utils.h"
 
 /* hash a 32-bit integer */
 static int
 hash_uint32(pgp_hash_t *hash, uint32_t n)
 {
     uint8_t ibuf[4];
-
-    ibuf[0] = (uint8_t)(n >> 24) & 0xff;
-    ibuf[1] = (uint8_t)(n >> 16) & 0xff;
-    ibuf[2] = (uint8_t)(n >> 8) & 0xff;
-    ibuf[3] = (uint8_t) n & 0xff;
+    STORE32LE(ibuf, n);
     pgp_hash_add(hash, ibuf, sizeof(ibuf));
     return sizeof(ibuf);
 }
