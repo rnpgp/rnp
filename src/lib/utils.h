@@ -75,9 +75,6 @@
 #define RNP_UNCONST(a) ((void *) (unsigned long) (const void *) (a))
 #endif
 
-/* Portable way to convert bits to bytes */
-#define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
-
 /* number of elements in an array */
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
@@ -88,5 +85,37 @@ void hexdump(FILE *, const char *, const uint8_t *, size_t);
 
 const char *pgp_str_from_map(int, pgp_map_t *);
 void *      pgp_new(size_t);
+
+/* Portable way to convert bits to bytes */
+#define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
+
+/* Load little-endian 32-bit from y to x in portable fashion */
+#define LOAD32LE(x, y)                      \
+do {                                        \
+    x = (((uint8_t*)(y))[3] & 0xFF) << 24 | \
+        (((uint8_t*)(y))[2] & 0xFF) << 16 | \
+        (((uint8_t*)(y))[1] & 0xFF) <<  8 | \
+        (((uint8_t*)(y))[0] & 0xFF) <<  0;  \
+} while(0)
+
+/* Store little-endian 32-bit value x in y */
+#define STORE32LE(x, y)                                 \
+do {                                                    \
+    ((uint8_t*)(x))[0] = (uint8_t)((y) >> 24) & 0xff;   \
+    ((uint8_t*)(x))[1] = (uint8_t)((y) >> 16) & 0xff;   \
+    ((uint8_t*)(x))[2] = (uint8_t)((y) >>  8) & 0xff;   \
+    ((uint8_t*)(x))[3] = (uint8_t)((y) >>  0) & 0xff;   \
+} while(0)
+
+/* Swap endianness of 32-bit value */
+#if defined(__GNUC__) || defined(__clang__)
+#define BSWAP32(x)    __builtin_bswap32(x)
+#else
+#define BSWAP32(x)              \
+    ((x & 0x000000FF) << 24 |   \
+    (x & 0x0000FF00) << 8 |     \
+    (x & 0x00FF0000) >> 8 |     \
+    (x & 0xFF000000) >> 24)
+#endif
 
 #endif

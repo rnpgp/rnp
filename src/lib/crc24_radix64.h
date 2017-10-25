@@ -24,6 +24,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef CRC24_RADIX64_H
+#define CRC24_RADIX64_H
+
 #define CRC24_FAST_INIT 0xce04b7L
 
 /**
@@ -47,3 +50,5 @@ uint32_t crc24_update(uint32_t crc, const uint8_t *b, size_t s);
  *
  **/
 uint32_t crc24_final(uint32_t crc);
+
+#endif // CRC24_RADIX64_H

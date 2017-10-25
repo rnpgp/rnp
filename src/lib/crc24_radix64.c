@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "crc24_radix64.h"
+#include "utils.h"
 
 static const uint32_t T0[256] = {
   0x00000000, 0x00FB4C86, 0x000DD58A, 0x00F6990C, 0x00E1E693, 0x001AAA15, 0x00EC3319,
@@ -208,18 +209,22 @@ process32(uint32_t crc, uint32_t word)
 uint32_t
 crc24_update(uint32_t crc, const uint8_t *in, size_t length)
 {
-    while (((uintptr_t) in & 3) && length) {
-        crc = process8(crc, *in++);
-        length--;
-    }
+    uint32_t d0,d1,d2,d3;
 
     while (length >= 16) {
-        length -= 16;
-        crc = process32(crc, ((uint32_t *) in)[0]);
-        crc = process32(crc, ((uint32_t *) in)[1]);
-        crc = process32(crc, ((uint32_t *) in)[2]);
-        crc = process32(crc, ((uint32_t *) in)[3]);
+
+        LOAD32LE(d0, &in[0]);
+        LOAD32LE(d1, &in[4]);
+        LOAD32LE(d2, &in[8]);
+        LOAD32LE(d3, &in[12]);
+
+        crc = process32(crc, d0);
+        crc = process32(crc, d1);
+        crc = process32(crc, d2);
+        crc = process32(crc, d3);
+
         in += 16;
+        length -= 16;
     }
 
     while (length--) {
@@ -232,5 +237,6 @@ crc24_update(uint32_t crc, const uint8_t *in, size_t length)
 uint32_t
 crc24_final(uint32_t crc)
 {
-    return (crc & 0xff) << 16 | (((crc >> 8) & 0xff) << 8) | ((crc >> 16) & 0xff);
+    return (BSWAP32(crc) >> 8);
 }
+
