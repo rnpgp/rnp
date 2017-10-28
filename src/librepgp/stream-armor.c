@@ -370,7 +370,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
         param->crc = crc24_update(param->crc, param->rest, bptr - param->rest);
 
         /* we calculate crc when input stream finished instead of when all data is read */
-        if (param->crc != crc24_final(param->readcrc)) {
+        if (crc24_final(param->crc) != param->readcrc) {
             RNP_LOG("CRC mismatch");
             return -1;
         }
