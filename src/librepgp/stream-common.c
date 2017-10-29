@@ -420,10 +420,6 @@ init_file_dest(pgp_dest_t *dst, const char *path)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if ((param = calloc(1, sizeof(*param))) == NULL) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
     if (stat(path, &st) == 0) {
         RNP_LOG("file already exists: '%s'", path);
         return RNP_ERROR_WRITE;
@@ -437,6 +433,11 @@ init_file_dest(pgp_dest_t *dst, const char *path)
     if (fd < 0) {
         RNP_LOG("failed to create file '%s'", path);
         return false;
+    }
+
+    if ((param = calloc(1, sizeof(*param))) == NULL) {
+        close(fd);
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     dst->param = param;
