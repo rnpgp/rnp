@@ -38,6 +38,19 @@
 #include "signature.h"
 #include "stream-packet.h"
 
+static uint32_t
+read_uint32(uint8_t *buf)
+{
+    return ((uint32_t) buf[0] << 24) | ((uint32_t) buf[1] << 16) | ((uint32_t) buf[2] << 8) |
+           (uint32_t) buf[3];
+}
+
+static uint16_t
+read_uint16(uint8_t *buf)
+{
+    return ((uint16_t) buf[0] << 8) | buf[1];
+}
+
 size_t
 write_packet_len(uint8_t *buf, size_t len)
 {
@@ -132,8 +145,7 @@ stream_read_pkt_len(pgp_source_t *src)
             if (src_read(src, &buf[2], 4) < 4) {
                 return -1;
             } else {
-                return ((ssize_t) buf[2] << 24) | ((ssize_t) buf[3] << 16) |
-                       ((ssize_t) buf[4] << 8) | (ssize_t) buf[5];
+                return read_uint32(&buf[2]);
             }
         }
     } else {
@@ -144,13 +156,12 @@ stream_read_pkt_len(pgp_source_t *src)
             if (src_read(src, &buf[2], 1) < 1) {
                 return -1;
             }
-            return ((ssize_t) buf[1] << 8) | ((ssize_t) buf[2]);
+            return read_uint16(&buf[1]);
         case PGP_PTAG_OLD_LEN_4:
             if (src_read(src, &buf[2], 3) < 3) {
                 return -1;
             }
-            return ((ssize_t) buf[1] << 24) | ((ssize_t) buf[2] << 16) |
-                   ((ssize_t) buf[3] << 8) | (ssize_t) buf[4];
+            return read_uint32(&buf[1]);
         default:
             return -1;
         }
@@ -180,7 +191,7 @@ stream_read_mpi(pgp_source_t *src, uint8_t *mpi, size_t maxlen)
         return -1;
     }
 
-    bits = ((unsigned) hdr[0] << 8) | hdr[1];
+    bits = read_uint16(hdr);
     if (!bits || (bits > PGP_MPINT_BITS)) {
         RNP_LOG("too large or zero mpi, %d bits", bits);
         return -1;
@@ -675,8 +686,470 @@ stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass)
     return RNP_SUCCESS;
 }
 
+/* parse v3-specific fields, not the whole signature */
+static rnp_result_t
+signature_read_v3(pgp_source_t *src, pgp_signature_t *sig, size_t len)
+{
+    uint8_t buf[16];
+
+    if (len < 16) {
+        RNP_LOG("wrong packet length");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    if (src_read(src, buf, 16) != 16) {
+        RNP_LOG("read failed");
+        return RNP_ERROR_READ;
+    }
+
+    /* length of hashed data, 5 */
+    if (buf[0] != 5) {
+        RNP_LOG("wrong length of hashed data");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    /* hashed data */
+    if ((sig->hashed_data = malloc(5)) == NULL) {
+        RNP_LOG("allocation failed");
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    memcpy(sig->hashed_data, &buf[1], 5);
+    sig->hashed_len = 5;
+
+    /* signature type */
+    sig->type = buf[1];
+
+    /* creation time */
+    sig->creation_time = read_uint32(&buf[2]);
+
+    /* signer's key id */
+    memcpy(sig->signer, &buf[6], PGP_KEY_ID_SIZE);
+
+    /* public key algorithm */
+    sig->palg = buf[14];
+
+    /* hash algorithm */
+    sig->halg = buf[15];
+
+    return RNP_SUCCESS;
+}
+
+/* check the signature's subpacket for validity */
+static void
+signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
+{
+    bool oklen = true;
+    bool checked = true;
+
+    switch (subpkt->type) {
+    case PGP_SIG_SUBPKT_CREATION_TIME:
+        if (!subpkt->hashed) {
+            RNP_LOG("creation time subpacket must be hashed");
+            checked = false;
+        }
+        if ((oklen = subpkt->len == 4)) {
+            subpkt->fields.create = read_uint32(subpkt->data);
+        }
+        break;
+    case PGP_SIG_SUBPKT_EXPIRATION_TIME:
+    case PGP_SIG_SUBPKT_KEY_EXPIRY:
+        if ((oklen = subpkt->len == 4)) {
+            subpkt->fields.expiry = read_uint32(subpkt->data);
+        }
+        break;
+    case PGP_SIG_SUBPKT_EXPORT_CERT:
+        if ((oklen = subpkt->len == 1)) {
+            subpkt->fields.exportable = subpkt->data[0] != 0;
+        }
+        break;
+    case PGP_SIG_SUBPKT_TRUST:
+        if ((oklen = subpkt->len == 2)) {
+            subpkt->fields.trust.level = subpkt->data[0];
+            subpkt->fields.trust.amount = subpkt->data[1];
+        }
+        break;
+    case PGP_SIG_SUBPKT_REGEXP:
+        subpkt->fields.regexp.str = (const char *) subpkt->data;
+        subpkt->fields.regexp.len = subpkt->len;
+        break;
+    case PGP_SIG_SUBPKT_REVOCABLE:
+        if ((oklen = subpkt->len == 1)) {
+            subpkt->fields.revocable = subpkt->data[0] != 0;
+        }
+        break;
+    case PGP_SIG_SUBPKT_PREFERRED_SKA:
+    case PGP_SIG_SUBPKT_PREFERRED_HASH:
+    case PGP_SIG_SUBPKT_PREF_COMPRESS:
+        subpkt->fields.preferred.arr = subpkt->data;
+        subpkt->fields.preferred.len = subpkt->len;
+        break;
+    case PGP_SIG_SUBPKT_REVOCATION_KEY:
+        if ((oklen = subpkt->len == 22)) {
+            subpkt->fields.revocation_key.class = subpkt->data[0];
+            subpkt->fields.revocation_key.pkalg = subpkt->data[1];
+            subpkt->fields.revocation_key.fp = &subpkt->data[2];
+        }
+        break;
+    case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
+        if ((oklen = subpkt->len == 8)) {
+            subpkt->fields.issuer = subpkt->data;
+        }
+        break;
+    case PGP_SIG_SUBPKT_NOTATION_DATA:
+        if ((oklen = subpkt->len >= 8)) {
+            subpkt->fields.notation.nlen = read_uint16(&subpkt->data[4]);
+            subpkt->fields.notation.vlen = read_uint16(&subpkt->data[6]);
+
+            if (subpkt->len !=
+                8 + subpkt->fields.notation.nlen + subpkt->fields.notation.vlen) {
+                oklen = false;
+            } else {
+                subpkt->fields.notation.name = (const char *) &subpkt->data[8];
+                subpkt->fields.notation.value =
+                  (const char *) &subpkt->data[8 + subpkt->fields.notation.nlen];
+            }
+        }
+        break;
+    case PGP_SIG_SUBPKT_KEYSERV_PREFS:
+        if ((oklen = subpkt->len >= 1)) {
+            subpkt->fields.ks_prefs.no_modify = (subpkt->data[0] & 0x80) != 0;
+        }
+        break;
+    case PGP_SIG_SUBPKT_PREF_KEYSERV:
+        subpkt->fields.preferred_ks.uri = (const char *) subpkt->data;
+        subpkt->fields.preferred_ks.len = subpkt->len;
+        break;
+    case PGP_SIG_SUBPKT_PRIMARY_USER_ID:
+        if ((oklen = subpkt->len == 1)) {
+            subpkt->fields.primary_uid = subpkt->data[0] != 0;
+        }
+        break;
+    case PGP_SIG_SUBPKT_POLICY_URI:
+        subpkt->fields.policy.uri = (const char *) subpkt->data;
+        subpkt->fields.policy.len = subpkt->len;
+        break;
+    case PGP_SIG_SUBPKT_KEY_FLAGS:
+        if ((oklen = subpkt->len >= 1)) {
+            subpkt->fields.key_flags = subpkt->data[0];
+        }
+        break;
+    case PGP_SIG_SUBPKT_SIGNERS_USER_ID:
+        subpkt->fields.signer.uid = (const char *) subpkt->data;
+        subpkt->fields.signer.len = subpkt->len;
+        break;
+    case PGP_SIG_SUBPKT_REVOCATION_REASON:
+        if ((oklen = subpkt->len >= 1)) {
+            subpkt->fields.revocation_reason.code = subpkt->data[0];
+            subpkt->fields.revocation_reason.str = (const char *) &subpkt->data[1];
+            subpkt->fields.revocation_reason.len = subpkt->len - 1;
+        }
+        break;
+    case PGP_SIG_SUBPKT_FEATURES:
+        if ((oklen = subpkt->len >= 1)) {
+            subpkt->fields.feature_mdc = subpkt->data[0] & 0x01;
+        }
+        break;
+    case PGP_SIG_SUBPKT_SIGNATURE_TARGET:
+        if ((oklen = subpkt->len >= 18)) {
+            subpkt->fields.sig_target.pkalg = subpkt->data[0];
+            subpkt->fields.sig_target.halg = subpkt->data[1];
+            subpkt->fields.sig_target.hash = &subpkt->data[2];
+            subpkt->fields.sig_target.hlen = subpkt->len - 2;
+        }
+        break;
+    case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE:
+        /* no special processing - we have data and len already */
+        break;
+    case PGP_SIG_SUBPKT_ISSUER_FPR:
+        if ((oklen = subpkt->len >= 21)) {
+            subpkt->fields.issuer_fp.version = subpkt->data[0];
+            subpkt->fields.issuer_fp.fp = &subpkt->data[1];
+            subpkt->fields.issuer_fp.len = subpkt->len - 1;
+        }
+        break;
+    default:
+        RNP_LOG("unknown subpacket : %d", (int) subpkt->type);
+        return;
+    }
+
+    if (!oklen) {
+        RNP_LOG("wrong len %d of subpacket type %d", (int) subpkt->len, (int) subpkt->type);
+    }
+
+    if (oklen && checked) {
+        subpkt->parsed = 1;
+    }
+}
+
+/* parse signature subpackets */
+static bool
+signature_parse_subpackets(pgp_signature_t *sig, uint8_t *buf, size_t len, bool hashed)
+{
+    pgp_sig_subpkt_t subpkt;
+    size_t           splen;
+
+    while (len > 0) {
+        if (len < 2) {
+            RNP_LOG("got single byte %d", (int) *buf);
+            return false;
+        }
+
+        /* subpacket length */
+        if (*buf < 192) {
+            splen = *buf;
+            buf++;
+            len--;
+        } else if (*buf < 255) {
+            splen = ((buf[0] - 192) << 8) + buf[1] + 192;
+            buf += 2;
+            len -= 2;
+        } else {
+            if (len < 5) {
+                RNP_LOG("got 4-byte len but only %d bytes in buffer", (int) len);
+                return false;
+            }
+            splen = read_uint32(&buf[1]);
+            buf += 5;
+            len -= 5;
+        }
+
+        if (splen < 1) {
+            RNP_LOG("got subpacket with 0 length, skipping");
+            continue;
+        }
+
+        /* subpacket data */
+        if (len < splen) {
+            RNP_LOG("got subpacket len %d, while only %d bytes left", (int) splen, (int) len);
+            return false;
+        }
+
+        memchr(&subpkt, 0, sizeof(subpkt));
+
+        if ((subpkt.data = malloc(splen - 1)) == NULL) {
+            RNP_LOG("subpacket data allocation failed");
+            return false;
+        }
+
+        subpkt.type = *buf & 0x7f;
+        subpkt.critical = !!(*buf & 0x80);
+        subpkt.hashed = !!hashed;
+        subpkt.parsed = 0;
+        memcpy(subpkt.data, buf + 1, splen - 1);
+        subpkt.len = splen - 1;
+
+        signature_parse_subpacket(&subpkt);
+
+        len -= splen;
+        buf += splen;
+    }
+
+    return true;
+}
+
+/* parse v4-specific fields, not the whole signature */
+static rnp_result_t
+signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
+{
+    uint8_t  buf[5];
+    uint8_t *spbuf;
+    size_t   splen;
+
+    if (len < 5) {
+        RNP_LOG("wrong packet length, less then 5");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    if (src_read(src, buf, 5) != 5) {
+        RNP_LOG("read of 5 bytes failed");
+        return RNP_ERROR_READ;
+    }
+    len -= 5;
+
+    /* signature type */
+    sig->type = buf[0];
+
+    /* public key algorithm */
+    sig->palg = buf[1];
+
+    /* hash algorithm */
+    sig->halg = buf[2];
+
+    /* hashed subpackets length */
+    splen = read_uint16(&buf[3]);
+
+    /* hashed subpackets length + 2 bytes of length of unhashed subpackets */
+    if (len < splen + 2) {
+        RNP_LOG("wrong packet or hashed subpackets length");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    /* building hashed data */
+    if ((sig->hashed_data = malloc(splen + 6)) == NULL) {
+        RNP_LOG("allocation failed");
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    sig->hashed_data[0] = sig->version;
+    memcpy(sig->hashed_data + 1, buf, 5);
+
+    if (src_read(src, sig->hashed_data + 6, splen) != splen) {
+        RNP_LOG("read of hashed subpackets failed");
+        return RNP_ERROR_READ;
+    }
+    len -= splen;
+
+    /* parsing hashed subpackets */
+    if (!signature_parse_subpackets(sig, sig->hashed_data + 6, splen, true)) {
+        RNP_LOG("failed to parse hashed subpackets");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    /* reading unhashed subpackets */
+    if (src_read(src, buf, 2) != 2) {
+        RNP_LOG("read of unhashed len failed");
+        return RNP_ERROR_READ;
+    }
+    len -= 2;
+
+    splen = read_uint16(buf);
+    if (len < splen) {
+        RNP_LOG("not enough data for unhashed subpackets");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    if ((spbuf = malloc(splen)) == NULL) {
+        RNP_LOG("allocation of unhashed subpackets failed");
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    if (src_read(src, spbuf, splen) != splen) {
+        RNP_LOG("read of unhashed subpackets failed");
+        return RNP_ERROR_READ;
+    }
+    len -= splen;
+
+    if (!signature_parse_subpackets(sig, spbuf, splen, false)) {
+        RNP_LOG("failed to parse unhashed subpackets");
+        free(spbuf);
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    free(spbuf);
+    return RNP_SUCCESS;
+}
+
 rnp_result_t
 stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    ssize_t      len;
+    ssize_t      read;
+    ssize_t      read2;
+    uint8_t      ver;
+    uint64_t     pktend;
+    rnp_result_t res = RNP_SUCCESS;
+
+    memset(sig, 0, sizeof(*sig));
+
+    len = stream_read_pkt_len(src);
+
+    if (len < 0) {
+        return RNP_ERROR_READ;
+    } else if (len < 1) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    pktend = src->readb + len;
+
+    /* version */
+    if ((read = src_read(src, &ver, 1)) != 1) {
+        return RNP_ERROR_READ;
+    }
+    len--;
+    sig->version = ver;
+
+    /* parsing version-specific fields */
+    if ((ver == PGP_V2) || (ver == PGP_V3)) {
+        res = signature_read_v3(src, sig, len);
+    } else if (ver == PGP_V4) {
+        res = signature_read_v4(src, sig, len);
+    } else {
+        RNP_LOG("unknown signature version: %d", (int) ver);
+        res = RNP_ERROR_BAD_FORMAT;
+        read = 0;
+    }
+
+    /* skipping the packet and returning error */
+    if (res != RNP_SUCCESS) {
+        goto finish;
+    }
+
+    /* left 16 bits of the hash */
+    if (pktend - src->readb < 2) {
+        RNP_LOG("not enough data for hash left bits");
+        goto finish;
+    }
+
+    if (src_read(src, sig->lbits, 2) != 2) {
+        res = RNP_ERROR_READ;
+        goto finish;
+    }
+
+    /* signature MPIs */
+    switch (sig->palg) {
+    case PGP_PKA_RSA:
+        if ((read = stream_read_mpi(src, sig->material.rsa.m, pktend - src->readb)) < 0) {
+            res = RNP_ERROR_BAD_FORMAT;
+            goto finish;
+        }
+        sig->material.rsa.mlen = read;
+        break;
+    case PGP_PKA_DSA:
+        if (((read = stream_read_mpi(src, sig->material.dsa.r, pktend - src->readb)) < 0) ||
+            ((read2 = stream_read_mpi(src, sig->material.dsa.s, pktend - src->readb)) < 0)) {
+            res = RNP_ERROR_BAD_FORMAT;
+            goto finish;
+        }
+        sig->material.dsa.rlen = read;
+        sig->material.dsa.slen = read2;
+        break;
+    case PGP_PKA_EDDSA:
+        if (sig->version < 4) {
+            RNP_LOG("Warning! v3 EdDSA signature.");
+        }
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
+        if (((read = stream_read_mpi(src, sig->material.ecc.r, pktend - src->readb)) < 0) ||
+            ((read2 = stream_read_mpi(src, sig->material.ecc.s, pktend - src->readb)) < 0)) {
+            res = RNP_ERROR_BAD_FORMAT;
+            goto finish;
+        }
+        sig->material.ecc.rlen = read;
+        sig->material.ecc.slen = read2;
+        break;
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        if (((read = stream_read_mpi(src, sig->material.eg.r, pktend - src->readb)) < 0) ||
+            ((read2 = stream_read_mpi(src, sig->material.eg.s, pktend - src->readb)) < 0)) {
+            res = RNP_ERROR_BAD_FORMAT;
+            goto finish;
+        }
+        sig->material.eg.rlen = read;
+        sig->material.eg.slen = read2;
+        break;
+    default:
+        RNP_LOG("Unknown pk algorithm : %d", (int) sig->palg);
+        res = RNP_ERROR_BAD_FORMAT;
+    }
+
+    if (pktend > src->readb) {
+        RNP_LOG("Warning! %d bytes beyond of signature.", (int) len);
+    }
+
+finish:
+    /* skipping rest of the packet in case of non-read error */
+    if ((res != RNP_SUCCESS) && (res != RNP_ERROR_READ)) {
+        src_skip(src, pktend - src->readb);
+    }
+
+    return res;
 }
