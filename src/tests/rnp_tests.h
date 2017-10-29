@@ -121,8 +121,6 @@ void test_ffi_keygen_json_sub_pass_required(void **state);
 
 void test_ffi_detect_key_format(void **state);
 
-void test_crc24_4byte_slicer(void **state);
-
 #define rnp_assert_int_equal(state, a, b)           \
     do {                                            \
         int _rnp_a = (a);                           \

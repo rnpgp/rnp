@@ -32,6 +32,8 @@
 #ifndef CRYPTO_HASH_H_
 #define CRYPTO_HASH_H_
 
+#include <botan/ffi.h>
+
 #include <rnp/rnp_sdk.h>
 #include <repgp/repgp_def.h>
 #include "types.h"
@@ -41,6 +43,11 @@
  * Output size (in bytes) of biggest supported hash algo
  */
 #define PGP_MAX_HASH_SIZE BITS_TO_BYTES(512)
+
+/* This is hot function, forces compiler to "inline" it
+ * (linking fails if "inline" used)
+ */
+#define pgp_hash_add(x, y, z) botan_hash_update((x)->handle, y, z)
 
 /** pgp_hash_t */
 typedef struct pgp_hash_t {
@@ -52,7 +59,7 @@ typedef struct pgp_hash_t {
 const char *pgp_hash_name_botan(const pgp_hash_alg_t alg);
 
 bool pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg);
-void pgp_hash_add(pgp_hash_t *hash, const uint8_t *input, size_t len);
+bool pgp_hash_copy(pgp_hash_t *dst, const pgp_hash_t *src);
 void pgp_hash_add_int(pgp_hash_t *hash, unsigned n, size_t bytes);
 size_t pgp_hash_finish(pgp_hash_t *hash, uint8_t *output);
 

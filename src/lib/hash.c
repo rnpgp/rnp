@@ -77,7 +77,6 @@
 #include "types.h"
 #include "utils.h"
 #include <rnp/rnp_sdk.h>
-#include <botan/ffi.h>
 #include <stdio.h>
 
 static pgp_map_t hash_alg_map[] = {
@@ -89,6 +88,7 @@ static pgp_map_t hash_alg_map[] = {
   {PGP_HASH_SHA512, "SHA512"},
   {PGP_HASH_SHA224, "SHA224"},
   {PGP_HASH_SM3, "SM3"},
+  {PGP_HASH_CRC24, "CRC24"},
   {0x00, NULL}, /* this is the end-of-array marker */
 };
 
@@ -163,6 +163,11 @@ pgp_hash_name_botan(pgp_hash_alg_t hash)
         return "SM3";
 #endif
 
+#if defined(BOTAN_HAS_CRC24)
+    case PGP_HASH_CRC24:
+        return "CRC24";
+#endif
+
     default:
         return NULL;
     }
@@ -205,10 +210,22 @@ pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
     return true;
 }
 
-void
-pgp_hash_add(pgp_hash_t *hash, const uint8_t *data, size_t length)
+bool
+pgp_hash_copy(pgp_hash_t *dst, const pgp_hash_t *src)
 {
-    botan_hash_update(hash->handle, data, length);
+    if (!src || !dst) {
+        return false;
+    }
+
+    botan_hash_t handle;
+    if (botan_hash_copy_state(&handle, src->handle)) {
+        return false;
+    }
+
+    dst->_output_len = src->_output_len;
+    dst->_alg = src->_alg;
+    dst->handle = handle;
+    return true;
 }
 
 /**
@@ -233,9 +250,8 @@ size_t
 pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
 {
     size_t outlen = hash->_output_len;
-    int    rc = botan_hash_final(hash->handle, out);
-    if (rc != 0) {
-        (void) fprintf(stderr, "digest_finish botan_hash_final failed");
+    if (out && botan_hash_final(hash->handle, out)) {
+        RNP_LOG("Hash finalization failed");
         return 0;
     }
     botan_hash_destroy(hash->handle);

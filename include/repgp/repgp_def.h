@@ -489,7 +489,9 @@ typedef enum {
     PGP_HASH_SHA512 = 10, /* SHA512 */
     PGP_HASH_SHA224 = 11, /* SHA224 */
 
-    PGP_HASH_SM3 = 105 /* SM3 - temporary allocation in private range */
+    /* Private range */
+    PGP_HASH_SM3 = 105,  /* SM3 */
+    PGP_HASH_CRC24 = 106 /* CRC24 */
 } pgp_hash_alg_t;
 
 #endif
