@@ -574,22 +574,27 @@ armor_parse_headers(pgp_source_t *src)
             if (strncmp(header, "Version: ", 9) == 0) {
                 memcpy(hdrval, header + 9, hdrlen - 9);
                 hdrval[hdrlen - 9] = '\0';
+                free(param->version);
                 param->version = hdrval;
             } else if (strncmp(header, "Comment: ", 9) == 0) {
                 memcpy(hdrval, header + 9, hdrlen - 9);
                 hdrval[hdrlen - 9] = '\0';
+                free(param->comment);
                 param->comment = hdrval;
             } else if (strncmp(header, "Hash: ", 6) == 0) {
                 memcpy(hdrval, header + 6, hdrlen - 6);
                 hdrval[hdrlen - 6] = '\0';
+                free(param->hash);
                 param->hash = hdrval;
             } else if (strncmp(header, "Charset: ", 9) == 0) {
                 memcpy(hdrval, header + 9, hdrlen - 9);
                 hdrval[hdrlen - 9] = '\0';
+                free(param->charset);
                 param->charset = hdrval;
             } else {
                 header[hdrlen] = '\0';
                 RNP_LOG("unknown header '%s'", header);
+                free(hdrval);
             }
 
             src_skip(param->readsrc, hdrlen);
@@ -932,15 +937,14 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
     static const char armor_start[] = "-----BEGIN PGP";
     static const char clear_start[] = "-----BEGIN PGP SIGNED MESSAGE-----";
     rnp_result_t      res = RNP_ERROR_BAD_FORMAT;
-    pgp_source_t      armorsrc;
+    pgp_source_t      armorsrc = {0};
     uint8_t           readbuf[PGP_INPUT_CACHE_SIZE];
     ssize_t           read;
 
     read = src_peek(src, readbuf, sizeof(clear_start));
     if (read < sizeof(armor_start)) {
         RNP_LOG("can't read enough data from source");
-        res = RNP_ERROR_READ;
-        goto finish;
+        return RNP_ERROR_READ;
     }
 
     /* Trying armored or cleartext data */
@@ -949,7 +953,7 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
         /* checking whether it is cleartext */
         if (strstr((char *) readbuf, clear_start)) {
             RNP_LOG("source is cleartext, not armored");
-            goto finish;
+            return RNP_ERROR_BAD_FORMAT;
         }
 
         /* initializing armored message */
@@ -960,7 +964,7 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
         }
     } else {
         RNP_LOG("source is not armored data");
-        goto finish;
+        return RNP_ERROR_BAD_FORMAT;
     }
 
     /* Reading data from armored source and writing it to the output */
