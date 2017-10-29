@@ -111,7 +111,7 @@ int rnp_format_json(void *, const char *, const int);
 int rnp_write_sshkey(rnp_t *, char *, const char *, char *, size_t);
 
 /**
- * @brief   Armor (convert to ASCII) binary PGP data
+ * @brief   Armor (convert to ASCII) or dearmor (convert back to binary) PGP data
  *
  * @param   ctx  Initialized rnp context. Field armortype may specify the type of armor
  *               header used, otherwise it will be detected automatically from the source.
@@ -120,19 +120,7 @@ int rnp_write_sshkey(rnp_t *, char *, const char *, char *, size_t);
  *
  * @return  RNP_SUCCESS on success, error code on failure
  */
-rnp_result_t rnp_armor_stream(rnp_ctx_t *ctx, const char *in, const char *out);
-
-/**
- * @brief   Dearmor (convert to binary) PGP data.
- *
- * @param   ctx         Initialized rnp context
- * @param   in          Input file path
- * @param   out         Output file path
- *
- * @return  RNP_SUCCESS on success, error code on failure
- */
-rnp_result_t rnp_dearmor_stream(rnp_ctx_t *ctx, const char *in, const char *out);
-
+rnp_result_t rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const char *out);
 
 END_DECLS__
 
