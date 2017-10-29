@@ -272,23 +272,93 @@ typedef struct pgp_sig_t {
     pgp_hash_t *hash;         /* the hash filled in for the data so far */
 } pgp_sig_t;
 
+/* Signature subpacket, see 5.2.3.1 in RFC 4880 and RFC 4880 bis 02 */
 typedef struct pgp_sig_subpkt_t {
-    uint8_t  type;
-    unsigned len;
-    uint8_t *data;
-    unsigned critical : 1;
-    unsigned hashed : 1;
-    unsigned raw : 1;
+    pgp_sig_subpacket_type_t type;         /* type of the subpacket */
+    unsigned                 len;          /* length of the data */
+    uint8_t *                data;         /* raw subpacket data, excluding the header */
+    unsigned                 critical : 1; /* critical flag */
+    unsigned                 hashed : 1;   /* whether subpacket is hashed or not */
+    unsigned                 parsed : 1;   /* whether subpacket was successfully parsed */
+    union {
+        uint32_t create; /* 5.2.3.4.   Signature Creation Time */
+        uint32_t expiry; /* 5.2.3.6.   Key Expiration Time */
+                         /* 5.2.3.10.  Signature Expiration Time */
+        bool exportable; /* 5.2.3.11.  Exportable Certification */
+        struct {
+            uint8_t level;
+            uint8_t amount;
+        } trust; /* 5.2.3.13.  Trust Signature */
+        struct {
+            const char *str;
+            unsigned    len;
+        } regexp;       /* 5.2.3.14.  Regular Expression */
+        bool revocable; /* 5.2.3.12.  Revocable */
+        struct {
+            uint8_t *arr;
+            unsigned len;
+        } preferred; /* 5.2.3.7.  Preferred Symmetric Algorithms */
+                     /* 5.2.3.8.  Preferred Hash Algorithms */
+                     /* 5.2.3.9.  Preferred Compression Algorithms */
+        struct {
+            uint8_t class;
+            pgp_pubkey_alg_t pkalg;
+            uint8_t *        fp;
+        } revocation_key; /* 5.2.3.15.  Revocation Key */
+        uint8_t *issuer;  /* 5.2.3.5.   Issuer */
+        struct {
+            uint8_t     flags[4];
+            unsigned    nlen;
+            unsigned    vlen;
+            const char *name;
+            const char *value;
+        } notation; /* 5.2.3.16.  Notation Data */
+        struct {
+            bool no_modify;
+        } ks_prefs; /* 5.2.3.17.  Key Server Preferences */
+        struct {
+            const char *uri;
+            unsigned    len;
+        } preferred_ks;   /* 5.2.3.18.  Preferred Key Server */
+        bool primary_uid; /* 5.2.3.19.  Primary User ID */
+        struct {
+            const char *uri;
+            unsigned    len;
+        } policy;          /* 5.2.3.20.  Policy URI */
+        uint8_t key_flags; /* 5.2.3.21.  Key Flags */
+        struct {
+            const char *uid;
+            unsigned    len;
+        } signer; /* 5.2.3.22.  Signer's User ID */
+        struct {
+            uint8_t     code;
+            const char *str;
+            unsigned    len;
+        } revocation_reason; /* 5.2.3.23.  Reason for Revocation */
+        bool feature_mdc;    /* 5.2.3.24.  Features */
+        struct {
+            pgp_pubkey_alg_t pkalg;
+            pgp_hash_alg_t   halg;
+            uint8_t *        hash;
+            unsigned         hlen;
+        } sig_target; /* 5.2.3.25.  Signature Target */
+        struct {
+            uint8_t  version;
+            uint8_t *fp;
+            unsigned len;
+        } issuer_fp; /* 5.2.3.27.  Issuer Fingerprint, RFC 4880 bis 02 */
+    } fields;        /* parsed contents of the subpacket */
 } pgp_sig_subpkt_t;
 
 typedef struct pgp_signature_t {
     pgp_version_t version;
     /* common v3 and v4 fields */
-    pgp_sig_type_t   sigtype;
+    pgp_sig_type_t   type;
     pgp_pubkey_alg_t palg;
     pgp_hash_alg_t   halg;
-    uint16_t         lbits;
+    uint8_t          lbits[2];
     uint8_t *        hashed_data;
+    size_t           hashed_len;
 
     /* signature material */
     union {
@@ -308,6 +378,12 @@ typedef struct pgp_signature_t {
             unsigned rlen;
             unsigned slen;
         } ecc;
+        struct {
+            uint8_t  r[PGP_MPINT_SIZE];
+            uint8_t  s[PGP_MPINT_SIZE];
+            unsigned rlen;
+            unsigned slen;
+        } eg;
     } material;
 
     /* v3 - only fields */

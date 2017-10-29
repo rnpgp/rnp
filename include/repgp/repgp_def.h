@@ -418,6 +418,40 @@ typedef enum {
     PGP_SIG_3RD_PARTY = 0x50 /* Third-Party Confirmation signature */
 } pgp_sig_type_t;
 
+/** Signature Subpacket Type
+ * Signature subpackets contains additional information about the signature
+ *
+ * \see RFC4880 5.2.3.1-5.2.3.26
+ */
+
+typedef enum {
+    PGP_SIG_SUBPKT_CREATION_TIME = 2,       /* signature creation time */
+    PGP_SIG_SUBPKT_EXPIRATION_TIME = 3,     /* signature expiration time */
+    PGP_SIG_SUBPKT_EXPORT_CERT = 4,         /* exportable certification */
+    PGP_SIG_SUBPKT_TRUST = 5,               /* trust signature */
+    PGP_SIG_SUBPKT_REGEXP = 6,              /* regular expression */
+    PGP_SIG_SUBPKT_REVOCABLE = 7,           /* revocable */
+    PGP_SIG_SUBPKT_KEY_EXPIRY = 9,          /* key expiration time */
+    PGP_SIG_SUBPKT_RESERVED = 10,           /* reserved */
+    PGP_SIG_SUBPKT_PREFERRED_SKA = 11,      /* preferred symmetric algs */
+    PGP_SIG_SUBPKT_REVOCATION_KEY = 12,     /* revocation key */
+    PGP_SIG_SUBPKT_ISSUER_KEY_ID = 16,      /* issuer key ID */
+    PGP_SIG_SUBPKT_NOTATION_DATA = 20,      /* notation data */
+    PGP_SIG_SUBPKT_PREFERRED_HASH = 21,     /* preferred hash algs */
+    PGP_SIG_SUBPKT_PREF_COMPRESS = 22,      /* preferred compression algorithms */
+    PGP_SIG_SUBPKT_KEYSERV_PREFS = 23,      /* key server preferences */
+    PGP_SIG_SUBPKT_PREF_KEYSERV = 24,       /* preferred key Server */
+    PGP_SIG_SUBPKT_PRIMARY_USER_ID = 25,    /* primary user ID */
+    PGP_SIG_SUBPKT_POLICY_URI = 26,         /* policy URI */
+    PGP_SIG_SUBPKT_KEY_FLAGS = 27,          /* key flags */
+    PGP_SIG_SUBPKT_SIGNERS_USER_ID = 28,    /* signer's user ID */
+    PGP_SIG_SUBPKT_REVOCATION_REASON = 29,  /* reason for revocation */
+    PGP_SIG_SUBPKT_FEATURES = 30,           /* features */
+    PGP_SIG_SUBPKT_SIGNATURE_TARGET = 31,   /* signature target */
+    PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE = 32, /* embedded signature */
+    PGP_SIG_SUBPKT_ISSUER_FPR = 33          /* issuer fingerprint */
+} pgp_sig_subpacket_type_t;
+
 /** Key Flags
  *
  * \see RFC4880 5.2.3.21
