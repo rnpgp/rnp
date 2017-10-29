@@ -111,18 +111,16 @@ int rnp_format_json(void *, const char *, const int);
 int rnp_write_sshkey(rnp_t *, char *, const char *, char *, size_t);
 
 /**
- * @brief   Perorm data conversion to/from ASCII Armor
+ * @brief   Armor (convert to ASCII) or dearmor (convert back to binary) PGP data
  *
- * @param   ctx         Initialized rnp context
- * @param   in          Input file path
- * @param   out         Output file path
- * @param   is_armor    True if convert to armor, false from armor to binary
- * @param   data_type   When converting to armor, type of the data to be converted
+ * @param   ctx  Initialized rnp context. Field armortype may specify the type of armor
+ *               header used, otherwise it will be detected automatically from the source.
+ * @param   in   Input file path
+ * @param   out  Output file path
  *
  * @return  RNP_SUCCESS on success, error code on failure
  */
-rnp_result_t rnp_armor_stream(
-  rnp_ctx_t *ctx, const char *in, const char *out, bool is_armor, unsigned data_type);
+rnp_result_t rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const char *out);
 
 END_DECLS__
 

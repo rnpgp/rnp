@@ -292,8 +292,8 @@ rnp_cfg_getint(rnp_cfg_t *cfg, const char *key)
 int
 rnp_cfg_getint_default(rnp_cfg_t *cfg, const char *key, int def)
 {
-    int ret = rnp_cfg_getint(cfg, key);
-    return ret ? ret : def;
+    const char *val = rnp_cfg_get(cfg, key);
+    return val ? atoi(val) : def;
 }
 
 /** @brief return boolean value for the key if there is one

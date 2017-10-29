@@ -1422,12 +1422,12 @@ finish:
 }
 
 rnp_result_t
-rnp_armor_stream(
-  rnp_ctx_t *ctx, const char *in, const char *out, bool is_armor, unsigned data_type)
+rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const char *out)
 {
-    pgp_source_t src;
-    pgp_dest_t   dst;
-    rnp_result_t result;
+    pgp_source_t      src;
+    pgp_dest_t        dst;
+    rnp_result_t      result;
+    pgp_armored_msg_t msgtype;
 
     if (!rnp_initialize_input(ctx, &src, in)) {
         RNP_LOG("failed to initialize reading");
@@ -1440,12 +1440,19 @@ rnp_armor_stream(
         return RNP_ERROR_WRITE;
     }
 
-    result = is_armor ? rnp_armor_source(&src, &dst, (pgp_armored_msg_t) data_type) :
-                        rnp_dearmor_source(&src, &dst);
+    if (armor) {
+        msgtype = (pgp_armored_msg_t) ctx->armortype;
+        if (msgtype == PGP_ARMORED_UNKNOWN) {
+            msgtype = rnp_armor_guess_type(&src);
+        }
+
+        result = rnp_armor_source(&src, &dst, msgtype);
+    } else {
+        result = rnp_dearmor_source(&src, &dst);
+    }
 
     if (result != RNP_SUCCESS) {
         RNP_LOG("error code 0x%x", result);
-        return result;
     }
 
     src_close(&src);

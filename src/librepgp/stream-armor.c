@@ -26,6 +26,7 @@
 
 #include "config.h"
 #include "stream-armor.h"
+#include "stream-packet.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -445,28 +446,28 @@ find_armor_header(const char *buf, size_t len, size_t *hdrlen)
     return NULL;
 }
 
-pgp_armored_msg_t
+static pgp_armored_msg_t
 armor_str_to_data_type(const char *str, size_t len)
 {
     if (!str) {
         return PGP_ARMORED_UNKNOWN;
     }
 
-    if (!strncmp(str, "BEGIN PGP MESSAGE", len) || !strncmp("msg", str, len)) {
+    if (!strncmp(str, "BEGIN PGP MESSAGE", len)) {
         return PGP_ARMORED_MESSAGE;
     }
 
     if (!strncmp(str, "BEGIN PGP PUBLIC KEY BLOCK", len) ||
-        !strncmp(str, "BEGIN PGP PUBLIC KEY", len) || !strncmp("pubkey", str, len)) {
+        !strncmp(str, "BEGIN PGP PUBLIC KEY", len)) {
         return PGP_ARMORED_PUBLIC_KEY;
     }
 
     if (!strncmp(str, "BEGIN PGP SECRET KEY BLOCK", len) ||
-        !strncmp(str, "BEGIN PGP SECRET KEY", len) || !strncmp("seckey", str, len)) {
+        !strncmp(str, "BEGIN PGP SECRET KEY", len)) {
         return PGP_ARMORED_SECRET_KEY;
     }
 
-    if (!strncmp(str, "BEGIN PGP SIGNATURE", len) || !strncmp("sign", str, len)) {
+    if (!strncmp(str, "BEGIN PGP SIGNATURE", len)) {
         return PGP_ARMORED_SIGNATURE;
     }
 
@@ -474,6 +475,40 @@ armor_str_to_data_type(const char *str, size_t len)
         return PGP_ARMORED_CLEARTEXT;
     }
     return PGP_ARMORED_UNKNOWN;
+}
+
+pgp_armored_msg_t
+rnp_armor_guess_type(pgp_source_t *src)
+{
+    uint8_t ptag;
+    ssize_t read;
+    int     ptype;
+
+    read = src_peek(src, &ptag, 1);
+    if (read < 1) {
+        return PGP_ARMORED_UNKNOWN;
+    }
+
+    ptype = get_packet_type(ptag);
+
+    switch (ptype) {
+    case PGP_PTAG_CT_PK_SESSION_KEY:
+    case PGP_PTAG_CT_SK_SESSION_KEY:
+    case PGP_PTAG_CT_1_PASS_SIG:
+    case PGP_PTAG_CT_SE_DATA:
+    case PGP_PTAG_CT_SE_IP_DATA:
+    case PGP_PTAG_CT_COMPRESSED:
+    case PGP_PTAG_CT_LITDATA:
+        return PGP_ARMORED_MESSAGE;
+    case PGP_PTAG_CT_PUBLIC_KEY:
+        return PGP_ARMORED_PUBLIC_KEY;
+    case PGP_PTAG_CT_SECRET_KEY:
+        return PGP_ARMORED_SECRET_KEY;
+    case PGP_PTAG_CT_SIGNATURE:
+        return PGP_ARMORED_SIGNATURE;
+    default:
+        return PGP_ARMORED_UNKNOWN;
+    }
 }
 
 static bool

@@ -102,6 +102,7 @@ typedef struct rnp_ctx_t {
     bool           armor;      /* whether to use ASCII armor on output */
     list           recipients; /* recipients of the encrypted message */
     int            passwordc;  /* number of passwords to encrypt message for */
+    unsigned       armortype; /* type of the armored message, used in enarmor command */
 } rnp_ctx_t;
 
 #endif // __RNP_TYPES__
