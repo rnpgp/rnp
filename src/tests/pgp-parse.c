@@ -26,6 +26,7 @@
 
 #include <assert.h>
 #include <sys/time.h>
+#include <botan/ffi.h>
 
 #include <rnp/rnp.h>
 #include <repgp/repgp.h>
@@ -49,11 +50,8 @@
 #include "list.h"
 #include "pgp-parse-data.h"
 #include "compress.h"
-#include "crc24_radix64.h"
 
 static const char *KEYRING_1_PASSWORD = "password";
-
-uint32_t ref1(uint32_t crc, unsigned char *octets, size_t len);
 
 static bool
 read_file_to_memory(rnp_test_state_t *rstate,
@@ -442,78 +440,4 @@ test_repgp_list_packets(void **state)
     free(rnp.io);
     rnp.io = NULL;
     rnp_end(&rnp);
-}
-
-static bool
-test_CRC32_KAT()
-{
-    bool     ret = true;
-    uint8_t  buf[15] = "ABCDEF012345678";
-    uint32_t crc = 0;
-
-    ret &= (0x382CC0 == crc24_final(crc24_update(CRC24_FAST_INIT, buf, sizeof(buf))));
-    crc = crc24_update(CRC24_FAST_INIT, buf, sizeof(buf) - 3);
-    crc = crc24_update(crc, &buf[sizeof(buf) - 3], 3);
-    ret &= (0x382CC0 == crc24_final(crc));
-    return ret;
-}
-
-#define REF_CRC24_INIT 0xB704CEL
-#define REF_CRC24_POLY 0x1864CFBL
-
-// CRC24-Radix64 reference implementation from RFC 4880
-uint32_t
-ref1(uint32_t crc, unsigned char *octets, size_t len)
-{
-    int i;
-    while (len--) {
-        crc ^= (*octets++) << 16;
-        for (i = 0; i < 8; i++) {
-            crc <<= 1;
-            if (crc & 0x1000000)
-                crc ^= REF_CRC24_POLY;
-        }
-    }
-    return crc & 0xFFFFFFL;
-}
-
-static bool
-test_CRC32_REF()
-{
-    static const uint32_t BUFLEN = 9999;
-    struct timeval        t1 = {0};
-    uint8_t               buf[BUFLEN];
-
-    gettimeofday(&t1, NULL);
-    srand(t1.tv_sec);
-    for (int i = 0; i < BUFLEN; i++) {
-        buf[i] = rand() % 0xFF;
-    }
-
-    if (ref1(REF_CRC24_INIT, buf, BUFLEN) !=
-        crc24_final(crc24_update(CRC24_FAST_INIT, buf, BUFLEN))) {
-        return false;
-    }
-
-    for (int i = 1; i <= BUFLEN; i++) {
-        uint32_t c1 = ref1(REF_CRC24_INIT, buf, i);
-        uint32_t c2 = crc24_update(CRC24_FAST_INIT, buf, i);
-
-        if (ref1(c1, buf, BUFLEN) != crc24_final(crc24_update(c2, buf, BUFLEN))) {
-            return false;
-        }
-    }
-
-    return true;
-}
-#undef REF_CRC24_INIT
-#undef REF_CRC24_POLY
-
-void
-test_crc24_4byte_slicer(void **state)
-{
-    rnp_test_state_t *rstate = *state;
-
-    rnp_assert_true(rstate, test_CRC32_KAT());
-    rnp_assert_true(rstate, test_CRC32_REF());
 }

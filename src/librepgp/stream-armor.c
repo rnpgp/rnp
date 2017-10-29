@@ -32,17 +32,20 @@
 #include <unistd.h>
 #include <string.h>
 #include <rnp/rnp_def.h>
+
+#include "config.h"
+#include "stream-armor.h"
 #include "defs.h"
 #include "types.h"
 #include "symmetric.h"
 #include "utils.h"
-#include "crc24_radix64.h"
+#include "hash.h"
 
 #define ARMORED_BLOCK_SIZE (4096)
 
 typedef struct pgp_source_armored_param_t {
     pgp_source_t *    readsrc;         /* source to read from */
-    pgp_armored_msg_t type;            /* message type */
+    pgp_armored_msg_t type;            /* type of the message */
     char *            armorhdr;        /* armor header */
     char *            version;         /* Version: header if any */
     char *            comment;         /* Comment: header if any */
@@ -50,12 +53,12 @@ typedef struct pgp_source_armored_param_t {
     char *            charset;         /* Charset: header if any */
     uint8_t  rest[ARMORED_BLOCK_SIZE]; /* unread decoded bytes, makes implementation easier */
     unsigned restlen;                  /* number of bytes in rest */
-    unsigned restpos;  /* index of first unread byte in rest, restpos <= restlen */
-    uint8_t  brest[3]; /* decoded 6-bit tail bytes */
-    unsigned brestlen; /* number of bytes in brest */
-    bool     eofb64;   /* end of base64 stream reached */
-    unsigned crc;      /* crc-24 of already read data */
-    unsigned readcrc;  /* crc-24 from the armored data */
+    unsigned restpos;    /* index of first unread byte in rest, restpos <= restlen */
+    uint8_t  brest[3];   /* decoded 6-bit tail bytes */
+    unsigned brestlen;   /* number of bytes in brest */
+    bool     eofb64;     /* end of base64 stream reached */
+    uint8_t  readcrc[3]; /* crc-24 from the armored data */
+    pgp_hash_t crc_ctx;  /* CTX used to calculate CRC */
 } pgp_source_armored_param_t;
 
 typedef struct pgp_dest_armored_param_t {
@@ -66,7 +69,7 @@ typedef struct pgp_dest_armored_param_t {
     unsigned          llen;    /* length of the base64 line, defaults to 76 as per RFC */
     uint8_t           tail[2]; /* bytes which didn't fit into 3-byte boundary */
     unsigned          tailc;   /* number of bytes in tail */
-    unsigned          crc;
+    pgp_hash_t        crc_ctx; /* CTX used to calculate CRC */
 } pgp_dest_armored_param_t;
 
 /*
@@ -186,7 +189,10 @@ armor_read_crc(pgp_source_t *src)
             }
         }
 
-        param->readcrc = (dec[0] << 18) | (dec[1] << 12) | (dec[2] << 6) | (dec[3]);
+        param->readcrc[0] = (dec[0] << 2) | ((dec[1] >> 4) & 0x0F);
+        param->readcrc[1] = (dec[1] << 4) | ((dec[2] >> 2) & 0x0F);
+        param->readcrc[2] = (dec[2] << 6) | dec[3];
+
         src_skip(param->readsrc, 5);
         armor_skip_eol(param->readsrc);
         return true;
@@ -242,7 +248,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
         if (param->restlen - param->restpos >= len) {
             memcpy(bufptr, &param->rest[param->restpos], len);
             param->restpos += len;
-            param->crc = crc24_update(param->crc, bufptr, len);
+            pgp_hash_add(&param->crc_ctx, bufptr, len);
             return len;
         } else {
             left = len - (param->restlen - param->restpos);
@@ -352,7 +358,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
         *bptr++ = b24 & 0xff;
     }
 
-    param->crc = crc24_update(param->crc, buf, bufptr - (uint8_t *) buf);
+    pgp_hash_add(&param->crc_ctx, buf, bufptr - (uint8_t *) buf);
 
     if (param->eofb64) {
         if ((dend - dptr + eqcount) % 4 != 0) {
@@ -368,10 +374,17 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
             *bptr++ = (*dptr << 2) | (*(dptr + 1) >> 4);
         }
 
-        param->crc = crc24_update(param->crc, param->rest, bptr - param->rest);
+        uint8_t    crc_fin[5];
+        pgp_hash_t fin_ctx = {0};
 
-        /* we calculate crc when input stream finished instead of when all data is read */
-        if (crc24_final(param->crc) != param->readcrc) {
+        /* Calculate CRC after reading whole input stream */
+        pgp_hash_add(&param->crc_ctx, param->rest, bptr - param->rest);
+        if (!pgp_hash_copy(&fin_ctx, &param->crc_ctx) || !pgp_hash_finish(&fin_ctx, crc_fin)) {
+            RNP_LOG("Can't finalize RNP ctx");
+            return -1;
+        }
+
+        if (memcmp(param->readcrc, crc_fin, 3)) {
             RNP_LOG("CRC mismatch");
             return -1;
         }
@@ -390,7 +403,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
         read = left > param->restlen ? param->restlen : left;
         memcpy(bufptr, param->rest, read);
         if (!param->eofb64) {
-            param->crc = crc24_update(param->crc, bufptr, read);
+            pgp_hash_add(&param->crc_ctx, bufptr, read);
         }
         left -= read;
         param->restpos += read;
@@ -408,6 +421,7 @@ armored_src_close(pgp_source_t *src)
         return;
     }
 
+    (void) pgp_hash_finish(&param->crc_ctx, NULL);
     free(param->armorhdr);
     free(param->version);
     free(param->comment);
@@ -620,7 +634,12 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc)
 
     param = src->param;
     param->readsrc = readsrc;
-    param->crc = CRC24_FAST_INIT;
+
+    if (!pgp_hash_create(&param->crc_ctx, PGP_HASH_CRC24)) {
+        RNP_LOG("Internal error");
+        return RNP_ERROR_GENERIC;
+    }
+
     src->read = armored_src_read;
     src->close = armored_src_close;
     src->type = PGP_STREAM_ARMORED;
@@ -754,7 +773,7 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     }
 
     /* update crc */
-    param->crc = crc24_update(param->crc, buf, len);
+    pgp_hash_add(&param->crc_ctx, buf, len);
 
     /* processing tail if any */
     if (len + param->tailc < 3) {
@@ -864,10 +883,9 @@ armored_dst_close(pgp_dest_t *dst, bool discard)
 
         /* writing CRC and EOL */
         buf[0] = EQ;
-        uint32_t crc_fin = crc24_final(param->crc);
-        crcbuf[0] = (crc_fin >> 16) & 0xff;
-        crcbuf[1] = (crc_fin >> 8) & 0xff;
-        crcbuf[2] = crc_fin & 0xff;
+
+        // At this point crc_ctx is initialized, so call can't fail
+        (void) pgp_hash_finish(&param->crc_ctx, crcbuf);
         armored_encode3(&buf[1], crcbuf);
         dst_write(param->writedst, buf, 5);
         armor_write_eol(param);
@@ -901,10 +919,15 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     dst->clen = 0;
     dst->param = param;
     dst->werr = RNP_SUCCESS;
+
+    if (!pgp_hash_create(&param->crc_ctx, PGP_HASH_CRC24)) {
+        RNP_LOG("Internal error");
+        return RNP_ERROR_GENERIC;
+    }
+
     param->writedst = writedst;
     param->type = msgtype;
     param->usecrlf = true;
-    param->crc = CRC24_FAST_INIT;
     param->llen = 76; /* must be multiple of 4 */
 
     if (!armor_message_header(param->type, false, hdr)) {

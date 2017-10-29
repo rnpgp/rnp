@@ -19,7 +19,6 @@ librnp_la_SOURCES	= \
 	crypto/sm2.c \
 	bufgap.c \
 	compress.c \
-	crc24_radix64.c \
 	crypto.c \
 	fingerprint.c \
 	generate-key.c \
