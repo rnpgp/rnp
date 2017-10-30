@@ -321,7 +321,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     int         cc;
     int         sz;
     bool        clearsign = (cmd == CMD_CLEARSIGN);
-    rnp_ctx_t   ctx;
+    rnp_ctx_t   ctx = {0};
     // TODO: Probably something smarter should be done here
     static const char stdout_marker[2] = "-";
     repgp_io_t *      io = repgp_create_io();
