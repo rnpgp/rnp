@@ -375,11 +375,9 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
         }
 
         uint8_t    crc_fin[5];
-        pgp_hash_t fin_ctx = {0};
-
         /* Calculate CRC after reading whole input stream */
         pgp_hash_add(&param->crc_ctx, param->rest, bptr - param->rest);
-        if (!pgp_hash_copy(&fin_ctx, &param->crc_ctx) || !pgp_hash_finish(&fin_ctx, crc_fin)) {
+        if (!pgp_hash_finish(&param->crc_ctx, crc_fin)) {
             RNP_LOG("Can't finalize RNP ctx");
             return -1;
         }
