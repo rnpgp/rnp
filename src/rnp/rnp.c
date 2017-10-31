@@ -400,7 +400,9 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
     case CMD_SYM_ENCRYPT:
-        ctx.passwordc = 1;
+        ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
+        ctx.halg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
+        rnp_encrypt_add_password(&ctx);
     /* FALLTHROUGH */
     case CMD_ENCRYPT: {
         ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));

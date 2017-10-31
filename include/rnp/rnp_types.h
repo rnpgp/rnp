@@ -87,6 +87,12 @@ typedef struct rnp_params_t {
     pgp_passphrase_provider_t passphrase_provider;
 } rnp_params_t;
 
+typedef struct rnp_symmetric_pass_info_t {
+    pgp_s2k_t      s2k;
+    pgp_symm_alg_t s2k_cipher;
+    uint8_t        key[PGP_MAX_KEY_SIZE];
+} rnp_symmetric_pass_info_t;
+
 /* rnp operation context : contains additional data about the currently ongoing operation */
 typedef struct rnp_ctx_t {
     rnp_t *        rnp;        /* rnp structure */
@@ -101,8 +107,8 @@ typedef struct rnp_ctx_t {
     bool           overwrite;  /* allow to overwrite output file if exists */
     bool           armor;      /* whether to use ASCII armor on output */
     list           recipients; /* recipients of the encrypted message */
-    int            passwordc;  /* number of passwords to encrypt message for */
-    unsigned       armortype; /* type of the armored message, used in enarmor command */
+    list           passwords;  /* list of rnp_symmetric_pass_info_t */
+    unsigned       armortype;  /* type of the armored message, used in enarmor command */
 } rnp_ctx_t;
 
 #endif // __RNP_TYPES__

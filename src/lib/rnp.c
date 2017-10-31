@@ -92,6 +92,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "utils.h"
 #include "crypto.h"
 #include "crypto/bn.h"
+#include "crypto/s2k.h"
 #include "defs.h"
 #include <rnp/rnp_def.h>
 #include "pgp-key.h"
@@ -578,7 +579,7 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
 
     /* If system resource constraints are in effect then attempt to
      * disable core dumps.
-    */
+     */
     if (!params->enable_coredumps) {
 #ifdef HAVE_SYS_RESOURCE_H
         coredumps = disable_core_dumps();
@@ -1933,4 +1934,70 @@ done:
         free(io);
     }
     return (int) cc;
+}
+
+rnp_result_t
+rnp_encrypt_set_pass_info(rnp_symmetric_pass_info_t *info,
+                          const char *               password,
+                          pgp_hash_alg_t             hash_alg,
+                          size_t                     iterations,
+                          pgp_symm_alg_t             s2k_cipher)
+{
+    info->s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    info->s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
+    info->s2k.hash_alg = hash_alg;
+    if (pgp_random(info->s2k.salt, sizeof(info->s2k.salt))) {
+        return RNP_ERROR_GENERIC;
+    }
+    info->s2k.iterations = pgp_s2k_encode_iterations(iterations);
+    info->s2k_cipher = s2k_cipher;
+    /* Note: we're relying on the fact that a longer-than-needed key length
+     * here does not change the entire derived key (it just generates unused
+     * extra bytes at the end). We derive a key of our maximum supported length,
+     * which is a bit wasteful.
+     *
+     * This is done because we do not yet know what cipher this key will actually
+     * end up being used with until later.
+     *
+     * An alternative would be to keep a list of actual passwords and s2k params,
+     * and save the key derivation for later.
+     */
+    if (!pgp_s2k_derive_key(&info->s2k, password, info->key, sizeof(info->key))) {
+        return RNP_ERROR_GENERIC;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_encrypt_add_password(rnp_ctx_t *ctx)
+{
+    rnp_result_t              ret = RNP_ERROR_GENERIC;
+    rnp_symmetric_pass_info_t info = {{(pgp_s2k_usage_t)0}};
+    char                      password[MAX_PASSPHRASE_LENGTH] = {0};
+
+    if (!pgp_request_passphrase(&ctx->rnp->passphrase_provider,
+                                &(pgp_passphrase_ctx_t){.op = PGP_OP_ENCRYPT_SYM, .key = NULL},
+                                password,
+                                sizeof(password))) {
+        return RNP_ERROR_BAD_PASSPHRASE;
+    }
+
+    if ((ret = rnp_encrypt_set_pass_info(
+           &info,
+           password,
+           ctx->halg /* TODO: should be separate s2k-specific */,
+           PGP_S2K_DEFAULT_ITERATIONS /* TODO: make this configurable */,
+           ctx->ealg /* TODO: should be separate s2k-specific */))) {
+        goto done;
+    }
+    if (!list_append(&ctx->passwords, &info, sizeof(info))) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+    ret = RNP_SUCCESS;
+
+done:
+    pgp_forget(password, sizeof(password));
+    pgp_forget(&info, sizeof(info));
+    return ret;
 }
