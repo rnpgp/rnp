@@ -160,7 +160,7 @@ rnp_passphrase_provider_string(const pgp_passphrase_ctx_t *ctx,
 {
     char *passc = (char *) userdata;
 
-    if (!passc) {
+    if (!passc || strlen(passc) >= (passphrase_size - 1)) {
         return false;
     }
 
