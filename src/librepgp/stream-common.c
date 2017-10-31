@@ -432,7 +432,7 @@ init_file_dest(pgp_dest_t *dst, const char *path)
     fd = open(path, flags, 0600);
     if (fd < 0) {
         RNP_LOG("failed to create file '%s'", path);
-        return false;
+        return RNP_ERROR_WRITE;
     }
 
     if ((param = calloc(1, sizeof(*param))) == NULL) {
