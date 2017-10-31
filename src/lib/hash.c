@@ -250,6 +250,10 @@ size_t
 pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
 {
     size_t outlen = hash->_output_len;
+    if (!hash || !hash->handle) {
+        return 0;
+    }
+
     if (out && botan_hash_final(hash->handle, out)) {
         RNP_LOG("Hash finalization failed");
         return 0;
