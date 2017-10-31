@@ -39,6 +39,9 @@
 
 #define RNP_LOG(...) RNP_LOG_FD(stderr, __VA_ARGS__)
 
+/* number of elements in an array */
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
+
 #define CHECK(exp, val, err)                          \
     do {                                              \
         if ((exp) != (val)) {                         \
@@ -55,6 +58,24 @@
             repgp_parser_content_free(pkt);                    \
         }                                                      \
     } while (/* CONSTCOND */ 0)
+
+/*
+ * @params
+ * array:       array of the structures to lookup
+ * id_field     name of the field to compare against
+ * ret_field    filed to return
+ * lookup_value lookup value
+ * ret          return value
+ */
+#define ARRAY_LOOKUP_BY_ID(array, id_field, ret_field, lookup_value, ret)   \
+    do {                                                                    \
+        for (size_t i__ = 0; i__ < ARRAY_SIZE(array); i__++) {              \
+            if ((array)[i__].id_field == (lookup_value)) {                  \
+                (ret) = (array)[i__].ret_field;                             \
+                break;                                                      \
+            }                                                               \
+        }                                                                   \
+    } while (0)
 
 /* Formating helpers */
 #define PRItime "ll"
@@ -74,9 +95,6 @@
 #ifndef RNP_UNCONST
 #define RNP_UNCONST(a) ((void *) (unsigned long) (const void *) (a))
 #endif
-
-/* number of elements in an array */
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
 /* debugging helpers*/
 int  rnp_set_debug(const char *);

@@ -79,18 +79,19 @@
 #include <rnp/rnp_sdk.h>
 #include <stdio.h>
 
-static pgp_map_t hash_alg_map[] = {
-  {PGP_HASH_MD5, "MD5"},
-  {PGP_HASH_SHA1, "SHA1"},
-  {PGP_HASH_RIPEMD, "RIPEMD160"},
-  {PGP_HASH_SHA256, "SHA256"},
-  {PGP_HASH_SHA384, "SHA384"},
-  {PGP_HASH_SHA512, "SHA512"},
-  {PGP_HASH_SHA224, "SHA224"},
-  {PGP_HASH_SM3, "SM3"},
-  {PGP_HASH_CRC24, "CRC24"},
-  {0x00, NULL}, /* this is the end-of-array marker */
-};
+static const struct hash_alg_map_t {
+    pgp_hash_alg_t  type;
+    const char      *name;
+    const char      *botan_name;
+} hash_alg_map[] = {{PGP_HASH_MD5, "MD5", "MD5"},
+                    {PGP_HASH_SHA1, "SHA1", "SHA-1"},
+                    {PGP_HASH_RIPEMD, "RIPEMD160", "RIPEMD-160"},
+                    {PGP_HASH_SHA256, "SHA256", "SHA-256"},
+                    {PGP_HASH_SHA384, "SHA384", "SHA-384"},
+                    {PGP_HASH_SHA512, "SHA512", "SHA-512"},
+                    {PGP_HASH_SHA224, "SHA224", "SHA-224"},
+                    {PGP_HASH_SM3, "SM3", "SM3"},
+                    {PGP_HASH_CRC24, "CRC24", "CRC24"}};
 
 /**
  * \ingroup Core_Print
@@ -102,7 +103,23 @@ static pgp_map_t hash_alg_map[] = {
 const char *
 pgp_show_hash_alg(uint8_t hash)
 {
-    return pgp_str_from_map(hash, hash_alg_map);
+    const char *ret = NULL;
+    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, name, hash, ret);
+    return ret;
+}
+
+const char *
+pgp_hash_name_botan(pgp_hash_alg_t hash)
+{
+    const char *ret = NULL;
+    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, botan_name, hash, ret);
+    return ret;
+}
+
+const char *
+pgp_hash_name(const pgp_hash_t *hash)
+{
+    return pgp_show_hash_alg(hash->_alg);
 }
 
 /**
@@ -117,60 +134,12 @@ pgp_str_to_hash_alg(const char *hash)
     if (hash == NULL) {
         return PGP_DEFAULT_HASH_ALGORITHM;
     }
-    for (int i = 0; hash_alg_map[i].string != NULL; ++i) {
-        if (rnp_strcasecmp(hash, hash_alg_map[i].string) == 0) {
+    for (int i = 0; i < ARRAY_SIZE(hash_alg_map); i++) {
+        if (!rnp_strcasecmp(hash, hash_alg_map[i].name)) {
             return hash_alg_map[i].type;
         }
     }
     return PGP_HASH_UNKNOWN;
-}
-
-const char *
-pgp_hash_name_botan(pgp_hash_alg_t hash)
-{
-    switch (hash) {
-#if defined(BOTAN_HAS_MD5)
-    case PGP_HASH_MD5:
-        return "MD5";
-#endif
-
-#if defined(BOTAN_HAS_SHA1)
-    case PGP_HASH_SHA1:
-        return "SHA-1";
-#endif
-
-#if defined(BOTAN_HAS_RIPEMD_160)
-    case PGP_HASH_RIPEMD:
-        return "RIPEMD-160";
-#endif
-
-#if defined(BOTAN_HAS_SHA2_32)
-    case PGP_HASH_SHA224:
-        return "SHA-224";
-    case PGP_HASH_SHA256:
-        return "SHA-256";
-#endif
-
-#if defined(BOTAN_HAS_SHA2_64)
-    case PGP_HASH_SHA384:
-        return "SHA-384";
-    case PGP_HASH_SHA512:
-        return "SHA-512";
-#endif
-
-#if defined(BOTAN_HAS_SM3)
-    case PGP_HASH_SM3:
-        return "SM3";
-#endif
-
-#if defined(BOTAN_HAS_CRC24)
-    case PGP_HASH_CRC24:
-        return "CRC24";
-#endif
-
-    default:
-        return NULL;
-    }
 }
 
 /**
@@ -262,18 +231,6 @@ pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
     hash->handle = NULL;
     hash->_output_len = 0;
     return outlen;
-}
-
-/**
-   \ingroup Core_Hashes
-   \brief Get Hash name
-   \param hash Hash struct
-   \return Hash name
-*/
-const char *
-pgp_hash_name(const pgp_hash_t *hash)
-{
-    return pgp_show_hash_alg(hash->_alg);
 }
 
 size_t
