@@ -122,6 +122,13 @@ int rnp_write_sshkey(rnp_t *, char *, const char *, char *, size_t);
  */
 rnp_result_t rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const char *out);
 
+rnp_result_t rnp_encrypt_set_pass_info(rnp_symmetric_pass_info_t *info,
+                                       const char *               password,
+                                       pgp_hash_alg_t             hash_alg,
+                                       size_t                     iterations,
+                                       pgp_symm_alg_t             s2k_cipher);
+rnp_result_t rnp_encrypt_add_password(rnp_ctx_t *ctx);
+
 END_DECLS__
 
 #endif /* !RNP_H_ */
