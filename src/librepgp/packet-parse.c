@@ -2308,17 +2308,17 @@ parse_one_pass(pgp_region_t *region, pgp_stream_t *stream)
     if (!limread(&c, 1, region, stream)) {
         return false;
     }
-    pkt.u.one_pass_sig.sig_type = (pgp_sig_type_t) c;
+    pkt.u.one_pass_sig.type = (pgp_sig_type_t) c;
 
     if (!limread(&c, 1, region, stream)) {
         return false;
     }
-    pkt.u.one_pass_sig.hash_alg = (pgp_hash_alg_t) c;
+    pkt.u.one_pass_sig.halg = (pgp_hash_alg_t) c;
 
     if (!limread(&c, 1, region, stream)) {
         return false;
     }
-    pkt.u.one_pass_sig.key_alg = (pgp_pubkey_alg_t) c;
+    pkt.u.one_pass_sig.palg = (pgp_pubkey_alg_t) c;
 
     if (!limread(pkt.u.one_pass_sig.keyid,
                  (unsigned) sizeof(pkt.u.one_pass_sig.keyid),
@@ -2333,7 +2333,7 @@ parse_one_pass(pgp_region_t *region, pgp_stream_t *stream)
     pkt.u.one_pass_sig.nested = !!c;
     CALLBACK(PGP_PTAG_CT_1_PASS_SIG, &stream->cbinfo, &pkt);
     /* XXX: we should, perhaps, let the app choose whether to hash or not */
-    parse_hash_init(stream, pkt.u.one_pass_sig.hash_alg, pkt.u.one_pass_sig.keyid);
+    parse_hash_init(stream, pkt.u.one_pass_sig.halg, pkt.u.one_pass_sig.keyid);
     return true;
 }
 

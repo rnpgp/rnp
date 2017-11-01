@@ -1308,16 +1308,16 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
         print_uint(print->indent, "Version", (unsigned) content->one_pass_sig.version);
         print_string_and_value(print->indent,
                                "Signature Type",
-                               pgp_show_sig_type(content->one_pass_sig.sig_type),
-                               content->one_pass_sig.sig_type);
+                               pgp_show_sig_type(content->one_pass_sig.type),
+                               content->one_pass_sig.type);
         print_string_and_value(print->indent,
                                "Hash Algorithm",
-                               pgp_show_hash_alg((uint8_t) content->one_pass_sig.hash_alg),
-                               (uint8_t) content->one_pass_sig.hash_alg);
+                               pgp_show_hash_alg((uint8_t) content->one_pass_sig.halg),
+                               (uint8_t) content->one_pass_sig.halg);
         print_string_and_value(print->indent,
                                "Public Key Algorithm",
-                               pgp_show_pka(content->one_pass_sig.key_alg),
-                               content->one_pass_sig.key_alg);
+                               pgp_show_pka(content->one_pass_sig.palg),
+                               content->one_pass_sig.palg);
         print_hexdump(print->indent,
                       "Signer ID",
                       content->one_pass_sig.keyid,

@@ -363,8 +363,8 @@ typedef struct pgp_signature_t {
     /* signature material */
     union {
         struct {
-            uint8_t  m[PGP_MPINT_SIZE];
-            unsigned mlen;
+            uint8_t  s[PGP_MPINT_SIZE];
+            unsigned slen;
         } rsa;
         struct {
             uint8_t  r[PGP_MPINT_SIZE];
@@ -439,9 +439,9 @@ typedef enum {
 /** pgp_one_pass_sig_t */
 typedef struct {
     uint8_t          version;
-    pgp_sig_type_t   sig_type;
-    pgp_hash_alg_t   hash_alg;
-    pgp_pubkey_alg_t key_alg;
+    pgp_sig_type_t   type;
+    pgp_hash_alg_t   halg;
+    pgp_pubkey_alg_t palg;
     uint8_t          keyid[PGP_KEY_ID_SIZE];
     unsigned         nested;
 } pgp_one_pass_sig_t;

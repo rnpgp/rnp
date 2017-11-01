@@ -50,7 +50,7 @@ src_read(pgp_source_t *src, void *buf, size_t len)
     ssize_t             read;
     pgp_source_cache_t *cache = src->cache;
     bool                readahead = cache->readahead;
-    
+
     if (src->eof || (len == 0)) {
         return 0;
     }
@@ -130,7 +130,7 @@ src_peek(pgp_source_t *src, void *buf, size_t len)
     ssize_t             read;
     pgp_source_cache_t *cache = src->cache;
     bool                readahead = cache->readahead;
-    
+
     if (!cache || (len > sizeof(cache->buf))) {
         return -1;
     }
@@ -221,6 +221,17 @@ src_finish(pgp_source_t *src)
     return res;
 }
 
+bool
+src_eof(pgp_source_t *src)
+{
+    uint8_t check;
+
+    if (src->eof) {
+        return true;
+    }
+
+    return src_peek(src, &check, 1) == 0;
+}
 
 void
 src_close(pgp_source_t *src)
