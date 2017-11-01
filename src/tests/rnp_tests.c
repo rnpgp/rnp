@@ -88,12 +88,6 @@ setup_test(void **state)
     if (!rstate->data_dir) {
         return -1;
     }
-    char *src_data = get_data_dir();
-    if (!src_data) {
-        return -1;
-    }
-    copy_recursively(src_data, rstate->data_dir);
-    free(src_data);
     if (getenv("RNP_TEST_NOT_FATAL")) {
         rstate->not_fatal = 1;
     } else {
@@ -101,6 +95,12 @@ setup_test(void **state)
     }
     assert_int_equal(0, setenv("HOME", rstate->home, 1));
     assert_int_equal(0, chdir(rstate->home));
+    char *src_data = get_data_dir();
+    if (!src_data) {
+        return -1;
+    }
+    copy_recursively(src_data, rstate->data_dir);
+    free(src_data);
     return 0;
 }
 
