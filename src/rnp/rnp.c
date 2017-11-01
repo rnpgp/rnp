@@ -402,7 +402,11 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     case CMD_SYM_ENCRYPT:
         ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
         ctx.halg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
-        rnp_encrypt_add_password(&ctx);
+        ret = rnp_encrypt_add_password(&ctx);
+        if (ret) {
+            RNP_LOG("Failed to add password");
+            goto done;
+        }
     /* FALLTHROUGH */
     case CMD_ENCRYPT: {
         ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
