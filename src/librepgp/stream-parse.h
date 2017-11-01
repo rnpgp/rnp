@@ -35,18 +35,33 @@
 #include <rnp/rnp.h>
 #include "stream-common.h"
 
-typedef struct pgp_parse_handler_t pgp_parse_handler_t;
+typedef struct pgp_parse_handler_t  pgp_parse_handler_t;
+typedef struct pgp_signature_info_t pgp_signature_info_t;
 typedef bool pgp_destination_func_t(pgp_parse_handler_t *handler,
                                     pgp_dest_t *         dst,
                                     const char *         filename);
+typedef void pgp_signatures_func_t(pgp_parse_handler_t * handler,
+                                   pgp_signature_info_t *sigs,
+                                   int                   count);
 
 typedef struct pgp_parse_handler_t {
     pgp_password_provider_t *password_provider;
     pgp_key_provider_t *     key_provider;
     pgp_destination_func_t * dest_provider;
+    pgp_signatures_func_t *  on_signatures;
 
     void *param;
 } pgp_parse_handler_t;
+
+/* information about the signature */
+typedef struct pgp_signature_info_t {
+    pgp_signature_t *sig;       /* signature, or NULL if there were parsing error */
+    pgp_pubkey_t *   signer;    /* signer's public key if found */
+    bool             valid;     /* signature is cryptographically valid (but may be expired) */
+    bool             unknown;   /* signature is unknown - parsing error, wrong version, etc */
+    bool             no_signer; /* no signer's public key available */
+    bool             expired;   /* signature is expired */
+} pgp_signature_info_t;
 
 /* @brief Process the OpenPGP source: file, memory, stdin
  * Function will parse input data, provided by any source conforming to pgp_source_t,

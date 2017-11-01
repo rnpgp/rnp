@@ -443,9 +443,9 @@ stream_write_one_pass(pgp_one_pass_sig_t *onepass, pgp_dest_t *dst)
     }
 
     res = add_packet_body_byte(&pktbody, onepass->version) &&
-          add_packet_body_byte(&pktbody, onepass->sig_type) &&
-          add_packet_body_byte(&pktbody, onepass->hash_alg) &&
-          add_packet_body_byte(&pktbody, onepass->key_alg) &&
+          add_packet_body_byte(&pktbody, onepass->type) &&
+          add_packet_body_byte(&pktbody, onepass->halg) &&
+          add_packet_body_byte(&pktbody, onepass->palg) &&
           add_packet_body(&pktbody, onepass->keyid, PGP_KEY_ID_SIZE) &&
           add_packet_body_byte(&pktbody, onepass->nested);
 
@@ -669,13 +669,13 @@ stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass)
     onepass->version = buf[0];
 
     /* signature type */
-    onepass->sig_type = buf[1];
+    onepass->type = buf[1];
 
     /* hash algorithm */
-    onepass->hash_alg = buf[2];
+    onepass->halg = buf[2];
 
     /* pk algorithm */
-    onepass->key_alg = buf[3];
+    onepass->palg = buf[3];
 
     /* key id */
     memcpy(onepass->keyid, &buf[4], PGP_KEY_ID_SIZE);
@@ -735,7 +735,7 @@ signature_read_v3(pgp_source_t *src, pgp_signature_t *sig, size_t len)
 }
 
 /* check the signature's subpacket for validity */
-static void
+static bool
 signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
 {
     bool oklen = true;
@@ -869,16 +869,18 @@ signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
         break;
     default:
         RNP_LOG("unknown subpacket : %d", (int) subpkt->type);
-        return;
+        return !subpkt->critical;
     }
 
     if (!oklen) {
         RNP_LOG("wrong len %d of subpacket type %d", (int) subpkt->len, (int) subpkt->type);
     }
 
-    if (oklen && checked) {
+    if (oklen) {
         subpkt->parsed = 1;
     }
+
+    return oklen && checked;
 }
 
 /* parse signature subpackets */
@@ -887,6 +889,7 @@ signature_parse_subpackets(pgp_signature_t *sig, uint8_t *buf, size_t len, bool 
 {
     pgp_sig_subpkt_t subpkt;
     size_t           splen;
+    bool             res = true;
 
     while (len > 0) {
         if (len < 2) {
@@ -938,13 +941,19 @@ signature_parse_subpackets(pgp_signature_t *sig, uint8_t *buf, size_t len, bool 
         memcpy(subpkt.data, buf + 1, splen - 1);
         subpkt.len = splen - 1;
 
-        signature_parse_subpacket(&subpkt);
+        res = res && signature_parse_subpacket(&subpkt);
+
+        EXPAND_ARRAY_EX(sig, subpkt, 1);
+        sig->subpkts[sig->subpktc++] = subpkt;
+        if (hashed) {
+            sig->hashed_subpkts++;
+        }
 
         len -= splen;
         buf += splen;
     }
 
-    return true;
+    return res;
 }
 
 /* parse v4-specific fields, not the whole signature */
@@ -997,6 +1006,7 @@ signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
         RNP_LOG("read of hashed subpackets failed");
         return RNP_ERROR_READ;
     }
+    sig->hashed_len = splen + 6;
     len -= splen;
 
     /* parsing hashed subpackets */
@@ -1097,11 +1107,11 @@ stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
     /* signature MPIs */
     switch (sig->palg) {
     case PGP_PKA_RSA:
-        if ((read = stream_read_mpi(src, sig->material.rsa.m, pktend - src->readb)) < 0) {
+        if ((read = stream_read_mpi(src, sig->material.rsa.s, pktend - src->readb)) < 0) {
             res = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
-        sig->material.rsa.mlen = read;
+        sig->material.rsa.slen = read;
         break;
     case PGP_PKA_DSA:
         if (((read = stream_read_mpi(src, sig->material.dsa.r, pktend - src->readb)) < 0) ||
@@ -1152,4 +1162,116 @@ finish:
     }
 
     return res;
+}
+
+bool
+signature_matches_onepass(pgp_signature_t *sig, pgp_one_pass_sig_t *onepass)
+{
+    uint8_t keyid[PGP_KEY_ID_SIZE];
+
+    if (!signature_get_keyid(sig, keyid)) {
+        return false;
+    }
+
+    return !memcmp(keyid, onepass->keyid, PGP_KEY_ID_SIZE) && (sig->halg == onepass->halg) &&
+           (sig->palg == onepass->palg) && (sig->type == onepass->type);
+}
+
+pgp_sig_subpkt_t *
+signature_get_subpkt(pgp_signature_t *sig, pgp_sig_subpacket_type_t type)
+{
+    if (sig->version < 4) {
+        return NULL;
+    }
+
+    for (int i = 0; i < sig->subpktc; i++) {
+        if (sig->subpkts[i].type == type) {
+            /* no reason to return non-parsed subpacket */
+            if (sig->subpkts[i].parsed) {
+                return &sig->subpkts[i];
+            }
+            return NULL;
+        }
+    }
+
+    return NULL;
+}
+
+bool
+signature_get_keyfp(pgp_signature_t *sig, uint8_t *fp)
+{
+    pgp_sig_subpkt_t *subpkt;
+
+    if ((sig->version > 3) &&
+        (subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR))) {
+        memcpy(fp, subpkt->fields.issuer_fp.fp, subpkt->fields.issuer_fp.len);
+        return true;
+    }
+
+    return false;
+}
+
+bool
+signature_get_keyid(pgp_signature_t *sig, uint8_t *id)
+{
+    pgp_sig_subpkt_t *subpkt;
+
+    /* version 3 uses signature field */
+    if (sig->version < 4) {
+        memcpy(id, sig->signer, PGP_KEY_ID_SIZE);
+        return true;
+    }
+
+    /* version 4 and up use subpackets */
+    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_KEY_ID))) {
+        memcpy(id, subpkt->fields.issuer, PGP_KEY_ID_SIZE);
+        return true;
+    }
+    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR))) {
+        memcpy(id,
+               subpkt->fields.issuer_fp.fp + subpkt->fields.issuer_fp.len - PGP_KEY_ID_SIZE,
+               PGP_KEY_ID_SIZE);
+        return true;
+    }
+
+    return false;
+}
+
+uint32_t
+signature_get_creation(pgp_signature_t *sig)
+{
+    pgp_sig_subpkt_t *subpkt;
+
+    if (sig->version < 4) {
+        return sig->creation_time;
+    }
+
+    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_CREATION_TIME))) {
+        return subpkt->fields.create;
+    }
+
+    return 0;
+}
+
+uint32_t
+signature_get_expiration(pgp_signature_t *sig)
+{
+    pgp_sig_subpkt_t *subpkt;
+
+    if ((sig->version > 3) &&
+        (subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_EXPIRATION_TIME))) {
+        return subpkt->fields.expiry;
+    }
+
+    return 0;
+}
+
+void
+free_signature(pgp_signature_t *sig)
+{
+    free(sig->hashed_data);
+    for (int i = 0; i < sig->subpktc; i++) {
+        free(sig->subpkts[i].data);
+    }
+    FREE_ARRAY(sig, subpkt);
 }

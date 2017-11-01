@@ -70,10 +70,10 @@ typedef struct pgp_source_cache_t {
 } pgp_source_cache_t;
 
 typedef struct pgp_source_t {
-    pgp_source_read_func_t * read;
-    pgp_source_close_func_t *close;
+    pgp_source_read_func_t *  read;
+    pgp_source_close_func_t * close;
     pgp_source_finish_func_t *finish;
-    pgp_stream_type_t        type;
+    pgp_stream_type_t         type;
 
     uint64_t size;  /* size of the data if available, see knownsize */
     uint64_t readb; /* number of bytes read from the stream via src_read. Do not confuse with
@@ -81,7 +81,7 @@ typedef struct pgp_source_t {
     pgp_source_cache_t *cache; /* cache if used */
     void *              param; /* source-specific additional data */
 
-    unsigned eof : 1; /* end of data as reported by read and empty cache */
+    unsigned eof : 1;       /* end of data as reported by read and empty cache */
     unsigned knownsize : 1; /* whether size of the data is known */
 } pgp_source_t;
 
@@ -117,11 +117,19 @@ ssize_t src_peek(pgp_source_t *src, void *buf, size_t len);
  **/
 ssize_t src_skip(pgp_source_t *src, size_t len);
 
-/** @brief notify source that all reading is done, so final data processing may be started, i.e. signature reading and verification and so on. Do not misuse with src_close.
+/** @brief notify source that all reading is done, so final data processing may be started,
+ * i.e. signature reading and verification and so on. Do not misuse with src_close.
  *  @param src allocated and initialized source structure
- *  @return RNP_SUCCESS or error code. If source doesn't have finish handler then also RNP_SUCCESS is returned
+ *  @return RNP_SUCCESS or error code. If source doesn't have finish handler then also
+ * RNP_SUCCESS is returned
 */
 rnp_result_t src_finish(pgp_source_t *src);
+
+/** @brief check whether there is no more input on source
+ *  @param src allocated and initialized source structure
+ *  @return true if there is no more input or false otherwise
+*/
+bool src_eof(pgp_source_t *src);
 
 /** @brief close the source and deallocate all internal resources if any
  **/

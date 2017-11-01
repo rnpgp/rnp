@@ -45,6 +45,11 @@
 #include "symmetric.h"
 #include "crypto/s2k.h"
 #include "crypto/sm2.h"
+#include "crypto/ec.h"
+#include "crypto/rsa.h"
+#include "crypto/eddsa.h"
+#include "crypto/ecdsa.h"
+#include "signature.h"
 #include "fingerprint.h"
 #include "pgp-key.h"
 #include "signature.h"
@@ -82,9 +87,12 @@ typedef struct pgp_source_encrypted_param_t {
 } pgp_source_encrypted_param_t;
 
 typedef struct pgp_source_signed_param_t {
-    pgp_source_t *readsrc;                 /* source to read from */
+    pgp_processing_ctx_t *ctx;             /* processing context */
+    pgp_source_t *        readsrc;         /* source to read from */
     DYNARRAY(pgp_one_pass_sig_t, onepass); /* array of one-pass singatures */
     DYNARRAY(pgp_signature_t, sig);        /* array of signatures */
+    DYNARRAY(pgp_hash_t, hash);            /* hash contexts */
+    DYNARRAY(pgp_signature_info_t, info);  /* signature validation info */
 } pgp_source_signed_param_t;
 
 typedef struct pgp_source_compressed_param_t {
@@ -527,6 +535,113 @@ encrypted_src_close(pgp_source_t *src)
     }
 }
 
+static pgp_hash_t *
+signed_get_hash(pgp_source_signed_param_t *param, pgp_hash_alg_t alg)
+{
+    for (int i = 0; i < param->hashc; i++) {
+        if (pgp_hash_alg_type(&param->hashs[i]) == alg) {
+            return &param->hashs[i];
+        }
+    }
+
+    return NULL;
+}
+
+static bool
+signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t *key)
+{
+    pgp_hash_t *               hash;
+    pgp_hash_t                 shash = {0};
+    uint8_t                    trailer[6];
+    uint8_t                    hval[PGP_MAX_HASH_SIZE];
+    unsigned                   len;
+    pgp_source_signed_param_t *param = src->param;
+    bool                       ret = false;
+
+    /* Get the hash context */
+    if ((hash = signed_get_hash(param, sig->halg)) == NULL) {
+        RNP_LOG("hash context %d not found", (int) sig->halg);
+        return false;
+    }
+
+    if (!pgp_hash_copy(&shash, hash)) {
+        RNP_LOG("failed to clone hash context");
+        return false;
+    }
+
+    /* hash signature fields and trailer */
+    pgp_hash_add(&shash, sig->hashed_data, sig->hashed_len);
+
+    if (sig->version > 3) {
+        trailer[0] = sig->version;
+        trailer[1] = 0xff;
+        STORE32LE(&trailer[2], sig->hashed_len);
+        pgp_hash_add(&shash, trailer, 6);
+    }
+
+    len = pgp_hash_finish(&shash, hval);
+
+    /* validate signature */
+
+    switch (sig->palg) {
+    case PGP_PKA_DSA: {
+        pgp_dsa_sig_t dsa = {.r = BN_bin2bn(sig->material.dsa.r, sig->material.dsa.rlen, NULL),
+                             .s =
+                               BN_bin2bn(sig->material.dsa.s, sig->material.dsa.slen, NULL)};
+        ret = pgp_dsa_verify(hval, len, &dsa, &key->key.dsa);
+        BN_free(dsa.r);
+        BN_free(dsa.s);
+        break;
+    }
+    case PGP_PKA_EDDSA: {
+        BIGNUM *r = BN_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL);
+        BIGNUM *s = BN_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL);
+        ret = pgp_eddsa_verify_hash(r, s, hval, len, &key->key.ecc);
+        BN_free(r);
+        BN_free(s);
+        break;
+    }
+    case PGP_PKA_SM2: {
+        pgp_ecc_sig_t ecc = {.r = BN_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL),
+                             .s =
+                               BN_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL)};
+        ret = pgp_sm2_verify_hash(&ecc, hval, len, &key->key.ecc) == RNP_SUCCESS;
+        BN_free(ecc.r);
+        BN_free(ecc.s);
+        break;
+    }
+    case PGP_PKA_RSA: {
+        ret = pgp_rsa_pkcs1_verify_hash(
+          sig->material.rsa.s, sig->material.rsa.slen, sig->halg, hval, len, &key->key.rsa);
+        break;
+    }
+    case PGP_PKA_ECDSA: {
+        pgp_ecc_sig_t ecc = {.r = BN_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL),
+                             .s =
+                               BN_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL)};
+        ret = pgp_ecdsa_verify_hash(&ecc, hval, len, &key->key.ecc) == RNP_SUCCESS;
+        BN_free(ecc.r);
+        BN_free(ecc.s);
+        break;
+    }
+    default:
+        RNP_LOG("Unknown algorithm");
+        return false;
+    }
+
+    return ret;
+}
+
+static void
+signed_src_update(pgp_source_t *src, void *buf, size_t len)
+{
+    pgp_source_signed_param_t *param = src->param;
+
+    for (int i = 0; i < param->hashc; i++) {
+        pgp_hash_add(&param->hashs[i], buf, len);
+    }
+}
+
 static ssize_t
 signed_src_read(pgp_source_t *src, void *buf, size_t len)
 {
@@ -546,6 +661,15 @@ signed_src_close(pgp_source_t *src)
 
     if (param) {
         FREE_ARRAY(param, onepass);
+        for (int i = 0; i < param->hashc; i++) {
+            pgp_hash_finish(&param->hashs[i], NULL);
+        }
+        FREE_ARRAY(param, hash);
+        FREE_ARRAY(param, info);
+        for (int i = 0; i < param->sigc; i++) {
+            free_signature(&param->sigs[i]);
+        }
+        FREE_ARRAY(param, sig);
         free(src->param);
         src->param = NULL;
     }
@@ -561,17 +685,23 @@ signed_src_finish(pgp_source_t *src)
 {
     pgp_source_signed_param_t *param = src->param;
     pgp_signature_t            sig;
+    pgp_signature_info_t *     sinfo;
+    pgp_key_request_ctx_t      keyctx;
+    pgp_key_t *                key;
     uint8_t                    ptag;
     int                        ptype;
     rnp_result_t               ret = RNP_SUCCESS;
+    time_t                     now;
+    uint32_t                   create, expiry;
 
     /* reading signatures */
-
     EXPAND_ARRAY_EX(param, sig, param->onepassc);
+    EXPAND_ARRAY_EX(param, info, param->onepassc);
 
+    /* reading signatures */
     for (int i = 0; i < param->onepassc; i++) {
-        if (src_peek(param->readsrc, &ptag, 1) < 1) {
-            RNP_LOG("failed to read packet header");
+        if (src_peek(src, &ptag, 1) < 1) {
+            RNP_LOG("failed to read signature packet header");
             ret = RNP_ERROR_READ;
             goto finish;
         }
@@ -579,10 +709,20 @@ signed_src_finish(pgp_source_t *src)
         ptype = get_packet_type(ptag);
 
         if (ptype == PGP_PTAG_CT_SIGNATURE) {
-            if ((ret = stream_parse_signature(param->readsrc, &sig)) != RNP_SUCCESS) {
-                goto finish;
+            param->infoc++;
+            if ((ret = stream_parse_signature(src, &sig)) != RNP_SUCCESS) {
+                RNP_LOG("failed to parse signature");
+                param->infos[param->infoc - 1].unknown = true;
+                continue;
             }
             param->sigs[param->sigc++] = sig;
+            param->infos[param->infoc - 1].sig = &param->sigs[param->sigc - 1];
+
+            if (!signature_matches_onepass(&sig, &param->onepasss[param->onepassc - i - 1])) {
+                RNP_LOG("signature %d doesn't match one-pass", (int) i);
+                ret = RNP_ERROR_BAD_FORMAT;
+                goto finish;
+            }
         } else {
             RNP_LOG("unexpected packet %d", ptype);
             ret = RNP_ERROR_BAD_FORMAT;
@@ -590,6 +730,66 @@ signed_src_finish(pgp_source_t *src)
         }
     }
 
+    if (!src_eof(src)) {
+        RNP_LOG("warning: unexpected data on the stream end");
+    }
+
+    /* validating signatures */
+    keyctx.op = PGP_OP_VERIFY;
+    keyctx.secret = false;
+    keyctx.stype = PGP_KEY_SEARCH_KEYID;
+
+    for (int i = 0; i < param->infoc; i++) {
+        sinfo = &param->infos[i];
+        if (!sinfo->sig) {
+            continue;
+        }
+
+        /* Get the key id */
+        if (!signature_get_keyid(sinfo->sig, keyctx.search.id)) {
+            RNP_LOG("cannot get signer's key id from signature");
+            sinfo->unknown = true;
+            continue;
+        }
+
+        /* Get the public key */
+        if (!pgp_request_key(param->ctx->handler.key_provider, &keyctx, &key)) {
+            RNP_LOG("signer's key not found");
+            param->infos[i].no_signer = true;
+            continue;
+        }
+        sinfo->signer = &(key->key.pubkey);
+
+        /* Validate signature itself */
+        sinfo->valid = signed_validate_signature(src, sinfo->sig, sinfo->signer);
+
+        /* Check signature's expiration time */
+        now = time(NULL);
+        create = signature_get_creation(sinfo->sig);
+        expiry = signature_get_expiration(sinfo->sig);
+        if (create > 0) {
+            if (create > now) {
+                /* signature created later then now */
+                sinfo->expired = true;
+            }
+            if ((expiry > 0) && (create + expiry < now)) {
+                /* signature expired */
+                sinfo->expired = true;
+            }
+        }
+    }
+
+    /* call the callback with signature infos */
+    if (param->ctx->handler.on_signatures) {
+        param->ctx->handler.on_signatures(&param->ctx->handler, param->infos, param->infoc);
+    }
+
+    for (int i = 0; i < param->infoc; i++) {
+        if (!param->infos[i].valid || param->infos[i].expired) {
+            ret = RNP_ERROR_SIGNATURE_INVALID;
+            break;
+        }
+    }
 finish:
     return ret;
 }
@@ -1226,16 +1426,18 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
     rnp_result_t               errcode = RNP_SUCCESS;
     pgp_source_signed_param_t *param;
     uint8_t                    ptag;
+    pgp_hash_t                 hash;
     int                        ptype;
     pgp_one_pass_sig_t         onepass = {0};
 
     if (!init_source_cache(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    src->cache->readahead = false;
+    // src->cache->readahead = false;
 
     param = src->param;
     param->readsrc = readsrc;
+    param->ctx = ctx;
     src->read = signed_src_read;
     src->close = signed_src_close;
     src->finish = signed_src_finish;
@@ -1244,6 +1446,13 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
     src->knownsize = 0;
     src->readb = 0;
     src->eof = 0;
+
+    /* we need key provider to validate signatures */
+    if (!ctx->handler.key_provider) {
+        RNP_LOG("no key provider");
+        errcode = RNP_ERROR_BAD_PARAMETERS;
+        goto finish;
+    }
 
     /* Reading one-pass signature packets */
     while (true) {
@@ -1263,6 +1472,16 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
             EXPAND_ARRAY_EX(param, onepass, 1);
             param->onepasss[param->onepassc++] = onepass;
 
+            /* adding hash context */
+            if (!signed_get_hash(param, onepass.halg)) {
+                if (!pgp_hash_create(&hash, onepass.halg)) {
+                    RNP_LOG("failed to initialize hash algorithm %d", (int) onepass.halg);
+                } else {
+                    EXPAND_ARRAY_EX(param, hash, 1);
+                    param->hashs[param->hashc++] = hash;
+                }
+            }
+
             if (onepass.nested) {
                 /* despite the name non-zero value means that it is the last one-pass */
                 break;
@@ -1270,6 +1489,12 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
         } else {
             RNP_LOG("unexpected packet %d", ptype);
             errcode = RNP_ERROR_BAD_FORMAT;
+            goto finish;
+        }
+
+        if (param->onepassc == 0) {
+            RNP_LOG("no one-pass signatures");
+            errcode = RNP_ERROR_BAD_PARAMETERS;
             goto finish;
         }
     }
@@ -1404,6 +1629,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
     pgp_processing_ctx_t        ctx;
     pgp_source_t *              litsrc;
     pgp_source_t *              armorsrc = NULL;
+    pgp_source_t *              signedsrc = NULL;
     pgp_source_literal_param_t *litparam;
     pgp_dest_t                  outdest;
     uint8_t *                   readbuf = NULL;
@@ -1476,12 +1702,23 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
             goto finish;
         }
 
+        /* looking for signed source to feed raw data to */
+        for (int i = 0; i < ctx.srcc; i++) {
+            if (ctx.srcs[i]->type == PGP_STREAM_SIGNED) {
+                signedsrc = ctx.srcs[i];
+                break;
+            }
+        }
+
         while (!litsrc->eof) {
             read = src_read(litsrc, readbuf, PGP_INPUT_CACHE_SIZE);
             if (read < 0) {
                 res = RNP_ERROR_GENERIC;
                 break;
             } else if (read > 0) {
+                if (signedsrc) {
+                    signed_src_update(signedsrc, readbuf, read);
+                }
                 dst_write(&outdest, readbuf, read);
                 if (outdest.werr != RNP_SUCCESS) {
                     RNP_LOG("failed to output data");

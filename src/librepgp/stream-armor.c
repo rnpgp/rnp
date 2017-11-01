@@ -332,7 +332,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
             }
             /* reading armor trailing line */
             if (!armor_read_trailer(src)) {
-                RNP_LOG("armored_src_read: wrong armor trailer");
+                RNP_LOG("wrong armor trailer");
                 return -1;
             }
 

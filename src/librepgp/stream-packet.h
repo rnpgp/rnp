@@ -61,7 +61,7 @@ int get_packet_type(uint8_t ptag);
 
 /** @brief Peek length of the packet header. Returns -1 on error.
  *  @param src source to read length from
- *  @return number of bytes in packet header or -1 if there is a read error or packet length 
+ *  @return number of bytes in packet header or -1 if there is a read error or packet length
  *          is ill-formed
  **/
 ssize_t stream_pkt_hdr_len(pgp_source_t *src);
@@ -144,5 +144,13 @@ rnp_result_t stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pk
 rnp_result_t stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass);
 
 rnp_result_t stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig);
+
+bool signature_matches_onepass(pgp_signature_t *sig, pgp_one_pass_sig_t *onepass);
+pgp_sig_subpkt_t *signature_get_subpkt(pgp_signature_t *sig, pgp_sig_subpacket_type_t type);
+bool signature_get_keyfp(pgp_signature_t *sig, uint8_t *fp);
+bool signature_get_keyid(pgp_signature_t *sig, uint8_t *id);
+uint32_t signature_get_creation(pgp_signature_t *sig);
+uint32_t signature_get_expiration(pgp_signature_t *sig);
+void free_signature(pgp_signature_t *sig);
 
 #endif

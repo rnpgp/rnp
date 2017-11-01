@@ -1312,6 +1312,88 @@ rnp_parse_handler_dest(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char
     return rnp_initialize_output(param->ctx, dst, param->out);
 }
 
+static void
+rnp_parse_handler_signatures(pgp_parse_handler_t * handler,
+                             pgp_signature_info_t *sigs,
+                             int                   count)
+{
+    unsigned                   invalidc = 0;
+    unsigned                   unknownc = 0;
+    unsigned                   validc = 0;
+    time_t                     create;
+    uint32_t                   expiry;
+    uint8_t                    keyid[PGP_KEY_ID_SIZE];
+    char                       id[MAX_ID_LENGTH + 1];
+    const pgp_key_t *          key;
+    pgp_pubkey_t *             sigkey;
+    unsigned                   from;
+    char *                     title;
+    pgp_parse_handler_param_t *param = handler->param;
+    pgp_io_t *                 io = param->ctx->rnp->io;
+
+    for (int i = 0; i < count; i++) {
+        if (sigs[i].unknown) {
+            unknownc++;
+        } else {
+            if (!sigs[i].valid) {
+                if (sigs[i].no_signer) {
+                    title = "NO PUBLIC KEY for signature";
+                } else {
+                    title = "BAD signature";
+                }
+                invalidc++;
+            } else {
+                if (sigs[i].expired) {
+                    title = "EXPIRED signature";
+                    invalidc++;
+                } else {
+                    title = "Good signature";
+                    validc++;
+                }
+            }
+        }
+
+        create = signature_get_creation(sigs[i].sig);
+        expiry = signature_get_expiration(sigs[i].sig);
+
+        if (create > 0) {
+            fprintf(io->res, "%s made %s", title, ctime(&create));
+            if (expiry > 0) {
+                create += expiry;
+                fprintf(io->res, "Valid until %s\n", ctime(&create));
+            }
+        } else {
+            fprintf(io->res, "%s\n", title);
+        }
+
+        signature_get_keyid(sigs[i].sig, keyid);
+        fprintf(io->res,
+                "using %s key %s\n",
+                pgp_show_pka(sigs[i].sig->palg),
+                userid_to_id(keyid, id));
+
+        if (!sigs[i].no_signer) {
+            from = 0;
+            key =
+              rnp_key_store_get_key_by_id(io, param->ctx->rnp->pubring, keyid, &from, &sigkey);
+            repgp_print_key(
+              io, param->ctx->rnp->pubring, key, "signature ", &key->key.pubkey, 0);
+        }
+    }
+
+    if (count == 0) {
+        fprintf(io->res, "No signature(s) found - is this a signed file?\n");
+    } else if (invalidc > 0 || unknownc > 0) {
+        fprintf(
+          io->res,
+          "Signature verification failure: %u invalid signature(s), %u unknown signature(s)\n",
+          invalidc,
+          unknownc);
+    } else {
+        fprintf(io->res, "Signature(s) verified successfully\n");
+    }
+}
+
 rnp_result_t
 rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 {
@@ -1363,6 +1445,7 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     handler->password_provider = &ctx->rnp->password_provider;
     handler->key_provider = &keyprov;
     handler->dest_provider = rnp_parse_handler_dest;
+    handler->on_signatures = rnp_parse_handler_signatures;
     handler->param = param;
 
     result = process_pgp_source(handler, &src);
