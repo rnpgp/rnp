@@ -229,7 +229,7 @@ check_binary_sig(const uint8_t *     data,
     switch (sig->info.version) {
     case PGP_V3:
         trailer[0] = sig->info.type;
-        STORE32LE(&trailer[1], sig->info.birthtime);
+        STORE32BE(&trailer[1], sig->info.birthtime);
         pgp_hash_add(&hash, trailer, 5);
         break;
 
@@ -241,7 +241,7 @@ check_binary_sig(const uint8_t *     data,
         trailer[0] = 0x04; /* version */
         trailer[1] = 0xFF;
         hashedlen = (unsigned) sig->info.v4_hashlen;
-        STORE32LE(&trailer[2], hashedlen);
+        STORE32BE(&trailer[2], hashedlen);
         pgp_hash_add(&hash, trailer, 6);
         break;
 

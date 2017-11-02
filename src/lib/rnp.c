@@ -433,7 +433,7 @@ savepubkey(char *res, char *f, size_t size)
 static int
 formatstring(char *buffer, const uint8_t *s, size_t len)
 {
-    STORE32LE(buffer, len);
+    STORE32BE(buffer, len);
     (void) memcpy(&buffer[4], s, len);
     return 4 + (int) len;
 }

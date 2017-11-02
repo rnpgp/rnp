@@ -919,7 +919,7 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
         dst_write(param->writedst, handler->ctx->filename, flen);
     }
     /* timestamp */
-    STORE32LE(buf, handler->ctx->filemtime);
+    STORE32BE(buf, handler->ctx->filemtime);
     dst_write(param->writedst, buf, 4);
 
 finish:
