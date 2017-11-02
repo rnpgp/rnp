@@ -98,8 +98,8 @@ do {                                        \
         (((uint8_t*)(y))[0] & 0xFF) <<  0;  \
 } while(0)
 
-/* Store little-endian 32-bit value x in y */
-#define STORE32LE(x, y)                                 \
+/* Store big-endian 32-bit value x in y */
+#define STORE32BE(x, y)                                 \
 do {                                                    \
     ((uint8_t*)(x))[0] = (uint8_t)((y) >> 24) & 0xff;   \
     ((uint8_t*)(x))[1] = (uint8_t)((y) >> 16) & 0xff;   \

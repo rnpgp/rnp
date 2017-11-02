@@ -39,7 +39,7 @@ static int
 hash_uint32(pgp_hash_t *hash, uint32_t n)
 {
     uint8_t ibuf[4];
-    STORE32LE(ibuf, n);
+    STORE32BE(ibuf, n);
     pgp_hash_add(hash, ibuf, sizeof(ibuf));
     return sizeof(ibuf);
 }

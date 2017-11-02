@@ -528,7 +528,7 @@ pgp_memory_make_packet(pgp_memory_t *out, pgp_content_enum tag)
         out->buf[2] = (uint8_t)(out->length - 192);
     } else {
         out->buf[1] = 0xff;
-        STORE32LE(&out->buf[2], out->length);
+        STORE32BE(&out->buf[2], out->length);
     }
 
     out->length += extra + 1;
