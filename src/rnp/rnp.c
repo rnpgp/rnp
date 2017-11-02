@@ -175,7 +175,7 @@ static struct option options[] = {
   {"algorithm", required_argument, NULL, OPT_HASH_ALG},
   {"verbose", no_argument, NULL, OPT_VERBOSE},
   {"pass-fd", required_argument, NULL, OPT_PASSWDFD},
-  {"passphrase", required_argument, NULL, OPT_PASSWD},
+  {"password", required_argument, NULL, OPT_PASSWD},
   {"password", required_argument, NULL, OPT_PASSWD},
   {"output", required_argument, NULL, OPT_OUTPUT},
   {"results", required_argument, NULL, OPT_RESULTS},
@@ -347,8 +347,8 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     }
 
     if (rnp_cfg_get(cfg, CFG_PASSWD)) {
-        rnp->passphrase_provider.callback = rnp_passphrase_provider_string;
-        rnp->passphrase_provider.userdata = (void *) rnp_cfg_get(cfg, CFG_PASSWD);
+        rnp->password_provider.callback = rnp_password_provider_string;
+        rnp->password_provider.userdata = (void *) rnp_cfg_get(cfg, CFG_PASSWD);
     }
 
     /* operation context initialization: writing all additional parameters */
@@ -590,7 +590,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         break;
     case OPT_PASSWD:
         if (arg == NULL) {
-            (void) fprintf(stderr, "No passphrase argument provided\n");
+            (void) fprintf(stderr, "No password argument provided\n");
             exit(EXIT_ERROR);
         }
         rnp_cfg_set(cfg, CFG_PASSWD, arg);

@@ -116,7 +116,7 @@ This identity is made up of a private and public key.
 The public key part is made available and known to everyone.
 The private key is kept secret, and known only to the user
 who created the identity.
-The secret key is protected with a passphrase.
+The secret key is protected with a password.
 .Pp
 In rough terms, a digital signature
 is a digest of a file's contents,
@@ -279,20 +279,20 @@ like to use the
 library through the
 .Nm
 interface, but have their own ways of retrieving and caching
-the passphrase for the secret key.
+the password for the secret key.
 In this case, the
 .Nm
 utility will read a line of text from the file descriptor
 passed to it in the command line argument, rather than
-using its own methods of retrieving the passphrase from
+using its own methods of retrieving the password from
 the user.
 .It Fl Fl num-tries Ns = Ns Ar attempts
 This option sets the maximum number of attempts to get the
-correct passphrase from the user.
+correct password from the user.
 A value of
 .Dv unlimited
 means that there is no maximum number of attempts, and the
-utility will loop endlessly until the correct passphrase has been
+utility will loop endlessly until the correct password has been
 entered, or the utility is terminated.
 .It Fl Fl from Ns = Ns Ar signature-valid-from
 This option allows the signer to specify a time as the
@@ -321,7 +321,7 @@ in normal processing,
 if an error occurs, the contents of memory are saved to disk, and can
 be read using tools to analyse behaviour.
 Unfortunately this can disclose information to people viewing
-the core dump, such as secret keys, and passphrases protecting
+the core dump, such as secret keys, and passwords protecting
 those keys.
 In normal operation,
 .Nm
@@ -365,7 +365,7 @@ uid              Alistair Crooks \*[Lt]agc@netbsd.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@pkgsrc.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@alistaircrooks.com\*[Gt]
 uid              Alistair Crooks \*[Lt]alistair@hockley-crooks.com\*[Gt]
-rnp passphrase:
+rnp password:
 % rnp --verify a.gpg
 Good signature for a.gpg made Thu Jan 29 03:06:00 2009
 using RSA (Encrypt or Sign) key 1B68DCFCC0596823
@@ -383,7 +383,7 @@ In the example above, a signature is made on a single file called
 using a user identity corresponding to
 .Dq agc@netbsd.org
 The key located for the user identity is displayed, and
-the user is prompted to type in their passphrase.
+the user is prompted to type in their password.
 The resulting file, called
 .Dq Pa a.gpg
 is placed in the same directory.
@@ -403,7 +403,7 @@ To encrypt a file, the user's public key is used.
 Subsequent decryption of the file requires that the secret
 key is known.
 When decrypting, the key is displayed,
-and the passphrase protecting
+and the password protecting
 the secret key must be typed in to access the data in the encrypted file.
 .Bd -literal
 % rnp --encrypt --userid=c0596823 a
@@ -414,7 +414,7 @@ uid              Alistair Crooks \*[Lt]agc@netbsd.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@pkgsrc.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@alistaircrooks.com\*[Gt]
 uid              Alistair Crooks \*[Lt]alistair@hockley-crooks.com\*[Gt]
-rnp passphrase:
+rnp password:
 %
 .Ed
 .Pp
@@ -430,7 +430,7 @@ uid              Alistair Crooks \*[Lt]agc@netbsd.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@pkgsrc.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@alistaircrooks.com\*[Gt]
 uid              Alistair Crooks \*[Lt]alistair@hockley-crooks.com\*[Gt]
-rnp passphrase:
+rnp password:
 %
 .Ed
 .Pp
@@ -447,7 +447,7 @@ uid              Alistair Crooks \*[Lt]agc@netbsd.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@pkgsrc.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@alistaircrooks.com\*[Gt]
 uid              Alistair Crooks \*[Lt]alistair@hockley-crooks.com\*[Gt]
-rnp passphrase:
+rnp password:
 Good signature for \*[Lt]stdin\*[Gt] made Mon Dec 21 18:25:02 2009
 using RSA (Encrypt or Sign) key 1b68dcfcc0596823
 pub 2048/RSA (Encrypt or Sign) 1b68dcfcc0596823 2004-01-12
@@ -472,7 +472,7 @@ uid              Alistair Crooks \*[Lt]agc@pkgsrc.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@netbsd.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@alistaircrooks.com\*[Gt]
 uid              Alistair Crooks (Yahoo!) \*[Lt]agcrooks@yahoo-inc.com\*[Gt]
-rnp passphrase:
+rnp password:
 % rnp --decrypt \*[Lt] example.gpg | rnp --cat
 rnp: default key set to "C0596823"
 rnp: default key set to "C0596823"
@@ -483,7 +483,7 @@ uid              Alistair Crooks \*[Lt]agc@pkgsrc.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@netbsd.org\*[Gt]
 uid              Alistair Crooks \*[Lt]agc@alistaircrooks.com\*[Gt]
 uid              Alistair Crooks (Yahoo!) \*[Lt]agcrooks@yahoo-inc.com\*[Gt]
-rnp passphrase:
+rnp password:
 Good signature for \*[Lt]stdin\*[Gt] made Mon Feb 22 07:21:19 2010
 using RSA (Encrypt or Sign) key 1b68dcfcc0596823
 pub 2048/RSA (Encrypt or Sign) 1b68dcfcc0596823 2004-01-12

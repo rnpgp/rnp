@@ -140,7 +140,7 @@ static pgp_map_t packet_tag_map[] = {
   {PGP_PTAG_CT_SE_IP_DATA_HEADER, "CT: Sym Encrypted IP Data Header"},
   {PGP_PTAG_CT_SE_IP_DATA_BODY, "CT: Sym Encrypted IP Data Body"},
   {PGP_PTAG_CT_ENCRYPTED_PK_SESSION_KEY, "CT: Encrypted PK Session Key"},
-  {PGP_GET_PASSPHRASE, "CMD: Get Secret Key Passphrase"},
+  {PGP_GET_PASSWORD, "CMD: Get Secret Key Password"},
   {PGP_GET_SECKEY, "CMD: Get Secret Key"},
   {PGP_PARSER_ERROR, "PGP_PARSER_ERROR"},
   {PGP_PARSER_ERRCODE, "PGP_PARSER_ERRCODE"},

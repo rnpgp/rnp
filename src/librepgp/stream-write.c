@@ -440,11 +440,11 @@ finish:
 }
 
 static rnp_result_t
-encrypted_add_passphrase(rnp_symmetric_pass_info_t *pass,
-                         pgp_dest_t *               dst,
-                         uint8_t *                  key,
-                         const unsigned             keylen,
-                         bool                       singlepass)
+encrypted_add_password(rnp_symmetric_pass_info_t *pass,
+                       pgp_dest_t *               dst,
+                       uint8_t *                  key,
+                       const unsigned             keylen,
+                       bool                       singlepass)
 {
     pgp_sk_sesskey_t            skey = {0};
     unsigned                    s2keylen; /* length of the s2k key */
@@ -546,7 +546,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     while (passinfo_item) {
         rnp_symmetric_pass_info_t *pass = (rnp_symmetric_pass_info_t *) passinfo_item;
 
-        encrypted_add_passphrase(pass, dst, enckey, keylen, singlepass);
+        encrypted_add_password(pass, dst, enckey, keylen, singlepass);
         passinfo_item = list_next(passinfo_item);
     }
 

@@ -276,7 +276,7 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
 
 /* This starts writing right after the s2k usage. */
 static bool
-write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const char *passphrase)
+write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const char *password)
 {
     uint8_t     sesskey[PGP_MAX_KEY_SIZE];
     size_t      sesskey_size = pgp_key_size(seckey->protection.symm_alg);
@@ -331,7 +331,7 @@ write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const ch
     }
 
     // derive key
-    if (!pgp_s2k_derive_key(&seckey->protection.s2k, passphrase, sesskey, sesskey_size)) {
+    if (!pgp_s2k_derive_key(&seckey->protection.s2k, password, sesskey, sesskey_size)) {
         RNP_LOG("failed to derive key");
         goto done;
     }
@@ -398,7 +398,7 @@ done:
  * verification.
  */
 static bool
-write_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const char *passphrase)
+write_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const char *password)
 {
     /* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
 
@@ -428,7 +428,7 @@ write_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const char *passph
         }
         break;
     case PGP_S2KU_ENCRYPTED_AND_HASHED:
-        if (!write_protected_seckey_body(output, seckey, passphrase)) {
+        if (!write_protected_seckey_body(output, seckey, password)) {
             RNP_LOG("failed to write protected secret key body");
             return false;
         }
@@ -526,7 +526,7 @@ pgp_write_xfer_pubkey(pgp_output_t *         output,
    \brief Writes a transferable PGP secret key to the given output stream.
 
    \param key Key to be written
-   \param passphrase
+   \param password
    \param pplen
    \param armored Flag is set for armored output
    \param output Output stream
@@ -600,8 +600,8 @@ done:
  * \ingroup Core_WritePackets
  * \brief Writes a Secret Key packet.
  * \param key The secret key
- * \param passphrase The passphrase
- * \param pplen Length of passphrase
+ * \param password The password
+ * \param pplen Length of password
  * \param output
  * \return 1 if OK; else 0
  */
@@ -609,7 +609,7 @@ unsigned
 pgp_write_struct_seckey(pgp_output_t *   output,
                         pgp_content_enum tag,
                         pgp_seckey_t *   seckey,
-                        const char *     passphrase)
+                        const char *     password)
 {
     unsigned length = 0;
 
@@ -687,7 +687,7 @@ pgp_write_struct_seckey(pgp_output_t *   output,
     length += (unsigned) seckey_length(seckey);
 
     return pgp_write_ptag(output, tag) && pgp_write_length(output, (unsigned) length) &&
-           write_seckey_body(output, seckey, passphrase);
+           write_seckey_body(output, seckey, password);
 }
 
 /**

@@ -34,7 +34,7 @@
 #include "crypto/s2k.h"
 
 bool
-pgp_s2k_derive_key(pgp_s2k_t *s2k, const char *passphrase, uint8_t *key, int keysize)
+pgp_s2k_derive_key(pgp_s2k_t *s2k, const char *password, uint8_t *key, int keysize)
 {
     uint8_t *saltptr = NULL;
     unsigned iterations = 1;
@@ -57,7 +57,7 @@ pgp_s2k_derive_key(pgp_s2k_t *s2k, const char *passphrase, uint8_t *key, int key
         return false;
     }
 
-    if (pgp_s2k_iterated(s2k->hash_alg, key, keysize, passphrase, saltptr, iterations)) {
+    if (pgp_s2k_iterated(s2k->hash_alg, key, keysize, password, saltptr, iterations)) {
         (void) fprintf(stderr, "s2k_derive_key: s2k failed\n");
         return false;
     }
@@ -66,26 +66,26 @@ pgp_s2k_derive_key(pgp_s2k_t *s2k, const char *passphrase, uint8_t *key, int key
 }
 
 int
-pgp_s2k_simple(pgp_hash_alg_t alg, uint8_t *out, size_t output_len, const char *passphrase)
+pgp_s2k_simple(pgp_hash_alg_t alg, uint8_t *out, size_t output_len, const char *password)
 {
-    return pgp_s2k_salted(alg, out, output_len, passphrase, NULL);
+    return pgp_s2k_salted(alg, out, output_len, password, NULL);
 }
 
 int
 pgp_s2k_salted(pgp_hash_alg_t alg,
                uint8_t *      out,
                size_t         output_len,
-               const char *   passphrase,
+               const char *   password,
                const uint8_t *salt)
 {
-    return pgp_s2k_iterated(alg, out, output_len, passphrase, salt, 1);
+    return pgp_s2k_iterated(alg, out, output_len, password, salt, 1);
 }
 
 int
 pgp_s2k_iterated(pgp_hash_alg_t alg,
                  uint8_t *      out,
                  size_t         output_len,
-                 const char *   passphrase,
+                 const char *   password,
                  const uint8_t *salt,
                  size_t         iterations)
 {
@@ -95,7 +95,7 @@ pgp_s2k_iterated(pgp_hash_alg_t alg,
     return botan_pbkdf(s2k_algo_str,
                        out,
                        output_len,
-                       passphrase,
+                       password,
                        salt,
                        salt == NULL ? 0 : PGP_SALT_SIZE,
                        iterations);
@@ -122,7 +122,7 @@ pgp_s2k_encode_iterations(size_t iterations)
      * would have been in the old data structure. This is then followed
      * immediately by a one-octet algorithm identifier, and then by the S2K
      * specifier as encoded above.
-     * 0:           secret data is unencrypted (no passphrase)
+     * 0:           secret data is unencrypted (no password)
      * 255 or 254:  followed by algorithm octet and S2K specifier
      * Cipher alg:  use Simple S2K algorithm using MD5 hash
      * For more info refer to rfc 4880 section 3.7.2.1.

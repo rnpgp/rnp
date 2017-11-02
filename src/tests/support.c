@@ -180,11 +180,12 @@ delete_recursively(const char *path)
     nftw(path, remove_cb, 64, FTW_DEPTH | FTW_PHYS);
 }
 
-void copy_recursively(const char *src, const char *dst) {
+void
+copy_recursively(const char *src, const char *dst)
+{
     /* sanity check, we should only be copying things to /tmp/ */
     assert_int_equal(strncmp(dst, "/tmp/", 5), 0);
     assert_true(strlen(dst) > 5);
-
 
     // TODO: maybe use fts or something less hacky
     char buf[2048];
@@ -346,7 +347,7 @@ write_pass_to_pipe(int fd, size_t count)
 }
 
 bool
-setupPassphrasefd(int *pipefd)
+setupPasswordfd(int *pipefd)
 {
     bool ok = false;
 
@@ -379,7 +380,7 @@ setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pi
 
     /* set password fd if any */
     if (pipefd) {
-        if ((res = setupPassphrasefd(pipefd)) != 1) {
+        if ((res = setupPasswordfd(pipefd)) != 1) {
             return res;
         }
         params.passfd = pipefd[0];
@@ -475,36 +476,36 @@ destroy_global_rng()
     global_rng = NULL;
 }
 
-// this is a passphrase callback that will always fail
+// this is a password callback that will always fail
 bool
-failing_passphrase_callback(const pgp_passphrase_ctx_t *ctx,
-                            char *                      passphrase,
-                            size_t                      passphrase_size,
-                            void *                      userdata)
+failing_password_callback(const pgp_password_ctx_t *ctx,
+                          char *                    password,
+                          size_t                    password_size,
+                          void *                    userdata)
 {
     return false;
 }
 
-// this is a passphrase callback that should never be called
+// this is a password callback that should never be called
 bool
-asserting_passphrase_callback(const pgp_passphrase_ctx_t *ctx,
-                              char *                      passphrase,
-                              size_t                      passphrase_size,
-                              void *                      userdata)
+asserting_password_callback(const pgp_password_ctx_t *ctx,
+                            char *                    password,
+                            size_t                    password_size,
+                            void *                    userdata)
 {
     assert_false(true);
     return false;
 }
 
-// this is a passphrase callback that just copies the string in userdata to
-// the passphrase buffer
+// this is a password callback that just copies the string in userdata to
+// the password buffer
 bool
-string_copy_passphrase_callback(const pgp_passphrase_ctx_t *ctx,
-                                char *                      passphrase,
-                                size_t                      passphrase_size,
-                                void *                      userdata)
+string_copy_password_callback(const pgp_password_ctx_t *ctx,
+                              char *                    password,
+                              size_t                    password_size,
+                              void *                    userdata)
 {
     const char *str = (const char *) userdata;
-    strncpy(passphrase, str, passphrase_size - 1);
+    strncpy(password, str, password_size - 1);
     return true;
 }

@@ -47,7 +47,7 @@
 #define PUBRING_G10 "public-keys-v1.d"
 #define SECRING_G10 "private-keys-v1.d"
 
-#define MAX_PASSPHRASE_ATTEMPTS 3
+#define MAX_PASSWORD_ATTEMPTS 3
 #define INFINITE_ATTEMPTS -1
 
 /* SHA1 is not considered secured anymore and SHOULD NOT be used to create messages (as per
@@ -89,7 +89,7 @@ enum {
     RNP_ERROR_MAC_INVALID,
     RNP_ERROR_SIGNATURE_INVALID,
     RNP_ERROR_KEY_GENERATION,
-    RNP_ERROR_BAD_PASSPHRASE,
+    RNP_ERROR_BAD_PASSWORD,
     RNP_ERROR_KEY_NOT_FOUND,
     RNP_ERROR_NO_SUITABLE_KEY,
     RNP_ERROR_DECRYPT_FAILED,
@@ -108,6 +108,6 @@ enum {
 /* rnp_result_t is the type used for return codes from the APIs. */
 typedef uint32_t rnp_result_t;
 
-enum { MAX_ID_LENGTH = 128, MAX_PASSPHRASE_LENGTH = 256 };
+enum { MAX_ID_LENGTH = 128, MAX_PASSWORD_LENGTH = 256 };
 
 #endif

@@ -906,11 +906,11 @@ cleartext_trailer_free(struct pgp_hash_t **trailer)
 \brief Free allocated memory
 */
 static void
-cmd_get_passphrase_free(pgp_seckey_passphrase_t *skp)
+cmd_get_password_free(pgp_seckey_password_t *skp)
 {
-    if (skp->passphrase && *skp->passphrase) {
-        free(*skp->passphrase);
-        *skp->passphrase = NULL;
+    if (skp->password && *skp->password) {
+        free(*skp->password);
+        *skp->password = NULL;
     }
 }
 
@@ -1145,8 +1145,8 @@ repgp_parser_content_free(pgp_packet_t *c)
         pgp_pk_sesskey_free(&c->u.pk_sesskey);
         break;
 
-    case PGP_GET_PASSPHRASE:
-        cmd_get_passphrase_free(&c->u.skey_passphrase);
+    case PGP_GET_PASSWORD:
+        cmd_get_password_free(&c->u.skey_password);
         break;
 
     default:
@@ -2582,7 +2582,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     if (crypted) {
         pgp_packet_t seckey;
         uint8_t      derived_key[PGP_MAX_KEY_SIZE];
-        char *       passphrase;
+        char *       password;
         unsigned     keysize;
 
         if (rnp_get_debug(__FILE__)) {
@@ -2598,14 +2598,14 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
             return false;
         }
         (void) memset(&seckey, 0x0, sizeof(seckey));
-        passphrase = NULL;
-        seckey.u.skey_passphrase.passphrase = &passphrase;
-        seckey.u.skey_passphrase.seckey = &pkt.u.seckey;
-        CALLBACK(PGP_GET_PASSPHRASE, &stream->cbinfo, &seckey);
-        if (!passphrase) {
+        password = NULL;
+        seckey.u.skey_password.password = &password;
+        seckey.u.skey_password.seckey = &pkt.u.seckey;
+        CALLBACK(PGP_GET_PASSWORD, &stream->cbinfo, &seckey);
+        if (!password) {
             if (rnp_get_debug(__FILE__)) {
                 /* \todo make into proper error */
-                (void) fprintf(stderr, "parse_seckey: can't get passphrase\n");
+                (void) fprintf(stderr, "parse_seckey: can't get password\n");
             }
             if (!consume_packet(region, stream, 0)) {
                 return false;
@@ -2620,13 +2620,13 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         }
 
         if (!pgp_s2k_derive_key(
-              &pkt.u.seckey.protection.s2k, passphrase, derived_key, keysize)) {
+              &pkt.u.seckey.protection.s2k, password, derived_key, keysize)) {
             (void) fprintf(stderr, "pgp_s2k_derive_key failed\n");
-            pgp_forget(passphrase, strlen(passphrase));
+            pgp_forget(password, strlen(password));
             return false;
         }
 
-        pgp_forget(passphrase, strlen(passphrase));
+        pgp_forget(password, strlen(password));
 
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr,
@@ -2662,7 +2662,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         region = &encregion;
     }
     if (rnp_get_debug(__FILE__)) {
-        fprintf(stderr, "parse_seckey: end of crypted passphrase\n");
+        fprintf(stderr, "parse_seckey: end of crypted password\n");
     }
     if (pkt.u.seckey.protection.s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
         if (!pgp_hash_create(&checkhash, PGP_HASH_SHA1)) {

@@ -121,7 +121,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
 
     if (strcmp(type, "ssh-rsa") == 0) {
         if (botan_privkey_load(&priv_key, rng, keybuf, read, NULL) != 0) {
-            (void) snprintf(prompt, sizeof(prompt), "rnp PEM %s passphrase: ", f);
+            (void) snprintf(prompt, sizeof(prompt), "rnp PEM %s password: ", f);
             for (;;) {
                 pass = getpass(prompt);
 
@@ -135,7 +135,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
         }
 
         {
-            pgp_rsa_seckey_t* rsa = &(key->key.seckey.key.rsa);
+            pgp_rsa_seckey_t *rsa = &(key->key.seckey.key.rsa);
             botan_mp_init(&rsa->d->mp);
             botan_privkey_get_field(rsa->d->mp, priv_key, "d");
 

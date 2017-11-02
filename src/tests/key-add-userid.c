@@ -65,8 +65,8 @@ test_key_add_userid(void **state)
     // unlock the key
     assert_true(
       pgp_key_unlock(key,
-                     &(pgp_passphrase_provider_t){.callback = string_copy_passphrase_callback,
-                                                  .userdata = "password"}));
+                     &(pgp_password_provider_t){.callback = string_copy_password_callback,
+                                                .userdata = "password"}));
 
     // save the counts for a few items
     unsigned uidc = key->uidc;

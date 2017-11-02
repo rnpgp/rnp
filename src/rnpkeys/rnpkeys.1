@@ -117,7 +117,7 @@ This identity is made up of a private and public key.
 The public key part is made available and known to everyone.
 The private key is kept secret, and known only to the user
 who created the identity.
-The secret key is protected with a passphrase.
+The secret key is protected with a password.
 .Pp
 In rough terms, a digital signature
 is a digest of a file's contents,
@@ -256,12 +256,12 @@ like to use the
 library through the
 .Nm
 interface, but have their own ways of retrieving and caching
-the passphrase for the secret key.
+the password for the secret key.
 In this case, the
 .Nm
 utility will read a line of text from the file descriptor
 passed to it in the command line argument, rather than
-using its own methods of retrieving the passphrase from
+using its own methods of retrieving the password from
 the user.
 .It Fl Fl verbose
 This option can be used to view information during
@@ -282,7 +282,7 @@ in normal processing,
 if an error occurs, the contents of memory are saved to disk, and can
 be read using tools to analyse behaviour.
 Unfortunately this can disclose information to people viewing
-the core dump, such as secret keys, and passphrases protecting
+the core dump, such as secret keys, and passwords protecting
 those keys.
 In normal operation,
 .Nm

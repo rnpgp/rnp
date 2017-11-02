@@ -63,7 +63,7 @@ typedef struct rnp_t {
         rnp_action_keygen_t generate_key_ctx;
     } action;
 
-    pgp_passphrase_provider_t passphrase_provider;
+    pgp_password_provider_t password_provider;
 } rnp_t;
 
 /* rnp initialization parameters : keyring pathes, flags, whatever else */
@@ -84,7 +84,7 @@ typedef struct rnp_params_t {
     char *      secpath;           /* secret keystore path */
     char *      defkey;            /* default/preferred key id */
     bool        keystore_disabled; /* indicates wether keystore must be initialized */
-    pgp_passphrase_provider_t passphrase_provider;
+    pgp_password_provider_t password_provider;
 } rnp_params_t;
 
 typedef struct rnp_symmetric_pass_info_t {

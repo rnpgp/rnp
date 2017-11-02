@@ -58,7 +58,7 @@ rnpkeys_generatekey_testSignature(void **state)
     char        userId[128];
 
     for (int i = 0; hashAlg[i] != NULL; i++) {
-        /* Setup passphrase input and rnp structure */
+        /* Setup password input and rnp structure */
         rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
 
         memset(userId, 0, sizeof(userId));
@@ -92,7 +92,7 @@ rnpkeys_generatekey_testSignature(void **state)
                     continue;
                 }
 
-                /* Setup passphrase input and rnp structure */
+                /* Setup password input and rnp structure */
                 rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
 
                 /* Load keyring */
@@ -169,7 +169,7 @@ rnpkeys_generatekey_testEncryption(void **state)
     char      plaintextBuf[4096] = {0};
     char      userId[128] = {0};
 
-    /* Setup passphrase input and rnp structure */
+    /* Setup password input and rnp structure */
     rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
 
     strcpy(userId, "ciphertest");

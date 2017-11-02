@@ -36,9 +36,9 @@
 #include "stream-common.h"
 
 typedef struct pgp_write_handler_t {
-    pgp_passphrase_provider_t *passphrase_provider;
-    pgp_key_provider_t *       key_provider;
-    rnp_ctx_t *                ctx;
+    pgp_password_provider_t *password_provider;
+    pgp_key_provider_t *     key_provider;
+    rnp_ctx_t *              ctx;
 
     void *param;
 } pgp_write_handler_t;

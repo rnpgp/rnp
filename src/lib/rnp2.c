@@ -34,9 +34,9 @@
 #include <rnp/rnp_types.h>
 #include <stdlib.h>
 
-struct rnp_passphrase_cb_data {
-    rnp_passphrase_cb cb_fn;
-    void *            cb_data;
+struct rnp_password_cb_data {
+    rnp_password_cb cb_fn;
+    void *          cb_data;
 };
 
 struct rnp_keyring_st {
@@ -84,13 +84,13 @@ operation_description(uint8_t op)
 }
 
 static bool
-rnp_passphrase_cb_bounce(const pgp_passphrase_ctx_t *ctx,
-                         char *                      passphrase,
-                         size_t                      passphrase_size,
-                         void *                      userdata_void)
+rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
+                       char *                    password,
+                       size_t                    password_size,
+                       void *                    userdata_void)
 {
-    struct rnp_passphrase_cb_data *userdata = (struct rnp_passphrase_cb_data *) userdata_void;
-    rnp_key_t                      key = NULL;
+    struct rnp_password_cb_data *userdata = (struct rnp_password_cb_data *) userdata_void;
+    rnp_key_t                    key = NULL;
 
     if (!userdata->cb_fn) {
         return false;
@@ -102,7 +102,7 @@ rnp_passphrase_cb_bounce(const pgp_passphrase_ctx_t *ctx,
     }
     key->key = (pgp_key_t *) ctx->key;
     int rc = userdata->cb_fn(
-      userdata->cb_data, key, operation_description(ctx->op), passphrase, passphrase_size);
+      userdata->cb_data, key, operation_description(ctx->op), password, password_size);
     free(key);
     return (rc == 0);
 }
@@ -888,8 +888,8 @@ find_key_for(rnp_keyring_t   keyring,
 
     pgp_seckey_t *decrypted_seckey =
       pgp_decrypt_seckey(keypair,
-                         &keyring->rnp_ctx.passphrase_provider,
-                         &(pgp_passphrase_ctx_t){.op = PGP_OP_SIGN, .key = keypair});
+                         &keyring->rnp_ctx.password_provider,
+                         &(pgp_password_ctx_t){.op = PGP_OP_SIGN, .key = keypair});
 
     if (decrypted_seckey == NULL) {
         return RNP_ERROR_DECRYPT_FAILED;
@@ -1181,7 +1181,7 @@ rnp_decrypt(rnp_keyring_t keyring,
                                         armored,
                                         /*use_ssh*/ 0,
                                         1,
-                                        &keyring->rnp_ctx.passphrase_provider);
+                                        &keyring->rnp_ctx.password_provider);
 
     if (mem == NULL) {
         return RNP_ERROR_DECRYPT_FAILED;
@@ -1657,14 +1657,14 @@ done:
 }
 
 rnp_result_t
-rnp_generate_key_json(rnp_keyring_t     pubring,
-                      rnp_keyring_t     secring,
-                      rnp_get_key_cb    getkeycb,
-                      void *            getkeycb_ctx,
-                      rnp_passphrase_cb getpasscb,
-                      void *            getpasscb_ctx,
-                      const char *      json,
-                      char **           results)
+rnp_generate_key_json(rnp_keyring_t   pubring,
+                      rnp_keyring_t   secring,
+                      rnp_get_key_cb  getkeycb,
+                      void *          getkeycb_ctx,
+                      rnp_password_cb getpasscb,
+                      void *          getpasscb_ctx,
+                      const char *    json,
+                      char **         results)
 {
     rnp_result_t              ret = RNP_ERROR_GENERIC;
     json_object *             jso = NULL;
@@ -1840,10 +1840,10 @@ rnp_generate_key_json(rnp_keyring_t     pubring,
             ret = RNP_ERROR_BAD_FORMAT;
             goto done;
         }
-        const pgp_passphrase_provider_t provider = {
-          .callback = rnp_passphrase_cb_bounce,
+        const pgp_password_provider_t provider = {
+          .callback = rnp_password_cb_bounce,
           .userdata =
-            &(struct rnp_passphrase_cb_data){.cb_fn = getpasscb, .cb_data = getpasscb_ctx}};
+            &(struct rnp_password_cb_data){.cb_fn = getpasscb, .cb_data = getpasscb_ctx}};
         pgp_key_t sub_pub = {0};
         pgp_key_t sub_sec = {0};
         if (!pgp_generate_subkey(&sub_desc,
@@ -1891,7 +1891,7 @@ rnp_generate_private_key(rnp_key_t *   pubkey,
                          rnp_keyring_t pubring,
                          rnp_keyring_t secring,
                          const char *  userid,
-                         const char *  passphrase,
+                         const char *  password,
                          const char *  signature_hash)
 {
     rnp_result_t         rc = RNP_ERROR_GENERIC;
@@ -1956,12 +1956,12 @@ rnp_generate_private_key(rnp_key_t *   pubkey,
         goto done;
     }
 
-    if (!pgp_key_protect_passphrase(primary_sec, key_format, NULL, passphrase)) {
+    if (!pgp_key_protect_password(primary_sec, key_format, NULL, password)) {
         rc = RNP_ERROR_GENERIC;
         goto done;
     }
 
-    if (!pgp_key_protect_passphrase(subkey_sec, key_format, NULL, passphrase)) {
+    if (!pgp_key_protect_password(subkey_sec, key_format, NULL, password)) {
         rc = RNP_ERROR_GENERIC;
         goto done;
     }
@@ -2121,7 +2121,7 @@ rnp_key_lock(rnp_key_t key)
 }
 
 rnp_result_t
-rnp_key_unlock(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx)
+rnp_key_unlock(rnp_key_t key, rnp_password_cb cb, void *app_ctx)
 {
     if (key == NULL || key->key == NULL || cb == NULL)
         return RNP_ERROR_NULL_POINTER;
@@ -2129,8 +2129,8 @@ rnp_key_unlock(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx)
     if (pgp_key_is_locked(key->key) == false)
         return RNP_SUCCESS;
 
-    pgp_passphrase_provider_t pass_provider;
-    bool                      ok = pgp_key_unlock(key->key, &pass_provider);
+    pgp_password_provider_t pass_provider;
+    bool                    ok = pgp_key_unlock(key->key, &pass_provider);
     if (ok == false)
         return RNP_ERROR_GENERIC;
 
@@ -2147,13 +2147,13 @@ rnp_key_is_protected(rnp_key_t key, bool *result)
 }
 
 rnp_result_t
-rnp_key_protect(rnp_key_t key, const char *passphrase)
+rnp_key_protect(rnp_key_t key, const char *password)
 {
-    if (key == NULL || key->key == NULL || passphrase == NULL)
+    if (key == NULL || key->key == NULL || password == NULL)
         return RNP_ERROR_NULL_POINTER;
 
     // TODO allow setting protection params
-    bool ok = pgp_key_protect_passphrase(key->key, key->key->format, NULL, passphrase);
+    bool ok = pgp_key_protect_password(key->key, key->key->format, NULL, password);
 
     if (ok)
         return RNP_SUCCESS;
@@ -2161,7 +2161,7 @@ rnp_key_protect(rnp_key_t key, const char *passphrase)
 }
 
 rnp_result_t
-rnp_key_unprotect(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx)
+rnp_key_unprotect(rnp_key_t key, rnp_password_cb cb, void *app_ctx)
 {
     if (key == NULL || key->key == NULL || cb == NULL)
         return RNP_ERROR_NULL_POINTER;

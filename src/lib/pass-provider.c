@@ -79,18 +79,18 @@ end:
 }
 
 bool
-rnp_passphrase_provider_stdin(const pgp_passphrase_ctx_t *ctx,
-                              char *                      passphrase,
-                              size_t                      passphrase_size,
-                              void *                      userdata)
+rnp_password_provider_stdin(const pgp_password_ctx_t *ctx,
+                            char *                    password,
+                            size_t                    password_size,
+                            void *                    userdata)
 {
     char keyidhex[PGP_KEY_ID_SIZE * 2 + 1];
     char target[sizeof(keyidhex) + 16];
     char prompt[128];
-    char buffer[MAX_PASSPHRASE_LENGTH];
+    char buffer[MAX_PASSWORD_LENGTH];
     bool ok = false;
 
-    if (!ctx || !passphrase || !passphrase_size) {
+    if (!ctx || !password || !password_size) {
         goto done;
     }
 
@@ -100,28 +100,28 @@ rnp_passphrase_provider_stdin(const pgp_passphrase_ctx_t *ctx,
     }
 start:
     if (ctx->op == PGP_OP_DECRYPT_SYM) {
-        snprintf(prompt, sizeof(prompt), "Enter passphrase to decrypt data: ");
+        snprintf(prompt, sizeof(prompt), "Enter password to decrypt data: ");
     } else if (ctx->op == PGP_OP_ENCRYPT_SYM) {
-        snprintf(prompt, sizeof(prompt), "Enter passphrase to encrypt data: ");
+        snprintf(prompt, sizeof(prompt), "Enter password to encrypt data: ");
     } else {
-        snprintf(prompt, sizeof(prompt), "Enter passphrase for %s: ", target);
+        snprintf(prompt, sizeof(prompt), "Enter password for %s: ", target);
     }
 
-    if (!rnp_getpass(prompt, passphrase, passphrase_size)) {
+    if (!rnp_getpass(prompt, password, password_size)) {
         goto done;
     }
     if ((ctx->op == PGP_OP_PROTECT) || (ctx->op == PGP_OP_ENCRYPT_SYM)) {
         if (ctx->op == PGP_OP_PROTECT) {
-            snprintf(prompt, sizeof(prompt), "Repeat passphrase for %s: ", target);
+            snprintf(prompt, sizeof(prompt), "Repeat password for %s: ", target);
         } else {
-            snprintf(prompt, sizeof(prompt), "Repeat passphrase: ");
+            snprintf(prompt, sizeof(prompt), "Repeat password: ");
         }
 
         if (!rnp_getpass(prompt, buffer, sizeof(buffer))) {
             goto done;
         }
-        if (strcmp(passphrase, buffer) != 0) {
-            puts("\nPassphrases do not match!");
+        if (strcmp(password, buffer) != 0) {
+            puts("\nPasswords do not match!");
             // currently will loop forever
             goto start;
         }
@@ -135,47 +135,47 @@ done:
 }
 
 bool
-rnp_passphrase_provider_file(const pgp_passphrase_ctx_t *ctx,
-                             char *                      passphrase,
-                             size_t                      passphrase_size,
-                             void *                      userdata)
+rnp_password_provider_file(const pgp_password_ctx_t *ctx,
+                           char *                    password,
+                           size_t                    password_size,
+                           void *                    userdata)
 {
     FILE *fp = (FILE *) userdata;
 
-    if (!ctx || !passphrase || !passphrase_size || !userdata) {
+    if (!ctx || !password || !password_size || !userdata) {
         return false;
     }
-    if (!fgets(passphrase, passphrase_size, fp)) {
+    if (!fgets(password, password_size, fp)) {
         return false;
     }
-    rnp_strip_eol(passphrase);
+    rnp_strip_eol(password);
     return true;
 }
 
 bool
-rnp_passphrase_provider_string(const pgp_passphrase_ctx_t *ctx,
-                               char *                      passphrase,
-                               size_t                      passphrase_size,
-                               void *                      userdata)
+rnp_password_provider_string(const pgp_password_ctx_t *ctx,
+                             char *                    password,
+                             size_t                    password_size,
+                             void *                    userdata)
 {
     char *passc = (char *) userdata;
 
-    if (!passc || strlen(passc) >= (passphrase_size - 1)) {
+    if (!passc || strlen(passc) >= (password_size - 1)) {
         return false;
     }
 
-    strncpy(passphrase, passc, passphrase_size - 1);
+    strncpy(password, passc, password_size - 1);
     return true;
 }
 
 bool
-pgp_request_passphrase(const pgp_passphrase_provider_t *provider,
-                       const pgp_passphrase_ctx_t *     ctx,
-                       char *                           passphrase,
-                       size_t                           passphrase_size)
+pgp_request_password(const pgp_password_provider_t *provider,
+                     const pgp_password_ctx_t *     ctx,
+                     char *                         password,
+                     size_t                         password_size)
 {
-    if (!provider || !provider->callback || !ctx || !passphrase || !passphrase_size) {
+    if (!provider || !provider->callback || !ctx || !password || !password_size) {
         return false;
     }
-    return provider->callback(ctx, passphrase, passphrase_size, provider->userdata);
+    return provider->callback(ctx, password, password_size, provider->userdata);
 }

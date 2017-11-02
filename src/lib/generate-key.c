@@ -435,14 +435,14 @@ keygen_subkey_merge_defaults(rnp_keygen_subkey_desc_t *desc)
 }
 
 bool
-pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
-                    bool                             merge_defaults,
-                    pgp_key_t *                      primary_sec,
-                    pgp_key_t *                      primary_pub,
-                    pgp_key_t *                      subkey_sec,
-                    pgp_key_t *                      subkey_pub,
-                    const pgp_passphrase_provider_t *passphrase_provider,
-                    key_store_format_t               secformat)
+pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
+                    bool                           merge_defaults,
+                    pgp_key_t *                    primary_sec,
+                    pgp_key_t *                    primary_pub,
+                    pgp_key_t *                    subkey_sec,
+                    pgp_key_t *                    subkey_pub,
+                    const pgp_password_provider_t *password_provider,
+                    key_store_format_t             secformat)
 {
     bool                ok = false;
     pgp_output_t *      output = NULL;
@@ -480,8 +480,8 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
     if (primary_sec->key.seckey.encrypted) {
         decrypted_primary_seckey = pgp_decrypt_seckey(
           primary_sec,
-          passphrase_provider,
-          &(pgp_passphrase_ctx_t){.op = PGP_OP_ADD_SUBKEY, .key = primary_sec});
+          password_provider,
+          &(pgp_password_ctx_t){.op = PGP_OP_ADD_SUBKEY, .key = primary_sec});
         if (!decrypted_primary_seckey) {
             goto end;
         }

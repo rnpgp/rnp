@@ -58,7 +58,7 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_setint(cfg, CFG_MAXALLOC, 4194304);
     rnp_cfg_set(cfg, CFG_SUBDIRGPG, SUBDIRECTORY_RNP);
     rnp_cfg_set(cfg, CFG_SUBDIRSSH, SUBDIRECTORY_SSH);
-    rnp_cfg_setint(cfg, CFG_NUMTRIES, MAX_PASSPHRASE_ATTEMPTS);
+    rnp_cfg_setint(cfg, CFG_NUMTRIES, MAX_PASSWORD_ATTEMPTS);
 }
 
 /** @brief apply configuration from keys-vals storage to rnp_params_t structure
@@ -340,7 +340,7 @@ rnp_cfg_get_pswdtries(rnp_cfg_t *cfg)
     numtries = rnp_cfg_get(cfg, CFG_NUMTRIES);
 
     if ((numtries == NULL) || ((num = atoi(numtries)) <= 0)) {
-        return MAX_PASSPHRASE_ATTEMPTS;
+        return MAX_PASSWORD_ATTEMPTS;
     } else if (strcmp(numtries, "unlimited")) {
         return INFINITE_ATTEMPTS;
     } else {

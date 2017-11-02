@@ -103,18 +103,18 @@ bool pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
  *         subkey, must not be NULL
  *  @param subkey_sec pointer to store the generated secret key, must not be NULL
  *  @param subkey_pub pointer to store the generated public key, must not be NULL
- *  @param passphrase_provider the passphrase provider that will be used to
+ *  @param password_provider the password provider that will be used to
  *         decrypt the primary key, may be NULL if primary key is unlocked
  *  @return true if successful, false otherwise.
  **/
-bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *       desc,
-                         bool                             merge_defaults,
-                         pgp_key_t *                      primary_sec,
-                         pgp_key_t *                      primary_pub,
-                         pgp_key_t *                      subkey_sec,
-                         pgp_key_t *                      subkey_pub,
-                         const pgp_passphrase_provider_t *passphrase_provider,
-                         key_store_format_t               secformat);
+bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
+                         bool                           merge_defaults,
+                         pgp_key_t *                    primary_sec,
+                         pgp_key_t *                    primary_pub,
+                         pgp_key_t *                    subkey_sec,
+                         pgp_key_t *                    subkey_pub,
+                         const pgp_password_provider_t *password_provider,
+                         key_store_format_t             secformat);
 
 /** generate a new primary key and subkey
  *
@@ -162,7 +162,7 @@ bool pgp_decrypt_file(pgp_io_t *,
                       const unsigned,
                       const unsigned,
                       int,
-                      const pgp_passphrase_provider_t *);
+                      const pgp_password_provider_t *);
 
 pgp_memory_t *pgp_encrypt_buf(
   rnp_ctx_t *, pgp_io_t *, const void *, const size_t, const pgp_pubkey_t *);
@@ -174,7 +174,7 @@ pgp_memory_t *pgp_decrypt_buf(pgp_io_t *,
                               const unsigned,
                               const unsigned,
                               int,
-                              const pgp_passphrase_provider_t *);
+                              const pgp_password_provider_t *);
 
 bool read_pem_seckey(const char *, pgp_key_t *, const char *, int);
 
@@ -201,10 +201,10 @@ struct pgp_reader_t {
  Encrypt/decrypt settings
 */
 typedef struct pgp_cryptinfo_t {
-    rnp_key_store_t *         secring;
-    const pgp_key_t *         key;
-    pgp_passphrase_provider_t passphrase_provider;
-    rnp_key_store_t *         pubring;
+    rnp_key_store_t *       secring;
+    const pgp_key_t *       key;
+    pgp_password_provider_t password_provider;
+    rnp_key_store_t *       pubring;
 } pgp_cryptinfo_t;
 
 /** pgp_cbdata_t */
@@ -218,8 +218,8 @@ struct pgp_cbdata_t {
     pgp_cryptinfo_t  cryptinfo;  /* used when decrypting */
     pgp_printstate_t printstate; /* used to keep printing state */
     pgp_seckey_t *   sshseckey;  /* secret key for ssh */
-    int              numtries;   /* # of passphrase attempts */
-    int              gotpass;    /* when passphrase entered */
+    int              numtries;   /* # of password attempts */
+    int              gotpass;    /* when password entered */
 };
 
 /** pgp_hashtype_t */

@@ -262,7 +262,7 @@ typedef enum {
     PGP_PTAG_CT_ENCRYPTED_PK_SESSION_KEY = 0x300 + 16,
 
     /* commands to the callback */
-    PGP_GET_PASSPHRASE = 0x400,
+    PGP_GET_PASSWORD = 0x400,
     PGP_GET_SECKEY = 0x400 + 1,
 
     /* Errors */
@@ -460,7 +460,7 @@ typedef enum {
 
 typedef enum pgp_op_t {
     PGP_OP_UNKNOWN = 0,
-    PGP_OP_ADD_SUBKEY = 1,  /* adding a subkey, primary key passphrase required */
+    PGP_OP_ADD_SUBKEY = 1,  /* adding a subkey, primary key password required */
     PGP_OP_SIGN = 2,        /* signing file or data */
     PGP_OP_DECRYPT = 3,     /* decrypting file or data */
     PGP_OP_UNLOCK = 4,      /* unlocking a key with pgp_key_unlock */

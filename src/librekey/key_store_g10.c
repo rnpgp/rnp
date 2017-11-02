@@ -83,7 +83,7 @@ static bool g10_calculated_hash(const pgp_seckey_t *key,
 pgp_seckey_t *g10_decrypt_seckey(const uint8_t *     data,
                                  size_t              data_len,
                                  const pgp_pubkey_t *pubkey,
-                                 const char *        passphrase);
+                                 const char *        password);
 
 static const format_info formats[] = {{PGP_SA_AES_128,
                                        PGP_CIPHER_MODE_CBC,
@@ -562,7 +562,7 @@ static bool
 decrypt_protected_section(const uint8_t *     encrypted_data,
                           size_t              encrypted_data_len,
                           const pgp_seckey_t *seckey,
-                          const char *        passphrase,
+                          const char *        password,
                           s_exp_t *           r_s_exp)
 {
     const format_info *info = NULL;
@@ -597,7 +597,7 @@ decrypt_protected_section(const uint8_t *     encrypted_data,
     if (pgp_s2k_iterated(seckey->protection.s2k.hash_alg,
                          derived_key,
                          keysize,
-                         passphrase,
+                         password,
                          seckey->protection.s2k.salt,
                          seckey->protection.s2k.iterations)) {
         RNP_LOG("pgp_s2k_iterated failed");
@@ -663,7 +663,7 @@ done:
 }
 
 static bool
-parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passphrase)
+parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *password)
 {
     const format_info *format;
     bool               ret = false;
@@ -757,18 +757,18 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passphr
            params->sub_elements[1].block.bytes,
            params->sub_elements[1].block.len);
 
-    // we're all done if no passphrase was provided (decryption not requested)
-    if (!passphrase) {
+    // we're all done if no password was provided (decryption not requested)
+    if (!password) {
         seckey->encrypted = true;
         ret = true;
         goto done;
     }
 
-    // passphrase was provided, so decrypt
+    // password was provided, so decrypt
     if (!decrypt_protected_section(protected->sub_elements[3].block.bytes,
                                    protected->sub_elements[3].block.len,
                                    seckey,
-                                   passphrase,
+                                   password,
                                    &decrypted_s_exp)) {
         goto done;
     }
@@ -849,7 +849,7 @@ g10_parse_seckey(pgp_io_t *       io,
                  const uint8_t *  data,
                  size_t           data_len,
                  rnp_key_store_t *pubring,
-                 const char *     passphrase)
+                 const char *     password)
 {
     s_exp_t s_exp = {0};
     bool    ret = false;
@@ -977,7 +977,7 @@ g10_parse_seckey(pgp_io_t *       io,
     }
 
     if (protected) {
-        if (!parse_protected_seckey(seckey, algorithm_s_exp, passphrase)) {
+        if (!parse_protected_seckey(seckey, algorithm_s_exp, password)) {
             goto done;
         }
     } else {
@@ -1012,18 +1012,18 @@ pgp_seckey_t *
 g10_decrypt_seckey(const uint8_t *     data,
                    size_t              data_len,
                    const pgp_pubkey_t *pubkey,
-                   const char *        passphrase)
+                   const char *        password)
 {
     pgp_seckey_t *seckey = NULL;
     pgp_io_t      io = {.errs = stderr, .res = stdout, .outs = stdout};
     bool          ok = false;
 
-    if (!passphrase) {
+    if (!password) {
         return NULL;
     }
 
     seckey = calloc(1, sizeof(*seckey));
-    if (!g10_parse_seckey(&io, seckey, data, data_len, NULL, passphrase)) {
+    if (!g10_parse_seckey(&io, seckey, data, data_len, NULL, password)) {
         goto done;
     }
     if (pubkey) {
@@ -1243,7 +1243,7 @@ write_seckey(s_exp_t *s_exp, const pgp_seckey_t *key)
 }
 
 static bool
-write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passphrase)
+write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *password)
 {
     const format_info *format;
     s_exp_t            raw_s_exp = {0};
@@ -1341,7 +1341,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passphr
     if (pgp_s2k_iterated(format->hash_alg,
                          derived_key,
                          keysize,
-                         (const char *) passphrase,
+                         (const char *) password,
                          seckey->protection.s2k.salt,
                          seckey->protection.s2k.iterations)) {
         (void) fprintf(stderr, "pgp_s2k_iterated failed\n");
@@ -1463,7 +1463,7 @@ error:
 }
 
 bool
-g10_write_seckey(pgp_output_t *output, pgp_seckey_t *seckey, const char *passphrase)
+g10_write_seckey(pgp_output_t *output, pgp_seckey_t *seckey, const char *password)
 {
     s_exp_t      s_exp = {0};
     s_exp_t *    sub_s_exp = NULL;
@@ -1495,7 +1495,7 @@ g10_write_seckey(pgp_output_t *output, pgp_seckey_t *seckey, const char *passphr
         goto done;
     }
     if (protected) {
-        if (!write_protected_seckey(sub_s_exp, seckey, passphrase)) {
+        if (!write_protected_seckey(sub_s_exp, seckey, password)) {
             goto done;
         }
     } else {
