@@ -667,7 +667,7 @@ finish:
 }
 
 static int
-encrypted_try_passphrase(pgp_source_t *src, const char *passphrase)
+encrypted_try_password(pgp_source_t *src, const char *password)
 {
     pgp_source_encrypted_param_t *param = src->param;
     pgp_sk_sesskey_t *            symkey;
@@ -680,10 +680,10 @@ encrypted_try_passphrase(pgp_source_t *src, const char *passphrase)
     int                           res;
 
     for (int i = 0; i < param->symencc; i++) {
-        /* deriving symmetric key from passphrase */
+        /* deriving symmetric key from password */
         symkey = &param->symencs[i];
         keysize = pgp_key_size(symkey->alg);
-        if (!keysize || !pgp_s2k_derive_key(&symkey->s2k, passphrase, keybuf, keysize)) {
+        if (!keysize || !pgp_s2k_derive_key(&symkey->s2k, password, keybuf, keysize)) {
             continue;
         }
 
@@ -938,7 +938,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     pgp_key_t *                   seckey = NULL;
     pgp_key_request_ctx_t         keyctx;
     pgp_seckey_t *                decrypted_seckey = NULL;
-    char                          passphrase[MAX_PASSPHRASE_LENGTH] = {0};
+    char                          password[MAX_PASSWORD_LENGTH] = {0};
     int                           intres;
     bool                          have_key = false;
 
@@ -1010,8 +1010,8 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     /* Obtaining the symmetric key */
     have_key = false;
 
-    if (!ctx->handler.passphrase_provider) {
-        RNP_LOG("no passphrase provider");
+    if (!ctx->handler.password_provider) {
+        RNP_LOG("no password provider");
         errcode = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }
@@ -1038,8 +1038,8 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             if (seckey->key.seckey.encrypted) {
                 decrypted_seckey = pgp_decrypt_seckey(
                   seckey,
-                  ctx->handler.passphrase_provider,
-                  &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT, .key = seckey});
+                  ctx->handler.password_provider,
+                  &(pgp_password_ctx_t){.op = PGP_OP_DECRYPT, .key = seckey});
                 if (!decrypted_seckey) {
                     continue;
                 }
@@ -1068,24 +1068,24 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     /* Trying password-based decryption */
     if (!have_key && (param->symencc > 0)) {
         do {
-            if (!pgp_request_passphrase(
-                  ctx->handler.passphrase_provider,
-                  &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT_SYM, .key = NULL},
-                  passphrase,
-                  sizeof(passphrase))) {
+            if (!pgp_request_password(
+                  ctx->handler.password_provider,
+                  &(pgp_password_ctx_t){.op = PGP_OP_DECRYPT_SYM, .key = NULL},
+                  password,
+                  sizeof(password))) {
                 goto finish;
             }
 
-            intres = encrypted_try_passphrase(src, passphrase);
+            intres = encrypted_try_password(src, password);
             if (intres > 0) {
                 have_key = true;
                 break;
             } else if (intres < 0) {
                 errcode = RNP_ERROR_NOT_SUPPORTED;
                 goto finish;
-            } else if (strlen(passphrase) == 0) {
-                RNP_LOG("empty passphrase - canceling");
-                errcode = RNP_ERROR_BAD_PASSPHRASE;
+            } else if (strlen(password) == 0) {
+                RNP_LOG("empty password - canceling");
+                errcode = RNP_ERROR_BAD_PASSWORD;
                 goto finish;
             }
         } while (1);
@@ -1100,7 +1100,7 @@ finish:
     if (errcode != RNP_SUCCESS) {
         encrypted_src_close(src);
     }
-    pgp_forget(passphrase, sizeof(passphrase));
+    pgp_forget(password, sizeof(password));
 
     return errcode;
 }

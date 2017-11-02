@@ -30,36 +30,36 @@
 
 typedef struct pgp_key_t pgp_key_t;
 
-typedef struct pgp_passphrase_ctx_t {
+typedef struct pgp_password_ctx_t {
     uint8_t          op;
     const pgp_key_t *key;
-} pgp_passphrase_ctx_t;
+} pgp_password_ctx_t;
 
-typedef bool pgp_passphrase_callback_t(const pgp_passphrase_ctx_t *ctx,
-                                       char *                      passphrase,
-                                       size_t                      passphrase_size,
-                                       void *                      userdata);
+typedef bool pgp_password_callback_t(const pgp_password_ctx_t *ctx,
+                                     char *                    password,
+                                     size_t                    password_size,
+                                     void *                    userdata);
 
-typedef struct pgp_passphrase_provider_t {
-    pgp_passphrase_callback_t *callback;
-    void *                     userdata;
-} pgp_passphrase_provider_t;
+typedef struct pgp_password_provider_t {
+    pgp_password_callback_t *callback;
+    void *                   userdata;
+} pgp_password_provider_t;
 
-bool pgp_request_passphrase(const pgp_passphrase_provider_t *provider,
-                            const pgp_passphrase_ctx_t *     ctx,
-                            char *                           passphrase,
-                            size_t                           passphrase_size);
+bool pgp_request_password(const pgp_password_provider_t *provider,
+                          const pgp_password_ctx_t *     ctx,
+                          char *                         password,
+                          size_t                         password_size);
 
-bool rnp_passphrase_provider_stdin(const pgp_passphrase_ctx_t *ctx,
-                                   char *                      passphrase,
-                                   size_t                      passphrase_size,
-                                   void *                      userdata);
-bool rnp_passphrase_provider_file(const pgp_passphrase_ctx_t *ctx,
-                                  char *                      passphrase,
-                                  size_t                      passphrase_size,
-                                  void *                      userdata);
-bool rnp_passphrase_provider_string(const pgp_passphrase_ctx_t *ctx,
-                                    char *                      passphrase,
-                                    size_t                      passphrase_size,
-                                    void *                      userdata);
+bool rnp_password_provider_stdin(const pgp_password_ctx_t *ctx,
+                                 char *                    password,
+                                 size_t                    password_size,
+                                 void *                    userdata);
+bool rnp_password_provider_file(const pgp_password_ctx_t *ctx,
+                                char *                    password,
+                                size_t                    password_size,
+                                void *                    userdata);
+bool rnp_password_provider_string(const pgp_password_ctx_t *ctx,
+                                  char *                    password,
+                                  size_t                    password_size,
+                                  void *                    userdata);
 #endif

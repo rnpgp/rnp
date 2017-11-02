@@ -131,8 +131,8 @@ pgp_seckey_t *pgp_decrypt_seckey_pgp(const uint8_t *,
                                      const char *);
 
 pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *,
-                                 const pgp_passphrase_provider_t *,
-                                 const pgp_passphrase_ctx_t *);
+                                 const pgp_password_provider_t *,
+                                 const pgp_password_ctx_t *);
 
 void pgp_set_seckey(pgp_contents_t *, const pgp_key_t *);
 
@@ -150,7 +150,7 @@ void pgp_key_init(pgp_key_t *, const pgp_content_enum);
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 
-char *pgp_export_key(pgp_io_t *, const pgp_key_t *, const pgp_passphrase_provider_t *);
+char *pgp_export_key(pgp_io_t *, const pgp_key_t *, const pgp_password_provider_t *);
 
 /** check if a key is currently locked
  *
@@ -166,11 +166,11 @@ bool pgp_key_is_locked(const pgp_key_t *key);
  *  Note: Key locking does not apply to unprotected keys.
  *
  *  @param key the key
- *  @param pass_provider the passphrase provider that may be used
+ *  @param pass_provider the password provider that may be used
  *         to unlock the key, if necessary
  *  @return true if the key was unlocked, false otherwise
  **/
-bool pgp_key_unlock(pgp_key_t *key, const pgp_passphrase_provider_t *provider);
+bool pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider);
 
 /** lock a key
  *
@@ -185,34 +185,34 @@ bool pgp_key_lock(pgp_key_t *key);
  *
  *  @param key
  *  @param format
- *  @param passphrase_provider
+ *  @param password_provider
  *  @return true if key was successfully protected, false otherwise
  **/
-bool pgp_key_protect(pgp_key_t *                      key,
-                     key_store_format_t               format,
-                     rnp_key_protection_params_t *    protection,
-                     const pgp_passphrase_provider_t *passphrase_provider);
+bool pgp_key_protect(pgp_key_t *                    key,
+                     key_store_format_t             format,
+                     rnp_key_protection_params_t *  protection,
+                     const pgp_password_provider_t *password_provider);
 
 /** add protection to a key
  *
  *  @param key
  *  @param format
  *  @param protection
- *  @param passphrase
+ *  @param password
  *  @return true if key was successfully protected, false otherwise
  **/
-bool pgp_key_protect_passphrase(pgp_key_t *                  key,
-                                key_store_format_t           format,
-                                rnp_key_protection_params_t *protection,
-                                const char *                 passphrase);
+bool pgp_key_protect_password(pgp_key_t *                  key,
+                              key_store_format_t           format,
+                              rnp_key_protection_params_t *protection,
+                              const char *                 password);
 
 /** remove protection from a key
  *
  *  @param key
- *  @param passphrase_provider
+ *  @param password_provider
  *  @return true if protection was successfully removed, false otherwise
  **/
-bool pgp_key_unprotect(pgp_key_t *key, const pgp_passphrase_provider_t *passphrase_provider);
+bool pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provider);
 
 /** check if a key is currently protected
  *

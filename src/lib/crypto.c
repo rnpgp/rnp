@@ -455,20 +455,20 @@ pgp_encrypt_buf(rnp_ctx_t *         ctx,
    \param keyring Keyring to use
    \param use_armor Expect armored text, if set
    \param allow_overwrite Allow output file to overwritten, if set.
-   \param getpassfunc Callback to use to get passphrase
+   \param getpassfunc Callback to use to get password
 */
 
 bool
-pgp_decrypt_file(pgp_io_t *                       io,
-                 const char *                     infile,
-                 const char *                     outfile,
-                 rnp_key_store_t *                secring,
-                 rnp_key_store_t *                pubring,
-                 const unsigned                   use_armor,
-                 const unsigned                   allow_overwrite,
-                 const unsigned                   sshkeys,
-                 int                              numtries,
-                 const pgp_passphrase_provider_t *passphrase_provider)
+pgp_decrypt_file(pgp_io_t *                     io,
+                 const char *                   infile,
+                 const char *                   outfile,
+                 rnp_key_store_t *              secring,
+                 rnp_key_store_t *              pubring,
+                 const unsigned                 use_armor,
+                 const unsigned                 allow_overwrite,
+                 const unsigned                 sshkeys,
+                 int                            numtries,
+                 const pgp_password_provider_t *password_provider)
 {
     pgp_stream_t *parse = NULL;
     const int     printerrors = 1;
@@ -521,14 +521,14 @@ pgp_decrypt_file(pgp_io_t *                       io,
 
     /* setup for writing decrypted contents to given output file */
 
-    /* setup keyring and passphrase callback */
+    /* setup keyring and password callback */
     parse->cbinfo.cryptinfo.secring = secring;
-    parse->cbinfo.cryptinfo.passphrase_provider = *passphrase_provider;
+    parse->cbinfo.cryptinfo.password_provider = *password_provider;
     parse->cbinfo.cryptinfo.pubring = pubring;
     parse->cbinfo.sshseckey = (sshkeys) ? &secring->keys[0].key.seckey : NULL;
     parse->cbinfo.numtries = numtries;
 
-    /* Set up armor/passphrase options */
+    /* Set up armor/password options */
     if (use_armor) {
         pgp_reader_push_dearmor(parse);
     }
@@ -541,7 +541,7 @@ pgp_decrypt_file(pgp_io_t *                       io,
         pgp_reader_pop_dearmor(parse);
     }
 
-    /* if we didn't get the passphrase, unlink output file */
+    /* if we didn't get the password, unlink output file */
     const bool gotpass = parse->cbinfo.gotpass;
     if (!gotpass) {
         (void) unlink((filename) ? filename : outfile);
@@ -561,15 +561,15 @@ pgp_decrypt_file(pgp_io_t *                       io,
 
 /* decrypt an area of memory */
 pgp_memory_t *
-pgp_decrypt_buf(pgp_io_t *                       io,
-                const void *                     input,
-                const size_t                     insize,
-                rnp_key_store_t *                secring,
-                rnp_key_store_t *                pubring,
-                const unsigned                   use_armor,
-                const unsigned                   sshkeys,
-                int                              numtries,
-                const pgp_passphrase_provider_t *passphrase_provider)
+pgp_decrypt_buf(pgp_io_t *                     io,
+                const void *                   input,
+                const size_t                   insize,
+                rnp_key_store_t *              secring,
+                rnp_key_store_t *              pubring,
+                const unsigned                 use_armor,
+                const unsigned                 sshkeys,
+                int                            numtries,
+                const pgp_password_provider_t *password_provider)
 {
     pgp_stream_t *parse = NULL;
     pgp_memory_t *outmem;
@@ -603,14 +603,14 @@ pgp_decrypt_buf(pgp_io_t *                       io,
         return NULL;
     }
 
-    /* setup keyring and passphrase callback */
+    /* setup keyring and password callback */
     parse->cbinfo.cryptinfo.secring = secring;
     parse->cbinfo.cryptinfo.pubring = pubring;
-    parse->cbinfo.cryptinfo.passphrase_provider = *passphrase_provider;
+    parse->cbinfo.cryptinfo.password_provider = *password_provider;
     parse->cbinfo.sshseckey = (sshkeys) ? &secring->keys[0].key.seckey : NULL;
     parse->cbinfo.numtries = numtries;
 
-    /* Set up armor/passphrase options */
+    /* Set up armor/password options */
     if (use_armor) {
         pgp_reader_push_dearmor(parse);
     }
@@ -629,6 +629,6 @@ pgp_decrypt_buf(pgp_io_t *                       io,
     pgp_output_delete(parse->cbinfo.output);
     pgp_teardown_memory_read(parse, inmem);
 
-    /* if we didn't get the passphrase, return NULL */
+    /* if we didn't get the password, return NULL */
     return gotpass ? outmem : NULL;
 }

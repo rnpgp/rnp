@@ -13,7 +13,7 @@
         "key server": "hkp://pgp.mit.edu"
       },
       "protection" : {
-          "passphrase": "abc",
+          "password": "abc",
           "cipher": "AES256",
           "hash": "SHA256",
           "iterations": 65536

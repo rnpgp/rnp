@@ -76,8 +76,8 @@ signature  384/ECDSA d45592277b75ada1 2017-06-21
 Key fingerprint: 4244 2969 07ca 42f7 b6d8 1636 d455 9227 7b75 ada1
 uid              ECDSA 384-bit key <flowher@localhost>
 rnp: generated keys in directory /tmp/.rnp
-Enter passphrase for d45592277b75ada1:
-Repeat passphrase for d45592277b75ada1:
+Enter password for d45592277b75ada1:
+Repeat password for d45592277b75ada1:
 >
 ```
 

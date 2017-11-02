@@ -86,7 +86,7 @@ def run_iterated(iterations, func, src, dst, *args):
     return res
 
 def rnp_symencrypt_file(src, dst, cipher, zlevel = 6, zalgo = 'zip', armor = False):
-    params = ['--homedir', RNPDIR, '--passphrase', PASSWORD, '--cipher', cipher, '-z', str(zlevel), '--' + zalgo, '-c', src, '--output', dst]
+    params = ['--homedir', RNPDIR, '--password', PASSWORD, '--cipher', cipher, '-z', str(zlevel), '--' + zalgo, '-c', src, '--output', dst]
     if armor:
         params += ['--armor']
     ret = run_proc_fast(RNP, params)
@@ -94,7 +94,7 @@ def rnp_symencrypt_file(src, dst, cipher, zlevel = 6, zalgo = 'zip', armor = Fal
         raise_err('rnp symmetric encryption failed')
 
 def rnp_decrypt_file(src, dst):
-    ret = run_proc_fast(RNP, ['--homedir', RNPDIR, '--passphrase', PASSWORD, '--decrypt', src, '--output', dst])
+    ret = run_proc_fast(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--decrypt', src, '--output', dst])
     if ret != 0:
         raise_err('rnp decryption failed')
 

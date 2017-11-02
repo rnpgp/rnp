@@ -41,9 +41,9 @@ typedef bool pgp_destination_func_t(pgp_parse_handler_t *handler,
                                     const char *         filename);
 
 typedef struct pgp_parse_handler_t {
-    pgp_passphrase_provider_t *passphrase_provider;
-    pgp_key_provider_t *       key_provider;
-    pgp_destination_func_t *   dest_provider;
+    pgp_password_provider_t *password_provider;
+    pgp_key_provider_t *     key_provider;
+    pgp_destination_func_t * dest_provider;
 
     void *param;
 } pgp_parse_handler_t;

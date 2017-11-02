@@ -1655,7 +1655,7 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
         }
         break;
 
-    case PGP_GET_PASSPHRASE:
+    case PGP_GET_PASSWORD:
         break;
 
     case PGP_PTAG_CT_SECRET_KEY:

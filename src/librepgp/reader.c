@@ -2077,7 +2077,7 @@ pgp_pk_sesskey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 @verbatim
  This callback does the following:
  * finds the session key in the keyring
- * gets a passphrase if required
+ * gets a password if required
  * decrypts the secret key, if necessary
  * sets the seckey in the content struct
 @endverbatim
@@ -2127,17 +2127,17 @@ pgp_get_seckey_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             repgp_print_key(
               io, cbinfo->cryptinfo.pubring, pubkey, "signature ", &pubkey->key.pubkey, 0);
             /* now decrypt key */
-            secret = pgp_decrypt_seckey(
-              keypair,
-              &cbinfo->cryptinfo.passphrase_provider,
-              &(pgp_passphrase_ctx_t){.op = PGP_OP_DECRYPT, .key = keypair});
+            secret =
+              pgp_decrypt_seckey(keypair,
+                                 &cbinfo->cryptinfo.password_provider,
+                                 &(pgp_password_ctx_t){.op = PGP_OP_DECRYPT, .key = keypair});
             if (secret != NULL) {
                 break;
             }
-            (void) fprintf(io->errs, "Bad passphrase\n");
+            (void) fprintf(io->errs, "Bad password\n");
         }
         if (secret == NULL) {
-            (void) fprintf(io->errs, "Exhausted passphrase attempts\n");
+            (void) fprintf(io->errs, "Exhausted password attempts\n");
             return (pgp_cb_ret_t) PGP_RELEASE_MEMORY;
         }
         cbinfo->gotpass = 1;

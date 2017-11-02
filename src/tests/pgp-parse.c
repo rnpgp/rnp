@@ -271,8 +271,8 @@ setup_keystore_1(rnp_test_state_t *state, rnp_t *rnp)
     }
 
     // Set password
-    rnp->passphrase_provider.callback = string_copy_passphrase_callback;
-    rnp->passphrase_provider.userdata = /*unconst*/ (char *) KEYRING_1_PASSWORD;
+    rnp->password_provider.callback = string_copy_password_callback;
+    rnp->password_provider.userdata = /*unconst*/ (char *) KEYRING_1_PASSWORD;
 
 end:
     rnp_params_free(&params);

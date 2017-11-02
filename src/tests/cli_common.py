@@ -37,12 +37,12 @@ def size_to_readable(num, suffix = 'B'):
         num /= 1024.0
     return "%.1f%s%s" % (num, 'Yi', suffix)
 
-def pswd_pipe(passphrase):
+def pswd_pipe(password):
     pr, pw = os.pipe()
     with os.fdopen(pw, 'w') as fw:
-        fw.write(passphrase)
+        fw.write(password)
         fw.write('\n')
-        fw.write(passphrase)
+        fw.write(password)
         
     return pr
 

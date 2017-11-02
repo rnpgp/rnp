@@ -114,11 +114,11 @@ int test_value_equal(const char *  what,
 char *uint_to_string(char *buff, const int buffsize, unsigned int num, int base);
 
 bool write_pass_to_pipe(int fd, size_t count);
-/* Setup readable pipe with default passphrase inside */
-bool setupPassphrasefd(int *pipefd);
+/* Setup readable pipe with default password inside */
+bool setupPasswordfd(int *pipefd);
 
 /* Common initialization of rnp structure : home path, keystore format and pointer to store
- * passphrase fd */
+ * password fd */
 bool setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd);
 
 /* Initialize key generation params with default values and specified hash algorithm */
@@ -139,21 +139,21 @@ bool get_random(uint8_t *data, size_t len);
 /** Ensures global handler for DRBG used in tests is destroyed. */
 void destroy_global_rng(void);
 
-// this is a passphrase callback that will always fail
-bool failing_passphrase_callback(const pgp_passphrase_ctx_t *ctx,
-                                 char *                      passphrase,
-                                 size_t                      passphrase_size,
-                                 void *                      userdata);
+// this is a password callback that will always fail
+bool failing_password_callback(const pgp_password_ctx_t *ctx,
+                               char *                    password,
+                               size_t                    password_size,
+                               void *                    userdata);
 
-// this is a passphrase callback that should never be called
-bool asserting_passphrase_callback(const pgp_passphrase_ctx_t *ctx,
-                                   char *                      passphrase,
-                                   size_t                      passphrase_size,
-                                   void *                      userdata);
+// this is a password callback that should never be called
+bool asserting_password_callback(const pgp_password_ctx_t *ctx,
+                                 char *                    password,
+                                 size_t                    password_size,
+                                 void *                    userdata);
 
-// this is a passphrase callback that just copies the string in userdata to
-// the passphrase buffer
-bool string_copy_passphrase_callback(const pgp_passphrase_ctx_t *ctx,
-                                     char *                      passphrase,
-                                     size_t                      passphrase_size,
-                                     void *                      userdata);
+// this is a password callback that just copies the string in userdata to
+// the password buffer
+bool string_copy_password_callback(const pgp_password_ctx_t *ctx,
+                                   char *                    password,
+                                   size_t                    password_size,
+                                   void *                    userdata);

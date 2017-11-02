@@ -35,19 +35,19 @@
 void
 test_key_unlock_pgp(void **state)
 {
-    rnp_test_state_t *        rstate = *state;
-    char                      path[PATH_MAX];
-    rnp_t                     rnp;
-    pgp_key_t *               key = NULL;
-    rnp_ctx_t                 ctx;
-    const char *              data = "my test data";
-    char                      signature[512] = {0};
-    int                       siglen = 0;
-    char                      encrypted[512] = {0};
-    int                       enclen = 0;
-    char                      decrypted[512] = {0};
-    pgp_passphrase_provider_t provider = {0};
-    static const char *       keyids[] = {"7bc6709b15c23a4a", // primary
+    rnp_test_state_t *      rstate = *state;
+    char                    path[PATH_MAX];
+    rnp_t                   rnp;
+    pgp_key_t *             key = NULL;
+    rnp_ctx_t               ctx;
+    const char *            data = "my test data";
+    char                    signature[512] = {0};
+    int                     siglen = 0;
+    char                    encrypted[512] = {0};
+    int                     enclen = 0;
+    char                    decrypted[512] = {0};
+    pgp_password_provider_t provider = {0};
+    static const char *     keyids[] = {"7bc6709b15c23a4a", // primary
                                    "1ed63ee56fadc34d",
                                    "1d7e8a5393c997a8",
                                    "8a05b89fad5aded1",
@@ -69,9 +69,9 @@ test_key_unlock_pgp(void **state)
         rnp_assert_true(rstate, pgp_key_is_locked(key));
     }
 
-    // try signing with a failing passphrase provider (should fail)
-    rnp.passphrase_provider =
-      (pgp_passphrase_provider_t){.callback = failing_passphrase_callback, .userdata = NULL};
+    // try signing with a failing password provider (should fail)
+    rnp.password_provider =
+      (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
     rnp_ctx_init(&ctx, &rnp);
     ctx.halg = pgp_str_to_hash_alg("SHA1");
     memset(signature, 0, sizeof(signature));
@@ -94,21 +94,21 @@ test_key_unlock_pgp(void **state)
     assert_null(key->key.seckey.key.rsa.q);
     assert_null(key->key.seckey.key.rsa.u);
 
-    // try to unlock with a failing passphrase provider
+    // try to unlock with a failing password provider
     provider =
-      (pgp_passphrase_provider_t){.callback = failing_passphrase_callback, .userdata = NULL};
+      (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
     rnp_assert_false(rstate, pgp_key_unlock(key, &provider));
     rnp_assert_true(rstate, pgp_key_is_locked(key));
 
-    // try to unlock with an incorrect passphrase
-    provider = (pgp_passphrase_provider_t){.callback = string_copy_passphrase_callback,
-                                           .userdata = "badpass"};
+    // try to unlock with an incorrect password
+    provider = (pgp_password_provider_t){.callback = string_copy_password_callback,
+                                         .userdata = "badpass"};
     rnp_assert_false(rstate, pgp_key_unlock(key, &provider));
     rnp_assert_true(rstate, pgp_key_is_locked(key));
 
     // unlock the signing key
-    provider = (pgp_passphrase_provider_t){.callback = string_copy_passphrase_callback,
-                                           .userdata = "password"};
+    provider = (pgp_password_provider_t){.callback = string_copy_password_callback,
+                                         .userdata = "password"};
     rnp_assert_true(rstate, pgp_key_unlock(key, &provider));
     rnp_assert_false(rstate, pgp_key_is_locked(key));
 
@@ -118,11 +118,11 @@ test_key_unlock_pgp(void **state)
     assert_non_null(key->key.seckey.key.rsa.q);
     assert_non_null(key->key.seckey.key.rsa.u);
 
-    // now the signing key is unlocked, confirm that no passphrase is required for signing
-    rnp.passphrase_provider =
-      (pgp_passphrase_provider_t){.callback = asserting_passphrase_callback, .userdata = NULL};
+    // now the signing key is unlocked, confirm that no password is required for signing
+    rnp.password_provider =
+      (pgp_password_provider_t){.callback = asserting_password_callback, .userdata = NULL};
 
-    // sign, with no passphrase
+    // sign, with no password
     rnp_ctx_init(&ctx, &rnp);
     ctx.halg = pgp_str_to_hash_alg("SHA1");
     memset(signature, 0, sizeof(signature));
@@ -147,10 +147,10 @@ test_key_unlock_pgp(void **state)
     // lock the signing key
     rnp_assert_true(rstate, pgp_key_lock(key));
     rnp_assert_true(rstate, pgp_key_is_locked(key));
-    rnp.passphrase_provider =
-      (pgp_passphrase_provider_t){.callback = failing_passphrase_callback, .userdata = NULL};
+    rnp.password_provider =
+      (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
 
-    // sign, with no passphrase (should now fail)
+    // sign, with no password (should now fail)
     rnp_ctx_init(&ctx, &rnp);
     ctx.halg = pgp_str_to_hash_alg("SHA1");
     memset(signature, 0, sizeof(signature));
@@ -168,9 +168,9 @@ test_key_unlock_pgp(void **state)
     rnp_assert_true(rstate, enclen > 0);
     rnp_ctx_free(&ctx);
 
-    // try decrypting with a failing passphrase provider (should fail)
-    rnp.passphrase_provider =
-      (pgp_passphrase_provider_t){.callback = failing_passphrase_callback, .userdata = NULL};
+    // try decrypting with a failing password provider (should fail)
+    rnp.password_provider =
+      (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
     rnp_ctx_init(&ctx, &rnp);
     size_t tmp = sizeof(decrypted);
     rnp_assert_int_equal(rstate,
@@ -184,12 +184,12 @@ test_key_unlock_pgp(void **state)
                     rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyids[1], &key));
 
     // unlock the encrypting key
-    provider = (pgp_passphrase_provider_t){.callback = string_copy_passphrase_callback,
-                                           .userdata = "password"};
+    provider = (pgp_password_provider_t){.callback = string_copy_password_callback,
+                                         .userdata = "password"};
     rnp_assert_true(rstate, pgp_key_unlock(key, &provider));
     rnp_assert_false(rstate, pgp_key_is_locked(key));
 
-    // decrypt, with no passphrase
+    // decrypt, with no password
     rnp_ctx_init(&ctx, &rnp);
     size_t out_len = sizeof(decrypted);
     rnp_assert_int_equal(
@@ -202,10 +202,10 @@ test_key_unlock_pgp(void **state)
     // lock the encrypting key
     rnp_assert_true(rstate, pgp_key_lock(key));
     rnp_assert_true(rstate, pgp_key_is_locked(key));
-    rnp.passphrase_provider =
-      (pgp_passphrase_provider_t){.callback = failing_passphrase_callback, .userdata = NULL};
+    rnp.password_provider =
+      (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
 
-    // decrypt, with no passphrase (should now fail)
+    // decrypt, with no password (should now fail)
     rnp_ctx_init(&ctx, &rnp);
     out_len = sizeof(decrypted);
     rnp_assert_int_equal(rstate,

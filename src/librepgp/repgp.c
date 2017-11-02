@@ -349,7 +349,7 @@ repgp_list_packets(const void *ctx, const repgp_handle_t *input, bool dump_conte
         }
         stream->cryptinfo.secring = rnp->secring;
         stream->cryptinfo.pubring = rnp->pubring;
-        stream->cryptinfo.passphrase_provider = rnp->passphrase_provider;
+        stream->cryptinfo.password_provider = rnp->password_provider;
     }
 
     if (rctx->armor) {

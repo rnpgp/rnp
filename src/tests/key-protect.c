@@ -94,23 +94,22 @@ test_key_protect_load_pgp(void **state)
     assert_null(key->key.seckey.key.rsa.q);
     assert_null(key->key.seckey.key.rsa.u);
 
-    // try to unprotect with a failing passphrase provider
-    assert_false(
-      pgp_key_unprotect(key,
-                        &(pgp_passphrase_provider_t){.callback = failing_passphrase_callback,
-                                                     .userdata = NULL}));
-
-    // try to unprotect with an incorrect passphrase
+    // try to unprotect with a failing password provider
     assert_false(pgp_key_unprotect(
       key,
-      &(pgp_passphrase_provider_t){.callback = string_copy_passphrase_callback,
-                                   .userdata = "badpass"}));
+      &(pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL}));
 
-    // unprotect with the correct passphrase
-    assert_true(pgp_key_unprotect(
-      key,
-      &(pgp_passphrase_provider_t){.callback = string_copy_passphrase_callback,
-                                   .userdata = "password"}));
+    // try to unprotect with an incorrect password
+    assert_false(
+      pgp_key_unprotect(key,
+                        &(pgp_password_provider_t){.callback = string_copy_password_callback,
+                                                   .userdata = "badpass"}));
+
+    // unprotect with the correct password
+    assert_true(
+      pgp_key_unprotect(key,
+                        &(pgp_password_provider_t){.callback = string_copy_password_callback,
+                                                   .userdata = "password"}));
     assert_false(pgp_key_is_protected(key));
 
     // should still be locked
@@ -122,11 +121,10 @@ test_key_protect_load_pgp(void **state)
     assert_null(key->key.seckey.key.rsa.q);
     assert_null(key->key.seckey.key.rsa.u);
 
-    // unlock (no passphrase required since the key is not protected)
-    assert_true(
-      pgp_key_unlock(key,
-                     &(pgp_passphrase_provider_t){.callback = asserting_passphrase_callback,
-                                                  .userdata = NULL}));
+    // unlock (no password required since the key is not protected)
+    assert_true(pgp_key_unlock(
+      key,
+      &(pgp_password_provider_t){.callback = asserting_password_callback, .userdata = NULL}));
     assert_false(pgp_key_is_locked(key));
 
     // secret key material should be available
@@ -186,11 +184,11 @@ test_key_protect_load_pgp(void **state)
         assert_null(reloaded_key->key.seckey.key.rsa.p);
         assert_null(reloaded_key->key.seckey.key.rsa.q);
         assert_null(reloaded_key->key.seckey.key.rsa.u);
-        // unlock it (no passphrase, since it's not protected)
+        // unlock it (no password, since it's not protected)
         assert_true(
           pgp_key_unlock(reloaded_key,
-                         &(pgp_passphrase_provider_t){
-                           .callback = asserting_passphrase_callback, .userdata = NULL}));
+                         &(pgp_password_provider_t){.callback = asserting_password_callback,
+                                                    .userdata = NULL}));
         assert_false(pgp_key_is_locked(reloaded_key));
         // compare MPIs of the reloaded key, with the unlocked key from earlier
         assert_int_equal(
@@ -213,24 +211,22 @@ test_key_protect_load_pgp(void **state)
       pgp_key_protect(key,
                       key->format, // same format
                       NULL,        // default protection
-                      &(pgp_passphrase_provider_t){.callback = string_copy_passphrase_callback,
-                                                   .userdata = "newpass"}));
+                      &(pgp_password_provider_t){.callback = string_copy_password_callback,
+                                                 .userdata = "newpass"}));
     assert_false(pgp_key_is_protected(key));
 
     // unlock
-    assert_true(
-      pgp_key_unlock(key,
-                     &(pgp_passphrase_provider_t){.callback = asserting_passphrase_callback,
-                                                  .userdata = NULL}));
+    assert_true(pgp_key_unlock(
+      key,
+      &(pgp_password_provider_t){.callback = asserting_password_callback, .userdata = NULL}));
     assert_false(pgp_key_is_locked(key));
 
-    // try to protect with a failing passphrase provider
-    assert_false(
-      pgp_key_protect(key,
-                      key->format, // same format
-                      NULL,        // default protection
-                      &(pgp_passphrase_provider_t){.callback = failing_passphrase_callback,
-                                                   .userdata = NULL}));
+    // try to protect with a failing password provider
+    assert_false(pgp_key_protect(
+      key,
+      key->format, // same format
+      NULL,        // default protection
+      &(pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL}));
     assert_false(pgp_key_is_protected(key));
 
     // (re)protect with a new password
@@ -238,8 +234,8 @@ test_key_protect_load_pgp(void **state)
       pgp_key_protect(key,
                       key->format, // same format
                       NULL,        // default protection
-                      &(pgp_passphrase_provider_t){.callback = string_copy_passphrase_callback,
-                                                   .userdata = "newpass"}));
+                      &(pgp_password_provider_t){.callback = string_copy_password_callback,
+                                                 .userdata = "newpass"}));
     assert_true(pgp_key_is_protected(key));
 
     // lock
@@ -249,15 +245,15 @@ test_key_protect_load_pgp(void **state)
     // try to unlock with old password
     assert_false(
       pgp_key_unlock(key,
-                     &(pgp_passphrase_provider_t){.callback = string_copy_passphrase_callback,
-                                                  .userdata = "password"}));
+                     &(pgp_password_provider_t){.callback = string_copy_password_callback,
+                                                .userdata = "password"}));
     assert_true(pgp_key_is_locked(key));
 
     // unlock with new password
     assert_true(
       pgp_key_unlock(key,
-                     &(pgp_passphrase_provider_t){.callback = string_copy_passphrase_callback,
-                                                  .userdata = "newpass"}));
+                     &(pgp_password_provider_t){.callback = string_copy_password_callback,
+                                                .userdata = "newpass"}));
     assert_false(pgp_key_is_locked(key));
 
     // compare secret MPIs with those from earlier

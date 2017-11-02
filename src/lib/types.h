@@ -470,13 +470,13 @@ typedef struct {
     unsigned       enckeylen;
 } pgp_sk_sesskey_t;
 
-/** pgp_seckey_passphrase_t */
+/** pgp_seckey_password_t */
 typedef struct {
     const pgp_seckey_t *seckey;
-    char **             passphrase; /* point somewhere that gets filled
+    char **             password; /* point somewhere that gets filled
                                      * in to work around constness of
                                      * content */
-} pgp_seckey_passphrase_t;
+} pgp_seckey_password_t;
 
 /** pgp_get_seckey_t */
 typedef struct {
@@ -532,7 +532,7 @@ typedef union {
     struct pgp_hash_t *     cleartext_trailer;
     pgp_dyn_body_t          unarmored_text;
     pgp_pk_sesskey_t        pk_sesskey;
-    pgp_seckey_passphrase_t skey_passphrase;
+    pgp_seckey_password_t   skey_password;
     unsigned                se_ip_data_header;
     pgp_dyn_body_t          se_ip_data_body;
     pgp_fixed_body_t        se_data_body;

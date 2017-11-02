@@ -48,20 +48,19 @@ const char *rnp_result_to_string(rnp_result_t result);
 /*
 * Opaque structures
 */
-typedef struct rnp_keyring_st *    rnp_keyring_t;
-typedef struct rnp_key_st *        rnp_key_t;
+typedef struct rnp_keyring_st *rnp_keyring_t;
+typedef struct rnp_key_st *    rnp_key_t;
 
 /**
-* Callback used for getting a passphrase.
+* Callback used for getting a password.
 * @param app_ctx provided by application
-* @param key the key, if any, for which the passphrase is being requested
+* @param key the key, if any, for which the password is being requested
 * @param pgp_context a descriptive string for what is being decrypted
-* @param pass to which the callback should write the returned
-* passphrase, NULL terminated.
-* @param pass_len the size of pass buffer
+* @param buf to which the callback should write the returned password, NULL terminated.
+* @param buf_len the size of password buffer
 * @return 0 on success, or any other value to stop decryption.
 */
-typedef int (*rnp_passphrase_cb)(
+typedef int (*rnp_password_cb)(
   void *app_ctx, rnp_key_t key, const char *pgp_context, char buf[], size_t buf_len);
 
 /**
@@ -196,7 +195,7 @@ rnp_result_t rnp_key_free(rnp_key_t *key);
  *         if the primary is not already present in the provided
  *         rings. May be NULL.
  *  @param getkeycb_ctx application context for the getkeycb callback
- *  @param getpasscb the callback to retrieve passphrases. This is
+ *  @param getpasscb the callback to retrieve passwords. This is
  *         only used when adding a subkey to an existing primary that
  *         is locked. May be NULL.
  *  @param getpasscb_ctx application context for the getpasscb callback
@@ -207,21 +206,21 @@ rnp_result_t rnp_key_free(rnp_key_t *key);
  *         The caller should free this with rnp_buffer_free.
  *  @return 0 on success, or any other value on error
  */
-rnp_result_t rnp_generate_key_json(rnp_keyring_t     pubring,
-                                   rnp_keyring_t     secring,
-                                   rnp_get_key_cb    getkeycb,
-                                   void *            getkeycb_ctx,
-                                   rnp_passphrase_cb getpasscb,
-                                   void *            getpasscb_ctx,
-                                   const char *      json,
-                                   char **           results);
+rnp_result_t rnp_generate_key_json(rnp_keyring_t   pubring,
+                                   rnp_keyring_t   secring,
+                                   rnp_get_key_cb  getkeycb,
+                                   void *          getkeycb_ctx,
+                                   rnp_password_cb getpasscb,
+                                   void *          getpasscb_ctx,
+                                   const char *    json,
+                                   char **         results);
 
 rnp_result_t rnp_generate_private_key(rnp_key_t *   pubkey,
                                       rnp_key_t *   seckey,
                                       rnp_keyring_t pubring,
                                       rnp_keyring_t secring,
                                       const char *  userid,
-                                      const char *  passphrase,
+                                      const char *  password,
                                       const char *  signature_hash);
 
 /* Key operations */
@@ -247,11 +246,11 @@ rnp_result_t rnp_key_get_grip(rnp_key_t key, char **grip);
 
 rnp_result_t rnp_key_is_locked(rnp_key_t key, bool *result);
 rnp_result_t rnp_key_lock(rnp_key_t key);
-rnp_result_t rnp_key_unlock(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx);
+rnp_result_t rnp_key_unlock(rnp_key_t key, rnp_password_cb cb, void *app_ctx);
 
 rnp_result_t rnp_key_is_protected(rnp_key_t key, bool *result);
-rnp_result_t rnp_key_protect(rnp_key_t key, const char *passphrase);
-rnp_result_t rnp_key_unprotect(rnp_key_t key, rnp_passphrase_cb cb, void *app_ctx);
+rnp_result_t rnp_key_protect(rnp_key_t key, const char *password);
+rnp_result_t rnp_key_unprotect(rnp_key_t key, rnp_password_cb cb, void *app_ctx);
 
 rnp_result_t rnp_key_is_primary(rnp_key_t key, bool *result);
 rnp_result_t rnp_key_is_sub(rnp_key_t key, bool *result);
