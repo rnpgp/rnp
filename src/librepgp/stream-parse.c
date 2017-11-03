@@ -240,10 +240,6 @@ partial_pkt_src_close(pgp_source_t *src)
         free(src->param);
         src->param = NULL;
     }
-    if (src->cache) {
-        free(src->cache);
-        src->cache = NULL;
-    }
 }
 
 static rnp_result_t
@@ -306,10 +302,6 @@ literal_src_close(pgp_source_t *src)
 
         free(src->param);
         src->param = NULL;
-    }
-    if (src->cache) {
-        free(src->cache);
-        src->cache = NULL;
     }
 }
 
@@ -424,10 +416,6 @@ compressed_src_close(pgp_source_t *src)
         free(src->param);
         src->param = NULL;
     }
-    if (src->cache) {
-        free(src->cache);
-        src->cache = NULL;
-    }
 }
 
 static ssize_t
@@ -529,10 +517,6 @@ encrypted_src_close(pgp_source_t *src)
         free(src->param);
         src->param = NULL;
     }
-    if (src->cache) {
-        free(src->cache);
-        src->cache = NULL;
-    }
 }
 
 static pgp_hash_t *
@@ -575,7 +559,7 @@ signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t 
     if (sig->version > 3) {
         trailer[0] = sig->version;
         trailer[1] = 0xff;
-        STORE32LE(&trailer[2], sig->hashed_len);
+        STORE32BE(&trailer[2], sig->hashed_len);
         pgp_hash_add(&shash, trailer, 6);
     }
 
@@ -672,11 +656,6 @@ signed_src_close(pgp_source_t *src)
         FREE_ARRAY(param, sig);
         free(src->param);
         src->param = NULL;
-    }
-
-    if (src->cache) {
-        free(src->cache);
-        src->cache = NULL;
     }
 }
 
@@ -1147,7 +1126,7 @@ init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *rea
 
 finish:
     if (errcode != RNP_SUCCESS) {
-        literal_src_close(src);
+        src_close(src);
     }
     return errcode;
 }
@@ -1223,7 +1202,7 @@ init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *
 
 finish:
     if (errcode != RNP_SUCCESS) {
-        compressed_src_close(src);
+        src_close(src);
     }
     return errcode;
 }
@@ -1413,7 +1392,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
 
 finish:
     if (errcode != RNP_SUCCESS) {
-        encrypted_src_close(src);
+        src_close(src);
     }
     pgp_forget(password, sizeof(password));
 
@@ -1501,7 +1480,7 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
 
 finish:
     if (errcode != RNP_SUCCESS) {
-        signed_src_close(src);
+        src_close(src);
     }
 
     return errcode;
@@ -1710,6 +1689,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
             }
         }
 
+        /* reading the input */
         while (!litsrc->eof) {
             read = src_read(litsrc, readbuf, PGP_INPUT_CACHE_SIZE);
             if (read < 0) {
@@ -1728,6 +1708,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
             }
         }
 
+        /* finalizing the input. Signatures are checked on this step */
         for (int i = ctx.srcc - 1; i >= 0; i--) {
             fres = src_finish(ctx.srcs[i]);
             if (fres != RNP_SUCCESS) {

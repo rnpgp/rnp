@@ -37,6 +37,7 @@
 #define PGP_OUTPUT_CACHE_SIZE 32768
 
 typedef enum {
+    PGP_STREAM_NULL,
     PGP_STREAM_FILE,
     PGP_STREAM_MEMORY,
     PGP_STREAM_STDIN,
@@ -162,10 +163,11 @@ typedef struct pgp_dest_t {
     pgp_stream_type_t      type;
     rnp_result_t           werr; /* write function may set this to some error code */
 
-    int64_t  writeb; /* number of bytes written */
-    void *   param;  /* source-specific additional data */
+    int64_t  writeb;   /* number of bytes written */
+    void *   param;    /* source-specific additional data */
+    bool     no_cache; /* disable write caching */
     uint8_t  cache[PGP_OUTPUT_CACHE_SIZE];
-    unsigned clen;
+    unsigned clen; /* number of bytes in cache */
 } pgp_dest_t;
 
 /** @brief write buffer to the destination
@@ -198,10 +200,24 @@ rnp_result_t init_file_dest(pgp_dest_t *dst, const char *path);
  **/
 rnp_result_t init_stdout_dest(pgp_dest_t *dst);
 
-/** @brief init memory source
+/** @brief init memory destination
+ *  @param dst pre-allocated dest structure
+ *  @param maxalloc maximum amount of memory to allocate
+ *  @return RNP_SUCCESS or error code
+ **/
+rnp_result_t init_mem_dest(pgp_dest_t *dst, unsigned maxalloc);
+
+/** @brief get the pointer to the memory where data is written.
+ *  Do not retain the result, it may change betweeen calls due to realloc
+ *  @param dst pre-allocated and initialized memory dest
+ *  @return pointer to the memory area or NULL if memory was not allocated
+ **/
+void *mem_dest_get_memory(pgp_dest_t *dst);
+
+/** @brief init null destination which silently discards all the output
  *  @param dst pre-allocated dest structure
  *  @return RNP_SUCCESS or error code
  **/
-rnp_result_t init_mem_dest(pgp_dest_t *dst);
+rnp_result_t init_null_dest(pgp_dest_t *dst);
 
 #endif

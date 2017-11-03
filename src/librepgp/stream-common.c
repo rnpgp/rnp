@@ -239,6 +239,11 @@ src_close(pgp_source_t *src)
     if (src->close) {
         src->close(src);
     }
+
+    if (src->cache) {
+        free(src->cache);
+        src->cache = NULL;
+    }
 }
 
 bool
@@ -288,10 +293,6 @@ file_src_close(pgp_source_t *src)
         }
         free(src->param);
         src->param = NULL;
-    }
-    if (src->cache) {
-        free(src->cache);
-        src->cache = NULL;
     }
 }
 
@@ -359,10 +360,63 @@ init_stdin_src(pgp_source_t *src)
     return RNP_SUCCESS;
 }
 
+typedef struct pgp_source_mem_param_t {
+    void * memory;
+    size_t len;
+    size_t pos;
+} pgp_source_mem_param_t;
+
+static ssize_t
+mem_src_read(pgp_source_t *src, void *buf, size_t len)
+{
+    pgp_source_mem_param_t *param = src->param;
+
+    if (param == NULL) {
+        return -1;
+    } else {
+        if (len > param->len - param->pos) {
+            len = param->len - param->pos;
+        }
+
+        memcpy(buf, (uint8_t *) param->memory + param->pos, len);
+        param->pos += len;
+        return len;
+    }
+}
+
+static void
+mem_src_close(pgp_source_t *src)
+{
+    pgp_source_mem_param_t *param = src->param;
+    if (param) {
+        free(src->param);
+        src->param = NULL;
+    }
+}
+
 rnp_result_t
 init_mem_src(pgp_source_t *src, void *mem, size_t len)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    pgp_source_mem_param_t *param;
+
+    /* this is actually double buffering, but then src_peek will fail */
+    if (!init_source_cache(src, sizeof(pgp_source_mem_param_t))) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    param = src->param;
+    param->memory = mem;
+    param->len = len;
+    param->pos = 0;
+    src->read = mem_src_read;
+    src->close = mem_src_close;
+    src->finish = NULL;
+    src->size = len;
+    src->knownsize = 1;
+    src->readb = 0;
+    src->eof = 0;
+
+    return RNP_SUCCESS;
 }
 
 void
@@ -384,7 +438,7 @@ dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         }
 
         /* here everything will fit into the cache or cache is empty */
-        if (len > sizeof(dst->cache)) {
+        if (dst->no_cache || (len > sizeof(dst->cache))) {
             dst->werr = dst->write(dst, buf, len);
             dst->writeb += len;
         } else {
@@ -523,8 +577,118 @@ init_stdout_dest(pgp_dest_t *dst)
     return RNP_SUCCESS;
 }
 
-rnp_result_t
-init_mem_dest(pgp_dest_t *dst)
+typedef struct pgp_dest_mem_param_t {
+    unsigned maxalloc;
+    unsigned allocated;
+    void *   memory;
+} pgp_dest_mem_param_t;
+
+static rnp_result_t
+mem_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    size_t                alloc;
+    void *                newalloc;
+    pgp_dest_mem_param_t *param = dst->param;
+
+    if (!param) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* checking whether we need to realloc */
+    if (dst->writeb + len > param->allocated) {
+        if (dst->writeb + len > param->maxalloc) {
+            RNP_LOG("attempt to alloc more then allowed");
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+
+        /* round up to the page boundary and do it exponentially */
+        alloc = ((dst->writeb + len) * 2 + 4095) / 4096 * 4096;
+        if (alloc > param->maxalloc) {
+            alloc = param->maxalloc;
+        }
+
+        if ((newalloc = realloc(param->memory, alloc)) == NULL) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+
+        param->memory = newalloc;
+        param->allocated = alloc;
+    }
+
+    memcpy((uint8_t *) param->memory + dst->writeb, buf, len);
+
+    return RNP_SUCCESS;
+}
+
+static void
+mem_dst_close(pgp_dest_t *dst, bool discard)
+{
+    pgp_dest_mem_param_t *param = dst->param;
+
+    if (param) {
+        free(param->memory);
+        free(param);
+        dst->param = NULL;
+    }
+}
+
+rnp_result_t
+init_mem_dest(pgp_dest_t *dst, unsigned maxalloc)
+{
+    pgp_dest_mem_param_t *param;
+
+    if ((param = calloc(1, sizeof(*param))) == NULL) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    dst->param = param;
+    param->maxalloc = maxalloc;
+    dst->write = mem_dst_write;
+    dst->close = mem_dst_close;
+    dst->type = PGP_STREAM_MEMORY;
+    dst->writeb = 0;
+    dst->clen = 0;
+    dst->werr = RNP_SUCCESS;
+    dst->no_cache = true;
+
+    return RNP_SUCCESS;
+}
+
+void *
+mem_dest_get_memory(pgp_dest_t *dst)
+{
+    pgp_dest_mem_param_t *param = dst->param;
+
+    if (param) {
+        return param->memory;
+    }
+
+    return NULL;
+}
+
+static rnp_result_t
+null_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
+{
+    return RNP_SUCCESS;
+}
+
+static void
+null_dst_close(pgp_dest_t *dst, bool discard)
+{
+    ;
+}
+
+rnp_result_t
+init_null_dest(pgp_dest_t *dst)
+{
+    dst->param = NULL;
+    dst->write = null_dst_write;
+    dst->close = null_dst_close;
+    dst->type = PGP_STREAM_NULL;
+    dst->writeb = 0;
+    dst->clen = 0;
+    dst->werr = RNP_SUCCESS;
+    dst->no_cache = true;
+
+    return RNP_SUCCESS;
 }

@@ -374,7 +374,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
             *bptr++ = (*dptr << 2) | (*(dptr + 1) >> 4);
         }
 
-        uint8_t    crc_fin[5];
+        uint8_t crc_fin[5];
         /* Calculate CRC after reading whole input stream */
         pgp_hash_add(&param->crc_ctx, param->rest, bptr - param->rest);
         if (!pgp_hash_finish(&param->crc_ctx, crc_fin)) {
@@ -415,18 +415,16 @@ armored_src_close(pgp_source_t *src)
 {
     pgp_source_armored_param_t *param = src->param;
 
-    if (!param) {
-        return;
+    if (param) {
+        (void) pgp_hash_finish(&param->crc_ctx, NULL);
+        free(param->armorhdr);
+        free(param->version);
+        free(param->comment);
+        free(param->hash);
+        free(param->charset);
+        free(param);
+        param = NULL;
     }
-
-    (void) pgp_hash_finish(&param->crc_ctx, NULL);
-    free(param->armorhdr);
-    free(param->version);
-    free(param->comment);
-    free(param->hash);
-    free(param->charset);
-    free(param);
-    param = NULL;
 }
 
 /** @brief finds armor header position in the buffer, returning beginning of header or NULL.
@@ -670,7 +668,7 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc)
 
 finish:
     if (errcode != RNP_SUCCESS) {
-        armored_src_close(src);
+        src_close(src);
     }
     return errcode;
 }
