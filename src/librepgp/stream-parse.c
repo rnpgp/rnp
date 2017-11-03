@@ -1073,6 +1073,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
                   &(pgp_password_ctx_t){.op = PGP_OP_DECRYPT_SYM, .key = NULL},
                   password,
                   sizeof(password))) {
+                errcode = RNP_ERROR_BAD_PASSWORD;
                 goto finish;
             }
 
