@@ -1308,6 +1308,10 @@ rnp_parse_handler_dest(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char
         return false;
     }
 
+    if (param->ctx->discard) {
+        return init_null_dest(dst) == RNP_SUCCESS;
+    }
+
     /* add some logic to build param->out, based on handler->in and filename */
     return rnp_initialize_output(param->ctx, dst, param->out);
 }
@@ -1397,7 +1401,7 @@ rnp_parse_handler_signatures(pgp_parse_handler_t * handler,
 rnp_result_t
 rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 {
-    pgp_source_t               src;
+    pgp_source_t               src = {0};
     pgp_parse_handler_t *      handler = NULL;
     pgp_parse_handler_param_t *param = NULL;
     pgp_key_provider_t         keyprov;
@@ -1412,7 +1416,7 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
         goto finish;
     }
 
-    /* destination provider param */
+    /* parsing handler param */
     if ((param = calloc(1, sizeof(*param))) == NULL) {
         result = RNP_ERROR_OUT_OF_MEMORY;
         goto finish;

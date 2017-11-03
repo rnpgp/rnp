@@ -109,6 +109,7 @@ typedef struct rnp_ctx_t {
     list           recipients; /* recipients of the encrypted message */
     list           passwords;  /* list of rnp_symmetric_pass_info_t */
     unsigned       armortype;  /* type of the armored message, used in enarmor command */
+    bool           discard;    /* discard the output */
 } rnp_ctx_t;
 
 #endif // __RNP_TYPES__
