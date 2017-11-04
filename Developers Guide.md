@@ -341,6 +341,13 @@ Do:
     return val;
   }
   ```
+* Do use a default failure (not success) value for `ret` variables. Example:
+  ```
+  rnp_result_t ret = RNP_ERROR_GENERIC;
+  // ...
+
+  return ret;
+  ```
 
 Do not:
 * Do not use the static storage class for local variables, *unless* they
