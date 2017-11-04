@@ -410,7 +410,9 @@ pgp_block_size(pgp_symm_alg_t alg)
         return 16;
 
     default:
-        fprintf(stderr, "Unknown PGP symmetric alg %d", (int) alg);
+        if (rnp_get_debug(__FILE__)) {
+            RNP_LOG("Unknown PGP symmetric alg %d", (int) alg);
+        }
         return 0;
     }
 }
