@@ -84,10 +84,11 @@ r'gpg: Signature made .*' \
 r'gpg: Good signature from "(.*)".*'
 
 RE_RNP_GOOD_SIGNATURE = r'(?s)^.*' \
-r'Good signature for .* made .*' \
+r'Good signature made .*' \
 r'using .* key .*' \
 r'signature .*' \
-r'uid\s+(.*)\s*$'
+r'uid\s+(.*)\s*' \
+r'Signature\(s\) verified successfully.*$'
 
 def check_packets(fname, regexp):
     ret, output, err = run_proc(GPG, ['--list-packets', fname])
@@ -244,7 +245,7 @@ def rnp_verify_detached(sig, signer=None):
     if not match:
         raise_err('wrong rnp detached verification output', err)
     if signer and (not match.group(1).strip() == signer.strip()):
-        raise_err('rnp detached verification failed, wrong signer')
+        raise_err('rnp detached verification failed, wrong signer'.format()
 
 
 def rnp_verify_cleartext(src, signer=None):
