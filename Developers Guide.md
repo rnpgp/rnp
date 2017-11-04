@@ -61,6 +61,13 @@ prevent naming conflicts.
 Remember that branch names may be preserved permanently in the commit
 history of `master`, depending on how they are merged.
 
+## Commits
+
+* Try to keep commits as small as possible. This may be difficult or
+  impractical at times, so use your best judgement.
+* Each commit should be buildable and should pass all tests. This helps
+  to ensure that git bisect remains a useful method of pinpointing issues.
+
 # Continuous Integration (Travis CI)
 
 Travis CI is used for continuously testing new commits and pull
