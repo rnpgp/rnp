@@ -19,7 +19,7 @@
           "iterations": 65536
       }
    },
-   "subkey": {
+   "sub": {
       "type": "RSA",
       "length": 1024
    }
