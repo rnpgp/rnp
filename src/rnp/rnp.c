@@ -315,7 +315,6 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     unsigned    maxsize;
     char *      out = NULL;
     char *      in = NULL;
-    const char *outf = NULL;
     const char *userid = NULL;
     bool        ret = false;
     int         cc;
@@ -323,8 +322,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     bool        clearsign = (cmd == CMD_CLEARSIGN);
     rnp_ctx_t   ctx = {0};
     // TODO: Probably something smarter should be done here
-    static const char stdout_marker[2] = "-";
-    repgp_io_t *      io = repgp_create_io();
+    repgp_io_t *io = repgp_create_io();
 
     if (io == NULL) {
         RNP_LOG("Allocation failed");
@@ -415,23 +413,13 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ret = rnp_encrypt_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
     }
-    case CMD_VERIFY_CAT: {
-        repgp_handle_t *os = NULL;
-        if (f == NULL) {
-            os = create_buffer_handle((size_t) rnp_cfg_getint(cfg, CFG_MAXALLOC));
-        } else {
-            outf = rnp_cfg_get(cfg, CFG_OUTFILE);
-            os = (outf) ? create_filepath_handle(outf) : create_filepath_handle(stdout_marker);
-        }
-        repgp_set_output(io, os);
-    }
-    /* FALLTHROUGH */
-    case CMD_VERIFY: {
-        repgp_handle_t *is = (f) ? create_filepath_handle(f) : create_stdin_handle();
-        repgp_set_input(io, is);
-        ret = (RNP_SUCCESS == repgp_verify(&ctx, io));
+    case CMD_VERIFY:
+        ctx.discard = true;
+        ret = rnp_process_stream(&ctx, f, NULL) == RNP_SUCCESS;
         break;
-    }
+    case CMD_VERIFY_CAT:
+        ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
+        break;
     case CMD_LIST_PACKETS: {
         repgp_handle_t *input = create_filepath_handle(f);
         if (input == NULL) {

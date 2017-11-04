@@ -40,14 +40,17 @@ typedef struct pgp_signature_info_t pgp_signature_info_t;
 typedef bool pgp_destination_func_t(pgp_parse_handler_t *handler,
                                     pgp_dest_t *         dst,
                                     const char *         filename);
+typedef bool pgp_source_func_t(pgp_parse_handler_t *handler, pgp_source_t *src);
 typedef void pgp_signatures_func_t(pgp_parse_handler_t * handler,
                                    pgp_signature_info_t *sigs,
                                    int                   count);
 
+/* handler used to return needed information during pgp source processing */
 typedef struct pgp_parse_handler_t {
     pgp_password_provider_t *password_provider;
     pgp_key_provider_t *     key_provider;
     pgp_destination_func_t * dest_provider;
+    pgp_source_func_t *      src_provider;
     pgp_signatures_func_t *  on_signatures;
 
     void *param;

@@ -650,10 +650,17 @@ stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass)
     uint8_t buf[13];
 
     len = stream_read_pkt_len(src);
+
     if (len < 0) {
         return RNP_ERROR_READ;
     } else if (len != 13) {
-        return RNP_ERROR_BAD_FORMAT;
+        read = src_skip(src, len);
+
+        if (read == len) {
+            return RNP_ERROR_BAD_FORMAT;
+        } else {
+            return RNP_ERROR_READ;
+        }
     }
 
     read = src_read(src, buf, 13);
@@ -1157,8 +1164,11 @@ stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
 
 finish:
     /* skipping rest of the packet in case of non-read error */
-    if ((res != RNP_SUCCESS) && (res != RNP_ERROR_READ)) {
-        src_skip(src, pktend - src->readb);
+    if (res != RNP_SUCCESS) {
+        free_signature(sig);
+        if (res != RNP_ERROR_READ) {
+            src_skip(src, pktend - src->readb);
+        }
     }
 
     return res;
