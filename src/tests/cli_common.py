@@ -1,17 +1,13 @@
 import sys
 import distutils.spawn
-import tempfile
-from os import path
-import os
-import shutil
 import random
 import string
+import logging
+import os
+from os import path
 from subprocess import Popen, PIPE
-import subprocess
-from timeit import default_timer as perf_timer
 
 RNP_ROOT = None
-DEBUG = False
 
 class CLIError(Exception):
     def __init__(self, message, log = None):
@@ -19,15 +15,10 @@ class CLIError(Exception):
         self.log = log
 
     def __str__(self):
-        if DEBUG and self.log:
-            return self.message + '\n' + self.log
-        else:
-            return self.message
+        logging.info(self.message)
+        logging.debug(self.log.strip())
 
 def raise_err(msg, log = None):
-    #if log and DEBUG:
-    #    print log
-    #raise NameError(msg)
     raise CLIError(msg, log)
 
 def size_to_readable(num, suffix = 'B'):
@@ -43,7 +34,7 @@ def pswd_pipe(password):
         fw.write(password)
         fw.write('\n')
         fw.write(password)
-        
+
     return pr
 
 def random_text(path, size):
@@ -62,7 +53,7 @@ def file_text(path):
 def find_utility(name, exitifnone = True):
     path = distutils.spawn.find_executable(name)
     if not path and exitifnone:
-        print 'Cannot find utility {}. Exiting.'.format(name)
+        logging.error('Cannot find utility {}. Exiting.'.format(name))
         sys.exit(1)
 
     return path
@@ -81,14 +72,12 @@ def rnp_file_path(relpath, check = True):
     return fpath
 
 def run_proc(proc, params):
-    if DEBUG:
-        sys.stderr.write(proc + ' ' + ' '.join(params) + '\n')
+    logging.debug((proc + ' ' + ' '.join(params)).strip())
     process = Popen([proc] + params, stdout=PIPE, stderr=PIPE)
     output, errout = process.communicate()
     retcode = process.poll()
-    if DEBUG:
-        print errout
-        print output
+    logging.debug(errout.strip())
+    logging.debug(output.strip())
 
     return (retcode, output, errout)
 
@@ -96,5 +85,3 @@ def run_proc_fast(proc, params):
     with open(os.devnull, 'w') as devnull:
         proc = Popen([proc] + params, stdout=devnull, stderr=devnull)
     return proc.wait()
-    #return subprocess.call([proc] + params)
-
