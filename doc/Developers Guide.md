@@ -67,6 +67,12 @@ history of `master`, depending on how they are merged.
   impractical at times, so use your best judgement.
 * Each commit should be buildable and should pass all tests. This helps
   to ensure that git bisect remains a useful method of pinpointing issues.
+* Commit messages should follow 50/72 rule.
+* When integrating pull requests, merge function should be prefered over
+  squashing. From the other hand, developers should squash commits and
+  create meaningful commit stack before PR is merged into mainstream branch.
+  Merging commits like "Fix build" or "Implement comments from code review"
+  should be avoided.
 
 # Continuous Integration (Travis CI)
 
@@ -352,7 +358,7 @@ Do:
 Do not:
 * Do not use the static storage class for local variables, *unless* they
   are constant.
-  
+
   **Not OK**
   ```c
   int somefunc() {
@@ -387,15 +393,15 @@ Comments should use doxygen markdown style, like the following example:
 /** brief description of the sample function which does something, keyword 'brief' is ommitted
  *  Which may be continued here
  *
- *  After an empty line you may add detailed description in case it is needed. You may put 
+ *  After an empty line you may add detailed description in case it is needed. You may put
  *  details about the memory allocation, what happens if function fails and so on.
  *
  *  @param param1 first parameter, null-terminated string which should not be NULL
  *  @param param2 integer, some number representing something
  *  @param size number of bytes available to store in buffer
- *  @param buffer buffer to store results, may be NULL. In this case size can be used to 
+ *  @param buffer buffer to store results, may be NULL. In this case size can be used to
  *                obtain the required buffer length
- *  @return 0 if operation succeeds, or error code otherwise. If operation succeeds then buffer 
+ *  @return 0 if operation succeeds, or error code otherwise. If operation succeeds then buffer
  *          is populated with the resulting data, and size contains the length of this data.
  *          if error code is E_BUF_TOOSMALL then size will contain the required size to store
  *          the result
