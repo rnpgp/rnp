@@ -76,4 +76,10 @@ rnp_result_t rnp_armor_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armored_ms
  **/
 pgp_armored_msg_t rnp_armor_guess_type(pgp_source_t *src);
 
+/* @brief Check whether source could be an armored source
+ * @param src initialized source with some data
+ * @return true if source could be an armored data or false otherwise
+ **/
+bool is_armored_source(pgp_source_t *src);
+
 #endif

@@ -414,9 +414,8 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         break;
     }
     case CMD_VERIFY:
-        ctx.discard = true;
-        ret = rnp_process_stream(&ctx, f, NULL) == RNP_SUCCESS;
-        break;
+        ctx.discard = !rnp_cfg_get(cfg, CFG_OUTFILE);
+    /* FALLTHROUGH */
     case CMD_VERIFY_CAT:
         ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;

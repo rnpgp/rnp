@@ -245,7 +245,7 @@ def rnp_verify_detached(sig, signer=None):
     if not match:
         raise_err('wrong rnp detached verification output', err)
     if signer and (not match.group(1).strip() == signer.strip()):
-        raise_err('rnp detached verification failed, wrong signer'.format()
+        raise_err('rnp detached verification failed, wrong signer'.format())
 
 
 def rnp_verify_cleartext(src, signer=None):
