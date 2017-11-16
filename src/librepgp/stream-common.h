@@ -133,8 +133,25 @@ rnp_result_t src_finish(pgp_source_t *src);
 bool src_eof(pgp_source_t *src);
 
 /** @brief close the source and deallocate all internal resources if any
- **/
+ */
 void src_close(pgp_source_t *src);
+
+/** @brief skip end of line on the source (\r\n or \n, depending on input)
+ *  @param src allocated and initialized source
+ *  @return true if eol was found and skipped or false otherwise
+ */
+bool src_skip_eol(pgp_source_t *src);
+
+/** @brief peek the line on the source
+ *  @param src allocated and initialized source with data
+ *  @param buf preallocated buffer to store the result. Result include NULL character and
+ *             doesn't include the end of line sequence.
+ *  @param len maximum length of data to store in buf, including terminating NULL
+ *  @return number of bytes in the string, without the NULL character, on success.
+ *          -1 is returned if there were eof, read error or eol was not found within the len.
+ *          Supported eol sequences are \r\n and \n
+ */
+ssize_t src_peek_line(pgp_source_t *src, char *buf, size_t len);
 
 /** @brief init file source
  *  @param src pre-allocated source structure

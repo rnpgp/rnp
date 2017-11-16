@@ -247,6 +247,55 @@ src_close(pgp_source_t *src)
 }
 
 bool
+src_skip_eol(pgp_source_t *src)
+{
+    uint8_t eol[2];
+    ssize_t read;
+
+    read = src_peek(src, eol, 2);
+    if ((read >= 1) && (eol[0] == '\n')) {
+        src_skip(src, 1);
+        return true;
+    } else if ((read == 2) && (eol[0] == '\r') && (eol[1] == '\n')) {
+        src_skip(src, 2);
+        return true;
+    }
+
+    return false;
+}
+
+ssize_t
+src_peek_line(pgp_source_t *src, char *buf, size_t len)
+{
+    size_t  clen = 0;
+    ssize_t read;
+
+    /* we need some place for \0 */
+    len--;
+
+    do {
+        read = clen + 64 > len ? len - clen : 64;
+        read = src_peek(src, buf + clen, read);
+        if (read <= 0) {
+            return -1;
+        }
+
+        for (int i = 0; i < read; i++) {
+            if (buf[clen] == '\n') {
+                if ((clen > 0) && (buf[clen - 1] == '\r')) {
+                    clen--;
+                }
+                buf[clen] = '\0';
+                return clen;
+            }
+            clen++;
+        }
+    } while (clen < len);
+
+    return -1;
+}
+
+bool
 init_source_cache(pgp_source_t *src, size_t paramsize)
 {
     if ((src->cache = calloc(1, sizeof(pgp_source_cache_t))) == NULL) {
@@ -389,6 +438,7 @@ mem_src_close(pgp_source_t *src)
 {
     pgp_source_mem_param_t *param = src->param;
     if (param) {
+        free(param->memory);
         free(src->param);
         src->param = NULL;
     }

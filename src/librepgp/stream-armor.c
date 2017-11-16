@@ -99,59 +99,14 @@ static const uint8_t B64DEC[256] = {
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
   0xff};
 
-static bool
-armor_skip_eol(pgp_source_t *readsrc)
-{
-    uint8_t eol[2];
-    ssize_t read;
-
-    read = src_peek(readsrc, eol, 2);
-    if ((read >= 1) && (eol[0] == '\n')) {
-        src_skip(readsrc, 1);
-        return true;
-    } else if ((read == 2) && (eol[0] == '\r') && (eol[1] == '\n')) {
-        src_skip(readsrc, 2);
-        return true;
-    }
-
-    return false;
-}
-
-static bool
-armor_peek_line(pgp_source_t *readsrc, char *buf, size_t len, size_t *llen)
-{
-    size_t  clen = 0;
-    ssize_t read;
-
-    do {
-        read = clen + 64 > len ? len - clen : 64;
-        read = src_peek(readsrc, buf, read);
-        if (read < 0) {
-            return false;
-        }
-        for (int i = 0; i < read; i++) {
-            if (buf[i] == '\n') {
-                *llen = clen + i;
-                if ((*llen > 0) && (buf[i - 1] == '\r')) {
-                    (*llen)--;
-                }
-                return true;
-            }
-        }
-        clen += read;
-    } while (clen < len);
-
-    return false;
-}
-
 static int
 armor_read_padding(pgp_source_t *src)
 {
     char                        st[64];
-    size_t                      stlen;
+    ssize_t                     stlen;
     pgp_source_armored_param_t *param = src->param;
 
-    if (!armor_peek_line(param->readsrc, st, 12, &stlen)) {
+    if ((stlen = src_peek_line(param->readsrc, st, 12)) < 0) {
         return -1;
     }
 
@@ -161,7 +116,7 @@ armor_read_padding(pgp_source_t *src)
         }
 
         src_skip(param->readsrc, stlen);
-        armor_skip_eol(param->readsrc);
+        src_skip_eol(param->readsrc);
         return stlen;
     } else if (stlen == 5) {
         return 0;
@@ -175,10 +130,10 @@ armor_read_crc(pgp_source_t *src)
 {
     uint8_t                     dec[4];
     char                        crc[8];
-    size_t                      clen;
+    ssize_t                     clen;
     pgp_source_armored_param_t *param = src->param;
 
-    if (!armor_peek_line(param->readsrc, crc, sizeof(crc), &clen)) {
+    if ((clen = src_peek_line(param->readsrc, crc, sizeof(crc))) < 0) {
         return false;
     }
 
@@ -194,7 +149,7 @@ armor_read_crc(pgp_source_t *src)
         param->readcrc[2] = (dec[2] << 6) | dec[3];
 
         src_skip(param->readsrc, 5);
-        armor_skip_eol(param->readsrc);
+        src_skip_eol(param->readsrc);
         return true;
     }
 
@@ -566,11 +521,11 @@ armor_parse_headers(pgp_source_t *src)
 {
     pgp_source_armored_param_t *param = src->param;
     char                        header[1024];
-    size_t                      hdrlen;
+    ssize_t                     hdrlen;
     char *                      hdrval;
 
     do {
-        if (!armor_peek_line(param->readsrc, header, sizeof(header) - 1, &hdrlen)) {
+        if ((hdrlen = src_peek_line(param->readsrc, header, sizeof(header))) < 0) {
             RNP_LOG("failed to peek line");
             return false;
         }
@@ -582,27 +537,22 @@ armor_parse_headers(pgp_source_t *src)
             }
 
             if (strncmp(header, "Version: ", 9) == 0) {
-                memcpy(hdrval, header + 9, hdrlen - 9);
-                hdrval[hdrlen - 9] = '\0';
+                memcpy(hdrval, header + 9, hdrlen - 8);
                 free(param->version);
                 param->version = hdrval;
             } else if (strncmp(header, "Comment: ", 9) == 0) {
-                memcpy(hdrval, header + 9, hdrlen - 9);
-                hdrval[hdrlen - 9] = '\0';
+                memcpy(hdrval, header + 9, hdrlen - 8);
                 free(param->comment);
                 param->comment = hdrval;
             } else if (strncmp(header, "Hash: ", 6) == 0) {
-                memcpy(hdrval, header + 6, hdrlen - 6);
-                hdrval[hdrlen - 6] = '\0';
+                memcpy(hdrval, header + 6, hdrlen - 5);
                 free(param->hash);
                 param->hash = hdrval;
             } else if (strncmp(header, "Charset: ", 9) == 0) {
-                memcpy(hdrval, header + 9, hdrlen - 9);
-                hdrval[hdrlen - 9] = '\0';
+                memcpy(hdrval, header + 9, hdrlen - 8);
                 free(param->charset);
                 param->charset = hdrval;
             } else {
-                header[hdrlen] = '\0';
                 RNP_LOG("unknown header '%s'", header);
                 free(hdrval);
             }
@@ -610,7 +560,7 @@ armor_parse_headers(pgp_source_t *src)
             src_skip(param->readsrc, hdrlen);
         }
 
-        if (!armor_skip_eol(param->readsrc)) {
+        if (!src_skip_eol(param->readsrc)) {
             return false;
         }
     } while (hdrlen > 0);
@@ -650,7 +600,7 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc)
         goto finish;
     }
     /* eol */
-    if (!armor_skip_eol(param->readsrc)) {
+    if (!src_skip_eol(param->readsrc)) {
         RNP_LOG("no eol after the armor header");
         errcode = RNP_ERROR_BAD_FORMAT;
         goto finish;
@@ -949,6 +899,22 @@ finish:
     }
 
     return ret;
+}
+
+bool
+is_armored_source(pgp_source_t *src)
+{
+    const char armor_start[] = "-----BEGIN PGP";
+    uint8_t    buf[128];
+    ssize_t    read;
+
+    read = src_peek(src, buf, sizeof(buf));
+    if (read < sizeof(armor_start)) {
+        return false;
+    }
+
+    buf[read - 1] = 0;
+    return !!strstr((char *) buf, armor_start);
 }
 
 rnp_result_t
