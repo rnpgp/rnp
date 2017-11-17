@@ -53,6 +53,7 @@
 #include "fingerprint.h"
 #include "pgp-key.h"
 #include "signature.h"
+#include "list.h"
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
 #endif
@@ -73,7 +74,7 @@ typedef struct pgp_processing_ctx_t {
     pgp_source_t *      literal_src;
     pgp_message_t       msg_type;
     pgp_dest_t          output;
-    DYNARRAY(pgp_source_t *, src); /* pgp sources stack */
+    list                sources;
 } pgp_processing_ctx_t;
 
 /* common fields for encrypted, compressed and literal data */
@@ -87,13 +88,13 @@ typedef struct pgp_source_packet_param_t {
 } pgp_source_packet_param_t;
 
 typedef struct pgp_source_encrypted_param_t {
-    pgp_source_packet_param_t pkt;          /* underlying packet-related params */
-    DYNARRAY(pgp_sk_sesskey_t, symenc);     /* array of sym-encrypted session keys */
-    DYNARRAY(pgp_pk_sesskey_pkt_t, pubenc); /* array of pk-encrypted session keys */
-    bool        has_mdc;                    /* encrypted with mdc, i.e. tag 18 */
-    bool        mdc_validated;              /* mdc was validated already */
-    pgp_crypt_t decrypt;                    /* decrypting crypto */
-    pgp_hash_t  mdc;                        /* mdc SHA1 hash */
+    pgp_source_packet_param_t pkt;           /* underlying packet-related params */
+    list                      symencs;       /* array of sym-encrypted session keys */
+    list                      pubencs;       /* array of pk-encrypted session keys */
+    bool                      has_mdc;       /* encrypted with mdc, i.e. tag 18 */
+    bool                      mdc_validated; /* mdc was validated already */
+    pgp_crypt_t               decrypt;       /* decrypting crypto */
+    pgp_hash_t                mdc;           /* mdc SHA1 hash */
 } pgp_source_encrypted_param_t;
 
 #define CT_BUF_LEN 4096
@@ -104,14 +105,15 @@ typedef struct pgp_source_signed_param_t {
     bool                  detached;        /* detached signature */
     bool                  cleartext;       /* source is cleartext signed */
     bool                  clr_eod;         /* cleartext data is over */
-    bool                  clr_noeol;       /* do not hash newline before the next line */
+    bool                  clr_fline;       /* first line of the cleartext */
+    bool                  clr_mline;       /* in the middle of the very long line */
     uint8_t               out[CT_BUF_LEN]; /* cleartext output cache for easier parsing */
     size_t                outlen;          /* total bytes in out */
     size_t                outpos;          /* offset of first available byte in out */
-    DYNARRAY(pgp_one_pass_sig_t, onepass); /* array of one-pass singatures */
-    DYNARRAY(pgp_signature_t, sig);        /* array of signatures */
-    DYNARRAY(pgp_hash_t, hash);            /* hash contexts */
-    DYNARRAY(pgp_signature_info_t, info);  /* signature validation info */
+    list                  onepasses;       /* list of one-pass singatures */
+    list                  sigs;            /* list of signatures */
+    list                  hashes;          /* hash contexts */
+    list                  siginfos;        /* signature validation info */
 } pgp_source_signed_param_t;
 
 typedef struct pgp_source_compressed_param_t {
@@ -567,8 +569,8 @@ encrypted_src_close(pgp_source_t *src)
 {
     pgp_source_encrypted_param_t *param = src->param;
     if (param) {
-        FREE_ARRAY(param, symenc);
-        FREE_ARRAY(param, pubenc);
+        list_destroy(&param->symencs);
+        list_destroy(&param->pubencs);
 
         if (param->pkt.partial) {
             param->pkt.readsrc->close(param->pkt.readsrc);
@@ -584,9 +586,9 @@ encrypted_src_close(pgp_source_t *src)
 static pgp_hash_t *
 signed_get_hash(pgp_source_signed_param_t *param, pgp_hash_alg_t alg)
 {
-    for (int i = 0; i < param->hashc; i++) {
-        if (pgp_hash_alg_type(&param->hashs[i]) == alg) {
-            return &param->hashs[i];
+    for (list_item *hash = list_front(param->hashes); hash; hash = list_next(hash)) {
+        if (pgp_hash_alg_type((pgp_hash_t *) hash) == alg) {
+            return (pgp_hash_t *) hash;
         }
     }
 
@@ -601,9 +603,8 @@ signed_add_hash(pgp_source_signed_param_t *param, pgp_hash_alg_t alg)
     if (!signed_get_hash(param, alg)) {
         if (!pgp_hash_create(&hash, alg)) {
             RNP_LOG("failed to initialize hash algorithm %d", (int) alg);
-        } else {
-            EXPAND_ARRAY_EX(param, hash, 1);
-            param->hashs[param->hashc++] = hash;
+        } else if (!list_append(&param->hashes, &hash, sizeof(hash))) {
+            RNP_LOG("allocation failed");
         }
     }
 }
@@ -698,8 +699,8 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
 {
     pgp_source_signed_param_t *param = src->param;
 
-    for (int i = 0; i < param->hashc; i++) {
-        pgp_hash_add(&param->hashs[i], buf, len);
+    for (list_item *hash = list_front(param->hashes); hash; hash = list_next(hash)) {
+        pgp_hash_add((pgp_hash_t *) hash, buf, len);
     }
 }
 
@@ -721,16 +722,16 @@ signed_src_close(pgp_source_t *src)
     pgp_source_signed_param_t *param = src->param;
 
     if (param) {
-        FREE_ARRAY(param, onepass);
-        for (int i = 0; i < param->hashc; i++) {
-            pgp_hash_finish(&param->hashs[i], NULL);
+        list_destroy(&param->onepasses);
+        for (list_item *hash = list_front(param->hashes); hash; hash = list_next(hash)) {
+            pgp_hash_finish((pgp_hash_t *) hash, NULL);
         }
-        FREE_ARRAY(param, hash);
-        FREE_ARRAY(param, info);
-        for (int i = 0; i < param->sigc; i++) {
-            free_signature(&param->sigs[i]);
+        list_destroy(&param->hashes);
+        list_destroy(&param->siginfos);
+        for (list_item *sig = list_front(param->sigs); sig; sig = list_next(sig)) {
+            free_signature((pgp_signature_t *) sig);
         }
-        FREE_ARRAY(param, sig);
+        list_destroy(&param->sigs);
         free(src->param);
         src->param = NULL;
     }
@@ -741,9 +742,11 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
                              pgp_source_t *             readsrc,
                              pgp_signature_t **         sig)
 {
-    uint8_t         ptag;
-    int             ptype;
-    pgp_signature_t readsig;
+    uint8_t               ptag;
+    int                   ptype;
+    pgp_signature_t       readsig;
+    pgp_signature_t *     newsig;
+    pgp_signature_info_t *siginfo;
 
     if (src_peek(readsrc, &ptag, 1) < 1) {
         RNP_LOG("failed to read signature packet header");
@@ -753,20 +756,28 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
     ptype = get_packet_type(ptag);
 
     if (ptype == PGP_PTAG_CT_SIGNATURE) {
-        EXPAND_ARRAY_EX(param, info, 1);
-        param->infoc++;
+        siginfo =
+          (pgp_signature_info_t *) list_append(&param->siginfos, NULL, sizeof(*siginfo));
+        if (!siginfo) {
+            RNP_LOG("siginfo allocation failed");
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+
         if (stream_parse_signature(readsrc, &readsig) != RNP_SUCCESS) {
             RNP_LOG("failed to parse signature");
-            param->infos[param->infoc - 1].unknown = true;
+            siginfo->unknown = true;
             if (sig) {
                 *sig = NULL;
             }
         } else {
-            EXPAND_ARRAY_EX(param, sig, 1);
-            param->sigs[param->sigc++] = readsig;
-            param->infos[param->infoc - 1].sig = &param->sigs[param->sigc - 1];
+            newsig = (pgp_signature_t *) list_append(&param->sigs, &readsig, sizeof(readsig));
+            if (!newsig) {
+                RNP_LOG("sig allocation failed");
+                return RNP_ERROR_OUT_OF_MEMORY;
+            }
+            siginfo->sig = newsig;
             if (sig) {
-                *sig = &param->sigs[param->sigc - 1];
+                *sig = newsig;
             }
         }
     } else {
@@ -809,13 +820,13 @@ signed_read_signatures(pgp_source_t *src)
     pgp_source_signed_param_t *param = src->param;
 
     /* reading signatures */
-    for (int i = 0; i < param->onepassc; i++) {
+    for (list_item *op = list_back(param->onepasses); op; op = list_prev(op)) {
         if ((ret = signed_read_single_signature(param, src, &sig)) != RNP_SUCCESS) {
             return ret;
         }
 
-        if (!signature_matches_onepass(sig, &param->onepasss[param->onepassc - i - 1])) {
-            RNP_LOG("signature %d doesn't match one-pass", (int) i);
+        if (!signature_matches_onepass(sig, (pgp_one_pass_sig_t *) op)) {
+            RNP_LOG("signature doesn't match one-pass");
             return RNP_ERROR_BAD_FORMAT;
         }
     }
@@ -828,9 +839,11 @@ signed_src_finish(pgp_source_t *src)
 {
     pgp_source_signed_param_t *param = src->param;
     pgp_signature_info_t *     sinfo = NULL;
+    pgp_signature_info_t *     sinfos = NULL;
+    unsigned                   sinfoc = 0;
     pgp_key_request_ctx_t      keyctx;
     pgp_key_t *                key = NULL;
-    rnp_result_t               ret = RNP_SUCCESS;
+    rnp_result_t               ret = RNP_ERROR_GENERIC;
     time_t                     now;
     uint32_t                   create, expiry;
 
@@ -841,11 +854,16 @@ signed_src_finish(pgp_source_t *src)
     }
 
     if (ret != RNP_SUCCESS) {
-        goto finish;
+        return ret;
     }
 
     if (!src_eof(src)) {
         RNP_LOG("warning: unexpected data on the stream end");
+    }
+
+    sinfos = calloc(list_length(param->siginfos), sizeof(pgp_signature_info_t));
+    if (!sinfos) {
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     /* validating signatures */
@@ -853,8 +871,9 @@ signed_src_finish(pgp_source_t *src)
     keyctx.secret = false;
     keyctx.stype = PGP_KEY_SEARCH_KEYID;
 
-    for (int i = 0; i < param->infoc; i++) {
-        sinfo = &param->infos[i];
+    for (list_item *si = list_front(param->siginfos); si; si = list_next(si)) {
+        sinfo = (pgp_signature_info_t *) si;
+
         if (!sinfo->sig) {
             continue;
         }
@@ -869,7 +888,7 @@ signed_src_finish(pgp_source_t *src)
         /* Get the public key */
         if (!pgp_request_key(param->ctx->handler.key_provider, &keyctx, &key)) {
             RNP_LOG("signer's key not found");
-            param->infos[i].no_signer = true;
+            sinfo->no_signer = true;
             continue;
         }
         sinfo->signer = &(key->key.pubkey);
@@ -893,18 +912,22 @@ signed_src_finish(pgp_source_t *src)
         }
     }
 
-    /* call the callback with signature infos */
-    if (param->ctx->handler.on_signatures) {
-        param->ctx->handler.on_signatures(&param->ctx->handler, param->infos, param->infoc);
+    /* checking the validation results */
+    ret = RNP_SUCCESS;
+    for (list_item *si = list_front(param->siginfos); si; si = list_next(si)) {
+        if (!((pgp_signature_info_t *) si)->valid || ((pgp_signature_info_t *) si)->expired) {
+            ret = RNP_ERROR_SIGNATURE_INVALID;
+        }
+        sinfos[sinfoc++] = *(pgp_signature_info_t *) si;
     }
 
-    for (int i = 0; i < param->infoc; i++) {
-        if (!param->infos[i].valid || param->infos[i].expired) {
-            ret = RNP_ERROR_SIGNATURE_INVALID;
-            break;
-        }
+    /* call the callback with signature infos */
+    if (param->ctx->handler.on_signatures) {
+        param->ctx->handler.on_signatures(&param->ctx->handler, sinfos, sinfoc);
     }
-finish:
+
+    free(sinfos);
+
     return ret;
 }
 
@@ -966,12 +989,13 @@ cleartext_parse_headers(pgp_source_t *src)
 #define ST_DASHES ("-----")
 
 static void
-cleartext_process_line(pgp_source_t *src, const uint8_t *buf, size_t len)
+cleartext_process_line(pgp_source_t *src, const uint8_t *buf, size_t len, bool eol)
 {
     pgp_source_signed_param_t *param = src->param;
     uint8_t *                  bufen = (uint8_t *) buf + len - 1;
 
-    if ((len > 0) && (buf[0] == CH_DASH)) {
+    /* check for dashes only if we are not in the middle */
+    if (!param->clr_mline && (len > 0) && (buf[0] == CH_DASH)) {
         if ((len > 1) && (buf[1] == CH_SPACE)) {
             buf += 2;
             len -= 2;
@@ -983,7 +1007,8 @@ cleartext_process_line(pgp_source_t *src, const uint8_t *buf, size_t len)
         }
     }
 
-    if (!param->clr_noeol) {
+    /* hash eol if it is not the first line and we are not in the middle */
+    if (!param->clr_fline && !param->clr_mline) {
         /* we hash \r\n after the previous line to not hash the last eol before the sig */
         signed_src_update(src, ST_CRLF, 2);
     }
@@ -997,8 +1022,11 @@ cleartext_process_line(pgp_source_t *src, const uint8_t *buf, size_t len)
         return;
     }
 
-    for (; ((*bufen == CH_SPACE) || (*bufen == CH_TAB)) && (bufen >= buf); bufen--)
-        ;
+    /* if we have eol after this line then strip trailing spaces and tabs */
+    if (eol) {
+        for (; ((*bufen == CH_SPACE) || (*bufen == CH_TAB)) && (bufen >= buf); bufen--)
+            ;
+    }
 
     if ((len = bufen + 1 - buf)) {
         memcpy(param->out + param->outlen, buf, len);
@@ -1039,11 +1067,8 @@ cleartext_src_read(pgp_source_t *src, void *buf, size_t len)
         return origlen - len;
     }
 
-    cur = srcb;
-    bg = srcb;
-
     do {
-        read = src_peek(param->readsrc, cur, sizeof(srcb) - (cur - srcb));
+        read = src_peek(param->readsrc, srcb, sizeof(srcb));
         if (read < 0) {
             return -1;
         } else if (read == 0) {
@@ -1051,32 +1076,37 @@ cleartext_src_read(pgp_source_t *src, void *buf, size_t len)
         }
 
         /* processing data line by line, eol could be \n or \r\n */
-        for (en = cur + read; cur < en; cur++) {
-            if ((*cur == CH_LF) || (*cur == CH_CR && (cur + 1 < en) && *(cur + 1) == CH_LF)) {
-                cleartext_process_line(src, bg, cur - bg);
+        for (cur = srcb, bg = srcb, en = cur + read; cur < en; cur++) {
+            if ((*cur == CH_LF) ||
+                ((*cur == CH_CR) && (cur + 1 < en) && (*(cur + 1) == CH_LF))) {
+                cleartext_process_line(src, bg, cur - bg, true);
                 /* processing eol */
                 if (param->clr_eod) {
-                    read -= en - bg;
                     break;
                 }
 
                 /* processing eol */
-                param->clr_noeol = false;
-                param->out[param->outlen++] = *cur;
+                param->clr_fline = false;
+                param->clr_mline = false;
                 if (*cur == CH_CR) {
                     param->out[param->outlen++] = *cur++;
                 }
+                param->out[param->outlen++] = *cur;
                 bg = cur + 1;
             }
         }
 
         /* if line is larger then 4k then just dump it out */
         if ((bg == srcb) && !param->clr_eod) {
-            cleartext_process_line(src, bg, en - bg);
-            param->clr_noeol = true;
+            /* if last char is \r then do not dump it */
+            if ((en > bg) && (*(en - 1) == '\r')) {
+                en--;
+            }
+            cleartext_process_line(src, bg, en - bg, false);
+            param->clr_mline = true;
             bg = en;
         }
-        src_skip(param->readsrc, read);
+        src_skip(param->readsrc, bg - srcb);
 
         /* put data from the param->out to buf */
         read = param->outlen > len ? len : param->outlen;
@@ -1094,11 +1124,6 @@ cleartext_src_read(pgp_source_t *src, void *buf, size_t len)
         if (param->clr_eod || !len) {
             break;
         }
-
-        /* copy bytes left between bg & en, setup cur and bg */
-        memmove(srcb, bg, en - bg);
-        cur = srcb + (en - bg);
-        bg = srcb;
     } while (1);
 
     return origlen - len;
@@ -1282,9 +1307,9 @@ encrypted_try_password(pgp_source_t *src, const char *password)
     bool                          keyavail = false;
     int                           res;
 
-    for (int i = 0; i < param->symencc; i++) {
+    for (list_item *se = list_front(param->symencs); se; se = list_next(se)) {
         /* deriving symmetric key from password */
-        symkey = &param->symencs[i];
+        symkey = (pgp_sk_sesskey_t *) se;
         keysize = pgp_key_size(symkey->alg);
         if (!keysize || !pgp_s2k_derive_key(&symkey->s2k, password, keybuf, keysize)) {
             continue;
@@ -1585,15 +1610,21 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             if (errcode != RNP_SUCCESS) {
                 goto finish;
             }
-            EXPAND_ARRAY_EX(param, symenc, 1);
-            param->symencs[param->symencc++] = skey;
+
+            if (!list_append(&param->symencs, &skey, sizeof(skey))) {
+                errcode = RNP_ERROR_OUT_OF_MEMORY;
+                goto finish;
+            }
         } else if (ptype == PGP_PTAG_CT_PK_SESSION_KEY) {
             errcode = stream_parse_pk_sesskey(readsrc, &pkey);
             if (errcode != RNP_SUCCESS) {
                 goto finish;
             }
-            EXPAND_ARRAY_EX(param, pubenc, 1);
-            param->pubencs[param->pubencc++] = pkey;
+
+            if (!list_append(&param->pubencs, &pkey, sizeof(pkey))) {
+                errcode = RNP_ERROR_OUT_OF_MEMORY;
+                goto finish;
+            }
         } else if ((ptype == PGP_PTAG_CT_SE_DATA) || (ptype == PGP_PTAG_CT_SE_IP_DATA)) {
             break;
         } else {
@@ -1636,7 +1667,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     }
 
     /* Trying public-key decryption */
-    if (param->pubencc > 0) {
+    if (list_length(param->pubencs) > 0) {
         if (!ctx->handler.key_provider) {
             RNP_LOG("no key provider");
             errcode = RNP_ERROR_BAD_PARAMETERS;
@@ -1647,8 +1678,10 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
         keyctx.secret = true;
         keyctx.stype = PGP_KEY_SEARCH_KEYID;
 
-        for (int i = 0; i < param->pubencc; i++) {
-            memcpy(keyctx.search.id, param->pubencs[i].key_id, sizeof(keyctx.search.id));
+        for (list_item *pe = list_front(param->pubencs); pe; pe = list_next(pe)) {
+            memcpy(keyctx.search.id,
+                   ((pgp_pk_sesskey_pkt_t *) pe)->key_id,
+                   sizeof(keyctx.search.id));
             /* Get the key if any */
             if (!pgp_request_key(ctx->handler.key_provider, &keyctx, &seckey)) {
                 continue;
@@ -1667,7 +1700,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             }
 
             /* Try to initialize the decryption */
-            if (encrypted_try_key(src, &param->pubencs[i], decrypted_seckey)) {
+            if (encrypted_try_key(src, (pgp_pk_sesskey_pkt_t *) pe, decrypted_seckey)) {
                 have_key = true;
             }
 
@@ -1685,7 +1718,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     }
 
     /* Trying password-based decryption */
-    if (!have_key && (param->symencc > 0)) {
+    if (!have_key && (list_length(param->symencs) > 0)) {
         do {
             if (!pgp_request_password(
                   ctx->handler.password_provider,
@@ -1759,7 +1792,7 @@ init_cleartext_signed_src(pgp_source_t *src)
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    param->clr_noeol = true;
+    param->clr_fline = true;
 
     /* now we are good to go */
     return RNP_SUCCESS;
@@ -1826,8 +1859,11 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
                     continue;
                 }
             }
-            EXPAND_ARRAY_EX(param, onepass, 1);
-            param->onepasss[param->onepassc++] = onepass;
+
+            if (!list_append(&param->onepasses, &onepass, sizeof(onepass))) {
+                errcode = RNP_ERROR_OUT_OF_MEMORY;
+                goto finish;
+            }
 
             /* adding hash context */
             signed_add_hash(param, onepass.halg);
@@ -1855,11 +1891,11 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
     }
 
     /* checking what we have now */
-    if (!param->onepassc && !param->sigc) {
+    if (!list_length(param->onepasses) && !list_length(param->sigs)) {
         RNP_LOG("no signatures");
         errcode = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
-    } else if (param->onepassc && param->sigc) {
+    } else if (list_length(param->onepasses) && list_length(param->sigs)) {
         RNP_LOG("warning: one-passes are mixed with signatures");
     }
 
@@ -1880,11 +1916,10 @@ init_processing_ctx(pgp_processing_ctx_t *ctx)
 static void
 free_processing_ctx(pgp_processing_ctx_t *ctx)
 {
-    for (int i = ctx->srcc - 1; i >= 0; i--) {
-        src_close(ctx->srcs[i]);
-        free(ctx->srcs[i]);
+    for (list_item *src = list_front(ctx->sources); src; src = list_next(src)) {
+        src_close((pgp_source_t *) src);
     }
-    FREE_ARRAY(ctx, src);
+    list_destroy(&ctx->sources);
 }
 
 /** @brief build PGP source sequence down to the literal data packet
@@ -1896,7 +1931,7 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
     uint8_t       ptag;
     ssize_t       read;
     int           type;
-    pgp_source_t *psrc = NULL;
+    pgp_source_t  psrc;
     pgp_source_t *lsrc = src;
     rnp_result_t  ret;
 
@@ -1913,22 +1948,19 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
             return RNP_ERROR_BAD_FORMAT;
         }
 
-        if ((psrc = calloc(1, sizeof(*psrc))) == NULL) {
-            RNP_LOG("allocation failed");
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
+        memchr(&psrc, 0, sizeof(psrc));
 
         switch (type) {
         case PGP_PTAG_CT_PK_SESSION_KEY:
         case PGP_PTAG_CT_SK_SESSION_KEY:
-            ret = init_encrypted_src(ctx, psrc, lsrc);
+            ret = init_encrypted_src(ctx, &psrc, lsrc);
             break;
         case PGP_PTAG_CT_1_PASS_SIG:
         case PGP_PTAG_CT_SIGNATURE:
-            ret = init_signed_src(ctx, psrc, lsrc);
+            ret = init_signed_src(ctx, &psrc, lsrc);
             break;
         case PGP_PTAG_CT_COMPRESSED:
-            ret = init_compressed_src(ctx, psrc, lsrc);
+            ret = init_compressed_src(ctx, &psrc, lsrc);
             break;
         case PGP_PTAG_CT_LITDATA:
             if ((lsrc->type != PGP_STREAM_ENCRYPTED) && (lsrc->type != PGP_STREAM_SIGNED) &&
@@ -1936,7 +1968,7 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
                 RNP_LOG("unexpected literal pkt");
                 ret = RNP_ERROR_BAD_FORMAT;
             } else {
-                ret = init_literal_src(ctx, psrc, lsrc);
+                ret = init_literal_src(ctx, &psrc, lsrc);
             }
             break;
         default:
@@ -1944,10 +1976,12 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
             ret = RNP_ERROR_BAD_FORMAT;
         }
 
-        if (ret == RNP_SUCCESS) {
-            EXPAND_ARRAY_EX(ctx, src, 1);
-            ctx->srcs[ctx->srcc++] = psrc;
-            lsrc = psrc;
+        if (!ret) {
+            if (!(lsrc = (pgp_source_t *) list_append(&ctx->sources, &psrc, sizeof(psrc)))) {
+                RNP_LOG("allocation failed");
+                return RNP_ERROR_OUT_OF_MEMORY;
+            }
+
             if (lsrc->type == PGP_STREAM_LITERAL) {
                 ctx->literal_src = lsrc;
                 ctx->msg_type = PGP_MESSAGE_NORMAL;
@@ -1961,7 +1995,6 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
                 }
             }
         } else {
-            free(psrc);
             return ret;
         }
     }
@@ -1970,22 +2003,16 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
 static rnp_result_t
 init_cleartext_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
 {
-    pgp_source_t *clrsrc;
-    rnp_result_t  res;
+    pgp_source_t clrsrc = {0};
+    rnp_result_t res;
 
-    if ((clrsrc = calloc(1, sizeof(*clrsrc))) == NULL) {
-        RNP_LOG("allocation failed");
-        return RNP_ERROR_OUT_OF_MEMORY;
+    if ((res = init_signed_src(ctx, &clrsrc, src))) {
+        return res;
     }
 
-    res = init_signed_src(ctx, clrsrc, src);
-
-    if (res == RNP_SUCCESS) {
-        EXPAND_ARRAY_EX(ctx, src, 1);
-        ctx->srcs[ctx->srcc++] = clrsrc;
-        ctx->msg_type = PGP_MESSAGE_CLEARTEXT;
-    } else {
-        free(clrsrc);
+    if (!list_append(&ctx->sources, &clrsrc, sizeof(clrsrc))) {
+        RNP_LOG("allocation failed");
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     return res;
@@ -1994,25 +2021,20 @@ init_cleartext_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
 static rnp_result_t
 init_armored_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
 {
-    pgp_source_t *armorsrc = NULL;
-    rnp_result_t  res;
+    pgp_source_t armorsrc = {0};
+    list_item *  armorptr;
+    rnp_result_t res;
 
-    if ((armorsrc = calloc(1, sizeof(*armorsrc))) == NULL) {
+    if ((res = init_armored_src(&armorsrc, src))) {
+        return res;
+    }
+
+    if (!(armorptr = list_append(&ctx->sources, &armorsrc, sizeof(armorsrc)))) {
         RNP_LOG("allocation failed");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    res = init_armored_src(armorsrc, src);
-
-    if (res == RNP_SUCCESS) {
-        EXPAND_ARRAY_EX(ctx, src, 1);
-        ctx->srcs[ctx->srcc++] = armorsrc;
-    } else {
-        free(armorsrc);
-        return res;
-    }
-
-    return init_packet_sequence(ctx, armorsrc);
+    return init_packet_sequence(ctx, (pgp_source_t *) armorptr);
 }
 
 rnp_result_t
@@ -2080,7 +2102,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
         src_close(&datasrc);
     } else {
         /* file processing case */
-        decsrc = ctx.srcs[ctx.srcc - 1];
+        decsrc = (pgp_source_t *) list_back(ctx.sources);
         if (ctx.literal_src) {
             filename = ((pgp_source_literal_param_t *) ctx.literal_src)->filename;
         }
@@ -2112,8 +2134,8 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
     }
 
     /* finalizing the input. Signatures are checked on this step */
-    for (int i = ctx.srcc - 1; i >= 0; i--) {
-        fres = src_finish(ctx.srcs[i]);
+    for (list_item *src = list_back(ctx.sources); src; src = list_prev(src)) {
+        fres = src_finish((pgp_source_t *) src);
         if (fres != RNP_SUCCESS) {
             res = fres;
         }
