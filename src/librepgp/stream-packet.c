@@ -934,7 +934,7 @@ signature_parse_subpackets(pgp_signature_t *sig, uint8_t *buf, size_t len, bool 
             return false;
         }
 
-        memchr(&subpkt, 0, sizeof(subpkt));
+        memset(&subpkt, 0, sizeof(subpkt));
 
         if ((subpkt.data = malloc(splen - 1)) == NULL) {
             RNP_LOG("subpacket data allocation failed");

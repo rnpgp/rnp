@@ -1948,7 +1948,7 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
             return RNP_ERROR_BAD_FORMAT;
         }
 
-        memchr(&psrc, 0, sizeof(psrc));
+        memset(&psrc, 0, sizeof(psrc));
 
         switch (type) {
         case PGP_PTAG_CT_PK_SESSION_KEY:

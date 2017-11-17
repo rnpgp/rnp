@@ -1320,15 +1320,16 @@ static bool
 rnp_parse_handler_src(pgp_parse_handler_t *handler, pgp_source_t *src)
 {
     pgp_parse_handler_param_t *param = handler->param;
-    char srcname[PATH_MAX];
-    size_t len;
-    
+    char                       srcname[PATH_MAX];
+    size_t                     len;
+
     if (!param) {
         return false;
     }
 
     len = strlen(param->in);
-    if ((len > 4) && (!strncmp(param->in + len - 4, ".sig", 4) || !strncmp(param->in + len - 4, ".asc", 4))) {
+    if ((len > 4) && (!strncmp(param->in + len - 4, ".sig", 4) ||
+                      !strncmp(param->in + len - 4, ".asc", 4))) {
         strncpy(srcname, param->in, sizeof(srcname));
         srcname[len - 4] = '\0';
         if (init_file_src(src, srcname) == RNP_SUCCESS) {
