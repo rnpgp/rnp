@@ -572,7 +572,7 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
     if (keyring->keys == NULL) {
         return false;
     }
-    key = &keyring->keys[keyring->keyc++];
+    key = &keyring->keys[keyring->keyc];
     (void) memset(key, 0x0, sizeof(*key));
     if (!pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, &keydata->pubkey)) {
         return false;
@@ -585,6 +585,8 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
     }
     key->type = tag;
     key->key = *keydata;
+    // success
+    keyring->keyc++;
     if (inserted) {
         *inserted = key;
     }
