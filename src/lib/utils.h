@@ -67,14 +67,14 @@
  * lookup_value lookup value
  * ret          return value
  */
-#define ARRAY_LOOKUP_BY_ID(array, id_field, ret_field, lookup_value, ret)   \
-    do {                                                                    \
-        for (size_t i__ = 0; i__ < ARRAY_SIZE(array); i__++) {              \
-            if ((array)[i__].id_field == (lookup_value)) {                  \
-                (ret) = (array)[i__].ret_field;                             \
-                break;                                                      \
-            }                                                               \
-        }                                                                   \
+#define ARRAY_LOOKUP_BY_ID(array, id_field, ret_field, lookup_value, ret) \
+    do {                                                                  \
+        for (size_t i__ = 0; i__ < ARRAY_SIZE(array); i__++) {            \
+            if ((array)[i__].id_field == (lookup_value)) {                \
+                (ret) = (array)[i__].ret_field;                           \
+                break;                                                    \
+            }                                                             \
+        }                                                                 \
     } while (0)
 
 /* Formating helpers */
@@ -108,32 +108,28 @@ void *      pgp_new(size_t);
 #define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
 
 /* Load little-endian 32-bit from y to x in portable fashion */
-#define LOAD32LE(x, y)                      \
-do {                                        \
-    x = (((uint8_t*)(y))[3] & 0xFF) << 24 | \
-        (((uint8_t*)(y))[2] & 0xFF) << 16 | \
-        (((uint8_t*)(y))[1] & 0xFF) <<  8 | \
-        (((uint8_t*)(y))[0] & 0xFF) <<  0;  \
-} while(0)
+#define LOAD32LE(x, y)                                                                  \
+    do {                                                                                \
+        x = (((uint8_t *) (y))[3] & 0xFF) << 24 | (((uint8_t *) (y))[2] & 0xFF) << 16 | \
+            (((uint8_t *) (y))[1] & 0xFF) << 8 | (((uint8_t *) (y))[0] & 0xFF) << 0;    \
+    } while (0)
 
 /* Store big-endian 32-bit value x in y */
-#define STORE32BE(x, y)                                 \
-do {                                                    \
-    ((uint8_t*)(x))[0] = (uint8_t)((y) >> 24) & 0xff;   \
-    ((uint8_t*)(x))[1] = (uint8_t)((y) >> 16) & 0xff;   \
-    ((uint8_t*)(x))[2] = (uint8_t)((y) >>  8) & 0xff;   \
-    ((uint8_t*)(x))[3] = (uint8_t)((y) >>  0) & 0xff;   \
-} while(0)
+#define STORE32BE(x, y)                                     \
+    do {                                                    \
+        ((uint8_t *) (x))[0] = (uint8_t)((y) >> 24) & 0xff; \
+        ((uint8_t *) (x))[1] = (uint8_t)((y) >> 16) & 0xff; \
+        ((uint8_t *) (x))[2] = (uint8_t)((y) >> 8) & 0xff;  \
+        ((uint8_t *) (x))[3] = (uint8_t)((y) >> 0) & 0xff;  \
+    } while (0)
 
 /* Swap endianness of 32-bit value */
 #if defined(__GNUC__) || defined(__clang__)
-#define BSWAP32(x)    __builtin_bswap32(x)
+#define BSWAP32(x) __builtin_bswap32(x)
 #else
-#define BSWAP32(x)              \
-    ((x & 0x000000FF) << 24 |   \
-    (x & 0x0000FF00) << 8 |     \
-    (x & 0x00FF0000) >> 8 |     \
-    (x & 0xFF000000) >> 24)
+#define BSWAP32(x)                                                            \
+    ((x & 0x000000FF) << 24 | (x & 0x0000FF00) << 8 | (x & 0x00FF0000) >> 8 | \
+     (x & 0xFF000000) >> 24)
 #endif
 
 #endif
