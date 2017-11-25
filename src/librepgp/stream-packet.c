@@ -1009,7 +1009,7 @@ signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
     sig->hashed_data[0] = sig->version;
     memcpy(sig->hashed_data + 1, buf, 5);
 
-    if (src_read(src, sig->hashed_data + 6, splen) != splen) {
+    if (src_read(src, sig->hashed_data + 6, splen) != (ssize_t) splen) {
         RNP_LOG("read of hashed subpackets failed");
         return RNP_ERROR_READ;
     }
@@ -1040,7 +1040,7 @@ signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    if (src_read(src, spbuf, splen) != splen) {
+    if (src_read(src, spbuf, splen) != (ssize_t) splen) {
         RNP_LOG("read of unhashed subpackets failed");
         return RNP_ERROR_READ;
     }
@@ -1194,7 +1194,7 @@ signature_get_subpkt(pgp_signature_t *sig, pgp_sig_subpacket_type_t type)
         return NULL;
     }
 
-    for (int i = 0; i < sig->subpktc; i++) {
+    for (unsigned i = 0; i < sig->subpktc; i++) {
         if (sig->subpkts[i].type == type) {
             /* no reason to return non-parsed subpacket */
             if (sig->subpkts[i].parsed) {
@@ -1280,7 +1280,7 @@ void
 free_signature(pgp_signature_t *sig)
 {
     free(sig->hashed_data);
-    for (int i = 0; i < sig->subpktc; i++) {
+    for (unsigned i = 0; i < sig->subpktc; i++) {
         free(sig->subpkts[i].data);
     }
     FREE_ARRAY(sig, subpkt);

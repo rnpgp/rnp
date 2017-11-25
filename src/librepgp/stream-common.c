@@ -56,7 +56,7 @@ src_read(pgp_source_t *src, void *buf, size_t len)
     }
 
     // Do not read more then available if source size is known
-    if (src->size > 0 && src->readb + len > src->size) {
+    if (src->knownsize && (src->readb + len > src->size)) {
         len = src->size - src->readb;
         left = len;
         readahead = false;
@@ -65,7 +65,7 @@ src_read(pgp_source_t *src, void *buf, size_t len)
     // Check whether we have cache and there is data inside
     if (cache && (cache->len > cache->pos)) {
         read = cache->len - cache->pos;
-        if (read >= len) {
+        if ((size_t) read >= len) {
             memcpy(buf, &cache->buf[cache->pos], len);
             cache->pos += len;
             goto finish;
@@ -101,7 +101,7 @@ src_read(pgp_source_t *src, void *buf, size_t len)
                 goto finish;
             } else if (read < 0) {
                 return -1;
-            } else if (read < left) {
+            } else if ((size_t) read < left) {
                 memcpy(buf, &cache->buf[0], read);
                 left -= read;
                 buf = (uint8_t *) buf + read;
@@ -117,7 +117,7 @@ src_read(pgp_source_t *src, void *buf, size_t len)
 finish:
     src->readb += len;
 
-    if (src->knownsize && src->readb == src->size) {
+    if (src->knownsize && (src->readb == src->size)) {
         src->eof = 1;
     }
 
@@ -140,7 +140,7 @@ src_peek(pgp_source_t *src, void *buf, size_t len)
     }
 
     // Do not read more then available if source size is known
-    if (src->size > 0 && src->readb + len > src->size) {
+    if (src->knownsize && (src->readb + len > src->size)) {
         len = src->size - src->readb;
         readahead = false;
     }

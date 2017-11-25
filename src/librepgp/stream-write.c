@@ -347,7 +347,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     memcpy(&enckey[1], key, keylen);
 
     /* Calculate checksum */
-    for (int i = 1; i <= keylen; i++) {
+    for (unsigned i = 1; i <= keylen; i++) {
         checksum += enckey[i];
     }
     enckey[keylen + 1] = (checksum >> 8) & 0xff;

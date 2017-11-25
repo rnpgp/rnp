@@ -106,21 +106,6 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <json.h>
 #include <rnp.h>
 
-/* small function to pretty print an 8-character raw userid */
-static char *
-userid_to_id(const uint8_t *userid, char *id)
-{
-    static const char *hexes = "0123456789abcdef";
-    int                i;
-
-    for (i = 0; i < 8; i++) {
-        id[i * 2] = hexes[(unsigned) (userid[i] & 0xf0) >> 4];
-        id[(i * 2) + 1] = hexes[userid[i] & 0xf];
-    }
-    id[8 * 2] = 0x0;
-    return id;
-}
-
 /* print out the successful signature information */
 static void
 resultp(pgp_io_t *io, const char *f, pgp_validation_t *res, rnp_key_store_t *ring)
@@ -1188,9 +1173,8 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
 }
 
 typedef struct pgp_parse_handler_param_t {
-    char       in[PATH_MAX];
-    char       out[PATH_MAX];
-    rnp_ctx_t *ctx;
+    char in[PATH_MAX];
+    char out[PATH_MAX];
 } pgp_parse_handler_param_t;
 
 /** @brief checks whether file exists already and asks user for the new filename
@@ -1304,16 +1288,16 @@ rnp_parse_handler_dest(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char
 {
     pgp_parse_handler_param_t *param = handler->param;
 
-    if (!param) {
+    if (!handler->ctx) {
         return false;
     }
 
-    if (param->ctx->discard) {
+    if (handler->ctx->discard) {
         return init_null_dest(dst) == RNP_SUCCESS;
     }
 
     /* add some logic to build param->out, based on handler->in and filename */
-    return rnp_initialize_output(param->ctx, dst, param->out);
+    return rnp_initialize_output(handler->ctx, dst, param->out);
 }
 
 static bool
@@ -1338,88 +1322,6 @@ rnp_parse_handler_src(pgp_parse_handler_t *handler, pgp_source_t *src)
     }
 
     return false;
-}
-
-static void
-rnp_parse_handler_signatures(pgp_parse_handler_t * handler,
-                             pgp_signature_info_t *sigs,
-                             int                   count)
-{
-    unsigned                   invalidc = 0;
-    unsigned                   unknownc = 0;
-    unsigned                   validc = 0;
-    time_t                     create;
-    uint32_t                   expiry;
-    uint8_t                    keyid[PGP_KEY_ID_SIZE];
-    char                       id[MAX_ID_LENGTH + 1];
-    const pgp_key_t *          key;
-    pgp_pubkey_t *             sigkey;
-    unsigned                   from;
-    char *                     title;
-    pgp_parse_handler_param_t *param = handler->param;
-    pgp_io_t *                 io = param->ctx->rnp->io;
-
-    for (int i = 0; i < count; i++) {
-        if (sigs[i].unknown) {
-            unknownc++;
-        } else {
-            if (!sigs[i].valid) {
-                if (sigs[i].no_signer) {
-                    title = "NO PUBLIC KEY for signature";
-                } else {
-                    title = "BAD signature";
-                }
-                invalidc++;
-            } else {
-                if (sigs[i].expired) {
-                    title = "EXPIRED signature";
-                    invalidc++;
-                } else {
-                    title = "Good signature";
-                    validc++;
-                }
-            }
-        }
-
-        create = signature_get_creation(sigs[i].sig);
-        expiry = signature_get_expiration(sigs[i].sig);
-
-        if (create > 0) {
-            fprintf(io->res, "%s made %s", title, ctime(&create));
-            if (expiry > 0) {
-                create += expiry;
-                fprintf(io->res, "Valid until %s\n", ctime(&create));
-            }
-        } else {
-            fprintf(io->res, "%s\n", title);
-        }
-
-        signature_get_keyid(sigs[i].sig, keyid);
-        fprintf(io->res,
-                "using %s key %s\n",
-                pgp_show_pka(sigs[i].sig->palg),
-                userid_to_id(keyid, id));
-
-        if (!sigs[i].no_signer) {
-            from = 0;
-            key =
-              rnp_key_store_get_key_by_id(io, param->ctx->rnp->pubring, keyid, &from, &sigkey);
-            repgp_print_key(
-              io, param->ctx->rnp->pubring, key, "signature ", &key->key.pubkey, 0);
-        }
-    }
-
-    if (count == 0) {
-        fprintf(io->res, "No signature(s) found - is this a signed file?\n");
-    } else if (invalidc > 0 || unknownc > 0) {
-        fprintf(
-          io->res,
-          "Signature verification failure: %u invalid signature(s), %u unknown signature(s)\n",
-          invalidc,
-          unknownc);
-    } else {
-        fprintf(io->res, "Signature(s) verified successfully\n");
-    }
 }
 
 rnp_result_t
@@ -1463,7 +1365,7 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
         }
         strncpy(param->out, out, sizeof(param->out) - 1);
     }
-    param->ctx = ctx;
+    handler->ctx = ctx;
 
     /* key provider */
     keyprov.callback = rnp_key_provider_keyring;
@@ -1474,7 +1376,7 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     handler->key_provider = &keyprov;
     handler->dest_provider = rnp_parse_handler_dest;
     handler->src_provider = rnp_parse_handler_src;
-    handler->on_signatures = rnp_parse_handler_signatures;
+    handler->on_signatures = ctx->on_signatures;
     handler->param = param;
 
     result = process_pgp_source(handler, &src);
