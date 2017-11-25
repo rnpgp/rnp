@@ -171,7 +171,7 @@ armor_read_trailer(pgp_source_t *src)
     strncpy(st + stlen + 3, "-----", 5);
     stlen += 8;
     read = src_peek(param->readsrc, str, stlen);
-    if ((read < stlen) || strncmp(str, st, stlen)) {
+    if ((read < (ssize_t) stlen) || strncmp(str, st, stlen)) {
         return false;
     }
     src_skip(param->readsrc, stlen);
@@ -390,7 +390,7 @@ find_armor_header(const char *buf, size_t len, size_t *hdrlen)
 {
     int st = -1;
 
-    for (int i = 0; i < len - 10; i++) {
+    for (unsigned i = 0; i < len - 10; i++) {
         if ((buf[i] == '-') && !strncmp(&buf[i + 1], "----", 4)) {
             st = i;
             break;
@@ -401,7 +401,7 @@ find_armor_header(const char *buf, size_t len, size_t *hdrlen)
         return NULL;
     }
 
-    for (int i = st + 5; i <= len - 5; i++) {
+    for (unsigned i = st + 5; i <= len - 5; i++) {
         if ((buf[i] == '-') && !strncmp(&buf[i + 1], "----", 4)) {
             *hdrlen = i + 5 - st;
             return &buf[st];
@@ -909,7 +909,7 @@ is_armored_source(pgp_source_t *src)
     ssize_t    read;
 
     read = src_peek(src, buf, sizeof(buf));
-    if (read < sizeof(armor_start)) {
+    if (read < (ssize_t) sizeof(armor_start)) {
         return false;
     }
 
@@ -928,7 +928,7 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
     ssize_t           read;
 
     read = src_peek(src, readbuf, sizeof(clear_start));
-    if (read < sizeof(armor_start)) {
+    if (read < (ssize_t) sizeof(armor_start)) {
         RNP_LOG("can't read enough data from source");
         return RNP_ERROR_READ;
     }

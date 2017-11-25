@@ -50,8 +50,13 @@
 #include <rnp/rnp_obsolete_defs.h>
 #include "rnpcfg.h"
 #include <rekey/rnp_key_store.h>
+#include "pgp-key.h"
 #include <repgp/repgp.h>
+#include <librepgp/stream-parse.h>
 #include <librepgp/stream-armor.h>
+#include <librepgp/stream-packet.h>
+#include <librepgp/packet-show.h>
+#include <librepgp/packet-print.h>
 
 #include "hash.h"
 
@@ -308,6 +313,85 @@ show_output(rnp_cfg_t *cfg, char *out, int size, const char *header)
     return cc == size;
 }
 
+static void
+rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int count)
+{
+    unsigned         invalidc = 0;
+    unsigned         unknownc = 0;
+    unsigned         validc = 0;
+    time_t           create;
+    uint32_t         expiry;
+    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    char             id[MAX_ID_LENGTH + 1];
+    const pgp_key_t *key;
+    pgp_pubkey_t *   sigkey;
+    unsigned         from;
+    char *           title;
+    pgp_io_t *       io = handler->ctx->rnp->io;
+
+    for (int i = 0; i < count; i++) {
+        if (sigs[i].unknown) {
+            unknownc++;
+        } else {
+            if (!sigs[i].valid) {
+                if (sigs[i].no_signer) {
+                    title = "NO PUBLIC KEY for signature";
+                } else {
+                    title = "BAD signature";
+                }
+                invalidc++;
+            } else {
+                if (sigs[i].expired) {
+                    title = "EXPIRED signature";
+                    invalidc++;
+                } else {
+                    title = "Good signature";
+                    validc++;
+                }
+            }
+        }
+
+        create = signature_get_creation(sigs[i].sig);
+        expiry = signature_get_expiration(sigs[i].sig);
+
+        if (create > 0) {
+            fprintf(io->res, "%s made %s", title, ctime(&create));
+            if (expiry > 0) {
+                create += expiry;
+                fprintf(io->res, "Valid until %s\n", ctime(&create));
+            }
+        } else {
+            fprintf(io->res, "%s\n", title);
+        }
+
+        signature_get_keyid(sigs[i].sig, keyid);
+        fprintf(io->res,
+                "using %s key %s\n",
+                pgp_show_pka(sigs[i].sig->palg),
+                userid_to_id(keyid, id));
+
+        if (!sigs[i].no_signer) {
+            from = 0;
+            key = rnp_key_store_get_key_by_id(
+              io, handler->ctx->rnp->pubring, keyid, &from, &sigkey);
+            repgp_print_key(
+              io, handler->ctx->rnp->pubring, key, "signature ", &key->key.pubkey, 0);
+        }
+    }
+
+    if (count == 0) {
+        fprintf(io->res, "No signature(s) found - is this a signed file?\n");
+    } else if (invalidc > 0 || unknownc > 0) {
+        fprintf(
+          io->res,
+          "Signature verification failure: %u invalid signature(s), %u unknown signature(s)\n",
+          invalidc,
+          unknownc);
+    } else {
+        fprintf(io->res, "Signature(s) verified successfully\n");
+    }
+}
+
 /* do a command once for a specified file 'f' */
 static bool
 rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
@@ -417,6 +501,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.discard = !rnp_cfg_get(cfg, CFG_OUTFILE);
     /* FALLTHROUGH */
     case CMD_VERIFY_CAT:
+        ctx.on_signatures = rnp_on_signatures;
         ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
     case CMD_LIST_PACKETS: {

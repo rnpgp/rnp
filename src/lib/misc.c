@@ -1143,3 +1143,18 @@ rnp_strip_eol(char *s)
 
     return s;
 }
+
+/* small function to pretty print an 8-character raw userid */
+char *
+userid_to_id(const uint8_t *userid, char *id)
+{
+    static const char *hexes = "0123456789abcdef";
+    int                i;
+
+    for (i = 0; i < 8; i++) {
+        id[i * 2] = hexes[(unsigned) (userid[i] & 0xf0) >> 4];
+        id[(i * 2) + 1] = hexes[userid[i] & 0xf];
+    }
+    id[8 * 2] = 0x0;
+    return id;
+}

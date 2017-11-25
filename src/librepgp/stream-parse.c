@@ -176,15 +176,15 @@ stream_partial_pkt_len(pgp_source_t *src)
 static bool
 is_pgp_source(pgp_source_t *src)
 {
-    uint8_t buf[1];
+    uint8_t buf;
     ssize_t read;
     int     tag;
 
-    if ((read = src_peek(src, buf, sizeof(buf))) < 1) {
+    if ((read = src_peek(src, &buf, sizeof(buf))) < 1) {
         return false;
     }
 
-    tag = get_packet_type(buf[0]);
+    tag = get_packet_type(buf);
     switch (tag) {
     case PGP_PTAG_CT_PK_SESSION_KEY:
     case PGP_PTAG_CT_SK_SESSION_KEY:
@@ -208,7 +208,7 @@ is_cleartext_source(pgp_source_t *src)
     ssize_t    read;
 
     read = src_peek(src, buf, sizeof(buf));
-    if (read < sizeof(clear_start)) {
+    if (read < (ssize_t) sizeof(clear_start)) {
         return false;
     }
 
@@ -1049,7 +1049,7 @@ cleartext_src_read(pgp_source_t *src, void *buf, size_t len)
     }
 
     read = param->outlen - param->outpos;
-    if (read >= len) {
+    if ((size_t) read >= len) {
         memcpy(buf, param->out + param->outpos, len);
         param->outpos += len;
         if (param->outpos == param->outlen) {
@@ -1114,7 +1114,7 @@ cleartext_src_read(pgp_source_t *src, void *buf, size_t len)
         buf = (uint8_t *) buf + read;
         len -= read;
 
-        if (read == param->outlen) {
+        if ((size_t) read == param->outlen) {
             param->outlen = 0;
         } else {
             param->outpos = read;
@@ -1275,7 +1275,7 @@ encrypted_try_key(pgp_source_t *src, pgp_pk_sesskey_pkt_t *sesskey, pgp_seckey_t
     }
 
     /* Validate checksum */
-    for (int i = 1; i <= keylen; i++) {
+    for (unsigned i = 1; i <= keylen; i++) {
         checksum += decbuf[i];
     }
 
@@ -1302,8 +1302,8 @@ encrypted_try_password(pgp_source_t *src, const char *password)
     pgp_crypt_t                   crypt;
     pgp_symm_alg_t                alg;
     uint8_t                       keybuf[PGP_MAX_KEY_SIZE + 1];
-    int                           keysize;
-    int                           blsize;
+    unsigned                      keysize;
+    unsigned                      blsize;
     bool                          keyavail = false;
     int                           res;
 
