@@ -186,7 +186,7 @@ end:
 bool
 set_ecdh_params(pgp_seckey_t *seckey, pgp_curve_t curve_id)
 {
-    for (int i = 0; i < ARRAY_SIZE(ecdh_params); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(ecdh_params); i++) {
         if (ecdh_params[i].curve == curve_id) {
             seckey->pubkey.key.ecdh.kdf_hash_alg = ecdh_params[i].hash;
             seckey->pubkey.key.ecdh.key_wrap_alg = ecdh_params[i].wrap_alg;

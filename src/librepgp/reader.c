@@ -978,7 +978,7 @@ armored_data_reader(pgp_stream_t *stream,
 
     if (!stream->coalescing && stream->virtualc && stream->virtualoff < stream->virtualc) {
         n = read_partial_data(stream, dest_, length);
-        if ((n < 0) || (n == length)) {
+        if ((n < 0) || (n == (int) length)) {
             return n;
         } else {
             length -= n;

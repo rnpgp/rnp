@@ -262,8 +262,8 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
     rnp_t       rnp;
     int         pipefd[2];
 
-    for (int i = 0; i < sizeof(hashAlg) / sizeof(hashAlg[0]); i++) {
-        for (int j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
+    for (size_t i = 0; i < sizeof(hashAlg) / sizeof(hashAlg[0]); i++) {
+        for (size_t j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
             /* Setting up rnp again and decrypting memory */
             printf("keystore: %s\n", keystores[j]);
             rnp_assert_ok(rstate, setup_rnp_common(&rnp, keystores[j], NULL, pipefd));
@@ -318,8 +318,8 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
     rnp_t       rnp;
     int         pipefd[2];
 
-    for (int i = 0; i < sizeof(userIds) / sizeof(userIds[0]); i++) {
-        for (int j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
+    for (size_t i = 0; i < sizeof(userIds) / sizeof(userIds[0]); i++) {
+        for (size_t j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
             /* Set the user id to be used*/
             snprintf(userId, sizeof(userId), "%s", userIds[i]);
 
@@ -552,7 +552,7 @@ ask_expert_details(rnp_t *ctx, rnp_cfg_t *ops, const char *rsp, size_t rsp_len)
         ret = false;
         goto end;
     }
-    for (int i = 0; i < rsp_len;) {
+    for (size_t i = 0; i < rsp_len;) {
         i += write(user_input_pipefd[1], rsp + i, rsp_len - i);
     }
     close(user_input_pipefd[1]);

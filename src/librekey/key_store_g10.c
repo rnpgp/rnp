@@ -134,7 +134,7 @@ parse_format(const char *format, size_t format_len)
 static void
 destroy_s_exp(s_exp_t *s_exp)
 {
-    int i;
+    unsigned i;
 
     if (s_exp == NULL) {
         return;
@@ -162,7 +162,7 @@ add_block_to_sexp(s_exp_t *s_exp, uint8_t *bytes, size_t len)
 {
     sub_element_t *sub_element;
 
-    for (int i = 0; i < s_exp->sub_elementc; i++) {
+    for (unsigned i = 0; i < s_exp->sub_elementc; i++) {
         if (!s_exp->sub_elements[i].is_block) {
             continue;
         }
@@ -282,7 +282,7 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
         length -= (next - bytes);
         bytes = next;
 
-        if (len == LONG_MIN || len == LONG_MAX || len <= 0 || len >= length) {
+        if (len == LONG_MIN || len == LONG_MAX || len <= 0 || (size_t) len >= length) {
             fprintf(
               stderr,
               "len over/under flow or bigger than remaining bytes, len: %ld, length: %zu\n",
@@ -339,7 +339,7 @@ static s_exp_t *
 lookup_variable(s_exp_t *s_exp, const char *name)
 {
     size_t name_len = strlen(name);
-    for (int i = 0; i < s_exp->sub_elementc; i++) {
+    for (unsigned i = 0; i < s_exp->sub_elementc; i++) {
         if (s_exp->sub_elements[i].is_block) {
             continue;
         }
@@ -1107,13 +1107,11 @@ write_block(s_exp_block_t *block, pgp_memory_t *mem)
 static bool
 write_sexp(s_exp_t *s_exp, pgp_memory_t *mem)
 {
-    int i;
-
     if (!pgp_memory_add(mem, (const uint8_t *) "(", 1)) {
         return false;
     }
 
-    for (i = 0; i < s_exp->sub_elementc; i++) {
+    for (unsigned i = 0; i < s_exp->sub_elementc; i++) {
         if (s_exp->sub_elements[i].is_block) {
             if (!write_block(&s_exp->sub_elements[i].block, mem)) {
                 return false;

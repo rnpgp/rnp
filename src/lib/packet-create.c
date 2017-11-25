@@ -472,7 +472,7 @@ write_matching_packets(pgp_output_t *         output,
                        const pgp_content_enum tags[],
                        size_t                 tag_count)
 {
-    for (int i = 0; i < key->packetc; i++) {
+    for (unsigned i = 0; i < key->packetc; i++) {
         pgp_rawpacket_t *pkt = &key->packets[i];
 
         if (!packet_matches(pkt, tags, tag_count)) {

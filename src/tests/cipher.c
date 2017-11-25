@@ -342,7 +342,7 @@ ecdsa_signverify_success(void **state)
     } curves[] = {
       {PGP_CURVE_NIST_P_256, 32}, {PGP_CURVE_NIST_P_384, 48}, {PGP_CURVE_NIST_P_521, 64}};
 
-    for (int i = 0; i < ARRAY_SIZE(curves); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(curves); i++) {
         // Generate test data. Mainly to make valgrind not to complain about unitialized data
         rnp_assert_true(rstate, get_random(message, sizeof(message)));
 
@@ -414,7 +414,7 @@ ecdh_roundtrip(void **state)
 
     rnp_assert_true(rstate, tmp_eph_key != NULL);
 
-    for (int i = 0; i < ARRAY_SIZE(curves); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(curves); i++) {
         const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDH,
                                                      .hash_alg = PGP_HASH_SHA512,
                                                      .ecc = {.curve = curves[i].id}};
