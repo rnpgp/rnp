@@ -183,7 +183,7 @@ main(int argc, char *argv[])
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */
-    for (int i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
+    for (size_t i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
         tests[i].setup_func = setup_test;
         tests[i].teardown_func = teardown_test;
     }

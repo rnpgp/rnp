@@ -498,15 +498,14 @@ format_uid_notice(char *                 buffer,
                   size_t                 size,
                   int                    flags)
 {
-    int i;
-    int n = 0;
+    unsigned n = 0;
 
     if (isrevoked(key, uid) >= 0)
         flags |= F_REVOKED;
 
     n += format_uid_line(buffer, key->uids[uid], size, flags);
 
-    for (i = 0; i < key->subsigc; i++) {
+    for (unsigned i = 0; i < key->subsigc; i++) {
         pgp_subsig_t *   subsig = &key->subsigs[i];
         const pgp_key_t *trustkey;
         unsigned         from = 0;

@@ -273,7 +273,7 @@ rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *key_store, const unsi
             }
         }
 
-        for (int i = 0; i < key_store->keyc; i++) {
+        for (unsigned i = 0; i < key_store->keyc; i++) {
             if (!rnp_key_store_get_key_grip(&key_store->keys[i].key.pubkey, grip)) {
                 return false;
             }
@@ -403,7 +403,7 @@ rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int la
 void
 rnp_key_store_clear(rnp_key_store_t *keyring)
 {
-    int i;
+    unsigned i;
 
     if (keyring->keys != NULL) {
         for (i = 0; i < keyring->keyc; i++) {
@@ -600,9 +600,7 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
 bool
 rnp_key_store_remove_key(pgp_io_t *io, rnp_key_store_t *keyring, const pgp_key_t *key)
 {
-    int i;
-
-    for (i = 0; i < keyring->keyc; i++) {
+    for (unsigned i = 0; i < keyring->keyc; i++) {
         if (key == &keyring->keys[i]) {
             memmove(&keyring->keys[i],
                     &keyring->keys[i + 1],
@@ -681,7 +679,7 @@ rnp_key_store_get_key_by_grip(pgp_io_t *io, rnp_key_store_t *keyring, const uint
         fprintf(io->errs, "looking keyring %p\n", keyring);
     }
 
-    for (int i = 0; keyring && i < keyring->keyc; i++) {
+    for (unsigned i = 0; keyring && i < keyring->keyc; i++) {
         if (rnp_get_debug(__FILE__)) {
             hexdump(io->errs, "looking for grip", grip, PGP_FINGERPRINT_SIZE);
             hexdump(io->errs, "keyring grip", keyring->keys[i].grip, PGP_FINGERPRINT_SIZE);

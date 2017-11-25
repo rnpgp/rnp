@@ -80,9 +80,9 @@
 #include <stdio.h>
 
 static const struct hash_alg_map_t {
-    pgp_hash_alg_t  type;
-    const char      *name;
-    const char      *botan_name;
+    pgp_hash_alg_t type;
+    const char *   name;
+    const char *   botan_name;
 } hash_alg_map[] = {{PGP_HASH_MD5, "MD5", "MD5"},
                     {PGP_HASH_SHA1, "SHA1", "SHA-1"},
                     {PGP_HASH_RIPEMD, "RIPEMD160", "RIPEMD-160"},
@@ -134,7 +134,7 @@ pgp_str_to_hash_alg(const char *hash)
     if (hash == NULL) {
         return PGP_DEFAULT_HASH_ALGORITHM;
     }
-    for (int i = 0; i < ARRAY_SIZE(hash_alg_map); i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(hash_alg_map); i++) {
         if (!rnp_strcasecmp(hash, hash_alg_map[i].name)) {
             return hash_alg_map[i].type;
         }

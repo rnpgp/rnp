@@ -254,7 +254,7 @@ static bool
 set_default_user_prefs(pgp_user_prefs_t *prefs)
 {
     if (!prefs->symm_algs) {
-        for (int i = 0; i < ARRAY_SIZE(DEFAULT_SYMMETRIC_ALGS); i++) {
+        for (size_t i = 0; i < ARRAY_SIZE(DEFAULT_SYMMETRIC_ALGS); i++) {
             EXPAND_ARRAY(prefs, symm_alg);
             if (!prefs->symm_algs) {
                 return false;
@@ -264,7 +264,7 @@ set_default_user_prefs(pgp_user_prefs_t *prefs)
         }
     }
     if (!prefs->hash_algs) {
-        for (int i = 0; i < ARRAY_SIZE(DEFAULT_HASH_ALGS); i++) {
+        for (size_t i = 0; i < ARRAY_SIZE(DEFAULT_HASH_ALGS); i++) {
             EXPAND_ARRAY(prefs, hash_alg);
             if (!prefs->hash_algs) {
                 return false;
@@ -274,7 +274,7 @@ set_default_user_prefs(pgp_user_prefs_t *prefs)
         }
     }
     if (!prefs->compress_algs) {
-        for (int i = 0; i < ARRAY_SIZE(DEFAULT_COMPRESS_ALGS); i++) {
+        for (size_t i = 0; i < ARRAY_SIZE(DEFAULT_COMPRESS_ALGS); i++) {
             EXPAND_ARRAY(prefs, compress_alg);
             if (!prefs->compress_algs) {
                 return false;

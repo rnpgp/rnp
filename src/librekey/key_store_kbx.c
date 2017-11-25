@@ -483,7 +483,8 @@ rnp_key_store_kbx_write_header(rnp_key_store_t *key_store, pgp_memory_t *m)
 static bool
 rnp_key_store_kbx_write_pgp(pgp_io_t *io, pgp_key_t *key, pgp_memory_t *m)
 {
-    int          i, rc;
+    unsigned     i;
+    int          rc;
     size_t       start, key_start, uid_start;
     uint8_t *    p;
     uint8_t      checksum[20];
@@ -665,7 +666,7 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *io, pgp_key_t *key, pgp_memory_t *m)
 static bool
 rnp_key_store_kbx_write_x509(rnp_key_store_t *key_store, pgp_memory_t *m)
 {
-    for (int i = 0; i < key_store->blobc; i++) {
+    for (unsigned i = 0; i < key_store->blobc; i++) {
         if (key_store->blobs[i]->type == KBX_X509_BLOB) {
             if (!pgp_memory_add(m, key_store->blobs[i]->image, key_store->blobs[i]->length)) {
                 return false;
@@ -679,7 +680,7 @@ rnp_key_store_kbx_write_x509(rnp_key_store_t *key_store, pgp_memory_t *m)
 bool
 rnp_key_store_kbx_to_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_t *memory)
 {
-    int i;
+    unsigned i;
 
     pgp_memory_clear(memory);
 

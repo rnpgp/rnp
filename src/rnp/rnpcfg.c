@@ -315,14 +315,13 @@ rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key)
 void
 rnp_cfg_free(rnp_cfg_t *cfg)
 {
-    int         i;
     const char *passwd = rnp_cfg_get(cfg, CFG_PASSWD);
 
     if (passwd) {
         pgp_forget((void *) passwd, strlen(passwd) + 1);
     }
 
-    for (i = 0; i < cfg->count; i++) {
+    for (unsigned i = 0; i < cfg->count; i++) {
         free(cfg->vals[i]);
         free(cfg->keys[i]);
     }

@@ -1166,7 +1166,7 @@ parse_locator(key_locator_t *locator, const char *identifier_type, const char *i
     switch (locator->type) {
     case PGP_KEY_SEARCH_USERID:
         if (snprintf(locator->id.userid, sizeof(locator->id.userid), "%s", identifier) >=
-            sizeof(locator->id.userid)) {
+            (int) sizeof(locator->id.userid)) {
             return RNP_ERROR_BAD_FORMAT;
         }
         break;

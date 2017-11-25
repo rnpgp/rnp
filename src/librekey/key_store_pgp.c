@@ -225,7 +225,7 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
         {
             const pgp_data_t *data = &content->ss_skapref;
             pgp_user_prefs_t *prefs = &subsig->prefs;
-            for (int i = 0; i < data->len; i++) {
+            for (size_t i = 0; i < data->len; i++) {
                 EXPAND_ARRAY(prefs, symm_alg);
                 if (!subsig->prefs.symm_algs) {
                     PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
@@ -241,7 +241,7 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
         {
             const pgp_data_t *data = &content->ss_hashpref;
             pgp_user_prefs_t *prefs = &subsig->prefs;
-            for (int i = 0; i < data->len; i++) {
+            for (size_t i = 0; i < data->len; i++) {
                 EXPAND_ARRAY(prefs, hash_alg);
                 if (!subsig->prefs.hash_algs) {
                     PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
@@ -257,7 +257,7 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
         {
             const pgp_data_t *data = &content->ss_zpref;
             pgp_user_prefs_t *prefs = &subsig->prefs;
-            for (int i = 0; i < data->len; i++) {
+            for (size_t i = 0; i < data->len; i++) {
                 EXPAND_ARRAY(prefs, compress_alg);
                 if (!subsig->prefs.compress_algs) {
                     PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
@@ -273,7 +273,7 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
         {
             const pgp_data_t *data = &content->ss_key_server_prefs;
             pgp_user_prefs_t *prefs = &subsig->prefs;
-            for (int i = 0; i < data->len; i++) {
+            for (size_t i = 0; i < data->len; i++) {
                 EXPAND_ARRAY(prefs, key_server_pref);
                 if (!subsig->prefs.key_server_prefs) {
                     PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
@@ -462,7 +462,7 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
         }
         pgp_writer_push_armored(&output, type);
     }
-    for (int ikey = 0; ikey < key_store->keyc; ikey++) {
+    for (unsigned ikey = 0; ikey < key_store->keyc; ikey++) {
         key = &key_store->keys[ikey];
 
         if (key->format != GPG_KEY_STORE) {

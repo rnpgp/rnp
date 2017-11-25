@@ -127,7 +127,7 @@ pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if ((BN_num_bytes(pubkey->point) > sizeof(point_bytes)) ||
+    if ((BN_num_bytes(pubkey->point) > (int) sizeof(point_bytes)) ||
         BN_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
         RNP_LOG("Failed to load public key");
         goto end;
@@ -155,8 +155,8 @@ pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
         goto end;
     }
 
-    if ((BN_num_bytes(sign->r) > curve_order) || (BN_num_bytes(sign->s) > curve_order) ||
-        (curve_order > MAX_CURVE_BYTELEN)) {
+    if ((BN_num_bytes(sign->r) > (int) curve_order) ||
+        (BN_num_bytes(sign->s) > (int) curve_order) || (curve_order > MAX_CURVE_BYTELEN)) {
         goto end;
     }
 

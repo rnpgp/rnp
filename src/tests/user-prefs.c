@@ -36,7 +36,7 @@ find_subsig(const pgp_key_t *key, const char *userid)
 {
     // find the userid index
     int uididx = -1;
-    for (int i = 0; i < key->uidc; i++) {
+    for (unsigned i = 0; i < key->uidc; i++) {
         if (memcmp(key->uids[i], userid, strlen(userid)) == 0) {
             uididx = i;
             break;
@@ -47,8 +47,8 @@ find_subsig(const pgp_key_t *key, const char *userid)
     }
     int subsigidx = -1;
     // find the subsig index
-    for (int i = 0; i < key->subsigc; i++) {
-        if (key->subsigs[i].uid == uididx) {
+    for (unsigned i = 0; i < key->subsigc; i++) {
+        if ((int) key->subsigs[i].uid == uididx) {
             subsigidx = i;
             break;
         }
