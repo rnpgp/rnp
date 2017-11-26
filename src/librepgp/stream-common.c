@@ -296,21 +296,23 @@ src_peek_line(pgp_source_t *src, char *buf, size_t len)
 }
 
 bool
-init_source_cache(pgp_source_t *src, size_t paramsize)
+init_src_common(pgp_source_t *src, size_t paramsize)
 {
+    memset(src, 0, sizeof(*src));
+    
     if ((src->cache = calloc(1, sizeof(pgp_source_cache_t))) == NULL) {
+        RNP_LOG("cache allocation failed");
         return false;
     }
     src->cache->readahead = true;
 
     if (paramsize > 0) {
         if ((src->param = calloc(1, paramsize)) == NULL) {
+            RNP_LOG("param allocation failed");
             free(src->cache);
             src->cache = NULL;
             return false;
         }
-    } else {
-        src->param = NULL;
     }
 
     return true;
@@ -367,7 +369,7 @@ init_file_src(pgp_source_t *src, const char *path)
         return RNP_ERROR_READ;
     }
 
-    if (!init_source_cache(src, sizeof(pgp_source_file_param_t))) {
+    if (!init_src_common(src, sizeof(pgp_source_file_param_t))) {
         close(fd);
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -376,12 +378,9 @@ init_file_src(pgp_source_t *src, const char *path)
     param->fd = fd;
     src->read = file_src_read;
     src->close = file_src_close;
-    src->finish = NULL;
     src->type = PGP_STREAM_FILE;
     src->size = st.st_size;
     src->knownsize = 1;
-    src->readb = 0;
-    src->eof = 0;
 
     return RNP_SUCCESS;
 }
@@ -391,7 +390,7 @@ init_stdin_src(pgp_source_t *src)
 {
     pgp_source_file_param_t *param;
 
-    if (!init_source_cache(src, sizeof(pgp_source_file_param_t))) {
+    if (!init_src_common(src, sizeof(pgp_source_file_param_t))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -399,12 +398,7 @@ init_stdin_src(pgp_source_t *src)
     param->fd = 0;
     src->read = file_src_read;
     src->close = file_src_close;
-    src->finish = NULL;
     src->type = PGP_STREAM_STDIN;
-    src->size = 0;
-    src->knownsize = 0;
-    src->readb = 0;
-    src->eof = 0;
 
     return RNP_SUCCESS;
 }
@@ -450,7 +444,7 @@ init_mem_src(pgp_source_t *src, void *mem, size_t len)
     pgp_source_mem_param_t *param;
 
     /* this is actually double buffering, but then src_peek will fail */
-    if (!init_source_cache(src, sizeof(pgp_source_mem_param_t))) {
+    if (!init_src_common(src, sizeof(pgp_source_mem_param_t))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -463,10 +457,25 @@ init_mem_src(pgp_source_t *src, void *mem, size_t len)
     src->finish = NULL;
     src->size = len;
     src->knownsize = 1;
-    src->readb = 0;
-    src->eof = 0;
 
     return RNP_SUCCESS;
+}
+
+bool
+init_dst_common(pgp_dest_t *dst, size_t paramsize)
+{
+    memset(dst, 0, sizeof(*dst));
+    
+    if (paramsize > 0) {
+        if ((dst->param = calloc(1, paramsize)) == NULL) {
+            RNP_LOG("allocation failed");
+            return false;
+        }
+    }
+
+    dst->werr = RNP_SUCCESS;
+
+    return true;
 }
 
 void
@@ -588,20 +597,17 @@ init_file_dest(pgp_dest_t *dst, const char *path)
         return RNP_ERROR_WRITE;
     }
 
-    if ((param = calloc(1, sizeof(*param))) == NULL) {
+    if (!init_dst_common(dst, sizeof(*param))) {
         close(fd);
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    dst->param = param;
+    param = dst->param;
     param->fd = fd;
     strcpy(param->path, path);
     dst->write = file_dst_write;
     dst->close = file_dst_close;
     dst->type = PGP_STREAM_FILE;
-    dst->writeb = 0;
-    dst->clen = 0;
-    dst->werr = RNP_SUCCESS;
 
     return RNP_SUCCESS;
 }
@@ -611,18 +617,15 @@ init_stdout_dest(pgp_dest_t *dst)
 {
     pgp_dest_file_param_t *param;
 
-    if ((param = calloc(1, sizeof(*param))) == NULL) {
+    if (!init_dst_common(dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    dst->param = param;
+    param = dst->param;
     param->fd = STDOUT_FILENO;
     dst->write = file_dst_write;
     dst->close = file_dst_close;
     dst->type = PGP_STREAM_STDOUT;
-    dst->writeb = 0;
-    dst->clen = 0;
-    dst->werr = RNP_SUCCESS;
 
     return RNP_SUCCESS;
 }
@@ -687,17 +690,15 @@ init_mem_dest(pgp_dest_t *dst, unsigned maxalloc)
 {
     pgp_dest_mem_param_t *param;
 
-    if ((param = calloc(1, sizeof(*param))) == NULL) {
+    if (!init_dst_common(dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    dst->param = param;
+    param = dst->param;
     param->maxalloc = maxalloc;
     dst->write = mem_dst_write;
     dst->close = mem_dst_close;
     dst->type = PGP_STREAM_MEMORY;
-    dst->writeb = 0;
-    dst->clen = 0;
     dst->werr = RNP_SUCCESS;
     dst->no_cache = true;
 

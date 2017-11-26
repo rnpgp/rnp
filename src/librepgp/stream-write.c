@@ -163,22 +163,18 @@ init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_partial_param_t *param;
 
-    if ((param = calloc(1, sizeof(*param))) == NULL) {
-        RNP_LOG("allocation failed");
+    if (!init_dst_common(dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
+    param = dst->param;
     param->writedst = writedst;
     param->partlen = PARTIAL_PKT_BLOCK_SIZE;
     param->parthdr = 0xE0 | PARTIAL_PKT_SIZE_BITS;
-    param->len = 0;
     dst->param = param;
     dst->write = partial_dst_write;
     dst->close = partial_dst_close;
     dst->type = PGP_STREAM_PARLEN_PACKET;
-    dst->writeb = 0;
-    dst->clen = 0;
-    dst->werr = RNP_SUCCESS;
 
     return RNP_SUCCESS;
 }
@@ -304,7 +300,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     unsigned                    checksum = 0;
     pgp_pk_sesskey_pkt_t        pkey = {0};
     pgp_dest_encrypted_param_t *param = dst->param;
-    rnp_result_t                ret = RNP_SUCCESS;
+    rnp_result_t                ret = RNP_ERROR_GENERIC;
 
     if (!handler->key_provider) {
         RNP_LOG("no key provider");
@@ -431,8 +427,10 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     /* Writing symmetric key encrypted session key packet */
     if (!stream_write_pk_sesskey(&pkey, param->pkt.origdst)) {
         ret = RNP_ERROR_WRITE;
+        goto finish;
     }
 
+    ret = RNP_SUCCESS;
 finish:
     pgp_forget(enckey, sizeof(enckey));
     pgp_forget(&checksum, sizeof(checksum));
@@ -496,7 +494,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     uint8_t                     mdcver = 1;
     unsigned                    keylen;
     unsigned                    blsize;
-    rnp_result_t                ret = RNP_SUCCESS;
+    rnp_result_t                ret = RNP_ERROR_GENERIC;
 
     /* currently we implement only single-password symmetric encryption */
 
@@ -506,18 +504,14 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if ((param = calloc(1, sizeof(*param))) == NULL) {
-        RNP_LOG("allocation failed");
+    if (!init_dst_common(dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    dst->param = param;
+    param = dst->param;
     dst->write = encrypted_dst_write;
     dst->close = encrypted_dst_close;
     dst->type = PGP_STREAM_ENCRYPTED;
-    dst->writeb = 0;
-    dst->clen = 0;
-    dst->werr = RNP_SUCCESS;
     param->has_mdc = true;
     param->ealg = handler->ctx->ealg;
     param->pkt.origdst = writedst;
@@ -530,24 +524,17 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     /* Configuring and writing pk-encrypted session keys */
     if (pkeycount > 0) {
-        list_item *userid = list_front(handler->ctx->recipients);
-        while (userid) {
-            ret = encrypted_add_recipient(handler, dst, (char *) userid, enckey, keylen);
+        for (list_item *id = list_front(handler->ctx->recipients); id; id = list_next(id)) {
+            ret = encrypted_add_recipient(handler, dst, (char *) id, enckey, keylen);
             if (ret != RNP_SUCCESS) {
                 goto finish;
             }
-
-            userid = list_next(userid);
         }
     }
 
     /* Configuring and writing sk-encrypted session key(s) */
-    list_item *passinfo_item = list_front(handler->ctx->passwords);
-    while (passinfo_item) {
-        rnp_symmetric_pass_info_t *pass = (rnp_symmetric_pass_info_t *) passinfo_item;
-
-        encrypted_add_password(pass, dst, enckey, keylen, singlepass);
-        passinfo_item = list_next(passinfo_item);
+    for (list_item *pi = list_front(handler->ctx->passwords); pi; pi = list_next(pi)) {
+        encrypted_add_password((rnp_symmetric_pass_info_t *)pi, dst, enckey, keylen, singlepass);
     }
 
     /* Initializing partial packet writer */
@@ -596,12 +583,11 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     }
     dst_write(param->pkt.writedst, enchdr, blsize + 2);
 
+    ret = RNP_SUCCESS;
 finish:
-    passinfo_item = list_front(handler->ctx->passwords);
-    while (passinfo_item) {
-        rnp_symmetric_pass_info_t *pass = (rnp_symmetric_pass_info_t *) passinfo_item;
+    for (list_item *pi = list_front(handler->ctx->passwords); pi; pi = list_next(pi)) {
+        rnp_symmetric_pass_info_t *pass = (rnp_symmetric_pass_info_t *) pi;
         pgp_forget(pass, sizeof(*pass));
-        passinfo_item = list_next(passinfo_item);
     }
     list_destroy(&handler->ctx->passwords);
     pgp_forget(enckey, sizeof(enckey));
@@ -765,25 +751,19 @@ static rnp_result_t
 init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_compressed_param_t *param;
-    rnp_result_t                 ret = RNP_SUCCESS;
+    rnp_result_t                 ret = RNP_ERROR_GENERIC;
     uint8_t                      buf;
     int                          zret;
 
-    /* setting up param */
-    if ((param = calloc(1, sizeof(*param))) == NULL) {
-        RNP_LOG("allocation failed");
+    if (!init_dst_common(dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    dst->param = param;
+    param = dst->param;
     dst->write = compressed_dst_write;
     dst->close = compressed_dst_close;
     dst->type = PGP_STREAM_COMPRESSED;
-    dst->writeb = 0;
-    dst->clen = 0;
-    dst->werr = RNP_SUCCESS;
     param->alg = handler->ctx->zalg;
-    param->len = 0;
     param->pkt.partial = true;
     param->pkt.indeterminate = false;
     param->pkt.tag = PGP_PTAG_CT_COMPRESSED;
@@ -834,7 +814,7 @@ init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *w
         goto finish;
     }
     param->zstarted = true;
-
+    ret = RNP_SUCCESS;
 finish:
     if (ret != RNP_SUCCESS) {
         compressed_dst_close(dst, true);
@@ -875,22 +855,18 @@ static rnp_result_t
 init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_packet_param_t *param;
-    rnp_result_t             ret = RNP_SUCCESS;
+    rnp_result_t             ret = RNP_ERROR_GENERIC;
     int                      flen;
     uint8_t                  buf[4];
 
-    if ((param = calloc(1, sizeof(*param))) == NULL) {
-        RNP_LOG("allocation failed");
+    if (!init_dst_common(dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    dst->param = param;
+    param = dst->param;
     dst->write = literal_dst_write;
     dst->close = literal_dst_close;
     dst->type = PGP_STREAM_LITERAL;
-    dst->writeb = 0;
-    dst->clen = 0;
-    dst->werr = RNP_SUCCESS;
     param->partial = true;
     param->indeterminate = false;
     param->tag = PGP_PTAG_CT_LITDATA;
@@ -921,7 +897,7 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
     /* timestamp */
     STORE32BE(buf, handler->ctx->filemtime);
     dst_write(param->writedst, buf, 4);
-
+    ret = RNP_SUCCESS;
 finish:
     if (ret != RNP_SUCCESS) {
         literal_dst_close(dst, true);
@@ -943,37 +919,33 @@ rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst
     ssize_t      read;
     pgp_dest_t   dests[4];
     int          destc = 0;
-    rnp_result_t ret = RNP_SUCCESS;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
     bool         discard;
 
     /* pushing armoring stream, which will write to the output */
     if (handler->ctx->armor) {
-        ret = init_armored_dst(&dests[destc], dst, PGP_ARMORED_MESSAGE);
-        if (ret != RNP_SUCCESS) {
+        if ((ret = init_armored_dst(&dests[destc], dst, PGP_ARMORED_MESSAGE))) {
             goto finish;
         }
         destc++;
     }
 
     /* pushing encrypting stream, which will write to the output or armoring stream */
-    ret = init_encrypted_dst(handler, &dests[destc], destc ? &dests[destc - 1] : dst);
-    if (ret != RNP_SUCCESS) {
+    if ((ret = init_encrypted_dst(handler, &dests[destc], destc ? &dests[destc - 1] : dst))) {
         goto finish;
     }
     destc++;
 
     /* if compression is enabled then pushing compressing stream */
     if (handler->ctx->zlevel > 0) {
-        ret = init_compressed_dst(handler, &dests[destc], &dests[destc - 1]);
-        if (ret != RNP_SUCCESS) {
+        if ((ret = init_compressed_dst(handler, &dests[destc], &dests[destc - 1]))) {
             goto finish;
         }
         destc++;
     }
 
     /* pushing literal data stream */
-    ret = init_literal_dst(handler, &dests[destc], &dests[destc - 1]);
-    if (ret != RNP_SUCCESS) {
+    if ((ret = init_literal_dst(handler, &dests[destc], &dests[destc - 1]))) {
         goto finish;
     }
     destc++;
@@ -1000,6 +972,7 @@ rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst
         }
     }
 
+    ret = RNP_SUCCESS;
 finish:
     discard = ret != RNP_SUCCESS;
     for (int i = destc - 1; i >= 0; i--) {

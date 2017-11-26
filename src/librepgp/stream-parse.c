@@ -317,7 +317,7 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    if (!init_source_cache(src, sizeof(*param))) {
+    if (!init_src_common(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -332,12 +332,7 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
 
     src->read = partial_pkt_src_read;
     src->close = partial_pkt_src_close;
-    src->finish = NULL;
     src->type = PGP_STREAM_PARLEN_PACKET;
-    src->size = 0;
-    src->knownsize = 0;
-    src->readb = 0;
-    src->eof = 0;
 
     return RNP_SUCCESS;
 }
@@ -1403,12 +1398,12 @@ init_packet_params(pgp_source_t *src, pgp_source_packet_param_t *param)
 static rnp_result_t
 init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
 {
-    rnp_result_t                errcode = RNP_SUCCESS;
+    rnp_result_t                errcode = RNP_ERROR_GENERIC;
     pgp_source_literal_param_t *param;
     uint8_t                     bt;
     uint8_t                     tstbuf[4];
 
-    if (!init_source_cache(src, sizeof(*param))) {
+    if (!init_src_common(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -1416,12 +1411,7 @@ init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *rea
     param->pkt.readsrc = readsrc;
     src->read = literal_src_read;
     src->close = literal_src_close;
-    src->finish = NULL;
     src->type = PGP_STREAM_LITERAL;
-    src->size = 0;
-    src->knownsize = 0;
-    src->readb = 0;
-    src->eof = 0;
 
     /* Reading packet length/checking whether it is partial */
     errcode = init_packet_params(src, &param->pkt);
@@ -1480,6 +1470,8 @@ init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *rea
         src->knownsize = 1;
     }
 
+    errcode = RNP_SUCCESS;
+
 finish:
     if (errcode != RNP_SUCCESS) {
         src_close(src);
@@ -1490,12 +1482,12 @@ finish:
 static rnp_result_t
 init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
 {
-    rnp_result_t                   errcode = RNP_SUCCESS;
+    rnp_result_t                   errcode = RNP_ERROR_GENERIC;
     pgp_source_compressed_param_t *param;
     uint8_t                        alg;
     int                            zret;
 
-    if (!init_source_cache(src, sizeof(*param))) {
+    if (!init_src_common(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -1503,12 +1495,7 @@ init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *
     param->pkt.readsrc = readsrc;
     src->read = compressed_src_read;
     src->close = compressed_src_close;
-    src->finish = NULL;
     src->type = PGP_STREAM_COMPRESSED;
-    src->size = 0;
-    src->knownsize = 0;
-    src->readb = 0;
-    src->eof = 0;
 
     /* Reading packet length/checking whether it is partial */
     errcode = init_packet_params(src, &param->pkt);
@@ -1556,6 +1543,7 @@ init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *
     param->inlen = 0;
     param->inpos = 0;
 
+    errcode = RNP_SUCCESS;
 finish:
     if (errcode != RNP_SUCCESS) {
         src_close(src);
@@ -1566,7 +1554,7 @@ finish:
 static rnp_result_t
 init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
 {
-    rnp_result_t                  errcode = RNP_SUCCESS;
+    rnp_result_t                  errcode = RNP_ERROR_GENERIC;
     pgp_source_encrypted_param_t *param;
     uint8_t                       ptag;
     uint8_t                       mdcver;
@@ -1581,7 +1569,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     bool                          have_key = false;
     uint64_t                      readb;
 
-    if (!init_source_cache(src, sizeof(*param))) {
+    if (!init_src_common(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     param = src->param;
@@ -1590,10 +1578,6 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     src->close = encrypted_src_close;
     src->finish = encrypted_src_finish;
     src->type = PGP_STREAM_ENCRYPTED;
-    src->size = 0;
-    src->knownsize = 0;
-    src->readb = 0;
-    src->eof = 0;
 
     /* Reading pk/sk encrypted session key(s) */
     while (true) {
@@ -1747,6 +1731,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     if (!have_key) {
         RNP_LOG("failed to obtain decrypting key or password");
         errcode = RNP_ERROR_NO_SUITABLE_KEY;
+        goto finish;
     }
 
     if (!param->pkt.partial && !param->pkt.indeterminate) {
@@ -1754,6 +1739,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
         src->size = param->pkt.len - (param->pkt.readsrc->readb - readb);
     }
 
+    errcode = RNP_SUCCESS;
 finish:
     if (errcode != RNP_SUCCESS) {
         src_close(src);
@@ -1801,7 +1787,7 @@ init_cleartext_signed_src(pgp_source_t *src)
 static rnp_result_t
 init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
 {
-    rnp_result_t               errcode = RNP_SUCCESS;
+    rnp_result_t               errcode = RNP_ERROR_GENERIC;
     pgp_source_signed_param_t *param;
     uint8_t                    ptag;
     int                        ptype;
@@ -1809,7 +1795,7 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
     pgp_signature_t *          sig = NULL;
     bool                       cleartext;
 
-    if (!init_source_cache(src, sizeof(*param))) {
+    if (!init_src_common(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -1823,10 +1809,6 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
     src->close = signed_src_close;
     src->finish = signed_src_finish;
     src->type = cleartext ? PGP_STREAM_CLEARTEXT : PGP_STREAM_SIGNED;
-    src->size = 0;
-    src->knownsize = 0;
-    src->readb = 0;
-    src->eof = 0;
 
     /* we need key provider to validate signatures */
     if (!ctx->handler.key_provider) {
@@ -1899,6 +1881,7 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
         RNP_LOG("warning: one-passes are mixed with signatures");
     }
 
+    errcode = RNP_SUCCESS;
 finish:
     if (errcode != RNP_SUCCESS) {
         src_close(src);
