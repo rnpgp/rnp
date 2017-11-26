@@ -571,10 +571,10 @@ armor_parse_headers(pgp_source_t *src)
 rnp_result_t
 init_armored_src(pgp_source_t *src, pgp_source_t *readsrc)
 {
-    rnp_result_t                errcode = RNP_SUCCESS;
+    rnp_result_t                errcode = RNP_ERROR_GENERIC;
     pgp_source_armored_param_t *param;
 
-    if (!init_source_cache(src, sizeof(*param))) {
+    if (!init_src_common(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -589,10 +589,6 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc)
     src->read = armored_src_read;
     src->close = armored_src_close;
     src->type = PGP_STREAM_ARMORED;
-    src->size = 0;
-    src->knownsize = 0;
-    src->readb = 0;
-    src->eof = 0;
 
     /* parsing armored header */
     if (!armor_parse_header(src)) {
@@ -614,7 +610,6 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc)
 
     /* now we are good to go with base64-encoded data */
     errcode = RNP_SUCCESS;
-    goto finish;
 
 finish:
     if (errcode != RNP_SUCCESS) {

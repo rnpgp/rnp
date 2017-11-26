@@ -87,8 +87,12 @@ typedef struct pgp_source_t {
 } pgp_source_t;
 
 /** @brief helper function to allocate memory for source's cache and param
+ *         Also fills src and param with zeroes
+ *  @param src pointer to the source structure
+ *  @param paramsize number of bytes required for src->param
+ *  @return true on success or false if memory allocation failed.
  **/
-bool init_source_cache(pgp_source_t *src, size_t paramsize);
+bool init_src_common(pgp_source_t *src, size_t paramsize);
 
 /** @brief read up to len bytes from the source
  *  While this function tries to read as much bytes as possible however it may return
@@ -186,6 +190,14 @@ typedef struct pgp_dest_t {
     uint8_t  cache[PGP_OUTPUT_CACHE_SIZE];
     unsigned clen; /* number of bytes in cache */
 } pgp_dest_t;
+
+/** @brief helper function to allocate memory for dest's param.
+ *         Initializes dst and param with zeroes as well.
+ *  @param dst dest structure
+ *  @param paramsize number of bytes required for dst->param
+ *  @return true on success, or false if memory allocation failed
+ **/
+bool init_dst_common(pgp_dest_t *dst, size_t paramsize);
 
 /** @brief write buffer to the destination
  *
