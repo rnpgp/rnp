@@ -162,14 +162,14 @@ pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
 
     rc = botan_hash_init(&impl, hash_name, 0);
     if (rc != 0) {
-        (void) fprintf(stderr, "Error creating hash object for '%s'", hash_name);
+        RNP_LOG("Error creating hash object for '%s'", hash_name);
         return false;
     }
 
     rc = botan_hash_output_length(impl, &outlen);
     if (rc != 0) {
         botan_hash_destroy(hash->handle);
-        (void) fprintf(stderr, "In pgp_hash_create, botan_hash_output_length failed");
+        RNP_LOG("In pgp_hash_create, botan_hash_output_length failed");
         return false;
     }
 
@@ -270,4 +270,52 @@ pgp_digest_length(pgp_hash_alg_t alg, size_t *output_length)
 
     botan_hash_destroy(handle);
     return ret;
+}
+
+bool
+pgp_hash_list_add(list *hashes, pgp_hash_alg_t alg)
+{
+    pgp_hash_t hash = {0};
+
+    if (!pgp_hash_list_get(*hashes, alg)) {
+        if (!pgp_hash_create(&hash, alg)) {
+            RNP_LOG("failed to initialize hash algorithm %d", (int) alg);
+            return false;
+        } else if (!list_append(hashes, &hash, sizeof(hash))) {
+            pgp_hash_finish(&hash, NULL);
+            RNP_LOG("allocation failed");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+const pgp_hash_t *
+pgp_hash_list_get(list hashes, pgp_hash_alg_t alg)
+{
+    for (list_item *hash = list_front(hashes); hash; hash = list_next(hash)) {
+        if (pgp_hash_alg_type((pgp_hash_t *) hash) == alg) {
+            return (pgp_hash_t *) hash;
+        }
+    }
+
+    return NULL;
+}
+
+void
+pgp_hash_list_update(list hashes, const void *buf, size_t len)
+{
+    for (list_item *hash = list_front(hashes); hash; hash = list_next(hash)) {
+        pgp_hash_add((pgp_hash_t *) hash, buf, len);
+    }
+}
+
+void
+pgp_hash_list_free(list *hashes)
+{
+    for (list_item *hash = list_front(*hashes); hash; hash = list_next(hash)) {
+        pgp_hash_finish((pgp_hash_t *) hash, NULL);
+    }
+    list_destroy(hashes);
 }
