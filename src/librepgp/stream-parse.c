@@ -578,36 +578,10 @@ encrypted_src_close(pgp_source_t *src)
     }
 }
 
-static pgp_hash_t *
-signed_get_hash(pgp_source_signed_param_t *param, pgp_hash_alg_t alg)
-{
-    for (list_item *hash = list_front(param->hashes); hash; hash = list_next(hash)) {
-        if (pgp_hash_alg_type((pgp_hash_t *) hash) == alg) {
-            return (pgp_hash_t *) hash;
-        }
-    }
-
-    return NULL;
-}
-
-static void
-signed_add_hash(pgp_source_signed_param_t *param, pgp_hash_alg_t alg)
-{
-    pgp_hash_t hash = {0};
-
-    if (!signed_get_hash(param, alg)) {
-        if (!pgp_hash_create(&hash, alg)) {
-            RNP_LOG("failed to initialize hash algorithm %d", (int) alg);
-        } else if (!list_append(&param->hashes, &hash, sizeof(hash))) {
-            RNP_LOG("allocation failed");
-        }
-    }
-}
-
 static bool
 signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t *key)
 {
-    pgp_hash_t *               hash;
+    const pgp_hash_t *         hash;
     pgp_hash_t                 shash = {0};
     uint8_t                    trailer[6];
     uint8_t                    hval[PGP_MAX_HASH_SIZE];
@@ -616,7 +590,7 @@ signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t 
     bool                       ret = false;
 
     /* Get the hash context */
-    if ((hash = signed_get_hash(param, sig->halg)) == NULL) {
+    if ((hash = pgp_hash_list_get(param->hashes, sig->halg)) == NULL) {
         RNP_LOG("hash context %d not found", (int) sig->halg);
         return false;
     }
@@ -693,10 +667,7 @@ static void
 signed_src_update(pgp_source_t *src, const void *buf, size_t len)
 {
     pgp_source_signed_param_t *param = src->param;
-
-    for (list_item *hash = list_front(param->hashes); hash; hash = list_next(hash)) {
-        pgp_hash_add((pgp_hash_t *) hash, buf, len);
-    }
+    pgp_hash_list_update(param->hashes, buf, len);
 }
 
 static ssize_t
@@ -718,10 +689,7 @@ signed_src_close(pgp_source_t *src)
 
     if (param) {
         list_destroy(&param->onepasses);
-        for (list_item *hash = list_front(param->hashes); hash; hash = list_next(hash)) {
-            pgp_hash_finish((pgp_hash_t *) hash, NULL);
-        }
-        list_destroy(&param->hashes);
+        pgp_hash_list_free(&param->hashes);
         list_destroy(&param->siginfos);
         for (list_item *sig = list_front(param->sigs); sig; sig = list_next(sig)) {
             free_signature((pgp_signature_t *) sig);
@@ -958,7 +926,7 @@ cleartext_parse_headers(pgp_source_t *src)
                     RNP_LOG("unknown halg: %s", hname);
                 }
 
-                signed_add_hash(param, halg);
+                pgp_hash_list_add(&param->hashes, halg);
             }
         } else {
             RNP_LOG("unknown header '%s'", hdr);
@@ -1848,7 +1816,7 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
             }
 
             /* adding hash context */
-            signed_add_hash(param, onepass.halg);
+            pgp_hash_list_add(&param->hashes, onepass.halg);
 
             if (onepass.nested) {
                 /* despite the name non-zero value means that it is the last one-pass */
@@ -1859,7 +1827,7 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
             signed_read_single_signature(param, readsrc, &sig);
             /* adding hash context */
             if (sig) {
-                signed_add_hash(param, sig->halg);
+                pgp_hash_list_add(&param->hashes, sig->halg);
             }
         } else {
             break;
