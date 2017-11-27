@@ -584,10 +584,11 @@ file_dst_close(pgp_dest_t *dst, bool discard)
         return;
     }
 
-    close(param->fd);
-
-    if (discard && (dst->type == PGP_STREAM_FILE)) {
-        unlink(param->path);
+    if (dst->type == PGP_STREAM_FILE) {
+        close(param->fd);
+        if (discard) {
+            unlink(param->path);
+        }
     }
 
     free(param);

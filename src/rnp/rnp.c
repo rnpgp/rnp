@@ -222,96 +222,6 @@ print_usage(const char *usagemsg)
     fprintf(stderr, "Usage: %s %s", __progname, usagemsg);
 }
 
-/* read all of stdin into memory */
-static int
-stdin_to_mem(rnp_cfg_t *cfg, char **temp, char **out, unsigned *maxsize)
-{
-    unsigned newsize;
-    unsigned size;
-    char     buf[BUFSIZ * 8];
-    char *   loc;
-    int      n;
-
-    if (cfg) {
-        *maxsize = (unsigned) rnp_cfg_getint(cfg, CFG_MAXALLOC);
-    }
-
-    size = 0;
-    *temp = NULL;
-    while ((n = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
-        /* round up the allocation */
-        newsize = size + ((n / BUFSIZ) + 1) * BUFSIZ;
-        if (newsize > *maxsize) {
-            fputs("bounds check\n", stderr);
-            return size;
-        }
-        loc = realloc(*temp, newsize);
-        if (loc == NULL) {
-            fputs("short read\n", stderr);
-            return size;
-        }
-        *temp = loc;
-        memcpy(&(*temp)[size], buf, n);
-        size += n;
-    }
-    if ((*out = calloc(1, *maxsize)) == NULL) {
-        fputs("Bad alloc\n", stderr);
-        return 0;
-    }
-    return (int) size;
-}
-
-/* output the text to stdout */
-static bool
-show_output(rnp_cfg_t *cfg, char *out, int size, const char *header)
-{
-    int         cc;
-    int         n;
-    int         flags;
-    const char *outfile;
-    int         fd = STDOUT_FILENO;
-
-    if (size <= 0) {
-        fprintf(stderr, "%s\n", header);
-        return false;
-    }
-
-    if ((outfile = rnp_cfg_get(cfg, CFG_OUTFILE))) {
-        flags = O_WRONLY | O_CREAT;
-        if (rnp_cfg_getbool(cfg, CFG_OVERWRITE)) {
-            flags |= O_TRUNC;
-        } else {
-            flags |= O_EXCL;
-        }
-
-        fd = open(outfile, flags, 0600);
-        if (fd < 0) {
-            fprintf(stderr, "Failed to write to the %s : %s.\n", outfile, strerror(errno));
-            return false;
-        }
-    }
-
-    for (cc = 0; cc < size; cc += n) {
-        if ((n = write(fd, &out[cc], size - cc)) <= 0) {
-            if (n < 0) {
-                fprintf(stderr, "Write failed: %s.\n", strerror(errno));
-            }
-
-            break;
-        }
-    }
-
-    if (fd != STDOUT_FILENO) {
-        close(fd);
-    }
-
-    if (cc < size) {
-        fputs("Short write\n", stderr);
-        return false;
-    }
-    return cc == size;
-}
-
 static void
 rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int count)
 {
@@ -395,14 +305,10 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
 static bool
 rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 {
-    unsigned    maxsize;
     char *      out = NULL;
     char *      in = NULL;
     const char *userid = NULL;
     bool        ret = false;
-    int         cc;
-    int         sz;
-    bool        clearsign = (cmd == CMD_CLEARSIGN);
     rnp_ctx_t   ctx = {0};
     // TODO: Probably something smarter should be done here
     repgp_io_t *io = repgp_create_io();
@@ -442,6 +348,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     }
     if (userid) {
         list_append(&ctx.recipients, userid, strlen(userid) + 1);
+        list_append(&ctx.signers, userid, strlen(userid) + 1);
     }
     rnp->pswdtries = rnp_cfg_get_pswdtries(cfg);
 
@@ -458,13 +365,11 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 
         ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
         ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
-
         ctx.sigcreate = get_birthtime(rnp_cfg_get(cfg, CFG_BIRTHTIME));
         ctx.sigexpire = get_duration(rnp_cfg_get(cfg, CFG_DURATION));
+        ctx.clearsign = cmd == CMD_CLEARSIGN;
 
-        clearsign = (cmd == CMD_CLEARSIGN) ? true : false;
-
-        if (f == NULL) {
+        /*if (f == NULL) {
             cc = stdin_to_mem(cfg, &in, &out, &maxsize);
             sz = rnp_sign_memory(&ctx, userid, in, cc, out, maxsize, clearsign);
             ret = show_output(cfg, out, sz, "Bad memory signature");
@@ -475,7 +380,9 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
                                 rnp_cfg_get(cfg, CFG_OUTFILE),
                                 clearsign,
                                 rnp_cfg_getbool(cfg, CFG_DETACHED)) == RNP_SUCCESS;
-        }
+        }*/
+
+        ret = rnp_sign_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
     case CMD_DECRYPT:
         ret = rnp_process_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;

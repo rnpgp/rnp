@@ -68,6 +68,8 @@ typedef struct pgp_create_sig_t pgp_create_sig_t;
 pgp_create_sig_t *pgp_create_sig_new(void);
 void              pgp_create_sig_delete(pgp_create_sig_t *);
 
+pgp_hash_alg_t pgp_pick_hash_alg(rnp_ctx_t *ctx, const pgp_seckey_t *seckey);
+
 bool pgp_check_useridcert_sig(rnp_ctx_t *,
                               const pgp_pubkey_t *,
                               const uint8_t *,
