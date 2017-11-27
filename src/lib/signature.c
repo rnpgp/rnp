@@ -1078,7 +1078,7 @@ open_output_file(rnp_ctx_t *    ctx,
 /**
     Pick up hash algorithm according to secret key and preferences set in the context
 */
-static pgp_hash_alg_t
+pgp_hash_alg_t
 pgp_pick_hash_alg(rnp_ctx_t *ctx, const pgp_seckey_t *seckey)
 {
     if (seckey->pubkey.alg == PGP_PKA_DSA) {

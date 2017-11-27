@@ -28,6 +28,7 @@
 #include "stream-write.h"
 #include "stream-packet.h"
 #include "stream-armor.h"
+#include "list.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -45,6 +46,7 @@
 #include "defs.h"
 #include "types.h"
 #include "symmetric.h"
+#include "signature.h"
 #include "crypto/s2k.h"
 #include "crypto/sm2.h"
 #include "crypto.h"
@@ -61,7 +63,7 @@
 
 /* common fields for encrypted, compressed and literal data */
 typedef struct pgp_dest_packet_param_t {
-    pgp_dest_t *writedst;      /* source to write to, could be partial */
+    pgp_dest_t *writedst;      /* destination to write to, could be partial */
     pgp_dest_t *origdst;       /* original dest passed to init_*_dst */
     bool        partial;       /* partial length packet */
     bool        indeterminate; /* indeterminate length packet */
@@ -88,6 +90,12 @@ typedef struct pgp_dest_encrypted_param_t {
     pgp_hash_t              mdc;         /* mdc SHA1 hash */
     uint8_t cache[PGP_INPUT_CACHE_SIZE]; /* pre-allocated cache for encryption */
 } pgp_dest_encrypted_param_t;
+
+typedef struct pgp_dest_signed_param_t {
+    pgp_dest_t *writedst;  /* destination to write to */
+    list        onepasses; /* one-pass entries written to the stream begin */
+    list        hashes;    /* hashes to pass raw data through and then sign */
+} pgp_dest_signed_param_t;
 
 typedef struct pgp_dest_partial_param_t {
     pgp_dest_t *writedst;
@@ -535,8 +543,6 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     unsigned                    blsize;
     rnp_result_t                ret = RNP_ERROR_GENERIC;
 
-    /* currently we implement only single-password symmetric encryption */
-
     keylen = pgp_key_size(handler->ctx->ealg);
     if (!keylen) {
         RNP_LOG("unknown symmetric algorithm");
@@ -641,6 +647,124 @@ finish:
     pgp_forget(enckey, sizeof(enckey));
     if (ret != RNP_SUCCESS) {
         encrypted_dst_close(dst, true);
+    }
+
+    return ret;
+}
+
+static rnp_result_t
+signed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
+{
+    pgp_dest_signed_param_t *param = dst->param;
+    dst_write(param->writedst, buf, len);
+    return RNP_SUCCESS;
+}
+
+static void
+signed_dst_close(pgp_dest_t *dst, bool discard)
+{
+    pgp_dest_signed_param_t *param = dst->param;
+
+    if (!param) {
+        return;
+    }
+
+    if (!discard) {
+        /*for (list_item *op = list_front(handler->onepasses); op; op = list_next(op)) {
+
+        }*/
+    }
+
+    pgp_hash_list_free(&param->hashes);
+    list_destroy(&param->onepasses);
+
+    free(param);
+    dst->param = NULL;
+}
+
+static void
+signed_dst_update(pgp_dest_t *dst, const void *buf, size_t len)
+{
+    pgp_dest_signed_param_t *param = dst->param;
+    pgp_hash_list_update(param->hashes, buf, len);
+}
+
+static rnp_result_t
+signed_add_one_pass(pgp_write_handler_t *handler,
+                    pgp_dest_t *         dst,
+                    const char *         signer,
+                    bool                 last)
+{
+    pgp_key_request_ctx_t keyctx = {
+      .op = PGP_OP_SIGN, .secret = true, .stype = PGP_KEY_SEARCH_USERID, {.userid = signer}};
+    pgp_key_t *              key = NULL;
+    pgp_one_pass_sig_t       onepass = {0};
+    pgp_dest_signed_param_t *param = dst->param;
+    pgp_hash_alg_t           halg;
+
+    /* Get the key if any */
+    if (!pgp_request_key(handler->key_provider, &keyctx, &key)) {
+        RNP_LOG("signer's key not found: %s", signer);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* Add hash to the list */
+    halg = pgp_pick_hash_alg(handler->ctx, &key->key.seckey);
+    if (!pgp_hash_list_add(&param->hashes, halg)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    onepass.version = 3;
+    onepass.type = PGP_SIG_BINARY;
+    onepass.halg = halg;
+    onepass.palg = key->key.pubkey.alg;
+    memcpy(onepass.keyid, key->keyid, PGP_KEY_ID_SIZE);
+    onepass.nested = !!last;
+
+    if (!stream_write_one_pass(&onepass, param->writedst)) {
+        return RNP_ERROR_WRITE;
+    }
+
+    list_append(&param->onepasses, &onepass, sizeof(onepass));
+
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
+{
+    pgp_dest_signed_param_t *param;
+    rnp_result_t             ret = RNP_ERROR_GENERIC;
+
+    if (!handler->key_provider) {
+        RNP_LOG("no key provider");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (!init_dst_common(dst, sizeof(*param))) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    param = dst->param;
+    param->writedst = writedst;
+    dst->write = signed_dst_write;
+    dst->close = signed_dst_close;
+    dst->type = PGP_STREAM_SIGNED;
+
+    /* writing one-pass signatures */
+    for (list_item *sg = list_front(handler->ctx->signers); sg; sg = list_next(sg)) {
+        ret = signed_add_one_pass(
+          handler, dst, (const char *) sg, sg == list_back(handler->ctx->signers));
+        if (ret) {
+            RNP_LOG("failed to add signer %s", (char *) sg);
+            goto finish;
+        }
+    }
+
+    ret = RNP_SUCCESS;
+finish:
+    if (ret != RNP_SUCCESS) {
+        signed_dst_close(dst, true);
     }
 
     return ret;
@@ -1047,6 +1171,88 @@ rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst
     }
 
     ret = RNP_SUCCESS;
+finish:
+    discard = ret != RNP_SUCCESS;
+    for (int i = destc - 1; i >= 0; i--) {
+        dst_close(&dests[i], discard);
+    }
+
+    return ret;
+}
+
+rnp_result_t
+rnp_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
+{
+    /* stack of the streams would be as following:
+       [armoring stream] - if armoring is enabled
+       [compressing stream, partial writing stream] - if compression is enabled
+       signing stream
+       literal data stream, partial writing stream
+    */
+    uint8_t      readbuf[PGP_INPUT_CACHE_SIZE];
+    ssize_t      read;
+    pgp_dest_t   dests[4];
+    pgp_dest_t * signdst = NULL;
+    int          destc = 0;
+    rnp_result_t ret = RNP_SUCCESS;
+    bool         discard;
+
+    /* pushing armoring stream, which will write to the output */
+    if (handler->ctx->armor) {
+        ret = init_armored_dst(&dests[destc], dst, PGP_ARMORED_MESSAGE);
+        if (ret != RNP_SUCCESS) {
+            goto finish;
+        }
+        destc++;
+    }
+
+    /* if compression is enabled then pushing compressing stream */
+    if (handler->ctx->zlevel > 0) {
+        ret = init_compressed_dst(handler, &dests[destc], destc ? &dests[destc - 1] : dst);
+        if (ret != RNP_SUCCESS) {
+            goto finish;
+        }
+        destc++;
+    }
+
+    /* pushing signing stream, which will write to the output or previous compressed or
+     * armoring stream */
+    ret = init_signed_dst(handler, &dests[destc], destc ? &dests[destc - 1] : dst);
+    if (ret != RNP_SUCCESS) {
+        goto finish;
+    }
+    signdst = &dests[destc++];
+
+    /* pushing literal data stream */
+    ret = init_literal_dst(handler, &dests[destc], &dests[destc - 1]);
+    if (ret != RNP_SUCCESS) {
+        goto finish;
+    }
+    destc++;
+
+    /* processing source stream */
+    while (!src->eof) {
+        read = src_read(src, readbuf, sizeof(readbuf));
+        if (read < 0) {
+            RNP_LOG("failed to read from source");
+            ret = RNP_ERROR_READ;
+            goto finish;
+        }
+
+        if (read > 0) {
+            dst_write(&dests[destc - 1], readbuf, read);
+            signed_dst_update(signdst, readbuf, read);
+
+            for (int i = destc - 1; i >= 0; i--) {
+                if (dests[i].werr != RNP_SUCCESS) {
+                    RNP_LOG("failed to process data");
+                    ret = RNP_ERROR_WRITE;
+                    goto finish;
+                }
+            }
+        }
+    }
+
 finish:
     discard = ret != RNP_SUCCESS;
     for (int i = destc - 1; i >= 0; i--) {

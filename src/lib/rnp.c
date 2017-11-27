@@ -1439,6 +1439,50 @@ finish:
 }
 
 rnp_result_t
+rnp_sign_stream(rnp_ctx_t *ctx, const char *in, const char *out)
+{
+    pgp_source_t         src;
+    pgp_dest_t           dst;
+    pgp_write_handler_t *handler = NULL;
+    rnp_result_t         result;
+    pgp_key_provider_t   keyprov;
+
+    if (!rnp_initialize_input(ctx, &src, in)) {
+        RNP_LOG("failed to initialize reading");
+        return RNP_ERROR_READ;
+    }
+
+    if (!rnp_initialize_output(ctx, &dst, out)) {
+        RNP_LOG("failed to initialize writing");
+        src_close(&src);
+        return RNP_ERROR_WRITE;
+    }
+
+    if ((handler = calloc(1, sizeof(*handler))) == NULL) {
+        result = RNP_ERROR_OUT_OF_MEMORY;
+        goto finish;
+    }
+
+    handler->password_provider = &ctx->rnp->password_provider;
+    keyprov.callback = rnp_key_provider_keyring;
+    keyprov.userdata = ctx->rnp;
+    handler->key_provider = &keyprov;
+    handler->ctx = ctx;
+    handler->param = NULL;
+
+    result = rnp_sign_src(handler, &src, &dst);
+    if (result != RNP_SUCCESS) {
+        RNP_LOG("failed with error code 0x%x", (int) result);
+    }
+
+finish:
+    src_close(&src);
+    dst_close(&dst, result != RNP_SUCCESS);
+    free(handler);
+    return result;
+}
+
+rnp_result_t
 rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const char *out)
 {
     pgp_source_t      src;

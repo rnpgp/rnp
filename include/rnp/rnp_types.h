@@ -102,6 +102,7 @@ typedef struct rnp_ctx_t {
     int64_t        filemtime;     /* file modification time to store in literal data packet */
     int64_t        sigcreate;     /* signature creation time */
     uint64_t       sigexpire;     /* signature expiration time */
+    bool           clearsign;     /* cleartext signature */
     pgp_hash_alg_t halg;          /* hash algorithm */
     pgp_symm_alg_t ealg;          /* encryption algorithm */
     int            zalg;          /* compression algorithm used */
@@ -110,6 +111,7 @@ typedef struct rnp_ctx_t {
     bool           armor;         /* whether to use ASCII armor on output */
     list           recipients;    /* recipients of the encrypted message */
     list           passwords;     /* list of rnp_symmetric_pass_info_t */
+    list           signers;       /* list of signer key ids/user ids */
     unsigned       armortype;     /* type of the armored message, used in enarmor command */
     bool           discard;       /* discard the output */
     void *         on_signatures; /* handler for signed messages */

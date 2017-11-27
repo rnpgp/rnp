@@ -50,4 +50,6 @@ typedef struct pgp_write_handler_t {
  **/
 rnp_result_t rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst);
 
+rnp_result_t rnp_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst);
+
 #endif
