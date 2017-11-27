@@ -534,7 +534,8 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     /* Configuring and writing sk-encrypted session key(s) */
     for (list_item *pi = list_front(handler->ctx->passwords); pi; pi = list_next(pi)) {
-        encrypted_add_password((rnp_symmetric_pass_info_t *)pi, dst, enckey, keylen, singlepass);
+        encrypted_add_password(
+          (rnp_symmetric_pass_info_t *) pi, dst, enckey, keylen, singlepass);
     }
 
     /* Initializing partial packet writer */
