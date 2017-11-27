@@ -299,7 +299,7 @@ bool
 init_src_common(pgp_source_t *src, size_t paramsize)
 {
     memset(src, 0, sizeof(*src));
-    
+
     if ((src->cache = calloc(1, sizeof(pgp_source_cache_t))) == NULL) {
         RNP_LOG("cache allocation failed");
         return false;
@@ -465,7 +465,7 @@ bool
 init_dst_common(pgp_dest_t *dst, size_t paramsize)
 {
     memset(dst, 0, sizeof(*dst));
-    
+
     if (paramsize > 0) {
         if ((dst->param = calloc(1, paramsize)) == NULL) {
             RNP_LOG("allocation failed");

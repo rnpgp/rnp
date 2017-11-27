@@ -950,8 +950,10 @@ signature_parse_subpackets(pgp_signature_t *sig, uint8_t *buf, size_t len, bool 
 
         res = res && signature_parse_subpacket(&subpkt);
 
-        EXPAND_ARRAY_EX(sig, subpkt, 1);
-        sig->subpkts[sig->subpktc++] = subpkt;
+        if (!list_append(&sig->subpkts, &subpkt, sizeof(subpkt))) {
+            RNP_LOG("allocation failed");
+            return false;
+        }
         if (hashed) {
             sig->hashed_subpkts++;
         }
@@ -1194,13 +1196,11 @@ signature_get_subpkt(pgp_signature_t *sig, pgp_sig_subpacket_type_t type)
         return NULL;
     }
 
-    for (unsigned i = 0; i < sig->subpktc; i++) {
-        if (sig->subpkts[i].type == type) {
+    for (list_item *sp = list_front(sig->subpkts); sp; sp = list_next(sp)) {
+        pgp_sig_subpkt_t *subpkt = (pgp_sig_subpkt_t *) sp;
+        if (subpkt->type == type) {
             /* no reason to return non-parsed subpacket */
-            if (sig->subpkts[i].parsed) {
-                return &sig->subpkts[i];
-            }
-            return NULL;
+            return subpkt->parsed ? subpkt : NULL;
         }
     }
 
@@ -1280,8 +1280,8 @@ void
 free_signature(pgp_signature_t *sig)
 {
     free(sig->hashed_data);
-    for (unsigned i = 0; i < sig->subpktc; i++) {
-        free(sig->subpkts[i].data);
+    for (list_item *sp = list_front(sig->subpkts); sp; sp = list_next(sp)) {
+        free(((pgp_sig_subpkt_t *) sp)->data);
     }
-    FREE_ARRAY(sig, subpkt);
+    list_destroy(&sig->subpkts);
 }

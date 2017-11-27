@@ -57,6 +57,7 @@
 #include "defs.h"
 #include "errors.h"
 #include "memory.h"
+#include "list.h"
 #include "crypto/rsa.h"
 #include "crypto/dsa.h"
 #include "crypto/elgamal.h"
@@ -391,7 +392,7 @@ typedef struct pgp_signature_t {
     uint8_t  signer[PGP_KEY_ID_SIZE];
 
     /* v4 - only fields */
-    DYNARRAY(pgp_sig_subpkt_t, subpkt);
+    list     subpkts;
     unsigned hashed_subpkts;
 } pgp_signature_t;
 
