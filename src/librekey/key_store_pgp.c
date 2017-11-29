@@ -175,21 +175,6 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
     case PGP_PTAG_SS_KEY_EXPIRY:
         key->key.pubkey.duration = pkt->u.ss_time;
         break;
-    case PGP_PTAG_SS_ISSUER_KEY_ID:
-        SUBSIG_REQUIRED_BEFORE("ss issuer key id");
-        memcpy(&subsig->sig.info.signer_id, pkt->u.ss_issuer, sizeof(pkt->u.ss_issuer));
-        subsig->sig.info.signer_id_set = 1;
-        break;
-    case PGP_PTAG_SS_CREATION_TIME:
-        SUBSIG_REQUIRED_BEFORE("ss creation time");
-        subsig->sig.info.birthtime = pkt->u.ss_time;
-        subsig->sig.info.birthtime_set = 1;
-        break;
-    case PGP_PTAG_SS_EXPIRATION_TIME:
-        SUBSIG_REQUIRED_BEFORE("ss expiration time");
-        subsig->sig.info.duration = pkt->u.ss_time;
-        subsig->sig.info.duration_set = 1;
-        break;
     case PGP_PTAG_SS_PRIMARY_USER_ID:
         key->uid0 = key->uidc - 1;
         key->uid0_set = 1;
