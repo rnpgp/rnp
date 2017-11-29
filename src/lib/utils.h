@@ -77,6 +77,24 @@
         }                                                                 \
     } while (0)
 
+/*
+ * @params
+ * array:       array of the structures to lookup
+ * str_field    name of the field to compare against
+ * ret_field    filed to return
+ * lookup_value lookup value
+ * ret          return value
+ */
+#define ARRAY_LOOKUP_BY_STRCASE(array, str_field, ret_field, lookup_value, ret) \
+    do {                                                                        \
+        for (size_t i__ = 0; i__ < ARRAY_SIZE(array); i__++) {                  \
+            if (!rnp_strcasecmp((array)[i__].str_field, (lookup_value))) {      \
+                (ret) = (array)[i__].ret_field;                                 \
+                break;                                                          \
+            }                                                                   \
+        }                                                                       \
+    } while (0)
+
 /* Formating helpers */
 #define PRItime "ll"
 
