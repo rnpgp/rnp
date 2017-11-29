@@ -326,7 +326,7 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
     const pgp_key_t *key;
     pgp_pubkey_t *   sigkey;
     unsigned         from;
-    char *           title;
+    char *           title = "UNKNOWN signature";
     pgp_io_t *       io = handler->ctx->rnp->io;
 
     for (int i = 0; i < count; i++) {
