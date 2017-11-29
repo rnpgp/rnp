@@ -33,6 +33,7 @@
 typedef struct pgp_key_t pgp_key_t;
 
 typedef enum {
+    PGP_KEY_SEARCH_UNKNOWN,
     PGP_KEY_SEARCH_KEYID,
     PGP_KEY_SEARCH_GRIP,
     PGP_KEY_SEARCH_USERID

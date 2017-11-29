@@ -352,7 +352,8 @@ typedef enum {
     PGP_SA_CAMELLIA_192 = 12, /* Camellia with 192-bit key */
     PGP_SA_CAMELLIA_256 = 13, /* Camellia with 256-bit key */
 
-    PGP_SA_SM4 = 105 /* RNP extension - SM4 */
+    PGP_SA_SM4 = 105, /* RNP extension - SM4 */
+    PGP_SA_UNKNOWN = 255
 } pgp_symm_alg_t;
 
 typedef enum {
@@ -476,7 +477,8 @@ typedef enum {
     PGP_C_NONE = 0,
     PGP_C_ZIP = 1,
     PGP_C_ZLIB = 2,
-    PGP_C_BZIP2 = 3
+    PGP_C_BZIP2 = 3,
+    PGP_C_UNKNOWN = 255
 } pgp_compression_type_t;
 
 enum { PGP_SE_IP_DATA_VERSION = 1, PGP_PKSK_V3 = 3, PGP_SKSK_V4 = 4 };
