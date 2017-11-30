@@ -89,6 +89,10 @@ void test_load_v4_keyring_pgp(void **state);
 
 void test_load_keyring_and_count_pgp(void **state);
 
+void test_load_check_bitfields_and_times(void **state);
+
+void test_load_check_bitfields_and_times_v3(void **state);
+
 void pgp_compress_roundtrip(void **state);
 
 void test_key_unlock_pgp(void **state);

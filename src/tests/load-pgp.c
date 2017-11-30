@@ -209,3 +209,232 @@ test_load_keyring_and_count_pgp(void **state)
     paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/secring.gpg", NULL);
     check_pgp_keyring_counts(path, expected.primary_count, expected.subkey_counts);
 }
+
+/* This test loads a V4 keyring and confirms that certain
+ * bitfields and time fields are set correctly.
+ */
+void
+test_load_check_bitfields_and_times(void **state)
+{
+    pgp_io_t          io = {.errs = stderr, .res = stdout, .outs = stdout};
+    uint8_t keyid[PGP_KEY_ID_SIZE];
+    unsigned from;
+    const pgp_key_t *key;
+
+    // load keyring
+    rnp_key_store_t *key_store = rnp_key_store_new("GPG", "data/keyrings/1/pubring.gpg");
+    assert_non_null(key_store);
+    assert_true(rnp_key_store_load_from_file(&io, key_store, 0, NULL));
+
+    // find
+    from = 0;
+    key = NULL;
+    assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid, sizeof(keyid)));
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    assert_non_null(key);
+    // check subsig count
+    assert_int_equal(key->subsigc, 3);
+    // check subsig properties
+    for (unsigned i = 0; i < key->subsigc; i++) {
+        const pgp_subsig_t *ss = &key->subsigs[i];
+        static const time_t expected_creation_times[] = {1500569820, 1500569836, 1500569846};
+
+        // check SS_ISSUER_KEY_ID
+        assert_int_equal(ss->sig.info.signer_id_set, 1);
+        assert_int_equal(memcmp(keyid, ss->sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
+        // check SS_CREATION_TIME
+        assert_int_equal(ss->sig.info.birthtime_set, 1);
+        assert_int_equal(ss->sig.info.birthtime, expected_creation_times[i]);
+        // check SS_EXPIRATION_TIME
+        assert_int_equal(ss->sig.info.duration_set, 0);
+        assert_int_equal(ss->sig.info.duration, 0);
+    }
+    // check SS_KEY_EXPIRY
+    assert_int_equal(key->key.pubkey.duration, 0);
+
+    // find
+    from = 0;
+    key = NULL;
+    assert_true(rnp_hex_decode("1ED63EE56FADC34D", keyid, sizeof(keyid)));
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    assert_non_null(key);
+    // check subsig count
+    assert_int_equal(key->subsigc, 1);
+    // check SS_ISSUER_KEY_ID
+    assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid, sizeof(keyid)));
+    assert_int_equal(key->subsigs[0].sig.info.signer_id_set, 1);
+    assert_int_equal(memcmp(keyid, key->subsigs[0].sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
+    // check SS_CREATION_TIME [0]
+    assert_int_equal(key->subsigs[0].sig.info.birthtime_set, 1);
+    assert_int_equal(key->subsigs[0].sig.info.birthtime, 1500569820);
+    assert_int_equal(key->subsigs[0].sig.info.birthtime, key->key.pubkey.birthtime);
+    // check SS_EXPIRATION_TIME [0]
+    assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
+    assert_int_equal(key->subsigs[0].sig.info.duration, 0);
+    // check SS_KEY_EXPIRY
+    assert_int_equal(key->key.pubkey.duration, 0);
+
+    // find
+    from = 0;
+    key = NULL;
+    assert_true(rnp_hex_decode("1D7E8A5393C997A8", keyid, sizeof(keyid)));
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    assert_non_null(key);
+    // check subsig count
+    assert_int_equal(key->subsigc, 1);
+    // check SS_ISSUER_KEY_ID
+    assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid, sizeof(keyid)));
+    assert_int_equal(key->subsigs[0].sig.info.signer_id_set, 1);
+    assert_int_equal(memcmp(keyid, key->subsigs[0].sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
+    // check SS_CREATION_TIME [0]
+    assert_int_equal(key->subsigs[0].sig.info.birthtime_set, 1);
+    assert_int_equal(key->subsigs[0].sig.info.birthtime, 1500569851);
+    assert_int_equal(key->subsigs[0].sig.info.birthtime, key->key.pubkey.birthtime);
+    // check SS_EXPIRATION_TIME [0]
+    assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
+    assert_int_equal(key->subsigs[0].sig.info.duration, 0);
+    // check SS_KEY_EXPIRY
+    assert_int_equal(key->key.pubkey.duration, 123 * 24 * 60 * 60 /* 123 days */);
+
+    // find
+    from = 0;
+    key = NULL;
+    assert_true(rnp_hex_decode("8A05B89FAD5ADED1", keyid, sizeof(keyid)));
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    assert_non_null(key);
+    // check subsig count
+    assert_int_equal(key->subsigc, 1);
+    // check SS_ISSUER_KEY_ID
+    assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid, sizeof(keyid)));
+    assert_int_equal(key->subsigs[0].sig.info.signer_id_set, 1);
+    assert_int_equal(memcmp(keyid, key->subsigs[0].sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
+    // check SS_CREATION_TIME [0]
+    assert_int_equal(key->subsigs[0].sig.info.birthtime_set, 1);
+    assert_int_equal(key->subsigs[0].sig.info.birthtime, 1500569896);
+    assert_int_equal(key->subsigs[0].sig.info.birthtime, key->key.pubkey.birthtime);
+    // check SS_EXPIRATION_TIME [0]
+    assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
+    assert_int_equal(key->subsigs[0].sig.info.duration, 0);
+    // check SS_KEY_EXPIRY
+    assert_int_equal(key->key.pubkey.duration, 0);
+
+    // find
+    from = 0;
+    key = NULL;
+    assert_true(rnp_hex_decode("2FCADF05FFA501BB", keyid, sizeof(keyid)));
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    assert_non_null(key);
+    // check subsig count
+    assert_int_equal(key->subsigc, 3);
+    // check subsig properties
+    for (unsigned i = 0; i < key->subsigc; i++) {
+        const pgp_subsig_t *ss = &key->subsigs[i];
+        static const time_t expected_creation_times[] = {1501372449, 1500570153, 1500570147};
+
+        // check SS_ISSUER_KEY_ID
+        assert_int_equal(ss->sig.info.signer_id_set, 1);
+        assert_int_equal(memcmp(keyid, ss->sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
+        // check SS_CREATION_TIME
+        assert_int_equal(ss->sig.info.birthtime_set, 1);
+        assert_int_equal(ss->sig.info.birthtime, expected_creation_times[i]);
+        // check SS_EXPIRATION_TIME
+        assert_int_equal(ss->sig.info.duration_set, 0);
+        assert_int_equal(ss->sig.info.duration, 0);
+    }
+    // check SS_KEY_EXPIRY
+    assert_int_equal(key->key.pubkey.duration, 2076663808);
+
+    // find
+    from = 0;
+    key = NULL;
+    assert_true(rnp_hex_decode("54505A936A4A970E", keyid, sizeof(keyid)));
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    assert_non_null(key);
+    // check subsig count
+    assert_int_equal(key->subsigc, 1);
+    // check SS_ISSUER_KEY_ID
+    assert_true(rnp_hex_decode("2FCADF05FFA501BB", keyid, sizeof(keyid)));
+    assert_int_equal(key->subsigs[0].sig.info.signer_id_set, 1);
+    assert_int_equal(memcmp(keyid, key->subsigs[0].sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
+    // check SS_CREATION_TIME [0]
+    assert_int_equal(key->subsigs[0].sig.info.birthtime_set, 1);
+    assert_int_equal(key->subsigs[0].sig.info.birthtime, 1500569946);
+    assert_int_equal(key->subsigs[0].sig.info.birthtime, key->key.pubkey.birthtime);
+    // check SS_EXPIRATION_TIME [0]
+    assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
+    assert_int_equal(key->subsigs[0].sig.info.duration, 0);
+    // check SS_KEY_EXPIRY
+    assert_int_equal(key->key.pubkey.duration, 2076663808);
+
+    // find
+    from = 0;
+    key = NULL;
+    assert_true(rnp_hex_decode("326EF111425D14A5", keyid, sizeof(keyid)));
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    assert_non_null(key);
+    // check subsig count
+    assert_int_equal(key->subsigc, 1);
+    // check SS_ISSUER_KEY_ID
+    assert_true(rnp_hex_decode("2FCADF05FFA501BB", keyid, sizeof(keyid)));
+    assert_int_equal(key->subsigs[0].sig.info.signer_id_set, 1);
+    assert_int_equal(memcmp(keyid, key->subsigs[0].sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
+    // check SS_CREATION_TIME [0]
+    assert_int_equal(key->subsigs[0].sig.info.birthtime_set, 1);
+    assert_int_equal(key->subsigs[0].sig.info.birthtime, 1500570165);
+    assert_int_equal(key->subsigs[0].sig.info.birthtime, key->key.pubkey.birthtime);
+    // check SS_EXPIRATION_TIME [0]
+    assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
+    assert_int_equal(key->subsigs[0].sig.info.duration, 0);
+    // check SS_KEY_EXPIRY
+    assert_int_equal(key->key.pubkey.duration, 0);
+
+    // cleanup
+    rnp_key_store_free(key_store);
+}
+
+/* This test loads a V3 keyring and confirms that certain
+ * bitfields and time fields are set correctly.
+ */
+void
+test_load_check_bitfields_and_times_v3(void **state)
+{
+    pgp_io_t          io = {.errs = stderr, .res = stdout, .outs = stdout};
+    uint8_t keyid[PGP_KEY_ID_SIZE];
+    unsigned from;
+    const pgp_key_t *key;
+
+    // load keyring
+    rnp_key_store_t *key_store = rnp_key_store_new("GPG", "data/keyrings/2/pubring.gpg");
+    assert_non_null(key_store);
+    assert_true(rnp_key_store_load_from_file(&io, key_store, 0, NULL));
+
+    // find
+    from = 0;
+    key = NULL;
+    assert_true(rnp_hex_decode("DC70C124A50283F1", keyid, sizeof(keyid)));
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    assert_non_null(key);
+    // check key version
+    assert_int_equal(key->key.pubkey.version, PGP_V3);
+    // check subsig count
+    assert_int_equal(key->subsigc, 1);
+    // check signature version
+    assert_int_equal(key->subsigs[0].sig.info.version, 3);
+    // check issuer
+    assert_true(rnp_hex_decode("DC70C124A50283F1", keyid, sizeof(keyid)));
+    assert_int_equal(key->subsigs[0].sig.info.signer_id_set, 1);
+    assert_int_equal(memcmp(keyid, key->subsigs[0].sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
+    // check creation time
+    assert_int_equal(key->subsigs[0].sig.info.birthtime_set, 1);
+    assert_int_equal(key->subsigs[0].sig.info.birthtime, 1005209227);
+    assert_int_equal(key->subsigs[0].sig.info.birthtime, key->key.pubkey.birthtime);
+    // check signature expiration time (V3 sigs have none)
+    assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
+    assert_int_equal(key->subsigs[0].sig.info.duration, 0);
+    // check key expiration
+    assert_int_equal(key->key.pubkey.duration, 0); // only for V4 keys
+    assert_int_equal(key->key.pubkey.days_valid, 0);
+
+    // cleanup
+    rnp_key_store_free(key_store);
+}
