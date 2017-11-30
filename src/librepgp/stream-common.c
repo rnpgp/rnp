@@ -595,7 +595,7 @@ file_dst_close(pgp_dest_t *dst, bool discard)
 }
 
 rnp_result_t
-init_file_dest(pgp_dest_t *dst, const char *path)
+init_file_dest(pgp_dest_t *dst, const char *path, bool overwrite)
 {
     int                    fd;
     int                    flags;
@@ -607,12 +607,13 @@ init_file_dest(pgp_dest_t *dst, const char *path)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (stat(path, &st) == 0) {
+    if (!overwrite && !stat(path, &st)) {
         RNP_LOG("file already exists: '%s'", path);
         return RNP_ERROR_WRITE;
     }
 
-    flags = O_WRONLY | O_CREAT | O_EXCL;
+    flags = O_WRONLY | O_CREAT;
+    flags |= overwrite ? O_TRUNC : O_EXCL;
 #ifdef O_BINARY
     flags |= O_BINARY;
 #endif

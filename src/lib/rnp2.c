@@ -109,11 +109,12 @@ struct rnp_op_encrypt_st {
 
 static rnp_result_t rnp_keyring_create(rnp_ffi_t ffi, rnp_keyring_t *ring, const char *format);
 static rnp_result_t rnp_keyring_destroy(rnp_keyring_t ring);
-static bool         parse_symm_alg(const char *name, pgp_symm_alg_t *value);
-static bool         parse_compress_alg(const char *name, pgp_compression_type_t *value);
-static bool         parse_hash_alg(const char *name, pgp_hash_alg_t *value);
-static bool
-key_provider_bounce(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *userdata);
+static bool parse_symm_alg(const char *name, pgp_symm_alg_t *value);
+static bool parse_compress_alg(const char *name, pgp_compression_type_t *value);
+static bool parse_hash_alg(const char *name, pgp_hash_alg_t *value);
+static bool key_provider_bounce(const pgp_key_request_ctx_t *ctx,
+                                pgp_key_t **                 key,
+                                void *                       userdata);
 
 rnp_result_t
 rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
@@ -818,7 +819,7 @@ rnp_output_to_file(rnp_output_t *output, const char *path)
     if (!*output) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    rnp_result_t ret = init_file_dest(&(*output)->dst, path);
+    rnp_result_t ret = init_file_dest(&(*output)->dst, path, false);
     if (ret) {
         free(*output);
         *output = NULL;
@@ -1053,9 +1054,12 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
       .userdata = &(struct rnp_password_cb_data){.cb_fn = op->ffi->getpasscb,
                                                  .cb_data = op->ffi->getpasscb_ctx}};
     pgp_write_handler_t handler = {
-      .password_provider = &provider, .ctx = &op->rnpctx, .param = NULL,
-      .key_provider = &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = op->ffi},
-     };
+      .password_provider = &provider,
+      .ctx = &op->rnpctx,
+      .param = NULL,
+      .key_provider =
+        &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = op->ffi},
+    };
     rnp_result_t ret = rnp_encrypt_src(&handler, &op->input->src, &op->output->dst);
     op->output->keep = ret == RNP_SUCCESS;
     op->input = NULL;

@@ -65,7 +65,8 @@
 #define CFG_ZLEVEL "zlevel"             /* compression level: 0..9 (0 for no compression) */
 #define CFG_ZALG "zalg"                 /* compression algorithm: zip, zlib or bzip2 */
 #define CFG_KEYSTORE_DISABLED \
-    "disable_keystore" /* indicates wether keystore must be initialized */
+    "disable_keystore"    /* indicates wether keystore must be initialized */
+#define CFG_FORCE "force" /* force command to succeed operation */
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */

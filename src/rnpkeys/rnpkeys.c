@@ -56,6 +56,7 @@ const char *usage = "--help OR\n"
                     "\t[--cipher=<cipher name>] AND/OR\n"
                     "\t[--coredumps] AND/OR\n"
                     "\t[--expert] AND/OR\n"
+                    "\t[--force] AND/OR\n"
                     "\t[--hash=<hash alg>] AND/OR\n"
                     "\t[--homedir=<homedir>] AND/OR\n"
                     "\t[--keyring=<keyring>] AND/OR\n"
@@ -105,6 +106,7 @@ struct option options[] = {
   {"cipher", required_argument, NULL, OPT_CIPHER},
   {"expert", no_argument, NULL, OPT_EXPERT},
   {"output", required_argument, NULL, OPT_OUTPUT},
+  {"force", no_argument, NULL, OPT_FORCE},
   {NULL, 0, NULL, 0},
 };
 
@@ -177,13 +179,16 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         }
 
         s = rnp_export_key(rnp, key);
-        if (!s)
+        if (!s) {
             return false;
+        }
 
         const char *file = rnp_cfg_get(cfg, CFG_OUTFILE);
-        ret = file ? init_file_dest(&dst, file) : init_stdout_dest(&dst);
-        if (ret)
+        bool        force = rnp_cfg_getbool(cfg, CFG_FORCE);
+        ret = file ? init_file_dest(&dst, file, force) : init_stdout_dest(&dst);
+        if (ret) {
             return false;
+        }
 
         dst_write(&dst, s, strlen(s));
         dst_close(&dst, false);
@@ -346,6 +351,9 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
             exit(EXIT_ERROR);
         }
         rnp_cfg_set(cfg, CFG_OUTFILE, arg);
+        break;
+    case OPT_FORCE:
+        rnp_cfg_setbool(cfg, CFG_FORCE, true);
         break;
     default:
         *cmd = CMD_HELP;
