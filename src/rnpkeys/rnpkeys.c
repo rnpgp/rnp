@@ -38,6 +38,7 @@
 #include <rnp/rnp_def.h>
 #include "../rnp/rnpcfg.h"
 #include "rnpkeys.h"
+#include <librepgp/stream-common.h>
 
 extern char *__progname;
 
@@ -58,6 +59,7 @@ const char *usage = "--help OR\n"
                     "\t[--hash=<hash alg>] AND/OR\n"
                     "\t[--homedir=<homedir>] AND/OR\n"
                     "\t[--keyring=<keyring>] AND/OR\n"
+                    "\t[--output=file] file OR\n"
                     "\t[--keystore-format=<format>] AND/OR\n"
                     "\t[--userid=<userid>] AND/OR\n"
                     "\t[--verbose]\n";
@@ -102,6 +104,7 @@ struct option options[] = {
   {"results", required_argument, NULL, OPT_RESULTS},
   {"cipher", required_argument, NULL, OPT_CIPHER},
   {"expert", no_argument, NULL, OPT_EXPERT},
+  {"output", required_argument, NULL, OPT_OUTPUT},
   {NULL, 0, NULL, 0},
 };
 
@@ -160,18 +163,32 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
             key = rnp_cfg_get(cfg, CFG_USERID);
         }
         return rnp_find_key(rnp, key);
-    case CMD_EXPORT_KEY:
+    case CMD_EXPORT_KEY: {
+        pgp_dest_t   dst;
+        rnp_result_t ret;
+
         if ((key = f) == NULL) {
             key = rnp_cfg_get(cfg, CFG_USERID);
         }
-        if (key) {
-            if ((s = rnp_export_key(rnp, key)) != NULL) {
-                printf("%s", s);
-                return true;
-            }
+
+        if (!key) {
+            RNP_LOG("key '%s' not found\n", f);
+            return 0;
         }
-        (void) fprintf(stderr, "key '%s' not found\n", f);
-        return 0;
+
+        s = rnp_export_key(rnp, key);
+        if (!s)
+            return false;
+
+        const char *file = rnp_cfg_get(cfg, CFG_OUTFILE);
+        ret = file ? init_file_dest(&dst, file) : init_stdout_dest(&dst);
+        if (ret)
+            return false;
+
+        dst_write(&dst, s, strlen(s));
+        dst_close(&dst, false);
+        return true;
+    }
     case CMD_IMPORT_KEY:
         if (f == NULL) {
             (void) fprintf(stderr, "import file isn't specified\n");
@@ -322,6 +339,13 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         break;
     case OPT_DEBUG:
         rnp_set_debug(arg);
+        break;
+    case OPT_OUTPUT:
+        if (arg == NULL) {
+            (void) fprintf(stderr, "No output filename argument provided\n");
+            exit(EXIT_ERROR);
+        }
+        rnp_cfg_set(cfg, CFG_OUTFILE, arg);
         break;
     default:
         *cmd = CMD_HELP;

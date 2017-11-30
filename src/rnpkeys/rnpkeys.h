@@ -36,6 +36,7 @@ typedef enum {
     OPT_CIPHER,
     OPT_FORMAT,
     OPT_EXPERT,
+    OPT_OUTPUT,
 
     /* debug */
     OPT_DEBUG
