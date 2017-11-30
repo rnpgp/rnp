@@ -219,9 +219,10 @@ void dst_close(pgp_dest_t *dst, bool discard);
 /** @brief init file destination
  *  @param dst pre-allocated dest structure
  *  @param path path to the file
+ *  @param overwrite overwrite existing file
  *  @return RNP_SUCCESS or error code
  **/
-rnp_result_t init_file_dest(pgp_dest_t *dst, const char *path);
+rnp_result_t init_file_dest(pgp_dest_t *dst, const char *path, bool overwrite);
 
 /** @brief init stdout destination
  *  @param dst pre-allocated dest structure

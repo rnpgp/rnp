@@ -37,6 +37,7 @@ typedef enum {
     OPT_FORMAT,
     OPT_EXPERT,
     OPT_OUTPUT,
+    OPT_FORCE,
 
     /* debug */
     OPT_DEBUG

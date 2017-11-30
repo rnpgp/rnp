@@ -1277,7 +1277,7 @@ rnp_initialize_output(rnp_ctx_t *ctx, pgp_dest_t *dst, const char *out)
             return false;
         }
 
-        return init_file_dest(dst, newname) == RNP_SUCCESS;
+        return init_file_dest(dst, newname, false) == RNP_SUCCESS;
     } else {
         return init_stdout_dest(dst) == RNP_SUCCESS;
     }
