@@ -20,6 +20,8 @@ from cli_common import (
     file_text,
     raise_err
 )
+from gnupg import GnuPG as GnuPG
+from rnp import Rnp as Rnp
 
 WORKDIR = ''
 RNP = ''
@@ -893,7 +895,12 @@ class Compression(unittest.TestCase):
                     file_encryption_rnp_to_gpg(size, level, algosrnp[algo])
                     rnp_signing_gpg_to_rnp(size, level, algosgpg[algo])
 
+
 class Sign(unittest.TestCase):
+    # Message sizes to be tested
+    SIZES = [20, 1000, 5000, 20000, 150000, 1000000]
+
+class SignDefault(Sign):
     '''
         Things to try later:
         - different public key algorithms
@@ -929,6 +936,81 @@ class Sign(unittest.TestCase):
             rnp_signing_gpg_to_rnp(size)
             rnp_detached_signing_gpg_to_rnp(size)
             rnp_cleartext_signing_gpg_to_rnp(size)
+
+
+class SignECDSA(Sign):
+    # {0} must be replaced by ID of the curve 3,4 or 5 (NIST-256,384,521)
+    #CURVES = ["NIST P-256", "NIST P-384", "NIST P-521"]
+    GPG_GENERATE_ECDSA_PATERN = """
+        Key-Type: ecdsa
+        Key-Curve: {0}
+        Key-Usage: sign auth
+        Name-Real: Test Testovich
+        Expire-Date: 1y
+        Preferences: twofish sha512 zlib
+        Name-Email: {1}"""
+
+    # {0} must be replaced by ID of the curve 1,2 or 3 (NIST-256,384,521)
+    RNP_GENERATE_ECDSA_PATTERN = "19\n{0}\n"
+
+    def _rnp_sign_verify(self, e1, e2, key_id, keygen_cmd):
+        '''
+        Helper function for ECDSA verification
+        1. e1 creates ECDSA key
+        2. e1 exports key
+        3. e2 imports key
+        2. e1 signs message
+        3. e2 verifies message
+
+        eX == entityX
+        '''
+        keyfile, input, output = reg_workfiles('ecdsa'+str(key_id), '.gpg', '.in', '.out')
+        random_text(input, 0x1337)
+        self.assertTrue(e1.generte_key_batch(keygen_cmd))
+        self.assertTrue(e1.export_key(keyfile, False))
+        self.assertTrue(e2.import_key(keyfile))
+        self.assertTrue(e1.sign(output, input))
+        self.assertTrue(e2.verify(output))
+        clear_workfiles()
+
+    def setUp(self):
+        self.rnp = Rnp(RNPDIR, RNP, RNPK)
+        self.gpg = GnuPG(GPGDIR, GPG)
+        self.rnp.password = self.gpg.password = PASSWORD
+        self.rnp.userid = self.gpg.userid = 'ecdsatest@secure.gov'
+
+        # Workaround
+        tmp = Rnp(RNPDIR, RNP, RNPK)
+        cmd = SignECDSA.RNP_GENERATE_ECDSA_PATTERN.format(1)
+        tmp.password = PASSWORD
+        tmp.userid = 'bad@mail.com'
+        tmp.generte_key_batch(cmd)
+
+    def test_sign_P256(self):
+        cmd = SignECDSA.RNP_GENERATE_ECDSA_PATTERN.format(1)
+        self._rnp_sign_verify(self.rnp, self.gpg, 1, cmd)
+
+    def test_sign_P384(self):
+        cmd = SignECDSA.RNP_GENERATE_ECDSA_PATTERN.format(2)
+        self._rnp_sign_verify(self.rnp, self.gpg, 2, cmd)
+
+    def test_sign_P521(self):
+        cmd = SignECDSA.RNP_GENERATE_ECDSA_PATTERN.format(3)
+        self._rnp_sign_verify(self.rnp, self.gpg, 3, cmd)
+
+    def test_verify_P256(self):
+        cmd = SignECDSA.GPG_GENERATE_ECDSA_PATERN.format(
+            "nistp256", self.rnp.userid)
+        print(cmd)
+        self._rnp_sign_verify(self.gpg, self.rnp, 3, cmd)
+
+    def test_verify_P384(self):
+        cmd = SignECDSA.GPG_GENERATE_ECDSA_PATERN.format("nistp384", self.rnp.userid)
+        self._rnp_sign_verify(self.gpg, self.rnp, 4, cmd)
+
+    def test_verify_P521(self):
+        cmd = SignECDSA.GPG_GENERATE_ECDSA_PATERN.format("nistp521", self.rnp.userid)
+        self._rnp_sign_verify(self.gpg, self.rnp, 5, cmd)
 
 if __name__ == '__main__':
     main = unittest.main
