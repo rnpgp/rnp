@@ -507,13 +507,38 @@ dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     }
 }
 
-void
-dst_close(pgp_dest_t *dst, bool discard)
+static void
+dst_flush(pgp_dest_t *dst)
 {
-    if (!discard && (dst->clen > 0) && (dst->write) && (dst->werr == RNP_SUCCESS)) {
+    if ((dst->clen > 0) && (dst->write) && (dst->werr == RNP_SUCCESS)) {
         dst->werr = dst->write(dst, dst->cache, dst->clen);
         dst->writeb += dst->clen;
         dst->clen = 0;
+    }
+}
+
+rnp_result_t
+dst_finish(pgp_dest_t *dst)
+{
+    rnp_result_t res = RNP_SUCCESS;
+
+    /* flush write cache in the dst */
+    dst_flush(dst);
+
+    if (dst->finish) {
+        res = dst->finish(dst);
+    }
+
+    dst->finished = true;
+
+    return res;
+}
+
+void
+dst_close(pgp_dest_t *dst, bool discard)
+{
+    if (!discard && !dst->finished) {
+        dst_finish(dst);
     }
 
     if (dst->close) {

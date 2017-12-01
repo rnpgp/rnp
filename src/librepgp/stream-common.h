@@ -56,10 +56,11 @@ typedef struct pgp_source_t pgp_source_t;
 typedef struct pgp_dest_t   pgp_dest_t;
 
 typedef ssize_t pgp_source_read_func_t(pgp_source_t *src, void *buf, size_t len);
-typedef void pgp_source_close_func_t(pgp_source_t *src);
 typedef rnp_result_t pgp_source_finish_func_t(pgp_source_t *src);
+typedef void pgp_source_close_func_t(pgp_source_t *src);
 
 typedef rnp_result_t pgp_dest_write_func_t(pgp_dest_t *dst, const void *buf, size_t len);
+typedef rnp_result_t pgp_dest_finish_func_t(pgp_dest_t *src);
 typedef void pgp_dest_close_func_t(pgp_dest_t *dst, bool discard);
 
 /* statically preallocated cache for sources */
@@ -72,8 +73,8 @@ typedef struct pgp_source_cache_t {
 
 typedef struct pgp_source_t {
     pgp_source_read_func_t *  read;
-    pgp_source_close_func_t * close;
     pgp_source_finish_func_t *finish;
+    pgp_source_close_func_t * close;
     pgp_stream_type_t         type;
 
     uint64_t size;  /* size of the data if available, see knownsize */
@@ -179,16 +180,18 @@ rnp_result_t init_stdin_src(pgp_source_t *src);
 rnp_result_t init_mem_src(pgp_source_t *src, void *mem, size_t len);
 
 typedef struct pgp_dest_t {
-    pgp_dest_write_func_t *write;
-    pgp_dest_close_func_t *close;
-    pgp_stream_type_t      type;
-    rnp_result_t           werr; /* write function may set this to some error code */
+    pgp_dest_write_func_t * write;
+    pgp_dest_finish_func_t *finish;
+    pgp_dest_close_func_t * close;
+    pgp_stream_type_t       type;
+    rnp_result_t            werr; /* write function may set this to some error code */
 
     int64_t  writeb;   /* number of bytes written */
     void *   param;    /* source-specific additional data */
     bool     no_cache; /* disable write caching */
     uint8_t  cache[PGP_OUTPUT_CACHE_SIZE];
-    unsigned clen; /* number of bytes in cache */
+    unsigned clen;     /* number of bytes in cache */
+    bool     finished; /* whether dst_finish was called on dest or not */
 } pgp_dest_t;
 
 /** @brief helper function to allocate memory for dest's param.
@@ -207,6 +210,15 @@ bool init_dst_common(pgp_dest_t *dst, size_t paramsize);
  *  @return true on success or false otherwise
  **/
 void dst_write(pgp_dest_t *dst, const void *buf, size_t len);
+
+/** @brief do all finalization tasks after all writing is done, i.e. calculate and write
+ *  mdc, signatures and so on. Do not misuse with dst_close. If was not called then will be
+ *  called from the dst_close
+ *
+ *  @param dst destination structure
+ *  @return RNP_SUCCESS or error code if something went wrong
+ **/
+rnp_result_t dst_finish(pgp_dest_t *dst);
 
 /** @brief close the destination
  *
