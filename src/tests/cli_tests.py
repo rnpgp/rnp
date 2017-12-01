@@ -979,13 +979,6 @@ class SignECDSA(Sign):
         self.rnp.password = self.gpg.password = PASSWORD
         self.rnp.userid = self.gpg.userid = 'ecdsatest@secure.gov'
 
-        # Workaround
-        tmp = Rnp(RNPDIR, RNP, RNPK)
-        cmd = SignECDSA.RNP_GENERATE_ECDSA_PATTERN.format(1)
-        tmp.password = PASSWORD
-        tmp.userid = 'bad@mail.com'
-        tmp.generte_key_batch(cmd)
-
     def test_sign_P256(self):
         cmd = SignECDSA.RNP_GENERATE_ECDSA_PATTERN.format(1)
         self._rnp_sign_verify(self.rnp, self.gpg, 1, cmd)
