@@ -176,7 +176,8 @@ rnp_key_store_load_from_file(pgp_io_t *       io,
     if (key_store->format == G10_KEY_STORE) {
         dir = opendir(key_store->path);
         if (dir == NULL) {
-            fprintf(io->errs, "Can't open G10 directory: %s\n", strerror(errno));
+            fprintf(
+              io->errs, "Can't open G10 directory %s: %s\n", key_store->path, strerror(errno));
             return false;
         }
 
