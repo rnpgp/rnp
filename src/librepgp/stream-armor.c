@@ -791,53 +791,61 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     return RNP_SUCCESS;
 }
 
-static void
-armored_dst_close(pgp_dest_t *dst, bool discard)
+static rnp_result_t
+armored_dst_finish(pgp_dest_t *dst)
 {
     uint8_t                   buf[64];
     uint8_t                   crcbuf[3];
+    pgp_dest_armored_param_t *param = dst->param;
+
+    /* writing tail */
+    if (param->tailc == 1) {
+        buf[0] = B64ENC[param->tail[0] >> 2];
+        buf[1] = B64ENC[(param->tail[0] << 4) & 0xff];
+        buf[2] = EQ;
+        buf[3] = EQ;
+        dst_write(param->writedst, buf, 4);
+    } else if (param->tailc == 2) {
+        buf[0] = B64ENC[(param->tail[0] >> 2)];
+        buf[1] = B64ENC[((param->tail[0] << 4) | (param->tail[1] >> 4)) & 0xff];
+        buf[2] = B64ENC[(param->tail[1] << 2) & 0xff];
+        buf[3] = EQ;
+        dst_write(param->writedst, buf, 4);
+    }
+
+    /* writing EOL if needed */
+    if ((param->tailc > 0) || (param->lout > 0)) {
+        armor_write_eol(param);
+    }
+
+    /* writing CRC and EOL */
+    buf[0] = EQ;
+
+    // At this point crc_ctx is initialized, so call can't fail
+    (void) pgp_hash_finish(&param->crc_ctx, crcbuf);
+    armored_encode3(&buf[1], crcbuf);
+    dst_write(param->writedst, buf, 5);
+    armor_write_eol(param);
+
+    /* writing armor header */
+    armor_message_header(param->type, true, (char *) buf);
+    dst_write(param->writedst, buf, strlen((char *) buf));
+    armor_write_eol(param);
+
+    return param->writedst->werr;
+}
+
+static void
+armored_dst_close(pgp_dest_t *dst, bool discard)
+{
     pgp_dest_armored_param_t *param = dst->param;
 
     if (!param) {
         return;
     }
 
-    if (!discard) {
-        /* writing tail */
-        if (param->tailc == 1) {
-            buf[0] = B64ENC[param->tail[0] >> 2];
-            buf[1] = B64ENC[(param->tail[0] << 4) & 0xff];
-            buf[2] = EQ;
-            buf[3] = EQ;
-            dst_write(param->writedst, buf, 4);
-        } else if (param->tailc == 2) {
-            buf[0] = B64ENC[(param->tail[0] >> 2)];
-            buf[1] = B64ENC[((param->tail[0] << 4) | (param->tail[1] >> 4)) & 0xff];
-            buf[2] = B64ENC[(param->tail[1] << 2) & 0xff];
-            buf[3] = EQ;
-            dst_write(param->writedst, buf, 4);
-        }
-
-        /* writing EOL if needed */
-        if ((param->tailc > 0) || (param->lout > 0)) {
-            armor_write_eol(param);
-        }
-
-        /* writing CRC and EOL */
-        buf[0] = EQ;
-
-        // At this point crc_ctx is initialized, so call can't fail
-        (void) pgp_hash_finish(&param->crc_ctx, crcbuf);
-        armored_encode3(&buf[1], crcbuf);
-        dst_write(param->writedst, buf, 5);
-        armor_write_eol(param);
-
-        /* writing armor header */
-        armor_message_header(param->type, true, (char *) buf);
-        dst_write(param->writedst, buf, strlen((char *) buf));
-        armor_write_eol(param);
-    }
-
+    /* dst_close may be called without dst_finish on error */
+    (void) pgp_hash_finish(&param->crc_ctx, NULL);
     free(param);
     dst->param = NULL;
 }
@@ -855,6 +863,7 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     }
 
     dst->write = armored_dst_write;
+    dst->finish = armored_dst_finish;
     dst->close = armored_dst_close;
     dst->type = PGP_STREAM_ARMORED;
     dst->writeb = 0;
