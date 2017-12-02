@@ -47,7 +47,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdbool.h>
-#include <rnp/rnp_obsolete_defs.h>
 #include "rnpcfg.h"
 #include <rekey/rnp_key_store.h>
 #include "pgp-key.h"
@@ -288,7 +287,7 @@ show_output(rnp_cfg_t *cfg, char *out, int size, const char *header)
         fd = open(outfile, flags, 0600);
         if (fd < 0) {
             fprintf(stderr, "Failed to write to the %s : %s.\n", outfile, strerror(errno));
-            return RNP_FAIL;
+            return false;
         }
     }
 
@@ -475,7 +474,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
                                 f,
                                 rnp_cfg_get(cfg, CFG_OUTFILE),
                                 clearsign,
-                                rnp_cfg_getbool(cfg, CFG_DETACHED)) == RNP_OK;
+                                rnp_cfg_getbool(cfg, CFG_DETACHED)) == RNP_SUCCESS;
         }
         break;
     case CMD_DECRYPT:
@@ -540,7 +539,7 @@ done:
 }
 
 /* set an option */
-static int
+static bool
 setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
 {
     switch (val) {
@@ -720,11 +719,11 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         break;
     }
 
-    return RNP_OK;
+    return true;
 }
 
 /* we have -o option=value -- parse, and process */
-static int
+static bool
 parse_option(rnp_cfg_t *cfg, int *cmd, const char *s)
 {
     static regex_t opt;

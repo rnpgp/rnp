@@ -77,8 +77,8 @@ int         rnp_list_packets(rnp_t *, char *, int);
 int rnp_set_key_store_format(rnp_t *, const char *);
 
 /* key management */
-int   rnp_list_keys(rnp_t *, const int);
-int   rnp_list_keys_json(rnp_t *, char **, const int);
+bool  rnp_list_keys(rnp_t *, const int);
+bool  rnp_list_keys_json(rnp_t *, char **, const int);
 bool  rnp_find_key(rnp_t *, const char *);
 char *rnp_get_key(rnp_t *, const char *, const char *);
 char *rnp_export_key(rnp_t *, const char *);
@@ -88,9 +88,9 @@ int   rnp_secret_count(rnp_t *);
 int   rnp_public_count(rnp_t *);
 
 /* file management */
-int          rnp_encrypt_file(rnp_ctx_t *, const char *, const char *, const char *);
+rnp_result_t rnp_encrypt_file(rnp_ctx_t *, const char *, const char *, const char *);
 rnp_result_t rnp_decrypt_file(rnp_ctx_t *, const char *, const char *);
-int          rnp_sign_file(rnp_ctx_t *, const char *, const char *, const char *, bool, bool);
+rnp_result_t rnp_sign_file(rnp_ctx_t *, const char *, const char *, const char *, bool, bool);
 rnp_result_t rnp_verify_file(rnp_ctx_t *, const char *, const char *);
 rnp_result_t rnp_process_stream(rnp_ctx_t *, const char *, const char *);
 rnp_result_t rnp_encrypt_stream(rnp_ctx_t *, const char *, const char *);
