@@ -73,7 +73,6 @@
 #define BN_raise PGPV_BN_raise
 #define BN_factorial PGPV_BN_factorial
 #define BN_rand PGPV_BN_rand
-#define BN_rand_range PGPV_BN_rand_range
 #define BN_is_prime PGPV_BN_is_prime
 #define BN_value_one PGPV_BN_value_one
 #define BN_is_bit_set PGPV_BN_is_bit_set
@@ -179,7 +178,6 @@ int PGPV_BN_mod_mul(PGPV_BIGNUM * /*ret*/,
                     const PGPV_BIGNUM * /*m*/);
 
 int PGPV_BN_rand(PGPV_BIGNUM * /*rnd*/, int /*bits*/, int /*top*/, int /*bottom*/);
-int PGPV_BN_rand_range(PGPV_BIGNUM * /*rnd*/, PGPV_BIGNUM * /*range*/);
 
 int PGPV_BN_is_prime(const PGPV_BIGNUM * /*a*/,
                      int /*checks*/,
