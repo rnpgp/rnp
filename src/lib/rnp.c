@@ -102,7 +102,6 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <librepgp/stream-write.h>
 #include <librepgp/stream-packet.h>
 
-#include "rnp/rnp_obsolete_defs.h"
 #include <json.h>
 #include <rnp.h>
 
@@ -158,7 +157,7 @@ resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
         userid += 2;
     }
     io = rnp->io;
-    if (rnp_key_store_get_key_by_name(io, keyring, userid, &key) != RNP_OK) {
+    if (rnp_key_store_get_key_by_name(io, keyring, userid, &key)) {
         (void) fprintf(io->errs, "cannot find key '%s'\n", userid);
     }
     return key;
@@ -455,7 +454,7 @@ formatbignum(char *buffer, BIGNUM *bn)
  * will be set to the result from setrlimit in the event of
  * failure.
  */
-static int
+static rnp_result_t
 disable_core_dumps(void)
 {
     struct rlimit limit;
@@ -468,15 +467,15 @@ disable_core_dumps(void)
     if (error == 0) {
         error = getrlimit(RLIMIT_CORE, &limit);
         if (error) {
-            return -1;
+            RNP_LOG("Warning - cannot turn off core dumps");
+            return RNP_ERROR_GENERIC;
         } else if (limit.rlim_cur == 0) {
-            return RNP_OK; // disabling core dumps ok
+            return RNP_SUCCESS; // disabling core dumps ok
         } else {
-            return RNP_FAIL; // failed for some reason?
+            return RNP_ERROR_GENERIC; // failed for some reason?
         }
-    } else {
-        return -1;
     }
+    return RNP_ERROR_GENERIC;
 }
 
 #endif
@@ -559,7 +558,7 @@ init_new_io(rnp_t *rnp, const char *outs, const char *errs, const char *ress)
 rnp_result_t
 rnp_init(rnp_t *rnp, const rnp_params_t *params)
 {
-    int       coredumps = -1; /* -1 : cannot disable, 1 : disabled, 0 : enabled */
+    bool      coredumps = false;
     pgp_io_t *io;
 
     /* If system resource constraints are in effect then attempt to
@@ -567,16 +566,11 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
      */
     if (!params->enable_coredumps) {
 #ifdef HAVE_SYS_RESOURCE_H
-        coredumps = disable_core_dumps();
+        coredumps = (RNP_SUCCESS == disable_core_dumps());
 #endif
-    } else {
-        coredumps = 0;
     }
 
-    if (coredumps == -1) {
-        fputs("rnp: warning - cannot turn off core dumps\n", stderr);
-    }
-    if (coredumps != 1) {
+    if (coredumps) {
         fputs("rnp: warning: core dumps enabled, sensitive data may be leaked to disk\n",
               stderr);
     }
@@ -702,34 +696,34 @@ rnp_ctx_free(rnp_ctx_t *ctx)
 }
 
 /* list the keys in a keyring */
-int
+bool
 rnp_list_keys(rnp_t *rnp, const int psigs)
 {
     if (rnp->pubring == NULL) {
         (void) fprintf(stderr, "No keyring\n");
-        return RNP_FAIL;
+        return false;
     }
     return rnp_key_store_list(rnp->io, rnp->pubring, psigs);
 }
 
 /* list the keys in a keyring, returning a JSON encoded string */
-int
+bool
 rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
 {
     json_object *obj = json_object_new_array();
-    int          ret;
+    bool         ret;
     if (rnp->pubring == NULL) {
         (void) fprintf(stderr, "No keyring\n");
-        return RNP_FAIL;
+        return false;
     }
     if (!rnp_key_store_json(rnp->io, rnp->pubring, obj, psigs)) {
         (void) fprintf(stderr, "No keys in keyring\n");
-        return RNP_FAIL;
+        return false;
     }
     const char *j = json_object_to_json_string(obj);
     ret = j != NULL;
     *json = strdup(j);
-    return ret ? RNP_OK : RNP_FAIL;
+    return ret;
 }
 
 DEFINE_ARRAY(strings_t, char *);
@@ -753,8 +747,7 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
     (void) memset(&pubs, 0x0, sizeof(pubs));
     k = 0;
     do {
-        if (rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k, &key) !=
-            RNP_OK) {
+        if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k, &key)) {
             return 0;
         }
         if (key != NULL) {
@@ -807,8 +800,7 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
     from = 0;
     *json = NULL;
     do {
-        if (rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &from, &key) !=
-            RNP_OK) {
+        if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &from, &key)) {
             return 0;
         }
         if (key != NULL) {
@@ -852,8 +844,7 @@ rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
 
     k = 0;
     do {
-        if (rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k, &key) !=
-            RNP_OK) {
+        if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k, &key)) {
             return 0;
         }
         if (key != NULL) {
@@ -875,12 +866,12 @@ rnp_find_key(rnp_t *rnp, const char *id)
     io = rnp->io;
     if (id == NULL) {
         (void) fprintf(io->errs, "NULL id to search for\n");
-        return RNP_FAIL;
+        return false;
     }
-    if (rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, id, &key) != RNP_OK) {
-        return RNP_FAIL;
+    if (!rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, id, &key)) {
+        return false;
     }
-    return key != NULL ? RNP_OK : RNP_FAIL;
+    return key != NULL;
 }
 
 /* get a key in a keyring */
@@ -1110,7 +1101,7 @@ rnp_generate_key(rnp_t *rnp)
 }
 
 /* encrypt a file */
-int
+rnp_result_t
 rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *out)
 {
     const pgp_key_t *key;
@@ -1119,15 +1110,15 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *
 
     if (f == NULL) {
         (void) fprintf(ctx->rnp->io->errs, "rnp_encrypt_file: no filename specified\n");
-        return RNP_FAIL;
+        return RNP_ERROR_GENERIC;
     }
     /* get key with which to sign */
     if ((key = resolve_userid(ctx->rnp, ctx->rnp->pubring, userid)) == NULL) {
-        return RNP_FAIL;
+        return RNP_ERROR_GENERIC;
     }
     if (!pgp_key_can_encrypt(key) && !(key = find_suitable_subkey(key, PGP_KF_ENCRYPT))) {
         RNP_LOG("this key can not encrypt");
-        return RNP_FAIL;
+        return RNP_ERROR_GENERIC;
     }
     /* generate output file name if needed */
     if (out == NULL) {
@@ -1135,7 +1126,10 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *
         (void) snprintf(outname, sizeof(outname), "%s%s", f, suffix);
         out = outname;
     }
-    return (int) pgp_encrypt_file(ctx, ctx->rnp->io, f, out, pgp_get_pubkey(key));
+
+    return pgp_encrypt_file(ctx, ctx->rnp->io, f, out, pgp_get_pubkey(key)) ?
+             RNP_SUCCESS :
+             RNP_ERROR_GENERIC;
 }
 
 #define ARMOR_HEAD "-----BEGIN PGP MESSAGE-----"
@@ -1476,7 +1470,7 @@ rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const char *out)
 }
 
 /* sign a file */
-int
+rnp_result_t
 rnp_sign_file(rnp_ctx_t * ctx,
               const char *userid,
               const char *f,
@@ -1490,38 +1484,38 @@ rnp_sign_file(rnp_ctx_t * ctx,
     pgp_seckey_t *      decrypted_seckey = NULL;
     pgp_io_t *          io;
     int                 attempts;
-    int                 ret;
+    bool                ret;
     int                 i;
 
     io = ctx->rnp->io;
     if (f == NULL) {
         (void) fprintf(io->errs, "rnp_sign_file: no filename specified\n");
-        return RNP_FAIL;
+        return RNP_ERROR_GENERIC;
     }
     /* get key with which to sign */
     if ((keypair = resolve_userid(ctx->rnp, ctx->rnp->pubring, userid)) == NULL) {
         RNP_LOG("unable to locate key %s", userid);
-        return RNP_FAIL;
+        return RNP_ERROR_GENERIC;
     }
     if (!pgp_key_can_sign(keypair) &&
         !(keypair = find_suitable_subkey(keypair, PGP_KF_SIGN))) {
         RNP_LOG("this key can not sign");
-        return RNP_FAIL;
+        return RNP_ERROR_GENERIC;
     }
     // key exist and might be used to sign, trying get it from secring
     unsigned from = 0;
     if ((keypair = rnp_key_store_get_key_by_id(
            io, ctx->rnp->secring, keypair->keyid, &from, NULL)) == NULL) {
-        return RNP_FAIL;
+        return RNP_ERROR_GENERIC;
     }
-    ret = RNP_OK;
+
     attempts = ctx->rnp->pswdtries;
 
     for (i = 0, seckey = NULL; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS);
          i++) {
         /* print out the user id */
-        if (rnp_key_store_get_key_by_name(io, ctx->rnp->pubring, userid, &pubkey) != RNP_OK) {
-            return RNP_FAIL;
+        if (!rnp_key_store_get_key_by_name(io, ctx->rnp->pubring, userid, &pubkey)) {
+            return RNP_ERROR_GENERIC;
         }
         if (pubkey == NULL) {
             (void) fprintf(io->errs, "rnp: warning - using pubkey from secring\n");
@@ -1550,7 +1544,7 @@ rnp_sign_file(rnp_ctx_t * ctx,
     }
     if (!seckey) {
         (void) fprintf(io->errs, "Bad password\n");
-        return RNP_FAIL;
+        return RNP_ERROR_GENERIC;
     }
     /* sign file */
     if (detached) {
@@ -1563,7 +1557,7 @@ rnp_sign_file(rnp_ctx_t * ctx,
         pgp_seckey_free(decrypted_seckey);
         free(decrypted_seckey);
     }
-    return ret;
+    return ret ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 }
 
 #define ARMOR_SIG_HEAD "-----BEGIN PGP (SIGNATURE|SIGNED MESSAGE|MESSAGE)-----"
@@ -1630,30 +1624,30 @@ rnp_sign_memory(rnp_ctx_t * ctx,
     io = ctx->rnp->io;
     if (mem == NULL) {
         (void) fprintf(io->errs, "rnp_sign_memory: no memory to sign\n");
-        return RNP_FAIL;
+        return 0;
     }
     if ((keypair = resolve_userid(ctx->rnp, ctx->rnp->pubring, userid)) == NULL) {
-        return RNP_FAIL;
+        return 0;
     }
     if (!pgp_key_can_sign(keypair) &&
         !(keypair = find_suitable_subkey(keypair, PGP_KF_SIGN))) {
         RNP_LOG("this key can not sign");
-        return RNP_FAIL;
+        return 0;
     }
     // key exist and might be used to sign, trying get it from secring
     from = 0;
     if ((keypair = rnp_key_store_get_key_by_id(
            io, ctx->rnp->secring, keypair->keyid, &from, NULL)) == NULL) {
-        return RNP_FAIL;
+        return 0;
     }
-    ret = RNP_OK;
+
     attempts = ctx->rnp->pswdtries;
 
     for (i = 0, seckey = NULL; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS);
          i++) {
         /* print out the user id */
-        if (rnp_key_store_get_key_by_name(io, ctx->rnp->pubring, userid, &pubkey) != RNP_OK) {
-            return RNP_FAIL;
+        if (!rnp_key_store_get_key_by_name(io, ctx->rnp->pubring, userid, &pubkey)) {
+            return 0;
         }
         if (pubkey == NULL) {
             (void) fprintf(io->errs, "rnp: warning - using pubkey from secring\n");
@@ -1683,7 +1677,7 @@ rnp_sign_memory(rnp_ctx_t * ctx,
     }
     if (!seckey) {
         (void) fprintf(io->errs, "Bad password\n");
-        return RNP_FAIL;
+        return 0;
     }
     /* sign file */
     (void) memset(out, 0x0, outsize);
@@ -1696,7 +1690,7 @@ rnp_sign_memory(rnp_ctx_t * ctx,
         pgp_memory_free(signedmem);
         ret = (int) m;
     } else {
-        ret = RNP_FAIL;
+        ret = 0;
     }
 
     if (decrypted_seckey) {
@@ -1792,7 +1786,7 @@ rnp_encrypt_memory(rnp_ctx_t *  ctx,
     if (!pgp_key_can_encrypt(keypair) &&
         !(keypair = find_suitable_subkey(keypair, PGP_KF_ENCRYPT))) {
         RNP_LOG("this key can not encrypt");
-        return RNP_FAIL;
+        return 0;
     }
     if (in == out) {
         (void) fprintf(io->errs,
@@ -1921,8 +1915,7 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
 
     /* get rsa key */
     k = 0;
-    if (rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, userid, &k, &key) !=
-        RNP_OK) {
+    if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, userid, &k, &key)) {
         goto done;
     }
     if (key == NULL) {

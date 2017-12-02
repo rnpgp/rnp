@@ -34,7 +34,6 @@
 
 #include <rnp/rnp.h>
 #include <rnp/rnp_def.h>
-#include <rnp/rnp_obsolete_defs.h>
 #include <rnp/rnp_types.h>
 
 #include <rekey/rnp_key_store.h>
