@@ -88,9 +88,12 @@ const char *pgp_show_hash_alg(uint8_t);
  **/
 bool pgp_digest_length(pgp_hash_alg_t alg, size_t *output_length);
 
-/* @brief Add hash for the corresponding algorithm to the list
+/*
+ * @brief Add hash for the corresponding algorithm to the list
+ *
  * @param hashes non-NULL pointer to the list structure
  * @param alg hash algorithm
+ *
  * @return true if hash was added successfully or already exists in the list.
  *         false will be returned if memory allocation failed, or alg is not supported, or
  *         on other error
@@ -98,13 +101,17 @@ bool pgp_digest_length(pgp_hash_alg_t alg, size_t *output_length);
 bool pgp_hash_list_add(list *hashes, pgp_hash_alg_t alg);
 
 /* @brief Get hash structure for the corresponding algorithm
+ *
  * @param hashes List of pgp_hash_t structures
  * @param alg Hash algorithm
+ *
  * @return pointer to the pgp_hash_t structure or NULL if list doesn't contain alg
  **/
 const pgp_hash_t *pgp_hash_list_get(list hashes, pgp_hash_alg_t alg);
 
-/* @brief Update list of hashes with the data
+/*
+ * @brief Update list of hashes with the data
+ *
  * @param hashes List of pgp_hash_t structures
  * @param buf buffer with data
  * @param len number of bytes in the buffer
@@ -112,8 +119,19 @@ const pgp_hash_t *pgp_hash_list_get(list hashes, pgp_hash_alg_t alg);
 void pgp_hash_list_update(list hashes, const void *buf, size_t len);
 
 /* @brief Free the list of hashes and deallocate all internal structures
+ *
  * @param hashes List of pgp_hash_t structures
  **/
 void pgp_hash_list_free(list *hashes);
+
+/*
+ * @brief Hashes 4 bytes stored as big endian
+ *
+ * @param hash Initialized hash ctx
+ * @param val value to hash
+ *
+ * @returns true if operation succeeded, otherwise false
+ */
+bool pgp_hash_uint32(pgp_hash_t *hash, uint32_t val);
 
 #endif

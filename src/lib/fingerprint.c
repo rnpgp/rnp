@@ -34,52 +34,13 @@
 #include "packet-create.h"
 #include "utils.h"
 
-/* hash a 32-bit integer */
-static int
-hash_uint32(pgp_hash_t *hash, uint32_t n)
-{
-    uint8_t ibuf[4];
-    STORE32BE(ibuf, n);
-    pgp_hash_add(hash, ibuf, sizeof(ibuf));
-    return sizeof(ibuf);
-}
-
 /* hash a string - first length, then string itself */
 static size_t
 hash_string(pgp_hash_t *hash, const uint8_t *buf, size_t len)
 {
-    hash_uint32(hash, len);
+    pgp_hash_uint32(hash, len);
     pgp_hash_add(hash, buf, len);
     return (len + 4);
-}
-
-// OZAPTF: Move to BN
-/* hash a bignum, possibly padded - first length, then string itself */
-static size_t
-hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
-{
-    uint8_t *bn;
-    size_t   len;
-    size_t   padbyte;
-
-    if (BN_is_zero(bignum)) {
-        hash_uint32(hash, 0);
-        return sizeof(len);
-    }
-    if (!BN_num_bytes(bignum, &len)) {
-        RNP_LOG("Wrong input");
-        return 0;
-    }
-    if ((bn = calloc(1, len + 1)) == NULL) {
-        RNP_LOG("bad bn alloc");
-        return 0;
-    }
-    BN_bn2bin(bignum, bn + 1);
-    bn[0] = 0x0;
-    padbyte = (bn[1] & 0x80) ? 1 : 0;
-    hash_string(hash, bn + 1 - padbyte, (unsigned) (len + padbyte));
-    free(bn);
-    return (sizeof(len) + len + padbyte);
 }
 
 rnp_result_t
@@ -96,14 +57,14 @@ ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
     hash_string(&hash, (const uint8_t *) (const void *) type, (unsigned) strlen(type));
     switch (key->alg) {
     case PGP_PKA_RSA:
-        hash_bignum(&hash, key->key.rsa.e);
-        hash_bignum(&hash, key->key.rsa.n);
+        (void) BN_hash(key->key.rsa.e, &hash);
+        (void) BN_hash(key->key.rsa.n, &hash);
         break;
     case PGP_PKA_DSA:
-        hash_bignum(&hash, key->key.dsa.p);
-        hash_bignum(&hash, key->key.dsa.q);
-        hash_bignum(&hash, key->key.dsa.g);
-        hash_bignum(&hash, key->key.dsa.y);
+        (void) BN_hash(key->key.dsa.p, &hash);
+        (void) BN_hash(key->key.dsa.q, &hash);
+        (void) BN_hash(key->key.dsa.g, &hash);
+        (void) BN_hash(key->key.dsa.y, &hash);
         break;
     default:
         pgp_hash_finish(&hash, fp->fingerprint);
@@ -132,8 +93,8 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
             (void) fprintf(stderr, "pgp_fingerprint: bad md5 alloc\n");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        hash_bignum(&hash, key->key.rsa.n);
-        hash_bignum(&hash, key->key.rsa.e);
+        (void) BN_hash(key->key.rsa.n, &hash);
+        (void) BN_hash(key->key.rsa.e, &hash);
         fp->length = pgp_hash_finish(&hash, fp->fingerprint);
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "v2/v3 fingerprint", fp->fingerprint, fp->length);
