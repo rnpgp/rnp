@@ -206,21 +206,7 @@ PGPV_BN_clear_free(PGPV_BIGNUM *a)
 }
 
 int
-PGPV_BN_num_bytes(const PGPV_BIGNUM *a)
-{
-    size_t num_bytes;
-    if (a == NULL) {
-        return -1;
-    }
-
-    if (botan_mp_num_bytes(a->mp, &num_bytes) < 0) {
-        return -1;
-    }
-    return num_bytes;
-}
-
-int
-PGPV_BN_num_bits(const PGPV_BIGNUM *a)
+BN_num_bits(const PGPV_BIGNUM *a)
 {
     size_t num_bits;
     if (a == NULL) {

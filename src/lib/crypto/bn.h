@@ -65,8 +65,6 @@
 #define BN_rshift1 PGPV_BN_rshift1
 #define BN_set_word PGPV_BN_set_word
 #define BN_set_negative PGPV_BN_set_negative
-#define BN_num_bytes PGPV_BN_num_bytes
-#define BN_num_bits PGPV_BN_num_bits
 #define BN_mod_exp PGPV_BN_mod_exp
 #define BN_mod_inverse PGPV_BN_mod_inverse
 #define BN_mod_mul PGPV_BN_mod_mul
@@ -82,7 +80,7 @@
 #define BN_words_used PGPV_BN_words_used
 #endif /* USE_BN_INTERFACE */
 
-typedef struct botan_mp_struct* botan_mp_t;
+typedef struct botan_mp_struct *botan_mp_t;
 
 /*
  * PGPV_BIGNUM struct
@@ -139,10 +137,10 @@ int PGPV_BN_div(PGPV_BIGNUM * /*q*/,
                 const PGPV_BIGNUM * /*a*/,
                 const PGPV_BIGNUM * /*b*/);
 void PGPV_BN_swap(PGPV_BIGNUM * /*a*/, PGPV_BIGNUM * /*b*/);
-int PGPV_BN_lshift(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, int /*n*/);
-int PGPV_BN_lshift1(PGPV_BIGNUM * /*r*/, PGPV_BIGNUM * /*a*/);
-int PGPV_BN_rshift(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, int /*n*/);
-int PGPV_BN_rshift1(PGPV_BIGNUM * /*r*/, PGPV_BIGNUM * /*a*/);
+int  PGPV_BN_lshift(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, int /*n*/);
+int  PGPV_BN_lshift1(PGPV_BIGNUM * /*r*/, PGPV_BIGNUM * /*a*/);
+int  PGPV_BN_rshift(PGPV_BIGNUM * /*r*/, const PGPV_BIGNUM * /*a*/, int /*n*/);
+int  PGPV_BN_rshift1(PGPV_BIGNUM * /*r*/, PGPV_BIGNUM * /*a*/);
 
 typedef uint32_t PGPV_BN_ULONG;
 size_t PGPV_BN_words_used(const PGPV_BIGNUM *n);
@@ -151,8 +149,8 @@ int PGPV_BN_set_word(PGPV_BIGNUM * /*a*/, PGPV_BN_ULONG /*w*/);
 
 void PGPV_BN_set_negative(PGPV_BIGNUM * /*a*/, int /*n*/);
 
-int PGPV_BN_num_bytes(const PGPV_BIGNUM * /*a*/);
-int PGPV_BN_num_bits(const PGPV_BIGNUM * /*a*/);
+#define BN_num_bytes(a) BITS_TO_BYTES(BN_num_bits(a))
+int BN_num_bits(const PGPV_BIGNUM * /*a*/);
 
 int PGPV_BN_mod_exp(PGPV_BIGNUM * /*r*/,
                     PGPV_BIGNUM * /*a*/,
