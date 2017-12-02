@@ -392,20 +392,6 @@ PGPV_BN_rand(PGPV_BIGNUM *rnd, int bits, int top, int bottom)
     return 1;
 }
 
-// TODO: Remove
-int
-PGPV_BN_rand_range(PGPV_BIGNUM *rnd, PGPV_BIGNUM *range)
-{
-    if (rnd == NULL || range == NULL || PGPV_BN_is_zero(range)) {
-        return 0;
-    }
-
-    // bigint_rand_range(rnd, zero, range);
-    // PGPV_BN_rand(rnd, PGPV_BN_num_bits(range), 1, 0);
-    // return modulo(rnd, range, rnd) == MP_OKAY;
-    return -1;
-}
-
 size_t
 PGPV_BN_words_used(const PGPV_BIGNUM *n)
 {
