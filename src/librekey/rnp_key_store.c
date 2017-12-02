@@ -826,6 +826,7 @@ rnp_key_store_get_next_key_by_name(
     return get_key_by_name(io, keyring, name, n, key);
 }
 
+// TODO: This looks very similar to BN_hash()
 static bool
 grip_hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
 {
@@ -837,7 +838,7 @@ grip_hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
         pgp_hash_add(hash, (const uint8_t *) &"\0", 1);
         return true;
     }
-    // OZAPTF: This is same as hash bignum
+
     if (!BN_num_bytes(bignum, &len)) {
         RNP_LOG("Wrong input");
         return false;

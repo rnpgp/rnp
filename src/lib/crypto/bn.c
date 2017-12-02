@@ -24,10 +24,11 @@
  */
 #include "config.h"
 #include <stdlib.h>
+#include <botan/ffi.h>
 
+#include "hash.h"
 #include "crypto.h"
 #include "crypto/bn.h"
-#include <botan/ffi.h>
 
 #ifndef USE_ARG
 #define USE_ARG(x) /*LINTED*/ (void) &x
@@ -551,6 +552,40 @@ int
 PGPV_BN_gcd(PGPV_BIGNUM *r, PGPV_BIGNUM *a, PGPV_BIGNUM *b)
 {
     return botan_mp_gcd(r->mp, a->mp, b->mp);
+}
+
+/* hash a bignum, possibly padded - first length, then string itself */
+size_t
+BN_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash)
+{
+    uint8_t *bn;
+    size_t   len;
+    size_t   padbyte;
+
+    if (!BN_num_bytes(bignum, &len) || (len > UINT32_MAX)) {
+        RNP_LOG("Wrong input");
+        return 0;
+    }
+
+    if (len == 0) {
+        return pgp_hash_uint32(hash, 0) ? 4 : 0;
+    }
+
+    if ((bn = calloc(1, len + 1)) == NULL) {
+        RNP_LOG("bad bn alloc");
+        return 0;
+    }
+
+    BN_bn2bin(bignum, bn + 1);
+    bn[0] = 0x0;
+    padbyte = !!(bn[1] & 0x80);
+    len += padbyte;
+
+    bool ret = pgp_hash_uint32(hash, len);
+    ret &= !pgp_hash_add(hash, bn + 1 - padbyte, len);
+
+    free(bn);
+    return ret ? (4 + len + padbyte) : 0;
 }
 
 DSA_SIG *

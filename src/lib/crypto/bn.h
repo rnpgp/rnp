@@ -81,6 +81,7 @@
 #endif /* USE_BN_INTERFACE */
 
 typedef struct botan_mp_struct *botan_mp_t;
+typedef struct pgp_hash_t       pgp_hash_t;
 
 /*
  * PGPV_BIGNUM struct
@@ -188,6 +189,16 @@ const PGPV_BIGNUM *PGPV_BN_value_one(void);
 int                PGPV_BN_is_bit_set(const PGPV_BIGNUM * /*a*/, int /*n*/);
 
 int PGPV_BN_gcd(PGPV_BIGNUM * /*r*/, PGPV_BIGNUM * /*a*/, PGPV_BIGNUM * /*b*/);
+
+/*
+ * @brief Produces hash of any size bignum.
+ *
+ * @param bignum: Bignum to be hashed
+ * @param hash: Initialized hash context
+ *
+ * @returns size of hashed data, or 0 on error
+ */
+size_t BN_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash);
 
 /*
 * This type is used to represent any signature where

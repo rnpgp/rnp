@@ -319,3 +319,11 @@ pgp_hash_list_free(list *hashes)
     }
     list_destroy(hashes);
 }
+
+bool
+pgp_hash_uint32(pgp_hash_t *hash, uint32_t n)
+{
+    uint8_t ibuf[4];
+    STORE32BE(ibuf, n);
+    return !pgp_hash_add(hash, ibuf, sizeof(ibuf));
+}
