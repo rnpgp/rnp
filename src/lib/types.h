@@ -577,10 +577,10 @@ typedef struct {
             unsigned mlen;
         } sm2;
         struct {
-            uint8_t  p[PGP_MPINT_SIZE];
-            uint8_t  m[ECDH_WRAPPED_KEY_SIZE];
-            unsigned plen;
-            unsigned mlen;
+            uint8_t p[PGP_MPINT_SIZE];
+            uint8_t m[ECDH_WRAPPED_KEY_SIZE];
+            size_t  plen;
+            size_t  mlen;
         } ecdh;
     } params;
 } pgp_pk_sesskey_pkt_t;

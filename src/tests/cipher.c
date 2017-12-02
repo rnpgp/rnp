@@ -141,9 +141,8 @@ pkcs1_rsa_test_success(void **state)
     const pgp_rsa_pubkey_t *pub_rsa;
     const pgp_rsa_seckey_t *sec_rsa;
 
-    const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_RSA,
-                                                 .hash_alg = PGP_HASH_SHA256,
-                                                 .rsa = {.modulus_bit_len = 1024}};
+    const rnp_keygen_crypto_params_t key_desc = {
+      .key_alg = PGP_PKA_RSA, .hash_alg = PGP_HASH_SHA256, .rsa = {.modulus_bit_len = 1024}};
     sec_key = calloc(1, sizeof(*sec_key));
     assert_non_null(sec_key);
     assert_true(pgp_generate_seckey(&key_desc, sec_key));
@@ -205,8 +204,8 @@ void
 rnp_test_eddsa(void **state)
 {
     rnp_test_state_t *               rstate = *state;
-    const rnp_keygen_crypto_params_t key_desc = {
-      .key_alg = PGP_PKA_EDDSA, .hash_alg = PGP_HASH_SHA256};
+    const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_EDDSA,
+                                                 .hash_alg = PGP_HASH_SHA256};
 
     pgp_seckey_t *seckey = calloc(1, sizeof(*seckey));
     assert_non_null(seckey);
@@ -438,7 +437,9 @@ ecdh_roundtrip(void **state)
                                                     &ecdh_key1_fpr),
                              RNP_SUCCESS);
 
-        rnp_assert_int_equal(rstate, BN_num_bytes(tmp_eph_key), expected_result_byte_size);
+        size_t sz;
+        rnp_assert_true(rstate, BN_num_bytes(tmp_eph_key, &sz));
+        rnp_assert_int_equal(rstate, sz, expected_result_byte_size);
 
         rnp_assert_int_equal(rstate,
                              pgp_ecdh_decrypt_pkcs5(result,
@@ -496,8 +497,9 @@ ecdh_decryptionNegativeCases(void **state)
                                                 &ecdh_key1.pubkey.key.ecdh,
                                                 &ecdh_key1_fpr),
                          RNP_SUCCESS);
-
-    rnp_assert_int_equal(rstate, BN_num_bytes(tmp_eph_key), expected_result_byte_size);
+    size_t sz;
+    rnp_assert_true(rstate, BN_num_bytes(tmp_eph_key, &sz));
+    rnp_assert_int_equal(rstate, sz, expected_result_byte_size);
 
     rnp_assert_int_equal(rstate,
                          pgp_ecdh_decrypt_pkcs5(NULL,
@@ -612,9 +614,8 @@ sm2_roundtrip(void **state)
     uint8_t ctext_buf[1024];
     uint8_t decrypted[27];
 
-    const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_SM2,
-                                                 .hash_alg = PGP_HASH_SM3,
-                                                 .ecc = {.curve = PGP_CURVE_SM2_P_256}};
+    const rnp_keygen_crypto_params_t key_desc = {
+      .key_alg = PGP_PKA_SM2, .hash_alg = PGP_HASH_SM3, .ecc = {.curve = PGP_CURVE_SM2_P_256}};
 
     pgp_seckey_t *sec_key = calloc(1, sizeof(*sec_key));
     assert_non_null(sec_key);

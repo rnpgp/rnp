@@ -431,11 +431,16 @@ formatbignum(char *buffer, BIGNUM *bn)
     uint8_t *cp;
     int      cc;
 
-    len = (size_t) BN_num_bytes(bn);
-    if ((cp = calloc(1, len + 1)) == NULL) {
-        (void) fprintf(stderr, "calloc failure in formatbignum\n");
+    if (!BN_num_bytes(bn, &len)) {
+        RNP_LOG("Wrong input");
         return 0;
     }
+
+    if ((cp = calloc(1, len + 1)) == NULL) {
+        RNP_LOG("calloc failure in formatbignum");
+        return 0;
+    }
+
     (void) BN_bn2bin(bn, cp + 1);
     cp[0] = 0x0;
     cc =

@@ -120,6 +120,7 @@ pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
     rnp_result_t         ret = RNP_ERROR_SIGNATURE_INVALID;
     uint8_t              sign_buf[2 * MAX_CURVE_BYTELEN] = {0};
     uint8_t              point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
+    size_t               r_blen, s_blen;
 
     const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
 
@@ -127,9 +128,10 @@ pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if ((BN_num_bytes(pubkey->point) > (int) sizeof(point_bytes)) ||
+    if (!BN_num_bytes(pubkey->point, &r_blen) || (r_blen > sizeof(point_bytes)) ||
         BN_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
         RNP_LOG("Failed to load public key");
+        ret = RNP_ERROR_BAD_PARAMETERS;
         goto end;
     }
 
@@ -155,13 +157,16 @@ pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
         goto end;
     }
 
-    if ((BN_num_bytes(sign->r) > (int) curve_order) ||
-        (BN_num_bytes(sign->s) > (int) curve_order) || (curve_order > MAX_CURVE_BYTELEN)) {
+    if (!BN_num_bytes(sign->r, &r_blen) || (r_blen > curve_order) ||
+        !BN_num_bytes(sign->s, &s_blen) || (s_blen > curve_order) ||
+        (curve_order > MAX_CURVE_BYTELEN)) {
+        ret = RNP_ERROR_BAD_PARAMETERS;
         goto end;
     }
 
-    BN_bn2bin(sign->r, &sign_buf[curve_order - BN_num_bytes(sign->r)]);
-    BN_bn2bin(sign->s, &sign_buf[curve_order + curve_order - BN_num_bytes(sign->s)]);
+    // Both can't fail
+    (void) BN_bn2bin(sign->r, &sign_buf[curve_order - r_blen]);
+    (void) BN_bn2bin(sign->s, &sign_buf[curve_order + curve_order - s_blen]);
 
     ret = botan_pk_op_verify_finish(verifier, sign_buf, curve_order * 2) ?
             RNP_ERROR_SIGNATURE_INVALID :

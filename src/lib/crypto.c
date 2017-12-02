@@ -107,15 +107,19 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
                        const BIGNUM *      encmpi,
                        const pgp_seckey_t *seckey)
 {
-    unsigned mpisize;
-    uint8_t  encmpibuf[RNP_BUFSIZ] = {0};
-    uint8_t  gkbuf[RNP_BUFSIZ] = {0};
-    int      n;
+    uint8_t encmpibuf[RNP_BUFSIZ] = {0};
+    uint8_t gkbuf[RNP_BUFSIZ] = {0};
+    int     n;
+    size_t  encmpi_byte_len;
 
-    mpisize = (unsigned) BN_num_bytes(encmpi);
+    if (!BN_num_bytes(encmpi, &encmpi_byte_len)) {
+        RNP_LOG("Bad param: encmpi");
+        return -1;
+    }
+
     /* MPI can't be more than 65,536 */
-    if (mpisize > sizeof(encmpibuf)) {
-        RNP_LOG("mpisize too big %u", mpisize);
+    if (encmpi_byte_len > sizeof(encmpibuf)) {
+        RNP_LOG("encmpi_byte_len too big %zu", encmpi_byte_len);
         return -1;
     }
     switch (seckey->pubkey.alg) {
@@ -124,12 +128,9 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "encrypted", encmpibuf, 16);
         }
-        n = pgp_rsa_decrypt_pkcs1(buf,
-                                  buflen,
-                                  encmpibuf,
-                                  (unsigned) (BN_num_bits(encmpi) + 7) / 8,
-                                  &seckey->key.rsa,
-                                  &seckey->pubkey.key.rsa);
+
+        n = pgp_rsa_decrypt_pkcs1(
+          buf, buflen, encmpibuf, encmpi_byte_len, &seckey->key.rsa, &seckey->pubkey.key.rsa);
         if (n <= 0) {
             (void) fprintf(stderr, "ops_rsa_private_decrypt failure\n");
             return -1;
@@ -145,7 +146,7 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
         rnp_result_t err = pgp_sm2_decrypt(buf,
                                            &out_len,
                                            encmpibuf,
-                                           BITS_TO_BYTES(BN_num_bits(encmpi)),
+                                           encmpi_byte_len,
                                            &seckey->key.ecc,
                                            &seckey->pubkey.key.ecc);
 
@@ -165,7 +166,7 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
         n = pgp_elgamal_private_decrypt_pkcs1(buf,
                                               gkbuf,
                                               encmpibuf,
-                                              (unsigned) BN_num_bytes(encmpi),
+                                              encmpi_byte_len,
                                               &seckey->key.elgamal,
                                               &seckey->pubkey.key.elgamal);
         if (n <= 0) {
@@ -180,7 +181,6 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
     case PGP_PKA_ECDH: {
         pgp_fingerprint_t fingerprint;
         size_t            out_len = buflen;
-        const size_t      encmpi_len = BN_num_bytes(encmpi);
         if (BN_bn2bin(encmpi, encmpibuf)) {
             RNP_LOG("Can't find session key");
             return -1;
@@ -194,7 +194,7 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
         const rnp_result_t ret = pgp_ecdh_decrypt_pkcs5(buf,
                                                         &out_len,
                                                         encmpibuf,
-                                                        encmpi_len,
+                                                        encmpi_byte_len,
                                                         g_to_k,
                                                         &seckey->key.ecc,
                                                         &seckey->pubkey.key.ecdh,

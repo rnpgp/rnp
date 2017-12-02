@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #define USE_BN_INTERFACE
 
@@ -149,8 +150,20 @@ int PGPV_BN_set_word(PGPV_BIGNUM * /*a*/, PGPV_BN_ULONG /*w*/);
 
 void PGPV_BN_set_negative(PGPV_BIGNUM * /*a*/, int /*n*/);
 
-#define BN_num_bytes(a) BITS_TO_BYTES(BN_num_bits(a))
-int BN_num_bits(const PGPV_BIGNUM * /*a*/);
+/*
+ * @param a Initialized PGPV_BIGNUM structure
+ * @param bits [out] bitlength of a
+ *
+ * @returns true on success, otherwise false
+ */
+bool BN_num_bits(const PGPV_BIGNUM *a, size_t *bits);
+/*
+ * @param a Initialized PGPV_BIGNUM structure
+ * @param bytes [out] byte length of a
+ *
+ * @returns true on success, otherwise false
+ */
+bool BN_num_bytes(const PGPV_BIGNUM *a, size_t *bytes);
 
 int PGPV_BN_mod_exp(PGPV_BIGNUM * /*r*/,
                     PGPV_BIGNUM * /*a*/,
