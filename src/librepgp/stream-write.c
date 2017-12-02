@@ -418,8 +418,10 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         }
 
         pkey.params.ecdh.mlen = outlen;
-        pkey.params.ecdh.plen = BN_num_bytes(p);
-        BN_bn2bin(p, pkey.params.ecdh.p);
+        (void) BN_num_bytes(
+          p,
+          (size_t *) &pkey.params.ecdh.plen); // can't fail as pgp_ecdh_encrypt_pkcs5 succeded
+        (void) BN_bn2bin(p, pkey.params.ecdh.p);
         BN_free(p);
     } break;
     case PGP_PKA_ELGAMAL:

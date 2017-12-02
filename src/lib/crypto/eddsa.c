@@ -80,13 +80,14 @@ pgp_eddsa_verify_hash(const BIGNUM *          r,
     botan_pk_op_verify_t verify_op = NULL;
     int                  result = 0;
     uint8_t              bn_buf[64];
+    size_t               sz;
 
     // Check curve OID matches 25519
     if (pubkey->curve != PGP_CURVE_ED25519)
         goto done;
 
     // Unexpected size for Ed25519 key
-    if (BN_num_bytes(pubkey->point) != 33)
+    if (!BN_num_bytes(pubkey->point, &sz) || sz != 33)
         goto done;
 
     BN_bn2bin(pubkey->point, bn_buf);
@@ -106,13 +107,16 @@ pgp_eddsa_verify_hash(const BIGNUM *          r,
     if (botan_pk_op_verify_update(verify_op, hash, hash_len) != 0)
         goto done;
 
-    // Unexpected size for Ed25519 signature
-    if (BN_num_bytes(r) > 32 || BN_num_bytes(s) > 32)
-        goto done;
-
     memset(bn_buf, 0, sizeof(bn_buf));
-    BN_bn2bin(r, &bn_buf[32 - BN_num_bytes(r)]);
-    BN_bn2bin(s, &bn_buf[32 + 32 - BN_num_bytes(s)]);
+    // Unexpected size for Ed25519 signature
+    if (!BN_num_bytes(r, &sz) || (sz > 32)) {
+        goto done;
+    }
+    BN_bn2bin(r, &bn_buf[32 - sz]);
+    if (!BN_num_bytes(s, &sz) || (sz > 32)) {
+        goto done;
+    }
+    BN_bn2bin(s, &bn_buf[32 + 32 - sz]);
 
     result = (botan_pk_op_verify_finish(verify_op, bn_buf, 64) == 0);
 
@@ -135,6 +139,7 @@ pgp_eddsa_sign_hash(BIGNUM *                r,
     botan_rng_t        rng = NULL;
     int                result = -1;
     uint8_t            bn_buf[64] = {0};
+    size_t             sz;
 
     // Check curve OID matches 25519
     if (pubkey->curve != PGP_CURVE_ED25519) {
@@ -142,13 +147,13 @@ pgp_eddsa_sign_hash(BIGNUM *                r,
     }
 
     // Unexpected size for Ed25519 key
-    if (BN_num_bytes(seckey->x) > 32)
+    if (!BN_num_bytes(seckey->x, &sz) || (sz > 32))
         goto done;
 
     if (botan_rng_init(&rng, NULL) != 0)
         goto done;
 
-    BN_bn2bin(seckey->x, bn_buf + (32 - BN_num_bytes(seckey->x)));
+    BN_bn2bin(seckey->x, bn_buf + (32 - sz));
 
     if (botan_privkey_load_ed25519(&eddsa, bn_buf) != 0)
         goto done;

@@ -156,7 +156,9 @@ print_bn(int indent, const char *name, const BIGNUM *bn)
     printf("%s = ", name);
     if (bn) {
         BN_print_fp(stdout, bn);
-        printf(" (%d bits)\n", BN_num_bits(bn));
+        size_t bsz = 0;
+        (void) BN_num_bits(bn, &bsz);
+        printf(" (%zu bits)\n", bsz);
     } else {
         puts("(unset)");
     }
@@ -292,16 +294,19 @@ print_block(int indent, const char *name, const uint8_t *str, size_t length)
 }
 
 /* return the number of bits in the public key */
-static int
+static size_t
 numkeybits(const pgp_pubkey_t *pubkey)
 {
+    size_t sz = 0;
     switch (pubkey->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return BN_num_bytes(pubkey->key.rsa.n) * 8;
+        (void) BN_num_bits(pubkey->key.rsa.n, &sz);
+        return sz;
     case PGP_PKA_DSA:
-        switch (BN_num_bytes(pubkey->key.dsa.q)) {
+        (void) BN_num_bytes(pubkey->key.dsa.q, &sz);
+        switch (sz) {
         case 20:
             return 1024;
         case 28:
@@ -312,7 +317,8 @@ numkeybits(const pgp_pubkey_t *pubkey)
             return 0;
         }
     case PGP_PKA_ELGAMAL:
-        return BN_num_bytes(pubkey->key.elgamal.y) * 8;
+        (void) BN_num_bits(pubkey->key.elgamal.y, &sz);
+        return sz;
 
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
@@ -360,7 +366,7 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
     const pgp_pubkey_t *pubkey = pgp_get_pubkey(key);
     return snprintf(buf,
                     size,
-                    "encryption %d/%s %s %s [%s] %s\n",
+                    "encryption %zu/%s %s %s [%s] %s\n",
                     numkeybits(pubkey),
                     pgp_show_pka(pubkey->alg),
                     rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, ""),
@@ -665,7 +671,7 @@ pgp_sprint_key(pgp_io_t *             io,
     if (string != NULL) {
         total_length = snprintf(string,
                                 KB(16),
-                                "%s %d/%s %s %s [%s] %s\n                 %s\n%s",
+                                "%s %zu/%s %s %s [%s] %s\n                 %s\n%s",
                                 header,
                                 numkeybits(pubkey),
                                 pgp_show_pka(pubkey->alg),
@@ -827,7 +833,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                 n +=
                   snprintf(&uidbuf[n],
                            sizeof(uidbuf) - n,
-                           "sub:%d:%d:%s:%lld:%lld\n",
+                           "sub:%zu:%d:%s:%lld:%lld\n",
                            numkeybits(pubkey),
                            key->subsigs[j].sig.info.key_alg,
                            rnp_strhexdump(
@@ -857,7 +863,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
         if (buffer != NULL) {
             n = snprintf(buffer,
                          KB(16),
-                         "pub:%s:%d:%d:%lld:%lld\n%s",
+                         "pub:%s:%d:%zu:%lld:%lld\n%s",
                          fingerprint,
                          pubkey->alg,
                          numkeybits(pubkey),

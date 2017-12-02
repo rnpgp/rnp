@@ -348,25 +348,22 @@ rsa_verify(pgp_hash_alg_t          hash_alg,
            const pgp_rsa_sig_t *   sig,
            const pgp_rsa_pubkey_t *pubrsa)
 {
-    size_t  sigbuf_len = 0;
-    size_t  keysize;
+    size_t  sig_blen = 0;
+    size_t  sz;
     uint8_t sigbuf[RNP_BUFSIZ];
 
-    keysize = BN_num_bytes(pubrsa->n);
     /* RSA key can't be bigger than 65535 bits, so... */
-    if (keysize > sizeof(sigbuf)) {
-        (void) fprintf(stderr, "rsa_verify: keysize too big\n");
+    if (!BN_num_bytes(pubrsa->n, &sz) || (sz > sizeof(sigbuf))) {
+        RNP_LOG("keysize too big");
         return false;
     }
-    if ((unsigned) BN_num_bits(sig->sig) > 8 * sizeof(sigbuf)) {
-        (void) fprintf(stderr, "rsa_verify: BN_numbits too big\n");
+
+    if (!BN_num_bytes(sig->sig, &sig_blen) || (sig_blen > sizeof(sigbuf))) {
+        RNP_LOG("Signature too big");
         return false;
     }
     BN_bn2bin(sig->sig, sigbuf);
-
-    sigbuf_len = BITS_TO_BYTES(BN_num_bits(sig->sig));
-
-    return pgp_rsa_pkcs1_verify_hash(sigbuf, sigbuf_len, hash_alg, hash, hash_length, pubrsa);
+    return pgp_rsa_pkcs1_verify_hash(sigbuf, sig_blen, hash_alg, hash, hash_length, pubrsa);
 }
 
 static bool

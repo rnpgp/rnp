@@ -148,10 +148,15 @@ pgp_write_userid(const uint8_t *userid, pgp_output_t *output)
 /**
 \ingroup Core_MPI
 */
-static unsigned
+static size_t
 mpi_length(const BIGNUM *bn)
 {
-    return (unsigned) (2 + (BN_num_bits(bn) + 7) / 8);
+    size_t bsz;
+    if (!BN_num_bytes(bn, &bsz)) {
+        return 0;
+    }
+
+    return 2 + bsz;
 }
 
 static unsigned
@@ -989,8 +994,7 @@ pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
     case PGP_PKA_RSA:
         return pgp_write_ptag(output, PGP_PTAG_CT_PK_SESSION_KEY) &&
                pgp_write_length(
-                 output,
-                 (unsigned) (1 + 8 + 1 + BN_num_bytes(pksk->params.rsa.encrypted_m) + 2)) &&
+                 output, (unsigned) (1 + 8 + 1 + mpi_length(pksk->params.rsa.encrypted_m))) &&
                pgp_write_scalar(output, (unsigned) pksk->version, 1) &&
                pgp_write(output, pksk->key_id, 8) &&
                pgp_write_scalar(output, (unsigned) pksk->alg, 1) &&
@@ -1000,8 +1004,7 @@ pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
     case PGP_PKA_SM2:
         return pgp_write_ptag(output, PGP_PTAG_CT_PK_SESSION_KEY) &&
                pgp_write_length(
-                 output,
-                 (unsigned) (1 + 8 + 1 + BN_num_bytes(pksk->params.sm2.encrypted_m) + 2)) &&
+                 output, (unsigned) (1 + 8 + 1 + mpi_length(pksk->params.sm2.encrypted_m))) &&
                pgp_write_scalar(output, (unsigned) pksk->version, 1) &&
                pgp_write(output, pksk->key_id, 8) &&
                pgp_write_scalar(output, (unsigned) pksk->alg, 1) &&
@@ -1010,10 +1013,10 @@ pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
     case PGP_PKA_DSA:
     case PGP_PKA_ELGAMAL:
         return pgp_write_ptag(output, PGP_PTAG_CT_PK_SESSION_KEY) &&
-               pgp_write_length(
-                 output,
-                 (unsigned) (1 + 8 + 1 + BN_num_bytes(pksk->params.elgamal.g_to_k) + 2 +
-                             BN_num_bytes(pksk->params.elgamal.encrypted_m) + 2)) &&
+               pgp_write_length(output,
+                                (unsigned) (1 + 8 + 1 +
+                                            mpi_length(pksk->params.elgamal.g_to_k) +
+                                            mpi_length(pksk->params.elgamal.encrypted_m))) &&
                pgp_write_scalar(output, (unsigned) pksk->version, 1) &&
                pgp_write(output, pksk->key_id, 8) &&
                pgp_write_scalar(output, (unsigned) pksk->alg, 1) &&
@@ -1024,8 +1027,8 @@ pgp_write_pk_sesskey(pgp_output_t *output, pgp_pk_sesskey_t *pksk)
         return pgp_write_ptag(output, PGP_PTAG_CT_PK_SESSION_KEY) &&
                pgp_write_length(output,
                                 (unsigned) (1 + 8 + 1 +
-                                            BN_num_bytes(pksk->params.ecdh.ephemeral_point) +
-                                            2 + 1 + pksk->params.ecdh.encrypted_m_size)) &&
+                                            mpi_length(pksk->params.ecdh.ephemeral_point) + 1 +
+                                            pksk->params.ecdh.encrypted_m_size)) &&
                pgp_write_scalar(output, (unsigned) pksk->version, 1) &&
                pgp_write(output, pksk->key_id, 8) &&
                pgp_write_scalar(output, (unsigned) pksk->alg, 1) &&

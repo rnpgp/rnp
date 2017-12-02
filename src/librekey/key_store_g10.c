@@ -410,12 +410,13 @@ write_bignum(s_exp_t *s_exp, const char *name, BIGNUM *bn)
         return false;
     }
 
+    size_t sz;
     if (bnbuf[1] & 0x80) {
-        if (!add_block_to_sexp(sub_s_exp, bnbuf, (size_t) BN_num_bytes(bn) + 1)) {
+        if (!BN_num_bytes(bn, &sz) || !add_block_to_sexp(sub_s_exp, bnbuf, sz + 1)) {
             return false;
         }
     } else {
-        if (!add_block_to_sexp(sub_s_exp, bnbuf + 1, (size_t) BN_num_bytes(bn))) {
+        if (!BN_num_bytes(bn, &sz) || !add_block_to_sexp(sub_s_exp, bnbuf + 1, sz)) {
             return false;
         }
     }

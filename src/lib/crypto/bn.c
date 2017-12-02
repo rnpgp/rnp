@@ -205,18 +205,23 @@ PGPV_BN_clear_free(PGPV_BIGNUM *a)
     PGPV_BN_free(a);
 }
 
-int
-BN_num_bits(const PGPV_BIGNUM *a)
+bool
+BN_num_bits(const PGPV_BIGNUM *a, size_t *bits)
 {
-    size_t num_bits;
-    if (a == NULL) {
-        return -1;
+    if (!a || botan_mp_num_bits(a->mp, bits)) {
+        return false;
     }
+    return true;
+}
 
-    if (botan_mp_num_bits(a->mp, &num_bits) < 0) {
-        return -1;
+bool
+BN_num_bytes(const PGPV_BIGNUM *a, size_t *bits)
+{
+    if (BN_num_bits(a, bits)) {
+        *bits = BITS_TO_BYTES(*bits);
+        return true;
     }
-    return num_bits;
+    return false;
 }
 
 void
@@ -387,6 +392,7 @@ PGPV_BN_rand(PGPV_BIGNUM *rnd, int bits, int top, int bottom)
     return 1;
 }
 
+// TODO: Remove
 int
 PGPV_BN_rand_range(PGPV_BIGNUM *rnd, PGPV_BIGNUM *range)
 {

@@ -142,16 +142,15 @@ pgp_write_scalar(pgp_output_t *output, unsigned n, unsigned len)
 bool
 pgp_write_mpi(pgp_output_t *output, const BIGNUM *bn)
 {
-    unsigned bits;
-    uint8_t  buf[RNP_BUFSIZ];
-
-    bits = (unsigned) BN_num_bits(bn);
-    if (bits > 65535) {
-        (void) fprintf(stderr, "pgp_write_mpi: too large %u\n", bits);
+    uint8_t buf[RNP_BUFSIZ];
+    size_t  bsz;
+    if (!BN_num_bits(bn, &bsz) || (bsz > 65535)) {
+        RNP_LOG("Wrong input");
         return false;
     }
-    BN_bn2bin(bn, buf);
-    return pgp_write_scalar(output, bits, 2) && pgp_write(output, buf, BITS_TO_BYTES(bits));
+
+    return !BN_bn2bin(bn, buf) && pgp_write_scalar(output, bsz, 2) &&
+           pgp_write(output, buf, BITS_TO_BYTES(bsz));
 }
 
 /**

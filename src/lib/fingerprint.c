@@ -53,6 +53,7 @@ hash_string(pgp_hash_t *hash, const uint8_t *buf, size_t len)
     return (len + 4);
 }
 
+// OZAPTF: Move to BN
 /* hash a bignum, possibly padded - first length, then string itself */
 static size_t
 hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
@@ -65,12 +66,12 @@ hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
         hash_uint32(hash, 0);
         return sizeof(len);
     }
-    if ((len = (size_t) BN_num_bytes(bignum)) < 1) {
-        (void) fprintf(stderr, "hash_bignum: bad size\n");
+    if (!BN_num_bytes(bignum, &len)) {
+        RNP_LOG("Wrong input");
         return 0;
     }
     if ((bn = calloc(1, len + 1)) == NULL) {
-        (void) fprintf(stderr, "hash_bignum: bad bn alloc\n");
+        RNP_LOG("bad bn alloc");
         return 0;
     }
     BN_bn2bin(bignum, bn + 1);
@@ -180,8 +181,8 @@ rnp_result_t
 pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key)
 {
     if (key->version == 2 || key->version == 3) {
-        unsigned n;
-        uint8_t  bn[RNP_BUFSIZ];
+        size_t  n;
+        uint8_t bn[RNP_BUFSIZ];
 
         if (key->alg != PGP_PKA_RSA && key->alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
             key->alg != PGP_PKA_RSA_SIGN_ONLY) {
@@ -189,9 +190,8 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key)
             return false;
         }
 
-        n = (unsigned) BN_num_bytes(key->key.rsa.n);
-        if (n > sizeof(bn)) {
-            (void) fprintf(stderr, "pgp_keyid: bad num bytes\n");
+        if (!BN_num_bytes(key->key.rsa.n, &n) || (n > sizeof(bn))) {
+            RNP_LOG("Internal error: bignum too big");
             return false;
         }
         BN_bn2bin(key->key.rsa.n, bn);

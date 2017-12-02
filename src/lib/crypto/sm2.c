@@ -120,6 +120,7 @@ pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
     rnp_result_t         ret = RNP_ERROR_SIGNATURE_INVALID;
     uint8_t              sign_buf[2 * MAX_CURVE_BYTELEN] = {0};
     uint8_t              point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
+    size_t               r_blen, s_blen;
 
     if (curve == NULL) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -127,7 +128,7 @@ pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
 
     const size_t sign_half_len = BITS_TO_BYTES(curve->bitlen);
 
-    if ((BN_num_bytes(pubkey->point) > (int) sizeof(point_bytes)) ||
+    if (!BN_num_bytes(pubkey->point, &r_blen) || (r_blen > sizeof(point_bytes)) ||
         BN_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
         RNP_LOG("Failed to load public key");
         goto end;
@@ -152,13 +153,14 @@ pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
         goto end;
     }
 
-    if ((BN_num_bytes(sign->r) > (int) sign_half_len) ||
-        (BN_num_bytes(sign->s) > (int) sign_half_len) || (sign_half_len > MAX_CURVE_BYTELEN)) {
+    if (!BN_num_bytes(sign->r, &r_blen) || (r_blen > sign_half_len) ||
+        !BN_num_bytes(sign->s, &s_blen) || (s_blen > sign_half_len) ||
+        (sign_half_len > MAX_CURVE_BYTELEN)) {
         goto end;
     }
 
-    BN_bn2bin(sign->r, &sign_buf[sign_half_len - BN_num_bytes(sign->r)]);
-    BN_bn2bin(sign->s, &sign_buf[sign_half_len + sign_half_len - BN_num_bytes(sign->s)]);
+    BN_bn2bin(sign->r, &sign_buf[sign_half_len - r_blen]);
+    BN_bn2bin(sign->s, &sign_buf[sign_half_len + sign_half_len - s_blen]);
 
     ret = botan_pk_op_verify_finish(verifier, sign_buf, sign_half_len * 2) ?
             RNP_ERROR_SIGNATURE_INVALID :
@@ -188,6 +190,7 @@ pgp_sm2_encrypt(uint8_t *               out,
     botan_pubkey_t         sm2_key = NULL;
     botan_pk_op_encrypt_t  enc_op = NULL;
     botan_rng_t            rng = NULL;
+    size_t                 sz;
 
     const size_t point_len = BITS_TO_BYTES(curve->bitlen);
     uint8_t      point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
@@ -213,7 +216,7 @@ pgp_sm2_encrypt(uint8_t *               out,
         goto done;
     }
 
-    if ((BN_num_bytes(pubkey->point) > (int) sizeof(point_bytes)) ||
+    if (!BN_num_bytes(pubkey->point, &sz) || (sz > sizeof(point_bytes)) ||
         BN_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
         RNP_LOG("Failed to load public key");
         goto done;

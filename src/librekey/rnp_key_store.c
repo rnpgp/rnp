@@ -837,10 +837,12 @@ grip_hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
         pgp_hash_add(hash, (const uint8_t *) &"\0", 1);
         return true;
     }
-    if ((len = (size_t) BN_num_bytes(bignum)) < 1) {
-        (void) fprintf(stderr, "grip_hash_bignum: bad size: %zu\n", len);
+    // OZAPTF: This is same as hash bignum
+    if (!BN_num_bytes(bignum, &len)) {
+        RNP_LOG("Wrong input");
         return false;
     }
+
     if ((bn = calloc(1, len + 1)) == NULL) {
         (void) fprintf(stderr, "grip_hash_bignum: bad bn alloc\n");
         return false;

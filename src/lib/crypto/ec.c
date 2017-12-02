@@ -173,8 +173,10 @@ pgp_genkey_ec_uncompressed(pgp_seckey_t *         seckey,
         goto end;
     }
 
-    const size_t x_bytes = BN_num_bytes(public_x);
-    const size_t y_bytes = BN_num_bytes(public_y);
+    size_t x_bytes;
+    size_t y_bytes;
+    (void) BN_num_bytes(public_x, &x_bytes); // Can't fail
+    (void) BN_num_bytes(public_y, &y_bytes);
 
     // Safety check
     if ((x_bytes > filed_byte_size) || (y_bytes > filed_byte_size)) {
