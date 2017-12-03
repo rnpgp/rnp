@@ -93,7 +93,9 @@ typedef struct pgp_dest_encrypted_param_t {
 
 typedef struct pgp_dest_signed_param_t {
     pgp_dest_t *writedst;  /* destination to write to */
+    rnp_ctx_t * ctx;       /* rnp operation context with additional parameters */
     list        onepasses; /* one-pass entries written to the stream begin */
+    list        keys;      /* signing keys in the same order as onepasses (if any) */
     list        hashes;    /* hashes to pass raw data through and then sign */
 } pgp_dest_signed_param_t;
 
@@ -660,6 +662,35 @@ signed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     return RNP_SUCCESS;
 }
 
+static rnp_result_t
+signed_add_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_key_t *seckey)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static rnp_result_t
+signed_dst_finish(pgp_dest_t *dst)
+{
+    pgp_signature_t          sig;
+    rnp_result_t             ret;
+    pgp_dest_signed_param_t *param = dst->param;
+
+    for (list_item *op = list_back(param->onepasses), *key = list_back(param->keys); op && key;
+         op = list_prev(op), key = list_prev(key)) {
+        memset(&sig, 0, sizeof(sig));
+        sig.halg = ((pgp_one_pass_sig_t *) op)->halg;
+        sig.palg = ((pgp_one_pass_sig_t *) op)->palg;
+        sig.type = ((pgp_one_pass_sig_t *) op)->type;
+        sig.version = 4;
+
+        if ((ret = signed_add_signature(param, &sig, (pgp_key_t *) key))) {
+            return ret;
+        }
+    }
+
+    return RNP_SUCCESS;
+}
+
 static void
 signed_dst_close(pgp_dest_t *dst, bool discard)
 {
@@ -669,14 +700,9 @@ signed_dst_close(pgp_dest_t *dst, bool discard)
         return;
     }
 
-    if (!discard) {
-        /*for (list_item *op = list_front(handler->onepasses); op; op = list_next(op)) {
-
-        }*/
-    }
-
     pgp_hash_list_free(&param->hashes);
     list_destroy(&param->onepasses);
+    list_destroy(&param->keys);
 
     free(param);
     dst->param = NULL;
@@ -690,26 +716,13 @@ signed_dst_update(pgp_dest_t *dst, const void *buf, size_t len)
 }
 
 static rnp_result_t
-signed_add_one_pass(pgp_write_handler_t *handler,
-                    pgp_dest_t *         dst,
-                    const char *         signer,
-                    bool                 last)
+signed_add_one_pass(pgp_dest_signed_param_t *param, pgp_key_t *key, bool last)
 {
-    pgp_key_request_ctx_t keyctx = {
-      .op = PGP_OP_SIGN, .secret = true, .stype = PGP_KEY_SEARCH_USERID, {.userid = signer}};
-    pgp_key_t *              key = NULL;
-    pgp_one_pass_sig_t       onepass = {0};
-    pgp_dest_signed_param_t *param = dst->param;
-    pgp_hash_alg_t           halg;
-
-    /* Get the key if any */
-    if (!pgp_request_key(handler->key_provider, &keyctx, &key)) {
-        RNP_LOG("signer's key not found: %s", signer);
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
+    pgp_one_pass_sig_t onepass = {0};
+    pgp_hash_alg_t     halg;
 
     /* Add hash to the list */
-    halg = pgp_pick_hash_alg(handler->ctx, &key->key.seckey);
+    halg = pgp_pick_hash_alg(param->ctx, &key->key.seckey);
     if (!pgp_hash_list_add(&param->hashes, halg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -725,7 +738,10 @@ signed_add_one_pass(pgp_write_handler_t *handler,
         return RNP_ERROR_WRITE;
     }
 
-    list_append(&param->onepasses, &onepass, sizeof(onepass));
+    if (!list_append(&param->onepasses, &onepass, sizeof(onepass)) ||
+        !list_append(&param->keys, &key, sizeof(key))) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
 
     return RNP_SUCCESS;
 }
@@ -735,6 +751,9 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
 {
     pgp_dest_signed_param_t *param;
     rnp_result_t             ret = RNP_ERROR_GENERIC;
+    pgp_key_t *              key = NULL;
+    pgp_key_request_ctx_t    keyctx = {
+      .op = PGP_OP_SIGN, .secret = true, .stype = PGP_KEY_SEARCH_USERID};
 
     if (!handler->key_provider) {
         RNP_LOG("no key provider");
@@ -747,14 +766,22 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
 
     param = dst->param;
     param->writedst = writedst;
+    param->ctx = handler->ctx;
     dst->write = signed_dst_write;
+    dst->finish = signed_dst_finish;
     dst->close = signed_dst_close;
     dst->type = PGP_STREAM_SIGNED;
 
     /* writing one-pass signatures */
     for (list_item *sg = list_front(handler->ctx->signers); sg; sg = list_next(sg)) {
-        ret = signed_add_one_pass(
-          handler, dst, (const char *) sg, sg == list_back(handler->ctx->signers));
+        keyctx.search.userid = (char *) sg;
+        if (!pgp_request_key(handler->key_provider, &keyctx, &key)) {
+            RNP_LOG("signer's key not found: %s", (char *) sg);
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto finish;
+        }
+
+        ret = signed_add_one_pass(param, key, sg == list_back(handler->ctx->signers));
         if (ret) {
             RNP_LOG("failed to add signer %s", (char *) sg);
             goto finish;
@@ -1250,6 +1277,15 @@ rnp_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
                     goto finish;
                 }
             }
+        }
+    }
+
+    /* finalizing destinations */
+    for (int i = destc - 1; i >= 0; i--) {
+        ret = dst_finish(&dests[i]);
+        if (ret != RNP_SUCCESS) {
+            RNP_LOG("failed to finish stream");
+            goto finish;
         }
     }
 

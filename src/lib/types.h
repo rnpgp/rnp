@@ -393,7 +393,6 @@ typedef struct pgp_signature_t {
 
     /* v4 - only fields */
     list     subpkts;
-    unsigned hashed_subpkts;
 } pgp_signature_t;
 
 /** The raw bytes of a signature subpacket */
