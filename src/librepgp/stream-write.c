@@ -370,8 +370,12 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     switch (pubkey->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-        pkey.params.rsa.mlen = pgp_rsa_encrypt_pkcs1(
-          pkey.params.rsa.m, sizeof(pkey.params.rsa.m), enckey, keylen + 3, &pubkey->key.rsa);
+        pkey.params.rsa.mlen = pgp_rsa_encrypt_pkcs1(&handler->ctx->rnp->drbg,
+                                                     pkey.params.rsa.m,
+                                                     sizeof(pkey.params.rsa.m),
+                                                     enckey,
+                                                     keylen + 3,
+                                                     &pubkey->key.rsa);
         if (pkey.params.rsa.mlen <= 0) {
             RNP_LOG("pgp_rsa_encrypt_pkcs1 failed");
             ret = RNP_ERROR_GENERIC;

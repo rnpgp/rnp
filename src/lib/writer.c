@@ -86,6 +86,10 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 #define MAX_PARTIAL_DATA_LENGTH 1073741824
 #define MAX_PARTIAL_DATA_LENGTH_POWER 30
 
+static bool pgp_push_stream_enc_se_ip(pgp_output_t *      output,
+                                      const pgp_pubkey_t *pubkey,
+                                      pgp_symm_alg_t      cipher,
+                                      struct rng_t *      rng);
 /*
  * return true if OK, otherwise false
  */
@@ -898,7 +902,8 @@ bool
 pgp_push_enc_se_ip(pgp_output_t *      output,
                    const pgp_pubkey_t *pubkey,
                    pgp_symm_alg_t      cipher,
-                   size_t              len)
+                   size_t              len,
+                   struct rng_t *      rng)
 {
     pgp_pk_sesskey_t *encrypted_pk_sesskey;
     encrypt_se_ip_t * se_ip;
@@ -906,7 +911,7 @@ pgp_push_enc_se_ip(pgp_output_t *      output,
 
     /* one packet can't be bigger than 0xffffffff, so, switch to streaming encryption*/
     if (len >= MAX_PARTIAL_DATA_LENGTH) {
-        return pgp_push_stream_enc_se_ip(output, pubkey, cipher);
+        return pgp_push_stream_enc_se_ip(output, pubkey, cipher, rng);
     }
 
     if ((se_ip = calloc(1, sizeof(*se_ip))) == NULL) {
@@ -915,7 +920,7 @@ pgp_push_enc_se_ip(pgp_output_t *      output,
     }
 
     /* Create and write encrypted PK session key */
-    if ((encrypted_pk_sesskey = pgp_create_pk_sesskey(pubkey, cipher)) == NULL) {
+    if ((encrypted_pk_sesskey = pgp_create_pk_sesskey(pubkey, cipher, rng)) == NULL) {
         (void) fprintf(stderr, "pgp_push_enc_se_ip: null pk sesskey\n");
         free(se_ip);
         return false;
@@ -1260,10 +1265,11 @@ static void str_enc_se_ip_destroyer(pgp_writer_t *writer);
 \param output
 \param pubkey
 */
-bool
+static bool
 pgp_push_stream_enc_se_ip(pgp_output_t *      output,
                           const pgp_pubkey_t *pubkey,
-                          pgp_symm_alg_t      cipher)
+                          pgp_symm_alg_t      cipher,
+                          struct rng_t *      rng)
 {
     pgp_pk_sesskey_t *encrypted_pk_sesskey;
     str_enc_se_ip_t * se_ip;
@@ -1274,7 +1280,7 @@ pgp_push_stream_enc_se_ip(pgp_output_t *      output,
         (void) fprintf(stderr, "pgp_push_stream_enc_se_ip: bad alloc\n");
         return false;
     }
-    encrypted_pk_sesskey = pgp_create_pk_sesskey(pubkey, cipher);
+    encrypted_pk_sesskey = pgp_create_pk_sesskey(pubkey, cipher, rng);
     if (!encrypted_pk_sesskey) {
         RNP_LOG("pgp_create_pk_sesskey failed");
         return false;

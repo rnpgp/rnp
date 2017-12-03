@@ -380,7 +380,7 @@ pgp_encrypt_file(rnp_ctx_t *         ctx,
     }
 
     /* Push the encrypted writer */
-    if (!pgp_push_enc_se_ip(output, pubkey, ctx->ealg, pgp_mem_len(inmem))) {
+    if (!pgp_push_enc_se_ip(output, pubkey, ctx->ealg, pgp_mem_len(inmem), &ctx->rnp->drbg)) {
         pgp_memory_free(inmem);
         return false;
     }
@@ -426,7 +426,7 @@ pgp_encrypt_buf(rnp_ctx_t *         ctx,
     }
 
     /* Push the encrypted writer */
-    if (!pgp_push_enc_se_ip(output, pubkey, ctx->ealg, insize)) {
+    if (!pgp_push_enc_se_ip(output, pubkey, ctx->ealg, insize, &ctx->rnp->drbg)) {
         pgp_writer_close(output);
         pgp_output_delete(output);
         return false;
