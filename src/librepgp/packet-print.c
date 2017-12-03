@@ -293,17 +293,17 @@ print_block(int indent, const char *name, const uint8_t *str, size_t length)
     printf("<<<<< %s <<<<<\n", name);
 }
 
-/* return the number of bits in the public key */
+// returns bitlength of a key
 static size_t
-numkeybits(const pgp_pubkey_t *pubkey)
+key_bitlength(const pgp_pubkey_t *pubkey)
 {
     size_t sz = 0;
     switch (pubkey->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        (void) BN_num_bits(pubkey->key.rsa.n, &sz);
-        return sz;
+        (void) BN_num_bytes(pubkey->key.rsa.n, &sz);
+        return sz * 8;
     case PGP_PKA_DSA:
         (void) BN_num_bytes(pubkey->key.dsa.q, &sz);
         switch (sz) {
@@ -317,8 +317,8 @@ numkeybits(const pgp_pubkey_t *pubkey)
             return 0;
         }
     case PGP_PKA_ELGAMAL:
-        (void) BN_num_bits(pubkey->key.elgamal.y, &sz);
-        return sz;
+        (void) BN_num_bytes(pubkey->key.elgamal.y, &sz);
+        return sz * 8;
 
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
@@ -329,7 +329,7 @@ numkeybits(const pgp_pubkey_t *pubkey)
         return curve ? curve->bitlen : 0;
     }
     default:
-        (void) fprintf(stderr, "Unknown public key alg in numkeybits\n");
+        RNP_LOG("Unknown public key alg in key_bitlength");
         return -1;
     }
 }
@@ -367,7 +367,7 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
     return snprintf(buf,
                     size,
                     "encryption %zu/%s %s %s [%s] %s\n",
-                    numkeybits(pubkey),
+                    key_bitlength(pubkey),
                     pgp_show_pka(pubkey->alg),
                     rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, ""),
                     ptimestr(t, sizeof(t), pubkey->birthtime),
@@ -673,7 +673,7 @@ pgp_sprint_key(pgp_io_t *             io,
                                 KB(16),
                                 "%s %zu/%s %s %s [%s] %s\n                 %s\n%s",
                                 header,
-                                numkeybits(pubkey),
+                                key_bitlength(pubkey),
                                 pgp_show_pka(pubkey->alg),
                                 keyid,
                                 birthtime,
@@ -711,7 +711,7 @@ repgp_sprint_json(pgp_io_t *                    io,
 
     // add the top-level values
     json_object_object_add(keyjson, "header", json_object_new_string(header));
-    json_object_object_add(keyjson, "key bits", json_object_new_int(numkeybits(pubkey)));
+    json_object_object_add(keyjson, "key bits", json_object_new_int(key_bitlength(pubkey)));
     json_object_object_add(keyjson, "pka", json_object_new_string(pgp_show_pka(pubkey->alg)));
     json_object_object_add(
       keyjson,
@@ -834,7 +834,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                   snprintf(&uidbuf[n],
                            sizeof(uidbuf) - n,
                            "sub:%zu:%d:%s:%lld:%lld\n",
-                           numkeybits(pubkey),
+                           key_bitlength(pubkey),
                            key->subsigs[j].sig.info.key_alg,
                            rnp_strhexdump(
                              keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, ""),
@@ -866,7 +866,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                          "pub:%s:%d:%zu:%lld:%lld\n%s",
                          fingerprint,
                          pubkey->alg,
-                         numkeybits(pubkey),
+                         key_bitlength(pubkey),
                          (long long) pubkey->birthtime,
                          (long long) pubkey->duration,
                          uidbuf);
