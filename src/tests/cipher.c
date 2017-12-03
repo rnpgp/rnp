@@ -34,11 +34,14 @@
 #include <rnp/rnp.h>
 #include <crypto/ecdsa.h>
 #include <crypto/ecdh.h>
+#include <crypto/rng.h>
 #include <crypto/sm2.h>
 
 #include "rnp_tests.h"
 #include "support.h"
 #include "fingerprint.h"
+
+extern struct rng_t global_rng;
 
 void
 hash_test_success(void **state)
@@ -343,7 +346,7 @@ ecdsa_signverify_success(void **state)
 
     for (size_t i = 0; i < ARRAY_SIZE(curves); i++) {
         // Generate test data. Mainly to make valgrind not to complain about unitialized data
-        rnp_assert_true(rstate, get_random(message, sizeof(message)));
+        rnp_assert_true(rstate, rng_get_data(&global_rng, message, sizeof(message)));
 
         pgp_ecc_sig_t                    sig = {NULL, NULL};
         const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDSA,
@@ -609,7 +612,7 @@ sm2_roundtrip(void **state)
     rnp_test_state_t *rstate = *state;
 
     uint8_t key[27] = {0};
-    pgp_random(key, sizeof(key));
+    assert_true(rng_get_data(&global_rng, key, sizeof(key)));
 
     uint8_t ctext_buf[1024];
     uint8_t decrypted[27];

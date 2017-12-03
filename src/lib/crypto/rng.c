@@ -38,19 +38,25 @@ rng_ensure_initialized(struct rng_t *ctx)
         return true;
     }
 
-    // Initializes HMAC_DRBG
-    ctx->initialized = !botan_rng_init(&ctx->botan_rng, "user");
+    ctx->initialized =
+      !botan_rng_init(&ctx->botan_rng, ctx->rng_type == RNG_DRBG ? "user" : NULL);
     return ctx->initialized;
 }
 
 bool
-rng_init(struct rng_t *ctx, bool lazy)
+rng_init(struct rng_t *ctx, rng_type_t rng_type)
 {
     if (!ctx) {
         return false;
     }
+
+    if ((rng_type != RNG_DRBG) && (rng_type != RNG_SYSTEM)) {
+        return false;
+    }
+
     ctx->initialized = false;
-    return lazy ? true : rng_ensure_initialized(ctx);
+    ctx->rng_type = rng_type;
+    return (rng_type == RNG_SYSTEM) ? rng_ensure_initialized(ctx) : true;
 }
 
 void

@@ -33,23 +33,31 @@
 #define RNP_RANDOM_H_
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <botan/ffi.h>
+
+enum { RNG_DRBG, RNG_SYSTEM };
+typedef uint8_t rng_type_t;
 
 struct rng_t {
     bool        initialized;
+    rng_type_t  rng_type;
     botan_rng_t botan_rng;
 };
 
 /*
  * @brief Initializes rng structure
  *
- * @param lazy true if DRBG must be initialized
- *        on demand, false if DRBG must be initialized
- *        with `rng_init'
+ * @param rng_type indicates which random generator to initialize.
+ *        Two values possible
+ *          RNG_DRBG - will initialize HMAC_DRBG, this generator
+ *                     is initialized on-demand (when used for the
+ *                     first time)
+ *          RNG_SYSTEM will initialize /dev/(u)random
  * @returns false if lazy initialization wasn't requested
  *          and initialization failed, otherwise true
  */
-bool rng_init(struct rng_t *ctx, bool lazy);
+bool rng_init(struct rng_t *ctx, rng_type_t rng_type);
 
 /*
  * Frees memory allocated by `rng_get_data'
