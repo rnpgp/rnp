@@ -34,6 +34,7 @@
 #include "pass-provider.h"
 #include "key-provider.h"
 #include "list.h"
+#include "crypto/rng.h"
 
 typedef struct rnp_action_keygen_t {
     struct {
@@ -64,6 +65,7 @@ typedef struct rnp_t {
     } action;
 
     pgp_password_provider_t password_provider;
+    struct rng_t            drbg; /* handle to DRBG */
 } rnp_t;
 
 /* rnp initialization parameters : keyring pathes, flags, whatever else */

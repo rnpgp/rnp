@@ -628,6 +628,8 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
         }
     }
 
+    // Lazy mode can't fail
+    (void) rng_init(&rnp->drbg, RNG_DRBG);
     return RNP_SUCCESS;
 }
 
@@ -635,6 +637,7 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
 void
 rnp_end(rnp_t *rnp)
 {
+    rng_destroy(&rnp->drbg);
     if (rnp->pubring != NULL) {
         rnp_key_store_free(rnp->pubring);
         rnp->pubring = NULL;
