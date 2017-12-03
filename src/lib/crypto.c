@@ -132,7 +132,7 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
         n = pgp_rsa_decrypt_pkcs1(
           buf, buflen, encmpibuf, encmpi_byte_len, &seckey->key.rsa, &seckey->pubkey.key.rsa);
         if (n <= 0) {
-            (void) fprintf(stderr, "ops_rsa_private_decrypt failure\n");
+            RNP_LOG("ops_rsa_private_decrypt failure");
             return -1;
         }
         if (rnp_get_debug(__FILE__)) {
@@ -170,7 +170,7 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
                                               &seckey->key.elgamal,
                                               &seckey->pubkey.key.elgamal);
         if (n <= 0) {
-            (void) fprintf(stderr, "ops_elgamal_private_decrypt failure\n");
+            RNP_LOG("ops_elgamal_private_decrypt failure");
             return -1;
         }
 
@@ -361,7 +361,7 @@ pgp_encrypt_file(rnp_ctx_t *         ctx,
     RNP_USED(io);
     inmem = pgp_memory_new();
     if (inmem == NULL) {
-        (void) fprintf(stderr, "can't allocate mem\n");
+        RNP_LOG("can't allocate mem");
         return false;
     }
     if (!pgp_mem_readfile(inmem, infile)) {

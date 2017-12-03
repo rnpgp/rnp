@@ -86,11 +86,11 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
     if (key->version == 2 || key->version == 3) {
         if (key->alg != PGP_PKA_RSA && key->alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
             key->alg != PGP_PKA_RSA_SIGN_ONLY) {
-            (void) fprintf(stderr, "pgp_fingerprint: bad algorithm\n");
+            RNP_LOG("bad algorithm");
             return RNP_ERROR_NOT_SUPPORTED;
         }
         if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
-            (void) fprintf(stderr, "pgp_fingerprint: bad md5 alloc\n");
+            RNP_LOG("bad md5 alloc");
             return RNP_ERROR_NOT_SUPPORTED;
         }
         (void) BN_hash(key->key.rsa.n, &hash);
@@ -102,7 +102,7 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
     } else if (key->version == 4) {
         mem = pgp_memory_new();
         if (mem == NULL) {
-            (void) fprintf(stderr, "can't allocate mem\n");
+            RNP_LOG("can't allocate mem");
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         if (!pgp_build_pubkey(mem, key, 0)) {
@@ -111,7 +111,7 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
             return RNP_ERROR_GENERIC;
         }
         if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
-            (void) fprintf(stderr, "pgp_fingerprint: bad sha1 alloc\n");
+            RNP_LOG("bad sha1 alloc");
             pgp_memory_free(mem);
             return RNP_ERROR_NOT_SUPPORTED;
         }
@@ -125,7 +125,7 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
             hexdump(stderr, "sha1 fingerprint", fp->fingerprint, fp->length);
         }
     } else {
-        (void) fprintf(stderr, "pgp_fingerprint: unsupported key version\n");
+        RNP_LOG("unsupported key version");
         return false;
     }
     return true;
@@ -147,7 +147,7 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key)
 
         if (key->alg != PGP_PKA_RSA && key->alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
             key->alg != PGP_PKA_RSA_SIGN_ONLY) {
-            (void) fprintf(stderr, "pgp_keyid: bad algorithm\n");
+            RNP_LOG("bad algorithm");
             return false;
         }
 
