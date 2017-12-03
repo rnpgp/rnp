@@ -793,7 +793,7 @@ create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, size_t cipher_key_len, uint8_t
 \note It is the caller's responsiblity to free the returned pointer
 */
 pgp_pk_sesskey_t *
-pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
+pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher, struct rng_t *rng)
 {
     /*
      * Creates a random session key and encrypts it for the given key
@@ -874,7 +874,7 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher)
         int     n;
 
         n = pgp_rsa_encrypt_pkcs1(
-          encmpibuf, sizeof(encmpibuf), encoded_key, sz_encoded_key, &pubkey->key.rsa);
+          rng, encmpibuf, sizeof(encmpibuf), encoded_key, sz_encoded_key, &pubkey->key.rsa);
         if (n <= 0) {
             (void) fprintf(stderr, "pgp_rsa_encrypt_pkcs1 failure\n");
             free(sesskey);

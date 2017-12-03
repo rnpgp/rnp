@@ -83,7 +83,6 @@
 #include "types.h"
 #include "utils.h"
 #include "crypto/rsa.h"
-#include "crypto/bn.h"
 #include <botan/ffi.h>
 
 #include "hash.h"
@@ -98,7 +97,8 @@
    \return size of recovered plaintext
 */
 int
-pgp_rsa_encrypt_pkcs1(uint8_t *               out,
+pgp_rsa_encrypt_pkcs1(struct rng_t *          rng,
+                      uint8_t *               out,
                       size_t                  out_len,
                       const uint8_t *         in,
                       const size_t            in_len,
@@ -107,17 +107,16 @@ pgp_rsa_encrypt_pkcs1(uint8_t *               out,
     int                   retval = -1;
     botan_pubkey_t        rsa_key = NULL;
     botan_pk_op_encrypt_t enc_op = NULL;
-    botan_rng_t           rng = NULL;
 
-    if (botan_rng_init(&rng, NULL) != 0) {
-        goto done;
+    if (!rng) {
+        return -1;
     }
 
     if (botan_pubkey_load_rsa(&rsa_key, pubkey->n->mp, pubkey->e->mp) != 0) {
         goto done;
     }
 
-    if (botan_pubkey_check_key(rsa_key, rng, 1) != 0) {
+    if (botan_pubkey_check_key(rsa_key, rng_handle(rng), 1) != 0) {
         goto done;
     }
 
@@ -125,14 +124,13 @@ pgp_rsa_encrypt_pkcs1(uint8_t *               out,
         goto done;
     }
 
-    if (botan_pk_op_encrypt(enc_op, rng, out, &out_len, in, in_len) == 0) {
+    if (botan_pk_op_encrypt(enc_op, rng_handle(rng), out, &out_len, in, in_len) == 0) {
         retval = (int) out_len;
     }
 
 done:
     botan_pk_op_encrypt_destroy(enc_op);
     botan_pubkey_destroy(rsa_key);
-    botan_rng_destroy(rng);
 
     return retval;
 }

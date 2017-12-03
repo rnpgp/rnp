@@ -179,7 +179,7 @@ pkcs1_rsa_test_success(void **state)
     printf("\n");
 #endif
 
-    ctext_size = pgp_rsa_encrypt_pkcs1(ctext, sizeof(ctext), ptext, 3, pub_rsa);
+    ctext_size = pgp_rsa_encrypt_pkcs1(&global_rng, ctext, sizeof(ctext), ptext, 3, pub_rsa);
 
     rnp_assert_int_equal(rstate, ctext_size, 1024 / 8);
 

@@ -34,6 +34,7 @@
 #include <rnp/rnp_sdk.h>
 #include <repgp/repgp_def.h>
 #include "crypto/bn.h"
+#include "crypto/rng.h"
 
 typedef struct pgp_seckey_t     pgp_seckey_t;
 typedef struct pgp_rsa_seckey_t pgp_rsa_seckey_t;
@@ -67,7 +68,8 @@ typedef struct pgp_rsa_seckey_t {
 
 int pgp_genkey_rsa(pgp_seckey_t *seckey, size_t numbits);
 
-int pgp_rsa_encrypt_pkcs1(uint8_t *               out,
+int pgp_rsa_encrypt_pkcs1(struct rng_t *          rng,
+                          uint8_t *               out,
                           size_t                  out_len,
                           const uint8_t *         key,
                           size_t                  key_len,
