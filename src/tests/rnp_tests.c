@@ -28,11 +28,17 @@
 #include <stdio.h>
 #include <cmocka.h>
 
+#include <crypto/rng.h>
 #include "rnp_tests.h"
 #include "support.h"
 
 static const char *exe_path = NULL;
 static char        original_dir[PATH_MAX];
+
+/*
+ * Handler used to access DRBG.
+ */
+struct rng_t global_rng;
 
 static char *
 get_data_dir(void)
@@ -113,7 +119,7 @@ teardown_test(void **state)
     rstate->home = NULL;
     free(rstate->data_dir);
     rstate->data_dir = NULL;
-    destroy_global_rng();
+    rng_destroy(&global_rng);
     return 0;
 }
 
