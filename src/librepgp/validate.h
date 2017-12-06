@@ -62,6 +62,7 @@ typedef struct pgp_validation_t {
     pgp_sig_info_t *unknown_sigs;
     time_t          birthtime;
     time_t          duration;
+    rnp_ctx_t *     rnp_ctx;
 } pgp_validation_t;
 
 typedef struct {
@@ -106,10 +107,8 @@ bool pgp_key_reader_set(pgp_stream_t *, const pgp_key_t *);
 
 pgp_cb_ret_t pgp_validate_key_cb(const pgp_packet_t *, pgp_cbdata_t *);
 
-unsigned check_binary_sig(const uint8_t *,
-                          const unsigned,
-                          const pgp_sig_t *,
-                          const pgp_pubkey_t *);
+unsigned check_binary_sig(
+  rnp_ctx_t *, const uint8_t *, const unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 
 bool pgp_validate_file(pgp_io_t *,
                        pgp_validation_t *,

@@ -209,7 +209,8 @@ to give the final hash value that is checked against the one in the signature
 
 /* Does the signed hash match the given hash? */
 unsigned
-check_binary_sig(const uint8_t *     data,
+check_binary_sig(rnp_ctx_t *         rnp_ctx,
+                 const uint8_t *     data,
                  const unsigned      len,
                  const pgp_sig_t *   sig,
                  const pgp_pubkey_t *signer)
@@ -254,7 +255,7 @@ check_binary_sig(const uint8_t *     data,
     if (rnp_get_debug(__FILE__)) {
         hexdump(stdout, "hash out", hashout, n);
     }
-    return pgp_check_sig(hashout, n, sig, signer);
+    return pgp_check_sig(rnp_ctx_rng_handle(rnp_ctx), hashout, n, sig, signer);
 }
 
 pgp_cb_ret_t
@@ -267,12 +268,14 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     pgp_io_t *            io;
     unsigned              from;
     unsigned              valid = 0;
+    rnp_ctx_t *           rnp_ctx;
 
     io = cbinfo->io;
     if (rnp_get_debug(__FILE__)) {
         (void) fprintf(io->errs, "%s\n", pgp_show_packet_tag(pkt->tag));
     }
     key = pgp_callback_arg(cbinfo);
+    rnp_ctx = key->result->rnp_ctx;
     errors = pgp_callback_errors(cbinfo);
     switch (pkt->tag) {
     case PGP_PTAG_CT_PUBLIC_KEY:
@@ -340,12 +343,14 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         case PGP_SIG_REV_CERT:
             valid =
               (key->last_seen == ID) ?
-                pgp_check_useridcert_sig(&key->pubkey,
+                pgp_check_useridcert_sig(rnp_ctx,
+                                         &key->pubkey,
                                          key->userid,
                                          &content->sig,
                                          pgp_get_pubkey(signer),
                                          key->reader->key->packets[key->reader->packet].raw) :
-                pgp_check_userattrcert_sig(&key->pubkey,
+                pgp_check_userattrcert_sig(rnp_ctx,
+                                           &key->pubkey,
                                            &key->userattr,
                                            &content->sig,
                                            pgp_get_pubkey(signer),
@@ -357,7 +362,8 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
              * XXX: we should also check that the signer is the
              * key we are validating, I think.
              */
-            valid = pgp_check_subkey_sig(&key->pubkey,
+            valid = pgp_check_subkey_sig(rnp_ctx,
+                                         &key->pubkey,
                                          &key->subkey,
                                          &content->sig,
                                          pgp_get_pubkey(signer),
@@ -365,7 +371,8 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             break;
 
         case PGP_SIG_DIRECT:
-            valid = pgp_check_direct_sig(&key->pubkey,
+            valid = pgp_check_direct_sig(rnp_ctx,
+                                         &key->pubkey,
                                          &content->sig,
                                          pgp_get_pubkey(signer),
                                          key->reader->key->packets[key->reader->packet].raw);
@@ -539,7 +546,8 @@ validate_data_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
                         (const uint8_t *) (const void *) &content->sig,
                         sizeof(content->sig));
             }
-            valid = check_binary_sig(pgp_mem_data(data->mem),
+            valid = check_binary_sig(data->result->rnp_ctx,
+                                     pgp_mem_data(data->mem),
                                      (const unsigned) pgp_mem_len(data->mem),
                                      &content->sig,
                                      pgp_get_pubkey(signer));

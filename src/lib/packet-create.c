@@ -67,7 +67,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-
+#include <assert.h>
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
@@ -1209,10 +1209,16 @@ pgp_write_selfsig_cert(pgp_output_t *               output,
     pgp_create_sig_t *sig = NULL;
     bool              ok = false;
     uint8_t           keyid[PGP_KEY_ID_SIZE];
+    struct rng_t      rng;
 
     if (!output || !seckey || !cert) {
         RNP_LOG("invalid parameters");
-        goto end;
+        return false;
+    }
+
+    if (!rng_init(&rng, RNG_SYSTEM)) {
+        RNP_LOG("RNG init failed");
+        return false;
     }
 
     if (!pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey)) {
@@ -1280,12 +1286,13 @@ pgp_write_selfsig_cert(pgp_output_t *               output,
         goto end;
     }
 
-    if (!pgp_sig_write(output, sig, &seckey->pubkey, seckey)) {
+    if (!pgp_sig_write(&rng, output, sig, &seckey->pubkey, seckey)) {
         RNP_LOG("failed to write signature");
         goto end;
     }
     ok = true;
 end:
+    rng_destroy(&rng);
     pgp_create_sig_delete(sig);
     return ok;
 }
@@ -1300,10 +1307,16 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
     pgp_create_sig_t *sig = NULL;
     bool              ok = false;
     uint8_t           keyid[PGP_KEY_ID_SIZE];
+    struct rng_t      rng;
 
     if (!output || !primary_sec || !subkey || !binding) {
         RNP_LOG("invalid parameters");
         goto end;
+    }
+
+    if (!rng_init(&rng, RNG_SYSTEM)) {
+        RNP_LOG("RNG init failed");
+        return false;
     }
 
     if (!pgp_keyid(keyid, sizeof(keyid), &primary_sec->pubkey)) {
@@ -1343,12 +1356,13 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
         goto end;
     }
 
-    if (!pgp_sig_write(output, sig, &primary_sec->pubkey, primary_sec)) {
+    if (!pgp_sig_write(&rng, output, sig, &primary_sec->pubkey, primary_sec)) {
         RNP_LOG("failed to write signature");
         goto end;
     }
     ok = true;
 end:
+    rng_destroy(&rng);
     pgp_create_sig_delete(sig);
     return ok;
 }

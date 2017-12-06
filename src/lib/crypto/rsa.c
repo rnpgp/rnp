@@ -108,10 +108,6 @@ pgp_rsa_encrypt_pkcs1(struct rng_t *          rng,
     botan_pubkey_t        rsa_key = NULL;
     botan_pk_op_encrypt_t enc_op = NULL;
 
-    if (!rng) {
-        return -1;
-    }
-
     if (botan_pubkey_load_rsa(&rsa_key, pubkey->n->mp, pubkey->e->mp) != 0) {
         goto done;
     }
@@ -136,7 +132,8 @@ done:
 }
 
 bool
-pgp_rsa_pkcs1_verify_hash(const uint8_t *         sig_buf,
+pgp_rsa_pkcs1_verify_hash(struct rng_t *          rng,
+                          const uint8_t *         sig_buf,
                           size_t                  sig_buf_size,
                           pgp_hash_alg_t          hash_alg,
                           const uint8_t *         hash,
@@ -146,7 +143,6 @@ pgp_rsa_pkcs1_verify_hash(const uint8_t *         sig_buf,
     char                 padding_name[64] = {0};
     botan_pubkey_t       rsa_key = NULL;
     botan_pk_op_verify_t verify_op = NULL;
-    botan_rng_t          rng = NULL;
     bool                 result = false;
 
     snprintf(padding_name,
@@ -154,11 +150,9 @@ pgp_rsa_pkcs1_verify_hash(const uint8_t *         sig_buf,
              "EMSA-PKCS1-v1_5(Raw,%s)",
              pgp_hash_name_botan(hash_alg));
 
-    botan_rng_init(&rng, NULL);
-
     botan_pubkey_load_rsa(&rsa_key, pubkey->n->mp, pubkey->e->mp);
 
-    if (botan_pubkey_check_key(rsa_key, rng, 1) != 0) {
+    if (botan_pubkey_check_key(rsa_key, rng_handle(rng), 1) != 0) {
         goto done;
     }
 
@@ -175,7 +169,6 @@ pgp_rsa_pkcs1_verify_hash(const uint8_t *         sig_buf,
 done:
     botan_pk_op_verify_destroy(verify_op);
     botan_pubkey_destroy(rsa_key);
-    botan_rng_destroy(rng);
     return result;
 }
 
@@ -190,7 +183,8 @@ done:
    \return number of bytes decrypted
 */
 int
-pgp_rsa_pkcs1_sign_hash(uint8_t *               sig_buf,
+pgp_rsa_pkcs1_sign_hash(struct rng_t *          rng,
+                        uint8_t *               sig_buf,
                         size_t                  sig_buf_size,
                         pgp_hash_alg_t          hash_alg,
                         const uint8_t *         hash_buf,
@@ -201,7 +195,6 @@ pgp_rsa_pkcs1_sign_hash(uint8_t *               sig_buf,
     char               padding_name[64] = {0};
     botan_privkey_t    rsa_key;
     botan_pk_op_sign_t sign_op;
-    botan_rng_t        rng;
 
     if (seckey->q == NULL) {
         (void) fprintf(stderr, "private key not set in pgp_rsa_private_encrypt\n");
@@ -213,34 +206,28 @@ pgp_rsa_pkcs1_sign_hash(uint8_t *               sig_buf,
              "EMSA-PKCS1-v1_5(Raw,%s)",
              pgp_hash_name_botan(hash_alg));
 
-    botan_rng_init(&rng, NULL);
-
     /* p and q are reversed from normal usage in PGP */
     botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, pubkey->e->mp);
 
-    if (botan_privkey_check_key(rsa_key, rng, 0) != 0) {
+    if (botan_privkey_check_key(rsa_key, rng_handle(rng), 0) != 0) {
         botan_privkey_destroy(rsa_key);
-        botan_rng_destroy(rng);
         return 0;
     }
 
     if (botan_pk_op_sign_create(&sign_op, rsa_key, padding_name, 0) != 0) {
         botan_privkey_destroy(rsa_key);
-        botan_rng_destroy(rng);
         return 0;
     }
 
     if (botan_pk_op_sign_update(sign_op, hash_buf, hash_len) != 0 ||
-        botan_pk_op_sign_finish(sign_op, rng, sig_buf, &sig_buf_size) != 0) {
+        botan_pk_op_sign_finish(sign_op, rng_handle(rng), sig_buf, &sig_buf_size) != 0) {
         botan_pk_op_sign_destroy(sign_op);
         botan_privkey_destroy(rsa_key);
-        botan_rng_destroy(rng);
         return 0;
     }
 
     botan_pk_op_sign_destroy(sign_op);
     botan_privkey_destroy(rsa_key);
-    botan_rng_destroy(rng);
 
     return (int) sig_buf_size;
 }
@@ -256,7 +243,8 @@ pgp_rsa_pkcs1_sign_hash(uint8_t *               sig_buf,
 \return size of recovered plaintext
 */
 int
-pgp_rsa_decrypt_pkcs1(uint8_t *               out,
+pgp_rsa_decrypt_pkcs1(struct rng_t *          rng,
+                      uint8_t *               out,
                       size_t                  out_len,
                       const uint8_t *         in,
                       size_t                  in_len,
@@ -265,18 +253,13 @@ pgp_rsa_decrypt_pkcs1(uint8_t *               out,
 {
     int                   retval = -1;
     botan_privkey_t       rsa_key = NULL;
-    botan_rng_t           rng = NULL;
     botan_pk_op_decrypt_t decrypt_op = NULL;
 
     if (botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, pubkey->e->mp) != 0) {
         goto done;
     }
 
-    if (botan_rng_init(&rng, NULL) != 0) {
-        goto done;
-    }
-
-    if (botan_privkey_check_key(rsa_key, rng, 0) != 0) {
+    if (botan_privkey_check_key(rsa_key, rng_handle(rng), 0) != 0) {
         goto done;
     }
 
@@ -289,17 +272,15 @@ pgp_rsa_decrypt_pkcs1(uint8_t *               out,
     }
 
 done:
-    botan_rng_destroy(rng);
     botan_privkey_destroy(rsa_key);
     botan_pk_op_decrypt_destroy(decrypt_op);
     return retval;
 }
 
 int
-pgp_genkey_rsa(pgp_seckey_t *seckey, size_t numbits)
+pgp_genkey_rsa(struct rng_t *rng, pgp_seckey_t *seckey, size_t numbits)
 {
     botan_privkey_t rsa_key = NULL;
-    botan_rng_t     rng = NULL;
     int             ret = 0, cmp;
 
     seckey->pubkey.key.rsa.n = BN_new();
@@ -314,13 +295,10 @@ pgp_genkey_rsa(pgp_seckey_t *seckey, size_t numbits)
         goto end;
     }
 
-    if (botan_rng_init(&rng, NULL) != 0)
+    if (botan_privkey_create_rsa(&rsa_key, rng_handle(rng), numbits) != 0)
         goto end;
 
-    if (botan_privkey_create_rsa(&rsa_key, rng, numbits) != 0)
-        goto end;
-
-    if (botan_privkey_check_key(rsa_key, rng, 1) != 0)
+    if (botan_privkey_check_key(rsa_key, rng_handle(rng), 1) != 0)
         goto end;
 
     /* Calls below never fail as calls above were OK */
@@ -346,6 +324,5 @@ pgp_genkey_rsa(pgp_seckey_t *seckey, size_t numbits)
 
 end:
     botan_privkey_destroy(rsa_key);
-    botan_rng_destroy(rng);
     return ret;
 }

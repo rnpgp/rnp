@@ -1062,7 +1062,8 @@ rnp_generate_key(rnp_t *rnp)
     char *               cp = NULL;
     key_store_format_t   key_format = ((rnp_key_store_t *) rnp->secring)->format;
 
-    if (!pgp_generate_keypair(&action->primary.keygen,
+    if (!pgp_generate_keypair(&rnp->drbg,
+                              &action->primary.keygen,
                               &action->subkey.keygen,
                               true,
                               &primary_sec,
@@ -1596,6 +1597,7 @@ rnp_verify_file(rnp_ctx_t *ctx, const char *in, const char *out)
     if (realarmor < 0) {
         return RNP_ERROR_SIGNATURE_INVALID;
     }
+    result.rnp_ctx = ctx;
     if (pgp_validate_file(io, &result, in, out, (const int) realarmor, ctx->rnp->pubring)) {
         resultp(io, in, &result, ctx->rnp->pubring);
         return RNP_SUCCESS;
@@ -1748,6 +1750,8 @@ rnp_verify_memory(rnp_ctx_t *ctx, const void *in, const size_t size, void *out, 
             return 0;
         }
     }
+
+    result.rnp_ctx = ctx;
     ret = pgp_validate_mem(
       io, &result, signedmem, (out) ? &cat : NULL, ctx->armor, ctx->rnp->pubring);
     /* signedmem is freed from pgp_validate_mem */

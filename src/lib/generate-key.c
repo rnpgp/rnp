@@ -603,7 +603,8 @@ print_keygen_subkey(const rnp_keygen_subkey_desc_t *desc)
 }
 
 bool
-pgp_generate_keypair(rnp_keygen_primary_desc_t *primary_desc,
+pgp_generate_keypair(struct rng_t *             rng,
+                     rnp_keygen_primary_desc_t *primary_desc,
                      rnp_keygen_subkey_desc_t * subkey_desc,
                      bool                       merge_defaults,
                      pgp_key_t *                primary_sec,
@@ -632,6 +633,7 @@ pgp_generate_keypair(rnp_keygen_primary_desc_t *primary_desc,
     }
 
     // generate the primary key
+    primary_desc->crypto.rng = rng;
     if (!pgp_generate_primary_key(
           primary_desc, merge_defaults, primary_sec, primary_pub, secformat)) {
         RNP_LOG("failed to generate primary key");
@@ -639,6 +641,7 @@ pgp_generate_keypair(rnp_keygen_primary_desc_t *primary_desc,
     }
 
     // generate the subkey
+    subkey_desc->crypto.rng = rng;
     if (!pgp_generate_subkey(subkey_desc,
                              merge_defaults,
                              primary_sec,

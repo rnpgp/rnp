@@ -71,6 +71,7 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -85,6 +86,7 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 #include "crypto/dsa.h"
 #include "crypto/sm2.h"
 #include "crypto/rsa.h"
+#include "crypto/rng.h"
 #include "hash.h"
 #include "packet-create.h"
 #include "readerwriter.h"
@@ -147,7 +149,8 @@ pgp_dump_sig(pgp_sig_t *sig)
 /* XXX: both this and verify would be clearer if the signature were */
 /* treated as an MPI. */
 static bool
-rsa_sign(pgp_hash_t *            hash,
+rsa_sign(struct rng_t *          rng,
+         pgp_hash_t *            hash,
          const pgp_rsa_pubkey_t *pubrsa,
          const pgp_rsa_seckey_t *secrsa,
          pgp_output_t *          out)
@@ -170,9 +173,10 @@ rsa_sign(pgp_hash_t *            hash,
     pgp_write(out, &hashbuf[0], 2);
 
     sig_size = pgp_rsa_pkcs1_sign_hash(
-      sigbuf, sizeof(sigbuf), hash_alg, hashbuf, hash_size, secrsa, pubrsa);
+      rng, sigbuf, sizeof(sigbuf), hash_alg, hashbuf, hash_size, secrsa, pubrsa);
+
     if (sig_size == 0) {
-        (void) fprintf(stderr, "rsa_sign: pgp_rsa_pkcs1_sign_hash failed\n");
+        RNP_LOG("Internal error");
         return false;
     }
     bn = BN_bin2bn(sigbuf, sig_size, NULL);
@@ -342,7 +346,8 @@ eddsa_verify(const uint8_t *         hash,
 }
 
 static bool
-rsa_verify(pgp_hash_alg_t          hash_alg,
+rsa_verify(struct rng_t *          rng,
+           pgp_hash_alg_t          hash_alg,
            const uint8_t *         hash,
            size_t                  hash_length,
            const pgp_rsa_sig_t *   sig,
@@ -363,7 +368,8 @@ rsa_verify(pgp_hash_alg_t          hash_alg,
         return false;
     }
     BN_bn2bin(sig->sig, sigbuf);
-    return pgp_rsa_pkcs1_verify_hash(sigbuf, sig_blen, hash_alg, hash, hash_length, pubrsa);
+
+    return pgp_rsa_pkcs1_verify_hash(rng, sigbuf, sig_blen, hash_alg, hash, hash_length, pubrsa);
 }
 
 static bool
@@ -422,7 +428,8 @@ hash_add_trailer(pgp_hash_t *hash, const pgp_sig_t *sig, const uint8_t *raw_pack
    \return 1 if good; else 0
 */
 bool
-pgp_check_sig(const uint8_t *     hash,
+pgp_check_sig(struct rng_t *      rng,
+              const uint8_t *     hash,
               unsigned            length,
               const pgp_sig_t *   sig,
               const pgp_pubkey_t *signer)
@@ -448,8 +455,8 @@ pgp_check_sig(const uint8_t *     hash,
         break;
 
     case PGP_PKA_RSA:
-        ret =
-          rsa_verify(sig->info.hash_alg, hash, length, &sig->info.sig.rsa, &signer->key.rsa);
+        ret = rsa_verify(
+          rng, sig->info.hash_alg, hash, length, &sig->info.sig.rsa, &signer->key.rsa);
         break;
 
     case PGP_PKA_ECDSA:
@@ -466,7 +473,8 @@ pgp_check_sig(const uint8_t *     hash,
 }
 
 static bool
-finalise_sig(pgp_hash_t *        hash,
+finalise_sig(struct rng_t *      rng,
+             pgp_hash_t *        hash,
              const pgp_sig_t *   sig,
              const pgp_pubkey_t *signer,
              const uint8_t *     raw_packet)
@@ -475,7 +483,7 @@ finalise_sig(pgp_hash_t *        hash,
 
     uint8_t hashout[PGP_MAX_HASH_SIZE];
     size_t  hash_len = pgp_hash_finish(hash, hashout);
-    return pgp_check_sig(hashout, hash_len, sig, signer);
+    return pgp_check_sig(rng, hashout, hash_len, sig, signer);
 }
 
 /**
@@ -491,7 +499,8 @@ finalise_sig(pgp_hash_t *        hash,
  * \return true if OK
  */
 bool
-pgp_check_useridcert_sig(const pgp_pubkey_t *key,
+pgp_check_useridcert_sig(rnp_ctx_t *         rnp_ctx,
+                         const pgp_pubkey_t *key,
                          const uint8_t *     id,
                          const pgp_sig_t *   sig,
                          const pgp_pubkey_t *signer,
@@ -510,7 +519,7 @@ pgp_check_useridcert_sig(const pgp_pubkey_t *key,
         pgp_hash_add_int(&hash, (unsigned) userid_len, 4);
     }
     pgp_hash_add(&hash, id, (unsigned) userid_len);
-    return finalise_sig(&hash, sig, signer, raw_packet);
+    return finalise_sig(rnp_ctx_rng_handle(rnp_ctx), &hash, sig, signer, raw_packet);
 }
 
 /**
@@ -526,7 +535,8 @@ pgp_check_useridcert_sig(const pgp_pubkey_t *key,
  * \return true if OK
  */
 bool
-pgp_check_userattrcert_sig(const pgp_pubkey_t *key,
+pgp_check_userattrcert_sig(rnp_ctx_t *         rnp_ctx,
+                           const pgp_pubkey_t *key,
                            const pgp_data_t *  attribute,
                            const pgp_sig_t *   sig,
                            const pgp_pubkey_t *signer,
@@ -543,7 +553,7 @@ pgp_check_userattrcert_sig(const pgp_pubkey_t *key,
         pgp_hash_add_int(&hash, (unsigned) attribute->len, 4);
     }
     pgp_hash_add(&hash, attribute->contents, (unsigned) attribute->len);
-    return finalise_sig(&hash, sig, signer, raw_packet);
+    return finalise_sig(rnp_ctx_rng_handle(rnp_ctx), &hash, sig, signer, raw_packet);
 }
 
 /**
@@ -559,7 +569,8 @@ pgp_check_userattrcert_sig(const pgp_pubkey_t *key,
  * \return true if OK
  */
 bool
-pgp_check_subkey_sig(const pgp_pubkey_t *key,
+pgp_check_subkey_sig(rnp_ctx_t *         rnp_ctx,
+                     const pgp_pubkey_t *key,
                      const pgp_pubkey_t *subkey,
                      const pgp_sig_t *   sig,
                      const pgp_pubkey_t *signer,
@@ -575,7 +586,7 @@ pgp_check_subkey_sig(const pgp_pubkey_t *key,
         RNP_LOG("failed to hash key");
         return false;
     }
-    return finalise_sig(&hash, sig, signer, raw_packet);
+    return finalise_sig(rnp_ctx_rng_handle(rnp_ctx), &hash, sig, signer, raw_packet);
 }
 
 /**
@@ -590,7 +601,8 @@ pgp_check_subkey_sig(const pgp_pubkey_t *key,
  * \return true if OK
  */
 bool
-pgp_check_direct_sig(const pgp_pubkey_t *key,
+pgp_check_direct_sig(rnp_ctx_t *         rnp_ctx,
+                     const pgp_pubkey_t *key,
                      const pgp_sig_t *   sig,
                      const pgp_pubkey_t *signer,
                      const uint8_t *     raw_packet)
@@ -602,7 +614,7 @@ pgp_check_direct_sig(const pgp_pubkey_t *key,
         RNP_LOG("failed to start key sig");
         return false;
     }
-    ret = finalise_sig(&hash, sig, signer, raw_packet);
+    ret = finalise_sig(rnp_ctx_rng_handle(rnp_ctx), &hash, sig, signer, raw_packet);
     return ret;
 }
 
@@ -788,7 +800,8 @@ pgp_sig_end_hashed_subpkts(pgp_create_sig_t *sig)
  */
 
 bool
-pgp_sig_write(pgp_output_t *      output,
+pgp_sig_write(struct rng_t *      rng,
+              pgp_output_t *      output,
               pgp_create_sig_t *  sig,
               const pgp_pubkey_t *key,
               const pgp_seckey_t *seckey)
@@ -854,11 +867,12 @@ pgp_sig_write(pgp_output_t *      output,
     }
     /* XXX: technically, we could figure out how big the signature is */
     /* and write it directly to the output instead of via memory. */
+
     switch (seckey->pubkey.alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!rsa_sign(&sig->hash, &key->key.rsa, &seckey->key.rsa, sig->output)) {
+        if (!rsa_sign(rng, &sig->hash, &key->key.rsa, &seckey->key.rsa, sig->output)) {
             RNP_LOG("rsa_sign failure");
             return false;
         }
@@ -1106,6 +1120,8 @@ pgp_sign_file(rnp_ctx_t *         ctx,
     uint8_t           keyid[PGP_KEY_ID_SIZE];
     int               fd_out = 0;
 
+    assert(ctx->rnp);
+
     /* find the hash algorithm */
     if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
         (void) fprintf(
@@ -1163,7 +1179,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
         !pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME) ||
         !pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey) ||
         !pgp_sig_add_issuer_keyid(sig, keyid) || !pgp_sig_end_hashed_subpkts(sig) ||
-        !pgp_sig_write(output, sig, &seckey->pubkey, seckey)) {
+        !pgp_sig_write(&ctx->rnp->drbg, output, sig, &seckey->pubkey, seckey)) {
         goto done;
     }
     ok = true;
@@ -1265,7 +1281,7 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
         !pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME) ||
         !pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey) ||
         !pgp_sig_add_issuer_keyid(sig, keyid) || !pgp_sig_end_hashed_subpkts(sig) ||
-        !pgp_sig_write(output, sig, &seckey->pubkey, seckey)) {
+        !pgp_sig_write(&ctx->rnp->drbg, output, sig, &seckey->pubkey, seckey)) {
         goto done;
     }
     ok = true;
@@ -1335,7 +1351,7 @@ pgp_sign_detached(
         !pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME) ||
         !pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey) ||
         !pgp_sig_add_issuer_keyid(sig, keyid) || !pgp_sig_end_hashed_subpkts(sig) ||
-        !pgp_sig_write(output, sig, &seckey->pubkey, seckey)) {
+        !pgp_sig_write(&ctx->rnp->drbg, output, sig, &seckey->pubkey, seckey)) {
         goto done;
     }
     ok = true;
@@ -1388,7 +1404,7 @@ pgp_sign_memory_detached(rnp_ctx_t *         ctx,
         !pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME) ||
         !pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey) ||
         !pgp_sig_add_issuer_keyid(sig, keyid) || !pgp_sig_end_hashed_subpkts(sig) ||
-        !pgp_sig_write(output, sig, &seckey->pubkey, seckey)) {
+        !pgp_sig_write(&ctx->rnp->drbg, output, sig, &seckey->pubkey, seckey)) {
         goto done;
     }
 
