@@ -606,25 +606,6 @@ pgp_check_direct_sig(const pgp_pubkey_t *key,
     return ret;
 }
 
-/**
- * \ingroup Core_Signature
- *
- * Verify a signature on a hash (the hash will have already been fed
- * the material that was being signed, for example signed cleartext).
- *
- * \param hash A hash structure of appropriate type that has been fed
- * the material to be signed. This MUST NOT have been finalised.
- * \param sig The signature to be verified.
- * \param signer The public key of the signer.
- * \return 1 if OK; else 0
- */
-bool
-pgp_check_hash_sig(pgp_hash_t *hash, const pgp_sig_t *sig, const pgp_pubkey_t *signer)
-{
-    return (sig->info.hash_alg == pgp_hash_alg_type(hash)) &&
-           finalise_sig(hash, sig, signer, NULL);
-}
-
 static void
 start_sig_in_mem(pgp_create_sig_t *sig)
 {
