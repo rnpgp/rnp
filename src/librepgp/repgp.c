@@ -371,9 +371,9 @@ end:
 }
 
 rnp_result_t
-repgp_validate_pubkeys_signatures(const void *ctx)
+repgp_validate_pubkeys_signatures(void *ctx)
 {
-    const struct rnp_ctx_t *rctx = (rnp_ctx_t *) ctx;
+    struct rnp_ctx_t *rctx = (rnp_ctx_t *) ctx;
     if (!rctx || !rctx->rnp) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -381,6 +381,7 @@ repgp_validate_pubkeys_signatures(const void *ctx)
     const rnp_key_store_t *ring = rctx->rnp->pubring;
     pgp_validation_t       result = {0};
     bool                   ret = true;
+    result.rnp_ctx = rctx;
     for (size_t n = 0; n < ring->keyc; ++n) {
         ret &= pgp_validate_key_sigs(
           &result, &ring->keys[n], ring, NULL /* no pwd callback; validating public keys */);

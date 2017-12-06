@@ -80,6 +80,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "crypto/eddsa.h"
 #include "crypto/elgamal.h"
 #include "crypto/rsa.h"
+#include "crypto/rng.h"
 #include "crypto/sm2.h"
 #include "crypto.h"
 #include "fingerprint.h"
@@ -101,8 +102,9 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 \note only RSA at present
 */
 int
-pgp_decrypt_decode_mpi(uint8_t *           buf,
-                       unsigned            buflen,
+pgp_decrypt_decode_mpi(struct rng_t *      rng,
+                       uint8_t *           buf,
+                       size_t              buflen,
                        const BIGNUM *      g_to_k,
                        const BIGNUM *      encmpi,
                        const pgp_seckey_t *seckey)
@@ -128,9 +130,8 @@ pgp_decrypt_decode_mpi(uint8_t *           buf,
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "encrypted", encmpibuf, 16);
         }
-
         n = pgp_rsa_decrypt_pkcs1(
-          buf, buflen, encmpibuf, encmpi_byte_len, &seckey->key.rsa, &seckey->pubkey.key.rsa);
+          rng, buf, buflen, encmpibuf, encmpi_byte_len, &seckey->key.rsa, &seckey->pubkey.key.rsa);
         if (n <= 0) {
             RNP_LOG("ops_rsa_private_decrypt failure");
             return -1;
@@ -227,10 +228,11 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     seckey->pubkey.version = PGP_V4;
     seckey->pubkey.birthtime = time(NULL);
     seckey->pubkey.alg = crypto->key_alg;
+    struct rng_t *rng = crypto->rng;
 
     switch (seckey->pubkey.alg) {
     case PGP_PKA_RSA:
-        if (pgp_genkey_rsa(seckey, crypto->rsa.modulus_bit_len) != 1) {
+        if (pgp_genkey_rsa(rng, seckey, crypto->rsa.modulus_bit_len) != 1) {
             RNP_LOG("failed to generate RSA key");
             goto end;
         }
@@ -483,6 +485,12 @@ pgp_decrypt_file(pgp_io_t *                     io,
         perror(infile);
         return false;
     }
+
+    if (!rng_init(&parse->decrypt.rng, RNG_DRBG)) {
+        RNP_LOG("RNG init failed");
+        return false;
+    }
+
     /* setup output filename */
     if (outfile) {
         fd_out = pgp_setup_file_write(NULL, &parse->cbinfo.output, outfile, allow_overwrite);

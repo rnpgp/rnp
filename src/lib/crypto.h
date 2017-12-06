@@ -65,6 +65,7 @@
 #include "memory.h"
 #include "symmetric.h"
 #include "crypto/bn.h"
+#include "crypto/rng.h"
 #include <rekey/rnp_key_store.h>
 
 #define PGP_MIN_HASH_SIZE 16
@@ -118,6 +119,7 @@ bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
 
 /** generate a new primary key and subkey
  *
+ *  @param rng initialized RNG
  *  @param primary_desc primary keygen description
  *  @param subkey_desc subkey keygen description
  *  @param merge_defaults true if you want defaults to be set for unset
@@ -128,7 +130,8 @@ bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
  *  @param subkey_pub pointer to store the generated public key, must not be NULL
  *  @return true if successful, false otherwise.
  **/
-bool pgp_generate_keypair(rnp_keygen_primary_desc_t *primary_desc,
+bool pgp_generate_keypair(struct rng_t *             rng,
+                          rnp_keygen_primary_desc_t *primary_desc,
                           rnp_keygen_subkey_desc_t * subkey_desc,
                           bool                       merge_defaults,
                           pgp_key_t *                primary_sec,
@@ -145,7 +148,7 @@ int  pgp_reader_push_hash(pgp_stream_t *, pgp_hash_t *);
 void pgp_reader_pop_hash(pgp_stream_t *);
 
 int pgp_decrypt_decode_mpi(
-  uint8_t *, unsigned, const BIGNUM *, const BIGNUM *, const pgp_seckey_t *);
+  struct rng_t *, uint8_t *, size_t, const BIGNUM *, const BIGNUM *, const pgp_seckey_t *);
 
 /* Encrypt everything that's written */
 struct pgp_key_data;

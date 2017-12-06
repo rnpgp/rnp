@@ -642,8 +642,13 @@ signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t 
         break;
     }
     case PGP_PKA_RSA: {
-        ret = pgp_rsa_pkcs1_verify_hash(
-          sig->material.rsa.s, sig->material.rsa.slen, sig->halg, hval, len, &key->key.rsa);
+        ret = pgp_rsa_pkcs1_verify_hash(&param->ctx->handler.ctx->rnp->drbg,
+                                        sig->material.rsa.s,
+                                        sig->material.rsa.slen,
+                                        sig->halg,
+                                        hval,
+                                        len,
+                                        &key->key.rsa);
         break;
     }
     case PGP_PKA_ECDSA: {
@@ -1143,7 +1148,10 @@ encrypted_decrypt_header(pgp_source_t *src, pgp_symm_alg_t alg, uint8_t *key)
 }
 
 static bool
-encrypted_try_key(pgp_source_t *src, pgp_pk_sesskey_pkt_t *sesskey, pgp_seckey_t *seckey)
+encrypted_try_key(pgp_source_t *        src,
+                  pgp_pk_sesskey_pkt_t *sesskey,
+                  pgp_seckey_t *        seckey,
+                  struct rng_t *        rng)
 {
     uint8_t           decbuf[PGP_MPINT_SIZE];
     rnp_result_t      err;
@@ -1158,7 +1166,8 @@ encrypted_try_key(pgp_source_t *src, pgp_pk_sesskey_pkt_t *sesskey, pgp_seckey_t
     /* Decrypting session key value */
     switch (sesskey->alg) {
     case PGP_PKA_RSA:
-        declen = pgp_rsa_decrypt_pkcs1(decbuf,
+        declen = pgp_rsa_decrypt_pkcs1(rng,
+                                       decbuf,
                                        sizeof(decbuf),
                                        sesskey->params.rsa.m,
                                        sesskey->params.rsa.mlen,
@@ -1652,7 +1661,10 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             }
 
             /* Try to initialize the decryption */
-            if (encrypted_try_key(src, (pgp_pk_sesskey_pkt_t *) pe, decrypted_seckey)) {
+            if (encrypted_try_key(src,
+                                  (pgp_pk_sesskey_pkt_t *) pe,
+                                  decrypted_seckey,
+                                  &ctx->handler.ctx->rnp->drbg)) {
                 have_key = true;
             }
 

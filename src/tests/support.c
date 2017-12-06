@@ -50,6 +50,8 @@
 #include <sys/stat.h>
 #include <botan/ffi.h>
 
+extern struct rng_t global_rng;
+
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .
  */
@@ -437,10 +439,12 @@ set_default_rsa_key_desc(rnp_action_keygen_t *action, pgp_hash_alg_t hashalg)
     primary->crypto.key_alg = PGP_PKA_RSA;
     primary->crypto.rsa.modulus_bit_len = 1024;
     primary->crypto.hash_alg = hashalg;
+    primary->crypto.rng = &global_rng;
 
     subkey->crypto.key_alg = PGP_PKA_RSA;
     subkey->crypto.rsa.modulus_bit_len = 1024;
     subkey->crypto.hash_alg = hashalg;
+    subkey->crypto.rng = &global_rng;
 }
 
 // this is a password callback that will always fail

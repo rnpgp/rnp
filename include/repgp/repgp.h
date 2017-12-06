@@ -222,6 +222,6 @@ rnp_result_t repgp_list_packets(const void *          ctx,
  *          RNP_ERROR_GENERIC at least one signature is invalid
  *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
  */
-rnp_result_t repgp_validate_pubkeys_signatures(const void *ctx);
+rnp_result_t repgp_validate_pubkeys_signatures(void *ctx);
 
 #endif /* REPGP_H_ */

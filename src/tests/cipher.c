@@ -144,8 +144,10 @@ pkcs1_rsa_test_success(void **state)
     const pgp_rsa_pubkey_t *pub_rsa;
     const pgp_rsa_seckey_t *sec_rsa;
 
-    const rnp_keygen_crypto_params_t key_desc = {
-      .key_alg = PGP_PKA_RSA, .hash_alg = PGP_HASH_SHA256, .rsa = {.modulus_bit_len = 1024}};
+    const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_RSA,
+                                                 .hash_alg = PGP_HASH_SHA256,
+                                                 .rsa = {.modulus_bit_len = 1024},
+                                                 .rng = &global_rng};
     sec_key = calloc(1, sizeof(*sec_key));
     assert_non_null(sec_key);
     assert_true(pgp_generate_seckey(&key_desc, sec_key));
@@ -184,8 +186,8 @@ pkcs1_rsa_test_success(void **state)
     rnp_assert_int_equal(rstate, ctext_size, 1024 / 8);
 
     memset(decrypted, 0, sizeof(decrypted));
-    decrypted_size =
-      pgp_rsa_decrypt_pkcs1(decrypted, sizeof(decrypted), ctext, ctext_size, sec_rsa, pub_rsa);
+    decrypted_size = pgp_rsa_decrypt_pkcs1(
+      &global_rng, decrypted, sizeof(decrypted), ctext, ctext_size, sec_rsa, pub_rsa);
 
 #if defined(DEBUG_PRINT)
     tmp = hex_encode(ctext, ctext_size);
@@ -207,8 +209,8 @@ void
 rnp_test_eddsa(void **state)
 {
     rnp_test_state_t *               rstate = *state;
-    const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_EDDSA,
-                                                 .hash_alg = PGP_HASH_SHA256};
+    const rnp_keygen_crypto_params_t key_desc = {
+      .key_alg = PGP_PKA_EDDSA, .hash_alg = PGP_HASH_SHA256, .rng = &global_rng};
 
     pgp_seckey_t *seckey = calloc(1, sizeof(*seckey));
     assert_non_null(seckey);
@@ -351,7 +353,8 @@ ecdsa_signverify_success(void **state)
         pgp_ecc_sig_t                    sig = {NULL, NULL};
         const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDSA,
                                                      .hash_alg = PGP_HASH_SHA512,
-                                                     .ecc = {.curve = curves[i].id}};
+                                                     .ecc = {.curve = curves[i].id},
+                                                     .rng = &global_rng};
 
         pgp_seckey_t *seckey1 = calloc(1, sizeof(*seckey1));
         assert_non_null(seckey1);
@@ -419,7 +422,8 @@ ecdh_roundtrip(void **state)
     for (size_t i = 0; i < ARRAY_SIZE(curves); i++) {
         const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDH,
                                                      .hash_alg = PGP_HASH_SHA512,
-                                                     .ecc = {.curve = curves[i].id}};
+                                                     .ecc = {.curve = curves[i].id},
+                                                     .rng = &global_rng};
 
         const size_t expected_result_byte_size = curves[i].size * 2 + 1;
         pgp_seckey_t ecdh_key1;
@@ -480,7 +484,8 @@ ecdh_decryptionNegativeCases(void **state)
 
     const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDH,
                                                  .hash_alg = PGP_HASH_SHA512,
-                                                 .ecc = {.curve = PGP_CURVE_NIST_P_256}};
+                                                 .ecc = {.curve = PGP_CURVE_NIST_P_256},
+                                                 .rng = &global_rng};
 
     const size_t expected_result_byte_size = 32 * 2 + 1;
     pgp_seckey_t ecdh_key1;
@@ -617,8 +622,10 @@ sm2_roundtrip(void **state)
     uint8_t ctext_buf[1024];
     uint8_t decrypted[27];
 
-    const rnp_keygen_crypto_params_t key_desc = {
-      .key_alg = PGP_PKA_SM2, .hash_alg = PGP_HASH_SM3, .ecc = {.curve = PGP_CURVE_SM2_P_256}};
+    const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_SM2,
+                                                 .hash_alg = PGP_HASH_SM3,
+                                                 .ecc = {.curve = PGP_CURVE_SM2_P_256},
+                                                 .rng = &global_rng};
 
     pgp_seckey_t *sec_key = calloc(1, sizeof(*sec_key));
     assert_non_null(sec_key);

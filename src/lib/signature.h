@@ -68,25 +68,26 @@ typedef struct pgp_create_sig_t pgp_create_sig_t;
 pgp_create_sig_t *pgp_create_sig_new(void);
 void              pgp_create_sig_delete(pgp_create_sig_t *);
 
-bool pgp_check_useridcert_sig(const pgp_pubkey_t *,
+bool pgp_check_useridcert_sig(rnp_ctx_t *,
+                              const pgp_pubkey_t *,
                               const uint8_t *,
                               const pgp_sig_t *,
                               const pgp_pubkey_t *,
                               const uint8_t *);
-bool pgp_check_userattrcert_sig(const pgp_pubkey_t *,
+bool pgp_check_userattrcert_sig(rnp_ctx_t *,
+                                const pgp_pubkey_t *,
                                 const pgp_data_t *,
                                 const pgp_sig_t *,
                                 const pgp_pubkey_t *,
                                 const uint8_t *);
-bool pgp_check_subkey_sig(const pgp_pubkey_t *,
+bool pgp_check_subkey_sig(rnp_ctx_t *,
+                          const pgp_pubkey_t *,
                           const pgp_pubkey_t *,
                           const pgp_sig_t *,
                           const pgp_pubkey_t *,
                           const uint8_t *);
-bool pgp_check_direct_sig(const pgp_pubkey_t *,
-                          const pgp_sig_t *,
-                          const pgp_pubkey_t *,
-                          const uint8_t *);
+bool pgp_check_direct_sig(
+  rnp_ctx_t *, const pgp_pubkey_t *, const pgp_sig_t *, const pgp_pubkey_t *, const uint8_t *);
 
 bool pgp_sig_start_key_sig(
   pgp_create_sig_t *, const pgp_pubkey_t *, const uint8_t *, pgp_sig_type_t, pgp_hash_alg_t);
@@ -103,7 +104,8 @@ void pgp_sig_start(pgp_create_sig_t *,
 void        pgp_sig_add_data(pgp_create_sig_t *, const void *, size_t);
 pgp_hash_t *pgp_sig_get_hash(pgp_create_sig_t *);
 unsigned    pgp_sig_end_hashed_subpkts(pgp_create_sig_t *);
-bool        pgp_sig_write(pgp_output_t *,
+bool        pgp_sig_write(struct rng_t *,
+                   pgp_output_t *,
                    pgp_create_sig_t *,
                    const pgp_pubkey_t *,
                    const pgp_seckey_t *);
@@ -141,7 +143,8 @@ rnp_result_t pgp_sign_memory_detached(rnp_ctx_t *         ctx,
                                       uint8_t **          sig_output,
                                       size_t *            sig_output_len);
 
-bool pgp_check_sig(const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
+bool pgp_check_sig(
+  struct rng_t *, const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 
 /* armored stuff */
 unsigned pgp_crc24(unsigned, uint8_t);

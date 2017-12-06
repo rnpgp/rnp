@@ -126,7 +126,9 @@ test_ffi_homedir(void **state)
     assert_int_equal(2, count);
     // check grip (1)
     rnp_key_handle_t key = NULL;
-    assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "grip", "63E59092E4B1AE9F8E675B2F98AA2B8BD9F4EA59", &key));
+    assert_int_equal(
+      RNP_SUCCESS,
+      rnp_locate_key(ffi, "grip", "63E59092E4B1AE9F8E675B2F98AA2B8BD9F4EA59", &key));
     assert_non_null(key);
     char *grip = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_key_get_grip(key, &grip));
@@ -136,7 +138,9 @@ test_ffi_homedir(void **state)
     rnp_key_handle_free(&key);
     // check grip (2)
     key = NULL;
-    assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "grip", "7EAB41A2F46257C36F2892696F5A2F0432499AD3", &key));
+    assert_int_equal(
+      RNP_SUCCESS,
+      rnp_locate_key(ffi, "grip", "7EAB41A2F46257C36F2892696F5A2F0432499AD3", &key));
     assert_non_null(key);
     grip = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_key_get_grip(key, &grip));
@@ -264,16 +268,18 @@ unused_getpasscb(
 }
 
 static int
-getpasscb(void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+getpasscb(
+  void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
 {
     strcpy(buf, (const char *) app_ctx);
     return 0;
 }
 
 static int
-getpasscb_once(void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+getpasscb_once(
+  void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
 {
-    const char **pass = (const char **)app_ctx;
+    const char **pass = (const char **) app_ctx;
     if (!*pass) {
         return 1;
     }
@@ -283,7 +289,10 @@ getpasscb_once(void *app_ctx, rnp_key_handle_t key, const char *pgp_context, cha
 }
 
 static void
-check_key_properties(rnp_key_handle_t key, bool primary_exptected, bool have_public_expected, bool have_secret_expected)
+check_key_properties(rnp_key_handle_t key,
+                     bool             primary_exptected,
+                     bool             have_public_expected,
+                     bool             have_secret_expected)
 {
     bool isprimary = !primary_exptected;
     assert_int_equal(RNP_SUCCESS, rnp_key_is_primary(key, &isprimary));
@@ -480,7 +489,7 @@ test_ffi_keygen_json_sub(void **state)
     rnp_buffer_free(results);
     // get a handle+grip for the primary
     rnp_key_handle_t primary = NULL;
-    char *primary_grip = NULL;
+    char *           primary_grip = NULL;
     {
         json_object *jsokey = NULL;
         assert_int_equal(TRUE, json_object_object_get_ex(parsed_results, "primary", &jsokey));
@@ -536,7 +545,7 @@ test_ffi_keygen_json_sub(void **state)
     parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
     rnp_buffer_free(results);
-    // get a handle for the sub 
+    // get a handle for the sub
     rnp_key_handle_t sub = NULL;
     {
         json_object *jsokey = NULL;
@@ -583,10 +592,8 @@ test_ffi_keygen_json_sub_pass_required(void **state)
 
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_int_equal(RNP_SUCCESS,
-                     rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
-    assert_int_equal(RNP_SUCCESS,
-                     rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
 
     // get keyrings
     assert_int_equal(RNP_SUCCESS, rnp_ffi_get_pubring(ffi, &pubring));
@@ -609,7 +616,7 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     rnp_buffer_free(results);
     // get a handle+grip for the primary
     rnp_key_handle_t primary = NULL;
-    char *primary_grip = NULL;
+    char *           primary_grip = NULL;
     {
         json_object *jsokey = NULL;
         assert_int_equal(TRUE, json_object_object_get_ex(parsed_results, "primary", &jsokey));
@@ -680,7 +687,7 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
     rnp_buffer_free(results);
-    // get a handle for the sub 
+    // get a handle for the sub
     rnp_key_handle_t sub = NULL;
     {
         json_object *jsokey = NULL;
@@ -722,7 +729,7 @@ test_ffi_encrypt_pass(void **state)
     rnp_input_t      input = NULL;
     rnp_output_t     output = NULL;
     rnp_op_encrypt_t op = NULL;
-    const char *plaintext = "data1";
+    const char *     plaintext = "data1";
 
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -756,10 +763,8 @@ test_ffi_encrypt_pass(void **state)
     // add password (using all defaults)
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_add_password(op, "pass1", NULL, 0, NULL));
     // add password
-    assert_int_equal(
-      RNP_SUCCESS,
-      rnp_op_encrypt_add_password(
-        op, "pass2", "SM3", 12345, "Twofish"));
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "Twofish"));
     // set the data encryption cipher
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_set_cipher(op, "CAST5"));
     // execute the operation
@@ -857,7 +862,7 @@ test_ffi_encrypt_pk(void **state)
     rnp_input_t      input = NULL;
     rnp_output_t     output = NULL;
     rnp_op_encrypt_t op = NULL;
-    const char *plaintext = "data1";
+    const char *     plaintext = "data1";
 
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));

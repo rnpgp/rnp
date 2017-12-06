@@ -1805,7 +1805,8 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
         pgp_key_t primary_sec = {0};
         pgp_key_t sub_pub = {0};
         pgp_key_t sub_sec = {0};
-        if (!pgp_generate_keypair(&primary_desc,
+        if (!pgp_generate_keypair(&ffi->rng,
+                                  &primary_desc,
                                   &sub_desc,
                                   true,
                                   &primary_sec,
@@ -1834,6 +1835,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             pgp_key_free_data(&sub_sec);
         }
     } else if (jsoprimary && !jsosub) { // generating primary only
+        primary_desc.crypto.rng = &ffi->rng;
         if (!parse_keygen_primary(jsoprimary, &primary_desc)) {
             ret = RNP_ERROR_BAD_FORMAT;
             goto done;
@@ -1904,6 +1906,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
                                                      .cb_data = ffi->getpasscb_ctx}};
         pgp_key_t sub_pub = {0};
         pgp_key_t sub_sec = {0};
+        sub_desc.crypto.rng = &ffi->rng;
         if (!pgp_generate_subkey(&sub_desc,
                                  true,
                                  primary_sec,
