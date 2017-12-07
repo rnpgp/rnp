@@ -30,7 +30,8 @@
 #include <stdint.h>
 #include "ec.h"
 
-rnp_result_t pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
+rnp_result_t pgp_ecdsa_sign_hash(struct rng_t *          rng,
+                                 pgp_ecc_sig_t *         sign,
                                  const uint8_t *         hashbuf,
                                  size_t                  hash_len,
                                  const pgp_ecc_seckey_t *prvkey,

@@ -371,7 +371,7 @@ ecdsa_signverify_success(void **state)
 
         rnp_assert_int_equal(
           rstate,
-          pgp_ecdsa_sign_hash(&sig, message, curves[i].size, prv_key1, pub_key1),
+          pgp_ecdsa_sign_hash(&global_rng, &sig, message, curves[i].size, prv_key1, pub_key1),
           RNP_SUCCESS);
 
         rnp_assert_int_equal(

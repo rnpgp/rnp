@@ -38,7 +38,8 @@
 #include "utils.h"
 
 rnp_result_t
-pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
+pgp_ecdsa_sign_hash(struct rng_t *          rng,
+                    pgp_ecc_sig_t *         sign,
                     const uint8_t *         hashbuf,
                     size_t                  hash_len,
                     const pgp_ecc_seckey_t *seckey,
@@ -46,7 +47,6 @@ pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
 {
     botan_pk_op_sign_t     signer = NULL;
     botan_privkey_t        key = NULL;
-    botan_rng_t            rng = NULL;
     rnp_result_t           ret = PGP_E_FAIL;
     uint8_t                out_buf[2 * MAX_CURVE_BYTELEN] = {0};
     const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
@@ -65,10 +65,6 @@ pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
         return RNP_ERROR_GENERIC;
     }
 
-    if (botan_rng_init(&rng, NULL)) {
-        goto end;
-    }
-
     if (botan_pk_op_sign_create(&signer, key, "Raw", 0)) {
         goto end;
     }
@@ -80,7 +76,7 @@ pgp_ecdsa_sign_hash(pgp_ecc_sig_t *         sign,
     }
 
     size_t sig_len = 2 * curve_order;
-    if (botan_pk_op_sign_finish(signer, rng, out_buf, &sig_len)) {
+    if (botan_pk_op_sign_finish(signer, rng_handle(rng), out_buf, &sig_len)) {
         RNP_LOG("Signing failed");
         goto end;
     }
@@ -101,7 +97,6 @@ end:
         BN_clear_free(sign->s);
     }
     botan_privkey_destroy(key);
-    botan_rng_destroy(rng);
     botan_pk_op_sign_destroy(signer);
 
     return ret;
