@@ -32,20 +32,16 @@
 #include <rnp/rnp_def.h>
 
 bool
-pgp_genkey_eddsa(pgp_seckey_t *seckey, size_t curve_len)
+pgp_genkey_eddsa(struct rng_t *rng, pgp_seckey_t *seckey, size_t curve_len)
 {
     if (curve_len != 255)
         return false;
 
     botan_privkey_t eddsa = NULL;
-    botan_rng_t     rng = NULL;
     bool            retval = false;
     uint8_t         key_bits[64];
 
-    if (botan_rng_init(&rng, NULL) != 0)
-        goto end;
-
-    if (botan_privkey_create(&eddsa, "Ed25519", NULL, rng) != 0)
+    if (botan_privkey_create(&eddsa, "Ed25519", NULL, rng_handle(rng)) != 0)
         goto end;
 
     if (botan_privkey_ed25519_get_privkey(eddsa, key_bits) != 0)
@@ -64,7 +60,6 @@ pgp_genkey_eddsa(pgp_seckey_t *seckey, size_t curve_len)
     retval = true;
 
 end:
-    botan_rng_destroy(rng);
     botan_privkey_destroy(eddsa);
     return retval;
 }
@@ -127,7 +122,8 @@ done:
 }
 
 int
-pgp_eddsa_sign_hash(BIGNUM *                r,
+pgp_eddsa_sign_hash(struct rng_t *          rng,
+                    BIGNUM *                r,
                     BIGNUM *                s,
                     const uint8_t *         hash,
                     size_t                  hash_len,
@@ -136,7 +132,6 @@ pgp_eddsa_sign_hash(BIGNUM *                r,
 {
     botan_privkey_t    eddsa = NULL;
     botan_pk_op_sign_t sign_op = NULL;
-    botan_rng_t        rng = NULL;
     int                result = -1;
     uint8_t            bn_buf[64] = {0};
     size_t             sz;
@@ -148,9 +143,6 @@ pgp_eddsa_sign_hash(BIGNUM *                r,
 
     // Unexpected size for Ed25519 key
     if (!BN_num_bytes(seckey->x, &sz) || (sz > 32))
-        goto done;
-
-    if (botan_rng_init(&rng, NULL) != 0)
         goto done;
 
     BN_bn2bin(seckey->x, bn_buf + (32 - sz));
@@ -165,7 +157,7 @@ pgp_eddsa_sign_hash(BIGNUM *                r,
         goto done;
 
     size_t sig_size = sizeof(bn_buf);
-    if (botan_pk_op_sign_finish(sign_op, rng, bn_buf, &sig_size) != 0)
+    if (botan_pk_op_sign_finish(sign_op, rng_handle(rng), bn_buf, &sig_size) != 0)
         goto done;
 
     // Unexpected size...
@@ -177,7 +169,6 @@ pgp_eddsa_sign_hash(BIGNUM *                r,
     result = 0;
 
 done:
-    botan_rng_destroy(rng);
     botan_pk_op_sign_destroy(sign_op);
     botan_privkey_destroy(eddsa);
     return result;

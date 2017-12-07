@@ -37,7 +37,7 @@
 * curve_len must be 255 currently (for Ed25519)
 * If Ed448 was supported in the future curve_len=448 would also be allowed.
 */
-bool pgp_genkey_eddsa(pgp_seckey_t *seckey, size_t numbits);
+bool pgp_genkey_eddsa(struct rng_t *rng, pgp_seckey_t *seckey, size_t numbits);
 
 int pgp_eddsa_verify_hash(const BIGNUM *          r,
                           const BIGNUM *          s,
@@ -45,7 +45,8 @@ int pgp_eddsa_verify_hash(const BIGNUM *          r,
                           size_t                  hash_len,
                           const pgp_ecc_pubkey_t *pubkey);
 
-int pgp_eddsa_sign_hash(BIGNUM *       r,
+int pgp_eddsa_sign_hash(struct rng_t * rng,
+                        BIGNUM *       r,
                         BIGNUM *       s,
                         const uint8_t *hash,
                         size_t         hash_len,

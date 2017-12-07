@@ -239,7 +239,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         break;
 
     case PGP_PKA_EDDSA:
-        if (!pgp_genkey_eddsa(seckey, get_curve_desc(PGP_CURVE_ED25519)->bitlen)) {
+        if (!pgp_genkey_eddsa(rng, seckey, get_curve_desc(PGP_CURVE_ED25519)->bitlen)) {
             RNP_LOG("failed to generate EDDSA key");
             goto end;
         }
