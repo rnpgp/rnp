@@ -368,19 +368,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.sigcreate = get_birthtime(rnp_cfg_get(cfg, CFG_BIRTHTIME));
         ctx.sigexpire = get_duration(rnp_cfg_get(cfg, CFG_DURATION));
         ctx.clearsign = cmd == CMD_CLEARSIGN;
-
-        /*if (f == NULL) {
-            cc = stdin_to_mem(cfg, &in, &out, &maxsize);
-            sz = rnp_sign_memory(&ctx, userid, in, cc, out, maxsize, clearsign);
-            ret = show_output(cfg, out, sz, "Bad memory signature");
-        } else {
-            ret = rnp_sign_file(&ctx,
-                                userid,
-                                f,
-                                rnp_cfg_get(cfg, CFG_OUTFILE),
-                                clearsign,
-                                rnp_cfg_getbool(cfg, CFG_DETACHED)) == RNP_SUCCESS;
-        }*/
+        ctx.detached = rnp_cfg_getbool(cfg, CFG_DETACHED);
 
         ret = rnp_sign_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
