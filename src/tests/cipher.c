@@ -223,7 +223,8 @@ rnp_test_eddsa(void **state)
 
     rnp_assert_int_equal(
       rstate,
-      pgp_eddsa_sign_hash(r, s, hash, sizeof(hash), &seckey->key.ecc, &seckey->pubkey.key.ecc),
+      pgp_eddsa_sign_hash(
+        &global_rng, r, s, hash, sizeof(hash), &seckey->key.ecc, &seckey->pubkey.key.ecc),
       0);
 
     rnp_assert_int_equal(

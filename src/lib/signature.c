@@ -305,7 +305,8 @@ sm2_sign(struct rng_t *          rng,
 }
 
 static bool
-eddsa_sign(pgp_hash_t *            hash,
+eddsa_sign(struct rng_t *          rng,
+           pgp_hash_t *            hash,
            const pgp_ecc_pubkey_t *pubkey,
            const pgp_ecc_seckey_t *seckey,
            pgp_output_t *          output)
@@ -325,7 +326,7 @@ eddsa_sign(pgp_hash_t *            hash,
         goto end;
     }
 
-    if (pgp_eddsa_sign_hash(r, s, hashbuf, hashsize, seckey, pubkey) < 0)
+    if (pgp_eddsa_sign_hash(rng, r, s, hashbuf, hashsize, seckey, pubkey) < 0)
         goto end;
 
     /* convert and write the sig out to memory */
@@ -883,7 +884,7 @@ pgp_sig_write(struct rng_t *      rng,
         break;
 
     case PGP_PKA_EDDSA:
-        if (!eddsa_sign(&sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
+        if (!eddsa_sign(rng, &sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
             RNP_LOG("eddsa_sign failure");
             return false;
         }
