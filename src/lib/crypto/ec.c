@@ -111,7 +111,8 @@ ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey)
 }
 
 rnp_result_t
-pgp_genkey_ec_uncompressed(pgp_seckey_t *         seckey,
+pgp_genkey_ec_uncompressed(struct rng_t *         rng,
+                           pgp_seckey_t *         seckey,
                            const pgp_pubkey_alg_t alg_id,
                            const pgp_curve_t      curve)
 {
@@ -124,7 +125,6 @@ pgp_genkey_ec_uncompressed(pgp_seckey_t *         seckey,
     uint8_t         point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
     botan_privkey_t pr_key = NULL;
     botan_pubkey_t  pu_key = NULL;
-    botan_rng_t     rng = NULL;
     BIGNUM *        public_x = NULL;
     BIGNUM *        public_y = NULL;
     rnp_result_t    ret = RNP_ERROR_KEY_GENERATION;
@@ -136,13 +136,11 @@ pgp_genkey_ec_uncompressed(pgp_seckey_t *         seckey,
     }
     const size_t filed_byte_size = BITS_TO_BYTES(ec_desc->bitlen);
 
-    if (botan_rng_init(&rng, NULL)) {
-        goto end;
-    }
-
     // at this point it must succeed
-    if (botan_privkey_create(
-          &pr_key, pgp_str_from_map(alg_id, ec_algo_to_botan), ec_desc->botan_name, rng)) {
+    if (botan_privkey_create(&pr_key,
+                             pgp_str_from_map(alg_id, ec_algo_to_botan),
+                             ec_desc->botan_name,
+                             rng_handle(rng))) {
         goto end;
     }
 
@@ -206,9 +204,6 @@ pgp_genkey_ec_uncompressed(pgp_seckey_t *         seckey,
     ret = RNP_SUCCESS;
 
 end:
-    if (rng != NULL) {
-        botan_rng_destroy(rng);
-    }
     if (pr_key != NULL) {
         botan_privkey_destroy(pr_key);
     }

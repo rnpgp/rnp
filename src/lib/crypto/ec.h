@@ -33,6 +33,7 @@
 #include <rnp/rnp_sdk.h>
 #include <repgp/repgp_def.h>
 #include "crypto/bn.h"
+#include "crypto/rng.h"
 
 typedef struct pgp_seckey_t pgp_seckey_t;
 
@@ -120,6 +121,7 @@ const ec_curve_desc_t *get_curve_desc(const pgp_curve_t curve_id);
 /*
  * @brief   Generates EC key in uncompressed format
  *
+ * @param   rng initialized rng_t context
  * @param   seckey[out] private part of the key
  * @param   alg_id ID of EC algorithm
  * @param   curve underlying ECC curve ID
@@ -130,7 +132,8 @@ const ec_curve_desc_t *get_curve_desc(const pgp_curve_t curve_id);
  * @returns RNP_ERROR_OUT_OF_MEMORY memory allocation failed
  * @returns RNP_ERROR_KEY_GENERATION implementation error
  */
-rnp_result_t pgp_genkey_ec_uncompressed(pgp_seckey_t *         seckey,
+rnp_result_t pgp_genkey_ec_uncompressed(struct rng_t *         rng,
+                                        pgp_seckey_t *         seckey,
                                         const pgp_pubkey_alg_t alg_id,
                                         const pgp_curve_t      curve);
 
