@@ -165,15 +165,6 @@ PGPV_BN_cmp(PGPV_BIGNUM *a, PGPV_BIGNUM *b)
 }
 
 int
-PGPV_BN_mod_exp(PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM *P)
-{
-    if (Y == NULL || G == NULL || X == NULL || P == NULL) {
-        return -1;
-    }
-    return botan_mp_powmod(Y->mp, G->mp, X->mp, P->mp) == 0;
-}
-
-int
 PGPV_BN_print_fp(FILE *fp, const PGPV_BIGNUM *a)
 {
     int    ret;
@@ -196,40 +187,6 @@ PGPV_BN_print_fp(FILE *fp, const PGPV_BIGNUM *a)
     ret = fprintf(fp, "%s", buf);
     free(buf);
     return ret;
-}
-
-int
-PGPV_BN_rand(PGPV_BIGNUM *rnd, int bits, int top, int bottom)
-{
-    int rc;
-
-    if (rnd == NULL) {
-        return 0;
-    }
-
-    {
-        botan_rng_t rng;
-        rc = botan_rng_init(&rng, NULL);
-        if (rc == 0) {
-            rc = botan_mp_rand_bits(rnd->mp, rng, bits);
-            botan_rng_destroy(rng);
-        }
-    }
-
-    if (rc < 0) {
-        return 0;
-    }
-
-    if (top == 0) {
-        botan_mp_set_bit(rnd->mp, bits);
-    } else if (top == 1) {
-        botan_mp_set_bit(rnd->mp, bits);
-        botan_mp_set_bit(rnd->mp, bits - 1);
-    }
-    if (bottom) {
-        botan_mp_set_bit(rnd->mp, 0);
-    }
-    return 1;
 }
 
 char *
@@ -264,52 +221,6 @@ PGPV_BN_bn2hex(const PGPV_BIGNUM *a)
     return NULL;
 }
 
-int
-PGPV_BN_set_word(PGPV_BIGNUM *a, PGPV_BN_ULONG w)
-{
-    if (a == NULL) {
-        return -1;
-    }
-    /* FIXME: w is treated as signed int here */
-    return botan_mp_set_from_int(a->mp, w);
-}
-
-int
-PGPV_BN_is_zero(const PGPV_BIGNUM *n)
-{
-    if (n == NULL) {
-        return -1;
-    }
-    return botan_mp_is_zero(n->mp);
-}
-
-int
-PGPV_BN_is_prime(const PGPV_BIGNUM *a,
-                 int                checks,
-                 void (*callback)(int, int, void *),
-                 void *cb_arg)
-{
-    int ret;
-    int test_prob;
-
-    if (a == NULL || checks <= 0) {
-        return -1;
-    }
-    USE_ARG(cb_arg);
-    USE_ARG(callback);
-
-    test_prob = 4 * checks;
-
-    {
-        botan_rng_t rng;
-        botan_rng_init(&rng, NULL);
-        ret = botan_mp_is_prime(a->mp, rng, test_prob);
-        botan_rng_destroy(rng);
-    }
-
-    return ret;
-}
-
 /* hash a bignum, possibly padded - first length, then string itself */
 size_t
 BN_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash)
@@ -342,4 +253,32 @@ BN_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash)
 
     free(bn);
     return ret ? (4 + len + padbyte) : 0;
+}
+
+int
+PGPV_BN_is_zero(const PGPV_BIGNUM *n)
+{
+    if (n == NULL) {
+        return -1;
+    }
+    return botan_mp_is_zero(n->mp);
+}
+
+int
+PGPV_BN_set_word(PGPV_BIGNUM *a, PGPV_BN_ULONG w)
+{
+    if (a == NULL) {
+        return -1;
+    }
+    /* FIXME: w is treated as signed int here */
+    return botan_mp_set_from_int(a->mp, w);
+}
+
+int
+PGPV_BN_mod_exp(PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM *P)
+{
+    if (Y == NULL || G == NULL || X == NULL || P == NULL) {
+        return -1;
+    }
+    return botan_mp_powmod(Y->mp, G->mp, X->mp, P->mp) == 0;
 }

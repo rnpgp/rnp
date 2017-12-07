@@ -34,7 +34,6 @@
 
 #ifdef USE_BN_INTERFACE
 #define BIGNUM PGPV_BIGNUM
-#define BN_is_zero PGPV_BN_is_zero
 #define BN_new PGPV_BN_new
 #define BN_dup PGPV_BN_dup
 #define BN_bin2bn PGPV_BN_bin2bn
@@ -46,18 +45,15 @@
 #define BN_cmp PGPV_BN_cmp
 #define BN_bn2bin PGPV_BN_bn2bin
 #define BN_print_fp PGPV_BN_print_fp
+#define BN_bn2hex PGPV_BN_bn2hex
+#define BN_is_zero PGPV_BN_is_zero
 #define BN_set_word PGPV_BN_set_word
 #define BN_mod_exp PGPV_BN_mod_exp
-#define BN_mod_sub PGPV_BN_mod_sub
-#define BN_raise PGPV_BN_raise
-#define BN_factorial PGPV_BN_factorial
-#define BN_rand PGPV_BN_rand
-#define BN_is_prime PGPV_BN_is_prime
-#define BN_bn2hex PGPV_BN_bn2hex
 #endif /* USE_BN_INTERFACE */
 
 typedef struct botan_mp_struct *botan_mp_t;
 typedef struct pgp_hash_t       pgp_hash_t;
+typedef uint32_t                PGPV_BN_ULONG;
 
 /*
  * PGPV_BIGNUM struct
@@ -91,14 +87,12 @@ void PGPV_BN_clear_free(PGPV_BIGNUM * /*a*/);
 
 int PGPV_BN_cmp(PGPV_BIGNUM * /*a*/, PGPV_BIGNUM * /*b*/);
 
-int PGPV_BN_is_zero(const PGPV_BIGNUM *n);
-
 PGPV_BIGNUM *PGPV_BN_bin2bn(const uint8_t * /*buf*/, int /*size*/, PGPV_BIGNUM * /*bn*/);
 int          PGPV_BN_bn2bin(const PGPV_BIGNUM * /*a*/, unsigned char * /*b*/);
 int          PGPV_BN_print_fp(FILE * /*fp*/, const PGPV_BIGNUM * /*a*/);
-
-typedef uint32_t PGPV_BN_ULONG;
-int              PGPV_BN_set_word(PGPV_BIGNUM * /*a*/, PGPV_BN_ULONG /*w*/);
+int PGPV_BN_is_zero(const PGPV_BIGNUM *n);
+int PGPV_BN_set_word(PGPV_BIGNUM *a, PGPV_BN_ULONG w);
+int PGPV_BN_mod_exp(PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM *P);
 
 /*
  * @param a Initialized PGPV_BIGNUM structure
@@ -115,16 +109,6 @@ bool BN_num_bits(const PGPV_BIGNUM *a, size_t *bits);
  */
 bool BN_num_bytes(const PGPV_BIGNUM *a, size_t *bytes);
 
-int PGPV_BN_mod_exp(PGPV_BIGNUM * /*r*/,
-                    PGPV_BIGNUM * /*a*/,
-                    PGPV_BIGNUM * /*p*/,
-                    PGPV_BIGNUM * /*m*/);
-int PGPV_BN_rand(PGPV_BIGNUM * /*rnd*/, int /*bits*/, int /*top*/, int /*bottom*/);
-
-int PGPV_BN_is_prime(const PGPV_BIGNUM * /*a*/,
-                     int /*checks*/,
-                     void (*callback)(int, int, void *),
-                     void * /*cb_arg*/);
 /*
  * @brief Produces hash of any size bignum.
  *
