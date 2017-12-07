@@ -1954,7 +1954,7 @@ rnp_encrypt_set_pass_info(rnp_symmetric_pass_info_t *info,
     info->s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
     info->s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
     info->s2k.hash_alg = hash_alg;
-    if (pgp_random(info->s2k.salt, sizeof(info->s2k.salt))) {
+    if (!rng_generate(info->s2k.salt, sizeof(info->s2k.salt))) {
         return RNP_ERROR_GENERIC;
     }
     info->s2k.iterations = pgp_s2k_encode_iterations(iterations);

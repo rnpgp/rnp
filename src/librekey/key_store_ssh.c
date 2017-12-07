@@ -361,8 +361,8 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
     key->key.seckey.protection.s2k.specifier = PGP_S2KS_SALTED;
     key->key.seckey.protection.s2k.hash_alg = PGP_HASH_SHA1;
 
-    if (pgp_random(key->key.seckey.protection.s2k.salt, PGP_SALT_SIZE)) {
-        (void) fprintf(stderr, "pgp_random failed\n");
+    if (!rng_generate(key->key.seckey.protection.s2k.salt, PGP_SALT_SIZE)) {
+        RNP_LOG("rng_generate failed");
         return false;
     }
 

@@ -317,8 +317,8 @@ write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const ch
 
     // salt
     if (seckey->protection.s2k.specifier != PGP_S2KS_SIMPLE) {
-        if (pgp_random(seckey->protection.s2k.salt, PGP_SALT_SIZE)) {
-            RNP_LOG("pgp_random failed");
+        if (!rng_generate(seckey->protection.s2k.salt, PGP_SALT_SIZE)) {
+            RNP_LOG("rng_generate failed");
             goto done;
         }
         if (!pgp_write(output, seckey->protection.s2k.salt, PGP_SALT_SIZE)) {
@@ -342,7 +342,7 @@ write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const ch
     }
 
     // randomize and write IV
-    if (pgp_random(seckey->protection.iv, block_size)) {
+    if (!rng_generate(seckey->protection.iv, block_size)) {
         goto done;
     }
     if (!pgp_write(output, seckey->protection.iv, block_size)) {
@@ -848,8 +848,8 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher, struct 
     }
     sesskey->alg = pubkey->alg;
     sesskey->symm_alg = cipher;
-    if (pgp_random(sesskey->key, sz_cipher_key)) {
-        (void) fprintf(stderr, "pgp_random failed\n");
+    if (!rng_generate(sesskey->key, sz_cipher_key)) {
+        RNP_LOG("rng_generate failed");
         goto error;
     }
 

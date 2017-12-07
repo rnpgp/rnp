@@ -1274,11 +1274,16 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passwor
     }
 
     // randomize IV and salt
-    if (pgp_random(&seckey->protection.iv[0], sizeof(seckey->protection.iv)) ||
-        pgp_random(&seckey->protection.s2k.salt[0], sizeof(seckey->protection.s2k.salt))) {
-        RNP_LOG("pgp_random failed");
+    struct rng_t rng;
+    if (!rng_init(&rng, RNG_SYSTEM) ||
+        !rng_get_data(&rng, &seckey->protection.iv[0], sizeof(seckey->protection.iv)) ||
+        !rng_get_data(
+          &rng, &seckey->protection.s2k.salt[0], sizeof(seckey->protection.s2k.salt))) {
+        rng_destroy(&rng);
+        RNP_LOG("rng_generate failed");
         return false;
     }
+    rng_destroy(&rng);
 
     if (!add_sub_sexp_to_sexp(&raw_s_exp, &sub_s_exp)) {
         destroy_s_exp(&raw_s_exp);
