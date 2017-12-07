@@ -563,7 +563,7 @@ init_new_io(rnp_t *rnp, const char *outs, const char *errs, const char *ress)
 rnp_result_t
 rnp_init(rnp_t *rnp, const rnp_params_t *params)
 {
-    bool      coredumps = false;
+    bool      coredumps = true;
     pgp_io_t *io;
 
     /* If system resource constraints are in effect then attempt to
@@ -571,13 +571,14 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
      */
     if (!params->enable_coredumps) {
 #ifdef HAVE_SYS_RESOURCE_H
-        coredumps = (RNP_SUCCESS == disable_core_dumps());
+        coredumps = disable_core_dumps() != RNP_SUCCESS;
 #endif
     }
 
     if (coredumps) {
-        fputs("rnp: warning: core dumps enabled, sensitive data may be leaked to disk\n",
-              stderr);
+        fputs(
+          "rnp: warning: core dumps may be enabled, sensitive data may be leaked to disk\n",
+          stderr);
     }
 
     /* Initialize the context's io streams apparatus. */
