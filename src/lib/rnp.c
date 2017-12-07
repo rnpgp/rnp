@@ -1155,8 +1155,7 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *
 rnp_result_t
 rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
 {
-    int      realarmor;
-    unsigned sshkeys;
+    int realarmor;
 
     if (f == NULL) {
         RNP_LOG("No filename specified");
@@ -1168,17 +1167,8 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    sshkeys = (unsigned) use_ssh_keys(ctx->rnp);
-    const bool ret = pgp_decrypt_file(ctx->rnp->io,
-                                      f,
-                                      out,
-                                      ctx->rnp->secring,
-                                      ctx->rnp->pubring,
-                                      realarmor,
-                                      1,
-                                      sshkeys,
-                                      ctx->rnp->pswdtries,
-                                      &ctx->rnp->password_provider);
+    bool       sshkeys = (unsigned) use_ssh_keys(ctx->rnp);
+    const bool ret = pgp_decrypt_file(ctx, f, out, realarmor, 1, sshkeys);
 
     return ret ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 }
@@ -1832,7 +1822,6 @@ rnp_decrypt_memory(
     pgp_memory_t *mem;
     int           realarmor;
     unsigned      sshkeys;
-    int           attempts;
 
     if (input == NULL) {
         RNP_LOG("Input NULL");
@@ -1843,17 +1832,9 @@ rnp_decrypt_memory(
         RNP_LOG("Can't figure out file format");
         return RNP_ERROR_BAD_PARAMETERS;
     }
+
     sshkeys = (unsigned) use_ssh_keys(ctx->rnp);
-    attempts = ctx->rnp->pswdtries;
-    mem = pgp_decrypt_buf(ctx->rnp->io,
-                          input,
-                          insize,
-                          ctx->rnp->secring,
-                          ctx->rnp->pubring,
-                          realarmor,
-                          sshkeys,
-                          attempts,
-                          &ctx->rnp->password_provider);
+    mem = pgp_decrypt_buf(ctx, input, insize, realarmor, sshkeys);
     if (mem == NULL) {
         return RNP_ERROR_OUT_OF_MEMORY;
     } else if (*outsize <
