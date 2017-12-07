@@ -463,16 +463,12 @@ pgp_encrypt_buf(rnp_ctx_t *         ctx,
 */
 
 bool
-pgp_decrypt_file(pgp_io_t *                     io,
-                 const char *                   infile,
-                 const char *                   outfile,
-                 rnp_key_store_t *              secring,
-                 rnp_key_store_t *              pubring,
-                 const unsigned                 use_armor,
-                 const unsigned                 allow_overwrite,
-                 const unsigned                 sshkeys,
-                 int                            numtries,
-                 const pgp_password_provider_t *password_provider)
+pgp_decrypt_file(rnp_ctx_t *    rnpctx,
+                 const char *   infile,
+                 const char *   outfile,
+                 const unsigned use_armor,
+                 const unsigned allow_overwrite,
+                 bool           sshkeys)
 {
     pgp_stream_t *parse = NULL;
     const int     printerrors = 1;
@@ -481,19 +477,19 @@ pgp_decrypt_file(pgp_io_t *                     io,
     int           fd_out;
     int           ret;
 
+    pgp_io_t *                     io = rnpctx->rnp->io;
+    rnp_key_store_t *              secring = rnpctx->rnp->secring;
+    rnp_key_store_t *              pubring = rnpctx->rnp->pubring;
+    const int                      numtries = rnpctx->rnp->pswdtries;
+    const pgp_password_provider_t *password_provider = &rnpctx->rnp->password_provider;
+
     /* setup for reading from given input file */
     fd_in = pgp_setup_file_read(io, &parse, infile, NULL, write_parsed_cb, 0);
     if (fd_in < 0) {
         perror(infile);
         return false;
     }
-
-    // OZAPTF: This function should accept rnp_ctx as a param
-    if (!rng_init(&parse->decrypt.rng, RNG_DRBG)) {
-        RNP_LOG("RNG init failed");
-        return false;
-    }
-
+    parse->decrypt.rng = rnp_ctx_rng_handle(rnpctx);
     /* setup output filename */
     if (outfile) {
         fd_out = pgp_setup_file_write(NULL, &parse->cbinfo.output, outfile, allow_overwrite);
@@ -572,20 +568,22 @@ pgp_decrypt_file(pgp_io_t *                     io,
 
 /* decrypt an area of memory */
 pgp_memory_t *
-pgp_decrypt_buf(pgp_io_t *                     io,
-                const void *                   input,
-                const size_t                   insize,
-                rnp_key_store_t *              secring,
-                rnp_key_store_t *              pubring,
-                const unsigned                 use_armor,
-                const unsigned                 sshkeys,
-                int                            numtries,
-                const pgp_password_provider_t *password_provider)
+pgp_decrypt_buf(rnp_ctx_t *    rnpctx,
+                const void *   input,
+                const size_t   insize,
+                const unsigned use_armor,
+                bool           sshkeys)
 {
     pgp_stream_t *parse = NULL;
     pgp_memory_t *outmem;
     pgp_memory_t *inmem;
-    const int     printerrors = 1;
+
+    const int                      printerrors = 1;
+    pgp_io_t *                     io = rnpctx->rnp->io;
+    rnp_key_store_t *              secring = rnpctx->rnp->secring;
+    rnp_key_store_t *              pubring = rnpctx->rnp->pubring;
+    const int                      numtries = rnpctx->rnp->pswdtries;
+    const pgp_password_provider_t *password_provider = &rnpctx->rnp->password_provider;
 
     if (input == NULL) {
         RNP_LOG_FD(io->errs, "null memory");
@@ -608,6 +606,7 @@ pgp_decrypt_buf(pgp_io_t *                     io,
         return NULL;
     }
 
+    parse->decrypt.rng = rnp_ctx_rng_handle(rnpctx);
     /* setup for writing decrypted contents to given output file */
     if (!pgp_setup_memory_write(NULL, &parse->cbinfo.output, &outmem, insize)) {
         RNP_LOG_FD(io->errs, "can't setup memory write");

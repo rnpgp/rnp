@@ -2899,7 +2899,7 @@ parse_pk_sesskey(pgp_region_t *region, pgp_stream_t *stream)
         return true;
     }
 
-    n = pgp_decrypt_decode_mpi(&stream->decrypt.rng,
+    n = pgp_decrypt_decode_mpi(stream->decrypt.rng,
                                unencoded_m_buf,
                                (unsigned) sizeof(unencoded_m_buf),
                                g_to_k,
@@ -3456,8 +3456,6 @@ pgp_stream_delete(pgp_stream_t *stream)
     if (stream->readinfo.accumulated) {
         free(stream->readinfo.accumulated);
     }
-
-    rng_destroy(&stream->decrypt.rng);
 
     free(stream);
 }
