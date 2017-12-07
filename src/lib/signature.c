@@ -1184,7 +1184,7 @@ pgp_sign_file(rnp_ctx_t *         ctx,
         !pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME) ||
         !pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey) ||
         !pgp_sig_add_issuer_keyid(sig, keyid) || !pgp_sig_end_hashed_subpkts(sig) ||
-        !pgp_sig_write(&ctx->rnp->drbg, output, sig, &seckey->pubkey, seckey)) {
+        !pgp_sig_write(rnp_ctx_rng_handle(ctx), output, sig, &seckey->pubkey, seckey)) {
         goto done;
     }
     ok = true;
@@ -1286,7 +1286,7 @@ pgp_sign_buf(rnp_ctx_t *         ctx,
         !pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME) ||
         !pgp_keyid(keyid, PGP_KEY_ID_SIZE, &seckey->pubkey) ||
         !pgp_sig_add_issuer_keyid(sig, keyid) || !pgp_sig_end_hashed_subpkts(sig) ||
-        !pgp_sig_write(&ctx->rnp->drbg, output, sig, &seckey->pubkey, seckey)) {
+        !pgp_sig_write(rnp_ctx_rng_handle(ctx), output, sig, &seckey->pubkey, seckey)) {
         goto done;
     }
     ok = true;
@@ -1356,7 +1356,7 @@ pgp_sign_detached(
         !pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME) ||
         !pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey) ||
         !pgp_sig_add_issuer_keyid(sig, keyid) || !pgp_sig_end_hashed_subpkts(sig) ||
-        !pgp_sig_write(&ctx->rnp->drbg, output, sig, &seckey->pubkey, seckey)) {
+        !pgp_sig_write(rnp_ctx_rng_handle(ctx), output, sig, &seckey->pubkey, seckey)) {
         goto done;
     }
     ok = true;
@@ -1409,7 +1409,7 @@ pgp_sign_memory_detached(rnp_ctx_t *         ctx,
         !pgp_sig_add_time(sig, (int64_t) ctx->sigexpire, PGP_PTAG_SS_EXPIRATION_TIME) ||
         !pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey) ||
         !pgp_sig_add_issuer_keyid(sig, keyid) || !pgp_sig_end_hashed_subpkts(sig) ||
-        !pgp_sig_write(&ctx->rnp->drbg, output, sig, &seckey->pubkey, seckey)) {
+        !pgp_sig_write(rnp_ctx_rng_handle(ctx), output, sig, &seckey->pubkey, seckey)) {
         goto done;
     }
 

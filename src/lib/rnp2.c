@@ -129,39 +129,41 @@ rnp_ctx_init_ffi(rnp_ctx_t *ctx, rnp_ffi_t ffi)
 rnp_result_t
 rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
 {
-    rnp_result_t ret = RNP_ERROR_GENERIC;
+    struct rnp_ffi_st *ob = NULL;
+    rnp_result_t       ret = RNP_ERROR_GENERIC;
 
     // checks
     if (!ffi) {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *ffi = calloc(1, sizeof(struct rnp_ffi_st));
-    if (!*ffi) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
+    ob = calloc(1, sizeof(struct rnp_ffi_st));
+    if (!ob) {
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
     // default to all stderr
     const pgp_io_t default_io = {.outs = stderr, .errs = stderr, .res = stderr};
-    (*ffi)->io = default_io;
-    ret = rnp_keyring_create(*ffi, &(*ffi)->pubring, pub_format);
+    ob->io = default_io;
+    ret = rnp_keyring_create(ob, &ob->pubring, pub_format);
     if (ret) {
         goto done;
     }
-    ret = rnp_keyring_create(*ffi, &(*ffi)->secring, sec_format);
+    ret = rnp_keyring_create(ob, &ob->secring, sec_format);
     if (ret) {
         goto done;
     }
-    if (!rng_init(&((*ffi)->rng), RNG_DRBG)) {
+    if (!rng_init(&ob->rng, RNG_DRBG)) {
         ret = RNP_ERROR_RNG;
         goto done;
     }
+
     ret = RNP_SUCCESS;
 done:
     if (ret) {
-        rnp_ffi_destroy(*ffi);
-        *ffi = NULL;
+        rnp_ffi_destroy(ob);
+        ob = NULL;
     }
+    *ffi = ob;
     return ret;
 }
 
