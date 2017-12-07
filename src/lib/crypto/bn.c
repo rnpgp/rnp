@@ -118,80 +118,6 @@ PGPV_BN_dup(const PGPV_BIGNUM *a)
 }
 
 void
-PGPV_BN_swap(PGPV_BIGNUM *a, PGPV_BIGNUM *b)
-{
-    if (a && b) {
-        botan_mp_swap(a->mp, b->mp);
-    }
-}
-
-int
-PGPV_BN_lshift(PGPV_BIGNUM *r, const PGPV_BIGNUM *a, int n)
-{
-    if (r == NULL || a == NULL || n < 0) {
-        return 0;
-    }
-    return botan_mp_lshift(r->mp, a->mp, n) == 0;
-}
-
-int
-PGPV_BN_lshift1(PGPV_BIGNUM *r, PGPV_BIGNUM *a)
-{
-    return PGPV_BN_lshift(r, a, 1);
-}
-
-int
-PGPV_BN_rshift(PGPV_BIGNUM *r, const PGPV_BIGNUM *a, int n)
-{
-    if (r == NULL || a == NULL || n < 0) {
-        return -1;
-    }
-    return botan_mp_lshift(r->mp, a->mp, n) == 0;
-}
-
-int
-PGPV_BN_rshift1(PGPV_BIGNUM *r, PGPV_BIGNUM *a)
-{
-    return PGPV_BN_rshift(r, a, 1);
-}
-
-int
-PGPV_BN_add(PGPV_BIGNUM *r, const PGPV_BIGNUM *a, const PGPV_BIGNUM *b)
-{
-    if (a == NULL || b == NULL || r == NULL) {
-        return 0;
-    }
-    return botan_mp_add(r->mp, a->mp, b->mp) == 0;
-}
-
-int
-PGPV_BN_sub(PGPV_BIGNUM *r, const PGPV_BIGNUM *a, const PGPV_BIGNUM *b)
-{
-    if (a == NULL || b == NULL || r == NULL) {
-        return 0;
-    }
-    return botan_mp_sub(r->mp, a->mp, b->mp) == 0;
-}
-
-int
-PGPV_BN_mul(PGPV_BIGNUM *r, const PGPV_BIGNUM *a, const PGPV_BIGNUM *b)
-{
-    if (a == NULL || b == NULL || r == NULL) {
-        return 0;
-    }
-    return botan_mp_mul(r->mp, a->mp, b->mp) == 0;
-}
-
-int
-PGPV_BN_div(PGPV_BIGNUM *dv, PGPV_BIGNUM *rem, const PGPV_BIGNUM *a, const PGPV_BIGNUM *d)
-{
-    if ((dv == NULL) || (rem == NULL) || (a == NULL) || (d == NULL)) {
-        return 0;
-    }
-    return botan_mp_div(dv->mp, rem->mp, a->mp, d->mp) == 0;
-}
-
-void
 PGPV_BN_clear(PGPV_BIGNUM *a)
 {
     if (a) {
@@ -225,32 +151,6 @@ BN_num_bytes(const PGPV_BIGNUM *a, size_t *bits)
     return false;
 }
 
-void
-PGPV_BN_set_negative(PGPV_BIGNUM *a, int n)
-{
-    if (a) {
-        /** BN_set_negative sets sign of a BIGNUM
-         * \param  b  pointer to the BIGNUM object
-         * \param  n  0 if the BIGNUM b should be positive and a value != 0 otherwise
-         */
-
-        int a_is_currently_negative = (botan_mp_is_negative(a->mp) == 1);
-
-        if (n == 0) // set a to positive
-        {
-            // if a is negative, flip it to positive
-            if (a_is_currently_negative) {
-                botan_mp_flip_sign(a->mp);
-            }
-        } else {
-            // if a is not negative, flip it to negative
-            if (!a_is_currently_negative) {
-                botan_mp_flip_sign(a->mp);
-            }
-        }
-    }
-}
-
 int
 PGPV_BN_cmp(PGPV_BIGNUM *a, PGPV_BIGNUM *b)
 {
@@ -271,67 +171,6 @@ PGPV_BN_mod_exp(PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM *P)
         return -1;
     }
     return botan_mp_powmod(Y->mp, G->mp, X->mp, P->mp) == 0;
-}
-
-PGPV_BIGNUM *
-PGPV_BN_mod_inverse(PGPV_BIGNUM *r, PGPV_BIGNUM *a, const PGPV_BIGNUM *n)
-{
-    if (r == NULL || a == NULL || n == NULL) {
-        return NULL;
-    }
-    return (botan_mp_mod_inverse(r->mp, a->mp, n->mp) == 0) ? r : NULL;
-}
-
-int
-PGPV_BN_mod_mul(PGPV_BIGNUM *ret, PGPV_BIGNUM *a, PGPV_BIGNUM *b, const PGPV_BIGNUM *m)
-{
-    if (ret == NULL || a == NULL || b == NULL || m == NULL) {
-        return 0;
-    }
-    return (botan_mp_mod_mul(ret->mp, a->mp, b->mp, m->mp) < 0) ? 0 : 1;
-}
-
-char *
-PGPV_BN_bn2hex(const PGPV_BIGNUM *a)
-{
-    return PGPV_BN_bn2radix(a, 16);
-}
-
-char *
-PGPV_BN_bn2dec(const PGPV_BIGNUM *a)
-{
-    return PGPV_BN_bn2radix(a, 10);
-}
-
-char *
-PGPV_BN_bn2radix(const PGPV_BIGNUM *a, unsigned radix)
-{
-    char * out;
-    size_t out_len;
-    int    rc;
-
-    /* TODO scale this based on magnitude of a */
-    const size_t initial_guess = 512;
-
-    out_len = initial_guess;
-    out = malloc(out_len);
-
-    rc = botan_mp_to_str(a->mp, radix, out, &out_len);
-
-    if (rc == 0) {
-        return out;
-    } else if (out_len != initial_guess) {
-        /* need to retry with longer buffer... */
-        out = realloc(out, out_len);
-        rc = botan_mp_to_str(a->mp, radix, out, &out_len);
-        if (rc == 0) {
-            return out;
-        }
-    }
-
-    // error case
-    free(out);
-    return NULL;
 }
 
 int
@@ -393,39 +232,36 @@ PGPV_BN_rand(PGPV_BIGNUM *rnd, int bits, int top, int bottom)
     return 1;
 }
 
-size_t
-PGPV_BN_words_used(const PGPV_BIGNUM *n)
+char *
+PGPV_BN_bn2hex(const PGPV_BIGNUM *a)
 {
-    size_t num_bits;
+    char *       out;
+    size_t       out_len;
+    int          rc;
+    const size_t radix = 16;
 
-    if (n == NULL) {
-        return -1;
-    }
-    if (botan_mp_num_bits(n->mp, &num_bits) < 0) {
-        return -1;
-    }
+    /* TODO scale this based on magnitude of a */
+    const size_t initial_guess = 512;
 
-    /*
-     * The word size of Botan's BigInt is not exposed through the C API.
-     * Assume 32-bit words are in use to match PGPV_BN_ULONG
-     */
-    return (num_bits / 32) + ((num_bits % 32) ? 1 : 0);
-}
+    out_len = initial_guess;
+    out = malloc(out_len);
 
-PGPV_BN_ULONG
-PGPV_BN_get_word(const PGPV_BIGNUM *n)
-{
-    uint32_t n32;
+    rc = botan_mp_to_str(a->mp, radix, out, &out_len);
 
-    if (n == NULL) {
-        return -1;
-    }
-
-    if (botan_mp_to_uint32(n->mp, &n32) < 0) {
-        return -1;
+    if (rc == 0) {
+        return out;
+    } else if (out_len != initial_guess) {
+        /* need to retry with longer buffer... */
+        out = realloc(out, out_len);
+        rc = botan_mp_to_str(a->mp, radix, out, &out_len);
+        if (rc == 0) {
+            return out;
+        }
     }
 
-    return n32;
+    // error case
+    free(out);
+    return NULL;
 }
 
 int
@@ -439,39 +275,12 @@ PGPV_BN_set_word(PGPV_BIGNUM *a, PGPV_BN_ULONG w)
 }
 
 int
-PGPV_BN_is_even(const PGPV_BIGNUM *n)
-{
-    if (n == NULL) {
-        return -1;
-    }
-    return botan_mp_is_even(n->mp);
-}
-
-int
-PGPV_BN_is_odd(const PGPV_BIGNUM *n)
-{
-    if (n == NULL) {
-        return -1;
-    }
-    return botan_mp_is_odd(n->mp);
-}
-
-int
 PGPV_BN_is_zero(const PGPV_BIGNUM *n)
 {
     if (n == NULL) {
         return -1;
     }
     return botan_mp_is_zero(n->mp);
-}
-
-int
-PGPV_BN_is_negative(const PGPV_BIGNUM *n)
-{
-    if (n == NULL) {
-        return -1;
-    }
-    return botan_mp_is_negative(n->mp);
 }
 
 int
@@ -513,45 +322,6 @@ PGPV_BN_value_one(void)
     }
 
     return &one;
-}
-
-int
-PGPV_BN_hex2bn(PGPV_BIGNUM **a, const char *str)
-{
-    return PGPV_BN_radix2bn(a, str, 16);
-}
-
-int
-PGPV_BN_dec2bn(PGPV_BIGNUM **a, const char *str)
-{
-    return PGPV_BN_radix2bn(a, str, 10);
-}
-
-int
-PGPV_BN_radix2bn(PGPV_BIGNUM **bn, const char *str, unsigned radix)
-{
-    return -1;
-    if (*bn == NULL) {
-        *bn = PGPV_BN_new();
-    }
-
-    return botan_mp_set_from_radix_str((*bn)->mp, str, radix);
-}
-
-int
-PGPV_BN_is_bit_set(const PGPV_BIGNUM *a, int n)
-{
-    if (a == NULL || n < 0) {
-        return 0;
-    }
-    return botan_mp_get_bit(a->mp, n);
-}
-
-/* get greatest common divisor */
-int
-PGPV_BN_gcd(PGPV_BIGNUM *r, PGPV_BIGNUM *a, PGPV_BIGNUM *b)
-{
-    return botan_mp_gcd(r->mp, a->mp, b->mp);
 }
 
 /* hash a bignum, possibly padded - first length, then string itself */
