@@ -524,7 +524,7 @@ signature_write_subpackets(pgp_packet_body_t *body, pgp_signature_t *sig, bool h
 }
 
 bool
-signature_write_hashed_data(pgp_signature_t *sig)
+signature_fill_hashed_data(pgp_signature_t *sig)
 {
     pgp_packet_body_t hbody;
     bool              res;
@@ -1342,7 +1342,7 @@ pgp_sig_subpkt_t *
 signature_get_subpkt(pgp_signature_t *sig, pgp_sig_subpacket_type_t type)
 {
     pgp_sig_subpkt_t *res = NULL;
-    
+
     if (sig->version < 4) {
         return NULL;
     }
@@ -1358,7 +1358,10 @@ signature_get_subpkt(pgp_signature_t *sig, pgp_sig_subpacket_type_t type)
 }
 
 static pgp_sig_subpkt_t *
-signature_add_subpkt(pgp_signature_t *sig, pgp_sig_subpacket_type_t type, size_t datalen, bool reuse)
+signature_add_subpkt(pgp_signature_t *        sig,
+                     pgp_sig_subpacket_type_t type,
+                     size_t                   datalen,
+                     bool                     reuse)
 {
     pgp_sig_subpkt_t *subpkt = NULL;
 
@@ -1374,18 +1377,17 @@ signature_add_subpkt(pgp_signature_t *sig, pgp_sig_subpacket_type_t type, size_t
 
     if (!subpkt) {
         pgp_sig_subpkt_t s = {0};
-        s.type = type;
-        subpkt = (pgp_sig_subpkt_t*) list_append(&sig->subpkts, &s, sizeof(s));
-        if (!subpkt) {
-            RNP_LOG("allocation failed");
-        }
+        subpkt = (pgp_sig_subpkt_t *) list_append(&sig->subpkts, &s, sizeof(s));
     }
 
-    if (subpkt && (datalen > 0) && !(subpkt->data = calloc(1, datalen))) {
+    if (!subpkt || ((datalen > 0) && !(subpkt->data = calloc(1, datalen)))) {
         RNP_LOG("data allocation failed");
-        list_remove((list_item*)subpkt);
-        subpkt = NULL;
+        list_remove((list_item *) subpkt);
+        return NULL;
     }
+
+    subpkt->type = type;
+    subpkt->len = datalen;
 
     return subpkt;
 }
@@ -1407,7 +1409,8 @@ signature_get_keyfp(pgp_signature_t *sig, uint8_t *fp)
 bool
 signature_set_keyfp(pgp_signature_t *sig, uint8_t *fp, size_t len)
 {
-    pgp_sig_subpkt_t *subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR, 1 + len, true);
+    pgp_sig_subpkt_t *subpkt =
+      signature_add_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR, 1 + len, true);
 
     if (!subpkt) {
         return false;
@@ -1452,12 +1455,12 @@ bool
 signature_set_keyid(pgp_signature_t *sig, uint8_t *id)
 {
     pgp_sig_subpkt_t *subpkt;
-    
+
     if (sig->version < 4) {
         memcpy(sig->signer, id, PGP_KEY_ID_SIZE);
         return true;
     }
-    
+
     subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_KEY_ID, PGP_KEY_ID_SIZE, true);
 
     if (!subpkt) {
@@ -1526,7 +1529,8 @@ signature_get_expiration(pgp_signature_t *sig)
 bool
 signature_set_expiration(pgp_signature_t *sig, uint32_t etime)
 {
-    pgp_sig_subpkt_t *subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_CREATION_TIME, 4, true);
+    pgp_sig_subpkt_t *subpkt =
+      signature_add_subpkt(sig, PGP_SIG_SUBPKT_EXPIRATION_TIME, 4, true);
 
     if (!subpkt) {
         return false;

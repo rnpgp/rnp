@@ -49,6 +49,8 @@
 #include "signature.h"
 #include "crypto/s2k.h"
 #include "crypto/sm2.h"
+#include "crypto/eddsa.h"
+#include "crypto/ecdsa.h"
 #include "crypto.h"
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
@@ -92,11 +94,12 @@ typedef struct pgp_dest_encrypted_param_t {
 } pgp_dest_encrypted_param_t;
 
 typedef struct pgp_dest_signed_param_t {
-    pgp_dest_t *writedst;  /* destination to write to */
-    rnp_ctx_t * ctx;       /* rnp operation context with additional parameters */
-    list        onepasses; /* one-pass entries written to the stream begin */
-    list        keys;      /* signing keys in the same order as onepasses (if any) */
-    list        hashes;    /* hashes to pass raw data through and then sign */
+    pgp_dest_t *             writedst; /* destination to write to */
+    rnp_ctx_t *              ctx;      /* rnp operation context with additional parameters */
+    pgp_password_provider_t *password_provider; /* password provider from write handler */
+    list                     onepasses; /* one-pass entries written to the stream begin */
+    list                     keys;   /* signing keys in the same order as onepasses (if any) */
+    list                     hashes; /* hashes to pass raw data through and then sign */
 } pgp_dest_signed_param_t;
 
 typedef struct pgp_dest_partial_param_t {
@@ -665,7 +668,200 @@ signed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 static rnp_result_t
 signed_add_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_key_t *seckey)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    pgp_seckey_t *     deckey = NULL;
+    pgp_hash_t         hash;
+    pgp_password_ctx_t ctx = {.op = PGP_OP_SIGN, .key = seckey};
+    uint8_t            hval[PGP_MAX_HASH_SIZE];
+    size_t             hlen;
+    bool               res;
+    rnp_result_t       ret = RNP_ERROR_GENERIC;
+
+    /* fill signature fields */
+    res =
+      signature_set_keyfp(sig, seckey->fingerprint.fingerprint, seckey->fingerprint.length) &&
+      signature_set_keyid(sig, seckey->keyid) &&
+      signature_set_creation(sig, param->ctx->sigcreate) &&
+      signature_set_expiration(sig, param->ctx->sigexpire) && signature_fill_hashed_data(sig);
+
+    if (!res) {
+        RNP_LOG("failed to fill the signature data");
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    if (!pgp_hash_copy(&hash, pgp_hash_list_get(param->hashes, sig->halg))) {
+        RNP_LOG("failed to obtain hash");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* finalize hash and copy left 16 bits to signature */
+    pgp_hash_add(&hash, sig->hashed_data, sig->hashed_len);
+    hlen = pgp_hash_finish(&hash, hval);
+    memcpy(sig->lbits, hval, 2);
+
+    /* decrypt the secret key if needed */
+    if (seckey->key.seckey.encrypted) {
+        deckey = pgp_decrypt_seckey(seckey, param->password_provider, &ctx);
+        if (!deckey) {
+            return RNP_ERROR_BAD_PASSWORD;
+        }
+    } else {
+        deckey = &(seckey->key.seckey);
+    }
+
+    /* sign */
+    switch (sig->palg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        sig->material.rsa.slen = pgp_rsa_pkcs1_sign_hash(param->ctx->rng,
+                                                         sig->material.rsa.s,
+                                                         sizeof(sig->material.rsa.s),
+                                                         sig->halg,
+                                                         hval,
+                                                         hlen,
+                                                         &deckey->key.rsa,
+                                                         &deckey->pubkey.key.rsa);
+        if (!sig->material.rsa.slen) {
+            ret = RNP_ERROR_SIGNING_FAILED;
+            RNP_LOG("rsa signing failed");
+        } else {
+            ret = RNP_SUCCESS;
+        }
+        break;
+    case PGP_PKA_EDDSA: {
+        bignum_t *r = bn_new(), *s = bn_new();
+
+        if (!r || !s) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto eddsaend;
+        }
+
+        if (pgp_eddsa_sign_hash(param->ctx->rng, r, s, hval, hlen, &deckey->key.ecc, &deckey->pubkey.key.ecc) < 0) {
+            ret = RNP_ERROR_SIGNING_FAILED;
+            goto eddsaend;
+        } else {
+            ret = RNP_SUCCESS;
+        }
+
+        bn_num_bytes(r, &sig->material.ecc.rlen);
+        bn_num_bytes(s, &sig->material.ecc.slen);
+        bn_bn2bin(r, sig->material.ecc.r);
+        bn_bn2bin(s, sig->material.ecc.s);
+
+    eddsaend:
+        bn_free(r);
+        bn_free(s);
+        break;
+    }
+    case PGP_PKA_SM2: {
+        pgp_ecc_sig_t          sigval = {NULL, NULL};
+        const ec_curve_desc_t *curve = get_curve_desc(deckey->pubkey.key.ecc.curve);
+
+        if (!curve) {
+            RNP_LOG("Unknown curve");
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            break;
+        }
+
+        /* "-2" because SM2 on P-521 must work with SHA-512 digest */
+        if (BITS_TO_BYTES(curve->bitlen) - 2 > hlen) {
+            RNP_LOG("Message hash to small");
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            break;
+        }
+
+        if (pgp_sm2_sign_hash(param->ctx->rng, &sigval, hval, hlen, &deckey->key.ecc, &deckey->pubkey.key.ecc) != RNP_SUCCESS) {
+            RNP_LOG("sm2 signing failed");
+            ret = RNP_ERROR_SIGNING_FAILED;
+            break;
+        }
+
+        bn_num_bytes(sigval.r, &sig->material.ecc.rlen);
+        bn_num_bytes(sigval.s, &sig->material.ecc.slen);
+        bn_bn2bin(sigval.r, sig->material.ecc.r);
+        bn_bn2bin(sigval.s, sig->material.ecc.s);
+        bn_free(sigval.r);
+        bn_free(sigval.s);
+        ret = RNP_SUCCESS;
+        break;
+    }
+    case PGP_PKA_DSA: {
+        if (hlen != 20) {
+            RNP_LOG("dsa requires 160 bit hash");
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            break;
+        }
+
+        /* result check should be added after pgp_dsa_sign will be updated */
+        DSA_SIG *dsasig = pgp_dsa_sign(param->ctx->rng, hval, hlen, &deckey->key.dsa, &deckey->pubkey.key.dsa);
+
+        bn_num_bytes(dsasig->r, &sig->material.dsa.rlen);
+        bn_num_bytes(dsasig->s, &sig->material.dsa.slen);
+        bn_bn2bin(dsasig->r, sig->material.dsa.r);
+        bn_bn2bin(dsasig->s, sig->material.dsa.s);
+        DSA_SIG_free(dsasig);
+
+        ret = RNP_SUCCESS;
+        break;
+    }
+
+    /*
+     * ECDH is signed with ECDSA. This must be changed when ECDH will support
+     * X25519, but I need to check how it should be done exactly.
+     */
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDSA: {
+        pgp_ecc_sig_t          sigval = {NULL, NULL};
+        const ec_curve_desc_t *curve = get_curve_desc(deckey->pubkey.key.ecc.curve);
+
+        if (!curve) {
+            RNP_LOG("Unknown curve");
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            break;
+        }
+
+        /* "-2" because ECDSA on P-521 must work with SHA-512 digest */
+        if (BITS_TO_BYTES(curve->bitlen) - 2 > hlen) {
+            RNP_LOG("Message hash to small");
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            break;
+        }
+
+        if (pgp_ecdsa_sign_hash(param->ctx->rng, &sigval, hval, hlen, &deckey->key.ecc, &deckey->pubkey.key.ecc) != RNP_SUCCESS) {
+            RNP_LOG("ecdsa signing failed");
+            ret = RNP_ERROR_SIGNING_FAILED;
+            break;
+        }
+
+        bn_num_bytes(sigval.r, &sig->material.ecc.rlen);
+        bn_num_bytes(sigval.s, &sig->material.ecc.slen);
+        bn_bn2bin(sigval.r, sig->material.ecc.r);
+        bn_bn2bin(sigval.s, sig->material.ecc.s);
+        bn_free(sigval.r);
+        bn_free(sigval.s);
+        ret = RNP_SUCCESS;
+        break;
+    }
+    default:
+        RNP_LOG("Unsupported algorithm %d", sig->palg);
+        break;
+    }
+
+    /* write signature to the stream */
+    if (ret == RNP_SUCCESS) {
+        if (!stream_write_signature(sig, param->writedst)) {
+            ret = RNP_ERROR_WRITE;
+        }
+    }
+
+    /* destroy decrypted secret key */
+    if (seckey->key.seckey.encrypted) {
+        pgp_seckey_free(deckey);
+        free(deckey);
+        deckey = NULL;
+    }
+
+    return ret;
 }
 
 static rnp_result_t
@@ -683,7 +879,7 @@ signed_dst_finish(pgp_dest_t *dst)
         sig.type = ((pgp_one_pass_sig_t *) op)->type;
         sig.version = 4;
 
-        if ((ret = signed_add_signature(param, &sig, (pgp_key_t *) key))) {
+        if ((ret = signed_add_signature(param, &sig, *(pgp_key_t **) key))) {
             return ret;
         }
     }
@@ -767,6 +963,7 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
     param = dst->param;
     param->writedst = writedst;
     param->ctx = handler->ctx;
+    param->password_provider = handler->password_provider;
     dst->write = signed_dst_write;
     dst->finish = signed_dst_finish;
     dst->close = signed_dst_close;

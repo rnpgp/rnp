@@ -364,26 +364,26 @@ typedef struct pgp_signature_t {
     /* signature material */
     union {
         struct {
-            uint8_t  s[PGP_MPINT_SIZE];
-            unsigned slen;
+            uint8_t s[PGP_MPINT_SIZE];
+            size_t  slen;
         } rsa;
         struct {
-            uint8_t  r[PGP_MPINT_SIZE];
-            uint8_t  s[PGP_MPINT_SIZE];
-            unsigned rlen;
-            unsigned slen;
+            uint8_t r[PGP_MPINT_SIZE];
+            uint8_t s[PGP_MPINT_SIZE];
+            size_t  rlen;
+            size_t  slen;
         } dsa;
         struct {
-            uint8_t  r[PGP_MPINT_SIZE];
-            uint8_t  s[PGP_MPINT_SIZE];
-            unsigned rlen;
-            unsigned slen;
+            uint8_t r[PGP_MPINT_SIZE];
+            uint8_t s[PGP_MPINT_SIZE];
+            size_t  rlen;
+            size_t  slen;
         } ecc;
         struct {
-            uint8_t  r[PGP_MPINT_SIZE];
-            uint8_t  s[PGP_MPINT_SIZE];
-            unsigned rlen;
-            unsigned slen;
+            uint8_t r[PGP_MPINT_SIZE];
+            uint8_t s[PGP_MPINT_SIZE];
+            size_t  rlen;
+            size_t  slen;
         } eg;
     } material;
 
@@ -392,7 +392,7 @@ typedef struct pgp_signature_t {
     uint8_t  signer[PGP_KEY_ID_SIZE];
 
     /* v4 - only fields */
-    list     subpkts;
+    list subpkts;
 } pgp_signature_t;
 
 /** The raw bytes of a signature subpacket */
