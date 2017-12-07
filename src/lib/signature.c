@@ -223,7 +223,8 @@ dsa_sign(struct rng_t *          rng,
 }
 
 static bool
-ecdsa_sign(pgp_hash_t *            hash,
+ecdsa_sign(struct rng_t *          rng,
+           pgp_hash_t *            hash,
            const pgp_ecc_pubkey_t *pub_key,
            const pgp_ecc_seckey_t *prv_key,
            pgp_output_t *          output)
@@ -249,7 +250,7 @@ ecdsa_sign(pgp_hash_t *            hash,
         return false;
 
     /* write signature to buf */
-    if (pgp_ecdsa_sign_hash(&sig, hashbuf, hashsize, prv_key, pub_key) != RNP_SUCCESS) {
+    if (pgp_ecdsa_sign_hash(rng, &sig, hashbuf, hashsize, prv_key, pub_key) != RNP_SUCCESS) {
         return false;
     }
 
@@ -908,7 +909,7 @@ pgp_sig_write(struct rng_t *      rng,
      */
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
-        if (!ecdsa_sign(&sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
+        if (!ecdsa_sign(rng, &sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
             RNP_LOG("ecdsa sign failure");
             return false;
         }
