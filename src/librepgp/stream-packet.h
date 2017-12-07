@@ -179,7 +179,7 @@ uint32_t signature_get_expiration(pgp_signature_t *sig);
 
 bool signature_set_expiration(pgp_signature_t *sig, uint32_t etime);
 
-bool signature_write_hashed_data(pgp_signature_t *sig);
+bool signature_fill_hashed_data(pgp_signature_t *sig);
 
 void free_signature(pgp_signature_t *sig);
 

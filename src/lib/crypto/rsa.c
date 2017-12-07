@@ -197,7 +197,7 @@ pgp_rsa_pkcs1_sign_hash(rng_t *                 rng,
     botan_pk_op_sign_t sign_op;
 
     if (seckey->q == NULL) {
-        (void) fprintf(stderr, "private key not set in pgp_rsa_private_encrypt\n");
+        RNP_LOG("private key not set");
         return 0;
     }
 
