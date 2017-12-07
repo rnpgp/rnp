@@ -282,8 +282,8 @@ raw_elg_test_success(void **state)
     BN_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p);
 
     // Encrypt
-    unsigned ctext_size =
-      pgp_elgamal_public_encrypt_pkcs1(g_to_k, encm, plaintext, sizeof(plaintext), &pub_elg);
+    unsigned ctext_size = pgp_elgamal_public_encrypt_pkcs1(
+      &global_rng, g_to_k, encm, plaintext, sizeof(plaintext), &pub_elg);
     rnp_assert_int_not_equal(rstate, ctext_size, -1);
     rnp_assert_int_equal(rstate, ctext_size % 2, 0);
     ctext_size /= 2;
@@ -320,7 +320,7 @@ raw_elg_test_success(void **state)
     rnp_assert_int_not_equal(
       rstate,
       pgp_elgamal_private_decrypt_pkcs1(
-        decryption_result, g_to_k, encm, ctext_size, &sec_elg, &pub_elg),
+        &global_rng, decryption_result, g_to_k, encm, ctext_size, &sec_elg, &pub_elg),
       -1);
 
     rnp_assert_int_equal(

@@ -443,8 +443,12 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
         int outlen;
 
-        outlen = pgp_elgamal_public_encrypt_pkcs1(
-          pkey.params.eg.g, pkey.params.eg.m, enckey, keylen + 3, &pubkey->key.elgamal);
+        outlen = pgp_elgamal_public_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
+                                                  pkey.params.eg.g,
+                                                  pkey.params.eg.m,
+                                                  enckey,
+                                                  keylen + 3,
+                                                  &pubkey->key.elgamal);
         if (outlen <= 0) {
             ret = RNP_ERROR_GENERIC;
             RNP_LOG("pgp_elgamal_public_encrypt failed");

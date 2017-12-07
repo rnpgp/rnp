@@ -949,7 +949,7 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher, struct 
         int     n;
 
         n = pgp_elgamal_public_encrypt_pkcs1(
-          g_to_k, encmpibuf, encoded_key, sz_encoded_key, &pubkey->key.elgamal);
+          rng, g_to_k, encmpibuf, encoded_key, sz_encoded_key, &pubkey->key.elgamal);
         if (n <= 0) {
             (void) fprintf(stderr, "pgp_elgamal_public_encrypt failure\n");
             goto error;
