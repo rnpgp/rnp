@@ -384,8 +384,13 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         break;
     case PGP_PKA_SM2: {
         size_t outlen = sizeof(pkey.params.sm2.m);
-        ret = pgp_sm2_encrypt(
-          pkey.params.sm2.m, &outlen, enckey, keylen + 3, PGP_HASH_SM3, &pubkey->key.ecc);
+        ret = pgp_sm2_encrypt(rnp_ctx_rng_handle(handler->ctx),
+                              pkey.params.sm2.m,
+                              &outlen,
+                              enckey,
+                              keylen + 3,
+                              PGP_HASH_SM3,
+                              &pubkey->key.ecc);
 
         if (ret != RNP_SUCCESS) {
             RNP_LOG("pgp_sm2_encrypt failed");

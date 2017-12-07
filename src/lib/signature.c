@@ -263,7 +263,8 @@ ecdsa_sign(pgp_hash_t *            hash,
 }
 
 static bool
-sm2_sign(pgp_hash_t *            hash,
+sm2_sign(struct rng_t *          rng,
+         pgp_hash_t *            hash,
          const pgp_ecc_pubkey_t *pub_key,
          const pgp_ecc_seckey_t *prv_key,
          pgp_output_t *          output)
@@ -289,7 +290,7 @@ sm2_sign(pgp_hash_t *            hash,
         return false;
 
     /* write signature to buf */
-    if (pgp_sm2_sign_hash(&sig, hashbuf, hashsize, prv_key, pub_key) != RNP_SUCCESS) {
+    if (pgp_sm2_sign_hash(rng, &sig, hashbuf, hashsize, prv_key, pub_key) != RNP_SUCCESS) {
         return false;
     }
 
@@ -888,7 +889,7 @@ pgp_sig_write(struct rng_t *      rng,
         break;
 
     case PGP_PKA_SM2:
-        if (!sm2_sign(&sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
+        if (!sm2_sign(rng, &sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
             RNP_LOG("sm2_sign failure");
             return false;
         }
