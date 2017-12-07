@@ -29,11 +29,13 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include "rng.h"
 
 static inline bool
 rng_ensure_initialized(struct rng_t *ctx)
 {
+    assert(ctx);
     if (ctx->initialized) {
         return true;
     }

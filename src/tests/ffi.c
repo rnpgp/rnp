@@ -956,7 +956,6 @@ test_ffi_encrypt_pk(void **state)
     assert_true(memcmp(mem.buf, plaintext, strlen(plaintext)) == 0);
     // cleanup
     pgp_memory_release(&mem);
-
     // final cleanup
     rnp_ffi_destroy(ffi);
 }

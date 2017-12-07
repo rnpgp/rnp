@@ -642,7 +642,7 @@ signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t 
         break;
     }
     case PGP_PKA_RSA: {
-        ret = pgp_rsa_pkcs1_verify_hash(&param->ctx->handler.ctx->rnp->drbg,
+        ret = pgp_rsa_pkcs1_verify_hash(rnp_ctx_rng_handle(param->ctx->handler.ctx),
                                         sig->material.rsa.s,
                                         sig->material.rsa.slen,
                                         sig->halg,
@@ -1665,7 +1665,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             if (encrypted_try_key(src,
                                   (pgp_pk_sesskey_pkt_t *) pe,
                                   decrypted_seckey,
-                                  &ctx->handler.ctx->rnp->drbg)) {
+                                  rnp_ctx_rng_handle(ctx->handler.ctx))) {
                 have_key = true;
             }
 
