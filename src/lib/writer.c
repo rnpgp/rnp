@@ -1080,8 +1080,8 @@ pgp_write_se_ip_pktset(pgp_output_t * output,
         free(preamble);
         return 0;
     }
-    if (pgp_random(preamble, blocksize)) {
-        (void) fprintf(stderr, "pgp_random failed\n");
+    if (!rng_generate(preamble, blocksize)) {
+        RNP_LOG("rng_generate failed");
         return 0;
     }
     preamble[blocksize] = preamble[blocksize - 2];
@@ -1501,8 +1501,8 @@ stream_write_se_ip_first(pgp_output_t *   output,
     pgp_write_scalar(output, PGP_SE_IP_DATA_VERSION, 1);
     pgp_push_enc_crypt(output, se_ip->crypt);
 
-    if (pgp_random(preamble, blocksize)) {
-        (void) fprintf(stderr, "pgp_random failed\n");
+    if (!rng_generate(preamble, blocksize)) {
+        RNP_LOG("rng_generate failed");
         return 0;
     }
     preamble[blocksize] = preamble[blocksize - 2];
