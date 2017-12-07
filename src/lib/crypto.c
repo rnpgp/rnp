@@ -486,6 +486,7 @@ pgp_decrypt_file(pgp_io_t *                     io,
         return false;
     }
 
+    // OZAPTF: This function should accept rnp_ctx as a param
     if (!rng_init(&parse->decrypt.rng, RNG_DRBG)) {
         RNP_LOG("RNG init failed");
         return false;

@@ -37,7 +37,8 @@
 #include "utils.h"
 
 rnp_result_t
-pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
+pgp_sm2_sign_hash(struct rng_t *          rng,
+                  pgp_ecc_sig_t *         sign,
                   const uint8_t *         hashbuf,
                   size_t                  hash_len,
                   const pgp_ecc_seckey_t *seckey,
@@ -46,7 +47,6 @@ pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
     const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
     botan_pk_op_sign_t     signer = NULL;
     botan_privkey_t        key = NULL;
-    botan_rng_t            rng = NULL;
     rnp_result_t           ret = RNP_ERROR_GENERIC;
     uint8_t                out_buf[2 * MAX_CURVE_BYTELEN] = {0};
 
@@ -65,10 +65,6 @@ pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    if (botan_rng_init(&rng, NULL)) {
-        goto end;
-    }
-
     if (botan_pk_op_sign_create(&signer, key, "", 0)) {
         goto end;
     }
@@ -78,7 +74,7 @@ pgp_sm2_sign_hash(pgp_ecc_sig_t *         sign,
     }
 
     size_t sig_len = 2 * sign_half_len;
-    if (botan_pk_op_sign_finish(signer, rng, out_buf, &sig_len)) {
+    if (botan_pk_op_sign_finish(signer, rng_handle(rng), out_buf, &sig_len)) {
         RNP_LOG("Signing failed");
         goto end;
     }
@@ -99,7 +95,6 @@ end:
         BN_clear_free(sign->s);
     }
     botan_privkey_destroy(key);
-    botan_rng_destroy(rng);
     botan_pk_op_sign_destroy(signer);
 
     return ret;
@@ -175,7 +170,8 @@ end:
 }
 
 rnp_result_t
-pgp_sm2_encrypt(uint8_t *               out,
+pgp_sm2_encrypt(struct rng_t *          rng,
+                uint8_t *               out,
                 size_t *                out_len,
                 const uint8_t *         key,
                 size_t                  key_len,
@@ -189,7 +185,6 @@ pgp_sm2_encrypt(uint8_t *               out,
     botan_mp_t             public_y = NULL;
     botan_pubkey_t         sm2_key = NULL;
     botan_pk_op_encrypt_t  enc_op = NULL;
-    botan_rng_t            rng = NULL;
     size_t                 sz;
 
     const size_t point_len = BITS_TO_BYTES(curve->bitlen);
@@ -234,11 +229,7 @@ pgp_sm2_encrypt(uint8_t *               out,
         goto done;
     }
 
-    if (botan_rng_init(&rng, NULL) != 0) {
-        goto done;
-    }
-
-    if (botan_pubkey_check_key(sm2_key, rng, 1) != 0) {
+    if (botan_pubkey_check_key(sm2_key, rng_handle(rng), 1) != 0) {
         goto done;
     }
 
@@ -251,7 +242,7 @@ pgp_sm2_encrypt(uint8_t *               out,
         goto done;
     }
 
-    if (botan_pk_op_encrypt(enc_op, rng, out, out_len, key, key_len) == 0) {
+    if (botan_pk_op_encrypt(enc_op, rng_handle(rng), out, out_len, key, key_len) == 0) {
         out[*out_len] = hash_algo;
         *out_len += 1;
         retval = RNP_SUCCESS;
@@ -260,7 +251,6 @@ pgp_sm2_encrypt(uint8_t *               out,
 done:
     botan_pk_op_encrypt_destroy(enc_op);
     botan_pubkey_destroy(sm2_key);
-    botan_rng_destroy(rng);
 
     return retval;
 }
@@ -276,7 +266,6 @@ pgp_sm2_decrypt(uint8_t *               out,
     const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
     botan_pk_op_decrypt_t  decrypt_op = NULL;
     botan_privkey_t        key = NULL;
-    botan_rng_t            rng = NULL;
     rnp_result_t           retval = RNP_ERROR_GENERIC;
 
     if (curve == NULL || ctext_len < 64) {
@@ -285,10 +274,6 @@ pgp_sm2_decrypt(uint8_t *               out,
 
     if (botan_privkey_load_sm2_enc(&key, privkey->x->mp, curve->botan_name)) {
         RNP_LOG("Can't load private key");
-        goto done;
-    }
-
-    if (botan_rng_init(&rng, NULL)) {
         goto done;
     }
 
@@ -309,7 +294,6 @@ pgp_sm2_decrypt(uint8_t *               out,
     }
 
 done:
-    botan_rng_destroy(rng);
     botan_privkey_destroy(key);
     botan_pk_op_decrypt_destroy(decrypt_op);
     return retval;
