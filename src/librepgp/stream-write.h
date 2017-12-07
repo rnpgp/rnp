@@ -50,6 +50,14 @@ typedef struct pgp_write_handler_t {
  **/
 rnp_result_t rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst);
 
+/** @brief sign the input data, producing attached, detached or cleartext signature.
+ *         Type of the signature is controlled by clearsign and detached fields of the
+ *         rnp_ctx_t structure
+ *  @param handler handler to respond on stream processor callbacks, and additional processing
+ *         parameters, including rnp_ctx_t
+ *  @param src input source: file, stdin, memory, whatever else conforming to pgp_source_t
+ *  @param dst output destination: file, stdout, memory, whatever else conforming to pgp_dest_t
+ **/
 rnp_result_t rnp_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst);
 
 #endif

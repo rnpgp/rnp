@@ -103,6 +103,7 @@ typedef struct rnp_ctx_t {
     int64_t        sigcreate;     /* signature creation time */
     uint64_t       sigexpire;     /* signature expiration time */
     bool           clearsign;     /* cleartext signature */
+    bool           detached;      /* detached signature */
     pgp_hash_alg_t halg;          /* hash algorithm */
     pgp_symm_alg_t ealg;          /* encryption algorithm */
     int            zalg;          /* compression algorithm used */
