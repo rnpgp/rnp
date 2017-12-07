@@ -164,7 +164,8 @@ pgp_decrypt_decode_mpi(struct rng_t *      rng,
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "encrypted", encmpibuf, 16);
         }
-        n = pgp_elgamal_private_decrypt_pkcs1(buf,
+        n = pgp_elgamal_private_decrypt_pkcs1(rng,
+                                              buf,
                                               gkbuf,
                                               encmpibuf,
                                               encmpi_byte_len,

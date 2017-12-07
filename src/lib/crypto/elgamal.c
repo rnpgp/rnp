@@ -89,22 +89,18 @@
     } while (0)
 
 int
-pgp_elgamal_public_encrypt_pkcs1(uint8_t *                   g2k,
+pgp_elgamal_public_encrypt_pkcs1(struct rng_t *              rng,
+                                 uint8_t *                   g2k,
                                  uint8_t *                   encm,
                                  const uint8_t *             in,
                                  size_t                      length,
                                  const pgp_elgamal_pubkey_t *pubkey)
 {
-    botan_rng_t           rng = NULL;
     botan_pubkey_t        key = NULL;
     botan_pk_op_encrypt_t op_ctx = NULL;
     int                   ret = -1;
     size_t                p_len = 0;
     uint8_t *             bt_ciphertext = NULL;
-
-    if (botan_rng_init(&rng, NULL)) {
-        FAIL("Random initialization failure");
-    }
 
     if (botan_mp_num_bytes(pubkey->p->mp, &p_len)) {
         FAIL("Wrong public key");
@@ -115,7 +111,7 @@ pgp_elgamal_public_encrypt_pkcs1(uint8_t *                   g2k,
         FAIL("Failed to load public key");
     }
 
-    if (botan_pubkey_check_key(key, rng, 1)) {
+    if (botan_pubkey_check_key(key, rng_handle(rng), 1)) {
         FAIL("Wrong public key");
     }
 
@@ -131,7 +127,7 @@ pgp_elgamal_public_encrypt_pkcs1(uint8_t *                   g2k,
         FAIL("Failed to create operation context");
     }
 
-    if (botan_pk_op_encrypt(op_ctx, rng, bt_ciphertext, &out_len, in, length)) {
+    if (botan_pk_op_encrypt(op_ctx, rng_handle(rng), bt_ciphertext, &out_len, in, length)) {
         FAIL("Encryption fails");
     }
 
@@ -149,7 +145,6 @@ pgp_elgamal_public_encrypt_pkcs1(uint8_t *                   g2k,
 end:
     ret |= botan_pk_op_encrypt_destroy(op_ctx);
     ret |= botan_pubkey_destroy(key);
-    ret |= botan_rng_destroy(rng);
     free(bt_ciphertext);
 
     if (ret) {
@@ -161,24 +156,20 @@ end:
 }
 
 int
-pgp_elgamal_private_decrypt_pkcs1(uint8_t *                   out,
+pgp_elgamal_private_decrypt_pkcs1(struct rng_t *              rng,
+                                  uint8_t *                   out,
                                   const uint8_t *             g2k,
                                   const uint8_t *             in,
                                   size_t                      length,
                                   const pgp_elgamal_seckey_t *seckey,
                                   const pgp_elgamal_pubkey_t *pubkey)
 {
-    botan_rng_t           rng = NULL;
     botan_privkey_t       key = NULL;
     botan_pk_op_decrypt_t op_ctx = NULL;
     int                   ret = -1;
     size_t                out_len = 0;
     size_t                p_len = 0;
     uint8_t *             bt_plaintext = NULL;
-
-    if (botan_rng_init(&rng, NULL)) {
-        FAIL("Random initialization failure");
-    }
 
     // Output len is twice an order of underlying group
     if (botan_mp_num_bytes(pubkey->p->mp, &p_len)) {
@@ -202,7 +193,7 @@ pgp_elgamal_private_decrypt_pkcs1(uint8_t *                   out,
         FAIL("Failed to load private key");
     }
 
-    if (botan_privkey_check_key(key, rng, 1)) {
+    if (botan_privkey_check_key(key, rng_handle(rng), 1)) {
         FAIL("Wrong private key");
     }
 
@@ -226,9 +217,6 @@ end:
     }
     if (key != NULL) {
         ret |= botan_privkey_destroy(key);
-    }
-    if (rng != NULL) {
-        ret |= botan_rng_destroy(rng);
     }
     if (bt_plaintext != NULL) {
         free(bt_plaintext);

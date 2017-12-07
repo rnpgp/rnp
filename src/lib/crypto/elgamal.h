@@ -33,6 +33,7 @@
 
 #include <stdint.h>
 #include "crypto/bn.h"
+#include "crypto/rng.h"
 
 /** Structure to hold an ElGamal public key params.
  *
@@ -60,6 +61,7 @@ typedef struct pgp_elgamal_sig_t {
  * Performs ElGamal encryption
  * Result of an encryption is composed of two parts - g2k and encm
  *
+ * @param rng initialized rng_t
  * @param g2k [out] buffer stores first part of encryption (g^k % p)
  * @param encm [out] buffer stores second part of encryption (y^k * in % p)
  * @param in plaintext to be encrypted
@@ -72,7 +74,8 @@ typedef struct pgp_elgamal_sig_t {
  * @return     on success - number of bytes written to g2k and encm
  *            on failure -1
  */
-int pgp_elgamal_public_encrypt_pkcs1(uint8_t *                   g2k,
+int pgp_elgamal_public_encrypt_pkcs1(struct rng_t *              rng,
+                                     uint8_t *                   g2k,
                                      uint8_t *                   encm,
                                      const uint8_t *             in,
                                      size_t                      length,
@@ -81,6 +84,7 @@ int pgp_elgamal_public_encrypt_pkcs1(uint8_t *                   g2k,
 /*
  * Performs ElGamal decryption
  *
+ * @param rng initialized rng_t
  * @param out [out] decrypted plaintext
  * @param g2k buffer stores first part of encryption (g^k % p)
  * @param encm buffer stores second part of encryption (y^k * in % p)
@@ -95,7 +99,8 @@ int pgp_elgamal_public_encrypt_pkcs1(uint8_t *                   g2k,
  * @return     on success - number of bytes written to g2k and encm
  *            on failure -1
  */
-int pgp_elgamal_private_decrypt_pkcs1(uint8_t *                   out,
+int pgp_elgamal_private_decrypt_pkcs1(struct rng_t *              rng,
+                                      uint8_t *                   out,
                                       const uint8_t *             g2k,
                                       const uint8_t *             in,
                                       size_t                      length,

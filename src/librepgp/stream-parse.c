@@ -1193,7 +1193,8 @@ encrypted_try_key(pgp_source_t *        src,
         }
         break;
     case PGP_PKA_ELGAMAL:
-        declen = pgp_elgamal_private_decrypt_pkcs1(decbuf,
+        declen = pgp_elgamal_private_decrypt_pkcs1(rng,
+                                                   decbuf,
                                                    sesskey->params.eg.g,
                                                    sesskey->params.eg.m,
                                                    sesskey->params.eg.mlen,
