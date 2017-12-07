@@ -252,7 +252,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     /* FALLTHROUGH */
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-        if (pgp_genkey_ec_uncompressed(seckey, seckey->pubkey.alg, crypto->ecc.curve) !=
+        if (pgp_genkey_ec_uncompressed(rng, seckey, seckey->pubkey.alg, crypto->ecc.curve) !=
             RNP_SUCCESS) {
             RNP_LOG("failed to generate EC key");
             goto end;
