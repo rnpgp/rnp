@@ -85,53 +85,56 @@
 #include "crypto.h"
 #include "utils.h"
 #include "crypto/bn.h"
+#include "crypto/rng.h"
 #include "pgp-key.h"
 #include <botan/ffi.h>
 
 bool
 read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
 {
-    uint8_t keybuf[RNP_BUFSIZ] = {0};
-    FILE *  fp;
-    char    prompt[BUFSIZ];
-    char *  pass;
-    bool    ok;
-    size_t  read;
-
-    botan_rng_t     rng;
+    uint8_t         keybuf[RNP_BUFSIZ] = {0};
+    FILE *          fp = NULL;
+    char            prompt[BUFSIZ];
+    char *          pass;
+    bool            ok = false;
+    size_t          read;
+    struct rng_t    rng = {0};
     botan_privkey_t priv_key;
+
+    if (!rng_init(&rng, RNG_SYSTEM)) {
+        RNP_LOG("RNG initialization failure");
+        return false;
+    }
 
     /* TODO */
     if ((fp = fopen(f, "r")) == NULL) {
         if (verbose) {
-            (void) fprintf(stderr, "can't open '%s'\n", f);
+            RNP_LOG("can't open '%s'", f);
         }
-        return false;
+        goto end;
     }
 
     read = fread(keybuf, 1, RNP_BUFSIZ, fp);
 
     if (!feof(fp)) {
-        (void) fclose(fp);
-        return false;
+        goto end;
     }
     (void) fclose(fp);
-
-    botan_rng_init(&rng, NULL);
+    fp = NULL;
 
     if (strcmp(type, "ssh-rsa") == 0) {
-        if (botan_privkey_load(&priv_key, rng, keybuf, read, NULL) != 0) {
+        if (botan_privkey_load(&priv_key, rng_handle(&rng), keybuf, read, NULL) != 0) {
             (void) snprintf(prompt, sizeof(prompt), "rnp PEM %s password: ", f);
             for (;;) {
                 pass = getpass(prompt);
 
-                if (botan_privkey_load(&priv_key, rng, keybuf, read, pass) == 0)
+                if (botan_privkey_load(&priv_key, rng_handle(&rng), keybuf, read, pass) == 0)
                     break;
             }
         }
 
-        if (botan_privkey_check_key(priv_key, rng, 0) != 0) {
-            return false;
+        if (botan_privkey_check_key(priv_key, rng_handle(&rng), 0) != 0) {
+            goto end;
         }
 
         {
@@ -148,7 +151,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
             ok = true;
         }
     } else if (strcmp(type, "ssh-dss") == 0) {
-        if (botan_privkey_load(&priv_key, rng, keybuf, read, NULL) != 0) {
+        if (botan_privkey_load(&priv_key, rng_handle(&rng), keybuf, read, NULL) != 0) {
             ok = false;
         } else {
             botan_mp_init(&key->key.seckey.key.dsa.x->mp);
@@ -159,8 +162,9 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
     } else {
         ok = false;
     }
-
-    botan_rng_destroy(rng);
-
+    ok = true;
+end:
+    (void) fclose(fp);
+    rng_destroy(&rng);
     return ok;
 }
