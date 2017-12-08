@@ -37,6 +37,9 @@
 #define CH_COMMA (',')
 #define ST_LF ("\n")
 #define ST_CRLF ("\r\n")
+#define ST_CRLFCRLF ("\r\n\r\n")
+#define ST_DASHSP ("- ")
+#define ST_COMMA (",")
 
 #define ST_DASHES ("-----")
 #define ST_ARMOR_BEGIN ("-----BEGIN PGP ")
@@ -46,5 +49,6 @@
 #define ST_HEADER_COMMENT ("Comment: ")
 #define ST_HEADER_HASH ("Hash: ")
 #define ST_HEADER_CHARSET ("Charset: ")
+#define ST_FROM ("From")
 
 #endif /* !STREAM_DEF_H_ */

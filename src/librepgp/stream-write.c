@@ -25,6 +25,7 @@
  */
 
 #include "config.h"
+#include "stream-def.h"
 #include "stream-write.h"
 #include "stream-packet.h"
 #include "stream-armor.h"
@@ -100,6 +101,9 @@ typedef struct pgp_dest_signed_param_t {
     list                     onepasses; /* one-pass entries written to the stream begin */
     list                     keys;   /* signing keys in the same order as onepasses (if any) */
     list                     hashes; /* hashes to pass raw data through and then sign */
+    bool                     clr_start;           /* we are on the start of the line */
+    uint8_t                  clr_buf[CT_BUF_LEN]; /* buffer to hold partial line data */
+    size_t                   clr_buflen;          /* number of bytes in buffer */
 } pgp_dest_signed_param_t;
 
 typedef struct pgp_dest_partial_param_t {
@@ -665,8 +669,136 @@ signed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     return RNP_SUCCESS;
 }
 
+static void
+cleartext_dst_writeline(pgp_dest_signed_param_t *param,
+                        const uint8_t *          buf,
+                        size_t                   len,
+                        bool                     eol)
+{
+    const uint8_t *ptr;
+
+    /* dash-escaping line if needed */
+    if (param->clr_start && len &&
+        ((buf[0] == CH_DASH) || ((len >= 4) && !strncmp((const char *) buf, ST_FROM, 4)))) {
+        dst_write(param->writedst, ST_DASHSP, 2);
+    }
+
+    /* output data */
+    dst_write(param->writedst, buf, len);
+
+    if (eol) {
+        /* skipping trailing eol - \n, or \r\n. For the last line eol may be true without \n */
+        bool hashcrlf = false;
+        ptr = buf + len - 1;
+        if (*ptr == CH_LF) {
+            ptr--;
+            hashcrlf = true;
+
+            if ((ptr >= buf) && (*ptr == CH_CR)) {
+                ptr--;
+            }
+        }
+
+        /* skipping trailing spaces */
+        while ((ptr >= buf) && ((*ptr == CH_SPACE) || (*ptr == CH_TAB))) {
+            ptr--;
+        }
+
+        /* hashing line body and \r\n */
+        pgp_hash_list_update(param->hashes, buf, ptr + 1 - buf);
+        if (hashcrlf) {
+            pgp_hash_list_update(param->hashes, ST_CRLF, 2);
+        }
+        param->clr_start = hashcrlf;
+    } else if (len > 0) {
+        /* hashing just line's data */
+        pgp_hash_list_update(param->hashes, buf, len);
+        param->clr_start = false;
+    }
+}
+
+static size_t
+cleartext_dst_scanline(const uint8_t *buf, size_t len, bool *eol)
+{
+    for (const uint8_t *ptr = buf, *end = buf + len; ptr < end; ptr++) {
+        if (*ptr == CH_LF) {
+            if (eol) {
+                *eol = true;
+            }
+            return ptr - buf + 1;
+        }
+    }
+
+    if (*eol) {
+        *eol = false;
+    }
+    return len;
+}
+
 static rnp_result_t
-signed_add_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_key_t *seckey)
+cleartext_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
+{
+    const uint8_t *          linebg = buf;
+    size_t                   linelen;
+    size_t                   cplen;
+    bool                     eol;
+    pgp_dest_signed_param_t *param = dst->param;
+
+    if (param->clr_buflen > 0) {
+        /* number of edge cases may happen here */
+        linelen = cleartext_dst_scanline(linebg, len, &eol);
+
+        if (param->clr_buflen + linelen < sizeof(param->clr_buf)) {
+            /* fits into buffer */
+            memcpy(param->clr_buf + param->clr_buflen, linebg, linelen);
+            param->clr_buflen += linelen;
+            if (!eol) {
+                /* do not write the line if we don't have whole */
+                return RNP_SUCCESS;
+            }
+
+            cleartext_dst_writeline(param, param->clr_buf, param->clr_buflen, true);
+            param->clr_buflen = 0;
+        } else {
+            /* we have line longer than 4k */
+            cplen = sizeof(param->clr_buf) - param->clr_buflen;
+            memcpy(param->clr_buf + param->clr_buflen, linebg, cplen);
+            cleartext_dst_writeline(param, param->clr_buf, sizeof(param->clr_buf), false);
+
+            if (eol || (linelen >= sizeof(param->clr_buf))) {
+                cleartext_dst_writeline(param, linebg + cplen, linelen - cplen, eol);
+                param->clr_buflen = 0;
+            } else {
+                param->clr_buflen = linelen - cplen;
+                memcpy(param->clr_buf, linebg + cplen, param->clr_buflen);
+                return RNP_SUCCESS;
+            }
+        }
+
+        linebg += linelen;
+        len -= linelen;
+    }
+
+    /* if we get here then we don't have data in param->clr_buf */
+    while (len > 0) {
+        linelen = cleartext_dst_scanline(linebg, len, &eol);
+
+        if (!eol && (linelen < sizeof(param->clr_buf))) {
+            memcpy(param->clr_buf, linebg, linelen);
+            param->clr_buflen = linelen;
+            return RNP_SUCCESS;
+        }
+
+        cleartext_dst_writeline(param, linebg, linelen, eol);
+        linebg += linelen;
+        len -= linelen;
+    }
+
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_key_t *seckey)
 {
     pgp_seckey_t *     deckey = NULL;
     pgp_hash_t         hash;
@@ -736,7 +868,9 @@ signed_add_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_k
             goto eddsaend;
         }
 
-        if (pgp_eddsa_sign_hash(param->ctx->rng, r, s, hval, hlen, &deckey->key.ecc, &deckey->pubkey.key.ecc) < 0) {
+        if (pgp_eddsa_sign_hash(
+              param->ctx->rng, r, s, hval, hlen, &deckey->key.ecc, &deckey->pubkey.key.ecc) <
+            0) {
             ret = RNP_ERROR_SIGNING_FAILED;
             goto eddsaend;
         } else {
@@ -770,7 +904,12 @@ signed_add_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_k
             break;
         }
 
-        if (pgp_sm2_sign_hash(param->ctx->rng, &sigval, hval, hlen, &deckey->key.ecc, &deckey->pubkey.key.ecc) != RNP_SUCCESS) {
+        if (pgp_sm2_sign_hash(param->ctx->rng,
+                              &sigval,
+                              hval,
+                              hlen,
+                              &deckey->key.ecc,
+                              &deckey->pubkey.key.ecc) != RNP_SUCCESS) {
             RNP_LOG("sm2 signing failed");
             ret = RNP_ERROR_SIGNING_FAILED;
             break;
@@ -793,7 +932,8 @@ signed_add_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_k
         }
 
         /* result check should be added after pgp_dsa_sign will be updated */
-        DSA_SIG *dsasig = pgp_dsa_sign(param->ctx->rng, hval, hlen, &deckey->key.dsa, &deckey->pubkey.key.dsa);
+        DSA_SIG *dsasig =
+          pgp_dsa_sign(param->ctx->rng, hval, hlen, &deckey->key.dsa, &deckey->pubkey.key.dsa);
 
         bn_num_bytes(dsasig->r, &sig->material.dsa.rlen);
         bn_num_bytes(dsasig->s, &sig->material.dsa.slen);
@@ -827,7 +967,12 @@ signed_add_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_k
             break;
         }
 
-        if (pgp_ecdsa_sign_hash(param->ctx->rng, &sigval, hval, hlen, &deckey->key.ecc, &deckey->pubkey.key.ecc) != RNP_SUCCESS) {
+        if (pgp_ecdsa_sign_hash(param->ctx->rng,
+                                &sigval,
+                                hval,
+                                hlen,
+                                &deckey->key.ecc,
+                                &deckey->pubkey.key.ecc) != RNP_SUCCESS) {
             RNP_LOG("ecdsa signing failed");
             ret = RNP_ERROR_SIGNING_FAILED;
             break;
@@ -847,13 +992,6 @@ signed_add_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_k
         break;
     }
 
-    /* write signature to the stream */
-    if (ret == RNP_SUCCESS) {
-        if (!stream_write_signature(sig, param->writedst)) {
-            ret = RNP_ERROR_WRITE;
-        }
-    }
-
     /* destroy decrypted secret key */
     if (seckey->key.seckey.encrypted) {
         pgp_seckey_free(deckey);
@@ -865,43 +1003,104 @@ signed_add_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_k
 }
 
 static rnp_result_t
+signed_write_signature(pgp_dest_signed_param_t *param,
+                       pgp_one_pass_sig_t *     onepass,
+                       pgp_key_t *              seckey,
+                       pgp_dest_t *             writedst)
+{
+    pgp_signature_t sig = {0};
+    rnp_result_t    ret;
+
+    sig.version = 4;
+    if (onepass) {
+        sig.halg = onepass->halg;
+        sig.palg = onepass->palg;
+        sig.type = onepass->type;
+    } else {
+        sig.halg = pgp_pick_hash_alg(param->ctx, &seckey->key.seckey);
+        sig.palg = seckey->key.pubkey.alg;
+        sig.type = param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT;
+    }
+
+    if (!(ret = signed_fill_signature(param, &sig, seckey))) {
+        ret = stream_write_signature(&sig, writedst) ? RNP_SUCCESS : RNP_ERROR_WRITE;
+    }
+
+    free_signature(&sig);
+    return ret;
+}
+
+static rnp_result_t
 signed_dst_finish(pgp_dest_t *dst)
 {
-    pgp_signature_t          sig;
     rnp_result_t             ret;
     pgp_dest_signed_param_t *param = dst->param;
 
-    if (param->ctx->detached) {
-        for (list_item *key = list_front(param->keys); key; key = list_next(key)) {
-            pgp_key_t *seckey = *(pgp_key_t **) key;
-            memset(&sig, 0, sizeof(sig));
-            sig.halg = pgp_pick_hash_alg(param->ctx, &seckey->key.seckey);
-            sig.palg = seckey->key.pubkey.alg;
-            sig.type = PGP_SIG_BINARY;
-            sig.version = 4;
+    /* attached signature, first signature should correspond last onepass */
+    for (list_item *op = list_back(param->onepasses), *key = list_back(param->keys); op && key;
+         op = list_prev(op), key = list_prev(key)) {
+        pgp_one_pass_sig_t *onepass = (pgp_one_pass_sig_t *) op;
+        pgp_key_t *         seckey = *(pgp_key_t **) key;
 
-            if ((ret = signed_add_signature(param, &sig, seckey))) {
-                return ret;
-            }
-        }
-    } else {
-        /* first signature should correspond last onepass */
-        for (list_item *op = list_back(param->onepasses), *key = list_back(param->keys);
-             op && key;
-             op = list_prev(op), key = list_prev(key)) {
-            memset(&sig, 0, sizeof(sig));
-            sig.halg = ((pgp_one_pass_sig_t *) op)->halg;
-            sig.palg = ((pgp_one_pass_sig_t *) op)->palg;
-            sig.type = ((pgp_one_pass_sig_t *) op)->type;
-            sig.version = 4;
-
-            if ((ret = signed_add_signature(param, &sig, *(pgp_key_t **) key))) {
-                return ret;
-            }
+        if ((ret = signed_write_signature(param, onepass, seckey, param->writedst))) {
+            return ret;
         }
     }
 
     return RNP_SUCCESS;
+}
+
+static rnp_result_t
+signed_detached_dst_finish(pgp_dest_t *dst)
+{
+    rnp_result_t             ret;
+    pgp_dest_signed_param_t *param = dst->param;
+
+    /* just calculating and writing signatures to the output */
+    for (list_item *key = list_front(param->keys); key; key = list_next(key)) {
+        pgp_key_t *seckey = *(pgp_key_t **) key;
+
+        if ((ret = signed_write_signature(param, NULL, seckey, param->writedst))) {
+            return ret;
+        }
+    }
+
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+cleartext_dst_finish(pgp_dest_t *dst)
+{
+    pgp_dest_t               armordst = {0};
+    rnp_result_t             ret;
+    pgp_dest_signed_param_t *param = dst->param;
+
+    /* writing cached line if any */
+    if (param->clr_buflen > 0) {
+        cleartext_dst_writeline(param, param->clr_buf, param->clr_buflen, true);
+    }
+    /* trailing \r\n which is not hashed */
+    dst_write(param->writedst, ST_CRLF, 2);
+
+    /* writing signatures to the armored stream, which outputs to param->writedst */
+    if ((ret = init_armored_dst(&armordst, param->writedst, PGP_ARMORED_SIGNATURE))) {
+        return ret;
+    }
+
+    for (list_item *key = list_front(param->keys); key; key = list_next(key)) {
+        pgp_key_t *seckey = *(pgp_key_t **) key;
+
+        if ((ret = signed_write_signature(param, NULL, seckey, &armordst))) {
+            break;
+        }
+    }
+
+    if (ret == RNP_SUCCESS) {
+        ret = dst_finish(&armordst);
+    }
+
+    dst_close(&armordst, ret != RNP_SUCCESS);
+    return ret;
 }
 
 static void
@@ -974,14 +1173,11 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
     pgp_key_t *              key = NULL;
     pgp_key_request_ctx_t    keyctx = {
       .op = PGP_OP_SIGN, .secret = true, .stype = PGP_KEY_SEARCH_USERID};
+    const char *hname;
 
     if (!handler->key_provider) {
         RNP_LOG("no key provider");
         return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    if (handler->ctx->clearsign) {
-        return RNP_ERROR_NOT_IMPLEMENTED;
     }
 
     if (!init_dst_common(dst, sizeof(*param))) {
@@ -992,10 +1188,17 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
     param->writedst = writedst;
     param->ctx = handler->ctx;
     param->password_provider = handler->password_provider;
-    dst->write = signed_dst_write;
-    dst->finish = signed_dst_finish;
+    if (param->ctx->clearsign) {
+        dst->type = PGP_STREAM_CLEARTEXT;
+        dst->write = cleartext_dst_write;
+        dst->finish = cleartext_dst_finish;
+        param->clr_start = true;
+    } else {
+        dst->type = PGP_STREAM_SIGNED;
+        dst->write = signed_dst_write;
+        dst->finish = param->ctx->detached ? signed_detached_dst_finish : signed_dst_finish;
+    }
     dst->close = signed_dst_close;
-    dst->type = PGP_STREAM_SIGNED;
 
     /* Getting signer's keys, writing one-pass signatures if needed */
     for (list_item *sg = list_front(handler->ctx->signers); sg; sg = list_next(sg)) {
@@ -1011,6 +1214,29 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
             RNP_LOG("failed to add one-pass signature for signer %s", (char *) sg);
             goto finish;
         }
+    }
+
+    /* Do we have any signatures? */
+    if (!list_length(param->hashes)) {
+        ret = RNP_ERROR_BAD_PARAMETERS;
+        goto finish;
+    }
+
+    /* Writing headers for cleartext signed document */
+    if (param->ctx->clearsign) {
+        dst_write(param->writedst, ST_CLEAR_BEGIN, strlen(ST_CLEAR_BEGIN));
+        dst_write(param->writedst, ST_CRLF, strlen(ST_CRLF));
+        dst_write(param->writedst, ST_HEADER_HASH, strlen(ST_HEADER_HASH));
+
+        for (list_item *hash = list_front(param->hashes); hash; hash = list_next(hash)) {
+            hname = pgp_hash_name((pgp_hash_t *) hash);
+            dst_write(param->writedst, hname, strlen(hname));
+            if (hash != list_back(param->hashes)) {
+                dst_write(param->writedst, ST_COMMA, 1);
+            }
+        }
+
+        dst_write(param->writedst, ST_CRLFCRLF, strlen(ST_CRLFCRLF));
     }
 
     ret = RNP_SUCCESS;
