@@ -80,6 +80,27 @@
 #include "crypto/bn.h"
 #include <botan/ffi.h>
 
+static DSA_SIG *
+DSA_SIG_new()
+{
+    DSA_SIG *sig = calloc(1, sizeof(DSA_SIG));
+    if (sig) {
+        sig->r = BN_new();
+        sig->s = BN_new();
+    }
+    return sig;
+}
+
+void
+DSA_SIG_free(DSA_SIG *sig)
+{
+    if (sig) {
+        BN_clear_free(sig->r);
+        BN_clear_free(sig->s);
+        free(sig);
+    }
+}
+
 unsigned
 pgp_dsa_verify(const uint8_t *         hash,
                size_t                  hash_length,
