@@ -308,6 +308,15 @@ cd rnp
 docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i src/lib/bn.c
 ```
 
+Also you may wish to reformat all modified uncommited files:
+``` sh
+docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i `git ls-files -m |grep "\.\(c\|h\)\$"`
+```
+...or files, modified since referenced commit, say `54c5476`:
+``` sh
+docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i `git diff --name-only 54c5476..HEAD |grep "\.\(c\|h\)\$"`
+```
+
 ## Style Guide
 
 In order to keep the code base consistent, we should define and adhere
