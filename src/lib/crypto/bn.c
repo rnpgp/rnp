@@ -310,20 +310,6 @@ PGPV_BN_is_prime(const PGPV_BIGNUM *a,
     return ret;
 }
 
-const PGPV_BIGNUM *
-PGPV_BN_value_one(void)
-{
-    static PGPV_BIGNUM one;
-
-    /* race condition here if multiple threads call BN_value_one */
-    if (one.mp == NULL) {
-        botan_mp_init(&one.mp);
-        botan_mp_set_from_int(one.mp, 1);
-    }
-
-    return &one;
-}
-
 /* hash a bignum, possibly padded - first length, then string itself */
 size_t
 BN_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash)
@@ -356,25 +342,4 @@ BN_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash)
 
     free(bn);
     return ret ? (4 + len + padbyte) : 0;
-}
-
-DSA_SIG *
-DSA_SIG_new()
-{
-    DSA_SIG *sig = calloc(1, sizeof(DSA_SIG));
-    if (sig) {
-        sig->r = BN_new();
-        sig->s = BN_new();
-    }
-    return sig;
-}
-
-void
-DSA_SIG_free(DSA_SIG *sig)
-{
-    if (sig) {
-        BN_clear_free(sig->r);
-        BN_clear_free(sig->s);
-        free(sig);
-    }
 }

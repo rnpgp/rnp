@@ -135,16 +135,4 @@ int PGPV_BN_is_prime(const PGPV_BIGNUM * /*a*/,
  */
 size_t BN_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash);
 
-/*
-* This type is used to represent any signature where
-* a pair of MPIs is used (DSA, ECDSA, EdDSA, ...)
-*/
-typedef struct DSA_SIG_st {
-    BIGNUM *r;
-    BIGNUM *s;
-} DSA_SIG;
-
-DSA_SIG *DSA_SIG_new(void);
-void DSA_SIG_free(DSA_SIG *sig);
-
 #endif

@@ -80,8 +80,16 @@ typedef struct pgp_dsa_sig_t {
     BIGNUM *s; /* DSA value s */
 } pgp_dsa_sig_t;
 
-/* DSA signature/verify */
+/*
+* This type is used to represent any signature where
+* a pair of MPIs is used (DSA, ECDSA, EdDSA, ...)
+*/
+typedef struct DSA_SIG_st {
+    BIGNUM *r;
+    BIGNUM *s;
+} DSA_SIG;
 
+/* DSA signature/verify */
 typedef struct DSA_SIG_st DSA_SIG;
 
 int pgp_dsa_size(const pgp_dsa_pubkey_t *);
@@ -93,4 +101,5 @@ unsigned pgp_dsa_verify(const uint8_t *,
                         const pgp_dsa_sig_t *,
                         const pgp_dsa_pubkey_t *);
 
+void DSA_SIG_free(DSA_SIG *sig);
 #endif
