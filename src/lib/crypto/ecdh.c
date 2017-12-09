@@ -198,7 +198,8 @@ set_ecdh_params(pgp_seckey_t *seckey, pgp_curve_t curve_id)
 }
 
 rnp_result_t
-pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
+pgp_ecdh_encrypt_pkcs5(struct rng_t *           rng,
+                       const uint8_t *const     session_key,
                        size_t                   session_key_len,
                        uint8_t *                wrapped_key,
                        size_t *                 wrapped_key_len,
@@ -207,7 +208,6 @@ pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
                        const pgp_fingerprint_t *fingerprint)
 {
     botan_privkey_t eph_prv_key = NULL;
-    botan_rng_t     rng = NULL;
     rnp_result_t    ret = RNP_ERROR_GENERIC;
     uint8_t         m[OBFUSCATED_KEY_SIZE];
     size_t          m_len = sizeof(m);
@@ -242,12 +242,7 @@ pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
         return RNP_ERROR_GENERIC;
     }
 
-    // Generate ephemeral key pair from public key of other party
-    if (botan_rng_init(&rng, NULL)) {
-        return RNP_ERROR_GENERIC;
-    }
-
-    if (botan_privkey_create_ecdh(&eph_prv_key, rng, curve_desc->botan_name)) {
+    if (botan_privkey_create_ecdh(&eph_prv_key, rng_handle(rng), curve_desc->botan_name)) {
         goto end;
     }
 
@@ -301,7 +296,6 @@ pgp_ecdh_encrypt_pkcs5(const uint8_t *const     session_key,
     ret = RNP_SUCCESS;
 
 end:
-    ret |= botan_rng_destroy(rng);
     ret |= botan_privkey_destroy(eph_prv_key);
     free(tmp_buf);
     return ret;

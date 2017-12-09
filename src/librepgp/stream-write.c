@@ -412,8 +412,14 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
             goto finish;
         }
 
-        ret = pgp_ecdh_encrypt_pkcs5(
-          enckey, keylen + 3, pkey.params.ecdh.m, &outlen, p, &pubkey->key.ecdh, &fingerprint);
+        ret = pgp_ecdh_encrypt_pkcs5(rnp_ctx_rng_handle(handler->ctx),
+                                     enckey,
+                                     keylen + 3,
+                                     pkey.params.ecdh.m,
+                                     &outlen,
+                                     p,
+                                     &pubkey->key.ecdh,
+                                     &fingerprint);
 
         if (ret != RNP_SUCCESS) {
             RNP_LOG("ECDH encryption failed %d", ret);
