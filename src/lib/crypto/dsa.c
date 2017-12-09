@@ -76,8 +76,8 @@
 /** \file
  */
 #include <stdlib.h>
-#include "crypto/dsa.h"
 #include "crypto/bn.h"
+#include "crypto/dsa.h"
 #include <botan/ffi.h>
 
 static DSA_SIG *
@@ -133,14 +133,14 @@ pgp_dsa_verify(const uint8_t *         hash,
 }
 
 DSA_SIG *
-pgp_dsa_sign(uint8_t *               hashbuf,
+pgp_dsa_sign(struct rng_t *          rng,
+             uint8_t *               hashbuf,
              unsigned                hashsize,
              const pgp_dsa_seckey_t *secdsa,
              const pgp_dsa_pubkey_t *pubdsa)
 {
     botan_privkey_t    dsa_key;
     botan_pk_op_sign_t sign_op;
-    botan_rng_t        rng;
     size_t             q_bytes = 0;
     size_t             sigbuf_size = 0;
     uint8_t *          sigbuf = NULL;
@@ -149,8 +149,6 @@ pgp_dsa_sign(uint8_t *               hashbuf,
     botan_privkey_load_dsa(
       &dsa_key, pubdsa->p->mp, pubdsa->q->mp, pubdsa->g->mp, secdsa->x->mp);
 
-    botan_rng_init(&rng, NULL);
-
     botan_pk_op_sign_create(&sign_op, dsa_key, "Raw", 0);
     botan_pk_op_sign_update(sign_op, hashbuf, hashsize);
 
@@ -158,9 +156,7 @@ pgp_dsa_sign(uint8_t *               hashbuf,
     sigbuf_size = q_bytes * 2;
     sigbuf = calloc(sigbuf_size, 1);
 
-    botan_pk_op_sign_finish(sign_op, rng, sigbuf, &sigbuf_size);
-    botan_rng_destroy(rng);
-
+    botan_pk_op_sign_finish(sign_op, rng_handle(rng), sigbuf, &sigbuf_size);
     botan_pk_op_sign_destroy(sign_op);
     botan_privkey_destroy(dsa_key);
 

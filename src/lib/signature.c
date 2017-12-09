@@ -186,7 +186,8 @@ rsa_sign(struct rng_t *          rng,
 }
 
 static bool
-dsa_sign(pgp_hash_t *            hash,
+dsa_sign(struct rng_t *          rng,
+         pgp_hash_t *            hash,
          const pgp_dsa_pubkey_t *dsa,
          const pgp_dsa_seckey_t *sdsa,
          pgp_output_t *          output)
@@ -205,14 +206,14 @@ dsa_sign(pgp_hash_t *            hash,
     /* finalise hash */
     t = pgp_hash_finish(hash, &hashbuf[0]);
     if (t != 20) {
-        (void) fprintf(stderr, "dsa_sign: hashfinish not 20\n");
+        RNP_LOG("hashfinish not 20");
         return false;
     }
 
     pgp_write(output, &hashbuf[0], 2);
 
     /* write signature to buf */
-    dsasig = pgp_dsa_sign(hashbuf, hashsize, sdsa, dsa);
+    dsasig = pgp_dsa_sign(rng, hashbuf, hashsize, sdsa, dsa);
 
     /* convert and write the sig out to memory */
     pgp_write_mpi(output, dsasig->r);
@@ -369,7 +370,8 @@ rsa_verify(struct rng_t *          rng,
     }
     BN_bn2bin(sig->sig, sigbuf);
 
-    return pgp_rsa_pkcs1_verify_hash(rng, sigbuf, sig_blen, hash_alg, hash, hash_length, pubrsa);
+    return pgp_rsa_pkcs1_verify_hash(
+      rng, sigbuf, sig_blen, hash_alg, hash, hash_length, pubrsa);
 }
 
 static bool
@@ -893,7 +895,7 @@ pgp_sig_write(struct rng_t *      rng,
         break;
 
     case PGP_PKA_DSA:
-        if (!dsa_sign(&sig->hash, &key->key.dsa, &seckey->key.dsa, sig->output)) {
+        if (!dsa_sign(rng, &sig->hash, &key->key.dsa, &seckey->key.dsa, sig->output)) {
             RNP_LOG("dsa_sign failure");
             return false;
         }
