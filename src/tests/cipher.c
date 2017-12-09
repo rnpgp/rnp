@@ -435,7 +435,8 @@ ecdh_roundtrip(void **state)
         rnp_assert_true(rstate, pgp_fingerprint(&ecdh_key1_fpr, &ecdh_key1.pubkey));
 
         rnp_assert_int_equal(rstate,
-                             pgp_ecdh_encrypt_pkcs5(plaintext,
+                             pgp_ecdh_encrypt_pkcs5(&global_rng,
+                                                    plaintext,
                                                     plaintext_len,
                                                     wrapped_key,
                                                     &wrapped_key_len,
@@ -497,7 +498,8 @@ ecdh_decryptionNegativeCases(void **state)
     rnp_assert_true(rstate, pgp_fingerprint(&ecdh_key1_fpr, &ecdh_key1.pubkey));
 
     rnp_assert_int_equal(rstate,
-                         pgp_ecdh_encrypt_pkcs5(plaintext,
+                         pgp_ecdh_encrypt_pkcs5(&global_rng,
+                                                plaintext,
                                                 plaintext_len,
                                                 wrapped_key,
                                                 &wrapped_key_len,

@@ -918,7 +918,8 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher, struct 
             goto done;
         }
 
-        const rnp_result_t err = pgp_ecdh_encrypt_pkcs5(encoded_key,
+        const rnp_result_t err = pgp_ecdh_encrypt_pkcs5(rng,
+                                                        encoded_key,
                                                         sz_encoded_key,
                                                         encmpibuf,
                                                         &out_len,
