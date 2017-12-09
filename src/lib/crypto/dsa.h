@@ -54,6 +54,7 @@
 
 #include <stdint.h>
 #include "crypto/bn.h"
+#include "crypto/rng.h"
 
 /* TODO key generation */
 
@@ -94,7 +95,8 @@ typedef struct DSA_SIG_st DSA_SIG;
 
 int pgp_dsa_size(const pgp_dsa_pubkey_t *);
 
-DSA_SIG *pgp_dsa_sign(uint8_t *, unsigned, const pgp_dsa_seckey_t *, const pgp_dsa_pubkey_t *);
+DSA_SIG *pgp_dsa_sign(
+  struct rng_t *, uint8_t *, unsigned, const pgp_dsa_seckey_t *, const pgp_dsa_pubkey_t *);
 
 unsigned pgp_dsa_verify(const uint8_t *,
                         size_t,
