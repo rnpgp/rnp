@@ -33,7 +33,7 @@
 #include "rnp.h"
 #include "rng.h"
 
-rnp_result_t pgp_sm2_sign_hash(struct rng_t *          rng,
+rnp_result_t pgp_sm2_sign_hash(rng_t *                 rng,
                                pgp_ecc_sig_t *         sign,
                                const uint8_t *         hashbuf,
                                size_t                  hash_len,
@@ -45,7 +45,7 @@ rnp_result_t pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
                                  size_t                  hash_len,
                                  const pgp_ecc_pubkey_t *pubkey);
 
-rnp_result_t pgp_sm2_encrypt(struct rng_t *          rng,
+rnp_result_t pgp_sm2_encrypt(rng_t *                 rng,
                              uint8_t *               out,
                              size_t *                out_len,
                              const uint8_t *         key,

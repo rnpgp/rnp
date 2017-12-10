@@ -39,11 +39,11 @@
 enum { RNG_DRBG, RNG_SYSTEM };
 typedef uint8_t rng_type_t;
 
-struct rng_t {
+typedef struct rng_st_t {
     bool        initialized;
     rng_type_t  rng_type;
     botan_rng_t botan_rng;
-};
+} rng_t;
 
 /*
  * @brief Initializes rng structure
@@ -57,12 +57,12 @@ struct rng_t {
  * @returns false if lazy initialization wasn't requested
  *          and initialization failed, otherwise true
  */
-bool rng_init(struct rng_t *ctx, rng_type_t rng_type);
+bool rng_init(rng_t *ctx, rng_type_t rng_type);
 
 /*
  * Frees memory allocated by `rng_get_data'
  */
-void rng_destroy(struct rng_t *ctx);
+void rng_destroy(rng_t *ctx);
 
 /*
  *  @brief  Used to retrieve random data. First successfull completition
@@ -78,7 +78,7 @@ void rng_destroy(struct rng_t *ctx);
  *
  *  @return true on success, false indicates implementation error.
  **/
-bool rng_get_data(struct rng_t *ctx, uint8_t *data, size_t len);
+bool rng_get_data(rng_t *ctx, uint8_t *data, size_t len);
 
 /*
  * @brief   Returns internal handle to botan rng. Returned
@@ -87,7 +87,7 @@ bool rng_get_data(struct rng_t *ctx, uint8_t *data, size_t len);
  *
  * @param   valid pointer to rng_t object
  */
-void *rng_handle(struct rng_t *);
+void *rng_handle(rng_t *);
 
 /*
  * @brief   Initializes RNG_SYSTEM and generates random data.

@@ -104,11 +104,8 @@ void pgp_sig_start(pgp_create_sig_t *,
 void        pgp_sig_add_data(pgp_create_sig_t *, const void *, size_t);
 pgp_hash_t *pgp_sig_get_hash(pgp_create_sig_t *);
 unsigned    pgp_sig_end_hashed_subpkts(pgp_create_sig_t *);
-bool        pgp_sig_write(struct rng_t *,
-                   pgp_output_t *,
-                   pgp_create_sig_t *,
-                   const pgp_pubkey_t *,
-                   const pgp_seckey_t *);
+bool        pgp_sig_write(
+  rng_t *, pgp_output_t *, pgp_create_sig_t *, const pgp_pubkey_t *, const pgp_seckey_t *);
 unsigned pgp_sig_add_time(pgp_create_sig_t *, int64_t, pgp_content_enum);
 unsigned pgp_sig_add_issuer_keyid(pgp_create_sig_t *, const uint8_t *);
 void     pgp_sig_add_primary_userid(pgp_create_sig_t *, unsigned);
@@ -144,7 +141,7 @@ rnp_result_t pgp_sign_memory_detached(rnp_ctx_t *         ctx,
                                       size_t *            sig_output_len);
 
 bool pgp_check_sig(
-  struct rng_t *, const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
+  rng_t *, const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 
 /* armored stuff */
 unsigned pgp_crc24(unsigned, uint8_t);

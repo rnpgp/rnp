@@ -41,7 +41,7 @@
 #include "support.h"
 #include "fingerprint.h"
 
-extern struct rng_t global_rng;
+extern rng_t global_rng;
 
 void
 hash_test_success(void **state)

@@ -89,7 +89,7 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 static bool pgp_push_stream_enc_se_ip(pgp_output_t *      output,
                                       const pgp_pubkey_t *pubkey,
                                       pgp_symm_alg_t      cipher,
-                                      struct rng_t *      rng);
+                                      rng_t *             rng);
 /*
  * return true if OK, otherwise false
  */
@@ -903,7 +903,7 @@ pgp_push_enc_se_ip(pgp_output_t *      output,
                    const pgp_pubkey_t *pubkey,
                    pgp_symm_alg_t      cipher,
                    size_t              len,
-                   struct rng_t *      rng)
+                   rng_t *             rng)
 {
     pgp_pk_sesskey_t *encrypted_pk_sesskey;
     encrypt_se_ip_t * se_ip;
@@ -1269,7 +1269,7 @@ static bool
 pgp_push_stream_enc_se_ip(pgp_output_t *      output,
                           const pgp_pubkey_t *pubkey,
                           pgp_symm_alg_t      cipher,
-                          struct rng_t *      rng)
+                          rng_t *             rng)
 {
     pgp_pk_sesskey_t *encrypted_pk_sesskey;
     str_enc_se_ip_t * se_ip;

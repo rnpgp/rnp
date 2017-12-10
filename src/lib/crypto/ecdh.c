@@ -198,7 +198,7 @@ set_ecdh_params(pgp_seckey_t *seckey, pgp_curve_t curve_id)
 }
 
 rnp_result_t
-pgp_ecdh_encrypt_pkcs5(struct rng_t *           rng,
+pgp_ecdh_encrypt_pkcs5(rng_t *                  rng,
                        const uint8_t *const     session_key,
                        size_t                   session_key_len,
                        uint8_t *                wrapped_key,

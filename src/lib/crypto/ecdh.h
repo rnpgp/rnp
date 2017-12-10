@@ -87,7 +87,7 @@ bool set_ecdh_params(pgp_seckey_t *seckey, pgp_curve_t curve_id);
  * @return RNP_ERROR_OUT_OF_MEMORY failed to allocated memory
  * @return RNP_ERROR_GENERIC implementation error
  */
-rnp_result_t pgp_ecdh_encrypt_pkcs5(struct rng_t *           rng,
+rnp_result_t pgp_ecdh_encrypt_pkcs5(rng_t *                  rng,
                                     const uint8_t *const     session_key,
                                     size_t                   session_key_len,
                                     uint8_t *                wrapped_key,

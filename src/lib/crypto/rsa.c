@@ -97,7 +97,7 @@
    \return size of recovered plaintext
 */
 int
-pgp_rsa_encrypt_pkcs1(struct rng_t *          rng,
+pgp_rsa_encrypt_pkcs1(rng_t *                 rng,
                       uint8_t *               out,
                       size_t                  out_len,
                       const uint8_t *         in,
@@ -132,7 +132,7 @@ done:
 }
 
 bool
-pgp_rsa_pkcs1_verify_hash(struct rng_t *          rng,
+pgp_rsa_pkcs1_verify_hash(rng_t *                 rng,
                           const uint8_t *         sig_buf,
                           size_t                  sig_buf_size,
                           pgp_hash_alg_t          hash_alg,
@@ -183,7 +183,7 @@ done:
    \return number of bytes decrypted
 */
 int
-pgp_rsa_pkcs1_sign_hash(struct rng_t *          rng,
+pgp_rsa_pkcs1_sign_hash(rng_t *                 rng,
                         uint8_t *               sig_buf,
                         size_t                  sig_buf_size,
                         pgp_hash_alg_t          hash_alg,
@@ -243,7 +243,7 @@ pgp_rsa_pkcs1_sign_hash(struct rng_t *          rng,
 \return size of recovered plaintext
 */
 int
-pgp_rsa_decrypt_pkcs1(struct rng_t *          rng,
+pgp_rsa_decrypt_pkcs1(rng_t *                 rng,
                       uint8_t *               out,
                       size_t                  out_len,
                       const uint8_t *         in,
@@ -278,7 +278,7 @@ done:
 }
 
 int
-pgp_genkey_rsa(struct rng_t *rng, pgp_seckey_t *seckey, size_t numbits)
+pgp_genkey_rsa(rng_t *rng, pgp_seckey_t *seckey, size_t numbits)
 {
     botan_privkey_t rsa_key = NULL;
     int             ret = 0, cmp;

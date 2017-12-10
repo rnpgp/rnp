@@ -65,7 +65,7 @@ typedef struct rnp_t {
     } action;
 
     pgp_password_provider_t password_provider;
-    struct rng_t            drbg; /* handle to DRBG */
+    rng_t                   drbg; /* handle to DRBG */
 } rnp_t;
 
 /* rnp initialization parameters : keyring pathes, flags, whatever else */
@@ -113,7 +113,7 @@ typedef struct rnp_ctx_t {
     unsigned       armortype;     /* type of the armored message, used in enarmor command */
     bool           discard;       /* discard the output */
     void *         on_signatures; /* handler for signed messages */
-    struct rng_t * rng;           /* pointer to rng context */
+    rng_t *        rng;           /* pointer to rng context */
 } rnp_ctx_t;
 
 #endif // __RNP_TYPES__

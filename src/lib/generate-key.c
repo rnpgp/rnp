@@ -603,7 +603,7 @@ print_keygen_subkey(const rnp_keygen_subkey_desc_t *desc)
 }
 
 bool
-pgp_generate_keypair(struct rng_t *             rng,
+pgp_generate_keypair(rng_t *                    rng,
                      rnp_keygen_primary_desc_t *primary_desc,
                      rnp_keygen_subkey_desc_t * subkey_desc,
                      bool                       merge_defaults,

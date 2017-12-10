@@ -38,7 +38,7 @@
 #include "utils.h"
 
 rnp_result_t
-pgp_ecdsa_sign_hash(struct rng_t *          rng,
+pgp_ecdsa_sign_hash(rng_t *                 rng,
                     pgp_ecc_sig_t *         sign,
                     const uint8_t *         hashbuf,
                     size_t                  hash_len,

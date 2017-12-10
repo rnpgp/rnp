@@ -1151,7 +1151,7 @@ static bool
 encrypted_try_key(pgp_source_t *        src,
                   pgp_pk_sesskey_pkt_t *sesskey,
                   pgp_seckey_t *        seckey,
-                  struct rng_t *        rng)
+                  rng_t *               rng)
 {
     uint8_t           decbuf[PGP_MPINT_SIZE];
     rnp_result_t      err;

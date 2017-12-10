@@ -33,7 +33,7 @@
 #include "rng.h"
 
 static inline bool
-rng_ensure_initialized(struct rng_t *ctx)
+rng_ensure_initialized(rng_t *ctx)
 {
     assert(ctx);
     if (ctx->initialized) {
@@ -46,7 +46,7 @@ rng_ensure_initialized(struct rng_t *ctx)
 }
 
 bool
-rng_init(struct rng_t *ctx, rng_type_t rng_type)
+rng_init(rng_t *ctx, rng_type_t rng_type)
 {
     if (!ctx) {
         return false;
@@ -62,7 +62,7 @@ rng_init(struct rng_t *ctx, rng_type_t rng_type)
 }
 
 void
-rng_destroy(struct rng_t *ctx)
+rng_destroy(rng_t *ctx)
 {
     if (!ctx || !ctx->initialized) {
         return;
@@ -74,7 +74,7 @@ rng_destroy(struct rng_t *ctx)
 }
 
 bool
-rng_get_data(struct rng_t *ctx, uint8_t *data, size_t len)
+rng_get_data(rng_t *ctx, uint8_t *data, size_t len)
 {
     if (!ctx) {
         return false;
@@ -93,7 +93,7 @@ rng_get_data(struct rng_t *ctx, uint8_t *data, size_t len)
 }
 
 void *
-rng_handle(struct rng_t *ctx)
+rng_handle(rng_t *ctx)
 {
     (void) rng_ensure_initialized(ctx);
     return ctx->initialized ? ctx->botan_rng : NULL;

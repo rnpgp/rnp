@@ -111,7 +111,7 @@ ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey)
 }
 
 rnp_result_t
-pgp_genkey_ec_uncompressed(struct rng_t *         rng,
+pgp_genkey_ec_uncompressed(rng_t *                rng,
                            pgp_seckey_t *         seckey,
                            const pgp_pubkey_alg_t alg_id,
                            const pgp_curve_t      curve)
