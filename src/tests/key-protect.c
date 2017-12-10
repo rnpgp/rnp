@@ -134,10 +134,10 @@ test_key_protect_load_pgp(void **state)
     assert_non_null(key->key.seckey.key.rsa.u);
 
     // save the secret MPIs for some later comparisons
-    BIGNUM *d = BN_dup(key->key.seckey.key.rsa.d);
-    BIGNUM *p = BN_dup(key->key.seckey.key.rsa.p);
-    BIGNUM *q = BN_dup(key->key.seckey.key.rsa.q);
-    BIGNUM *u = BN_dup(key->key.seckey.key.rsa.u);
+    BIGNUM *d = bn_dup(key->key.seckey.key.rsa.d);
+    BIGNUM *p = bn_dup(key->key.seckey.key.rsa.p);
+    BIGNUM *q = bn_dup(key->key.seckey.key.rsa.q);
+    BIGNUM *u = bn_dup(key->key.seckey.key.rsa.u);
 
     // confirm that packets[0] is no longer encrypted
     {
@@ -165,16 +165,16 @@ test_key_protect_load_pgp(void **state)
 
         // compare MPIs of the reloaded key, with the unlocked key from earlier
         assert_int_equal(
-          0, BN_cmp(key->key.seckey.key.rsa.d, reloaded_key->key.seckey.key.rsa.d));
+          0, bn_cmp(key->key.seckey.key.rsa.d, reloaded_key->key.seckey.key.rsa.d));
         assert_int_equal(
-          0, BN_cmp(key->key.seckey.key.rsa.p, reloaded_key->key.seckey.key.rsa.p));
+          0, bn_cmp(key->key.seckey.key.rsa.p, reloaded_key->key.seckey.key.rsa.p));
         assert_int_equal(
-          0, BN_cmp(key->key.seckey.key.rsa.q, reloaded_key->key.seckey.key.rsa.q));
+          0, bn_cmp(key->key.seckey.key.rsa.q, reloaded_key->key.seckey.key.rsa.q));
         assert_int_equal(
-          0, BN_cmp(key->key.seckey.key.rsa.u, reloaded_key->key.seckey.key.rsa.u));
+          0, bn_cmp(key->key.seckey.key.rsa.u, reloaded_key->key.seckey.key.rsa.u));
         // negative test to try to ensure the above is a valid test
         assert_int_not_equal(
-          0, BN_cmp(key->key.seckey.key.rsa.d, reloaded_key->key.seckey.key.rsa.p));
+          0, bn_cmp(key->key.seckey.key.rsa.d, reloaded_key->key.seckey.key.rsa.p));
 
         // lock it
         assert_true(pgp_key_lock(reloaded_key));
@@ -192,13 +192,13 @@ test_key_protect_load_pgp(void **state)
         assert_false(pgp_key_is_locked(reloaded_key));
         // compare MPIs of the reloaded key, with the unlocked key from earlier
         assert_int_equal(
-          0, BN_cmp(key->key.seckey.key.rsa.d, reloaded_key->key.seckey.key.rsa.d));
+          0, bn_cmp(key->key.seckey.key.rsa.d, reloaded_key->key.seckey.key.rsa.d));
         assert_int_equal(
-          0, BN_cmp(key->key.seckey.key.rsa.p, reloaded_key->key.seckey.key.rsa.p));
+          0, bn_cmp(key->key.seckey.key.rsa.p, reloaded_key->key.seckey.key.rsa.p));
         assert_int_equal(
-          0, BN_cmp(key->key.seckey.key.rsa.q, reloaded_key->key.seckey.key.rsa.q));
+          0, bn_cmp(key->key.seckey.key.rsa.q, reloaded_key->key.seckey.key.rsa.q));
         assert_int_equal(
-          0, BN_cmp(key->key.seckey.key.rsa.u, reloaded_key->key.seckey.key.rsa.u));
+          0, bn_cmp(key->key.seckey.key.rsa.u, reloaded_key->key.seckey.key.rsa.u));
 
         rnp_key_store_free(ks);
     }
@@ -257,15 +257,15 @@ test_key_protect_load_pgp(void **state)
     assert_false(pgp_key_is_locked(key));
 
     // compare secret MPIs with those from earlier
-    assert_int_equal(0, BN_cmp(key->key.seckey.key.rsa.d, d));
-    assert_int_equal(0, BN_cmp(key->key.seckey.key.rsa.p, p));
-    assert_int_equal(0, BN_cmp(key->key.seckey.key.rsa.q, q));
-    assert_int_equal(0, BN_cmp(key->key.seckey.key.rsa.u, u));
+    assert_int_equal(0, bn_cmp(key->key.seckey.key.rsa.d, d));
+    assert_int_equal(0, bn_cmp(key->key.seckey.key.rsa.p, p));
+    assert_int_equal(0, bn_cmp(key->key.seckey.key.rsa.q, q));
+    assert_int_equal(0, bn_cmp(key->key.seckey.key.rsa.u, u));
 
     // cleanup
     pgp_key_free(key);
-    BN_free(d);
-    BN_free(p);
-    BN_free(q);
-    BN_free(u);
+    bn_free(d);
+    bn_free(p);
+    bn_free(q);
+    bn_free(u);
 }

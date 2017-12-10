@@ -85,8 +85,8 @@ DSA_SIG_new()
 {
     DSA_SIG *sig = calloc(1, sizeof(DSA_SIG));
     if (sig) {
-        sig->r = BN_new();
-        sig->s = BN_new();
+        sig->r = bn_new();
+        sig->s = bn_new();
     }
     return sig;
 }
@@ -95,8 +95,8 @@ void
 DSA_SIG_free(DSA_SIG *sig)
 {
     if (sig) {
-        BN_clear_free(sig->r);
-        BN_clear_free(sig->s);
+        bn_clear_free(sig->r);
+        bn_clear_free(sig->s);
         free(sig);
     }
 }
@@ -118,8 +118,8 @@ pgp_dsa_verify(const uint8_t *         hash,
     botan_mp_num_bytes(dsa->q->mp, &q_bytes);
 
     encoded_signature = calloc(2, q_bytes);
-    BN_bn2bin(sig->r, encoded_signature);
-    BN_bn2bin(sig->s, encoded_signature + q_bytes);
+    bn_bn2bin(sig->r, encoded_signature);
+    bn_bn2bin(sig->s, encoded_signature + q_bytes);
 
     botan_pk_op_verify_create(&verify_op, dsa_key, "Raw", 0);
     botan_pk_op_verify_update(verify_op, hash, hash_length);

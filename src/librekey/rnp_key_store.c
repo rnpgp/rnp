@@ -827,7 +827,7 @@ rnp_key_store_get_next_key_by_name(
     return get_key_by_name(io, keyring, name, n, key);
 }
 
-// TODO: This looks very similar to BN_hash()
+// TODO: This looks very similar to bn_hash()
 static bool
 grip_hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
 {
@@ -835,12 +835,12 @@ grip_hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
     size_t   len;
     int      padbyte;
 
-    if (BN_is_zero(bignum)) {
+    if (bn_is_zero(bignum)) {
         pgp_hash_add(hash, (const uint8_t *) &"\0", 1);
         return true;
     }
 
-    if (!BN_num_bytes(bignum, &len)) {
+    if (!bn_num_bytes(bignum, &len)) {
         RNP_LOG("Wrong input");
         return false;
     }
@@ -849,7 +849,7 @@ grip_hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
         (void) fprintf(stderr, "grip_hash_bignum: bad bn alloc\n");
         return false;
     }
-    BN_bn2bin(bignum, bn + 1);
+    bn_bn2bin(bignum, bn + 1);
     bn[0] = 0x0;
     padbyte = (bn[1] & 0x80) ? 1 : 0;
     pgp_hash_add(hash, bn, (unsigned) (len + padbyte));

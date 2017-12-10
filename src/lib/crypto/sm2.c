@@ -80,8 +80,8 @@ pgp_sm2_sign_hash(rng_t *                 rng,
     }
 
     // Allocate memory and copy results
-    sign->r = BN_bin2bn(out_buf, sign_half_len, sign->r);
-    sign->s = BN_bin2bn(out_buf + sign_half_len, sign_half_len, sign->s);
+    sign->r = bn_bin2bn(out_buf, sign_half_len, sign->r);
+    sign->s = bn_bin2bn(out_buf + sign_half_len, sign_half_len, sign->s);
     if (!sign->r || !sign->s) {
         goto end;
     }
@@ -91,8 +91,8 @@ pgp_sm2_sign_hash(rng_t *                 rng,
 
 end:
     if (ret != RNP_SUCCESS) {
-        BN_clear_free(sign->r);
-        BN_clear_free(sign->s);
+        bn_clear_free(sign->r);
+        bn_clear_free(sign->s);
     }
     botan_privkey_destroy(key);
     botan_pk_op_sign_destroy(signer);
@@ -123,8 +123,8 @@ pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
 
     const size_t sign_half_len = BITS_TO_BYTES(curve->bitlen);
 
-    if (!BN_num_bytes(pubkey->point, &r_blen) || (r_blen > sizeof(point_bytes)) ||
-        BN_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
+    if (!bn_num_bytes(pubkey->point, &r_blen) || (r_blen > sizeof(point_bytes)) ||
+        bn_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
         RNP_LOG("Failed to load public key");
         goto end;
     }
@@ -148,14 +148,14 @@ pgp_sm2_verify_hash(const pgp_ecc_sig_t *   sign,
         goto end;
     }
 
-    if (!BN_num_bytes(sign->r, &r_blen) || (r_blen > sign_half_len) ||
-        !BN_num_bytes(sign->s, &s_blen) || (s_blen > sign_half_len) ||
+    if (!bn_num_bytes(sign->r, &r_blen) || (r_blen > sign_half_len) ||
+        !bn_num_bytes(sign->s, &s_blen) || (s_blen > sign_half_len) ||
         (sign_half_len > MAX_CURVE_BYTELEN)) {
         goto end;
     }
 
-    BN_bn2bin(sign->r, &sign_buf[sign_half_len - r_blen]);
-    BN_bn2bin(sign->s, &sign_buf[sign_half_len + sign_half_len - s_blen]);
+    bn_bn2bin(sign->r, &sign_buf[sign_half_len - r_blen]);
+    bn_bn2bin(sign->s, &sign_buf[sign_half_len + sign_half_len - s_blen]);
 
     ret = botan_pk_op_verify_finish(verifier, sign_buf, sign_half_len * 2) ?
             RNP_ERROR_SIGNATURE_INVALID :
@@ -211,8 +211,8 @@ pgp_sm2_encrypt(rng_t *                 rng,
         goto done;
     }
 
-    if (!BN_num_bytes(pubkey->point, &sz) || (sz > sizeof(point_bytes)) ||
-        BN_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
+    if (!bn_num_bytes(pubkey->point, &sz) || (sz > sizeof(point_bytes)) ||
+        bn_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
         RNP_LOG("Failed to load public key");
         goto done;
     }

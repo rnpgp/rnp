@@ -179,9 +179,9 @@ rsa_sign(rng_t *                 rng,
         RNP_LOG("Internal error");
         return false;
     }
-    bn = BN_bin2bn(sigbuf, sig_size, NULL);
+    bn = bn_bin2bn(sigbuf, sig_size, NULL);
     pgp_write_mpi(out, bn);
-    BN_free(bn);
+    bn_free(bn);
     return true;
 }
 
@@ -258,8 +258,8 @@ ecdsa_sign(rng_t *                 rng,
     bool ret = !!pgp_write_mpi(output, sig.r);
     ret &= !!pgp_write_mpi(output, sig.s);
 
-    BN_free(sig.r);
-    BN_free(sig.s);
+    bn_free(sig.r);
+    bn_free(sig.s);
     return ret;
 }
 
@@ -299,8 +299,8 @@ sm2_sign(rng_t *                 rng,
     bool ret = !!pgp_write_mpi(output, sig.r);
     ret &= !!pgp_write_mpi(output, sig.s);
 
-    BN_free(sig.r);
-    BN_free(sig.s);
+    bn_free(sig.r);
+    bn_free(sig.s);
     return ret;
 }
 
@@ -320,8 +320,8 @@ eddsa_sign(rng_t *                 rng,
     pgp_write(output, &hashbuf[0], 2);
 
     /* write signature to buf */
-    BIGNUM *r = BN_new();
-    BIGNUM *s = BN_new();
+    BIGNUM *r = bn_new();
+    BIGNUM *s = bn_new();
     if (!r || !s) {
         goto end;
     }
@@ -335,8 +335,8 @@ eddsa_sign(rng_t *                 rng,
     ret = true;
 
 end:
-    BN_free(r);
-    BN_free(s);
+    bn_free(r);
+    bn_free(s);
     return ret;
 }
 
@@ -362,16 +362,16 @@ rsa_verify(rng_t *                 rng,
     uint8_t sigbuf[RNP_BUFSIZ];
 
     /* RSA key can't be bigger than 65535 bits, so... */
-    if (!BN_num_bytes(pubrsa->n, &sz) || (sz > sizeof(sigbuf))) {
+    if (!bn_num_bytes(pubrsa->n, &sz) || (sz > sizeof(sigbuf))) {
         RNP_LOG("keysize too big");
         return false;
     }
 
-    if (!BN_num_bytes(sig->sig, &sig_blen) || (sig_blen > sizeof(sigbuf))) {
+    if (!bn_num_bytes(sig->sig, &sig_blen) || (sig_blen > sizeof(sigbuf))) {
         RNP_LOG("Signature too big");
         return false;
     }
-    BN_bn2bin(sig->sig, sigbuf);
+    bn_bn2bin(sig->sig, sigbuf);
 
     return pgp_rsa_pkcs1_verify_hash(
       rng, sigbuf, sig_blen, hash_alg, hash, hash_length, pubrsa);

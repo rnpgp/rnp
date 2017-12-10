@@ -149,9 +149,9 @@ pgp_genkey_ec_uncompressed(rng_t *                rng,
     }
 
     // Crash if seckey is null. It's clean and easy to debug design
-    public_x = BN_new();
-    public_y = BN_new();
-    seckey->key.ecc.x = BN_new();
+    public_x = bn_new();
+    public_y = bn_new();
+    seckey->key.ecc.x = bn_new();
 
     if (!public_x || !public_y || !seckey->key.ecc.x) {
         RNP_LOG("Allocation failed");
@@ -173,8 +173,8 @@ pgp_genkey_ec_uncompressed(rng_t *                rng,
 
     size_t x_bytes;
     size_t y_bytes;
-    (void) BN_num_bytes(public_x, &x_bytes); // Can't fail
-    (void) BN_num_bytes(public_y, &y_bytes);
+    (void) bn_num_bytes(public_x, &x_bytes); // Can't fail
+    (void) bn_num_bytes(public_y, &y_bytes);
 
     // Safety check
     if ((x_bytes > filed_byte_size) || (y_bytes > filed_byte_size)) {
@@ -193,10 +193,10 @@ pgp_genkey_ec_uncompressed(rng_t *                rng,
      *       which is important when converting to octet-string
      */
     point_bytes[0] = 0x04;
-    BN_bn2bin(public_x, &point_bytes[1 + filed_byte_size - x_bytes]);
-    BN_bn2bin(public_y, &point_bytes[1 + filed_byte_size + (filed_byte_size - y_bytes)]);
+    bn_bn2bin(public_x, &point_bytes[1 + filed_byte_size - x_bytes]);
+    bn_bn2bin(public_y, &point_bytes[1 + filed_byte_size + (filed_byte_size - y_bytes)]);
 
-    seckey->pubkey.key.ecc.point = BN_bin2bn(point_bytes, (2 * filed_byte_size) + 1, NULL);
+    seckey->pubkey.key.ecc.point = bn_bin2bn(point_bytes, (2 * filed_byte_size) + 1, NULL);
     if (!seckey->pubkey.key.ecc.point) {
         goto end;
     }
@@ -211,10 +211,10 @@ end:
         botan_pubkey_destroy(pu_key);
     }
     if (public_x != NULL) {
-        BN_free(public_x);
+        bn_free(public_x);
     }
     if (public_y != NULL) {
-        BN_free(public_y);
+        bn_free(public_y);
     }
     if (RNP_SUCCESS != ret) {
         RNP_LOG("EC key generation failed");

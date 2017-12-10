@@ -372,8 +372,8 @@ read_bignum(s_exp_t *s_exp, const char *name)
         return NULL;
     }
 
-    BIGNUM *res = PGPV_BN_bin2bn(
-      var->sub_elements[1].block.bytes, (int) var->sub_elements[1].block.len, NULL);
+    BIGNUM *res =
+      bn_bin2bn(var->sub_elements[1].block.bytes, (int) var->sub_elements[1].block.len, NULL);
     if (res == NULL) {
         char *buf = malloc((var->sub_elements[1].block.len * 3) + 1);
         if (buf == NULL) {
@@ -398,7 +398,7 @@ write_bignum(s_exp_t *s_exp, const char *name, BIGNUM *bn)
 
     bnbuf[0] = 0;
 
-    if (PGPV_BN_bn2bin(bn, bnbuf + 1) < 0) {
+    if (bn_bn2bin(bn, bnbuf + 1) < 0) {
         return false;
     }
 
@@ -412,11 +412,11 @@ write_bignum(s_exp_t *s_exp, const char *name, BIGNUM *bn)
 
     size_t sz;
     if (bnbuf[1] & 0x80) {
-        if (!BN_num_bytes(bn, &sz) || !add_block_to_sexp(sub_s_exp, bnbuf, sz + 1)) {
+        if (!bn_num_bytes(bn, &sz) || !add_block_to_sexp(sub_s_exp, bnbuf, sz + 1)) {
             return false;
         }
     } else {
-        if (!BN_num_bytes(bn, &sz) || !add_block_to_sexp(sub_s_exp, bnbuf + 1, sz)) {
+        if (!bn_num_bytes(bn, &sz) || !add_block_to_sexp(sub_s_exp, bnbuf + 1, sz)) {
             return false;
         }
     }
@@ -438,22 +438,22 @@ parse_pubkey(pgp_pubkey_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 
         pubkey->key.dsa.q = read_bignum(s_exp, "q");
         if (pubkey->key.dsa.q == NULL) {
-            PGPV_BN_free(pubkey->key.dsa.p);
+            bn_free(pubkey->key.dsa.p);
             return false;
         }
 
         pubkey->key.dsa.g = read_bignum(s_exp, "g");
         if (pubkey->key.dsa.g == NULL) {
-            PGPV_BN_free(pubkey->key.dsa.p);
-            PGPV_BN_free(pubkey->key.dsa.q);
+            bn_free(pubkey->key.dsa.p);
+            bn_free(pubkey->key.dsa.q);
             return false;
         }
 
         pubkey->key.dsa.y = read_bignum(s_exp, "y");
         if (pubkey->key.dsa.y == NULL) {
-            PGPV_BN_free(pubkey->key.dsa.p);
-            PGPV_BN_free(pubkey->key.dsa.q);
-            PGPV_BN_free(pubkey->key.dsa.g);
+            bn_free(pubkey->key.dsa.p);
+            bn_free(pubkey->key.dsa.q);
+            bn_free(pubkey->key.dsa.g);
             return false;
         }
 
@@ -467,7 +467,7 @@ parse_pubkey(pgp_pubkey_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 
         pubkey->key.rsa.e = read_bignum(s_exp, "e");
         if (pubkey->key.rsa.e == NULL) {
-            PGPV_BN_free(pubkey->key.rsa.n);
+            bn_free(pubkey->key.rsa.n);
             return false;
         }
 
@@ -481,14 +481,14 @@ parse_pubkey(pgp_pubkey_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 
         pubkey->key.elgamal.g = read_bignum(s_exp, "g");
         if (pubkey->key.elgamal.g == NULL) {
-            PGPV_BN_free(pubkey->key.elgamal.p);
+            bn_free(pubkey->key.elgamal.p);
             return false;
         }
 
         pubkey->key.elgamal.y = read_bignum(s_exp, "y");
         if (pubkey->key.elgamal.y == NULL) {
-            PGPV_BN_free(pubkey->key.elgamal.p);
-            PGPV_BN_free(pubkey->key.elgamal.g);
+            bn_free(pubkey->key.elgamal.p);
+            bn_free(pubkey->key.elgamal.g);
             return false;
         }
 
@@ -522,22 +522,22 @@ parse_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 
         seckey->key.rsa.p = read_bignum(s_exp, "p");
         if (seckey->key.rsa.p == NULL) {
-            PGPV_BN_free(seckey->key.rsa.d);
+            bn_free(seckey->key.rsa.d);
             return false;
         }
 
         seckey->key.rsa.q = read_bignum(s_exp, "q");
         if (seckey->key.rsa.q == NULL) {
-            PGPV_BN_free(seckey->key.rsa.d);
-            PGPV_BN_free(seckey->key.rsa.p);
+            bn_free(seckey->key.rsa.d);
+            bn_free(seckey->key.rsa.p);
             return false;
         }
 
         seckey->key.rsa.u = read_bignum(s_exp, "u");
         if (seckey->key.rsa.u == NULL) {
-            PGPV_BN_free(seckey->key.rsa.d);
-            PGPV_BN_free(seckey->key.rsa.p);
-            PGPV_BN_free(seckey->key.rsa.q);
+            bn_free(seckey->key.rsa.d);
+            bn_free(seckey->key.rsa.p);
+            bn_free(seckey->key.rsa.q);
             return false;
         }
 

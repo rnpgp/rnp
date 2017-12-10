@@ -430,7 +430,7 @@ formatbignum(char *buffer, BIGNUM *bn)
     uint8_t *cp;
     int      cc;
 
-    if (!BN_num_bytes(bn, &len)) {
+    if (!bn_num_bytes(bn, &len)) {
         RNP_LOG("Wrong input");
         return 0;
     }
@@ -440,7 +440,7 @@ formatbignum(char *buffer, BIGNUM *bn)
         return 0;
     }
 
-    (void) BN_bn2bin(bn, cp + 1);
+    (void) bn_bn2bin(bn, cp + 1);
     cp[0] = 0x0;
     cc =
       (cp[1] & 0x80) ? formatstring(buffer, cp, len + 1) : formatstring(buffer, &cp[1], len);

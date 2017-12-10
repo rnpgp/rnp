@@ -616,29 +616,29 @@ signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t 
 
     switch (sig->palg) {
     case PGP_PKA_DSA: {
-        pgp_dsa_sig_t dsa = {.r = BN_bin2bn(sig->material.dsa.r, sig->material.dsa.rlen, NULL),
+        pgp_dsa_sig_t dsa = {.r = bn_bin2bn(sig->material.dsa.r, sig->material.dsa.rlen, NULL),
                              .s =
-                               BN_bin2bn(sig->material.dsa.s, sig->material.dsa.slen, NULL)};
+                               bn_bin2bn(sig->material.dsa.s, sig->material.dsa.slen, NULL)};
         ret = pgp_dsa_verify(hval, len, &dsa, &key->key.dsa);
-        BN_free(dsa.r);
-        BN_free(dsa.s);
+        bn_free(dsa.r);
+        bn_free(dsa.s);
         break;
     }
     case PGP_PKA_EDDSA: {
-        BIGNUM *r = BN_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL);
-        BIGNUM *s = BN_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL);
+        BIGNUM *r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL);
+        BIGNUM *s = bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL);
         ret = pgp_eddsa_verify_hash(r, s, hval, len, &key->key.ecc);
-        BN_free(r);
-        BN_free(s);
+        bn_free(r);
+        bn_free(s);
         break;
     }
     case PGP_PKA_SM2: {
-        pgp_ecc_sig_t ecc = {.r = BN_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL),
+        pgp_ecc_sig_t ecc = {.r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL),
                              .s =
-                               BN_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL)};
+                               bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL)};
         ret = pgp_sm2_verify_hash(&ecc, hval, len, &key->key.ecc) == RNP_SUCCESS;
-        BN_free(ecc.r);
-        BN_free(ecc.s);
+        bn_free(ecc.r);
+        bn_free(ecc.s);
         break;
     }
     case PGP_PKA_RSA: {
@@ -652,12 +652,12 @@ signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t 
         break;
     }
     case PGP_PKA_ECDSA: {
-        pgp_ecc_sig_t ecc = {.r = BN_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL),
+        pgp_ecc_sig_t ecc = {.r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL),
                              .s =
-                               BN_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL)};
+                               bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL)};
         ret = pgp_ecdsa_verify_hash(&ecc, hval, len, &key->key.ecc) == RNP_SUCCESS;
-        BN_free(ecc.r);
-        BN_free(ecc.s);
+        bn_free(ecc.r);
+        bn_free(ecc.s);
         break;
     }
     default:
@@ -1212,7 +1212,7 @@ encrypted_try_key(pgp_source_t *        src,
             RNP_LOG("ECDH fingerprint calculation failed");
             return false;
         }
-        ecdh_p = BN_bin2bn(sesskey->params.ecdh.p, sesskey->params.ecdh.plen, NULL);
+        ecdh_p = bn_bin2bn(sesskey->params.ecdh.p, sesskey->params.ecdh.plen, NULL);
 
         err = pgp_ecdh_decrypt_pkcs5(decbuf,
                                      &declen,
@@ -1222,7 +1222,7 @@ encrypted_try_key(pgp_source_t *        src,
                                      &seckey->key.ecc,
                                      &seckey->pubkey.key.ecdh,
                                      &fingerprint);
-        BN_free(ecdh_p);
+        bn_free(ecdh_p);
 
         if (err != RNP_SUCCESS) {
             RNP_LOG("ECDH decryption error %u", err);
