@@ -629,7 +629,7 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
     }
 
     // Lazy mode can't fail
-    (void) rng_init(&rnp->drbg, RNG_DRBG);
+    (void) rng_init(&rnp->rng, RNG_DRBG);
     return RNP_SUCCESS;
 }
 
@@ -637,7 +637,7 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
 void
 rnp_end(rnp_t *rnp)
 {
-    rng_destroy(&rnp->drbg);
+    rng_destroy(&rnp->rng);
     if (rnp->pubring != NULL) {
         rnp_key_store_free(rnp->pubring);
         rnp->pubring = NULL;
@@ -686,6 +686,7 @@ rnp_ctx_init(rnp_ctx_t *ctx, rnp_t *rnp)
 
     memset(ctx, '\0', sizeof(*ctx));
     ctx->rnp = rnp;
+    ctx->rng = &rnp->rng;
     return RNP_SUCCESS;
 }
 
@@ -1062,7 +1063,7 @@ rnp_generate_key(rnp_t *rnp)
     char *               cp = NULL;
     key_store_format_t   key_format = ((rnp_key_store_t *) rnp->secring)->format;
 
-    if (!pgp_generate_keypair(&rnp->drbg,
+    if (!pgp_generate_keypair(&rnp->rng,
                               &action->primary.keygen,
                               &action->subkey.keygen,
                               true,
