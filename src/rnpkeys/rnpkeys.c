@@ -210,10 +210,10 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
             strcpy((char *) primary_desc->cert.userid, key);
         }
         primary_desc->crypto.hash_alg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
-        primary_desc->crypto.rng = &rnp->drbg;
+        primary_desc->crypto.rng = &rnp->rng;
         protection->hash_alg = primary_desc->crypto.hash_alg;
         protection->symm_alg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
-        action->subkey.keygen.crypto.rng = &rnp->drbg;
+        action->subkey.keygen.crypto.rng = &rnp->rng;
 
         if (!rnp_cfg_getbool(cfg, CFG_EXPERT)) {
             primary_desc->crypto.key_alg = PGP_PKA_RSA;

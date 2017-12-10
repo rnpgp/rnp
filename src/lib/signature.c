@@ -1125,8 +1125,6 @@ pgp_sign_file(rnp_ctx_t *         ctx,
     uint8_t           keyid[PGP_KEY_ID_SIZE];
     int               fd_out = 0;
 
-    assert(ctx->rnp);
-
     /* find the hash algorithm */
     if ((hash_alg = pgp_pick_hash_alg(ctx, seckey)) == PGP_HASH_UNKNOWN) {
         (void) fprintf(
