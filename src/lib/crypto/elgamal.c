@@ -89,7 +89,7 @@
     } while (0)
 
 int
-pgp_elgamal_public_encrypt_pkcs1(struct rng_t *              rng,
+pgp_elgamal_public_encrypt_pkcs1(rng_t *                     rng,
                                  uint8_t *                   g2k,
                                  uint8_t *                   encm,
                                  const uint8_t *             in,
@@ -156,7 +156,7 @@ end:
 }
 
 int
-pgp_elgamal_private_decrypt_pkcs1(struct rng_t *              rng,
+pgp_elgamal_private_decrypt_pkcs1(rng_t *                     rng,
                                   uint8_t *                   out,
                                   const uint8_t *             g2k,
                                   const uint8_t *             in,

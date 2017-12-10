@@ -130,7 +130,7 @@ bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
  *  @param subkey_pub pointer to store the generated public key, must not be NULL
  *  @return true if successful, false otherwise.
  **/
-bool pgp_generate_keypair(struct rng_t *             rng,
+bool pgp_generate_keypair(rng_t *                    rng,
                           rnp_keygen_primary_desc_t *primary_desc,
                           rnp_keygen_subkey_desc_t * subkey_desc,
                           bool                       merge_defaults,
@@ -148,7 +148,7 @@ int  pgp_reader_push_hash(pgp_stream_t *, pgp_hash_t *);
 void pgp_reader_pop_hash(pgp_stream_t *);
 
 int pgp_decrypt_decode_mpi(
-  struct rng_t *, uint8_t *, size_t, const BIGNUM *, const BIGNUM *, const pgp_seckey_t *);
+  rng_t *, uint8_t *, size_t, const BIGNUM *, const BIGNUM *, const pgp_seckey_t *);
 
 /* Encrypt everything that's written */
 struct pgp_key_data;

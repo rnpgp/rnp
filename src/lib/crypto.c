@@ -102,7 +102,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 \note only RSA at present
 */
 int
-pgp_decrypt_decode_mpi(struct rng_t *      rng,
+pgp_decrypt_decode_mpi(rng_t *             rng,
                        uint8_t *           buf,
                        size_t              buflen,
                        const BIGNUM *      g_to_k,
@@ -130,8 +130,13 @@ pgp_decrypt_decode_mpi(struct rng_t *      rng,
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "encrypted", encmpibuf, 16);
         }
-        n = pgp_rsa_decrypt_pkcs1(
-          rng, buf, buflen, encmpibuf, encmpi_byte_len, &seckey->key.rsa, &seckey->pubkey.key.rsa);
+        n = pgp_rsa_decrypt_pkcs1(rng,
+                                  buf,
+                                  buflen,
+                                  encmpibuf,
+                                  encmpi_byte_len,
+                                  &seckey->key.rsa,
+                                  &seckey->pubkey.key.rsa);
         if (n <= 0) {
             RNP_LOG("ops_rsa_private_decrypt failure");
             return -1;
@@ -229,7 +234,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     seckey->pubkey.version = PGP_V4;
     seckey->pubkey.birthtime = time(NULL);
     seckey->pubkey.alg = crypto->key_alg;
-    struct rng_t *rng = crypto->rng;
+    rng_t *rng = crypto->rng;
 
     switch (seckey->pubkey.alg) {
     case PGP_PKA_RSA:

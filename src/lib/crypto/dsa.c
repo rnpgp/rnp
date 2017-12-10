@@ -133,7 +133,7 @@ pgp_dsa_verify(const uint8_t *         hash,
 }
 
 DSA_SIG *
-pgp_dsa_sign(struct rng_t *          rng,
+pgp_dsa_sign(rng_t *                 rng,
              uint8_t *               hashbuf,
              unsigned                hashsize,
              const pgp_dsa_seckey_t *secdsa,

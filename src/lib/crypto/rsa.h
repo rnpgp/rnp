@@ -66,16 +66,16 @@ typedef struct pgp_rsa_seckey_t {
  * RSA encrypt/decrypt
  */
 
-int pgp_genkey_rsa(struct rng_t *rng, pgp_seckey_t *seckey, size_t numbits);
+int pgp_genkey_rsa(rng_t *rng, pgp_seckey_t *seckey, size_t numbits);
 
-int pgp_rsa_encrypt_pkcs1(struct rng_t *          rng,
+int pgp_rsa_encrypt_pkcs1(rng_t *                 rng,
                           uint8_t *               out,
                           size_t                  out_len,
                           const uint8_t *         key,
                           size_t                  key_len,
                           const pgp_rsa_pubkey_t *pubkey);
 
-int pgp_rsa_decrypt_pkcs1(struct rng_t *          rng,
+int pgp_rsa_decrypt_pkcs1(rng_t *                 rng,
                           uint8_t *               out,
                           size_t                  out_len,
                           const uint8_t *         key,
@@ -90,7 +90,7 @@ int pgp_rsa_decrypt_pkcs1(struct rng_t *          rng,
 /*
  * Returns 1 for valid 0 for invalid/error
  */
-bool pgp_rsa_pkcs1_verify_hash(struct rng_t *          rng,
+bool pgp_rsa_pkcs1_verify_hash(rng_t *                 rng,
                                const uint8_t *         sig_buf,
                                size_t                  sig_buf_size,
                                pgp_hash_alg_t          hash_alg,
@@ -101,7 +101,7 @@ bool pgp_rsa_pkcs1_verify_hash(struct rng_t *          rng,
 /*
  * Returns # bytes written to sig_buf on success, 0 on error
  */
-int pgp_rsa_pkcs1_sign_hash(struct rng_t * rng,
+int pgp_rsa_pkcs1_sign_hash(rng_t *        rng,
                             uint8_t *      sig_buf,
                             size_t         sig_buf_size,
                             pgp_hash_alg_t hash_alg,

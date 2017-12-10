@@ -50,7 +50,7 @@
 #include <sys/stat.h>
 #include <botan/ffi.h>
 
-extern struct rng_t global_rng;
+extern rng_t global_rng;
 
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .

@@ -132,7 +132,7 @@ const ec_curve_desc_t *get_curve_desc(const pgp_curve_t curve_id);
  * @returns RNP_ERROR_OUT_OF_MEMORY memory allocation failed
  * @returns RNP_ERROR_KEY_GENERATION implementation error
  */
-rnp_result_t pgp_genkey_ec_uncompressed(struct rng_t *         rng,
+rnp_result_t pgp_genkey_ec_uncompressed(rng_t *                rng,
                                         pgp_seckey_t *         seckey,
                                         const pgp_pubkey_alg_t alg_id,
                                         const pgp_curve_t      curve);

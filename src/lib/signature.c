@@ -149,7 +149,7 @@ pgp_dump_sig(pgp_sig_t *sig)
 /* XXX: both this and verify would be clearer if the signature were */
 /* treated as an MPI. */
 static bool
-rsa_sign(struct rng_t *          rng,
+rsa_sign(rng_t *                 rng,
          pgp_hash_t *            hash,
          const pgp_rsa_pubkey_t *pubrsa,
          const pgp_rsa_seckey_t *secrsa,
@@ -186,7 +186,7 @@ rsa_sign(struct rng_t *          rng,
 }
 
 static bool
-dsa_sign(struct rng_t *          rng,
+dsa_sign(rng_t *                 rng,
          pgp_hash_t *            hash,
          const pgp_dsa_pubkey_t *dsa,
          const pgp_dsa_seckey_t *sdsa,
@@ -223,7 +223,7 @@ dsa_sign(struct rng_t *          rng,
 }
 
 static bool
-ecdsa_sign(struct rng_t *          rng,
+ecdsa_sign(rng_t *                 rng,
            pgp_hash_t *            hash,
            const pgp_ecc_pubkey_t *pub_key,
            const pgp_ecc_seckey_t *prv_key,
@@ -264,7 +264,7 @@ ecdsa_sign(struct rng_t *          rng,
 }
 
 static bool
-sm2_sign(struct rng_t *          rng,
+sm2_sign(rng_t *                 rng,
          pgp_hash_t *            hash,
          const pgp_ecc_pubkey_t *pub_key,
          const pgp_ecc_seckey_t *prv_key,
@@ -305,7 +305,7 @@ sm2_sign(struct rng_t *          rng,
 }
 
 static bool
-eddsa_sign(struct rng_t *          rng,
+eddsa_sign(rng_t *                 rng,
            pgp_hash_t *            hash,
            const pgp_ecc_pubkey_t *pubkey,
            const pgp_ecc_seckey_t *seckey,
@@ -350,7 +350,7 @@ eddsa_verify(const uint8_t *         hash,
 }
 
 static bool
-rsa_verify(struct rng_t *          rng,
+rsa_verify(rng_t *                 rng,
            pgp_hash_alg_t          hash_alg,
            const uint8_t *         hash,
            size_t                  hash_length,
@@ -433,7 +433,7 @@ hash_add_trailer(pgp_hash_t *hash, const pgp_sig_t *sig, const uint8_t *raw_pack
    \return 1 if good; else 0
 */
 bool
-pgp_check_sig(struct rng_t *      rng,
+pgp_check_sig(rng_t *             rng,
               const uint8_t *     hash,
               unsigned            length,
               const pgp_sig_t *   sig,
@@ -478,7 +478,7 @@ pgp_check_sig(struct rng_t *      rng,
 }
 
 static bool
-finalise_sig(struct rng_t *      rng,
+finalise_sig(rng_t *             rng,
              pgp_hash_t *        hash,
              const pgp_sig_t *   sig,
              const pgp_pubkey_t *signer,
@@ -805,7 +805,7 @@ pgp_sig_end_hashed_subpkts(pgp_create_sig_t *sig)
  */
 
 bool
-pgp_sig_write(struct rng_t *      rng,
+pgp_sig_write(rng_t *             rng,
               pgp_output_t *      output,
               pgp_create_sig_t *  sig,
               const pgp_pubkey_t *key,

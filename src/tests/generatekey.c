@@ -37,7 +37,7 @@
 #include "signature.h"
 #include "librepgp/validate.h"
 
-extern struct rng_t global_rng;
+extern rng_t global_rng;
 
 void
 rnpkeys_generatekey_testSignature(void **state)

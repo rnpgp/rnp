@@ -98,7 +98,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
     char *          pass;
     bool            ok = false;
     size_t          read;
-    struct rng_t    rng = {0};
+    rng_t           rng = {0};
     botan_privkey_t priv_key;
 
     if (!rng_init(&rng, RNG_SYSTEM)) {

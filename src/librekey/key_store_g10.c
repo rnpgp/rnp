@@ -1274,7 +1274,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passwor
     }
 
     // randomize IV and salt
-    struct rng_t rng;
+    rng_t rng = {0};
     if (!rng_init(&rng, RNG_SYSTEM) ||
         !rng_get_data(&rng, &seckey->protection.iv[0], sizeof(seckey->protection.iv)) ||
         !rng_get_data(

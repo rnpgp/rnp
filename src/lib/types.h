@@ -726,7 +726,7 @@ typedef struct rnp_keygen_crypto_params_t {
     // Hash to be used for key signature
     pgp_hash_alg_t hash_alg;
     // Pointer to initialized RNG engine
-    struct rng_t *rng;
+    rng_t *rng;
     union {
         struct ecc_t {
             pgp_curve_t curve;

@@ -793,7 +793,7 @@ create_unencoded_m_buf(pgp_pk_sesskey_t *sesskey, size_t cipher_key_len, uint8_t
 \note It is the caller's responsiblity to free the returned pointer
 */
 pgp_pk_sesskey_t *
-pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher, struct rng_t *rng)
+pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher, rng_t *rng)
 {
     /*
      * Creates a random session key and encrypts it for the given key
@@ -1215,7 +1215,7 @@ pgp_write_selfsig_cert(pgp_output_t *               output,
     pgp_create_sig_t *sig = NULL;
     bool              ok = false;
     uint8_t           keyid[PGP_KEY_ID_SIZE];
-    struct rng_t      rng;
+    rng_t             rng = {0};
 
     if (!output || !seckey || !cert) {
         RNP_LOG("invalid parameters");
@@ -1313,7 +1313,7 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
     pgp_create_sig_t *sig = NULL;
     bool              ok = false;
     uint8_t           keyid[PGP_KEY_ID_SIZE];
-    struct rng_t      rng;
+    rng_t             rng = {0};
 
     if (!output || !primary_sec || !subkey || !binding) {
         RNP_LOG("invalid parameters");

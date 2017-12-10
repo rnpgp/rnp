@@ -32,7 +32,7 @@
 #include <rnp/rnp_def.h>
 
 bool
-pgp_genkey_eddsa(struct rng_t *rng, pgp_seckey_t *seckey, size_t curve_len)
+pgp_genkey_eddsa(rng_t *rng, pgp_seckey_t *seckey, size_t curve_len)
 {
     if (curve_len != 255)
         return false;
@@ -122,7 +122,7 @@ done:
 }
 
 int
-pgp_eddsa_sign_hash(struct rng_t *          rng,
+pgp_eddsa_sign_hash(rng_t *                 rng,
                     BIGNUM *                r,
                     BIGNUM *                s,
                     const uint8_t *         hash,

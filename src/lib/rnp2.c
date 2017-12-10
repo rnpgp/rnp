@@ -75,7 +75,7 @@ struct rnp_ffi_st {
     void *          getkeycb_ctx;
     rnp_password_cb getpasscb;
     void *          getpasscb_ctx;
-    struct rng_t    rng;
+    rng_t           rng;
 };
 
 struct rnp_input_st {

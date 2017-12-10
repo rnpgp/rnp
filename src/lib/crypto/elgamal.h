@@ -74,7 +74,7 @@ typedef struct pgp_elgamal_sig_t {
  * @return     on success - number of bytes written to g2k and encm
  *            on failure -1
  */
-int pgp_elgamal_public_encrypt_pkcs1(struct rng_t *              rng,
+int pgp_elgamal_public_encrypt_pkcs1(rng_t *                     rng,
                                      uint8_t *                   g2k,
                                      uint8_t *                   encm,
                                      const uint8_t *             in,
@@ -99,7 +99,7 @@ int pgp_elgamal_public_encrypt_pkcs1(struct rng_t *              rng,
  * @return     on success - number of bytes written to g2k and encm
  *            on failure -1
  */
-int pgp_elgamal_private_decrypt_pkcs1(struct rng_t *              rng,
+int pgp_elgamal_private_decrypt_pkcs1(rng_t *                     rng,
                                       uint8_t *                   out,
                                       const uint8_t *             g2k,
                                       const uint8_t *             in,
