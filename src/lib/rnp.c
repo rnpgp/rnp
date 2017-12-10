@@ -689,6 +689,13 @@ rnp_ctx_init(rnp_ctx_t *ctx, rnp_t *rnp)
     return RNP_SUCCESS;
 }
 
+void *
+rnp_ctx_rng_handle(const rnp_ctx_t *ctx)
+{
+    assert(ctx->rng);
+    return ctx->rng;
+}
+
 void
 rnp_ctx_reset(rnp_ctx_t *ctx)
 {
