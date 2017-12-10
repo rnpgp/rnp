@@ -165,19 +165,19 @@ pkcs1_rsa_test_success(void **state)
     printf("PT = 0x%s\n", tmp);
     free(tmp);
     printf("N = ");
-    BN_print_fp(stdout, pub_rsa->n);
+    bn_print_fp(stdout, pub_rsa->n);
     printf("\n");
     printf("E = ");
-    BN_print_fp(stdout, pub_rsa->e);
+    bn_print_fp(stdout, pub_rsa->e);
     printf("\n");
     printf("P = ");
-    BN_print_fp(stdout, sec_rsa->p);
+    bn_print_fp(stdout, sec_rsa->p);
     printf("\n");
     printf("Q = ");
-    BN_print_fp(stdout, sec_rsa->q);
+    bn_print_fp(stdout, sec_rsa->q);
     printf("\n");
     printf("D = ");
-    BN_print_fp(stdout, sec_rsa->d);
+    bn_print_fp(stdout, sec_rsa->d);
     printf("\n");
 #endif
 
@@ -218,8 +218,8 @@ rnp_test_eddsa(void **state)
     rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, seckey));
 
     const uint8_t hash[32] = {0};
-    BIGNUM *      r = BN_new();
-    BIGNUM *      s = BN_new();
+    bignum_t *    r = bn_new();
+    bignum_t *    s = bn_new();
 
     rnp_assert_int_equal(
       rstate,
@@ -238,8 +238,8 @@ rnp_test_eddsa(void **state)
     rnp_assert_int_equal(
       rstate, pgp_eddsa_verify_hash(r, s, hash, sizeof(hash) - 1, &seckey->pubkey.key.ecc), 0);
 
-    BN_free(r);
-    BN_free(s);
+    bn_free(r);
+    bn_free(s);
     pgp_seckey_free(seckey);
     free(seckey);
 }
@@ -265,21 +265,21 @@ raw_elg_test_success(void **state)
     const uint8_t        plaintext[] = {0x01, 0x02, 0x03, 0x04, 0x17};
 
     // Allocate needed memory
-    pub_elg.p = BN_bin2bn(p512, sizeof(p512), NULL);
+    pub_elg.p = bn_bin2bn(p512, sizeof(p512), NULL);
     rnp_assert_non_null(rstate, pub_elg.p);
 
-    pub_elg.g = BN_new();
+    pub_elg.g = bn_new();
     rnp_assert_non_null(rstate, pub_elg.g);
 
-    sec_elg.x = BN_new();
+    sec_elg.x = bn_new();
     rnp_assert_non_null(rstate, sec_elg.x);
 
-    pub_elg.y = BN_new();
+    pub_elg.y = bn_new();
     rnp_assert_non_null(rstate, pub_elg.y);
 
-    BN_set_word(pub_elg.g, 3);
-    BN_set_word(sec_elg.x, 0xCAB5432);
-    BN_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p);
+    bn_set_word(pub_elg.g, 3);
+    bn_set_word(sec_elg.x, 0xCAB5432);
+    bn_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p);
 
     // Encrypt
     unsigned ctext_size = pgp_elgamal_public_encrypt_pkcs1(
@@ -289,32 +289,32 @@ raw_elg_test_success(void **state)
     ctext_size /= 2;
 
 #if defined(DEBUG_PRINT)
-    BIGNUM *tmp = BN_new();
+    bignum_t *tmp = bn_new();
 
     printf("\tP\t= ");
-    BN_print_fp(stdout, pub_elg.p);
+    bn_print_fp(stdout, pub_elg.p);
     printf("\n");
     printf("\tG\t= ");
-    BN_print_fp(stdout, pub_elg.g);
+    bn_print_fp(stdout, pub_elg.g);
     printf("\n");
     printf("\tY\t= ");
-    BN_print_fp(stdout, pub_elg.y);
+    bn_print_fp(stdout, pub_elg.y);
     printf("\n");
     printf("\tX\t= ");
-    BN_print_fp(stdout, sec_elg.x);
+    bn_print_fp(stdout, sec_elg.x);
     printf("\n");
 
-    BN_bin2bn(g_to_k, ctext_size, tmp);
+    bn_bin2bn(g_to_k, ctext_size, tmp);
     printf("\tGtk\t= ");
-    BN_print_fp(stdout, tmp);
+    bn_print_fp(stdout, tmp);
     printf("\n");
 
-    BN_bin2bn(encm, ctext_size, tmp);
+    bn_bin2bn(encm, ctext_size, tmp);
     printf("\tMM\t= ");
-    BN_print_fp(stdout, tmp);
+    bn_print_fp(stdout, tmp);
     printf("\n");
 
-    BN_clear_free(tmp);
+    bn_clear_free(tmp);
 #endif
 
     rnp_assert_int_not_equal(
@@ -329,10 +329,10 @@ raw_elg_test_success(void **state)
       test_value_equal("ElGamal decrypt", "0102030417", decryption_result, sizeof(plaintext)));
 
     // Free heap
-    BN_clear_free(pub_elg.p);
-    BN_clear_free(pub_elg.g);
-    BN_clear_free(sec_elg.x);
-    BN_clear_free(pub_elg.y);
+    bn_clear_free(pub_elg.p);
+    bn_clear_free(pub_elg.g);
+    bn_clear_free(sec_elg.x);
+    bn_clear_free(pub_elg.y);
 }
 
 void
@@ -389,8 +389,8 @@ ecdsa_signverify_success(void **state)
                              pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key1),
                              RNP_ERROR_SIGNATURE_INVALID);
 
-        BN_clear_free(sig.r);
-        BN_clear_free(sig.s);
+        bn_clear_free(sig.r);
+        bn_clear_free(sig.s);
         pgp_seckey_free(seckey1);
         free(seckey1);
         pgp_seckey_free(seckey2);
@@ -414,9 +414,9 @@ ecdh_roundtrip(void **state)
     size_t            plaintext_len = sizeof(plaintext);
     uint8_t           result[32] = {0};
     size_t            result_len = sizeof(result);
-    BIGNUM *          tmp_eph_key;
+    bignum_t *        tmp_eph_key;
 
-    tmp_eph_key = BN_new();
+    tmp_eph_key = bn_new();
 
     rnp_assert_true(rstate, tmp_eph_key != NULL);
 
@@ -447,7 +447,7 @@ ecdh_roundtrip(void **state)
                              RNP_SUCCESS);
 
         size_t sz;
-        rnp_assert_true(rstate, BN_num_bytes(tmp_eph_key, &sz));
+        rnp_assert_true(rstate, bn_num_bytes(tmp_eph_key, &sz));
         rnp_assert_int_equal(rstate, sz, expected_result_byte_size);
 
         rnp_assert_int_equal(rstate,
@@ -466,7 +466,7 @@ ecdh_roundtrip(void **state)
         pgp_seckey_free(&ecdh_key1);
     }
 
-    BN_free(tmp_eph_key);
+    bn_free(tmp_eph_key);
 }
 
 void
@@ -479,9 +479,9 @@ ecdh_decryptionNegativeCases(void **state)
     size_t            plaintext_len = sizeof(plaintext);
     uint8_t           result[32] = {0};
     size_t            result_len = sizeof(result);
-    BIGNUM *          tmp_eph_key;
+    bignum_t *        tmp_eph_key;
 
-    tmp_eph_key = BN_new();
+    tmp_eph_key = bn_new();
     rnp_assert_true(rstate, tmp_eph_key != NULL);
 
     const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDH,
@@ -509,7 +509,7 @@ ecdh_decryptionNegativeCases(void **state)
                                                 &ecdh_key1_fpr),
                          RNP_SUCCESS);
     size_t sz;
-    rnp_assert_true(rstate, BN_num_bytes(tmp_eph_key, &sz));
+    rnp_assert_true(rstate, bn_num_bytes(tmp_eph_key, &sz));
     rnp_assert_int_equal(rstate, sz, expected_result_byte_size);
 
     rnp_assert_int_equal(rstate,
@@ -595,7 +595,7 @@ ecdh_decryptionNegativeCases(void **state)
 
     // Change ephemeral key, so that it fails to decrypt
 
-    BN_clear(tmp_eph_key);
+    bn_clear(tmp_eph_key);
     rnp_assert_int_equal(rstate,
                          pgp_ecdh_decrypt_pkcs5(result,
                                                 &result_len,
@@ -611,7 +611,7 @@ ecdh_decryptionNegativeCases(void **state)
     rnp_assert_int_equal(rstate, memcmp(plaintext, result, result_len), 0);
     pgp_seckey_free(&ecdh_key1);
 
-    BN_free(tmp_eph_key);
+    bn_free(tmp_eph_key);
 }
 
 void

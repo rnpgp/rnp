@@ -149,10 +149,10 @@ pgp_write_userid(const uint8_t *userid, pgp_output_t *output)
 \ingroup Core_MPI
 */
 static size_t
-mpi_length(const BIGNUM *bn)
+mpi_length(const bignum_t *bn)
 {
     size_t bsz;
-    if (!BN_num_bytes(bn, &bsz)) {
+    if (!bn_num_bytes(bn, &bsz)) {
         return 0;
     }
 
@@ -882,7 +882,7 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher, rng_t *
             goto done;
         }
 
-        sesskey->params.rsa.encrypted_m = BN_bin2bn(encmpibuf, n, NULL);
+        sesskey->params.rsa.encrypted_m = bn_bin2bn(encmpibuf, n, NULL);
 
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "encrypted mpi", encmpibuf, n);
@@ -904,7 +904,7 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher, rng_t *
             goto done;
         }
 
-        sesskey->params.sm2.encrypted_m = BN_bin2bn(encmpibuf, out_len, NULL);
+        sesskey->params.sm2.encrypted_m = bn_bin2bn(encmpibuf, out_len, NULL);
 
     } break;
 
@@ -918,7 +918,7 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher, rng_t *
             goto done;
         }
 
-        sesskey->params.ecdh.ephemeral_point = BN_new();
+        sesskey->params.ecdh.ephemeral_point = bn_new();
         if (!sesskey->params.ecdh.ephemeral_point) {
             goto done;
         }
@@ -955,8 +955,8 @@ pgp_create_pk_sesskey(const pgp_pubkey_t *pubkey, pgp_symm_alg_t cipher, rng_t *
             goto error;
         }
 
-        sesskey->params.elgamal.g_to_k = BN_bin2bn(g_to_k, n / 2, NULL);
-        sesskey->params.elgamal.encrypted_m = BN_bin2bn(encmpibuf, n / 2, NULL);
+        sesskey->params.elgamal.g_to_k = bn_bin2bn(g_to_k, n / 2, NULL);
+        sesskey->params.elgamal.encrypted_m = bn_bin2bn(encmpibuf, n / 2, NULL);
 
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "elgamal g^k", g_to_k, n / 2);

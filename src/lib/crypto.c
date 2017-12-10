@@ -105,8 +105,8 @@ int
 pgp_decrypt_decode_mpi(rng_t *             rng,
                        uint8_t *           buf,
                        size_t              buflen,
-                       const BIGNUM *      g_to_k,
-                       const BIGNUM *      encmpi,
+                       const bignum_t *    g_to_k,
+                       const bignum_t *    encmpi,
                        const pgp_seckey_t *seckey)
 {
     uint8_t encmpibuf[RNP_BUFSIZ] = {0};
@@ -114,7 +114,7 @@ pgp_decrypt_decode_mpi(rng_t *             rng,
     int     n;
     size_t  encmpi_byte_len;
 
-    if (!BN_num_bytes(encmpi, &encmpi_byte_len)) {
+    if (!bn_num_bytes(encmpi, &encmpi_byte_len)) {
         RNP_LOG("Bad param: encmpi");
         return -1;
     }
@@ -126,7 +126,7 @@ pgp_decrypt_decode_mpi(rng_t *             rng,
     }
     switch (seckey->pubkey.alg) {
     case PGP_PKA_RSA:
-        BN_bn2bin(encmpi, encmpibuf);
+        bn_bn2bin(encmpi, encmpibuf);
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "encrypted", encmpibuf, 16);
         }
@@ -146,7 +146,7 @@ pgp_decrypt_decode_mpi(rng_t *             rng,
         }
         return n;
     case PGP_PKA_SM2:
-        BN_bn2bin(encmpi, encmpibuf);
+        bn_bn2bin(encmpi, encmpibuf);
 
         size_t       out_len = buflen;
         rnp_result_t err = pgp_sm2_decrypt(buf,
@@ -164,8 +164,8 @@ pgp_decrypt_decode_mpi(rng_t *             rng,
 
     case PGP_PKA_DSA:
     case PGP_PKA_ELGAMAL:
-        (void) BN_bn2bin(g_to_k, gkbuf);
-        (void) BN_bn2bin(encmpi, encmpibuf);
+        (void) bn_bn2bin(g_to_k, gkbuf);
+        (void) bn_bn2bin(encmpi, encmpibuf);
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "encrypted", encmpibuf, 16);
         }
@@ -188,7 +188,7 @@ pgp_decrypt_decode_mpi(rng_t *             rng,
     case PGP_PKA_ECDH: {
         pgp_fingerprint_t fingerprint;
         size_t            out_len = buflen;
-        if (BN_bn2bin(encmpi, encmpibuf)) {
+        if (bn_bn2bin(encmpi, encmpibuf)) {
             RNP_LOG("Can't find session key");
             return -1;
         }

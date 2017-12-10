@@ -50,12 +50,12 @@ pgp_genkey_eddsa(rng_t *rng, pgp_seckey_t *seckey, size_t curve_len)
     // First 32 bytesof key_bits are the EdDSA seed (private key)
     // Second 32 bytes are the EdDSA public key
 
-    seckey->key.ecc.x = BN_bin2bn(key_bits, 32, NULL);
+    seckey->key.ecc.x = bn_bin2bn(key_bits, 32, NULL);
     seckey->pubkey.key.ecc.curve = PGP_CURVE_ED25519;
 
     // Hack to insert the required 0x40 prefix on the public key
     key_bits[31] = 0x40;
-    seckey->pubkey.key.ecc.point = BN_bin2bn(key_bits + 31, 33, NULL);
+    seckey->pubkey.key.ecc.point = bn_bin2bn(key_bits + 31, 33, NULL);
 
     retval = true;
 
@@ -65,8 +65,8 @@ end:
 }
 
 int
-pgp_eddsa_verify_hash(const BIGNUM *          r,
-                      const BIGNUM *          s,
+pgp_eddsa_verify_hash(const bignum_t *        r,
+                      const bignum_t *        s,
                       const uint8_t *         hash,
                       size_t                  hash_len,
                       const pgp_ecc_pubkey_t *pubkey)
@@ -82,10 +82,10 @@ pgp_eddsa_verify_hash(const BIGNUM *          r,
         goto done;
 
     // Unexpected size for Ed25519 key
-    if (!BN_num_bytes(pubkey->point, &sz) || sz != 33)
+    if (!bn_num_bytes(pubkey->point, &sz) || sz != 33)
         goto done;
 
-    BN_bn2bin(pubkey->point, bn_buf);
+    bn_bn2bin(pubkey->point, bn_buf);
 
     /*
     * See draft-ietf-openpgp-rfc4880bis-01 section 13.3
@@ -104,14 +104,14 @@ pgp_eddsa_verify_hash(const BIGNUM *          r,
 
     memset(bn_buf, 0, sizeof(bn_buf));
     // Unexpected size for Ed25519 signature
-    if (!BN_num_bytes(r, &sz) || (sz > 32)) {
+    if (!bn_num_bytes(r, &sz) || (sz > 32)) {
         goto done;
     }
-    BN_bn2bin(r, &bn_buf[32 - sz]);
-    if (!BN_num_bytes(s, &sz) || (sz > 32)) {
+    bn_bn2bin(r, &bn_buf[32 - sz]);
+    if (!bn_num_bytes(s, &sz) || (sz > 32)) {
         goto done;
     }
-    BN_bn2bin(s, &bn_buf[32 + 32 - sz]);
+    bn_bn2bin(s, &bn_buf[32 + 32 - sz]);
 
     result = (botan_pk_op_verify_finish(verify_op, bn_buf, 64) == 0);
 
@@ -123,8 +123,8 @@ done:
 
 int
 pgp_eddsa_sign_hash(rng_t *                 rng,
-                    BIGNUM *                r,
-                    BIGNUM *                s,
+                    bignum_t *              r,
+                    bignum_t *              s,
                     const uint8_t *         hash,
                     size_t                  hash_len,
                     const pgp_ecc_seckey_t *seckey,
@@ -142,10 +142,10 @@ pgp_eddsa_sign_hash(rng_t *                 rng,
     }
 
     // Unexpected size for Ed25519 key
-    if (!BN_num_bytes(seckey->x, &sz) || (sz > 32))
+    if (!bn_num_bytes(seckey->x, &sz) || (sz > 32))
         goto done;
 
-    BN_bn2bin(seckey->x, bn_buf + (32 - sz));
+    bn_bn2bin(seckey->x, bn_buf + (32 - sz));
 
     if (botan_privkey_load_ed25519(&eddsa, bn_buf) != 0)
         goto done;
@@ -164,8 +164,8 @@ pgp_eddsa_sign_hash(rng_t *                 rng,
     if (sig_size != 64)
         goto done;
 
-    BN_bin2bn(bn_buf, 32, r);
-    BN_bin2bn(bn_buf + 32, 32, s);
+    bn_bin2bn(bn_buf, 32, r);
+    bn_bin2bn(bn_buf + 32, 32, s);
     result = 0;
 
 done:

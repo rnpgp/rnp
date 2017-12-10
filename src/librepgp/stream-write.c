@@ -403,7 +403,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     case PGP_PKA_ECDH: {
         pgp_fingerprint_t fingerprint;
         size_t            outlen = sizeof(pkey.params.ecdh.m);
-        BIGNUM *          p;
+        bignum_t *        p;
 
         if (!pgp_fingerprint(&fingerprint, pubkey)) {
             RNP_LOG("ECDH fingerprint calculation failed");
@@ -411,7 +411,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
             goto finish;
         }
 
-        if (!(p = BN_new())) {
+        if (!(p = bn_new())) {
             RNP_LOG("allocation failed");
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto finish;
@@ -428,16 +428,16 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 
         if (ret != RNP_SUCCESS) {
             RNP_LOG("ECDH encryption failed %d", ret);
-            BN_free(p);
+            bn_free(p);
             goto finish;
         }
 
         pkey.params.ecdh.mlen = outlen;
-        (void) BN_num_bytes(
+        (void) bn_num_bytes(
           p,
           (size_t *) &pkey.params.ecdh.plen); // can't fail as pgp_ecdh_encrypt_pkcs5 succeded
-        (void) BN_bn2bin(p, pkey.params.ecdh.p);
-        BN_free(p);
+        (void) bn_bn2bin(p, pkey.params.ecdh.p);
+        bn_free(p);
     } break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {

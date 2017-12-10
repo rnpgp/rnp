@@ -515,26 +515,26 @@ typedef struct pgp_dyn_body_t {
 
 /** pgp_pk_sesskey_params_rsa_t */
 typedef struct {
-    BIGNUM *encrypted_m;
-    BIGNUM *m;
+    bignum_t *encrypted_m;
+    bignum_t *m;
 } pgp_pk_sesskey_params_rsa_t;
 
 /** pgp_pk_sesskey_params_elgamal_t */
 typedef struct {
-    BIGNUM *g_to_k;
-    BIGNUM *encrypted_m;
+    bignum_t *g_to_k;
+    bignum_t *encrypted_m;
 } pgp_pk_sesskey_params_elgamal_t;
 
 /** pgp_pk_sesskey_params_sm2_t */
 typedef struct {
-    BIGNUM *encrypted_m;
+    bignum_t *encrypted_m;
 } pgp_pk_sesskey_params_sm2_t;
 
 /** pgp_pk_sesskey_params_elgamal_t */
 typedef struct {
-    uint8_t  encrypted_m[48];  // wrapped_key
-    unsigned encrypted_m_size; // wrapped_key_size
-    BIGNUM * ephemeral_point;
+    uint8_t   encrypted_m[48];  // wrapped_key
+    unsigned  encrypted_m_size; // wrapped_key_size
+    bignum_t *ephemeral_point;
 } pgp_pk_sesskey_params_ecdh_t;
 
 /** pgp_pk_sesskey_params_t */

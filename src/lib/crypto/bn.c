@@ -36,21 +36,21 @@
 
 /**************************************************************************/
 
-/* OpenSSL BIGNUM emulation layer */
+/* OpenSSL bignum_t emulation layer */
 
 /* essentiually, these are just wrappers around the botan functions */
 /* usually the order of args changes */
-/* the PGPV_BIGNUM API tends to have more const poisoning */
+/* the bignum_t API tends to have more const poisoning */
 /* these wrappers also check the arguments passed for sanity */
 
-PGPV_BIGNUM *
-PGPV_BN_bin2bn(const uint8_t *data, int len, PGPV_BIGNUM *ret)
+bignum_t *
+bn_bin2bn(const uint8_t *data, int len, bignum_t *ret)
 {
     if (data == NULL) {
-        return PGPV_BN_new();
+        return bn_new();
     }
     if (ret == NULL) {
-        ret = PGPV_BN_new();
+        ret = bn_new();
     }
 
     if (ret == NULL) {
@@ -62,7 +62,7 @@ PGPV_BN_bin2bn(const uint8_t *data, int len, PGPV_BIGNUM *ret)
 
 /* store in unsigned [big endian] format */
 int
-PGPV_BN_bn2bin(const PGPV_BIGNUM *a, unsigned char *b)
+bn_bn2bin(const bignum_t *a, unsigned char *b)
 {
     if (a == NULL || b == NULL) {
         return -1;
@@ -71,10 +71,10 @@ PGPV_BN_bn2bin(const PGPV_BIGNUM *a, unsigned char *b)
     return botan_mp_to_bin(a->mp, b);
 }
 
-PGPV_BIGNUM *
-PGPV_BN_new(void)
+bignum_t *
+bn_new(void)
 {
-    PGPV_BIGNUM *a;
+    bignum_t *a;
 
     a = calloc(1, sizeof(*a));
     if (a == NULL) {
@@ -85,7 +85,7 @@ PGPV_BN_new(void)
 }
 
 void
-PGPV_BN_free(PGPV_BIGNUM *a)
+bn_free(bignum_t *a)
 {
     if (a != NULL) {
         botan_mp_destroy(a->mp);
@@ -95,7 +95,7 @@ PGPV_BN_free(PGPV_BIGNUM *a)
 
 /* copy, b = a */
 int
-PGPV_BN_copy(PGPV_BIGNUM *to, const PGPV_BIGNUM *from)
+bn_copy(bignum_t *to, const bignum_t *from)
 {
     if (from == NULL || to == NULL) {
         return -1;
@@ -103,22 +103,22 @@ PGPV_BN_copy(PGPV_BIGNUM *to, const PGPV_BIGNUM *from)
     return botan_mp_set_from_mp(to->mp, from->mp);
 }
 
-PGPV_BIGNUM *
-PGPV_BN_dup(const PGPV_BIGNUM *a)
+bignum_t *
+bn_dup(const bignum_t *a)
 {
-    PGPV_BIGNUM *ret;
+    bignum_t *ret;
 
     if (a == NULL) {
         return NULL;
     }
-    if ((ret = PGPV_BN_new()) != NULL) {
-        PGPV_BN_copy(ret, a);
+    if ((ret = bn_new()) != NULL) {
+        bn_copy(ret, a);
     }
     return ret;
 }
 
 void
-PGPV_BN_clear(PGPV_BIGNUM *a)
+bn_clear(bignum_t *a)
 {
     if (a) {
         botan_mp_clear(a->mp);
@@ -126,14 +126,14 @@ PGPV_BN_clear(PGPV_BIGNUM *a)
 }
 
 void
-PGPV_BN_clear_free(PGPV_BIGNUM *a)
+bn_clear_free(bignum_t *a)
 {
     /* Same as BN_free in Botan */
-    PGPV_BN_free(a);
+    bn_free(a);
 }
 
 bool
-BN_num_bits(const PGPV_BIGNUM *a, size_t *bits)
+bn_num_bits(const bignum_t *a, size_t *bits)
 {
     if (!a || botan_mp_num_bits(a->mp, bits)) {
         return false;
@@ -142,9 +142,9 @@ BN_num_bits(const PGPV_BIGNUM *a, size_t *bits)
 }
 
 bool
-BN_num_bytes(const PGPV_BIGNUM *a, size_t *bits)
+bn_num_bytes(const bignum_t *a, size_t *bits)
 {
-    if (BN_num_bits(a, bits)) {
+    if (bn_num_bits(a, bits)) {
         *bits = BITS_TO_BYTES(*bits);
         return true;
     }
@@ -152,7 +152,7 @@ BN_num_bytes(const PGPV_BIGNUM *a, size_t *bits)
 }
 
 int
-PGPV_BN_cmp(PGPV_BIGNUM *a, PGPV_BIGNUM *b)
+bn_cmp(bignum_t *a, bignum_t *b)
 {
     int cmp_result;
 
@@ -165,7 +165,7 @@ PGPV_BN_cmp(PGPV_BIGNUM *a, PGPV_BIGNUM *b)
 }
 
 int
-PGPV_BN_print_fp(FILE *fp, const PGPV_BIGNUM *a)
+bn_print_fp(FILE *fp, const bignum_t *a)
 {
     int    ret;
     size_t num_bytes;
@@ -190,7 +190,7 @@ PGPV_BN_print_fp(FILE *fp, const PGPV_BIGNUM *a)
 }
 
 char *
-PGPV_BN_bn2hex(const PGPV_BIGNUM *a)
+bn_bn2hex(const bignum_t *a)
 {
     char *       out;
     size_t       out_len;
@@ -221,15 +221,15 @@ PGPV_BN_bn2hex(const PGPV_BIGNUM *a)
     return NULL;
 }
 
-/* hash a bignum, possibly padded - first length, then string itself */
+/* hash a bignum_t, possibly padded - first length, then string itself */
 size_t
-BN_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash)
+bn_hash(const bignum_t *bignum_t, pgp_hash_t *hash)
 {
     uint8_t *bn;
     size_t   len;
     size_t   padbyte;
 
-    if (!BN_num_bytes(bignum, &len) || (len > UINT32_MAX)) {
+    if (!bn_num_bytes(bignum_t, &len) || (len > UINT32_MAX)) {
         RNP_LOG("Wrong input");
         return 0;
     }
@@ -243,7 +243,7 @@ BN_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash)
         return 0;
     }
 
-    BN_bn2bin(bignum, bn + 1);
+    bn_bn2bin(bignum_t, bn + 1);
     bn[0] = 0x0;
     padbyte = !!(bn[1] & 0x80);
     len += padbyte;
@@ -256,7 +256,7 @@ BN_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash)
 }
 
 int
-PGPV_BN_is_zero(const PGPV_BIGNUM *n)
+bn_is_zero(const bignum_t *n)
 {
     if (n == NULL) {
         return -1;
@@ -265,7 +265,7 @@ PGPV_BN_is_zero(const PGPV_BIGNUM *n)
 }
 
 int
-PGPV_BN_set_word(PGPV_BIGNUM *a, PGPV_BN_ULONG w)
+bn_set_word(bignum_t *a, uint32_t w)
 {
     if (a == NULL) {
         return -1;
@@ -275,7 +275,7 @@ PGPV_BN_set_word(PGPV_BIGNUM *a, PGPV_BN_ULONG w)
 }
 
 int
-PGPV_BN_mod_exp(PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM *P)
+bn_mod_exp(bignum_t *Y, bignum_t *G, bignum_t *X, bignum_t *P)
 {
     if (Y == NULL || G == NULL || X == NULL || P == NULL) {
         return -1;

@@ -82,8 +82,8 @@ pgp_ecdsa_sign_hash(rng_t *                 rng,
     }
 
     // Allocate memory and copy results
-    sign->r = BN_bin2bn(out_buf, curve_order, sign->r);
-    sign->s = BN_bin2bn(out_buf + curve_order, curve_order, sign->s);
+    sign->r = bn_bin2bn(out_buf, curve_order, sign->r);
+    sign->s = bn_bin2bn(out_buf + curve_order, curve_order, sign->s);
     if (!sign->r || !sign->s) {
         goto end;
     }
@@ -93,8 +93,8 @@ pgp_ecdsa_sign_hash(rng_t *                 rng,
 
 end:
     if (ret != RNP_SUCCESS) {
-        BN_clear_free(sign->r);
-        BN_clear_free(sign->s);
+        bn_clear_free(sign->r);
+        bn_clear_free(sign->s);
     }
     botan_privkey_destroy(key);
     botan_pk_op_sign_destroy(signer);
@@ -123,8 +123,8 @@ pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (!BN_num_bytes(pubkey->point, &r_blen) || (r_blen > sizeof(point_bytes)) ||
-        BN_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
+    if (!bn_num_bytes(pubkey->point, &r_blen) || (r_blen > sizeof(point_bytes)) ||
+        bn_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
         RNP_LOG("Failed to load public key");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto end;
@@ -152,16 +152,16 @@ pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
         goto end;
     }
 
-    if (!BN_num_bytes(sign->r, &r_blen) || (r_blen > curve_order) ||
-        !BN_num_bytes(sign->s, &s_blen) || (s_blen > curve_order) ||
+    if (!bn_num_bytes(sign->r, &r_blen) || (r_blen > curve_order) ||
+        !bn_num_bytes(sign->s, &s_blen) || (s_blen > curve_order) ||
         (curve_order > MAX_CURVE_BYTELEN)) {
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto end;
     }
 
     // Both can't fail
-    (void) BN_bn2bin(sign->r, &sign_buf[curve_order - r_blen]);
-    (void) BN_bn2bin(sign->s, &sign_buf[curve_order + curve_order - s_blen]);
+    (void) bn_bn2bin(sign->r, &sign_buf[curve_order - r_blen]);
+    (void) bn_bn2bin(sign->s, &sign_buf[curve_order + curve_order - s_blen]);
 
     ret = botan_pk_op_verify_finish(verifier, sign_buf, curve_order * 2) ?
             RNP_ERROR_SIGNATURE_INVALID :

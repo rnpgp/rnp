@@ -422,25 +422,25 @@ formatstring(char *buffer, const uint8_t *s, size_t len)
     return 4 + (int) len;
 }
 
-/* format a bignum, checking for "interesting" high bit values */
+/* format a bignum_t, checking for "interesting" high bit values */
 static int
-formatbignum(char *buffer, BIGNUM *bn)
+formatbignum_t(char *buffer, bignum_t *bn)
 {
     size_t   len;
     uint8_t *cp;
     int      cc;
 
-    if (!BN_num_bytes(bn, &len)) {
+    if (!bn_num_bytes(bn, &len)) {
         RNP_LOG("Wrong input");
         return 0;
     }
 
     if ((cp = calloc(1, len + 1)) == NULL) {
-        RNP_LOG("calloc failure in formatbignum");
+        RNP_LOG("calloc failure in formatbignum_t");
         return 0;
     }
 
-    (void) BN_bn2bin(bn, cp + 1);
+    (void) bn_bn2bin(bn, cp + 1);
     cp[0] = 0x0;
     cc =
       (cp[1] & 0x80) ? formatstring(buffer, cp, len + 1) : formatstring(buffer, &cp[1], len);
@@ -1936,8 +1936,8 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
     /* get rsa e and n */
     (void) memset(out, 0x0, size);
     cc = formatstring((char *) out, (const uint8_t *) "ssh-rsa", 7);
-    cc += formatbignum((char *) &out[cc], key->key.pubkey.key.rsa.e);
-    cc += formatbignum((char *) &out[cc], key->key.pubkey.key.rsa.n);
+    cc += formatbignum_t((char *) &out[cc], key->key.pubkey.key.rsa.e);
+    cc += formatbignum_t((char *) &out[cc], key->key.pubkey.key.rsa.n);
 done:
     if (io) {
         free(io);
