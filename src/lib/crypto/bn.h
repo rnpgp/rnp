@@ -30,27 +30,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#define USE_BN_INTERFACE
-
-#ifdef USE_BN_INTERFACE
-#define BIGNUM PGPV_BIGNUM
-#define BN_new PGPV_BN_new
-#define BN_dup PGPV_BN_dup
-#define BN_bin2bn PGPV_BN_bin2bn
-#define BN_copy PGPV_BN_copy
-#define BN_init PGPV_BN_init
-#define BN_free PGPV_BN_free
-#define BN_clear PGPV_BN_clear
-#define BN_clear_free PGPV_BN_clear_free
-#define BN_cmp PGPV_BN_cmp
-#define BN_bn2bin PGPV_BN_bn2bin
-#define BN_print_fp PGPV_BN_print_fp
-#define BN_bn2hex PGPV_BN_bn2hex
-#define BN_is_zero PGPV_BN_is_zero
-#define BN_set_word PGPV_BN_set_word
-#define BN_mod_exp PGPV_BN_mod_exp
-#endif /* USE_BN_INTERFACE */
-
 typedef struct botan_mp_struct *botan_mp_t;
 typedef struct pgp_hash_t       pgp_hash_t;
 typedef uint32_t                PGPV_BN_ULONG;
@@ -61,6 +40,8 @@ typedef uint32_t                PGPV_BN_ULONG;
 typedef struct PGPV_BIGNUM_st {
     botan_mp_t mp;
 } PGPV_BIGNUM;
+
+#define BIGNUM PGPV_BIGNUM
 
 #define MP_LT -1
 #define MP_EQ 0
@@ -76,23 +57,23 @@ typedef struct PGPV_BIGNUM_st {
 
 /*********************************/
 
-PGPV_BIGNUM *PGPV_BN_new(void);
-PGPV_BIGNUM *PGPV_BN_dup(const PGPV_BIGNUM * /*a*/);
-int          PGPV_BN_copy(PGPV_BIGNUM * /*b*/, const PGPV_BIGNUM * /*a*/);
-char *PGPV_BN_bn2hex(const PGPV_BIGNUM *a);
-void PGPV_BN_init(PGPV_BIGNUM * /*a*/);
-void PGPV_BN_free(PGPV_BIGNUM * /*a*/);
-void PGPV_BN_clear(PGPV_BIGNUM * /*a*/);
-void PGPV_BN_clear_free(PGPV_BIGNUM * /*a*/);
+PGPV_BIGNUM *bn_new(void);
+PGPV_BIGNUM *bn_dup(const PGPV_BIGNUM * /*a*/);
+int          bn_copy(PGPV_BIGNUM * /*b*/, const PGPV_BIGNUM * /*a*/);
+char *bn_bn2hex(const PGPV_BIGNUM *a);
+void bn_init(PGPV_BIGNUM * /*a*/);
+void bn_free(PGPV_BIGNUM * /*a*/);
+void bn_clear(PGPV_BIGNUM * /*a*/);
+void bn_clear_free(PGPV_BIGNUM * /*a*/);
 
-int PGPV_BN_cmp(PGPV_BIGNUM * /*a*/, PGPV_BIGNUM * /*b*/);
+int bn_cmp(PGPV_BIGNUM * /*a*/, PGPV_BIGNUM * /*b*/);
 
-PGPV_BIGNUM *PGPV_BN_bin2bn(const uint8_t * /*buf*/, int /*size*/, PGPV_BIGNUM * /*bn*/);
-int          PGPV_BN_bn2bin(const PGPV_BIGNUM * /*a*/, unsigned char * /*b*/);
-int          PGPV_BN_print_fp(FILE * /*fp*/, const PGPV_BIGNUM * /*a*/);
-int PGPV_BN_is_zero(const PGPV_BIGNUM *n);
-int PGPV_BN_set_word(PGPV_BIGNUM *a, PGPV_BN_ULONG w);
-int PGPV_BN_mod_exp(PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM *P);
+PGPV_BIGNUM *bn_bin2bn(const uint8_t * /*buf*/, int /*size*/, PGPV_BIGNUM * /*bn*/);
+int          bn_bn2bin(const PGPV_BIGNUM * /*a*/, unsigned char * /*b*/);
+int          bn_print_fp(FILE * /*fp*/, const PGPV_BIGNUM * /*a*/);
+int bn_is_zero(const PGPV_BIGNUM *n);
+int bn_set_word(PGPV_BIGNUM *a, PGPV_BN_ULONG w);
+int bn_mod_exp(PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM *P);
 
 /*
  * @param a Initialized PGPV_BIGNUM structure
@@ -100,14 +81,14 @@ int PGPV_BN_mod_exp(PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM 
  *
  * @returns true on success, otherwise false
  */
-bool BN_num_bits(const PGPV_BIGNUM *a, size_t *bits);
+bool bn_num_bits(const PGPV_BIGNUM *a, size_t *bits);
 /*
  * @param a Initialized PGPV_BIGNUM structure
  * @param bytes [out] byte length of a
  *
  * @returns true on success, otherwise false
  */
-bool BN_num_bytes(const PGPV_BIGNUM *a, size_t *bytes);
+bool bn_num_bytes(const PGPV_BIGNUM *a, size_t *bytes);
 
 /*
  * @brief Produces hash of any size bignum.
@@ -117,6 +98,6 @@ bool BN_num_bytes(const PGPV_BIGNUM *a, size_t *bytes);
  *
  * @returns size of hashed data, or 0 on error
  */
-size_t BN_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash);
+size_t bn_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash);
 
 #endif

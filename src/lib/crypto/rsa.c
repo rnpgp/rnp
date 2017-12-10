@@ -283,12 +283,12 @@ pgp_genkey_rsa(rng_t *rng, pgp_seckey_t *seckey, size_t numbits)
     botan_privkey_t rsa_key = NULL;
     int             ret = 0, cmp;
 
-    seckey->pubkey.key.rsa.n = BN_new();
-    seckey->pubkey.key.rsa.e = BN_new();
-    seckey->key.rsa.p = BN_new();
-    seckey->key.rsa.q = BN_new();
-    seckey->key.rsa.d = BN_new();
-    seckey->key.rsa.u = BN_new();
+    seckey->pubkey.key.rsa.n = bn_new();
+    seckey->pubkey.key.rsa.e = bn_new();
+    seckey->key.rsa.p = bn_new();
+    seckey->key.rsa.q = bn_new();
+    seckey->key.rsa.d = bn_new();
+    seckey->key.rsa.u = bn_new();
 
     if (!seckey->pubkey.key.rsa.n || !seckey->pubkey.key.rsa.e || !seckey->key.rsa.p ||
         !seckey->key.rsa.q || !seckey->key.rsa.d || !seckey->key.rsa.u) {

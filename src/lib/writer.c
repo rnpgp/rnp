@@ -148,12 +148,12 @@ pgp_write_mpi(pgp_output_t *output, const BIGNUM *bn)
 {
     uint8_t buf[RNP_BUFSIZ];
     size_t  bsz;
-    if (!BN_num_bits(bn, &bsz) || (bsz > 65535)) {
+    if (!bn_num_bits(bn, &bsz) || (bsz > 65535)) {
         RNP_LOG("Wrong input");
         return false;
     }
 
-    return !BN_bn2bin(bn, buf) && pgp_write_scalar(output, bsz, 2) &&
+    return !bn_bn2bin(bn, buf) && pgp_write_scalar(output, bsz, 2) &&
            pgp_write(output, buf, BITS_TO_BYTES(bsz));
 }
 

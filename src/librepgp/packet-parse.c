@@ -624,7 +624,7 @@ limited_read_time(time_t *dest, pgp_region_t *region, pgp_stream_t *stream)
  *
  * This function makes sure to respect packet boundaries.
  *
- * \param **pgn        return the integer there - the BIGNUM is created by BN_bin2bn() and
+ * \param **pgn        return the integer there - the BIGNUM is created by bn_bin2bn() and
  * probably needs to be freed
  *                 by the caller XXX right ben?
  * \param *ptag        Pointer to current packet's Packet Tag.
@@ -689,7 +689,7 @@ limread_mpi(BIGNUM **pbn, pgp_region_t *region, pgp_stream_t *stream)
          * draft says. -- peter */
         return false;
     }
-    *pbn = BN_bin2bn(buf, (int) length, NULL);
+    *pbn = bn_bin2bn(buf, (int) length, NULL);
     return true;
 }
 
@@ -922,7 +922,7 @@ static void
 free_BN(BIGNUM **pp)
 {
     if (*pp != NULL) {
-        BN_free(*pp);
+        bn_free(*pp);
         *pp = NULL;
     }
 }
@@ -2115,7 +2115,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
         }
         if (rnp_get_debug(__FILE__)) {
             (void) fprintf(stderr, "parse_v4_sig: RSA: sig is\n");
-            BN_print_fp(stderr, pkt.u.sig.info.sig.rsa.sig);
+            bn_print_fp(stderr, pkt.u.sig.info.sig.rsa.sig);
             (void) fprintf(stderr, "\n");
         }
         break;
@@ -2867,7 +2867,7 @@ parse_pk_sesskey(pgp_region_t *region, pgp_stream_t *stream)
             return false;
         }
         g_to_k = pkt.u.pk_sesskey.params.ecdh.ephemeral_point;
-        enc_m = BN_bin2bn(pkt.u.pk_sesskey.params.ecdh.encrypted_m,
+        enc_m = bn_bin2bn(pkt.u.pk_sesskey.params.ecdh.encrypted_m,
                           pkt.u.pk_sesskey.params.ecdh.encrypted_m_size,
                           enc_m);
         break;

@@ -136,7 +136,7 @@ getbignum(bufgap_t *bg, char *buf, const char *header)
     len = ntohl(len);
     (void) bufgap_seek(bg, sizeof(len), BGFromHere, BGByte);
     (void) bufgap_getbin(bg, buf, len);
-    bignum = BN_bin2bn((const uint8_t *) buf, (int) len, NULL);
+    bignum = bn_bin2bn((const uint8_t *) buf, (int) len, NULL);
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, header, (const uint8_t *) (void *) buf, len);
     }
