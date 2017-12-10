@@ -370,7 +370,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     switch (pubkey->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-        pkey.params.rsa.mlen = pgp_rsa_encrypt_pkcs1(&handler->ctx->rnp->drbg,
+        pkey.params.rsa.mlen = pgp_rsa_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
                                                      pkey.params.rsa.m,
                                                      sizeof(pkey.params.rsa.m),
                                                      enckey,
@@ -543,7 +543,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     pkeycount = list_length(handler->ctx->recipients);
     if ((pkeycount > 0) || (list_length(handler->ctx->passwords) > 1)) {
-        if (!rng_get_data(&handler->ctx->rnp->drbg, enckey, keylen)) {
+        if (!rng_get_data(rnp_ctx_rng_handle(handler->ctx), enckey, keylen)) {
             ret = RNP_ERROR_RNG;
             goto finish;
         }
@@ -598,7 +598,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     /* generating and writing iv/password check bytes */
     blsize = pgp_block_size(param->ealg);
-    if (!rng_get_data(&handler->ctx->rnp->drbg, enchdr, blsize)) {
+    if (!rng_get_data(rnp_ctx_rng_handle(handler->ctx), enchdr, blsize)) {
         ret = RNP_ERROR_RNG;
         goto finish;
     }
