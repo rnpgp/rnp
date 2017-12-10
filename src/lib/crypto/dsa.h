@@ -63,22 +63,22 @@
  * \see RFC4880 5.5.2
  */
 typedef struct {
-    BIGNUM *p; /* DSA prime p */
-    BIGNUM *q; /* DSA group order q */
-    BIGNUM *g; /* DSA group generator g */
-    BIGNUM *y; /* DSA public key value y (= g^x mod p
+    bignum_t *p; /* DSA prime p */
+    bignum_t *q; /* DSA group order q */
+    bignum_t *g; /* DSA group generator g */
+    bignum_t *y; /* DSA public key value y (= g^x mod p
                 * with x being the secret) */
 } pgp_dsa_pubkey_t;
 
 /** pgp_dsa_seckey_t */
 typedef struct pgp_dsa_seckey_t {
-    BIGNUM *x;
+    bignum_t *x;
 } pgp_dsa_seckey_t;
 
 /** Struct to hold params of a DSA signature */
 typedef struct pgp_dsa_sig_t {
-    BIGNUM *r; /* DSA value r */
-    BIGNUM *s; /* DSA value s */
+    bignum_t *r; /* DSA value r */
+    bignum_t *s; /* DSA value s */
 } pgp_dsa_sig_t;
 
 /*
@@ -86,8 +86,8 @@ typedef struct pgp_dsa_sig_t {
 * a pair of MPIs is used (DSA, ECDSA, EdDSA, ...)
 */
 typedef struct DSA_SIG_st {
-    BIGNUM *r;
-    BIGNUM *s;
+    bignum_t *r;
+    bignum_t *s;
 } DSA_SIG;
 
 /* DSA signature/verify */

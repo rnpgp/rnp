@@ -152,7 +152,7 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key)
         }
 
         if (!bn_num_bytes(key->key.rsa.n, &n) || (n > sizeof(bn))) {
-            RNP_LOG("Internal error: bignum too big");
+            RNP_LOG("Internal error: bignum_t too big");
             return false;
         }
         bn_bn2bin(key->key.rsa.n, bn);

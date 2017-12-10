@@ -829,27 +829,27 @@ rnp_key_store_get_next_key_by_name(
 
 // TODO: This looks very similar to bn_hash()
 static bool
-grip_hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
+grip_hash_bignum_t(pgp_hash_t *hash, const bignum_t *bignum_t)
 {
     uint8_t *bn;
     size_t   len;
     int      padbyte;
 
-    if (bn_is_zero(bignum)) {
+    if (bn_is_zero(bignum_t)) {
         pgp_hash_add(hash, (const uint8_t *) &"\0", 1);
         return true;
     }
 
-    if (!bn_num_bytes(bignum, &len)) {
+    if (!bn_num_bytes(bignum_t, &len)) {
         RNP_LOG("Wrong input");
         return false;
     }
 
     if ((bn = calloc(1, len + 1)) == NULL) {
-        (void) fprintf(stderr, "grip_hash_bignum: bad bn alloc\n");
+        (void) fprintf(stderr, "grip_hash_bignum_t: bad bn alloc\n");
         return false;
     }
-    bn_bn2bin(bignum, bn + 1);
+    bn_bn2bin(bignum_t, bn + 1);
     bn[0] = 0x0;
     padbyte = (bn[1] & 0x80) ? 1 : 0;
     pgp_hash_add(hash, bn, (unsigned) (len + padbyte));
@@ -872,34 +872,34 @@ rnp_key_store_get_key_grip(pgp_pubkey_t *key, uint8_t *grip)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-        if (!grip_hash_bignum(&hash, key->key.rsa.n)) {
+        if (!grip_hash_bignum_t(&hash, key->key.rsa.n)) {
             return false;
         }
         break;
 
     case PGP_PKA_DSA:
-        if (!grip_hash_bignum(&hash, key->key.dsa.p)) {
+        if (!grip_hash_bignum_t(&hash, key->key.dsa.p)) {
             return false;
         }
-        if (!grip_hash_bignum(&hash, key->key.dsa.q)) {
+        if (!grip_hash_bignum_t(&hash, key->key.dsa.q)) {
             return false;
         }
-        if (!grip_hash_bignum(&hash, key->key.dsa.g)) {
+        if (!grip_hash_bignum_t(&hash, key->key.dsa.g)) {
             return false;
         }
-        if (!grip_hash_bignum(&hash, key->key.dsa.y)) {
+        if (!grip_hash_bignum_t(&hash, key->key.dsa.y)) {
             return false;
         }
         break;
 
     case PGP_PKA_ELGAMAL:
-        if (!grip_hash_bignum(&hash, key->key.elgamal.p)) {
+        if (!grip_hash_bignum_t(&hash, key->key.elgamal.p)) {
             return false;
         }
-        if (!grip_hash_bignum(&hash, key->key.elgamal.g)) {
+        if (!grip_hash_bignum_t(&hash, key->key.elgamal.g)) {
             return false;
         }
-        if (!grip_hash_bignum(&hash, key->key.elgamal.y)) {
+        if (!grip_hash_bignum_t(&hash, key->key.elgamal.y)) {
             return false;
         }
         break;
@@ -908,7 +908,7 @@ rnp_key_store_get_key_grip(pgp_pubkey_t *key, uint8_t *grip)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        if (!grip_hash_bignum(&hash, key->key.ecc.point)) {
+        if (!grip_hash_bignum_t(&hash, key->key.ecc.point)) {
             return false;
         }
         break;

@@ -35,13 +35,11 @@ typedef struct pgp_hash_t       pgp_hash_t;
 typedef uint32_t                PGPV_BN_ULONG;
 
 /*
- * PGPV_BIGNUM struct
+ * bignum_t struct
  */
-typedef struct PGPV_BIGNUM_st {
+typedef struct bignum_t_st {
     botan_mp_t mp;
-} PGPV_BIGNUM;
-
-#define BIGNUM PGPV_BIGNUM
+} bignum_t;
 
 #define MP_LT -1
 #define MP_EQ 0
@@ -57,47 +55,47 @@ typedef struct PGPV_BIGNUM_st {
 
 /*********************************/
 
-PGPV_BIGNUM *bn_new(void);
-PGPV_BIGNUM *bn_dup(const PGPV_BIGNUM * /*a*/);
-int          bn_copy(PGPV_BIGNUM * /*b*/, const PGPV_BIGNUM * /*a*/);
-char *bn_bn2hex(const PGPV_BIGNUM *a);
-void bn_init(PGPV_BIGNUM * /*a*/);
-void bn_free(PGPV_BIGNUM * /*a*/);
-void bn_clear(PGPV_BIGNUM * /*a*/);
-void bn_clear_free(PGPV_BIGNUM * /*a*/);
+bignum_t *bn_new(void);
+bignum_t *bn_dup(const bignum_t * /*a*/);
+int       bn_copy(bignum_t * /*b*/, const bignum_t * /*a*/);
+char *bn_bn2hex(const bignum_t *a);
+void bn_init(bignum_t * /*a*/);
+void bn_free(bignum_t * /*a*/);
+void bn_clear(bignum_t * /*a*/);
+void bn_clear_free(bignum_t * /*a*/);
 
-int bn_cmp(PGPV_BIGNUM * /*a*/, PGPV_BIGNUM * /*b*/);
+int bn_cmp(bignum_t * /*a*/, bignum_t * /*b*/);
 
-PGPV_BIGNUM *bn_bin2bn(const uint8_t * /*buf*/, int /*size*/, PGPV_BIGNUM * /*bn*/);
-int          bn_bn2bin(const PGPV_BIGNUM * /*a*/, unsigned char * /*b*/);
-int          bn_print_fp(FILE * /*fp*/, const PGPV_BIGNUM * /*a*/);
-int bn_is_zero(const PGPV_BIGNUM *n);
-int bn_set_word(PGPV_BIGNUM *a, PGPV_BN_ULONG w);
-int bn_mod_exp(PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM *P);
+bignum_t *bn_bin2bn(const uint8_t * /*buf*/, int /*size*/, bignum_t * /*bn*/);
+int       bn_bn2bin(const bignum_t * /*a*/, unsigned char * /*b*/);
+int       bn_print_fp(FILE * /*fp*/, const bignum_t * /*a*/);
+int bn_is_zero(const bignum_t *n);
+int bn_set_word(bignum_t *a, PGPV_BN_ULONG w);
+int bn_mod_exp(bignum_t *Y, bignum_t *G, bignum_t *X, bignum_t *P);
 
 /*
- * @param a Initialized PGPV_BIGNUM structure
+ * @param a Initialized bignum_t structure
  * @param bits [out] bitlength of a
  *
  * @returns true on success, otherwise false
  */
-bool bn_num_bits(const PGPV_BIGNUM *a, size_t *bits);
+bool bn_num_bits(const bignum_t *a, size_t *bits);
 /*
- * @param a Initialized PGPV_BIGNUM structure
+ * @param a Initialized bignum_t structure
  * @param bytes [out] byte length of a
  *
  * @returns true on success, otherwise false
  */
-bool bn_num_bytes(const PGPV_BIGNUM *a, size_t *bytes);
+bool bn_num_bytes(const bignum_t *a, size_t *bytes);
 
 /*
- * @brief Produces hash of any size bignum.
+ * @brief Produces hash of any size bignum_t.
  *
- * @param bignum: Bignum to be hashed
+ * @param bignum_t: bignum_t to be hashed
  * @param hash: Initialized hash context
  *
  * @returns size of hashed data, or 0 on error
  */
-size_t bn_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash);
+size_t bn_hash(const bignum_t *bignum_t, pgp_hash_t *hash);
 
 #endif

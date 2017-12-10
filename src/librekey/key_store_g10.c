@@ -359,8 +359,8 @@ lookup_variable(s_exp_t *s_exp, const char *name)
     return NULL;
 }
 
-static BIGNUM *
-read_bignum(s_exp_t *s_exp, const char *name)
+static bignum_t *
+read_bignum_t(s_exp_t *s_exp, const char *name)
 {
     s_exp_t *var = lookup_variable(s_exp, name);
     if (var == NULL) {
@@ -372,7 +372,7 @@ read_bignum(s_exp_t *s_exp, const char *name)
         return NULL;
     }
 
-    BIGNUM *res =
+    bignum_t *res =
       bn_bin2bn(var->sub_elements[1].block.bytes, (int) var->sub_elements[1].block.len, NULL);
     if (res == NULL) {
         char *buf = malloc((var->sub_elements[1].block.len * 3) + 1);
@@ -381,7 +381,7 @@ read_bignum(s_exp_t *s_exp, const char *name)
             return NULL;
         }
         fprintf(stderr,
-                "Can't convert variable '%s' to bignum. The value is: '%s'\n",
+                "Can't convert variable '%s' to bignum_t. The value is: '%s'\n",
                 name,
                 rnp_strhexdump_upper(
                   buf, var->sub_elements[1].block.bytes, var->sub_elements[1].block.len, ""));
@@ -390,7 +390,7 @@ read_bignum(s_exp_t *s_exp, const char *name)
 }
 
 static bool
-write_bignum(s_exp_t *s_exp, const char *name, BIGNUM *bn)
+write_bignum_t(s_exp_t *s_exp, const char *name, bignum_t *bn)
 {
     uint8_t bnbuf[RNP_BUFSIZ];
 
@@ -431,25 +431,25 @@ parse_pubkey(pgp_pubkey_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
     pubkey->alg = alg;
     switch (alg) {
     case PGP_PKA_DSA:
-        pubkey->key.dsa.p = read_bignum(s_exp, "p");
+        pubkey->key.dsa.p = read_bignum_t(s_exp, "p");
         if (pubkey->key.dsa.p == NULL) {
             return false;
         }
 
-        pubkey->key.dsa.q = read_bignum(s_exp, "q");
+        pubkey->key.dsa.q = read_bignum_t(s_exp, "q");
         if (pubkey->key.dsa.q == NULL) {
             bn_free(pubkey->key.dsa.p);
             return false;
         }
 
-        pubkey->key.dsa.g = read_bignum(s_exp, "g");
+        pubkey->key.dsa.g = read_bignum_t(s_exp, "g");
         if (pubkey->key.dsa.g == NULL) {
             bn_free(pubkey->key.dsa.p);
             bn_free(pubkey->key.dsa.q);
             return false;
         }
 
-        pubkey->key.dsa.y = read_bignum(s_exp, "y");
+        pubkey->key.dsa.y = read_bignum_t(s_exp, "y");
         if (pubkey->key.dsa.y == NULL) {
             bn_free(pubkey->key.dsa.p);
             bn_free(pubkey->key.dsa.q);
@@ -460,12 +460,12 @@ parse_pubkey(pgp_pubkey_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         break;
 
     case PGP_PKA_RSA:
-        pubkey->key.rsa.n = read_bignum(s_exp, "n");
+        pubkey->key.rsa.n = read_bignum_t(s_exp, "n");
         if (pubkey->key.rsa.n == NULL) {
             return false;
         }
 
-        pubkey->key.rsa.e = read_bignum(s_exp, "e");
+        pubkey->key.rsa.e = read_bignum_t(s_exp, "e");
         if (pubkey->key.rsa.e == NULL) {
             bn_free(pubkey->key.rsa.n);
             return false;
@@ -474,18 +474,18 @@ parse_pubkey(pgp_pubkey_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         break;
 
     case PGP_PKA_ELGAMAL:
-        pubkey->key.elgamal.p = read_bignum(s_exp, "p");
+        pubkey->key.elgamal.p = read_bignum_t(s_exp, "p");
         if (pubkey->key.elgamal.p == NULL) {
             return false;
         }
 
-        pubkey->key.elgamal.g = read_bignum(s_exp, "g");
+        pubkey->key.elgamal.g = read_bignum_t(s_exp, "g");
         if (pubkey->key.elgamal.g == NULL) {
             bn_free(pubkey->key.elgamal.p);
             return false;
         }
 
-        pubkey->key.elgamal.y = read_bignum(s_exp, "y");
+        pubkey->key.elgamal.y = read_bignum_t(s_exp, "y");
         if (pubkey->key.elgamal.y == NULL) {
             bn_free(pubkey->key.elgamal.p);
             bn_free(pubkey->key.elgamal.g);
@@ -507,7 +507,7 @@ parse_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 {
     switch (alg) {
     case PGP_PKA_DSA:
-        seckey->key.dsa.x = read_bignum(s_exp, "x");
+        seckey->key.dsa.x = read_bignum_t(s_exp, "x");
         if (seckey->key.dsa.x == NULL) {
             return false;
         }
@@ -515,25 +515,25 @@ parse_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         break;
 
     case PGP_PKA_RSA:
-        seckey->key.rsa.d = read_bignum(s_exp, "d");
+        seckey->key.rsa.d = read_bignum_t(s_exp, "d");
         if (seckey->key.rsa.d == NULL) {
             return false;
         }
 
-        seckey->key.rsa.p = read_bignum(s_exp, "p");
+        seckey->key.rsa.p = read_bignum_t(s_exp, "p");
         if (seckey->key.rsa.p == NULL) {
             bn_free(seckey->key.rsa.d);
             return false;
         }
 
-        seckey->key.rsa.q = read_bignum(s_exp, "q");
+        seckey->key.rsa.q = read_bignum_t(s_exp, "q");
         if (seckey->key.rsa.q == NULL) {
             bn_free(seckey->key.rsa.d);
             bn_free(seckey->key.rsa.p);
             return false;
         }
 
-        seckey->key.rsa.u = read_bignum(s_exp, "u");
+        seckey->key.rsa.u = read_bignum_t(s_exp, "u");
         if (seckey->key.rsa.u == NULL) {
             bn_free(seckey->key.rsa.d);
             bn_free(seckey->key.rsa.p);
@@ -544,7 +544,7 @@ parse_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         break;
 
     case PGP_PKA_ELGAMAL:
-        seckey->key.elgamal.x = read_bignum(s_exp, "x");
+        seckey->key.elgamal.x = read_bignum_t(s_exp, "x");
         if (seckey->key.elgamal.x == NULL) {
             return false;
         }
@@ -1136,19 +1136,19 @@ write_pubkey(s_exp_t *s_exp, const pgp_pubkey_t *key)
             return false;
         }
 
-        if (!write_bignum(s_exp, "p", key->key.dsa.p)) {
+        if (!write_bignum_t(s_exp, "p", key->key.dsa.p)) {
             return false;
         }
 
-        if (!write_bignum(s_exp, "q", key->key.dsa.q)) {
+        if (!write_bignum_t(s_exp, "q", key->key.dsa.q)) {
             return false;
         }
 
-        if (!write_bignum(s_exp, "g", key->key.dsa.g)) {
+        if (!write_bignum_t(s_exp, "g", key->key.dsa.g)) {
             return false;
         }
 
-        if (!write_bignum(s_exp, "y", key->key.dsa.y)) {
+        if (!write_bignum_t(s_exp, "y", key->key.dsa.y)) {
             return false;
         }
 
@@ -1161,11 +1161,11 @@ write_pubkey(s_exp_t *s_exp, const pgp_pubkey_t *key)
             return false;
         }
 
-        if (!write_bignum(s_exp, "n", key->key.rsa.n)) {
+        if (!write_bignum_t(s_exp, "n", key->key.rsa.n)) {
             return false;
         }
 
-        if (!write_bignum(s_exp, "e", key->key.rsa.e)) {
+        if (!write_bignum_t(s_exp, "e", key->key.rsa.e)) {
             return false;
         }
 
@@ -1176,15 +1176,15 @@ write_pubkey(s_exp_t *s_exp, const pgp_pubkey_t *key)
             return false;
         }
 
-        if (!write_bignum(s_exp, "p", key->key.elgamal.p)) {
+        if (!write_bignum_t(s_exp, "p", key->key.elgamal.p)) {
             return false;
         }
 
-        if (!write_bignum(s_exp, "g", key->key.elgamal.g)) {
+        if (!write_bignum_t(s_exp, "g", key->key.elgamal.g)) {
             return false;
         }
 
-        if (!write_bignum(s_exp, "y", key->key.elgamal.y)) {
+        if (!write_bignum_t(s_exp, "y", key->key.elgamal.y)) {
             return false;
         }
 
@@ -1201,7 +1201,7 @@ write_seckey(s_exp_t *s_exp, const pgp_seckey_t *key)
 {
     switch (key->pubkey.alg) {
     case PGP_PKA_DSA:
-        if (!write_bignum(s_exp, "x", key->key.dsa.x)) {
+        if (!write_bignum_t(s_exp, "x", key->key.dsa.x)) {
             return false;
         }
 
@@ -1210,26 +1210,26 @@ write_seckey(s_exp_t *s_exp, const pgp_seckey_t *key)
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA:
-        if (!write_bignum(s_exp, "d", key->key.rsa.d)) {
+        if (!write_bignum_t(s_exp, "d", key->key.rsa.d)) {
             return false;
         }
 
-        if (!write_bignum(s_exp, "p", key->key.rsa.p)) {
+        if (!write_bignum_t(s_exp, "p", key->key.rsa.p)) {
             return false;
         }
 
-        if (!write_bignum(s_exp, "q", key->key.rsa.q)) {
+        if (!write_bignum_t(s_exp, "q", key->key.rsa.q)) {
             return false;
         }
 
-        if (!write_bignum(s_exp, "u", key->key.rsa.u)) {
+        if (!write_bignum_t(s_exp, "u", key->key.rsa.u)) {
             return false;
         }
 
         break;
 
     case PGP_PKA_ELGAMAL:
-        if (!write_bignum(s_exp, "x", key->key.elgamal.x)) {
+        if (!write_bignum_t(s_exp, "x", key->key.elgamal.x)) {
             return false;
         }
 

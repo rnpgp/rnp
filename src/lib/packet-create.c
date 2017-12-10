@@ -149,7 +149,7 @@ pgp_write_userid(const uint8_t *userid, pgp_output_t *output)
 \ingroup Core_MPI
 */
 static size_t
-mpi_length(const BIGNUM *bn)
+mpi_length(const bignum_t *bn)
 {
     size_t bsz;
     if (!bn_num_bytes(bn, &bsz)) {

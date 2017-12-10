@@ -203,7 +203,7 @@ pgp_ecdh_encrypt_pkcs5(rng_t *                  rng,
                        size_t                   session_key_len,
                        uint8_t *                wrapped_key,
                        size_t *                 wrapped_key_len,
-                       BIGNUM *                 ephemeral_key,
+                       bignum_t *               ephemeral_key,
                        const pgp_ecdh_pubkey_t *pubkey,
                        const pgp_fingerprint_t *fingerprint)
 {
@@ -306,7 +306,7 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
                        size_t *                 session_key_len,
                        uint8_t *                wrapped_key,
                        size_t                   wrapped_key_len,
-                       const BIGNUM *           ephemeral_key,
+                       const bignum_t *         ephemeral_key,
                        const pgp_ecc_seckey_t * seckey,
                        const pgp_ecdh_pubkey_t *pubkey,
                        const pgp_fingerprint_t *fingerprint)

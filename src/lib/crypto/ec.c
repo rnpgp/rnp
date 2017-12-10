@@ -125,8 +125,8 @@ pgp_genkey_ec_uncompressed(rng_t *                rng,
     uint8_t         point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
     botan_privkey_t pr_key = NULL;
     botan_pubkey_t  pu_key = NULL;
-    BIGNUM *        public_x = NULL;
-    BIGNUM *        public_y = NULL;
+    bignum_t *      public_x = NULL;
+    bignum_t *      public_y = NULL;
     rnp_result_t    ret = RNP_ERROR_KEY_GENERATION;
 
     const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
