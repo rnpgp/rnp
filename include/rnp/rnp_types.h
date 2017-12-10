@@ -97,7 +97,7 @@ typedef struct rnp_symmetric_pass_info_t {
 
 /* rnp operation context : contains additional data about the currently ongoing operation */
 typedef struct rnp_ctx_t {
-    rnp_t *        rnp;           /* rnp structure */
+    rnp_t *        rnp;           /* Pointer to initialized rnp_t (temporary solution) */
     char *         filename;      /* name of the input file to store in literal data packet */
     int64_t        filemtime;     /* file modification time to store in literal data packet */
     int64_t        sigcreate;     /* signature creation time */
@@ -113,6 +113,7 @@ typedef struct rnp_ctx_t {
     unsigned       armortype;     /* type of the armored message, used in enarmor command */
     bool           discard;       /* discard the output */
     void *         on_signatures; /* handler for signed messages */
+    struct rng_t * rng;           /* pointer to rng context */
 } rnp_ctx_t;
 
 #endif // __RNP_TYPES__

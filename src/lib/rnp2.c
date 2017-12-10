@@ -29,6 +29,7 @@
 #include "list.h"
 #include "crypto.h"
 #include "crypto/s2k.h"
+#include "crypto/rng.h"
 #include "signature.h"
 #include "pgp-key.h"
 #include <librepgp/validate.h>
@@ -74,6 +75,7 @@ struct rnp_ffi_st {
     void *          getkeycb_ctx;
     rnp_password_cb getpasscb;
     void *          getpasscb_ctx;
+    struct rng_t    rng;
 };
 
 struct rnp_input_st {
@@ -116,6 +118,14 @@ static bool key_provider_bounce(const pgp_key_request_ctx_t *ctx,
                                 pgp_key_t **                 key,
                                 void *                       userdata);
 
+static void
+rnp_ctx_init_ffi(rnp_ctx_t *ctx, rnp_ffi_t ffi)
+{
+    memset(ctx, 0, sizeof(*ctx));
+    ctx->rng = &ffi->rng;
+    ctx->ealg = PGP_SA_DEFAULT_CIPHER;
+}
+
 rnp_result_t
 rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
 {
@@ -140,6 +150,10 @@ rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
     }
     ret = rnp_keyring_create(*ffi, &(*ffi)->secring, sec_format);
     if (ret) {
+        goto done;
+    }
+    if (!rng_init(&((*ffi)->rng), RNG_DRBG)) {
+        ret = RNP_ERROR_RNG;
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -181,6 +195,7 @@ rnp_ffi_destroy(rnp_ffi_t ffi)
         close_io(&ffi->io);
         rnp_keyring_destroy(ffi->pubring);
         rnp_keyring_destroy(ffi->secring);
+        rng_destroy(&ffi->rng);
         free(ffi);
     }
     return RNP_SUCCESS;
@@ -904,10 +919,11 @@ rnp_op_encrypt_create(rnp_op_encrypt_t *op,
     if (!*op) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
+
+    rnp_ctx_init_ffi(&(*op)->rnpctx, ffi);
     (*op)->ffi = ffi;
     (*op)->input = input;
     (*op)->output = output;
-    (*op)->rnpctx.ealg = PGP_SA_DEFAULT_CIPHER;
     return RNP_SUCCESS;
 }
 
@@ -1113,11 +1129,14 @@ dest_provider(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char *filenam
 rnp_result_t
 rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
 {
+    rnp_ctx_t rnpctx;
+
     // checks
     if (!ffi || !input || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
 
+    rnp_ctx_init_ffi(&rnpctx, ffi);
     pgp_password_provider_t password_provider = {
       .callback = rnp_password_cb_bounce,
       .userdata = &(struct rnp_password_cb_data){.cb_fn = ffi->getpasscb,
@@ -1126,7 +1145,8 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
       .password_provider = &password_provider,
       .key_provider = &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = ffi},
       .dest_provider = dest_provider,
-      .param = output};
+      .param = output,
+      .ctx = &rnpctx};
 
     rnp_result_t ret = process_pgp_source(&handler, &input->src);
     if (ret == RNP_SUCCESS) {
