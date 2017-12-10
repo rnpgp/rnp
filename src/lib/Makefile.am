@@ -14,6 +14,7 @@ librnp_la_SOURCES	= \
 	crypto/ecdsa.c \
 	crypto/eddsa.c \
 	crypto/elgamal.c \
+	crypto/rng.c \
 	crypto/rsa.c \
 	crypto/s2k.c \
 	crypto/sm2.c \
