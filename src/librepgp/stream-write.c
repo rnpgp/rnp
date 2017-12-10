@@ -539,7 +539,10 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     pkeycount = list_length(handler->ctx->recipients);
     if ((pkeycount > 0) || (list_length(handler->ctx->passwords) > 1)) {
-        pgp_random(enckey, keylen);
+        if (!rng_get_data(&handler->ctx->rnp->drbg, enckey, keylen)) {
+            ret = RNP_ERROR_RNG;
+            goto finish;
+        }
         singlepass = false;
     }
 
@@ -591,7 +594,11 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     /* generating and writing iv/password check bytes */
     blsize = pgp_block_size(param->ealg);
-    pgp_random(enchdr, blsize);
+    if (!rng_get_data(&handler->ctx->rnp->drbg, enchdr, blsize)) {
+        ret = RNP_ERROR_RNG;
+        goto finish;
+    }
+
     enchdr[blsize] = enchdr[blsize - 2];
     enchdr[blsize + 1] = enchdr[blsize - 1];
     if (param->has_mdc) {
