@@ -32,7 +32,6 @@
 
 typedef struct botan_mp_struct *botan_mp_t;
 typedef struct pgp_hash_t       pgp_hash_t;
-typedef uint32_t                PGPV_BN_ULONG;
 
 /*
  * bignum_t struct
@@ -70,7 +69,7 @@ bignum_t *bn_bin2bn(const uint8_t * /*buf*/, int /*size*/, bignum_t * /*bn*/);
 int       bn_bn2bin(const bignum_t * /*a*/, unsigned char * /*b*/);
 int       bn_print_fp(FILE * /*fp*/, const bignum_t * /*a*/);
 int bn_is_zero(const bignum_t *n);
-int bn_set_word(bignum_t *a, PGPV_BN_ULONG w);
+int bn_set_word(bignum_t *a, uint32_t w);
 int bn_mod_exp(bignum_t *Y, bignum_t *G, bignum_t *X, bignum_t *P);
 
 /*
