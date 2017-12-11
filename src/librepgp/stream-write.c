@@ -403,7 +403,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     case PGP_PKA_ECDH: {
         pgp_fingerprint_t fingerprint;
         size_t            outlen = sizeof(pkey.params.ecdh.m);
-        BIGNUM *          p;
+        bignum_t *        p;
 
         if (!pgp_fingerprint(&fingerprint, pubkey)) {
             RNP_LOG("ECDH fingerprint calculation failed");

@@ -359,7 +359,7 @@ lookup_variable(s_exp_t *s_exp, const char *name)
     return NULL;
 }
 
-static BIGNUM *
+static bignum_t *
 read_bignum(s_exp_t *s_exp, const char *name)
 {
     s_exp_t *var = lookup_variable(s_exp, name);
@@ -372,7 +372,7 @@ read_bignum(s_exp_t *s_exp, const char *name)
         return NULL;
     }
 
-    BIGNUM *res =
+    bignum_t *res =
       bn_bin2bn(var->sub_elements[1].block.bytes, (int) var->sub_elements[1].block.len, NULL);
     if (res == NULL) {
         char *buf = malloc((var->sub_elements[1].block.len * 3) + 1);
@@ -390,7 +390,7 @@ read_bignum(s_exp_t *s_exp, const char *name)
 }
 
 static bool
-write_bignum(s_exp_t *s_exp, const char *name, BIGNUM *bn)
+write_bignum(s_exp_t *s_exp, const char *name, bignum_t *bn)
 {
     uint8_t bnbuf[RNP_BUFSIZ];
 

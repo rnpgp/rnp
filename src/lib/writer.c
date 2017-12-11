@@ -144,7 +144,7 @@ pgp_write_scalar(pgp_output_t *output, unsigned n, unsigned len)
  */
 
 bool
-pgp_write_mpi(pgp_output_t *output, const BIGNUM *bn)
+pgp_write_mpi(pgp_output_t *output, const bignum_t *bn)
 {
     uint8_t buf[RNP_BUFSIZ];
     size_t  bsz;

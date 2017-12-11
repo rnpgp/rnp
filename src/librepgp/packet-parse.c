@@ -624,7 +624,7 @@ limited_read_time(time_t *dest, pgp_region_t *region, pgp_stream_t *stream)
  *
  * This function makes sure to respect packet boundaries.
  *
- * \param **pgn        return the integer there - the BIGNUM is created by bn_bin2bn() and
+ * \param **pgn        return the integer there - the bignum_t is created by bn_bin2bn() and
  * probably needs to be freed
  *                 by the caller XXX right ben?
  * \param *ptag        Pointer to current packet's Packet Tag.
@@ -642,7 +642,7 @@ limited_read_time(time_t *dest, pgp_region_t *region, pgp_stream_t *stream)
  * \see RFC4880 3.2
  */
 static bool
-limread_mpi(BIGNUM **pbn, pgp_region_t *region, pgp_stream_t *stream)
+limread_mpi(bignum_t **pbn, pgp_region_t *region, pgp_stream_t *stream)
 {
     uint8_t buf[RNP_BUFSIZ] = "";
     /* an MPI has a 2 byte length part.
@@ -919,7 +919,7 @@ cmd_get_password_free(pgp_seckey_password_t *skp)
 \brief Free allocated memory
 */
 static void
-free_BN(BIGNUM **pp)
+free_BN(bignum_t **pp)
 {
     if (*pp != NULL) {
         bn_free(*pp);
@@ -2797,8 +2797,8 @@ parse_pk_sesskey(pgp_region_t *region, pgp_stream_t *stream)
     uint8_t             c = 0x0;
     uint8_t             cs[2];
     unsigned            k;
-    BIGNUM *            g_to_k = NULL;
-    BIGNUM *            enc_m = NULL;
+    bignum_t *          g_to_k = NULL;
+    bignum_t *          enc_m = NULL;
     int                 n;
     uint8_t             unencoded_m_buf[1024];
 

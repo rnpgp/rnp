@@ -424,7 +424,7 @@ formatstring(char *buffer, const uint8_t *s, size_t len)
 
 /* format a bignum, checking for "interesting" high bit values */
 static int
-formatbignum(char *buffer, BIGNUM *bn)
+formatbignum(char *buffer, bignum_t *bn)
 {
     size_t   len;
     uint8_t *cp;

@@ -40,21 +40,21 @@
  * \see RFC4880 5.5.2
  */
 typedef struct {
-    BIGNUM *p; /* ElGamal prime p */
-    BIGNUM *g; /* ElGamal group generator g */
-    BIGNUM *y; /* ElGamal public key value y (= g^x mod p
+    bignum_t *p; /* ElGamal prime p */
+    bignum_t *g; /* ElGamal group generator g */
+    bignum_t *y; /* ElGamal public key value y (= g^x mod p
                 * with x being the secret) */
 } pgp_elgamal_pubkey_t;
 
 /** pgp_elgamal_seckey_t */
 typedef struct pgp_elgamal_seckey_t {
-    BIGNUM *x;
+    bignum_t *x;
 } pgp_elgamal_seckey_t;
 
 /** Struct to hold params of a Elgamal signature */
 typedef struct pgp_elgamal_sig_t {
-    BIGNUM *r;
-    BIGNUM *s;
+    bignum_t *r;
+    bignum_t *s;
 } pgp_elgamal_sig_t;
 
 /*

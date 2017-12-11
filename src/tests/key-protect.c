@@ -134,10 +134,10 @@ test_key_protect_load_pgp(void **state)
     assert_non_null(key->key.seckey.key.rsa.u);
 
     // save the secret MPIs for some later comparisons
-    BIGNUM *d = bn_dup(key->key.seckey.key.rsa.d);
-    BIGNUM *p = bn_dup(key->key.seckey.key.rsa.p);
-    BIGNUM *q = bn_dup(key->key.seckey.key.rsa.q);
-    BIGNUM *u = bn_dup(key->key.seckey.key.rsa.u);
+    bignum_t *d = bn_dup(key->key.seckey.key.rsa.d);
+    bignum_t *p = bn_dup(key->key.seckey.key.rsa.p);
+    bignum_t *q = bn_dup(key->key.seckey.key.rsa.q);
+    bignum_t *u = bn_dup(key->key.seckey.key.rsa.u);
 
     // confirm that packets[0] is no longer encrypted
     {
