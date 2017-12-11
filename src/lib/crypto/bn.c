@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 2012 Alistair Crooks <agc@NetBSD.org>
  * All rights reserved.
  *
@@ -265,7 +265,7 @@ bn_is_zero(const bignum_t *n)
 }
 
 int
-bn_set_word(bignum_t *a, PGPV_BN_ULONG w)
+bn_set_word(bignum_t *a, uint32_t w)
 {
     if (a == NULL) {
         return -1;
