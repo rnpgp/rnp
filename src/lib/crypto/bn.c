@@ -36,15 +36,15 @@
 
 /**************************************************************************/
 
-/* OpenSSL BIGNUM emulation layer */
+/* OpenSSL bignum_t emulation layer */
 
 /* essentiually, these are just wrappers around the botan functions */
 /* usually the order of args changes */
-/* the PGPV_BIGNUM API tends to have more const poisoning */
+/* the bignum_t API tends to have more const poisoning */
 /* these wrappers also check the arguments passed for sanity */
 
-PGPV_BIGNUM *
-bn_bin2bn(const uint8_t *data, int len, PGPV_BIGNUM *ret)
+bignum_t *
+bn_bin2bn(const uint8_t *data, int len, bignum_t *ret)
 {
     if (data == NULL) {
         return bn_new();
@@ -62,7 +62,7 @@ bn_bin2bn(const uint8_t *data, int len, PGPV_BIGNUM *ret)
 
 /* store in unsigned [big endian] format */
 int
-bn_bn2bin(const PGPV_BIGNUM *a, unsigned char *b)
+bn_bn2bin(const bignum_t *a, unsigned char *b)
 {
     if (a == NULL || b == NULL) {
         return -1;
@@ -71,10 +71,10 @@ bn_bn2bin(const PGPV_BIGNUM *a, unsigned char *b)
     return botan_mp_to_bin(a->mp, b);
 }
 
-PGPV_BIGNUM *
+bignum_t *
 bn_new(void)
 {
-    PGPV_BIGNUM *a;
+    bignum_t *a;
 
     a = calloc(1, sizeof(*a));
     if (a == NULL) {
@@ -85,7 +85,7 @@ bn_new(void)
 }
 
 void
-bn_free(PGPV_BIGNUM *a)
+bn_free(bignum_t *a)
 {
     if (a != NULL) {
         botan_mp_destroy(a->mp);
@@ -95,7 +95,7 @@ bn_free(PGPV_BIGNUM *a)
 
 /* copy, b = a */
 int
-bn_copy(PGPV_BIGNUM *to, const PGPV_BIGNUM *from)
+bn_copy(bignum_t *to, const bignum_t *from)
 {
     if (from == NULL || to == NULL) {
         return -1;
@@ -103,10 +103,10 @@ bn_copy(PGPV_BIGNUM *to, const PGPV_BIGNUM *from)
     return botan_mp_set_from_mp(to->mp, from->mp);
 }
 
-PGPV_BIGNUM *
-bn_dup(const PGPV_BIGNUM *a)
+bignum_t *
+bn_dup(const bignum_t *a)
 {
-    PGPV_BIGNUM *ret;
+    bignum_t *ret;
 
     if (a == NULL) {
         return NULL;
@@ -118,7 +118,7 @@ bn_dup(const PGPV_BIGNUM *a)
 }
 
 void
-bn_clear(PGPV_BIGNUM *a)
+bn_clear(bignum_t *a)
 {
     if (a) {
         botan_mp_clear(a->mp);
@@ -126,14 +126,14 @@ bn_clear(PGPV_BIGNUM *a)
 }
 
 void
-bn_clear_free(PGPV_BIGNUM *a)
+bn_clear_free(bignum_t *a)
 {
     /* Same as BN_free in Botan */
     bn_free(a);
 }
 
 bool
-bn_num_bits(const PGPV_BIGNUM *a, size_t *bits)
+bn_num_bits(const bignum_t *a, size_t *bits)
 {
     if (!a || botan_mp_num_bits(a->mp, bits)) {
         return false;
@@ -142,7 +142,7 @@ bn_num_bits(const PGPV_BIGNUM *a, size_t *bits)
 }
 
 bool
-bn_num_bytes(const PGPV_BIGNUM *a, size_t *bits)
+bn_num_bytes(const bignum_t *a, size_t *bits)
 {
     if (bn_num_bits(a, bits)) {
         *bits = BITS_TO_BYTES(*bits);
@@ -152,7 +152,7 @@ bn_num_bytes(const PGPV_BIGNUM *a, size_t *bits)
 }
 
 int
-bn_cmp(PGPV_BIGNUM *a, PGPV_BIGNUM *b)
+bn_cmp(bignum_t *a, bignum_t *b)
 {
     int cmp_result;
 
@@ -165,7 +165,7 @@ bn_cmp(PGPV_BIGNUM *a, PGPV_BIGNUM *b)
 }
 
 int
-bn_print_fp(FILE *fp, const PGPV_BIGNUM *a)
+bn_print_fp(FILE *fp, const bignum_t *a)
 {
     int    ret;
     size_t num_bytes;
@@ -190,7 +190,7 @@ bn_print_fp(FILE *fp, const PGPV_BIGNUM *a)
 }
 
 char *
-bn_bn2hex(const PGPV_BIGNUM *a)
+bn_bn2hex(const bignum_t *a)
 {
     char *       out;
     size_t       out_len;
@@ -223,7 +223,7 @@ bn_bn2hex(const PGPV_BIGNUM *a)
 
 /* hash a bignum, possibly padded - first length, then string itself */
 size_t
-bn_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash)
+bn_hash(const bignum_t *bignum, pgp_hash_t *hash)
 {
     uint8_t *bn;
     size_t   len;
@@ -256,7 +256,7 @@ bn_hash(const PGPV_BIGNUM *bignum, pgp_hash_t *hash)
 }
 
 int
-bn_is_zero(const PGPV_BIGNUM *n)
+bn_is_zero(const bignum_t *n)
 {
     if (n == NULL) {
         return -1;
@@ -265,7 +265,7 @@ bn_is_zero(const PGPV_BIGNUM *n)
 }
 
 int
-bn_set_word(PGPV_BIGNUM *a, PGPV_BN_ULONG w)
+bn_set_word(bignum_t *a, PGPV_BN_ULONG w)
 {
     if (a == NULL) {
         return -1;
@@ -275,7 +275,7 @@ bn_set_word(PGPV_BIGNUM *a, PGPV_BN_ULONG w)
 }
 
 int
-bn_mod_exp(PGPV_BIGNUM *Y, PGPV_BIGNUM *G, PGPV_BIGNUM *X, PGPV_BIGNUM *P)
+bn_mod_exp(bignum_t *Y, bignum_t *G, bignum_t *X, bignum_t *P)
 {
     if (Y == NULL || G == NULL || X == NULL || P == NULL) {
         return -1;

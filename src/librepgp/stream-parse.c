@@ -625,8 +625,8 @@ signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t 
         break;
     }
     case PGP_PKA_EDDSA: {
-        BIGNUM *r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL);
-        BIGNUM *s = bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL);
+        bignum_t *r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL);
+        bignum_t *s = bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL);
         ret = pgp_eddsa_verify_hash(r, s, hval, len, &key->key.ecc);
         bn_free(r);
         bn_free(s);
@@ -1161,7 +1161,7 @@ encrypted_try_key(pgp_source_t *        src,
     pgp_symm_alg_t    salg;
     unsigned          checksum = 0;
     bool              res = false;
-    BIGNUM *          ecdh_p;
+    bignum_t *        ecdh_p;
 
     /* Decrypting session key value */
     switch (sesskey->alg) {

@@ -62,18 +62,18 @@ typedef struct ec_curve_desc_t {
  */
 typedef struct {
     pgp_curve_t curve;
-    BIGNUM *    point; /* octet string encoded as MPI */
+    bignum_t *  point; /* octet string encoded as MPI */
 } pgp_ecc_pubkey_t;
 
 /** pgp_ecc_seckey_t */
 typedef struct {
-    BIGNUM *x;
+    bignum_t *x;
 } pgp_ecc_seckey_t;
 
 /** Struct to hold params of a ECDSA/EDDSA/SM2 signature */
 typedef struct pgp_ecc_sig_t {
-    BIGNUM *r;
-    BIGNUM *s;
+    bignum_t *r;
+    bignum_t *s;
 } pgp_ecc_sig_t;
 
 typedef struct pgp_output_t pgp_output_t;

@@ -126,11 +126,11 @@ frombase64(char *dst, const char *src, size_t size, int flag)
 }
 
 /* get a bignum from the buffer gap */
-static BIGNUM *
+static bignum_t *
 getbignum(bufgap_t *bg, char *buf, const char *header)
 {
-    uint32_t len;
-    BIGNUM * bignum;
+    uint32_t  len;
+    bignum_t *bignum;
 
     (void) bufgap_getbin(bg, &len, sizeof(len));
     len = ntohl(len);
@@ -368,7 +368,7 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
 
     if (key->key.seckey.pubkey.alg == PGP_PKA_RSA) {
         /* openssh and openssl have p and q swapped */
-        BIGNUM *tmp = key->key.seckey.key.rsa.p;
+        bignum_t *tmp = key->key.seckey.key.rsa.p;
         key->key.seckey.key.rsa.p = key->key.seckey.key.rsa.q;
         key->key.seckey.key.rsa.q = tmp;
     }

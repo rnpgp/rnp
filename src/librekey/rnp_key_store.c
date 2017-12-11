@@ -829,7 +829,7 @@ rnp_key_store_get_next_key_by_name(
 
 // TODO: This looks very similar to bn_hash()
 static bool
-grip_hash_bignum(pgp_hash_t *hash, const BIGNUM *bignum)
+grip_hash_bignum(pgp_hash_t *hash, const bignum_t *bignum)
 {
     uint8_t *bn;
     size_t   len;

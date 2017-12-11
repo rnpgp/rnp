@@ -44,22 +44,22 @@ typedef struct pgp_rsa_seckey_t pgp_rsa_seckey_t;
  * \see RFC4880 5.5.2
  */
 typedef struct {
-    BIGNUM *n; /* RSA public modulus n */
-    BIGNUM *e; /* RSA public encryption exponent e */
+    bignum_t *n; /* RSA public modulus n */
+    bignum_t *e; /* RSA public encryption exponent e */
 } pgp_rsa_pubkey_t;
 
 /** Struct to hold params of an RSA signature */
 typedef struct pgp_rsa_sig_t {
-    BIGNUM *sig; /* the signature value (m^d % n) */
+    bignum_t *sig; /* the signature value (m^d % n) */
 } pgp_rsa_sig_t;
 
 /** Structure to hold data for one RSA secret key
  */
 typedef struct pgp_rsa_seckey_t {
-    BIGNUM *d;
-    BIGNUM *p;
-    BIGNUM *q;
-    BIGNUM *u;
+    bignum_t *d;
+    bignum_t *p;
+    bignum_t *q;
+    bignum_t *u;
 } pgp_rsa_seckey_t;
 
 /*

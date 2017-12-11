@@ -150,7 +150,7 @@ print_string_and_value(int indent, const char *name, const char *str, uint8_t va
 }
 
 static void
-print_bn(int indent, const char *name, const BIGNUM *bn)
+print_bn(int indent, const char *name, const bignum_t *bn)
 {
     print_indent(indent);
     printf("%s = ", name);

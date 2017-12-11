@@ -218,8 +218,8 @@ rnp_test_eddsa(void **state)
     rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, seckey));
 
     const uint8_t hash[32] = {0};
-    BIGNUM *      r = bn_new();
-    BIGNUM *      s = bn_new();
+    bignum_t *    r = bn_new();
+    bignum_t *    s = bn_new();
 
     rnp_assert_int_equal(
       rstate,
@@ -289,7 +289,7 @@ raw_elg_test_success(void **state)
     ctext_size /= 2;
 
 #if defined(DEBUG_PRINT)
-    BIGNUM *tmp = bn_new();
+    bignum_t *tmp = bn_new();
 
     printf("\tP\t= ");
     bn_print_fp(stdout, pub_elg.p);
@@ -414,7 +414,7 @@ ecdh_roundtrip(void **state)
     size_t            plaintext_len = sizeof(plaintext);
     uint8_t           result[32] = {0};
     size_t            result_len = sizeof(result);
-    BIGNUM *          tmp_eph_key;
+    bignum_t *        tmp_eph_key;
 
     tmp_eph_key = bn_new();
 
@@ -479,7 +479,7 @@ ecdh_decryptionNegativeCases(void **state)
     size_t            plaintext_len = sizeof(plaintext);
     uint8_t           result[32] = {0};
     size_t            result_len = sizeof(result);
-    BIGNUM *          tmp_eph_key;
+    bignum_t *        tmp_eph_key;
 
     tmp_eph_key = bn_new();
     rnp_assert_true(rstate, tmp_eph_key != NULL);

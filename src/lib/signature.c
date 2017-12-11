@@ -155,11 +155,11 @@ rsa_sign(rng_t *                 rng,
          const pgp_rsa_seckey_t *secrsa,
          pgp_output_t *          out)
 {
-    unsigned hash_size;
-    int      sig_size = 0;
-    uint8_t  hashbuf[128];
-    uint8_t  sigbuf[RNP_BUFSIZ];
-    BIGNUM * bn;
+    unsigned  hash_size;
+    int       sig_size = 0;
+    uint8_t   hashbuf[128];
+    uint8_t   sigbuf[RNP_BUFSIZ];
+    bignum_t *bn;
 
     pgp_hash_alg_t hash_alg = pgp_hash_alg_type(hash);
 
@@ -320,8 +320,8 @@ eddsa_sign(rng_t *                 rng,
     pgp_write(output, &hashbuf[0], 2);
 
     /* write signature to buf */
-    BIGNUM *r = bn_new();
-    BIGNUM *s = bn_new();
+    bignum_t *r = bn_new();
+    bignum_t *s = bn_new();
     if (!r || !s) {
         goto end;
     }

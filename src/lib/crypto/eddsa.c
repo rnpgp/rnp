@@ -65,8 +65,8 @@ end:
 }
 
 int
-pgp_eddsa_verify_hash(const BIGNUM *          r,
-                      const BIGNUM *          s,
+pgp_eddsa_verify_hash(const bignum_t *        r,
+                      const bignum_t *        s,
                       const uint8_t *         hash,
                       size_t                  hash_len,
                       const pgp_ecc_pubkey_t *pubkey)
@@ -123,8 +123,8 @@ done:
 
 int
 pgp_eddsa_sign_hash(rng_t *                 rng,
-                    BIGNUM *                r,
-                    BIGNUM *                s,
+                    bignum_t *              r,
+                    bignum_t *              s,
                     const uint8_t *         hash,
                     size_t                  hash_len,
                     const pgp_ecc_seckey_t *seckey,

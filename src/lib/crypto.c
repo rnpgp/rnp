@@ -105,8 +105,8 @@ int
 pgp_decrypt_decode_mpi(rng_t *             rng,
                        uint8_t *           buf,
                        size_t              buflen,
-                       const BIGNUM *      g_to_k,
-                       const BIGNUM *      encmpi,
+                       const bignum_t *    g_to_k,
+                       const bignum_t *    encmpi,
                        const pgp_seckey_t *seckey)
 {
     uint8_t encmpibuf[RNP_BUFSIZ] = {0};
