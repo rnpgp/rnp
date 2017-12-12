@@ -24,6 +24,7 @@ macos_install() {
 		gnupg
 		gnutls
 		wget
+		python2
 "
 	# gnutls for manual compile of gnupg
 	for p in ${packages}; do
