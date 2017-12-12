@@ -25,6 +25,7 @@
  */
 
 #include "config.h"
+#include "stream-def.h"
 #include "stream-armor.h"
 #include "stream-packet.h"
 #include <stdlib.h>
@@ -111,7 +112,7 @@ armor_read_padding(pgp_source_t *src)
     }
 
     if ((stlen == 1) || (stlen == 2)) {
-        if ((st[0] != '=') || ((stlen == 2) && (st[1] != '='))) {
+        if ((st[0] != CH_EQ) || ((stlen == 2) && (st[1] != CH_EQ))) {
             return -1;
         }
 
@@ -137,7 +138,7 @@ armor_read_crc(pgp_source_t *src)
         return false;
     }
 
-    if ((clen == 5) && (crc[0] == '=')) {
+    if ((clen == 5) && (crc[0] == CH_EQ)) {
         for (int i = 0; i < 4; i++) {
             if ((dec[i] = B64DEC[(int) crc[i + 1]]) >= 64) {
                 return false;
@@ -166,9 +167,9 @@ armor_read_trailer(pgp_source_t *src)
     pgp_source_armored_param_t *param = src->param;
 
     stlen = strlen(param->armorhdr);
-    strncpy(st, "-----END", 8);
+    strncpy(st, ST_ARMOR_END, 8); /* 8 here is mandatory */
     strncpy(st + 8, param->armorhdr + 5, stlen - 5);
-    strncpy(st + stlen + 3, "-----", 5);
+    strncpy(st + stlen + 3, ST_DASHES, 5);
     stlen += 8;
     read = src_peek(param->readsrc, str, stlen);
     if ((read < (ssize_t) stlen) || strncmp(str, st, stlen)) {
@@ -391,7 +392,7 @@ find_armor_header(const char *buf, size_t len, size_t *hdrlen)
     int st = -1;
 
     for (unsigned i = 0; i < len - 10; i++) {
-        if ((buf[i] == '-') && !strncmp(&buf[i + 1], "----", 4)) {
+        if ((buf[i] == CH_DASH) && !strncmp(&buf[i + 1], ST_DASHES, 4)) {
             st = i;
             break;
         }
@@ -402,7 +403,7 @@ find_armor_header(const char *buf, size_t len, size_t *hdrlen)
     }
 
     for (unsigned i = st + 5; i <= len - 5; i++) {
-        if ((buf[i] == '-') && !strncmp(&buf[i + 1], "----", 4)) {
+        if ((buf[i] == CH_DASH) && !strncmp(&buf[i + 1], ST_DASHES, 4)) {
             *hdrlen = i + 5 - st;
             return &buf[st];
         }
@@ -536,19 +537,19 @@ armor_parse_headers(pgp_source_t *src)
                 return false;
             }
 
-            if (strncmp(header, "Version: ", 9) == 0) {
+            if (strncmp(header, ST_HEADER_VERSION, 9) == 0) {
                 memcpy(hdrval, header + 9, hdrlen - 8);
                 free(param->version);
                 param->version = hdrval;
-            } else if (strncmp(header, "Comment: ", 9) == 0) {
+            } else if (strncmp(header, ST_HEADER_COMMENT, 9) == 0) {
                 memcpy(hdrval, header + 9, hdrlen - 8);
                 free(param->comment);
                 param->comment = hdrval;
-            } else if (strncmp(header, "Hash: ", 6) == 0) {
+            } else if (strncmp(header, ST_HEADER_HASH, 6) == 0) {
                 memcpy(hdrval, header + 6, hdrlen - 5);
                 free(param->hash);
                 param->hash = hdrval;
-            } else if (strncmp(header, "Charset: ", 9) == 0) {
+            } else if (strncmp(header, ST_HEADER_CHARSET, 9) == 0) {
                 memcpy(hdrval, header + 9, hdrlen - 8);
                 free(param->charset);
                 param->charset = hdrval;
@@ -623,7 +624,7 @@ static bool
 armor_message_header(pgp_armored_msg_t type, bool finish, char *buf)
 {
     char *str;
-    str = finish ? "-----END PGP " : "-----BEGIN PGP ";
+    str = finish ? ST_ARMOR_END : ST_ARMOR_BEGIN;
     strncpy(buf, str, strlen(str));
     buf += strlen(str);
     switch (type) {
@@ -648,23 +649,18 @@ armor_message_header(pgp_armored_msg_t type, bool finish, char *buf)
 
     strncpy(buf, str, strlen(str));
     buf += strlen(str);
-    strncpy(buf, "-----", 5);
+    strncpy(buf, ST_DASHES, 5);
     buf[5] = '\0';
     return true;
 }
-
-static const uint8_t CR = 0x0d;
-static const uint8_t LF = 0x0a;
-static const uint8_t EQ = 0x3d;
-static const uint8_t CRLF[2] = {0x0d, 0x0a};
 
 static void
 armor_write_eol(pgp_dest_armored_param_t *param)
 {
     if (param->usecrlf) {
-        dst_write(param->writedst, CRLF, 2);
+        dst_write(param->writedst, ST_CRLF, 2);
     } else {
-        dst_write(param->writedst, &LF, 1);
+        dst_write(param->writedst, ST_LF, 1);
     }
 }
 
@@ -732,9 +728,9 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         param->lout += 4;
         if (param->lout == param->llen) {
             if (param->usecrlf) {
-                *encptr++ = CR;
+                *encptr++ = CH_CR;
             }
-            *encptr++ = LF;
+            *encptr++ = CH_LF;
             param->lout = 0;
         }
     }
@@ -776,9 +772,9 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         /* adding line ending */
         if (param->lout == 0) {
             if (param->usecrlf) {
-                *encptr++ = CR;
+                *encptr++ = CH_CR;
             }
-            *encptr++ = LF;
+            *encptr++ = CH_LF;
         }
     }
 
@@ -802,14 +798,14 @@ armored_dst_finish(pgp_dest_t *dst)
     if (param->tailc == 1) {
         buf[0] = B64ENC[param->tail[0] >> 2];
         buf[1] = B64ENC[(param->tail[0] << 4) & 0xff];
-        buf[2] = EQ;
-        buf[3] = EQ;
+        buf[2] = CH_EQ;
+        buf[3] = CH_EQ;
         dst_write(param->writedst, buf, 4);
     } else if (param->tailc == 2) {
         buf[0] = B64ENC[(param->tail[0] >> 2)];
         buf[1] = B64ENC[((param->tail[0] << 4) | (param->tail[1] >> 4)) & 0xff];
         buf[2] = B64ENC[(param->tail[1] << 2) & 0xff];
-        buf[3] = EQ;
+        buf[3] = CH_EQ;
         dst_write(param->writedst, buf, 4);
     }
 
@@ -819,7 +815,7 @@ armored_dst_finish(pgp_dest_t *dst)
     }
 
     /* writing CRC and EOL */
-    buf[0] = EQ;
+    buf[0] = CH_EQ;
 
     // At this point crc_ctx is initialized, so call can't fail
     (void) pgp_hash_finish(&param->crc_ctx, crcbuf);
@@ -908,40 +904,37 @@ finish:
 bool
 is_armored_source(pgp_source_t *src)
 {
-    const char armor_start[] = "-----BEGIN PGP";
-    uint8_t    buf[128];
-    ssize_t    read;
+    uint8_t buf[128];
+    ssize_t read;
 
     read = src_peek(src, buf, sizeof(buf));
-    if (read < (ssize_t) sizeof(armor_start)) {
+    if (read < (ssize_t) strlen(ST_ARMOR_BEGIN) + 1) {
         return false;
     }
 
     buf[read - 1] = 0;
-    return !!strstr((char *) buf, armor_start);
+    return !!strstr((char *) buf, ST_ARMOR_BEGIN);
 }
 
 rnp_result_t
 rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
 {
-    static const char armor_start[] = "-----BEGIN PGP";
-    static const char clear_start[] = "-----BEGIN PGP SIGNED MESSAGE-----";
-    rnp_result_t      res = RNP_ERROR_BAD_FORMAT;
-    pgp_source_t      armorsrc = {0};
-    uint8_t           readbuf[PGP_INPUT_CACHE_SIZE];
-    ssize_t           read;
+    rnp_result_t res = RNP_ERROR_BAD_FORMAT;
+    pgp_source_t armorsrc = {0};
+    uint8_t      readbuf[PGP_INPUT_CACHE_SIZE];
+    ssize_t      read;
 
-    read = src_peek(src, readbuf, sizeof(clear_start));
-    if (read < (ssize_t) sizeof(armor_start)) {
+    read = src_peek(src, readbuf, strlen(ST_CLEAR_BEGIN) + 1);
+    if (read < (ssize_t) strlen(ST_ARMOR_BEGIN)) {
         RNP_LOG("can't read enough data from source");
         return RNP_ERROR_READ;
     }
 
     /* Trying armored or cleartext data */
     readbuf[read - 1] = 0;
-    if (strstr((char *) readbuf, armor_start)) {
+    if (strstr((char *) readbuf, ST_ARMOR_BEGIN)) {
         /* checking whether it is cleartext */
-        if (strstr((char *) readbuf, clear_start)) {
+        if (strstr((char *) readbuf, ST_CLEAR_BEGIN)) {
             RNP_LOG("source is cleartext, not armored");
             return RNP_ERROR_BAD_FORMAT;
         }

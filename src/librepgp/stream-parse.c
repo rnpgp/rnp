@@ -25,6 +25,7 @@
  */
 
 #include "config.h"
+#include "stream-def.h"
 #include "stream-parse.h"
 #include "stream-armor.h"
 #include "stream-packet.h"
@@ -96,8 +97,6 @@ typedef struct pgp_source_encrypted_param_t {
     pgp_crypt_t               decrypt;       /* decrypting crypto */
     pgp_hash_t                mdc;           /* mdc SHA1 hash */
 } pgp_source_encrypted_param_t;
-
-#define CT_BUF_LEN 4096
 
 typedef struct pgp_source_signed_param_t {
     pgp_processing_ctx_t *ctx;             /* processing context */
@@ -203,17 +202,16 @@ is_pgp_source(pgp_source_t *src)
 static bool
 is_cleartext_source(pgp_source_t *src)
 {
-    const char clear_start[] = "-----BEGIN PGP SIGNED MESSAGE-----";
-    uint8_t    buf[128];
-    ssize_t    read;
+    uint8_t buf[128];
+    ssize_t read;
 
     read = src_peek(src, buf, sizeof(buf));
-    if (read < (ssize_t) sizeof(clear_start)) {
+    if (read < (ssize_t) strlen(ST_CLEAR_BEGIN)) {
         return false;
     }
 
     buf[read - 1] = 0;
-    return !!strstr((char *) buf, clear_start);
+    return !!strstr((char *) buf, ST_CLEAR_BEGIN);
 }
 
 static ssize_t
@@ -919,7 +917,7 @@ cleartext_parse_headers(pgp_source_t *src)
             break;
         }
 
-        if (strncmp(hdr, "Hash: ", 6) == 0) {
+        if (strncmp(hdr, ST_HEADER_HASH, 6) == 0) {
             hval = hdr + 6;
 
             while ((hname = strsep(&hval, ", \t"))) {
@@ -947,14 +945,6 @@ cleartext_parse_headers(pgp_source_t *src)
     /* we have exactly one empty line after the headers */
     return src_skip_eol(param->readsrc);
 }
-
-#define CH_CR ('\r')
-#define CH_LF ('\n')
-#define CH_DASH ('-')
-#define CH_SPACE (' ')
-#define CH_TAB ('\t')
-#define ST_CRLF ("\r\n")
-#define ST_DASHES ("-----")
 
 static void
 cleartext_process_line(pgp_source_t *src, const uint8_t *buf, size_t len, bool eol)
@@ -1067,7 +1057,7 @@ cleartext_src_read(pgp_source_t *src, void *buf, size_t len)
         /* if line is larger then 4k then just dump it out */
         if ((bg == srcb) && !param->clr_eod) {
             /* if last char is \r then do not dump it */
-            if ((en > bg) && (*(en - 1) == '\r')) {
+            if ((en > bg) && (*(en - 1) == CH_CR)) {
                 en--;
             }
             cleartext_process_line(src, bg, en - bg, false);
@@ -1733,17 +1723,17 @@ finish:
 static rnp_result_t
 init_cleartext_signed_src(pgp_source_t *src)
 {
-    const char                 hdr[34] = "-----BEGIN PGP SIGNED MESSAGE-----";
     char                       buf[64];
+    ssize_t                    hdrlen = strlen(ST_CLEAR_BEGIN);
     pgp_source_signed_param_t *param = src->param;
 
     /* checking header line */
-    if (src_read(param->readsrc, buf, sizeof(hdr)) != sizeof(hdr)) {
+    if (src_read(param->readsrc, buf, hdrlen) != hdrlen) {
         RNP_LOG("failed to read header");
         return RNP_ERROR_READ;
     }
 
-    if (memcmp(hdr, buf, sizeof(hdr))) {
+    if (memcmp(ST_CLEAR_BEGIN, buf, hdrlen)) {
         RNP_LOG("wrong header");
         return RNP_ERROR_BAD_FORMAT;
     }
