@@ -23,6 +23,7 @@ macos_install() {
 		cmocka
 		gnupg
 		gnutls
+		wget
 "
 	# gnutls for manual compile of gnupg
 	for p in ${packages}; do
