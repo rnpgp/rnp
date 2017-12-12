@@ -44,6 +44,7 @@ freebsd_install() {
 openbsd_install() {
   sudo pkg_add bzip2
   sudo pkg_add cmake
+  sudo pkg_add gmake
   sudo pkg_add gettext-tools
   sudo pkg_add gnupg-2.1.15p2
   sudo pkg_add wget
@@ -52,6 +53,11 @@ openbsd_install() {
 
 netbsd_install() {
   echo ""
+  pkgin -y install gnupg
+  pkgin -y install cmake
+  pkgin -y install gettext-tools
+  pkgin -y install clang
+  pkgin -y install wget
 }
 
 linux_install() {

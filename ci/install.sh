@@ -100,11 +100,11 @@ if [ ! -e "${GPG21_INSTALL}/bin/gpg" ]; then
     wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2.sig
     ${GPG} --verify ${pkgname}-${version}.tar.bz2.sig
     tar -xjf ${pkgname}-${version}.tar.bz2
-    cd ${pkgname}-${version}/
+    pushd ${pkgname}-${version}/
     # autoreconf -ivf
     ./configure --prefix="${GPG21_INSTALL}" --with-libgpg-error-prefix="${GPG21_INSTALL}"
     ${MAKE} -j${CORES} install
-    cd ..
+    popd
   done
 
   wget -c https://www.gnupg.org/ftp/gcrypt/pinentry/pinentry-1.0.0.tar.bz2
