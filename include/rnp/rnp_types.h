@@ -95,28 +95,36 @@ typedef struct rnp_symmetric_pass_info_t {
     uint8_t        key[PGP_MAX_KEY_SIZE];
 } rnp_symmetric_pass_info_t;
 
+typedef enum rnp_operation_t {
+    RNP_OP_UNKNOWN = 0,
+    RNP_OP_DECRYPT_VERIFY = 1,
+    RNP_OP_ENCRYPT_SIGN = 2,
+    RNP_OP_ARMOR = 3
+} rnp_operation_t;
+
 /* rnp operation context : contains additional data about the currently ongoing operation */
 typedef struct rnp_ctx_t {
-    rnp_t *        rnp;           /* Pointer to initialized rnp_t (temporary solution) */
-    char *         filename;      /* name of the input file to store in literal data packet */
-    int64_t        filemtime;     /* file modification time to store in literal data packet */
-    int64_t        sigcreate;     /* signature creation time */
-    uint64_t       sigexpire;     /* signature expiration time */
-    bool           clearsign;     /* cleartext signature */
-    bool           detached;      /* detached signature */
-    pgp_hash_alg_t halg;          /* hash algorithm */
-    pgp_symm_alg_t ealg;          /* encryption algorithm */
-    int            zalg;          /* compression algorithm used */
-    int            zlevel;        /* compression level */
-    bool           overwrite;     /* allow to overwrite output file if exists */
-    bool           armor;         /* whether to use ASCII armor on output */
-    list           recipients;    /* recipients of the encrypted message */
-    list           passwords;     /* list of rnp_symmetric_pass_info_t */
-    list           signers;       /* list of signer key ids/user ids */
-    unsigned       armortype;     /* type of the armored message, used in enarmor command */
-    bool           discard;       /* discard the output */
-    void *         on_signatures; /* handler for signed messages */
-    rng_t *        rng;           /* pointer to rng_t */
+    rnp_t *         rnp;           /* Pointer to initialized rnp_t (temporary solution) */
+    char *          filename;      /* name of the input file to store in literal data packet */
+    int64_t         filemtime;     /* file modification time to store in literal data packet */
+    int64_t         sigcreate;     /* signature creation time */
+    uint64_t        sigexpire;     /* signature expiration time */
+    bool            clearsign;     /* cleartext signature */
+    bool            detached;      /* detached signature */
+    pgp_hash_alg_t  halg;          /* hash algorithm */
+    pgp_symm_alg_t  ealg;          /* encryption algorithm */
+    int             zalg;          /* compression algorithm used */
+    int             zlevel;        /* compression level */
+    bool            overwrite;     /* allow to overwrite output file if exists */
+    bool            armor;         /* whether to use ASCII armor on output */
+    list            recipients;    /* recipients of the encrypted message */
+    list            passwords;     /* list of rnp_symmetric_pass_info_t */
+    list            signers;       /* list of signer key ids/user ids */
+    unsigned        armortype;     /* type of the armored message, used in enarmor command */
+    bool            discard;       /* discard the output */
+    void *          on_signatures; /* handler for signed messages */
+    rng_t *         rng;           /* pointer to rng_t */
+    rnp_operation_t operation;     /* current operation type */
 } rnp_ctx_t;
 
 #endif // __RNP_TYPES__

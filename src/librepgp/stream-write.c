@@ -1146,7 +1146,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, pgp_key_t *key, bool last)
         onepass.halg = halg;
         onepass.palg = key->key.pubkey.alg;
         memcpy(onepass.keyid, key->keyid, PGP_KEY_ID_SIZE);
-        onepass.nested = !!last;
+        onepass.nested = last;
 
         if (!stream_write_one_pass(&onepass, param->writedst)) {
             return RNP_ERROR_WRITE;
