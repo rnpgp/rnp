@@ -1085,6 +1085,78 @@ rnp_file_exists(const char *path)
 }
 
 bool
+rnp_path_strip_ext(char *path)
+{
+    char *ptr;
+
+    if (!path || !path[0]) {
+        return false;
+    }
+
+    ptr = path + strlen(path) - 1;
+
+    while (ptr >= path) {
+        if (*ptr == '.') {
+            *ptr = '\0';
+            return true;
+        }
+
+        ptr--;
+    }
+
+    return false;
+}
+
+bool
+rnp_path_has_ext(const char *path, const char *ext)
+{
+    size_t plen, elen;
+
+    if (!path || !path[0] || !ext || !ext[0]) {
+        return false;
+    }
+
+    if (ext[0] == '.') {
+        ext++;
+    }
+
+    plen = strlen(path);
+    elen = strlen(ext);
+
+    return (elen < plen) && !rnp_strcasecmp(path + plen - elen, ext) &&
+           (path[plen - elen - 1] == '.');
+}
+
+bool
+rnp_path_add_ext(char *path, size_t len, const char *ext)
+{
+    size_t plen, elen;
+
+    if (!path || !path[0] || !ext || !ext[0]) {
+        return false;
+    }
+
+    if (ext[0] == '.') {
+        ext++;
+    }
+
+    plen = strlen(path);
+    elen = strlen(ext);
+
+    if (len < plen + elen + 2) {
+        return false;
+    }
+
+    if (path[plen - 1] != '.') {
+        path[plen++] = '.';
+    }
+
+    memcpy(path + plen, ext, elen);
+    path[plen + elen] = '\0';
+    return true;
+}
+
+bool
 rnp_hex_encode(
   const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format)
 {

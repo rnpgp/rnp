@@ -97,6 +97,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <rnp/rnp_def.h>
 #include "pgp-key.h"
 #include "list.h"
+#include <librepgp/stream-def.h>
 #include <librepgp/stream-armor.h>
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-write.h>
@@ -1192,8 +1193,8 @@ rnp_get_output_filename(const char *path, char *newpath, size_t maxlen, bool ove
 {
     char reply[10];
 
-    if (strlen(path) == 0) {
-        fprintf(stdout, "Please enter the filename: ");
+    if (!path || !path[0]) {
+        fprintf(stdout, "Please enter the output filename: ");
         if (fgets(newpath, maxlen, stdin) == NULL) {
             return false;
         }
@@ -1237,52 +1238,84 @@ rnp_get_output_filename(const char *path, char *newpath, size_t maxlen, bool ove
     }
 }
 
-/** @brief Initialize input for streamed RNP operation, based on input filename/path
+/** @brief Initialize input and output for streamed RNP operation, based on filename/path
  *  @param ctx Initialized RNP operation context
- *  @param src Allocated source structure to put result in
- *  @param in Input filename/path. For NULL or '-' stdin source will be created
- *  @return true on success, or false otherwise
+ *  @param src Allocated source structure to put result in.
+ *             May be null - then no input source will be initialized.
+ *  @param dst Allocated dest structure to put result in. May be null, like src.
+ *  @param in Input filename/path. For NULL or '-' stdin source will be created.
+ *  @param out Output filename/path. For NULL or '-' stdout will be created, except some cases
+ *  @return RNP_SUCCESS on success, or error code otherwise. Error code will be also returned
+ *if both src and dst are NULL.
  **/
 
-static bool
-rnp_initialize_input(rnp_ctx_t *ctx, pgp_source_t *src, const char *in)
+static rnp_result_t
+rnp_initialize_io(
+  rnp_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst, const char *in, const char *out)
 {
-    rnp_result_t res;
-    bool         is_stdin = (in == NULL) || (in[0] == '\0') || (strcmp(in, "-") == 0);
+    char         outname[PATH_MAX] = {0};
+    char         newname[PATH_MAX] = {0};
+    char *       ext = NULL;
+    bool         is_stdin;
+    rnp_result_t res = RNP_ERROR_GENERIC;
 
-    if (is_stdin) {
-        res = init_stdin_src(src);
-    } else {
-        res = init_file_src(src, in);
+    is_stdin = !in || !in[0] || !strcmp(in, "-");
+
+    if (src) {
+        res = is_stdin ? init_stdin_src(src) : init_file_src(src, in);
+
+        if (res) {
+            return res;
+        }
     }
 
-    return res == RNP_SUCCESS;
-}
+    if (dst) {
+        /* default to stdout */
+        strncpy(outname, "-", sizeof(outname));
 
-/** @brief Initialize output for streamed RNP operation, based on output filename/path.
- *         Will commuicate with user if file already exists and overwrite flag is not set.
- *  @param ctx Initialized RNP operation context
- *  @param dst Allocated dest structure to put result in
- *  @param out Output filename/path as provided by user. For NULL or '-' stdout will be used.
- *  @return true on success or false otherwise
- **/
+        if (out && out[0]) {
+            /* give a room for trailing \0 */
+            strncpy(outname, out, sizeof(outname) - 1);
+        } else if (!is_stdin && (!out || !out[0])) {
+            /* no output path is given - so trying to build it based on input path */
+            /* try to add the extension depending on operation and flags */
+            if (ctx->operation == RNP_OP_ENCRYPT_SIGN) {
+                if (ctx->detached) {
+                    /* for detached signature add .sig/.asc */
+                    ext = ctx->armor ? EXT_ASC : EXT_SIG;
+                } else if (ctx->clearsign) {
+                    /* for cleartext add .asc */
+                    ext = EXT_ASC;
+                } else {
+                    /* in all other cases add .pgp or .asc, depending on armor */
+                    ext = ctx->armor ? EXT_ASC : EXT_PGP;
+                }
+            } else if ((ctx->operation == RNP_OP_ARMOR) && (ctx->armor)) {
+                ext = EXT_ASC;
+            }
 
-static bool
-rnp_initialize_output(rnp_ctx_t *ctx, pgp_dest_t *dst, const char *out)
-{
-    char newname[PATH_MAX];
-    bool is_stdout = (out == NULL) || (out[0] == '\0') || (strcmp(out, "-") == 0);
-
-    if (!is_stdout) {
-        if (!rnp_get_output_filename(out, newname, sizeof(newname), ctx->overwrite)) {
-            RNP_LOG("Operation failed: file '%s' already exists.", out);
-            return false;
+            if (ext) {
+                strncpy(outname, in, sizeof(outname) - 5);
+                rnp_path_add_ext(outname, sizeof(outname), ext);
+            }
         }
 
-        return init_file_dest(dst, newname, false) == RNP_SUCCESS;
-    } else {
-        return init_stdout_dest(dst) == RNP_SUCCESS;
+        if (!strcmp(outname, "-")) {
+            res = init_stdout_dest(dst);
+        } else if (!rnp_get_output_filename(
+                     outname, newname, sizeof(newname), ctx->overwrite)) {
+            RNP_LOG("Operation failed: file '%s' already exists.", outname);
+            res = RNP_ERROR_BAD_PARAMETERS;
+        } else {
+            res = init_file_dest(dst, newname, false);
+        }
+
+        if (res && src) {
+            src_close(src);
+        }
     }
+
+    return res;
 }
 
 static bool
@@ -1298,8 +1331,7 @@ rnp_parse_handler_dest(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char
         return init_null_dest(dst) == RNP_SUCCESS;
     }
 
-    /* add some logic to build param->out, based on handler->in and filename */
-    return rnp_initialize_output(handler->ctx, dst, param->out);
+    return rnp_initialize_io(handler->ctx, NULL, dst, param->in, param->out) == RNP_SUCCESS;
 }
 
 static bool
@@ -1314,8 +1346,8 @@ rnp_parse_handler_src(pgp_parse_handler_t *handler, pgp_source_t *src)
     }
 
     len = strlen(param->in);
-    if ((len > 4) && (!strncmp(param->in + len - 4, ".sig", 4) ||
-                      !strncmp(param->in + len - 4, ".asc", 4))) {
+    if ((len > 4) && (!strncmp(param->in + len - 4, EXT_SIG, 4) ||
+                      !strncmp(param->in + len - 4, EXT_ASC, 4))) {
         strncpy(srcname, param->in, sizeof(srcname));
         srcname[len - 4] = '\0';
         if (init_file_src(src, srcname) == RNP_SUCCESS) {
@@ -1335,7 +1367,9 @@ rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     pgp_key_provider_t         keyprov;
     rnp_result_t               result;
 
-    if (!rnp_initialize_input(ctx, &src, in)) {
+    ctx->operation = RNP_OP_DECRYPT_VERIFY;
+
+    if (rnp_initialize_io(ctx, &src, NULL, in, NULL)) {
         return RNP_ERROR_READ;
     }
 
@@ -1403,20 +1437,16 @@ rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     rnp_result_t         result;
     pgp_key_provider_t   keyprov;
 
-    if (!rnp_initialize_input(ctx, &src, in)) {
-        RNP_LOG("failed to initialize reading");
-        return RNP_ERROR_READ;
-    }
-
-    if (!rnp_initialize_output(ctx, &dst, out)) {
-        RNP_LOG("failed to initialize writing");
-        src_close(&src);
-        return RNP_ERROR_WRITE;
-    }
+    ctx->operation = RNP_OP_ENCRYPT_SIGN;
 
     if ((handler = calloc(1, sizeof(*handler))) == NULL) {
-        result = RNP_ERROR_OUT_OF_MEMORY;
-        goto finish;
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    if ((result = rnp_initialize_io(ctx, &src, &dst, in, out))) {
+        RNP_LOG("failed to initialize reading or writing");
+        free(handler);
+        return result;
     }
 
     handler->password_provider = &ctx->rnp->password_provider;
@@ -1431,7 +1461,6 @@ rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
         RNP_LOG("failed with error code 0x%x", (int) result);
     }
 
-finish:
     src_close(&src);
     dst_close(&dst, result != RNP_SUCCESS);
     free(handler);
@@ -1447,20 +1476,16 @@ rnp_sign_stream(rnp_ctx_t *ctx, const char *in, const char *out)
     rnp_result_t         result;
     pgp_key_provider_t   keyprov;
 
-    if (!rnp_initialize_input(ctx, &src, in)) {
-        RNP_LOG("failed to initialize reading");
-        return RNP_ERROR_READ;
-    }
-
-    if (!rnp_initialize_output(ctx, &dst, out)) {
-        RNP_LOG("failed to initialize writing");
-        src_close(&src);
-        return RNP_ERROR_WRITE;
-    }
+    ctx->operation = RNP_OP_ENCRYPT_SIGN;
 
     if ((handler = calloc(1, sizeof(*handler))) == NULL) {
-        result = RNP_ERROR_OUT_OF_MEMORY;
-        goto finish;
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    if ((result = rnp_initialize_io(ctx, &src, &dst, in, out))) {
+        RNP_LOG("failed to initialize reading or writing");
+        free(handler);
+        return result;
     }
 
     handler->password_provider = &ctx->rnp->password_provider;
@@ -1475,7 +1500,6 @@ rnp_sign_stream(rnp_ctx_t *ctx, const char *in, const char *out)
         RNP_LOG("failed with error code 0x%x", (int) result);
     }
 
-finish:
     src_close(&src);
     dst_close(&dst, result != RNP_SUCCESS);
     free(handler);
@@ -1490,15 +1514,12 @@ rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const char *out)
     rnp_result_t      result;
     pgp_armored_msg_t msgtype;
 
-    if (!rnp_initialize_input(ctx, &src, in)) {
-        RNP_LOG("failed to initialize reading");
-        return RNP_ERROR_READ;
-    }
+    ctx->operation = RNP_OP_ARMOR;
+    ctx->armor = armor;
 
-    if (!rnp_initialize_output(ctx, &dst, out)) {
-        RNP_LOG("failed to initialize writing");
-        src_close(&src);
-        return RNP_ERROR_WRITE;
+    if ((result = rnp_initialize_io(ctx, &src, &dst, in, out))) {
+        RNP_LOG("failed to initialize reading or writing");
+        return result;
     }
 
     if (armor) {

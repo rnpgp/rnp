@@ -502,13 +502,13 @@ signature_write_subpackets(pgp_packet_body_t *body, pgp_signature_t *sig, bool h
     for (list_item *sp = list_front(sig->subpkts); sp; sp = list_next(sp)) {
         subpkt = (pgp_sig_subpkt_t *) sp;
 
-        if (subpkt->hashed != !!hashed) {
+        if (subpkt->hashed != hashed) {
             continue;
         }
 
         lenlen = write_packet_len(splen, subpkt->len + 1);
         res = res && add_packet_body(&spbody, splen, lenlen) &&
-              add_packet_body_byte(&spbody, subpkt->type | (!!subpkt->critical << 7)) &&
+              add_packet_body_byte(&spbody, subpkt->type | (subpkt->critical << 7)) &&
               add_packet_body(&spbody, subpkt->data, subpkt->len);
     }
 
@@ -1095,7 +1095,7 @@ signature_parse_subpackets(pgp_signature_t *sig, uint8_t *buf, size_t len, bool 
 
         subpkt.type = *buf & 0x7f;
         subpkt.critical = !!(*buf & 0x80);
-        subpkt.hashed = !!hashed;
+        subpkt.hashed = hashed;
         subpkt.parsed = 0;
         memcpy(subpkt.data, buf + 1, splen - 1);
         subpkt.len = splen - 1;

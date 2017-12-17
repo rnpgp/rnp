@@ -51,4 +51,9 @@
 #define ST_HEADER_CHARSET ("Charset: ")
 #define ST_FROM ("From")
 
+#define EXT_ASC (".asc")
+#define EXT_SIG (".sig")
+#define EXT_PGP (".pgp")
+#define EXT_GPG (".gpg")
+
 #endif /* !STREAM_DEF_H_ */
