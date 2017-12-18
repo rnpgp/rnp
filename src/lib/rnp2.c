@@ -32,6 +32,7 @@
 #include "crypto/rng.h"
 #include "pgp-key.h"
 #include <librepgp/validate.h>
+#include <librepgp/packet-show.h>
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-write.h>
 #include <librepgp/stream-parse.h>
@@ -110,9 +111,6 @@ struct rnp_op_encrypt_st {
 
 static rnp_result_t rnp_keyring_create(rnp_ffi_t ffi, rnp_keyring_t *ring, const char *format);
 static rnp_result_t rnp_keyring_destroy(rnp_keyring_t ring);
-static bool parse_symm_alg(const char *name, pgp_symm_alg_t *value);
-static bool parse_compress_alg(const char *name, pgp_compression_type_t *value);
-static bool parse_hash_alg(const char *name, pgp_hash_alg_t *value);
 static bool key_provider_bounce(const pgp_key_request_ctx_t *ctx,
                                 pgp_key_t **                 key,
                                 void *                       userdata);
@@ -123,6 +121,65 @@ rnp_ctx_init_ffi(rnp_ctx_t *ctx, rnp_ffi_t ffi)
     memset(ctx, 0, sizeof(*ctx));
     ctx->rng = &ffi->rng;
     ctx->ealg = PGP_SA_DEFAULT_CIPHER;
+}
+
+static const pgp_map_t pubkey_alg_map[] = {{PGP_PKA_RSA, "RSA"},
+                                           {PGP_PKA_RSA_ENCRYPT_ONLY, "RSA"},
+                                           {PGP_PKA_RSA_SIGN_ONLY, "RSA"},
+                                           {PGP_PKA_ELGAMAL, "ELGAMAL"},
+                                           {PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN, "ELGAMAL"},
+                                           {PGP_PKA_DSA, "DSA"},
+                                           {PGP_PKA_ECDH, "ECDH"},
+                                           {PGP_PKA_ECDSA, "ECDSA"},
+                                           {PGP_PKA_EDDSA, "EDDSA"},
+                                           {PGP_PKA_SM2, "SM2"}};
+
+static const pgp_map_t symm_alg_map[] = {{PGP_SA_IDEA, "IDEA"},
+                                         {PGP_SA_TRIPLEDES, "TRIPLEDES"},
+                                         {PGP_SA_CAST5, "CAST5"},
+                                         {PGP_SA_BLOWFISH, "BLOWFISH"},
+                                         {PGP_SA_AES_128, "AES128"},
+                                         {PGP_SA_AES_192, "AES192"},
+                                         {PGP_SA_AES_256, "AES256"},
+                                         {PGP_SA_TWOFISH, "TWOFISH"},
+                                         {PGP_SA_CAMELLIA_128, "CAMELLIA128"},
+                                         {PGP_SA_CAMELLIA_192, "CAMELLIA192"},
+                                         {PGP_SA_CAMELLIA_256, "CAMELLIA256"},
+                                         {PGP_SA_SM4, "SM4"}};
+
+static const pgp_map_t compress_alg_map[] = {
+  {PGP_C_NONE, "Uncompressed"}, {PGP_C_ZIP, "ZIP"}, {PGP_C_ZLIB, "ZLIB"}, {PGP_C_BZIP2, "BZip2"}};
+
+static const pgp_map_t hash_alg_map[] = {
+  {PGP_HASH_MD5, "MD5"},
+  {PGP_HASH_SHA1, "SHA1"},
+  {PGP_HASH_RIPEMD, "RIPEMD160"},
+  {PGP_HASH_SHA256, "SHA256"},
+  {PGP_HASH_SHA384, "SHA384"},
+  {PGP_HASH_SHA512, "SHA512"},
+  {PGP_HASH_SHA224, "SHA224"},
+  {PGP_HASH_SM3, "SM3"},
+  {PGP_HASH_CRC24, "CRC24"}
+};
+
+static const pgp_bit_map_t key_usage_map[] = {
+  {PGP_KF_SIGN, "sign"},
+  {PGP_KF_CERTIFY, "certify"},
+  {PGP_KF_ENCRYPT, "encrypt"},
+  {PGP_KF_AUTH, "authenticate"}
+};
+
+static const pgp_map_t identifier_type_map[] = {
+  {PGP_KEY_SEARCH_USERID, "userid"},
+  {PGP_KEY_SEARCH_KEYID, "keyid"},
+  {PGP_KEY_SEARCH_GRIP, "grip"},
+};
+
+static bool
+curve_str_to_type(const char *str, pgp_curve_t *value)
+{
+    *value = find_curve_by_name(str);
+    return *value != PGP_CURVE_MAX;
 }
 
 rnp_result_t
@@ -978,12 +1035,14 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
         s2k_cipher = "AES256"; // TODO: make this a define somewhere
     }
     // parse
-    pgp_hash_alg_t hash_alg;
-    if (!parse_hash_alg(s2k_hash, &hash_alg)) {
+    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, s2k_hash, hash_alg);
+    if (hash_alg == PGP_HASH_UNKNOWN) {
         return RNP_ERROR_BAD_FORMAT;
     }
-    pgp_symm_alg_t symm_alg;
-    if (!parse_symm_alg(s2k_cipher, &symm_alg)) {
+    pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, s2k_cipher, symm_alg);
+    if (symm_alg == PGP_SA_UNKNOWN) {
         return RNP_ERROR_BAD_FORMAT;
     }
     // derive key, etc
@@ -1017,7 +1076,9 @@ rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (!parse_symm_alg(cipher, &op->rnpctx.ealg)) {
+    op->rnpctx.ealg = PGP_SA_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, cipher, op->rnpctx.ealg);
+    if (op->rnpctx.ealg == PGP_SA_UNKNOWN) {
         return RNP_ERROR_BAD_FORMAT;
     }
     return RNP_SUCCESS;
@@ -1030,8 +1091,9 @@ rnp_op_encrypt_set_compression(rnp_op_encrypt_t op, const char *compression, int
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_compression_type_t zalg;
-    if (!parse_compress_alg(compression, &zalg)) {
+    pgp_compression_type_t zalg = PGP_C_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(compress_alg_map, string, type, compression, zalg);
+    if (zalg == PGP_C_UNKNOWN) {
         return RNP_ERROR_BAD_FORMAT;
     }
     op->rnpctx.zalg = (int) zalg;
@@ -1162,35 +1224,16 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
     return ret;
 }
 
-static bool
-parse_identifier_type(const char *type, pgp_key_search_t *value)
-{
-    static const struct {
-        const char *     key;
-        pgp_key_search_t value;
-    } map[] = {
-      {"userid", PGP_KEY_SEARCH_USERID},
-      {"keyid", PGP_KEY_SEARCH_KEYID},
-      {"grip", PGP_KEY_SEARCH_GRIP},
-    };
-
-    for (size_t i = 0; i < ARRAY_SIZE(map); i++) {
-        if (!strcmp(type, map[i].key)) {
-            if (value) {
-                *value = map[i].value;
-            }
-            return true;
-        }
-    }
-    return false;
-}
-
 static rnp_result_t
 parse_locator(key_locator_t *locator, const char *identifier_type, const char *identifier)
 {
-    if (!parse_identifier_type(identifier_type, &locator->type)) {
+    // parse the identifier type
+    locator->type = PGP_KEY_SEARCH_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(identifier_type_map, string, type, identifier_type, locator->type);
+    if (locator->type == PGP_KEY_SEARCH_UNKNOWN) {
         return RNP_ERROR_BAD_FORMAT;
     }
+    // see what type we have
     switch (locator->type) {
     case PGP_KEY_SEARCH_USERID:
         if (snprintf(locator->id.userid, sizeof(locator->id.userid), "%s", identifier) >=
@@ -1315,47 +1358,6 @@ rnp_export_public_key(rnp_key_handle_t key, uint32_t flags, char **buf, size_t *
 }
 
 static bool
-parse_key_flag(const char *usage, uint8_t *value)
-{
-    static const struct {
-        const char *key;
-        uint8_t     value;
-    } map[] = {
-      {"certify", PGP_KF_CERTIFY}, {"sign", PGP_KF_SIGN}, {"encrypt", PGP_KF_ENCRYPT}};
-
-    for (size_t i = 0; i < ARRAY_SIZE(map); i++) {
-        if (!rnp_strcasecmp(usage, map[i].key)) {
-            *value = map[i].value;
-            return true;
-        }
-    }
-    return false;
-}
-
-static bool
-parse_pubkey_alg(const char *name, pgp_pubkey_alg_t *value)
-{
-    static const struct {
-        const char *key;
-        uint8_t     value;
-    } map[] = {
-      {"RSA", PGP_PKA_RSA},
-      {"ECDH", PGP_PKA_ECDH},
-      {"ECDSA", PGP_PKA_ECDSA},
-      {"EDDSA", PGP_PKA_EDDSA},
-      {"SM2", PGP_PKA_SM2},
-    };
-
-    for (size_t i = 0; i < ARRAY_SIZE(map); i++) {
-        if (!rnp_strcasecmp(name, map[i].key)) {
-            *value = map[i].value;
-            return true;
-        }
-    }
-    return false;
-}
-
-static bool
 pk_alg_allows_custom_curve(pgp_pubkey_alg_t pkalg)
 {
     switch (pkalg) {
@@ -1366,66 +1368,6 @@ pk_alg_allows_custom_curve(pgp_pubkey_alg_t pkalg)
     default:
         return false;
     }
-}
-
-static bool
-parse_curve_name(const char *name, pgp_curve_t *value)
-{
-    *value = find_curve_by_name(name);
-    return *value != PGP_CURVE_MAX;
-}
-
-static bool
-parse_hash_alg(const char *name, pgp_hash_alg_t *value)
-{
-    *value = pgp_str_to_hash_alg(name);
-    return *value != PGP_HASH_UNKNOWN;
-}
-
-static bool
-parse_symm_alg(const char *name, pgp_symm_alg_t *value)
-{
-    static const struct {
-        const char *   key;
-        pgp_symm_alg_t value;
-    } map[] = {{"idea", PGP_SA_IDEA},
-               {"tripledes", PGP_SA_TRIPLEDES},
-               {"cast5", PGP_SA_CAST5},
-               {"blowfish", PGP_SA_BLOWFISH},
-               {"aes128", PGP_SA_AES_128},
-               {"aes192", PGP_SA_AES_192},
-               {"aes256", PGP_SA_AES_256},
-               {"twofish", PGP_SA_TWOFISH},
-               {"camellia128", PGP_SA_CAMELLIA_128},
-               {"camellia192", PGP_SA_CAMELLIA_192},
-               {"camellia256", PGP_SA_CAMELLIA_256},
-               {"sm4", PGP_SA_SM4}};
-
-    for (size_t i = 0; i < ARRAY_SIZE(map); i++) {
-        if (!rnp_strcasecmp(name, map[i].key)) {
-            *value = map[i].value;
-            return true;
-        }
-    }
-    return false;
-}
-
-static bool
-parse_compress_alg(const char *name, pgp_compression_type_t *value)
-{
-    static const struct {
-        const char *           key;
-        pgp_compression_type_t value;
-    } map[] = {
-      {"none", PGP_C_NONE}, {"zip", PGP_C_ZIP}, {"zlib", PGP_C_ZLIB}, {"bzip2", PGP_C_BZIP2}};
-
-    for (size_t i = 0; i < ARRAY_SIZE(map); i++) {
-        if (!rnp_strcasecmp(name, map[i].key)) {
-            *value = map[i].value;
-            return true;
-        }
-    }
-    return false;
 }
 
 static bool
@@ -1457,8 +1399,9 @@ parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
                 if (!json_object_is_type(item, json_type_string)) {
                     return false;
                 }
-                pgp_hash_alg_t hash_alg;
-                if (!parse_hash_alg(json_object_get_string(item), &hash_alg)) {
+                pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
+                ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, json_object_get_string(item), hash_alg);
+                if (hash_alg == PGP_HASH_UNKNOWN) {
                     return false;
                 }
                 EXPAND_ARRAY(prefs, hash_alg);
@@ -1471,8 +1414,9 @@ parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
                 if (!json_object_is_type(item, json_type_string)) {
                     return false;
                 }
-                pgp_symm_alg_t symm_alg;
-                if (!parse_symm_alg(json_object_get_string(item), &symm_alg)) {
+                pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
+                ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, json_object_get_string(item), symm_alg);
+                if (symm_alg == PGP_SA_UNKNOWN) {
                     return false;
                 }
                 EXPAND_ARRAY(prefs, symm_alg);
@@ -1486,8 +1430,9 @@ parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
                 if (!json_object_is_type(item, json_type_string)) {
                     return false;
                 }
-                pgp_compression_type_t compression;
-                if (!parse_compress_alg(json_object_get_string(item), &compression)) {
+                pgp_compression_type_t compression = PGP_C_UNKNOWN;
+                ARRAY_LOOKUP_BY_STRCASE(compress_alg_map, string, type, json_object_get_string(item), compression);
+                if (compression == PGP_C_UNKNOWN) {
                     return false;
                 }
                 EXPAND_ARRAY(prefs, compress_alg);
@@ -1529,7 +1474,9 @@ parse_keygen_crypto(json_object *jso, rnp_keygen_crypto_params_t *crypto)
         }
         // TODO: make sure there are no duplicate keys in the JSON
         if (!rnp_strcasecmp(key, "type")) {
-            if (!parse_pubkey_alg(json_object_get_string(value), &crypto->key_alg)) {
+            crypto->key_alg = PGP_PKA_NOTHING;
+            ARRAY_LOOKUP_BY_STRCASE(pubkey_alg_map, string, type, json_object_get_string(value), crypto->key_alg);
+            if (crypto->key_alg == PGP_PKA_NOTHING) {
                 return false;
             }
         } else if (!rnp_strcasecmp(key, "length")) {
@@ -1543,11 +1490,14 @@ parse_keygen_crypto(json_object *jso, rnp_keygen_crypto_params_t *crypto)
             if (!pk_alg_allows_custom_curve(crypto->key_alg)) {
                 return false;
             }
-            if (!parse_curve_name(json_object_get_string(value), &crypto->ecc.curve)) {
+            if (!curve_str_to_type(json_object_get_string(value), &crypto->ecc.curve)) {
                 return false;
             }
         } else if (!rnp_strcasecmp(key, "hash")) {
-            if (!parse_hash_alg(json_object_get_string(value), &crypto->hash_alg)) {
+            crypto->hash_alg = PGP_HASH_UNKNOWN;
+            const char *str = json_object_get_string(value);
+            ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, str, crypto->hash_alg);
+            if (crypto->hash_alg == PGP_HASH_UNKNOWN) {
                 return false;
             }
         } else {
@@ -1595,26 +1545,31 @@ parse_keygen_primary(json_object *jso, rnp_keygen_primary_desc_t *desc)
                     if (!json_object_is_type(item, json_type_string)) {
                         return false;
                     }
-                    uint8_t flag;
-                    if (!parse_key_flag(json_object_get_string(item), &flag)) {
+                    uint8_t flag = 0;
+                    const char *str = json_object_get_string(item);
+                    ARRAY_LOOKUP_BY_STRCASE(key_usage_map, string, mask, str, flag);
+                    if (!flag) {
                         return false;
                     }
+                    // check for duplicate
                     if (cert->key_flags & flag) {
                         return false;
                     }
                     cert->key_flags |= flag;
                 }
             } break;
-            case json_type_string:
-                if (!parse_key_flag(json_object_get_string(value), &cert->key_flags)) {
+            case json_type_string: {
+                const char *str = json_object_get_string(value);
+                cert->key_flags = 0;
+                ARRAY_LOOKUP_BY_STRCASE(key_usage_map, string, mask, str, cert->key_flags);
+                if (!cert->key_flags) {
                     return false;
                 }
-                break;
+            } break;
             default:
                 return false;
             }
         } else if (!rnp_strcasecmp(key, "expiration")) {
-            // TODO: support some strings formats?
             if (!json_object_is_type(value, json_type_int)) {
                 return false;
             }
@@ -1663,8 +1618,10 @@ parse_keygen_sub(json_object *jso, rnp_keygen_subkey_desc_t *desc)
                     if (!json_object_is_type(item, json_type_string)) {
                         return false;
                     }
-                    uint8_t flag;
-                    if (!parse_key_flag(json_object_get_string(item), &flag)) {
+                    uint8_t flag = 0;
+                    const char *str = json_object_get_string(item);
+                    ARRAY_LOOKUP_BY_STRCASE(key_usage_map, string, mask, str, flag);
+                    if (!flag) {
                         return false;
                     }
                     if (binding->key_flags & flag) {
@@ -1673,16 +1630,18 @@ parse_keygen_sub(json_object *jso, rnp_keygen_subkey_desc_t *desc)
                     binding->key_flags |= flag;
                 }
             } break;
-            case json_type_string:
-                if (!parse_key_flag(json_object_get_string(value), &binding->key_flags)) {
+            case json_type_string: {
+                const char *str = json_object_get_string(value);
+                binding->key_flags = 0;
+                ARRAY_LOOKUP_BY_STRCASE(key_usage_map, string, mask, str, binding->key_flags);
+                if (!binding->key_flags) {
                     return false;
                 }
-                break;
+            } break;
             default:
                 return false;
             }
         } else if (!rnp_strcasecmp(key, "expiration")) {
-            // TODO: support some strings formats?
             if (!json_object_is_type(value, json_type_int)) {
                 return false;
             }
