@@ -2000,7 +2000,8 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
     pgp_processing_ctx_t ctx;
     pgp_source_t *       decsrc = NULL;
     pgp_source_t         datasrc = {0};
-    pgp_dest_t           outdest;
+    pgp_dest_t *         outdest = NULL;
+    bool                 closeout = true;
     uint8_t *            readbuf = NULL;
     char *               filename = NULL;
 
@@ -2061,8 +2062,8 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
             filename = ((pgp_source_literal_param_t *) ctx.literal_src)->filename;
         }
 
-        memset(&outdest, 0, sizeof(outdest));
-        if (!handler->dest_provider || !handler->dest_provider(handler, &outdest, filename)) {
+        if (!handler->dest_provider ||
+            !handler->dest_provider(handler, &outdest, &closeout, filename)) {
             res = RNP_ERROR_WRITE;
             goto finish;
         }
@@ -2077,8 +2078,8 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
                 if (ctx.signed_src) {
                     signed_src_update(ctx.signed_src, readbuf, read);
                 }
-                dst_write(&outdest, readbuf, read);
-                if (outdest.werr != RNP_SUCCESS) {
+                dst_write(outdest, readbuf, read);
+                if (outdest->werr != RNP_SUCCESS) {
                     RNP_LOG("failed to output data");
                     res = RNP_ERROR_WRITE;
                     break;
@@ -2095,8 +2096,8 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
         }
     }
 
-    if (ctx.msg_type != PGP_MESSAGE_DETACHED) {
-        dst_close(&outdest, res != RNP_SUCCESS);
+    if (closeout && (ctx.msg_type != PGP_MESSAGE_DETACHED)) {
+        dst_close(outdest, res != RNP_SUCCESS);
     }
 
 finish:

@@ -1122,9 +1122,13 @@ key_provider_bounce(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *use
 }
 
 static bool
-dest_provider(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char *filename)
+dest_provider(pgp_parse_handler_t *handler,
+              pgp_dest_t **        dst,
+              bool *               closedst,
+              const char *         filename)
 {
-    *dst = ((rnp_output_t) handler->param)->dst;
+    *dst = &((rnp_output_t) handler->param)->dst;
+    *closedst = false;
     return true;
 }
 
@@ -1151,9 +1155,9 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
       .ctx = &rnpctx};
 
     rnp_result_t ret = process_pgp_source(&handler, &input->src);
-    if (ret == RNP_SUCCESS) {
-        // TODO: process_pgp_source closes this on success...
-        // ownership boundary may be inconsistent
+    if (ret != RNP_SUCCESS) {
+        // TODO: should we close output->dst here or leave it to the caller?
+        dst_close(&output->dst, true);
         output->dst = (pgp_dest_t){0};
     }
     output->keep = ret == RNP_SUCCESS;

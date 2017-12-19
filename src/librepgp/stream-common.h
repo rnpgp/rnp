@@ -175,9 +175,10 @@ rnp_result_t init_stdin_src(pgp_source_t *src);
  *  @param src pre-allocated source structure
  *  @param mem memory to read from
  *  @param len number of bytes in input
+ *  @param free free the memory pointer on stream close or not
  *  @return RNP_SUCCESS or error code
  **/
-rnp_result_t init_mem_src(pgp_source_t *src, void *mem, size_t len);
+rnp_result_t init_mem_src(pgp_source_t *src, const void *mem, size_t len, bool free);
 
 typedef struct pgp_dest_t {
     pgp_dest_write_func_t * write;
@@ -244,10 +245,12 @@ rnp_result_t init_stdout_dest(pgp_dest_t *dst);
 
 /** @brief init memory destination
  *  @param dst pre-allocated dest structure
- *  @param maxalloc maximum amount of memory to allocate
+ *  @param mem pointer to the pre-allocated memory buffer, or NULL if it should be allocated
+ *  @param len number of bytes which mem can keep, or maximum amount of memory to allocate if
+ *         mem is NULL. If len is zero in later case then allocation is not limited.
  *  @return RNP_SUCCESS or error code
  **/
-rnp_result_t init_mem_dest(pgp_dest_t *dst, unsigned maxalloc);
+rnp_result_t init_mem_dest(pgp_dest_t *dst, void *mem, unsigned len);
 
 /** @brief get the pointer to the memory where data is written.
  *  Do not retain the result, it may change betweeen calls due to realloc
