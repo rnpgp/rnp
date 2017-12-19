@@ -1176,8 +1176,10 @@ rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
 }
 
 typedef struct pgp_parse_handler_param_t {
-    char in[PATH_MAX];
-    char out[PATH_MAX];
+    char        in[PATH_MAX];
+    char        out[PATH_MAX];
+    bool        mem;
+    pgp_dest_t *outdst;
 } pgp_parse_handler_param_t;
 
 /** @brief checks whether file exists already and asks user for the new filename
@@ -1319,112 +1321,207 @@ rnp_initialize_io(
 }
 
 static bool
-rnp_parse_handler_dest(pgp_parse_handler_t *handler, pgp_dest_t *dst, const char *filename)
+rnp_parse_handler_dest(pgp_parse_handler_t *handler,
+                       pgp_dest_t **        dst,
+                       bool *               closedst,
+                       const char *         filename)
 {
     pgp_parse_handler_param_t *param = handler->param;
+    rnp_result_t               res = RNP_ERROR_GENERIC;
 
     if (!handler->ctx) {
         return false;
     }
 
-    if (handler->ctx->discard) {
-        return init_null_dest(dst) == RNP_SUCCESS;
+    if (!(param->outdst = calloc(1, sizeof(*param->outdst)))) {
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    return rnp_initialize_io(handler->ctx, NULL, dst, param->in, param->out) == RNP_SUCCESS;
+    if (handler->ctx->discard) {
+        *closedst = true;
+        res = init_null_dest(param->outdst);
+    } else if (!param->mem) {
+        *closedst = true;
+        res = rnp_initialize_io(handler->ctx, NULL, param->outdst, param->in, param->out);
+    } else {
+        *closedst = false;
+        res = init_mem_dest(param->outdst, NULL, 0);
+    }
+
+    if (res) {
+        free(param->outdst);
+        param->outdst = NULL;
+    }
+    *dst = param->outdst;
+
+    return res == RNP_SUCCESS;
 }
 
 static bool
 rnp_parse_handler_src(pgp_parse_handler_t *handler, pgp_source_t *src)
 {
     pgp_parse_handler_param_t *param = handler->param;
-    char                       srcname[PATH_MAX];
-    size_t                     len;
+    char                       srcname[PATH_MAX] = {0};
 
     if (!param) {
         return false;
     }
 
-    len = strlen(param->in);
-    if ((len > 4) && (!strncmp(param->in + len - 4, EXT_SIG, 4) ||
-                      !strncmp(param->in + len - 4, EXT_ASC, 4))) {
-        strncpy(srcname, param->in, sizeof(srcname));
-        srcname[len - 4] = '\0';
-        if (init_file_src(src, srcname) == RNP_SUCCESS) {
-            return true;
+    if (!param->mem) {
+        if (rnp_path_has_ext(param->in, EXT_SIG) || rnp_path_has_ext(param->in, EXT_ASC)) {
+            strncpy(srcname, param->in, sizeof(srcname) - 1);
+            rnp_path_strip_ext(srcname);
+            return init_file_src(src, srcname) == RNP_SUCCESS;
         }
     }
 
     return false;
 }
 
-rnp_result_t
-rnp_process_stream(rnp_ctx_t *ctx, const char *in, const char *out)
+static bool
+rnp_init_parse_handler(pgp_parse_handler_t *handler, rnp_ctx_t *ctx)
 {
-    pgp_source_t               src = {0};
-    pgp_parse_handler_t *      handler = NULL;
-    pgp_parse_handler_param_t *param = NULL;
-    pgp_key_provider_t         keyprov;
-    rnp_result_t               result;
+    pgp_key_provider_t *       keyprov;
+    pgp_parse_handler_param_t *param;
 
+    if (!(param = calloc(1, sizeof(*param)))) {
+        return false;
+    }
+
+    if (!(keyprov = calloc(1, sizeof(*keyprov)))) {
+        free(param);
+        return false;
+    }
+
+    /* context */
     ctx->operation = RNP_OP_DECRYPT_VERIFY;
-
-    if (rnp_initialize_io(ctx, &src, NULL, in, NULL)) {
-        return RNP_ERROR_READ;
-    }
-
-    if ((handler = calloc(1, sizeof(*handler))) == NULL) {
-        result = RNP_ERROR_OUT_OF_MEMORY;
-        goto finish;
-    }
-
-    /* parsing handler param */
-    if ((param = calloc(1, sizeof(*param))) == NULL) {
-        result = RNP_ERROR_OUT_OF_MEMORY;
-        goto finish;
-    }
-
-    if (in) {
-        if (strlen(in) > sizeof(param->in)) {
-            RNP_LOG("too long input path");
-            result = RNP_ERROR_BAD_PARAMETERS;
-            goto finish;
-        }
-        strncpy(param->in, in, sizeof(param->in) - 1);
-    }
-
-    if (out) {
-        if (strlen(out) > sizeof(param->out)) {
-            RNP_LOG("too long output path");
-            result = RNP_ERROR_GENERIC;
-            goto finish;
-        }
-        strncpy(param->out, out, sizeof(param->out) - 1);
-    }
     handler->ctx = ctx;
 
     /* key provider */
-    keyprov.callback = rnp_key_provider_keyring;
-    keyprov.userdata = ctx->rnp;
+    keyprov->callback = rnp_key_provider_keyring;
+    keyprov->userdata = ctx->rnp;
 
     /* handler */
     handler->password_provider = &ctx->rnp->password_provider;
-    handler->key_provider = &keyprov;
+    handler->key_provider = keyprov;
     handler->dest_provider = rnp_parse_handler_dest;
     handler->src_provider = rnp_parse_handler_src;
     handler->on_signatures = ctx->on_signatures;
     handler->param = param;
 
-    result = process_pgp_source(handler, &src);
+    return true;
+}
 
-    if (result != RNP_SUCCESS) {
-        (void) fprintf(stderr, "rnp_process_stream: error 0x%x\n", result);
+static void
+rnp_free_parse_handler(pgp_parse_handler_t *handler)
+{
+    pgp_parse_handler_param_t *param = handler->param;
+
+    free(handler->key_provider);
+    free(param->outdst);
+    free(handler->param);
+    memset(handler, 0, sizeof(*handler));
+}
+
+rnp_result_t
+rnp_process_file(rnp_ctx_t *ctx, const char *in, const char *out)
+{
+    pgp_source_t               src = {0};
+    pgp_parse_handler_t        handler = {0};
+    pgp_parse_handler_param_t *param = NULL;
+    rnp_result_t               result;
+
+    /* check parameters */
+    if (in && (strlen(in) > sizeof(param->in))) {
+        RNP_LOG("too long input path");
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
-finish:
+    if (out && (strlen(out) > sizeof(param->out))) {
+        RNP_LOG("too long output path");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* initialize handler */
+    if (!rnp_init_parse_handler(&handler, ctx)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    /* initialize input */
+    if (rnp_initialize_io(ctx, &src, NULL, in, NULL)) {
+        rnp_free_parse_handler(&handler);
+        return RNP_ERROR_READ;
+    }
+
+    /* fill param */
+    param = handler.param;
+    param->mem = false;
+
+    if (in) {
+        strncpy(param->in, in, sizeof(param->in) - 1);
+    }
+
+    if (out) {
+        strncpy(param->out, out, sizeof(param->out) - 1);
+    }
+
+    /* process source */
+    if ((result = process_pgp_source(&handler, &src))) {
+        RNP_LOG("error 0x%x", result);
+    }
+
+    /* cleanup */
     src_close(&src);
-    free(handler);
-    free(param);
+    rnp_free_parse_handler(&handler);
+
+    return result;
+}
+
+rnp_result_t
+rnp_process_mem(
+  rnp_ctx_t *ctx, const void *in, size_t len, void *out, size_t outlen, size_t *reslen)
+{
+    pgp_source_t               src = {0};
+    pgp_parse_handler_t        handler = {0};
+    pgp_parse_handler_param_t *param = NULL;
+    void *                     outdata;
+    rnp_result_t               result;
+
+    /* initialize handler */
+    if (!rnp_init_parse_handler(&handler, ctx)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    /* initialize input */
+    if ((result = init_mem_src(&src, in, len, false))) {
+        rnp_free_parse_handler(&handler);
+        return result;
+    }
+
+    /* fill param */
+    param = handler.param;
+    param->mem = true;
+
+    /* process source */
+    if ((result = process_pgp_source(&handler, &src))) {
+        RNP_LOG("error 0x%x", result);
+    }
+
+    if (result == RNP_SUCCESS) {
+        if (outlen < param->outdst->writeb) {
+            result = RNP_ERROR_SHORT_BUFFER;
+        } else {
+            outdata = mem_dest_get_memory(param->outdst);
+            memcpy(out, outdata, param->outdst->writeb);
+            *reslen = param->outdst->writeb;
+        }
+    }
+
+    /* cleanup */
+    src_close(&src);
+    dst_close(param->outdst, result != RNP_SUCCESS);
+    rnp_free_parse_handler(&handler);
+
     return result;
 }
 

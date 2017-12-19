@@ -404,9 +404,10 @@ init_stdin_src(pgp_source_t *src)
 }
 
 typedef struct pgp_source_mem_param_t {
-    void * memory;
-    size_t len;
-    size_t pos;
+    const void *memory;
+    bool        free;
+    size_t      len;
+    size_t      pos;
 } pgp_source_mem_param_t;
 
 static ssize_t
@@ -432,14 +433,16 @@ mem_src_close(pgp_source_t *src)
 {
     pgp_source_mem_param_t *param = src->param;
     if (param) {
-        free(param->memory);
+        if (param->free) {
+            free((void *) param->memory);
+        }
         free(src->param);
         src->param = NULL;
     }
 }
 
 rnp_result_t
-init_mem_src(pgp_source_t *src, void *mem, size_t len)
+init_mem_src(pgp_source_t *src, const void *mem, size_t len, bool free)
 {
     pgp_source_mem_param_t *param;
 
@@ -452,6 +455,7 @@ init_mem_src(pgp_source_t *src, void *mem, size_t len)
     param->memory = mem;
     param->len = len;
     param->pos = 0;
+    param->free = free;
     src->read = mem_src_read;
     src->close = mem_src_close;
     src->finish = NULL;
@@ -661,6 +665,7 @@ typedef struct pgp_dest_mem_param_t {
     unsigned maxalloc;
     unsigned allocated;
     void *   memory;
+    bool     free;
 } pgp_dest_mem_param_t;
 
 static rnp_result_t
@@ -676,14 +681,14 @@ mem_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 
     /* checking whether we need to realloc */
     if (dst->writeb + len > param->allocated) {
-        if (dst->writeb + len > param->maxalloc) {
+        if ((param->maxalloc > 0) && (dst->writeb + len > param->maxalloc)) {
             RNP_LOG("attempt to alloc more then allowed");
             return RNP_ERROR_OUT_OF_MEMORY;
         }
 
         /* round up to the page boundary and do it exponentially */
         alloc = ((dst->writeb + len) * 2 + 4095) / 4096 * 4096;
-        if (alloc > param->maxalloc) {
+        if ((param->maxalloc > 0) && (alloc > param->maxalloc)) {
             alloc = param->maxalloc;
         }
 
@@ -706,14 +711,16 @@ mem_dst_close(pgp_dest_t *dst, bool discard)
     pgp_dest_mem_param_t *param = dst->param;
 
     if (param) {
-        free(param->memory);
+        if (param->free) {
+            free(param->memory);
+        }
         free(param);
         dst->param = NULL;
     }
 }
 
 rnp_result_t
-init_mem_dest(pgp_dest_t *dst, unsigned maxalloc)
+init_mem_dest(pgp_dest_t *dst, void *mem, unsigned len)
 {
     pgp_dest_mem_param_t *param;
 
@@ -722,7 +729,11 @@ init_mem_dest(pgp_dest_t *dst, unsigned maxalloc)
     }
 
     param = dst->param;
-    param->maxalloc = maxalloc;
+
+    param->maxalloc = len;
+    param->memory = mem;
+    param->free = !mem;
+
     dst->write = mem_dst_write;
     dst->close = mem_dst_close;
     dst->type = PGP_STREAM_MEMORY;
