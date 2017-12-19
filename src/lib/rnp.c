@@ -106,37 +106,6 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <json.h>
 #include <rnp.h>
 
-/* print out the successful signature information */
-static void
-resultp(pgp_io_t *io, const char *f, pgp_validation_t *res, rnp_key_store_t *ring)
-{
-    const pgp_key_t *key;
-    pgp_pubkey_t *   sigkey;
-    unsigned         from;
-    unsigned         i;
-    time_t           t;
-    char             id[MAX_ID_LENGTH + 1];
-
-    for (i = 0; i < res->validc; i++) {
-        (void) fprintf(io->res,
-                       "Good signature for %s made %s",
-                       (f) ? f : "<stdin>",
-                       ctime(&res->valid_sigs[i].birthtime));
-        if (res->duration > 0) {
-            t = res->birthtime + res->duration;
-            (void) fprintf(io->res, "Valid until %s", ctime(&t));
-        }
-        (void) fprintf(io->res,
-                       "using %s key %s\n",
-                       pgp_show_pka(res->valid_sigs[i].key_alg),
-                       userid_to_id(res->valid_sigs[i].signer_id, id));
-        from = 0;
-        key = rnp_key_store_get_key_by_id(
-          io, ring, (const uint8_t *) res->valid_sigs[i].signer_id, &from, &sigkey);
-        repgp_print_key(io, ring, key, "signature ", &key->key.pubkey, 0);
-    }
-}
-
 /* TODO: Make these const; currently their consumers don't preserve const. */
 
 static bool
@@ -1151,30 +1120,6 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *
              RNP_ERROR_GENERIC;
 }
 
-#define ARMOR_HEAD "-----BEGIN PGP MESSAGE-----"
-
-/* decrypt a file */
-rnp_result_t
-rnp_decrypt_file(rnp_ctx_t *ctx, const char *f, const char *out)
-{
-    int realarmor;
-
-    if (f == NULL) {
-        RNP_LOG("No filename specified");
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    realarmor = isarmored(f, NULL, ARMOR_HEAD);
-    if (realarmor < 0) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    bool       sshkeys = (unsigned) use_ssh_keys(ctx->rnp);
-    const bool ret = pgp_decrypt_file(ctx, f, out, realarmor, 1, sshkeys);
-
-    return ret ? RNP_SUCCESS : RNP_ERROR_GENERIC;
-}
-
 typedef struct pgp_parse_handler_param_t {
     char        in[PATH_MAX];
     char        out[PATH_MAX];
@@ -1507,19 +1452,23 @@ rnp_process_mem(
         RNP_LOG("error 0x%x", result);
     }
 
-    if (result == RNP_SUCCESS) {
+    if ((result == RNP_SUCCESS) && out) {
         if (outlen < param->outdst->writeb) {
             result = RNP_ERROR_SHORT_BUFFER;
         } else {
             outdata = mem_dest_get_memory(param->outdst);
             memcpy(out, outdata, param->outdst->writeb);
-            *reslen = param->outdst->writeb;
+            if (reslen) {
+                *reslen = param->outdst->writeb;
+            }
         }
     }
 
     /* cleanup */
     src_close(&src);
-    dst_close(param->outdst, result != RNP_SUCCESS);
+    if (param->outdst) {
+        dst_close(param->outdst, result != RNP_SUCCESS);
+    }
     rnp_free_parse_handler(&handler);
 
     return result;
@@ -1730,47 +1679,6 @@ rnp_sign_file(rnp_ctx_t * ctx,
     return ret ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 }
 
-#define ARMOR_SIG_HEAD "-----BEGIN PGP (SIGNATURE|SIGNED MESSAGE|MESSAGE)-----"
-
-/* verify a file */
-rnp_result_t
-rnp_verify_file(rnp_ctx_t *ctx, const char *in, const char *out)
-{
-    pgp_validation_t result;
-    pgp_io_t *       io;
-    int              realarmor;
-
-    (void) memset(&result, 0x0, sizeof(result));
-    io = ctx->rnp->io;
-    if (in == NULL) {
-        RNP_LOG_FD(io->errs, "rnp_verify_file: no filename specified");
-        return RNP_ERROR_GENERIC;
-    }
-    realarmor = isarmored(in, NULL, ARMOR_SIG_HEAD);
-    if (realarmor < 0) {
-        return RNP_ERROR_SIGNATURE_INVALID;
-    }
-    result.rnp_ctx = ctx;
-    if (pgp_validate_file(io, &result, in, out, (const int) realarmor, ctx->rnp->pubring)) {
-        resultp(io, in, &result, ctx->rnp->pubring);
-        return RNP_SUCCESS;
-    }
-    if (result.validc + result.invalidc + result.unknownc == 0) {
-        RNP_LOG_FD(io->errs, "\"%s\": No signatures found - is this a signed file?", in);
-    } else if (result.invalidc == 0 && result.unknownc == 0) {
-        RNP_LOG_FD(
-          io->errs, "\"%s\": file verification failure: invalid signature time\n", in);
-    } else {
-        RNP_LOG_FD(
-          io->errs,
-          "\"%s\": verification failure: %u invalid signatures, %u unknown signatures",
-          in,
-          result.invalidc,
-          result.unknownc);
-    }
-    return RNP_ERROR_SIGNATURE_INVALID;
-}
-
 /* sign some memory */
 int
 rnp_sign_memory(rnp_ctx_t * ctx,
@@ -1871,68 +1779,6 @@ rnp_sign_memory(rnp_ctx_t * ctx,
     return ret;
 }
 
-/* verify memory */
-int
-rnp_verify_memory(rnp_ctx_t *ctx, const void *in, const size_t size, void *out, size_t outsize)
-{
-    pgp_validation_t result;
-    pgp_memory_t *   signedmem;
-    pgp_memory_t *   cat;
-    pgp_io_t *       io;
-    size_t           m;
-    int              ret;
-
-    (void) memset(&result, 0x0, sizeof(result));
-    io = ctx->rnp->io;
-    if (in == NULL) {
-        (void) fprintf(io->errs, "rnp_verify_memory: no memory to verify\n");
-        return 0;
-    }
-    signedmem = pgp_memory_new();
-    if (signedmem == NULL) {
-        (void) fprintf(stderr, "can't allocate mem\n");
-        return 0;
-    }
-    if (!pgp_memory_add(signedmem, in, size)) {
-        return 0;
-    }
-    if (out) {
-        cat = pgp_memory_new();
-        if (cat == NULL) {
-            (void) fprintf(stderr, "can't allocate mem\n");
-            return 0;
-        }
-    }
-
-    result.rnp_ctx = ctx;
-    ret = pgp_validate_mem(
-      io, &result, signedmem, (out) ? &cat : NULL, ctx->armor, ctx->rnp->pubring);
-    /* signedmem is freed from pgp_validate_mem */
-    if (ret) {
-        resultp(io, "<stdin>", &result, ctx->rnp->pubring);
-        if (out) {
-            m = MIN(pgp_mem_len(cat), outsize);
-            (void) memcpy(out, pgp_mem_data(cat), m);
-            pgp_memory_free(cat);
-        } else {
-            m = 1;
-        }
-        return (int) m;
-    }
-    if (result.validc + result.invalidc + result.unknownc == 0) {
-        (void) fprintf(io->errs, "No signatures found - is this memory signed?\n");
-    } else if (result.invalidc == 0 && result.unknownc == 0) {
-        (void) fprintf(io->errs, "memory verification failure: invalid signature time\n");
-    } else {
-        (void) fprintf(
-          io->errs,
-          "memory verification failure: %u invalid signatures, %u unknown signatures\n",
-          result.invalidc,
-          result.unknownc);
-    }
-    return 0;
-}
-
 /* encrypt some memory */
 int
 rnp_encrypt_memory(rnp_ctx_t *  ctx,
@@ -1975,41 +1821,6 @@ rnp_encrypt_memory(rnp_ctx_t *  ctx,
     (void) memcpy(out, pgp_mem_data(enc), m);
     pgp_memory_free(enc);
     return (int) m;
-}
-
-/* decrypt a chunk of memory */
-rnp_result_t
-rnp_decrypt_memory(
-  rnp_ctx_t *ctx, const void *input, const size_t insize, char *out, size_t *outsize)
-{
-    pgp_memory_t *mem;
-    int           realarmor;
-    unsigned      sshkeys;
-
-    if (input == NULL) {
-        RNP_LOG("Input NULL");
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-    realarmor = isarmored(NULL, input, ARMOR_HEAD);
-    if (realarmor < 0) {
-        RNP_LOG("Can't figure out file format");
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    sshkeys = (unsigned) use_ssh_keys(ctx->rnp);
-    mem = pgp_decrypt_buf(ctx, input, insize, realarmor, sshkeys);
-    if (mem == NULL) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    } else if (*outsize <
-               pgp_mem_len(mem)) { // TODO: This should be checked earlier in pgp_decrypt_buf
-        pgp_memory_free(mem);
-        return RNP_ERROR_SHORT_BUFFER;
-    }
-
-    (void) memcpy(out, pgp_mem_data(mem), pgp_mem_len(mem));
-    *outsize = pgp_mem_len(mem);
-    pgp_memory_free(mem);
-    return RNP_SUCCESS;
 }
 
 /* print the json out on 'fp' */

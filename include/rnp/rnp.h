@@ -90,20 +90,15 @@ int   rnp_public_count(rnp_t *);
 
 /* file management */
 rnp_result_t rnp_encrypt_file(rnp_ctx_t *, const char *, const char *, const char *);
-rnp_result_t rnp_decrypt_file(rnp_ctx_t *, const char *, const char *);
 rnp_result_t rnp_sign_file(rnp_ctx_t *, const char *, const char *, const char *, bool, bool);
-rnp_result_t rnp_verify_file(rnp_ctx_t *, const char *, const char *);
 rnp_result_t rnp_process_file(rnp_ctx_t *, const char *, const char *);
 rnp_result_t rnp_encrypt_stream(rnp_ctx_t *, const char *, const char *);
 rnp_result_t rnp_sign_stream(rnp_ctx_t *, const char *, const char *);
 
 /* memory signing and encryption */
 rnp_result_t rnp_process_mem(rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
-
 int rnp_sign_memory(rnp_ctx_t *, const char *, const char *, size_t, char *, size_t, bool);
-int rnp_verify_memory(rnp_ctx_t *, const void *, const size_t, void *, size_t);
 int rnp_encrypt_memory(rnp_ctx_t *, const char *, const void *, const size_t, char *, size_t);
-rnp_result_t rnp_decrypt_memory(rnp_ctx_t *, const void *, const size_t, char *, size_t *);
 
 /* match and hkp-related functions */
 int rnp_match_keys_json(rnp_t *, char **, char *, const char *, const int);

@@ -134,14 +134,16 @@ test_key_unlock_pgp(void **state)
     // verify
     rnp_ctx_init(&ctx, &rnp);
     ctx.armor = false;
-    rnp_assert_int_equal(rstate, 1, rnp_verify_memory(&ctx, signature, siglen, NULL, 0));
+    rnp_assert_int_equal(
+      rstate, RNP_SUCCESS, rnp_process_mem(&ctx, signature, siglen, NULL, 0, NULL));
     rnp_ctx_free(&ctx);
 
     // verify (negative)
     rnp_ctx_init(&ctx, &rnp);
     signature[siglen / 2] ^= 0xff;
     ctx.armor = false;
-    rnp_assert_int_equal(rstate, 0, rnp_verify_memory(&ctx, signature, siglen, NULL, 0));
+    rnp_assert_int_not_equal(
+      rstate, RNP_SUCCESS, rnp_process_mem(&ctx, signature, siglen, NULL, 0, NULL));
     rnp_ctx_free(&ctx);
 
     // lock the signing key
@@ -172,10 +174,11 @@ test_key_unlock_pgp(void **state)
     rnp.password_provider =
       (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
     rnp_ctx_init(&ctx, &rnp);
-    size_t tmp = sizeof(decrypted);
-    rnp_assert_int_equal(rstate,
-                         rnp_decrypt_memory(&ctx, encrypted, enclen, decrypted, &tmp),
-                         RNP_ERROR_OUT_OF_MEMORY);
+    size_t tmp = 0;
+    rnp_assert_int_not_equal(
+      rstate,
+      rnp_process_mem(&ctx, encrypted, enclen, decrypted, sizeof(decrypted), &tmp),
+      RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 
     // grab the encrypting key to unlock
@@ -191,9 +194,11 @@ test_key_unlock_pgp(void **state)
 
     // decrypt, with no password
     rnp_ctx_init(&ctx, &rnp);
-    size_t out_len = sizeof(decrypted);
+    size_t out_len = 0;
     rnp_assert_int_equal(
-      rstate, rnp_decrypt_memory(&ctx, encrypted, enclen, decrypted, &out_len), RNP_SUCCESS);
+      rstate,
+      rnp_process_mem(&ctx, encrypted, enclen, decrypted, sizeof(decrypted), &out_len),
+      RNP_SUCCESS);
 
     rnp_assert_int_equal(rstate, out_len, strlen(data));
     assert_string_equal(data, decrypted);
@@ -207,10 +212,11 @@ test_key_unlock_pgp(void **state)
 
     // decrypt, with no password (should now fail)
     rnp_ctx_init(&ctx, &rnp);
-    out_len = sizeof(decrypted);
-    rnp_assert_int_equal(rstate,
-                         rnp_decrypt_memory(&ctx, encrypted, enclen, decrypted, &out_len),
-                         RNP_ERROR_OUT_OF_MEMORY);
+    out_len = 0;
+    rnp_assert_int_not_equal(
+      rstate,
+      rnp_process_mem(&ctx, encrypted, enclen, decrypted, sizeof(decrypted), &out_len),
+      RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 
     // cleanup

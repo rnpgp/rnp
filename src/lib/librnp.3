@@ -129,17 +129,13 @@ The following functions are used for file management:
 .Fa "int armored"
 .Fc
 .Ft int
-.Fo rnp_decrypt_file
-.Fa "rnp_t *rnp" "char *filename" "char *out" "int armored"
+.Fo rnp_process_file
+.Fa "rnp_ctx_t *ctx" "char *filename" "char *out"
 .Fc
 .Ft int
 .Fo rnp_sign_file
 .Fa "rnp_t *rnp" "char *userid" "char *filename" "char *out"
 .Fa "int armored" "int cleartext" "int detached"
-.Fc
-.Ft int
-.Fo rnp_verify_file
-.Fa "rnp_t *rnp" "char *f" "int armored"
 .Fc
 .Pp
 The following functions are used for memory signing and encryption:
@@ -149,20 +145,15 @@ The following functions are used for memory signing and encryption:
 .Fa "char *out" "size_t *outsize" "int armored"
 .Fc
 .Ft int
-.Fo rnp_decrypt_memory
-.Fa "rnp_t *rnp" "const void *input" "const size_t insize"
-.Fa "char *out" "size_t outsize" "const int armored"
+.Fo rnp_process_mem
+.Fa "rnp_ctx_t *ctx" "const void *in" "const size_t insize"
+.Fa "void *out" "size_t outsize" "size_t *ressize"
 .Fc
 .Ft int
 .Fo rnp_sign_memory
 .Fa "rnp_t *rnp" "const char *userid" "char *mem"
 .Fa "size_t size" "char *out" "size_t outsize"
 .Fa "const unsigned armored" "const unsigned cleartext"
-.Fc
-.Ft int
-.Fo rnp_verify_memory
-.Fa "rnp_t *rnp" "const void *in" "const size_t insize"
-.Fa "void *out" "size_t outsize" "const int armored"
 .Fc
 .Sh DESCRIPTION
 .Nm
@@ -256,19 +247,19 @@ library.
 To encrypt a file, the
 .Fn rnp_encrypt_file
 function is used, and the
-.Fn rnp_decrypt_file
+.Fn rnp_process_file
 function is used to decrypt the results of the encryption.
 To sign a file, the
 .Fn rnp_sign_file
 function is used, and the resulting signed file can be verified
 using the
-.Fn rnp_verify_file
+.Fn rnp_process_file
 function.
 .Pp
 .Fn rnp_sign_memory
 is a function which can sign an area
 of memory, and
-.Fn rnp_verify_memory
+.Fn rnp_process_mem
 verifies the digital signature produced.
 .Pp
 Internally, an encrypted or signed file
