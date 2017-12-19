@@ -196,8 +196,10 @@ repgp_verify(const void *ctx, repgp_io_t *io)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    void * output = NULL;
-    size_t output_size = 0;
+    void *       output = NULL;
+    size_t       output_size = 0;
+    size_t       res_size = 0;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
 
     if (io->out) {
         /* Where should I output */
@@ -216,11 +218,19 @@ repgp_verify(const void *ctx, repgp_io_t *io)
     }
 
     if (io->in->type == REPGP_HANDLE_FILE) {
-        return rnp_verify_file((rnp_ctx_t *) ctx, io->in->filepath, output);
+        return rnp_process_file((rnp_ctx_t *) ctx, io->in->filepath, output);
     } else if (io->in->type == REPGP_HANDLE_BUFFER) {
-        const int i = rnp_verify_memory(
-          (rnp_ctx_t *) ctx, io->in->buffer.data, io->in->buffer.size, output, output_size);
-        return i ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
+        ret = rnp_process_mem((rnp_ctx_t *) ctx,
+                              io->in->buffer.data,
+                              io->in->buffer.size,
+                              output,
+                              output_size,
+                              &res_size);
+        if ((ret == RNP_SUCCESS) && io->out) {
+            io->out->buffer.data_len = res_size;
+        }
+
+        return ret;
     }
 
     RNP_LOG("Unsupported input handle");
@@ -239,14 +249,15 @@ repgp_decrypt(const void *ctx, repgp_io_t *io)
             // Currently file must be decrypted to the file only
             return RNP_ERROR_BAD_PARAMETERS;
         }
-        return rnp_decrypt_file((void *) ctx, io->in->filepath, io->out->filepath);
+        return rnp_process_file((void *) ctx, io->in->filepath, io->out->filepath);
     } else if (io->in->type == REPGP_HANDLE_BUFFER) {
-        size_t             tmp = io->out->buffer.size;
-        const rnp_result_t ret = rnp_decrypt_memory((void *) ctx,
-                                                    io->in->buffer.data,
-                                                    io->in->buffer.data_len,
-                                                    (char *) io->out->buffer.data,
-                                                    &tmp);
+        size_t             tmp;
+        const rnp_result_t ret = rnp_process_mem((void *) ctx,
+                                                 io->in->buffer.data,
+                                                 io->in->buffer.data_len,
+                                                 io->out->buffer.data,
+                                                 io->out->buffer.size,
+                                                 &tmp);
         if (ret == RNP_SUCCESS) {
             io->out->buffer.data_len = tmp;
         }
