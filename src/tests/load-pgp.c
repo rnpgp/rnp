@@ -216,9 +216,9 @@ test_load_keyring_and_count_pgp(void **state)
 void
 test_load_check_bitfields_and_times(void **state)
 {
-    pgp_io_t          io = {.errs = stderr, .res = stdout, .outs = stdout};
-    uint8_t keyid[PGP_KEY_ID_SIZE];
-    unsigned from;
+    pgp_io_t         io = {.errs = stderr, .res = stdout, .outs = stdout};
+    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    unsigned         from;
     const pgp_key_t *key;
 
     // load keyring
@@ -398,9 +398,9 @@ test_load_check_bitfields_and_times(void **state)
 void
 test_load_check_bitfields_and_times_v3(void **state)
 {
-    pgp_io_t          io = {.errs = stderr, .res = stdout, .outs = stdout};
-    uint8_t keyid[PGP_KEY_ID_SIZE];
-    unsigned from;
+    pgp_io_t         io = {.errs = stderr, .res = stdout, .outs = stdout};
+    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    unsigned         from;
     const pgp_key_t *key;
 
     // load keyring
