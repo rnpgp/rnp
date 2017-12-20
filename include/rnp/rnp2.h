@@ -57,9 +57,9 @@ typedef struct rnp_op_encrypt_st *rnp_op_encrypt_t;
 
 /* Callbacks */
 typedef ssize_t rnp_input_reader_t(void *app_ctx, void *buf, size_t len);
-typedef void    rnp_input_closer_t(void *app_ctx);
-typedef int     rnp_output_writer_t(void *app_ctx, const void *buf, size_t len);
-typedef void    rnp_output_closer_t(void *app_ctx, bool discard);
+typedef void rnp_input_closer_t(void *app_ctx);
+typedef int rnp_output_writer_t(void *app_ctx, const void *buf, size_t len);
+typedef void rnp_output_closer_t(void *app_ctx, bool discard);
 
 /**
  * Callback used for getting a password.
@@ -300,8 +300,7 @@ rnp_result_t rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
                                          const char *     s2k_cipher);
 
 rnp_result_t rnp_op_encrypt_set_armor(rnp_op_encrypt_t op, bool armored);
-rnp_result_t rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op,
-                                       const char *     cipher);
+rnp_result_t rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher);
 rnp_result_t rnp_op_encrypt_set_compression(rnp_op_encrypt_t op,
                                             const char *     compression,
                                             int              level);

@@ -113,11 +113,11 @@ rnpkeys_generatekey_testSignature(void **state)
 
                 /* Signing the memory */
                 ret = rnp_protect_mem(&ctx,
-                                   memToSign,
-                                   strlen(memToSign),
-                                   signatureBuf,
-                                   sizeof(signatureBuf),
-                                   &siglen);
+                                      memToSign,
+                                      strlen(memToSign),
+                                      signatureBuf,
+                                      sizeof(signatureBuf),
+                                      &siglen);
 
                 /* Make sure operation succeeded, and cleanup */
                 rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);

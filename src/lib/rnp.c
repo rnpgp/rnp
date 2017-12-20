@@ -1558,7 +1558,7 @@ rnp_result_t
 rnp_protect_mem(
   rnp_ctx_t *ctx, const void *in, size_t len, void *out, size_t outlen, size_t *reslen)
 {
-        pgp_write_handler_t        handler = {0};
+    pgp_write_handler_t        handler = {0};
     pgp_write_handler_param_t *param;
     rnp_result_t               result;
     void *                     outdata;

@@ -57,6 +57,6 @@
 
 #include "memory.h"
 
-bool     pgp_push_enc_crypt(pgp_output_t *, pgp_crypt_t *);
+bool pgp_push_enc_crypt(pgp_output_t *, pgp_crypt_t *);
 
 #endif /* READERWRITER_H_ */

@@ -77,7 +77,7 @@ unsigned pgp_write_struct_seckey(pgp_output_t *output,
                                  pgp_content_enum,
                                  pgp_seckey_t *,
                                  const char *);
-unsigned          pgp_write_xfer_pubkey(pgp_output_t *,
+unsigned pgp_write_xfer_pubkey(pgp_output_t *,
                                const pgp_key_t *,
                                const rnp_key_store_t *,
                                const unsigned);
