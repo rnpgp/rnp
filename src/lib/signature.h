@@ -103,7 +103,6 @@ void pgp_sig_start(pgp_create_sig_t *,
                    const pgp_hash_alg_t,
                    const pgp_sig_type_t);
 
-void        pgp_sig_add_data(pgp_create_sig_t *, const void *, size_t);
 pgp_hash_t *pgp_sig_get_hash(pgp_create_sig_t *);
 unsigned    pgp_sig_end_hashed_subpkts(pgp_create_sig_t *);
 bool        pgp_sig_write(
@@ -129,18 +128,6 @@ unsigned pgp_sig_add_key_server_prefs(pgp_create_sig_t *sig,
 unsigned pgp_sig_add_preferred_key_server(pgp_create_sig_t *sig, const uint8_t *uri);
 
 /* Standard Interface */
-bool pgp_sign_file(
-  rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_seckey_t *, bool cleartext);
-
-int pgp_sign_detached(
-  rnp_ctx_t *, pgp_io_t *, const char *, const char *, const pgp_seckey_t *);
-
-rnp_result_t pgp_sign_memory_detached(rnp_ctx_t *         ctx,
-                                      const pgp_seckey_t *seckey,
-                                      const uint8_t       membuf[],
-                                      size_t              membuf_len,
-                                      uint8_t **          sig_output,
-                                      size_t *            sig_output_len);
 
 bool pgp_check_sig(
   rng_t *, const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
@@ -152,7 +139,6 @@ unsigned pgp_crc24(unsigned, uint8_t);
 void pgp_reader_push_dearmor(pgp_stream_t *);
 void pgp_reader_pop_dearmor(pgp_stream_t *);
 
-bool pgp_writer_push_clearsigned(pgp_output_t *, pgp_create_sig_t *);
 void pgp_reader_pop_dearmor(pgp_stream_t *);
 
 typedef enum {
@@ -168,8 +154,5 @@ typedef enum {
 #define CRC24_INIT 0xb704ceL
 
 bool pgp_writer_push_armored(pgp_output_t *, pgp_armor_type_t);
-
-pgp_memory_t *pgp_sign_buf(
-  rnp_ctx_t *, pgp_io_t *, const void *, const size_t, const pgp_seckey_t *, const bool);
 
 #endif /* SIGNATURE_H_ */

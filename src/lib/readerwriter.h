@@ -57,23 +57,6 @@
 
 #include "memory.h"
 
-/* */
-unsigned pgp_write_mdc(pgp_output_t *, const uint8_t *);
-unsigned pgp_write_se_ip_pktset(pgp_output_t *, const uint8_t *, const size_t, pgp_crypt_t *);
 bool     pgp_push_enc_crypt(pgp_output_t *, pgp_crypt_t *);
-bool pgp_push_enc_se_ip(pgp_output_t *, const pgp_pubkey_t *, pgp_symm_alg_t, size_t, rng_t *);
-
-/* file writing */
-int  pgp_setup_file_write(rnp_ctx_t *, pgp_output_t **, const char *, unsigned);
-void pgp_teardown_file_write(pgp_output_t *, int);
-
-/* file appending */
-int  pgp_setup_file_append(rnp_ctx_t *, pgp_output_t **, const char *);
-void pgp_teardown_file_append(pgp_output_t *, int);
-
-/* useful callbacks */
-pgp_cb_ret_t pgp_litdata_cb(const pgp_packet_t *, pgp_cbdata_t *);
-pgp_cb_ret_t pgp_pk_sesskey_cb(const pgp_packet_t *, pgp_cbdata_t *);
-pgp_cb_ret_t pgp_get_seckey_cb(const pgp_packet_t *, pgp_cbdata_t *);
 
 #endif /* READERWRITER_H_ */
