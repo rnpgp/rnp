@@ -150,10 +150,9 @@ The following functions are used for memory signing and encryption:
 .Fa "void *out" "size_t outsize" "size_t *ressize"
 .Fc
 .Ft int
-.Fo rnp_sign_memory
-.Fa "rnp_t *rnp" "const char *userid" "char *mem"
-.Fa "size_t size" "char *out" "size_t outsize"
-.Fa "const unsigned armored" "const unsigned cleartext"
+.Fo rnp_sign_mem
+.Fa "rnp_ctx_t *ctx" "const void *in" "size_t len" "void *out" 
+.Fa "size_t outsize" "size_t *ressize"
 .Fc
 .Sh DESCRIPTION
 .Nm
@@ -256,7 +255,7 @@ using the
 .Fn rnp_process_file
 function.
 .Pp
-.Fn rnp_sign_memory
+.Fn rnp_sign_mem
 is a function which can sign an area
 of memory, and
 .Fn rnp_process_mem

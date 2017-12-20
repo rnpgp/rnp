@@ -49,15 +49,17 @@ rnpkeys_generatekey_testSignature(void **state)
      */
 
     rnp_test_state_t *rstate = *state;
-    const char *hashAlg[] = {"SHA1", "SHA224", "SHA256", "SHA384", "SHA512", "SM3", NULL};
-    rnp_t       rnp;
-    rnp_ctx_t   ctx;
-    int         pipefd[2];
-    int         retVal;
-    char        memToSign[] = "A simple test message";
-    char        signatureBuf[4096] = {0};
-    char        recoveredSig[4096] = {0};
-    char        userId[128];
+    const char * hashAlg[] = {"SHA1", "SHA224", "SHA256", "SHA384", "SHA512", "SM3", NULL};
+    rnp_t        rnp;
+    rnp_ctx_t    ctx;
+    rnp_result_t ret;
+    size_t       reslen;
+    size_t       siglen;
+    int          pipefd[2];
+    char         memToSign[] = "A simple test message";
+    char         signatureBuf[4096] = {0};
+    char         recoveredSig[4096] = {0};
+    char         userId[128];
 
     for (int i = 0; hashAlg[i] != NULL; i++) {
         /* Setup password input and rnp structure */
@@ -87,10 +89,8 @@ rnpkeys_generatekey_testSignature(void **state)
 
         for (unsigned int cleartext = 0; cleartext <= 1; ++cleartext) {
             for (unsigned int armored = 0; armored <= 1; ++armored) {
-                const int skip_null = (cleartext == 1) ? 1 : 0;
-
-                if (cleartext == 1 && armored == 0) {
-                    // This combination doesn't work...
+                if (cleartext && !armored) {
+                    // This combination doesn't make sense
                     continue;
                 }
 
@@ -106,33 +106,34 @@ rnpkeys_generatekey_testSignature(void **state)
                 ctx.armor = armored;
                 ctx.halg = pgp_str_to_hash_alg(hashAlg[i]);
                 ctx.filename = strdup("dummyfile.dat");
+                ctx.clearsign = cleartext;
                 rnp_assert_int_not_equal(rstate, ctx.halg, PGP_HASH_UNKNOWN);
+                rnp_assert_non_null(rstate,
+                                    list_append(&ctx.signers, userId, strlen(userId) + 1));
 
                 /* Signing the memory */
-                retVal = rnp_sign_memory(&ctx,
-                                         userId,
-                                         memToSign,
-                                         strlen(memToSign) - skip_null,
-                                         signatureBuf,
-                                         sizeof(signatureBuf),
-                                         cleartext);
+                ret = rnp_sign_mem(&ctx,
+                                   memToSign,
+                                   strlen(memToSign),
+                                   signatureBuf,
+                                   sizeof(signatureBuf),
+                                   &siglen);
 
                 /* Make sure operation succeeded, and cleanup */
-                rnp_assert_int_not_equal(rstate, retVal, 0);
-                const int sigLen = retVal;
+                rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);
                 close(pipefd[0]);
                 rnp_ctx_free(&ctx);
 
                 /* Verify the memory */
-                size_t       reslen = 0;
-                rnp_result_t ret = RNP_ERROR_GENERIC;
-
                 rnp_ctx_init(&ctx, &rnp);
                 ctx.armor = armored;
                 ret = rnp_process_mem(
-                  &ctx, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig), &reslen);
+                  &ctx, signatureBuf, siglen, recoveredSig, sizeof(recoveredSig), &reslen);
                 /* Ensure signature verification passed */
                 rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);
+                if (cleartext) {
+                    rnp_strip_eol(recoveredSig);
+                }
                 assert_string_equal(recoveredSig, memToSign);
 
                 /* Corrupt the signature */
@@ -140,9 +141,9 @@ rnpkeys_generatekey_testSignature(void **state)
                 signatureBuf[50] ^= 0x0C;
 
                 ret = rnp_process_mem(
-                  &ctx, signatureBuf, sigLen, recoveredSig, sizeof(recoveredSig), &reslen);
+                  &ctx, signatureBuf, siglen, recoveredSig, sizeof(recoveredSig), &reslen);
                 /* Ensure that signature verification fails */
-                rnp_assert_int_not_equal(rstate, retVal, RNP_SUCCESS);
+                rnp_assert_int_not_equal(rstate, ret, RNP_SUCCESS);
                 rnp_end(&rnp);
             }
         }
@@ -168,7 +169,6 @@ rnpkeys_generatekey_testEncryption(void **state)
     rnp_t     rnp;
     rnp_ctx_t ctx;
     int       pipefd[2];
-    int       retVal;
     char      memToEncrypt[] = "A simple test message";
     char      ciphertextBuf[4096] = {0};
     char      plaintextBuf[4096] = {0};
@@ -214,16 +214,17 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_true(rstate,
                             (ctx.ealg != PGP_SA_DEFAULT_CIPHER) ||
                               (strcmp(cipherAlg[i], "AES256") == 0));
-
+            rnp_assert_non_null(rstate,
+                                list_append(&ctx.recipients, userId, strlen(userId) + 1));
             /* Encrypting the memory */
-            retVal = rnp_encrypt_memory(&ctx,
-                                        userId,
-                                        memToEncrypt,
-                                        strlen(memToEncrypt),
-                                        ciphertextBuf,
-                                        sizeof(ciphertextBuf));
-            rnp_assert_int_not_equal(rstate, retVal, 0);
-            const int ctextLen = retVal;
+            size_t       reslen = 0;
+            rnp_result_t ret = rnp_encrypt_mem(&ctx,
+                                               memToEncrypt,
+                                               strlen(memToEncrypt),
+                                               ciphertextBuf,
+                                               sizeof(ciphertextBuf),
+                                               &reslen);
+            rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);
             rnp_ctx_free(&ctx);
             rnp_end(&rnp);
 
@@ -243,7 +244,7 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_int_equal(
               rstate,
               rnp_process_mem(
-                &ctx, ciphertextBuf, ctextLen, plaintextBuf, sizeof(plaintextBuf), &tmp),
+                &ctx, ciphertextBuf, reslen, plaintextBuf, sizeof(plaintextBuf), &tmp),
               RNP_SUCCESS);
 
             /* Ensure plaintext recovered */

@@ -680,6 +680,8 @@ rnp_ctx_free(rnp_ctx_t *ctx)
 {
     free(ctx->filename);
     list_destroy(&ctx->recipients);
+    list_destroy(&ctx->signers);
+    list_destroy(&ctx->passwords);
 }
 
 /* list the keys in a keyring */
@@ -1121,10 +1123,12 @@ rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *
 }
 
 typedef struct pgp_parse_handler_param_t {
-    char        in[PATH_MAX];
-    char        out[PATH_MAX];
-    bool        mem;
-    pgp_dest_t *outdst;
+    char         in[PATH_MAX];
+    char         out[PATH_MAX];
+    bool         mem;
+    bool         hasdst;
+    pgp_source_t src;
+    pgp_dest_t   dst;
 } pgp_parse_handler_param_t;
 
 /** @brief checks whether file exists already and asks user for the new filename
@@ -1265,6 +1269,33 @@ rnp_initialize_io(
     return res;
 }
 
+/** @brief Initialize input and output for streamed RNP operation, based on memory buffer
+ *  @param src Allocated source structure to put result in. May not be NULL.
+ *  @param dst NULL or allocated dest structure to put result in.
+ *  @param in Source memory buffer
+ *  @param len Number of bytes in source memory buffer
+ *  @return true on success. False return means RNP_ERROR_OUT_OF_MEMORY
+ **/
+
+static bool
+rnp_initialize_mem_io(pgp_source_t *src, pgp_dest_t *dst, const void *in, size_t len)
+{
+    rnp_result_t result;
+
+    /* initialize input */
+    if ((result = init_mem_src(src, in, len, false))) {
+        return false;
+    }
+
+    /* initialize output */
+    if (dst && (result = init_mem_dest(dst, NULL, 0))) {
+        src_close(src);
+        return false;
+    }
+
+    return true;
+}
+
 static bool
 rnp_parse_handler_dest(pgp_parse_handler_t *handler,
                        pgp_dest_t **        dst,
@@ -1278,26 +1309,23 @@ rnp_parse_handler_dest(pgp_parse_handler_t *handler,
         return false;
     }
 
-    if (!(param->outdst = calloc(1, sizeof(*param->outdst)))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
     if (handler->ctx->discard) {
         *closedst = true;
-        res = init_null_dest(param->outdst);
+        res = init_null_dest(&param->dst);
     } else if (!param->mem) {
         *closedst = true;
-        res = rnp_initialize_io(handler->ctx, NULL, param->outdst, param->in, param->out);
+        res = rnp_initialize_io(handler->ctx, NULL, &param->dst, param->in, param->out);
     } else {
         *closedst = false;
-        res = init_mem_dest(param->outdst, NULL, 0);
+        res = init_mem_dest(&param->dst, NULL, 0);
     }
 
-    if (res) {
-        free(param->outdst);
-        param->outdst = NULL;
+    if (res == RNP_SUCCESS) {
+        param->hasdst = true;
+        *dst = &param->dst;
+    } else {
+        *dst = NULL;
     }
-    *dst = param->outdst;
 
     return res == RNP_SUCCESS;
 }
@@ -1360,10 +1388,7 @@ rnp_init_parse_handler(pgp_parse_handler_t *handler, rnp_ctx_t *ctx)
 static void
 rnp_free_parse_handler(pgp_parse_handler_t *handler)
 {
-    pgp_parse_handler_param_t *param = handler->param;
-
     free(handler->key_provider);
-    free(param->outdst);
     free(handler->param);
     memset(handler, 0, sizeof(*handler));
 }
@@ -1371,7 +1396,6 @@ rnp_free_parse_handler(pgp_parse_handler_t *handler)
 rnp_result_t
 rnp_process_file(rnp_ctx_t *ctx, const char *in, const char *out)
 {
-    pgp_source_t               src = {0};
     pgp_parse_handler_t        handler = {0};
     pgp_parse_handler_param_t *param = NULL;
     rnp_result_t               result;
@@ -1392,15 +1416,15 @@ rnp_process_file(rnp_ctx_t *ctx, const char *in, const char *out)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    /* initialize input */
-    if (rnp_initialize_io(ctx, &src, NULL, in, NULL)) {
-        rnp_free_parse_handler(&handler);
-        return RNP_ERROR_READ;
-    }
-
     /* fill param */
     param = handler.param;
     param->mem = false;
+
+    /* initialize input */
+    if (rnp_initialize_io(ctx, &param->src, NULL, in, NULL)) {
+        rnp_free_parse_handler(&handler);
+        return RNP_ERROR_READ;
+    }
 
     if (in) {
         strncpy(param->in, in, sizeof(param->in) - 1);
@@ -1411,12 +1435,12 @@ rnp_process_file(rnp_ctx_t *ctx, const char *in, const char *out)
     }
 
     /* process source */
-    if ((result = process_pgp_source(&handler, &src))) {
+    if ((result = process_pgp_source(&handler, &param->src))) {
         RNP_LOG("error 0x%x", result);
     }
 
     /* cleanup */
-    src_close(&src);
+    src_close(&param->src);
     rnp_free_parse_handler(&handler);
 
     return result;
@@ -1426,7 +1450,6 @@ rnp_result_t
 rnp_process_mem(
   rnp_ctx_t *ctx, const void *in, size_t len, void *out, size_t outlen, size_t *reslen)
 {
-    pgp_source_t               src = {0};
     pgp_parse_handler_t        handler = {0};
     pgp_parse_handler_param_t *param = NULL;
     void *                     outdata;
@@ -1437,118 +1460,242 @@ rnp_process_mem(
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    /* initialize input */
-    if ((result = init_mem_src(&src, in, len, false))) {
-        rnp_free_parse_handler(&handler);
-        return result;
-    }
-
     /* fill param */
     param = handler.param;
     param->mem = true;
 
+    /* initialize input */
+    if (!rnp_initialize_mem_io(&param->src, NULL, in, len)) {
+        rnp_free_parse_handler(&handler);
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
     /* process source */
-    if ((result = process_pgp_source(&handler, &src))) {
+    if ((result = process_pgp_source(&handler, &param->src))) {
         RNP_LOG("error 0x%x", result);
     }
 
+    /* copy result to the output */
+    if (reslen) {
+        *reslen = result ? 0 : param->dst.writeb;
+    }
+
     if ((result == RNP_SUCCESS) && out) {
-        if (outlen < param->outdst->writeb) {
+        if (outlen < param->dst.writeb) {
             result = RNP_ERROR_SHORT_BUFFER;
         } else {
-            outdata = mem_dest_get_memory(param->outdst);
-            memcpy(out, outdata, param->outdst->writeb);
-            if (reslen) {
-                *reslen = param->outdst->writeb;
-            }
+            outdata = mem_dest_get_memory(&param->dst);
+            memcpy(out, outdata, param->dst.writeb);
         }
     }
 
     /* cleanup */
-    src_close(&src);
-    if (param->outdst) {
-        dst_close(param->outdst, result != RNP_SUCCESS);
+    src_close(&param->src);
+    if (param->hasdst) {
+        dst_close(&param->dst, result != RNP_SUCCESS);
     }
     rnp_free_parse_handler(&handler);
 
     return result;
 }
 
-rnp_result_t
-rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
+typedef struct pgp_write_handler_param_t {
+    pgp_source_t src;
+    pgp_dest_t   dst;
+} pgp_write_handler_param_t;
+
+static bool
+rnp_init_write_handler(pgp_write_handler_t *handler, rnp_ctx_t *ctx)
 {
-    pgp_source_t         src;
-    pgp_dest_t           dst;
-    pgp_write_handler_t *handler = NULL;
-    rnp_result_t         result;
-    pgp_key_provider_t   keyprov;
+    pgp_key_provider_t *       keyprov;
+    pgp_write_handler_param_t *param;
 
     ctx->operation = RNP_OP_ENCRYPT_SIGN;
 
-    if ((handler = calloc(1, sizeof(*handler))) == NULL) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+    if (!(param = calloc(1, sizeof(*param)))) {
+        return false;
     }
 
-    if ((result = rnp_initialize_io(ctx, &src, &dst, in, out))) {
-        RNP_LOG("failed to initialize reading or writing");
-        free(handler);
-        return result;
+    if (!(keyprov = calloc(1, sizeof(*keyprov)))) {
+        free(param);
+        return false;
     }
 
     handler->password_provider = &ctx->rnp->password_provider;
-    keyprov.callback = rnp_key_provider_keyring;
-    keyprov.userdata = ctx->rnp;
-    handler->key_provider = &keyprov;
+    keyprov->callback = rnp_key_provider_keyring;
+    keyprov->userdata = ctx->rnp;
+    handler->key_provider = keyprov;
     handler->ctx = ctx;
-    handler->param = NULL;
+    handler->param = param;
 
-    result = rnp_encrypt_src(handler, &src, &dst);
+    return true;
+}
+
+static void
+rnp_free_write_handler(pgp_write_handler_t *handler)
+{
+    free(handler->key_provider);
+    free(handler->param);
+    memset(handler, 0, sizeof(*handler));
+}
+
+rnp_result_t
+rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
+{
+    pgp_write_handler_t        handler = {0};
+    pgp_write_handler_param_t *param;
+    rnp_result_t               result;
+
+    /* initialize write handler */
+    if (!rnp_init_write_handler(&handler, ctx)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    param = handler.param;
+
+    /* initialize input/output */
+    if ((result = rnp_initialize_io(ctx, &param->src, &param->dst, in, out))) {
+        RNP_LOG("failed to initialize reading or writing");
+        rnp_free_write_handler(&handler);
+        return result;
+    }
+
+    /* do encryption */
+    result = rnp_encrypt_src(&handler, &param->src, &param->dst);
     if (result != RNP_SUCCESS) {
         RNP_LOG("failed with error code 0x%x", (int) result);
     }
 
-    src_close(&src);
-    dst_close(&dst, result != RNP_SUCCESS);
-    free(handler);
+    src_close(&param->src);
+    dst_close(&param->dst, result != RNP_SUCCESS);
+    rnp_free_write_handler(&handler);
+    return result;
+}
+
+rnp_result_t
+rnp_encrypt_mem(
+  rnp_ctx_t *ctx, const void *in, size_t len, void *out, size_t outlen, size_t *reslen)
+{
+    pgp_write_handler_t        handler = {0};
+    pgp_write_handler_param_t *param;
+    rnp_result_t               result;
+    void *                     outdata;
+
+    if (!rnp_init_write_handler(&handler, ctx)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    param = handler.param;
+
+    /* initialize input and output */
+    if (!rnp_initialize_mem_io(&param->src, &param->dst, in, len)) {
+        rnp_free_write_handler(&handler);
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    /* do encryption */
+    result = rnp_encrypt_src(&handler, &param->src, &param->dst);
+    if (result != RNP_SUCCESS) {
+        RNP_LOG("failed with error code 0x%x", (int) result);
+    }
+
+    /* copy result to the output */
+    if (reslen) {
+        *reslen = result ? 0 : param->dst.writeb;
+    }
+
+    if ((result == RNP_SUCCESS) && out) {
+        if (outlen < param->dst.writeb) {
+            result = RNP_ERROR_SHORT_BUFFER;
+        } else {
+            outdata = mem_dest_get_memory(&param->dst);
+            memcpy(out, outdata, param->dst.writeb);
+        }
+    }
+
+    src_close(&param->src);
+    dst_close(&param->dst, result != RNP_SUCCESS);
+    rnp_free_write_handler(&handler);
     return result;
 }
 
 rnp_result_t
 rnp_sign_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 {
-    pgp_source_t         src;
-    pgp_dest_t           dst;
-    pgp_write_handler_t *handler = NULL;
-    rnp_result_t         result;
-    pgp_key_provider_t   keyprov;
+    pgp_write_handler_t        handler = {0};
+    pgp_write_handler_param_t *param;
+    rnp_result_t               result;
 
-    ctx->operation = RNP_OP_ENCRYPT_SIGN;
-
-    if ((handler = calloc(1, sizeof(*handler))) == NULL) {
+    /* initialize write handler */
+    if (!rnp_init_write_handler(&handler, ctx)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    if ((result = rnp_initialize_io(ctx, &src, &dst, in, out))) {
+    param = handler.param;
+
+    /* initialize input/output */
+    if ((result = rnp_initialize_io(ctx, &param->src, &param->dst, in, out))) {
         RNP_LOG("failed to initialize reading or writing");
-        free(handler);
+        rnp_free_write_handler(&handler);
         return result;
     }
 
-    handler->password_provider = &ctx->rnp->password_provider;
-    keyprov.callback = rnp_key_provider_keyring;
-    keyprov.userdata = ctx->rnp;
-    handler->key_provider = &keyprov;
-    handler->ctx = ctx;
-    handler->param = NULL;
-
-    result = rnp_sign_src(handler, &src, &dst);
+    /* do encryption */
+    result = rnp_sign_src(&handler, &param->src, &param->dst);
     if (result != RNP_SUCCESS) {
         RNP_LOG("failed with error code 0x%x", (int) result);
     }
 
-    src_close(&src);
-    dst_close(&dst, result != RNP_SUCCESS);
-    free(handler);
+    src_close(&param->src);
+    dst_close(&param->dst, result != RNP_SUCCESS);
+    rnp_free_write_handler(&handler);
+    return result;
+}
+
+rnp_result_t
+rnp_sign_mem(
+  rnp_ctx_t *ctx, const void *in, size_t len, void *out, size_t outlen, size_t *reslen)
+{
+    pgp_write_handler_t        handler = {0};
+    pgp_write_handler_param_t *param;
+    rnp_result_t               result;
+    void *                     outdata;
+
+    if (!rnp_init_write_handler(&handler, ctx)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    param = handler.param;
+
+    /* initialize input and output */
+    if (!rnp_initialize_mem_io(&param->src, &param->dst, in, len)) {
+        rnp_free_write_handler(&handler);
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    /* do encryption */
+    result = rnp_sign_src(&handler, &param->src, &param->dst);
+    if (result != RNP_SUCCESS) {
+        RNP_LOG("failed with error code 0x%x", (int) result);
+    }
+
+    /* copy result to the output */
+    if (reslen) {
+        *reslen = result ? 0 : param->dst.writeb;
+    }
+
+    if ((result == RNP_SUCCESS) && out) {
+        if (outlen < param->dst.writeb) {
+            result = RNP_ERROR_SHORT_BUFFER;
+        } else {
+            outdata = mem_dest_get_memory(&param->dst);
+            memcpy(out, outdata, param->dst.writeb);
+        }
+    }
+
+    src_close(&param->src);
+    dst_close(&param->dst, result != RNP_SUCCESS);
+    rnp_free_write_handler(&handler);
     return result;
 }
 
