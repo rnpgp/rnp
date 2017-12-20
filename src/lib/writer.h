@@ -105,7 +105,6 @@ bool pgp_writer_push(pgp_output_t *,
 void     pgp_writer_pop(pgp_output_t *);
 unsigned pgp_writer_passthrough(const uint8_t *, unsigned, pgp_error_t **, pgp_writer_t *);
 
-void     pgp_writer_set_fd(pgp_output_t *, int);
 unsigned pgp_writer_close(pgp_output_t *);
 
 bool pgp_write(pgp_output_t *, const void *, size_t);
