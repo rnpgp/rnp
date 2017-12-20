@@ -78,7 +78,7 @@ test_key_unlock_pgp(void **state)
     ctx.halg = pgp_str_to_hash_alg("SHA1");
     rnp_assert_non_null(rstate, list_append(&ctx.signers, keyids[0], strlen(keyids[0]) + 1));
     memset(signature, 0, sizeof(signature));
-    ret = rnp_sign_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
+    ret = rnp_protect_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
     rnp_assert_int_not_equal(rstate, ret, RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 
@@ -129,7 +129,7 @@ test_key_unlock_pgp(void **state)
     ctx.halg = pgp_str_to_hash_alg("SHA1");
     rnp_assert_non_null(rstate, list_append(&ctx.signers, keyids[0], strlen(keyids[0]) + 1));
     memset(signature, 0, sizeof(signature));
-    ret = rnp_sign_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
+    ret = rnp_protect_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
     rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 
@@ -158,7 +158,7 @@ test_key_unlock_pgp(void **state)
     ctx.halg = pgp_str_to_hash_alg("SHA1");
     rnp_assert_non_null(rstate, list_append(&ctx.signers, keyids[0], strlen(keyids[0]) + 1));
     memset(signature, 0, sizeof(signature));
-    ret = rnp_sign_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
+    ret = rnp_protect_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
     rnp_assert_int_not_equal(rstate, ret, RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 
@@ -167,7 +167,7 @@ test_key_unlock_pgp(void **state)
     ctx.ealg = PGP_SA_AES_256;
     list_append(&ctx.recipients, keyids[1], strlen(keyids[1]) + 1);
     // Note: keyids[1] is an encrypting subkey
-    ret = rnp_encrypt_mem(&ctx, data, strlen(data), encrypted, sizeof(encrypted), &enclen);
+    ret = rnp_protect_mem(&ctx, data, strlen(data), encrypted, sizeof(encrypted), &enclen);
     rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 

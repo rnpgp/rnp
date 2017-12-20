@@ -346,10 +346,6 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.filename = strdup(rnp_filename(f));
         ctx.filemtime = rnp_filemtime(f);
     }
-    if (userid) {
-        list_append(&ctx.recipients, userid, strlen(userid) + 1);
-        list_append(&ctx.signers, userid, strlen(userid) + 1);
-    }
     rnp->pswdtries = rnp_cfg_get_pswdtries(cfg);
 
     switch (cmd) {
@@ -363,6 +359,10 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
             break;
         }
 
+        if (userid) {
+            list_append(&ctx.signers, userid, strlen(userid) + 1);
+        }
+
         ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
         ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
         ctx.sigcreate = get_birthtime(rnp_cfg_get(cfg, CFG_BIRTHTIME));
@@ -370,7 +370,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.clearsign = cmd == CMD_CLEARSIGN;
         ctx.detached = rnp_cfg_getbool(cfg, CFG_DETACHED);
 
-        ret = rnp_sign_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
+        ret = rnp_protect_file(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
     case CMD_DECRYPT:
         ret = rnp_process_file(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
@@ -378,17 +378,19 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     case CMD_SYM_ENCRYPT:
         ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
         ctx.halg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
-        ret = rnp_encrypt_add_password(&ctx);
-        if (ret) {
+        if ((ret = rnp_encrypt_add_password(&ctx))) {
             RNP_LOG("Failed to add password");
             goto done;
         }
     /* FALLTHROUGH */
     case CMD_ENCRYPT: {
+        if (userid) {
+            list_append(&ctx.recipients, userid, strlen(userid) + 1);
+        }
         ctx.ealg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
         ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
         ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
-        ret = rnp_encrypt_stream(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
+        ret = rnp_protect_file(&ctx, f, rnp_cfg_get(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
     }
     case CMD_VERIFY:
