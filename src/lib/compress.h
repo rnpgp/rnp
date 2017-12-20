@@ -30,25 +30,6 @@
 
 #include <librepgp/packet-parse.h>
 
-/*
- * @brief   Performs packet compression and writes packet
- *          PGP_PTAG_CT_COMPRESSED to the output.
- *          This function is symmetric to `parse_compressed'.
- *
- * @param   out Write settings
- * @param   data Data to write out
- * @param   data_len Length of data
- *
- *
- * @returns true on success, otherwise false
- *
- */
-bool pgp_writez(pgp_output_t *         out,
-                const uint8_t *        data,
-                size_t                 data_len,
-                pgp_compression_type_t type,
-                int                    level);
-
 /**
  * @brief   Helper function used for data decompression.
  *
