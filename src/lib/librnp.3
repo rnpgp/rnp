@@ -123,36 +123,25 @@ The following functions are used for key management:
 .Fc
 .Pp
 The following functions are used for file management:
-.Ft int
-.Fo rnp_encrypt_file
-.Fa "rnp_t *rnp" "char *userid" "char *filename" "char *out"
-.Fa "int armored"
+.Ft rnp_result_t
+.Fo rnp_protect_file
+.Fa "rnp_ctx_t *ctx" "const char *in" "const char *out"
 .Fc
-.Ft int
+.Ft rnp_result_t
 .Fo rnp_process_file
 .Fa "rnp_ctx_t *ctx" "char *filename" "char *out"
-.Fc
-.Ft int
-.Fo rnp_sign_file
-.Fa "rnp_t *rnp" "char *userid" "char *filename" "char *out"
-.Fa "int armored" "int cleartext" "int detached"
 .Fc
 .Pp
 The following functions are used for memory signing and encryption:
 .Ft rnp_result_t
-.Fo rnp_encrypt_memory
-.Fa "rnp_t *rnp" "char *userid" "void *in" "const size_t insize"
-.Fa "char *out" "size_t *outsize" "int armored"
+.Fo rnp_protect_mem
+.Fa "rnp_ctx_t *ctx" "const void *in" "size_t len" "void *out" 
+.Fa "size_t outsize" "size_t *ressize"
 .Fc
 .Ft int
 .Fo rnp_process_mem
 .Fa "rnp_ctx_t *ctx" "const void *in" "const size_t insize"
 .Fa "void *out" "size_t outsize" "size_t *ressize"
-.Fc
-.Ft int
-.Fo rnp_sign_mem
-.Fa "rnp_ctx_t *ctx" "const void *in" "size_t len" "void *out" 
-.Fa "size_t outsize" "size_t *ressize"
 .Fc
 .Sh DESCRIPTION
 .Nm
@@ -244,18 +233,18 @@ files are the lifeblood of the
 .Nm
 library.
 To encrypt a file, the
-.Fn rnp_encrypt_file
+.Fn rnp_protect_file
 function is used, and the
 .Fn rnp_process_file
 function is used to decrypt the results of the encryption.
 To sign a file, the
-.Fn rnp_sign_file
+.Fn rnp_protect_file
 function is used, and the resulting signed file can be verified
 using the
 .Fn rnp_process_file
 function.
 .Pp
-.Fn rnp_sign_mem
+.Fn rnp_protect_mem
 is a function which can sign an area
 of memory, and
 .Fn rnp_process_mem

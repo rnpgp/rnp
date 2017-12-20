@@ -112,7 +112,7 @@ rnpkeys_generatekey_testSignature(void **state)
                                     list_append(&ctx.signers, userId, strlen(userId) + 1));
 
                 /* Signing the memory */
-                ret = rnp_sign_mem(&ctx,
+                ret = rnp_protect_mem(&ctx,
                                    memToSign,
                                    strlen(memToSign),
                                    signatureBuf,
@@ -218,7 +218,7 @@ rnpkeys_generatekey_testEncryption(void **state)
                                 list_append(&ctx.recipients, userId, strlen(userId) + 1));
             /* Encrypting the memory */
             size_t       reslen = 0;
-            rnp_result_t ret = rnp_encrypt_mem(&ctx,
+            rnp_result_t ret = rnp_protect_mem(&ctx,
                                                memToEncrypt,
                                                strlen(memToEncrypt),
                                                ciphertextBuf,

@@ -106,14 +106,6 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <json.h>
 #include <rnp.h>
 
-/* TODO: Make these const; currently their consumers don't preserve const. */
-
-static bool
-use_ssh_keys(rnp_t *rnp)
-{
-    return ((rnp_key_store_t *) rnp->secring)->format == SSH_KEY_STORE;
-}
-
 /* resolve the userid */
 static pgp_key_t *
 resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
@@ -1090,38 +1082,6 @@ rnp_generate_key(rnp_t *rnp)
     return true;
 }
 
-/* encrypt a file */
-rnp_result_t
-rnp_encrypt_file(rnp_ctx_t *ctx, const char *userid, const char *f, const char *out)
-{
-    const pgp_key_t *key;
-    const char *     suffix;
-    char             outname[MAXPATHLEN];
-
-    if (f == NULL) {
-        (void) fprintf(ctx->rnp->io->errs, "rnp_encrypt_file: no filename specified\n");
-        return RNP_ERROR_GENERIC;
-    }
-    /* get key with which to sign */
-    if ((key = resolve_userid(ctx->rnp, ctx->rnp->pubring, userid)) == NULL) {
-        return RNP_ERROR_GENERIC;
-    }
-    if (!pgp_key_can_encrypt(key) && !(key = find_suitable_subkey(key, PGP_KF_ENCRYPT))) {
-        RNP_LOG("this key can not encrypt");
-        return RNP_ERROR_GENERIC;
-    }
-    /* generate output file name if needed */
-    if (out == NULL) {
-        suffix = (ctx->armor) ? ".asc" : ".gpg";
-        (void) snprintf(outname, sizeof(outname), "%s%s", f, suffix);
-        out = outname;
-    }
-
-    return pgp_encrypt_file(ctx, ctx->rnp->io, f, out, pgp_get_pubkey(key)) ?
-             RNP_SUCCESS :
-             RNP_ERROR_GENERIC;
-}
-
 typedef struct pgp_parse_handler_param_t {
     char         in[PATH_MAX];
     char         out[PATH_MAX];
@@ -1539,8 +1499,30 @@ rnp_free_write_handler(pgp_write_handler_t *handler)
     memset(handler, 0, sizeof(*handler));
 }
 
+static rnp_result_t
+rnp_call_protect_operation(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
+{
+    size_t signc, encrc, passc;
+
+    signc = list_length(handler->ctx->signers);
+    encrc = list_length(handler->ctx->recipients);
+    passc = list_length(handler->ctx->passwords);
+
+    if ((encrc || passc) && signc) {
+        RNP_LOG("encrypt and sign is not supported yet");
+        return RNP_ERROR_NOT_IMPLEMENTED;
+    } else if (signc) {
+        return rnp_sign_src(handler, src, dst);
+    } else if (encrc || passc) {
+        return rnp_encrypt_src(handler, src, dst);
+    } else {
+        RNP_LOG("no signers or recipients");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+}
+
 rnp_result_t
-rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
+rnp_protect_file(rnp_ctx_t *ctx, const char *in, const char *out)
 {
     pgp_write_handler_t        handler = {0};
     pgp_write_handler_param_t *param;
@@ -1560,8 +1542,8 @@ rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
         return result;
     }
 
-    /* do encryption */
-    result = rnp_encrypt_src(&handler, &param->src, &param->dst);
+    result = rnp_call_protect_operation(&handler, &param->src, &param->dst);
+
     if (result != RNP_SUCCESS) {
         RNP_LOG("failed with error code 0x%x", (int) result);
     }
@@ -1573,10 +1555,10 @@ rnp_encrypt_stream(rnp_ctx_t *ctx, const char *in, const char *out)
 }
 
 rnp_result_t
-rnp_encrypt_mem(
+rnp_protect_mem(
   rnp_ctx_t *ctx, const void *in, size_t len, void *out, size_t outlen, size_t *reslen)
 {
-    pgp_write_handler_t        handler = {0};
+        pgp_write_handler_t        handler = {0};
     pgp_write_handler_param_t *param;
     rnp_result_t               result;
     void *                     outdata;
@@ -1594,87 +1576,7 @@ rnp_encrypt_mem(
     }
 
     /* do encryption */
-    result = rnp_encrypt_src(&handler, &param->src, &param->dst);
-    if (result != RNP_SUCCESS) {
-        RNP_LOG("failed with error code 0x%x", (int) result);
-    }
-
-    /* copy result to the output */
-    if (reslen) {
-        *reslen = result ? 0 : param->dst.writeb;
-    }
-
-    if ((result == RNP_SUCCESS) && out) {
-        if (outlen < param->dst.writeb) {
-            result = RNP_ERROR_SHORT_BUFFER;
-        } else {
-            outdata = mem_dest_get_memory(&param->dst);
-            memcpy(out, outdata, param->dst.writeb);
-        }
-    }
-
-    src_close(&param->src);
-    dst_close(&param->dst, result != RNP_SUCCESS);
-    rnp_free_write_handler(&handler);
-    return result;
-}
-
-rnp_result_t
-rnp_sign_stream(rnp_ctx_t *ctx, const char *in, const char *out)
-{
-    pgp_write_handler_t        handler = {0};
-    pgp_write_handler_param_t *param;
-    rnp_result_t               result;
-
-    /* initialize write handler */
-    if (!rnp_init_write_handler(&handler, ctx)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    param = handler.param;
-
-    /* initialize input/output */
-    if ((result = rnp_initialize_io(ctx, &param->src, &param->dst, in, out))) {
-        RNP_LOG("failed to initialize reading or writing");
-        rnp_free_write_handler(&handler);
-        return result;
-    }
-
-    /* do encryption */
-    result = rnp_sign_src(&handler, &param->src, &param->dst);
-    if (result != RNP_SUCCESS) {
-        RNP_LOG("failed with error code 0x%x", (int) result);
-    }
-
-    src_close(&param->src);
-    dst_close(&param->dst, result != RNP_SUCCESS);
-    rnp_free_write_handler(&handler);
-    return result;
-}
-
-rnp_result_t
-rnp_sign_mem(
-  rnp_ctx_t *ctx, const void *in, size_t len, void *out, size_t outlen, size_t *reslen)
-{
-    pgp_write_handler_t        handler = {0};
-    pgp_write_handler_param_t *param;
-    rnp_result_t               result;
-    void *                     outdata;
-
-    if (!rnp_init_write_handler(&handler, ctx)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    param = handler.param;
-
-    /* initialize input and output */
-    if (!rnp_initialize_mem_io(&param->src, &param->dst, in, len)) {
-        rnp_free_write_handler(&handler);
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    /* do encryption */
-    result = rnp_sign_src(&handler, &param->src, &param->dst);
+    result = rnp_call_protect_operation(&handler, &param->src, &param->dst);
     if (result != RNP_SUCCESS) {
         RNP_LOG("failed with error code 0x%x", (int) result);
     }
@@ -1733,241 +1635,6 @@ rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const char *out)
     src_close(&src);
     dst_close(&dst, result != RNP_SUCCESS);
     return result;
-}
-
-/* sign a file */
-rnp_result_t
-rnp_sign_file(rnp_ctx_t * ctx,
-              const char *userid,
-              const char *f,
-              const char *out,
-              bool        cleartext,
-              bool        detached)
-{
-    pgp_key_t *         keypair;
-    pgp_key_t *         pubkey;
-    const pgp_seckey_t *seckey = NULL;
-    pgp_seckey_t *      decrypted_seckey = NULL;
-    pgp_io_t *          io;
-    int                 attempts;
-    bool                ret;
-    int                 i;
-
-    io = ctx->rnp->io;
-    if (f == NULL) {
-        (void) fprintf(io->errs, "rnp_sign_file: no filename specified\n");
-        return RNP_ERROR_GENERIC;
-    }
-    /* get key with which to sign */
-    if ((keypair = resolve_userid(ctx->rnp, ctx->rnp->pubring, userid)) == NULL) {
-        RNP_LOG("unable to locate key %s", userid);
-        return RNP_ERROR_GENERIC;
-    }
-    if (!pgp_key_can_sign(keypair) &&
-        !(keypair = find_suitable_subkey(keypair, PGP_KF_SIGN))) {
-        RNP_LOG("this key can not sign");
-        return RNP_ERROR_GENERIC;
-    }
-    // key exist and might be used to sign, trying get it from secring
-    unsigned from = 0;
-    if ((keypair = rnp_key_store_get_key_by_id(
-           io, ctx->rnp->secring, keypair->keyid, &from, NULL)) == NULL) {
-        return RNP_ERROR_GENERIC;
-    }
-
-    attempts = ctx->rnp->pswdtries;
-
-    for (i = 0, seckey = NULL; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS);
-         i++) {
-        /* print out the user id */
-        if (!rnp_key_store_get_key_by_name(io, ctx->rnp->pubring, userid, &pubkey)) {
-            return RNP_ERROR_GENERIC;
-        }
-        if (pubkey == NULL) {
-            (void) fprintf(io->errs, "rnp: warning - using pubkey from secring\n");
-            repgp_print_key(
-              io, ctx->rnp->pubring, keypair, "signature ", &keypair->key.seckey.pubkey, 0);
-        } else {
-            repgp_print_key(
-              io, ctx->rnp->pubring, pubkey, "signature ", &pubkey->key.pubkey, 0);
-        }
-        if (!use_ssh_keys(ctx->rnp)) {
-            if (pgp_key_is_locked(keypair)) {
-                decrypted_seckey =
-                  pgp_decrypt_seckey(keypair,
-                                     &ctx->rnp->password_provider,
-                                     &(pgp_password_ctx_t){.op = PGP_OP_SIGN, .key = keypair});
-                if (decrypted_seckey == NULL) {
-                    (void) fprintf(io->errs, "Bad password\n");
-                }
-                seckey = decrypted_seckey;
-            } else {
-                seckey = &keypair->key.seckey;
-            }
-        } else {
-            seckey = &((rnp_key_store_t *) ctx->rnp->secring)->keys[0].key.seckey;
-        }
-    }
-    if (!seckey) {
-        (void) fprintf(io->errs, "Bad password\n");
-        return RNP_ERROR_GENERIC;
-    }
-    /* sign file */
-    if (detached) {
-        ret = pgp_sign_detached(ctx, io, f, out, seckey);
-    } else {
-        ret = pgp_sign_file(ctx, io, f, out, seckey, cleartext);
-    }
-
-    if (decrypted_seckey) {
-        pgp_seckey_free(decrypted_seckey);
-        free(decrypted_seckey);
-    }
-    return ret ? RNP_SUCCESS : RNP_ERROR_GENERIC;
-}
-
-/* sign some memory */
-int
-rnp_sign_memory(rnp_ctx_t * ctx,
-                const char *userid,
-                const char *mem,
-                size_t      size,
-                char *      out,
-                size_t      outsize,
-                bool        cleartext)
-{
-    pgp_key_t *         keypair;
-    pgp_key_t *         pubkey;
-    const pgp_seckey_t *seckey = NULL;
-    pgp_seckey_t *      decrypted_seckey = NULL;
-    pgp_memory_t *      signedmem;
-    pgp_io_t *          io;
-    int                 attempts;
-    int                 ret;
-    int                 i;
-    unsigned            from;
-
-    io = ctx->rnp->io;
-    if (mem == NULL) {
-        (void) fprintf(io->errs, "rnp_sign_memory: no memory to sign\n");
-        return 0;
-    }
-    if ((keypair = resolve_userid(ctx->rnp, ctx->rnp->pubring, userid)) == NULL) {
-        return 0;
-    }
-    if (!pgp_key_can_sign(keypair) &&
-        !(keypair = find_suitable_subkey(keypair, PGP_KF_SIGN))) {
-        RNP_LOG("this key can not sign");
-        return 0;
-    }
-    // key exist and might be used to sign, trying get it from secring
-    from = 0;
-    if ((keypair = rnp_key_store_get_key_by_id(
-           io, ctx->rnp->secring, keypair->keyid, &from, NULL)) == NULL) {
-        return 0;
-    }
-
-    attempts = ctx->rnp->pswdtries;
-
-    for (i = 0, seckey = NULL; !seckey && (i < attempts || attempts == INFINITE_ATTEMPTS);
-         i++) {
-        /* print out the user id */
-        if (!rnp_key_store_get_key_by_name(io, ctx->rnp->pubring, userid, &pubkey)) {
-            return 0;
-        }
-        if (pubkey == NULL) {
-            (void) fprintf(io->errs, "rnp: warning - using pubkey from secring\n");
-            repgp_print_key(
-              io, ctx->rnp->pubring, keypair, "signature ", &keypair->key.seckey.pubkey, 0);
-        } else {
-            repgp_print_key(
-              io, ctx->rnp->pubring, pubkey, "signature ", &pubkey->key.pubkey, 0);
-        }
-        if (!use_ssh_keys(ctx->rnp)) {
-            if (pgp_key_is_locked(keypair)) {
-                decrypted_seckey =
-                  pgp_decrypt_seckey(keypair,
-                                     &ctx->rnp->password_provider,
-                                     &(pgp_password_ctx_t){.op = PGP_OP_SIGN, .key = keypair});
-                if (decrypted_seckey == NULL) {
-                    (void) fprintf(io->errs, "Bad password\n");
-                }
-                seckey = decrypted_seckey;
-            } else {
-                seckey = &keypair->key.seckey;
-            }
-
-        } else {
-            seckey = &((rnp_key_store_t *) ctx->rnp->secring)->keys[0].key.seckey;
-        }
-    }
-    if (!seckey) {
-        (void) fprintf(io->errs, "Bad password\n");
-        return 0;
-    }
-    /* sign file */
-    (void) memset(out, 0x0, outsize);
-    signedmem = pgp_sign_buf(ctx, io, mem, size, seckey, cleartext);
-    if (signedmem) {
-        size_t m;
-
-        m = MIN(pgp_mem_len(signedmem), outsize);
-        (void) memcpy(out, pgp_mem_data(signedmem), m);
-        pgp_memory_free(signedmem);
-        ret = (int) m;
-    } else {
-        ret = 0;
-    }
-
-    if (decrypted_seckey) {
-        pgp_seckey_free(decrypted_seckey);
-        free(decrypted_seckey);
-    }
-    return ret;
-}
-
-/* encrypt some memory */
-int
-rnp_encrypt_memory(rnp_ctx_t *  ctx,
-                   const char * userid,
-                   const void * in,
-                   const size_t insize,
-                   char *       out,
-                   size_t       outsize)
-{
-    const pgp_key_t *keypair;
-    pgp_memory_t *   enc;
-    pgp_io_t *       io;
-    size_t           m;
-
-    io = ctx->rnp->io;
-    if (in == NULL) {
-        (void) fprintf(io->errs, "rnp_encrypt_buf: no memory to encrypt\n");
-        return 0;
-    }
-    if ((keypair = resolve_userid(ctx->rnp, ctx->rnp->pubring, userid)) == NULL) {
-        (void) fprintf(io->errs, "%s: public key not available\n", userid);
-        return 0;
-    }
-    if (!pgp_key_can_encrypt(keypair) &&
-        !(keypair = find_suitable_subkey(keypair, PGP_KF_ENCRYPT))) {
-        RNP_LOG("this key can not encrypt");
-        return 0;
-    }
-    if (in == out) {
-        (void) fprintf(io->errs,
-                       "rnp_encrypt_buf: input and output bufs need to be different\n");
-        return 0;
-    }
-    if (outsize < insize) {
-        (void) fprintf(io->errs, "rnp_encrypt_buf: input size is larger than output size\n");
-        return 0;
-    }
-    enc = pgp_encrypt_buf(ctx, io, in, insize, pgp_get_pubkey(keypair));
-    m = MIN(pgp_mem_len(enc), outsize);
-    (void) memcpy(out, pgp_mem_data(enc), m);
-    pgp_memory_free(enc);
-    return (int) m;
 }
 
 /* print the json out on 'fp' */
