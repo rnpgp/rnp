@@ -40,11 +40,13 @@ test_key_unlock_pgp(void **state)
     rnp_t                   rnp;
     pgp_key_t *             key = NULL;
     rnp_ctx_t               ctx;
+    rnp_result_t            ret;
     const char *            data = "my test data";
     char                    signature[512] = {0};
-    int                     siglen = 0;
+    size_t                  siglen = 0;
+    size_t                  enclen = 0;
+    size_t                  declen = 0;
     char                    encrypted[512] = {0};
-    int                     enclen = 0;
     char                    decrypted[512] = {0};
     pgp_password_provider_t provider = {0};
     static const char *     keyids[] = {"7bc6709b15c23a4a", // primary
@@ -74,10 +76,10 @@ test_key_unlock_pgp(void **state)
       (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
     rnp_ctx_init(&ctx, &rnp);
     ctx.halg = pgp_str_to_hash_alg("SHA1");
+    rnp_assert_non_null(rstate, list_append(&ctx.signers, keyids[0], strlen(keyids[0]) + 1));
     memset(signature, 0, sizeof(signature));
-    siglen = rnp_sign_memory(
-      &ctx, keyids[0], data, strlen(data), signature, sizeof(signature), false);
-    rnp_assert_int_equal(rstate, 0, siglen);
+    ret = rnp_sign_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
+    rnp_assert_int_not_equal(rstate, ret, RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 
     // grab the signing key to unlock
@@ -125,25 +127,24 @@ test_key_unlock_pgp(void **state)
     // sign, with no password
     rnp_ctx_init(&ctx, &rnp);
     ctx.halg = pgp_str_to_hash_alg("SHA1");
+    rnp_assert_non_null(rstate, list_append(&ctx.signers, keyids[0], strlen(keyids[0]) + 1));
     memset(signature, 0, sizeof(signature));
-    siglen = rnp_sign_memory(
-      &ctx, keyids[0], data, strlen(data), signature, sizeof(signature), false);
-    rnp_assert_int_not_equal(rstate, 0, siglen);
+    ret = rnp_sign_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
+    rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 
     // verify
     rnp_ctx_init(&ctx, &rnp);
     ctx.armor = false;
-    rnp_assert_int_equal(
-      rstate, RNP_SUCCESS, rnp_process_mem(&ctx, signature, siglen, NULL, 0, NULL));
+    ret = rnp_process_mem(&ctx, signature, siglen, NULL, 0, NULL);
+    rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 
     // verify (negative)
     rnp_ctx_init(&ctx, &rnp);
     signature[siglen / 2] ^= 0xff;
-    ctx.armor = false;
-    rnp_assert_int_not_equal(
-      rstate, RNP_SUCCESS, rnp_process_mem(&ctx, signature, siglen, NULL, 0, NULL));
+    ret = rnp_process_mem(&ctx, signature, siglen, NULL, 0, NULL);
+    rnp_assert_int_not_equal(rstate, ret, RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 
     // lock the signing key
@@ -155,30 +156,27 @@ test_key_unlock_pgp(void **state)
     // sign, with no password (should now fail)
     rnp_ctx_init(&ctx, &rnp);
     ctx.halg = pgp_str_to_hash_alg("SHA1");
+    rnp_assert_non_null(rstate, list_append(&ctx.signers, keyids[0], strlen(keyids[0]) + 1));
     memset(signature, 0, sizeof(signature));
-    siglen = rnp_sign_memory(
-      &ctx, keyids[0], data, strlen(data), signature, sizeof(signature), false);
-    rnp_assert_int_equal(rstate, 0, siglen);
+    ret = rnp_sign_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
+    rnp_assert_int_not_equal(rstate, ret, RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 
     // encrypt
     rnp_ctx_init(&ctx, &rnp);
     ctx.ealg = PGP_SA_AES_256;
+    list_append(&ctx.recipients, keyids[1], strlen(keyids[1]) + 1);
     // Note: keyids[1] is an encrypting subkey
-    enclen =
-      rnp_encrypt_memory(&ctx, keyids[1], data, strlen(data), encrypted, sizeof(encrypted));
-    rnp_assert_true(rstate, enclen > 0);
+    ret = rnp_encrypt_mem(&ctx, data, strlen(data), encrypted, sizeof(encrypted), &enclen);
+    rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 
     // try decrypting with a failing password provider (should fail)
     rnp.password_provider =
       (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
     rnp_ctx_init(&ctx, &rnp);
-    size_t tmp = 0;
-    rnp_assert_int_not_equal(
-      rstate,
-      rnp_process_mem(&ctx, encrypted, enclen, decrypted, sizeof(decrypted), &tmp),
-      RNP_SUCCESS);
+    ret = rnp_process_mem(&ctx, encrypted, enclen, decrypted, sizeof(decrypted), &declen);
+    rnp_assert_int_not_equal(rstate, ret, RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 
     // grab the encrypting key to unlock
@@ -194,13 +192,9 @@ test_key_unlock_pgp(void **state)
 
     // decrypt, with no password
     rnp_ctx_init(&ctx, &rnp);
-    size_t out_len = 0;
-    rnp_assert_int_equal(
-      rstate,
-      rnp_process_mem(&ctx, encrypted, enclen, decrypted, sizeof(decrypted), &out_len),
-      RNP_SUCCESS);
-
-    rnp_assert_int_equal(rstate, out_len, strlen(data));
+    ret = rnp_process_mem(&ctx, encrypted, enclen, decrypted, sizeof(decrypted), &declen);
+    rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);
+    rnp_assert_int_equal(rstate, declen, strlen(data));
     assert_string_equal(data, decrypted);
     rnp_ctx_free(&ctx);
 
@@ -212,11 +206,8 @@ test_key_unlock_pgp(void **state)
 
     // decrypt, with no password (should now fail)
     rnp_ctx_init(&ctx, &rnp);
-    out_len = 0;
-    rnp_assert_int_not_equal(
-      rstate,
-      rnp_process_mem(&ctx, encrypted, enclen, decrypted, sizeof(decrypted), &out_len),
-      RNP_SUCCESS);
+    ret = rnp_process_mem(&ctx, encrypted, enclen, decrypted, sizeof(decrypted), &declen);
+    rnp_assert_int_not_equal(rstate, ret, RNP_SUCCESS);
     rnp_ctx_free(&ctx);
 
     // cleanup

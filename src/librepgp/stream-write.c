@@ -545,6 +545,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     pgp_dest_encrypted_param_t *param;
     bool                        singlepass = true;
     unsigned                    pkeycount = 0;
+    unsigned                    skeycount = 0;
     uint8_t                     enckey[PGP_MAX_KEY_SIZE] = {0}; /* content encryption key */
     uint8_t                     enchdr[PGP_MAX_BLOCK_SIZE + 2]; /* encrypted header */
     uint8_t                     mdcver = 1;
@@ -572,7 +573,15 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     param->pkt.origdst = writedst;
 
     pkeycount = list_length(handler->ctx->recipients);
-    if ((pkeycount > 0) || (list_length(handler->ctx->passwords) > 1)) {
+    skeycount = list_length(handler->ctx->passwords);
+
+    if (!pkeycount && !skeycount) {
+        RNP_LOG("no recipients");
+        ret = RNP_ERROR_BAD_PARAMETERS;
+        goto finish;
+    }
+
+    if ((pkeycount > 0) || (skeycount > 1)) {
         if (!rng_get_data(rnp_ctx_rng_handle(handler->ctx), enckey, keylen)) {
             ret = RNP_ERROR_RNG;
             goto finish;

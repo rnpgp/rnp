@@ -89,14 +89,20 @@ int   rnp_secret_count(rnp_t *);
 int   rnp_public_count(rnp_t *);
 
 /* file management */
+rnp_result_t rnp_process_file(rnp_ctx_t *, const char *, const char *);
+// rnp_result_t rnp_protect_file(rnp_ctx_t *, const char *, const char *);
+
 rnp_result_t rnp_encrypt_file(rnp_ctx_t *, const char *, const char *, const char *);
 rnp_result_t rnp_sign_file(rnp_ctx_t *, const char *, const char *, const char *, bool, bool);
-rnp_result_t rnp_process_file(rnp_ctx_t *, const char *, const char *);
 rnp_result_t rnp_encrypt_stream(rnp_ctx_t *, const char *, const char *);
+rnp_result_t rnp_encrypt_mem(rnp_ctx_t *, const void *, size_t, void *out, size_t, size_t *);
 rnp_result_t rnp_sign_stream(rnp_ctx_t *, const char *, const char *);
+rnp_result_t rnp_sign_mem(rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
 
 /* memory signing and encryption */
 rnp_result_t rnp_process_mem(rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
+// rnp_result_t rnp_protect_mem(rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
+
 int rnp_sign_memory(rnp_ctx_t *, const char *, const char *, size_t, char *, size_t, bool);
 int rnp_encrypt_memory(rnp_ctx_t *, const char *, const void *, const size_t, char *, size_t);
 
