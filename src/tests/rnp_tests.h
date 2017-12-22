@@ -133,6 +133,8 @@ void test_ffi_encrypt_pk(void **state);
 
 void test_ffi_key_to_json(void **state);
 
+void test_ffi_key_iter(void **state);
+
 void test_dsa_roundtrip(void **state);
 
 #define rnp_assert_int_equal(state, a, b)           \

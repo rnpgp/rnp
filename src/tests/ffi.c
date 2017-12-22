@@ -27,6 +27,7 @@
 #include <rnp/rnp2.h>
 #include "rnp_tests.h"
 #include "support.h"
+#include "utils.h"
 
 void
 test_ffi_homedir(void **state)
@@ -1179,6 +1180,163 @@ test_ffi_key_to_json(void **state)
     json_object_put(jso);
     rnp_key_handle_free(&key);
     rnp_buffer_free(json);
+
+    // cleanup
+    rnp_ffi_destroy(ffi);
+}
+
+void
+test_ffi_key_iter(void **state)
+{
+    rnp_ffi_t         ffi = NULL;
+    char *            pub_format = NULL;
+    char *            pub_path = NULL;
+    char *            sec_format = NULL;
+    char *            sec_path = NULL;
+    rnp_keyring_t     pubring, secring;
+
+    // detect the formats+paths
+    assert_int_equal(
+      RNP_SUCCESS,
+      rnp_detect_homedir_info("data/keyrings/1", &pub_format, &pub_path, &sec_format, &sec_path));
+    // setup FFI
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, pub_format, sec_format));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_get_pubring(ffi, &pubring));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_get_secring(ffi, &secring));
+
+    // test invalid identifier type
+    {
+        rnp_identifier_iterator_t it = NULL;
+        assert_int_not_equal(RNP_SUCCESS, rnp_identifier_iterator_create(ffi, &it, "keyidz"));
+        assert_null(it);
+    }
+
+    // test empty rings
+    // keyid
+    {
+        rnp_identifier_iterator_t it = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_create(ffi, &it, "keyid"));
+        assert_non_null(it);
+        const char *ident = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_next(it, &ident));
+        assert_null(ident);
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_destroy(it));
+    }
+    // grip
+    {
+        rnp_identifier_iterator_t it = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_create(ffi, &it, "grip"));
+        assert_non_null(it);
+        const char *ident = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_next(it, &ident));
+        assert_null(ident);
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_destroy(it));
+    }
+    // userid
+    {
+        rnp_identifier_iterator_t it = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_create(ffi, &it, "userid"));
+        assert_non_null(it);
+        const char *ident = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_next(it, &ident));
+        assert_null(ident);
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_destroy(it));
+    }
+
+    // test with both rings empty
+    // keyid
+    {
+        rnp_identifier_iterator_t it = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_create(ffi, &it, "keyid"));
+        assert_non_null(it);
+        const char *ident = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_next(it, &ident));
+        assert_null(ident);
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_destroy(it));
+    }
+    // grip
+    {
+        rnp_identifier_iterator_t it = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_create(ffi, &it, "grip"));
+        assert_non_null(it);
+        const char *ident = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_next(it, &ident));
+        assert_null(ident);
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_destroy(it));
+    }
+    // userid
+    {
+        rnp_identifier_iterator_t it = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_create(ffi, &it, "userid"));
+        assert_non_null(it);
+        const char *ident = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_next(it, &ident));
+        assert_null(ident);
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_destroy(it));
+    }
+
+    // load our keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_load_from_path(pubring, pub_path));
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_load_from_path(secring, sec_path));
+    // free formats+paths
+    rnp_buffer_free(pub_format);
+    rnp_buffer_free(pub_path);
+    rnp_buffer_free(sec_format);
+    rnp_buffer_free(sec_path);
+
+    // keyid
+    {
+        rnp_identifier_iterator_t it = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_create(ffi, &it, "keyid"));
+        assert_non_null(it);
+        {
+            static const char *expected[] = {"7BC6709B15C23A4A",
+                                             "1ED63EE56FADC34D",
+                                             "1D7E8A5393C997A8",
+                                             "8A05B89FAD5ADED1",
+                                             "2FCADF05FFA501BB",
+                                             "54505A936A4A970E",
+                                             "326EF111425D14A5"};
+            size_t             i = 0;
+            const char *ident = NULL;
+            do {
+                ident = NULL;
+                assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_next(it, &ident));
+                if (ident) {
+                    assert_int_equal(0, rnp_strcasecmp(expected[i], ident));
+                    i++;
+                }
+            } while (ident);
+            assert_int_equal(i, ARRAY_SIZE(expected));
+        }
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_destroy(it));
+    }
+
+    // grip
+    // TODO: add test once key grip calculation for all algs is fixed
+
+    // userid
+    {
+        rnp_identifier_iterator_t it = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_create(ffi, &it, "userid"));
+        assert_non_null(it);
+        {
+            static const char *expected[] = {
+              "key0-uid0", "key0-uid1", "key0-uid2", "key1-uid0", "key1-uid2", "key1-uid1"};
+            size_t      i = 0;
+            const char *ident = NULL;
+            do {
+                ident = NULL;
+                assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_next(it, &ident));
+                if (ident) {
+                    assert_int_equal(0, rnp_strcasecmp(expected[i], ident));
+                    i++;
+                }
+            } while (ident);
+            assert_int_equal(i, ARRAY_SIZE(expected));
+        }
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_destroy(it));
+    }
 
     // cleanup
     rnp_ffi_destroy(ffi);

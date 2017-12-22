@@ -165,4 +165,8 @@ size_t key_bitlength(const pgp_pubkey_t *pubkey);
      (x & 0xFF000000) >> 24)
 #endif
 
+#ifndef MAX
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
 #endif
