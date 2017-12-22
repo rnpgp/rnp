@@ -36,6 +36,7 @@
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-write.h>
 #include <librepgp/stream-parse.h>
+#include <json_object.h>
 #include "hash.h"
 #include <rnp/rnp_types.h>
 #include <stdlib.h>
@@ -99,6 +100,15 @@ struct rnp_op_encrypt_st {
     rnp_input_t  input;
     rnp_output_t output;
     rnp_ctx_t    rnpctx;
+};
+
+struct rnp_identifier_iterator_st {
+    rnp_ffi_t        ffi;
+    pgp_key_search_t type;
+    rnp_key_store_t *store;
+    pgp_key_t *      keyp;
+    unsigned         uididx;
+    json_object *    tbl;
 };
 
 #define FFI_LOG(ffi, ...)            \
@@ -2976,3 +2986,232 @@ done:
     json_object_put(jso);
     return ret;
 }
+
+// move to next key
+static bool
+key_iter_next_key(rnp_identifier_iterator_t it)
+{
+    it->keyp = (pgp_key_t*)list_next((list_item*)it->keyp);
+    it->uididx = 0;
+    // check if we reached the end of the ring
+    if (!it->keyp) {
+        // if we are currently on pubring, switch to secring (if not empty)
+        if (it->store == it->ffi->pubring->store && list_length(it->ffi->secring->store->keys)) {
+            it->store = it->ffi->secring->store;
+            it->keyp = (pgp_key_t*)list_front(it->store->keys);
+        } else {
+            // we've gone through both rings
+            return false;
+        }
+    }
+    return true;
+}
+
+// move to next item (key or userid)
+static bool
+key_iter_next_item(rnp_identifier_iterator_t it)
+{
+    switch (it->type) {
+    case PGP_KEY_SEARCH_KEYID:
+    case PGP_KEY_SEARCH_GRIP:
+        return key_iter_next_key(it);
+    case PGP_KEY_SEARCH_USERID:
+        it->uididx++;
+        if (it->keyp) {
+            while (it->uididx >= it->keyp->uidc) {
+                if (!key_iter_next_key(it)) {
+                    return false;
+                }
+                it->uididx = 0;
+            }
+        }
+        break;
+    default:
+        assert(false);
+        break;
+    }
+    return true;
+}
+
+static bool
+key_iter_first_key(rnp_identifier_iterator_t it) {
+    if (list_length(it->ffi->pubring->store->keys)) {
+        it->store = it->ffi->pubring->store;
+    } else if (list_length(it->ffi->secring->store->keys)) {
+        it->store = it->ffi->secring->store;
+    } else {
+        it->store = NULL;
+        return false;
+    }
+    it->keyp = (pgp_key_t*)list_front(it->store->keys);
+    it->uididx = 0;
+    return true;
+}
+
+static bool
+key_iter_first_item(rnp_identifier_iterator_t it)
+{
+    switch (it->type) {
+    case PGP_KEY_SEARCH_KEYID:
+    case PGP_KEY_SEARCH_GRIP:
+        return key_iter_first_key(it);
+    case PGP_KEY_SEARCH_USERID:
+        if (!key_iter_first_key(it)) {
+              return false;
+        }
+        while (it->uididx >= it->keyp->uidc) {
+            if (!key_iter_next_key(it)) {
+              it->store = NULL;
+                return false;
+            }
+            it->uididx = 0;
+        }
+        break;
+    default:
+        assert(false);
+        break;
+    }
+    return true;
+}
+
+static bool
+key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
+{
+    const pgp_key_t *key = it->keyp;
+    switch (it->type) {
+    case PGP_KEY_SEARCH_KEYID:
+        if (!rnp_hex_encode(key->keyid, sizeof(key->keyid), buf, buf_len, RNP_HEX_UPPERCASE)) {
+            return false;
+        }
+        break;
+    case PGP_KEY_SEARCH_GRIP:
+        if (!rnp_hex_encode(key->grip, sizeof(key->grip), buf, buf_len, RNP_HEX_UPPERCASE)) {
+            return false;
+        }
+        break;
+    case PGP_KEY_SEARCH_USERID: {
+        const char *userid = (const char*)key->uids[it->uididx];
+        if (strlen(userid) >= buf_len) {
+            return false;
+        }
+        strcpy(buf, userid);
+    } break;
+    default:
+        assert(false);
+        break;
+    }
+    return true;
+}
+
+rnp_result_t
+rnp_identifier_iterator_create(rnp_ffi_t ffi, rnp_identifier_iterator_t *it, const char *identifier_type)
+{
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    // checks
+    if (!ffi || !it || !identifier_type) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    // create iterator
+    *it = calloc(1, sizeof(**it));
+    if (!*it) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    (*it)->ffi = ffi;
+    // parse identifier type
+    (*it)->type = PGP_KEY_SEARCH_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(identifier_type_map, string, type, identifier_type, (*it)->type);
+    if ((*it)->type == PGP_KEY_SEARCH_UNKNOWN) {
+        ret = RNP_ERROR_BAD_FORMAT;
+        goto done;
+    }
+    (*it)->tbl = json_object_new_object();
+    if (!(*it)->tbl) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+    // move to first item (if any)
+    key_iter_first_item(*it);
+
+    ret = RNP_SUCCESS;
+done:
+    if (ret) {
+        rnp_identifier_iterator_destroy(*it);
+        *it  = NULL;
+    }
+    return ret;
+}
+
+rnp_result_t
+rnp_identifier_iterator_next(rnp_identifier_iterator_t it, const char **identifier)
+{
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    static const size_t buf_len =
+      1 + MAX(MAX(PGP_KEY_ID_SIZE * 2, PGP_FINGERPRINT_SIZE * 2), MAX_ID_LENGTH);
+    char  buf[buf_len];
+    char *key = NULL;
+
+    // checks
+    if (!it || !identifier) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    // initialize the result to NULL
+    *identifier = NULL;
+    // this means we reached the end of the rings
+    if (!it->store) {
+        return RNP_SUCCESS;
+    }
+    // get the item
+    if (!key_iter_get_item(it, buf, buf_len)) {
+        return RNP_ERROR_GENERIC;
+    }
+    bool exists;
+    while ((exists = json_object_object_get_ex(it->tbl, buf, NULL))) {
+        if (!key_iter_next_item(it)) {
+            break;
+        }
+        if (!key_iter_get_item(it, buf, buf_len)) {
+            return RNP_ERROR_GENERIC;
+        }
+    }
+    // see if we actually found a new entry
+    if (!exists) {
+        key = strdup(buf);
+        if (!key) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        // TODO: Newer json-c has a useful return value for json_object_object_add,
+        // which doesn't require the json_object_object_get_ex check below.
+        json_object_object_add(it->tbl, key, NULL);
+        if (!json_object_object_get_ex(it->tbl, buf, NULL)) {
+            free(key);
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        *identifier = key;
+    }
+    // prepare for the next one
+    if (!key_iter_next_item(it)) {
+        // this means we're done
+        it->store = NULL;
+    }
+    ret = RNP_SUCCESS;
+
+done:
+    if (ret) {
+        *identifier = NULL;
+    }
+    return ret;
+}
+
+rnp_result_t
+rnp_identifier_iterator_destroy(rnp_identifier_iterator_t it)
+{
+    if (it) {
+        json_object_put(it->tbl);
+        free(it);
+    }
+    return RNP_SUCCESS;
+}
+

@@ -56,12 +56,13 @@ const char *rnp_result_to_string(rnp_result_t result);
 /*
  * Opaque structures
  */
-typedef struct rnp_ffi_st *       rnp_ffi_t;
-typedef struct rnp_keyring_st *   rnp_keyring_t;
-typedef struct rnp_key_handle_st *rnp_key_handle_t;
-typedef struct rnp_input_st *     rnp_input_t;
-typedef struct rnp_output_st *    rnp_output_t;
-typedef struct rnp_op_encrypt_st *rnp_op_encrypt_t;
+typedef struct rnp_ffi_st *                rnp_ffi_t;
+typedef struct rnp_keyring_st *            rnp_keyring_t;
+typedef struct rnp_key_handle_st *         rnp_key_handle_t;
+typedef struct rnp_input_st *              rnp_input_t;
+typedef struct rnp_output_st *             rnp_output_t;
+typedef struct rnp_op_encrypt_st *         rnp_op_encrypt_t;
+typedef struct rnp_identifier_iterator_st *rnp_identifier_iterator_t;
 
 /* Callbacks */
 typedef ssize_t rnp_input_reader_t(void *app_ctx, void *buf, size_t len);
@@ -324,6 +325,32 @@ rnp_result_t rnp_public_key_bytes(rnp_key_handle_t handle, uint8_t **buf, size_t
 rnp_result_t rnp_secret_key_bytes(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len);
 
 rnp_result_t rnp_key_to_json(rnp_key_handle_t handle, uint32_t flags, char **result);
+
+/** create an identifier iterator
+ *
+ *  @param ffi
+ *  @param it pointer that will be set to the created iterator
+ *  @param identifier_type the type of identifier ("userid", "keyid", "grip")
+ *  @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_identifier_iterator_create(rnp_ffi_t ffi, rnp_identifier_iterator_t *it, const char *identifier_type);
+
+/** retrieve the next item from an iterator
+ *
+ *  @param it the iterator
+ *  @param identifier pointer that will be set to the identifier value.
+ *         Must not be NULL. The application should free this with
+ *         rnp_buffer_free.
+ *  @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_identifier_iterator_next(rnp_identifier_iterator_t it, const char **identifier);
+
+/** destroy an identifier iterator
+ *
+ *  @param it the iterator object
+ *  @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_identifier_iterator_destroy(rnp_identifier_iterator_t it);
 
 #if defined(__cplusplus)
 }
