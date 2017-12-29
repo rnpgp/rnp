@@ -363,6 +363,8 @@ typedef enum {
     PGP_CIPHER_MODE_OCB = 3,
 } pgp_cipher_mode_t;
 
+typedef enum { PGP_AEAD_NONE = 0, PGP_AEAD_EAX = 1 } pgp_aead_alg_t;
+
 /** s2k_usage_t
  */
 typedef enum {

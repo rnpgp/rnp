@@ -384,7 +384,7 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
         return false;
     }
 
-    pgp_cipher_start(
+    pgp_cipher_cfb_start(
       &crypted, key->key.seckey.protection.symm_alg, sesskey, key->key.seckey.protection.iv);
     ssh_fingerprint(&key->fingerprint, pubkey);
     ssh_keyid(key->keyid, sizeof(key->keyid), pubkey);

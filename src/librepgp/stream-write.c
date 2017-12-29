@@ -89,6 +89,7 @@ typedef struct pgp_dest_encrypted_param_t {
     bool                    has_mdc;     /* encrypted with mdc, i.e. tag 18 */
     pgp_crypt_t             encrypt;     /* encrypting crypto */
     pgp_symm_alg_t          ealg;        /* encryption algorithm */
+    pgp_aead_alg_t          aalg;        /* AEAD algorithm, if non-zero */
     pgp_hash_t              mdc;         /* mdc SHA1 hash */
     uint8_t cache[PGP_INPUT_CACHE_SIZE]; /* pre-allocated cache for encryption */
 } pgp_dest_encrypted_param_t;
@@ -315,7 +316,7 @@ encrypted_dst_close(pgp_dest_t *dst, bool discard)
     }
 
     pgp_hash_finish(&param->mdc, NULL);
-    pgp_cipher_finish(&param->encrypt);
+    pgp_cipher_cfb_finish(&param->encrypt);
     close_streamed_packet(&param->pkt, discard);
     free(param);
     dst->param = NULL;
@@ -521,12 +522,12 @@ encrypted_add_password(rnp_symmetric_pass_info_t *pass,
         skey.enckey[0] = param->ealg;
         memcpy(&skey.enckey[1], key, keylen);
         skey.alg = pass->s2k_cipher;
-        if (!pgp_cipher_start(&kcrypt, skey.alg, pass->key, NULL)) {
+        if (!pgp_cipher_cfb_start(&kcrypt, skey.alg, pass->key, NULL)) {
             RNP_LOG("key encryption failed");
             return RNP_ERROR_BAD_PARAMETERS;
         }
         pgp_cipher_cfb_encrypt(&kcrypt, skey.enckey, skey.enckey, skey.enckeylen);
-        pgp_cipher_finish(&kcrypt);
+        pgp_cipher_cfb_finish(&kcrypt);
     }
 
     /* Writing symmetric key encrypted session key packet */
@@ -555,6 +556,12 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
+    if (handler->ctx->aalg &&
+        ((handler->ctx->aalg != PGP_AEAD_EAX) || (pgp_block_size(handler->ctx->ealg) != 16))) {
+        RNP_LOG("wrong AEAD parameters");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
     if (!init_dst_common(dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -566,6 +573,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     dst->type = PGP_STREAM_ENCRYPTED;
     param->has_mdc = true;
     param->ealg = handler->ctx->ealg;
+    param->aalg = handler->ctx->aalg;
     param->pkt.origdst = writedst;
 
     pkeycount = list_length(handler->ctx->recipients);
@@ -597,8 +605,11 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     /* Configuring and writing sk-encrypted session key(s) */
     for (list_item *pi = list_front(handler->ctx->passwords); pi; pi = list_next(pi)) {
-        encrypted_add_password(
+        ret = encrypted_add_password(
           (rnp_symmetric_pass_info_t *) pi, dst, enckey, keylen, singlepass);
+        if (ret != RNP_SUCCESS) {
+            goto finish;
+        }
     }
 
     /* Initializing partial packet writer */
@@ -626,7 +637,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     }
 
     /* initializing the crypto */
-    if (!pgp_cipher_start(&param->encrypt, param->ealg, enckey, NULL)) {
+    if (!pgp_cipher_cfb_start(&param->encrypt, param->ealg, enckey, NULL)) {
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }

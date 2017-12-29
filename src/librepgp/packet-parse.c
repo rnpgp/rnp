@@ -2636,10 +2636,10 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
             hexdump(stderr, "key", derived_key, keysize);
         }
 
-        if (!pgp_cipher_start(&decrypt,
-                              pkt.u.seckey.protection.symm_alg,
-                              derived_key,
-                              pkt.u.seckey.protection.iv)) {
+        if (!pgp_cipher_cfb_start(&decrypt,
+                                  pkt.u.seckey.protection.symm_alg,
+                                  derived_key,
+                                  pkt.u.seckey.protection.iv)) {
             return false;
         }
 
@@ -2978,7 +2978,7 @@ parse_pk_sesskey(pgp_region_t *region, pgp_stream_t *stream)
         (void) fprintf(stderr, "got pk session key via callback\n");
     }
 
-    if (!pgp_cipher_start(
+    if (!pgp_cipher_cfb_start(
           &stream->decrypt, pkt.u.pk_sesskey.symm_alg, pkt.u.pk_sesskey.key, NULL))
         return false;
 

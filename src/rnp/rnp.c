@@ -78,6 +78,7 @@ static const char *usage = "--help OR\n"
                            "\t[--armor] AND/OR\n"
                            "\t[--cipher=<ciphername>] AND/OR\n"
                            "\t[--zip, --zlib, --bzip, -z 0..9] AND/OR\n"
+                           "\t[--aead] AND/OR\n"
                            "\t[--coredumps] AND/OR\n"
                            "\t[--homedir=<homedir>] AND/OR\n"
                            "\t[--keyring=<keyring>] AND/OR\n"
@@ -129,6 +130,7 @@ enum optdefs {
     OPT_ZALG_BZIP,
     OPT_ZLEVEL,
     OPT_OVERWRITE,
+    OPT_AEAD,
 
     /* debug */
     OPT_DEBUG
@@ -198,6 +200,7 @@ static struct option options[] = {
   {"bzip", no_argument, NULL, OPT_ZALG_BZIP},
   {"bzip2", no_argument, NULL, OPT_ZALG_BZIP},
   {"overwrite", no_argument, NULL, OPT_OVERWRITE},
+  {"aead", no_argument, NULL, OPT_AEAD},
 
   {NULL, 0, NULL, 0},
 };
@@ -385,6 +388,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.ealg = pgp_str_to_cipher(rnp_cfg_getstr(cfg, CFG_CIPHER));
         ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
         ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
+        ctx.aalg = rnp_cfg_getint(cfg, CFG_AEAD);
         ret = rnp_protect_file(&ctx, f, rnp_cfg_getstr(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
     }
@@ -600,6 +604,9 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         break;
     case OPT_ZALG_BZIP:
         rnp_cfg_setint(cfg, CFG_ZALG, PGP_C_BZIP2);
+        break;
+    case OPT_AEAD:
+        rnp_cfg_setint(cfg, CFG_AEAD, PGP_AEAD_EAX);
         break;
     case OPT_OVERWRITE:
         rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
