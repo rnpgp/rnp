@@ -118,8 +118,38 @@ pgp_sa_to_botan_string(pgp_symm_alg_t alg)
     }
 }
 
+static bool
+pgp_aead_to_botan_string(pgp_symm_alg_t ealg, pgp_aead_alg_t aalg, char *buf, size_t len)
+{
+    const char *ealg_name = pgp_sa_to_botan_string(ealg);
+    size_t      ealg_len;
+
+    if (!ealg_name) {
+        return false;
+    }
+
+    if (aalg != PGP_AEAD_EAX) {
+        RNP_LOG("unsupported AEAD alg %d", (int) aalg);
+        return false;
+    }
+
+    ealg_len = strlen(ealg_name);
+
+    if (len < ealg_len + 5) {
+        RNP_LOG("buffer too small");
+        return false;
+    }
+
+    strncpy(buf, ealg_name, ealg_len);
+    strncpy(buf + ealg_len, "/EAX", len - ealg_len);
+    return true;
+}
+
 bool
-pgp_cipher_start(pgp_crypt_t *crypt, pgp_symm_alg_t alg, const uint8_t *key, const uint8_t *iv)
+pgp_cipher_cfb_start(pgp_crypt_t *  crypt,
+                     pgp_symm_alg_t alg,
+                     const uint8_t *key,
+                     const uint8_t *iv)
 {
     memset(crypt, 0x0, sizeof(*crypt));
 
@@ -133,24 +163,24 @@ pgp_cipher_start(pgp_crypt_t *crypt, pgp_symm_alg_t alg, const uint8_t *key, con
     crypt->blocksize = pgp_block_size(alg);
 
     // This shouldn't happen if pgp_sa_to_botan_string returned a ptr
-    if (botan_block_cipher_init(&(crypt->obj), cipher_name) != 0) {
+    if (botan_block_cipher_init(&(crypt->cfb.obj), cipher_name) != 0) {
         (void) fprintf(stderr, "Block cipher '%s' not available\n", cipher_name);
         return false;
     }
 
     const size_t keysize = pgp_key_size(alg);
 
-    if (botan_block_cipher_set_key(crypt->obj, key, keysize) != 0) {
+    if (botan_block_cipher_set_key(crypt->cfb.obj, key, keysize) != 0) {
         (void) fprintf(stderr, "Failure setting key on block cipher object\n");
         return false;
     }
 
     if (iv != NULL) {
         // Otherwise left as all zeros via memset at start of function
-        memcpy(crypt->iv, iv, crypt->blocksize);
+        memcpy(crypt->cfb.iv, iv, crypt->blocksize);
     }
 
-    crypt->remaining = 0;
+    crypt->cfb.remaining = 0;
 
     return true;
 }
@@ -159,19 +189,19 @@ void
 pgp_cipher_cfb_resync(pgp_crypt_t *crypt, uint8_t *buf)
 {
     /* iv will be encrypted in the upcoming call to encrypt/decrypt */
-    memcpy(crypt->iv, buf, crypt->blocksize);
-    crypt->remaining = 0;
+    memcpy(crypt->cfb.iv, buf, crypt->blocksize);
+    crypt->cfb.remaining = 0;
 }
 
 int
-pgp_cipher_finish(pgp_crypt_t *crypt)
+pgp_cipher_cfb_finish(pgp_crypt_t *crypt)
 {
     if (!crypt) {
         return 0;
     }
-    if (crypt->obj) {
-        botan_block_cipher_destroy(crypt->obj);
-        crypt->obj = NULL;
+    if (crypt->cfb.obj) {
+        botan_block_cipher_destroy(crypt->cfb.obj);
+        crypt->cfb.obj = NULL;
     }
     botan_scrub_mem((uint8_t *) crypt, sizeof(crypt));
     return 0;
@@ -188,10 +218,10 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     unsigned  blsize = crypt->blocksize;
 
     /* encrypting till the block boundary */
-    while (bytes && crypt->remaining) {
-        *out = *in++ ^ crypt->iv[blsize - crypt->remaining];
-        crypt->iv[blsize - crypt->remaining] = *out++;
-        crypt->remaining--;
+    while (bytes && crypt->cfb.remaining) {
+        *out = *in++ ^ crypt->cfb.iv[blsize - crypt->cfb.remaining];
+        crypt->cfb.iv[blsize - crypt->cfb.remaining] = *out++;
+        crypt->cfb.remaining--;
         bytes--;
     }
 
@@ -201,7 +231,7 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
 
     /* encrypting full blocks */
     if (bytes > blsize) {
-        memcpy(iv64, crypt->iv, blsize);
+        memcpy(iv64, crypt->cfb.iv, blsize);
         while ((blocks = bytes & ~(blsize - 1)) > 0) {
             if (blocks > sizeof(buf64)) {
                 blocks = sizeof(buf64);
@@ -215,7 +245,7 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
                 blocks >>= 4;
                 while (blocks--) {
                     botan_block_cipher_encrypt_blocks(
-                      crypt->obj, (uint8_t *) iv64, (uint8_t *) iv64, 1);
+                      crypt->cfb.obj, (uint8_t *) iv64, (uint8_t *) iv64, 1);
                     *in64 ^= iv64[0];
                     iv64[0] = *in64++;
                     *in64 ^= iv64[1];
@@ -225,7 +255,7 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
                 blocks >>= 3;
                 while (blocks--) {
                     botan_block_cipher_encrypt_blocks(
-                      crypt->obj, (uint8_t *) iv64, (uint8_t *) iv64, 1);
+                      crypt->cfb.obj, (uint8_t *) iv64, (uint8_t *) iv64, 1);
                     *in64 ^= iv64[0];
                     iv64[0] = *in64++;
                 }
@@ -236,21 +266,21 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
             in += blockb;
         }
 
-        memcpy(crypt->iv, iv64, blsize);
+        memcpy(crypt->cfb.iv, iv64, blsize);
     }
 
     if (!bytes) {
         return 0;
     }
 
-    botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
-    crypt->remaining = blsize;
+    botan_block_cipher_encrypt_blocks(crypt->cfb.obj, crypt->cfb.iv, crypt->cfb.iv, 1);
+    crypt->cfb.remaining = blsize;
 
     /* encrypting tail */
     while (bytes) {
-        *out = *in++ ^ crypt->iv[blsize - crypt->remaining];
-        crypt->iv[blsize - crypt->remaining] = *out++;
-        crypt->remaining--;
+        *out = *in++ ^ crypt->cfb.iv[blsize - crypt->cfb.remaining];
+        crypt->cfb.iv[blsize - crypt->cfb.remaining] = *out++;
+        crypt->cfb.remaining--;
         bytes--;
     }
 
@@ -270,11 +300,11 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     unsigned  blsize = crypt->blocksize;
 
     /* decrypting till the block boundary */
-    while (bytes && crypt->remaining) {
+    while (bytes && crypt->cfb.remaining) {
         uint8_t c = *in++;
-        *out++ = c ^ crypt->iv[blsize - crypt->remaining];
-        crypt->iv[blsize - crypt->remaining] = c;
-        crypt->remaining--;
+        *out++ = c ^ crypt->cfb.iv[blsize - crypt->cfb.remaining];
+        crypt->cfb.iv[blsize - crypt->cfb.remaining] = c;
+        crypt->cfb.remaining--;
         bytes--;
     }
 
@@ -284,7 +314,7 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
 
     /* decrypting full blocks */
     if (bytes > blsize) {
-        memcpy(iv64, crypt->iv, blsize);
+        memcpy(iv64, crypt->cfb.iv, blsize);
 
         while ((blocks = bytes & ~(blsize - 1)) > 0) {
             if (blocks > sizeof(inbuf64)) {
@@ -300,7 +330,7 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
                 blocks >>= 4;
                 while (blocks--) {
                     botan_block_cipher_encrypt_blocks(
-                      crypt->obj, (uint8_t *) iv64, (uint8_t *) iv64, 1);
+                      crypt->cfb.obj, (uint8_t *) iv64, (uint8_t *) iv64, 1);
                     *out64++ = *in64 ^ iv64[0];
                     iv64[0] = *in64++;
                     *out64++ = *in64 ^ iv64[1];
@@ -310,7 +340,7 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
                 blocks >>= 3;
                 while (blocks--) {
                     botan_block_cipher_encrypt_blocks(
-                      crypt->obj, (uint8_t *) iv64, (uint8_t *) iv64, 1);
+                      crypt->cfb.obj, (uint8_t *) iv64, (uint8_t *) iv64, 1);
                     *out64++ = *in64 ^ iv64[0];
                     iv64[0] = *in64++;
                 }
@@ -321,22 +351,22 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
             in += blockb;
         }
 
-        memcpy(crypt->iv, iv64, blsize);
+        memcpy(crypt->cfb.iv, iv64, blsize);
     }
 
     if (!bytes) {
         return 0;
     }
 
-    botan_block_cipher_encrypt_blocks(crypt->obj, crypt->iv, crypt->iv, 1);
-    crypt->remaining = blsize;
+    botan_block_cipher_encrypt_blocks(crypt->cfb.obj, crypt->cfb.iv, crypt->cfb.iv, 1);
+    crypt->cfb.remaining = blsize;
 
     /* decrypting tail */
     while (bytes) {
         uint8_t c = *in++;
-        *out++ = c ^ crypt->iv[blsize - crypt->remaining];
-        crypt->iv[blsize - crypt->remaining] = c;
-        crypt->remaining--;
+        *out++ = c ^ crypt->cfb.iv[blsize - crypt->cfb.remaining];
+        crypt->cfb.iv[blsize - crypt->cfb.remaining] = c;
+        crypt->cfb.remaining--;
         bytes--;
     }
 
@@ -344,15 +374,15 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
 }
 
 pgp_symm_alg_t
-pgp_cipher_alg_id(pgp_crypt_t *cipher)
+pgp_cipher_alg_id(pgp_crypt_t *crypt)
 {
-    return cipher->alg;
+    return crypt->alg;
 }
 
 size_t
-pgp_cipher_block_size(pgp_crypt_t *cipher)
+pgp_cipher_block_size(pgp_crypt_t *crypt)
 {
-    return cipher->blocksize;
+    return crypt->blocksize;
 }
 
 /* structure to map string to cipher def */
@@ -464,4 +494,114 @@ pgp_is_sa_supported(pgp_symm_alg_t alg)
 
     fprintf(stderr, "\nWarning: cipher %d not supported", (int) alg);
     return false;
+}
+
+bool
+pgp_cipher_aead_init(pgp_crypt_t *  crypt,
+                     pgp_symm_alg_t ealg,
+                     pgp_aead_alg_t aalg,
+                     const uint8_t *key,
+                     bool           decrypt)
+{
+    char     cipher_name[32];
+    uint32_t flags;
+
+    memset(crypt, 0x0, sizeof(*crypt));
+
+    if (!pgp_aead_to_botan_string(ealg, aalg, cipher_name, sizeof(cipher_name))) {
+        return false;
+    }
+
+    crypt->alg = ealg;
+    crypt->blocksize = pgp_block_size(ealg);
+    crypt->aead.alg = aalg;
+    crypt->aead.decrypt = decrypt;
+
+    flags = decrypt ? BOTAN_CIPHER_INIT_FLAG_DECRYPT : BOTAN_CIPHER_INIT_FLAG_ENCRYPT;
+
+    if (botan_cipher_init(&(crypt->aead.obj), cipher_name, flags)) {
+        RNP_LOG("cipher %s is not available", cipher_name);
+        return false;
+    }
+
+    if (botan_cipher_set_key(crypt->aead.obj, key, (size_t) pgp_key_size(ealg))) {
+        RNP_LOG("failed to set key");
+        return false;
+    }
+
+    return true;
+}
+
+bool
+pgp_cipher_aead_reset(pgp_crypt_t *crypt)
+{
+    return botan_cipher_clear(crypt->aead.obj) == 0;
+}
+
+bool
+pgp_cipher_aead_set_ad(pgp_crypt_t *crypt, const uint8_t *ad, size_t len)
+{
+    return botan_cipher_set_associated_data(crypt->aead.obj, ad, len) == 0;
+}
+
+bool
+pgp_cipher_aead_start(pgp_crypt_t *crypt, const uint8_t *nonce, size_t len)
+{
+    return botan_cipher_start(crypt->aead.obj, nonce, len) == 0;
+}
+
+bool
+pgp_cipher_aead_update(pgp_crypt_t *crypt, const uint8_t *in, uint8_t *out, size_t len)
+{
+    size_t outwr = 0;
+    size_t inread = 0;
+
+    if (botan_cipher_update(crypt->aead.obj, 0, out, len, &outwr, in, len, &inread) != 0) {
+        RNP_LOG("aead update failed");
+        return false;
+    }
+
+    if ((outwr != len) || (inread != len)) {
+        RNP_LOG("wrong aead usage");
+        return false;
+    }
+
+    return true;
+}
+
+bool
+pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *tag, size_t taglen)
+{
+    uint32_t flags = BOTAN_CIPHER_UPDATE_FLAG_FINAL;
+    size_t   inread = 0;
+    size_t   outwr = 0;
+
+    if (crypt->aead.decrypt) {
+        /* for decryption we should have tag for the final update call */
+        if (botan_cipher_update(
+              crypt->aead.obj, flags, NULL, 0, &outwr, tag, taglen, &inread) != 0) {
+            RNP_LOG("aead finish failed");
+            return false;
+        }
+
+        if ((outwr != 0) || (inread != taglen)) {
+            RNP_LOG("wrong decrypt aead finish usage");
+            return false;
+        }
+    } else {
+        /* for encryption tag will be generated */
+        if (botan_cipher_update(
+              crypt->aead.obj, flags, tag, taglen, &outwr, NULL, 0, &inread) != 0) {
+            RNP_LOG("aead finish failed");
+            return false;
+        }
+
+        if (outwr != taglen) {
+            RNP_LOG("wrong encrypt aead finish usage");
+            return false;
+        }
+    }
+
+    botan_cipher_destroy(crypt->aead.obj);
+    return true;
 }

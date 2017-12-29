@@ -526,7 +526,7 @@ encrypted_src_read(pgp_source_t *src, void *buf, size_t len)
 
         if (parsemdc) {
             pgp_cipher_cfb_decrypt(&param->decrypt, mdcbuf, mdcbuf, MDC_V1_SIZE);
-            pgp_cipher_finish(&param->decrypt);
+            pgp_cipher_cfb_finish(&param->decrypt);
             pgp_hash_add(&param->mdc, mdcbuf, 2);
             pgp_hash_finish(&param->mdc, hash);
 
@@ -1110,7 +1110,7 @@ encrypted_decrypt_header(pgp_source_t *src, pgp_symm_alg_t alg, uint8_t *key)
     }
 
     /* having symmetric key in keybuf let's decrypt blocksize + 2 bytes and check them */
-    if (!pgp_cipher_start(&crypt, alg, key, NULL)) {
+    if (!pgp_cipher_cfb_start(&crypt, alg, key, NULL)) {
         RNP_LOG("failed to start cipher");
         return false;
     }
@@ -1126,7 +1126,7 @@ encrypted_decrypt_header(pgp_source_t *src, pgp_symm_alg_t alg, uint8_t *key)
             pgp_cipher_cfb_resync(&param->decrypt, enchdr + 2);
         } else {
             if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
-                pgp_cipher_finish(&crypt);
+                pgp_cipher_cfb_finish(&crypt);
                 RNP_LOG("cannot create sha1 hash");
                 return false;
             }
@@ -1283,12 +1283,12 @@ encrypted_try_password(pgp_source_t *src, const char *password)
 
         if (symkey->enckeylen > 0) {
             /* decrypting session key */
-            if (!pgp_cipher_start(&crypt, symkey->alg, keybuf, NULL)) {
+            if (!pgp_cipher_cfb_start(&crypt, symkey->alg, keybuf, NULL)) {
                 continue;
             }
 
             pgp_cipher_cfb_decrypt(&crypt, keybuf, symkey->enckey, symkey->enckeylen);
-            pgp_cipher_finish(&crypt);
+            pgp_cipher_cfb_finish(&crypt);
 
             keyavail = true;
             alg = (pgp_symm_alg_t) keybuf[0];

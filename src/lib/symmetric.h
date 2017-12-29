@@ -62,38 +62,58 @@ typedef struct symmetric_key_t {
 
 /** pgp_crypt_t */
 typedef struct pgp_crypt_t {
-    pgp_symm_alg_t                    alg;
-    size_t                            blocksize;
-    size_t                            remaining;
-    struct botan_block_cipher_struct *obj;
-    uint8_t                           iv[PGP_MAX_BLOCK_SIZE];
-    rng_t *                           rng;
+    pgp_symm_alg_t alg;
+    size_t         blocksize;
+
+    union {
+        struct pgp_crypt_cfb_param_t {
+            size_t                            remaining;
+            struct botan_block_cipher_struct *obj;
+            uint8_t                           iv[PGP_MAX_BLOCK_SIZE];
+        } cfb;
+        struct pgp_crypt_aead_param_t {
+            pgp_aead_alg_t              alg;
+            bool                        decrypt;
+            struct botan_cipher_struct *obj;
+        } aead;
+    };
+
+    rng_t *rng;
 } pgp_crypt_t;
 
 pgp_symm_alg_t pgp_str_to_cipher(const char *name);
-unsigned pgp_block_size(pgp_symm_alg_t);
-unsigned pgp_key_size(pgp_symm_alg_t);
-bool     pgp_is_sa_supported(pgp_symm_alg_t);
+unsigned       pgp_block_size(pgp_symm_alg_t);
+unsigned       pgp_key_size(pgp_symm_alg_t);
+bool           pgp_is_sa_supported(pgp_symm_alg_t);
+size_t         pgp_cipher_block_size(pgp_crypt_t *crypt);
+pgp_symm_alg_t pgp_cipher_alg_id(pgp_crypt_t *crypt);
 
 /**
-* Initialize a cipher object.
-* @param iv if null an all-zero IV is assumed
-*/
-bool pgp_cipher_start(pgp_crypt_t *  cipher,
-                      pgp_symm_alg_t alg,
-                      const uint8_t *key,
-                      const uint8_t *iv);
+ * Initialize a cipher object.
+ * @param iv if null an all-zero IV is assumed
+ */
+bool pgp_cipher_cfb_start(pgp_crypt_t *  crypt,
+                          pgp_symm_alg_t alg,
+                          const uint8_t *key,
+                          const uint8_t *iv);
 
 // Deallocate all storage
-int pgp_cipher_finish(pgp_crypt_t *cipher);
-
-size_t pgp_cipher_block_size(pgp_crypt_t *cipher);
-pgp_symm_alg_t pgp_cipher_alg_id(pgp_crypt_t *cipher);
-
+int pgp_cipher_cfb_finish(pgp_crypt_t *crypt);
 // CFB encryption/decryption
-int pgp_cipher_cfb_encrypt(pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in, size_t len);
-int pgp_cipher_cfb_decrypt(pgp_crypt_t *cipher, uint8_t *out, const uint8_t *in, size_t len);
+int pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len);
+int pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len);
 
 void pgp_cipher_cfb_resync(pgp_crypt_t *crypt, uint8_t *buf);
+
+bool pgp_cipher_aead_init(pgp_crypt_t *  crypt,
+                          pgp_symm_alg_t ealg,
+                          pgp_aead_alg_t aalg,
+                          const uint8_t *key,
+                          bool           decrypt);
+bool pgp_cipher_aead_reset(pgp_crypt_t *crypt);
+bool pgp_cipher_aead_set_ad(pgp_crypt_t *crypt, const uint8_t *ad, size_t len);
+bool pgp_cipher_aead_start(pgp_crypt_t *crypt, const uint8_t *nonce, size_t len);
+bool pgp_cipher_aead_update(pgp_crypt_t *crypt, const uint8_t *in, uint8_t *out, size_t len);
+bool pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *tag, size_t taglen);
 
 #endif

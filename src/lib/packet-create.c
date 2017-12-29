@@ -349,7 +349,7 @@ write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const ch
     }
 
     // use the session key to encrypt
-    if (!pgp_cipher_start(
+    if (!pgp_cipher_cfb_start(
           &crypt, seckey->protection.symm_alg, sesskey, seckey->protection.iv)) {
         goto done;
     }
@@ -393,7 +393,7 @@ done:
     for (unsigned i = 0; i < writers_pushed; i++) {
         pgp_writer_pop(output);
     }
-    pgp_cipher_finish(&crypt);
+    pgp_cipher_cfb_finish(&crypt);
     return ret;
 }
 

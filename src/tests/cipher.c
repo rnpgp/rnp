@@ -103,7 +103,7 @@ cipher_test_success(void **state)
     uint8_t cfb_data[20] = {0};
     memset(iv, 0x42, sizeof(iv));
 
-    rnp_assert_int_equal(rstate, 1, pgp_cipher_start(&crypt, alg, key, iv));
+    rnp_assert_int_equal(rstate, 1, pgp_cipher_cfb_start(&crypt, alg, key, iv));
 
     rnp_assert_int_equal(
       rstate, 0, pgp_cipher_cfb_encrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data)));
@@ -114,9 +114,9 @@ cipher_test_success(void **state)
                                           "BFDAA57CB812189713A950AD9947887983021617",
                                           cfb_data,
                                           sizeof(cfb_data)));
-    rnp_assert_int_equal(rstate, 0, pgp_cipher_finish(&crypt));
+    rnp_assert_int_equal(rstate, 0, pgp_cipher_cfb_finish(&crypt));
 
-    rnp_assert_int_equal(rstate, 1, pgp_cipher_start(&crypt, alg, key, iv));
+    rnp_assert_int_equal(rstate, 1, pgp_cipher_cfb_start(&crypt, alg, key, iv));
     rnp_assert_int_equal(
       rstate, 0, pgp_cipher_cfb_decrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data)));
     rnp_assert_int_equal(rstate,
@@ -125,7 +125,7 @@ cipher_test_success(void **state)
                                           "0000000000000000000000000000000000000000",
                                           cfb_data,
                                           sizeof(cfb_data)));
-    rnp_assert_int_equal(rstate, 0, pgp_cipher_finish(&crypt));
+    rnp_assert_int_equal(rstate, 0, pgp_cipher_cfb_finish(&crypt));
 }
 
 void

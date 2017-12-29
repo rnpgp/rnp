@@ -1456,7 +1456,7 @@ pgp_reader_pop_decrypt(pgp_stream_t *stream)
     encrypted_t *encrypted;
 
     encrypted = pgp_reader_get_arg(pgp_readinfo(stream));
-    pgp_cipher_finish(encrypted->decrypt);
+    pgp_cipher_cfb_finish(encrypted->decrypt);
     free(encrypted);
     pgp_reader_pop(stream);
 }

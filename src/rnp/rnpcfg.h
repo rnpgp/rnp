@@ -65,6 +65,7 @@
 #define CFG_EXPERT "expert"             /* expert key generation mode */
 #define CFG_ZLEVEL "zlevel"             /* compression level: 0..9 (0 for no compression) */
 #define CFG_ZALG "zalg"                 /* compression algorithm: zip, zlib or bzip2 */
+#define CFG_AEAD "aead"                 /* if nonzero then AEAD enryption mode, int */
 #define CFG_KEYSTORE_DISABLED \
     "disable_keystore"    /* indicates wether keystore must be initialized */
 #define CFG_FORCE "force" /* force command to succeed operation */

@@ -115,6 +115,7 @@ typedef struct rnp_ctx_t {
     pgp_symm_alg_t  ealg;          /* encryption algorithm */
     int             zalg;          /* compression algorithm used */
     int             zlevel;        /* compression level */
+    pgp_aead_alg_t  aalg;          /* non-zero to use AEAD */
     bool            overwrite;     /* allow to overwrite output file if exists */
     bool            armor;         /* whether to use ASCII armor on output */
     list            recipients;    /* recipients of the encrypted message */
