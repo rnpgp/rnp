@@ -1260,14 +1260,43 @@ finish:
     return res;
 }
 
+static void
+encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
+{
+    /* TODO: this method is exact duplicate as in stream-write.c. Not sure where to put it */
+    uint8_t ad_data[32] = {0};
+
+    /* TODO: not sure what is meant under the 'packet header'. Using tag and 1-byte length. */
+    ad_data[0] = PGP_PTAG_CT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
+    ad_data[1] = stream_sk_sesskey_len(skey);
+    ad_data[2] = 1;
+    ad_data[3] = skey->alg;
+    ad_data[4] = skey->aalg;
+    ad_data[5] = 10;
+    /* 8 zero bytes follows */
+
+    pgp_cipher_aead_set_ad(crypt, ad_data, 14);
+}
+
+static void
+encrypted_set_eax_nonce(uint8_t *iv, uint8_t *nonce, unsigned index)
+{
+    /* TODO: this method is exact duplicate as in stream-write.c. Not sure where to put it */
+    memcpy(nonce, iv, PGP_AEAD_EAX_NONCE_LEN);
+    for (int i = 15; (i > 7) && index; i--) {
+        nonce[i] ^= index & 0xff;
+        index = index >> 8;
+    }
+}
+
 static int
 encrypted_try_password(pgp_source_t *src, const char *password)
 {
     pgp_source_encrypted_param_t *param = src->param;
-    pgp_sk_sesskey_t *            symkey;
     pgp_crypt_t                   crypt;
     pgp_symm_alg_t                alg;
     uint8_t                       keybuf[PGP_MAX_KEY_SIZE + 1];
+    uint8_t                       nonce[PGP_AEAD_EAX_NONCE_LEN];
     unsigned                      keysize;
     unsigned                      blsize;
     bool                          keyavail = false;
@@ -1275,36 +1304,65 @@ encrypted_try_password(pgp_source_t *src, const char *password)
 
     for (list_item *se = list_front(param->symencs); se; se = list_next(se)) {
         /* deriving symmetric key from password */
-        symkey = (pgp_sk_sesskey_t *) se;
-        keysize = pgp_key_size(symkey->alg);
-        if (!keysize || !pgp_s2k_derive_key(&symkey->s2k, password, keybuf, keysize)) {
+        pgp_sk_sesskey_t *skey = (pgp_sk_sesskey_t *) se;
+
+        keysize = pgp_key_size(skey->alg);
+        if (!keysize || !pgp_s2k_derive_key(&skey->s2k, password, keybuf, keysize)) {
             continue;
         }
 
-        if (symkey->enckeylen > 0) {
-            /* decrypting session key */
-            if (!pgp_cipher_cfb_start(&crypt, symkey->alg, keybuf, NULL)) {
+        if (skey->version == PGP_SKSK_V4) {
+            /* v4 symmetrically-encrypted session key */
+            if (skey->enckeylen > 0) {
+                /* decrypting session key */
+                if (!pgp_cipher_cfb_start(&crypt, skey->alg, keybuf, NULL)) {
+                    continue;
+                }
+
+                pgp_cipher_cfb_decrypt(&crypt, keybuf, skey->enckey, skey->enckeylen);
+                pgp_cipher_cfb_finish(&crypt);
+
+                keyavail = true;
+                alg = (pgp_symm_alg_t) keybuf[0];
+                keysize = pgp_key_size(alg);
+                blsize = pgp_block_size(alg);
+                if (!keysize || (keysize + 1 != skey->enckeylen) || !blsize) {
+                    continue;
+                }
+                memmove(keybuf, keybuf + 1, keysize);
+            } else {
+                alg = (pgp_symm_alg_t) skey->alg;
+                blsize = pgp_block_size(alg);
+                if (!blsize) {
+                    continue;
+                }
+                keyavail = true;
+            }
+        } else if (skey->version == PGP_SKSK_V5) {
+            /* v5 AEAD-encrypted session key */
+            if (keysize != skey->enckeylen - PGP_AEAD_EAX_TAG_LEN) {
+                continue;
+            }
+            alg = skey->alg;
+
+            /* initialize cipher */
+            if (!pgp_cipher_aead_init(&crypt, skey->alg, skey->aalg, keybuf, true)) {
                 continue;
             }
 
-            pgp_cipher_cfb_decrypt(&crypt, keybuf, symkey->enckey, symkey->enckeylen);
-            pgp_cipher_cfb_finish(&crypt);
+            /* set additional data */
+            encrypted_sesk_set_ad(&crypt, skey);
 
-            keyavail = true;
-            alg = (pgp_symm_alg_t) keybuf[0];
-            keysize = pgp_key_size(alg);
-            blsize = pgp_block_size(alg);
-            if (!keysize || (keysize + 1 != symkey->enckeylen) || !blsize) {
-                continue;
-            }
-            memmove(keybuf, keybuf + 1, keysize);
+            /* calculate nonce */
+            encrypted_set_eax_nonce(skey->iv, nonce, 0);
+
+            /* start cipher, decrypt key and verify tag */
+            keyavail = pgp_cipher_aead_start(&crypt, nonce, sizeof(nonce)) &&
+                       pgp_cipher_aead_finish(&crypt, keybuf, skey->enckey, skey->enckeylen);
+
+            pgp_cipher_aead_destroy(&crypt);
         } else {
-            alg = (pgp_symm_alg_t) symkey->alg;
-            blsize = pgp_block_size(alg);
-            if (!blsize) {
-                continue;
-            }
-            keyavail = true;
+            continue;
         }
 
         /* decrypting header and checking key validity */

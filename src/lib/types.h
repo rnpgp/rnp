@@ -589,16 +589,20 @@ typedef struct {
     unsigned       version;
     pgp_symm_alg_t alg;
     pgp_s2k_t      s2k;
-    uint8_t        enckey[PGP_MAX_KEY_SIZE + 1];
+    uint8_t        enckey[PGP_MAX_KEY_SIZE + PGP_AEAD_EAX_TAG_LEN + 1];
     unsigned       enckeylen;
+    /* v5 specific fields */
+    pgp_aead_alg_t aalg;
+    uint8_t        iv[PGP_MAX_BLOCK_SIZE];
+    unsigned       ivlen;
 } pgp_sk_sesskey_t;
 
 /** pgp_seckey_password_t */
 typedef struct {
     const pgp_seckey_t *seckey;
     char **             password; /* point somewhere that gets filled
-                                     * in to work around constness of
-                                     * content */
+                                   * in to work around constness of
+                                   * content */
 } pgp_seckey_password_t;
 
 /** pgp_get_seckey_t */

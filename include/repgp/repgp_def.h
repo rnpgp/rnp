@@ -98,6 +98,12 @@
 /* Size of the fingerprint */
 #define PGP_FINGERPRINT_SIZE 20
 
+/* Nonce (IV) len for AEAD/EAX */
+#define PGP_AEAD_EAX_NONCE_LEN 16
+
+/* Authentication tag len for AEAD/EAX */
+#define PGP_AEAD_EAX_TAG_LEN 16
+
 /** Old Packet Format Lengths.
  * Defines the meanings of the 2 bits for length type in the
  * old packet format.
@@ -483,7 +489,7 @@ typedef enum {
     PGP_C_UNKNOWN = 255
 } pgp_compression_type_t;
 
-enum { PGP_SE_IP_DATA_VERSION = 1, PGP_PKSK_V3 = 3, PGP_SKSK_V4 = 4 };
+enum { PGP_SE_IP_DATA_VERSION = 1, PGP_PKSK_V3 = 3, PGP_SKSK_V4 = 4, PGP_SKSK_V5 = 5 };
 
 /** Version.
  * OpenPGP has two different protocol versions: version 3 and version 4.

@@ -145,6 +145,8 @@ rnp_result_t stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
 
 bool stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst);
 
+size_t stream_sk_sesskey_len(pgp_sk_sesskey_t *skey);
+
 bool stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *pkey, pgp_dest_t *dst);
 
 bool stream_write_one_pass(pgp_one_pass_sig_t *onepass, pgp_dest_t *dst);
