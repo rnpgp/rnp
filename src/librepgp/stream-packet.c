@@ -374,6 +374,31 @@ stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
     return RNP_SUCCESS;
 }
 
+size_t
+stream_sk_sesskey_len(pgp_sk_sesskey_t *skey)
+{
+    size_t res;
+
+    /* basic fields and encrypted key */
+    res = 4 + skey->enckeylen;
+
+    /* v5-specific fields */
+    if (skey->version == PGP_SKSK_V5) {
+        res += 1 + skey->ivlen;
+    }
+
+    /* S2K-specific additions */
+    if (skey->s2k.specifier != PGP_S2KS_SIMPLE) {
+        res += sizeof(skey->s2k.salt);
+
+        if (skey->s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+            res++;
+        }
+    }
+
+    return res;
+}
+
 bool
 stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
 {
@@ -384,9 +409,16 @@ stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
         return false;
     }
 
+    /* version and algorithm fields */
     res = add_packet_body_byte(&pktbody, skey->version) &&
-          add_packet_body_byte(&pktbody, skey->alg) &&
-          add_packet_body_byte(&pktbody, skey->s2k.specifier) &&
+          add_packet_body_byte(&pktbody, skey->alg);
+
+    if (skey->version == PGP_SKSK_V5) {
+        res = res && add_packet_body_byte(&pktbody, skey->aalg);
+    }
+
+    /* S2K specifier */
+    res = res && add_packet_body_byte(&pktbody, skey->s2k.specifier) &&
           add_packet_body_byte(&pktbody, skey->s2k.hash_alg);
 
     switch (skey->s2k.specifier) {
@@ -401,6 +433,12 @@ stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
         break;
     }
 
+    /* v5 : iv */
+    if (skey->version == PGP_SKSK_V5) {
+        res = res && add_packet_body(&pktbody, skey->iv, skey->ivlen);
+    }
+
+    /* encrypted key and auth tag for v5 */
     if (skey->enckeylen > 0) {
         res = res && add_packet_body(&pktbody, skey->enckey, skey->enckeylen);
     }
@@ -408,10 +446,10 @@ stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
     if (res) {
         stream_flush_packet_body(&pktbody, dst);
         return true;
-    } else {
-        free_packet_body(&pktbody);
-        return false;
     }
+
+    free_packet_body(&pktbody);
+    return false;
 }
 
 bool
@@ -622,9 +660,10 @@ stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst)
 rnp_result_t
 stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
 {
-    uint8_t buf[4];
-    ssize_t len;
-    ssize_t read;
+    uint8_t  buf[5];
+    ssize_t  len;
+    ssize_t  read;
+    unsigned idx = 0;
 
     /* read packet length */
     len = stream_read_pkt_len(src);
@@ -634,25 +673,40 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    /* version + symalg + s2k type + hash alg */
+    /* version + symalg + s2k type + hash alg for v4 */
     if ((read = src_read(src, buf, 4)) < 4) {
         return RNP_ERROR_READ;
     }
 
     /* version */
-    skey->version = buf[0];
-    if (skey->version != 4) {
+    skey->version = buf[idx++];
+    if ((skey->version != PGP_SKSK_V4) && (skey->version != PGP_SKSK_V5)) {
         RNP_LOG("wrong packet version");
         return RNP_ERROR_BAD_FORMAT;
     }
 
     /* symmetric algorithm */
-    skey->alg = buf[1];
+    skey->alg = buf[idx++];
+
+    if (skey->version == PGP_SKSK_V5) {
+        /* aead algorithm */
+        skey->aalg = buf[idx++];
+        if (skey->aalg != PGP_AEAD_EAX) {
+            RNP_LOG("unsupported AEAD algorithm : %d", (int) skey->aalg);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        if (len < 5) {
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        if (src_read(src, buf + 4, 1) != 1) {
+            return RNP_ERROR_READ;
+        }
+    }
 
     /* s2k */
-    skey->s2k.specifier = buf[2];
-    skey->s2k.hash_alg = buf[3];
-    len -= 4;
+    skey->s2k.specifier = buf[idx++];
+    skey->s2k.hash_alg = buf[idx++];
+    len -= idx;
 
     switch (skey->s2k.specifier) {
     case PGP_S2KS_SIMPLE:
@@ -685,18 +739,42 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    /* encrypted session key if present */
-    if (len > 0) {
-        if (len > PGP_MAX_KEY_SIZE + 1) {
+    if (skey->version == PGP_SKSK_V5) {
+        /* v5: iv + esk + tag */
+        if (len > PGP_AEAD_EAX_NONCE_LEN + PGP_AEAD_EAX_TAG_LEN + PGP_MAX_KEY_SIZE) {
             RNP_LOG("too long esk");
             return RNP_ERROR_BAD_FORMAT;
         }
-        if (src_read(src, skey->enckey, len) != len) {
+        if (len < PGP_AEAD_EAX_NONCE_LEN + PGP_AEAD_EAX_TAG_LEN + 8) {
+            RNP_LOG("too short esk");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+
+        /* iv */
+        if (src_read(src, skey->iv, PGP_AEAD_EAX_NONCE_LEN) != PGP_AEAD_EAX_NONCE_LEN) {
             return RNP_ERROR_READ;
         }
-        skey->enckeylen = len;
+        skey->ivlen = PGP_AEAD_EAX_NONCE_LEN;
+
+        /* key */
+        read = len - PGP_AEAD_EAX_NONCE_LEN;
+        if (src_read(src, skey->enckey, read) != read) {
+            return RNP_ERROR_READ;
+        }
+        skey->enckeylen = read;
     } else {
-        skey->enckeylen = 0;
+        /* v4: encrypted session key if present */
+        if (len > 0) {
+            if (len > PGP_MAX_KEY_SIZE + 1) {
+                RNP_LOG("too long esk");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            if (src_read(src, skey->enckey, len) != len) {
+                return RNP_ERROR_READ;
+            }
+        }
+
+        skey->enckeylen = len;
     }
 
     return RNP_SUCCESS;

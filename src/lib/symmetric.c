@@ -529,13 +529,12 @@ pgp_cipher_aead_init(pgp_crypt_t *  crypt,
         return false;
     }
 
-    return true;
-}
+    if (botan_cipher_get_update_granularity(crypt->aead.obj, &crypt->aead.granularity)) {
+        RNP_LOG("failed to get update granularity");
+        return false;
+    }
 
-bool
-pgp_cipher_aead_reset(pgp_crypt_t *crypt)
-{
-    return botan_cipher_clear(crypt->aead.obj) == 0;
+    return true;
 }
 
 bool
@@ -551,10 +550,15 @@ pgp_cipher_aead_start(pgp_crypt_t *crypt, const uint8_t *nonce, size_t len)
 }
 
 bool
-pgp_cipher_aead_update(pgp_crypt_t *crypt, const uint8_t *in, uint8_t *out, size_t len)
+pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len)
 {
     size_t outwr = 0;
     size_t inread = 0;
+
+    if (len % crypt->aead.granularity) {
+        RNP_LOG("aead wrong update len");
+        return false;
+    }
 
     if (botan_cipher_update(crypt->aead.obj, 0, out, len, &outwr, in, len, &inread) != 0) {
         RNP_LOG("aead update failed");
@@ -570,38 +574,45 @@ pgp_cipher_aead_update(pgp_crypt_t *crypt, const uint8_t *in, uint8_t *out, size
 }
 
 bool
-pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *tag, size_t taglen)
+pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len)
 {
     uint32_t flags = BOTAN_CIPHER_UPDATE_FLAG_FINAL;
     size_t   inread = 0;
     size_t   outwr = 0;
 
     if (crypt->aead.decrypt) {
+        size_t datalen = len - PGP_AEAD_EAX_TAG_LEN;
         /* for decryption we should have tag for the final update call */
         if (botan_cipher_update(
-              crypt->aead.obj, flags, NULL, 0, &outwr, tag, taglen, &inread) != 0) {
+              crypt->aead.obj, flags, out, datalen, &outwr, in, len, &inread) != 0) {
             RNP_LOG("aead finish failed");
             return false;
         }
 
-        if ((outwr != 0) || (inread != taglen)) {
+        if ((outwr != datalen) || (inread != len)) {
             RNP_LOG("wrong decrypt aead finish usage");
             return false;
         }
     } else {
         /* for encryption tag will be generated */
+        size_t outlen = len + PGP_AEAD_EAX_TAG_LEN;
         if (botan_cipher_update(
-              crypt->aead.obj, flags, tag, taglen, &outwr, NULL, 0, &inread) != 0) {
+              crypt->aead.obj, flags, out, outlen, &outwr, in, len, &inread) != 0) {
             RNP_LOG("aead finish failed");
             return false;
         }
 
-        if (outwr != taglen) {
+        if ((outwr != outlen) || (inread != len)) {
             RNP_LOG("wrong encrypt aead finish usage");
             return false;
         }
     }
 
-    botan_cipher_destroy(crypt->aead.obj);
     return true;
+}
+
+void
+pgp_cipher_aead_destroy(pgp_crypt_t *crypt)
+{
+    botan_cipher_destroy(crypt->aead.obj);
 }

@@ -74,6 +74,7 @@ typedef struct pgp_crypt_t {
         struct pgp_crypt_aead_param_t {
             pgp_aead_alg_t              alg;
             bool                        decrypt;
+            size_t                      granularity;
             struct botan_cipher_struct *obj;
         } aead;
     };
@@ -105,15 +106,66 @@ int pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, 
 
 void pgp_cipher_cfb_resync(pgp_crypt_t *crypt, uint8_t *buf);
 
+/** @brief Initialize AEAD cipher instance
+ *  @param crypt pgp crypto object
+ *  @param ealg symmetric encryption algorithm to use together with AEAD cipher mode
+ *  @param aalg AEAD cipher mode. Only EAX is supported now
+ *  @param key key buffer. Number of key bytes is determined by ealg.
+ *  @param decrypt true for decryption, or false for encryption
+ *  @return true on success or false otherwise.
+ */
 bool pgp_cipher_aead_init(pgp_crypt_t *  crypt,
                           pgp_symm_alg_t ealg,
                           pgp_aead_alg_t aalg,
                           const uint8_t *key,
                           bool           decrypt);
-bool pgp_cipher_aead_reset(pgp_crypt_t *crypt);
+
+/** @brief Set associated data
+ *  @param crypt initialized AEAD crypto
+ *  @param ad buffer with data. Cannot be NULL.
+ *  @param len number of bytes in ad
+ *  @return true on success or false otherwise.
+ */
 bool pgp_cipher_aead_set_ad(pgp_crypt_t *crypt, const uint8_t *ad, size_t len);
+
+/** @brief Start the cipher operation, using the given nonce
+ *  @param crypt initialized AEAD crypto
+ *  @param nonce buffer with nonce, cannot be NULL.
+ *  @param len number of bytes in nonce. Must conform to the cipher properties.
+ *  @return true on success or false otherwise.
+ */
 bool pgp_cipher_aead_start(pgp_crypt_t *crypt, const uint8_t *nonce, size_t len);
-bool pgp_cipher_aead_update(pgp_crypt_t *crypt, const uint8_t *in, uint8_t *out, size_t len);
-bool pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *tag, size_t taglen);
+
+/** @brief Update the cipher. This should be called for non-final data, respecting the
+ *         update granularity of underlying botan cipher. Now it is 256 bytes.
+ *  @param crypt initialized AEAD crypto
+ *  @param out buffer to put processed data. Cannot be NULL, and should be large enough to put
+ *             len bytes
+ *  @param in buffer with input, cannot be NULL
+ *  @param len number of bytes to process. Should be multiple of update granularity.
+ *  @return true on success or false otherwise. On success exactly len processed bytes will be
+ *          stored in out buffer
+ */
+bool pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len);
+
+/** @brief Do final update on the cipher. For decryption final chunk should contain at least
+ *         authentication tag, for encryption input could be zero-size.
+ *  @param crypt initialized AEAD crypto
+ *  @param out buffer to put processed data. For decryption it should be large enough to put
+ *             len bytes minus authentication tag, for encryption it should be large enough to
+ *             put len byts plus a tag.
+ *  @param in buffer with input, if any. May be NULL for encryption, then len should be zero.
+ *            For decryption it should contain at least authentication tag.
+ *  @param len number of input bytes bytes
+ *  @return true on success or false otherwise. On success for decryption len minus tag size
+ *               bytes will be stored in out, for encryption out will contain len bytes plus
+ *               tag size.
+ */
+bool pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len);
+
+/** @brief Destroy the cipher object, deallocating all the memory.
+ *  @param crypt initialized AEAD crypto
+ */
+void pgp_cipher_aead_destroy(pgp_crypt_t *crypt);
 
 #endif
