@@ -537,6 +537,12 @@ pgp_cipher_aead_init(pgp_crypt_t *  crypt,
     return true;
 }
 
+size_t
+pgp_cipher_aead_granularity(pgp_crypt_t *crypt)
+{
+    return crypt->aead.granularity;
+}
+
 bool
 pgp_cipher_aead_set_ad(pgp_crypt_t *crypt, const uint8_t *ad, size_t len)
 {
@@ -609,6 +615,12 @@ pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     }
 
     return true;
+}
+
+void
+pgp_cipher_aead_reset(pgp_crypt_t *crypt)
+{
+    botan_cipher_clear(crypt->aead.obj);
 }
 
 void

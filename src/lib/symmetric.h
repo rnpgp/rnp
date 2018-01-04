@@ -120,6 +120,13 @@ bool pgp_cipher_aead_init(pgp_crypt_t *  crypt,
                           const uint8_t *key,
                           bool           decrypt);
 
+/** @brief Return the AEAD cipher update granularity. Botan FFI will consume chunks which are
+ *         multiple of this value. See the description of pgp_cipher_aead_update()
+ *  @param crypt initialized AEAD crypto
+ *  @return Update granularity value in bytes
+ */
+size_t pgp_cipher_aead_granularity(pgp_crypt_t *crypt);
+
 /** @brief Set associated data
  *  @param crypt initialized AEAD crypto
  *  @param ad buffer with data. Cannot be NULL.
@@ -162,6 +169,11 @@ bool pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in,
  *               tag size.
  */
 bool pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len);
+
+/** @brief Reset the cipher state without the need of key re-scheduling
+ *  @param crypt Initialized AEAD crypto
+ */
+void pgp_cipher_aead_reset(pgp_crypt_t *crypt);
 
 /** @brief Destroy the cipher object, deallocating all the memory.
  *  @param crypt initialized AEAD crypto

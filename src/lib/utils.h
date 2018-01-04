@@ -141,6 +141,19 @@ void *      pgp_new(size_t);
         ((uint8_t *) (x))[3] = (uint8_t)((y) >> 0) & 0xff;  \
     } while (0)
 
+/* Store big-endian 64-bit value x in y */
+#define STORE64BE(x, y)                                     \
+    do {                                                    \
+        ((uint8_t *) (x))[0] = (uint8_t)((y) >> 56) & 0xff; \
+        ((uint8_t *) (x))[1] = (uint8_t)((y) >> 48) & 0xff; \
+        ((uint8_t *) (x))[2] = (uint8_t)((y) >> 40) & 0xff; \
+        ((uint8_t *) (x))[3] = (uint8_t)((y) >> 32) & 0xff; \
+        ((uint8_t *) (x))[4] = (uint8_t)((y) >> 24) & 0xff; \
+        ((uint8_t *) (x))[5] = (uint8_t)((y) >> 16) & 0xff; \
+        ((uint8_t *) (x))[6] = (uint8_t)((y) >> 8) & 0xff;  \
+        ((uint8_t *) (x))[7] = (uint8_t)((y) >> 0) & 0xff;  \
+    } while (0)
+
 /* Swap endianness of 32-bit value */
 #if defined(__GNUC__) || defined(__clang__)
 #define BSWAP32(x) __builtin_bswap32(x)
