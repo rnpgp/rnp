@@ -162,31 +162,32 @@ enum {
  * \see RFC4880 5.2.3.1
  */
 typedef enum {
-    PGP_PTAG_CT_RESERVED = 0,       /* Reserved - a packet tag must
-                                     * not have this value */
-    PGP_PTAG_CT_PK_SESSION_KEY = 1, /* Public-Key Encrypted Session
-                                     * Key Packet */
-    PGP_PTAG_CT_SIGNATURE = 2,      /* Signature Packet */
-    PGP_PTAG_CT_SK_SESSION_KEY = 3, /* Symmetric-Key Encrypted Session
-                                     * Key Packet */
-    PGP_PTAG_CT_1_PASS_SIG = 4,     /* One-Pass Signature
-                                     * Packet */
-    PGP_PTAG_CT_SECRET_KEY = 5,     /* Secret Key Packet */
-    PGP_PTAG_CT_PUBLIC_KEY = 6,     /* Public Key Packet */
-    PGP_PTAG_CT_SECRET_SUBKEY = 7,  /* Secret Subkey Packet */
-    PGP_PTAG_CT_COMPRESSED = 8,     /* Compressed Data Packet */
-    PGP_PTAG_CT_SE_DATA = 9,        /* Symmetrically Encrypted Data Packet */
-    PGP_PTAG_CT_MARKER = 10,        /* Marker Packet */
-    PGP_PTAG_CT_LITDATA = 11,       /* Literal Data Packet */
-    PGP_PTAG_CT_TRUST = 12,         /* Trust Packet */
-    PGP_PTAG_CT_USER_ID = 13,       /* User ID Packet */
-    PGP_PTAG_CT_PUBLIC_SUBKEY = 14, /* Public Subkey Packet */
-    PGP_PTAG_CT_RESERVED2 = 15,     /* reserved */
-    PGP_PTAG_CT_RESERVED3 = 16,     /* reserved */
-    PGP_PTAG_CT_USER_ATTR = 17,     /* User Attribute Packet */
-    PGP_PTAG_CT_SE_IP_DATA = 18,    /* Sym. Encrypted and Integrity
-                                     * Protected Data Packet */
-    PGP_PTAG_CT_MDC = 19,           /* Modification Detection Code Packet */
+    PGP_PTAG_CT_RESERVED = 0,        /* Reserved - a packet tag must
+                                      * not have this value */
+    PGP_PTAG_CT_PK_SESSION_KEY = 1,  /* Public-Key Encrypted Session
+                                      * Key Packet */
+    PGP_PTAG_CT_SIGNATURE = 2,       /* Signature Packet */
+    PGP_PTAG_CT_SK_SESSION_KEY = 3,  /* Symmetric-Key Encrypted Session
+                                      * Key Packet */
+    PGP_PTAG_CT_1_PASS_SIG = 4,      /* One-Pass Signature
+                                      * Packet */
+    PGP_PTAG_CT_SECRET_KEY = 5,      /* Secret Key Packet */
+    PGP_PTAG_CT_PUBLIC_KEY = 6,      /* Public Key Packet */
+    PGP_PTAG_CT_SECRET_SUBKEY = 7,   /* Secret Subkey Packet */
+    PGP_PTAG_CT_COMPRESSED = 8,      /* Compressed Data Packet */
+    PGP_PTAG_CT_SE_DATA = 9,         /* Symmetrically Encrypted Data Packet */
+    PGP_PTAG_CT_MARKER = 10,         /* Marker Packet */
+    PGP_PTAG_CT_LITDATA = 11,        /* Literal Data Packet */
+    PGP_PTAG_CT_TRUST = 12,          /* Trust Packet */
+    PGP_PTAG_CT_USER_ID = 13,        /* User ID Packet */
+    PGP_PTAG_CT_PUBLIC_SUBKEY = 14,  /* Public Subkey Packet */
+    PGP_PTAG_CT_RESERVED2 = 15,      /* reserved */
+    PGP_PTAG_CT_RESERVED3 = 16,      /* reserved */
+    PGP_PTAG_CT_USER_ATTR = 17,      /* User Attribute Packet */
+    PGP_PTAG_CT_SE_IP_DATA = 18,     /* Sym. Encrypted and Integrity
+                                      * Protected Data Packet */
+    PGP_PTAG_CT_MDC = 19,            /* Modification Detection Code Packet */
+    PGP_PTAG_CT_AEAD_ENCRYPTED = 20, /* AEAD Encrypted Data Packet, RFC 4880bis */
 
     PGP_PARSER_PTAG = 0x100, /* Internal Use: The packet is the "Packet
                               * Tag" itself - used when callback sends
