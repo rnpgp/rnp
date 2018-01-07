@@ -244,8 +244,37 @@ rnp_test_eddsa(void **state)
     free(seckey);
 }
 
+static void
+elgamal_roundtrip(rnp_test_state_t *    state,
+                  pgp_elgamal_pubkey_t *key_pub,
+                  pgp_elgamal_seckey_t *key_prv)
+{
+    const uint8_t plaintext[] = {0x01, 0x02, 0x03, 0x04, 0x17};
+    uint8_t       decryption_result[1024];
+    uint8_t       encm[256];
+    uint8_t       g_to_k[256];
+
+    // Encrypt
+    unsigned ctext_size = pgp_elgamal_public_encrypt_pkcs1(
+      &global_rng, g_to_k, encm, plaintext, sizeof(plaintext), key_pub);
+    rnp_assert_int_not_equal(state, ctext_size, -1);
+    rnp_assert_int_equal(state, ctext_size % 2, 0);
+    ctext_size /= 2;
+
+    rnp_assert_int_not_equal(
+      state,
+      pgp_elgamal_private_decrypt_pkcs1(
+        &global_rng, decryption_result, g_to_k, encm, ctext_size, key_prv, key_pub),
+      -1);
+
+    rnp_assert_int_equal(
+      state,
+      0,
+      test_value_equal("ElGamal decrypt", "0102030417", decryption_result, sizeof(plaintext)));
+}
+
 void
-raw_elg_test_success(void **state)
+raw_elgamal_fixed_512bit_key_test_success(void **state)
 {
     rnp_test_state_t *rstate = *state;
     // largest prime under 512 bits
@@ -259,10 +288,6 @@ raw_elg_test_success(void **state)
 
     pgp_elgamal_pubkey_t pub_elg;
     pgp_elgamal_seckey_t sec_elg;
-    uint8_t              encm[64];
-    uint8_t              g_to_k[64];
-    uint8_t              decryption_result[1024];
-    const uint8_t        plaintext[] = {0x01, 0x02, 0x03, 0x04, 0x17};
 
     // Allocate needed memory
     pub_elg.p = bn_bin2bn(p512, sizeof(p512), NULL);
@@ -281,52 +306,31 @@ raw_elg_test_success(void **state)
     bn_set_word(sec_elg.x, 0xCAB5432);
     bn_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p);
 
-    // Encrypt
-    unsigned ctext_size = pgp_elgamal_public_encrypt_pkcs1(
-      &global_rng, g_to_k, encm, plaintext, sizeof(plaintext), &pub_elg);
-    rnp_assert_int_not_equal(rstate, ctext_size, -1);
-    rnp_assert_int_equal(rstate, ctext_size % 2, 0);
-    ctext_size /= 2;
+    elgamal_roundtrip(rstate, &pub_elg, &sec_elg);
 
-#if defined(DEBUG_PRINT)
-    bignum_t *tmp = bn_new();
+    // Free heap
+    bn_clear_free(pub_elg.p);
+    bn_clear_free(pub_elg.g);
+    bn_clear_free(sec_elg.x);
+    bn_clear_free(pub_elg.y);
+}
 
-    printf("\tP\t= ");
-    bn_print_fp(stdout, pub_elg.p);
-    printf("\n");
-    printf("\tG\t= ");
-    bn_print_fp(stdout, pub_elg.g);
-    printf("\n");
-    printf("\tY\t= ");
-    bn_print_fp(stdout, pub_elg.y);
-    printf("\n");
-    printf("\tX\t= ");
-    bn_print_fp(stdout, sec_elg.x);
-    printf("\n");
+void
+raw_elgamal_random_key_test_success(void **state)
+{
+    rnp_test_state_t *   rstate = *state;
+    pgp_elgamal_pubkey_t pub_elg;
+    pgp_elgamal_seckey_t sec_elg;
 
-    bn_bin2bn(g_to_k, ctext_size, tmp);
-    printf("\tGtk\t= ");
-    bn_print_fp(stdout, tmp);
-    printf("\n");
-
-    bn_bin2bn(encm, ctext_size, tmp);
-    printf("\tMM\t= ");
-    bn_print_fp(stdout, tmp);
-    printf("\n");
-
-    bn_clear_free(tmp);
-#endif
-
-    rnp_assert_int_not_equal(
-      rstate,
-      pgp_elgamal_private_decrypt_pkcs1(
-        &global_rng, decryption_result, g_to_k, encm, ctext_size, &sec_elg, &pub_elg),
-      -1);
+    // Allocate needed memory
+    pub_elg.p = bn_new();
+    pub_elg.g = bn_new();
+    pub_elg.y = bn_new();
+    sec_elg.x = bn_new();
 
     rnp_assert_int_equal(
-      rstate,
-      0,
-      test_value_equal("ElGamal decrypt", "0102030417", decryption_result, sizeof(plaintext)));
+      rstate, elgamal_keygen(&global_rng, &pub_elg, &sec_elg, 1024), RNP_SUCCESS);
+    elgamal_roundtrip(rstate, &pub_elg, &sec_elg);
 
     // Free heap
     bn_clear_free(pub_elg.p);

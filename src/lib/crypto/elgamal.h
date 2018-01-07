@@ -68,8 +68,8 @@ typedef struct pgp_elgamal_sig_t {
  * @param length length of an input
  * @param pubkey public key to be used for encryption
  *
- * @pre g2k size must be at least equal to byte size of prime `p'
- * @pre encm size must be at least equal to byte size of prime `p'
+ * @pre g2k size must be at least equal to the half of a byte size of prime `p'
+ * @pre encm size must be at least equal to the half of a byte size of prime `p'
  *
  * @return     on success - number of bytes written to g2k and encm
  *            on failure -1
@@ -92,8 +92,8 @@ int pgp_elgamal_public_encrypt_pkcs1(rng_t *                     rng,
  * @param seckey private part of a key used for decryption
  * @param pubkey public domain parameters (p,g) used for decryption
  *
- * @pre g2k size must be at least equal to byte size of prime `p'
- * @pre encm size must be at least equal to byte size of prime `p'
+ * @pre g2k size must be at least equal to the half of a byte size of prime `p'
+ * @pre encm size must be at least equal to the half of a byte size of prime `p'
  * @pre byte-size of `g2k' must be equal to `encm'
  *
  * @return     on success - number of bytes written to g2k and encm
@@ -107,4 +107,23 @@ int pgp_elgamal_private_decrypt_pkcs1(rng_t *                     rng,
                                       const pgp_elgamal_seckey_t *seckey,
                                       const pgp_elgamal_pubkey_t *pubkey);
 
+/*
+ * Generates ElGamal key
+ *
+ * @param rng pointer to PRNG
+ * @param pubkey[out] generated public key
+ * @param seckey[out] generated private key
+ * @param keylen key bitlen
+ *
+ * @pre `keylen' > 1024
+ * @pre memory for elgamal key initialized in `seckey' and `'pubkey'
+ *
+ * @returns RNP_ERROR_BAD_PARAMETERS wrong parameters provided
+ *          RNP_ERROR_GENERIC internal error
+ *          RNP_SUCCESS key generated and coppied to `seckey'
+ */
+rnp_result_t elgamal_keygen(rng_t *               rng,
+                            pgp_elgamal_pubkey_t *pubkey,
+                            pgp_elgamal_seckey_t *seckey,
+                            size_t                keylen);
 #endif

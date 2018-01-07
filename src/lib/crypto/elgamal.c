@@ -101,6 +101,7 @@ pgp_elgamal_public_encrypt_pkcs1(rng_t *                     rng,
 
     if (botan_mp_num_bytes(pubkey->p->mp, &p_len)) {
         RNP_LOG("Wrong public key");
+        goto end;
     }
 
     // Initialize RNG and encrypt
@@ -237,4 +238,58 @@ end:
     }
 
     return (int) out_len;
+}
+
+rnp_result_t
+elgamal_keygen(rng_t *               rng,
+               pgp_elgamal_pubkey_t *pubkey,
+               pgp_elgamal_seckey_t *seckey,
+               size_t                keylen)
+{
+    botan_privkey_t key_priv = NULL;
+    botan_pubkey_t  key_pub = NULL;
+    rnp_result_t    ret = RNP_SUCCESS;
+
+    bignum_t *p = bn_new();
+    bignum_t *g = bn_new();
+    bignum_t *y = bn_new();
+    bignum_t *x = bn_new();
+
+    if (!p || !g || !y || !x) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto end;
+    }
+
+    if (botan_privkey_create_elgamal(&key_priv, rng_handle(rng), keylen, keylen-1) ||
+        botan_privkey_export_pubkey(&key_pub, key_priv)) {
+        RNP_LOG("Wrong parameters");
+        ret = RNP_ERROR_BAD_PARAMETERS;
+        goto end;
+    }
+
+    if (botan_pubkey_get_field(BN_HANDLE_PTR(p), key_pub, "p") ||
+        botan_pubkey_get_field(BN_HANDLE_PTR(g), key_pub, "g") ||
+        botan_pubkey_get_field(BN_HANDLE_PTR(y), key_pub, "y") ||
+        botan_privkey_get_field(BN_HANDLE_PTR(x), key_priv, "x")) {
+        RNP_LOG("Botan FFI call failed");
+        ret = RNP_ERROR_GENERIC;
+        goto end;
+    }
+
+    bn_init(&pubkey->p, p);
+    bn_init(&pubkey->g, g);
+    bn_init(&pubkey->y, y);
+    bn_init(&seckey->x, x);
+
+end:
+    if (ret) {
+        bn_free(p);
+        bn_free(g);
+        bn_free(y);
+        bn_free(x);
+    }
+
+    botan_privkey_destroy(key_priv);
+    botan_pubkey_destroy(key_pub);
+    return ret;
 }
