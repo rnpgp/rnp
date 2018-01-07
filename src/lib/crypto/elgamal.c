@@ -78,15 +78,12 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "crypto/elgamal.h"
-#include "crypto/bn.h"
 #include <botan/ffi.h>
 
-#define FAIL(str)                                                                      \
-    do {                                                                               \
-        (void) fprintf(stderr, "%s:%d:%s(): " str "\n", __FILE__, __LINE__, __func__); \
-        goto end;                                                                      \
-    } while (0)
+#include "utils.h"
+
+#include "crypto/elgamal.h"
+#include "crypto/bn.h"
 
 int
 pgp_elgamal_public_encrypt_pkcs1(rng_t *                     rng,
@@ -103,16 +100,18 @@ pgp_elgamal_public_encrypt_pkcs1(rng_t *                     rng,
     uint8_t *             bt_ciphertext = NULL;
 
     if (botan_mp_num_bytes(pubkey->p->mp, &p_len)) {
-        FAIL("Wrong public key");
+        RNP_LOG("Wrong public key");
     }
 
     // Initialize RNG and encrypt
     if (botan_pubkey_load_elgamal(&key, pubkey->p->mp, pubkey->g->mp, pubkey->y->mp)) {
-        FAIL("Failed to load public key");
+        RNP_LOG("Failed to load public key");
+        goto end;
     }
 
     if (botan_pubkey_check_key(key, rng_handle(rng), 1)) {
-        FAIL("Wrong public key");
+        RNP_LOG("Wrong public key");
+        goto end;
     }
 
     /* Max size of an output len is twice an order of underlying group (twice byte-size of p)
@@ -120,15 +119,18 @@ pgp_elgamal_public_encrypt_pkcs1(rng_t *                     rng,
     size_t out_len = p_len * 2;
     bt_ciphertext = calloc(out_len, 1);
     if (!bt_ciphertext) {
-        FAIL("Memory allocation failure");
+        RNP_LOG("Memory allocation failure");
+        goto end;
     }
 
     if (botan_pk_op_encrypt_create(&op_ctx, key, "PKCS1v15", 0)) {
-        FAIL("Failed to create operation context");
+        RNP_LOG("Failed to create operation context");
+        goto end;
     }
 
     if (botan_pk_op_encrypt(op_ctx, rng_handle(rng), bt_ciphertext, &out_len, in, length)) {
-        FAIL("Encryption fails");
+        RNP_LOG("Encryption fails");
+        goto end;
     }
 
     /*
@@ -173,11 +175,13 @@ pgp_elgamal_private_decrypt_pkcs1(rng_t *                     rng,
 
     // Output len is twice an order of underlying group
     if (botan_mp_num_bytes(pubkey->p->mp, &p_len)) {
-        FAIL("Wrong public key");
+        RNP_LOG("Wrong public key");
+        goto end;
     }
 
     if (length != p_len) {
-        FAIL("Wrong size of modulus in public key");
+        RNP_LOG("Wrong size of modulus in public key");
+        goto end;
     }
 
     /* Max size of an output len is twice an order of underlying group (twice byte-size of p)
@@ -186,26 +190,31 @@ pgp_elgamal_private_decrypt_pkcs1(rng_t *                     rng,
 
     bt_plaintext = calloc(out_len, 1);
     if (!bt_plaintext) {
-        FAIL("Memory allocation failure");
+        RNP_LOG("Memory allocation failure");
+        goto end;
     }
 
     if (botan_privkey_load_elgamal(&key, pubkey->p->mp, pubkey->g->mp, seckey->x->mp)) {
-        FAIL("Failed to load private key");
+        RNP_LOG("Failed to load private key");
+        goto end;
     }
 
     if (botan_privkey_check_key(key, rng_handle(rng), 1)) {
-        FAIL("Wrong private key");
+        RNP_LOG("Wrong private key");
+        goto end;
     }
 
     memcpy(bt_plaintext, g2k, p_len);
     memcpy(bt_plaintext + p_len, in, p_len);
 
     if (botan_pk_op_decrypt_create(&op_ctx, key, "PKCS1v15", 0)) {
-        FAIL("Failed to create operation context");
+        RNP_LOG("Failed to create operation context");
+        goto end;
     }
 
     if (botan_pk_op_decrypt(op_ctx, out, &out_len, bt_plaintext, p_len * 2)) {
-        FAIL("Decryption failed");
+        RNP_LOG("Decryption failed");
+        goto end;
     }
 
     // All operations OK and `out_len' correctly set. Reset ret
