@@ -55,13 +55,13 @@ typedef enum {
 typedef struct pgp_source_t pgp_source_t;
 typedef struct pgp_dest_t   pgp_dest_t;
 
-typedef ssize_t pgp_source_read_func_t(pgp_source_t *src, void *buf, size_t len);
+typedef ssize_t      pgp_source_read_func_t(pgp_source_t *src, void *buf, size_t len);
 typedef rnp_result_t pgp_source_finish_func_t(pgp_source_t *src);
-typedef void pgp_source_close_func_t(pgp_source_t *src);
+typedef void         pgp_source_close_func_t(pgp_source_t *src);
 
 typedef rnp_result_t pgp_dest_write_func_t(pgp_dest_t *dst, const void *buf, size_t len);
 typedef rnp_result_t pgp_dest_finish_func_t(pgp_dest_t *src);
-typedef void pgp_dest_close_func_t(pgp_dest_t *dst, bool discard);
+typedef void         pgp_dest_close_func_t(pgp_dest_t *dst, bool discard);
 
 /* statically preallocated cache for sources */
 typedef struct pgp_source_cache_t {
@@ -106,11 +106,16 @@ bool init_src_common(pgp_source_t *src, size_t paramsize);
  **/
 ssize_t src_read(pgp_source_t *src, void *buf, size_t len);
 
+/** @brief shortcut to read exactly len bytes from source. See src_read for parameters.
+ *  @return true if len bytes were read or false otherwise (i.e. less then len were read or
+ *          read error occurred) */
+bool src_read_eq(pgp_source_t *src, void *buf, size_t len);
+
 /** @brief read up to len bytes and keep them in the cache/do not process
  *  Works only for streams with cache
  *  @param src source structure
  *  @param buf preallocated buffer which can store up to len bytes, or NULL if data should be
- *  discarded, just making sure that needed input is available in source
+ *             discarded, just making sure that needed input is available in source
  *  @param len number of bytes to read. Must be less then PGP_INPUT_CACHE_SIZE.
  *  @return number of bytes read or -1 in case of error
  **/
@@ -128,13 +133,13 @@ ssize_t src_skip(pgp_source_t *src, size_t len);
  *  @param src allocated and initialized source structure
  *  @return RNP_SUCCESS or error code. If source doesn't have finish handler then also
  * RNP_SUCCESS is returned
-*/
+ */
 rnp_result_t src_finish(pgp_source_t *src);
 
 /** @brief check whether there is no more input on source
  *  @param src allocated and initialized source structure
  *  @return true if there is no more input or false otherwise
-*/
+ */
 bool src_eof(pgp_source_t *src);
 
 /** @brief close the source and deallocate all internal resources if any

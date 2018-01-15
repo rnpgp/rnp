@@ -585,13 +585,17 @@ pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     uint32_t flags = BOTAN_CIPHER_UPDATE_FLAG_FINAL;
     size_t   inread = 0;
     size_t   outwr = 0;
+    int      res;
 
     if (crypt->aead.decrypt) {
         size_t datalen = len - PGP_AEAD_EAX_TAG_LEN;
         /* for decryption we should have tag for the final update call */
-        if (botan_cipher_update(
-              crypt->aead.obj, flags, out, datalen, &outwr, in, len, &inread) != 0) {
-            RNP_LOG("aead finish failed");
+        res =
+          botan_cipher_update(crypt->aead.obj, flags, out, datalen, &outwr, in, len, &inread);
+        if (res != 0) {
+            if (res != BOTAN_FFI_ERROR_BAD_MAC) {
+                RNP_LOG("aead finish failed: %d", res);
+            }
             return false;
         }
 
@@ -618,13 +622,22 @@ pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
 }
 
 void
-pgp_cipher_aead_reset(pgp_crypt_t *crypt)
-{
-    botan_cipher_clear(crypt->aead.obj);
-}
-
-void
 pgp_cipher_aead_destroy(pgp_crypt_t *crypt)
 {
     botan_cipher_destroy(crypt->aead.obj);
+}
+
+void
+pgp_cipher_aead_eax_nonce(const uint8_t *iv, uint8_t *nonce, size_t index)
+{
+    /* The nonce for EAX mode is computed by treating the starting
+       initialization vector as a 16-octet, big-endian value and
+       exclusive-oring the low eight octets of it with the chunk index.
+    */
+
+    memcpy(nonce, iv, PGP_AEAD_EAX_NONCE_LEN);
+    for (int i = 15; (i > 7) && index; i--) {
+        nonce[i] ^= index & 0xff;
+        index = index >> 8;
+    }
 }

@@ -98,11 +98,20 @@
 /* Size of the fingerprint */
 #define PGP_FINGERPRINT_SIZE 20
 
+/* Maximum length of the packet header */
+#define PGP_MAX_HEADER_SIZE 6
+
 /* Nonce (IV) len for AEAD/EAX */
 #define PGP_AEAD_EAX_NONCE_LEN 16
 
+/* Maximum AEAD nonce length */
+#define PGP_AEAD_MAX_NONCE_LEN 16
+
 /* Authentication tag len for AEAD/EAX */
 #define PGP_AEAD_EAX_TAG_LEN 16
+
+/* Maximum authenticated data length for AEAD */
+#define PGP_AEAD_MAX_AD_LEN 32
 
 /** Old Packet Format Lengths.
  * Defines the meanings of the 2 bits for length type in the

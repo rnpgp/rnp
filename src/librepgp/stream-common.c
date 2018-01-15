@@ -124,6 +124,13 @@ finish:
     return len;
 }
 
+bool
+src_read_eq(pgp_source_t *src, void *buf, size_t len)
+{
+    ssize_t res = src_read(src, buf, len);
+    return res == (size_t) len;
+}
+
 ssize_t
 src_peek(pgp_source_t *src, void *buf, size_t len)
 {
