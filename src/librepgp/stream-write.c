@@ -65,12 +65,13 @@
 
 /* common fields for encrypted, compressed and literal data */
 typedef struct pgp_dest_packet_param_t {
-    pgp_dest_t *writedst;      /* destination to write to, could be partial */
-    pgp_dest_t *origdst;       /* original dest passed to init_*_dst */
-    bool        partial;       /* partial length packet */
-    bool        indeterminate; /* indeterminate length packet */
-    int         tag;           /* packet tag */
-    uint8_t     hdr;           /* header byte as it was written. Used only by AEAD */
+    pgp_dest_t *writedst;                 /* destination to write to, could be partial */
+    pgp_dest_t *origdst;                  /* original dest passed to init_*_dst */
+    bool        partial;                  /* partial length packet */
+    bool        indeterminate;            /* indeterminate length packet */
+    int         tag;                      /* packet tag */
+    uint8_t     hdr[PGP_MAX_HEADER_SIZE]; /* header, including length, as it was written */
+    size_t      hdrlen;                   /* number of bytes in hdr */
 } pgp_dest_packet_param_t;
 
 typedef struct pgp_dest_compressed_param_t {
@@ -92,8 +93,8 @@ typedef struct pgp_dest_encrypted_param_t {
     bool                    aead;    /* we use AEAD encryption */
     pgp_crypt_t             encrypt; /* encrypting crypto */
     pgp_hash_t              mdc;     /* mdc SHA1 hash */
-    uint8_t                 iv[PGP_MAX_BLOCK_SIZE]; /* iv for AEAD mode */
-    uint8_t                 ad[32];                 /* additional data for AEAD mode */
+    uint8_t                 iv[PGP_MAX_BLOCK_SIZE];  /* iv for AEAD mode */
+    uint8_t                 ad[PGP_AEAD_MAX_AD_LEN]; /* additional data for AEAD mode */
     size_t                  adlen;       /* length of additional data, including chunk idx */
     size_t                  chunklen;    /* length of the AEAD chunk in bytes */
     size_t                  chunkout;    /* how many bytes from the chunk were written out */
@@ -220,7 +221,7 @@ init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
     rnp_result_t ret;
 
     if (param->partial) {
-        param->hdr = param->tag | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
+        param->hdr[0] = param->tag | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
         dst_write(dst, &param->hdr, 1);
 
         if ((param->writedst = calloc(1, sizeof(*param->writedst))) == NULL) {
@@ -234,13 +235,17 @@ init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
             return false;
         }
         param->origdst = dst;
+
+        param->hdr[1] = ((pgp_dest_partial_param_t *) param->writedst->param)->parthdr;
+        param->hdrlen = 2;
     } else if (param->indeterminate) {
         if (param->tag > 0xf) {
             RNP_LOG("indeterminate tag > 0xf");
         }
 
-        param->hdr = ((param->tag & 0xf) << PGP_PTAG_OF_CONTENT_TAG_SHIFT) |
-                     PGP_PTAG_OLD_LEN_INDETERMINATE;
+        param->hdr[0] = ((param->tag & 0xf) << PGP_PTAG_OF_CONTENT_TAG_SHIFT) |
+                        PGP_PTAG_OLD_LEN_INDETERMINATE;
+        param->hdrlen = 1;
         dst_write(dst, &param->hdr, 1);
 
         param->writedst = dst;
@@ -295,21 +300,6 @@ encrypted_dst_write_cfb(pgp_dest_t *dst, const void *buf, size_t len)
     return RNP_SUCCESS;
 }
 
-static void
-encrypted_set_eax_nonce(uint8_t *iv, uint8_t *nonce, unsigned index)
-{
-    /* The nonce for EAX mode is computed by treating the starting
-       initialization vector as a 16-octet, big-endian value and
-       exclusive-oring the low eight octets of it with the chunk index.
-    */
-
-    memcpy(nonce, iv, PGP_AEAD_EAX_NONCE_LEN);
-    for (int i = 15; (i > 7) && index; i--) {
-        nonce[i] ^= index & 0xff;
-        index = index >> 8;
-    }
-}
-
 static rnp_result_t
 encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool last)
 {
@@ -331,9 +321,6 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
         dst_write(param->pkt.writedst, param->cache, param->cachelen + PGP_AEAD_EAX_TAG_LEN);
     }
 
-    /* reset the cipher */
-    // pgp_cipher_aead_reset(&param->encrypt);
-
     /* set chunk index for additional data */
     STORE64BE(param->ad + param->adlen - 8, idx);
 
@@ -347,7 +334,7 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
     }
 
     /* set chunk index for nonce */
-    encrypted_set_eax_nonce(param->iv, nonce, idx);
+    pgp_cipher_aead_eax_nonce(param->iv, nonce, idx);
 
     /* start cipher */
     res = pgp_cipher_aead_start(&param->encrypt, nonce, sizeof(nonce));
@@ -747,7 +734,7 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
         encrypted_sesk_set_ad(&kcrypt, &skey);
 
         /* calculate nonce */
-        encrypted_set_eax_nonce(skey.iv, nonce, 0);
+        pgp_cipher_aead_eax_nonce(skey.iv, nonce, 0);
 
         /* start cipher, encrypt key and get tag */
         res = pgp_cipher_aead_start(&kcrypt, nonce, sizeof(nonce)) &&
@@ -820,6 +807,7 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
 {
     uint8_t hdr[4 + PGP_AEAD_EAX_NONCE_LEN];
     size_t  gran;
+    size_t  idx;
 
     /* fill header */
     hdr[0] = 1;
@@ -850,10 +838,11 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
        octet, and an eight-octet, big-endian chunk index as additional
        data.  The index of the first chunk is zero.
     */
-    param->ad[0] = param->pkt.hdr;
-    memcpy(param->ad + 1, hdr, 4);
-    memset(param->ad + 5, 0, 8);
-    param->adlen = 13;
+    idx = param->pkt.hdrlen;
+    memcpy(param->ad, param->pkt.hdr, idx);
+    memcpy(param->ad + idx, hdr, 4);
+    memset(param->ad + idx + 4, 0, 8);
+    param->adlen = idx + 12;
 
     /* initialize cipher */
     if (!pgp_cipher_aead_init(

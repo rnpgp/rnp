@@ -54,12 +54,6 @@
 
 #include "crypto/rng.h"
 
-typedef struct symmetric_key_t {
-    pgp_symm_alg_t type;
-    uint8_t        key[PGP_MAX_KEY_SIZE];
-    size_t         key_size;
-} symmetric_key_t;
-
 /** pgp_crypt_t */
 typedef struct pgp_crypt_t {
     pgp_symm_alg_t alg;
@@ -81,6 +75,14 @@ typedef struct pgp_crypt_t {
 
     rng_t *rng;
 } pgp_crypt_t;
+
+typedef struct pgp_aead_params_t {
+    pgp_symm_alg_t ealg;                       /* underlying symmetric algorithm */
+    pgp_aead_alg_t aalg;                       /* AEAD algorithm, i.e. EAX, OCB, etc */
+    uint8_t        iv[PGP_AEAD_MAX_NONCE_LEN]; /* initial vector for the message */
+    uint8_t        ad[PGP_AEAD_MAX_AD_LEN];    /* additional data */
+    size_t         adlen;                      /* length of the additional data */
+} pgp_aead_params_t;
 
 pgp_symm_alg_t pgp_str_to_cipher(const char *name);
 unsigned       pgp_block_size(pgp_symm_alg_t);
@@ -170,14 +172,16 @@ bool pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in,
  */
 bool pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len);
 
-/** @brief Reset the cipher state without the need of key re-scheduling
- *  @param crypt Initialized AEAD crypto
- */
-void pgp_cipher_aead_reset(pgp_crypt_t *crypt);
-
 /** @brief Destroy the cipher object, deallocating all the memory.
  *  @param crypt initialized AEAD crypto
  */
 void pgp_cipher_aead_destroy(pgp_crypt_t *crypt);
+
+/** @brief Helper function to set AEAD-EAX nonce for the chunk by it's index
+ *  @param iv Initial vector for the message, must have 16 bytes of data
+ *  @param nonce Nonce to fill up, should have space for 16 bytes of data
+ *  @param index Chunk's index
+ */
+void pgp_cipher_aead_eax_nonce(const uint8_t *iv, uint8_t *nonce, size_t index);
 
 #endif
