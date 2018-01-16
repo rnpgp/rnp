@@ -738,7 +738,7 @@ cleartext_dst_scanline(const uint8_t *buf, size_t len, bool *eol)
         }
     }
 
-    if (*eol) {
+    if (eol) {
         *eol = false;
     }
     return len;
