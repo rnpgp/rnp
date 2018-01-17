@@ -114,7 +114,7 @@ bool add_packet_body_uint32(pgp_packet_body_t *body, uint32_t val);
 /** @brief add pgp mpi (including header) to packet body
  *  @param body pointer to the structure, initialized with init_packet_body
  *  @param mpi bytes of mpi to add
- *  @param len length of the mpi in bytes
+ *  @param len length of the mpi in bytes. Must be > 0
  *  @return true if mpi was added successfully, or false otherwise
  **/
 bool add_packet_body_mpi(pgp_packet_body_t *body, uint8_t *mpi, unsigned len);

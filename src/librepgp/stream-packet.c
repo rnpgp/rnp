@@ -294,6 +294,10 @@ add_packet_body_mpi(pgp_packet_body_t *body, uint8_t *mpi, unsigned len)
     unsigned hibyte;
     uint8_t  hdr[2];
 
+    if (!len) {
+        return false;
+    }
+
     while ((idx < len - 1) && (mpi[idx] == 0)) {
         idx++;
     }
