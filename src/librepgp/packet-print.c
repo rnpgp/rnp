@@ -304,21 +304,11 @@ key_bitlength(const pgp_pubkey_t *pubkey)
         (void) bn_num_bytes(pubkey->key.rsa.n, &sz);
         return sz * 8;
     case PGP_PKA_DSA:
-        (void) bn_num_bytes(pubkey->key.dsa.q, &sz);
-        switch (sz) {
-        case 20:
-            return 1024;
-        case 28:
-            return 2048;
-        case 32:
-            return 3072;
-        default:
-            return 0;
-        }
+        (void) bn_num_bytes(pubkey->key.dsa.p, &sz);
+        return sz * 8;
     case PGP_PKA_ELGAMAL:
         (void) bn_num_bytes(pubkey->key.elgamal.y, &sz);
         return sz * 8;
-
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:

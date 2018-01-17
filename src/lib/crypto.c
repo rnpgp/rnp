@@ -241,7 +241,16 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
             goto end;
         }
         break;
-
+    case PGP_PKA_DSA:
+        if (dsa_keygen(rng,
+                       &seckey->pubkey.key.dsa,
+                       &seckey->key.dsa,
+                       crypto->dsa.p_bitlen,
+                       crypto->dsa.q_bitlen)) {
+            RNP_LOG("failed to generate DSA key");
+            goto end;
+        }
+        break;
     case PGP_PKA_EDDSA:
         if (!pgp_genkey_eddsa(rng, seckey, get_curve_desc(PGP_CURVE_ED25519)->bitlen)) {
             RNP_LOG("failed to generate EDDSA key");

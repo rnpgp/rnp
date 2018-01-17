@@ -733,6 +733,10 @@ typedef struct rnp_keygen_crypto_params_t {
         struct rsa_t {
             uint32_t modulus_bit_len;
         } rsa;
+        struct dsa_t {
+            size_t p_bitlen;
+            size_t q_bitlen;
+        } dsa;
     };
 } rnp_keygen_crypto_params_t;
 
