@@ -191,22 +191,10 @@ dsa_sign_wrapper(rng_t *                 rng,
                  const pgp_dsa_seckey_t *sdsa,
                  pgp_output_t *          output)
 {
-    unsigned      hashsize;
-    unsigned      t;
-    uint8_t       hashbuf[RNP_BUFSIZ];
+    uint8_t       hashbuf[PGP_MAX_HASH_SIZE];
     pgp_dsa_sig_t sign = {0};
 
-    // TODO: This is assumed hash is SHA-1. This function is used
-    //       only for rnpkeys and is to be disposed soon
-
-    hashsize = 20;
-    /* finalise hash */
-    t = pgp_hash_finish(hash, &hashbuf[0]);
-    if (t != 20) {
-        RNP_LOG("hashfinish not 20");
-        return false;
-    }
-
+    size_t hashsize = pgp_hash_finish(hash, &hashbuf[0]);
     pgp_write(output, &hashbuf[0], 2);
 
     /* write signature to buf */

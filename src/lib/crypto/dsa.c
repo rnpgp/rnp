@@ -84,22 +84,20 @@
 #include "crypto/bn.h"
 #include "crypto/dsa.h"
 
-// We support keys up to 3076 bits (L=3072, N=256)
-#define DSA_MAX_P_SIZE 3076
-#define DSA_MAX_Q_SIZE 256
+#define DSA_MAX_Q_BITLEN 256
 
 rnp_result_t
 dsa_sign(rng_t *                 rng,
          pgp_dsa_sig_t *         sign,
-         const uint8_t *         hashbuf,
-         size_t                  hashsize,
+         const uint8_t *         h,
+         size_t                  h_len,
          const pgp_dsa_seckey_t *secdsa,
          const pgp_dsa_pubkey_t *pubdsa)
 {
     botan_privkey_t    dsa_key = NULL;
     botan_pk_op_sign_t sign_op = NULL;
-    size_t             q_bytes = 0;
-    uint8_t            sign_buf[2 * BITS_TO_BYTES(DSA_MAX_Q_SIZE)] = {0};
+    size_t             q_order = 0;
+    uint8_t            sign_buf[2 * BITS_TO_BYTES(DSA_MAX_Q_BITLEN)] = {0};
     rnp_result_t       ret = RNP_ERROR_SIGNING_FAILED;
 
     if (sign->r || sign->s) {
@@ -116,14 +114,19 @@ dsa_sign(rng_t *                 rng,
         goto end;
     }
 
-    if (botan_pk_op_sign_create(&sign_op, dsa_key, "Raw", 0) ||
-        botan_pk_op_sign_update(sign_op, hashbuf, hashsize)) {
-        RNP_LOG("Can't create signer");
+    if (botan_pk_op_sign_create(&sign_op, dsa_key, "Raw", 0)) {
         goto end;
     }
 
-    if (!bn_num_bytes(pubdsa->q, &q_bytes) || (2 * q_bytes) > sizeof(sign_buf)) {
+    if (!bn_num_bytes(pubdsa->q, &q_order) || (2 * q_order) > sizeof(sign_buf)) {
+        RNP_LOG("Can't create signer");
         ret = RNP_ERROR_BAD_PARAMETERS;
+        goto end;
+    }
+
+    // As 'Raw' is used we need to reduce hash size (as per FIPS-186-4, 4.6)
+    const size_t z_len = h_len < q_order ? h_len : q_order;
+    if (botan_pk_op_sign_update(sign_op, &h[h_len - z_len], z_len)) {
         goto end;
     }
 
@@ -133,14 +136,12 @@ dsa_sign(rng_t *                 rng,
         goto end;
     }
 
-    // Now load the DSA (r,s) values from the signature
-    sign->r = bn_bin2bn(sign_buf, q_bytes, sign->r);
-    sign->s = bn_bin2bn(&sign_buf[q_bytes], q_bytes, sign->s);
-
+    // Now load the DSA (r,s) values from the signature.
+    sign->r = bn_bin2bn(sign_buf, q_order, sign->r);
+    sign->s = bn_bin2bn(&sign_buf[q_order], q_order, sign->s);
     if (!sign->r || !sign->s) {
         goto end;
     }
-
     ret = RNP_SUCCESS;
 
 end:
@@ -150,20 +151,20 @@ end:
 }
 
 rnp_result_t
-dsa_verify(const uint8_t *         hash,
-           size_t                  hash_length,
-           const pgp_dsa_sig_t *   sig,
+dsa_verify(const uint8_t          *h,
+           size_t                  h_len,
+           const pgp_dsa_sig_t    *sig,
            const pgp_dsa_pubkey_t *dsa)
 {
     botan_pubkey_t       dsa_key = NULL;
     botan_pk_op_verify_t verify_op = NULL;
-    uint8_t              sign_buf[2 * BITS_TO_BYTES(DSA_MAX_Q_SIZE)] = {0};
-    size_t               q_bytes = 0;
+    uint8_t              sign_buf[2 * BITS_TO_BYTES(DSA_MAX_Q_BITLEN)] = {0};
+    size_t               q_order = 0;
     size_t               r_blen, s_blen;
     rnp_result_t         ret = RNP_ERROR_GENERIC;
 
-    if (botan_mp_num_bytes(BN_HANDLE_PTR(dsa->q), &q_bytes) ||
-        (2 * q_bytes) > sizeof(sign_buf)) {
+    if (botan_mp_num_bytes(BN_HANDLE_PTR(dsa->q), &q_order) ||
+        (2 * q_order) > sizeof(sign_buf)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -176,24 +177,28 @@ dsa_verify(const uint8_t *         hash,
         goto end;
     }
 
-    if (!bn_num_bytes(sig->r, &r_blen) || (r_blen > q_bytes) ||
-        !bn_num_bytes(sig->s, &s_blen) || (s_blen > q_bytes)) {
+    if (!bn_num_bytes(sig->r, &r_blen) || (r_blen > q_order) ||
+        !bn_num_bytes(sig->s, &s_blen) || (s_blen > q_order)) {
         RNP_LOG("Wrong signature");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto end;
     }
 
     // Both can't fail
-    (void) bn_bn2bin(sig->r, &sign_buf[q_bytes - r_blen]);
-    (void) bn_bn2bin(sig->s, &sign_buf[q_bytes + q_bytes - s_blen]);
+    (void) bn_bn2bin(sig->r, &sign_buf[q_order - r_blen]);
+    (void) bn_bn2bin(sig->s, &sign_buf[q_order + q_order - s_blen]);
 
-    if (botan_pk_op_verify_create(&verify_op, dsa_key, "Raw", 0) ||
-        botan_pk_op_verify_update(verify_op, hash, hash_length)) {
+    if (botan_pk_op_verify_create(&verify_op, dsa_key, "Raw", 0)) {
         RNP_LOG("Can't create verifier");
         goto end;
     }
 
-    ret = (botan_pk_op_verify_finish(verify_op, sign_buf, 2 * q_bytes) == BOTAN_FFI_SUCCESS) ?
+    const size_t z_len = h_len < q_order ? h_len : q_order;
+    if (botan_pk_op_verify_update(verify_op, &h[h_len - z_len], z_len)) {
+        goto end;
+    }
+
+    ret = (botan_pk_op_verify_finish(verify_op, sign_buf, 2 * q_order) == BOTAN_FFI_SUCCESS) ?
             RNP_SUCCESS :
             RNP_ERROR_SIGNATURE_INVALID;
 
@@ -217,13 +222,8 @@ dsa_keygen(
     bignum_t *y = bn_new();
     bignum_t *x = bn_new();
 
-    if ((keylen < 1024) || (keylen > DSA_MAX_P_SIZE) || (qbits > DSA_MAX_Q_SIZE)) {
-        RNP_LOG("Wrong key size");
-        return RNP_ERROR_KEY_GENERATION;
-    }
-
     if (botan_privkey_create_dsa(&key_priv, rng_handle(rng), keylen, qbits) ||
-        botan_privkey_check_key(key_priv, rng_handle(rng), 1) || // TODO: what means 1?
+        botan_privkey_check_key(key_priv, rng_handle(rng), 1) ||
         botan_privkey_export_pubkey(&key_pub, key_priv)) {
         RNP_LOG("Wrong parameters");
         ret = RNP_ERROR_BAD_PARAMETERS;
@@ -257,4 +257,37 @@ end:
     botan_privkey_destroy(key_priv);
     botan_pubkey_destroy(key_pub);
     return ret;
+}
+
+pgp_hash_alg_t
+dsa_get_min_hash(const bignum_t *q)
+{
+    size_t qsize;
+    if (!bn_num_bits(q, &qsize)) {
+        RNP_LOG("Wrong input");
+        return PGP_HASH_UNKNOWN;
+    }
+
+   /*
+    * I'm using _broken_ SHA1 here only because
+    * some old implementations may not understand keys created
+    * with other hashes. If you're sure we don't have to support
+    * such implementations, please be my guest and remove it.
+    */
+    return (qsize <  160) ? PGP_HASH_UNKNOWN :
+           (qsize == 160) ? PGP_HASH_SHA1 :
+           (qsize <= 224) ? PGP_HASH_SHA224 :
+           (qsize <= 256) ? PGP_HASH_SHA256 :
+           (qsize <= 384) ? PGP_HASH_SHA384 :
+           (qsize <= 512) ? PGP_HASH_SHA512
+           /*(qsize>512)*/: PGP_HASH_UNKNOWN;
+}
+
+size_t
+dsa_choose_qsize_by_psize(size_t psize)
+{
+    return (psize == 1024) ? 160 :
+           (psize <= 2047) ? 224 :
+           (psize <= 3072) ? DSA_MAX_Q_BITLEN :
+           0;
 }

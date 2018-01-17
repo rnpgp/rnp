@@ -226,6 +226,13 @@ keygen_merge_crypto_defaults(rnp_keygen_crypto_params_t *crypto)
         }
         break;
 
+    case PGP_PKA_DSA:
+        if (!crypto->dsa.p_bitlen) {
+            crypto->dsa.p_bitlen = DSA_DEFAULT_P_BITLEN;
+            crypto->dsa.q_bitlen = dsa_choose_qsize_by_psize(DSA_DEFAULT_P_BITLEN);
+        }
+        break;
+
     default:
         break;
     }
@@ -279,6 +286,8 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
     case PGP_PKA_SM2: {
         const ec_curve_desc_t *curve = get_curve_desc(crypto->ecc.curve);
         return curve ? curve->bitlen : 0;
+    case PGP_PKA_DSA:
+        return crypto->dsa.p_bitlen;
     }
     default:
         return 0;

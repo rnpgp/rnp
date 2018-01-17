@@ -1227,14 +1227,6 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
         break;
     }
     case PGP_PKA_DSA: {
-        // TODO: we should allow different hash sizes
-        if (hlen != 20) {
-            RNP_LOG("DSA requires 160 bit hash");
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            break;
-        }
-
-        /* result check should be added after dsa_sign will be updated */
         pgp_dsa_sig_t dsasig = {0};
         ret = dsa_sign(
           param->ctx->rng, &dsasig, hval, hlen, &deckey->key.dsa, &deckey->pubkey.key.dsa);
@@ -1243,14 +1235,12 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
             break;
         }
 
-        (void) bn_num_bytes(dsasig.r, &sig->material.dsa.rlen);
-        (void) bn_num_bytes(dsasig.s, &sig->material.dsa.slen);
-        if (bn_bn2bin(dsasig.r, sig->material.dsa.r) ||
-            bn_bn2bin(dsasig.s, sig->material.dsa.s)) {
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            break;
-        }
-
+        (void)bn_num_bytes(dsasig.r, &sig->material.dsa.rlen);
+        (void)bn_num_bytes(dsasig.s, &sig->material.dsa.slen);
+        (void)bn_bn2bin(dsasig.r, sig->material.dsa.r);
+        (void)bn_bn2bin(dsasig.s, sig->material.dsa.s);
+        bn_free(dsasig.r);
+        bn_free(dsasig.s);
         ret = RNP_SUCCESS;
         break;
     }
@@ -1313,23 +1303,27 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
 }
 
 /**
-    Pick up hash algorithm according to secret key and preferences set in the context
+    Pick up hash algorithm according to secret key and preferences set in the context.
+    DSA and ECDSA need special treatment.
 */
 static pgp_hash_alg_t
 pgp_pick_hash_alg(rnp_ctx_t *ctx, const pgp_seckey_t *seckey)
 {
-    if (seckey->pubkey.alg == PGP_PKA_DSA) {
-        return PGP_HASH_SHA1;
-    } else if (seckey->pubkey.alg == PGP_PKA_ECDSA) {
-        size_t               dlen_key = 0, dlen_ctx = 0;
-        const pgp_hash_alg_t h_key = ecdsa_get_min_hash(seckey->pubkey.key.ecc.curve);
-        if (!pgp_digest_length(h_key, &dlen_key) || !pgp_digest_length(ctx->halg, &dlen_ctx)) {
-            return PGP_HASH_UNKNOWN;
-        }
-        return (dlen_key > dlen_ctx) ? h_key : ctx->halg;
-    } else {
+    if ((seckey->pubkey.alg != PGP_PKA_DSA) &&
+        (seckey->pubkey.alg != PGP_PKA_ECDSA)) {
         return ctx->halg;
     }
+
+    pgp_hash_alg_t h_key = (seckey->pubkey.alg == PGP_PKA_DSA)
+        ? dsa_get_min_hash(seckey->pubkey.key.dsa.q)
+        : ecdsa_get_min_hash(seckey->pubkey.key.ecc.curve);
+
+    size_t dlen_key = 0, dlen_ctx = 0;
+    if (!pgp_digest_length(h_key, &dlen_key) ||
+        !pgp_digest_length(ctx->halg, &dlen_ctx)) {
+        return PGP_HASH_UNKNOWN;
+    }
+    return (dlen_key > dlen_ctx) ? h_key : ctx->halg;
 }
 
 static rnp_result_t
