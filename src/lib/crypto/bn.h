@@ -61,7 +61,17 @@ bignum_t *bn_new(void);
 bignum_t *bn_dup(const bignum_t * /*a*/);
 int       bn_copy(bignum_t * /*b*/, const bignum_t * /*a*/);
 char *bn_bn2hex(const bignum_t *a);
-void bn_init(bignum_t * /*a*/);
+
+/*
+ * @brief Initialize `a' with pointer to `b'. `a' is freed
+ *        if it was allocated before. After function returns
+ *        `a' and `b' point to same destination.
+ *
+ * @param a pointer to bn to be initialized
+ * @param b pointer to be used as initializer
+ *
+ */
+void bn_init(bignum_t **a, bignum_t *b);
 void bn_free(bignum_t * /*a*/);
 void bn_clear(bignum_t * /*a*/);
 void bn_clear_free(bignum_t * /*a*/);

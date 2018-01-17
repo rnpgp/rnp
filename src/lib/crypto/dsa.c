@@ -88,98 +88,85 @@
 #define DSA_MAX_P_SIZE 3076
 #define DSA_MAX_Q_SIZE 256
 
-static DSA_SIG *
-DSA_SIG_new()
-{
-    DSA_SIG *sig = calloc(1, sizeof(DSA_SIG));
-    if (sig) {
-        sig->r = bn_new();
-        sig->s = bn_new();
-    }
-    return sig;
-}
-
-void
-DSA_SIG_free(DSA_SIG *sig)
-{
-    if (sig) {
-        bn_clear_free(sig->r);
-        bn_clear_free(sig->s);
-        free(sig);
-    }
-}
-
-DSA_SIG *
-pgp_dsa_sign(rng_t *                 rng,
-             uint8_t *               hashbuf,
-             unsigned                hashsize,
-             const pgp_dsa_seckey_t *secdsa,
-             const pgp_dsa_pubkey_t *pubdsa)
+rnp_result_t
+dsa_sign(rng_t *                 rng,
+         pgp_dsa_sig_t *         sign,
+         const uint8_t *         hashbuf,
+         size_t                  hashsize,
+         const pgp_dsa_seckey_t *secdsa,
+         const pgp_dsa_pubkey_t *pubdsa)
 {
     botan_privkey_t    dsa_key = NULL;
     botan_pk_op_sign_t sign_op = NULL;
     size_t             q_bytes = 0;
     uint8_t            sign_buf[2 * BITS_TO_BYTES(DSA_MAX_Q_SIZE)] = {0};
-    DSA_SIG *          ret = NULL;
+    rnp_result_t       ret = RNP_ERROR_SIGNING_FAILED;
+
+    if (sign->r || sign->s) {
+        // Caller must not allocate r and s
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
 
     if (botan_privkey_load_dsa(&dsa_key,
                                BN_HANDLE_PTR(pubdsa->p),
                                BN_HANDLE_PTR(pubdsa->q),
                                BN_HANDLE_PTR(pubdsa->g),
                                BN_HANDLE_PTR(secdsa->x))) {
-        return 0; // RNP_ERROR_GENERIC
+        RNP_LOG("Can't load key");
+        goto end;
     }
 
     if (botan_pk_op_sign_create(&sign_op, dsa_key, "Raw", 0) ||
         botan_pk_op_sign_update(sign_op, hashbuf, hashsize)) {
-        return 0; // RNP_ERROR_GENERIC
+        RNP_LOG("Can't create signer");
+        goto end;
     }
 
     if (!bn_num_bytes(pubdsa->q, &q_bytes) || (2 * q_bytes) > sizeof(sign_buf)) {
-        return 0; // RNP_ERROR_GENERIC
+        ret = RNP_ERROR_BAD_PARAMETERS;
+        goto end;
     }
 
     size_t sigbuf_size = sizeof(sign_buf);
     if (botan_pk_op_sign_finish(sign_op, rng_handle(rng), sign_buf, &sigbuf_size)) {
-        // ret = RNP_ERROR_GENERIC
+        RNP_LOG("Signing has failed");
         goto end;
     }
 
     // Now load the DSA (r,s) values from the signature
-    ret = DSA_SIG_new();
-    ret->r = bn_bin2bn(sign_buf, q_bytes, ret->r);
-    ret->s = bn_bin2bn(&sign_buf[q_bytes], q_bytes, ret->s);
+    sign->r = bn_bin2bn(sign_buf, q_bytes, sign->r);
+    sign->s = bn_bin2bn(&sign_buf[q_bytes], q_bytes, sign->s);
 
-    if (!ret->r || !ret->s) {
-        return 0; // OZAPF memleak
+    if (!sign->r || !sign->s) {
+        goto end;
     }
 
+    ret = RNP_SUCCESS;
+
 end:
-    // if (ret) free DSA_SIG
     botan_pk_op_sign_destroy(sign_op);
     botan_privkey_destroy(dsa_key);
     return ret;
 }
 
-unsigned
-pgp_dsa_verify(const uint8_t *         hash,
-               size_t                  hash_length,
-               const pgp_dsa_sig_t *   sig,
-               const pgp_dsa_pubkey_t *dsa)
+rnp_result_t
+dsa_verify(const uint8_t *         hash,
+           size_t                  hash_length,
+           const pgp_dsa_sig_t *   sig,
+           const pgp_dsa_pubkey_t *dsa)
 {
     botan_pubkey_t       dsa_key = NULL;
     botan_pk_op_verify_t verify_op = NULL;
     uint8_t              sign_buf[2 * BITS_TO_BYTES(DSA_MAX_Q_SIZE)] = {0};
     size_t               q_bytes = 0;
     size_t               r_blen, s_blen;
-    unsigned             valid = 0;
+    rnp_result_t         ret = RNP_ERROR_GENERIC;
 
     if (botan_mp_num_bytes(BN_HANDLE_PTR(dsa->q), &q_bytes) ||
-        (2 * q_bytes > sizeof(sign_buf))) {
-        // ret = RNP_ERROR_BAD_PARAMETERS;
-        goto end;
+        (2 * q_bytes) > sizeof(sign_buf)) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
-    // OZAPTF: check for buffer overflow - 2*q_bytes > sign_buf size
+
     if (botan_pubkey_load_dsa(&dsa_key,
                               BN_HANDLE_PTR(dsa->p),
                               BN_HANDLE_PTR(dsa->q),
@@ -192,7 +179,7 @@ pgp_dsa_verify(const uint8_t *         hash,
     if (!bn_num_bytes(sig->r, &r_blen) || (r_blen > q_bytes) ||
         !bn_num_bytes(sig->s, &s_blen) || (s_blen > q_bytes)) {
         RNP_LOG("Wrong signature");
-        // ret = RNP_ERROR_BAD_PARAMETERS;
+        ret = RNP_ERROR_BAD_PARAMETERS;
         goto end;
     }
 
@@ -205,13 +192,15 @@ pgp_dsa_verify(const uint8_t *         hash,
         RNP_LOG("Can't create verifier");
         goto end;
     }
-    valid = (botan_pk_op_verify_finish(verify_op, sign_buf, 2 * q_bytes) == 0);
+
+    ret = (botan_pk_op_verify_finish(verify_op, sign_buf, 2 * q_bytes) == BOTAN_FFI_SUCCESS) ?
+            RNP_SUCCESS :
+            RNP_ERROR_SIGNATURE_INVALID;
 
 end:
     botan_pk_op_verify_destroy(verify_op);
     botan_pubkey_destroy(dsa_key);
-
-    return valid;
+    return ret;
 }
 
 rnp_result_t
@@ -222,14 +211,13 @@ dsa_keygen(
     botan_pubkey_t  key_pub = NULL;
     rnp_result_t    ret = RNP_SUCCESS;
 
-    bignum_t *p = pubkey->p;
-    bignum_t *q = pubkey->q;
-    bignum_t *g = pubkey->g;
-    bignum_t *y = pubkey->y;
-    bignum_t *x = seckey->x;
+    bignum_t *p = bn_new();
+    bignum_t *q = bn_new();
+    bignum_t *g = bn_new();
+    bignum_t *y = bn_new();
+    bignum_t *x = bn_new();
 
-    if ((keylen < 1024) || (keylen > BITS_TO_BYTES(DSA_MAX_P_SIZE)) ||
-        (qbits > BITS_TO_BYTES(DSA_MAX_Q_SIZE))) {
+    if ((keylen < 1024) || (keylen > DSA_MAX_P_SIZE) || (qbits > DSA_MAX_Q_SIZE)) {
         RNP_LOG("Wrong key size");
         return RNP_ERROR_KEY_GENERATION;
     }
@@ -252,7 +240,20 @@ dsa_keygen(
         goto end;
     }
 
+    bn_init(&pubkey->p, p);
+    bn_init(&pubkey->q, q);
+    bn_init(&pubkey->g, g);
+    bn_init(&pubkey->y, y);
+    bn_init(&seckey->x, x);
+
 end:
+    if (ret) {
+        bn_free(p);
+        bn_free(q);
+        bn_free(g);
+        bn_free(y);
+        bn_free(x);
+    }
     botan_privkey_destroy(key_priv);
     botan_pubkey_destroy(key_pub);
     return ret;
