@@ -918,7 +918,7 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
                               hlen,
                               &deckey->key.ecc,
                               &deckey->pubkey.key.ecc) != RNP_SUCCESS) {
-            RNP_LOG("sm2 signing failed");
+            RNP_LOG("SM2 signing failed");
             ret = RNP_ERROR_SIGNING_FAILED;
             break;
         }
@@ -933,21 +933,29 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
         break;
     }
     case PGP_PKA_DSA: {
+        // TODO: we should allow different hash sizes
         if (hlen != 20) {
-            RNP_LOG("dsa requires 160 bit hash");
+            RNP_LOG("DSA requires 160 bit hash");
             ret = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
 
-        /* result check should be added after pgp_dsa_sign will be updated */
-        DSA_SIG *dsasig =
-          pgp_dsa_sign(param->ctx->rng, hval, hlen, &deckey->key.dsa, &deckey->pubkey.key.dsa);
+        /* result check should be added after dsa_sign will be updated */
+        pgp_dsa_sig_t dsasig = {0};
+        ret = dsa_sign(
+          param->ctx->rng, &dsasig, hval, hlen, &deckey->key.dsa, &deckey->pubkey.key.dsa);
+        if (ret != RNP_SUCCESS) {
+            RNP_LOG("DSA signing failed");
+            break;
+        }
 
-        bn_num_bytes(dsasig->r, &sig->material.dsa.rlen);
-        bn_num_bytes(dsasig->s, &sig->material.dsa.slen);
-        bn_bn2bin(dsasig->r, sig->material.dsa.r);
-        bn_bn2bin(dsasig->s, sig->material.dsa.s);
-        DSA_SIG_free(dsasig);
+        (void) bn_num_bytes(dsasig.r, &sig->material.dsa.rlen);
+        (void) bn_num_bytes(dsasig.s, &sig->material.dsa.slen);
+        if (bn_bn2bin(dsasig.r, sig->material.dsa.r) ||
+            bn_bn2bin(dsasig.s, sig->material.dsa.s)) {
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            break;
+        }
 
         ret = RNP_SUCCESS;
         break;
@@ -981,7 +989,7 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
                                 hlen,
                                 &deckey->key.ecc,
                                 &deckey->pubkey.key.ecc) != RNP_SUCCESS) {
-            RNP_LOG("ecdsa signing failed");
+            RNP_LOG("ECDSA signing failed");
             ret = RNP_ERROR_SIGNING_FAILED;
             break;
         }

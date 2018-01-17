@@ -671,6 +671,7 @@ test_dsa_roundtrip(void **state)
     rnp_test_state_t *rstate = *state;
     uint8_t           message[64];
     pgp_seckey_t      sec_key;
+    pgp_dsa_sig_t     sig = {0};
 
     const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_DSA,
                                                  .hash_alg = PGP_HASH_SHA1,
@@ -679,20 +680,12 @@ test_dsa_roundtrip(void **state)
 
     pgp_dsa_pubkey_t *pub = &sec_key.pubkey.key.dsa;
     pgp_dsa_seckey_t *sec = &sec_key.key.dsa;
-    pub->p = bn_new();
-    pub->q = bn_new();
-    pub->g = bn_new();
-    pub->y = bn_new();
-    sec->x = bn_new();
 
     assert_true(pgp_generate_seckey(&key_desc, &sec_key));
 
-    DSA_SIG *sig = pgp_dsa_sign(&global_rng, message, 20, sec, pub);
-    rnp_assert_true(rstate, sig != NULL);
-
-    // madness!
-    pgp_dsa_sig_t mad_sig = {.r = sig->r, .s = sig->s};
-    rnp_assert_true(rstate, pgp_dsa_verify(message, 20, &mad_sig, pub) != 0);
+    rnp_assert_int_equal(
+      rstate, dsa_sign(&global_rng, &sig, message, 20, sec, pub), RNP_SUCCESS);
+    rnp_assert_int_equal(rstate, dsa_verify(message, 20, &sig, pub), RNP_SUCCESS);
 
     //        // Fails because message won't verify
     //        message[0] = ~message[0];
@@ -701,7 +694,6 @@ test_dsa_roundtrip(void **state)
     //                             pub_key1),
     //                             RNP_ERROR_SIGNATURE_INVALID);
 
-    DSA_SIG_free(sig);
     pgp_seckey_free(&sec_key);
 }
 

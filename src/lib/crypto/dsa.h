@@ -56,7 +56,8 @@
 #include "crypto/bn.h"
 #include "crypto/rng.h"
 
-/* TODO key generation */
+#define DSA_DEFAULT_P_BITLEN 2048
+#define DSA_DEFAULT_Q_BITLEN 256
 
 /** Structure to hold one DSA public key params.
  *
@@ -82,29 +83,59 @@ typedef struct pgp_dsa_sig_t {
 } pgp_dsa_sig_t;
 
 /*
-* This type is used to represent any signature where
-* a pair of MPIs is used (DSA, ECDSA, EdDSA, ...)
-*/
-typedef struct DSA_SIG_st {
-    bignum_t *r;
-    bignum_t *s;
-} DSA_SIG;
+ * @brief   Performs DSA sign
+ *
+ * @param   rng       initialized PRNG
+ * @param   sign[out] created signature
+ * @param   hash      hash to sign
+ * @param   hash_len  length of `hash`
+ * @param   seckey    private DSA key
+ * @param   pubkey    public DSA key
+ *
+ * @returns RNP_SUCCESS
+ *          RNP_ERROR_BAD_PARAMETERS wrong input provided
+ *          RNP_ERROR_SIGNING_FAILED internal error
+ */
+rnp_result_t dsa_sign(rng_t *                 rng,
+                      pgp_dsa_sig_t *         sign,
+                      const uint8_t *         hash,
+                      size_t                  hash_len,
+                      const pgp_dsa_seckey_t *seckey,
+                      const pgp_dsa_pubkey_t *pubkey);
 
-/* DSA signature/verify */
-typedef struct DSA_SIG_st DSA_SIG;
+/*
+ * @brief   Performs DSA verification
+ *
+ * @param   hash      hash to verify
+ * @param   hash_len  length of `hash`
+ * @param   sign      hash of the sign to be verified
+ * @param   pubkey    public DSA key
+ *
+ * @returns RNP_SUCCESS
+ *          RNP_ERROR_BAD_PARAMETERS wrong input provided
+ *          RNP_ERROR_GENERIC internal error
+ *          RNP_ERROR_SIGNATURE_INVALID signature is invalid
+ */
+rnp_result_t dsa_verify(const uint8_t *         hash,
+                        size_t                  hash_len,
+                        const pgp_dsa_sig_t *   sign,
+                        const pgp_dsa_pubkey_t *pubkey);
 
-int pgp_dsa_size(const pgp_dsa_pubkey_t *);
-
-DSA_SIG *pgp_dsa_sign(
-  rng_t *, uint8_t *, unsigned, const pgp_dsa_seckey_t *, const pgp_dsa_pubkey_t *);
-
-unsigned pgp_dsa_verify(const uint8_t *,
-                        size_t,
-                        const pgp_dsa_sig_t *,
-                        const pgp_dsa_pubkey_t *);
-
+/*
+ * @brief   Performs DSA sign
+ *
+ * @param   rng             hash to verify
+ * @param   keylen          length of the key
+ * @param   qbits           subgroup size
+ * @param   pubkey[out]     public DSA key
+ * @param   seckey[out]     private DSA key
+ *
+ * @returns RNP_SUCCESS
+ *          RNP_ERROR_BAD_PARAMETERS wrong input provided
+ *          RNP_ERROR_GENERIC internal error
+ *          RNP_ERROR_SIGNATURE_INVALID signature is invalid
+ */
 rnp_result_t dsa_keygen(
   rng_t *rng, pgp_dsa_pubkey_t *pubkey, pgp_dsa_seckey_t *seckey, size_t keylen, size_t qbits);
 
-void DSA_SIG_free(DSA_SIG *sig);
 #endif

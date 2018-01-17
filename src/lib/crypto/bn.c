@@ -85,6 +85,15 @@ bn_new(void)
 }
 
 void
+bn_init(bignum_t **a, bignum_t *b)
+{
+    if (*a) {
+        bn_free(*a);
+    }
+    *a = b;
+}
+
+void
 bn_free(bignum_t *a)
 {
     if (a != NULL) {

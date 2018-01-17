@@ -620,7 +620,7 @@ signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t 
         pgp_dsa_sig_t dsa = {.r = bn_bin2bn(sig->material.dsa.r, sig->material.dsa.rlen, NULL),
                              .s =
                                bn_bin2bn(sig->material.dsa.s, sig->material.dsa.slen, NULL)};
-        ret = pgp_dsa_verify(hval, len, &dsa, &key->key.dsa);
+        ret = dsa_verify(hval, len, &dsa, &key->key.dsa) == RNP_SUCCESS;
         bn_free(dsa.r);
         bn_free(dsa.s);
         break;
