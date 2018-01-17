@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -28,26 +27,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-/*
- * Copyright (c) 2005-2008 Nominet UK (www.nic.uk)
- * All rights reserved.
- * Contributors: Ben Laurie, Rachel Willmer. The Contributors have asserted
- * their moral rights under the UK Copyright Design and Patents Act 1988 to
- * be recorded as the authors of this copyright work.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License.
- *
- * You may obtain a copy of the License at
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 
 #ifndef RNP_DSA_H_
 #define RNP_DSA_H_
@@ -56,8 +35,10 @@
 #include "crypto/bn.h"
 #include "crypto/rng.h"
 
+#define DSA_MIN_P_BITLEN 1024
+#define DSA_MAX_P_BITLEN 3072
 #define DSA_DEFAULT_P_BITLEN 2048
-#define DSA_DEFAULT_Q_BITLEN 256
+
 
 /** Structure to hold one DSA public key params.
  *
@@ -137,5 +118,29 @@ rnp_result_t dsa_verify(const uint8_t *         hash,
  */
 rnp_result_t dsa_keygen(
   rng_t *rng, pgp_dsa_pubkey_t *pubkey, pgp_dsa_seckey_t *seckey, size_t keylen, size_t qbits);
+
+/*
+ * @brief   Returns minimally sized hash which will work
+ *          with the DSA subgroup.
+ *
+ * @param   q subgroup prime
+ *
+ * @returns  Either ID of the hash algorithm, or PGP_HASH_UNKNOWN
+ *           if not found
+ */
+pgp_hash_alg_t dsa_get_min_hash(const bignum_t* q);
+
+/*
+ * @brief   Helps to determine subgroup size by size of p
+ *          In order not to confuse users, we use less complicated
+ *          approach than suggested by FIPS-186, which is:
+ *            p=1024  => q=160
+ *            p<2048  => q=224
+ *            p<=3072 => q=256
+ *          So we don't generate (2048, 224) pair
+ *
+ * @return  Size of `q' or 0 in case `psize' is not in <1024,3072> range
+ */
+size_t dsa_choose_qsize_by_psize(size_t psize);
 
 #endif

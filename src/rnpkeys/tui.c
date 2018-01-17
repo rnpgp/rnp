@@ -69,13 +69,10 @@ is_keygen_supported_for_alg(pgp_pubkey_alg_t id)
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDSA:
-        // Not yet really supported (at least key generation)
-        //
-        // case PGP_PKA_ELGAMAL:
-        // case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        // case PGP_PKA_DSA:
+    case PGP_PKA_DSA:
         return true;
     default:
+        // case PGP_PKA_ELGAMAL:
         return false;
     }
 }
@@ -110,6 +107,7 @@ ask_algorithm(FILE *input_fp)
     do {
         printf("Please select what kind of key you want:\n"
                "\t(1)  RSA (Encrypt or Sign)\n"
+               "\t(17) DSA + RSA\n" // TODO: See #584
                "\t(18) ECDH\n"
                "\t(19) ECDSA\n"
                "\t(22) EDDSA\n"
@@ -122,7 +120,7 @@ ask_algorithm(FILE *input_fp)
 }
 
 static long
-ask_bitlen(FILE *input_fp)
+ask_rsa_bitlen(FILE *input_fp)
 {
     long result = 0;
     do {
@@ -130,6 +128,23 @@ ask_bitlen(FILE *input_fp)
         printf("Please provide bit length of the key (between 1024 and 4096):\n> ");
     } while (!rnp_secure_get_long_from_fd(input_fp, &result) ||
              !is_rsa_keysize_supported(result));
+    return result;
+}
+
+static long
+ask_dsa_bitlen(FILE *input_fp)
+{
+    long result = 0;
+    do {
+        result = 0;
+        printf("Please provide bit length of the DSA key (between %d and %d):\n> ",
+                DSA_MIN_P_BITLEN, DSA_MAX_P_BITLEN);
+    } while (!rnp_secure_get_long_from_fd(input_fp, &result) ||
+             (result < DSA_MIN_P_BITLEN) || (result > DSA_MAX_P_BITLEN));
+
+    // round up to multiple of 1024
+    result = ((result + 63) / 64 ) * 64;
+    printf("Bitlen of the key wil be %lu\n", result);
     return result;
 }
 
@@ -204,7 +219,7 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
         // Those algorithms must _NOT_ be supported
         //  case PGP_PKA_RSA_ENCRYPT_ONLY:
         //  case PGP_PKA_RSA_SIGN_ONLY:
-        crypto->rsa.modulus_bit_len = ask_bitlen(input_fd);
+        crypto->rsa.modulus_bit_len = ask_rsa_bitlen(input_fd);
         action->subkey.keygen.crypto = *crypto;
         break;
 
@@ -228,6 +243,11 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
         crypto->hash_alg = PGP_HASH_SM3;
         crypto->ecc.curve = PGP_CURVE_SM2_P_256;
         action->subkey.keygen.crypto = *crypto;
+        break;
+
+    case PGP_PKA_DSA:
+        crypto->dsa.p_bitlen = ask_dsa_bitlen(input_fd);
+        crypto->dsa.q_bitlen = dsa_choose_qsize_by_psize(crypto->dsa.p_bitlen);
         break;
 
     default:
