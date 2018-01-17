@@ -52,6 +52,9 @@ typedef struct bignum_t_st {
 #define MP_VAL -3
 #define MP_RANGE MP_VAL
 
+#define BN_HANDLE(x) ((x).mp)
+#define BN_HANDLE_PTR(x) ((x)->mp)
+
 /*********************************/
 
 bignum_t *bn_new(void);

@@ -103,5 +103,8 @@ unsigned pgp_dsa_verify(const uint8_t *,
                         const pgp_dsa_sig_t *,
                         const pgp_dsa_pubkey_t *);
 
+rnp_result_t dsa_keygen(
+  rng_t *rng, pgp_dsa_pubkey_t *pubkey, pgp_dsa_seckey_t *seckey, size_t keylen, size_t qbits);
+
 void DSA_SIG_free(DSA_SIG *sig);
 #endif

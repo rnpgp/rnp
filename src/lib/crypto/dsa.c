@@ -76,9 +76,13 @@
 /** \file
  */
 #include <stdlib.h>
+
+#include <botan/ffi.h>
+#include <rnp/rnp_def.h>
+
+#include "utils.h"
 #include "crypto/bn.h"
 #include "crypto/dsa.h"
-#include <botan/ffi.h>
 
 static DSA_SIG *
 DSA_SIG_new()
@@ -166,5 +170,49 @@ pgp_dsa_sign(rng_t *                 rng,
     botan_mp_from_bin(ret->r->mp, sigbuf, q_bytes);
     botan_mp_from_bin(ret->s->mp, sigbuf + q_bytes, q_bytes);
 
+    return ret;
+}
+
+rnp_result_t
+dsa_keygen(
+  rng_t *rng, pgp_dsa_pubkey_t *pubkey, pgp_dsa_seckey_t *seckey, size_t keylen, size_t qbits)
+{
+    botan_privkey_t key_priv = NULL;
+    botan_pubkey_t  key_pub = NULL;
+    rnp_result_t    ret = RNP_SUCCESS;
+
+    bignum_t *p = pubkey->p;
+    bignum_t *q = pubkey->q;
+    bignum_t *g = pubkey->g;
+    bignum_t *y = pubkey->y;
+    bignum_t *x = seckey->x;
+
+    // TODO > 4096?
+    if (keylen < 1024) {
+        RNP_LOG("Wrong key size");
+        return RNP_ERROR_KEY_GENERATION;
+    }
+
+    if (botan_privkey_create_dsa(&key_priv, rng_handle(rng), keylen, qbits) ||
+        botan_privkey_check_key(key_priv, rng_handle(rng), 1) || // TODO: what means 1?
+        botan_privkey_export_pubkey(&key_pub, key_priv)) {
+        RNP_LOG("Wrong parameters");
+        ret = RNP_ERROR_BAD_PARAMETERS;
+        goto end;
+    }
+
+    if (botan_pubkey_get_field(BN_HANDLE_PTR(p), key_pub, "p") ||
+        botan_pubkey_get_field(BN_HANDLE_PTR(q), key_pub, "q") ||
+        botan_pubkey_get_field(BN_HANDLE_PTR(g), key_pub, "g") ||
+        botan_pubkey_get_field(BN_HANDLE_PTR(y), key_pub, "y") ||
+        botan_privkey_get_field(BN_HANDLE_PTR(x), key_priv, "x")) {
+        RNP_LOG("Botan FFI call failed");
+        ret = RNP_ERROR_GENERIC;
+        goto end;
+    }
+
+end:
+    botan_privkey_destroy(key_priv);
+    botan_pubkey_destroy(key_pub);
     return ret;
 }
