@@ -90,12 +90,11 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "crypto/rsa.h"
 #include "crypto/s2k.h"
 #include "crypto/sm2.h"
-#include "packet-create.h"
 #include "signature.h"
+#include "packet-create.h"
 #include "memory.h"
 #include "fingerprint.h"
 #include "pgp-key.h"
-#include "readerwriter.h"
 #include "utils.h"
 #include "writer.h"
 

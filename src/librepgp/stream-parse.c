@@ -34,6 +34,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
+
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
@@ -50,11 +52,12 @@
 #include "crypto/rsa.h"
 #include "crypto/eddsa.h"
 #include "crypto/ecdsa.h"
-#include "signature.h"
+
 #include "fingerprint.h"
 #include "pgp-key.h"
-#include "signature.h"
 #include "list.h"
+#include "packet-parse.h"
+
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
 #endif

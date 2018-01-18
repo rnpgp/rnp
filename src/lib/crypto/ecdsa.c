@@ -34,8 +34,6 @@
 #include "ec.h"
 #include "ecdsa.h"
 #include "crypto.h"
-#include "readerwriter.h"
-#include "utils.h"
 
 rnp_result_t
 pgp_ecdsa_sign_hash(rng_t *                 rng,

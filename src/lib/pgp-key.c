@@ -50,12 +50,10 @@
  */
 
 #include "pgp-key.h"
-#include "signature.h"
 #include "utils.h"
 #include <librepgp/reader.h>
 #include <librekey/key_store_pgp.h>
 #include <librekey/key_store_g10.h>
-#include "readerwriter.h"
 #include "crypto/s2k.h"
 
 #include <rnp/rnp_sdk.h>

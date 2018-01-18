@@ -73,6 +73,7 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include <stdlib.h>
 #include <string.h>
 #include <regex.h>
+#include <time.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -80,12 +81,12 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 
 #include <botan/ffi.h>
 
+#include "crypto.h"
 #include "errors.h"
 #include <repgp/repgp.h>
 #include <rnp/rnp_sdk.h>
 #include "utils.h"
 #include "memory.h"
-#include "readerwriter.h"
 
 #ifdef WIN32
 #define vsnprintf _vsnprintf

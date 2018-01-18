@@ -60,15 +60,14 @@
 
 #include <inttypes.h>
 
-#include "packet-create.h"
+#include <repgp/repgp.h>
+#include <rnp/rnp_types.h>
 #include "memory.h"
 
 typedef struct pgp_create_sig_t pgp_create_sig_t;
 
 pgp_create_sig_t *pgp_create_sig_new(void);
 void              pgp_create_sig_delete(pgp_create_sig_t *);
-
-pgp_hash_alg_t pgp_pick_hash_alg(rnp_ctx_t *ctx, const pgp_seckey_t *seckey);
 
 bool pgp_check_useridcert_sig(rnp_ctx_t *,
                               const pgp_pubkey_t *,
@@ -133,26 +132,11 @@ bool pgp_check_sig(
   rng_t *, const uint8_t *, unsigned, const pgp_sig_t *, const pgp_pubkey_t *);
 
 /* armored stuff */
-unsigned pgp_crc24(unsigned, uint8_t);
 
 // TODO: This should endup in reader.h or armor.h
 void pgp_reader_push_dearmor(pgp_stream_t *);
 void pgp_reader_pop_dearmor(pgp_stream_t *);
 
 void pgp_reader_pop_dearmor(pgp_stream_t *);
-
-typedef enum {
-    PGP_PGP_MESSAGE = 1,
-    PGP_PGP_PUBLIC_KEY_BLOCK,
-    PGP_PGP_PRIVATE_KEY_BLOCK,
-    PGP_PGP_MULTIPART_MESSAGE_PART_X_OF_Y,
-    PGP_PGP_MULTIPART_MESSAGE_PART_X,
-    PGP_PGP_SIGNATURE,
-    PGP_PGP_CLEARTEXT_SIGNATURE
-} pgp_armor_type_t;
-
-#define CRC24_INIT 0xb704ceL
-
-bool pgp_writer_push_armored(pgp_output_t *, pgp_armor_type_t);
 
 #endif /* SIGNATURE_H_ */

@@ -30,7 +30,6 @@
 #include "crypto.h"
 #include "crypto/s2k.h"
 #include "crypto/rng.h"
-#include "signature.h"
 #include "pgp-key.h"
 #include <librepgp/validate.h>
 #include <librepgp/stream-common.h>

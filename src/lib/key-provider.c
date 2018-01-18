@@ -47,6 +47,10 @@ rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void
     rnp_key_store_t *ks;
     unsigned         from = 0;
 
+    if (rnp == NULL) {
+        return false;
+    }
+
     *key = NULL;
     ks = ctx->secret ? rnp->secring : rnp->pubring;
 

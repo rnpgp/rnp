@@ -32,8 +32,7 @@
 #include <librepgp/packet-show.h>
 #include <librepgp/packet-parse.h>
 
-#include "crypto/ec.h"
-#include "readerwriter.h"
+#include "crypto.h"
 #include "pgp-key.h"
 #include "memory.h"
 

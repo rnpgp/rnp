@@ -34,8 +34,9 @@
 #include "symmetric.h"
 #include "hash.h"
 #include "pgp-key.h"
-#include "signature.h"
+#include "librepgp/reader.h"
 #include "librepgp/validate.h"
+#include "signature.h"
 
 extern rng_t global_rng;
 

@@ -47,7 +47,6 @@
 #include "defs.h"
 #include "types.h"
 #include "symmetric.h"
-#include "signature.h"
 #include "crypto/s2k.h"
 #include "crypto/sm2.h"
 #include "crypto/eddsa.h"
@@ -1009,6 +1008,26 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
     }
 
     return ret;
+}
+
+/**
+    Pick up hash algorithm according to secret key and preferences set in the context
+*/
+static pgp_hash_alg_t
+pgp_pick_hash_alg(rnp_ctx_t *ctx, const pgp_seckey_t *seckey)
+{
+    if (seckey->pubkey.alg == PGP_PKA_DSA) {
+        return PGP_HASH_SHA1;
+    } else if (seckey->pubkey.alg == PGP_PKA_ECDSA) {
+        size_t               dlen_key = 0, dlen_ctx = 0;
+        const pgp_hash_alg_t h_key = ecdsa_get_min_hash(seckey->pubkey.key.ecc.curve);
+        if (!pgp_digest_length(h_key, &dlen_key) || !pgp_digest_length(ctx->halg, &dlen_ctx)) {
+            return PGP_HASH_UNKNOWN;
+        }
+        return (dlen_key > dlen_ctx) ? h_key : ctx->halg;
+    } else {
+        return ctx->halg;
+    }
 }
 
 static rnp_result_t
