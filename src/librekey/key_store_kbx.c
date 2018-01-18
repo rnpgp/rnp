@@ -593,14 +593,14 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *io, pgp_key_t *key, pgp_memory_t *m)
     for (i = 0; i < key->uidc; i++) {
         p = m->buf + uid_start + (12 * i);
         pt = m->length - start;
-
         STORE32BE(p, pt);
+
         pt = strlen((const char *) key->uids[i]);
         if (!pgp_memory_add(m, key->uids[i], pt)) {
             return false;
         }
 
-        p += 4;
+        p = m->buf + uid_start + (12 * i) + 4;
         STORE32BE(p, pt);
     }
 
