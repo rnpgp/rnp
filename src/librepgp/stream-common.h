@@ -192,7 +192,7 @@ typedef struct pgp_dest_t {
     pgp_stream_type_t       type;
     rnp_result_t            werr; /* write function may set this to some error code */
 
-    int64_t  writeb;   /* number of bytes written */
+    size_t   writeb;   /* number of bytes written */
     void *   param;    /* source-specific additional data */
     bool     no_cache; /* disable write caching */
     uint8_t  cache[PGP_OUTPUT_CACHE_SIZE];

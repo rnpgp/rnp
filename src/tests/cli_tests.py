@@ -173,12 +173,14 @@ def rnp_encrypt_file(recipient, src, dst, zlevel=6, zalgo='zip', armor=False):
         raise_err('rnp encryption failed', err)
 
 
-def rnp_symencrypt_file(src, dst, cipher, zlevel=6, zalgo='zip', armor=False):
+def rnp_symencrypt_file(src, dst, cipher, zlevel=6, zalgo='zip', armor=False, aead=False):
     pipe = pswd_pipe(PASSWORD)
     params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--cipher', cipher, '-z', str(
         zlevel), '--' + zalgo, '-c', src, '--output', dst]
     if armor:
         params += ['--armor']
+    if aead:
+        params += ['--aead']
     ret, _, err = run_proc(RNP, params)
     os.close(pipe)
     if ret != 0:
@@ -463,6 +465,18 @@ def rnp_sym_encryption_rnp_to_gpg(cipher, filesize, zlevel=6, zalgo='zip'):
         remove_files(enc, dst)
     clear_workfiles()
 
+def rnp_sym_encryption_rnp_aead(cipher, filesize, zlevel=6, zalgo='zip'):
+    src, dst, enc = reg_workfiles('cleartext', '.txt', '.rnp', '.enc')
+    # Generate random file of required size
+    random_text(src, filesize)
+    for armor in [False, True]:
+        # Encrypt cleartext file with RNP
+        rnp_symencrypt_file(src, enc, cipher, zlevel, zalgo, armor, True)
+        # Decrypt encrypted file with RNP
+        rnp_decrypt_file(enc, dst)
+        compare_files(src, dst, 'rnp decrypted data differs')
+        remove_files(enc, dst)
+    clear_workfiles()
 
 def rnp_signing_rnp_to_gpg(filesize):
     src, sig, ver = reg_workfiles('cleartext', '.txt', '.sig', '.ver')
@@ -830,6 +844,7 @@ class Encryption(unittest.TestCase):
     '''
     RNP_CIPHERS = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
     GPG_CIPHERS = ['cast5', 'idea', 'blowfish', 'twofish', 'aes128', 'aes192', 'aes256', 'camellia128', 'camellia192', 'camellia256', 'tripledes']
+    AEAD_CIPHERS = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
     SIZES = [20, 40, 120, 600, 1000, 5000, 20000, 150000, 1000000]
     # Number of test runs - each run picks next encryption algo and size, wrapping on array
     RUNS = 30
@@ -845,11 +860,11 @@ class Encryption(unittest.TestCase):
         gpg_import_secring()
 
     @classmethod
-    def tearDownClass(cls):
-        clear_keyrings()
+    #def tearDownClass(cls):
+        #clear_keyrings()
 
-    def tearDown(self):
-        clear_workfiles()
+    #def tearDown(self):
+        #clear_workfiles()
 
     def test_file_encryption__gpg_to_rnp(self):
         for run in range(0, Encryption.RUNS):
@@ -881,6 +896,16 @@ class Encryption(unittest.TestCase):
             rnp_sym_encryption_rnp_to_gpg(cipher, size, 6, 'zip')
             rnp_sym_encryption_rnp_to_gpg(cipher, size, 6, 'zlib')
             rnp_sym_encryption_rnp_to_gpg(cipher, size, 6, 'bzip2')
+
+    def test_sym_encryption__rnp_aead(self):
+        # Encrypt and decrypt cleartext using the AEAD
+        for run in range(0, Encryption.RUNS):
+            cipher = Encryption.AEAD_CIPHERS[run % len(Encryption.AEAD_CIPHERS)]
+            size = Encryption.SIZES[run % len(Encryption.SIZES)]
+            rnp_sym_encryption_rnp_aead(cipher, size, 0)
+            rnp_sym_encryption_rnp_aead(cipher, size, 6, 'zip')
+            rnp_sym_encryption_rnp_aead(cipher, size, 6, 'zlib')
+            rnp_sym_encryption_rnp_aead(cipher, size, 6, 'bzip2')
 
 class Compression(unittest.TestCase):
 

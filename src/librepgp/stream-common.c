@@ -128,7 +128,7 @@ bool
 src_read_eq(pgp_source_t *src, void *buf, size_t len)
 {
     ssize_t res = src_read(src, buf, len);
-    return res == (size_t) len;
+    return res == (ssize_t) len;
 }
 
 ssize_t

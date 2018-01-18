@@ -538,7 +538,7 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
     }
 
     read = sizeof(param->cache) - PGP_AEAD_EAX_TAG_LEN;
-    if (read >= param->chunklen - param->chunkin) {
+    if ((size_t) read >= param->chunklen - param->chunkin) {
         read = param->chunklen - param->chunkin;
         chunkend = true;
     }
