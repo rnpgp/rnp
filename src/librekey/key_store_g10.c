@@ -27,6 +27,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <time.h>
 
 #include <rnp/rnp_sdk.h>
 
@@ -36,7 +37,7 @@
 #include "crypto/bn.h"
 #include "crypto/s2k.h"
 #include "symmetric.h"
-#include "readerwriter.h"
+#include "writer.h"
 #include "pgp-key.h"
 #include <botan/ffi.h>
 

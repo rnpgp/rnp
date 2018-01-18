@@ -63,6 +63,9 @@ typedef void pgp_reader_destroyer_t(pgp_reader_t *);
 
 pgp_reader_func_t pgp_stacked_read;
 
+#define CRC24_INIT 0xb704ceL
+unsigned pgp_crc24(unsigned, uint8_t);
+
 void  pgp_reader_set(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
 bool  pgp_reader_push(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
 void  pgp_reader_pop(pgp_stream_t *);

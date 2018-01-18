@@ -113,6 +113,8 @@ bool pgp_write_ptag(pgp_output_t *, pgp_content_enum);
 bool pgp_write_scalar(pgp_output_t *, unsigned, unsigned);
 bool pgp_write_mpi(pgp_output_t *, const bignum_t *);
 
+bool pgp_push_enc_crypt(pgp_output_t *, pgp_crypt_t *);
+
 void     pgp_writer_info_delete(pgp_writer_t *);
 unsigned pgp_writer_info_finalise(pgp_error_t **, pgp_writer_t *);
 
@@ -123,4 +125,17 @@ uint16_t pgp_writer_pop_sum16(pgp_output_t *);
 /* memory writing */
 bool pgp_setup_memory_write(rnp_ctx_t *, pgp_output_t **, pgp_memory_t **, size_t);
 void pgp_teardown_memory_write(pgp_output_t *, pgp_memory_t *);
+
+typedef enum {
+    PGP_PGP_MESSAGE = 1,
+    PGP_PGP_PUBLIC_KEY_BLOCK,
+    PGP_PGP_PRIVATE_KEY_BLOCK,
+    PGP_PGP_MULTIPART_MESSAGE_PART_X_OF_Y,
+    PGP_PGP_MULTIPART_MESSAGE_PART_X,
+    PGP_PGP_SIGNATURE,
+    PGP_PGP_CLEARTEXT_SIGNATURE
+} pgp_armor_type_t;
+
+bool pgp_writer_push_armored(pgp_output_t *, pgp_armor_type_t);
+
 #endif /* WRITER_H_ */

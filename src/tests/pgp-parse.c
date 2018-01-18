@@ -45,7 +45,6 @@
 #include <rnp/rnp.h>
 
 #include "rnp_tests.h"
-#include "readerwriter.h"
 #include "support.h"
 #include "list.h"
 #include "pgp-parse-data.h"

@@ -35,7 +35,6 @@
 #include "types.h"
 #include "symmetric.h"
 #include "crypto/s2k.h"
-#include "signature.h"
 #include "stream-packet.h"
 
 static uint32_t

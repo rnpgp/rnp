@@ -85,10 +85,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <librepgp/packet-show.h>
 #include <librepgp/validate.h>
 #include "errors.h"
-#include "packet-create.h"
 #include "memory.h"
-#include "signature.h"
-#include "readerwriter.h"
 #include "utils.h"
 #include "crypto.h"
 #include "crypto/bn.h"
