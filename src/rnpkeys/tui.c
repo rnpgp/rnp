@@ -17,7 +17,7 @@
  *
 -------------------------------------------------------------------------------- */
 static bool
-rnp_secure_get_long_from_fd(FILE *fp, long *result)
+rnp_secure_get_long_from_fd(FILE *fp, long *result, bool allow_empty)
 {
     char  buff[BUFSIZ];
     char *end_ptr;
@@ -39,7 +39,7 @@ rnp_secure_get_long_from_fd(FILE *fp, long *result)
             RNP_LOG("Number out of range");
             goto end;
         } else if (end_ptr == buff) {
-            RNP_LOG("Invalid number");
+            ret = allow_empty;
             goto end;
         } else if ('\n' != *end_ptr && '\0' != *end_ptr) {
             RNP_LOG("Unexpected end of line");
@@ -88,8 +88,9 @@ ask_curve(FILE *input_fp)
         for (int i = 1; (i < PGP_CURVE_MAX) && (i != PGP_CURVE_ED25519); i++) {
             printf("\t(%u) %s\n", i, get_curve_desc(i)->pgp_name);
         }
-        printf("> ");
-        ok = rnp_secure_get_long_from_fd(input_fp, &val);
+        printf("(default %s)> ", get_curve_desc(DEFAULT_CURVE)->pgp_name);
+        val = DEFAULT_CURVE;
+        ok = rnp_secure_get_long_from_fd(input_fp, &val, true);
         ok &= (val > 0) && (val < PGP_CURVE_MAX);
     } while (!ok);
 
@@ -114,7 +115,7 @@ ask_algorithm(FILE *input_fp)
                "\t(99) SM2\n"
                "> ");
 
-    } while (!rnp_secure_get_long_from_fd(input_fp, &result) ||
+    } while (!rnp_secure_get_long_from_fd(input_fp, &result, false) ||
              !is_keygen_supported_for_alg(result));
     return result;
 }
@@ -124,9 +125,10 @@ ask_rsa_bitlen(FILE *input_fp)
 {
     long result = 0;
     do {
-        result = 0;
-        printf("Please provide bit length of the key (between 1024 and 4096):\n> ");
-    } while (!rnp_secure_get_long_from_fd(input_fp, &result) ||
+        result = DEFAULT_RSA_NUMBITS;
+        printf("Please provide bit length of the key (between 1024 and 4096):\n(default %d)> ",
+            DEFAULT_RSA_NUMBITS);
+    } while (!rnp_secure_get_long_from_fd(input_fp, &result, true) ||
              !is_rsa_keysize_supported(result));
     return result;
 }
@@ -136,15 +138,16 @@ ask_dsa_bitlen(FILE *input_fp)
 {
     long result = 0;
     do {
-        result = 0;
-        printf("Please provide bit length of the DSA key (between %d and %d):\n> ",
-                DSA_MIN_P_BITLEN, DSA_MAX_P_BITLEN);
-    } while (!rnp_secure_get_long_from_fd(input_fp, &result) ||
+        result = DSA_DEFAULT_P_BITLEN;
+        printf("Please provide bit length of the DSA key (between %d and %d):\n(default %d) > ",
+                DSA_MIN_P_BITLEN, DSA_MAX_P_BITLEN, DSA_DEFAULT_P_BITLEN);
+    } while (
+             !rnp_secure_get_long_from_fd(input_fp, &result, true) ||
              (result < DSA_MIN_P_BITLEN) || (result > DSA_MAX_P_BITLEN));
 
     // round up to multiple of 1024
     result = ((result + 63) / 64 ) * 64;
-    printf("Bitlen of the key wil be %lu\n", result);
+    printf("Bitlen of the key will be %lu\n", result);
     return result;
 }
 
