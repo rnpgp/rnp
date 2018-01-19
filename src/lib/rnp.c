@@ -239,7 +239,7 @@ ptimestr(char *dest, size_t size, time_t t)
 static void
 format_json_key(FILE *fp, json_object *obj, const int psigs)
 {
-    int64_t birthtime;
+    int64_t creation;
     int64_t duration;
     time_t  now;
     char    tbuf[32];
@@ -278,8 +278,8 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
     }
 
     if (json_object_object_get_ex(obj, "creation time", &tmp)) {
-        birthtime = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
-        p(fp, " ", ptimestr(tbuf, sizeof(tbuf), birthtime), NULL);
+        creation = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
+        p(fp, " ", ptimestr(tbuf, sizeof(tbuf), creation), NULL);
 
         if (json_object_object_get_ex(obj, "usage", &tmp)) {
             p(fp, " [", NULL);
@@ -299,8 +299,8 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
                 now = time(NULL);
                 p(fp,
                   " ",
-                  (birthtime + duration < now) ? "[EXPIRED " : "[EXPIRES ",
-                  ptimestr(tbuf, sizeof(tbuf), birthtime + duration),
+                  (creation + duration < now) ? "[EXPIRED " : "[EXPIRES ",
+                  ptimestr(tbuf, sizeof(tbuf), creation + duration),
                   "]",
                   NULL);
             }

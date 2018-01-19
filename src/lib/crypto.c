@@ -230,7 +230,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     }
     /* populate pgp key structure */
     seckey->pubkey.version = PGP_V4;
-    seckey->pubkey.birthtime = time(NULL);
+    seckey->pubkey.creation = time(NULL);
     seckey->pubkey.alg = crypto->key_alg;
     rng_t *rng = crypto->rng;
 
@@ -250,7 +250,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         break;
     case PGP_PKA_ECDH:
         if (!set_ecdh_params(seckey, crypto->ecc.curve)) {
-            RNP_LOG("Unsupoorted curve [ID=%d]", crypto->ecc.curve);
+            RNP_LOG("Unsupported curve [ID=%d]", crypto->ecc.curve);
             goto end;
         }
     /* FALLTHROUGH */

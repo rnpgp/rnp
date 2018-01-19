@@ -53,7 +53,7 @@
 #define CFG_USERINPUTFD "user-input-fd" /* user input file descriptor */
 #define CFG_NUMTRIES "numtries"         /* number of password request tries, or 'unlimited' */
 #define CFG_DURATION "duration"         /* signature validity duration */
-#define CFG_BIRTHTIME "birthtime"       /* signature validity start */
+#define CFG_CREATION "creation"       /* signature validity start */
 #define CFG_CIPHER "cipher"             /* symmetric encryption algorithm as string */
 #define CFG_HASH "hash"                 /* hash algorithm used, string like 'SHA1'*/
 #define CFG_IO_OUTS "outs"              /* output stream */
@@ -118,6 +118,6 @@ int rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
 
 /* rnp CLI helper functions */
 uint64_t get_duration(const char *s);
-int64_t get_birthtime(const char *s);
+int64_t get_creation(const char *s);
 
 #endif

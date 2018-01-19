@@ -257,7 +257,7 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
     memset(key, 0x0, sizeof(*key));
     pubkey = &key->key.seckey.pubkey;
     pubkey->version = PGP_V4;
-    pubkey->birthtime = 0;
+    pubkey->creation = 0;
     /* get key type */
     ok = true;
     switch (pubkey->alg = findstr(pkatypes, buf)) {
