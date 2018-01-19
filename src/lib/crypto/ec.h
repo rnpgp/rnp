@@ -35,6 +35,8 @@
 #include "crypto/bn.h"
 #include "crypto/rng.h"
 
+#define DEFAULT_CURVE PGP_CURVE_NIST_P_256
+
 typedef struct pgp_seckey_t pgp_seckey_t;
 
 /**
