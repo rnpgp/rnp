@@ -908,12 +908,7 @@ class Compression(unittest.TestCase):
                     file_encryption_rnp_to_gpg(size, level, algosrnp[algo])
                     rnp_signing_gpg_to_rnp(size, level, algosgpg[algo])
 
-
-class Sign(unittest.TestCase):
-    # Message sizes to be tested
-    SIZES = [20, 1000, 5000, 20000, 150000, 1000000]
-
-class SignDefault(Sign):
+class SignDefault(unittest.TestCase):
     '''
         Things to try later:
         - different public key algorithms
@@ -951,6 +946,36 @@ class SignDefault(Sign):
             rnp_cleartext_signing_gpg_to_rnp(size)
 
 
+class Sign(unittest.TestCase):
+    # Message sizes to be tested
+    SIZES = [20, 1000, 5000, 20000, 150000, 1000000]
+
+    def _rnp_sign_verify(self, e1, e2, key_id, keygen_cmd):
+        '''
+        Helper function for ECDSA verification
+        1. e1 creates ECDSA key
+        2. e1 exports key
+        3. e2 imports key
+        2. e1 signs message
+        3. e2 verifies message
+
+        eX == entityX
+        '''
+        keyfile, input, output = reg_workfiles("signing"+str(key_id), '.gpg', '.in', '.out')
+        random_text(input, 0x1337)
+        self.assertTrue(e1.generte_key_batch(keygen_cmd))
+        self.assertTrue(e1.export_key(keyfile, False))
+        self.assertTrue(e2.import_key(keyfile))
+        self.assertTrue(e1.sign(output, input))
+        self.assertTrue(e2.verify(output))
+        clear_workfiles()
+
+    def setUp(self):
+        self.rnp = Rnp(RNPDIR, RNP, RNPK)
+        self.gpg = GnuPG(GPGDIR, GPG)
+        self.rnp.password = self.gpg.password = PASSWORD
+        self.rnp.userid = self.gpg.userid = 'singingtest@secure.gov'
+
 class SignECDSA(Sign):
     # {0} must be replaced by ID of the curve 3,4 or 5 (NIST-256,384,521)
     #CURVES = ["NIST P-256", "NIST P-384", "NIST P-521"]
@@ -965,32 +990,6 @@ class SignECDSA(Sign):
 
     # {0} must be replaced by ID of the curve 1,2 or 3 (NIST-256,384,521)
     RNP_GENERATE_ECDSA_PATTERN = "19\n{0}\n"
-
-    def _rnp_sign_verify(self, e1, e2, key_id, keygen_cmd):
-        '''
-        Helper function for ECDSA verification
-        1. e1 creates ECDSA key
-        2. e1 exports key
-        3. e2 imports key
-        2. e1 signs message
-        3. e2 verifies message
-
-        eX == entityX
-        '''
-        keyfile, input, output = reg_workfiles('ecdsa'+str(key_id), '.gpg', '.in', '.out')
-        random_text(input, 0x1337)
-        self.assertTrue(e1.generte_key_batch(keygen_cmd))
-        self.assertTrue(e1.export_key(keyfile, False))
-        self.assertTrue(e2.import_key(keyfile))
-        self.assertTrue(e1.sign(output, input))
-        self.assertTrue(e2.verify(output))
-        clear_workfiles()
-
-    def setUp(self):
-        self.rnp = Rnp(RNPDIR, RNP, RNPK)
-        self.gpg = GnuPG(GPGDIR, GPG)
-        self.rnp.password = self.gpg.password = PASSWORD
-        self.rnp.userid = self.gpg.userid = 'ecdsatest@secure.gov'
 
     def test_sign_P256(self):
         cmd = SignECDSA.RNP_GENERATE_ECDSA_PATTERN.format(1)
@@ -1017,6 +1016,60 @@ class SignECDSA(Sign):
         cmd = SignECDSA.GPG_GENERATE_ECDSA_PATERN.format("nistp521", self.rnp.userid)
         self._rnp_sign_verify(self.gpg, self.rnp, 5, cmd)
 
+class SignDSA(Sign):
+    # {0} must be replaced by ID of the curve 3,4 or 5 (NIST-256,384,521)
+    #CURVES = ["NIST P-256", "NIST P-384", "NIST P-521"]
+    GPG_GENERATE_DSA_PATERN = """
+        Key-Type: dsa
+        Key-Length: {0}
+        Key-Usage: sign auth
+        Name-Real: Test Testovich
+        Expire-Date: 1y
+        Preferences: twofish sha256 sha384 sha512 sha1 zlib
+        Name-Email: {1}"""
+
+    # {0} must be replaced by ID of the curve 1,2 or 3 (NIST-256,384,521)
+    RNP_GENERATE_DSA_PATTERN = "17\n{0}\n"
+
+    @unittest.skip("This is skipped as GnuPG doesn't support 1024 keys signed with non-SHA1")
+    def test_sign_P1024_Q160(self):
+       cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(1024)
+       self._rnp_sign_verify(self.rnp, self.gpg, 1, cmd)
+
+    def test_verify_P1024_Q160(self):
+        cmd = SignDSA.GPG_GENERATE_DSA_PATERN.format(
+            "1024", self.rnp.userid)
+        self._rnp_sign_verify(self.gpg, self.rnp, 3, cmd)
+
+    def test_sign_P2048_Q256(self):
+        cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(2048)
+        self._rnp_sign_verify(self.rnp, self.gpg, 1, cmd)
+
+    def test_verify_P2048_Q256(self):
+        cmd = SignDSA.GPG_GENERATE_DSA_PATERN.format(
+            "2048", self.rnp.userid)
+        self._rnp_sign_verify(self.gpg, self.rnp, 3, cmd)
+
+    def test_sign_P3072_Q256(self):
+        cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(3072)
+        self._rnp_sign_verify(self.rnp, self.gpg, 1, cmd)
+
+    def test_verify_P3072_Q256(self):
+        cmd = SignDSA.GPG_GENERATE_DSA_PATERN.format(
+            "3072", self.rnp.userid)
+        self._rnp_sign_verify(self.gpg, self.rnp, 3, cmd)
+
+    def test_sign_P2112_Q256(self):
+        cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(2112)
+        self._rnp_sign_verify(self.rnp, self.gpg, 1, cmd)
+
+    def test_verify_P2112_Q256(self):
+        cmd = SignDSA.GPG_GENERATE_DSA_PATERN.format(
+            "2112", self.rnp.userid)
+        self._rnp_sign_verify(self.gpg, self.rnp, 3, cmd)
+
+# Main thinghy
+
 if __name__ == '__main__':
     main = unittest.main
     main.USAGE +=   ''.join([
@@ -1024,9 +1077,9 @@ if __name__ == '__main__':
                     "  -w,\t\t Don't remove working directory\n",
                     "  -d,\t\t Enable debug messages\n"])
 
-    CLEANUP = (not "-w" in sys.argv)
-    # -w must be removed as unittest doesn't expect it
-    if not CLEANUP:
+    LEAVE_WORKING_DIRECTORY = ("-w" in sys.argv)
+    if LEAVE_WORKING_DIRECTORY:
+        # -w must be removed as unittest doesn't expect it
         sys.argv.remove('-w')
 
     LVL = logging.INFO
@@ -1037,7 +1090,7 @@ if __name__ == '__main__':
     setup(LVL)
     main()
 
-    if CLEANUP:
+    if not LEAVE_WORKING_DIRECTORY:
         try:
             if RMWORKDIR:
                 shutil.rmtree(WORKDIR)
