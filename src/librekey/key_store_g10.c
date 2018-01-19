@@ -319,8 +319,8 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
 static unsigned
 block_to_unsigned(s_exp_block_t *block)
 {
-    char s[sizeof(STR(UINT_MAX)) + 1];
-    if (block->len >= sizeof(s)) {
+    char s[sizeof(STR(UINT_MAX)) + 1] = {0};
+    if (!block->len || block->len >= sizeof(s)) {
         return UINT_MAX;
     }
 
