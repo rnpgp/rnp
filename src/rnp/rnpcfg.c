@@ -752,7 +752,7 @@ get_duration(const char *s)
  */
 
 int64_t
-get_birthtime(const char *s)
+get_creation(const char *s)
 {
     int64_t t;
 

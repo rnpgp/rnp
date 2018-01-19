@@ -243,8 +243,8 @@ test_load_check_bitfields_and_times(void **state)
         assert_int_equal(ss->sig.info.signer_id_set, 1);
         assert_int_equal(memcmp(keyid, ss->sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
         // check SS_CREATION_TIME
-        assert_int_equal(ss->sig.info.birthtime_set, 1);
-        assert_int_equal(ss->sig.info.birthtime, expected_creation_times[i]);
+        assert_int_equal(ss->sig.info.creation_set, 1);
+        assert_int_equal(ss->sig.info.creation, expected_creation_times[i]);
         // check SS_EXPIRATION_TIME
         assert_int_equal(ss->sig.info.duration_set, 0);
         assert_int_equal(ss->sig.info.duration, 0);
@@ -265,9 +265,9 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigs[0].sig.info.signer_id_set, 1);
     assert_int_equal(memcmp(keyid, key->subsigs[0].sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
-    assert_int_equal(key->subsigs[0].sig.info.birthtime_set, 1);
-    assert_int_equal(key->subsigs[0].sig.info.birthtime, 1500569820);
-    assert_int_equal(key->subsigs[0].sig.info.birthtime, key->key.pubkey.birthtime);
+    assert_int_equal(key->subsigs[0].sig.info.creation_set, 1);
+    assert_int_equal(key->subsigs[0].sig.info.creation, 1500569820);
+    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
     assert_int_equal(key->subsigs[0].sig.info.duration, 0);
@@ -287,9 +287,9 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigs[0].sig.info.signer_id_set, 1);
     assert_int_equal(memcmp(keyid, key->subsigs[0].sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
-    assert_int_equal(key->subsigs[0].sig.info.birthtime_set, 1);
-    assert_int_equal(key->subsigs[0].sig.info.birthtime, 1500569851);
-    assert_int_equal(key->subsigs[0].sig.info.birthtime, key->key.pubkey.birthtime);
+    assert_int_equal(key->subsigs[0].sig.info.creation_set, 1);
+    assert_int_equal(key->subsigs[0].sig.info.creation, 1500569851);
+    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
     assert_int_equal(key->subsigs[0].sig.info.duration, 0);
@@ -309,9 +309,9 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigs[0].sig.info.signer_id_set, 1);
     assert_int_equal(memcmp(keyid, key->subsigs[0].sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
-    assert_int_equal(key->subsigs[0].sig.info.birthtime_set, 1);
-    assert_int_equal(key->subsigs[0].sig.info.birthtime, 1500569896);
-    assert_int_equal(key->subsigs[0].sig.info.birthtime, key->key.pubkey.birthtime);
+    assert_int_equal(key->subsigs[0].sig.info.creation_set, 1);
+    assert_int_equal(key->subsigs[0].sig.info.creation, 1500569896);
+    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
     assert_int_equal(key->subsigs[0].sig.info.duration, 0);
@@ -335,8 +335,8 @@ test_load_check_bitfields_and_times(void **state)
         assert_int_equal(ss->sig.info.signer_id_set, 1);
         assert_int_equal(memcmp(keyid, ss->sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
         // check SS_CREATION_TIME
-        assert_int_equal(ss->sig.info.birthtime_set, 1);
-        assert_int_equal(ss->sig.info.birthtime, expected_creation_times[i]);
+        assert_int_equal(ss->sig.info.creation_set, 1);
+        assert_int_equal(ss->sig.info.creation, expected_creation_times[i]);
         // check SS_EXPIRATION_TIME
         assert_int_equal(ss->sig.info.duration_set, 0);
         assert_int_equal(ss->sig.info.duration, 0);
@@ -357,9 +357,9 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigs[0].sig.info.signer_id_set, 1);
     assert_int_equal(memcmp(keyid, key->subsigs[0].sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
-    assert_int_equal(key->subsigs[0].sig.info.birthtime_set, 1);
-    assert_int_equal(key->subsigs[0].sig.info.birthtime, 1500569946);
-    assert_int_equal(key->subsigs[0].sig.info.birthtime, key->key.pubkey.birthtime);
+    assert_int_equal(key->subsigs[0].sig.info.creation_set, 1);
+    assert_int_equal(key->subsigs[0].sig.info.creation, 1500569946);
+    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
     assert_int_equal(key->subsigs[0].sig.info.duration, 0);
@@ -379,9 +379,9 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigs[0].sig.info.signer_id_set, 1);
     assert_int_equal(memcmp(keyid, key->subsigs[0].sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
-    assert_int_equal(key->subsigs[0].sig.info.birthtime_set, 1);
-    assert_int_equal(key->subsigs[0].sig.info.birthtime, 1500570165);
-    assert_int_equal(key->subsigs[0].sig.info.birthtime, key->key.pubkey.birthtime);
+    assert_int_equal(key->subsigs[0].sig.info.creation_set, 1);
+    assert_int_equal(key->subsigs[0].sig.info.creation, 1500570165);
+    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
     assert_int_equal(key->subsigs[0].sig.info.duration, 0);
@@ -425,9 +425,9 @@ test_load_check_bitfields_and_times_v3(void **state)
     assert_int_equal(key->subsigs[0].sig.info.signer_id_set, 1);
     assert_int_equal(memcmp(keyid, key->subsigs[0].sig.info.signer_id, PGP_KEY_ID_SIZE), 0);
     // check creation time
-    assert_int_equal(key->subsigs[0].sig.info.birthtime_set, 1);
-    assert_int_equal(key->subsigs[0].sig.info.birthtime, 1005209227);
-    assert_int_equal(key->subsigs[0].sig.info.birthtime, key->key.pubkey.birthtime);
+    assert_int_equal(key->subsigs[0].sig.info.creation_set, 1);
+    assert_int_equal(key->subsigs[0].sig.info.creation, 1005209227);
+    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
     // check signature expiration time (V3 sigs have none)
     assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
     assert_int_equal(key->subsigs[0].sig.info.duration, 0);

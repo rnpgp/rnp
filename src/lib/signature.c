@@ -418,7 +418,7 @@ hash_add_trailer(pgp_hash_t *hash, const pgp_sig_t *sig, const uint8_t *raw_pack
         pgp_hash_add_int(hash, (unsigned) sig->info.v4_hashlen, 4);
     } else {
         pgp_hash_add_int(hash, (unsigned) sig->info.type, 1);
-        pgp_hash_add_int(hash, (unsigned) sig->info.birthtime, 4);
+        pgp_hash_add_int(hash, (unsigned) sig->info.creation, 4);
     }
 }
 

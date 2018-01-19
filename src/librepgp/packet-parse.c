@@ -1291,7 +1291,7 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
                     key->version);
         return false;
     }
-    if (!limited_read_time(&key->birthtime, region, stream)) {
+    if (!limited_read_time(&key->creation, region, stream)) {
         return false;
     }
 
@@ -1559,10 +1559,10 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
     pkt.u.sig.info.type = (pgp_sig_type_t) c;
     /* XXX: check signature type */
 
-    if (!limited_read_time(&pkt.u.sig.info.birthtime, region, stream)) {
+    if (!limited_read_time(&pkt.u.sig.info.creation, region, stream)) {
         return false;
     }
-    pkt.u.sig.info.birthtime_set = 1;
+    pkt.u.sig.info.creation_set = 1;
 
     if (!limread(pkt.u.sig.info.signer_id, PGP_KEY_ID_SIZE, region, stream)) {
         return false;
@@ -1714,8 +1714,8 @@ parse_one_sig_subpacket(pgp_sig_t *sig, pgp_region_t *region, pgp_stream_t *stre
         if (!limited_read_time(&pkt.u.ss_time, &subregion, stream))
             return false;
         if (pkt.tag == PGP_PTAG_SS_CREATION_TIME) {
-            sig->info.birthtime = pkt.u.ss_time;
-            sig->info.birthtime_set = 1;
+            sig->info.creation = pkt.u.ss_time;
+            sig->info.creation_set = 1;
         }
         if (pkt.tag == PGP_PTAG_SS_EXPIRATION_TIME) {
             sig->info.duration = pkt.u.ss_time;

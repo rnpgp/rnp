@@ -78,7 +78,7 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 
 #define PUBKEY_DOES_EXPIRE(pk) ((pk)->duration > 0)
 
-#define PUBKEY_HAS_EXPIRED(pk, t) (((pk)->birthtime + (pk)->duration) < (t))
+#define PUBKEY_HAS_EXPIRED(pk, t) (((pk)->creation + (pk)->duration) < (t))
 
 #define SIGNATURE_PADDING "          "
 
@@ -369,7 +369,7 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
                     key_bitlength(pubkey),
                     pgp_show_pka(pubkey->alg),
                     rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, ""),
-                    ptimestr(t, sizeof(t), pubkey->birthtime),
+                    ptimestr(t, sizeof(t), pubkey->creation),
                     key_usage,
                     expired);
 }
@@ -426,7 +426,7 @@ format_pubkey_expiration_notice(char *              buffer,
         return false;
 
     /* Write the expiration time. */
-    ptimestr(buffer, buffer_end - buffer, pubkey->birthtime + pubkey->duration);
+    ptimestr(buffer, buffer_end - buffer, pubkey->creation + pubkey->duration);
     buffer += PTIMESTR_LEN;
     if (buffer >= buffer_end)
         return false;
@@ -451,14 +451,14 @@ format_uid_line(char *buffer, uint8_t *uid, size_t size, int flags)
 }
 
 /* TODO: Consider replacing `trustkey` with an optional `uid` parameter. */
-/* TODO: Consider passing only signer_id and birthtime. */
+/* TODO: Consider passing only signer_id and creation. */
 static int
 format_sig_line(char *buffer, const pgp_sig_t *sig, const pgp_key_t *trustkey, size_t size)
 {
     char keyid[PGP_KEY_ID_SIZE * 3];
     char time[PTIMESTR_LEN + sizeof(char)];
 
-    ptimestr(time, sizeof(time), sig->info.birthtime);
+    ptimestr(time, sizeof(time), sig->info.creation);
     return snprintf(buffer,
                     size,
                     "sig        %s  %s  %s\n",
@@ -609,7 +609,7 @@ pgp_sprint_key(pgp_io_t *             io,
     char     keyid[PGP_KEY_ID_SIZE * 3];
     char     fingerprint[PGP_FINGERPRINT_HEX_SIZE];
     char     expiration_notice[128];
-    char     birthtime[32];
+    char     creation[32];
     char     key_usage[8];
 
     if (key->revoked)
@@ -653,7 +653,7 @@ pgp_sprint_key(pgp_io_t *             io,
 
     rnp_strhexdump(fingerprint, key->fingerprint.fingerprint, key->fingerprint.length, " ");
 
-    ptimestr(birthtime, sizeof(birthtime), pubkey->birthtime);
+    ptimestr(creation, sizeof(creation), pubkey->creation);
 
     if (!format_key_usage(key_usage, sizeof(key_usage), key->key_flags)) {
         return -1;
@@ -675,7 +675,7 @@ pgp_sprint_key(pgp_io_t *             io,
                                 key_bitlength(pubkey),
                                 pgp_show_pka(pubkey->alg),
                                 keyid,
-                                birthtime,
+                                creation,
                                 key_usage,
                                 expiration_notice,
                                 fingerprint,
@@ -720,7 +720,7 @@ repgp_sprint_json(pgp_io_t *                    io,
                            "fingerprint",
                            json_object_new_string(rnp_strhexdump(
                              fp, key->fingerprint.fingerprint, key->fingerprint.length, "")));
-    json_object_object_add(keyjson, "creation time", json_object_new_int(pubkey->birthtime));
+    json_object_object_add(keyjson, "creation time", json_object_new_int(pubkey->creation));
     json_object_object_add(keyjson, "duration", json_object_new_int(pubkey->duration));
     json_object_object_add(keyjson, "key flags", json_object_new_int(key->key_flags));
     json_object *usage_arr = json_object_new_array();
@@ -761,7 +761,7 @@ repgp_sprint_json(pgp_io_t *                    io,
             json_object_object_add(
               subsigc,
               "creation time",
-              json_object_new_int((int64_t)(key->subsigs[j].sig.info.birthtime)));
+              json_object_new_int((int64_t)(key->subsigs[j].sig.info.creation)));
 
             unsigned         from = 0;
             const pgp_key_t *trustkey = rnp_key_store_get_key_by_id(
@@ -810,7 +810,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
         n += snprintf(&uidbuf[n],
                       sizeof(uidbuf) - n,
                       "uid:%lld:%lld:%s\n",
-                      (long long) pubkey->birthtime,
+                      (long long) pubkey->creation,
                       (long long) pubkey->duration,
                       key->uids[i]);
         for (j = 0; j < key->subsigc; j++) {
@@ -837,7 +837,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                            key->subsigs[j].sig.info.key_alg,
                            rnp_strhexdump(
                              keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, ""),
-                           (long long) (key->subsigs[j].sig.info.birthtime),
+                           (long long) (key->subsigs[j].sig.info.creation),
                            (long long) pubkey->duration);
             } else {
                 n +=
@@ -846,7 +846,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                            "sig:%s:%lld:%s\n",
                            rnp_strhexdump(
                              keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, ""),
-                           (long long) key->subsigs[j].sig.info.birthtime,
+                           (long long) key->subsigs[j].sig.info.creation,
                            (trustkey) ? (char *) trustkey->uids[trustkey->uid0] : "");
             }
         }
@@ -866,7 +866,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                          fingerprint,
                          pubkey->alg,
                          key_bitlength(pubkey),
-                         (long long) pubkey->birthtime,
+                         (long long) pubkey->creation,
                          (long long) pubkey->duration,
                          uidbuf);
             *buf = buffer;
@@ -901,7 +901,7 @@ pgp_print_pubkey(size_t indent, const pgp_pubkey_t *pubkey)
 {
     printf("------- PUBLIC KEY ------\n");
     print_uint(indent, "Version", (unsigned) pubkey->version);
-    print_time(indent, "Creation Time", pubkey->birthtime);
+    print_time(indent, "Creation Time", pubkey->creation);
     if (pubkey->version == PGP_V3) {
         print_uint(0, "Days Valid", pubkey->days_valid);
     }
@@ -954,7 +954,7 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
                   "key=%s\nname=%s\ncreation=%lld\nexpiry=%lld\nversion=%d\nalg=%d\n",
                   rnp_strhexdump(fp, key->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE, ""),
                   key->uids[key->uid0],
-                  (long long) key->key.pubkey.birthtime,
+                  (long long) key->key.pubkey.creation,
                   (long long) key->key.pubkey.days_valid,
                   key->key.pubkey.version,
                   key->key.pubkey.alg);
@@ -1241,8 +1241,8 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
 
     case PGP_PTAG_CT_SIGNATURE:
         print_uint(print->indent, "Version", (unsigned) content->sig.info.version);
-        if (content->sig.info.birthtime_set) {
-            print_time(print->indent, "Signature Creation Time", content->sig.info.birthtime);
+        if (content->sig.info.creation_set) {
+            print_time(print->indent, "Signature Creation Time", content->sig.info.creation);
         }
         if (content->sig.info.duration_set) {
             print_uint(
@@ -1584,8 +1584,8 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
 
     case PGP_PTAG_CT_SIGNATURE_HEADER:
         print_uint(print->indent, "Version", (unsigned) content->sig.info.version);
-        if (content->sig.info.birthtime_set) {
-            print_time(print->indent, "Signature Creation Time", content->sig.info.birthtime);
+        if (content->sig.info.creation_set) {
+            print_time(print->indent, "Signature Creation Time", content->sig.info.creation);
         }
         if (content->sig.info.duration_set) {
             print_uint(

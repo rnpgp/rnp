@@ -437,7 +437,7 @@ validate_result_status(const char *f, pgp_validation_t *val)
     char   buf[128];
 
     now = time(NULL);
-    if (now < val->birthtime) {
+    if (now < val->creation) {
         /* signature is not valid yet! */
         if (f) {
             (void) fprintf(stderr, "\"%s\": ", f);
@@ -446,13 +446,13 @@ validate_result_status(const char *f, pgp_validation_t *val)
         }
         (void) fprintf(stderr,
                        "signature not valid until %.24s (%s)\n",
-                       ctime(&val->birthtime),
-                       fmtsecs((int64_t)(val->birthtime - now), buf, sizeof(buf)));
+                       ctime(&val->creation),
+                       fmtsecs((int64_t)(val->creation - now), buf, sizeof(buf)));
         return false;
     }
-    if (val->duration != 0 && now > val->birthtime + val->duration) {
+    if (val->duration != 0 && now > val->creation + val->duration) {
         /* signature has expired */
-        t = val->duration + val->birthtime;
+        t = val->duration + val->creation;
         if (f) {
             (void) fprintf(stderr, "\"%s\": ", f);
         } else {

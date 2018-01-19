@@ -226,7 +226,7 @@ static bool
 write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
 {
     if (!(pgp_write_scalar(output, (unsigned) key->version, 1) &&
-          pgp_write_scalar(output, (unsigned) key->birthtime, 4))) {
+          pgp_write_scalar(output, (unsigned) key->creation, 4))) {
         return false;
     }
 
