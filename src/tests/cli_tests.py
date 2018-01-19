@@ -994,7 +994,6 @@ class SignECDSA(Sign):
     def test_verify_P256(self):
         cmd = SignECDSA.GPG_GENERATE_ECDSA_PATERN.format(
             "nistp256", self.rnp.userid)
-        print(cmd)
         self._rnp_sign_verify(self.gpg, self.rnp, 3, cmd)
 
     def test_verify_P384(self):

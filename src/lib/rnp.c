@@ -116,8 +116,9 @@ resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
         userid += 2;
     }
     io = rnp->io;
-    if (rnp_key_store_get_key_by_name(io, keyring, userid, &key)) {
+    if (!rnp_key_store_get_key_by_name(io, keyring, userid, &key)) {
         (void) fprintf(io->errs, "cannot find key '%s'\n", userid);
+        return NULL;
     }
     return key;
 }
