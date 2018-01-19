@@ -853,10 +853,10 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     pgp_dest_armored_param_t *param;
     rnp_result_t              ret = RNP_SUCCESS;
 
-    if ((param = calloc(1, sizeof(*param))) == NULL) {
-        RNP_LOG("allocation failed");
+    if (!init_dst_common(dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
+    param = dst->param;
 
     dst->write = armored_dst_write;
     dst->finish = armored_dst_finish;
@@ -865,7 +865,6 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     dst->writeb = 0;
     dst->clen = 0;
     dst->param = param;
-    dst->werr = RNP_SUCCESS;
 
     if (!pgp_hash_create(&param->crc_ctx, PGP_HASH_CRC24)) {
         RNP_LOG("Internal error");
