@@ -120,7 +120,7 @@ enum optdefs {
     OPT_PASSWD,
     OPT_SSHKEYFILE,
     OPT_MAX_MEM_ALLOC,
-    OPT_DURATION,
+    OPT_EXPIRATION,
     OPT_CREATION,
     OPT_CIPHER,
     OPT_NUMTRIES,
@@ -187,8 +187,8 @@ static struct option options[] = {
   {"max-mem", required_argument, NULL, OPT_MAX_MEM_ALLOC},
   {"max-alloc", required_argument, NULL, OPT_MAX_MEM_ALLOC},
   {"creation", required_argument, NULL, OPT_CREATION},
-  {"duration", required_argument, NULL, OPT_DURATION},
-  {"expiry", required_argument, NULL, OPT_DURATION},
+  {"expiration", required_argument, NULL, OPT_EXPIRATION},
+  {"expiry", required_argument, NULL, OPT_EXPIRATION},
   {"cipher", required_argument, NULL, OPT_CIPHER},
   {"num-tries", required_argument, NULL, OPT_NUMTRIES},
   {"numtries", required_argument, NULL, OPT_NUMTRIES},
@@ -363,7 +363,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
         ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
         ctx.sigcreate = get_creation(rnp_cfg_get(cfg, CFG_CREATION));
-        ctx.sigexpire = get_duration(rnp_cfg_get(cfg, CFG_DURATION));
+        ctx.sigexpire = get_expiration(rnp_cfg_get(cfg, CFG_EXPIRATION));
         ctx.clearsign = cmd == CMD_CLEARSIGN;
         ctx.detached = rnp_cfg_getbool(cfg, CFG_DETACHED);
 
@@ -581,8 +581,8 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
     case OPT_MAX_MEM_ALLOC:
         rnp_cfg_set(cfg, CFG_MAXALLOC, arg);
         break;
-    case OPT_DURATION:
-        rnp_cfg_set(cfg, CFG_DURATION, arg);
+    case OPT_EXPIRATION:
+        rnp_cfg_set(cfg, CFG_EXPIRATION, arg);
         break;
     case OPT_CREATION:
         rnp_cfg_set(cfg, CFG_CREATION, arg);

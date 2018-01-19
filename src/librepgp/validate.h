@@ -61,7 +61,7 @@ typedef struct pgp_validation_t {
     unsigned        unknownc;
     pgp_sig_info_t *unknown_sigs;
     time_t          creation;
-    time_t          duration;
+    time_t          expiration;
     rnp_ctx_t *     rnp_ctx;
 } pgp_validation_t;
 

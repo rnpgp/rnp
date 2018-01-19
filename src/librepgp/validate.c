@@ -450,9 +450,9 @@ validate_result_status(const char *f, pgp_validation_t *val)
                        fmtsecs((int64_t)(val->creation - now), buf, sizeof(buf)));
         return false;
     }
-    if (val->duration != 0 && now > val->creation + val->duration) {
+    if (val->expiration != 0 && now > val->creation + val->expiration) {
         /* signature has expired */
-        t = val->duration + val->creation;
+        t = val->expiration + val->creation;
         if (f) {
             (void) fprintf(stderr, "\"%s\": ", f);
         } else {

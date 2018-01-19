@@ -239,7 +239,7 @@ static void
 format_json_key(FILE *fp, json_object *obj, const int psigs)
 {
     int64_t creation;
-    int64_t duration;
+    int64_t expiration;
     time_t  now;
     char    tbuf[32];
 
@@ -292,14 +292,14 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
             p(fp, "]", NULL);
         }
 
-        if (json_object_object_get_ex(obj, "duration", &tmp)) {
-            duration = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
-            if (duration > 0) {
+        if (json_object_object_get_ex(obj, "expiration", &tmp)) {
+            expiration = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
+            if (expiration > 0) {
                 now = time(NULL);
                 p(fp,
                   " ",
-                  (creation + duration < now) ? "[EXPIRED " : "[EXPIRES ",
-                  ptimestr(tbuf, sizeof(tbuf), creation + duration),
+                  (creation + expiration < now) ? "[EXPIRED " : "[EXPIRES ",
+                  ptimestr(tbuf, sizeof(tbuf), creation + expiration),
                   "]",
                   NULL);
             }

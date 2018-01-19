@@ -150,7 +150,7 @@ typedef struct {
 typedef struct pgp_pubkey_t {
     pgp_version_t version; /* version of the key (v3, v4...) */
     time_t        creation;
-    time_t        duration; /* v4 duration time (not always set, see SS_KEY_EXPIRY) */
+    time_t        expiration; /* v4 expiration time (not always set, see SS_KEY_EXPIRY) */
     /* validity period of the key in days since
      * creation.  A value of 0 has a special meaning
      * indicating this key does not expire.  Only used with
@@ -233,7 +233,7 @@ typedef struct pgp_sig_info_t {
     /* **Note**: the following 3 fields are only valid if
      * their corresponding bitfields are 1 (see below). */
     time_t  creation;                   /* creation time of the signature */
-    time_t  duration;                   /* number of seconds it's valid for */
+    time_t  expiration;                 /* number of seconds it's valid for */
     uint8_t signer_id[PGP_KEY_ID_SIZE]; /* Eight-octet key ID
                                          * of signer */
     pgp_pubkey_alg_t key_alg;           /* public key algorithm number */
@@ -252,8 +252,8 @@ typedef struct pgp_sig_info_t {
      *   creation_set
      *   - v3 sig pkts have an explicit creation time field
      *   - v4 sig pkts MAY specify the creation time via a sigsubpkt
-     *   duration_set
-     *   - v3 sig pkts have no duration/expiration
+     *   expiration_set
+     *   - v3 sig pkts have no expiration
      *   - v4 sig pkts MAY have an expiration via a sigsubpkt
      *   signer_id_set
      *   - v3 sig pkts have an explicit signer id field
@@ -261,7 +261,7 @@ typedef struct pgp_sig_info_t {
      */
     unsigned creation_set : 1;
     unsigned signer_id_set : 1;
-    unsigned duration_set : 1;
+    unsigned expiration_set : 1;
 } pgp_sig_info_t;
 
 /** Struct used when parsing a signature */

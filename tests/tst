@@ -153,14 +153,14 @@ echo "======> pipeline and memory sign/verify"
 /usr/bin/rnp --sign < a | /usr/bin/rnp --cat > a5
 diff a a5 && good=26
 marktest 26 $good
-echo "======> verify within a duration"
+echo "======> verify within a expiration"
 cp Makefile.am h
-/usr/bin/rnp --sign --duration 6m --detached h
+/usr/bin/rnp --sign --expiration 6m --detached h
 /usr/bin/rnp --verify h.sig && good=27
 marktest 27 $good
 echo "======> invalid signature - expired"
 rm -f h.sig
-/usr/bin/rnp --sign --duration 2 --detached h
+/usr/bin/rnp --sign --expiration 2 --detached h
 sleep 3
 /usr/bin/rnp --verify h.sig || good=28
 marktest 28 $good
