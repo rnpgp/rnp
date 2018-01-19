@@ -52,7 +52,7 @@
 #define CFG_PASSWD "password" /* password as command-line constant */
 #define CFG_USERINPUTFD "user-input-fd" /* user input file descriptor */
 #define CFG_NUMTRIES "numtries"         /* number of password request tries, or 'unlimited' */
-#define CFG_DURATION "duration"         /* signature validity duration */
+#define CFG_EXPIRATION "expiration"     /* signature expiration time */
 #define CFG_CREATION "creation"       /* signature validity start */
 #define CFG_CIPHER "cipher"             /* symmetric encryption algorithm as string */
 #define CFG_HASH "hash"                 /* hash algorithm used, string like 'SHA1'*/
@@ -117,7 +117,7 @@ void rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
 int rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
 
 /* rnp CLI helper functions */
-uint64_t get_duration(const char *s);
+uint64_t get_expiration(const char *s);
 int64_t get_creation(const char *s);
 
 #endif

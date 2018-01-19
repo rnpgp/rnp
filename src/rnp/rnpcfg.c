@@ -697,20 +697,20 @@ grabdate(const char *s, int64_t *t)
 }
 
 /**
- * @brief Get signature validity duration time from the user input
+ * @brief Get signature validity expiration time from the user input
  *
- * Signature duration may be specified in different formats:
+ * Signature expiration may be specified in different formats:
  * - 10d : 10 days (you can use [h]ours, d[ays], [w]eeks, [m]onthes)
  * - 2017-07-12 : as the exact date when signature becomes invalid
  * - 60000 : number of seconds
  *
  * @param s [in] NULL-terminated string with the date
  * @param t [out] On successfull return result will be placed here
- * @return duration time in seconds
+ * @return expiration time in seconds
  */
 
 uint64_t
-get_duration(const char *s)
+get_expiration(const char *s)
 {
     uint64_t now;
     int64_t  t;

@@ -56,7 +56,7 @@
 .Op Fl Fl pass\-fd Ns = Ns Ar fd
 .Op Fl Fl from Ns = Ns Ar sig-valid-from
 .Op Fl Fl num\-tries Ns = Ns Ar attempts
-.Op Fl Fl duration Ns = Ns Ar sig-valid-duration
+.Op Fl Fl expiration Ns = Ns Ar sig-valid-expiration
 .Op options
 .Ar file ...
 .Nm
@@ -302,7 +302,7 @@ until a specific point in time.
 The time can be specified either in
 .Dv YYYY-MM-DD
 format, or as the number of seconds since the epoch.
-.It Fl Fl duration Ns = Ns Ar signature-valid-to
+.It Fl Fl expiration Ns = Ns Ar signature-valid-to
 This option allows the signer to specify a time as the
 end point for validity of the signature.
 In this way it is possible to prevent files from being verified

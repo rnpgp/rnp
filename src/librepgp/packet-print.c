@@ -76,9 +76,9 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 
 #define PTIMESTR_LEN 10
 
-#define PUBKEY_DOES_EXPIRE(pk) ((pk)->duration > 0)
+#define PUBKEY_DOES_EXPIRE(pk) ((pk)->expiration > 0)
 
-#define PUBKEY_HAS_EXPIRED(pk, t) (((pk)->creation + (pk)->duration) < (t))
+#define PUBKEY_HAS_EXPIRED(pk, t) (((pk)->creation + (pk)->expiration) < (t))
 
 #define SIGNATURE_PADDING "          "
 
@@ -192,13 +192,13 @@ print_utf8_string(int indent, const char *name, const uint8_t *str)
 }
 
 static void
-print_duration(int indent, const char *name, time_t t)
+print_expiration(int indent, const char *name, time_t t)
 {
     int mins, hours, days, years;
 
     print_indent(indent);
     printf("%s: ", name);
-    printf("duration %" PRItime "d seconds", (long long) t);
+    printf("expiration %" PRItime "d seconds", (long long) t);
 
     mins = (int) (t / 60);
     hours = mins / 60;
@@ -426,7 +426,7 @@ format_pubkey_expiration_notice(char *              buffer,
         return false;
 
     /* Write the expiration time. */
-    ptimestr(buffer, buffer_end - buffer, pubkey->creation + pubkey->duration);
+    ptimestr(buffer, buffer_end - buffer, pubkey->creation + pubkey->expiration);
     buffer += PTIMESTR_LEN;
     if (buffer >= buffer_end)
         return false;
@@ -721,7 +721,7 @@ repgp_sprint_json(pgp_io_t *                    io,
                            json_object_new_string(rnp_strhexdump(
                              fp, key->fingerprint.fingerprint, key->fingerprint.length, "")));
     json_object_object_add(keyjson, "creation time", json_object_new_int(pubkey->creation));
-    json_object_object_add(keyjson, "duration", json_object_new_int(pubkey->duration));
+    json_object_object_add(keyjson, "expiration", json_object_new_int(pubkey->expiration));
     json_object_object_add(keyjson, "key flags", json_object_new_int(key->key_flags));
     json_object *usage_arr = json_object_new_array();
     format_key_usage_json(usage_arr, key->key_flags);
@@ -811,7 +811,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                       sizeof(uidbuf) - n,
                       "uid:%lld:%lld:%s\n",
                       (long long) pubkey->creation,
-                      (long long) pubkey->duration,
+                      (long long) pubkey->expiration,
                       key->uids[i]);
         for (j = 0; j < key->subsigc; j++) {
             if (psigs) {
@@ -838,7 +838,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                            rnp_strhexdump(
                              keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, ""),
                            (long long) (key->subsigs[j].sig.info.creation),
-                           (long long) pubkey->duration);
+                           (long long) pubkey->expiration);
             } else {
                 n +=
                   snprintf(&uidbuf[n],
@@ -867,7 +867,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                          pubkey->alg,
                          key_bitlength(pubkey),
                          (long long) pubkey->creation,
-                         (long long) pubkey->duration,
+                         (long long) pubkey->expiration,
                          uidbuf);
             *buf = buffer;
         }
@@ -1244,9 +1244,9 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
         if (content->sig.info.creation_set) {
             print_time(print->indent, "Signature Creation Time", content->sig.info.creation);
         }
-        if (content->sig.info.duration_set) {
+        if (content->sig.info.expiration_set) {
             print_uint(
-              print->indent, "Signature Duration", (unsigned) content->sig.info.duration);
+              print->indent, "Signature Expiration", (unsigned) content->sig.info.expiration);
         }
 
         print_string_and_value(print->indent,
@@ -1359,13 +1359,13 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
 
     case PGP_PTAG_SS_EXPIRATION_TIME:
         start_subpacket(&print->indent, pkt->tag);
-        print_duration(print->indent, "Signature Expiration Time", content->ss_time);
+        print_expiration(print->indent, "Signature Expiration Time", content->ss_time);
         end_subpacket(&print->indent);
         break;
 
     case PGP_PTAG_SS_KEY_EXPIRY:
         start_subpacket(&print->indent, pkt->tag);
-        print_duration(print->indent, "Key Expiration Time", content->ss_time);
+        print_expiration(print->indent, "Key Expiration Time", content->ss_time);
         end_subpacket(&print->indent);
         break;
 
@@ -1587,9 +1587,9 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
         if (content->sig.info.creation_set) {
             print_time(print->indent, "Signature Creation Time", content->sig.info.creation);
         }
-        if (content->sig.info.duration_set) {
+        if (content->sig.info.expiration_set) {
             print_uint(
-              print->indent, "Signature Duration", (unsigned) content->sig.info.duration);
+              print->indent, "Signature Expiration", (unsigned) content->sig.info.expiration);
         }
         print_string_and_value(print->indent,
                                "Signature Type",

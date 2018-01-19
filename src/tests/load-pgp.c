@@ -246,11 +246,11 @@ test_load_check_bitfields_and_times(void **state)
         assert_int_equal(ss->sig.info.creation_set, 1);
         assert_int_equal(ss->sig.info.creation, expected_creation_times[i]);
         // check SS_EXPIRATION_TIME
-        assert_int_equal(ss->sig.info.duration_set, 0);
-        assert_int_equal(ss->sig.info.duration, 0);
+        assert_int_equal(ss->sig.info.expiration_set, 0);
+        assert_int_equal(ss->sig.info.expiration, 0);
     }
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->key.pubkey.duration, 0);
+    assert_int_equal(key->key.pubkey.expiration, 0);
 
     // find
     from = 0;
@@ -269,10 +269,10 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigs[0].sig.info.creation, 1500569820);
     assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
     // check SS_EXPIRATION_TIME [0]
-    assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
-    assert_int_equal(key->subsigs[0].sig.info.duration, 0);
+    assert_int_equal(key->subsigs[0].sig.info.expiration_set, 0);
+    assert_int_equal(key->subsigs[0].sig.info.expiration, 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->key.pubkey.duration, 0);
+    assert_int_equal(key->key.pubkey.expiration, 0);
 
     // find
     from = 0;
@@ -291,10 +291,10 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigs[0].sig.info.creation, 1500569851);
     assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
     // check SS_EXPIRATION_TIME [0]
-    assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
-    assert_int_equal(key->subsigs[0].sig.info.duration, 0);
+    assert_int_equal(key->subsigs[0].sig.info.expiration_set, 0);
+    assert_int_equal(key->subsigs[0].sig.info.expiration, 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->key.pubkey.duration, 123 * 24 * 60 * 60 /* 123 days */);
+    assert_int_equal(key->key.pubkey.expiration, 123 * 24 * 60 * 60 /* 123 days */);
 
     // find
     from = 0;
@@ -313,10 +313,10 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigs[0].sig.info.creation, 1500569896);
     assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
     // check SS_EXPIRATION_TIME [0]
-    assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
-    assert_int_equal(key->subsigs[0].sig.info.duration, 0);
+    assert_int_equal(key->subsigs[0].sig.info.expiration_set, 0);
+    assert_int_equal(key->subsigs[0].sig.info.expiration, 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->key.pubkey.duration, 0);
+    assert_int_equal(key->key.pubkey.expiration, 0);
 
     // find
     from = 0;
@@ -338,11 +338,11 @@ test_load_check_bitfields_and_times(void **state)
         assert_int_equal(ss->sig.info.creation_set, 1);
         assert_int_equal(ss->sig.info.creation, expected_creation_times[i]);
         // check SS_EXPIRATION_TIME
-        assert_int_equal(ss->sig.info.duration_set, 0);
-        assert_int_equal(ss->sig.info.duration, 0);
+        assert_int_equal(ss->sig.info.expiration_set, 0);
+        assert_int_equal(ss->sig.info.expiration, 0);
     }
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->key.pubkey.duration, 2076663808);
+    assert_int_equal(key->key.pubkey.expiration, 2076663808);
 
     // find
     from = 0;
@@ -361,10 +361,10 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigs[0].sig.info.creation, 1500569946);
     assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
     // check SS_EXPIRATION_TIME [0]
-    assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
-    assert_int_equal(key->subsigs[0].sig.info.duration, 0);
+    assert_int_equal(key->subsigs[0].sig.info.expiration_set, 0);
+    assert_int_equal(key->subsigs[0].sig.info.expiration, 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->key.pubkey.duration, 2076663808);
+    assert_int_equal(key->key.pubkey.expiration, 2076663808);
 
     // find
     from = 0;
@@ -383,10 +383,10 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigs[0].sig.info.creation, 1500570165);
     assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
     // check SS_EXPIRATION_TIME [0]
-    assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
-    assert_int_equal(key->subsigs[0].sig.info.duration, 0);
+    assert_int_equal(key->subsigs[0].sig.info.expiration_set, 0);
+    assert_int_equal(key->subsigs[0].sig.info.expiration, 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->key.pubkey.duration, 0);
+    assert_int_equal(key->key.pubkey.expiration, 0);
 
     // cleanup
     rnp_key_store_free(key_store);
@@ -429,10 +429,10 @@ test_load_check_bitfields_and_times_v3(void **state)
     assert_int_equal(key->subsigs[0].sig.info.creation, 1005209227);
     assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
     // check signature expiration time (V3 sigs have none)
-    assert_int_equal(key->subsigs[0].sig.info.duration_set, 0);
-    assert_int_equal(key->subsigs[0].sig.info.duration, 0);
+    assert_int_equal(key->subsigs[0].sig.info.expiration_set, 0);
+    assert_int_equal(key->subsigs[0].sig.info.expiration, 0);
     // check key expiration
-    assert_int_equal(key->key.pubkey.duration, 0); // only for V4 keys
+    assert_int_equal(key->key.pubkey.expiration, 0); // only for V4 keys
     assert_int_equal(key->key.pubkey.days_valid, 0);
 
     // cleanup

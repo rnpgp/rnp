@@ -1718,8 +1718,8 @@ parse_one_sig_subpacket(pgp_sig_t *sig, pgp_region_t *region, pgp_stream_t *stre
             sig->info.creation_set = 1;
         }
         if (pkt.tag == PGP_PTAG_SS_EXPIRATION_TIME) {
-            sig->info.duration = pkt.u.ss_time;
-            sig->info.duration_set = 1;
+            sig->info.expiration = pkt.u.ss_time;
+            sig->info.expiration_set = 1;
         }
         break;
 
