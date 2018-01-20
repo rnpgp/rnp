@@ -161,17 +161,11 @@ static void adjust_hash_alg(rnp_keygen_crypto_params_t *crypto) {
         return;
     }
 
-    pgp_pubkey_alg_t min_hash = (crypto->key_alg == PGP_PKA_ECDSA)
+    pgp_hash_alg_t min_hash = (crypto->key_alg == PGP_PKA_ECDSA)
         ? ecdsa_get_min_hash(crypto->ecc.curve)
         : dsa_get_min_hash(crypto->dsa.q_bitlen);
 
-    size_t l_req = 0, l_min = 0;
-    if (!pgp_digest_length(crypto->hash_alg, &l_req) ||
-        !pgp_digest_length(min_hash, &l_min)) {
-        crypto->hash_alg = PGP_HASH_UNKNOWN;
-    }
-
-    if (l_req < l_min) {
+    if (pgp_digest_length(crypto->hash_alg) < pgp_digest_length(min_hash)) {
         crypto->hash_alg = min_hash;
     }
 }

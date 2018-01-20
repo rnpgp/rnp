@@ -84,6 +84,7 @@
 #include "crypto/bn.h"
 #include "crypto/dsa.h"
 
+#include "hash.h"
 #define DSA_MAX_Q_BITLEN 256
 
 rnp_result_t

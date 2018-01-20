@@ -69,7 +69,7 @@ void generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **st
 
 void generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state);
 
-void generatekeyECDSA_explicitlySetWrongDigest_ShouldFail(void **state);
+void generatekeyECDSA_explicitlySetWrongDigest_ShouldSuceed(void **state);
 
 void test_utils_list(void **state);
 

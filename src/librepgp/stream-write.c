@@ -1302,37 +1302,6 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
     return ret;
 }
 
-/**
-    Pick up hash algorithm according to secret key and preferences set in the context.
-    DSA and ECDSA need special treatment.
-*/
-static pgp_hash_alg_t
-pgp_pick_hash_alg(rnp_ctx_t *ctx, const pgp_seckey_t *seckey)
-{
-    if ((seckey->pubkey.alg != PGP_PKA_DSA) &&
-        (seckey->pubkey.alg != PGP_PKA_ECDSA)) {
-        return ctx->halg;
-    }
-
-    pgp_hash_alg_t h_key;
-    if (seckey->pubkey.alg == PGP_PKA_ECDSA) {
-        h_key = ecdsa_get_min_hash(seckey->pubkey.key.ecc.curve);
-    } else {
-        size_t s;
-        if(!bn_num_bits(seckey->pubkey.key.dsa.q, &s)) {
-            return PGP_HASH_UNKNOWN;
-        }
-        h_key = dsa_get_min_hash(s);
-    }
-
-    size_t dlen_key = 0, dlen_ctx = 0;
-    if (!pgp_digest_length(h_key, &dlen_key) ||
-        !pgp_digest_length(ctx->halg, &dlen_ctx)) {
-        return PGP_HASH_UNKNOWN;
-    }
-    return (dlen_key > dlen_ctx) ? h_key : ctx->halg;
-}
-
 static rnp_result_t
 signed_write_signature(pgp_dest_signed_param_t *param,
                        pgp_one_pass_sig_t *     onepass,
@@ -1348,7 +1317,7 @@ signed_write_signature(pgp_dest_signed_param_t *param,
         sig.palg = onepass->palg;
         sig.type = onepass->type;
     } else {
-        sig.halg = pgp_pick_hash_alg(param->ctx, &seckey->key.seckey);
+        sig.halg = pgp_hash_adjust_alg_to_key(param->ctx->halg, &seckey->key.seckey.pubkey);
         sig.palg = seckey->key.pubkey.alg;
         sig.type = param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT;
     }
@@ -1465,7 +1434,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, pgp_key_t *key, bool last)
     pgp_hash_alg_t     halg;
 
     /* Add hash to the list */
-    halg = pgp_pick_hash_alg(param->ctx, &key->key.seckey);
+    halg = pgp_hash_adjust_alg_to_key(param->ctx->halg, &key->key.seckey.pubkey);
     if (!pgp_hash_list_add(&param->hashes, halg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }

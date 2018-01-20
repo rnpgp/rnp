@@ -226,16 +226,17 @@ ecdsa_sign(rng_t *                 rng,
         return false;
     }
 
-    // "-2" because ECDSA on P-521 must work with SHA-512 digest
-    if (BITS_TO_BYTES(curve->bitlen) - 2 > pgp_hash_output_length(hash)) {
-        RNP_LOG("Message hash to small");
-        return false;
-    }
-
     /* finalise hash */
     size_t hashsize = pgp_hash_finish(hash, hashbuf);
     if (!pgp_write(output, &hashbuf[0], 2))
         return false;
+
+    // "-2" because ECDSA on P-521 must work with SHA-512 digest
+    if (BITS_TO_BYTES(curve->bitlen) - 2 > hashsize) {
+        RNP_LOG("Message hash to small");
+        return false;
+    }
+
 
     /* write signature to buf */
     if (pgp_ecdsa_sign_hash(rng, &sig, hashbuf, hashsize, prv_key, pub_key) != RNP_SUCCESS) {
@@ -267,16 +268,16 @@ sm2_sign(rng_t *                 rng,
         return false;
     }
 
-    // "-2" because SM2 on P-521 must work with SHA-512 digest
-    if (BITS_TO_BYTES(curve->bitlen) - 2 > pgp_hash_output_length(hash)) {
-        RNP_LOG("Message hash to small");
-        return false;
-    }
-
     /* finalise hash */
     size_t hashsize = pgp_hash_finish(hash, hashbuf);
     if (!pgp_write(output, &hashbuf[0], 2))
         return false;
+
+    // "-2" because SM2 on P-521 must work with SHA-512 digest
+    if (BITS_TO_BYTES(curve->bitlen) - 2 > hashsize) {
+        RNP_LOG("Message hash to small");
+        return false;
+    }
 
     /* write signature to buf */
     if (pgp_sm2_sign_hash(rng, &sig, hashbuf, hashsize, prv_key, pub_key) != RNP_SUCCESS) {
@@ -635,6 +636,7 @@ start_sig_in_mem(pgp_create_sig_t *sig)
     pgp_write_scalar(sig->output, 0, 2);
 }
 
+
 /**
  * \ingroup Core_Signature
  *
@@ -662,7 +664,7 @@ pgp_sig_start_key_sig(pgp_create_sig_t *  sig,
      * probably use the buffered writer to construct packets
      * (done), and also should share code for hash calculation) */
     sig->sig.info.version = PGP_V4;
-    sig->sig.info.hash_alg = hash_alg;
+    sig->sig.info.hash_alg = pgp_hash_adjust_alg_to_key(hash_alg, key);
     sig->sig.info.key_alg = key->alg;
     sig->sig.info.type = type;
     sig->hashlen = (unsigned) -1;
@@ -691,7 +693,7 @@ pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
     }
 
     sig->sig.info.version = PGP_V4;
-    sig->sig.info.hash_alg = hash_alg;
+    sig->sig.info.hash_alg = pgp_hash_adjust_alg_to_key(hash_alg, key);
     sig->sig.info.key_alg = key->alg;
     sig->sig.info.type = type;
     sig->hashlen = (unsigned) -1;

@@ -151,44 +151,6 @@ ask_dsa_bitlen(FILE *input_fp)
     return result;
 }
 
-static rnp_result_t
-setup_ecdsa_key_params(rnp_keygen_crypto_params_t *params, FILE *input_fd)
-{
-    if (PGP_HASH_UNKNOWN == params->hash_alg) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    size_t digest_length = 0;
-    if (!pgp_digest_length(params->hash_alg, &digest_length)) {
-        // Implementation error
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    params->key_alg = PGP_PKA_ECDSA;
-    params->ecc.curve = ask_curve(input_fd);
-    /*
-     * Adjust hash to curve - see point 14 of RFC 4880 bis 01
-     * and/or ECDSA spec.
-     *
-     * Minimal size of digest for curve:
-     *    P-256  32 bytes
-     *    P-384  48 bytes
-     *    P-521  64 bytes
-     */
-    const pgp_hash_alg_t h_key = ecdsa_get_min_hash(params->ecc.curve);
-
-    size_t dlen_key;
-    if (!pgp_digest_length(h_key, &dlen_key)) {
-        return RNP_ERROR_GENERIC;
-    }
-
-    if (dlen_key > digest_length) {
-        params->hash_alg = h_key;
-    }
-
-    return RNP_SUCCESS;
-}
-
 /* -----------------------------------------------------------------------------
  * @brief   Asks user for details needed for the key to be generated (currently
  *          key type and key length only)
@@ -216,8 +178,6 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
     // get more details about the key
     const pgp_pubkey_alg_t key_alg = crypto->key_alg;
     switch (key_alg) {
-        rnp_result_t ret;
-
     case PGP_PKA_RSA:
         // Those algorithms must _NOT_ be supported
         //  case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -228,14 +188,14 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
 
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
-        ret = setup_ecdsa_key_params(&action->primary.keygen.crypto, input_fd);
-        if (ret != RNP_SUCCESS) {
-            return ret;
+        action->primary.keygen.crypto.key_alg = PGP_PKA_ECDSA;
+        action->primary.keygen.crypto.ecc.curve = ask_curve(input_fd);
+        if (key_alg == PGP_PKA_ECDH) {
+            /* Generate ECDH as a subkey of ECDSA */
+            action->subkey.keygen.crypto.key_alg = PGP_PKA_ECDH;
+            action->subkey.keygen.crypto.hash_alg = action->primary.keygen.crypto.hash_alg;
+            action->subkey.keygen.crypto.ecc.curve = action->primary.keygen.crypto.ecc.curve;
         }
-        /* Generate ECDH as a subkey of ECDSA */
-        action->subkey.keygen.crypto.key_alg = PGP_PKA_ECDH;
-        action->subkey.keygen.crypto.hash_alg = action->primary.keygen.crypto.hash_alg;
-        action->subkey.keygen.crypto.ecc.curve = action->primary.keygen.crypto.ecc.curve;
         break;
 
     case PGP_PKA_EDDSA:

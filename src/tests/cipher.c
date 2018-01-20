@@ -75,7 +75,7 @@ hash_test_success(void **state)
 
     for (int i = 0; hash_algs[i] != PGP_HASH_UNKNOWN; ++i) {
         rnp_assert_int_equal(rstate, 1, pgp_hash_create(&hash, hash_algs[i]));
-        unsigned hash_size = pgp_hash_output_length(&hash);
+        size_t hash_size = pgp_digest_length(hash_algs[i]);
 
         rnp_assert_int_equal(rstate, hash_size * 2, strlen(hash_alg_expected_outputs[i]));
 
@@ -720,9 +720,7 @@ test_dsa_roundtrip(void **state)
         pgp_dsa_seckey_t *sec1 = &sec_key1.key.dsa;
         pgp_dsa_pubkey_t *pub2 = &sec_key2.pubkey.key.dsa;
 
-        size_t h_size;
-        rnp_assert_true(rstate,
-            pgp_digest_length(keys[i].h, &h_size));
+        size_t h_size = pgp_digest_length(keys[i].h);
         rnp_assert_int_equal(rstate,
             dsa_sign(&global_rng, &sig, message, h_size, sec1, pub1), RNP_SUCCESS);
         rnp_assert_int_equal(rstate,
