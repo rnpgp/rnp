@@ -669,32 +669,73 @@ void
 test_dsa_roundtrip(void **state)
 {
     rnp_test_state_t *rstate = *state;
-    uint8_t           message[64];
-    pgp_seckey_t      sec_key;
+    uint8_t           message[PGP_MAX_HASH_SIZE];
+    pgp_seckey_t      sec_key1 = {{0}};
+    pgp_seckey_t      sec_key2 = {{0}};
     pgp_dsa_sig_t     sig = {0};
 
-    const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_DSA,
-                                                 .hash_alg = PGP_HASH_SHA1,
-                                                 .dsa = {.p_bitlen = 1024, .q_bitlen = 160},
-                                                 .rng = &global_rng};
+    struct key_params {
+        size_t p;
+        size_t q;
+        pgp_hash_alg_t h;
+    } keys[] = {
+        // all 1024 key-hash combinations
+        {1024, 160, PGP_HASH_SHA1},
+        {1024, 160, PGP_HASH_SHA224},
+        {1024, 160, PGP_HASH_SHA256},
+        {1024, 160, PGP_HASH_SHA384},
+        {1024, 160, PGP_HASH_SHA512},
+        // all 2048 key-hash combinations
+        {2048, 256, PGP_HASH_SHA256},
+        {2048, 256, PGP_HASH_SHA384},
+        {2048, 256, PGP_HASH_SHA512},
+        // all 3072 key-hash combinations
+        {3072, 256, PGP_HASH_SHA384},
+        {3072, 256, PGP_HASH_SHA512},
+        //misc
+        {1088, 224, PGP_HASH_SHA224},
+        {1088, 224, PGP_HASH_SHA256},
+        {1088, 224, PGP_HASH_SHA384},
+        {1088, 224, PGP_HASH_SHA512},
+        {1024, 256, PGP_HASH_SHA256},
+    };
 
-    pgp_dsa_pubkey_t *pub = &sec_key.pubkey.key.dsa;
-    pgp_dsa_seckey_t *sec = &sec_key.key.dsa;
+    assert_true(rng_get_data(&global_rng, message, sizeof(message)));
 
-    assert_true(pgp_generate_seckey(&key_desc, &sec_key));
+    for (size_t i = 0; i<ARRAY_SIZE(keys); i++) {
+        sig.r = sig.s = NULL;
+        const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_DSA,
+                                                     .hash_alg = keys[i].h,
+                                                     .dsa = {
+                                                        .p_bitlen = keys[i].p,
+                                                        .q_bitlen = keys[i].q
+                                                     },
+                                                     .rng = &global_rng};
 
-    rnp_assert_int_equal(
-      rstate, dsa_sign(&global_rng, &sig, message, 20, sec, pub), RNP_SUCCESS);
-    rnp_assert_int_equal(rstate, dsa_verify(message, 20, &sig, pub), RNP_SUCCESS);
 
-    //        // Fails because message won't verify
-    //        message[0] = ~message[0];
-    //        rnp_assert_int_equal(rstate,
-    //                             pgp_ecdsa_verify_hash(&sig, message, sizeof(message),
-    //                             pub_key1),
-    //                             RNP_ERROR_SIGNATURE_INVALID);
+        assert_true(pgp_generate_seckey(&key_desc, &sec_key1));
+        assert_true(pgp_generate_seckey(&key_desc, &sec_key2));
 
-    pgp_seckey_free(&sec_key);
+        pgp_dsa_pubkey_t *pub1 = &sec_key1.pubkey.key.dsa;
+        pgp_dsa_seckey_t *sec1 = &sec_key1.key.dsa;
+        pgp_dsa_pubkey_t *pub2 = &sec_key2.pubkey.key.dsa;
+
+        size_t h_size;
+        rnp_assert_true(rstate,
+            pgp_digest_length(keys[i].h, &h_size));
+        rnp_assert_int_equal(rstate,
+            dsa_sign(&global_rng, &sig, message, h_size, sec1, pub1), RNP_SUCCESS);
+        rnp_assert_int_equal(rstate,
+            dsa_verify(message, h_size, &sig, pub1), RNP_SUCCESS);
+        // wrong key used
+        rnp_assert_int_equal(rstate,
+            dsa_verify(message, h_size, &sig, pub2), RNP_ERROR_SIGNATURE_INVALID);
+        // different message
+        message[0] = ~message[0];
+        rnp_assert_int_equal(rstate,
+            dsa_verify(message, h_size, &sig, pub1), RNP_ERROR_SIGNATURE_INVALID);
+        pgp_seckey_free(&sec_key1);
+        pgp_seckey_free(&sec_key2);
+        bn_free(sig.r); bn_free(sig.s);
+    }
 }
-
-// To big key, to small key, not multiple of 64-bit, multiple hashes
