@@ -78,21 +78,22 @@
 #include "utils.h"
 #include <rnp/rnp_sdk.h>
 #include <stdio.h>
-
+#include "crypto/ecdsa.h"
+#include "crypto/dsa.h"
 static const struct hash_alg_map_t {
     pgp_hash_alg_t type;
     const char *   name;
     const char *   botan_name;
-} hash_alg_map[] = {{PGP_HASH_MD5, "MD5", "MD5"},
-                    {PGP_HASH_SHA1, "SHA1", "SHA-1"},
-                    {PGP_HASH_RIPEMD, "RIPEMD160", "RIPEMD-160"},
-                    {PGP_HASH_SHA256, "SHA256", "SHA-256"},
-                    {PGP_HASH_SHA384, "SHA384", "SHA-384"},
-                    {PGP_HASH_SHA512, "SHA512", "SHA-512"},
-                    {PGP_HASH_SHA224, "SHA224", "SHA-224"},
-                    {PGP_HASH_SM3, "SM3", "SM3"},
-                    {PGP_HASH_CRC24, "CRC24", "CRC24"}};
-
+    size_t         digest_size;
+} hash_alg_map[] = {{PGP_HASH_MD5, "MD5", "MD5", 16},
+                    {PGP_HASH_SHA1, "SHA1", "SHA-1", 20},
+                    {PGP_HASH_RIPEMD, "RIPEMD160", "RIPEMD-160", 20},
+                    {PGP_HASH_SHA256, "SHA256", "SHA-256", 32},
+                    {PGP_HASH_SHA384, "SHA384", "SHA-384", 48},
+                    {PGP_HASH_SHA512, "SHA512", "SHA-512", 64},
+                    {PGP_HASH_SHA224, "SHA224", "SHA-224", 28},
+                    {PGP_HASH_SM3, "SM3", "SM3", 32},
+                    {PGP_HASH_CRC24, "CRC24", "CRC24", 3}};
 /**
  * \ingroup Core_Print
  *
@@ -233,12 +234,6 @@ pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
     return outlen;
 }
 
-size_t
-pgp_hash_output_length(const pgp_hash_t *hash)
-{
-    return hash->_output_len;
-}
-
 pgp_hash_alg_t
 pgp_hash_alg_type(const pgp_hash_t *hash)
 {
@@ -257,19 +252,12 @@ pgp_is_hash_alg_supported(const pgp_hash_alg_t *hash_alg)
     return pgp_hash_name_botan(*hash_alg) != NULL;
 }
 
-bool
-pgp_digest_length(pgp_hash_alg_t alg, size_t *output_length)
+size_t
+pgp_digest_length(pgp_hash_alg_t alg)
 {
-    bool ret = true;
-
-    botan_hash_t handle = NULL;
-    if (botan_hash_init(&handle, pgp_hash_name_botan(alg), 0) ||
-        botan_hash_output_length(handle, output_length)) {
-        ret = false;
-    }
-
-    botan_hash_destroy(handle);
-    return ret;
+    size_t val = 0;
+    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, digest_size, alg, val);
+    return val;
 }
 
 bool
@@ -326,4 +314,29 @@ pgp_hash_uint32(pgp_hash_t *hash, uint32_t n)
     uint8_t ibuf[4];
     STORE32BE(ibuf, n);
     return !pgp_hash_add(hash, ibuf, sizeof(ibuf));
+}
+
+pgp_hash_alg_t
+pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_pubkey_t *pubkey)
+{
+    if ((pubkey->alg != PGP_PKA_DSA) &&
+        (pubkey->alg != PGP_PKA_ECDSA)) {
+        return hash;
+    }
+
+    pgp_hash_alg_t hash_min;
+    if (pubkey->alg == PGP_PKA_ECDSA) {
+        hash_min = ecdsa_get_min_hash(pubkey->key.ecc.curve);
+    } else {
+        size_t s;
+        if(!bn_num_bits(pubkey->key.dsa.q, &s)) {
+            return PGP_HASH_UNKNOWN;
+        }
+        hash_min = dsa_get_min_hash(s);
+    }
+
+    if (pgp_digest_length(hash) < pgp_digest_length(hash_min)) {
+        return hash_min;
+    }
+    return hash;
 }

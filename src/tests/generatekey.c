@@ -757,7 +757,7 @@ generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
 }
 
 void
-generatekeyECDSA_explicitlySetWrongDigest_ShouldFail(void **state)
+generatekeyECDSA_explicitlySetWrongDigest_ShouldSuceed(void **state)
 {
     rnp_test_state_t *rstate = *state;
     rnp_t             rnp;
@@ -768,7 +768,9 @@ generatekeyECDSA_explicitlySetWrongDigest_ShouldFail(void **state)
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
     rnp_assert_true(rstate, rnp_cfg_setstr(&ops, CFG_HASH, "WRONG_DIGEST_ALGORITHM"));
 
-    rnp_assert_false(rstate,
+    // Finds out that hash doesn't exist and uses
+    // hash which generates output that's long enough
+    rnp_assert_true(rstate,
                      ask_expert_details(&rnp, &ops, test_ecdsa_384, strlen(test_ecdsa_384)));
     rnp_cfg_free(&ops);
 }

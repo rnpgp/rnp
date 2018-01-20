@@ -195,7 +195,8 @@ pgp_sm2_encrypt(rng_t *                 rng,
         return RNP_ERROR_GENERIC;
     }
 
-    if (!pgp_digest_length(hash_algo, &hash_alg_len)) {
+    hash_alg_len = pgp_digest_length(hash_algo);
+    if (!hash_alg_len) {
         RNP_LOG("Unknown hash algorithm for SM2 encryption");
         goto done;
     }
