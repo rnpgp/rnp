@@ -30,6 +30,7 @@
 #define RNP_LIST_H
 
 #include <stddef.h>
+#include <stdbool.h>
 
 /**
  *  @private
@@ -130,6 +131,17 @@ list_item *list_insert_before(list_item *where, const void *data, size_t data_si
  *  @return the new item or NULL if memory allocation failed
  **/
 list_item *list_insert_after(list_item *where, const void *data, size_t data_size);
+
+/** @private
+ *  check if an item is a member of a list
+ *
+ *  This is a quick operation, it does not need to traverse the list.
+ *
+ *  @param lst the list
+ *  @param item pointer to the item, which should not be NULL
+ *  @return true if the item is a member of the list, false otherwise
+ **/
+bool list_is_member(list lst, list_item *item);
 
 /** @private
  *  get the number of items in a list

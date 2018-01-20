@@ -153,6 +153,14 @@ list_insert(list *lst, const void *data, size_t data_size)
     return get_data_ptr(item);
 }
 
+bool
+list_is_member(list head, list_item *item) {
+    if (!head || !item) {
+        return false;
+    }
+    return get_item_ptr(item)->head == head;
+}
+
 list_item *
 list_front(list head)
 {

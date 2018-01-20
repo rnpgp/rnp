@@ -205,6 +205,33 @@ test_utils_list(void **state)
         validate_int_list(l, expected, ARRAY_SIZE(expected));
     }
 
+    // check membership
+    {
+        list_item *item = list_front(l);
+        list list2 = NULL;
+        int i = 1;
+        assert_true(list_append(&list2, &i, sizeof(i)));
+        while (item) {
+            assert_true(list_is_member(l, item));
+            assert_false(list_is_member(l, list_front(list2)));
+            assert_false(list_is_member(list2, item));
+            item = list_next(item);
+        }
+    }
+
+    // remove all
+    {
+        list_item *item = list_front(l);
+        while (item) {
+            list_item *next = list_next(item);
+            list_remove(item);
+            item = next;
+        }
+        assert_null(list_front(l));
+        assert_null(list_back(l));
+        assert_int_equal(list_length(l), 0);
+    }
+
     list_destroy(&l);
     assert_null(l);
 }
