@@ -726,7 +726,7 @@ generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state)
     static const char test_ecdsa_384[] = "19\n2\n";
 
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
-    rnp_assert_true(rstate, rnp_cfg_set(&ops, CFG_HASH, "SHA1"));
+    rnp_assert_true(rstate, rnp_cfg_setstr(&ops, CFG_HASH, "SHA1"));
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_384, strlen(test_ecdsa_384)));
@@ -746,7 +746,7 @@ generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
     static const char test_ecdsa_384[] = "19\n2\n";
 
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
-    rnp_assert_true(rstate, rnp_cfg_set(&ops, CFG_HASH, "SHA512"));
+    rnp_assert_true(rstate, rnp_cfg_setstr(&ops, CFG_HASH, "SHA512"));
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_384, strlen(test_ecdsa_384)));
@@ -766,7 +766,7 @@ generatekeyECDSA_explicitlySetWrongDigest_ShouldFail(void **state)
     static const char test_ecdsa_384[] = "19\n2\n";
 
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
-    rnp_assert_true(rstate, rnp_cfg_set(&ops, CFG_HASH, "WRONG_DIGEST_ALGORITHM"));
+    rnp_assert_true(rstate, rnp_cfg_setstr(&ops, CFG_HASH, "WRONG_DIGEST_ALGORITHM"));
 
     rnp_assert_false(rstate,
                      ask_expert_details(&rnp, &ops, test_ecdsa_384, strlen(test_ecdsa_384)));

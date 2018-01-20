@@ -28,6 +28,7 @@
 
 #include <rnp/rnp.h>
 #include <stdbool.h>
+#include "list.h"
 
 /* cfg variables known by rnp */
 #define CFG_OVERWRITE "overwrite" /* overwrite output file if it is already exist or fail */
@@ -53,7 +54,7 @@
 #define CFG_USERINPUTFD "user-input-fd" /* user input file descriptor */
 #define CFG_NUMTRIES "numtries"         /* number of password request tries, or 'unlimited' */
 #define CFG_EXPIRATION "expiration"     /* signature expiration time */
-#define CFG_CREATION "creation"       /* signature validity start */
+#define CFG_CREATION "creation"         /* signature validity start */
 #define CFG_CIPHER "cipher"             /* symmetric encryption algorithm as string */
 #define CFG_HASH "hash"                 /* hash algorithm used, string like 'SHA1'*/
 #define CFG_IO_OUTS "outs"              /* output stream */
@@ -71,23 +72,25 @@
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */
 typedef struct rnp_cfg_t {
-    unsigned count; /* number of elements used */
-    unsigned size;  /* allocated number of elements in the array */
-    char **  keys;  /* key names */
-    char **  vals;  /* values */
+    list vals;
+    // unsigned count; /* number of elements used */
+    // unsigned size;  /* allocated number of elements in the array */
+    // char **  keys;  /* key names */
+    // char **  vals;  /* values */
 } rnp_cfg_t;
 
-void rnp_cfg_init(rnp_cfg_t *cfg);
-void rnp_cfg_load_defaults(rnp_cfg_t *cfg);
-bool rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params);
-bool rnp_cfg_set(rnp_cfg_t *cfg, const char *key, const char *val);
-bool rnp_cfg_unset(rnp_cfg_t *cfg, const char *key);
-bool rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val);
-bool rnp_cfg_setbool(rnp_cfg_t *cfg, const char *key, bool val);
-const char *rnp_cfg_get(const rnp_cfg_t *cfg, const char *key);
-int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
-bool rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key);
-void rnp_cfg_free(rnp_cfg_t *cfg);
+void        rnp_cfg_init(rnp_cfg_t *cfg);
+void        rnp_cfg_load_defaults(rnp_cfg_t *cfg);
+bool        rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params);
+bool        rnp_cfg_setstr(rnp_cfg_t *cfg, const char *key, const char *val);
+bool        rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val);
+bool        rnp_cfg_setbool(rnp_cfg_t *cfg, const char *key, bool val);
+bool        rnp_cfg_addstr(rnp_cfg_t *cfg, const char *key, const char *val);
+bool        rnp_cfg_unset(rnp_cfg_t *cfg, const char *key);
+const char *rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key);
+int         rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
+bool        rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key);
+void        rnp_cfg_free(rnp_cfg_t *cfg);
 
 /*
  *  @brief      Returns integer value for the key if there is one, or default value otherwise
@@ -114,10 +117,10 @@ void rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src);
 
 bool rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);
 void rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
-int rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
+int  rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
 
 /* rnp CLI helper functions */
 uint64_t get_expiration(const char *s);
-int64_t get_creation(const char *s);
+int64_t  get_creation(const char *s);
 
 #endif

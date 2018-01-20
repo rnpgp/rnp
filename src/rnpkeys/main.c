@@ -67,8 +67,8 @@ main(int argc, char **argv)
         } else {
             switch (ch) {
             case 'S':
-                rnp_cfg_set(&opt_cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
-                rnp_cfg_set(&opt_cfg, CFG_SSHKEYFILE, optarg);
+                rnp_cfg_setstr(&opt_cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
+                rnp_cfg_setstr(&opt_cfg, CFG_SSHKEYFILE, optarg);
                 break;
             case 'V':
                 print_praise();

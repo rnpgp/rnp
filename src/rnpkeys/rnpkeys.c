@@ -122,7 +122,8 @@ match_keys(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, char *f, const int psigs)
             return 0;
         }
     } else {
-        if (rnp_match_keys_json(rnp, &json, f, rnp_cfg_get(cfg, CFG_KEYFORMAT), psigs) == 0) {
+        if (rnp_match_keys_json(rnp, &json, f, rnp_cfg_getstr(cfg, CFG_KEYFORMAT), psigs) ==
+            0) {
             return 0;
         }
     }
@@ -162,7 +163,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         return match_keys(cfg, rnp, stdout, f, cmd == CMD_LIST_SIGS);
     case CMD_FIND_KEY:
         if ((key = f) == NULL) {
-            key = rnp_cfg_get(cfg, CFG_USERID);
+            key = rnp_cfg_getstr(cfg, CFG_USERID);
         }
         return rnp_find_key(rnp, key);
     case CMD_EXPORT_KEY: {
@@ -170,7 +171,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         rnp_result_t ret;
 
         if ((key = f) == NULL) {
-            key = rnp_cfg_get(cfg, CFG_USERID);
+            key = rnp_cfg_getstr(cfg, CFG_USERID);
         }
 
         if (!key) {
@@ -183,7 +184,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
             return false;
         }
 
-        const char *file = rnp_cfg_get(cfg, CFG_OUTFILE);
+        const char *file = rnp_cfg_getstr(cfg, CFG_OUTFILE);
         bool        force = rnp_cfg_getbool(cfg, CFG_FORCE);
         ret = file ? init_file_dest(&dst, file, force) : init_stdout_dest(&dst);
         if (ret) {
@@ -201,7 +202,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         }
         return rnp_import_key(rnp, f);
     case CMD_GENERATE_KEY:
-        key = f ? f : rnp_cfg_get(cfg, CFG_USERID);
+        key = f ? f : rnp_cfg_getstr(cfg, CFG_USERID);
         rnp_action_keygen_t *        action = &rnp->action.generate_key_ctx;
         rnp_keygen_primary_desc_t *  primary_desc = &action->primary.keygen;
         rnp_key_protection_params_t *protection = &action->primary.protection;
@@ -209,10 +210,10 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         if (key) {
             strcpy((char *) primary_desc->cert.userid, key);
         }
-        primary_desc->crypto.hash_alg = pgp_str_to_hash_alg(rnp_cfg_get(cfg, CFG_HASH));
+        primary_desc->crypto.hash_alg = pgp_str_to_hash_alg(rnp_cfg_getstr(cfg, CFG_HASH));
         primary_desc->crypto.rng = &rnp->rng;
         protection->hash_alg = primary_desc->crypto.hash_alg;
-        protection->symm_alg = pgp_str_to_cipher(rnp_cfg_get(cfg, CFG_CIPHER));
+        protection->symm_alg = pgp_str_to_cipher(rnp_cfg_getstr(cfg, CFG_CIPHER));
         action->subkey.keygen.crypto.rng = &rnp->rng;
 
         if (!rnp_cfg_getbool(cfg, CFG_EXPERT)) {
@@ -227,7 +228,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         }
         return rnp_generate_key(rnp);
     case CMD_GET_KEY:
-        key = rnp_get_key(rnp, f, rnp_cfg_get(cfg, CFG_KEYFORMAT));
+        key = rnp_get_key(rnp, f, rnp_cfg_getstr(cfg, CFG_KEYFORMAT));
         if (key) {
             printf("%s", key);
             return true;
@@ -273,28 +274,28 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         exit(EXIT_SUCCESS);
     /* options */
     case OPT_SSHKEYS:
-        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
+        rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
         break;
     case OPT_KEYRING:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_cfg_set(cfg, CFG_KEYRING, arg);
+        rnp_cfg_setstr(cfg, CFG_KEYRING, arg);
         break;
     case OPT_KEY_STORE_FORMAT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring format argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, arg);
+        rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, arg);
         break;
     case OPT_USERID:
         if (arg == NULL) {
             (void) fprintf(stderr, "no userid argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_cfg_set(cfg, CFG_USERID, arg);
+        rnp_cfg_setstr(cfg, CFG_USERID, arg);
         break;
     case OPT_VERBOSE:
         rnp_cfg_setint(cfg, CFG_VERBOSE, rnp_cfg_getint(cfg, CFG_VERBOSE) + 1);
@@ -304,7 +305,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
             (void) fprintf(stderr, "no home directory argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_cfg_set(cfg, CFG_HOMEDIR, arg);
+        rnp_cfg_setstr(cfg, CFG_HOMEDIR, arg);
         break;
     case OPT_NUMBITS:
         if (arg == NULL) {
@@ -318,31 +319,31 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
             (void) fprintf(stderr, "No hash algorithm argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_cfg_set(cfg, CFG_HASH, arg);
+        rnp_cfg_setstr(cfg, CFG_HASH, arg);
         break;
     case OPT_PASSWDFD:
         if (arg == NULL) {
             (void) fprintf(stderr, "no pass-fd argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_cfg_set(cfg, CFG_PASSFD, arg);
+        rnp_cfg_setstr(cfg, CFG_PASSFD, arg);
         break;
     case OPT_RESULTS:
         if (arg == NULL) {
             (void) fprintf(stderr, "No output filename argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_cfg_set(cfg, CFG_IO_RESS, arg);
+        rnp_cfg_setstr(cfg, CFG_IO_RESS, arg);
         break;
     case OPT_SSHKEYFILE:
-        rnp_cfg_set(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
-        rnp_cfg_set(cfg, CFG_SSHKEYFILE, arg);
+        rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
+        rnp_cfg_setstr(cfg, CFG_SSHKEYFILE, arg);
         break;
     case OPT_FORMAT:
-        rnp_cfg_set(cfg, CFG_KEYFORMAT, arg);
+        rnp_cfg_setstr(cfg, CFG_KEYFORMAT, arg);
         break;
     case OPT_CIPHER:
-        rnp_cfg_set(cfg, CFG_CIPHER, arg);
+        rnp_cfg_setstr(cfg, CFG_CIPHER, arg);
         break;
     case OPT_DEBUG:
         rnp_set_debug(arg);
@@ -352,7 +353,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
             (void) fprintf(stderr, "No output filename argument provided\n");
             exit(EXIT_ERROR);
         }
-        rnp_cfg_set(cfg, CFG_OUTFILE, arg);
+        rnp_cfg_setstr(cfg, CFG_OUTFILE, arg);
         break;
     case OPT_FORCE:
         rnp_cfg_setbool(cfg, CFG_FORCE, true);
@@ -417,8 +418,8 @@ rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, bool is_
 
     rnp_cfg_load_defaults(cfg);
     rnp_cfg_setint(cfg, CFG_NUMBITS, DEFAULT_RSA_NUMBITS);
-    rnp_cfg_set(cfg, CFG_IO_RESS, "<stdout>");
-    rnp_cfg_set(cfg, CFG_KEYFORMAT, "human");
+    rnp_cfg_setstr(cfg, CFG_IO_RESS, "<stdout>");
+    rnp_cfg_setstr(cfg, CFG_KEYFORMAT, "human");
     rnp_cfg_copy(cfg, override_cfg);
 
     memset(rnp, '\0', sizeof(rnp_t));
