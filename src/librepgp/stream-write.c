@@ -1020,9 +1020,16 @@ pgp_pick_hash_alg(rnp_ctx_t *ctx, const pgp_seckey_t *seckey)
         return ctx->halg;
     }
 
-    pgp_hash_alg_t h_key = (seckey->pubkey.alg == PGP_PKA_DSA)
-        ? dsa_get_min_hash(seckey->pubkey.key.dsa.q)
-        : ecdsa_get_min_hash(seckey->pubkey.key.ecc.curve);
+    pgp_hash_alg_t h_key;
+    if (seckey->pubkey.alg == PGP_PKA_ECDSA) {
+        h_key = ecdsa_get_min_hash(seckey->pubkey.key.ecc.curve);
+    } else {
+        size_t s;
+        if(!bn_num_bits(seckey->pubkey.key.dsa.q, &s)) {
+            return PGP_HASH_UNKNOWN;
+        }
+        h_key = dsa_get_min_hash(s);
+    }
 
     size_t dlen_key = 0, dlen_ctx = 0;
     if (!pgp_digest_length(h_key, &dlen_key) ||

@@ -33,6 +33,7 @@
 #include <librepgp/packet-parse.h>
 
 #include "crypto.h"
+#include "crypto/ecdsa.h"
 #include "pgp-key.h"
 #include "memory.h"
 
@@ -112,43 +113,30 @@ pk_alg_default_flags(pgp_pubkey_alg_t alg)
     return pgp_pk_alg_capabilities(alg);
 }
 
-static void
-adjust_hash_to_curve(rnp_keygen_crypto_params_t *crypto)
-{
-    size_t digest_length = 0;
-    if (!pgp_digest_length(crypto->hash_alg, &digest_length)) {
+// TODO: Similar as pgp_pick_hash_alg but different enough to
+//       keep another version. This will be changed when refactoring crypto
+static void adjust_hash_alg(rnp_keygen_crypto_params_t *crypto) {
+    if (!crypto->hash_alg) {
+        crypto->hash_alg = DEFAULT_HASH_ALGS[0];
+    }
+
+    if ((crypto->key_alg != PGP_PKA_DSA) &&
+        (crypto->key_alg != PGP_PKA_ECDSA)) {
         return;
     }
 
-    /*
-     * Adjust hash to curve - see point 14 of RFC 4880 bis 01
-     * and/or ECDSA spec.
-     *
-     * Minimal size of digest for curve:
-     *    P-256  32 bytes
-     *    P-384  48 bytes
-     *    P-521  64 bytes
-     */
-    switch (crypto->ecc.curve) {
-    case PGP_CURVE_NIST_P_256:
-        if (digest_length < 32) {
-            crypto->hash_alg = PGP_HASH_SHA256;
-        }
-        break;
-    case PGP_CURVE_NIST_P_384:
-        if (digest_length < 48) {
-            crypto->hash_alg = PGP_HASH_SHA384;
-        }
-        break;
-    case PGP_CURVE_NIST_P_521:
-        if (digest_length < 64) {
-            crypto->hash_alg = PGP_HASH_SHA512;
-        }
-        break;
+    pgp_pubkey_alg_t min_hash = (crypto->key_alg == PGP_PKA_ECDSA)
+        ? ecdsa_get_min_hash(crypto->ecc.curve)
+        : dsa_get_min_hash(crypto->dsa.q_bitlen);
 
-    default:
-        // TODO: if it's anything else, let the lower layers reject it?
-        break;
+    size_t l_req = 0, l_min = 0;
+    if (!pgp_digest_length(crypto->hash_alg, &l_req) ||
+        !pgp_digest_length(min_hash, &l_min)) {
+        crypto->hash_alg = PGP_HASH_UNKNOWN;
+    }
+
+    if (l_req < l_min) {
+        crypto->hash_alg = min_hash;
     }
 }
 
@@ -177,12 +165,12 @@ keygen_merge_crypto_defaults(rnp_keygen_crypto_params_t *crypto)
         break;
 
     case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDSA: {
         if (!crypto->hash_alg) {
             crypto->hash_alg = DEFAULT_HASH_ALGS[0];
         }
-        adjust_hash_to_curve(crypto);
         break;
+    }
 
     case PGP_PKA_EDDSA:
         if (!crypto->ecc.curve) {
@@ -190,19 +178,21 @@ keygen_merge_crypto_defaults(rnp_keygen_crypto_params_t *crypto)
         }
         break;
 
-    case PGP_PKA_DSA:
+    case PGP_PKA_DSA: {
         if (!crypto->dsa.p_bitlen) {
             crypto->dsa.p_bitlen = DSA_DEFAULT_P_BITLEN;
             crypto->dsa.q_bitlen = dsa_choose_qsize_by_psize(DSA_DEFAULT_P_BITLEN);
         }
+        // TODO: GnuPG fails importing DSA/160-SHA256. Seems like a bug
+        // but if not, just uncomment line below.
+        // if (!crypto->hash_alg) crypto->hash_alg = PGP_HASH_SHA1
         break;
-
+    }
     default:
         break;
     }
-    if (!crypto->hash_alg) {
-        crypto->hash_alg = DEFAULT_HASH_ALGS[0];
-    }
+
+    adjust_hash_alg(crypto);
 }
 
 static bool
