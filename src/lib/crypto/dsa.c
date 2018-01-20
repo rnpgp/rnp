@@ -260,14 +260,8 @@ end:
 }
 
 pgp_hash_alg_t
-dsa_get_min_hash(const bignum_t *q)
+dsa_get_min_hash(size_t qsize)
 {
-    size_t qsize;
-    if (!bn_num_bits(q, &qsize)) {
-        RNP_LOG("Wrong input");
-        return PGP_HASH_UNKNOWN;
-    }
-
    /*
     * I'm using _broken_ SHA1 here only because
     * some old implementations may not understand keys created

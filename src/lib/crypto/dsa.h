@@ -123,12 +123,12 @@ rnp_result_t dsa_keygen(
  * @brief   Returns minimally sized hash which will work
  *          with the DSA subgroup.
  *
- * @param   q subgroup prime
+ * @param   qsize subgroup order
  *
  * @returns  Either ID of the hash algorithm, or PGP_HASH_UNKNOWN
  *           if not found
  */
-pgp_hash_alg_t dsa_get_min_hash(const bignum_t* q);
+pgp_hash_alg_t dsa_get_min_hash(size_t qsize);
 
 /*
  * @brief   Helps to determine subgroup size by size of p
