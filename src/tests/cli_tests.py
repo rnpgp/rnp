@@ -945,6 +945,53 @@ class SignDefault(unittest.TestCase):
             rnp_detached_signing_gpg_to_rnp(size)
             rnp_cleartext_signing_gpg_to_rnp(size)
 
+class Encrypt(unittest.TestCase):
+    def _encrypt_decrypt(self, e1, e2,  key_id, keygen_cmd):
+        keyfile, input, enc_out, dec_out = reg_workfiles("encrypt"+str(key_id), '.gpg', '.in', '.enc', '.dec')
+        random_text(input, 0x1337)
+        self.assertTrue(e1.generte_key_batch(keygen_cmd))
+        self.assertTrue(e1.export_key(keyfile, False))
+        self.assertTrue(e2.import_key(keyfile))
+        self.assertTrue(e2.encrypt(enc_out, input))
+        self.assertTrue(e1.decrypt(dec_out, enc_out))
+        clear_workfiles()
+
+    def setUp(self):
+        self.rnp = Rnp(RNPDIR, RNP, RNPK)
+        self.gpg = GnuPG(GPGDIR, GPG)
+        self.rnp.password = self.gpg.password = PASSWORD
+        self.rnp.userid = self.gpg.userid = 'encrypttest@secure.gov'
+
+class EncryptElgamal(Encrypt):
+
+    GPG_GENERATE_DSA_ELGAMAL_PATERN = """
+        Key-Type: dsa
+        Key-Length: {0}
+        Key-Usage: sign
+        Subkey-Type: ELG-E
+        Subkey-Length: {1}
+        Subkey-Usage: encrypt
+        Name-Real: Test Testovich
+        Expire-Date: 1y
+        Preferences: twofish sha256 sha384 sha512 sha1 zlib
+        Name-Email: {2}
+        """
+
+    def test_encrypt_P1024_1024(self):
+        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATERN.format(1024, 1024, self.rnp.userid)
+        self._encrypt_decrypt(self.gpg, self.rnp, 1, cmd)
+
+    def test_encrypt_P1024_2048(self):
+        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATERN.format(1024, 2048, self.rnp.userid)
+        self._encrypt_decrypt(self.gpg, self.rnp, 1, cmd)
+
+    def test_encrypt_P2048_2048(self):
+        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATERN.format(2048, 2048, self.rnp.userid)
+        self._encrypt_decrypt(self.gpg, self.rnp, 1, cmd)
+
+    def test_encrypt_P3072_3072(self):
+        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATERN.format(3072, 3072, self.rnp.userid)
+        self._encrypt_decrypt(self.gpg, self.rnp, 1, cmd)
 
 class Sign(unittest.TestCase):
     # Message sizes to be tested
