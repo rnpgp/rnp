@@ -103,3 +103,18 @@ class GnuPG(object):
         if self.hash:
             params += ['--digest-algo', self.hash]
         return self._run([self.__gpg] + params)
+
+    def encrypt(self, out, input):
+        params = self.common_params
+        params += ['--passphrase', self.password]
+        params += ['-o', out]
+        params += ['--encrypt', input]
+        return self._run([self.__gpg] + params)
+
+    def decrypt(self, out, input):
+        params = self.common_params
+        params += ['--passphrase', self.password]
+        params += ['--pinentry-mode', 'loopback']
+        params += ['-o', out]
+        params += ['--decrypt', input]
+        return self._run([self.__gpg] + params)
