@@ -290,7 +290,8 @@ typedef enum {
     PGP_PKA_ECDH = 18,            /* ECDH public key algorithm */
     PGP_PKA_ECDSA = 19,           /* ECDSA public key algorithm [FIPS186-3] */
     PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN =
-      20,                     /* Deprecated. Reserved (formerly Elgamal Encrypt or Sign) */
+      20,                     /* Elgamal Encrypt or Sign. Implementation MUST not generate
+                                 such keys and elgamal signatures. */
     PGP_PKA_RESERVED_DH = 21, /* Reserved for Diffie-Hellman
                                * (X9.42, as defined for
                                * IETF-S/MIME) */

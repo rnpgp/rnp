@@ -70,9 +70,9 @@ is_keygen_supported_for_alg(pgp_pubkey_alg_t id)
     case PGP_PKA_SM2:
     case PGP_PKA_ECDSA:
     case PGP_PKA_DSA:
+    case PGP_PKA_ELGAMAL:
         return true;
     default:
-        // case PGP_PKA_ELGAMAL:
         return false;
     }
 }
@@ -108,6 +108,7 @@ ask_algorithm(FILE *input_fp)
     do {
         printf("Please select what kind of key you want:\n"
                "\t(1)  RSA (Encrypt or Sign)\n"
+               "\t(16) DSA + ElGamal\n"
                "\t(17) DSA + RSA\n" // TODO: See #584
                "\t(18) ECDH\n"
                "\t(19) ECDSA\n"
@@ -209,8 +210,16 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
         break;
 
     case PGP_PKA_DSA:
+    case PGP_PKA_ELGAMAL:
+        crypto->key_alg = PGP_PKA_DSA;
         crypto->dsa.p_bitlen = ask_dsa_bitlen(input_fd);
         crypto->dsa.q_bitlen = dsa_choose_qsize_by_psize(crypto->dsa.p_bitlen);
+        if (key_alg == PGP_PKA_ELGAMAL) {
+            /* Generate Elgamal as a subkey of DSA */
+            action->subkey.keygen.crypto.key_alg = PGP_PKA_ELGAMAL;
+            action->subkey.keygen.crypto.hash_alg = action->primary.keygen.crypto.hash_alg;
+            action->subkey.keygen.crypto.elgamal.key_bitlen = crypto->dsa.p_bitlen;
+        }
         break;
 
     default:

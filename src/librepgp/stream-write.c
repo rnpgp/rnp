@@ -455,8 +455,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         (void) bn_bn2bin(p, pkey.params.ecdh.p);
         bn_free(p);
     } break;
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
+    case PGP_PKA_ELGAMAL: {
         int outlen;
 
         outlen = pgp_elgamal_public_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
