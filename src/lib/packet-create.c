@@ -162,6 +162,10 @@ static unsigned
 pubkey_length(const pgp_pubkey_t *key)
 {
     switch (key->alg) {
+    case PGP_PKA_ELGAMAL:
+        return mpi_length(key->key.elgamal.p) +
+               mpi_length(key->key.elgamal.g) +
+               mpi_length(key->key.elgamal.y);
     case PGP_PKA_DSA:
         return mpi_length(key->key.dsa.p) + mpi_length(key->key.dsa.q) +
                mpi_length(key->key.dsa.g) + mpi_length(key->key.dsa.y);
@@ -211,6 +215,8 @@ seckey_length(const pgp_seckey_t *key)
         return mpi_length(key->key.rsa.d) + mpi_length(key->key.rsa.p) +
                mpi_length(key->key.rsa.q) + mpi_length(key->key.rsa.u) +
                pubkey_length(&key->pubkey);
+    case PGP_PKA_ELGAMAL:
+        return mpi_length(key->key.elgamal.x) + pubkey_length(&key->pubkey);
     default:
         RNP_LOG("unknown key algorithm");
     }

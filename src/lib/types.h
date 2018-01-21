@@ -384,6 +384,8 @@ typedef struct pgp_signature_t {
             size_t  slen;
         } ecc;
         struct {
+            /* This is kept only for packet reading. Implementation MUST
+             * not create elgamal signatures */
             uint8_t r[PGP_MPINT_SIZE];
             uint8_t s[PGP_MPINT_SIZE];
             size_t  rlen;
@@ -745,6 +747,9 @@ typedef struct rnp_keygen_crypto_params_t {
             size_t p_bitlen;
             size_t q_bitlen;
         } dsa;
+        struct elgamal_t {
+            size_t key_bitlen;
+        } elgamal;
     };
 } rnp_keygen_crypto_params_t;
 

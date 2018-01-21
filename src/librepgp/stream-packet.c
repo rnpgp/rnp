@@ -481,7 +481,6 @@ stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *pkey, pgp_dest_t *dst)
               add_packet_body(&pktbody, pkey->params.ecdh.m, pkey->params.ecdh.mlen);
         break;
     case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         res = res && add_packet_body_mpi(&pktbody, pkey->params.eg.g, pkey->params.eg.glen) &&
               add_packet_body_mpi(&pktbody, pkey->params.eg.m, pkey->params.eg.mlen);
         break;
@@ -638,10 +637,6 @@ stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst)
     case PGP_PKA_ECDH:
         res = add_packet_body_mpi(&pktbody, sig->material.ecc.r, sig->material.ecc.rlen) &&
               add_packet_body_mpi(&pktbody, sig->material.ecc.s, sig->material.ecc.slen);
-        break;
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        res = add_packet_body_mpi(&pktbody, sig->material.eg.r, sig->material.eg.rlen) &&
-              add_packet_body_mpi(&pktbody, sig->material.eg.s, sig->material.eg.slen);
         break;
     default:
         RNP_LOG("Unknown pk algorithm : %d", (int) sig->palg);
