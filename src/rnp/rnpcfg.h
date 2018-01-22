@@ -73,54 +73,182 @@
  * options */
 typedef struct rnp_cfg_t {
     list vals;
-    // unsigned count; /* number of elements used */
-    // unsigned size;  /* allocated number of elements in the array */
-    // char **  keys;  /* key names */
-    // char **  vals;  /* values */
 } rnp_cfg_t;
 
-void        rnp_cfg_init(rnp_cfg_t *cfg);
-void        rnp_cfg_load_defaults(rnp_cfg_t *cfg);
-bool        rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params);
-bool        rnp_cfg_setstr(rnp_cfg_t *cfg, const char *key, const char *val);
-bool        rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val);
-bool        rnp_cfg_setbool(rnp_cfg_t *cfg, const char *key, bool val);
-bool        rnp_cfg_addstr(rnp_cfg_t *cfg, const char *key, const char *val);
-bool        rnp_cfg_unset(rnp_cfg_t *cfg, const char *key);
-const char *rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key);
-int         rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
-bool        rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key);
-void        rnp_cfg_free(rnp_cfg_t *cfg);
+typedef struct rnp_cfg_val_t rnp_cfg_val_t;
 
-/*
- *  @brief      Returns integer value for the key if there is one, or default value otherwise
+/** @brief initialize rnp_cfg structure internals. When structure is not needed anymore
+ *         it should be freed via rnp_cfg_free function call
+ *  @param cfg allocated rnp_cfg_t structure
+ **/
+void rnp_cfg_init(rnp_cfg_t *cfg);
+
+/** @brief load default settings to the rnp_cfg_t structure
+ *  @param cfg allocated and initialized rnp_cfg_t structure
+ **/
+void rnp_cfg_load_defaults(rnp_cfg_t *cfg);
+
+/** @brief apply configuration from keys-vals storage to rnp_params_t structure
+ *  @param cfg [in] rnp config, must be allocated and initialized
+ *  @param params [out] this structure will be filled so can be further feed into rnp_init.
+ *                Must be later freed using the rnp_params_free even if rnp_cfg_apply fails.
  *
- *  @param cfg  rnp config, must be allocated and initialized
- *  @param key  must be null-terminated string
- *  @param def  value returned if key not found
+ *  @return true on success, false if something went wrong
+ **/
+bool rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params);
+
+/** @brief set string value for the key in config
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *  @param val value, which will be set
  *
- *  @return     Integer value or def if there is no value or it is non-integer
+ *  @return true if operation succeeds or false otherwise
+ **/
+bool rnp_cfg_setstr(rnp_cfg_t *cfg, const char *key, const char *val);
+
+/** @brief set integer value for the key in config
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *  @param val value, which will be set
+ *
+ *  @return true if operation succeeds or false otherwise
+ **/
+bool rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val);
+
+/** @brief set boolean value for the key in config
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *  @param val value, which will be set
+ *
+ *  @return true if operation succeeds or false otherwise
+ **/
+bool rnp_cfg_setbool(rnp_cfg_t *cfg, const char *key, bool val);
+
+/** @brief add string item to the list value
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *  @param val value, which will be appended to the list
+ *
+ *  @return true if operation succeeds or false otherwise
+ **/
+bool rnp_cfg_addstr(rnp_cfg_t *cfg, const char *key, const char *str);
+
+/** @brief unset value for the key in config, deleting it
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return true if value was found and deleted or false otherwise
+ **/
+bool rnp_cfg_unset(rnp_cfg_t *cfg, const char *key);
+
+/** @brief return string value for the key if there is one
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return stored string if item is found and has string value or NULL otherwise
+ **/
+const char *rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key);
+
+/** @brief return integer value for the key if there is one
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return integer value or 0 if there is no value or it is non-integer
+ **/
+int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
+
+/** @brief return boolean value for the key if there is one
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return true if 'true', 'True', or non-zero integer is stored in value, false otherwise
+ **/
+bool rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key);
+
+/** @brief return list value for the key if there is one. Each list's element contains
+ *  rbp_cfg_val_t element with the corresponding value. List may be modified.
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return pointer to the list on success or NULL if value was not found or has other type
+ **/
+list *rnp_cfg_getlist(rnp_cfg_t *cfg, const char *key);
+
+/** @brief free the memory allocated in rnp_cfg_t
+ *  @param cfg rnp config, must be allocated and initialized
+ **/
+void rnp_cfg_free(rnp_cfg_t *cfg);
+
+/** @brief get the string value from rnp_cfg_val_t record
+ *  @param val pointer to the value of rnp_cfg_val_t type, may be NULL
+ *  @return pointer to the NULL-terminated string if value has string, or NULL otherwise
+ */
+const char *rnp_cfg_val_getstr(rnp_cfg_val_t *val);
+
+/** @brief return integer value for the key if there is one, or default value otherwise
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *  @param def default value
+ *
+ *  @return integer value or def if there is no value or it is non-integer
  **/
 int rnp_cfg_getint_default(rnp_cfg_t *cfg, const char *key, int def);
 
-/*
- * @brief   Copies or overrides configuration
+/** @brief Copies or overrides configuration
+ *  @param dst resulting configuration object
+ *  @param src vals in dst will be overriden (if key exist) or coppied (if not)
+ *         from this object
  *
- * @param   dst resulting configuration object
- * @param   src vals in dst will be overriden (if key exist) or coppied (if not)
- *          from this object
- *
- * @pre     dst is correctly initialized and not NULL
+ *  @pre   dst is correctly initialized and not NULL
  *
  **/
 void rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src);
 
+/** @brief Fill the keyring pathes according to user-specified settings
+ *  @param cfg [in] rnp config, must be allocated and initialized
+ *  @param params [out] in this structure public and secret keyring pathes  will be filled
+ *  @return true on success or false if something went wrong
+ */
 bool rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);
+
+/** @brief Attempt to get the default key id/name in a number of ways
+ *  Tries to find via user-specified parameters and  GnuPG conffile.
+ *
+ *  @param cfg [in] rnp config, must be allocated and initialized
+ *  @param params [out] in this structure defkey will be filled if found
+ */
 void rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
-int  rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
+
+/** @brief Get number of password tries according to defaults and value, stored in cfg
+ *  @param cfg allocated and initalized config
+ *  @return number of password tries or INFINITE_ATTEMPTS
+ */
+int rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
 
 /* rnp CLI helper functions */
+
+/** @brief Get signature validity expiration time from the user input
+ *
+ *  Signature expiration may be specified in different formats:
+ *  - 10d : 10 days (you can use [h]ours, d[ays], [w]eeks, [m]onthes)
+ *  - 2017-07-12 : as the exact date when signature becomes invalid
+ *  - 60000 : number of seconds
+ *
+ *  @param s [in] NULL-terminated string with the date
+ *  @param t [out] On successfull return result will be placed here
+ *  @return expiration time in seconds
+ */
 uint64_t get_expiration(const char *s);
-int64_t  get_creation(const char *s);
+
+/** @brief Get signature validity start time from the user input
+ *
+ *  Signature validity may be specified in different formats:
+ *  - 2017-07-12 : as the exact date when signature becomes invalid
+ *  - 1499334073 : timestamp
+ *
+ *  @param s [in] NULL-terminated string with the date
+ *  @return timestamp of the validity start
+ */
+int64_t get_creation(const char *s);
 
 #endif

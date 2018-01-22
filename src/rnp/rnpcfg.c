@@ -61,9 +61,6 @@ typedef struct rnp_cfg_item_t {
     rnp_cfg_val_t val;
 } rnp_cfg_item_t;
 
-/** @brief initialize rnp_cfg structure internals. When structure is not needed anymore
- *  it should be freed via rnp_cfg_free function call
- **/
 void
 rnp_cfg_init(rnp_cfg_t *cfg)
 {
@@ -85,13 +82,6 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_setint(cfg, CFG_NUMTRIES, MAX_PASSWORD_ATTEMPTS);
 }
 
-/** @brief apply configuration from keys-vals storage to rnp_params_t structure
- *  @param cfg [in] rnp config, must be allocated and initialized
- *  @param params [out] this structure will be filled so can be further feed into rnp_init.
- *                Must be later freed using the rnp_params_free even if rnp_cfg_apply fails.
- *
- *  @return true on success, false if something went wrong
- **/
 bool
 rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
 {
@@ -139,13 +129,16 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
 }
 
 static void
-rnp_cfg_item_val_free(rnp_cfg_val_t *val)
+rnp_cfg_val_free(rnp_cfg_val_t *val)
 {
     switch (val->type) {
     case RNP_CFG_VAL_STRING:
         free(val->val._string);
         break;
     case RNP_CFG_VAL_LIST:
+        for (list_item *li = list_front(val->val._list); li; li = list_next(li)) {
+            rnp_cfg_val_free((rnp_cfg_val_t *) li);
+        }
         list_destroy(&val->val._list);
         break;
     default:
@@ -158,9 +151,50 @@ rnp_cfg_item_val_free(rnp_cfg_val_t *val)
 static void
 rnp_cfg_item_free(rnp_cfg_item_t *item)
 {
-    rnp_cfg_item_val_free(&item->val);
+    rnp_cfg_val_free(&item->val);
     free(item->key);
     item->key = NULL;
+}
+
+const char *
+rnp_cfg_val_getstr(rnp_cfg_val_t *val)
+{
+    return val && (val->type == RNP_CFG_VAL_STRING) ? val->val._string : NULL;
+}
+
+static bool
+rnp_cfg_val_copy(rnp_cfg_val_t *dst, rnp_cfg_val_t *src)
+{
+    memset(dst, 0, sizeof(*dst));
+
+    switch (src->type) {
+    case RNP_CFG_VAL_NULL:
+    case RNP_CFG_VAL_INT:
+    case RNP_CFG_VAL_BOOL:
+        *dst = *src;
+        break;
+    case RNP_CFG_VAL_STRING:
+        dst->type = RNP_CFG_VAL_STRING;
+        if (!(dst->val._string = rnp_strdup(src->val._string))) {
+            return false;
+        }
+        break;
+    case RNP_CFG_VAL_LIST:
+        dst->type = RNP_CFG_VAL_LIST;
+        for (list_item *li = list_front(src->val._list); li; li = list_next(li)) {
+            rnp_cfg_val_t val = {0};
+            if (!rnp_cfg_val_copy(&val, (rnp_cfg_val_t *) li) ||
+                !list_append(&dst->val._list, &val, sizeof(val))) {
+                rnp_cfg_val_free(dst);
+                return false;
+            }
+        }
+        break;
+    default:
+        return false;
+    }
+
+    return true;
 }
 
 /* find the value name in the rnp_cfg */
@@ -182,11 +216,11 @@ rnp_cfg_find(const rnp_cfg_t *cfg, const char *key)
 /** @brief set val for the key in config, copying key and assigning val
  *  @param cfg rnp config, must be allocated and initialized
  *  @param key must be null-terminated string
- *  @param val value
+ *  @param val value, which will be copied as it is
  *
  *  @return false if allocation is failed. keys and vals fields will be freed in rnp_cfg_free
  **/
-static bool
+static rnp_cfg_item_t *
 rnp_cfg_set(rnp_cfg_t *cfg, const char *key, rnp_cfg_val_t *val)
 {
     rnp_cfg_item_t *it;
@@ -196,22 +230,16 @@ rnp_cfg_set(rnp_cfg_t *cfg, const char *key, rnp_cfg_val_t *val)
 
         if (!it || !(it->key = rnp_strdup(key))) {
             RNP_LOG("bad alloc");
-            return false;
+            return NULL;
         }
     } else {
-        rnp_cfg_item_val_free(&it->val);
+        rnp_cfg_val_free(&it->val);
     }
 
     it->val = *val;
-    return true;
+    return it;
 }
 
-/** @brief unset value for the key in config, deleting it
- *  @param cfg rnp config, must be allocated and initialized
- *  @param key must be null-terminated string
- *
- *  @return true if value was found and deleted or false otherwise
- **/
 bool
 rnp_cfg_unset(rnp_cfg_t *cfg, const char *key)
 {
@@ -226,77 +254,70 @@ rnp_cfg_unset(rnp_cfg_t *cfg, const char *key)
     return false;
 }
 
-/** @brief set integer value for the key in config
- *  @param cfg rnp config, must be allocated and initialized
- *  @param key must be null-terminated string
- *  @param val value, which will be set
- *
- *  @return true if operation succeeds or false otherwise
- **/
 bool
 rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val)
 {
     rnp_cfg_val_t _val = {.type = RNP_CFG_VAL_INT, .val = {._int = val}};
-    return rnp_cfg_set(cfg, key, &_val);
+    return rnp_cfg_set(cfg, key, &_val) != NULL;
 }
 
-/** @brief set boolean value for the key in config
- *  @param cfg rnp config, must be allocated and initialized
- *  @param key must be null-terminated string
- *  @param val value, which will be set
- *
- *  @return true if operation succeeds or false otherwise
- **/
 bool
 rnp_cfg_setbool(rnp_cfg_t *cfg, const char *key, bool val)
 {
     rnp_cfg_val_t _val = {.type = RNP_CFG_VAL_BOOL, .val = {._bool = val}};
-    return rnp_cfg_set(cfg, key, &_val);
+    return rnp_cfg_set(cfg, key, &_val) != NULL;
 }
 
-/** @brief set string value for the key in config
- *  @param cfg rnp config, must be allocated and initialized
- *  @param key must be null-terminated string
- *  @param val value, which will be set
- *
- *  @return true if operation succeeds or false otherwise
- **/
 bool
 rnp_cfg_setstr(rnp_cfg_t *cfg, const char *key, const char *val)
 {
     rnp_cfg_val_t _val = {.type = RNP_CFG_VAL_STRING, .val = {._string = NULL}};
-    bool          res;
 
     if (val && !(_val.val._string = rnp_strdup(val))) {
         return false;
     }
 
-    if (!(res = rnp_cfg_set(cfg, key, &_val))) {
+    if (!rnp_cfg_set(cfg, key, &_val)) {
         free(_val.val._string);
+        return false;
     }
 
-    return res;
+    return true;
 }
 
-/** @brief add string value to the list value
- *  @param cfg rnp config, must be allocated and initialized
- *  @param key must be null-terminated string
- *  @param val value, which will be appended to the list
- *
- *  @return true if operation succeeds or false otherwise
- **/
 bool
-rnp_cfg_addstr(rnp_cfg_t *cfg, const char *key, const char *val)
+rnp_cfg_addstr(rnp_cfg_t *cfg, const char *key, const char *str)
 {
-    return false;
+    rnp_cfg_item_t *it = rnp_cfg_find(cfg, key);
+    rnp_cfg_val_t   val;
+    bool            added = false;
+
+    if (!it) {
+        memset(&val, 0, sizeof(val));
+        val.type = RNP_CFG_VAL_LIST;
+        if (!(it = rnp_cfg_set(cfg, key, &val))) {
+            return false;
+        }
+        added = true;
+    }
+
+    if (it->val.type != RNP_CFG_VAL_LIST) {
+        RNP_LOG("wrong param");
+        return false;
+    }
+
+    val.type = RNP_CFG_VAL_STRING;
+    if (!(val.val._string = rnp_strdup(str)) ||
+        !list_append(&it->val.val._list, &val, sizeof(val))) {
+        if (added) {
+            rnp_cfg_unset(cfg, key);
+        }
+        return false;
+    }
+
+    return true;
 }
 
-/** @brief return string value for the key if there is one
- *  @param cfg rnp config, must be allocated and initialized
- *  @param key must be null-terminated string
- *
- *  @return stored string if item is found and has string value or NULL otherwise
- **/
 const char *
 rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key)
 {
@@ -309,25 +330,12 @@ rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key)
     return NULL;
 }
 
-/** @brief return integer value for the key if there is one
- *  @param cfg rnp config, must be allocated and initialized
- *  @param key must be null-terminated string
- *
- *  @return integer value or 0 if there is no value or it is non-integer
- **/
 int
 rnp_cfg_getint(rnp_cfg_t *cfg, const char *key)
 {
     return rnp_cfg_getint_default(cfg, key, 0);
 }
 
-/** @brief return integer value for the key if there is one, or default value otherwise
- *  @param cfg rnp config, must be allocated and initialized
- *  @param key must be null-terminated string
- *  @param def default value
- *
- *  @return integer value or def if there is no value or it is non-integer
- **/
 int
 rnp_cfg_getint_default(rnp_cfg_t *cfg, const char *key, int def)
 {
@@ -349,12 +357,6 @@ rnp_cfg_getint_default(rnp_cfg_t *cfg, const char *key, int def)
     return def;
 }
 
-/** @brief return boolean value for the key if there is one
- *  @param cfg rnp config, must be allocated and initialized
- *  @param key must be null-terminated string
- *
- *  @return true if 'true', 'True', or non-zero integer is stored in value, false otherwise
- **/
 bool
 rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key)
 {
@@ -377,9 +379,18 @@ rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key)
     return false;
 }
 
-/** @brief free the memory allocated in rnp_cfg_t
- *  @param cfg rnp config, must be allocated and initialized
- **/
+list *
+rnp_cfg_getlist(rnp_cfg_t *cfg, const char *key)
+{
+    rnp_cfg_item_t *it = rnp_cfg_find(cfg, key);
+
+    if (it && (it->val.type == RNP_CFG_VAL_LIST)) {
+        return &it->val.val._list;
+    }
+
+    return NULL;
+}
+
 void
 rnp_cfg_free(rnp_cfg_t *cfg)
 {
@@ -551,13 +562,6 @@ rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg, int defhomedir, const char *ksfmt)
     return subdir;
 }
 
-/**
- * @brief Fill the keyring pathes according to user-specified settings
- *
- *  @param cfg [in] rnp config, must be allocated and initialized
- *  @param params [out] in this structure public and secret keyring pathes  will be filled
- *  @return true on success or false if something went wrong
- */
 bool
 rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
 {
@@ -689,13 +693,6 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
     return true;
 }
 
-/**
- * @brief Attempt to get the default key id/name in a number of ways
- * Tries to find via user-specified parameters and  GnuPG conffile.
- *
- *  @param cfg [in] rnp config, must be allocated and initialized
- *  @param params [out] in this structure defkey will be filled if found
- */
 void
 rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params)
 {
@@ -762,19 +759,6 @@ grabdate(const char *s, int64_t *t)
     return false;
 }
 
-/**
- * @brief Get signature validity expiration time from the user input
- *
- * Signature expiration may be specified in different formats:
- * - 10d : 10 days (you can use [h]ours, d[ays], [w]eeks, [m]onthes)
- * - 2017-07-12 : as the exact date when signature becomes invalid
- * - 60000 : number of seconds
- *
- * @param s [in] NULL-terminated string with the date
- * @param t [out] On successfull return result will be placed here
- * @return expiration time in seconds
- */
-
 uint64_t
 get_expiration(const char *s)
 {
@@ -806,17 +790,6 @@ get_expiration(const char *s)
     return (uint64_t) strtoll(s, NULL, 10);
 }
 
-/**
- * @brief Get signature validity start time from the user input
- *
- * Signature validity may be specified in different formats:
- * - 2017-07-12 : as the exact date when signature becomes invalid
- * - 1499334073 : timestamp
- *
- * @param s [in] NULL-terminated string with the date
- * @return timestamp of the validity start
- */
-
 int64_t
 get_creation(const char *s)
 {
@@ -834,9 +807,8 @@ get_creation(const char *s)
 void
 rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src)
 {
-    bool            res = true;
-    rnp_cfg_item_t *it = NULL;
-    rnp_cfg_val_t   val;
+    bool          res = true;
+    rnp_cfg_val_t val;
 
     if (!src || !dst) {
         return;
@@ -845,27 +817,10 @@ rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src)
     rnp_cfg_free(dst);
 
     for (list_item *li = list_front(src->vals); li; li = list_next(li)) {
-        it = (rnp_cfg_item_t *) li;
-        val = it->val;
-
-        switch (it->val.type) {
-        case RNP_CFG_VAL_STRING:
-            if (!(val.val._string = rnp_strdup(val.val._string))) {
-                RNP_LOG("alloc failed");
-                res = false;
-            }
-            break;
-        case RNP_CFG_VAL_LIST:
+        if (!rnp_cfg_val_copy(&val, &((rnp_cfg_item_t *) li)->val) ||
+            !rnp_cfg_set(dst, ((rnp_cfg_item_t *) li)->key, &val)) {
             res = false;
-            break;
-        default:
-            break;
-        }
-
-        res = res && rnp_cfg_set(dst, it->key, &val);
-
-        if (!res) {
-            break;
+            return;
         }
     }
 
