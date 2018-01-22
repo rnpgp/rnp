@@ -6,4 +6,3 @@ if [ "$BUILD_MODE" = "coverage" ]; then
   gcov-4.8 --object-file rnp_tests-rnp_tests.o rnp_tests.c
   bash <(curl -s https://codecov.io/bash)
 fi
-
