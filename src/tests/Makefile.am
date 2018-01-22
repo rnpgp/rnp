@@ -12,6 +12,7 @@ rnp_tests_SOURCES   = \
     rnp_tests.c \
     user-prefs.c \
     utils-list.c \
+    utils-rnpcfg.c \
     pgp-parse.c \
     load-pgp.c \
     key-unlock.c \
