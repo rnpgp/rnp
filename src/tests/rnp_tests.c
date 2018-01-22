@@ -161,6 +161,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed),
       cmocka_unit_test(generatekeyECDSA_explicitlySetWrongDigest_ShouldFail),
       cmocka_unit_test(test_utils_list),
+      cmocka_unit_test(test_rnpcfg),
       cmocka_unit_test(pgp_parse_keyrings_1_pubring),
       cmocka_unit_test(test_load_user_prefs),
       cmocka_unit_test(ecdh_roundtrip),
