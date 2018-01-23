@@ -45,7 +45,6 @@ rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void
     rnp_t *          rnp = (rnp_t *) userdata;
     pgp_key_t *      ks_key = NULL;
     rnp_key_store_t *ks;
-    unsigned         from = 0;
 
     if (rnp == NULL) {
         return false;
@@ -55,12 +54,11 @@ rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void
     ks = ctx->secret ? rnp->secring : rnp->pubring;
 
     if (ctx->stype == PGP_KEY_SEARCH_KEYID) {
-        ks_key = rnp_key_store_get_key_by_id(rnp->io, ks, ctx->search.id, &from, NULL);
+        ks_key = rnp_key_store_get_key_by_id(rnp->io, ks, ctx->search.id, NULL, NULL);
         if (!ks_key && !ctx->secret) {
             /* searching for public key in secret keyring as well */
-            from = 0;
             ks_key =
-              rnp_key_store_get_key_by_id(rnp->io, rnp->secring, ctx->search.id, &from, NULL);
+              rnp_key_store_get_key_by_id(rnp->io, rnp->secring, ctx->search.id, NULL, NULL);
         }
     } else if (ctx->stype == PGP_KEY_SEARCH_GRIP) {
         ks_key = rnp_key_store_get_key_by_grip(rnp->io, ks, ctx->search.grip);

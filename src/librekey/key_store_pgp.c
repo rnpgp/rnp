@@ -442,13 +442,15 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
 
     if (armor) {
         pgp_armor_type_t type = PGP_PGP_PUBLIC_KEY_BLOCK;
-        if (key_store->keyc && pgp_is_key_secret(&key_store->keys[0])) {
+        if (list_length(key_store->keys) &&
+            pgp_is_key_secret((pgp_key_t *) list_front(key_store->keys))) {
             type = PGP_PGP_PRIVATE_KEY_BLOCK;
         }
         pgp_writer_push_armored(&output, type);
     }
-    for (unsigned ikey = 0; ikey < key_store->keyc; ikey++) {
-        key = &key_store->keys[ikey];
+    for (list_item *key_item = list_front(key_store->keys); key_item;
+         key_item = list_next(key_item)) {
+        key = (pgp_key_t *) key_item;
 
         if (key->format != GPG_KEY_STORE) {
             RNP_LOG("incorrect format (conversions not supported): %d", key->format);

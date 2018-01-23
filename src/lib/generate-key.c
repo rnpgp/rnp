@@ -85,18 +85,18 @@ load_generated_key(pgp_output_t **    output,
         RNP_LOG("invalid key format %d", format);
         break;
     }
-    if (key_store->keyc != 1) {
+    if (list_length(key_store->keys) != 1) {
         goto end;
     }
-    memcpy(dst, &key_store->keys[0], sizeof(*dst));
+    memcpy(dst, (pgp_key_t *) list_front(key_store->keys), sizeof(*dst));
     // we don't want the key store to free the internal key data
-    rnp_key_store_remove_key(&io, key_store, &key_store->keys[0]);
+    rnp_key_store_remove_key(&io, key_store, (pgp_key_t *) list_front(key_store->keys));
     ok = true;
 
 end:
     rnp_key_store_free(key_store);
     if (pubring) {
-        rnp_key_store_remove_key(&io, pubring, &pubring->keys[0]);
+        rnp_key_store_remove_key(&io, pubring, (pgp_key_t *) list_front(pubring->keys));
         rnp_key_store_free(pubring);
     }
     pgp_teardown_memory_write(*output, *mem);

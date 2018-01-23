@@ -680,8 +680,6 @@ rnp_key_store_kbx_write_x509(rnp_key_store_t *key_store, pgp_memory_t *m)
 bool
 rnp_key_store_kbx_to_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_t *memory)
 {
-    unsigned i;
-
     pgp_memory_clear(memory);
 
     if (!rnp_key_store_kbx_write_header(key_store, memory)) {
@@ -689,12 +687,14 @@ rnp_key_store_kbx_to_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_t 
         return false;
     }
 
-    for (i = 0; i < key_store->keyc; i++) {
-        if (!pgp_key_is_primary_key(&key_store->keys[i])) {
+    for (list_item *key_item = list_front(key_store->keys); key_item;
+         key_item = list_next(key_item)) {
+        pgp_key_t *key = (pgp_key_t *) key_item;
+        if (!pgp_key_is_primary_key(key)) {
             continue;
         }
-        if (!rnp_key_store_kbx_write_pgp(io, &key_store->keys[i], memory)) {
-            RNP_LOG_FD(io->errs, "Can't write PGP blobs for key %d\n", i);
+        if (!rnp_key_store_kbx_write_pgp(io, key, memory)) {
+            RNP_LOG_FD(io->errs, "Can't write PGP blobs for key %p\n", key);
             return false;
         }
     }

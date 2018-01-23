@@ -626,7 +626,7 @@ rnp_keyring_get_key_count(rnp_keyring_t ring, size_t *count)
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *count = ring->store->keyc;
+    *count = list_length(ring->store->keys);
     return RNP_SUCCESS;
 }
 
@@ -1105,8 +1105,7 @@ key_provider_bounce(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *use
         rnp_key_store_get_key_by_name(&ffi->io, ring->store, ctx->search.userid, key);
         break;
     case PGP_KEY_SEARCH_KEYID: {
-        unsigned from = 0;
-        *key = rnp_key_store_get_key_by_id(&ffi->io, ring->store, ctx->search.id, &from, NULL);
+        *key = rnp_key_store_get_key_by_id(&ffi->io, ring->store, ctx->search.id, NULL, NULL);
     } break;
     case PGP_KEY_SEARCH_GRIP: {
         *key = rnp_key_store_get_key_by_grip(&ffi->io, ring->store, ctx->search.grip);
@@ -1229,8 +1228,7 @@ find_key_by_locator(pgp_io_t *io, rnp_key_store_t *store, key_locator_t *locator
         rnp_key_store_get_key_by_name(io, store, locator->id.userid, &key);
         break;
     case PGP_KEY_SEARCH_KEYID: {
-        unsigned from = 0;
-        key = rnp_key_store_get_key_by_id(io, store, locator->id.keyid, &from, NULL);
+        key = rnp_key_store_get_key_by_id(io, store, locator->id.keyid, NULL, NULL);
     } break;
     case PGP_KEY_SEARCH_GRIP: {
         key = rnp_key_store_get_key_by_grip(io, store, locator->id.grip);

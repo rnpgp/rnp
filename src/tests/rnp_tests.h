@@ -107,6 +107,8 @@ void test_repgp_list_packets(void **state);
 
 void test_generated_key_sigs(void **state);
 
+void test_key_store_search(void **state);
+
 void test_ffi_api(void **state);
 
 void test_ffi_homedir(void **state);
