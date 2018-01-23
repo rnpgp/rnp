@@ -49,8 +49,8 @@ openbsd_install() {
 
   export PKG_PATH="https://cloudflare.cdn.openbsd.org/pub/OpenBSD/$(uname -r)/packages/$(uname -m)"
 
-  # CI script dependencies
-  for pkg in bash git wget; do
+  # CI script and build dependencies
+  for pkg in bash git wget bzip2 cmake gmake gettext-tools libiconv; do
     pkg_info | grep -q "${pkg}" && \
       continue
 
@@ -59,7 +59,7 @@ openbsd_install() {
 
   rm -f /bin/bash
   ln -s /usr/local/bin/bash /bin/bash
-  grep -q "^/bin/bash" || \
+  grep -q "^/bin/bash" /etc/shells || \
     echo "/bin/bash" >> /etc/shells
 
   for pkg in automake gnupg; do
@@ -72,6 +72,7 @@ openbsd_install() {
     pkg_add -I "${pkg_ver}"
   done
 
+  # Create link to expected gpg binary name and location
   rm -f ${GPG21_INSTALL}/bin/gpg
   ln /usr/local/bin/gpg2 ${GPG21_INSTALL}/bin/gpg
 
