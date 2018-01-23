@@ -50,12 +50,11 @@ test_load_v3_keyring_pgp(void **state)
 
     // load it in to the key store
     assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, 0, &mem));
-    assert_int_equal(1, key_store->keyc);
+    assert_int_equal(1, list_length(key_store->keys));
 
     // find the key by keyid
     static const uint8_t keyid[] = {0xDC, 0x70, 0xC1, 0x24, 0xA5, 0x02, 0x83, 0xF1};
-    unsigned             from = 0;
-    const pgp_key_t *    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    const pgp_key_t *    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL, NULL);
     assert_non_null(key);
 
     // confirm the key flags are correct
@@ -74,11 +73,10 @@ test_load_v3_keyring_pgp(void **state)
     assert_non_null(key_store);
 
     assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, 0, &mem));
-    assert_int_equal(1, key_store->keyc);
+    assert_int_equal(1, list_length(key_store->keys));
 
     static const uint8_t keyid2[] = {0x7D, 0x0B, 0xC1, 0x0E, 0x93, 0x34, 0x04, 0xC9};
-    from = 0;
-    key = rnp_key_store_get_key_by_id(&io, key_store, keyid2, &from, NULL);
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid2, NULL, NULL);
     assert_non_null(key);
 
     // confirm the key flags are correct
@@ -122,12 +120,11 @@ test_load_v4_keyring_pgp(void **state)
 
     // load it in to the key store
     assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, 0, &mem));
-    assert_int_equal(7, key_store->keyc);
+    assert_int_equal(7, list_length(key_store->keys));
 
     // find the key by keyid
     static const uint8_t keyid[] = {0x8a, 0x05, 0xb8, 0x9f, 0xad, 0x5a, 0xde, 0xd1};
-    unsigned             from = 0;
-    const pgp_key_t *    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    const pgp_key_t *    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL, NULL);
     assert_non_null(key);
 
     // confirm the key flags are correct
@@ -158,8 +155,9 @@ check_pgp_keyring_counts(const char *   path,
 
     // count primary keys first
     unsigned total_primary_count = 0;
-    for (unsigned i = 0; i < key_store->keyc; i++) {
-        pgp_key_t *key = &key_store->keys[i];
+    for (list_item *key_item = list_front(key_store->keys); key_item;
+         key_item = list_next(key_item)) {
+        pgp_key_t *key = (pgp_key_t *) key_item;
         if (pgp_key_is_primary_key(key)) {
             total_primary_count++;
         }
@@ -169,8 +167,9 @@ check_pgp_keyring_counts(const char *   path,
     // now count subkeys in each primary key
     unsigned total_subkey_count = 0;
     unsigned primary = 0;
-    for (unsigned i = 0; i < key_store->keyc; i++) {
-        pgp_key_t *key = &key_store->keys[i];
+    for (list_item *key_item = list_front(key_store->keys); key_item;
+         key_item = list_next(key_item)) {
+        pgp_key_t *key = (pgp_key_t *) key_item;
         if (pgp_key_is_primary_key(key)) {
             // check the subkey count for this primary key
             assert_int_equal(key->subkeyc, subkey_counts[primary++]);
@@ -180,7 +179,7 @@ check_pgp_keyring_counts(const char *   path,
     }
 
     // check the total (not really needed)
-    assert_int_equal(key_store->keyc, total_primary_count + total_subkey_count);
+    assert_int_equal(list_length(key_store->keys), total_primary_count + total_subkey_count);
 
     // cleanup
     rnp_key_store_free(key_store);
@@ -218,7 +217,6 @@ test_load_check_bitfields_and_times(void **state)
 {
     pgp_io_t         io = {.errs = stderr, .res = stdout, .outs = stdout};
     uint8_t          keyid[PGP_KEY_ID_SIZE];
-    unsigned         from;
     const pgp_key_t *key;
 
     // load keyring
@@ -227,10 +225,9 @@ test_load_check_bitfields_and_times(void **state)
     assert_true(rnp_key_store_load_from_file(&io, key_store, 0, NULL));
 
     // find
-    from = 0;
     key = NULL;
     assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid, sizeof(keyid)));
-    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL, NULL);
     assert_non_null(key);
     // check subsig count
     assert_int_equal(key->subsigc, 3);
@@ -253,10 +250,9 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->key.pubkey.expiration, 0);
 
     // find
-    from = 0;
     key = NULL;
     assert_true(rnp_hex_decode("1ED63EE56FADC34D", keyid, sizeof(keyid)));
-    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL, NULL);
     assert_non_null(key);
     // check subsig count
     assert_int_equal(key->subsigc, 1);
@@ -275,10 +271,9 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->key.pubkey.expiration, 0);
 
     // find
-    from = 0;
     key = NULL;
     assert_true(rnp_hex_decode("1D7E8A5393C997A8", keyid, sizeof(keyid)));
-    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL, NULL);
     assert_non_null(key);
     // check subsig count
     assert_int_equal(key->subsigc, 1);
@@ -297,10 +292,9 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->key.pubkey.expiration, 123 * 24 * 60 * 60 /* 123 days */);
 
     // find
-    from = 0;
     key = NULL;
     assert_true(rnp_hex_decode("8A05B89FAD5ADED1", keyid, sizeof(keyid)));
-    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL, NULL);
     assert_non_null(key);
     // check subsig count
     assert_int_equal(key->subsigc, 1);
@@ -319,10 +313,9 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->key.pubkey.expiration, 0);
 
     // find
-    from = 0;
     key = NULL;
     assert_true(rnp_hex_decode("2FCADF05FFA501BB", keyid, sizeof(keyid)));
-    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL, NULL);
     assert_non_null(key);
     // check subsig count
     assert_int_equal(key->subsigc, 3);
@@ -345,10 +338,9 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->key.pubkey.expiration, 2076663808);
 
     // find
-    from = 0;
     key = NULL;
     assert_true(rnp_hex_decode("54505A936A4A970E", keyid, sizeof(keyid)));
-    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL, NULL);
     assert_non_null(key);
     // check subsig count
     assert_int_equal(key->subsigc, 1);
@@ -367,10 +359,9 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->key.pubkey.expiration, 2076663808);
 
     // find
-    from = 0;
     key = NULL;
     assert_true(rnp_hex_decode("326EF111425D14A5", keyid, sizeof(keyid)));
-    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL, NULL);
     assert_non_null(key);
     // check subsig count
     assert_int_equal(key->subsigc, 1);
@@ -400,7 +391,6 @@ test_load_check_bitfields_and_times_v3(void **state)
 {
     pgp_io_t         io = {.errs = stderr, .res = stdout, .outs = stdout};
     uint8_t          keyid[PGP_KEY_ID_SIZE];
-    unsigned         from;
     const pgp_key_t *key;
 
     // load keyring
@@ -409,10 +399,9 @@ test_load_check_bitfields_and_times_v3(void **state)
     assert_true(rnp_key_store_load_from_file(&io, key_store, 0, NULL));
 
     // find
-    from = 0;
     key = NULL;
     assert_true(rnp_hex_decode("DC70C124A50283F1", keyid, sizeof(keyid)));
-    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, &from, NULL);
+    key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL, NULL);
     assert_non_null(key);
     // check key version
     assert_int_equal(key->key.pubkey.version, PGP_V3);

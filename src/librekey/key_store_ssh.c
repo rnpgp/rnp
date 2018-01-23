@@ -409,11 +409,10 @@ rnp_key_store_ssh_load_keys(rnp_t *rnp, rnp_key_store_t *pubring, rnp_key_store_
             RNP_LOG("can't read pubkeys '%s'", pubring->path);
             return false;
         }
-        EXPAND_ARRAY(pubring, key);
-        if (pubring->keys == NULL) {
+        pubkey = (pgp_key_t *) list_append(&pubring->keys, NULL, sizeof(pgp_key_t));
+        if (!pubkey) {
             return false;
         }
-        pubkey = &pubring->keys[pubring->keyc++];
         (void) memcpy(pubkey, &key, sizeof(key));
         pubkey->type = PGP_PTAG_CT_PUBLIC_KEY;
     }
@@ -422,17 +421,16 @@ rnp_key_store_ssh_load_keys(rnp_t *rnp, rnp_key_store_t *pubring, rnp_key_store_
             RNP_LOG("secfile '%s'", secring->path);
         }
         if (pubkey == NULL) {
-            pubkey = &pubring->keys[0];
+            pubkey = (pgp_key_t *) list_front(pubring->keys);
         }
         if (!ssh2seckey(rnp->io, secring->path, &key, &pubkey->key.pubkey)) {
             RNP_LOG("can't read seckeys '%s'", secring->path);
             return false;
         }
-        EXPAND_ARRAY(secring, key);
-        if (secring->keys == NULL) {
+        seckey = (pgp_key_t *) list_append(&secring->keys, NULL, sizeof(pgp_key_t));
+        if (!seckey) {
             return false;
         }
-        seckey = &secring->keys[secring->keyc++];
         (void) memcpy(seckey, &key, sizeof(key));
         seckey->type = PGP_PTAG_CT_SECRET_KEY;
     }

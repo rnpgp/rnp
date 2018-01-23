@@ -715,8 +715,7 @@ DEFINE_ARRAY(strings_t, char *);
 int
 rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psigs)
 {
-    pgp_key_t *key;
-    unsigned   k;
+    pgp_key_t *key = NULL;
     strings_t  pubs;
     FILE *     fp = (FILE *) vp;
 
@@ -724,9 +723,8 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
         name += 2;
     }
     (void) memset(&pubs, 0x0, sizeof(pubs));
-    k = 0;
     do {
-        if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k, &key)) {
+        if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, key, &key)) {
             return 0;
         }
         if (key != NULL) {
@@ -746,7 +744,6 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
             if (pubs.v[pubs.c] != NULL) {
                 pubs.c += 1;
             }
-            k += 1;
         }
     } while (key != NULL);
     if (strcmp(fmt, "mr") == 0) {
@@ -754,7 +751,7 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
     } else {
         (void) fprintf(fp, "%d key%s found\n", pubs.c, (pubs.c == 1) ? "" : "s");
     }
-    for (k = 0; k < pubs.c; k++) {
+    for (unsigned k = 0; k < pubs.c; k++) {
         (void) fprintf(fp, "%s%s", pubs.v[k], (k < pubs.c - 1) ? "\n" : "");
         free(pubs.v[k]);
     }
@@ -767,8 +764,7 @@ int
 rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const int psigs)
 {
     int          ret = 1;
-    pgp_key_t *  key;
-    unsigned     from;
+    pgp_key_t *  key = NULL;
     json_object *id_array = json_object_new_array();
     char *       newkey;
     // remove 0x prefix, if any
@@ -776,10 +772,9 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
         name += 2;
     }
     printf("%s,%d, NAME: %s\n", __FILE__, __LINE__, name);
-    from = 0;
     *json = NULL;
     do {
-        if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &from, &key)) {
+        if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, key, &key)) {
             return 0;
         }
         if (key != NULL) {
@@ -801,7 +796,6 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
                                   psigs);
                 json_object_array_add(id_array, obj);
             }
-            from += 1;
         }
     } while (key != NULL);
     const char *j = json_object_to_json_string(id_array);
@@ -815,15 +809,14 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
 int
 rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
 {
-    pgp_key_t *key;
-    unsigned   k;
+    pgp_key_t *key = NULL;
+    unsigned   k = 0;
     ssize_t    cc;
     char       out[1024 * 64];
     FILE *     fp = (FILE *) vp;
 
-    k = 0;
     do {
-        if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, &k, &key)) {
+        if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, key, &key)) {
             return 0;
         }
         if (key != NULL) {
@@ -935,14 +928,15 @@ rnp_import_key(rnp_t *rnp, char *f)
         RNP_LOG("failed to load key from file %s", f);
         goto done;
     }
-    if (!tmp_keystore->keyc) {
+    if (!list_length(tmp_keystore->keys)) {
         RNP_LOG("failed to load any keys to import");
         goto done;
     }
 
     // loop through each key
-    for (unsigned i = 0; i < tmp_keystore->keyc; i++) {
-        pgp_key_t *      key = &tmp_keystore->keys[i];
+    for (list_item *key_item = list_front(tmp_keystore->keys); key_item;
+         key_item = list_next(key_item)) {
+        pgp_key_t *      key = (pgp_key_t *) key_item;
         pgp_key_t *      importedkey = NULL;
         rnp_key_store_t *dest = pgp_is_key_secret(key) ? rnp->secring : rnp->pubring;
         const char *     header = pgp_is_key_secret(key) ? "sec" : "pub";
@@ -1000,16 +994,16 @@ done:
     return ret;
 }
 
-int
+size_t
 rnp_secret_count(rnp_t *rnp)
 {
-    return rnp->secring ? ((rnp_key_store_t *) rnp->secring)->keyc : 0;
+    return rnp->secring ? list_length(rnp->secring->keys) : 0;
 }
 
-int
+size_t
 rnp_public_count(rnp_t *rnp)
 {
-    return rnp->pubring ? ((rnp_key_store_t *) rnp->pubring)->keyc : 0;
+    return rnp->pubring ? list_length(rnp->pubring->keys) : 0;
 }
 
 bool
@@ -1667,9 +1661,8 @@ rnp_format_json(void *vp, const char *json, const int psigs)
 int
 rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size)
 {
-    pgp_key_t *key;
+    pgp_key_t *key = NULL;
     pgp_io_t * io;
-    unsigned   k;
     size_t     cc;
     char       f[MAXPATHLEN];
 
@@ -1701,8 +1694,7 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
     }
 
     /* get rsa key */
-    k = 0;
-    if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, userid, &k, &key)) {
+    if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, userid, key, &key)) {
         goto done;
     }
     if (key == NULL) {

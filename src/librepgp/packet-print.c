@@ -513,7 +513,6 @@ format_uid_notice(char *                 buffer,
     for (unsigned i = 0; i < key->subsigc; i++) {
         pgp_subsig_t *   subsig = &key->subsigs[i];
         const pgp_key_t *trustkey;
-        unsigned         from = 0;
 
         /* TODO: To me this looks like an unnecessary consistency
          *       check that should be performed upstream before
@@ -531,7 +530,7 @@ format_uid_notice(char *                 buffer,
         }
 
         trustkey =
-          rnp_key_store_get_key_by_id(io, keyring, subsig->sig.info.signer_id, &from, NULL);
+          rnp_key_store_get_key_by_id(io, keyring, subsig->sig.info.signer_id, NULL, NULL);
 
         n += format_subsig_line(buffer + n, key, trustkey, subsig, size - n);
     }
@@ -763,9 +762,8 @@ repgp_sprint_json(pgp_io_t *                    io,
               "creation time",
               json_object_new_int((int64_t)(key->subsigs[j].sig.info.creation)));
 
-            unsigned         from = 0;
             const pgp_key_t *trustkey = rnp_key_store_get_key_by_id(
-              io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
+              io, keyring, key->subsigs[j].sig.info.signer_id, NULL, NULL);
 
             json_object_object_add(
               subsigc,
@@ -795,7 +793,6 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                    const int                     psigs)
 {
     const pgp_key_t *trustkey;
-    unsigned         from;
     unsigned         i;
     unsigned         j;
     char             keyid[PGP_KEY_ID_SIZE * 3];
@@ -824,9 +821,8 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                     continue;
                 }
             }
-            from = 0;
             trustkey = rnp_key_store_get_key_by_id(
-              io, keyring, key->subsigs[j].sig.info.signer_id, &from, NULL);
+              io, keyring, key->subsigs[j].sig.info.signer_id, NULL, NULL);
             if (key->subsigs[j].sig.info.version == 4 &&
                 key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
                 n +=

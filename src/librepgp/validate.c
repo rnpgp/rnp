@@ -206,7 +206,6 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     validate_key_cb_t *   key;
     pgp_error_t **        errors;
     pgp_io_t *            io;
-    unsigned              from;
     unsigned              valid = 0;
     rnp_ctx_t *           rnp_ctx;
 
@@ -261,9 +260,8 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
     case PGP_PTAG_CT_SIGNATURE:        /* V3 sigs */
     case PGP_PTAG_CT_SIGNATURE_FOOTER: /* V4 sigs */
-        from = 0;
         signer = rnp_key_store_get_key_by_id(
-          io, key->keyring, content->sig.info.signer_id, &from, NULL);
+          io, key->keyring, content->sig.info.signer_id, NULL, NULL);
         if (!signer) {
             if (!add_sig_to_list(
                   &content->sig.info, &key->result->unknown_sigs, &key->result->unknownc)) {

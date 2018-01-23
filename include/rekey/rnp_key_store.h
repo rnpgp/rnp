@@ -133,7 +133,7 @@ typedef struct rnp_key_store_t {
     const char *            format_label;
     enum key_store_format_t format;
 
-    DYNARRAY(pgp_key_t, key);
+    list keys;
     DYNARRAY(kbx_blob_t *, blob);
 } rnp_key_store_t;
 
@@ -160,8 +160,6 @@ void rnp_key_store_free(rnp_key_store_t *);
 bool rnp_key_store_list(pgp_io_t *, const rnp_key_store_t *, const int);
 bool rnp_key_store_json(pgp_io_t *, const rnp_key_store_t *, json_object *, const int);
 
-bool rnp_key_store_append_keyring(rnp_key_store_t *, rnp_key_store_t *);
-
 bool rnp_key_store_add_key(pgp_io_t *, rnp_key_store_t *, pgp_key_t *);
 bool rnp_key_store_add_keydata(
   pgp_io_t *, rnp_key_store_t *, pgp_keydata_key_t *, pgp_key_t **, pgp_content_enum);
@@ -170,13 +168,13 @@ bool rnp_key_store_remove_key(pgp_io_t *, rnp_key_store_t *, const pgp_key_t *);
 bool rnp_key_store_remove_key_by_id(pgp_io_t *, rnp_key_store_t *, const uint8_t *);
 
 pgp_key_t *rnp_key_store_get_key_by_id(
-  pgp_io_t *, const rnp_key_store_t *, const unsigned char *, unsigned *, pgp_pubkey_t **);
+  pgp_io_t *, const rnp_key_store_t *, const unsigned char *, pgp_key_t *, pgp_pubkey_t **);
 bool rnp_key_store_get_key_by_name(pgp_io_t *,
                                    const rnp_key_store_t *,
                                    const char *,
                                    pgp_key_t **);
 bool rnp_key_store_get_next_key_by_name(
-  pgp_io_t *, const rnp_key_store_t *, const char *, unsigned *, pgp_key_t **);
+  pgp_io_t *, const rnp_key_store_t *, const char *, pgp_key_t *, pgp_key_t **);
 
 bool       rnp_key_store_get_key_grip(pgp_pubkey_t *, uint8_t *);
 pgp_key_t *rnp_key_store_get_key_by_grip(pgp_io_t *, rnp_key_store_t *, const uint8_t *);
