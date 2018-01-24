@@ -223,6 +223,11 @@ dsa_keygen(
     bignum_t *y = bn_new();
     bignum_t *x = bn_new();
 
+    if (!p || !q || !g || !y || !x) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto end;
+    }
+
     if (botan_privkey_create_dsa(&key_priv, rng_handle(rng), keylen, qbits) ||
         botan_privkey_check_key(key_priv, rng_handle(rng), 1) ||
         botan_privkey_export_pubkey(&key_pub, key_priv)) {
