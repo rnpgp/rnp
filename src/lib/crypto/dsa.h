@@ -113,6 +113,7 @@ rnp_result_t dsa_verify(const uint8_t *         hash,
  *
  * @returns RNP_SUCCESS
  *          RNP_ERROR_BAD_PARAMETERS wrong input provided
+ *          RNP_ERROR_OUT_OF_MEMORY memory allocation failed
  *          RNP_ERROR_GENERIC internal error
  *          RNP_ERROR_SIGNATURE_INVALID signature is invalid
  */
