@@ -69,7 +69,7 @@ pgp_ecdsa_sign_hash(rng_t *                 rng,
 
     const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
     const size_t leftmost_bytes = hash_len > curve_order ? curve_order : hash_len;
-    if (botan_pk_op_sign_update(signer, &hashbuf[hash_len - leftmost_bytes], leftmost_bytes)) {
+    if (botan_pk_op_sign_update(signer, hashbuf, leftmost_bytes)) {
         goto end;
     }
 
@@ -146,7 +146,7 @@ pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
 
     const size_t leftmost_bytes = hash_len > curve_order ? curve_order : hash_len;
     if (botan_pk_op_verify_update(
-          verifier, &hash[hash_len - leftmost_bytes], leftmost_bytes)) {
+          verifier, hash, leftmost_bytes)) {
         goto end;
     }
 

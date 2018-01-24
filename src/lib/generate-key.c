@@ -177,9 +177,6 @@ keygen_merge_crypto_defaults(rnp_keygen_crypto_params_t *crypto)
             crypto->dsa.p_bitlen = DSA_DEFAULT_P_BITLEN;
             crypto->dsa.q_bitlen = dsa_choose_qsize_by_psize(DSA_DEFAULT_P_BITLEN);
         }
-        // TODO: GnuPG fails importing DSA/160-SHA256. Seems like a bug
-        // but if not, just uncomment line below.
-        // if (!crypto->hash_alg) crypto->hash_alg = PGP_HASH_SHA1
         break;
     }
     default:

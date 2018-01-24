@@ -12,6 +12,7 @@ class Rnp(object):
         self.__common_params = ['--homedir', homedir]
         self.__password = None
         self.__userid = None
+        self.__hash = None
 
     @property
     def key_mgm_bin(self):
@@ -23,7 +24,6 @@ class Rnp(object):
 
     @property
     def common_params(self):
-        import copy
         return copy.copy(self.__common_params)
 
     @property
@@ -42,6 +42,17 @@ class Rnp(object):
     def userid(self, val):
         self.__userid = val
 
+    @property
+    def hash(self):
+        return self.__hash
+
+    @hash.setter
+    def hash(self, val):
+        self.__hash = val
+
+    def copy(self):
+        return copy.deepcopy(self)
+
     def _run(self, cmd, batch_input = None):
         import subprocess
         logging.debug((' '.join(cmd)).strip())
@@ -59,6 +70,8 @@ class Rnp(object):
         params += ['--generate-key', '--expert']
         params += ['--pass-fd', str(pipe)]
         params += ['--userid', self.userid]
+        if self.hash:
+            params += ['--hash', self.hash]
         try:
             ret = self._run([self.__key_mgm_bin] + params, batch_input)
         finally:
@@ -86,6 +99,8 @@ class Rnp(object):
         params += ['--userid', self.userid]
         params += ['--sign', input]
         params += ['--output', output]
+        if self.hash:
+            params += ['--hash', self.hash]
         try:
             ret = self._run([self.rnp_bin] + params)
         finally:
@@ -96,4 +111,6 @@ class Rnp(object):
     def verify(self, input):
         params = self.common_params
         params += ['--verify', input]
+        if self.hash:
+            params += ['--hash', self.hash]
         return self._run([self.rnp_bin] + params)

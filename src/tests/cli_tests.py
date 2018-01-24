@@ -1016,6 +1016,16 @@ class SignECDSA(Sign):
         cmd = SignECDSA.GPG_GENERATE_ECDSA_PATERN.format("nistp521", self.rnp.userid)
         self._rnp_sign_verify(self.gpg, self.rnp, 5, cmd)
 
+    def test_hash_truncation(self):
+        '''
+        Signs message hashed with SHA512 with a key of size 256. Implementation
+        truncates leftmost 256 bits of a hash before signing (see FIPS 186-4, 6.4)
+        '''
+        cmd = SignECDSA.RNP_GENERATE_ECDSA_PATTERN.format(1)
+        rnp = self.rnp.copy()
+        rnp.hash = 'SHA512'
+        self._rnp_sign_verify(rnp, self.gpg, 1, cmd)
+
 class SignDSA(Sign):
     # {0} must be replaced by ID of the curve 3,4 or 5 (NIST-256,384,521)
     #CURVES = ["NIST P-256", "NIST P-384", "NIST P-521"]
@@ -1031,7 +1041,6 @@ class SignDSA(Sign):
     # {0} must be replaced by ID of the curve 1,2 or 3 (NIST-256,384,521)
     RNP_GENERATE_DSA_PATTERN = "17\n{0}\n"
 
-    @unittest.skip("This is skipped as GnuPG doesn't support 1024 keys signed with non-SHA1")
     def test_sign_P1024_Q160(self):
        cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(1024)
        self._rnp_sign_verify(self.rnp, self.gpg, 1, cmd)
@@ -1067,6 +1076,16 @@ class SignDSA(Sign):
         cmd = SignDSA.GPG_GENERATE_DSA_PATERN.format(
             "2112", self.rnp.userid)
         self._rnp_sign_verify(self.gpg, self.rnp, 3, cmd)
+
+    def test_hash_truncation(self):
+        '''
+        Signs message hashed with SHA512 with a key of size 160 bits. Implementation
+        truncates leftmost 160 bits of a hash before signing (see FIPS 186-4, 4.2)
+        '''
+        cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(1024)
+        rnp = self.rnp.copy()
+        rnp.hash = 'SHA512'
+        self._rnp_sign_verify(rnp, self.gpg, 1, cmd)
 
 # Main thinghy
 
