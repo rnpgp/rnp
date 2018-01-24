@@ -7,6 +7,7 @@ class GnuPG(object):
         self.__common_params = ['--homedir', homedir, '--yes']
         self.__password = None
         self.__userid = None
+        self.__hash = None
 
     @property
     def bin(self):
@@ -29,9 +30,20 @@ class GnuPG(object):
     def userid(self, val):
         self.__userid = val
 
+    @property
+    def hash(self):
+        return self.__hash
+
+    @hash.setter
+    def hash(self, val):
+        self.__hash = val
+
     @password.setter
     def password(self, val):
         self.__password = val
+
+    def copy(self):
+        return copy.deepcopy(self)
 
     def _run(self, cmd, batch_input = None):
         import subprocess
@@ -49,6 +61,8 @@ class GnuPG(object):
                   '--pinentry-mode', 'loopback'] + self.common_params
         if self.password:
             params += ['--passphrase', self.password]
+        if self.hash:
+            params += ['--cert-digest-algo', self.hash]
         return self._run([self.__gpg] + params, batch_input)
 
     def export_key(self, out_filename, secret=False):
@@ -79,9 +93,13 @@ class GnuPG(object):
         params += ['--pinentry-mode', 'loopback']
         params += ['-o', out]
         params += ['--sign', input]
+        if self.hash:
+            params += ['--digest-algo', self.hash]
         return self._run([self.__gpg] + params)
 
     def verify(self, input):
         params = self.common_params
         params += ['--verify', input]
+        if self.hash:
+            params += ['--digest-algo', self.hash]
         return self._run([self.__gpg] + params)

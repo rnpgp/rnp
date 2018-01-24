@@ -127,7 +127,7 @@ dsa_sign(rng_t *                 rng,
 
     // As 'Raw' is used we need to reduce hash size (as per FIPS-186-4, 4.6)
     const size_t z_len = h_len < q_order ? h_len : q_order;
-    if (botan_pk_op_sign_update(sign_op, &h[h_len - z_len], z_len)) {
+    if (botan_pk_op_sign_update(sign_op, h, z_len)) {
         goto end;
     }
 
@@ -195,7 +195,7 @@ dsa_verify(const uint8_t          *h,
     }
 
     const size_t z_len = h_len < q_order ? h_len : q_order;
-    if (botan_pk_op_verify_update(verify_op, &h[h_len - z_len], z_len)) {
+    if (botan_pk_op_verify_update(verify_op, h, z_len)) {
         goto end;
     }
 
