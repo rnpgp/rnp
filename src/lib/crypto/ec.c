@@ -204,18 +204,11 @@ pgp_genkey_ec_uncompressed(rng_t *                rng,
     ret = RNP_SUCCESS;
 
 end:
-    if (pr_key != NULL) {
-        botan_privkey_destroy(pr_key);
-    }
-    if (pu_key != NULL) {
-        botan_pubkey_destroy(pu_key);
-    }
-    if (public_x != NULL) {
-        bn_free(public_x);
-    }
-    if (public_y != NULL) {
-        bn_free(public_y);
-    }
+    botan_privkey_destroy(pr_key);
+    botan_pubkey_destroy(pu_key);
+    bn_free(public_x);
+    bn_free(public_y);
+
     if (RNP_SUCCESS != ret) {
         RNP_LOG("EC key generation failed");
         pgp_seckey_free(seckey);
