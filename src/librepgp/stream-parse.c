@@ -494,6 +494,7 @@ static bool
 encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool last)
 {
     uint8_t nonce[PGP_AEAD_EAX_NONCE_LEN];
+
     /* set chunk index for additional data */
     STORE64BE(param->aead_params.ad + param->aead_params.adlen - 8, idx);
 
@@ -501,12 +502,10 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
         uint64_t total = idx ? (idx - 1) * param->chunklen : 0;
         total += param->chunkin;
         STORE64BE(param->aead_params.ad + param->aead_params.adlen, total);
-        pgp_cipher_aead_set_ad(
-          &param->decrypt, param->aead_params.ad, param->aead_params.adlen + 8);
-    } else {
-        pgp_cipher_aead_set_ad(
-          &param->decrypt, param->aead_params.ad, param->aead_params.adlen);
+        param->aead_params.adlen += 8;
     }
+
+    pgp_cipher_aead_set_ad(&param->decrypt, param->aead_params.ad, param->aead_params.adlen);
 
     /* setup chunk */
     param->chunkidx = idx;
@@ -568,9 +567,15 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
     param->chunkin += read;
 
     if (chunkend) {
+        src_skip(param->pkt.readsrc, lastchunk ? tagread : PGP_AEAD_EAX_TAG_LEN);
         memcpy(param->cache + read, tag, PGP_AEAD_EAX_TAG_LEN);
         res = pgp_cipher_aead_finish(
           &param->decrypt, param->cache, param->cache, read + PGP_AEAD_EAX_TAG_LEN);
+
+        if (!res) {
+            RNP_LOG("failed to finalize aead chunk");
+        }
+
         res = res && encrypted_start_aead_chunk(param, param->chunkidx + 1, lastchunk);
         if (res && lastchunk) {
             memmove(tag, tag + PGP_AEAD_EAX_TAG_LEN, PGP_AEAD_EAX_TAG_LEN);
@@ -581,6 +586,7 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
             param->aead_validated = true;
         }
     } else {
+        /* read here will be the multiple of granularity due to param->cache size selection */
         res = pgp_cipher_aead_update(&param->decrypt, param->cache, param->cache, read);
     }
 
@@ -1317,7 +1323,7 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
     }
 
     gran = pgp_cipher_aead_granularity(&param->decrypt);
-    if ((gran > sizeof(param->cache)) || (gran > param->chunklen)) {
+    if (gran > sizeof(param->cache)) {
         RNP_LOG("wrong granularity");
         return false;
     }
@@ -1454,18 +1460,14 @@ static void
 encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
 {
     /* TODO: this method is exact duplicate as in stream-write.c. Not sure where to put it */
-    uint8_t ad_data[32] = {0};
+    uint8_t ad_data[4];
 
-    /* TODO: not sure what is meant under the 'packet header'. Using tag and 1-byte length. */
     ad_data[0] = PGP_PTAG_CT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
-    ad_data[1] = stream_sk_sesskey_len(skey);
-    ad_data[2] = 1;
-    ad_data[3] = skey->alg;
-    ad_data[4] = skey->aalg;
-    ad_data[5] = 10;
-    /* 8 zero bytes follows */
+    ad_data[1] = skey->version;
+    ad_data[2] = skey->alg;
+    ad_data[3] = skey->aalg;
 
-    pgp_cipher_aead_set_ad(crypt, ad_data, 14);
+    pgp_cipher_aead_set_ad(crypt, ad_data, 4);
 }
 
 static int
@@ -1516,11 +1518,6 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
             }
 
             keyavail = true;
-
-            /* decrypting header to check key validity */
-            if (!encrypted_decrypt_cfb_header(param, alg, keybuf)) {
-                continue;
-            }
         } else if (skey->version == PGP_SKSK_V5) {
             /* v5 AEAD-encrypted session key */
             if (keysize != skey->enckeylen - PGP_AEAD_EAX_TAG_LEN) {
@@ -1547,12 +1544,22 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
             pgp_cipher_aead_destroy(&crypt);
 
             /* we have decrypted key so let's start decryption */
-            if (!keyavail || !decres ||
-                !encrypted_start_aead(param, param->aead_params.ealg, keybuf)) {
+            if (!keyavail || !decres) {
                 continue;
             }
         } else {
             continue;
+        }
+
+        if (!param->aead) {
+            /* Decrypt header for CFB */
+            if (!encrypted_decrypt_cfb_header(param, alg, keybuf)) {
+                continue;
+            }
+        } else {
+            if (!encrypted_start_aead(param, param->aead_params.ealg, keybuf)) {
+                continue;
+            }
         }
 
         res = 1;
@@ -1780,7 +1787,6 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
     uint8_t              ptag;
     uint8_t              mdcver;
     uint8_t              hdr[4];
-    size_t               idx;
     int                  ptype;
     pgp_sk_sesskey_t     skey = {0};
     pgp_pk_sesskey_pkt_t pkey = {0};
@@ -1857,11 +1863,10 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
         }
 
         /* build additional data */
-        idx = param->pkt.hdrlen;
-        param->aead_params.adlen = idx + 12;
-        memcpy(param->aead_params.ad, param->pkt.hdr, idx);
-        memcpy(param->aead_params.ad + idx, hdr, 4);
-        memset(param->aead_params.ad + idx + 4, 0, 8);
+        param->aead_params.adlen = 13;
+        param->aead_params.ad[0] = param->pkt.hdr[0];
+        memcpy(param->aead_params.ad + 1, hdr, 4);
+        memset(param->aead_params.ad + 5, 0, 8);
     } else if (ptype == PGP_PTAG_CT_SE_IP_DATA) {
         if (!src_read_eq(param->pkt.readsrc, &mdcver, 1)) {
             return RNP_ERROR_READ;
@@ -2382,10 +2387,12 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
     }
 
     /* finalizing the input. Signatures are checked on this step */
-    for (list_item *src = list_back(ctx.sources); src; src = list_prev(src)) {
-        fres = src_finish((pgp_source_t *) src);
-        if (fres != RNP_SUCCESS) {
-            res = fres;
+    if (res == RNP_SUCCESS) {
+        for (list_item *src = list_back(ctx.sources); src; src = list_prev(src)) {
+            fres = src_finish((pgp_source_t *) src);
+            if (fres != RNP_SUCCESS) {
+                res = fres;
+            }
         }
     }
 
