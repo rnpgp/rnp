@@ -109,7 +109,7 @@ def clear_keyrings():
     shutil.rmtree(RNPDIR, ignore_errors=True)
     os.mkdir(RNPDIR, 0700)
 
-    run_proc('gpg-connect-agent', ['killagent', '/bye'])
+    run_proc('kill', ['-9', 'gpg-agent'])
     while os.path.isdir(GPGDIR):
         try:
             shutil.rmtree(GPGDIR)
