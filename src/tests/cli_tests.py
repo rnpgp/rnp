@@ -630,6 +630,7 @@ class Keystore(unittest.TestCase):
         # Cleanup and return
         clear_keyrings()
 
+    @unittest.skip("Skipping until #550 is fixed")
     def test_generate_default_rsa_key(self):
         Keystore._rnpkey_generate_rsa()
 
@@ -673,6 +674,7 @@ class Keystore(unittest.TestCase):
         # Cleanup and return
         clear_keyrings()
 
+    @unittest.skip("Skipping until #550 is fixed")
     def test_generate_key_with_gpg_import_to_rnp(self):
         '''
         Generate key with GnuPG and import it to rnp
