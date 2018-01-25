@@ -354,15 +354,12 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     }
 
     /* Use primary key if good for encryption, otherwise look in subkey list */
-    if (pgp_key_can_encrypt(userkey)) {
-        pubkey = &userkey->key.pubkey;
-    } else {
-        pgp_key_t *subkey = find_suitable_subkey(userkey, PGP_KF_ENCRYPT);
-        if (!subkey) {
-            return RNP_ERROR_NO_SUITABLE_KEY;
-        }
-        pubkey = &subkey->key.pubkey;
+    userkey =
+      find_suitable_key(PGP_OP_ENCRYPT_SYM, userkey, handler->key_provider, PGP_KF_ENCRYPT);
+    if (!userkey) {
+        return RNP_ERROR_NO_SUITABLE_KEY;
     }
+    pubkey = &userkey->key.pubkey;
 
     /* Fill pkey */
     pkey.version = PGP_PKSK_V3;

@@ -62,6 +62,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 void
 pgp_free_user_prefs(pgp_user_prefs_t *prefs)
@@ -162,8 +163,10 @@ pgp_key_free_data(pgp_key_t *key)
     }
     revoke_free(&key->revocation);
 
-    free(key->subkeys);
-    key->subkeys = NULL;
+    free(key->primary_grip);
+    key->primary_grip = NULL;
+
+    list_destroy(&key->subkey_grips);
 
     if (pgp_is_key_public(key)) {
         pgp_pubkey_free(&key->key.pubkey);
@@ -1060,18 +1063,29 @@ pgp_key_write_packets(const pgp_key_t *key, pgp_output_t *output)
 }
 
 pgp_key_t *
-find_suitable_subkey(const pgp_key_t *primary, uint8_t desired_usage)
+find_suitable_key(pgp_op_t            op,
+                  pgp_key_t *   key,
+                  pgp_key_provider_t *key_provider,
+                  uint8_t             desired_usage)
 {
-    // fixme copied fron rnp.c
-    if (!primary || DYNARRAY_IS_EMPTY(primary, subkey)) {
+    assert(desired_usage);
+    if (!key) {
         return NULL;
     }
-
-    for (unsigned i = primary->subkeyc; i-- > 0;) {
-        pgp_key_t *subkey = primary->subkeys[i];
-        if (subkey->key_flags & desired_usage) {
+    if (key->key_flags & desired_usage) {
+        return key;
+    }
+    list_item *           subkey_grip = list_front(key->subkey_grips);
+    pgp_key_request_ctx_t ctx = (pgp_key_request_ctx_t){
+      .op = op, .secret = pgp_is_key_secret(key), .stype = PGP_KEY_SEARCH_GRIP};
+    while (subkey_grip) {
+        memcpy(ctx.search.grip, subkey_grip, PGP_FINGERPRINT_SIZE);
+        pgp_key_t *subkey = NULL;
+        if (pgp_request_key(key_provider, &ctx, &subkey) && subkey &&
+            (subkey->key_flags & desired_usage)) {
             return subkey;
         }
+        subkey_grip = list_next(subkey_grip);
     }
     return NULL;
 }

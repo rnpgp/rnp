@@ -72,7 +72,6 @@ typedef struct keyringcb_t {
     rnp_key_store_t *keyring; /* the keyring we're reading */
     pgp_io_t *       io;
     pgp_key_t *      key;          /* the key we're currently loading */
-    pgp_key_t *      last_primary; /* the last primary key we loaded */
 } keyringcb_t;
 
 #define SUBSIG_REQUIRED_BEFORE(str)                                 \
@@ -348,16 +347,6 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         cb->key->format = GPG_KEY_STORE;
         if (pgp_is_key_secret(cb->key)) {
             cb->key->is_protected = cb->key->key.seckey.encrypted;
-        }
-        if (pgp_is_subkey_tag(pkt->tag) && cb->last_primary) {
-            EXPAND_ARRAY(cb->last_primary, subkey);
-            if (!cb->last_primary->subkeys) {
-                PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
-                return PGP_FINISHED;
-            }
-            cb->last_primary->subkeys[cb->last_primary->subkeyc++] = cb->key;
-        } else if (pgp_is_primary_key_tag(pkt->tag)) {
-            cb->last_primary = cb->key;
         }
         // Set some default key flags which will be overridden by signature
         // subpackets for V4 keys.

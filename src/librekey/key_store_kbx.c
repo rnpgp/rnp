@@ -481,7 +481,7 @@ rnp_key_store_kbx_write_header(rnp_key_store_t *key_store, pgp_memory_t *m)
 }
 
 static bool
-rnp_key_store_kbx_write_pgp(pgp_io_t *io, pgp_key_t *key, pgp_memory_t *m)
+rnp_key_store_kbx_write_pgp(pgp_io_t *io, rnp_key_store_t *key_store, pgp_key_t *key, pgp_memory_t *m)
 {
     unsigned     i;
     int          rc;
@@ -510,7 +510,7 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *io, pgp_key_t *key, pgp_memory_t *m)
         return false;
     }
 
-    if (!pu16(m, 1 + key->subkeyc)) { // number of keys in keyblock
+    if (!pu16(m, 1 + list_length(key->subkey_grips))) { // number of keys in keyblock
         return false;
     }
     if (!pu16(m, 28)) { // size of key info structure)
@@ -525,14 +525,16 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *io, pgp_key_t *key, pgp_memory_t *m)
     }
 
     // same as above, for each subkey
-    for (unsigned i = 0; i < key->subkeyc; i++) {
-        const pgp_key_t *subkey = key->subkeys[i];
+    list_item *subkey_grip = list_front(key->subkey_grips);
+    while (subkey_grip) {
+        const pgp_key_t *subkey = rnp_key_store_get_key_by_grip(io, key_store, (const uint8_t*)subkey_grip);
         if (!pgp_memory_add(m, subkey->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE) ||
             !pu32(m, m->length - start - 8) || // offset to keyid (part of fpr for V4)
             !pu16(m, 0) ||                     // flags, not used by GnuPG
             !pu16(m, 0)) {                     // RFU
             return false;
         }
+        subkey_grip = list_next(subkey_grip);
     }
 
     if (!pu16(m, 0)) { // Zero size of serial number
@@ -615,11 +617,13 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *io, pgp_key_t *key, pgp_memory_t *m)
     if (!pgp_key_write_packets(key, &output)) {
         return false;
     }
-    for (unsigned isub = 0; isub < key->subkeyc; isub++) {
-        const pgp_key_t *subkey = key->subkeys[isub];
+    subkey_grip = list_front(key->subkey_grips);
+    while (subkey_grip) {
+        const pgp_key_t *subkey = rnp_key_store_get_key_by_grip(io, key_store, (uint8_t*)subkey_grip);
         if (!pgp_key_write_packets(subkey, &output)) {
             return false;
         }
+        subkey_grip = list_next(subkey_grip);
     }
 
     rc = pgp_writer_close(&output);
@@ -693,7 +697,7 @@ rnp_key_store_kbx_to_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_t 
         if (!pgp_key_is_primary_key(key)) {
             continue;
         }
-        if (!rnp_key_store_kbx_write_pgp(io, key, memory)) {
+        if (!rnp_key_store_kbx_write_pgp(io, key_store, key, memory)) {
             RNP_LOG_FD(io->errs, "Can't write PGP blobs for key %p\n", key);
             return false;
         }

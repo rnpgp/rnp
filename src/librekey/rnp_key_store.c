@@ -540,6 +540,30 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
     }
     key->type = tag;
     key->key = *keydata;
+    // set the parent/primary grip, if applicable
+    if (pgp_key_is_subkey(key)) {
+        // find the last primary in the list
+        pgp_key_t *primary = NULL;
+        for (list_item *keyp = list_back(keyring->keys); keyp; keyp = list_prev(keyp)) {
+            if (pgp_key_is_primary_key((pgp_key_t*)keyp)) {
+                primary = (pgp_key_t*)keyp;
+                break;
+            }
+        }
+        // we never found the parent primary (malformed keyring perhaps)
+        if (!primary) {
+            return false;
+        }
+        key->primary_grip = malloc(PGP_FINGERPRINT_SIZE);
+        if (!key->primary_grip) {
+            return false;
+        }
+        memcpy(key->primary_grip, primary->grip, PGP_FINGERPRINT_SIZE);
+        if (!list_append(&primary->subkey_grips, key->grip, sizeof(key->grip))) {
+            free(key->primary_grip);
+            return false;
+        }
+    }
     if (inserted) {
         *inserted = key;
     }
