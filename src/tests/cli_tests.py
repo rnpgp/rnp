@@ -109,13 +109,14 @@ def clear_keyrings():
     shutil.rmtree(RNPDIR, ignore_errors=True)
     os.mkdir(RNPDIR, 0700)
 
+    run_proc('gpg-connect-agent', ['killagent', '/bye'])
     while os.path.isdir(GPGDIR):
         try:
             shutil.rmtree(GPGDIR)
         except:
             time.sleep(0.1)
     os.mkdir(GPGDIR, 0700)
-
+    run_proc('gpg-connect-agent', ['reloadagent', '/bye'])
 
 def compare_files(src, dst, message):
     if file_text(src) != file_text(dst):
@@ -160,6 +161,7 @@ def rnp_genkey_rsa(userid, bits=2048):
     os.close(pipe)
     if ret != 0:
         raise_err('rsa key generation failed', err)
+
 
 def rnp_encrypt_file(recipient, src, dst, zlevel=6, zalgo='zip', armor=False):
     params = ['--homedir', RNPDIR, '--userid', recipient, '-z',
@@ -578,6 +580,11 @@ def setup(loglvl):
     - armored import/export
 '''
 class Keystore(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        clear_keyrings()
+
     def tearDown(self):
         clear_workfiles()
 
@@ -681,7 +688,7 @@ class Keystore(unittest.TestCase):
         ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR,
                                     '--passphrase', '', '--quick-generate-key', 'rsakey@gpg', 'rsa'])
         if ret != 0:
-            raise_err('gpg key generation failed', err)
+            raise_err('gpg key generation failed, error ' + str(ret) , err)
         # Getting fingerprint of the generated key
         ret, out, err = run_proc(
             GPG, ['--batch', '--homedir', GPGDIR, '--list-keys'])
@@ -815,8 +822,6 @@ class Encryption(unittest.TestCase):
         Things to try later:
         - different public key algorithms
         - different hash algorithms where applicable
-        - cleartext signing/verification
-        - detached signing/verification
 
         TODO:
         Tests in this test case should be splitted into many algorithm-specific tests (potentially auto generated)
@@ -825,7 +830,9 @@ class Encryption(unittest.TestCase):
     '''
     RNP_CIPHERS = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
     GPG_CIPHERS = ['cast5', 'idea', 'blowfish', 'twofish', 'aes128', 'aes192', 'aes256', 'camellia128', 'camellia192', 'camellia256', 'tripledes']
-    SIZES = [20, 1000, 5000, 20000, 150000, 1000000]
+    SIZES = [20, 40, 120, 600, 1000, 5000, 20000, 150000, 1000000]
+    # Number of test runs - each run picks next encryption algo and size, wrapping on array
+    RUNS = 30
 
     @classmethod
     def setUpClass(cls):
@@ -845,17 +852,21 @@ class Encryption(unittest.TestCase):
         clear_workfiles()
 
     def test_file_encryption__gpg_to_rnp(self):
-        for cipher,size in itertools.product(Encryption.RNP_CIPHERS, Encryption.SIZES):
-            gpg_to_rnp_encryption(cipher,size)
-        # Encrypt cleartext file with GPG and decrypt it with RNP, using different ciphers and file sizes
+        for run in range(0, Encryption.RUNS):
+            cipher = Encryption.RNP_CIPHERS[run % len(Encryption.RNP_CIPHERS)]
+            size = Encryption.SIZES[run % len(Encryption.SIZES)]
+            gpg_to_rnp_encryption(cipher, size)
 
+        # Encrypt cleartext file with GPG and decrypt it with RNP, using different ciphers and file sizes
     def test_file_encryption__rnp_to_gpg(self):
         for size in Encryption.SIZES:
             file_encryption_rnp_to_gpg(size)
 
     def test_sym_encryption__gpg_to_rnp(self):
         # Encrypt cleartext with GPG and decrypt with RNP
-        for cipher, size in itertools.product(Encryption.RNP_CIPHERS, Encryption.SIZES):
+        for run in range(0, Encryption.RUNS):
+            cipher = Encryption.RNP_CIPHERS[run % len(Encryption.RNP_CIPHERS)]
+            size = Encryption.SIZES[run % len(Encryption.SIZES)]
             rnp_sym_encryption_gpg_to_rnp(cipher, size, 0, 1)
             rnp_sym_encryption_gpg_to_rnp(cipher, size, 6, 1)
             rnp_sym_encryption_gpg_to_rnp(cipher, size, 6, 2)
@@ -863,7 +874,9 @@ class Encryption(unittest.TestCase):
 
     def test_sym_encryption__rnp_to_gpg(self):
         # Encrypt cleartext with RNP and decrypt with GPG
-        for cipher, size in itertools.product(Encryption.GPG_CIPHERS, Encryption.SIZES):
+        for run in range(0, Encryption.RUNS):
+            cipher = Encryption.GPG_CIPHERS[run % len(Encryption.GPG_CIPHERS)]
+            size = Encryption.SIZES[run % len(Encryption.SIZES)]
             rnp_sym_encryption_rnp_to_gpg(cipher, size, 0)
             rnp_sym_encryption_rnp_to_gpg(cipher, size, 6, 'zip')
             rnp_sym_encryption_rnp_to_gpg(cipher, size, 6, 'zlib')
@@ -1011,9 +1024,9 @@ if __name__ == '__main__':
                     "  -w,\t\t Don't remove working directory\n",
                     "  -d,\t\t Enable debug messages\n"])
 
-    CLEANUP = ("-w" in sys.argv)
-    if CLEANUP:
-        # -w must be removed as unittest doesn't expect it
+    CLEANUP = (not "-w" in sys.argv)
+    # -w must be removed as unittest doesn't expect it
+    if not CLEANUP:
         sys.argv.remove('-w')
 
     LVL = logging.INFO
