@@ -110,6 +110,9 @@
 /* Authentication tag len for AEAD/EAX */
 #define PGP_AEAD_EAX_TAG_LEN 16
 
+/* Maximum AEAD tag length */
+#define PGP_AEAD_MAX_TAG_LEN 16
+
 /* Maximum authenticated data length for AEAD */
 #define PGP_AEAD_MAX_AD_LEN 32
 

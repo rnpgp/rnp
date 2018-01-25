@@ -96,7 +96,6 @@ typedef struct pgp_dest_encrypted_param_t {
     uint8_t                 iv[PGP_MAX_BLOCK_SIZE];  /* iv for AEAD mode */
     uint8_t                 ad[PGP_AEAD_MAX_AD_LEN]; /* additional data for AEAD mode */
     size_t                  adlen;    /* length of additional data, including chunk idx */
-    bool                    adknown;  /* we already know ad - wrote first partial block */
     size_t                  chunklen; /* length of the AEAD chunk in bytes */
     size_t                  chunkout; /* how many bytes from the chunk were written out */
     size_t                  chunkidx; /* index of the current AEAD chunk */
@@ -311,6 +310,7 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
     /* finish the previous chunk if needed*/
     if ((idx > 0) && (param->chunkout + param->cachelen > 0)) {
         if (param->cachelen + PGP_AEAD_EAX_TAG_LEN > sizeof(param->cache)) {
+            RNP_LOG("wrong state in aead");
             return RNP_ERROR_BAD_STATE;
         }
 
@@ -329,10 +329,9 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
         total = idx ? (idx - 1) * param->chunklen : 0;
         total += param->cachelen + param->chunkout;
         STORE64BE(param->ad + param->adlen, total);
-        pgp_cipher_aead_set_ad(&param->encrypt, param->ad, param->adlen + 8);
-    } else {
-        pgp_cipher_aead_set_ad(&param->encrypt, param->ad, param->adlen);
+        param->adlen += 8;
     }
+    pgp_cipher_aead_set_ad(&param->encrypt, param->ad, param->adlen);
 
     /* set chunk index for nonce */
     pgp_cipher_aead_eax_nonce(param->iv, nonce, idx);
@@ -400,24 +399,6 @@ encrypted_dst_write_aead(pgp_dest_t *dst, const void *buf, size_t len)
         return RNP_SUCCESS;
     }
 
-    /* we don't know the ad until we have full partial data block */
-    if (!param->adknown) {
-        if (len + param->cachelen < PGP_PARTIAL_PKT_BLOCK_SIZE - 2 * PGP_AEAD_EAX_TAG_LEN - 4 -
-                                      PGP_AEAD_EAX_NONCE_LEN) {
-            memcpy(param->cache + param->cachelen, buf, len);
-            param->cachelen += len;
-            return RNP_SUCCESS;
-        }
-
-        /* if we got here then we'll definitely have the first partial block */
-        memmove(param->ad + param->pkt.hdrlen, param->ad, param->adlen);
-        memcpy(param->ad, param->pkt.hdr, param->pkt.hdrlen);
-        param->adlen += param->pkt.hdrlen + 8;
-
-        encrypted_start_aead_chunk(param, 0, false);
-        param->adknown = true;
-    }
-
     /* because of botan's FFI granularity we need to make things a bit complicated */
     gran = pgp_cipher_aead_granularity(&param->encrypt);
 
@@ -458,36 +439,15 @@ static rnp_result_t
 encrypted_dst_finish(pgp_dest_t *dst)
 {
     uint8_t                     mdcbuf[MDC_V1_SIZE];
-    uint8_t                     hdrbuf[PGP_MAX_HEADER_SIZE];
-    size_t                      hdrlen;
     pgp_dest_encrypted_param_t *param = dst->param;
     rnp_result_t                res;
 
     if (param->aead) {
-        res = RNP_SUCCESS;
-
-        if (!param->adknown) {
-            /* in this case we have all the data to encrypt in cache */
-            hdrbuf[0] = param->pkt.hdr[0];
-            hdrlen = write_packet_len(hdrbuf + 1,
-                                      param->cachelen + 2 * PGP_AEAD_EAX_TAG_LEN + 4 +
-                                        PGP_AEAD_EAX_NONCE_LEN) +
-                     1;
-
-            memmove(param->ad + hdrlen, param->ad, param->adlen);
-            memcpy(param->ad, hdrbuf, hdrlen);
-            param->adlen += hdrlen + 8;
-
-            res = encrypted_start_aead_chunk(param, 0, false);
-        }
-
         size_t chunks = param->chunkidx;
         if ((param->chunkout > 0) || (param->cachelen > 0)) {
             chunks++;
         }
-        if (!res) {
-            res = encrypted_start_aead_chunk(param, chunks, true);
-        }
+        res = encrypted_start_aead_chunk(param, chunks, true);
         pgp_cipher_aead_destroy(&param->encrypt);
 
         if (res) {
@@ -696,23 +656,14 @@ finish:
 static void
 encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
 {
-    /* For each chunk, the AEAD construction is given the packet header,
-       version number, cipher algorithm octet, AEAD algorithm octet, chunk size
-       octet, and an eight-octet, big-endian chunk index as additional
-       data.  The index of the first chunk is zero.
-    */
-    uint8_t ad_data[32] = {0};
+    uint8_t ad_data[4];
 
-    /* TODO: not sure what is meant under the 'packet header'. Using tag and 1-byte length. */
     ad_data[0] = PGP_PTAG_CT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
-    ad_data[1] = stream_sk_sesskey_len(skey);
-    ad_data[2] = 1;
-    ad_data[3] = skey->alg;
-    ad_data[4] = skey->aalg;
-    ad_data[5] = 10;
-    /* 8 zero bytes follows */
+    ad_data[1] = skey->version;
+    ad_data[2] = skey->alg;
+    ad_data[3] = skey->aalg;
 
-    pgp_cipher_aead_set_ad(crypt, ad_data, 14);
+    pgp_cipher_aead_set_ad(crypt, ad_data, 4);
 }
 
 static rnp_result_t
@@ -855,26 +806,17 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     uint8_t hdr[4 + PGP_AEAD_EAX_NONCE_LEN];
     size_t  gran;
 
-    /* fill header */
-    hdr[0] = 1;
-    hdr[1] = param->ctx->ealg;
-    hdr[2] = param->ctx->aalg;
-    hdr[3] = 14; /* 1Mb chunks */
-
-    /* Copy 4 bytes to ad. Packet header and chunk index will be filled later
-       For each chunk, the AEAD construction is given the packet header,
-       version number, cipher algorithm octet, AEAD algorithm octet, chunk size
-       octet, and an eight-octet, big-endian chunk index as additional
-       data.  The index of the first chunk is zero.
-    */
-    memcpy(param->ad, hdr, 4);
-    param->adlen = 4;
-
-    /* generate iv */
     if (pgp_block_size(param->ctx->ealg) != PGP_AEAD_EAX_NONCE_LEN) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
+    /* fill header */
+    hdr[0] = 1;
+    hdr[1] = param->ctx->ealg;
+    hdr[2] = param->ctx->aalg;
+    hdr[3] = 4; /* 1Kb chunks */
+
+    /* generate iv */
     if (!rng_get_data(rnp_ctx_rng_handle(param->ctx), param->iv, PGP_AEAD_EAX_NONCE_LEN)) {
         return RNP_ERROR_RNG;
     }
@@ -887,19 +829,26 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     param->chunklen = 1L << (hdr[3] + 6);
     param->chunkout = 0;
 
+    /* fill additional/authenticated data */
+    param->ad[0] = PGP_PTAG_CT_AEAD_ENCRYPTED | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
+    memcpy(param->ad + 1, hdr, 4);
+    memset(param->ad + 5, 0, 8);
+    param->adlen = 13;
+
     /* initialize cipher */
     if (!pgp_cipher_aead_init(
           &param->encrypt, param->ctx->ealg, param->ctx->aalg, enckey, false)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
+    /* chunklen must be multiple of granularity */
     gran = pgp_cipher_aead_granularity(&param->encrypt);
     if ((param->chunklen < gran) || (param->chunklen % gran)) {
         RNP_LOG("wrong chunk size or cipher granularity");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    return RNP_SUCCESS;
+    return encrypted_start_aead_chunk(param, 0, false);
 }
 
 static rnp_result_t
