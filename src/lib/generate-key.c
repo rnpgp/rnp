@@ -24,6 +24,7 @@
  */
 #include <stdbool.h>
 #include <stdint.h>
+#include <assert.h>
 
 #include <rekey/rnp_key_store.h>
 #include <librekey/key_store_pgp.h>
@@ -43,23 +44,50 @@ static const pgp_hash_alg_t DEFAULT_HASH_ALGS[] = {
 static const pgp_compression_type_t DEFAULT_COMPRESS_ALGS[] = {
   PGP_C_ZLIB, PGP_C_BZIP2, PGP_C_ZIP, PGP_C_NONE};
 
-/* Shortcut to load a single key from memory. */
+/* Shortcut to load a single key from memory.
+ *
+ * This function has a strange interface because:
+ *  - When dealing with a G10 secret key, we need the corresponding
+ *    public key, in order to copy certain attributes that G10 does
+ *    not store (else keyids and fingerprints wouldn't match, etc).
+ *  - When dealing with a subkey, we need the primary key, so that
+ *    the primary grip can be set in the subkey and the subkey grip
+ *    can be added to the primary.
+ *
+ * Assertions are in place to try to prevent misuse since it's easy
+ * to do currently.
+ */
 static bool
 load_generated_key(pgp_output_t **    output,
                    pgp_memory_t **    mem,
                    pgp_key_t *        dst,
                    key_store_format_t format,
+                   pgp_key_t *        primary_key,
                    pgp_key_t *        pubkey)
 {
     bool             ok = false;
     pgp_io_t         io = {.errs = stderr, .res = stdout, .outs = stdout};
     rnp_key_store_t *pubring = NULL;
+    rnp_key_store_t *key_store = NULL;
+
+    // this should generally be zeroed
+    assert(dst->type == 0);
+    // if a primary is provided, make sure it's actually a primary key
+    assert(!primary_key || pgp_key_is_primary_key(primary_key));
+    // if a pubkey is provided, make sure it's actually a public key
+    assert(!pubkey || pgp_is_key_public(pubkey));
+    // G10 always needs pubkey here
+    assert(format != G10_KEY_STORE || pubkey);
 
     // this would be better on the stack but the key store does not allow it
-    rnp_key_store_t *key_store = calloc(1, sizeof(*key_store));
-
+    key_store = calloc(1, sizeof(*key_store));
     if (!key_store) {
         return false;
+    }
+
+    // if this is a subkey, add the primary in first
+    if (primary_key && !rnp_key_store_add_key(&io, key_store, primary_key)) {
+        goto end;
     }
     switch (format) {
     case GPG_KEY_STORE:
@@ -70,6 +98,7 @@ load_generated_key(pgp_output_t **    output,
         }
         break;
     case G10_KEY_STORE: {
+        // G10 needs the pubring for copying some attributes (key version, creation time, etc)
         pubring = calloc(1, sizeof(*pubring));
         if (!pubring) {
             goto end;
@@ -84,6 +113,13 @@ load_generated_key(pgp_output_t **    output,
     default:
         RNP_LOG("invalid key format %d", format);
         break;
+    }
+    // if this is a subkey, go ahead and remove the primary added in earlier
+    if (primary_key) {
+        // if a primary key is provided, it should match the sub with regards to type
+        assert(pgp_is_key_secret(primary_key) == pgp_is_key_secret((pgp_key_t*)list_back(key_store->keys)));
+        *primary_key = *(pgp_key_t*)list_front(key_store->keys);
+        rnp_key_store_remove_key(&io, key_store, (pgp_key_t*)list_front(key_store->keys));
     }
     if (list_length(key_store->keys) != 1) {
         goto end;
@@ -354,7 +390,7 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
         goto end;
     }
     // load the public key back in
-    if (!load_generated_key(&output, &mem, primary_pub, GPG_KEY_STORE, NULL)) {
+    if (!load_generated_key(&output, &mem, primary_pub, GPG_KEY_STORE, NULL, NULL)) {
         goto end;
     }
 
@@ -384,7 +420,7 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
         break;
     }
     // load the secret key back in
-    if (!load_generated_key(&output, &mem, primary_sec, secformat, primary_pub)) {
+    if (!load_generated_key(&output, &mem, primary_sec, secformat, NULL, primary_pub)) {
         RNP_LOG("failed to load back generated key");
         goto end;
     }
@@ -489,13 +525,6 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         primary_seckey = pgp_get_seckey(primary_sec);
     }
 
-    // prepare to add subkeys
-    EXPAND_ARRAY(primary_sec, subkey);
-    EXPAND_ARRAY(primary_pub, subkey);
-    if (!primary_sec->subkeys || !primary_pub->subkeys) {
-        goto end;
-    }
-
     // generate the raw key pair
     if (!pgp_generate_seckey(&desc->crypto, &seckey)) {
         goto end;
@@ -512,10 +541,9 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         goto end;
     }
     // load the public key back in
-    if (!load_generated_key(&output, &mem, subkey_pub, GPG_KEY_STORE, NULL)) {
+    if (!load_generated_key(&output, &mem, subkey_pub, GPG_KEY_STORE, primary_pub, NULL)) {
         goto end;
     }
-    primary_pub->subkeys[primary_pub->subkeyc++] = subkey_pub;
 
     // write the secret subkey, userid, and binding self-signature
     if (!pgp_setup_memory_write(NULL, &output, &mem, 4096)) {
@@ -543,10 +571,9 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         break;
     }
     // load the secret key back in
-    if (!load_generated_key(&output, &mem, subkey_sec, secformat, subkey_pub)) {
+    if (!load_generated_key(&output, &mem, subkey_sec, secformat, primary_sec, primary_pub)) {
         goto end;
     }
-    primary_sec->subkeys[primary_sec->subkeyc++] = subkey_sec;
 
     ok = true;
 end:

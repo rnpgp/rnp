@@ -69,8 +69,9 @@ struct pgp_key_t {
     DYNARRAY(pgp_rawpacket_t, packet); /* array of raw packets */
     DYNARRAY(pgp_subsig_t, subsig);    /* array of signature subkeys */
     DYNARRAY(pgp_revoke_t, revoke);    /* array of signature revocations */
-    DYNARRAY(struct pgp_key_t *, subkey);
-    pgp_content_enum   type;      /* type of key */
+    list               subkey_grips;   /* list of subkey grips (for primary keys) */
+    uint8_t *          primary_grip;   /* grip of primary key (for subkeys) */
+    pgp_content_enum   type;           /* type of key */
     pgp_keydata_key_t  key;       /* pubkey/seckey data */
     uint8_t            key_flags; /* key flags */
     uint8_t            keyid[PGP_KEY_ID_SIZE];
@@ -228,18 +229,25 @@ bool pgp_key_add_userid(pgp_key_t *            key,
 
 bool pgp_key_write_packets(const pgp_key_t *key, pgp_output_t *output);
 
-/**
+/** find a key suitable for a particular operation
  *
- * @brief   Search the list of subkeys in reverse order with the
- *          assumption that the last subkey in the list would be
- *          the newest created.
+ *  If the key passed is suitable, it will be returned.
+ *  Otherwise, its subkeys (if it is a primary w/subs)
+ *  will be checked. NULL will be returned if no suitable
+ *  key is found.
  *
- * @param   primary
- * @param   desired_usage
+ *  @param op the operation for which the key should be suitable
+ *  @param key the key
+ *  @param desired_usage
+ *  @param key_provider the key provider. This will be used
+ *         if/when subkeys are checked.
  *
- * @returns Last created subkey with desired usage flag set
- *          or NULL if not found
+ *  @returns key or last created subkey with desired usage flag
+ *           set or NULL if not found
  */
-pgp_key_t *find_suitable_subkey(const pgp_key_t *primary, uint8_t desired_usage);
+pgp_key_t *find_suitable_key(pgp_op_t            op,
+                             pgp_key_t *         key,
+                             pgp_key_provider_t *key_provider,
+                             uint8_t             desired_usage);
 
 #endif // RNP_PACKET_KEY_H

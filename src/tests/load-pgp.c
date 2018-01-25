@@ -172,7 +172,7 @@ check_pgp_keyring_counts(const char *   path,
         pgp_key_t *key = (pgp_key_t *) key_item;
         if (pgp_key_is_primary_key(key)) {
             // check the subkey count for this primary key
-            assert_int_equal(key->subkeyc, subkey_counts[primary++]);
+            assert_int_equal(list_length(key->subkey_grips), subkey_counts[primary++]);
         } else if (pgp_key_is_subkey(key)) {
             total_subkey_count++;
         }

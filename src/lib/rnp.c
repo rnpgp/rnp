@@ -955,18 +955,18 @@ rnp_import_key(rnp_t *rnp, char *f)
             // keep track of what keys have been imported
             list_append(&imported_grips, key->grip, sizeof(key->grip));
             importedkey = rnp_key_store_get_key_by_grip(rnp->io, dest, key->grip);
-            for (unsigned j = 0; j < key->subkeyc; j++) {
-                pgp_key_t *subkey = key->subkeys[j];
-
+            list_item *subkey_grip = list_front(key->subkey_grips);
+            while (subkey_grip) {
+                pgp_key_t *subkey = rnp_key_store_get_key_by_grip(rnp->io, tmp_keystore, (uint8_t*)subkey_grip);
+                assert(subkey);
                 if (!rnp_key_store_add_key(rnp->io, dest, subkey)) {
                     RNP_LOG("failed to add key to destination key store");
                     goto done;
+
                 }
-                // fix up the subkeys dynarray pointers...
-                importedkey->subkeys[j] =
-                  rnp_key_store_get_key_by_grip(rnp->io, dest, subkey->grip);
                 // keep track of what keys have been imported
                 list_append(&imported_grips, subkey->grip, sizeof(subkey->grip));
+                subkey_grip = list_next(subkey_grip);
             }
         }
     }
