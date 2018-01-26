@@ -290,7 +290,7 @@ write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const ch
     uint8_t     sesskey[PGP_MAX_KEY_SIZE];
     size_t      sesskey_size = pgp_key_size(seckey->protection.symm_alg);
     unsigned    block_size = pgp_block_size(seckey->protection.symm_alg);
-    pgp_crypt_t crypt = {0};
+    pgp_crypt_t crypt = {{{0}}, 0};
     pgp_hash_t  hash = {0};
     unsigned    writers_pushed = 0;
     bool        ret = false;

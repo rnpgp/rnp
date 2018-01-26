@@ -56,30 +56,31 @@
 
 /** pgp_crypt_t */
 typedef struct pgp_crypt_t {
-    pgp_symm_alg_t alg;
-    size_t         blocksize;
-
     union {
         struct pgp_crypt_cfb_param_t {
-            size_t                            remaining;
             struct botan_block_cipher_struct *obj;
+            size_t                            remaining;
             uint8_t                           iv[PGP_MAX_BLOCK_SIZE];
         } cfb;
         struct pgp_crypt_aead_param_t {
+            struct botan_cipher_struct *obj;
             pgp_aead_alg_t              alg;
             bool                        decrypt;
             size_t                      granularity;
-            struct botan_cipher_struct *obj;
+            size_t                      taglen;
         } aead;
     };
 
-    rng_t *rng;
+    pgp_symm_alg_t alg;
+    size_t         blocksize;
+    rng_t *        rng;
 } pgp_crypt_t;
 
 typedef struct pgp_aead_params_t {
     pgp_symm_alg_t ealg;                       /* underlying symmetric algorithm */
     pgp_aead_alg_t aalg;                       /* AEAD algorithm, i.e. EAX, OCB, etc */
     uint8_t        iv[PGP_AEAD_MAX_NONCE_LEN]; /* initial vector for the message */
+    size_t         ivlen;                      /* iv length */
     uint8_t        ad[PGP_AEAD_MAX_AD_LEN];    /* additional data */
     size_t         adlen;                      /* length of the additional data */
 } pgp_aead_params_t;
@@ -129,6 +130,18 @@ bool pgp_cipher_aead_init(pgp_crypt_t *  crypt,
  */
 size_t pgp_cipher_aead_granularity(pgp_crypt_t *crypt);
 
+/** @brief Return the AEAD cipher tag length
+ *  @param aalg OpenPGP AEAD algorithm
+ *  @return length of authentication tag in bytes, or 0 for unknown algorithm
+ */
+size_t pgp_cipher_aead_tag_len(pgp_aead_alg_t aalg);
+
+/** @brief Return the AEAD cipher nonce and IV length
+ *  @param aalg OpenPGP AEAD algorithm
+ *  @return length of nonce in bytes, or 0 for unknown algorithm
+ */
+size_t pgp_cipher_aead_nonce_len(pgp_aead_alg_t aalg);
+
 /** @brief Set associated data
  *  @param crypt initialized AEAD crypto
  *  @param ad buffer with data. Cannot be NULL.
@@ -177,11 +190,17 @@ bool pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in,
  */
 void pgp_cipher_aead_destroy(pgp_crypt_t *crypt);
 
-/** @brief Helper function to set AEAD-EAX nonce for the chunk by it's index
+/** @brief Helper function to set AEAD nonce for the chunk by it's index.
+ *         iv and nonce should be large enough to hold max nonce bytes
+ *  @param aalg AEAD algorithm used
  *  @param iv Initial vector for the message, must have 16 bytes of data
  *  @param nonce Nonce to fill up, should have space for 16 bytes of data
  *  @param index Chunk's index
+ *  @return Length of the nonce, or 0 if algorithm is unknown
  */
-void pgp_cipher_aead_eax_nonce(const uint8_t *iv, uint8_t *nonce, size_t index);
+size_t pgp_cipher_aead_nonce(pgp_aead_alg_t aalg,
+                             const uint8_t *iv,
+                             uint8_t *      nonce,
+                             size_t         index);
 
 #endif

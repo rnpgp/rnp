@@ -128,11 +128,6 @@ pgp_aead_to_botan_string(pgp_symm_alg_t ealg, pgp_aead_alg_t aalg, char *buf, si
         return false;
     }
 
-    if (aalg != PGP_AEAD_EAX) {
-        RNP_LOG("unsupported AEAD alg %d", (int) aalg);
-        return false;
-    }
-
     ealg_len = strlen(ealg_name);
 
     if (len < ealg_len + 5) {
@@ -140,8 +135,20 @@ pgp_aead_to_botan_string(pgp_symm_alg_t ealg, pgp_aead_alg_t aalg, char *buf, si
         return false;
     }
 
-    strncpy(buf, ealg_name, ealg_len);
-    strncpy(buf + ealg_len, "/EAX", len - ealg_len);
+    switch (aalg) {
+    case PGP_AEAD_EAX:
+        strncpy(buf, ealg_name, ealg_len);
+        strncpy(buf + ealg_len, "/EAX", len - ealg_len);
+        break;
+    case PGP_AEAD_OCB:
+        strncpy(buf, ealg_name, ealg_len);
+        strncpy(buf + ealg_len, "/OCB", len - ealg_len);
+        break;
+    default:
+        RNP_LOG("unsupported AEAD alg %d", (int) aalg);
+        return false;
+    }
+
     return true;
 }
 
@@ -516,6 +523,7 @@ pgp_cipher_aead_init(pgp_crypt_t *  crypt,
     crypt->blocksize = pgp_block_size(ealg);
     crypt->aead.alg = aalg;
     crypt->aead.decrypt = decrypt;
+    crypt->aead.taglen = PGP_AEAD_EAX_OCB_TAG_LEN; /* it's the same for EAX and OCB */
 
     flags = decrypt ? BOTAN_CIPHER_INIT_FLAG_DECRYPT : BOTAN_CIPHER_INIT_FLAG_ENCRYPT;
 
@@ -541,6 +549,31 @@ size_t
 pgp_cipher_aead_granularity(pgp_crypt_t *crypt)
 {
     return crypt->aead.granularity;
+}
+
+size_t
+pgp_cipher_aead_nonce_len(pgp_aead_alg_t aalg)
+{
+    switch (aalg) {
+    case PGP_AEAD_EAX:
+        return PGP_AEAD_EAX_NONCE_LEN;
+    case PGP_AEAD_OCB:
+        return PGP_AEAD_OCB_NONCE_LEN;
+    default:
+        return 0;
+    }
+}
+
+size_t
+pgp_cipher_aead_tag_len(pgp_aead_alg_t aalg)
+{
+    switch (aalg) {
+    case PGP_AEAD_EAX:
+    case PGP_AEAD_OCB:
+        return PGP_AEAD_EAX_OCB_TAG_LEN;
+    default:
+        return 0;
+    }
 }
 
 bool
@@ -588,7 +621,7 @@ pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     int      res;
 
     if (crypt->aead.decrypt) {
-        size_t datalen = len - PGP_AEAD_EAX_TAG_LEN;
+        size_t datalen = len - crypt->aead.taglen;
         /* for decryption we should have tag for the final update call */
         res =
           botan_cipher_update(crypt->aead.obj, flags, out, datalen, &outwr, in, len, &inread);
@@ -605,7 +638,7 @@ pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
         }
     } else {
         /* for encryption tag will be generated */
-        size_t outlen = len + PGP_AEAD_EAX_TAG_LEN;
+        size_t outlen = len + crypt->aead.taglen;
         if (botan_cipher_update(
               crypt->aead.obj, flags, out, outlen, &outwr, in, len, &inread) != 0) {
             RNP_LOG("aead finish failed");
@@ -627,17 +660,32 @@ pgp_cipher_aead_destroy(pgp_crypt_t *crypt)
     botan_cipher_destroy(crypt->aead.obj);
 }
 
-void
-pgp_cipher_aead_eax_nonce(const uint8_t *iv, uint8_t *nonce, size_t index)
+size_t
+pgp_cipher_aead_nonce(pgp_aead_alg_t aalg, const uint8_t *iv, uint8_t *nonce, size_t index)
 {
-    /* The nonce for EAX mode is computed by treating the starting
-       initialization vector as a 16-octet, big-endian value and
-       exclusive-oring the low eight octets of it with the chunk index.
-    */
-
-    memcpy(nonce, iv, PGP_AEAD_EAX_NONCE_LEN);
-    for (int i = 15; (i > 7) && index; i--) {
-        nonce[i] ^= index & 0xff;
-        index = index >> 8;
+    switch (aalg) {
+    case PGP_AEAD_EAX:
+        /* The nonce for EAX mode is computed by treating the starting
+        initialization vector as a 16-octet, big-endian value and
+        exclusive-oring the low eight octets of it with the chunk index.
+        */
+        memcpy(nonce, iv, PGP_AEAD_EAX_NONCE_LEN);
+        for (int i = 15; (i > 7) && index; i--) {
+            nonce[i] ^= index & 0xff;
+            index = index >> 8;
+        }
+        return PGP_AEAD_EAX_NONCE_LEN;
+    case PGP_AEAD_OCB:
+        /* The nonce for a chunk of chunk index "i" in OCB processing is defined as:
+           OCB-Nonce_{i} = IV[1..120] xor i
+        */
+        memcpy(nonce, iv, PGP_AEAD_OCB_NONCE_LEN);
+        for (int i = 14; (i >= 0) && index; i--) {
+            nonce[i] ^= index & 0xff;
+            index = index >> 8;
+        }
+        return PGP_AEAD_OCB_NONCE_LEN;
+    default:
+        return 0;
     }
 }
