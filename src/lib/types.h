@@ -595,7 +595,7 @@ typedef struct {
     unsigned       version;
     pgp_symm_alg_t alg;
     pgp_s2k_t      s2k;
-    uint8_t        enckey[PGP_MAX_KEY_SIZE + PGP_AEAD_EAX_TAG_LEN + 1];
+    uint8_t        enckey[PGP_MAX_KEY_SIZE + PGP_AEAD_MAX_TAG_LEN + 1];
     unsigned       enckeylen;
     /* v5 specific fields */
     pgp_aead_alg_t aalg;

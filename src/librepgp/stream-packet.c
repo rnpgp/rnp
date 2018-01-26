@@ -686,7 +686,7 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
     if (skey->version == PGP_SKSK_V5) {
         /* aead algorithm */
         skey->aalg = buf[idx++];
-        if (skey->aalg != PGP_AEAD_EAX) {
+        if ((skey->aalg != PGP_AEAD_EAX) && (skey->aalg != PGP_AEAD_OCB)) {
             RNP_LOG("unsupported AEAD algorithm : %d", (int) skey->aalg);
             return RNP_ERROR_BAD_PARAMETERS;
         }
@@ -735,24 +735,26 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
     }
 
     if (skey->version == PGP_SKSK_V5) {
-        /* v5: iv + esk + tag */
-        if (len > PGP_AEAD_EAX_NONCE_LEN + PGP_AEAD_EAX_TAG_LEN + PGP_MAX_KEY_SIZE) {
+        /* v5: iv + esk + tag. For both EAX and OCB ivlen and taglen are 16 octets */
+        size_t ivlen = pgp_cipher_aead_nonce_len(skey->aalg);
+        size_t taglen = pgp_cipher_aead_tag_len(skey->aalg);
+        if (len > ivlen + taglen + PGP_MAX_KEY_SIZE) {
             RNP_LOG("too long esk");
             return RNP_ERROR_BAD_FORMAT;
         }
-        if (len < PGP_AEAD_EAX_NONCE_LEN + PGP_AEAD_EAX_TAG_LEN + 8) {
+        if (len < ivlen + taglen + 8) {
             RNP_LOG("too short esk");
             return RNP_ERROR_BAD_FORMAT;
         }
 
         /* iv */
-        if (src_read(src, skey->iv, PGP_AEAD_EAX_NONCE_LEN) != PGP_AEAD_EAX_NONCE_LEN) {
+        if (src_read(src, skey->iv, ivlen) != ivlen) {
             return RNP_ERROR_READ;
         }
-        skey->ivlen = PGP_AEAD_EAX_NONCE_LEN;
+        skey->ivlen = ivlen;
 
         /* key */
-        read = len - PGP_AEAD_EAX_NONCE_LEN;
+        read = len - ivlen;
         if (src_read(src, skey->enckey, read) != read) {
             return RNP_ERROR_READ;
         }

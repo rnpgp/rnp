@@ -101,14 +101,17 @@
 /* Maximum length of the packet header */
 #define PGP_MAX_HEADER_SIZE 6
 
-/* Nonce (IV) len for AEAD/EAX */
+/* Nonce len for AEAD/EAX */
 #define PGP_AEAD_EAX_NONCE_LEN 16
+
+/* Nonce len for AEAD/OCB */
+#define PGP_AEAD_OCB_NONCE_LEN 15
 
 /* Maximum AEAD nonce length */
 #define PGP_AEAD_MAX_NONCE_LEN 16
 
-/* Authentication tag len for AEAD/EAX */
-#define PGP_AEAD_EAX_TAG_LEN 16
+/* Authentication tag len for AEAD/EAX and AEAD/OCB */
+#define PGP_AEAD_EAX_OCB_TAG_LEN 16
 
 /* Maximum AEAD tag length */
 #define PGP_AEAD_MAX_TAG_LEN 16
