@@ -382,7 +382,7 @@ typedef enum {
     PGP_CIPHER_MODE_OCB = 3,
 } pgp_cipher_mode_t;
 
-typedef enum { PGP_AEAD_NONE = 0, PGP_AEAD_EAX = 1 } pgp_aead_alg_t;
+typedef enum { PGP_AEAD_NONE = 0, PGP_AEAD_EAX = 1, PGP_AEAD_OCB = 2 } pgp_aead_alg_t;
 
 /** s2k_usage_t
  */
@@ -471,7 +471,8 @@ typedef enum {
     PGP_SIG_SUBPKT_FEATURES = 30,           /* features */
     PGP_SIG_SUBPKT_SIGNATURE_TARGET = 31,   /* signature target */
     PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE = 32, /* embedded signature */
-    PGP_SIG_SUBPKT_ISSUER_FPR = 33          /* issuer fingerprint */
+    PGP_SIG_SUBPKT_ISSUER_FPR = 33,         /* issuer fingerprint */
+    PGP_SIG_SUBPKT_PREFERRED_AEAD = 34      /* preferred AEAD algorithms */
 } pgp_sig_subpacket_type_t;
 
 /** Key Flags

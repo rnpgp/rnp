@@ -336,7 +336,11 @@ typedef struct pgp_sig_subpkt_t {
             const char *str;
             unsigned    len;
         } revocation_reason; /* 5.2.3.23.  Reason for Revocation */
-        bool feature_mdc;    /* 5.2.3.24.  Features */
+        struct {
+            bool mdc;
+            bool aead;
+            bool key_v5;
+        } features; /* 5.2.3.24.  Features */
         struct {
             pgp_pubkey_alg_t pkalg;
             pgp_hash_alg_t   halg;

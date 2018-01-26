@@ -1020,6 +1020,7 @@ signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
     case PGP_SIG_SUBPKT_PREFERRED_SKA:
     case PGP_SIG_SUBPKT_PREFERRED_HASH:
     case PGP_SIG_SUBPKT_PREF_COMPRESS:
+    case PGP_SIG_SUBPKT_PREFERRED_AEAD:
         subpkt->fields.preferred.arr = subpkt->data;
         subpkt->fields.preferred.len = subpkt->len;
         break;
@@ -1086,7 +1087,9 @@ signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
         break;
     case PGP_SIG_SUBPKT_FEATURES:
         if ((oklen = subpkt->len >= 1)) {
-            subpkt->fields.feature_mdc = subpkt->data[0] & 0x01;
+            subpkt->fields.features.mdc = subpkt->data[0] & 0x01;
+            subpkt->fields.features.aead = subpkt->data[0] & 0x02;
+            subpkt->fields.features.key_v5 = subpkt->data[0] & 0x04;
         }
         break;
     case PGP_SIG_SUBPKT_SIGNATURE_TARGET:
