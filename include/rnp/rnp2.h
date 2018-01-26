@@ -41,6 +41,14 @@ typedef uint32_t rnp_result_t;
 #define RNP_EXPORT_FLAG_ARMORED (1U << 0)
 
 /**
+ * Flags for optional details to include in JSON.
+ */
+#define RNP_JSON_PUBLIC_MPIS (1U << 0)
+#define RNP_JSON_SECRET_MPIS (1U << 1)
+#define RNP_JSON_SIGNATURES (1U << 2)
+#define RNP_JSON_SIGNATURE_MPIS (1U << 3)
+
+/**
  * Return a constant string describing the result code
  */
 const char *rnp_result_to_string(rnp_result_t result);
@@ -314,6 +322,8 @@ rnp_result_t rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output);
 
 rnp_result_t rnp_public_key_bytes(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len);
 rnp_result_t rnp_secret_key_bytes(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len);
+
+rnp_result_t rnp_key_to_json(rnp_key_handle_t handle, uint32_t flags, char **result);
 
 #if defined(__cplusplus)
 }
