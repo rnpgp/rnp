@@ -74,7 +74,7 @@ openbsd_install() {
 
   # Create link to expected gpg binary name and location
   rm -f ${GPG21_INSTALL}/bin/gpg
-  ln /usr/local/bin/gpg2 ${GPG21_INSTALL}/bin/gpg
+  ln -s /usr/local/bin/gpg2 ${GPG21_INSTALL}/bin/gpg
 
   # Python will be installed as a dependency of gnupg
   rm -f /bin/python
