@@ -873,13 +873,15 @@ char *
 rnp_export_key(rnp_t *rnp, const char *name)
 {
     const pgp_key_t *key;
-    pgp_io_t *       io;
 
-    io = rnp->io;
+    if (!rnp) {
+        return NULL;
+    }
+
     if ((key = resolve_userid(rnp, rnp->pubring, name)) == NULL) {
         return NULL;
     }
-    return pgp_export_key(io, key, &rnp->password_provider);
+    return pgp_export_key(rnp, key);
 }
 
 #define IMPORT_ARMOR_HEAD "-----BEGIN PGP (PUBLIC)|(PRIVATE) KEY BLOCK-----"

@@ -163,8 +163,7 @@ pubkey_length(const pgp_pubkey_t *key)
 {
     switch (key->alg) {
     case PGP_PKA_ELGAMAL:
-        return mpi_length(key->key.elgamal.p) +
-               mpi_length(key->key.elgamal.g) +
+        return mpi_length(key->key.elgamal.p) + mpi_length(key->key.elgamal.g) +
                mpi_length(key->key.elgamal.y);
     case PGP_PKA_DSA:
         return mpi_length(key->key.dsa.p) + mpi_length(key->key.dsa.q) +
@@ -479,6 +478,7 @@ packet_matches(const pgp_rawpacket_t *pkt, const pgp_content_enum tags[], size_t
 static bool
 write_matching_packets(pgp_output_t *         output,
                        const pgp_key_t *      key,
+                       const rnp_key_store_t *keyring,
                        const pgp_content_enum tags[],
                        size_t                 tag_count)
 {
@@ -493,6 +493,22 @@ write_matching_packets(pgp_output_t *         output,
             return false;
         }
     }
+
+    if (!keyring) {
+        return true;
+    }
+
+    // Export subkeys
+    pgp_io_t io = {.errs = stderr, .res = stdout, .outs = stdout};
+    for (list_item *grip = list_front(key->subkey_grips); grip; grip = list_next(grip)) {
+        const pgp_key_t *subkey =
+          rnp_key_store_get_key_by_grip(&io, keyring, (uint8_t *) grip);
+        if (!write_matching_packets(output, subkey, NULL, tags, tag_count)) {
+            RNP_LOG("Error occured when exporting a subkey");
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -510,7 +526,7 @@ write_matching_packets(pgp_output_t *         output,
 unsigned
 pgp_write_xfer_pubkey(pgp_output_t *         output,
                       const pgp_key_t *      key,
-                      const rnp_key_store_t *subkeys,
+                      const rnp_key_store_t *keyring,
                       const unsigned         armored)
 {
     static const pgp_content_enum permitted_tags[] = {PGP_PTAG_CT_PUBLIC_KEY,
@@ -520,7 +536,8 @@ pgp_write_xfer_pubkey(pgp_output_t *         output,
     if (armored) {
         pgp_writer_push_armored(output, PGP_PGP_PUBLIC_KEY_BLOCK);
     }
-    if (!write_matching_packets(output, key, permitted_tags, ARRAY_SIZE(permitted_tags))) {
+    if (!write_matching_packets(
+          output, key, keyring, permitted_tags, ARRAY_SIZE(permitted_tags))) {
         return false;
     }
     if (armored) {
@@ -546,7 +563,7 @@ pgp_write_xfer_pubkey(pgp_output_t *         output,
 bool
 pgp_write_xfer_seckey(pgp_output_t *         output,
                       const pgp_key_t *      key,
-                      const rnp_key_store_t *subkeys,
+                      const rnp_key_store_t *keyring,
                       unsigned               armored)
 {
     static const pgp_content_enum permitted_tags[] = {PGP_PTAG_CT_SECRET_KEY,
@@ -561,7 +578,8 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
     if (armored) {
         pgp_writer_push_armored(output, PGP_PGP_PRIVATE_KEY_BLOCK);
     }
-    if (!write_matching_packets(output, key, permitted_tags, ARRAY_SIZE(permitted_tags))) {
+    if (!write_matching_packets(
+          output, key, keyring, permitted_tags, ARRAY_SIZE(permitted_tags))) {
         return false;
     }
     if (armored) {
