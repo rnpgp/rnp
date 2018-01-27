@@ -151,7 +151,7 @@ void pgp_key_init(pgp_key_t *, const pgp_content_enum);
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 
-char *pgp_export_key(pgp_io_t *, const pgp_key_t *, const pgp_password_provider_t *);
+char *pgp_export_key(rnp_t *, const pgp_key_t *);
 
 /** check if a key is currently locked
  *

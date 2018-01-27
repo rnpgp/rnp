@@ -635,24 +635,26 @@ pgp_key_init(pgp_key_t *key, const pgp_content_enum type)
 }
 
 char *
-pgp_export_key(pgp_io_t *                     io,
-               const pgp_key_t *              key,
-               const pgp_password_provider_t *password_provider)
+pgp_export_key(rnp_t *rnp, const pgp_key_t *key)
 {
     pgp_output_t *output;
     pgp_memory_t *mem;
     char *        cp;
 
-    RNP_USED(io);
+    if (!rnp || !key) {
+        return NULL;
+    }
+    pgp_io_t *io = rnp->io;
+
     if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
         RNP_LOG_FD(io->errs, "can't setup memory write\n");
         return NULL;
     }
 
     if (pgp_is_key_public(key)) {
-        pgp_write_xfer_pubkey(output, key, NULL, 1);
+        pgp_write_xfer_pubkey(output, key, rnp->pubring, 1);
     } else {
-        pgp_write_xfer_seckey(output, key, NULL, 1);
+        pgp_write_xfer_seckey(output, key, rnp->secring, 1);
     }
 
     const size_t mem_len = pgp_mem_len(mem) + 1;
@@ -1064,7 +1066,7 @@ pgp_key_write_packets(const pgp_key_t *key, pgp_output_t *output)
 
 pgp_key_t *
 find_suitable_key(pgp_op_t            op,
-                  pgp_key_t *   key,
+                  pgp_key_t *         key,
                   pgp_key_provider_t *key_provider,
                   uint8_t             desired_usage)
 {

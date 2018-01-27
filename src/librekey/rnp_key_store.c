@@ -545,8 +545,8 @@ rnp_key_store_add_keydata(pgp_io_t *         io,
         // find the last primary in the list
         pgp_key_t *primary = NULL;
         for (list_item *keyp = list_back(keyring->keys); keyp; keyp = list_prev(keyp)) {
-            if (pgp_key_is_primary_key((pgp_key_t*)keyp)) {
-                primary = (pgp_key_t*)keyp;
+            if (pgp_key_is_primary_key((pgp_key_t *) keyp)) {
+                primary = (pgp_key_t *) keyp;
                 break;
             }
         }
@@ -653,7 +653,9 @@ rnp_key_store_get_key_by_id(pgp_io_t *             io,
 }
 
 pgp_key_t *
-rnp_key_store_get_key_by_grip(pgp_io_t *io, rnp_key_store_t *keyring, const uint8_t *grip)
+rnp_key_store_get_key_by_grip(pgp_io_t *             io,
+                              const rnp_key_store_t *keyring,
+                              const uint8_t *        grip)
 {
     if (rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "looking keyring %p\n", keyring);
