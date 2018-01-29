@@ -33,7 +33,8 @@
 #include "crypto.h"
 
 #define MAX_SP800_56A_OTHER_INFO 54
-#define OBFUSCATED_KEY_SIZE 40
+// Keys up to 312 bits (+1 bytes of PKCS5 padding)
+#define MAX_SESSION_KEY_SIZE 40
 
 /* Used by ECDH keys. Specifies which hash and wrapping algorithm
  * to be used (see point 15. of RFC 4880).
@@ -100,7 +101,8 @@ kdf_other_info_serialize(uint8_t                  other_info[MAX_SP800_56A_OTHER
 static bool
 pad_pkcs7(uint8_t *buf, size_t buf_len, size_t offset)
 {
-    if (buf_len < offset) {
+    if (buf_len <= offset) {
+        // Must have at least 1 byte of padding
         return false;
     }
 
@@ -140,7 +142,7 @@ compute_kek(uint8_t *              kek,
             const uint8_t *        other_info,
             size_t                 other_info_size,
             const ec_curve_desc_t *curve_desc,
-            const botan_mp_t       ec_pubkey,
+            const bignum_t        *ec_pubkey,
             const botan_privkey_t  ec_prvkey,
             const pgp_hash_alg_t   hash_alg)
 {
@@ -152,8 +154,8 @@ compute_kek(uint8_t *              kek,
     uint8_t          s[MAX_CURVE_BYTELEN * 2 + 1] = {0};
     size_t           s_len = sizeof(s);
 
-    if (botan_mp_to_bin(ec_pubkey, point_bytes) ||
-        botan_mp_num_bytes(ec_pubkey, &num_bytes)) {
+    if (!bn_num_bytes(ec_pubkey, &num_bytes) ||
+        bn_bn2bin(ec_pubkey, point_bytes)) {
         return false;
     }
 
@@ -163,8 +165,8 @@ compute_kek(uint8_t *              kek,
                                   &s_len,
                                   point_bytes,
                                   num_bytes,
-                                  NULL, //other_info,
-                                  0)) { //other_info_size)) {
+                                  NULL,
+                                  0)) {
         goto end;
     }
 
@@ -202,14 +204,15 @@ pgp_ecdh_encrypt_pkcs5(rng_t *                  rng,
 {
     botan_privkey_t eph_prv_key = NULL;
     rnp_result_t    ret = RNP_ERROR_GENERIC;
-    uint8_t         m[OBFUSCATED_KEY_SIZE];
-    size_t          m_len = sizeof(m);
     uint8_t         other_info[MAX_SP800_56A_OTHER_INFO];
-    uint8_t *       tmp_buf = NULL;
+    uint8_t         eph_key_buf[BITS_TO_BYTES(MAX_CURVE_BIT_SIZE) * 2 + 1] = {0};
     uint8_t         kek[32] = {0}; // Size of SHA-256 or smaller
+    // 'm' is padded to the 8-byte granularity
+    uint8_t         m[MAX_SESSION_KEY_SIZE];
+    const size_t    m_padded_len = ((session_key_len / 8) + 1) * 8;
 
-    if ((session_key_len > OBFUSCATED_KEY_SIZE) || !ephemeral_key || !ephemeral_key->mp ||
-        !pubkey || !wrapped_key || !wrapped_key_len || !fingerprint || !pubkey->ec.point) {
+    if (!ephemeral_key || !pubkey  || !fingerprint || !wrapped_key || !wrapped_key_len ||
+        (session_key_len > sizeof(m))) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -218,14 +221,15 @@ pgp_ecdh_encrypt_pkcs5(rng_t *                  rng,
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
-    if (*wrapped_key_len < ECDH_WRAPPED_KEY_SIZE) {
+    // +8 because of AES-wrap adds 8 bytes
+    if (*wrapped_key_len < (m_padded_len + 8)) {
         return RNP_ERROR_SHORT_BUFFER;
     }
 
     // See 13.5 of RFC 4880 for definition of other_info_size
     const size_t other_info_size = (pubkey->ec.curve == PGP_CURVE_NIST_P_256) ? 54 : 51;
-    const size_t key_len = BITS_TO_BYTES(curve_desc->bitlen) * 2 + 1;
     const size_t kek_len = pgp_key_size(pubkey->key_wrap_alg);
+    size_t eph_key_len = BITS_TO_BYTES(curve_desc->bitlen) * 2 + 1;
 
     size_t tmp_len = kdf_other_info_serialize(
       other_info, curve_desc, fingerprint, pubkey->kdf_hash_alg, pubkey->key_wrap_alg);
@@ -244,44 +248,28 @@ pgp_ecdh_encrypt_pkcs5(rng_t *                  rng,
                      other_info,
                      other_info_size,
                      curve_desc,
-                     pubkey->ec.point->mp,
+                     pubkey->ec.point,
                      eph_prv_key,
                      pubkey->kdf_hash_alg)) {
         RNP_LOG("KEK computation failed");
         goto end;
     }
 
-    /*
-     * Pad m with PKCS-5 to 40 bytes
-     */
     memcpy(m, session_key, session_key_len);
-    if (!pad_pkcs7(m, OBFUSCATED_KEY_SIZE, session_key_len)) {
+    if (!pad_pkcs7(m, m_padded_len, session_key_len)) {
         // Should never happen
         goto end;
     }
 
-    /* 3394 wrapping adds 8 bytes */
-    if (botan_key_wrap3394(m, m_len, kek, kek_len, wrapped_key, wrapped_key_len) ||
-        (*wrapped_key_len != ECDH_WRAPPED_KEY_SIZE)) {
+    if (botan_key_wrap3394(m, m_padded_len, kek, kek_len, wrapped_key, wrapped_key_len)) {
         goto end;
     }
 
-    tmp_buf = malloc(key_len);
-    if (!tmp_buf) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
+    if (botan_pk_op_key_agreement_export_public(eph_prv_key, eph_key_buf, &eph_key_len)) {
         goto end;
     }
 
-    tmp_len = key_len;
-    if (botan_pk_op_key_agreement_export_public(eph_prv_key, tmp_buf, &tmp_len)) {
-        goto end;
-    }
-
-    if (tmp_len > key_len) {
-        goto end;
-    }
-
-    if (botan_mp_from_bin(ephemeral_key->mp, tmp_buf, tmp_len)) {
+    if (!bn_bin2bn(eph_key_buf, eph_key_len, ephemeral_key)) {
         goto end;
     }
 
@@ -290,7 +278,6 @@ pgp_ecdh_encrypt_pkcs5(rng_t *                  rng,
 
 end:
     ret |= botan_privkey_destroy(eph_prv_key);
-    free(tmp_buf);
     return ret;
 }
 
@@ -309,11 +296,11 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
     uint8_t         kek[MAX_SYMM_KEY_SIZE];
     uint8_t         other_info[MAX_SP800_56A_OTHER_INFO];
     botan_privkey_t prv_key = NULL;
-    uint8_t         key[OBFUSCATED_KEY_SIZE] = {0};
+    uint8_t         key[MAX_SESSION_KEY_SIZE] = {0};
     size_t          key_len = sizeof(key);
 
-    if (!session_key_len || !session_key_len || !wrapped_key || !seckey || !seckey->x ||
-        !seckey->x->mp || !pubkey || !ephemeral_key || !ephemeral_key->mp) {
+    if (!session_key_len || !wrapped_key || !pubkey ||
+        !seckey || !seckey->x) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -341,7 +328,7 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
         goto end;
     }
 
-    if (botan_privkey_load_ecdh(&prv_key, seckey->x->mp, curve_desc->botan_name)) {
+    if (botan_privkey_load_ecdh(&prv_key, BN_HANDLE_PTR(seckey->x), curve_desc->botan_name)) {
         goto end;
     }
 
@@ -354,7 +341,7 @@ pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
                      other_info,
                      other_info_size,
                      curve_desc,
-                     ephemeral_key->mp,
+                     ephemeral_key,
                      prv_key,
                      kdf_hash)) {
         goto end;

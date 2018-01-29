@@ -32,10 +32,10 @@
 #include "ec.h"
 #include "rng.h"
 
-/* Size of wrapped and obfuscated key size
+/* Max size of wrapped and obfuscated key size
  *
- * RNP pads a key with PKCS-5 always to 40 bytes,
- * then 8 bytes is added by 3394.
+ * RNP pads a key with PKCS-5 always to 8 byte granularity,
+ * then 8 bytes is added by AES-wrap (RFC3394).
  */
 #define ECDH_WRAPPED_KEY_SIZE 48
 
@@ -84,7 +84,6 @@ bool set_ecdh_params(pgp_seckey_t *seckey, pgp_curve_t curve_id);
  * @return RNP_ERROR_NOT_SUPPORTED unknown curve
  * @return RNP_ERROR_BAD_PARAMETERS unexpected input provided
  * @return RNP_ERROR_SHORT_BUFFER `wrapped_key_len' to small to store result
- * @return RNP_ERROR_OUT_OF_MEMORY failed to allocated memory
  * @return RNP_ERROR_GENERIC implementation error
  */
 rnp_result_t pgp_ecdh_encrypt_pkcs5(rng_t *                  rng,
