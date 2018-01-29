@@ -39,6 +39,7 @@
 #include "hash.h"
 #include <rnp/rnp_types.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <unistd.h>
 
 struct rnp_password_cb_data {
@@ -111,9 +112,32 @@ struct rnp_op_encrypt_st {
 
 static rnp_result_t rnp_keyring_create(rnp_ffi_t ffi, rnp_keyring_t *ring, const char *format);
 static rnp_result_t rnp_keyring_destroy(rnp_keyring_t ring);
-static bool key_provider_bounce(const pgp_key_request_ctx_t *ctx,
-                                pgp_key_t **                 key,
-                                void *                       userdata);
+
+static bool
+key_provider_bounce(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *userdata)
+{
+    rnp_ffi_t     ffi = (rnp_ffi_t) userdata;
+    rnp_keyring_t ring = ctx->secret ? ffi->secring : ffi->pubring;
+    *key = NULL;
+    switch (ctx->stype) {
+    case PGP_KEY_SEARCH_USERID:
+        // TODO: this isn't really a userid search...
+        rnp_key_store_get_key_by_name(&ffi->io, ring->store, ctx->search.userid, key);
+        break;
+    case PGP_KEY_SEARCH_KEYID: {
+        *key = rnp_key_store_get_key_by_id(&ffi->io, ring->store, ctx->search.id, NULL, NULL);
+    } break;
+    case PGP_KEY_SEARCH_GRIP: {
+        *key = rnp_key_store_get_key_by_grip(&ffi->io, ring->store, ctx->search.grip);
+    } break;
+    default:
+        // should never happen
+        assert(false);
+        break;
+    }
+    // TODO: if still not found, use ffi->getkeycb
+    return *key != NULL;
+}
 
 static void
 rnp_ctx_init_ffi(rnp_ctx_t *ctx, rnp_ffi_t ffi)
@@ -122,6 +146,22 @@ rnp_ctx_init_ffi(rnp_ctx_t *ctx, rnp_ffi_t ffi)
     ctx->rng = &ffi->rng;
     ctx->ealg = PGP_SA_DEFAULT_CIPHER;
 }
+
+static const pgp_map_t sig_type_map[] = {{PGP_SIG_BINARY, "binary"},
+                                         {PGP_SIG_TEXT, "text"},
+                                         {PGP_SIG_STANDALONE, "standalone"},
+                                         {PGP_CERT_GENERIC, "certification (generic)"},
+                                         {PGP_CERT_PERSONA, "certification (persona)"},
+                                         {PGP_CERT_CASUAL, "certification (casual)"},
+                                         {PGP_CERT_POSITIVE, "certification (positive)"},
+                                         {PGP_SIG_SUBKEY, "subkey binding"},
+                                         {PGP_SIG_PRIMARY, "primary key binding"},
+                                         {PGP_SIG_DIRECT, "direct"},
+                                         {PGP_SIG_REV_KEY, "key revocation"},
+                                         {PGP_SIG_REV_SUBKEY, "subkey revocation"},
+                                         {PGP_SIG_REV_CERT, "certification revocation"},
+                                         {PGP_SIG_TIMESTAMP, "timestamp"},
+                                         {PGP_SIG_3RD_PARTY, "third-party"}};
 
 static const pgp_map_t pubkey_alg_map[] = {{PGP_PKA_RSA, "RSA"},
                                            {PGP_PKA_RSA_ENCRYPT_ONLY, "RSA"},
@@ -147,39 +187,51 @@ static const pgp_map_t symm_alg_map[] = {{PGP_SA_IDEA, "IDEA"},
                                          {PGP_SA_CAMELLIA_256, "CAMELLIA256"},
                                          {PGP_SA_SM4, "SM4"}};
 
-static const pgp_map_t compress_alg_map[] = {
-  {PGP_C_NONE, "Uncompressed"}, {PGP_C_ZIP, "ZIP"}, {PGP_C_ZLIB, "ZLIB"}, {PGP_C_BZIP2, "BZip2"}};
+static const pgp_map_t compress_alg_map[] = {{PGP_C_NONE, "Uncompressed"},
+                                             {PGP_C_ZIP, "ZIP"},
+                                             {PGP_C_ZLIB, "ZLIB"},
+                                             {PGP_C_BZIP2, "BZip2"}};
 
-static const pgp_map_t hash_alg_map[] = {
-  {PGP_HASH_MD5, "MD5"},
-  {PGP_HASH_SHA1, "SHA1"},
-  {PGP_HASH_RIPEMD, "RIPEMD160"},
-  {PGP_HASH_SHA256, "SHA256"},
-  {PGP_HASH_SHA384, "SHA384"},
-  {PGP_HASH_SHA512, "SHA512"},
-  {PGP_HASH_SHA224, "SHA224"},
-  {PGP_HASH_SM3, "SM3"},
-  {PGP_HASH_CRC24, "CRC24"}
-};
+static const pgp_map_t hash_alg_map[] = {{PGP_HASH_MD5, "MD5"},
+                                         {PGP_HASH_SHA1, "SHA1"},
+                                         {PGP_HASH_RIPEMD, "RIPEMD160"},
+                                         {PGP_HASH_SHA256, "SHA256"},
+                                         {PGP_HASH_SHA384, "SHA384"},
+                                         {PGP_HASH_SHA512, "SHA512"},
+                                         {PGP_HASH_SHA224, "SHA224"},
+                                         {PGP_HASH_SM3, "SM3"},
+                                         {PGP_HASH_CRC24, "CRC24"}};
 
-static const pgp_bit_map_t key_usage_map[] = {
-  {PGP_KF_SIGN, "sign"},
-  {PGP_KF_CERTIFY, "certify"},
-  {PGP_KF_ENCRYPT, "encrypt"},
-  {PGP_KF_AUTH, "authenticate"}
-};
+static const pgp_bit_map_t key_usage_map[] = {{PGP_KF_SIGN, "sign"},
+                                              {PGP_KF_CERTIFY, "certify"},
+                                              {PGP_KF_ENCRYPT, "encrypt"},
+                                              {PGP_KF_AUTH, "authenticate"}};
 
-static const pgp_map_t identifier_type_map[] = {
-  {PGP_KEY_SEARCH_USERID, "userid"},
-  {PGP_KEY_SEARCH_KEYID, "keyid"},
-  {PGP_KEY_SEARCH_GRIP, "grip"},
-};
+static const pgp_bit_map_t key_flags_map[] = {{PGP_KF_SPLIT, "split"},
+                                              {PGP_KF_SHARED, "shared"}};
+
+static const pgp_map_t identifier_type_map[] = {{PGP_KEY_SEARCH_USERID, "userid"},
+                                                {PGP_KEY_SEARCH_KEYID, "keyid"},
+                                                {PGP_KEY_SEARCH_GRIP, "grip"}};
+
+static const pgp_map_t key_server_prefs_map[] = {{PGP_KEY_SERVER_NO_MODIFY, "no-modify"}};
 
 static bool
 curve_str_to_type(const char *str, pgp_curve_t *value)
 {
     *value = find_curve_by_name(str);
     return *value != PGP_CURVE_MAX;
+}
+
+static bool
+curve_type_to_str(pgp_curve_t type, const char **str)
+{
+    const ec_curve_desc_t *desc = get_curve_desc(type);
+    if (!desc) {
+        return false;
+    }
+    *str = desc->pgp_name;
+    return true;
 }
 
 rnp_result_t
@@ -1156,32 +1208,6 @@ rnp_op_encrypt_destroy(rnp_op_encrypt_t op)
 }
 
 static bool
-key_provider_bounce(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *userdata)
-{
-    rnp_ffi_t     ffi = (rnp_ffi_t) userdata;
-    rnp_keyring_t ring = ctx->secret ? ffi->secring : ffi->pubring;
-    *key = NULL;
-    switch (ctx->stype) {
-    case PGP_KEY_SEARCH_USERID:
-        // TODO: this isn't really a userid search...
-        rnp_key_store_get_key_by_name(&ffi->io, ring->store, ctx->search.userid, key);
-        break;
-    case PGP_KEY_SEARCH_KEYID: {
-        *key = rnp_key_store_get_key_by_id(&ffi->io, ring->store, ctx->search.id, NULL, NULL);
-    } break;
-    case PGP_KEY_SEARCH_GRIP: {
-        *key = rnp_key_store_get_key_by_grip(&ffi->io, ring->store, ctx->search.grip);
-    } break;
-    default:
-        // should never happen
-        assert(false);
-        break;
-    }
-    // TODO: if still not found, use ffi->getkeycb
-    return *key != NULL;
-}
-
-static bool
 dest_provider(pgp_parse_handler_t *handler,
               pgp_dest_t **        dst,
               bool *               closedst,
@@ -1400,7 +1426,8 @@ parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
                     return false;
                 }
                 pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
-                ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, json_object_get_string(item), hash_alg);
+                ARRAY_LOOKUP_BY_STRCASE(
+                  hash_alg_map, string, type, json_object_get_string(item), hash_alg);
                 if (hash_alg == PGP_HASH_UNKNOWN) {
                     return false;
                 }
@@ -1415,7 +1442,8 @@ parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
                     return false;
                 }
                 pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
-                ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, json_object_get_string(item), symm_alg);
+                ARRAY_LOOKUP_BY_STRCASE(
+                  symm_alg_map, string, type, json_object_get_string(item), symm_alg);
                 if (symm_alg == PGP_SA_UNKNOWN) {
                     return false;
                 }
@@ -1431,7 +1459,8 @@ parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
                     return false;
                 }
                 pgp_compression_type_t compression = PGP_C_UNKNOWN;
-                ARRAY_LOOKUP_BY_STRCASE(compress_alg_map, string, type, json_object_get_string(item), compression);
+                ARRAY_LOOKUP_BY_STRCASE(
+                  compress_alg_map, string, type, json_object_get_string(item), compression);
                 if (compression == PGP_C_UNKNOWN) {
                     return false;
                 }
@@ -1475,7 +1504,8 @@ parse_keygen_crypto(json_object *jso, rnp_keygen_crypto_params_t *crypto)
         // TODO: make sure there are no duplicate keys in the JSON
         if (!rnp_strcasecmp(key, "type")) {
             crypto->key_alg = PGP_PKA_NOTHING;
-            ARRAY_LOOKUP_BY_STRCASE(pubkey_alg_map, string, type, json_object_get_string(value), crypto->key_alg);
+            ARRAY_LOOKUP_BY_STRCASE(
+              pubkey_alg_map, string, type, json_object_get_string(value), crypto->key_alg);
             if (crypto->key_alg == PGP_PKA_NOTHING) {
                 return false;
             }
@@ -1545,7 +1575,7 @@ parse_keygen_primary(json_object *jso, rnp_keygen_primary_desc_t *desc)
                     if (!json_object_is_type(item, json_type_string)) {
                         return false;
                     }
-                    uint8_t flag = 0;
+                    uint8_t     flag = 0;
                     const char *str = json_object_get_string(item);
                     ARRAY_LOOKUP_BY_STRCASE(key_usage_map, string, mask, str, flag);
                     if (!flag) {
@@ -1618,7 +1648,7 @@ parse_keygen_sub(json_object *jso, rnp_keygen_subkey_desc_t *desc)
                     if (!json_object_is_type(item, json_type_string)) {
                         return false;
                     }
-                    uint8_t flag = 0;
+                    uint8_t     flag = 0;
                     const char *str = json_object_get_string(item);
                     ARRAY_LOOKUP_BY_STRCASE(key_usage_map, string, mask, str, flag);
                     if (!flag) {
@@ -2002,11 +2032,13 @@ rnp_key_get_fprint(rnp_key_handle_t handle, char **fprint)
         return RNP_ERROR_OUT_OF_MEMORY;
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    assert(rnp_hex_encode(key->fingerprint.fingerprint,
-                          key->fingerprint.length,
-                          *fprint,
-                          hex_len,
-                          RNP_HEX_UPPERCASE));
+    if (!rnp_hex_encode(key->fingerprint.fingerprint,
+                        key->fingerprint.length,
+                        *fprint,
+                        hex_len,
+                        RNP_HEX_UPPERCASE)) {
+        return RNP_ERROR_GENERIC;
+    }
     return RNP_SUCCESS;
 }
 
@@ -2022,7 +2054,9 @@ rnp_key_get_keyid(rnp_key_handle_t handle, char **keyid)
         return RNP_ERROR_OUT_OF_MEMORY;
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    assert(rnp_hex_encode(key->keyid, PGP_KEY_ID_SIZE, *keyid, hex_len, RNP_HEX_UPPERCASE));
+    if (!rnp_hex_encode(key->keyid, PGP_KEY_ID_SIZE, *keyid, hex_len, RNP_HEX_UPPERCASE)) {
+        return RNP_ERROR_GENERIC;
+    }
     return RNP_SUCCESS;
 }
 
@@ -2038,7 +2072,9 @@ rnp_key_get_grip(rnp_key_handle_t handle, char **grip)
         return RNP_ERROR_OUT_OF_MEMORY;
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    assert(rnp_hex_encode(key->grip, PGP_FINGERPRINT_SIZE, *grip, hex_len, RNP_HEX_UPPERCASE));
+    if (!rnp_hex_encode(key->grip, PGP_FINGERPRINT_SIZE, *grip, hex_len, RNP_HEX_UPPERCASE)) {
+        return RNP_ERROR_GENERIC;
+    }
     return RNP_SUCCESS;
 }
 
@@ -2250,4 +2286,693 @@ rnp_secret_key_bytes(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len)
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     return key_to_bytes(key, buf, buf_len);
+}
+static bool
+add_json_string_field(json_object *jso, const char *key, const char *value)
+{
+    json_object *jsostr = json_object_new_string(value);
+    if (!jsostr) {
+        return false;
+    }
+    json_object_object_add(jso, key, jsostr);
+    return true;
+}
+
+static bool
+add_json_int_field(json_object *jso, const char *key, int32_t value)
+{
+    json_object *jsoval = json_object_new_int(value);
+    if (!jsoval) {
+        return false;
+    }
+    json_object_object_add(jso, key, jsoval);
+    return true;
+}
+
+static bool
+add_json_key_usage(json_object *jso, uint8_t key_flags)
+{
+    json_object *jsoarr = json_object_new_array();
+    if (!jsoarr) {
+        return false;
+    }
+    for (size_t i = 0; i < ARRAY_SIZE(key_usage_map); i++) {
+        if (key_usage_map[i].mask & key_flags) {
+            json_object *jsostr = json_object_new_string(key_usage_map[i].string);
+            if (!jsostr) {
+                json_object_put(jsoarr);
+                return false;
+            }
+            json_object_array_add(jsoarr, jsostr);
+        }
+    }
+    if (json_object_array_length(jsoarr)) {
+        json_object_object_add(jso, "usage", jsoarr);
+    } else {
+        json_object_put(jsoarr);
+    }
+    return true;
+}
+
+static bool
+add_json_key_flags(json_object *jso, uint8_t key_flags)
+{
+    json_object *jsoarr = json_object_new_array();
+    if (!jsoarr) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    for (size_t i = 0; i < ARRAY_SIZE(key_flags_map); i++) {
+        if (key_flags_map[i].mask & key_flags) {
+            json_object *jsostr = json_object_new_string(key_flags_map[i].string);
+            if (!jsostr) {
+                json_object_put(jsoarr);
+                return false;
+            }
+            json_object_array_add(jsoarr, jsostr);
+        }
+    }
+    if (json_object_array_length(jsoarr)) {
+        json_object_object_add(jso, "flags", jsoarr);
+    } else {
+        json_object_put(jsoarr);
+    }
+    return true;
+}
+
+static rnp_result_t
+add_json_mpis(json_object *jso, ...)
+{
+    va_list      ap;
+    const char * name;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    va_start(ap, jso);
+    while ((name = va_arg(ap, const char *))) {
+        bignum_t *bn = va_arg(ap, bignum_t *);
+        if (!bn) {
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto done;
+        }
+        char *hex = bn_bn2hex(bn);
+        if (!hex) {
+            // this could probably be other things
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        json_object *jsostr = json_object_new_string(hex);
+        free(hex);
+        if (!jsostr) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        json_object_object_add(jso, name, jsostr);
+    }
+    ret = RNP_SUCCESS;
+
+done:
+    va_end(ap);
+    return ret;
+}
+
+static rnp_result_t
+add_json_public_mpis(json_object *jso, pgp_key_t *key)
+{
+    const pgp_pubkey_t *pubkey = pgp_get_pubkey(key);
+    switch (pubkey->alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        return add_json_mpis(jso, "n", pubkey->key.rsa.n, "e", pubkey->key.rsa.e, NULL);
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        return add_json_mpis(jso,
+                             "p",
+                             pubkey->key.elgamal.p,
+                             "g",
+                             pubkey->key.elgamal.g,
+                             "y",
+                             pubkey->key.elgamal.y,
+                             NULL);
+    case PGP_PKA_DSA:
+        return add_json_mpis(jso,
+                             "p",
+                             pubkey->key.dsa.p,
+                             "q",
+                             pubkey->key.dsa.q,
+                             "g",
+                             pubkey->key.dsa.g,
+                             "y",
+                             pubkey->key.dsa.y,
+                             NULL);
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
+        return add_json_mpis(jso, "point", pubkey->key.ecc.point, NULL);
+    default:
+        return RNP_ERROR_NOT_SUPPORTED;
+    }
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+add_json_secret_mpis(json_object *jso, pgp_key_t *key)
+{
+    const pgp_seckey_t *seckey = pgp_get_seckey(key);
+    switch (pgp_get_pubkey(key)->alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        return add_json_mpis(jso,
+                             "d",
+                             seckey->key.rsa.d,
+                             "p",
+                             seckey->key.rsa.p,
+                             "q",
+                             seckey->key.rsa.q,
+                             "u",
+                             seckey->key.rsa.u,
+                             NULL);
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        return add_json_mpis(jso, "x", seckey->key.elgamal.x, NULL);
+    case PGP_PKA_DSA:
+        return add_json_mpis(jso, "x", seckey->key.dsa.x, NULL);
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
+        return add_json_mpis(jso, "x", seckey->key.ecc.x, NULL);
+    default:
+        return RNP_ERROR_NOT_SUPPORTED;
+    }
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+add_json_sig_mpis(json_object *jso, const pgp_sig_info_t *info)
+{
+    switch (info->key_alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        return add_json_mpis(jso, "sig", info->sig.rsa.sig, NULL);
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        return add_json_mpis(jso, "r", info->sig.elgamal.r, "s", info->sig.elgamal.s, NULL);
+    case PGP_PKA_DSA:
+        return add_json_mpis(jso, "r", info->sig.dsa.r, "s", info->sig.dsa.s, NULL);
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
+        return add_json_mpis(jso, "r", info->sig.ecc.r, "s", info->sig.ecc.s, NULL);
+    default:
+        // TODO: we could use info->unknown and add a hex string of raw data here
+        return RNP_ERROR_NOT_SUPPORTED;
+    }
+    return RNP_SUCCESS;
+}
+
+static bool
+add_json_user_prefs(json_object *jso, const pgp_user_prefs_t *prefs)
+{
+    // TODO: instead of using a string "Unknown" as a fallback for these,
+    // we could add a string of hex/dec (or even an int)
+    if (prefs->symm_algc) {
+        json_object *jsoarr = json_object_new_array();
+        if (!jsoarr) {
+            return false;
+        }
+        json_object_object_add(jso, "ciphers", jsoarr);
+        for (unsigned i = 0; i < prefs->symm_algc; i++) {
+            const char *         name = "Unknown";
+            const pgp_symm_alg_t alg = prefs->symm_algs[i];
+            ARRAY_LOOKUP_BY_ID(symm_alg_map, type, string, alg, name);
+            json_object *jsoname = json_object_new_string(name);
+            if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
+                return false;
+            }
+        }
+    }
+    if (prefs->hash_algc) {
+        json_object *jsoarr = json_object_new_array();
+        if (!jsoarr) {
+            return false;
+        }
+        json_object_object_add(jso, "hashes", jsoarr);
+        for (unsigned i = 0; i < prefs->hash_algc; i++) {
+            const char *         name = "Unknown";
+            const pgp_hash_alg_t alg = prefs->hash_algs[i];
+            ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, alg, name);
+            json_object *jsoname = json_object_new_string(name);
+            if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
+                return false;
+            }
+        }
+    }
+    if (prefs->compress_algc) {
+        json_object *jsoarr = json_object_new_array();
+        if (!jsoarr) {
+            return false;
+        }
+        json_object_object_add(jso, "compression", jsoarr);
+        for (unsigned i = 0; i < prefs->compress_algc; i++) {
+            const char *                 name = "Unknown";
+            const pgp_compression_type_t alg = prefs->compress_algs[i];
+            ARRAY_LOOKUP_BY_ID(compress_alg_map, type, string, alg, name);
+            json_object *jsoname = json_object_new_string(name);
+            if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
+                return false;
+            }
+        }
+    }
+    if (prefs->key_server_prefc) {
+        json_object *jsoarr = json_object_new_array();
+        if (!jsoarr) {
+            return false;
+        }
+        json_object_object_add(jso, "key server preferences", jsoarr);
+        for (unsigned i = 0; i < prefs->key_server_prefc; i++) {
+            const char *  name = "Unknown";
+            const uint8_t flag = prefs->key_server_prefs[i];
+            ARRAY_LOOKUP_BY_ID(key_server_prefs_map, type, string, flag, name);
+            json_object *jsoname = json_object_new_string(name);
+            if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
+                return false;
+            }
+        }
+    }
+    if (prefs->key_server) {
+        if (!add_json_string_field(jso, "key server", (const char *) prefs->key_server)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static rnp_result_t
+add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_t *subsig)
+{
+    // userid (if applicable)
+    if (!is_sub) {
+        json_object *jsouid = json_object_new_int(subsig->uid);
+        if (!jsouid) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        json_object_object_add(jso, "userid", jsouid);
+    }
+    // trust
+    json_object *jsotrust = json_object_new_object();
+    if (!jsotrust) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    json_object_object_add(jso, "trust", jsotrust);
+    // trust (level)
+    json_object *jsotrust_level = json_object_new_int(subsig->trustlevel);
+    if (!jsotrust_level) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    json_object_object_add(jsotrust, "level", jsotrust_level);
+    // trust (amount)
+    json_object *jsotrust_amount = json_object_new_int(subsig->trustamount);
+    if (!jsotrust_amount) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    json_object_object_add(jsotrust, "amount", jsotrust_amount);
+    // key flags (usage)
+    if (!add_json_key_usage(jso, subsig->key_flags)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    // key flags (other)
+    if (!add_json_key_flags(jso, subsig->key_flags)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    // preferences
+    const pgp_user_prefs_t *prefs = &subsig->prefs;
+    if (prefs->symm_algc || prefs->hash_algc || prefs->compress_algc ||
+        prefs->key_server_prefc || prefs->key_server) {
+        json_object *jsoprefs = json_object_new_object();
+        if (!jsoprefs) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        json_object_object_add(jso, "preferences", jsoprefs);
+        if (!add_json_user_prefs(jsoprefs, prefs)) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+    const pgp_sig_info_t *info = &subsig->sig.info;
+    // version
+    json_object *jsoversion = json_object_new_int(info->version);
+    if (!jsoversion) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    json_object_object_add(jso, "version", jsoversion);
+    // signature type
+    const char *type = "unknown";
+    ARRAY_LOOKUP_BY_ID(sig_type_map, type, string, info->type, type);
+    if (!add_json_string_field(jso, "type", type)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    // signer key type
+    const char *key_type = "unknown";
+    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, info->key_alg, key_type);
+    if (!add_json_string_field(jso, "key type", key_type)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    // hash
+    const char *hash = "unknown";
+    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, info->hash_alg, hash);
+    if (!add_json_string_field(jso, "hash", hash)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    // creation time
+    json_object *jsocreation_time =
+      json_object_new_int64(info->creation_set ? info->creation : 0);
+    if (!jsocreation_time) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    json_object_object_add(jso, "creation time", jsocreation_time);
+    // expiration (seconds)
+    json_object *jsoexpiration =
+      json_object_new_int64(info->expiration_set ? info->expiration : 0);
+    if (!jsoexpiration) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    json_object_object_add(jso, "expiration", jsoexpiration);
+    // signer
+    json_object *jsosigner = NULL;
+    // TODO: add signer fingerprint as well (no support internally yet)
+    if (info->signer_id_set) {
+        jsosigner = json_object_new_object();
+        if (!jsosigner) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        char keyid[PGP_KEY_ID_SIZE * 2 + 1];
+        if (!rnp_hex_encode(
+              info->signer_id, PGP_KEY_ID_SIZE, keyid, sizeof(keyid), RNP_HEX_UPPERCASE)) {
+            return RNP_ERROR_GENERIC;
+        }
+        if (!add_json_string_field(jsosigner, "keyid", keyid)) {
+            json_object_put(jsosigner);
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+    json_object_object_add(jso, "signer", jsosigner);
+    // mpis
+    json_object *jsompis = NULL;
+    if (flags & RNP_JSON_SIGNATURE_MPIS) {
+        jsompis = json_object_new_object();
+        if (!jsompis) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        rnp_result_t tmpret;
+        if ((tmpret = add_json_sig_mpis(jsompis, info))) {
+            json_object_put(jsompis);
+            return tmpret;
+        }
+    }
+    json_object_object_add(jso, "mpis", jsompis);
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
+{
+    bool                have_sec = handle->sec != NULL;
+    bool                have_pub = handle->pub != NULL;
+    pgp_key_t *         key = get_key_prefer_public(handle);
+    const char *        str = NULL;
+    const pgp_pubkey_t *pubkey = pgp_get_pubkey(key);
+
+    // type
+    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, pubkey->alg, str);
+    if (!str) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    if (!add_json_string_field(jso, "type", str)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    // length
+    if (!add_json_int_field(jso, "length", key_bitlength(pubkey))) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    // curve / alg-specific items
+    switch (pubkey->alg) {
+    case PGP_PKA_ECDH: {
+        const char *hash_name = NULL;
+        ARRAY_LOOKUP_BY_ID(
+          hash_alg_map, type, string, pubkey->key.ecdh.kdf_hash_alg, hash_name);
+        if (!hash_name) {
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        const char *cipher_name = NULL;
+        ARRAY_LOOKUP_BY_ID(
+          symm_alg_map, type, string, pubkey->key.ecdh.key_wrap_alg, cipher_name);
+        if (!cipher_name) {
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        json_object *jsohash = json_object_new_string(hash_name);
+        if (!jsohash) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        json_object_object_add(jso, "kdf hash", jsohash);
+        json_object *jsocipher = json_object_new_string(cipher_name);
+        if (!jsocipher) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        json_object_object_add(jso, "key wrap cipher", jsocipher);
+    }
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2: {
+        const char *curve_name = NULL;
+        // ecdh is actually pubkey->key.ecdh.ec, but that's OK
+        if (!curve_type_to_str(pubkey->key.ecc.curve, &curve_name)) {
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        json_object *jsocurve = json_object_new_string(curve_name);
+        if (!jsocurve) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        json_object_object_add(jso, "curve", jsocurve);
+    } break;
+    default:
+        break;
+    }
+
+    // keyid
+    char keyid[PGP_KEY_ID_SIZE * 2 + 1];
+    if (!rnp_hex_encode(
+          key->keyid, PGP_KEY_ID_SIZE, keyid, sizeof(keyid), RNP_HEX_UPPERCASE)) {
+        return RNP_ERROR_GENERIC;
+    }
+    if (!add_json_string_field(jso, "keyid", keyid)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    // fingerprint
+    char fpr[PGP_FINGERPRINT_SIZE * 2 + 1];
+    if (!rnp_hex_encode(key->fingerprint.fingerprint,
+                        key->fingerprint.length,
+                        fpr,
+                        sizeof(fpr),
+                        RNP_HEX_UPPERCASE)) {
+        return RNP_ERROR_GENERIC;
+    }
+    if (!add_json_string_field(jso, "fingerprint", fpr)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    // grip
+    char grip[PGP_FINGERPRINT_SIZE * 2 + 1];
+    if (!rnp_hex_encode(key->grip, sizeof(key->grip), grip, sizeof(grip), RNP_HEX_UPPERCASE)) {
+        return RNP_ERROR_GENERIC;
+    }
+    if (!add_json_string_field(jso, "grip", grip)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    // revoked
+    json_object *jsorevoked = json_object_new_boolean(key->revoked ? TRUE : FALSE);
+    if (!jsorevoked) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    json_object_object_add(jso, "revoked", jsorevoked);
+    // creation time
+    json_object *jsocreation_time = json_object_new_int64(pubkey->creation);
+    if (!jsocreation_time) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    json_object_object_add(jso, "creation time", jsocreation_time);
+    // expiration
+    json_object *jsoexpiration = json_object_new_int64(
+      pubkey->version >= 4 ? pubkey->expiration : (pubkey->days_valid * 86400));
+    if (!jsoexpiration) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    json_object_object_add(jso, "expiration", jsoexpiration);
+    // key flags (usage)
+    if (!add_json_key_usage(jso, key->key_flags)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    // key flags (other)
+    if (!add_json_key_flags(jso, key->key_flags)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    // parent / subkeys
+    if (pgp_key_is_primary_key(key)) {
+        json_object *jsosubkeys_arr = json_object_new_array();
+        if (!jsosubkeys_arr) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        json_object_object_add(jso, "subkey grips", jsosubkeys_arr);
+        list_item *subgrip_item = list_front(key->subkey_grips);
+        while (subgrip_item) {
+            uint8_t *subgrip = (uint8_t *) subgrip_item;
+            if (!rnp_hex_encode(
+                  subgrip, PGP_FINGERPRINT_SIZE, grip, sizeof(grip), RNP_HEX_UPPERCASE)) {
+                return RNP_ERROR_GENERIC;
+            }
+            json_object *jsostr = json_object_new_string(grip);
+            if (!jsostr || json_object_array_add(jsosubkeys_arr, jsostr)) {
+                json_object_put(jsostr);
+                return RNP_ERROR_OUT_OF_MEMORY;
+            }
+            subgrip_item = list_next(subgrip_item);
+        }
+    } else {
+        if (!rnp_hex_encode(key->primary_grip,
+                            PGP_FINGERPRINT_SIZE,
+                            grip,
+                            sizeof(grip),
+                            RNP_HEX_UPPERCASE)) {
+            return RNP_ERROR_GENERIC;
+        }
+        if (!add_json_string_field(jso, "primary key grip", grip)) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+    // public
+    json_object *jsopublic = json_object_new_object();
+    if (!jsopublic) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    json_object_object_add(jso, "public key", jsopublic);
+    json_object_object_add(
+      jsopublic, "present", json_object_new_boolean(have_pub ? TRUE : FALSE));
+    if (flags & RNP_JSON_PUBLIC_MPIS) {
+        json_object *jsompis = json_object_new_object();
+        if (!jsompis) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        json_object_object_add(jsopublic, "mpis", jsompis);
+        rnp_result_t tmpret;
+        if ((tmpret = add_json_public_mpis(jsompis, key))) {
+            return tmpret;
+        }
+    }
+    // secret
+    json_object *jsosecret = json_object_new_object();
+    if (!jsosecret) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    json_object_object_add(jso, "secret key", jsosecret);
+    json_object_object_add(
+      jsosecret, "present", json_object_new_boolean(have_sec ? TRUE : FALSE));
+    if (have_sec) {
+        bool locked = pgp_key_is_locked(handle->sec);
+        if (flags & RNP_JSON_SECRET_MPIS) {
+            if (locked) {
+                json_object_object_add(jsosecret, "mpis", NULL);
+            } else {
+                json_object *jsompis = json_object_new_object();
+                if (!jsompis) {
+                    return RNP_ERROR_OUT_OF_MEMORY;
+                }
+                json_object_object_add(jsosecret, "mpis", jsompis);
+                rnp_result_t tmpret;
+                if ((tmpret = add_json_secret_mpis(jsompis, handle->sec))) {
+                    return tmpret;
+                }
+            }
+        }
+        json_object *jsolocked = json_object_new_boolean(locked ? TRUE : FALSE);
+        if (!jsolocked) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        json_object_object_add(jsosecret, "locked", jsolocked);
+        json_object *jsoprotected =
+          json_object_new_boolean(pgp_key_is_protected(handle->sec) ? TRUE : FALSE);
+        if (!jsoprotected) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        json_object_object_add(jsosecret, "protected", jsoprotected);
+    }
+    // userids
+    if (pgp_key_is_primary_key(key)) {
+        json_object *jsouids_arr = json_object_new_array();
+        if (!jsouids_arr) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        json_object_object_add(jso, "userids", jsouids_arr);
+        for (unsigned i = 0; i < key->uidc; i++) {
+            json_object *jsouid = json_object_new_string((const char *) key->uids[i]);
+            if (!jsouid || json_object_array_add(jsouids_arr, jsouid)) {
+                json_object_put(jsouid);
+                return RNP_ERROR_OUT_OF_MEMORY;
+            }
+        }
+    }
+    // signatures
+    if (flags & RNP_JSON_SIGNATURES) {
+        json_object *jsosigs_arr = json_object_new_array();
+        if (!jsosigs_arr) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        json_object_object_add(jso, "signatures", jsosigs_arr);
+        for (unsigned i = 0; i < key->subsigc; i++) {
+            json_object *jsosig = json_object_new_object();
+            if (!jsosig || json_object_array_add(jsosigs_arr, jsosig)) {
+                json_object_put(jsosig);
+                return RNP_ERROR_OUT_OF_MEMORY;
+            }
+            rnp_result_t tmpret;
+            if ((tmpret =
+                   add_json_subsig(jsosig, pgp_key_is_subkey(key), flags, &key->subsigs[i]))) {
+                return tmpret;
+            }
+        }
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_to_json(rnp_key_handle_t handle, uint32_t flags, char **result)
+{
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    json_object *jso = NULL;
+
+    // checks
+    if (!handle || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    jso = json_object_new_object();
+    if (!jso) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+    if ((ret = key_to_json(jso, handle, flags))) {
+        goto done;
+    }
+    *result = (char *) json_object_to_json_string_ext(jso, JSON_C_TO_STRING_PRETTY);
+    if (!*result) {
+        goto done;
+    }
+    *result = strdup(*result);
+    if (!*result) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    ret = RNP_SUCCESS;
+done:
+    json_object_put(jso);
+    return ret;
 }

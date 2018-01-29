@@ -293,7 +293,7 @@ print_block(int indent, const char *name, const uint8_t *str, size_t length)
 }
 
 // returns bitlength of a key
-static size_t
+size_t
 key_bitlength(const pgp_pubkey_t *pubkey)
 {
     size_t sz = 0;
