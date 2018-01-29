@@ -146,37 +146,30 @@ compute_kek(uint8_t *              kek,
 {
     botan_pk_op_ka_t op_key_agreement = NULL;
     uint8_t          point_bytes[MAX_CURVE_BYTELEN * 2 + 1] = {0};
-    bool             ret = true;
+    bool             ret = false;
+    char             kdf_name[32] = {0};
+    size_t           num_bytes = 0;
+    uint8_t          s[MAX_CURVE_BYTELEN * 2 + 1] = {0};
+    size_t           s_len = sizeof(s);
 
-    // Name of Botan's KDF and backing hash algorithm
-    const char *hash_botan_name = pgp_hash_name_botan(hash_alg);
-    if (!hash_botan_name) {
+    if (botan_mp_to_bin(ec_pubkey, point_bytes) ||
+        botan_mp_num_bytes(ec_pubkey, &num_bytes)) {
         return false;
     }
 
-    char botan_kdf_name[64] = {0};
-    snprintf(botan_kdf_name, 64, "SP800-56A(%s)", hash_botan_name);
-
-    if (botan_mp_to_bin(ec_pubkey, point_bytes) < 0) {
-        return false;
-    }
-
-    size_t num_bytes = 0;
-    if (botan_mp_num_bytes(ec_pubkey, &num_bytes) < 0) {
-        return false;
-    }
-
-    if (botan_pk_op_key_agreement_create(&op_key_agreement, ec_prvkey, botan_kdf_name, 0) ||
+    if (botan_pk_op_key_agreement_create(&op_key_agreement, ec_prvkey, "Raw", 0) ||
         botan_pk_op_key_agreement(op_key_agreement,
-                                  kek,
-                                  &kek_len,
+                                  s,
+                                  &s_len,
                                   point_bytes,
                                   num_bytes,
-                                  other_info,
-                                  other_info_size)) {
-        ret = false;
+                                  NULL, //other_info,
+                                  0)) { //other_info_size)) {
         goto end;
     }
+
+    snprintf(kdf_name, sizeof(kdf_name), "SP800-56A(%s)",  pgp_hash_name_botan(hash_alg));
+    ret = !botan_kdf(kdf_name, kek, kek_len, s, s_len, NULL, 0, other_info, other_info_size);
 
 end:
     ret &= !botan_pk_op_key_agreement_destroy(op_key_agreement);
