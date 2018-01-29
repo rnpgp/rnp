@@ -200,7 +200,7 @@ static struct option options[] = {
   {"bzip", no_argument, NULL, OPT_ZALG_BZIP},
   {"bzip2", no_argument, NULL, OPT_ZALG_BZIP},
   {"overwrite", no_argument, NULL, OPT_OVERWRITE},
-  {"aead", no_argument, NULL, OPT_AEAD},
+  {"aead", optional_argument, NULL, OPT_AEAD},
 
   {NULL, 0, NULL, 0},
 };
@@ -605,9 +605,20 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
     case OPT_ZALG_BZIP:
         rnp_cfg_setint(cfg, CFG_ZALG, PGP_C_BZIP2);
         break;
-    case OPT_AEAD:
-        rnp_cfg_setint(cfg, CFG_AEAD, PGP_AEAD_EAX);
+    case OPT_AEAD: {
+        pgp_aead_alg_t alg = 0;
+        if (!arg || !strcmp(arg, "1") || !rnp_strcasecmp(arg, "eax")) {
+            alg = PGP_AEAD_EAX;
+        } else if (!strcmp(arg, "2") || !rnp_strcasecmp(arg, "ocb")) {
+            alg = PGP_AEAD_OCB;
+        } else {
+            (void) fprintf(stderr, "Wrong AEAD algorithm: %s\n", arg);
+            exit(EXIT_ERROR);
+        }
+
+        rnp_cfg_setint(cfg, CFG_AEAD, alg);
         break;
+    }
     case OPT_OVERWRITE:
         rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
         break;
