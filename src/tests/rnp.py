@@ -115,11 +115,11 @@ class Rnp(object):
             params += ['--hash', self.hash]
         return self._run([self.rnp_bin] + params)
 
-    def encrypt(self, output, input):
+    def encrypt(self, recipient, output, input):
         pipe = pswd_pipe(self.password)
         params = self.common_params
         params += ['--pass-fd', str(pipe)]
-        params += ['--userid', self.userid]
+        params += ['--userid', recipient]
         params += ['--encrypt', input]
         params += ['--output', output]
         try:
