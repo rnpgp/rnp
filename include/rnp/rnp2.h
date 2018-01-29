@@ -290,15 +290,18 @@ rnp_result_t rnp_op_sign_create(rnp_op_sign_t *op,
                                 rnp_input_t    input,
                                 rnp_output_t   output);
 
-rnp_result_t rnp_op_sign_set_signing_key(rnp_op_sign_t op, rnp_key_handle_t key);
+rnp_result_t rnp_op_sign_add_signer(
+  rnp_op_sign_t    op,
+  rnp_key_handle_t key,
+  const char *     hash_fn,
+  uint32_t         creation_time, /* seconds since Jan 1 1970 UTC */
+  uint32_t         expiration_seconds);
 
 rnp_result_t rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compression, int level);
-rnp_result_t rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored, bool cleansign);
+rnp_result_t rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored);
+rnp_result_t rnp_op_sign_set_clearsign(rnp_op_sign_t op, bool clearsign);
 rnp_result_t rnp_op_sign_set_detached(rnp_op_sign_t op, bool detached);
 
-rnp_result_t rnp_op_sign_set_timestamps(rnp_op_sign_t op,
-                                        uint32_t      creation_time,
-                                        uint32_t      expiration_time);
 rnp_result_t rnp_op_sign_set_hash_fn(rnp_op_sign_t op, const char *hash);
 rnp_result_t rnp_op_sign_set_file_name(rnp_op_sign_t op, const char *filename);
 rnp_result_t rnp_op_sign_set_file_mtime(rnp_op_sign_t op, uint32_t mtime);
