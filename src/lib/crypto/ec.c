@@ -122,7 +122,7 @@ pgp_genkey_ec_uncompressed(rng_t *                rng,
      *
      * P-521 is biggest supported curve
      */
-    uint8_t         point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
+    uint8_t         point_bytes[BITS_TO_BYTES(MAX_CURVE_BIT_SIZE) * 2 + 1] = {0};
     botan_privkey_t pr_key = NULL;
     botan_pubkey_t  pu_key = NULL;
     bignum_t *      public_x = NULL;

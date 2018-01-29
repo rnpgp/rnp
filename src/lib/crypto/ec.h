@@ -36,6 +36,7 @@
 #include "crypto/rng.h"
 
 #define DEFAULT_CURVE PGP_CURVE_NIST_P_256
+#define MAX_CURVE_BIT_SIZE 521 // secp521r1
 
 typedef struct pgp_seckey_t pgp_seckey_t;
 
