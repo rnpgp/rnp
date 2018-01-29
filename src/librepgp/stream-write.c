@@ -820,7 +820,7 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     hdr[0] = 1;
     hdr[1] = param->ctx->ealg;
     hdr[2] = param->ctx->aalg;
-    hdr[3] = 4; /* 1Kb chunks */
+    hdr[3] = param->ctx->abits;
 
     /* generate iv */
     nlen = pgp_cipher_aead_nonce_len(param->ctx->aalg);
@@ -883,6 +883,11 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
         if ((pgp_block_size(handler->ctx->ealg) != 16)) {
             RNP_LOG("wrong AEAD symmetric algorithm");
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+
+        if ((handler->ctx->abits < 0) || (handler->ctx->abits > 56)) {
+            RNP_LOG("wrong AEAD chunk bits");
             return RNP_ERROR_BAD_PARAMETERS;
         }
     }

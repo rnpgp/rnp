@@ -119,6 +119,9 @@
 /* Maximum authenticated data length for AEAD */
 #define PGP_AEAD_MAX_AD_LEN 32
 
+/* Default chunk bits, equals to 1mb chunks */
+#define PGP_AEAD_DEF_CHUNK_BITS 14
+
 /** Old Packet Format Lengths.
  * Defines the meanings of the 2 bits for length type in the
  * old packet format.
