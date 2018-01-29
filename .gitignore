@@ -58,6 +58,10 @@ src/rnp/rnp
 src/rnpkeys/rnpkeys
 src/apps/packet-dumper/redumper
 
+# Patch output
+*.orig
+*.rej
+
 # Editor temp files
 *.swp
 \#*\#
