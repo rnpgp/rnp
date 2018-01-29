@@ -860,11 +860,11 @@ class Encryption(unittest.TestCase):
         gpg_import_secring()
 
     @classmethod
-    #def tearDownClass(cls):
-        #clear_keyrings()
+    def tearDownClass(cls):
+        clear_keyrings()
 
-    #def tearDown(self):
-        #clear_workfiles()
+    def tearDown(self):
+        clear_workfiles()
 
     def test_file_encryption__gpg_to_rnp(self):
         for run in range(0, Encryption.RUNS):
