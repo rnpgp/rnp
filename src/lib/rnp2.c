@@ -1300,59 +1300,55 @@ rnp_op_sign_create(rnp_op_sign_t *op, rnp_ffi_t ffi, rnp_input_t input, rnp_outp
     return RNP_SUCCESS;
 }
 
-rnp_result_t
-rnp_op_sign_set_timestamps(rnp_op_sign_t op, uint32_t creation_time, uint32_t expiration_time)
-{
-    if (!op)
-        return RNP_ERROR_NULL_POINTER;
-
-    op->rnpctx.sigcreate = creation_time;
-    op->rnpctx.sigexpire = expiration_time;
-    return RNP_SUCCESS;
-}
-
-rnp_result_t
-rnp_op_sign_set_hash_fn(rnp_op_sign_t op, const char *hash)
-{
-    if (!op || !hash)
-        return RNP_ERROR_NULL_POINTER;
-
-    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
-    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
-    if (hash_alg == PGP_HASH_UNKNOWN) {
-        return RNP_ERROR_BAD_FORMAT;
-    }
-
-    op->rnpctx.halg = hash_alg;
-
-    return RNP_SUCCESS;
-}
-
-rnp_result_t
-rnp_op_sign_set_signing_key(rnp_op_sign_t op, rnp_key_handle_t key)
+rnp_result_t rnp_op_sign_add_signer(rnp_op_sign_t    op,
+                                    rnp_key_handle_t key,
+                                    const char *     hash_fn,
+                                    uint32_t         creation_time,
+                                    uint32_t         expiration_seconds)
 {
     if (!op || !key)
         return RNP_ERROR_NULL_POINTER;
 
     char *keyid = NULL;
 
+    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash_fn, hash_alg);
+    if (hash_alg == PGP_HASH_UNKNOWN) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
     rnp_result_t res = rnp_key_get_keyid(key, &keyid);
     if (res != RNP_SUCCESS)
         return res;
 
-    list_append(&op->rnpctx.signers, keyid, strlen(keyid) + 1);
+    if (!list_append(&op->rnpctx.signers, keyid, strlen(keyid) + 1))
+        return RNP_ERROR_OUT_OF_MEMORY;
+
+    op->rnpctx.sigcreate = creation_time;
+    op->rnpctx.sigexpire = expiration_seconds;
+    op->rnpctx.halg = hash_alg;
 
     return RNP_SUCCESS;
 }
 
 rnp_result_t
-rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored, bool clearsign)
+rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored)
 {
     // checks
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     op->rnpctx.armor = armored;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_sign_set_clearsign(rnp_op_sign_t op, bool clearsign)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
     op->rnpctx.clearsign = clearsign;
     return RNP_SUCCESS;
 }

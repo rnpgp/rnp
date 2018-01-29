@@ -1068,24 +1068,19 @@ test_ffi_signatures(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_op_sign_create(&op, ffi, input, output));
 
     // set signature times
-    uint32_t issued = 1516211899;  // Unix epoch, nowish
-    uint32_t expires = 2147144400; // Jan 15, 2038
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_timestamps(op, issued, expires));
+    const uint32_t issued = 1516211899;  // Unix epoch, nowish
+    const uint32_t expires = 1000000000; // expires later
 
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_armor(op, true, false));
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_armor(op, true));
     assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_detached(op, false));
 
     // set pass provider
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
 
-    // set the hash function
-    assert_int_equal(RNP_ERROR_BAD_FORMAT, rnp_op_sign_set_hash_fn(op, "SHA9000"));
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_hash_fn(op, "SHA256"));
-
     // set signature key
     rnp_key_handle_t key = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key0-uid2", &key));
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_signing_key(op, key));
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_add_signer(op, key, "SHA256", issued, expires));
 
     // execute the operation
     assert_int_equal(RNP_SUCCESS, rnp_op_sign_execute(op));
@@ -1173,23 +1168,18 @@ test_ffi_signatures_detached(void **state)
 
     // set signature times
     uint32_t issued = 1516211899;  // Unix epoch, nowish
-    uint32_t expires = 2147144400; // Jan 15, 2038
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_timestamps(op, issued, expires));
+    uint32_t expires = 1000000000; // later
 
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_armor(op, true, false));
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_armor(op, true));
     assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_detached(op, true));
 
     // set pass provider
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
 
-    // set the hash function
-    assert_int_equal(RNP_ERROR_BAD_FORMAT, rnp_op_sign_set_hash_fn(op, "SHA9000"));
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_hash_fn(op, "SHA256"));
-
     // set signature key
     rnp_key_handle_t key = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key0-uid2", &key));
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_signing_key(op, key));
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_add_signer(op, key, "SHA256", issued, expires));
 
     // execute the operation
     assert_int_equal(RNP_SUCCESS, rnp_op_sign_execute(op));
