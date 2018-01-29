@@ -78,7 +78,8 @@ static const char *usage = "--help OR\n"
                            "\t[--armor] AND/OR\n"
                            "\t[--cipher=<ciphername>] AND/OR\n"
                            "\t[--zip, --zlib, --bzip, -z 0..9] AND/OR\n"
-                           "\t[--aead] AND/OR\n"
+                           "\t[--aead[=EAX, OCB]] AND/OR\n"
+                           "\t[--aead-chunk-bits=0..56] AND/OR\n"
                            "\t[--coredumps] AND/OR\n"
                            "\t[--homedir=<homedir>] AND/OR\n"
                            "\t[--keyring=<keyring>] AND/OR\n"
@@ -131,6 +132,7 @@ enum optdefs {
     OPT_ZLEVEL,
     OPT_OVERWRITE,
     OPT_AEAD,
+    OPT_AEAD_CHUNK,
 
     /* debug */
     OPT_DEBUG
@@ -201,6 +203,7 @@ static struct option options[] = {
   {"bzip2", no_argument, NULL, OPT_ZALG_BZIP},
   {"overwrite", no_argument, NULL, OPT_OVERWRITE},
   {"aead", optional_argument, NULL, OPT_AEAD},
+  {"aead-chunk-bits", required_argument, NULL, OPT_AEAD_CHUNK},
 
   {NULL, 0, NULL, 0},
 };
@@ -389,6 +392,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
         ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
         ctx.aalg = rnp_cfg_getint(cfg, CFG_AEAD);
+        ctx.abits = rnp_cfg_getint_default(cfg, CFG_AEAD_CHUNK, PGP_AEAD_DEF_CHUNK_BITS);
         ret = rnp_protect_file(&ctx, f, rnp_cfg_getstr(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
     }
@@ -617,6 +621,23 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         }
 
         rnp_cfg_setint(cfg, CFG_AEAD, alg);
+        break;
+    }
+    case OPT_AEAD_CHUNK: {
+        if (!arg) {
+            (void) fprintf(stderr, "Option aead-chunk-bits requires parameter\n");
+            exit(EXIT_ERROR);
+        }
+
+        int bits = atoi(arg);
+
+        if ((bits < 0) || (bits > 56)) {
+            (void) fprintf(stderr, "Wrong argument value %s for aead-chunk-bits\n", arg);
+            exit(EXIT_ERROR);
+        }
+
+        rnp_cfg_setint(cfg, CFG_AEAD_CHUNK, bits);
+
         break;
     }
     case OPT_OVERWRITE:
