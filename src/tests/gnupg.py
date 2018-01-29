@@ -104,10 +104,13 @@ class GnuPG(object):
             params += ['--digest-algo', self.hash]
         return self._run([self.__gpg] + params)
 
-    def encrypt(self, out, input):
+    def encrypt(self, recipient, out, input):
         params = self.common_params
         params += ['--passphrase', self.password]
+        params += ['-r', recipient]
         params += ['-o', out]
+        # Blindely trust the key without asking
+        params += ['--always-trust']
         params += ['--encrypt', input]
         return self._run([self.__gpg] + params)
 

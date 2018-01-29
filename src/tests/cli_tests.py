@@ -977,7 +977,7 @@ class Encrypt(unittest.TestCase):
         self.assertTrue(e1.generte_key_batch(keygen_cmd))
         self.assertTrue(e1.export_key(keyfile, False))
         self.assertTrue(e2.import_key(keyfile))
-        self.assertTrue(e2.encrypt(enc_out, input))
+        self.assertTrue(e2.encrypt(e1.userid, enc_out, input))
         self.assertTrue(e1.decrypt(dec_out, enc_out))
         clear_workfiles()
 
@@ -1002,21 +1002,39 @@ class EncryptElgamal(Encrypt):
         Name-Email: {2}
         """
 
+    RNP_GENERATE_DSA_ELGAMAL_PATTERN = "16\n{0}\n"
+
     def test_encrypt_P1024_1024(self):
-        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATERN.format(1024, 1024, self.rnp.userid)
+        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATERN.format(1024, 1024, self.gpg.userid)
         self._encrypt_decrypt(self.gpg, self.rnp, 1, cmd)
 
     def test_encrypt_P1024_2048(self):
-        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATERN.format(1024, 2048, self.rnp.userid)
+        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATERN.format(1024, 2048, self.gpg.userid)
         self._encrypt_decrypt(self.gpg, self.rnp, 1, cmd)
 
     def test_encrypt_P2048_2048(self):
-        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATERN.format(2048, 2048, self.rnp.userid)
+        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATERN.format(2048, 2048, self.gpg.userid)
         self._encrypt_decrypt(self.gpg, self.rnp, 1, cmd)
 
     def test_encrypt_P3072_3072(self):
-        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATERN.format(3072, 3072, self.rnp.userid)
+        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATERN.format(3072, 3072, self.gpg.userid)
         self._encrypt_decrypt(self.gpg, self.rnp, 1, cmd)
+
+    def test_decrypt_P1024(self):
+        cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(1024)
+        self._encrypt_decrypt(self.rnp, self.gpg, 1, cmd)
+
+    def test_decrypt_P2048(self):
+        cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(2048)
+        self._encrypt_decrypt(self.rnp, self.gpg, 1, cmd)
+
+    def test_decrypt_P3072(self):
+        cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(3072)
+        self._encrypt_decrypt(self.rnp, self.gpg, 1, cmd)
+
+    def test_decrypt_P1234(self):
+        cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(1234)
+        self._encrypt_decrypt(self.rnp, self.gpg, 1, cmd)
 
 class Sign(unittest.TestCase):
     # Message sizes to be tested
