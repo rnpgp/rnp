@@ -978,7 +978,7 @@ class SignDefault(unittest.TestCase):
 class Encrypt(unittest.TestCase, TestIdMixin):
     def _encrypt_decrypt(self, e1, e2,  keygen_cmd):
         key_id = "".join(self.id().split('.')[1:3])
-        keyfile, input, enc_out, dec_out = reg_workfiles("encrypt"+self.test_id, '.gpg', '.in', '.enc', '.dec')
+        keyfile, input, enc_out, dec_out = reg_workfiles(self.test_id, '.gpg', '.in', '.enc', '.dec')
         random_text(input, 0x1337)
         self.assertTrue(e1.generte_key_batch(keygen_cmd))
         self.assertTrue(e1.export_key(keyfile, False))
@@ -991,7 +991,7 @@ class Encrypt(unittest.TestCase, TestIdMixin):
         self.rnp = Rnp(RNPDIR, RNP, RNPK)
         self.gpg = GnuPG(GPGDIR, GPG)
         self.rnp.password = self.gpg.password = PASSWORD
-        self.rnp.userid = self.gpg.userid = 'encrypttest'+self.test_id+'@example.com'
+        self.rnp.userid = self.gpg.userid = self.test_id+'@example.com'
 
     @classmethod
     def tearDownClass(cls):
@@ -1042,6 +1042,46 @@ class EncryptElgamal(Encrypt):
         cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(1234)
         self._encrypt_decrypt(self.rnp, self.gpg, cmd)
 
+class EncryptEcdh(Encrypt):
+
+    GPG_GENERATE_ECDH_ECDSA_PATERN = """
+        Key-Type: ecdsa
+        Key-Curve: {0}
+        Key-Usage: sign auth
+        Subkey-Type: ecdh
+        Subkey-Usage: encrypt
+        Subkey-Curve: {0}
+        Name-Real: Test Testovich
+        Expire-Date: 1y
+        Preferences: twofish sha256 sha384 sha512 sha1 zlib
+        Name-Email: {1}"""
+
+    RNP_GENERATE_ECDH_ECDSA_PATERN = "18\n{0}\n"
+
+    def test_encrypt_nistP256(self):
+        cmd = EncryptEcdh.GPG_GENERATE_ECDH_ECDSA_PATERN.format("nistp256", self.rnp.userid)
+        self._encrypt_decrypt(self.gpg, self.rnp, cmd)
+
+    def test_encrypt_nistP384(self):
+        cmd = EncryptEcdh.GPG_GENERATE_ECDH_ECDSA_PATERN.format("nistp384", self.rnp.userid)
+        self._encrypt_decrypt(self.gpg, self.rnp, cmd)
+
+    def test_encrypt_nistP521(self):
+        cmd = EncryptEcdh.GPG_GENERATE_ECDH_ECDSA_PATERN.format("nistp521", self.rnp.userid)
+        self._encrypt_decrypt(self.gpg, self.rnp, cmd)
+
+    def test_decrypt_nistP256(self):
+        cmd = EncryptEcdh.RNP_GENERATE_ECDH_ECDSA_PATERN.format(1)
+        self._encrypt_decrypt(self.rnp, self.gpg, cmd)
+
+    def test_decrypt_nistP384(self):
+        cmd = EncryptEcdh.RNP_GENERATE_ECDH_ECDSA_PATERN.format(2)
+        self._encrypt_decrypt(self.rnp, self.gpg, cmd)
+
+    def test_decrypt_nistP521(self):
+        cmd = EncryptEcdh.RNP_GENERATE_ECDH_ECDSA_PATERN.format(3)
+        self._encrypt_decrypt(self.rnp, self.gpg, cmd)
+
 class Sign(unittest.TestCase, TestIdMixin):
     # Message sizes to be tested
     SIZES = [20, 1000, 5000, 20000, 150000, 1000000]
@@ -1057,7 +1097,7 @@ class Sign(unittest.TestCase, TestIdMixin):
 
         eX == entityX
         '''
-        keyfile, input, output = reg_workfiles("signing"+self.test_id, '.gpg', '.in', '.out')
+        keyfile, input, output = reg_workfiles(self.test_id, '.gpg', '.in', '.out')
         random_text(input, 0x1337)
         self.assertTrue(e1.generte_key_batch(keygen_cmd))
         self.assertTrue(e1.export_key(keyfile, False))
@@ -1070,7 +1110,7 @@ class Sign(unittest.TestCase, TestIdMixin):
         self.rnp = Rnp(RNPDIR, RNP, RNPK)
         self.gpg = GnuPG(GPGDIR, GPG)
         self.rnp.password = self.gpg.password = PASSWORD
-        self.rnp.userid = self.gpg.userid = 'encrypttest'+self.test_id+'@example.com'
+        self.rnp.userid = self.gpg.userid = self.test_id+'@example.com'
 
     @classmethod
     def tearDownClass(cls):
