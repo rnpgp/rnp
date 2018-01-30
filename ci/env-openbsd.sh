@@ -9,6 +9,12 @@ export JSONC_INSTALL="${LOCAL_BUILDS}/builds/json-c-install"
 export GPG21_INSTALL="${LOCAL_BUILDS}/builds/gpg21-install"
 export BUILD_MODE=normal
 export CLANG_FORMAT_DIFF="clang-format-diff-4.0"
-export CC=clang
+export CC=gcc
 export MAKE=gmake
 
+# TODO: make these read from pkg_info
+export AUTOCONF_VERSION=2.69
+export AUTOMAKE_VERSION=1.15
+
+# TODO: use this environment variable in test scripts
+export GPG=gpg2
