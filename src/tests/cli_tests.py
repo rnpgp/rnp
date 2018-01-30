@@ -589,6 +589,10 @@ def setup(loglvl):
     GPGCONF = os.getenv('RNPC_GPGCONF_PATH') or find_utility('gpgconf')
     os.mkdir(GPGDIR, 0700)
 
+class TestIdMixin(object):
+    @property
+    def test_id(self):
+        return "".join(self.id().split('.')[1:3])
 
 '''
     Things to try here later on:
@@ -973,10 +977,10 @@ class SignDefault(unittest.TestCase):
             rnp_detached_signing_gpg_to_rnp(size)
             rnp_cleartext_signing_gpg_to_rnp(size)
 
-class Encrypt(unittest.TestCase):
+class Encrypt(unittest.TestCase, TestIdMixin):
     def _encrypt_decrypt(self, e1, e2,  keygen_cmd):
         key_id = "".join(self.id().split('.')[1:3])
-        keyfile, input, enc_out, dec_out = reg_workfiles("encrypt"+str(key_id), '.gpg', '.in', '.enc', '.dec')
+        keyfile, input, enc_out, dec_out = reg_workfiles("encrypt"+self.test_id, '.gpg', '.in', '.enc', '.dec')
         random_text(input, 0x1337)
         self.assertTrue(e1.generte_key_batch(keygen_cmd))
         self.assertTrue(e1.export_key(keyfile, False))
@@ -989,9 +993,10 @@ class Encrypt(unittest.TestCase):
         self.rnp = Rnp(RNPDIR, RNP, RNPK)
         self.gpg = GnuPG(GPGDIR, GPG)
         self.rnp.password = self.gpg.password = PASSWORD
-        self.rnp.userid = self.gpg.userid = 'encrypttest@secure.gov'
+        self.rnp.userid = self.gpg.userid = 'encrypttest'+self.test_id+'@example.com'
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(cls):
         clear_keyrings()
 
 class EncryptElgamal(Encrypt):
@@ -1039,7 +1044,7 @@ class EncryptElgamal(Encrypt):
         cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(1234)
         self._encrypt_decrypt(self.rnp, self.gpg, cmd)
 
-class Sign(unittest.TestCase):
+class Sign(unittest.TestCase, TestIdMixin):
     # Message sizes to be tested
     SIZES = [20, 1000, 5000, 20000, 150000, 1000000]
 
@@ -1054,8 +1059,7 @@ class Sign(unittest.TestCase):
 
         eX == entityX
         '''
-        key_id = "".join(self.id().split('.')[1:3])
-        keyfile, input, output = reg_workfiles("signing"+str(key_id), '.gpg', '.in', '.out')
+        keyfile, input, output = reg_workfiles("signing"+self.test_id, '.gpg', '.in', '.out')
         random_text(input, 0x1337)
         self.assertTrue(e1.generte_key_batch(keygen_cmd))
         self.assertTrue(e1.export_key(keyfile, False))
@@ -1068,9 +1072,10 @@ class Sign(unittest.TestCase):
         self.rnp = Rnp(RNPDIR, RNP, RNPK)
         self.gpg = GnuPG(GPGDIR, GPG)
         self.rnp.password = self.gpg.password = PASSWORD
-        self.rnp.userid = self.gpg.userid = 'singingtest@secure.gov'
+        self.rnp.userid = self.gpg.userid = 'encrypttest'+self.test_id+'@example.com'
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(cls):
         clear_keyrings()
 
 class SignECDSA(Sign):
