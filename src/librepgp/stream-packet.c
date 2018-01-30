@@ -736,8 +736,8 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
 
     if (skey->version == PGP_SKSK_V5) {
         /* v5: iv + esk + tag. For both EAX and OCB ivlen and taglen are 16 octets */
-        size_t ivlen = pgp_cipher_aead_nonce_len(skey->aalg);
-        size_t taglen = pgp_cipher_aead_tag_len(skey->aalg);
+        ssize_t ivlen = pgp_cipher_aead_nonce_len(skey->aalg);
+        ssize_t taglen = pgp_cipher_aead_tag_len(skey->aalg);
         if (len > ivlen + taglen + PGP_MAX_KEY_SIZE) {
             RNP_LOG("too long esk");
             return RNP_ERROR_BAD_FORMAT;

@@ -528,7 +528,7 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
     bool    res = false;
     ssize_t read;
     ssize_t tagread;
-    size_t  taglen;
+    ssize_t  taglen;
     uint8_t tag[PGP_AEAD_MAX_TAG_LEN * 2];
 
     param->cachepos = 0;
