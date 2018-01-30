@@ -27,6 +27,7 @@ WORKDIR = ''
 RNP = ''
 RNPK = ''
 GPG = ''
+GPGCONF = ''
 RNPDIR = ''
 PASSWORD = 'password'
 RMWORKDIR = True
@@ -109,7 +110,7 @@ def clear_keyrings():
     shutil.rmtree(RNPDIR, ignore_errors=True)
     os.mkdir(RNPDIR, 0700)
 
-    run_proc('kill', ['-9', 'gpg-agent'])
+    run_proc(GPGCONF, ['--homedir', GPGDIR, '--kill', 'gpg-agent'])
     while os.path.isdir(GPGDIR):
         try:
             shutil.rmtree(GPGDIR)
@@ -117,6 +118,7 @@ def clear_keyrings():
             time.sleep(0.1)
     os.mkdir(GPGDIR, 0700)
     run_proc('gpg-connect-agent', ['reloadagent', '/bye'])
+    time.sleep(1)
 
 def compare_files(src, dst, message):
     if file_text(src) != file_text(dst):
@@ -567,7 +569,7 @@ def rnp_cleartext_signing_gpg_to_rnp(filesize):
 
 def setup(loglvl):
     # Setting up directories.
-    global RMWORKDIR, WORKDIR, RNPDIR, RNP, RNPK, GPG, GPGDIR
+    global RMWORKDIR, WORKDIR, RNPDIR, RNP, RNPK, GPG, GPGDIR, GPGCONF
     logging.basicConfig(stream=sys.stderr, format="%(message)s")
     logging.getLogger().setLevel(loglvl)
     WORKDIR = os.getcwd()
@@ -584,6 +586,7 @@ def setup(loglvl):
 
     GPGDIR = path.join(WORKDIR, '.gpg')
     GPG = os.getenv('RNPC_GPG_PATH') or find_utility('gpg')
+    GPGCONF = os.getenv('RNPC_GPGCONF_PATH') or find_utility('gpgconf')
     os.mkdir(GPGDIR, 0700)
 
 
