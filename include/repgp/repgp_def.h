@@ -122,6 +122,9 @@
 /* Default chunk bits, equals to 1mb chunks */
 #define PGP_AEAD_DEF_CHUNK_BITS 14
 
+/* Preallocated cache length for AEAD encryption/decryption */
+#define PGP_AEAD_CACHE_LEN (PGP_INPUT_CACHE_SIZE + PGP_AEAD_MAX_TAG_LEN)
+
 /** Old Packet Format Lengths.
  * Defines the meanings of the 2 bits for length type in the
  * old packet format.
