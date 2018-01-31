@@ -92,8 +92,6 @@ typedef struct pgp_source_packet_param_t {
     uint64_t      len; /* packet body length if non-partial and non-indeterminate */
 } pgp_source_packet_param_t;
 
-#define PGP_AEAD_CACHE_LEN (PGP_INPUT_CACHE_SIZE + PGP_AEAD_MAX_TAG_LEN)
-
 typedef struct pgp_source_encrypted_param_t {
     pgp_source_packet_param_t pkt;            /* underlying packet-related params */
     list                      symencs;        /* array of sym-encrypted session keys */
@@ -528,7 +526,7 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
     bool    res = false;
     ssize_t read;
     ssize_t tagread;
-    ssize_t  taglen;
+    ssize_t taglen;
     uint8_t tag[PGP_AEAD_MAX_TAG_LEN * 2];
 
     param->cachepos = 0;

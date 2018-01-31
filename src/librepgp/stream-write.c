@@ -94,14 +94,14 @@ typedef struct pgp_dest_encrypted_param_t {
     pgp_crypt_t             encrypt; /* encrypting crypto */
     pgp_hash_t              mdc;     /* mdc SHA1 hash */
     pgp_aead_alg_t          aalg;    /* AEAD algorithm used */
-    uint8_t                 iv[PGP_MAX_BLOCK_SIZE];  /* iv for AEAD mode */
-    uint8_t                 ad[PGP_AEAD_MAX_AD_LEN]; /* additional data for AEAD mode */
+    uint8_t                 iv[PGP_AEAD_MAX_NONCE_LEN]; /* iv for AEAD mode */
+    uint8_t                 ad[PGP_AEAD_MAX_AD_LEN];    /* additional data for AEAD mode */
     size_t                  adlen;    /* length of additional data, including chunk idx */
     size_t                  chunklen; /* length of the AEAD chunk in bytes */
     size_t                  chunkout; /* how many bytes from the chunk were written out */
     size_t                  chunkidx; /* index of the current AEAD chunk */
     size_t                  cachelen; /* how many bytes are in cache, for AEAD */
-    uint8_t cache[PGP_PARTIAL_PKT_BLOCK_SIZE]; /* pre-allocated cache for encryption */
+    uint8_t                 cache[PGP_AEAD_CACHE_LEN]; /* pre-allocated cache for encryption */
 } pgp_dest_encrypted_param_t;
 
 typedef struct pgp_dest_signed_param_t {
@@ -358,35 +358,6 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
     return res ? RNP_SUCCESS : RNP_ERROR_BAD_PARAMETERS;
 }
 
-/* @brief Encrypt and write aead block. Len must be multiple of granularity
-          Uses param->cache to store encryption result
-*/
-static rnp_result_t
-encrypted_dst_write_aead_block(pgp_dest_encrypted_param_t *param, const void *in, size_t len)
-{
-    size_t sz = len;
-
-    while (len > 0) {
-        sz = MIN(MIN(param->chunklen - param->chunkout, len), sizeof(param->cache));
-
-        if (!pgp_cipher_aead_update(&param->encrypt, param->cache, in, sz)) {
-            return RNP_ERROR_BAD_STATE;
-        }
-
-        dst_write(param->pkt.writedst, param->cache, sz);
-
-        param->chunkout += sz;
-        if (param->chunkout == param->chunklen) {
-            encrypted_start_aead_chunk(param, param->chunkidx + 1, false);
-        }
-
-        len -= sz;
-        in = (uint8_t *) in + sz;
-    }
-
-    return RNP_SUCCESS;
-}
-
 static rnp_result_t
 encrypted_dst_write_aead(pgp_dest_t *dst, const void *buf, size_t len)
 {
@@ -407,37 +378,40 @@ encrypted_dst_write_aead(pgp_dest_t *dst, const void *buf, size_t len)
     /* because of botan's FFI granularity we need to make things a bit complicated */
     gran = pgp_cipher_aead_granularity(&param->encrypt);
 
-    /* checking whether we have something left in cache */
-    if (param->cachelen > 0) {
-        if (param->cachelen + len < gran) {
-            memcpy(param->cache + param->cachelen, buf, len);
-            param->cachelen += len;
-            return RNP_SUCCESS;
-        }
+    if (param->cachelen > param->chunklen - param->chunkout) {
+        RNP_LOG("wrong AEAD cache state");
+        return RNP_ERROR_BAD_STATE;
+    }
 
-        sz = (param->cachelen + gran - 1) / gran * gran - param->cachelen;
+    while (len > 0) {
+        sz = MIN(sizeof(param->cache) - PGP_AEAD_MAX_TAG_LEN - param->cachelen, len);
+        sz = MIN(sz, param->chunklen - param->chunkout - param->cachelen);
         memcpy(param->cache + param->cachelen, buf, sz);
+        param->cachelen += sz;
 
-        if ((res =
-               encrypted_dst_write_aead_block(param, param->cache, param->cachelen + sz))) {
-            return res;
+        if (param->cachelen == param->chunklen - param->chunkout) {
+            /* we have the tail of the chunk in cache */
+            if ((res = encrypted_start_aead_chunk(param, param->chunkidx + 1, false))) {
+                return res;
+            }
+            param->cachelen = 0;
+        } else if (param->cachelen >= gran) {
+            /* we have part of the chunk - so need to adjust it to the granularity */
+            size_t gransz = param->cachelen - param->cachelen % gran;
+            if (!pgp_cipher_aead_update(&param->encrypt, param->cache, param->cache, gransz)) {
+                return RNP_ERROR_BAD_STATE;
+            }
+            dst_write(param->pkt.writedst, param->cache, gransz);
+            memmove(param->cache, param->cache + gransz, param->cachelen - gransz);
+            param->cachelen -= gransz;
+            param->chunkout += gransz;
         }
 
-        buf = (uint8_t *) buf + sz;
         len -= sz;
-        param->cachelen = 0;
+        buf = (uint8_t *) buf + sz;
     }
 
-    /* we rely on the fact that chunklen and cache are multiples of granularity */
-    sz = len / gran * gran;
-    res = encrypted_dst_write_aead_block(param, buf, sz);
-
-    if (!res && (sz < len)) {
-        param->cachelen = len - sz;
-        memcpy(param->cache, (uint8_t *) buf + sz, param->cachelen);
-    }
-
-    return res;
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
@@ -449,6 +423,7 @@ encrypted_dst_finish(pgp_dest_t *dst)
 
     if (param->aead) {
         size_t chunks = param->chunkidx;
+        /* if we didn't write anything in current chunk then discard it and restart */
         if ((param->chunkout > 0) || (param->cachelen > 0)) {
             chunks++;
         }
@@ -809,7 +784,6 @@ static rnp_result_t
 encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
 {
     uint8_t hdr[4 + PGP_AEAD_MAX_NONCE_LEN];
-    size_t  gran;
     size_t  nlen;
 
     if (pgp_block_size(param->ctx->ealg) != 16) {
@@ -845,13 +819,6 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     /* initialize cipher */
     if (!pgp_cipher_aead_init(
           &param->encrypt, param->ctx->ealg, param->ctx->aalg, enckey, false)) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    /* chunklen must be multiple of granularity */
-    gran = pgp_cipher_aead_granularity(&param->encrypt);
-    if ((param->chunklen < gran) || (param->chunklen % gran)) {
-        RNP_LOG("wrong chunk size or cipher granularity");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
