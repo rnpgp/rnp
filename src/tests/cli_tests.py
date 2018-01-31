@@ -117,8 +117,6 @@ def clear_keyrings():
         except:
             time.sleep(0.1)
     os.mkdir(GPGDIR, 0700)
-    run_proc('gpg-connect-agent', ['reloadagent', '/bye'])
-    time.sleep(1)
 
 def compare_files(src, dst, message):
     if file_text(src) != file_text(dst):
