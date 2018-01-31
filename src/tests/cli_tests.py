@@ -93,6 +93,11 @@ r'signature .*' \
 r'uid\s+(.*)\s*' \
 r'Signature\(s\) verified successfully.*$'
 
+RNP_TO_GPG_ZALGS = { 'zip' : '1', 'zlib' : '2', 'bzip2' : '3' }
+RNP_TO_GPG_CIPHERS = {'AES' : 'aes128', 'AES192' : 'aes192', 'AES256' : 'aes256', 'TWOFISH' : 'twofish',
+        'CAMELLIA128' : 'camellia128', 'CAMELLIA192' : 'camellia192', 'CAMELLIA256' : 'camellia256',
+        'IDEA' : 'idea', '3DES' : 'tripledes', 'CAST5' : 'cast5', 'BLOWFISH' : 'blowfish'}
+
 def check_packets(fname, regexp):
     ret, output, err = run_proc(GPG, ['--list-packets', fname])
     if ret != 0:
@@ -173,14 +178,15 @@ def rnp_encrypt_file(recipient, src, dst, zlevel=6, zalgo='zip', armor=False):
         raise_err('rnp encryption failed', err)
 
 
-def rnp_symencrypt_file(src, dst, cipher, zlevel=6, zalgo='zip', armor=False, aead=False):
+def rnp_symencrypt_file(src, dst, cipher, zlevel=6, zalgo='zip', armor=False, aead=None):
     pipe = pswd_pipe(PASSWORD)
     params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--cipher', cipher, '-z', str(
         zlevel), '--' + zalgo, '-c', src, '--output', dst]
     if armor:
         params += ['--armor']
     if aead:
-        params += ['--aead']
+        algo, chunk = aead
+        params += ['--aead=' + algo, '--aead-chunk-bits=' + str(chunk)]
     ret, _, err = run_proc(RNP, params)
     os.close(pipe)
     if ret != 0:
@@ -295,11 +301,14 @@ def gpg_encrypt_file(src, dst, cipher='AES', zlevel=6, zalgo=1, armor=False):
         raise_err('gpg encryption failed for cipher ' + cipher, err)
 
 
-def gpg_symencrypt_file(src, dst, cipher='AES', zlevel=6, zalgo=1, armor=False):
+def gpg_symencrypt_file(src, dst, cipher='AES', zlevel=6, zalgo=1, armor=False, aead=None):
     params = ['--homedir', GPGDIR, '-c', '-z', str(zlevel), '--s2k-count', '65536', '--compress-algo', str(
         zalgo), '--batch', '--passphrase', PASSWORD, '--cipher-algo', cipher, '--output', dst, src]
     if armor:
         params.insert(2, '--armor')
+    if aead:
+        algo, chunk = aead
+        params[2:2] = ['--rfc4880bis', '--force-aead', '--aead-algo', algo, '--chunk-size', str(chunk)]
     ret, out, err = run_proc(GPG, params)
     if ret != 0:
         raise_err('gpg symmetric encryption failed for cipher ' + cipher, err)
@@ -465,17 +474,28 @@ def rnp_sym_encryption_rnp_to_gpg(cipher, filesize, zlevel=6, zalgo='zip'):
         remove_files(enc, dst)
     clear_workfiles()
 
-def rnp_sym_encryption_rnp_aead(cipher, filesize, zlevel=6, zalgo='zip'):
+def rnp_sym_encryption_rnp_aead(cipher, filesize, zlevel=6, zalgo='zip', mode='eax', bits = 14, usegpg = False):
     src, dst, enc = reg_workfiles('cleartext', '.txt', '.rnp', '.enc')
     # Generate random file of required size
     random_text(src, filesize)
-    for armor in [False, True]:
-        # Encrypt cleartext file with RNP
-        rnp_symencrypt_file(src, enc, cipher, zlevel, zalgo, armor, True)
+    # Encrypt cleartext file with RNP
+    rnp_symencrypt_file(src, enc, cipher, zlevel, zalgo, False, [mode, bits])
+    # Decrypt encrypted file with RNP
+    rnp_decrypt_file(enc, dst)
+    compare_files(src, dst, 'rnp decrypted data differs')
+    remove_files(dst)
+
+    if usegpg:
+        # Decrypt encrypted file with GPG
+        gpg_decrypt_file(enc, dst, PASSWORD)
+        compare_files(src, dst, 'gpg decrypted data differs')
+        remove_files(dst, enc)
+        # Encrypt cleartext file with GPG
+        gpg_symencrypt_file(src, enc, RNP_TO_GPG_CIPHERS[cipher], zlevel, RNP_TO_GPG_ZALGS[zalgo], False, [mode, bits + 6])
         # Decrypt encrypted file with RNP
         rnp_decrypt_file(enc, dst)
         compare_files(src, dst, 'rnp decrypted data differs')
-        remove_files(enc, dst)
+
     clear_workfiles()
 
 def rnp_signing_rnp_to_gpg(filesize):
@@ -564,6 +584,12 @@ def rnp_cleartext_signing_gpg_to_rnp(filesize):
     gpg_verify_cleartext(asc, KEY_SIGN_GPG)
     clear_workfiles()
 
+def gpg_supports_aead():
+    ret, out, err = run_proc(GPG, ["--version"])
+    if re.match(r'(?s)^.*AEAD:\s+EAX,\s+OCB.*', out):
+        return True
+    else:
+        return False
 
 def setup(loglvl):
     # Setting up directories.
@@ -849,10 +875,9 @@ class Encryption(unittest.TestCase):
     '''
     RNP_CIPHERS = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
     GPG_CIPHERS = ['cast5', 'idea', 'blowfish', 'twofish', 'aes128', 'aes192', 'aes256', 'camellia128', 'camellia192', 'camellia256', 'tripledes']
-    AEAD_CIPHERS = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
     SIZES = [20, 40, 120, 600, 1000, 5000, 20000, 150000, 1000000]
     # Number of test runs - each run picks next encryption algo and size, wrapping on array
-    RUNS = 30
+    RUNS = 60
 
     @classmethod
     def setUpClass(cls):
@@ -903,14 +928,25 @@ class Encryption(unittest.TestCase):
             rnp_sym_encryption_rnp_to_gpg(cipher, size, 6, 'bzip2')
 
     def test_sym_encryption__rnp_aead(self):
+        AEAD_CIPHERS = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
+        AEAD_MODES = ['eax', 'ocb']
+        AEAD_BITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18, 24, 30, 40, 50, 56]
+
+        usegpg = gpg_supports_aead()
+
         # Encrypt and decrypt cleartext using the AEAD
         for run in range(0, Encryption.RUNS):
-            cipher = Encryption.AEAD_CIPHERS[run % len(Encryption.AEAD_CIPHERS)]
+            cipher = AEAD_CIPHERS[run % len(AEAD_CIPHERS)]
             size = Encryption.SIZES[run % len(Encryption.SIZES)]
-            rnp_sym_encryption_rnp_aead(cipher, size, 0)
-            rnp_sym_encryption_rnp_aead(cipher, size, 6, 'zip')
-            rnp_sym_encryption_rnp_aead(cipher, size, 6, 'zlib')
-            rnp_sym_encryption_rnp_aead(cipher, size, 6, 'bzip2')
+            mode = AEAD_MODES[run % len(AEAD_MODES)]
+            bits = AEAD_BITS[run % len(AEAD_BITS)]
+
+            #print "AEAD test, filesize: " + str(size)
+
+            rnp_sym_encryption_rnp_aead(cipher, size, 0, 'zip', mode, bits, usegpg)
+            rnp_sym_encryption_rnp_aead(cipher, size, 6, 'zip', mode, bits, usegpg)
+            rnp_sym_encryption_rnp_aead(cipher, size, 6, 'zlib', mode, bits, usegpg)
+            rnp_sym_encryption_rnp_aead(cipher, size, 6, 'bzip2', mode, bits, usegpg)
 
 class Compression(unittest.TestCase):
 
