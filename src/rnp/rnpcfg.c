@@ -392,6 +392,34 @@ rnp_cfg_getlist(rnp_cfg_t *cfg, const char *key)
     return NULL;
 }
 
+bool
+rnp_cfg_copylist_str(rnp_cfg_t *cfg, list *dst, const char *key)
+{
+    rnp_cfg_item_t *it = rnp_cfg_find(cfg, key);
+
+    if (!it || (it->val.type != RNP_CFG_VAL_LIST)) {
+        goto fail;
+    }
+
+    for (list_item *li = list_front(it->val.val._list); li; li = list_next(li)) {
+        rnp_cfg_val_t *val = (rnp_cfg_val_t *) li;
+        if ((val->type != RNP_CFG_VAL_STRING) || !val->val._string) {
+            RNP_LOG("wrong item in string list");
+            goto fail;
+        }
+        if (!list_append(dst, val->val._string, strlen(val->val._string) + 1)) {
+            RNP_LOG("allocation failed");
+            goto fail;
+        }
+    }
+
+    return true;
+
+fail:
+    list_destroy(dst);
+    return false;
+}
+
 void
 rnp_cfg_free(rnp_cfg_t *cfg)
 {

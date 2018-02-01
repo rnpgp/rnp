@@ -76,6 +76,7 @@ static const char *usage = "--help OR\n"
                            "\t\t[--output=file] file OR\n"
                            "\t--version\n"
                            "where options are:\n"
+                           "\t[-r, --recipient] AND/OR\n"
                            "\t[--armor] AND/OR\n"
                            "\t[--cipher=<ciphername>] AND/OR\n"
                            "\t[--zip, --zlib, --bzip, -z 0..9] AND/OR\n"
@@ -111,6 +112,7 @@ enum optdefs {
     OPT_KEYRING,
     OPT_KEY_STORE_FORMAT,
     OPT_USERID,
+    OPT_RECIPIENT,
     OPT_ARMOR,
     OPT_HOMEDIR,
     OPT_DETACHED,
@@ -172,6 +174,7 @@ static struct option options[] = {
   {"keyring", required_argument, NULL, OPT_KEYRING},
   {"keystore-format", required_argument, NULL, OPT_KEY_STORE_FORMAT},
   {"userid", required_argument, NULL, OPT_USERID},
+  {"recipient", required_argument, NULL, OPT_RECIPIENT},
   {"home", required_argument, NULL, OPT_HOMEDIR},
   {"homedir", required_argument, NULL, OPT_HOMEDIR},
   {"ascii", no_argument, NULL, OPT_ARMOR},
@@ -184,7 +187,6 @@ static struct option options[] = {
   {"algorithm", required_argument, NULL, OPT_HASH_ALG},
   {"verbose", no_argument, NULL, OPT_VERBOSE},
   {"pass-fd", required_argument, NULL, OPT_PASSWDFD},
-  {"password", required_argument, NULL, OPT_PASSWD},
   {"password", required_argument, NULL, OPT_PASSWD},
   {"output", required_argument, NULL, OPT_OUTPUT},
   {"results", required_argument, NULL, OPT_RESULTS},
@@ -386,9 +388,10 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         }
     /* FALLTHROUGH */
     case CMD_ENCRYPT: {
-        if (userid) {
-            list_append(&ctx.recipients, userid, strlen(userid) + 1);
+        if (cmd == CMD_ENCRYPT) {
+            rnp_cfg_copylist_str(cfg, &ctx.recipients, CFG_RECIPIENTS);
         }
+
         ctx.ealg = pgp_str_to_cipher(rnp_cfg_getstr(cfg, CFG_CIPHER));
         ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
         ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
@@ -449,8 +452,6 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         rnp_cfg_setbool(cfg, CFG_COREDUMPS, true);
         break;
     case CMD_ENCRYPT:
-        /* for encryption, we need a userid */
-        rnp_cfg_setbool(cfg, CFG_NEEDSUSERID, true);
         *cmd = val;
         break;
     case CMD_SIGN:
@@ -529,6 +530,13 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
             exit(EXIT_ERROR);
         }
         rnp_cfg_setstr(cfg, CFG_USERID, arg);
+        break;
+    case OPT_RECIPIENT:
+        if (arg == NULL) {
+            fputs("No recipient argument provided\n", stderr);
+            exit(EXIT_ERROR);
+        }
+        rnp_cfg_addstr(cfg, CFG_RECIPIENTS, arg);
         break;
     case OPT_ARMOR:
         rnp_cfg_setint(cfg, CFG_ARMOR, 1);
@@ -718,7 +726,7 @@ main(int argc, char **argv)
     optindex = 0;
 
     /* TODO: These options should be set after initialising the context. */
-    while ((ch = getopt_long(argc, argv, "S:Vdeco:svz:", options, &optindex)) != -1) {
+    while ((ch = getopt_long(argc, argv, "S:Vdeco:r:svz:", options, &optindex)) != -1) {
         if (ch >= CMD_ENCRYPT) {
             /* getopt_long returns 0 for long options */
             if (!setoption(&cfg, &cmd, options[optindex].val, optarg)) {
@@ -739,8 +747,6 @@ main(int argc, char **argv)
                 cmd = CMD_DECRYPT;
                 break;
             case 'e':
-                /* for encryption, we need a userid */
-                rnp_cfg_setbool(&cfg, CFG_NEEDSUSERID, true);
                 cmd = CMD_ENCRYPT;
                 break;
             case 'c':
@@ -749,6 +755,13 @@ main(int argc, char **argv)
             case 'o':
                 if (!parse_option(&cfg, &cmd, optarg)) {
                     (void) fprintf(stderr, "Bad option\n");
+                }
+                break;
+            case 'r':
+                if (strlen(optarg) < 1) {
+                    fprintf(stderr, "Recipient should not be empty\n");
+                } else {
+                    rnp_cfg_addstr(&cfg, CFG_RECIPIENTS, optarg);
                 }
                 break;
             case 's':
