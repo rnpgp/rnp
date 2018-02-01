@@ -119,7 +119,7 @@ class Rnp(object):
         pipe = pswd_pipe(self.password)
         params = self.common_params
         params += ['--pass-fd', str(pipe)]
-        params += ['--userid', recipient]
+        params += ['--recipient', recipient]
         params += ['--encrypt', input]
         params += ['--output', output]
         try:

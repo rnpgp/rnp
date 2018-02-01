@@ -169,7 +169,7 @@ def rnp_genkey_rsa(userid, bits=2048):
 
 
 def rnp_encrypt_file(recipient, src, dst, zlevel=6, zalgo='zip', armor=False):
-    params = ['--homedir', RNPDIR, '--userid', recipient, '-z',
+    params = ['--homedir', RNPDIR, '-r', recipient, '-z',
               str(zlevel), '--' + zalgo, '--encrypt', src, '--output', dst]
     if armor:
         params += ['--armor']

@@ -44,12 +44,13 @@
 #define CFG_COREDUMPS "coredumps"     /* enable/disable core dumps. 1 or 0. */
 #define CFG_NEEDSUSERID "needsuserid" /* needs user id for the ongoing operation */
 #define CFG_NEEDSSECKEY "needsseckey" /* needs secret key for the ongoing operation */
-#define CFG_KEYRING "keyring" /* path to the keyring ?? seems not to be used anywhere */
-#define CFG_USERID "userid"   /* userid for the ongoing operation */
-#define CFG_VERBOSE "verbose" /* verbose logging */
-#define CFG_HOMEDIR "homedir" /* home directory - folder with keyrings and so on */
-#define CFG_PASSFD "pass-fd"  /* password file descriptor */
-#define CFG_PASSWD "password" /* password as command-line constant */
+#define CFG_KEYRING "keyring"       /* path to the keyring ?? seems not to be used anywhere */
+#define CFG_USERID "userid"         /* userid for the ongoing operation */
+#define CFG_RECIPIENTS "recipients" /* list of encrypted data recipients */
+#define CFG_VERBOSE "verbose"       /* verbose logging */
+#define CFG_HOMEDIR "homedir"       /* home directory - folder with keyrings and so on */
+#define CFG_PASSFD "pass-fd"        /* password file descriptor */
+#define CFG_PASSWD "password"       /* password as command-line constant */
 #define CFG_USERINPUTFD "user-input-fd" /* user input file descriptor */
 #define CFG_NUMTRIES "numtries"         /* number of password request tries, or 'unlimited' */
 #define CFG_EXPIRATION "expiration"     /* signature expiration time */
@@ -167,13 +168,22 @@ int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
 bool rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key);
 
 /** @brief return list value for the key if there is one. Each list's element contains
- *  rbp_cfg_val_t element with the corresponding value. List may be modified.
+ *  rnp_cfg_val_t element with the corresponding value. List may be modified.
  *  @param cfg rnp config, must be allocated and initialized
  *  @param key must be null-terminated string
  *
  *  @return pointer to the list on success or NULL if value was not found or has other type
  **/
 list *rnp_cfg_getlist(rnp_cfg_t *cfg, const char *key);
+
+/** @brief copy string values as char * from the list to destination
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param dst pointer to the list structure, where strings will be stored
+ *  @param key must be null-terminated string
+ *
+ *  @return true on success or false otherwise
+ **/
+bool rnp_cfg_copylist_str(rnp_cfg_t *cfg, list *dst, const char *key);
 
 /** @brief free the memory allocated in rnp_cfg_t
  *  @param cfg rnp config, must be allocated and initialized
