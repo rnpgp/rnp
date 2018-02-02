@@ -527,7 +527,6 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
     ssize_t read;
     ssize_t tagread;
     ssize_t taglen;
-    uint8_t tag[PGP_AEAD_MAX_TAG_LEN * 2];
 
     param->cachepos = 0;
     param->cachelen = 0;
@@ -538,62 +537,81 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
 
     /* it is always 16 for defined EAX and OCB, however this may change in future */
     taglen = pgp_cipher_aead_tag_len(param->aead_params.aalg);
-    read = sizeof(param->cache) - PGP_AEAD_MAX_TAG_LEN;
+    read = sizeof(param->cache) - 2 * PGP_AEAD_MAX_TAG_LEN;
+
     if ((size_t) read >= param->chunklen - param->chunkin) {
         read = param->chunklen - param->chunkin;
         chunkend = true;
+    } else {
+        read = read - read % pgp_cipher_aead_granularity(&param->decrypt);
     }
 
-    read = src_read(param->pkt.readsrc, param->cache, read);
-
-    if (read < 0) {
+    if ((read = src_read(param->pkt.readsrc, param->cache, read)) < 0) {
         return read;
     }
 
     /* checking whether we have enough input for the final tags */
-    tagread = src_peek(param->pkt.readsrc, tag, taglen * 2);
-    if ((tagread < 0) || (tagread + read < taglen * 2)) {
-        RNP_LOG("wrong aead tag read state");
-        return -1;
+    if ((tagread = src_peek(param->pkt.readsrc, param->cache + read, taglen * 2)) < 0) {
+        return tagread;
     }
 
     if (tagread < taglen * 2) {
-        size_t tagsub = taglen * 2 - tagread;
-        memmove(tag + tagsub, tag, tagread);
-        memcpy(tag, param->cache + read - tagsub, tagsub);
-        read -= tagsub;
-        lastchunk = true;
-        chunkend = true;
+        /* this would mean the end of the stream */
+        if ((param->chunkin == 0) && (read + tagread == taglen)) {
+            /* we have empty chunk and final tag */
+            chunkend = false;
+            lastchunk = true;
+        } else if (read + tagread >= 2 * taglen) {
+            /* we have end of chunk and final tag */
+            chunkend = true;
+            lastchunk = true;
+        } else {
+            RNP_LOG("unexpected end of data");
+            return false;
+        }
     }
 
-    param->chunkin += read;
+    if (!chunkend && !lastchunk) {
+        param->chunkin += read;
+        res = pgp_cipher_aead_update(&param->decrypt, param->cache, param->cache, read);
+        if (res) {
+            param->cachelen = read;
+        }
+        return res;
+    }
 
     if (chunkend) {
-        src_skip(param->pkt.readsrc, lastchunk ? tagread : taglen);
-        memcpy(param->cache + read, tag, taglen);
-        res =
-          pgp_cipher_aead_finish(&param->decrypt, param->cache, param->cache, read + taglen);
+        if (tagread > taglen) {
+            src_skip(param->pkt.readsrc, tagread - taglen);
+        }
 
+        res = pgp_cipher_aead_finish(&param->decrypt, param->cache, param->cache, read + tagread - taglen);
         if (!res) {
             RNP_LOG("failed to finalize aead chunk");
+            return res;
         }
-
-        res = res && encrypted_start_aead_chunk(param, param->chunkidx + 1, lastchunk);
-        if (res && lastchunk) {
-            memmove(tag, tag + taglen, taglen);
-            res = pgp_cipher_aead_finish(&param->decrypt, tag, tag, taglen);
-            if (!res) {
-                RNP_LOG("wrong last chunk");
-            }
-            param->aead_validated = true;
-        }
-    } else {
-        /* read here will be the multiple of granularity due to param->cache size selection */
-        res = pgp_cipher_aead_update(&param->decrypt, param->cache, param->cache, read);
+        param->cachelen = read + tagread - 2 * taglen;
+        param->chunkin += param->cachelen;
     }
 
-    if (res) {
-        param->cachelen = read;
+    res = encrypted_start_aead_chunk(param, chunkend ? param->chunkidx + 1 : param->chunkidx, lastchunk);
+    if (!res) {
+        RNP_LOG("failed to start aead chunk");
+        return res;
+    }
+
+    if (lastchunk) {
+        if (tagread > 0) {
+            src_skip(param->pkt.readsrc, tagread);
+        }
+
+        size_t off = read + tagread - taglen;
+        res = pgp_cipher_aead_finish(&param->decrypt, param->cache + off, param->cache + off, taglen);
+        if (!res) {
+            RNP_LOG("wrong last chunk");
+            return res;
+        }
+        param->aead_validated = true;
     }
 
     return res;
