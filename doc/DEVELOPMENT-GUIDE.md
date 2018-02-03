@@ -115,6 +115,7 @@ export BOTAN_INSTALL="${LOCAL_BUILDS}/botan-install"
 export CMOCKA_INSTALL="${LOCAL_BUILDS}/cmocka-install"
 export JSONC_INSTALL="${LOCAL_BUILDS}/jsonc-install"
 export GPG_INSTALL="${LOCAL_BUILDS}/gpg-install"
+export GPG_VERSION=stable
 export BUILD_MODE=normal
 ci/install.sh
 env CC=clang ci/main.sh

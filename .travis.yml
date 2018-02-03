@@ -24,24 +24,47 @@ env:
 matrix:
   fast_finish: true
   include:
-    - env: BUILD_MODE=normal
+    # normal
+    - env: BUILD_MODE=normal GPG_VERSION=stable
       compiler: clang
-    - env: BUILD_MODE=sanitize
+    - env: BUILD_MODE=normal GPG_VERSION=beta
       compiler: clang
-    - env: BUILD_MODE=sanitize-leaks
+
+    # clang sanitizers
+    - env: BUILD_MODE=sanitize GPG_VERSION=stable
       compiler: clang
-    - env: BUILD_MODE=coverage
+    - env: BUILD_MODE=sanitize GPG_VERSION=beta
+      compiler: clang
+
+    # clang sanitizers (memory leaks)
+    - env: BUILD_MODE=sanitize-leaks GPG_VERSION=stable
+      compiler: clang
+      # requires ptrace, which isn't currently working in travis containers
+      sudo: true
+    - env: BUILD_MODE=sanitize-leaks GPG_VERSION=beta
+      compiler: clang
+      # requires ptrace, which isn't currently working in travis containers
+      sudo: true
+
+    # codecov
+    - env: BUILD_MODE=coverage GPG_VERSION=stable
       compiler: gcc
-    - env: BUILD_MODE=style-check
+
+    # clang-format style checks
+    - env: BUILD_MODE=style-check GPG_VERSION=stable
       addons:
         apt:
           sources:
             - llvm-toolchain-trusty-4.0
           packages:
             - clang-format-4.0
+
   allow_failures:
-    - env: BUILD_MODE=sanitize-leaks
-    - env: BUILD_MODE=style-check
+    # allowed to fail until we have eliminated all memory leaks from our test runs
+    - env: BUILD_MODE=sanitize-leaks GPG_VERSION=stable
+    - env: BUILD_MODE=sanitize-leaks GPG_VERSION=beta
+    # allowed to fail until we have stabilized on a clang-format version
+    - env: BUILD_MODE=style-check GPG_VERSION=stable
 
 cache:
   directories:
