@@ -66,11 +66,11 @@ if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \
   popd
 fi
 
-# gpg21
-gpg21_build=${LOCAL_BUILDS}/gpg21
-if [ ! -e "${GPG21_INSTALL}/bin/gpg" ]; then
-  mkdir -p "${gpg21_build}"
-  cd "${gpg21_build}"
+# gpg
+gpg_build=${LOCAL_BUILDS}/gpg
+if [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
+  mkdir -p "${gpg_build}"
+  cd "${gpg_build}"
 
   gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 249B39D24F25E3B6 04376F3EE0856959 2071B08A33BD3F06 8A861B1C7EFD60D9
 
@@ -84,7 +84,7 @@ if [ ! -e "${GPG21_INSTALL}/bin/gpg" ]; then
     tar -xjf ${pkgname}-${version}.tar.bz2
     cd ${pkgname}-${version}/
     # autoreconf -ivf
-    ./configure --prefix="${GPG21_INSTALL}"
+    ./configure --prefix="${GPG_INSTALL}"
     ${MAKE} -j${CORES} install
     cd ..
   done
@@ -99,7 +99,7 @@ if [ ! -e "${GPG21_INSTALL}/bin/gpg" ]; then
     tar -xjf ${pkgname}-${version}.tar.bz2
     cd ${pkgname}-${version}/
     # autoreconf -ivf
-    ./configure --prefix="${GPG21_INSTALL}" --with-libgpg-error-prefix="${GPG21_INSTALL}"
+    ./configure --prefix="${GPG_INSTALL}" --with-libgpg-error-prefix="${GPG_INSTALL}"
     ${MAKE} -j${CORES} install
     cd ..
   done
@@ -109,9 +109,9 @@ if [ ! -e "${GPG21_INSTALL}/bin/gpg" ]; then
   gpg --verify pinentry-1.1.0.tar.bz2.sig
   tar -xjf pinentry-1.1.0.tar.bz2
   cd pinentry-1.1.0
-  ./configure --prefix="${GPG21_INSTALL}" \
-    --with-libgpg-error-prefix="${GPG21_INSTALL}" \
-    --with-libassuan-prefix="${GPG21_INSTALL}" \
+  ./configure --prefix="${GPG_INSTALL}" \
+    --with-libgpg-error-prefix="${GPG_INSTALL}" \
+    --with-libassuan-prefix="${GPG_INSTALL}" \
     --enable-pinentry-curses \
     --disable-pinentry-qt4
   ${MAKE} -j${CORES} install
@@ -122,12 +122,12 @@ if [ ! -e "${GPG21_INSTALL}/bin/gpg" ]; then
   gpg --verify gnupg-2.2.4.tar.bz2.sig
   tar -xjf gnupg-2.2.4.tar.bz2
   cd gnupg-2.2.4
-  ./configure --prefix="${GPG21_INSTALL}" \
-    --with-libgpg-error-prefix="${GPG21_INSTALL}" \
-    --with-libgcrypt-prefix="${GPG21_INSTALL}" \
-    --with-libassuan-prefix="${GPG21_INSTALL}" \
-    --with-ksba-prefix="${GPG21_INSTALL}" \
-    --with-npth-prefix="${GPG21_INSTALL}"
+  ./configure --prefix="${GPG_INSTALL}" \
+    --with-libgpg-error-prefix="${GPG_INSTALL}" \
+    --with-libgcrypt-prefix="${GPG_INSTALL}" \
+    --with-libassuan-prefix="${GPG_INSTALL}" \
+    --with-ksba-prefix="${GPG_INSTALL}" \
+    --with-npth-prefix="${GPG_INSTALL}"
   ${MAKE} -j${CORES} install
 
 fi
