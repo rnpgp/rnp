@@ -54,6 +54,18 @@
 
 #include "crypto/rng.h"
 
+/* Nonce len for AEAD/EAX */
+#define PGP_AEAD_EAX_NONCE_LEN 16
+
+/* Nonce len for AEAD/OCB */
+#define PGP_AEAD_OCB_NONCE_LEN 15
+
+/* Maximum AEAD nonce length */
+#define PGP_AEAD_MAX_NONCE_LEN 16
+
+/* Authentication tag len for AEAD/EAX and AEAD/OCB */
+#define PGP_AEAD_EAX_OCB_TAG_LEN 16
+
 /** pgp_crypt_t */
 typedef struct pgp_crypt_t {
     union {

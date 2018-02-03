@@ -56,4 +56,7 @@
 #define EXT_PGP (".pgp")
 #define EXT_GPG (".gpg")
 
+/* Preallocated cache length for AEAD encryption/decryption */
+#define PGP_AEAD_CACHE_LEN (PGP_INPUT_CACHE_SIZE + PGP_AEAD_MAX_TAG_LEN)
+
 #endif /* !STREAM_DEF_H_ */

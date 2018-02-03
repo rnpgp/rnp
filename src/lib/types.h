@@ -75,6 +75,15 @@
 #define PGP_MPINT_BITS (16384)
 #define PGP_MPINT_SIZE (PGP_MPINT_BITS >> 3)
 
+/* Maximum AEAD tag length */
+#define PGP_AEAD_MAX_TAG_LEN 16
+
+/* Maximum authenticated data length for AEAD */
+#define PGP_AEAD_MAX_AD_LEN 32
+
+/* Maximum length of the packet header */
+#define PGP_MAX_HEADER_SIZE 6
+
 /** General-use structure for variable-length data
  */
 
