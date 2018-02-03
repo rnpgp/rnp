@@ -13,7 +13,7 @@ env:
     - BOTAN_INSTALL="${LOCAL_BUILDS}/botan-install"
     - CMOCKA_INSTALL="${LOCAL_BUILDS}/cmocka-install"
     - JSONC_INSTALL="${LOCAL_BUILDS}/jsonc-install"
-    - GPG21_INSTALL="${LOCAL_BUILDS}/gpg21-install"
+    - GPG_INSTALL="${LOCAL_BUILDS}/gpg-install"
     - LOGNAME="Travis"
     - CLANG_FORMAT_DIFF="clang-format-diff-4.0"
 
@@ -48,7 +48,7 @@ cache:
     - "$BOTAN_INSTALL"
     - "$CMOCKA_INSTALL"
     - "$JSONC_INSTALL"
-    - "$GPG21_INSTALL"
+    - "$GPG_INSTALL"
 
 before_install:
   - ./ci/before_install.sh
