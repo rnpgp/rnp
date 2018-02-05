@@ -513,6 +513,11 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
     /* set chunk index for nonce */
     nlen = pgp_cipher_aead_nonce(param->aead_params.aalg, param->aead_params.iv, nonce, idx);
 
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, "authenticated data: ", param->aead_params.ad, param->aead_params.adlen);
+        hexdump(stderr, "nonce: ", nonce, nlen);
+    }
+
     /* start cipher */
     return pgp_cipher_aead_start(&param->decrypt, nonce, nlen);
 }
@@ -592,6 +597,10 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
         }
         param->cachelen = read + tagread - 2 * taglen;
         param->chunkin += param->cachelen;
+
+        if (rnp_get_debug(__FILE__)) {
+            hexdump(stderr, "decrypted data: ", param->cache, param->cachelen);
+        }
     }
 
     res = encrypted_start_aead_chunk(param, chunkend ? param->chunkidx + 1 : param->chunkidx, lastchunk);
@@ -1487,6 +1496,10 @@ encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
     ad_data[2] = skey->alg;
     ad_data[3] = skey->aalg;
 
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, "sesk ad: ", ad_data, 4);
+    }
+
     pgp_cipher_aead_set_ad(crypt, ad_data, 4);
 }
 
@@ -1510,6 +1523,10 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
         keysize = pgp_key_size(skey->alg);
         if (!keysize || !pgp_s2k_derive_key(&skey->s2k, password, keybuf, keysize)) {
             continue;
+        }
+
+        if (rnp_get_debug(__FILE__)) {
+            hexdump(stderr, "derived key: ", keybuf, keysize);
         }
 
         if (skey->version == PGP_SKSK_V4) {
@@ -1559,10 +1576,19 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
             /* calculate nonce */
             noncelen = pgp_cipher_aead_nonce(skey->aalg, skey->iv, nonce, 0);
 
+            if (rnp_get_debug(__FILE__)) {
+                hexdump(stderr, "nonce: ", nonce, noncelen);
+                hexdump(stderr, "encrypted key: ", skey->enckey, skey->enckeylen);
+            }
+
             /* start cipher, decrypt key and verify tag */
             keyavail = pgp_cipher_aead_start(&crypt, nonce, noncelen);
             decres = keyavail &&
                      pgp_cipher_aead_finish(&crypt, keybuf, skey->enckey, skey->enckeylen);
+
+            if (decres && rnp_get_debug(__FILE__)) {
+                hexdump(stderr, "decrypted key: ", keybuf, pgp_key_size(param->aead_params.ealg));
+            }
 
             pgp_cipher_aead_destroy(&crypt);
 
