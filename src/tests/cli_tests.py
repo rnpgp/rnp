@@ -932,7 +932,8 @@ class Encryption(unittest.TestCase):
         AEAD_MODES = ['eax', 'ocb']
         AEAD_BITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18, 24, 30, 40, 50, 56]
 
-        usegpg = gpg_supports_aead()
+        #usegpg = gpg_supports_aead()
+        usegpg = False
 
         # Encrypt and decrypt cleartext using the AEAD
         for run in range(0, Encryption.RUNS):
