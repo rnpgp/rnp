@@ -1024,14 +1024,17 @@ class EncryptElgamal(Encrypt):
         cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATERN.format(3072, 3072, self.gpg.userid)
         self._encrypt_decrypt(self.gpg, self.rnp, cmd)
 
+    @unittest.skip("Skip until #613 fixed")
     def test_decrypt_P1024(self):
         cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(1024)
         self._encrypt_decrypt(self.rnp, self.gpg, cmd)
 
+    @unittest.skip("Skip until #613 fixed")
     def test_decrypt_P2048(self):
         cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(2048)
         self._encrypt_decrypt(self.rnp, self.gpg, cmd)
 
+    @unittest.skip("Skip until #613 fixed")
     def test_decrypt_P1234(self):
         cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(1234)
         self._encrypt_decrypt(self.rnp, self.gpg, cmd)
