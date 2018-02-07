@@ -77,6 +77,7 @@ static const char *usage = "--help OR\n"
                            "\t--version\n"
                            "where options are:\n"
                            "\t[-r, --recipient] AND/OR\n"
+                           "\t[--passwords] AND/OR\n"
                            "\t[--armor] AND/OR\n"
                            "\t[--cipher=<ciphername>] AND/OR\n"
                            "\t[--zip, --zlib, --bzip, -z 0..9] AND/OR\n"
@@ -123,6 +124,7 @@ enum optdefs {
     OPT_COREDUMPS,
     OPT_PASSWDFD,
     OPT_PASSWD,
+    OPT_PASSWORDS,
     OPT_SSHKEYFILE,
     OPT_MAX_MEM_ALLOC,
     OPT_EXPIRATION,
@@ -188,6 +190,7 @@ static struct option options[] = {
   {"verbose", no_argument, NULL, OPT_VERBOSE},
   {"pass-fd", required_argument, NULL, OPT_PASSWDFD},
   {"password", required_argument, NULL, OPT_PASSWD},
+  {"passwords", required_argument, NULL, OPT_PASSWORDS},
   {"output", required_argument, NULL, OPT_OUTPUT},
   {"results", required_argument, NULL, OPT_RESULTS},
   {"maxmemalloc", required_argument, NULL, OPT_MAX_MEM_ALLOC},
@@ -379,13 +382,18 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     case CMD_DECRYPT:
         ret = rnp_process_file(&ctx, f, rnp_cfg_getstr(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
-    case CMD_SYM_ENCRYPT:
+    case CMD_SYM_ENCRYPT: {
+        int passwordc = rnp_cfg_getint_default(cfg, CFG_PASSWORDC, 1);
         ctx.ealg = pgp_str_to_cipher(rnp_cfg_getstr(cfg, CFG_CIPHER));
         ctx.halg = pgp_str_to_hash_alg(rnp_cfg_getstr(cfg, CFG_HASH));
-        if ((ret = rnp_encrypt_add_password(&ctx))) {
-            RNP_LOG("Failed to add password");
-            goto done;
+
+        for (int i = 0; i < passwordc; i++) {
+            if ((ret = rnp_encrypt_add_password(&ctx))) {
+                RNP_LOG("Failed to add password");
+                goto done;
+            }
         }
+    }
     /* FALLTHROUGH */
     case CMD_ENCRYPT: {
         if (cmd == CMD_ENCRYPT) {
@@ -576,6 +584,22 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         }
         rnp_cfg_setstr(cfg, CFG_PASSWD, arg);
         break;
+    case OPT_PASSWORDS: {
+        int count;
+        if (arg == NULL) {
+            (void) fprintf(stderr, "You must provide a number with --passwords option\n");
+            exit(EXIT_ERROR);
+        }
+
+        count = atoi(arg);
+        if (count <= 0) {
+            (void) fprintf(stderr, "Incorrect value for --passwords option: %s\n", arg);
+            exit(EXIT_ERROR);
+        }
+
+        rnp_cfg_setint(cfg, CFG_PASSWORDC, count);
+        break;
+    }
     case OPT_OUTPUT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No output filename argument provided\n");
