@@ -38,6 +38,7 @@
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-write.h>
+#include <librepgp/stream-packet.h>
 #include <librepgp/validate.h>
 #include <rnp/rnp2.h>
 #include <rnp/rnp_types.h>
@@ -95,6 +96,23 @@ struct rnp_output_st {
     rnp_output_closer_t *closer;
     void *               app_ctx;
     bool                 keep;
+};
+
+struct rnp_op_sign_st {
+    rnp_ffi_t    ffi;
+    rnp_input_t  input;
+    rnp_output_t output;
+    rnp_ctx_t    rnpctx;
+};
+
+struct rnp_op_verify_result_st {
+    uint8_t      keyid[PGP_KEY_ID_SIZE];
+    char         filename[128];
+    char         hash_fn[16];
+    uint32_t     file_mtime;
+    uint32_t     sig_create;
+    uint32_t     sig_expires;
+    rnp_result_t verify_status;
 };
 
 struct rnp_op_encrypt_st {
@@ -987,6 +1005,39 @@ output_closer_bounce(pgp_dest_t *dst, bool discard)
     }
 }
 
+static rnp_result_t
+output_writer_null(pgp_dest_t *dst, const void *buf, size_t len)
+{
+    return RNP_SUCCESS;
+}
+
+static void
+output_closer_null(pgp_dest_t *dst, bool discard)
+{
+}
+
+rnp_result_t
+rnp_output_to_null(rnp_output_t *output)
+{
+    // checks
+    if (!output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    *output = calloc(1, sizeof(**output));
+    if (!*output) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    pgp_dest_t *dst = &(*output)->dst;
+    dst->write = output_writer_null;
+    dst->close = output_closer_null;
+    dst->type = PGP_STREAM_MEMORY;
+    dst->writeb = 0;
+    dst->werr = RNP_SUCCESS;
+    return RNP_SUCCESS;
+}
+
 rnp_result_t
 rnp_output_to_callback(rnp_output_t *       output,
                        rnp_output_writer_t *writer,
@@ -1151,6 +1202,19 @@ rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher)
     return RNP_SUCCESS;
 }
 
+static rnp_result_t
+rnp_op_set_compression(rnp_ctx_t *ctx, const char *compression, int level)
+{
+    pgp_compression_type_t zalg = PGP_C_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(compress_alg_map, string, type, compression, zalg);
+    if (zalg == PGP_C_UNKNOWN) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    ctx->zalg = (int) zalg;
+    ctx->zlevel = level;
+    return RNP_SUCCESS;
+}
+
 rnp_result_t
 rnp_op_encrypt_set_compression(rnp_op_encrypt_t op, const char *compression, int level)
 {
@@ -1158,14 +1222,7 @@ rnp_op_encrypt_set_compression(rnp_op_encrypt_t op, const char *compression, int
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_compression_type_t zalg = PGP_C_UNKNOWN;
-    ARRAY_LOOKUP_BY_STRCASE(compress_alg_map, string, type, compression, zalg);
-    if (zalg == PGP_C_UNKNOWN) {
-        return RNP_ERROR_BAD_FORMAT;
-    }
-    op->rnpctx.zalg = (int) zalg;
-    op->rnpctx.zlevel = level;
-    return RNP_SUCCESS;
+    return rnp_op_set_compression(&op->rnpctx, compression, level);
 }
 
 rnp_result_t
@@ -1223,11 +1280,365 @@ rnp_op_encrypt_destroy(rnp_op_encrypt_t op)
     return RNP_SUCCESS;
 }
 
+rnp_result_t
+rnp_op_sign_create(rnp_op_sign_t *op, rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
+{
+    // checks
+    if (!op || !ffi || !input || !output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    *op = calloc(1, sizeof(**op));
+    if (!*op) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    rnp_ctx_init_ffi(&(*op)->rnpctx, ffi);
+    (*op)->ffi = ffi;
+    (*op)->input = input;
+    (*op)->output = output;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_sign_set_timestamps(rnp_op_sign_t op, uint32_t creation_time, uint32_t expiration_time)
+{
+    if (!op)
+        return RNP_ERROR_NULL_POINTER;
+
+    op->rnpctx.sigcreate = creation_time;
+    op->rnpctx.sigexpire = expiration_time;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_sign_set_hash_fn(rnp_op_sign_t op, const char *hash)
+{
+    if (!op || !hash)
+        return RNP_ERROR_NULL_POINTER;
+
+    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
+    if (hash_alg == PGP_HASH_UNKNOWN) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    op->rnpctx.halg = hash_alg;
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_sign_set_signing_key(rnp_op_sign_t op, rnp_key_handle_t key)
+{
+    if (!op || !key)
+        return RNP_ERROR_NULL_POINTER;
+
+    char *keyid = NULL;
+
+    rnp_result_t res = rnp_key_get_keyid(key, &keyid);
+    if (res != RNP_SUCCESS)
+        return res;
+
+    list_append(&op->rnpctx.signers, keyid, strlen(keyid) + 1);
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored, bool clearsign)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    op->rnpctx.armor = armored;
+    op->rnpctx.clearsign = clearsign;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_sign_set_detached(rnp_op_sign_t op, bool detached)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    op->rnpctx.detached = detached;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compression, int level)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    return rnp_op_set_compression(&op->rnpctx, compression, level);
+}
+
+rnp_result_t
+rnp_op_sign_set_file_name(rnp_op_sign_t op, const char *filename)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_op_sign_set_file_mtime(rnp_op_sign_t op, uint32_t mtime)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_op_sign_execute(rnp_op_sign_t op)
+{
+    // checks
+    if (!op || !op->input || !op->output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_password_provider_t provider = {
+      .callback = rnp_password_cb_bounce,
+      .userdata = &(struct rnp_password_cb_data){.cb_fn = op->ffi->getpasscb,
+                                                 .cb_data = op->ffi->getpasscb_ctx}};
+    pgp_write_handler_t handler = {
+      .password_provider = &provider,
+      .ctx = &op->rnpctx,
+      .param = NULL,
+      .key_provider =
+        &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = op->ffi},
+    };
+    rnp_result_t ret = rnp_sign_src(&handler, &op->input->src, &op->output->dst);
+
+    op->output->keep = ret == RNP_SUCCESS;
+    op->input = NULL;
+    op->output = NULL;
+    return ret;
+}
+
+rnp_result_t
+rnp_op_sign_destroy(rnp_op_sign_t op)
+{
+    if (op) {
+        free(op);
+    }
+    return RNP_SUCCESS;
+}
+
+struct rnp_op_verify_on_signature_args {
+    size_t                          num_results;
+    struct rnp_op_verify_result_st *results;
+};
+
+static void
+rnp_op_verify_on_signature(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int count)
+{
+    struct rnp_op_verify_on_signature_args *args =
+      (struct rnp_op_verify_on_signature_args *) handler->ctx->sig_cb_param;
+    assert(args);
+
+    args->num_results = count;
+    args->results = (struct rnp_op_verify_result_st *) calloc(
+      args->num_results, sizeof(struct rnp_op_verify_result_st));
+
+    for (int i = 0; i < count; i++) {
+        struct rnp_op_verify_result_st *res = args->results + i;
+
+        res->sig_create = signature_get_creation(sigs[i].sig);
+        res->sig_expires = signature_get_expiration(sigs[i].sig);
+        signature_get_keyid(sigs[i].sig, res->keyid);
+
+        const char *hash_name = pgp_hash_name_botan(sigs[i].sig->halg);
+
+        if (hash_name) {
+            strcpy(res->hash_fn, hash_name);
+        }
+
+        if (sigs[i].unknown) {
+            res->verify_status = RNP_ERROR_KEY_NOT_FOUND;
+        } else if (sigs[i].valid) {
+            if (sigs[i].expired)
+                res->verify_status = RNP_ERROR_SIGNATURE_EXPIRED;
+            else
+                res->verify_status = RNP_SUCCESS;
+        } else {
+            if (sigs[i].no_signer)
+                res->verify_status = RNP_ERROR_KEY_NOT_FOUND;
+            else
+                res->verify_status = RNP_ERROR_SIGNATURE_INVALID;
+        }
+    }
+}
+
+struct rnp_verify_prov_args {
+    rnp_output_t output;
+    rnp_input_t  input;
+};
+
 static bool
-dest_provider(pgp_parse_handler_t *handler,
-              pgp_dest_t **        dst,
-              bool *               closedst,
-              const char *         filename)
+rnp_verify_src_provider(pgp_parse_handler_t *handler, pgp_source_t *src)
+{
+    struct rnp_verify_prov_args *args = handler->param;
+    *src = args->input->src;
+    return true;
+};
+
+static bool
+rnp_verify_dest_provider(pgp_parse_handler_t *handler,
+                         pgp_dest_t **        dst,
+                         bool *               closedst,
+                         const char *         filename)
+{
+    struct rnp_verify_prov_args *args = handler->param;
+    *dst = &(args->output->dst);
+    *closedst = false;
+    return true;
+}
+
+rnp_result_t
+rnp_op_verify(rnp_op_verify_result_t *result,
+              size_t *                num_results,
+              rnp_ffi_t               ffi,
+              rnp_input_t             input,
+              rnp_input_t             detached,
+              rnp_output_t            output)
+{
+    rnp_ctx_t                              rnpctx;
+    struct rnp_op_verify_on_signature_args args;
+
+    if (!ffi || !input || !output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    rnpctx.on_signatures = rnp_op_verify_on_signature;
+    memset(&args, 0, sizeof(args));
+
+    rnp_ctx_init_ffi(&rnpctx, ffi);
+    rnpctx.sig_cb_param = &args;
+
+    struct rnp_verify_prov_args prov_args = {
+      .input = detached, .output = output,
+    };
+
+    pgp_parse_handler_t handler = {
+      .key_provider = &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = ffi},
+      .on_signatures = rnp_op_verify_on_signature,
+      .src_provider = rnp_verify_src_provider,
+      .dest_provider = rnp_verify_dest_provider,
+      .param = &prov_args,
+      .ctx = &rnpctx};
+
+    if (detached != NULL) {
+        handler.src_provider = rnp_verify_src_provider;
+        handler.dest_provider = NULL;
+    } else {
+    }
+
+    rnp_result_t ret = process_pgp_source(&handler, &input->src);
+    if (ret != RNP_SUCCESS) {
+        // TODO: should we close output->dst here or leave it to the caller?
+        dst_close(&output->dst, true);
+        output->dst = (pgp_dest_t){0};
+    }
+    rnpctx.on_signatures = NULL;
+    output->keep = ret == RNP_SUCCESS;
+
+    if (ret == RNP_SUCCESS) {
+        *result = args.results;
+        *num_results = args.num_results;
+    }
+    return ret;
+}
+
+rnp_result_t
+rnp_op_verify_result_get_status(rnp_op_verify_result_t result)
+{
+    if (result == NULL)
+        return RNP_ERROR_NULL_POINTER;
+    return result->verify_status;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_verify_result_get_hash_fn(rnp_op_verify_result_t result,
+                                 char *                 hash_fn_buf,
+                                 size_t *               hash_fn_buf_sz)
+{
+    if (result == NULL || hash_fn_buf_sz == NULL || hash_fn_buf == NULL)
+        return RNP_ERROR_NULL_POINTER;
+
+    size_t avail = *hash_fn_buf_sz;
+    size_t used = strlen(result->hash_fn);
+    *hash_fn_buf_sz = strlen(result->hash_fn);
+
+    if (avail > used)
+        strcpy(hash_fn_buf, result->hash_fn);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_verify_result_get_key(rnp_op_verify_result_t result, rnp_key_handle_t *key)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_op_verify_result_get_file_info(rnp_op_verify_result_t result,
+                                   char *                 filename_buf,
+                                   size_t *               filename_buf_sz,
+                                   uint32_t *             file_mtime)
+{
+    if (file_mtime)
+        *file_mtime = result->file_mtime;
+
+    if (filename_buf_sz != NULL) {
+        size_t filename_len = strlen(result->filename);
+
+        size_t avail = *filename_buf_sz;
+        *filename_buf_sz = filename_len;
+
+        if (filename_buf && filename_len < avail) {
+            strcpy(filename_buf, result->filename);
+        }
+    }
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_verify_result_get_sig_timestamps(rnp_op_verify_result_t result,
+                                        uint32_t *             sig_create,
+                                        uint32_t *             sig_expires)
+{
+    if (sig_create)
+        *sig_create = result->sig_create;
+    if (sig_expires)
+        *sig_expires = result->sig_expires;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_verify_destroy(rnp_op_verify_result_t results)
+{
+    if (results)
+        free(results);
+    return RNP_SUCCESS;
+}
+
+static bool
+rnp_decrypt_dest_provider(pgp_parse_handler_t *handler,
+                          pgp_dest_t **        dst,
+                          bool *               closedst,
+                          const char *         filename)
 {
     *dst = &((rnp_output_t) handler->param)->dst;
     *closedst = false;
@@ -1252,7 +1663,7 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
     pgp_parse_handler_t handler = {
       .password_provider = &password_provider,
       .key_provider = &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = ffi},
-      .dest_provider = dest_provider,
+      .dest_provider = rnp_decrypt_dest_provider,
       .param = output,
       .ctx = &rnpctx};
 
