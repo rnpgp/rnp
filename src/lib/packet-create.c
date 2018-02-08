@@ -131,20 +131,6 @@ pgp_write_struct_userid(pgp_output_t *output, const uint8_t *id)
 }
 
 /**
- * \ingroup Core_WritePackets
- * \brief Write a User Id packet.
- * \param userid
- * \param output
- *
- * \return return value from pgp_write_struct_userid()
- */
-unsigned
-pgp_write_userid(const uint8_t *userid, pgp_output_t *output)
-{
-    return pgp_write_struct_userid(output, userid);
-}
-
-/**
 \ingroup Core_MPI
 */
 static size_t
