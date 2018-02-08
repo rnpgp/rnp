@@ -580,6 +580,64 @@ test_ffi_keygen_json_sub(void **state)
     rnp_ffi_destroy(ffi);
 }
 
+void
+test_ffi_add_userid(void **state)
+{
+    rnp_test_state_t *rstate = *state;
+    rnp_ffi_t         ffi = NULL;
+    rnp_keyring_t     pubring = NULL, secring = NULL;
+    char *            json = NULL;
+    char *            results = NULL;
+    size_t            count = 0;
+
+    const char * new_userid = "my new userid <user@example.com>";
+
+    // setup FFI
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
+
+    // get keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_get_pubring(ffi, &pubring));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_get_secring(ffi, &secring));
+
+    // load our JSON
+    load_test_data(rstate->data_dir, "json/generate-primary.json", &json, NULL);
+
+    // generate the keys
+    assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
+    assert_non_null(results);
+    free(json);
+    json = NULL;
+
+    // check the key counts
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(pubring, &count));
+    assert_int_equal(1, count);
+    assert_int_equal(RNP_SUCCESS, rnp_keyring_get_key_count(secring, &count));
+    assert_int_equal(1, count);
+
+    rnp_key_handle_t key_handle = NULL;
+    assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "test0", &key_handle));
+    assert_non_null(key_handle);
+
+    assert_int_equal(RNP_SUCCESS, rnp_key_get_uid_count(key_handle, &count));
+    assert_int_equal(1, count);
+
+    assert_int_equal(RNP_SUCCESS, rnp_key_add_uid(key_handle, new_userid, "SHA256",
+                                                  2147317200, 0x00, false));
+
+    assert_int_equal(RNP_SUCCESS, rnp_key_get_uid_count(key_handle, &count));
+    assert_int_equal(2, count);
+
+    rnp_key_handle_t key_handle2 = NULL;
+    assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", new_userid, &key_handle2));
+    assert_non_null(key_handle2);
+
+    rnp_key_handle_free(&key_handle);
+    rnp_key_handle_free(&key_handle2);
+    rnp_ffi_destroy(ffi);
+}
+
 // TODO: Hash mismatch in secret key
 void
 test_ffi_keygen_json_sub_pass_required(void **state)

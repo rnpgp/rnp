@@ -1999,6 +1999,43 @@ key_get_uid_at(pgp_key_t *key, size_t idx, char **uid)
     return RNP_SUCCESS;
 }
 
+rnp_result_t rnp_key_add_uid(rnp_key_handle_t handle,
+                             const char *uid,
+                             const char *hash,
+                             uint32_t expiration,
+                             uint8_t key_flags,
+                             bool primary)
+   {
+   rnp_selfsig_cert_info info;
+   pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
+   pgp_key_t *key = get_key_prefer_public(handle);
+   pgp_key_t* seckey = get_key_require_secret(handle);
+
+   memset(&info, 0, sizeof(info));
+
+   if (!key || !seckey)
+      return RNP_ERROR_BAD_PARAMETERS;
+
+   ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
+   if (hash_alg == PGP_HASH_UNKNOWN) {
+        return RNP_ERROR_BAD_FORMAT;
+   }
+
+   if (strlen(uid) >= MAX_ID_LENGTH)
+      return RNP_ERROR_BAD_PARAMETERS;
+
+   strcpy((char*)info.userid, uid);
+
+   info.key_flags = key_flags;
+   info.key_expiration = expiration;
+   info.primary = primary;
+
+   if(pgp_key_add_userid(key, pgp_get_seckey(seckey), hash_alg, &info) == false)
+      return RNP_ERROR_GENERIC;
+
+   return RNP_SUCCESS;
+   }
+
 rnp_result_t
 rnp_key_get_primary_uid(rnp_key_handle_t handle, char **uid)
 {

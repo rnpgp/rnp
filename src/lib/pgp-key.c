@@ -1008,6 +1008,7 @@ pgp_key_add_userid(pgp_key_t *            key,
     }
     // this isn't really valid for this format
     if (key->format == G10_KEY_STORE) {
+        RNP_LOG("Unsupported key store type");
         goto done;
     }
     // We only support modifying v4 and newer keys
@@ -1023,6 +1024,7 @@ pgp_key_add_userid(pgp_key_t *            key,
 
     // write the packets
     if (!pgp_setup_memory_write(NULL, &output, &mem, 4096)) {
+        RNP_LOG("failed to setup memory write");
         goto done;
     }
     // write userid and selfsig packets
