@@ -590,7 +590,7 @@ test_ffi_add_userid(void **state)
     char *            results = NULL;
     size_t            count = 0;
 
-    const char * new_userid = "my new userid <user@example.com>";
+    const char *new_userid = "my new userid <user@example.com>";
 
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -623,8 +623,8 @@ test_ffi_add_userid(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_key_get_uid_count(key_handle, &count));
     assert_int_equal(1, count);
 
-    assert_int_equal(RNP_SUCCESS, rnp_key_add_uid(key_handle, new_userid, "SHA256",
-                                                  2147317200, 0x00, false));
+    assert_int_equal(
+      RNP_SUCCESS, rnp_key_add_uid(key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
 
     assert_int_equal(RNP_SUCCESS, rnp_key_get_uid_count(key_handle, &count));
     assert_int_equal(2, count);
@@ -1246,17 +1246,17 @@ test_ffi_key_to_json(void **state)
 void
 test_ffi_key_iter(void **state)
 {
-    rnp_ffi_t         ffi = NULL;
-    char *            pub_format = NULL;
-    char *            pub_path = NULL;
-    char *            sec_format = NULL;
-    char *            sec_path = NULL;
-    rnp_keyring_t     pubring, secring;
+    rnp_ffi_t     ffi = NULL;
+    char *        pub_format = NULL;
+    char *        pub_path = NULL;
+    char *        sec_format = NULL;
+    char *        sec_path = NULL;
+    rnp_keyring_t pubring, secring;
 
     // detect the formats+paths
-    assert_int_equal(
-      RNP_SUCCESS,
-      rnp_detect_homedir_info("data/keyrings/1", &pub_format, &pub_path, &sec_format, &sec_path));
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_detect_homedir_info(
+                       "data/keyrings/1", &pub_format, &pub_path, &sec_format, &sec_path));
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, pub_format, sec_format));
     assert_int_equal(RNP_SUCCESS, rnp_ffi_get_pubring(ffi, &pubring));
@@ -1355,7 +1355,7 @@ test_ffi_key_iter(void **state)
                                              "2FCADF05FFA501BB",
                                              "54505A936A4A970E",
                                              "326EF111425D14A5"};
-            size_t             i = 0;
+            size_t      i = 0;
             const char *ident = NULL;
             do {
                 ident = NULL;
