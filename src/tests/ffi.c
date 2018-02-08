@@ -1032,6 +1032,207 @@ test_ffi_encrypt_pk(void **state)
     rnp_ffi_destroy(ffi);
 }
 
+void
+test_ffi_signatures(void **state)
+{
+    // rnp_test_state_t *rstate = *state;
+    rnp_ffi_t     ffi = NULL;
+    rnp_keyring_t pubring, secring;
+    rnp_input_t   input = NULL;
+    rnp_output_t  output = NULL;
+    rnp_op_sign_t op = NULL;
+    const char *  plaintext = "this is some data that will be signed";
+
+    // setup FFI
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_get_pubring(ffi, &pubring));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_get_secring(ffi, &secring));
+
+    // load our keyrings
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_keyring_load_from_path(pubring, "data/keyrings/1/pubring.gpg"));
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_keyring_load_from_path(secring, "data/keyrings/1/secring.gpg"));
+
+    // write out some data
+    FILE *fp = fopen("plaintext", "w");
+    fwrite(plaintext, strlen(plaintext), 1, fp);
+    fclose(fp);
+
+    // create input+output
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_file(&input, "plaintext"));
+    assert_non_null(input);
+    assert_int_equal(RNP_SUCCESS, rnp_output_to_file(&output, "signed"));
+    assert_non_null(output);
+    // create signature operation
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_create(&op, ffi, input, output));
+
+    // set signature times
+    uint32_t issued = 1516211899;  // Unix epoch, nowish
+    uint32_t expires = 2147144400; // Jan 15, 2038
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_timestamps(op, issued, expires));
+
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_armor(op, true, false));
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_detached(op, false));
+
+    // set pass provider
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
+
+    // set the hash function
+    assert_int_equal(RNP_ERROR_BAD_FORMAT, rnp_op_sign_set_hash_fn(op, "SHA9000"));
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_hash_fn(op, "SHA256"));
+
+    // set signature key
+    rnp_key_handle_t key = NULL;
+    assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key0-uid2", &key));
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_signing_key(op, key));
+
+    // execute the operation
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_execute(op));
+
+    // make sure the output file was created
+    assert_true(rnp_file_exists("signed"));
+
+    // cleanup
+    assert_int_equal(RNP_SUCCESS, rnp_input_destroy(input));
+    assert_int_equal(RNP_SUCCESS, rnp_output_destroy(output));
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_destroy(op));
+    input = NULL;
+    output = NULL;
+    op = NULL;
+
+    /* now verify */
+
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_file(&input, "signed"));
+    assert_non_null(input);
+    assert_int_equal(RNP_SUCCESS, rnp_output_to_file(&output, "recovered"));
+    assert_non_null(output);
+
+    rnp_op_verify_result_t results;
+    size_t                 result_cnt = 0;
+
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_op_verify(&results, &result_cnt, ffi, input, NULL, output));
+    assert_non_null(results);
+    assert_int_equal(result_cnt, 1);
+
+    rnp_op_verify_destroy(results);
+
+    // cleanup
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    // read in the recovered data from signature
+    pgp_memory_t mem = {0};
+    assert_true(pgp_mem_readfile(&mem, "recovered"));
+    // compare
+    assert_int_equal(mem.length, strlen(plaintext));
+    assert_true(memcmp(mem.buf, plaintext, strlen(plaintext)) == 0);
+    // cleanup
+    pgp_memory_release(&mem);
+
+    // final cleanup
+    rnp_ffi_destroy(ffi);
+}
+
+void
+test_ffi_signatures_detached(void **state)
+{
+    // rnp_test_state_t *rstate = *state;
+    rnp_ffi_t     ffi = NULL;
+    rnp_keyring_t pubring, secring;
+    rnp_input_t   input = NULL;
+    rnp_input_t   detached = NULL;
+    rnp_output_t  output = NULL;
+    rnp_op_sign_t op = NULL;
+    const char *  plaintext = "this is some data that will be signed";
+
+    // setup FFI
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_get_pubring(ffi, &pubring));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_get_secring(ffi, &secring));
+
+    // load our keyrings
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_keyring_load_from_path(pubring, "data/keyrings/1/pubring.gpg"));
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_keyring_load_from_path(secring, "data/keyrings/1/secring.gpg"));
+
+    // write out some data
+    FILE *fp = fopen("plaintext", "w");
+    fwrite(plaintext, strlen(plaintext), 1, fp);
+    fclose(fp);
+
+    // create input+output
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_file(&input, "plaintext"));
+    assert_non_null(input);
+    assert_int_equal(RNP_SUCCESS, rnp_output_to_file(&output, "signed"));
+    assert_non_null(output);
+    // create signature operation
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_create(&op, ffi, input, output));
+
+    // set signature times
+    uint32_t issued = 1516211899;  // Unix epoch, nowish
+    uint32_t expires = 2147144400; // Jan 15, 2038
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_timestamps(op, issued, expires));
+
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_armor(op, true, false));
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_detached(op, true));
+
+    // set pass provider
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
+
+    // set the hash function
+    assert_int_equal(RNP_ERROR_BAD_FORMAT, rnp_op_sign_set_hash_fn(op, "SHA9000"));
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_hash_fn(op, "SHA256"));
+
+    // set signature key
+    rnp_key_handle_t key = NULL;
+    assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key0-uid2", &key));
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_signing_key(op, key));
+
+    // execute the operation
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_execute(op));
+
+    // make sure the output file was created
+    assert_true(rnp_file_exists("signed"));
+
+    // cleanup
+    assert_int_equal(RNP_SUCCESS, rnp_input_destroy(input));
+    assert_int_equal(RNP_SUCCESS, rnp_output_destroy(output));
+    assert_int_equal(RNP_SUCCESS, rnp_op_sign_destroy(op));
+    input = NULL;
+    output = NULL;
+    op = NULL;
+
+    /* now verify */
+
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_file(&detached, "plaintext"));
+    assert_non_null(detached);
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_file(&input, "signed"));
+    assert_non_null(input);
+    assert_int_equal(RNP_SUCCESS, rnp_output_to_null(&output));
+    assert_non_null(output);
+
+    rnp_op_verify_result_t results;
+    size_t                 result_cnt = 0;
+
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_op_verify(&results, &result_cnt, ffi, input, detached, output));
+    assert_non_null(results);
+    assert_int_equal(result_cnt, 1);
+
+    rnp_op_verify_destroy(results);
+
+    // cleanup
+    rnp_input_destroy(input);
+    // rnp_input_destroy(detached); // process_pgp_source destroys this source
+    rnp_output_destroy(output);
+
+    // final cleanup
+    rnp_ffi_destroy(ffi);
+}
+
 /** get the value of a (potentially nested) field in a json object
  *
  *  Note that this does not support JSON arrays, only objects.

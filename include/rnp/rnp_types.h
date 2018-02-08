@@ -125,6 +125,7 @@ typedef struct rnp_ctx_t {
     unsigned        armortype;     /* type of the armored message, used in enarmor command */
     bool            discard;       /* discard the output */
     void *          on_signatures; /* handler for signed messages */
+    void *          sig_cb_param;  /* callback data passed to on_signatures */
     rng_t *         rng;           /* pointer to rng_t */
     rnp_operation_t operation;     /* current operation type */
 } rnp_ctx_t;

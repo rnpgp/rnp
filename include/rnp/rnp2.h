@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Ribose Inc.
+ * Copyright (c) 2017,2018 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,8 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR
+ * CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -61,6 +62,8 @@ typedef struct rnp_keyring_st *            rnp_keyring_t;
 typedef struct rnp_key_handle_st *         rnp_key_handle_t;
 typedef struct rnp_input_st *              rnp_input_t;
 typedef struct rnp_output_st *             rnp_output_t;
+typedef struct rnp_op_sign_st *            rnp_op_sign_t;
+typedef struct rnp_op_verify_result_st *   rnp_op_verify_result_t;
 typedef struct rnp_op_encrypt_st *         rnp_op_encrypt_t;
 typedef struct rnp_identifier_iterator_st *rnp_identifier_iterator_t;
 
@@ -89,7 +92,8 @@ typedef int (*rnp_password_cb)(
 /**
  * Callback used for getting a key.
  * @param app_ctx provided by application in rnp_keyring_open
- * @param identifier_type the type of identifier ("userid", "keyid", "fingerprint")
+ * @param identifier_type the type of identifier ("userid", "keyid",
+ * "fingerprint")
  * @param identifier the identifier for locating the key
  * @param secret true if a secret key is being requested
  * @return the key, or NULL if not found
@@ -281,6 +285,54 @@ rnp_result_t rnp_key_have_public(rnp_key_handle_t key, bool *result);
 
 /* TODO define functions for password-based encryption */
 
+rnp_result_t rnp_op_sign_create(rnp_op_sign_t *op,
+                                rnp_ffi_t      ffi,
+                                rnp_input_t    input,
+                                rnp_output_t   output);
+
+rnp_result_t rnp_op_sign_set_signing_key(rnp_op_sign_t op, rnp_key_handle_t key);
+
+rnp_result_t rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compression, int level);
+rnp_result_t rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored, bool cleansign);
+rnp_result_t rnp_op_sign_set_detached(rnp_op_sign_t op, bool detached);
+
+rnp_result_t rnp_op_sign_set_timestamps(rnp_op_sign_t op,
+                                        uint32_t      creation_time,
+                                        uint32_t      expiration_time);
+rnp_result_t rnp_op_sign_set_hash_fn(rnp_op_sign_t op, const char *hash);
+rnp_result_t rnp_op_sign_set_file_name(rnp_op_sign_t op, const char *filename);
+rnp_result_t rnp_op_sign_set_file_mtime(rnp_op_sign_t op, uint32_t mtime);
+
+rnp_result_t rnp_op_sign_execute(rnp_op_sign_t op);
+rnp_result_t rnp_op_sign_destroy(rnp_op_sign_t op);
+
+rnp_result_t rnp_op_verify(rnp_op_verify_result_t *result,
+                           size_t *                num_results,
+                           rnp_ffi_t               ffi,
+                           rnp_input_t             input,
+                           rnp_input_t             detached,
+                           rnp_output_t            output);
+
+rnp_result_t rnp_op_verify_result_get_status(rnp_op_verify_result_t result);
+
+rnp_result_t rnp_op_verify_result_get_hash_fn(rnp_op_verify_result_t result,
+                                              char *                 hash_fn_buf,
+                                              size_t *               hash_fn_buf_sz);
+
+rnp_result_t rnp_op_verify_result_get_key(rnp_op_verify_result_t result,
+                                          rnp_key_handle_t *     key);
+
+rnp_result_t rnp_op_verify_result_get_file_info(rnp_op_verify_result_t result,
+                                                char *                 filename_buf,
+                                                size_t *               filename_buf_sz,
+                                                uint32_t *             file_mtime);
+
+rnp_result_t rnp_op_verify_result_get_sig_timestamps(rnp_op_verify_result_t result,
+                                                     uint32_t *             sig_create,
+                                                     uint32_t *             sig_expires);
+
+rnp_result_t rnp_op_verify_destroy(rnp_op_verify_result_t result);
+
 /* TODO define functions for encrypt+sign */
 
 void *rnp_buffer_new(size_t size);
@@ -303,6 +355,9 @@ rnp_result_t rnp_output_to_callback(rnp_output_t *       output,
                                     rnp_output_writer_t *writer,
                                     rnp_output_closer_t *closer,
                                     void *               app_ctx);
+
+rnp_result_t rnp_output_to_null(rnp_output_t *output);
+
 rnp_result_t rnp_output_destroy(rnp_output_t output);
 
 /* encrypt */
