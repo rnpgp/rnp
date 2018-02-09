@@ -125,6 +125,8 @@ void test_ffi_keygen_json_sub(void **state);
 
 void test_ffi_keygen_json_sub_pass_required(void **state);
 
+void test_ffi_add_userid(void **state);
+
 void test_ffi_detect_key_format(void **state);
 
 void test_ffi_encrypt_pass(void **state);

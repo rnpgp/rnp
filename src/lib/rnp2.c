@@ -14,7 +14,8 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
  * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR
+ * CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -24,23 +25,23 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <assert.h>
-#include <rnp/rnp2.h>
-#include "list.h"
 #include "crypto.h"
-#include "crypto/s2k.h"
 #include "crypto/rng.h"
+#include "crypto/s2k.h"
+#include "hash.h"
+#include "list.h"
 #include "pgp-key.h"
-#include <librepgp/validate.h>
+#include <assert.h>
+#include <json_object.h>
 #include <librepgp/packet-show.h>
 #include <librepgp/stream-common.h>
-#include <librepgp/stream-write.h>
 #include <librepgp/stream-parse.h>
-#include <json_object.h>
-#include "hash.h"
+#include <librepgp/stream-write.h>
+#include <librepgp/validate.h>
+#include <rnp/rnp2.h>
 #include <rnp/rnp_types.h>
-#include <stdlib.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 struct rnp_password_cb_data {
@@ -2000,6 +2001,50 @@ key_get_uid_at(pgp_key_t *key, size_t idx, char **uid)
 }
 
 rnp_result_t
+rnp_key_add_uid(rnp_key_handle_t handle,
+                const char *     uid,
+                const char *     hash,
+                uint32_t         expiration,
+                uint8_t          key_flags,
+                bool             primary)
+{
+    rnp_selfsig_cert_info info;
+    pgp_hash_alg_t        hash_alg = PGP_HASH_UNKNOWN;
+    pgp_key_t *           key = NULL;
+    pgp_key_t *           seckey = NULL;
+
+    memset(&info, 0, sizeof(info));
+
+    if (!handle || !uid || !hash)
+        return RNP_ERROR_NULL_POINTER;
+
+    key = get_key_prefer_public(handle);
+    seckey = get_key_require_secret(handle);
+
+    if (!key || !seckey)
+        return RNP_ERROR_BAD_PARAMETERS;
+
+    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
+    if (hash_alg == PGP_HASH_UNKNOWN) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (strlen(uid) >= MAX_ID_LENGTH)
+        return RNP_ERROR_BAD_PARAMETERS;
+
+    strcpy((char *) info.userid, uid);
+
+    info.key_flags = key_flags;
+    info.key_expiration = expiration;
+    info.primary = primary;
+
+    if (pgp_key_add_userid(key, pgp_get_seckey(seckey), hash_alg, &info) == false)
+        return RNP_ERROR_GENERIC;
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_key_get_primary_uid(rnp_key_handle_t handle, char **uid)
 {
     if (handle == NULL || uid == NULL)
@@ -2991,14 +3036,15 @@ done:
 static bool
 key_iter_next_key(rnp_identifier_iterator_t it)
 {
-    it->keyp = (pgp_key_t*)list_next((list_item*)it->keyp);
+    it->keyp = (pgp_key_t *) list_next((list_item *) it->keyp);
     it->uididx = 0;
     // check if we reached the end of the ring
     if (!it->keyp) {
         // if we are currently on pubring, switch to secring (if not empty)
-        if (it->store == it->ffi->pubring->store && list_length(it->ffi->secring->store->keys)) {
+        if (it->store == it->ffi->pubring->store &&
+            list_length(it->ffi->secring->store->keys)) {
             it->store = it->ffi->secring->store;
-            it->keyp = (pgp_key_t*)list_front(it->store->keys);
+            it->keyp = (pgp_key_t *) list_front(it->store->keys);
         } else {
             // we've gone through both rings
             return false;
@@ -3034,7 +3080,8 @@ key_iter_next_item(rnp_identifier_iterator_t it)
 }
 
 static bool
-key_iter_first_key(rnp_identifier_iterator_t it) {
+key_iter_first_key(rnp_identifier_iterator_t it)
+{
     if (list_length(it->ffi->pubring->store->keys)) {
         it->store = it->ffi->pubring->store;
     } else if (list_length(it->ffi->secring->store->keys)) {
@@ -3043,7 +3090,7 @@ key_iter_first_key(rnp_identifier_iterator_t it) {
         it->store = NULL;
         return false;
     }
-    it->keyp = (pgp_key_t*)list_front(it->store->keys);
+    it->keyp = (pgp_key_t *) list_front(it->store->keys);
     it->uididx = 0;
     return true;
 }
@@ -3057,11 +3104,11 @@ key_iter_first_item(rnp_identifier_iterator_t it)
         return key_iter_first_key(it);
     case PGP_KEY_SEARCH_USERID:
         if (!key_iter_first_key(it)) {
-              return false;
+            return false;
         }
         while (it->uididx >= it->keyp->uidc) {
             if (!key_iter_next_key(it)) {
-              it->store = NULL;
+                it->store = NULL;
                 return false;
             }
             it->uididx = 0;
@@ -3090,7 +3137,7 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
         }
         break;
     case PGP_KEY_SEARCH_USERID: {
-        const char *userid = (const char*)key->uids[it->uididx];
+        const char *userid = (const char *) key->uids[it->uididx];
         if (strlen(userid) >= buf_len) {
             return false;
         }
@@ -3104,7 +3151,9 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
 }
 
 rnp_result_t
-rnp_identifier_iterator_create(rnp_ffi_t ffi, rnp_identifier_iterator_t *it, const char *identifier_type)
+rnp_identifier_iterator_create(rnp_ffi_t                  ffi,
+                               rnp_identifier_iterator_t *it,
+                               const char *               identifier_type)
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
@@ -3137,7 +3186,7 @@ rnp_identifier_iterator_create(rnp_ffi_t ffi, rnp_identifier_iterator_t *it, con
 done:
     if (ret) {
         rnp_identifier_iterator_destroy(*it);
-        *it  = NULL;
+        *it = NULL;
     }
     return ret;
 }
@@ -3145,7 +3194,7 @@ done:
 rnp_result_t
 rnp_identifier_iterator_next(rnp_identifier_iterator_t it, const char **identifier)
 {
-    rnp_result_t ret = RNP_ERROR_GENERIC;
+    rnp_result_t        ret = RNP_ERROR_GENERIC;
     static const size_t buf_len =
       1 + MAX(MAX(PGP_KEY_ID_SIZE * 2, PGP_FINGERPRINT_SIZE * 2), MAX_ID_LENGTH);
     char  buf[buf_len];
@@ -3214,4 +3263,3 @@ rnp_identifier_iterator_destroy(rnp_identifier_iterator_t it)
     }
     return RNP_SUCCESS;
 }
-

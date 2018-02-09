@@ -168,6 +168,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(ecdh_roundtrip),
       cmocka_unit_test(ecdh_decryptionNegativeCases),
       cmocka_unit_test(sm2_roundtrip),
+      cmocka_unit_test(test_dsa_roundtrip),
       cmocka_unit_test(test_load_v3_keyring_pgp),
       cmocka_unit_test(test_load_v4_keyring_pgp),
       cmocka_unit_test(test_load_keyring_and_count_pgp),
@@ -186,12 +187,13 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_keygen_json_primary),
       cmocka_unit_test(test_ffi_keygen_json_sub),
       cmocka_unit_test(test_ffi_keygen_json_sub_pass_required),
+      cmocka_unit_test(test_ffi_add_userid),
       cmocka_unit_test(test_ffi_detect_key_format),
       cmocka_unit_test(test_ffi_encrypt_pass),
       cmocka_unit_test(test_ffi_encrypt_pk),
       cmocka_unit_test(test_ffi_key_to_json),
       cmocka_unit_test(test_ffi_key_iter),
-      cmocka_unit_test(test_dsa_roundtrip)};
+    };
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */

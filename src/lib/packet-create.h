@@ -86,8 +86,6 @@ bool pgp_write_xfer_seckey(pgp_output_t *,
                            const rnp_key_store_t *,
                            const unsigned);
 
-unsigned pgp_write_userid(const uint8_t *, pgp_output_t *);
-
 bool pgp_write_selfsig_cert(pgp_output_t *               output,
                             const pgp_seckey_t *         seckey,
                             const pgp_hash_alg_t         hash_alg,
