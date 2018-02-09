@@ -2010,17 +2010,23 @@ rnp_key_add_uid(rnp_key_handle_t handle,
 {
     rnp_selfsig_cert_info info;
     pgp_hash_alg_t        hash_alg = PGP_HASH_UNKNOWN;
-    pgp_key_t *           key = get_key_prefer_public(handle);
-    pgp_key_t *           seckey = get_key_require_secret(handle);
+    pgp_key_t *           key = NULL;
+    pgp_key_t *           seckey = NULL;
 
     memset(&info, 0, sizeof(info));
+
+    if (!handle || !uid || !hash)
+        return RNP_ERROR_NULL_POINTER;
+
+    key = get_key_prefer_public(handle);
+    seckey = get_key_require_secret(handle);
 
     if (!key || !seckey)
         return RNP_ERROR_BAD_PARAMETERS;
 
     ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
     if (hash_alg == PGP_HASH_UNKNOWN) {
-        return RNP_ERROR_BAD_FORMAT;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     if (strlen(uid) >= MAX_ID_LENGTH)
