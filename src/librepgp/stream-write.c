@@ -1321,10 +1321,11 @@ signed_dst_finish(pgp_dest_t *dst)
 {
     rnp_result_t             ret;
     pgp_dest_signed_param_t *param = dst->param;
+    list_item *              op = list_front(param->onepasses);
+    list_item *              key = list_front(param->keys);
 
-    /* attached signature, first signature should correspond last onepass */
-    for (list_item *op = list_back(param->onepasses), *key = list_back(param->keys); op && key;
-         op = list_prev(op), key = list_prev(key)) {
+    /* attached signature, we keep onepasses in order of signatures */
+    for (; op && key; op = list_next(op), key = list_next(key)) {
         pgp_one_pass_sig_t *onepass = (pgp_one_pass_sig_t *) op;
         pgp_key_t *         seckey = *(pgp_key_t **) key;
 
@@ -1432,14 +1433,23 @@ signed_add_signer(pgp_dest_signed_param_t *param, pgp_key_t *key, bool last)
         onepass.halg = halg;
         onepass.palg = key->key.pubkey.alg;
         memcpy(onepass.keyid, key->keyid, PGP_KEY_ID_SIZE);
-        onepass.nested = last;
-
-        if (!stream_write_one_pass(&onepass, param->writedst)) {
-            return RNP_ERROR_WRITE;
-        }
+        onepass.nested = false;
 
         if (!list_append(&param->onepasses, &onepass, sizeof(onepass))) {
             return RNP_ERROR_OUT_OF_MEMORY;
+        }
+
+        if (last) {
+            /* write onepasses in reverse order so signature order will match signers list */
+            for (list_item *op = list_back(param->onepasses); op; op = list_prev(op)) {
+                if (!list_prev(op)) {
+                    ((pgp_one_pass_sig_t *) op)->nested = true;
+                }
+                
+                if (!stream_write_one_pass((pgp_one_pass_sig_t *) op, param->writedst)) {
+                    return RNP_ERROR_WRITE;
+                }
+            }
         }
     }
 
