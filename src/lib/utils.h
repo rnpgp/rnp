@@ -107,9 +107,6 @@
 /* TODO: Review usage of this variable */
 #define RNP_BUFSIZ 8192
 
-/* Default chunk bits, equals to 1mb chunks */
-#define PGP_AEAD_DEF_CHUNK_BITS 14
-
 /* for silencing unused parameter warnings */
 #define RNP_USED(x) /*LINTED*/ (void) &(x)
 

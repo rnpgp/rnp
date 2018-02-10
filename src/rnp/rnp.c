@@ -50,6 +50,7 @@
 #include "rnpcfg.h"
 #include <rekey/rnp_key_store.h>
 #include "pgp-key.h"
+#include "defaults.h"
 #include <repgp/repgp.h>
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-armor.h>
@@ -392,7 +393,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
         ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
         ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
         ctx.aalg = rnp_cfg_getint(cfg, CFG_AEAD);
-        ctx.abits = rnp_cfg_getint_default(cfg, CFG_AEAD_CHUNK, PGP_AEAD_DEF_CHUNK_BITS);
+        ctx.abits = rnp_cfg_getint_default(cfg, CFG_AEAD_CHUNK, DEFAULT_AEAD_CHUNK_BITS);
         ret = rnp_protect_file(&ctx, f, rnp_cfg_getstr(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
         break;
     }

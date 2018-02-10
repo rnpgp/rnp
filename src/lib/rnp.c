@@ -94,6 +94,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <rnp/rnp_def.h>
 #include "pgp-key.h"
 #include "list.h"
+#include "defaults.h"
 #include <librepgp/stream-def.h>
 #include <librepgp/stream-armor.h>
 #include <librepgp/stream-parse.h>
@@ -1774,7 +1775,7 @@ rnp_encrypt_add_password(rnp_ctx_t *ctx)
            &info,
            password,
            ctx->halg /* TODO: should be separate s2k-specific */,
-           PGP_S2K_DEFAULT_ITERATIONS /* TODO: make this configurable */,
+           DEFAULT_S2K_ITERATIONS /* TODO: make this configurable */,
            ctx->ealg /* TODO: should be separate s2k-specific */))) {
         goto done;
     }

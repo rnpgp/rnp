@@ -31,6 +31,7 @@
 #include "hash.h"
 #include "list.h"
 #include "pgp-key.h"
+#include "defaults.h"
 #include <assert.h>
 #include <json_object.h>
 #include <librepgp/packet-show.h>
@@ -155,7 +156,7 @@ rnp_ctx_init_ffi(rnp_ctx_t *ctx, rnp_ffi_t ffi)
 {
     memset(ctx, 0, sizeof(*ctx));
     ctx->rng = &ffi->rng;
-    ctx->ealg = PGP_SA_DEFAULT_CIPHER;
+    ctx->ealg = DEFAULT_PGP_SYMM_ALG;
 }
 
 static const pgp_map_t sig_type_map[] = {{PGP_SIG_BINARY, "binary"},
@@ -1092,10 +1093,10 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
         s2k_hash = DEFAULT_HASH_ALG;
     }
     if (!iterations) {
-        iterations = PGP_S2K_DEFAULT_ITERATIONS;
+        iterations = DEFAULT_S2K_ITERATIONS;
     }
     if (!s2k_cipher) {
-        s2k_cipher = "AES256"; // TODO: make this a define somewhere
+        s2k_cipher = DEFAULT_SYMM_ALG;
     }
     // parse
     pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;

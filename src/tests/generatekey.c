@@ -37,6 +37,7 @@
 #include "librepgp/reader.h"
 #include "librepgp/validate.h"
 #include "signature.h"
+#include "defaults.h"
 
 extern rng_t global_rng;
 
@@ -71,7 +72,7 @@ rnpkeys_generatekey_testSignature(void **state)
         strcat(userId, hashAlg[i]);
 
         /* Generate the RSA key and make sure it was generated */
-        set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_DEFAULT_HASH_ALGORITHM);
+        set_default_rsa_key_desc(&rnp.action.generate_key_ctx, DEFAULT_PGP_HASH_ALG);
         strncpy((char *) rnp.action.generate_key_ctx.primary.keygen.cert.userid,
                 userId,
                 sizeof(rnp.action.generate_key_ctx.primary.keygen.cert.userid));
@@ -180,7 +181,7 @@ rnpkeys_generatekey_testEncryption(void **state)
 
     strcpy(userId, "ciphertest");
     /* Generate the RSA key and make sure it was generated */
-    set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_DEFAULT_HASH_ALGORITHM);
+    set_default_rsa_key_desc(&rnp.action.generate_key_ctx, DEFAULT_PGP_HASH_ALG);
     strncpy((char *) rnp.action.generate_key_ctx.primary.keygen.cert.userid,
             userId,
             sizeof(rnp.action.generate_key_ctx.primary.keygen.cert.userid));
@@ -213,7 +214,7 @@ rnpkeys_generatekey_testEncryption(void **state)
             ctx.ealg = pgp_str_to_cipher(cipherAlg[i]);
             /* checking whether we have correct cipher constant */
             rnp_assert_true(rstate,
-                            (ctx.ealg != PGP_SA_DEFAULT_CIPHER) ||
+                            (ctx.ealg != DEFAULT_PGP_SYMM_ALG) ||
                               (strcmp(cipherAlg[i], "AES256") == 0));
             rnp_assert_non_null(rstate,
                                 list_append(&ctx.recipients, userId, strlen(userId) + 1));

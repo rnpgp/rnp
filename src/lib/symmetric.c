@@ -51,6 +51,7 @@
 
 #include "crypto.h"
 #include "config.h"
+#include "defaults.h"
 #include <rnp/rnp_sdk.h>
 
 #include <string.h>
@@ -423,7 +424,7 @@ pgp_str_to_cipher(const char *cipher)
             return sp->i;
         }
     }
-    return PGP_SA_DEFAULT_CIPHER;
+    return DEFAULT_PGP_SYMM_ALG;
 }
 
 unsigned

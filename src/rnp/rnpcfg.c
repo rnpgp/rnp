@@ -35,6 +35,7 @@
 
 #include "rnpcfg.h"
 #include "utils.h"
+#include "defaults.h"
 #include <rnp/rnp_sdk.h>
 #include <rekey/rnp_key_store.h>
 
@@ -73,9 +74,9 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_setbool(cfg, CFG_OVERWRITE, false);
     rnp_cfg_setstr(cfg, CFG_OUTFILE, NULL);
     rnp_cfg_setstr(cfg, CFG_HASH, DEFAULT_HASH_ALG);
-    rnp_cfg_setint(cfg, CFG_ZALG, PGP_C_ZIP);
-    rnp_cfg_setint(cfg, CFG_ZLEVEL, 6);
-    rnp_cfg_setstr(cfg, CFG_CIPHER, "cast5");
+    rnp_cfg_setint(cfg, CFG_ZALG, DEFAULT_Z_ALG);
+    rnp_cfg_setint(cfg, CFG_ZLEVEL, DEFAULT_Z_LEVEL);
+    rnp_cfg_setstr(cfg, CFG_CIPHER, DEFAULT_SYMM_ALG);
     rnp_cfg_setint(cfg, CFG_MAXALLOC, 4194304);
     rnp_cfg_setstr(cfg, CFG_SUBDIRGPG, SUBDIRECTORY_RNP);
     rnp_cfg_setstr(cfg, CFG_SUBDIRSSH, SUBDIRECTORY_SSH);
