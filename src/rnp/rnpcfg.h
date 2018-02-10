@@ -42,11 +42,11 @@
 #define CFG_SUBDIRGPG "subdirgpg"     /* gpg/rnp files subdirectory: .rnp by default */
 #define CFG_SUBDIRSSH "subdirssh"     /* ssh files (keys) subdirectory: .ssh by default */
 #define CFG_COREDUMPS "coredumps"     /* enable/disable core dumps. 1 or 0. */
-#define CFG_NEEDSUSERID "needsuserid" /* needs user id for the ongoing operation */
 #define CFG_NEEDSSECKEY "needsseckey" /* needs secret key for the ongoing operation */
 #define CFG_KEYRING "keyring"       /* path to the keyring ?? seems not to be used anywhere */
 #define CFG_USERID "userid"         /* userid for the ongoing operation */
 #define CFG_RECIPIENTS "recipients" /* list of encrypted data recipients */
+#define CFG_SIGNERS "signers"       /* list of signers */
 #define CFG_VERBOSE "verbose"       /* verbose logging */
 #define CFG_HOMEDIR "homedir"       /* home directory - folder with keyrings and so on */
 #define CFG_PASSFD "pass-fd"        /* password file descriptor */

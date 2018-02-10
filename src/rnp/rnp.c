@@ -88,7 +88,7 @@ static const char *usage = "--help OR\n"
                            "\t[--keyring=<keyring>] AND/OR\n"
                            "\t[--keystore-format=<format>] AND/OR\n"
                            "\t[--numtries=<attempts>] AND/OR\n"
-                           "\t[--userid=<userid>] AND/OR\n"
+                           "\t[-u, --userid=<userid>] AND/OR\n"
                            "\t[--maxmemalloc=<number of bytes>] AND/OR\n"
                            "\t[--verbose]\n";
 
@@ -308,32 +308,16 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
 static bool
 rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
 {
-    char *      out = NULL;
-    char *      in = NULL;
-    const char *userid = NULL;
-    bool        ret = false;
-    rnp_ctx_t   ctx = {0};
+    char *    out = NULL;
+    char *    in = NULL;
+    bool      ret = false;
+    rnp_ctx_t ctx = {0};
     // TODO: Probably something smarter should be done here
     repgp_io_t *io = repgp_create_io();
 
     if (io == NULL) {
         RNP_LOG("Allocation failed");
         return false;
-    }
-
-    /* checking userid for the upcoming operation */
-    if (rnp_cfg_getbool(cfg, CFG_NEEDSUSERID)) {
-        userid = rnp_cfg_getstr(cfg, CFG_USERID);
-
-        if (!userid && rnp->defkey) {
-            userid = rnp->defkey;
-        }
-
-        if (!userid) {
-            fprintf(stderr, "user/key id is not available but required\n");
-            ret = false;
-            goto done;
-        }
     }
 
     if (rnp_cfg_getstr(cfg, CFG_PASSWD)) {
@@ -362,8 +346,20 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
             break;
         }
 
-        if (userid) {
-            list_append(&ctx.signers, userid, strlen(userid) + 1);
+        rnp_cfg_copylist_str(cfg, &ctx.signers, CFG_SIGNERS);
+
+        if (!list_length(ctx.signers)) {
+            if (!rnp->defkey) {
+                fprintf(stderr, "No userid or default key for signing\n");
+                ret = false;
+                break;
+            }
+
+            if (!list_append(&ctx.signers, rnp->defkey, strlen(rnp->defkey) + 1)) {
+                RNP_LOG("allocation failed");
+                ret = false;
+                break;
+            }
         }
 
         ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
@@ -461,7 +457,6 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
     case CMD_SIGN:
     case CMD_CLEARSIGN:
         /* for signing, we need a userid and a seckey */
-        rnp_cfg_setbool(cfg, CFG_NEEDSUSERID, true);
         rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
         *cmd = val;
         break;
@@ -533,7 +528,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
             fputs("No userid argument provided\n", stderr);
             exit(EXIT_ERROR);
         }
-        rnp_cfg_setstr(cfg, CFG_USERID, arg);
+        rnp_cfg_addstr(cfg, CFG_SIGNERS, arg);
         break;
     case OPT_RECIPIENT:
         if (arg == NULL) {
@@ -743,7 +738,7 @@ main(int argc, char **argv)
     optindex = 0;
 
     /* TODO: These options should be set after initialising the context. */
-    while ((ch = getopt_long(argc, argv, "S:Vdeco:r:svz:", options, &optindex)) != -1) {
+    while ((ch = getopt_long(argc, argv, "S:Vdeco:r:su:vz:", options, &optindex)) != -1) {
         if (ch >= CMD_ENCRYPT) {
             /* getopt_long returns 0 for long options */
             if (!setoption(&cfg, &cmd, options[optindex].val, optarg)) {
@@ -784,8 +779,14 @@ main(int argc, char **argv)
             case 's':
                 /* for signing, we need a userid and a seckey */
                 rnp_cfg_setbool(&cfg, CFG_NEEDSSECKEY, true);
-                rnp_cfg_setbool(&cfg, CFG_NEEDSUSERID, true);
                 cmd = CMD_SIGN;
+                break;
+            case 'u':
+                if (!optarg) {
+                    fputs("No userid argument provided\n", stderr);
+                    exit(EXIT_ERROR);
+                }
+                rnp_cfg_addstr(&cfg, CFG_SIGNERS, optarg);
                 break;
             case 'v':
                 cmd = CMD_VERIFY;
