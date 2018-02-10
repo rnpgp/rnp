@@ -80,6 +80,8 @@
 #include <stdio.h>
 #include "crypto/ecdsa.h"
 #include "crypto/dsa.h"
+#include "defaults.h"
+
 static const struct hash_alg_map_t {
     pgp_hash_alg_t type;
     const char *   name;
@@ -133,7 +135,7 @@ pgp_hash_alg_t
 pgp_str_to_hash_alg(const char *hash)
 {
     if (hash == NULL) {
-        return PGP_DEFAULT_HASH_ALGORITHM;
+        return DEFAULT_PGP_HASH_ALG;
     }
     for (size_t i = 0; i < ARRAY_SIZE(hash_alg_map); i++) {
         if (!rnp_strcasecmp(hash, hash_alg_map[i].name)) {

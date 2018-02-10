@@ -63,6 +63,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include "defaults.h"
 
 void
 pgp_free_user_prefs(pgp_user_prefs_t *prefs)
@@ -862,11 +863,10 @@ pgp_key_protect_password(pgp_key_t *                  key,
                          const char *                 password)
 {
     bool                        ret = false;
-    rnp_key_protection_params_t default_protection = {.symm_alg = PGP_SA_DEFAULT_CIPHER,
-                                                      .cipher_mode =
-                                                        PGP_SA_DEFAULT_CIPHER_MODE,
-                                                      .iterations = 65536,
-                                                      .hash_alg = PGP_DEFAULT_HASH_ALGORITHM};
+    rnp_key_protection_params_t default_protection = {.symm_alg = DEFAULT_PGP_SYMM_ALG,
+                                                      .cipher_mode = DEFAULT_CIPHER_MODE,
+                                                      .iterations = DEFAULT_S2K_ITERATIONS,
+                                                      .hash_alg = DEFAULT_PGP_HASH_ALG};
 
     // sanity check
     if (!key || !password) {

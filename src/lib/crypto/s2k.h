@@ -33,8 +33,6 @@
 
 #include "hash.h"
 
-#define PGP_S2K_DEFAULT_ITERATIONS 524288
-
 int pgp_s2k_simple(pgp_hash_alg_t alg, uint8_t *out, size_t output_len, const char *password);
 
 int pgp_s2k_salted(pgp_hash_alg_t alg,
