@@ -408,7 +408,6 @@ pgp_decrypt_seckey_pgp(const uint8_t *     data,
         goto done;
     }
     pgp_set_callback(stream, decrypt_cb, &decrypt);
-    stream->readinfo.accumulate = 1;
     repgp_parse(stream, !printerrors);
 
 done:
