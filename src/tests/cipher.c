@@ -718,6 +718,11 @@ test_dsa_roundtrip(void **state)
 
 
         assert_true(pgp_generate_seckey(&key_desc, &sec_key1));
+        // try to prevent timeouts in travis-ci
+        printf("p: %zu q: %zu h: %s\n",
+               key_desc.dsa.p_bitlen,
+               key_desc.dsa.q_bitlen,
+               pgp_show_hash_alg(key_desc.hash_alg));
         assert_true(pgp_generate_seckey(&key_desc, &sec_key2));
 
         pgp_dsa_pubkey_t *pub1 = &sec_key1.pubkey.key.dsa;
