@@ -250,6 +250,8 @@ pgp_sm2_encrypt(rng_t *                 rng,
     }
 
 done:
+    botan_mp_destroy(public_x);
+    botan_mp_destroy(public_y);
     botan_pk_op_encrypt_destroy(enc_op);
     botan_pubkey_destroy(sm2_key);
 
