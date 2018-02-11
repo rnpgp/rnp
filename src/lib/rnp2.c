@@ -405,6 +405,8 @@ operation_description(uint8_t op)
     switch (op) {
     case PGP_OP_ADD_SUBKEY:
         return "add subkey";
+    case PGP_OP_ADD_USERID:
+        return "add userid";
     case PGP_OP_SIGN:
         return "sign";
     case PGP_OP_DECRYPT:
@@ -2002,36 +2004,34 @@ key_get_uid_at(pgp_key_t *key, size_t idx, char **uid)
 }
 
 rnp_result_t
-rnp_key_add_uid(rnp_key_handle_t handle,
+rnp_key_add_uid(rnp_ffi_t        ffi,
+                rnp_key_handle_t handle,
                 const char *     uid,
                 const char *     hash,
                 uint32_t         expiration,
                 uint8_t          key_flags,
                 bool             primary)
 {
-    rnp_selfsig_cert_info info;
+    rnp_result_t          ret = RNP_ERROR_GENERIC;
+    rnp_selfsig_cert_info info = {{0}};
     pgp_hash_alg_t        hash_alg = PGP_HASH_UNKNOWN;
-    pgp_key_t *           key = NULL;
-    pgp_key_t *           seckey = NULL;
+    pgp_key_t *           public_key = NULL;
+    pgp_key_t *           secret_key = NULL;
+    pgp_seckey_t *        seckey = NULL;
+    pgp_seckey_t *        decrypted_seckey = NULL;
 
-    memset(&info, 0, sizeof(info));
-
-    if (!handle || !uid || !hash)
+    if (!handle || !uid || !hash) {
         return RNP_ERROR_NULL_POINTER;
-
-    key = get_key_prefer_public(handle);
-    seckey = get_key_require_secret(handle);
-
-    if (!key || !seckey)
-        return RNP_ERROR_BAD_PARAMETERS;
+    }
 
     ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
     if (hash_alg == PGP_HASH_UNKNOWN) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (strlen(uid) >= MAX_ID_LENGTH)
+    if (strlen(uid) >= MAX_ID_LENGTH) {
         return RNP_ERROR_BAD_PARAMETERS;
+    }
 
     strcpy((char *) info.userid, uid);
 
@@ -2039,10 +2039,40 @@ rnp_key_add_uid(rnp_key_handle_t handle,
     info.key_expiration = expiration;
     info.primary = primary;
 
-    if (pgp_key_add_userid(key, pgp_get_seckey(seckey), hash_alg, &info) == false)
-        return RNP_ERROR_GENERIC;
+    secret_key = get_key_require_secret(handle);
+    if (!secret_key) {
+        return RNP_ERROR_NO_SUITABLE_KEY;
+    }
+    public_key = get_key_prefer_public(handle);
+    if (!public_key && secret_key->format == G10_KEY_STORE) {
+        return RNP_ERROR_NO_SUITABLE_KEY;
+    }
+    seckey = &secret_key->key.seckey;
+    if (seckey->encrypted) {
+        pgp_password_provider_t pass_provider = {
+          .callback = rnp_password_cb_bounce,
+          .userdata = &(struct rnp_password_cb_data){.cb_fn = ffi->getpasscb,
+                                                     .cb_data = ffi->getpasscb_ctx}};
+        pgp_password_ctx_t ctx = {.op = PGP_OP_ADD_USERID, .key = secret_key};
+        decrypted_seckey = pgp_decrypt_seckey(secret_key, &pass_provider, &ctx);
+        if (!decrypted_seckey) {
+            return RNP_ERROR_BAD_PASSWORD;
+        }
+        seckey = decrypted_seckey;
+    }
+    if (public_key && !pgp_key_add_userid(public_key, seckey, hash_alg, &info)) {
+        goto done;
+    }
+    if ((secret_key && secret_key->format != G10_KEY_STORE) &&
+        !pgp_key_add_userid(secret_key, seckey, hash_alg, &info)) {
+        goto done;
+    }
 
-    return RNP_SUCCESS;
+    ret = RNP_SUCCESS;
+done:
+    pgp_seckey_free(decrypted_seckey);
+    free(decrypted_seckey);
+    return ret;
 }
 
 rnp_result_t

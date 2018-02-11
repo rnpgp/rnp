@@ -509,7 +509,8 @@ typedef enum pgp_op_t {
     PGP_OP_UNPROTECT = 6,   /* removing protection from a (locked) key */
     PGP_OP_DECRYPT_SYM = 7, /* symmetric decryption */
     PGP_OP_ENCRYPT_SYM = 8, /* symmetric encryption */
-    PGP_OP_VERIFY = 9       /* signature verification */
+    PGP_OP_VERIFY = 9,      /* signature verification */
+    PGP_OP_ADD_USERID = 10, /* adding a userid */
 } pgp_op_t;
 
 /** Hashing Algorithm Numbers.

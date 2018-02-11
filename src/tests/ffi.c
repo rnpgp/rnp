@@ -595,7 +595,6 @@ test_ffi_add_userid(void **state)
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
 
     // get keyrings
     assert_int_equal(RNP_SUCCESS, rnp_ffi_get_pubring(ffi, &pubring));
@@ -607,6 +606,7 @@ test_ffi_add_userid(void **state)
     // generate the keys
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
     assert_non_null(results);
+    rnp_buffer_free(results);
     free(json);
     json = NULL;
 
@@ -623,8 +623,20 @@ test_ffi_add_userid(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_key_get_uid_count(key_handle, &count));
     assert_int_equal(1, count);
 
+    // protect+lock the key
+    assert_int_equal(RNP_SUCCESS, rnp_key_protect(key_handle, "pass"));
+    assert_int_equal(RNP_SUCCESS, rnp_key_lock(key_handle));
+
+    // add the userid (no pass provider, should fail)
     assert_int_equal(
-      RNP_SUCCESS, rnp_key_add_uid(key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
+      RNP_ERROR_BAD_PASSWORD,
+      rnp_key_add_uid(ffi, key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
+
+    // actually add the userid
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "pass"));
+    assert_int_equal(
+      RNP_SUCCESS,
+      rnp_key_add_uid(ffi, key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
 
     assert_int_equal(RNP_SUCCESS, rnp_key_get_uid_count(key_handle, &count));
     assert_int_equal(2, count);

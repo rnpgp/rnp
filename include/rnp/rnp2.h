@@ -237,18 +237,20 @@ rnp_result_t rnp_key_get_primary_uid(rnp_key_handle_t key, char **uid);
 rnp_result_t rnp_key_get_uid_count(rnp_key_handle_t key, size_t *count);
 rnp_result_t rnp_key_get_uid_at(rnp_key_handle_t key, size_t idx, char **uid);
 
-/**
-* Add a new user identifier to a key
-* @param key the key to add - must be a secret key
-* @param uid the UID to add
-* @param hash name of the hash function to use for the uid binding
-*        signature (eg "SHA256")
-* @param expiration time when this user id expires
-* @param key_flags usage flags, see section 5.2.3.21 of RFC 4880
-*        or just provide zero to indicate no special handling.
-* @param primary indicates if this is the primary UID
-*/
-rnp_result_t rnp_key_add_uid(rnp_key_handle_t key,
+/** Add a new user identifier to a key
+ *
+ *  @param ffi
+ *  @param key the key to add - must be a secret key
+ *  @param uid the UID to add
+ *  @param hash name of the hash function to use for the uid binding
+ *         signature (eg "SHA256")
+ *  @param expiration time when this user id expires
+ *  @param key_flags usage flags, see section 5.2.3.21 of RFC 4880
+ *         or just provide zero to indicate no special handling.
+ *  @param primary indicates if this is the primary UID
+ */
+rnp_result_t rnp_key_add_uid(rnp_ffi_t        ffi,
+                             rnp_key_handle_t key,
                              const char *     uid,
                              const char *     hash,
                              uint32_t         expiration,
