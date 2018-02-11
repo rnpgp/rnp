@@ -325,7 +325,7 @@ pgp_get_writable_seckey(pgp_key_t *key)
 }
 
 typedef struct {
-    const char *  password;
+    char *        password;
     pgp_seckey_t *seckey;
 } decrypt_t;
 
@@ -346,7 +346,7 @@ decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         break;
 
     case PGP_GET_PASSWORD:
-        *content->skey_password.password = rnp_strdup(decrypt->password);
+        *content->skey_password.password = decrypt->password;
         return PGP_KEEP_MEMORY;
 
     case PGP_PARSER_ERRCODE:
@@ -402,7 +402,10 @@ pgp_decrypt_seckey_pgp(const uint8_t *     data,
 
     // we don't really use this, G10 does
     RNP_USED(pubkey);
-    decrypt.password = password;
+    decrypt.password = rnp_strdup(password);
+    if (!decrypt.password) {
+        goto done;
+    }
     stream = pgp_new(sizeof(*stream));
     if (!pgp_reader_set_memory(stream, data, data_len)) {
         goto done;
@@ -411,6 +414,10 @@ pgp_decrypt_seckey_pgp(const uint8_t *     data,
     repgp_parse(stream, !printerrors);
 
 done:
+    if (decrypt.password) {
+        pgp_forget(decrypt.password, strlen(decrypt.password));
+        free(decrypt.password);
+    }
     pgp_stream_delete(stream);
     return decrypt.seckey;
 }
