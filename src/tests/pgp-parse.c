@@ -143,14 +143,6 @@ setup_keystore_1(rnp_test_state_t *state, rnp_t *rnp)
     bool         res = true;
     char         path[PATH_MAX] = {0};
 
-    // IO
-    pgp_io_t pgpio = {.errs = stderr, .res = stdout, .outs = stdout};
-    rnp->io = malloc(sizeof(pgp_io_t));
-    if (!rnp->io) {
-        return false;
-    }
-
-    memcpy(rnp->io, &pgpio, sizeof(pgp_io_t));
     assert(state->data_dir);
 
     paths_concat(path, sizeof(path), state->data_dir, "keyrings/1/pubring.gpg", NULL);
@@ -251,8 +243,6 @@ test_repgp_decrypt(void **state)
     assert_int_equal(memcmp(plaintext, in_buf, in_buf_size), 0);
 
     /* Cleanup */
-    free(rnp.io);
-    rnp.io = NULL;
     rnp_end(&rnp);
     delete_recursively(tmpdir);
     free(tmpdir);
@@ -299,8 +289,6 @@ test_repgp_verify(void **state)
     repgp_destroy_io(io);
 
     /* Cleanup */
-    free(rnp.io);
-    rnp.io = NULL;
     rnp_end(&rnp);
 }
 
@@ -341,7 +329,5 @@ test_repgp_list_packets(void **state)
     repgp_destroy_handle(input);
 
     /* Cleanup */
-    free(rnp.io);
-    rnp.io = NULL;
     rnp_end(&rnp);
 }
