@@ -217,6 +217,7 @@ test_utils_list(void **state)
             assert_false(list_is_member(list2, item));
             item = list_next(item);
         }
+        list_destroy(&list2);
     }
 
     // remove all
