@@ -163,6 +163,7 @@ pgp_reader_pop(pgp_stream_t *stream)
 {
     pgp_reader_t *next = stream->readinfo.next;
 
+    free(stream->readinfo.accumulated);
     stream->readinfo = *next;
     free(next);
 }
