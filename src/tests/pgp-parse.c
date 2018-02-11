@@ -314,6 +314,7 @@ test_repgp_list_packets(void **state)
     repgp_handle_t *input = create_filepath_handle(input_file);
     rnp_assert_int_equal(rstate, repgp_list_packets(&ctx, input, false), RNP_SUCCESS);
     repgp_destroy_handle(input);
+    repgp_destroy_io(io);
 
     /* Test listing from memory */
     FILE *f = fopen(input_file, "rb");
@@ -327,6 +328,7 @@ test_repgp_list_packets(void **state)
     input = create_filepath_handle(input_file);
     rnp_assert_int_equal(rstate, repgp_list_packets(&ctx, input, false), RNP_SUCCESS);
     repgp_destroy_handle(input);
+    repgp_destroy_io(io);
 
     /* Cleanup */
     rnp_end(&rnp);
