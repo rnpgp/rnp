@@ -47,7 +47,7 @@ matrix:
       sudo: true
 
     # codecov
-    - env: BUILD_MODE=coverage GPG_VERSION=stable
+    - env: BUILD_MODE=coverage GPG_VERSION=beta
       compiler: gcc
 
     # clang-format style checks
