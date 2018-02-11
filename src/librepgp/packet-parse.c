@@ -2616,6 +2616,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         keysize = pgp_key_size(pkt.u.seckey.protection.symm_alg);
         if (keysize == 0) {
             (void) fprintf(stderr, "parse_seckey: unknown symmetric algo");
+            pgp_forget(password, strlen(password));
             return false;
         }
 
