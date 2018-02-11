@@ -1760,9 +1760,13 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
     rnp_keygen_subkey_desc_t  sub_desc = {{0}};
     char *                    identifier_type = NULL;
     char *                    identifier = NULL;
+    pgp_key_t                 primary_pub = {0};
+    pgp_key_t                 primary_sec = {0};
+    pgp_key_t                 sub_pub = {0};
+    pgp_key_t                 sub_sec = {0};
 
     // checks
-    if (!ffi || (!ffi->pubring && !ffi->secring) || !json || !results) {
+    if (!ffi || (!ffi->pubring && !ffi->secring) || !json) {
         return RNP_ERROR_NULL_POINTER;
     }
 
@@ -1805,10 +1809,6 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             ret = RNP_ERROR_BAD_FORMAT;
             goto done;
         }
-        pgp_key_t primary_pub = {0};
-        pgp_key_t primary_sec = {0};
-        pgp_key_t sub_pub = {0};
-        pgp_key_t sub_sec = {0};
         if (!pgp_generate_keypair(&ffi->rng,
                                   &primary_desc,
                                   &sub_desc,
@@ -1820,23 +1820,33 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
                                   ffi->secring->store->format)) {
             goto done;
         }
-        // TODO: error handling
-        gen_json_grips(results, &primary_pub, &sub_pub);
+        if (results && !gen_json_grips(results, &primary_pub, &sub_pub)) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
         if (ffi->pubring) {
-            // TODO: error handling
-            rnp_key_store_add_key(&ffi->io, ffi->pubring->store, &primary_pub);
-            rnp_key_store_add_key(&ffi->io, ffi->pubring->store, &sub_pub);
-        } else {
-            pgp_key_free_data(&primary_pub);
-            pgp_key_free_data(&sub_pub);
+            if (!rnp_key_store_add_key(&ffi->io, ffi->pubring->store, &primary_pub)) {
+                ret = RNP_ERROR_OUT_OF_MEMORY;
+                goto done;
+            }
+            primary_pub = (pgp_key_t){0};
+            if (!rnp_key_store_add_key(&ffi->io, ffi->pubring->store, &sub_pub)) {
+                ret = RNP_ERROR_OUT_OF_MEMORY;
+                goto done;
+            }
+            sub_pub = (pgp_key_t){0};
         }
         if (ffi->secring) {
-            // TODO: error handling
-            rnp_key_store_add_key(&ffi->io, ffi->secring->store, &primary_sec);
-            rnp_key_store_add_key(&ffi->io, ffi->secring->store, &sub_sec);
-        } else {
-            pgp_key_free_data(&primary_sec);
-            pgp_key_free_data(&sub_sec);
+            if (!rnp_key_store_add_key(&ffi->io, ffi->secring->store, &primary_sec)) {
+                ret = RNP_ERROR_OUT_OF_MEMORY;
+                goto done;
+            }
+            primary_sec = (pgp_key_t){0};
+            if (!rnp_key_store_add_key(&ffi->io, ffi->secring->store, &sub_sec)) {
+                ret = RNP_ERROR_OUT_OF_MEMORY;
+                goto done;
+            }
+            sub_sec = (pgp_key_t){0};
         }
     } else if (jsoprimary && !jsosub) { // generating primary only
         primary_desc.crypto.rng = &ffi->rng;
@@ -1844,25 +1854,27 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             ret = RNP_ERROR_BAD_FORMAT;
             goto done;
         }
-        pgp_key_t primary_pub = {0};
-        pgp_key_t primary_sec = {0};
         if (!pgp_generate_primary_key(
               &primary_desc, true, &primary_sec, &primary_pub, ffi->secring->store->format)) {
             goto done;
         }
-        // TODO: error handling
-        gen_json_grips(results, &primary_pub, NULL);
+        if (results && !gen_json_grips(results, &primary_pub, NULL)) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
         if (ffi->pubring) {
-            // TODO: error handling
-            rnp_key_store_add_key(&ffi->io, ffi->pubring->store, &primary_pub);
-        } else {
-            pgp_key_free_data(&primary_pub);
+            if (!rnp_key_store_add_key(&ffi->io, ffi->pubring->store, &primary_pub)) {
+                ret = RNP_ERROR_OUT_OF_MEMORY;
+                goto done;
+            }
+            primary_pub = (pgp_key_t){0};
         }
         if (ffi->secring) {
-            // TODO: error handling
-            rnp_key_store_add_key(&ffi->io, ffi->secring->store, &primary_sec);
-        } else {
-            pgp_key_free_data(&primary_sec);
+            if (!rnp_key_store_add_key(&ffi->io, ffi->secring->store, &primary_sec)) {
+                ret = RNP_ERROR_OUT_OF_MEMORY;
+                goto done;
+            }
+            primary_sec = (pgp_key_t){0};
         }
     } else if (jsosub) { // generating subkey only
         json_object *jsoparent = NULL;
@@ -1908,8 +1920,6 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
           .callback = rnp_password_cb_bounce,
           .userdata = &(struct rnp_password_cb_data){.cb_fn = ffi->getpasscb,
                                                      .cb_data = ffi->getpasscb_ctx}};
-        pgp_key_t sub_pub = {0};
-        pgp_key_t sub_sec = {0};
         sub_desc.crypto.rng = &ffi->rng;
         if (!pgp_generate_subkey(&sub_desc,
                                  true,
@@ -1921,19 +1931,23 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
                                  ffi->secring->store->format)) {
             goto done;
         }
-        // TODO: error handling
-        gen_json_grips(results, NULL, &sub_pub);
+        if (results && !gen_json_grips(results, NULL, &sub_pub)) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
         if (ffi->pubring) {
-            // TODO: error handling
-            rnp_key_store_add_key(&ffi->io, ffi->pubring->store, &sub_pub);
-        } else {
-            pgp_key_free_data(&sub_pub);
+            if (!rnp_key_store_add_key(&ffi->io, ffi->pubring->store, &sub_pub)) {
+                ret = RNP_ERROR_OUT_OF_MEMORY;
+                goto done;
+            }
+            sub_pub = (pgp_key_t){0};
         }
         if (ffi->secring) {
-            // TODO: error handling
-            rnp_key_store_add_key(&ffi->io, ffi->secring->store, &sub_sec);
-        } else {
-            pgp_key_free_data(&sub_sec);
+            if (!rnp_key_store_add_key(&ffi->io, ffi->secring->store, &sub_sec)) {
+                ret = RNP_ERROR_OUT_OF_MEMORY;
+                goto done;
+            }
+            sub_sec = (pgp_key_t){0};
         }
     } else {
         // nothing to generate...
@@ -1943,6 +1957,10 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
 
     ret = RNP_SUCCESS;
 done:
+    pgp_key_free_data(&primary_pub);
+    pgp_key_free_data(&primary_sec);
+    pgp_key_free_data(&sub_pub);
+    pgp_key_free_data(&sub_sec);
     json_object_put(jso);
     free(identifier_type);
     free(identifier);
