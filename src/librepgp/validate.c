@@ -129,13 +129,6 @@ key_reader(pgp_stream_t *stream,
 }
 
 static void
-free_sig_info(pgp_sig_info_t *sig)
-{
-    free(sig->v4_hashed);
-    free(sig);
-}
-
-static void
 copy_sig_info(pgp_sig_info_t *dst, const pgp_sig_info_t *src)
 {
     (void) memcpy(dst, src, sizeof(*src));
@@ -223,6 +216,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             return PGP_FINISHED;
         }
         key->pubkey = content->pubkey;
+        key->loaded_pubkey = true;
         return PGP_KEEP_MEMORY;
 
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
@@ -234,7 +228,9 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
     case PGP_PTAG_CT_SECRET_KEY:
         key->seckey = content->seckey;
-        key->pubkey = key->seckey.pubkey;
+        if (!key->loaded_pubkey) {
+            key->pubkey = key->seckey.pubkey;
+        }
         return PGP_KEEP_MEMORY;
 
     case PGP_PTAG_CT_USER_ID:
@@ -413,15 +409,18 @@ void
 pgp_validate_result_free(pgp_validation_t *result)
 {
     if (result != NULL) {
-        if (result->valid_sigs) {
-            free_sig_info(result->valid_sigs);
+        for (size_t i = 0; i < result->validc; i++) {
+            free(result->valid_sigs[i].v4_hashed);
         }
-        if (result->invalid_sigs) {
-            free_sig_info(result->invalid_sigs);
+        free(result->valid_sigs);
+        for (size_t i = 0; i < result->invalidc; i++) {
+            free(result->invalid_sigs[i].v4_hashed);
         }
-        if (result->unknown_sigs) {
-            free_sig_info(result->unknown_sigs);
+        free(result->invalid_sigs);
+        for (size_t i = 0; i < result->unknownc; i++) {
+            free(result->unknown_sigs[i].v4_hashed);
         }
+        free(result->unknown_sigs);
         free(result);
         /* result = NULL; - XXX unnecessary */
     }
@@ -498,10 +497,13 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
 
     repgp_parse(stream, true);
 
-    pgp_pubkey_free(&keysigs.pubkey);
+    if (keysigs.loaded_pubkey) {
+        pgp_pubkey_free(&keysigs.pubkey);
+    }
     if (keysigs.subkey.version) {
         pgp_pubkey_free(&keysigs.subkey);
     }
+    pgp_seckey_free(&keysigs.seckey);
     pgp_userid_free(&keysigs.userid);
     pgp_data_free(&keysigs.userattr);
 
