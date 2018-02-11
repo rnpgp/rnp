@@ -1245,32 +1245,24 @@ write_seckey(s_exp_t *s_exp, const pgp_seckey_t *key)
 static bool
 write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *password)
 {
+    bool               ret = false;
     const format_info *format;
     s_exp_t            raw_s_exp = {0};
     s_exp_t *          sub_s_exp, *sub_sub_s_exp, *sub_sub_sub_s_exp;
-    botan_cipher_t     encrypt = NULL;
-    uint8_t            derived_key[PGP_MAX_KEY_SIZE];
-    unsigned           keysize;
     pgp_memory_t       raw = {0};
+    uint8_t *          encrypted_data = NULL;
+    botan_cipher_t     encrypt = NULL;
+    unsigned           keysize;
     uint8_t            checksum[G10_SHA1_HASH_SIZE];
-    time_t             now;
-    size_t             output_written = 0;
-    size_t             input_consumed = 0;
+    uint8_t            derived_key[PGP_MAX_KEY_SIZE];
 
     if (seckey->protection.s2k.specifier != PGP_S2KS_ITERATED_AND_SALTED) {
-        fprintf(stderr, "s2k should be iterated and salted\n");
         return false;
     }
-
     format = find_format(seckey->protection.symm_alg,
                          seckey->protection.cipher_mode,
                          seckey->protection.s2k.hash_alg);
     if (format == NULL) {
-        fprintf(stderr,
-                "Unsupported format, alg: %d, chiper_mode: %d, hash: %d\n",
-                seckey->protection.symm_alg,
-                seckey->protection.cipher_mode,
-                seckey->protection.s2k.hash_alg);
         return false;
     }
 
@@ -1281,66 +1273,32 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passwor
         !rng_get_data(
           &rng, &seckey->protection.s2k.salt[0], sizeof(seckey->protection.s2k.salt))) {
         rng_destroy(&rng);
-        RNP_LOG("rng_generate failed");
         return false;
     }
     rng_destroy(&rng);
 
-    if (!add_sub_sexp_to_sexp(&raw_s_exp, &sub_s_exp)) {
-        destroy_s_exp(&raw_s_exp);
-        return false;
-    }
-
-    if (!write_seckey(sub_s_exp, seckey)) {
-        destroy_s_exp(&raw_s_exp);
-        return false;
+    if (!add_sub_sexp_to_sexp(&raw_s_exp, &sub_s_exp) || !write_seckey(sub_s_exp, seckey)) {
+        goto done;
     }
 
     // calculated hash
+    time_t now;
     time(&now);
     char protected_at[G10_PROTECTED_AT_SIZE + 1];
     strftime(protected_at, sizeof(protected_at), "%Y%m%dT%H%M%S", gmtime(&now));
 
-    if (!g10_calculated_hash(seckey, protected_at, checksum)) {
-        destroy_s_exp(&raw_s_exp);
-        return false;
-    }
-
-    if (!add_sub_sexp_to_sexp(&raw_s_exp, &sub_s_exp)) {
-        destroy_s_exp(&raw_s_exp);
-        return false;
-    }
-
-    if (!add_string_block_to_sexp(sub_s_exp, "hash")) {
-        destroy_s_exp(&raw_s_exp);
-        pgp_memory_release(&raw);
-        return false;
-    }
-
-    if (!add_string_block_to_sexp(sub_s_exp, "sha1")) {
-        destroy_s_exp(&raw_s_exp);
-        pgp_memory_release(&raw);
-        return false;
-    }
-
-    if (!add_block_to_sexp(sub_s_exp, checksum, sizeof(checksum))) {
-        destroy_s_exp(&raw_s_exp);
-        pgp_memory_release(&raw);
-        return false;
-    }
-
-    if (!write_sexp(&raw_s_exp, &raw)) {
-        destroy_s_exp(&raw_s_exp);
-        pgp_memory_release(&raw);
-        return false;
+    if (!g10_calculated_hash(seckey, protected_at, checksum) ||
+        !add_sub_sexp_to_sexp(&raw_s_exp, &sub_s_exp) ||
+        !add_string_block_to_sexp(sub_s_exp, "hash") ||
+        !add_string_block_to_sexp(sub_s_exp, "sha1") ||
+        !add_block_to_sexp(sub_s_exp, checksum, sizeof(checksum)) ||
+        !write_sexp(&raw_s_exp, &raw)) {
+        goto done;
     }
 
     keysize = pgp_key_size(seckey->protection.symm_alg);
     if (keysize == 0) {
-        (void) fprintf(stderr, "parse_seckey: unknown symmetric algo");
-        destroy_s_exp(&raw_s_exp);
-        pgp_memory_release(&raw);
-        return false;
+        goto done;
     }
 
     if (pgp_s2k_iterated(format->hash_alg,
@@ -1349,10 +1307,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passwor
                          (const char *) password,
                          seckey->protection.s2k.salt,
                          seckey->protection.s2k.iterations)) {
-        (void) fprintf(stderr, "pgp_s2k_iterated failed\n");
-        destroy_s_exp(&raw_s_exp);
-        pgp_memory_release(&raw);
-        return false;
+        goto done;
     }
 
     // add padding!
@@ -1360,17 +1315,14 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passwor
          i > 0;
          i--) {
         if (!pgp_memory_add(&raw, (const uint8_t *) "X", 1)) {
-            return false;
+            goto done;
         }
     }
 
-    size_t   encrypted_data_len = raw.length;
-    uint8_t *encrypted_data = malloc(encrypted_data_len);
-    if (encrypted_data == NULL) {
-        (void) fprintf(stderr, "can't allocate memory\n");
-        destroy_s_exp(&raw_s_exp);
-        pgp_memory_release(&raw);
-        return false;
+    size_t encrypted_data_len = raw.length;
+    encrypted_data = malloc(encrypted_data_len);
+    if (!encrypted_data) {
+        goto done;
     }
 
     if (rnp_get_debug(__FILE__)) {
@@ -1380,19 +1332,12 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passwor
     }
 
     if (botan_cipher_init(
-          &encrypt, format->botan_cipher_name, BOTAN_CIPHER_INIT_FLAG_ENCRYPT)) {
-        (void) fprintf(stderr, "botan_cipher_init failed\n");
-        goto error;
+          &encrypt, format->botan_cipher_name, BOTAN_CIPHER_INIT_FLAG_ENCRYPT) ||
+        botan_cipher_set_key(encrypt, derived_key, keysize) ||
+        botan_cipher_start(encrypt, seckey->protection.iv, format->iv_size)) {
+        goto done;
     }
-
-    if (botan_cipher_set_key(encrypt, derived_key, keysize)) {
-        goto error;
-    }
-
-    if (botan_cipher_start(encrypt, seckey->protection.iv, format->iv_size)) {
-        goto error;
-    }
-
+    size_t output_written, input_consumed;
     if (botan_cipher_update(encrypt,
                             BOTAN_CIPHER_UPDATE_FLAG_FINAL,
                             encrypted_data,
@@ -1401,70 +1346,33 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passwor
                             raw.buf,
                             raw.length,
                             &input_consumed)) {
-        (void) fprintf(stderr, "botan_cipher_update failed\n");
-        goto error;
+        goto done;
     }
 
-    if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
-        return false;
+    if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp) ||
+        !add_string_block_to_sexp(sub_s_exp, "protected") ||
+        !add_string_block_to_sexp(sub_s_exp, format->g10_type) ||
+        !add_sub_sexp_to_sexp(sub_s_exp, &sub_sub_s_exp) ||
+        !add_sub_sexp_to_sexp(sub_sub_s_exp, &sub_sub_sub_s_exp) ||
+        !add_string_block_to_sexp(sub_sub_sub_s_exp, "sha1") ||
+        !add_block_to_sexp(sub_sub_sub_s_exp, seckey->protection.s2k.salt, PGP_SALT_SIZE) ||
+        !add_unsigned_block_to_sexp(sub_sub_sub_s_exp, seckey->protection.s2k.iterations) ||
+        !add_block_to_sexp(sub_sub_s_exp, seckey->protection.iv, format->iv_size) ||
+        !add_block_to_sexp(sub_s_exp, encrypted_data, encrypted_data_len) ||
+        !add_sub_sexp_to_sexp(s_exp, &sub_s_exp) ||
+        !add_string_block_to_sexp(sub_s_exp, "protected-at") ||
+        !add_block_to_sexp(sub_s_exp, (uint8_t *) protected_at, G10_PROTECTED_AT_SIZE)) {
+        goto done;
     }
+    ret = true;
 
-    if (!add_string_block_to_sexp(sub_s_exp, "protected")) {
-        return false;
-    }
-
-    if (!add_string_block_to_sexp(sub_s_exp, format->g10_type)) {
-        return false;
-    }
-
-    if (!add_sub_sexp_to_sexp(sub_s_exp, &sub_sub_s_exp)) {
-        return false;
-    }
-
-    if (!add_sub_sexp_to_sexp(sub_sub_s_exp, &sub_sub_sub_s_exp)) {
-        return false;
-    }
-
-    if (!add_string_block_to_sexp(sub_sub_sub_s_exp, "sha1")) {
-        return false;
-    }
-
-    if (!add_block_to_sexp(sub_sub_sub_s_exp, seckey->protection.s2k.salt, PGP_SALT_SIZE)) {
-        return false;
-    }
-
-    if (!add_unsigned_block_to_sexp(sub_sub_sub_s_exp, seckey->protection.s2k.iterations)) {
-        return false;
-    }
-
-    if (!add_block_to_sexp(sub_sub_s_exp, seckey->protection.iv, format->iv_size)) {
-        return false;
-    }
-
-    if (!add_block_to_sexp(sub_s_exp, encrypted_data, encrypted_data_len)) {
-        return false;
-    }
-
-    if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
-        return false;
-    }
-
-    if (!add_string_block_to_sexp(sub_s_exp, "protected-at")) {
-        return false;
-    }
-
-    if (!add_block_to_sexp(sub_s_exp, (uint8_t *) protected_at, G10_PROTECTED_AT_SIZE)) {
-        return false;
-    }
-
-    return true;
-
-error:
+done:
+    pgp_forget(derived_key, sizeof(derived_key));
     free(encrypted_data);
     destroy_s_exp(&raw_s_exp);
     pgp_memory_release(&raw);
     botan_cipher_destroy(encrypt);
-    return false;
+    return ret;
 }
 
 bool
