@@ -130,6 +130,7 @@ test_key_add_userid(void **state)
     assert_non_null(ks);
     // read from the saved packets
     assert_true(rnp_key_store_pgp_read_from_mem(&io, ks, 0, &mem));
+    pgp_memory_release(&mem);
     assert_true(rnp_key_store_get_key_by_name(&io, ks, keyids[0], &key));
     assert_non_null(key);
 
