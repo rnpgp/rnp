@@ -541,9 +541,6 @@ ask_expert_details(rnp_t *ctx, rnp_cfg_t *ops, const char *rsp, size_t rsp_len)
     bool      ret = true;
     rnp_cfg_t cfg = {0};
     int       pipefd[2] = {0};
-    if (setup_rnp_common(ctx, RNP_KEYSTORE_GPG, NULL, NULL) != true) {
-        return false;
-    }
     if (pipe(pipefd) == -1) {
         ret = false;
         goto end;
@@ -735,6 +732,7 @@ generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state)
       rstate, rnp.action.generate_key_ctx.primary.keygen.crypto.hash_alg, PGP_HASH_SHA384);
 
     rnp_cfg_free(&ops);
+    rnp_end(&rnp);
 }
 
 void
@@ -755,6 +753,7 @@ generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
       rstate, rnp.action.generate_key_ctx.primary.keygen.crypto.hash_alg, PGP_HASH_SHA512);
 
     rnp_cfg_free(&ops);
+    rnp_end(&rnp);
 }
 
 void
@@ -774,6 +773,7 @@ generatekeyECDSA_explicitlySetWrongDigest_ShouldSuceed(void **state)
     rnp_assert_true(rstate,
                      ask_expert_details(&rnp, &ops, test_ecdsa_384, strlen(test_ecdsa_384)));
     rnp_cfg_free(&ops);
+    rnp_end(&rnp);
 }
 
 /* This tests some of the mid-level key generation functions and their
