@@ -60,9 +60,6 @@ matrix:
             - clang-format-4.0
 
   allow_failures:
-    # allowed to fail until we have eliminated all memory leaks from our test runs
-    - env: BUILD_MODE=sanitize-leaks GPG_VERSION=stable
-    - env: BUILD_MODE=sanitize-leaks GPG_VERSION=beta
     # allowed to fail until we have stabilized on a clang-format version
     - env: BUILD_MODE=style-check GPG_VERSION=stable
 
