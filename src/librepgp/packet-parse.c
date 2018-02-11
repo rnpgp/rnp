@@ -3458,6 +3458,10 @@ pgp_stream_delete(pgp_stream_t *stream)
     if (stream->readinfo.accumulated) {
         free(stream->readinfo.accumulated);
     }
+    for (size_t i = 0; i < stream->hashc; i++) {
+        pgp_hash_finish(&stream->hashes[i].hash, NULL);
+    }
+    free(stream->hashes);
 
     free(stream);
 }
