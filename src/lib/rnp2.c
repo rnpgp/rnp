@@ -1217,6 +1217,7 @@ rnp_result_t
 rnp_op_encrypt_destroy(rnp_op_encrypt_t op)
 {
     if (op) {
+        rnp_ctx_free(&op->rnpctx);
         free(op);
     }
     return RNP_SUCCESS;
