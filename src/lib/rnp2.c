@@ -111,6 +111,7 @@ struct rnp_identifier_iterator_st {
     pgp_key_t *      keyp;
     unsigned         uididx;
     json_object *    tbl;
+    char buf[1 + MAX(MAX(PGP_KEY_ID_SIZE * 2, PGP_FINGERPRINT_SIZE * 2), MAX_ID_LENGTH)];
 };
 
 #define FFI_LOG(ffi, ...)            \
@@ -3243,11 +3244,7 @@ done:
 rnp_result_t
 rnp_identifier_iterator_next(rnp_identifier_iterator_t it, const char **identifier)
 {
-    rnp_result_t        ret = RNP_ERROR_GENERIC;
-    static const size_t buf_len =
-      1 + MAX(MAX(PGP_KEY_ID_SIZE * 2, PGP_FINGERPRINT_SIZE * 2), MAX_ID_LENGTH);
-    char  buf[buf_len];
-    char *key = NULL;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
 
     // checks
     if (!it || !identifier) {
@@ -3260,34 +3257,28 @@ rnp_identifier_iterator_next(rnp_identifier_iterator_t it, const char **identifi
         return RNP_SUCCESS;
     }
     // get the item
-    if (!key_iter_get_item(it, buf, buf_len)) {
+    if (!key_iter_get_item(it, it->buf, sizeof(it->buf))) {
         return RNP_ERROR_GENERIC;
     }
     bool exists;
-    while ((exists = json_object_object_get_ex(it->tbl, buf, NULL))) {
+    while ((exists = json_object_object_get_ex(it->tbl, it->buf, NULL))) {
         if (!key_iter_next_item(it)) {
             break;
         }
-        if (!key_iter_get_item(it, buf, buf_len)) {
+        if (!key_iter_get_item(it, it->buf, sizeof(it->buf))) {
             return RNP_ERROR_GENERIC;
         }
     }
     // see if we actually found a new entry
     if (!exists) {
-        key = strdup(buf);
-        if (!key) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
-        }
         // TODO: Newer json-c has a useful return value for json_object_object_add,
         // which doesn't require the json_object_object_get_ex check below.
-        json_object_object_add(it->tbl, key, NULL);
-        if (!json_object_object_get_ex(it->tbl, buf, NULL)) {
-            free(key);
+        json_object_object_add(it->tbl, it->buf, NULL);
+        if (!json_object_object_get_ex(it->tbl, it->buf, NULL)) {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
-        *identifier = key;
+        *identifier = it->buf;
     }
     // prepare for the next one
     if (!key_iter_next_item(it)) {
