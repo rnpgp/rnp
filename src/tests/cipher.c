@@ -650,15 +650,15 @@ sm2_roundtrip(void **state)
 
     for (size_t i = 0; i < ARRAY_SIZE(hashes); ++i) {
         size_t        ctext_size = sizeof(ctext_buf);
-        pgp_errcode_t enc_result = pgp_sm2_encrypt(
+        rnp_result_t enc_result = pgp_sm2_encrypt(
           &global_rng, ctext_buf, &ctext_size, key, sizeof(key), hashes[i], pub_ecc);
-        rnp_assert_int_equal(rstate, enc_result, PGP_E_OK);
+        rnp_assert_int_equal(rstate, enc_result, RNP_SUCCESS);
 
         memset(decrypted, 0, sizeof(decrypted));
         size_t        decrypted_size = sizeof(decrypted);
         pgp_errcode_t dec_result =
           pgp_sm2_decrypt(decrypted, &decrypted_size, ctext_buf, ctext_size, sec_ecc, pub_ecc);
-        rnp_assert_int_equal(rstate, dec_result, PGP_E_OK);
+        rnp_assert_int_equal(rstate, dec_result, RNP_SUCCESS);
 
         rnp_assert_int_equal(rstate, decrypted_size, sizeof(key));
         for (size_t i = 0; i != decrypted_size; ++i)
