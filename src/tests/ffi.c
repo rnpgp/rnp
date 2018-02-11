@@ -650,7 +650,6 @@ test_ffi_add_userid(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-// TODO: Hash mismatch in secret key
 void
 test_ffi_keygen_json_sub_pass_required(void **state)
 {
@@ -962,8 +961,10 @@ test_ffi_encrypt_pk(void **state)
     rnp_key_handle_t key = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key0-uid2", &key));
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_add_recipient(op, key));
+    rnp_key_handle_free(&key);
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key1-uid1", &key));
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_add_recipient(op, key));
+    rnp_key_handle_free(&key);
     // set the data encryption cipher
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_set_cipher(op, "CAST5"));
     // execute the operation
