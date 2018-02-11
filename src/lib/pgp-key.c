@@ -958,6 +958,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
 
 done:
     pgp_seckey_free(decrypted_seckey);
+    free(decrypted_seckey);
     return ret;
 }
 
