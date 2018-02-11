@@ -222,6 +222,14 @@ bool pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_p
  **/
 bool pgp_key_is_protected(const pgp_key_t *key);
 
+/** add a new userid to a key
+ *
+ *  @param key
+ *  @param seckey the decrypted seckey for signing
+ *  @param hash_alg the hash algorithm to be used for the signature
+ *  @param cert the self-signature information
+ *  @return true if the userid was added, false otherwise
+ */
 bool pgp_key_add_userid(pgp_key_t *            key,
                         const pgp_seckey_t *   seckey,
                         pgp_hash_alg_t         hash_alg,
