@@ -2408,8 +2408,7 @@ parse_litdata(pgp_region_t *region, pgp_stream_t *stream)
         CALLBACK(PGP_PTAG_CT_LITDATA_BODY, &stream->cbinfo, &pkt);
     }
 
-    /* XXX - get rid of mem here? */
-
+    pgp_memory_free(mem);
     return true;
 }
 
