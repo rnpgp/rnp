@@ -361,8 +361,9 @@ rnp_result_t rnp_identifier_iterator_create(rnp_ffi_t                  ffi,
  *
  *  @param it the iterator
  *  @param identifier pointer that will be set to the identifier value.
- *         Must not be NULL. The application should free this with
- *         rnp_buffer_free.
+ *         Must not be NULL. This buffer should not be freed by the application.
+ *         It will be modified by subsequent calls to this function, and its
+ *         life is tied to the iterator.
  *  @return 0 on success, or any other value on error
  */
 rnp_result_t rnp_identifier_iterator_next(rnp_identifier_iterator_t it,
