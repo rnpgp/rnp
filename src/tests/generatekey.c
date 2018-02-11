@@ -1013,9 +1013,12 @@ test_generated_key_sigs(void **state)
             fake.packets[fake.packetc++] = sub_pub->packets[i];
         }
         // validate via an alternative method
-        pgp_validation_t vres = {0};
-        vres.rnp_ctx = &rnp_ctx;
-        assert_true(pgp_validate_key_sigs(&vres, &fake, pubring, NULL));
+        pgp_validation_t *vres = calloc(1, sizeof(*vres));
+        assert_non_null(vres);
+        vres->rnp_ctx = &rnp_ctx;
+        assert_true(pgp_validate_key_sigs(vres, &fake, pubring, NULL));
+        pgp_validate_result_free(vres);
+        FREE_ARRAY(pfake, packet);
     }
 
     rnp_key_store_free(pubring);
