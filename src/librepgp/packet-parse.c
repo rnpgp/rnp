@@ -2776,6 +2776,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         return false;
     }
     if (!ret) {
+        pgp_seckey_free(&pkt.u.seckey);
         return false;
     }
     CALLBACK(tag, &stream->cbinfo, &pkt);
