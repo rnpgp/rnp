@@ -113,6 +113,8 @@ main(int argc, char **argv)
         }
     }
 
+    rnp_cfg_free(&cfg);
+    rnp_cfg_free(&opt_cfg);
     rnp_end(&rnp);
     return ret;
 }
