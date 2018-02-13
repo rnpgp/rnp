@@ -703,6 +703,7 @@ rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
     const char *j = json_object_to_json_string(obj);
     ret = j != NULL;
     *json = strdup(j);
+    json_object_put(obj);
     return ret;
 }
 
