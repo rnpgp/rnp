@@ -188,11 +188,13 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         bool        force = rnp_cfg_getbool(cfg, CFG_FORCE);
         ret = file ? init_file_dest(&dst, file, force) : init_stdout_dest(&dst);
         if (ret) {
+            free(s);
             return false;
         }
 
         dst_write(&dst, s, strlen(s));
         dst_close(&dst, false);
+        free(s);
         return true;
     }
     case CMD_IMPORT_KEY:
