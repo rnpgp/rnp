@@ -365,7 +365,7 @@ literal_src_close(pgp_source_t *src)
     pgp_source_literal_param_t *param = src->param;
     if (param) {
         if (param->pkt.partial) {
-            param->pkt.readsrc->close(param->pkt.readsrc);
+            src_close(param->pkt.readsrc);
             free(param->pkt.readsrc);
             param->pkt.readsrc = NULL;
         }
@@ -469,7 +469,7 @@ compressed_src_close(pgp_source_t *src)
     pgp_source_compressed_param_t *param = src->param;
     if (param) {
         if (param->pkt.partial) {
-            param->pkt.readsrc->close(param->pkt.readsrc);
+            src_close(param->pkt.readsrc);
             free(param->pkt.readsrc);
             param->pkt.readsrc = NULL;
         }
@@ -758,7 +758,7 @@ encrypted_src_close(pgp_source_t *src)
         list_destroy(&param->pubencs);
 
         if (param->pkt.partial) {
-            param->pkt.readsrc->close(param->pkt.readsrc);
+            src_close(param->pkt.readsrc);
             free(param->pkt.readsrc);
             param->pkt.readsrc = NULL;
         }
