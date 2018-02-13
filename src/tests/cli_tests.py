@@ -159,8 +159,8 @@ def clear_workfiles():
     TEST_WORKFILES = []
 
 
-def rnp_genkey_rsa(userid, bits=2048):
-    pipe = pswd_pipe(PASSWORD)
+def rnp_genkey_rsa(userid, bits=2048, pswd=PASSWORD):
+    pipe = pswd_pipe(pswd)
     ret, _, err = run_proc(RNPK, ['--numbits', str(bits), '--homedir',
                                     RNPDIR, '--pass-fd', str(pipe), '--userid', userid, '--generate-key'])
     os.close(pipe)
@@ -289,6 +289,14 @@ def gpg_import_secring(kpath=None):
         GPG, ['--batch', '--passphrase', PASSWORD, '--homedir', GPGDIR, '--import', kpath])
     if ret != 0:
         raise_err('gpg secret key import failed', err)
+
+
+def gpg_export_secret_key(userid, password, keyfile):
+    ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--pinentry-mode=loopback', '--yes',
+        '--passphrase', password, '--output', keyfile, '--export-secret-key', userid])
+
+    if ret != 0:
+        raise_err('gpg secret key export failed', err)
 
 
 def gpg_encrypt_file(src, dst, cipher='AES', zlevel=6, zalgo=1, armor=False):
@@ -948,6 +956,68 @@ class Encryption(unittest.TestCase):
             rnp_sym_encryption_rnp_aead(cipher, size, 6, 'zip', mode, bits, usegpg)
             rnp_sym_encryption_rnp_aead(cipher, size, 6, 'zlib', mode, bits, usegpg)
             rnp_sym_encryption_rnp_aead(cipher, size, 6, 'bzip2', mode, bits, usegpg)
+
+    def test_encryption_multiple_recipients(self):
+        USERIDS = ['key1@rnp', 'key2@rnp', 'key3@rnp']
+        KEYPASS = ['key1pass', 'key2pass', 'key3pass']
+        PASSWORDS = ['password1', 'password2', 'password3']
+        # Generate multiple keys and import to GnuPG
+        for i in range(0, len(USERIDS)):
+            uid, pswd = [USERIDS[i], KEYPASS[i]]
+            rnp_genkey_rsa(uid, 1024, pswd)
+        gpg_import_pubring()
+        gpg_import_secring()
+        
+        src, dst, dec = reg_workfiles('cleartext', '.txt', '.rnp', '.dec')
+        # Generate random file of required size
+        random_text(src, 128000)
+
+        for keynum, pswdnum in zip(range(0, len(USERIDS) + 1), range(0, len(PASSWORDS) + 1)):
+            if (keynum == 0) and (pswdnum == 0):
+                continue
+
+            params = ['--homedir', RNPDIR, src, '--output', dst]
+            if keynum > 0:
+                params[2:2] = ['--encrypt']
+            else:
+                params[2:2] = ['-c']
+            
+            for i in range(0, keynum):
+                uid = USERIDS[i]
+                params[2:2] = ['-r', uid]
+
+            if pswdnum > 0:
+                passwords = ''
+                for j in range(0, pswdnum):
+                    passwords += PASSWORDS[j] + '\n'
+                pipe = pswd_pipe(passwords)
+                params[2:2] = ['--passwords', str(pswdnum)]
+                params[2:2] = ['--pass-fd', str(pipe)]
+
+            ret, _, err = run_proc(RNP, params)
+
+            if pswdnum > 0:
+                os.close(pipe)
+
+            if ret != 0:
+                raise_err('rnp multi-recipient encryption failed', err)
+
+            # Decrypt file with each of the keys, we have different password for each key
+            for i in range(0, keynum):
+                pswd = KEYPASS[i]
+                gpg_decrypt_file(dst, dec, pswd)
+                remove_files(dec)
+
+            # Decrypt file with each of the passwords
+            for i in range(0, pswdnum):
+                pswd = PASSWORDS[i]
+                gpg_decrypt_file(dst, dec, pswd)
+                remove_files(dec)
+
+            remove_files(dst, dec)
+
+        clear_workfiles()
+
 
 class Compression(unittest.TestCase):
 
