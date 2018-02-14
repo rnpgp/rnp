@@ -675,7 +675,6 @@ test_dsa_roundtrip(void **state)
     rnp_test_state_t *rstate = *state;
     uint8_t           message[PGP_MAX_HASH_SIZE];
     pgp_seckey_t      sec_key1 = {{0}};
-    pgp_seckey_t      sec_key2 = {{0}};
     pgp_dsa_sig_t     sig = {0};
 
     struct key_params {
@@ -697,9 +696,6 @@ test_dsa_roundtrip(void **state)
         {3072, 256, PGP_HASH_SHA384},
         {3072, 256, PGP_HASH_SHA512},
         //misc
-        {1088, 224, PGP_HASH_SHA224},
-        {1088, 224, PGP_HASH_SHA256},
-        {1088, 224, PGP_HASH_SHA384},
         {1088, 224, PGP_HASH_SHA512},
         {1024, 256, PGP_HASH_SHA256},
     };
@@ -723,26 +719,70 @@ test_dsa_roundtrip(void **state)
                key_desc.dsa.p_bitlen,
                key_desc.dsa.q_bitlen,
                pgp_show_hash_alg(key_desc.hash_alg));
-        assert_true(pgp_generate_seckey(&key_desc, &sec_key2));
 
         pgp_dsa_pubkey_t *pub1 = &sec_key1.pubkey.key.dsa;
         pgp_dsa_seckey_t *sec1 = &sec_key1.key.dsa;
-        pgp_dsa_pubkey_t *pub2 = &sec_key2.pubkey.key.dsa;
 
         size_t h_size = pgp_digest_length(keys[i].h);
         rnp_assert_int_equal(rstate,
             dsa_sign(&global_rng, &sig, message, h_size, sec1, pub1), RNP_SUCCESS);
         rnp_assert_int_equal(rstate,
             dsa_verify(message, h_size, &sig, pub1), RNP_SUCCESS);
-        // wrong key used
-        rnp_assert_int_equal(rstate,
-            dsa_verify(message, h_size, &sig, pub2), RNP_ERROR_SIGNATURE_INVALID);
-        // different message
-        message[0] = ~message[0];
-        rnp_assert_int_equal(rstate,
-            dsa_verify(message, h_size, &sig, pub1), RNP_ERROR_SIGNATURE_INVALID);
         pgp_seckey_free(&sec_key1);
-        pgp_seckey_free(&sec_key2);
         bn_free(sig.r); bn_free(sig.s);
     }
+}
+
+void
+test_dsa_verify_negative(void **state)
+{
+    rnp_test_state_t *rstate = *state;
+    uint8_t           message[PGP_MAX_HASH_SIZE];
+    pgp_seckey_t      sec_key1 = {{0}};
+    pgp_seckey_t      sec_key2 = {{0}};
+    pgp_dsa_sig_t     sig = {0};
+
+    struct key_params {
+        size_t p;
+        size_t q;
+        pgp_hash_alg_t h;
+    } key = { 1024, 160, PGP_HASH_SHA1 };
+
+    assert_true(rng_get_data(&global_rng, message, sizeof(message)));
+
+    sig.r = sig.s = NULL;
+    const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_DSA,
+                                                 .hash_alg = key.h,
+                                                 .dsa = {
+                                                    .p_bitlen = key.p,
+                                                    .q_bitlen = key.q
+                                                 },
+                                                 .rng = &global_rng};
+
+
+    assert_true(pgp_generate_seckey(&key_desc, &sec_key1));
+    // try to prevent timeouts in travis-ci
+    printf("p: %zu q: %zu h: %s\n",
+           key_desc.dsa.p_bitlen,
+           key_desc.dsa.q_bitlen,
+           pgp_show_hash_alg(key_desc.hash_alg));
+    assert_true(pgp_generate_seckey(&key_desc, &sec_key2));
+
+    pgp_dsa_pubkey_t *pub1 = &sec_key1.pubkey.key.dsa;
+    pgp_dsa_seckey_t *sec1 = &sec_key1.key.dsa;
+    pgp_dsa_pubkey_t *pub2 = &sec_key2.pubkey.key.dsa;
+
+    size_t h_size = pgp_digest_length(key.h);
+    rnp_assert_int_equal(rstate,
+        dsa_sign(&global_rng, &sig, message, h_size, sec1, pub1), RNP_SUCCESS);
+    // wrong key used
+    rnp_assert_int_equal(rstate,
+        dsa_verify(message, h_size, &sig, pub2), RNP_ERROR_SIGNATURE_INVALID);
+    // different message
+    message[0] = ~message[0];
+    rnp_assert_int_equal(rstate,
+        dsa_verify(message, h_size, &sig, pub1), RNP_ERROR_SIGNATURE_INVALID);
+    pgp_seckey_free(&sec_key1);
+    pgp_seckey_free(&sec_key2);
+    bn_free(sig.r); bn_free(sig.s);
 }
