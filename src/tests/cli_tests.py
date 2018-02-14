@@ -1344,6 +1344,15 @@ class SignDSA(Sign):
             "2112", self.rnp.userid)
         self._rnp_sign_verify(self.gpg, self.rnp, cmd)
 
+    def test_sign_P1088_Q224(self):
+        cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(1088)
+        self._rnp_sign_verify(self.rnp, self.gpg, cmd)
+
+    def test_verify_P1088_Q224(self):
+        cmd = SignDSA.GPG_GENERATE_DSA_PATERN.format(
+            "1088", self.rnp.userid)
+        self._rnp_sign_verify(self.gpg, self.rnp, cmd)
+
     def test_hash_truncation(self):
         '''
         Signs message hashed with SHA512 with a key of size 160 bits. Implementation
