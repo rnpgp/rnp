@@ -28,6 +28,12 @@ def size_to_readable(num, suffix = 'B'):
         num /= 1024.0
     return "%.1f%s%s" % (num, 'Yi', suffix)
 
+def list_upto(lst, count):
+    res = lst[:]
+    while len(res) < count:
+        res = res + lst[:]
+    return res[:count]
+
 def pswd_pipe(password):
     pr, pw = os.pipe()
     with os.fdopen(pw, 'w') as fw:
