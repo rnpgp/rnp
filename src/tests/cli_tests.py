@@ -18,7 +18,8 @@ from cli_common import (
     rnp_file_path,
     random_text,
     file_text,
-    raise_err
+    raise_err,
+    list_upto
 )
 from gnupg import GnuPG as GnuPG
 from rnp import Rnp as Rnp
@@ -94,9 +95,10 @@ r'uid\s+(.*)\s*' \
 r'Signature\(s\) verified successfully.*$'
 
 RNP_TO_GPG_ZALGS = { 'zip' : '1', 'zlib' : '2', 'bzip2' : '3' }
+# These are mostly identical
 RNP_TO_GPG_CIPHERS = {'AES' : 'aes128', 'AES192' : 'aes192', 'AES256' : 'aes256', 'TWOFISH' : 'twofish',
         'CAMELLIA128' : 'camellia128', 'CAMELLIA192' : 'camellia192', 'CAMELLIA256' : 'camellia256',
-        'IDEA' : 'idea', '3DES' : 'tripledes', 'CAST5' : 'cast5', 'BLOWFISH' : 'blowfish'}
+        'IDEA' : 'idea', '3DES' : '3des', 'CAST5' : 'cast5', 'BLOWFISH' : 'blowfish'}
 
 def check_packets(fname, regexp):
     ret, output, err = run_proc(GPG, ['--list-packets', fname])
@@ -168,33 +170,45 @@ def rnp_genkey_rsa(userid, bits=2048, pswd=PASSWORD):
         raise_err('rsa key generation failed', err)
 
 
-def rnp_encrypt_file(recipient, src, dst, zlevel=6, zalgo='zip', armor=False):
-    params = ['--homedir', RNPDIR, '-r', recipient, '-z',
-              str(zlevel), '--' + zalgo, '--encrypt', src, '--output', dst]
-    if armor:
-        params += ['--armor']
+def rnp_params_insert_z(params, pos, z):
+    if z:
+        if len(z) > 0 and z[0] != None:
+            params[pos:pos] = ['--' + z[0]]
+        if len(z) > 1 and z[1] != None:
+            params[pos:pos] = ['-z', str(z[1])]
+
+def rnp_params_insert_aead(params, pos, aead):
+    if aead:
+        params[pos:pos] = ['--aead=' + aead[0]] if len(aead) > 0 and aead[0] != None else ['--aead']
+        if len(aead) > 1 and aead[1] != None: 
+            params[pos + 1:pos + 1] = ['--aead-chunk-bits=' + str(aead[1])]
+
+
+def rnp_encrypt_file(recipient, src, dst, z=None, armor=False):
+    params = ['--homedir', RNPDIR, '-r', recipient, '--encrypt', src, '--output', dst]
+    rnp_params_insert_z(params, 4, z)
+    if armor: params += ['--armor']
     ret, _, err = run_proc(RNP, params)
     if ret != 0:
         raise_err('rnp encryption failed', err)
 
 
-def rnp_symencrypt_file(src, dst, cipher, zlevel=6, zalgo='zip', armor=False, aead=None):
+def rnp_symencrypt_file(src, dst, cipher, z=None, armor=False, aead=None):
     pipe = pswd_pipe(PASSWORD)
-    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--cipher', cipher, '-z', str(
-        zlevel), '--' + zalgo, '-c', src, '--output', dst]
-    if armor:
-        params += ['--armor']
-    if aead:
-        algo, chunk = aead
-        params += ['--aead=' + algo, '--aead-chunk-bits=' + str(chunk)]
+    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '-c', src, '--output', dst]
+    rnp_params_insert_z(params, 4, z)
+    if cipher: params[4:4] = ['--cipher', cipher]
+    if armor: params += ['--armor']
+    if aead: rnp_params_insert_aead(params, 4, aead)
+
     ret, _, err = run_proc(RNP, params)
     os.close(pipe)
     if ret != 0:
         raise_err('rnp symmetric encryption failed', err)
 
 
-def rnp_decrypt_file(src, dst):
-    pipe = pswd_pipe(PASSWORD)
+def rnp_decrypt_file(src, dst, password = PASSWORD):
+    pipe = pswd_pipe(password)
     ret, out, err = run_proc(
         RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--decrypt', src, '--output', dst])
     os.close(pipe)
@@ -206,8 +220,7 @@ def rnp_sign_file(src, dst, signer, armor=False):
     pipe = pswd_pipe(PASSWORD)
     params = ['--homedir', RNPDIR, '--pass-fd',
               str(pipe), '--userid', signer, '--sign', src, '--output', dst]
-    if armor:
-        params += ['--armor']
+    if armor: params += ['--armor']
     ret, _, err = run_proc(RNP, params)
     os.close(pipe)
     if ret != 0:
@@ -298,25 +311,36 @@ def gpg_export_secret_key(userid, password, keyfile):
     if ret != 0:
         raise_err('gpg secret key export failed', err)
 
+def gpg_params_insert_z(params, pos, z):
+    if z:
+        if len(z) > 0 and z[0] != None:
+            params[pos:pos] = ['--compress-algo', RNP_TO_GPG_ZALGS[z[0]]]
+        if len(z) > 1 and z[1] != None:
+            params[pos:pos] = ['-z', str(z[1])]
 
-def gpg_encrypt_file(src, dst, cipher='AES', zlevel=6, zalgo=1, armor=False):
-    params = ['--homedir', GPGDIR, '-e', '-z', str(zlevel), '--compress-algo', str(
-        zalgo), '-r', KEY_ENCRYPT, '--batch', '--cipher-algo', cipher, '--trust-model', 'always', '--output', dst, src]
-    if armor:
-        params.insert(2, '--armor')
+def gpg_encrypt_file(src, dst, cipher=None, z=None, armor=False):
+    params = ['--homedir', GPGDIR, '-e', '-r', KEY_ENCRYPT, '--batch', '--trust-model', 'always', '--output', dst, src]
+    if z: gpg_params_insert_z(params, 3, z)
+    if cipher: params[3:3] = ['--cipher-algo', RNP_TO_GPG_CIPHERS[cipher]]
+    if armor: params[2:2] = ['--armor']
+
     ret, out, err = run_proc(GPG, params)
     if ret != 0:
         raise_err('gpg encryption failed for cipher ' + cipher, err)
 
 
-def gpg_symencrypt_file(src, dst, cipher='AES', zlevel=6, zalgo=1, armor=False, aead=None):
-    params = ['--homedir', GPGDIR, '-c', '-z', str(zlevel), '--s2k-count', '65536', '--compress-algo', str(
-        zalgo), '--batch', '--passphrase', PASSWORD, '--cipher-algo', cipher, '--output', dst, src]
-    if armor:
-        params.insert(2, '--armor')
-    if aead:
-        algo, chunk = aead
-        params[2:2] = ['--rfc4880bis', '--force-aead', '--aead-algo', algo, '--chunk-size', str(chunk)]
+def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
+    params = ['--homedir', GPGDIR, '-c', '--s2k-count', '65536', '--batch', '--passphrase', PASSWORD, '--output', dst, src]
+    if z: gpg_params_insert_z(params, 3, z)
+    if cipher: params[3:3] = ['--cipher-algo', RNP_TO_GPG_CIPHERS[cipher]]
+    if armor: params[2:2] = ['--armor']
+    if aead != None:
+        if len(aead) > 0 and aead[0] != None:
+            params[3:3] = ['--aead-algo', aead[0]]
+        if len(aead) > 1 and aead[1] != None: 
+            params[3:3] = ['--chunk-size', str(aead[1] + 6)]
+        params[3:3] = ['--rfc4880bis', '--force-aead']
+
     ret, out, err = run_proc(GPG, params)
     if ret != 0:
         raise_err('gpg symmetric encryption failed for cipher ' + cipher, err)
@@ -368,11 +392,11 @@ def gpg_verify_cleartext(src, signer=None):
         raise_err('gpg verification failed, wrong signer')
 
 
-def gpg_sign_file(src, dst, signer, zlevel=6, zalgo=1, armor=False):
-    params = ['--homedir', GPGDIR, '--pinentry-mode=loopback', '-z', str(zlevel), '--compress-algo', str(
-        zalgo), '--batch', '--yes', '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '-o', dst, '-s', src]
-    if armor:
-        params.insert(2, '--armor')
+def gpg_sign_file(src, dst, signer, z=None, armor=False):
+    params = ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', 
+              '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '-o', dst, '-s', src]
+    if z: gpg_params_insert_z(params, 3, z)
+    if armor: params.insert(2, '--armor')
     ret, _, err = run_proc(GPG, params)
     if ret != 0:
         raise_err('gpg signing failed', err)
@@ -381,8 +405,7 @@ def gpg_sign_file(src, dst, signer, zlevel=6, zalgo=1, armor=False):
 def gpg_sign_detached(src, signer, armor=False):
     params = ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes',
               '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '--detach-sign', src]
-    if armor:
-        params.insert(2, '--armor')
+    if armor: params.insert(2, '--armor')
     ret, _, err = run_proc(GPG, params)
     if ret != 0:
         raise_err('gpg detached signing failed', err)
@@ -405,7 +428,7 @@ def gpg_sign_cleartext(src, dst, signer):
 '''
 
 
-def gpg_to_rnp_encryption(cipher, filesize, zlevel=6, zalgo=1):
+def gpg_to_rnp_encryption(filesize, cipher=None, z=None):
     '''
     Encrypts with GPG and decrypts with RNP
     '''
@@ -414,7 +437,7 @@ def gpg_to_rnp_encryption(cipher, filesize, zlevel=6, zalgo=1):
     random_text(src, filesize)
     for armor in [False, True]:
         # Encrypt cleartext file with GPG
-        gpg_encrypt_file(src, dst, cipher, zlevel, zalgo, armor)
+        gpg_encrypt_file(src, dst, cipher, z, armor)
         # Decrypt encrypted file with RNP
         rnp_decrypt_file(dst, dec)
         compare_files(src, dec, 'rnp decrypted data differs')
@@ -422,7 +445,7 @@ def gpg_to_rnp_encryption(cipher, filesize, zlevel=6, zalgo=1):
     clear_workfiles()
 
 
-def file_encryption_rnp_to_gpg(filesize, zlevel=6, zalgo='zip'):
+def file_encryption_rnp_to_gpg(filesize, z=None):
     '''
     Encrypts with RNP and decrypts with GPG and RNP
     '''
@@ -433,7 +456,7 @@ def file_encryption_rnp_to_gpg(filesize, zlevel=6, zalgo='zip'):
     random_text(src, filesize)
     for armor in [False, True]:
         # Encrypt cleartext file with RNP
-        rnp_encrypt_file(KEY_ENCRYPT, src, enc, zlevel, zalgo, armor)
+        rnp_encrypt_file(KEY_ENCRYPT, src, enc, z, armor)
         # Decrypt encrypted file with GPG
         gpg_decrypt_file(enc, dst, PASSWORD)
         compare_files(src, dst, 'gpg decrypted data differs')
@@ -451,13 +474,13 @@ def file_encryption_rnp_to_gpg(filesize, zlevel=6, zalgo='zip'):
 '''
 
 
-def rnp_sym_encryption_gpg_to_rnp(cipher, filesize, zlevel=6, zalgo=1):
+def rnp_sym_encryption_gpg_to_rnp(filesize, cipher = None, z = None):
     src, dst, dec = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
     # Generate random file of required size
     random_text(src, filesize)
     for armor in [False, True]:
         # Encrypt cleartext file with GPG
-        gpg_symencrypt_file(src, dst, cipher, zlevel, zalgo, armor)
+        gpg_symencrypt_file(src, dst, cipher, z, armor)
         # Decrypt encrypted file with RNP
         rnp_decrypt_file(dst, dec)
         compare_files(src, dec, 'rnp decrypted data differs')
@@ -465,13 +488,13 @@ def rnp_sym_encryption_gpg_to_rnp(cipher, filesize, zlevel=6, zalgo=1):
     clear_workfiles()
 
 
-def rnp_sym_encryption_rnp_to_gpg(cipher, filesize, zlevel=6, zalgo='zip'):
+def rnp_sym_encryption_rnp_to_gpg(filesize, cipher = None, z = None):
     src, dst, enc = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
     # Generate random file of required size
     random_text(src, filesize)
     for armor in [False, True]:
         # Encrypt cleartext file with RNP
-        rnp_symencrypt_file(src, enc, cipher, zlevel, zalgo, armor)
+        rnp_symencrypt_file(src, enc, cipher, z, armor)
         # Decrypt encrypted file with GPG
         gpg_decrypt_file(enc, dst, PASSWORD)
         compare_files(src, dst, 'gpg decrypted data differs')
@@ -482,12 +505,12 @@ def rnp_sym_encryption_rnp_to_gpg(cipher, filesize, zlevel=6, zalgo='zip'):
         remove_files(enc, dst)
     clear_workfiles()
 
-def rnp_sym_encryption_rnp_aead(cipher, filesize, zlevel=6, zalgo='zip', mode='eax', bits = 14, usegpg = False):
+def rnp_sym_encryption_rnp_aead(filesize, cipher = None, z = None, aead = None, usegpg = False):
     src, dst, enc = reg_workfiles('cleartext', '.txt', '.rnp', '.enc')
     # Generate random file of required size
     random_text(src, filesize)
     # Encrypt cleartext file with RNP
-    rnp_symencrypt_file(src, enc, cipher, zlevel, zalgo, False, [mode, bits])
+    rnp_symencrypt_file(src, enc, cipher, z, False, aead)
     # Decrypt encrypted file with RNP
     rnp_decrypt_file(enc, dst)
     compare_files(src, dst, 'rnp decrypted data differs')
@@ -499,7 +522,7 @@ def rnp_sym_encryption_rnp_aead(cipher, filesize, zlevel=6, zalgo='zip', mode='e
         compare_files(src, dst, 'gpg decrypted data differs')
         remove_files(dst, enc)
         # Encrypt cleartext file with GPG
-        gpg_symencrypt_file(src, enc, RNP_TO_GPG_CIPHERS[cipher], zlevel, RNP_TO_GPG_ZALGS[zalgo], False, [mode, bits + 6])
+        gpg_symencrypt_file(src, enc, cipher, z, False, aead)
         # Decrypt encrypted file with RNP
         rnp_decrypt_file(enc, dst)
         compare_files(src, dst, 'rnp decrypted data differs')
@@ -553,13 +576,13 @@ def rnp_cleartext_signing_rnp_to_gpg(filesize):
     clear_workfiles()
 
 
-def rnp_signing_gpg_to_rnp(filesize, zlevel=6, zalgo=1):
+def rnp_signing_gpg_to_rnp(filesize, z=None):
     src, sig, ver = reg_workfiles('cleartext', '.txt', '.sig', '.ver')
     # Generate random file of required size
     random_text(src, filesize)
     for armor in [True, False]:
         # Sign file with GPG
-        gpg_sign_file(src, sig, KEY_SIGN_GPG, zlevel, zalgo, armor)
+        gpg_sign_file(src, sig, KEY_SIGN_GPG, z, armor)
         # Verify file with RNP
         rnp_verify_file(sig, ver, KEY_SIGN_GPG)
         compare_files(src, ver, 'rnp verified data differs')
@@ -881,9 +904,11 @@ class Encryption(unittest.TestCase):
         Reason being - if you have a problem with BLOWFISH size 1000000, you don't want to wait until everything else gets
         tested before your failing BLOWFISH
     '''
-    RNP_CIPHERS = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
-    GPG_CIPHERS = ['cast5', 'idea', 'blowfish', 'twofish', 'aes128', 'aes192', 'aes256', 'camellia128', 'camellia192', 'camellia256', 'tripledes']
+    # Ciphers list tro try during encryption. None will use default
+    CIPHERS = [None, 'AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
     SIZES = [20, 40, 120, 600, 1000, 5000, 20000, 150000, 1000000]
+    # Compression parameters to try during encryption(s)
+    Z = [[None, 0], ['zip'], ['zlib'], ['bzip2'], [None, 1], [None, 9]]
     # Number of test runs - each run picks next encryption algo and size, wrapping on array
     RUNS = 60
 
@@ -896,6 +921,9 @@ class Encryption(unittest.TestCase):
         rnp_genkey_rsa('dummy2@rnp', 1024)
         gpg_import_pubring()
         gpg_import_secring()
+        Encryption.CIPHERS_R = list_upto(Encryption.CIPHERS, Encryption.RUNS)
+        Encryption.SIZES_R = list_upto(Encryption.SIZES, Encryption.RUNS)
+        Encryption.Z_R = list_upto(Encryption.Z, Encryption.RUNS)
 
     @classmethod
     def tearDownClass(cls):
@@ -904,95 +932,79 @@ class Encryption(unittest.TestCase):
     def tearDown(self):
         clear_workfiles()
 
+    # Encrypt cleartext file with GPG and decrypt it with RNP, using different ciphers and file sizes
     def test_file_encryption__gpg_to_rnp(self):
-        for run in range(0, Encryption.RUNS):
-            cipher = Encryption.RNP_CIPHERS[run % len(Encryption.RNP_CIPHERS)]
-            size = Encryption.SIZES[run % len(Encryption.SIZES)]
-            gpg_to_rnp_encryption(cipher, size)
+        for size, cipher in zip(Encryption.SIZES_R, Encryption.CIPHERS_R):
+            gpg_to_rnp_encryption(size, cipher)
 
-        # Encrypt cleartext file with GPG and decrypt it with RNP, using different ciphers and file sizes
+    # Encrypt with RNP and decrypt with GPG
     def test_file_encryption__rnp_to_gpg(self):
         for size in Encryption.SIZES:
             file_encryption_rnp_to_gpg(size)
 
     def test_sym_encryption__gpg_to_rnp(self):
         # Encrypt cleartext with GPG and decrypt with RNP
-        for run in range(0, Encryption.RUNS):
-            cipher = Encryption.RNP_CIPHERS[run % len(Encryption.RNP_CIPHERS)]
-            size = Encryption.SIZES[run % len(Encryption.SIZES)]
-            rnp_sym_encryption_gpg_to_rnp(cipher, size, 0, 1)
-            rnp_sym_encryption_gpg_to_rnp(cipher, size, 6, 1)
-            rnp_sym_encryption_gpg_to_rnp(cipher, size, 6, 2)
-            rnp_sym_encryption_gpg_to_rnp(cipher, size, 6, 3)
+        for size, cipher, z in zip(Encryption.SIZES_R, Encryption.CIPHERS_R, Encryption.Z_R):
+            rnp_sym_encryption_gpg_to_rnp(size, cipher, z)
 
     def test_sym_encryption__rnp_to_gpg(self):
         # Encrypt cleartext with RNP and decrypt with GPG
-        for run in range(0, Encryption.RUNS):
-            cipher = Encryption.GPG_CIPHERS[run % len(Encryption.GPG_CIPHERS)]
-            size = Encryption.SIZES[run % len(Encryption.SIZES)]
-            rnp_sym_encryption_rnp_to_gpg(cipher, size, 0)
-            rnp_sym_encryption_rnp_to_gpg(cipher, size, 6, 'zip')
-            rnp_sym_encryption_rnp_to_gpg(cipher, size, 6, 'zlib')
-            rnp_sym_encryption_rnp_to_gpg(cipher, size, 6, 'bzip2')
+        for size, cipher, z in zip(Encryption.SIZES_R, Encryption.CIPHERS_R, Encryption.Z_R):
+            rnp_sym_encryption_rnp_to_gpg(size, cipher, z)
 
     def test_sym_encryption__rnp_aead(self):
-        AEAD_CIPHERS = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
-        AEAD_MODES = ['eax', 'ocb']
-        AEAD_BITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18, 24, 30, 40, 50, 56]
+        AEAD_C = list_upto(['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256'], Encryption.RUNS)
+        AEAD_M = list_upto([None, 'eax', 'ocb'], Encryption.RUNS)
+        AEAD_B = list_upto([None, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18, 24, 30, 40, 50, 56], Encryption.RUNS)
 
         #usegpg = gpg_supports_aead()
         usegpg = False
 
         # Encrypt and decrypt cleartext using the AEAD
-        for run in range(0, Encryption.RUNS):
-            cipher = AEAD_CIPHERS[run % len(AEAD_CIPHERS)]
-            size = Encryption.SIZES[run % len(Encryption.SIZES)]
-            mode = AEAD_MODES[run % len(AEAD_MODES)]
-            bits = AEAD_BITS[run % len(AEAD_BITS)]
-
-            #print "AEAD test, filesize: " + str(size)
-
-            rnp_sym_encryption_rnp_aead(cipher, size, 0, 'zip', mode, bits, usegpg)
-            rnp_sym_encryption_rnp_aead(cipher, size, 6, 'zip', mode, bits, usegpg)
-            rnp_sym_encryption_rnp_aead(cipher, size, 6, 'zlib', mode, bits, usegpg)
-            rnp_sym_encryption_rnp_aead(cipher, size, 6, 'bzip2', mode, bits, usegpg)
+        for size, cipher, aead, bits, z in zip(Encryption.SIZES_R, AEAD_C, AEAD_M, AEAD_B, Encryption.Z_R):
+            rnp_sym_encryption_rnp_aead(size, cipher, z, [aead, bits], usegpg)
 
     def test_encryption_multiple_recipients(self):
         USERIDS = ['key1@rnp', 'key2@rnp', 'key3@rnp']
         KEYPASS = ['key1pass', 'key2pass', 'key3pass']
         PASSWORDS = ['password1', 'password2', 'password3']
         # Generate multiple keys and import to GnuPG
-        for i in range(0, len(USERIDS)):
-            uid, pswd = [USERIDS[i], KEYPASS[i]]
+        for uid, pswd in zip(USERIDS, KEYPASS):
             rnp_genkey_rsa(uid, 1024, pswd)
+
         gpg_import_pubring()
         gpg_import_secring()
-        
+
+        KEYPSWD = tuple((t1, t2) for t1 in range(len(USERIDS) + 1) for t2 in range(len(PASSWORDS) + 1))
+        KEYPSWD = list_upto(KEYPSWD, Encryption.RUNS)
+        if gpg_supports_aead():
+            AEADS = list_upto([None, [None], ['eax'], ['ocb']], Encryption.RUNS)
+        else:
+            AEADS = list_upto([None], Encryption.RUNS)
+
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.rnp', '.dec')
         # Generate random file of required size
         random_text(src, 128000)
 
-        for keynum, pswdnum in zip(range(0, len(USERIDS) + 1), range(0, len(PASSWORDS) + 1)):
+        for kpswd, aead in zip(KEYPSWD, AEADS):
+            keynum, pswdnum = kpswd
             if (keynum == 0) and (pswdnum == 0):
+                continue
+            # We do not support encryption with key and password together yet
+            if (keynum > 0) and (pswdnum > 0):
                 continue
 
             params = ['--homedir', RNPDIR, src, '--output', dst]
-            if keynum > 0:
-                params[2:2] = ['--encrypt']
-            else:
-                params[2:2] = ['-c']
+            params[2:2] = ['--encrypt'] if keynum > 0 else ['-c']
             
-            for i in range(0, keynum):
-                uid = USERIDS[i]
+            for uid in reversed(USERIDS[:keynum]):
                 params[2:2] = ['-r', uid]
 
             if pswdnum > 0:
-                passwords = ''
-                for j in range(0, pswdnum):
-                    passwords += PASSWORDS[j] + '\n'
-                pipe = pswd_pipe(passwords)
-                params[2:2] = ['--passwords', str(pswdnum)]
-                params[2:2] = ['--pass-fd', str(pipe)]
+                pipe = pswd_pipe('\n'.join(PASSWORDS[:pswdnum]))
+                params[2:2] = ['--passwords', str(pswdnum), '--pass-fd', str(pipe)]
+
+            if aead: rnp_params_insert_aead(params, 4, aead)
 
             ret, _, err = run_proc(RNP, params)
 
@@ -1003,15 +1015,21 @@ class Encryption(unittest.TestCase):
                 raise_err('rnp multi-recipient encryption failed', err)
 
             # Decrypt file with each of the keys, we have different password for each key
-            for i in range(0, keynum):
-                pswd = KEYPASS[i]
+            for pswd in KEYPASS[:keynum]:
                 gpg_decrypt_file(dst, dec, pswd)
                 remove_files(dec)
 
+            # GPG decrypts only with first password, see T3795
+            if not aead:
+                gpg_decrypt_file(dst, dec, PASSWORDS[0])
+                remove_files(dec)
+
             # Decrypt file with each of the passwords
-            for i in range(0, pswdnum):
-                pswd = PASSWORDS[i]
-                gpg_decrypt_file(dst, dec, pswd)
+            for pswd in PASSWORDS[:pswdnum]:
+                if aead: 
+                    gpg_decrypt_file(dst, dec, pswd)
+                    remove_files(dec)
+                rnp_decrypt_file(dst, dec, pswd)
                 remove_files(dec)
 
             remove_files(dst, dec)
@@ -1032,18 +1050,17 @@ class Compression(unittest.TestCase):
         clear_keyrings()
 
     def test_rnp_compression(self):
-        levels = [0, 2, 4, 6, 9]
-        algosrnp = ['zip', 'zlib', 'bzip2']
-        algosgpg = [1, 2, 3]
+        levels = [None, 0, 2, 4, 6, 9]
+        algosrnp = [None, 'zip', 'zlib', 'bzip2']
         sizes = [20, 1000, 5000, 20000, 150000, 1000000]
 
         for size in sizes:
             for algo in [0, 1, 2]:
                 for level in levels:
-                    gpg_to_rnp_encryption(
-                        'AES', size, level, algosgpg[algo])
-                    file_encryption_rnp_to_gpg(size, level, algosrnp[algo])
-                    rnp_signing_gpg_to_rnp(size, level, algosgpg[algo])
+                    z = [algosrnp[algo], level]
+                    gpg_to_rnp_encryption(size, None, z)
+                    file_encryption_rnp_to_gpg(size, z)
+                    rnp_signing_gpg_to_rnp(size, z)
 
 class SignDefault(unittest.TestCase):
     '''
