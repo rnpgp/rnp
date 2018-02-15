@@ -216,10 +216,11 @@ def rnp_decrypt_file(src, dst, password = PASSWORD):
         raise_err('rnp decryption failed', out + err)
 
 
-def rnp_sign_file(src, dst, signer, armor=False):
-    pipe = pswd_pipe(PASSWORD)
-    params = ['--homedir', RNPDIR, '--pass-fd',
-              str(pipe), '--userid', signer, '--sign', src, '--output', dst]
+def rnp_sign_file(src, dst, signers, passwords, armor=False):
+    pipe = pswd_pipe('\n'.join(passwords))
+    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--sign', src, '--output', dst]
+    for signer in reversed(signers):
+        params[4:4] = ['--userid', signer]
     if armor: params += ['--armor']
     ret, _, err = run_proc(RNP, params)
     os.close(pipe)
@@ -227,10 +228,11 @@ def rnp_sign_file(src, dst, signer, armor=False):
         raise_err('rnp signing failed', err)
 
 
-def rnp_sign_detached(src, signer, armor=False):
-    pipe = pswd_pipe(PASSWORD)
-    params = ['--homedir', RNPDIR, '--pass-fd',
-              str(pipe), '--userid', signer, '--sign', '--detach', src]
+def rnp_sign_detached(src, signers, passwords, armor=False):
+    pipe = pswd_pipe('\n'.join(passwords))
+    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--sign', '--detach', src]
+    for signer in reversed(signers):
+        params[4:4] = ['--userid', signer]
     if armor:
         params += ['--armor']
     ret, _, err = run_proc(RNP, params)
@@ -239,10 +241,12 @@ def rnp_sign_detached(src, signer, armor=False):
         raise_err('rnp detached signing failed', err)
 
 
-def rnp_sign_cleartext(src, dst, signer):
-    pipe = pswd_pipe(PASSWORD)
-    ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--pass-fd', str(
-        pipe), '--userid', signer, '--output', dst, '--clearsign', src])
+def rnp_sign_cleartext(src, dst, signers, passwords):
+    pipe = pswd_pipe('\n'.join(passwords))
+    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--output', dst, '--clearsign', src]
+    for signer in reversed(signers):
+        params[4:4] = ['--userid', signer]
+    ret, _, err = run_proc(RNP, params)
     os.close(pipe)
     if ret != 0:
         raise_err('rnp cleartext signing failed', err)
@@ -535,7 +539,7 @@ def rnp_signing_rnp_to_gpg(filesize):
     random_text(src, filesize)
     for armor in [False, True]:
         # Sign file with RNP
-        rnp_sign_file(src, sig, KEY_SIGN_RNP, armor)
+        rnp_sign_file(src, sig, [KEY_SIGN_RNP], [PASSWORD], armor)
         # Verify signed file with RNP
         rnp_verify_file(sig, ver, KEY_SIGN_RNP)
         compare_files(src, ver, 'rnp verified data differs')
@@ -553,7 +557,7 @@ def rnp_detached_signing_rnp_to_gpg(filesize):
     random_text(src, filesize)
     for armor in [True, False]:
         # Sign file with RNP
-        rnp_sign_detached(src, KEY_SIGN_RNP, armor)
+        rnp_sign_detached(src, [KEY_SIGN_RNP], [PASSWORD], armor)
         sigpath = asc if armor else sig
         # Verify signature with RNP
         rnp_verify_detached(sigpath, KEY_SIGN_RNP)
@@ -568,7 +572,7 @@ def rnp_cleartext_signing_rnp_to_gpg(filesize):
     # Generate random file of required size
     random_text(src, filesize)
     # Sign file with RNP
-    rnp_sign_cleartext(src, asc, KEY_SIGN_RNP)
+    rnp_sign_cleartext(src, asc, [KEY_SIGN_RNP], [PASSWORD])
     # Verify signature with RNP
     rnp_verify_cleartext(asc, KEY_SIGN_RNP)
     # Verify signed message with GPG
@@ -1098,6 +1102,44 @@ class SignDefault(unittest.TestCase):
             rnp_signing_gpg_to_rnp(size)
             rnp_detached_signing_gpg_to_rnp(size)
             rnp_cleartext_signing_gpg_to_rnp(size)
+
+    def test_rnp_multiple_signers(self):
+        USERIDS = ['sign1@rnp', 'sign2@rnp', 'sign3@rnp']
+        KEYPASS = ['sign1pass', 'sign2pass', 'sign3pass']
+
+        # Generate multiple keys and import to GnuPG
+        for uid, pswd in zip(USERIDS, KEYPASS):
+            rnp_genkey_rsa(uid, 1024, pswd)
+
+        gpg_import_pubring()
+        gpg_import_secring()
+
+        src, dst, sig, ver = reg_workfiles('cleartext', '.txt', '.rnp', '.txt.sig', '.ver')
+        # Generate random file of required size
+        random_text(src, 128000)
+
+        for keynum in range(1, len(USERIDS) + 1):
+            # Normal signing
+            rnp_sign_file(src, dst, USERIDS[:keynum], KEYPASS[:keynum])
+            gpg_verify_file(dst, ver)
+            remove_files(ver)
+            rnp_verify_file(dst, ver)
+            remove_files(dst, ver)
+
+            # Detached signing
+            rnp_sign_detached(src, USERIDS[:keynum], KEYPASS[:keynum])
+            gpg_verify_detached(src, sig)
+            rnp_verify_detached(sig)
+            remove_files(sig)
+
+            # Cleartext signing
+            rnp_sign_cleartext(src, dst, USERIDS[:keynum], KEYPASS[:keynum])
+            gpg_verify_cleartext(dst)
+            rnp_verify_cleartext(dst)
+            remove_files(dst)
+
+        clear_workfiles()
+
 
 class Encrypt(unittest.TestCase, TestIdMixin):
     def _encrypt_decrypt(self, e1, e2,  keygen_cmd):
