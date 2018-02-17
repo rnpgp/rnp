@@ -122,7 +122,6 @@ enum optdefs {
     OPT_PASSWDFD,
     OPT_PASSWD,
     OPT_SSHKEYFILE,
-    OPT_MAX_MEM_ALLOC,
     OPT_EXPIRATION,
     OPT_CREATION,
     OPT_CIPHER,
@@ -188,9 +187,6 @@ static struct option options[] = {
   {"password", required_argument, NULL, OPT_PASSWD},
   {"output", required_argument, NULL, OPT_OUTPUT},
   {"results", required_argument, NULL, OPT_RESULTS},
-  {"maxmemalloc", required_argument, NULL, OPT_MAX_MEM_ALLOC},
-  {"max-mem", required_argument, NULL, OPT_MAX_MEM_ALLOC},
-  {"max-alloc", required_argument, NULL, OPT_MAX_MEM_ALLOC},
   {"creation", required_argument, NULL, OPT_CREATION},
   {"expiration", required_argument, NULL, OPT_EXPIRATION},
   {"expiry", required_argument, NULL, OPT_EXPIRATION},
@@ -585,9 +581,6 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
     case OPT_SSHKEYFILE:
         rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
         rnp_cfg_setstr(cfg, CFG_SSHKEYFILE, arg);
-        break;
-    case OPT_MAX_MEM_ALLOC:
-        rnp_cfg_setstr(cfg, CFG_MAXALLOC, arg);
         break;
     case OPT_EXPIRATION:
         rnp_cfg_setstr(cfg, CFG_EXPIRATION, arg);
