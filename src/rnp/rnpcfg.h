@@ -37,7 +37,6 @@
 #define CFG_DETACHED "detached"          /* produce the detached signature */
 #define CFG_OUTFILE "outfile"            /* name/path of the output file */
 #define CFG_RESULTS "results"            /* name/path for results, not used right now */
-#define CFG_MAXALLOC "maxalloc" /* maximum memory allocation during the reading from stdin */
 #define CFG_KEYSTOREFMT "keystorefmt" /* keyring format : GPG, SSH */
 #define CFG_SSHKEYFILE "sshkeyfile"   /* SSH key file */
 #define CFG_SUBDIRGPG "subdirgpg"     /* gpg/rnp files subdirectory: .rnp by default */

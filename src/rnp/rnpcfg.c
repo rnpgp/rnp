@@ -77,7 +77,6 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_setint(cfg, CFG_ZALG, DEFAULT_Z_ALG);
     rnp_cfg_setint(cfg, CFG_ZLEVEL, DEFAULT_Z_LEVEL);
     rnp_cfg_setstr(cfg, CFG_CIPHER, DEFAULT_SYMM_ALG);
-    rnp_cfg_setint(cfg, CFG_MAXALLOC, 4194304);
     rnp_cfg_setstr(cfg, CFG_SUBDIRGPG, SUBDIRECTORY_RNP);
     rnp_cfg_setstr(cfg, CFG_SUBDIRSSH, SUBDIRECTORY_SSH);
     rnp_cfg_setint(cfg, CFG_NUMTRIES, MAX_PASSWORD_ATTEMPTS);
