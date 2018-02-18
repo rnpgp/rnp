@@ -34,8 +34,13 @@
 #define CFG_OVERWRITE "overwrite" /* overwrite output file if it is already exist or fail */
 #define CFG_ARMOR "armor"         /* armor output data or not */
 #define CFG_ARMOR_DATA_TYPE "armor_type" /* armor data type, used with ``enarmor`` option */
+#define CFG_COMMAND "command"            /* command to execute over input data */
 #define CFG_DETACHED "detached"          /* produce the detached signature */
+#define CFG_CLEARTEXT "cleartext"        /* cleartext signing should be used */
+#define CFG_SIGN_NEEDED "sign_needed"    /* signing is needed during data protection */
 #define CFG_OUTFILE "outfile"            /* name/path of the output file */
+#define CFG_NO_OUTPUT "no_output"        /* do not output any data - just verify or process */
+#define CFG_INFILE "infile"              /* name/path of the input file */
 #define CFG_RESULTS "results"            /* name/path for results, not used right now */
 #define CFG_KEYSTOREFMT "keystorefmt" /* keyring format : GPG, SSH */
 #define CFG_SSHKEYFILE "sshkeyfile"   /* SSH key file */
@@ -58,6 +63,8 @@
 #define CFG_CREATION "creation"         /* signature validity start */
 #define CFG_CIPHER "cipher"             /* symmetric encryption algorithm as string */
 #define CFG_HASH "hash"                 /* hash algorithm used, string like 'SHA1'*/
+#define CFG_ENCRYPT_PK "encrypt_pk"     /* public key should be used during encryption */
+#define CFG_ENCRYPT_SK "encrypt_sk"     /* password encryption should be used */
 #define CFG_IO_OUTS "outs"              /* output stream */
 #define CFG_IO_ERRS "errs"              /* error stream */
 #define CFG_IO_RESS "ress"              /* results stream */
