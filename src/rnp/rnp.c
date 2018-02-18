@@ -93,7 +93,7 @@ static const char *usage = "--help OR\n"
                            "\t[--verbose]\n";
 
 enum optdefs {
-    /* commands */
+    /* Commands as they are get via CLI */
     CMD_ENCRYPT = 260,
     CMD_DECRYPT,
     CMD_SIGN,
@@ -108,7 +108,11 @@ enum optdefs {
     CMD_VERSION,
     CMD_HELP,
 
-    /* options */
+    /* OpenPGP data processing commands. Sign/Encrypt/Decrypt mapped to these */
+    CMD_PROTECT,
+    CMD_PROCESS,
+
+    /* Options */
     OPT_SSHKEYS,
     OPT_KEYRING,
     OPT_KEY_STORE_FORMAT,
@@ -304,130 +308,155 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
     }
 }
 
-/* do a command once for a specified file 'f' */
 static bool
-rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
+setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
 {
-    char *    out = NULL;
-    char *    in = NULL;
-    bool      ret = false;
-    rnp_ctx_t ctx = {0};
-    // TODO: Probably something smarter should be done here
-    repgp_io_t *io = repgp_create_io();
+    int         cmd;
+    const char *fname;
 
-    if (io == NULL) {
-        RNP_LOG("Allocation failed");
-        return false;
-    }
-
+    /* some rnp_t setup */
     if (rnp_cfg_getstr(cfg, CFG_PASSWD)) {
         rnp->password_provider.callback = rnp_password_provider_string;
         rnp->password_provider.userdata = (void *) rnp_cfg_getstr(cfg, CFG_PASSWD);
     }
-
-    /* operation context initialization: writing all additional parameters */
-    rnp_ctx_init(&ctx, rnp);
-    ctx.armor = rnp_cfg_getint(cfg, CFG_ARMOR);
-    ctx.overwrite = rnp_cfg_getbool(cfg, CFG_OVERWRITE);
-    if (f) {
-        ctx.filename = strdup(rnp_filename(f));
-        ctx.filemtime = rnp_filemtime(f);
-    }
     rnp->pswdtries = rnp_cfg_get_pswdtries(cfg);
 
-    switch (cmd) {
-    case CMD_CLEARSIGN:
-    case CMD_SIGN:
-        ctx.halg = pgp_str_to_hash_alg(rnp_cfg_getstr(cfg, CFG_HASH));
-
-        if (ctx.halg == PGP_HASH_UNKNOWN) {
-            fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_cfg_getstr(cfg, CFG_HASH));
-            ret = false;
-            break;
-        }
-
-        rnp_cfg_copylist_str(cfg, &ctx.signers, CFG_SIGNERS);
-
-        if (!list_length(ctx.signers)) {
-            if (!rnp->defkey) {
-                fprintf(stderr, "No userid or default key for signing\n");
-                ret = false;
-                break;
-            }
-
-            if (!list_append(&ctx.signers, rnp->defkey, strlen(rnp->defkey) + 1)) {
-                RNP_LOG("allocation failed");
-                ret = false;
-                break;
-            }
-        }
-
-        ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
-        ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
-        ctx.sigcreate = get_creation(rnp_cfg_getstr(cfg, CFG_CREATION));
-        ctx.sigexpire = get_expiration(rnp_cfg_getstr(cfg, CFG_EXPIRATION));
-        ctx.clearsign = cmd == CMD_CLEARSIGN;
-        ctx.detached = rnp_cfg_getbool(cfg, CFG_DETACHED);
-
-        ret = rnp_protect_file(&ctx, f, rnp_cfg_getstr(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
-        break;
-    case CMD_DECRYPT:
-        ret = rnp_process_file(&ctx, f, rnp_cfg_getstr(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
-        break;
-    case CMD_SYM_ENCRYPT: {
-        int passwordc = rnp_cfg_getint_default(cfg, CFG_PASSWORDC, 1);
-        ctx.ealg = pgp_str_to_cipher(rnp_cfg_getstr(cfg, CFG_CIPHER));
-        ctx.halg = pgp_str_to_hash_alg(rnp_cfg_getstr(cfg, CFG_HASH));
-
-        for (int i = 0; i < passwordc; i++) {
-            if ((ret = rnp_encrypt_add_password(&ctx))) {
-                RNP_LOG("Failed to add password");
-                goto done;
-            }
-        }
+    /* operation context initialization */
+    rnp_ctx_init(ctx, rnp);
+    ctx->armor = rnp_cfg_getint(cfg, CFG_ARMOR);
+    ctx->overwrite = rnp_cfg_getbool(cfg, CFG_OVERWRITE);
+    if ((fname = rnp_cfg_getstr(cfg, CFG_INFILE))) {
+        ctx->filename = strdup(rnp_filename(fname));
+        ctx->filemtime = rnp_filemtime(fname);
     }
-    /* FALLTHROUGH */
-    case CMD_ENCRYPT: {
-        if (cmd == CMD_ENCRYPT) {
-            rnp_cfg_copylist_str(cfg, &ctx.recipients, CFG_RECIPIENTS);
+
+    /* get the ongoing command. OpenPGP commands are only ENCRYPT/ENCRYPT_SIGN/SIGN/DECRYPT */
+    cmd = rnp_cfg_getint(cfg, CFG_COMMAND);
+
+    /* options used for signing */
+    if (cmd == CMD_PROTECT) {
+        ctx->zalg = rnp_cfg_getint(cfg, CFG_ZALG);
+        ctx->zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
+
+        /* setting signing parameters if needed */
+        if (rnp_cfg_getbool(cfg, CFG_SIGN_NEEDED)) {
+            ctx->halg = pgp_str_to_hash_alg(rnp_cfg_getstr(cfg, CFG_HASH));
+
+            if (ctx->halg == PGP_HASH_UNKNOWN) {
+                fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_cfg_getstr(cfg, CFG_HASH));
+                return false;
+            }
+
+            rnp_cfg_copylist_str(cfg, &ctx->signers, CFG_SIGNERS);
+
+            if (!list_length(ctx->signers)) {
+                if (!rnp->defkey) {
+                    fprintf(stderr, "No userid or default key for signing\n");
+                    return false;
+                }
+
+                if (!list_append(&ctx->signers, rnp->defkey, strlen(rnp->defkey) + 1)) {
+                    RNP_LOG("allocation failed");
+                    return false;
+                }
+            }
+
+            ctx->sigcreate = get_creation(rnp_cfg_getstr(cfg, CFG_CREATION));
+            ctx->sigexpire = get_expiration(rnp_cfg_getstr(cfg, CFG_EXPIRATION));
+            ctx->clearsign = rnp_cfg_getbool(cfg, CFG_CLEARTEXT);
+            ctx->detached = rnp_cfg_getbool(cfg, CFG_DETACHED);
         }
 
-        ctx.ealg = pgp_str_to_cipher(rnp_cfg_getstr(cfg, CFG_CIPHER));
-        ctx.zalg = rnp_cfg_getint(cfg, CFG_ZALG);
-        ctx.zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
-        ctx.aalg = rnp_cfg_getint(cfg, CFG_AEAD);
-        ctx.abits = rnp_cfg_getint_default(cfg, CFG_AEAD_CHUNK, DEFAULT_AEAD_CHUNK_BITS);
-        ret = rnp_protect_file(&ctx, f, rnp_cfg_getstr(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
-        break;
+        /* setting encryption parameters if needed */
+        if (rnp_cfg_getbool(cfg, CFG_ENCRYPT_PK) || rnp_cfg_getbool(cfg, CFG_ENCRYPT_SK)) {
+            ctx->ealg = pgp_str_to_cipher(rnp_cfg_getstr(cfg, CFG_CIPHER));
+            ctx->halg = pgp_str_to_hash_alg(rnp_cfg_getstr(cfg, CFG_HASH));
+            ctx->zalg = rnp_cfg_getint(cfg, CFG_ZALG);
+            ctx->zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
+            ctx->aalg = rnp_cfg_getint(cfg, CFG_AEAD);
+            ctx->abits = rnp_cfg_getint_default(cfg, CFG_AEAD_CHUNK, DEFAULT_AEAD_CHUNK_BITS);
+
+            /* adding passwords if password-based encryption is used */
+            if (rnp_cfg_getbool(cfg, CFG_ENCRYPT_SK)) {
+                int passwordc = rnp_cfg_getint_default(cfg, CFG_PASSWORDC, 1);
+
+                for (int i = 0; i < passwordc; i++) {
+                    if (rnp_encrypt_add_password(ctx)) {
+                        RNP_LOG("Failed to add password");
+                        return false;
+                    }
+                }
+            }
+
+            /* adding recipients if public-key encryption is used */
+            if (rnp_cfg_getbool(cfg, CFG_ENCRYPT_PK)) {
+                rnp_cfg_copylist_str(cfg, &ctx->recipients, CFG_RECIPIENTS);
+
+                if (!list_length(ctx->recipients)) {
+                    if (!rnp->defkey) {
+                        fprintf(stderr, "No userid or default key for encryption\n");
+                        return false;
+                    }
+
+                    if (!list_append(&ctx->recipients, rnp->defkey, strlen(rnp->defkey) + 1)) {
+                        RNP_LOG("allocation failed");
+                        return false;
+                    }
+                }
+            }
+        }
+    } else if (cmd == CMD_PROCESS) {
+        ctx->discard =
+          rnp_cfg_getbool(cfg, CFG_NO_OUTPUT) && !rnp_cfg_getstr(cfg, CFG_OUTFILE);
+        ctx->on_signatures = rnp_on_signatures;
     }
-    case CMD_VERIFY:
-        ctx.discard = !rnp_cfg_getstr(cfg, CFG_OUTFILE);
-    /* FALLTHROUGH */
-    case CMD_VERIFY_CAT:
-        ctx.on_signatures = rnp_on_signatures;
-        ret = rnp_process_file(&ctx, f, rnp_cfg_getstr(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
+
+    return true;
+}
+
+/* do a command once for a specified config */
+static bool
+rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp)
+{
+    bool        ret = false;
+    rnp_ctx_t   ctx = {0};
+    const char *infile;
+    const char *outfile;
+
+    if (!(ret = setup_ctx(cfg, rnp, &ctx))) {
+        goto done;
+    }
+
+    infile = rnp_cfg_getstr(cfg, CFG_INFILE);
+    outfile = rnp_cfg_getstr(cfg, CFG_OUTFILE);
+
+    switch (rnp_cfg_getint(cfg, CFG_COMMAND)) {
+    case CMD_PROTECT:
+        ret = rnp_protect_file(&ctx, infile, outfile) == RNP_SUCCESS;
+        break;
+    case CMD_PROCESS:
+        ret = rnp_process_file(&ctx, infile, outfile) == RNP_SUCCESS;
         break;
     case CMD_LIST_PACKETS: {
-        repgp_handle_t *input = create_filepath_handle(f);
-        if (input == NULL) {
+        repgp_handle_t *input = create_filepath_handle(infile);
+        if (!input) {
             RNP_LOG("%s: No filename provided", __progname);
             ret = false;
             break;
         }
-        ret = (RNP_SUCCESS == repgp_list_packets(&ctx, input, true));
+        ret = repgp_list_packets(&ctx, input, true) == RNP_SUCCESS;
         repgp_destroy_handle(input);
         break;
     }
     case CMD_DEARMOR:
-        ret =
-          rnp_armor_stream(&ctx, false, f, rnp_cfg_getstr(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
+        ret = rnp_armor_stream(&ctx, false, infile, outfile) == RNP_SUCCESS;
         break;
     case CMD_ENARMOR:
         ctx.armortype = rnp_cfg_getint_default(cfg, CFG_ARMOR_DATA_TYPE, PGP_ARMORED_UNKNOWN);
-        ret = rnp_armor_stream(&ctx, true, f, rnp_cfg_getstr(cfg, CFG_OUTFILE)) == RNP_SUCCESS;
+        ret = rnp_armor_stream(&ctx, true, infile, outfile) == RNP_SUCCESS;
         break;
     case CMD_SHOW_KEYS:
-        ret = (repgp_validate_pubkeys_signatures(&ctx) == RNP_SUCCESS);
+        ret = repgp_validate_pubkeys_signatures(&ctx) == RNP_SUCCESS;
         break;
     default:
         print_usage(usage);
@@ -435,50 +464,53 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, int cmd, char *f)
     }
 
 done:
-    repgp_destroy_io(io);
-    free(in);
-    free(out);
     rnp_ctx_free(&ctx);
-
     return ret;
 }
 
-/* set an option */
-static bool
-setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
+static void
+setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
 {
-    switch (val) {
-    case OPT_COREDUMPS:
-        rnp_cfg_setbool(cfg, CFG_COREDUMPS, true);
-        break;
+    int newcmd = cmd;
+
+    /* set file processing command to one of PROTECT or PROCESS */
+    switch (cmd) {
     case CMD_ENCRYPT:
-        *cmd = val;
-        break;
-    case CMD_SIGN:
-    case CMD_CLEARSIGN:
-        /* for signing, we need a userid and a seckey */
-        rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
-        *cmd = val;
-        break;
-    case CMD_DECRYPT:
-        /* for decryption, we need a seckey */
-        rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
-        *cmd = val;
+        rnp_cfg_setbool(cfg, CFG_ENCRYPT_PK, true);
+        newcmd = CMD_PROTECT;
         break;
     case CMD_SYM_ENCRYPT:
+        rnp_cfg_setbool(cfg, CFG_ENCRYPT_SK, true);
+        newcmd = CMD_PROTECT;
+        break;
+    case CMD_CLEARSIGN:
+        rnp_cfg_setbool(cfg, CFG_CLEARTEXT, true);
+        /* FALLTHROUGH */
+    case CMD_SIGN:
+        rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
+        rnp_cfg_setbool(cfg, CFG_SIGN_NEEDED, true);
+        newcmd = CMD_PROTECT;
+        break;
+    case CMD_DECRYPT:
+        /* for decryption, we probably need a seckey */
+        rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
+        newcmd = CMD_PROCESS;
+        break;
     case CMD_VERIFY:
+        /* single verify will discard output, decrypt will not */
+        rnp_cfg_setbool(cfg, CFG_NO_OUTPUT, true);
+        /* FALLTHROUGH */
     case CMD_VERIFY_CAT:
+        newcmd = CMD_PROCESS;
+        break;
     case CMD_LIST_PACKETS:
     case CMD_SHOW_KEYS:
-        *cmd = val;
         break;
     case CMD_DEARMOR:
-        *cmd = val;
         rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
         break;
     case CMD_ENARMOR: {
         pgp_armored_msg_t msgt = PGP_ARMORED_UNKNOWN;
-        *cmd = val;
 
         if (arg) {
             if (!strncmp("msg", arg, strlen(arg))) {
@@ -505,7 +537,39 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
     case CMD_VERSION:
         print_praise();
         exit(EXIT_SUCCESS);
+    default:
+        newcmd = CMD_HELP;
+        break;
+    }
+
+    rnp_cfg_setint(cfg, CFG_COMMAND, newcmd);
+}
+
+/* set an option */
+static bool
+setoption(rnp_cfg_t *cfg, int val, char *arg)
+{
+    switch (val) {
+    /* redirect commands to setcmd */
+    case CMD_ENCRYPT:
+    case CMD_SIGN:
+    case CMD_CLEARSIGN:
+    case CMD_DECRYPT:
+    case CMD_SYM_ENCRYPT:
+    case CMD_VERIFY:
+    case CMD_VERIFY_CAT:
+    case CMD_LIST_PACKETS:
+    case CMD_SHOW_KEYS:
+    case CMD_DEARMOR:
+    case CMD_ENARMOR:
+    case CMD_HELP:
+    case CMD_VERSION:
+        setcmd(cfg, val, arg);
+        break;
     /* options */
+    case OPT_COREDUMPS:
+        rnp_cfg_setbool(cfg, CFG_COREDUMPS, true);
+        break;
     case OPT_SSHKEYS:
         rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
         break;
@@ -552,7 +616,6 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
             exit(EXIT_ERROR);
         }
         rnp_cfg_setstr(cfg, CFG_HOMEDIR, arg);
-
         break;
     case OPT_HASH_ALG:
         if (arg == NULL) {
@@ -668,7 +731,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
         rnp_set_debug(arg);
         break;
     default:
-        *cmd = CMD_HELP;
+        setcmd(cfg, CMD_HELP, arg);
         break;
     }
 
@@ -677,7 +740,7 @@ setoption(rnp_cfg_t *cfg, int *cmd, int val, char *arg)
 
 /* we have -o option=value -- parse, and process */
 static bool
-parse_option(rnp_cfg_t *cfg, int *cmd, const char *s)
+parse_option(rnp_cfg_t *cfg, const char *s)
 {
     static regex_t opt;
     struct option *op;
@@ -710,7 +773,7 @@ parse_option(rnp_cfg_t *cfg, int *cmd, const char *s)
         }
         for (op = options; op->name; op++) {
             if (strcmp(op->name, option) == 0)
-                return setoption(cfg, cmd, op->val, value);
+                return setoption(cfg, op->val, value);
         }
     }
     return 0;
@@ -724,7 +787,6 @@ main(int argc, char **argv)
     rnp_cfg_t    cfg;
     int          optindex;
     int          ret;
-    int          cmd = 0;
     int          ch;
     int          i;
 
@@ -741,7 +803,7 @@ main(int argc, char **argv)
     while ((ch = getopt_long(argc, argv, "S:Vdeco:r:su:vz:", options, &optindex)) != -1) {
         if (ch >= CMD_ENCRYPT) {
             /* getopt_long returns 0 for long options */
-            if (!setoption(&cfg, &cmd, options[optindex].val, optarg)) {
+            if (!setoption(&cfg, options[optindex].val, optarg)) {
                 (void) fprintf(stderr, "Bad option\n");
             }
         } else {
@@ -754,18 +816,22 @@ main(int argc, char **argv)
                 print_praise();
                 exit(EXIT_SUCCESS);
             case 'd':
-                /* for decryption, we need the seckey */
-                rnp_cfg_setbool(&cfg, CFG_NEEDSSECKEY, true);
-                cmd = CMD_DECRYPT;
+                setcmd(&cfg, CMD_DECRYPT, optarg);
                 break;
             case 'e':
-                cmd = CMD_ENCRYPT;
+                setcmd(&cfg, CMD_ENCRYPT, optarg);
                 break;
             case 'c':
-                cmd = CMD_SYM_ENCRYPT;
+                setcmd(&cfg, CMD_SYM_ENCRYPT, optarg);
+                break;
+            case 's':
+                setcmd(&cfg, CMD_SIGN, optarg);
+                break;
+            case 'v':
+                setcmd(&cfg, CMD_VERIFY, optarg);
                 break;
             case 'o':
-                if (!parse_option(&cfg, &cmd, optarg)) {
+                if (!parse_option(&cfg, optarg)) {
                     (void) fprintf(stderr, "Bad option\n");
                 }
                 break;
@@ -776,20 +842,12 @@ main(int argc, char **argv)
                     rnp_cfg_addstr(&cfg, CFG_RECIPIENTS, optarg);
                 }
                 break;
-            case 's':
-                /* for signing, we need a userid and a seckey */
-                rnp_cfg_setbool(&cfg, CFG_NEEDSSECKEY, true);
-                cmd = CMD_SIGN;
-                break;
             case 'u':
                 if (!optarg) {
                     fputs("No userid argument provided\n", stderr);
                     exit(EXIT_ERROR);
                 }
                 rnp_cfg_addstr(&cfg, CFG_SIGNERS, optarg);
-                break;
-            case 'v':
-                cmd = CMD_VERIFY;
                 break;
             case 'z':
                 if ((strlen(optarg) != 1) || (optarg[0] < '0') || (optarg[0] > '9')) {
@@ -799,7 +857,7 @@ main(int argc, char **argv)
                 }
                 break;
             default:
-                cmd = CMD_HELP;
+                setcmd(&cfg, CMD_HELP, optarg);
                 break;
             }
         }
@@ -828,11 +886,12 @@ main(int argc, char **argv)
     /* now do the required action for each of the command line args */
     ret = EXIT_SUCCESS;
     if (optind == argc) {
-        if (!rnp_cmd(&cfg, &rnp, cmd, NULL))
+        if (!rnp_cmd(&cfg, &rnp))
             ret = EXIT_FAILURE;
     } else {
         for (i = optind; i < argc; i++) {
-            if (!rnp_cmd(&cfg, &rnp, cmd, argv[i])) {
+            rnp_cfg_setstr(&cfg, CFG_INFILE, argv[i]);
+            if (!rnp_cmd(&cfg, &rnp)) {
                 ret = EXIT_FAILURE;
             }
         }
