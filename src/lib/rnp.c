@@ -1505,8 +1505,7 @@ rnp_call_protect_operation(pgp_write_handler_t *handler, pgp_source_t *src, pgp_
     passc = list_length(handler->ctx->passwords);
 
     if ((encrc || passc) && signc) {
-        RNP_LOG("encrypt and sign is not supported yet");
-        return RNP_ERROR_NOT_IMPLEMENTED;
+        return rnp_encrypt_sign_src(handler, src, dst);
     } else if (signc) {
         return rnp_sign_src(handler, src, dst);
     } else if (encrc || passc) {
