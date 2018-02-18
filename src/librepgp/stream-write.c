@@ -1221,10 +1221,10 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
             break;
         }
 
-        (void)bn_num_bytes(dsasig.r, &sig->material.dsa.rlen);
-        (void)bn_num_bytes(dsasig.s, &sig->material.dsa.slen);
-        (void)bn_bn2bin(dsasig.r, sig->material.dsa.r);
-        (void)bn_bn2bin(dsasig.s, sig->material.dsa.s);
+        (void) bn_num_bytes(dsasig.r, &sig->material.dsa.rlen);
+        (void) bn_num_bytes(dsasig.s, &sig->material.dsa.slen);
+        (void) bn_bn2bin(dsasig.r, sig->material.dsa.r);
+        (void) bn_bn2bin(dsasig.s, sig->material.dsa.s);
         bn_free(dsasig.r);
         bn_free(dsasig.s);
         ret = RNP_SUCCESS;
@@ -1445,7 +1445,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, pgp_key_t *key, bool last)
                 if (!list_prev(op)) {
                     ((pgp_one_pass_sig_t *) op)->nested = true;
                 }
-                
+
                 if (!stream_write_one_pass((pgp_one_pass_sig_t *) op, param->writedst)) {
                     return RNP_ERROR_WRITE;
                 }
@@ -1999,7 +1999,7 @@ rnp_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
     */
     pgp_dest_t   dests[4];
     unsigned     destc = 0;
-    rnp_result_t ret = RNP_SUCCESS;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
 
     /* pushing armoring stream, which will write to the output */
     if (handler->ctx->armor && !handler->ctx->clearsign) {
@@ -2033,6 +2033,70 @@ rnp_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
         }
         destc++;
     }
+
+    /* process source with streams stack */
+    ret = process_stream_sequence(src, dests, destc);
+finish:
+    for (int i = destc - 1; i >= 0; i--) {
+        dst_close(&dests[i], ret != RNP_SUCCESS);
+    }
+    return ret;
+}
+
+rnp_result_t
+rnp_encrypt_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
+{
+    /* stack of the streams would be as following:
+       [armoring stream] - if armoring is enabled
+       [encrypting stream, partial writing stream]
+       [compressing stream, partial writing stream] - compression is enabled
+       signing stream
+       literal data stream, partial writing stream
+    */
+    pgp_dest_t   dests[5];
+    unsigned     destc = 0;
+    rnp_result_t ret = RNP_SUCCESS;
+
+    /* we may use only attached signatures here */
+    if (handler->ctx->clearsign || handler->ctx->detached) {
+        RNP_LOG("cannot clearsign or sign detached together with encryption");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* pushing armoring stream, which will write to the output */
+    if (handler->ctx->armor) {
+        ret = init_armored_dst(&dests[destc], dst, PGP_ARMORED_MESSAGE);
+        if (ret != RNP_SUCCESS) {
+            goto finish;
+        }
+        destc++;
+    }
+
+    /* pushing encrypting stream, which will write to the output or armoring stream */
+    if ((ret = init_encrypted_dst(handler, &dests[destc], destc ? &dests[destc - 1] : dst))) {
+        goto finish;
+    }
+    destc++;
+
+    /* if compression is enabled then pushing compressing stream */
+    if (handler->ctx->zlevel > 0) {
+        if ((ret = init_compressed_dst(handler, &dests[destc], &dests[destc - 1]))) {
+            goto finish;
+        }
+        destc++;
+    }
+
+    /* pushing signing stream */
+    if ((ret = init_signed_dst(handler, &dests[destc], &dests[destc - 1]))) {
+        goto finish;
+    }
+    destc++;
+
+    /* pushing literal data stream */
+    if ((ret = init_literal_dst(handler, &dests[destc], &dests[destc - 1]))) {
+        goto finish;
+    }
+    destc++;
 
     /* process source with streams stack */
     ret = process_stream_sequence(src, dests, destc);
