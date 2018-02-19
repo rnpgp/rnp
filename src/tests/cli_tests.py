@@ -178,34 +178,36 @@ def rnp_params_insert_z(params, pos, z):
             params[pos:pos] = ['-z', str(z[1])]
 
 def rnp_params_insert_aead(params, pos, aead):
-    if aead:
+    if aead != None:
         params[pos:pos] = ['--aead=' + aead[0]] if len(aead) > 0 and aead[0] != None else ['--aead']
         if len(aead) > 1 and aead[1] != None: 
             params[pos + 1:pos + 1] = ['--aead-chunk-bits=' + str(aead[1])]
 
+def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, cipher=None, z=None, armor=False):
+    params = ['--homedir', RNPDIR, src, '--output', dst]
+    # Recipients. None disables PK encryption, [] to use default key. Otheriwse list of ids.
+    if recipients != None: 
+        params[2:2] = ['--encrypt']
+        for userid in reversed(recipients):
+            params[2:2] = ['-r', userid]
+    # Passwords to encrypt to. None or [] disables password encryption.
+    if passwords:
+        if recipients == None:
+            params[2:2] = ['-c']
+        pipe = pswd_pipe('\n'.join(passwords))
+        params[2:2] = ['--pass-fd', str(pipe)]
+        params[2:2] = ['--passwords', str(len(passwords))]
 
-def rnp_encrypt_file(recipient, src, dst, z=None, armor=False):
-    params = ['--homedir', RNPDIR, '-r', recipient, '--encrypt', src, '--output', dst]
-    rnp_params_insert_z(params, 4, z)
+    # Cipher or None for default
+    if cipher: params[2:2] = ['--cipher', cipher]
+    # Armor
     if armor: params += ['--armor']
+    rnp_params_insert_aead(params, 2, aead)
+    rnp_params_insert_z(params, 2, z)
     ret, _, err = run_proc(RNP, params)
+    if passwords: os.close(pipe)
     if ret != 0:
         raise_err('rnp encryption failed', err)
-
-
-def rnp_symencrypt_file(src, dst, cipher, z=None, armor=False, aead=None):
-    pipe = pswd_pipe(PASSWORD)
-    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '-c', src, '--output', dst]
-    rnp_params_insert_z(params, 4, z)
-    if cipher: params[4:4] = ['--cipher', cipher]
-    if armor: params += ['--armor']
-    if aead: rnp_params_insert_aead(params, 4, aead)
-
-    ret, _, err = run_proc(RNP, params)
-    os.close(pipe)
-    if ret != 0:
-        raise_err('rnp symmetric encryption failed', err)
-
 
 def rnp_decrypt_file(src, dst, password = PASSWORD):
     pipe = pswd_pipe(password)
@@ -299,11 +301,11 @@ def gpg_import_pubring(kpath=None):
         raise_err('gpg key import failed', err)
 
 
-def gpg_import_secring(kpath=None):
+def gpg_import_secring(kpath=None, password = PASSWORD):
     if not kpath:
         kpath = path.join(RNPDIR, 'secring.gpg')
     ret, _, err = run_proc(
-        GPG, ['--batch', '--passphrase', PASSWORD, '--homedir', GPGDIR, '--import', kpath])
+        GPG, ['--batch', '--passphrase', password, '--homedir', GPGDIR, '--import', kpath])
     if ret != 0:
         raise_err('gpg secret key import failed', err)
 
@@ -423,6 +425,9 @@ def gpg_sign_cleartext(src, dst, signer):
         raise_err('gpg cleartext signing failed', err)
 
 
+def gpg_agent_clear_cache():
+    run_proc(GPGCONF, ['--homedir', GPGDIR, '--kill', 'gpg-agent'])
+
 '''
     Things to try here later on:
     - different symmetric algorithms
@@ -460,7 +465,7 @@ def file_encryption_rnp_to_gpg(filesize, z=None):
     random_text(src, filesize)
     for armor in [False, True]:
         # Encrypt cleartext file with RNP
-        rnp_encrypt_file(KEY_ENCRYPT, src, enc, z, armor)
+        rnp_encrypt_file_ex(src, enc, [KEY_ENCRYPT], None, None, None, z, armor)
         # Decrypt encrypted file with GPG
         gpg_decrypt_file(enc, dst, PASSWORD)
         compare_files(src, dst, 'gpg decrypted data differs')
@@ -498,7 +503,7 @@ def rnp_sym_encryption_rnp_to_gpg(filesize, cipher = None, z = None):
     random_text(src, filesize)
     for armor in [False, True]:
         # Encrypt cleartext file with RNP
-        rnp_symencrypt_file(src, enc, cipher, z, armor)
+        rnp_encrypt_file_ex(src, enc, None, [PASSWORD], None, cipher, z, armor)
         # Decrypt encrypted file with GPG
         gpg_decrypt_file(enc, dst, PASSWORD)
         compare_files(src, dst, 'gpg decrypted data differs')
@@ -514,7 +519,7 @@ def rnp_sym_encryption_rnp_aead(filesize, cipher = None, z = None, aead = None, 
     # Generate random file of required size
     random_text(src, filesize)
     # Encrypt cleartext file with RNP
-    rnp_symencrypt_file(src, enc, cipher, z, False, aead)
+    rnp_encrypt_file_ex(src, enc, None, [PASSWORD], aead, cipher, z)
     # Decrypt encrypted file with RNP
     rnp_decrypt_file(enc, dst)
     compare_files(src, dst, 'rnp decrypted data differs')
@@ -994,46 +999,32 @@ class Encryption(unittest.TestCase):
             keynum, pswdnum = kpswd
             if (keynum == 0) and (pswdnum == 0):
                 continue
-            # We do not support encryption with key and password together yet
-            if (keynum > 0) and (pswdnum > 0):
-                continue
 
-            params = ['--homedir', RNPDIR, src, '--output', dst]
-            params[2:2] = ['--encrypt'] if keynum > 0 else ['-c']
-            
-            for uid in reversed(USERIDS[:keynum]):
-                params[2:2] = ['-r', uid]
+            uids = USERIDS[:keynum] if keynum else None
+            pswds = PASSWORDS[:pswdnum] if pswdnum else None
 
-            if pswdnum > 0:
-                pipe = pswd_pipe('\n'.join(PASSWORDS[:pswdnum]))
-                params[2:2] = ['--passwords', str(pswdnum), '--pass-fd', str(pipe)]
-
-            if aead: rnp_params_insert_aead(params, 4, aead)
-
-            ret, _, err = run_proc(RNP, params)
-
-            if pswdnum > 0:
-                os.close(pipe)
-
-            if ret != 0:
-                raise_err('rnp multi-recipient encryption failed', err)
+            rnp_encrypt_file_ex(src, dst, uids, pswds, aead)
 
             # Decrypt file with each of the keys, we have different password for each key
             for pswd in KEYPASS[:keynum]:
                 gpg_decrypt_file(dst, dec, pswd)
+                gpg_agent_clear_cache()
                 remove_files(dec)
+                rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
 
             # GPG decrypts only with first password, see T3795
-            if not aead:
+            if (not aead) and pswdnum:
                 gpg_decrypt_file(dst, dec, PASSWORDS[0])
+                gpg_agent_clear_cache
                 remove_files(dec)
 
             # Decrypt file with each of the passwords
             for pswd in PASSWORDS[:pswdnum]:
                 if aead: 
                     gpg_decrypt_file(dst, dec, pswd)
+                    gpg_agent_clear_cache()
                     remove_files(dec)
-                rnp_decrypt_file(dst, dec, pswd)
+                rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
                 remove_files(dec)
 
             remove_files(dst, dec)
