@@ -652,6 +652,9 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
         }
 
         rnp_cfg_setint(cfg, CFG_PASSWORDC, count);
+        if (count > 0) {
+            rnp_cfg_setbool(cfg, CFG_ENCRYPT_SK, true);
+        }
         break;
     }
     case OPT_OUTPUT:
