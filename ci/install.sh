@@ -17,7 +17,7 @@ if [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ] && \
 
   git clone https://github.com/randombit/botan "${botan_build}"
   pushd "${botan_build}"
-  ./configure.py --prefix="${BOTAN_INSTALL}"
+  ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer"
   ${MAKE} -j${CORES} install
   popd
 fi
@@ -61,7 +61,7 @@ if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \
   tar xzf json-c.tar.gz --strip 1
 
   autoreconf -ivf
-  ./configure --prefix="${JSONC_INSTALL}"
+  env CFLAGS="-fno-omit-frame-pointer -g" ./configure --prefix="${JSONC_INSTALL}"
   ${MAKE} -j${CORES} install
   popd
 fi
