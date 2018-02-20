@@ -1312,29 +1312,34 @@ encrypted_decrypt_cfb_header(pgp_source_encrypted_param_t *param,
     }
 
     pgp_cipher_cfb_decrypt(&crypt, dechdr, enchdr, blsize + 2);
-    if ((dechdr[blsize] == dechdr[blsize - 2]) && (dechdr[blsize + 1] == dechdr[blsize - 1])) {
-        src_skip(param->pkt.readsrc, blsize + 2);
-        param->decrypt = crypt;
-        /* init mdc if it is here */
-        /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB
-         * resynchronization is done after encrypting this prefix data. */
-        if (!param->has_mdc) {
-            pgp_cipher_cfb_resync(&param->decrypt, enchdr + 2);
-        } else {
-            if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
-                pgp_cipher_cfb_finish(&crypt);
-                RNP_LOG("cannot create sha1 hash");
-                return false;
-            }
 
-            pgp_hash_add(&param->mdc, dechdr, blsize + 2);
-        }
-
-        return true;
-    } else {
-        pgp_cipher_cfb_finish(&crypt);
-        return false;
+    if ((dechdr[blsize] != dechdr[blsize - 2]) || (dechdr[blsize + 1] != dechdr[blsize - 1])) {
+        RNP_LOG("checksum check failed");
+        goto error;
     }
+
+    src_skip(param->pkt.readsrc, blsize + 2);
+    param->decrypt = crypt;
+
+    /* init mdc if it is here */
+    /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB
+     * resynchronization is done after encrypting this prefix data. */
+    if (!param->has_mdc) {
+        pgp_cipher_cfb_resync(&param->decrypt, enchdr + 2);
+        return true;
+    }
+
+    if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
+        RNP_LOG("cannot create sha1 hash");
+        goto error;
+    }
+
+    pgp_hash_add(&param->mdc, dechdr, blsize + 2);
+    return true;
+
+error:
+    pgp_cipher_cfb_finish(&crypt);
+    return false;
 }
 
 static bool
