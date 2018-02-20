@@ -217,41 +217,40 @@ def rnp_decrypt_file(src, dst, password = PASSWORD):
     if ret != 0:
         raise_err('rnp decryption failed', out + err)
 
-
-def rnp_sign_file(src, dst, signers, passwords, armor=False):
+def rnp_sign_file_ex(src, dst, signers, passwords, options = None):
     pipe = pswd_pipe('\n'.join(passwords))
-    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--sign', src, '--output', dst]
+    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), src]
+    if dst: params += ['--output', dst]
+    if 'cleartext' in options:
+        params[4:4] = ['--clearsign']
+    else:
+        params[4:4] = ['--sign']
+        if 'armor' in options: params += ['--armor']
+        if 'detached' in options: params += ['--detach']
+
     for signer in reversed(signers):
         params[4:4] = ['--userid', signer]
-    if armor: params += ['--armor']
+
     ret, _, err = run_proc(RNP, params)
     os.close(pipe)
     if ret != 0:
         raise_err('rnp signing failed', err)
 
 
+def rnp_sign_file(src, dst, signers, passwords, armor=False):
+    options = []
+    if armor: options += ['armor']
+    rnp_sign_file_ex(src, dst, signers, passwords, options)
+
+
 def rnp_sign_detached(src, signers, passwords, armor=False):
-    pipe = pswd_pipe('\n'.join(passwords))
-    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--sign', '--detach', src]
-    for signer in reversed(signers):
-        params[4:4] = ['--userid', signer]
-    if armor:
-        params += ['--armor']
-    ret, _, err = run_proc(RNP, params)
-    os.close(pipe)
-    if ret != 0:
-        raise_err('rnp detached signing failed', err)
+    options = ['detached']
+    if armor: options += ['armor']
+    rnp_sign_file_ex(src, None, signers, passwords, options)
 
 
 def rnp_sign_cleartext(src, dst, signers, passwords):
-    pipe = pswd_pipe('\n'.join(passwords))
-    params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--output', dst, '--clearsign', src]
-    for signer in reversed(signers):
-        params[4:4] = ['--userid', signer]
-    ret, _, err = run_proc(RNP, params)
-    os.close(pipe)
-    if ret != 0:
-        raise_err('rnp cleartext signing failed', err)
+    rnp_sign_file_ex(src, dst, signers, passwords, ['cleartext'])
 
 
 def rnp_verify_file(src, dst, signer=None):
