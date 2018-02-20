@@ -1332,6 +1332,7 @@ encrypted_decrypt_cfb_header(pgp_source_encrypted_param_t *param,
 
         return true;
     } else {
+        pgp_cipher_cfb_finish(&crypt);
         return false;
     }
 }
