@@ -209,6 +209,32 @@ def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, ci
     if ret != 0:
         raise_err('rnp encryption failed', err)
 
+def rnp_encrypt_and_sign_file(src, dst, recipients, encrpswd, signers, signpswd, aead=None, cipher=None, z=None, armor=False):
+    params = ['--homedir', RNPDIR, '--sign', '--encrypt', src, '--output', dst]
+    pipe = pswd_pipe('\n'.join(encrpswd + signpswd))
+    params[2:2] = ['--pass-fd', str(pipe)]
+
+    # Encrypting passwords if any
+    if encrpswd:
+        params[2:2] = ['--passwords', str(len(encrpswd))]
+    # Adding recipients. If list is empty then default will be used.
+    for userid in reversed(recipients):
+        params[2:2] = ['-r', userid]
+    # Adding signers. If list is empty then default will be used.
+    for signer in reversed(signers):
+        params[2:2] = ['-u', signer]
+    # Cipher or None for default
+    if cipher: params[2:2] = ['--cipher', cipher]
+    # Armor
+    if armor: params += ['--armor']
+    rnp_params_insert_aead(params, 2, aead)
+    rnp_params_insert_z(params, 2, z)
+
+    ret, _, err = run_proc(RNP, params)
+    os.close(pipe)
+    if ret != 0:
+        raise_err('rnp encrypt-and-sign failed', err)
+
 def rnp_decrypt_file(src, dst, password = PASSWORD):
     pipe = pswd_pipe(password)
     ret, out, err = run_proc(
@@ -1029,6 +1055,66 @@ class Encryption(unittest.TestCase):
             remove_files(dst, dec)
 
         clear_workfiles()
+
+    def test_encryption_and_signing(self):
+        USERIDS = ['enc-sign1@rnp', 'enc-sign2@rnp', 'enc-sign3@rnp']
+        KEYPASS = ['encsign1pass', 'encsign2pass', 'encsign3pass']
+        PASSWORDS = ['password1', 'password2', 'password3']
+        AEAD_C = list_upto(['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256'], Encryption.RUNS)
+        # Generate multiple keys and import to GnuPG
+        for uid, pswd in zip(USERIDS, KEYPASS):
+            rnp_genkey_rsa(uid, 1024, pswd)
+
+        gpg_import_pubring()
+        gpg_import_secring()
+
+        SIGNERS = list_upto(range(1, len(USERIDS) + 1), Encryption.RUNS)
+        KEYPSWD = tuple((t1, t2) for t1 in range(1, len(USERIDS) + 1) for t2 in range(len(PASSWORDS) + 1))
+        KEYPSWD = list_upto(KEYPSWD, Encryption.RUNS)
+        if gpg_supports_aead():
+            AEADS = list_upto([None, [None], ['eax'], ['ocb']], Encryption.RUNS)
+        else:
+            AEADS = list_upto([None], Encryption.RUNS)
+        ZS = list_upto([None, [None, 0]], Encryption.RUNS)
+
+        src, dst, dec = reg_workfiles('cleartext', '.txt', '.rnp', '.dec')
+        # Generate random file of required size
+        random_text(src, 128000)
+
+        for i in range(0, Encryption.RUNS):
+            signers = USERIDS[:SIGNERS[i]]
+            signpswd = KEYPASS[:SIGNERS[i]]
+            keynum, pswdnum = KEYPSWD[i]
+            recipients = USERIDS[:keynum]
+            passwords = PASSWORDS[:pswdnum]
+            aead = AEADS[i]
+            z = ZS[i]
+            cipher = AEAD_C[i]
+
+            rnp_encrypt_and_sign_file(src, dst, recipients, passwords, signers, signpswd, aead, cipher, z)
+            # Decrypt file with each of the keys, we have different password for each key
+            for pswd in KEYPASS[:keynum]:
+                gpg_decrypt_file(dst, dec, pswd)
+                gpg_agent_clear_cache()
+                remove_files(dec)
+                rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
+
+            # GPG decrypts only with first password, see T3795
+            if (not aead) and pswdnum:
+                gpg_decrypt_file(dst, dec, PASSWORDS[0])
+                gpg_agent_clear_cache
+                remove_files(dec)
+
+            # Decrypt file with each of the passwords
+            for pswd in PASSWORDS[:pswdnum]:
+                if aead: 
+                    gpg_decrypt_file(dst, dec, pswd)
+                    gpg_agent_clear_cache()
+                    remove_files(dec)
+                rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
+                remove_files(dec)
+
+            remove_files(dst, dec)
 
 
 class Compression(unittest.TestCase):
