@@ -94,36 +94,13 @@ We can use a container for this, like so:
 
 ``` sh
 ./travis.sh
-# or
-# docker run -ti --rm travisci/ci-garnet:packer-1490989530 bash -l
 ```
 
-(Refer to
-[here](https://docs.travis-ci.com/user/common-build-problems/#Troubleshooting-Locally-in-a-Docker-Image)
-and [here](https://hub.docker.com/r/travisci/ci-garnet/tags/))
-
-Inside the container, you will need to perform steps like the following:
+Inside the container, you can do local CI runs like so:
 
 ``` sh
-cd ~/
-git clone https://github.com/riboseinc/rnp
-# or if testing local copy
-# git clone /usr/local/rnp
-cd rnp
-export LOCAL_BUILDS="$HOME/local-builds"
-export BOTAN_INSTALL="${LOCAL_BUILDS}/botan-install"
-export CMOCKA_INSTALL="${LOCAL_BUILDS}/cmocka-install"
-export JSONC_INSTALL="${LOCAL_BUILDS}/jsonc-install"
-export GPG_INSTALL="${LOCAL_BUILDS}/gpg-install"
-export GPG_VERSION=stable
-export BUILD_MODE=normal
-ci/install.sh
-env CC=clang ci/main.sh
+env GPG_VERSION=beta BUILD_MODE=sanitize-leaks ci/local.sh
 ```
-
-(The above uses clang as the compiler -- use `CC=gcc` for GCC)
-Refer to the current `.travis.yml` for the most up-to-date information
-on what environment variables need to be set.
 
 # Code Coverage
 
