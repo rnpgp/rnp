@@ -719,6 +719,7 @@ test_dsa_roundtrip(void **state)
                key_desc.dsa.p_bitlen,
                key_desc.dsa.q_bitlen,
                pgp_show_hash_alg(key_desc.hash_alg));
+        fflush(stdout);
 
         pgp_dsa_pubkey_t *pub1 = &sec_key1.pubkey.key.dsa;
         pgp_dsa_seckey_t *sec1 = &sec_key1.key.dsa;
