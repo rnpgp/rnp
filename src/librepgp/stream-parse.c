@@ -498,8 +498,10 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
     STORE64BE(param->aead_params.ad + param->aead_params.adlen - 8, idx);
 
     if (last) {
-        uint64_t total = idx ? (idx - 1) * param->chunklen : 0;
-        total += param->chunkin;
+        uint64_t total = idx * param->chunklen;
+        if (idx && param->chunkin) {
+            total -= param->chunklen - param->chunkin;
+        }
         STORE64BE(param->aead_params.ad + param->aead_params.adlen, total);
         param->aead_params.adlen += 8;
     }
@@ -603,7 +605,7 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
         }
     }
 
-    res = encrypted_start_aead_chunk(param, chunkend ? param->chunkidx + 1 : param->chunkidx, lastchunk);
+    res = encrypted_start_aead_chunk(param, chunkend && param->chunkin ? param->chunkidx + 1 : param->chunkidx, lastchunk);
     if (!res) {
         RNP_LOG("failed to start aead chunk");
         return res;
