@@ -38,12 +38,17 @@
 /* maximum size of the 'small' packet */
 #define PGP_MAX_PKT_SIZE 0x100000
 
-/* structure to write non-stream packets without need to precalculate the length */
+/* structure for convenient writing or parsing of non-stream packets */
 typedef struct pgp_packet_body_t {
     int      tag;       /* packet tag */
     uint8_t *data;      /* packet body data */
-    size_t   len;       /* current len of the data */
+    size_t   len;       /* length of the data */
     size_t   allocated; /* allocated bytes in data */
+
+    /* fields below are filled only for parsed packet */
+    uint8_t hdr[PGP_MAX_HEADER_SIZE]; /* packet header bytes */
+    size_t  hdr_len;                  /* number of bytes in hdr */
+    size_t  pos;                      /* current read position in packet data */
 } pgp_packet_body_t;
 
 /** @brief write new packet length
@@ -129,6 +134,44 @@ bool add_packet_body_mpi(pgp_packet_body_t *body, uint8_t *mpi, unsigned len);
  */
 bool add_packet_body_subpackets(pgp_packet_body_t *body, pgp_signature_t *sig, bool hashed);
 
+/** @brief get next byte from the packet body
+ *  @param body pointer to the structure. It must be filled via stream_read_packet_body
+ *  @param val result will be stored here
+ *  @return true on success or false otherwise (if end of the packet is reached)
+ **/
+bool get_packet_body_byte(pgp_packet_body_t *body, uint8_t *val);
+
+/** @brief get next big-endian uint16 from the packet body
+ *  @param body pointer to the structure. It must be filled via stream_read_packet_body
+ *  @param val result will be stored here
+ *  @return true on success or false otherwise (if end of the packet is reached)
+ **/
+bool get_packet_body_uint16(pgp_packet_body_t *body, uint16_t *val);
+
+/** @brief get next big-endian uint32 from the packet body
+ *  @param body pointer to the structure. It must be filled via stream_read_packet_body
+ *  @param val result will be stored here
+ *  @return true on success or false otherwise (if end of the packet is reached)
+ **/
+bool get_packet_body_uint32(pgp_packet_body_t *body, uint32_t *val);
+
+/** @brief get some bytes from the packet body
+ *  @param body pointer to the structure. It must be filled via stream_read_packet_body
+ *  @param val packet body bytes will be stored here. Must be capable of storing len bytes.
+ *  @param len number of bytes to read
+ *  @return true on success or false otherwise (if end of the packet is reached)
+ **/
+bool get_packet_body_buf(pgp_packet_body_t *body, uint8_t *val, size_t len);
+
+/** @brief get next mpi from the packet body
+ *  @param body pointer to the structure. It must be filled via stream_read_packet_body
+ *  @param val mpi bytes will be stored here. Must be buffer of PGP_MPINT_SIZE bytes
+ *  @param len mpi length in bytes will be stored here.
+ *  @return true on success or false otherwise (if end of the packet is reached
+ *          or mpi is ill-formed)
+ **/
+bool get_packet_body_mpi(pgp_packet_body_t *body, uint8_t *val, size_t *len);
+
 /** @brief deallocate data inside of packet body structure
  *  @param body initialized packet body
  *  @return void
@@ -153,24 +196,38 @@ rnp_result_t stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
 
 /* Packet handling functions */
 
+/* Symmetric-key encrypted session key */
+
 bool stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst);
-
-size_t stream_sk_sesskey_len(pgp_sk_sesskey_t *skey);
-
-bool stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *pkey, pgp_dest_t *dst);
-
-bool stream_write_one_pass(pgp_one_pass_sig_t *onepass, pgp_dest_t *dst);
-
-bool stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst);
 
 rnp_result_t stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey);
 
+/* Public-key encrypted session key */
+
+bool stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *pkey, pgp_dest_t *dst);
+
 rnp_result_t stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pkey);
 
+/* One-pass signature */
+
+bool stream_write_one_pass(pgp_one_pass_sig_t *onepass, pgp_dest_t *dst);
+
 rnp_result_t stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass);
+
+/* Signature */
+
+bool stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst);
 
 rnp_result_t stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig);
 
 void free_signature(pgp_signature_t *sig);
+
+/* Public/Private key or Subkey */
+
+bool stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst);
+
+rnp_result_t stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key);
+
+void free_key_pkt(pgp_key_pkt_t *key);
 
 #endif
