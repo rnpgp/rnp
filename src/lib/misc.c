@@ -697,7 +697,7 @@ hexdump(FILE *fp, const char *header, const uint8_t *src, size_t length)
     char   line[LINELEN + 1];
 
     (void) fprintf(fp, "%s%s", (header) ? header : "", (header) ? "" : "");
-    (void) fprintf(fp, " (%" PRIsize "u bytes%s):\n", length, (length == 1) ? "" : "s");
+    (void) fprintf(fp, " (%" PRIsize "u byte%s):\n", length, (length == 1) ? "" : "s");
     for (i = 0; i < length; i++) {
         if (i % LINELEN == 0) {
             (void) fprintf(fp, "%.5" PRIsize "u | ", i);
