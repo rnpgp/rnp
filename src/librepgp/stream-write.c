@@ -331,8 +331,10 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
     STORE64BE(param->ad + param->adlen - 8, idx);
 
     if (last) {
-        total = idx ? (idx - 1) * param->chunklen : 0;
-        total += param->cachelen + param->chunkout;
+        total = idx * param->chunklen;
+        if (param->cachelen + param->chunkout) {
+            total -= param->chunklen - param->cachelen - param->chunkout;
+        }
         STORE64BE(param->ad + param->adlen, total);
         param->adlen += 8;
     }
