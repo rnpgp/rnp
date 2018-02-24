@@ -230,6 +230,62 @@ typedef struct pgp_seckey_t {
     uint8_t  checkhash[PGP_CHECKHASH_SIZE];
 } pgp_seckey_t;
 
+/** Struct to hold a key packet. May contain public or private key/subkey */
+typedef struct pgp_key_pkt_t {
+    int              tag;           /* packet tag: public key/subkey or private key/subkey */
+    pgp_version_t    version;       /* Key packet version */
+    uint32_t         creation_time; /* Key creation time */
+    pgp_pubkey_alg_t alg;
+    uint16_t         v3_days; /* v2/v3 validity time */
+
+    uint8_t *hashed_data;
+    size_t   hashed_len;
+
+    union {
+        struct {
+            uint8_t n[PGP_MPINT_SIZE];
+            uint8_t e[PGP_MPINT_SIZE];
+            size_t  nlen;
+            size_t  elen;
+        } rsa;
+        struct {
+            uint8_t p[PGP_MPINT_SIZE];
+            uint8_t q[PGP_MPINT_SIZE];
+            uint8_t g[PGP_MPINT_SIZE];
+            uint8_t y[PGP_MPINT_SIZE];
+            size_t  plen;
+            size_t  qlen;
+            size_t  glen;
+            size_t  ylen;
+        } dsa;
+        struct {
+            uint8_t p[PGP_MPINT_SIZE];
+            uint8_t g[PGP_MPINT_SIZE];
+            uint8_t y[PGP_MPINT_SIZE];
+            size_t  plen;
+            size_t  glen;
+            size_t  ylen;
+        } eg;
+        struct {
+            pgp_curve_t curve;
+            uint8_t     p[PGP_MPINT_SIZE];
+            size_t      plen;
+        } ecc;
+        struct {
+            pgp_curve_t    curve;
+            uint8_t        p[PGP_MPINT_SIZE];
+            size_t         plen;
+            pgp_hash_alg_t kdf_hash_alg; /* Hash used by kdf */
+            pgp_symm_alg_t key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
+        } ecdh;
+    } material;
+
+    /* secret key data, if available. sec_len == 0, sec_data == NULL for public key/subkey */
+    pgp_key_protection_t sec_protection;
+    uint8_t *            sec_data;
+    size_t               sec_len;
+} pgp_key_pkt_t;
+
 /** Struct to hold a signature packet.
  *
  * \see RFC4880 5.2.2
