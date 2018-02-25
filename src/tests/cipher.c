@@ -692,9 +692,6 @@ test_dsa_roundtrip(void **state)
         {2048, 256, PGP_HASH_SHA256},
         {2048, 256, PGP_HASH_SHA384},
         {2048, 256, PGP_HASH_SHA512},
-        // all 3072 key-hash combinations
-        {3072, 256, PGP_HASH_SHA384},
-        {3072, 256, PGP_HASH_SHA512},
         //misc
         {1088, 224, PGP_HASH_SHA512},
         {1024, 256, PGP_HASH_SHA256},

@@ -1368,15 +1368,6 @@ class SignDSA(Sign):
             "2048", self.rnp.userid)
         self._rnp_sign_verify(self.gpg, self.rnp, cmd)
 
-    def test_sign_P3072_Q256(self):
-        cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(3072)
-        self._rnp_sign_verify(self.rnp, self.gpg, cmd)
-
-    def test_verify_P3072_Q256(self):
-        cmd = SignDSA.GPG_GENERATE_DSA_PATERN.format(
-            "3072", self.rnp.userid)
-        self._rnp_sign_verify(self.gpg, self.rnp, cmd)
-
     def test_sign_P2112_Q256(self):
         cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(2112)
         self._rnp_sign_verify(self.rnp, self.gpg, cmd)
