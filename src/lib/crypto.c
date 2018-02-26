@@ -161,28 +161,32 @@ pgp_decrypt_decode_mpi(rng_t *             rng,
         return out_len;
 
     case PGP_PKA_DSA:
-    case PGP_PKA_ELGAMAL:
-        (void) bn_bn2bin(g_to_k, gkbuf);
-        (void) bn_bn2bin(encmpi, encmpibuf);
-        if (rnp_get_debug(__FILE__)) {
-            hexdump(stderr, "encrypted", encmpibuf, 16);
-        }
-        n = pgp_elgamal_private_decrypt_pkcs1(rng,
-                                              buf,
-                                              gkbuf,
-                                              encmpibuf,
-                                              encmpi_byte_len,
-                                              &seckey->key.elgamal,
-                                              &seckey->pubkey.key.elgamal);
-        if (n <= 0) {
-            RNP_LOG("ops_elgamal_private_decrypt failure");
+    case PGP_PKA_ELGAMAL: {
+        size_t gklen, mlen;
+
+        if (!bn_num_bytes(g_to_k, &gklen) || !bn_num_bytes(encmpi, &mlen)||
+            (gklen>sizeof(gkbuf)) || (mlen>sizeof(encmpi))||
+            bn_bn2bin(g_to_k, gkbuf) || bn_bn2bin(encmpi, encmpibuf)) {
             return -1;
         }
 
+        buf_t out = {.pbuf = buf, .len = buflen};
+        const buf_t g2k = {.pbuf = gkbuf, .len = gklen};
+        const buf_t m = {.pbuf = encmpibuf, .len = mlen};
+
+        const rnp_result_t ret = elgamal_decrypt_pkcs1(rng, &out, &g2k, &m,
+                &seckey->key.elgamal, &seckey->pubkey.key.elgamal);
+
         if (rnp_get_debug(__FILE__)) {
-            hexdump(stderr, "decoded m", buf, n);
+            hexdump(stderr, "decoded m", out.pbuf, out.len);
         }
-        return n;
+
+        if (ret) {
+            RNP_LOG("ElGamal decryption failure [%X]", ret);
+            return false;
+        }
+        return out.len;
+    }
     case PGP_PKA_ECDH: {
         pgp_fingerprint_t fingerprint;
         size_t            out_len = buflen;
@@ -295,4 +299,13 @@ end:
         pgp_seckey_free(seckey);
     }
     return ok;
+}
+
+bool to_buf(buf_t *b, const uint8_t* in, size_t len) {
+    if (b->len < len) {
+        return false;
+    }
+    memcpy(b->pbuf, in, len);
+    b->len = len;
+    return true;
 }

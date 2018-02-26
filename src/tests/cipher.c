@@ -254,28 +254,36 @@ elgamal_roundtrip(rnp_test_state_t *    state,
                   pgp_elgamal_pubkey_t *key_pub,
                   pgp_elgamal_seckey_t *key_prv)
 {
-    const uint8_t plaintext[] = {0x01, 0x02, 0x03, 0x04, 0x17};
-    uint8_t       decryption_result[1024];
-    uint8_t       encm[256];
-    uint8_t       g_to_k[256];
+    uint8_t decryption_result[1024];
+    uint8_t in_b[] = {0x01, 0x02, 0x03, 0x04, 0x17};
+    uint8_t g2k_b[256];
+    uint8_t m_b[256];
 
-    // Encrypt
-    unsigned ctext_size = pgp_elgamal_public_encrypt_pkcs1(
-      &global_rng, g_to_k, encm, plaintext, sizeof(plaintext), key_pub);
-    rnp_assert_int_not_equal(state, ctext_size, -1);
-    rnp_assert_int_equal(state, ctext_size % 2, 0);
-    ctext_size /= 2;
+    buf_t in = {.pbuf = in_b, .len = sizeof(in_b)};
+    buf_t g2k = {.pbuf = g2k_b, .len = sizeof(g2k_b)};
+    buf_t m = {.pbuf = m_b, .len = sizeof(m_b)};
+    buf_t res = {.pbuf = decryption_result, .len = sizeof(decryption_result)};
+
+    rnp_assert_int_equal(
+      state,
+      elgamal_encrypt_pkcs1(&global_rng, &g2k, &m, &in, key_pub),
+      RNP_SUCCESS);
 
     rnp_assert_int_not_equal(
       state,
-      pgp_elgamal_private_decrypt_pkcs1(
-        &global_rng, decryption_result, g_to_k, encm, ctext_size, key_prv, key_pub),
+      elgamal_decrypt_pkcs1(
+        &global_rng, &res, &g2k, &m, key_prv, key_pub),
       -1);
 
     rnp_assert_int_equal(
       state,
+      res.len,
+      sizeof(in_b));
+
+    rnp_assert_int_equal(
+      state,
       0,
-      test_value_equal("ElGamal decrypt", "0102030417", decryption_result, sizeof(plaintext)));
+      test_value_equal("ElGamal decrypt", "0102030417", res.pbuf, res.len));
 }
 
 void

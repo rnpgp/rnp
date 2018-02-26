@@ -792,4 +792,13 @@ typedef struct rnp_key_protection_params_t {
     pgp_hash_alg_t    hash_alg;
 } rnp_key_protection_params_t;
 
+/*
+ * Data structure for storing pointer to the buffer together with
+ * it's length. Value of 'len' depends on context in which it is used.
+ */
+typedef struct buf_t {
+  uint8_t *pbuf;
+  size_t  len;
+} buf_t;
+
 #endif /* TYPES_H_ */

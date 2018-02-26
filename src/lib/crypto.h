@@ -253,4 +253,6 @@ struct pgp_stream_t {
     uint8_t *virtualpkt;
 };
 
+bool to_buf(buf_t *b, const uint8_t* in, size_t len);
+
 #endif /* CRYPTO_H_ */
