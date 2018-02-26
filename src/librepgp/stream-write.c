@@ -610,22 +610,23 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         bn_free(p);
     } break;
     case PGP_PKA_ELGAMAL: {
-        int outlen;
 
-        outlen = pgp_elgamal_public_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
-                                                  pkey.params.eg.g,
-                                                  pkey.params.eg.m,
-                                                  enckey,
-                                                  keylen + 3,
-                                                  &pubkey->key.elgamal);
-        if (outlen <= 0) {
-            ret = RNP_ERROR_GENERIC;
+        buf_t g2k = { .pbuf = pkey.params.eg.g, .len = sizeof(pkey.params.eg.g)};
+        buf_t m = { .pbuf = pkey.params.eg.m, .len = sizeof(pkey.params.eg.m)};
+        const buf_t key = { .pbuf = enckey, .len = keylen + 3};
+
+        ret = elgamal_encrypt_pkcs1(
+                rnp_ctx_rng_handle(handler->ctx),
+                &g2k, &m, &key, &pubkey->key.elgamal);
+
+        if (ret) {
             RNP_LOG("pgp_elgamal_public_encrypt failed");
             goto finish;
         }
 
-        pkey.params.eg.glen = outlen / 2;
-        pkey.params.eg.mlen = outlen / 2;
+        pkey.params.eg.glen = g2k.len;
+        pkey.params.eg.mlen = m.len;
+
     } break;
     default:
         RNP_LOG("unsupported alg: %d", pubkey->alg);

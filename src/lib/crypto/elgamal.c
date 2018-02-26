@@ -84,53 +84,52 @@
 
 #include "crypto/elgamal.h"
 #include "crypto/bn.h"
+#include "crypto/dsa.h"
+#include "crypto.h"
 
-int
-pgp_elgamal_public_encrypt_pkcs1(rng_t *                     rng,
-                                 uint8_t *                   g2k,
-                                 uint8_t *                   encm,
-                                 const uint8_t *             in,
-                                 size_t                      length,
-                                 const pgp_elgamal_pubkey_t *pubkey)
+// Max supported key byte size
+#define ELGAMAL_MAX_P_BYTELEN BITS_TO_BYTES(DSA_MAX_P_BITLEN)
+
+rnp_result_t elgamal_encrypt_pkcs1(
+    rng_t* rng,
+    struct buf_t* g2k,
+    struct buf_t* encm,
+    const struct buf_t* in,
+    const pgp_elgamal_pubkey_t *pubkey)
 {
     botan_pubkey_t        key = NULL;
     botan_pk_op_encrypt_t op_ctx = NULL;
-    int                   ret = -1;
-    size_t                p_len = 0;
-    uint8_t *             bt_ciphertext = NULL;
+    rnp_result_t          ret = RNP_ERROR_BAD_PARAMETERS;
+    uint8_t               enc_buf[ELGAMAL_MAX_P_BYTELEN*2] = {0};   /* Max size of an output
+                                                                    len is twice an order of
+                                                                    underlying group (twice
+                                                                    byte-size of p) */
 
-    if (botan_mp_num_bytes(pubkey->p->mp, &p_len)) {
-        RNP_LOG("Wrong public key");
+    // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
+    size_t tmp;
+    if (botan_mp_num_bytes(BN_HANDLE_PTR(pubkey->p), &tmp) ||
+        ((tmp*2) > sizeof(enc_buf))) {
+        RNP_LOG("Unsupported public key size");
         goto end;
     }
 
-    // Initialize RNG and encrypt
-    if (botan_pubkey_load_elgamal(&key, pubkey->p->mp, pubkey->g->mp, pubkey->y->mp)) {
+    if (botan_pubkey_load_elgamal(&key, BN_HANDLE_PTR(pubkey->p),
+            BN_HANDLE_PTR(pubkey->g), BN_HANDLE_PTR(pubkey->y)) ||
+        botan_pubkey_check_key(key, rng_handle(rng), 1)) {
         RNP_LOG("Failed to load public key");
         goto end;
     }
 
-    if (botan_pubkey_check_key(key, rng_handle(rng), 1)) {
-        RNP_LOG("Wrong public key");
-        goto end;
-    }
-
-    /* Max size of an output len is twice an order of underlying group (twice byte-size of p)
-     * Allocate all buffers needed for encryption and post encryption processing */
-    size_t out_len = p_len * 2;
-    bt_ciphertext = calloc(out_len, 1);
-    if (!bt_ciphertext) {
-        RNP_LOG("Memory allocation failure");
-        goto end;
-    }
-
-    if (botan_pk_op_encrypt_create(&op_ctx, key, "PKCS1v15", 0)) {
+    /* Size of output buffer must be equal to twice the size of key byte len.
+     * as ElGamal encryption outputs concatenation of two components, both
+     * of size equal to size of public key byte len.
+     * Successful call to botan's ElGamal encryption will return output that's
+     * always 2*pubkey size.
+     */
+    tmp *= 2;
+    if (botan_pk_op_encrypt_create(&op_ctx, key, "PKCS1v15", 0) ||
+        botan_pk_op_encrypt(op_ctx, rng_handle(rng), enc_buf, &tmp, in->pbuf, in->len)) {
         RNP_LOG("Failed to create operation context");
-        goto end;
-    }
-
-    if (botan_pk_op_encrypt(op_ctx, rng_handle(rng), bt_ciphertext, &out_len, in, length)) {
-        RNP_LOG("Encryption fails");
         goto end;
     }
 
@@ -138,113 +137,79 @@ pgp_elgamal_public_encrypt_pkcs1(rng_t *                     rng,
      * Botan's ElGamal formats the g^k and msg*(y^k) together into a single byte string.
      * We have to parse out the two values after encryption, as rnp stores those values
      * separatelly.
+     *
+     * We don't trim zeros from octet string as it is done before final marshalling
+     * (add_packet_body_mpi)
+     *
+     * We must assume that botan copies even number of bytes to output buffer (to avoid
+     * memory corruption)
      */
-    memcpy(g2k, bt_ciphertext, p_len);
-    memcpy(encm, bt_ciphertext + p_len, p_len);
-
-    // All operations OK and `out_len' correctly set. Reset ret
-    ret = 0;
-
-end:
-    ret |= botan_pk_op_encrypt_destroy(op_ctx);
-    ret |= botan_pubkey_destroy(key);
-    free(bt_ciphertext);
-
-    if (ret) {
-        // Some error has occured
-        return -1;
+    tmp /= 2;
+    if (to_buf(g2k, enc_buf, tmp) && to_buf(encm, enc_buf + tmp, tmp)) {
+        ret = RNP_SUCCESS;
     }
 
-    return out_len;
+end:
+    botan_pk_op_encrypt_destroy(op_ctx);
+    botan_pubkey_destroy(key);
+    return ret;
 }
 
-int
-pgp_elgamal_private_decrypt_pkcs1(rng_t *                     rng,
-                                  uint8_t *                   out,
-                                  const uint8_t *             g2k,
-                                  const uint8_t *             in,
-                                  size_t                      length,
-                                  const pgp_elgamal_seckey_t *seckey,
-                                  const pgp_elgamal_pubkey_t *pubkey)
+rnp_result_t elgamal_decrypt_pkcs1(
+    rng_t *                     rng,
+    buf_t *                     out,
+    const buf_t *               g2k,
+    const buf_t *               encm,
+    const pgp_elgamal_seckey_t *seckey,
+    const pgp_elgamal_pubkey_t *pubkey)
 {
     botan_privkey_t       key = NULL;
     botan_pk_op_decrypt_t op_ctx = NULL;
-    int                   ret = -1;
-    size_t                out_len = 0;
-    size_t                p_len = 0;
-    uint8_t *             bt_plaintext = NULL;
+    rnp_result_t          ret = RNP_ERROR_BAD_PARAMETERS;
+    uint8_t               enc_buf[ELGAMAL_MAX_P_BYTELEN*2] = {0};
 
-    // Output len is twice an order of underlying group
-    if (botan_mp_num_bytes(pubkey->p->mp, &p_len)) {
-        RNP_LOG("Wrong public key");
-        goto end;
-    }
-
-    if (length != p_len) {
-        RNP_LOG("Wrong size of modulus in public key");
+    // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
+    size_t p_len;
+    if (botan_mp_num_bytes(BN_HANDLE_PTR(pubkey->p), &p_len) ||
+        (2*p_len > sizeof(enc_buf)) ||
+        (g2k->len > p_len) || (encm->len > p_len)) {
+        RNP_LOG("Unsupported/wrong public key");
         goto end;
     }
 
     /* Max size of an output len is twice an order of underlying group (twice byte-size of p)
      * Allocate all buffers needed for encryption and post encryption processing */
-    out_len = p_len * 2;
-
-    bt_plaintext = calloc(out_len, 1);
-    if (!bt_plaintext) {
-        RNP_LOG("Memory allocation failure");
-        goto end;
-    }
-
-    if (botan_privkey_load_elgamal(&key, pubkey->p->mp, pubkey->g->mp, seckey->x->mp)) {
+    if (botan_privkey_load_elgamal(&key, BN_HANDLE_PTR(pubkey->p),
+            BN_HANDLE_PTR(pubkey->g), BN_HANDLE_PTR(seckey->x)) ||
+        botan_privkey_check_key(key, rng_handle(rng), 1)) {
         RNP_LOG("Failed to load private key");
         goto end;
     }
 
-    if (botan_privkey_check_key(key, rng_handle(rng), 1)) {
-        RNP_LOG("Wrong private key");
-        goto end;
-    }
+    /* Botan expects ciphertext to be concatenated (g^k | encrypted m). Size must
+     * be equal to twice the byte size of public key, potentially prepended with zeros.
+     */
+    memcpy(&enc_buf[p_len - g2k->len], g2k->pbuf, g2k->len);
+    memcpy(&enc_buf[2*p_len - encm->len], encm->pbuf, encm->len);
 
-    memcpy(bt_plaintext, g2k, p_len);
-    memcpy(bt_plaintext + p_len, in, p_len);
-
-    if (botan_pk_op_decrypt_create(&op_ctx, key, "PKCS1v15", 0)) {
+    if (botan_pk_op_decrypt_create(&op_ctx, key, "PKCS1v15", 0) ||
+        botan_pk_op_decrypt(op_ctx, out->pbuf, &out->len, enc_buf, 2*p_len)) {
         RNP_LOG("Failed to create operation context");
         goto end;
     }
-
-    if (botan_pk_op_decrypt(op_ctx, out, &out_len, bt_plaintext, p_len * 2)) {
-        RNP_LOG("Decryption failed");
-        goto end;
-    }
-
-    // All operations OK and `out_len' correctly set. Reset ret
-    ret = 0;
+    ret = RNP_SUCCESS;
 
 end:
-    if (op_ctx != NULL) {
-        ret |= botan_pk_op_decrypt_destroy(op_ctx);
-    }
-    if (key != NULL) {
-        ret |= botan_privkey_destroy(key);
-    }
-    if (bt_plaintext != NULL) {
-        free(bt_plaintext);
-    }
-
-    if (ret) {
-        // Some error has occured
-        return -1;
-    }
-
-    return (int) out_len;
+    botan_pk_op_decrypt_destroy(op_ctx);
+    botan_privkey_destroy(key);
+    return ret;
 }
 
-rnp_result_t
-elgamal_keygen(rng_t *               rng,
-               pgp_elgamal_pubkey_t *pubkey,
-               pgp_elgamal_seckey_t *seckey,
-               size_t                keylen)
+rnp_result_t elgamal_keygen(
+    rng_t *               rng,
+    pgp_elgamal_pubkey_t *pubkey,
+    pgp_elgamal_seckey_t *seckey,
+    size_t                keylen)
 {
     botan_privkey_t key_priv = NULL;
     botan_pubkey_t  key_pub = NULL;

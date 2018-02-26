@@ -35,6 +35,8 @@
 #include "crypto/bn.h"
 #include "crypto/rng.h"
 
+typedef struct buf_t buf_t;
+
 /** Structure to hold an ElGamal public key params.
  *
  * \see RFC4880 5.5.2
@@ -65,21 +67,22 @@ typedef struct pgp_elgamal_sig_t {
  * @param g2k [out] buffer stores first part of encryption (g^k % p)
  * @param encm [out] buffer stores second part of encryption (y^k * in % p)
  * @param in plaintext to be encrypted
- * @param length length of an input
  * @param pubkey public key to be used for encryption
  *
- * @pre g2k size must be at least equal to the half of a byte size of prime `p'
- * @pre encm size must be at least equal to the half of a byte size of prime `p'
+ * @pre g2k, encm, in: must be valid pointer to correctly initialized buf_t
+ * @pre in: len can't be bigger than byte size of `p'
+ * @pre g2k, encm: must be capable of storing encrypted data. Usually it is
+ *      equal to byte size of `p' (or few bytes less).
  *
- * @return     on success - number of bytes written to g2k and encm
- *            on failure -1
+ * @return RNP_SUCCESS
+ *         RNP_ERROR_BAD_PARAMETERS wrong input provided
  */
-int pgp_elgamal_public_encrypt_pkcs1(rng_t *                     rng,
-                                     uint8_t *                   g2k,
-                                     uint8_t *                   encm,
-                                     const uint8_t *             in,
-                                     size_t                      length,
-                                     const pgp_elgamal_pubkey_t *pubkey);
+rnp_result_t elgamal_encrypt_pkcs1(
+    rng_t* rng,
+    buf_t* g2k,
+    buf_t* encm,
+    const buf_t* in,
+    const pgp_elgamal_pubkey_t *pubkey);
 
 /*
  * Performs ElGamal decryption
@@ -88,24 +91,23 @@ int pgp_elgamal_public_encrypt_pkcs1(rng_t *                     rng,
  * @param out [out] decrypted plaintext
  * @param g2k buffer stores first part of encryption (g^k % p)
  * @param encm buffer stores second part of encryption (y^k * in % p)
- * @param length length of g2k or in (must be equal to byte size of prime `p')
  * @param seckey private part of a key used for decryption
  * @param pubkey public domain parameters (p,g) used for decryption
  *
- * @pre g2k size must be at least equal to the half of a byte size of prime `p'
- * @pre encm size must be at least equal to the half of a byte size of prime `p'
- * @pre byte-size of `g2k' must be equal to `encm'
+ * @pre out, g2k, encm: must be valid pointer to correctly initialized buffer
+ * @pre out: length must be long enough to store decrypted data. Max size of
+ *           decrypted data is equal to bytes size of `p'
  *
- * @return     on success - number of bytes written to g2k and encm
- *            on failure -1
+ * @return RNP_SUCCESS
+ *         RNP_ERROR_BAD_PARAMETERS wrong input provided
  */
-int pgp_elgamal_private_decrypt_pkcs1(rng_t *                     rng,
-                                      uint8_t *                   out,
-                                      const uint8_t *             g2k,
-                                      const uint8_t *             in,
-                                      size_t                      length,
-                                      const pgp_elgamal_seckey_t *seckey,
-                                      const pgp_elgamal_pubkey_t *pubkey);
+rnp_result_t elgamal_decrypt_pkcs1(
+    rng_t *                     rng,
+    buf_t *                     out,
+    const buf_t *               g2k,
+    const buf_t *               encm,
+    const pgp_elgamal_seckey_t *seckey,
+    const pgp_elgamal_pubkey_t *pubkey);
 
 /*
  * Generates ElGamal key
@@ -122,8 +124,9 @@ int pgp_elgamal_private_decrypt_pkcs1(rng_t *                     rng,
  *          RNP_ERROR_GENERIC internal error
  *          RNP_SUCCESS key generated and coppied to `seckey'
  */
-rnp_result_t elgamal_keygen(rng_t *               rng,
-                            pgp_elgamal_pubkey_t *pubkey,
-                            pgp_elgamal_seckey_t *seckey,
-                            size_t                keylen);
+rnp_result_t elgamal_keygen(
+    rng_t *               rng,
+    pgp_elgamal_pubkey_t *pubkey,
+    pgp_elgamal_seckey_t *seckey,
+    size_t                keylen);
 #endif

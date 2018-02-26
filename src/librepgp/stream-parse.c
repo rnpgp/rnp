@@ -1434,19 +1434,20 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
             return false;
         }
         break;
-    case PGP_PKA_ELGAMAL:
-        declen = pgp_elgamal_private_decrypt_pkcs1(rng,
-                                                   decbuf,
-                                                   sesskey->params.eg.g,
-                                                   sesskey->params.eg.m,
-                                                   sesskey->params.eg.mlen,
-                                                   &seckey->key.elgamal,
-                                                   &seckey->pubkey.key.elgamal);
-        if (declen <= 0) {
-            RNP_LOG("ElGamal decryption failure");
+    case PGP_PKA_ELGAMAL: {
+
+        buf_t out = {.pbuf = decbuf, .len = sizeof(decbuf)};
+        const buf_t g2k = {.pbuf = sesskey->params.eg.g, .len = sesskey->params.eg.glen};
+        const buf_t m = {.pbuf = sesskey->params.eg.m, .len = sesskey->params.eg.mlen};
+        const rnp_result_t ret = elgamal_decrypt_pkcs1(rng, &out, &g2k, &m,
+                &seckey->key.elgamal, &seckey->pubkey.key.elgamal);
+        declen = out.len;
+        if (ret) {
+            RNP_LOG("ElGamal decryption failure [%X]", ret);
             return false;
         }
         break;
+    }
     case PGP_PKA_ECDH:
         declen = sizeof(decbuf);
 
