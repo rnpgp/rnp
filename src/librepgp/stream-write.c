@@ -331,13 +331,17 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
     STORE64BE(param->ad + param->adlen - 8, idx);
 
     if (last) {
-        if (param->chunkout + param->cachelen == 0) {
+        if (!(param->chunkout + param->cachelen)) {
             /* we need to clearly reset it since cipher was initialized but not finished */
             pgp_cipher_aead_reset(&param->encrypt);
         }
 
         total = idx * param->chunklen;
         if (param->cachelen + param->chunkout) {
+            if (param->chunklen < (param->cachelen + param->chunkout)) {
+                RNP_LOG("wrong last chunk state in aead");
+                return RNP_ERROR_BAD_STATE;
+            }
             total -= param->chunklen - param->cachelen - param->chunkout;
         }
 
@@ -432,7 +436,7 @@ encrypted_dst_finish(pgp_dest_t *dst)
     if (param->aead) {
         size_t chunks = param->chunkidx;
         /* if we didn't write anything in current chunk then discard it and restart */
-        if ((param->chunkout > 0) || (param->cachelen > 0)) {
+        if (param->chunkout || param->cachelen) {
             chunks++;
         }
 

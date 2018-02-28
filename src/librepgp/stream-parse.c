@@ -521,7 +521,8 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
     nlen = pgp_cipher_aead_nonce(param->aead_params.aalg, param->aead_params.iv, nonce, idx);
 
     if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "authenticated data: ", param->aead_params.ad, param->aead_params.adlen);
+        hexdump(
+          stderr, "authenticated data: ", param->aead_params.ad, param->aead_params.adlen);
         hexdump(stderr, "nonce: ", nonce, nlen);
     }
 
@@ -601,7 +602,8 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
             hexdump(stderr, "tag: ", param->cache + read + tagread - 2 * taglen, taglen);
         }
 
-        res = pgp_cipher_aead_finish(&param->decrypt, param->cache, param->cache, read + tagread - taglen);
+        res = pgp_cipher_aead_finish(
+          &param->decrypt, param->cache, param->cache, read + tagread - taglen);
         if (!res) {
             RNP_LOG("failed to finalize aead chunk");
             return res;
@@ -614,8 +616,12 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
         }
     }
 
-    res = encrypted_start_aead_chunk(param, chunkend && param->chunkin ? param->chunkidx + 1 : param->chunkidx, lastchunk);
-    if (!res) {
+    size_t chunkidx = param->chunkidx;
+    if (chunkend && param->chunkin) {
+        chunkidx++;
+    }
+
+    if (!(res = encrypted_start_aead_chunk(param, chunkidx, lastchunk))) {
         RNP_LOG("failed to start aead chunk");
         return res;
     }
@@ -631,7 +637,8 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
             hexdump(stderr, "tag: ", param->cache + off, taglen);
         }
 
-        res = pgp_cipher_aead_finish(&param->decrypt, param->cache + off, param->cache + off, taglen);
+        res = pgp_cipher_aead_finish(
+          &param->decrypt, param->cache + off, param->cache + off, taglen);
         if (!res) {
             RNP_LOG("wrong last chunk");
             return res;
@@ -1609,7 +1616,8 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
                      pgp_cipher_aead_finish(&crypt, keybuf, skey->enckey, skey->enckeylen);
 
             if (decres && rnp_get_debug(__FILE__)) {
-                hexdump(stderr, "decrypted key: ", keybuf, pgp_key_size(param->aead_params.ealg));
+                hexdump(
+                  stderr, "decrypted key: ", keybuf, pgp_key_size(param->aead_params.ealg));
             }
 
             pgp_cipher_aead_destroy(&crypt);
