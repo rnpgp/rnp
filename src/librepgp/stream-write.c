@@ -331,10 +331,16 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
     STORE64BE(param->ad + param->adlen - 8, idx);
 
     if (last) {
+        if (param->chunkout + param->cachelen == 0) {
+            /* we need to clearly reset it since cipher was initialized but not finished */
+            pgp_cipher_aead_reset(&param->encrypt);
+        }
+
         total = idx * param->chunklen;
         if (param->cachelen + param->chunkout) {
             total -= param->chunklen - param->cachelen - param->chunkout;
         }
+
         STORE64BE(param->ad + param->adlen, total);
         param->adlen += 8;
     }
@@ -429,6 +435,7 @@ encrypted_dst_finish(pgp_dest_t *dst)
         if ((param->chunkout > 0) || (param->cachelen > 0)) {
             chunks++;
         }
+
         res = encrypted_start_aead_chunk(param, chunks, true);
         pgp_cipher_aead_destroy(&param->encrypt);
 
