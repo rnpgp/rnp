@@ -95,7 +95,9 @@ static const struct hash_alg_map_t {
                     {PGP_HASH_SHA512, "SHA512", "SHA-512", 64},
                     {PGP_HASH_SHA224, "SHA224", "SHA-224", 28},
                     {PGP_HASH_SM3, "SM3", "SM3", 32},
-                    {PGP_HASH_CRC24, "CRC24", "CRC24", 3}};
+                    {PGP_HASH_CRC24, "CRC24", "CRC24", 3},
+                    {PGP_HASH_SHA3_256, "SHA3-256", "SHA-3(256)", 32},
+                    {PGP_HASH_SHA3_512, "SHA3-512", "SHA-3(512)", 64}};
 /**
  * \ingroup Core_Print
  *
