@@ -502,6 +502,11 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
         if (idx && param->chunkin) {
             total -= param->chunklen - param->chunkin;
         }
+
+        if (!param->chunkin) {
+            /* reset the crypto in case we had empty chunk before the last one */
+            pgp_cipher_aead_reset(&param->decrypt);
+        }
         STORE64BE(param->aead_params.ad + param->aead_params.adlen, total);
         param->aead_params.adlen += 8;
     }
@@ -592,6 +597,10 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
             src_skip(param->pkt.readsrc, tagread - taglen);
         }
 
+        if (rnp_get_debug(__FILE__)) {
+            hexdump(stderr, "tag: ", param->cache + read + tagread - 2 * taglen, taglen);
+        }
+
         res = pgp_cipher_aead_finish(&param->decrypt, param->cache, param->cache, read + tagread - taglen);
         if (!res) {
             RNP_LOG("failed to finalize aead chunk");
@@ -617,6 +626,11 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
         }
 
         size_t off = read + tagread - taglen;
+
+        if (rnp_get_debug(__FILE__)) {
+            hexdump(stderr, "tag: ", param->cache + off, taglen);
+        }
+
         res = pgp_cipher_aead_finish(&param->decrypt, param->cache + off, param->cache + off, taglen);
         if (!res) {
             RNP_LOG("wrong last chunk");
