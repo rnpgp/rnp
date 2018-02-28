@@ -190,7 +190,13 @@ END
     --with-libgpg-error-prefix="${GPG_INSTALL}" \
     --with-libassuan-prefix="${GPG_INSTALL}" \
     --enable-pinentry-curses \
-    --disable-pinentry-qt5
+    --disable-pinentry-emacs \
+    --disable-pinentry-gtk2 \
+    --disable-pinentry-gnome3 \
+    --disable-pinentry-qt \
+    --disable-pinentry-qt5 \
+    --disable-pinentry-tqt \
+    --disable-pinentry-fltk
   ${MAKE} -j${CORES} install
   cd ..
 
