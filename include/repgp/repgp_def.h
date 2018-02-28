@@ -523,18 +523,20 @@ typedef enum pgp_op_t {
  */
 typedef enum {
     PGP_HASH_UNKNOWN = 0, /* used to indicate errors */
-    PGP_HASH_MD5 = 1,     /* MD5 */
-    PGP_HASH_SHA1 = 2,    /* SHA-1 */
-    PGP_HASH_RIPEMD = 3,  /* RIPEMD160 */
+    PGP_HASH_MD5 = 1,
+    PGP_HASH_SHA1 = 2,
+    PGP_HASH_RIPEMD = 3,
 
-    PGP_HASH_SHA256 = 8,  /* SHA256 */
-    PGP_HASH_SHA384 = 9,  /* SHA384 */
-    PGP_HASH_SHA512 = 10, /* SHA512 */
-    PGP_HASH_SHA224 = 11, /* SHA224 */
+    PGP_HASH_SHA256 = 8,
+    PGP_HASH_SHA384 = 9,
+    PGP_HASH_SHA512 = 10,
+    PGP_HASH_SHA224 = 11,
+    PGP_HASH_SHA3_256 = 12,
+    PGP_HASH_SHA3_512 = 14,
 
     /* Private range */
-    PGP_HASH_SM3 = 105,  /* SM3 */
-    PGP_HASH_CRC24 = 106 /* CRC24 */
+    PGP_HASH_SM3 = 105,
+    PGP_HASH_CRC24 = 106
 } pgp_hash_alg_t;
 
 #endif

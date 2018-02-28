@@ -57,6 +57,8 @@ hash_test_success(void **state)
                                         PGP_HASH_SHA512,
                                         PGP_HASH_SHA224,
                                         PGP_HASH_SM3,
+                                        PGP_HASH_SHA3_256,
+                                        PGP_HASH_SHA3_512,
                                         PGP_HASH_UNKNOWN};
 
     const uint8_t test_input[3] = {'a', 'b', 'c'};
@@ -71,7 +73,10 @@ hash_test_success(void **state)
       "4FC1A836BA3C2"
       "3A3FEEBBD454D4423643CE80E2A9AC94FA54CA49F",
       "23097D223405D8228642A477BDA255B32AADBCE4BDA0B3F7E36C9DA7",
-      "66C7F0F462EEEDD9D1F2D46BDC10E4E24167C4875CF2F7A2297DA02B8F4BA8E0"};
+      "66C7F0F462EEEDD9D1F2D46BDC10E4E24167C4875CF2F7A2297DA02B8F4BA8E0",
+      "3A985DA74FE225B2045C172D6BD390BD855F086E3E9D525B46BFE24511431532",
+      "B751850B1A57168A5693CD924B6B096E08F621827444F70D884F5D0240D2712E1"
+      "0E116E9192AF3C91A7EC57647E3934057340B4CF408D5A56592F8274EEC53F0"};
 
     for (int i = 0; hash_algs[i] != PGP_HASH_UNKNOWN; ++i) {
         rnp_assert_int_equal(rstate, 1, pgp_hash_create(&hash, hash_algs[i]));
