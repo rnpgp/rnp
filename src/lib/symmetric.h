@@ -197,9 +197,9 @@ bool pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in,
  */
 bool pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len);
 
-/** @brief Reset the AEAD cipher's state, calling the finish() and ignoring the result 
+/** @brief Reset the AEAD cipher's state, calling the finish() and ignoring the result
  *  @param crypt initialized AEAD crypto
-*/
+ */
 void pgp_cipher_aead_reset(pgp_crypt_t *crypt);
 
 /** @brief Destroy the cipher object, deallocating all the memory.
