@@ -78,6 +78,7 @@
 #define CFG_KEYSTORE_DISABLED \
     "disable_keystore"    /* indicates wether keystore must be initialized */
 #define CFG_FORCE "force" /* force command to succeed operation */
+#define CFG_SECRET "secret" /* indicates operation on secret key */
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */
