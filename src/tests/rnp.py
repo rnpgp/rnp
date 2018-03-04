@@ -84,7 +84,10 @@ class Rnp(object):
         params += ["--output", output]
         params += ["--userid", self.userid]
         params += ["--force"]
-        params += ["--export-key", self.userid]
+        params += ["--export-key"]
+        if secure:
+            params += ["--secret"]
+        params += [self.userid]
         return self._run([self.key_mgm_bin] + params)
 
     def import_key(self, filename):

@@ -1,0 +1,116 @@
+#!/usr/bin/env python2
+
+import sys
+
+sys.path.append("../")
+from gnupg import GnuPG as GnuPG
+from rnp import Rnp as Rnp
+
+PASSWORD = "password"
+USERID_PFX = '@example.com'
+
+
+class KeyFormater(object):
+    def __init__(self, ktype, pattern):
+        self.pattern = pattern
+        self.key_type = ktype
+
+    def key_type(self): return self.key_type
+
+    def key_size(self, sign_key_size, enc_key_size):
+        self.sign_key_size = sign_key_size
+        self.enc_key_size = enc_key_size
+        return self
+
+    def format(self, gen_obj):
+        raise NotImplemented("not implemented in base")
+
+class RnpRsaKeyFormater(KeyFormater):
+    RNP_GENERATE_RSA_PATTERN = "1\n{0}\n"
+
+    def __init__(self):
+        super(RnpRsaKeyFormater, self).__init__('rsa', RnpRsaKeyFormater.RNP_GENERATE_RSA_PATTERN)
+
+    def format(self, gen_obj):
+        return self.pattern.format(self.sign_key_size)
+
+class GpgRsaKeyFormater(KeyFormater):
+    GPG_GENERATE_RSA_PATERN = """
+        Key-Type: rsa
+        Key-Length: {0}
+        Key-Usage: sign auth
+        Subkey-Type: rsa
+        Subkey-Length: {1}
+        Subkey-Usage: encrypt
+        Name-Real: Test Testovich
+        Expire-Date: 1y
+        Preferences: twofish sha256 sha384 sha512 sha1 zlib
+        Name-Email: {2}"""
+
+    def __init__(self):
+        super(GpgRsaKeyFormater, self).__init__('rsa', GpgRsaKeyFormater.GPG_GENERATE_RSA_PATERN)
+
+    def format(self, gen_obj):
+        return self.pattern.format(self.sign_key_size, self.enc_key_size, gen_obj.userid)
+
+class GpgDsaKeyFormater(KeyFormater):
+    GPG_GENERATE_DSA_ELGAMAL_PATERN = """
+        Key-Type: dsa
+        Key-Length: {0}
+        Key-Usage: sign
+        Subkey-Type: ELG-E
+        Subkey-Length: {1}
+        Subkey-Usage: encrypt
+        Name-Real: Test Testovich
+        Expire-Date: 1y
+        Preferences: twofish sha256 sha384 sha512 sha1 zlib
+        Name-Email: {2}
+        """
+
+    def __init__(self):
+        super(GpgDsaKeyFormater, self).__init__('dsa_elgamal', GpgDsaKeyFormater.GPG_GENERATE_DSA_ELGAMAL_PATERN)
+
+    def format(self, gen_obj):
+        return self.pattern.format(self.sign_key_size, self.enc_key_size, gen_obj.userid)
+
+class RnpDsaKeyFormater(KeyFormater):
+    RNP_GENERATE_DSA_ELGAMAL_PATTERN = "16\n{0}\n"
+
+    def __init__(self):
+        super(RnpDsaKeyFormater, self).__init__('dsa_elgamal', RnpDsaKeyFormater.RNP_GENERATE_DSA_ELGAMAL_PATTERN)
+
+    def format(self, gen_obj):
+        return self.pattern.format(self.sign_key_size)
+
+def keygen(obj, formatter):
+    key_name_pfx = obj.__class__.__name__
+    enc_key_size = formatter.enc_key_size
+    sign_key_size = formatter.sign_key_size
+
+    key_name = '_'.join([key_name_pfx, formatter.key_type, str(sign_key_size), str(enc_key_size)])
+    obj.userid = key_name+USERID_PFX
+
+    # generate and export
+    if not obj.generte_key_batch(formatter.format(obj)): raise "Generation failed"
+    if not obj.export_key(key_name+".key", True): raise "Generation failed"
+
+
+# Lists of tuples (sign key size, encryption key size)
+DSA_ELGAMAL_KEY_SIZES = [(1024, 1024), (1024, 2048), (2048, 2048), (3072, 3076)]
+RSA_KEY_SIZES = [(1024, 1024), (2048, 2048), (3072, 3072), (4096, 4096)]
+
+
+rnp = Rnp("tmp_rnp", "../../rnp/rnp", "../../rnpkeys/rnpkeys")
+rnp.password = PASSWORD
+gpg = GnuPG("tmp_gpg", "/usr/bin/gpg")
+gpg.password = PASSWORD
+
+# Generate RSA
+for key in RSA_KEY_SIZES:
+    keygen(rnp, RnpRsaKeyFormater().key_size(key[0], key[1]))
+    keygen(gpg, GpgRsaKeyFormater().key_size(key[0], key[1]))
+
+# Generate DSA/ElGamal
+for key in DSA_ELGAMAL_KEY_SIZES:
+    keygen(rnp, RnpDsaKeyFormater().key_size(key[0], key[1]))
+    keygen(gpg, GpgDsaKeyFormater().key_size(key[0], key[1]))
