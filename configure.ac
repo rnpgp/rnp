@@ -22,7 +22,7 @@ AC_CONFIG_SRCDIR([src/rnp/rnp.c])
 AC_CONFIG_AUX_DIR([buildaux])
 AC_CONFIG_HEADER([src/lib/config.h])
 
-AM_INIT_AUTOMAKE([-Wall -Wextra foreign])
+AM_INIT_AUTOMAKE([subdir-objects -Wall -Wextra foreign])
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT
 AM_MAINTAINER_MODE
