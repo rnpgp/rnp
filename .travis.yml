@@ -82,10 +82,10 @@ before_install:
   - ./ci/before_install.sh
 
 install:
-  - ./ci/install.sh
+  - travis_wait 50 ./ci/install.sh
 
 script:
-  - if [[ ${COVERITY_SCAN_BRANCH} != 1 ]]; then ./ci/main.sh; fi
+  - if [[ ${COVERITY_SCAN_BRANCH} != 1 ]]; then travis_wait 50 ./ci/main.sh; fi
 
 after_success:
   - ./ci/success.sh
