@@ -872,7 +872,7 @@ rnp_get_key(rnp_t *rnp, const char *name, const char *fmt)
 
 /* export a given key */
 char *
-rnp_export_key(rnp_t *rnp, const char *name)
+rnp_export_key(rnp_t *rnp, const char *name, bool secret_key)
 {
     const pgp_key_t *key;
 
@@ -880,7 +880,10 @@ rnp_export_key(rnp_t *rnp, const char *name)
         return NULL;
     }
 
-    if ((key = resolve_userid(rnp, rnp->pubring, name)) == NULL) {
+    key = secret_key
+        ? resolve_userid(rnp, rnp->secring, name)
+        : resolve_userid(rnp, rnp->pubring, name);
+    if (!key) {
         return NULL;
     }
     return pgp_export_key(rnp, key);

@@ -38,6 +38,7 @@ typedef enum {
     OPT_EXPERT,
     OPT_OUTPUT,
     OPT_FORCE,
+    OPT_SECRET,
 
     /* debug */
     OPT_DEBUG

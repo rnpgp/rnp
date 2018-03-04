@@ -71,7 +71,7 @@ struct option options[] = {
   {"list-sigs", no_argument, NULL, CMD_LIST_SIGS},
   {"find-key", optional_argument, NULL, CMD_FIND_KEY},
   {"export", no_argument, NULL, CMD_EXPORT_KEY},
-  {"export-key", no_argument, NULL, CMD_EXPORT_KEY},
+  {"export-key", optional_argument, NULL, CMD_EXPORT_KEY},
   {"import", no_argument, NULL, CMD_IMPORT_KEY},
   {"import-key", no_argument, NULL, CMD_IMPORT_KEY},
   {"gen", optional_argument, NULL, CMD_GENERATE_KEY},
@@ -107,6 +107,7 @@ struct option options[] = {
   {"expert", no_argument, NULL, OPT_EXPERT},
   {"output", required_argument, NULL, OPT_OUTPUT},
   {"force", no_argument, NULL, OPT_FORCE},
+  {"secret", no_argument, NULL, OPT_SECRET},
   {NULL, 0, NULL, 0},
 };
 
@@ -179,7 +180,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
             return 0;
         }
 
-        s = rnp_export_key(rnp, key);
+        s = rnp_export_key(rnp, key, rnp_cfg_getbool(cfg, CFG_SECRET));
         if (!s) {
             return false;
         }
@@ -359,6 +360,9 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         break;
     case OPT_FORCE:
         rnp_cfg_setbool(cfg, CFG_FORCE, true);
+        break;
+    case OPT_SECRET:
+        rnp_cfg_setbool(cfg, CFG_SECRET, true);
         break;
     default:
         *cmd = CMD_HELP;
