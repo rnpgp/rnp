@@ -11,6 +11,7 @@ LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${CMOCKA_INSTALL}/lib:${JSONC_INSTALL}/lib
 
 # CFLAGS for sanitize and sanitize-leaks
 [ "$BUILD_MODE" = "sanitize" -o "$BUILD_MODE" = "sanitize-leaks" ] && CFLAGS+=" \
+ -O1                                 \
  -fsanitize=leak,address,undefined   \
  -fno-omit-frame-pointer             \
  -fno-common"
