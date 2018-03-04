@@ -6,7 +6,6 @@ set -eux
 : "${CORES:=2}"
 
 LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${CMOCKA_INSTALL}/lib:${JSONC_INSTALL}/lib"
-CFLAGS="-g"
 
 [ "$BUILD_MODE" = "coverage" ] && CFLAGS+=" -O0 --coverage"
 
