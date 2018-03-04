@@ -216,6 +216,9 @@ END
   popd
 }
 
+[[ "$RNP_TESTS" = "cli" || "$RNP_TESTS" = "all" ]] && need_gpg=true || need_gpg=false
+[[ $need_gpg = true ]] || exit 0
+
 # gpg
 gpg_build=${LOCAL_BUILDS}/gpg
 if [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
@@ -231,5 +234,4 @@ if [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
     echo "\$GPG_VERSION is set to invalid value: $GPG_VERSION"
     exit 1
   fi
-
 fi

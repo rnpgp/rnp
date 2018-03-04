@@ -25,27 +25,41 @@ matrix:
   fast_finish: true
   include:
     # normal
-    - env: BUILD_MODE=normal GPG_VERSION=stable
+    - env: BUILD_MODE=normal RNP_TESTS=cmocka
       compiler: clang
-    - env: BUILD_MODE=normal GPG_VERSION=beta
+    # gpg stable
+    - env: BUILD_MODE=normal RNP_TESTS=cli GPG_VERSION=stable
+      compiler: clang
+    # gpg master
+    - env: BUILD_MODE=normal RNP_TESTS=cli GPG_VERSION=beta
       compiler: clang
 
     # clang sanitizers
-    - env: BUILD_MODE=sanitize GPG_VERSION=stable
+    - env: BUILD_MODE=sanitize RNP_TESTS=cmocka
       compiler: clang
       # requires ptrace, which isn't currently working in travis containers
       sudo: true
-    - env: BUILD_MODE=sanitize GPG_VERSION=beta
+    # gpg stable
+    - env: BUILD_MODE=sanitize RNP_TESTS=cli GPG_VERSION=stable
+      compiler: clang
+      # requires ptrace, which isn't currently working in travis containers
+      sudo: true
+    # gpg master
+    - env: BUILD_MODE=sanitize RNP_TESTS=cli GPG_VERSION=beta
       compiler: clang
       # requires ptrace, which isn't currently working in travis containers
       sudo: true
 
     # codecov
-    - env: BUILD_MODE=coverage GPG_VERSION=beta
+    # cmocka
+    - env: BUILD_MODE=coverage RNP_TESTS=cmocka GPG_VERSION=beta
+      compiler: gcc
+    # cli
+    - env: BUILD_MODE=coverage RNP_TESTS=cli GPG_VERSION=beta
       compiler: gcc
 
     # clang-format style checks
-    - env: BUILD_MODE=style-check GPG_VERSION=stable
+    - env: BUILD_MODE=style-check
       addons:
         apt:
           sources:
@@ -55,7 +69,7 @@ matrix:
 
   allow_failures:
     # allowed to fail until we have stabilized on a clang-format version
-    - env: BUILD_MODE=style-check GPG_VERSION=stable
+    - env: BUILD_MODE=style-check
 
 cache:
   directories:
