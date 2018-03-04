@@ -92,7 +92,8 @@ def keygen(obj, formatter):
 
     # generate and export
     if not obj.generte_key_batch(formatter.format(obj)): raise "Generation failed"
-    if not obj.export_key(key_name+".key", True): raise "Generation failed"
+    if not obj.export_key(key_name+"-sec.gpg", True): raise "Generation failed"
+    if not obj.export_key(key_name+".gpg", False): raise "Generation failed"
 
 
 # Lists of tuples (sign key size, encryption key size)

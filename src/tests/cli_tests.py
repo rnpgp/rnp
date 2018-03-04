@@ -683,6 +683,33 @@ class TestIdMixin(object):
     def test_id(self):
         return "".join(self.id().split('.')[1:3])
 
+class KeyLocationChooserMixin(object):
+    def __init__(self):
+        # If set it will try to import a key from provided location
+        # otherwise it will try to generate a key
+        self.__op_key_location = None
+        self.__op_key_gen_cmd = None
+
+    @property
+    def operation_key_location(self):
+        return self.__op_key_location
+
+    @operation_key_location.setter
+    def operation_key_location(self, key):
+        # OZAPTF key must be tuple
+        # if (type != 'tuple'): raise RuntimeError("Key must be tuple (pub,sec)")
+        self.__op_key_location = key
+        self.__op_key_gen_cmd = None
+
+    @property
+    def operation_key_gencmd(self):
+        return self.__op_key_gen_cmd
+
+    @operation_key_gencmd.setter
+    def operation_key_gencmd(self, cmd):
+        self.__op_key_gen_cmd = cmd
+        self.__op_key_location = None
+
 '''
     Things to try here later on:
     - different public key algorithms
@@ -1324,12 +1351,12 @@ class EncryptEcdh(Encrypt):
         cmd = EncryptEcdh.RNP_GENERATE_ECDH_ECDSA_PATERN.format(3)
         self._encrypt_decrypt(self.rnp, self.gpg, cmd)
 
-class Sign(unittest.TestCase, TestIdMixin):
+class Sign(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
 
-    def _rnp_sign_verify(self, e1, e2, keygen_cmd):
+    def _sign_verify(self, e1, e2):
         '''
-        Helper function for ECDSA verification
-        1. e1 creates ECDSA key
+        Helper function for Sign verification
+        1. e1 creates/loads key
         2. e1 exports key
         3. e2 imports key
         2. e1 signs message
@@ -1339,7 +1366,15 @@ class Sign(unittest.TestCase, TestIdMixin):
         '''
         keyfile, input, output = reg_workfiles(self.test_id, '.gpg', '.in', '.out')
         random_text(input, 0x1337)
-        self.assertTrue(e1.generte_key_batch(keygen_cmd))
+
+        if not self.operation_key_location and not self.operation_key_gencmd:
+            raise RuntimeError("key not found")
+
+        if self.operation_key_location:
+            self.assertTrue(e1.import_key(self.operation_key_location[1]))
+            self.assertTrue(e1.import_key(self.operation_key_location[0]))
+        else:
+            self.assertTrue(e1.generte_key_batch(self.operation_key_gencmd))
         self.assertTrue(e1.export_key(keyfile, False))
         self.assertTrue(e2.import_key(keyfile))
         self.assertTrue(e1.sign(output, input))
@@ -1356,7 +1391,7 @@ class Sign(unittest.TestCase, TestIdMixin):
     def tearDownClass(cls):
         clear_keyrings()
 
-class SignECDSA(Sign):
+class SignECDSA(Sign, KeyLocationChooserMixin):
     # {0} must be replaced by ID of the curve 3,4 or 5 (NIST-256,384,521)
     #CURVES = ["NIST P-256", "NIST P-384", "NIST P-521"]
     GPG_GENERATE_ECDSA_PATERN = """
@@ -1373,28 +1408,33 @@ class SignECDSA(Sign):
 
     def test_sign_P256(self):
         cmd = SignECDSA.RNP_GENERATE_ECDSA_PATTERN.format(1)
-        self._rnp_sign_verify(self.rnp, self.gpg, cmd)
+        self.operation_key_gencmd = cmd
+        self._sign_verify(self.rnp, self.gpg)
 
     def test_sign_P384(self):
         cmd = SignECDSA.RNP_GENERATE_ECDSA_PATTERN.format(2)
-        self._rnp_sign_verify(self.rnp, self.gpg, cmd)
+        self.operation_key_gencmd = cmd
+        self._sign_verify(self.rnp, self.gpg)
 
     def test_sign_P521(self):
         cmd = SignECDSA.RNP_GENERATE_ECDSA_PATTERN.format(3)
-        self._rnp_sign_verify(self.rnp, self.gpg, cmd)
+        self.operation_key_gencmd = cmd
+        self._sign_verify(self.rnp, self.gpg)
 
     def test_verify_P256(self):
-        cmd = SignECDSA.GPG_GENERATE_ECDSA_PATERN.format(
-            "nistp256", self.rnp.userid)
-        self._rnp_sign_verify(self.gpg, self.rnp, cmd)
+        cmd = SignECDSA.GPG_GENERATE_ECDSA_PATERN.format("nistp256", self.rnp.userid)
+        self.operation_key_gencmd = cmd
+        self._sign_verify(self.gpg, self.rnp)
 
     def test_verify_P384(self):
         cmd = SignECDSA.GPG_GENERATE_ECDSA_PATERN.format("nistp384", self.rnp.userid)
-        self._rnp_sign_verify(self.gpg, self.rnp, cmd)
+        self.operation_key_gencmd = cmd
+        self._sign_verify(self.gpg, self.rnp)
 
     def test_verify_P521(self):
         cmd = SignECDSA.GPG_GENERATE_ECDSA_PATERN.format("nistp521", self.rnp.userid)
-        self._rnp_sign_verify(self.gpg, self.rnp, cmd)
+        self.operation_key_gencmd = cmd
+        self._sign_verify(self.gpg, self.rnp)
 
     def test_hash_truncation(self):
         '''
@@ -1404,7 +1444,8 @@ class SignECDSA(Sign):
         cmd = SignECDSA.RNP_GENERATE_ECDSA_PATTERN.format(1)
         rnp = self.rnp.copy()
         rnp.hash = 'SHA512'
-        self._rnp_sign_verify(rnp, self.gpg, cmd)
+        self.operation_key_gencmd = cmd
+        self._sign_verify(rnp, self.gpg)
 
 class SignDSA(Sign):
     # {0} must be replaced by ID of the curve 3,4 or 5 (NIST-256,384,521)
@@ -1422,40 +1463,43 @@ class SignDSA(Sign):
     RNP_GENERATE_DSA_PATTERN = "17\n{0}\n"
 
     def test_sign_P1024_Q160(self):
-       cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(1024)
-       self._rnp_sign_verify(self.rnp, self.gpg, cmd)
+       #cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(1024)
+        pub = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data/Rnp_dsa_elgamal_1024_1024.gpg")
+        sec = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data/Rnp_dsa_elgamal_1024_1024-sec.gpg")
+        self.operation_key_location = tuple((pub,sec))
+        self._sign_verify(self.rnp, self.gpg)
 
     def test_verify_P1024_Q160(self):
         cmd = SignDSA.GPG_GENERATE_DSA_PATERN.format(
             "1024", self.rnp.userid)
-        self._rnp_sign_verify(self.gpg, self.rnp, cmd)
+        self._sign_verify(self.gpg, self.rnp)
 
     def test_sign_P2048_Q256(self):
         cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(2048)
-        self._rnp_sign_verify(self.rnp, self.gpg, cmd)
+        self._sign_verify(self.rnp, self.gpg)
 
     def test_verify_P2048_Q256(self):
         cmd = SignDSA.GPG_GENERATE_DSA_PATERN.format(
             "2048", self.rnp.userid)
-        self._rnp_sign_verify(self.gpg, self.rnp, cmd)
+        self._sign_verify(self.gpg, self.rnp)
 
     def test_sign_P2112_Q256(self):
         cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(2112)
-        self._rnp_sign_verify(self.rnp, self.gpg, cmd)
+        self._sign_verify(self.rnp, self.gpg)
 
     def test_verify_P2112_Q256(self):
         cmd = SignDSA.GPG_GENERATE_DSA_PATERN.format(
             "2112", self.rnp.userid)
-        self._rnp_sign_verify(self.gpg, self.rnp, cmd)
+        self._sign_verify(self.gpg, self.rnp)
 
     def test_sign_P1088_Q224(self):
         cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(1088)
-        self._rnp_sign_verify(self.rnp, self.gpg, cmd)
+        self._sign_verify(self.rnp, self.gpg)
 
     def test_verify_P1088_Q224(self):
         cmd = SignDSA.GPG_GENERATE_DSA_PATERN.format(
             "1088", self.rnp.userid)
-        self._rnp_sign_verify(self.gpg, self.rnp, cmd)
+        self._sign_verify(self.gpg, self.rnp)
 
     def test_hash_truncation(self):
         '''
@@ -1465,7 +1509,7 @@ class SignDSA(Sign):
         cmd = SignDSA.RNP_GENERATE_DSA_PATTERN.format(1024)
         rnp = self.rnp.copy()
         rnp.hash = 'SHA512'
-        self._rnp_sign_verify(rnp, self.gpg, cmd)
+        self._sign_verify(rnp, self.gpg)
 
 class EncryptSignRSA(Encrypt, Sign):
 
@@ -1486,32 +1530,32 @@ class EncryptSignRSA(Encrypt, Sign):
     def test_rnp_producer_1024(self):
         cmd = EncryptSignRSA.GPG_GENERATE_RSA_PATERN.format("1024", self.rnp.userid)
         self._encrypt_decrypt(self.gpg, self.rnp, cmd)
-        self._rnp_sign_verify(self.gpg, self.rnp, cmd)
+        self._sign_verify(self.gpg, self.rnp)
 
     def test_rnp_producer_2048(self):
         cmd = EncryptSignRSA.GPG_GENERATE_RSA_PATERN.format("2048", self.rnp.userid)
         self._encrypt_decrypt(self.gpg, self.rnp, cmd)
-        self._rnp_sign_verify(self.gpg, self.rnp, cmd)
+        self._sign_verify(self.gpg, self.rnp)
 
     def test_rnp_producer_4096(self):
         cmd = EncryptSignRSA.GPG_GENERATE_RSA_PATERN.format("4096", self.rnp.userid)
         self._encrypt_decrypt(self.gpg, self.rnp, cmd)
-        self._rnp_sign_verify(self.gpg, self.rnp, cmd)
+        self._sign_verify(self.gpg, self.rnp)
 
     def test_rnp_consumer_1024(self):
         cmd = EncryptSignRSA.RNP_GENERATE_RSA_PATERN.format(1024)
         self._encrypt_decrypt(self.rnp, self.gpg, cmd)
-        self._rnp_sign_verify(self.rnp, self.gpg, cmd)
+        self._sign_verify(self.rnp, self.gpg)
 
     def test_rnp_consumer_2048(self):
         cmd = EncryptSignRSA.RNP_GENERATE_RSA_PATERN.format(2048)
         self._encrypt_decrypt(self.rnp, self.gpg, cmd)
-        self._rnp_sign_verify(self.rnp, self.gpg, cmd)
+        self._sign_verify(self.rnp, self.gpg)
 
     def test_rnp_consumer_4096(self):
         cmd = EncryptSignRSA.RNP_GENERATE_RSA_PATERN.format(4096)
         self._encrypt_decrypt(self.rnp, self.gpg, cmd)
-        self._rnp_sign_verify(self.rnp, self.gpg, cmd)
+        self._sign_verify(self.rnp, self.gpg)
 
 # Main thinghy
 
