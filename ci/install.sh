@@ -37,13 +37,14 @@ if [ ! -e "${CMOCKA_INSTALL}/lib/libcmocka.so" ] && \
 
   cd "${LOCAL_BUILDS}"
   mkdir -p cmocka-build
-  cd cmocka-build
+  pushd cmocka-build
   cmake \
     -DCMAKE_INSTALL_DIR="${CMOCKA_INSTALL}" \
     -DLIB_INSTALL_DIR="${CMOCKA_INSTALL}/lib" \
     -DINCLUDE_INSTALL_DIR="${CMOCKA_INSTALL}/include" \
     "${LOCAL_BUILDS}/cmocka"
   ${MAKE} -j${CORES} all install
+  popd
 fi
 
 # json-c
@@ -85,11 +86,11 @@ build_gpg_stable() {
     wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2.sig
     gpg --verify ${pkgname}-${version}.tar.bz2.sig
     tar -xjf ${pkgname}-${version}.tar.bz2
-    cd ${pkgname}-${version}/
+    pushd ${pkgname}-${version}/
     # autoreconf -ivf
     ./configure --prefix="${GPG_INSTALL}"
     ${MAKE} -j${CORES} install
-    cd ..
+    popd
   done
 
   for archive in libgcrypt:${LIBGCRYPT_VERSION} libassuan:${LIBASSUAN_VERSION} libksba:${LIBKSBA_VERSION}; do
@@ -100,31 +101,31 @@ build_gpg_stable() {
     wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2.sig
     gpg --verify ${pkgname}-${version}.tar.bz2.sig
     tar -xjf ${pkgname}-${version}.tar.bz2
-    cd ${pkgname}-${version}/
+    pushd ${pkgname}-${version}/
     # autoreconf -ivf
     ./configure --prefix="${GPG_INSTALL}" --with-libgpg-error-prefix="${GPG_INSTALL}"
     ${MAKE} -j${CORES} install
-    cd ..
+    popd
   done
 
   wget -c https://www.gnupg.org/ftp/gcrypt/pinentry/pinentry-${PINENTRY_VERSION}.tar.bz2
   wget -c https://www.gnupg.org/ftp/gcrypt/pinentry/pinentry-${PINENTRY_VERSION}.tar.bz2.sig
   gpg --verify pinentry-${PINENTRY_VERSION}.tar.bz2.sig
   tar -xjf pinentry-${PINENTRY_VERSION}.tar.bz2
-  cd pinentry-${PINENTRY_VERSION}
+  pushd pinentry-${PINENTRY_VERSION}
   ./configure --prefix="${GPG_INSTALL}" \
     --with-libgpg-error-prefix="${GPG_INSTALL}" \
     --with-libassuan-prefix="${GPG_INSTALL}" \
     --enable-pinentry-curses \
     --disable-pinentry-qt4
   ${MAKE} -j${CORES} install
-  cd ..
+  popd
 
   wget -c https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-${GNUPG_VERSION}.tar.bz2
   wget -c https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-${GNUPG_VERSION}.tar.bz2.sig
   gpg --verify gnupg-${GNUPG_VERSION}.tar.bz2.sig
   tar -xjf gnupg-${GNUPG_VERSION}.tar.bz2
-  cd gnupg-${GNUPG_VERSION}
+  pushd gnupg-${GNUPG_VERSION}
   ./configure --prefix="${GPG_INSTALL}" \
     --with-libgpg-error-prefix="${GPG_INSTALL}" \
     --with-libgcrypt-prefix="${GPG_INSTALL}" \
@@ -132,11 +133,11 @@ build_gpg_stable() {
     --with-ksba-prefix="${GPG_INSTALL}" \
     --with-npth-prefix="${GPG_INSTALL}"
   ${MAKE} -j${CORES} install
-
+  popd
 }
 
 build_gpg_beta() {
-  mkdir gettext && cd gettext
+  mkdir gettext && pushd gettext
   gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys D7E69871
   wget -c https://ftp.gnu.org/pub/gnu/gettext/gettext-latest.tar.xz
   wget -c https://ftp.gnu.org/pub/gnu/gettext/gettext-latest.tar.xz.sig
@@ -144,7 +145,7 @@ build_gpg_beta() {
   tar -xJf gettext-latest.tar.xz --strip 1
   ./configure --prefix="${GPG_INSTALL}"
   ${MAKE} -j${CORES} install
-  cd ..
+  popd
   export GETTEXT_PREFIX="${GPG_INSTALL}/bin/"
 
   # workaround https://github.com/travis-ci/travis-ci/issues/8613
@@ -152,24 +153,24 @@ build_gpg_beta() {
   export LD_LIBRARY_PATH="/usr/local/clang-5.0.0/lib"
   for repo in npth libgpg-error; do
     git clone git://git.gnupg.org/${repo}
-    cd ${repo}
+    pushd ${repo}
     ./autogen.sh
     ./configure --prefix="${GPG_INSTALL}"
     ${MAKE} -j${CORES} install
-    cd ..
+    popd
   done
 
   for repo in libgcrypt libassuan libksba; do
     git clone git://git.gnupg.org/${repo}
-    cd ${repo}
+    pushd ${repo}
     ./autogen.sh
     ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
     ${MAKE} -j${CORES} install
-    cd ..
+    popd
   done
 
   git clone git://git.gnupg.org/pinentry.git
-  cd pinentry
+  pushd pinentry
   cat << 'END' | git apply -
 diff --git a/Makefile.am b/Makefile.am
 index 8c8b8e5..412244c 100644
@@ -198,10 +199,10 @@ END
     --disable-pinentry-tqt \
     --disable-pinentry-fltk
   ${MAKE} -j${CORES} install
-  cd ..
+  popd
 
   git clone git://git.gnupg.org/gnupg.git
-  cd gnupg
+  pushd gnupg
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" \
     --with-libgpg-error-prefix="${GPG_INSTALL}" \
@@ -212,7 +213,7 @@ END
     --disable-doc \
     --enable-maintainer-mode
   ${MAKE} -j${CORES} install
-  cd ..
+  popd
 }
 
 # gpg
