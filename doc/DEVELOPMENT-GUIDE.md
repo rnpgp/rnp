@@ -99,7 +99,7 @@ We can use a container for this, like so:
 Inside the container, you can do local CI runs like so:
 
 ``` sh
-env GPG_VERSION=beta BUILD_MODE=sanitize-leaks ci/local.sh
+env GPG_VERSION=beta BUILD_MODE=sanitize ci/local.sh
 ```
 
 # Code Coverage

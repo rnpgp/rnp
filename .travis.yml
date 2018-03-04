@@ -33,15 +33,9 @@ matrix:
     # clang sanitizers
     - env: BUILD_MODE=sanitize GPG_VERSION=stable
       compiler: clang
-    - env: BUILD_MODE=sanitize GPG_VERSION=beta
-      compiler: clang
-
-    # clang sanitizers (memory leaks)
-    - env: BUILD_MODE=sanitize-leaks GPG_VERSION=stable
-      compiler: clang
       # requires ptrace, which isn't currently working in travis containers
       sudo: true
-    - env: BUILD_MODE=sanitize-leaks GPG_VERSION=beta
+    - env: BUILD_MODE=sanitize GPG_VERSION=beta
       compiler: clang
       # requires ptrace, which isn't currently working in travis containers
       sudo: true
