@@ -618,24 +618,23 @@ stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst)
           signature_write_subpackets(&pktbody, sig, false) &&
           add_packet_body(&pktbody, sig->lbits, 2);
 
-    if (!res) {
-        return false;
-    }
-
     /* write mpis */
     switch (sig->palg) {
     case PGP_PKA_RSA:
-        res = add_packet_body_mpi(&pktbody, sig->material.rsa.s, sig->material.rsa.slen);
+        res =
+          res && add_packet_body_mpi(&pktbody, sig->material.rsa.s, sig->material.rsa.slen);
         break;
     case PGP_PKA_DSA:
-        res = add_packet_body_mpi(&pktbody, sig->material.dsa.r, sig->material.dsa.rlen) &&
+        res = res &&
+              add_packet_body_mpi(&pktbody, sig->material.dsa.r, sig->material.dsa.rlen) &&
               add_packet_body_mpi(&pktbody, sig->material.dsa.s, sig->material.dsa.slen);
         break;
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        res = add_packet_body_mpi(&pktbody, sig->material.ecc.r, sig->material.ecc.rlen) &&
+        res = res &&
+              add_packet_body_mpi(&pktbody, sig->material.ecc.r, sig->material.ecc.rlen) &&
               add_packet_body_mpi(&pktbody, sig->material.ecc.s, sig->material.ecc.slen);
         break;
     default:
