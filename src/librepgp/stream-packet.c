@@ -314,6 +314,16 @@ add_packet_body_mpi(pgp_packet_body_t *body, uint8_t *mpi, unsigned len)
     return add_packet_body(body, hdr, 2) && add_packet_body(body, mpi + idx, len - idx);
 }
 
+static bool
+add_packet_body_key_curve(pgp_packet_body_t *body, const pgp_curve_t curve)
+{
+    const ec_curve_desc_t *desc = NULL;
+
+    return (desc = get_curve_desc(curve)) &&
+           add_packet_body_byte(body, (uint8_t) desc->OIDhex_len) &&
+           add_packet_body(body, (void*) desc->OIDhex, desc->OIDhex_len);
+}
+
 bool
 add_packet_body_subpackets(pgp_packet_body_t *body, pgp_signature_t *sig, bool hashed)
 {
@@ -1484,10 +1494,114 @@ free_signature(pgp_signature_t *sig)
     list_destroy(&sig->subpkts);
 }
 
+/* @brief Fills the hashed (signed) data part of the key packet. Must be called before
+          stream_write_key() on the newly generated key
+ */
+static bool
+key_fill_hashed_data(pgp_key_pkt_t *key)
+{
+    pgp_packet_body_t hbody;
+    bool              res = false;
+
+    /* we don't have a need to write v2-v3 signatures */
+    if (key->version != PGP_V4) {
+        RNP_LOG("unknown key version %d", (int) key->version);
+        return false;
+    }
+
+    if (!init_packet_body(&hbody, 0)) {
+        RNP_LOG("allocation failed");
+        return false;
+    }
+
+    res = add_packet_body_byte(&hbody, key->version) &&
+          add_packet_body_uint32(&hbody, key->creation_time) &&
+          add_packet_body_byte(&hbody, key->alg);
+
+    if (!res) {
+        goto error;
+    }
+
+    /* Algorithm specific fields */
+    switch (key->alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        res = add_packet_body_mpi(&hbody, key->material.rsa.n, key->material.rsa.nlen) &&
+              add_packet_body_mpi(&hbody, key->material.rsa.e, key->material.rsa.elen);
+        break;
+    case PGP_PKA_DSA:
+        res = add_packet_body_mpi(&hbody, key->material.dsa.p, key->material.dsa.plen) &&
+              add_packet_body_mpi(&hbody, key->material.dsa.q, key->material.dsa.qlen) &&
+              add_packet_body_mpi(&hbody, key->material.dsa.g, key->material.dsa.glen) &&
+              add_packet_body_mpi(&hbody, key->material.dsa.y, key->material.dsa.ylen);
+        break;
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        res = add_packet_body_mpi(&hbody, key->material.eg.p, key->material.eg.plen) &&
+              add_packet_body_mpi(&hbody, key->material.eg.g, key->material.eg.glen) &&
+              add_packet_body_mpi(&hbody, key->material.eg.y, key->material.eg.ylen);
+        break;
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
+        res = add_packet_body_key_curve(&hbody, key->material.ecc.curve) &&
+              add_packet_body_mpi(&hbody, key->material.ecc.p, key->material.ecc.plen);
+        break;
+    case PGP_PKA_ECDH: 
+        res = add_packet_body_key_curve(&hbody, key->material.ecc.curve) &&
+              add_packet_body_mpi(&hbody, key->material.ecc.p, key->material.ecc.plen) &&
+              add_packet_body_byte(&hbody, 3) &&
+              add_packet_body_byte(&hbody, 1) &&
+              add_packet_body_byte(&hbody, key->material.ecdh.kdf_hash_alg) &&
+              add_packet_body_byte(&hbody, key->material.ecdh.key_wrap_alg);
+        break;
+    default:
+        RNP_LOG("unknown key algorithm: %d", (int) key->alg);
+        res = false;
+    }
+
+    /* get ownership on written data on success*/
+    if (res) {
+        key->hashed_data = hbody.data;
+        key->hashed_len = hbody.len;
+        return true;
+    }
+error:
+    free_packet_body(&hbody);
+    return false;
+}
+
 bool
 stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst)
 {
-    return false;
+    pgp_packet_body_t pktbody;
+    bool              res;
+
+    if ((key->tag != PGP_PTAG_CT_PUBLIC_KEY) && (key->tag != PGP_PTAG_CT_PUBLIC_SUBKEY)) {
+        RNP_LOG("wrong key tag");
+        return false;
+    }
+
+    if (!key->hashed_data && !key_fill_hashed_data(key)) {
+        return false;
+    }
+
+    if (!init_packet_body(&pktbody, key->tag)) {
+        RNP_LOG("allocation failed");
+        return false;
+    }
+
+    /* all public key data is written in hashed_data */
+    res = add_packet_body(&pktbody, key->hashed_data, key->hashed_len);
+
+    if (res) {
+        stream_flush_packet_body(&pktbody, dst);
+        res = dst->werr == RNP_SUCCESS;
+    }
+
+    free_packet_body(&pktbody);
+    return res;
 }
 
 rnp_result_t
@@ -1503,7 +1617,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
 
     res = RNP_ERROR_BAD_FORMAT;
 
-    /* Check the key tag */
+    /* check the key tag */
     if ((pkt.tag != PGP_PTAG_CT_PUBLIC_KEY) && (pkt.tag != PGP_PTAG_CT_PUBLIC_SUBKEY) &&
         (pkt.tag != PGP_PTAG_CT_SECRET_KEY) && (pkt.tag != PGP_PTAG_CT_SECRET_SUBKEY)) {
         RNP_LOG("wrong key tag: %d", pkt.tag);
@@ -1512,38 +1626,38 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
 
     memset(key, 0, sizeof(*key));
 
-    /* Key type, i.e. tag */
+    /* key type, i.e. tag */
     key->tag = pkt.tag;
 
-    /* Version */
+    /* version */
     if (!get_packet_body_byte(&pkt, (uint8_t *) &key->version) || (key->version < PGP_V2) ||
         (key->version > PGP_V4)) {
         RNP_LOG("wrong key packet version");
         goto finish;
     }
 
-    /* Creation time */
+    /* creation time */
     if (!get_packet_body_uint32(&pkt, &key->creation_time)) {
         goto finish;
     }
 
-    /* V3: validity days */
+    /* v3: validity days */
     if ((key->version < PGP_V4) && !get_packet_body_uint16(&pkt, &key->v3_days)) {
         goto finish;
     }
 
-    /* Key algorithm */
+    /* key algorithm */
     if (!get_packet_body_byte(&pkt, (uint8_t *) &key->alg)) {
         goto finish;
     }
 
-    /* V3 keys must be RSA-only */
+    /* v3 keys must be RSA-only */
     if ((key->version < PGP_V4) && (key->alg != PGP_PKA_RSA)) {
         RNP_LOG("wrong v3 pk algorithm");
         goto finish;
     }
 
-    /* Algorithm specific fields */
+    /* algorithm specific fields */
     switch (key->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -1602,7 +1716,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
         goto finish;
     }
 
-    /* Fill hashed data used for signtures */
+    /* fill hashed data used for signatures */
     if (!(key->hashed_data = malloc(pkt.pos))) {
         RNP_LOG("allocation failed");
         res = RNP_ERROR_OUT_OF_MEMORY;
@@ -1611,7 +1725,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     memcpy(key->hashed_data, pkt.data, pkt.pos);
     key->hashed_len = pkt.pos;
 
-    /* Secret key fields if any */
+    /* secret key fields if any */
     if ((key->tag == PGP_PTAG_CT_SECRET_KEY) || (key->tag == PGP_PTAG_CT_SECRET_SUBKEY)) {
         res = RNP_ERROR_NOT_IMPLEMENTED;
         goto finish;
