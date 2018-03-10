@@ -219,4 +219,8 @@ void test_dsa_verify_negative(void **state);
         assert_int_equal(_rnp_a, false);  \
     }
 
+#define assert_rnp_success(a) assert_int_equal(RNP_SUCCESS, a)
+
+#define assert_rnp_failure(a) assert_int_not_equal(RNP_SUCCESS, a)
+
 #endif // RNP_TESTS_H

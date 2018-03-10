@@ -1044,15 +1044,13 @@ test_ffi_signatures(void **state)
     const char *  plaintext = "this is some data that will be signed";
 
     // setup FFI
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_get_pubring(ffi, &pubring));
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_get_secring(ffi, &secring));
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_get_pubring(ffi, &pubring));
+    assert_rnp_success(rnp_ffi_get_secring(ffi, &secring));
 
     // load our keyrings
-    assert_int_equal(RNP_SUCCESS,
-                     rnp_keyring_load_from_path(pubring, "data/keyrings/1/pubring.gpg"));
-    assert_int_equal(RNP_SUCCESS,
-                     rnp_keyring_load_from_path(secring, "data/keyrings/1/secring.gpg"));
+    assert_rnp_success(rnp_keyring_load_from_path(pubring, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(rnp_keyring_load_from_path(secring, "data/keyrings/1/secring.gpg"));
 
     // write out some data
     FILE *fp = fopen("plaintext", "w");
@@ -1060,58 +1058,69 @@ test_ffi_signatures(void **state)
     fclose(fp);
 
     // create input+output
-    assert_int_equal(RNP_SUCCESS, rnp_input_from_file(&input, "plaintext"));
+    assert_rnp_success(rnp_input_from_file(&input, "plaintext"));
     assert_non_null(input);
-    assert_int_equal(RNP_SUCCESS, rnp_output_to_file(&output, "signed"));
+    assert_rnp_success(rnp_output_to_file(&output, "signed"));
     assert_non_null(output);
     // create signature operation
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
 
     // set signature times
     const uint32_t issued = 1516211899;  // Unix epoch, nowish
     const uint32_t expires = 1000000000; // expires later
 
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_armor(op, true));
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_detached(op, false));
+    assert_rnp_success(rnp_op_sign_set_armor(op, true));
+    assert_rnp_success(rnp_op_sign_set_detached(op, false));
 
     // set pass provider
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
 
     // set signature key
     rnp_key_handle_t key = NULL;
-    assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key0-uid2", &key));
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_add_signer(op, key, "SHA256", issued, expires));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
+    assert_rnp_success(rnp_op_sign_add_signer(op, key, "SHA256", issued, expires));
 
     // execute the operation
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_execute(op));
+    assert_rnp_success(rnp_op_sign_execute(op));
 
     // make sure the output file was created
     assert_true(rnp_file_exists("signed"));
 
     // cleanup
-    assert_int_equal(RNP_SUCCESS, rnp_input_destroy(input));
-    assert_int_equal(RNP_SUCCESS, rnp_output_destroy(output));
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_destroy(op));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_op_sign_destroy(op));
     input = NULL;
     output = NULL;
     op = NULL;
 
     /* now verify */
+    rnp_op_verify_t           verify;
+    rnp_op_verify_signature_t sig;
+    size_t                    sig_count;
+    uint32_t                  sig_create;
+    uint32_t                  sig_expires;
+    char                      hname[32];
+    size_t                    hlen = sizeof(hname);
 
-    assert_int_equal(RNP_SUCCESS, rnp_input_from_file(&input, "signed"));
+    assert_rnp_success(rnp_input_from_file(&input, "signed"));
     assert_non_null(input);
-    assert_int_equal(RNP_SUCCESS, rnp_output_to_file(&output, "recovered"));
+    assert_rnp_success(rnp_output_to_file(&output, "recovered"));
     assert_non_null(output);
 
-    rnp_op_verify_result_t results;
-    size_t                 result_cnt = 0;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
+    assert_int_equal(sig_count, 1);
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
+    assert_int_equal(sig_create, issued);
+    assert_int_equal(sig_expires, expires);
+    assert_rnp_success(rnp_op_verify_signature_get_hash_fn(sig, hname, &hlen));
+    assert_string_equal(hname, "SHA256");
 
-    assert_int_equal(RNP_SUCCESS,
-                     rnp_op_verify(&results, &result_cnt, ffi, input, NULL, output));
-    assert_non_null(results);
-    assert_int_equal(result_cnt, 1);
-
-    rnp_op_verify_destroy(results);
+    rnp_op_verify_destroy(verify);
 
     // cleanup
     rnp_input_destroy(input);
@@ -1143,15 +1152,13 @@ test_ffi_signatures_detached(void **state)
     const char *  plaintext = "this is some data that will be signed";
 
     // setup FFI
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_get_pubring(ffi, &pubring));
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_get_secring(ffi, &secring));
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_get_pubring(ffi, &pubring));
+    assert_rnp_success(rnp_ffi_get_secring(ffi, &secring));
 
     // load our keyrings
-    assert_int_equal(RNP_SUCCESS,
-                     rnp_keyring_load_from_path(pubring, "data/keyrings/1/pubring.gpg"));
-    assert_int_equal(RNP_SUCCESS,
-                     rnp_keyring_load_from_path(secring, "data/keyrings/1/secring.gpg"));
+    assert_rnp_success(rnp_keyring_load_from_path(pubring, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(rnp_keyring_load_from_path(secring, "data/keyrings/1/secring.gpg"));
 
     // write out some data
     FILE *fp = fopen("plaintext", "w");
@@ -1159,64 +1166,74 @@ test_ffi_signatures_detached(void **state)
     fclose(fp);
 
     // create input+output
-    assert_int_equal(RNP_SUCCESS, rnp_input_from_file(&input, "plaintext"));
+    assert_rnp_success(rnp_input_from_file(&input, "plaintext"));
     assert_non_null(input);
-    assert_int_equal(RNP_SUCCESS, rnp_output_to_file(&output, "signed"));
+    assert_rnp_success(rnp_output_to_file(&output, "signed"));
     assert_non_null(output);
     // create signature operation
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
 
     // set signature times
     uint32_t issued = 1516211899;  // Unix epoch, nowish
     uint32_t expires = 1000000000; // later
 
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_armor(op, true));
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_set_detached(op, true));
+    assert_rnp_success(rnp_op_sign_set_armor(op, true));
+    assert_rnp_success(rnp_op_sign_set_detached(op, true));
 
     // set pass provider
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
 
     // set signature key
     rnp_key_handle_t key = NULL;
-    assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key0-uid2", &key));
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_add_signer(op, key, "SHA256", issued, expires));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
+    assert_rnp_success(rnp_op_sign_add_signer(op, key, "SHA256", issued, expires));
 
     // execute the operation
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_execute(op));
+    assert_rnp_success(rnp_op_sign_execute(op));
 
     // make sure the output file was created
     assert_true(rnp_file_exists("signed"));
 
     // cleanup
-    assert_int_equal(RNP_SUCCESS, rnp_input_destroy(input));
-    assert_int_equal(RNP_SUCCESS, rnp_output_destroy(output));
-    assert_int_equal(RNP_SUCCESS, rnp_op_sign_destroy(op));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_op_sign_destroy(op));
     input = NULL;
     output = NULL;
     op = NULL;
 
     /* now verify */
+    rnp_op_verify_t           verify;
+    rnp_op_verify_signature_t sig;
+    size_t                    sig_count;
+    uint32_t                  sig_create;
+    uint32_t                  sig_expires;
+    char                      hname[32];
+    size_t                    hlen = sizeof(hname);
 
-    assert_int_equal(RNP_SUCCESS, rnp_input_from_file(&detached, "plaintext"));
+    assert_rnp_success(rnp_input_from_file(&detached, "plaintext"));
     assert_non_null(detached);
-    assert_int_equal(RNP_SUCCESS, rnp_input_from_file(&input, "signed"));
+    assert_rnp_success(rnp_input_from_file(&input, "signed"));
     assert_non_null(input);
-    assert_int_equal(RNP_SUCCESS, rnp_output_to_null(&output));
+    assert_rnp_success(rnp_output_to_null(&output));
     assert_non_null(output);
 
-    rnp_op_verify_result_t results;
-    size_t                 result_cnt = 0;
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, detached, input));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
+    assert_int_equal(sig_count, 1);
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
+    assert_int_equal(sig_create, issued);
+    assert_int_equal(sig_expires, expires);
+    assert_rnp_success(rnp_op_verify_signature_get_hash_fn(sig, hname, &hlen));
+    assert_string_equal(hname, "SHA256");
 
-    assert_int_equal(RNP_SUCCESS,
-                     rnp_op_verify(&results, &result_cnt, ffi, input, detached, output));
-    assert_non_null(results);
-    assert_int_equal(result_cnt, 1);
-
-    rnp_op_verify_destroy(results);
+    rnp_op_verify_destroy(verify);
 
     // cleanup
     rnp_input_destroy(input);
-    // rnp_input_destroy(detached); // process_pgp_source destroys this source
     rnp_output_destroy(output);
 
     // final cleanup
@@ -1559,8 +1576,8 @@ test_ffi_key_iter(void **state)
                                              "2FCADF05FFA501BB",
                                              "54505A936A4A970E",
                                              "326EF111425D14A5"};
-            size_t      i = 0;
-            const char *ident = NULL;
+            size_t             i = 0;
+            const char *       ident = NULL;
             do {
                 ident = NULL;
                 assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_next(it, &ident));

@@ -63,15 +63,16 @@ typedef struct rnp_key_handle_st *         rnp_key_handle_t;
 typedef struct rnp_input_st *              rnp_input_t;
 typedef struct rnp_output_st *             rnp_output_t;
 typedef struct rnp_op_sign_st *            rnp_op_sign_t;
-typedef struct rnp_op_verify_result_st *   rnp_op_verify_result_t;
+typedef struct rnp_op_verify_st *          rnp_op_verify_t;
+typedef struct rnp_op_verify_signature_st *rnp_op_verify_signature_t;
 typedef struct rnp_op_encrypt_st *         rnp_op_encrypt_t;
 typedef struct rnp_identifier_iterator_st *rnp_identifier_iterator_t;
 
 /* Callbacks */
 typedef ssize_t rnp_input_reader_t(void *app_ctx, void *buf, size_t len);
-typedef void rnp_input_closer_t(void *app_ctx);
-typedef int rnp_output_writer_t(void *app_ctx, const void *buf, size_t len);
-typedef void rnp_output_closer_t(void *app_ctx, bool discard);
+typedef void    rnp_input_closer_t(void *app_ctx);
+typedef int     rnp_output_writer_t(void *app_ctx, const void *buf, size_t len);
+typedef void    rnp_output_closer_t(void *app_ctx, bool discard);
 
 /**
  * Callback used for getting a password.
@@ -281,7 +282,7 @@ rnp_result_t rnp_key_have_public(rnp_key_handle_t key, bool *result);
 
 /* TODO: function to add a userid to a key */
 
-/* Signature/verification operations */
+/* Signing operations */
 
 /* TODO define functions for password-based encryption */
 
@@ -290,12 +291,11 @@ rnp_result_t rnp_op_sign_create(rnp_op_sign_t *op,
                                 rnp_input_t    input,
                                 rnp_output_t   output);
 
-rnp_result_t rnp_op_sign_add_signer(
-  rnp_op_sign_t    op,
-  rnp_key_handle_t key,
-  const char *     hash_fn,
-  uint32_t         creation_time, /* seconds since Jan 1 1970 UTC */
-  uint32_t         expiration_seconds);
+rnp_result_t rnp_op_sign_add_signer(rnp_op_sign_t    op,
+                                    rnp_key_handle_t key,
+                                    const char *     hash_fn,
+                                    uint32_t creation_time, /* seconds since Jan 1 1970 UTC */
+                                    uint32_t expiration_seconds);
 
 rnp_result_t rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compression, int level);
 rnp_result_t rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored);
@@ -309,32 +309,36 @@ rnp_result_t rnp_op_sign_set_file_mtime(rnp_op_sign_t op, uint32_t mtime);
 rnp_result_t rnp_op_sign_execute(rnp_op_sign_t op);
 rnp_result_t rnp_op_sign_destroy(rnp_op_sign_t op);
 
-rnp_result_t rnp_op_verify(rnp_op_verify_result_t *result,
-                           size_t *                num_results,
-                           rnp_ffi_t               ffi,
-                           rnp_input_t             input,
-                           rnp_input_t             detached,
-                           rnp_output_t            output);
+/* Verification */
 
-rnp_result_t rnp_op_verify_result_get_status(rnp_op_verify_result_t result);
+rnp_result_t rnp_op_verify_create(rnp_op_verify_t *op,
+                                  rnp_ffi_t        ffi,
+                                  rnp_input_t      input,
+                                  rnp_output_t     output);
+rnp_result_t rnp_op_verify_detached_create(rnp_op_verify_t *op,
+                                           rnp_ffi_t        ffi,
+                                           rnp_input_t      input,
+                                           rnp_input_t      signature);
+rnp_result_t rnp_op_verify_execute(rnp_op_verify_t op);
+rnp_result_t rnp_op_verify_get_signature_count(rnp_op_verify_t op, size_t *count);
+rnp_result_t rnp_op_verify_get_signature_at(rnp_op_verify_t            op,
+                                            size_t                     idx,
+                                            rnp_op_verify_signature_t *sig);
+rnp_result_t rnp_op_verify_get_file_info(rnp_op_verify_t op,
+                                         char *          filename_buf,
+                                         size_t *        filename_buf_sz,
+                                         uint32_t *      file_mtime);
+rnp_result_t rnp_op_verify_destroy(rnp_op_verify_t op);
 
-rnp_result_t rnp_op_verify_result_get_hash_fn(rnp_op_verify_result_t result,
-                                              char *                 hash_fn_buf,
-                                              size_t *               hash_fn_buf_sz);
-
-rnp_result_t rnp_op_verify_result_get_key(rnp_op_verify_result_t result,
-                                          rnp_key_handle_t *     key);
-
-rnp_result_t rnp_op_verify_result_get_file_info(rnp_op_verify_result_t result,
-                                                char *                 filename_buf,
-                                                size_t *               filename_buf_sz,
-                                                uint32_t *             file_mtime);
-
-rnp_result_t rnp_op_verify_result_get_sig_timestamps(rnp_op_verify_result_t result,
-                                                     uint32_t *             sig_create,
-                                                     uint32_t *             sig_expires);
-
-rnp_result_t rnp_op_verify_destroy(rnp_op_verify_result_t result);
+rnp_result_t rnp_op_verify_signature_get_status(rnp_op_verify_signature_t sig);
+rnp_result_t rnp_op_verify_signature_get_hash_fn(rnp_op_verify_signature_t sig,
+                                                 char *                    hash_fn_buf,
+                                                 size_t *                  hash_fn_buf_sz);
+rnp_result_t rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig,
+                                             rnp_key_handle_t *        key);
+rnp_result_t rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,
+                                               uint32_t *                create,
+                                               uint32_t *                expires);
 
 /* TODO define functions for encrypt+sign */
 
