@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Ribose Inc.
+ * Copyright (c) 2017-2018 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -105,14 +105,25 @@ struct rnp_op_sign_st {
     rnp_ctx_t    rnpctx;
 };
 
-struct rnp_op_verify_result_st {
+struct rnp_op_verify_signature_st {
     uint8_t      keyid[PGP_KEY_ID_SIZE];
-    char         filename[128];
     char         hash_fn[16];
-    uint32_t     file_mtime;
     uint32_t     sig_create;
     uint32_t     sig_expires;
     rnp_result_t verify_status;
+};
+
+struct rnp_op_verify_st {
+    rnp_ffi_t    ffi;
+    rnp_input_t  input;
+    rnp_input_t  detached_input; /* for detached signature will be source file/data */
+    rnp_output_t output;
+    rnp_ctx_t    rnpctx;
+    /* these fields are filled after operation execution */
+    struct rnp_op_verify_signature_st *signatures;
+    size_t                             signature_count;
+    char                               filename[128];
+    uint32_t                           file_mtime;
 };
 
 struct rnp_op_encrypt_st {
@@ -1300,11 +1311,12 @@ rnp_op_sign_create(rnp_op_sign_t *op, rnp_ffi_t ffi, rnp_input_t input, rnp_outp
     return RNP_SUCCESS;
 }
 
-rnp_result_t rnp_op_sign_add_signer(rnp_op_sign_t    op,
-                                    rnp_key_handle_t key,
-                                    const char *     hash_fn,
-                                    uint32_t         creation_time,
-                                    uint32_t         expiration_seconds)
+rnp_result_t
+rnp_op_sign_add_signer(rnp_op_sign_t    op,
+                       rnp_key_handle_t key,
+                       const char *     hash_fn,
+                       uint32_t         creation_time,
+                       uint32_t         expiration_seconds)
 {
     if (!op || !key)
         return RNP_ERROR_NULL_POINTER;
@@ -1430,61 +1442,53 @@ rnp_op_sign_destroy(rnp_op_sign_t op)
     return RNP_SUCCESS;
 }
 
-struct rnp_op_verify_on_signature_args {
-    size_t                          num_results;
-    struct rnp_op_verify_result_st *results;
-};
-
 static void
-rnp_op_verify_on_signature(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int count)
+rnp_op_verify_on_signatures(pgp_parse_handler_t * handler,
+                            pgp_signature_info_t *sigs,
+                            int                   count)
 {
-    struct rnp_op_verify_on_signature_args *args =
-      (struct rnp_op_verify_on_signature_args *) handler->ctx->sig_cb_param;
-    assert(args);
+    struct rnp_op_verify_signature_st res;
+    rnp_op_verify_t                   op = handler->param;
 
-    args->num_results = count;
-    args->results = (struct rnp_op_verify_result_st *) calloc(
-      args->num_results, sizeof(struct rnp_op_verify_result_st));
+    op->signatures = calloc(count, sizeof(*op->signatures));
+    if (!op->signatures) {
+        // TODO: report allocation error?
+        return;
+    }
+    op->signature_count = count;
 
     for (int i = 0; i < count; i++) {
-        struct rnp_op_verify_result_st *res = args->results + i;
+        memset(&res, 0, sizeof(res));
 
-        res->sig_create = signature_get_creation(sigs[i].sig);
-        res->sig_expires = signature_get_expiration(sigs[i].sig);
-        signature_get_keyid(sigs[i].sig, res->keyid);
+        res.sig_create = signature_get_creation(sigs[i].sig);
+        res.sig_expires = signature_get_expiration(sigs[i].sig);
+        signature_get_keyid(sigs[i].sig, res.keyid);
 
-        const char *hash_name = pgp_hash_name_botan(sigs[i].sig->halg);
+        const char *hash_name = pgp_show_hash_alg(sigs[i].sig->halg);
 
         if (hash_name) {
-            strcpy(res->hash_fn, hash_name);
+            strcpy(res.hash_fn, hash_name);
         }
 
         if (sigs[i].unknown) {
-            res->verify_status = RNP_ERROR_KEY_NOT_FOUND;
+            res.verify_status = RNP_ERROR_KEY_NOT_FOUND;
         } else if (sigs[i].valid) {
-            if (sigs[i].expired)
-                res->verify_status = RNP_ERROR_SIGNATURE_EXPIRED;
-            else
-                res->verify_status = RNP_SUCCESS;
+            res.verify_status = sigs[i].expired ? RNP_ERROR_SIGNATURE_EXPIRED : RNP_SUCCESS;
         } else {
-            if (sigs[i].no_signer)
-                res->verify_status = RNP_ERROR_KEY_NOT_FOUND;
-            else
-                res->verify_status = RNP_ERROR_SIGNATURE_INVALID;
+            res.verify_status =
+              sigs[i].no_signer ? RNP_ERROR_KEY_NOT_FOUND : RNP_ERROR_SIGNATURE_INVALID;
         }
+
+        op->signatures[i] = res;
     }
 }
-
-struct rnp_verify_prov_args {
-    rnp_output_t output;
-    rnp_input_t  input;
-};
 
 static bool
 rnp_verify_src_provider(pgp_parse_handler_t *handler, pgp_source_t *src)
 {
-    struct rnp_verify_prov_args *args = handler->param;
-    *src = args->input->src;
+    /* this one is called only when input for detached signature is needed */
+    rnp_op_verify_t op = handler->param;
+    *src = op->detached_input->src;
     return true;
 };
 
@@ -1494,116 +1498,126 @@ rnp_verify_dest_provider(pgp_parse_handler_t *handler,
                          bool *               closedst,
                          const char *         filename)
 {
-    struct rnp_verify_prov_args *args = handler->param;
-    *dst = &(args->output->dst);
+    rnp_op_verify_t op = handler->param;
+    *dst = &(op->output->dst);
     *closedst = false;
+
     return true;
 }
 
 rnp_result_t
-rnp_op_verify(rnp_op_verify_result_t *result,
-              size_t *                num_results,
-              rnp_ffi_t               ffi,
-              rnp_input_t             input,
-              rnp_input_t             detached,
-              rnp_output_t            output)
+rnp_op_verify_create(rnp_op_verify_t *op,
+                     rnp_ffi_t        ffi,
+                     rnp_input_t      input,
+                     rnp_output_t     output)
 {
-    rnp_ctx_t                              rnpctx;
-    struct rnp_op_verify_on_signature_args args;
-
-    if (!ffi || !input || !output) {
+    if (!op || !ffi || !input) {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    rnpctx.on_signatures = rnp_op_verify_on_signature;
-    memset(&args, 0, sizeof(args));
+    *op = calloc(1, sizeof(**op));
+    if (!*op) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
 
-    rnp_ctx_init_ffi(&rnpctx, ffi);
-    rnpctx.sig_cb_param = &args;
+    rnp_ctx_init_ffi(&(*op)->rnpctx, ffi);
+    (*op)->ffi = ffi;
+    (*op)->input = input;
+    (*op)->output = output;
 
-    struct rnp_verify_prov_args prov_args = {
-      .input = detached, .output = output,
-    };
+    return RNP_SUCCESS;
+}
 
+rnp_result_t
+rnp_op_verify_detached_create(rnp_op_verify_t *op,
+                              rnp_ffi_t        ffi,
+                              rnp_input_t      input,
+                              rnp_input_t      signature)
+{
+    if (!op || !ffi || !input || !signature) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    *op = calloc(1, sizeof(**op));
+    if (!*op) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    rnp_ctx_init_ffi(&(*op)->rnpctx, ffi);
+    (*op)->ffi = ffi;
+    (*op)->input = signature;
+    (*op)->detached_input = input;
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_verify_execute(rnp_op_verify_t op)
+{
     pgp_parse_handler_t handler = {
-      .key_provider = &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = ffi},
-      .on_signatures = rnp_op_verify_on_signature,
+      .key_provider =
+        &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = op->ffi},
+      .on_signatures = rnp_op_verify_on_signatures,
       .src_provider = rnp_verify_src_provider,
       .dest_provider = rnp_verify_dest_provider,
-      .param = &prov_args,
-      .ctx = &rnpctx};
+      .param = op,
+      .ctx = &op->rnpctx};
 
-    if (detached != NULL) {
-        handler.src_provider = rnp_verify_src_provider;
-        handler.dest_provider = NULL;
-    } else {
+    rnp_result_t ret = process_pgp_source(&handler, &op->input->src);
+
+    if (op->output) {
+        op->output->keep = ret == RNP_SUCCESS;
     }
 
-    rnp_result_t ret = process_pgp_source(&handler, &input->src);
-    if (ret != RNP_SUCCESS) {
-        // TODO: should we close output->dst here or leave it to the caller?
-        dst_close(&output->dst, true);
-        output->dst = (pgp_dest_t){0};
-    }
-    rnpctx.on_signatures = NULL;
-    output->keep = ret == RNP_SUCCESS;
-
-    if (ret == RNP_SUCCESS) {
-        *result = args.results;
-        *num_results = args.num_results;
-    }
     return ret;
 }
 
 rnp_result_t
-rnp_op_verify_result_get_status(rnp_op_verify_result_t result)
+rnp_op_verify_get_signature_count(rnp_op_verify_t op, size_t *count)
 {
-    if (result == NULL)
+    if (!op || !count) {
         return RNP_ERROR_NULL_POINTER;
-    return result->verify_status;
+    }
+
+    *count = op->signature_count;
+
     return RNP_SUCCESS;
 }
 
 rnp_result_t
-rnp_op_verify_result_get_hash_fn(rnp_op_verify_result_t result,
-                                 char *                 hash_fn_buf,
-                                 size_t *               hash_fn_buf_sz)
+rnp_op_verify_get_signature_at(rnp_op_verify_t op, size_t idx, rnp_op_verify_signature_t *sig)
 {
-    if (result == NULL || hash_fn_buf_sz == NULL || hash_fn_buf == NULL)
+    if (!op || !sig) {
         return RNP_ERROR_NULL_POINTER;
+    }
 
-    size_t avail = *hash_fn_buf_sz;
-    size_t used = strlen(result->hash_fn);
-    *hash_fn_buf_sz = strlen(result->hash_fn);
+    if (idx >= op->signature_count) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
 
-    if (avail > used)
-        strcpy(hash_fn_buf, result->hash_fn);
+    *sig = &op->signatures[idx];
+
     return RNP_SUCCESS;
 }
 
 rnp_result_t
-rnp_op_verify_result_get_key(rnp_op_verify_result_t result, rnp_key_handle_t *key)
+rnp_op_verify_get_file_info(rnp_op_verify_t op,
+                            char *          filename_buf,
+                            size_t *        filename_buf_sz,
+                            uint32_t *      file_mtime)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
-}
+    if (file_mtime) {
+        *file_mtime = op->file_mtime;
+    }
 
-rnp_result_t
-rnp_op_verify_result_get_file_info(rnp_op_verify_result_t result,
-                                   char *                 filename_buf,
-                                   size_t *               filename_buf_sz,
-                                   uint32_t *             file_mtime)
-{
-    if (file_mtime)
-        *file_mtime = result->file_mtime;
-
-    if (filename_buf_sz != NULL) {
-        size_t filename_len = strlen(result->filename);
-
+    if (filename_buf_sz) {
+        size_t filename_len = strlen(op->filename);
         size_t avail = *filename_buf_sz;
+
         *filename_buf_sz = filename_len;
 
         if (filename_buf && filename_len < avail) {
-            strcpy(filename_buf, result->filename);
+            strcpy(filename_buf, op->filename);
         }
     }
 
@@ -1611,22 +1625,65 @@ rnp_op_verify_result_get_file_info(rnp_op_verify_result_t result,
 }
 
 rnp_result_t
-rnp_op_verify_result_get_sig_timestamps(rnp_op_verify_result_t result,
-                                        uint32_t *             sig_create,
-                                        uint32_t *             sig_expires)
+rnp_op_verify_destroy(rnp_op_verify_t op)
 {
-    if (sig_create)
-        *sig_create = result->sig_create;
-    if (sig_expires)
-        *sig_expires = result->sig_expires;
+    if (op) {
+        rnp_ctx_free(&op->rnpctx);
+        free(op->signatures);
+        free(op);
+    }
+
     return RNP_SUCCESS;
 }
 
 rnp_result_t
-rnp_op_verify_destroy(rnp_op_verify_result_t results)
+rnp_op_verify_signature_get_status(rnp_op_verify_signature_t sig)
 {
-    if (results)
-        free(results);
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    return sig->verify_status;
+}
+
+rnp_result_t
+rnp_op_verify_signature_get_hash_fn(rnp_op_verify_signature_t sig,
+                                    char *                    hash_fn_buf,
+                                    size_t *                  hash_fn_buf_sz)
+{
+    if (!sig || !hash_fn_buf_sz || !hash_fn_buf) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    size_t avail = *hash_fn_buf_sz;
+    *hash_fn_buf_sz = strlen(sig->hash_fn);
+
+    if (avail > *hash_fn_buf_sz) {
+        strncpy(hash_fn_buf, sig->hash_fn, avail);
+    }
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig, rnp_key_handle_t *key)
+{
+    // TODO : Implement this
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,
+                                  uint32_t *                create,
+                                  uint32_t *                expires)
+{
+    if (create) {
+        *create = sig->sig_create;
+    }
+    if (expires) {
+        *expires = sig->sig_expires;
+    }
+
     return RNP_SUCCESS;
 }
 
