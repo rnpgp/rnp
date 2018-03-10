@@ -1312,33 +1312,51 @@ rnp_op_sign_create(rnp_op_sign_t *op, rnp_ffi_t ffi, rnp_input_t input, rnp_outp
 }
 
 rnp_result_t
-rnp_op_sign_add_signer(rnp_op_sign_t    op,
-                       rnp_key_handle_t key,
-                       const char *     hash_fn,
-                       uint32_t         creation_time,
-                       uint32_t         expiration_seconds)
+rnp_op_sign_cleartext_create(rnp_op_sign_t *op,
+                             rnp_ffi_t      ffi,
+                             rnp_input_t    input,
+                             rnp_output_t   output)
 {
-    if (!op || !key)
-        return RNP_ERROR_NULL_POINTER;
+    rnp_result_t res = rnp_op_sign_create(op, ffi, input, output);
 
-    char *keyid = NULL;
-
-    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
-    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash_fn, hash_alg);
-    if (hash_alg == PGP_HASH_UNKNOWN) {
-        return RNP_ERROR_BAD_FORMAT;
+    if (!res) {
+        (*op)->rnpctx.clearsign = true;
     }
 
+    return res;
+}
+
+rnp_result_t
+rnp_op_sign_detached_create(rnp_op_sign_t *op,
+                            rnp_ffi_t      ffi,
+                            rnp_input_t    input,
+                            rnp_output_t   signature)
+{
+    rnp_result_t res = rnp_op_sign_create(op, ffi, input, signature);
+
+    if (!res) {
+        (*op)->rnpctx.detached = true;
+    }
+
+    return res;
+}
+
+rnp_result_t
+rnp_op_sign_add_signer(rnp_op_sign_t op, rnp_key_handle_t key)
+{
+    if (!op || !key) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    char *       keyid = NULL;
     rnp_result_t res = rnp_key_get_keyid(key, &keyid);
-    if (res != RNP_SUCCESS)
+    if (res != RNP_SUCCESS) {
         return res;
+    }
 
-    if (!list_append(&op->rnpctx.signers, keyid, strlen(keyid) + 1))
+    if (!list_append(&op->rnpctx.signers, keyid, strlen(keyid) + 1)) {
         return RNP_ERROR_OUT_OF_MEMORY;
-
-    op->rnpctx.sigcreate = creation_time;
-    op->rnpctx.sigexpire = expiration_seconds;
-    op->rnpctx.halg = hash_alg;
+    }
 
     return RNP_SUCCESS;
 }
@@ -1355,28 +1373,6 @@ rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored)
 }
 
 rnp_result_t
-rnp_op_sign_set_clearsign(rnp_op_sign_t op, bool clearsign)
-{
-    // checks
-    if (!op) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-    op->rnpctx.clearsign = clearsign;
-    return RNP_SUCCESS;
-}
-
-rnp_result_t
-rnp_op_sign_set_detached(rnp_op_sign_t op, bool detached)
-{
-    // checks
-    if (!op) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-    op->rnpctx.detached = detached;
-    return RNP_SUCCESS;
-}
-
-rnp_result_t
 rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compression, int level)
 {
     // checks
@@ -1385,6 +1381,48 @@ rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compression, int level
     }
 
     return rnp_op_set_compression(&op->rnpctx, compression, level);
+}
+
+rnp_result_t
+rnp_op_sign_set_hash_fn(rnp_op_sign_t op, const char *hash)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
+    if (hash_alg == PGP_HASH_UNKNOWN) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    op->rnpctx.halg = hash_alg;
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_sign_set_creation_time(rnp_op_sign_t op, uint32_t create)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    op->rnpctx.sigcreate = create;
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_sign_set_expiration_time(rnp_op_sign_t op, uint32_t expire)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    op->rnpctx.sigexpire = expire;
+
+    return RNP_SUCCESS;
 }
 
 rnp_result_t

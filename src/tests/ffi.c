@@ -1070,7 +1070,9 @@ test_ffi_signatures(void **state)
     const uint32_t expires = 1000000000; // expires later
 
     assert_rnp_success(rnp_op_sign_set_armor(op, true));
-    assert_rnp_success(rnp_op_sign_set_detached(op, false));
+    assert_rnp_success(rnp_op_sign_set_hash_fn(op, "SHA256"));
+    assert_rnp_success(rnp_op_sign_set_creation_time(op, issued));
+    assert_rnp_success(rnp_op_sign_set_expiration_time(op, expires));
 
     // set pass provider
     assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
@@ -1078,7 +1080,7 @@ test_ffi_signatures(void **state)
     // set signature key
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
-    assert_rnp_success(rnp_op_sign_add_signer(op, key, "SHA256", issued, expires));
+    assert_rnp_success(rnp_op_sign_add_signer(op, key));
 
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
@@ -1171,14 +1173,16 @@ test_ffi_signatures_detached(void **state)
     assert_rnp_success(rnp_output_to_file(&output, "signed"));
     assert_non_null(output);
     // create signature operation
-    assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_sign_detached_create(&op, ffi, input, output));
 
     // set signature times
     uint32_t issued = 1516211899;  // Unix epoch, nowish
     uint32_t expires = 1000000000; // later
 
     assert_rnp_success(rnp_op_sign_set_armor(op, true));
-    assert_rnp_success(rnp_op_sign_set_detached(op, true));
+    assert_rnp_success(rnp_op_sign_set_hash_fn(op, "SHA256"));
+    assert_rnp_success(rnp_op_sign_set_creation_time(op, issued));
+    assert_rnp_success(rnp_op_sign_set_expiration_time(op, expires));
 
     // set pass provider
     assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
@@ -1186,7 +1190,7 @@ test_ffi_signatures_detached(void **state)
     // set signature key
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
-    assert_rnp_success(rnp_op_sign_add_signer(op, key, "SHA256", issued, expires));
+    assert_rnp_success(rnp_op_sign_add_signer(op, key));
 
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
