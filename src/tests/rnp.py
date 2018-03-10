@@ -90,7 +90,7 @@ class Rnp(object):
         params += [self.userid]
         return self._run([self.key_mgm_bin] + params)
 
-    def import_key(self, filename):
+    def import_key(self, filename, secure = False):
         params = self.common_params
         params += ['--import-key', filename]
         return self._run([self.key_mgm_bin] + params)
