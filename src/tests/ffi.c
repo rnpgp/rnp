@@ -1081,6 +1081,7 @@ test_ffi_signatures(void **state)
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
     assert_rnp_success(rnp_op_sign_add_signer(op, key));
+    assert_rnp_success(rnp_key_handle_free(&key));
 
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
@@ -1148,7 +1149,7 @@ test_ffi_signatures_detached(void **state)
     rnp_ffi_t     ffi = NULL;
     rnp_keyring_t pubring, secring;
     rnp_input_t   input = NULL;
-    rnp_input_t   detached = NULL;
+    rnp_input_t   signature = NULL;
     rnp_output_t  output = NULL;
     rnp_op_sign_t op = NULL;
     const char *  plaintext = "this is some data that will be signed";
@@ -1170,7 +1171,7 @@ test_ffi_signatures_detached(void **state)
     // create input+output
     assert_rnp_success(rnp_input_from_file(&input, "plaintext"));
     assert_non_null(input);
-    assert_rnp_success(rnp_output_to_file(&output, "signed"));
+    assert_rnp_success(rnp_output_to_file(&output, "signature"));
     assert_non_null(output);
     // create signature operation
     assert_rnp_success(rnp_op_sign_detached_create(&op, ffi, input, output));
@@ -1191,12 +1192,13 @@ test_ffi_signatures_detached(void **state)
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
     assert_rnp_success(rnp_op_sign_add_signer(op, key));
+    assert_rnp_success(rnp_key_handle_free(&key));
 
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
 
     // make sure the output file was created
-    assert_true(rnp_file_exists("signed"));
+    assert_true(rnp_file_exists("signature"));
 
     // cleanup
     assert_rnp_success(rnp_input_destroy(input));
@@ -1215,14 +1217,12 @@ test_ffi_signatures_detached(void **state)
     char                      hname[32];
     size_t                    hlen = sizeof(hname);
 
-    assert_rnp_success(rnp_input_from_file(&detached, "plaintext"));
-    assert_non_null(detached);
-    assert_rnp_success(rnp_input_from_file(&input, "signed"));
+    assert_rnp_success(rnp_input_from_file(&input, "plaintext"));
     assert_non_null(input);
-    assert_rnp_success(rnp_output_to_null(&output));
-    assert_non_null(output);
+    assert_rnp_success(rnp_input_from_file(&signature, "signature"));
+    assert_non_null(signature);
 
-    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, detached, input));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, signature));
     assert_rnp_success(rnp_op_verify_execute(verify));
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
     assert_int_equal(sig_count, 1);
@@ -1238,7 +1238,7 @@ test_ffi_signatures_detached(void **state)
 
     // cleanup
     rnp_input_destroy(input);
-    rnp_output_destroy(output);
+    rnp_input_destroy(signature);
 
     // final cleanup
     rnp_ffi_destroy(ffi);

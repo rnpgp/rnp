@@ -967,10 +967,7 @@ rnp_result_t
 rnp_input_destroy(rnp_input_t input)
 {
     if (input) {
-        // if (input->src.param) {
         src_close(&input->src);
-        // input->src.param = NULL;
-        //}
         free(input);
     }
     return RNP_SUCCESS;
@@ -1344,21 +1341,24 @@ rnp_op_sign_detached_create(rnp_op_sign_t *op,
 rnp_result_t
 rnp_op_sign_add_signer(rnp_op_sign_t op, rnp_key_handle_t key)
 {
+    rnp_result_t res;
+    char *       keyid = NULL;
+
     if (!op || !key) {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    char *       keyid = NULL;
-    rnp_result_t res = rnp_key_get_keyid(key, &keyid);
-    if (res != RNP_SUCCESS) {
+    if ((res = rnp_key_get_keyid(key, &keyid))) {
         return res;
     }
 
+    /* res is RNP_SUCCESS here */
     if (!list_append(&op->rnpctx.signers, keyid, strlen(keyid) + 1)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        res = RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    return RNP_SUCCESS;
+    free(keyid);
+    return res;
 }
 
 rnp_result_t
@@ -1475,6 +1475,7 @@ rnp_result_t
 rnp_op_sign_destroy(rnp_op_sign_t op)
 {
     if (op) {
+        rnp_ctx_free(&op->rnpctx);
         free(op);
     }
     return RNP_SUCCESS;
@@ -1527,6 +1528,8 @@ rnp_verify_src_provider(pgp_parse_handler_t *handler, pgp_source_t *src)
     /* this one is called only when input for detached signature is needed */
     rnp_op_verify_t op = handler->param;
     *src = op->detached_input->src;
+    /* we should give ownership on src to caller */
+    memset(&op->detached_input->src, 0, sizeof(op->detached_input->src));
     return true;
 };
 
