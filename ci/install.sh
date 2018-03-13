@@ -137,7 +137,8 @@ build_gpg_stable() {
 }
 
 build_gpg_beta() {
-  mkdir gettext && pushd gettext
+  mkdir gettext
+  pushd gettext
   gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys D7E69871
   wget -c https://ftp.gnu.org/pub/gnu/gettext/gettext-latest.tar.xz
   wget -c https://ftp.gnu.org/pub/gnu/gettext/gettext-latest.tar.xz.sig
@@ -155,7 +156,7 @@ build_gpg_beta() {
     git clone git://git.gnupg.org/${repo}
     pushd ${repo}
     ./autogen.sh
-    ./configure --prefix="${GPG_INSTALL}"
+    ./configure --prefix="${GPG_INSTALL}" --disable-doc
     ${MAKE} -j${CORES} install
     popd
   done
