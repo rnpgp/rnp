@@ -63,6 +63,7 @@ typedef struct rnp_key_handle_st *         rnp_key_handle_t;
 typedef struct rnp_input_st *              rnp_input_t;
 typedef struct rnp_output_st *             rnp_output_t;
 typedef struct rnp_op_sign_st *            rnp_op_sign_t;
+typedef struct rnp_op_sign_signature_st *  rnp_op_sign_signature_t;
 typedef struct rnp_op_verify_st *          rnp_op_verify_t;
 typedef struct rnp_op_verify_signature_st *rnp_op_verify_signature_t;
 typedef struct rnp_op_encrypt_st *         rnp_op_encrypt_t;
@@ -326,14 +327,41 @@ rnp_result_t rnp_op_sign_detached_create(rnp_op_sign_t *op,
                                          rnp_input_t    input,
                                          rnp_output_t   signature);
 
-/** @brief Add private key so it will be used to sign data. Multiple signers could be added.
- *
+/** @brief Add information about the signature so it could be calculated later in execute 
+ *         function call. Multiple signatures could be added.
  *  @param op opaque signing context. Must be successfully initialized with one of the
  *         rnp_op_sign_*_create functions.
- *  @param key private key handle
+ *  @param key handle of the private key. Private key should be capable for signing.
+ *  @param sig pointer to opaque structure holding the signature information. May be NULL.
  *  @return RNP_SUCCESS or error code if failed
  */
-rnp_result_t rnp_op_sign_add_signer(rnp_op_sign_t op, rnp_key_handle_t key);
+rnp_result_t rnp_op_sign_add_signature(rnp_op_sign_t            op,
+                                       rnp_key_handle_t         key,
+                                       rnp_op_sign_signature_t *sig);
+
+/** @brief Set hash algorithm used during signature calculation. Not implemented yet.
+ *  @param sig opaque signature context, returned via rnp_op_sign_add_signature
+ *  @param hash hash algorithm to be used
+ *  @return RNP_SUCCESS or error code if failed
+ */
+rnp_result_t rnp_op_sign_signature_set_hash(rnp_op_sign_signature_t sig, const char *hash);
+
+/** @brief Set signature creation time. Not implemented yet.
+ *  @param sig opaque signature context, returned via rnp_op_sign_add_signature
+ *  @param create creation time in seconds since Jan, 1 1970 UTC
+ *  @return RNP_SUCCESS or error code if failed
+ */
+rnp_result_t rnp_op_sign_signature_set_creation_time(rnp_op_sign_signature_t sig,
+                                                     uint32_t                create);
+
+/** @brief Set signature expiration time. Not implemented yet.
+ *  @param sig opaque signature context, returned via rnp_op_sign_add_signature
+ *  @param expire expiration time in seconds since the creation time. 0 value is used to mark
+ *         signature as non-expiring (default value)
+ *  @return RNP_SUCCESS or error code if failed
+ */
+rnp_result_t rnp_op_sign_signature_set_expiration_time(rnp_op_sign_signature_t sig,
+                                                       uint32_t                expires);
 
 /** @brief Set data compression parameters. Makes sense only for embedded signatures.
  *  @param op opaque signing context. Must be initialized with rnp_op_sign_create function
@@ -351,7 +379,9 @@ rnp_result_t rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compressi
  */
 rnp_result_t rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored);
 
-/** @brief Set hash algorithm used during signature calculation
+/** @brief Set hash algorithm used during signature calculation. This will set hash function
+ *         for all signature. To change it for a single signature use 
+ *         rnp_op_sign_signature_set_hash function.
  *  @param op opaque signing context. Must be successfully initialized with one of the
  *         rnp_op_sign_*_create functions.
  *  @param hash hash algorithm to be used

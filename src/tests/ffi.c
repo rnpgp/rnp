@@ -1080,7 +1080,7 @@ test_ffi_signatures(void **state)
     // set signature key
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
-    assert_rnp_success(rnp_op_sign_add_signer(op, key));
+    assert_rnp_success(rnp_op_sign_add_signature(op, key, NULL));
     assert_rnp_success(rnp_key_handle_free(&key));
 
     // execute the operation
@@ -1191,7 +1191,7 @@ test_ffi_signatures_detached(void **state)
     // set signature key
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
-    assert_rnp_success(rnp_op_sign_add_signer(op, key));
+    assert_rnp_success(rnp_op_sign_add_signature(op, key, NULL));
     assert_rnp_success(rnp_key_handle_free(&key));
 
     // execute the operation
