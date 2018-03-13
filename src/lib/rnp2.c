@@ -106,11 +106,11 @@ struct rnp_op_sign_st {
 };
 
 struct rnp_op_verify_signature_st {
-    uint8_t      keyid[PGP_KEY_ID_SIZE];
-    char         hash_fn[16];
-    uint32_t     sig_create;
-    uint32_t     sig_expires;
-    rnp_result_t verify_status;
+    uint8_t        keyid[PGP_KEY_ID_SIZE];
+    pgp_hash_alg_t halg;
+    uint32_t       sig_create;
+    uint32_t       sig_expires;
+    rnp_result_t   verify_status;
 };
 
 struct rnp_op_verify_st {
@@ -122,7 +122,7 @@ struct rnp_op_verify_st {
     /* these fields are filled after operation execution */
     struct rnp_op_verify_signature_st *signatures;
     size_t                             signature_count;
-    char                               filename[128];
+    char *                             filename;
     uint32_t                           file_mtime;
 };
 
@@ -1384,7 +1384,7 @@ rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compression, int level
 }
 
 rnp_result_t
-rnp_op_sign_set_hash_fn(rnp_op_sign_t op, const char *hash)
+rnp_op_sign_set_hash(rnp_op_sign_t op, const char *hash)
 {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
@@ -1502,12 +1502,7 @@ rnp_op_verify_on_signatures(pgp_parse_handler_t * handler,
         res.sig_create = signature_get_creation(sigs[i].sig);
         res.sig_expires = signature_get_expiration(sigs[i].sig);
         signature_get_keyid(sigs[i].sig, res.keyid);
-
-        const char *hash_name = pgp_show_hash_alg(sigs[i].sig->halg);
-
-        if (hash_name) {
-            strcpy(res.hash_fn, hash_name);
-        }
+        res.halg = sigs[i].sig->halg;
 
         if (sigs[i].unknown) {
             res.verify_status = RNP_ERROR_KEY_NOT_FOUND;
@@ -1542,6 +1537,7 @@ rnp_verify_dest_provider(pgp_parse_handler_t *handler,
     rnp_op_verify_t op = handler->param;
     *dst = &(op->output->dst);
     *closedst = false;
+    op->filename = rnp_strdup(filename);
 
     return true;
 }
@@ -1671,6 +1667,7 @@ rnp_op_verify_destroy(rnp_op_verify_t op)
     if (op) {
         rnp_ctx_free(&op->rnpctx);
         free(op->signatures);
+        free(op->filename);
         free(op);
     }
 
@@ -1688,22 +1685,20 @@ rnp_op_verify_signature_get_status(rnp_op_verify_signature_t sig)
 }
 
 rnp_result_t
-rnp_op_verify_signature_get_hash_fn(rnp_op_verify_signature_t sig,
-                                    char *                    hash_fn_buf,
-                                    size_t *                  hash_fn_buf_sz)
+rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t sig, char **hash)
 {
-    if (!sig || !hash_fn_buf_sz || !hash_fn_buf) {
+    if (!sig || !hash) {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    size_t avail = *hash_fn_buf_sz;
-    *hash_fn_buf_sz = strlen(sig->hash_fn);
-
-    if (avail > *hash_fn_buf_sz) {
-        strncpy(hash_fn_buf, sig->hash_fn, avail);
+    const char *hname = NULL;
+    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, sig->halg, hname);
+    if (hname) {
+        *hash = rnp_strdup(hname);
+        return RNP_SUCCESS;
     }
 
-    return RNP_SUCCESS;
+    return RNP_ERROR_BAD_STATE;
 }
 
 rnp_result_t
