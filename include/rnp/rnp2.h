@@ -286,61 +286,232 @@ rnp_result_t rnp_key_have_public(rnp_key_handle_t key, bool *result);
 
 /* TODO define functions for password-based encryption */
 
+/** @brief Create signing operation context. This method should be used for embedded
+ *         signatures of binary data. For detached and cleartext signing corresponding
+ *         function should be used.
+ *  @param op pointer to opaque signing context
+ *  @param ffi
+ *  @param input stream with data to be signed. Could not be NULL.
+ *  @param output stream to write results to. Could not be NULL.
+ *  @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_sign_create(rnp_op_sign_t *op,
                                 rnp_ffi_t      ffi,
                                 rnp_input_t    input,
                                 rnp_output_t   output);
 
+/** @brief Create cleartext signing operation context. Input should be text data. Output will
+ *         contain source data with additional headers and armored signature.
+ *  @param op pointer to opaque signing context
+ *  @param ffi
+ *  @param input stream with data to be signed. Could not be NULL.
+ *  @param output stream to write results to. Could not be NULL.
+ *  @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_sign_cleartext_create(rnp_op_sign_t *op,
                                           rnp_ffi_t      ffi,
                                           rnp_input_t    input,
                                           rnp_output_t   output);
 
+/** @brief Create detached signing operation context. Output will contain only signature of the
+ *         source data.
+ *  @param op pointer to opaque signing context
+ *  @param ffi
+ *  @param input stream with data to be signed. Could not be NULL.
+ *  @param output stream to write results to. Could not be NULL.
+ *  @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_sign_detached_create(rnp_op_sign_t *op,
                                          rnp_ffi_t      ffi,
                                          rnp_input_t    input,
                                          rnp_output_t   signature);
 
+/** @brief Add private key so it will be used to sign data. Multiple signers could be added.
+ *
+ *  @param op opaque signing context. Must be successfully initialized with one of the
+ *         rnp_op_sign_*_create functions.
+ *  @param key private key handle
+ *  @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_sign_add_signer(rnp_op_sign_t op, rnp_key_handle_t key);
+
+/** @brief Set data compression parameters. Makes sense only for embedded signatures.
+ *  @param op opaque signing context. Must be initialized with rnp_op_sign_create function
+ *  @param compression compression algorithm (zlib, zip, bzip2)
+ *  @param level compression level, 0-9. 0 disables compression.
+ *  @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compression, int level);
+
+/** @brief Enabled or disable armored (textual) output. Doesn't make sense for cleartext sign.
+ *  @param op opaque signing context. Must be initialized with rnp_op_sign_create or
+ *         rnp_op_sign_detached_create function.
+ *  @param armored true if armoring should be used (it is disabled by default)
+ *  @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored);
+
+/** @brief Set hash algorithm used during signature calculation
+ *  @param op opaque signing context. Must be successfully initialized with one of the
+ *         rnp_op_sign_*_create functions.
+ *  @param hash hash algorithm to be used
+ *  @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_sign_set_hash(rnp_op_sign_t op, const char *hash);
-/* creation time is in seconds since Jan 1 1970 UTC */
+
+/** @brief Set signature creation time. By default current time is used.
+ *  @param op opaque signing context. Must be successfully initialized with one of the
+ *         rnp_op_sign_*_create functions.
+ *  @param create creation time in seconds since Jan, 1 1970 UTC
+ *  @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_sign_set_creation_time(rnp_op_sign_t op, uint32_t create);
-/* expiration time is in seconds since the creation time */
+
+/** @brief Set signature expiration time.
+ *  @param op opaque signing context. Must be successfully initialized with one of the
+ *         rnp_op_sign_*_create functions.
+ *  @param expire expiration time in seconds since the creation time. 0 value is used to mark
+ *         signature as non-expiring (default value)
+ *  @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_sign_set_expiration_time(rnp_op_sign_t op, uint32_t expire);
 
+/** @brief Set input's file name. Makes sense only for embedded signature.
+ *  @param op opaque signing context. Must be initialized with rnp_op_sign_create function
+ *  @param filename source data file name. Special value _CONSOLE may be used to mark message
+ *         as 'for your eyes only', i.e. it should not be stored anywhere but only displayed
+ *         to the receiver. Default is the empty string.
+ *  @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_sign_set_file_name(rnp_op_sign_t op, const char *filename);
+
+/** @brief Set input's file modification date. Makes sense only for embedded signature.
+ *  @param op opaque signing context. Must be initialized with rnp_op_sign_create function
+ *  @param mtime modification time in seconds since Jan, 1 1970 UTC.
+ *  @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_sign_set_file_mtime(rnp_op_sign_t op, uint32_t mtime);
 
+/** @brief Execute previously initialized signing operation.
+ *  @param op opaque signing context. Must be successfully initialized with one of the
+ *         rnp_op_sign_*_create functions. At least one signing key should be added.
+ *  @return RNP_SUCCESS or error code if failed. On success output stream, passed in the create
+ *          function call, will be populated with signed data
+ */
 rnp_result_t rnp_op_sign_execute(rnp_op_sign_t op);
+
+/** @brief Free resources associated with signing operation.
+ *  @param op opaque signing context. Must be successfully initialized with one of the
+ *         rnp_op_sign_*_create functions. At least one signing key should be added.
+ *  @return RNP_SUCCESS or error code if failed.
+ */
 rnp_result_t rnp_op_sign_destroy(rnp_op_sign_t op);
 
 /* Verification */
 
+/** @brief Create verification operation context. This method should be used for embedded
+ *         signatures or cleartext signed data. For detached verification corresponding
+ *         function should be used.
+ *  @param op pointer to opaque verification context
+ *  @param ffi
+ *  @param input stream with signed data. Could not be NULL.
+ *  @param output stream to write results to. Could not be NULL, but may be null output stream
+ *         if verified data should be discarded.
+ *  @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_verify_create(rnp_op_verify_t *op,
                                   rnp_ffi_t        ffi,
                                   rnp_input_t      input,
                                   rnp_output_t     output);
+
+/** @brief Create verification operation context for detached signature.
+ *  @param op pointer to opaque verification context
+ *  @param ffi
+ *  @param input stream with raw data. Could not be NULL.
+ *  @param signature stream with detached signature data
+ *  @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_verify_detached_create(rnp_op_verify_t *op,
                                            rnp_ffi_t        ffi,
                                            rnp_input_t      input,
                                            rnp_input_t      signature);
+
+/** @brief Execute previously initialized verification operation.
+ *  @param op opaque verification context. Must be successfully initialized.
+ *  @return RNP_SUCCESS if data was processed successfully and all signatures are valid.
+ *          Otherwise error code is returned. After rnp_op_verify_execute()
+ *          rnp_op_verify_get_* functions may be used to query information about the
+ *          signature(s).
+ */
 rnp_result_t rnp_op_verify_execute(rnp_op_verify_t op);
+
+/** @brief Get number of the signatures for verified data.
+ *  @param op opaque verification context. Must be initialized and have execute() called on it.
+ *  @param count result will be stored here on success.
+ *  @return RNP_SUCCESS if call succeeded.
+ */
 rnp_result_t rnp_op_verify_get_signature_count(rnp_op_verify_t op, size_t *count);
+
+/** @brief Get single signature information based on it's index.
+ *  @param op opaque verification context. Must be initialized and have execute() called on it.
+ *  @param sig opaque signature context data will be stored here on success.
+ *  @return RNP_SUCCESS if call succeeded.
+ */
 rnp_result_t rnp_op_verify_get_signature_at(rnp_op_verify_t            op,
                                             size_t                     idx,
                                             rnp_op_verify_signature_t *sig);
-rnp_result_t rnp_op_verify_get_file_info(rnp_op_verify_t op,
-                                         char *          filename_buf,
-                                         size_t *        filename_buf_sz,
-                                         uint32_t *      file_mtime);
+
+/** @brief Get embedded in OpenPGP data file name and modification time. Makes sense only for
+ *         embedded signature verification.
+ *  @param op opaque verification context. Must be initialized and have execute() called on it.
+ *  @param filename pointer to the filename. On success caller is responsible for freeing it
+ *                  via the rnp_buffer_free function call. May be NULL if this information is
+ *                  not needed.
+ *  @param mtime file modification time will be stored here on success. May be NULL.
+ *  @return RNP_SUCCESS if call succeeded.
+ */
+rnp_result_t rnp_op_verify_get_file_info(rnp_op_verify_t op, char **filename, uint32_t *mtime);
+
+/** @brief Free resources allocated in verification context.
+ *  @param op opaque verification context. Must be initialized.
+ *  @return RNP_SUCCESS if call succeeded.
+ */
 rnp_result_t rnp_op_verify_destroy(rnp_op_verify_t op);
 
+/** @brief Get signature verification status.
+ *  @param sig opaque signature context obtained via rnp_op_verify_get_signature_at call.
+ *  @return signature verification status:
+ *          RNP_SUCCESS : signature is valid
+ *          RNP_ERROR_SIGNATURE_EXPIRED : signature is valid but expired
+ *          RNP_ERROR_KEY_NOT_FOUND : public key to verify signature was not available
+ *          RNP_ERROR_SIGNATURE_INVALID : data or signature was modified
+ */
 rnp_result_t rnp_op_verify_signature_get_status(rnp_op_verify_signature_t sig);
+
+/** @brief Get hash function used to calculate signature
+ *  @param sig opaque signature context obtained via rnp_op_verify_get_signature_at call.
+ *  @param hash pointer to string with hash algorithm name will be put here on success.
+ *              Caller is responsible for freeing it with rnp_buffer_free
+ *  @return RNP_SUCCESS or error code otherwise
+ */
 rnp_result_t rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t sig, char **hash);
+
+/** @brief Get key used for signing
+ *  @param sig opaque signature context obtained via rnp_op_verify_get_signature_at call.
+ *  @param key pointer to opaque key handle structure.
+ *  @return RNP_SUCCESS or error code otherwise
+ */
 rnp_result_t rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig,
                                              rnp_key_handle_t *        key);
+
+/** @brief Get signature creation and expiration times
+ *  @param sig opaque signature context obtained via rnp_op_verify_get_signature_at call.
+ *  @param create signature creation time will be put here. It is number of seconds since
+ *                Jan, 1 1970 UTC. May be NULL if called doesn't need this data.
+ *  @param expires signature expiration time will be stored here. It is number of seconds since
+ *                 the creation time or 0 if signature never expires. May be NULL.
+ *  @return RNP_SUCCESS or error code otherwise
+ */
 rnp_result_t rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,
                                                uint32_t *                create,
                                                uint32_t *                expires);

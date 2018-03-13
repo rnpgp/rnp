@@ -1638,24 +1638,14 @@ rnp_op_verify_get_signature_at(rnp_op_verify_t op, size_t idx, rnp_op_verify_sig
 }
 
 rnp_result_t
-rnp_op_verify_get_file_info(rnp_op_verify_t op,
-                            char *          filename_buf,
-                            size_t *        filename_buf_sz,
-                            uint32_t *      file_mtime)
+rnp_op_verify_get_file_info(rnp_op_verify_t op, char **filename, uint32_t *mtime)
 {
-    if (file_mtime) {
-        *file_mtime = op->file_mtime;
+    if (mtime) {
+        *mtime = op->file_mtime;
     }
 
-    if (filename_buf_sz) {
-        size_t filename_len = strlen(op->filename);
-        size_t avail = *filename_buf_sz;
-
-        *filename_buf_sz = filename_len;
-
-        if (filename_buf && filename_len < avail) {
-            strcpy(filename_buf, op->filename);
-        }
+    if (filename && op->filename) {
+        *filename = rnp_strdup(op->filename);
     }
 
     return RNP_SUCCESS;
