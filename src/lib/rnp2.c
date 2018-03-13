@@ -103,6 +103,14 @@ struct rnp_op_sign_st {
     rnp_input_t  input;
     rnp_output_t output;
     rnp_ctx_t    rnpctx;
+    list         signatures;
+};
+
+struct rnp_op_sign_signature_st {
+    char *           keyid;
+    pgp_hash_alg_t   halg;
+    uint32_t         create;
+    uint32_t         expires;
 };
 
 struct rnp_op_verify_signature_st {
@@ -1339,26 +1347,48 @@ rnp_op_sign_detached_create(rnp_op_sign_t *op,
 }
 
 rnp_result_t
-rnp_op_sign_add_signer(rnp_op_sign_t op, rnp_key_handle_t key)
+rnp_op_sign_add_signature(rnp_op_sign_t op, rnp_key_handle_t key, rnp_op_sign_signature_t *sig)
 {
-    rnp_result_t res;
-    char *       keyid = NULL;
+    rnp_op_sign_signature_t newsig = NULL;
 
     if (!op || !key) {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    if ((res = rnp_key_get_keyid(key, &keyid))) {
+    newsig = (rnp_op_sign_signature_t) list_append(&op->signatures, NULL, sizeof(*newsig));
+
+    if (!newsig) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    rnp_result_t res = rnp_key_get_keyid(key, &newsig->keyid);
+    if (res) {
         return res;
     }
 
-    /* res is RNP_SUCCESS here */
-    if (!list_append(&op->rnpctx.signers, keyid, strlen(keyid) + 1)) {
-        res = RNP_ERROR_OUT_OF_MEMORY;
+    if (sig) {
+        *sig = newsig;
     }
 
-    free(keyid);
-    return res;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_sign_signature_set_hash(rnp_op_sign_signature_t sig, const char *hash)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_op_sign_signature_set_creation_time(rnp_op_sign_signature_t sig, uint32_t create)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_op_sign_signature_set_expiration_time(rnp_op_sign_signature_t sig, uint32_t expires)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
 }
 
 rnp_result_t
@@ -1463,6 +1493,15 @@ rnp_op_sign_execute(rnp_op_sign_t op)
       .key_provider =
         &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = op->ffi},
     };
+
+    for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
+        char *keyid = ((rnp_op_sign_signature_t)sig)->keyid;
+
+        if (!list_append(&op->rnpctx.signers, keyid, strlen(keyid) + 1)) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+
     rnp_result_t ret = rnp_sign_src(&handler, &op->input->src, &op->output->dst);
 
     op->output->keep = ret == RNP_SUCCESS;
@@ -1471,11 +1510,21 @@ rnp_op_sign_execute(rnp_op_sign_t op)
     return ret;
 }
 
+static void
+rnp_op_sign_signature_destroy(rnp_op_sign_signature_t sig)
+{
+    rnp_buffer_free(sig->keyid);
+}
+
 rnp_result_t
 rnp_op_sign_destroy(rnp_op_sign_t op)
 {
     if (op) {
         rnp_ctx_free(&op->rnpctx);
+        for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
+            rnp_op_sign_signature_destroy((rnp_op_sign_signature_t)sig);
+        }
+        list_destroy(&op->signatures);
         free(op);
     }
     return RNP_SUCCESS;
