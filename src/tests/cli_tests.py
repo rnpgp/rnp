@@ -1293,37 +1293,40 @@ class EncryptElgamal(Encrypt):
 
     RNP_GENERATE_DSA_ELGAMAL_PATTERN = "16\n{0}\n"
 
-    @unittest.skip("API is changed. Provided in fix for #613")
-    def test_encrypt_P1024_1024(self):
+    @staticmethod
+    def key_pfx(sign_key_size, enc_key_size):
+        return "GnuPG_dsa_elgamal_%d_%d" % (sign_key_size, enc_key_size)
+
+    def do_test_encrypt(self, sign_key_size, enc_key_size):
+        pfx = EncryptElgamal.key_pfx(sign_key_size, enc_key_size)
+        self.operation_key_location = tuple((key_path(pfx,False), key_path(pfx,True)))
+        self.rnp.userid = self.gpg.userid = pfx+"@example.com"
+        self._encrypt_decrypt(self.gpg, self.rnp)
+
+    def do_test_decrypt(self, sign_key_size, enc_key_size):
+        pfx = EncryptElgamal.key_pfx(sign_key_size, enc_key_size)
+        self.operation_key_location = tuple((key_path(pfx,False), key_path(pfx,True)))
+        self.rnp.userid = self.gpg.userid = pfx+"@example.com"
+        self._encrypt_decrypt(self.rnp, self.gpg)
+
+    def test_encrypt_P1024_1024(self): self.do_test_encrypt(1024, 1024)
+    def test_encrypt_P1024_2048(self): self.do_test_encrypt(1024, 2048)
+    def test_encrypt_P2048_2048(self): self.do_test_encrypt(2048, 2048)
+    def test_encrypt_P3072_3072(self): self.do_test_encrypt(3072, 3072)
+    def test_decrypt_P1024_1024(self): self.do_test_decrypt(1024, 1024)
+    def test_decrypt_P2048_2048(self): self.do_test_decrypt(2048, 2048)
+    def test_decrypt_P1234_1234(self): self.do_test_decrypt(1234, 1234)
+
+    def test_generate_elgamal_key1024_in_gpg_and_encrypt(self):
         cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(1024, 1024, self.gpg.userid)
-        self._encrypt_decrypt(self.gpg, self.rnp, cmd)
+        self.operation_key_gencmd = cmd
+        self._encrypt_decrypt(self.gpg, self.rnp)
 
-    @unittest.skip("API is changed. Provided in fix for #613")
-    def test_encrypt_P1024_2048(self):
-        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(1024, 2048, self.gpg.userid)
-        self._encrypt_decrypt(self.gpg, self.rnp, cmd)
-
-    @unittest.skip("API is changed. Provided in fix for #613")
-    def test_encrypt_P2048_2048(self):
-        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(2048, 2048, self.gpg.userid)
-        self._encrypt_decrypt(self.gpg, self.rnp, cmd)
-
-    @unittest.skip("API is changed. Provided in fix for #613")
-    def test_encrypt_P3072_3072(self):
-        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(3072, 3072, self.gpg.userid)
-        self._encrypt_decrypt(self.gpg, self.rnp, cmd)
-
-    def test_decrypt_P1024(self):
+    def test_generate_elgamal_key1024_in_rnp_and_decrypt(self):
         cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(1024)
-        self._encrypt_decrypt(self.rnp, self.gpg, cmd)
+        self.operation_key_gencmd = cmd
+        self._encrypt_decrypt(self.rnp, self.gpg)
 
-    def test_decrypt_P2048(self):
-        cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(2048)
-        self._encrypt_decrypt(self.rnp, self.gpg, cmd)
-
-    def test_decrypt_P1234(self):
-        cmd = EncryptElgamal.RNP_GENERATE_DSA_ELGAMAL_PATTERN.format(1234)
-        self._encrypt_decrypt(self.rnp, self.gpg, cmd)
 
 class EncryptEcdh(Encrypt):
 
