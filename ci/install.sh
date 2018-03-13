@@ -137,13 +137,22 @@ build_gpg_stable() {
 }
 
 build_gpg_beta() {
+  local GETTEXT_VERSION=$1
+  local NPTH_VERSION=$2
+  local LIBGPG_ERROR_VERSION=$3
+  local LIBGCRYPT_VERSION=$4
+  local LIBASSUAN_VERSION=$5
+  local LIBKSBA_VERSION=$6
+  local PINENTRY_VERSION=$7
+  local GNUPG_VERSION=$8
+
   mkdir gettext
   pushd gettext
   gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys D7E69871
-  wget -c https://ftp.gnu.org/pub/gnu/gettext/gettext-latest.tar.xz
-  wget -c https://ftp.gnu.org/pub/gnu/gettext/gettext-latest.tar.xz.sig
-  gpg --verify gettext-latest.tar.xz.sig
-  tar -xJf gettext-latest.tar.xz --strip 1
+  wget -c "https://ftp.gnu.org/pub/gnu/gettext/gettext-${GETTEXT_VERSION}.tar.xz"
+  wget -c "https://ftp.gnu.org/pub/gnu/gettext/gettext-${GETTEXT_VERSION}.tar.xz.sig"
+  gpg --verify "gettext-${GETTEXT_VERSION}.tar.xz.sig"
+  tar -xJf "gettext-${GETTEXT_VERSION}.tar.xz" --strip 1
   ./configure --prefix="${GPG_INSTALL}"
   ${MAKE} -j${CORES} install
   popd
@@ -152,26 +161,50 @@ build_gpg_beta() {
   # workaround https://github.com/travis-ci/travis-ci/issues/8613
   # alternatively, forcing the libgpg-error build to use gcc should work
   export LD_LIBRARY_PATH="/usr/local/clang-5.0.0/lib"
-  for repo in npth libgpg-error; do
-    git clone git://git.gnupg.org/${repo}
-    pushd ${repo}
-    ./autogen.sh
-    ./configure --prefix="${GPG_INSTALL}" --disable-doc
-    ${MAKE} -j${CORES} install
-    popd
-  done
 
-  for repo in libgcrypt libassuan libksba; do
-    git clone git://git.gnupg.org/${repo}
-    pushd ${repo}
-    ./autogen.sh
-    ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
-    ${MAKE} -j${CORES} install
-    popd
-  done
+  git clone git://git.gnupg.org/npth
+  pushd npth
+  git checkout "$NPTH_VERSION"
+  ./autogen.sh
+  ./configure --prefix="${GPG_INSTALL}" --disable-doc
+  ${MAKE} -j${CORES} install
+  popd
+
+  git clone git://git.gnupg.org/libgpg-error
+  pushd libgpg-error
+  git checkout "$LIBGPG_ERROR_VERSION"
+  ./autogen.sh
+  ./configure --prefix="${GPG_INSTALL}" --disable-doc
+  ${MAKE} -j${CORES} install
+  popd
+
+  git clone git://git.gnupg.org/libgcrypt
+  pushd libgcrypt
+  git checkout "$LIBGCRYPT_VERSION"
+  ./autogen.sh
+  ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
+  ${MAKE} -j${CORES} install
+  popd
+
+  git clone git://git.gnupg.org/libassuan
+  pushd libassuan
+  git checkout "$LIBASSUAN_VERSION"
+  ./autogen.sh
+  ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
+  ${MAKE} -j${CORES} install
+  popd
+
+  git clone git://git.gnupg.org/libksba
+  pushd libksba
+  git checkout "$LIBKSBA_VERSION"
+  ./autogen.sh
+  ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
+  ${MAKE} -j${CORES} install
+  popd
 
   git clone git://git.gnupg.org/pinentry.git
   pushd pinentry
+  git checkout "$PINENTRY_VERSION"
   cat << 'END' | git apply -
 diff --git a/Makefile.am b/Makefile.am
 index 8c8b8e5..412244c 100644
@@ -204,6 +237,7 @@ END
 
   git clone git://git.gnupg.org/gnupg.git
   pushd gnupg
+  git checkout "$GNUPG_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" \
     --with-libgpg-error-prefix="${GPG_INSTALL}" \
@@ -230,7 +264,8 @@ if [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
     #                npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
     build_gpg_stable 1.5  1.27         1.8.2     2.5.1     1.3.5   1.1.0    2.2.4
   elif [ "$GPG_VERSION" = "beta" ]; then
-    build_gpg_beta
+    #              gettext npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
+    build_gpg_beta latest master master master master master master master
   else
     echo "\$GPG_VERSION is set to invalid value: $GPG_VERSION"
     exit 1
