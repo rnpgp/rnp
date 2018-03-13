@@ -304,7 +304,7 @@ rnp_result_t rnp_op_sign_detached_create(rnp_op_sign_t *op,
 rnp_result_t rnp_op_sign_add_signer(rnp_op_sign_t op, rnp_key_handle_t key);
 rnp_result_t rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compression, int level);
 rnp_result_t rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored);
-rnp_result_t rnp_op_sign_set_hash_fn(rnp_op_sign_t op, const char *hash);
+rnp_result_t rnp_op_sign_set_hash(rnp_op_sign_t op, const char *hash);
 /* creation time is in seconds since Jan 1 1970 UTC */
 rnp_result_t rnp_op_sign_set_creation_time(rnp_op_sign_t op, uint32_t create);
 /* expiration time is in seconds since the creation time */
@@ -338,9 +338,7 @@ rnp_result_t rnp_op_verify_get_file_info(rnp_op_verify_t op,
 rnp_result_t rnp_op_verify_destroy(rnp_op_verify_t op);
 
 rnp_result_t rnp_op_verify_signature_get_status(rnp_op_verify_signature_t sig);
-rnp_result_t rnp_op_verify_signature_get_hash_fn(rnp_op_verify_signature_t sig,
-                                                 char *                    hash_fn_buf,
-                                                 size_t *                  hash_fn_buf_sz);
+rnp_result_t rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t sig, char **hash);
 rnp_result_t rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig,
                                              rnp_key_handle_t *        key);
 rnp_result_t rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,

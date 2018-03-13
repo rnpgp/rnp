@@ -1070,7 +1070,7 @@ test_ffi_signatures(void **state)
     const uint32_t expires = 1000000000; // expires later
 
     assert_rnp_success(rnp_op_sign_set_armor(op, true));
-    assert_rnp_success(rnp_op_sign_set_hash_fn(op, "SHA256"));
+    assert_rnp_success(rnp_op_sign_set_hash(op, "SHA256"));
     assert_rnp_success(rnp_op_sign_set_creation_time(op, issued));
     assert_rnp_success(rnp_op_sign_set_expiration_time(op, expires));
 
@@ -1103,8 +1103,7 @@ test_ffi_signatures(void **state)
     size_t                    sig_count;
     uint32_t                  sig_create;
     uint32_t                  sig_expires;
-    char                      hname[32];
-    size_t                    hlen = sizeof(hname);
+    char *                    hname = NULL;
 
     assert_rnp_success(rnp_input_from_file(&input, "signed"));
     assert_non_null(input);
@@ -1120,8 +1119,9 @@ test_ffi_signatures(void **state)
     assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
     assert_int_equal(sig_create, issued);
     assert_int_equal(sig_expires, expires);
-    assert_rnp_success(rnp_op_verify_signature_get_hash_fn(sig, hname, &hlen));
+    assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
     assert_string_equal(hname, "SHA256");
+    rnp_buffer_free(hname);
 
     rnp_op_verify_destroy(verify);
 
@@ -1181,7 +1181,7 @@ test_ffi_signatures_detached(void **state)
     uint32_t expires = 1000000000; // later
 
     assert_rnp_success(rnp_op_sign_set_armor(op, true));
-    assert_rnp_success(rnp_op_sign_set_hash_fn(op, "SHA256"));
+    assert_rnp_success(rnp_op_sign_set_hash(op, "SHA256"));
     assert_rnp_success(rnp_op_sign_set_creation_time(op, issued));
     assert_rnp_success(rnp_op_sign_set_expiration_time(op, expires));
 
@@ -1214,8 +1214,7 @@ test_ffi_signatures_detached(void **state)
     size_t                    sig_count;
     uint32_t                  sig_create;
     uint32_t                  sig_expires;
-    char                      hname[32];
-    size_t                    hlen = sizeof(hname);
+    char *                    hname = NULL;
 
     assert_rnp_success(rnp_input_from_file(&input, "plaintext"));
     assert_non_null(input);
@@ -1231,8 +1230,9 @@ test_ffi_signatures_detached(void **state)
     assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
     assert_int_equal(sig_create, issued);
     assert_int_equal(sig_expires, expires);
-    assert_rnp_success(rnp_op_verify_signature_get_hash_fn(sig, hname, &hlen));
+    assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
     assert_string_equal(hname, "SHA256");
+    rnp_buffer_free(hname);
 
     rnp_op_verify_destroy(verify);
 
