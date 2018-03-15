@@ -1021,17 +1021,6 @@ output_closer_bounce(pgp_dest_t *dst, bool discard)
     }
 }
 
-static rnp_result_t
-output_writer_null(pgp_dest_t *dst, const void *buf, size_t len)
-{
-    return RNP_SUCCESS;
-}
-
-static void
-output_closer_null(pgp_dest_t *dst, bool discard)
-{
-}
-
 rnp_result_t
 rnp_output_to_null(rnp_output_t *output)
 {
@@ -1045,12 +1034,12 @@ rnp_output_to_null(rnp_output_t *output)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    pgp_dest_t *dst = &(*output)->dst;
-    dst->write = output_writer_null;
-    dst->close = output_closer_null;
-    dst->type = PGP_STREAM_MEMORY;
-    dst->writeb = 0;
-    dst->werr = RNP_SUCCESS;
+    rnp_result_t ret = init_null_dest(&(*output)->dst);
+    if (ret) {
+        free(*output);
+        *output = NULL;
+        return ret;
+    }
     return RNP_SUCCESS;
 }
 
