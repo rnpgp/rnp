@@ -327,7 +327,7 @@ rnp_result_t rnp_op_sign_detached_create(rnp_op_sign_t *op,
                                          rnp_input_t    input,
                                          rnp_output_t   signature);
 
-/** @brief Add information about the signature so it could be calculated later in execute 
+/** @brief Add information about the signature so it could be calculated later in execute
  *         function call. Multiple signatures could be added.
  *  @param op opaque signing context. Must be successfully initialized with one of the
  *         rnp_op_sign_*_create functions.
@@ -380,7 +380,7 @@ rnp_result_t rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compressi
 rnp_result_t rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored);
 
 /** @brief Set hash algorithm used during signature calculation. This will set hash function
- *         for all signature. To change it for a single signature use 
+ *         for all signature. To change it for a single signature use
  *         rnp_op_sign_signature_set_hash function.
  *  @param op opaque signing context. Must be successfully initialized with one of the
  *         rnp_op_sign_*_create functions.
@@ -548,29 +548,129 @@ rnp_result_t rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,
 
 /* TODO define functions for encrypt+sign */
 
+/**
+ * @brief Allocate and fill with zeroes buffer of the required size.
+ *
+ * @param size number of bytes to allocate.
+ * @return pointer to the buffer or NULL if allocation failed.
+ */
 void *rnp_buffer_new(size_t size);
 
 /**
- * Free a buffer or string previously allocated by a function in this header.
+ * @brief Free buffer allocated with rnp_buffer_new or any other function in this header.
+ *
+ * @param ptr previously allocated buffer. May be NULL, then nothing is done.
  */
 void rnp_buffer_free(void *ptr);
 
+/**
+ * @brief Initialize input struct to read from file
+ *
+ * @param input pointer to the input opaque structure
+ * @param path path of the file to read from
+ * @return RNP_SUCCESS if operation succeeded and input struct is ready to read, or error code
+ * otherwise
+ */
 rnp_result_t rnp_input_from_file(rnp_input_t *input, const char *path);
-rnp_result_t rnp_input_from_memory(rnp_input_t *input, const uint8_t buf[], size_t buf_len);
+
+/**
+ * @brief Initialize input struct to read from memory
+ *
+ * @param input pointer to the input opaque structure
+ * @param buf memory buffer. Could not be NULL.
+ * @param buf_len number of bytes available to read from buf
+ * @param take_ownership copy buffer internally so it could be safely freed
+ * @return RNP_SUCCESS if operation succeeded or error code otherwise
+ */
+rnp_result_t rnp_input_from_memory(rnp_input_t * input,
+                                   const uint8_t buf[],
+                                   size_t        buf_len,
+                                   bool          take_ownership);
+
+/**
+ * @brief Initialize input struct to read via callbacks
+ *
+ * @param input pointer to the input opaque structure
+ * @param reader callback used for reading
+ * @param closer callback used to close the stream
+ * @param app_ctx context to pass as parameter to reader and closer
+ * @return RNP_SUCCESS if operation succeeded or error code otherwise
+ */
 rnp_result_t rnp_input_from_callback(rnp_input_t *       input,
                                      rnp_input_reader_t *reader,
                                      rnp_input_closer_t *closer,
                                      void *              app_ctx);
+
+/**
+ * @brief Close previously opened input and free all corresponding resources
+ *
+ * @param input previously opened input structure
+ * @return RNP_SUCCESS if operation succeeded or error code otherwise
+ */
 rnp_result_t rnp_input_destroy(rnp_input_t input);
 
+/**
+ * @brief Initialize output structure to write to the new file. If file already exists then
+ * operation will fail.
+ *
+ * @param output pointer to the opaque output structure.
+ * @param path path to the file.
+ * @return RNP_SUCCESS if file was opened successfully and ready for writing or error code
+ * otherwise.
+ */
 rnp_result_t rnp_output_to_file(rnp_output_t *output, const char *path);
+
+/**
+ * @brief Initialize output structure to write to the memory.
+ *
+ * @param output pointer to the opaque output structure.
+ * @param max_alloc maximum amount of memory to allocate. 0 value means unlimited.
+ * @return RNP_SUCCESS if operation succeeded or error code otherwise.
+ */
+rnp_result_t rnp_output_to_memory(rnp_output_t *output, size_t max_alloc);
+
+/**
+ * @brief Get the pointer to the buffer of output, initialized by rnp_output_to_memory
+ *
+ * @param output output structure, initialized by rnp_output_to_memory and populated with data
+ * @param buf pointer to the buffer will be stored here, could not be NULL
+ * @param len number of bytes in buffer will be stored here, could not be NULL
+ * @param take_ownership take ownership on the data so it must be freed by caller
+ * @return RNP_SUCCESS if operation succeeded or error code otherwise.
+ */
+rnp_result_t rnp_output_memory_get_buf(rnp_output_t output,
+                                       uint8_t **   buf,
+                                       size_t *     len,
+                                       bool         take_ownership);
+
+/**
+ * @brief Initialize output structure to write to callbacks.
+ *
+ * @param output pointer to the opaque output structure.
+ * @param writer write callback.
+ * @param closer close callback.
+ * @param app_ctx context parameter which will be passed to writer and closer.
+ * @return RNP_SUCCESS if operation succeeded or error code otherwise.
+ */
 rnp_result_t rnp_output_to_callback(rnp_output_t *       output,
                                     rnp_output_writer_t *writer,
                                     rnp_output_closer_t *closer,
                                     void *               app_ctx);
 
+/**
+ * @brief Initialize output structure which will discard all data
+ *
+ * @param output pointer to the opaque output structure.
+ * @return RNP_SUCCESS if operation succeeded or error code otherwise.
+ */
 rnp_result_t rnp_output_to_null(rnp_output_t *output);
 
+/**
+ * @brief Close previously opened output and free all associated data.
+ *
+ * @param output previously opened output structure.
+ * @return RNP_SUCCESS if operation succeeds or error code otherwise.
+ */
 rnp_result_t rnp_output_destroy(rnp_output_t output);
 
 /* encrypt */
