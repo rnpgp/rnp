@@ -753,6 +753,11 @@ init_mem_dest(pgp_dest_t *dst, void *mem, unsigned len)
 void *
 mem_dest_get_memory(pgp_dest_t *dst)
 {
+    if (dst->type != PGP_STREAM_MEMORY) {
+        RNP_LOG("wrong function call");
+        return NULL;
+    }
+
     pgp_dest_mem_param_t *param = dst->param;
 
     if (param) {

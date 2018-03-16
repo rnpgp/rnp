@@ -107,10 +107,10 @@ struct rnp_op_sign_st {
 };
 
 struct rnp_op_sign_signature_st {
-    char *           keyid;
-    pgp_hash_alg_t   halg;
-    uint32_t         create;
-    uint32_t         expires;
+    char *         keyid;
+    pgp_hash_alg_t halg;
+    uint32_t       create;
+    uint32_t       expires;
 };
 
 struct rnp_op_verify_signature_st {
@@ -913,7 +913,10 @@ rnp_input_from_file(rnp_input_t *input, const char *path)
 }
 
 rnp_result_t
-rnp_input_from_memory(rnp_input_t *input, const uint8_t buf[], size_t buf_len)
+rnp_input_from_memory(rnp_input_t * input,
+                      const uint8_t buf[],
+                      size_t        buf_len,
+                      bool          take_ownership)
 {
     if (!input || !buf) {
         return RNP_ERROR_NULL_POINTER;
@@ -921,7 +924,27 @@ rnp_input_from_memory(rnp_input_t *input, const uint8_t buf[], size_t buf_len)
     if (!buf_len) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    *input = calloc(1, sizeof(**input));
+    if (!*input) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    uint8_t *data = (uint8_t *) buf;
+    if (take_ownership) {
+        data = malloc(buf_len);
+        if (!data) {
+            free(*input);
+            *input = NULL;
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        memcpy(data, buf, buf_len);
+    }
+    rnp_result_t ret = init_mem_src(&(*input)->src, data, buf_len, take_ownership);
+    if (ret) {
+        free(*input);
+        *input = NULL;
+        return ret;
+    }
+    return RNP_SUCCESS;
 }
 
 static ssize_t
@@ -999,6 +1022,52 @@ rnp_output_to_file(rnp_output_t *output, const char *path)
         *output = NULL;
         return ret;
     }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_output_to_memory(rnp_output_t *output, size_t max_alloc)
+{
+    // checks
+    if (!output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    *output = calloc(1, sizeof(**output));
+    if (!*output) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    rnp_result_t ret = init_mem_dest(&(*output)->dst, NULL, max_alloc);
+    if (ret) {
+        free(*output);
+        *output = NULL;
+        return ret;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_output_memory_get_buf(rnp_output_t output, uint8_t **buf, size_t *len, bool take_ownership)
+{
+    if (!output || !buf || !len) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    *len = output->dst.writeb;
+    *buf = mem_dest_get_memory(&output->dst);
+    if (!*buf) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (take_ownership) {
+        uint8_t *tmp_buf = *buf;
+        *buf = malloc(*len);
+        if (!*buf) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        memcpy(*buf, tmp_buf, *len);
+    }
+
     return RNP_SUCCESS;
 }
 
@@ -1484,7 +1553,7 @@ rnp_op_sign_execute(rnp_op_sign_t op)
     };
 
     for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
-        char *keyid = ((rnp_op_sign_signature_t)sig)->keyid;
+        char *keyid = ((rnp_op_sign_signature_t) sig)->keyid;
 
         if (!list_append(&op->rnpctx.signers, keyid, strlen(keyid) + 1)) {
             return RNP_ERROR_OUT_OF_MEMORY;
@@ -1511,7 +1580,7 @@ rnp_op_sign_destroy(rnp_op_sign_t op)
     if (op) {
         rnp_ctx_free(&op->rnpctx);
         for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
-            rnp_op_sign_signature_destroy((rnp_op_sign_signature_t)sig);
+            rnp_op_sign_signature_destroy((rnp_op_sign_signature_t) sig);
         }
         list_destroy(&op->signatures);
         free(op);
