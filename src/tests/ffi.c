@@ -1032,25 +1032,25 @@ test_ffi_encrypt_pk(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_signatures(void **state)
+static void
+test_ffi_init(void **state, rnp_ffi_t *ffi)
 {
-    // rnp_test_state_t *rstate = *state;
-    rnp_ffi_t     ffi = NULL;
     rnp_keyring_t pubring, secring;
-    rnp_input_t   input = NULL;
-    rnp_output_t  output = NULL;
-    rnp_op_sign_t op = NULL;
-    const char *  plaintext = "this is some data that will be signed";
 
     // setup FFI
-    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_ffi_get_pubring(ffi, &pubring));
-    assert_rnp_success(rnp_ffi_get_secring(ffi, &secring));
+    assert_rnp_success(rnp_ffi_create(ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_get_pubring(*ffi, &pubring));
+    assert_rnp_success(rnp_ffi_get_secring(*ffi, &secring));
 
     // load our keyrings
     assert_rnp_success(rnp_keyring_load_from_path(pubring, "data/keyrings/1/pubring.gpg"));
     assert_rnp_success(rnp_keyring_load_from_path(secring, "data/keyrings/1/secring.gpg"));
+}
+
+static void
+test_ffi_init_sign_file_input(void **state, rnp_input_t *input, rnp_output_t *output)
+{
+    const char *plaintext = "this is some data that will be signed";
 
     // write out some data
     FILE *fp = fopen("plaintext", "w");
@@ -1058,34 +1058,200 @@ test_ffi_signatures(void **state)
     fclose(fp);
 
     // create input+output
-    assert_rnp_success(rnp_input_from_file(&input, "plaintext"));
-    assert_non_null(input);
-    assert_rnp_success(rnp_output_to_file(&output, "signed"));
-    assert_non_null(output);
-    // create signature operation
-    assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_input_from_file(input, "plaintext"));
+    assert_non_null(*input);
+    assert_rnp_success(rnp_output_to_file(output, "signed"));
+    assert_non_null(*output);
+}
 
+static void
+test_ffi_init_sign_memory_input(void **state, rnp_input_t *input, rnp_output_t *output)
+{
+    const char *plaintext = "this is some data that will be signed";
+
+    assert_rnp_success(
+      rnp_input_from_memory(input, (uint8_t *) plaintext, strlen(plaintext), true));
+    assert_non_null(*input);
+    if (output) {
+        assert_rnp_success(rnp_output_to_memory(output, 0));
+        assert_non_null(*output);
+    }
+}
+
+static void
+test_ffi_init_verify_file_input(void **state, rnp_input_t *input, rnp_output_t *output)
+{
+    // create input+output
+    assert_rnp_success(rnp_input_from_file(input, "signed"));
+    assert_non_null(*input);
+    assert_rnp_success(rnp_output_to_file(output, "recovered"));
+    assert_non_null(*output);
+}
+
+static void
+test_ffi_init_verify_detached_file_input(void **      state,
+                                         rnp_input_t *input,
+                                         rnp_input_t *signature)
+{
+    assert_rnp_success(rnp_input_from_file(input, "plaintext"));
+    assert_non_null(*input);
+    assert_rnp_success(rnp_input_from_file(signature, "signed"));
+    assert_non_null(*signature);
+}
+
+static void
+test_ffi_init_verify_memory_input(void **       state,
+                                  rnp_input_t * input,
+                                  rnp_output_t *output,
+                                  uint8_t *     signed_buf,
+                                  size_t        signed_len)
+{
+    // create input+output
+    assert_rnp_success(rnp_input_from_memory(input, signed_buf, signed_len, false));
+    assert_non_null(*input);
+    assert_rnp_success(rnp_output_to_memory(output, 0));
+    assert_non_null(*output);
+}
+
+static void
+test_ffi_setup_signatures(void **state, rnp_ffi_t *ffi, rnp_op_sign_t *op)
+{
     // set signature times
     const uint32_t issued = 1516211899;  // Unix epoch, nowish
     const uint32_t expires = 1000000000; // expires later
 
-    assert_rnp_success(rnp_op_sign_set_armor(op, true));
-    assert_rnp_success(rnp_op_sign_set_hash(op, "SHA256"));
-    assert_rnp_success(rnp_op_sign_set_creation_time(op, issued));
-    assert_rnp_success(rnp_op_sign_set_expiration_time(op, expires));
+    assert_rnp_success(rnp_op_sign_set_armor(*op, true));
+    assert_rnp_success(rnp_op_sign_set_hash(*op, "SHA256"));
+    assert_rnp_success(rnp_op_sign_set_creation_time(*op, issued));
+    assert_rnp_success(rnp_op_sign_set_expiration_time(*op, expires));
 
     // set pass provider
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(*ffi, getpasscb, "password"));
 
     // set signature key
     rnp_key_handle_t key = NULL;
-    assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
-    assert_rnp_success(rnp_op_sign_add_signature(op, key, NULL));
+    assert_rnp_success(rnp_locate_key(*ffi, "userid", "key0-uid2", &key));
+    assert_rnp_success(rnp_op_sign_add_signature(*op, key, NULL));
     assert_rnp_success(rnp_key_handle_free(&key));
+}
 
+static void
+test_ffi_check_signatures(void **state, rnp_op_verify_t *verify)
+{
+    rnp_op_verify_signature_t sig;
+    size_t                    sig_count;
+    uint32_t                  sig_create;
+    uint32_t                  sig_expires;
+    char *                    hname = NULL;
+    const uint32_t            issued = 1516211899;  // Unix epoch, nowish
+    const uint32_t            expires = 1000000000; // expires later
+
+    assert_rnp_success(rnp_op_verify_get_signature_count(*verify, &sig_count));
+    assert_int_equal(sig_count, 1);
+    assert_rnp_success(rnp_op_verify_get_signature_at(*verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
+    assert_int_equal(sig_create, issued);
+    assert_int_equal(sig_expires, expires);
+    assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
+    assert_string_equal(hname, "SHA256");
+    rnp_buffer_free(hname);
+}
+
+static void
+test_ffi_check_recovered(void **state)
+{
+    // read in the recovered data from signature
+    pgp_memory_t recovered = {0};
+    pgp_memory_t plaintext = {0};
+
+    assert_true(pgp_mem_readfile(&recovered, "recovered"));
+    assert_true(pgp_mem_readfile(&plaintext, "plaintext"));
+    // compare
+    assert_int_equal(recovered.length, plaintext.length);
+    assert_true(memcmp(recovered.buf, plaintext.buf, recovered.length) == 0);
+    // cleanup
+    pgp_memory_release(&recovered);
+    pgp_memory_release(&plaintext);
+}
+
+void
+test_ffi_signatures_memory(void **state)
+{
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_sign_t   op = NULL;
+    rnp_op_verify_t verify;
+    uint8_t *       signed_buf;
+    size_t          signed_len;
+    uint8_t *       verified_buf;
+    size_t          verified_len;
+
+    // init ffi
+    test_ffi_init(state, &ffi);
+    // init input
+    test_ffi_init_sign_memory_input(state, &input, &output);
+    // create signature operation
+    assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
+    // setup signature(s)
+    test_ffi_setup_signatures(state, &ffi, &op);
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
+    // make sure the output file was created
+    assert_rnp_success(rnp_output_memory_get_buf(output, &signed_buf, &signed_len, true));
+    assert_non_null(signed_buf);
+    assert_true(signed_len > 0);
 
+    // cleanup
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_op_sign_destroy(op));
+    input = NULL;
+    output = NULL;
+    op = NULL;
+
+    /* now verify */
+
+    // create input and output
+    test_ffi_init_verify_memory_input(state, &input, &output, signed_buf, signed_len);
+    // call verify
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    // check signatures
+    test_ffi_check_signatures(state, &verify);
+    // get output
+    assert_rnp_success(rnp_output_memory_get_buf(output, &verified_buf, &verified_len, true));
+    assert_non_null(verified_buf);
+    assert_true(verified_len > 0);
+    // cleanup
+    assert_rnp_success(rnp_op_verify_destroy(verify));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+    rnp_buffer_free(signed_buf);
+    rnp_buffer_free(verified_buf);
+}
+
+void
+test_ffi_signatures(void **state)
+{
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_sign_t   op = NULL;
+    rnp_op_verify_t verify;
+
+    // init ffi
+    test_ffi_init(state, &ffi);
+    // init file input
+    test_ffi_init_sign_file_input(state, &input, &output);
+    // create signature operation
+    assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
+    // setup signature(s)
+    test_ffi_setup_signatures(state, &ffi, &op);
+    // execute the operation
+    assert_rnp_success(rnp_op_sign_execute(op));
     // make sure the output file was created
     assert_true(rnp_file_exists("signed"));
 
@@ -1098,107 +1264,48 @@ test_ffi_signatures(void **state)
     op = NULL;
 
     /* now verify */
-    rnp_op_verify_t           verify;
-    rnp_op_verify_signature_t sig;
-    size_t                    sig_count;
-    uint32_t                  sig_create;
-    uint32_t                  sig_expires;
-    char *                    hname = NULL;
 
-    assert_rnp_success(rnp_input_from_file(&input, "signed"));
-    assert_non_null(input);
-    assert_rnp_success(rnp_output_to_file(&output, "recovered"));
-    assert_non_null(output);
-
+    // create input and output
+    test_ffi_init_verify_file_input(state, &input, &output);
+    // call verify
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(verify));
-    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
-    assert_int_equal(sig_count, 1);
-    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
-    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
-    assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
-    assert_int_equal(sig_create, issued);
-    assert_int_equal(sig_expires, expires);
-    assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
-    assert_string_equal(hname, "SHA256");
-    rnp_buffer_free(hname);
-
-    rnp_op_verify_destroy(verify);
-
+    // check signatures
+    test_ffi_check_signatures(state, &verify);
     // cleanup
-    rnp_input_destroy(input);
-    rnp_output_destroy(output);
-
-    // read in the recovered data from signature
-    pgp_memory_t mem = {0};
-    assert_true(pgp_mem_readfile(&mem, "recovered"));
-    // compare
-    assert_int_equal(mem.length, strlen(plaintext));
-    assert_true(memcmp(mem.buf, plaintext, strlen(plaintext)) == 0);
-    // cleanup
-    pgp_memory_release(&mem);
-
-    // final cleanup
-    rnp_ffi_destroy(ffi);
+    assert_rnp_success(rnp_op_verify_destroy(verify));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+    // check output
+    test_ffi_check_recovered(state);
 }
 
 void
-test_ffi_signatures_detached(void **state)
+test_ffi_signatures_detached_memory(void **state)
 {
-    // rnp_test_state_t *rstate = *state;
-    rnp_ffi_t     ffi = NULL;
-    rnp_keyring_t pubring, secring;
-    rnp_input_t   input = NULL;
-    rnp_input_t   signature = NULL;
-    rnp_output_t  output = NULL;
-    rnp_op_sign_t op = NULL;
-    const char *  plaintext = "this is some data that will be signed";
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_input_t     signature = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_sign_t   op = NULL;
+    rnp_op_verify_t verify;
+    uint8_t *       signed_buf;
+    size_t          signed_len;
 
-    // setup FFI
-    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_ffi_get_pubring(ffi, &pubring));
-    assert_rnp_success(rnp_ffi_get_secring(ffi, &secring));
-
-    // load our keyrings
-    assert_rnp_success(rnp_keyring_load_from_path(pubring, "data/keyrings/1/pubring.gpg"));
-    assert_rnp_success(rnp_keyring_load_from_path(secring, "data/keyrings/1/secring.gpg"));
-
-    // write out some data
-    FILE *fp = fopen("plaintext", "w");
-    fwrite(plaintext, strlen(plaintext), 1, fp);
-    fclose(fp);
-
-    // create input+output
-    assert_rnp_success(rnp_input_from_file(&input, "plaintext"));
-    assert_non_null(input);
-    assert_rnp_success(rnp_output_to_file(&output, "signature"));
-    assert_non_null(output);
+    // init ffi
+    test_ffi_init(state, &ffi);
+    // init input
+    test_ffi_init_sign_memory_input(state, &input, &output);
     // create signature operation
     assert_rnp_success(rnp_op_sign_detached_create(&op, ffi, input, output));
-
-    // set signature times
-    uint32_t issued = 1516211899;  // Unix epoch, nowish
-    uint32_t expires = 1000000000; // later
-
-    assert_rnp_success(rnp_op_sign_set_armor(op, true));
-    assert_rnp_success(rnp_op_sign_set_hash(op, "SHA256"));
-    assert_rnp_success(rnp_op_sign_set_creation_time(op, issued));
-    assert_rnp_success(rnp_op_sign_set_expiration_time(op, expires));
-
-    // set pass provider
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
-
-    // set signature key
-    rnp_key_handle_t key = NULL;
-    assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
-    assert_rnp_success(rnp_op_sign_add_signature(op, key, NULL));
-    assert_rnp_success(rnp_key_handle_free(&key));
-
+    // setup signature(s)
+    test_ffi_setup_signatures(state, &ffi, &op);
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
-
-    // make sure the output file was created
-    assert_true(rnp_file_exists("signature"));
+    assert_rnp_success(rnp_output_memory_get_buf(output, &signed_buf, &signed_len, true));
+    assert_non_null(signed_buf);
+    assert_true(signed_len > 0);
 
     // cleanup
     assert_rnp_success(rnp_input_destroy(input));
@@ -1209,39 +1316,69 @@ test_ffi_signatures_detached(void **state)
     op = NULL;
 
     /* now verify */
-    rnp_op_verify_t           verify;
-    rnp_op_verify_signature_t sig;
-    size_t                    sig_count;
-    uint32_t                  sig_create;
-    uint32_t                  sig_expires;
-    char *                    hname = NULL;
 
-    assert_rnp_success(rnp_input_from_file(&input, "plaintext"));
-    assert_non_null(input);
-    assert_rnp_success(rnp_input_from_file(&signature, "signature"));
+    // create input and output
+    test_ffi_init_sign_memory_input(state, &input, NULL);
+    assert_rnp_success(rnp_input_from_memory(&signature, signed_buf, signed_len, true));
     assert_non_null(signature);
-
+    // call verify
     assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, signature));
     assert_rnp_success(rnp_op_verify_execute(verify));
-    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
-    assert_int_equal(sig_count, 1);
-    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
-    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
-    assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
-    assert_int_equal(sig_create, issued);
-    assert_int_equal(sig_expires, expires);
-    assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
-    assert_string_equal(hname, "SHA256");
-    rnp_buffer_free(hname);
+    // check signatures
+    test_ffi_check_signatures(state, &verify);
+    // cleanup
+    rnp_buffer_free(signed_buf);
+    assert_rnp_success(rnp_op_verify_destroy(verify));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_input_destroy(signature));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
 
-    rnp_op_verify_destroy(verify);
+void
+test_ffi_signatures_detached(void **state)
+{
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_input_t     signature = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_sign_t   op = NULL;
+    rnp_op_verify_t verify;
+
+    // init ffi
+    test_ffi_init(state, &ffi);
+    // init file input
+    test_ffi_init_sign_file_input(state, &input, &output);
+    // create signature operation
+    assert_rnp_success(rnp_op_sign_detached_create(&op, ffi, input, output));
+    // setup signature(s)
+    test_ffi_setup_signatures(state, &ffi, &op);
+    // execute the operation
+    assert_rnp_success(rnp_op_sign_execute(op));
+    // make sure the output file was created
+    assert_true(rnp_file_exists("signed"));
 
     // cleanup
-    rnp_input_destroy(input);
-    rnp_input_destroy(signature);
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_op_sign_destroy(op));
+    input = NULL;
+    output = NULL;
+    op = NULL;
 
-    // final cleanup
-    rnp_ffi_destroy(ffi);
+    /* now verify */
+
+    // create input and output
+    test_ffi_init_verify_detached_file_input(state, &input, &signature);
+    // call verify
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, signature));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    // check signatures
+    test_ffi_check_signatures(state, &verify);
+    // cleanup
+    assert_rnp_success(rnp_op_verify_destroy(verify));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_input_destroy(signature));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
 /** get the value of a (potentially nested) field in a json object
