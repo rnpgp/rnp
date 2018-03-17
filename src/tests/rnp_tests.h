@@ -133,6 +133,8 @@ void test_ffi_encrypt_pass(void **state);
 
 void test_ffi_encrypt_pk(void **state);
 
+void test_ffi_encrypt_and_sign(void **state);
+
 void test_ffi_signatures_memory(void **state);
 
 void test_ffi_signatures_detached_memory(void **state);
