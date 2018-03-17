@@ -1136,6 +1136,7 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
     if (seckey->key.seckey.encrypted) {
         deckey = pgp_decrypt_seckey(seckey, param->password_provider, &ctx);
         if (!deckey) {
+            RNP_LOG("wrong secret key password");
             return RNP_ERROR_BAD_PASSWORD;
         }
     } else {

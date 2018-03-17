@@ -1032,6 +1032,165 @@ test_ffi_encrypt_pk(void **state)
     rnp_ffi_destroy(ffi);
 }
 
+void
+test_ffi_encrypt_and_sign(void **state)
+{
+    // rnp_test_state_t *rstate = *state;
+    rnp_ffi_t        ffi = NULL;
+    rnp_keyring_t    pubring, secring;
+    rnp_input_t      input = NULL;
+    rnp_output_t     output = NULL;
+    rnp_op_encrypt_t op = NULL;
+    const char *     plaintext = "data1";
+
+    // setup FFI
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_get_pubring(ffi, &pubring));
+    assert_rnp_success(rnp_ffi_get_secring(ffi, &secring));
+
+    // load our keyrings
+    assert_rnp_success(rnp_keyring_load_from_path(pubring, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(rnp_keyring_load_from_path(secring, "data/keyrings/1/secring.gpg"));
+
+    // write out some data
+    FILE *fp = fopen("plaintext", "w");
+    fwrite(plaintext, strlen(plaintext), 1, fp);
+    fclose(fp);
+
+    // create input+output
+    assert_rnp_success(rnp_input_from_file(&input, "plaintext"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_output_to_file(&output, "encrypted"));
+    assert_non_null(output);
+    // create encrypt operation
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+    // add recipients
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
+    assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
+    rnp_key_handle_free(&key);
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid1", &key));
+    assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
+    rnp_key_handle_free(&key);
+    // set the data encryption cipher
+    assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
+    // enable armoring
+    assert_rnp_success(rnp_op_encrypt_set_armor(op, true));
+    // add signature
+    const uint32_t issued = 1516211899;  // Unix epoch, nowish
+    const uint32_t expires = 1000000000; // expires later
+    assert_rnp_success(rnp_op_encrypt_set_hash(op, "SHA256"));
+    assert_rnp_success(rnp_op_encrypt_set_creation_time(op, issued));
+    assert_rnp_success(rnp_op_encrypt_set_expiration_time(op, expires));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid1", &key));
+    assert_rnp_success(rnp_op_encrypt_add_signature(op, key, NULL));
+    rnp_key_handle_free(&key);
+    // execute the operation
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
+    assert_rnp_success(rnp_op_encrypt_execute(op));
+
+    // make sure the output file was created
+    assert_true(rnp_file_exists("encrypted"));
+
+    // cleanup
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    input = NULL;
+    output = NULL;
+    assert_rnp_success(rnp_op_encrypt_destroy(op));
+    op = NULL;
+
+    /* decrypt */
+
+    // decrypt (no pass provider, should fail)
+    assert_rnp_success(rnp_input_from_file(&input, "encrypted"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_output_to_file(&output, "decrypted"));
+    assert_non_null(output);
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, NULL, NULL));
+    assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    // cleanup
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    input = NULL;
+    output = NULL;
+
+    // decrypt (wrong pass, should fail)
+    assert_rnp_success(rnp_input_from_file(&input, "encrypted"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_output_to_file(&output, "decrypted"));
+    assert_non_null(output);
+    char *pass = "wrong1";
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb_once, &pass));
+    assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    // cleanup
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    input = NULL;
+    output = NULL;
+
+    // decrypt
+    assert_rnp_success(rnp_input_from_file(&input, "encrypted"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_output_to_file(&output, "decrypted"));
+    assert_non_null(output);
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    // cleanup
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    // read in the decrypted file
+    pgp_memory_t mem = {0};
+    assert_true(pgp_mem_readfile(&mem, "decrypted"));
+    // compare
+    assert_int_equal(mem.length, strlen(plaintext));
+    assert_true(memcmp(mem.buf, plaintext, strlen(plaintext)) == 0);
+    // cleanup
+    pgp_memory_release(&mem);
+
+    // verify and check signatures
+    rnp_op_verify_t verify;
+    assert_rnp_success(rnp_input_from_file(&input, "encrypted"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_output_to_file(&output, "verified"));
+    assert_non_null(output);
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
+
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    // check signatures
+    rnp_op_verify_signature_t sig;
+    size_t                    sig_count;
+    uint32_t                  sig_create;
+    uint32_t                  sig_expires;
+    char *                    hname = NULL;
+
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
+    assert_int_equal(sig_count, 1);
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
+    assert_int_equal(sig_create, issued);
+    assert_int_equal(sig_expires, expires);
+    assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
+    assert_string_equal(hname, "SHA256");
+    rnp_buffer_free(hname);
+    // cleanup
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    // read in the decrypted file
+    assert_true(pgp_mem_readfile(&mem, "verified"));
+    // compare
+    assert_int_equal(mem.length, strlen(plaintext));
+    assert_true(memcmp(mem.buf, plaintext, strlen(plaintext)) == 0);
+    // cleanup
+    pgp_memory_release(&mem);
+
+    // final cleanup
+    rnp_ffi_destroy(ffi);
+}
+
 static void
 test_ffi_init(void **state, rnp_ffi_t *ffi)
 {

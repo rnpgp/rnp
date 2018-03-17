@@ -1833,7 +1833,12 @@ rnp_op_verify_detached_create(rnp_op_verify_t *op,
 rnp_result_t
 rnp_op_verify_execute(rnp_op_verify_t op)
 {
+    pgp_password_provider_t password_provider = {
+      .callback = rnp_password_cb_bounce,
+      .userdata = &(struct rnp_password_cb_data){.cb_fn = op->ffi->getpasscb,
+                                                 .cb_data = op->ffi->getpasscb_ctx}};
     pgp_parse_handler_t handler = {
+      .password_provider = &password_provider,
       .key_provider =
         &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = op->ffi},
       .on_signatures = rnp_op_verify_on_signatures,
