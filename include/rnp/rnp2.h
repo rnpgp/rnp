@@ -681,14 +681,46 @@ rnp_result_t rnp_op_encrypt_create(rnp_op_encrypt_t *op,
 
 rnp_result_t rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_handle_t key);
 
-// TODO not implemented
-rnp_result_t rnp_op_encrypt_add_signer(
-  rnp_op_encrypt_t op,
-  const char *     identifier_type,
-  const char *     identifier,
-  const char *     hash,
-  uint32_t         creation_time, /* seconds since Jan 1 1970 UTC */
-  uint32_t         expiration_seconds);
+/**
+ * @brief Add signature to encrypting context, so data will be encrypted and signed.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @param key private key, used for signing.
+ * @param sig pointer to the newly added signature will be stored here. May be NULL.
+ * @return RNP_SUCCESS if signature was added or error code otherwise.
+ */
+rnp_result_t rnp_op_encrypt_add_signature(rnp_op_encrypt_t         op,
+                                          rnp_key_handle_t         key,
+                                          rnp_op_sign_signature_t *sig);
+
+/**
+ * @brief Set hash function used for signature calculation. Makes sense if encrypt-and-sign is
+ * used. To set hash function for each signature separately use rnp_op_sign_signature_set_hash.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @param hash hash algorithm to be used
+ * @return RNP_SUCCESS or error code if failed
+ */
+rnp_result_t rnp_op_encrypt_set_hash(rnp_op_encrypt_t op, const char *hash);
+
+/**
+ * @brief Set signature creation time. By default current time is used.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @param create creation time in seconds since Jan, 1 1970 UTC
+ * @return RNP_SUCCESS or error code if failed
+ */
+rnp_result_t rnp_op_encrypt_set_creation_time(rnp_op_encrypt_t op, uint32_t create);
+
+/**
+ * @brief Set signature expiration time. By default signatures do not expire.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @param expire expiration time in seconds since the creation time. 0 value is used to mark
+ *        signature as non-expiring
+ * @return RNP_SUCCESS or error code if failed
+ */
+rnp_result_t rnp_op_encrypt_set_expiration_time(rnp_op_encrypt_t op, uint32_t expire);
 
 rnp_result_t rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
                                          const char *     password,

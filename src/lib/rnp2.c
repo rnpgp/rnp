@@ -128,10 +128,10 @@ struct rnp_op_verify_st {
     rnp_output_t output;
     rnp_ctx_t    rnpctx;
     /* these fields are filled after operation execution */
-    struct rnp_op_verify_signature_st *signatures;
-    size_t                             signature_count;
-    char *                             filename;
-    uint32_t                           file_mtime;
+    rnp_op_verify_signature_t signatures;
+    size_t                    signature_count;
+    char *                    filename;
+    uint32_t                  file_mtime;
 };
 
 struct rnp_op_encrypt_st {
@@ -139,6 +139,7 @@ struct rnp_op_encrypt_st {
     rnp_input_t  input;
     rnp_output_t output;
     rnp_ctx_t    rnpctx;
+    list         signatures;
 };
 
 struct rnp_identifier_iterator_st {
@@ -1154,6 +1155,131 @@ rnp_output_destroy(rnp_output_t output)
     return RNP_SUCCESS;
 }
 
+static rnp_result_t
+rnp_op_add_signature(list *signatures, rnp_key_handle_t key, rnp_op_sign_signature_t *sig)
+{
+    rnp_op_sign_signature_t newsig = NULL;
+
+    if (!signatures || !key) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    newsig = (rnp_op_sign_signature_t) list_append(signatures, NULL, sizeof(*newsig));
+
+    if (!newsig) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    rnp_result_t res = rnp_key_get_keyid(key, &newsig->keyid);
+    if (res) {
+        list_remove((list_item *) newsig);
+        return res;
+    }
+
+    if (sig) {
+        *sig = newsig;
+    }
+
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+rnp_op_set_armor(rnp_ctx_t *ctx, bool armored)
+{
+    if (!ctx) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    ctx->armor = armored;
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+rnp_op_set_compression(rnp_ctx_t *ctx, const char *compression, int level)
+{
+    if (!ctx) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    pgp_compression_type_t zalg = PGP_C_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(compress_alg_map, string, type, compression, zalg);
+    if (zalg == PGP_C_UNKNOWN) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    ctx->zalg = (int) zalg;
+    ctx->zlevel = level;
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+rnp_op_set_hash(rnp_ctx_t *ctx, const char *hash)
+{
+    if (!ctx) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
+
+    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
+    if (hash_alg == PGP_HASH_UNKNOWN) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    ctx->halg = hash_alg;
+
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+rnp_op_set_creation_time(rnp_ctx_t *ctx, uint32_t create)
+{
+    if (!ctx) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    ctx->sigcreate = create;
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+rnp_op_set_expiration_time(rnp_ctx_t *ctx, uint32_t expire)
+{
+    if (!ctx) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    ctx->sigexpire = expire;
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+rnp_op_set_file_name(rnp_ctx_t *ctx, const char *filename)
+{
+    if (!ctx) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static rnp_result_t
+rnp_op_set_file_mtime(rnp_ctx_t *ctx, uint32_t mtime)
+{
+    if (!ctx) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static void
+rnp_op_signatures_destroy(list *signatures)
+{
+    for (list_item *sig = list_front(*signatures); sig; sig = list_next(sig)) {
+        rnp_buffer_free(((rnp_op_sign_signature_t) sig)->keyid);
+    }
+    list_destroy(signatures);
+}
+
 rnp_result_t
 rnp_op_encrypt_create(rnp_op_encrypt_t *op,
                       rnp_ffi_t         ffi,
@@ -1195,6 +1321,48 @@ rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_handle_t key)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_encrypt_add_signature(rnp_op_encrypt_t         op,
+                             rnp_key_handle_t         key,
+                             rnp_op_sign_signature_t *sig)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    return rnp_op_add_signature(&op->signatures, key, sig);
+}
+
+rnp_result_t
+rnp_op_encrypt_set_hash(rnp_op_encrypt_t op, const char *hash)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    return rnp_op_set_hash(&op->rnpctx, hash);
+}
+
+rnp_result_t
+rnp_op_encrypt_set_creation_time(rnp_op_encrypt_t op, uint32_t create)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    return rnp_op_set_creation_time(&op->rnpctx, create);
+}
+
+rnp_result_t
+rnp_op_encrypt_set_expiration_time(rnp_op_encrypt_t op, uint32_t expire)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    return rnp_op_set_expiration_time(&op->rnpctx, expire);
 }
 
 rnp_result_t
@@ -1257,8 +1425,8 @@ rnp_op_encrypt_set_armor(rnp_op_encrypt_t op, bool armored)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    op->rnpctx.armor = armored;
-    return RNP_SUCCESS;
+
+    return rnp_op_set_armor(&op->rnpctx, armored);
 }
 
 rnp_result_t
@@ -1276,19 +1444,6 @@ rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher)
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-rnp_op_set_compression(rnp_ctx_t *ctx, const char *compression, int level)
-{
-    pgp_compression_type_t zalg = PGP_C_UNKNOWN;
-    ARRAY_LOOKUP_BY_STRCASE(compress_alg_map, string, type, compression, zalg);
-    if (zalg == PGP_C_UNKNOWN) {
-        return RNP_ERROR_BAD_FORMAT;
-    }
-    ctx->zalg = (int) zalg;
-    ctx->zlevel = level;
-    return RNP_SUCCESS;
-}
-
 rnp_result_t
 rnp_op_encrypt_set_compression(rnp_op_encrypt_t op, const char *compression, int level)
 {
@@ -1302,21 +1457,21 @@ rnp_op_encrypt_set_compression(rnp_op_encrypt_t op, const char *compression, int
 rnp_result_t
 rnp_op_encrypt_set_file_name(rnp_op_encrypt_t op, const char *filename)
 {
-    // checks
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return RNP_ERROR_NOT_IMPLEMENTED;
+
+    return rnp_op_set_file_name(&op->rnpctx, filename);
 }
 
 rnp_result_t
 rnp_op_encrypt_set_file_mtime(rnp_op_encrypt_t op, uint32_t mtime)
 {
-    // checks
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return RNP_ERROR_NOT_IMPLEMENTED;
+
+    return rnp_op_set_file_mtime(&op->rnpctx, mtime);
 }
 
 rnp_result_t
@@ -1337,7 +1492,22 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
       .key_provider =
         &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = op->ffi},
     };
-    rnp_result_t ret = rnp_encrypt_src(&handler, &op->input->src, &op->output->dst);
+
+    rnp_result_t ret;
+
+    if (list_length(op->signatures)) {
+        for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
+            char *keyid = ((rnp_op_sign_signature_t) sig)->keyid;
+            if (!list_append(&op->rnpctx.signers, keyid, strlen(keyid) + 1)) {
+                return RNP_ERROR_OUT_OF_MEMORY;
+            }
+        }
+
+        ret = rnp_encrypt_sign_src(&handler, &op->input->src, &op->output->dst);
+    } else {
+        ret = rnp_encrypt_src(&handler, &op->input->src, &op->output->dst);
+    }
+
     op->output->keep = ret == RNP_SUCCESS;
     op->input = NULL;
     op->output = NULL;
@@ -1349,6 +1519,7 @@ rnp_op_encrypt_destroy(rnp_op_encrypt_t op)
 {
     if (op) {
         rnp_ctx_free(&op->rnpctx);
+        rnp_op_signatures_destroy(&op->signatures);
         free(op);
     }
     return RNP_SUCCESS;
@@ -1407,28 +1578,11 @@ rnp_op_sign_detached_create(rnp_op_sign_t *op,
 rnp_result_t
 rnp_op_sign_add_signature(rnp_op_sign_t op, rnp_key_handle_t key, rnp_op_sign_signature_t *sig)
 {
-    rnp_op_sign_signature_t newsig = NULL;
-
-    if (!op || !key) {
+    if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    newsig = (rnp_op_sign_signature_t) list_append(&op->signatures, NULL, sizeof(*newsig));
-
-    if (!newsig) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    rnp_result_t res = rnp_key_get_keyid(key, &newsig->keyid);
-    if (res) {
-        return res;
-    }
-
-    if (sig) {
-        *sig = newsig;
-    }
-
-    return RNP_SUCCESS;
+    return rnp_op_add_signature(&op->signatures, key, sig);
 }
 
 rnp_result_t
@@ -1456,8 +1610,8 @@ rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    op->rnpctx.armor = armored;
-    return RNP_SUCCESS;
+
+    return rnp_op_set_armor(&op->rnpctx, armored);
 }
 
 rnp_result_t
@@ -1478,15 +1632,7 @@ rnp_op_sign_set_hash(rnp_op_sign_t op, const char *hash)
         return RNP_ERROR_NULL_POINTER;
     }
 
-    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
-    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
-    if (hash_alg == PGP_HASH_UNKNOWN) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    op->rnpctx.halg = hash_alg;
-
-    return RNP_SUCCESS;
+    return rnp_op_set_hash(&op->rnpctx, hash);
 }
 
 rnp_result_t
@@ -1496,9 +1642,7 @@ rnp_op_sign_set_creation_time(rnp_op_sign_t op, uint32_t create)
         return RNP_ERROR_NULL_POINTER;
     }
 
-    op->rnpctx.sigcreate = create;
-
-    return RNP_SUCCESS;
+    return rnp_op_set_creation_time(&op->rnpctx, create);
 }
 
 rnp_result_t
@@ -1508,9 +1652,7 @@ rnp_op_sign_set_expiration_time(rnp_op_sign_t op, uint32_t expire)
         return RNP_ERROR_NULL_POINTER;
     }
 
-    op->rnpctx.sigexpire = expire;
-
-    return RNP_SUCCESS;
+    return rnp_op_set_expiration_time(&op->rnpctx, expire);
 }
 
 rnp_result_t
@@ -1520,7 +1662,8 @@ rnp_op_sign_set_file_name(rnp_op_sign_t op, const char *filename)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return RNP_ERROR_NOT_IMPLEMENTED;
+
+    return rnp_op_set_file_name(&op->rnpctx, filename);
 }
 
 rnp_result_t
@@ -1530,7 +1673,8 @@ rnp_op_sign_set_file_mtime(rnp_op_sign_t op, uint32_t mtime)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return RNP_ERROR_NOT_IMPLEMENTED;
+
+    return rnp_op_set_file_mtime(&op->rnpctx, mtime);
 }
 
 rnp_result_t
@@ -1568,21 +1712,12 @@ rnp_op_sign_execute(rnp_op_sign_t op)
     return ret;
 }
 
-static void
-rnp_op_sign_signature_destroy(rnp_op_sign_signature_t sig)
-{
-    rnp_buffer_free(sig->keyid);
-}
-
 rnp_result_t
 rnp_op_sign_destroy(rnp_op_sign_t op)
 {
     if (op) {
         rnp_ctx_free(&op->rnpctx);
-        for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
-            rnp_op_sign_signature_destroy((rnp_op_sign_signature_t) sig);
-        }
-        list_destroy(&op->signatures);
+        rnp_op_signatures_destroy(&op->signatures);
         free(op);
     }
     return RNP_SUCCESS;
