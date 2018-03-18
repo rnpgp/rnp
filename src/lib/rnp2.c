@@ -1038,7 +1038,6 @@ rnp_output_to_memory(rnp_output_t *output, size_t max_alloc)
     if (!*output) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-
     rnp_result_t ret = init_mem_dest(&(*output)->dst, NULL, max_alloc);
     if (ret) {
         free(*output);
@@ -1068,7 +1067,6 @@ rnp_output_memory_get_buf(rnp_output_t output, uint8_t **buf, size_t *len, bool 
         }
         memcpy(*buf, tmp_buf, *len);
     }
-
     return RNP_SUCCESS;
 }
 
@@ -1103,7 +1101,6 @@ rnp_output_to_null(rnp_output_t *output)
     if (!*output) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-
     rnp_result_t ret = init_null_dest(&(*output)->dst);
     if (ret) {
         free(*output);
@@ -1165,21 +1162,17 @@ rnp_op_add_signature(list *signatures, rnp_key_handle_t key, rnp_op_sign_signatu
     }
 
     newsig = (rnp_op_sign_signature_t) list_append(signatures, NULL, sizeof(*newsig));
-
     if (!newsig) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-
     rnp_result_t res = rnp_key_get_keyid(key, &newsig->keyid);
     if (res) {
         list_remove((list_item *) newsig);
         return res;
     }
-
     if (sig) {
         *sig = newsig;
     }
-
     return RNP_SUCCESS;
 }
 
@@ -1218,14 +1211,11 @@ rnp_op_set_hash(rnp_ctx_t *ctx, const char *hash)
     }
 
     pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
-
     ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
     if (hash_alg == PGP_HASH_UNKNOWN) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
     ctx->halg = hash_alg;
-
     return RNP_SUCCESS;
 }
 
@@ -1235,7 +1225,6 @@ rnp_op_set_creation_time(rnp_ctx_t *ctx, uint32_t create)
     if (!ctx) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     ctx->sigcreate = create;
     return RNP_SUCCESS;
 }
@@ -1246,7 +1235,6 @@ rnp_op_set_expiration_time(rnp_ctx_t *ctx, uint32_t expire)
     if (!ctx) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     ctx->sigexpire = expire;
     return RNP_SUCCESS;
 }
@@ -1257,7 +1245,6 @@ rnp_op_set_file_name(rnp_ctx_t *ctx, const char *filename)
     if (!ctx) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return RNP_ERROR_NOT_IMPLEMENTED;
 }
 
@@ -1267,7 +1254,6 @@ rnp_op_set_file_mtime(rnp_ctx_t *ctx, uint32_t mtime)
     if (!ctx) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return RNP_ERROR_NOT_IMPLEMENTED;
 }
 
@@ -1331,7 +1317,6 @@ rnp_op_encrypt_add_signature(rnp_op_encrypt_t         op,
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_add_signature(&op->signatures, key, sig);
 }
 
@@ -1341,7 +1326,6 @@ rnp_op_encrypt_set_hash(rnp_op_encrypt_t op, const char *hash)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_set_hash(&op->rnpctx, hash);
 }
 
@@ -1351,7 +1335,6 @@ rnp_op_encrypt_set_creation_time(rnp_op_encrypt_t op, uint32_t create)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_set_creation_time(&op->rnpctx, create);
 }
 
@@ -1361,7 +1344,6 @@ rnp_op_encrypt_set_expiration_time(rnp_op_encrypt_t op, uint32_t expire)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_set_expiration_time(&op->rnpctx, expire);
 }
 
@@ -1425,7 +1407,6 @@ rnp_op_encrypt_set_armor(rnp_op_encrypt_t op, bool armored)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_set_armor(&op->rnpctx, armored);
 }
 
@@ -1460,7 +1441,6 @@ rnp_op_encrypt_set_file_name(rnp_op_encrypt_t op, const char *filename)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_set_file_name(&op->rnpctx, filename);
 }
 
@@ -1470,7 +1450,6 @@ rnp_op_encrypt_set_file_mtime(rnp_op_encrypt_t op, uint32_t mtime)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_set_file_mtime(&op->rnpctx, mtime);
 }
 
@@ -1494,7 +1473,6 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
     };
 
     rnp_result_t ret;
-
     if (list_length(op->signatures)) {
         for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
             char *keyid = ((rnp_op_sign_signature_t) sig)->keyid;
@@ -1502,7 +1480,6 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
                 return RNP_ERROR_OUT_OF_MEMORY;
             }
         }
-
         ret = rnp_encrypt_sign_src(&handler, &op->input->src, &op->output->dst);
     } else {
         ret = rnp_encrypt_src(&handler, &op->input->src, &op->output->dst);
@@ -1552,11 +1529,9 @@ rnp_op_sign_cleartext_create(rnp_op_sign_t *op,
                              rnp_output_t   output)
 {
     rnp_result_t res = rnp_op_sign_create(op, ffi, input, output);
-
     if (!res) {
         (*op)->rnpctx.clearsign = true;
     }
-
     return res;
 }
 
@@ -1567,11 +1542,9 @@ rnp_op_sign_detached_create(rnp_op_sign_t *op,
                             rnp_output_t   signature)
 {
     rnp_result_t res = rnp_op_sign_create(op, ffi, input, signature);
-
     if (!res) {
         (*op)->rnpctx.detached = true;
     }
-
     return res;
 }
 
@@ -1581,7 +1554,6 @@ rnp_op_sign_add_signature(rnp_op_sign_t op, rnp_key_handle_t key, rnp_op_sign_si
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_add_signature(&op->signatures, key, sig);
 }
 
@@ -1606,22 +1578,18 @@ rnp_op_sign_signature_set_expiration_time(rnp_op_sign_signature_t sig, uint32_t 
 rnp_result_t
 rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored)
 {
-    // checks
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_set_armor(&op->rnpctx, armored);
 }
 
 rnp_result_t
 rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compression, int level)
 {
-    // checks
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_set_compression(&op->rnpctx, compression, level);
 }
 
@@ -1631,7 +1599,6 @@ rnp_op_sign_set_hash(rnp_op_sign_t op, const char *hash)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_set_hash(&op->rnpctx, hash);
 }
 
@@ -1641,7 +1608,6 @@ rnp_op_sign_set_creation_time(rnp_op_sign_t op, uint32_t create)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_set_creation_time(&op->rnpctx, create);
 }
 
@@ -1651,29 +1617,24 @@ rnp_op_sign_set_expiration_time(rnp_op_sign_t op, uint32_t expire)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_set_expiration_time(&op->rnpctx, expire);
 }
 
 rnp_result_t
 rnp_op_sign_set_file_name(rnp_op_sign_t op, const char *filename)
 {
-    // checks
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_set_file_name(&op->rnpctx, filename);
 }
 
 rnp_result_t
 rnp_op_sign_set_file_mtime(rnp_op_sign_t op, uint32_t mtime)
 {
-    // checks
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return rnp_op_set_file_mtime(&op->rnpctx, mtime);
 }
 
@@ -1848,11 +1809,9 @@ rnp_op_verify_execute(rnp_op_verify_t op)
       .ctx = &op->rnpctx};
 
     rnp_result_t ret = process_pgp_source(&handler, &op->input->src);
-
     if (op->output) {
         op->output->keep = ret == RNP_SUCCESS;
     }
-
     return ret;
 }
 
@@ -1864,7 +1823,6 @@ rnp_op_verify_get_signature_count(rnp_op_verify_t op, size_t *count)
     }
 
     *count = op->signature_count;
-
     return RNP_SUCCESS;
 }
 
@@ -1874,13 +1832,10 @@ rnp_op_verify_get_signature_at(rnp_op_verify_t op, size_t idx, rnp_op_verify_sig
     if (!op || !sig) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     if (idx >= op->signature_count) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
     *sig = &op->signatures[idx];
-
     return RNP_SUCCESS;
 }
 
@@ -1890,11 +1845,9 @@ rnp_op_verify_get_file_info(rnp_op_verify_t op, char **filename, uint32_t *mtime
     if (mtime) {
         *mtime = op->file_mtime;
     }
-
     if (filename && op->filename) {
         *filename = rnp_strdup(op->filename);
     }
-
     return RNP_SUCCESS;
 }
 
@@ -1907,7 +1860,6 @@ rnp_op_verify_destroy(rnp_op_verify_t op)
         free(op->filename);
         free(op);
     }
-
     return RNP_SUCCESS;
 }
 
@@ -1917,7 +1869,6 @@ rnp_op_verify_signature_get_status(rnp_op_verify_signature_t sig)
     if (!sig) {
         return RNP_ERROR_NULL_POINTER;
     }
-
     return sig->verify_status;
 }
 
@@ -1934,7 +1885,6 @@ rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t sig, char **hash)
         *hash = rnp_strdup(hname);
         return RNP_SUCCESS;
     }
-
     return RNP_ERROR_BAD_STATE;
 }
 
