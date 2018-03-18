@@ -102,7 +102,44 @@ typedef enum rnp_operation_t {
     RNP_OP_ARMOR = 3
 } rnp_operation_t;
 
-/* rnp operation context : contains additional data about the currently ongoing operation */
+/** rnp operation context : contains configuration data about the currently ongoing operation.
+ * 
+ *  Common fields which make sense for every operation:
+ *  - overwrite : silently overwrite output file if exists
+ *  - armor : except cleartext signing, which outputs text in clear and always armor signature,
+ *    this controls whether output is armored (base64-encoded). For armor/dearmor operation it
+ *    controls the direction of the conversion (true means enarmor, false - dearmor),
+ *  - rng : random number generator
+ *  - operation : current operation type
+ * 
+ *  For operations with OpenPGP embedded data (i.e. encrypted data and attached signatures):
+ *  - filename, filemtime : to specify information about the contents of literal data packet
+ *  - zalg, zlevel : compression algorithm and level, zlevel = 0 to disable compression
+ * 
+ *  For encryption operation (including encrypt-and-sign):
+ *  - halg : hash algorithm used during key derivation for password-based encryption
+ *  - ealg, aalg, abits : symmetric encryption algorithm and AEAD parameters if used
+ *  - recipients : list of key ids used to encrypt data to
+ *  - passwords : list of passwords used for password-based encryption
+ *  - filename, filemtime, zalg, zlevel : see previous
+ * 
+ *  For signing of any kind (attached, detached, cleartext):
+ *  - clearsign, detached : controls kind of the signed data. Both are mutually-exclusive.
+ *    If both are false then attached signing is used.
+ *  - halg : hash algorithm used to calculate signature(s)
+ *  - signers : list of key ids/user ids used to sign data
+ *  - sigcreate, sigexpire : signature(s) creation and expiration times
+ *  - filename, filemtime, zalg, zlevel : only for attached signatures, see previous
+ *  
+ *  For data decryption and/or verification there is not much of fields:
+ *  - on_signatures: callback, called when signature verification information is available.
+ *    If we have just encrypted data then it will not be called.
+ *  - sig_cb_param: parameter to be passed to on_signatures callback.
+ *  - discard: dicard the output data (i.e. just decrypt and/or verify signatures)
+ * 
+ *  For enarmor/dearmor:
+ *  - armortype: type of the armor headers (message, key, whatever else)
+ */
 typedef struct rnp_ctx_t {
     rnp_t *         rnp;           /* Pointer to initialized rnp_t (temporary solution) */
     char *          filename;      /* name of the input file to store in literal data packet */
