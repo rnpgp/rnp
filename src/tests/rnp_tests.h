@@ -129,6 +129,10 @@ void test_ffi_add_userid(void **state);
 
 void test_ffi_detect_key_format(void **state);
 
+void test_ffi_load_keys(void **state);
+
+void test_ffi_save_keys(void **state);
+
 void test_ffi_encrypt_pass(void **state);
 
 void test_ffi_encrypt_pk(void **state);

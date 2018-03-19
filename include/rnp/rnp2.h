@@ -50,6 +50,12 @@ typedef uint32_t rnp_result_t;
 #define RNP_JSON_SIGNATURE_MPIS (1U << 3)
 
 /**
+ * Flags for the key loading/saving functions.
+ */
+#define RNP_LOAD_SAVE_PUBLIC_KEYS (1U << 0)
+#define RNP_LOAD_SAVE_SECRET_KEYS (1U << 1)
+
+/**
  * Return a constant string describing the result code
  */
 const char *rnp_result_to_string(rnp_result_t result);
@@ -58,7 +64,6 @@ const char *rnp_result_to_string(rnp_result_t result);
  * Opaque structures
  */
 typedef struct rnp_ffi_st *                rnp_ffi_t;
-typedef struct rnp_keyring_st *            rnp_keyring_t;
 typedef struct rnp_key_handle_st *         rnp_key_handle_t;
 typedef struct rnp_input_st *              rnp_input_t;
 typedef struct rnp_output_st *             rnp_output_t;
@@ -107,18 +112,26 @@ typedef int (*rnp_get_key_cb)(void *      app_ctx,
                               uint8_t **  buf, // TODO: note must be alloc with rnp_buffer_new
                               size_t *    buf_len);
 
+/** create the top-level object used for interacting with the library
+ *
+ *  @param ffi pointer that will be set to the created ffi object
+ *  @param pub_format the format of the public keyring
+ *  @param sec_format the format of the secret keyring
+ *  @return 0 on success, or any other value on error
+ */
 rnp_result_t rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format);
 
-/**
- * TODO: note that this invalidates keyring handles and key handles
+/** destroy the top-level object used for interacting with the library
+ *
+ *  Note that this invalidates key handles, keyrings, and any other
+ *  objects associated with this particular object.
+ *
+ *  @param ffi the ffi object
+ *  @return 0 on success, or any other value on error
  */
 rnp_result_t rnp_ffi_destroy(rnp_ffi_t ffi);
 
-rnp_result_t rnp_ffi_get_pubring(rnp_ffi_t ffi, rnp_keyring_t *pubring);
-rnp_result_t rnp_ffi_get_secring(rnp_ffi_t ffi, rnp_keyring_t *secring);
-
 rnp_result_t rnp_ffi_set_log_fd(rnp_ffi_t ffi, int fd);
-
 rnp_result_t rnp_ffi_set_key_provider(rnp_ffi_t      ffi,
                                       rnp_get_key_cb getkeycb,
                                       void *         getkeycb_ctx);
@@ -130,7 +143,7 @@ rnp_result_t rnp_ffi_set_pass_provider(rnp_ffi_t       ffi,
 
 /** retrieve the default homedir (example: /home/user/.rnp)
  *
- * @param homedir pointer where the homedir string will be stored.
+ * @param homedir pointer that will be set to the homedir path.
  *        The caller should free this with rnp_buffer_free.
  * @return 0 on success, or any other value on error
  */
@@ -139,14 +152,14 @@ rnp_result_t rnp_get_default_homedir(char **homedir);
 /** try to detect the formats and paths of the homedir keyrings
  *
  * @param homedir the path to the home directory (example: /home/user/.rnp)
- * @param pub_format pointer where the the format of the public keyring will
- *        be stored. The caller should free this with rnp_buffer_free.
- * @param pub_path pointer where the the path to the public keyring will
- *        be stored. The caller should free this with rnp_buffer_free.
- * @param sec_format pointer where the the format of the secret keyring will
- *        be stored. The caller should free this with rnp_buffer_free.
- * @param sec_path pointer where the the path to the secret keyring will
- *        be stored. The caller should free this with rnp_buffer_free.
+ * @param pub_format pointer that will be set to the format of the public keyring.
+ *        The caller should free this with rnp_buffer_free.
+ * @param pub_path pointer that will be set to the path to the public keyring.
+ *        The caller should free this with rnp_buffer_free.
+ * @param sec_format pointer that will be set to the format of the secret keyring.
+ *        The caller should free this with rnp_buffer_free.
+ * @param sec_path pointer that will be set to the path to the secret keyring.
+ *        The caller should free this with rnp_buffer_free.
  * @return 0 on success, or any other value on error
  */
 rnp_result_t rnp_detect_homedir_info(
@@ -154,54 +167,46 @@ rnp_result_t rnp_detect_homedir_info(
 
 /** try to detect the key format of the provided data
  *
- * @param buf the key data
- * @param pub_format pointer where the the format of the public keyring will
- *        be stored. The caller should free this with rnp_buffer_free.
- * @param sec_format pointer where the the format of the secret keyring will
- *        be stored. The caller should free this with rnp_buffer_free.
+ * @param buf the key data, must not be NULL
+ * @param buf_len the size of the buffer, must be > 0
+ * @param format pointer that will be set to the format of the keyring.
+ *        Must not be NULL. The caller should free this with rnp_buffer_free.
  * @return 0 on success, or any other value on error
  */
 rnp_result_t rnp_detect_key_format(const uint8_t buf[], size_t buf_len, char **format);
 
-rnp_result_t rnp_keyring_get_format(rnp_keyring_t ring, char **format);
-rnp_result_t rnp_keyring_get_path(rnp_keyring_t ring, char **path);
-rnp_result_t rnp_keyring_get_key_count(rnp_keyring_t ring, size_t *count);
-
-/** load keys into a keyring, from a path
+/** load keys
  *
- * @param ring the keyring
- * @param path
+ * Note that for G10, the input must be a directory (which must already exist).
+ *
+ * @param ffi
+ * @param format the key format of the data (GPG, KBX, G10). Must not be NULL.
+ * @param input source to read from.
+ * @param flags the flags. See RNP_LOAD_SAVE_*.
  * @return 0 on success, or any other value on error
  */
-rnp_result_t rnp_keyring_load_from_path(rnp_keyring_t keyring, const char *path);
+rnp_result_t rnp_load_keys(rnp_ffi_t   ffi,
+                           const char *format,
+                           rnp_input_t input,
+                           uint32_t    flags);
 
-// TODO: provide a way to indicate what new keys were loaded
-/** load keys into a keyring, from a buffer
+/** save keys
  *
- * @param ring the keyring
- * @param buf
- * @param buf_len
+ * Note that for G10, the output must be a directory (which must already exist).
+ *
+ * @param ffi
+ * @param format the key format of the data (GPG, KBX, G10). Must not be NULL.
+ * @param output the output destination to write to.
+ * @param flags the flags. See RNP_LOAD_SAVE_*.
  * @return 0 on success, or any other value on error
  */
-rnp_result_t rnp_keyring_load_from_memory(rnp_keyring_t keyring,
-                                          const uint8_t buf[],
-                                          size_t        buf_len);
+rnp_result_t rnp_save_keys(rnp_ffi_t    ffi,
+                           const char * format,
+                           rnp_output_t output,
+                           uint32_t     flags);
 
-/** save a keyring to a path
- *
- * @param ring the keyring
- * @param path the path to save to
- * @return 0 on success, or any other value on error
- */
-rnp_result_t rnp_keyring_save_to_path(rnp_keyring_t ring, const char *path);
-
-/** save a keyring to a buffer
- *
- * @param ring the keyring
- * @param path the path to save to
- * @return 0 on success, or any other value on error
- */
-rnp_result_t rnp_keyring_save_to_memory(rnp_keyring_t ring, uint8_t *buf[], size_t *buf_len);
+rnp_result_t rnp_get_public_key_count(rnp_ffi_t ffi, size_t *count);
+rnp_result_t rnp_get_secret_key_count(rnp_ffi_t ffi, size_t *count);
 
 rnp_result_t rnp_locate_key(rnp_ffi_t         ffi,
                             const char *      identifier_type,
@@ -209,8 +214,6 @@ rnp_result_t rnp_locate_key(rnp_ffi_t         ffi,
                             rnp_key_handle_t *key);
 
 rnp_result_t rnp_key_handle_free(rnp_key_handle_t *key);
-
-/* TODO: keyring iteration */
 
 /** generate a key or pair of keys using a JSON description
  *
@@ -220,9 +223,8 @@ rnp_result_t rnp_key_handle_free(rnp_key_handle_t *key);
  *  @param ffi
  *  @param json the json data that describes the key generation.
  *         Must not be NULL.
- *  @param results pointer where JSON results will be stored.
- *         Must not be NULL.
- *         The caller should free this with rnp_buffer_free.
+ *  @param results pointer that will be set to the JSON results.
+ *         Must not be NULL. The caller should free this with rnp_buffer_free.
  *  @return 0 on success, or any other value on error
  */
 rnp_result_t rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results);
@@ -284,8 +286,6 @@ rnp_result_t rnp_key_have_public(rnp_key_handle_t key, bool *result);
 /* TODO: function to add a userid to a key */
 
 /* Signing operations */
-
-/* TODO define functions for password-based encryption */
 
 /** @brief Create signing operation context. This method should be used for embedded
  *         signatures of binary data. For detached and cleartext signing corresponding
@@ -564,14 +564,14 @@ void *rnp_buffer_new(size_t size);
 void rnp_buffer_free(void *ptr);
 
 /**
- * @brief Initialize input struct to read from file
+ * @brief Initialize input struct to read from a path
  *
  * @param input pointer to the input opaque structure
  * @param path path of the file to read from
  * @return RNP_SUCCESS if operation succeeded and input struct is ready to read, or error code
  * otherwise
  */
-rnp_result_t rnp_input_from_file(rnp_input_t *input, const char *path);
+rnp_result_t rnp_input_from_path(rnp_input_t *input, const char *path);
 
 /**
  * @brief Initialize input struct to read from memory
@@ -610,15 +610,15 @@ rnp_result_t rnp_input_from_callback(rnp_input_t *       input,
 rnp_result_t rnp_input_destroy(rnp_input_t input);
 
 /**
- * @brief Initialize output structure to write to the new file. If file already exists then
- * operation will fail.
+ * @brief Initialize output structure to write to a path. If path is a file
+ * that already exists then operation will fail.
  *
  * @param output pointer to the opaque output structure.
  * @param path path to the file.
  * @return RNP_SUCCESS if file was opened successfully and ready for writing or error code
  * otherwise.
  */
-rnp_result_t rnp_output_to_file(rnp_output_t *output, const char *path);
+rnp_result_t rnp_output_to_path(rnp_output_t *output, const char *path);
 
 /**
  * @brief Initialize output structure to write to the memory.
