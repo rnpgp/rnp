@@ -197,6 +197,8 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_signatures_detached_memory),
       cmocka_unit_test(test_ffi_signatures_detached),
       cmocka_unit_test(test_ffi_signatures),
+      cmocka_unit_test(test_ffi_load_keys),
+      cmocka_unit_test(test_ffi_save_keys),
       cmocka_unit_test(test_ffi_key_to_json),
       cmocka_unit_test(test_ffi_key_iter),
     };

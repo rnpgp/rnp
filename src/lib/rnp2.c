@@ -45,16 +45,11 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 struct rnp_password_cb_data {
     rnp_password_cb cb_fn;
     void *          cb_data;
-    rnp_keyring_t   ring;
-};
-
-struct rnp_keyring_st {
-    rnp_key_store_t *store;
-    rnp_ffi_t        ffi;
 };
 
 typedef struct key_locator_t {
@@ -73,25 +68,29 @@ struct rnp_key_handle_st {
 };
 
 struct rnp_ffi_st {
-    pgp_io_t        io;
-    rnp_keyring_t   pubring;
-    rnp_keyring_t   secring;
-    rnp_get_key_cb  getkeycb;
-    void *          getkeycb_ctx;
-    rnp_password_cb getpasscb;
-    void *          getpasscb_ctx;
-    rng_t           rng;
+    pgp_io_t         io;
+    rnp_key_store_t *pubring;
+    rnp_key_store_t *secring;
+    rnp_get_key_cb   getkeycb;
+    void *           getkeycb_ctx;
+    rnp_password_cb  getpasscb;
+    void *           getpasscb_ctx;
+    rng_t            rng;
 };
 
 struct rnp_input_st {
+    /* either src or src_directory are valid, not both */
     pgp_source_t        src;
+    char *              src_directory;
     rnp_input_reader_t *reader;
     rnp_input_closer_t *closer;
     void *              app_ctx;
 };
 
 struct rnp_output_st {
+    /* either dst or dst_directory are valid, not both */
     pgp_dest_t           dst;
+    char *               dst_directory;
     rnp_output_writer_t *writer;
     rnp_output_closer_t *closer;
     void *               app_ctx;
@@ -161,25 +160,22 @@ struct rnp_identifier_iterator_st {
         RNP_LOG_FD(fp, __VA_ARGS__); \
     } while (0)
 
-static rnp_result_t rnp_keyring_create(rnp_ffi_t ffi, rnp_keyring_t *ring, const char *format);
-static rnp_result_t rnp_keyring_destroy(rnp_keyring_t ring);
-
 static bool
 key_provider_bounce(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *userdata)
 {
-    rnp_ffi_t     ffi = (rnp_ffi_t) userdata;
-    rnp_keyring_t ring = ctx->secret ? ffi->secring : ffi->pubring;
+    rnp_ffi_t        ffi = (rnp_ffi_t) userdata;
+    rnp_key_store_t *ring = ctx->secret ? ffi->secring : ffi->pubring;
     *key = NULL;
     switch (ctx->stype) {
     case PGP_KEY_SEARCH_USERID:
         // TODO: this isn't really a userid search...
-        rnp_key_store_get_key_by_name(&ffi->io, ring->store, ctx->search.userid, key);
+        rnp_key_store_get_key_by_name(&ffi->io, ring, ctx->search.userid, key);
         break;
     case PGP_KEY_SEARCH_KEYID: {
-        *key = rnp_key_store_get_key_by_id(&ffi->io, ring->store, ctx->search.id, NULL, NULL);
+        *key = rnp_key_store_get_key_by_id(&ffi->io, ring, ctx->search.id, NULL, NULL);
     } break;
     case PGP_KEY_SEARCH_GRIP: {
-        *key = rnp_key_store_get_key_by_grip(&ffi->io, ring->store, ctx->search.grip);
+        *key = rnp_key_store_get_key_by_grip(&ffi->io, ring, ctx->search.grip);
     } break;
     default:
         // should never happen
@@ -303,12 +299,14 @@ rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
     // default to all stderr
     const pgp_io_t default_io = {.outs = stderr, .errs = stderr, .res = stderr};
     ob->io = default_io;
-    ret = rnp_keyring_create(ob, &ob->pubring, pub_format);
-    if (ret) {
+    ob->pubring = rnp_key_store_new(pub_format, "");
+    if (!ob->pubring) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }
-    ret = rnp_keyring_create(ob, &ob->secring, sec_format);
-    if (ret) {
+    ob->secring = rnp_key_store_new(sec_format, "");
+    if (!ob->secring) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }
     if (!rng_init(&ob->rng, RNG_DRBG)) {
@@ -354,33 +352,11 @@ rnp_ffi_destroy(rnp_ffi_t ffi)
 {
     if (ffi) {
         close_io(&ffi->io);
-        rnp_keyring_destroy(ffi->pubring);
-        rnp_keyring_destroy(ffi->secring);
+        rnp_key_store_free(ffi->pubring);
+        rnp_key_store_free(ffi->secring);
         rng_destroy(&ffi->rng);
         free(ffi);
     }
-    return RNP_SUCCESS;
-}
-
-rnp_result_t
-rnp_ffi_get_pubring(rnp_ffi_t ffi, rnp_keyring_t *ring)
-{
-    // checks
-    if (!ffi || !ring) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-    *ring = ffi->pubring;
-    return RNP_SUCCESS;
-}
-
-rnp_result_t
-rnp_ffi_get_secring(rnp_ffi_t ffi, rnp_keyring_t *ring)
-{
-    // checks
-    if (!ffi || !ring) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-    *ring = ffi->secring;
     return RNP_SUCCESS;
 }
 
@@ -710,206 +686,393 @@ done:
     return ret;
 }
 
+// TODO: this is temporary and should disappear when support for loading keys with
+// the streaming framework exists
 static rnp_result_t
-rnp_keyring_create(rnp_ffi_t ffi, rnp_keyring_t *ring, const char *format)
+read_all_input(pgp_source_t *src, uint8_t **buf, size_t *buf_len)
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
-    // checks
-    if (!ffi || !ring || !format) {
-        return RNP_ERROR_NULL_POINTER;
+    *buf = NULL;
+    *buf_len = 0;
+    while (!src->eof) {
+        uint8_t readbuf[PGP_INPUT_CACHE_SIZE];
+        ssize_t read = src_read(src, readbuf, PGP_INPUT_CACHE_SIZE);
+        if (read < 0) {
+            ret = RNP_ERROR_READ;
+            goto done;
+        } else if (read > 0) {
+            uint8_t *new_buf = realloc(*buf, *buf_len + read);
+            if (!new_buf) {
+                ret = RNP_ERROR_OUT_OF_MEMORY;
+                goto done;
+            }
+            *buf = new_buf;
+            memcpy(*buf + *buf_len, readbuf, read);
+            *buf_len += read;
+        }
     }
 
-    // proceed
-    *ring = malloc(sizeof(**ring));
-    if (!*ring) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
-    }
-    (*ring)->store = rnp_key_store_new(format, "");
-    if (!(*ring)->store) {
-        free(*ring);
-        *ring = NULL;
-        goto done;
-    }
-    (*ring)->ffi = ffi;
-
-    // success
     ret = RNP_SUCCESS;
-done:
-    return ret;
-}
-
-static rnp_result_t
-rnp_keyring_destroy(rnp_keyring_t ring)
-{
-    if (ring) {
-        rnp_key_store_free(ring->store);
-        free(ring);
-    }
-    return RNP_SUCCESS;
-}
-
-rnp_result_t
-rnp_keyring_get_format(rnp_keyring_t ring, char **format)
-{
-    // checks
-    if (!ring || !ring->store || !format) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-
-    *format = strdup(ring->store->format_label);
-    if (!*format) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    return RNP_SUCCESS;
-}
-
-rnp_result_t
-rnp_keyring_get_path(rnp_keyring_t ring, char **path)
-{
-    // checks
-    if (!ring || !ring->store || !path) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-
-    *path = strdup(ring->store->path);
-    if (!*path) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    return RNP_SUCCESS;
-}
-
-rnp_result_t
-rnp_keyring_get_key_count(rnp_keyring_t ring, size_t *count)
-{
-    // checks
-    if (!ring || !ring->store || !count) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-
-    *count = list_length(ring->store->keys);
-    return RNP_SUCCESS;
-}
-
-rnp_result_t
-rnp_keyring_load_from_path(rnp_keyring_t ring, const char *path)
-{
-    // checks
-    if (!ring || !ring->store || !path) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-
-    const char *oldpath = ring->store->path;
-    ring->store->path = strdup(path);
-    if (!ring->store->path) {
-        ring->store->path = oldpath;
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    if (!rnp_key_store_load_from_file(&ring->ffi->io, ring->store, 0, NULL)) {
-        free((void *) ring->store->path);
-        ring->store->path = oldpath;
-        return RNP_ERROR_GENERIC;
-    }
-    free((void *) oldpath);
-    return RNP_SUCCESS;
-}
-
-rnp_result_t
-rnp_keyring_load_from_memory(rnp_keyring_t ring, const uint8_t buf[], size_t buf_len)
-{
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
-    // checks
-    if (!ring || !ring->store || !buf) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-    if (!buf_len) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    pgp_memory_t memory = {.buf = (uint8_t *) buf, .length = buf_len};
-    if (!rnp_key_store_load_from_mem(&ring->ffi->io, ring->store, 0, NULL, &memory)) {
-        goto done;
-    }
-
-    // success
-    ret = RNP_SUCCESS;
-done:
-    return ret;
-}
-
-rnp_result_t
-rnp_keyring_save_to_path(rnp_keyring_t ring, const char *path)
-{
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
-    // checks
-    if (!ring || !ring->store || !path) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-
-    char *newpath = strdup(path);
-    if (!newpath) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    free((void *) ring->store->path);
-    ring->store->path = newpath;
-    if (!rnp_key_store_write_to_file(&ring->ffi->io, ring->store, 0)) {
-        goto done;
-    }
-
-    // success
-    ret = RNP_SUCCESS;
-done:
-    return ret;
-}
-
-rnp_result_t
-rnp_keyring_save_to_memory(rnp_keyring_t ring, uint8_t *buf[], size_t *buf_len)
-{
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    pgp_memory_t mem = {0};
-
-    // checks
-    if (!ring || !ring->store || !buf) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-    if (!buf_len) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    if (!rnp_key_store_write_to_mem(&ring->ffi->io, ring->store, 0, &mem)) {
-        goto done;
-    }
-
-    // success
-    ret = RNP_SUCCESS;
-    *buf = mem.buf;
-    *buf_len = mem.length;
 done:
     if (ret) {
+        free(*buf);
+        *buf = NULL;
+        *buf_len = 0;
+    }
+    return ret;
+}
+
+static rnp_result_t
+load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
+{
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    uint8_t *    buf = NULL;
+    size_t       buf_len;
+
+    if (input->src_directory) {
+        // load the keys
+        free((void *) store->path);
+        store->path = strdup(input->src_directory);
+        if (!store->path) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        if (!rnp_key_store_load_from_file(&ffi->io, store, 0, ffi->pubring)) {
+            // for the GPG format, we try again with armored=true
+            if (store->format != GPG_KEY_STORE ||
+                !rnp_key_store_load_from_file(&ffi->io, store, 1, ffi->pubring)) {
+                ret = RNP_ERROR_BAD_FORMAT;
+                goto done;
+            }
+        }
+    } else {
+        // read in the full data (streaming isn't currently supported)
+        rnp_result_t tmpret = read_all_input(&input->src, &buf, &buf_len);
+        if (tmpret) {
+            ret = tmpret;
+            goto done;
+        }
+        // load the keys
+        pgp_memory_t mem = {.buf = buf, .length = buf_len};
+        if (!rnp_key_store_load_from_mem(&ffi->io, store, 0, ffi->pubring, &mem)) {
+            // for the GPG format, we try again with armored=true
+            if (store->format != GPG_KEY_STORE ||
+                !rnp_key_store_load_from_mem(&ffi->io, store, 1, ffi->pubring, &mem)) {
+                ret = RNP_ERROR_BAD_FORMAT;
+                goto done;
+            }
+        }
+    }
+
+    ret = RNP_SUCCESS;
+done:
+    free(buf);
+    return ret;
+}
+
+/* This is just for readability at the call site and will hopefully reduce mistakes.
+ *
+ * Instead of:
+ *  void do_something(rnp_ffi_t ffi, bool with_secret_keys);
+ *  do_something(ffi, true);
+ *  do_something(ffi, false);
+ *
+ * You can have something a bit clearer:
+ *  void do_something(rnp_ffi_t ffi, key_type_t key_type);
+ *  do_something(ffi, KEY_TYPE_PUBLIC);
+ *  do_something(ffi, KEY_TYPE_SECRET);
+ */
+typedef enum key_type_t {
+    KEY_TYPE_NONE,
+    KEY_TYPE_PUBLIC,
+    KEY_TYPE_SECRET,
+    KEY_TYPE_ANY
+} key_type_t;
+
+static bool
+key_needs_conversion(const pgp_key_t *key, const rnp_key_store_t *store)
+{
+    key_store_format_t key_format = key->format;
+    key_store_format_t store_format = store->format;
+    /* pgp_key_t->format is only ever GPG or G10.
+     *
+     * The key store, however, could have a format of KBX, GPG, or G10.
+     * A KBX (and GPG) key store can only handle a pgp_key_t with a format of GPG.
+     * A G10 key store can only handle a pgp_key_t with a format of G10.
+     */
+    // should never be the case
+    assert(key_format != KBX_KEY_STORE);
+    // normalize the store format
+    if (store_format == KBX_KEY_STORE) {
+        store_format = GPG_KEY_STORE;
+    }
+    // from here, both the key and store formats can only be GPG or G10
+    return key_format != store_format;
+}
+
+static rnp_result_t
+do_load_keys(rnp_ffi_t ffi, rnp_input_t input, const char *format, key_type_t key_type)
+{
+    rnp_result_t     ret = RNP_ERROR_GENERIC;
+    rnp_key_store_t *tmp_store = NULL;
+    list             key_list = NULL;
+
+    // create a temporary key store to hold the keys
+    tmp_store = rnp_key_store_new(format, "");
+    if (!tmp_store) {
+        // TODO: could also be out of mem
+        ret = RNP_ERROR_BAD_FORMAT;
+        goto done;
+    }
+
+    // load keys into our temporary store
+    rnp_result_t tmpret = load_keys_from_input(ffi, input, tmp_store);
+    if (tmpret) {
+        ret = tmpret;
+        goto done;
+    }
+    // go through all the loaded keys
+    for (list_item *key_item = list_front(tmp_store->keys); key_item;
+         key_item = list_next(key_item)) {
+        pgp_key_t *key = (pgp_key_t *) key_item;
+        // check that the key is the correct type and has not already been loaded
+        bool             is_secret = pgp_is_key_secret(key);
+        rnp_key_store_t *dest = is_secret ? ffi->secring : ffi->pubring;
+        // check that the key type matches what we're looking for
+        if (key_type == KEY_TYPE_ANY || (is_secret == (key_type == KEY_TYPE_SECRET))) {
+            // see if the key already exists in the destination store
+            if (!rnp_key_store_get_key_by_grip(&ffi->io, dest, key->grip)) {
+                /* TODO: We could do this a few different ways. There isn't an obvious reason
+                 * to restrict what formats we load, so we don't necessarily need to require a
+                 * conversion just to load and use a G10 key when using GPG keyrings, for
+                 * example. We could just convert when saving.
+                 */
+                if (key_needs_conversion(key, dest)) {
+                    FFI_LOG(ffi, "This key format conversion is not yet supported");
+                    ret = RNP_ERROR_NOT_IMPLEMENTED;
+                    goto done;
+                }
+                if (!list_append(&key_list, &key, sizeof(key))) {
+                    ret = RNP_ERROR_OUT_OF_MEMORY;
+                    goto done;
+                }
+                // add the key to the destination ring
+                if (!rnp_key_store_add_key(&ffi->io, dest, key)) {
+                    list_remove(list_back(key_list));
+                    goto done;
+                }
+            }
+        }
+    }
+
+    // success, even if we didn't actually load any
+    ret = RNP_SUCCESS;
+done:
+    // remove all loaded keys from the temporary store, ownership has changed
+    {
+        list_item *key = list_front(key_list);
+        while (key) {
+            rnp_key_store_remove_key(&ffi->io, tmp_store, *(pgp_key_t **) key);
+            key = list_next(key);
+        }
+        list_destroy(&key_list);
+    }
+    rnp_key_store_free(tmp_store);
+    return ret;
+}
+
+static key_type_t
+flags_to_key_type(uint32_t *flags)
+{
+    key_type_t type = KEY_TYPE_NONE;
+    // figure out what type of keys to operate on, based on flags
+    if ((*flags & RNP_LOAD_SAVE_PUBLIC_KEYS) && (*flags & RNP_LOAD_SAVE_SECRET_KEYS)) {
+        type = KEY_TYPE_ANY;
+        *flags &= ~(RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS);
+    } else if (*flags & RNP_LOAD_SAVE_PUBLIC_KEYS) {
+        type = KEY_TYPE_PUBLIC;
+        *flags &= ~RNP_LOAD_SAVE_PUBLIC_KEYS;
+    } else if (*flags & RNP_LOAD_SAVE_SECRET_KEYS) {
+        type = KEY_TYPE_SECRET;
+        *flags &= ~RNP_LOAD_SAVE_SECRET_KEYS;
+    }
+    return type;
+}
+
+rnp_result_t
+rnp_load_keys(rnp_ffi_t ffi, const char *format, rnp_input_t input, uint32_t flags)
+{
+    // checks
+    if (!ffi || !format || !input) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    key_type_t type = flags_to_key_type(&flags);
+    if (!type) {
+        FFI_LOG(ffi, "invalid flags - must have public and/or secret keys");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    // check for any unrecognized flags (not forward-compat, but maybe still a good idea)
+    if (flags) {
+        FFI_LOG(ffi, "unexpected flags remaining: 0x%X", flags);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return do_load_keys(ffi, input, format, type);
+}
+
+static bool
+copy_store_keys(pgp_io_t *io, rnp_key_store_t *dest, rnp_key_store_t *src)
+{
+    for (list_item *key_item = list_front(src->keys); key_item;
+         key_item = list_next(key_item)) {
+        if (!rnp_key_store_add_key(io, dest, (pgp_key_t *) key_item)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static rnp_result_t
+do_save_keys(rnp_ffi_t ffi, rnp_output_t output, const char *format, key_type_t key_type)
+{
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    // create a temporary key store to hold the keys
+    rnp_key_store_t *tmp_store = rnp_key_store_new(format, "");
+    if (!tmp_store) {
+        // TODO: could also be out of mem
+        ret = RNP_ERROR_BAD_FORMAT;
+        goto done;
+    }
+    // include the public keys, if desired
+    if (key_type == KEY_TYPE_PUBLIC || key_type == KEY_TYPE_ANY) {
+        if (!copy_store_keys(&ffi->io, tmp_store, ffi->pubring)) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+    }
+    // include the secret keys, if desired
+    if (key_type == KEY_TYPE_SECRET || key_type == KEY_TYPE_ANY) {
+        if (!copy_store_keys(&ffi->io, tmp_store, ffi->secring)) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+    }
+    // preliminary check on the format
+    for (list_item *key_item = list_front(tmp_store->keys); key_item;
+         key_item = list_next(key_item)) {
+        if (key_needs_conversion((pgp_key_t *) key_item, tmp_store)) {
+            FFI_LOG(ffi, "This key format conversion is not yet supported");
+            ret = RNP_ERROR_NOT_IMPLEMENTED;
+            goto done;
+        }
+    }
+    // write
+    if (output->dst_directory) {
+        free((void *) tmp_store->path);
+        tmp_store->path = strdup(output->dst_directory);
+        if (!tmp_store->path) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        if (!rnp_key_store_write_to_file(&ffi->io, tmp_store, 0)) {
+            ret = RNP_ERROR_WRITE;
+            goto done;
+        }
+        ret = RNP_SUCCESS;
+    } else {
+        pgp_memory_t mem = {0};
+        if (!rnp_key_store_write_to_mem(&ffi->io, tmp_store, 0, &mem)) {
+            ret = RNP_ERROR_WRITE;
+            goto done;
+        }
+        dst_write(&output->dst, mem.buf, mem.length);
+        output->keep = (output->dst.werr == RNP_SUCCESS);
         pgp_memory_release(&mem);
+        ret = output->dst.werr;
+    }
+
+done:
+    if (tmp_store) {
+        // don't free the keys since they don't really belong to this temporary store
+        list_destroy(&tmp_store->keys);
+        rnp_key_store_free(tmp_store);
     }
     return ret;
 }
 
 rnp_result_t
-rnp_input_from_file(rnp_input_t *input, const char *path)
+rnp_save_keys(rnp_ffi_t ffi, const char *format, rnp_output_t output, uint32_t flags)
 {
+    // checks
+    if (!ffi || !format || !output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    key_type_t type = flags_to_key_type(&flags);
+    if (!type) {
+        FFI_LOG(ffi, "invalid flags - must have public and/or secret keys");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    // check for any unrecognized flags (not forward-compat, but maybe still a good idea)
+    if (flags) {
+        FFI_LOG(ffi, "unexpected flags remaining: 0x%X", flags);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    return do_save_keys(ffi, output, format, type);
+}
+
+rnp_result_t
+rnp_get_public_key_count(rnp_ffi_t ffi, size_t *count)
+{
+    if (!ffi || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *count = list_length(ffi->pubring->keys);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_get_secret_key_count(rnp_ffi_t ffi, size_t *count)
+{
+    if (!ffi || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *count = list_length(ffi->secring->keys);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_input_from_path(rnp_input_t *input, const char *path)
+{
+    struct rnp_input_st *ob = NULL;
+    struct stat          st = {0};
+
     if (!input || !path) {
         return RNP_ERROR_NULL_POINTER;
     }
-    *input = calloc(1, sizeof(**input));
-    if (!*input) {
+    ob = calloc(1, sizeof(*ob));
+    if (!ob) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    rnp_result_t ret = init_file_src(&(*input)->src, path);
-    if (ret) {
-        free(*input);
-        *input = NULL;
-        return ret;
+    if (stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
+        // a bit hacky, just save the directory path
+        ob->src_directory = strdup(path);
+        if (!ob->src_directory) {
+            free(ob);
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    } else {
+        // simple input from a file
+        rnp_result_t ret = init_file_src(&ob->src, path);
+        if (ret) {
+            free(ob);
+            return ret;
+        }
     }
+    *input = ob;
     return RNP_SUCCESS;
 }
 
@@ -1000,29 +1163,41 @@ rnp_input_destroy(rnp_input_t input)
 {
     if (input) {
         src_close(&input->src);
+        free(input->src_directory);
         free(input);
     }
     return RNP_SUCCESS;
 }
 
 rnp_result_t
-rnp_output_to_file(rnp_output_t *output, const char *path)
+rnp_output_to_path(rnp_output_t *output, const char *path)
 {
-    // checks
+    struct rnp_output_st *ob = NULL;
+    struct stat           st = {0};
+
     if (!output || !path) {
         return RNP_ERROR_NULL_POINTER;
     }
-
-    *output = calloc(1, sizeof(**output));
-    if (!*output) {
+    ob = calloc(1, sizeof(*ob));
+    if (!ob) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    rnp_result_t ret = init_file_dest(&(*output)->dst, path, false);
-    if (ret) {
-        free(*output);
-        *output = NULL;
-        return ret;
+    if (stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
+        // a bit hacky, just save the directory path
+        ob->dst_directory = strdup(path);
+        if (!ob->dst_directory) {
+            free(ob);
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    } else {
+        // simple output to a file
+        rnp_result_t ret = init_file_dest(&ob->dst, path, true);
+        if (ret) {
+            free(ob);
+            return ret;
+        }
     }
+    *output = ob;
     return RNP_SUCCESS;
 }
 
@@ -1147,6 +1322,7 @@ rnp_output_destroy(rnp_output_t output)
         dst_close(&output->dst, !output->keep); // TODO
         // output->dst.param = NULL;
         //}
+        free(output->dst_directory);
         free(output);
     }
     return RNP_SUCCESS;
@@ -1949,7 +2125,7 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
         dst_close(&output->dst, true);
         output->dst = (pgp_dest_t){0};
     }
-    output->keep = ret == RNP_SUCCESS;
+    output->keep = (ret == RNP_SUCCESS);
     return ret;
 }
 
@@ -2032,9 +2208,9 @@ rnp_locate_key(rnp_ffi_t         ffi,
     }
 
     // search pubring
-    pgp_key_t *pub = find_key_by_locator(&ffi->io, ffi->pubring->store, &locator);
+    pgp_key_t *pub = find_key_by_locator(&ffi->io, ffi->pubring, &locator);
     // search secring
-    pgp_key_t *sec = find_key_by_locator(&ffi->io, ffi->secring->store, &locator);
+    pgp_key_t *sec = find_key_by_locator(&ffi->io, ffi->secring, &locator);
 
     if (pub || sec) {
         *handle = malloc(sizeof(**handle));
@@ -2508,7 +2684,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
                                   &primary_pub,
                                   &sub_sec,
                                   &sub_pub,
-                                  ffi->secring->store->format)) {
+                                  ffi->secring->format)) {
             goto done;
         }
         if (results && !gen_json_grips(results, &primary_pub, &sub_pub)) {
@@ -2516,24 +2692,24 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             goto done;
         }
         if (ffi->pubring) {
-            if (!rnp_key_store_add_key(&ffi->io, ffi->pubring->store, &primary_pub)) {
+            if (!rnp_key_store_add_key(&ffi->io, ffi->pubring, &primary_pub)) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
             }
             primary_pub = (pgp_key_t){0};
-            if (!rnp_key_store_add_key(&ffi->io, ffi->pubring->store, &sub_pub)) {
+            if (!rnp_key_store_add_key(&ffi->io, ffi->pubring, &sub_pub)) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
             }
             sub_pub = (pgp_key_t){0};
         }
         if (ffi->secring) {
-            if (!rnp_key_store_add_key(&ffi->io, ffi->secring->store, &primary_sec)) {
+            if (!rnp_key_store_add_key(&ffi->io, ffi->secring, &primary_sec)) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
             }
             primary_sec = (pgp_key_t){0};
-            if (!rnp_key_store_add_key(&ffi->io, ffi->secring->store, &sub_sec)) {
+            if (!rnp_key_store_add_key(&ffi->io, ffi->secring, &sub_sec)) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
             }
@@ -2546,7 +2722,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             goto done;
         }
         if (!pgp_generate_primary_key(
-              &primary_desc, true, &primary_sec, &primary_pub, ffi->secring->store->format)) {
+              &primary_desc, true, &primary_sec, &primary_pub, ffi->secring->format)) {
             goto done;
         }
         if (results && !gen_json_grips(results, &primary_pub, NULL)) {
@@ -2554,14 +2730,14 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             goto done;
         }
         if (ffi->pubring) {
-            if (!rnp_key_store_add_key(&ffi->io, ffi->pubring->store, &primary_pub)) {
+            if (!rnp_key_store_add_key(&ffi->io, ffi->pubring, &primary_pub)) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
             }
             primary_pub = (pgp_key_t){0};
         }
         if (ffi->secring) {
-            if (!rnp_key_store_add_key(&ffi->io, ffi->secring->store, &primary_sec)) {
+            if (!rnp_key_store_add_key(&ffi->io, ffi->secring, &primary_sec)) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
             }
@@ -2597,8 +2773,8 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             goto done;
         }
 
-        pgp_key_t *primary_pub = find_key_by_locator(&ffi->io, ffi->pubring->store, &locator);
-        pgp_key_t *primary_sec = find_key_by_locator(&ffi->io, ffi->secring->store, &locator);
+        pgp_key_t *primary_pub = find_key_by_locator(&ffi->io, ffi->pubring, &locator);
+        pgp_key_t *primary_sec = find_key_by_locator(&ffi->io, ffi->secring, &locator);
         if (!primary_sec || !primary_pub) {
             ret = RNP_ERROR_KEY_NOT_FOUND;
             goto done;
@@ -2619,7 +2795,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
                                  &sub_sec,
                                  &sub_pub,
                                  &provider,
-                                 ffi->secring->store->format)) {
+                                 ffi->secring->format)) {
             goto done;
         }
         if (results && !gen_json_grips(results, NULL, &sub_pub)) {
@@ -2627,14 +2803,14 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             goto done;
         }
         if (ffi->pubring) {
-            if (!rnp_key_store_add_key(&ffi->io, ffi->pubring->store, &sub_pub)) {
+            if (!rnp_key_store_add_key(&ffi->io, ffi->pubring, &sub_pub)) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
             }
             sub_pub = (pgp_key_t){0};
         }
         if (ffi->secring) {
-            if (!rnp_key_store_add_key(&ffi->io, ffi->secring->store, &sub_sec)) {
+            if (!rnp_key_store_add_key(&ffi->io, ffi->secring, &sub_sec)) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
             }
@@ -3080,6 +3256,7 @@ rnp_secret_key_bytes(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len)
     }
     return key_to_bytes(key, buf, buf_len);
 }
+
 static bool
 add_json_string_field(json_object *jso, const char *key, const char *value)
 {
@@ -3779,9 +3956,8 @@ key_iter_next_key(rnp_identifier_iterator_t it)
     // check if we reached the end of the ring
     if (!it->keyp) {
         // if we are currently on pubring, switch to secring (if not empty)
-        if (it->store == it->ffi->pubring->store &&
-            list_length(it->ffi->secring->store->keys)) {
-            it->store = it->ffi->secring->store;
+        if (it->store == it->ffi->pubring && list_length(it->ffi->secring->keys)) {
+            it->store = it->ffi->secring;
             it->keyp = (pgp_key_t *) list_front(it->store->keys);
         } else {
             // we've gone through both rings
@@ -3820,10 +3996,10 @@ key_iter_next_item(rnp_identifier_iterator_t it)
 static bool
 key_iter_first_key(rnp_identifier_iterator_t it)
 {
-    if (list_length(it->ffi->pubring->store->keys)) {
-        it->store = it->ffi->pubring->store;
-    } else if (list_length(it->ffi->secring->store->keys)) {
-        it->store = it->ffi->secring->store;
+    if (list_length(it->ffi->pubring->keys)) {
+        it->store = it->ffi->pubring;
+    } else if (list_length(it->ffi->secring->keys)) {
+        it->store = it->ffi->secring;
     } else {
         it->store = NULL;
         return false;
