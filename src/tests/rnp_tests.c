@@ -141,7 +141,7 @@ main(int argc, char *argv[])
     }
 
     struct CMUnitTest tests[] = {
-      cmocka_unit_test(hash_test_success),
+      /*cmocka_unit_test(hash_test_success),
       cmocka_unit_test(cipher_test_success),
       cmocka_unit_test(pkcs1_rsa_test_success),
       cmocka_unit_test(raw_elgamal_fixed_512bit_key_test_success),
@@ -201,7 +201,8 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_load_keys),
       cmocka_unit_test(test_ffi_save_keys),
       cmocka_unit_test(test_ffi_key_to_json),
-      cmocka_unit_test(test_ffi_key_iter),
+      cmocka_unit_test(test_ffi_key_iter),*/
+      cmocka_unit_test(test_stream_key_load),
     };
 
     /* Each test entry will invoke setup_test before running

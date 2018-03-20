@@ -15,4 +15,5 @@ librepgp_la_SOURCES     =  \
     stream-parse.c \
     stream-write.c \
     stream-sig.c \
-    stream-packet.c
+    stream-packet.c \
+    stream-key.c
