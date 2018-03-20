@@ -35,6 +35,35 @@
 #include <rnp/rnp.h>
 #include "stream-common.h"
 
-rnp_result_t process_pgp_keys(pgp_source_t *src);
+/* userid/userattr with all the corresponding signatures */
+typedef struct pgp_transferable_userid_t {
+    pgp_userid_pkt_t uid;
+    list             signatures;
+} pgp_transferable_userid_t;
+
+/* subkey with all corresponding signatures */
+typedef struct pgp_transferable_subkey_t {
+    pgp_key_pkt_t subkey;
+    list          signatures;
+} pgp_transferable_subkey_t;
+
+/* transferable key with userids, subkeys and revocation signatures */
+typedef struct pgp_transferable_key_t {
+    pgp_key_pkt_t key; /* main key packet */
+    list          userids;
+    list          subkeys;
+    list          signatures;
+} pgp_transferable_key_t;
+
+/* sequence of OpenPGP transferable keys */
+typedef struct pgp_key_sequence_t {
+    list keys; /* list of pgp_transferable_key_t records */
+} pgp_key_sequence_t;
+
+void transferable_key_destroy(pgp_transferable_key_t *key);
+
+void key_sequence_destroy(pgp_key_sequence_t *keys);
+
+rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys);
 
 #endif

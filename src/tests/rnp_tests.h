@@ -157,6 +157,8 @@ void test_dsa_verify_negative(void **state);
 
 void test_stream_signatures(void **state);
 
+void test_stream_key_load(void **state);
+
 #define rnp_assert_int_equal(state, a, b)           \
     do {                                            \
         int _rnp_a = (a);                           \

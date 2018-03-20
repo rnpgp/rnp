@@ -33,6 +33,7 @@
 #include <time.h>
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-sig.h>
+#include <librepgp/stream-key.h>
 
 static bool
 stream_hash_file(pgp_hash_t *hash, const char *path)
@@ -158,4 +159,32 @@ test_stream_signatures(void **state)
     pgp_hash_finish(&hash_orig, NULL);
     pgp_hash_finish(&hash_forged, NULL);
     rng_destroy(&rng);
+}
+
+void
+test_stream_key_load(void **state)
+{
+    pgp_source_t       keysrc = {0};
+    pgp_key_sequence_t keyseq;
+
+    /* public keyring */
+    assert_rnp_success(init_file_src(&keysrc, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    key_sequence_destroy(&keyseq);
+    src_close(&keysrc);
+    /* secret keyring */
+    assert_rnp_success(init_file_src(&keysrc, "data/keyrings/1/secring.gpg"));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    key_sequence_destroy(&keyseq);
+    src_close(&keysrc);
+    /* armored v3 public key */
+    assert_rnp_success(init_file_src(&keysrc, "data/keyrings/4/rsav3-p.asc"));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    key_sequence_destroy(&keyseq);
+    src_close(&keysrc);
+    /* armored v3 secret key */
+    assert_rnp_success(init_file_src(&keysrc, "data/keyrings/4/rsav3-s.asc"));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    key_sequence_destroy(&keyseq);
+    src_close(&keysrc);
 }

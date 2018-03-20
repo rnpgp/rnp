@@ -64,6 +64,12 @@ size_t write_packet_len(uint8_t *buf, size_t len);
  **/
 int get_packet_type(uint8_t ptag);
 
+/** @brief peek the packet type from the stream
+ *  @param src source to peek from
+ *  @return packet tag or -1 if read failed or packet header is malformed
+ */
+int stream_pkt_type(pgp_source_t *src);
+
 /** @brief Peek length of the packet header. Returns -1 on error.
  *  @param src source to read length from
  *  @return number of bytes in packet header or -1 if there is a read error or packet length
@@ -196,6 +202,8 @@ rnp_result_t stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
 
 /* Packet handling functions */
 
+rnp_result_t stream_skip_packet(pgp_source_t *src);
+
 /* Symmetric-key encrypted session key */
 
 bool stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst);
@@ -229,5 +237,13 @@ bool stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst);
 rnp_result_t stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key);
 
 void free_key_pkt(pgp_key_pkt_t *key);
+
+/* User ID packet */
+
+bool stream_write_userid(pgp_userid_pkt_t *userid, pgp_dest_t *dst);
+
+rnp_result_t stream_parse_userid(pgp_source_t *src, pgp_userid_pkt_t *userid);
+
+void free_userid_pkt(pgp_userid_pkt_t *userid);
 
 #endif

@@ -88,6 +88,24 @@ get_packet_type(uint8_t ptag)
     }
 }
 
+int
+stream_pkt_type(pgp_source_t *src)
+{
+    uint8_t hdr[PGP_MAX_HEADER_SIZE];
+    ssize_t hdrlen = 0;
+
+    hdrlen = stream_pkt_hdr_len(src);
+    if (hdrlen < 0) {
+        return 0;
+    }
+
+    if (src_peek(src, hdr, hdrlen) != hdrlen) {
+        return 0;
+    }
+
+    return get_packet_type(hdr[0]);
+}
+
 ssize_t
 stream_pkt_hdr_len(pgp_source_t *src)
 {
@@ -321,7 +339,7 @@ add_packet_body_key_curve(pgp_packet_body_t *body, const pgp_curve_t curve)
 
     return (desc = get_curve_desc(curve)) &&
            add_packet_body_byte(body, (uint8_t) desc->OIDhex_len) &&
-           add_packet_body(body, (void*) desc->OIDhex, desc->OIDhex_len);
+           add_packet_body(body, (void *) desc->OIDhex, desc->OIDhex_len);
 }
 
 bool
@@ -401,7 +419,7 @@ get_packet_body_uint32(pgp_packet_body_t *body, uint32_t *val)
 bool
 get_packet_body_buf(pgp_packet_body_t *body, uint8_t *val, size_t len)
 {
-    if (body->pos + len < body->len) {
+    if (body->pos + len > body->len) {
         return false;
     }
 
@@ -473,6 +491,36 @@ get_packet_body_key_curve(pgp_packet_body_t *body, pgp_curve_t *val)
     return true;
 }
 
+static bool
+get_packet_body_s2k(pgp_packet_body_t *body, pgp_s2k_t *s2k)
+{
+    uint8_t spec = 0, halg = 0;
+    if (!get_packet_body_byte(body, &spec) || !get_packet_body_byte(body, &halg)) {
+        return false;
+    }
+    s2k->specifier = spec;
+    s2k->hash_alg = halg;
+
+    switch (s2k->specifier) {
+    case PGP_S2KS_SIMPLE:
+        return true;
+    case PGP_S2KS_SALTED:
+        return get_packet_body_buf(body, s2k->salt, PGP_SALT_SIZE);
+    case PGP_S2KS_ITERATED_AND_SALTED: {
+        uint8_t iter;
+        if (!get_packet_body_buf(body, s2k->salt, PGP_SALT_SIZE) ||
+            !get_packet_body_byte(body, &iter)) {
+            return false;
+        }
+        s2k->iterations = iter;
+        return true;
+    }
+    default:
+        RNP_LOG("unknown s2k specifier");
+        return false;
+    }
+}
+
 void
 free_packet_body(pgp_packet_body_t *body)
 {
@@ -541,6 +589,25 @@ stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
     body->len = len;
     body->pos = 0;
 
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+stream_skip_packet(pgp_source_t *src)
+{
+    ssize_t len;
+
+    len = stream_read_pkt_len(src);
+    if (len <= 0) {
+        return RNP_ERROR_READ;
+    } else if (len > PGP_MAX_PKT_SIZE) {
+        RNP_LOG("too large packet");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    if (src_skip(src, len) != len) {
+        return RNP_ERROR_READ;
+    }
     return RNP_SUCCESS;
 }
 
@@ -1548,11 +1615,10 @@ key_fill_hashed_data(pgp_key_pkt_t *key)
         res = add_packet_body_key_curve(&hbody, key->material.ecc.curve) &&
               add_packet_body_mpi(&hbody, key->material.ecc.p, key->material.ecc.plen);
         break;
-    case PGP_PKA_ECDH: 
+    case PGP_PKA_ECDH:
         res = add_packet_body_key_curve(&hbody, key->material.ecc.curve) &&
               add_packet_body_mpi(&hbody, key->material.ecc.p, key->material.ecc.plen) &&
-              add_packet_body_byte(&hbody, 3) &&
-              add_packet_body_byte(&hbody, 1) &&
+              add_packet_body_byte(&hbody, 3) && add_packet_body_byte(&hbody, 1) &&
               add_packet_body_byte(&hbody, key->material.ecdh.kdf_hash_alg) &&
               add_packet_body_byte(&hbody, key->material.ecdh.key_wrap_alg);
         break;
@@ -1609,6 +1675,15 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
 {
     pgp_packet_body_t pkt;
     rnp_result_t      res;
+    int               tag;
+
+    /* check the key tag */
+    tag = stream_pkt_type(src);
+    if ((tag != PGP_PTAG_CT_PUBLIC_KEY) && (tag != PGP_PTAG_CT_PUBLIC_SUBKEY) &&
+        (tag != PGP_PTAG_CT_SECRET_KEY) && (tag != PGP_PTAG_CT_SECRET_SUBKEY)) {
+        RNP_LOG("wrong key packet tag: %d", tag);
+        return RNP_ERROR_BAD_FORMAT;
+    }
 
     /* Read the packet into memory */
     if ((res = stream_read_packet_body(src, &pkt))) {
@@ -1616,25 +1691,18 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     }
 
     res = RNP_ERROR_BAD_FORMAT;
-
-    /* check the key tag */
-    if ((pkt.tag != PGP_PTAG_CT_PUBLIC_KEY) && (pkt.tag != PGP_PTAG_CT_PUBLIC_SUBKEY) &&
-        (pkt.tag != PGP_PTAG_CT_SECRET_KEY) && (pkt.tag != PGP_PTAG_CT_SECRET_SUBKEY)) {
-        RNP_LOG("wrong key tag: %d", pkt.tag);
-        goto finish;
-    }
-
     memset(key, 0, sizeof(*key));
 
     /* key type, i.e. tag */
     key->tag = pkt.tag;
 
     /* version */
-    if (!get_packet_body_byte(&pkt, (uint8_t *) &key->version) || (key->version < PGP_V2) ||
-        (key->version > PGP_V4)) {
+    uint8_t ver = 0;
+    if (!get_packet_body_byte(&pkt, &ver) || (ver < PGP_V2) || (ver > PGP_V4)) {
         RNP_LOG("wrong key packet version");
         goto finish;
     }
+    key->version = ver;
 
     /* creation time */
     if (!get_packet_body_uint32(&pkt, &key->creation_time)) {
@@ -1647,9 +1715,11 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     }
 
     /* key algorithm */
-    if (!get_packet_body_byte(&pkt, (uint8_t *) &key->alg)) {
+    uint8_t alg = 0;
+    if (!get_packet_body_byte(&pkt, &alg)) {
         goto finish;
     }
+    key->alg = alg;
 
     /* v3 keys must be RSA-only */
     if ((key->version < PGP_V4) && (key->alg != PGP_PKA_RSA)) {
@@ -1698,17 +1768,18 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
         }
 
         /* read KDF parameters. At the moment should be 0x03 0x01 halg ealg */
-        uint8_t len;
+        uint8_t len = 0, halg = 0, walg = 0;
         if (!get_packet_body_byte(&pkt, &len) || (len != 3)) {
             goto finish;
         }
         if (!get_packet_body_byte(&pkt, &len) || (len != 1)) {
             goto finish;
         }
-        if (!get_packet_body_byte(&pkt, (uint8_t *) &key->material.ecdh.kdf_hash_alg) ||
-            !get_packet_body_byte(&pkt, (uint8_t *) &key->material.ecdh.key_wrap_alg)) {
+        if (!get_packet_body_byte(&pkt, &halg) || !get_packet_body_byte(&pkt, &walg)) {
             goto finish;
         }
+        key->material.ecdh.kdf_hash_alg = halg;
+        key->material.ecdh.key_wrap_alg = walg;
         break;
     }
     default:
@@ -1727,8 +1798,56 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
 
     /* secret key fields if any */
     if ((key->tag == PGP_PTAG_CT_SECRET_KEY) || (key->tag == PGP_PTAG_CT_SECRET_SUBKEY)) {
-        res = RNP_ERROR_NOT_IMPLEMENTED;
-        goto finish;
+        uint8_t usage = 0;
+        if (!get_packet_body_byte(&pkt, &usage)) {
+            RNP_LOG("failed to read key protection");
+            goto finish;
+        }
+        key->sec_protection.s2k.usage = usage;
+
+        switch (key->sec_protection.s2k.usage) {
+        case PGP_S2KU_NONE:
+            break;
+        case PGP_S2KU_ENCRYPTED:
+        case PGP_S2KU_ENCRYPTED_AND_HASHED: {
+            /* we have s2k */
+            uint8_t salg = 0;
+            if (!get_packet_body_byte(&pkt, &salg) ||
+                !get_packet_body_s2k(&pkt, &key->sec_protection.s2k)) {
+                RNP_LOG("failed to read key protection");
+                goto finish;
+            }
+            key->sec_protection.symm_alg = salg;
+
+            size_t bl_size = pgp_block_size(key->sec_protection.symm_alg);
+            if (!bl_size || !get_packet_body_buf(&pkt, key->sec_protection.iv, bl_size)) {
+                RNP_LOG("failed to read iv");
+                goto finish;
+            }
+            break;
+        }
+        default:
+            /* old-style: usage is symmetric algorithm identifier */
+            key->sec_protection.symm_alg = usage;
+            key->sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED;
+            key->sec_protection.s2k.specifier = PGP_S2KS_SIMPLE;
+            key->sec_protection.s2k.hash_alg = PGP_HASH_MD5;
+            break;
+        }
+
+        /* encrypted/cleartext secret MPIs are left */
+        size_t sec_len = pkt.len - pkt.pos;
+        if (!(key->sec_data = calloc(1, sec_len))) {
+            res = RNP_ERROR_OUT_OF_MEMORY;
+            goto finish;
+        }
+
+        if (!get_packet_body_buf(&pkt, key->sec_data, sec_len)) {
+            res = RNP_ERROR_BAD_STATE;
+            goto finish;
+        }
+
+        key->sec_len = sec_len;
     }
 
     if (pkt.pos < pkt.len) {
@@ -1737,7 +1856,6 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     }
 
     res = RNP_SUCCESS;
-
 finish:
     free_packet_body(&pkt);
     if (res) {
@@ -1754,4 +1872,69 @@ free_key_pkt(pgp_key_pkt_t *key)
         pgp_forget(key->sec_data, key->sec_len);
         free(key->sec_data);
     }
+}
+
+bool
+stream_write_userid(pgp_userid_pkt_t *userid, pgp_dest_t *dst)
+{
+    pgp_packet_body_t pktbody;
+    bool              res;
+
+    if ((userid->tag != PGP_PTAG_CT_USER_ID) && (userid->tag != PGP_PTAG_CT_USER_ATTR)) {
+        RNP_LOG("wrong userid tag");
+        return false;
+    }
+
+    if (!userid->uid || !userid->uid_len) {
+        RNP_LOG("empty or null userid");
+        return false;
+    }
+
+    if (!init_packet_body(&pktbody, userid->tag)) {
+        RNP_LOG("allocation failed");
+        return false;
+    }
+
+    res = add_packet_body(&pktbody, userid->uid, userid->uid_len);
+
+    if (res) {
+        stream_flush_packet_body(&pktbody, dst);
+        res = dst->werr == RNP_SUCCESS;
+    }
+
+    free_packet_body(&pktbody);
+    return res;
+}
+
+rnp_result_t
+stream_parse_userid(pgp_source_t *src, pgp_userid_pkt_t *userid)
+{
+    pgp_packet_body_t pkt;
+    rnp_result_t      res;
+    int               tag;
+
+    /* check the tag */
+    tag = stream_pkt_type(src);
+    if ((tag != PGP_PTAG_CT_USER_ID) && (tag != PGP_PTAG_CT_USER_ATTR)) {
+        RNP_LOG("wrong userid tag: %d", tag);
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    if ((res = stream_read_packet_body(src, &pkt))) {
+        return res;
+    }
+
+    memset(userid, 0, sizeof(*userid));
+
+    /* userid type, i.e. tag */
+    userid->tag = pkt.tag;
+    userid->uid = pkt.data; /* take ownership on data */
+    userid->uid_len = pkt.len;
+    return RNP_SUCCESS;
+}
+
+void
+free_userid_pkt(pgp_userid_pkt_t *userid)
+{
+    free(userid->uid);
 }

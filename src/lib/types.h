@@ -286,6 +286,15 @@ typedef struct pgp_key_pkt_t {
     size_t               sec_len;
 } pgp_key_pkt_t;
 
+/** Struct to hold userid or userattr packet. We don't parse userattr now, just storing the
+ *  binary blob as it is. It may be distinguished by tag field.
+ */
+typedef struct pgp_userid_pkt_t {
+    int      tag;
+    uint8_t *uid;
+    size_t   uid_len;
+} pgp_userid_pkt_t;
+
 /** Struct to hold a signature packet.
  *
  * \see RFC4880 5.2.2
