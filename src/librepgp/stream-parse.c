@@ -1056,7 +1056,7 @@ signed_src_finish(pgp_source_t *src)
     /* validating signatures */
     keyctx.op = PGP_OP_VERIFY;
     keyctx.secret = false;
-    keyctx.stype = PGP_KEY_SEARCH_KEYID;
+    keyctx.search.type = PGP_KEY_SEARCH_KEYID;
 
     for (list_item *si = list_front(param->siginfos); si; si = list_next(si)) {
         sinfo = (pgp_signature_info_t *) si;
@@ -1066,7 +1066,7 @@ signed_src_finish(pgp_source_t *src)
         }
 
         /* Get the key id */
-        if (!signature_get_keyid(sinfo->sig, keyctx.search.id)) {
+        if (!signature_get_keyid(sinfo->sig, keyctx.search.by.keyid)) {
             RNP_LOG("cannot get signer's key id from signature");
             sinfo->unknown = true;
             continue;
@@ -1435,12 +1435,11 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         }
         break;
     case PGP_PKA_ELGAMAL: {
-
-        buf_t out = {.pbuf = decbuf, .len = sizeof(decbuf)};
+        buf_t       out = {.pbuf = decbuf, .len = sizeof(decbuf)};
         const buf_t g2k = {.pbuf = sesskey->params.eg.g, .len = sesskey->params.eg.glen};
         const buf_t m = {.pbuf = sesskey->params.eg.m, .len = sesskey->params.eg.mlen};
-        const rnp_result_t ret = elgamal_decrypt_pkcs1(rng, &out, &g2k, &m,
-                &seckey->key.elgamal, &seckey->pubkey.key.elgamal);
+        const rnp_result_t ret = elgamal_decrypt_pkcs1(
+          rng, &out, &g2k, &m, &seckey->key.elgamal, &seckey->pubkey.key.elgamal);
         declen = out.len;
         if (ret) {
             RNP_LOG("ElGamal decryption failure [%X]", ret);
@@ -2017,12 +2016,12 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
 
         keyctx.op = PGP_OP_DECRYPT_SYM;
         keyctx.secret = true;
-        keyctx.stype = PGP_KEY_SEARCH_KEYID;
+        keyctx.search.type = PGP_KEY_SEARCH_KEYID;
 
         for (list_item *pe = list_front(param->pubencs); pe; pe = list_next(pe)) {
-            memcpy(keyctx.search.id,
+            memcpy(keyctx.search.by.keyid,
                    ((pgp_pk_sesskey_pkt_t *) pe)->key_id,
-                   sizeof(keyctx.search.id));
+                   sizeof(keyctx.search.by.keyid));
             /* Get the key if any */
             if (!pgp_request_key(ctx->handler.key_provider, &keyctx, &seckey)) {
                 continue;

@@ -37,17 +37,21 @@ typedef enum {
     PGP_KEY_SEARCH_KEYID,
     PGP_KEY_SEARCH_GRIP,
     PGP_KEY_SEARCH_USERID
+} pgp_key_search_type_t;
+
+typedef struct pgp_key_search_t {
+    pgp_key_search_type_t type;
+    union {
+        uint8_t keyid[PGP_KEY_ID_SIZE];
+        uint8_t grip[PGP_FINGERPRINT_SIZE];
+        char    userid[MAX_ID_LENGTH + 1];
+    } by;
 } pgp_key_search_t;
 
 typedef struct pgp_key_request_ctx_t {
     uint8_t          op;
     bool             secret;
-    pgp_key_search_t stype;
-    union {
-        uint8_t     id[PGP_KEY_ID_SIZE];
-        uint8_t     grip[PGP_FINGERPRINT_SIZE];
-        const char *userid;
-    } search;
+    pgp_key_search_t search;
 } pgp_key_request_ctx_t;
 
 typedef bool pgp_key_callback_t(const pgp_key_request_ctx_t *ctx,
