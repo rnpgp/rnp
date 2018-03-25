@@ -165,13 +165,33 @@ void
 test_stream_key_load(void **state)
 {
     pgp_source_t       keysrc = {0};
+    pgp_dest_t         keydst = {0};
     pgp_key_sequence_t keyseq;
 
-    /* public keyring */
+    /* public keyring, read-save-read-save armored-read */
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/1/pubring.gpg"));
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
-    key_sequence_destroy(&keyseq);
     src_close(&keysrc);
+
+    assert_rnp_success(init_file_dest(&keydst, "keyout.gpg", true));
+    assert_rnp_success(write_pgp_keys(&keyseq, &keydst, false));
+    dst_close(&keydst, false);
+    key_sequence_destroy(&keyseq);
+
+    assert_rnp_success(init_file_src(&keysrc, "keyout.gpg"));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    src_close(&keysrc);
+
+    assert_rnp_success(init_file_dest(&keydst, "keyout.asc", true));
+    assert_rnp_success(write_pgp_keys(&keyseq, &keydst, true));
+    dst_close(&keydst, false);
+    key_sequence_destroy(&keyseq);
+
+    assert_rnp_success(init_file_src(&keysrc, "keyout.asc"));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    src_close(&keysrc);
+    key_sequence_destroy(&keyseq);
+
     /* secret keyring */
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/1/secring.gpg"));
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
