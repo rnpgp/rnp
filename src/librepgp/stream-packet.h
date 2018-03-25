@@ -232,6 +232,12 @@ void free_signature(pgp_signature_t *sig);
 
 /* Public/Private key or Subkey */
 
+bool is_key_pkt(int tag);
+
+bool is_public_key_pkt(int tag);
+
+bool is_secret_key_pkt(int tag);
+
 bool stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst);
 
 rnp_result_t stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key);

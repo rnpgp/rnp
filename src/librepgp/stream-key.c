@@ -224,3 +224,79 @@ finish:
     }
     return ret;
 }
+
+static bool
+write_pgp_signatures(list signatures, pgp_dest_t *dst)
+{
+    for (list_item *sig = list_front(signatures); sig; sig = list_next(sig)) {
+        if (!stream_write_signature((pgp_signature_t *) sig, dst)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+rnp_result_t
+write_pgp_keys(pgp_key_sequence_t *keys, pgp_dest_t *dst, bool armor)
+{
+    pgp_dest_t   armdst = {0};
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    if (armor) {
+        pgp_armored_msg_t       msgtype = PGP_ARMORED_PUBLIC_KEY;
+        pgp_transferable_key_t *fkey = (pgp_transferable_key_t *) list_front(keys->keys);
+        if (fkey && is_secret_key_pkt(fkey->key.tag)) {
+            msgtype = PGP_ARMORED_SECRET_KEY;
+        }
+
+        if ((ret = init_armored_dst(&armdst, dst, msgtype))) {
+            return ret;
+        }
+        dst = &armdst;
+    }
+
+    for (list_item *li = list_front(keys->keys); li; li = list_next(li)) {
+        pgp_transferable_key_t *key = (pgp_transferable_key_t *) li;
+
+        /* main key */
+        if (!stream_write_key(&key->key, dst)) {
+            ret = RNP_ERROR_WRITE;
+            goto finish;
+        }
+        /* revocation signatures */
+        if (!write_pgp_signatures(key->signatures, dst)) {
+            ret = RNP_ERROR_WRITE;
+            goto finish;
+        }
+        /* user ids/attrs and signatures */
+        for (list_item *li = list_front(key->userids); li; li = list_next(li)) {
+            pgp_transferable_userid_t *uid = (pgp_transferable_userid_t *) li;
+
+            if (!stream_write_userid(&uid->uid, dst) ||
+                !write_pgp_signatures(uid->signatures, dst)) {
+                ret = RNP_ERROR_WRITE;
+                goto finish;
+            }
+        }
+        /* subkeys with signatures */
+        for (list_item *li = list_front(key->subkeys); li; li = list_next(li)) {
+            pgp_transferable_subkey_t *skey = (pgp_transferable_subkey_t *) li;
+
+            if (!stream_write_key(&skey->subkey, dst) ||
+                !write_pgp_signatures(skey->signatures, dst)) {
+                ret = RNP_ERROR_WRITE;
+                goto finish;
+            }
+        }
+    }
+
+    ret = RNP_SUCCESS;
+
+finish:
+    if (armor) {
+        dst_close(&armdst, ret);
+    }
+
+    return ret;
+}

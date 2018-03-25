@@ -342,6 +342,28 @@ add_packet_body_key_curve(pgp_packet_body_t *body, const pgp_curve_t curve)
            add_packet_body(body, (void *) desc->OIDhex, desc->OIDhex_len);
 }
 
+static bool
+add_packet_body_s2k(pgp_packet_body_t *body, pgp_s2k_t *s2k)
+{
+    if (!add_packet_body_byte(body, s2k->specifier) ||
+        !add_packet_body_byte(body, s2k->hash_alg)) {
+        return false;
+    }
+
+    switch (s2k->specifier) {
+    case PGP_S2KS_SIMPLE:
+        return true;
+    case PGP_S2KS_SALTED:
+        return add_packet_body(body, s2k->salt, PGP_SALT_SIZE);
+    case PGP_S2KS_ITERATED_AND_SALTED:
+        return add_packet_body(body, s2k->salt, PGP_SALT_SIZE) &&
+               add_packet_body_byte(body, s2k->iterations);
+    default:
+        RNP_LOG("unknown s2k specifier");
+        return false;
+    }
+}
+
 bool
 add_packet_body_subpackets(pgp_packet_body_t *body, pgp_signature_t *sig, bool hashed)
 {
@@ -1561,6 +1583,44 @@ free_signature(pgp_signature_t *sig)
     list_destroy(&sig->subpkts);
 }
 
+bool
+is_key_pkt(int tag)
+{
+    switch (tag) {
+        case PGP_PTAG_CT_PUBLIC_KEY:
+        case PGP_PTAG_CT_PUBLIC_SUBKEY:
+        case PGP_PTAG_CT_SECRET_KEY:
+        case PGP_PTAG_CT_SECRET_SUBKEY:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool
+is_public_key_pkt(int tag)
+{
+    switch (tag) {
+        case PGP_PTAG_CT_PUBLIC_KEY:
+        case PGP_PTAG_CT_PUBLIC_SUBKEY:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool
+is_secret_key_pkt(int tag)
+{
+    switch (tag) {
+        case PGP_PTAG_CT_SECRET_KEY:
+        case PGP_PTAG_CT_SECRET_SUBKEY:
+            return true;
+        default:
+            return false;
+    }
+}
+
 /* @brief Fills the hashed (signed) data part of the key packet. Must be called before
           stream_write_key() on the newly generated key
  */
@@ -1644,7 +1704,7 @@ stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst)
     pgp_packet_body_t pktbody;
     bool              res;
 
-    if ((key->tag != PGP_PTAG_CT_PUBLIC_KEY) && (key->tag != PGP_PTAG_CT_PUBLIC_SUBKEY)) {
+    if (!is_key_pkt(key->tag)) {
         RNP_LOG("wrong key tag");
         return false;
     }
@@ -1659,14 +1719,51 @@ stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst)
     }
 
     /* all public key data is written in hashed_data */
-    res = add_packet_body(&pktbody, key->hashed_data, key->hashed_len);
+    if (!(res = add_packet_body(&pktbody, key->hashed_data, key->hashed_len))) {
+        goto finish;
+    }
+
+    if (is_secret_key_pkt(key->tag)) {
+        /* secret key fields should be pre-populated in sec_data field */
+        if (!key->sec_data || !key->sec_len) {
+            RNP_LOG("secret key data is not populated");
+            res = false;
+            goto finish;
+        }
+        if (!(res = add_packet_body_byte(&pktbody, key->sec_protection.s2k.usage))) {
+            goto finish;
+        }
+        switch (key->sec_protection.s2k.usage) {
+        case PGP_S2KU_NONE:
+            res = true;
+            break;
+        case PGP_S2KU_ENCRYPTED_AND_HASHED:
+        case PGP_S2KU_ENCRYPTED: {
+            size_t bl_len = pgp_block_size(key->sec_protection.symm_alg);
+            res = bl_len && add_packet_body_s2k(&pktbody, &key->sec_protection.s2k) &&
+                  add_packet_body(&pktbody, key->sec_protection.iv, bl_len);
+            if (!res) {
+                goto finish;
+            }
+            break;
+        }
+        default:
+            RNP_LOG("wrong s2k usage");
+            res = false;
+            goto finish;
+        }
+        res = add_packet_body(&pktbody, key->sec_data, key->sec_len);
+    }
 
     if (res) {
         stream_flush_packet_body(&pktbody, dst);
         res = dst->werr == RNP_SUCCESS;
     }
 
-    free_packet_body(&pktbody);
+finish:
+    if (!res) {
+        free_packet_body(&pktbody);
+    }
     return res;
 }
 
@@ -1679,8 +1776,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
 
     /* check the key tag */
     tag = stream_pkt_type(src);
-    if ((tag != PGP_PTAG_CT_PUBLIC_KEY) && (tag != PGP_PTAG_CT_PUBLIC_SUBKEY) &&
-        (tag != PGP_PTAG_CT_SECRET_KEY) && (tag != PGP_PTAG_CT_SECRET_SUBKEY)) {
+    if (!is_key_pkt(tag)) {
         RNP_LOG("wrong key packet tag: %d", tag);
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -1797,7 +1893,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     key->hashed_len = pkt.pos;
 
     /* secret key fields if any */
-    if ((key->tag == PGP_PTAG_CT_SECRET_KEY) || (key->tag == PGP_PTAG_CT_SECRET_SUBKEY)) {
+    if (is_secret_key_pkt(key->tag)) {
         uint8_t usage = 0;
         if (!get_packet_body_byte(&pkt, &usage)) {
             RNP_LOG("failed to read key protection");
@@ -1900,9 +1996,10 @@ stream_write_userid(pgp_userid_pkt_t *userid, pgp_dest_t *dst)
     if (res) {
         stream_flush_packet_body(&pktbody, dst);
         res = dst->werr == RNP_SUCCESS;
+    } else {
+        free_packet_body(&pktbody);
     }
-
-    free_packet_body(&pktbody);
+    
     return res;
 }
 
