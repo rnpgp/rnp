@@ -501,8 +501,10 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 
     keyctx.op = PGP_OP_ENCRYPT_SYM;
     keyctx.secret = false;
-    keyctx.stype = PGP_KEY_SEARCH_USERID;
-    keyctx.search.userid = userid;
+    keyctx.search.type = PGP_KEY_SEARCH_USERID;
+    if (snprintf(keyctx.search.by.userid, sizeof(keyctx.search.by.userid), "%s", userid) >=
+        (int) sizeof(keyctx.search.by.userid)) {
+    }
 
     /* Get the key if any */
     if (!pgp_request_key(handler->key_provider, &keyctx, &userkey)) {
@@ -610,14 +612,12 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         bn_free(p);
     } break;
     case PGP_PKA_ELGAMAL: {
-
-        buf_t g2k = { .pbuf = pkey.params.eg.g, .len = sizeof(pkey.params.eg.g)};
-        buf_t m = { .pbuf = pkey.params.eg.m, .len = sizeof(pkey.params.eg.m)};
-        const buf_t key = { .pbuf = enckey, .len = keylen + 3};
+        buf_t       g2k = {.pbuf = pkey.params.eg.g, .len = sizeof(pkey.params.eg.g)};
+        buf_t       m = {.pbuf = pkey.params.eg.m, .len = sizeof(pkey.params.eg.m)};
+        const buf_t key = {.pbuf = enckey, .len = keylen + 3};
 
         ret = elgamal_encrypt_pkcs1(
-                rnp_ctx_rng_handle(handler->ctx),
-                &g2k, &m, &key, &pubkey->key.elgamal);
+          rnp_ctx_rng_handle(handler->ctx), &g2k, &m, &key, &pubkey->key.elgamal);
 
         if (ret) {
             RNP_LOG("pgp_elgamal_public_encrypt failed");
@@ -1483,7 +1483,7 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
     rnp_result_t             ret = RNP_ERROR_GENERIC;
     pgp_key_t *              key = NULL;
     pgp_key_request_ctx_t    keyctx = {
-      .op = PGP_OP_SIGN, .secret = true, .stype = PGP_KEY_SEARCH_USERID};
+      .op = PGP_OP_SIGN, .secret = true, .search.type = PGP_KEY_SEARCH_USERID};
     const char *hname;
 
     if (!handler->key_provider) {
@@ -1513,7 +1513,13 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
 
     /* Getting signer's keys, writing one-pass signatures if needed */
     for (list_item *sg = list_front(handler->ctx->signers); sg; sg = list_next(sg)) {
-        keyctx.search.userid = (char *) sg;
+        if (snprintf(keyctx.search.by.userid,
+                     sizeof(keyctx.search.by.userid),
+                     "%s",
+                     (const char *) sg) >= (int) sizeof(keyctx.search.by.userid)) {
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto finish;
+        }
         if (!pgp_request_key(handler->key_provider, &keyctx, &key)) {
             RNP_LOG("signer's key not found: %s", (char *) sg);
             ret = RNP_ERROR_BAD_PARAMETERS;

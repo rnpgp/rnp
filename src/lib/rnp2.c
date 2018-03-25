@@ -53,7 +53,7 @@ struct rnp_password_cb_data {
 };
 
 typedef struct key_locator_t {
-    pgp_key_search_t type;
+    pgp_key_search_type_t type;
     union {
         uint8_t keyid[PGP_KEY_ID_SIZE];
         uint8_t grip[PGP_FINGERPRINT_SIZE];
@@ -142,12 +142,12 @@ struct rnp_op_encrypt_st {
 };
 
 struct rnp_identifier_iterator_st {
-    rnp_ffi_t        ffi;
-    pgp_key_search_t type;
-    rnp_key_store_t *store;
-    pgp_key_t *      keyp;
-    unsigned         uididx;
-    json_object *    tbl;
+    rnp_ffi_t             ffi;
+    pgp_key_search_type_t type;
+    rnp_key_store_t *     store;
+    pgp_key_t *           keyp;
+    unsigned              uididx;
+    json_object *         tbl;
     char buf[1 + MAX(MAX(PGP_KEY_ID_SIZE * 2, PGP_FINGERPRINT_SIZE * 2), MAX_ID_LENGTH)];
 };
 
@@ -166,16 +166,16 @@ key_provider_bounce(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *use
     rnp_ffi_t        ffi = (rnp_ffi_t) userdata;
     rnp_key_store_t *ring = ctx->secret ? ffi->secring : ffi->pubring;
     *key = NULL;
-    switch (ctx->stype) {
+    switch (ctx->search.type) {
     case PGP_KEY_SEARCH_USERID:
         // TODO: this isn't really a userid search...
-        rnp_key_store_get_key_by_name(&ffi->io, ring, ctx->search.userid, key);
+        rnp_key_store_get_key_by_name(&ffi->io, ring, ctx->search.by.userid, key);
         break;
     case PGP_KEY_SEARCH_KEYID: {
-        *key = rnp_key_store_get_key_by_id(&ffi->io, ring, ctx->search.id, NULL, NULL);
+        *key = rnp_key_store_get_key_by_id(&ffi->io, ring, ctx->search.by.keyid, NULL, NULL);
     } break;
     case PGP_KEY_SEARCH_GRIP: {
-        *key = rnp_key_store_get_key_by_grip(&ffi->io, ring, ctx->search.grip);
+        *key = rnp_key_store_get_key_by_grip(&ffi->io, ring, ctx->search.by.grip);
     } break;
     default:
         // should never happen

@@ -1088,9 +1088,9 @@ find_suitable_key(pgp_op_t            op,
     }
     list_item *           subkey_grip = list_front(key->subkey_grips);
     pgp_key_request_ctx_t ctx = (pgp_key_request_ctx_t){
-      .op = op, .secret = pgp_is_key_secret(key), .stype = PGP_KEY_SEARCH_GRIP};
+      .op = op, .secret = pgp_is_key_secret(key), .search.type = PGP_KEY_SEARCH_GRIP};
     while (subkey_grip) {
-        memcpy(ctx.search.grip, subkey_grip, PGP_FINGERPRINT_SIZE);
+        memcpy(ctx.search.by.grip, subkey_grip, PGP_FINGERPRINT_SIZE);
         pgp_key_t *subkey = NULL;
         if (pgp_request_key(key_provider, &ctx, &subkey) && subkey &&
             (subkey->key_flags & desired_usage)) {
