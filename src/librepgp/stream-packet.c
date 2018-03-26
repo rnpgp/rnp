@@ -570,7 +570,7 @@ signature_fill_hashed_data(pgp_signature_t *sig)
     bool              res;
 
     /* we don't have a need to write v2-v3 signatures */
-    if (sig->version != 4) {
+    if ((sig->version < PGP_V2) || (sig->version > PGP_V4)) {
         RNP_LOG("don't know version %d", (int) sig->version);
         return false;
     }
@@ -580,12 +580,16 @@ signature_fill_hashed_data(pgp_signature_t *sig)
         return false;
     }
 
-    res = add_packet_body_byte(&hbody, sig->version) &&
-          add_packet_body_byte(&hbody, sig->type) && add_packet_body_byte(&hbody, sig->palg) &&
-          add_packet_body_byte(&hbody, sig->halg) &&
-          signature_write_subpackets(&hbody, sig, true) &&
-          add_packet_body_uint16(&hbody, 0x04ff) &&
-          add_packet_body_uint32(&hbody, (uint32_t)(hbody.len - 2));
+    if (sig->version < PGP_V4) {
+        res = add_packet_body_byte(&hbody, sig->type) &&
+              add_packet_body_uint32(&hbody, sig->creation_time);
+    } else {
+        res = add_packet_body_byte(&hbody, sig->version) &&
+              add_packet_body_byte(&hbody, sig->type) &&
+              add_packet_body_byte(&hbody, sig->palg) &&
+              add_packet_body_byte(&hbody, sig->halg) &&
+              signature_write_subpackets(&hbody, sig, true);
+    }
 
     if (res) {
         /* get ownership on body data */
@@ -596,14 +600,21 @@ signature_fill_hashed_data(pgp_signature_t *sig)
     return res;
 }
 
+void
+signature_add_hash_trailer(pgp_hash_t *hash, pgp_signature_t *sig)
+{
+    uint8_t trailer[6] = {0x04, 0xff, 0x00, 0x00, 0x00, 0x00};
+    STORE32BE(&trailer[2], sig->hashed_len);
+    pgp_hash_add(hash, trailer, 6);
+}
+
 bool
 stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst)
 {
     pgp_packet_body_t pktbody;
     bool              res;
 
-    /* we don't have a need to write v2-v3 signatures */
-    if (sig->version != 4) {
+    if ((sig->version < PGP_V2) || (sig->version > PGP_V4)) {
         RNP_LOG("don't know version %d", (int) sig->version);
         return false;
     }
@@ -613,29 +624,37 @@ stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst)
         return false;
     }
 
-    /* sig->hashed_data must contain most of signature fields */
-    res = add_packet_body(&pktbody, sig->hashed_data, sig->hashed_len - 6) &&
-          signature_write_subpackets(&pktbody, sig, false) &&
-          add_packet_body(&pktbody, sig->lbits, 2);
+    if (sig->version < PGP_V4) {
+        /* for v3 signatures hashed data includes only type + creation_time */
+        res = add_packet_body_byte(&pktbody, sig->version) &&
+              add_packet_body_byte(&pktbody, sig->hashed_len) &&
+              add_packet_body(&pktbody, sig->hashed_data, sig->hashed_len) &&
+              add_packet_body(&pktbody, sig->signer, PGP_KEY_ID_SIZE) &&
+              add_packet_body_byte(&pktbody, sig->palg) &&
+              add_packet_body_byte(&pktbody, sig->halg);
+    } else {
+        /* for v4 sig->hashed_data must contain most of signature fields */
+        res = add_packet_body(&pktbody, sig->hashed_data, sig->hashed_len) &&
+              signature_write_subpackets(&pktbody, sig, false);
+    }
+
+    res &= add_packet_body(&pktbody, sig->lbits, 2);
 
     /* write mpis */
     switch (sig->palg) {
     case PGP_PKA_RSA:
-        res =
-          res && add_packet_body_mpi(&pktbody, sig->material.rsa.s, sig->material.rsa.slen);
+        res &= add_packet_body_mpi(&pktbody, sig->material.rsa.s, sig->material.rsa.slen);
         break;
     case PGP_PKA_DSA:
-        res = res &&
-              add_packet_body_mpi(&pktbody, sig->material.dsa.r, sig->material.dsa.rlen) &&
-              add_packet_body_mpi(&pktbody, sig->material.dsa.s, sig->material.dsa.slen);
+        res &= add_packet_body_mpi(&pktbody, sig->material.dsa.r, sig->material.dsa.rlen) &&
+               add_packet_body_mpi(&pktbody, sig->material.dsa.s, sig->material.dsa.slen);
         break;
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        res = res &&
-              add_packet_body_mpi(&pktbody, sig->material.ecc.r, sig->material.ecc.rlen) &&
-              add_packet_body_mpi(&pktbody, sig->material.ecc.s, sig->material.ecc.slen);
+        res &= add_packet_body_mpi(&pktbody, sig->material.ecc.r, sig->material.ecc.rlen) &&
+               add_packet_body_mpi(&pktbody, sig->material.ecc.s, sig->material.ecc.slen);
         break;
     default:
         RNP_LOG("Unknown pk algorithm : %d", (int) sig->palg);

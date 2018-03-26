@@ -802,7 +802,6 @@ signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t 
 {
     const pgp_hash_t *         hash;
     pgp_hash_t                 shash = {0};
-    uint8_t                    trailer[6];
     uint8_t                    hval[PGP_MAX_HASH_SIZE];
     unsigned                   len;
     pgp_source_signed_param_t *param = src->param;
@@ -822,11 +821,8 @@ signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t 
     /* hash signature fields and trailer */
     pgp_hash_add(&shash, sig->hashed_data, sig->hashed_len);
 
-    if (sig->version > 3) {
-        trailer[0] = sig->version;
-        trailer[1] = 0xff;
-        STORE32BE(&trailer[2], sig->hashed_len);
-        pgp_hash_add(&shash, trailer, 6);
+    if (sig->version > PGP_V3) {
+        signature_add_hash_trailer(&shash, sig);
     }
 
     len = pgp_hash_finish(&shash, hval);

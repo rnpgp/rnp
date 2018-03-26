@@ -1129,6 +1129,8 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
 
     /* finalize hash and copy left 16 bits to signature */
     pgp_hash_add(&hash, sig->hashed_data, sig->hashed_len);
+    /* we will fill only v4+ signatures */
+    signature_add_hash_trailer(&hash, sig);
     hlen = pgp_hash_finish(&hash, hval);
     memcpy(sig->lbits, hval, 2);
 
