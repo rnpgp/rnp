@@ -119,6 +119,16 @@ bool add_packet_body_uint32(pgp_packet_body_t *body, uint32_t val);
  **/
 bool add_packet_body_mpi(pgp_packet_body_t *body, uint8_t *mpi, unsigned len);
 
+/**
+ * @brief add pgp signature subpackets (including their length) to the packet body
+ *
+ * @param body pointer to the structure, initialized with init_packet_body
+ * @param sig signature, containing subpackets
+ * @param hashed whether write hashed or not hashed subpackets
+ * @return true on success or false otherwise (if out of memory)
+ */
+bool add_packet_body_subpackets(pgp_packet_body_t *body, pgp_signature_t *sig, bool hashed);
+
 /** @brief deallocate data inside of packet body structure
  *  @param body initialized packet body
  *  @return void
@@ -160,30 +170,6 @@ rnp_result_t stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pk
 rnp_result_t stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass);
 
 rnp_result_t stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig);
-
-bool signature_matches_onepass(pgp_signature_t *sig, pgp_one_pass_sig_t *onepass);
-
-pgp_sig_subpkt_t *signature_get_subpkt(pgp_signature_t *sig, pgp_sig_subpacket_type_t type);
-
-bool signature_get_keyfp(pgp_signature_t *sig, uint8_t *fp);
-
-bool signature_set_keyfp(pgp_signature_t *sig, uint8_t *fp, size_t len);
-
-bool signature_get_keyid(pgp_signature_t *sig, uint8_t *id);
-
-bool signature_set_keyid(pgp_signature_t *sig, uint8_t *id);
-
-uint32_t signature_get_creation(pgp_signature_t *sig);
-
-bool signature_set_creation(pgp_signature_t *sig, uint32_t ctime);
-
-uint32_t signature_get_expiration(pgp_signature_t *sig);
-
-bool signature_set_expiration(pgp_signature_t *sig, uint32_t etime);
-
-bool signature_fill_hashed_data(pgp_signature_t *sig);
-
-void signature_add_hash_trailer(pgp_hash_t *hash, pgp_signature_t *sig);
 
 void free_signature(pgp_signature_t *sig);
 

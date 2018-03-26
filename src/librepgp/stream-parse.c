@@ -29,6 +29,7 @@
 #include "stream-parse.h"
 #include "stream-armor.h"
 #include "stream-packet.h"
+#include "stream-sig.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -820,11 +821,10 @@ signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t 
 
     /* hash signature fields and trailer */
     pgp_hash_add(&shash, sig->hashed_data, sig->hashed_len);
-
-    if (sig->version > PGP_V3) {
-        signature_add_hash_trailer(&shash, sig);
+    if ((sig->version > PGP_V3) && !signature_add_hash_trailer(&shash, sig)) {
+        RNP_LOG("failed to add sig trailer");
+        return false;
     }
-
     len = pgp_hash_finish(&shash, hval);
 
     /* validate signature */
