@@ -38,6 +38,7 @@
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-write.h>
+#include <librepgp/stream-sig.h>
 #include <librepgp/stream-packet.h>
 #include <librepgp/validate.h>
 #include <rnp/rnp2.h>

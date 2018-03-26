@@ -55,6 +55,7 @@
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-armor.h>
 #include <librepgp/stream-packet.h>
+#include <librepgp/stream-sig.h>
 #include <librepgp/packet-show.h>
 #include <librepgp/packet-print.h>
 

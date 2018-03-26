@@ -29,6 +29,7 @@
 #include "stream-write.h"
 #include "stream-packet.h"
 #include "stream-armor.h"
+#include "stream-sig.h"
 #include "list.h"
 #include <sys/stat.h>
 #include <stdlib.h>
@@ -1130,7 +1131,10 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
     /* finalize hash and copy left 16 bits to signature */
     pgp_hash_add(&hash, sig->hashed_data, sig->hashed_len);
     /* we will fill only v4+ signatures */
-    signature_add_hash_trailer(&hash, sig);
+    if (!signature_add_hash_trailer(&hash, sig)) {
+        RNP_LOG("failed to add sig trailer");
+        return RNP_ERROR_BAD_STATE;
+    }
     hlen = pgp_hash_finish(&hash, hval);
     memcpy(sig->lbits, hval, 2);
 
