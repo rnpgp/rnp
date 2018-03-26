@@ -183,6 +183,8 @@ bool signature_set_expiration(pgp_signature_t *sig, uint32_t etime);
 
 bool signature_fill_hashed_data(pgp_signature_t *sig);
 
+void signature_add_hash_trailer(pgp_hash_t *hash, pgp_signature_t *sig);
+
 void free_signature(pgp_signature_t *sig);
 
 #endif
