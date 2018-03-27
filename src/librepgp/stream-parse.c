@@ -801,86 +801,16 @@ encrypted_src_close(pgp_source_t *src)
 static bool
 signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t *key)
 {
-    const pgp_hash_t *         hash;
-    pgp_hash_t                 shash = {0};
-    uint8_t                    hval[PGP_MAX_HASH_SIZE];
-    unsigned                   len;
+    pgp_hash_t                 shash;
     pgp_source_signed_param_t *param = src->param;
-    bool                       ret = false;
 
-    /* Get the hash context */
-    if ((hash = pgp_hash_list_get(param->hashes, sig->halg)) == NULL) {
-        RNP_LOG("hash context %d not found", (int) sig->halg);
-        return false;
-    }
-
-    if (!pgp_hash_copy(&shash, hash)) {
+    /* Get the hash context and clone it */
+    if (!pgp_hash_copy(&shash, pgp_hash_list_get(param->hashes, sig->halg))) {
         RNP_LOG("failed to clone hash context");
         return false;
     }
 
-    /* hash signature fields and trailer */
-    pgp_hash_add(&shash, sig->hashed_data, sig->hashed_len);
-    if ((sig->version > PGP_V3) && !signature_add_hash_trailer(&shash, sig)) {
-        RNP_LOG("failed to add sig trailer");
-        return false;
-    }
-    len = pgp_hash_finish(&shash, hval);
-
-    /* validate signature */
-
-    switch (sig->palg) {
-    case PGP_PKA_DSA: {
-        pgp_dsa_sig_t dsa = {.r = bn_bin2bn(sig->material.dsa.r, sig->material.dsa.rlen, NULL),
-                             .s =
-                               bn_bin2bn(sig->material.dsa.s, sig->material.dsa.slen, NULL)};
-        ret = dsa_verify(hval, len, &dsa, &key->key.dsa) == RNP_SUCCESS;
-        bn_free(dsa.r);
-        bn_free(dsa.s);
-        break;
-    }
-    case PGP_PKA_EDDSA: {
-        bignum_t *r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL);
-        bignum_t *s = bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL);
-        ret = pgp_eddsa_verify_hash(r, s, hval, len, &key->key.ecc);
-        bn_free(r);
-        bn_free(s);
-        break;
-    }
-    case PGP_PKA_SM2: {
-        pgp_ecc_sig_t ecc = {.r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL),
-                             .s =
-                               bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL)};
-        ret = pgp_sm2_verify_hash(&ecc, hval, len, &key->key.ecc) == RNP_SUCCESS;
-        bn_free(ecc.r);
-        bn_free(ecc.s);
-        break;
-    }
-    case PGP_PKA_RSA: {
-        ret = pgp_rsa_pkcs1_verify_hash(rnp_ctx_rng_handle(param->ctx->handler.ctx),
-                                        sig->material.rsa.s,
-                                        sig->material.rsa.slen,
-                                        sig->halg,
-                                        hval,
-                                        len,
-                                        &key->key.rsa);
-        break;
-    }
-    case PGP_PKA_ECDSA: {
-        pgp_ecc_sig_t ecc = {.r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL),
-                             .s =
-                               bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL)};
-        ret = pgp_ecdsa_verify_hash(&ecc, hval, len, &key->key.ecc) == RNP_SUCCESS;
-        bn_free(ecc.r);
-        bn_free(ecc.s);
-        break;
-    }
-    default:
-        RNP_LOG("Unknown algorithm");
-        return false;
-    }
-
-    return ret;
+    return !signature_validate(sig, key, &shash, rnp_ctx_rng_handle(param->ctx->handler.ctx));
 }
 
 static void

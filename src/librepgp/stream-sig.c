@@ -36,6 +36,11 @@
 #include "stream-sig.h"
 #include "stream-packet.h"
 #include "hash.h"
+#include "crypto/sm2.h"
+#include "crypto/ec.h"
+#include "crypto/rsa.h"
+#include "crypto/eddsa.h"
+#include "crypto/ecdsa.h"
 
 bool
 signature_matches_onepass(pgp_signature_t *sig, pgp_one_pass_sig_t *onepass)
@@ -273,7 +278,7 @@ bool
 signature_set_expiration(pgp_signature_t *sig, uint32_t etime)
 {
     pgp_sig_subpkt_t *subpkt;
-    
+
     if (!sig || (sig->version < PGP_V4)) {
         return false;
     }
@@ -334,14 +339,271 @@ signature_fill_hashed_data(pgp_signature_t *sig)
 }
 
 bool
-signature_add_hash_trailer(pgp_hash_t *hash, pgp_signature_t *sig)
+signature_hash_finish(pgp_signature_t *sig, pgp_hash_t *hash, uint8_t *hbuf, size_t *hlen)
 {
-    uint8_t trailer[6] = {0x04, 0xff, 0x00, 0x00, 0x00, 0x00};
-
-    if (!hash || !sig) {
-        return false;
+    if (!hash || !sig || !hbuf || !hlen) {
+        goto error;
+    }
+    if (pgp_hash_add(hash, sig->hashed_data, sig->hashed_len)) {
+        RNP_LOG("failed to hash sig");
+        goto error;
+    }
+    if (sig->version > PGP_V3) {
+        uint8_t trailer[6] = {0x04, 0xff, 0x00, 0x00, 0x00, 0x00};
+        STORE32BE(&trailer[2], sig->hashed_len);
+        if (pgp_hash_add(hash, trailer, 6)) {
+            RNP_LOG("failed to add sig trailer");
+            goto error;
+        }
     }
 
-    STORE32BE(&trailer[2], sig->hashed_len);
-    return !pgp_hash_add(hash, trailer, 6);
+    *hlen = pgp_hash_finish(hash, hbuf);
+    return true;
+error:
+    pgp_hash_finish(hash, NULL);
+    return false;
+}
+
+rnp_result_t
+signature_validate(pgp_signature_t *sig, pgp_pubkey_t *key, pgp_hash_t *hash, rng_t *rng)
+{
+    uint8_t      hval[PGP_MAX_HASH_SIZE];
+    size_t       len;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    /* Finalize hash */
+    if (!signature_hash_finish(sig, hash, hval, &len)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    if (!key) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    /* compare lbits */
+    if (memcmp(hval, sig->lbits, 2)) {
+        RNP_LOG("wrong lbits");
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+
+    /* validate signature */
+
+    switch (sig->palg) {
+    case PGP_PKA_DSA: {
+        pgp_dsa_sig_t dsa = {.r = bn_bin2bn(sig->material.dsa.r, sig->material.dsa.rlen, NULL),
+                             .s =
+                               bn_bin2bn(sig->material.dsa.s, sig->material.dsa.slen, NULL)};
+        ret = dsa_verify(hval, len, &dsa, &key->key.dsa);
+        bn_free(dsa.r);
+        bn_free(dsa.s);
+        break;
+    }
+    case PGP_PKA_EDDSA: {
+        bignum_t *r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL);
+        bignum_t *s = bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL);
+        ret = pgp_eddsa_verify_hash(r, s, hval, len, &key->key.ecc) ?
+                RNP_SUCCESS :
+                RNP_ERROR_SIGNATURE_INVALID;
+        bn_free(r);
+        bn_free(s);
+        break;
+    }
+    case PGP_PKA_SM2: {
+        pgp_ecc_sig_t ecc = {.r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL),
+                             .s =
+                               bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL)};
+        ret = pgp_sm2_verify_hash(&ecc, hval, len, &key->key.ecc);
+        bn_free(ecc.r);
+        bn_free(ecc.s);
+        break;
+    }
+    case PGP_PKA_RSA: {
+        ret = pgp_rsa_pkcs1_verify_hash(rng,
+                                        sig->material.rsa.s,
+                                        sig->material.rsa.slen,
+                                        sig->halg,
+                                        hval,
+                                        len,
+                                        &key->key.rsa) ?
+                RNP_SUCCESS :
+                RNP_ERROR_SIGNATURE_INVALID;
+        break;
+    }
+    case PGP_PKA_ECDSA: {
+        pgp_ecc_sig_t ecc = {.r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL),
+                             .s =
+                               bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL)};
+        ret = pgp_ecdsa_verify_hash(&ecc, hval, len, &key->key.ecc);
+        bn_free(ecc.r);
+        bn_free(ecc.s);
+        break;
+    }
+    default:
+        RNP_LOG("Unknown algorithm");
+        ret = RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    return ret;
+}
+
+rnp_result_t
+signature_calculate(pgp_signature_t *sig, pgp_seckey_t *seckey, pgp_hash_t *hash, rng_t *rng)
+{
+    uint8_t      hval[PGP_MAX_HASH_SIZE];
+    size_t       hlen;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    /* Finalize hash and copy left 16 bits to signature */
+    if (!signature_hash_finish(sig, hash, hval, &hlen)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    memcpy(sig->lbits, hval, 2);
+
+    if (!seckey) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    /* sign */
+    switch (sig->palg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        sig->material.rsa.slen = pgp_rsa_pkcs1_sign_hash(rng,
+                                                         sig->material.rsa.s,
+                                                         sizeof(sig->material.rsa.s),
+                                                         sig->halg,
+                                                         hval,
+                                                         hlen,
+                                                         &seckey->key.rsa,
+                                                         &seckey->pubkey.key.rsa);
+        if (!sig->material.rsa.slen) {
+            ret = RNP_ERROR_SIGNING_FAILED;
+            RNP_LOG("rsa signing failed");
+        } else {
+            ret = RNP_SUCCESS;
+        }
+        break;
+    case PGP_PKA_EDDSA: {
+        bignum_t *r = bn_new(), *s = bn_new();
+
+        if (!r || !s) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto eddsaend;
+        }
+
+        if (pgp_eddsa_sign_hash(
+              rng, r, s, hval, hlen, &seckey->key.ecc, &seckey->pubkey.key.ecc) < 0) {
+            ret = RNP_ERROR_SIGNING_FAILED;
+            goto eddsaend;
+        } else {
+            ret = RNP_SUCCESS;
+        }
+
+        bn_num_bytes(r, &sig->material.ecc.rlen);
+        bn_num_bytes(s, &sig->material.ecc.slen);
+        bn_bn2bin(r, sig->material.ecc.r);
+        bn_bn2bin(s, sig->material.ecc.s);
+
+    eddsaend:
+        bn_free(r);
+        bn_free(s);
+        break;
+    }
+    case PGP_PKA_SM2: {
+        pgp_ecc_sig_t          sigval = {NULL, NULL};
+        const ec_curve_desc_t *curve = get_curve_desc(seckey->pubkey.key.ecc.curve);
+
+        if (!curve) {
+            RNP_LOG("Unknown curve");
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            break;
+        }
+
+        /* "-2" because SM2 on P-521 must work with SHA-512 digest */
+        if (BITS_TO_BYTES(curve->bitlen) - 2 > hlen) {
+            RNP_LOG("Message hash to small");
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            break;
+        }
+
+        if (pgp_sm2_sign_hash(
+              rng, &sigval, hval, hlen, &seckey->key.ecc, &seckey->pubkey.key.ecc) !=
+            RNP_SUCCESS) {
+            RNP_LOG("SM2 signing failed");
+            ret = RNP_ERROR_SIGNING_FAILED;
+            break;
+        }
+
+        bn_num_bytes(sigval.r, &sig->material.ecc.rlen);
+        bn_num_bytes(sigval.s, &sig->material.ecc.slen);
+        bn_bn2bin(sigval.r, sig->material.ecc.r);
+        bn_bn2bin(sigval.s, sig->material.ecc.s);
+        bn_free(sigval.r);
+        bn_free(sigval.s);
+        ret = RNP_SUCCESS;
+        break;
+    }
+    case PGP_PKA_DSA: {
+        pgp_dsa_sig_t dsasig = {0};
+        ret = dsa_sign(rng, &dsasig, hval, hlen, &seckey->key.dsa, &seckey->pubkey.key.dsa);
+        if (ret != RNP_SUCCESS) {
+            RNP_LOG("DSA signing failed");
+            break;
+        }
+
+        (void) bn_num_bytes(dsasig.r, &sig->material.dsa.rlen);
+        (void) bn_num_bytes(dsasig.s, &sig->material.dsa.slen);
+        (void) bn_bn2bin(dsasig.r, sig->material.dsa.r);
+        (void) bn_bn2bin(dsasig.s, sig->material.dsa.s);
+        bn_free(dsasig.r);
+        bn_free(dsasig.s);
+        ret = RNP_SUCCESS;
+        break;
+    }
+
+    /*
+     * ECDH is signed with ECDSA. This must be changed when ECDH will support
+     * X25519, but I need to check how it should be done exactly.
+     */
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDSA: {
+        pgp_ecc_sig_t          sigval = {NULL, NULL};
+        const ec_curve_desc_t *curve = get_curve_desc(seckey->pubkey.key.ecc.curve);
+
+        if (!curve) {
+            RNP_LOG("Unknown curve");
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            break;
+        }
+
+        /* "-2" because ECDSA on P-521 must work with SHA-512 digest */
+        if (BITS_TO_BYTES(curve->bitlen) - 2 > hlen) {
+            RNP_LOG("Message hash to small");
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            break;
+        }
+
+        if (pgp_ecdsa_sign_hash(
+              rng, &sigval, hval, hlen, &seckey->key.ecc, &seckey->pubkey.key.ecc) !=
+            RNP_SUCCESS) {
+            RNP_LOG("ECDSA signing failed");
+            ret = RNP_ERROR_SIGNING_FAILED;
+            break;
+        }
+
+        bn_num_bytes(sigval.r, &sig->material.ecc.rlen);
+        bn_num_bytes(sigval.s, &sig->material.ecc.slen);
+        bn_bn2bin(sigval.r, sig->material.ecc.r);
+        bn_bn2bin(sigval.s, sig->material.ecc.s);
+        bn_free(sigval.r);
+        bn_free(sigval.s);
+        ret = RNP_SUCCESS;
+        break;
+    }
+    default:
+        RNP_LOG("Unsupported algorithm %d", sig->palg);
+        break;
+    }
+
+    return ret;
 }

@@ -126,12 +126,45 @@ bool signature_set_expiration(pgp_signature_t *sig, uint32_t etime);
 bool signature_fill_hashed_data(pgp_signature_t *sig);
 
 /**
- * @brief Add v4 signature's trailer to the hash context
- * 
- * @param hash initialized hash context
+ * @brief Add signature fields to the hash context and finish it.
+ * @param hash initialized hash context feeded with signed data (document, key, etc).
+ *             It is finalized in this function.
  * @param sig populated or loaded signature
+ * @param hbuf buffer to store the resulting hash. Must be large enough for hash output.
+ * @param hlen on success will be filled with the hash size, otherwise zeroed
  * @return true on success or false otherwise
  */
-bool signature_add_hash_trailer(pgp_hash_t *hash, pgp_signature_t *sig);
+bool signature_hash_finish(pgp_signature_t *sig,
+                           pgp_hash_t *     hash,
+                           uint8_t *        hbuf,
+                           size_t *         hlen);
+
+/**
+ * @brief Validate a signature with pre-populated hash
+ * @param sig signature to validate
+ * @param key public key corresponding to the signature
+ * @param hash pre-populated with signed data hash context. It is finalized and destroyed
+ *             during the execution. Signature fields and trailer are hashed in this function.
+ * @param rng random number generator
+ * @return RNP_SUCCESS if signature was successfully validated or error code otherwise
+ */
+rnp_result_t signature_validate(pgp_signature_t *sig,
+                                pgp_pubkey_t *   key,
+                                pgp_hash_t *     hash,
+                                rng_t *          rng);
+
+/**
+ * @brief Calculate signature with pre-populated hash
+ * @param sig signature to calculate
+ * @param seckey signing secret key
+ * @param hash pre-populated with signed data hash context. It is finalized and destroyed
+ *             during the execution. Signature fields and trailer are hashed in this function.
+ * @param rng random number generator
+ * @return RNP_SUCCESS if signature was successfully calculated or error code otherwise
+ */
+rnp_result_t signature_calculate(pgp_signature_t *sig,
+                                 pgp_seckey_t *   seckey,
+                                 pgp_hash_t *     hash,
+                                 rng_t *          rng);
 
 #endif
