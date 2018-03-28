@@ -481,36 +481,16 @@ encrypted_dst_close(pgp_dest_t *dst, bool discard)
 static rnp_result_t
 encrypted_add_recipient(pgp_write_handler_t *handler,
                         pgp_dest_t *         dst,
-                        const char *         userid,
+                        pgp_key_t *          userkey,
                         const uint8_t *      key,
                         const unsigned       keylen)
 {
-    pgp_key_request_ctx_t       keyctx = {0};
-    pgp_key_t *                 userkey;
     pgp_pubkey_t *              pubkey;
     uint8_t                     enckey[PGP_MAX_KEY_SIZE + 3];
     unsigned                    checksum = 0;
     pgp_pk_sesskey_pkt_t        pkey = {0};
     pgp_dest_encrypted_param_t *param = dst->param;
     rnp_result_t                ret = RNP_ERROR_GENERIC;
-
-    if (!handler->key_provider) {
-        RNP_LOG("no key provider");
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    keyctx.op = PGP_OP_ENCRYPT_SYM;
-    keyctx.secret = false;
-    keyctx.search.type = PGP_KEY_SEARCH_USERID;
-    if (snprintf(keyctx.search.by.userid, sizeof(keyctx.search.by.userid), "%s", userid) >=
-        (int) sizeof(keyctx.search.by.userid)) {
-    }
-
-    /* Get the key if any */
-    if (!pgp_request_key(handler->key_provider, &keyctx, &userkey)) {
-        RNP_LOG("key for recipient '%s' not found", userid);
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
 
     /* Use primary key if good for encryption, otherwise look in subkey list */
     userkey =
@@ -907,8 +887,10 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     /* Configuring and writing pk-encrypted session keys */
     if (pkeycount > 0) {
-        for (list_item *id = list_front(handler->ctx->recipients); id; id = list_next(id)) {
-            ret = encrypted_add_recipient(handler, dst, (char *) id, enckey, keylen);
+        for (list_item *recipient = list_front(handler->ctx->recipients); recipient;
+             recipient = list_next(recipient)) {
+            ret =
+              encrypted_add_recipient(handler, dst, *(pgp_key_t **) recipient, enckey, keylen);
             if (ret != RNP_SUCCESS) {
                 goto finish;
             }
@@ -1481,10 +1463,7 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
 {
     pgp_dest_signed_param_t *param;
     rnp_result_t             ret = RNP_ERROR_GENERIC;
-    pgp_key_t *              key = NULL;
-    pgp_key_request_ctx_t    keyctx = {
-      .op = PGP_OP_SIGN, .secret = true, .search.type = PGP_KEY_SEARCH_USERID};
-    const char *hname;
+    const char *             hname;
 
     if (!handler->key_provider) {
         RNP_LOG("no key provider");
@@ -1513,22 +1492,10 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
 
     /* Getting signer's keys, writing one-pass signatures if needed */
     for (list_item *sg = list_front(handler->ctx->signers); sg; sg = list_next(sg)) {
-        if (snprintf(keyctx.search.by.userid,
-                     sizeof(keyctx.search.by.userid),
-                     "%s",
-                     (const char *) sg) >= (int) sizeof(keyctx.search.by.userid)) {
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            goto finish;
-        }
-        if (!pgp_request_key(handler->key_provider, &keyctx, &key)) {
-            RNP_LOG("signer's key not found: %s", (char *) sg);
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            goto finish;
-        }
-
-        ret = signed_add_signer(param, key, sg == list_back(handler->ctx->signers));
+        ret =
+          signed_add_signer(param, *(pgp_key_t **) sg, sg == list_back(handler->ctx->signers));
         if (ret) {
-            RNP_LOG("failed to add one-pass signature for signer %s", (char *) sg);
+            RNP_LOG("failed to add one-pass signature for signer");
             goto finish;
         }
     }
