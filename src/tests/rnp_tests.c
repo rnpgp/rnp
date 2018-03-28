@@ -183,6 +183,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_repgp_list_packets),
       cmocka_unit_test(test_generated_key_sigs),
       cmocka_unit_test(test_key_store_search),
+      cmocka_unit_test(test_stream_signatures),
       cmocka_unit_test(test_ffi_homedir),
       cmocka_unit_test(test_ffi_keygen_json_pair),
       cmocka_unit_test(test_ffi_keygen_json_primary),
