@@ -18,7 +18,8 @@ rnp_tests_SOURCES   = \
     key-unlock.c \
     key-protect.c \
     key-add-userid.c \
-    key-store-search.c
+    key-store-search.c \
+    streams.c
 
 # don't install any test stuff
 install-binPROGRAMS:
