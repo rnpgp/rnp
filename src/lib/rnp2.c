@@ -98,7 +98,7 @@ struct rnp_op_sign_st {
 };
 
 struct rnp_op_sign_signature_st {
-    char *         keyid;
+    pgp_key_t *    key;
     pgp_hash_alg_t halg;
     uint32_t       create;
     uint32_t       expires;
@@ -151,6 +151,12 @@ struct rnp_identifier_iterator_st {
         }                            \
         RNP_LOG_FD(fp, __VA_ARGS__); \
     } while (0)
+
+static pgp_key_t *
+get_key_prefer_public(rnp_key_handle_t handle);
+
+static pgp_key_t *
+get_key_require_secret(rnp_key_handle_t handle);
 
 static pgp_key_t *find_key_by_locator(pgp_io_t *              io,
                                       rnp_key_store_t *       store,
@@ -1321,10 +1327,10 @@ rnp_op_add_signature(list *signatures, rnp_key_handle_t key, rnp_op_sign_signatu
     if (!newsig) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    rnp_result_t res = rnp_key_get_keyid(key, &newsig->keyid);
-    if (res) {
+    newsig->key = get_key_require_secret(key);
+    if (!newsig->key) {
         list_remove((list_item *) newsig);
-        return res;
+      return RNP_ERROR_NO_SUITABLE_KEY;
     }
     if (sig) {
         *sig = newsig;
@@ -1416,9 +1422,6 @@ rnp_op_set_file_mtime(rnp_ctx_t *ctx, uint32_t mtime)
 static void
 rnp_op_signatures_destroy(list *signatures)
 {
-    for (list_item *sig = list_front(*signatures); sig; sig = list_next(sig)) {
-        rnp_buffer_free(((rnp_op_sign_signature_t) sig)->keyid);
-    }
     list_destroy(signatures);
 }
 
@@ -1446,20 +1449,15 @@ rnp_op_encrypt_create(rnp_op_encrypt_t *op,
 }
 
 rnp_result_t
-rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_handle_t key)
+rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_handle_t handle)
 {
     // checks
-    if (!op || !key) {
+    if (!op || !handle) {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    // TODO: lower layers are currently limited to this
-    if (key->locator.type != PGP_KEY_SEARCH_USERID) {
-        return RNP_ERROR_NOT_IMPLEMENTED;
-    }
-    if (!list_append(&op->rnpctx.recipients,
-                     key->locator.by.userid,
-                     strlen(key->locator.by.userid) + 1)) {
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!list_append(&op->rnpctx.recipients, &key, sizeof(key))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     return RNP_SUCCESS;
@@ -1631,8 +1629,8 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
     rnp_result_t ret;
     if (list_length(op->signatures)) {
         for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
-            char *keyid = ((rnp_op_sign_signature_t) sig)->keyid;
-            if (!list_append(&op->rnpctx.signers, keyid, strlen(keyid) + 1)) {
+            pgp_key_t *key = ((rnp_op_sign_signature_t)sig)->key;
+            if (!list_append(&op->rnpctx.signers, &key, sizeof(key))) {
                 return RNP_ERROR_OUT_OF_MEMORY;
             }
         }
@@ -1814,9 +1812,11 @@ rnp_op_sign_execute(rnp_op_sign_t op)
     };
 
     for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
-        char *keyid = ((rnp_op_sign_signature_t) sig)->keyid;
-
-        if (!list_append(&op->rnpctx.signers, keyid, strlen(keyid) + 1)) {
+        pgp_key_t *key = ((rnp_op_sign_signature_t)sig)->key;
+        if (!key) {
+            return RNP_ERROR_NO_SUITABLE_KEY;
+        }
+        if (!list_append(&op->rnpctx.signers, &key, sizeof(key))) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }

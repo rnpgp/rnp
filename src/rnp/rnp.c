@@ -33,6 +33,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 
+#include <assert.h>
 #include <time.h>
 #include <errno.h>
 #include <getopt.h>
@@ -348,15 +349,37 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
                 return false;
             }
 
-            rnp_cfg_copylist_str(cfg, &ctx->signers, CFG_SIGNERS);
+            list signers = NULL;
+            if (!rnp_cfg_copylist_str(cfg, &signers, CFG_SIGNERS)) {
+                return false;
+            }
+            for (list_item *signer = list_front(signers); signer; signer = list_next(signer)) {
+                pgp_key_t *key = rnp_key_store_get_key_by_name(
+                  rnp->io, rnp->secring, (const char *) signer, NULL);
+                if (!key) {
+                    fprintf(
+                      stderr, "Invalid or unavailable signer: %s\n", (const char *) signer);
+                    list_destroy(&signers);
+                    return false;
+                }
+                if (!list_append(&ctx->signers, &key, sizeof(key))) {
+                    list_destroy(&signers);
+                    return false;
+                }
+            }
+            list_destroy(&signers);
 
             if (!list_length(ctx->signers)) {
                 if (!rnp->defkey) {
                     fprintf(stderr, "No userid or default key for signing\n");
                     return false;
                 }
-
-                if (!list_append(&ctx->signers, rnp->defkey, strlen(rnp->defkey) + 1)) {
+                pgp_key_t *key =
+                  rnp_key_store_get_key_by_name(rnp->io, rnp->secring, rnp->defkey, NULL);
+                if (!key) {
+                    return false;
+                }
+                if (!list_append(&ctx->signers, &key, sizeof(key))) {
                     RNP_LOG("allocation failed");
                     return false;
                 }
@@ -391,15 +414,43 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
 
             /* adding recipients if public-key encryption is used */
             if (rnp_cfg_getbool(cfg, CFG_ENCRYPT_PK)) {
-                rnp_cfg_copylist_str(cfg, &ctx->recipients, CFG_RECIPIENTS);
+                list recipients = NULL;
+                if (!rnp_cfg_copylist_str(cfg, &recipients, CFG_RECIPIENTS)) {
+                    return false;
+                }
+                for (list_item *recipient = list_front(recipients); recipient;
+                     recipient = list_next(recipient)) {
+                    pgp_key_t *key = rnp_key_store_get_key_by_name(
+                      rnp->io, rnp->pubring, (const char *) recipient, NULL);
+                    if (!key) {
+                        fprintf(stderr,
+                                "Invalid or unavailable recipient: %s\n",
+                                (const char *) recipient);
+                        list_destroy(&recipients);
+                        return false;
+                    }
+                    if (!list_append(&ctx->recipients, &key, sizeof(key))) {
+                        list_destroy(&recipients);
+                        return false;
+                    }
+                }
+                list_destroy(&recipients);
 
                 if (!list_length(ctx->recipients)) {
                     if (!rnp->defkey) {
                         fprintf(stderr, "No userid or default key for encryption\n");
                         return false;
                     }
+                    pgp_key_t *key = rnp_key_store_get_key_by_name(
+                      rnp->io, rnp->pubring, (const char *) rnp->defkey, NULL);
+                    if (!key) {
+                        fprintf(stderr,
+                                "Invalid or unavailable recipient: %s\n",
+                                (const char *) rnp->defkey);
+                        return false;
+                    }
 
-                    if (!list_append(&ctx->recipients, rnp->defkey, strlen(rnp->defkey) + 1)) {
+                    if (!list_append(&ctx->recipients, &key, sizeof(key))) {
                         RNP_LOG("allocation failed");
                         return false;
                     }
@@ -486,7 +537,7 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
         break;
     case CMD_CLEARSIGN:
         rnp_cfg_setbool(cfg, CFG_CLEARTEXT, true);
-        /* FALLTHROUGH */
+    /* FALLTHROUGH */
     case CMD_SIGN:
         rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
         rnp_cfg_setbool(cfg, CFG_SIGN_NEEDED, true);
@@ -500,7 +551,7 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
     case CMD_VERIFY:
         /* single verify will discard output, decrypt will not */
         rnp_cfg_setbool(cfg, CFG_NO_OUTPUT, true);
-        /* FALLTHROUGH */
+    /* FALLTHROUGH */
     case CMD_VERIFY_CAT:
         newcmd = CMD_PROCESS;
         break;

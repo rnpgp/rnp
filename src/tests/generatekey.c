@@ -110,8 +110,10 @@ rnpkeys_generatekey_testSignature(void **state)
                 ctx.filename = strdup("dummyfile.dat");
                 ctx.clearsign = cleartext;
                 rnp_assert_int_not_equal(rstate, ctx.halg, PGP_HASH_UNKNOWN);
-                rnp_assert_non_null(rstate,
-                                    list_append(&ctx.signers, userId, strlen(userId) + 1));
+                pgp_key_t *key =
+                  rnp_key_store_get_key_by_name(rnp.io, rnp.secring, userId, NULL);
+                assert_non_null(key);
+                rnp_assert_non_null(rstate, list_append(&ctx.signers, &key, sizeof(key)));
 
                 /* Signing the memory */
                 ret = rnp_protect_mem(&ctx,
@@ -216,8 +218,10 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_true(rstate,
                             (ctx.ealg != DEFAULT_PGP_SYMM_ALG) ||
                               (strcmp(cipherAlg[i], "AES256") == 0));
-            rnp_assert_non_null(rstate,
-                                list_append(&ctx.recipients, userId, strlen(userId) + 1));
+            pgp_key_t *key;
+            rnp_assert_non_null(
+              rstate, key = rnp_key_store_get_key_by_name(rnp.io, rnp.pubring, userId, NULL));
+            rnp_assert_non_null(rstate, list_append(&ctx.recipients, &key, sizeof(key)));
             /* Encrypting the memory */
             size_t       reslen = 0;
             rnp_result_t ret = rnp_protect_mem(&ctx,
@@ -771,7 +775,7 @@ generatekeyECDSA_explicitlySetWrongDigest_ShouldSuceed(void **state)
     // Finds out that hash doesn't exist and uses
     // hash which generates output that's long enough
     rnp_assert_true(rstate,
-                     ask_expert_details(&rnp, &ops, test_ecdsa_384, strlen(test_ecdsa_384)));
+                    ask_expert_details(&rnp, &ops, test_ecdsa_384, strlen(test_ecdsa_384)));
     rnp_cfg_free(&ops);
     rnp_end(&rnp);
 }
