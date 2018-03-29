@@ -653,6 +653,32 @@ rnp_key_store_get_key_by_id(pgp_io_t *             io,
 }
 
 pgp_key_t *
+rnp_key_store_get_key_by_userid(pgp_io_t *             io,
+                                const rnp_key_store_t *keyring,
+                                const char *           userid,
+                                pgp_key_t *            after)
+{
+    if (!keyring || !userid) {
+        return NULL;
+    }
+
+    // if after is provided, make sure it is a member of the appropriate list
+    assert(!after || list_is_member(keyring->keys, (list_item *) after));
+    for (list_item *key_item = after ? list_next((list_item *) after) :
+                                       list_front(keyring->keys);
+         key_item;
+         key_item = list_next(key_item)) {
+        pgp_key_t *key = (pgp_key_t *) key_item;
+        for (size_t i = 0; i < key->uidc; i++) {
+            if (!strcmp(userid, (char *) key->uids[i])) {
+                return key;
+            }
+        }
+    }
+    return NULL;
+}
+
+pgp_key_t *
 rnp_key_store_get_key_by_grip(pgp_io_t *             io,
                               const rnp_key_store_t *keyring,
                               const uint8_t *        grip)
