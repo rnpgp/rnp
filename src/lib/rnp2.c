@@ -2152,8 +2152,7 @@ find_key_by_locator(pgp_io_t *io, rnp_key_store_t *store, const pgp_key_search_t
     pgp_key_t *key = NULL;
     switch (locator->type) {
     case PGP_KEY_SEARCH_USERID:
-        // TODO: this isn't really a userid search...
-        key = rnp_key_store_get_key_by_name(io, store, locator->by.userid, NULL);
+        key = rnp_key_store_get_key_by_userid(io, store, locator->by.userid, NULL);
         break;
     case PGP_KEY_SEARCH_KEYID: {
         key = rnp_key_store_get_key_by_id(io, store, locator->by.keyid, NULL, NULL);
