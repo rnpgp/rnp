@@ -777,37 +777,15 @@ get_key_by_name(pgp_io_t *             io,
     return true;
 }
 
-/**
-   \ingroup HighLevel_KeyringFind
-
-   \brief Finds key from its User ID
-
-   \param keyring Keyring to be searched
-   \param userid User ID of required key
-
-   \return Pointer to Key, if found; NULL, if not found
-
-   \note This returns a pointer to the key inside the keyring, not a
-   copy.  Do not free it.
-
-*/
-bool
+pgp_key_t *
 rnp_key_store_get_key_by_name(pgp_io_t *             io,
                               const rnp_key_store_t *keyring,
                               const char *           name,
-                              pgp_key_t **           key)
+                              pgp_key_t *            after)
 {
-    return get_key_by_name(io, keyring, name, NULL, key);
-}
-
-bool
-rnp_key_store_get_next_key_by_name(pgp_io_t *             io,
-                                   const rnp_key_store_t *keyring,
-                                   const char *           name,
-                                   pgp_key_t *            after,
-                                   pgp_key_t **           key)
-{
-    return get_key_by_name(io, keyring, name, after, key);
+    pgp_key_t *key = NULL;
+    get_key_by_name(io, keyring, name, after, &key);
+    return key;
 }
 
 // TODO: This looks very similar to bn_hash()

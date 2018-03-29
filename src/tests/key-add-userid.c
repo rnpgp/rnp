@@ -59,7 +59,7 @@ test_key_add_userid(void **state)
     pgp_memory_release(&mem);
 
     // locate our key
-    assert_true(rnp_key_store_get_key_by_name(&io, ks, keyids[0], &key));
+    assert_non_null(key = rnp_key_store_get_key_by_name(&io, ks, keyids[0], NULL));
     assert_non_null(key);
 
     // unlock the key
@@ -131,8 +131,7 @@ test_key_add_userid(void **state)
     // read from the saved packets
     assert_true(rnp_key_store_pgp_read_from_mem(&io, ks, 0, &mem));
     pgp_memory_release(&mem);
-    assert_true(rnp_key_store_get_key_by_name(&io, ks, keyids[0], &key));
-    assert_non_null(key);
+    assert_non_null(key = rnp_key_store_get_key_by_name(&io, ks, keyids[0], NULL));
 
     // confirm that the counts have increased as expected
     assert_int_equal(key->uidc, uidc + 2);

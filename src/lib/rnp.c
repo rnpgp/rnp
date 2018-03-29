@@ -117,7 +117,8 @@ resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
         userid += 2;
     }
     io = rnp->io;
-    if (!rnp_key_store_get_key_by_name(io, keyring, userid, &key)) {
+    key = rnp_key_store_get_key_by_name(io, keyring, userid, NULL);
+    if (!key) {
         (void) fprintf(io->errs, "cannot find key '%s'\n", userid);
         return NULL;
     }
@@ -726,7 +727,8 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
     }
     (void) memset(&pubs, 0x0, sizeof(pubs));
     do {
-        if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, key, &key)) {
+        key = rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, name, NULL);
+        if (!key) {
             return 0;
         }
         if (key != NULL) {
@@ -776,7 +778,8 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
     printf("%s,%d, NAME: %s\n", __FILE__, __LINE__, name);
     *json = NULL;
     do {
-        if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, key, &key)) {
+        key = rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, name, key);
+        if (!key) {
             return 0;
         }
         if (key != NULL) {
@@ -818,7 +821,8 @@ rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
     FILE *     fp = (FILE *) vp;
 
     do {
-        if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, name, key, &key)) {
+        key = rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, name, key);
+        if (!key) {
             return 0;
         }
         if (key != NULL) {
@@ -842,7 +846,8 @@ rnp_find_key(rnp_t *rnp, const char *id)
         (void) fprintf(io->errs, "NULL id to search for\n");
         return false;
     }
-    if (!rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, id, &key)) {
+    key = rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, id, NULL);
+    if (!key) {
         return false;
     }
     return key != NULL;
@@ -1700,10 +1705,8 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
     }
 
     /* get rsa key */
-    if (!rnp_key_store_get_next_key_by_name(rnp->io, rnp->pubring, userid, key, &key)) {
-        goto done;
-    }
-    if (key == NULL) {
+    key = rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, userid, key);
+    if (!key) {
         (void) fprintf(stderr, "no key found for '%s'\n", userid);
         goto done;
     }
