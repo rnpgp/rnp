@@ -63,9 +63,8 @@ test_key_unlock_pgp(void **state)
 
     for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
         const char *keyid = keyids[i];
-        key = NULL;
-        rnp_assert_true(rstate,
-                        rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyid, &key));
+        rnp_assert_non_null(
+          rstate, key = rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyid, NULL));
         assert_non_null(key);
         // all keys in this keyring are encrypted and thus should be locked initially
         rnp_assert_true(rstate, pgp_key_is_locked(key));
@@ -83,9 +82,8 @@ test_key_unlock_pgp(void **state)
     rnp_ctx_free(&ctx);
 
     // grab the signing key to unlock
-    key = NULL;
-    rnp_assert_true(rstate,
-                    rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyids[0], &key));
+    rnp_assert_non_null(
+      rstate, key = rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyids[0], NULL));
     rnp_assert_non_null(rstate, key);
 
     // confirm that this key is indeed RSA first
@@ -180,9 +178,8 @@ test_key_unlock_pgp(void **state)
     rnp_ctx_free(&ctx);
 
     // grab the encrypting key to unlock
-    key = NULL;
-    rnp_assert_true(rstate,
-                    rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyids[1], &key));
+    rnp_assert_non_null(
+      rstate, key = rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyids[1], NULL));
 
     // unlock the encrypting key
     provider = (pgp_password_provider_t){.callback = string_copy_password_callback,

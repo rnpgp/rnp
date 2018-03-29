@@ -66,10 +66,10 @@ rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void
             ks_key = rnp_key_store_get_key_by_grip(rnp->io, rnp->secring, ctx->search.by.grip);
         }
     } else if (ctx->search.type == PGP_KEY_SEARCH_USERID) {
-        rnp_key_store_get_key_by_name(rnp->io, ks, ctx->search.by.userid, &ks_key);
+        ks_key = rnp_key_store_get_key_by_name(rnp->io, ks, ctx->search.by.userid, NULL);
         if (!ks_key && !ctx->secret) {
-            rnp_key_store_get_key_by_name(
-              rnp->io, rnp->secring, ctx->search.by.userid, &ks_key);
+            ks_key = rnp_key_store_get_key_by_name(
+              rnp->io, rnp->secring, ctx->search.by.userid, NULL);
         }
     }
 

@@ -90,7 +90,7 @@ test_key_store_search(void **state)
     for (size_t i = 0; i < ARRAY_SIZE(testdata); i++) {
         list       seen_keys = NULL;
         pgp_key_t *key = NULL;
-        assert_true(rnp_key_store_get_key_by_name(&io, store, testdata[i].keyid, &key));
+        key = rnp_key_store_get_key_by_name(&io, store, testdata[i].keyid, NULL);
         while (key) {
             // check that the keyid actually matches
             uint8_t expected_keyid[PGP_KEY_ID_SIZE];
@@ -103,8 +103,7 @@ test_key_store_search(void **state)
             assert_non_null(list_append(&seen_keys, &key, sizeof(key)));
 
             // this only returns false on error, regardless of whether it found a match
-            assert_true(
-              rnp_key_store_get_next_key_by_name(&io, store, testdata[i].keyid, key, &key));
+            key = rnp_key_store_get_key_by_name(&io, store, testdata[i].keyid, key);
         }
         // check the count
         assert_int_equal(list_length(seen_keys), testdata[i].count);
@@ -118,7 +117,7 @@ test_key_store_search(void **state)
             list        seen_keys = NULL;
             pgp_key_t * key = NULL;
             const char *userid = testdata[i].userids[uidn];
-            assert_true(rnp_key_store_get_key_by_name(&io, store, userid, &key));
+            key = rnp_key_store_get_key_by_name(&io, store, userid, NULL);
             while (key) {
                 // check that the userid actually matches
                 bool found = false;
@@ -133,9 +132,7 @@ test_key_store_search(void **state)
                 // keep track of what key pointers we have seen
                 assert_non_null(list_append(&seen_keys, &key, sizeof(key)));
 
-                // this only returns false on error, regardless of whether it found a match
-                assert_true(rnp_key_store_get_next_key_by_name(
-                  &io, store, testdata[i].keyid, key, &key));
+                key = rnp_key_store_get_key_by_name(&io, store, testdata[i].keyid, key);
             }
             // check the count
             assert_int_equal(list_length(seen_keys), testdata[i].count);
@@ -149,15 +146,14 @@ test_key_store_search(void **state)
         list        seen_keys = NULL;
         pgp_key_t * key = NULL;
         const char *userid = "user1-.*";
-        assert_true(rnp_key_store_get_key_by_name(&io, store, userid, &key));
+        key = rnp_key_store_get_key_by_name(&io, store, userid, NULL);
         while (key) {
             // check that we have not already encountered this key pointer
             assert_null(list_find(seen_keys, &key, sizeof(key)));
             // keep track of what key pointers we have seen
             assert_non_null(list_append(&seen_keys, &key, sizeof(key)));
 
-            // this only returns false on error, regardless of whether it found a match
-            assert_true(rnp_key_store_get_next_key_by_name(&io, store, userid, key, &key));
+            key = rnp_key_store_get_key_by_name(&io, store, userid, key);
         }
         // check the count
         assert_int_equal(list_length(seen_keys), 3);
