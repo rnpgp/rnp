@@ -164,18 +164,18 @@ pgp_decrypt_decode_mpi(rng_t *             rng,
     case PGP_PKA_ELGAMAL: {
         size_t gklen, mlen;
 
-        if (!bn_num_bytes(g_to_k, &gklen) || !bn_num_bytes(encmpi, &mlen)||
-            (gklen>sizeof(gkbuf)) || (mlen>sizeof(encmpi))||
-            bn_bn2bin(g_to_k, gkbuf) || bn_bn2bin(encmpi, encmpibuf)) {
+        if (!bn_num_bytes(g_to_k, &gklen) || !bn_num_bytes(encmpi, &mlen) ||
+            (gklen > sizeof(gkbuf)) || (mlen > sizeof(encmpi)) || bn_bn2bin(g_to_k, gkbuf) ||
+            bn_bn2bin(encmpi, encmpibuf)) {
             return -1;
         }
 
-        buf_t out = {.pbuf = buf, .len = buflen};
+        buf_t       out = {.pbuf = buf, .len = buflen};
         const buf_t g2k = {.pbuf = gkbuf, .len = gklen};
         const buf_t m = {.pbuf = encmpibuf, .len = mlen};
 
-        const rnp_result_t ret = elgamal_decrypt_pkcs1(rng, &out, &g2k, &m,
-                &seckey->key.elgamal, &seckey->pubkey.key.elgamal);
+        const rnp_result_t ret = elgamal_decrypt_pkcs1(
+          rng, &out, &g2k, &m, &seckey->key.elgamal, &seckey->pubkey.key.elgamal);
 
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "decoded m", out.pbuf, out.len);
@@ -301,11 +301,31 @@ end:
     return ok;
 }
 
-bool to_buf(buf_t *b, const uint8_t* in, size_t len) {
+bool
+to_buf(buf_t *b, const uint8_t *in, size_t len)
+{
     if (b->len < len) {
         return false;
     }
     memcpy(b->pbuf, in, len);
     b->len = len;
     return true;
+}
+
+const buf_t
+mpi2buf(pgp_mpi_t *val, bool uselen)
+{
+    return (buf_t){.pbuf = val->mpi, .len = uselen ? val->len : sizeof(val->mpi)};
+}
+
+bignum_t *
+mpi2bn(const pgp_mpi_t *val)
+{
+    return bn_bin2bn(val->mpi, val->len, NULL);
+}
+
+bool
+bn2mpi(bignum_t *bn, pgp_mpi_t *val)
+{
+    return bn_num_bytes(bn, &val->len) && (bn_bn2bin(bn, val->mpi) == 0);
 }

@@ -99,7 +99,7 @@ bool init_packet_body(pgp_packet_body_t *body, int tag);
  *  @param len number of bytes to add
  *  @return true if data was copied successfully, or false otherwise
  **/
-bool add_packet_body(pgp_packet_body_t *body, void *data, size_t len);
+bool add_packet_body(pgp_packet_body_t *body, const void *data, size_t len);
 
 /** @brief append single byte to packet body
  *  @param body pointer to the structure, initialized with init_packet_body
@@ -124,11 +124,10 @@ bool add_packet_body_uint32(pgp_packet_body_t *body, uint32_t val);
 
 /** @brief add pgp mpi (including header) to packet body
  *  @param body pointer to the structure, initialized with init_packet_body
- *  @param mpi bytes of mpi to add
- *  @param len length of the mpi in bytes. Must be > 0
+ *  @param val pointer to structure with mpi data
  *  @return true if mpi was added successfully, or false otherwise
  **/
-bool add_packet_body_mpi(pgp_packet_body_t *body, uint8_t *mpi, unsigned len);
+bool add_packet_body_mpi(pgp_packet_body_t *body, const pgp_mpi_t *val);
 
 /**
  * @brief add pgp signature subpackets (including their length) to the packet body
@@ -171,12 +170,11 @@ bool get_packet_body_buf(pgp_packet_body_t *body, uint8_t *val, size_t len);
 
 /** @brief get next mpi from the packet body
  *  @param body pointer to the structure. It must be filled via stream_read_packet_body
- *  @param val mpi bytes will be stored here. Must be buffer of PGP_MPINT_SIZE bytes
- *  @param len mpi length in bytes will be stored here.
+ *  @param val pointer to structure where result will be stored
  *  @return true on success or false otherwise (if end of the packet is reached
  *          or mpi is ill-formed)
  **/
-bool get_packet_body_mpi(pgp_packet_body_t *body, uint8_t *val, size_t *len);
+bool get_packet_body_mpi(pgp_packet_body_t *body, pgp_mpi_t *val);
 
 /** @brief deallocate data inside of packet body structure
  *  @param body initialized packet body

@@ -36,6 +36,7 @@
 #include "stream-sig.h"
 #include "stream-packet.h"
 #include "hash.h"
+#include "crypto.h"
 #include "crypto/sm2.h"
 #include "crypto/ec.h"
 #include "crypto/rsa.h"
@@ -390,28 +391,25 @@ signature_validate(pgp_signature_t *sig, pgp_pubkey_t *key, pgp_hash_t *hash, rn
 
     switch (sig->palg) {
     case PGP_PKA_DSA: {
-        pgp_dsa_sig_t dsa = {.r = bn_bin2bn(sig->material.dsa.r, sig->material.dsa.rlen, NULL),
-                             .s =
-                               bn_bin2bn(sig->material.dsa.s, sig->material.dsa.slen, NULL)};
+        pgp_dsa_sig_t dsa = {.r = mpi2bn(&sig->material.dsa.r),
+                             .s = mpi2bn(&sig->material.dsa.s)};
         ret = dsa_verify(hval, len, &dsa, &key->key.dsa);
         bn_free(dsa.r);
         bn_free(dsa.s);
         break;
     }
     case PGP_PKA_EDDSA: {
-        bignum_t *r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL);
-        bignum_t *s = bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL);
-        ret = pgp_eddsa_verify_hash(r, s, hval, len, &key->key.ecc) ?
-                RNP_SUCCESS :
-                RNP_ERROR_SIGNATURE_INVALID;
+        bignum_t *r = mpi2bn(&sig->material.ecc.r);
+        bignum_t *s = mpi2bn(&sig->material.ecc.s);
+        bool      res = pgp_eddsa_verify_hash(r, s, hval, len, &key->key.ecc);
+        ret = res ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
         bn_free(r);
         bn_free(s);
         break;
     }
     case PGP_PKA_SM2: {
-        pgp_ecc_sig_t ecc = {.r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL),
-                             .s =
-                               bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL)};
+        pgp_ecc_sig_t ecc = {.r = mpi2bn(&sig->material.ecc.r),
+                             .s = mpi2bn(&sig->material.ecc.s)};
         ret = pgp_sm2_verify_hash(&ecc, hval, len, &key->key.ecc);
         bn_free(ecc.r);
         bn_free(ecc.s);
@@ -419,8 +417,8 @@ signature_validate(pgp_signature_t *sig, pgp_pubkey_t *key, pgp_hash_t *hash, rn
     }
     case PGP_PKA_RSA: {
         ret = pgp_rsa_pkcs1_verify_hash(rng,
-                                        sig->material.rsa.s,
-                                        sig->material.rsa.slen,
+                                        sig->material.rsa.s.mpi,
+                                        sig->material.rsa.s.len,
                                         sig->halg,
                                         hval,
                                         len,
@@ -430,9 +428,8 @@ signature_validate(pgp_signature_t *sig, pgp_pubkey_t *key, pgp_hash_t *hash, rn
         break;
     }
     case PGP_PKA_ECDSA: {
-        pgp_ecc_sig_t ecc = {.r = bn_bin2bn(sig->material.ecc.r, sig->material.ecc.rlen, NULL),
-                             .s =
-                               bn_bin2bn(sig->material.ecc.s, sig->material.ecc.slen, NULL)};
+        pgp_ecc_sig_t ecc = {.r = mpi2bn(&sig->material.ecc.r),
+                             .s = mpi2bn(&sig->material.ecc.s)};
         ret = pgp_ecdsa_verify_hash(&ecc, hval, len, &key->key.ecc);
         bn_free(ecc.r);
         bn_free(ecc.s);
@@ -468,15 +465,15 @@ signature_calculate(pgp_signature_t *sig, pgp_seckey_t *seckey, pgp_hash_t *hash
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        sig->material.rsa.slen = pgp_rsa_pkcs1_sign_hash(rng,
-                                                         sig->material.rsa.s,
-                                                         sizeof(sig->material.rsa.s),
-                                                         sig->halg,
-                                                         hval,
-                                                         hlen,
-                                                         &seckey->key.rsa,
-                                                         &seckey->pubkey.key.rsa);
-        if (!sig->material.rsa.slen) {
+        sig->material.rsa.s.len = pgp_rsa_pkcs1_sign_hash(rng,
+                                                          sig->material.rsa.s.mpi,
+                                                          sizeof(sig->material.rsa.s.mpi),
+                                                          sig->halg,
+                                                          hval,
+                                                          hlen,
+                                                          &seckey->key.rsa,
+                                                          &seckey->pubkey.key.rsa);
+        if (!sig->material.rsa.s.len) {
             ret = RNP_ERROR_SIGNING_FAILED;
             RNP_LOG("rsa signing failed");
         } else {
@@ -490,27 +487,23 @@ signature_calculate(pgp_signature_t *sig, pgp_seckey_t *seckey, pgp_hash_t *hash
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto eddsaend;
         }
-
         if (pgp_eddsa_sign_hash(
               rng, r, s, hval, hlen, &seckey->key.ecc, &seckey->pubkey.key.ecc) < 0) {
             ret = RNP_ERROR_SIGNING_FAILED;
             goto eddsaend;
-        } else {
-            ret = RNP_SUCCESS;
         }
-
-        bn_num_bytes(r, &sig->material.ecc.rlen);
-        bn_num_bytes(s, &sig->material.ecc.slen);
-        bn_bn2bin(r, sig->material.ecc.r);
-        bn_bn2bin(s, sig->material.ecc.s);
-
+        if (!bn2mpi(r, &sig->material.ecc.r) || !bn2mpi(s, &sig->material.ecc.s)) {
+            ret = RNP_ERROR_BAD_STATE;
+            goto eddsaend;
+        }
+        ret = RNP_SUCCESS;
     eddsaend:
         bn_free(r);
         bn_free(s);
         break;
     }
     case PGP_PKA_SM2: {
-        pgp_ecc_sig_t          sigval = {NULL, NULL};
+        pgp_ecc_sig_t          eccsig = {NULL, NULL};
         const ec_curve_desc_t *curve = get_curve_desc(seckey->pubkey.key.ecc.curve);
 
         if (!curve) {
@@ -518,29 +511,26 @@ signature_calculate(pgp_signature_t *sig, pgp_seckey_t *seckey, pgp_hash_t *hash
             ret = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
-
         /* "-2" because SM2 on P-521 must work with SHA-512 digest */
         if (BITS_TO_BYTES(curve->bitlen) - 2 > hlen) {
             RNP_LOG("Message hash to small");
             ret = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
-
         if (pgp_sm2_sign_hash(
-              rng, &sigval, hval, hlen, &seckey->key.ecc, &seckey->pubkey.key.ecc) !=
-            RNP_SUCCESS) {
+              rng, &eccsig, hval, hlen, &seckey->key.ecc, &seckey->pubkey.key.ecc)) {
             RNP_LOG("SM2 signing failed");
             ret = RNP_ERROR_SIGNING_FAILED;
             break;
         }
-
-        bn_num_bytes(sigval.r, &sig->material.ecc.rlen);
-        bn_num_bytes(sigval.s, &sig->material.ecc.slen);
-        bn_bn2bin(sigval.r, sig->material.ecc.r);
-        bn_bn2bin(sigval.s, sig->material.ecc.s);
-        bn_free(sigval.r);
-        bn_free(sigval.s);
-        ret = RNP_SUCCESS;
+        if (!bn2mpi(eccsig.r, &sig->material.ecc.r) ||
+            !bn2mpi(eccsig.s, &sig->material.ecc.s)) {
+            ret = RNP_ERROR_BAD_STATE;
+        } else {
+            ret = RNP_SUCCESS;
+        }
+        bn_free(eccsig.r);
+        bn_free(eccsig.s);
         break;
     }
     case PGP_PKA_DSA: {
@@ -550,17 +540,14 @@ signature_calculate(pgp_signature_t *sig, pgp_seckey_t *seckey, pgp_hash_t *hash
             RNP_LOG("DSA signing failed");
             break;
         }
-
-        (void) bn_num_bytes(dsasig.r, &sig->material.dsa.rlen);
-        (void) bn_num_bytes(dsasig.s, &sig->material.dsa.slen);
-        (void) bn_bn2bin(dsasig.r, sig->material.dsa.r);
-        (void) bn_bn2bin(dsasig.s, sig->material.dsa.s);
+        if (!bn2mpi(dsasig.r, &sig->material.dsa.r) ||
+            !bn2mpi(dsasig.s, &sig->material.dsa.s)) {
+            ret = RNP_ERROR_BAD_STATE;
+        }
         bn_free(dsasig.r);
         bn_free(dsasig.s);
-        ret = RNP_SUCCESS;
         break;
     }
-
     /*
      * ECDH is signed with ECDSA. This must be changed when ECDH will support
      * X25519, but I need to check how it should be done exactly.
@@ -575,29 +562,27 @@ signature_calculate(pgp_signature_t *sig, pgp_seckey_t *seckey, pgp_hash_t *hash
             ret = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
-
         /* "-2" because ECDSA on P-521 must work with SHA-512 digest */
         if (BITS_TO_BYTES(curve->bitlen) - 2 > hlen) {
             RNP_LOG("Message hash to small");
             ret = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
-
         if (pgp_ecdsa_sign_hash(
-              rng, &sigval, hval, hlen, &seckey->key.ecc, &seckey->pubkey.key.ecc) !=
-            RNP_SUCCESS) {
+              rng, &sigval, hval, hlen, &seckey->key.ecc, &seckey->pubkey.key.ecc)) {
             RNP_LOG("ECDSA signing failed");
             ret = RNP_ERROR_SIGNING_FAILED;
             break;
         }
+        if (!bn2mpi(sigval.r, &sig->material.ecc.r) ||
+            !bn2mpi(sigval.s, &sig->material.ecc.s)) {
+            ret = RNP_ERROR_BAD_STATE;
+        } else {
+            ret = RNP_SUCCESS;
+        }
 
-        bn_num_bytes(sigval.r, &sig->material.ecc.rlen);
-        bn_num_bytes(sigval.s, &sig->material.ecc.slen);
-        bn_bn2bin(sigval.r, sig->material.ecc.r);
-        bn_bn2bin(sigval.s, sig->material.ecc.s);
         bn_free(sigval.r);
         bn_free(sigval.s);
-        ret = RNP_SUCCESS;
         break;
     }
     default:

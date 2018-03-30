@@ -106,6 +106,12 @@ typedef struct {
     const char *string;
 } pgp_map_t;
 
+/** multi-precision integer, used in signatures and public/secret keys */
+typedef struct pgp_mpi_t {
+    uint8_t mpi[PGP_MPINT_SIZE];
+    size_t  len;
+} pgp_mpi_t;
+
 /** pgp_errcode_name_map_t */
 typedef pgp_map_t pgp_errcode_name_map_t;
 
@@ -243,38 +249,27 @@ typedef struct pgp_key_pkt_t {
 
     union {
         struct {
-            uint8_t n[PGP_MPINT_SIZE];
-            uint8_t e[PGP_MPINT_SIZE];
-            size_t  nlen;
-            size_t  elen;
+            pgp_mpi_t n;
+            pgp_mpi_t e;
         } rsa;
         struct {
-            uint8_t p[PGP_MPINT_SIZE];
-            uint8_t q[PGP_MPINT_SIZE];
-            uint8_t g[PGP_MPINT_SIZE];
-            uint8_t y[PGP_MPINT_SIZE];
-            size_t  plen;
-            size_t  qlen;
-            size_t  glen;
-            size_t  ylen;
+            pgp_mpi_t p;
+            pgp_mpi_t q;
+            pgp_mpi_t g;
+            pgp_mpi_t y;
         } dsa;
         struct {
-            uint8_t p[PGP_MPINT_SIZE];
-            uint8_t g[PGP_MPINT_SIZE];
-            uint8_t y[PGP_MPINT_SIZE];
-            size_t  plen;
-            size_t  glen;
-            size_t  ylen;
+            pgp_mpi_t p;
+            pgp_mpi_t g;
+            pgp_mpi_t y;
         } eg;
         struct {
             pgp_curve_t curve;
-            uint8_t     p[PGP_MPINT_SIZE];
-            size_t      plen;
+            pgp_mpi_t   p;
         } ecc;
         struct {
             pgp_curve_t    curve;
-            uint8_t        p[PGP_MPINT_SIZE];
-            size_t         plen;
+            pgp_mpi_t      p;
             pgp_hash_alg_t kdf_hash_alg; /* Hash used by kdf */
             pgp_symm_alg_t key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
         } ecdh;
@@ -442,28 +437,21 @@ typedef struct pgp_signature_t {
     /* signature material */
     union {
         struct {
-            uint8_t s[PGP_MPINT_SIZE];
-            size_t  slen;
+            pgp_mpi_t s;
         } rsa;
         struct {
-            uint8_t r[PGP_MPINT_SIZE];
-            uint8_t s[PGP_MPINT_SIZE];
-            size_t  rlen;
-            size_t  slen;
+            pgp_mpi_t r;
+            pgp_mpi_t s;
         } dsa;
         struct {
-            uint8_t r[PGP_MPINT_SIZE];
-            uint8_t s[PGP_MPINT_SIZE];
-            size_t  rlen;
-            size_t  slen;
+            pgp_mpi_t r;
+            pgp_mpi_t s;
         } ecc;
         struct {
             /* This is kept only for packet reading. Implementation MUST
              * not create elgamal signatures */
-            uint8_t r[PGP_MPINT_SIZE];
-            uint8_t s[PGP_MPINT_SIZE];
-            size_t  rlen;
-            size_t  slen;
+            pgp_mpi_t r;
+            pgp_mpi_t s;
         } eg;
     } material;
 
@@ -642,24 +630,19 @@ typedef struct {
     pgp_pubkey_alg_t alg;
     union {
         struct {
-            uint8_t  m[PGP_MPINT_SIZE];
-            unsigned mlen;
+            pgp_mpi_t m;
         } rsa;
         struct {
-            uint8_t  g[PGP_MPINT_SIZE];
-            uint8_t  m[PGP_MPINT_SIZE];
-            unsigned glen;
-            unsigned mlen;
+            pgp_mpi_t g;
+            pgp_mpi_t m;
         } eg;
         struct {
-            uint8_t  m[PGP_MPINT_SIZE];
-            unsigned mlen;
+            pgp_mpi_t m;
         } sm2;
         struct {
-            uint8_t p[PGP_MPINT_SIZE];
-            uint8_t m[ECDH_WRAPPED_KEY_SIZE];
-            size_t  plen;
-            size_t  mlen;
+            pgp_mpi_t p;
+            uint8_t   m[ECDH_WRAPPED_KEY_SIZE];
+            size_t    mlen;
         } ecdh;
     } params;
 } pgp_pk_sesskey_pkt_t;
@@ -862,8 +845,8 @@ typedef struct rnp_key_protection_params_t {
  * it's length. Value of 'len' depends on context in which it is used.
  */
 typedef struct buf_t {
-  uint8_t *pbuf;
-  size_t  len;
+    uint8_t *pbuf;
+    size_t   len;
 } buf_t;
 
 #endif /* TYPES_H_ */
