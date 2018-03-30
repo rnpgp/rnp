@@ -47,6 +47,7 @@
 #include "defs.h"
 #include "types.h"
 #include "symmetric.h"
+#include "crypto.h"
 #include "crypto/s2k.h"
 #include "crypto/sm2.h"
 #include "crypto/ec.h"
@@ -1329,7 +1330,6 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     pgp_symm_alg_t    salg;
     unsigned          checksum = 0;
     bool              res = false;
-    bignum_t *        ecdh_p;
 
     /* Decrypting session key value */
     switch (sesskey->alg) {
@@ -1337,8 +1337,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         declen = pgp_rsa_decrypt_pkcs1(rng,
                                        decbuf,
                                        sizeof(decbuf),
-                                       sesskey->params.rsa.m,
-                                       sesskey->params.rsa.mlen,
+                                       sesskey->params.rsa.m.mpi,
+                                       sesskey->params.rsa.m.len,
                                        &seckey->key.rsa,
                                        &seckey->pubkey.key.rsa);
         if (declen <= 0) {
@@ -1350,8 +1350,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         declen = sizeof(decbuf);
         err = pgp_sm2_decrypt(decbuf,
                               &declen,
-                              sesskey->params.sm2.m,
-                              sesskey->params.sm2.mlen,
+                              sesskey->params.sm2.m.mpi,
+                              sesskey->params.sm2.m.len,
                               &seckey->key.ecc,
                               &seckey->pubkey.key.ecc);
 
@@ -1361,9 +1361,9 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         }
         break;
     case PGP_PKA_ELGAMAL: {
-        buf_t       out = {.pbuf = decbuf, .len = sizeof(decbuf)};
-        const buf_t g2k = {.pbuf = sesskey->params.eg.g, .len = sesskey->params.eg.glen};
-        const buf_t m = {.pbuf = sesskey->params.eg.m, .len = sesskey->params.eg.mlen};
+        buf_t              out = {.pbuf = decbuf, .len = sizeof(decbuf)};
+        const buf_t        g2k = mpi2buf(&sesskey->params.eg.g, true);
+        const buf_t        m = mpi2buf(&sesskey->params.eg.m, true);
         const rnp_result_t ret = elgamal_decrypt_pkcs1(
           rng, &out, &g2k, &m, &seckey->key.elgamal, &seckey->pubkey.key.elgamal);
         declen = out.len;
@@ -1373,15 +1373,15 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         }
         break;
     }
-    case PGP_PKA_ECDH:
-        declen = sizeof(decbuf);
+    case PGP_PKA_ECDH: {
+        bignum_t *ecdh_p;
 
+        declen = sizeof(decbuf);
         if (!pgp_fingerprint(&fingerprint, &seckey->pubkey)) {
             RNP_LOG("ECDH fingerprint calculation failed");
             return false;
         }
-        ecdh_p = bn_bin2bn(sesskey->params.ecdh.p, sesskey->params.ecdh.plen, NULL);
-
+        ecdh_p = mpi2bn(&sesskey->params.ecdh.p);
         err = pgp_ecdh_decrypt_pkcs5(decbuf,
                                      &declen,
                                      sesskey->params.ecdh.m,
@@ -1397,6 +1397,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
             return false;
         }
         break;
+    }
     default:
         RNP_LOG("unsupported public key algorithm %d\n", seckey->pubkey.alg);
         return false;

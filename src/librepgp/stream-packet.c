@@ -254,7 +254,7 @@ init_packet_body(pgp_packet_body_t *body, int tag)
 }
 
 bool
-add_packet_body(pgp_packet_body_t *body, void *data, size_t len)
+add_packet_body(pgp_packet_body_t *body, const void *data, size_t len)
 {
     void * newdata;
     size_t newlen;
@@ -305,23 +305,23 @@ add_packet_body_uint32(pgp_packet_body_t *body, uint32_t val)
 }
 
 bool
-add_packet_body_mpi(pgp_packet_body_t *body, uint8_t *mpi, unsigned len)
+add_packet_body_mpi(pgp_packet_body_t *body, const pgp_mpi_t *val)
 {
     unsigned bits;
     unsigned idx = 0;
     unsigned hibyte;
     uint8_t  hdr[2];
 
-    if (!len) {
+    if (!val->len) {
         return false;
     }
 
-    while ((idx < len - 1) && (mpi[idx] == 0)) {
+    while ((idx < val->len - 1) && (val->mpi[idx] == 0)) {
         idx++;
     }
 
-    bits = (len - idx - 1) << 3;
-    hibyte = mpi[idx];
+    bits = (val->len - idx - 1) << 3;
+    hibyte = val->mpi[idx];
     while (hibyte > 0) {
         bits++;
         hibyte = hibyte >> 1;
@@ -329,7 +329,8 @@ add_packet_body_mpi(pgp_packet_body_t *body, uint8_t *mpi, unsigned len)
 
     hdr[0] = bits >> 8;
     hdr[1] = bits & 0xff;
-    return add_packet_body(body, hdr, 2) && add_packet_body(body, mpi + idx, len - idx);
+    return add_packet_body(body, hdr, 2) &&
+           add_packet_body(body, val->mpi + idx, val->len - idx);
 }
 
 static bool
@@ -451,35 +452,36 @@ get_packet_body_buf(pgp_packet_body_t *body, uint8_t *val, size_t len)
 }
 
 bool
-get_packet_body_mpi(pgp_packet_body_t *body, uint8_t *val, size_t *len)
+get_packet_body_mpi(pgp_packet_body_t *body, pgp_mpi_t *val)
 {
     uint16_t bits;
+    size_t   len;
 
     if (!get_packet_body_uint16(body, &bits)) {
         return false;
     }
 
-    if ((*len = (bits + 7) >> 3) > PGP_MPINT_SIZE) {
+    len = (bits + 7) >> 3;
+    if (len > PGP_MPINT_SIZE) {
         RNP_LOG("too large mpi");
         return false;
     }
-
-    if (*len == 0) {
+    if (len == 0) {
         RNP_LOG("0 mpi");
         return false;
     }
-
-    if (!get_packet_body_buf(body, val, *len)) {
+    if (!get_packet_body_buf(body, val->mpi, len)) {
         return false;
     }
-
     /* check the mpi bit count */
     unsigned hbits = bits & 7 ? bits & 7 : 8;
-    if ((((unsigned) val[0] >> hbits) != 0) || !((unsigned) val[0] & (1U << (hbits - 1)))) {
+    if ((((unsigned) val->mpi[0] >> hbits) != 0) ||
+        !((unsigned) val->mpi[0] & (1U << (hbits - 1)))) {
         RNP_LOG("wrong mpi bit count");
         return false;
     }
 
+    val->len = len;
     return true;
 }
 
@@ -699,24 +701,26 @@ stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *pkey, pgp_dest_t *dst)
     res = add_packet_body_byte(&pktbody, pkey->version) &&
           add_packet_body(&pktbody, pkey->key_id, sizeof(pkey->key_id)) &&
           add_packet_body_byte(&pktbody, pkey->alg);
+    if (!res) {
+        goto error;
+    }
 
     switch (pkey->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-        res = res && add_packet_body_mpi(&pktbody, pkey->params.rsa.m, pkey->params.rsa.mlen);
+        res = add_packet_body_mpi(&pktbody, &pkey->params.rsa.m);
         break;
     case PGP_PKA_SM2:
-        res = res && add_packet_body_mpi(&pktbody, pkey->params.sm2.m, pkey->params.sm2.mlen);
+        res = add_packet_body_mpi(&pktbody, &pkey->params.sm2.m);
         break;
     case PGP_PKA_ECDH:
-        res = res &&
-              add_packet_body_mpi(&pktbody, pkey->params.ecdh.p, pkey->params.ecdh.plen) &&
+        res = add_packet_body_mpi(&pktbody, &pkey->params.ecdh.p) &&
               add_packet_body_byte(&pktbody, pkey->params.ecdh.mlen) &&
               add_packet_body(&pktbody, pkey->params.ecdh.m, pkey->params.ecdh.mlen);
         break;
     case PGP_PKA_ELGAMAL:
-        res = res && add_packet_body_mpi(&pktbody, pkey->params.eg.g, pkey->params.eg.glen) &&
-              add_packet_body_mpi(&pktbody, pkey->params.eg.m, pkey->params.eg.mlen);
+        res = add_packet_body_mpi(&pktbody, &pkey->params.eg.g) &&
+              add_packet_body_mpi(&pktbody, &pkey->params.eg.m);
         break;
     default:
         res = false;
@@ -725,10 +729,10 @@ stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *pkey, pgp_dest_t *dst)
     if (res) {
         stream_flush_packet_body(&pktbody, dst);
         return true;
-    } else {
-        free_packet_body(&pktbody);
-        return false;
     }
+error:
+    free_packet_body(&pktbody);
+    return false;
 }
 
 bool
@@ -792,18 +796,18 @@ stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst)
     /* write mpis */
     switch (sig->palg) {
     case PGP_PKA_RSA:
-        res &= add_packet_body_mpi(&pktbody, sig->material.rsa.s, sig->material.rsa.slen);
+        res &= add_packet_body_mpi(&pktbody, &sig->material.rsa.s);
         break;
     case PGP_PKA_DSA:
-        res &= add_packet_body_mpi(&pktbody, sig->material.dsa.r, sig->material.dsa.rlen) &&
-               add_packet_body_mpi(&pktbody, sig->material.dsa.s, sig->material.dsa.slen);
+        res &= add_packet_body_mpi(&pktbody, &sig->material.dsa.r) &&
+               add_packet_body_mpi(&pktbody, &sig->material.dsa.s);
         break;
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        res &= add_packet_body_mpi(&pktbody, sig->material.ecc.r, sig->material.ecc.rlen) &&
-               add_packet_body_mpi(&pktbody, sig->material.ecc.s, sig->material.ecc.slen);
+        res &= add_packet_body_mpi(&pktbody, &sig->material.ecc.r) &&
+               add_packet_body_mpi(&pktbody, &sig->material.ecc.s);
         break;
     default:
         RNP_LOG("Unknown pk algorithm : %d", (int) sig->palg);
@@ -987,29 +991,29 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pkey)
     switch (pkey->alg) {
     case PGP_PKA_RSA:
         /* RSA m */
-        pkey->params.rsa.mlen = read;
-        memcpy(pkey->params.rsa.m, mpi, read);
+        pkey->params.rsa.m.len = read;
+        memcpy(pkey->params.rsa.m.mpi, mpi, read);
         break;
     case PGP_PKA_ELGAMAL:
         /* ElGamal g */
-        pkey->params.eg.glen = read;
-        memcpy(pkey->params.eg.g, mpi, read);
+        pkey->params.eg.g.len = read;
+        memcpy(pkey->params.eg.g.mpi, mpi, read);
         /* ElGamal m */
-        if ((read = stream_read_mpi(src, pkey->params.eg.m, len)) < 0) {
+        if ((read = stream_read_mpi(src, pkey->params.eg.m.mpi, len)) < 0) {
             return RNP_ERROR_BAD_FORMAT;
         }
-        pkey->params.eg.mlen = read;
+        pkey->params.eg.m.len = read;
         len -= read + 2;
         break;
     case PGP_PKA_SM2:
         /* SM2 m */
-        pkey->params.sm2.mlen = read;
-        memcpy(pkey->params.sm2.m, mpi, read);
+        pkey->params.sm2.m.len = read;
+        memcpy(pkey->params.sm2.m.mpi, mpi, read);
         break;
     case PGP_PKA_ECDH:
         /* ECDH ephemeral point */
-        pkey->params.ecdh.plen = read;
-        memcpy(pkey->params.ecdh.p, mpi, read);
+        pkey->params.ecdh.p.len = read;
+        memcpy(pkey->params.ecdh.p.mpi, mpi, read);
         /* ECDH m */
         if ((len < 1) || ((read = src_read(src, buf, 1)) < 1)) {
             return RNP_ERROR_READ;
@@ -1513,20 +1517,22 @@ stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
     /* signature MPIs */
     switch (sig->palg) {
     case PGP_PKA_RSA:
-        if ((read = stream_read_mpi(src, sig->material.rsa.s, pktend - src->readb)) < 0) {
+        if ((read = stream_read_mpi(src, sig->material.rsa.s.mpi, pktend - src->readb)) < 0) {
             res = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
-        sig->material.rsa.slen = read;
+        sig->material.rsa.s.len = read;
         break;
     case PGP_PKA_DSA:
-        if (((read = stream_read_mpi(src, sig->material.dsa.r, pktend - src->readb)) < 0) ||
-            ((read2 = stream_read_mpi(src, sig->material.dsa.s, pktend - src->readb)) < 0)) {
+        if (((read = stream_read_mpi(src, sig->material.dsa.r.mpi, pktend - src->readb)) <
+             0) ||
+            ((read2 = stream_read_mpi(src, sig->material.dsa.s.mpi, pktend - src->readb)) <
+             0)) {
             res = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
-        sig->material.dsa.rlen = read;
-        sig->material.dsa.slen = read2;
+        sig->material.dsa.r.len = read;
+        sig->material.dsa.s.len = read2;
         break;
     case PGP_PKA_EDDSA:
         if (sig->version < 4) {
@@ -1535,22 +1541,25 @@ stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        if (((read = stream_read_mpi(src, sig->material.ecc.r, pktend - src->readb)) < 0) ||
-            ((read2 = stream_read_mpi(src, sig->material.ecc.s, pktend - src->readb)) < 0)) {
+        if (((read = stream_read_mpi(src, sig->material.ecc.r.mpi, pktend - src->readb)) <
+             0) ||
+            ((read2 = stream_read_mpi(src, sig->material.ecc.s.mpi, pktend - src->readb)) <
+             0)) {
             res = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
-        sig->material.ecc.rlen = read;
-        sig->material.ecc.slen = read2;
+        sig->material.ecc.r.len = read;
+        sig->material.ecc.s.len = read2;
         break;
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (((read = stream_read_mpi(src, sig->material.eg.r, pktend - src->readb)) < 0) ||
-            ((read2 = stream_read_mpi(src, sig->material.eg.s, pktend - src->readb)) < 0)) {
+        if (((read = stream_read_mpi(src, sig->material.eg.r.mpi, pktend - src->readb)) < 0) ||
+            ((read2 = stream_read_mpi(src, sig->material.eg.s.mpi, pktend - src->readb)) <
+             0)) {
             res = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
-        sig->material.eg.rlen = read;
-        sig->material.eg.slen = read2;
+        sig->material.eg.r.len = read;
+        sig->material.eg.s.len = read2;
         break;
     default:
         RNP_LOG("Unknown pk algorithm : %d", (int) sig->palg);
@@ -1587,13 +1596,13 @@ bool
 is_key_pkt(int tag)
 {
     switch (tag) {
-        case PGP_PTAG_CT_PUBLIC_KEY:
-        case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        case PGP_PTAG_CT_SECRET_KEY:
-        case PGP_PTAG_CT_SECRET_SUBKEY:
-            return true;
-        default:
-            return false;
+    case PGP_PTAG_CT_PUBLIC_KEY:
+    case PGP_PTAG_CT_PUBLIC_SUBKEY:
+    case PGP_PTAG_CT_SECRET_KEY:
+    case PGP_PTAG_CT_SECRET_SUBKEY:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -1601,11 +1610,11 @@ bool
 is_public_key_pkt(int tag)
 {
     switch (tag) {
-        case PGP_PTAG_CT_PUBLIC_KEY:
-        case PGP_PTAG_CT_PUBLIC_SUBKEY:
-            return true;
-        default:
-            return false;
+    case PGP_PTAG_CT_PUBLIC_KEY:
+    case PGP_PTAG_CT_PUBLIC_SUBKEY:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -1613,11 +1622,11 @@ bool
 is_secret_key_pkt(int tag)
 {
     switch (tag) {
-        case PGP_PTAG_CT_SECRET_KEY:
-        case PGP_PTAG_CT_SECRET_SUBKEY:
-            return true;
-        default:
-            return false;
+    case PGP_PTAG_CT_SECRET_KEY:
+    case PGP_PTAG_CT_SECRET_SUBKEY:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -1654,30 +1663,30 @@ key_fill_hashed_data(pgp_key_pkt_t *key)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        res = add_packet_body_mpi(&hbody, key->material.rsa.n, key->material.rsa.nlen) &&
-              add_packet_body_mpi(&hbody, key->material.rsa.e, key->material.rsa.elen);
+        res = add_packet_body_mpi(&hbody, &key->material.rsa.n) &&
+              add_packet_body_mpi(&hbody, &key->material.rsa.e);
         break;
     case PGP_PKA_DSA:
-        res = add_packet_body_mpi(&hbody, key->material.dsa.p, key->material.dsa.plen) &&
-              add_packet_body_mpi(&hbody, key->material.dsa.q, key->material.dsa.qlen) &&
-              add_packet_body_mpi(&hbody, key->material.dsa.g, key->material.dsa.glen) &&
-              add_packet_body_mpi(&hbody, key->material.dsa.y, key->material.dsa.ylen);
+        res = add_packet_body_mpi(&hbody, &key->material.dsa.p) &&
+              add_packet_body_mpi(&hbody, &key->material.dsa.q) &&
+              add_packet_body_mpi(&hbody, &key->material.dsa.g) &&
+              add_packet_body_mpi(&hbody, &key->material.dsa.y);
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        res = add_packet_body_mpi(&hbody, key->material.eg.p, key->material.eg.plen) &&
-              add_packet_body_mpi(&hbody, key->material.eg.g, key->material.eg.glen) &&
-              add_packet_body_mpi(&hbody, key->material.eg.y, key->material.eg.ylen);
+        res = add_packet_body_mpi(&hbody, &key->material.eg.p) &&
+              add_packet_body_mpi(&hbody, &key->material.eg.g) &&
+              add_packet_body_mpi(&hbody, &key->material.eg.y);
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
         res = add_packet_body_key_curve(&hbody, key->material.ecc.curve) &&
-              add_packet_body_mpi(&hbody, key->material.ecc.p, key->material.ecc.plen);
+              add_packet_body_mpi(&hbody, &key->material.ecc.p);
         break;
     case PGP_PKA_ECDH:
         res = add_packet_body_key_curve(&hbody, key->material.ecc.curve) &&
-              add_packet_body_mpi(&hbody, key->material.ecc.p, key->material.ecc.plen) &&
+              add_packet_body_mpi(&hbody, &key->material.ecc.p) &&
               add_packet_body_byte(&hbody, 3) && add_packet_body_byte(&hbody, 1) &&
               add_packet_body_byte(&hbody, key->material.ecdh.kdf_hash_alg) &&
               add_packet_body_byte(&hbody, key->material.ecdh.key_wrap_alg);
@@ -1828,24 +1837,24 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!get_packet_body_mpi(&pkt, key->material.rsa.n, &key->material.rsa.nlen) ||
-            !get_packet_body_mpi(&pkt, key->material.rsa.e, &key->material.rsa.elen)) {
+        if (!get_packet_body_mpi(&pkt, &key->material.rsa.n) ||
+            !get_packet_body_mpi(&pkt, &key->material.rsa.e)) {
             goto finish;
         }
         break;
     case PGP_PKA_DSA:
-        if (!get_packet_body_mpi(&pkt, key->material.dsa.p, &key->material.dsa.plen) ||
-            !get_packet_body_mpi(&pkt, key->material.dsa.q, &key->material.dsa.qlen) ||
-            !get_packet_body_mpi(&pkt, key->material.dsa.g, &key->material.dsa.glen) ||
-            !get_packet_body_mpi(&pkt, key->material.dsa.y, &key->material.dsa.ylen)) {
+        if (!get_packet_body_mpi(&pkt, &key->material.dsa.p) ||
+            !get_packet_body_mpi(&pkt, &key->material.dsa.q) ||
+            !get_packet_body_mpi(&pkt, &key->material.dsa.g) ||
+            !get_packet_body_mpi(&pkt, &key->material.dsa.y)) {
             goto finish;
         }
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!get_packet_body_mpi(&pkt, key->material.eg.p, &key->material.eg.plen) ||
-            !get_packet_body_mpi(&pkt, key->material.eg.g, &key->material.eg.glen) ||
-            !get_packet_body_mpi(&pkt, key->material.eg.y, &key->material.eg.ylen)) {
+        if (!get_packet_body_mpi(&pkt, &key->material.eg.p) ||
+            !get_packet_body_mpi(&pkt, &key->material.eg.g) ||
+            !get_packet_body_mpi(&pkt, &key->material.eg.y)) {
             goto finish;
         }
         break;
@@ -1853,13 +1862,13 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
         if (!get_packet_body_key_curve(&pkt, &key->material.ecc.curve) ||
-            !get_packet_body_mpi(&pkt, key->material.ecc.p, &key->material.ecc.plen)) {
+            !get_packet_body_mpi(&pkt, &key->material.ecc.p)) {
             goto finish;
         }
         break;
     case PGP_PKA_ECDH: {
         if (!get_packet_body_key_curve(&pkt, &key->material.ecdh.curve) ||
-            !get_packet_body_mpi(&pkt, key->material.ecdh.p, &key->material.ecdh.plen)) {
+            !get_packet_body_mpi(&pkt, &key->material.ecdh.p)) {
             goto finish;
         }
 
@@ -1999,7 +2008,7 @@ stream_write_userid(pgp_userid_pkt_t *userid, pgp_dest_t *dst)
     } else {
         free_packet_body(&pktbody);
     }
-    
+
     return res;
 }
 
