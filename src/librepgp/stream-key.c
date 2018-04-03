@@ -43,6 +43,8 @@
 #include "list.h"
 #include "packet-parse.h"
 #include "utils.h"
+#include "crypto.h"
+#include "crypto/s2k.h"
 
 static void
 signature_list_destroy(list *sigs)
@@ -56,6 +58,8 @@ signature_list_destroy(list *sigs)
 void
 transferable_key_destroy(pgp_transferable_key_t *key)
 {
+    forget_secret_key_fields(&key->key);
+
     for (list_item *li = list_front(key->userids); li; li = list_next(li)) {
         pgp_transferable_userid_t *uid = (pgp_transferable_userid_t *) li;
         free_userid_pkt(&uid->uid);
@@ -65,6 +69,7 @@ transferable_key_destroy(pgp_transferable_key_t *key)
 
     for (list_item *li = list_front(key->subkeys); li; li = list_next(li)) {
         pgp_transferable_subkey_t *skey = (pgp_transferable_subkey_t *) li;
+        forget_secret_key_fields(&skey->subkey);
         free_key_pkt(&skey->subkey);
         signature_list_destroy(&skey->signatures);
     }
@@ -299,4 +304,254 @@ finish:
     }
 
     return ret;
+}
+
+static rnp_result_t
+decrypt_secret_key_v3(pgp_crypt_t *crypt, uint8_t *dec, const uint8_t *enc, size_t len)
+{
+    size_t idx;
+    size_t pos = 0;
+    size_t mpilen;
+    size_t blsize;
+
+    if (!(blsize = pgp_cipher_block_size(crypt))) {
+        RNP_LOG("wrong crypto");
+        return RNP_ERROR_BAD_STATE;
+    }
+
+    /* 4 RSA secret mpis with cleartext header */
+    for (idx = 0; idx < 4; idx++) {
+        if (pos + 2 > len) {
+            RNP_LOG("bad v3 secret key data");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        mpilen = (read_uint16(enc + pos) + 7) >> 3;
+        memcpy(dec + pos, enc + pos, 2);
+        pos += 2;
+        if (pos + mpilen > len) {
+            RNP_LOG("bad v3 secret key data");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        pgp_cipher_cfb_decrypt(crypt, dec + pos, enc + pos, mpilen);
+        pos += mpilen;
+        if (mpilen < blsize) {
+            RNP_LOG("bad rsa v3 mpi len");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        pgp_cipher_cfb_resync(crypt, enc + pos - blsize);
+    }
+
+    /* sum16 */
+    if (pos + 2 != len) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    memcpy(dec + pos, enc + pos, 2);
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+parse_secret_key_mpis(pgp_key_pkt_t *key, const uint8_t *mpis, size_t len)
+{
+    pgp_packet_body_t body;
+    bool              res;
+
+    /* check the cleartext data */
+    switch (key->sec_protection.s2k.usage) {
+    case PGP_S2KU_NONE:
+    case PGP_S2KU_ENCRYPTED: {
+        /* calculate and check sum16 of the cleartext */
+        uint16_t sum = 0;
+        size_t   idx;
+
+        len -= 2;
+        for (idx = 0; idx < len; idx++) {
+            sum += mpis[idx];
+        }
+        if (sum != read_uint16(mpis + len)) {
+            RNP_LOG("wrong key checksum");
+            return RNP_ERROR_DECRYPT_FAILED;
+        }
+        break;
+    }
+    case PGP_S2KU_ENCRYPTED_AND_HASHED: {
+        /* calculate and check sha1 hash of the cleartext */
+        pgp_hash_t hash;
+        uint8_t    hval[PGP_MAX_HASH_SIZE];
+
+        if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
+            return RNP_ERROR_BAD_STATE;
+        }
+        len -= PGP_SHA1_HASH_SIZE;
+        pgp_hash_add(&hash, mpis, len);
+        if (pgp_hash_finish(&hash, hval) != PGP_SHA1_HASH_SIZE) {
+            return RNP_ERROR_BAD_STATE;
+        }
+        if (memcmp(hval, mpis + len, PGP_SHA1_HASH_SIZE)) {
+            return RNP_ERROR_DECRYPT_FAILED;
+        }
+        break;
+    }
+    default:
+        RNP_LOG("unknown s2k usage: %d", (int) key->sec_protection.s2k.usage);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* parse mpis depending on algorithm */
+    packet_body_part_from_mem(&body, mpis, len);
+
+    switch (key->alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        res = get_packet_body_mpi(&body, &key->material.rsa.d) &&
+              get_packet_body_mpi(&body, &key->material.rsa.p) &&
+              get_packet_body_mpi(&body, &key->material.rsa.q) &&
+              get_packet_body_mpi(&body, &key->material.rsa.u);
+        break;
+    case PGP_PKA_DSA:
+        res = get_packet_body_mpi(&body, &key->material.dsa.x);
+        break;
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+        res = get_packet_body_mpi(&body, &key->material.ecc.x);
+        break;
+    case PGP_PKA_ECDH:
+        res = get_packet_body_mpi(&body, &key->material.ecdh.x);
+        break;
+    case PGP_PKA_ELGAMAL:
+        res = get_packet_body_mpi(&body, &key->material.eg.x);
+        break;
+    default:
+        RNP_LOG("uknown pk alg : %d", (int) key->alg);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (!res) {
+        RNP_LOG("failed to parse secret data");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    if (body.pos < body.len) {
+        RNP_LOG("extra data in sec key");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
+{
+    size_t       keysize;
+    uint8_t      keybuf[PGP_MAX_KEY_SIZE];
+    uint8_t *    decdata = NULL;
+    pgp_crypt_t  crypt;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    if (!key || !password) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!is_secret_key_pkt(key->tag)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* check whether data is not encrypted */
+    if (!key->sec_protection.s2k.usage) {
+        return parse_secret_key_mpis(key, key->sec_data, key->sec_len);
+    }
+
+    /* data is encrypted */
+    if (key->sec_protection.cipher_mode != PGP_CIPHER_MODE_CFB) {
+        RNP_LOG("unsupported secret key encryption mode");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    keysize = pgp_key_size(key->sec_protection.symm_alg);
+    if (!keysize || !pgp_s2k_derive_key(&key->sec_protection.s2k, password, keybuf, keysize)) {
+        RNP_LOG("failed to derive key");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (!(decdata = malloc(key->sec_len))) {
+        RNP_LOG("allocation failed");
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto finish;
+    }
+
+    if (!pgp_cipher_cfb_start(
+          &crypt, key->sec_protection.symm_alg, keybuf, key->sec_protection.iv)) {
+        RNP_LOG("failed to start cfb decryption");
+        ret = RNP_ERROR_DECRYPT_FAILED;
+        goto finish;
+    }
+
+    switch (key->version) {
+    case PGP_V3:
+        if (!is_rsa_key_alg(key->alg)) {
+            RNP_LOG("non-RSA v3 key");
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            break;
+        }
+        ret = decrypt_secret_key_v3(&crypt, decdata, key->sec_data, key->sec_len);
+        break;
+    case PGP_V4:
+        pgp_cipher_cfb_decrypt(&crypt, decdata, key->sec_data, key->sec_len);
+        ret = RNP_SUCCESS;
+        break;
+    default:
+        ret = RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    pgp_cipher_cfb_finish(&crypt);
+    if (ret) {
+        goto finish;
+    }
+
+    ret = parse_secret_key_mpis(key, decdata, key->sec_len);
+finish:
+    pgp_forget(keybuf, sizeof(keybuf));
+    if (decdata) {
+        pgp_forget(decdata, key->sec_len);
+        free(decdata);
+    }
+    return ret;
+}
+
+void
+forget_secret_key_fields(pgp_key_pkt_t *key)
+{
+    if (!is_secret_key_pkt(key->tag) || !key->sec_avail) {
+        return;
+    }
+
+    switch (key->alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        mpi_forget(&key->material.rsa.d);
+        mpi_forget(&key->material.rsa.p);
+        mpi_forget(&key->material.rsa.q);
+        mpi_forget(&key->material.rsa.u);
+        break;
+    case PGP_PKA_DSA:
+        mpi_forget(&key->material.dsa.x);
+        break;
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        mpi_forget(&key->material.eg.x);
+        break;
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
+        mpi_forget(&key->material.ecc.x);
+        break;
+    case PGP_PKA_ECDH:
+        mpi_forget(&key->material.ecdh.x);
+        break;
+    default:
+        RNP_LOG("unknown key algorithm: %d", (int) key->alg);
+    }
+
+    key->sec_avail = false;
 }

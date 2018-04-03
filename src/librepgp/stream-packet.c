@@ -37,20 +37,20 @@
 #include "crypto/s2k.h"
 #include "stream-packet.h"
 
-static uint32_t
-read_uint32(uint8_t *buf)
+uint32_t
+read_uint32(const uint8_t *buf)
 {
     return ((uint32_t) buf[0] << 24) | ((uint32_t) buf[1] << 16) | ((uint32_t) buf[2] << 8) |
            (uint32_t) buf[3];
 }
 
-static uint16_t
-read_uint16(uint8_t *buf)
+uint16_t
+read_uint16(const uint8_t *buf)
 {
     return ((uint16_t) buf[0] << 8) | buf[1];
 }
 
-static void
+void
 write_uint16(uint8_t *buf, uint16_t val)
 {
     buf[0] = val >> 8;
@@ -614,6 +614,15 @@ stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
     body->pos = 0;
 
     return RNP_SUCCESS;
+}
+
+void
+packet_body_part_from_mem(pgp_packet_body_t *body, const void *mem, size_t len)
+{
+    memset(body, 0, sizeof(*body));
+    body->data = (uint8_t *) mem;
+    body->len = len;
+    body->allocated = len;
 }
 
 rnp_result_t
@@ -1630,6 +1639,19 @@ is_secret_key_pkt(int tag)
     }
 }
 
+bool
+is_rsa_key_alg(pgp_pubkey_alg_t alg)
+{
+    switch (alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        return true;
+    default:
+        return false;
+    }
+}
+
 /* @brief Fills the hashed (signed) data part of the key packet. Must be called before
           stream_write_key() on the newly generated key
  */
@@ -1827,7 +1849,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     key->alg = alg;
 
     /* v3 keys must be RSA-only */
-    if ((key->version < PGP_V4) && (key->alg != PGP_PKA_RSA)) {
+    if ((key->version < PGP_V4) && !is_rsa_key_alg(key->alg)) {
         RNP_LOG("wrong v3 pk algorithm");
         goto finish;
     }
@@ -1909,6 +1931,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
             goto finish;
         }
         key->sec_protection.s2k.usage = usage;
+        key->sec_protection.cipher_mode = PGP_CIPHER_MODE_CFB;
 
         switch (key->sec_protection.s2k.usage) {
         case PGP_S2KU_NONE:
@@ -1923,12 +1946,6 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
                 goto finish;
             }
             key->sec_protection.symm_alg = salg;
-
-            size_t bl_size = pgp_block_size(key->sec_protection.symm_alg);
-            if (!bl_size || !get_packet_body_buf(&pkt, key->sec_protection.iv, bl_size)) {
-                RNP_LOG("failed to read iv");
-                goto finish;
-            }
             break;
         }
         default:
@@ -1940,18 +1957,25 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
             break;
         }
 
+        /* iv */
+        if (key->sec_protection.s2k.usage) {
+            size_t bl_size = pgp_block_size(key->sec_protection.symm_alg);
+            if (!bl_size || !get_packet_body_buf(&pkt, key->sec_protection.iv, bl_size)) {
+                RNP_LOG("failed to read iv");
+                goto finish;
+            }
+        }
+
         /* encrypted/cleartext secret MPIs are left */
         size_t sec_len = pkt.len - pkt.pos;
         if (!(key->sec_data = calloc(1, sec_len))) {
             res = RNP_ERROR_OUT_OF_MEMORY;
             goto finish;
         }
-
         if (!get_packet_body_buf(&pkt, key->sec_data, sec_len)) {
             res = RNP_ERROR_BAD_STATE;
             goto finish;
         }
-
         key->sec_len = sec_len;
     }
 

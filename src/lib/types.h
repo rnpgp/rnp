@@ -244,34 +244,47 @@ typedef struct pgp_key_pkt_t {
     pgp_pubkey_alg_t alg;
     uint16_t         v3_days; /* v2/v3 validity time */
 
-    uint8_t *hashed_data;
+    uint8_t *hashed_data; /* key's hashed data used for signature calculation */
     size_t   hashed_len;
 
     union {
         struct {
             pgp_mpi_t n;
             pgp_mpi_t e;
+            /* secret mpis */
+            pgp_mpi_t d;
+            pgp_mpi_t p;
+            pgp_mpi_t q;
+            pgp_mpi_t u;
         } rsa;
         struct {
             pgp_mpi_t p;
             pgp_mpi_t q;
             pgp_mpi_t g;
             pgp_mpi_t y;
+            /* secret mpi */
+            pgp_mpi_t x;
         } dsa;
         struct {
             pgp_mpi_t p;
             pgp_mpi_t g;
             pgp_mpi_t y;
+            /* secret mpi */
+            pgp_mpi_t x;
         } eg;
         struct {
             pgp_curve_t curve;
             pgp_mpi_t   p;
+            /* secret mpi */
+            pgp_mpi_t x;
         } ecc;
         struct {
             pgp_curve_t    curve;
             pgp_mpi_t      p;
             pgp_hash_alg_t kdf_hash_alg; /* Hash used by kdf */
             pgp_symm_alg_t key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
+            /* secret mpi */
+            pgp_mpi_t x;
         } ecdh;
     } material;
 
@@ -279,6 +292,7 @@ typedef struct pgp_key_pkt_t {
     pgp_key_protection_t sec_protection;
     uint8_t *            sec_data;
     size_t               sec_len;
+    bool                 sec_avail; /* secret key part is available and decrypted */
 } pgp_key_pkt_t;
 
 /** Struct to hold userid or userattr packet. We don't parse userattr now, just storing the

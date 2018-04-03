@@ -329,3 +329,9 @@ bn2mpi(bignum_t *bn, pgp_mpi_t *val)
 {
     return bn_num_bytes(bn, &val->len) && (bn_bn2bin(bn, val->mpi) == 0);
 }
+
+void
+mpi_forget(pgp_mpi_t *val)
+{
+    pgp_forget(val, sizeof(*val));
+}

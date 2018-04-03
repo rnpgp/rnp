@@ -119,7 +119,7 @@ int pgp_cipher_cfb_finish(pgp_crypt_t *crypt);
 int pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len);
 int pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len);
 
-void pgp_cipher_cfb_resync(pgp_crypt_t *crypt, uint8_t *buf);
+void pgp_cipher_cfb_resync(pgp_crypt_t *crypt, const uint8_t *buf);
 
 /** @brief Initialize AEAD cipher instance
  *  @param crypt pgp crypto object
