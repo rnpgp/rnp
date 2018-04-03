@@ -51,6 +51,12 @@ typedef struct pgp_packet_body_t {
     size_t  pos;                      /* current read position in packet data */
 } pgp_packet_body_t;
 
+uint16_t read_uint16(const uint8_t *buf);
+
+uint32_t read_uint32(const uint8_t *buf);
+
+void write_uint16(uint8_t *buf, uint16_t val);
+
 /** @brief write new packet length
  *  @param buf pre-allocated buffer, must have 5 bytes
  *  @param len packet length
@@ -198,6 +204,14 @@ void stream_flush_packet_body(pgp_packet_body_t *body, pgp_dest_t *dst);
  **/
 rnp_result_t stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body);
 
+/** @brief put part of the packet body, i.e. without headers, to structure.
+ *         Used for easier data parsing, using get_packet_body_* functions. Mem is not copied.
+ *  @param mem buffer with packet body part
+ *  @param len number of available bytes in mem
+ *  @param body pre-allocated body structure
+ */
+void packet_body_part_from_mem(pgp_packet_body_t *body, const void *mem, size_t len);
+
 /* Packet handling functions */
 
 rnp_result_t stream_skip_packet(pgp_source_t *src);
@@ -235,6 +249,8 @@ bool is_key_pkt(int tag);
 bool is_public_key_pkt(int tag);
 
 bool is_secret_key_pkt(int tag);
+
+bool is_rsa_key_alg(pgp_pubkey_alg_t alg);
 
 bool stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst);
 

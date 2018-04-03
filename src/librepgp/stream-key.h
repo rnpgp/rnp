@@ -68,4 +68,8 @@ rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys);
 
 rnp_result_t write_pgp_keys(pgp_key_sequence_t *keys, pgp_dest_t *dst, bool armor);
 
+rnp_result_t decrypt_secret_key(pgp_key_pkt_t *key, const char *password);
+
+void forget_secret_key_fields(pgp_key_pkt_t *key);
+
 #endif

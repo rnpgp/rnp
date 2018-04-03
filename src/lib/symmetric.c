@@ -194,7 +194,7 @@ pgp_cipher_cfb_start(pgp_crypt_t *  crypt,
 }
 
 void
-pgp_cipher_cfb_resync(pgp_crypt_t *crypt, uint8_t *buf)
+pgp_cipher_cfb_resync(pgp_crypt_t *crypt, const uint8_t *buf)
 {
     /* iv will be encrypted in the upcoming call to encrypt/decrypt */
     memcpy(crypt->cfb.iv, buf, crypt->blocksize);
