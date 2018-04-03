@@ -385,7 +385,7 @@ armored_src_close(pgp_source_t *src)
 
 /** @brief finds armor header position in the buffer, returning beginning of header or NULL.
  *  hdrlen will contain the length of the header
-**/
+ **/
 static const char *
 find_armor_header(const char *buf, size_t len, size_t *hdrlen)
 {
@@ -418,25 +418,22 @@ armor_str_to_data_type(const char *str, size_t len)
     if (!str) {
         return PGP_ARMORED_UNKNOWN;
     }
-
     if (!strncmp(str, "BEGIN PGP MESSAGE", len)) {
         return PGP_ARMORED_MESSAGE;
     }
-
     if (!strncmp(str, "BEGIN PGP PUBLIC KEY BLOCK", len) ||
         !strncmp(str, "BEGIN PGP PUBLIC KEY", len)) {
         return PGP_ARMORED_PUBLIC_KEY;
     }
-
     if (!strncmp(str, "BEGIN PGP SECRET KEY BLOCK", len) ||
-        !strncmp(str, "BEGIN PGP SECRET KEY", len)) {
+        !strncmp(str, "BEGIN PGP SECRET KEY", len) ||
+        !strncmp(str, "BEGIN PGP PRIVATE KEY BLOCK", len) ||
+        !strncmp(str, "BEGIN PGP PRIVATE KEY", len)) {
         return PGP_ARMORED_SECRET_KEY;
     }
-
     if (!strncmp(str, "BEGIN PGP SIGNATURE", len)) {
         return PGP_ARMORED_SIGNATURE;
     }
-
     if (!strncmp(str, "BEGIN PGP SIGNED MESSAGE", len)) {
         return PGP_ARMORED_CLEARTEXT;
     }
