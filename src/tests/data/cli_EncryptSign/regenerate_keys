@@ -2,7 +2,7 @@
 
 import sys
 
-sys.path.append("../")
+sys.path.append("../../")
 from gnupg import GnuPG as GnuPG
 from rnp import Rnp as Rnp
 
@@ -101,7 +101,7 @@ DSA_ELGAMAL_KEY_SIZES = [(1024, 1024), (1024, 2048), (2048, 2048), (2112, 2112),
 RSA_KEY_SIZES = [(1024, 1024), (2048, 2048), (3072, 3072), (4096, 4096)]
 
 
-rnp = Rnp("tmp_rnp", "../../rnp/rnp", "../../rnpkeys/rnpkeys")
+rnp = Rnp("tmp_rnp", "../../../rnp/rnp", "../../../rnpkeys/rnpkeys")
 rnp.password = PASSWORD
 gpg = GnuPG("tmp_gpg", "/usr/bin/gpg")
 gpg.password = PASSWORD

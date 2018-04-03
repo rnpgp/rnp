@@ -680,7 +680,7 @@ def setup(loglvl):
 
 def key_path(file_base_name, secret):
     ''' Constructs path to the .gpg file'''
-    path=os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data', file_base_name)
+    path=os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data/cli_EncryptSign', file_base_name)
     return ''.join([path, '-sec' if secret else '', '.gpg'])
 
 class TestIdMixin(object):
