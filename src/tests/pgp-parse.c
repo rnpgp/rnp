@@ -196,7 +196,7 @@ test_repgp_decrypt(void **state)
 
     /* Read encrypted file */
     paths_concat(
-      (char *) input_file, sizeof(input_file), rstate->data_dir, "encrypted_text.gpg\0", NULL);
+      (char *) input_file, sizeof(input_file), rstate->data_dir, "test_repgp/encrypted_text.gpg\0", NULL);
     FILE *f = fopen(input_file, "rb");
     assert_non_null(f);
     in_buf_size = fread(in_buf, 1, in_buf_size, f);
@@ -264,7 +264,7 @@ test_repgp_verify(void **state)
     assert_int_equal(rnp_ctx_init(&ctx, &rnp), RNP_SUCCESS);
 
     paths_concat(
-      (char *) input_file, sizeof(input_file), rstate->data_dir, "signed.gpg", NULL);
+      (char *) input_file, sizeof(input_file), rstate->data_dir, "test_repgp/signed.gpg", NULL);
 
     /* Test verification from file */
     repgp_io_t *io = repgp_create_io();
@@ -306,7 +306,7 @@ test_repgp_list_packets(void **state)
     assert_int_equal(rnp_ctx_init(&ctx, &rnp), RNP_SUCCESS);
 
     paths_concat(
-      (char *) input_file, sizeof(input_file), rstate->data_dir, "signed.gpg", NULL);
+      (char *) input_file, sizeof(input_file), rstate->data_dir, "test_repgp/signed.gpg", NULL);
 
     /* Test listing from file */
     repgp_io_t *io = repgp_create_io();
