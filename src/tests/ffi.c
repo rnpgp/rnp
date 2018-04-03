@@ -612,7 +612,7 @@ test_ffi_keygen_json_pair(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
 
     // load our JSON
-    load_test_data(rstate->data_dir, "json/generate-pair.json", &json, NULL);
+    load_test_data(rstate->data_dir, "test_ffi_json/generate-pair.json", &json, NULL);
 
     // generate the keys
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
@@ -686,7 +686,7 @@ test_ffi_keygen_json_primary(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
 
     // load our JSON
-    load_test_data(rstate->data_dir, "json/generate-primary.json", &json, NULL);
+    load_test_data(rstate->data_dir, "test_ffi_json/generate-primary.json", &json, NULL);
 
     // generate the keys
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
@@ -747,7 +747,7 @@ test_ffi_keygen_json_sub(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
 
     // generate our primary key
-    load_test_data(rstate->data_dir, "json/generate-primary.json", &json, NULL);
+    load_test_data(rstate->data_dir, "test_ffi_json/generate-primary.json", &json, NULL);
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
     free(json);
     assert_non_null(results);
@@ -781,7 +781,7 @@ test_ffi_keygen_json_sub(void **state)
     parsed_results = NULL;
 
     // load our JSON template
-    load_test_data(rstate->data_dir, "json/generate-sub.json", &json, NULL);
+    load_test_data(rstate->data_dir, "test_ffi_json/generate-sub.json", &json, NULL);
     // modify our JSON
     {
         // parse
@@ -869,7 +869,7 @@ test_ffi_add_userid(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
 
     // load our JSON
-    load_test_data(rstate->data_dir, "json/generate-primary.json", &json, NULL);
+    load_test_data(rstate->data_dir, "test_ffi_json/generate-primary.json", &json, NULL);
 
     // generate the keys
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
@@ -933,7 +933,7 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
 
     // generate our primary key
-    load_test_data(rstate->data_dir, "json/generate-primary.json", &json, NULL);
+    load_test_data(rstate->data_dir, "test_ffi_json/generate-primary.json", &json, NULL);
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
     free(json);
     assert_non_null(results);
@@ -973,7 +973,7 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     primary = NULL;
 
     // load our JSON template
-    load_test_data(rstate->data_dir, "json/generate-sub.json", &json, NULL);
+    load_test_data(rstate->data_dir, "test_ffi_json/generate-sub.json", &json, NULL);
     // modify our JSON
     {
         // parse
