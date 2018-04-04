@@ -3207,7 +3207,7 @@ key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
 }
 
 rnp_result_t
-rnp_public_key_bytes(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len)
+rnp_get_public_key_data(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len)
 {
     // checks
     if (!handle || !buf || !buf_len) {
@@ -3222,7 +3222,7 @@ rnp_public_key_bytes(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len)
 }
 
 rnp_result_t
-rnp_secret_key_bytes(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len)
+rnp_get_secret_key_data(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len)
 {
     // checks
     if (!handle || !buf || !buf_len) {

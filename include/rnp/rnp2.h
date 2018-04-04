@@ -741,8 +741,30 @@ rnp_result_t rnp_op_encrypt_destroy(rnp_op_encrypt_t op);
 
 rnp_result_t rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output);
 
-rnp_result_t rnp_public_key_bytes(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len);
-rnp_result_t rnp_secret_key_bytes(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len);
+/** retrieve the raw data for a public key
+ *
+ *  This will always be PGP packets and will never include ASCII armor.
+ *
+ *  @param handle the key handle
+ *  @param buf
+ *  @param buf_len
+ *  @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_get_public_key_data(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len);
+
+/** retrieve the raw data for a secret key
+ *
+ *  If this is a G10 key, this will be the s-expr data. Otherwise, it will
+ *  be PGP packets.
+ *
+ *  Note that this result will never include ASCII armor.
+ *
+ *  @param handle the key handle
+ *  @param buf
+ *  @param buf_len
+ *  @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_get_secret_key_data(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len);
 
 rnp_result_t rnp_key_to_json(rnp_key_handle_t handle, uint32_t flags, char **result);
 
