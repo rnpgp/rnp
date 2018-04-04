@@ -185,7 +185,7 @@ load_test_data(const char *data_dir, const char *file, char **data, size_t *size
     FILE *fp = fopen(path, "r");
     assert_non_null(fp);
     assert_int_equal(st.st_size, fread(*data, 1, st.st_size, fp));
-    fclose(fp);
+    assert_int_equal(0, fclose(fp));
     free(path);
 }
 
@@ -1075,8 +1075,9 @@ test_ffi_encrypt_pass(void **state)
 
     // write out some data
     FILE *fp = fopen("plaintext", "w");
-    fwrite(plaintext, strlen(plaintext), 1, fp);
-    fclose(fp);
+    assert_non_null(fp);
+    assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
+    assert_int_equal(0, fclose(fp));
 
     // create input+output w/ bad paths (should fail)
     input = NULL;
@@ -1207,8 +1208,9 @@ test_ffi_encrypt_pk(void **state)
 
     // write out some data
     FILE *fp = fopen("plaintext", "w");
-    fwrite(plaintext, strlen(plaintext), 1, fp);
-    fclose(fp);
+    assert_non_null(fp);
+    assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
+    assert_int_equal(0, fclose(fp));
 
     // create input+output
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "plaintext"));
@@ -1314,8 +1316,9 @@ test_ffi_encrypt_and_sign(void **state)
 
     // write out some data
     FILE *fp = fopen("plaintext", "w");
-    fwrite(plaintext, strlen(plaintext), 1, fp);
-    fclose(fp);
+    assert_non_null(fp);
+    assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
+    assert_int_equal(0, fclose(fp));
 
     // create input+output
     assert_rnp_success(rnp_input_from_path(&input, "plaintext"));
@@ -1476,8 +1479,9 @@ test_ffi_init_sign_file_input(void **state, rnp_input_t *input, rnp_output_t *ou
 
     // write out some data
     FILE *fp = fopen("plaintext", "w");
-    fwrite(plaintext, strlen(plaintext), 1, fp);
-    fclose(fp);
+    assert_non_null(fp);
+    assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
+    assert_int_equal(0, fclose(fp));
 
     // create input+output
     assert_rnp_success(rnp_input_from_path(input, "plaintext"));
