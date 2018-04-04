@@ -60,7 +60,16 @@ rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void
             ks_key = rnp_key_store_get_key_by_id(
               rnp->io, rnp->secring, ctx->search.by.keyid, NULL, NULL);
         }
-    } else if (ctx->search.type == PGP_KEY_SEARCH_GRIP) {
+    } else if (ctx->search.type == PGP_KEY_SEARCH_FINGERPRINT) {
+        ks_key = rnp_key_store_get_key_by_fpr(rnp->io,
+                                              ks,
+                                              &ctx->search.by.fingerprint);
+        if (!ks_key && !ctx->secret) {
+            ks_key = rnp_key_store_get_key_by_fpr(rnp->io,
+                                                  rnp->secring,
+                                                  &ctx->search.by.fingerprint);
+        }
+     } else if (ctx->search.type == PGP_KEY_SEARCH_GRIP) {
         ks_key = rnp_key_store_get_key_by_grip(rnp->io, ks, ctx->search.by.grip);
         if (!ks_key && !ctx->secret) {
             ks_key = rnp_key_store_get_key_by_grip(rnp->io, rnp->secring, ctx->search.by.grip);

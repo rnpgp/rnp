@@ -701,6 +701,20 @@ rnp_key_store_get_key_by_grip(pgp_io_t *             io,
     return NULL;
 }
 
+pgp_key_t *
+rnp_key_store_get_key_by_fpr(pgp_io_t *io, const rnp_key_store_t *keyring, const pgp_fingerprint_t *fpr)
+{
+    for (list_item *key_item = list_front(keyring->keys); key_item;
+         key_item = list_next(key_item)) {
+        pgp_key_t *key = (pgp_key_t *) key_item;
+        if (key->fingerprint.length == fpr->length &&
+            memcmp(key->fingerprint.fingerprint, fpr->fingerprint, fpr->length) == 0) {
+            return key;
+        }
+    }
+    return NULL;
+}
+
 /* convert a string keyid into a binary keyid */
 static void
 str2keyid(const char *userid, uint8_t *keyid, size_t len)
