@@ -35,6 +35,7 @@ typedef struct pgp_key_t pgp_key_t;
 typedef enum {
     PGP_KEY_SEARCH_UNKNOWN,
     PGP_KEY_SEARCH_KEYID,
+    PGP_KEY_SEARCH_FINGERPRINT,
     PGP_KEY_SEARCH_GRIP,
     PGP_KEY_SEARCH_USERID
 } pgp_key_search_type_t;
@@ -44,6 +45,7 @@ typedef struct pgp_key_search_t {
     union {
         uint8_t keyid[PGP_KEY_ID_SIZE];
         uint8_t grip[PGP_FINGERPRINT_SIZE];
+        pgp_fingerprint_t fingerprint;
         char    userid[MAX_ID_LENGTH + 1];
     } by;
 } pgp_key_search_t;

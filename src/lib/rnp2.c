@@ -245,6 +245,7 @@ static const pgp_bit_map_t key_flags_map[] = {{PGP_KF_SPLIT, "split"},
 
 static const pgp_map_t identifier_type_map[] = {{PGP_KEY_SEARCH_USERID, "userid"},
                                                 {PGP_KEY_SEARCH_KEYID, "keyid"},
+                                                {PGP_KEY_SEARCH_FINGERPRINT, "fingerprint"},
                                                 {PGP_KEY_SEARCH_GRIP, "grip"}};
 
 static const pgp_map_t key_server_prefs_map[] = {{PGP_KEY_SERVER_NO_MODIFY, "no-modify"}};
@@ -2132,6 +2133,14 @@ parse_locator(pgp_key_search_t *locator, const char *identifier_type, const char
             return RNP_ERROR_BAD_FORMAT;
         }
     } break;
+    case PGP_KEY_SEARCH_FINGERPRINT: {
+        // TODO: support v5 fingerprints
+        if (strlen(identifier) != (PGP_FINGERPRINT_SIZE * 2) ||
+            !rnp_hex_decode(
+              identifier, locator->by.fingerprint.fingerprint, PGP_FINGERPRINT_SIZE)) {
+            return RNP_ERROR_BAD_FORMAT;
+        }
+    } break;
     case PGP_KEY_SEARCH_GRIP: {
         if (strlen(identifier) != (PGP_FINGERPRINT_SIZE * 2) ||
             !rnp_hex_decode(identifier, locator->by.grip, sizeof(locator->by.grip))) {
@@ -2156,6 +2165,9 @@ find_key_by_locator(pgp_io_t *io, rnp_key_store_t *store, const pgp_key_search_t
         break;
     case PGP_KEY_SEARCH_KEYID: {
         key = rnp_key_store_get_key_by_id(io, store, locator->by.keyid, NULL, NULL);
+    } break;
+    case PGP_KEY_SEARCH_FINGERPRINT: {
+        key = rnp_key_store_get_key_by_fpr(io, store, &locator->by.fingerprint);
     } break;
     case PGP_KEY_SEARCH_GRIP: {
         key = rnp_key_store_get_key_by_grip(io, store, locator->by.grip);
@@ -3952,6 +3964,7 @@ key_iter_next_item(rnp_identifier_iterator_t it)
 {
     switch (it->type) {
     case PGP_KEY_SEARCH_KEYID:
+    case PGP_KEY_SEARCH_FINGERPRINT:
     case PGP_KEY_SEARCH_GRIP:
         return key_iter_next_key(it);
     case PGP_KEY_SEARCH_USERID:
@@ -3993,6 +4006,7 @@ key_iter_first_item(rnp_identifier_iterator_t it)
 {
     switch (it->type) {
     case PGP_KEY_SEARCH_KEYID:
+    case PGP_KEY_SEARCH_FINGERPRINT:
     case PGP_KEY_SEARCH_GRIP:
         return key_iter_first_key(it);
     case PGP_KEY_SEARCH_USERID:
@@ -4021,6 +4035,15 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
     switch (it->type) {
     case PGP_KEY_SEARCH_KEYID:
         if (!rnp_hex_encode(key->keyid, sizeof(key->keyid), buf, buf_len, RNP_HEX_UPPERCASE)) {
+            return false;
+        }
+        break;
+    case PGP_KEY_SEARCH_FINGERPRINT:
+        if (!rnp_hex_encode(key->fingerprint.fingerprint,
+                            key->fingerprint.length,
+                            buf,
+                            buf_len,
+                            RNP_HEX_UPPERCASE)) {
             return false;
         }
         break;
