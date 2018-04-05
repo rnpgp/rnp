@@ -185,6 +185,8 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_key_store_search),
       cmocka_unit_test(test_stream_signatures),
       cmocka_unit_test(test_stream_key_load),
+      cmocka_unit_test(test_stream_key_decrypt),
+      cmocka_unit_test(test_stream_key_encrypt),
       cmocka_unit_test(test_ffi_homedir),
       cmocka_unit_test(test_ffi_keygen_json_pair),
       cmocka_unit_test(test_ffi_keygen_json_primary),

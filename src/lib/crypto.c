@@ -334,4 +334,5 @@ void
 mpi_forget(pgp_mpi_t *val)
 {
     pgp_forget(val, sizeof(*val));
+    val->len = 0;
 }
