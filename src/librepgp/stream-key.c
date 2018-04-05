@@ -690,6 +690,7 @@ void
 forget_secret_key_fields(pgp_key_pkt_t *key)
 {
     if (!is_secret_key_pkt(key->tag) || !key->sec_avail) {
+        RNP_LOG("not a secret key");
         return;
     }
 

@@ -340,6 +340,95 @@ signature_fill_hashed_data(pgp_signature_t *sig)
 }
 
 bool
+signature_hash_key(pgp_key_pkt_t *key, pgp_hash_t *hash)
+{
+    uint8_t hdr[3] = {0x99, 0x00, 0x00};
+
+    if (!key || !hash) {
+        RNP_LOG("null key or hash");
+        return false;
+    }
+    if (!key->hashed_data && !key_fill_hashed_data(key)) {
+        RNP_LOG("failed to build hashed data");
+        return false;
+    }
+    write_uint16(hdr + 1, key->hashed_len);
+
+    return !pgp_hash_add(hash, hdr, 3) &&
+           !pgp_hash_add(hash, key->hashed_data, key->hashed_len);
+}
+
+bool
+signature_hash_userid(pgp_userid_pkt_t *uid, pgp_hash_t *hash, pgp_version_t sigver)
+{
+    uint8_t hdr[5] = {0};
+
+    if (!uid || !hash) {
+        RNP_LOG("null uid or hash");
+        return false;
+    }
+
+    if (sigver < PGP_V4) {
+        return !pgp_hash_add(hash, uid->uid, uid->uid_len);
+    }
+
+    switch (uid->tag) {
+    case PGP_PTAG_CT_USER_ID:
+        hdr[0] = 0xB4;
+        break;
+    case PGP_PTAG_CT_USER_ATTR:
+        hdr[0] = 0xD1;
+        break;
+    default:
+        RNP_LOG("wrong uid");
+        return false;
+    }
+    STORE32BE(hdr + 1, uid->uid_len);
+
+    return !pgp_hash_add(hash, hdr, 5) && !pgp_hash_add(hash, uid->uid, uid->uid_len);
+}
+
+bool
+signature_hash_signature(pgp_signature_t *sig, pgp_hash_t *hash)
+{
+    uint8_t hdr[5] = {0x88, 0x00, 0x00, 0x00, 0x00};
+
+    if (!sig || !hash) {
+        RNP_LOG("null sig or hash");
+        return false;
+    }
+
+    if (!sig->hashed_data) {
+        RNP_LOG("hashed data not filled");
+        return false;
+    }
+
+    STORE32BE(hdr + 1, sig->hashed_len);
+    return !pgp_hash_add(hash, hdr, 5) &&
+           !pgp_hash_add(hash, sig->hashed_data, sig->hashed_len);
+}
+
+bool
+signature_hash_certification(pgp_signature_t * sig,
+                             pgp_key_pkt_t *   key,
+                             pgp_userid_pkt_t *userid,
+                             pgp_hash_t *      hash)
+{
+    return pgp_hash_create(hash, sig->halg) && signature_hash_key(key, hash) &&
+           signature_hash_userid(userid, hash, sig->version);
+}
+
+bool
+signature_hash_binding(pgp_signature_t *sig,
+                       pgp_key_pkt_t *  key,
+                       pgp_key_pkt_t *  subkey,
+                       pgp_hash_t *     hash)
+{
+    return pgp_hash_create(hash, sig->halg) && signature_hash_key(key, hash) &&
+           signature_hash_key(subkey, hash);
+}
+
+bool
 signature_hash_finish(pgp_signature_t *sig, pgp_hash_t *hash, uint8_t *hbuf, size_t *hlen)
 {
     if (!hash || !sig || !hbuf || !hlen) {

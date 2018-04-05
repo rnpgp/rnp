@@ -252,6 +252,8 @@ bool is_secret_key_pkt(int tag);
 
 bool is_rsa_key_alg(pgp_pubkey_alg_t alg);
 
+bool key_fill_hashed_data(pgp_key_pkt_t *key);
+
 bool stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst);
 
 rnp_result_t stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key);
