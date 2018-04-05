@@ -1655,7 +1655,7 @@ is_rsa_key_alg(pgp_pubkey_alg_t alg)
 /* @brief Fills the hashed (signed) data part of the key packet. Must be called before
           stream_write_key() on the newly generated key
  */
-static bool
+bool
 key_fill_hashed_data(pgp_key_pkt_t *key)
 {
     pgp_packet_body_t hbody;

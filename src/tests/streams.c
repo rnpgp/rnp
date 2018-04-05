@@ -597,3 +597,97 @@ test_stream_key_encrypt(void **state)
     key_sequence_destroy(&keyseq);
     rng_destroy(&rng);
 }
+
+void
+test_stream_key_signatures(void **state)
+{
+    rnp_key_store_t *          pubring;
+    pgp_source_t               keysrc = {0};
+    pgp_key_sequence_t         keyseq;
+    pgp_transferable_key_t *   key = NULL;
+    pgp_transferable_subkey_t *subkey = NULL;
+    pgp_transferable_userid_t *uid = NULL;
+    rng_t                      rng;
+    pgp_signature_t *          sig;
+    pgp_io_t                   io = {.errs = stderr, .res = stdout, .outs = stdout};
+    uint8_t                    keyid[PGP_KEY_ID_SIZE];
+    pgp_pubkey_t *             pubkey = NULL;
+    pgp_hash_t                 hash;
+
+    /* we need rng for key validation */
+    assert_true(rng_init(&rng, RNG_SYSTEM));
+
+    /* v3 public key */
+    pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/4/rsav3-p.asc");
+    assert_non_null(pubring);
+    assert_true(rnp_key_store_load_from_file(&io, pubring, true, NULL));
+    assert_rnp_success(init_file_src(&keysrc, "data/keyrings/4/rsav3-p.asc"));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    src_close(&keysrc);
+    assert_int_equal(list_length(keyseq.keys), 1);
+    assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_non_null(uid = (pgp_transferable_userid_t *) list_front(key->userids));
+    assert_non_null(sig = (pgp_signature_t *) list_front(uid->signatures));
+    assert_true(signature_get_keyid(sig, keyid));
+    assert_non_null(rnp_key_store_get_key_by_id(&io, pubring, keyid, NULL, &pubkey));
+    assert_non_null(pubkey);
+    /* check certification signature */
+    assert_true(signature_hash_certification(sig, &key->key, &uid->uid, &hash));
+    assert_rnp_success(signature_validate(sig, pubkey, &hash, &rng));
+    /* modify userid and check signature */
+    uid->uid.uid[2] = '?';
+    assert_true(signature_hash_certification(sig, &key->key, &uid->uid, &hash));
+    assert_rnp_failure(signature_validate(sig, pubkey, &hash, &rng));
+    rnp_key_store_free(pubring);
+    key_sequence_destroy(&keyseq);
+
+    /* keyring */
+    pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/1/pubring.gpg");
+    assert_non_null(pubring);
+    assert_true(rnp_key_store_load_from_file(&io, pubring, false, NULL));
+    assert_rnp_success(init_file_src(&keysrc, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    src_close(&keysrc);
+
+    /* check key signatures */
+    for (list_item *li = list_front(keyseq.keys); li; li = list_next(li)) {
+        key = (pgp_transferable_key_t *) li;
+
+        for (list_item *uli = list_front(key->userids); uli; uli = list_next(uli)) {
+            uid = (pgp_transferable_userid_t *) uli;
+
+            /* userid certifications */
+            for (list_item *sli = list_front(uid->signatures); sli; sli = list_next(sli)) {
+                sig = (pgp_signature_t *) sli;
+
+                assert_true(signature_get_keyid(sig, keyid));
+                assert_non_null(
+                  rnp_key_store_get_key_by_id(&io, pubring, keyid, NULL, &pubkey));
+                assert_non_null(pubkey);
+
+                assert_true(signature_hash_certification(sig, &key->key, &uid->uid, &hash));
+                assert_rnp_success(signature_validate(sig, pubkey, &hash, &rng));
+                /* modify userid and check signature */
+                uid->uid.uid[2] = '?';
+                assert_true(signature_hash_certification(sig, &key->key, &uid->uid, &hash));
+                assert_rnp_failure(signature_validate(sig, pubkey, &hash, &rng));
+            }
+        }
+
+        /* subkey binding signatures */
+        for (list_item *sli = list_front(key->subkeys); sli; sli = list_next(sli)) {
+            subkey = (pgp_transferable_subkey_t *) sli;
+            sig = (pgp_signature_t *) list_front(subkey->signatures);
+            assert_non_null(sig);
+            assert_true(signature_get_keyid(sig, keyid));
+            assert_non_null(rnp_key_store_get_key_by_id(&io, pubring, keyid, NULL, &pubkey));
+            assert_non_null(pubkey);
+            assert_true(signature_hash_binding(sig, &key->key, &subkey->subkey, &hash));
+            assert_rnp_success(signature_validate(sig, pubkey, &hash, &rng));
+        }
+    }
+
+    rnp_key_store_free(pubring);
+    key_sequence_destroy(&keyseq);
+    rng_destroy(&rng);
+}

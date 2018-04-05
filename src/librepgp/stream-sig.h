@@ -125,6 +125,22 @@ bool signature_set_expiration(pgp_signature_t *sig, uint32_t etime);
  */
 bool signature_fill_hashed_data(pgp_signature_t *sig);
 
+bool signature_hash_key(pgp_key_pkt_t *key, pgp_hash_t *hash);
+
+bool signature_hash_userid(pgp_userid_pkt_t *uid, pgp_hash_t *hash, pgp_version_t sigver);
+
+bool signature_hash_signature(pgp_signature_t *sig, pgp_hash_t *hash);
+
+bool signature_hash_certification(pgp_signature_t * sig,
+                                  pgp_key_pkt_t *   key,
+                                  pgp_userid_pkt_t *userid,
+                                  pgp_hash_t *      hash);
+
+bool signature_hash_binding(pgp_signature_t *sig,
+                            pgp_key_pkt_t *  key,
+                            pgp_key_pkt_t *  subkey,
+                            pgp_hash_t *     hash);
+
 /**
  * @brief Add signature fields to the hash context and finish it.
  * @param hash initialized hash context feeded with signed data (document, key, etc).
@@ -140,13 +156,15 @@ bool signature_hash_finish(pgp_signature_t *sig,
                            size_t *         hlen);
 
 /**
- * @brief Validate a signature with pre-populated hash
+ * @brief Validate a signature with pre-populated hash. This method just checks correspondence
+ *        between the hash and signature material. Expiration time and other fields are not
+ *        checked for validity.
  * @param sig signature to validate
  * @param key public key corresponding to the signature
  * @param hash pre-populated with signed data hash context. It is finalized and destroyed
  *             during the execution. Signature fields and trailer are hashed in this function.
  * @param rng random number generator
- * @return RNP_SUCCESS if signature was successfully validated or error code otherwise
+ * @return RNP_SUCCESS if signature was successfully validated or error code otherwise.
  */
 rnp_result_t signature_validate(pgp_signature_t *sig,
                                 pgp_pubkey_t *   key,
