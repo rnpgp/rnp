@@ -1770,9 +1770,14 @@ stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst)
             break;
         case PGP_S2KU_ENCRYPTED_AND_HASHED:
         case PGP_S2KU_ENCRYPTED: {
-            size_t bl_len = pgp_block_size(key->sec_protection.symm_alg);
-            res = bl_len && add_packet_body_s2k(&pktbody, &key->sec_protection.s2k) &&
-                  add_packet_body(&pktbody, key->sec_protection.iv, bl_len);
+            size_t blsize = pgp_block_size(key->sec_protection.symm_alg);
+            if (!blsize) {
+                res = false;
+                goto finish;
+            }
+            res = add_packet_body_byte(&pktbody, key->sec_protection.symm_alg) &&
+                  add_packet_body_s2k(&pktbody, &key->sec_protection.s2k) &&
+                  add_packet_body(&pktbody, key->sec_protection.iv, blsize);
             if (!res) {
                 goto finish;
             }

@@ -738,6 +738,7 @@ init_mem_dest(pgp_dest_t *dst, void *mem, unsigned len)
     param = dst->param;
 
     param->maxalloc = len;
+    param->allocated = mem ? len : 0;
     param->memory = mem;
     param->free = !mem;
 
