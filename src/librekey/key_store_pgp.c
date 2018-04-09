@@ -100,6 +100,7 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
     // handle these earlier, since they don't actually
     // require a key
     switch (pkt->tag) {
+    case PGP_PARSER_DONE:
     case PGP_PARSER_PTAG:
     case PGP_GET_PASSWORD:
         return PGP_RELEASE_MEMORY;
@@ -354,6 +355,8 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         return PGP_KEEP_MEMORY;
     case PGP_PTAG_CT_ARMOR_HEADER:
     case PGP_PTAG_CT_ARMOR_TRAILER:
+        break;
+    case PGP_PARSER_DONE:
         break;
     default:
         return parse_key_attributes(cb->key, pkt, cbinfo);

@@ -268,8 +268,10 @@ typedef enum {
 
     /* Errors */
     PGP_PARSER_ERROR = 0x500,      /* Internal Use: Parser Error */
-    PGP_PARSER_ERRCODE = 0x500 + 1 /* Internal Use: Parser Error
+    PGP_PARSER_ERRCODE = 0x500 + 1,/* Internal Use: Parser Error
                                     * with errcode returned */
+
+    PGP_PARSER_DONE = 0x600 /* parsing is complete */
 } pgp_content_enum;
 
 /** Public Key Algorithm Numbers.

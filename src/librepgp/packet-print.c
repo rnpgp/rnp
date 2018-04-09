@@ -1699,6 +1699,9 @@ pgp_print_packet(pgp_cbdata_t *cbinfo, const pgp_packet_t *pkt)
           print, PGP_PTAG_CT_ENCRYPTED_PK_SESSION_KEY, content->get_seckey.pk_sesskey);
         break;
 
+    case PGP_PARSER_DONE:
+        break;
+
     default:
         fprintf(stderr, "pgp_print_packet: unknown tag=%d (0x%x)\n", pkt->tag, pkt->tag);
         return false;
