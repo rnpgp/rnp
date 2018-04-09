@@ -1009,6 +1009,7 @@ repgp_parser_content_free(pgp_packet_t *c)
     case PGP_PTAG_CT_SE_IP_DATA_BODY:
     case PGP_PTAG_CT_MDC:
     case PGP_GET_SECKEY:
+    case PGP_PARSER_DONE:
         break;
 
     case PGP_PTAG_CT_SIGNED_CLEARTEXT_HEADER:
@@ -3392,6 +3393,8 @@ repgp_parse(pgp_stream_t *stream, const bool show_errors)
     do {
         res = parse_packet(stream, &pktlen);
     } while (RNP_ERROR_EOF != res);
+    pgp_packet_t     pkt = {0};
+    CALLBACK(PGP_PARSER_DONE, &stream->cbinfo, &pkt);
     if (show_errors) {
         pgp_print_errors(stream->errors);
     }

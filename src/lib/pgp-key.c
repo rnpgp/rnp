@@ -379,6 +379,7 @@ decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         return PGP_KEEP_MEMORY;
 
     case PGP_PARSER_PACKET_END:
+    case PGP_PARSER_DONE:
         /* nothing to do */
         break;
 

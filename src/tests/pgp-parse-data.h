@@ -215,6 +215,7 @@ static const pgp_content_enum tags_keyrings_1_pubring[] = {
   PGP_PARSER_PTAG,
   PGP_PTAG_CT_TRUST,
   PGP_PARSER_PACKET_END,
+  PGP_PARSER_DONE
 };
 
 #endif
