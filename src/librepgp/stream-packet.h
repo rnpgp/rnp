@@ -83,6 +83,14 @@ int stream_pkt_type(pgp_source_t *src);
  **/
 ssize_t stream_pkt_hdr_len(pgp_source_t *src);
 
+bool stream_intedeterminate_pkt_len(pgp_source_t *src);
+
+bool stream_partial_pkt_len(pgp_source_t *src);
+
+size_t get_partial_pkt_len(uint8_t blen);
+
+ssize_t get_pkt_len(uint8_t *hdr);
+
 /** @brief Read packet length for fixed-size (say, small) packet. Returns -1 on error.
  *  Will also read packet tag byte. We do not allow partial length here as well as large
  *  packets (so ignoring possible ssize_t overflow)

@@ -526,7 +526,7 @@ typedef enum {
 } pgp_key_server_prefs_t;
 
 /** pgp_one_pass_sig_t */
-typedef struct {
+typedef struct pgp_one_pass_sig_t {
     uint8_t          version;
     pgp_sig_type_t   type;
     pgp_hash_alg_t   halg;
@@ -534,6 +534,13 @@ typedef struct {
     uint8_t          keyid[PGP_KEY_ID_SIZE];
     unsigned         nested;
 } pgp_one_pass_sig_t;
+
+typedef struct pgp_literal_hdr_t {
+    uint8_t  format;
+    char     fname[256];
+    uint8_t  fname_len;
+    uint32_t timestamp;
+} pgp_literal_hdr_t;
 
 /** Signature Subpacket : Revocation Key */
 typedef struct {

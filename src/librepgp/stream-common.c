@@ -37,6 +37,7 @@
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
+#include <stdarg.h>
 #include <rnp/rnp_def.h>
 #include "defs.h"
 #include "types.h"
@@ -167,6 +168,9 @@ src_peek(pgp_source_t *src, void *buf, size_t len)
 
     while (cache->len < len) {
         read = readahead ? sizeof(cache->buf) - cache->len : len - cache->len;
+        if (src->knownsize && (src->readb + read > src->size)) {
+            read = src->size - src->readb;
+        }
         read = src->read(src, &cache->buf[cache->len], read);
         if (read == 0) {
             if (buf) {
@@ -516,6 +520,24 @@ dst_write(pgp_dest_t *dst, const void *buf, size_t len)
             dst->clen += len;
         }
     }
+}
+
+void
+dst_printf(pgp_dest_t *dst, const char *format, ...)
+{
+    char    buf[1024];
+    size_t  len;
+    va_list ap;
+
+    va_start(ap, format);
+    len = vsnprintf(buf, sizeof(buf), format, ap);
+    va_end(ap);
+
+    if (len >= sizeof(buf)) {
+        RNP_LOG("too long dst_printf");
+        len = sizeof(buf) - 1;
+    }
+    dst_write(dst, buf, len);
 }
 
 void

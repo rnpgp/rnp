@@ -37,10 +37,10 @@
 
 typedef struct pgp_parse_handler_t  pgp_parse_handler_t;
 typedef struct pgp_signature_info_t pgp_signature_info_t;
-typedef bool pgp_destination_func_t(pgp_parse_handler_t *handler,
-                                    pgp_dest_t **        dst,
-                                    bool *               closedst,
-                                    const char *         filename);
+typedef bool                        pgp_destination_func_t(pgp_parse_handler_t *handler,
+                                                           pgp_dest_t **        dst,
+                                                           bool *               closedst,
+                                                           const char *         filename);
 typedef bool pgp_source_func_t(pgp_parse_handler_t *handler, pgp_source_t *src);
 typedef void pgp_signatures_func_t(pgp_parse_handler_t * handler,
                                    pgp_signature_info_t *sigs,
@@ -79,5 +79,33 @@ typedef struct pgp_signature_info_t {
  * @return RNP_SUCCESS on success or error code otherwise
  **/
 rnp_result_t process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src);
+
+/* @brief Init source with OpenPGP compressed data packet
+ * @param src allocated pgp_source_t structure
+ * @param readsrc source to read compressed data from
+ * @return RNP_SUCCESS on success or error code otherwise
+ */
+rnp_result_t init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc);
+
+/* @brief Get compression algorithm used in compressed source
+ * @param src compressed source, initialized with init_compressed_src
+ * @param alg algorithm will be written here. Cannot be NULL.
+ * @return true if operation succeeded and alg is populate or false otherwise
+ */
+bool get_compressed_src_alg(pgp_source_t *src, uint8_t *alg);
+
+/* @brief Init source with OpenPGP literal data packet
+ * @param src allocated pgp_source_t structure
+ * @param readsrc source to read literal data from
+ * @return RNP_SUCCESS on success or error code otherwise
+ */
+rnp_result_t init_literal_src(pgp_source_t *src, pgp_source_t *readsrc);
+
+/* @brief Get the literal data packet information fields (not the OpenPGP packet header)
+ * @param src literal data source, initialized with init_literal_src
+ * @param hdr pointer to header structure, where result will be stored
+ * @return true on success or false otherwise
+ */
+bool get_literal_src_hdr(pgp_source_t *src, pgp_literal_hdr_t *hdr);
 
 #endif

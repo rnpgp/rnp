@@ -192,6 +192,64 @@ stream_read_pkt_len(pgp_source_t *src)
     }
 }
 
+bool
+stream_intedeterminate_pkt_len(pgp_source_t *src)
+{
+    uint8_t ptag;
+    if (src_peek(src, &ptag, 1) == 1) {
+        return !(ptag & PGP_PTAG_NEW_FORMAT) &&
+               ((ptag & PGP_PTAG_OF_LENGTH_TYPE_MASK) == PGP_PTAG_OLD_LEN_INDETERMINATE);
+    } else {
+        return false;
+    }
+}
+
+bool
+stream_partial_pkt_len(pgp_source_t *src)
+{
+    uint8_t hdr[2];
+    if (src_peek(src, hdr, 2) < 2) {
+        return false;
+    } else {
+        return (hdr[0] & PGP_PTAG_NEW_FORMAT) && (hdr[1] >= 224) && (hdr[1] < 255);
+    }
+}
+
+size_t
+get_partial_pkt_len(uint8_t blen)
+{
+    return 1 << (blen & 0x1f);
+}
+
+ssize_t
+get_pkt_len(uint8_t *hdr)
+{
+    if (hdr[0] & PGP_PTAG_NEW_FORMAT) {
+        if (hdr[1] < 192) {
+            return (ssize_t) hdr[1];
+        }
+        if (hdr[1] < 224) {
+            return ((ssize_t)(hdr[1] - 192) << 8) + (ssize_t) hdr[2] + 192;
+        }
+        if (hdr[1] < 255) {
+            // we do not allow partial length here
+            return -1;
+        }
+        return read_uint32(&hdr[2]);
+    } else {
+        switch (hdr[0] & PGP_PTAG_OF_LENGTH_TYPE_MASK) {
+        case PGP_PTAG_OLD_LEN_1:
+            return (ssize_t) hdr[1];
+        case PGP_PTAG_OLD_LEN_2:
+            return read_uint16(&hdr[1]);
+        case PGP_PTAG_OLD_LEN_4:
+            return read_uint32(&hdr[1]);
+        default:
+            return -1;
+        }
+    }
+}
+
 /** @brief read mpi from the source
  *  @param src source to read from
  *  @param mpi preallocated mpi body buffer of PGP_MPINT_SIZE bytes
@@ -629,6 +687,59 @@ rnp_result_t
 stream_skip_packet(pgp_source_t *src)
 {
     ssize_t len;
+    ssize_t partlen;
+    uint8_t parthdr[6];
+
+    if (stream_intedeterminate_pkt_len(src)) {
+        while (!src_eof(src)) {
+            if (src_skip(src, PGP_MAX_PKT_SIZE) < 0) {
+                return RNP_ERROR_READ;
+            }
+        }
+        return RNP_SUCCESS;
+    }
+
+    if (stream_partial_pkt_len(src)) {
+        if (!src_read_eq(src, parthdr, 2)) {
+            return RNP_ERROR_READ;
+        }
+        partlen = get_partial_pkt_len(parthdr[1]);
+        while (partlen > 0) {
+            if (src_skip(src, partlen) != partlen) {
+                return RNP_ERROR_READ;
+            }
+            if (!src_read_eq(src, parthdr, 1)) {
+                return RNP_ERROR_READ;
+            }
+            if ((parthdr[0] >= 224) && (parthdr[0] < 255)) {
+                partlen = get_partial_pkt_len(parthdr[0]);
+            } else {
+                break;
+            }
+        }
+
+        /* parthdr has first byte of the length */
+        if (parthdr[0] < 192) {
+            partlen = parthdr[0] + 1;
+        } else if (parthdr[0] < 224) {
+            if (!src_read_eq(src, &parthdr[1], 1)) {
+                return RNP_ERROR_READ;
+            }
+            partlen = ((ssize_t)(parthdr[0] - 192) << 8) + (ssize_t) parthdr[1] + 192;
+        } else {
+            if (!src_read_eq(src, &parthdr[1], 4)) {
+                return RNP_ERROR_READ;
+            }
+            partlen = ((ssize_t) parthdr[1] << 24) | ((ssize_t) parthdr[2] << 16) |
+                      ((ssize_t) parthdr[3] << 8) | (ssize_t) parthdr[4];
+        }
+
+        if (src_skip(src, partlen) != partlen) {
+            return RNP_ERROR_READ;
+        }
+
+        return RNP_SUCCESS;
+    }
 
     len = stream_read_pkt_len(src);
     if (len <= 0) {

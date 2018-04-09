@@ -144,10 +144,8 @@ typedef struct pgp_source_compressed_param_t {
 } pgp_source_compressed_param_t;
 
 typedef struct pgp_source_literal_param_t {
-    pgp_source_packet_param_t pkt;  /* underlying packet-related params */
-    bool                      text; /* data is text */
-    char                      filename[256];
-    uint32_t                  timestamp;
+    pgp_source_packet_param_t pkt; /* underlying packet-related params */
+    pgp_literal_hdr_t         hdr; /* literal packet fields */
 } pgp_source_literal_param_t;
 
 typedef struct pgp_source_partial_param_t {
@@ -157,35 +155,6 @@ typedef struct pgp_source_partial_param_t {
     size_t        pleft;   /* bytes left to read from the current part */
     bool          last;    /* current part is last */
 } pgp_source_partial_param_t;
-
-static size_t
-get_part_len(uint8_t blen)
-{
-    return 1 << (blen & 0x1f);
-}
-
-static bool
-stream_intedeterminate_pkt_len(pgp_source_t *src)
-{
-    uint8_t ptag;
-    if (src_peek(src, &ptag, 1) == 1) {
-        return !(ptag & PGP_PTAG_NEW_FORMAT) &&
-               ((ptag & PGP_PTAG_OF_LENGTH_TYPE_MASK) == PGP_PTAG_OLD_LEN_INDETERMINATE);
-    } else {
-        return false;
-    }
-}
-
-static bool
-stream_partial_pkt_len(pgp_source_t *src)
-{
-    uint8_t hdr[2];
-    if (src_peek(src, hdr, 2) < 2) {
-        return false;
-    } else {
-        return (hdr[0] & PGP_PTAG_NEW_FORMAT) && (hdr[1] >= 224) && (hdr[1] < 255);
-    }
-}
 
 static bool
 is_pgp_source(pgp_source_t *src)
@@ -212,21 +181,6 @@ is_pgp_source(pgp_source_t *src)
     default:
         return false;
     }
-}
-
-static bool
-is_cleartext_source(pgp_source_t *src)
-{
-    uint8_t buf[128];
-    ssize_t read;
-
-    read = src_peek(src, buf, sizeof(buf));
-    if (read < (ssize_t) strlen(ST_CLEAR_BEGIN)) {
-        return false;
-    }
-
-    buf[read - 1] = 0;
-    return !!strstr((char *) buf, ST_CLEAR_BEGIN);
 }
 
 static ssize_t
@@ -261,7 +215,7 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len)
                 return -1;
             }
             if ((hdr[0] >= 224) && (hdr[0] < 255)) {
-                param->psize = get_part_len(hdr[0]);
+                param->psize = get_partial_pkt_len(hdr[0]);
                 param->pleft = param->psize;
             } else {
                 if (hdr[0] < 192) {
@@ -338,7 +292,7 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
     param = src->param;
     (void) src_read(readsrc, buf, 2);
     param->type = get_packet_type(buf[0]);
-    param->psize = get_part_len(buf[1]);
+    param->psize = get_partial_pkt_len(buf[1]);
     param->pleft = param->psize;
     param->last = false;
     param->readsrc = readsrc;
@@ -1634,10 +1588,10 @@ init_packet_params(pgp_source_packet_param_t *param)
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
+rnp_result_t
+init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
 {
-    rnp_result_t                errcode = RNP_ERROR_GENERIC;
+    rnp_result_t                ret = RNP_ERROR_GENERIC;
     pgp_source_literal_param_t *param;
     uint8_t                     bt;
     uint8_t                     tstbuf[4];
@@ -1653,73 +1607,85 @@ init_literal_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *rea
     src->type = PGP_STREAM_LITERAL;
 
     /* Reading packet length/checking whether it is partial */
-    errcode = init_packet_params(&param->pkt);
-    if (errcode != RNP_SUCCESS) {
+    if ((ret = init_packet_params(&param->pkt))) {
         goto finish;
     }
 
     /* data format */
-    if (src_read(param->pkt.readsrc, &bt, 1) != 1) {
+    if (!src_read_eq(param->pkt.readsrc, &bt, 1)) {
         RNP_LOG("failed to read data format");
-        errcode = RNP_ERROR_READ;
+        ret = RNP_ERROR_READ;
         goto finish;
     }
 
     switch (bt) {
     case 'b':
-        param->text = false;
-        break;
     case 't':
     case 'u':
     case 'l':
     case '1':
-        param->text = true;
         break;
     default:
         RNP_LOG("unknown data format %d", (int) bt);
-        errcode = RNP_ERROR_BAD_FORMAT;
+        ret = RNP_ERROR_BAD_FORMAT;
         goto finish;
     }
-
+    param->hdr.format = bt;
     /* file name */
-    if (src_read(param->pkt.readsrc, &bt, 1) != 1) {
+    if (!src_read_eq(param->pkt.readsrc, &bt, 1)) {
         RNP_LOG("failed to read file name length");
-        errcode = RNP_ERROR_READ;
+        ret = RNP_ERROR_READ;
         goto finish;
     }
     if (bt > 0) {
-        if (src_read(param->pkt.readsrc, param->filename, bt) < bt) {
+        if (!src_read_eq(param->pkt.readsrc, param->hdr.fname, bt)) {
             RNP_LOG("failed to read file name");
-            errcode = RNP_ERROR_READ;
+            ret = RNP_ERROR_READ;
             goto finish;
         }
     }
-    param->filename[bt] = 0;
+    param->hdr.fname[bt] = 0;
+    param->hdr.fname_len = bt;
     /* timestamp */
-    if (src_read(param->pkt.readsrc, tstbuf, 4) != 4) {
+    if (!src_read_eq(param->pkt.readsrc, tstbuf, 4)) {
         RNP_LOG("failed to read file timestamp");
-        errcode = RNP_ERROR_READ;
+        ret = RNP_ERROR_READ;
         goto finish;
     }
-    param->timestamp = ((uint32_t) tstbuf[0] << 24) | ((uint32_t) tstbuf[1] << 16) |
-                       ((uint32_t) tstbuf[2] << 8) | (uint32_t) tstbuf[3];
+
+    param->hdr.timestamp = ((uint32_t) tstbuf[0] << 24) | ((uint32_t) tstbuf[1] << 16) |
+                           ((uint32_t) tstbuf[2] << 8) | (uint32_t) tstbuf[3];
 
     if (!param->pkt.indeterminate && !param->pkt.partial) {
         src->size = param->pkt.len - (1 + 1 + bt + 4);
         src->knownsize = 1;
     }
 
-    errcode = RNP_SUCCESS;
-
+    ret = RNP_SUCCESS;
 finish:
-    if (errcode != RNP_SUCCESS) {
+    if (ret != RNP_SUCCESS) {
         src_close(src);
     }
-    return errcode;
+    return ret;
 }
 
-static rnp_result_t
-init_compressed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
+bool
+get_literal_src_hdr(pgp_source_t *src, pgp_literal_hdr_t *hdr)
+{
+    pgp_source_literal_param_t *param;
+
+    if (src->type != PGP_STREAM_LITERAL) {
+        RNP_LOG("wrong stream");
+        return false;
+    }
+
+    param = src->param;
+    *hdr = param->hdr;
+    return true;
+}
+
+rnp_result_t
+init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc)
 {
     rnp_result_t                   errcode = RNP_ERROR_GENERIC;
     pgp_source_compressed_param_t *param;
@@ -1788,6 +1754,21 @@ finish:
         src_close(src);
     }
     return errcode;
+}
+
+bool
+get_compressed_src_alg(pgp_source_t *src, uint8_t *alg)
+{
+    pgp_source_compressed_param_t *param;
+
+    if (src->type != PGP_STREAM_COMPRESSED) {
+        RNP_LOG("wrong stream");
+        return false;
+    }
+
+    param = src->param;
+    *alg = param->alg;
+    return true;
 }
 
 static rnp_result_t
@@ -2228,7 +2209,7 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
             ret = init_signed_src(ctx, &psrc, lsrc);
             break;
         case PGP_PTAG_CT_COMPRESSED:
-            ret = init_compressed_src(ctx, &psrc, lsrc);
+            ret = init_compressed_src(&psrc, lsrc);
             break;
         case PGP_PTAG_CT_LITDATA:
             if ((lsrc->type != PGP_STREAM_ENCRYPTED) && (lsrc->type != PGP_STREAM_SIGNED) &&
@@ -2236,7 +2217,7 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
                 RNP_LOG("unexpected literal pkt");
                 ret = RNP_ERROR_BAD_FORMAT;
             } else {
-                ret = init_literal_src(ctx, &psrc, lsrc);
+                ret = init_literal_src(&psrc, lsrc);
             }
             break;
         default:
@@ -2373,7 +2354,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
         /* file processing case */
         decsrc = (pgp_source_t *) list_back(ctx.sources);
         if (ctx.literal_src) {
-            filename = ((pgp_source_literal_param_t *) ctx.literal_src)->filename;
+            filename = ((pgp_source_literal_param_t *) ctx.literal_src)->hdr.fname;
         }
 
         if (!handler->dest_provider ||
