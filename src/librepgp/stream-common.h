@@ -217,6 +217,14 @@ bool init_dst_common(pgp_dest_t *dst, size_t paramsize);
  **/
 void dst_write(pgp_dest_t *dst, const void *buf, size_t len);
 
+/** @brief printf formatted string to the destination
+ * 
+ *  @param dst destination structure
+ *  @param format format string, which is the same as printf() uses
+ *  @param ... additional arguments
+ */
+void dst_printf(pgp_dest_t *dst, const char *format, ...);
+
 /** @brief do all finalization tasks after all writing is done, i.e. calculate and write
  *  mdc, signatures and so on. Do not misuse with dst_close. If was not called then will be
  *  called from the dst_close

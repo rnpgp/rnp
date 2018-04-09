@@ -912,6 +912,21 @@ is_armored_source(pgp_source_t *src)
     return !!strstr((char *) buf, ST_ARMOR_BEGIN);
 }
 
+bool
+is_cleartext_source(pgp_source_t *src)
+{
+    uint8_t buf[128];
+    ssize_t read;
+
+    read = src_peek(src, buf, sizeof(buf));
+    if (read < (ssize_t) strlen(ST_CLEAR_BEGIN)) {
+        return false;
+    }
+
+    buf[read - 1] = 0;
+    return !!strstr((char *) buf, ST_CLEAR_BEGIN);
+}
+
 rnp_result_t
 rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
 {

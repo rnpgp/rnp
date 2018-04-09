@@ -82,4 +82,10 @@ pgp_armored_msg_t rnp_armor_guess_type(pgp_source_t *src);
  **/
 bool is_armored_source(pgp_source_t *src);
 
+/* @brief Check whether source is cleartext signed
+ * @param src initialized source with some data
+ * @return true if source could be a cleartext signed data or false otherwise
+ **/
+bool is_cleartext_source(pgp_source_t *src);
+
 #endif
