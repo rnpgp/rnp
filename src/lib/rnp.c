@@ -549,6 +549,10 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
     }
     io = rnp->io;
 
+    // set the key provider
+    rnp->key_provider.callback = rnp_key_provider_keyring;
+    rnp->key_provider.userdata = rnp;
+
     // set the default password provider
     rnp->password_provider.callback = rnp_password_provider_stdin;
     rnp->password_provider.userdata = NULL;
@@ -1318,15 +1322,9 @@ rnp_parse_handler_src(pgp_parse_handler_t *handler, pgp_source_t *src)
 static bool
 rnp_init_parse_handler(pgp_parse_handler_t *handler, rnp_ctx_t *ctx)
 {
-    pgp_key_provider_t *       keyprov;
     pgp_parse_handler_param_t *param;
 
     if (!(param = calloc(1, sizeof(*param)))) {
-        return false;
-    }
-
-    if (!(keyprov = calloc(1, sizeof(*keyprov)))) {
-        free(param);
         return false;
     }
 
@@ -1334,13 +1332,9 @@ rnp_init_parse_handler(pgp_parse_handler_t *handler, rnp_ctx_t *ctx)
     ctx->operation = RNP_OP_DECRYPT_VERIFY;
     handler->ctx = ctx;
 
-    /* key provider */
-    keyprov->callback = rnp_key_provider_keyring;
-    keyprov->userdata = ctx->rnp;
-
     /* handler */
     handler->password_provider = &ctx->rnp->password_provider;
-    handler->key_provider = keyprov;
+    handler->key_provider = &ctx->rnp->key_provider;
     handler->dest_provider = rnp_parse_handler_dest;
     handler->src_provider = rnp_parse_handler_src;
     handler->on_signatures = ctx->on_signatures;
@@ -1352,7 +1346,6 @@ rnp_init_parse_handler(pgp_parse_handler_t *handler, rnp_ctx_t *ctx)
 static void
 rnp_free_parse_handler(pgp_parse_handler_t *handler)
 {
-    free(handler->key_provider);
     free(handler->param);
     memset(handler, 0, sizeof(*handler));
 }
@@ -1471,7 +1464,6 @@ typedef struct pgp_write_handler_param_t {
 static bool
 rnp_init_write_handler(pgp_write_handler_t *handler, rnp_ctx_t *ctx)
 {
-    pgp_key_provider_t *       keyprov;
     pgp_write_handler_param_t *param;
 
     ctx->operation = RNP_OP_ENCRYPT_SIGN;
@@ -1480,15 +1472,8 @@ rnp_init_write_handler(pgp_write_handler_t *handler, rnp_ctx_t *ctx)
         return false;
     }
 
-    if (!(keyprov = calloc(1, sizeof(*keyprov)))) {
-        free(param);
-        return false;
-    }
-
     handler->password_provider = &ctx->rnp->password_provider;
-    keyprov->callback = rnp_key_provider_keyring;
-    keyprov->userdata = ctx->rnp;
-    handler->key_provider = keyprov;
+    handler->key_provider = &ctx->rnp->key_provider;
     handler->ctx = ctx;
     handler->param = param;
 
@@ -1498,7 +1483,6 @@ rnp_init_write_handler(pgp_write_handler_t *handler, rnp_ctx_t *ctx)
 static void
 rnp_free_write_handler(pgp_write_handler_t *handler)
 {
-    free(handler->key_provider);
     free(handler->param);
     memset(handler, 0, sizeof(*handler));
 }

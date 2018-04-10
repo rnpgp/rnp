@@ -65,6 +65,7 @@ typedef struct rnp_t {
     } action;
 
     pgp_password_provider_t password_provider;
+    pgp_key_provider_t      key_provider;
     rng_t                   rng; /* handle to rng_t */
 } rnp_t;
 
