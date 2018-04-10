@@ -26,9 +26,8 @@
 #ifndef RNP_KEY_PROVIDER_H
 #define RNP_KEY_PROVIDER_H
 
-#include <rnp/rnp_types.h>
-#include <rnp/rnp_sdk.h>
-#include "pass-provider.h"
+#include "types.h"
+#include "fingerprint.h"
 
 typedef struct pgp_key_t pgp_key_t;
 
@@ -64,6 +63,18 @@ typedef struct pgp_key_provider_t {
     pgp_key_callback_t *callback;
     void *              userdata;
 } pgp_key_provider_t;
+
+/** checks if a key matches search criteria
+ *
+ *  Note that this does not do any check on the type of key (public/secret),
+ *  that is left up to the caller.
+ *
+ *  @param key the key to check
+ *  @param search the search criteria to check against
+ *  @return true if the key satisfies the search criteria, false otherwise
+ **/
+bool
+rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search);
 
 /** @brief request public or secret pgp key, according to information stored in ctx
  *  @param provider key provider structure
