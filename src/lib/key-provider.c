@@ -24,9 +24,44 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <assert.h>
+
 #include "key-provider.h"
 #include "pgp-key.h"
+#include "fingerprint.h"
+#include "types.h"
+#include "utils.h"
 #include <rekey/rnp_key_store.h>
+
+bool
+rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search)
+{
+    if (!key) {
+        return false;
+    }
+    switch (search->type) {
+    case PGP_KEY_SEARCH_KEYID:
+        return memcmp(key->keyid, search->by.keyid, PGP_KEY_ID_SIZE) == 0;
+    case PGP_KEY_SEARCH_FINGERPRINT:
+        return (key->fingerprint.length == search->by.fingerprint.length) &&
+               !memcmp(key->fingerprint.fingerprint,
+                       search->by.fingerprint.fingerprint,
+                       key->fingerprint.length);
+    case PGP_KEY_SEARCH_GRIP:
+        return !memcmp(key->grip, search->by.grip, PGP_FINGERPRINT_SIZE);
+    case PGP_KEY_SEARCH_USERID: {
+        for (unsigned i = 0; i < key->uidc; i++) {
+            if (!strcmp((char *) key->uids[i], search->by.userid)) {
+                return true;
+            }
+        }
+    } break;
+    default:
+        assert(false);
+        break;
+    }
+    return false;
+}
 
 bool
 pgp_request_key(const pgp_key_provider_t *   provider,
@@ -36,7 +71,16 @@ pgp_request_key(const pgp_key_provider_t *   provider,
     if (!provider || !provider->callback || !ctx || !key) {
         return false;
     }
-    return provider->callback(ctx, key, provider->userdata);
+    *key = NULL;
+    if (!provider->callback(ctx, key, provider->userdata)) {
+        return false;
+    }
+    // confirm that the key actually matches the search criteria
+    if (!rnp_key_matches_search(*key, &ctx->search) &&
+        pgp_is_key_secret(*key) == ctx->secret) {
+        return false;
+    }
+    return (*key != NULL);
 }
 
 bool

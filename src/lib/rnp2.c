@@ -158,16 +158,12 @@ get_key_prefer_public(rnp_key_handle_t handle);
 static pgp_key_t *
 get_key_require_secret(rnp_key_handle_t handle);
 
-static pgp_key_t *find_key_by_locator(pgp_io_t *              io,
-                                      rnp_key_store_t *       store,
-                                      const pgp_key_search_t *locator);
-
 static bool
 key_provider_bounce(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *userdata)
 {
     rnp_ffi_t        ffi = (rnp_ffi_t) userdata;
     rnp_key_store_t *store = ctx->secret ? ffi->secring : ffi->pubring;
-    *key = find_key_by_locator(&ffi->io, store, &ctx->search);
+    *key = rnp_key_store_search(&ffi->io, store, &ctx->search, NULL);
     // TODO: if still not found, use ffi->getkeycb
     return *key != NULL;
 }
@@ -2155,31 +2151,6 @@ parse_locator(pgp_key_search_t *locator, const char *identifier_type, const char
     return RNP_SUCCESS;
 }
 
-static pgp_key_t *
-find_key_by_locator(pgp_io_t *io, rnp_key_store_t *store, const pgp_key_search_t *locator)
-{
-    pgp_key_t *key = NULL;
-    switch (locator->type) {
-    case PGP_KEY_SEARCH_USERID:
-        key = rnp_key_store_get_key_by_userid(io, store, locator->by.userid, NULL);
-        break;
-    case PGP_KEY_SEARCH_KEYID: {
-        key = rnp_key_store_get_key_by_id(io, store, locator->by.keyid, NULL, NULL);
-    } break;
-    case PGP_KEY_SEARCH_FINGERPRINT: {
-        key = rnp_key_store_get_key_by_fpr(io, store, &locator->by.fingerprint);
-    } break;
-    case PGP_KEY_SEARCH_GRIP: {
-        key = rnp_key_store_get_key_by_grip(io, store, locator->by.grip);
-    } break;
-    default:
-        // should never happen
-        assert(false);
-        break;
-    }
-    return key;
-}
-
 rnp_result_t
 rnp_locate_key(rnp_ffi_t         ffi,
                const char *      identifier_type,
@@ -2199,9 +2170,9 @@ rnp_locate_key(rnp_ffi_t         ffi,
     }
 
     // search pubring
-    pgp_key_t *pub = find_key_by_locator(&ffi->io, ffi->pubring, &locator);
+    pgp_key_t *pub = rnp_key_store_search(&ffi->io, ffi->pubring, &locator, NULL);
     // search secring
-    pgp_key_t *sec = find_key_by_locator(&ffi->io, ffi->secring, &locator);
+    pgp_key_t *sec = rnp_key_store_search(&ffi->io, ffi->secring, &locator, NULL);
 
     if (pub || sec) {
         *handle = malloc(sizeof(**handle));
@@ -2764,8 +2735,8 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             goto done;
         }
 
-        pgp_key_t *primary_pub = find_key_by_locator(&ffi->io, ffi->pubring, &locator);
-        pgp_key_t *primary_sec = find_key_by_locator(&ffi->io, ffi->secring, &locator);
+        pgp_key_t *primary_pub = rnp_key_store_search(&ffi->io, ffi->pubring, &locator, NULL);
+        pgp_key_t *primary_sec = rnp_key_store_search(&ffi->io, ffi->secring, &locator, NULL);
         if (!primary_sec || !primary_pub) {
             ret = RNP_ERROR_KEY_NOT_FOUND;
             goto done;

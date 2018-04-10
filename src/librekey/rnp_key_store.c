@@ -924,3 +924,23 @@ rnp_key_store_get_key_grip(pgp_pubkey_t *key, uint8_t *grip)
 
     return pgp_hash_finish(&hash, grip) == PGP_FINGERPRINT_SIZE;
 }
+
+pgp_key_t *
+rnp_key_store_search(pgp_io_t *              io,
+                     const rnp_key_store_t * keyring,
+                     const pgp_key_search_t *search,
+                     pgp_key_t *             after)
+{
+    // if after is provided, make sure it is a member of the appropriate list
+    assert(!after || list_is_member(keyring->keys, (list_item *) after));
+    for (list_item *key_item = after ? list_next((list_item *) after) :
+                                       list_front(keyring->keys);
+         key_item;
+         key_item = list_next(key_item)) {
+        pgp_key_t *key = (pgp_key_t *) key_item;
+        if (rnp_key_matches_search(key, search)) {
+            return key;
+        }
+    }
+    return NULL;
+}
