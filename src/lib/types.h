@@ -134,6 +134,12 @@ typedef struct {
     pgp_errcode_t errcode;
 } pgp_parser_errcode_t;
 
+/** pgp_fingerprint_t */
+typedef struct pgp_fingerprint_t {
+    uint8_t  fingerprint[PGP_FINGERPRINT_SIZE];
+    unsigned length;
+} pgp_fingerprint_t;
+
 /** Structure to hold one packet tag.
  * \see RFC4880 4.2
  */
@@ -245,8 +251,9 @@ typedef struct pgp_sig_info_t {
     time_t  expiration;                 /* number of seconds it's valid for */
     uint8_t signer_id[PGP_KEY_ID_SIZE]; /* Eight-octet key ID
                                          * of signer */
-    pgp_pubkey_alg_t key_alg;           /* public key algorithm number */
-    pgp_hash_alg_t   hash_alg;          /* hashing algorithm number */
+    pgp_fingerprint_t signer_fpr;       /* signer fingerprint (length is 0 if not set) */
+    pgp_pubkey_alg_t  key_alg;          /* public key algorithm number */
+    pgp_hash_alg_t    hash_alg;         /* hashing algorithm number */
     union {
         pgp_rsa_sig_t     rsa;     /* An RSA Signature */
         pgp_dsa_sig_t     dsa;     /* A DSA Signature */
@@ -687,12 +694,6 @@ struct pgp_packet_t {
     uint8_t          critical; /* for sig subpackets */
     pgp_contents_t   u;        /* union for contents */
 };
-
-/** pgp_fingerprint_t */
-typedef struct pgp_fingerprint_t {
-    uint8_t  fingerprint[PGP_FINGERPRINT_SIZE];
-    unsigned length;
-} pgp_fingerprint_t;
 
 /** pgp_keydata_key_t
  */

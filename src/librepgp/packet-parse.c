@@ -1807,6 +1807,9 @@ parse_one_sig_subpacket(pgp_sig_t *sig, pgp_region_t *region, pgp_stream_t *stre
             pkt.u.ss_issuer_fpr.len != 21 || pkt.u.ss_issuer_fpr.contents[0] != 0x04) {
             return false;
         }
+        memcpy(sig->info.signer_fpr.fingerprint,
+               pkt.u.ss_issuer_fpr.contents + 1,
+               pkt.u.ss_issuer_fpr.len - 1);
         break;
 
     case PGP_PTAG_SS_NOTATION_DATA:
