@@ -100,6 +100,7 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-write.h>
 #include <librepgp/stream-packet.h>
+#include <librepgp/stream-dump.h>
 
 #include <json.h>
 #include <rnp.h>
@@ -1452,6 +1453,29 @@ rnp_process_mem(
         dst_close(&param->dst, result != RNP_SUCCESS);
     }
     rnp_free_parse_handler(&handler);
+
+    return result;
+}
+
+rnp_result_t
+rnp_dump_file(rnp_ctx_t *ctx, const char *in, const char *out)
+{
+    pgp_source_t src;
+    pgp_dest_t   dst;
+    rnp_result_t result;
+
+    if (rnp_initialize_io(ctx, &src, &dst, in, out)) {
+        return RNP_ERROR_READ;
+    }
+
+    /* process source */
+    if ((result = stream_dump_packets(&src, &dst))) {
+        RNP_LOG("error 0x%x", result);
+    }
+
+    /* cleanup */
+    src_close(&src);
+    dst_close(&dst, result);
 
     return result;
 }

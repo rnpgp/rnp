@@ -56,6 +56,7 @@
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-armor.h>
 #include <librepgp/stream-packet.h>
+#include <librepgp/stream-dump.h>
 #include <librepgp/stream-sig.h>
 #include <librepgp/packet-show.h>
 #include <librepgp/packet-print.h>
@@ -489,17 +490,9 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp)
     case CMD_PROCESS:
         ret = rnp_process_file(&ctx, infile, outfile) == RNP_SUCCESS;
         break;
-    case CMD_LIST_PACKETS: {
-        repgp_handle_t *input = create_filepath_handle(infile);
-        if (!input) {
-            RNP_LOG("%s: No filename provided", __progname);
-            ret = false;
-            break;
-        }
-        ret = repgp_list_packets(&ctx, input, true) == RNP_SUCCESS;
-        repgp_destroy_handle(input);
+    case CMD_LIST_PACKETS:
+        ret = rnp_dump_file(&ctx, infile, outfile) == RNP_SUCCESS;
         break;
-    }
     case CMD_DEARMOR:
         ret = rnp_armor_stream(&ctx, false, infile, outfile) == RNP_SUCCESS;
         break;
