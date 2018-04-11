@@ -940,7 +940,7 @@ rnp_import_key(rnp_t *rnp, char *f)
     }
 
     // load the key(s)
-    if (!rnp_key_store_load_from_file(rnp->io, tmp_keystore, realarmor, rnp->pubring)) {
+    if (!rnp_key_store_load_from_file(rnp->io, tmp_keystore, realarmor, &rnp->key_provider)) {
         RNP_LOG("failed to load key from file %s", f);
         goto done;
     }

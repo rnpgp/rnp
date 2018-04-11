@@ -69,9 +69,10 @@ void print_packet_hex(const pgp_rawpacket_t *pkt);
 
 /* used to point to data during keyring read */
 typedef struct keyringcb_t {
-    rnp_key_store_t *keyring; /* the keyring we're reading */
-    pgp_io_t *       io;
-    pgp_key_t *      key;          /* the key we're currently loading */
+    rnp_key_store_t *   keyring; /* the keyring we're reading */
+    pgp_io_t *          io;
+    pgp_key_t           key; /* the key we're currently loading */
+    const pgp_key_provider_t *key_provider;
 } keyringcb_t;
 
 #define SUBSIG_REQUIRED_BEFORE(str)                                 \
@@ -322,6 +323,35 @@ done:
     return ret;
 }
 
+static bool
+finish_loading_key(keyringcb_t *cb, pgp_cbdata_t *cbinfo)
+{
+    if (pgp_key_is_subkey(&cb->key)) {
+        pgp_key_t *primary =
+          pgp_get_primary_key_for(cb->io, &cb->key, cb->keyring, cb->key_provider);
+        if (!primary) {
+            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Subkey missing primary key.");
+            return false;
+        }
+        cb->key.primary_grip = malloc(PGP_FINGERPRINT_SIZE);
+        if (!cb->key.primary_grip) {
+            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Alloc failed");
+            return PGP_FINISHED;
+        }
+        memcpy(cb->key.primary_grip, primary->grip, PGP_FINGERPRINT_SIZE);
+        if (!list_append(&primary->subkey_grips, cb->key.grip, PGP_FINGERPRINT_SIZE)) {
+            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Alloc failed");
+            return PGP_FINISHED;
+        }
+    }
+    if (!rnp_key_store_add_key(cb->io, cb->keyring, &cb->key)) {
+        PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to add key to key store.");
+        return false;
+    }
+    cb->key = (pgp_key_t){0};
+    return true;
+}
+
 static pgp_cb_ret_t
 cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
@@ -336,30 +366,45 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PTAG_CT_SECRET_SUBKEY:
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        if (pgp_is_secret_key_tag(pkt->tag)) {
+        // finish up with previous key (if any)
+        if (cb->key.type) {
+            if (!finish_loading_key(cb, cbinfo)) {
+                return PGP_FINISHED;
+            }
+        }
+
+        // start to process the new key
+        bool secret = pgp_is_secret_key_tag(pkt->tag);
+        if (secret) {
             keydata.seckey = content->seckey;
         } else {
             keydata.pubkey = content->pubkey;
         }
-        if (!rnp_key_store_add_keydata(cb->io, cb->keyring, &keydata, &cb->key, pkt->tag)) {
-            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to add keydata to key store.");
-            return PGP_FINISHED;
+        if (!pgp_key_from_keydata(&cb->key, &keydata, pkt->tag)) {
+                PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to create key from keydata.");
+                return PGP_FINISHED;
         }
-        cb->key->format = GPG_KEY_STORE;
-        if (pgp_is_key_secret(cb->key)) {
-            cb->key->is_protected = cb->key->key.seckey.encrypted;
+        cb->key.format = GPG_KEY_STORE;
+        if (secret) {
+            cb->key.is_protected = cb->key.key.seckey.encrypted;
         }
         // Set some default key flags which will be overridden by signature
         // subpackets for V4 keys.
-        cb->key->key_flags = pgp_pk_alg_capabilities(pgp_get_pubkey(cb->key)->alg);
+        cb->key.key_flags = pgp_pk_alg_capabilities(pgp_get_pubkey(&cb->key)->alg);
         return PGP_KEEP_MEMORY;
     case PGP_PTAG_CT_ARMOR_HEADER:
     case PGP_PTAG_CT_ARMOR_TRAILER:
         break;
     case PGP_PARSER_DONE:
+        // finish up with previous key (if any)
+        if (cb->key.type) {
+            if (!finish_loading_key(cb, cbinfo)) {
+                return PGP_FINISHED;
+            }
+        }
         break;
     default:
-        return parse_key_attributes(cb->key, pkt, cbinfo);
+        return parse_key_attributes(&cb->key, pkt, cbinfo);
     }
     return PGP_RELEASE_MEMORY;
 }
@@ -388,10 +433,11 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
    \sa pgp_keyring_free
 */
 bool
-rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
-                                rnp_key_store_t *keyring,
-                                const unsigned   armor,
-                                pgp_memory_t *   mem)
+rnp_key_store_pgp_read_from_mem(pgp_io_t *                io,
+                                rnp_key_store_t *         keyring,
+                                const unsigned            armor,
+                                pgp_memory_t *            mem,
+                                const pgp_key_provider_t *key_provider)
 {
     pgp_stream_t * stream;
     const unsigned printerrors = 1;
@@ -401,6 +447,7 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *       io,
 
     cb.keyring = keyring;
     cb.io = io;
+    cb.key_provider = key_provider;
     if (!pgp_setup_memory_read(io, &stream, mem, &cb, cb_keyring_parse, accum)) {
         (void) fprintf(io->errs, "can't setup memory read\n");
         return false;
@@ -429,7 +476,6 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
     pgp_key_t *  key;
     pgp_output_t output = {};
 
-    RNP_USED(io);
     pgp_writer_set_memory(&output, mem);
 
     if (armor) {
@@ -443,6 +489,10 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
     for (list_item *key_item = list_front(key_store->keys); key_item;
          key_item = list_next(key_item)) {
         key = (pgp_key_t *) key_item;
+        // skip subkeys, they are written below (orphans are ignored)
+        if (!pgp_key_is_primary_key(key)) {
+            continue;
+        }
 
         if (key->format != GPG_KEY_STORE) {
             RNP_LOG("incorrect format (conversions not supported): %d", key->format);
@@ -450,6 +500,17 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
         }
         if (!pgp_key_write_packets(key, &output)) {
             return false;
+        }
+        for (list_item *subkey_grip = list_front(key->subkey_grips); subkey_grip;
+             subkey_grip = list_next(subkey_grip)) {
+              pgp_key_t *subkey = rnp_key_store_get_key_by_grip(io, key_store, (uint8_t*)subkey_grip);
+              if (!subkey) {
+                  RNP_LOG_FD(io->errs, "Missing subkey");
+                  continue;
+              }
+              if (!pgp_key_write_packets(subkey, &output)) {
+                  return false;
+              }
         }
     }
     if (armor) {

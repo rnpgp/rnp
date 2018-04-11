@@ -141,12 +141,15 @@ rnp_key_store_t *rnp_key_store_new(const char *format, const char *path);
 
 bool rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret);
 
-int rnp_key_store_load_from_file(pgp_io_t *io,
+int  rnp_key_store_load_from_file(pgp_io_t *io,
+                                  rnp_key_store_t *,
+                                  const unsigned,
+                                  const pgp_key_provider_t *key_provider);
+bool rnp_key_store_load_from_mem(pgp_io_t *io,
                                  rnp_key_store_t *,
                                  const unsigned,
-                                 rnp_key_store_t *);
-bool rnp_key_store_load_from_mem(
-  pgp_io_t *io, rnp_key_store_t *, const unsigned, rnp_key_store_t *, pgp_memory_t *);
+                                 pgp_memory_t *,
+                                 const pgp_key_provider_t *key_provider);
 
 bool rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *, const unsigned);
 bool rnp_key_store_write_to_mem(pgp_io_t *io,
@@ -160,9 +163,7 @@ void rnp_key_store_free(rnp_key_store_t *);
 bool rnp_key_store_list(pgp_io_t *, const rnp_key_store_t *, const int);
 bool rnp_key_store_json(pgp_io_t *, const rnp_key_store_t *, json_object *, const int);
 
-bool rnp_key_store_add_key(pgp_io_t *, rnp_key_store_t *, pgp_key_t *);
-bool rnp_key_store_add_keydata(
-  pgp_io_t *, rnp_key_store_t *, pgp_keydata_key_t *, pgp_key_t **, pgp_content_enum);
+pgp_key_t *rnp_key_store_add_key(pgp_io_t *, rnp_key_store_t *, pgp_key_t *);
 
 bool rnp_key_store_remove_key(pgp_io_t *, rnp_key_store_t *, const pgp_key_t *);
 bool rnp_key_store_remove_key_by_id(pgp_io_t *, rnp_key_store_t *, const uint8_t *);

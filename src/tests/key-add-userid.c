@@ -55,7 +55,7 @@ test_key_add_userid(void **state)
     pgp_memory_t mem = {0};
     paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/secring.gpg", NULL);
     assert_true(pgp_mem_readfile(&mem, path));
-    assert_true(rnp_key_store_pgp_read_from_mem(&io, ks, 0, &mem));
+    assert_true(rnp_key_store_pgp_read_from_mem(&io, ks, 0, &mem, NULL));
     pgp_memory_release(&mem);
 
     // locate our key
@@ -129,7 +129,7 @@ test_key_add_userid(void **state)
     ks = calloc(1, sizeof(*ks));
     assert_non_null(ks);
     // read from the saved packets
-    assert_true(rnp_key_store_pgp_read_from_mem(&io, ks, 0, &mem));
+    assert_true(rnp_key_store_pgp_read_from_mem(&io, ks, 0, &mem, NULL));
     pgp_memory_release(&mem);
     assert_non_null(key = rnp_key_store_get_key_by_name(&io, ks, keyids[0], NULL));
 

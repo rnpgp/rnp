@@ -55,7 +55,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "pass-provider.h"
-#include "key-provider.h"
 #include <repgp/repgp.h>
 #include <rekey/rnp_key_store.h>
 #include "memory.h"
@@ -87,6 +86,15 @@ struct pgp_key_t {
 };
 
 struct pgp_key_t *pgp_key_new(void);
+
+/** create a key from pgp_keydata_key_t
+ *
+ *  This sets up basic properties of the key like keyid/fpr/grip, type, etc.
+ *  It does not set primary_grip or subkey_grips (the key store does this).
+ */
+bool pgp_key_from_keydata(pgp_key_t *            key,
+                          pgp_keydata_key_t *    keydata,
+                          const pgp_content_enum tag);
 
 /** free the internal data of a key *and* the key structure itself
  *
@@ -257,5 +265,10 @@ pgp_key_t *find_suitable_key(pgp_op_t            op,
                              pgp_key_t *         key,
                              pgp_key_provider_t *key_provider,
                              uint8_t             desired_usage);
+
+pgp_key_t *pgp_get_primary_key_for(pgp_io_t *                io,
+                                   const pgp_key_t *         subkey,
+                                   const rnp_key_store_t *   store,
+                                   const pgp_key_provider_t *key_provider);
 
 #endif // RNP_PACKET_KEY_H

@@ -846,12 +846,12 @@ done:
 }
 
 static bool
-g10_parse_seckey(pgp_io_t *       io,
-                 pgp_seckey_t *   seckey,
-                 const uint8_t *  data,
-                 size_t           data_len,
-                 rnp_key_store_t *pubring,
-                 const char *     password)
+g10_parse_seckey(pgp_io_t *                io,
+                 pgp_seckey_t *            seckey,
+                 const uint8_t *           data,
+                 size_t                    data_len,
+                 const char *              password,
+                 const pgp_key_provider_t *key_provider)
 {
     s_exp_t s_exp = {0};
     bool    ret = false;
@@ -965,17 +965,21 @@ g10_parse_seckey(pgp_io_t *       io,
         goto done;
     }
 
-    if (pubring) {
-        uint8_t    grip[PGP_FINGERPRINT_SIZE];
-        pgp_key_t *pubkey = NULL;
-        if (!rnp_key_store_get_key_grip(&seckey->pubkey, grip)) {
+    if (key_provider) {
+        pgp_key_search_t search = {.type = PGP_KEY_SEARCH_GRIP};
+        if (!rnp_key_store_get_key_grip(&seckey->pubkey, search.by.grip)) {
             goto done;
         }
-        if ((pubkey = rnp_key_store_get_key_by_grip(io, pubring, grip))) {
-            pgp_pubkey_t tmp = seckey->pubkey;
-            seckey->pubkey = *pgp_get_pubkey(pubkey);
-            seckey->pubkey.key = tmp.key;
+        pgp_key_t *pubkey = NULL;
+        if (!(pubkey = pgp_request_key(key_provider,
+                                       &(const pgp_key_request_ctx_t){.op = PGP_OP_MERGE_INFO,
+                                                                      .secret = false,
+                                                                      .search = search}))) {
+            goto done;
         }
+        pgp_pubkey_t tmp = seckey->pubkey;
+        seckey->pubkey = *pgp_get_pubkey(pubkey);
+        seckey->pubkey.key = tmp.key;
     }
 
     if (protected) {
@@ -1025,7 +1029,7 @@ g10_decrypt_seckey(const uint8_t *     data,
     }
 
     seckey = calloc(1, sizeof(*seckey));
-    if (!g10_parse_seckey(&io, seckey, data, data_len, NULL, password)) {
+    if (!g10_parse_seckey(&io, seckey, data, data_len, password, NULL)) {
         goto done;
     }
     if (pubkey) {
@@ -1045,40 +1049,40 @@ done:
 
 bool
 rnp_key_store_g10_from_mem(pgp_io_t *       io,
-                           rnp_key_store_t *pubring,
                            rnp_key_store_t *key_store,
-                           pgp_memory_t *   memory)
+                           pgp_memory_t *   memory,
+                           const pgp_key_provider_t *key_provider)
 {
-    pgp_key_t *key = NULL;
+    pgp_key_t  key = {0};
     bool       ret = false;
 
     pgp_keydata_key_t keydata = {{0}};
-    if (!g10_parse_seckey(io, &keydata.seckey, memory->buf, memory->length, pubring, NULL)) {
+    if (!g10_parse_seckey(io, &keydata.seckey, memory->buf, memory->length, NULL, key_provider)) {
         goto done;
     }
-    if (!rnp_key_store_add_keydata(io, key_store, &keydata, &key, PGP_PTAG_CT_SECRET_KEY)) {
+    if (!pgp_key_from_keydata(&key, &keydata, PGP_PTAG_CT_SECRET_KEY)) {
         goto done;
     }
-    if (key->packetc != 0) {
-        // shouldn't ever happen, but just in case
+    keydata = (pgp_keydata_key_t){{0}};
+    EXPAND_ARRAY((&key), packet);
+    if (!key.packets) {
         goto done;
     }
-    EXPAND_ARRAY(key, packet);
-    if (!key->packets) {
+    key.packets[0].raw = malloc(memory->length);
+    key.packets[0].length = memory->length;
+    memcpy(key.packets[0].raw, memory->buf, memory->length);
+    key.packetc++;
+    key.format = G10_KEY_STORE;
+    key.is_protected = keydata.seckey.encrypted;
+    if (!rnp_key_store_add_key(io, key_store, &key)) {
         goto done;
     }
-    key->packets[0].raw = malloc(memory->length);
-    key->packets[0].length = memory->length;
-    memcpy(key->packets[0].raw, memory->buf, memory->length);
-    key->packetc++;
-    key->format = G10_KEY_STORE;
-    key->is_protected = keydata.seckey.encrypted;
     ret = true;
 
 done:
     if (!ret) {
-        pgp_key_free_data(key);
-        rnp_key_store_remove_key(io, key_store, key);
+        pgp_seckey_free(&keydata.seckey);
+        pgp_key_free_data(&key);
     }
     return ret;
 }
