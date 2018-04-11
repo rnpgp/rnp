@@ -274,9 +274,11 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
     const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_GPG21, RNP_KEYSTORE_KBX};
     rnp_t       rnp;
     int         pipefd[2];
+    char *rnp_home = rnp_compose_path(rstate->home, ".rnp", NULL);
 
     for (size_t i = 0; i < sizeof(hashAlg) / sizeof(hashAlg[0]); i++) {
         for (size_t j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
+            delete_recursively(rnp_home);
             /* Setting up rnp again and decrypting memory */
             printf("keystore: %s\n", keystores[j]);
             rnp_assert_ok(rstate, setup_rnp_common(&rnp, keystores[j], NULL, pipefd));
@@ -308,6 +310,7 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
             rnp_end(&rnp); // Free memory and other allocated resources.
         }
     }
+    free(rnp_home);
 }
 
 void
@@ -330,9 +333,11 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
     const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_GPG21, RNP_KEYSTORE_KBX};
     rnp_t       rnp;
     int         pipefd[2];
+    char *rnp_home = rnp_compose_path(rstate->home, ".rnp", NULL);
 
     for (size_t i = 0; i < sizeof(userIds) / sizeof(userIds[0]); i++) {
         for (size_t j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
+            delete_recursively(rnp_home);
             /* Set the user id to be used*/
             snprintf(userId, sizeof(userId), "%s", userIds[i]);
 
@@ -360,6 +365,7 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
             rnp_end(&rnp); // Free memory and other allocated resources.
         }
     }
+    free(rnp_home);
 }
 
 void
