@@ -55,9 +55,7 @@ typedef struct pgp_key_request_ctx_t {
     pgp_key_search_t search;
 } pgp_key_request_ctx_t;
 
-typedef bool pgp_key_callback_t(const pgp_key_request_ctx_t *ctx,
-                                pgp_key_t **                 key,
-                                void *                       userdata);
+typedef pgp_key_t *pgp_key_callback_t(const pgp_key_request_ctx_t *ctx, void *userdata);
 
 typedef struct pgp_key_provider_t {
     pgp_key_callback_t *callback;
@@ -77,21 +75,17 @@ bool
 rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search);
 
 /** @brief request public or secret pgp key, according to information stored in ctx
- *  @param provider key provider structure
  *  @param ctx information about the request - which operation requested the key, which search
  *  criteria should be used and whether secret or public key is needed
  *  @param key pointer to the key structure will be stored here on success
- *  @return true on success, or false if key was not found otherwise
+ *  @return a key pointer on success, or NULL if key was not found otherwise
  **/
-bool pgp_request_key(const pgp_key_provider_t *   provider,
-                     const pgp_key_request_ctx_t *ctx,
-                     pgp_key_t **                 key);
+pgp_key_t *pgp_request_key(const pgp_key_provider_t *   provider,
+                           const pgp_key_request_ctx_t *ctx);
 
 /** @brief key provider callback which searches for key in rnp_key_store_t. userdata must be
   *pointer to the rnp_t structure
  **/
-bool rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx,
-                              pgp_key_t **                 key,
-                              void *                       userdata);
+pgp_key_t *rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, void *userdata);
 
 #endif

@@ -158,14 +158,12 @@ get_key_prefer_public(rnp_key_handle_t handle);
 static pgp_key_t *
 get_key_require_secret(rnp_key_handle_t handle);
 
-static bool
-key_provider_bounce(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *userdata)
+static pgp_key_t *
+key_provider_bounce(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
     rnp_ffi_t        ffi = (rnp_ffi_t) userdata;
     rnp_key_store_t *store = ctx->secret ? ffi->secring : ffi->pubring;
-    *key = rnp_key_store_search(&ffi->io, store, &ctx->search, NULL);
-    // TODO: if still not found, use ffi->getkeycb
-    return *key != NULL;
+    return rnp_key_store_search(&ffi->io, store, &ctx->search, NULL);
 }
 
 static void

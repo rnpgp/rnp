@@ -1000,7 +1000,7 @@ signed_src_finish(pgp_source_t *src)
         }
 
         /* Get the public key */
-        if (!pgp_request_key(param->ctx->handler.key_provider, &keyctx, &key)) {
+        if (!(key = pgp_request_key(param->ctx->handler.key_provider, &keyctx))) {
             RNP_LOG("signer's key not found");
             sinfo->no_signer = true;
             continue;
@@ -1950,7 +1950,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
                    ((pgp_pk_sesskey_pkt_t *) pe)->key_id,
                    sizeof(keyctx.search.by.keyid));
             /* Get the key if any */
-            if (!pgp_request_key(ctx->handler.key_provider, &keyctx, &seckey)) {
+            if (!(seckey = pgp_request_key(ctx->handler.key_provider, &keyctx))) {
                 continue;
             }
             /* Decrypt key */

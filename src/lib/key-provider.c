@@ -63,28 +63,26 @@ rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search)
     return false;
 }
 
-bool
-pgp_request_key(const pgp_key_provider_t *   provider,
-                const pgp_key_request_ctx_t *ctx,
-                pgp_key_t **                 key)
+pgp_key_t *
+pgp_request_key(const pgp_key_provider_t *provider, const pgp_key_request_ctx_t *ctx)
 {
-    if (!provider || !provider->callback || !ctx || !key) {
-        return false;
+    pgp_key_t *key = NULL;
+    if (!provider || !provider->callback || !ctx) {
+        return NULL;
     }
-    *key = NULL;
-    if (!provider->callback(ctx, key, provider->userdata)) {
-        return false;
+    if (!(key = provider->callback(ctx, provider->userdata))) {
+        return NULL;
     }
     // confirm that the key actually matches the search criteria
-    if (!rnp_key_matches_search(*key, &ctx->search) &&
-        pgp_is_key_secret(*key) == ctx->secret) {
-        return false;
+    if (!rnp_key_matches_search(key, &ctx->search) &&
+        pgp_is_key_secret(key) == ctx->secret) {
+        return NULL;
     }
-    return (*key != NULL);
+    return key;
 }
 
-bool
-rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void *userdata)
+pgp_key_t *
+rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
     rnp_t *          rnp = (rnp_t *) userdata;
     pgp_key_t *      ks_key = NULL;
@@ -94,7 +92,6 @@ rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void
         return false;
     }
 
-    *key = NULL;
     ks = ctx->secret ? rnp->secring : rnp->pubring;
 
     if (ctx->search.type == PGP_KEY_SEARCH_KEYID) {
@@ -126,6 +123,5 @@ rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, pgp_key_t **key, void
         }
     }
 
-    *key = ks_key;
-    return (ks_key != NULL);
+    return ks_key;
 }
