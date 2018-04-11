@@ -48,11 +48,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-struct rnp_password_cb_data {
-    rnp_password_cb cb_fn;
-    void *          cb_data;
-};
-
 struct rnp_key_handle_st {
     pgp_key_search_t locator;
     pgp_key_t *      pub;
@@ -144,6 +139,25 @@ struct rnp_identifier_iterator_st {
     char buf[1 + MAX(MAX(PGP_KEY_ID_SIZE * 2, PGP_FINGERPRINT_SIZE * 2), MAX_ID_LENGTH)];
 };
 
+/* This is just for readability at the call site and will hopefully reduce mistakes.
+ *
+ * Instead of:
+ *  void do_something(rnp_ffi_t ffi, bool with_secret_keys);
+ *  do_something(ffi, true);
+ *  do_something(ffi, false);
+ *
+ * You can have something a bit clearer:
+ *  void do_something(rnp_ffi_t ffi, key_type_t key_type);
+ *  do_something(ffi, KEY_TYPE_PUBLIC);
+ *  do_something(ffi, KEY_TYPE_SECRET);
+ */
+typedef enum key_type_t {
+    KEY_TYPE_NONE,
+    KEY_TYPE_PUBLIC,
+    KEY_TYPE_SECRET,
+    KEY_TYPE_ANY
+} key_type_t;
+
 #define FFI_LOG(ffi, ...)            \
     do {                             \
         FILE *fp = stderr;           \
@@ -159,12 +173,53 @@ get_key_prefer_public(rnp_key_handle_t handle);
 static pgp_key_t *
 get_key_require_secret(rnp_key_handle_t handle);
 
+static bool locator_to_str(const pgp_key_search_t *locator,
+                           const char **           identifier_type,
+                           char *                  identifier,
+                           size_t                  identifier_size);
+
+static pgp_key_t *
+find_key(rnp_ffi_t               ffi,
+         const pgp_key_search_t *search,
+         key_type_t              key_type,
+         bool                    try_key_provider)
+{
+    pgp_key_t *key = NULL;
+
+    switch (key_type) {
+    case KEY_TYPE_PUBLIC:
+        key = rnp_key_store_search(&ffi->io, ffi->pubring, search, NULL);
+        break;
+    case KEY_TYPE_SECRET:
+        key = rnp_key_store_search(&ffi->io, ffi->secring, search, NULL);
+        break;
+    default:
+        assert(false);
+        break;
+    }
+    if (!key && ffi->getkeycb && try_key_provider) {
+        char        identifier[1 + MAX(MAX(PGP_KEY_ID_SIZE * 2, PGP_FINGERPRINT_SIZE * 2),
+                                MAX_ID_LENGTH)];
+        const char *identifier_type = NULL;
+
+        if (locator_to_str(search, &identifier_type, identifier, sizeof(identifier))) {
+            ffi->getkeycb(ffi,
+                          ffi->getkeycb_ctx,
+                          identifier_type,
+                          identifier,
+                          key_type == KEY_TYPE_SECRET);
+            // recurse and try the store search above once more
+            return find_key(ffi, search, key_type, false);
+        }
+    }
+    return key;
+}
+
 static pgp_key_t *
 ffi_key_provider(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
-    rnp_ffi_t        ffi = (rnp_ffi_t) userdata;
-    rnp_key_store_t *store = ctx->secret ? ffi->secring : ffi->pubring;
-    return rnp_key_store_search(&ffi->io, store, &ctx->search, NULL);
+    rnp_ffi_t ffi = (rnp_ffi_t) userdata;
+    return find_key(ffi, &ctx->search, ctx->secret ? KEY_TYPE_SECRET : KEY_TYPE_PUBLIC, true);
 }
 
 static void
@@ -430,10 +485,10 @@ rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
                        size_t                    password_size,
                        void *                    userdata_void)
 {
-    struct rnp_password_cb_data *userdata = (struct rnp_password_cb_data *) userdata_void;
+    rnp_ffi_t ffi = (rnp_ffi_t)userdata_void;
     rnp_key_handle_t             key = NULL;
 
-    if (!userdata->cb_fn) {
+    if (!ffi || !ffi->getpasscb) {
         return false;
     }
 
@@ -442,8 +497,8 @@ rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
         return false;
     }
     key->sec = (pgp_key_t *) ctx->key;
-    int rc = userdata->cb_fn(
-      userdata->cb_data, key, operation_description(ctx->op), password, password_size);
+    int rc = ffi->getpasscb(
+      ffi, ffi->getpasscb_ctx, key, operation_description(ctx->op), password, password_size);
     free(key);
     return (rc == 0);
 }
@@ -759,25 +814,6 @@ done:
     free(buf);
     return ret;
 }
-
-/* This is just for readability at the call site and will hopefully reduce mistakes.
- *
- * Instead of:
- *  void do_something(rnp_ffi_t ffi, bool with_secret_keys);
- *  do_something(ffi, true);
- *  do_something(ffi, false);
- *
- * You can have something a bit clearer:
- *  void do_something(rnp_ffi_t ffi, key_type_t key_type);
- *  do_something(ffi, KEY_TYPE_PUBLIC);
- *  do_something(ffi, KEY_TYPE_SECRET);
- */
-typedef enum key_type_t {
-    KEY_TYPE_NONE,
-    KEY_TYPE_PUBLIC,
-    KEY_TYPE_SECRET,
-    KEY_TYPE_ANY
-} key_type_t;
 
 static bool
 key_needs_conversion(const pgp_key_t *key, const rnp_key_store_t *store)
@@ -1617,16 +1653,12 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
     if (!op || !op->input || !op->output) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_password_provider_t provider = {
-      .callback = rnp_password_cb_bounce,
-      .userdata = &(struct rnp_password_cb_data){.cb_fn = op->ffi->getpasscb,
-                                                 .cb_data = op->ffi->getpasscb_ctx}};
-    pgp_write_handler_t handler = {
-      .password_provider = &provider,
-      .ctx = &op->rnpctx,
-      .param = NULL,
-      .key_provider = &op->ffi->key_provider
-    };
+    pgp_password_provider_t provider = {.callback = rnp_password_cb_bounce,
+                                        .userdata = op->ffi};
+    pgp_write_handler_t     handler = {.password_provider = &provider,
+                                   .ctx = &op->rnpctx,
+                                   .param = NULL,
+                                   .key_provider = &op->ffi->key_provider};
 
     rnp_result_t ret;
     if (list_length(op->signatures)) {
@@ -1801,19 +1833,15 @@ rnp_op_sign_execute(rnp_op_sign_t op)
     if (!op || !op->input || !op->output) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_password_provider_t provider = {
-      .callback = rnp_password_cb_bounce,
-      .userdata = &(struct rnp_password_cb_data){.cb_fn = op->ffi->getpasscb,
-                                                 .cb_data = op->ffi->getpasscb_ctx}};
-    pgp_write_handler_t handler = {
-      .password_provider = &provider,
-      .ctx = &op->rnpctx,
-      .param = NULL,
-      .key_provider = &op->ffi->key_provider
-    };
+    pgp_password_provider_t provider = {.callback = rnp_password_cb_bounce,
+                                        .userdata = op->ffi};
+    pgp_write_handler_t     handler = {.password_provider = &provider,
+                                   .ctx = &op->rnpctx,
+                                   .param = NULL,
+                                   .key_provider = &op->ffi->key_provider};
 
     for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
-        pgp_key_t *key = ((rnp_op_sign_signature_t)sig)->key;
+        pgp_key_t *key = ((rnp_op_sign_signature_t) sig)->key;
         if (!key) {
             return RNP_ERROR_NO_SUITABLE_KEY;
         }
@@ -1951,18 +1979,15 @@ rnp_op_verify_detached_create(rnp_op_verify_t *op,
 rnp_result_t
 rnp_op_verify_execute(rnp_op_verify_t op)
 {
-    pgp_password_provider_t password_provider = {
-      .callback = rnp_password_cb_bounce,
-      .userdata = &(struct rnp_password_cb_data){.cb_fn = op->ffi->getpasscb,
-                                                 .cb_data = op->ffi->getpasscb_ctx}};
-    pgp_parse_handler_t handler = {
-      .password_provider = &password_provider,
-      .key_provider = &op->ffi->key_provider,
-      .on_signatures = rnp_op_verify_on_signatures,
-      .src_provider = rnp_verify_src_provider,
-      .dest_provider = rnp_verify_dest_provider,
-      .param = op,
-      .ctx = &op->rnpctx};
+    pgp_password_provider_t password_provider = {.callback = rnp_password_cb_bounce,
+                                                 .userdata = op->ffi};
+    pgp_parse_handler_t     handler = {.password_provider = &password_provider,
+                                   .key_provider = &op->ffi->key_provider,
+                                   .on_signatures = rnp_op_verify_on_signatures,
+                                   .src_provider = rnp_verify_src_provider,
+                                   .dest_provider = rnp_verify_dest_provider,
+                                   .param = op,
+                                   .ctx = &op->rnpctx};
 
     rnp_result_t ret = process_pgp_source(&handler, &op->input->src);
     if (op->output) {
@@ -2088,16 +2113,13 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
     }
 
     rnp_ctx_init_ffi(&rnpctx, ffi);
-    pgp_password_provider_t password_provider = {
-      .callback = rnp_password_cb_bounce,
-      .userdata = &(struct rnp_password_cb_data){.cb_fn = ffi->getpasscb,
-                                                 .cb_data = ffi->getpasscb_ctx}};
-    pgp_parse_handler_t handler = {
-      .password_provider = &password_provider,
-      .key_provider = &ffi->key_provider,
-      .dest_provider = rnp_decrypt_dest_provider,
-      .param = output,
-      .ctx = &rnpctx};
+    pgp_password_provider_t password_provider = {.callback = rnp_password_cb_bounce,
+                                                 .userdata = ffi};
+    pgp_parse_handler_t     handler = {.password_provider = &password_provider,
+                                   .key_provider = &ffi->key_provider,
+                                   .dest_provider = rnp_decrypt_dest_provider,
+                                   .param = output,
+                                   .ctx = &rnpctx};
 
     rnp_result_t ret = process_pgp_source(&handler, &input->src);
     if (ret != RNP_SUCCESS) {
@@ -2110,7 +2132,7 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
 }
 
 static rnp_result_t
-parse_locator(pgp_key_search_t *locator, const char *identifier_type, const char *identifier)
+str_to_locator(pgp_key_search_t *locator, const char *identifier_type, const char *identifier)
 {
     // parse the identifier type
     locator->type = PGP_KEY_SEARCH_UNKNOWN;
@@ -2154,6 +2176,57 @@ parse_locator(pgp_key_search_t *locator, const char *identifier_type, const char
     return RNP_SUCCESS;
 }
 
+static bool
+locator_to_str(const pgp_key_search_t *locator, const char **identifier_type, char *identifier, size_t identifier_size)
+{
+    // find the identifier type string with the map
+    *identifier_type = NULL;
+    ARRAY_LOOKUP_BY_ID(identifier_type_map, type, string, locator->type, *identifier_type);
+    if (!*identifier_type) {
+        return false;
+    }
+    // fill in the actual identifier
+    switch (locator->type) {
+    case PGP_KEY_SEARCH_USERID:
+        if (snprintf(identifier, identifier_size, "%s", locator->by.userid) >=
+            identifier_size) {
+            return false;
+        }
+        break;
+    case PGP_KEY_SEARCH_KEYID:
+        if (!rnp_hex_encode(locator->by.keyid,
+                            PGP_KEY_ID_SIZE,
+                            identifier,
+                            identifier_size,
+                            RNP_HEX_UPPERCASE)) {
+            return false;
+        }
+        break;
+    case PGP_KEY_SEARCH_FINGERPRINT:
+        if (!rnp_hex_encode(locator->by.fingerprint.fingerprint,
+                            locator->by.fingerprint.length,
+                            identifier,
+                            identifier_size,
+                            RNP_HEX_UPPERCASE)) {
+            return false;
+        }
+        break;
+    case PGP_KEY_SEARCH_GRIP:
+        if (!rnp_hex_encode(locator->by.grip,
+                            PGP_FINGERPRINT_SIZE,
+                            identifier,
+                            identifier_size,
+                            RNP_HEX_UPPERCASE)) {
+            return false;
+        }
+        break;
+    default:
+        assert(false);
+        return false;
+    }
+    return true;
+}
+
 rnp_result_t
 rnp_locate_key(rnp_ffi_t         ffi,
                const char *      identifier_type,
@@ -2167,7 +2240,7 @@ rnp_locate_key(rnp_ffi_t         ffi,
 
     // figure out the identifier type
     pgp_key_search_t locator = {0};
-    rnp_result_t     ret = parse_locator(&locator, identifier_type, identifier);
+    rnp_result_t     ret = str_to_locator(&locator, identifier_type, identifier);
     if (ret) {
         return ret;
     }
@@ -2732,7 +2805,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
         json_object_object_del(jsosub, "primary");
 
         pgp_key_search_t locator = {0};
-        rnp_result_t     tmpret = parse_locator(&locator, identifier_type, identifier);
+        rnp_result_t     tmpret = str_to_locator(&locator, identifier_type, identifier);
         if (tmpret) {
             ret = tmpret;
             goto done;
@@ -2748,10 +2821,8 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             ret = RNP_ERROR_BAD_FORMAT;
             goto done;
         }
-        const pgp_password_provider_t provider = {
-          .callback = rnp_password_cb_bounce,
-          .userdata = &(struct rnp_password_cb_data){.cb_fn = ffi->getpasscb,
-                                                     .cb_data = ffi->getpasscb_ctx}};
+        const pgp_password_provider_t provider = {.callback = rnp_password_cb_bounce,
+                                                  .userdata = ffi};
         sub_desc.crypto.rng = &ffi->rng;
         if (!pgp_generate_subkey(&sub_desc,
                                  true,
@@ -2897,11 +2968,9 @@ rnp_key_add_uid(rnp_ffi_t        ffi,
     }
     seckey = &secret_key->key.seckey;
     if (seckey->encrypted) {
-        pgp_password_provider_t pass_provider = {
-          .callback = rnp_password_cb_bounce,
-          .userdata = &(struct rnp_password_cb_data){.cb_fn = ffi->getpasscb,
-                                                     .cb_data = ffi->getpasscb_ctx}};
-        pgp_password_ctx_t ctx = {.op = PGP_OP_ADD_USERID, .key = secret_key};
+        pgp_password_provider_t pass_provider = {.callback = rnp_password_cb_bounce,
+                                                 .userdata = ffi};
+        pgp_password_ctx_t      ctx = {.op = PGP_OP_ADD_USERID, .key = secret_key};
         decrypted_seckey = pgp_decrypt_seckey(secret_key, &pass_provider, &ctx);
         if (!decrypted_seckey) {
             return RNP_ERROR_BAD_PASSWORD;

@@ -82,6 +82,8 @@ typedef void    rnp_output_closer_t(void *app_ctx, bool discard);
 
 /**
  * Callback used for getting a password.
+ *
+ * @param ffi
  * @param app_ctx provided by application
  * @param key the key, if any, for which the password is being requested.
  *        Note: this key handle should not be held by the application,
@@ -93,24 +95,39 @@ typedef void    rnp_output_closer_t(void *app_ctx, bool discard);
  * @param pass_len the size of pass buffer
  * @return 0 on success, or any other value to stop decryption.
  */
-typedef int (*rnp_password_cb)(
-  void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char buf[], size_t buf_len);
+typedef int (*rnp_password_cb)(rnp_ffi_t        ffi,
+                               void *           app_ctx,
+                               rnp_key_handle_t key,
+                               const char *     pgp_context,
+                               char             buf[],
+                               size_t           buf_len);
 
-/**
- * Callback used for getting a key.
- * @param app_ctx provided by application in rnp_keyring_open
- * @param identifier_type the type of identifier ("userid", "keyid",
- * "fingerprint")
- * @param identifier the identifier for locating the key
- * @param secret true if a secret key is being requested
- * @return the key, or NULL if not found
+/** callback used to signal the application that a key is needed
+ *
+ *  The application should use the appropriate functions (rnp_load_public_keys, etc)
+ *  to load the requested key.
+ *
+ *  This may be called multiple times for the same key. For example, if attempting
+ *  to verify a signature, the signer's keyid may be used first to request the key.
+ *  If that is not successful, the signer's fingerprint (if available) may be used.
+ *
+ *  Situations in which this callback would be used include:
+ *   - When decrypting data that includes a public-key encrypted session key,
+ *     and the key is not found in the keyrings.
+ *   - When attempting to verify a signature, when the signer's key is not found in
+ *     the keyrings.
+ *
+ *  @param ffi
+ *  @param app_ctx provided by application in rnp_keyring_open
+ *  @param identifier_type the type of identifier ("userid", "keyid", "grip")
+ *  @param identifier the identifier for locating the key
+ *  @param secret true if a secret key is being requested
  */
-typedef int (*rnp_get_key_cb)(void *      app_ctx,
-                              const char *identifier_type,
-                              const char *identifier,
-                              bool        secret,
-                              uint8_t **  buf, // TODO: note must be alloc with rnp_buffer_new
-                              size_t *    buf_len);
+typedef void (*rnp_get_key_cb)(rnp_ffi_t   ffi,
+                               void *      app_ctx,
+                               const char *identifier_type,
+                               const char *identifier,
+                               bool        secret);
 
 /** create the top-level object used for interacting with the library
  *
