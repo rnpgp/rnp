@@ -91,6 +91,7 @@ size_t rnp_public_count(rnp_t *);
 /* file management */
 rnp_result_t rnp_process_file(rnp_ctx_t *, const char *, const char *);
 rnp_result_t rnp_protect_file(rnp_ctx_t *, const char *, const char *);
+rnp_result_t rnp_dump_file(rnp_ctx_t *, const char *, const char *);
 
 /* memory signing and encryption */
 rnp_result_t rnp_process_mem(rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
