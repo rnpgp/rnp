@@ -84,44 +84,53 @@ pgp_request_key(const pgp_key_provider_t *provider, const pgp_key_request_ctx_t 
 pgp_key_t *
 rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
-    rnp_t *          rnp = (rnp_t *) userdata;
-    pgp_key_t *      ks_key = NULL;
-    rnp_key_store_t *ks;
+    rnp_t *rnp = (rnp_t *) userdata;
 
-    if (rnp == NULL) {
+    if (!rnp) {
         return false;
     }
+    return rnp_key_provider_store(ctx, ctx->secret ? rnp->secring : rnp->pubring);
+}
 
-    ks = ctx->secret ? rnp->secring : rnp->pubring;
-
-    if (ctx->search.type == PGP_KEY_SEARCH_KEYID) {
-        ks_key = rnp_key_store_get_key_by_id(rnp->io, ks, ctx->search.by.keyid, NULL, NULL);
-        if (!ks_key && !ctx->secret) {
-            /* searching for public key in secret keyring as well */
-            ks_key = rnp_key_store_get_key_by_id(
-              rnp->io, rnp->secring, ctx->search.by.keyid, NULL, NULL);
-        }
-    } else if (ctx->search.type == PGP_KEY_SEARCH_FINGERPRINT) {
-        ks_key = rnp_key_store_get_key_by_fpr(rnp->io,
-                                              ks,
-                                              &ctx->search.by.fingerprint);
-        if (!ks_key && !ctx->secret) {
-            ks_key = rnp_key_store_get_key_by_fpr(rnp->io,
-                                                  rnp->secring,
-                                                  &ctx->search.by.fingerprint);
-        }
-     } else if (ctx->search.type == PGP_KEY_SEARCH_GRIP) {
-        ks_key = rnp_key_store_get_key_by_grip(rnp->io, ks, ctx->search.by.grip);
-        if (!ks_key && !ctx->secret) {
-            ks_key = rnp_key_store_get_key_by_grip(rnp->io, rnp->secring, ctx->search.by.grip);
-        }
-    } else if (ctx->search.type == PGP_KEY_SEARCH_USERID) {
-        ks_key = rnp_key_store_get_key_by_userid(rnp->io, ks, ctx->search.by.userid, NULL);
-        if (!ks_key && !ctx->secret) {
-            ks_key = rnp_key_store_get_key_by_userid(
-              rnp->io, rnp->secring, ctx->search.by.userid, NULL);
+pgp_key_t *
+rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata)
+{
+    list key_list = (list) userdata;
+    for (list_item *item = list_front(key_list); item; item = list_next(item)) {
+        pgp_key_t *key = *(pgp_key_t **) item;
+        if (rnp_key_matches_search(key, &ctx->search) &&
+            pgp_is_key_secret(key) == ctx->secret) {
+            return key;
         }
     }
+    return NULL;
+}
 
-    return ks_key;
+pgp_key_t *
+rnp_key_provider_chained(const pgp_key_request_ctx_t *ctx, void *userdata)
+{
+    for (pgp_key_provider_t **pprovider = (pgp_key_provider_t **) userdata;
+         pprovider && *pprovider;
+         pprovider++) {
+        pgp_key_provider_t *provider = *pprovider;
+        pgp_key_t *         key = NULL;
+        if ((key = provider->callback(ctx, provider->userdata))) {
+            return key;
+        }
+    }
+    return NULL;
+}
+
+pgp_key_t *
+rnp_key_provider_store(const pgp_key_request_ctx_t *ctx, void *userdata)
+{
+    rnp_key_store_t *ks = (rnp_key_store_t *) userdata;
+
+    for (pgp_key_t *key = rnp_key_store_search(NULL, ks, &ctx->search, NULL); key;
+         key = rnp_key_store_search(NULL, ks, &ctx->search, key)) {
+        if (pgp_is_key_secret(key) == ctx->secret) {
+            return key;
+        }
+    }
+    return NULL;
 }
