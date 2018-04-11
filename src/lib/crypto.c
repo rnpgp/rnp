@@ -329,6 +329,29 @@ bn2mpi(bignum_t *bn, pgp_mpi_t *val)
     return bn_num_bytes(bn, &val->len) && (bn_bn2bin(bn, val->mpi) == 0);
 }
 
+unsigned
+mpi_bits(const pgp_mpi_t *val)
+{
+    unsigned bits = 0;
+    unsigned idx = 0;
+    uint8_t  bt;
+
+    while ((idx < val->len) && (val->mpi[idx] == 0)) {
+        idx++;
+    }
+
+    if (idx < val->len) {
+        bt = val->mpi[idx];
+        bits = (val->len - idx - 1) << 3;
+        while (bt) {
+            bits++;
+            bt = bt >> 1;
+        }
+    }
+
+    return bits;
+}
+
 void
 mpi_forget(pgp_mpi_t *val)
 {

@@ -43,6 +43,7 @@
 #include "pgp-key.h"
 #include "list.h"
 #include "packet-parse.h"
+#include "crypto.h"
 #include "utils.h"
 
 typedef struct pgp_dest_indent_param_t {
@@ -179,6 +180,32 @@ stream_dump_signature(pgp_source_t *src, pgp_dest_t *dst)
     dst_printf(dst, "hash algorithm: %d\n", (int) sig.halg);
     vsnprinthex(msg, sizeof(msg), sig.lbits, sizeof(sig.lbits));
     dst_printf(dst, "lbits: 0x%s\n", msg);
+    dst_printf(dst, "signature material:\n");
+    indent_dest_increase(dst);
+
+    switch (sig.palg) {
+    case PGP_PKA_RSA:
+        dst_printf(dst, "rsa s: %d bits\n", mpi_bits(&sig.material.rsa.s));
+        break;
+    case PGP_PKA_DSA:
+        dst_printf(dst, "dsa r: %d bits\n", mpi_bits(&sig.material.dsa.r));
+        dst_printf(dst, "dsa s: %d bits\n", mpi_bits(&sig.material.dsa.s));
+        break;
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
+        dst_printf(dst, "ecc r: %d bits\n", mpi_bits(&sig.material.ecc.r));
+        dst_printf(dst, "ecc s: %d bits\n", mpi_bits(&sig.material.ecc.s));
+        break;
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        dst_printf(dst, "eg r: %d bits\n", mpi_bits(&sig.material.eg.r));
+        dst_printf(dst, "eg s: %d bits\n", mpi_bits(&sig.material.eg.s));
+        break;
+    default:
+        dst_printf(dst, "unknown algorithm\n");
+    }
+    indent_dest_decrease(dst);
 
     free_signature(&sig);
     indent_dest_decrease(dst);
@@ -191,6 +218,7 @@ stream_dump_key(pgp_source_t *src, pgp_dest_t *dst)
     pgp_key_pkt_t key;
     rnp_result_t  ret;
     const char *  ktype;
+    char          msg[128];
 
     if ((ret = stream_parse_key(src, &key))) {
         return ret;
@@ -222,6 +250,83 @@ stream_dump_key(pgp_source_t *src, pgp_dest_t *dst)
         dst_printf(dst, "v3 validity days: %d\n", (int) key.v3_days);
     }
     dst_printf(dst, "public key algorithm: %d\n", (int) key.alg);
+    dst_printf(dst, "public key material:\n");
+    indent_dest_increase(dst);
+
+    switch (key.alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        dst_printf(dst, "rsa n: %d bits\n", mpi_bits(&key.material.rsa.n));
+        dst_printf(dst, "rsa e: %d bits\n", mpi_bits(&key.material.rsa.e));
+        break;
+    case PGP_PKA_DSA:
+        dst_printf(dst, "dsa p: %d bits\n", mpi_bits(&key.material.dsa.p));
+        dst_printf(dst, "dsa q: %d bits\n", mpi_bits(&key.material.dsa.q));
+        dst_printf(dst, "dsa g: %d bits\n", mpi_bits(&key.material.dsa.g));
+        dst_printf(dst, "dsa y: %d bits\n", mpi_bits(&key.material.dsa.y));
+        break;
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        dst_printf(dst, "eg p: %d bits\n", mpi_bits(&key.material.eg.p));
+        dst_printf(dst, "eg g: %d bits\n", mpi_bits(&key.material.eg.g));
+        dst_printf(dst, "eg y: %d bits\n", mpi_bits(&key.material.eg.y));
+        break;
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2: {
+        const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ecc.curve);
+        dst_printf(dst, "ecc p: %d bits\n", mpi_bits(&key.material.ecc.p));
+        dst_printf(dst, "ecc curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
+        break;
+    }
+    case PGP_PKA_ECDH: {
+        const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ecdh.curve);
+        dst_printf(dst, "ecdh p: %d bits\n", mpi_bits(&key.material.ecdh.p));
+        dst_printf(dst, "ecdh curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
+        dst_printf(dst, "ecdh hash algorithm: %d\n", (int) key.material.ecdh.kdf_hash_alg);
+        dst_printf(dst, "ecdh key wrap algorithm: %d\n", (int) key.material.ecdh.key_wrap_alg);
+        break;
+    }
+    default:
+        dst_printf(dst, "unknown public key algorithm\n");
+    }
+    indent_dest_decrease(dst);
+
+    if (is_secret_key_pkt(key.tag)) {
+        dst_printf(dst, "secret key material:\n");
+        indent_dest_increase(dst);
+
+        dst_printf(dst, "s2k usage: %d\n", (int) key.sec_protection.s2k.usage);
+        if ((key.sec_protection.s2k.usage == PGP_S2KU_ENCRYPTED) ||
+            (key.sec_protection.s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED)) {
+            dst_printf(dst, "symmetric algorithm: %d\n", (int) key.sec_protection.symm_alg);
+            dst_printf(dst, "s2k specifier: %d\n", (int) key.sec_protection.s2k.specifier);
+            dst_printf(dst, "s2k hash algorithm: %d\n", (int) key.sec_protection.s2k.hash_alg);
+            if ((key.sec_protection.s2k.specifier == PGP_S2KS_SALTED) ||
+                (key.sec_protection.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED)) {
+                vsnprinthex(msg, sizeof(msg), key.sec_protection.s2k.salt, PGP_SALT_SIZE);
+                dst_printf(dst, "s2k salt: %s\n", msg);
+            }
+            if (key.sec_protection.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+                dst_printf(
+                  dst, "s2k iterations: %d\n", (int) key.sec_protection.s2k.iterations);
+            }
+            size_t bl_size = pgp_block_size(key.sec_protection.symm_alg);
+            if (bl_size) {
+                vsnprinthex(msg, sizeof(msg), key.sec_protection.iv, bl_size);
+                dst_printf(dst, "cipher iv: %s\n", msg);
+            } else {
+                dst_printf(dst, "cipher iv: unknown algorithm\n");
+            }
+            dst_printf(dst, "encrypted secret key data: %d bytes\n", (int) key.sec_len);
+        }
+
+        if (!key.sec_protection.s2k.usage) {
+            dst_printf(dst, "cleartext secret key data: %d bytes\n", (int) key.sec_len);
+        }
+        indent_dest_decrease(dst);
+    }
 
     free_key_pkt(&key);
     indent_dest_decrease(dst);
@@ -288,7 +393,29 @@ stream_dump_pk_session_key(pgp_source_t *src, pgp_dest_t *dst)
     vsnprinthex(msg, sizeof(msg), pkey.key_id, sizeof(pkey.key_id));
     dst_printf(dst, "key id: 0x%s\n", msg);
     dst_printf(dst, "public key algorithm: %d\n", (int) pkey.alg);
+    dst_printf(dst, "encrypted material:\n");
+    indent_dest_increase(dst);
 
+    switch (pkey.alg) {
+    case PGP_PKA_RSA:
+        dst_printf(dst, "rsa m: %d bits\n", mpi_bits(&pkey.params.rsa.m));
+        break;
+    case PGP_PKA_ELGAMAL:
+        dst_printf(dst, "eg g: %d bits\n", mpi_bits(&pkey.params.eg.g));
+        dst_printf(dst, "eg m: %d bits\n", mpi_bits(&pkey.params.eg.m));
+        break;
+    case PGP_PKA_SM2:
+        dst_printf(dst, "sm2 m: %d bits\n", mpi_bits(&pkey.params.sm2.m));
+        break;
+    case PGP_PKA_ECDH:
+        dst_printf(dst, "ecdh p: %d bits\n", mpi_bits(&pkey.params.ecdh.p));
+        dst_printf(dst, "ecdh m: %d bytes\n", (int) pkey.params.ecdh.mlen);
+        break;
+    default:
+        dst_printf(dst, "unknown public key algorithm\n");
+    }
+
+    indent_dest_decrease(dst);
     indent_dest_decrease(dst);
     return RNP_SUCCESS;
 }
@@ -335,9 +462,23 @@ stream_dump_sk_session_key(pgp_source_t *src, pgp_dest_t *dst)
 }
 
 static rnp_result_t
-stream_dump_encrypted(pgp_source_t *src, pgp_dest_t *dst)
+stream_dump_encrypted(pgp_source_t *src, pgp_dest_t *dst, int tag)
 {
-    dst_printf(dst, "Encrypted data packet\n\n");
+    switch (tag) {
+    case PGP_PTAG_CT_SE_DATA:
+        dst_printf(dst, "Symmetrically-encrypted data packet\n\n");
+        break;
+    case PGP_PTAG_CT_SE_IP_DATA:
+        dst_printf(dst, "Symmetrically-encrypted integrity protected data packet\n\n");
+        break;
+    case PGP_PTAG_CT_AEAD_ENCRYPTED:
+        dst_printf(dst, "AEAD-encrypted data packet\n\n");
+        break;
+    default:
+        dst_printf(dst, "Unknown encrypted data packet\n\n");
+        break;
+    }
+
     return stream_skip_packet(src);
 }
 
@@ -497,7 +638,7 @@ stream_dump_packets_raw(pgp_source_t *src, pgp_dest_t *dst)
         case PGP_PTAG_CT_SE_DATA:
         case PGP_PTAG_CT_SE_IP_DATA:
         case PGP_PTAG_CT_AEAD_ENCRYPTED:
-            ret = stream_dump_encrypted(src, dst);
+            ret = stream_dump_encrypted(src, dst, tag);
             break;
         case PGP_PTAG_CT_1_PASS_SIG:
             ret = stream_dump_one_pass(src, dst);
@@ -564,7 +705,7 @@ stream_dump_packets(pgp_source_t *src, pgp_dest_t *dst)
     }
     indent = true;
 
-    indent_dest_set(&wrdst, armored ? 1 : 0);
+    indent_dest_set(&wrdst, 0);
 
     ret = stream_dump_packets_raw(src, &wrdst);
 
