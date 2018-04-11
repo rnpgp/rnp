@@ -84,8 +84,30 @@ pgp_key_t *pgp_request_key(const pgp_key_provider_t *   provider,
                            const pgp_key_request_ctx_t *ctx);
 
 /** @brief key provider callback which searches for key in rnp_key_store_t. userdata must be
-  *pointer to the rnp_t structure
+ *pointer to the rnp_t structure
  **/
 pgp_key_t *rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, void *userdata);
+
+/** key provider callback that searches a list of pgp_key_t pointers
+ *
+ *  @param ctx
+ *  @param userdata must be a list of key pgp_key_t**
+ */
+pgp_key_t *rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata);
+
+/** key provider callback that searches a given store
+ *
+ *  @param ctx
+ *  @param userdata must be a pointer to rnp_key_store_t
+ */
+pgp_key_t *rnp_key_provider_store(const pgp_key_request_ctx_t *ctx, void *userdata);
+
+/** key provider that calls other key providers
+ *
+ *  @param ctx
+ *  @param userdata must be an array pgp_key_provider_t pointers,
+ *         ending with a NULL.
+ */
+pgp_key_t *rnp_key_provider_chained(const pgp_key_request_ctx_t *ctx, void *userdata);
 
 #endif
