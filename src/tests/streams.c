@@ -117,7 +117,7 @@ test_stream_signatures(void **state)
     /* load secret key */
     secring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/test_stream_signatures/sec.asc");
     assert_non_null(secring);
-    assert_true(rnp_key_store_load_from_file(&io, secring, true, pubring));
+    assert_true(rnp_key_store_load_from_file(&io, secring, true, NULL));
     seckey = rnp_key_store_get_key_by_id(&io, secring, keyid, NULL, NULL);
     assert_non_null(seckey);
     assert_true(pgp_is_key_secret(seckey));

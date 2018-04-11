@@ -49,7 +49,7 @@ test_load_v3_keyring_pgp(void **state)
     assert_non_null(key_store);
 
     // load it in to the key store
-    assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, 0, &mem));
+    assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, 0, &mem, NULL));
     assert_int_equal(1, list_length(key_store->keys));
 
     // find the key by keyid
@@ -72,7 +72,7 @@ test_load_v3_keyring_pgp(void **state)
     key_store = calloc(1, sizeof(*key_store));
     assert_non_null(key_store);
 
-    assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, 0, &mem));
+    assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, 0, &mem, NULL));
     assert_int_equal(1, list_length(key_store->keys));
 
     static const uint8_t keyid2[] = {0x7D, 0x0B, 0xC1, 0x0E, 0x93, 0x34, 0x04, 0xC9};
@@ -119,7 +119,7 @@ test_load_v4_keyring_pgp(void **state)
     assert_non_null(key_store);
 
     // load it in to the key store
-    assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, 0, &mem));
+    assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, 0, &mem, NULL));
     assert_int_equal(7, list_length(key_store->keys));
 
     // find the key by keyid
@@ -151,7 +151,7 @@ check_pgp_keyring_counts(const char *   path,
     assert_non_null(key_store);
 
     // load it in to the key store
-    assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, 0, &mem));
+    assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, 0, &mem, NULL));
 
     // count primary keys first
     unsigned total_primary_count = 0;

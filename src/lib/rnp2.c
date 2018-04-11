@@ -60,14 +60,15 @@ struct rnp_key_handle_st {
 };
 
 struct rnp_ffi_st {
-    pgp_io_t         io;
-    rnp_key_store_t *pubring;
-    rnp_key_store_t *secring;
-    rnp_get_key_cb   getkeycb;
-    void *           getkeycb_ctx;
-    rnp_password_cb  getpasscb;
-    void *           getpasscb_ctx;
-    rng_t            rng;
+    pgp_io_t           io;
+    rnp_key_store_t *  pubring;
+    rnp_key_store_t *  secring;
+    rnp_get_key_cb     getkeycb;
+    void *             getkeycb_ctx;
+    rnp_password_cb    getpasscb;
+    void *             getpasscb_ctx;
+    rng_t              rng;
+    pgp_key_provider_t key_provider;
 };
 
 struct rnp_input_st {
@@ -159,7 +160,7 @@ static pgp_key_t *
 get_key_require_secret(rnp_key_handle_t handle);
 
 static pgp_key_t *
-key_provider_bounce(const pgp_key_request_ctx_t *ctx, void *userdata)
+ffi_key_provider(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
     rnp_ffi_t        ffi = (rnp_ffi_t) userdata;
     rnp_key_store_t *store = ctx->secret ? ffi->secring : ffi->pubring;
@@ -290,6 +291,7 @@ rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }
+    ob->key_provider = (pgp_key_provider_t){.callback = ffi_key_provider, .userdata = ob};
     if (!rng_init(&ob->rng, RNG_DRBG)) {
         ret = RNP_ERROR_RNG;
         goto done;
@@ -710,6 +712,12 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
     rnp_result_t ret = RNP_ERROR_GENERIC;
     uint8_t *    buf = NULL;
     size_t       buf_len;
+    const pgp_key_provider_t *key_providers[] = {
+      &(pgp_key_provider_t){.callback = rnp_key_provider_store, .userdata = store},
+      &ffi->key_provider,
+      NULL};
+    const pgp_key_provider_t key_provider = {.callback = rnp_key_provider_chained,
+                                             .userdata = key_providers};
 
     if (input->src_directory) {
         // load the keys
@@ -719,10 +727,10 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
-        if (!rnp_key_store_load_from_file(&ffi->io, store, 0, ffi->pubring)) {
+        if (!rnp_key_store_load_from_file(&ffi->io, store, 0, &key_provider)) {
             // for the GPG format, we try again with armored=true
             if (store->format != GPG_KEY_STORE ||
-                !rnp_key_store_load_from_file(&ffi->io, store, 1, ffi->pubring)) {
+                !rnp_key_store_load_from_file(&ffi->io, store, 1, &key_provider)) {
                 ret = RNP_ERROR_BAD_FORMAT;
                 goto done;
             }
@@ -736,10 +744,10 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
         }
         // load the keys
         pgp_memory_t mem = {.buf = buf, .length = buf_len};
-        if (!rnp_key_store_load_from_mem(&ffi->io, store, 0, ffi->pubring, &mem)) {
+        if (!rnp_key_store_load_from_mem(&ffi->io, store, 0, &mem, &key_provider)) {
             // for the GPG format, we try again with armored=true
             if (store->format != GPG_KEY_STORE ||
-                !rnp_key_store_load_from_mem(&ffi->io, store, 1, ffi->pubring, &mem)) {
+                !rnp_key_store_load_from_mem(&ffi->io, store, 1, &mem, &key_provider)) {
                 ret = RNP_ERROR_BAD_FORMAT;
                 goto done;
             }
@@ -1617,8 +1625,7 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
       .password_provider = &provider,
       .ctx = &op->rnpctx,
       .param = NULL,
-      .key_provider =
-        &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = op->ffi},
+      .key_provider = &op->ffi->key_provider
     };
 
     rnp_result_t ret;
@@ -1802,8 +1809,7 @@ rnp_op_sign_execute(rnp_op_sign_t op)
       .password_provider = &provider,
       .ctx = &op->rnpctx,
       .param = NULL,
-      .key_provider =
-        &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = op->ffi},
+      .key_provider = &op->ffi->key_provider
     };
 
     for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
@@ -1951,8 +1957,7 @@ rnp_op_verify_execute(rnp_op_verify_t op)
                                                  .cb_data = op->ffi->getpasscb_ctx}};
     pgp_parse_handler_t handler = {
       .password_provider = &password_provider,
-      .key_provider =
-        &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = op->ffi},
+      .key_provider = &op->ffi->key_provider,
       .on_signatures = rnp_op_verify_on_signatures,
       .src_provider = rnp_verify_src_provider,
       .dest_provider = rnp_verify_dest_provider,
@@ -2089,7 +2094,7 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
                                                  .cb_data = ffi->getpasscb_ctx}};
     pgp_parse_handler_t handler = {
       .password_provider = &password_provider,
-      .key_provider = &(pgp_key_provider_t){.callback = key_provider_bounce, .userdata = ffi},
+      .key_provider = &ffi->key_provider,
       .dest_provider = rnp_decrypt_dest_provider,
       .param = output,
       .ctx = &rnpctx};

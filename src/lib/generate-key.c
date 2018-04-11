@@ -69,8 +69,8 @@ load_generated_key(pgp_output_t **    output,
 {
     bool             ok = false;
     pgp_io_t         io = {.errs = stderr, .res = stdout, .outs = stdout};
-    rnp_key_store_t *pubring = NULL;
     rnp_key_store_t *key_store = NULL;
+    list             key_ptrs = NULL; /* holds primary and pubkey, when used */
 
     // this should generally be zeroed
     assert(dst->type == 0);
@@ -88,27 +88,34 @@ load_generated_key(pgp_output_t **    output,
     }
 
     // if this is a subkey, add the primary in first
-    if (primary_key && !rnp_key_store_add_key(&io, key_store, primary_key)) {
+    if (primary_key && !list_append(&key_ptrs, &primary_key, sizeof(primary_key))) {
         goto end;
     }
     switch (format) {
     case GPG_KEY_STORE:
     case KBX_KEY_STORE:
-        if (!rnp_key_store_pgp_read_from_mem(&io, key_store, 0, *mem)) {
+        if (!rnp_key_store_pgp_read_from_mem(
+              &io,
+              key_store,
+              0,
+              *mem,
+              &(pgp_key_provider_t){.callback = rnp_key_provider_key_ptr_list,
+                                    .userdata = key_ptrs})) {
             RNP_LOG("failed to read back generated key");
             goto end;
         }
         break;
     case G10_KEY_STORE: {
-        // G10 needs the pubring for copying some attributes (key version, creation time, etc)
-        pubring = calloc(1, sizeof(*pubring));
-        if (!pubring) {
+        // G10 needs the pubkey for copying some attributes (key version, creation time, etc)
+        if (!list_append(&key_ptrs, &pubkey, sizeof(pubkey))) {
             goto end;
         }
-        if (!rnp_key_store_add_key(&io, pubring, pubkey)) {
-            goto end;
-        }
-        if (!rnp_key_store_g10_from_mem(&io, pubring, key_store, *mem)) {
+        if (!rnp_key_store_g10_from_mem(
+              &io,
+              key_store,
+              *mem,
+              &(pgp_key_provider_t){.callback = rnp_key_provider_key_ptr_list,
+                                    .userdata = key_ptrs})) {
             goto end;
         }
     } break;
@@ -116,13 +123,9 @@ load_generated_key(pgp_output_t **    output,
         RNP_LOG("invalid key format %d", format);
         break;
     }
-    // if this is a subkey, go ahead and remove the primary added in earlier
-    if (primary_key) {
-        // if a primary key is provided, it should match the sub with regards to type
-        assert(pgp_is_key_secret(primary_key) == pgp_is_key_secret((pgp_key_t*)list_back(key_store->keys)));
-        *primary_key = *(pgp_key_t*)list_front(key_store->keys);
-        rnp_key_store_remove_key(&io, key_store, (pgp_key_t*)list_front(key_store->keys));
-    }
+    // if a primary key is provided, it should match the sub with regards to type
+    assert(!primary_key || (pgp_is_key_secret(primary_key) ==
+                            pgp_is_key_secret((pgp_key_t *) list_back(key_store->keys))));
     if (list_length(key_store->keys) != 1) {
         goto end;
     }
@@ -133,13 +136,10 @@ load_generated_key(pgp_output_t **    output,
 
 end:
     rnp_key_store_free(key_store);
-    if (pubring) {
-        rnp_key_store_remove_key(&io, pubring, (pgp_key_t *) list_front(pubring->keys));
-        rnp_key_store_free(pubring);
-    }
     pgp_teardown_memory_write(*output, *mem);
     *output = NULL;
     *mem = NULL;
+    list_destroy(&key_ptrs);
     return ok;
 }
 
@@ -564,7 +564,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         break;
     }
     // load the secret key back in
-    if (!load_generated_key(&output, &mem, subkey_sec, secformat, primary_sec, primary_pub)) {
+    if (!load_generated_key(&output, &mem, subkey_sec, secformat, primary_sec, subkey_pub)) {
         goto end;
     }
 

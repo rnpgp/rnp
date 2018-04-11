@@ -112,7 +112,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
         return rnp_key_store_ssh_load_keys(rnp, pubring, loadsecret ? rnp->secring : NULL);
     }
 
-    if (!rnp_key_store_load_from_file(rnp->io, pubring, 0, pubring)) {
+    if (!rnp_key_store_load_from_file(rnp->io, pubring, 0, &rnp->key_provider)) {
         fprintf(io->errs, "cannot read pub keyring\n");
         return false;
     }
@@ -125,7 +125,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
     /* Only read secret keys if we need to */
     if (loadsecret) {
         rnp_key_store_clear(secring);
-        if (!rnp_key_store_load_from_file(rnp->io, secring, 0, pubring)) {
+        if (!rnp_key_store_load_from_file(rnp->io, secring, 0, &rnp->key_provider)) {
             fprintf(io->errs, "cannot read sec keyring\n");
             return false;
         }
@@ -156,10 +156,10 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 }
 
 int
-rnp_key_store_load_from_file(pgp_io_t *       io,
-                             rnp_key_store_t *key_store,
-                             const unsigned   armor,
-                             rnp_key_store_t *pubring)
+rnp_key_store_load_from_file(pgp_io_t *                io,
+                             rnp_key_store_t *         key_store,
+                             const unsigned            armor,
+                             const pgp_key_provider_t *key_provider)
 {
     DIR *          dir;
     bool           rc;
@@ -198,7 +198,7 @@ rnp_key_store_load_from_file(pgp_io_t *       io,
             }
 
             // G10 may don't read one file, so, ignore it!
-            if (!rnp_key_store_g10_from_mem(io, pubring, key_store, &mem)) {
+            if (!rnp_key_store_g10_from_mem(io, key_store, &mem, key_provider)) {
                 fprintf(io->errs, "Can't parse file: %s\n", path);
             }
             pgp_memory_release(&mem);
@@ -212,7 +212,7 @@ rnp_key_store_load_from_file(pgp_io_t *       io,
         return false;
     }
 
-    rc = rnp_key_store_load_from_mem(io, key_store, armor, pubring, &mem);
+    rc = rnp_key_store_load_from_mem(io, key_store, armor, &mem, key_provider);
     pgp_memory_release(&mem);
     return rc;
 }
@@ -221,18 +221,18 @@ bool
 rnp_key_store_load_from_mem(pgp_io_t *       io,
                             rnp_key_store_t *key_store,
                             const unsigned   armor,
-                            rnp_key_store_t *pubring,
-                            pgp_memory_t *   memory)
+                            pgp_memory_t *   memory,
+                            const pgp_key_provider_t *key_provider)
 {
     switch (key_store->format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_read_from_mem(io, key_store, armor, memory);
+        return rnp_key_store_pgp_read_from_mem(io, key_store, armor, memory, key_provider);
 
     case KBX_KEY_STORE:
-        return rnp_key_store_kbx_from_mem(io, key_store, memory);
+        return rnp_key_store_kbx_from_mem(io, key_store, memory, key_provider);
 
     case G10_KEY_STORE:
-        return rnp_key_store_g10_from_mem(io, pubring, key_store, memory);
+        return rnp_key_store_g10_from_mem(io, key_store, memory, key_provider);
 
     default:
         fprintf(io->errs,
@@ -499,81 +499,20 @@ rnp_key_store_json(pgp_io_t *             io,
 }
 
 /* add a key to keyring */
-bool
-rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *key)
+pgp_key_t *
+rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
 {
+    pgp_key_t *added_key = NULL;
     if (io && rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "rnp_key_store_add_key\n");
     }
-
-    if (!list_append(&keyring->keys, key, sizeof(*key))) {
-        return false;
-    }
+    assert(srckey->type && srckey->key.pubkey.version);
+    added_key = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
     if (io && rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "rnp_key_store_add_key: keyc %lu\n", list_length(keyring->keys));
     }
 
-    return true;
-}
-
-bool
-rnp_key_store_add_keydata(pgp_io_t *         io,
-                          rnp_key_store_t *  keyring,
-                          pgp_keydata_key_t *keydata,
-                          pgp_key_t **       inserted,
-                          pgp_content_enum   tag)
-{
-    if (rnp_get_debug(__FILE__)) {
-        fprintf(io->errs, "rnp_key_store_add_keydata to key_store: %p\n", keyring);
-    }
-
-    list_item *key_item = list_append(&keyring->keys, NULL, sizeof(pgp_key_t));
-    if (!key_item) {
-        return false;
-    }
-    pgp_key_t *key = (pgp_key_t *) key_item;
-    if (!pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, &keydata->pubkey) ||
-        !pgp_fingerprint(&key->fingerprint, &keydata->pubkey) ||
-        !rnp_key_store_get_key_grip(&keydata->pubkey, key->grip)) {
-        list_remove(key_item);
-        return false;
-    }
-    key->type = tag;
-    key->key = *keydata;
-    // set the parent/primary grip, if applicable
-    if (pgp_key_is_subkey(key)) {
-        // find the last primary in the list
-        pgp_key_t *primary = NULL;
-        for (list_item *keyp = list_back(keyring->keys); keyp; keyp = list_prev(keyp)) {
-            if (pgp_key_is_primary_key((pgp_key_t *) keyp)) {
-                primary = (pgp_key_t *) keyp;
-                break;
-            }
-        }
-        // we never found the parent primary (malformed keyring perhaps)
-        if (!primary) {
-            return false;
-        }
-        key->primary_grip = malloc(PGP_FINGERPRINT_SIZE);
-        if (!key->primary_grip) {
-            return false;
-        }
-        memcpy(key->primary_grip, primary->grip, PGP_FINGERPRINT_SIZE);
-        if (!list_append(&primary->subkey_grips, key->grip, sizeof(key->grip))) {
-            free(key->primary_grip);
-            return false;
-        }
-    }
-    if (inserted) {
-        *inserted = key;
-    }
-
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(io->errs, "added key->keyid", key->keyid, PGP_KEY_ID_SIZE);
-        fprintf(io->errs, "rnp_key_store_add_keydata: keyc %lu\n", list_length(keyring->keys));
-    }
-
-    return true;
+    return added_key;
 }
 
 bool

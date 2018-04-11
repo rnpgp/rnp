@@ -372,7 +372,10 @@ rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
 }
 
 bool
-rnp_key_store_kbx_from_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_t *memory)
+rnp_key_store_kbx_from_mem(pgp_io_t *                io,
+                           rnp_key_store_t *         key_store,
+                           pgp_memory_t *            memory,
+                           const pgp_key_provider_t *key_provider)
 {
     size_t   has_bytes;
     uint8_t *buf;
@@ -422,7 +425,7 @@ rnp_key_store_kbx_from_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_
                 return false;
             }
 
-            if (!rnp_key_store_pgp_read_from_mem(io, key_store, 0, &mem)) {
+            if (!rnp_key_store_pgp_read_from_mem(io, key_store, 0, &mem, key_provider)) {
                 return false;
             }
         }

@@ -55,6 +55,7 @@
 #include <librekey/key_store_pgp.h>
 #include <librekey/key_store_g10.h>
 #include "crypto/s2k.h"
+#include "fingerprint.h"
 
 #include <rnp/rnp_sdk.h>
 #include <librepgp/validate.h>
@@ -116,6 +117,22 @@ pgp_key_t *
 pgp_key_new(void)
 {
     return calloc(1, sizeof(pgp_key_t));
+}
+
+bool
+pgp_key_from_keydata(pgp_key_t *key, pgp_keydata_key_t *keydata, const pgp_content_enum tag)
+{
+    assert(!key->key.pubkey.version);
+    assert(tag == PGP_PTAG_CT_PUBLIC_KEY || tag == PGP_PTAG_CT_PUBLIC_SUBKEY ||
+           tag == PGP_PTAG_CT_SECRET_KEY || tag == PGP_PTAG_CT_SECRET_SUBKEY);
+    if (!pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, &keydata->pubkey) ||
+        !pgp_fingerprint(&key->fingerprint, &keydata->pubkey) ||
+        !rnp_key_store_get_key_grip(&keydata->pubkey, key->grip)) {
+        return false;
+    }
+    key->type = tag;
+    key->key = *keydata;
+    return true;
 }
 
 void
@@ -1099,4 +1116,100 @@ find_suitable_key(pgp_op_t            op,
         subkey_grip = list_next(subkey_grip);
     }
     return NULL;
+}
+
+static const pgp_sig_info_t *
+get_subkey_binding(const pgp_key_t *subkey)
+{
+    // find the subkey binding signature
+    for (unsigned i = 0; i < subkey->subsigc; i++) {
+        const pgp_sig_info_t *sig = &subkey->subsigs[i].sig.info;
+
+        if (sig->type == PGP_SIG_SUBKEY) {
+            return sig;
+        }
+    }
+    return NULL;
+}
+
+static pgp_key_t *
+find_signer(pgp_io_t *                io,
+            const pgp_sig_info_t *    sig,
+            const rnp_key_store_t *   store,
+            const pgp_key_provider_t *key_provider, bool secret)
+{
+    pgp_key_search_t search;
+    pgp_key_t *key = NULL;
+
+    // prefer using the issuer fingerprint when available
+    if (sig->signer_fpr.length) {
+        search.type = PGP_KEY_SEARCH_FINGERPRINT;
+        search.by.fingerprint.length = sig->signer_fpr.length;
+        memcpy(search.by.fingerprint.fingerprint,
+               sig->signer_fpr.fingerprint,
+               sig->signer_fpr.length);
+        // search the store, if provided
+        if (store && (key = rnp_key_store_search(io, store, &search, NULL)) &&
+            pgp_is_key_secret(key) == secret) {
+            return key;
+        }
+        // try the key provider
+        if ((key = pgp_request_key(key_provider,
+                                  &(pgp_key_request_ctx_t){.op = PGP_OP_MERGE_INFO,
+                                                           .secret = secret,
+                                                           .search = search}))) {
+            return key;
+        }
+    }
+    if (sig->signer_id_set) {
+        search.type = PGP_KEY_SEARCH_KEYID;
+        memcpy(search.by.keyid, sig->signer_id, PGP_KEY_ID_SIZE);
+        // search the store, if provided
+        if (store && (key = rnp_key_store_search(io, store, &search, NULL)) &&
+            pgp_is_key_secret(key) == secret) {
+            return key;
+        }
+        if ((key = pgp_request_key(key_provider,
+                            &(pgp_key_request_ctx_t){
+                              .op = PGP_OP_MERGE_INFO, .secret = secret, .search = search}
+                            ))) {
+            return key;
+        }
+    }
+    return NULL;
+}
+
+/* Some background related to this function:
+ * Given that
+ * - It doesn't really make sense to support loading a subkey for which no primary is
+ *   available, because:
+ *   - We can't verify the binding signature without the primary.
+ *   - The primary holds the userids.
+ *   - The way we currently write keyrings out, orphan keys would be omitted.
+ * - The way we maintain a link between primary and sub is via:
+ *   - primary_grip in the subkey
+ *   - subkey_grips in the primary
+ *
+ * We clearly need the primary to be available when loading a subkey.
+ * Rather than requiring it to be loaded first, we just use the key provider.
+ */
+pgp_key_t *
+pgp_get_primary_key_for(pgp_io_t *                io,
+                         const pgp_key_t *         subkey,
+                         const rnp_key_store_t *   store,
+                         const pgp_key_provider_t *key_provider)
+{
+    const pgp_sig_info_t *binding_sig = NULL;
+
+    // find the subkey binding signature
+    binding_sig = get_subkey_binding(subkey);
+    if (!binding_sig) {
+        RNP_LOG_FD(io->errs, "Missing subkey binding signature for key.");
+        return NULL;
+    }
+    if (!binding_sig->signer_fpr.length && !binding_sig->signer_id_set) {
+        RNP_LOG_FD(io->errs, "No issuer information in subkey binding signature.");
+        return NULL;
+    }
+    return find_signer(io, binding_sig, store, key_provider, pgp_is_key_secret(subkey));
 }

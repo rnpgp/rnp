@@ -354,7 +354,7 @@ repgp_list_packets(const void *ctx, const repgp_handle_t *input, bool dump_conte
 
     const rnp_t *rnp = rctx->rnp;
     if (rnp->pubring && rnp->secring) {
-        if (!rnp_key_store_load_from_file(rnp->io, rnp->pubring, rctx->armor, rnp->pubring)) {
+        if (!rnp_key_store_load_from_file(rnp->io, rnp->pubring, rctx->armor, &rnp->key_provider)) {
             RNP_LOG("Keystore can't load data");
             return RNP_ERROR_GENERIC;
         }
