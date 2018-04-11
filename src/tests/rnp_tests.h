@@ -167,6 +167,8 @@ void test_stream_key_encrypt(void **state);
 
 void test_stream_key_signatures(void **state);
 
+void test_stream_dumper(void **state);
+
 #define rnp_assert_int_equal(state, a, b)           \
     do {                                            \
         int _rnp_a = (a);                           \
