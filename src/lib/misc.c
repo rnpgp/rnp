@@ -306,55 +306,6 @@ pgp_free_errors(pgp_error_t *errstack)
 }
 
 /**
-\ingroup Core_Hashes
-\brief Calculate hash for MDC packet
-\param preamble Preamble to hash
-\param sz_preamble Size of preamble
-\param plaintext Plaintext to hash
-\param sz_plaintext Size of plaintext
-\param hashed Resulting hash
-*/
-void
-pgp_calc_mdc_hash(const uint8_t *preamble,
-                  const size_t   sz_preamble,
-                  const uint8_t *plaintext,
-                  const unsigned sz_plaintext,
-                  uint8_t *      hashed)
-{
-    pgp_hash_t hash = {0};
-    uint8_t    c;
-
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "preamble", preamble, sz_preamble);
-        hexdump(stderr, "plaintext", plaintext, sz_plaintext);
-    }
-    /* init */
-    if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
-        (void) fprintf(stderr, "pgp_calc_mdc_hash: bad alloc\n");
-        /* we'll just continue here - it will die anyway */
-        /* agc - XXX - no way to return failure */
-    }
-
-    /* preamble */
-    pgp_hash_add(&hash, preamble, (unsigned) sz_preamble);
-    /* plaintext */
-    pgp_hash_add(&hash, plaintext, sz_plaintext);
-    /* MDC packet tag */
-    c = MDC_PKT_TAG;
-    pgp_hash_add(&hash, &c, 1);
-    /* MDC packet len */
-    c = PGP_SHA1_HASH_SIZE;
-    pgp_hash_add(&hash, &c, 1);
-
-    /* finish */
-    pgp_hash_finish(&hash, hashed);
-
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "hashed", hashed, PGP_SHA1_HASH_SIZE);
-    }
-}
-
-/**
 \ingroup HighLevel_Memory
 \brief Memory to initialise
 \param mem memory to initialise

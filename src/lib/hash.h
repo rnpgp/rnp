@@ -72,9 +72,6 @@ pgp_hash_alg_t pgp_str_to_hash_alg(const char *);
 
 unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
 
-void pgp_calc_mdc_hash(
-  const uint8_t *, const size_t, const uint8_t *, const unsigned, uint8_t *);
-
 const char *pgp_show_hash_alg(uint8_t);
 
 /* @brief   Returns output size of an digest algorithm

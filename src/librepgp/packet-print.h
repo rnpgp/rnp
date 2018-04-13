@@ -86,8 +86,6 @@ int repgp_sprint_json(pgp_io_t *,
                       const pgp_pubkey_t *,
                       const int);
 
-bool pgp_print_packet(pgp_cbdata_t *, const pgp_packet_t *);
-
 int pgp_sprint_key(pgp_io_t *,
                    const rnp_key_store_t *,
                    const pgp_key_t *,
@@ -108,13 +106,6 @@ int pgp_hkp_sprint_key(pgp_io_t *,
                        char **,
                        const pgp_pubkey_t *,
                        const int);
-void pgp_print_key(pgp_io_t *,
-                   const rnp_key_store_t *,
-                   const pgp_key_t *,
-                   const char *,
-                   const pgp_pubkey_t *,
-                   const int);
-void pgp_print_pubkey(size_t indent, const pgp_pubkey_t *);
 int pgp_sprint_pubkey(const pgp_key_t *, char *, size_t);
 
 #endif /* PACKET_PRINT_H_ */

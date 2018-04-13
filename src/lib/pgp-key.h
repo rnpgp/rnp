@@ -143,8 +143,6 @@ pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *,
                                  const pgp_password_provider_t *,
                                  const pgp_password_ctx_t *);
 
-void pgp_set_seckey(pgp_contents_t *, const pgp_key_t *);
-
 const unsigned char *pgp_get_key_id(const pgp_key_t *);
 
 unsigned pgp_get_userid_count(const pgp_key_t *);

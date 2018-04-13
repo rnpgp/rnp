@@ -738,37 +738,6 @@ pgp_output_delete(pgp_output_t *output)
     free(output);
 }
 
-/**
- \ingroup Core_Create
- \brief Calculate the checksum for a session key
- \param sesskey Session Key to use
- \param cs Checksum to be written
- \return 1 if OK; else 0
-*/
-unsigned
-pgp_calc_sesskey_checksum(pgp_pk_sesskey_t *sesskey, uint8_t cs[2])
-{
-    uint32_t checksum = 0;
-    unsigned i;
-
-    if (!pgp_is_sa_supported(sesskey->symm_alg)) {
-        return false;
-    }
-
-    for (i = 0; i < pgp_key_size(sesskey->symm_alg); i++) {
-        checksum += sesskey->key[i];
-    }
-    checksum = checksum % 65536;
-
-    cs[0] = (uint8_t)((checksum >> 8) & 0xff);
-    cs[1] = (uint8_t)(checksum & 0xff);
-
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "nm buf checksum:", cs, 2);
-    }
-    return true;
-}
-
 bool
 pgp_write_selfsig_cert(pgp_output_t *               output,
                        const pgp_seckey_t *         seckey,

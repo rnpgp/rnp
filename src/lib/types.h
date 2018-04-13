@@ -188,8 +188,6 @@ typedef struct pgp_pubkey_t {
     } key;                      /* Public Key Parameters */
 } pgp_pubkey_t;
 
-void pgp_calc_mdc_hash(
-  const uint8_t *, const size_t, const uint8_t *, const unsigned, uint8_t *);
 unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
 
 typedef struct pgp_key_t pgp_key_t;
@@ -564,20 +562,6 @@ typedef enum {
     PGP_LDT_LOCAL2 = '1'
 } pgp_litdata_enum;
 
-/** pgp_litdata_header_t */
-typedef struct {
-    pgp_litdata_enum format;
-    char             filename[256];
-    time_t           mtime;
-} pgp_litdata_header_t;
-
-/** pgp_litdata_body_t */
-typedef struct {
-    unsigned length;
-    uint8_t *data;
-    void *   mem; /* pgp_memory_t pointer */
-} pgp_litdata_body_t;
-
 /** pgp_header_var_t */
 typedef struct {
     char *key;
@@ -607,49 +591,6 @@ typedef struct pgp_dyn_body_t {
     unsigned length;
     uint8_t *data;
 } pgp_dyn_body_t;
-
-/** pgp_pk_sesskey_params_rsa_t */
-typedef struct {
-    bignum_t *encrypted_m;
-    bignum_t *m;
-} pgp_pk_sesskey_params_rsa_t;
-
-/** pgp_pk_sesskey_params_elgamal_t */
-typedef struct {
-    bignum_t *g_to_k;
-    bignum_t *encrypted_m;
-} pgp_pk_sesskey_params_elgamal_t;
-
-/** pgp_pk_sesskey_params_sm2_t */
-typedef struct {
-    bignum_t *encrypted_m;
-} pgp_pk_sesskey_params_sm2_t;
-
-/** pgp_pk_sesskey_params_elgamal_t */
-typedef struct {
-    uint8_t   encrypted_m[48];  // wrapped_key
-    unsigned  encrypted_m_size; // wrapped_key_size
-    bignum_t *ephemeral_point;
-} pgp_pk_sesskey_params_ecdh_t;
-
-/** pgp_pk_sesskey_params_t */
-typedef union {
-    pgp_pk_sesskey_params_rsa_t     rsa;
-    pgp_pk_sesskey_params_elgamal_t elgamal;
-    pgp_pk_sesskey_params_ecdh_t    ecdh;
-    pgp_pk_sesskey_params_sm2_t     sm2;
-} pgp_pk_sesskey_params_t;
-
-/** pgp_pk_sesskey_t */
-typedef struct {
-    unsigned                version;
-    uint8_t                 key_id[PGP_KEY_ID_SIZE];
-    pgp_pubkey_alg_t        alg;
-    pgp_pk_sesskey_params_t params;
-    pgp_symm_alg_t          symm_alg;
-    uint8_t                 key[PGP_MAX_KEY_SIZE];
-    uint16_t                checksum;
-} pgp_pk_sesskey_t;
 
 /** public-key encrypted session key packet, should replace pgp_pk_sesskey_t later */
 typedef struct {
@@ -696,12 +637,6 @@ typedef struct {
                                    * content */
 } pgp_seckey_password_t;
 
-/** pgp_get_seckey_t */
-typedef struct {
-    const pgp_seckey_t **   seckey;
-    const pgp_pk_sesskey_t *pk_sesskey;
-} pgp_get_seckey_t;
-
 /** pgp_parser_union_content_t */
 typedef union {
     const char *            error;
@@ -719,8 +654,6 @@ typedef union {
     uint8_t                 ss_issuer[PGP_KEY_ID_SIZE];
     pgp_ss_notation_t       ss_notation;
     pgp_rawpacket_t         packet;
-    pgp_compression_type_t  compressed;
-    pgp_one_pass_sig_t      one_pass_sig;
     pgp_data_t              ss_skapref;
     pgp_data_t              ss_hashpref;
     pgp_data_t              ss_zpref;
@@ -733,9 +666,6 @@ typedef union {
     pgp_ss_revocation_key_t ss_revocation_key;
     pgp_data_t              ss_userdef;
     pgp_data_t              ss_unknown;
-    pgp_litdata_header_t    litdata_header;
-    pgp_litdata_body_t      litdata_body;
-    pgp_dyn_body_t          mdc;
     pgp_data_t              ss_features;
     pgp_ss_sig_target_t     ss_sig_target;
     pgp_data_t              ss_embedded_sig;
@@ -745,16 +675,8 @@ typedef union {
     uint8_t *               ss_signer;
     pgp_armor_header_t      armor_header;
     const char *            armor_trailer;
-    pgp_headers_t           cleartext_head;
-    pgp_fixed_body_t        cleartext_body;
-    struct pgp_hash_t *     cleartext_trailer;
     pgp_dyn_body_t          unarmored_text;
-    pgp_pk_sesskey_t        pk_sesskey;
     pgp_seckey_password_t   skey_password;
-    unsigned                se_ip_data_header;
-    pgp_dyn_body_t          se_ip_data_body;
-    pgp_fixed_body_t        se_data_body;
-    pgp_get_seckey_t        get_seckey;
 } pgp_contents_t;
 
 /** pgp_packet_t */

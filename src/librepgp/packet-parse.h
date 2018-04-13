@@ -92,8 +92,6 @@ void pgp_pubkey_free(pgp_pubkey_t *);
 
 void pgp_seckey_free(pgp_seckey_t *);
 
-void pgp_pk_sesskey_free(pgp_pk_sesskey_t *);
-
 void pgp_userid_free(uint8_t **);
 
 void pgp_data_free(pgp_data_t *);
