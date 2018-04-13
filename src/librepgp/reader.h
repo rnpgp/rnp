@@ -79,9 +79,6 @@ bool pgp_reader_set_memory(pgp_stream_t *, const void *, size_t);
 void     pgp_reader_push_sum16(pgp_stream_t *);
 uint16_t pgp_reader_pop_sum16(pgp_stream_t *);
 
-void pgp_reader_push_se_ip_data(pgp_stream_t *, pgp_crypt_t *, pgp_region_t *);
-void pgp_reader_pop_se_ip_data(pgp_stream_t *);
-
 unsigned pgp_reader_set_accumulate(pgp_stream_t *, unsigned);
 
 /* file reading */

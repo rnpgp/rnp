@@ -78,7 +78,6 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 #include "writer.h"
 #include "memory.h"
 #include "utils.h"
-#include "compress.h"
 
 /*
  * return true if OK, otherwise false

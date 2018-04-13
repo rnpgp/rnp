@@ -198,22 +198,6 @@ rnp_result_t repgp_verify(const void *ctx, repgp_io_t *io);
 rnp_result_t repgp_decrypt(const void *ctx, repgp_io_t *io);
 
 /**
- * @brief   Lists all the packets from the input. Packets are printed
- *          to standard output.
- *
- * @param   ctx Initialized context
- * @param   input Input handle
- * @param   dump_content Indicates wether to dump whole packets in hex
- *
- * @returns RNP_SUCCESS operation successful
- *          RNP_ERROR_GENERIC Implementation error
- *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
- */
-rnp_result_t repgp_list_packets(const void *          ctx,
-                                const repgp_handle_t *input,
-                                bool                  dump_content);
-
-/**
  * @brief   Validate all signatures on a single key against the given keyring
  *
  * @param   ctx Context initialized with key ring

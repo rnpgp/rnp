@@ -491,18 +491,6 @@ done:
 
 /**
 \ingroup Core_Keys
-\brief Set secret key in content
-\param content Content to be set
-\param key Key to get secret key from
-*/
-void
-pgp_set_seckey(pgp_contents_t *cont, const pgp_key_t *key)
-{
-    *cont->get_seckey.seckey = &key->key.seckey;
-}
-
-/**
-\ingroup Core_Keys
 \brief Get Key ID from key
 \param key Key to get Key ID from
 \return Pointer to Key ID inside key

@@ -76,8 +76,6 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "crypto/rsa.h"
 #include "crypto/elgamal.h"
 #include "pgp-key.h"
-
-#include "compress.h"
 #include "packet-print.h"
 #include "packet-show.h"
 #include "reader.h"
@@ -443,17 +441,6 @@ limread(uint8_t *dest, unsigned length, pgp_region_t *region, pgp_stream_t *info
 {
     return pgp_limited_read(
       info, dest, length, region, &info->errors, &info->readinfo, &info->cbinfo);
-}
-
-static bool
-exact_limread(uint8_t *dest, unsigned len, pgp_region_t *region, pgp_stream_t *stream)
-{
-    bool ret;
-
-    stream->exact_read = 1;
-    ret = limread(dest, len, region, stream);
-    stream->exact_read = 0;
-    return ret;
 }
 
 /** Skip over length bytes of this packet.
@@ -895,17 +882,6 @@ headers_free(pgp_headers_t *headers)
 \brief Free allocated memory
 */
 static void
-cleartext_trailer_free(struct pgp_hash_t **trailer)
-{
-    free(*trailer);
-    *trailer = NULL;
-}
-
-/**
-\ingroup Core_Create
-\brief Free allocated memory
-*/
-static void
 cmd_get_password_free(pgp_seckey_password_t *skp)
 {
     if (skp->password && *skp->password) {
@@ -998,30 +974,15 @@ repgp_parser_content_free(pgp_packet_t *c)
     case PGP_PTAG_SS_PRIMARY_USER_ID:
     case PGP_PTAG_SS_REVOCABLE:
     case PGP_PTAG_SS_REVOCATION_KEY:
-    case PGP_PTAG_CT_LITDATA_HEADER:
-    case PGP_PTAG_CT_LITDATA_BODY:
-    case PGP_PTAG_CT_SIGNED_CLEARTEXT_BODY:
     case PGP_PTAG_CT_UNARMORED_TEXT:
     case PGP_PTAG_CT_ARMOR_TRAILER:
     case PGP_PTAG_CT_SIGNATURE_HEADER:
-    case PGP_PTAG_CT_SE_DATA_HEADER:
-    case PGP_PTAG_CT_SE_IP_DATA_HEADER:
-    case PGP_PTAG_CT_SE_IP_DATA_BODY:
-    case PGP_PTAG_CT_MDC:
     case PGP_GET_SECKEY:
     case PGP_PARSER_DONE:
         break;
 
-    case PGP_PTAG_CT_SIGNED_CLEARTEXT_HEADER:
-        headers_free(&c->u.cleartext_head);
-        break;
-
     case PGP_PTAG_CT_ARMOR_HEADER:
         headers_free(&c->u.armor_header.headers);
-        break;
-
-    case PGP_PTAG_CT_SIGNED_CLEARTEXT_TRAILER:
-        cleartext_trailer_free(&c->u.cleartext_trailer);
         break;
 
     case PGP_PTAG_CT_TRUST:
@@ -1141,45 +1102,12 @@ repgp_parser_content_free(pgp_packet_t *c)
         pgp_seckey_free(&c->u.seckey);
         break;
 
-    case PGP_PTAG_CT_PK_SESSION_KEY:
-    case PGP_PTAG_CT_ENCRYPTED_PK_SESSION_KEY:
-        pgp_pk_sesskey_free(&c->u.pk_sesskey);
-        break;
-
     case PGP_GET_PASSWORD:
         cmd_get_password_free(&c->u.skey_password);
         break;
 
     default:
         fprintf(stderr, "Can't free %d (0x%x)\n", c->tag, c->tag);
-    }
-}
-
-/**
-\ingroup Core_Create
-\brief Free allocated memory
-*/
-void
-pgp_pk_sesskey_free(pgp_pk_sesskey_t *sk)
-{
-    switch (sk->alg) {
-    case PGP_PKA_RSA:
-        free_BN(&sk->params.rsa.encrypted_m);
-        break;
-    case PGP_PKA_SM2:
-        free_BN(&sk->params.sm2.encrypted_m);
-        break;
-
-    case PGP_PKA_ELGAMAL:
-        free_BN(&sk->params.elgamal.g_to_k);
-        free_BN(&sk->params.elgamal.encrypted_m);
-        break;
-    case PGP_PKA_ECDH:
-        free_BN(&sk->params.ecdh.ephemeral_point);
-        break;
-    default:
-        RNP_LOG("Unsupported algorithm");
-        break;
     }
 }
 
@@ -2240,109 +2168,6 @@ parse_sig(pgp_region_t *region, pgp_stream_t *stream)
 
 /**
  \ingroup Core_ReadPackets
- \brief Parse Compressed packet
-*/
-static bool
-parse_compressed(pgp_region_t *region, pgp_stream_t *stream)
-{
-    pgp_packet_t pkt = {0};
-    uint8_t      c = 0x0;
-
-    if (!limread(&c, 1, region, stream)) {
-        return false;
-    }
-
-    pkt.u.compressed = (pgp_compression_type_t) c;
-
-    CALLBACK(PGP_PTAG_CT_COMPRESSED, &stream->cbinfo, &pkt);
-
-    /*
-     * The content of a compressed data packet is more OpenPGP packets
-     * once decompressed, so recursively handle them
-     */
-
-    return pgp_decompress(region, stream, pkt.u.compressed);
-}
-
-/* XXX: this could be improved by sharing all hashes that are the */
-/* same, then duping them just before checking the signature. */
-static void
-parse_hash_init(pgp_stream_t *stream, pgp_hash_alg_t type, const uint8_t *keyid)
-{
-    pgp_hashtype_t *hash;
-
-    hash = realloc(stream->hashes, (stream->hashc + 1) * sizeof(*stream->hashes));
-    if (hash == NULL) {
-        (void) fprintf(stderr, "parse_hash_init: bad alloc 0\n");
-        /* just continue and die here */
-        /* XXX - agc - no way to return failure */
-    } else {
-        stream->hashes = hash;
-    }
-    hash = &stream->hashes[stream->hashc++];
-
-    if (!pgp_hash_create(&hash->hash, type)) {
-        (void) fprintf(stderr, "parse_hash_init: bad alloc\n");
-        /* just continue and die here */
-        /* XXX - agc - no way to return failure */
-    }
-    (void) memcpy(hash->keyid, keyid, sizeof(hash->keyid));
-}
-
-/**
-   \ingroup Core_ReadPackets
-   \brief Parse a One Pass Signature packet
-*/
-static bool
-parse_one_pass(pgp_region_t *region, pgp_stream_t *stream)
-{
-    pgp_packet_t pkt = {0};
-    uint8_t      c = 0x0;
-
-    if (!limread(&pkt.u.one_pass_sig.version, 1, region, stream)) {
-        return false;
-    }
-    if (pkt.u.one_pass_sig.version != 3) {
-        PGP_ERROR_1(&stream->errors,
-                    PGP_E_PROTO_BAD_ONE_PASS_SIG_VRSN,
-                    "Bad one-pass signature version (%d)",
-                    pkt.u.one_pass_sig.version);
-        return false;
-    }
-    if (!limread(&c, 1, region, stream)) {
-        return false;
-    }
-    pkt.u.one_pass_sig.type = (pgp_sig_type_t) c;
-
-    if (!limread(&c, 1, region, stream)) {
-        return false;
-    }
-    pkt.u.one_pass_sig.halg = (pgp_hash_alg_t) c;
-
-    if (!limread(&c, 1, region, stream)) {
-        return false;
-    }
-    pkt.u.one_pass_sig.palg = (pgp_pubkey_alg_t) c;
-
-    if (!limread(pkt.u.one_pass_sig.keyid,
-                 (unsigned) sizeof(pkt.u.one_pass_sig.keyid),
-                 region,
-                 stream)) {
-        return false;
-    }
-
-    if (!limread(&c, 1, region, stream)) {
-        return false;
-    }
-    pkt.u.one_pass_sig.nested = !!c;
-    CALLBACK(PGP_PTAG_CT_1_PASS_SIG, &stream->cbinfo, &pkt);
-    /* XXX: we should, perhaps, let the app choose whether to hash or not */
-    parse_hash_init(stream, pkt.u.one_pass_sig.halg, pkt.u.one_pass_sig.keyid);
-    return true;
-}
-
-/**
- \ingroup Core_ReadPackets
  \brief Parse a Trust packet
 */
 static bool
@@ -2354,65 +2179,6 @@ parse_trust(pgp_region_t *region, pgp_stream_t *stream)
         return false;
     }
     CALLBACK(PGP_PTAG_CT_TRUST, &stream->cbinfo, &pkt);
-    return true;
-}
-
-static void
-parse_hash_data(pgp_stream_t *stream, const void *data, size_t length)
-{
-    size_t n;
-
-    for (n = 0; n < stream->hashc; ++n) {
-        pgp_hash_add(&stream->hashes[n].hash, data, (unsigned) length);
-    }
-}
-
-/**
-   \ingroup Core_ReadPackets
-   \brief Parse a Literal Data packet
-*/
-static bool
-parse_litdata(pgp_region_t *region, pgp_stream_t *stream)
-{
-    pgp_memory_t *mem;
-    pgp_packet_t  pkt = {0};
-    uint8_t       c = 0x0;
-
-    if (!limread(&c, 1, region, stream)) {
-        return false;
-    }
-    pkt.u.litdata_header.format = (pgp_litdata_enum) c;
-    if (!limread(&c, 1, region, stream)) {
-        return false;
-    }
-    if (!limread((uint8_t *) pkt.u.litdata_header.filename, (unsigned) c, region, stream)) {
-        return false;
-    }
-    pkt.u.litdata_header.filename[c] = '\0';
-    if (!limited_read_time(&pkt.u.litdata_header.mtime, region, stream)) {
-        return false;
-    }
-    CALLBACK(PGP_PTAG_CT_LITDATA_HEADER, &stream->cbinfo, &pkt);
-    mem = pkt.u.litdata_body.mem = pgp_memory_new();
-    if (mem == NULL) {
-        (void) fprintf(stderr, "can't allocate mem\n");
-        return false;
-    }
-    pgp_memory_init(pkt.u.litdata_body.mem, (unsigned) ((region->length * 101) / 100) + 12);
-    pkt.u.litdata_body.data = mem->buf;
-
-    while (region->readc < region->length) {
-        unsigned readc = region->length - region->readc;
-
-        if (!limread(mem->buf, readc, region, stream)) {
-            return false;
-        }
-        pkt.u.litdata_body.length = readc;
-        parse_hash_data(stream, pkt.u.litdata_body.data, region->length);
-        CALLBACK(PGP_PTAG_CT_LITDATA_BODY, &stream->cbinfo, &pkt);
-    }
-
-    pgp_memory_free(mem);
     return true;
 }
 
@@ -2526,10 +2292,6 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     (void) memset(&pkt, 0x0, sizeof(pkt));
     if (!parse_pubkey_data(&pkt.u.seckey.pubkey, region, stream)) {
         return false;
-    }
-    if (rnp_get_debug(__FILE__)) {
-        fprintf(stderr, "parse_seckey: public key parsed\n");
-        pgp_print_pubkey(0, &pkt.u.seckey.pubkey);
     }
     stream->reading_v3_secret = (pkt.u.seckey.pubkey.version != PGP_V4);
 
@@ -2790,392 +2552,6 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 }
 
 /**
-   \ingroup Core_ReadPackets
-   \brief Parse a Public Key Session Key packet
-*/
-static bool
-parse_pk_sesskey(pgp_region_t *region, pgp_stream_t *stream)
-{
-    const pgp_seckey_t *secret;
-    pgp_packet_t        sesskey;
-    pgp_packet_t        pkt;
-    uint8_t             c = 0x0;
-    uint8_t             cs[2];
-    unsigned            k;
-    bignum_t *          g_to_k = NULL;
-    bignum_t *          enc_m = NULL;
-    int                 n;
-    uint8_t             unencoded_m_buf[1024];
-
-    if (!limread(&c, 1, region, stream)) {
-        (void) fprintf(stderr, "parse_pk_sesskey - can't read char in region\n");
-        return false;
-    }
-    pkt.u.pk_sesskey.version = c;
-    if (pkt.u.pk_sesskey.version != 3) {
-        PGP_ERROR_1(&stream->errors,
-                    PGP_E_PROTO_BAD_PKSK_VRSN,
-                    "Bad public-key encrypted session key version (%d)",
-                    pkt.u.pk_sesskey.version);
-        return false;
-    }
-    if (!limread(pkt.u.pk_sesskey.key_id,
-                 (unsigned) sizeof(pkt.u.pk_sesskey.key_id),
-                 region,
-                 stream)) {
-        return false;
-    }
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr,
-                "sesskey: pubkey id",
-                pkt.u.pk_sesskey.key_id,
-                sizeof(pkt.u.pk_sesskey.key_id));
-    }
-    if (!limread(&c, 1, region, stream)) {
-        return false;
-    }
-    pkt.u.pk_sesskey.alg = (pgp_pubkey_alg_t) c;
-    switch (pkt.u.pk_sesskey.alg) {
-    case PGP_PKA_RSA:
-        if (!limread_mpi(&pkt.u.pk_sesskey.params.rsa.encrypted_m, region, stream)) {
-            return false;
-        }
-        enc_m = pkt.u.pk_sesskey.params.rsa.encrypted_m;
-        g_to_k = NULL;
-        break;
-    case PGP_PKA_SM2:
-        if (!limread_mpi(&pkt.u.pk_sesskey.params.sm2.encrypted_m, region, stream)) {
-            return false;
-        }
-        enc_m = pkt.u.pk_sesskey.params.sm2.encrypted_m;
-        break;
-
-    case PGP_PKA_DSA:
-    case PGP_PKA_ELGAMAL:
-        if (!limread_mpi(&pkt.u.pk_sesskey.params.elgamal.g_to_k, region, stream) ||
-            !limread_mpi(&pkt.u.pk_sesskey.params.elgamal.encrypted_m, region, stream)) {
-            return false;
-        }
-        g_to_k = pkt.u.pk_sesskey.params.elgamal.g_to_k;
-        enc_m = pkt.u.pk_sesskey.params.elgamal.encrypted_m;
-        break;
-
-    case PGP_PKA_ECDH:
-        if (!limread_mpi(&pkt.u.pk_sesskey.params.ecdh.ephemeral_point, region, stream) ||
-            !limread_scalar(
-              &pkt.u.pk_sesskey.params.ecdh.encrypted_m_size, 1, region, stream) ||
-            (pkt.u.pk_sesskey.params.ecdh.encrypted_m_size > ECDH_WRAPPED_KEY_SIZE) ||
-            !limread(pkt.u.pk_sesskey.params.ecdh.encrypted_m,
-                     pkt.u.pk_sesskey.params.ecdh.encrypted_m_size,
-                     region,
-                     stream)) {
-            return false;
-        }
-        g_to_k = pkt.u.pk_sesskey.params.ecdh.ephemeral_point;
-        enc_m = bn_bin2bn(pkt.u.pk_sesskey.params.ecdh.encrypted_m,
-                          pkt.u.pk_sesskey.params.ecdh.encrypted_m_size,
-                          enc_m);
-        break;
-
-    default:
-        PGP_ERROR_1(&stream->errors,
-                    PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG,
-                    "Unknown public key algorithm in session key (%s)",
-                    pgp_show_pka(pkt.u.pk_sesskey.alg));
-        return false;
-    }
-
-    (void) memset(&sesskey, 0x0, sizeof(sesskey));
-    secret = NULL;
-    sesskey.u.get_seckey.seckey = &secret;
-    sesskey.u.get_seckey.pk_sesskey = &pkt.u.pk_sesskey;
-
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr, "getting secret key via callback\n");
-    }
-
-    CALLBACK(PGP_GET_SECKEY, &stream->cbinfo, &sesskey);
-
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr, "got secret key via callback\n");
-    }
-    if (!secret) {
-        CALLBACK(PGP_PTAG_CT_ENCRYPTED_PK_SESSION_KEY, &stream->cbinfo, &pkt);
-        return true;
-    }
-
-    n = pgp_decrypt_decode_mpi(stream->decrypt.rng,
-                               unencoded_m_buf,
-                               (unsigned) sizeof(unencoded_m_buf),
-                               g_to_k,
-                               enc_m,
-                               secret);
-
-    if (n < 1) {
-        ERRP(&stream->cbinfo, pkt, "decrypted message too short");
-        return false;
-    }
-
-    /* PKA */
-    pkt.u.pk_sesskey.symm_alg = (pgp_symm_alg_t) unencoded_m_buf[0];
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr, "symm alg %d\n", pkt.u.pk_sesskey.symm_alg);
-    }
-
-    if (!pgp_is_sa_supported(pkt.u.pk_sesskey.symm_alg)) {
-        /* ERR1P */
-        PGP_ERROR_1(&stream->errors,
-                    PGP_E_ALG_UNSUPPORTED_SYMMETRIC_ALG,
-                    "Symmetric algorithm %s not supported",
-                    pgp_show_symm_alg(pkt.u.pk_sesskey.symm_alg));
-        return false;
-    }
-    k = pgp_key_size(pkt.u.pk_sesskey.symm_alg);
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr, "key size %d\n", k);
-    }
-
-    if ((unsigned) n != k + 3) {
-        PGP_ERROR_2(&stream->errors,
-                    PGP_E_PROTO_DECRYPTED_MSG_WRONG_LEN,
-                    "decrypted message wrong length (got %d expected %d)",
-                    n,
-                    k + 3);
-        return false;
-    }
-    if (k > sizeof(pkt.u.pk_sesskey.key)) {
-        (void) fprintf(stderr, "parse_pk_sesskey: bad keylength\n");
-        return false;
-    }
-
-    (void) memcpy(pkt.u.pk_sesskey.key, unencoded_m_buf + 1, k);
-
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "recovered sesskey", pkt.u.pk_sesskey.key, k);
-    }
-    pkt.u.pk_sesskey.checksum = unencoded_m_buf[k + 1] + (unencoded_m_buf[k + 2] << 8);
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr,
-                       "session key checksum: %2x %2x\n",
-                       unencoded_m_buf[k + 1],
-                       unencoded_m_buf[k + 2]);
-    }
-
-    /* Check checksum */
-    pgp_calc_sesskey_checksum(&pkt.u.pk_sesskey, &cs[0]);
-    if (unencoded_m_buf[k + 1] != cs[0] || unencoded_m_buf[k + 2] != cs[1]) {
-        PGP_ERROR_4(&stream->errors,
-                    PGP_E_PROTO_BAD_SK_CHECKSUM,
-                    "Session key checksum wrong: expected %2x %2x, got %2x %2x",
-                    cs[0],
-                    cs[1],
-                    unencoded_m_buf[k + 1],
-                    unencoded_m_buf[k + 2]);
-        return false;
-    }
-
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr, "getting pk session key via callback\n");
-    }
-    /* all is well */
-    CALLBACK(PGP_PTAG_CT_PK_SESSION_KEY, &stream->cbinfo, &pkt);
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr, "got pk session key via callback\n");
-    }
-
-    if (!pgp_cipher_cfb_start(
-          &stream->decrypt, pkt.u.pk_sesskey.symm_alg, pkt.u.pk_sesskey.key, NULL))
-        return false;
-
-    return true;
-}
-
-static pgp_crypt_t *
-pgp_get_decrypt(pgp_stream_t *stream)
-{
-    return (stream->decrypt.alg) ? &stream->decrypt : NULL;
-}
-
-static bool
-decrypt_se_data(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
-{
-    pgp_crypt_t *decrypt;
-    const int    printerrors = 1;
-    int          r = true;
-
-    decrypt = pgp_get_decrypt(stream);
-    if (decrypt) {
-        pgp_region_t encregion;
-        unsigned     b = (unsigned) pgp_cipher_block_size(decrypt);
-        uint8_t      buf[PGP_MAX_BLOCK_SIZE + 2] = "";
-
-        pgp_reader_push_decrypt(stream, decrypt, region);
-
-        pgp_init_subregion(&encregion, NULL);
-        encregion.length = b + 2;
-
-        stream->resync = tag == PGP_PTAG_CT_SE_DATA_BODY;
-        if (!exact_limread(buf, b + 2, &encregion, stream)) {
-            return false;
-        }
-        stream->resync = 0;
-        if (buf[b - 2] != buf[b] || buf[b - 1] != buf[b + 1]) {
-            pgp_reader_pop_decrypt(stream);
-            PGP_ERROR_4(&stream->errors,
-                        PGP_E_PROTO_BAD_SYMMETRIC_DECRYPT,
-                        "Bad symmetric decrypt (%02x%02x vs %02x%02x)",
-                        buf[b - 2],
-                        buf[b - 1],
-                        buf[b],
-                        buf[b + 1]);
-            return false;
-        }
-        r = repgp_parse(stream, !printerrors);
-
-        pgp_reader_pop_decrypt(stream);
-    } else {
-        pgp_packet_t pkt;
-
-        while (region->readc < region->length) {
-            unsigned len;
-
-            len = region->length - region->readc;
-            if (len > sizeof(pkt.u.se_data_body.data))
-                len = sizeof(pkt.u.se_data_body.data);
-
-            if (!limread(pkt.u.se_data_body.data, len, region, stream)) {
-                return false;
-            }
-            pkt.u.se_data_body.length = len;
-            CALLBACK(tag, &stream->cbinfo, &pkt);
-        }
-    }
-
-    return r;
-}
-
-static bool
-decrypt_se_ip_data(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
-{
-    pgp_crypt_t *decrypt;
-    const int    printerrors = 1;
-    int          r = true;
-
-    decrypt = pgp_get_decrypt(stream);
-    if (decrypt) {
-        if (rnp_get_debug(__FILE__)) {
-            (void) fprintf(stderr, "decrypt_se_ip_data: decrypt\n");
-        }
-        pgp_reader_push_decrypt(stream, decrypt, region);
-        pgp_reader_push_se_ip_data(stream, decrypt, region);
-
-        r = repgp_parse(stream, !printerrors);
-
-        pgp_reader_pop_se_ip_data(stream);
-        pgp_reader_pop_decrypt(stream);
-    } else {
-        pgp_packet_t pkt;
-
-        if (rnp_get_debug(__FILE__)) {
-            (void) fprintf(stderr, "decrypt_se_ip_data: no decrypt\n");
-        }
-        while (region->readc < region->length) {
-            unsigned len;
-
-            len = region->length - region->readc;
-            if (len > sizeof(pkt.u.se_data_body.data)) {
-                len = sizeof(pkt.u.se_data_body.data);
-            }
-
-            if (!limread(pkt.u.se_data_body.data, len, region, stream)) {
-                return false;
-            }
-
-            pkt.u.se_data_body.length = len;
-
-            CALLBACK(tag, &stream->cbinfo, &pkt);
-        }
-    }
-
-    return r;
-}
-
-/**
-   \ingroup Core_ReadPackets
-   \brief Read a Symmetrically Encrypted packet
-*/
-static bool
-parse_se_data(pgp_region_t *region, pgp_stream_t *stream)
-{
-    pgp_packet_t pkt = {0};
-
-    /* there's no info to go with this, so just announce it */
-    CALLBACK(PGP_PTAG_CT_SE_DATA_HEADER, &stream->cbinfo, &pkt);
-
-    /*
-     * The content of an encrypted data packet is more OpenPGP packets
-     * once decrypted, so recursively handle them
-     */
-    return decrypt_se_data(PGP_PTAG_CT_SE_DATA_BODY, region, stream);
-}
-
-/**
-   \ingroup Core_ReadPackets
-   \brief Read a Symmetrically Encrypted Integrity Protected packet
-*/
-static bool
-parse_se_ip_data(pgp_region_t *region, pgp_stream_t *stream)
-{
-    pgp_packet_t pkt = {0};
-    uint8_t      c = 0x0;
-
-    if (!limread(&c, 1, region, stream)) {
-        return false;
-    }
-    pkt.u.se_ip_data_header = c;
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr, "parse_se_ip_data: data header %d\n", c);
-    }
-    if (pkt.u.se_ip_data_header != PGP_SE_IP_DATA_VERSION) {
-        (void) fprintf(stderr, "parse_se_ip_data: bad version\n");
-        return false;
-    }
-
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(
-          stderr, "parse_se_ip_data: region %d,%d\n", region->readc, region->length);
-        hexdump(stderr, "compressed region", stream->virtualpkt, stream->virtualc);
-    }
-    /*
-     * The content of an encrypted data packet is more OpenPGP packets
-     * once decrypted, so recursively handle them
-     */
-    return decrypt_se_ip_data(PGP_PTAG_CT_SE_IP_DATA_BODY, region, stream);
-}
-
-/**
-   \ingroup Core_ReadPackets
-   \brief Read a MDC packet
-*/
-static bool
-parse_mdc(pgp_region_t *region, pgp_stream_t *stream)
-{
-    pgp_packet_t pkt = {0};
-
-    pkt.u.mdc.length = PGP_SHA1_HASH_SIZE;
-    if ((pkt.u.mdc.data = calloc(1, PGP_SHA1_HASH_SIZE)) == NULL) {
-        (void) fprintf(stderr, "parse_mdc: bad alloc\n");
-        return false;
-    }
-    if (!limread(pkt.u.mdc.data, PGP_SHA1_HASH_SIZE, region, stream)) {
-        return false;
-    }
-    CALLBACK(PGP_PTAG_CT_MDC, &stream->cbinfo, &pkt);
-    free(pkt.u.mdc.data);
-    return true;
-}
-
-/**
  * \ingroup Core_ReadPackets
  * \brief Parse one packet.
  *
@@ -3267,57 +2643,23 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
     case PGP_PTAG_CT_SIGNATURE:
         ret = parse_sig(&region, stream);
         break;
-
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
         ret = parse_pubkey((pgp_content_enum) pkt.u.ptag.type, &region, stream);
         break;
-
     case PGP_PTAG_CT_TRUST:
         ret = parse_trust(&region, stream);
         break;
-
     case PGP_PTAG_CT_USER_ID:
         ret = parse_userid(&region, stream);
         break;
-
-    case PGP_PTAG_CT_COMPRESSED:
-        ret = parse_compressed(&region, stream);
-        break;
-
-    case PGP_PTAG_CT_1_PASS_SIG:
-        ret = parse_one_pass(&region, stream);
-        break;
-
-    case PGP_PTAG_CT_LITDATA:
-        ret = parse_litdata(&region, stream);
-        break;
-
     case PGP_PTAG_CT_USER_ATTR:
         ret = parse_userattr(&region, stream);
         break;
-
     case PGP_PTAG_CT_SECRET_KEY:
     case PGP_PTAG_CT_SECRET_SUBKEY:
         ret = parse_seckey((pgp_content_enum) pkt.u.ptag.type, &region, stream);
         break;
-
-    case PGP_PTAG_CT_PK_SESSION_KEY:
-        ret = parse_pk_sesskey(&region, stream);
-        break;
-
-    case PGP_PTAG_CT_SE_DATA:
-        ret = parse_se_data(&region, stream);
-        break;
-
-    case PGP_PTAG_CT_SE_IP_DATA:
-        ret = parse_se_ip_data(&region, stream);
-        break;
-
-    case PGP_PTAG_CT_MDC:
-        ret = parse_mdc(&region, stream);
-        break;
-
     default:
         PGP_ERROR_1(
           &stream->errors, PGP_E_P_UNKNOWN_TAG, "Unknown content tag 0x%x", pkt.u.ptag.type);
