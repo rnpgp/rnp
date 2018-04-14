@@ -36,6 +36,7 @@
 #include <json_object.h>
 #include <librepgp/packet-show.h>
 #include <librepgp/stream-common.h>
+#include <librepgp/stream-armor.h>
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-write.h>
 #include <librepgp/stream-sig.h>
@@ -783,14 +784,11 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
             goto done;
         }
         if (!rnp_key_store_load_from_file(&ffi->io, store, 0, &key_provider)) {
-            // for the GPG format, we try again with armored=true
-            if (store->format != GPG_KEY_STORE ||
-                !rnp_key_store_load_from_file(&ffi->io, store, 1, &key_provider)) {
-                ret = RNP_ERROR_BAD_FORMAT;
-                goto done;
-            }
+            ret = RNP_ERROR_BAD_FORMAT;
+            goto done;
         }
     } else {
+        bool armored = is_armored_source(&input->src);
         // read in the full data (streaming isn't currently supported)
         rnp_result_t tmpret = read_all_input(&input->src, &buf, &buf_len);
         if (tmpret) {
@@ -799,13 +797,9 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
         }
         // load the keys
         pgp_memory_t mem = {.buf = buf, .length = buf_len};
-        if (!rnp_key_store_load_from_mem(&ffi->io, store, 0, &mem, &key_provider)) {
-            // for the GPG format, we try again with armored=true
-            if (store->format != GPG_KEY_STORE ||
-                !rnp_key_store_load_from_mem(&ffi->io, store, 1, &mem, &key_provider)) {
-                ret = RNP_ERROR_BAD_FORMAT;
-                goto done;
-            }
+        if (!rnp_key_store_load_from_mem(&ffi->io, store, armored, &mem, &key_provider)) {
+            ret = RNP_ERROR_BAD_FORMAT;
+            goto done;
         }
     }
 
