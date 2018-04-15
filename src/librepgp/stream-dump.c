@@ -45,7 +45,82 @@
 #include "list.h"
 #include "packet-parse.h"
 #include "crypto.h"
+#include "crypto/s2k.h"
 #include "utils.h"
+
+static pgp_map_t sig_type_map[] = {
+  {PGP_SIG_BINARY, "Signature of a binary document"},
+  {PGP_SIG_TEXT, "Signature of a canonical text document"},
+  {PGP_SIG_STANDALONE, "Standalone signature"},
+  {PGP_CERT_GENERIC, "Generic certification of a User ID and Public Key packet"},
+  {PGP_CERT_PERSONA, "Personal certification of a User ID and Public Key packet"},
+  {PGP_CERT_CASUAL, "Casual certification of a User ID and Public Key packet"},
+  {PGP_CERT_POSITIVE, "Positive certification of a User ID and Public Key packet"},
+  {PGP_SIG_SUBKEY, "Subkey Binding Signature"},
+  {PGP_SIG_PRIMARY, "Primary Key Binding Signature"},
+  {PGP_SIG_DIRECT, "Signature directly on a key"},
+  {PGP_SIG_REV_KEY, "Key revocation signature"},
+  {PGP_SIG_REV_SUBKEY, "Subkey revocation signature"},
+  {PGP_SIG_REV_CERT, "Certification revocation signature"},
+  {PGP_SIG_TIMESTAMP, "Timestamp signature"},
+  {PGP_SIG_3RD_PARTY, "Third-Party Confirmation signature"},
+  {0x00, NULL}, /* this is the end-of-array marker */
+};
+
+static pgp_map_t key_type_map[] = {
+  {PGP_PTAG_CT_SECRET_KEY, "Secret key"},
+  {PGP_PTAG_CT_PUBLIC_KEY, "Public key"},
+  {PGP_PTAG_CT_SECRET_SUBKEY, "Secret subkey"},
+  {PGP_PTAG_CT_PUBLIC_SUBKEY, "Public subkey"},
+  {0x00, NULL},
+};
+
+static pgp_map_t pubkey_alg_map[] = {
+  {PGP_PKA_RSA, "RSA"},
+  {PGP_PKA_RSA_ENCRYPT_ONLY, "RSA (Encrypt-Only)"},
+  {PGP_PKA_RSA_SIGN_ONLY, "RSA (Sign-Only)"},
+  {PGP_PKA_ELGAMAL, "Elgamal (Encrypt-Only)"},
+  {PGP_PKA_DSA, "DSA"},
+  {PGP_PKA_ECDH, "ECDH"},
+  {PGP_PKA_ECDSA, "ECDSA"},
+  {PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN, "Elgamal"},
+  {PGP_PKA_RESERVED_DH, "Reserved for DH (X9.42)"},
+  {PGP_PKA_EDDSA, "EdDSA"},
+  {PGP_PKA_SM2, "SM2"},
+  {0x00, NULL}, /* this is the end-of-array marker */
+};
+
+static pgp_map_t symm_alg_map[] = {
+  {PGP_SA_PLAINTEXT, "Plaintext"},
+  {PGP_SA_IDEA, "IDEA"},
+  {PGP_SA_TRIPLEDES, "TripleDES"},
+  {PGP_SA_CAST5, "CAST5"},
+  {PGP_SA_BLOWFISH, "Blowfish"},
+  {PGP_SA_AES_128, "AES-128"},
+  {PGP_SA_AES_192, "AES-192"},
+  {PGP_SA_AES_256, "AES-256"},
+  {PGP_SA_TWOFISH, "Twofish"},
+  {PGP_SA_CAMELLIA_128, "Camellia-128"},
+  {PGP_SA_CAMELLIA_192, "Camellia-192"},
+  {PGP_SA_CAMELLIA_256, "Camellia-256"},
+  {PGP_SA_SM4, "SM4"},
+  {0x00, NULL}, /* this is the end-of-array marker */
+};
+
+static pgp_map_t compression_alg_map[] = {
+  {PGP_C_NONE, "Uncompressed"},
+  {PGP_C_ZIP, "ZIP"},
+  {PGP_C_ZLIB, "ZLIB"},
+  {PGP_C_BZIP2, "BZip2"},
+  {0x00, NULL}, /* this is the end-of-array marker */
+};
+
+static pgp_map_t aead_alg_map[] = {
+  {PGP_AEAD_NONE, "None"},
+  {PGP_AEAD_EAX, "EAX"},
+  {PGP_AEAD_OCB, "OCB"},
+  {0x00, NULL}, /* this is the end-of-array marker */
+};
 
 typedef struct pgp_dest_indent_param_t {
     int         level;
@@ -166,6 +241,56 @@ dst_print_mpi(pgp_dest_t *dst, const char *name, pgp_mpi_t *mpi, bool dumpbin)
     }
 }
 
+static void
+dst_print_palg(pgp_dest_t *dst, const char *name, pgp_pubkey_alg_t palg)
+{
+    const char *palg_name = pgp_str_from_map(palg, pubkey_alg_map);
+    if (!name) {
+        name = "public key algorithm";
+    }
+
+    dst_printf(dst, "%s: %d (%s)\n", name, (int) palg, palg_name);
+}
+
+static void
+dst_print_halg(pgp_dest_t *dst, const char *name, pgp_hash_alg_t halg)
+{
+    const char *halg_name = pgp_show_hash_alg(halg);
+    if (!name) {
+        name = "hash algorithm";
+    }
+
+    dst_printf(dst, "%s: %d (%s)\n", name, (int) halg, halg_name);
+}
+
+static void
+dst_print_salg(pgp_dest_t *dst, const char *name, pgp_symm_alg_t salg)
+{
+    const char *salg_name = pgp_str_from_map(salg, symm_alg_map);
+    if (!name) {
+        name = "symmetric algorithm";
+    }
+
+    dst_printf(dst, "%s: %d (%s)\n", name, (int) salg, salg_name);
+}
+
+static void
+dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
+{
+    char salt[32];
+    dst_printf(dst, "s2k specifier: %d\n", (int) s2k->specifier);
+    dst_print_halg(dst, "s2k hash algorithm", s2k->hash_alg);
+    if ((s2k->specifier == PGP_S2KS_SALTED) ||
+        (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED)) {
+        vsnprinthex(salt, sizeof(salt), s2k->salt, PGP_SALT_SIZE);
+        dst_printf(dst, "s2k salt: %s\n", salt);
+    }
+    if (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+        int real_iter = pgp_s2k_decode_iterations(s2k->iterations);
+        dst_printf(dst, "s2k iterations: %d (%d)\n", (int) s2k->iterations, real_iter);
+    }
+}
+
 #define LINELEN 16
 
 static void
@@ -214,14 +339,15 @@ stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     indent_dest_increase(dst);
 
     dst_printf(dst, "version: %d\n", (int) sig.version);
-    dst_printf(dst, "type: %d\n", (int) sig.type);
+    dst_printf(
+      dst, "type: %d (%s)\n", (int) sig.type, pgp_str_from_map(sig.type, sig_type_map));
     if (sig.version < PGP_V4) {
         dst_printf(dst, "creation time: %d\n", (int) sig.creation_time);
         vsnprinthex(msg, sizeof(msg), sig.signer, sizeof(sig.signer));
         dst_printf(dst, "signing key id: 0x%s\n", msg);
     }
-    dst_printf(dst, "public key algorithm: %d\n", (int) sig.palg);
-    dst_printf(dst, "hash algorithm: %d\n", (int) sig.halg);
+    dst_print_palg(dst, NULL, sig.palg);
+    dst_printf(dst, "hash algorithm: %d (%s)\n", (int) sig.halg, pgp_show_hash_alg(sig.halg));
     vsnprinthex(msg, sizeof(msg), sig.lbits, sizeof(sig.lbits));
     dst_printf(dst, "lbits: 0x%s\n", msg);
     dst_printf(dst, "signature material:\n");
@@ -261,31 +387,13 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_key_pkt_t key;
     rnp_result_t  ret;
-    const char *  ktype;
     char          msg[128];
 
     if ((ret = stream_parse_key(src, &key))) {
         return ret;
     }
 
-    switch (key.tag) {
-    case PGP_PTAG_CT_SECRET_KEY:
-        ktype = "Secret key";
-        break;
-    case PGP_PTAG_CT_PUBLIC_KEY:
-        ktype = "Public key";
-        break;
-    case PGP_PTAG_CT_SECRET_SUBKEY:
-        ktype = "Secret subkey";
-        break;
-    case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        ktype = "Public subkey";
-        break;
-    default:
-        ktype = "Unknown key";
-    }
-
-    dst_printf(dst, "%s packet\n", ktype);
+    dst_printf(dst, "%s packet\n", pgp_str_from_map(key.tag, key_type_map));
     indent_dest_increase(dst);
 
     dst_printf(dst, "version: %d\n", (int) key.version);
@@ -293,7 +401,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     if (key.version < PGP_V4) {
         dst_printf(dst, "v3 validity days: %d\n", (int) key.v3_days);
     }
-    dst_printf(dst, "public key algorithm: %d\n", (int) key.alg);
+    dst_print_palg(dst, NULL, key.alg);
     dst_printf(dst, "public key material:\n");
     indent_dest_increase(dst);
 
@@ -328,7 +436,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ecdh.curve);
         dst_print_mpi(dst, "ecdh p", &key.material.ecdh.p, ctx->dump_mpi);
         dst_printf(dst, "ecdh curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
-        dst_printf(dst, "ecdh hash algorithm: %d\n", (int) key.material.ecdh.kdf_hash_alg);
+        dst_print_halg(dst, "ecdh hash algorithm", key.material.ecdh.kdf_hash_alg);
         dst_printf(dst, "ecdh key wrap algorithm: %d\n", (int) key.material.ecdh.key_wrap_alg);
         break;
     }
@@ -344,18 +452,8 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         dst_printf(dst, "s2k usage: %d\n", (int) key.sec_protection.s2k.usage);
         if ((key.sec_protection.s2k.usage == PGP_S2KU_ENCRYPTED) ||
             (key.sec_protection.s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED)) {
-            dst_printf(dst, "symmetric algorithm: %d\n", (int) key.sec_protection.symm_alg);
-            dst_printf(dst, "s2k specifier: %d\n", (int) key.sec_protection.s2k.specifier);
-            dst_printf(dst, "s2k hash algorithm: %d\n", (int) key.sec_protection.s2k.hash_alg);
-            if ((key.sec_protection.s2k.specifier == PGP_S2KS_SALTED) ||
-                (key.sec_protection.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED)) {
-                vsnprinthex(msg, sizeof(msg), key.sec_protection.s2k.salt, PGP_SALT_SIZE);
-                dst_printf(dst, "s2k salt: %s\n", msg);
-            }
-            if (key.sec_protection.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-                dst_printf(
-                  dst, "s2k iterations: %d\n", (int) key.sec_protection.s2k.iterations);
-            }
+            dst_print_salg(dst, NULL, key.sec_protection.symm_alg);
+            dst_print_s2k(dst, &key.sec_protection.s2k);
             size_t bl_size = pgp_block_size(key.sec_protection.symm_alg);
             if (bl_size) {
                 vsnprinthex(msg, sizeof(msg), key.sec_protection.iv, bl_size);
@@ -436,7 +534,7 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     dst_printf(dst, "version: %d\n", (int) pkey.version);
     vsnprinthex(msg, sizeof(msg), pkey.key_id, sizeof(pkey.key_id));
     dst_printf(dst, "key id: 0x%s\n", msg);
-    dst_printf(dst, "public key algorithm: %d\n", (int) pkey.alg);
+    dst_print_palg(dst, NULL, pkey.alg);
     dst_printf(dst, "encrypted material:\n");
     indent_dest_increase(dst);
 
@@ -484,20 +582,14 @@ stream_dump_sk_session_key(pgp_source_t *src, pgp_dest_t *dst)
     indent_dest_increase(dst);
 
     dst_printf(dst, "version: %d\n", (int) skey.version);
-    dst_printf(dst, "symmetric algorithm: %d\n", (int) skey.alg);
+    dst_print_salg(dst, NULL, skey.alg);
     if (skey.version == PGP_SKSK_V5) {
-        dst_printf(dst, "aead algorithm: %d\n", (int) skey.aalg);
+        dst_printf(dst,
+                   "aead algorithm: %d (%s)\n",
+                   (int) skey.aalg,
+                   pgp_str_from_map(skey.aalg, aead_alg_map));
     }
-    dst_printf(dst, "s2k specifier: %d\n", (int) skey.s2k.specifier);
-    dst_printf(dst, "s2k hash algorithm: %d\n", (int) skey.s2k.hash_alg);
-    if ((skey.s2k.specifier == PGP_S2KS_SALTED) ||
-        (skey.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED)) {
-        vsnprinthex(msg, sizeof(msg), skey.s2k.salt, PGP_SALT_SIZE);
-        dst_printf(dst, "s2k salt: %s\n", msg);
-    }
-    if (skey.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-        dst_printf(dst, "s2k iterations: %d\n", (int) skey.s2k.iterations);
-    }
+    dst_print_s2k(dst, &skey.s2k);
     if (skey.version == PGP_SKSK_V5) {
         vsnprinthex(msg, sizeof(msg), skey.iv, skey.ivlen);
         dst_printf(dst, "aead iv: %s (%d bytes)\n", msg, (int) skey.ivlen);
@@ -546,8 +638,12 @@ stream_dump_one_pass(pgp_source_t *src, pgp_dest_t *dst)
     indent_dest_increase(dst);
 
     dst_printf(dst, "version: %d\n", (int) onepass.version);
-    dst_printf(dst, "hash algorithm: %d\n", (int) onepass.halg);
-    dst_printf(dst, "public key algorithm: %d\n", (int) onepass.palg);
+    dst_printf(dst,
+               "signature type: %d (%s)\n",
+               (int) onepass.type,
+               pgp_str_from_map(onepass.type, sig_type_map));
+    dst_print_halg(dst, NULL, onepass.halg);
+    dst_print_palg(dst, NULL, onepass.palg);
     vsnprinthex(msg, sizeof(msg), onepass.keyid, sizeof(onepass.keyid));
     dst_printf(dst, "signing key id: 0x%s\n", msg);
     dst_printf(dst, "nested: %d\n", (int) onepass.nested);
@@ -571,7 +667,10 @@ stream_dump_compressed(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     indent_dest_increase(dst);
 
     get_compressed_src_alg(&zsrc, &zalg);
-    dst_printf(dst, "compression algorithm: %d\nDecompressed contents:\n", (int) zalg);
+    dst_printf(dst,
+               "compression algorithm: %d (%s)\nDecompressed contents:\n",
+               (int) zalg,
+               pgp_str_from_map(zalg, compression_alg_map));
     ret = stream_dump_packets_raw(ctx, &zsrc, dst);
 
     src_close(&zsrc);
