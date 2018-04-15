@@ -23,27 +23,28 @@ print_usage(char *program_name)
 int
 main(int argc, char *const argv[])
 {
-    rnp_t        rnp = {0};
-    rnp_ctx_t    ctx = {0};
-    pgp_source_t src = {0};
-    pgp_dest_t   dst = {0};
-    rnp_result_t res = RNP_ERROR_GENERIC;
-
-    struct opt_t {
-        char *input_file;
-        bool  dump_content;
-    } opts = {0};
+    pgp_source_t   src = {0};
+    pgp_dest_t     dst = {0};
+    rnp_result_t   res = RNP_ERROR_GENERIC;
+    rnp_dump_ctx_t ctx = {0};
+    char *         input_file = NULL;
 
     /* Parse command line options:
         -i input_file [mandatory]: specifies name of the file with PGP packets
         -d : indicates wether to dump whole packet content
+        -m : dump mpi contents
         -h : prints help and exists
     */
     int opt = 0;
-    while ((opt = getopt(argc, argv, "dh")) != -1) {
-        if (opt == 'd') {
-            opts.dump_content = true;
-        } else {
+    while ((opt = getopt(argc, argv, "dmh")) != -1) {
+        switch (opt) {
+        case 'd':
+            ctx.dump_packets = true;
+            break;
+        case 'm':
+            ctx.dump_mpi = true;
+            break;
+        default:
             print_usage(argv[0]);
             return 1;
         }
@@ -51,32 +52,23 @@ main(int argc, char *const argv[])
 
     /*  Check whether we have input file */
     if (optind < argc) {
-        opts.input_file = argv[optind];
+        input_file = argv[optind];
     }
 
-    /* Initialize context and process packets */
-    if (rnp_ctx_init(&ctx, &rnp) != RNP_SUCCESS) {
-        fprintf(stderr, PFX "Initialization failed\n");
-        return 1;
-    }
-
-    res = opts.input_file ? init_file_src(&src, opts.input_file) : init_stdin_src(&src);
+    res = input_file ? init_file_src(&src, input_file) : init_stdin_src(&src);
     if (res) {
         RNP_LOG("failed to open source: error 0x%x", (int) res);
-        rnp_end(&rnp);
         return 1;
     }
     res = init_stdout_dest(&dst);
     if (res) {
         RNP_LOG("failed to open stdout: error 0x%x", (int) res);
         src_close(&src);
-        rnp_end(&rnp);
         return 1;
     }
 
-    res = stream_dump_packets(&src, &dst);
+    res = stream_dump_packets(&ctx, &src, &dst);
 
-    rnp_end(&rnp);
     src_close(&src);
     dst_close(&dst, false);
 

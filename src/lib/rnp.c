@@ -890,9 +890,8 @@ rnp_export_key(rnp_t *rnp, const char *name, bool secret_key)
         return NULL;
     }
 
-    key = secret_key
-        ? resolve_userid(rnp, rnp->secring, name)
-        : resolve_userid(rnp, rnp->pubring, name);
+    key = secret_key ? resolve_userid(rnp, rnp->secring, name) :
+                       resolve_userid(rnp, rnp->pubring, name);
     if (!key) {
         return NULL;
     }
@@ -974,12 +973,12 @@ rnp_import_key(rnp_t *rnp, char *f)
             importedkey = rnp_key_store_get_key_by_grip(rnp->io, dest, key->grip);
             list_item *subkey_grip = list_front(key->subkey_grips);
             while (subkey_grip) {
-                pgp_key_t *subkey = rnp_key_store_get_key_by_grip(rnp->io, tmp_keystore, (uint8_t*)subkey_grip);
+                pgp_key_t *subkey = rnp_key_store_get_key_by_grip(
+                  rnp->io, tmp_keystore, (uint8_t *) subkey_grip);
                 assert(subkey);
                 if (!rnp_key_store_add_key(rnp->io, dest, subkey)) {
                     RNP_LOG("failed to add key to destination key store");
                     goto done;
-
                 }
                 // keep track of what keys have been imported
                 list_append(&imported_grips, subkey->grip, sizeof(subkey->grip));
@@ -1460,16 +1459,17 @@ rnp_process_mem(
 rnp_result_t
 rnp_dump_file(rnp_ctx_t *ctx, const char *in, const char *out)
 {
-    pgp_source_t src;
-    pgp_dest_t   dst;
-    rnp_result_t result;
+    pgp_source_t   src;
+    pgp_dest_t     dst;
+    rnp_dump_ctx_t dumpctx = {0};
+    rnp_result_t   result;
 
     if (rnp_initialize_io(ctx, &src, &dst, in, out)) {
         return RNP_ERROR_READ;
     }
 
     /* process source */
-    if ((result = stream_dump_packets(&src, &dst))) {
+    if ((result = stream_dump_packets(&dumpctx, &src, &dst))) {
         RNP_LOG("error 0x%x", result);
     }
 
@@ -1785,12 +1785,12 @@ rnp_encrypt_add_password(rnp_ctx_t *ctx)
         return RNP_ERROR_BAD_PASSWORD;
     }
 
-    if ((ret = rnp_encrypt_set_pass_info(
-           &info,
-           password,
-           ctx->halg /* TODO: should be separate s2k-specific */,
-           DEFAULT_S2K_ITERATIONS /* TODO: make this configurable */,
-           ctx->ealg /* TODO: should be separate s2k-specific */))) {
+    if ((ret =
+           rnp_encrypt_set_pass_info(&info,
+                                     password,
+                                     ctx->halg /* TODO: should be separate s2k-specific */,
+                                     DEFAULT_S2K_ITERATIONS /* TODO: make this configurable */,
+                                     ctx->ealg /* TODO: should be separate s2k-specific */))) {
         goto done;
     }
     if (!list_append(&ctx->passwords, &info, sizeof(info))) {
