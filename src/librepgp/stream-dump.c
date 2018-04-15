@@ -291,6 +291,17 @@ dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
     }
 }
 
+static void
+dst_print_keyid(pgp_dest_t *dst, const char *name, uint8_t *keyid)
+{
+    char hexid[32];
+    if (!name) {
+        name = "key id";
+    }
+    vsnprinthex(hexid, sizeof(hexid), keyid, PGP_KEY_ID_SIZE);
+    dst_printf(dst, "%s: 0x%s\n", name, hexid);
+}
+
 #define LINELEN 16
 
 static void
@@ -343,8 +354,7 @@ stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
       dst, "type: %d (%s)\n", (int) sig.type, pgp_str_from_map(sig.type, sig_type_map));
     if (sig.version < PGP_V4) {
         dst_printf(dst, "creation time: %d\n", (int) sig.creation_time);
-        vsnprinthex(msg, sizeof(msg), sig.signer, sizeof(sig.signer));
-        dst_printf(dst, "signing key id: 0x%s\n", msg);
+        dst_print_keyid(dst, "signing key id", sig.signer);
     }
     dst_print_palg(dst, NULL, sig.palg);
     dst_printf(dst, "hash algorithm: %d (%s)\n", (int) sig.halg, pgp_show_hash_alg(sig.halg));
@@ -532,8 +542,7 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     indent_dest_increase(dst);
 
     dst_printf(dst, "version: %d\n", (int) pkey.version);
-    vsnprinthex(msg, sizeof(msg), pkey.key_id, sizeof(pkey.key_id));
-    dst_printf(dst, "key id: 0x%s\n", msg);
+    dst_print_keyid(dst, NULL, pkey.key_id);
     dst_print_palg(dst, NULL, pkey.alg);
     dst_printf(dst, "encrypted material:\n");
     indent_dest_increase(dst);
@@ -628,7 +637,6 @@ stream_dump_one_pass(pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_one_pass_sig_t onepass;
     rnp_result_t       ret;
-    char               msg[128];
 
     if ((ret = stream_parse_one_pass(src, &onepass))) {
         return ret;
@@ -644,8 +652,7 @@ stream_dump_one_pass(pgp_source_t *src, pgp_dest_t *dst)
                pgp_str_from_map(onepass.type, sig_type_map));
     dst_print_halg(dst, NULL, onepass.halg);
     dst_print_palg(dst, NULL, onepass.palg);
-    vsnprinthex(msg, sizeof(msg), onepass.keyid, sizeof(onepass.keyid));
-    dst_printf(dst, "signing key id: 0x%s\n", msg);
+    dst_print_keyid(dst, "signing key id", onepass.keyid);
     dst_printf(dst, "nested: %d\n", (int) onepass.nested);
 
     indent_dest_decrease(dst);
