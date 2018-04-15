@@ -35,6 +35,11 @@
 #include <rnp/rnp.h>
 #include "stream-common.h"
 
-rnp_result_t stream_dump_packets(pgp_source_t *src, pgp_dest_t *dst);
+typedef struct rnp_dump_ctx_t {
+    bool dump_mpi;
+    bool dump_packets;
+} rnp_dump_ctx_t;
+
+rnp_result_t stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst);
 
 #endif

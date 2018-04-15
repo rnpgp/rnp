@@ -38,6 +38,7 @@
 #include <time.h>
 #include "defs.h"
 #include "types.h"
+#include "ctype.h"
 #include "symmetric.h"
 #include "fingerprint.h"
 #include "pgp-key.h"
@@ -153,10 +154,53 @@ vsnprinthex(char *str, size_t slen, uint8_t *buf, size_t buflen)
     return buflen * 2;
 }
 
-static rnp_result_t stream_dump_packets_raw(pgp_source_t *src, pgp_dest_t *dst);
+static void
+dst_print_mpi(pgp_dest_t *dst, const char *name, pgp_mpi_t *mpi, bool dumpbin)
+{
+    char hex[5000];
+    if (!dumpbin) {
+        dst_printf(dst, "%s: %d bits\n", name, (int) mpi_bits(mpi));
+    } else {
+        vsnprinthex(hex, sizeof(hex), mpi->mpi, mpi->len);
+        dst_printf(dst, "%s: %d bits, %s\n", name, (int) mpi_bits(mpi), hex);
+    }
+}
+
+#define LINELEN 16
+
+static void
+dst_hexdump(pgp_dest_t *dst, const uint8_t *src, size_t length)
+{
+    size_t i;
+    char   line[LINELEN + 1];
+
+    for (i = 0; i < length; i++) {
+        if (i % LINELEN == 0) {
+            dst_printf(dst, "%.5" PRIsize "u | ", i);
+        }
+        dst_printf(dst, "%.02x ", (uint8_t) src[i]);
+        line[i % LINELEN] = (isprint(src[i])) ? src[i] : '.';
+        if (i % LINELEN == LINELEN - 1) {
+            line[LINELEN] = 0x0;
+            dst_printf(dst, " | %s\n", line);
+        }
+    }
+    if (i % LINELEN != 0) {
+        for (; i % LINELEN != 0; i++) {
+            dst_printf(dst, "   ");
+            line[i % LINELEN] = ' ';
+        }
+        line[LINELEN] = 0x0;
+        dst_printf(dst, " | %s\n", line);
+    }
+}
+
+static rnp_result_t stream_dump_packets_raw(rnp_dump_ctx_t *ctx,
+                                            pgp_source_t *  src,
+                                            pgp_dest_t *    dst);
 
 static rnp_result_t
-stream_dump_signature(pgp_source_t *src, pgp_dest_t *dst)
+stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_signature_t sig;
     rnp_result_t    ret;
@@ -185,22 +229,22 @@ stream_dump_signature(pgp_source_t *src, pgp_dest_t *dst)
 
     switch (sig.palg) {
     case PGP_PKA_RSA:
-        dst_printf(dst, "rsa s: %d bits\n", mpi_bits(&sig.material.rsa.s));
+        dst_print_mpi(dst, "rsa s", &sig.material.rsa.s, ctx->dump_mpi);
         break;
     case PGP_PKA_DSA:
-        dst_printf(dst, "dsa r: %d bits\n", mpi_bits(&sig.material.dsa.r));
-        dst_printf(dst, "dsa s: %d bits\n", mpi_bits(&sig.material.dsa.s));
+        dst_print_mpi(dst, "dsa r", &sig.material.dsa.r, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa s", &sig.material.dsa.s, ctx->dump_mpi);
         break;
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        dst_printf(dst, "ecc r: %d bits\n", mpi_bits(&sig.material.ecc.r));
-        dst_printf(dst, "ecc s: %d bits\n", mpi_bits(&sig.material.ecc.s));
+        dst_print_mpi(dst, "ecc r", &sig.material.ecc.r, ctx->dump_mpi);
+        dst_print_mpi(dst, "ecc s", &sig.material.ecc.s, ctx->dump_mpi);
         break;
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        dst_printf(dst, "eg r: %d bits\n", mpi_bits(&sig.material.eg.r));
-        dst_printf(dst, "eg s: %d bits\n", mpi_bits(&sig.material.eg.s));
+        dst_print_mpi(dst, "eg r", &sig.material.eg.r, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg s", &sig.material.eg.s, ctx->dump_mpi);
         break;
     default:
         dst_printf(dst, "unknown algorithm\n");
@@ -213,7 +257,7 @@ stream_dump_signature(pgp_source_t *src, pgp_dest_t *dst)
 }
 
 static rnp_result_t
-stream_dump_key(pgp_source_t *src, pgp_dest_t *dst)
+stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_key_pkt_t key;
     rnp_result_t  ret;
@@ -257,32 +301,32 @@ stream_dump_key(pgp_source_t *src, pgp_dest_t *dst)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        dst_printf(dst, "rsa n: %d bits\n", mpi_bits(&key.material.rsa.n));
-        dst_printf(dst, "rsa e: %d bits\n", mpi_bits(&key.material.rsa.e));
+        dst_print_mpi(dst, "rsa n", &key.material.rsa.n, ctx->dump_mpi);
+        dst_print_mpi(dst, "rsa e", &key.material.rsa.e, ctx->dump_mpi);
         break;
     case PGP_PKA_DSA:
-        dst_printf(dst, "dsa p: %d bits\n", mpi_bits(&key.material.dsa.p));
-        dst_printf(dst, "dsa q: %d bits\n", mpi_bits(&key.material.dsa.q));
-        dst_printf(dst, "dsa g: %d bits\n", mpi_bits(&key.material.dsa.g));
-        dst_printf(dst, "dsa y: %d bits\n", mpi_bits(&key.material.dsa.y));
+        dst_print_mpi(dst, "dsa p", &key.material.dsa.p, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa q", &key.material.dsa.q, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa g", &key.material.dsa.g, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa y", &key.material.dsa.y, ctx->dump_mpi);
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        dst_printf(dst, "eg p: %d bits\n", mpi_bits(&key.material.eg.p));
-        dst_printf(dst, "eg g: %d bits\n", mpi_bits(&key.material.eg.g));
-        dst_printf(dst, "eg y: %d bits\n", mpi_bits(&key.material.eg.y));
+        dst_print_mpi(dst, "eg p", &key.material.eg.p, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg g", &key.material.eg.g, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg y", &key.material.eg.y, ctx->dump_mpi);
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
         const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ecc.curve);
-        dst_printf(dst, "ecc p: %d bits\n", mpi_bits(&key.material.ecc.p));
+        dst_print_mpi(dst, "ecc p", &key.material.ecc.p, ctx->dump_mpi);
         dst_printf(dst, "ecc curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
         break;
     }
     case PGP_PKA_ECDH: {
         const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ecdh.curve);
-        dst_printf(dst, "ecdh p: %d bits\n", mpi_bits(&key.material.ecdh.p));
+        dst_print_mpi(dst, "ecdh p", &key.material.ecdh.p, ctx->dump_mpi);
         dst_printf(dst, "ecdh curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
         dst_printf(dst, "ecdh hash algorithm: %d\n", (int) key.material.ecdh.kdf_hash_alg);
         dst_printf(dst, "ecdh key wrap algorithm: %d\n", (int) key.material.ecdh.key_wrap_alg);
@@ -376,7 +420,7 @@ stream_dump_userid(pgp_source_t *src, pgp_dest_t *dst)
 }
 
 static rnp_result_t
-stream_dump_pk_session_key(pgp_source_t *src, pgp_dest_t *dst)
+stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_pk_sesskey_pkt_t pkey;
     rnp_result_t         ret;
@@ -398,18 +442,23 @@ stream_dump_pk_session_key(pgp_source_t *src, pgp_dest_t *dst)
 
     switch (pkey.alg) {
     case PGP_PKA_RSA:
-        dst_printf(dst, "rsa m: %d bits\n", mpi_bits(&pkey.params.rsa.m));
+        dst_print_mpi(dst, "rsa m", &pkey.params.rsa.m, ctx->dump_mpi);
         break;
     case PGP_PKA_ELGAMAL:
-        dst_printf(dst, "eg g: %d bits\n", mpi_bits(&pkey.params.eg.g));
-        dst_printf(dst, "eg m: %d bits\n", mpi_bits(&pkey.params.eg.m));
+        dst_print_mpi(dst, "eg g", &pkey.params.eg.g, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg m", &pkey.params.eg.m, ctx->dump_mpi);
         break;
     case PGP_PKA_SM2:
-        dst_printf(dst, "sm2 m: %d bits\n", mpi_bits(&pkey.params.sm2.m));
+        dst_print_mpi(dst, "sm2 m", &pkey.params.sm2.m, ctx->dump_mpi);
         break;
     case PGP_PKA_ECDH:
-        dst_printf(dst, "ecdh p: %d bits\n", mpi_bits(&pkey.params.ecdh.p));
-        dst_printf(dst, "ecdh m: %d bytes\n", (int) pkey.params.ecdh.mlen);
+        dst_print_mpi(dst, "ecdh p", &pkey.params.ecdh.p, ctx->dump_mpi);
+        if (ctx->dump_mpi) {
+            vsnprinthex(msg, sizeof(msg), pkey.params.ecdh.m, pkey.params.ecdh.mlen);
+            dst_printf(dst, "ecdh m: %d bytes, %s\n", (int) pkey.params.ecdh.mlen, msg);
+        } else {
+            dst_printf(dst, "ecdh m: %d bytes\n", (int) pkey.params.ecdh.mlen);
+        }
         break;
     default:
         dst_printf(dst, "unknown public key algorithm\n");
@@ -508,7 +557,7 @@ stream_dump_one_pass(pgp_source_t *src, pgp_dest_t *dst)
 }
 
 static rnp_result_t
-stream_dump_compressed(pgp_source_t *src, pgp_dest_t *dst)
+stream_dump_compressed(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_source_t zsrc = {0};
     uint8_t      zalg;
@@ -523,7 +572,7 @@ stream_dump_compressed(pgp_source_t *src, pgp_dest_t *dst)
 
     get_compressed_src_alg(&zsrc, &zalg);
     dst_printf(dst, "compression algorithm: %d\nDecompressed contents:\n", (int) zalg);
-    ret = stream_dump_packets_raw(&zsrc, dst);
+    ret = stream_dump_packets_raw(ctx, &zsrc, dst);
 
     src_close(&zsrc);
     indent_dest_decrease(dst);
@@ -566,9 +615,9 @@ stream_dump_literal(pgp_source_t *src, pgp_dest_t *dst)
 }
 
 static rnp_result_t
-stream_dump_packets_raw(pgp_source_t *src, pgp_dest_t *dst)
+stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
-    char         msg[1024] = {0};
+    char         msg[1024 + PGP_MAX_HEADER_SIZE] = {0};
     char         smsg[128] = {0};
     uint8_t      hdr[PGP_MAX_HEADER_SIZE];
     ssize_t      hlen;
@@ -604,6 +653,7 @@ stream_dump_packets_raw(pgp_source_t *src, pgp_dest_t *dst)
         tag = get_packet_type(hdr[0]);
         off = src->readb;
 
+        plen = 0;
         if (stream_partial_pkt_len(src)) {
             snprintf(msg, sizeof(msg), "partial len");
         } else if (stream_intedeterminate_pkt_len(src)) {
@@ -615,22 +665,47 @@ stream_dump_packets_raw(pgp_source_t *src, pgp_dest_t *dst)
         vsnprinthex(smsg, sizeof(smsg), hdr, hlen);
         dst_printf(dst, ":off %zu: packet header 0x%s (tag %d, %s)\n", off, smsg, tag, msg);
 
+        if (ctx->dump_packets) {
+            ssize_t rlen = plen + hlen;
+            bool    part = false;
+
+            if (!plen || (rlen > 1024 + hlen)) {
+                rlen = 1024 + hlen;
+                part = true;
+            }
+
+            dst_printf(dst, ":off %zu: packet contents ", off + hlen);
+            rlen = src_peek(src, msg, rlen);
+            if (rlen < 0) {
+                dst_printf(dst, "- failed to read\n");
+            } else {
+                rlen -= hlen;
+                if (part || ((size_t) rlen < plen)) {
+                    dst_printf(dst, "(first %d bytes)\n", (int) rlen);
+                } else {
+                    dst_printf(dst, "(%d bytes)\n", (int) rlen);
+                }
+                dst_hexdump(dst, (uint8_t *) msg + hlen, rlen);
+            }
+            dst_printf(dst, "\n");
+        }
+
         switch (tag) {
         case PGP_PTAG_CT_SIGNATURE:
-            ret = stream_dump_signature(src, dst);
+            ret = stream_dump_signature(ctx, src, dst);
             break;
         case PGP_PTAG_CT_SECRET_KEY:
         case PGP_PTAG_CT_PUBLIC_KEY:
         case PGP_PTAG_CT_SECRET_SUBKEY:
         case PGP_PTAG_CT_PUBLIC_SUBKEY:
-            ret = stream_dump_key(src, dst);
+            ret = stream_dump_key(ctx, src, dst);
             break;
         case PGP_PTAG_CT_USER_ID:
         case PGP_PTAG_CT_USER_ATTR:
             ret = stream_dump_userid(src, dst);
             break;
         case PGP_PTAG_CT_PK_SESSION_KEY:
-            ret = stream_dump_pk_session_key(src, dst);
+            ret = stream_dump_pk_session_key(ctx, src, dst);
             break;
         case PGP_PTAG_CT_SK_SESSION_KEY:
             ret = stream_dump_sk_session_key(src, dst);
@@ -644,7 +719,7 @@ stream_dump_packets_raw(pgp_source_t *src, pgp_dest_t *dst)
             ret = stream_dump_one_pass(src, dst);
             break;
         case PGP_PTAG_CT_COMPRESSED:
-            ret = stream_dump_compressed(src, dst);
+            ret = stream_dump_compressed(ctx, src, dst);
             break;
         case PGP_PTAG_CT_LITDATA:
             ret = stream_dump_literal(src, dst);
@@ -669,7 +744,7 @@ finish:
 }
 
 rnp_result_t
-stream_dump_packets(pgp_source_t *src, pgp_dest_t *dst)
+stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_source_t armorsrc = {0};
     pgp_dest_t   wrdst = {0};
@@ -707,7 +782,7 @@ stream_dump_packets(pgp_source_t *src, pgp_dest_t *dst)
 
     indent_dest_set(&wrdst, 0);
 
-    ret = stream_dump_packets_raw(src, &wrdst);
+    ret = stream_dump_packets_raw(ctx, src, &wrdst);
 
 finish:
     if (armored) {
