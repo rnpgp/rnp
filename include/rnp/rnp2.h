@@ -230,7 +230,7 @@ rnp_result_t rnp_locate_key(rnp_ffi_t         ffi,
                             const char *      identifier,
                             rnp_key_handle_t *key);
 
-rnp_result_t rnp_key_handle_free(rnp_key_handle_t *key);
+rnp_result_t rnp_key_handle_destroy(rnp_key_handle_t key);
 
 /** generate a key or pair of keys using a JSON description
  *
@@ -566,19 +566,11 @@ rnp_result_t rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,
 /* TODO define functions for encrypt+sign */
 
 /**
- * @brief Allocate and fill with zeroes buffer of the required size.
- *
- * @param size number of bytes to allocate.
- * @return pointer to the buffer or NULL if allocation failed.
- */
-void *rnp_buffer_new(size_t size);
-
-/**
- * @brief Free buffer allocated with rnp_buffer_new or any other function in this header.
+ * @brief Free buffer allocated by a function in this header.
  *
  * @param ptr previously allocated buffer. May be NULL, then nothing is done.
  */
-void rnp_buffer_free(void *ptr);
+void rnp_buffer_destroy(void *ptr);
 
 /**
  * @brief Initialize input struct to read from a path

@@ -48,7 +48,7 @@ test_ffi_homedir(void **state)
     homedir = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_get_default_homedir(&homedir));
     assert_non_null(homedir);
-    rnp_buffer_free(homedir);
+    rnp_buffer_destroy(homedir);
     homedir = NULL;
 
     // homedir tests/data/keyrings/1
@@ -78,10 +78,10 @@ test_ffi_homedir(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
     // free formats+paths
-    rnp_buffer_free(pub_format);
-    rnp_buffer_free(pub_path);
-    rnp_buffer_free(sec_format);
-    rnp_buffer_free(sec_path);
+    rnp_buffer_destroy(pub_format);
+    rnp_buffer_destroy(pub_path);
+    rnp_buffer_destroy(sec_format);
+    rnp_buffer_destroy(sec_path);
     pub_format = NULL;
     pub_path = NULL;
     sec_format = NULL;
@@ -116,10 +116,10 @@ test_ffi_homedir(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "G10", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
     // free formats+paths
-    rnp_buffer_free(pub_format);
-    rnp_buffer_free(pub_path);
-    rnp_buffer_free(sec_format);
-    rnp_buffer_free(sec_path);
+    rnp_buffer_destroy(pub_format);
+    rnp_buffer_destroy(pub_path);
+    rnp_buffer_destroy(sec_format);
+    rnp_buffer_destroy(sec_path);
     pub_format = NULL;
     pub_path = NULL;
     sec_format = NULL;
@@ -139,8 +139,8 @@ test_ffi_homedir(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_key_get_grip(key, &grip));
     assert_non_null(grip);
     assert_true(strcmp(grip, "63E59092E4B1AE9F8E675B2F98AA2B8BD9F4EA59") == 0);
-    rnp_buffer_free(grip);
-    rnp_key_handle_free(&key);
+    rnp_buffer_destroy(grip);
+    rnp_key_handle_destroy(key);
     // check grip (2)
     key = NULL;
     assert_int_equal(
@@ -151,8 +151,8 @@ test_ffi_homedir(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_key_get_grip(key, &grip));
     assert_non_null(grip);
     assert_true(strcmp(grip, "7EAB41A2F46257C36F2892696F5A2F0432499AD3") == 0);
-    rnp_buffer_free(grip);
-    assert_int_equal(RNP_SUCCESS, rnp_key_handle_free(&key));
+    rnp_buffer_destroy(grip);
+    assert_int_equal(RNP_SUCCESS, rnp_key_handle_destroy(key));
     key = NULL;
     // cleanup
     rnp_ffi_destroy(ffi);
@@ -671,7 +671,7 @@ test_ffi_keygen_json_pair(void **state)
     // parse the results JSON
     json_object *parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
-    rnp_buffer_free(results);
+    rnp_buffer_destroy(results);
     // get a handle for the primary
     rnp_key_handle_t primary = NULL;
     {
@@ -714,8 +714,8 @@ test_ffi_keygen_json_pair(void **state)
     check_key_properties(sub, false, true, true);
 
     // cleanup
-    rnp_key_handle_free(&primary);
-    rnp_key_handle_free(&sub);
+    rnp_key_handle_destroy(primary);
+    rnp_key_handle_destroy(sub);
     rnp_ffi_destroy(ffi);
 }
 
@@ -745,7 +745,7 @@ test_ffi_keygen_json_primary(void **state)
     // parse the results JSON
     json_object *parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
-    rnp_buffer_free(results);
+    rnp_buffer_destroy(results);
     // get a handle for the primary
     rnp_key_handle_t primary = NULL;
     {
@@ -774,7 +774,7 @@ test_ffi_keygen_json_primary(void **state)
     check_key_properties(primary, true, true, true);
 
     // cleanup
-    rnp_key_handle_free(&primary);
+    rnp_key_handle_destroy(primary);
     rnp_ffi_destroy(ffi);
 }
 
@@ -808,7 +808,7 @@ test_ffi_keygen_json_sub(void **state)
     // parse the results JSON
     json_object *parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
-    rnp_buffer_free(results);
+    rnp_buffer_destroy(results);
     // get a handle+grip for the primary
     rnp_key_handle_t primary = NULL;
     char *           primary_grip = NULL;
@@ -853,7 +853,7 @@ test_ffi_keygen_json_sub(void **state)
         json_object_put(jso);
     }
     // cleanup
-    rnp_buffer_free(primary_grip);
+    rnp_buffer_destroy(primary_grip);
     primary_grip = NULL;
 
     // generate the subkey
@@ -866,7 +866,7 @@ test_ffi_keygen_json_sub(void **state)
     // parse the results JSON
     parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
-    rnp_buffer_free(results);
+    rnp_buffer_destroy(results);
     // get a handle for the sub
     rnp_key_handle_t sub = NULL;
     {
@@ -896,8 +896,8 @@ test_ffi_keygen_json_sub(void **state)
     check_key_properties(sub, false, true, true);
 
     // cleanup
-    rnp_key_handle_free(&primary);
-    rnp_key_handle_free(&sub);
+    rnp_key_handle_destroy(primary);
+    rnp_key_handle_destroy(sub);
     rnp_ffi_destroy(ffi);
 }
 
@@ -922,7 +922,7 @@ test_ffi_add_userid(void **state)
     // generate the keys
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
     assert_non_null(results);
-    rnp_buffer_free(results);
+    rnp_buffer_destroy(results);
     free(json);
     json = NULL;
 
@@ -961,8 +961,8 @@ test_ffi_add_userid(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", new_userid, &key_handle2));
     assert_non_null(key_handle2);
 
-    rnp_key_handle_free(&key_handle);
-    rnp_key_handle_free(&key_handle2);
+    rnp_key_handle_destroy(key_handle);
+    rnp_key_handle_destroy(key_handle2);
     rnp_ffi_destroy(ffi);
 }
 
@@ -994,7 +994,7 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     // parse the results JSON
     json_object *parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
-    rnp_buffer_free(results);
+    rnp_buffer_destroy(results);
     // get a handle+grip for the primary
     rnp_key_handle_t primary = NULL;
     char *           primary_grip = NULL;
@@ -1017,7 +1017,7 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     // protect+lock the primary key
     assert_int_equal(RNP_SUCCESS, rnp_key_protect(primary, "pass123"));
     assert_int_equal(RNP_SUCCESS, rnp_key_lock(primary));
-    rnp_key_handle_free(&primary);
+    rnp_key_handle_destroy(primary);
     primary = NULL;
 
     // load our JSON template
@@ -1045,7 +1045,7 @@ test_ffi_keygen_json_sub_pass_required(void **state)
         json_object_put(jso);
     }
     // cleanup
-    rnp_buffer_free(primary_grip);
+    rnp_buffer_destroy(primary_grip);
     primary_grip = NULL;
 
     // generate the subkey (no getpasscb, should fail)
@@ -1067,7 +1067,7 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     // parse the results JSON
     parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
-    rnp_buffer_free(results);
+    rnp_buffer_destroy(results);
     // get a handle for the sub
     rnp_key_handle_t sub = NULL;
     {
@@ -1096,8 +1096,8 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     check_key_properties(sub, false, true, true);
 
     // cleanup
-    rnp_key_handle_free(&primary);
-    rnp_key_handle_free(&sub);
+    rnp_key_handle_destroy(primary);
+    rnp_key_handle_destroy(sub);
     rnp_ffi_destroy(ffi);
 }
 
@@ -1271,10 +1271,10 @@ test_ffi_encrypt_pk(void **state)
     rnp_key_handle_t key = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key0-uid2", &key));
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_add_recipient(op, key));
-    rnp_key_handle_free(&key);
+    rnp_key_handle_destroy(key);
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key1-uid1", &key));
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_add_recipient(op, key));
-    rnp_key_handle_free(&key);
+    rnp_key_handle_destroy(key);
     // set the data encryption cipher
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_set_cipher(op, "CAST5"));
     // execute the operation
@@ -1384,7 +1384,7 @@ test_ffi_encrypt_pk_key_provider(void **state)
     assert_non_null(key);
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_add_recipient(op, key));
     // cleanup
-    assert_int_equal(RNP_SUCCESS, rnp_key_handle_free(&key));
+    assert_int_equal(RNP_SUCCESS, rnp_key_handle_destroy(key));
     // add recipient 2
     key = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key1-uid1", &key));
@@ -1394,7 +1394,7 @@ test_ffi_encrypt_pk_key_provider(void **state)
     assert_int_equal(
       RNP_SUCCESS, rnp_get_secret_key_data(key, &primary_sec_key_data, &primary_sec_size));
     assert_non_null(primary_sec_key_data);
-    assert_int_equal(RNP_SUCCESS, rnp_key_handle_free(&key));
+    assert_int_equal(RNP_SUCCESS, rnp_key_handle_destroy(key));
     // save the appropriate encrypting subkey for the key provider to use during decryption later
     key = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "keyid", "54505A936A4A970E", &key));
@@ -1403,7 +1403,7 @@ test_ffi_encrypt_pk_key_provider(void **state)
                      rnp_get_secret_key_data(key, &sub_sec_key_data, &sub_sec_size));
     assert_non_null(sub_sec_key_data);
     // cleanup
-    assert_int_equal(RNP_SUCCESS, rnp_key_handle_free(&key));
+    assert_int_equal(RNP_SUCCESS, rnp_key_handle_destroy(key));
     // set the data encryption cipher
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_set_cipher(op, "CAST5"));
     // execute the operation
@@ -1508,10 +1508,10 @@ test_ffi_encrypt_and_sign(void **state)
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
     assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
-    rnp_key_handle_free(&key);
+    rnp_key_handle_destroy(key);
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid1", &key));
     assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
-    rnp_key_handle_free(&key);
+    rnp_key_handle_destroy(key);
     // set the data encryption cipher
     assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
     // enable armoring
@@ -1524,7 +1524,7 @@ test_ffi_encrypt_and_sign(void **state)
     assert_rnp_success(rnp_op_encrypt_set_expiration_time(op, expires));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid1", &key));
     assert_rnp_success(rnp_op_encrypt_add_signature(op, key, NULL));
-    rnp_key_handle_free(&key);
+    rnp_key_handle_destroy(key);
     // execute the operation
     assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
     assert_rnp_success(rnp_op_encrypt_execute(op));
@@ -1614,7 +1614,7 @@ test_ffi_encrypt_and_sign(void **state)
     assert_int_equal(sig_expires, expires);
     assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
     assert_string_equal(hname, "SHA256");
-    rnp_buffer_free(hname);
+    rnp_buffer_destroy(hname);
     // cleanup
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
@@ -1735,7 +1735,7 @@ test_ffi_setup_signatures(void **state, rnp_ffi_t *ffi, rnp_op_sign_t *op)
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(*ffi, "userid", "key0-uid2", &key));
     assert_rnp_success(rnp_op_sign_add_signature(*op, key, NULL));
-    assert_rnp_success(rnp_key_handle_free(&key));
+    assert_rnp_success(rnp_key_handle_destroy(key));
 }
 
 static void
@@ -1758,7 +1758,7 @@ test_ffi_check_signatures(void **state, rnp_op_verify_t *verify)
     assert_int_equal(sig_expires, expires);
     assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
     assert_string_equal(hname, "SHA256");
-    rnp_buffer_free(hname);
+    rnp_buffer_destroy(hname);
 }
 
 static void
@@ -1832,8 +1832,8 @@ test_ffi_signatures_memory(void **state)
     assert_rnp_success(rnp_input_destroy(input));
     assert_rnp_success(rnp_output_destroy(output));
     assert_rnp_success(rnp_ffi_destroy(ffi));
-    rnp_buffer_free(signed_buf);
-    rnp_buffer_free(verified_buf);
+    rnp_buffer_destroy(signed_buf);
+    rnp_buffer_destroy(verified_buf);
 }
 
 void
@@ -1930,7 +1930,7 @@ test_ffi_signatures_detached_memory(void **state)
     // check signatures
     test_ffi_check_signatures(state, &verify);
     // cleanup
-    rnp_buffer_free(signed_buf);
+    rnp_buffer_destroy(signed_buf);
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
     assert_rnp_success(rnp_input_destroy(signature));
@@ -2055,10 +2055,10 @@ test_ffi_key_to_json(void **state)
                      rnp_load_keys(ffi, sec_format, input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
     // free formats+paths
-    rnp_buffer_free(pub_format);
-    rnp_buffer_free(pub_path);
-    rnp_buffer_free(sec_format);
-    rnp_buffer_free(sec_path);
+    rnp_buffer_destroy(pub_format);
+    rnp_buffer_destroy(pub_path);
+    rnp_buffer_destroy(sec_format);
+    rnp_buffer_destroy(sec_path);
 
     // locate key (primary)
     key = NULL;
@@ -2132,8 +2132,8 @@ test_ffi_key_to_json(void **state)
     // TODO: other properties of signature
     // cleanup
     json_object_put(jso);
-    rnp_key_handle_free(&key);
-    rnp_buffer_free(json);
+    rnp_key_handle_destroy(key);
+    rnp_buffer_destroy(json);
 
     // locate key (sub)
     key = NULL;
@@ -2205,8 +2205,8 @@ test_ffi_key_to_json(void **state)
     // TODO: other properties of signature
     // cleanup
     json_object_put(jso);
-    rnp_key_handle_free(&key);
-    rnp_buffer_free(json);
+    rnp_key_handle_destroy(key);
+    rnp_buffer_destroy(json);
 
     // cleanup
     rnp_ffi_destroy(ffi);
@@ -2310,10 +2310,10 @@ test_ffi_key_iter(void **state)
                      rnp_load_keys(ffi, sec_format, input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
     // free formats+paths
-    rnp_buffer_free(pub_format);
-    rnp_buffer_free(pub_path);
-    rnp_buffer_free(sec_format);
-    rnp_buffer_free(sec_path);
+    rnp_buffer_destroy(pub_format);
+    rnp_buffer_destroy(pub_path);
+    rnp_buffer_destroy(sec_format);
+    rnp_buffer_destroy(sec_path);
 
     // keyid
     {

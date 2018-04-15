@@ -2866,22 +2866,15 @@ done:
 }
 
 rnp_result_t
-rnp_key_handle_free(rnp_key_handle_t *key)
+rnp_key_handle_destroy(rnp_key_handle_t key)
 {
     // This does not free key->key which is owned by the keyring
-    free(*key);
-    *key = NULL;
+    free(key);
     return RNP_SUCCESS;
 }
 
-void *
-rnp_buffer_new(size_t size)
-{
-    return calloc(1, size);
-}
-
 void
-rnp_buffer_free(void *ptr)
+rnp_buffer_destroy(void *ptr)
 {
     free(ptr);
 }
