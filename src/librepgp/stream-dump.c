@@ -52,18 +52,47 @@ static pgp_map_t sig_type_map[] = {
   {PGP_SIG_BINARY, "Signature of a binary document"},
   {PGP_SIG_TEXT, "Signature of a canonical text document"},
   {PGP_SIG_STANDALONE, "Standalone signature"},
-  {PGP_CERT_GENERIC, "Generic certification of a User ID and Public Key packet"},
-  {PGP_CERT_PERSONA, "Personal certification of a User ID and Public Key packet"},
-  {PGP_CERT_CASUAL, "Casual certification of a User ID and Public Key packet"},
-  {PGP_CERT_POSITIVE, "Positive certification of a User ID and Public Key packet"},
+  {PGP_CERT_GENERIC, "Generic User ID certification"},
+  {PGP_CERT_PERSONA, "Personal User ID certification"},
+  {PGP_CERT_CASUAL, "Casual User ID certification"},
+  {PGP_CERT_POSITIVE, "Positive User ID certification"},
   {PGP_SIG_SUBKEY, "Subkey Binding Signature"},
   {PGP_SIG_PRIMARY, "Primary Key Binding Signature"},
-  {PGP_SIG_DIRECT, "Signature directly on a key"},
+  {PGP_SIG_DIRECT, "Direct-key signature"},
   {PGP_SIG_REV_KEY, "Key revocation signature"},
   {PGP_SIG_REV_SUBKEY, "Subkey revocation signature"},
   {PGP_SIG_REV_CERT, "Certification revocation signature"},
   {PGP_SIG_TIMESTAMP, "Timestamp signature"},
   {PGP_SIG_3RD_PARTY, "Third-Party Confirmation signature"},
+  {0x00, NULL}, /* this is the end-of-array marker */
+};
+
+static pgp_map_t sig_subpkt_type_map[] = {
+  {PGP_SIG_SUBPKT_CREATION_TIME, "signature creation time"},
+  {PGP_SIG_SUBPKT_EXPIRATION_TIME, "signature expiration time"},
+  {PGP_SIG_SUBPKT_EXPORT_CERT, "exportable certification"},
+  {PGP_SIG_SUBPKT_TRUST, "trust signature"},
+  {PGP_SIG_SUBPKT_REGEXP, "regular expression"},
+  {PGP_SIG_SUBPKT_REVOCABLE, "revocable"},
+  {PGP_SIG_SUBPKT_KEY_EXPIRY, "key expiration time"},
+  {PGP_SIG_SUBPKT_PREFERRED_SKA, "preferred symmetric algorithms"},
+  {PGP_SIG_SUBPKT_REVOCATION_KEY, "revocation key"},
+  {PGP_SIG_SUBPKT_ISSUER_KEY_ID, "issuer key ID"},
+  {PGP_SIG_SUBPKT_NOTATION_DATA, "notation data"},
+  {PGP_SIG_SUBPKT_PREFERRED_HASH, "preferred hash algorithms"},
+  {PGP_SIG_SUBPKT_PREF_COMPRESS, "preferred compression algorithms"},
+  {PGP_SIG_SUBPKT_KEYSERV_PREFS, "key server preferences"},
+  {PGP_SIG_SUBPKT_PREF_KEYSERV, "preferred key server"},
+  {PGP_SIG_SUBPKT_PRIMARY_USER_ID, "primary user ID"},
+  {PGP_SIG_SUBPKT_POLICY_URI, "policy URI"},
+  {PGP_SIG_SUBPKT_KEY_FLAGS, "key flags"},
+  {PGP_SIG_SUBPKT_SIGNERS_USER_ID, "signer's user ID"},
+  {PGP_SIG_SUBPKT_REVOCATION_REASON, "reason for revocation"},
+  {PGP_SIG_SUBPKT_FEATURES, "features"},
+  {PGP_SIG_SUBPKT_SIGNATURE_TARGET, "signature target"},
+  {PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE, "embedded signature"},
+  {PGP_SIG_SUBPKT_ISSUER_FPR, "issuer fingerprint"},
+  {PGP_SIG_SUBPKT_PREFERRED_AEAD, "preferred AEAD algorithms"},
   {0x00, NULL}, /* this is the end-of-array marker */
 };
 
@@ -107,10 +136,24 @@ static pgp_map_t symm_alg_map[] = {
   {0x00, NULL}, /* this is the end-of-array marker */
 };
 
-static pgp_map_t compression_alg_map[] = {
+static pgp_map_t hash_alg_map[] = {
+  {PGP_HASH_MD5, "MD5"},
+  {PGP_HASH_SHA1, "SHA1"},
+  {PGP_HASH_RIPEMD, "RIPEMD160"},
+  {PGP_HASH_SHA256, "SHA256"},
+  {PGP_HASH_SHA384, "SHA384"},
+  {PGP_HASH_SHA512, "SHA512"},
+  {PGP_HASH_SHA224, "SHA224"},
+  {PGP_HASH_SM3, "SM3"},
+  {PGP_HASH_SHA3_256, "SHA3-256"},
+  {PGP_HASH_SHA3_512, "SHA3-512"},
+  {0x00, NULL}, /* this is the end-of-array marker */
+};
+
+static pgp_map_t z_alg_map[] = {
   {PGP_C_NONE, "Uncompressed"},
   {PGP_C_ZIP, "ZIP"},
-  {PGP_C_ZLIB, "ZLIB"},
+  {PGP_C_ZLIB, "ZLib"},
   {PGP_C_BZIP2, "BZip2"},
   {0x00, NULL}, /* this is the end-of-array marker */
 };
@@ -120,6 +163,15 @@ static pgp_map_t aead_alg_map[] = {
   {PGP_AEAD_EAX, "EAX"},
   {PGP_AEAD_OCB, "OCB"},
   {0x00, NULL}, /* this is the end-of-array marker */
+};
+
+static pgp_map_t revoc_reason_map[] = {
+  {PGP_REVOCATION_NO_REASON, "No reason"},
+  {PGP_REVOCATION_SUPERSEDED, "Superseded"},
+  {PGP_REVOCATION_COMPROMISED, "Compromised"},
+  {PGP_REVOCATION_RETIRED, "Retired"},
+  {PGP_REVOCATION_NO_LONGER_VALID, "No longer valid"},
+  {0x00, NULL},
 };
 
 typedef struct pgp_dest_indent_param_t {
@@ -255,7 +307,7 @@ dst_print_palg(pgp_dest_t *dst, const char *name, pgp_pubkey_alg_t palg)
 static void
 dst_print_halg(pgp_dest_t *dst, const char *name, pgp_hash_alg_t halg)
 {
-    const char *halg_name = pgp_show_hash_alg(halg);
+    const char *halg_name = pgp_str_from_map(halg, hash_alg_map);
     if (!name) {
         name = "hash algorithm";
     }
@@ -275,15 +327,92 @@ dst_print_salg(pgp_dest_t *dst, const char *name, pgp_symm_alg_t salg)
 }
 
 static void
+dst_print_aalg(pgp_dest_t *dst, const char *name, pgp_aead_alg_t aalg)
+{
+    const char *aalg_name = pgp_str_from_map(aalg, aead_alg_map);
+    if (!name) {
+        name = "aead algorithm";
+    }
+
+    dst_printf(dst, "%s: %d (%s)\n", name, (int) aalg, aalg_name);
+}
+
+static void
+dst_print_zalg(pgp_dest_t *dst, const char *name, pgp_compression_type_t zalg)
+{
+    const char *zalg_name = pgp_str_from_map(zalg, z_alg_map);
+    if (!name) {
+        name = "compression algorithm";
+    }
+
+    dst_printf(dst, "%s: %d (%s)\n", name, (int) zalg, zalg_name);
+}
+
+static void
+dst_print_raw(pgp_dest_t *dst, const char *name, const void *data, size_t len)
+{
+    dst_printf(dst, "%s: ", name);
+    dst_write(dst, data, len);
+    dst_printf(dst, "\n");
+}
+
+static void
+dst_print_algs(pgp_dest_t *dst, const char *name, uint8_t *algs, size_t algc, pgp_map_t map[])
+{
+    if (!name) {
+        name = "algorithms";
+    }
+
+    dst_printf(dst, "%s: ", name);
+    for (size_t i = 0; i < algc; i++) {
+        dst_printf(dst, "%s%s", pgp_str_from_map(algs[i], map), i + 1 < algc ? ", " : "");
+    }
+    dst_printf(dst, " (");
+    for (size_t i = 0; i < algc; i++) {
+        dst_printf(dst, "%d%s", (int) algs[i], i + 1 < algc ? ", " : "");
+    }
+    dst_printf(dst, ")\n");
+}
+
+static void
+dst_print_sig_type(pgp_dest_t *dst, const char *name, pgp_sig_type_t sigtype)
+{
+    const char *sig_name = pgp_str_from_map(sigtype, sig_type_map);
+    if (!name) {
+        name = "signature type";
+    }
+    dst_printf(dst, "%s: %d (%s)\n", name, (int) sigtype, sig_name);
+}
+
+static void
+dst_print_hex(pgp_dest_t *dst, const char *name, uint8_t *data, size_t len, bool bytes)
+{
+    char hex[512];
+    vsnprinthex(hex, sizeof(hex), data, len);
+    if (bytes) {
+        dst_printf(dst, "%s: 0x%s (%d bytes)\n", name, hex, (int) len);
+    } else {
+        dst_printf(dst, "%s: 0x%s\n", name, hex);
+    }
+}
+
+static void
+dst_print_keyid(pgp_dest_t *dst, const char *name, uint8_t *keyid)
+{
+    if (!name) {
+        name = "key id";
+    }
+    dst_print_hex(dst, name, keyid, PGP_KEY_ID_SIZE, false);
+}
+
+static void
 dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
 {
-    char salt[32];
     dst_printf(dst, "s2k specifier: %d\n", (int) s2k->specifier);
     dst_print_halg(dst, "s2k hash algorithm", s2k->hash_alg);
     if ((s2k->specifier == PGP_S2KS_SALTED) ||
         (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED)) {
-        vsnprinthex(salt, sizeof(salt), s2k->salt, PGP_SALT_SIZE);
-        dst_printf(dst, "s2k salt: %s\n", salt);
+        dst_print_hex(dst, "s2k salt", s2k->salt, PGP_SALT_SIZE, false);
     }
     if (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED) {
         int real_iter = pgp_s2k_decode_iterations(s2k->iterations);
@@ -292,14 +421,12 @@ dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
 }
 
 static void
-dst_print_keyid(pgp_dest_t *dst, const char *name, uint8_t *keyid)
+dst_print_time(pgp_dest_t *dst, const char *name, uint32_t time)
 {
-    char hexid[32];
     if (!name) {
-        name = "key id";
+        name = "time";
     }
-    vsnprinthex(hexid, sizeof(hexid), keyid, PGP_KEY_ID_SIZE);
-    dst_printf(dst, "%s: 0x%s\n", name, hexid);
+    dst_printf(dst, "%s: %d\n", name, (int) time);
 }
 
 #define LINELEN 16
@@ -335,12 +462,174 @@ static rnp_result_t stream_dump_packets_raw(rnp_dump_ctx_t *ctx,
                                             pgp_source_t *  src,
                                             pgp_dest_t *    dst);
 
+static void
+signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, pgp_sig_subpkt_t *subpkt)
+{
+    const char *sname = pgp_str_from_map(subpkt->type, sig_subpkt_type_map);
+
+    switch (subpkt->type) {
+    case PGP_SIG_SUBPKT_CREATION_TIME:
+        dst_print_time(dst, sname, subpkt->fields.create);
+        break;
+    case PGP_SIG_SUBPKT_EXPIRATION_TIME:
+        dst_print_time(dst, sname, subpkt->fields.expiry);
+        break;
+    case PGP_SIG_SUBPKT_EXPORT_CERT:
+        dst_printf(dst, "%s: %d\n", sname, (int) subpkt->fields.exportable);
+        break;
+    case PGP_SIG_SUBPKT_TRUST:
+        dst_printf(dst,
+                   "%s: amount %d, level %d\n",
+                   sname,
+                   (int) subpkt->fields.trust.amount,
+                   (int) subpkt->fields.trust.level);
+        break;
+    case PGP_SIG_SUBPKT_REGEXP:
+        dst_print_raw(dst, sname, subpkt->fields.regexp.str, subpkt->fields.regexp.len);
+        break;
+    case PGP_SIG_SUBPKT_REVOCABLE:
+        dst_printf(dst, "%s: %d\n", sname, (int) subpkt->fields.revocable);
+        break;
+    case PGP_SIG_SUBPKT_KEY_EXPIRY:
+        dst_print_time(dst, sname, subpkt->fields.expiry);
+        break;
+    case PGP_SIG_SUBPKT_PREFERRED_SKA:
+        dst_print_algs(dst,
+                       "preferred symmetric algorithms",
+                       subpkt->fields.preferred.arr,
+                       subpkt->fields.preferred.len,
+                       symm_alg_map);
+        break;
+    case PGP_SIG_SUBPKT_REVOCATION_KEY:
+        dst_printf(dst, "%s\n", sname);
+        dst_printf(dst, "class: %d\n", (int) subpkt->fields.revocation_key.class);
+        dst_print_palg(dst, NULL, subpkt->fields.revocation_key.pkalg);
+        dst_print_hex(
+          dst, "fingerprint", subpkt->fields.revocation_key.fp, PGP_FINGERPRINT_SIZE, true);
+        break;
+    case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
+        dst_print_keyid(dst, sname, subpkt->fields.issuer);
+        break;
+    case PGP_SIG_SUBPKT_NOTATION_DATA:
+        break;
+    case PGP_SIG_SUBPKT_PREFERRED_HASH:
+        dst_print_algs(dst,
+                       "preferred hash algorithms",
+                       subpkt->fields.preferred.arr,
+                       subpkt->fields.preferred.len,
+                       hash_alg_map);
+        break;
+    case PGP_SIG_SUBPKT_PREF_COMPRESS:
+        dst_print_algs(dst,
+                       "preferred compression algorithms",
+                       subpkt->fields.preferred.arr,
+                       subpkt->fields.preferred.len,
+                       z_alg_map);
+        break;
+    case PGP_SIG_SUBPKT_KEYSERV_PREFS:
+        dst_printf(dst, "%s\n", sname);
+        dst_printf(dst, "no-modify: %d\n", (int) subpkt->fields.ks_prefs.no_modify);
+        break;
+    case PGP_SIG_SUBPKT_PREF_KEYSERV:
+        dst_print_raw(
+          dst, sname, subpkt->fields.preferred_ks.uri, subpkt->fields.preferred_ks.len);
+        break;
+    case PGP_SIG_SUBPKT_PRIMARY_USER_ID:
+        dst_printf(dst, "%s: %d\n", sname, (int) subpkt->fields.primary_uid);
+        break;
+    case PGP_SIG_SUBPKT_POLICY_URI:
+        dst_print_raw(dst, sname, subpkt->fields.policy.uri, subpkt->fields.policy.len);
+        break;
+    case PGP_SIG_SUBPKT_KEY_FLAGS: {
+        uint8_t flg = subpkt->fields.key_flags;
+        dst_printf(dst, "%s: 0x%02x ( ", sname, flg);
+        dst_printf(dst, "%s", flg ? "" : "none");
+        dst_printf(dst, "%s", flg & PGP_KF_CERTIFY ? "certify " : "");
+        dst_printf(dst, "%s", flg & PGP_KF_SIGN ? "sign " : "");
+        dst_printf(dst, "%s", flg & PGP_KF_ENCRYPT_COMMS ? "encrypt_comm " : "");
+        dst_printf(dst, "%s", flg & PGP_KF_ENCRYPT_STORAGE ? "encrypt_storage " : "");
+        dst_printf(dst, "%s", flg & PGP_KF_SPLIT ? "split " : "");
+        dst_printf(dst, "%s", flg & PGP_KF_AUTH ? "auth " : "");
+        dst_printf(dst, "%s", flg & PGP_KF_SHARED ? "shared " : "");
+        dst_printf(dst, ")\n");
+        break;
+    }
+    case PGP_SIG_SUBPKT_SIGNERS_USER_ID:
+        dst_print_raw(dst, sname, subpkt->fields.signer.uid, subpkt->fields.signer.len);
+        break;
+    case PGP_SIG_SUBPKT_REVOCATION_REASON: {
+        int         code = subpkt->fields.revocation_reason.code;
+        const char *reason = pgp_str_from_map(code, revoc_reason_map);
+        dst_printf(dst, "%s: %d (%s)\n", sname, code, reason);
+        dst_print_raw(dst,
+                      "message",
+                      subpkt->fields.revocation_reason.str,
+                      subpkt->fields.revocation_reason.len);
+        break;
+    }
+    case PGP_SIG_SUBPKT_FEATURES:
+        dst_printf(dst, "%s: 0x%02x ( ", sname, subpkt->data[0]);
+        dst_printf(dst, "%s", subpkt->fields.features.mdc ? "mdc " : "");
+        dst_printf(dst, "%s", subpkt->fields.features.aead ? "aead " : "");
+        dst_printf(dst, "%s", subpkt->fields.features.key_v5 ? "v5 keys " : "");
+        dst_printf(dst, ")\n");
+        break;
+    case PGP_SIG_SUBPKT_ISSUER_FPR:
+        dst_print_hex(
+          dst, sname, subpkt->fields.issuer_fp.fp, subpkt->fields.issuer_fp.len, true);
+        break;
+    case PGP_SIG_SUBPKT_PREFERRED_AEAD:
+        dst_print_algs(dst,
+                       "preferred aead algorithms",
+                       subpkt->fields.preferred.arr,
+                       subpkt->fields.preferred.len,
+                       aead_alg_map);
+        break;
+    default:
+        if (!ctx->dump_packets) {
+            indent_dest_increase(dst);
+            dst_hexdump(dst, subpkt->data, subpkt->len);
+            indent_dest_decrease(dst);
+        }
+    }
+}
+
+static void
+signature_dump_subpackets(rnp_dump_ctx_t * ctx,
+                          pgp_dest_t *     dst,
+                          pgp_signature_t *sig,
+                          bool             hashed)
+{
+    bool empty = true;
+
+    for (list_item *li = list_front(sig->subpkts); li; li = list_next(li)) {
+        pgp_sig_subpkt_t *subpkt = (pgp_sig_subpkt_t *) li;
+        if (subpkt->hashed != hashed) {
+            continue;
+        }
+        empty = false;
+        dst_printf(dst, ":type %d, len %d", (int) subpkt->type, (int) subpkt->len);
+        dst_printf(dst, "%s\n", subpkt->critical ? ", critical" : "");
+        if (ctx->dump_packets) {
+            dst_printf(dst, ":subpacket contents:\n");
+            indent_dest_increase(dst);
+            dst_hexdump(dst, subpkt->data, subpkt->len);
+            indent_dest_decrease(dst);
+        }
+
+        signature_dump_subpacket(ctx, dst, subpkt);
+    }
+
+    if (empty) {
+        dst_printf(dst, "none\n");
+    }
+}
+
 static rnp_result_t
 stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_signature_t sig;
     rnp_result_t    ret;
-    char            msg[128];
 
     if ((ret = stream_parse_signature(src, &sig))) {
         return ret;
@@ -350,16 +639,27 @@ stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     indent_dest_increase(dst);
 
     dst_printf(dst, "version: %d\n", (int) sig.version);
-    dst_printf(
-      dst, "type: %d (%s)\n", (int) sig.type, pgp_str_from_map(sig.type, sig_type_map));
+    dst_print_sig_type(dst, "type", sig.type);
     if (sig.version < PGP_V4) {
-        dst_printf(dst, "creation time: %d\n", (int) sig.creation_time);
+        dst_print_time(dst, "creation time", sig.creation_time);
         dst_print_keyid(dst, "signing key id", sig.signer);
     }
     dst_print_palg(dst, NULL, sig.palg);
-    dst_printf(dst, "hash algorithm: %d (%s)\n", (int) sig.halg, pgp_show_hash_alg(sig.halg));
-    vsnprinthex(msg, sizeof(msg), sig.lbits, sizeof(sig.lbits));
-    dst_printf(dst, "lbits: 0x%s\n", msg);
+    dst_print_halg(dst, NULL, sig.halg);
+
+    if (sig.version >= PGP_V4) {
+        dst_printf(dst, "hashed subpackets:\n");
+        indent_dest_increase(dst);
+        signature_dump_subpackets(ctx, dst, &sig, true);
+        indent_dest_decrease(dst);
+
+        dst_printf(dst, "unhashed subpackets:\n");
+        indent_dest_increase(dst);
+        signature_dump_subpackets(ctx, dst, &sig, false);
+        indent_dest_decrease(dst);
+    }
+
+    dst_print_hex(dst, "lbits", sig.lbits, sizeof(sig.lbits), false);
     dst_printf(dst, "signature material:\n");
     indent_dest_increase(dst);
 
@@ -397,7 +697,6 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_key_pkt_t key;
     rnp_result_t  ret;
-    char          msg[128];
 
     if ((ret = stream_parse_key(src, &key))) {
         return ret;
@@ -407,7 +706,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     indent_dest_increase(dst);
 
     dst_printf(dst, "version: %d\n", (int) key.version);
-    dst_printf(dst, "creation time: %d\n", (int) key.creation_time);
+    dst_print_time(dst, "creation time", key.creation_time);
     if (key.version < PGP_V4) {
         dst_printf(dst, "v3 validity days: %d\n", (int) key.v3_days);
     }
@@ -466,8 +765,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
             dst_print_s2k(dst, &key.sec_protection.s2k);
             size_t bl_size = pgp_block_size(key.sec_protection.symm_alg);
             if (bl_size) {
-                vsnprinthex(msg, sizeof(msg), key.sec_protection.iv, bl_size);
-                dst_printf(dst, "cipher iv: %s\n", msg);
+                dst_print_hex(dst, "cipher iv", key.sec_protection.iv, bl_size, true);
             } else {
                 dst_printf(dst, "cipher iv: unknown algorithm\n");
             }
@@ -532,7 +830,6 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
 {
     pgp_pk_sesskey_pkt_t pkey;
     rnp_result_t         ret;
-    char                 msg[128];
 
     if ((ret = stream_parse_pk_sesskey(src, &pkey))) {
         return ret;
@@ -561,8 +858,7 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     case PGP_PKA_ECDH:
         dst_print_mpi(dst, "ecdh p", &pkey.params.ecdh.p, ctx->dump_mpi);
         if (ctx->dump_mpi) {
-            vsnprinthex(msg, sizeof(msg), pkey.params.ecdh.m, pkey.params.ecdh.mlen);
-            dst_printf(dst, "ecdh m: %d bytes, %s\n", (int) pkey.params.ecdh.mlen, msg);
+            dst_print_hex(dst, "ecdh m", pkey.params.ecdh.m, pkey.params.ecdh.mlen, true);
         } else {
             dst_printf(dst, "ecdh m: %d bytes\n", (int) pkey.params.ecdh.mlen);
         }
@@ -581,7 +877,6 @@ stream_dump_sk_session_key(pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_sk_sesskey_t skey;
     rnp_result_t     ret;
-    char             msg[128];
 
     if ((ret = stream_parse_sk_sesskey(src, &skey))) {
         return ret;
@@ -589,23 +884,16 @@ stream_dump_sk_session_key(pgp_source_t *src, pgp_dest_t *dst)
 
     dst_printf(dst, "Symmetric-key encrypted session key packet\n");
     indent_dest_increase(dst);
-
     dst_printf(dst, "version: %d\n", (int) skey.version);
     dst_print_salg(dst, NULL, skey.alg);
     if (skey.version == PGP_SKSK_V5) {
-        dst_printf(dst,
-                   "aead algorithm: %d (%s)\n",
-                   (int) skey.aalg,
-                   pgp_str_from_map(skey.aalg, aead_alg_map));
+        dst_print_aalg(dst, NULL, skey.aalg);
     }
     dst_print_s2k(dst, &skey.s2k);
     if (skey.version == PGP_SKSK_V5) {
-        vsnprinthex(msg, sizeof(msg), skey.iv, skey.ivlen);
-        dst_printf(dst, "aead iv: %s (%d bytes)\n", msg, (int) skey.ivlen);
+        dst_print_hex(dst, "aead iv", skey.iv, skey.ivlen, true);
     }
-    vsnprinthex(msg, sizeof(msg), skey.enckey, skey.enckeylen);
-    dst_printf(dst, "encrypted key: %s (%d bytes)\n", msg, (int) skey.enckeylen);
-
+    dst_print_hex(dst, "encrypted key", skey.enckey, skey.enckeylen, true);
     indent_dest_decrease(dst);
 
     return RNP_SUCCESS;
@@ -646,10 +934,7 @@ stream_dump_one_pass(pgp_source_t *src, pgp_dest_t *dst)
     indent_dest_increase(dst);
 
     dst_printf(dst, "version: %d\n", (int) onepass.version);
-    dst_printf(dst,
-               "signature type: %d (%s)\n",
-               (int) onepass.type,
-               pgp_str_from_map(onepass.type, sig_type_map));
+    dst_print_sig_type(dst, NULL, onepass.type);
     dst_print_halg(dst, NULL, onepass.halg);
     dst_print_palg(dst, NULL, onepass.palg);
     dst_print_keyid(dst, "signing key id", onepass.keyid);
@@ -674,10 +959,8 @@ stream_dump_compressed(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     indent_dest_increase(dst);
 
     get_compressed_src_alg(&zsrc, &zalg);
-    dst_printf(dst,
-               "compression algorithm: %d (%s)\nDecompressed contents:\n",
-               (int) zalg,
-               pgp_str_from_map(zalg, compression_alg_map));
+    dst_print_zalg(dst, NULL, zalg);
+    dst_printf(dst, "Decompressed contents:\n");
     ret = stream_dump_packets_raw(ctx, &zsrc, dst);
 
     src_close(&zsrc);
@@ -702,8 +985,8 @@ stream_dump_literal(pgp_source_t *src, pgp_dest_t *dst)
 
     get_literal_src_hdr(&lsrc, &lhdr);
     dst_printf(dst, "data format: '%c'\n", lhdr.format);
-    dst_printf(dst, "filename: %s (len %d)\n", lhdr.fname, lhdr.fname_len);
-    dst_printf(dst, "timestamp: %u\n", (unsigned) lhdr.timestamp);
+    dst_printf(dst, "filename: %s (len %d)\n", lhdr.fname, (int) lhdr.fname_len);
+    dst_print_time(dst, "timestamp", lhdr.timestamp);
 
     ret = RNP_SUCCESS;
     while (!src_eof(&lsrc)) {
@@ -791,7 +1074,9 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
                 } else {
                     dst_printf(dst, "(%d bytes)\n", (int) rlen);
                 }
+                indent_dest_increase(dst);
                 dst_hexdump(dst, (uint8_t *) msg + hlen, rlen);
+                indent_dest_decrease(dst);
             }
             dst_printf(dst, "\n");
         }
