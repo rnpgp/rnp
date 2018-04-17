@@ -67,6 +67,9 @@ main(int argc, char *const argv[])
         return 1;
     }
 
+    /* does nothing, temporary workaround to compile using gcc */
+    rnp_ctx_init(NULL, NULL);
+
     res = stream_dump_packets(&ctx, &src, &dst);
 
     src_close(&src);
