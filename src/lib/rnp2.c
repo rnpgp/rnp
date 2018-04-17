@@ -543,6 +543,8 @@ rnp_result_to_string(rnp_result_t result)
         return "Invalid signature";
     case RNP_ERROR_KEY_GENERATION:
         return "Error during key generation";
+    case RNP_ERROR_BAD_PASSWORD:
+        return "Bad password";
     case RNP_ERROR_KEY_NOT_FOUND:
         return "Key not found";
     case RNP_ERROR_NO_SUITABLE_KEY:
