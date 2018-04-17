@@ -423,10 +423,28 @@ dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
 static void
 dst_print_time(pgp_dest_t *dst, const char *name, uint32_t time)
 {
+    char buf[26] = {0};
+    time_t _time = time;
     if (!name) {
         name = "time";
     }
-    dst_printf(dst, "%s: %d\n", name, (int) time);
+    strncpy(buf, ctime(&_time), sizeof(buf));
+    buf[24] = '\0';
+    dst_printf(dst, "%s: %d (%s)\n", name, (int) time, buf);
+}
+
+static void
+dst_print_expiration(pgp_dest_t *dst, const char *name, uint32_t seconds)
+{
+    if (!name) {
+        name = "expiration";
+    }
+    if (seconds) {
+        int days = seconds / (24*60*60);
+        dst_printf(dst, "%s: %d seconds (%d days)\n", name, (int) seconds, days);
+    } else {
+        dst_printf(dst, "%s: 0 (never)\n", name);
+    }
 }
 
 #define LINELEN 16
@@ -472,7 +490,7 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, pgp_sig_subpkt_t 
         dst_print_time(dst, sname, subpkt->fields.create);
         break;
     case PGP_SIG_SUBPKT_EXPIRATION_TIME:
-        dst_print_time(dst, sname, subpkt->fields.expiry);
+        dst_print_expiration(dst, sname, subpkt->fields.expiry);
         break;
     case PGP_SIG_SUBPKT_EXPORT_CERT:
         dst_printf(dst, "%s: %d\n", sname, (int) subpkt->fields.exportable);
@@ -491,7 +509,7 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, pgp_sig_subpkt_t 
         dst_printf(dst, "%s: %d\n", sname, (int) subpkt->fields.revocable);
         break;
     case PGP_SIG_SUBPKT_KEY_EXPIRY:
-        dst_print_time(dst, sname, subpkt->fields.expiry);
+        dst_print_expiration(dst, sname, subpkt->fields.expiry);
         break;
     case PGP_SIG_SUBPKT_PREFERRED_SKA:
         dst_print_algs(dst,
