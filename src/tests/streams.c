@@ -795,4 +795,16 @@ test_stream_dumper(void **state)
     assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
     src_close(&src);
     dst_close(&dst, false);
+
+    assert_rnp_success(init_file_src(&src, "data/test_stream_signatures/source.txt.asc"));
+    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    dst_close(&dst, false);
+
+    assert_rnp_success(init_file_src(&src, "data/test_stream_signatures/source.txt.asc.asc"));
+    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    dst_close(&dst, false);
 }

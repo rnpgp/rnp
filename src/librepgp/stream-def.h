@@ -45,6 +45,7 @@
 #define ST_ARMOR_BEGIN ("-----BEGIN PGP ")
 #define ST_ARMOR_END ("-----END PGP ")
 #define ST_CLEAR_BEGIN ("-----BEGIN PGP SIGNED MESSAGE-----")
+#define ST_SIG_BEGIN ("\n-----BEGIN PGP SIGNATURE-----")
 #define ST_HEADER_VERSION ("Version: ")
 #define ST_HEADER_COMMENT ("Comment: ")
 #define ST_HEADER_HASH ("Hash: ")

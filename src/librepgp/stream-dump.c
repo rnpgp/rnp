@@ -1028,7 +1028,7 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
                 ret = RNP_ERROR_READ;
                 goto finish;
             }
-            RNP_LOG("bad packet header: 0x%x%x", hdr[0], hdr[1]);
+            RNP_LOG("bad packet header: 0x%02x%02x", hdr[0], hdr[1]);
             ret = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
@@ -1134,6 +1134,33 @@ finish:
     return ret;
 }
 
+static bool
+stream_skip_cleartext(pgp_source_t *src)
+{
+    char       buf[4096];
+    ssize_t    read = 0;
+    size_t     siglen = strlen(ST_SIG_BEGIN);
+    char *     hdrpos;
+
+    while (!src_eof(src)) {
+        read = src_peek(src, buf, sizeof(buf) - 1);
+        if (read <= (ssize_t) siglen) {
+            return false;
+        }
+        buf[read] = '\0';
+
+        if ((hdrpos = strstr(buf, ST_SIG_BEGIN))) {
+            /* +1 here is to skip \n on the beginning of ST_SIG_BEGIN */
+            src_skip(src, hdrpos - buf + 1);
+            return true;
+        }
+
+        src_skip(src, read - siglen + 1);
+    }
+
+    return false;
+}
+
 rnp_result_t
 stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
@@ -1143,13 +1170,17 @@ stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     bool         indent = false;
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
-    /* check whether source is armored */
-    if (is_armored_source(src)) {
-        if (is_cleartext_source(src)) {
-            RNP_LOG("cleartext signed data is not supported yet");
-            ret = RNP_ERROR_NOT_IMPLEMENTED;
+    /* check whether source is cleartext - then skip till the signature */
+    if (is_cleartext_source(src)) {
+        dst_printf(dst, ":cleartext signed data\n");
+        if (!stream_skip_cleartext(src)) {
+            RNP_LOG("malformed cleartext signed data");
+            ret = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
+    }
+    /* check whether source is armored */
+    if (is_armored_source(src)) {
         if ((ret = init_armored_src(&armorsrc, src))) {
             RNP_LOG("failed to parse armored data");
             goto finish;
