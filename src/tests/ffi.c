@@ -596,33 +596,33 @@ tbl_getkeycb(rnp_ffi_t   ffi,
     }
 }
 
-static int
+static bool
 unused_getpasscb(
   rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
 {
     assert_true(false);
-    return 0;
+    return false;
 }
 
-static int
+static bool
 getpasscb(
   rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
 {
     strcpy(buf, (const char *) app_ctx);
-    return 0;
+    return true;
 }
 
-static int
+static bool
 getpasscb_once(
   rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
 {
     const char **pass = (const char **) app_ctx;
     if (!*pass) {
-        return 1;
+        return false;
     }
     strcpy(buf, *pass);
     *pass = NULL;
-    return 0;
+    return true;
 }
 
 static void

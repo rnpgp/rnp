@@ -89,18 +89,19 @@ typedef void    rnp_output_closer_t(void *app_ctx, bool discard);
  *        Note: this key handle should not be held by the application,
  *        it is destroyed after the callback. It should only be used to
  *        retrieve information like the userids, grip, etc.
- * @param pgp_context a descriptive string for what is being decrypted
+ * @param pgp_context a descriptive string on why the password is being
+ *        requested
  * @param pass to which the callback should write the returned
  * password, NULL terminated.
  * @param pass_len the size of pass buffer
- * @return 0 on success, or any other value to stop decryption.
+ * @return true if a password was provided, false otherwise
  */
-typedef int (*rnp_password_cb)(rnp_ffi_t        ffi,
-                               void *           app_ctx,
-                               rnp_key_handle_t key,
-                               const char *     pgp_context,
-                               char             buf[],
-                               size_t           buf_len);
+typedef bool (*rnp_password_cb)(rnp_ffi_t        ffi,
+                                void *           app_ctx,
+                                rnp_key_handle_t key,
+                                const char *     pgp_context,
+                                char             buf[],
+                                size_t           buf_len);
 
 /** callback used to signal the application that a key is needed
  *
