@@ -487,21 +487,15 @@ rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
                        void *                    userdata_void)
 {
     rnp_ffi_t ffi = (rnp_ffi_t)userdata_void;
-    rnp_key_handle_t             key = NULL;
 
     if (!ffi || !ffi->getpasscb) {
         return false;
     }
 
-    key = calloc(1, sizeof(*key));
-    if (!key) {
-        return false;
-    }
-    key->sec = (pgp_key_t *) ctx->key;
-    int rc = ffi->getpasscb(
-      ffi, ffi->getpasscb_ctx, key, operation_description(ctx->op), password, password_size);
-    free(key);
-    return (rc == 0);
+    struct rnp_key_handle_st key = {0};
+    key.sec = (pgp_key_t *) ctx->key;
+    return ffi->getpasscb(
+      ffi, ffi->getpasscb_ctx, &key, operation_description(ctx->op), password, password_size);
 }
 
 const char *
