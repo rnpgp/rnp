@@ -1092,7 +1092,7 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
     res =
       signature_set_keyfp(sig, seckey->fingerprint.fingerprint, seckey->fingerprint.length) &&
       signature_set_keyid(sig, seckey->keyid) &&
-      signature_set_creation(sig, param->ctx->sigcreate) &&
+      signature_set_creation(sig, param->ctx->sigcreate ? param->ctx->sigcreate : time(NULL)) &&
       signature_set_expiration(sig, param->ctx->sigexpire) && signature_fill_hashed_data(sig);
 
     if (!res) {
