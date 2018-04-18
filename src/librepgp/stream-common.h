@@ -234,6 +234,8 @@ rnp_result_t dst_finish(pgp_dest_t *dst);
  **/
 void dst_close(pgp_dest_t *dst, bool discard);
 
+void dst_flush(pgp_dest_t *dst);
+
 /** @brief init file destination
  *  @param dst pre-allocated dest structure
  *  @param path path to the file

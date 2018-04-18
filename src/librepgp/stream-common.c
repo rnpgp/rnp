@@ -518,7 +518,7 @@ dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     }
 }
 
-static void
+void
 dst_flush(pgp_dest_t *dst)
 {
     if ((dst->clen > 0) && (dst->write) && (dst->werr == RNP_SUCCESS)) {

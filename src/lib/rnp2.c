@@ -1010,6 +1010,7 @@ do_save_keys(rnp_ffi_t ffi, rnp_output_t output, const char *format, key_type_t 
             goto done;
         }
         dst_write(&output->dst, mem.buf, mem.length);
+        dst_flush(&output->dst);
         output->keep = (output->dst.werr == RNP_SUCCESS);
         pgp_memory_release(&mem);
         ret = output->dst.werr;
@@ -1347,10 +1348,7 @@ rnp_result_t
 rnp_output_destroy(rnp_output_t output)
 {
     if (output) {
-        // if (output->dst.param) {
-        dst_close(&output->dst, !output->keep); // TODO
-        // output->dst.param = NULL;
-        //}
+        dst_close(&output->dst, !output->keep);
         free(output->dst_directory);
         free(output);
     }
@@ -1675,6 +1673,7 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
         ret = rnp_encrypt_src(&handler, &op->input->src, &op->output->dst);
     }
 
+    dst_flush(&op->output->dst);
     op->output->keep = ret == RNP_SUCCESS;
     op->input = NULL;
     op->output = NULL;
@@ -1852,6 +1851,7 @@ rnp_op_sign_execute(rnp_op_sign_t op)
 
     rnp_result_t ret = rnp_sign_src(&handler, &op->input->src, &op->output->dst);
 
+    dst_flush(&op->output->dst);
     op->output->keep = ret == RNP_SUCCESS;
     op->input = NULL;
     op->output = NULL;
@@ -1989,6 +1989,7 @@ rnp_op_verify_execute(rnp_op_verify_t op)
 
     rnp_result_t ret = process_pgp_source(&handler, &op->input->src);
     if (op->output) {
+        dst_flush(&op->output->dst);
         op->output->keep = ret == RNP_SUCCESS;
     }
     return ret;
@@ -2118,11 +2119,7 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
                                    .ctx = &rnpctx};
 
     rnp_result_t ret = process_pgp_source(&handler, &input->src);
-    if (ret != RNP_SUCCESS) {
-        // TODO: should we close output->dst here or leave it to the caller?
-        dst_close(&output->dst, true);
-        output->dst = (pgp_dest_t){0};
-    }
+    dst_flush(&output->dst);
     output->keep = (ret == RNP_SUCCESS);
     return ret;
 }
