@@ -946,13 +946,13 @@ test_ffi_add_userid(void **state)
     // add the userid (no pass provider, should fail)
     assert_int_equal(
       RNP_ERROR_BAD_PASSWORD,
-      rnp_key_add_uid(ffi, key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
+      rnp_key_add_uid(key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
 
     // actually add the userid
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "pass"));
     assert_int_equal(
       RNP_SUCCESS,
-      rnp_key_add_uid(ffi, key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
+      rnp_key_add_uid(key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
 
     assert_int_equal(RNP_SUCCESS, rnp_key_get_uid_count(key_handle, &count));
     assert_int_equal(2, count);

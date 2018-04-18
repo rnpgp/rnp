@@ -857,15 +857,16 @@ done:
 }
 
 bool
-pgp_key_protect(pgp_key_t *                    key,
-                key_store_format_t             format,
-                rnp_key_protection_params_t *  protection,
-                const pgp_password_provider_t *password_provider)
+rnp_key_add_protection(pgp_key_t *                    key,
+                       key_store_format_t             format,
+                       rnp_key_protection_params_t *  protection,
+                       const pgp_password_provider_t *password_provider)
 {
     char password[MAX_PASSWORD_LENGTH] = {0};
 
-    if (!password_provider)
+    if (!key || !password_provider) {
         return false;
+    }
 
     // ask the provider for a password
     if (!pgp_request_password(password_provider,
@@ -875,25 +876,27 @@ pgp_key_protect(pgp_key_t *                    key,
         return false;
     }
 
-    bool ret = pgp_key_protect_password(key, format, protection, password);
+    bool ret = pgp_key_protect(key, &key->key.seckey, format, protection, password);
     pgp_forget(password, sizeof(password));
     return ret;
 }
 
 bool
-pgp_key_protect_password(pgp_key_t *                  key,
-                         key_store_format_t           format,
-                         rnp_key_protection_params_t *protection,
-                         const char *                 password)
+pgp_key_protect(pgp_key_t *                  key,
+                pgp_seckey_t *               decrypted_seckey,
+                key_store_format_t           format,
+                rnp_key_protection_params_t *protection,
+                const char *                 new_password)
 {
     bool                        ret = false;
     rnp_key_protection_params_t default_protection = {.symm_alg = DEFAULT_PGP_SYMM_ALG,
                                                       .cipher_mode = DEFAULT_CIPHER_MODE,
                                                       .iterations = DEFAULT_S2K_ITERATIONS,
                                                       .hash_alg = DEFAULT_PGP_HASH_ALG};
+    pgp_seckey_t *              seckey = NULL;
 
     // sanity check
-    if (!key || !password) {
+    if (!key || !decrypted_seckey || !new_password) {
         RNP_LOG("NULL args");
         goto done;
     }
@@ -901,13 +904,12 @@ pgp_key_protect_password(pgp_key_t *                  key,
         RNP_LOG("Warning: this is not a secret key");
         goto done;
     }
-    // must be unlocked first
-    if (key->key.seckey.encrypted) {
-        RNP_LOG("Key must be unlocked to (re)protect");
+    if (decrypted_seckey->encrypted) {
+        RNP_LOG("Decrypted seckey must be provided");
         goto done;
     }
 
-    pgp_seckey_t *seckey = &key->key.seckey;
+    seckey = &key->key.seckey;
     // force these, as it's the only method we support
     seckey->protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
     seckey->protection.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
@@ -935,7 +937,7 @@ pgp_key_protect_password(pgp_key_t *                  key,
     seckey->protection.s2k.hash_alg = protection->hash_alg;
 
     // write the protected key to packets[0]
-    if (!write_key_to_rawpacket(seckey, &key->packets[0], key->type, format, password)) {
+    if (!write_key_to_rawpacket(decrypted_seckey, &key->packets[0], key->type, format, new_password)) {
         goto done;
     }
     key->format = format;
