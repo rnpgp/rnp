@@ -74,6 +74,6 @@ rnp_result_t decrypt_secret_key(pgp_key_pkt_t *key, const char *password);
 
 rnp_result_t encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t *rng);
 
-void forget_secret_key_fields(pgp_key_pkt_t *key);
+void forget_secret_key_fields(pgp_key_material_t *key);
 
 #endif

@@ -58,7 +58,7 @@ signature_list_destroy(list *sigs)
 void
 transferable_key_destroy(pgp_transferable_key_t *key)
 {
-    forget_secret_key_fields(&key->key);
+    forget_secret_key_fields(&key->key.material);
 
     for (list_item *li = list_front(key->userids); li; li = list_next(li)) {
         pgp_transferable_userid_t *uid = (pgp_transferable_userid_t *) li;
@@ -69,7 +69,7 @@ transferable_key_destroy(pgp_transferable_key_t *key)
 
     for (list_item *li = list_front(key->subkeys); li; li = list_next(li)) {
         pgp_transferable_subkey_t *skey = (pgp_transferable_subkey_t *) li;
-        forget_secret_key_fields(&skey->subkey);
+        forget_secret_key_fields(&skey->subkey.material);
         free_key_pkt(&skey->subkey);
         signature_list_destroy(&skey->signatures);
     }
@@ -452,7 +452,7 @@ parse_secret_key_mpis(pgp_key_pkt_t *key, const uint8_t *mpis, size_t len)
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    key->sec_avail = true;
+    key->material.secret = true;
 
     return RNP_SUCCESS;
 }
@@ -610,7 +610,7 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t *rng)
     pgp_crypt_t       crypt;
     rnp_result_t      ret = RNP_ERROR_GENERIC;
 
-    if (!is_secret_key_pkt(key->tag) || !key->sec_avail) {
+    if (!is_secret_key_pkt(key->tag) || !key->material.secret) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     if (key->sec_protection.s2k.usage &&
@@ -677,7 +677,7 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t *rng)
     key->sec_data = body.data;
     key->sec_len = body.len;
     /* cleanup cleartext fields */
-    forget_secret_key_fields(key);
+    forget_secret_key_fields(&key->material);
     return RNP_SUCCESS;
 error:
     pgp_forget(keybuf, sizeof(keybuf));
@@ -687,9 +687,9 @@ error:
 }
 
 void
-forget_secret_key_fields(pgp_key_pkt_t *key)
+forget_secret_key_fields(pgp_key_material_t *key)
 {
-    if (!is_secret_key_pkt(key->tag) || !key->sec_avail) {
+    if (!key->secret) {
         RNP_LOG("not a secret key");
         return;
     }
@@ -698,29 +698,29 @@ forget_secret_key_fields(pgp_key_pkt_t *key)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        mpi_forget(&key->material.rsa.d);
-        mpi_forget(&key->material.rsa.p);
-        mpi_forget(&key->material.rsa.q);
-        mpi_forget(&key->material.rsa.u);
+        mpi_forget(&key->rsa.d);
+        mpi_forget(&key->rsa.p);
+        mpi_forget(&key->rsa.q);
+        mpi_forget(&key->rsa.u);
         break;
     case PGP_PKA_DSA:
-        mpi_forget(&key->material.dsa.x);
+        mpi_forget(&key->dsa.x);
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        mpi_forget(&key->material.eg.x);
+        mpi_forget(&key->eg.x);
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        mpi_forget(&key->material.ecc.x);
+        mpi_forget(&key->ecc.x);
         break;
     case PGP_PKA_ECDH:
-        mpi_forget(&key->material.ecdh.x);
+        mpi_forget(&key->ecdh.x);
         break;
     default:
         RNP_LOG("unknown key algorithm: %d", (int) key->alg);
     }
 
-    key->sec_avail = false;
+    key->secret = false;
 }

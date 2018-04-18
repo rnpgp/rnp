@@ -1295,7 +1295,7 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
 
 static bool
 encrypted_try_key(pgp_source_encrypted_param_t *param,
-                  pgp_pk_sesskey_pkt_t *        sesskey,
+                  pgp_pk_sesskey_t *            sesskey,
                   pgp_seckey_t *                seckey,
                   rng_t *                       rng)
 {
@@ -1314,8 +1314,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         declen = pgp_rsa_decrypt_pkcs1(rng,
                                        decbuf,
                                        sizeof(decbuf),
-                                       sesskey->params.rsa.m.mpi,
-                                       sesskey->params.rsa.m.len,
+                                       sesskey->material.rsa.m.mpi,
+                                       sesskey->material.rsa.m.len,
                                        &seckey->key.rsa,
                                        &seckey->pubkey.key.rsa);
         if (declen <= 0) {
@@ -1327,8 +1327,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         declen = sizeof(decbuf);
         err = pgp_sm2_decrypt(decbuf,
                               &declen,
-                              sesskey->params.sm2.m.mpi,
-                              sesskey->params.sm2.m.len,
+                              sesskey->material.sm2.m.mpi,
+                              sesskey->material.sm2.m.len,
                               &seckey->key.ecc,
                               &seckey->pubkey.key.ecc);
 
@@ -1339,8 +1339,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     case PGP_PKA_ELGAMAL: {
         buf_t              out = {.pbuf = decbuf, .len = sizeof(decbuf)};
-        const buf_t        g2k = mpi2buf(&sesskey->params.eg.g, true);
-        const buf_t        m = mpi2buf(&sesskey->params.eg.m, true);
+        const buf_t        g2k = mpi2buf(&sesskey->material.eg.g, true);
+        const buf_t        m = mpi2buf(&sesskey->material.eg.m, true);
         const rnp_result_t ret = elgamal_decrypt_pkcs1(
           rng, &out, &g2k, &m, &seckey->key.elgamal, &seckey->pubkey.key.elgamal);
         declen = out.len;
@@ -1358,11 +1358,11 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
             RNP_LOG("ECDH fingerprint calculation failed");
             return false;
         }
-        ecdh_p = mpi2bn(&sesskey->params.ecdh.p);
+        ecdh_p = mpi2bn(&sesskey->material.ecdh.p);
         err = pgp_ecdh_decrypt_pkcs5(decbuf,
                                      &declen,
-                                     sesskey->params.ecdh.m,
-                                     sesskey->params.ecdh.mlen,
+                                     sesskey->material.ecdh.m,
+                                     sesskey->material.ecdh.mlen,
                                      ecdh_p,
                                      &seckey->key.ecc,
                                      &seckey->pubkey.key.ecdh,
@@ -1793,13 +1793,13 @@ get_compressed_src_alg(pgp_source_t *src, uint8_t *alg)
 static rnp_result_t
 encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 {
-    rnp_result_t         errcode = RNP_ERROR_GENERIC;
-    uint8_t              ptag;
-    uint8_t              mdcver;
-    uint8_t              hdr[4];
-    int                  ptype;
-    pgp_sk_sesskey_t     skey = {0};
-    pgp_pk_sesskey_pkt_t pkey = {0};
+    rnp_result_t     errcode = RNP_ERROR_GENERIC;
+    uint8_t          ptag;
+    uint8_t          mdcver;
+    uint8_t          hdr[4];
+    int              ptype;
+    pgp_sk_sesskey_t skey = {0};
+    pgp_pk_sesskey_t pkey = {0};
 
     /* Reading pk/sk encrypted session key(s) */
     while (true) {
@@ -1951,7 +1951,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
 
         for (list_item *pe = list_front(param->pubencs); pe; pe = list_next(pe)) {
             memcpy(keyctx.search.by.keyid,
-                   ((pgp_pk_sesskey_pkt_t *) pe)->key_id,
+                   ((pgp_pk_sesskey_t *) pe)->key_id,
                    sizeof(keyctx.search.by.keyid));
             /* Get the key if any */
             if (!(seckey = pgp_request_key(ctx->handler.key_provider, &keyctx))) {
@@ -1974,7 +1974,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
 
             /* Try to initialize the decryption */
             if (encrypted_try_key(param,
-                                  (pgp_pk_sesskey_pkt_t *) pe,
+                                  (pgp_pk_sesskey_t *) pe,
                                   decrypted_seckey,
                                   rnp_ctx_rng_handle(ctx->handler.ctx))) {
                 have_key = true;

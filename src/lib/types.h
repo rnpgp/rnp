@@ -167,6 +167,103 @@ typedef struct {
     unsigned size;                  /* number of bits */
 } pgp_ptag_t;
 
+/**
+ * Type to keep public/secret key mpis without any openpgp-dependent data.
+ */
+typedef struct pgp_key_material_t {
+    pgp_pubkey_alg_t alg;    /* algorithm of the key */
+    bool             secret; /* secret part of the key material is populated */
+
+    union {
+        struct {
+            pgp_mpi_t n;
+            pgp_mpi_t e;
+            /* secret mpis */
+            pgp_mpi_t d;
+            pgp_mpi_t p;
+            pgp_mpi_t q;
+            pgp_mpi_t u;
+        } rsa;
+        struct {
+            pgp_mpi_t p;
+            pgp_mpi_t q;
+            pgp_mpi_t g;
+            pgp_mpi_t y;
+            /* secret mpi */
+            pgp_mpi_t x;
+        } dsa;
+        struct {
+            pgp_mpi_t p;
+            pgp_mpi_t g;
+            pgp_mpi_t y;
+            /* secret mpi */
+            pgp_mpi_t x;
+        } eg;
+        struct {
+            pgp_curve_t curve;
+            pgp_mpi_t   p;
+            /* secret mpi */
+            pgp_mpi_t x;
+        } ecc;
+        struct {
+            pgp_curve_t    curve;
+            pgp_mpi_t      p;
+            pgp_hash_alg_t kdf_hash_alg; /* Hash used by kdf */
+            pgp_symm_alg_t key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
+            /* secret mpi */
+            pgp_mpi_t x;
+        } ecdh;
+    };
+} pgp_key_material_t;
+
+/**
+ * Type to keep signature without any openpgp-dependent data.
+ */
+typedef struct pgp_signature_material_t {
+    union {
+        struct {
+            pgp_mpi_t s;
+        } rsa;
+        struct {
+            pgp_mpi_t r;
+            pgp_mpi_t s;
+        } dsa;
+        struct {
+            pgp_mpi_t r;
+            pgp_mpi_t s;
+        } ecc;
+        struct {
+            /* This is kept only for packet reading. Implementation MUST
+             * not create elgamal signatures */
+            pgp_mpi_t r;
+            pgp_mpi_t s;
+        } eg;
+    };
+} pgp_signature_material_t;
+
+/**
+ * Type to keep pk-encrypted data without any openpgp-dependent data.
+ */
+typedef struct pgp_encrypted_material_t {
+    union {
+        struct {
+            pgp_mpi_t m;
+        } rsa;
+        struct {
+            pgp_mpi_t g;
+            pgp_mpi_t m;
+        } eg;
+        struct {
+            pgp_mpi_t m;
+        } sm2;
+        struct {
+            pgp_mpi_t p;
+            uint8_t   m[ECDH_WRAPPED_KEY_SIZE];
+            size_t    mlen;
+        } ecdh;
+    };
+} pgp_encrypted_material_t;
+
 /** Structure to hold a pgp public key */
 typedef struct pgp_pubkey_t {
     pgp_version_t version; /* version of the key (v3, v4...) */
@@ -187,8 +284,6 @@ typedef struct pgp_pubkey_t {
         pgp_ecdh_pubkey_t ecdh; /* Public Key Parameters for ECDH */
     } key;                      /* Public Key Parameters */
 } pgp_pubkey_t;
-
-unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
 
 typedef struct pgp_key_t pgp_key_t;
 
@@ -251,52 +346,12 @@ typedef struct pgp_key_pkt_t {
     uint8_t *hashed_data; /* key's hashed data used for signature calculation */
     size_t   hashed_len;
 
-    union {
-        struct {
-            pgp_mpi_t n;
-            pgp_mpi_t e;
-            /* secret mpis */
-            pgp_mpi_t d;
-            pgp_mpi_t p;
-            pgp_mpi_t q;
-            pgp_mpi_t u;
-        } rsa;
-        struct {
-            pgp_mpi_t p;
-            pgp_mpi_t q;
-            pgp_mpi_t g;
-            pgp_mpi_t y;
-            /* secret mpi */
-            pgp_mpi_t x;
-        } dsa;
-        struct {
-            pgp_mpi_t p;
-            pgp_mpi_t g;
-            pgp_mpi_t y;
-            /* secret mpi */
-            pgp_mpi_t x;
-        } eg;
-        struct {
-            pgp_curve_t curve;
-            pgp_mpi_t   p;
-            /* secret mpi */
-            pgp_mpi_t x;
-        } ecc;
-        struct {
-            pgp_curve_t    curve;
-            pgp_mpi_t      p;
-            pgp_hash_alg_t kdf_hash_alg; /* Hash used by kdf */
-            pgp_symm_alg_t key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
-            /* secret mpi */
-            pgp_mpi_t x;
-        } ecdh;
-    } material;
+    pgp_key_material_t material;
 
     /* secret key data, if available. sec_len == 0, sec_data == NULL for public key/subkey */
     pgp_key_protection_t sec_protection;
     uint8_t *            sec_data;
     size_t               sec_len;
-    bool                 sec_avail; /* secret key part is available and decrypted */
 } pgp_key_pkt_t;
 
 /** Struct to hold userid or userattr packet. We don't parse userattr now, just storing the
@@ -453,26 +508,7 @@ typedef struct pgp_signature_t {
     uint8_t *        hashed_data;
     size_t           hashed_len;
 
-    /* signature material */
-    union {
-        struct {
-            pgp_mpi_t s;
-        } rsa;
-        struct {
-            pgp_mpi_t r;
-            pgp_mpi_t s;
-        } dsa;
-        struct {
-            pgp_mpi_t r;
-            pgp_mpi_t s;
-        } ecc;
-        struct {
-            /* This is kept only for packet reading. Implementation MUST
-             * not create elgamal signatures */
-            pgp_mpi_t r;
-            pgp_mpi_t s;
-        } eg;
-    } material;
+    pgp_signature_material_t material;
 
     /* v3 - only fields */
     uint32_t creation_time;
@@ -592,29 +628,14 @@ typedef struct pgp_dyn_body_t {
     uint8_t *data;
 } pgp_dyn_body_t;
 
-/** public-key encrypted session key packet, should replace pgp_pk_sesskey_t later */
-typedef struct {
+/** public-key encrypted session key packet */
+typedef struct pgp_pk_sesskey_t {
     unsigned         version;
     uint8_t          key_id[PGP_KEY_ID_SIZE];
     pgp_pubkey_alg_t alg;
-    union {
-        struct {
-            pgp_mpi_t m;
-        } rsa;
-        struct {
-            pgp_mpi_t g;
-            pgp_mpi_t m;
-        } eg;
-        struct {
-            pgp_mpi_t m;
-        } sm2;
-        struct {
-            pgp_mpi_t p;
-            uint8_t   m[ECDH_WRAPPED_KEY_SIZE];
-            size_t    mlen;
-        } ecdh;
-    } params;
-} pgp_pk_sesskey_pkt_t;
+
+    pgp_encrypted_material_t material;
+} pgp_pk_sesskey_t;
 
 /** pkp_sk_sesskey_t */
 typedef struct {

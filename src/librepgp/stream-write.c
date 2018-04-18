@@ -489,7 +489,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     pgp_pubkey_t *              pubkey;
     uint8_t                     enckey[PGP_MAX_KEY_SIZE + 3];
     unsigned                    checksum = 0;
-    pgp_pk_sesskey_pkt_t        pkey = {0};
+    pgp_pk_sesskey_t            pkey = {0};
     pgp_dest_encrypted_param_t *param = dst->param;
     rnp_result_t                ret = RNP_ERROR_GENERIC;
 
@@ -525,8 +525,8 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY: {
         int len = pgp_rsa_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
-                                        pkey.params.rsa.m.mpi,
-                                        sizeof(pkey.params.rsa.m.mpi),
+                                        pkey.material.rsa.m.mpi,
+                                        sizeof(pkey.material.rsa.m.mpi),
                                         enckey,
                                         keylen + 3,
                                         &pubkey->key.rsa);
@@ -535,13 +535,13 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
             ret = RNP_ERROR_GENERIC;
             goto finish;
         }
-        pkey.params.rsa.m.len = len;
+        pkey.material.rsa.m.len = len;
         break;
     }
     case PGP_PKA_SM2: {
-        size_t outlen = sizeof(pkey.params.sm2.m.mpi);
+        size_t outlen = sizeof(pkey.material.sm2.m.mpi);
         ret = pgp_sm2_encrypt(rnp_ctx_rng_handle(handler->ctx),
-                              pkey.params.sm2.m.mpi,
+                              pkey.material.sm2.m.mpi,
                               &outlen,
                               enckey,
                               keylen + 3,
@@ -551,12 +551,12 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
             RNP_LOG("pgp_sm2_encrypt failed");
             goto finish;
         }
-        pkey.params.sm2.m.len = outlen;
+        pkey.material.sm2.m.len = outlen;
         break;
     }
     case PGP_PKA_ECDH: {
         pgp_fingerprint_t fingerprint;
-        size_t            outlen = sizeof(pkey.params.ecdh.m);
+        size_t            outlen = sizeof(pkey.material.ecdh.m);
         bignum_t *        p;
 
         if ((ret = pgp_fingerprint(&fingerprint, pubkey))) {
@@ -571,7 +571,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         ret = pgp_ecdh_encrypt_pkcs5(rnp_ctx_rng_handle(handler->ctx),
                                      enckey,
                                      keylen + 3,
-                                     pkey.params.ecdh.m,
+                                     pkey.material.ecdh.m,
                                      &outlen,
                                      p,
                                      &pubkey->key.ecdh,
@@ -582,8 +582,8 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
             bn_free(p);
             goto finish;
         }
-        pkey.params.ecdh.mlen = outlen;
-        if (!bn2mpi(p, &pkey.params.ecdh.p)) {
+        pkey.material.ecdh.mlen = outlen;
+        if (!bn2mpi(p, &pkey.material.ecdh.p)) {
             ret = RNP_ERROR_BAD_STATE;
             goto finish;
         }
@@ -591,8 +591,8 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         break;
     }
     case PGP_PKA_ELGAMAL: {
-        buf_t       g2k = mpi2buf(&pkey.params.eg.g, false);
-        buf_t       m = mpi2buf(&pkey.params.eg.m, false);
+        buf_t       g2k = mpi2buf(&pkey.material.eg.g, false);
+        buf_t       m = mpi2buf(&pkey.material.eg.m, false);
         const buf_t key = {.pbuf = enckey, .len = keylen + 3};
 
         ret = elgamal_encrypt_pkcs1(
@@ -603,8 +603,8 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
             goto finish;
         }
 
-        pkey.params.eg.g.len = g2k.len;
-        pkey.params.eg.m.len = m.len;
+        pkey.material.eg.g.len = g2k.len;
+        pkey.material.eg.m.len = m.len;
         break;
     }
     default:
