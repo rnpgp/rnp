@@ -1054,7 +1054,7 @@ rnp_generate_key(rnp_t *rnp)
     free(cp);
 
     // protect the primary key
-    if (!pgp_key_protect(
+    if (!rnp_key_add_protection(
           &primary_sec, key_format, &action->primary.protection, &rnp->password_provider)) {
         return false;
     }
@@ -1065,7 +1065,7 @@ rnp_generate_key(rnp_t *rnp)
     free(cp);
 
     // protect the subkey
-    if (!pgp_key_protect(
+    if (!rnp_key_add_protection(
           &subkey_sec, key_format, &action->subkey.protection, &rnp->password_provider)) {
         RNP_LOG("failed to protect keys");
         return false;

@@ -209,7 +209,7 @@ test_key_protect_load_pgp(void **state)
 
     // try to protect (will fail when key is locked)
     assert_false(
-      pgp_key_protect(key,
+      rnp_key_add_protection(key,
                       key->format, // same format
                       NULL,        // default protection
                       &(pgp_password_provider_t){.callback = string_copy_password_callback,
@@ -223,7 +223,7 @@ test_key_protect_load_pgp(void **state)
     assert_false(pgp_key_is_locked(key));
 
     // try to protect with a failing password provider
-    assert_false(pgp_key_protect(
+    assert_false(rnp_key_add_protection(
       key,
       key->format, // same format
       NULL,        // default protection
@@ -232,7 +232,7 @@ test_key_protect_load_pgp(void **state)
 
     // (re)protect with a new password
     assert_true(
-      pgp_key_protect(key,
+      rnp_key_add_protection(key,
                       key->format, // same format
                       NULL,        // default protection
                       &(pgp_password_provider_t){.callback = string_copy_password_callback,

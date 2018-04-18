@@ -50,21 +50,23 @@
 #include <sys/stat.h>
 
 struct rnp_key_handle_st {
+    rnp_ffi_t        ffi;
     pgp_key_search_t locator;
     pgp_key_t *      pub;
     pgp_key_t *      sec;
 };
 
 struct rnp_ffi_st {
-    pgp_io_t           io;
-    rnp_key_store_t *  pubring;
-    rnp_key_store_t *  secring;
-    rnp_get_key_cb     getkeycb;
-    void *             getkeycb_ctx;
-    rnp_password_cb    getpasscb;
-    void *             getpasscb_ctx;
-    rng_t              rng;
-    pgp_key_provider_t key_provider;
+    pgp_io_t                io;
+    rnp_key_store_t *       pubring;
+    rnp_key_store_t *       secring;
+    rnp_get_key_cb          getkeycb;
+    void *                  getkeycb_ctx;
+    rnp_password_cb         getpasscb;
+    void *                  getpasscb_ctx;
+    rng_t                   rng;
+    pgp_key_provider_t      key_provider;
+    pgp_password_provider_t pass_provider;
 };
 
 struct rnp_input_st {
@@ -178,6 +180,11 @@ static bool locator_to_str(const pgp_key_search_t *locator,
                            const char **           identifier_type,
                            char *                  identifier,
                            size_t                  identifier_size);
+
+static bool rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
+                                   char *                    password,
+                                   size_t                    password_size,
+                                   void *                    userdata_void);
 
 static pgp_key_t *
 find_key(rnp_ffi_t               ffi,
@@ -348,6 +355,7 @@ rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
         goto done;
     }
     ob->key_provider = (pgp_key_provider_t){.callback = ffi_key_provider, .userdata = ob};
+    ob->pass_provider = (pgp_password_provider_t){.callback = rnp_password_cb_bounce, .userdata = ob};
     if (!rng_init(&ob->rng, RNG_DRBG)) {
         ret = RNP_ERROR_RNG;
         goto done;
@@ -492,8 +500,7 @@ rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
         return false;
     }
 
-    struct rnp_key_handle_st key = {0};
-    key.sec = (pgp_key_t *) ctx->key;
+    struct rnp_key_handle_st key = {.ffi = ffi, .sec = (pgp_key_t*)ctx->key};
     return ffi->getpasscb(
       ffi, ffi->getpasscb_ctx, &key, operation_description(ctx->op), password, password_size);
 }
@@ -1643,9 +1650,7 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
     if (!op || !op->input || !op->output) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_password_provider_t provider = {.callback = rnp_password_cb_bounce,
-                                        .userdata = op->ffi};
-    pgp_write_handler_t     handler = {.password_provider = &provider,
+    pgp_write_handler_t     handler = {.password_provider = &op->ffi->pass_provider,
                                    .ctx = &op->rnpctx,
                                    .param = NULL,
                                    .key_provider = &op->ffi->key_provider};
@@ -1823,9 +1828,7 @@ rnp_op_sign_execute(rnp_op_sign_t op)
     if (!op || !op->input || !op->output) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_password_provider_t provider = {.callback = rnp_password_cb_bounce,
-                                        .userdata = op->ffi};
-    pgp_write_handler_t     handler = {.password_provider = &provider,
+    pgp_write_handler_t     handler = {.password_provider = &op->ffi->pass_provider,
                                    .ctx = &op->rnpctx,
                                    .param = NULL,
                                    .key_provider = &op->ffi->key_provider};
@@ -1969,9 +1972,7 @@ rnp_op_verify_detached_create(rnp_op_verify_t *op,
 rnp_result_t
 rnp_op_verify_execute(rnp_op_verify_t op)
 {
-    pgp_password_provider_t password_provider = {.callback = rnp_password_cb_bounce,
-                                                 .userdata = op->ffi};
-    pgp_parse_handler_t     handler = {.password_provider = &password_provider,
+    pgp_parse_handler_t     handler = {.password_provider = &op->ffi->pass_provider,
                                    .key_provider = &op->ffi->key_provider,
                                    .on_signatures = rnp_op_verify_on_signatures,
                                    .src_provider = rnp_verify_src_provider,
@@ -2103,9 +2104,7 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
     }
 
     rnp_ctx_init_ffi(&rnpctx, ffi);
-    pgp_password_provider_t password_provider = {.callback = rnp_password_cb_bounce,
-                                                 .userdata = ffi};
-    pgp_parse_handler_t     handler = {.password_provider = &password_provider,
+    pgp_parse_handler_t     handler = {.password_provider = &ffi->pass_provider,
                                    .key_provider = &ffi->key_provider,
                                    .dest_provider = rnp_decrypt_dest_provider,
                                    .param = output,
@@ -2245,6 +2244,7 @@ rnp_locate_key(rnp_ffi_t         ffi,
         if (!handle) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
+        (*handle)->ffi = ffi;
         (*handle)->pub = pub;
         (*handle)->sec = sec;
         (*handle)->locator = locator;
@@ -2811,8 +2811,6 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             ret = RNP_ERROR_BAD_FORMAT;
             goto done;
         }
-        const pgp_password_provider_t provider = {.callback = rnp_password_cb_bounce,
-                                                  .userdata = ffi};
         sub_desc.crypto.rng = &ffi->rng;
         if (!pgp_generate_subkey(&sub_desc,
                                  true,
@@ -2820,7 +2818,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
                                  primary_pub,
                                  &sub_sec,
                                  &sub_pub,
-                                 &provider,
+                                 &ffi->pass_provider,
                                  ffi->secring->format)) {
             goto done;
         }
@@ -2906,8 +2904,7 @@ key_get_uid_at(pgp_key_t *key, size_t idx, char **uid)
 }
 
 rnp_result_t
-rnp_key_add_uid(rnp_ffi_t        ffi,
-                rnp_key_handle_t handle,
+rnp_key_add_uid(rnp_key_handle_t handle,
                 const char *     uid,
                 const char *     hash,
                 uint32_t         expiration,
@@ -2951,10 +2948,8 @@ rnp_key_add_uid(rnp_ffi_t        ffi,
     }
     seckey = &secret_key->key.seckey;
     if (seckey->encrypted) {
-        pgp_password_provider_t pass_provider = {.callback = rnp_password_cb_bounce,
-                                                 .userdata = ffi};
         pgp_password_ctx_t      ctx = {.op = PGP_OP_ADD_USERID, .key = secret_key};
-        decrypted_seckey = pgp_decrypt_seckey(secret_key, &pass_provider, &ctx);
+        decrypted_seckey = pgp_decrypt_seckey(secret_key, &handle->ffi->pass_provider, &ctx);
         if (!decrypted_seckey) {
             return RNP_ERROR_BAD_PASSWORD;
         }
@@ -3097,20 +3092,26 @@ rnp_key_lock(rnp_key_handle_t handle)
 rnp_result_t
 rnp_key_unlock(rnp_key_handle_t handle, const char *password)
 {
-    if (handle == NULL || password == NULL)
+    if (!handle) {
         return RNP_ERROR_NULL_POINTER;
-
+    }
     pgp_key_t *key = get_key_require_secret(handle);
     if (!key) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    bool ok =
-      pgp_key_unlock(key,
-                     &(pgp_password_provider_t){.callback = rnp_password_provider_string,
-                                                .userdata = RNP_UNCONST(password)});
-    if (ok == false)
+    bool ok = false;
+    if (password) {
+        ok =
+          pgp_key_unlock(key,
+                         &(pgp_password_provider_t){.callback = rnp_password_provider_string,
+                                                    .userdata = RNP_UNCONST(password)});
+    } else {
+        ok =
+          pgp_key_unlock(key, &handle->ffi->pass_provider);
+    }
+    if (!ok) {
         return RNP_ERROR_GENERIC;
-
+    }
     return RNP_SUCCESS;
 }
 
@@ -3131,6 +3132,10 @@ rnp_key_is_protected(rnp_key_handle_t handle, bool *result)
 rnp_result_t
 rnp_key_protect(rnp_key_handle_t handle, const char *password)
 {
+  rnp_result_t ret = RNP_ERROR_GENERIC;
+    pgp_seckey_t *seckey = NULL;
+    pgp_seckey_t *decrypted_seckey = NULL;
+
     // checks
     if (!handle || !password) {
         return RNP_ERROR_NULL_POINTER;
@@ -3141,11 +3146,25 @@ rnp_key_protect(rnp_key_handle_t handle, const char *password)
     if (!key) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
+    seckey = &key->key.seckey;
     // TODO allow setting protection params
-    if (!pgp_key_protect_password(key, key->format, NULL, password)) {
-        return RNP_ERROR_GENERIC;
+    if (seckey->encrypted) {
+        decrypted_seckey = pgp_decrypt_seckey(
+          key, &handle->ffi->pass_provider, &(pgp_password_ctx_t){.op = PGP_OP_PROTECT, .key = key});
+        if (!decrypted_seckey) {
+            goto done;
+        }
+        seckey = decrypted_seckey;
     }
-    return RNP_SUCCESS;
+    if (!pgp_key_protect(key, seckey, key->format, NULL, password)) {
+      goto done;
+    }
+    ret = RNP_SUCCESS;
+
+done:
+    pgp_seckey_free(decrypted_seckey);
+    free(decrypted_seckey);
+    return ret;
 }
 
 rnp_result_t
@@ -3161,10 +3180,16 @@ rnp_key_unprotect(rnp_key_handle_t handle, const char *password)
     if (!key) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    // TODO allow setting protection params
-    if (!pgp_key_unprotect(key,
-                           &(pgp_password_provider_t){.callback = rnp_password_provider_string,
-                                                      .userdata = RNP_UNCONST(password)})) {
+    bool ok = false;
+    if (password) {
+        ok = pgp_key_unprotect(
+          key,
+          &(pgp_password_provider_t){.callback = rnp_password_provider_string,
+                                     .userdata = RNP_UNCONST(password)});
+    } else {
+        ok = pgp_key_unprotect(key, &handle->ffi->pass_provider);
+    }
+    if (!ok) {
         return RNP_ERROR_GENERIC;
     }
     return RNP_SUCCESS;

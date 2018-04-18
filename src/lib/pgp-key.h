@@ -190,30 +190,34 @@ bool pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider);
  **/
 bool pgp_key_lock(pgp_key_t *key);
 
-/** add protection to a key
+/** add protection to an unlocked key
  *
- *  @param key
+ *  @param key the key, which must be unlocked
  *  @param format
- *  @param password_provider
+ *  @param protection
+ *  @param password_provider the password provider, which is used to retrieve
+ *         the new password for the key.
  *  @return true if key was successfully protected, false otherwise
  **/
-bool pgp_key_protect(pgp_key_t *                    key,
-                     key_store_format_t             format,
-                     rnp_key_protection_params_t *  protection,
-                     const pgp_password_provider_t *password_provider);
+bool rnp_key_add_protection(pgp_key_t *                    key,
+                            key_store_format_t             format,
+                            rnp_key_protection_params_t *  protection,
+                            const pgp_password_provider_t *password_provider);
 
 /** add protection to a key
  *
  *  @param key
+ *  @param decrypted_seckey
  *  @param format
  *  @param protection
- *  @param password
+ *  @param new_password
  *  @return true if key was successfully protected, false otherwise
  **/
-bool pgp_key_protect_password(pgp_key_t *                  key,
-                              key_store_format_t           format,
-                              rnp_key_protection_params_t *protection,
-                              const char *                 password);
+bool pgp_key_protect(pgp_key_t *                  key,
+                     pgp_seckey_t *               decrypted_seckey,
+                     key_store_format_t           format,
+                     rnp_key_protection_params_t *protection,
+                     const char *                 new_password);
 
 /** remove protection from a key
  *

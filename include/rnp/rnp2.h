@@ -275,8 +275,7 @@ rnp_result_t rnp_key_get_uid_at(rnp_key_handle_t key, size_t idx, char **uid);
  *         or just provide zero to indicate no special handling.
  *  @param primary indicates if this is the primary UID
  */
-rnp_result_t rnp_key_add_uid(rnp_ffi_t        ffi,
-                             rnp_key_handle_t key,
+rnp_result_t rnp_key_add_uid(rnp_key_handle_t key,
                              const char *     uid,
                              const char *     hash,
                              uint32_t         expiration,
@@ -288,12 +287,77 @@ rnp_result_t rnp_key_get_fprint(rnp_key_handle_t key, char **fprint);
 rnp_result_t rnp_key_get_keyid(rnp_key_handle_t key, char **keyid);
 rnp_result_t rnp_key_get_grip(rnp_key_handle_t key, char **grip);
 
+/** check if a key is currently locked
+ *
+ *  @param key
+ *  @param result pointer to hold the result. This will be set to true if
+ *         the key is currently locked, or false otherwise. Must not be NULL.
+ *  @return 0 on success, or any other value on error
+ **/
 rnp_result_t rnp_key_is_locked(rnp_key_handle_t key, bool *result);
+
+/** lock the key
+ *
+ *  A locked key does not have the secret key material immediately
+ *  available for use. A locked and protected (aka encrypted) key
+ *  is safely encrypted in memory and requires a password for
+ *  performing any operations involving the secret key material.
+ *
+ *  Generally lock/unlock are not useful for unencrypted (not protected) keys.
+ *
+ *  @param key
+ *  @return 0 on success, or any other value on error
+ **/
 rnp_result_t rnp_key_lock(rnp_key_handle_t key);
+
+/** unlock the key
+ *
+ *  An unlocked key has unencrypted secret key material available for use
+ *  without a password.
+ *
+ *  Generally lock/unlock are not useful for unencrypted (not protected) keys.
+ *
+ *  @param key
+ *  @param password the password to unlock the key. If NULL, the password
+ *         provider will be used.
+ *  @param result pointer to hold the result. This will be set to true if
+ *         the key is currently locked, or false otherwise. Must not be NULL.
+ *  @return 0 on success, or any other value on error
+ **/
 rnp_result_t rnp_key_unlock(rnp_key_handle_t key, const char *password);
 
+/** check if a key is currently protected
+ *
+ *  A protected key is one that is encrypted and can be safely held in memory
+ *  and locked/unlocked as needed.
+ *
+ *  @param key
+ *  @param result pointer to hold the result. This will be set to true if
+ *         the key is currently protected, or false otherwise. Must not be NULL.
+ *  @return 0 on success, or any other value on error
+ **/
 rnp_result_t rnp_key_is_protected(rnp_key_handle_t key, bool *result);
+
+/** protect the key
+ *
+ *  This can be used to set a new password on a key or to protect an unprotected
+ *  key.
+ *
+ *  @param key
+ *  @param password the new password to encrypt the key with. Must not be NULL.
+ *  @return 0 on success, or any other value on error
+ **/
 rnp_result_t rnp_key_protect(rnp_key_handle_t key, const char *password);
+
+/** unprotect the key
+ *
+ *  This removes the encryption from the key.
+ *
+ *  @param key
+ *  @param password the password to unlock the key. If NULL, the password
+ *         provider will be used.
+ *  @return 0 on success, or any other value on error
+ **/
 rnp_result_t rnp_key_unprotect(rnp_key_handle_t key, const char *password);
 
 rnp_result_t rnp_key_is_primary(rnp_key_handle_t key, bool *result);
