@@ -1158,25 +1158,29 @@ rnp_input_from_callback(rnp_input_t *       input,
                         rnp_input_closer_t *closer,
                         void *              app_ctx)
 {
+    struct rnp_input_st *obj = NULL;
+
     // checks
     if (!input || !reader) {
         return RNP_ERROR_NULL_POINTER;
     }
-    *input = calloc(1, sizeof(**input));
-    if (!*input) {
+    obj = calloc(1, sizeof(*obj));
+    if (!obj) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    pgp_source_t *src = &(*input)->src;
+    pgp_source_t *src = &obj->src;
+    obj->reader = reader;
+    obj->closer = closer;
+    obj->app_ctx = app_ctx;
+    if (!init_src_common(src, 0)) {
+        free(obj);
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    src->param = obj;
     src->read = input_reader_bounce;
     src->close = input_closer_bounce;
-    (*input)->reader = reader;
-    (*input)->closer = closer;
-    (*input)->app_ctx = app_ctx;
-    src->param = *input;
     src->type = PGP_STREAM_MEMORY;
-    src->size = 0;
-    src->readb = 0;
-    src->eof = 0;
+    *input = obj;
     return RNP_SUCCESS;
 }
 
