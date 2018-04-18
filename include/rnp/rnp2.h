@@ -77,7 +77,7 @@ typedef struct rnp_identifier_iterator_st *rnp_identifier_iterator_t;
 /* Callbacks */
 typedef ssize_t rnp_input_reader_t(void *app_ctx, void *buf, size_t len);
 typedef void    rnp_input_closer_t(void *app_ctx);
-typedef int     rnp_output_writer_t(void *app_ctx, const void *buf, size_t len);
+typedef bool    rnp_output_writer_t(void *app_ctx, const void *buf, size_t len);
 typedef void    rnp_output_closer_t(void *app_ctx, bool discard);
 
 /**

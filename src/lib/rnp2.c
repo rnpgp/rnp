@@ -1278,7 +1278,10 @@ output_writer_bounce(pgp_dest_t *dst, const void *buf, size_t len)
     if (!output->writer) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return output->writer(output->app_ctx, buf, len);
+    if (!output->writer(output->app_ctx, buf, len)) {
+        return RNP_ERROR_WRITE;
+    }
+    return RNP_SUCCESS;
 }
 
 static void
