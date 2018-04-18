@@ -232,9 +232,9 @@ rnp_result_t stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey);
 
 /* Public-key encrypted session key */
 
-bool stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *pkey, pgp_dest_t *dst);
+bool stream_write_pk_sesskey(pgp_pk_sesskey_t *pkey, pgp_dest_t *dst);
 
-rnp_result_t stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pkey);
+rnp_result_t stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey);
 
 /* One-pass signature */
 

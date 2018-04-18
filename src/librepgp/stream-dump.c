@@ -423,7 +423,7 @@ dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
 static void
 dst_print_time(pgp_dest_t *dst, const char *name, uint32_t time)
 {
-    char buf[26] = {0};
+    char   buf[26] = {0};
     time_t _time = time;
     if (!name) {
         name = "time";
@@ -440,7 +440,7 @@ dst_print_expiration(pgp_dest_t *dst, const char *name, uint32_t seconds)
         name = "expiration";
     }
     if (seconds) {
-        int days = seconds / (24*60*60);
+        int days = seconds / (24 * 60 * 60);
         dst_printf(dst, "%s: %d seconds (%d days)\n", name, (int) seconds, days);
     } else {
         dst_printf(dst, "%s: 0 (never)\n", name);
@@ -846,8 +846,8 @@ stream_dump_userid(pgp_source_t *src, pgp_dest_t *dst)
 static rnp_result_t
 stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
-    pgp_pk_sesskey_pkt_t pkey;
-    rnp_result_t         ret;
+    pgp_pk_sesskey_t pkey;
+    rnp_result_t     ret;
 
     if ((ret = stream_parse_pk_sesskey(src, &pkey))) {
         return ret;
@@ -864,21 +864,21 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
 
     switch (pkey.alg) {
     case PGP_PKA_RSA:
-        dst_print_mpi(dst, "rsa m", &pkey.params.rsa.m, ctx->dump_mpi);
+        dst_print_mpi(dst, "rsa m", &pkey.material.rsa.m, ctx->dump_mpi);
         break;
     case PGP_PKA_ELGAMAL:
-        dst_print_mpi(dst, "eg g", &pkey.params.eg.g, ctx->dump_mpi);
-        dst_print_mpi(dst, "eg m", &pkey.params.eg.m, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg g", &pkey.material.eg.g, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg m", &pkey.material.eg.m, ctx->dump_mpi);
         break;
     case PGP_PKA_SM2:
-        dst_print_mpi(dst, "sm2 m", &pkey.params.sm2.m, ctx->dump_mpi);
+        dst_print_mpi(dst, "sm2 m", &pkey.material.sm2.m, ctx->dump_mpi);
         break;
     case PGP_PKA_ECDH:
-        dst_print_mpi(dst, "ecdh p", &pkey.params.ecdh.p, ctx->dump_mpi);
+        dst_print_mpi(dst, "ecdh p", &pkey.material.ecdh.p, ctx->dump_mpi);
         if (ctx->dump_mpi) {
-            dst_print_hex(dst, "ecdh m", pkey.params.ecdh.m, pkey.params.ecdh.mlen, true);
+            dst_print_hex(dst, "ecdh m", pkey.material.ecdh.m, pkey.material.ecdh.mlen, true);
         } else {
-            dst_printf(dst, "ecdh m: %d bytes\n", (int) pkey.params.ecdh.mlen);
+            dst_printf(dst, "ecdh m: %d bytes\n", (int) pkey.material.ecdh.mlen);
         }
         break;
     default:
@@ -1158,10 +1158,10 @@ finish:
 static bool
 stream_skip_cleartext(pgp_source_t *src)
 {
-    char       buf[4096];
-    ssize_t    read = 0;
-    size_t     siglen = strlen(ST_SIG_BEGIN);
-    char *     hdrpos;
+    char    buf[4096];
+    ssize_t read = 0;
+    size_t  siglen = strlen(ST_SIG_BEGIN);
+    char *  hdrpos;
 
     while (!src_eof(src)) {
         read = src_peek(src, buf, sizeof(buf) - 1);

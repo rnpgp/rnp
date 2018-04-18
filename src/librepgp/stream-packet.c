@@ -809,7 +809,7 @@ stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
 }
 
 bool
-stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *pkey, pgp_dest_t *dst)
+stream_write_pk_sesskey(pgp_pk_sesskey_t *pkey, pgp_dest_t *dst)
 {
     pgp_packet_body_t pktbody;
     bool              res;
@@ -828,19 +828,19 @@ stream_write_pk_sesskey(pgp_pk_sesskey_pkt_t *pkey, pgp_dest_t *dst)
     switch (pkey->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-        res = add_packet_body_mpi(&pktbody, &pkey->params.rsa.m);
+        res = add_packet_body_mpi(&pktbody, &pkey->material.rsa.m);
         break;
     case PGP_PKA_SM2:
-        res = add_packet_body_mpi(&pktbody, &pkey->params.sm2.m);
+        res = add_packet_body_mpi(&pktbody, &pkey->material.sm2.m);
         break;
     case PGP_PKA_ECDH:
-        res = add_packet_body_mpi(&pktbody, &pkey->params.ecdh.p) &&
-              add_packet_body_byte(&pktbody, pkey->params.ecdh.mlen) &&
-              add_packet_body(&pktbody, pkey->params.ecdh.m, pkey->params.ecdh.mlen);
+        res = add_packet_body_mpi(&pktbody, &pkey->material.ecdh.p) &&
+              add_packet_body_byte(&pktbody, pkey->material.ecdh.mlen) &&
+              add_packet_body(&pktbody, pkey->material.ecdh.m, pkey->material.ecdh.mlen);
         break;
     case PGP_PKA_ELGAMAL:
-        res = add_packet_body_mpi(&pktbody, &pkey->params.eg.g) &&
-              add_packet_body_mpi(&pktbody, &pkey->params.eg.m);
+        res = add_packet_body_mpi(&pktbody, &pkey->material.eg.g) &&
+              add_packet_body_mpi(&pktbody, &pkey->material.eg.m);
         break;
     default:
         res = false;
@@ -1069,7 +1069,7 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
 }
 
 rnp_result_t
-stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pkey)
+stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
 {
     ssize_t len;
     ssize_t read;
@@ -1111,29 +1111,29 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pkey)
     switch (pkey->alg) {
     case PGP_PKA_RSA:
         /* RSA m */
-        pkey->params.rsa.m.len = read;
-        memcpy(pkey->params.rsa.m.mpi, mpi, read);
+        pkey->material.rsa.m.len = read;
+        memcpy(pkey->material.rsa.m.mpi, mpi, read);
         break;
     case PGP_PKA_ELGAMAL:
         /* ElGamal g */
-        pkey->params.eg.g.len = read;
-        memcpy(pkey->params.eg.g.mpi, mpi, read);
+        pkey->material.eg.g.len = read;
+        memcpy(pkey->material.eg.g.mpi, mpi, read);
         /* ElGamal m */
-        if ((read = stream_read_mpi(src, pkey->params.eg.m.mpi, len)) < 0) {
+        if ((read = stream_read_mpi(src, pkey->material.eg.m.mpi, len)) < 0) {
             return RNP_ERROR_BAD_FORMAT;
         }
-        pkey->params.eg.m.len = read;
+        pkey->material.eg.m.len = read;
         len -= read + 2;
         break;
     case PGP_PKA_SM2:
         /* SM2 m */
-        pkey->params.sm2.m.len = read;
-        memcpy(pkey->params.sm2.m.mpi, mpi, read);
+        pkey->material.sm2.m.len = read;
+        memcpy(pkey->material.sm2.m.mpi, mpi, read);
         break;
     case PGP_PKA_ECDH:
         /* ECDH ephemeral point */
-        pkey->params.ecdh.p.len = read;
-        memcpy(pkey->params.ecdh.p.mpi, mpi, read);
+        pkey->material.ecdh.p.len = read;
+        memcpy(pkey->material.ecdh.p.mpi, mpi, read);
         /* ECDH m */
         if ((len < 1) || ((read = src_read(src, buf, 1)) < 1)) {
             return RNP_ERROR_READ;
@@ -1142,9 +1142,9 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_pkt_t *pkey)
         if ((buf[0] > ECDH_WRAPPED_KEY_SIZE) || (len < buf[0])) {
             return RNP_ERROR_BAD_FORMAT;
         }
-        pkey->params.ecdh.mlen = buf[0];
+        pkey->material.ecdh.mlen = buf[0];
 
-        if ((read = src_read(src, pkey->params.ecdh.m, buf[0])) < buf[0]) {
+        if ((read = src_read(src, pkey->material.ecdh.m, buf[0])) < buf[0]) {
             return RNP_ERROR_READ;
         }
         len -= buf[0];
@@ -1962,6 +1962,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
         goto finish;
     }
     key->alg = alg;
+    key->material.alg = alg;
 
     /* v3 keys must be RSA-only */
     if ((key->version < PGP_V4) && !is_rsa_key_alg(key->alg)) {
