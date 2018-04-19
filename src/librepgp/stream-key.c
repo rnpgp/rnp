@@ -429,10 +429,8 @@ parse_secret_key_mpis(pgp_key_pkt_t *key, const uint8_t *mpis, size_t len)
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-        res = get_packet_body_mpi(&body, &key->material.ecc.x);
-        break;
     case PGP_PKA_ECDH:
-        res = get_packet_body_mpi(&body, &key->material.ecdh.x);
+        res = get_packet_body_mpi(&body, &key->material.ecc.x);
         break;
     case PGP_PKA_ELGAMAL:
         res = get_packet_body_mpi(&body, &key->material.eg.x);
@@ -561,10 +559,8 @@ write_secret_key_mpis(pgp_packet_body_t *body, pgp_key_pkt_t *key)
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-        res = add_packet_body_mpi(body, &key->material.ecc.x);
-        break;
     case PGP_PKA_ECDH:
-        res = add_packet_body_mpi(body, &key->material.ecdh.x);
+        res = add_packet_body_mpi(body, &key->material.ecc.x);
         break;
     case PGP_PKA_ELGAMAL:
         res = add_packet_body_mpi(body, &key->material.eg.x);
@@ -713,10 +709,8 @@ forget_secret_key_fields(pgp_key_material_t *key)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        mpi_forget(&key->ecc.x);
-        break;
     case PGP_PKA_ECDH:
-        mpi_forget(&key->ecdh.x);
+        mpi_forget(&key->ecc.x);
         break;
     default:
         RNP_LOG("unknown key algorithm: %d", (int) key->alg);
