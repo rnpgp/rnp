@@ -1023,7 +1023,7 @@ signed_src_finish(pgp_source_t *src)
                 /* signature created later then now */
                 sinfo->expired = true;
             }
-            if ((expiry > 0) && (create + expiry < now)) {
+            if ((expiry > 0) && (create + expiry <= now)) {
                 /* signature expired */
                 sinfo->expired = true;
             }
