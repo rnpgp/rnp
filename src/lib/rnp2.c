@@ -1925,7 +1925,7 @@ rnp_verify_dest_provider(pgp_parse_handler_t *handler,
     rnp_op_verify_t op = handler->param;
     *dst = &(op->output->dst);
     *closedst = false;
-    op->filename = rnp_strdup(filename);
+    op->filename = filename ? rnp_strdup(filename) : NULL;
 
     return true;
 }
@@ -2025,8 +2025,12 @@ rnp_op_verify_get_file_info(rnp_op_verify_t op, char **filename, uint32_t *mtime
     if (mtime) {
         *mtime = op->file_mtime;
     }
-    if (filename && op->filename) {
-        *filename = rnp_strdup(op->filename);
+    if (filename) {
+        if (op->filename) {
+            *filename = rnp_strdup(op->filename);
+        } else {
+            *filename = NULL;
+        }
     }
     return RNP_SUCCESS;
 }
