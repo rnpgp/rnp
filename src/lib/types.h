@@ -204,15 +204,10 @@ typedef struct pgp_key_material_t {
             pgp_mpi_t   p;
             /* secret mpi */
             pgp_mpi_t x;
-        } ecc;
-        struct {
-            pgp_curve_t    curve;
-            pgp_mpi_t      p;
+            /* ecdh params */
             pgp_hash_alg_t kdf_hash_alg; /* Hash used by kdf */
             pgp_symm_alg_t key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
-            /* secret mpi */
-            pgp_mpi_t x;
-        } ecdh;
+        } ecc;
     };
 } pgp_key_material_t;
 

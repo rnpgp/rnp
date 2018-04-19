@@ -1820,8 +1820,8 @@ key_fill_hashed_data(pgp_key_pkt_t *key)
         res = add_packet_body_key_curve(&hbody, key->material.ecc.curve) &&
               add_packet_body_mpi(&hbody, &key->material.ecc.p) &&
               add_packet_body_byte(&hbody, 3) && add_packet_body_byte(&hbody, 1) &&
-              add_packet_body_byte(&hbody, key->material.ecdh.kdf_hash_alg) &&
-              add_packet_body_byte(&hbody, key->material.ecdh.key_wrap_alg);
+              add_packet_body_byte(&hbody, key->material.ecc.kdf_hash_alg) &&
+              add_packet_body_byte(&hbody, key->material.ecc.key_wrap_alg);
         break;
     default:
         RNP_LOG("unknown key algorithm: %d", (int) key->alg);
@@ -2005,8 +2005,8 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
         }
         break;
     case PGP_PKA_ECDH: {
-        if (!get_packet_body_key_curve(&pkt, &key->material.ecdh.curve) ||
-            !get_packet_body_mpi(&pkt, &key->material.ecdh.p)) {
+        if (!get_packet_body_key_curve(&pkt, &key->material.ecc.curve) ||
+            !get_packet_body_mpi(&pkt, &key->material.ecc.p)) {
             goto finish;
         }
 
@@ -2021,8 +2021,8 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
         if (!get_packet_body_byte(&pkt, &halg) || !get_packet_body_byte(&pkt, &walg)) {
             goto finish;
         }
-        key->material.ecdh.kdf_hash_alg = halg;
-        key->material.ecdh.key_wrap_alg = walg;
+        key->material.ecc.kdf_hash_alg = halg;
+        key->material.ecc.key_wrap_alg = walg;
         break;
     }
     default:
