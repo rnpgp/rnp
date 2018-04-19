@@ -1001,9 +1001,13 @@ signed_src_finish(pgp_source_t *src)
 
         /* Get the public key */
         if (!(key = pgp_request_key(param->ctx->handler.key_provider, &keyctx))) {
-            RNP_LOG("signer's key not found");
-            sinfo->no_signer = true;
-            continue;
+            // fallback to secret key
+            keyctx.secret = true;
+            if (!(key = pgp_request_key(param->ctx->handler.key_provider, &keyctx))) {
+                RNP_LOG("signer's key not found");
+                sinfo->no_signer = true;
+                continue;
+            }
         }
         sinfo->signer = &(key->key.pubkey);
 
