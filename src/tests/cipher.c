@@ -24,18 +24,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <crypto/rsa.h>
-#include <crypto/dsa.h>
-#include <crypto/eddsa.h>
-#include <crypto/elgamal.h>
+#include <crypto/common.h>
 #include <crypto.h>
 #include <pgp-key.h>
-#include <crypto/bn.h>
 #include <rnp/rnp.h>
-#include <crypto/ecdsa.h>
-#include <crypto/ecdh.h>
-#include <crypto/rng.h>
-#include <crypto/sm2.h>
 
 #include "rnp_tests.h"
 #include "support.h"

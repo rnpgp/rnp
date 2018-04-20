@@ -34,11 +34,25 @@
 #include <stdint.h>
 #include "crypto/bn.h"
 #include "crypto/rng.h"
+#include "crypto/mpi.h"
 
 #define DSA_MIN_P_BITLEN 1024
 #define DSA_MAX_P_BITLEN 3072
 #define DSA_DEFAULT_P_BITLEN 2048
 
+typedef struct pgp_dsa_key_t {
+    pgp_mpi_t p;
+    pgp_mpi_t q;
+    pgp_mpi_t g;
+    pgp_mpi_t y;
+    /* secret mpi */
+    pgp_mpi_t x;
+} pgp_dsa_key_t;
+
+typedef struct pgp_dsa_signature_t {
+    pgp_mpi_t r;
+    pgp_mpi_t s;
+} pgp_dsa_signature_t;
 
 /** Structure to hold one DSA public key params.
  *

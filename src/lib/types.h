@@ -58,11 +58,7 @@
 #include "errors.h"
 #include "memory.h"
 #include "list.h"
-#include "crypto/rsa.h"
-#include "crypto/dsa.h"
-#include "crypto/elgamal.h"
-#include "crypto/ec.h"
-#include "crypto/ecdh.h"
+#include "crypto/common.h"
 
 #define PGP_KEY_ID_SIZE 8
 #define PGP_FINGERPRINT_HEX_SIZE (PGP_FINGERPRINT_SIZE * 3) + 1
@@ -70,10 +66,6 @@
 /* SHA1 Hash Size */
 #define PGP_SHA1_HASH_SIZE 20
 #define PGP_CHECKHASH_SIZE PGP_SHA1_HASH_SIZE
-
-/* 16384 bits should be pretty enough for now */
-#define PGP_MPINT_BITS (16384)
-#define PGP_MPINT_SIZE (PGP_MPINT_BITS >> 3)
 
 /* Maximum AEAD tag length */
 #define PGP_AEAD_MAX_TAG_LEN 16
@@ -105,12 +97,6 @@ typedef struct {
     int         type;
     const char *string;
 } pgp_map_t;
-
-/** multi-precision integer, used in signatures and public/secret keys */
-typedef struct pgp_mpi_t {
-    uint8_t mpi[PGP_MPINT_SIZE];
-    size_t  len;
-} pgp_mpi_t;
 
 /** pgp_errcode_name_map_t */
 typedef pgp_map_t pgp_errcode_name_map_t;
@@ -175,39 +161,10 @@ typedef struct pgp_key_material_t {
     bool             secret; /* secret part of the key material is populated */
 
     union {
-        struct {
-            pgp_mpi_t n;
-            pgp_mpi_t e;
-            /* secret mpis */
-            pgp_mpi_t d;
-            pgp_mpi_t p;
-            pgp_mpi_t q;
-            pgp_mpi_t u;
-        } rsa;
-        struct {
-            pgp_mpi_t p;
-            pgp_mpi_t q;
-            pgp_mpi_t g;
-            pgp_mpi_t y;
-            /* secret mpi */
-            pgp_mpi_t x;
-        } dsa;
-        struct {
-            pgp_mpi_t p;
-            pgp_mpi_t g;
-            pgp_mpi_t y;
-            /* secret mpi */
-            pgp_mpi_t x;
-        } eg;
-        struct {
-            pgp_curve_t curve;
-            pgp_mpi_t   p;
-            /* secret mpi */
-            pgp_mpi_t x;
-            /* ecdh params */
-            pgp_hash_alg_t kdf_hash_alg; /* Hash used by kdf */
-            pgp_symm_alg_t key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
-        } ecc;
+        pgp_rsa_key_t rsa;
+        pgp_dsa_key_t dsa;
+        pgp_eg_key_t  eg;
+        pgp_ec_key_t  ecc;
     };
 } pgp_key_material_t;
 
@@ -216,23 +173,10 @@ typedef struct pgp_key_material_t {
  */
 typedef struct pgp_signature_material_t {
     union {
-        struct {
-            pgp_mpi_t s;
-        } rsa;
-        struct {
-            pgp_mpi_t r;
-            pgp_mpi_t s;
-        } dsa;
-        struct {
-            pgp_mpi_t r;
-            pgp_mpi_t s;
-        } ecc;
-        struct {
-            /* This is kept only for packet reading. Implementation MUST
-             * not create elgamal signatures */
-            pgp_mpi_t r;
-            pgp_mpi_t s;
-        } eg;
+        pgp_rsa_signature_t rsa;
+        pgp_dsa_signature_t dsa;
+        pgp_ec_signature_t  ecc;
+        pgp_eg_signature_t  eg;
     };
 } pgp_signature_material_t;
 
@@ -241,21 +185,10 @@ typedef struct pgp_signature_material_t {
  */
 typedef struct pgp_encrypted_material_t {
     union {
-        struct {
-            pgp_mpi_t m;
-        } rsa;
-        struct {
-            pgp_mpi_t g;
-            pgp_mpi_t m;
-        } eg;
-        struct {
-            pgp_mpi_t m;
-        } sm2;
-        struct {
-            pgp_mpi_t p;
-            uint8_t   m[ECDH_WRAPPED_KEY_SIZE];
-            size_t    mlen;
-        } ecdh;
+        pgp_rsa_encrypted_t  rsa;
+        pgp_eg_encrypted_t   eg;
+        pgp_sm2_encrypted_t  sm2;
+        pgp_ecdh_encrypted_t ecdh;
     };
 } pgp_encrypted_material_t;
 
@@ -799,14 +732,5 @@ typedef struct rnp_key_protection_params_t {
     unsigned          iterations;
     pgp_hash_alg_t    hash_alg;
 } rnp_key_protection_params_t;
-
-/*
- * Data structure for storing pointer to the buffer together with
- * it's length. Value of 'len' depends on context in which it is used.
- */
-typedef struct buf_t {
-    uint8_t *pbuf;
-    size_t   len;
-} buf_t;
 
 #endif /* TYPES_H_ */

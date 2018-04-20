@@ -30,6 +30,7 @@
 #include "stream-armor.h"
 #include "stream-packet.h"
 #include "stream-sig.h"
+#include "utils.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -49,11 +50,7 @@
 #include "symmetric.h"
 #include "crypto.h"
 #include "crypto/s2k.h"
-#include "crypto/sm2.h"
-#include "crypto/ec.h"
-#include "crypto/rsa.h"
-#include "crypto/eddsa.h"
-#include "crypto/ecdsa.h"
+#include "crypto/common.h"
 
 #include "fingerprint.h"
 #include "pgp-key.h"

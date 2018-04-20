@@ -34,6 +34,7 @@
 #include <repgp/repgp_def.h>
 #include "crypto/bn.h"
 #include "crypto/rng.h"
+#include "crypto/mpi.h"
 
 #define DEFAULT_CURVE PGP_CURVE_NIST_P_256
 #define MAX_CURVE_BIT_SIZE 521 // secp521r1
@@ -58,6 +59,21 @@ typedef struct ec_curve_desc_t {
     const char *      botan_name;
     const char *      pgp_name;
 } ec_curve_desc_t;
+
+typedef struct pgp_ec_key_t {
+    pgp_curve_t curve;
+    pgp_mpi_t   p;
+    /* secret mpi */
+    pgp_mpi_t x;
+    /* ecdh params */
+    pgp_hash_alg_t kdf_hash_alg; /* Hash used by kdf */
+    pgp_symm_alg_t key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
+} pgp_ec_key_t;
+
+typedef struct pgp_ec_signature_t {
+    pgp_mpi_t r;
+    pgp_mpi_t s;
+} pgp_ec_signature_t;
 
 /** Structure to hold an ECC public key params.
  *

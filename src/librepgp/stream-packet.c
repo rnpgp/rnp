@@ -36,6 +36,7 @@
 #include "symmetric.h"
 #include "crypto/s2k.h"
 #include "stream-packet.h"
+#include "utils.h"
 
 uint32_t
 read_uint32(const uint8_t *buf)

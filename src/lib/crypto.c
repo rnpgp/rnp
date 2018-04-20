@@ -73,15 +73,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include <librepgp/reader.h>
 
 #include "types.h"
-#include "crypto/bn.h"
-#include "crypto/ec.h"
-#include "crypto/ecdh.h"
-#include "crypto/ecdsa.h"
-#include "crypto/eddsa.h"
-#include "crypto/elgamal.h"
-#include "crypto/rsa.h"
-#include "crypto/rng.h"
-#include "crypto/sm2.h"
+#include "crypto/common.h"
 #include "crypto.h"
 #include "memory.h"
 #include "fingerprint.h"
@@ -298,63 +290,4 @@ end:
         pgp_seckey_free(seckey);
     }
     return ok;
-}
-
-bool
-to_buf(buf_t *b, const uint8_t *in, size_t len)
-{
-    if (b->len < len) {
-        return false;
-    }
-    memcpy(b->pbuf, in, len);
-    b->len = len;
-    return true;
-}
-
-const buf_t
-mpi2buf(pgp_mpi_t *val, bool uselen)
-{
-    return (buf_t){.pbuf = val->mpi, .len = uselen ? val->len : sizeof(val->mpi)};
-}
-
-bignum_t *
-mpi2bn(const pgp_mpi_t *val)
-{
-    return bn_bin2bn(val->mpi, val->len, NULL);
-}
-
-bool
-bn2mpi(bignum_t *bn, pgp_mpi_t *val)
-{
-    return bn_num_bytes(bn, &val->len) && (bn_bn2bin(bn, val->mpi) == 0);
-}
-
-unsigned
-mpi_bits(const pgp_mpi_t *val)
-{
-    unsigned bits = 0;
-    unsigned idx = 0;
-    uint8_t  bt;
-
-    while ((idx < val->len) && (val->mpi[idx] == 0)) {
-        idx++;
-    }
-
-    if (idx < val->len) {
-        bt = val->mpi[idx];
-        bits = (val->len - idx - 1) << 3;
-        while (bt) {
-            bits++;
-            bt = bt >> 1;
-        }
-    }
-
-    return bits;
-}
-
-void
-mpi_forget(pgp_mpi_t *val)
-{
-    pgp_forget(val, sizeof(*val));
-    val->len = 0;
 }

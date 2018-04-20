@@ -31,6 +31,7 @@
 #include "stream-armor.h"
 #include "stream-sig.h"
 #include "list.h"
+#include "utils.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -48,10 +49,7 @@
 #include "defs.h"
 #include "types.h"
 #include "symmetric.h"
-#include "crypto/s2k.h"
-#include "crypto/sm2.h"
-#include "crypto/eddsa.h"
-#include "crypto/ecdsa.h"
+#include "crypto/common.h"
 #include "crypto.h"
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>

@@ -34,8 +34,27 @@
 #include <stdint.h>
 #include "crypto/bn.h"
 #include "crypto/rng.h"
+#include "crypto/mpi.h"
 
-typedef struct buf_t buf_t;
+typedef struct pgp_eg_key_t {
+    pgp_mpi_t p;
+    pgp_mpi_t g;
+    pgp_mpi_t y;
+    /* secret mpi */
+    pgp_mpi_t x;
+} pgp_eg_key_t;
+
+typedef struct pgp_eg_signature_t {
+    /* This is kept only for packet reading. Implementation MUST
+     * not create elgamal signatures */
+    pgp_mpi_t r;
+    pgp_mpi_t s;
+} pgp_eg_signature_t;
+
+typedef struct pgp_eg_encrypted_t {
+    pgp_mpi_t g;
+    pgp_mpi_t m;
+} pgp_eg_encrypted_t;
 
 /** Structure to hold an ElGamal public key params.
  *
