@@ -8,6 +8,7 @@ librnp_la_LIBADD	= $(BOTAN_LIBS) $(JSONC_LIBS) ../librekey/librekey.la ../librek
 dist_man_MANS		= librnp.3
 librnp_la_SOURCES	= \
 	crypto/bn.c \
+	crypto/mpi.c \
 	crypto/dsa.c \
 	crypto/ec.c \
 	crypto/ecdh.c \

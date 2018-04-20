@@ -42,6 +42,13 @@
 /* Forward declarations */
 typedef struct pgp_fingerprint_t pgp_fingerprint_t;
 
+typedef struct pgp_ecdh_encrypted_t {
+    pgp_mpi_t p;
+    uint8_t   m[ECDH_WRAPPED_KEY_SIZE];
+    size_t    mlen;
+} pgp_ecdh_encrypted_t;
+
+
 /** Structure to hold an ECDH public key params.
  *
  * \see RFC 6637

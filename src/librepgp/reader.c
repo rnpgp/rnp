@@ -80,6 +80,7 @@ __RCSID("$NetBSD: reader.c,v 1.49 2012/03/05 02:20:18 christos Exp $");
 #include "crypto.h"
 #include "packet-print.h"
 #include "packet-parse.h"
+#include "utils.h"
 
 /* data from partial blocks is queued up in virtual block in stream */
 static int

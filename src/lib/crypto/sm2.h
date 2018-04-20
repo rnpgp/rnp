@@ -30,8 +30,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "errors.h"
-#include "rnp.h"
 #include "rng.h"
+#include "mpi.h"
+
+typedef struct pgp_sm2_encrypted_t {
+    pgp_mpi_t m;
+} pgp_sm2_encrypted_t;
 
 rnp_result_t pgp_sm2_sign_hash(rng_t *                 rng,
                                pgp_ecc_sig_t *         sign,

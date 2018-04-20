@@ -37,11 +37,7 @@
 #include "stream-packet.h"
 #include "hash.h"
 #include "crypto.h"
-#include "crypto/sm2.h"
-#include "crypto/ec.h"
-#include "crypto/rsa.h"
-#include "crypto/eddsa.h"
-#include "crypto/ecdsa.h"
+#include "crypto/common.h"
 
 bool
 signature_matches_onepass(pgp_signature_t *sig, pgp_one_pass_sig_t *onepass)

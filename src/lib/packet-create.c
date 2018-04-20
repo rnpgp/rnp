@@ -82,14 +82,8 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include <rnp/rnp_def.h>
 #include <rnp/rnp_sdk.h>
 
-#include "crypto/bn.h"
-#include "crypto/ec.h"
-#include "crypto/ecdh.h"
-#include "crypto/ecdsa.h"
-#include "crypto/elgamal.h"
-#include "crypto/rsa.h"
+#include "crypto/common.h"
 #include "crypto/s2k.h"
-#include "crypto/sm2.h"
 #include "signature.h"
 #include "packet-create.h"
 #include "memory.h"

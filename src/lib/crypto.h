@@ -253,16 +253,4 @@ struct pgp_stream_t {
     uint8_t *virtualpkt;
 };
 
-bool to_buf(buf_t *b, const uint8_t *in, size_t len);
-
-const buf_t mpi2buf(pgp_mpi_t *val, bool uselen);
-
-bignum_t *mpi2bn(const pgp_mpi_t *val);
-
-bool bn2mpi(bignum_t *bn, pgp_mpi_t *val);
-
-unsigned mpi_bits(const pgp_mpi_t *val);
-
-void mpi_forget(pgp_mpi_t *val);
-
 #endif /* CRYPTO_H_ */

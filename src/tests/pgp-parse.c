@@ -35,12 +35,7 @@
 #include <librepgp/reader.h>
 
 #include <crypto.h>
-#include <crypto/bn.h>
-#include <crypto/rsa.h>
-#include <crypto/dsa.h>
-#include <crypto/eddsa.h>
-#include <crypto/elgamal.h>
-#include <crypto/ecdsa.h>
+#include <crypto/common.h>
 #include <pgp-key.h>
 #include <rnp/rnp.h>
 

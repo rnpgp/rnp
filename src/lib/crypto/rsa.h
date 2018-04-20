@@ -35,9 +35,28 @@
 #include <repgp/repgp_def.h>
 #include "crypto/bn.h"
 #include "crypto/rng.h"
+#include "crypto/mpi.h"
 
 typedef struct pgp_seckey_t     pgp_seckey_t;
 typedef struct pgp_rsa_seckey_t pgp_rsa_seckey_t;
+
+typedef struct pgp_rsa_key_t {
+    pgp_mpi_t n;
+    pgp_mpi_t e;
+    /* secret mpis */
+    pgp_mpi_t d;
+    pgp_mpi_t p;
+    pgp_mpi_t q;
+    pgp_mpi_t u;
+} pgp_rsa_key_t;
+
+typedef struct pgp_rsa_signature_t {
+    pgp_mpi_t s;
+} pgp_rsa_signature_t;
+
+typedef struct pgp_rsa_encrypted_t {
+    pgp_mpi_t m;
+} pgp_rsa_encrypted_t;
 
 /** Structure to hold an RSA public key.
  *
