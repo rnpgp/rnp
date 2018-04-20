@@ -104,6 +104,7 @@ struct rnp_op_sign_signature_st {
 };
 
 struct rnp_op_verify_signature_st {
+    rnp_ffi_t      ffi;
     uint8_t        keyid[PGP_KEY_ID_SIZE];
     pgp_hash_alg_t halg;
     uint32_t       sig_create;
@@ -1903,6 +1904,7 @@ rnp_op_verify_on_signatures(pgp_parse_handler_t * handler,
               sigs[i].no_signer ? RNP_ERROR_KEY_NOT_FOUND : RNP_ERROR_SIGNATURE_INVALID;
         }
 
+        res.ffi = op->ffi;
         op->signatures[i] = res;
     }
 }
@@ -2077,8 +2079,30 @@ rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t sig, char **hash)
 rnp_result_t
 rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig, rnp_key_handle_t *key)
 {
-    // TODO : Implement this
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    rnp_ffi_t ffi = sig->ffi;
+    pgp_key_search_t search;
+
+    // create a search (since we'll use this later anyways)
+    search.type = PGP_KEY_SEARCH_KEYID;
+    memcpy(search.by.keyid, sig->keyid, PGP_KEY_ID_SIZE);
+
+    // search the stores
+    pgp_key_t *pub = rnp_key_store_search(&ffi->io, ffi->pubring, &search, NULL);
+    pgp_key_t *sec = rnp_key_store_search(&ffi->io, ffi->secring, &search, NULL);
+    if (!pub && !sec) {
+        return RNP_ERROR_KEY_NOT_FOUND;
+    }
+
+    struct rnp_key_handle_st *handle = calloc(1, sizeof(*handle));
+    if (!handle) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    handle->ffi = ffi;
+    handle->pub = pub;
+    handle->sec = sec;
+    handle->locator = search;
+    *key = handle;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
