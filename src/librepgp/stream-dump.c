@@ -1136,8 +1136,11 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         case PGP_PTAG_CT_MARKER:
         case PGP_PTAG_CT_TRUST:
         case PGP_PTAG_CT_MDC:
+            dst_printf(dst, "Skipping unhandled pkt: %d\n\n", tag);
+            ret = stream_skip_packet(src);
+            break;
         default:
-            dst_printf(dst, "Unknown pkt: %d\n\n", tag);
+            dst_printf(dst, "Skipping Unknown pkt: %d\n\n", tag);
             ret = stream_skip_packet(src);
         }
 
