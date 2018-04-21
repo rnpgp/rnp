@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2018, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -54,76 +54,50 @@ typedef struct pgp_dsa_signature_t {
     pgp_mpi_t s;
 } pgp_dsa_signature_t;
 
-/** Structure to hold one DSA public key params.
- *
- * \see RFC4880 5.5.2
- */
-typedef struct {
-    bignum_t *p; /* DSA prime p */
-    bignum_t *q; /* DSA group order q */
-    bignum_t *g; /* DSA group generator g */
-    bignum_t *y; /* DSA public key value y (= g^x mod p
-                * with x being the secret) */
-} pgp_dsa_pubkey_t;
-
-/** pgp_dsa_seckey_t */
-typedef struct pgp_dsa_seckey_t {
-    bignum_t *x;
-} pgp_dsa_seckey_t;
-
-/** Struct to hold params of a DSA signature */
-typedef struct pgp_dsa_sig_t {
-    bignum_t *r; /* DSA value r */
-    bignum_t *s; /* DSA value s */
-} pgp_dsa_sig_t;
-
 /*
- * @brief   Performs DSA sign
+ * @brief   Performs DSA signing
  *
  * @param   rng       initialized PRNG
- * @param   sign[out] created signature
+ * @param   sig[out]  created signature
  * @param   hash      hash to sign
  * @param   hash_len  length of `hash`
- * @param   seckey    private DSA key
- * @param   pubkey    public DSA key
+ * @param   key       DSA key (must include secret mpi)
  *
  * @returns RNP_SUCCESS
  *          RNP_ERROR_BAD_PARAMETERS wrong input provided
  *          RNP_ERROR_SIGNING_FAILED internal error
  */
-rnp_result_t dsa_sign(rng_t *                 rng,
-                      pgp_dsa_sig_t *         sign,
-                      const uint8_t *         hash,
-                      size_t                  hash_len,
-                      const pgp_dsa_seckey_t *seckey,
-                      const pgp_dsa_pubkey_t *pubkey);
+rnp_result_t dsa_sign(rng_t *              rng,
+                      pgp_dsa_signature_t *sig,
+                      const uint8_t *      hash,
+                      size_t               hash_len,
+                      const pgp_dsa_key_t *key);
 
 /*
  * @brief   Performs DSA verification
  *
  * @param   hash      hash to verify
  * @param   hash_len  length of `hash`
- * @param   sign      hash of the sign to be verified
- * @param   pubkey    public DSA key
+ * @param   sig       signature to be verified
+ * @param   key       DSA key (secret mpi is not needed)
  *
  * @returns RNP_SUCCESS
  *          RNP_ERROR_BAD_PARAMETERS wrong input provided
  *          RNP_ERROR_GENERIC internal error
  *          RNP_ERROR_SIGNATURE_INVALID signature is invalid
  */
-rnp_result_t dsa_verify(const uint8_t *         hash,
-                        size_t                  hash_len,
-                        const pgp_dsa_sig_t *   sign,
-                        const pgp_dsa_pubkey_t *pubkey);
+rnp_result_t dsa_verify(const uint8_t *            hash,
+                        size_t                     hash_len,
+                        const pgp_dsa_signature_t *sig,
+                        const pgp_dsa_key_t *      key);
 
 /*
- * @brief   Performs DSA sign
+ * @brief   Performs DSA key generation
  *
- * @param   rng             hash to verify
- * @param   keylen          length of the key
- * @param   qbits           subgroup size
- * @param   pubkey[out]     public DSA key
- * @param   seckey[out]     private DSA key
+ * @param   rng          initialized PRNG
+ * @param   key[out]     generated key data will be stored here
+ * @param   keylen       length of the key, in bits
+ * @param   qbits        subgroup size in bits
  *
  * @returns RNP_SUCCESS
  *          RNP_ERROR_BAD_PARAMETERS wrong input provided
@@ -131,8 +105,7 @@ rnp_result_t dsa_verify(const uint8_t *         hash,
  *          RNP_ERROR_GENERIC internal error
  *          RNP_ERROR_SIGNATURE_INVALID signature is invalid
  */
-rnp_result_t dsa_keygen(
-  rng_t *rng, pgp_dsa_pubkey_t *pubkey, pgp_dsa_seckey_t *seckey, size_t keylen, size_t qbits);
+rnp_result_t dsa_generate(rng_t *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits);
 
 /*
  * @brief   Returns minimally sized hash which will work

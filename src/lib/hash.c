@@ -323,8 +323,7 @@ pgp_hash_uint32(pgp_hash_t *hash, uint32_t n)
 pgp_hash_alg_t
 pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_pubkey_t *pubkey)
 {
-    if ((pubkey->alg != PGP_PKA_DSA) &&
-        (pubkey->alg != PGP_PKA_ECDSA)) {
+    if ((pubkey->alg != PGP_PKA_DSA) && (pubkey->alg != PGP_PKA_ECDSA)) {
         return hash;
     }
 
@@ -332,11 +331,7 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_pubkey_t *pubkey)
     if (pubkey->alg == PGP_PKA_ECDSA) {
         hash_min = ecdsa_get_min_hash(pubkey->key.ecc.curve);
     } else {
-        size_t s;
-        if(!bn_num_bits(pubkey->key.dsa.q, &s)) {
-            return PGP_HASH_UNKNOWN;
-        }
-        hash_min = dsa_get_min_hash(s);
+        hash_min = dsa_get_min_hash(mpi_bits(&pubkey->key.dsa.q));
     }
 
     if (pgp_digest_length(hash) < pgp_digest_length(hash_min)) {

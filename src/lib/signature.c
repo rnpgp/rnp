@@ -178,28 +178,22 @@ rsa_sign(rng_t *                 rng,
 }
 
 static bool
-dsa_sign_wrapper(rng_t *                 rng,
-                 pgp_hash_t *            hash,
-                 const pgp_dsa_pubkey_t *dsa,
-                 const pgp_dsa_seckey_t *sdsa,
-                 pgp_output_t *          output)
+dsa_sign_wrapper(rng_t *rng, pgp_hash_t *hash, const pgp_dsa_key_t *dsa, pgp_output_t *output)
 {
-    uint8_t       hashbuf[PGP_MAX_HASH_SIZE];
-    pgp_dsa_sig_t sign = {0};
+    uint8_t             hashbuf[PGP_MAX_HASH_SIZE];
+    pgp_dsa_signature_t sig;
 
     size_t hashsize = pgp_hash_finish(hash, &hashbuf[0]);
     pgp_write(output, &hashbuf[0], 2);
 
     /* write signature to buf */
-    if (dsa_sign(rng, &sign, hashbuf, hashsize, sdsa, dsa)) {
+    if (dsa_sign(rng, &sig, hashbuf, hashsize, dsa)) {
         return false;
     }
 
     /* convert and write the sig out to memory */
-    pgp_write_mpi(output, sign.r);
-    pgp_write_mpi(output, sign.s);
-    bn_free(sign.r);
-    bn_free(sign.s);
+    pgp_write_mpi_n(output, &sig.r);
+    pgp_write_mpi_n(output, &sig.s);
     return true;
 }
 
@@ -229,7 +223,6 @@ ecdsa_sign(rng_t *                 rng,
         RNP_LOG("Message hash to small");
         return false;
     }
-
 
     /* write signature to buf */
     if (pgp_ecdsa_sign_hash(rng, &sig, hashbuf, hashsize, prv_key, pub_key) != RNP_SUCCESS) {
@@ -629,7 +622,6 @@ start_sig_in_mem(pgp_create_sig_t *sig)
     pgp_write_scalar(sig->output, 0, 2);
 }
 
-
 /**
  * \ingroup Core_Signature
  *
@@ -794,7 +786,7 @@ pgp_sig_write(rng_t *             rng,
         break;
 
     case PGP_PKA_DSA:
-        if (seckey->key.dsa.x == NULL) {
+        if (!mpi_bytes(&seckey->pubkey.key.dsa.x)) {
             (void) fprintf(stderr, "pgp_sig_write: null dsa.x\n");
             return false;
         }
@@ -866,7 +858,7 @@ pgp_sig_write(rng_t *             rng,
         break;
 
     case PGP_PKA_DSA:
-        if (!dsa_sign_wrapper(rng, &sig->hash, &key->key.dsa, &seckey->key.dsa, sig->output)) {
+        if (!dsa_sign_wrapper(rng, &sig->hash, &key->key.dsa, sig->output)) {
             RNP_LOG("dsa_sign failure");
             return false;
         }
@@ -1008,4 +1000,3 @@ pgp_sig_get_hash(pgp_create_sig_t *sig)
 {
     return &sig->hash;
 }
-

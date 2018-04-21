@@ -237,11 +237,8 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         }
         break;
     case PGP_PKA_DSA:
-        if (dsa_keygen(rng,
-                       &seckey->pubkey.key.dsa,
-                       &seckey->key.dsa,
-                       crypto->dsa.p_bitlen,
-                       crypto->dsa.q_bitlen)) {
+        if (dsa_generate(
+              rng, &seckey->pubkey.key.dsa, crypto->dsa.p_bitlen, crypto->dsa.q_bitlen)) {
             RNP_LOG("failed to generate DSA key");
             goto end;
         }

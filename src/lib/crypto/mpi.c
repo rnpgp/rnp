@@ -26,7 +26,9 @@
 
 #include "mpi.h"
 #include <string.h>
+#include <stdlib.h>
 #include "memory.h"
+#include "hash.h"
 
 bool
 to_buf(buf_t *b, const uint8_t *in, size_t len)
@@ -57,27 +59,95 @@ bn2mpi(bignum_t *bn, pgp_mpi_t *val)
     return bn_num_bytes(bn, &val->len) && (bn_bn2bin(bn, val->mpi) == 0);
 }
 
-unsigned
+size_t
 mpi_bits(const pgp_mpi_t *val)
 {
-    unsigned bits = 0;
-    unsigned idx = 0;
-    uint8_t  bt;
+    size_t  bits = 0;
+    size_t  idx = 0;
+    uint8_t bt;
 
-    while ((idx < val->len) && (val->mpi[idx] == 0)) {
-        idx++;
-    }
+    for (idx = 0; (idx < val->len) && !val->mpi[idx]; idx++)
+        ;
 
     if (idx < val->len) {
-        bt = val->mpi[idx];
-        bits = (val->len - idx - 1) << 3;
-        while (bt) {
-            bits++;
-            bt = bt >> 1;
-        }
+        for (bits = (val->len - idx - 1) << 3, bt = val->mpi[idx]; bt; bits++, bt = bt >> 1)
+            ;
     }
 
     return bits;
+}
+
+size_t
+mpi_bytes(const pgp_mpi_t *val)
+{
+    return val->len;
+}
+
+bool
+mem2mpi(pgp_mpi_t *val, const void *mem, size_t len)
+{
+    if (len > sizeof(val->mpi)) {
+        return false;
+    }
+
+    memcpy(val->mpi, mem, len);
+    val->len = len;
+    return true;
+}
+
+void
+mpi2mem(const pgp_mpi_t *val, void *mem)
+{
+    memcpy(mem, val->mpi, val->len);
+}
+
+char *
+mpi2hex(const pgp_mpi_t *val)
+{
+    static const char *hexes = "0123456789abcdef";
+    char *             out;
+    size_t             len;
+    size_t             idx = 0;
+
+    len = mpi_bytes(val);
+    out = malloc(len * 2 + 1);
+
+    if (!out) {
+        return out;
+    }
+
+    for (size_t i = 0; i < len; i++) {
+        out[idx++] = hexes[val->mpi[i] >> 4];
+        out[idx++] = hexes[val->mpi[i] & 0xf];
+    }
+    out[idx] = '\0';
+    return out;
+}
+
+/* hashes 32-bit length + mpi body (paddded with 0 if high order byte is >= 0x80) */
+bool
+mpi_hash(const pgp_mpi_t *val, pgp_hash_t *hash)
+{
+    size_t  len;
+    size_t  idx;
+    uint8_t padbyte = 0;
+    bool    res = true;
+
+    len = mpi_bytes(val);
+    for (idx = 0; (idx < len) && (val->mpi[idx] == 0); idx++)
+        ;
+
+    if (idx >= len) {
+        return pgp_hash_uint32(hash, 0);
+    }
+
+    res = pgp_hash_uint32(hash, len - idx);
+    if (val->mpi[idx] & 0x80) {
+        res &= pgp_hash_add(hash, &padbyte, 1);
+    }
+    res &= pgp_hash_add(hash, val->mpi + idx, len - idx);
+
+    return res;
 }
 
 void

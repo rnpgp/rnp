@@ -144,6 +144,23 @@ getbignum(bufgap_t *bg, char *buf, const char *header)
     return bignum;
 }
 
+/* get a bignum from the buffer gap */
+static void
+getmpi(bufgap_t *bg, char *buf, const char *header, pgp_mpi_t *mpi)
+{
+    uint32_t len;
+
+    (void) bufgap_getbin(bg, &len, sizeof(len));
+    len = ntohl(len);
+    (void) bufgap_seek(bg, sizeof(len), BGFromHere, BGByte);
+    (void) bufgap_getbin(bg, buf, len);
+    mem2mpi(mpi, buf, len);
+    if (rnp_get_debug(__FILE__)) {
+        hexdump(stderr, header, (const uint8_t *) (void *) buf, len);
+    }
+    (void) bufgap_seek(bg, len, BGFromHere, BGByte);
+}
+
 static str_t pkatypes[] = {{"ssh-rsa", 7, PGP_PKA_RSA},
                            {"ssh-dss", 7, PGP_PKA_DSA},
                            {"ssh-dsa", 7, PGP_PKA_DSA},
@@ -269,13 +286,13 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
         break;
     case PGP_PKA_DSA:
         /* get the 'p' param of the key */
-        pubkey->key.dsa.p = getbignum(&bg, buf, "DSA P");
+        getmpi(&bg, buf, "DSA P", &pubkey->key.dsa.p);
         /* get the 'q' param of the key */
-        pubkey->key.dsa.q = getbignum(&bg, buf, "DSA Q");
+        getmpi(&bg, buf, "DSA Q", &pubkey->key.dsa.q);
         /* get the 'g' param of the key */
-        pubkey->key.dsa.g = getbignum(&bg, buf, "DSA G");
+        getmpi(&bg, buf, "DSA G", &pubkey->key.dsa.g);
         /* get the 'y' param of the key */
-        pubkey->key.dsa.y = getbignum(&bg, buf, "DSA Y");
+        getmpi(&bg, buf, "DSA Y", &pubkey->key.dsa.y);
         break;
     default:
         fprintf(stderr, "Unrecognised pubkey type %d for '%s'\n", pubkey->alg, f);

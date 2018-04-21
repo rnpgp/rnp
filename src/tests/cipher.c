@@ -257,25 +257,15 @@ elgamal_roundtrip(rnp_test_state_t *    state,
     buf_t res = {.pbuf = decryption_result, .len = sizeof(decryption_result)};
 
     rnp_assert_int_equal(
-      state,
-      elgamal_encrypt_pkcs1(&global_rng, &g2k, &m, &in, key_pub),
-      RNP_SUCCESS);
+      state, elgamal_encrypt_pkcs1(&global_rng, &g2k, &m, &in, key_pub), RNP_SUCCESS);
 
     rnp_assert_int_not_equal(
-      state,
-      elgamal_decrypt_pkcs1(
-        &global_rng, &res, &g2k, &m, key_prv, key_pub),
-      -1);
+      state, elgamal_decrypt_pkcs1(&global_rng, &res, &g2k, &m, key_prv, key_pub), -1);
+
+    rnp_assert_int_equal(state, res.len, sizeof(in_b));
 
     rnp_assert_int_equal(
-      state,
-      res.len,
-      sizeof(in_b));
-
-    rnp_assert_int_equal(
-      state,
-      0,
-      test_value_equal("ElGamal decrypt", "0102030417", res.pbuf, res.len));
+      state, 0, test_value_equal("ElGamal decrypt", "0102030417", res.pbuf, res.len));
 }
 
 void
@@ -654,7 +644,7 @@ sm2_roundtrip(void **state)
     uint8_t hashes[] = {PGP_HASH_SM3, PGP_HASH_SHA256, PGP_HASH_SHA512};
 
     for (size_t i = 0; i < ARRAY_SIZE(hashes); ++i) {
-        size_t        ctext_size = sizeof(ctext_buf);
+        size_t       ctext_size = sizeof(ctext_buf);
         rnp_result_t enc_result = pgp_sm2_encrypt(
           &global_rng, ctext_buf, &ctext_size, key, sizeof(key), hashes[i], pub_ecc);
         rnp_assert_int_equal(rstate, enc_result, RNP_SUCCESS);
@@ -677,43 +667,40 @@ sm2_roundtrip(void **state)
 void
 test_dsa_roundtrip(void **state)
 {
-    rnp_test_state_t *rstate = *state;
-    uint8_t           message[PGP_MAX_HASH_SIZE];
-    pgp_seckey_t      sec_key1 = {{0}};
-    pgp_dsa_sig_t     sig = {0};
+    rnp_test_state_t *  rstate = *state;
+    uint8_t             message[PGP_MAX_HASH_SIZE];
+    pgp_seckey_t        sec_key1 = {{0}};
+    pgp_dsa_signature_t sig = {{{0}}};
 
     struct key_params {
-        size_t p;
-        size_t q;
+        size_t         p;
+        size_t         q;
         pgp_hash_alg_t h;
     } keys[] = {
-        // all 1024 key-hash combinations
-        {1024, 160, PGP_HASH_SHA1},
-        {1024, 160, PGP_HASH_SHA224},
-        {1024, 160, PGP_HASH_SHA256},
-        {1024, 160, PGP_HASH_SHA384},
-        {1024, 160, PGP_HASH_SHA512},
-        // all 2048 key-hash combinations
-        {2048, 256, PGP_HASH_SHA256},
-        {2048, 256, PGP_HASH_SHA384},
-        {2048, 256, PGP_HASH_SHA512},
-        //misc
-        {1088, 224, PGP_HASH_SHA512},
-        {1024, 256, PGP_HASH_SHA256},
+      // all 1024 key-hash combinations
+      {1024, 160, PGP_HASH_SHA1},
+      {1024, 160, PGP_HASH_SHA224},
+      {1024, 160, PGP_HASH_SHA256},
+      {1024, 160, PGP_HASH_SHA384},
+      {1024, 160, PGP_HASH_SHA512},
+      // all 2048 key-hash combinations
+      {2048, 256, PGP_HASH_SHA256},
+      {2048, 256, PGP_HASH_SHA384},
+      {2048, 256, PGP_HASH_SHA512},
+      // misc
+      {1088, 224, PGP_HASH_SHA512},
+      {1024, 256, PGP_HASH_SHA256},
     };
 
     assert_true(rng_get_data(&global_rng, message, sizeof(message)));
 
-    for (size_t i = 0; i<ARRAY_SIZE(keys); i++) {
-        sig.r = sig.s = NULL;
-        const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_DSA,
-                                                     .hash_alg = keys[i].h,
-                                                     .dsa = {
-                                                        .p_bitlen = keys[i].p,
-                                                        .q_bitlen = keys[i].q
-                                                     },
-                                                     .rng = &global_rng};
-
+    for (size_t i = 0; i < ARRAY_SIZE(keys); i++) {
+        memset(&sig, 0, sizeof(sig));
+        const rnp_keygen_crypto_params_t key_desc = {
+          .key_alg = PGP_PKA_DSA,
+          .hash_alg = keys[i].h,
+          .dsa = {.p_bitlen = keys[i].p, .q_bitlen = keys[i].q},
+          .rng = &global_rng};
 
         assert_true(pgp_generate_seckey(&key_desc, &sec_key1));
         // try to prevent timeouts in travis-ci
@@ -723,45 +710,38 @@ test_dsa_roundtrip(void **state)
                pgp_show_hash_alg(key_desc.hash_alg));
         fflush(stdout);
 
-        pgp_dsa_pubkey_t *pub1 = &sec_key1.pubkey.key.dsa;
-        pgp_dsa_seckey_t *sec1 = &sec_key1.key.dsa;
+        pgp_dsa_key_t *key1 = &sec_key1.pubkey.key.dsa;
 
         size_t h_size = pgp_digest_length(keys[i].h);
-        rnp_assert_int_equal(rstate,
-            dsa_sign(&global_rng, &sig, message, h_size, sec1, pub1), RNP_SUCCESS);
-        rnp_assert_int_equal(rstate,
-            dsa_verify(message, h_size, &sig, pub1), RNP_SUCCESS);
+        rnp_assert_int_equal(
+          rstate, dsa_sign(&global_rng, &sig, message, h_size, key1), RNP_SUCCESS);
+        rnp_assert_int_equal(rstate, dsa_verify(message, h_size, &sig, key1), RNP_SUCCESS);
         pgp_seckey_free(&sec_key1);
-        bn_free(sig.r); bn_free(sig.s);
     }
 }
 
 void
 test_dsa_verify_negative(void **state)
 {
-    rnp_test_state_t *rstate = *state;
-    uint8_t           message[PGP_MAX_HASH_SIZE];
-    pgp_seckey_t      sec_key1 = {{0}};
-    pgp_seckey_t      sec_key2 = {{0}};
-    pgp_dsa_sig_t     sig = {0};
+    rnp_test_state_t *  rstate = *state;
+    uint8_t             message[PGP_MAX_HASH_SIZE];
+    pgp_seckey_t        sec_key1 = {{0}};
+    pgp_seckey_t        sec_key2 = {{0}};
+    pgp_dsa_signature_t sig = {{{0}}};
 
     struct key_params {
-        size_t p;
-        size_t q;
+        size_t         p;
+        size_t         q;
         pgp_hash_alg_t h;
-    } key = { 1024, 160, PGP_HASH_SHA1 };
+    } key = {1024, 160, PGP_HASH_SHA1};
 
     assert_true(rng_get_data(&global_rng, message, sizeof(message)));
 
-    sig.r = sig.s = NULL;
+    memset(&sig, 0, sizeof(sig));
     const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_DSA,
                                                  .hash_alg = key.h,
-                                                 .dsa = {
-                                                    .p_bitlen = key.p,
-                                                    .q_bitlen = key.q
-                                                 },
+                                                 .dsa = {.p_bitlen = key.p, .q_bitlen = key.q},
                                                  .rng = &global_rng};
-
 
     assert_true(pgp_generate_seckey(&key_desc, &sec_key1));
     // try to prevent timeouts in travis-ci
@@ -771,21 +751,19 @@ test_dsa_verify_negative(void **state)
            pgp_show_hash_alg(key_desc.hash_alg));
     assert_true(pgp_generate_seckey(&key_desc, &sec_key2));
 
-    pgp_dsa_pubkey_t *pub1 = &sec_key1.pubkey.key.dsa;
-    pgp_dsa_seckey_t *sec1 = &sec_key1.key.dsa;
-    pgp_dsa_pubkey_t *pub2 = &sec_key2.pubkey.key.dsa;
+    pgp_dsa_key_t *key1 = &sec_key1.pubkey.key.dsa;
+    pgp_dsa_key_t *key2 = &sec_key2.pubkey.key.dsa;
 
     size_t h_size = pgp_digest_length(key.h);
-    rnp_assert_int_equal(rstate,
-        dsa_sign(&global_rng, &sig, message, h_size, sec1, pub1), RNP_SUCCESS);
+    rnp_assert_int_equal(
+      rstate, dsa_sign(&global_rng, &sig, message, h_size, key1), RNP_SUCCESS);
     // wrong key used
-    rnp_assert_int_equal(rstate,
-        dsa_verify(message, h_size, &sig, pub2), RNP_ERROR_SIGNATURE_INVALID);
+    rnp_assert_int_equal(
+      rstate, dsa_verify(message, h_size, &sig, key2), RNP_ERROR_SIGNATURE_INVALID);
     // different message
     message[0] = ~message[0];
-    rnp_assert_int_equal(rstate,
-        dsa_verify(message, h_size, &sig, pub1), RNP_ERROR_SIGNATURE_INVALID);
+    rnp_assert_int_equal(
+      rstate, dsa_verify(message, h_size, &sig, key1), RNP_ERROR_SIGNATURE_INVALID);
     pgp_seckey_free(&sec_key1);
     pgp_seckey_free(&sec_key2);
-    bn_free(sig.r); bn_free(sig.s);
 }

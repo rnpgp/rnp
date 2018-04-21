@@ -36,6 +36,8 @@
 #define PGP_MPINT_BITS (16384)
 #define PGP_MPINT_SIZE (PGP_MPINT_BITS >> 3)
 
+typedef struct pgp_hash_t pgp_hash_t;
+
 /** multi-precision integer, used in signatures and public/secret keys */
 typedef struct pgp_mpi_t {
     uint8_t mpi[PGP_MPINT_SIZE];
@@ -59,7 +61,17 @@ bignum_t *mpi2bn(const pgp_mpi_t *val);
 
 bool bn2mpi(bignum_t *bn, pgp_mpi_t *val);
 
-unsigned mpi_bits(const pgp_mpi_t *val);
+bool mem2mpi(pgp_mpi_t *val, const void *mem, size_t len);
+
+void mpi2mem(const pgp_mpi_t *val, void *mem);
+
+char *mpi2hex(const pgp_mpi_t *val);
+
+size_t mpi_bits(const pgp_mpi_t *val);
+
+size_t mpi_bytes(const pgp_mpi_t *val);
+
+bool mpi_hash(const pgp_mpi_t *val, pgp_hash_t *hash);
 
 void mpi_forget(pgp_mpi_t *val);
 

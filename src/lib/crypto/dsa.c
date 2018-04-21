@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Ribose Inc.
+ * Copyright (c) 2017-2018 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -88,29 +88,39 @@
 #define DSA_MAX_Q_BITLEN 256
 
 rnp_result_t
-dsa_sign(rng_t *                 rng,
-         pgp_dsa_sig_t *         sign,
-         const uint8_t *         h,
-         size_t                  h_len,
-         const pgp_dsa_seckey_t *secdsa,
-         const pgp_dsa_pubkey_t *pubdsa)
+dsa_sign(rng_t *              rng,
+         pgp_dsa_signature_t *sig,
+         const uint8_t *      hash,
+         size_t               hash_len,
+         const pgp_dsa_key_t *key)
 {
     botan_privkey_t    dsa_key = NULL;
     botan_pk_op_sign_t sign_op = NULL;
     size_t             q_order = 0;
     uint8_t            sign_buf[2 * BITS_TO_BYTES(DSA_MAX_Q_BITLEN)] = {0};
+    bignum_t *         p = NULL, *q = NULL, *g = NULL, *x = NULL;
     rnp_result_t       ret = RNP_ERROR_SIGNING_FAILED;
 
-    if (sign->r || sign->s) {
-        // Caller must not allocate r and s
+    memset(sig, 0, sizeof(*sig));
+    q_order = mpi_bytes(&key->q);
+    if ((2 * q_order) > sizeof(sign_buf)) {
+        RNP_LOG("wrong q order");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (botan_privkey_load_dsa(&dsa_key,
-                               BN_HANDLE_PTR(pubdsa->p),
-                               BN_HANDLE_PTR(pubdsa->q),
-                               BN_HANDLE_PTR(pubdsa->g),
-                               BN_HANDLE_PTR(secdsa->x))) {
+    p = mpi2bn(&key->p);
+    q = mpi2bn(&key->q);
+    g = mpi2bn(&key->g);
+    x = mpi2bn(&key->x);
+
+    if (!p || !q || !g || !x) {
+        RNP_LOG("out of memory");
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto end;
+    }
+
+    if (botan_privkey_load_dsa(
+          &dsa_key, BN_HANDLE_PTR(p), BN_HANDLE_PTR(q), BN_HANDLE_PTR(g), BN_HANDLE_PTR(x))) {
         RNP_LOG("Can't load key");
         goto end;
     }
@@ -119,15 +129,9 @@ dsa_sign(rng_t *                 rng,
         goto end;
     }
 
-    if (!bn_num_bytes(pubdsa->q, &q_order) || (2 * q_order) > sizeof(sign_buf)) {
-        RNP_LOG("Can't create signer");
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto end;
-    }
-
     // As 'Raw' is used we need to reduce hash size (as per FIPS-186-4, 4.6)
-    const size_t z_len = h_len < q_order ? h_len : q_order;
-    if (botan_pk_op_sign_update(sign_op, h, z_len)) {
+    const size_t z_len = hash_len < q_order ? hash_len : q_order;
+    if (botan_pk_op_sign_update(sign_op, hash, z_len)) {
         goto end;
     }
 
@@ -138,64 +142,75 @@ dsa_sign(rng_t *                 rng,
     }
 
     // Now load the DSA (r,s) values from the signature.
-    sign->r = bn_bin2bn(sign_buf, q_order, sign->r);
-    sign->s = bn_bin2bn(&sign_buf[q_order], q_order, sign->s);
-    if (!sign->r || !sign->s) {
+    if (!mem2mpi(&sig->r, sign_buf, q_order) ||
+        !mem2mpi(&sig->s, sign_buf + q_order, q_order)) {
         goto end;
     }
     ret = RNP_SUCCESS;
 
 end:
+    bn_free(p);
+    bn_free(q);
+    bn_free(g);
+    bn_free(x);
     botan_pk_op_sign_destroy(sign_op);
     botan_privkey_destroy(dsa_key);
     return ret;
 }
 
 rnp_result_t
-dsa_verify(const uint8_t          *h,
-           size_t                  h_len,
-           const pgp_dsa_sig_t    *sig,
-           const pgp_dsa_pubkey_t *dsa)
+dsa_verify(const uint8_t *            hash,
+           size_t                     hash_len,
+           const pgp_dsa_signature_t *sig,
+           const pgp_dsa_key_t *      key)
 {
     botan_pubkey_t       dsa_key = NULL;
     botan_pk_op_verify_t verify_op = NULL;
     uint8_t              sign_buf[2 * BITS_TO_BYTES(DSA_MAX_Q_BITLEN)] = {0};
     size_t               q_order = 0;
     size_t               r_blen, s_blen;
+    bignum_t *           p = NULL, *q = NULL, *g = NULL, *y = NULL;
     rnp_result_t         ret = RNP_ERROR_GENERIC;
 
-    if (botan_mp_num_bytes(BN_HANDLE_PTR(dsa->q), &q_order) ||
-        (2 * q_order) > sizeof(sign_buf)) {
+    q_order = mpi_bytes(&key->q);
+    if ((2 * q_order) > sizeof(sign_buf)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (botan_pubkey_load_dsa(&dsa_key,
-                              BN_HANDLE_PTR(dsa->p),
-                              BN_HANDLE_PTR(dsa->q),
-                              BN_HANDLE_PTR(dsa->g),
-                              BN_HANDLE_PTR(dsa->y))) {
+    r_blen = mpi_bytes(&sig->r);
+    s_blen = mpi_bytes(&sig->s);
+    if ((r_blen > q_order) || (s_blen > q_order)) {
+        RNP_LOG("Wrong signature");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    p = mpi2bn(&key->p);
+    q = mpi2bn(&key->q);
+    g = mpi2bn(&key->g);
+    y = mpi2bn(&key->y);
+
+    if (!p || !q || !g || !y) {
+        RNP_LOG("out of memory");
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto end;
+    }
+
+    if (botan_pubkey_load_dsa(
+          &dsa_key, BN_HANDLE_PTR(p), BN_HANDLE_PTR(q), BN_HANDLE_PTR(g), BN_HANDLE_PTR(y))) {
         RNP_LOG("Wrong key");
         goto end;
     }
 
-    if (!bn_num_bytes(sig->r, &r_blen) || (r_blen > q_order) ||
-        !bn_num_bytes(sig->s, &s_blen) || (s_blen > q_order)) {
-        RNP_LOG("Wrong signature");
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto end;
-    }
-
-    // Both can't fail
-    (void) bn_bn2bin(sig->r, &sign_buf[q_order - r_blen]);
-    (void) bn_bn2bin(sig->s, &sign_buf[q_order + q_order - s_blen]);
+    mpi2mem(&sig->r, sign_buf + q_order - r_blen);
+    mpi2mem(&sig->s, sign_buf + 2 * q_order - s_blen);
 
     if (botan_pk_op_verify_create(&verify_op, dsa_key, "Raw", 0)) {
         RNP_LOG("Can't create verifier");
         goto end;
     }
 
-    const size_t z_len = h_len < q_order ? h_len : q_order;
-    if (botan_pk_op_verify_update(verify_op, h, z_len)) {
+    const size_t z_len = hash_len < q_order ? hash_len : q_order;
+    if (botan_pk_op_verify_update(verify_op, hash, z_len)) {
         goto end;
     }
 
@@ -204,18 +219,21 @@ dsa_verify(const uint8_t          *h,
             RNP_ERROR_SIGNATURE_INVALID;
 
 end:
+    bn_free(p);
+    bn_free(q);
+    bn_free(g);
+    bn_free(y);
     botan_pk_op_verify_destroy(verify_op);
     botan_pubkey_destroy(dsa_key);
     return ret;
 }
 
 rnp_result_t
-dsa_keygen(
-  rng_t *rng, pgp_dsa_pubkey_t *pubkey, pgp_dsa_seckey_t *seckey, size_t keylen, size_t qbits)
+dsa_generate(rng_t *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
 {
     botan_privkey_t key_priv = NULL;
     botan_pubkey_t  key_pub = NULL;
-    rnp_result_t    ret = RNP_SUCCESS;
+    rnp_result_t    ret = RNP_ERROR_GENERIC;
 
     bignum_t *p = bn_new();
     bignum_t *q = bn_new();
@@ -246,20 +264,18 @@ dsa_keygen(
         goto end;
     }
 
-    bn_init(&pubkey->p, p);
-    bn_init(&pubkey->q, q);
-    bn_init(&pubkey->g, g);
-    bn_init(&pubkey->y, y);
-    bn_init(&seckey->x, x);
-
-end:
-    if (ret) {
-        bn_free(p);
-        bn_free(q);
-        bn_free(g);
-        bn_free(y);
-        bn_free(x);
+    if (!bn2mpi(p, &key->p) || !bn2mpi(q, &key->q) || !bn2mpi(g, &key->g) ||
+        !bn2mpi(y, &key->y) || !bn2mpi(x, &key->x)) {
+        RNP_LOG("failed to copy mpi");
+        goto end;
     }
+    ret = RNP_SUCCESS;
+end:
+    bn_free(p);
+    bn_free(q);
+    bn_free(g);
+    bn_free(y);
+    bn_free(x);
     botan_privkey_destroy(key_priv);
     botan_pubkey_destroy(key_pub);
     return ret;
@@ -268,26 +284,27 @@ end:
 pgp_hash_alg_t
 dsa_get_min_hash(size_t qsize)
 {
-   /*
-    * I'm using _broken_ SHA1 here only because
-    * some old implementations may not understand keys created
-    * with other hashes. If you're sure we don't have to support
-    * such implementations, please be my guest and remove it.
-    */
-    return (qsize <  160) ? PGP_HASH_UNKNOWN :
-           (qsize == 160) ? PGP_HASH_SHA1 :
-           (qsize <= 224) ? PGP_HASH_SHA224 :
-           (qsize <= 256) ? PGP_HASH_SHA256 :
-           (qsize <= 384) ? PGP_HASH_SHA384 :
-           (qsize <= 512) ? PGP_HASH_SHA512
-           /*(qsize>512)*/: PGP_HASH_UNKNOWN;
+    /*
+     * I'm using _broken_ SHA1 here only because
+     * some old implementations may not understand keys created
+     * with other hashes. If you're sure we don't have to support
+     * such implementations, please be my guest and remove it.
+     */
+    return (qsize < 160) ? PGP_HASH_UNKNOWN :
+                           (qsize == 160) ?
+                           PGP_HASH_SHA1 :
+                           (qsize <= 224) ?
+                           PGP_HASH_SHA224 :
+                           (qsize <= 256) ? PGP_HASH_SHA256 :
+                                            (qsize <= 384) ? PGP_HASH_SHA384 :
+                                                             (qsize <= 512) ? PGP_HASH_SHA512
+                                                                              /*(qsize>512)*/ :
+                                                                              PGP_HASH_UNKNOWN;
 }
 
 size_t
 dsa_choose_qsize_by_psize(size_t psize)
 {
     return (psize == 1024) ? 160 :
-           (psize <= 2047) ? 224 :
-           (psize <= 3072) ? DSA_MAX_Q_BITLEN :
-           0;
+                             (psize <= 2047) ? 224 : (psize <= 3072) ? DSA_MAX_Q_BITLEN : 0;
 }
