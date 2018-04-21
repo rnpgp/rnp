@@ -146,6 +146,27 @@ pgp_write_mpi(pgp_output_t *output, const bignum_t *bn)
            pgp_write(output, buf, BITS_TO_BYTES(bsz));
 }
 
+bool
+pgp_write_mpi_n(pgp_output_t *output, const pgp_mpi_t *val)
+{
+    size_t bits;
+    size_t bytes;
+    size_t idx;
+
+    bits = mpi_bits(val);
+
+    if (bits > 65535) {
+        RNP_LOG("Wrong input");
+        return false;
+    }
+
+    bytes = mpi_bytes(val);
+    for (idx = 0; (idx < bytes) && !val->mpi[idx]; idx++)
+        ;
+
+    return pgp_write_scalar(output, bits, 2) && pgp_write(output, val->mpi + idx, bytes - idx);
+}
+
 /**
  * \ingroup Core_WritePackets
  * \param tag

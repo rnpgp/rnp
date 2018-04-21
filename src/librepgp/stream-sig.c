@@ -476,11 +476,7 @@ signature_validate(pgp_signature_t *sig, pgp_pubkey_t *key, pgp_hash_t *hash, rn
 
     switch (sig->palg) {
     case PGP_PKA_DSA: {
-        pgp_dsa_sig_t dsa = {.r = mpi2bn(&sig->material.dsa.r),
-                             .s = mpi2bn(&sig->material.dsa.s)};
-        ret = dsa_verify(hval, len, &dsa, &key->key.dsa);
-        bn_free(dsa.r);
-        bn_free(dsa.s);
+        ret = dsa_verify(hval, len, &sig->material.dsa, &key->key.dsa);
         break;
     }
     case PGP_PKA_EDDSA: {
@@ -619,18 +615,11 @@ signature_calculate(pgp_signature_t *sig, pgp_seckey_t *seckey, pgp_hash_t *hash
         break;
     }
     case PGP_PKA_DSA: {
-        pgp_dsa_sig_t dsasig = {0};
-        ret = dsa_sign(rng, &dsasig, hval, hlen, &seckey->key.dsa, &seckey->pubkey.key.dsa);
+        ret = dsa_sign(rng, &sig->material.dsa, hval, hlen, &seckey->pubkey.key.dsa);
         if (ret != RNP_SUCCESS) {
             RNP_LOG("DSA signing failed");
             break;
         }
-        if (!bn2mpi(dsasig.r, &sig->material.dsa.r) ||
-            !bn2mpi(dsasig.s, &sig->material.dsa.s)) {
-            ret = RNP_ERROR_BAD_STATE;
-        }
-        bn_free(dsasig.r);
-        bn_free(dsasig.s);
         break;
     }
     /*

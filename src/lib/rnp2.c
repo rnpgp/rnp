@@ -171,11 +171,9 @@ typedef enum key_type_t {
         RNP_LOG_FD(fp, __VA_ARGS__); \
     } while (0)
 
-static pgp_key_t *
-get_key_prefer_public(rnp_key_handle_t handle);
+static pgp_key_t *get_key_prefer_public(rnp_key_handle_t handle);
 
-static pgp_key_t *
-get_key_require_secret(rnp_key_handle_t handle);
+static pgp_key_t *get_key_require_secret(rnp_key_handle_t handle);
 
 static bool locator_to_str(const pgp_key_search_t *locator,
                            const char **           identifier_type,
@@ -359,7 +357,8 @@ rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
         goto done;
     }
     ob->key_provider = (pgp_key_provider_t){.callback = ffi_key_provider, .userdata = ob};
-    ob->pass_provider = (pgp_password_provider_t){.callback = rnp_password_cb_bounce, .userdata = ob};
+    ob->pass_provider =
+      (pgp_password_provider_t){.callback = rnp_password_cb_bounce, .userdata = ob};
     if (!rng_init(&ob->rng, RNG_DRBG)) {
         ret = RNP_ERROR_RNG;
         goto done;
@@ -498,7 +497,7 @@ rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
                        size_t                    password_size,
                        void *                    userdata_void)
 {
-    rnp_ffi_t ffi = (rnp_ffi_t)userdata_void;
+    rnp_ffi_t ffi = (rnp_ffi_t) userdata_void;
 
     if (!ffi || !ffi->getpasscb) {
         return false;
@@ -776,9 +775,9 @@ done:
 static rnp_result_t
 load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
 {
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    uint8_t *    buf = NULL;
-    size_t       buf_len;
+    rnp_result_t              ret = RNP_ERROR_GENERIC;
+    uint8_t *                 buf = NULL;
+    size_t                    buf_len;
     const pgp_key_provider_t *key_providers[] = {
       &(pgp_key_provider_t){.callback = rnp_key_provider_store, .userdata = store},
       &ffi->key_provider,
@@ -2012,7 +2011,7 @@ rnp_op_verify_detached_create(rnp_op_verify_t *op,
 rnp_result_t
 rnp_op_verify_execute(rnp_op_verify_t op)
 {
-    pgp_parse_handler_t     handler = {.password_provider = &op->ffi->pass_provider,
+    pgp_parse_handler_t handler = {.password_provider = &op->ffi->pass_provider,
                                    .key_provider = &op->ffi->key_provider,
                                    .on_signatures = rnp_op_verify_on_signatures,
                                    .src_provider = rnp_verify_src_provider,
@@ -2172,7 +2171,7 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
     }
 
     rnp_ctx_init_ffi(&rnpctx, ffi);
-    pgp_parse_handler_t     handler = {.password_provider = &ffi->pass_provider,
+    pgp_parse_handler_t handler = {.password_provider = &ffi->pass_provider,
                                    .key_provider = &ffi->key_provider,
                                    .dest_provider = rnp_decrypt_dest_provider,
                                    .param = output,
@@ -2235,7 +2234,10 @@ str_to_locator(rnp_ffi_t ffi, pgp_key_search_t *locator, const char *identifier_
 }
 
 static bool
-locator_to_str(const pgp_key_search_t *locator, const char **identifier_type, char *identifier, size_t identifier_size)
+locator_to_str(const pgp_key_search_t *locator,
+               const char **           identifier_type,
+               char *                  identifier,
+               size_t                  identifier_size)
 {
     // find the identifier type string with the map
     *identifier_type = NULL;
@@ -3053,7 +3055,7 @@ rnp_key_add_uid(rnp_key_handle_t handle,
     }
     seckey = &secret_key->key.seckey;
     if (seckey->encrypted) {
-        pgp_password_ctx_t      ctx = {.op = PGP_OP_ADD_USERID, .key = secret_key};
+        pgp_password_ctx_t ctx = {.op = PGP_OP_ADD_USERID, .key = secret_key};
         decrypted_seckey = pgp_decrypt_seckey(secret_key, &handle->ffi->pass_provider, &ctx);
         if (!decrypted_seckey) {
             return RNP_ERROR_BAD_PASSWORD;
@@ -3211,8 +3213,7 @@ rnp_key_unlock(rnp_key_handle_t handle, const char *password)
                          &(pgp_password_provider_t){.callback = rnp_password_provider_string,
                                                     .userdata = RNP_UNCONST(password)});
     } else {
-        ok =
-          pgp_key_unlock(key, &handle->ffi->pass_provider);
+        ok = pgp_key_unlock(key, &handle->ffi->pass_provider);
     }
     if (!ok) {
         // likely a bad password
@@ -3545,6 +3546,41 @@ done:
 }
 
 static rnp_result_t
+add_json_mpis_n(json_object *jso, ...)
+{
+    va_list      ap;
+    const char * name;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    va_start(ap, jso);
+    while ((name = va_arg(ap, const char *))) {
+        pgp_mpi_t *val = va_arg(ap, pgp_mpi_t *);
+        if (!val) {
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto done;
+        }
+        char *hex = mpi2hex(val);
+        if (!hex) {
+            // this could probably be other things
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        json_object *jsostr = json_object_new_string(hex);
+        free(hex);
+        if (!jsostr) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        json_object_object_add(jso, name, jsostr);
+    }
+    ret = RNP_SUCCESS;
+
+done:
+    va_end(ap);
+    return ret;
+}
+
+static rnp_result_t
 add_json_public_mpis(json_object *jso, pgp_key_t *key)
 {
     const pgp_pubkey_t *pubkey = pgp_get_pubkey(key);
@@ -3564,16 +3600,16 @@ add_json_public_mpis(json_object *jso, pgp_key_t *key)
                              pubkey->key.elgamal.y,
                              NULL);
     case PGP_PKA_DSA:
-        return add_json_mpis(jso,
-                             "p",
-                             pubkey->key.dsa.p,
-                             "q",
-                             pubkey->key.dsa.q,
-                             "g",
-                             pubkey->key.dsa.g,
-                             "y",
-                             pubkey->key.dsa.y,
-                             NULL);
+        return add_json_mpis_n(jso,
+                               "p",
+                               &pubkey->key.dsa.p,
+                               "q",
+                               &pubkey->key.dsa.q,
+                               "g",
+                               &pubkey->key.dsa.g,
+                               "y",
+                               &pubkey->key.dsa.y,
+                               NULL);
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
@@ -3607,7 +3643,7 @@ add_json_secret_mpis(json_object *jso, pgp_key_t *key)
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return add_json_mpis(jso, "x", seckey->key.elgamal.x, NULL);
     case PGP_PKA_DSA:
-        return add_json_mpis(jso, "x", seckey->key.dsa.x, NULL);
+        return add_json_mpis_n(jso, "x", &seckey->pubkey.key.dsa.x, NULL);
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
@@ -3631,7 +3667,7 @@ add_json_sig_mpis(json_object *jso, const pgp_sig_info_t *info)
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return add_json_mpis(jso, "r", info->sig.elgamal.r, "s", info->sig.elgamal.s, NULL);
     case PGP_PKA_DSA:
-        return add_json_mpis(jso, "r", info->sig.dsa.r, "s", info->sig.dsa.s, NULL);
+        return add_json_mpis_n(jso, "r", &info->sig.dsa.r, "s", &info->sig.dsa.s, NULL);
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:

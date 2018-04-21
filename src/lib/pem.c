@@ -100,6 +100,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
     size_t          read;
     rng_t           rng = {0};
     botan_privkey_t priv_key;
+    bignum_t *      x;
 
     if (!rng_init(&rng, RNG_SYSTEM)) {
         RNP_LOG("RNG initialization failure");
@@ -154,10 +155,11 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
         if (botan_privkey_load(&priv_key, rng_handle(&rng), keybuf, read, NULL) != 0) {
             ok = false;
         } else {
-            botan_mp_init(&key->key.seckey.key.dsa.x->mp);
-            botan_privkey_get_field(key->key.seckey.key.dsa.x->mp, priv_key, "x");
+            x = bn_new();
+            botan_privkey_get_field(x->mp, priv_key, "x");
+            ok = bn2mpi(x, &key->key.pubkey.key.dsa.x);
             botan_privkey_destroy(priv_key);
-            ok = true;
+            bn_free(x);
         }
     } else {
         ok = false;

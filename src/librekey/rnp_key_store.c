@@ -218,10 +218,10 @@ rnp_key_store_load_from_file(pgp_io_t *                io,
 }
 
 bool
-rnp_key_store_load_from_mem(pgp_io_t *       io,
-                            rnp_key_store_t *key_store,
-                            const unsigned   armor,
-                            pgp_memory_t *   memory,
+rnp_key_store_load_from_mem(pgp_io_t *                io,
+                            rnp_key_store_t *         key_store,
+                            const unsigned            armor,
+                            pgp_memory_t *            memory,
                             const pgp_key_provider_t *key_provider)
 {
     switch (key_store->format) {
@@ -641,7 +641,9 @@ rnp_key_store_get_key_by_grip(pgp_io_t *             io,
 }
 
 pgp_key_t *
-rnp_key_store_get_key_by_fpr(pgp_io_t *io, const rnp_key_store_t *keyring, const pgp_fingerprint_t *fpr)
+rnp_key_store_get_key_by_fpr(pgp_io_t *               io,
+                             const rnp_key_store_t *  keyring,
+                             const pgp_fingerprint_t *fpr)
 {
     for (list_item *key_item = list_front(keyring->keys); key_item;
          key_item = list_next(key_item)) {
@@ -797,6 +799,28 @@ grip_hash_bignum(pgp_hash_t *hash, const bignum_t *bignum)
     return true;
 }
 
+static void
+grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val)
+{
+    size_t  len;
+    size_t  idx;
+    uint8_t padbyte = 0;
+
+    len = mpi_bytes(val);
+    for (idx = 0; (idx < len) && (val->mpi[idx] == 0); idx++)
+        ;
+
+    if (idx >= len) {
+        pgp_hash_add(hash, &padbyte, 1);
+        return;
+    }
+
+    if (val->mpi[idx] & 0x80) {
+        pgp_hash_add(hash, &padbyte, 1);
+    }
+    pgp_hash_add(hash, val->mpi + idx, len - idx);
+}
+
 /* keygrip is subjectKeyHash from pkcs#15. */
 bool
 rnp_key_store_get_key_grip(pgp_pubkey_t *key, uint8_t *grip)
@@ -818,18 +842,10 @@ rnp_key_store_get_key_grip(pgp_pubkey_t *key, uint8_t *grip)
         break;
 
     case PGP_PKA_DSA:
-        if (!grip_hash_bignum(&hash, key->key.dsa.p)) {
-            return false;
-        }
-        if (!grip_hash_bignum(&hash, key->key.dsa.q)) {
-            return false;
-        }
-        if (!grip_hash_bignum(&hash, key->key.dsa.g)) {
-            return false;
-        }
-        if (!grip_hash_bignum(&hash, key->key.dsa.y)) {
-            return false;
-        }
+        grip_hash_mpi(&hash, &key->key.dsa.p);
+        grip_hash_mpi(&hash, &key->key.dsa.q);
+        grip_hash_mpi(&hash, &key->key.dsa.g);
+        grip_hash_mpi(&hash, &key->key.dsa.y);
         break;
 
     case PGP_PKA_ELGAMAL:

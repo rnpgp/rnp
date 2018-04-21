@@ -61,10 +61,10 @@ ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
         (void) bn_hash(key->key.rsa.n, &hash);
         break;
     case PGP_PKA_DSA:
-        (void) bn_hash(key->key.dsa.p, &hash);
-        (void) bn_hash(key->key.dsa.q, &hash);
-        (void) bn_hash(key->key.dsa.g, &hash);
-        (void) bn_hash(key->key.dsa.y, &hash);
+        (void) mpi_hash(&key->key.dsa.p, &hash);
+        (void) mpi_hash(&key->key.dsa.q, &hash);
+        (void) mpi_hash(&key->key.dsa.g, &hash);
+        (void) mpi_hash(&key->key.dsa.y, &hash);
         break;
     default:
         pgp_hash_finish(&hash, fp->fingerprint);

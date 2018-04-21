@@ -78,9 +78,9 @@ typedef struct format_info {
     size_t            iv_size;
 } format_info;
 
-static bool g10_calculated_hash(const pgp_seckey_t *key,
-                                const char *        protected_at,
-                                uint8_t *           checksum);
+static bool   g10_calculated_hash(const pgp_seckey_t *key,
+                                  const char *        protected_at,
+                                  uint8_t *           checksum);
 pgp_seckey_t *g10_decrypt_seckey(const uint8_t *     data,
                                  size_t              data_len,
                                  const pgp_pubkey_t *pubkey,
@@ -159,7 +159,7 @@ destroy_s_exp(s_exp_t *s_exp)
 }
 
 static bool
-add_block_to_sexp(s_exp_t *s_exp, uint8_t *bytes, size_t len)
+add_block_to_sexp(s_exp_t *s_exp, const uint8_t *bytes, size_t len)
 {
     sub_element_t *sub_element;
 
@@ -392,6 +392,22 @@ read_bignum(s_exp_t *s_exp, const char *name)
 }
 
 static bool
+read_mpi(s_exp_t *s_exp, const char *name, pgp_mpi_t *val)
+{
+    s_exp_t *var = lookup_variable(s_exp, name);
+    if (var == NULL) {
+        return false;
+    }
+
+    if (!var->sub_elements[1].is_block) {
+        fprintf(stderr, "Expected block value\n");
+        return false;
+    }
+
+    return mem2mpi(val, var->sub_elements[1].block.bytes, var->sub_elements[1].block.len);
+}
+
+static bool
 write_bignum(s_exp_t *s_exp, const char *name, bignum_t *bn)
 {
     uint8_t bnbuf[RNP_BUFSIZ];
@@ -427,38 +443,50 @@ write_bignum(s_exp_t *s_exp, const char *name, bignum_t *bn)
 }
 
 static bool
+write_mpi(s_exp_t *s_exp, const char *name, const pgp_mpi_t *val)
+{
+    uint8_t  buf[PGP_MPINT_SIZE + 1] = {0};
+    size_t   len;
+    size_t   idx;
+    s_exp_t *sub_s_exp;
+
+    if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
+        return false;
+    }
+
+    if (!add_string_block_to_sexp(sub_s_exp, name)) {
+        return false;
+    }
+
+    len = mpi_bytes(val);
+    for (idx = 0; (idx < len) && (val->mpi[idx] == 0); idx++)
+        ;
+
+    if (idx >= len) {
+        return add_block_to_sexp(sub_s_exp, buf, 1);
+    }
+
+    if (val->mpi[idx] & 0x80) {
+        memcpy(buf + 1, val->mpi + idx, len - idx);
+        return add_block_to_sexp(sub_s_exp, buf, len - idx + 1);
+    }
+
+    return add_block_to_sexp(sub_s_exp, val->mpi + idx, len - idx);
+}
+
+static bool
 parse_pubkey(pgp_pubkey_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 {
     pubkey->version = PGP_V4;
     pubkey->alg = alg;
     switch (alg) {
     case PGP_PKA_DSA:
-        pubkey->key.dsa.p = read_bignum(s_exp, "p");
-        if (pubkey->key.dsa.p == NULL) {
+        if (!read_mpi(s_exp, "p", &pubkey->key.dsa.p) ||
+            !read_mpi(s_exp, "q", &pubkey->key.dsa.q) ||
+            !read_mpi(s_exp, "g", &pubkey->key.dsa.g) ||
+            !read_mpi(s_exp, "y", &pubkey->key.dsa.y)) {
             return false;
         }
-
-        pubkey->key.dsa.q = read_bignum(s_exp, "q");
-        if (pubkey->key.dsa.q == NULL) {
-            bn_free(pubkey->key.dsa.p);
-            return false;
-        }
-
-        pubkey->key.dsa.g = read_bignum(s_exp, "g");
-        if (pubkey->key.dsa.g == NULL) {
-            bn_free(pubkey->key.dsa.p);
-            bn_free(pubkey->key.dsa.q);
-            return false;
-        }
-
-        pubkey->key.dsa.y = read_bignum(s_exp, "y");
-        if (pubkey->key.dsa.y == NULL) {
-            bn_free(pubkey->key.dsa.p);
-            bn_free(pubkey->key.dsa.q);
-            bn_free(pubkey->key.dsa.g);
-            return false;
-        }
-
         break;
 
     case PGP_PKA_RSA:
@@ -509,11 +537,9 @@ parse_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 {
     switch (alg) {
     case PGP_PKA_DSA:
-        seckey->key.dsa.x = read_bignum(s_exp, "x");
-        if (seckey->key.dsa.x == NULL) {
+        if (!read_mpi(s_exp, "x", &seckey->pubkey.key.dsa.x)) {
             return false;
         }
-
         break;
 
     case PGP_PKA_RSA:
@@ -1049,16 +1075,17 @@ done:
 }
 
 bool
-rnp_key_store_g10_from_mem(pgp_io_t *       io,
-                           rnp_key_store_t *key_store,
-                           pgp_memory_t *   memory,
+rnp_key_store_g10_from_mem(pgp_io_t *                io,
+                           rnp_key_store_t *         key_store,
+                           pgp_memory_t *            memory,
                            const pgp_key_provider_t *key_provider)
 {
-    pgp_key_t  key = {0};
-    bool       ret = false;
+    pgp_key_t key = {0};
+    bool      ret = false;
 
     pgp_keydata_key_t keydata = {{0}};
-    if (!g10_parse_seckey(io, &keydata.seckey, memory->buf, memory->length, NULL, key_provider)) {
+    if (!g10_parse_seckey(
+          io, &keydata.seckey, memory->buf, memory->length, NULL, key_provider)) {
         goto done;
     }
     if (!pgp_key_from_keydata(&key, &keydata, PGP_PTAG_CT_SECRET_KEY)) {
@@ -1146,19 +1173,19 @@ write_pubkey(s_exp_t *s_exp, const pgp_pubkey_t *key)
             return false;
         }
 
-        if (!write_bignum(s_exp, "p", key->key.dsa.p)) {
+        if (!write_mpi(s_exp, "p", &key->key.dsa.p)) {
             return false;
         }
 
-        if (!write_bignum(s_exp, "q", key->key.dsa.q)) {
+        if (!write_mpi(s_exp, "q", &key->key.dsa.q)) {
             return false;
         }
 
-        if (!write_bignum(s_exp, "g", key->key.dsa.g)) {
+        if (!write_mpi(s_exp, "g", &key->key.dsa.g)) {
             return false;
         }
 
-        if (!write_bignum(s_exp, "y", key->key.dsa.y)) {
+        if (!write_mpi(s_exp, "y", &key->key.dsa.y)) {
             return false;
         }
 
@@ -1211,7 +1238,7 @@ write_seckey(s_exp_t *s_exp, const pgp_seckey_t *key)
 {
     switch (key->pubkey.alg) {
     case PGP_PKA_DSA:
-        if (!write_bignum(s_exp, "x", key->key.dsa.x)) {
+        if (!write_mpi(s_exp, "x", &key->pubkey.key.dsa.x)) {
             return false;
         }
 

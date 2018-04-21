@@ -677,6 +677,53 @@ limread_mpi(bignum_t **pbn, pgp_region_t *region, pgp_stream_t *stream)
     return true;
 }
 
+static bool
+limread_mpi_n(pgp_mpi_t *mpi, pgp_region_t *region, pgp_stream_t *stream)
+{
+    /* an MPI has a 2 byte length part.
+     * Length is given in bits, so the
+     * largest we should ever need for
+     * the buffer is RNP_BUFSIZ bytes. */
+    unsigned length;
+    unsigned nonzero;
+    unsigned ret;
+
+    stream->reading_mpi_len = 1;
+    ret = (unsigned) limread_scalar(&length, 2, region, stream);
+
+    stream->reading_mpi_len = 0;
+    if (!ret)
+        return false;
+
+    nonzero = length & 7; /* there should be this many zero bits in the MS byte */
+    if (!nonzero) {
+        nonzero = 8;
+    }
+    length = (length + 7) / 8;
+
+    if (length == 0) {
+        /* if we try to read a length of 0, then fail */
+        if (rnp_get_debug(__FILE__)) {
+            (void) fprintf(stderr, "limread_mpi: 0 length\n");
+        }
+        return false;
+    }
+    if (length > PGP_MPINT_SIZE) {
+        (void) fprintf(stderr, "limread_mpi: bad length\n");
+        return false;
+    }
+    if (!limread(mpi->mpi, length, region, stream)) {
+        return false;
+    }
+    if (((unsigned) mpi->mpi[0] >> nonzero) != 0 ||
+        !((unsigned) mpi->mpi[0] & (1U << (nonzero - 1U)))) {
+        PGP_ERROR_1(&stream->errors, PGP_E_P_MPI_FORMAT_ERROR, "%s", "MPI Format error");
+        return false;
+    }
+    mpi->len = length;
+    return true;
+}
+
 static bool read_new_length(unsigned *, pgp_stream_t *);
 
 /* allocate space, read, and stash data away in a virtual pkt */
@@ -915,8 +962,6 @@ pgp_sig_free(pgp_sig_t *sig)
         break;
 
     case PGP_PKA_DSA:
-        free_BN(&sig->info.sig.dsa.r);
-        free_BN(&sig->info.sig.dsa.s);
         break;
 
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
@@ -1128,10 +1173,6 @@ pgp_pubkey_free(pgp_pubkey_t *p)
         break;
 
     case PGP_PKA_DSA:
-        free_BN(&p->key.dsa.p);
-        free_BN(&p->key.dsa.q);
-        free_BN(&p->key.dsa.g);
-        free_BN(&p->key.dsa.y);
         break;
 
     case PGP_PKA_ECDH:
@@ -1234,10 +1275,10 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
 
     switch (key->alg) {
     case PGP_PKA_DSA:
-        if (!limread_mpi(&key->key.dsa.p, region, stream) ||
-            !limread_mpi(&key->key.dsa.q, region, stream) ||
-            !limread_mpi(&key->key.dsa.g, region, stream) ||
-            !limread_mpi(&key->key.dsa.y, region, stream)) {
+        if (!limread_mpi_n(&key->key.dsa.p, region, stream) ||
+            !limread_mpi_n(&key->key.dsa.q, region, stream) ||
+            !limread_mpi_n(&key->key.dsa.g, region, stream) ||
+            !limread_mpi_n(&key->key.dsa.y, region, stream)) {
             return false;
         }
         break;
@@ -1520,8 +1561,8 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
         break;
 
     case PGP_PKA_DSA:
-        if (!limread_mpi(&pkt.u.sig.info.sig.dsa.r, region, stream) ||
-            !limread_mpi(&pkt.u.sig.info.sig.dsa.s, region, stream)) {
+        if (!limread_mpi_n(&pkt.u.sig.info.sig.dsa.r, region, stream) ||
+            !limread_mpi_n(&pkt.u.sig.info.sig.dsa.s, region, stream)) {
             return false;
         }
         break;
@@ -2050,7 +2091,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
         break;
 
     case PGP_PKA_DSA:
-        if (!limread_mpi(&pkt.u.sig.info.sig.dsa.r, region, stream)) {
+        if (!limread_mpi_n(&pkt.u.sig.info.sig.dsa.r, region, stream)) {
             /*
              * usually if this fails, it just means we've reached
              * the end of the keyring
@@ -2061,7 +2102,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
             free(pkt.u.sig.info.v4_hashed);
             return false;
         }
-        if (!limread_mpi(&pkt.u.sig.info.sig.dsa.s, region, stream)) {
+        if (!limread_mpi_n(&pkt.u.sig.info.sig.dsa.s, region, stream)) {
             ERRP(&stream->cbinfo, pkt, "Error reading DSA s field in signature\n");
         }
         break;
@@ -2193,7 +2234,7 @@ pgp_seckey_free_secret_mpis(pgp_seckey_t *seckey)
         break;
 
     case PGP_PKA_DSA:
-        free_BN(&seckey->key.dsa.x);
+        mpi_forget(&seckey->pubkey.key.dsa.x);
         break;
 
     case PGP_PKA_EDDSA:
@@ -2455,7 +2496,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         break;
 
     case PGP_PKA_DSA:
-        if (!limread_mpi(&pkt.u.seckey.key.dsa.x, region, stream)) {
+        if (!limread_mpi_n(&pkt.u.seckey.pubkey.key.dsa.x, region, stream)) {
             ret = 0;
         }
         break;
@@ -2735,7 +2776,7 @@ repgp_parse(pgp_stream_t *stream, const bool show_errors)
     do {
         res = parse_packet(stream, &pktlen);
     } while (RNP_ERROR_EOF != res);
-    pgp_packet_t     pkt = {0};
+    pgp_packet_t pkt = {0};
     CALLBACK(PGP_PARSER_DONE, &stream->cbinfo, &pkt);
     if (show_errors) {
         pgp_print_errors(stream->errors);

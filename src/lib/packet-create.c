@@ -146,8 +146,8 @@ pubkey_length(const pgp_pubkey_t *key)
         return mpi_length(key->key.elgamal.p) + mpi_length(key->key.elgamal.g) +
                mpi_length(key->key.elgamal.y);
     case PGP_PKA_DSA:
-        return mpi_length(key->key.dsa.p) + mpi_length(key->key.dsa.q) +
-               mpi_length(key->key.dsa.g) + mpi_length(key->key.dsa.y);
+        return 8 + mpi_bytes(&key->key.dsa.p) + mpi_bytes(&key->key.dsa.q) +
+               mpi_bytes(&key->key.dsa.g) + mpi_bytes(&key->key.dsa.y);
     case PGP_PKA_RSA:
         return mpi_length(key->key.rsa.n) + mpi_length(key->key.rsa.e);
     case PGP_PKA_ECDH: {
@@ -189,7 +189,7 @@ seckey_length(const pgp_seckey_t *key)
     case PGP_PKA_SM2:
         return mpi_length(key->key.ecc.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_DSA:
-        return mpi_length(key->key.dsa.x) + pubkey_length(&key->pubkey);
+        return 2 + mpi_bytes(&key->pubkey.key.dsa.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_RSA:
         return mpi_length(key->key.rsa.d) + mpi_length(key->key.rsa.p) +
                mpi_length(key->key.rsa.q) + mpi_length(key->key.rsa.u) +
@@ -234,9 +234,10 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
 
     switch (key->alg) {
     case PGP_PKA_DSA:
-        return pgp_write_mpi(output, key->key.dsa.p) &&
-               pgp_write_mpi(output, key->key.dsa.q) &&
-               pgp_write_mpi(output, key->key.dsa.g) && pgp_write_mpi(output, key->key.dsa.y);
+        return pgp_write_mpi_n(output, &key->key.dsa.p) &&
+               pgp_write_mpi_n(output, &key->key.dsa.q) &&
+               pgp_write_mpi_n(output, &key->key.dsa.g) &&
+               pgp_write_mpi_n(output, &key->key.dsa.y);
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
@@ -915,7 +916,7 @@ pgp_write_secret_mpis(pgp_output_t *output, const pgp_seckey_t *seckey)
         break;
 
     case PGP_PKA_DSA:
-        ok = pgp_write_mpi(output, seckey->key.dsa.x);
+        ok = pgp_write_mpi_n(output, &seckey->pubkey.key.dsa.x);
         break;
 
     case PGP_PKA_ECDSA:

@@ -98,7 +98,7 @@ key_bitlength(const pgp_pubkey_t *pubkey)
         (void) bn_num_bytes(pubkey->key.rsa.n, &sz);
         return sz * 8;
     case PGP_PKA_DSA:
-        (void) bn_num_bytes(pubkey->key.dsa.p, &sz);
+        sz = mpi_bytes(&pubkey->key.dsa.p);
         return sz * 8;
     case PGP_PKA_ELGAMAL:
         (void) bn_num_bytes(pubkey->key.elgamal.y, &sz);
@@ -326,7 +326,10 @@ static bool
 format_key_usage(char *buffer, size_t size, uint8_t flags)
 {
     static const pgp_bit_map_t flags_map[] = {
-      {PGP_KF_ENCRYPT, "E"}, {PGP_KF_SIGN, "S"}, {PGP_KF_CERTIFY, "C"}, {PGP_KF_AUTH, "A"},
+      {PGP_KF_ENCRYPT, "E"},
+      {PGP_KF_SIGN, "S"},
+      {PGP_KF_CERTIFY, "C"},
+      {PGP_KF_AUTH, "A"},
     };
 
     *buffer = '\0';
@@ -693,10 +696,10 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
         cc += snprintf(&out[cc],
                        outsize - cc,
                        "p=%s\nq=%s\ng=%s\ny=%s\n",
-                       bn_bn2hex(key->key.pubkey.key.dsa.p),
-                       bn_bn2hex(key->key.pubkey.key.dsa.q),
-                       bn_bn2hex(key->key.pubkey.key.dsa.g),
-                       bn_bn2hex(key->key.pubkey.key.dsa.y));
+                       mpi2hex(&key->key.pubkey.key.dsa.p),
+                       mpi2hex(&key->key.pubkey.key.dsa.q),
+                       mpi2hex(&key->key.pubkey.key.dsa.g),
+                       mpi2hex(&key->key.pubkey.key.dsa.y));
         break;
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
