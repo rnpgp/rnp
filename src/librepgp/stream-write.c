@@ -504,9 +504,10 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     /* Fill pkey */
     pkey.version = PGP_PKSK_V3;
     pkey.alg = pubkey->alg;
-    if (!pgp_keyid(pkey.key_id, PGP_KEY_ID_SIZE, pubkey)) {
+    rnp_result_t tmpret;
+    if ((tmpret = pgp_keyid(pkey.key_id, PGP_KEY_ID_SIZE, pubkey))) {
         RNP_LOG("key id calculation failed");
-        return RNP_ERROR_BAD_PARAMETERS;
+        return tmpret;
     }
 
     /* Encrypt the session key */
@@ -558,9 +559,8 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         size_t            outlen = sizeof(pkey.params.ecdh.m);
         bignum_t *        p;
 
-        if (!pgp_fingerprint(&fingerprint, pubkey)) {
+        if ((ret = pgp_fingerprint(&fingerprint, pubkey))) {
             RNP_LOG("ECDH fingerprint calculation failed");
-            ret = RNP_ERROR_GENERIC;
             goto finish;
         }
         if (!(p = bn_new())) {

@@ -125,8 +125,8 @@ pgp_key_from_keydata(pgp_key_t *key, pgp_keydata_key_t *keydata, const pgp_conte
     assert(!key->key.pubkey.version);
     assert(tag == PGP_PTAG_CT_PUBLIC_KEY || tag == PGP_PTAG_CT_PUBLIC_SUBKEY ||
            tag == PGP_PTAG_CT_SECRET_KEY || tag == PGP_PTAG_CT_SECRET_SUBKEY);
-    if (!pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, &keydata->pubkey) ||
-        !pgp_fingerprint(&key->fingerprint, &keydata->pubkey) ||
+    if (pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, &keydata->pubkey) ||
+        pgp_fingerprint(&key->fingerprint, &keydata->pubkey) ||
         !rnp_key_store_get_key_grip(&keydata->pubkey, key->grip)) {
         return false;
     }

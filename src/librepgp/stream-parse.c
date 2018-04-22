@@ -1335,7 +1335,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         bignum_t *ecdh_p;
 
         declen = sizeof(decbuf);
-        if (!pgp_fingerprint(&fingerprint, &seckey->pubkey)) {
+        if (pgp_fingerprint(&fingerprint, &seckey->pubkey)) {
             RNP_LOG("ECDH fingerprint calculation failed");
             return false;
         }

@@ -126,9 +126,9 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
         }
     } else {
         RNP_LOG("unsupported key version");
-        return false;
+        return RNP_ERROR_NOT_SUPPORTED;
     }
-    return true;
+    return RNP_SUCCESS;
 }
 
 /**
@@ -148,22 +148,23 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key)
         if (key->alg != PGP_PKA_RSA && key->alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
             key->alg != PGP_PKA_RSA_SIGN_ONLY) {
             RNP_LOG("bad algorithm");
-            return false;
+            return RNP_ERROR_NOT_SUPPORTED;
         }
 
         if (!bn_num_bytes(key->key.rsa.n, &n) || (n > sizeof(bn))) {
             RNP_LOG("Internal error: bignum too big");
-            return false;
+            return RNP_ERROR_BAD_FORMAT;
         }
         bn_bn2bin(key->key.rsa.n, bn);
         (void) memcpy(keyid, bn + n - idlen, idlen);
     } else {
         pgp_fingerprint_t finger;
 
-        if (!pgp_fingerprint(&finger, key)) {
-            return false;
+        rnp_result_t ret;
+        if ((ret = pgp_fingerprint(&finger, key))) {
+            return ret;
         }
         (void) memcpy(keyid, finger.fingerprint + finger.length - idlen, idlen);
     }
-    return true;
+    return RNP_SUCCESS;
 }
