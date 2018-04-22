@@ -5,7 +5,7 @@ int
 main(int argc, char *argv[])
 {
     rnp_t        rnp;
-    rnp_params_t params;
+    rnp_params_t params = {0};
 
     rnp_init(&rnp, &params);
     rnp_key_store_t *key_store = rnp_key_store_new(RNP_KEYSTORE_GPG, argv[1]);
