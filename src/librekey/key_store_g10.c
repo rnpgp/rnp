@@ -386,6 +386,7 @@ read_bignum(s_exp_t *s_exp, const char *name)
                 name,
                 rnp_strhexdump_upper(
                   buf, var->sub_elements[1].block.bytes, var->sub_elements[1].block.len, ""));
+        free(buf);
     }
     return res;
 }
