@@ -438,6 +438,7 @@ pgp_sprint_key(pgp_io_t *             io,
     ptimestr(creation, sizeof(creation), pubkey->creation);
 
     if (!format_key_usage(key_usage, sizeof(key_usage), key->key_flags)) {
+        free(uid_notices);
         return -1;
     }
 
