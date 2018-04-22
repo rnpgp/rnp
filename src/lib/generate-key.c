@@ -84,7 +84,7 @@ load_generated_key(pgp_output_t **    output,
     // this would be better on the stack but the key store does not allow it
     key_store = calloc(1, sizeof(*key_store));
     if (!key_store) {
-        return false;
+        goto end;
     }
 
     // if this is a subkey, add the primary in first
@@ -425,8 +425,6 @@ end:
 
     if (output && mem) {
         pgp_teardown_memory_write(output, mem);
-        output = NULL;
-        mem = NULL;
     }
     // we don't need this as we have loaded the encrypted key
     // into primary_sec
@@ -570,6 +568,9 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
 
     ok = true;
 end:
+    if (output && mem) {
+        pgp_teardown_memory_write(output, mem);
+    }
     pgp_seckey_free(&seckey);
     if (decrypted_primary_seckey) {
         pgp_seckey_free(decrypted_primary_seckey);
