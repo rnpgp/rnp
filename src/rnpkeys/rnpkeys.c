@@ -230,14 +230,16 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
             return false;
         }
         return rnp_generate_key(rnp);
-    case CMD_GET_KEY:
-        key = rnp_get_key(rnp, f, rnp_cfg_getstr(cfg, CFG_KEYFORMAT));
-        if (key) {
-            printf("%s", key);
+    case CMD_GET_KEY: {
+        char *keydesc = rnp_get_key(rnp, f, rnp_cfg_getstr(cfg, CFG_KEYFORMAT));
+        if (keydesc) {
+            printf("%s", keydesc);
+            free(keydesc);
             return true;
         }
         (void) fprintf(stderr, "key '%s' not found\n", f);
         return false;
+    }
     case CMD_TRUSTED_KEYS:
         return rnp_match_pubkeys(rnp, f, stdout);
     case CMD_HELP:
