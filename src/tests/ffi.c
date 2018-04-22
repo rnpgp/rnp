@@ -74,17 +74,19 @@ test_ffi_homedir(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, pub_path));
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, sec_path));
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     // free formats+paths
     rnp_buffer_destroy(pub_format);
-    rnp_buffer_destroy(pub_path);
-    rnp_buffer_destroy(sec_format);
-    rnp_buffer_destroy(sec_path);
     pub_format = NULL;
+    rnp_buffer_destroy(pub_path);
     pub_path = NULL;
+    rnp_buffer_destroy(sec_format);
     sec_format = NULL;
+    rnp_buffer_destroy(sec_path);
     sec_path = NULL;
     // check key counts
     size_t count = 0;
@@ -112,17 +114,19 @@ test_ffi_homedir(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, pub_path));
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "KBX", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, sec_path));
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "G10", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     // free formats+paths
     rnp_buffer_destroy(pub_format);
-    rnp_buffer_destroy(pub_path);
-    rnp_buffer_destroy(sec_format);
-    rnp_buffer_destroy(sec_path);
     pub_format = NULL;
+    rnp_buffer_destroy(pub_path);
     pub_path = NULL;
+    rnp_buffer_destroy(sec_format);
     sec_format = NULL;
+    rnp_buffer_destroy(sec_path);
     sec_path = NULL;
     // check key counts
     assert_int_equal(RNP_SUCCESS, rnp_get_public_key_count(ffi, &count));
@@ -140,9 +144,10 @@ test_ffi_homedir(void **state)
     assert_non_null(grip);
     assert_true(strcmp(grip, "63E59092E4B1AE9F8E675B2F98AA2B8BD9F4EA59") == 0);
     rnp_buffer_destroy(grip);
+    grip = NULL;
     rnp_key_handle_destroy(key);
-    // check grip (2)
     key = NULL;
+    // check grip (2)
     assert_int_equal(
       RNP_SUCCESS,
       rnp_locate_key(ffi, "grip", "7EAB41A2F46257C36F2892696F5A2F0432499AD3", &key));
@@ -152,6 +157,7 @@ test_ffi_homedir(void **state)
     assert_non_null(grip);
     assert_true(strcmp(grip, "7EAB41A2F46257C36F2892696F5A2F0432499AD3") == 0);
     rnp_buffer_destroy(grip);
+    grip = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_key_handle_destroy(key));
     key = NULL;
     // cleanup
@@ -593,6 +599,7 @@ tbl_getkeycb(rnp_ffi_t   ffi,
         assert_rnp_success(rnp_load_keys(ffi, format, input, flags));
         free(format);
         assert_rnp_success(rnp_input_destroy(input));
+        input = NULL;
     }
 }
 
@@ -672,6 +679,7 @@ test_ffi_keygen_json_pair(void **state)
     json_object *parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
     rnp_buffer_destroy(results);
+    results = NULL;
     // get a handle for the primary
     rnp_key_handle_t primary = NULL;
     {
@@ -746,6 +754,7 @@ test_ffi_keygen_json_primary(void **state)
     json_object *parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
     rnp_buffer_destroy(results);
+    results = NULL;
     // get a handle for the primary
     rnp_key_handle_t primary = NULL;
     {
@@ -809,6 +818,7 @@ test_ffi_keygen_json_sub(void **state)
     json_object *parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
     rnp_buffer_destroy(results);
+    results = NULL;
     // get a handle+grip for the primary
     rnp_key_handle_t primary = NULL;
     char *           primary_grip = NULL;
@@ -867,6 +877,7 @@ test_ffi_keygen_json_sub(void **state)
     parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
     rnp_buffer_destroy(results);
+    results = NULL;
     // get a handle for the sub
     rnp_key_handle_t sub = NULL;
     {
@@ -923,6 +934,7 @@ test_ffi_add_userid(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
     assert_non_null(results);
     rnp_buffer_destroy(results);
+    results = NULL;
     free(json);
     json = NULL;
 
@@ -995,6 +1007,7 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     json_object *parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
     rnp_buffer_destroy(results);
+    results = NULL;
     // get a handle+grip for the primary
     rnp_key_handle_t primary = NULL;
     char *           primary_grip = NULL;
@@ -1068,6 +1081,7 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     parsed_results = json_tokener_parse(results);
     assert_non_null(parsed_results);
     rnp_buffer_destroy(results);
+    results = NULL;
     // get a handle for the sub
     rnp_key_handle_t sub = NULL;
     {
@@ -1117,9 +1131,11 @@ test_ffi_encrypt_pass(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
 
     // write out some data
     FILE *fp = fopen("plaintext", "w");
@@ -1156,8 +1172,8 @@ test_ffi_encrypt_pass(void **state)
 
     // cleanup
     assert_int_equal(RNP_SUCCESS, rnp_input_destroy(input));
-    assert_int_equal(RNP_SUCCESS, rnp_output_destroy(output));
     input = NULL;
+    assert_int_equal(RNP_SUCCESS, rnp_output_destroy(output));
     output = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_destroy(op));
     op = NULL;
@@ -1173,8 +1189,8 @@ test_ffi_encrypt_pass(void **state)
     assert_int_not_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
-    rnp_output_destroy(output);
     input = NULL;
+    rnp_output_destroy(output);
     output = NULL;
 
     // decrypt (wrong pass, should fail)
@@ -1187,8 +1203,8 @@ test_ffi_encrypt_pass(void **state)
     assert_int_not_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
-    rnp_output_destroy(output);
     input = NULL;
+    rnp_output_destroy(output);
     output = NULL;
 
     // decrypt (pass1)
@@ -1200,7 +1216,9 @@ test_ffi_encrypt_pass(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
+    input = NULL;
     rnp_output_destroy(output);
+    output = NULL;
     // read in the decrypted file
     pgp_memory_t mem = {0};
     assert_true(pgp_mem_readfile(&mem, "decrypted"));
@@ -1220,7 +1238,9 @@ test_ffi_encrypt_pass(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
+    input = NULL;
     rnp_output_destroy(output);
+    output = NULL;
     // read in the decrypted file
     mem = (pgp_memory_t){0};
     assert_true(pgp_mem_readfile(&mem, "decrypted"));
@@ -1250,9 +1270,11 @@ test_ffi_encrypt_pk(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
 
     // write out some data
     FILE *fp = fopen("plaintext", "w");
@@ -1272,9 +1294,11 @@ test_ffi_encrypt_pk(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key0-uid2", &key));
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_add_recipient(op, key));
     rnp_key_handle_destroy(key);
+    key = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key1-uid1", &key));
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_add_recipient(op, key));
     rnp_key_handle_destroy(key);
+    key = NULL;
     // set the data encryption cipher
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_set_cipher(op, "CAST5"));
     // execute the operation
@@ -1285,8 +1309,8 @@ test_ffi_encrypt_pk(void **state)
 
     // cleanup
     assert_int_equal(RNP_SUCCESS, rnp_input_destroy(input));
-    assert_int_equal(RNP_SUCCESS, rnp_output_destroy(output));
     input = NULL;
+    assert_int_equal(RNP_SUCCESS, rnp_output_destroy(output));
     output = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_destroy(op));
     op = NULL;
@@ -1302,8 +1326,8 @@ test_ffi_encrypt_pk(void **state)
     assert_int_not_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
-    rnp_output_destroy(output);
     input = NULL;
+    rnp_output_destroy(output);
     output = NULL;
 
     // decrypt (wrong pass, should fail)
@@ -1316,8 +1340,8 @@ test_ffi_encrypt_pk(void **state)
     assert_int_not_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
-    rnp_output_destroy(output);
     input = NULL;
+    rnp_output_destroy(output);
     output = NULL;
 
     // decrypt
@@ -1329,7 +1353,9 @@ test_ffi_encrypt_pk(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
+    input = NULL;
     rnp_output_destroy(output);
+    output = NULL;
     // read in the decrypted file
     pgp_memory_t mem = {0};
     assert_true(pgp_mem_readfile(&mem, "decrypted"));
@@ -1363,9 +1389,11 @@ test_ffi_encrypt_pk_key_provider(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     // write out some data
     FILE *fp = fopen("plaintext", "w");
     assert_non_null(fp);
@@ -1385,8 +1413,8 @@ test_ffi_encrypt_pk_key_provider(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_add_recipient(op, key));
     // cleanup
     assert_int_equal(RNP_SUCCESS, rnp_key_handle_destroy(key));
-    // add recipient 2
     key = NULL;
+    // add recipient 2
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "userid", "key1-uid1", &key));
     assert_non_null(key);
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_add_recipient(op, key));
@@ -1395,8 +1423,8 @@ test_ffi_encrypt_pk_key_provider(void **state)
       RNP_SUCCESS, rnp_get_secret_key_data(key, &primary_sec_key_data, &primary_sec_size));
     assert_non_null(primary_sec_key_data);
     assert_int_equal(RNP_SUCCESS, rnp_key_handle_destroy(key));
-    // save the appropriate encrypting subkey for the key provider to use during decryption later
     key = NULL;
+    // save the appropriate encrypting subkey for the key provider to use during decryption later
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "keyid", "54505A936A4A970E", &key));
     assert_non_null(key);
     assert_int_equal(RNP_SUCCESS,
@@ -1404,6 +1432,7 @@ test_ffi_encrypt_pk_key_provider(void **state)
     assert_non_null(sub_sec_key_data);
     // cleanup
     assert_int_equal(RNP_SUCCESS, rnp_key_handle_destroy(key));
+    key = NULL;
     // set the data encryption cipher
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_set_cipher(op, "CAST5"));
     // execute the operation
@@ -1412,8 +1441,8 @@ test_ffi_encrypt_pk_key_provider(void **state)
     assert_true(rnp_file_exists("encrypted"));
     // cleanup
     assert_int_equal(RNP_SUCCESS, rnp_input_destroy(input));
-    assert_int_equal(RNP_SUCCESS, rnp_output_destroy(output));
     input = NULL;
+    assert_int_equal(RNP_SUCCESS, rnp_output_destroy(output));
     output = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_destroy(op));
     op = NULL;
@@ -1428,6 +1457,7 @@ test_ffi_encrypt_pk_key_provider(void **state)
     assert_non_null(input);
     assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
 
     // decrypt (no key to decrypt, should fail)
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "encrypted"));
@@ -1437,8 +1467,8 @@ test_ffi_encrypt_pk_key_provider(void **state)
     assert_int_equal(RNP_ERROR_NO_SUITABLE_KEY, rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
-    rnp_output_destroy(output);
     input = NULL;
+    rnp_output_destroy(output);
     output = NULL;
 
     // key_data key_data_size secret keyid grip userids
@@ -1456,7 +1486,9 @@ test_ffi_encrypt_pk_key_provider(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
+    input = NULL;
     rnp_output_destroy(output);
+    output = NULL;
     // read in the decrypted file
     pgp_memory_t mem = {0};
     assert_true(pgp_mem_readfile(&mem, "decrypted"));
@@ -1487,9 +1519,11 @@ test_ffi_encrypt_and_sign(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
     assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
 
     // write out some data
     FILE *fp = fopen("plaintext", "w");
@@ -1509,9 +1543,11 @@ test_ffi_encrypt_and_sign(void **state)
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
     assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
     rnp_key_handle_destroy(key);
+    key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid1", &key));
     assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
     rnp_key_handle_destroy(key);
+    key = NULL;
     // set the data encryption cipher
     assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
     // enable armoring
@@ -1525,6 +1561,7 @@ test_ffi_encrypt_and_sign(void **state)
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid1", &key));
     assert_rnp_success(rnp_op_encrypt_add_signature(op, key, NULL));
     rnp_key_handle_destroy(key);
+    key = NULL;
     // execute the operation
     assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
     assert_rnp_success(rnp_op_encrypt_execute(op));
@@ -1534,8 +1571,8 @@ test_ffi_encrypt_and_sign(void **state)
 
     // cleanup
     assert_rnp_success(rnp_input_destroy(input));
-    assert_rnp_success(rnp_output_destroy(output));
     input = NULL;
+    assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
     assert_rnp_success(rnp_op_encrypt_destroy(op));
     op = NULL;
@@ -1551,8 +1588,8 @@ test_ffi_encrypt_and_sign(void **state)
     assert_rnp_failure(rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
-    rnp_output_destroy(output);
     input = NULL;
+    rnp_output_destroy(output);
     output = NULL;
 
     // decrypt (wrong pass, should fail)
@@ -1565,8 +1602,8 @@ test_ffi_encrypt_and_sign(void **state)
     assert_rnp_failure(rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
-    rnp_output_destroy(output);
     input = NULL;
+    rnp_output_destroy(output);
     output = NULL;
 
     // decrypt
@@ -1578,7 +1615,9 @@ test_ffi_encrypt_and_sign(void **state)
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
+    input = NULL;
     rnp_output_destroy(output);
+    output = NULL;
     // read in the decrypted file
     pgp_memory_t mem = {0};
     assert_true(pgp_mem_readfile(&mem, "decrypted"));
@@ -1615,10 +1654,13 @@ test_ffi_encrypt_and_sign(void **state)
     assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
     assert_string_equal(hname, "SHA256");
     rnp_buffer_destroy(hname);
+    hname = NULL;
     // cleanup
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
+    input = NULL;
     rnp_output_destroy(output);
+    output = NULL;
     // read in the decrypted file
     assert_true(pgp_mem_readfile(&mem, "verified"));
     // compare
@@ -1643,10 +1685,12 @@ test_ffi_init(void **state, rnp_ffi_t *ffi)
     assert_int_equal(RNP_SUCCESS,
                      rnp_load_keys(*ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
     assert_int_equal(RNP_SUCCESS,
                      rnp_load_keys(*ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
 }
 
 static void
@@ -1808,10 +1852,10 @@ test_ffi_signatures_memory(void **state)
 
     // cleanup
     assert_rnp_success(rnp_input_destroy(input));
-    assert_rnp_success(rnp_output_destroy(output));
-    assert_rnp_success(rnp_op_sign_destroy(op));
     input = NULL;
+    assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
+    assert_rnp_success(rnp_op_sign_destroy(op));
     op = NULL;
 
     /* now verify */
@@ -1830,7 +1874,9 @@ test_ffi_signatures_memory(void **state)
     // cleanup
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
+    input = NULL;
     assert_rnp_success(rnp_output_destroy(output));
+    output = NULL;
     assert_rnp_success(rnp_ffi_destroy(ffi));
     rnp_buffer_destroy(signed_buf);
     rnp_buffer_destroy(verified_buf);
@@ -1860,10 +1906,10 @@ test_ffi_signatures(void **state)
 
     // cleanup
     assert_rnp_success(rnp_input_destroy(input));
-    assert_rnp_success(rnp_output_destroy(output));
-    assert_rnp_success(rnp_op_sign_destroy(op));
     input = NULL;
+    assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
+    assert_rnp_success(rnp_op_sign_destroy(op));
     op = NULL;
 
     /* now verify */
@@ -1878,7 +1924,9 @@ test_ffi_signatures(void **state)
     // cleanup
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
+    input = NULL;
     assert_rnp_success(rnp_output_destroy(output));
+    output = NULL;
     assert_rnp_success(rnp_ffi_destroy(ffi));
     // check output
     test_ffi_check_recovered(state);
@@ -1912,10 +1960,10 @@ test_ffi_signatures_detached_memory(void **state)
 
     // cleanup
     assert_rnp_success(rnp_input_destroy(input));
-    assert_rnp_success(rnp_output_destroy(output));
-    assert_rnp_success(rnp_op_sign_destroy(op));
     input = NULL;
+    assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
+    assert_rnp_success(rnp_op_sign_destroy(op));
     op = NULL;
 
     /* now verify */
@@ -1933,7 +1981,9 @@ test_ffi_signatures_detached_memory(void **state)
     rnp_buffer_destroy(signed_buf);
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
+    input = NULL;
     assert_rnp_success(rnp_input_destroy(signature));
+    signature = NULL;
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
@@ -1962,10 +2012,10 @@ test_ffi_signatures_detached(void **state)
 
     // cleanup
     assert_rnp_success(rnp_input_destroy(input));
-    assert_rnp_success(rnp_output_destroy(output));
-    assert_rnp_success(rnp_op_sign_destroy(op));
     input = NULL;
+    assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
+    assert_rnp_success(rnp_op_sign_destroy(op));
     op = NULL;
 
     /* now verify */
@@ -1980,7 +2030,9 @@ test_ffi_signatures_detached(void **state)
     // cleanup
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
+    input = NULL;
     assert_rnp_success(rnp_input_destroy(signature));
+    signature = NULL;
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
@@ -2050,15 +2102,21 @@ test_ffi_key_to_json(void **state)
     assert_int_equal(RNP_SUCCESS,
                      rnp_load_keys(ffi, pub_format, input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, sec_path));
     assert_int_equal(RNP_SUCCESS,
                      rnp_load_keys(ffi, sec_format, input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     // free formats+paths
     rnp_buffer_destroy(pub_format);
+    pub_format = NULL;
     rnp_buffer_destroy(pub_path);
+    pub_path = NULL;
     rnp_buffer_destroy(sec_format);
+    sec_format = NULL;
     rnp_buffer_destroy(sec_path);
+    sec_path = NULL;
 
     // locate key (primary)
     key = NULL;
@@ -2133,14 +2191,14 @@ test_ffi_key_to_json(void **state)
     // cleanup
     json_object_put(jso);
     rnp_key_handle_destroy(key);
+    key = NULL;
     rnp_buffer_destroy(json);
+    json = NULL;
 
     // locate key (sub)
-    key = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "keyid", "074131BC8D16C5C9", &key));
     assert_non_null(key);
     // convert to JSON
-    json = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_key_to_json(key, 0xff, &json));
     assert_non_null(json);
     // parse it back in
@@ -2305,15 +2363,21 @@ test_ffi_key_iter(void **state)
     assert_int_equal(RNP_SUCCESS,
                      rnp_load_keys(ffi, pub_format, input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, sec_path));
     assert_int_equal(RNP_SUCCESS,
                      rnp_load_keys(ffi, sec_format, input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
+    input = NULL;
     // free formats+paths
     rnp_buffer_destroy(pub_format);
+    pub_format = NULL;
     rnp_buffer_destroy(pub_path);
+    pub_path = NULL;
     rnp_buffer_destroy(sec_format);
+    sec_format = NULL;
     rnp_buffer_destroy(sec_path);
+    sec_path = NULL;
 
     // keyid
     {
