@@ -585,6 +585,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         pkey.params.ecdh.mlen = outlen;
         if (!bn2mpi(p, &pkey.params.ecdh.p)) {
             ret = RNP_ERROR_BAD_STATE;
+            goto finish;
         }
         bn_free(p);
         break;
