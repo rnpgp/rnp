@@ -849,7 +849,7 @@ rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src)
         if (!rnp_cfg_val_copy(&val, &((rnp_cfg_item_t *) li)->val) ||
             !rnp_cfg_set(dst, ((rnp_cfg_item_t *) li)->key, &val)) {
             res = false;
-            return;
+            break;
         }
     }
 
