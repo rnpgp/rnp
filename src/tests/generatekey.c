@@ -551,6 +551,9 @@ ask_expert_details(rnp_t *ctx, rnp_cfg_t *ops, const char *rsp, size_t rsp_len)
     bool      ret = true;
     rnp_cfg_t cfg = {0};
     int       pipefd[2] = {0};
+    int       user_input_pipefd[2] = {0};
+
+    *ctx = (rnp_t){0};
     if (pipe(pipefd) == -1) {
         ret = false;
         goto end;
@@ -560,8 +563,6 @@ ask_expert_details(rnp_t *ctx, rnp_cfg_t *ops, const char *rsp, size_t rsp_len)
     if (!rnpkeys_init(&cfg, ctx, ops, true)) {
         return false;
     }
-
-    int user_input_pipefd[2] = {0};
 
     /* Write response to fd */
     if (pipe(user_input_pipefd) == -1) {
