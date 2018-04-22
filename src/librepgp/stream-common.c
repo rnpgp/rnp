@@ -50,7 +50,7 @@ src_read(pgp_source_t *src, void *buf, size_t len)
     size_t              left = len;
     ssize_t             read;
     pgp_source_cache_t *cache = src->cache;
-    bool                readahead = cache->readahead;
+    bool                readahead = cache ? cache->readahead : false;
 
     if (src->eof || (len == 0)) {
         return 0;
