@@ -194,7 +194,7 @@ pgp_decrypt_decode_mpi(rng_t *             rng,
             return -1;
         }
 
-        if (!pgp_fingerprint(&fingerprint, &seckey->pubkey)) {
+        if (pgp_fingerprint(&fingerprint, &seckey->pubkey)) {
             RNP_LOG("ECDH fingerprint calculation failed");
             return -1;
         }
