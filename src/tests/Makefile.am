@@ -15,6 +15,7 @@ rnp_tests_SOURCES   = \
     utils-rnpcfg.c \
     pgp-parse.c \
     load-pgp.c \
+    load-g10.c \
     key-unlock.c \
     key-protect.c \
     key-add-userid.c \
