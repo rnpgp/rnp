@@ -1936,6 +1936,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
                    sizeof(keyctx.search.by.keyid));
             /* Get the key if any */
             if (!(seckey = pgp_request_key(ctx->handler.key_provider, &keyctx))) {
+                errcode = RNP_ERROR_NO_SUITABLE_KEY;
                 continue;
             }
             /* Decrypt key */
@@ -1945,6 +1946,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
                   ctx->handler.password_provider,
                   &(pgp_password_ctx_t){.op = PGP_OP_DECRYPT, .key = seckey});
                 if (!decrypted_seckey) {
+                    errcode = RNP_ERROR_BAD_PASSWORD;
                     continue;
                 }
             } else {
@@ -2001,7 +2003,9 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
 
     if (!have_key) {
         RNP_LOG("failed to obtain decrypting key or password");
-        errcode = RNP_ERROR_NO_SUITABLE_KEY;
+        if (!errcode) {
+            errcode = RNP_ERROR_NO_SUITABLE_KEY;
+        }
         goto finish;
     }
 
