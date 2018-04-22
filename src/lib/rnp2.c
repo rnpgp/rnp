@@ -1583,7 +1583,9 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
         return RNP_ERROR_BAD_FORMAT;
     }
     // derive key, etc
-    ret = rnp_encrypt_set_pass_info(&info, password, hash_alg, iterations, symm_alg);
+    if ((ret = rnp_encrypt_set_pass_info(&info, password, hash_alg, iterations, symm_alg))) {
+        goto done;
+    }
     if (!list_append(&op->rnpctx.passwords, &info, sizeof(info))) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
