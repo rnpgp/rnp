@@ -1615,7 +1615,6 @@ stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
     } else {
         RNP_LOG("unknown signature version: %d", (int) ver);
         res = RNP_ERROR_BAD_FORMAT;
-        read = 0;
     }
 
     /* skipping the packet and returning error */
