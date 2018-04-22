@@ -440,6 +440,12 @@ done:
     return decrypt.seckey;
 }
 
+/* Note that this function essentially serves two purposes.
+ * - In the case of a protected key, it requests a password and
+ *   uses it to decrypt the key and fill in key->key.seckey.
+ * - In the case of an unprotected key, it simply re-loads
+ *   key->key.seckey by parsing the key data in packets[0].
+ */
 pgp_seckey_t *
 pgp_decrypt_seckey(const pgp_key_t *              key,
                    const pgp_password_provider_t *provider,
