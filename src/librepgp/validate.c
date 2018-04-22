@@ -489,6 +489,7 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
     pgp_set_callback(stream, pgp_validate_key_cb, &keysigs);
     stream->readinfo.accumulate = 1;
     if (!pgp_key_reader_set(stream, key)) {
+        pgp_stream_delete(stream);
         return false;
     }
 
