@@ -76,6 +76,7 @@ create_buffer_handle(const size_t buffer_size)
 
     s->buffer.data = (unsigned char *) malloc(buffer_size);
     if (!s->buffer.data) {
+        free(s);
         return NULL;
     }
 
@@ -95,6 +96,7 @@ create_data_handle(const uint8_t *data, size_t size)
 
     s->buffer.data = (unsigned char *) malloc(size);
     if (!s->buffer.data) {
+        free(s);
         return NULL;
     }
     memcpy(s->buffer.data, data, size);
@@ -131,6 +133,7 @@ create_stdin_handle(void)
         uint8_t *loc = realloc(data, newsize);
         if (loc == NULL) {
             RNP_LOG("Short read");
+            free(s);
             free(data);
             return NULL;
         }
@@ -141,6 +144,7 @@ create_stdin_handle(void)
 
     if (n < 0) {
         RNP_LOG("Error while reading from stdin [%s]", strerror(errno));
+        free(s);
         free(data);
         return NULL;
     }
