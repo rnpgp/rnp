@@ -496,6 +496,7 @@ conffile(const char *homedir, char *userid, size_t length)
     (void) memset(&keyre, 0x0, sizeof(keyre));
     if (regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED) != 0) {
         (void) fprintf(stderr, "conffile: failed to compile regular expression");
+        fclose(fp);
         return false;
     }
     while (fgets(buf, (int) sizeof(buf), fp) != NULL) {
