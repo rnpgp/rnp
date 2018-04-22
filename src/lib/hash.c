@@ -173,7 +173,7 @@ pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
 
     rc = botan_hash_output_length(impl, &outlen);
     if (rc != 0) {
-        botan_hash_destroy(hash->handle);
+        botan_hash_destroy(impl);
         RNP_LOG("In pgp_hash_create, botan_hash_output_length failed");
         return false;
     }
