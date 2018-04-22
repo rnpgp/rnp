@@ -1070,6 +1070,9 @@ rnp_key_store_g10_from_mem(pgp_io_t *       io,
         goto done;
     }
     key.packets[0].raw = malloc(memory->length);
+    if (!key.packets[0].raw) {
+        goto done;
+    }
     key.packets[0].length = memory->length;
     memcpy(key.packets[0].raw, memory->buf, memory->length);
     key.packetc++;
