@@ -1063,6 +1063,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *       io,
     if (!pgp_key_from_keydata(&key, &keydata, PGP_PTAG_CT_SECRET_KEY)) {
         goto done;
     }
+    // this data belongs to the key now
     keydata = (pgp_keydata_key_t){{0}};
     EXPAND_ARRAY((&key), packet);
     if (!key.packets) {
@@ -1073,7 +1074,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *       io,
     memcpy(key.packets[0].raw, memory->buf, memory->length);
     key.packetc++;
     key.format = G10_KEY_STORE;
-    key.is_protected = keydata.seckey.encrypted;
+    key.is_protected = key.key.seckey.encrypted;
     if (!rnp_key_store_add_key(io, key_store, &key)) {
         goto done;
     }
