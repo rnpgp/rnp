@@ -4131,37 +4131,38 @@ rnp_identifier_iterator_create(rnp_ffi_t                  ffi,
                                const char *               identifier_type)
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
+    struct rnp_identifier_iterator_st *obj = NULL;
 
     // checks
     if (!ffi || !it || !identifier_type) {
         return RNP_ERROR_NULL_POINTER;
     }
     // create iterator
-    *it = calloc(1, sizeof(**it));
-    if (!*it) {
+    obj = calloc(1, sizeof(*obj));
+    if (!obj) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    (*it)->ffi = ffi;
+    obj->ffi = ffi;
     // parse identifier type
-    (*it)->type = PGP_KEY_SEARCH_UNKNOWN;
-    ARRAY_LOOKUP_BY_STRCASE(identifier_type_map, string, type, identifier_type, (*it)->type);
-    if ((*it)->type == PGP_KEY_SEARCH_UNKNOWN) {
+    obj->type = PGP_KEY_SEARCH_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(identifier_type_map, string, type, identifier_type, obj->type);
+    if (obj->type == PGP_KEY_SEARCH_UNKNOWN) {
         ret = RNP_ERROR_BAD_FORMAT;
         goto done;
     }
-    (*it)->tbl = json_object_new_object();
-    if (!(*it)->tbl) {
+    obj->tbl = json_object_new_object();
+    if (!obj->tbl) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }
     // move to first item (if any)
-    key_iter_first_item(*it);
+    key_iter_first_item(obj);
+    *it = obj;
 
     ret = RNP_SUCCESS;
 done:
     if (ret) {
-        rnp_identifier_iterator_destroy(*it);
-        *it = NULL;
+        rnp_identifier_iterator_destroy(obj);
     }
     return ret;
 }
