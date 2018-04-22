@@ -620,7 +620,7 @@ stream_flush_packet_body(pgp_packet_body_t *body, pgp_dest_t *dst)
     hlen = 1 + write_packet_len(&hdr[1], body->len);
     dst_write(dst, hdr, hlen);
     dst_write(dst, body->data, body->len);
-    free(body->data);
+    free_packet_body(body);
 }
 
 rnp_result_t
