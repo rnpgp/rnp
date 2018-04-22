@@ -38,7 +38,8 @@ rnp_getpass(const char *prompt, char *buffer, size_t size)
     struct termios saved_flags, noecho_flags;
     bool           restore_ttyflags = false;
     bool           ok = false;
-    FILE *         in, *out;
+    FILE *         in = NULL;
+    FILE *         out = NULL;
 
     // validate args
     if (!buffer) {
@@ -74,6 +75,9 @@ rnp_getpass(const char *prompt, char *buffer, size_t size)
 end:
     if (restore_ttyflags) {
         tcsetattr(fileno(in), TCSAFLUSH, &saved_flags);
+    }
+    if (in != stdin) {
+        fclose(in);
     }
     return ok;
 }
