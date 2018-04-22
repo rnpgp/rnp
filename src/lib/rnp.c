@@ -697,7 +697,10 @@ bool
 rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
 {
     json_object *obj = json_object_new_array();
-    bool         ret;
+
+    if (!obj) {
+        return false;
+    }
     if (rnp->pubring == NULL) {
         (void) fprintf(stderr, "No keyring\n");
         return false;
@@ -707,10 +710,13 @@ rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
         return false;
     }
     const char *j = json_object_to_json_string(obj);
-    ret = j != NULL;
+    if (!j) {
+        json_object_put(obj);
+        return false;
+    }
     *json = strdup(j);
     json_object_put(obj);
-    return ret;
+    return *json != NULL;
 }
 
 DEFINE_ARRAY(strings_t, char *);
