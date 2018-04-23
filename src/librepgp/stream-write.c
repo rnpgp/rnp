@@ -522,18 +522,15 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     switch (pubkey->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY: {
-        int len = pgp_rsa_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
-                                        pkey.material.rsa.m.mpi,
-                                        sizeof(pkey.material.rsa.m.mpi),
-                                        enckey,
-                                        keylen + 3,
-                                        &pubkey->key.rsa);
-        if (len <= 0) {
-            RNP_LOG("pgp_rsa_encrypt_pkcs1 failed");
-            ret = RNP_ERROR_GENERIC;
+        ret = rsa_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
+                                &pkey.material.rsa,
+                                enckey,
+                                keylen + 3,
+                                &pubkey->key.rsa);
+        if (ret) {
+            RNP_LOG("rsa_encrypt_pkcs1 failed");
             goto finish;
         }
-        pkey.material.rsa.m.len = len;
         break;
     }
     case PGP_PKA_SM2: {
@@ -1091,7 +1088,8 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
     res =
       signature_set_keyfp(sig, seckey->fingerprint.fingerprint, seckey->fingerprint.length) &&
       signature_set_keyid(sig, seckey->keyid) &&
-      signature_set_creation(sig, param->ctx->sigcreate ? param->ctx->sigcreate : time(NULL)) &&
+      signature_set_creation(sig,
+                             param->ctx->sigcreate ? param->ctx->sigcreate : time(NULL)) &&
       signature_set_expiration(sig, param->ctx->sigexpire) && signature_fill_hashed_data(sig);
 
     if (!res) {

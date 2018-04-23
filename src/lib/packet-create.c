@@ -149,7 +149,7 @@ pubkey_length(const pgp_pubkey_t *key)
         return 8 + mpi_bytes(&key->key.dsa.p) + mpi_bytes(&key->key.dsa.q) +
                mpi_bytes(&key->key.dsa.g) + mpi_bytes(&key->key.dsa.y);
     case PGP_PKA_RSA:
-        return mpi_length(key->key.rsa.n) + mpi_length(key->key.rsa.e);
+        return 4 + mpi_bytes(&key->key.rsa.n) + mpi_bytes(&key->key.rsa.e);
     case PGP_PKA_ECDH: {
         const ec_curve_desc_t *c = get_curve_desc(key->key.ecc.curve);
         if (!c) {
@@ -191,8 +191,8 @@ seckey_length(const pgp_seckey_t *key)
     case PGP_PKA_DSA:
         return 2 + mpi_bytes(&key->pubkey.key.dsa.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_RSA:
-        return mpi_length(key->key.rsa.d) + mpi_length(key->key.rsa.p) +
-               mpi_length(key->key.rsa.q) + mpi_length(key->key.rsa.u) +
+        return 8 + mpi_bytes(&key->pubkey.key.rsa.d) + mpi_bytes(&key->pubkey.key.rsa.p) +
+               mpi_bytes(&key->pubkey.key.rsa.q) + mpi_bytes(&key->pubkey.key.rsa.u) +
                pubkey_length(&key->pubkey);
     case PGP_PKA_ELGAMAL:
         return mpi_length(key->key.elgamal.x) + pubkey_length(&key->pubkey);
@@ -245,7 +245,8 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return pgp_write_mpi(output, key->key.rsa.n) && pgp_write_mpi(output, key->key.rsa.e);
+        return pgp_write_mpi_n(output, &key->key.rsa.n) &&
+               pgp_write_mpi_n(output, &key->key.rsa.e);
     case PGP_PKA_ECDH:
         return ec_serialize_pubkey(output, &key->key.ecdh.ec) &&
                pgp_write_scalar(output, 3 /*size of following attributes*/, 1) &&
@@ -909,10 +910,10 @@ pgp_write_secret_mpis(pgp_output_t *output, const pgp_seckey_t *seckey)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        ok = pgp_write_mpi(output, seckey->key.rsa.d) &&
-             pgp_write_mpi(output, seckey->key.rsa.p) &&
-             pgp_write_mpi(output, seckey->key.rsa.q) &&
-             pgp_write_mpi(output, seckey->key.rsa.u);
+        ok = pgp_write_mpi_n(output, &seckey->pubkey.key.rsa.d) &&
+             pgp_write_mpi_n(output, &seckey->pubkey.key.rsa.p) &&
+             pgp_write_mpi_n(output, &seckey->pubkey.key.rsa.q) &&
+             pgp_write_mpi_n(output, &seckey->pubkey.key.rsa.u);
         break;
 
     case PGP_PKA_DSA:

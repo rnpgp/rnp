@@ -90,10 +90,10 @@ test_key_unlock_pgp(void **state)
     // confirm that this key is indeed RSA first
     assert_int_equal(key->key.pubkey.alg, PGP_PKA_RSA);
     // confirm the secret MPIs are NULL
-    assert_null(key->key.seckey.key.rsa.d);
-    assert_null(key->key.seckey.key.rsa.p);
-    assert_null(key->key.seckey.key.rsa.q);
-    assert_null(key->key.seckey.key.rsa.u);
+    assert_int_equal(key->key.seckey.pubkey.key.rsa.d.len, 0);
+    assert_int_equal(key->key.seckey.pubkey.key.rsa.p.len, 0);
+    assert_int_equal(key->key.seckey.pubkey.key.rsa.q.len, 0);
+    assert_int_equal(key->key.seckey.pubkey.key.rsa.u.len, 0);
 
     // try to unlock with a failing password provider
     provider =
@@ -114,10 +114,10 @@ test_key_unlock_pgp(void **state)
     rnp_assert_false(rstate, pgp_key_is_locked(key));
 
     // confirm the secret MPIs are now filled in
-    assert_non_null(key->key.seckey.key.rsa.d);
-    assert_non_null(key->key.seckey.key.rsa.p);
-    assert_non_null(key->key.seckey.key.rsa.q);
-    assert_non_null(key->key.seckey.key.rsa.u);
+    assert_int_not_equal(key->key.seckey.pubkey.key.rsa.d.len, 0);
+    assert_int_not_equal(key->key.seckey.pubkey.key.rsa.p.len, 0);
+    assert_int_not_equal(key->key.seckey.pubkey.key.rsa.q.len, 0);
+    assert_int_not_equal(key->key.seckey.pubkey.key.rsa.u.len, 0);
 
     // now the signing key is unlocked, confirm that no password is required for signing
     rnp.password_provider =

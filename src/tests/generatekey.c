@@ -274,7 +274,7 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
     const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_GPG21, RNP_KEYSTORE_KBX};
     rnp_t       rnp;
     int         pipefd[2];
-    char *rnp_home = rnp_compose_path(rstate->home, ".rnp", NULL);
+    char *      rnp_home = rnp_compose_path(rstate->home, ".rnp", NULL);
 
     for (size_t i = 0; i < sizeof(hashAlg) / sizeof(hashAlg[0]); i++) {
         for (size_t j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
@@ -333,7 +333,7 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
     const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_GPG21, RNP_KEYSTORE_KBX};
     rnp_t       rnp;
     int         pipefd[2];
-    char *rnp_home = rnp_compose_path(rstate->home, ".rnp", NULL);
+    char *      rnp_home = rnp_compose_path(rstate->home, ".rnp", NULL);
 
     for (size_t i = 0; i < sizeof(userIds) / sizeof(userIds[0]); i++) {
         for (size_t j = 0; j < sizeof(keystores) / sizeof(keystores[0]); j++) {
@@ -837,8 +837,8 @@ test_generated_key_sigs(void **state)
         assert_int_equal(1, pub.subsigc);
         assert_int_equal(1, sec.subsigc);
         // make sure our sig MPI is not NULL
-        assert_non_null(pub.subsigs[0].sig.info.sig.rsa.sig);
-        assert_non_null(sec.subsigs[0].sig.info.sig.rsa.sig);
+        assert_int_not_equal(pub.subsigs[0].sig.info.sig.rsa.s.len, 0);
+        assert_int_not_equal(sec.subsigs[0].sig.info.sig.rsa.s.len, 0);
         // make sure we're targeting the right packet
         assert_int_equal(PGP_PTAG_CT_SIGNATURE, pub.packets[2].tag);
         assert_int_equal(PGP_PTAG_CT_SIGNATURE, sec.packets[2].tag);
@@ -956,8 +956,8 @@ test_generated_key_sigs(void **state)
         assert_int_equal(1, pub.subsigc);
         assert_int_equal(1, sec.subsigc);
         // make sure our sig MPI is not NULL
-        assert_non_null(pub.subsigs[0].sig.info.sig.rsa.sig);
-        assert_non_null(sec.subsigs[0].sig.info.sig.rsa.sig);
+        assert_int_not_equal(pub.subsigs[0].sig.info.sig.rsa.s.len, 0);
+        assert_int_not_equal(sec.subsigs[0].sig.info.sig.rsa.s.len, 0);
         // make sure we're targeting the right packet
         assert_int_equal(PGP_PTAG_CT_SIGNATURE, pub.packets[1].tag);
         assert_int_equal(PGP_PTAG_CT_SIGNATURE, sec.packets[1].tag);

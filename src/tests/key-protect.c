@@ -32,6 +32,18 @@
 #include "utils.h"
 #include "hash.h"
 
+static bool
+mpi_equal(pgp_mpi_t *val1, pgp_mpi_t *val2)
+{
+    return (val1->len == val2->len) && !memcmp(val1->mpi, val2->mpi, val1->len);
+}
+
+static bool
+mpi_empty(pgp_mpi_t *val)
+{
+    return val->len == 0;
+}
+
 /* This test loads a .gpg keyring and tests protect/unprotect functionality.
  * There is also some lock/unlock testing in here, since the two are
  * somewhat related.
@@ -89,10 +101,10 @@ test_key_protect_load_pgp(void **state)
     assert_int_equal(key->key.pubkey.alg, PGP_PKA_RSA);
 
     // confirm key material is currently all NULL (in other words, the key is locked)
-    assert_null(key->key.seckey.key.rsa.d);
-    assert_null(key->key.seckey.key.rsa.p);
-    assert_null(key->key.seckey.key.rsa.q);
-    assert_null(key->key.seckey.key.rsa.u);
+    assert_true(mpi_empty(&key->key.seckey.pubkey.key.rsa.d));
+    assert_true(mpi_empty(&key->key.seckey.pubkey.key.rsa.p));
+    assert_true(mpi_empty(&key->key.seckey.pubkey.key.rsa.q));
+    assert_true(mpi_empty(&key->key.seckey.pubkey.key.rsa.u));
 
     // try to unprotect with a failing password provider
     assert_false(pgp_key_unprotect(
@@ -116,10 +128,10 @@ test_key_protect_load_pgp(void **state)
     assert_true(pgp_key_is_locked(key));
 
     // confirm secret key material is still NULL
-    assert_null(key->key.seckey.key.rsa.d);
-    assert_null(key->key.seckey.key.rsa.p);
-    assert_null(key->key.seckey.key.rsa.q);
-    assert_null(key->key.seckey.key.rsa.u);
+    assert_true(mpi_empty(&key->key.seckey.pubkey.key.rsa.d));
+    assert_true(mpi_empty(&key->key.seckey.pubkey.key.rsa.p));
+    assert_true(mpi_empty(&key->key.seckey.pubkey.key.rsa.q));
+    assert_true(mpi_empty(&key->key.seckey.pubkey.key.rsa.u));
 
     // unlock (no password required since the key is not protected)
     assert_true(pgp_key_unlock(
@@ -128,16 +140,16 @@ test_key_protect_load_pgp(void **state)
     assert_false(pgp_key_is_locked(key));
 
     // secret key material should be available
-    assert_non_null(key->key.seckey.key.rsa.d);
-    assert_non_null(key->key.seckey.key.rsa.p);
-    assert_non_null(key->key.seckey.key.rsa.q);
-    assert_non_null(key->key.seckey.key.rsa.u);
+    assert_false(mpi_empty(&key->key.seckey.pubkey.key.rsa.d));
+    assert_false(mpi_empty(&key->key.seckey.pubkey.key.rsa.p));
+    assert_false(mpi_empty(&key->key.seckey.pubkey.key.rsa.q));
+    assert_false(mpi_empty(&key->key.seckey.pubkey.key.rsa.u));
 
     // save the secret MPIs for some later comparisons
-    bignum_t *d = bn_dup(key->key.seckey.key.rsa.d);
-    bignum_t *p = bn_dup(key->key.seckey.key.rsa.p);
-    bignum_t *q = bn_dup(key->key.seckey.key.rsa.q);
-    bignum_t *u = bn_dup(key->key.seckey.key.rsa.u);
+    pgp_mpi_t d = key->key.seckey.pubkey.key.rsa.d;
+    pgp_mpi_t p = key->key.seckey.pubkey.key.rsa.p;
+    pgp_mpi_t q = key->key.seckey.pubkey.key.rsa.q;
+    pgp_mpi_t u = key->key.seckey.pubkey.key.rsa.u;
 
     // confirm that packets[0] is no longer encrypted
     {
@@ -159,32 +171,32 @@ test_key_protect_load_pgp(void **state)
         assert_false(pgp_key_is_locked(reloaded_key));
         assert_false(pgp_key_is_protected(reloaded_key));
         // secret key material should not be NULL
-        assert_non_null(reloaded_key->key.seckey.key.rsa.d);
-        assert_non_null(reloaded_key->key.seckey.key.rsa.p);
-        assert_non_null(reloaded_key->key.seckey.key.rsa.q);
-        assert_non_null(reloaded_key->key.seckey.key.rsa.u);
+        assert_false(mpi_empty(&reloaded_key->key.seckey.pubkey.key.rsa.d));
+        assert_false(mpi_empty(&reloaded_key->key.seckey.pubkey.key.rsa.p));
+        assert_false(mpi_empty(&reloaded_key->key.seckey.pubkey.key.rsa.q));
+        assert_false(mpi_empty(&reloaded_key->key.seckey.pubkey.key.rsa.u));
 
         // compare MPIs of the reloaded key, with the unlocked key from earlier
-        assert_int_equal(
-          0, bn_cmp(key->key.seckey.key.rsa.d, reloaded_key->key.seckey.key.rsa.d));
-        assert_int_equal(
-          0, bn_cmp(key->key.seckey.key.rsa.p, reloaded_key->key.seckey.key.rsa.p));
-        assert_int_equal(
-          0, bn_cmp(key->key.seckey.key.rsa.q, reloaded_key->key.seckey.key.rsa.q));
-        assert_int_equal(
-          0, bn_cmp(key->key.seckey.key.rsa.u, reloaded_key->key.seckey.key.rsa.u));
+        assert_true(mpi_equal(&key->key.seckey.pubkey.key.rsa.d,
+                              &reloaded_key->key.seckey.pubkey.key.rsa.d));
+        assert_true(mpi_equal(&key->key.seckey.pubkey.key.rsa.p,
+                              &reloaded_key->key.seckey.pubkey.key.rsa.p));
+        assert_true(mpi_equal(&key->key.seckey.pubkey.key.rsa.q,
+                              &reloaded_key->key.seckey.pubkey.key.rsa.q));
+        assert_true(mpi_equal(&key->key.seckey.pubkey.key.rsa.u,
+                              &reloaded_key->key.seckey.pubkey.key.rsa.u));
         // negative test to try to ensure the above is a valid test
-        assert_int_not_equal(
-          0, bn_cmp(key->key.seckey.key.rsa.d, reloaded_key->key.seckey.key.rsa.p));
+        assert_false(mpi_equal(&key->key.seckey.pubkey.key.rsa.d,
+                               &reloaded_key->key.seckey.pubkey.key.rsa.p));
 
         // lock it
         assert_true(pgp_key_lock(reloaded_key));
         assert_true(pgp_key_is_locked(reloaded_key));
         // confirm that secret MPIs are NULL again
-        assert_null(reloaded_key->key.seckey.key.rsa.d);
-        assert_null(reloaded_key->key.seckey.key.rsa.p);
-        assert_null(reloaded_key->key.seckey.key.rsa.q);
-        assert_null(reloaded_key->key.seckey.key.rsa.u);
+        assert_true(mpi_empty(&reloaded_key->key.seckey.pubkey.key.rsa.d));
+        assert_true(mpi_empty(&reloaded_key->key.seckey.pubkey.key.rsa.p));
+        assert_true(mpi_empty(&reloaded_key->key.seckey.pubkey.key.rsa.q));
+        assert_true(mpi_empty(&reloaded_key->key.seckey.pubkey.key.rsa.u));
         // unlock it (no password, since it's not protected)
         assert_true(
           pgp_key_unlock(reloaded_key,
@@ -192,14 +204,14 @@ test_key_protect_load_pgp(void **state)
                                                     .userdata = NULL}));
         assert_false(pgp_key_is_locked(reloaded_key));
         // compare MPIs of the reloaded key, with the unlocked key from earlier
-        assert_int_equal(
-          0, bn_cmp(key->key.seckey.key.rsa.d, reloaded_key->key.seckey.key.rsa.d));
-        assert_int_equal(
-          0, bn_cmp(key->key.seckey.key.rsa.p, reloaded_key->key.seckey.key.rsa.p));
-        assert_int_equal(
-          0, bn_cmp(key->key.seckey.key.rsa.q, reloaded_key->key.seckey.key.rsa.q));
-        assert_int_equal(
-          0, bn_cmp(key->key.seckey.key.rsa.u, reloaded_key->key.seckey.key.rsa.u));
+        assert_true(mpi_equal(&key->key.seckey.pubkey.key.rsa.d,
+                              &reloaded_key->key.seckey.pubkey.key.rsa.d));
+        assert_true(mpi_equal(&key->key.seckey.pubkey.key.rsa.p,
+                              &reloaded_key->key.seckey.pubkey.key.rsa.p));
+        assert_true(mpi_equal(&key->key.seckey.pubkey.key.rsa.q,
+                              &reloaded_key->key.seckey.pubkey.key.rsa.q));
+        assert_true(mpi_equal(&key->key.seckey.pubkey.key.rsa.u,
+                              &reloaded_key->key.seckey.pubkey.key.rsa.u));
 
         rnp_key_store_free(ks);
     }
@@ -208,12 +220,12 @@ test_key_protect_load_pgp(void **state)
     assert_true(pgp_key_lock(key));
 
     // try to protect (will fail when key is locked)
-    assert_false(
-      rnp_key_add_protection(key,
-                      key->format, // same format
-                      NULL,        // default protection
-                      &(pgp_password_provider_t){.callback = string_copy_password_callback,
-                                                 .userdata = "newpass"}));
+    assert_false(rnp_key_add_protection(
+      key,
+      key->format, // same format
+      NULL,        // default protection
+      &(pgp_password_provider_t){.callback = string_copy_password_callback,
+                                 .userdata = "newpass"}));
     assert_false(pgp_key_is_protected(key));
 
     // unlock
@@ -231,12 +243,12 @@ test_key_protect_load_pgp(void **state)
     assert_false(pgp_key_is_protected(key));
 
     // (re)protect with a new password
-    assert_true(
-      rnp_key_add_protection(key,
-                      key->format, // same format
-                      NULL,        // default protection
-                      &(pgp_password_provider_t){.callback = string_copy_password_callback,
-                                                 .userdata = "newpass"}));
+    assert_true(rnp_key_add_protection(
+      key,
+      key->format, // same format
+      NULL,        // default protection
+      &(pgp_password_provider_t){.callback = string_copy_password_callback,
+                                 .userdata = "newpass"}));
     assert_true(pgp_key_is_protected(key));
 
     // lock
@@ -258,15 +270,11 @@ test_key_protect_load_pgp(void **state)
     assert_false(pgp_key_is_locked(key));
 
     // compare secret MPIs with those from earlier
-    assert_int_equal(0, bn_cmp(key->key.seckey.key.rsa.d, d));
-    assert_int_equal(0, bn_cmp(key->key.seckey.key.rsa.p, p));
-    assert_int_equal(0, bn_cmp(key->key.seckey.key.rsa.q, q));
-    assert_int_equal(0, bn_cmp(key->key.seckey.key.rsa.u, u));
+    assert_true(mpi_equal(&key->key.seckey.pubkey.key.rsa.d, &d));
+    assert_true(mpi_equal(&key->key.seckey.pubkey.key.rsa.p, &p));
+    assert_true(mpi_equal(&key->key.seckey.pubkey.key.rsa.q, &q));
+    assert_true(mpi_equal(&key->key.seckey.pubkey.key.rsa.u, &u));
 
     // cleanup
     pgp_key_free(key);
-    bn_free(d);
-    bn_free(p);
-    bn_free(q);
-    bn_free(u);
 }

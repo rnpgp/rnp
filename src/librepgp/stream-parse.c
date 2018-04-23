@@ -1308,14 +1308,9 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     /* Decrypting session key value */
     switch (sesskey->alg) {
     case PGP_PKA_RSA:
-        declen = pgp_rsa_decrypt_pkcs1(rng,
-                                       decbuf,
-                                       sizeof(decbuf),
-                                       sesskey->material.rsa.m.mpi,
-                                       sesskey->material.rsa.m.len,
-                                       &seckey->key.rsa,
-                                       &seckey->pubkey.key.rsa);
-        if (declen <= 0) {
+        err = rsa_decrypt_pkcs1(
+          rng, decbuf, &declen, &sesskey->material.rsa, &seckey->pubkey.key.rsa);
+        if (err) {
             RNP_LOG("RSA decryption failure");
             return false;
         }

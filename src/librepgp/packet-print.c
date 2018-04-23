@@ -95,7 +95,7 @@ key_bitlength(const pgp_pubkey_t *pubkey)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        (void) bn_num_bytes(pubkey->key.rsa.n, &sz);
+        sz = mpi_bytes(&pubkey->key.rsa.n);
         return sz * 8;
     case PGP_PKA_DSA:
         sz = mpi_bytes(&pubkey->key.dsa.p);
@@ -707,8 +707,8 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
         cc += snprintf(&out[cc],
                        outsize - cc,
                        "n=%s\ne=%s\n",
-                       bn_bn2hex(key->key.pubkey.key.rsa.n),
-                       bn_bn2hex(key->key.pubkey.key.rsa.e));
+                       mpi2hex(&key->key.pubkey.key.rsa.n),
+                       mpi2hex(&key->key.pubkey.key.rsa.e));
         break;
     case PGP_PKA_EDDSA:
         cc += snprintf(

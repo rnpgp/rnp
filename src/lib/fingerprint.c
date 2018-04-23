@@ -57,8 +57,8 @@ ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
     hash_string(&hash, (const uint8_t *) (const void *) type, (unsigned) strlen(type));
     switch (key->alg) {
     case PGP_PKA_RSA:
-        (void) bn_hash(key->key.rsa.e, &hash);
-        (void) bn_hash(key->key.rsa.n, &hash);
+        (void) mpi_hash(&key->key.rsa.e, &hash);
+        (void) mpi_hash(&key->key.rsa.n, &hash);
         break;
     case PGP_PKA_DSA:
         (void) mpi_hash(&key->key.dsa.p, &hash);
@@ -93,8 +93,8 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
             RNP_LOG("bad md5 alloc");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        (void) bn_hash(key->key.rsa.n, &hash);
-        (void) bn_hash(key->key.rsa.e, &hash);
+        (void) mpi_hash(&key->key.rsa.n, &hash);
+        (void) mpi_hash(&key->key.rsa.e, &hash);
         fp->length = pgp_hash_finish(&hash, fp->fingerprint);
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "v2/v3 fingerprint", fp->fingerprint, fp->length);
@@ -142,21 +142,14 @@ rnp_result_t
 pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key)
 {
     if (key->version == 2 || key->version == 3) {
-        size_t  n;
-        uint8_t bn[RNP_BUFSIZ];
-
+        size_t n;
         if (key->alg != PGP_PKA_RSA && key->alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
             key->alg != PGP_PKA_RSA_SIGN_ONLY) {
             RNP_LOG("bad algorithm");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-
-        if (!bn_num_bytes(key->key.rsa.n, &n) || (n > sizeof(bn))) {
-            RNP_LOG("Internal error: bignum too big");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        bn_bn2bin(key->key.rsa.n, bn);
-        (void) memcpy(keyid, bn + n - idlen, idlen);
+        n = mpi_bytes(&key->key.rsa.n);
+        (void) memcpy(keyid, key->key.rsa.n.mpi + n - idlen, idlen);
     } else {
         pgp_fingerprint_t finger;
 

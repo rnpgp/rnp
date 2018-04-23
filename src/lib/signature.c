@@ -138,22 +138,13 @@ pgp_dump_sig(pgp_sig_t *sig)
 }
 #endif
 
-/* XXX: both this and verify would be clearer if the signature were */
-/* treated as an MPI. */
 static bool
-rsa_sign(rng_t *                 rng,
-         pgp_hash_t *            hash,
-         const pgp_rsa_pubkey_t *pubrsa,
-         const pgp_rsa_seckey_t *secrsa,
-         pgp_output_t *          out)
+rsa_sign(rng_t *rng, pgp_hash_t *hash, const pgp_rsa_key_t *rsa, pgp_output_t *out)
 {
-    unsigned  hash_size;
-    int       sig_size = 0;
-    uint8_t   hashbuf[128];
-    uint8_t   sigbuf[RNP_BUFSIZ];
-    bignum_t *bn;
-
-    pgp_hash_alg_t hash_alg = pgp_hash_alg_type(hash);
+    unsigned            hash_size;
+    uint8_t             hashbuf[128];
+    pgp_rsa_signature_t sig = {{{0}}};
+    pgp_hash_alg_t      hash_alg = pgp_hash_alg_type(hash);
 
     hash_size = pgp_hash_finish(hash, hashbuf);
 
@@ -164,16 +155,12 @@ rsa_sign(rng_t *                 rng,
      */
     pgp_write(out, &hashbuf[0], 2);
 
-    sig_size = pgp_rsa_pkcs1_sign_hash(
-      rng, sigbuf, sizeof(sigbuf), hash_alg, hashbuf, hash_size, secrsa, pubrsa);
-
-    if (sig_size == 0) {
-        RNP_LOG("Internal error");
+    if (rsa_sign_pkcs1(rng, &sig, hash_alg, hashbuf, hash_size, rsa)) {
+        RNP_LOG("signing failed");
         return false;
     }
-    bn = bn_bin2bn(sigbuf, sig_size, NULL);
-    pgp_write_mpi(out, bn);
-    bn_free(bn);
+
+    pgp_write_mpi_n(out, &sig.s);
     return true;
 }
 
@@ -325,34 +312,6 @@ eddsa_verify(const uint8_t *         hash,
 }
 
 static bool
-rsa_verify(rng_t *                 rng,
-           pgp_hash_alg_t          hash_alg,
-           const uint8_t *         hash,
-           size_t                  hash_length,
-           const pgp_rsa_sig_t *   sig,
-           const pgp_rsa_pubkey_t *pubrsa)
-{
-    size_t  sig_blen = 0;
-    size_t  sz;
-    uint8_t sigbuf[RNP_BUFSIZ];
-
-    /* RSA key can't be bigger than 65535 bits, so... */
-    if (!bn_num_bytes(pubrsa->n, &sz) || (sz > sizeof(sigbuf))) {
-        RNP_LOG("keysize too big");
-        return false;
-    }
-
-    if (!bn_num_bytes(sig->sig, &sig_blen) || (sig_blen > sizeof(sigbuf))) {
-        RNP_LOG("Signature too big");
-        return false;
-    }
-    bn_bn2bin(sig->sig, sigbuf);
-
-    return pgp_rsa_pkcs1_verify_hash(
-      rng, sigbuf, sig_blen, hash_alg, hash, hash_length, pubrsa);
-}
-
-static bool
 hash_add_key(pgp_hash_t *hash, const pgp_pubkey_t *key)
 {
     pgp_memory_t * mem = pgp_memory_new();
@@ -422,7 +381,7 @@ pgp_check_sig(rng_t *             rng,
 
     switch (sig->info.key_alg) {
     case PGP_PKA_DSA:
-        ret = dsa_verify(hash, length, &sig->info.sig.dsa, &signer->key.dsa);
+        ret = !dsa_verify(hash, length, &sig->info.sig.dsa, &signer->key.dsa);
         break;
 
     case PGP_PKA_EDDSA:
@@ -435,8 +394,8 @@ pgp_check_sig(rng_t *             rng,
         break;
 
     case PGP_PKA_RSA:
-        ret = rsa_verify(
-          rng, sig->info.hash_alg, hash, length, &sig->info.sig.rsa, &signer->key.rsa);
+        ret = !rsa_verify_pkcs1(
+          rng, &sig->info.sig.rsa, sig->info.hash_alg, hash, length, &signer->key.rsa);
         break;
 
     case PGP_PKA_ECDSA:
@@ -779,7 +738,7 @@ pgp_sig_write(rng_t *             rng,
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (seckey->key.rsa.d == NULL) {
+        if (!mpi_bytes(&seckey->pubkey.key.rsa.d)) {
             (void) fprintf(stderr, "pgp_sig_write: null rsa.d\n");
             return false;
         }
@@ -837,7 +796,7 @@ pgp_sig_write(rng_t *             rng,
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!rsa_sign(rng, &sig->hash, &key->key.rsa, &seckey->key.rsa, sig->output)) {
+        if (!rsa_sign(rng, &sig->hash, &seckey->pubkey.key.rsa, sig->output)) {
             RNP_LOG("rsa_sign failure");
             return false;
         }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Ribose Inc.
+ * Copyright (c) 2017-2018 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,74 +87,130 @@
 
 #include "hash.h"
 
-/**
-   \ingroup Core_Crypto
-   \brief Decrypt PKCS1 formatted RSA ciphertext
-   \param out Where to write decrypted data to
-   \param in Encrypted data
-   \param length Length of encrypted data
-   \param pubkey RSA public key
-   \return size of recovered plaintext
-*/
-int
-pgp_rsa_encrypt_pkcs1(rng_t *                 rng,
-                      uint8_t *               out,
-                      size_t                  out_len,
-                      const uint8_t *         in,
-                      const size_t            in_len,
-                      const pgp_rsa_pubkey_t *pubkey)
+static bool
+rsa_load_public_key(rng_t *rng, botan_pubkey_t *bkey, const pgp_rsa_key_t *key)
 {
-    int                   retval = -1;
-    botan_pubkey_t        rsa_key = NULL;
-    botan_pk_op_encrypt_t enc_op = NULL;
+    bignum_t *n = NULL;
+    bignum_t *e = NULL;
+    bool      res = false;
 
-    if (botan_pubkey_load_rsa(&rsa_key, pubkey->n->mp, pubkey->e->mp) != 0) {
+    *bkey = NULL;
+    n = mpi2bn(&key->n);
+    e = mpi2bn(&key->e);
+
+    if (!n || !e) {
+        RNP_LOG("out of memory");
         goto done;
     }
 
-    if (botan_pubkey_check_key(rsa_key, rng_handle(rng), 1) != 0) {
+    if (botan_pubkey_load_rsa(bkey, BN_HANDLE_PTR(n), BN_HANDLE_PTR(e)) != 0) {
         goto done;
+    }
+
+    if (botan_pubkey_check_key(*bkey, rng_handle(rng), 1) != 0) {
+        botan_pubkey_destroy(*bkey);
+        *bkey = NULL;
+        goto done;
+    }
+
+    res = true;
+done:
+    bn_free(n);
+    bn_free(e);
+    return res;
+}
+
+static bool
+rsa_load_secret_key(rng_t *rng, botan_privkey_t *bkey, const pgp_rsa_key_t *key)
+{
+    bignum_t *p = NULL;
+    bignum_t *q = NULL;
+    bignum_t *e = NULL;
+    bool      res = false;
+
+    *bkey = NULL;
+    p = mpi2bn(&key->p);
+    q = mpi2bn(&key->q);
+    e = mpi2bn(&key->e);
+
+    if (!p || !q || !e) {
+        RNP_LOG("out of memory");
+        goto done;
+    }
+
+    /* p and q are reversed from normal usage in PGP */
+    if (botan_privkey_load_rsa(bkey, BN_HANDLE_PTR(q), BN_HANDLE_PTR(p), BN_HANDLE_PTR(e))) {
+        goto done;
+    }
+
+    if (botan_privkey_check_key(*bkey, rng_handle(rng), 0) != 0) {
+        botan_privkey_destroy(*bkey);
+        *bkey = NULL;
+        return false;
+    }
+
+    res = true;
+done:
+    bn_free(p);
+    bn_free(q);
+    bn_free(e);
+    return res;
+}
+
+rnp_result_t
+rsa_encrypt_pkcs1(rng_t *              rng,
+                  pgp_rsa_encrypted_t *out,
+                  const uint8_t *      in,
+                  size_t               in_len,
+                  const pgp_rsa_key_t *key)
+{
+    rnp_result_t          ret = RNP_ERROR_GENERIC;
+    botan_pubkey_t        rsa_key = NULL;
+    botan_pk_op_encrypt_t enc_op = NULL;
+
+    if (!rsa_load_public_key(rng, &rsa_key, key)) {
+        RNP_LOG("failed to load key");
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     if (botan_pk_op_encrypt_create(&enc_op, rsa_key, "PKCS1v15", 0) != 0) {
         goto done;
     }
 
-    if (botan_pk_op_encrypt(enc_op, rng_handle(rng), out, &out_len, in, in_len) == 0) {
-        retval = (int) out_len;
+    out->m.len = sizeof(out->m.mpi);
+    if (botan_pk_op_encrypt(enc_op, rng_handle(rng), out->m.mpi, &out->m.len, in, in_len)) {
+        out->m.len = 0;
+        goto done;
     }
-
+    ret = RNP_SUCCESS;
 done:
     botan_pk_op_encrypt_destroy(enc_op);
     botan_pubkey_destroy(rsa_key);
-
-    return retval;
+    return ret;
 }
 
-bool
-pgp_rsa_pkcs1_verify_hash(rng_t *                 rng,
-                          const uint8_t *         sig_buf,
-                          size_t                  sig_buf_size,
-                          pgp_hash_alg_t          hash_alg,
-                          const uint8_t *         hash,
-                          size_t                  hash_len,
-                          const pgp_rsa_pubkey_t *pubkey)
+rnp_result_t
+rsa_verify_pkcs1(rng_t *                    rng,
+                 const pgp_rsa_signature_t *sig,
+                 pgp_hash_alg_t             hash_alg,
+                 const uint8_t *            hash,
+                 size_t                     hash_len,
+                 const pgp_rsa_key_t *      key)
 {
     char                 padding_name[64] = {0};
     botan_pubkey_t       rsa_key = NULL;
     botan_pk_op_verify_t verify_op = NULL;
-    bool                 result = false;
+    rnp_result_t         ret = RNP_ERROR_SIGNATURE_INVALID;
+
+    if (!rsa_load_public_key(rng, &rsa_key, key)) {
+        RNP_LOG("failed to load key");
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
 
     snprintf(padding_name,
              sizeof(padding_name),
              "EMSA-PKCS1-v1_5(Raw,%s)",
              pgp_hash_name_botan(hash_alg));
-
-    botan_pubkey_load_rsa(&rsa_key, pubkey->n->mp, pubkey->e->mp);
-
-    if (botan_pubkey_check_key(rsa_key, rng_handle(rng), 1) != 0) {
-        goto done;
-    }
 
     if (botan_pk_op_verify_create(&verify_op, rsa_key, padding_name, 0) != 0) {
         goto done;
@@ -164,41 +220,38 @@ pgp_rsa_pkcs1_verify_hash(rng_t *                 rng,
         goto done;
     }
 
-    result = (botan_pk_op_verify_finish(verify_op, sig_buf, sig_buf_size) == 0);
+    if (botan_pk_op_verify_finish(verify_op, sig->s.mpi, sig->s.len) != 0) {
+        goto done;
+    }
 
+    ret = RNP_SUCCESS;
 done:
     botan_pk_op_verify_destroy(verify_op);
     botan_pubkey_destroy(rsa_key);
-    return result;
+    return ret;
 }
 
-/**
-   \ingroup Core_Crypto
-   \brief Signs data with RSA
-   \param out Where to write signature
-   \param in Data to sign
-   \param length Length of data
-   \param seckey RSA secret key
-   \param pubkey RSA public key
-   \return number of bytes decrypted
-*/
-int
-pgp_rsa_pkcs1_sign_hash(rng_t *                 rng,
-                        uint8_t *               sig_buf,
-                        size_t                  sig_buf_size,
-                        pgp_hash_alg_t          hash_alg,
-                        const uint8_t *         hash_buf,
-                        size_t                  hash_len,
-                        const pgp_rsa_seckey_t *seckey,
-                        const pgp_rsa_pubkey_t *pubkey)
+rnp_result_t
+rsa_sign_pkcs1(rng_t *              rng,
+               pgp_rsa_signature_t *sig,
+               pgp_hash_alg_t       hash_alg,
+               const uint8_t *      hash,
+               size_t               hash_len,
+               const pgp_rsa_key_t *key)
 {
     char               padding_name[64] = {0};
     botan_privkey_t    rsa_key;
     botan_pk_op_sign_t sign_op;
+    rnp_result_t       ret = RNP_ERROR_GENERIC;
 
-    if (seckey->q == NULL) {
+    if (mpi_bytes(&key->q) == 0) {
         RNP_LOG("private key not set");
-        return 0;
+        return ret;
+    }
+
+    if (!rsa_load_secret_key(rng, &rsa_key, key)) {
+        RNP_LOG("failed to load key");
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     snprintf(padding_name,
@@ -206,123 +259,122 @@ pgp_rsa_pkcs1_sign_hash(rng_t *                 rng,
              "EMSA-PKCS1-v1_5(Raw,%s)",
              pgp_hash_name_botan(hash_alg));
 
-    /* p and q are reversed from normal usage in PGP */
-    botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, pubkey->e->mp);
-
-    if (botan_privkey_check_key(rsa_key, rng_handle(rng), 0) != 0) {
-        botan_privkey_destroy(rsa_key);
-        return 0;
-    }
-
     if (botan_pk_op_sign_create(&sign_op, rsa_key, padding_name, 0) != 0) {
-        botan_privkey_destroy(rsa_key);
-        return 0;
+        goto done;
     }
 
-    if (botan_pk_op_sign_update(sign_op, hash_buf, hash_len) != 0 ||
-        botan_pk_op_sign_finish(sign_op, rng_handle(rng), sig_buf, &sig_buf_size) != 0) {
-        botan_pk_op_sign_destroy(sign_op);
-        botan_privkey_destroy(rsa_key);
-        return 0;
+    if (botan_pk_op_sign_update(sign_op, hash, hash_len)) {
+        goto done;
     }
 
+    sig->s.len = sizeof(sig->s.mpi);
+    if (botan_pk_op_sign_finish(sign_op, rng_handle(rng), sig->s.mpi, &sig->s.len)) {
+        goto done;
+    }
+
+    ret = RNP_SUCCESS;
+done:
     botan_pk_op_sign_destroy(sign_op);
     botan_privkey_destroy(rsa_key);
-
-    return (int) sig_buf_size;
+    return ret;
 }
 
-/**
-\ingroup Core_Crypto
-\brief Decrypts RSA-encrypted data
-\param out Where to write the plaintext
-\param in Encrypted data
-\param length Length of encrypted data
-\param seckey RSA secret key
-\param pubkey RSA public key
-\return size of recovered plaintext
-*/
-int
-pgp_rsa_decrypt_pkcs1(rng_t *                 rng,
-                      uint8_t *               out,
-                      size_t                  out_len,
-                      const uint8_t *         in,
-                      size_t                  in_len,
-                      const pgp_rsa_seckey_t *seckey,
-                      const pgp_rsa_pubkey_t *pubkey)
+rnp_result_t
+rsa_decrypt_pkcs1(rng_t *                    rng,
+                  uint8_t *                  out,
+                  size_t *                   out_len,
+                  const pgp_rsa_encrypted_t *in,
+                  const pgp_rsa_key_t *      key)
 {
-    int                   retval = -1;
     botan_privkey_t       rsa_key = NULL;
     botan_pk_op_decrypt_t decrypt_op = NULL;
+    rnp_result_t          ret = RNP_ERROR_GENERIC;
 
-    if (botan_privkey_load_rsa(&rsa_key, seckey->q->mp, seckey->p->mp, pubkey->e->mp) != 0) {
+    if (mpi_bytes(&key->q) == 0) {
+        RNP_LOG("private key not set");
+        return ret;
+    }
+
+    if (!rsa_load_secret_key(rng, &rsa_key, key)) {
+        RNP_LOG("failed to load key");
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    if (botan_pk_op_decrypt_create(&decrypt_op, rsa_key, "PKCS1v15", 0)) {
         goto done;
     }
 
-    if (botan_privkey_check_key(rsa_key, rng_handle(rng), 0) != 0) {
+    *out_len = PGP_MPINT_SIZE;
+    if (botan_pk_op_decrypt(decrypt_op, out, out_len, in->m.mpi, in->m.len)) {
         goto done;
     }
-
-    if (botan_pk_op_decrypt_create(&decrypt_op, rsa_key, "PKCS1v15", 0) != 0) {
-        goto done;
-    }
-
-    if (botan_pk_op_decrypt(decrypt_op, out, &out_len, (uint8_t *) in, in_len) == 0) {
-        retval = (int) out_len;
-    }
-
+    ret = RNP_SUCCESS;
 done:
     botan_privkey_destroy(rsa_key);
     botan_pk_op_decrypt_destroy(decrypt_op);
-    return retval;
+    return ret;
 }
 
-int
-pgp_genkey_rsa(rng_t *rng, pgp_seckey_t *seckey, size_t numbits)
+rnp_result_t
+rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
 {
     botan_privkey_t rsa_key = NULL;
-    int             ret = 0, cmp;
+    rnp_result_t    ret = RNP_ERROR_GENERIC;
+    int             cmp;
+    bignum_t *      n = bn_new();
+    bignum_t *      e = bn_new();
+    bignum_t *      p = bn_new();
+    bignum_t *      q = bn_new();
+    bignum_t *      d = bn_new();
+    bignum_t *      u = bn_new();
 
-    seckey->pubkey.key.rsa.n = bn_new();
-    seckey->pubkey.key.rsa.e = bn_new();
-    seckey->key.rsa.p = bn_new();
-    seckey->key.rsa.q = bn_new();
-    seckey->key.rsa.d = bn_new();
-    seckey->key.rsa.u = bn_new();
-
-    if (!seckey->pubkey.key.rsa.n || !seckey->pubkey.key.rsa.e || !seckey->key.rsa.p ||
-        !seckey->key.rsa.q || !seckey->key.rsa.d || !seckey->key.rsa.u) {
+    if (!n || !e || !p || !q || !d || !u) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
         goto end;
     }
 
-    if (botan_privkey_create_rsa(&rsa_key, rng_handle(rng), numbits) != 0)
+    if (botan_privkey_create_rsa(&rsa_key, rng_handle(rng), numbits) != 0) {
         goto end;
+    }
 
-    if (botan_privkey_check_key(rsa_key, rng_handle(rng), 1) != 0)
+    if (botan_privkey_check_key(rsa_key, rng_handle(rng), 1) != 0) {
         goto end;
+    }
 
     /* Calls below never fail as calls above were OK */
-    (void) botan_privkey_rsa_get_n(seckey->pubkey.key.rsa.n->mp, rsa_key);
-    (void) botan_privkey_rsa_get_e(seckey->pubkey.key.rsa.e->mp, rsa_key);
-    (void) botan_privkey_rsa_get_d(seckey->key.rsa.d->mp, rsa_key);
-    (void) botan_privkey_rsa_get_p(seckey->key.rsa.p->mp, rsa_key);
-    (void) botan_privkey_rsa_get_q(seckey->key.rsa.q->mp, rsa_key);
+    (void) botan_privkey_rsa_get_n(BN_HANDLE_PTR(n), rsa_key);
+    (void) botan_privkey_rsa_get_e(BN_HANDLE_PTR(e), rsa_key);
+    (void) botan_privkey_rsa_get_d(BN_HANDLE_PTR(d), rsa_key);
+    (void) botan_privkey_rsa_get_p(BN_HANDLE_PTR(p), rsa_key);
+    (void) botan_privkey_rsa_get_q(BN_HANDLE_PTR(q), rsa_key);
 
     /* RFC 4880, 5.5.3 tells that p < q. GnuPG relies on this. */
-    (void) botan_mp_cmp(&cmp, seckey->key.rsa.p->mp, seckey->key.rsa.q->mp);
+    (void) botan_mp_cmp(&cmp, BN_HANDLE_PTR(p), BN_HANDLE_PTR(q));
     if (cmp > 0) {
-        (void) botan_mp_swap(seckey->key.rsa.p->mp, seckey->key.rsa.q->mp);
+        (void) botan_mp_swap(BN_HANDLE_PTR(p), BN_HANDLE_PTR(q));
     }
 
-    if (botan_mp_mod_inverse(
-          seckey->key.rsa.u->mp, seckey->key.rsa.p->mp, seckey->key.rsa.q->mp) != 0) {
+    if (botan_mp_mod_inverse(BN_HANDLE_PTR(u), BN_HANDLE_PTR(p), BN_HANDLE_PTR(q)) != 0) {
         RNP_LOG("Error computing RSA u param");
+        ret = RNP_ERROR_BAD_STATE;
         goto end;
     }
 
-    ret = 1;
+    bn2mpi(n, &key->n);
+    bn2mpi(e, &key->e);
+    bn2mpi(p, &key->p);
+    bn2mpi(q, &key->q);
+    bn2mpi(d, &key->d);
+    bn2mpi(u, &key->u);
 
+    ret = RNP_SUCCESS;
 end:
     botan_privkey_destroy(rsa_key);
+    bn_free(n);
+    bn_free(e);
+    bn_free(p);
+    bn_free(q);
+    bn_free(d);
+    bn_free(u);
     return ret;
 }

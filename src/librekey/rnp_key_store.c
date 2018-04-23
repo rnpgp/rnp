@@ -836,9 +836,7 @@ rnp_key_store_get_key_grip(pgp_pubkey_t *key, uint8_t *grip)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-        if (!grip_hash_bignum(&hash, key->key.rsa.n)) {
-            return false;
-        }
+        grip_hash_mpi(&hash, &key->key.rsa.n);
         break;
 
     case PGP_PKA_DSA:
