@@ -766,6 +766,7 @@ pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider)
         pgp_seckey_free_secret_mpis(&key->key.seckey);
         // copy the decrypted mpis into the pgp_key_t
         key->key.seckey.key = decrypted_seckey->key;
+        key->key.seckey.pubkey.key = decrypted_seckey->pubkey.key;
         key->key.seckey.encrypted = false;
 
         // zero out the key material union in the decrypted seckey, since
@@ -931,7 +932,8 @@ pgp_key_protect(pgp_key_t *                  key,
     seckey->protection.s2k.hash_alg = protection->hash_alg;
 
     // write the protected key to packets[0]
-    if (!write_key_to_rawpacket(decrypted_seckey, &key->packets[0], key->type, format, new_password)) {
+    if (!write_key_to_rawpacket(
+          decrypted_seckey, &key->packets[0], key->type, format, new_password)) {
         goto done;
     }
     key->format = format;
@@ -1132,10 +1134,11 @@ static pgp_key_t *
 find_signer(pgp_io_t *                io,
             const pgp_sig_info_t *    sig,
             const rnp_key_store_t *   store,
-            const pgp_key_provider_t *key_provider, bool secret)
+            const pgp_key_provider_t *key_provider,
+            bool                      secret)
 {
     pgp_key_search_t search;
-    pgp_key_t *key = NULL;
+    pgp_key_t *      key = NULL;
 
     // prefer using the issuer fingerprint when available
     if (sig->signer_fpr.length) {
@@ -1151,9 +1154,9 @@ find_signer(pgp_io_t *                io,
         }
         // try the key provider
         if ((key = pgp_request_key(key_provider,
-                                  &(pgp_key_request_ctx_t){.op = PGP_OP_MERGE_INFO,
-                                                           .secret = secret,
-                                                           .search = search}))) {
+                                   &(pgp_key_request_ctx_t){.op = PGP_OP_MERGE_INFO,
+                                                            .secret = secret,
+                                                            .search = search}))) {
             return key;
         }
     }
@@ -1166,9 +1169,9 @@ find_signer(pgp_io_t *                io,
             return key;
         }
         if ((key = pgp_request_key(key_provider,
-                            &(pgp_key_request_ctx_t){
-                              .op = PGP_OP_MERGE_INFO, .secret = secret, .search = search}
-                            ))) {
+                                   &(pgp_key_request_ctx_t){.op = PGP_OP_MERGE_INFO,
+                                                            .secret = secret,
+                                                            .search = search}))) {
             return key;
         }
     }
@@ -1191,9 +1194,9 @@ find_signer(pgp_io_t *                io,
  */
 pgp_key_t *
 pgp_get_primary_key_for(pgp_io_t *                io,
-                         const pgp_key_t *         subkey,
-                         const rnp_key_store_t *   store,
-                         const pgp_key_provider_t *key_provider)
+                        const pgp_key_t *         subkey,
+                        const rnp_key_store_t *   store,
+                        const pgp_key_provider_t *key_provider)
 {
     const pgp_sig_info_t *binding_sig = NULL;
 

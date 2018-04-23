@@ -126,25 +126,6 @@ frombase64(char *dst, const char *src, size_t size, int flag)
 }
 
 /* get a bignum from the buffer gap */
-static bignum_t *
-getbignum(bufgap_t *bg, char *buf, const char *header)
-{
-    uint32_t  len;
-    bignum_t *bignum;
-
-    (void) bufgap_getbin(bg, &len, sizeof(len));
-    len = ntohl(len);
-    (void) bufgap_seek(bg, sizeof(len), BGFromHere, BGByte);
-    (void) bufgap_getbin(bg, buf, len);
-    bignum = bn_bin2bn((const uint8_t *) buf, (int) len, NULL);
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, header, (const uint8_t *) (void *) buf, len);
-    }
-    (void) bufgap_seek(bg, len, BGFromHere, BGByte);
-    return bignum;
-}
-
-/* get a bignum from the buffer gap */
 static void
 getmpi(bufgap_t *bg, char *buf, const char *header, pgp_mpi_t *mpi)
 {
@@ -280,9 +261,9 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
     switch (pubkey->alg = findstr(pkatypes, buf)) {
     case PGP_PKA_RSA:
         /* get the 'e' param of the key */
-        pubkey->key.rsa.e = getbignum(&bg, buf, "RSA E");
+        getmpi(&bg, buf, "RSA E", &pubkey->key.rsa.e);
         /* get the 'n' param of the key */
-        pubkey->key.rsa.n = getbignum(&bg, buf, "RSA N");
+        getmpi(&bg, buf, "RSA N", &pubkey->key.rsa.n);
         break;
     case PGP_PKA_DSA:
         /* get the 'p' param of the key */
@@ -385,9 +366,9 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
 
     if (key->key.seckey.pubkey.alg == PGP_PKA_RSA) {
         /* openssh and openssl have p and q swapped */
-        bignum_t *tmp = key->key.seckey.key.rsa.p;
-        key->key.seckey.key.rsa.p = key->key.seckey.key.rsa.q;
-        key->key.seckey.key.rsa.q = tmp;
+        pgp_mpi_t tmp = key->key.pubkey.key.rsa.p;
+        key->key.pubkey.key.rsa.p = key->key.pubkey.key.rsa.q;
+        key->key.pubkey.key.rsa.q = tmp;
     }
 
     sesskey_len = pgp_key_size(key->key.seckey.protection.symm_alg);

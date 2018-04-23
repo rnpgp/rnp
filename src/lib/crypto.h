@@ -147,9 +147,6 @@ void pgp_reader_pop_decrypt(pgp_stream_t *);
 int  pgp_reader_push_hash(pgp_stream_t *, pgp_hash_t *);
 void pgp_reader_pop_hash(pgp_stream_t *);
 
-int pgp_decrypt_decode_mpi(
-  rng_t *, uint8_t *, size_t, const bignum_t *, const bignum_t *, const pgp_seckey_t *);
-
 /* Encrypt everything that's written */
 struct pgp_key_data;
 

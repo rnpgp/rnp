@@ -497,15 +497,7 @@ signature_validate(pgp_signature_t *sig, pgp_pubkey_t *key, pgp_hash_t *hash, rn
         break;
     }
     case PGP_PKA_RSA: {
-        ret = pgp_rsa_pkcs1_verify_hash(rng,
-                                        sig->material.rsa.s.mpi,
-                                        sig->material.rsa.s.len,
-                                        sig->halg,
-                                        hval,
-                                        len,
-                                        &key->key.rsa) ?
-                RNP_SUCCESS :
-                RNP_ERROR_SIGNATURE_INVALID;
+        ret = rsa_verify_pkcs1(rng, &sig->material.rsa, sig->halg, hval, len, &key->key.rsa);
         break;
     }
     case PGP_PKA_ECDSA: {
@@ -545,22 +537,14 @@ signature_calculate(pgp_signature_t *sig, pgp_seckey_t *seckey, pgp_hash_t *hash
     switch (sig->palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        sig->material.rsa.s.len = pgp_rsa_pkcs1_sign_hash(rng,
-                                                          sig->material.rsa.s.mpi,
-                                                          sizeof(sig->material.rsa.s.mpi),
-                                                          sig->halg,
-                                                          hval,
-                                                          hlen,
-                                                          &seckey->key.rsa,
-                                                          &seckey->pubkey.key.rsa);
-        if (!sig->material.rsa.s.len) {
-            ret = RNP_ERROR_SIGNING_FAILED;
+    case PGP_PKA_RSA_SIGN_ONLY: {
+        ret = rsa_sign_pkcs1(
+          rng, &sig->material.rsa, sig->halg, hval, hlen, &seckey->pubkey.key.rsa);
+        if (ret) {
             RNP_LOG("rsa signing failed");
-        } else {
-            ret = RNP_SUCCESS;
         }
         break;
+    }
     case PGP_PKA_EDDSA: {
         bignum_t *r = bn_new(), *s = bn_new();
 
@@ -618,7 +602,6 @@ signature_calculate(pgp_signature_t *sig, pgp_seckey_t *seckey, pgp_hash_t *hash
         ret = dsa_sign(rng, &sig->material.dsa, hval, hlen, &seckey->pubkey.key.dsa);
         if (ret != RNP_SUCCESS) {
             RNP_LOG("DSA signing failed");
-            break;
         }
         break;
     }

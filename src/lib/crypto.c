@@ -80,140 +80,6 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "pgp-key.h"
 #include "utils.h"
 
-/**
-\ingroup Core_MPI
-\brief Decrypt and unencode MPI
-\param buf Buffer in which to write decrypted unencoded MPI
-\param buflen Length of buffer
-\param encmpi
-\param seckey
-\return length of MPI
-\note only RSA at present
-*/
-int
-pgp_decrypt_decode_mpi(rng_t *             rng,
-                       uint8_t *           buf,
-                       size_t              buflen,
-                       const bignum_t *    g_to_k,
-                       const bignum_t *    encmpi,
-                       const pgp_seckey_t *seckey)
-{
-    uint8_t encmpibuf[RNP_BUFSIZ] = {0};
-    uint8_t gkbuf[RNP_BUFSIZ] = {0};
-    int     n;
-    size_t  encmpi_byte_len;
-
-    if (!bn_num_bytes(encmpi, &encmpi_byte_len)) {
-        RNP_LOG("Bad param: encmpi");
-        return -1;
-    }
-
-    /* MPI can't be more than 65,536 */
-    if (encmpi_byte_len > sizeof(encmpibuf)) {
-        RNP_LOG("encmpi_byte_len too big %zu", encmpi_byte_len);
-        return -1;
-    }
-    switch (seckey->pubkey.alg) {
-    case PGP_PKA_RSA:
-        bn_bn2bin(encmpi, encmpibuf);
-        if (rnp_get_debug(__FILE__)) {
-            hexdump(stderr, "encrypted", encmpibuf, 16);
-        }
-        n = pgp_rsa_decrypt_pkcs1(rng,
-                                  buf,
-                                  buflen,
-                                  encmpibuf,
-                                  encmpi_byte_len,
-                                  &seckey->key.rsa,
-                                  &seckey->pubkey.key.rsa);
-        if (n <= 0) {
-            RNP_LOG("ops_rsa_private_decrypt failure");
-            return -1;
-        }
-        if (rnp_get_debug(__FILE__)) {
-            hexdump(stderr, "decoded m", buf, n);
-        }
-        return n;
-    case PGP_PKA_SM2:
-        bn_bn2bin(encmpi, encmpibuf);
-
-        size_t       out_len = buflen;
-        rnp_result_t err = pgp_sm2_decrypt(buf,
-                                           &out_len,
-                                           encmpibuf,
-                                           encmpi_byte_len,
-                                           &seckey->key.ecc,
-                                           &seckey->pubkey.key.ecc);
-
-        if (err != RNP_SUCCESS) {
-            RNP_LOG("Error in SM2 decryption");
-            return -1;
-        }
-        return out_len;
-
-    case PGP_PKA_DSA:
-    case PGP_PKA_ELGAMAL: {
-        size_t gklen, mlen;
-
-        if (!bn_num_bytes(g_to_k, &gklen) || !bn_num_bytes(encmpi, &mlen) ||
-            (gklen > sizeof(gkbuf)) || (mlen > sizeof(encmpi)) || bn_bn2bin(g_to_k, gkbuf) ||
-            bn_bn2bin(encmpi, encmpibuf)) {
-            return -1;
-        }
-
-        buf_t       out = {.pbuf = buf, .len = buflen};
-        const buf_t g2k = {.pbuf = gkbuf, .len = gklen};
-        const buf_t m = {.pbuf = encmpibuf, .len = mlen};
-
-        const rnp_result_t ret = elgamal_decrypt_pkcs1(
-          rng, &out, &g2k, &m, &seckey->key.elgamal, &seckey->pubkey.key.elgamal);
-
-        if (rnp_get_debug(__FILE__)) {
-            hexdump(stderr, "decoded m", out.pbuf, out.len);
-        }
-
-        if (ret) {
-            RNP_LOG("ElGamal decryption failure [%X]", ret);
-            return false;
-        }
-        return out.len;
-    }
-    case PGP_PKA_ECDH: {
-        pgp_fingerprint_t fingerprint;
-        size_t            out_len = buflen;
-        if (bn_bn2bin(encmpi, encmpibuf)) {
-            RNP_LOG("Can't find session key");
-            return -1;
-        }
-
-        if (pgp_fingerprint(&fingerprint, &seckey->pubkey)) {
-            RNP_LOG("ECDH fingerprint calculation failed");
-            return -1;
-        }
-
-        const rnp_result_t ret = pgp_ecdh_decrypt_pkcs5(buf,
-                                                        &out_len,
-                                                        encmpibuf,
-                                                        encmpi_byte_len,
-                                                        g_to_k,
-                                                        &seckey->key.ecc,
-                                                        &seckey->pubkey.key.ecdh,
-                                                        &fingerprint);
-
-        if (ret || (out_len > INT_MAX)) {
-            RNP_LOG("ECDH decryption error [%u]", ret);
-            return -1;
-        }
-
-        return (int) out_len;
-    }
-
-    default:
-        RNP_LOG("Unsupported public key algorithm [%d]", seckey->pubkey.alg);
-        return -1;
-    }
-}
-
 bool
 pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seckey)
 {
@@ -231,7 +97,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
 
     switch (seckey->pubkey.alg) {
     case PGP_PKA_RSA:
-        if (pgp_genkey_rsa(rng, seckey, crypto->rsa.modulus_bit_len) != 1) {
+        if (rsa_generate(rng, &seckey->pubkey.key.rsa, crypto->rsa.modulus_bit_len)) {
             RNP_LOG("failed to generate RSA key");
             goto end;
         }

@@ -958,7 +958,6 @@ pgp_sig_free(pgp_sig_t *sig)
     switch (sig->info.key_alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_SIGN_ONLY:
-        free_BN(&sig->info.sig.rsa.sig);
         break;
 
     case PGP_PKA_DSA:
@@ -1168,8 +1167,6 @@ pgp_pubkey_free(pgp_pubkey_t *p)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        free_BN(&p->key.rsa.n);
-        free_BN(&p->key.rsa.e);
         break;
 
     case PGP_PKA_DSA:
@@ -1286,8 +1283,8 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!limread_mpi(&key->key.rsa.n, region, stream) ||
-            !limread_mpi(&key->key.rsa.e, region, stream)) {
+        if (!limread_mpi_n(&key->key.rsa.n, region, stream) ||
+            !limread_mpi_n(&key->key.rsa.e, region, stream)) {
             return false;
         }
         break;
@@ -1555,7 +1552,7 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
     switch (pkt.u.sig.info.key_alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!limread_mpi(&pkt.u.sig.info.sig.rsa.sig, region, stream)) {
+        if (!limread_mpi_n(&pkt.u.sig.info.sig.rsa.s, region, stream)) {
             return false;
         }
         break;
@@ -2079,14 +2076,14 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
 
     switch (pkt.u.sig.info.key_alg) {
     case PGP_PKA_RSA:
-        if (!limread_mpi(&pkt.u.sig.info.sig.rsa.sig, region, stream)) {
+        if (!limread_mpi_n(&pkt.u.sig.info.sig.rsa.s, region, stream)) {
             free(pkt.u.sig.info.v4_hashed);
             return false;
         }
         if (rnp_get_debug(__FILE__)) {
-            (void) fprintf(stderr, "parse_v4_sig: RSA: sig is\n");
-            bn_print_fp(stderr, pkt.u.sig.info.sig.rsa.sig);
-            (void) fprintf(stderr, "\n");
+            char *sig = mpi2hex(&pkt.u.sig.info.sig.rsa.s);
+            (void) fprintf(stderr, "parse_v4_sig: RSA: sig is \n%s\n", sig);
+            free(sig);
         }
         break;
 
@@ -2227,10 +2224,10 @@ pgp_seckey_free_secret_mpis(pgp_seckey_t *seckey)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        free_BN(&seckey->key.rsa.d);
-        free_BN(&seckey->key.rsa.p);
-        free_BN(&seckey->key.rsa.q);
-        free_BN(&seckey->key.rsa.u);
+        mpi_forget(&seckey->pubkey.key.rsa.d);
+        mpi_forget(&seckey->pubkey.key.rsa.p);
+        mpi_forget(&seckey->pubkey.key.rsa.q);
+        mpi_forget(&seckey->pubkey.key.rsa.u);
         break;
 
     case PGP_PKA_DSA:
@@ -2487,10 +2484,10 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!limread_mpi(&pkt.u.seckey.key.rsa.d, region, stream) ||
-            !limread_mpi(&pkt.u.seckey.key.rsa.p, region, stream) ||
-            !limread_mpi(&pkt.u.seckey.key.rsa.q, region, stream) ||
-            !limread_mpi(&pkt.u.seckey.key.rsa.u, region, stream)) {
+        if (!limread_mpi_n(&pkt.u.seckey.pubkey.key.rsa.d, region, stream) ||
+            !limread_mpi_n(&pkt.u.seckey.pubkey.key.rsa.p, region, stream) ||
+            !limread_mpi_n(&pkt.u.seckey.pubkey.key.rsa.q, region, stream) ||
+            !limread_mpi_n(&pkt.u.seckey.pubkey.key.rsa.u, region, stream)) {
             ret = 0;
         }
         break;

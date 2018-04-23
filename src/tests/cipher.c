@@ -128,18 +128,16 @@ cipher_test_success(void **state)
 void
 pkcs1_rsa_test_success(void **state)
 {
-    rnp_test_state_t *rstate = *state;
-    uint8_t           ptext[1024 / 8] = {'a', 'b', 'c', 0};
-
-    uint8_t ctext[1024 / 8];
-    uint8_t decrypted[1024 / 8];
-    int     ctext_size, decrypted_size;
+    rnp_test_state_t *  rstate = *state;
+    uint8_t             ptext[1024 / 8] = {'a', 'b', 'c', 0};
+    uint8_t             dec[1024 / 8];
+    pgp_rsa_encrypted_t enc;
+    size_t              dec_size;
 
     const pgp_pubkey_t *pub_key;
     pgp_seckey_t *      sec_key;
 
-    const pgp_rsa_pubkey_t *pub_rsa;
-    const pgp_rsa_seckey_t *sec_rsa;
+    const pgp_rsa_key_t *key_rsa;
 
     const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_RSA,
                                                  .hash_alg = PGP_HASH_SHA256,
@@ -148,14 +146,10 @@ pkcs1_rsa_test_success(void **state)
     sec_key = calloc(1, sizeof(*sec_key));
     assert_non_null(sec_key);
     assert_true(pgp_generate_seckey(&key_desc, sec_key));
-
     rnp_assert_non_null(rstate, sec_key);
-
     pub_key = &sec_key->pubkey;
     rnp_assert_non_null(rstate, pub_key);
-
-    pub_rsa = &pub_key->key.rsa;
-    sec_rsa = &sec_key->key.rsa;
+    key_rsa = &sec_key->pubkey.key.rsa;
 
 #if defined(DEBUG_PRINT)
     char *tmp = hex_encode(ptext, sizeof(ptext));
@@ -178,13 +172,12 @@ pkcs1_rsa_test_success(void **state)
     printf("\n");
 #endif
 
-    ctext_size = pgp_rsa_encrypt_pkcs1(&global_rng, ctext, sizeof(ctext), ptext, 3, pub_rsa);
+    assert_rnp_success(rsa_encrypt_pkcs1(&global_rng, &enc, ptext, 3, key_rsa));
+    rnp_assert_int_equal(rstate, enc.m.len, 1024 / 8);
 
-    rnp_assert_int_equal(rstate, ctext_size, 1024 / 8);
-
-    memset(decrypted, 0, sizeof(decrypted));
-    decrypted_size = pgp_rsa_decrypt_pkcs1(
-      &global_rng, decrypted, sizeof(decrypted), ctext, ctext_size, sec_rsa, pub_rsa);
+    memset(dec, 0, sizeof(dec));
+    dec_size = 0;
+    assert_rnp_success(rsa_decrypt_pkcs1(&global_rng, dec, &dec_size, &enc, key_rsa));
 
 #if defined(DEBUG_PRINT)
     tmp = hex_encode(ctext, ctext_size);
@@ -195,9 +188,8 @@ pkcs1_rsa_test_success(void **state)
     free(tmp);
 #endif
 
-    test_value_equal("RSA 1024 decrypt", "616263", decrypted, 3);
-
-    rnp_assert_int_equal(rstate, decrypted_size, 3);
+    test_value_equal("RSA 1024 decrypt", "616263", dec, 3);
+    rnp_assert_int_equal(rstate, dec_size, 3);
     pgp_seckey_free(sec_key);
     free(sec_key);
 }

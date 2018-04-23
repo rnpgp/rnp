@@ -138,19 +138,26 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
             goto end;
         }
 
-        {
-            pgp_rsa_seckey_t *rsa = &(key->key.seckey.key.rsa);
-            botan_mp_init(&rsa->d->mp);
-            botan_privkey_get_field(rsa->d->mp, priv_key, "d");
+        pgp_rsa_key_t *rsa = &(key->key.seckey.pubkey.key.rsa);
+        bignum_t *     d = bn_new();
+        bignum_t *     p = bn_new();
+        bignum_t *     q = bn_new();
 
-            botan_mp_init(&rsa->p->mp);
-            botan_privkey_get_field(rsa->p->mp, priv_key, "p");
-
-            botan_mp_init(&rsa->q->mp);
-            botan_privkey_get_field(rsa->q->mp, priv_key, "q");
-            botan_privkey_destroy(priv_key);
-            ok = true;
+        if (!d || !p || !q) {
+            ok = false;
+            goto rsa_done;
         }
+
+        botan_privkey_get_field(d->mp, priv_key, "d");
+        botan_privkey_get_field(p->mp, priv_key, "p");
+        botan_privkey_get_field(q->mp, priv_key, "q");
+
+        ok = bn2mpi(d, &rsa->d) && bn2mpi(p, &rsa->p) && bn2mpi(q, &rsa->q);
+    rsa_done:
+        botan_privkey_destroy(priv_key);
+        bn_free(d);
+        bn_free(p);
+        bn_free(q);
     } else if (strcmp(type, "ssh-dss") == 0) {
         if (botan_privkey_load(&priv_key, rng_handle(&rng), keybuf, read, NULL) != 0) {
             ok = false;

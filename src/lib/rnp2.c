@@ -3588,7 +3588,7 @@ add_json_public_mpis(json_object *jso, pgp_key_t *key)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis(jso, "n", pubkey->key.rsa.n, "e", pubkey->key.rsa.e, NULL);
+        return add_json_mpis_n(jso, "n", pubkey->key.rsa.n, "e", pubkey->key.rsa.e, NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return add_json_mpis(jso,
@@ -3629,16 +3629,16 @@ add_json_secret_mpis(json_object *jso, pgp_key_t *key)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis(jso,
-                             "d",
-                             seckey->key.rsa.d,
-                             "p",
-                             seckey->key.rsa.p,
-                             "q",
-                             seckey->key.rsa.q,
-                             "u",
-                             seckey->key.rsa.u,
-                             NULL);
+        return add_json_mpis_n(jso,
+                               "d",
+                               &seckey->pubkey.key.rsa.d,
+                               "p",
+                               &seckey->pubkey.key.rsa.p,
+                               "q",
+                               &seckey->pubkey.key.rsa.q,
+                               "u",
+                               &seckey->pubkey.key.rsa.u,
+                               NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return add_json_mpis(jso, "x", seckey->key.elgamal.x, NULL);
@@ -3662,7 +3662,7 @@ add_json_sig_mpis(json_object *jso, const pgp_sig_info_t *info)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis(jso, "sig", info->sig.rsa.sig, NULL);
+        return add_json_mpis_n(jso, "sig", &info->sig.rsa.s, NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return add_json_mpis(jso, "r", info->sig.elgamal.r, "s", info->sig.elgamal.s, NULL);
