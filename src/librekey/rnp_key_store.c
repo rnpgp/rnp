@@ -847,15 +847,9 @@ rnp_key_store_get_key_grip(pgp_pubkey_t *key, uint8_t *grip)
         break;
 
     case PGP_PKA_ELGAMAL:
-        if (!grip_hash_bignum(&hash, key->key.elgamal.p)) {
-            return false;
-        }
-        if (!grip_hash_bignum(&hash, key->key.elgamal.g)) {
-            return false;
-        }
-        if (!grip_hash_bignum(&hash, key->key.elgamal.y)) {
-            return false;
-        }
+        grip_hash_mpi(&hash, &key->key.eg.p);
+        grip_hash_mpi(&hash, &key->key.eg.g);
+        grip_hash_mpi(&hash, &key->key.eg.y);
         break;
 
     case PGP_PKA_ECDH:

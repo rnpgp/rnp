@@ -234,30 +234,20 @@ rnp_test_eddsa(void **state)
 }
 
 static void
-elgamal_roundtrip(rnp_test_state_t *    state,
-                  pgp_elgamal_pubkey_t *key_pub,
-                  pgp_elgamal_seckey_t *key_prv)
+elgamal_roundtrip(rnp_test_state_t *state, pgp_eg_key_t *key)
 {
-    uint8_t decryption_result[1024];
-    uint8_t in_b[] = {0x01, 0x02, 0x03, 0x04, 0x17};
-    uint8_t g2k_b[256];
-    uint8_t m_b[256];
-
-    buf_t in = {.pbuf = in_b, .len = sizeof(in_b)};
-    buf_t g2k = {.pbuf = g2k_b, .len = sizeof(g2k_b)};
-    buf_t m = {.pbuf = m_b, .len = sizeof(m_b)};
-    buf_t res = {.pbuf = decryption_result, .len = sizeof(decryption_result)};
+    const uint8_t      in_b[] = {0x01, 0x02, 0x03, 0x04, 0x17};
+    pgp_eg_encrypted_t enc = {{{0}}};
+    uint8_t            res[1024];
+    size_t             res_len = 0;
 
     rnp_assert_int_equal(
-      state, elgamal_encrypt_pkcs1(&global_rng, &g2k, &m, &in, key_pub), RNP_SUCCESS);
-
-    rnp_assert_int_not_equal(
-      state, elgamal_decrypt_pkcs1(&global_rng, &res, &g2k, &m, key_prv, key_pub), -1);
-
-    rnp_assert_int_equal(state, res.len, sizeof(in_b));
-
+      state, elgamal_encrypt_pkcs1(&global_rng, &enc, in_b, sizeof(in_b), key), RNP_SUCCESS);
     rnp_assert_int_equal(
-      state, 0, test_value_equal("ElGamal decrypt", "0102030417", res.pbuf, res.len));
+      state, elgamal_decrypt_pkcs1(&global_rng, res, &res_len, &enc, key), RNP_SUCCESS);
+    rnp_assert_int_equal(state, res_len, sizeof(in_b));
+    rnp_assert_int_equal(
+      state, 0, test_value_equal("ElGamal decrypt", "0102030417", res, res_len));
 }
 
 void
@@ -273,57 +263,48 @@ raw_elgamal_fixed_512bit_key_test_success(void **state)
       0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFD, 0xC7,
     };
 
-    pgp_elgamal_pubkey_t pub_elg;
-    pgp_elgamal_seckey_t sec_elg;
+    pgp_eg_key_t key_elg;
+    bignum_t *   p, *g, *x, *y;
 
     // Allocate needed memory
-    pub_elg.p = bn_bin2bn(p512, sizeof(p512), NULL);
-    rnp_assert_non_null(rstate, pub_elg.p);
+    p = bn_bin2bn(p512, sizeof(p512), NULL);
+    rnp_assert_non_null(rstate, p);
 
-    pub_elg.g = bn_new();
-    rnp_assert_non_null(rstate, pub_elg.g);
+    g = bn_new();
+    rnp_assert_non_null(rstate, g);
 
-    sec_elg.x = bn_new();
-    rnp_assert_non_null(rstate, sec_elg.x);
+    x = bn_new();
+    rnp_assert_non_null(rstate, x);
 
-    pub_elg.y = bn_new();
-    rnp_assert_non_null(rstate, pub_elg.y);
+    y = bn_new();
+    rnp_assert_non_null(rstate, y);
 
-    bn_set_word(pub_elg.g, 3);
-    bn_set_word(sec_elg.x, 0xCAB5432);
-    bn_mod_exp(pub_elg.y, pub_elg.g, sec_elg.x, pub_elg.p);
+    bn_set_word(g, 3);
+    bn_set_word(x, 0xCAB5432);
+    bn_mod_exp(y, g, x, p);
 
-    elgamal_roundtrip(rstate, &pub_elg, &sec_elg);
+    rnp_assert_true(rstate, bn2mpi(p, &key_elg.p));
+    rnp_assert_true(rstate, bn2mpi(g, &key_elg.g));
+    rnp_assert_true(rstate, bn2mpi(x, &key_elg.x));
+    rnp_assert_true(rstate, bn2mpi(y, &key_elg.y));
+
+    elgamal_roundtrip(rstate, &key_elg);
 
     // Free heap
-    bn_clear_free(pub_elg.p);
-    bn_clear_free(pub_elg.g);
-    bn_clear_free(sec_elg.x);
-    bn_clear_free(pub_elg.y);
+    bn_clear_free(p);
+    bn_clear_free(g);
+    bn_clear_free(x);
+    bn_clear_free(y);
 }
 
 void
 raw_elgamal_random_key_test_success(void **state)
 {
-    rnp_test_state_t *   rstate = *state;
-    pgp_elgamal_pubkey_t pub_elg;
-    pgp_elgamal_seckey_t sec_elg;
+    rnp_test_state_t *rstate = *state;
+    pgp_eg_key_t      key;
 
-    // Allocate needed memory
-    pub_elg.p = bn_new();
-    pub_elg.g = bn_new();
-    pub_elg.y = bn_new();
-    sec_elg.x = bn_new();
-
-    rnp_assert_int_equal(
-      rstate, elgamal_keygen(&global_rng, &pub_elg, &sec_elg, 1024), RNP_SUCCESS);
-    elgamal_roundtrip(rstate, &pub_elg, &sec_elg);
-
-    // Free heap
-    bn_clear_free(pub_elg.p);
-    bn_clear_free(pub_elg.g);
-    bn_clear_free(sec_elg.x);
-    bn_clear_free(pub_elg.y);
+    rnp_assert_int_equal(rstate, elgamal_generate(&global_rng, &key, 1024), RNP_SUCCESS);
+    elgamal_roundtrip(rstate, &key);
 }
 
 void

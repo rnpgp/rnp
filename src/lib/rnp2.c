@@ -2108,7 +2108,7 @@ rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t sig, char **hash)
 rnp_result_t
 rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig, rnp_key_handle_t *key)
 {
-    rnp_ffi_t ffi = sig->ffi;
+    rnp_ffi_t        ffi = sig->ffi;
     pgp_key_search_t search;
 
     // create a search (since we'll use this later anyways)
@@ -3588,17 +3588,11 @@ add_json_public_mpis(json_object *jso, pgp_key_t *key)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis_n(jso, "n", pubkey->key.rsa.n, "e", pubkey->key.rsa.e, NULL);
+        return add_json_mpis_n(jso, "n", &pubkey->key.rsa.n, "e", &pubkey->key.rsa.e, NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis(jso,
-                             "p",
-                             pubkey->key.elgamal.p,
-                             "g",
-                             pubkey->key.elgamal.g,
-                             "y",
-                             pubkey->key.elgamal.y,
-                             NULL);
+        return add_json_mpis_n(
+          jso, "p", &pubkey->key.eg.p, "g", &pubkey->key.eg.g, "y", &pubkey->key.eg.y, NULL);
     case PGP_PKA_DSA:
         return add_json_mpis_n(jso,
                                "p",
@@ -3641,7 +3635,7 @@ add_json_secret_mpis(json_object *jso, pgp_key_t *key)
                                NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis(jso, "x", seckey->key.elgamal.x, NULL);
+        return add_json_mpis_n(jso, "x", &seckey->pubkey.key.eg.x, NULL);
     case PGP_PKA_DSA:
         return add_json_mpis_n(jso, "x", &seckey->pubkey.key.dsa.x, NULL);
     case PGP_PKA_ECDH:
@@ -3665,7 +3659,7 @@ add_json_sig_mpis(json_object *jso, const pgp_sig_info_t *info)
         return add_json_mpis_n(jso, "sig", &info->sig.rsa.s, NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis(jso, "r", info->sig.elgamal.r, "s", info->sig.elgamal.s, NULL);
+        return add_json_mpis_n(jso, "r", &info->sig.eg.r, "s", &info->sig.eg.s, NULL);
     case PGP_PKA_DSA:
         return add_json_mpis_n(jso, "r", &info->sig.dsa.r, "s", &info->sig.dsa.s, NULL);
     case PGP_PKA_ECDSA:
@@ -4296,7 +4290,7 @@ rnp_identifier_iterator_create(rnp_ffi_t                  ffi,
                                rnp_identifier_iterator_t *it,
                                const char *               identifier_type)
 {
-    rnp_result_t ret = RNP_ERROR_GENERIC;
+    rnp_result_t                       ret = RNP_ERROR_GENERIC;
     struct rnp_identifier_iterator_st *obj = NULL;
 
     // checks

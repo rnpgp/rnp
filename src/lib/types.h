@@ -204,9 +204,9 @@ typedef struct pgp_pubkey_t {
     unsigned         days_valid; /* v3 validity time */
     pgp_pubkey_alg_t alg;        /* Public Key Algorithm type */
     union {
-        pgp_dsa_key_t        dsa;     /* A DSA key */
-        pgp_rsa_key_t        rsa;     /* An RSA public key */
-        pgp_elgamal_pubkey_t elgamal; /* An ElGamal public key */
+        pgp_dsa_key_t dsa; /* A DSA key */
+        pgp_rsa_key_t rsa; /* An RSA public key */
+        pgp_eg_key_t  eg;  /* An ElGamal public key */
         /*TODO: This field is common to ECC signing algorithms only. Change it to ec_sign*/
         pgp_ecc_pubkey_t  ecc;  /* An ECC public key */
         pgp_ecdh_pubkey_t ecdh; /* Public Key Parameters for ECDH */
@@ -253,8 +253,7 @@ typedef struct pgp_seckey_t {
      * unless this seckey has been decrypted.                    *
      *************************************************************/
     union {
-        pgp_elgamal_seckey_t elgamal;
-        pgp_ecc_seckey_t     ecc;
+        pgp_ecc_seckey_t ecc;
     } key;
 
     unsigned checksum;
@@ -310,7 +309,7 @@ typedef struct pgp_sig_info_t {
     union {
         pgp_rsa_signature_t rsa;     /* A RSA Signature */
         pgp_dsa_signature_t dsa;     /* A DSA Signature */
-        pgp_elgamal_sig_t   elgamal; /* deprecated */
+        pgp_eg_signature_t  eg;      /* deprecated */
         pgp_ecc_sig_t       ecc;     /* An ECC signature - ECDSA, SM2, or EdDSA */
         pgp_data_t          unknown; /* private or experimental */
     } sig;                           /* signature params */

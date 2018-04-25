@@ -1330,12 +1330,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         }
         break;
     case PGP_PKA_ELGAMAL: {
-        buf_t              out = {.pbuf = decbuf, .len = sizeof(decbuf)};
-        const buf_t        g2k = mpi2buf(&sesskey->material.eg.g, true);
-        const buf_t        m = mpi2buf(&sesskey->material.eg.m, true);
         const rnp_result_t ret = elgamal_decrypt_pkcs1(
-          rng, &out, &g2k, &m, &seckey->key.elgamal, &seckey->pubkey.key.elgamal);
-        declen = out.len;
+          rng, decbuf, &declen, &sesskey->material.eg, &seckey->pubkey.key.eg);
         if (ret) {
             RNP_LOG("ElGamal decryption failure [%X]", ret);
             return false;
