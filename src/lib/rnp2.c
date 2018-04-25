@@ -3154,7 +3154,8 @@ rnp_key_unlock(rnp_key_handle_t handle, const char *password)
           pgp_key_unlock(key, &handle->ffi->pass_provider);
     }
     if (!ok) {
-        return RNP_ERROR_GENERIC;
+        // likely a bad password
+        return RNP_ERROR_BAD_PASSWORD;
     }
     return RNP_SUCCESS;
 }
@@ -3234,7 +3235,8 @@ rnp_key_unprotect(rnp_key_handle_t handle, const char *password)
         ok = pgp_key_unprotect(key, &handle->ffi->pass_provider);
     }
     if (!ok) {
-        return RNP_ERROR_GENERIC;
+        // likely a bad password
+        return RNP_ERROR_BAD_PASSWORD;
     }
     return RNP_SUCCESS;
 }
