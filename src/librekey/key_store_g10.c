@@ -360,37 +360,6 @@ lookup_variable(s_exp_t *s_exp, const char *name)
     return NULL;
 }
 
-static bignum_t *
-read_bignum(s_exp_t *s_exp, const char *name)
-{
-    s_exp_t *var = lookup_variable(s_exp, name);
-    if (var == NULL) {
-        return NULL;
-    }
-
-    if (!var->sub_elements[1].is_block) {
-        fprintf(stderr, "Expected block value\n");
-        return NULL;
-    }
-
-    bignum_t *res =
-      bn_bin2bn(var->sub_elements[1].block.bytes, (int) var->sub_elements[1].block.len, NULL);
-    if (res == NULL) {
-        char *buf = malloc((var->sub_elements[1].block.len * 3) + 1);
-        if (buf == NULL) {
-            fprintf(stderr, "Can't allocate memory\n");
-            return NULL;
-        }
-        fprintf(stderr,
-                "Can't convert variable '%s' to bignum. The value is: '%s'\n",
-                name,
-                rnp_strhexdump_upper(
-                  buf, var->sub_elements[1].block.bytes, var->sub_elements[1].block.len, ""));
-        free(buf);
-    }
-    return res;
-}
-
 static bool
 read_mpi(s_exp_t *s_exp, const char *name, pgp_mpi_t *val)
 {
@@ -405,41 +374,6 @@ read_mpi(s_exp_t *s_exp, const char *name, pgp_mpi_t *val)
     }
 
     return mem2mpi(val, var->sub_elements[1].block.bytes, var->sub_elements[1].block.len);
-}
-
-static bool
-write_bignum(s_exp_t *s_exp, const char *name, bignum_t *bn)
-{
-    uint8_t bnbuf[RNP_BUFSIZ];
-
-    s_exp_t *sub_s_exp;
-
-    bnbuf[0] = 0;
-
-    if (bn_bn2bin(bn, bnbuf + 1) < 0) {
-        return false;
-    }
-
-    if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
-        return false;
-    }
-
-    if (!add_string_block_to_sexp(sub_s_exp, name)) {
-        return false;
-    }
-
-    size_t sz;
-    if (bnbuf[1] & 0x80) {
-        if (!bn_num_bytes(bn, &sz) || !add_block_to_sexp(sub_s_exp, bnbuf, sz + 1)) {
-            return false;
-        }
-    } else {
-        if (!bn_num_bytes(bn, &sz) || !add_block_to_sexp(sub_s_exp, bnbuf + 1, sz)) {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 static bool
@@ -497,24 +431,11 @@ parse_pubkey(pgp_pubkey_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         break;
 
     case PGP_PKA_ELGAMAL:
-        pubkey->key.elgamal.p = read_bignum(s_exp, "p");
-        if (pubkey->key.elgamal.p == NULL) {
+        if (!read_mpi(s_exp, "p", &pubkey->key.eg.p) ||
+            !read_mpi(s_exp, "g", &pubkey->key.eg.g) ||
+            !read_mpi(s_exp, "y", &pubkey->key.eg.y)) {
             return false;
         }
-
-        pubkey->key.elgamal.g = read_bignum(s_exp, "g");
-        if (pubkey->key.elgamal.g == NULL) {
-            bn_free(pubkey->key.elgamal.p);
-            return false;
-        }
-
-        pubkey->key.elgamal.y = read_bignum(s_exp, "y");
-        if (pubkey->key.elgamal.y == NULL) {
-            bn_free(pubkey->key.elgamal.p);
-            bn_free(pubkey->key.elgamal.g);
-            return false;
-        }
-
         break;
 
     default:
@@ -545,11 +466,9 @@ parse_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         break;
 
     case PGP_PKA_ELGAMAL:
-        seckey->key.elgamal.x = read_bignum(s_exp, "x");
-        if (seckey->key.elgamal.x == NULL) {
+        if (!read_mpi(s_exp, "x", &seckey->pubkey.key.eg.x)) {
             return false;
         }
-
         break;
 
     default:
@@ -1145,23 +1064,12 @@ write_pubkey(s_exp_t *s_exp, const pgp_pubkey_t *key)
         if (!add_string_block_to_sexp(s_exp, "dsa")) {
             return false;
         }
-
-        if (!write_mpi(s_exp, "p", &key->key.dsa.p)) {
+        if (!write_mpi(s_exp, "p", &key->key.dsa.p) ||
+            !write_mpi(s_exp, "q", &key->key.dsa.q) ||
+            !write_mpi(s_exp, "g", &key->key.dsa.g) ||
+            !write_mpi(s_exp, "y", &key->key.dsa.y)) {
             return false;
         }
-
-        if (!write_mpi(s_exp, "q", &key->key.dsa.q)) {
-            return false;
-        }
-
-        if (!write_mpi(s_exp, "g", &key->key.dsa.g)) {
-            return false;
-        }
-
-        if (!write_mpi(s_exp, "y", &key->key.dsa.y)) {
-            return false;
-        }
-
         break;
 
     case PGP_PKA_RSA_SIGN_ONLY:
@@ -1170,15 +1078,10 @@ write_pubkey(s_exp_t *s_exp, const pgp_pubkey_t *key)
         if (!add_string_block_to_sexp(s_exp, "rsa")) {
             return false;
         }
-
-        if (!write_mpi(s_exp, "n", &key->key.rsa.n)) {
+        if (!write_mpi(s_exp, "n", &key->key.rsa.n) ||
+            !write_mpi(s_exp, "e", &key->key.rsa.e)) {
             return false;
         }
-
-        if (!write_mpi(s_exp, "e", &key->key.rsa.e)) {
-            return false;
-        }
-
         break;
 
     case PGP_PKA_ELGAMAL:
@@ -1186,17 +1089,11 @@ write_pubkey(s_exp_t *s_exp, const pgp_pubkey_t *key)
             return false;
         }
 
-        if (!write_bignum(s_exp, "p", key->key.elgamal.p)) {
+        if (!write_mpi(s_exp, "p", &key->key.eg.p) || !write_mpi(s_exp, "g", &key->key.eg.g) ||
+            !write_mpi(s_exp, "y", &key->key.eg.y)) {
             return false;
         }
-
-        if (!write_bignum(s_exp, "g", key->key.elgamal.g)) {
-            return false;
-        }
-
-        if (!write_bignum(s_exp, "y", key->key.elgamal.y)) {
-            return false;
-        }
+        break;
 
     default:
         fprintf(stderr, "Unsupported public key algorithm: %d\n", key->alg);
@@ -1220,28 +1117,19 @@ write_seckey(s_exp_t *s_exp, const pgp_seckey_t *key)
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA:
-        if (!write_mpi(s_exp, "d", &key->pubkey.key.rsa.d)) {
+        if (!write_mpi(s_exp, "d", &key->pubkey.key.rsa.d) ||
+            !write_mpi(s_exp, "p", &key->pubkey.key.rsa.p) ||
+            !write_mpi(s_exp, "q", &key->pubkey.key.rsa.q) ||
+            !write_mpi(s_exp, "u", &key->pubkey.key.rsa.u)) {
             return false;
         }
-
-        if (!write_mpi(s_exp, "p", &key->pubkey.key.rsa.p)) {
-            return false;
-        }
-
-        if (!write_mpi(s_exp, "q", &key->pubkey.key.rsa.q)) {
-            return false;
-        }
-
-        if (!write_mpi(s_exp, "u", &key->pubkey.key.rsa.u)) {
-            return false;
-        }
-
         break;
 
     case PGP_PKA_ELGAMAL:
-        if (!write_bignum(s_exp, "x", key->key.elgamal.x)) {
+        if (!write_mpi(s_exp, "x", &key->pubkey.key.eg.x)) {
             return false;
         }
+        break;
 
     default:
         fprintf(stderr, "Unsupported public key algorithm: %d\n", key->pubkey.alg);

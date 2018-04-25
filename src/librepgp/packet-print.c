@@ -90,19 +90,15 @@ static bool format_key_usage(char *buffer, size_t size, uint8_t flags);
 size_t
 key_bitlength(const pgp_pubkey_t *pubkey)
 {
-    size_t sz = 0;
     switch (pubkey->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        sz = mpi_bytes(&pubkey->key.rsa.n);
-        return sz * 8;
+        return 8 * mpi_bytes(&pubkey->key.rsa.n);
     case PGP_PKA_DSA:
-        sz = mpi_bytes(&pubkey->key.dsa.p);
-        return sz * 8;
+        return 8 * mpi_bytes(&pubkey->key.dsa.p);
     case PGP_PKA_ELGAMAL:
-        (void) bn_num_bytes(pubkey->key.elgamal.y, &sz);
-        return sz * 8;
+        return 8 * mpi_bytes(&pubkey->key.eg.y);
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
@@ -692,50 +688,58 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
                   key->key.pubkey.version,
                   key->key.pubkey.alg);
     switch (key->key.pubkey.alg) {
-    case PGP_PKA_DSA:
-        cc += snprintf(&out[cc],
-                       outsize - cc,
-                       "p=%s\nq=%s\ng=%s\ny=%s\n",
-                       mpi2hex(&key->key.pubkey.key.dsa.p),
-                       mpi2hex(&key->key.pubkey.key.dsa.q),
-                       mpi2hex(&key->key.pubkey.key.dsa.g),
-                       mpi2hex(&key->key.pubkey.key.dsa.y));
+    case PGP_PKA_DSA: {
+        char *p = mpi2hex(&key->key.pubkey.key.dsa.p);
+        char *q = mpi2hex(&key->key.pubkey.key.dsa.q);
+        char *g = mpi2hex(&key->key.pubkey.key.dsa.g);
+        char *y = mpi2hex(&key->key.pubkey.key.dsa.y);
+        cc += snprintf(&out[cc], outsize - cc, "p=%s\nq=%s\ng=%s\ny=%s\n", p, q, g, y);
+        free(p);
+        free(q);
+        free(g);
+        free(y);
         break;
+    }
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        cc += snprintf(&out[cc],
-                       outsize - cc,
-                       "n=%s\ne=%s\n",
-                       mpi2hex(&key->key.pubkey.key.rsa.n),
-                       mpi2hex(&key->key.pubkey.key.rsa.e));
+    case PGP_PKA_RSA_SIGN_ONLY: {
+        char *n = mpi2hex(&key->key.pubkey.key.rsa.n);
+        char *e = mpi2hex(&key->key.pubkey.key.rsa.e);
+        cc += snprintf(&out[cc], outsize - cc, "n=%s\ne=%s\n", n, e);
+        free(n);
+        free(e);
         break;
-    case PGP_PKA_EDDSA:
-        cc += snprintf(
-          &out[cc], outsize - cc, "point=%s\n", bn_bn2hex(key->key.pubkey.key.ecc.point));
+    }
+    case PGP_PKA_EDDSA: {
+        char *p = bn_bn2hex(key->key.pubkey.key.ecc.point);
+        cc += snprintf(&out[cc], outsize - cc, "point=%s\n", p);
+        free(p);
         break;
+    }
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH: {
         const ec_curve_desc_t *curve = get_curve_desc(key->key.pubkey.key.ecc.curve);
+        char *                 p;
         if (curve) {
-            cc += snprintf(&out[cc],
-                           outsize - cc,
-                           "curve=%s\npoint=%s\n",
-                           curve->botan_name,
-                           bn_bn2hex(key->key.pubkey.key.ecc.point));
+            p = bn_bn2hex(key->key.pubkey.key.ecc.point);
+            cc +=
+              snprintf(&out[cc], outsize - cc, "curve=%s\npoint=%s\n", curve->botan_name, p);
+            free(p);
         }
         break;
     }
     case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        cc += snprintf(&out[cc],
-                       outsize - cc,
-                       "p=%s\ng=%s\ny=%s\n",
-                       bn_bn2hex(key->key.pubkey.key.elgamal.p),
-                       bn_bn2hex(key->key.pubkey.key.elgamal.g),
-                       bn_bn2hex(key->key.pubkey.key.elgamal.y));
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
+        char *p = mpi2hex(&key->key.pubkey.key.eg.p);
+        char *g = mpi2hex(&key->key.pubkey.key.eg.g);
+        char *y = mpi2hex(&key->key.pubkey.key.eg.y);
+        cc += snprintf(&out[cc], outsize - cc, "p=%s\ng=%s\ny=%s\n", p, g, y);
+        free(p);
+        free(g);
+        free(y);
         break;
+    }
     default:
         (void) fprintf(stderr, "pgp_print_pubkey: Unusual algorithm\n");
     }

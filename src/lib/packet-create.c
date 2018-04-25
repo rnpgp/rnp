@@ -138,18 +138,25 @@ mpi_length(const bignum_t *bn)
     return 2 + bsz;
 }
 
+static size_t
+mpi_length_n(const pgp_mpi_t *val)
+{
+    size_t res = mpi_bits(val);
+    return 2 + ((res + 7) >> 3);
+}
+
 static unsigned
 pubkey_length(const pgp_pubkey_t *key)
 {
     switch (key->alg) {
     case PGP_PKA_ELGAMAL:
-        return mpi_length(key->key.elgamal.p) + mpi_length(key->key.elgamal.g) +
-               mpi_length(key->key.elgamal.y);
+        return mpi_length_n(&key->key.eg.p) + mpi_length_n(&key->key.eg.g) +
+               mpi_length_n(&key->key.eg.y);
     case PGP_PKA_DSA:
-        return 8 + mpi_bytes(&key->key.dsa.p) + mpi_bytes(&key->key.dsa.q) +
-               mpi_bytes(&key->key.dsa.g) + mpi_bytes(&key->key.dsa.y);
+        return mpi_length_n(&key->key.dsa.p) + mpi_length_n(&key->key.dsa.q) +
+               mpi_length_n(&key->key.dsa.g) + mpi_length_n(&key->key.dsa.y);
     case PGP_PKA_RSA:
-        return 4 + mpi_bytes(&key->key.rsa.n) + mpi_bytes(&key->key.rsa.e);
+        return mpi_length_n(&key->key.rsa.n) + mpi_length_n(&key->key.rsa.e);
     case PGP_PKA_ECDH: {
         const ec_curve_desc_t *c = get_curve_desc(key->key.ecc.curve);
         if (!c) {
@@ -189,13 +196,13 @@ seckey_length(const pgp_seckey_t *key)
     case PGP_PKA_SM2:
         return mpi_length(key->key.ecc.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_DSA:
-        return 2 + mpi_bytes(&key->pubkey.key.dsa.x) + pubkey_length(&key->pubkey);
+        return mpi_length_n(&key->pubkey.key.dsa.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_RSA:
-        return 8 + mpi_bytes(&key->pubkey.key.rsa.d) + mpi_bytes(&key->pubkey.key.rsa.p) +
-               mpi_bytes(&key->pubkey.key.rsa.q) + mpi_bytes(&key->pubkey.key.rsa.u) +
+        return mpi_length_n(&key->pubkey.key.rsa.d) + mpi_length_n(&key->pubkey.key.rsa.p) +
+               mpi_length_n(&key->pubkey.key.rsa.q) + mpi_length_n(&key->pubkey.key.rsa.u) +
                pubkey_length(&key->pubkey);
     case PGP_PKA_ELGAMAL:
-        return mpi_length(key->key.elgamal.x) + pubkey_length(&key->pubkey);
+        return mpi_length_n(&key->pubkey.key.eg.x) + pubkey_length(&key->pubkey);
     default:
         RNP_LOG("unknown key algorithm");
     }
@@ -254,9 +261,9 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
                pgp_write_scalar(output, (uint8_t) key->key.ecdh.kdf_hash_alg, 1) &&
                pgp_write_scalar(output, (uint8_t) key->key.ecdh.key_wrap_alg, 1);
     case PGP_PKA_ELGAMAL:
-        return pgp_write_mpi(output, key->key.elgamal.p) &&
-               pgp_write_mpi(output, key->key.elgamal.g) &&
-               pgp_write_mpi(output, key->key.elgamal.y);
+        return pgp_write_mpi_n(output, &key->key.eg.p) &&
+               pgp_write_mpi_n(output, &key->key.eg.g) &&
+               pgp_write_mpi_n(output, &key->key.eg.y);
 
     default:
         RNP_LOG("bad algorithm");
@@ -928,7 +935,7 @@ pgp_write_secret_mpis(pgp_output_t *output, const pgp_seckey_t *seckey)
         break;
 
     case PGP_PKA_ELGAMAL:
-        ok = pgp_write_mpi(output, seckey->key.elgamal.x);
+        ok = pgp_write_mpi_n(output, &seckey->pubkey.key.eg.x);
         break;
 
     default:

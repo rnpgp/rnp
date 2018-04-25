@@ -586,20 +586,15 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         break;
     }
     case PGP_PKA_ELGAMAL: {
-        buf_t       g2k = mpi2buf(&pkey.material.eg.g, false);
-        buf_t       m = mpi2buf(&pkey.material.eg.m, false);
-        const buf_t key = {.pbuf = enckey, .len = keylen + 3};
-
-        ret = elgamal_encrypt_pkcs1(
-          rnp_ctx_rng_handle(handler->ctx), &g2k, &m, &key, &pubkey->key.elgamal);
-
+        ret = elgamal_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
+                                    &pkey.material.eg,
+                                    enckey,
+                                    keylen + 3,
+                                    &pubkey->key.eg);
         if (ret) {
             RNP_LOG("pgp_elgamal_public_encrypt failed");
             goto finish;
         }
-
-        pkey.material.eg.g.len = g2k.len;
-        pkey.material.eg.m.len = m.len;
         break;
     }
     default:

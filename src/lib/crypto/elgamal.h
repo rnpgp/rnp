@@ -56,96 +56,64 @@ typedef struct pgp_eg_encrypted_t {
     pgp_mpi_t m;
 } pgp_eg_encrypted_t;
 
-/** Structure to hold an ElGamal public key params.
- *
- * \see RFC4880 5.5.2
- */
-typedef struct {
-    bignum_t *p; /* ElGamal prime p */
-    bignum_t *g; /* ElGamal group generator g */
-    bignum_t *y; /* ElGamal public key value y (= g^x mod p
-                * with x being the secret) */
-} pgp_elgamal_pubkey_t;
-
-/** pgp_elgamal_seckey_t */
-typedef struct pgp_elgamal_seckey_t {
-    bignum_t *x;
-} pgp_elgamal_seckey_t;
-
-/** Struct to hold params of a Elgamal signature */
-typedef struct pgp_elgamal_sig_t {
-    bignum_t *r;
-    bignum_t *s;
-} pgp_elgamal_sig_t;
-
 /*
  * Performs ElGamal encryption
  * Result of an encryption is composed of two parts - g2k and encm
  *
  * @param rng initialized rng_t
- * @param g2k [out] buffer stores first part of encryption (g^k % p)
- * @param encm [out] buffer stores second part of encryption (y^k * in % p)
+ * @param out encryption result
  * @param in plaintext to be encrypted
- * @param pubkey public key to be used for encryption
+ * @param in_len length of the plaintext
+ * @param key public key to be used for encryption
  *
- * @pre g2k, encm, in: must be valid pointer to correctly initialized buf_t
- * @pre in: len can't be bigger than byte size of `p'
- * @pre g2k, encm: must be capable of storing encrypted data. Usually it is
- *      equal to byte size of `p' (or few bytes less).
+ * @pre out: must be valid pointer to corresponding structure
+ * @pre in_len: can't be bigger than byte size of `p'
  *
  * @return RNP_SUCCESS
+ *         RNP_ERROR_OUT_OF_MEMORY  allocation failure
  *         RNP_ERROR_BAD_PARAMETERS wrong input provided
  */
-rnp_result_t elgamal_encrypt_pkcs1(
-    rng_t* rng,
-    buf_t* g2k,
-    buf_t* encm,
-    const buf_t* in,
-    const pgp_elgamal_pubkey_t *pubkey);
+rnp_result_t elgamal_encrypt_pkcs1(rng_t *             rng,
+                                   pgp_eg_encrypted_t *out,
+                                   const uint8_t *     in,
+                                   size_t              in_len,
+                                   const pgp_eg_key_t *key);
 
 /*
  * Performs ElGamal decryption
  *
  * @param rng initialized rng_t
- * @param out [out] decrypted plaintext
- * @param g2k buffer stores first part of encryption (g^k % p)
- * @param encm buffer stores second part of encryption (y^k * in % p)
- * @param seckey private part of a key used for decryption
- * @param pubkey public domain parameters (p,g) used for decryption
+ * @param out decrypted plaintext. Must be capable of storing at least as much bytes as p size
+ * @param out_len number of plaintext bytes written will be put here
+ * @param in encrypted data
+ * @param key private key
  *
- * @pre out, g2k, encm: must be valid pointer to correctly initialized buffer
+ * @pre out, in: must be valid pointers
  * @pre out: length must be long enough to store decrypted data. Max size of
  *           decrypted data is equal to bytes size of `p'
  *
  * @return RNP_SUCCESS
+ *         RNP_ERROR_OUT_OF_MEMORY  allocation failure
  *         RNP_ERROR_BAD_PARAMETERS wrong input provided
  */
-rnp_result_t elgamal_decrypt_pkcs1(
-    rng_t *                     rng,
-    buf_t *                     out,
-    const buf_t *               g2k,
-    const buf_t *               encm,
-    const pgp_elgamal_seckey_t *seckey,
-    const pgp_elgamal_pubkey_t *pubkey);
+rnp_result_t elgamal_decrypt_pkcs1(rng_t *                   rng,
+                                   uint8_t *                 out,
+                                   size_t *                  out_len,
+                                   const pgp_eg_encrypted_t *in,
+                                   const pgp_eg_key_t *      key);
 
 /*
  * Generates ElGamal key
  *
  * @param rng pointer to PRNG
- * @param pubkey[out] generated public key
- * @param seckey[out] generated private key
- * @param keylen key bitlen
+ * @param key generated key
+ * @param keybits key bitlen
  *
- * @pre `keylen' > 1024
- * @pre memory for elgamal key initialized in `seckey' and `'pubkey'
+ * @pre `keybits' > 1024
  *
  * @returns RNP_ERROR_BAD_PARAMETERS wrong parameters provided
  *          RNP_ERROR_GENERIC internal error
  *          RNP_SUCCESS key generated and coppied to `seckey'
  */
-rnp_result_t elgamal_keygen(
-    rng_t *               rng,
-    pgp_elgamal_pubkey_t *pubkey,
-    pgp_elgamal_seckey_t *seckey,
-    size_t                keylen);
+rnp_result_t elgamal_generate(rng_t *rng, pgp_eg_key_t *key, size_t keybits);
 #endif

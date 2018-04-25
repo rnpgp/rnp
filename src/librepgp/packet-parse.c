@@ -964,8 +964,6 @@ pgp_sig_free(pgp_sig_t *sig)
         break;
 
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        free_BN(&sig->info.sig.elgamal.r);
-        free_BN(&sig->info.sig.elgamal.s);
         break;
 
     case PGP_PKA_EDDSA:
@@ -1181,9 +1179,6 @@ pgp_pubkey_free(pgp_pubkey_t *p)
 
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        free_BN(&p->key.elgamal.p);
-        free_BN(&p->key.elgamal.g);
-        free_BN(&p->key.elgamal.y);
         break;
 
     case PGP_PKA_NOTHING:
@@ -1291,9 +1286,9 @@ parse_pubkey_data(pgp_pubkey_t *key, pgp_region_t *region, pgp_stream_t *stream)
 
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!limread_mpi(&key->key.elgamal.p, region, stream) ||
-            !limread_mpi(&key->key.elgamal.g, region, stream) ||
-            !limread_mpi(&key->key.elgamal.y, region, stream)) {
+        if (!limread_mpi_n(&key->key.eg.p, region, stream) ||
+            !limread_mpi_n(&key->key.eg.g, region, stream) ||
+            !limread_mpi_n(&key->key.eg.y, region, stream)) {
             return false;
         }
         break;
@@ -1574,8 +1569,8 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
         break;
 
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!limread_mpi(&pkt.u.sig.info.sig.elgamal.r, region, stream) ||
-            !limread_mpi(&pkt.u.sig.info.sig.elgamal.s, region, stream)) {
+        if (!limread_mpi_n(&pkt.u.sig.info.sig.eg.r, region, stream) ||
+            !limread_mpi_n(&pkt.u.sig.info.sig.eg.s, region, stream)) {
             return false;
         }
         break;
@@ -2116,8 +2111,8 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
         break;
 
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!limread_mpi(&pkt.u.sig.info.sig.elgamal.r, region, stream) ||
-            !limread_mpi(&pkt.u.sig.info.sig.elgamal.s, region, stream)) {
+        if (!limread_mpi_n(&pkt.u.sig.info.sig.eg.r, region, stream) ||
+            !limread_mpi_n(&pkt.u.sig.info.sig.eg.s, region, stream)) {
             free(pkt.u.sig.info.v4_hashed);
             return false;
         }
@@ -2243,7 +2238,7 @@ pgp_seckey_free_secret_mpis(pgp_seckey_t *seckey)
 
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        free_BN(&seckey->key.elgamal.x);
+        mpi_forget(&seckey->pubkey.key.eg.x);
         break;
 
     default:
@@ -2508,7 +2503,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         break;
 
     case PGP_PKA_ELGAMAL:
-        if (!limread_mpi(&pkt.u.seckey.key.elgamal.x, region, stream)) {
+        if (!limread_mpi_n(&pkt.u.seckey.pubkey.key.eg.x, region, stream)) {
             ret = 0;
         }
         break;

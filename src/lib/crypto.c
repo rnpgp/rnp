@@ -131,10 +131,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
         break;
     case PGP_PKA_ELGAMAL:
-        if (elgamal_keygen(rng,
-                           &seckey->pubkey.key.elgamal,
-                           &seckey->key.elgamal,
-                           crypto->elgamal.key_bitlen)) {
+        if (elgamal_generate(rng, &seckey->pubkey.key.eg, crypto->elgamal.key_bitlen)) {
             RNP_LOG("failed to generate ElGamal key");
             goto end;
         }
