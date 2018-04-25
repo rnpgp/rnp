@@ -3216,7 +3216,7 @@ rnp_result_t
 rnp_key_unprotect(rnp_key_handle_t handle, const char *password)
 {
     // checks
-    if (!handle || !password) {
+    if (!handle) {
         return RNP_ERROR_NULL_POINTER;
     }
 
