@@ -1372,7 +1372,7 @@ rnp_op_add_signature(list *signatures, rnp_key_handle_t key, rnp_op_sign_signatu
     newsig->key = get_key_require_secret(key);
     if (!newsig->key) {
         list_remove((list_item *) newsig);
-      return RNP_ERROR_NO_SUITABLE_KEY;
+        return RNP_ERROR_NO_SUITABLE_KEY;
     }
     if (sig) {
         *sig = newsig;
@@ -1658,7 +1658,12 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
     if (!op || !op->input || !op->output) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_write_handler_t     handler = {.password_provider = &op->ffi->pass_provider,
+
+    // set the default hash alg if none was specified
+    if (!op->rnpctx.halg) {
+        op->rnpctx.halg = DEFAULT_PGP_HASH_ALG;
+    }
+    pgp_write_handler_t handler = {.password_provider = &op->ffi->pass_provider,
                                    .ctx = &op->rnpctx,
                                    .param = NULL,
                                    .key_provider = &op->ffi->key_provider};
@@ -1666,7 +1671,7 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
     rnp_result_t ret;
     if (list_length(op->signatures)) {
         for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
-            pgp_key_t *key = ((rnp_op_sign_signature_t)sig)->key;
+            pgp_key_t *key = ((rnp_op_sign_signature_t) sig)->key;
             if (!list_append(&op->rnpctx.signers, &key, sizeof(key))) {
                 return RNP_ERROR_OUT_OF_MEMORY;
             }
@@ -1837,7 +1842,12 @@ rnp_op_sign_execute(rnp_op_sign_t op)
     if (!op || !op->input || !op->output) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_write_handler_t     handler = {.password_provider = &op->ffi->pass_provider,
+
+    // set the default hash alg if none was specified
+    if (!op->rnpctx.halg) {
+        op->rnpctx.halg = DEFAULT_PGP_HASH_ALG;
+    }
+    pgp_write_handler_t handler = {.password_provider = &op->ffi->pass_provider,
                                    .ctx = &op->rnpctx,
                                    .param = NULL,
                                    .key_provider = &op->ffi->key_provider};

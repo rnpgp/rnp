@@ -128,7 +128,7 @@ typedef enum rnp_operation_t {
  *  - clearsign, detached : controls kind of the signed data. Both are mutually-exclusive.
  *    If both are false then attached signing is used.
  *  - halg : hash algorithm used to calculate signature(s)
- *  - signers : list of key ids/user ids used to sign data
+ *  - signers : list of key pointers used to sign data
  *  - sigcreate, sigexpire : signature(s) creation and expiration times
  *  - filename, filemtime, zalg, zlevel : only for attached signatures, see previous
  *  
