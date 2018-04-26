@@ -1989,8 +1989,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             have_key = true;
         } else if (intres < 0) {
             errcode = RNP_ERROR_NOT_SUPPORTED;
-        } else if (strlen(password) == 0) {
-            RNP_LOG("empty password - canceling");
+        } else {
             errcode = RNP_ERROR_BAD_PASSWORD;
         }
     }
