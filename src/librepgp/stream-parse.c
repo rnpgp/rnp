@@ -1976,29 +1976,23 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
 
     /* Trying password-based decryption */
     if (!have_key && (list_length(param->symencs) > 0)) {
-        do {
-            if (!pgp_request_password(
-                  ctx->handler.password_provider,
-                  &(pgp_password_ctx_t){.op = PGP_OP_DECRYPT_SYM, .key = NULL},
-                  password,
-                  sizeof(password))) {
-                errcode = RNP_ERROR_BAD_PASSWORD;
-                goto finish;
-            }
+        if (!pgp_request_password(ctx->handler.password_provider,
+                                  &(pgp_password_ctx_t){.op = PGP_OP_DECRYPT_SYM, .key = NULL},
+                                  password,
+                                  sizeof(password))) {
+            errcode = RNP_ERROR_BAD_PASSWORD;
+            goto finish;
+        }
 
-            intres = encrypted_try_password(param, password);
-            if (intres > 0) {
-                have_key = true;
-                break;
-            } else if (intres < 0) {
-                errcode = RNP_ERROR_NOT_SUPPORTED;
-                goto finish;
-            } else if (strlen(password) == 0) {
-                RNP_LOG("empty password - canceling");
-                errcode = RNP_ERROR_BAD_PASSWORD;
-                goto finish;
-            }
-        } while (1);
+        intres = encrypted_try_password(param, password);
+        if (intres > 0) {
+            have_key = true;
+        } else if (intres < 0) {
+            errcode = RNP_ERROR_NOT_SUPPORTED;
+        } else if (strlen(password) == 0) {
+            RNP_LOG("empty password - canceling");
+            errcode = RNP_ERROR_BAD_PASSWORD;
+        }
     }
 
     if (!have_key) {
