@@ -769,36 +769,6 @@ rnp_key_store_get_key_by_name(pgp_io_t *             io,
     return key;
 }
 
-// TODO: This looks very similar to bn_hash()
-static bool
-grip_hash_bignum(pgp_hash_t *hash, const bignum_t *bignum)
-{
-    uint8_t *bn;
-    size_t   len;
-    int      padbyte;
-
-    if (bn_is_zero(bignum)) {
-        pgp_hash_add(hash, (const uint8_t *) &"\0", 1);
-        return true;
-    }
-
-    if (!bn_num_bytes(bignum, &len)) {
-        RNP_LOG("Wrong input");
-        return false;
-    }
-
-    if ((bn = calloc(1, len + 1)) == NULL) {
-        (void) fprintf(stderr, "grip_hash_bignum: bad bn alloc\n");
-        return false;
-    }
-    bn_bn2bin(bignum, bn + 1);
-    bn[0] = 0x0;
-    padbyte = (bn[1] & 0x80) ? 1 : 0;
-    pgp_hash_add(hash, bn, (unsigned) (len + padbyte));
-    free(bn);
-    return true;
-}
-
 static void
 grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val)
 {
@@ -856,9 +826,7 @@ rnp_key_store_get_key_grip(pgp_pubkey_t *key, uint8_t *grip)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        if (!grip_hash_bignum(&hash, key->key.ecc.point)) {
-            return false;
-        }
+        grip_hash_mpi(&hash, &key->key.ec.p);
         break;
 
     default:

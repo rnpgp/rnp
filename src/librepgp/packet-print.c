@@ -104,7 +104,7 @@ key_bitlength(const pgp_pubkey_t *pubkey)
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
         // bn_num_bytes returns value <= curve order
-        const ec_curve_desc_t *curve = get_curve_desc(pubkey->key.ecc.curve);
+        const ec_curve_desc_t *curve = get_curve_desc(pubkey->key.ec.curve);
         return curve ? curve->bitlen : 0;
     }
     default:
@@ -711,7 +711,7 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
         break;
     }
     case PGP_PKA_EDDSA: {
-        char *p = bn_bn2hex(key->key.pubkey.key.ecc.point);
+        char *p = mpi2hex(&key->key.pubkey.key.ec.p);
         cc += snprintf(&out[cc], outsize - cc, "point=%s\n", p);
         free(p);
         break;
@@ -719,10 +719,9 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH: {
-        const ec_curve_desc_t *curve = get_curve_desc(key->key.pubkey.key.ecc.curve);
-        char *                 p;
+        const ec_curve_desc_t *curve = get_curve_desc(key->key.pubkey.key.ec.curve);
         if (curve) {
-            p = bn_bn2hex(key->key.pubkey.key.ecc.point);
+            char *p = mpi2hex(&key->key.pubkey.key.ec.p);
             cc +=
               snprintf(&out[cc], outsize - cc, "curve=%s\npoint=%s\n", curve->botan_name, p);
             free(p);

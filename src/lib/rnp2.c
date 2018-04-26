@@ -3519,41 +3519,6 @@ add_json_mpis(json_object *jso, ...)
 
     va_start(ap, jso);
     while ((name = va_arg(ap, const char *))) {
-        bignum_t *bn = va_arg(ap, bignum_t *);
-        if (!bn) {
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            goto done;
-        }
-        char *hex = bn_bn2hex(bn);
-        if (!hex) {
-            // this could probably be other things
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
-        }
-        json_object *jsostr = json_object_new_string(hex);
-        free(hex);
-        if (!jsostr) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
-        }
-        json_object_object_add(jso, name, jsostr);
-    }
-    ret = RNP_SUCCESS;
-
-done:
-    va_end(ap);
-    return ret;
-}
-
-static rnp_result_t
-add_json_mpis_n(json_object *jso, ...)
-{
-    va_list      ap;
-    const char * name;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
-    va_start(ap, jso);
-    while ((name = va_arg(ap, const char *))) {
         pgp_mpi_t *val = va_arg(ap, pgp_mpi_t *);
         if (!val) {
             ret = RNP_ERROR_BAD_PARAMETERS;
@@ -3588,27 +3553,27 @@ add_json_public_mpis(json_object *jso, pgp_key_t *key)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis_n(jso, "n", &pubkey->key.rsa.n, "e", &pubkey->key.rsa.e, NULL);
+        return add_json_mpis(jso, "n", &pubkey->key.rsa.n, "e", &pubkey->key.rsa.e, NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis_n(
+        return add_json_mpis(
           jso, "p", &pubkey->key.eg.p, "g", &pubkey->key.eg.g, "y", &pubkey->key.eg.y, NULL);
     case PGP_PKA_DSA:
-        return add_json_mpis_n(jso,
-                               "p",
-                               &pubkey->key.dsa.p,
-                               "q",
-                               &pubkey->key.dsa.q,
-                               "g",
-                               &pubkey->key.dsa.g,
-                               "y",
-                               &pubkey->key.dsa.y,
-                               NULL);
+        return add_json_mpis(jso,
+                             "p",
+                             &pubkey->key.dsa.p,
+                             "q",
+                             &pubkey->key.dsa.q,
+                             "g",
+                             &pubkey->key.dsa.g,
+                             "y",
+                             &pubkey->key.dsa.y,
+                             NULL);
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        return add_json_mpis(jso, "point", pubkey->key.ecc.point, NULL);
+        return add_json_mpis(jso, "point", &pubkey->key.ec.p, NULL);
     default:
         return RNP_ERROR_NOT_SUPPORTED;
     }
@@ -3623,26 +3588,26 @@ add_json_secret_mpis(json_object *jso, pgp_key_t *key)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis_n(jso,
-                               "d",
-                               &seckey->pubkey.key.rsa.d,
-                               "p",
-                               &seckey->pubkey.key.rsa.p,
-                               "q",
-                               &seckey->pubkey.key.rsa.q,
-                               "u",
-                               &seckey->pubkey.key.rsa.u,
-                               NULL);
+        return add_json_mpis(jso,
+                             "d",
+                             &seckey->pubkey.key.rsa.d,
+                             "p",
+                             &seckey->pubkey.key.rsa.p,
+                             "q",
+                             &seckey->pubkey.key.rsa.q,
+                             "u",
+                             &seckey->pubkey.key.rsa.u,
+                             NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis_n(jso, "x", &seckey->pubkey.key.eg.x, NULL);
+        return add_json_mpis(jso, "x", &seckey->pubkey.key.eg.x, NULL);
     case PGP_PKA_DSA:
-        return add_json_mpis_n(jso, "x", &seckey->pubkey.key.dsa.x, NULL);
+        return add_json_mpis(jso, "x", &seckey->pubkey.key.dsa.x, NULL);
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        return add_json_mpis(jso, "x", seckey->key.ecc.x, NULL);
+        return add_json_mpis(jso, "x", &seckey->pubkey.key.ec.x, NULL);
     default:
         return RNP_ERROR_NOT_SUPPORTED;
     }
@@ -3656,16 +3621,16 @@ add_json_sig_mpis(json_object *jso, const pgp_sig_info_t *info)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis_n(jso, "sig", &info->sig.rsa.s, NULL);
+        return add_json_mpis(jso, "sig", &info->sig.rsa.s, NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis_n(jso, "r", &info->sig.eg.r, "s", &info->sig.eg.s, NULL);
+        return add_json_mpis(jso, "r", &info->sig.eg.r, "s", &info->sig.eg.s, NULL);
     case PGP_PKA_DSA:
-        return add_json_mpis_n(jso, "r", &info->sig.dsa.r, "s", &info->sig.dsa.s, NULL);
+        return add_json_mpis(jso, "r", &info->sig.dsa.r, "s", &info->sig.dsa.s, NULL);
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        return add_json_mpis(jso, "r", info->sig.ecc.r, "s", info->sig.ecc.s, NULL);
+        return add_json_mpis(jso, "r", &info->sig.ec.r, "s", &info->sig.ec.s, NULL);
     default:
         // TODO: we could use info->unknown and add a hex string of raw data here
         return RNP_ERROR_NOT_SUPPORTED;
@@ -3900,14 +3865,13 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     switch (pubkey->alg) {
     case PGP_PKA_ECDH: {
         const char *hash_name = NULL;
-        ARRAY_LOOKUP_BY_ID(
-          hash_alg_map, type, string, pubkey->key.ecdh.kdf_hash_alg, hash_name);
+        ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, pubkey->key.ec.kdf_hash_alg, hash_name);
         if (!hash_name) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         const char *cipher_name = NULL;
         ARRAY_LOOKUP_BY_ID(
-          symm_alg_map, type, string, pubkey->key.ecdh.key_wrap_alg, cipher_name);
+          symm_alg_map, type, string, pubkey->key.ec.key_wrap_alg, cipher_name);
         if (!cipher_name) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
@@ -3927,7 +3891,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     case PGP_PKA_SM2: {
         const char *curve_name = NULL;
         // ecdh is actually pubkey->key.ecdh.ec, but that's OK
-        if (!curve_type_to_str(pubkey->key.ecc.curve, &curve_name)) {
+        if (!curve_type_to_str(pubkey->key.ec.curve, &curve_name)) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         json_object *jsocurve = json_object_new_string(curve_name);

@@ -111,8 +111,7 @@ bool pgp_write(pgp_output_t *, const void *, size_t);
 bool pgp_write_length(pgp_output_t *, unsigned);
 bool pgp_write_ptag(pgp_output_t *, pgp_content_enum);
 bool pgp_write_scalar(pgp_output_t *, unsigned, unsigned);
-bool pgp_write_mpi(pgp_output_t *, const bignum_t *);
-bool pgp_write_mpi_n(pgp_output_t *output, const pgp_mpi_t *val);
+bool pgp_write_mpi(pgp_output_t *output, const pgp_mpi_t *val);
 
 bool pgp_push_enc_crypt(pgp_output_t *, pgp_crypt_t *);
 

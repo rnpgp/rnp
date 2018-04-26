@@ -139,7 +139,7 @@ pgp_dump_sig(pgp_sig_t *sig)
 #endif
 
 static bool
-rsa_sign(rng_t *rng, pgp_hash_t *hash, const pgp_rsa_key_t *rsa, pgp_output_t *out)
+rsa_sign_wrapper(rng_t *rng, pgp_hash_t *hash, const pgp_rsa_key_t *rsa, pgp_output_t *out)
 {
     unsigned            hash_size;
     uint8_t             hashbuf[128];
@@ -160,7 +160,7 @@ rsa_sign(rng_t *rng, pgp_hash_t *hash, const pgp_rsa_key_t *rsa, pgp_output_t *o
         return false;
     }
 
-    pgp_write_mpi_n(out, &sig.s);
+    pgp_write_mpi(out, &sig.s);
     return true;
 }
 
@@ -179,22 +179,18 @@ dsa_sign_wrapper(rng_t *rng, pgp_hash_t *hash, const pgp_dsa_key_t *dsa, pgp_out
     }
 
     /* convert and write the sig out to memory */
-    pgp_write_mpi_n(output, &sig.r);
-    pgp_write_mpi_n(output, &sig.s);
+    pgp_write_mpi(output, &sig.r);
+    pgp_write_mpi(output, &sig.s);
     return true;
 }
 
 static bool
-ecdsa_sign(rng_t *                 rng,
-           pgp_hash_t *            hash,
-           const pgp_ecc_pubkey_t *pub_key,
-           const pgp_ecc_seckey_t *prv_key,
-           pgp_output_t *          output)
+ecdsa_sign_wrapper(rng_t *rng, pgp_hash_t *hash, const pgp_ec_key_t *key, pgp_output_t *output)
 {
-    uint8_t       hashbuf[PGP_MAX_HASH_SIZE];
-    pgp_ecc_sig_t sig = {NULL, NULL};
+    uint8_t            hashbuf[PGP_MAX_HASH_SIZE];
+    pgp_ec_signature_t sig = {{{0}}};
 
-    const ec_curve_desc_t *curve = get_curve_desc(pub_key->curve);
+    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
     if (!curve) {
         RNP_LOG("Unknown curve");
         return false;
@@ -212,30 +208,21 @@ ecdsa_sign(rng_t *                 rng,
     }
 
     /* write signature to buf */
-    if (pgp_ecdsa_sign_hash(rng, &sig, hashbuf, hashsize, prv_key, pub_key) != RNP_SUCCESS) {
+    if (ecdsa_sign(rng, &sig, hashbuf, hashsize, key) != RNP_SUCCESS) {
         return false;
     }
 
     /* convert and write the sig out to memory */
-    bool ret = !!pgp_write_mpi(output, sig.r);
-    ret &= !!pgp_write_mpi(output, sig.s);
-
-    bn_free(sig.r);
-    bn_free(sig.s);
-    return ret;
+    return pgp_write_mpi(output, &sig.r) && pgp_write_mpi(output, &sig.s);
 }
 
 static bool
-sm2_sign(rng_t *                 rng,
-         pgp_hash_t *            hash,
-         const pgp_ecc_pubkey_t *pub_key,
-         const pgp_ecc_seckey_t *prv_key,
-         pgp_output_t *          output)
+sm2_sign_wrapper(rng_t *rng, pgp_hash_t *hash, const pgp_ec_key_t *key, pgp_output_t *output)
 {
-    uint8_t       hashbuf[PGP_MAX_HASH_SIZE];
-    pgp_ecc_sig_t sig = {NULL, NULL};
+    uint8_t            hashbuf[PGP_MAX_HASH_SIZE];
+    pgp_ec_signature_t sig = {{{0}}};
 
-    const ec_curve_desc_t *curve = get_curve_desc(pub_key->curve);
+    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
     if (!curve) {
         RNP_LOG("Unknown curve");
         return false;
@@ -253,62 +240,31 @@ sm2_sign(rng_t *                 rng,
     }
 
     /* write signature to buf */
-    if (pgp_sm2_sign_hash(rng, &sig, hashbuf, hashsize, prv_key, pub_key) != RNP_SUCCESS) {
+    if (sm2_sign(rng, &sig, hashbuf, hashsize, key)) {
         return false;
     }
 
     /* convert and write the sig out to memory */
-    bool ret = !!pgp_write_mpi(output, sig.r);
-    ret &= !!pgp_write_mpi(output, sig.s);
-
-    bn_free(sig.r);
-    bn_free(sig.s);
-    return ret;
+    return pgp_write_mpi(output, &sig.r) && pgp_write_mpi(output, &sig.s);
 }
 
 static bool
-eddsa_sign(rng_t *                 rng,
-           pgp_hash_t *            hash,
-           const pgp_ecc_pubkey_t *pubkey,
-           const pgp_ecc_seckey_t *seckey,
-           pgp_output_t *          output)
+eddsa_sign_wrapper(rng_t *rng, pgp_hash_t *hash, const pgp_ec_key_t *key, pgp_output_t *output)
 {
-    uint8_t hashbuf[RNP_BUFSIZ];
-    bool    ret = false;
+    pgp_ec_signature_t sig = {{{0}}};
+    uint8_t            hashbuf[RNP_BUFSIZ];
 
     /* finalise hash */
     unsigned hashsize = pgp_hash_finish(hash, &hashbuf[0]);
 
     pgp_write(output, &hashbuf[0], 2);
 
-    /* write signature to buf */
-    bignum_t *r = bn_new();
-    bignum_t *s = bn_new();
-    if (!r || !s) {
-        goto end;
+    if (eddsa_sign(rng, &sig, hashbuf, hashsize, key)) {
+        return false;
     }
 
-    if (pgp_eddsa_sign_hash(rng, r, s, hashbuf, hashsize, seckey, pubkey) < 0)
-        goto end;
-
     /* convert and write the sig out to memory */
-    pgp_write_mpi(output, r);
-    pgp_write_mpi(output, s);
-    ret = true;
-
-end:
-    bn_free(r);
-    bn_free(s);
-    return ret;
-}
-
-static unsigned
-eddsa_verify(const uint8_t *         hash,
-             size_t                  hash_length,
-             const pgp_ecc_sig_t *   sig,
-             const pgp_ecc_pubkey_t *pubecc)
-{
-    return pgp_eddsa_verify_hash(sig->r, sig->s, hash, hash_length, pubecc);
+    return pgp_write_mpi(output, &sig.r) && pgp_write_mpi(output, &sig.s);
 }
 
 static bool
@@ -373,42 +329,26 @@ pgp_check_sig(rng_t *             rng,
               const pgp_sig_t *   sig,
               const pgp_pubkey_t *signer)
 {
-    unsigned ret = false;
-
     if (rnp_get_debug(__FILE__)) {
         hexdump(stdout, "hash", hash, length);
     }
 
     switch (sig->info.key_alg) {
     case PGP_PKA_DSA:
-        ret = !dsa_verify(hash, length, &sig->info.sig.dsa, &signer->key.dsa);
-        break;
-
+        return !dsa_verify(&sig->info.sig.dsa, hash, length, &signer->key.dsa);
     case PGP_PKA_EDDSA:
-        ret = eddsa_verify(hash, length, &sig->info.sig.ecc, &signer->key.ecc);
-        break;
-
+        return !eddsa_verify(&sig->info.sig.ec, hash, length, &signer->key.ec);
     case PGP_PKA_SM2:
-        ret = pgp_sm2_verify_hash(&sig->info.sig.ecc, hash, length, &signer->key.ecc) ==
-              RNP_SUCCESS;
-        break;
-
+        return !sm2_verify(&sig->info.sig.ec, hash, length, &signer->key.ec);
     case PGP_PKA_RSA:
-        ret = !rsa_verify_pkcs1(
+        return !rsa_verify_pkcs1(
           rng, &sig->info.sig.rsa, sig->info.hash_alg, hash, length, &signer->key.rsa);
-        break;
-
     case PGP_PKA_ECDSA:
-        ret = (pgp_ecdsa_verify_hash(&sig->info.sig.ecc, hash, length, &signer->key.ecc) ==
-               RNP_SUCCESS);
-        break;
-
+        return !ecdsa_verify(&sig->info.sig.ec, hash, length, &signer->key.ec);
     default:
         RNP_LOG("Unknown algorithm");
         return false;
     }
-
-    return ret;
 }
 
 static bool
@@ -755,8 +695,8 @@ pgp_sig_write(rng_t *             rng,
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        if (seckey->key.ecc.x == NULL) {
-            RNP_LOG("null ecc.x");
+        if (!mpi_bytes(&seckey->pubkey.key.ec.x)) {
+            RNP_LOG("empty ec.x");
             return false;
         }
         break;
@@ -796,28 +736,28 @@ pgp_sig_write(rng_t *             rng,
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!rsa_sign(rng, &sig->hash, &seckey->pubkey.key.rsa, sig->output)) {
+        if (!rsa_sign_wrapper(rng, &sig->hash, &seckey->pubkey.key.rsa, sig->output)) {
             RNP_LOG("rsa_sign failure");
             return false;
         }
         break;
 
     case PGP_PKA_EDDSA:
-        if (!eddsa_sign(rng, &sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
+        if (!eddsa_sign_wrapper(rng, &sig->hash, &seckey->pubkey.key.ec, sig->output)) {
             RNP_LOG("eddsa_sign failure");
             return false;
         }
         break;
 
     case PGP_PKA_SM2:
-        if (!sm2_sign(rng, &sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
+        if (!sm2_sign_wrapper(rng, &sig->hash, &seckey->pubkey.key.ec, sig->output)) {
             RNP_LOG("sm2_sign failure");
             return false;
         }
         break;
 
     case PGP_PKA_DSA:
-        if (!dsa_sign_wrapper(rng, &sig->hash, &key->key.dsa, sig->output)) {
+        if (!dsa_sign_wrapper(rng, &sig->hash, &seckey->pubkey.key.dsa, sig->output)) {
             RNP_LOG("dsa_sign failure");
             return false;
         }
@@ -829,7 +769,7 @@ pgp_sig_write(rng_t *             rng,
      */
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
-        if (!ecdsa_sign(rng, &sig->hash, &key->key.ecc, &seckey->key.ecc, sig->output)) {
+        if (!ecdsa_sign_wrapper(rng, &sig->hash, &seckey->pubkey.key.ec, sig->output)) {
             RNP_LOG("ecdsa sign failure");
             return false;
         }

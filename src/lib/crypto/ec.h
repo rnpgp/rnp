@@ -39,8 +39,6 @@
 #define DEFAULT_CURVE PGP_CURVE_NIST_P_256
 #define MAX_CURVE_BIT_SIZE 521 // secp521r1
 
-typedef struct pgp_seckey_t pgp_seckey_t;
-
 /**
  * Maximal length of the OID in hex representation.
  *
@@ -75,28 +73,6 @@ typedef struct pgp_ec_signature_t {
     pgp_mpi_t s;
 } pgp_ec_signature_t;
 
-/** Structure to hold an ECC public key params.
- *
- * \see RFC 6637
- */
-typedef struct {
-    pgp_curve_t curve;
-    bignum_t *  point; /* octet string encoded as MPI */
-} pgp_ecc_pubkey_t;
-
-/** pgp_ecc_seckey_t */
-typedef struct {
-    bignum_t *x;
-} pgp_ecc_seckey_t;
-
-/** Struct to hold params of a ECDSA/EDDSA/SM2 signature */
-typedef struct pgp_ecc_sig_t {
-    bignum_t *r;
-    bignum_t *s;
-} pgp_ecc_sig_t;
-
-typedef struct pgp_output_t pgp_output_t;
-
 /*
  * @brief   Finds curve ID by hex representation of OID
  *
@@ -113,21 +89,6 @@ pgp_curve_t find_curve_by_OID(const uint8_t *oid, size_t oid_len);
 pgp_curve_t find_curve_by_name(const char *name);
 
 /*
- * @brief   Serialize EC public to octet string
- *
- * @param   output      generated output
- * @param   pubkey      initialized ECDSA public key
- *
- * @pre     output      must be not null
- * @pre     pubkey      must be not null
- *
- * @returns true on success
- *
- * @remarks see RFC 4880 bis 01 - 5.5.2 Public-Key Packet Formats
- */
-bool ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey);
-
-/*
  * @brief   Returns pointer to the curve descriptor
  *
  * @param   Valid curve ID
@@ -140,8 +101,8 @@ const ec_curve_desc_t *get_curve_desc(const pgp_curve_t curve_id);
 /*
  * @brief   Generates EC key in uncompressed format
  *
- * @param   rng initialized rng_t context
- * @param   seckey[out] private part of the key
+ * @param   rng initialized rng_t context*
+ * @param   key key data to be generated
  * @param   alg_id ID of EC algorithm
  * @param   curve underlying ECC curve ID
  *
@@ -151,9 +112,9 @@ const ec_curve_desc_t *get_curve_desc(const pgp_curve_t curve_id);
  * @returns RNP_ERROR_OUT_OF_MEMORY memory allocation failed
  * @returns RNP_ERROR_KEY_GENERATION implementation error
  */
-rnp_result_t pgp_genkey_ec_uncompressed(rng_t *                rng,
-                                        pgp_seckey_t *         seckey,
-                                        const pgp_pubkey_alg_t alg_id,
-                                        const pgp_curve_t      curve);
+rnp_result_t ec_generate(rng_t *                rng,
+                         pgp_ec_key_t *         key,
+                         const pgp_pubkey_alg_t alg_id,
+                         const pgp_curve_t      curve);
 
 #endif

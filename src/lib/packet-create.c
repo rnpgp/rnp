@@ -124,22 +124,21 @@ pgp_write_struct_userid(pgp_output_t *output, const uint8_t *id)
            pgp_write(output, id, (unsigned) strlen((const char *) id));
 }
 
-/**
-\ingroup Core_MPI
-*/
-static size_t
-mpi_length(const bignum_t *bn)
+static bool
+ec_serialize_pubkey(pgp_output_t *output, const pgp_ec_key_t *key)
 {
-    size_t bsz;
-    if (!bn_num_bytes(bn, &bsz)) {
-        return 0;
+    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
+    if (!curve) {
+        return false;
     }
 
-    return 2 + bsz;
+    return pgp_write_scalar(output, curve->OIDhex_len, 1) &&
+           pgp_write(output, curve->OIDhex, curve->OIDhex_len) &&
+           pgp_write_mpi(output, &key->p);
 }
 
 static size_t
-mpi_length_n(const pgp_mpi_t *val)
+mpi_length(const pgp_mpi_t *val)
 {
     size_t res = mpi_bits(val);
     return 2 + ((res + 7) >> 3);
@@ -150,21 +149,21 @@ pubkey_length(const pgp_pubkey_t *key)
 {
     switch (key->alg) {
     case PGP_PKA_ELGAMAL:
-        return mpi_length_n(&key->key.eg.p) + mpi_length_n(&key->key.eg.g) +
-               mpi_length_n(&key->key.eg.y);
+        return mpi_length(&key->key.eg.p) + mpi_length(&key->key.eg.g) +
+               mpi_length(&key->key.eg.y);
     case PGP_PKA_DSA:
-        return mpi_length_n(&key->key.dsa.p) + mpi_length_n(&key->key.dsa.q) +
-               mpi_length_n(&key->key.dsa.g) + mpi_length_n(&key->key.dsa.y);
+        return mpi_length(&key->key.dsa.p) + mpi_length(&key->key.dsa.q) +
+               mpi_length(&key->key.dsa.g) + mpi_length(&key->key.dsa.y);
     case PGP_PKA_RSA:
-        return mpi_length_n(&key->key.rsa.n) + mpi_length_n(&key->key.rsa.e);
+        return mpi_length(&key->key.rsa.n) + mpi_length(&key->key.rsa.e);
     case PGP_PKA_ECDH: {
-        const ec_curve_desc_t *c = get_curve_desc(key->key.ecc.curve);
+        const ec_curve_desc_t *c = get_curve_desc(key->key.ec.curve);
         if (!c) {
             RNP_LOG("Unknown curve");
             return 0;
         }
-        return 1                                                    // length of curve OID
-               + c->OIDhex_len + mpi_length(key->key.ecc.point) + 1 // Size of following fields
+        return 1                                                // length of curve OID
+               + c->OIDhex_len + mpi_length(&key->key.ec.p) + 1 // Size of following fields
                + 1  // Value 1 reserved for future use
                + 1  // Hash function ID used with KDF
                + 1; // Symmetric algorithm used to wrap symmetric key
@@ -172,13 +171,13 @@ pubkey_length(const pgp_pubkey_t *key)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
-        const ec_curve_desc_t *c = get_curve_desc(key->key.ecc.curve);
+        const ec_curve_desc_t *c = get_curve_desc(key->key.ec.curve);
         if (!c) {
             RNP_LOG("Unknown curve");
             return 0;
         }
         return 1 + // length of curve OID
-               c->OIDhex_len + mpi_length(key->key.ecc.point);
+               c->OIDhex_len + mpi_length(&key->key.ec.p);
     }
     default:
         RNP_LOG("unknown key algorithm");
@@ -194,15 +193,15 @@ seckey_length(const pgp_seckey_t *key)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        return mpi_length(key->key.ecc.x) + pubkey_length(&key->pubkey);
+        return mpi_length(&key->pubkey.key.ec.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_DSA:
-        return mpi_length_n(&key->pubkey.key.dsa.x) + pubkey_length(&key->pubkey);
+        return mpi_length(&key->pubkey.key.dsa.x) + pubkey_length(&key->pubkey);
     case PGP_PKA_RSA:
-        return mpi_length_n(&key->pubkey.key.rsa.d) + mpi_length_n(&key->pubkey.key.rsa.p) +
-               mpi_length_n(&key->pubkey.key.rsa.q) + mpi_length_n(&key->pubkey.key.rsa.u) +
+        return mpi_length(&key->pubkey.key.rsa.d) + mpi_length(&key->pubkey.key.rsa.p) +
+               mpi_length(&key->pubkey.key.rsa.q) + mpi_length(&key->pubkey.key.rsa.u) +
                pubkey_length(&key->pubkey);
     case PGP_PKA_ELGAMAL:
-        return mpi_length_n(&key->pubkey.key.eg.x) + pubkey_length(&key->pubkey);
+        return mpi_length(&key->pubkey.key.eg.x) + pubkey_length(&key->pubkey);
     default:
         RNP_LOG("unknown key algorithm");
     }
@@ -241,29 +240,28 @@ write_pubkey_body(const pgp_pubkey_t *key, pgp_output_t *output)
 
     switch (key->alg) {
     case PGP_PKA_DSA:
-        return pgp_write_mpi_n(output, &key->key.dsa.p) &&
-               pgp_write_mpi_n(output, &key->key.dsa.q) &&
-               pgp_write_mpi_n(output, &key->key.dsa.g) &&
-               pgp_write_mpi_n(output, &key->key.dsa.y);
+        return pgp_write_mpi(output, &key->key.dsa.p) &&
+               pgp_write_mpi(output, &key->key.dsa.q) &&
+               pgp_write_mpi(output, &key->key.dsa.g) &&
+               pgp_write_mpi(output, &key->key.dsa.y);
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        return ec_serialize_pubkey(output, &key->key.ecc);
+        return ec_serialize_pubkey(output, &key->key.ec);
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return pgp_write_mpi_n(output, &key->key.rsa.n) &&
-               pgp_write_mpi_n(output, &key->key.rsa.e);
+        return pgp_write_mpi(output, &key->key.rsa.n) &&
+               pgp_write_mpi(output, &key->key.rsa.e);
     case PGP_PKA_ECDH:
-        return ec_serialize_pubkey(output, &key->key.ecdh.ec) &&
+        return ec_serialize_pubkey(output, &key->key.ec) &&
                pgp_write_scalar(output, 3 /*size of following attributes*/, 1) &&
                pgp_write_scalar(output, 1 /*reserved*/, 1) &&
-               pgp_write_scalar(output, (uint8_t) key->key.ecdh.kdf_hash_alg, 1) &&
-               pgp_write_scalar(output, (uint8_t) key->key.ecdh.key_wrap_alg, 1);
+               pgp_write_scalar(output, (uint8_t) key->key.ec.kdf_hash_alg, 1) &&
+               pgp_write_scalar(output, (uint8_t) key->key.ec.key_wrap_alg, 1);
     case PGP_PKA_ELGAMAL:
-        return pgp_write_mpi_n(output, &key->key.eg.p) &&
-               pgp_write_mpi_n(output, &key->key.eg.g) &&
-               pgp_write_mpi_n(output, &key->key.eg.y);
+        return pgp_write_mpi(output, &key->key.eg.p) &&
+               pgp_write_mpi(output, &key->key.eg.g) && pgp_write_mpi(output, &key->key.eg.y);
 
     default:
         RNP_LOG("bad algorithm");
@@ -917,25 +915,25 @@ pgp_write_secret_mpis(pgp_output_t *output, const pgp_seckey_t *seckey)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        ok = pgp_write_mpi_n(output, &seckey->pubkey.key.rsa.d) &&
-             pgp_write_mpi_n(output, &seckey->pubkey.key.rsa.p) &&
-             pgp_write_mpi_n(output, &seckey->pubkey.key.rsa.q) &&
-             pgp_write_mpi_n(output, &seckey->pubkey.key.rsa.u);
+        ok = pgp_write_mpi(output, &seckey->pubkey.key.rsa.d) &&
+             pgp_write_mpi(output, &seckey->pubkey.key.rsa.p) &&
+             pgp_write_mpi(output, &seckey->pubkey.key.rsa.q) &&
+             pgp_write_mpi(output, &seckey->pubkey.key.rsa.u);
         break;
 
     case PGP_PKA_DSA:
-        ok = pgp_write_mpi_n(output, &seckey->pubkey.key.dsa.x);
+        ok = pgp_write_mpi(output, &seckey->pubkey.key.dsa.x);
         break;
 
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        ok = pgp_write_mpi(output, seckey->key.ecc.x);
+        ok = pgp_write_mpi(output, &seckey->pubkey.key.ec.x);
         break;
 
     case PGP_PKA_ELGAMAL:
-        ok = pgp_write_mpi_n(output, &seckey->pubkey.key.eg.x);
+        ok = pgp_write_mpi(output, &seckey->pubkey.key.eg.x);
         break;
 
     default:

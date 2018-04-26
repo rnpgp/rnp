@@ -197,38 +197,31 @@ pkcs1_rsa_test_success(void **state)
 void
 rnp_test_eddsa(void **state)
 {
-    rnp_test_state_t *               rstate = *state;
     const rnp_keygen_crypto_params_t key_desc = {
       .key_alg = PGP_PKA_EDDSA, .hash_alg = PGP_HASH_SHA256, .rng = &global_rng};
 
     pgp_seckey_t *seckey = calloc(1, sizeof(*seckey));
     assert_non_null(seckey);
 
-    rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, seckey));
+    assert_true(pgp_generate_seckey(&key_desc, seckey));
 
-    const uint8_t hash[32] = {0};
-    bignum_t *    r = bn_new();
-    bignum_t *    s = bn_new();
+    const uint8_t      hash[32] = {0};
+    pgp_ec_signature_t sig = {{{0}}};
 
-    rnp_assert_int_equal(
-      rstate,
-      pgp_eddsa_sign_hash(
-        &global_rng, r, s, hash, sizeof(hash), &seckey->key.ecc, &seckey->pubkey.key.ecc),
-      0);
+    assert_rnp_success(
+      eddsa_sign(&global_rng, &sig, hash, sizeof(hash), &seckey->pubkey.key.ec));
 
-    rnp_assert_int_equal(
-      rstate, pgp_eddsa_verify_hash(r, s, hash, sizeof(hash), &seckey->pubkey.key.ecc), 1);
-
-    // swap r/s -> invalid sig
-    rnp_assert_int_equal(
-      rstate, pgp_eddsa_verify_hash(s, r, hash, sizeof(hash), &seckey->pubkey.key.ecc), 0);
+    assert_rnp_success(eddsa_verify(&sig, hash, sizeof(hash), &seckey->pubkey.key.ec));
 
     // cut one byte off hash -> invalid sig
-    rnp_assert_int_equal(
-      rstate, pgp_eddsa_verify_hash(r, s, hash, sizeof(hash) - 1, &seckey->pubkey.key.ecc), 0);
+    assert_rnp_failure(eddsa_verify(&sig, hash, sizeof(hash) - 1, &seckey->pubkey.key.ec));
 
-    bn_free(r);
-    bn_free(s);
+    // swap r/s -> invalid sig
+    pgp_mpi_t tmp = sig.r;
+    sig.r = sig.s;
+    sig.s = tmp;
+    assert_rnp_failure(eddsa_verify(&sig, hash, sizeof(hash), &seckey->pubkey.key.ec));
+
     pgp_seckey_free(seckey);
     free(seckey);
 }
@@ -323,7 +316,7 @@ ecdsa_signverify_success(void **state)
         // Generate test data. Mainly to make valgrind not to complain about unitialized data
         rnp_assert_true(rstate, rng_get_data(&global_rng, message, sizeof(message)));
 
-        pgp_ecc_sig_t                    sig = {NULL, NULL};
+        pgp_ec_signature_t               sig = {{{0}}};
         const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDSA,
                                                      .hash_alg = PGP_HASH_SHA512,
                                                      .ecc = {.curve = curves[i].id},
@@ -338,31 +331,20 @@ ecdsa_signverify_success(void **state)
         rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, seckey1));
         rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, seckey2));
 
-        const pgp_ecc_pubkey_t *pub_key1 = &seckey1->pubkey.key.ecc;
-        const pgp_ecc_pubkey_t *pub_key2 = &seckey2->pubkey.key.ecc;
-        const pgp_ecc_seckey_t *prv_key1 = &seckey1->key.ecc;
+        const pgp_ec_key_t *key1 = &seckey1->pubkey.key.ec;
+        const pgp_ec_key_t *key2 = &seckey2->pubkey.key.ec;
 
-        rnp_assert_int_equal(
-          rstate,
-          pgp_ecdsa_sign_hash(&global_rng, &sig, message, curves[i].size, prv_key1, pub_key1),
-          RNP_SUCCESS);
+        assert_rnp_success(ecdsa_sign(&global_rng, &sig, message, curves[i].size, key1));
 
-        rnp_assert_int_equal(
-          rstate, pgp_ecdsa_verify_hash(&sig, message, curves[i].size, pub_key1), RNP_SUCCESS);
+        assert_rnp_success(ecdsa_verify(&sig, message, curves[i].size, key1));
 
         // Fails because of different key used
-        rnp_assert_int_equal(rstate,
-                             pgp_ecdsa_verify_hash(&sig, message, curves[i].size, pub_key2),
-                             RNP_ERROR_SIGNATURE_INVALID);
+        assert_rnp_failure(ecdsa_verify(&sig, message, curves[i].size, key2));
 
         // Fails because message won't verify
         message[0] = ~message[0];
-        rnp_assert_int_equal(rstate,
-                             pgp_ecdsa_verify_hash(&sig, message, sizeof(message), pub_key1),
-                             RNP_ERROR_SIGNATURE_INVALID);
+        assert_rnp_failure(ecdsa_verify(&sig, message, sizeof(message), key1));
 
-        bn_clear_free(sig.r);
-        bn_clear_free(sig.s);
         pgp_seckey_free(seckey1);
         free(seckey1);
         pgp_seckey_free(seckey2);
@@ -379,18 +361,12 @@ ecdh_roundtrip(void **state)
     } curves[] = {
       {PGP_CURVE_NIST_P_256, 32}, {PGP_CURVE_NIST_P_384, 48}, {PGP_CURVE_NIST_P_521, 66}};
 
-    rnp_test_state_t *rstate = *state;
-    uint8_t           wrapped_key[48] = {0};
-    size_t            wrapped_key_len = sizeof(wrapped_key);
-    uint8_t           plaintext[32] = {0};
-    size_t            plaintext_len = sizeof(plaintext);
-    uint8_t           result[32] = {0};
-    size_t            result_len = sizeof(result);
-    bignum_t *        tmp_eph_key;
-
-    tmp_eph_key = bn_new();
-
-    rnp_assert_true(rstate, tmp_eph_key != NULL);
+    rnp_test_state_t *   rstate = *state;
+    pgp_ecdh_encrypted_t enc;
+    uint8_t              plaintext[32] = {0};
+    size_t               plaintext_len = sizeof(plaintext);
+    uint8_t              result[32] = {0};
+    size_t               result_len = sizeof(result);
 
     for (size_t i = 0; i < ARRAY_SIZE(curves); i++) {
         const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDH,
@@ -398,7 +374,6 @@ ecdh_roundtrip(void **state)
                                                      .ecc = {.curve = curves[i].id},
                                                      .rng = &global_rng};
 
-        const size_t expected_result_byte_size = curves[i].size * 2 + 1;
         pgp_seckey_t ecdh_key1;
         memset(&ecdh_key1, 0, sizeof(ecdh_key1));
         rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, &ecdh_key1));
@@ -407,61 +382,37 @@ ecdh_roundtrip(void **state)
         memset(&ecdh_key1_fpr, 0, sizeof(ecdh_key1_fpr));
         assert_rnp_success(pgp_fingerprint(&ecdh_key1_fpr, &ecdh_key1.pubkey));
 
-        rnp_assert_int_equal(rstate,
-                             pgp_ecdh_encrypt_pkcs5(&global_rng,
-                                                    plaintext,
-                                                    plaintext_len,
-                                                    wrapped_key,
-                                                    &wrapped_key_len,
-                                                    tmp_eph_key,
-                                                    &ecdh_key1.pubkey.key.ecdh,
-                                                    &ecdh_key1_fpr),
-                             RNP_SUCCESS);
+        assert_rnp_success(ecdh_encrypt_pkcs5(&global_rng,
+                                              &enc,
+                                              plaintext,
+                                              plaintext_len,
+                                              &ecdh_key1.pubkey.key.ec,
+                                              &ecdh_key1_fpr));
 
-        size_t sz;
-        rnp_assert_true(rstate, bn_num_bytes(tmp_eph_key, &sz));
-        rnp_assert_int_equal(rstate, sz, expected_result_byte_size);
-
-        rnp_assert_int_equal(rstate,
-                             pgp_ecdh_decrypt_pkcs5(result,
-                                                    &result_len,
-                                                    wrapped_key,
-                                                    wrapped_key_len,
-                                                    tmp_eph_key,
-                                                    &ecdh_key1.key.ecc,
-                                                    &ecdh_key1.pubkey.key.ecdh,
-                                                    &ecdh_key1_fpr),
-                             RNP_SUCCESS);
+        assert_rnp_success(ecdh_decrypt_pkcs5(
+          result, &result_len, &enc, &ecdh_key1.pubkey.key.ec, &ecdh_key1_fpr));
 
         rnp_assert_int_equal(rstate, plaintext_len, result_len);
         rnp_assert_int_equal(rstate, memcmp(plaintext, result, result_len), 0);
         pgp_seckey_free(&ecdh_key1);
     }
-
-    bn_free(tmp_eph_key);
 }
 
 void
 ecdh_decryptionNegativeCases(void **state)
 {
-    rnp_test_state_t *rstate = *state;
-    uint8_t           wrapped_key[48] = {0};
-    size_t            wrapped_key_len = sizeof(wrapped_key);
-    uint8_t           plaintext[32] = {0};
-    size_t            plaintext_len = sizeof(plaintext);
-    uint8_t           result[32] = {0};
-    size_t            result_len = sizeof(result);
-    bignum_t *        tmp_eph_key;
-
-    tmp_eph_key = bn_new();
-    rnp_assert_true(rstate, tmp_eph_key != NULL);
+    rnp_test_state_t *   rstate = *state;
+    uint8_t              plaintext[32] = {0};
+    size_t               plaintext_len = sizeof(plaintext);
+    uint8_t              result[32] = {0};
+    size_t               result_len = sizeof(result);
+    pgp_ecdh_encrypted_t enc;
 
     const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_ECDH,
                                                  .hash_alg = PGP_HASH_SHA512,
                                                  .ecc = {.curve = PGP_CURVE_NIST_P_256},
                                                  .rng = &global_rng};
 
-    const size_t expected_result_byte_size = 32 * 2 + 1;
     pgp_seckey_t ecdh_key1;
     memset(&ecdh_key1, 0, sizeof(ecdh_key1));
     rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, &ecdh_key1));
@@ -470,137 +421,61 @@ ecdh_decryptionNegativeCases(void **state)
     memset(&ecdh_key1_fpr, 0, sizeof(ecdh_key1_fpr));
     assert_rnp_success(pgp_fingerprint(&ecdh_key1_fpr, &ecdh_key1.pubkey));
 
-    rnp_assert_int_equal(rstate,
-                         pgp_ecdh_encrypt_pkcs5(&global_rng,
-                                                plaintext,
-                                                plaintext_len,
-                                                wrapped_key,
-                                                &wrapped_key_len,
-                                                tmp_eph_key,
-                                                &ecdh_key1.pubkey.key.ecdh,
-                                                &ecdh_key1_fpr),
-                         RNP_SUCCESS);
-    size_t sz;
-    rnp_assert_true(rstate, bn_num_bytes(tmp_eph_key, &sz));
-    rnp_assert_int_equal(rstate, sz, expected_result_byte_size);
+    assert_rnp_success(ecdh_encrypt_pkcs5(
+      &global_rng, &enc, plaintext, plaintext_len, &ecdh_key1.pubkey.key.ec, &ecdh_key1_fpr));
+
+    rnp_assert_int_equal(
+      rstate,
+      ecdh_decrypt_pkcs5(NULL, 0, &enc, &ecdh_key1.pubkey.key.ec, &ecdh_key1_fpr),
+      RNP_ERROR_BAD_PARAMETERS);
 
     rnp_assert_int_equal(rstate,
-                         pgp_ecdh_decrypt_pkcs5(NULL,
-                                                0,
-                                                wrapped_key,
-                                                wrapped_key_len,
-                                                tmp_eph_key,
-                                                &ecdh_key1.key.ecc,
-                                                &ecdh_key1.pubkey.key.ecdh,
-                                                &ecdh_key1_fpr),
+                         ecdh_decrypt_pkcs5(result, &result_len, &enc, NULL, &ecdh_key1_fpr),
                          RNP_ERROR_BAD_PARAMETERS);
 
-    rnp_assert_int_equal(rstate,
-                         pgp_ecdh_decrypt_pkcs5(result,
-                                                &result_len,
-                                                wrapped_key,
-                                                wrapped_key_len,
-                                                tmp_eph_key,
-                                                NULL,
-                                                &ecdh_key1.pubkey.key.ecdh,
-                                                &ecdh_key1_fpr),
-                         RNP_ERROR_BAD_PARAMETERS);
+    rnp_assert_int_equal(
+      rstate,
+      ecdh_decrypt_pkcs5(result, &result_len, NULL, &ecdh_key1.pubkey.key.ec, &ecdh_key1_fpr),
+      RNP_ERROR_BAD_PARAMETERS);
 
-    rnp_assert_int_equal(rstate,
-                         pgp_ecdh_decrypt_pkcs5(result,
-                                                &result_len,
-                                                NULL,
-                                                wrapped_key_len,
-                                                tmp_eph_key,
-                                                &ecdh_key1.key.ecc,
-                                                &ecdh_key1.pubkey.key.ecdh,
-                                                &ecdh_key1_fpr),
-                         RNP_ERROR_BAD_PARAMETERS);
+    size_t mlen = enc.mlen;
+    enc.mlen = 0;
+    rnp_assert_int_equal(
+      rstate,
+      ecdh_decrypt_pkcs5(result, &result_len, &enc, &ecdh_key1.pubkey.key.ec, &ecdh_key1_fpr),
+      RNP_ERROR_GENERIC);
 
-    rnp_assert_int_equal(rstate,
-                         pgp_ecdh_decrypt_pkcs5(result,
-                                                &result_len,
-                                                wrapped_key,
-                                                0,
-                                                tmp_eph_key,
-                                                &ecdh_key1.key.ecc,
-                                                &ecdh_key1.pubkey.key.ecdh,
-                                                &ecdh_key1_fpr),
-                         RNP_ERROR_GENERIC);
+    enc.mlen = mlen - 1;
+    rnp_assert_int_equal(
+      rstate,
+      ecdh_decrypt_pkcs5(result, &result_len, &enc, &ecdh_key1.pubkey.key.ec, &ecdh_key1_fpr),
+      RNP_ERROR_GENERIC);
 
-    rnp_assert_int_equal(rstate,
-                         pgp_ecdh_decrypt_pkcs5(result,
-                                                &result_len,
-                                                wrapped_key,
-                                                wrapped_key_len - 1,
-                                                tmp_eph_key,
-                                                &ecdh_key1.key.ecc,
-                                                &ecdh_key1.pubkey.key.ecdh,
-                                                &ecdh_key1_fpr),
-                         RNP_ERROR_GENERIC);
+    int key_wrapping_alg = ecdh_key1.pubkey.key.ec.key_wrap_alg;
+    ecdh_key1.pubkey.key.ec.key_wrap_alg = PGP_SA_IDEA;
+    rnp_assert_int_equal(
+      rstate,
+      ecdh_decrypt_pkcs5(result, &result_len, &enc, &ecdh_key1.pubkey.key.ec, &ecdh_key1_fpr),
+      RNP_ERROR_NOT_SUPPORTED);
+    ecdh_key1.pubkey.key.ec.key_wrap_alg = key_wrapping_alg;
 
-    size_t tmp = result_len - 1;
-    rnp_assert_int_equal(rstate,
-                         pgp_ecdh_decrypt_pkcs5(result,
-                                                &tmp,
-                                                wrapped_key,
-                                                wrapped_key_len,
-                                                tmp_eph_key,
-                                                &ecdh_key1.key.ecc,
-                                                &ecdh_key1.pubkey.key.ecdh,
-                                                &ecdh_key1_fpr),
-                         RNP_ERROR_SHORT_BUFFER);
-
-    int key_wrapping_alg = ecdh_key1.pubkey.key.ecdh.key_wrap_alg;
-    ecdh_key1.pubkey.key.ecdh.key_wrap_alg = PGP_SA_IDEA;
-    rnp_assert_int_equal(rstate,
-                         pgp_ecdh_decrypt_pkcs5(result,
-                                                &result_len,
-                                                wrapped_key,
-                                                wrapped_key_len,
-                                                tmp_eph_key,
-                                                &ecdh_key1.key.ecc,
-                                                &ecdh_key1.pubkey.key.ecdh,
-                                                &ecdh_key1_fpr),
-                         RNP_ERROR_NOT_SUPPORTED);
-    ecdh_key1.pubkey.key.ecdh.key_wrap_alg = key_wrapping_alg;
-
-    // Change ephemeral key, so that it fails to decrypt
-
-    bn_clear(tmp_eph_key);
-    rnp_assert_int_equal(rstate,
-                         pgp_ecdh_decrypt_pkcs5(result,
-                                                &result_len,
-                                                wrapped_key,
-                                                wrapped_key_len,
-                                                tmp_eph_key,
-                                                &ecdh_key1.key.ecc,
-                                                &ecdh_key1.pubkey.key.ecdh,
-                                                &ecdh_key1_fpr),
-                         RNP_ERROR_GENERIC);
-
-    rnp_assert_int_equal(rstate, plaintext_len, result_len);
-    rnp_assert_int_equal(rstate, memcmp(plaintext, result, result_len), 0);
     pgp_seckey_free(&ecdh_key1);
-
-    bn_free(tmp_eph_key);
 }
 
 void
 sm2_roundtrip(void **state)
 {
     rnp_test_state_t *rstate = *state;
-
-    uint8_t key[27] = {0};
-    assert_true(rng_get_data(&global_rng, key, sizeof(key)));
-
-    uint8_t ctext_buf[1024];
-    uint8_t decrypted[27];
+    uint8_t           key[27] = {0};
+    uint8_t           decrypted[27];
+    size_t            decrypted_size;
 
     const rnp_keygen_crypto_params_t key_desc = {.key_alg = PGP_PKA_SM2,
                                                  .hash_alg = PGP_HASH_SM3,
                                                  .ecc = {.curve = PGP_CURVE_SM2_P_256},
                                                  .rng = &global_rng};
+
+    assert_true(rng_get_data(&global_rng, key, sizeof(key)));
 
     pgp_seckey_t *sec_key = calloc(1, sizeof(*sec_key));
     assert_non_null(sec_key);
@@ -611,26 +486,24 @@ sm2_roundtrip(void **state)
     const pgp_pubkey_t *pub_key = &sec_key->pubkey;
     rnp_assert_non_null(rstate, pub_key);
 
-    const pgp_ecc_pubkey_t *pub_ecc = &pub_key->key.ecc;
-    const pgp_ecc_seckey_t *sec_ecc = &sec_key->key.ecc;
+    const pgp_ec_key_t *eckey = &pub_key->key.ec;
 
-    uint8_t hashes[] = {PGP_HASH_SM3, PGP_HASH_SHA256, PGP_HASH_SHA512};
+    uint8_t             hashes[] = {PGP_HASH_SM3, PGP_HASH_SHA256, PGP_HASH_SHA512};
+    pgp_sm2_encrypted_t enc;
+    rnp_result_t        ret;
 
     for (size_t i = 0; i < ARRAY_SIZE(hashes); ++i) {
-        size_t       ctext_size = sizeof(ctext_buf);
-        rnp_result_t enc_result = pgp_sm2_encrypt(
-          &global_rng, ctext_buf, &ctext_size, key, sizeof(key), hashes[i], pub_ecc);
-        rnp_assert_int_equal(rstate, enc_result, RNP_SUCCESS);
+        ret = sm2_encrypt(&global_rng, &enc, key, sizeof(key), hashes[i], eckey);
+        rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);
 
         memset(decrypted, 0, sizeof(decrypted));
-        size_t        decrypted_size = sizeof(decrypted);
-        pgp_errcode_t dec_result =
-          pgp_sm2_decrypt(decrypted, &decrypted_size, ctext_buf, ctext_size, sec_ecc, pub_ecc);
-        rnp_assert_int_equal(rstate, dec_result, RNP_SUCCESS);
-
+        decrypted_size = sizeof(decrypted);
+        ret = sm2_decrypt(decrypted, &decrypted_size, &enc, eckey);
+        rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);
         rnp_assert_int_equal(rstate, decrypted_size, sizeof(key));
-        for (size_t i = 0; i != decrypted_size; ++i)
+        for (size_t i = 0; i < decrypted_size; ++i) {
             rnp_assert_int_equal(rstate, key[i], decrypted[i]);
+        }
     }
 
     pgp_seckey_free(sec_key);
@@ -688,7 +561,7 @@ test_dsa_roundtrip(void **state)
         size_t h_size = pgp_digest_length(keys[i].h);
         rnp_assert_int_equal(
           rstate, dsa_sign(&global_rng, &sig, message, h_size, key1), RNP_SUCCESS);
-        rnp_assert_int_equal(rstate, dsa_verify(message, h_size, &sig, key1), RNP_SUCCESS);
+        rnp_assert_int_equal(rstate, dsa_verify(&sig, message, h_size, key1), RNP_SUCCESS);
         pgp_seckey_free(&sec_key1);
     }
 }
@@ -732,11 +605,11 @@ test_dsa_verify_negative(void **state)
       rstate, dsa_sign(&global_rng, &sig, message, h_size, key1), RNP_SUCCESS);
     // wrong key used
     rnp_assert_int_equal(
-      rstate, dsa_verify(message, h_size, &sig, key2), RNP_ERROR_SIGNATURE_INVALID);
+      rstate, dsa_verify(&sig, message, h_size, key2), RNP_ERROR_SIGNATURE_INVALID);
     // different message
     message[0] = ~message[0];
     rnp_assert_int_equal(
-      rstate, dsa_verify(message, h_size, &sig, key1), RNP_ERROR_SIGNATURE_INVALID);
+      rstate, dsa_verify(&sig, message, h_size, key1), RNP_ERROR_SIGNATURE_INVALID);
     pgp_seckey_free(&sec_key1);
     pgp_seckey_free(&sec_key2);
 }

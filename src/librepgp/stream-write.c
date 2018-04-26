@@ -534,55 +534,35 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         break;
     }
     case PGP_PKA_SM2: {
-        size_t outlen = sizeof(pkey.material.sm2.m.mpi);
-        ret = pgp_sm2_encrypt(rnp_ctx_rng_handle(handler->ctx),
-                              pkey.material.sm2.m.mpi,
-                              &outlen,
-                              enckey,
-                              keylen + 3,
-                              PGP_HASH_SM3,
-                              &pubkey->key.ecc);
+        ret = sm2_encrypt(rnp_ctx_rng_handle(handler->ctx),
+                          &pkey.material.sm2,
+                          enckey,
+                          keylen + 3,
+                          PGP_HASH_SM3,
+                          &pubkey->key.ec);
         if (ret != RNP_SUCCESS) {
-            RNP_LOG("pgp_sm2_encrypt failed");
+            RNP_LOG("sm2_encrypt failed");
             goto finish;
         }
-        pkey.material.sm2.m.len = outlen;
         break;
     }
     case PGP_PKA_ECDH: {
         pgp_fingerprint_t fingerprint;
-        size_t            outlen = sizeof(pkey.material.ecdh.m);
-        bignum_t *        p;
 
         if ((ret = pgp_fingerprint(&fingerprint, pubkey))) {
             RNP_LOG("ECDH fingerprint calculation failed");
             goto finish;
         }
-        if (!(p = bn_new())) {
-            RNP_LOG("allocation failed");
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto finish;
-        }
-        ret = pgp_ecdh_encrypt_pkcs5(rnp_ctx_rng_handle(handler->ctx),
-                                     enckey,
-                                     keylen + 3,
-                                     pkey.material.ecdh.m,
-                                     &outlen,
-                                     p,
-                                     &pubkey->key.ecdh,
-                                     &fingerprint);
-
+        ret = ecdh_encrypt_pkcs5(rnp_ctx_rng_handle(handler->ctx),
+                                 &pkey.material.ecdh,
+                                 enckey,
+                                 keylen + 3,
+                                 &pubkey->key.ec,
+                                 &fingerprint);
         if (ret != RNP_SUCCESS) {
             RNP_LOG("ECDH encryption failed %d", ret);
-            bn_free(p);
             goto finish;
         }
-        pkey.material.ecdh.mlen = outlen;
-        if (!bn2mpi(p, &pkey.material.ecdh.p)) {
-            ret = RNP_ERROR_BAD_STATE;
-            goto finish;
-        }
-        bn_free(p);
         break;
     }
     case PGP_PKA_ELGAMAL: {

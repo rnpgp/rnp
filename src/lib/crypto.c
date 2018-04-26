@@ -110,25 +110,25 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         }
         break;
     case PGP_PKA_EDDSA:
-        if (!pgp_genkey_eddsa(rng, seckey, get_curve_desc(PGP_CURVE_ED25519)->bitlen)) {
+        if (eddsa_generate(
+              rng, &seckey->pubkey.key.ec, get_curve_desc(PGP_CURVE_ED25519)->bitlen)) {
             RNP_LOG("failed to generate EDDSA key");
             goto end;
         }
         break;
     case PGP_PKA_ECDH:
-        if (!set_ecdh_params(seckey, crypto->ecc.curve)) {
+        if (!ecdh_set_params(&seckey->pubkey.key.ec, crypto->ecc.curve)) {
             RNP_LOG("Unsupported curve [ID=%d]", crypto->ecc.curve);
             goto end;
         }
     /* FALLTHROUGH */
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-        if (pgp_genkey_ec_uncompressed(rng, seckey, seckey->pubkey.alg, crypto->ecc.curve) !=
-            RNP_SUCCESS) {
+        if (ec_generate(rng, &seckey->pubkey.key.ec, seckey->pubkey.alg, crypto->ecc.curve)) {
             RNP_LOG("failed to generate EC key");
             goto end;
         }
-        seckey->pubkey.key.ecc.curve = crypto->ecc.curve;
+        seckey->pubkey.key.ec.curve = crypto->ecc.curve;
         break;
     case PGP_PKA_ELGAMAL:
         if (elgamal_generate(rng, &seckey->pubkey.key.eg, crypto->elgamal.key_bitlen)) {
