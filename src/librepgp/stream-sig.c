@@ -475,39 +475,21 @@ signature_validate(pgp_signature_t *sig, pgp_pubkey_t *key, pgp_hash_t *hash, rn
     /* validate signature */
 
     switch (sig->palg) {
-    case PGP_PKA_DSA: {
-        ret = dsa_verify(hval, len, &sig->material.dsa, &key->key.dsa);
+    case PGP_PKA_DSA:
+        ret = dsa_verify(&sig->material.dsa, hval, len, &key->key.dsa);
         break;
-    }
-    case PGP_PKA_EDDSA: {
-        bignum_t *r = mpi2bn(&sig->material.ecc.r);
-        bignum_t *s = mpi2bn(&sig->material.ecc.s);
-        bool      res = pgp_eddsa_verify_hash(r, s, hval, len, &key->key.ecc);
-        ret = res ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
-        bn_free(r);
-        bn_free(s);
+    case PGP_PKA_EDDSA:
+        ret = eddsa_verify(&sig->material.ecc, hval, len, &key->key.ec);
         break;
-    }
-    case PGP_PKA_SM2: {
-        pgp_ecc_sig_t ecc = {.r = mpi2bn(&sig->material.ecc.r),
-                             .s = mpi2bn(&sig->material.ecc.s)};
-        ret = pgp_sm2_verify_hash(&ecc, hval, len, &key->key.ecc);
-        bn_free(ecc.r);
-        bn_free(ecc.s);
+    case PGP_PKA_SM2:
+        ret = sm2_verify(&sig->material.ecc, hval, len, &key->key.ec);
         break;
-    }
-    case PGP_PKA_RSA: {
+    case PGP_PKA_RSA:
         ret = rsa_verify_pkcs1(rng, &sig->material.rsa, sig->halg, hval, len, &key->key.rsa);
         break;
-    }
-    case PGP_PKA_ECDSA: {
-        pgp_ecc_sig_t ecc = {.r = mpi2bn(&sig->material.ecc.r),
-                             .s = mpi2bn(&sig->material.ecc.s)};
-        ret = pgp_ecdsa_verify_hash(&ecc, hval, len, &key->key.ecc);
-        bn_free(ecc.r);
-        bn_free(ecc.s);
+    case PGP_PKA_ECDSA:
+        ret = ecdsa_verify(&sig->material.ecc, hval, len, &key->key.ec);
         break;
-    }
     default:
         RNP_LOG("Unknown algorithm");
         ret = RNP_ERROR_BAD_PARAMETERS;
@@ -537,39 +519,21 @@ signature_calculate(pgp_signature_t *sig, pgp_seckey_t *seckey, pgp_hash_t *hash
     switch (sig->palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY: {
+    case PGP_PKA_RSA_SIGN_ONLY:
         ret = rsa_sign_pkcs1(
           rng, &sig->material.rsa, sig->halg, hval, hlen, &seckey->pubkey.key.rsa);
         if (ret) {
             RNP_LOG("rsa signing failed");
         }
         break;
-    }
-    case PGP_PKA_EDDSA: {
-        bignum_t *r = bn_new(), *s = bn_new();
-
-        if (!r || !s) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto eddsaend;
+    case PGP_PKA_EDDSA:
+        ret = eddsa_sign(rng, &sig->material.ecc, hval, hlen, &seckey->pubkey.key.ec);
+        if (ret) {
+            RNP_LOG("eddsa signing failed");
         }
-        if (pgp_eddsa_sign_hash(
-              rng, r, s, hval, hlen, &seckey->key.ecc, &seckey->pubkey.key.ecc) < 0) {
-            ret = RNP_ERROR_SIGNING_FAILED;
-            goto eddsaend;
-        }
-        if (!bn2mpi(r, &sig->material.ecc.r) || !bn2mpi(s, &sig->material.ecc.s)) {
-            ret = RNP_ERROR_BAD_STATE;
-            goto eddsaend;
-        }
-        ret = RNP_SUCCESS;
-    eddsaend:
-        bn_free(r);
-        bn_free(s);
         break;
-    }
     case PGP_PKA_SM2: {
-        pgp_ecc_sig_t          eccsig = {NULL, NULL};
-        const ec_curve_desc_t *curve = get_curve_desc(seckey->pubkey.key.ecc.curve);
+        const ec_curve_desc_t *curve = get_curve_desc(seckey->pubkey.key.ec.curve);
 
         if (!curve) {
             RNP_LOG("Unknown curve");
@@ -582,37 +546,25 @@ signature_calculate(pgp_signature_t *sig, pgp_seckey_t *seckey, pgp_hash_t *hash
             ret = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
-        if (pgp_sm2_sign_hash(
-              rng, &eccsig, hval, hlen, &seckey->key.ecc, &seckey->pubkey.key.ecc)) {
+        ret = sm2_sign(rng, &sig->material.ecc, hval, hlen, &seckey->pubkey.key.ec);
+        if (ret) {
             RNP_LOG("SM2 signing failed");
-            ret = RNP_ERROR_SIGNING_FAILED;
-            break;
         }
-        if (!bn2mpi(eccsig.r, &sig->material.ecc.r) ||
-            !bn2mpi(eccsig.s, &sig->material.ecc.s)) {
-            ret = RNP_ERROR_BAD_STATE;
-        } else {
-            ret = RNP_SUCCESS;
-        }
-        bn_free(eccsig.r);
-        bn_free(eccsig.s);
         break;
     }
-    case PGP_PKA_DSA: {
+    case PGP_PKA_DSA:
         ret = dsa_sign(rng, &sig->material.dsa, hval, hlen, &seckey->pubkey.key.dsa);
         if (ret != RNP_SUCCESS) {
             RNP_LOG("DSA signing failed");
         }
         break;
-    }
     /*
      * ECDH is signed with ECDSA. This must be changed when ECDH will support
      * X25519, but I need to check how it should be done exactly.
      */
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA: {
-        pgp_ecc_sig_t          sigval = {NULL, NULL};
-        const ec_curve_desc_t *curve = get_curve_desc(seckey->pubkey.key.ecc.curve);
+        const ec_curve_desc_t *curve = get_curve_desc(seckey->pubkey.key.ec.curve);
 
         if (!curve) {
             RNP_LOG("Unknown curve");
@@ -625,21 +577,11 @@ signature_calculate(pgp_signature_t *sig, pgp_seckey_t *seckey, pgp_hash_t *hash
             ret = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
-        if (pgp_ecdsa_sign_hash(
-              rng, &sigval, hval, hlen, &seckey->key.ecc, &seckey->pubkey.key.ecc)) {
+        ret = ecdsa_sign(rng, &sig->material.ecc, hval, hlen, &seckey->pubkey.key.ec);
+        if (ret) {
             RNP_LOG("ECDSA signing failed");
-            ret = RNP_ERROR_SIGNING_FAILED;
             break;
         }
-        if (!bn2mpi(sigval.r, &sig->material.ecc.r) ||
-            !bn2mpi(sigval.s, &sig->material.ecc.s)) {
-            ret = RNP_ERROR_BAD_STATE;
-        } else {
-            ret = RNP_SUCCESS;
-        }
-
-        bn_free(sigval.r);
-        bn_free(sigval.s);
         break;
     }
     default:

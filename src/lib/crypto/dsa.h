@@ -86,9 +86,9 @@ rnp_result_t dsa_sign(rng_t *              rng,
  *          RNP_ERROR_GENERIC internal error
  *          RNP_ERROR_SIGNATURE_INVALID signature is invalid
  */
-rnp_result_t dsa_verify(const uint8_t *            hash,
+rnp_result_t dsa_verify(const pgp_dsa_signature_t *sig,
+                        const uint8_t *            hash,
                         size_t                     hash_len,
-                        const pgp_dsa_signature_t *sig,
                         const pgp_dsa_key_t *      key);
 
 /*

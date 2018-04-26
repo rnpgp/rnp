@@ -34,23 +34,20 @@
 #include "types.h"
 
 /*
-* curve_len must be 255 currently (for Ed25519)
-* If Ed448 was supported in the future curve_len=448 would also be allowed.
-*/
-bool pgp_genkey_eddsa(rng_t *rng, pgp_seckey_t *seckey, size_t numbits);
+ * curve_len must be 255 currently (for Ed25519)
+ * If Ed448 was supported in the future curve_len=448 would also be allowed.
+ */
+rnp_result_t eddsa_generate(rng_t *rng, pgp_ec_key_t *key, size_t numbits);
 
-int pgp_eddsa_verify_hash(const bignum_t *        r,
-                          const bignum_t *        s,
-                          const uint8_t *         hash,
-                          size_t                  hash_len,
-                          const pgp_ecc_pubkey_t *pubkey);
+rnp_result_t eddsa_verify(const pgp_ec_signature_t *sig,
+                          const uint8_t *           hash,
+                          size_t                    hash_len,
+                          const pgp_ec_key_t *      key);
 
-int pgp_eddsa_sign_hash(rng_t *        rng,
-                        bignum_t *     r,
-                        bignum_t *     s,
-                        const uint8_t *hash,
-                        size_t         hash_len,
-                        const pgp_ecc_seckey_t *,
-                        const pgp_ecc_pubkey_t *);
+rnp_result_t eddsa_sign(rng_t *             rng,
+                        pgp_ec_signature_t *sig,
+                        const uint8_t *     hash,
+                        size_t              hash_len,
+                        const pgp_ec_key_t *key);
 
 #endif

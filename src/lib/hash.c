@@ -329,7 +329,7 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_pubkey_t *pubkey)
 
     pgp_hash_alg_t hash_min;
     if (pubkey->alg == PGP_PKA_ECDSA) {
-        hash_min = ecdsa_get_min_hash(pubkey->key.ecc.curve);
+        hash_min = ecdsa_get_min_hash(pubkey->key.ec.curve);
     } else {
         hash_min = dsa_get_min_hash(mpi_bits(&pubkey->key.dsa.q));
     }

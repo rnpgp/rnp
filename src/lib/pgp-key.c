@@ -765,14 +765,13 @@ pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider)
         // this shouldn't really be necessary, but just in case
         pgp_seckey_free_secret_mpis(&key->key.seckey);
         // copy the decrypted mpis into the pgp_key_t
-        key->key.seckey.key = decrypted_seckey->key;
         key->key.seckey.pubkey.key = decrypted_seckey->pubkey.key;
         key->key.seckey.encrypted = false;
 
         // zero out the key material union in the decrypted seckey, since
         // ownership has changed
         pgp_seckey_t nullkey = {{0}};
-        decrypted_seckey->key = nullkey.key;
+        decrypted_seckey->pubkey.key = nullkey.pubkey.key;
         // now free the rest of the internal seckey
         pgp_seckey_free(decrypted_seckey);
         // free the actual structure

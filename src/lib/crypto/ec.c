@@ -63,7 +63,9 @@ static const ec_curve_desc_t ec_curves[] = {
 };
 
 static pgp_map_t ec_algo_to_botan[] = {
-  {PGP_PKA_ECDH, "ECDH"}, {PGP_PKA_ECDSA, "ECDSA"}, {PGP_PKA_SM2, "SM2_Sig"},
+  {PGP_PKA_ECDH, "ECDH"},
+  {PGP_PKA_ECDSA, "ECDSA"},
+  {PGP_PKA_SM2, "SM2_Sig"},
 };
 
 pgp_curve_t
@@ -97,24 +99,11 @@ get_curve_desc(const pgp_curve_t curve_id)
     return (curve_id < PGP_CURVE_MAX && curve_id > 0) ? &ec_curves[curve_id] : NULL;
 }
 
-bool
-ec_serialize_pubkey(pgp_output_t *output, const pgp_ecc_pubkey_t *pubkey)
-{
-    const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
-    if (!curve) {
-        return false;
-    }
-
-    return pgp_write_scalar(output, curve->OIDhex_len, 1) &&
-           pgp_write(output, curve->OIDhex, curve->OIDhex_len) &&
-           pgp_write_mpi(output, pubkey->point);
-}
-
 rnp_result_t
-pgp_genkey_ec_uncompressed(rng_t *                rng,
-                           pgp_seckey_t *         seckey,
-                           const pgp_pubkey_alg_t alg_id,
-                           const pgp_curve_t      curve)
+ec_generate(rng_t *                rng,
+            pgp_ec_key_t *         key,
+            const pgp_pubkey_alg_t alg_id,
+            const pgp_curve_t      curve)
 {
     /**
      * Keeps "0x04 || x || y"
@@ -122,11 +111,11 @@ pgp_genkey_ec_uncompressed(rng_t *                rng,
      *
      * P-521 is biggest supported curve
      */
-    uint8_t         point_bytes[BITS_TO_BYTES(MAX_CURVE_BIT_SIZE) * 2 + 1] = {0};
     botan_privkey_t pr_key = NULL;
     botan_pubkey_t  pu_key = NULL;
-    bignum_t *      public_x = NULL;
-    bignum_t *      public_y = NULL;
+    bignum_t *      px = NULL;
+    bignum_t *      py = NULL;
+    bignum_t *      x = NULL;
     rnp_result_t    ret = RNP_ERROR_KEY_GENERATION;
 
     const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
@@ -149,32 +138,32 @@ pgp_genkey_ec_uncompressed(rng_t *                rng,
     }
 
     // Crash if seckey is null. It's clean and easy to debug design
-    public_x = bn_new();
-    public_y = bn_new();
-    seckey->key.ecc.x = bn_new();
+    px = bn_new();
+    py = bn_new();
+    x = bn_new();
 
-    if (!public_x || !public_y || !seckey->key.ecc.x) {
+    if (!px || !py || !x) {
         RNP_LOG("Allocation failed");
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto end;
     }
 
-    if (botan_pubkey_get_field(public_x->mp, pu_key, "public_x")) {
+    if (botan_pubkey_get_field(BN_HANDLE_PTR(px), pu_key, "public_x")) {
         goto end;
     }
 
-    if (botan_pubkey_get_field(public_y->mp, pu_key, "public_y")) {
+    if (botan_pubkey_get_field(BN_HANDLE_PTR(py), pu_key, "public_y")) {
         goto end;
     }
 
-    if (botan_privkey_get_field(seckey->key.ecc.x->mp, pr_key, "x")) {
+    if (botan_privkey_get_field(BN_HANDLE_PTR(x), pr_key, "x")) {
         goto end;
     }
 
     size_t x_bytes;
     size_t y_bytes;
-    (void) bn_num_bytes(public_x, &x_bytes); // Can't fail
-    (void) bn_num_bytes(public_y, &y_bytes);
+    (void) bn_num_bytes(px, &x_bytes); // Can't fail
+    (void) bn_num_bytes(py, &y_bytes);
 
     // Safety check
     if ((x_bytes > filed_byte_size) || (y_bytes > filed_byte_size)) {
@@ -192,27 +181,19 @@ pgp_genkey_ec_uncompressed(rng_t *                rng,
      * Note: Generated pk/sk may not always have exact number of bytes
      *       which is important when converting to octet-string
      */
-    point_bytes[0] = 0x04;
-    bn_bn2bin(public_x, &point_bytes[1 + filed_byte_size - x_bytes]);
-    bn_bn2bin(public_y, &point_bytes[1 + filed_byte_size + (filed_byte_size - y_bytes)]);
-
-    seckey->pubkey.key.ecc.point = bn_bin2bn(point_bytes, (2 * filed_byte_size) + 1, NULL);
-    if (!seckey->pubkey.key.ecc.point) {
-        goto end;
-    }
-
+    memset(key->p.mpi, 0, sizeof(key->p.mpi));
+    key->p.mpi[0] = 0x04;
+    bn_bn2bin(px, &key->p.mpi[1 + filed_byte_size - x_bytes]);
+    bn_bn2bin(py, &key->p.mpi[1 + filed_byte_size + (filed_byte_size - y_bytes)]);
+    key->p.len = 2 * filed_byte_size + 1;
+    /* secret key value */
+    bn2mpi(x, &key->x);
     ret = RNP_SUCCESS;
-
 end:
     botan_privkey_destroy(pr_key);
     botan_pubkey_destroy(pu_key);
-    bn_free(public_x);
-    bn_free(public_y);
-
-    if (RNP_SUCCESS != ret) {
-        RNP_LOG("EC key generation failed");
-        pgp_seckey_free(seckey);
-    }
-
+    bn_free(px);
+    bn_free(py);
+    bn_free(x);
     return ret;
 }

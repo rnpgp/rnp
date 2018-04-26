@@ -48,27 +48,16 @@ typedef struct pgp_ecdh_encrypted_t {
     size_t    mlen;
 } pgp_ecdh_encrypted_t;
 
-
-/** Structure to hold an ECDH public key params.
- *
- * \see RFC 6637
- */
-typedef struct pgp_ecdh_pubkey_t {
-    pgp_ecc_pubkey_t ec;
-    pgp_hash_alg_t   kdf_hash_alg; /* Hash used by kdf */
-    pgp_symm_alg_t   key_wrap_alg; /* Symmetric algorithm used to wrap KEK*/
-} pgp_ecdh_pubkey_t;
-
 /*
  * @brief   Sets hash algorithm and key wrapping algo
  *          based on curve_id
  *
- * @param   seckey[out] private part of the key
+ * @param   key   ec key to set parameters for
  * @param   curve       underlying ECC curve ID
  *
  * @returns false if curve is not supported, otherwise true
  */
-bool set_ecdh_params(pgp_seckey_t *seckey, pgp_curve_t curve_id);
+bool ecdh_set_params(pgp_ec_key_t *key, pgp_curve_t curve_id);
 
 /*
  * Encrypts session key with a KEK agreed during ECDH as specified in
@@ -93,14 +82,12 @@ bool set_ecdh_params(pgp_seckey_t *seckey, pgp_curve_t curve_id);
  * @return RNP_ERROR_SHORT_BUFFER `wrapped_key_len' to small to store result
  * @return RNP_ERROR_GENERIC implementation error
  */
-rnp_result_t pgp_ecdh_encrypt_pkcs5(rng_t *                  rng,
-                                    const uint8_t *const     session_key,
-                                    size_t                   session_key_len,
-                                    uint8_t *                wrapped_key,
-                                    size_t *                 wrapped_key_len,
-                                    bignum_t *               ephemeral_key,
-                                    const pgp_ecdh_pubkey_t *pubkey,
-                                    const pgp_fingerprint_t *fingerprint);
+rnp_result_t ecdh_encrypt_pkcs5(rng_t *                  rng,
+                                pgp_ecdh_encrypted_t *   out,
+                                const uint8_t *const     in,
+                                size_t                   in_len,
+                                const pgp_ec_key_t *     key,
+                                const pgp_fingerprint_t *fingerprint);
 
 /*
  * Decrypts session key with a KEK agreed during ECDH as specified in
@@ -122,13 +109,10 @@ rnp_result_t pgp_ecdh_encrypt_pkcs5(rng_t *                  rng,
  * @return RNP_ERROR_SHORT_BUFFER `session_key_len' to small to store result
  * @return RNP_ERROR_GENERIC decryption failed or implementation error
  */
-rnp_result_t pgp_ecdh_decrypt_pkcs5(uint8_t *                session_key,
-                                    size_t *                 session_key_len,
-                                    uint8_t *                wrapped_key,
-                                    size_t                   wrapped_key_len,
-                                    const bignum_t *         ephemeral_key,
-                                    const pgp_ecc_seckey_t * seckey,
-                                    const pgp_ecdh_pubkey_t *pubkey,
-                                    const pgp_fingerprint_t *fingerprint);
+rnp_result_t ecdh_decrypt_pkcs5(uint8_t *                   out,
+                                size_t *                    out_len,
+                                const pgp_ecdh_encrypted_t *in,
+                                const pgp_ec_key_t *        key,
+                                const pgp_fingerprint_t *   fingerprint);
 
 #endif // ECDH_H_

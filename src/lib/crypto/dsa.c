@@ -159,9 +159,9 @@ end:
 }
 
 rnp_result_t
-dsa_verify(const uint8_t *            hash,
+dsa_verify(const pgp_dsa_signature_t *sig,
+           const uint8_t *            hash,
            size_t                     hash_len,
-           const pgp_dsa_signature_t *sig,
            const pgp_dsa_key_t *      key)
 {
     botan_pubkey_t       dsa_key = NULL;

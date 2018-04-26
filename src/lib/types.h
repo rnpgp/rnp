@@ -205,12 +205,10 @@ typedef struct pgp_pubkey_t {
     pgp_pubkey_alg_t alg;        /* Public Key Algorithm type */
     union {
         pgp_dsa_key_t dsa; /* A DSA key */
-        pgp_rsa_key_t rsa; /* An RSA public key */
+        pgp_rsa_key_t rsa; /* A RSA public key */
         pgp_eg_key_t  eg;  /* An ElGamal public key */
-        /*TODO: This field is common to ECC signing algorithms only. Change it to ec_sign*/
-        pgp_ecc_pubkey_t  ecc;  /* An ECC public key */
-        pgp_ecdh_pubkey_t ecdh; /* Public Key Parameters for ECDH */
-    } key;                      /* Public Key Parameters */
+        pgp_ec_key_t  ec;  /* A ECC/ECDH/EdDSA public key */
+    } key;                 /* Public Key Parameters */
 } pgp_pubkey_t;
 
 typedef struct pgp_key_t pgp_key_t;
@@ -246,16 +244,7 @@ typedef struct pgp_seckey_t {
      * If true, the key union does not contain any valid secret
      * key material and must be decrypted prior to use.
      */
-    bool encrypted;
-
-    /*************************************************************
-     * Note: Consider all fields below to be invalid/unpopulated *
-     * unless this seckey has been decrypted.                    *
-     *************************************************************/
-    union {
-        pgp_ecc_seckey_t ecc;
-    } key;
-
+    bool     encrypted;
     unsigned checksum;
     uint8_t  checkhash[PGP_CHECKHASH_SIZE];
 } pgp_seckey_t;
@@ -310,7 +299,7 @@ typedef struct pgp_sig_info_t {
         pgp_rsa_signature_t rsa;     /* A RSA Signature */
         pgp_dsa_signature_t dsa;     /* A DSA Signature */
         pgp_eg_signature_t  eg;      /* deprecated */
-        pgp_ecc_sig_t       ecc;     /* An ECC signature - ECDSA, SM2, or EdDSA */
+        pgp_ec_signature_t  ec;      /* An ECC signature - ECDSA, SM2, or EdDSA */
         pgp_data_t          unknown; /* private or experimental */
     } sig;                           /* signature params */
     size_t   v4_hashlen;

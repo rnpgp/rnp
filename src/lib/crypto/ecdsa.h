@@ -30,17 +30,16 @@
 #include <stdint.h>
 #include "ec.h"
 
-rnp_result_t pgp_ecdsa_sign_hash(rng_t *                 rng,
-                                 pgp_ecc_sig_t *         sign,
-                                 const uint8_t *         hashbuf,
-                                 size_t                  hash_len,
-                                 const pgp_ecc_seckey_t *prvkey,
-                                 const pgp_ecc_pubkey_t *pubkey);
+rnp_result_t ecdsa_sign(rng_t *             rng,
+                        pgp_ec_signature_t *sig,
+                        const uint8_t *     hash,
+                        size_t              hash_len,
+                        const pgp_ec_key_t *key);
 
-rnp_result_t pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
-                                   const uint8_t *         hash,
-                                   size_t                  hash_len,
-                                   const pgp_ecc_pubkey_t *pubkey);
+rnp_result_t ecdsa_verify(const pgp_ec_signature_t *sig,
+                          const uint8_t *           hash,
+                          size_t                    hash_len,
+                          const pgp_ec_key_t *      key);
 
 /*
  * @brief   Returns hash wich should be used with the curve

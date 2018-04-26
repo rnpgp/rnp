@@ -36,40 +36,39 @@
 #include "crypto.h"
 
 rnp_result_t
-pgp_ecdsa_sign_hash(rng_t *                 rng,
-                    pgp_ecc_sig_t *         sign,
-                    const uint8_t *         hashbuf,
-                    size_t                  hash_len,
-                    const pgp_ecc_seckey_t *seckey,
-                    const pgp_ecc_pubkey_t *pubkey)
+ecdsa_sign(rng_t *             rng,
+           pgp_ec_signature_t *sig,
+           const uint8_t *     hash,
+           size_t              hash_len,
+           const pgp_ec_key_t *key)
 {
     botan_pk_op_sign_t     signer = NULL;
-    botan_privkey_t        key = NULL;
-    rnp_result_t           ret = PGP_E_FAIL;
+    botan_privkey_t        b_key = NULL;
+    rnp_result_t           ret = RNP_ERROR_GENERIC;
     uint8_t                out_buf[2 * MAX_CURVE_BYTELEN] = {0};
-    const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
+    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
+    bignum_t *             x = NULL;
 
     if (!curve) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (sign->r || sign->s) {
-        // Caller must not allocate r and s
-        return RNP_ERROR_BAD_PARAMETERS;
+    if (!(x = mpi2bn(&key->x))) {
+        goto end;
     }
 
-    if (botan_privkey_load_ecdsa(&key, seckey->x->mp, curve->botan_name)) {
+    if (botan_privkey_load_ecdsa(&b_key, BN_HANDLE_PTR(x), curve->botan_name)) {
         RNP_LOG("Can't load private key");
-        return RNP_ERROR_GENERIC;
+        goto end;
     }
 
-    if (botan_pk_op_sign_create(&signer, key, "Raw", 0)) {
+    if (botan_pk_op_sign_create(&signer, b_key, "Raw", 0)) {
         goto end;
     }
 
     const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
     const size_t leftmost_bytes = hash_len > curve_order ? curve_order : hash_len;
-    if (botan_pk_op_sign_update(signer, hashbuf, leftmost_bytes)) {
+    if (botan_pk_op_sign_update(signer, hash, leftmost_bytes)) {
         goto end;
     }
 
@@ -80,31 +79,22 @@ pgp_ecdsa_sign_hash(rng_t *                 rng,
     }
 
     // Allocate memory and copy results
-    sign->r = bn_bin2bn(out_buf, curve_order, sign->r);
-    sign->s = bn_bin2bn(out_buf + curve_order, curve_order, sign->s);
-    if (!sign->r || !sign->s) {
-        goto end;
+    if (mem2mpi(&sig->r, out_buf, curve_order) &&
+        mem2mpi(&sig->s, out_buf + curve_order, curve_order)) {
+        ret = RNP_SUCCESS;
     }
-
-    // All good now
-    ret = RNP_SUCCESS;
-
 end:
-    if (ret != RNP_SUCCESS) {
-        bn_clear_free(sign->r);
-        bn_clear_free(sign->s);
-    }
-    botan_privkey_destroy(key);
+    bn_free(x);
+    botan_privkey_destroy(b_key);
     botan_pk_op_sign_destroy(signer);
-
     return ret;
 }
 
 rnp_result_t
-pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
-                      const uint8_t *         hash,
-                      size_t                  hash_len,
-                      const pgp_ecc_pubkey_t *pubkey)
+ecdsa_verify(const pgp_ec_signature_t *sig,
+             const uint8_t *           hash,
+             size_t                    hash_len,
+             const pgp_ec_key_t *      key)
 {
     botan_mp_t           public_x = NULL;
     botan_mp_t           public_y = NULL;
@@ -115,18 +105,19 @@ pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
     uint8_t              point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
     size_t               r_blen, s_blen;
 
-    const ec_curve_desc_t *curve = get_curve_desc(pubkey->curve);
-
+    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
     if (!curve) {
+        RNP_LOG("unknown curve");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (!bn_num_bytes(pubkey->point, &r_blen) || (r_blen > sizeof(point_bytes)) ||
-        bn_bn2bin(pubkey->point, point_bytes) || (point_bytes[0] != 0x04)) {
+    r_blen = mpi_bytes(&key->p);
+    if (!r_blen || (r_blen > sizeof(point_bytes)) || (key->p.mpi[0] != 0x04)) {
         RNP_LOG("Failed to load public key");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto end;
     }
+    mpi2mem(&key->p, point_bytes);
 
     const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
     if (botan_mp_init(&public_x) || botan_mp_init(&public_y) ||
@@ -145,26 +136,25 @@ pgp_ecdsa_verify_hash(const pgp_ecc_sig_t *   sign,
     }
 
     const size_t leftmost_bytes = hash_len > curve_order ? curve_order : hash_len;
-    if (botan_pk_op_verify_update(
-          verifier, hash, leftmost_bytes)) {
+    if (botan_pk_op_verify_update(verifier, hash, leftmost_bytes)) {
         goto end;
     }
 
-    if (!bn_num_bytes(sign->r, &r_blen) || (r_blen > curve_order) ||
-        !bn_num_bytes(sign->s, &s_blen) || (s_blen > curve_order) ||
+    r_blen = mpi_bytes(&sig->r);
+    s_blen = mpi_bytes(&sig->s);
+    if ((r_blen > curve_order) || (s_blen > curve_order) ||
         (curve_order > MAX_CURVE_BYTELEN)) {
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto end;
     }
 
     // Both can't fail
-    (void) bn_bn2bin(sign->r, &sign_buf[curve_order - r_blen]);
-    (void) bn_bn2bin(sign->s, &sign_buf[curve_order + curve_order - s_blen]);
+    mpi2mem(&sig->r, &sign_buf[curve_order - r_blen]);
+    mpi2mem(&sig->s, &sign_buf[curve_order + curve_order - s_blen]);
 
-    ret = botan_pk_op_verify_finish(verifier, sign_buf, curve_order * 2) ?
-            RNP_ERROR_SIGNATURE_INVALID :
-            RNP_SUCCESS;
-
+    if (!botan_pk_op_verify_finish(verifier, sign_buf, curve_order * 2)) {
+        ret = RNP_SUCCESS;
+    }
 end:
     botan_mp_destroy(public_x);
     botan_mp_destroy(public_y);

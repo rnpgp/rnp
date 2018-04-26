@@ -1317,13 +1317,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     case PGP_PKA_SM2:
         declen = sizeof(decbuf);
-        err = pgp_sm2_decrypt(decbuf,
-                              &declen,
-                              sesskey->material.sm2.m.mpi,
-                              sesskey->material.sm2.m.len,
-                              &seckey->key.ecc,
-                              &seckey->pubkey.key.ecc);
-
+        err = sm2_decrypt(decbuf, &declen, &sesskey->material.sm2, &seckey->pubkey.key.ec);
         if (err != RNP_SUCCESS) {
             RNP_LOG("SM2 decryption failure, error %x", (int) err);
             return false;
@@ -1339,24 +1333,13 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     }
     case PGP_PKA_ECDH: {
-        bignum_t *ecdh_p;
-
-        declen = sizeof(decbuf);
         if (pgp_fingerprint(&fingerprint, &seckey->pubkey)) {
             RNP_LOG("ECDH fingerprint calculation failed");
             return false;
         }
-        ecdh_p = mpi2bn(&sesskey->material.ecdh.p);
-        err = pgp_ecdh_decrypt_pkcs5(decbuf,
-                                     &declen,
-                                     sesskey->material.ecdh.m,
-                                     sesskey->material.ecdh.mlen,
-                                     ecdh_p,
-                                     &seckey->key.ecc,
-                                     &seckey->pubkey.key.ecdh,
-                                     &fingerprint);
-        bn_free(ecdh_p);
-
+        declen = sizeof(decbuf);
+        err = ecdh_decrypt_pkcs5(
+          decbuf, &declen, &sesskey->material.ecdh, &seckey->pubkey.key.ec, &fingerprint);
         if (err != RNP_SUCCESS) {
             RNP_LOG("ECDH decryption error %u", err);
             return false;
