@@ -79,13 +79,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <botan/ffi.h>
-
+#include <rnp/rnp_def.h>
+#include "elgamal.h"
 #include "utils.h"
-
-#include "crypto/elgamal.h"
-#include "crypto/bn.h"
-#include "crypto/dsa.h"
-#include "crypto.h"
 
 // Max supported key byte size
 #define ELGAMAL_MAX_P_BYTELEN BITS_TO_BYTES(DSA_MAX_P_BITLEN)

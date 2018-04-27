@@ -88,7 +88,6 @@ __RCSID("$NetBSD: rnp.c,v 1.98 2016/06/28 16:34:40 christos Exp $");
 #include "memory.h"
 #include "utils.h"
 #include "crypto.h"
-#include "crypto/bn.h"
 #include "crypto/s2k.h"
 #include "defs.h"
 #include <rnp/rnp_def.h>

@@ -25,12 +25,12 @@
  */
 
 #include <string.h>
-#include <assert.h>
 #include <botan/ffi.h>
-#include "ec.h"
 #include "ecdh.h"
-#include "ecdsa.h"
-#include "crypto.h"
+#include "hash.h"
+#include "symmetric.h"
+#include "types.h"
+#include "utils.h"
 
 #define MAX_SP800_56A_OTHER_INFO 54
 // Keys up to 312 bits (+1 bytes of PKCS5 padding)

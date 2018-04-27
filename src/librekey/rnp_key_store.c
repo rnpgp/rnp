@@ -52,7 +52,6 @@
 #include "key_store_g10.h"
 
 #include "pgp-key.h"
-#include "crypto/bn.h"
 #include "fingerprint.h"
 #include "hash.h"
 

@@ -22,13 +22,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include "config.h"
 #include <stdlib.h>
+#include "config.h"
 #include <botan/ffi.h>
-
-#include "hash.h"
-#include "crypto.h"
 #include "crypto/bn.h"
+#include "hash.h"
 
 #ifndef USE_ARG
 #define USE_ARG(x) /*LINTED*/ (void) &x

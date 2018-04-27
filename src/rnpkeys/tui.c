@@ -1,7 +1,6 @@
 #include <stdbool.h>
 #include "crypto.h"
-#include "crypto/ec.h"
-#include "crypto/ecdsa.h"
+#include "crypto/common.h"
 #include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
 

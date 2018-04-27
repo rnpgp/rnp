@@ -32,7 +32,6 @@
 #define RNP_ELG_H_
 
 #include <stdint.h>
-#include "crypto/bn.h"
 #include "crypto/rng.h"
 #include "crypto/mpi.h"
 

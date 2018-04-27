@@ -25,9 +25,9 @@
  */
 
 #include <botan/ffi.h>
-
 #include "ec.h"
-#include "writer.h"
+#include "types.h"
+#include "utils.h"
 
 /**
  * EC Curves definition used by implementation

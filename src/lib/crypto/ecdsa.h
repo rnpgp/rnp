@@ -27,8 +27,7 @@
 #ifndef ECDSA_H_
 #define ECDSA_H_
 
-#include <stdint.h>
-#include "ec.h"
+#include "crypto/ec.h"
 
 rnp_result_t ecdsa_sign(rng_t *             rng,
                         pgp_ec_signature_t *sig,

@@ -34,7 +34,6 @@
 #include <librepgp/packet-parse.h>
 
 #include "crypto.h"
-#include "crypto/ecdsa.h"
 #include "pgp-key.h"
 #include "memory.h"
 #include "defaults.h"
