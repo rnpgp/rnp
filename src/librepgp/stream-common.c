@@ -25,23 +25,22 @@
  */
 
 #include "config.h"
-#include "stream-common.h"
-#include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <stdarg.h>
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
-#include <stdarg.h>
 #include <rnp/rnp_def.h>
+#include "stream-common.h"
 #include "defs.h"
 #include "types.h"
-#include "symmetric.h"
 #include "utils.h"
 
 ssize_t

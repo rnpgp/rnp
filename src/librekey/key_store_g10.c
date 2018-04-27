@@ -35,7 +35,7 @@
 #include "key_store_g10.h"
 
 #include "crypto/s2k.h"
-#include "symmetric.h"
+#include "crypto/symmetric.h"
 #include "writer.h"
 #include "pgp-key.h"
 

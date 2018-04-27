@@ -25,27 +25,27 @@
  */
 
 #include "config.h"
-#include "stream-def.h"
-#include "stream-dump.h"
-#include "stream-armor.h"
-#include "stream-packet.h"
-#include "stream-parse.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include "stream-def.h"
+#include "stream-dump.h"
+#include "stream-armor.h"
+#include "stream-packet.h"
+#include "stream-parse.h"
 #include "defs.h"
 #include "types.h"
 #include "ctype.h"
-#include "symmetric.h"
+#include "crypto/symmetric.h"
+#include "crypto/s2k.h"
 #include "fingerprint.h"
 #include "pgp-key.h"
 #include "list.h"
 #include "packet-parse.h"
 #include "crypto.h"
-#include "crypto/s2k.h"
 #include "utils.h"
 
 static pgp_map_t sig_type_map[] = {

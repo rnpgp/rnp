@@ -33,7 +33,7 @@
 #include <rnp/rnp_def.h>
 #include "defs.h"
 #include "types.h"
-#include "symmetric.h"
+#include "crypto/symmetric.h"
 #include "crypto/s2k.h"
 #include "stream-packet.h"
 #include "utils.h"

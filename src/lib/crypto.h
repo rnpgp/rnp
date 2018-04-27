@@ -63,7 +63,7 @@
 
 #include "hash.h"
 #include "memory.h"
-#include "symmetric.h"
+#include "crypto/symmetric.h"
 #include "crypto/rng.h"
 #include <rekey/rnp_key_store.h>
 

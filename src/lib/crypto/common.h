@@ -39,5 +39,7 @@
 #include "ecdsa.h"
 #include "sm2.h"
 #include "eddsa.h"
+/* symmetric crypto */
+#include "symmetric.h"
 
 #endif // RNP_CRYPTO_COMMON_H_

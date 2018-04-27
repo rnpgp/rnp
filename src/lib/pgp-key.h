@@ -57,10 +57,10 @@
 #include "pass-provider.h"
 #include <repgp/repgp.h>
 #include <rekey/rnp_key_store.h>
+#include "crypto/symmetric.h"
 #include "memory.h"
 #include "types.h"
 #include "defs.h"
-#include "symmetric.h"
 
 /* describes a user's key */
 struct pgp_key_t {

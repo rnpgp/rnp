@@ -25,13 +25,6 @@
  */
 
 #include "config.h"
-#include "stream-def.h"
-#include "stream-write.h"
-#include "stream-packet.h"
-#include "stream-armor.h"
-#include "stream-sig.h"
-#include "list.h"
-#include "utils.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -43,20 +36,26 @@
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
-#include <rnp/rnp_def.h>
-#include "pgp-key.h"
-#include "fingerprint.h"
-#include "defs.h"
-#include "types.h"
-#include "symmetric.h"
-#include "crypto/common.h"
-#include "crypto.h"
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
 #endif
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
 #endif
+#include <rnp/rnp_def.h>
+#include "stream-def.h"
+#include "stream-write.h"
+#include "stream-packet.h"
+#include "stream-armor.h"
+#include "stream-sig.h"
+#include "list.h"
+#include "utils.h"
+#include "pgp-key.h"
+#include "fingerprint.h"
+#include "defs.h"
+#include "types.h"
+#include "crypto/common.h"
+#include "crypto.h"
 
 /* 8192 bytes, as GnuPG */
 #define PGP_PARTIAL_PKT_SIZE_BITS (13)

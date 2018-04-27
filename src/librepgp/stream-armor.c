@@ -25,20 +25,16 @@
  */
 
 #include "config.h"
-#include "stream-def.h"
-#include "stream-armor.h"
-#include "stream-packet.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <rnp/rnp_def.h>
-
-#include "config.h"
+#include "stream-def.h"
 #include "stream-armor.h"
+#include "stream-packet.h"
 #include "defs.h"
 #include "types.h"
-#include "symmetric.h"
 #include "utils.h"
 #include "hash.h"
 

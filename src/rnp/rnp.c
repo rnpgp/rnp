@@ -32,7 +32,12 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdbool.h>
 #include <assert.h>
 #include <time.h>
 #include <errno.h>
@@ -41,13 +46,7 @@
 #include <rnp/rnp.h>
 #include <rnp/rnp_sdk.h>
 #include "rnpcfg.h"
-#include "symmetric.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <stdbool.h>
+#include "crypto/symmetric.h"
 #include "rnpcfg.h"
 #include <rekey/rnp_key_store.h>
 #include "pgp-key.h"
