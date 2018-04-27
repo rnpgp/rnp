@@ -696,7 +696,7 @@ rnp_detect_key_format(const uint8_t buf[], size_t buf_len, char **format)
         return RNP_ERROR_NULL_POINTER;
     }
     if (!buf_len) {
-        return RNP_ERROR_BAD_PARAMETERS;
+        return RNP_ERROR_SHORT_BUFFER;
     }
 
     *format = NULL;
@@ -845,6 +845,7 @@ do_load_keys(rnp_ffi_t ffi, rnp_input_t input, const char *format, key_type_t ke
     tmp_store = rnp_key_store_new(format, "");
     if (!tmp_store) {
         // TODO: could also be out of mem
+        FFI_LOG(ffi, "Failed to create key store of format: %s", format);
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto done;
     }
@@ -965,6 +966,7 @@ do_save_keys(rnp_ffi_t ffi, rnp_output_t output, const char *format, key_type_t 
     rnp_key_store_t *tmp_store = rnp_key_store_new(format, "");
     if (!tmp_store) {
         // TODO: could also be out of mem
+        FFI_LOG(ffi, "Failed to create key store of format: %s", format);
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto done;
     }
@@ -1110,7 +1112,7 @@ rnp_input_from_memory(rnp_input_t * input,
         return RNP_ERROR_NULL_POINTER;
     }
     if (!buf_len) {
-        return RNP_ERROR_BAD_PARAMETERS;
+        return RNP_ERROR_SHORT_BUFFER;
     }
     *input = calloc(1, sizeof(**input));
     if (!*input) {
@@ -1391,7 +1393,7 @@ rnp_op_set_armor(rnp_ctx_t *ctx, bool armored)
 }
 
 static rnp_result_t
-rnp_op_set_compression(rnp_ctx_t *ctx, const char *compression, int level)
+rnp_op_set_compression(rnp_ffi_t ffi, rnp_ctx_t *ctx, const char *compression, int level)
 {
     if (!ctx) {
         return RNP_ERROR_NULL_POINTER;
@@ -1400,6 +1402,7 @@ rnp_op_set_compression(rnp_ctx_t *ctx, const char *compression, int level)
     pgp_compression_type_t zalg = PGP_C_UNKNOWN;
     ARRAY_LOOKUP_BY_STRCASE(compress_alg_map, string, type, compression, zalg);
     if (zalg == PGP_C_UNKNOWN) {
+        FFI_LOG(ffi, "Invalid compression: %s", compression);
         return RNP_ERROR_BAD_PARAMETERS;
     }
     ctx->zalg = (int) zalg;
@@ -1408,7 +1411,7 @@ rnp_op_set_compression(rnp_ctx_t *ctx, const char *compression, int level)
 }
 
 static rnp_result_t
-rnp_op_set_hash(rnp_ctx_t *ctx, const char *hash)
+rnp_op_set_hash(rnp_ffi_t ffi, rnp_ctx_t *ctx, const char *hash)
 {
     if (!ctx) {
         return RNP_ERROR_NULL_POINTER;
@@ -1417,6 +1420,7 @@ rnp_op_set_hash(rnp_ctx_t *ctx, const char *hash)
     pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
     ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
     if (hash_alg == PGP_HASH_UNKNOWN) {
+        FFI_LOG(ffi, "Invalid hash: %s", hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
     ctx->halg = hash_alg;
@@ -1522,7 +1526,7 @@ rnp_op_encrypt_set_hash(rnp_op_encrypt_t op, const char *hash)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_hash(&op->rnpctx, hash);
+    return rnp_op_set_hash(op->ffi, &op->rnpctx, hash);
 }
 
 rnp_result_t
@@ -1559,6 +1563,7 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
     }
     if (!*password) {
         // no blank passwords
+        FFI_LOG(op->ffi, "Blank password");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -1576,11 +1581,13 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
     pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
     ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, s2k_hash, hash_alg);
     if (hash_alg == PGP_HASH_UNKNOWN) {
+        FFI_LOG(op->ffi, "Invalid hash: %s", s2k_hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
     pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
     ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, s2k_cipher, symm_alg);
     if (symm_alg == PGP_SA_UNKNOWN) {
+        FFI_LOG(op->ffi, "Invalid cipher: %s", s2k_hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
     // derive key, etc
@@ -1618,6 +1625,7 @@ rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher)
     op->rnpctx.ealg = PGP_SA_UNKNOWN;
     ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, cipher, op->rnpctx.ealg);
     if (op->rnpctx.ealg == PGP_SA_UNKNOWN) {
+        FFI_LOG(op->ffi, "Invalid cipher: %s", cipher);
         return RNP_ERROR_BAD_PARAMETERS;
     }
     return RNP_SUCCESS;
@@ -1630,7 +1638,7 @@ rnp_op_encrypt_set_compression(rnp_op_encrypt_t op, const char *compression, int
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_compression(&op->rnpctx, compression, level);
+    return rnp_op_set_compression(op->ffi, &op->rnpctx, compression, level);
 }
 
 rnp_result_t
@@ -1787,7 +1795,7 @@ rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compression, int level
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_compression(&op->rnpctx, compression, level);
+    return rnp_op_set_compression(op->ffi, &op->rnpctx, compression, level);
 }
 
 rnp_result_t
@@ -1796,7 +1804,7 @@ rnp_op_sign_set_hash(rnp_op_sign_t op, const char *hash)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_hash(&op->rnpctx, hash);
+    return rnp_op_set_hash(op->ffi, &op->rnpctx, hash);
 }
 
 rnp_result_t
@@ -2027,6 +2035,7 @@ rnp_op_verify_get_signature_at(rnp_op_verify_t op, size_t idx, rnp_op_verify_sig
         return RNP_ERROR_NULL_POINTER;
     }
     if (idx >= op->signature_count) {
+        FFI_LOG(op->ffi, "Invalid signature index: %zu", idx);
         return RNP_ERROR_BAD_PARAMETERS;
     }
     *sig = &op->signatures[idx];
@@ -2165,12 +2174,13 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
 }
 
 static rnp_result_t
-str_to_locator(pgp_key_search_t *locator, const char *identifier_type, const char *identifier)
+str_to_locator(rnp_ffi_t ffi, pgp_key_search_t *locator, const char *identifier_type, const char *identifier)
 {
     // parse the identifier type
     locator->type = PGP_KEY_SEARCH_UNKNOWN;
     ARRAY_LOOKUP_BY_STRCASE(identifier_type_map, string, type, identifier_type, locator->type);
     if (locator->type == PGP_KEY_SEARCH_UNKNOWN) {
+        FFI_LOG(ffi, "Invalid identifier type: %s", identifier_type);
         return RNP_ERROR_BAD_PARAMETERS;
     }
     // see what type we have
@@ -2178,12 +2188,14 @@ str_to_locator(pgp_key_search_t *locator, const char *identifier_type, const cha
     case PGP_KEY_SEARCH_USERID:
         if (snprintf(locator->by.userid, sizeof(locator->by.userid), "%s", identifier) >=
             (int) sizeof(locator->by.userid)) {
+            FFI_LOG(ffi, "UserID too long");
             return RNP_ERROR_BAD_PARAMETERS;
         }
         break;
     case PGP_KEY_SEARCH_KEYID: {
         if (strlen(identifier) != (PGP_KEY_ID_SIZE * 2) ||
             !rnp_hex_decode(identifier, locator->by.keyid, sizeof(locator->by.keyid))) {
+            FFI_LOG(ffi, "Invalid keyid: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
         }
     } break;
@@ -2192,19 +2204,21 @@ str_to_locator(pgp_key_search_t *locator, const char *identifier_type, const cha
         if (strlen(identifier) != (PGP_FINGERPRINT_SIZE * 2) ||
             !rnp_hex_decode(
               identifier, locator->by.fingerprint.fingerprint, PGP_FINGERPRINT_SIZE)) {
+            FFI_LOG(ffi, "Invalid fingerprint: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
         }
     } break;
     case PGP_KEY_SEARCH_GRIP: {
         if (strlen(identifier) != (PGP_FINGERPRINT_SIZE * 2) ||
             !rnp_hex_decode(identifier, locator->by.grip, sizeof(locator->by.grip))) {
+            FFI_LOG(ffi, "Invalid grip: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
         }
     } break;
     default:
         // should never happen
         assert(false);
-        break;
+        return RNP_ERROR_BAD_STATE;
     }
     return RNP_SUCCESS;
 }
@@ -2273,7 +2287,7 @@ rnp_locate_key(rnp_ffi_t         ffi,
 
     // figure out the identifier type
     pgp_key_search_t locator = {0};
-    rnp_result_t     ret = str_to_locator(&locator, identifier_type, identifier);
+    rnp_result_t     ret = str_to_locator(ffi, &locator, identifier_type, identifier);
     if (ret) {
         return ret;
     }
@@ -2713,6 +2727,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
     jso = json_tokener_parse(json);
     if (!jso) {
         // syntax error or some other issue
+        FFI_LOG(ffi, "Invalid JSON");
         ret = RNP_ERROR_BAD_FORMAT;
         goto done;
     }
@@ -2730,6 +2745,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             dest = &jsosub;
         } else {
             // unrecognized key in the object
+            FFI_LOG(ffi, "Unexpected key in JSON: %s", key);
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
@@ -2839,7 +2855,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
         json_object_object_del(jsosub, "primary");
 
         pgp_key_search_t locator = {0};
-        rnp_result_t     tmpret = str_to_locator(&locator, identifier_type, identifier);
+        rnp_result_t     tmpret = str_to_locator(ffi, &locator, identifier_type, identifier);
         if (tmpret) {
             ret = tmpret;
             goto done;
@@ -3001,10 +3017,12 @@ rnp_key_add_uid(rnp_key_handle_t handle,
 
     ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
     if (hash_alg == PGP_HASH_UNKNOWN) {
+        FFI_LOG(handle->ffi, "Invalid hash: %s", hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     if (strlen(uid) >= MAX_ID_LENGTH) {
+        FFI_LOG(handle->ffi, "UserID too long");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
