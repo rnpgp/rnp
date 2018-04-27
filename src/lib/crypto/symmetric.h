@@ -69,6 +69,12 @@
 /* Maximal size of symmetric key */
 #define MAX_SYMM_KEY_SIZE 32
 
+/* Maximum AEAD tag length */
+#define PGP_AEAD_MAX_TAG_LEN 16
+
+/* Maximum authenticated data length for AEAD */
+#define PGP_AEAD_MAX_AD_LEN 32
+
 /** pgp_crypt_t */
 typedef struct pgp_crypt_t {
     union {

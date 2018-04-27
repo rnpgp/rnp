@@ -25,19 +25,12 @@
  */
 
 #include "config.h"
-#include "stream-def.h"
-#include "stream-parse.h"
-#include "stream-armor.h"
-#include "stream-packet.h"
-#include "stream-sig.h"
-#include "utils.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
-
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
@@ -45,17 +38,21 @@
 #include <limits.h>
 #endif
 #include <rnp/rnp_def.h>
+#include "stream-def.h"
+#include "stream-parse.h"
+#include "stream-armor.h"
+#include "stream-packet.h"
+#include "stream-sig.h"
 #include "defs.h"
 #include "types.h"
-#include "symmetric.h"
-#include "crypto.h"
 #include "crypto/s2k.h"
 #include "crypto/common.h"
-
+#include "crypto.h"
 #include "fingerprint.h"
 #include "pgp-key.h"
 #include "list.h"
 #include "packet-parse.h"
+#include "utils.h"
 
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>

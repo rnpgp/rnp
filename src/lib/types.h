@@ -67,12 +67,6 @@
 #define PGP_SHA1_HASH_SIZE 20
 #define PGP_CHECKHASH_SIZE PGP_SHA1_HASH_SIZE
 
-/* Maximum AEAD tag length */
-#define PGP_AEAD_MAX_TAG_LEN 16
-
-/* Maximum authenticated data length for AEAD */
-#define PGP_AEAD_MAX_AD_LEN 32
-
 /* Maximum length of the packet header */
 #define PGP_MAX_HEADER_SIZE 6
 

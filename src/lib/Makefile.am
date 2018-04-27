@@ -19,6 +19,7 @@ librnp_la_SOURCES	= \
 	crypto/rsa.c \
 	crypto/s2k.c \
 	crypto/sm2.c \
+	crypto/symmetric.c \
 	bufgap.c \
 	crypto.c \
 	fingerprint.c \
@@ -34,5 +35,4 @@ librnp_la_SOURCES	= \
 	rnp.c \
 	rnp2.c \
 	signature.c \
-	symmetric.c \
 	writer.c

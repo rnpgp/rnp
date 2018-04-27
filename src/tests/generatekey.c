@@ -31,7 +31,7 @@
 
 #include "rnp_tests.h"
 #include "support.h"
-#include "symmetric.h"
+#include "crypto/symmetric.h"
 #include "hash.h"
 #include "pgp-key.h"
 #include "librepgp/reader.h"
