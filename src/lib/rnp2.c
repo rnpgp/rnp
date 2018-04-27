@@ -845,7 +845,7 @@ do_load_keys(rnp_ffi_t ffi, rnp_input_t input, const char *format, key_type_t ke
     tmp_store = rnp_key_store_new(format, "");
     if (!tmp_store) {
         // TODO: could also be out of mem
-        ret = RNP_ERROR_BAD_FORMAT;
+        ret = RNP_ERROR_BAD_PARAMETERS;
         goto done;
     }
 
@@ -965,7 +965,7 @@ do_save_keys(rnp_ffi_t ffi, rnp_output_t output, const char *format, key_type_t 
     rnp_key_store_t *tmp_store = rnp_key_store_new(format, "");
     if (!tmp_store) {
         // TODO: could also be out of mem
-        ret = RNP_ERROR_BAD_FORMAT;
+        ret = RNP_ERROR_BAD_PARAMETERS;
         goto done;
     }
     // include the public keys, if desired
@@ -1400,7 +1400,7 @@ rnp_op_set_compression(rnp_ctx_t *ctx, const char *compression, int level)
     pgp_compression_type_t zalg = PGP_C_UNKNOWN;
     ARRAY_LOOKUP_BY_STRCASE(compress_alg_map, string, type, compression, zalg);
     if (zalg == PGP_C_UNKNOWN) {
-        return RNP_ERROR_BAD_FORMAT;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     ctx->zalg = (int) zalg;
     ctx->zlevel = level;
@@ -1576,12 +1576,12 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
     pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
     ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, s2k_hash, hash_alg);
     if (hash_alg == PGP_HASH_UNKNOWN) {
-        return RNP_ERROR_BAD_FORMAT;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
     ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, s2k_cipher, symm_alg);
     if (symm_alg == PGP_SA_UNKNOWN) {
-        return RNP_ERROR_BAD_FORMAT;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     // derive key, etc
     if ((ret = rnp_encrypt_set_pass_info(&info, password, hash_alg, iterations, symm_alg))) {
@@ -1618,7 +1618,7 @@ rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher)
     op->rnpctx.ealg = PGP_SA_UNKNOWN;
     ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, cipher, op->rnpctx.ealg);
     if (op->rnpctx.ealg == PGP_SA_UNKNOWN) {
-        return RNP_ERROR_BAD_FORMAT;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     return RNP_SUCCESS;
 }
@@ -2171,20 +2171,20 @@ str_to_locator(pgp_key_search_t *locator, const char *identifier_type, const cha
     locator->type = PGP_KEY_SEARCH_UNKNOWN;
     ARRAY_LOOKUP_BY_STRCASE(identifier_type_map, string, type, identifier_type, locator->type);
     if (locator->type == PGP_KEY_SEARCH_UNKNOWN) {
-        return RNP_ERROR_BAD_FORMAT;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     // see what type we have
     switch (locator->type) {
     case PGP_KEY_SEARCH_USERID:
         if (snprintf(locator->by.userid, sizeof(locator->by.userid), "%s", identifier) >=
             (int) sizeof(locator->by.userid)) {
-            return RNP_ERROR_BAD_FORMAT;
+            return RNP_ERROR_BAD_PARAMETERS;
         }
         break;
     case PGP_KEY_SEARCH_KEYID: {
         if (strlen(identifier) != (PGP_KEY_ID_SIZE * 2) ||
             !rnp_hex_decode(identifier, locator->by.keyid, sizeof(locator->by.keyid))) {
-            return RNP_ERROR_BAD_FORMAT;
+            return RNP_ERROR_BAD_PARAMETERS;
         }
     } break;
     case PGP_KEY_SEARCH_FINGERPRINT: {
@@ -2192,13 +2192,13 @@ str_to_locator(pgp_key_search_t *locator, const char *identifier_type, const cha
         if (strlen(identifier) != (PGP_FINGERPRINT_SIZE * 2) ||
             !rnp_hex_decode(
               identifier, locator->by.fingerprint.fingerprint, PGP_FINGERPRINT_SIZE)) {
-            return RNP_ERROR_BAD_FORMAT;
+            return RNP_ERROR_BAD_PARAMETERS;
         }
     } break;
     case PGP_KEY_SEARCH_GRIP: {
         if (strlen(identifier) != (PGP_FINGERPRINT_SIZE * 2) ||
             !rnp_hex_decode(identifier, locator->by.grip, sizeof(locator->by.grip))) {
-            return RNP_ERROR_BAD_FORMAT;
+            return RNP_ERROR_BAD_PARAMETERS;
         }
     } break;
     default:
@@ -2730,13 +2730,13 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             dest = &jsosub;
         } else {
             // unrecognized key in the object
-            ret = RNP_ERROR_BAD_FORMAT;
+            ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
 
         // duplicate "primary"/"sub"
         if (*dest) {
-            ret = RNP_ERROR_BAD_FORMAT;
+            ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
         *dest = value;
@@ -2745,7 +2745,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
     if (jsoprimary && jsosub) { // generating primary+sub
         if (!parse_keygen_primary(jsoprimary, &primary_desc) ||
             !parse_keygen_sub(jsosub, &sub_desc)) {
-            ret = RNP_ERROR_BAD_FORMAT;
+            ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
         if (!pgp_generate_keypair(&ffi->rng,
@@ -2790,7 +2790,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
     } else if (jsoprimary && !jsosub) { // generating primary only
         primary_desc.crypto.rng = &ffi->rng;
         if (!parse_keygen_primary(jsoprimary, &primary_desc)) {
-            ret = RNP_ERROR_BAD_FORMAT;
+            ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
         if (!pgp_generate_primary_key(
@@ -2819,13 +2819,13 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
         json_object *jsoparent = NULL;
         if (!json_object_object_get_ex(jsosub, "primary", &jsoparent) ||
             json_object_object_length(jsoparent) != 1) {
-            ret = RNP_ERROR_BAD_FORMAT;
+            ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
         json_object_object_foreach(jsoparent, key, value)
         {
             if (!json_object_is_type(value, json_type_string)) {
-                ret = RNP_ERROR_BAD_FORMAT;
+                ret = RNP_ERROR_BAD_PARAMETERS;
                 goto done;
             }
             identifier_type = strdup(key);
@@ -2852,7 +2852,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             goto done;
         }
         if (!parse_keygen_sub(jsosub, &sub_desc)) {
-            ret = RNP_ERROR_BAD_FORMAT;
+            ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
         sub_desc.crypto.rng = &ffi->rng;
@@ -3765,7 +3765,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     // type
     ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, pubkey->alg, str);
     if (!str) {
-        return RNP_ERROR_BAD_FORMAT;
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     if (!add_json_string_field(jso, "type", str)) {
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -3781,13 +3781,13 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         ARRAY_LOOKUP_BY_ID(
           hash_alg_map, type, string, pubkey->key.ecdh.kdf_hash_alg, hash_name);
         if (!hash_name) {
-            return RNP_ERROR_BAD_FORMAT;
+            return RNP_ERROR_BAD_PARAMETERS;
         }
         const char *cipher_name = NULL;
         ARRAY_LOOKUP_BY_ID(
           symm_alg_map, type, string, pubkey->key.ecdh.key_wrap_alg, cipher_name);
         if (!cipher_name) {
-            return RNP_ERROR_BAD_FORMAT;
+            return RNP_ERROR_BAD_PARAMETERS;
         }
         json_object *jsohash = json_object_new_string(hash_name);
         if (!jsohash) {
@@ -3806,7 +3806,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         const char *curve_name = NULL;
         // ecdh is actually pubkey->key.ecdh.ec, but that's OK
         if (!curve_type_to_str(pubkey->key.ecc.curve, &curve_name)) {
-            return RNP_ERROR_BAD_FORMAT;
+            return RNP_ERROR_BAD_PARAMETERS;
         }
         json_object *jsocurve = json_object_new_string(curve_name);
         if (!jsocurve) {
@@ -4185,7 +4185,7 @@ rnp_identifier_iterator_create(rnp_ffi_t                  ffi,
     obj->type = PGP_KEY_SEARCH_UNKNOWN;
     ARRAY_LOOKUP_BY_STRCASE(identifier_type_map, string, type, identifier_type, obj->type);
     if (obj->type == PGP_KEY_SEARCH_UNKNOWN) {
-        ret = RNP_ERROR_BAD_FORMAT;
+        ret = RNP_ERROR_BAD_PARAMETERS;
         goto done;
     }
     obj->tbl = json_object_new_object();
