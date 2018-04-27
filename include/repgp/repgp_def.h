@@ -504,6 +504,7 @@ typedef enum pgp_op_t {
     PGP_OP_VERIFY = 9,      /* signature verification */
     PGP_OP_ADD_USERID = 10, /* adding a userid */
     PGP_OP_MERGE_INFO = 11, /* merging information from one key to another */
+    PGP_OP_ENCRYPT = 12     /* public-key encryption */
 } pgp_op_t;
 
 /** Hashing Algorithm Numbers.
