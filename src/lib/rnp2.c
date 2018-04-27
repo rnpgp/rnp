@@ -705,12 +705,12 @@ rnp_detect_key_format(const uint8_t buf[], size_t buf_len, char **format)
     if (buf_len >= 12 && memcmp(buf + 8, "KBXf", 4) == 0) {
         // KBX has a magic KBXf marker
         guess = "KBX";
-    } else if (buf[0] == '(' && buf[buf_len - 1] == ')') {
+    } else if (buf_len >= 5 && memcmp(buf, "-----", 5) == 0) {
+        // likely armored GPG
+        guess = "GPG";
+    } else if (buf[0] == '(') {
         // G10 is s-exprs and should start end end with parentheses
         guess = "G10";
-    } else if (buf_len >= 5 && memcmp(buf, "-----", 5) == 0) {
-        // assume armored GPG
-        guess = "GPG";
     } else if (buf[0] & PGP_PTAG_ALWAYS_SET) {
         // this is harder to reliably determine, but could likely be improved
         guess = "GPG";
