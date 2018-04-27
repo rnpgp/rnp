@@ -30,6 +30,7 @@
  */
 
 #include <assert.h>
+#include <botan/ffi.h>
 #include "rng.h"
 
 static inline bool

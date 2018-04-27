@@ -79,8 +79,6 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include <unistd.h>
 #endif
 
-#include <botan/ffi.h>
-
 #include "crypto.h"
 #include "errors.h"
 #include <repgp/repgp.h>

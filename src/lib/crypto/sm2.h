@@ -27,11 +27,7 @@
 #ifndef RNP_SM2_H_
 #define RNP_SM2_H_
 
-#include <stdint.h>
-#include <stdbool.h>
-#include "errors.h"
-#include "rng.h"
-#include "mpi.h"
+#include "ec.h"
 
 typedef struct pgp_sm2_encrypted_t {
     pgp_mpi_t m;

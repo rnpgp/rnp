@@ -26,7 +26,6 @@
 
 #include <assert.h>
 #include <sys/time.h>
-#include <botan/ffi.h>
 
 #include <rnp/rnp.h>
 #include <repgp/repgp.h>

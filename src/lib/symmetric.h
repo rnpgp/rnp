@@ -66,6 +66,9 @@
 /* Authentication tag len for AEAD/EAX and AEAD/OCB */
 #define PGP_AEAD_EAX_OCB_TAG_LEN 16
 
+/* Maximal size of symmetric key */
+#define MAX_SYMM_KEY_SIZE 32
+
 /** pgp_crypt_t */
 typedef struct pgp_crypt_t {
     union {

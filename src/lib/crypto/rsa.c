@@ -77,15 +77,11 @@
  */
 #include <string.h>
 #include <stdbool.h>
-#include <rnp/rnp_def.h>
-
-#include "config.h"
-#include "types.h"
-#include "utils.h"
-#include "crypto/rsa.h"
 #include <botan/ffi.h>
-
+#include "crypto/rsa.h"
 #include "hash.h"
+#include "config.h"
+#include "utils.h"
 
 static bool
 rsa_load_public_key(rng_t *rng, botan_pubkey_t *bkey, const pgp_rsa_key_t *key)

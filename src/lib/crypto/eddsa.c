@@ -24,12 +24,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "eddsa.h"
-#include "crypto/bn.h"
 #include <string.h>
 #include <botan/ffi.h>
+#include "eddsa.h"
 #include "utils.h"
-#include <rnp/rnp_def.h>
 
 rnp_result_t
 eddsa_generate(rng_t *rng, pgp_ec_key_t *key, size_t numbits)

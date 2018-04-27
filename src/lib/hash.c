@@ -73,13 +73,11 @@
  * limitations under the License.
  */
 
+#include <stdio.h>
+#include <rnp/rnp_sdk.h>
 #include "hash.h"
 #include "types.h"
 #include "utils.h"
-#include <rnp/rnp_sdk.h>
-#include <stdio.h>
-#include "crypto/ecdsa.h"
-#include "crypto/dsa.h"
 #include "defaults.h"
 
 static const struct hash_alg_map_t {

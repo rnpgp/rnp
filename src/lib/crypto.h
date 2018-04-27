@@ -64,15 +64,10 @@
 #include "hash.h"
 #include "memory.h"
 #include "symmetric.h"
-#include "crypto/bn.h"
 #include "crypto/rng.h"
 #include <rekey/rnp_key_store.h>
 
 #define PGP_MIN_HASH_SIZE 16
-/* Maximal byte size of elliptic curve order (NIST P-521) */
-#define MAX_CURVE_BYTELEN BITS_TO_BYTES(521)
-/* Maximal size of symmetric key */
-#define MAX_SYMM_KEY_SIZE 32
 #define NTAGS 0x100 /* == 256 */
 
 /* raw key generation */

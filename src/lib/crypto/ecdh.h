@@ -27,10 +27,7 @@
 #ifndef ECDH_H_
 #define ECDH_H_
 
-#include <stdint.h>
-#include <stdbool.h>
-#include "ec.h"
-#include "rng.h"
+#include "crypto/ec.h"
 
 /* Max size of wrapped and obfuscated key size
  *

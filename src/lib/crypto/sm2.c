@@ -24,16 +24,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdbool.h>
-#include <stdlib.h>
 #include <string.h>
 #include <botan/ffi.h>
-
-#include <librepgp/packet-parse.h>
-
-#include "crypto/sm2.h"
-#include "ec.h"
-#include "crypto.h"
+#include "sm2.h"
+#include "hash.h"
 #include "utils.h"
 
 rnp_result_t

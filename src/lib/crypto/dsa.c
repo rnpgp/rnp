@@ -76,15 +76,12 @@
 /** \file
  */
 #include <stdlib.h>
-
 #include <botan/ffi.h>
 #include <rnp/rnp_def.h>
-
-#include "utils.h"
-#include "crypto/bn.h"
-#include "crypto/dsa.h"
-
+#include "dsa.h"
 #include "hash.h"
+#include "utils.h"
+
 #define DSA_MAX_Q_BITLEN 256
 
 rnp_result_t

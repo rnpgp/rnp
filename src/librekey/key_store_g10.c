@@ -34,12 +34,10 @@
 #include "key_store_pgp.h"
 #include "key_store_g10.h"
 
-#include "crypto/bn.h"
 #include "crypto/s2k.h"
 #include "symmetric.h"
 #include "writer.h"
 #include "pgp-key.h"
-#include <botan/ffi.h>
 
 #define G10_CBC_IV_SIZE 16
 

@@ -30,14 +30,15 @@
 #ifndef EC_H_
 #define EC_H_
 
-#include <rnp/rnp_sdk.h>
+#include <rnp/rnp_def.h>
 #include <repgp/repgp_def.h>
-#include "crypto/bn.h"
 #include "crypto/rng.h"
 #include "crypto/mpi.h"
 
 #define DEFAULT_CURVE PGP_CURVE_NIST_P_256
 #define MAX_CURVE_BIT_SIZE 521 // secp521r1
+/* Maximal byte size of elliptic curve order (NIST P-521) */
+#define MAX_CURVE_BYTELEN ((MAX_CURVE_BIT_SIZE + 7) / 8)
 
 /**
  * Maximal length of the OID in hex representation.

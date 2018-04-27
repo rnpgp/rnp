@@ -31,9 +31,8 @@
 #ifndef RNP_RSA_H_
 #define RNP_RSA_H_
 
-#include <rnp/rnp_sdk.h>
+#include <rnp/rnp_def.h>
 #include <repgp/repgp_def.h>
-#include "crypto/bn.h"
 #include "crypto/rng.h"
 #include "crypto/mpi.h"
 

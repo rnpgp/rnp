@@ -48,7 +48,6 @@
 #include "key_store_internal.h"
 #include "key_store_ssh.h"
 
-#include "crypto/bn.h"
 #include "bufgap.h"
 #include "crypto.h"
 #include "crypto/s2k.h"
