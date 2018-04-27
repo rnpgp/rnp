@@ -1371,7 +1371,8 @@ rnp_op_add_signature(list *signatures, rnp_key_handle_t key, rnp_op_sign_signatu
     if (!newsig) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    newsig->key = get_key_require_secret(key);
+    newsig->key = find_suitable_key(
+      PGP_OP_SIGN, get_key_require_secret(key), &key->ffi->key_provider, PGP_KF_SIGN);
     if (!newsig->key) {
         list_remove((list_item *) newsig);
         return RNP_ERROR_NO_SUITABLE_KEY;
@@ -1502,7 +1503,10 @@ rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_handle_t handle)
         return RNP_ERROR_NULL_POINTER;
     }
 
-    pgp_key_t *key = get_key_prefer_public(handle);
+    pgp_key_t *key = find_suitable_key(PGP_OP_ENCRYPT,
+                                       get_key_prefer_public(handle),
+                                       &handle->ffi->key_provider,
+                                       PGP_KF_ENCRYPT);
     if (!list_append(&op->rnpctx.recipients, &key, sizeof(key))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
