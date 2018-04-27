@@ -2920,13 +2920,45 @@ rnp_buffer_destroy(void *ptr)
 static pgp_key_t *
 get_key_prefer_public(rnp_key_handle_t handle)
 {
+    if (!handle->pub) {
+        pgp_key_request_ctx_t request = {.secret = false};
+
+        // try fingerprint
+        request.search.type = PGP_KEY_SEARCH_FINGERPRINT;
+        request.search.by.fingerprint = handle->sec->fingerprint;
+        handle->pub = pgp_request_key(&handle->ffi->key_provider, &request);
+        if (handle->pub) {
+            return handle->pub;
+        }
+
+        // try keyid
+        request.search.type = PGP_KEY_SEARCH_KEYID;
+        memcpy(request.search.by.keyid, handle->sec->keyid, PGP_KEY_ID_SIZE);
+        handle->pub = pgp_request_key(&handle->ffi->key_provider, &request);
+    }
     return handle->pub ? handle->pub : handle->sec;
 }
 
 static pgp_key_t *
 get_key_require_secret(rnp_key_handle_t handle)
 {
-    return handle->sec ? handle->sec : NULL;
+    if (!handle->sec) {
+        pgp_key_request_ctx_t request = {.secret = true};
+
+        // try fingerprint
+        request.search.type = PGP_KEY_SEARCH_FINGERPRINT;
+        request.search.by.fingerprint = handle->pub->fingerprint;
+        handle->sec = pgp_request_key(&handle->ffi->key_provider, &request);
+        if (handle->sec) {
+            return handle->sec;
+        }
+
+        // try keyid
+        request.search.type = PGP_KEY_SEARCH_KEYID;
+        memcpy(request.search.by.keyid, handle->pub->keyid, PGP_KEY_ID_SIZE);
+        handle->sec = pgp_request_key(&handle->ffi->key_provider, &request);
+    }
+    return handle->sec;
 }
 
 static rnp_result_t
