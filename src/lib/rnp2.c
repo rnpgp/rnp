@@ -501,9 +501,13 @@ rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
         return false;
     }
 
-    struct rnp_key_handle_st key = {.ffi = ffi, .sec = (pgp_key_t*)ctx->key};
-    return ffi->getpasscb(
-      ffi, ffi->getpasscb_ctx, &key, operation_description(ctx->op), password, password_size);
+    struct rnp_key_handle_st key = {.ffi = ffi, .sec = (pgp_key_t *) ctx->key};
+    return ffi->getpasscb(ffi,
+                          ffi->getpasscb_ctx,
+                          ctx->key ? &key : NULL,
+                          operation_description(ctx->op),
+                          password,
+                          password_size);
 }
 
 const char *
