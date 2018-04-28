@@ -39,6 +39,7 @@
 #include "../rnp/rnpcfg.h"
 #include "rnpkeys.h"
 #include <librepgp/stream-common.h>
+#include "utils.h"
 
 extern char *__progname;
 

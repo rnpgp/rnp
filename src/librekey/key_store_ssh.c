@@ -50,9 +50,10 @@
 
 #include "bufgap.h"
 #include "crypto.h"
-#include "crypto/s2k.h"
+#include "crypto/common.h"
 #include "pgp-key.h"
 #include "fingerprint.h"
+#include "utils.h"
 
 /* structure for earching for constant strings */
 typedef struct str_t {

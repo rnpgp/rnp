@@ -29,14 +29,13 @@
 #include <rekey/rnp_key_store.h>
 #include <librekey/key_store_pgp.h>
 #include <librekey/key_store_g10.h>
-
 #include <librepgp/packet-show.h>
 #include <librepgp/packet-parse.h>
-
 #include "crypto.h"
 #include "pgp-key.h"
 #include "memory.h"
 #include "defaults.h"
+#include "utils.h"
 
 static const pgp_symm_alg_t DEFAULT_SYMMETRIC_ALGS[] = {
   PGP_SA_AES_256, PGP_SA_AES_192, PGP_SA_AES_128, PGP_SA_TRIPLEDES};

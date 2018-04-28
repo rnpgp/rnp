@@ -273,4 +273,18 @@ pgp_key_t *pgp_get_primary_key_for(pgp_io_t *                io,
                                    const rnp_key_store_t *   store,
                                    const pgp_key_provider_t *key_provider);
 
+/*
+ *  Picks up hash algorithm according to domain parameters set
+ *  in `pubkey' and user provided hash. That's mostly because DSA
+ *  and ECDSA needs special treatment.
+ *
+ *  @param hash set by the caller
+ *  @param pubkey initialized public key
+ *
+ *  @returns hash algorithm that must be use for operation (mostly
+             signing with secure key which corresponds to 'pubkey')
+ */
+pgp_hash_alg_t
+pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_pubkey_t *pubkey);
+
 #endif // RNP_PACKET_KEY_H

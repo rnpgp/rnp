@@ -30,7 +30,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "utils.h"
-#include "hash.h"
+#include "crypto/hash.h"
 
 void
 test_key_unlock_pgp(void **state)

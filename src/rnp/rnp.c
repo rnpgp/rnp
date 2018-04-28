@@ -45,12 +45,6 @@
 #include <regex.h>
 #include <rnp/rnp.h>
 #include <rnp/rnp_sdk.h>
-#include "rnpcfg.h"
-#include "crypto/symmetric.h"
-#include "rnpcfg.h"
-#include <rekey/rnp_key_store.h>
-#include "pgp-key.h"
-#include "defaults.h"
 #include <repgp/repgp.h>
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-armor.h>
@@ -59,8 +53,13 @@
 #include <librepgp/stream-sig.h>
 #include <librepgp/packet-show.h>
 #include <librepgp/packet-print.h>
-
-#include "hash.h"
+#include <rekey/rnp_key_store.h>
+#include "rnpcfg.h"
+#include "crypto/common.h"
+#include "rnpcfg.h"
+#include "pgp-key.h"
+#include "defaults.h"
+#include "utils.h"
 
 extern char *__progname;
 

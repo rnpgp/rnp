@@ -41,5 +41,9 @@
 #include "eddsa.h"
 /* symmetric crypto */
 #include "symmetric.h"
+/* hash */
+#include "hash.h"
+/* s2k */
+#include "s2k.h"
 
 #endif // RNP_CRYPTO_COMMON_H_

@@ -28,7 +28,7 @@
 #include "support.h"
 #include "utils.h"
 #include "rnp.h"
-#include "hash.h"
+#include "crypto/hash.h"
 #include "pgp-key.h"
 #include <time.h>
 #include <librepgp/stream-packet.h>

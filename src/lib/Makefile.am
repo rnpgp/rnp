@@ -20,11 +20,11 @@ librnp_la_SOURCES	= \
 	crypto/s2k.c \
 	crypto/sm2.c \
 	crypto/symmetric.c \
+	crypto/hash.c \
 	bufgap.c \
 	crypto.c \
 	fingerprint.c \
 	generate-key.c \
-	hash.c \
 	list.c \
 	misc.c \
 	packet-create.c \

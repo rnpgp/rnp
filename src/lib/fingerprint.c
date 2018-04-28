@@ -30,7 +30,7 @@
  */
 
 #include "fingerprint.h"
-#include "hash.h"
+#include "crypto/hash.h"
 #include "packet-create.h"
 #include "utils.h"
 

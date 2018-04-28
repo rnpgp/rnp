@@ -51,7 +51,7 @@
 #ifndef VALIDATE_H_
 #define VALIDATE_H_ 1
 
-#include "hash.h"
+#include "crypto/hash.h"
 
 typedef struct pgp_validation_t {
     unsigned        validc;

@@ -32,23 +32,15 @@
 #ifndef CRYPTO_HASH_H_
 #define CRYPTO_HASH_H_
 
-#include <botan/ffi.h>
-
 #include <rnp/rnp_sdk.h>
 #include <repgp/repgp_def.h>
 #include "types.h"
-#include "utils.h"
 #include "list.h"
 
 /**
  * Output size (in bytes) of biggest supported hash algo
  */
-#define PGP_MAX_HASH_SIZE BITS_TO_BYTES(512)
-
-/* This is hot function, forces compiler to "inline" it
- * (linking fails if "inline" used)
- */
-#define pgp_hash_add(x, y, z) botan_hash_update((x)->handle, y, z)
+#define PGP_MAX_HASH_SIZE (64)
 
 /** pgp_hash_t */
 typedef struct pgp_hash_t {
@@ -62,6 +54,7 @@ const char *pgp_hash_name_botan(const pgp_hash_alg_t alg);
 bool pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg);
 bool pgp_hash_copy(pgp_hash_t *dst, const pgp_hash_t *src);
 void pgp_hash_add_int(pgp_hash_t *hash, unsigned n, size_t bytes);
+int pgp_hash_add(pgp_hash_t *hash, const void *buf, size_t len);
 size_t pgp_hash_finish(pgp_hash_t *hash, uint8_t *output);
 
 const char *pgp_hash_name(const pgp_hash_t *hash);
@@ -129,17 +122,4 @@ void pgp_hash_list_free(list *hashes);
  */
 bool pgp_hash_uint32(pgp_hash_t *hash, uint32_t val);
 
-/*
- *  Picks up hash algorithm according to domain parameters set
- *  in `pubkey' and user provided hash. That's mostly because DSA
- *  and ECDSA needs special treatment.
- *
- *  @param hash set by the caller
- *  @param pubkey initialized public key
- *
- *  @returns hash algorithm that must be use for operation (mostly
-             signing with secure key which corresponds to 'pubkey')
- */
-pgp_hash_alg_t
-pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_pubkey_t *pubkey);
 #endif

@@ -30,7 +30,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "utils.h"
-#include "hash.h"
+#include "crypto/hash.h"
 
 static bool
 mpi_equal(pgp_mpi_t *val1, pgp_mpi_t *val2)

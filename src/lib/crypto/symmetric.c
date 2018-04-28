@@ -58,6 +58,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <botan/ffi.h>
+#include "utils.h"
 
 static const char *
 pgp_sa_to_botan_string(pgp_symm_alg_t alg)

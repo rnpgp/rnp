@@ -30,14 +30,15 @@
 #include <time.h>
 
 #include <rnp/rnp_sdk.h>
+#include <botan/ffi.h>
 
 #include "key_store_pgp.h"
 #include "key_store_g10.h"
 
-#include "crypto/s2k.h"
-#include "crypto/symmetric.h"
+#include "crypto/common.h"
 #include "writer.h"
 #include "pgp-key.h"
+#include "utils.h"
 
 #define G10_CBC_IV_SIZE 16
 

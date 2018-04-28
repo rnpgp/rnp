@@ -42,6 +42,7 @@
 #include "support.h"
 #include "list.h"
 #include "pgp-parse-data.h"
+#include "utils.h"
 
 static const char *KEYRING_1_PASSWORD = "password";
 
