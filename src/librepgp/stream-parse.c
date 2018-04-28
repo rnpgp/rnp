@@ -370,8 +370,14 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len)
                 if (param->z.avail_in > 0) {
                     RNP_LOG("data beyond the end of z stream");
                 }
-            } else if (ret != Z_OK) {
+                break;
+            }
+            if (ret != Z_OK) {
                 RNP_LOG("inflate error %d", ret);
+                return -1;
+            }
+            if (!param->z.avail_in && src_eof(param->pkt.readsrc)) {
+                RNP_LOG("unexpected end of zlib stream");
                 return -1;
             }
         }
@@ -404,8 +410,14 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len)
                 if (param->bz.avail_in > 0) {
                     RNP_LOG("data beyond the end of z stream");
                 }
-            } else if (ret != BZ_OK) {
+                break;
+            }
+            if (ret != BZ_OK) {
                 RNP_LOG("inflate error %d", ret);
+                return -1;
+            }
+            if (!param->bz.avail_in && src_eof(param->pkt.readsrc)) {
+                RNP_LOG("unexpected end of bzip stream");
                 return -1;
             }
         }

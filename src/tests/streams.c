@@ -808,3 +808,51 @@ test_stream_dumper(void **state)
     src_close(&src);
     dst_close(&dst, false);
 }
+
+void
+test_stream_z(void **state)
+{
+    pgp_source_t   src;
+    pgp_dest_t     dst;
+    rnp_dump_ctx_t ctx = {0};
+
+    /* packet dumper will decompress source stream, making less code lines here */
+    ctx.dump_mpi = true;
+    ctx.dump_packets = true;
+
+    assert_rnp_success(init_file_src(&src, "data/test_stream_z/4gb.bzip2"));
+    assert_rnp_success(init_null_dest(&dst));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    dst_close(&dst, true);
+
+    assert_rnp_success(init_file_src(&src, "data/test_stream_z/4gb.bzip2.cut"));
+    assert_rnp_success(init_null_dest(&dst));
+    assert_rnp_failure(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    dst_close(&dst, true);
+
+    assert_rnp_success(init_file_src(&src, "data/test_stream_z/128mb.zlib"));
+    assert_rnp_success(init_null_dest(&dst));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    dst_close(&dst, true);
+
+    assert_rnp_success(init_file_src(&src, "data/test_stream_z/128mb.zlib.cut"));
+    assert_rnp_success(init_null_dest(&dst));
+    assert_rnp_failure(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    dst_close(&dst, true);
+
+    assert_rnp_success(init_file_src(&src, "data/test_stream_z/128mb.zip"));
+    assert_rnp_success(init_null_dest(&dst));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    dst_close(&dst, true);
+
+    assert_rnp_success(init_file_src(&src, "data/test_stream_z/128mb.zip.cut"));
+    assert_rnp_success(init_null_dest(&dst));
+    assert_rnp_failure(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    dst_close(&dst, true);
+}
