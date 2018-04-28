@@ -26,9 +26,7 @@
  */
 
 #include "crypto.h"
-#include "crypto/rng.h"
-#include "crypto/s2k.h"
-#include "hash.h"
+#include "crypto/common.h"
 #include "list.h"
 #include "pgp-key.h"
 #include "defaults.h"
@@ -48,6 +46,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include "utils.h"
 
 struct rnp_key_handle_st {
     rnp_ffi_t        ffi;

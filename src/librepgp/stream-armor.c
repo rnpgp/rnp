@@ -33,10 +33,10 @@
 #include "stream-def.h"
 #include "stream-armor.h"
 #include "stream-packet.h"
+#include "crypto/hash.h"
 #include "defs.h"
 #include "types.h"
 #include "utils.h"
-#include "hash.h"
 
 #define ARMORED_BLOCK_SIZE (4096)
 

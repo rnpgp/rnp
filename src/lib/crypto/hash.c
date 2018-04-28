@@ -75,6 +75,7 @@
 
 #include <stdio.h>
 #include <rnp/rnp_sdk.h>
+#include <botan/ffi.h>
 #include "hash.h"
 #include "types.h"
 #include "utils.h"
@@ -218,6 +219,12 @@ pgp_hash_add_int(pgp_hash_t *hash, unsigned n, size_t length)
     }
 }
 
+inline int
+pgp_hash_add(pgp_hash_t *hash, const void *buf, size_t len)
+{
+    return botan_hash_update(hash->handle, buf, len);
+}
+
 size_t
 pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
 {
@@ -316,24 +323,4 @@ pgp_hash_uint32(pgp_hash_t *hash, uint32_t n)
     uint8_t ibuf[4];
     STORE32BE(ibuf, n);
     return !pgp_hash_add(hash, ibuf, sizeof(ibuf));
-}
-
-pgp_hash_alg_t
-pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_pubkey_t *pubkey)
-{
-    if ((pubkey->alg != PGP_PKA_DSA) && (pubkey->alg != PGP_PKA_ECDSA)) {
-        return hash;
-    }
-
-    pgp_hash_alg_t hash_min;
-    if (pubkey->alg == PGP_PKA_ECDSA) {
-        hash_min = ecdsa_get_min_hash(pubkey->key.ec.curve);
-    } else {
-        hash_min = dsa_get_min_hash(mpi_bits(&pubkey->key.dsa.q));
-    }
-
-    if (pgp_digest_length(hash) < pgp_digest_length(hash_min)) {
-        return hash_min;
-    }
-    return hash;
 }

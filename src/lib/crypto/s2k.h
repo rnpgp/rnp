@@ -33,6 +33,8 @@
 
 #include "hash.h"
 
+typedef struct pgp_s2k_t pgp_s2k_t;
+
 int pgp_s2k_simple(pgp_hash_alg_t alg, uint8_t *out, size_t output_len, const char *password);
 
 int pgp_s2k_salted(pgp_hash_alg_t alg,

@@ -25,8 +25,9 @@
 #include <stdlib.h>
 #include "config.h"
 #include <botan/ffi.h>
-#include "crypto/bn.h"
+#include "bn.h"
 #include "hash.h"
+#include "utils.h"
 
 #ifndef USE_ARG
 #define USE_ARG(x) /*LINTED*/ (void) &x

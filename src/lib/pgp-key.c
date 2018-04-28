@@ -1211,3 +1211,23 @@ pgp_get_primary_key_for(pgp_io_t *                io,
     }
     return find_signer(io, binding_sig, store, key_provider, pgp_is_key_secret(subkey));
 }
+
+pgp_hash_alg_t
+pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_pubkey_t *pubkey)
+{
+    if ((pubkey->alg != PGP_PKA_DSA) && (pubkey->alg != PGP_PKA_ECDSA)) {
+        return hash;
+    }
+
+    pgp_hash_alg_t hash_min;
+    if (pubkey->alg == PGP_PKA_ECDSA) {
+        hash_min = ecdsa_get_min_hash(pubkey->key.ec.curve);
+    } else {
+        hash_min = dsa_get_min_hash(mpi_bits(&pubkey->key.dsa.q));
+    }
+
+    if (pgp_digest_length(hash) < pgp_digest_length(hash_min)) {
+        return hash_min;
+    }
+    return hash;
+}

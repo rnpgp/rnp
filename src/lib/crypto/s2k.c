@@ -30,7 +30,7 @@
 
 #include <stdio.h>
 #include <botan/ffi.h>
-
+#include "types.h"
 #include "crypto/s2k.h"
 
 bool

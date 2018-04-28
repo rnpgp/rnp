@@ -35,7 +35,6 @@
 #include "utils.h"
 #include "stream-sig.h"
 #include "stream-packet.h"
-#include "hash.h"
 #include "crypto.h"
 #include "crypto/common.h"
 

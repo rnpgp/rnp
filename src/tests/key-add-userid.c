@@ -30,7 +30,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "utils.h"
-#include "hash.h"
+#include "crypto/hash.h"
 
 /* This test loads a pgp keyring and adds a few userids to the key.
  */

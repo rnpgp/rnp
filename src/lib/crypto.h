@@ -61,10 +61,8 @@
 #include <librepgp/packet-print.h>
 #include <librepgp/reader.h>
 
-#include "hash.h"
 #include "memory.h"
-#include "crypto/symmetric.h"
-#include "crypto/rng.h"
+#include "crypto/common.h"
 #include <rekey/rnp_key_store.h>
 
 #define PGP_MIN_HASH_SIZE 16
