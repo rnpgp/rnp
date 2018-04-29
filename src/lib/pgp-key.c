@@ -884,7 +884,7 @@ pgp_key_protect(pgp_key_t *                  key,
 {
     bool                        ret = false;
     rnp_key_protection_params_t default_protection = {.symm_alg = DEFAULT_PGP_SYMM_ALG,
-                                                      .cipher_mode = DEFAULT_CIPHER_MODE,
+                                                      .cipher_mode = DEFAULT_PGP_CIPHER_MODE,
                                                       .iterations = DEFAULT_S2K_ITERATIONS,
                                                       .hash_alg = DEFAULT_PGP_HASH_ALG};
     pgp_seckey_t *              seckey = NULL;

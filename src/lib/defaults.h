@@ -57,7 +57,10 @@
 #define DEFAULT_AEAD_CHUNK_BITS 21
 
 /* Default cipher mode for secret key encryption */
-#define DEFAULT_CIPHER_MODE PGP_CIPHER_MODE_CFB
+#define DEFAULT_CIPHER_MODE "CFB"
+
+/* Default cipher mode for secret key encryption */
+#define DEFAULT_PGP_CIPHER_MODE PGP_CIPHER_MODE_CFB
 
 /* Default public key algorithm for new key generation */
 #define DEFAULT_PK_ALG PGP_PKA_RSA
