@@ -343,11 +343,28 @@ rnp_result_t rnp_key_is_protected(rnp_key_handle_t key, bool *result);
  *  This can be used to set a new password on a key or to protect an unprotected
  *  key.
  *
+ *  Note that the only required parameter is "password".
+ *
  *  @param key
- *  @param password the new password to encrypt the key with. Must not be NULL.
+ *  @param password the new password to encrypt/re-encrypt the key with.
+ *         Must not be NULL.
+ *  @param cipher the cipher (AES256, etc) used to encrypt the key. May be NULL,
+ *         in which case a default will be used.
+ *  @param cipher_mode the cipher mode (CFB, CBC, OCB). This parameter is not
+ *         well supported currently and is mostly relevant for G10.
+ *         May be NULL.
+ *  @param hash the hash algorithm (SHA512, etc) used for the String-to-Key key
+ *         derivation. May be NULL, in which case a default will be used.
+ *  @param iterations the number of iterations used for the String-to-Key key
+ *         derivation. Use 0 to select a reasonable default.
  *  @return 0 on success, or any other value on error
  **/
-rnp_result_t rnp_key_protect(rnp_key_handle_t key, const char *password);
+rnp_result_t rnp_key_protect(rnp_key_handle_t handle,
+                             const char *     password,
+                             const char *     cipher,
+                             const char *     cipher_mode,
+                             const char *     hash,
+                             size_t           iterations);
 
 /** unprotect the key
  *

@@ -952,7 +952,7 @@ test_ffi_add_userid(void **state)
     assert_int_equal(1, count);
 
     // protect+lock the key
-    assert_int_equal(RNP_SUCCESS, rnp_key_protect(key_handle, "pass"));
+    assert_int_equal(RNP_SUCCESS, rnp_key_protect(key_handle, "pass", "SM4", "CFB", "SM3", 999999));
     assert_int_equal(RNP_SUCCESS, rnp_key_lock(key_handle));
 
     // add the userid (no pass provider, should fail)
@@ -1028,7 +1028,7 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     parsed_results = NULL;
 
     // protect+lock the primary key
-    assert_int_equal(RNP_SUCCESS, rnp_key_protect(primary, "pass123"));
+    assert_int_equal(RNP_SUCCESS, rnp_key_protect(primary, "pass123", NULL, NULL, NULL, 0));
     assert_int_equal(RNP_SUCCESS, rnp_key_lock(primary));
     rnp_key_handle_destroy(primary);
     primary = NULL;

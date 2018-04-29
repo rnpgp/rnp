@@ -279,6 +279,9 @@ static const pgp_map_t symm_alg_map[] = {{PGP_SA_IDEA, "IDEA"},
                                          {PGP_SA_CAMELLIA_256, "CAMELLIA256"},
                                          {PGP_SA_SM4, "SM4"}};
 
+static const pgp_map_t cipher_mode_map[] = {
+  {PGP_CIPHER_MODE_CFB, "CFB"}, {PGP_CIPHER_MODE_CBC, "CBC"}, {PGP_CIPHER_MODE_OCB, "OCB"}};
+
 static const pgp_map_t compress_alg_map[] = {{PGP_C_NONE, "Uncompressed"},
                                              {PGP_C_ZIP, "ZIP"},
                                              {PGP_C_ZLIB, "ZLIB"},
@@ -3233,16 +3236,46 @@ rnp_key_is_protected(rnp_key_handle_t handle, bool *result)
 }
 
 rnp_result_t
-rnp_key_protect(rnp_key_handle_t handle, const char *password)
+rnp_key_protect(rnp_key_handle_t handle,
+                const char *     password,
+                const char *     cipher,
+                const char *     cipher_mode,
+                const char *     hash,
+                size_t           iterations)
 {
-  rnp_result_t ret = RNP_ERROR_GENERIC;
-    pgp_seckey_t *seckey = NULL;
-    pgp_seckey_t *decrypted_seckey = NULL;
+    rnp_result_t                ret = RNP_ERROR_GENERIC;
+    pgp_seckey_t *              seckey = NULL;
+    pgp_seckey_t *              decrypted_seckey = NULL;
+    rnp_key_protection_params_t protection = {0};
 
     // checks
     if (!handle || !password) {
         return RNP_ERROR_NULL_POINTER;
     }
+
+    if (cipher) {
+        ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, cipher, protection.symm_alg);
+        if (!protection.symm_alg) {
+            FFI_LOG(handle->ffi, "Invalid cipher: %s", cipher);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+    }
+    if (cipher_mode) {
+        ARRAY_LOOKUP_BY_STRCASE(
+          cipher_mode_map, string, type, cipher_mode, protection.cipher_mode);
+        if (!protection.cipher_mode) {
+            FFI_LOG(handle->ffi, "Invalid cipher mode: %s", cipher_mode);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+    }
+    if (hash) {
+        ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, protection.hash_alg);
+        if (!protection.hash_alg) {
+            FFI_LOG(handle->ffi, "Invalid hash: %s", hash);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+    }
+    protection.iterations = iterations;
 
     // get the key
     pgp_key_t *key = get_key_require_secret(handle);
@@ -3250,16 +3283,17 @@ rnp_key_protect(rnp_key_handle_t handle, const char *password)
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     seckey = &key->key.seckey;
-    // TODO allow setting protection params
     if (seckey->encrypted) {
-        decrypted_seckey = pgp_decrypt_seckey(
-          key, &handle->ffi->pass_provider, &(pgp_password_ctx_t){.op = PGP_OP_PROTECT, .key = key});
+        decrypted_seckey =
+          pgp_decrypt_seckey(key,
+                             &handle->ffi->pass_provider,
+                             &(pgp_password_ctx_t){.op = PGP_OP_PROTECT, .key = key});
         if (!decrypted_seckey) {
             goto done;
         }
         seckey = decrypted_seckey;
     }
-    if (!pgp_key_protect(key, seckey, key->format, NULL, password)) {
+    if (!pgp_key_protect(key, seckey, key->format, &protection, password)) {
       goto done;
     }
     ret = RNP_SUCCESS;
