@@ -40,7 +40,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <ftw.h>
-
+#include <fcntl.h>
 #include <cmocka.h>
 
 #include <crypto.h>
@@ -78,6 +78,33 @@ file_empty(const char *path)
 {
     struct stat st = {0};
     return stat(path, &st) == 0 && S_ISREG(st.st_mode) && st.st_size == 0;
+}
+
+uint8_t *
+file_contents(const char *path, ssize_t *size)
+{
+    int         fd;
+    struct stat st;
+    uint8_t *   mem;
+
+    *size = -1;
+    if ((stat(path, &st) != 0) || (st.st_size == 0)) {
+        return NULL;
+    }
+
+#ifdef O_BINARY
+    fd = open(path, O_RDONLY | O_BINARY);
+#else
+    fd = open(path, O_RDONLY);
+#endif
+    if (fd < 0) {
+        return NULL;
+    }
+    if ((mem = malloc(st.st_size))) {
+        *size = read(fd, mem, st.st_size);
+    }
+    close(fd);
+    return mem;
 }
 
 /* Concatenate multiple strings into a full path.

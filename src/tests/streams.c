@@ -31,6 +31,7 @@
 #include "hash.h"
 #include "pgp-key.h"
 #include <time.h>
+#include <rnp/rnp.h>
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-key.h>
@@ -694,6 +695,68 @@ test_stream_key_signatures(void **state)
 }
 
 void
+test_stream_verify_no_key(void **state)
+{
+    rnp_ctx_t    ctx = {0};
+    rnp_t        rnp = {0};
+    rnp_params_t params = {0};
+    uint8_t *    data;
+    ssize_t      len;
+    uint8_t *    out_data;
+    size_t       out_alloc = 256 * 1024;
+    size_t       out_len;
+
+    /* setup rnp structure and params */
+    rnp_params_init(&params);
+    params.pubpath = strdup("");
+    params.secpath = strdup("");
+    params.ks_pub_format = RNP_KEYSTORE_GPG;
+    params.ks_sec_format = RNP_KEYSTORE_GPG;
+    assert_rnp_success(rnp_init(&rnp, &params));
+
+    /* load signed and encrypted data */
+    out_data = malloc(out_alloc);
+    assert_non_null(out_data);
+
+    data = file_contents("data/test_stream_verification/verify_encrypted_no_key.pgp", &len);
+    assert_non_null(data);
+    assert_true(len > 0);
+
+    /* setup operation context */
+    rnp.password_provider.callback = rnp_password_provider_string;
+    rnp.password_provider.userdata = (void *) "pass1";
+    rnp_ctx_init(&ctx, &rnp);
+
+    /* operation should success if output is not discarded, i.e. operation = decrypt */
+    ctx.discard = false;
+    assert_rnp_success(rnp_process_mem(&ctx, data, len, out_data, out_alloc, &out_len));
+    assert_int_equal(out_len, 4);
+    /* try second password */
+    rnp.password_provider.userdata = (void *) "pass2";
+    assert_rnp_success(rnp_process_mem(&ctx, data, len, out_data, out_alloc, &out_len));
+    assert_int_equal(out_len, 4);
+    /* decryption/verification fails without password */
+    rnp.password_provider.userdata = NULL;
+    assert_rnp_failure(rnp_process_mem(&ctx, data, len, out_data, out_alloc, &out_len));
+    assert_int_equal(out_len, 0);
+    /* decryption/verification fails with wrong password */
+    rnp.password_provider.userdata = (void *) "pass_wrong";
+    assert_rnp_failure(rnp_process_mem(&ctx, data, len, out_data, out_alloc, &out_len));
+    assert_int_equal(out_len, 0);
+    /* verification fails if output is discarded, i.e. operation = verify */
+    ctx.discard = true;
+    assert_rnp_failure(rnp_process_mem(&ctx, data, len, out_data, out_alloc, &out_len));
+    assert_int_equal(out_len, 0);
+
+    /* cleanup */
+    rnp_ctx_free(&ctx);
+    rnp_params_free(&params);
+    rnp_end(&rnp);
+    free(out_data);
+    free(data);
+}
+
+void
 test_stream_dumper(void **state)
 {
     pgp_source_t   src;
@@ -803,6 +866,13 @@ test_stream_dumper(void **state)
     dst_close(&dst, false);
 
     assert_rnp_success(init_file_src(&src, "data/test_stream_signatures/source.txt.asc.asc"));
+    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    dst_close(&dst, false);
+
+    assert_rnp_success(
+      init_file_src(&src, "data/test_stream_verification/verify_encrypted_no_key.pgp"));
     assert_rnp_success(init_mem_dest(&dst, NULL, 0));
     assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
     src_close(&src);

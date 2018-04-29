@@ -250,7 +250,7 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
     pgp_io_t *       io = handler->ctx->rnp->io;
 
     for (int i = 0; i < count; i++) {
-        if (sigs[i].unknown) {
+        if (sigs[i].unknown || sigs[i].no_signer) {
             unknownc++;
         } else {
             if (!sigs[i].valid) {
