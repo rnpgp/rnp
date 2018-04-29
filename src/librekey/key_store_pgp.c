@@ -466,6 +466,56 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *                io,
     return res;
 }
 
+static bool
+do_write(pgp_io_t *io, rnp_key_store_t *key_store, pgp_output_t *output, bool secret)
+{
+    pgp_key_search_t search;
+    for (list_item *key_item = list_front(key_store->keys); key_item;
+         key_item = list_next(key_item)) {
+        pgp_key_t *key = (pgp_key_t *) key_item;
+        if (pgp_is_key_secret(key) != secret) {
+            continue;
+        }
+        // skip subkeys, they are written below (orphans are ignored)
+        if (!pgp_key_is_primary_key(key)) {
+            continue;
+        }
+
+        if (key->format != GPG_KEY_STORE) {
+            RNP_LOG("incorrect format (conversions not supported): %d", key->format);
+            return false;
+        }
+        if (!pgp_key_write_packets(key, output)) {
+            return false;
+        }
+        for (list_item *subkey_grip = list_front(key->subkey_grips); subkey_grip;
+             subkey_grip = list_next(subkey_grip)) {
+            search.type = PGP_KEY_SEARCH_GRIP;
+            memcpy(search.by.grip, (uint8_t *) subkey_grip, PGP_FINGERPRINT_SIZE);
+            pgp_key_t *subkey = NULL;
+            for (list_item *subkey_item = list_front(key_store->keys); subkey_item;
+                 subkey_item = list_next(subkey_item)) {
+                pgp_key_t *candidate = (pgp_key_t *) subkey_item;
+                if (pgp_is_key_secret(candidate) != secret) {
+                    continue;
+                }
+                if (rnp_key_matches_search(candidate, &search)) {
+                    subkey = candidate;
+                    break;
+                }
+            }
+            if (!subkey) {
+                RNP_LOG_FD(io->errs, "Missing subkey");
+                continue;
+            }
+            if (!pgp_key_write_packets(subkey, output)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 int
 rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
                                rnp_key_store_t *key_store,
@@ -473,7 +523,6 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
                                pgp_memory_t *   mem)
 {
     unsigned     rc;
-    pgp_key_t *  key;
     pgp_output_t output = {};
 
     pgp_writer_set_memory(&output, mem);
@@ -486,32 +535,9 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
         }
         pgp_writer_push_armored(&output, type);
     }
-    for (list_item *key_item = list_front(key_store->keys); key_item;
-         key_item = list_next(key_item)) {
-        key = (pgp_key_t *) key_item;
-        // skip subkeys, they are written below (orphans are ignored)
-        if (!pgp_key_is_primary_key(key)) {
-            continue;
-        }
-
-        if (key->format != GPG_KEY_STORE) {
-            RNP_LOG("incorrect format (conversions not supported): %d", key->format);
-            return false;
-        }
-        if (!pgp_key_write_packets(key, &output)) {
-            return false;
-        }
-        for (list_item *subkey_grip = list_front(key->subkey_grips); subkey_grip;
-             subkey_grip = list_next(subkey_grip)) {
-              pgp_key_t *subkey = rnp_key_store_get_key_by_grip(io, key_store, (uint8_t*)subkey_grip);
-              if (!subkey) {
-                  RNP_LOG_FD(io->errs, "Missing subkey");
-                  continue;
-              }
-              if (!pgp_key_write_packets(subkey, &output)) {
-                  return false;
-              }
-        }
+    // two separate passes (public keys, then secret keys)
+    if (!do_write(io, key_store, &output, false) || !do_write(io, key_store, &output, true)) {
+        return false;
     }
     if (armor) {
         pgp_writer_pop(&output);

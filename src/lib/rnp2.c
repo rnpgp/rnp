@@ -554,7 +554,7 @@ rnp_result_to_string(rnp_result_t result)
     case RNP_ERROR_KEY_NOT_FOUND:
         return "Key not found";
     case RNP_ERROR_NO_SUITABLE_KEY:
-        return "Not suitable key";
+        return "No suitable key";
     case RNP_ERROR_DECRYPT_FAILED:
         return "Decryption failed";
     case RNP_ERROR_NO_SIGNATURES_FOUND:
@@ -567,7 +567,7 @@ rnp_result_to_string(rnp_result_t result)
     case RNP_ERROR_PACKET_NOT_CONSUMED:
         return "Packet not consumed";
     case RNP_ERROR_NO_USERID:
-        return "Not userid";
+        return "No userid";
     case RNP_ERROR_EOF:
         return "EOF detected";
     }
