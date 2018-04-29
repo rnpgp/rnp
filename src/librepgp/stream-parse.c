@@ -999,10 +999,18 @@ signed_src_finish(pgp_source_t *src)
     /* checking the validation results */
     ret = RNP_SUCCESS;
     for (list_item *si = list_front(param->siginfos); si; si = list_next(si)) {
-        if (!((pgp_signature_info_t *) si)->valid || ((pgp_signature_info_t *) si)->expired) {
+        sinfo = (pgp_signature_info_t *) si;
+        sinfos[sinfoc++] = *sinfo;
+
+        if (sinfo->no_signer && param->ctx->handler.ctx->discard) {
+            /* if output is discarded then we interested in verification */
+            ret = RNP_ERROR_SIGNATURE_INVALID;
+            continue;
+        }
+        if (!sinfo->no_signer && (!sinfo->valid || (sinfo->expired))) {
+            /* do not report error if signer not found */
             ret = RNP_ERROR_SIGNATURE_INVALID;
         }
-        sinfos[sinfoc++] = *(pgp_signature_info_t *) si;
     }
 
     /* call the callback with signature infos */
@@ -1011,7 +1019,6 @@ signed_src_finish(pgp_source_t *src)
     }
 
     free(sinfos);
-
     return ret;
 }
 

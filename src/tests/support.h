@@ -51,6 +51,9 @@ bool file_empty(const char *path);
 /* Check if a directory exists */
 bool dir_exists(const char *path);
 
+/* Read file contents into the memory */
+uint8_t *file_contents(const char *path, ssize_t *size);
+
 /* Concatenate multiple strings into a full path.
  * A directory separator is added between components.
  * Must be called in between va_start and va_end.
