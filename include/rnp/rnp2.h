@@ -670,13 +670,15 @@ rnp_result_t rnp_input_from_path(rnp_input_t *input, const char *path);
  * @param input pointer to the input opaque structure
  * @param buf memory buffer. Could not be NULL.
  * @param buf_len number of bytes available to read from buf
- * @param take_ownership copy buffer internally so it could be safely freed
+ * @param do_copy if true then the buffer will be copied internally. If
+ *        false then the application should ensure that the buffer
+ *        is valid and not modified during the lifetime of this object.
  * @return RNP_SUCCESS if operation succeeded or error code otherwise
  */
 rnp_result_t rnp_input_from_memory(rnp_input_t * input,
                                    const uint8_t buf[],
                                    size_t        buf_len,
-                                   bool          take_ownership);
+                                   bool          do_copy);
 
 /**
  * @brief Initialize input struct to read via callbacks
@@ -726,13 +728,16 @@ rnp_result_t rnp_output_to_memory(rnp_output_t *output, size_t max_alloc);
  * @param output output structure, initialized by rnp_output_to_memory and populated with data
  * @param buf pointer to the buffer will be stored here, could not be NULL
  * @param len number of bytes in buffer will be stored here, could not be NULL
- * @param take_ownership take ownership on the data so it must be freed by caller
+ * @param do_copy if true then a newly-allocated buffer will be returned and the application
+ *        will be responsible for freeing it with rnp_buffer_destroy. If false
+ *        then the internal buffer is returned and the application must not modify the
+ *        buffer or access it after this object is destroyed.
  * @return RNP_SUCCESS if operation succeeded or error code otherwise.
  */
 rnp_result_t rnp_output_memory_get_buf(rnp_output_t output,
                                        uint8_t **   buf,
                                        size_t *     len,
-                                       bool         take_ownership);
+                                       bool         do_copy);
 
 /**
  * @brief Initialize output structure to write to callbacks.

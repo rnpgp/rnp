@@ -1113,7 +1113,7 @@ rnp_result_t
 rnp_input_from_memory(rnp_input_t * input,
                       const uint8_t buf[],
                       size_t        buf_len,
-                      bool          take_ownership)
+                      bool          do_copy)
 {
     if (!input || !buf) {
         return RNP_ERROR_NULL_POINTER;
@@ -1126,7 +1126,7 @@ rnp_input_from_memory(rnp_input_t * input,
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     uint8_t *data = (uint8_t *) buf;
-    if (take_ownership) {
+    if (do_copy) {
         data = malloc(buf_len);
         if (!data) {
             free(*input);
@@ -1135,7 +1135,7 @@ rnp_input_from_memory(rnp_input_t * input,
         }
         memcpy(data, buf, buf_len);
     }
-    rnp_result_t ret = init_mem_src(&(*input)->src, data, buf_len, take_ownership);
+    rnp_result_t ret = init_mem_src(&(*input)->src, data, buf_len, do_copy);
     if (ret) {
         free(*input);
         *input = NULL;
@@ -1260,7 +1260,7 @@ rnp_output_to_memory(rnp_output_t *output, size_t max_alloc)
 }
 
 rnp_result_t
-rnp_output_memory_get_buf(rnp_output_t output, uint8_t **buf, size_t *len, bool take_ownership)
+rnp_output_memory_get_buf(rnp_output_t output, uint8_t **buf, size_t *len, bool do_copy)
 {
     if (!output || !buf || !len) {
         return RNP_ERROR_NULL_POINTER;
@@ -1271,7 +1271,7 @@ rnp_output_memory_get_buf(rnp_output_t output, uint8_t **buf, size_t *len, bool 
     if (!*buf) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (take_ownership) {
+    if (do_copy) {
         uint8_t *tmp_buf = *buf;
         *buf = malloc(*len);
         if (!*buf) {
