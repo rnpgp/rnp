@@ -2110,13 +2110,37 @@ finish:
     return res;
 }
 
+bool
+copy_key_pkt(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src)
+{
+    memcpy(dst, src, sizeof(*src));
+    if (src->hashed_data) {
+        dst->hashed_data = malloc(src->hashed_len);
+        if (!dst->hashed_data) {
+            return false;
+        }
+        memcpy(dst->hashed_data, src->hashed_data, src->hashed_len);
+    }
+    if (src->sec_data) {
+        dst->sec_data = malloc(src->sec_len);
+        if (!dst->sec_data) {
+            free(dst->hashed_data);
+            return false;
+        }
+        memcpy(dst->sec_data, src->sec_data, src->sec_len);
+    }
+    return true;
+}
+
 void
 free_key_pkt(pgp_key_pkt_t *key)
 {
     free(key->hashed_data);
+    key->hashed_data = NULL;
     if (key->sec_data) {
         pgp_forget(key->sec_data, key->sec_len);
         free(key->sec_data);
+        key->sec_data = NULL;
     }
 }
 

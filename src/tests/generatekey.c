@@ -299,6 +299,17 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
             rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
             rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
+            /* Some minor checks */
+            for (list_item *li = list_front(rnp.pubring->keys); li; li = list_next(li)) {
+                pgp_key_t *key = (pgp_key_t*) li;
+                assert_true(pgp_is_key_public(key));
+            }
+
+            for (list_item *li = list_front(rnp.secring->keys); li; li = list_next(li)) {
+                pgp_key_t *key = (pgp_key_t*) li;
+                assert_true(pgp_is_key_secret(key));
+            }
+
             // G10 doesn't support metadata
             if (strcmp(keystores[j], RNP_KEYSTORE_G10) != 0) {
                 rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));

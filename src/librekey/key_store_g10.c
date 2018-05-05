@@ -32,6 +32,7 @@
 #include <rnp/rnp_sdk.h>
 #include <botan/ffi.h>
 
+#include <librepgp/stream-packet.h>
 #include "key_store_pgp.h"
 #include "key_store_g10.h"
 
@@ -896,9 +897,10 @@ g10_parse_seckey(pgp_io_t *                io,
                                                                       .search = search}))) {
             goto done;
         }
-        pgp_pubkey_t tmp = seckey->pubkey;
-        seckey->pubkey = *pgp_get_pubkey(pubkey);
-        seckey->pubkey.pkt.material = tmp.pkt.material;
+
+        if (!copy_key_pkt(&seckey->pubkey.pkt, &pgp_get_pubkey(pubkey)->pkt)) {
+            goto done;
+        }
     }
 
     if (protected) {
@@ -951,10 +953,8 @@ g10_decrypt_seckey(const uint8_t *     data,
     if (!g10_parse_seckey(&io, seckey, data, data_len, password, NULL)) {
         goto done;
     }
-    if (pubkey) {
-        pgp_pubkey_t tmp = seckey->pubkey;
-        seckey->pubkey = *pubkey;
-        seckey->pubkey.pkt.material = tmp.pkt.material;
+    if (pubkey && !copy_key_pkt(&seckey->pubkey.pkt, &pubkey->pkt)) {
+        goto done;
     }
     ok = true;
 
