@@ -122,7 +122,7 @@ pgp_key_new(void)
 bool
 pgp_key_from_keydata(pgp_key_t *key, pgp_keydata_key_t *keydata, const pgp_content_enum tag)
 {
-    assert(!key->key.pubkey.version);
+    assert(!key->key.pubkey.pkt.version);
     assert(tag == PGP_PTAG_CT_PUBLIC_KEY || tag == PGP_PTAG_CT_PUBLIC_SUBKEY ||
            tag == PGP_PTAG_CT_SECRET_KEY || tag == PGP_PTAG_CT_SECRET_SUBKEY);
     if (pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, &keydata->pubkey) ||
@@ -765,13 +765,14 @@ pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider)
         // this shouldn't really be necessary, but just in case
         pgp_seckey_free_secret_mpis(&key->key.seckey);
         // copy the decrypted mpis into the pgp_key_t
-        key->key.seckey.pubkey.key = decrypted_seckey->pubkey.key;
+        key->key.seckey.pubkey.pkt.material = decrypted_seckey->pubkey.pkt.material;
+        key->key.seckey.pubkey.pkt.material.secret = true;
         key->key.seckey.encrypted = false;
 
         // zero out the key material union in the decrypted seckey, since
         // ownership has changed
-        pgp_seckey_t nullkey = {{0}};
-        decrypted_seckey->pubkey.key = nullkey.pubkey.key;
+        pgp_seckey_t nullkey = {{{0}}};
+        decrypted_seckey->pubkey.pkt.material = nullkey.pubkey.pkt.material;
         // now free the rest of the internal seckey
         pgp_seckey_free(decrypted_seckey);
         // free the actual structure
@@ -905,8 +906,8 @@ pgp_key_protect(pgp_key_t *                  key,
 
     seckey = &key->key.seckey;
     // force these, as it's the only method we support
-    seckey->protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    seckey->protection.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
+    seckey->pubkey.pkt.sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    seckey->pubkey.pkt.sec_protection.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
 
     if (!protection) {
         protection = &default_protection;
@@ -925,10 +926,11 @@ pgp_key_protect(pgp_key_t *                  key,
         protection->hash_alg = default_protection.hash_alg;
     }
 
-    seckey->protection.symm_alg = protection->symm_alg;
-    seckey->protection.cipher_mode = protection->cipher_mode;
-    seckey->protection.s2k.iterations = pgp_s2k_round_iterations(protection->iterations);
-    seckey->protection.s2k.hash_alg = protection->hash_alg;
+    seckey->pubkey.pkt.sec_protection.symm_alg = protection->symm_alg;
+    seckey->pubkey.pkt.sec_protection.cipher_mode = protection->cipher_mode;
+    seckey->pubkey.pkt.sec_protection.s2k.iterations =
+      pgp_s2k_round_iterations(protection->iterations);
+    seckey->pubkey.pkt.sec_protection.s2k.hash_alg = protection->hash_alg;
 
     // write the protected key to packets[0]
     if (!write_key_to_rawpacket(
@@ -970,7 +972,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
         }
         seckey = decrypted_seckey;
     }
-    seckey->protection.s2k.usage = PGP_S2KU_NONE;
+    seckey->pubkey.pkt.sec_protection.s2k.usage = PGP_S2KU_NONE;
     if (!write_key_to_rawpacket(seckey, &key->packets[0], key->type, key->format, NULL)) {
         goto done;
     }
@@ -1034,7 +1036,7 @@ pgp_key_add_userid(pgp_key_t *            key,
         goto done;
     }
     // We only support modifying v4 and newer keys
-    if (key->key.pubkey.version < PGP_V4) {
+    if (key->key.pubkey.pkt.version < PGP_V4) {
         RNP_LOG("adding a userid to V2/V3 key is not supported");
         goto done;
     }
@@ -1215,15 +1217,15 @@ pgp_get_primary_key_for(pgp_io_t *                io,
 pgp_hash_alg_t
 pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_pubkey_t *pubkey)
 {
-    if ((pubkey->alg != PGP_PKA_DSA) && (pubkey->alg != PGP_PKA_ECDSA)) {
+    if ((pubkey->pkt.alg != PGP_PKA_DSA) && (pubkey->pkt.alg != PGP_PKA_ECDSA)) {
         return hash;
     }
 
     pgp_hash_alg_t hash_min;
-    if (pubkey->alg == PGP_PKA_ECDSA) {
-        hash_min = ecdsa_get_min_hash(pubkey->key.ec.curve);
+    if (pubkey->pkt.alg == PGP_PKA_ECDSA) {
+        hash_min = ecdsa_get_min_hash(pubkey->pkt.material.ec.curve);
     } else {
-        hash_min = dsa_get_min_hash(mpi_bits(&pubkey->key.dsa.q));
+        hash_min = dsa_get_min_hash(mpi_bits(&pubkey->pkt.material.dsa.q));
     }
 
     if (pgp_digest_length(hash) < pgp_digest_length(hash_min)) {

@@ -254,29 +254,29 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
 
     memset(key, 0x0, sizeof(*key));
     pubkey = &key->key.seckey.pubkey;
-    pubkey->version = PGP_V4;
-    pubkey->creation = 0;
+    pubkey->pkt.version = PGP_V4;
+    pubkey->pkt.creation_time = 0;
     /* get key type */
     ok = true;
-    switch (pubkey->alg = findstr(pkatypes, buf)) {
+    switch (pubkey->pkt.alg = findstr(pkatypes, buf)) {
     case PGP_PKA_RSA:
         /* get the 'e' param of the key */
-        getmpi(&bg, buf, "RSA E", &pubkey->key.rsa.e);
+        getmpi(&bg, buf, "RSA E", &pubkey->pkt.material.rsa.e);
         /* get the 'n' param of the key */
-        getmpi(&bg, buf, "RSA N", &pubkey->key.rsa.n);
+        getmpi(&bg, buf, "RSA N", &pubkey->pkt.material.rsa.n);
         break;
     case PGP_PKA_DSA:
         /* get the 'p' param of the key */
-        getmpi(&bg, buf, "DSA P", &pubkey->key.dsa.p);
+        getmpi(&bg, buf, "DSA P", &pubkey->pkt.material.dsa.p);
         /* get the 'q' param of the key */
-        getmpi(&bg, buf, "DSA Q", &pubkey->key.dsa.q);
+        getmpi(&bg, buf, "DSA Q", &pubkey->pkt.material.dsa.q);
         /* get the 'g' param of the key */
-        getmpi(&bg, buf, "DSA G", &pubkey->key.dsa.g);
+        getmpi(&bg, buf, "DSA G", &pubkey->pkt.material.dsa.g);
         /* get the 'y' param of the key */
-        getmpi(&bg, buf, "DSA Y", &pubkey->key.dsa.y);
+        getmpi(&bg, buf, "DSA Y", &pubkey->pkt.material.dsa.y);
         break;
     default:
-        fprintf(stderr, "Unrecognised pubkey type %d for '%s'\n", pubkey->alg, f);
+        fprintf(stderr, "Unrecognised pubkey type %d for '%s'\n", pubkey->pkt.alg, f);
         ok = false;
         break;
     }
@@ -353,37 +353,39 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
     }
     /* let's add some sane defaults */
     (void) memcpy(&key->key.seckey.pubkey, pubkey, sizeof(*pubkey));
-    key->key.seckey.pubkey.alg = PGP_PKA_RSA;
-    key->key.seckey.protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    key->key.seckey.protection.symm_alg = PGP_SA_CAST5;
-    key->key.seckey.protection.s2k.specifier = PGP_S2KS_SALTED;
-    key->key.seckey.protection.s2k.hash_alg = PGP_HASH_SHA1;
+    key->key.seckey.pubkey.pkt.alg = PGP_PKA_RSA;
+    key->key.seckey.pubkey.pkt.sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    key->key.seckey.pubkey.pkt.sec_protection.symm_alg = PGP_SA_CAST5;
+    key->key.seckey.pubkey.pkt.sec_protection.s2k.specifier = PGP_S2KS_SALTED;
+    key->key.seckey.pubkey.pkt.sec_protection.s2k.hash_alg = PGP_HASH_SHA1;
 
-    if (!rng_generate(key->key.seckey.protection.s2k.salt, PGP_SALT_SIZE)) {
+    if (!rng_generate(key->key.seckey.pubkey.pkt.sec_protection.s2k.salt, PGP_SALT_SIZE)) {
         RNP_LOG("rng_generate failed");
         return false;
     }
 
-    if (key->key.seckey.pubkey.alg == PGP_PKA_RSA) {
+    if (key->key.seckey.pubkey.pkt.alg == PGP_PKA_RSA) {
         /* openssh and openssl have p and q swapped */
-        pgp_mpi_t tmp = key->key.pubkey.key.rsa.p;
-        key->key.pubkey.key.rsa.p = key->key.pubkey.key.rsa.q;
-        key->key.pubkey.key.rsa.q = tmp;
+        pgp_mpi_t tmp = key->key.pubkey.pkt.material.rsa.p;
+        key->key.pubkey.pkt.material.rsa.p = key->key.pubkey.pkt.material.rsa.q;
+        key->key.pubkey.pkt.material.rsa.q = tmp;
     }
 
-    sesskey_len = pgp_key_size(key->key.seckey.protection.symm_alg);
+    sesskey_len = pgp_key_size(key->key.seckey.pubkey.pkt.sec_protection.symm_alg);
 
-    if (pgp_s2k_salted(key->key.seckey.protection.s2k.hash_alg,
+    if (pgp_s2k_salted(key->key.seckey.pubkey.pkt.sec_protection.s2k.hash_alg,
                        sesskey,
                        sesskey_len,
                        "",
-                       key->key.seckey.protection.s2k.salt)) {
+                       key->key.seckey.pubkey.pkt.sec_protection.s2k.salt)) {
         (void) fprintf(stderr, "pgp_s2k_salted failed\n");
         return false;
     }
 
-    pgp_cipher_cfb_start(
-      &crypted, key->key.seckey.protection.symm_alg, sesskey, key->key.seckey.protection.iv);
+    pgp_cipher_cfb_start(&crypted,
+                         key->key.seckey.pubkey.pkt.sec_protection.symm_alg,
+                         sesskey,
+                         key->key.seckey.pubkey.pkt.sec_protection.iv);
     ssh_fingerprint(&key->fingerprint, pubkey);
     ssh_keyid(key->keyid, sizeof(key->keyid), pubkey);
     return true;

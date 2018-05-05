@@ -90,58 +90,58 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         goto end;
     }
     /* populate pgp key structure */
-    seckey->pubkey.version = PGP_V4;
-    seckey->pubkey.creation = time(NULL);
-    seckey->pubkey.alg = crypto->key_alg;
-    rng_t *rng = crypto->rng;
+    memset(&seckey->pubkey, 0, sizeof(seckey->pubkey));
+    seckey->pubkey.pkt.version = PGP_V4;
+    seckey->pubkey.pkt.creation_time = time(NULL);
+    seckey->pubkey.pkt.alg = crypto->key_alg;
+    rng_t *             rng = crypto->rng;
+    pgp_key_material_t *kmaterial = &seckey->pubkey.pkt.material;
 
-    switch (seckey->pubkey.alg) {
+    switch (seckey->pubkey.pkt.alg) {
     case PGP_PKA_RSA:
-        if (rsa_generate(rng, &seckey->pubkey.key.rsa, crypto->rsa.modulus_bit_len)) {
+        if (rsa_generate(rng, &kmaterial->rsa, crypto->rsa.modulus_bit_len)) {
             RNP_LOG("failed to generate RSA key");
             goto end;
         }
         break;
     case PGP_PKA_DSA:
-        if (dsa_generate(
-              rng, &seckey->pubkey.key.dsa, crypto->dsa.p_bitlen, crypto->dsa.q_bitlen)) {
+        if (dsa_generate(rng, &kmaterial->dsa, crypto->dsa.p_bitlen, crypto->dsa.q_bitlen)) {
             RNP_LOG("failed to generate DSA key");
             goto end;
         }
         break;
     case PGP_PKA_EDDSA:
-        if (eddsa_generate(
-              rng, &seckey->pubkey.key.ec, get_curve_desc(PGP_CURVE_ED25519)->bitlen)) {
+        if (eddsa_generate(rng, &kmaterial->ec, get_curve_desc(PGP_CURVE_ED25519)->bitlen)) {
             RNP_LOG("failed to generate EDDSA key");
             goto end;
         }
         break;
     case PGP_PKA_ECDH:
-        if (!ecdh_set_params(&seckey->pubkey.key.ec, crypto->ecc.curve)) {
+        if (!ecdh_set_params(&kmaterial->ec, crypto->ecc.curve)) {
             RNP_LOG("Unsupported curve [ID=%d]", crypto->ecc.curve);
             goto end;
         }
     /* FALLTHROUGH */
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-        if (ec_generate(rng, &seckey->pubkey.key.ec, seckey->pubkey.alg, crypto->ecc.curve)) {
+        if (ec_generate(rng, &kmaterial->ec, seckey->pubkey.pkt.alg, crypto->ecc.curve)) {
             RNP_LOG("failed to generate EC key");
             goto end;
         }
-        seckey->pubkey.key.ec.curve = crypto->ecc.curve;
+        kmaterial->ec.curve = crypto->ecc.curve;
         break;
     case PGP_PKA_ELGAMAL:
-        if (elgamal_generate(rng, &seckey->pubkey.key.eg, crypto->elgamal.key_bitlen)) {
+        if (elgamal_generate(rng, &kmaterial->eg, crypto->elgamal.key_bitlen)) {
             RNP_LOG("failed to generate ElGamal key");
             goto end;
         }
         break;
     default:
-        RNP_LOG("key generation not implemented for PK alg: %d", seckey->pubkey.alg);
+        RNP_LOG("key generation not implemented for PK alg: %d", seckey->pubkey.pkt.alg);
         goto end;
         break;
     }
-    seckey->protection.s2k.usage = PGP_S2KU_NONE;
+    seckey->pubkey.pkt.sec_protection.s2k.usage = PGP_S2KU_NONE;
     ok = true;
 
 end:

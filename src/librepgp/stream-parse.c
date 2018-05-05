@@ -771,7 +771,8 @@ signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t 
         return false;
     }
 
-    return !signature_validate(sig, key, &shash, rnp_ctx_rng_handle(param->ctx->handler.ctx));
+    return !signature_validate(
+      sig, &key->pkt.material, &shash, rnp_ctx_rng_handle(param->ctx->handler.ctx));
 }
 
 static void
@@ -1293,20 +1294,21 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
                   pgp_seckey_t *                seckey,
                   rng_t *                       rng)
 {
-    uint8_t           decbuf[PGP_MPINT_SIZE];
-    rnp_result_t      err;
-    size_t            declen;
-    size_t            keylen;
-    pgp_fingerprint_t fingerprint;
-    pgp_symm_alg_t    salg;
-    unsigned          checksum = 0;
-    bool              res = false;
+    uint8_t             decbuf[PGP_MPINT_SIZE];
+    rnp_result_t        err;
+    size_t              declen;
+    size_t              keylen;
+    pgp_fingerprint_t   fingerprint;
+    pgp_symm_alg_t      salg;
+    unsigned            checksum = 0;
+    bool                res = false;
+    pgp_key_material_t *keymaterial = &seckey->pubkey.pkt.material;
 
     /* Decrypting session key value */
     switch (sesskey->alg) {
     case PGP_PKA_RSA:
-        err = rsa_decrypt_pkcs1(
-          rng, decbuf, &declen, &sesskey->material.rsa, &seckey->pubkey.key.rsa);
+        err =
+          rsa_decrypt_pkcs1(rng, decbuf, &declen, &sesskey->material.rsa, &keymaterial->rsa);
         if (err) {
             RNP_LOG("RSA decryption failure");
             return false;
@@ -1314,15 +1316,15 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     case PGP_PKA_SM2:
         declen = sizeof(decbuf);
-        err = sm2_decrypt(decbuf, &declen, &sesskey->material.sm2, &seckey->pubkey.key.ec);
+        err = sm2_decrypt(decbuf, &declen, &sesskey->material.sm2, &keymaterial->ec);
         if (err != RNP_SUCCESS) {
             RNP_LOG("SM2 decryption failure, error %x", (int) err);
             return false;
         }
         break;
     case PGP_PKA_ELGAMAL: {
-        const rnp_result_t ret = elgamal_decrypt_pkcs1(
-          rng, decbuf, &declen, &sesskey->material.eg, &seckey->pubkey.key.eg);
+        const rnp_result_t ret =
+          elgamal_decrypt_pkcs1(rng, decbuf, &declen, &sesskey->material.eg, &keymaterial->eg);
         if (ret) {
             RNP_LOG("ElGamal decryption failure [%X]", ret);
             return false;
@@ -1336,7 +1338,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         }
         declen = sizeof(decbuf);
         err = ecdh_decrypt_pkcs5(
-          decbuf, &declen, &sesskey->material.ecdh, &seckey->pubkey.key.ec, &fingerprint);
+          decbuf, &declen, &sesskey->material.ecdh, &keymaterial->ec, &fingerprint);
         if (err != RNP_SUCCESS) {
             RNP_LOG("ECDH decryption error %u", err);
             return false;
@@ -1344,7 +1346,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     }
     default:
-        RNP_LOG("unsupported public key algorithm %d\n", seckey->pubkey.alg);
+        RNP_LOG("unsupported public key algorithm %d\n", seckey->pubkey.pkt.alg);
         return false;
     }
 

@@ -754,17 +754,17 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
-        const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ecc.curve);
-        dst_print_mpi(dst, "ecc p", &key.material.ecc.p, ctx->dump_mpi);
+        const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
+        dst_print_mpi(dst, "ecc p", &key.material.ec.p, ctx->dump_mpi);
         dst_printf(dst, "ecc curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
         break;
     }
     case PGP_PKA_ECDH: {
-        const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ecc.curve);
-        dst_print_mpi(dst, "ecdh p", &key.material.ecc.p, ctx->dump_mpi);
+        const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
+        dst_print_mpi(dst, "ecdh p", &key.material.ec.p, ctx->dump_mpi);
         dst_printf(dst, "ecdh curve: %s\n", cdesc ? cdesc->pgp_name : "unknown");
-        dst_print_halg(dst, "ecdh hash algorithm", key.material.ecc.kdf_hash_alg);
-        dst_printf(dst, "ecdh key wrap algorithm: %d\n", (int) key.material.ecc.key_wrap_alg);
+        dst_print_halg(dst, "ecdh hash algorithm", key.material.ec.kdf_hash_alg);
+        dst_printf(dst, "ecdh key wrap algorithm: %d\n", (int) key.material.ec.key_wrap_alg);
         break;
     }
     default:

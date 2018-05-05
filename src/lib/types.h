@@ -158,7 +158,7 @@ typedef struct pgp_key_material_t {
         pgp_rsa_key_t rsa;
         pgp_dsa_key_t dsa;
         pgp_eg_key_t  eg;
-        pgp_ec_key_t  ecc;
+        pgp_ec_key_t  ec;
     };
 } pgp_key_material_t;
 
@@ -186,27 +186,6 @@ typedef struct pgp_encrypted_material_t {
     };
 } pgp_encrypted_material_t;
 
-/** Structure to hold a pgp public key */
-typedef struct pgp_pubkey_t {
-    pgp_version_t version; /* version of the key (v3, v4...) */
-    time_t        creation;
-    time_t        expiration; /* v4 expiration time (not always set, see SS_KEY_EXPIRY) */
-    /* validity period of the key in days since
-     * creation.  A value of 0 has a special meaning
-     * indicating this key does not expire.  Only used with
-     * v3 keys.  */
-    unsigned         days_valid; /* v3 validity time */
-    pgp_pubkey_alg_t alg;        /* Public Key Algorithm type */
-    union {
-        pgp_dsa_key_t dsa; /* A DSA key */
-        pgp_rsa_key_t rsa; /* A RSA public key */
-        pgp_eg_key_t  eg;  /* An ElGamal public key */
-        pgp_ec_key_t  ec;  /* A ECC/ECDH/EdDSA public key */
-    } key;                 /* Public Key Parameters */
-} pgp_pubkey_t;
-
-typedef struct pgp_key_t pgp_key_t;
-
 typedef struct pgp_s2k_t {
     pgp_s2k_usage_t usage;
 
@@ -223,25 +202,6 @@ typedef struct pgp_key_protection_t {
     pgp_cipher_mode_t cipher_mode; /* block cipher mode */
     uint8_t           iv[PGP_MAX_BLOCK_SIZE];
 } pgp_key_protection_t;
-
-/** pgp_seckey_t
- */
-typedef struct pgp_seckey_t {
-    /* Note: Keep this as the first field. */
-    pgp_pubkey_t pubkey; /* public key */
-
-    pgp_key_protection_t protection;
-
-    /* This indicates the current state of the key union below.
-     * If false, the key union contains valid secret key material
-     * and is immediately available for operations.
-     * If true, the key union does not contain any valid secret
-     * key material and must be decrypted prior to use.
-     */
-    bool     encrypted;
-    unsigned checksum;
-    uint8_t  checkhash[PGP_CHECKHASH_SIZE];
-} pgp_seckey_t;
 
 /** Struct to hold a key packet. May contain public or private key/subkey */
 typedef struct pgp_key_pkt_t {
@@ -261,6 +221,29 @@ typedef struct pgp_key_pkt_t {
     uint8_t *            sec_data;
     size_t               sec_len;
 } pgp_key_pkt_t;
+
+/** Structure to hold a pgp public key */
+typedef struct pgp_pubkey_t {
+    pgp_key_pkt_t pkt; /* will later on replace key itself */
+    time_t expiration; /* v4 expiration time (not always set, see SS_KEY_EXPIRY) */
+} pgp_pubkey_t;
+
+typedef struct pgp_key_t pgp_key_t;
+
+typedef struct pgp_seckey_t {
+    /* Note: Keep this as the first field. */
+    pgp_pubkey_t pubkey; /* public key */
+
+    /* This indicates the current state of the key union below.
+     * If false, the key union contains valid secret key material
+     * and is immediately available for operations.
+     * If true, the key union does not contain any valid secret
+     * key material and must be decrypted prior to use.
+     */
+    bool     encrypted;
+    unsigned checksum;
+    uint8_t  checkhash[PGP_CHECKHASH_SIZE];
+} pgp_seckey_t;
 
 /** Struct to hold userid or userattr packet. We don't parse userattr now, just storing the
  *  binary blob as it is. It may be distinguished by tag field.

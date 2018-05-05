@@ -70,9 +70,9 @@ void print_packet_hex(const pgp_rawpacket_t *pkt);
 
 /* used to point to data during keyring read */
 typedef struct keyringcb_t {
-    rnp_key_store_t *   keyring; /* the keyring we're reading */
-    pgp_io_t *          io;
-    pgp_key_t           key; /* the key we're currently loading */
+    rnp_key_store_t *         keyring; /* the keyring we're reading */
+    pgp_io_t *                io;
+    pgp_key_t                 key; /* the key we're currently loading */
     const pgp_key_provider_t *key_provider;
 } keyringcb_t;
 
@@ -382,8 +382,8 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             keydata.pubkey = content->pubkey;
         }
         if (!pgp_key_from_keydata(&cb->key, &keydata, pkt->tag)) {
-                PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to create key from keydata.");
-                return PGP_FINISHED;
+            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to create key from keydata.");
+            return PGP_FINISHED;
         }
         cb->key.format = GPG_KEY_STORE;
         if (secret) {
@@ -391,7 +391,7 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         }
         // Set some default key flags which will be overridden by signature
         // subpackets for V4 keys.
-        cb->key.key_flags = pgp_pk_alg_capabilities(pgp_get_pubkey(&cb->key)->alg);
+        cb->key.key_flags = pgp_pk_alg_capabilities(pgp_get_pubkey(&cb->key)->pkt.alg);
         return PGP_KEEP_MEMORY;
     case PGP_PTAG_CT_ARMOR_HEADER:
     case PGP_PTAG_CT_ARMOR_TRAILER:

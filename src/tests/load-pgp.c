@@ -263,7 +263,7 @@ test_load_check_bitfields_and_times(void **state)
     // check SS_CREATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.creation_set, 1);
     assert_int_equal(key->subsigs[0].sig.info.creation, 1500569820);
-    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
+    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.pkt.creation_time);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.expiration_set, 0);
     assert_int_equal(key->subsigs[0].sig.info.expiration, 0);
@@ -284,7 +284,7 @@ test_load_check_bitfields_and_times(void **state)
     // check SS_CREATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.creation_set, 1);
     assert_int_equal(key->subsigs[0].sig.info.creation, 1500569851);
-    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
+    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.pkt.creation_time);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.expiration_set, 0);
     assert_int_equal(key->subsigs[0].sig.info.expiration, 0);
@@ -305,7 +305,7 @@ test_load_check_bitfields_and_times(void **state)
     // check SS_CREATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.creation_set, 1);
     assert_int_equal(key->subsigs[0].sig.info.creation, 1500569896);
-    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
+    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.pkt.creation_time);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.expiration_set, 0);
     assert_int_equal(key->subsigs[0].sig.info.expiration, 0);
@@ -351,7 +351,7 @@ test_load_check_bitfields_and_times(void **state)
     // check SS_CREATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.creation_set, 1);
     assert_int_equal(key->subsigs[0].sig.info.creation, 1500569946);
-    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
+    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.pkt.creation_time);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.expiration_set, 0);
     assert_int_equal(key->subsigs[0].sig.info.expiration, 0);
@@ -372,7 +372,7 @@ test_load_check_bitfields_and_times(void **state)
     // check SS_CREATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.creation_set, 1);
     assert_int_equal(key->subsigs[0].sig.info.creation, 1500570165);
-    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
+    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.pkt.creation_time);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(key->subsigs[0].sig.info.expiration_set, 0);
     assert_int_equal(key->subsigs[0].sig.info.expiration, 0);
@@ -404,7 +404,7 @@ test_load_check_bitfields_and_times_v3(void **state)
     key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL, NULL);
     assert_non_null(key);
     // check key version
-    assert_int_equal(key->key.pubkey.version, PGP_V3);
+    assert_int_equal(key->key.pubkey.pkt.version, PGP_V3);
     // check subsig count
     assert_int_equal(key->subsigc, 1);
     // check signature version
@@ -416,13 +416,13 @@ test_load_check_bitfields_and_times_v3(void **state)
     // check creation time
     assert_int_equal(key->subsigs[0].sig.info.creation_set, 1);
     assert_int_equal(key->subsigs[0].sig.info.creation, 1005209227);
-    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.creation);
+    assert_int_equal(key->subsigs[0].sig.info.creation, key->key.pubkey.pkt.creation_time);
     // check signature expiration time (V3 sigs have none)
     assert_int_equal(key->subsigs[0].sig.info.expiration_set, 0);
     assert_int_equal(key->subsigs[0].sig.info.expiration, 0);
     // check key expiration
     assert_int_equal(key->key.pubkey.expiration, 0); // only for V4 keys
-    assert_int_equal(key->key.pubkey.days_valid, 0);
+    assert_int_equal(key->key.pubkey.pkt.v3_days, 0);
 
     // cleanup
     rnp_key_store_free(key_store);
