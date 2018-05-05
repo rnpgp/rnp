@@ -334,16 +334,20 @@ pgp_check_sig(rng_t *             rng,
 
     switch (sig->info.key_alg) {
     case PGP_PKA_DSA:
-        return !dsa_verify(&sig->info.sig.dsa, hash, length, &signer->key.dsa);
+        return !dsa_verify(&sig->info.sig.dsa, hash, length, &signer->pkt.material.dsa);
     case PGP_PKA_EDDSA:
-        return !eddsa_verify(&sig->info.sig.ec, hash, length, &signer->key.ec);
+        return !eddsa_verify(&sig->info.sig.ec, hash, length, &signer->pkt.material.ec);
     case PGP_PKA_SM2:
-        return !sm2_verify(&sig->info.sig.ec, hash, length, &signer->key.ec);
+        return !sm2_verify(&sig->info.sig.ec, hash, length, &signer->pkt.material.ec);
     case PGP_PKA_RSA:
-        return !rsa_verify_pkcs1(
-          rng, &sig->info.sig.rsa, sig->info.hash_alg, hash, length, &signer->key.rsa);
+        return !rsa_verify_pkcs1(rng,
+                                 &sig->info.sig.rsa,
+                                 sig->info.hash_alg,
+                                 hash,
+                                 length,
+                                 &signer->pkt.material.rsa);
     case PGP_PKA_ECDSA:
-        return !ecdsa_verify(&sig->info.sig.ec, hash, length, &signer->key.ec);
+        return !ecdsa_verify(&sig->info.sig.ec, hash, length, &signer->pkt.material.ec);
     default:
         RNP_LOG("Unknown algorithm");
         return false;
@@ -548,7 +552,7 @@ pgp_sig_start_key_sig(pgp_create_sig_t *  sig,
      * (done), and also should share code for hash calculation) */
     sig->sig.info.version = PGP_V4;
     sig->sig.info.hash_alg = pgp_hash_adjust_alg_to_key(hash_alg, key);
-    sig->sig.info.key_alg = key->alg;
+    sig->sig.info.key_alg = key->pkt.alg;
     sig->sig.info.type = type;
     sig->hashlen = (unsigned) -1;
     if (!init_key_sig(&sig->hash, &sig->sig, key)) {
@@ -577,7 +581,7 @@ pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
 
     sig->sig.info.version = PGP_V4;
     sig->sig.info.hash_alg = pgp_hash_adjust_alg_to_key(hash_alg, key);
-    sig->sig.info.key_alg = key->alg;
+    sig->sig.info.key_alg = key->pkt.alg;
     sig->sig.info.type = type;
     sig->hashlen = (unsigned) -1;
     if (!init_key_sig(&sig->hash, &sig->sig, key)) {
@@ -619,7 +623,7 @@ pgp_sig_start(pgp_create_sig_t *   sig,
      * probably use the buffered writer to construct packets
      * (done), and also should share code for hash calculation) */
     sig->sig.info.version = PGP_V4;
-    sig->sig.info.key_alg = key->pubkey.alg;
+    sig->sig.info.key_alg = key->pubkey.pkt.alg;
     sig->sig.info.hash_alg = hash;
     sig->sig.info.type = type;
 
@@ -673,18 +677,18 @@ pgp_sig_write(rng_t *             rng,
     size_t len = pgp_mem_len(sig->mem);
 
     /* check key not decrypted */
-    switch (seckey->pubkey.alg) {
+    switch (seckey->pubkey.pkt.alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!mpi_bytes(&seckey->pubkey.key.rsa.d)) {
+        if (!mpi_bytes(&seckey->pubkey.pkt.material.rsa.d)) {
             (void) fprintf(stderr, "pgp_sig_write: null rsa.d\n");
             return false;
         }
         break;
 
     case PGP_PKA_DSA:
-        if (!mpi_bytes(&seckey->pubkey.key.dsa.x)) {
+        if (!mpi_bytes(&seckey->pubkey.pkt.material.dsa.x)) {
             (void) fprintf(stderr, "pgp_sig_write: null dsa.x\n");
             return false;
         }
@@ -694,14 +698,14 @@ pgp_sig_write(rng_t *             rng,
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        if (!mpi_bytes(&seckey->pubkey.key.ec.x)) {
+        if (!mpi_bytes(&seckey->pubkey.pkt.material.ec.x)) {
             RNP_LOG("empty ec.x");
             return false;
         }
         break;
 
     default:
-        (void) fprintf(stderr, "Unsupported algorithm %d\n", seckey->pubkey.alg);
+        (void) fprintf(stderr, "Unsupported algorithm %d\n", seckey->pubkey.pkt.alg);
         return false;
     }
 
@@ -731,32 +735,35 @@ pgp_sig_write(rng_t *             rng,
     /* XXX: technically, we could figure out how big the signature is */
     /* and write it directly to the output instead of via memory. */
 
-    switch (seckey->pubkey.alg) {
+    switch (seckey->pubkey.pkt.alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!rsa_sign_wrapper(rng, &sig->hash, &seckey->pubkey.key.rsa, sig->output)) {
+        if (!rsa_sign_wrapper(
+              rng, &sig->hash, &seckey->pubkey.pkt.material.rsa, sig->output)) {
             RNP_LOG("rsa_sign failure");
             return false;
         }
         break;
 
     case PGP_PKA_EDDSA:
-        if (!eddsa_sign_wrapper(rng, &sig->hash, &seckey->pubkey.key.ec, sig->output)) {
+        if (!eddsa_sign_wrapper(
+              rng, &sig->hash, &seckey->pubkey.pkt.material.ec, sig->output)) {
             RNP_LOG("eddsa_sign failure");
             return false;
         }
         break;
 
     case PGP_PKA_SM2:
-        if (!sm2_sign_wrapper(rng, &sig->hash, &seckey->pubkey.key.ec, sig->output)) {
+        if (!sm2_sign_wrapper(rng, &sig->hash, &seckey->pubkey.pkt.material.ec, sig->output)) {
             RNP_LOG("sm2_sign failure");
             return false;
         }
         break;
 
     case PGP_PKA_DSA:
-        if (!dsa_sign_wrapper(rng, &sig->hash, &seckey->pubkey.key.dsa, sig->output)) {
+        if (!dsa_sign_wrapper(
+              rng, &sig->hash, &seckey->pubkey.pkt.material.dsa, sig->output)) {
             RNP_LOG("dsa_sign failure");
             return false;
         }
@@ -768,13 +775,14 @@ pgp_sig_write(rng_t *             rng,
      */
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
-        if (!ecdsa_sign_wrapper(rng, &sig->hash, &seckey->pubkey.key.ec, sig->output)) {
+        if (!ecdsa_sign_wrapper(
+              rng, &sig->hash, &seckey->pubkey.pkt.material.ec, sig->output)) {
             RNP_LOG("ecdsa sign failure");
             return false;
         }
         break;
     default:
-        (void) fprintf(stderr, "Unsupported algorithm %d\n", seckey->pubkey.alg);
+        (void) fprintf(stderr, "Unsupported algorithm %d\n", (int) seckey->pubkey.pkt.alg);
         return false;
     }
 

@@ -150,19 +150,20 @@ pk_alg_default_flags(pgp_pubkey_alg_t alg)
 
 // TODO: Similar as pgp_pick_hash_alg but different enough to
 //       keep another version. This will be changed when refactoring crypto
-static void adjust_hash_alg(rnp_keygen_crypto_params_t *crypto) {
+static void
+adjust_hash_alg(rnp_keygen_crypto_params_t *crypto)
+{
     if (!crypto->hash_alg) {
         crypto->hash_alg = DEFAULT_HASH_ALGS[0];
     }
 
-    if ((crypto->key_alg != PGP_PKA_DSA) &&
-        (crypto->key_alg != PGP_PKA_ECDSA)) {
+    if ((crypto->key_alg != PGP_PKA_DSA) && (crypto->key_alg != PGP_PKA_ECDSA)) {
         return;
     }
 
-    pgp_hash_alg_t min_hash = (crypto->key_alg == PGP_PKA_ECDSA)
-        ? ecdsa_get_min_hash(crypto->ecc.curve)
-        : dsa_get_min_hash(crypto->dsa.q_bitlen);
+    pgp_hash_alg_t min_hash = (crypto->key_alg == PGP_PKA_ECDSA) ?
+                                ecdsa_get_min_hash(crypto->ecc.curve) :
+                                dsa_get_min_hash(crypto->dsa.q_bitlen);
 
     if (pgp_digest_length(crypto->hash_alg) < pgp_digest_length(min_hash)) {
         crypto->hash_alg = min_hash;
@@ -473,7 +474,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
     pgp_memory_t *      mem = NULL;
     const pgp_seckey_t *primary_seckey = NULL;
     pgp_seckey_t *      decrypted_primary_seckey = NULL;
-    pgp_seckey_t        seckey = {{0}};
+    pgp_seckey_t        seckey = {{{0}}};
 
     // validate args
     if (!desc || !primary_sec || !primary_pub || !subkey_sec || !subkey_pub) {

@@ -211,7 +211,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     errors = pgp_callback_errors(cbinfo);
     switch (pkt->tag) {
     case PGP_PTAG_CT_PUBLIC_KEY:
-        if (key->pubkey.version != 0) {
+        if (key->pubkey.pkt.version != 0) {
             (void) fprintf(io->errs, "pgp_validate_key_cb: version bad\n");
             return PGP_FINISHED;
         }
@@ -220,7 +220,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         return PGP_KEEP_MEMORY;
 
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        if (key->subkey.version) {
+        if (key->subkey.pkt.version) {
             pgp_pubkey_free(&key->subkey);
         }
         key->subkey = content->pubkey;
@@ -502,7 +502,7 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
     if (keysigs.loaded_pubkey) {
         pgp_pubkey_free(&keysigs.pubkey);
     }
-    if (keysigs.subkey.version) {
+    if (keysigs.subkey.pkt.version) {
         pgp_pubkey_free(&keysigs.subkey);
     }
     pgp_seckey_free(&keysigs.seckey);

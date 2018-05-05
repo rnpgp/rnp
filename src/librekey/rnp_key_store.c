@@ -506,7 +506,7 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
     if (io && rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "rnp_key_store_add_key\n");
     }
-    assert(srckey->type && srckey->key.pubkey.version);
+    assert(srckey->type && srckey->key.pubkey.pkt.version);
     added_key = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
     if (io && rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "rnp_key_store_add_key: keyc %lu\n", list_length(keyring->keys));
@@ -795,44 +795,45 @@ grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val)
 bool
 rnp_key_store_get_key_grip(pgp_pubkey_t *key, uint8_t *grip)
 {
-    pgp_hash_t hash = {0};
+    pgp_hash_t          hash = {0};
+    pgp_key_material_t *kmaterial = &key->pkt.material;
 
     if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
         (void) fprintf(stderr, "rnp_key_store_get_key_grip: bad sha1 alloc\n");
         return false;
     }
 
-    switch (key->alg) {
+    switch (key->pkt.alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-        grip_hash_mpi(&hash, &key->key.rsa.n);
+        grip_hash_mpi(&hash, &kmaterial->rsa.n);
         break;
 
     case PGP_PKA_DSA:
-        grip_hash_mpi(&hash, &key->key.dsa.p);
-        grip_hash_mpi(&hash, &key->key.dsa.q);
-        grip_hash_mpi(&hash, &key->key.dsa.g);
-        grip_hash_mpi(&hash, &key->key.dsa.y);
+        grip_hash_mpi(&hash, &kmaterial->dsa.p);
+        grip_hash_mpi(&hash, &kmaterial->dsa.q);
+        grip_hash_mpi(&hash, &kmaterial->dsa.g);
+        grip_hash_mpi(&hash, &kmaterial->dsa.y);
         break;
 
     case PGP_PKA_ELGAMAL:
-        grip_hash_mpi(&hash, &key->key.eg.p);
-        grip_hash_mpi(&hash, &key->key.eg.g);
-        grip_hash_mpi(&hash, &key->key.eg.y);
+        grip_hash_mpi(&hash, &kmaterial->eg.p);
+        grip_hash_mpi(&hash, &kmaterial->eg.g);
+        grip_hash_mpi(&hash, &kmaterial->eg.y);
         break;
 
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        grip_hash_mpi(&hash, &key->key.ec.p);
+        grip_hash_mpi(&hash, &kmaterial->ec.p);
         break;
 
     default:
         (void) fprintf(stderr,
                        "rnp_key_store_get_key_grip: unsupported public-key algorithm %d\n",
-                       key->alg);
+                       key->pkt.alg);
         pgp_hash_finish(&hash, grip);
         return false;
     }

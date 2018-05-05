@@ -484,6 +484,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                         const unsigned       keylen)
 {
     pgp_pubkey_t *              pubkey;
+    pgp_key_material_t *        keymaterial;
     uint8_t                     enckey[PGP_MAX_KEY_SIZE + 3];
     unsigned                    checksum = 0;
     pgp_pk_sesskey_t            pkey = {0};
@@ -497,10 +498,11 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     pubkey = &userkey->key.pubkey;
+    keymaterial = &pubkey->pkt.material;
 
     /* Fill pkey */
     pkey.version = PGP_PKSK_V3;
-    pkey.alg = pubkey->alg;
+    pkey.alg = pubkey->pkt.alg;
     rnp_result_t tmpret;
     if ((tmpret = pgp_keyid(pkey.key_id, PGP_KEY_ID_SIZE, pubkey))) {
         RNP_LOG("key id calculation failed");
@@ -518,14 +520,14 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     enckey[keylen + 1] = (checksum >> 8) & 0xff;
     enckey[keylen + 2] = checksum & 0xff;
 
-    switch (pubkey->alg) {
+    switch (pubkey->pkt.alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY: {
         ret = rsa_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
                                 &pkey.material.rsa,
                                 enckey,
                                 keylen + 3,
-                                &pubkey->key.rsa);
+                                &keymaterial->rsa);
         if (ret) {
             RNP_LOG("rsa_encrypt_pkcs1 failed");
             goto finish;
@@ -538,7 +540,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                           enckey,
                           keylen + 3,
                           PGP_HASH_SM3,
-                          &pubkey->key.ec);
+                          &keymaterial->ec);
         if (ret != RNP_SUCCESS) {
             RNP_LOG("sm2_encrypt failed");
             goto finish;
@@ -556,7 +558,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                                  &pkey.material.ecdh,
                                  enckey,
                                  keylen + 3,
-                                 &pubkey->key.ec,
+                                 &keymaterial->ec,
                                  &fingerprint);
         if (ret != RNP_SUCCESS) {
             RNP_LOG("ECDH encryption failed %d", ret);
@@ -569,7 +571,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                                     &pkey.material.eg,
                                     enckey,
                                     keylen + 3,
-                                    &pubkey->key.eg);
+                                    &keymaterial->eg);
         if (ret) {
             RNP_LOG("pgp_elgamal_public_encrypt failed");
             goto finish;
@@ -577,7 +579,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         break;
     }
     default:
-        RNP_LOG("unsupported alg: %d", pubkey->alg);
+        RNP_LOG("unsupported alg: %d", pubkey->pkt.alg);
         goto finish;
     }
 
@@ -1089,7 +1091,8 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
     }
 
     /* calculate the signature */
-    ret = signature_calculate(sig, deckey, &hash, rnp_ctx_rng_handle(param->ctx));
+    ret = signature_calculate(
+      sig, &deckey->pubkey.pkt.material, &hash, rnp_ctx_rng_handle(param->ctx));
 
     /* destroy decrypted secret key */
     if (seckey->key.seckey.encrypted) {
@@ -1117,7 +1120,7 @@ signed_write_signature(pgp_dest_signed_param_t *param,
         sig.type = onepass->type;
     } else {
         sig.halg = pgp_hash_adjust_alg_to_key(param->ctx->halg, &seckey->key.seckey.pubkey);
-        sig.palg = seckey->key.pubkey.alg;
+        sig.palg = seckey->key.pubkey.pkt.alg;
         sig.type = param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT;
     }
 
@@ -1244,7 +1247,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, pgp_key_t *key, bool last)
         onepass.version = 3;
         onepass.type = PGP_SIG_BINARY;
         onepass.halg = halg;
-        onepass.palg = key->key.pubkey.alg;
+        onepass.palg = key->key.pubkey.pkt.alg;
         memcpy(onepass.keyid, key->keyid, PGP_KEY_ID_SIZE);
         onepass.nested = false;
 

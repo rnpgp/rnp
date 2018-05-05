@@ -1814,15 +1814,15 @@ key_fill_hashed_data(pgp_key_pkt_t *key)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        res = add_packet_body_key_curve(&hbody, key->material.ecc.curve) &&
-              add_packet_body_mpi(&hbody, &key->material.ecc.p);
+        res = add_packet_body_key_curve(&hbody, key->material.ec.curve) &&
+              add_packet_body_mpi(&hbody, &key->material.ec.p);
         break;
     case PGP_PKA_ECDH:
-        res = add_packet_body_key_curve(&hbody, key->material.ecc.curve) &&
-              add_packet_body_mpi(&hbody, &key->material.ecc.p) &&
+        res = add_packet_body_key_curve(&hbody, key->material.ec.curve) &&
+              add_packet_body_mpi(&hbody, &key->material.ec.p) &&
               add_packet_body_byte(&hbody, 3) && add_packet_body_byte(&hbody, 1) &&
-              add_packet_body_byte(&hbody, key->material.ecc.kdf_hash_alg) &&
-              add_packet_body_byte(&hbody, key->material.ecc.key_wrap_alg);
+              add_packet_body_byte(&hbody, key->material.ec.kdf_hash_alg) &&
+              add_packet_body_byte(&hbody, key->material.ec.key_wrap_alg);
         break;
     default:
         RNP_LOG("unknown key algorithm: %d", (int) key->alg);
@@ -2000,14 +2000,14 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        if (!get_packet_body_key_curve(&pkt, &key->material.ecc.curve) ||
-            !get_packet_body_mpi(&pkt, &key->material.ecc.p)) {
+        if (!get_packet_body_key_curve(&pkt, &key->material.ec.curve) ||
+            !get_packet_body_mpi(&pkt, &key->material.ec.p)) {
             goto finish;
         }
         break;
     case PGP_PKA_ECDH: {
-        if (!get_packet_body_key_curve(&pkt, &key->material.ecc.curve) ||
-            !get_packet_body_mpi(&pkt, &key->material.ecc.p)) {
+        if (!get_packet_body_key_curve(&pkt, &key->material.ec.curve) ||
+            !get_packet_body_mpi(&pkt, &key->material.ec.p)) {
             goto finish;
         }
 
@@ -2022,8 +2022,8 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
         if (!get_packet_body_byte(&pkt, &halg) || !get_packet_body_byte(&pkt, &walg)) {
             goto finish;
         }
-        key->material.ecc.kdf_hash_alg = halg;
-        key->material.ecc.key_wrap_alg = walg;
+        key->material.ec.kdf_hash_alg = halg;
+        key->material.ec.key_wrap_alg = walg;
         break;
     }
     default:

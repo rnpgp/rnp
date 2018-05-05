@@ -160,29 +160,29 @@ bool signature_hash_finish(pgp_signature_t *sig,
  *        between the hash and signature material. Expiration time and other fields are not
  *        checked for validity.
  * @param sig signature to validate
- * @param key public key corresponding to the signature
+ * @param key public key material of the verifying key
  * @param hash pre-populated with signed data hash context. It is finalized and destroyed
  *             during the execution. Signature fields and trailer are hashed in this function.
  * @param rng random number generator
  * @return RNP_SUCCESS if signature was successfully validated or error code otherwise.
  */
-rnp_result_t signature_validate(pgp_signature_t *sig,
-                                pgp_pubkey_t *   key,
-                                pgp_hash_t *     hash,
-                                rng_t *          rng);
+rnp_result_t signature_validate(pgp_signature_t *   sig,
+                                pgp_key_material_t *key,
+                                pgp_hash_t *        hash,
+                                rng_t *             rng);
 
 /**
  * @brief Calculate signature with pre-populated hash
  * @param sig signature to calculate
- * @param seckey signing secret key
+ * @param seckey signing secret key material
  * @param hash pre-populated with signed data hash context. It is finalized and destroyed
  *             during the execution. Signature fields and trailer are hashed in this function.
  * @param rng random number generator
  * @return RNP_SUCCESS if signature was successfully calculated or error code otherwise
  */
-rnp_result_t signature_calculate(pgp_signature_t *sig,
-                                 pgp_seckey_t *   seckey,
-                                 pgp_hash_t *     hash,
-                                 rng_t *          rng);
+rnp_result_t signature_calculate(pgp_signature_t *   sig,
+                                 pgp_key_material_t *seckey,
+                                 pgp_hash_t *        hash,
+                                 rng_t *             rng);
 
 #endif
