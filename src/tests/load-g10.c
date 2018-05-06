@@ -47,13 +47,14 @@ test_load_g10(void **state)
     // load secring
     rnp_key_store_t *sec_store = rnp_key_store_new("G10", "data/keyrings/3/private-keys-v1.d");
     assert_non_null(sec_store);
-    pgp_key_provider_t key_provider = {.callback = rnp_key_provider_store, .userdata = pub_store};
+    pgp_key_provider_t key_provider = {.callback = rnp_key_provider_store,
+                                       .userdata = pub_store};
     assert_true(rnp_key_store_load_from_file(&io, sec_store, 0, &key_provider));
 
     // find (primary)
     key = NULL;
     assert_true(rnp_hex_decode("4BE147BB22DF1E60", keyid, sizeof(keyid)));
-    key = rnp_key_store_get_key_by_id(&io, sec_store, keyid, NULL, NULL);
+    key = rnp_key_store_get_key_by_id(&io, sec_store, keyid, NULL);
     assert_non_null(key);
     // check properties
     assert_true(key->is_protected);
@@ -61,7 +62,7 @@ test_load_g10(void **state)
     // find (sub)
     key = NULL;
     assert_true(rnp_hex_decode("A49BAE05C16E8BC8", keyid, sizeof(keyid)));
-    key = rnp_key_store_get_key_by_id(&io, sec_store, keyid, NULL, NULL);
+    key = rnp_key_store_get_key_by_id(&io, sec_store, keyid, NULL);
     assert_non_null(key);
     // check properties
     assert_true(key->is_protected);

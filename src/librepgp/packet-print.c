@@ -316,8 +316,7 @@ format_uid_notice(char *                 buffer,
             continue;
         }
 
-        trustkey =
-          rnp_key_store_get_key_by_id(io, keyring, subsig->sig.info.signer_id, NULL, NULL);
+        trustkey = rnp_key_store_get_key_by_id(io, keyring, subsig->sig.info.signer_id, NULL);
 
         n += format_subsig_line(buffer + n, key, trustkey, subsig, size - n);
     }
@@ -557,7 +556,7 @@ repgp_sprint_json(pgp_io_t *                    io,
               json_object_new_int((int64_t)(key->subsigs[j].sig.info.creation)));
 
             const pgp_key_t *trustkey = rnp_key_store_get_key_by_id(
-              io, keyring, key->subsigs[j].sig.info.signer_id, NULL, NULL);
+              io, keyring, key->subsigs[j].sig.info.signer_id, NULL);
 
             json_object_object_add(
               subsigc,
@@ -616,7 +615,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                 }
             }
             trustkey = rnp_key_store_get_key_by_id(
-              io, keyring, key->subsigs[j].sig.info.signer_id, NULL, NULL);
+              io, keyring, key->subsigs[j].sig.info.signer_id, NULL);
             if (key->subsigs[j].sig.info.version == 4 &&
                 key->subsigs[j].sig.info.type == PGP_SIG_SUBKEY) {
                 n +=

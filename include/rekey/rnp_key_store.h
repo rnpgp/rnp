@@ -168,8 +168,10 @@ pgp_key_t *rnp_key_store_add_key(pgp_io_t *, rnp_key_store_t *, pgp_key_t *);
 bool rnp_key_store_remove_key(pgp_io_t *, rnp_key_store_t *, const pgp_key_t *);
 bool rnp_key_store_remove_key_by_id(pgp_io_t *, rnp_key_store_t *, const uint8_t *);
 
-pgp_key_t *rnp_key_store_get_key_by_id(
-  pgp_io_t *, const rnp_key_store_t *, const unsigned char *, pgp_key_t *, pgp_pubkey_t **);
+pgp_key_t *rnp_key_store_get_key_by_id(pgp_io_t *,
+                                       const rnp_key_store_t *,
+                                       const unsigned char *,
+                                       pgp_key_t *);
 
 pgp_key_t *rnp_key_store_get_key_by_name(pgp_io_t *,
                                          const rnp_key_store_t *,
@@ -181,11 +183,16 @@ pgp_key_t *rnp_key_store_get_key_by_userid(pgp_io_t *,
                                            const char *,
                                            pgp_key_t *);
 
-bool       rnp_key_store_get_key_grip(pgp_pubkey_t *, uint8_t *);
+bool rnp_key_store_get_key_grip(pgp_pubkey_t *, uint8_t *);
 
 pgp_key_t *rnp_key_store_get_key_by_grip(pgp_io_t *, const rnp_key_store_t *, const uint8_t *);
-pgp_key_t *rnp_key_store_get_key_by_fpr(pgp_io_t *, const rnp_key_store_t *, const pgp_fingerprint_t *fpr);
+pgp_key_t *rnp_key_store_get_key_by_fpr(pgp_io_t *,
+                                        const rnp_key_store_t *,
+                                        const pgp_fingerprint_t *fpr);
 
-pgp_key_t *rnp_key_store_search(pgp_io_t *, const rnp_key_store_t *, const pgp_key_search_t *, pgp_key_t *);
+pgp_key_t *rnp_key_store_search(pgp_io_t *,
+                                const rnp_key_store_t *,
+                                const pgp_key_search_t *,
+                                pgp_key_t *);
 
 #endif /* KEY_STORE_H_ */
