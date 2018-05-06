@@ -789,47 +789,44 @@ grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val)
 
 /* keygrip is subjectKeyHash from pkcs#15. */
 bool
-rnp_key_store_get_key_grip(pgp_pubkey_t *key, uint8_t *grip)
+rnp_key_store_get_key_grip(pgp_key_material_t *key, uint8_t *grip)
 {
     pgp_hash_t          hash = {0};
-    pgp_key_material_t *kmaterial = &key->pkt.material;
 
     if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
-        (void) fprintf(stderr, "rnp_key_store_get_key_grip: bad sha1 alloc\n");
+        RNP_LOG("bad sha1 alloc");
         return false;
     }
 
-    switch (key->pkt.alg) {
+    switch (key->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-        grip_hash_mpi(&hash, &kmaterial->rsa.n);
+        grip_hash_mpi(&hash, &key->rsa.n);
         break;
 
     case PGP_PKA_DSA:
-        grip_hash_mpi(&hash, &kmaterial->dsa.p);
-        grip_hash_mpi(&hash, &kmaterial->dsa.q);
-        grip_hash_mpi(&hash, &kmaterial->dsa.g);
-        grip_hash_mpi(&hash, &kmaterial->dsa.y);
+        grip_hash_mpi(&hash, &key->dsa.p);
+        grip_hash_mpi(&hash, &key->dsa.q);
+        grip_hash_mpi(&hash, &key->dsa.g);
+        grip_hash_mpi(&hash, &key->dsa.y);
         break;
 
     case PGP_PKA_ELGAMAL:
-        grip_hash_mpi(&hash, &kmaterial->eg.p);
-        grip_hash_mpi(&hash, &kmaterial->eg.g);
-        grip_hash_mpi(&hash, &kmaterial->eg.y);
+        grip_hash_mpi(&hash, &key->eg.p);
+        grip_hash_mpi(&hash, &key->eg.g);
+        grip_hash_mpi(&hash, &key->eg.y);
         break;
 
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        grip_hash_mpi(&hash, &kmaterial->ec.p);
+        grip_hash_mpi(&hash, &key->ec.p);
         break;
 
     default:
-        (void) fprintf(stderr,
-                       "rnp_key_store_get_key_grip: unsupported public-key algorithm %d\n",
-                       key->pkt.alg);
+        RNP_LOG("unsupported public-key algorithm %d", (int) key->alg);
         pgp_hash_finish(&hash, grip);
         return false;
     }

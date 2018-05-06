@@ -414,6 +414,7 @@ parse_pubkey(pgp_pubkey_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
     pgp_key_pkt_t *pkt = &pubkey->pkt;
     pkt->version = PGP_V4;
     pkt->alg = alg;
+    pkt->material.alg = alg;
     switch (alg) {
     case PGP_PKA_DSA:
         if (!read_mpi(s_exp, "p", &pkt->material.dsa.p) ||
@@ -887,7 +888,7 @@ g10_parse_seckey(pgp_io_t *                io,
 
     if (key_provider) {
         pgp_key_search_t search = {.type = PGP_KEY_SEARCH_GRIP};
-        if (!rnp_key_store_get_key_grip(&seckey->pubkey, search.by.grip)) {
+        if (!rnp_key_store_get_key_grip(&seckey->pubkey.pkt.material, search.by.grip)) {
             goto done;
         }
         pgp_key_t *pubkey = NULL;
@@ -920,7 +921,7 @@ g10_parse_seckey(pgp_io_t *                io,
     if (rnp_get_debug(__FILE__)) {
         uint8_t grip[PGP_FINGERPRINT_SIZE];
         char    grips[PGP_FINGERPRINT_HEX_SIZE];
-        if (rnp_key_store_get_key_grip(&seckey->pubkey, grip)) {
+        if (rnp_key_store_get_key_grip(&seckey->pubkey.pkt.material, grip)) {
             RNP_LOG("loaded G10 key with GRIP: %s\n",
                     rnp_strhexdump_upper(grips, grip, PGP_FINGERPRINT_SIZE, ""));
         }
