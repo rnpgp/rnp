@@ -243,7 +243,6 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
     uint8_t          keyid[PGP_KEY_ID_SIZE];
     char             id[MAX_ID_LENGTH + 1];
     const pgp_key_t *key;
-    pgp_pubkey_t *   sigkey;
     char *           title = "UNKNOWN signature";
     pgp_io_t *       io = handler->ctx->rnp->io;
 
@@ -289,8 +288,7 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
                 userid_to_id(keyid, id));
 
         if (!sigs[i].no_signer) {
-            key = rnp_key_store_get_key_by_id(
-              io, handler->ctx->rnp->pubring, keyid, NULL, &sigkey);
+            key = rnp_key_store_get_key_by_id(io, handler->ctx->rnp->pubring, keyid, NULL);
             repgp_print_key(
               io, handler->ctx->rnp->pubring, key, "signature ", &key->key.pubkey, 0);
         }

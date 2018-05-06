@@ -531,7 +531,7 @@ rnp_key_store_remove_key_by_id(pgp_io_t *io, rnp_key_store_t *keyring, const uin
 {
     const pgp_key_t *key;
 
-    key = rnp_key_store_get_key_by_id(io, keyring, keyid, NULL, NULL);
+    key = rnp_key_store_get_key_by_id(io, keyring, keyid, NULL);
     if (key != NULL) {
         return rnp_key_store_remove_key(io, keyring, key);
     }
@@ -557,8 +557,7 @@ pgp_key_t *
 rnp_key_store_get_key_by_id(pgp_io_t *             io,
                             const rnp_key_store_t *keyring,
                             const uint8_t *        keyid,
-                            pgp_key_t *            after,
-                            pgp_pubkey_t **        pubkey)
+                            pgp_key_t *            after)
 {
     if (rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "searching keyring %p\n", keyring);
@@ -582,9 +581,6 @@ rnp_key_store_get_key_by_id(pgp_io_t *             io,
         }
         if (memcmp(key->keyid, keyid, PGP_KEY_ID_SIZE) == 0 ||
             memcmp(&key->keyid[PGP_KEY_ID_SIZE / 2], keyid, PGP_KEY_ID_SIZE / 2) == 0) {
-            if (pubkey) {
-                *pubkey = &key->key.pubkey;
-            }
             return key;
         }
     }
@@ -724,7 +720,7 @@ get_key_by_name(pgp_io_t *             io,
     if (rnp_get_debug(__FILE__)) {
         hexdump(io->outs, "keyid", keyid, 4);
     }
-    if ((kp = rnp_key_store_get_key_by_id(io, keyring, keyid, after, NULL)) != NULL) {
+    if ((kp = rnp_key_store_get_key_by_id(io, keyring, keyid, after)) != NULL) {
         *key = kp;
         return true;
     }

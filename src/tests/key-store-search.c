@@ -77,8 +77,8 @@ test_key_store_search(void **state)
         uint8_t keyid[PGP_KEY_ID_SIZE];
         assert_true(rnp_hex_decode(testdata[i].keyid, keyid, sizeof(keyid)));
         list seen_keys = NULL;
-        for (pgp_key_t *key = rnp_key_store_get_key_by_id(&io, store, keyid, NULL, NULL); key;
-             key = rnp_key_store_get_key_by_id(&io, store, keyid, key, NULL)) {
+        for (pgp_key_t *key = rnp_key_store_get_key_by_id(&io, store, keyid, NULL); key;
+             key = rnp_key_store_get_key_by_id(&io, store, keyid, key)) {
             // check that the keyid actually matches
             assert_int_equal(0, memcmp(key->keyid, keyid, PGP_KEY_ID_SIZE));
             // check that we have not already encountered this key pointer
