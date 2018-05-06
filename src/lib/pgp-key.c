@@ -59,6 +59,7 @@
 
 #include <rnp/rnp_sdk.h>
 #include <librepgp/validate.h>
+#include <librepgp/stream-packet.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -123,11 +124,11 @@ bool
 pgp_key_from_keydata(pgp_key_t *key, pgp_keydata_key_t *keydata, const pgp_content_enum tag)
 {
     assert(!key->key.pubkey.pkt.version);
-    assert(tag == PGP_PTAG_CT_PUBLIC_KEY || tag == PGP_PTAG_CT_PUBLIC_SUBKEY ||
-           tag == PGP_PTAG_CT_SECRET_KEY || tag == PGP_PTAG_CT_SECRET_SUBKEY);
+    assert(is_key_pkt(tag));
+    assert(keydata->pubkey.pkt.material.alg);
     if (pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, &keydata->pubkey.pkt) ||
         pgp_fingerprint(&key->fingerprint, &keydata->pubkey.pkt) ||
-        !rnp_key_store_get_key_grip(&keydata->pubkey, key->grip)) {
+        !rnp_key_store_get_key_grip(&keydata->pubkey.pkt.material, key->grip)) {
         return false;
     }
     key->type = tag;
