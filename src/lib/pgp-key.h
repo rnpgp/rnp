@@ -71,8 +71,9 @@ struct pgp_key_t {
     list               subkey_grips;   /* list of subkey grips (for primary keys) */
     uint8_t *          primary_grip;   /* grip of primary key (for subkeys) */
     pgp_content_enum   type;           /* type of key */
-    pgp_keydata_key_t  key;       /* pubkey/seckey data */
-    uint8_t            key_flags; /* key flags */
+    time_t             expiration;     /* key expiration time, if available */
+    pgp_keydata_key_t  key;            /* pubkey/seckey data */
+    uint8_t            key_flags;      /* key flags */
     uint8_t            keyid[PGP_KEY_ID_SIZE];
     pgp_fingerprint_t  fingerprint;
     uint8_t            grip[PGP_FINGERPRINT_SIZE];
@@ -284,7 +285,6 @@ pgp_key_t *pgp_get_primary_key_for(pgp_io_t *                io,
  *  @returns hash algorithm that must be use for operation (mostly
              signing with secure key which corresponds to 'pubkey')
  */
-pgp_hash_alg_t
-pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_pubkey_t *pubkey);
+pgp_hash_alg_t pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_pubkey_t *pubkey);
 
 #endif // RNP_PACKET_KEY_H

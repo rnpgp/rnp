@@ -110,7 +110,7 @@ test_key_add_userid(void **state)
     assert_int_equal(0, strcmp((char *) key->uids[key->uidc - 2], "added1"));
     assert_int_equal(key->uidc - 2, key->subsigs[key->subsigc - 2].uid);
     assert_int_equal(0xAB, key->subsigs[key->subsigc - 2].key_flags);
-    assert_int_equal(123456789, key->key.pubkey.expiration);
+    assert_int_equal(123456789, key->expiration);
     // added2
     assert_int_equal(0, strcmp((char *) key->uids[key->uidc - 1], "added2"));
     assert_int_equal(key->uidc - 1, key->subsigs[key->subsigc - 1].uid);
@@ -142,7 +142,7 @@ test_key_add_userid(void **state)
     assert_int_equal(0, strcmp((char *) key->uids[key->uidc - 2], "added1"));
     assert_int_equal(key->uidc - 2, key->subsigs[key->subsigc - 2].uid);
     assert_int_equal(0xAB, key->subsigs[key->subsigc - 2].key_flags);
-    assert_int_equal(123456789, key->key.pubkey.expiration);
+    assert_int_equal(123456789, key->expiration);
     // added2
     assert_int_equal(0, strcmp((char *) key->uids[key->uidc - 1], "added2"));
     assert_int_equal(key->uidc - 1, key->subsigs[key->subsigc - 1].uid);

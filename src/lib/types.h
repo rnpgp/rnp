@@ -225,7 +225,6 @@ typedef struct pgp_key_pkt_t {
 /** Structure to hold a pgp public key */
 typedef struct pgp_pubkey_t {
     pgp_key_pkt_t pkt; /* will later on replace key itself */
-    time_t expiration; /* v4 expiration time (not always set, see SS_KEY_EXPIRY) */
 } pgp_pubkey_t;
 
 typedef struct pgp_key_t pgp_key_t;

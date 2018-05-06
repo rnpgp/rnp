@@ -77,10 +77,6 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 
 #define PTIMESTR_LEN 10
 
-#define PUBKEY_DOES_EXPIRE(pk) ((pk)->expiration > 0)
-
-#define PUBKEY_HAS_EXPIRED(pk, t) (((pk)->pkt.creation_time + (pk)->expiration) < (t))
-
 #define SIGNATURE_PADDING "          "
 
 /* static functions */
@@ -111,6 +107,18 @@ key_bitlength(const pgp_pubkey_t *pubkey)
         RNP_LOG("Unknown public key alg in key_bitlength");
         return -1;
     }
+}
+
+static bool
+key_expires(const pgp_key_t *key)
+{
+    return key->expiration > 0;
+}
+
+static bool
+key_has_expired(const pgp_key_t *key, time_t t)
+{
+    return (key->expiration > 0) && (key->key.pubkey.pkt.creation_time + key->expiration < t);
 }
 
 /* Write the time as a string to buffer `dest`. The time string is guaranteed
@@ -181,10 +189,7 @@ iscompromised(const pgp_key_t *key, unsigned uid)
  * expires. Return 1 on success and 0 on failure.
  */
 static bool
-format_pubkey_expiration_notice(char *              buffer,
-                                const pgp_pubkey_t *pubkey,
-                                time_t              time,
-                                size_t              size)
+format_pubkey_expiration_notice(char *buffer, const pgp_key_t *key, time_t time, size_t size)
 {
     char *buffer_end = buffer + size;
 
@@ -192,29 +197,31 @@ format_pubkey_expiration_notice(char *              buffer,
 
     /* Write the opening bracket. */
     buffer += snprintf(buffer, buffer_end - buffer, "%s", "[");
-    if (buffer >= buffer_end)
+    if (buffer >= buffer_end) {
         return false;
+    }
 
     /* Write the expiration state label. */
-    buffer += snprintf(buffer,
-                       buffer_end - buffer,
-                       "%s ",
-                       PUBKEY_HAS_EXPIRED(pubkey, time) ? "EXPIRED" : "EXPIRES");
+    buffer += snprintf(
+      buffer, buffer_end - buffer, "%s ", key_has_expired(key, time) ? "EXPIRED" : "EXPIRES");
 
     /* Ensure that there will be space for tihe time. */
-    if (buffer_end - buffer < PTIMESTR_LEN + 1)
+    if (buffer_end - buffer < PTIMESTR_LEN + 1) {
         return false;
+    }
 
     /* Write the expiration time. */
-    ptimestr(buffer, buffer_end - buffer, pubkey->pkt.creation_time + pubkey->expiration);
+    ptimestr(buffer, buffer_end - buffer, key->key.pubkey.pkt.creation_time + key->expiration);
     buffer += PTIMESTR_LEN;
-    if (buffer >= buffer_end)
+    if (buffer >= buffer_end) {
         return false;
+    }
 
     /* Write the closing bracket. */
     buffer += snprintf(buffer, buffer_end - buffer, "%s", "]");
-    if (buffer >= buffer_end)
+    if (buffer >= buffer_end) {
         return false;
+    }
 
     return true;
 }
@@ -258,9 +265,8 @@ format_subsig_line(char *              buffer,
     int  n = 0;
 
     expired[0] = '\0';
-    if (PUBKEY_DOES_EXPIRE(&key->key.pubkey)) {
-        format_pubkey_expiration_notice(
-          expired, &key->key.pubkey, time(NULL), sizeof(expired));
+    if (key_expires(key)) {
+        format_pubkey_expiration_notice(expired, key, time(NULL), sizeof(expired));
     }
     if (subsig->sig.info.version == 4 && subsig->sig.info.type == PGP_SIG_SUBKEY) {
         /* XXX: The character count of this was previously ignored.
@@ -268,8 +274,9 @@ format_subsig_line(char *              buffer,
          *      you should revert it.
          */
         n += psubkeybinding(buffer, size, key, expired);
-    } else
+    } else {
         n += format_sig_line(buffer, &subsig->sig, trustkey, size);
+    }
 
     return n;
 }
@@ -399,11 +406,12 @@ pgp_sprint_key(pgp_io_t *             io,
 
     now = time(NULL);
 
-    if (PUBKEY_DOES_EXPIRE(pubkey)) {
+    if (key_expires(key)) {
         format_pubkey_expiration_notice(
-          expiration_notice, pubkey, now, sizeof(expiration_notice));
-    } else
+          expiration_notice, key, now, sizeof(expiration_notice));
+    } else {
         expiration_notice[0] = '\0';
+    }
 
     uid_notices = (char *) malloc(NOTICE_BUFFER_SIZE);
     if (uid_notices == NULL)
@@ -506,7 +514,7 @@ repgp_sprint_json(pgp_io_t *                    io,
                              fp, key->fingerprint.fingerprint, key->fingerprint.length, "")));
     json_object_object_add(
       keyjson, "creation time", json_object_new_int(pubkey->pkt.creation_time));
-    json_object_object_add(keyjson, "expiration", json_object_new_int(pubkey->expiration));
+    json_object_object_add(keyjson, "expiration", json_object_new_int(key->expiration));
     json_object_object_add(keyjson, "key flags", json_object_new_int(key->key_flags));
     json_object *usage_arr = json_object_new_array();
     format_key_usage_json(usage_arr, key->key_flags);
@@ -594,7 +602,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                       sizeof(uidbuf) - n,
                       "uid:%lld:%lld:%s\n",
                       (long long) pubkey->pkt.creation_time,
-                      (long long) pubkey->expiration,
+                      (long long) key->expiration,
                       key->uids[i]);
         for (j = 0; j < key->subsigc; j++) {
             if (psigs) {
@@ -620,7 +628,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                            rnp_strhexdump(
                              keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, ""),
                            (long long) (key->subsigs[j].sig.info.creation),
-                           (long long) pubkey->expiration);
+                           (long long) key->expiration);
             } else {
                 n +=
                   snprintf(&uidbuf[n],
@@ -649,7 +657,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                          pubkey->pkt.alg,
                          key_bitlength(pubkey),
                          (long long) pubkey->pkt.creation_time,
-                         (long long) pubkey->expiration,
+                         (long long) key->expiration,
                          uidbuf);
             *buf = buffer;
         }
