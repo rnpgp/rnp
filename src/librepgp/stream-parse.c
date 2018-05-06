@@ -1332,7 +1332,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     }
     case PGP_PKA_ECDH: {
-        if (pgp_fingerprint(&fingerprint, &seckey->pubkey)) {
+        if (pgp_fingerprint(&fingerprint, &seckey->pubkey.pkt)) {
             RNP_LOG("ECDH fingerprint calculation failed");
             return false;
         }

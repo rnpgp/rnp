@@ -125,7 +125,13 @@ bool signature_set_expiration(pgp_signature_t *sig, uint32_t etime);
  */
 bool signature_fill_hashed_data(pgp_signature_t *sig);
 
-bool signature_hash_key(pgp_key_pkt_t *key, pgp_hash_t *hash);
+/**
+ * @brief Hash key packet. Used in signatures and v4 fingerprint calculation.
+ * @param key key packet, must be populated
+ * @param hash pointer to initialized hash context
+ * @return true if sig->hashed_data is filled up correctly or false otherwise
+ */
+bool signature_hash_key(const pgp_key_pkt_t *key, pgp_hash_t *hash);
 
 bool signature_hash_userid(pgp_userid_pkt_t *uid, pgp_hash_t *hash, pgp_version_t sigver);
 

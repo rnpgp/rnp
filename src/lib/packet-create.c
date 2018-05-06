@@ -753,7 +753,7 @@ pgp_write_selfsig_cert(pgp_output_t *               output,
         return false;
     }
 
-    if (pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey)) {
+    if (pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey.pkt)) {
         RNP_LOG("failed to calculate keyid");
         goto end;
     }
@@ -851,7 +851,7 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
         return false;
     }
 
-    if (pgp_keyid(keyid, sizeof(keyid), &primary_sec->pubkey)) {
+    if (pgp_keyid(keyid, sizeof(keyid), &primary_sec->pubkey.pkt)) {
         RNP_LOG("failed to calculate keyid");
         goto end;
     }

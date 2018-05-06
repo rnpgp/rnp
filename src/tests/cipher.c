@@ -384,7 +384,7 @@ ecdh_roundtrip(void **state)
 
         pgp_fingerprint_t ecdh_key1_fpr;
         memset(&ecdh_key1_fpr, 0, sizeof(ecdh_key1_fpr));
-        assert_rnp_success(pgp_fingerprint(&ecdh_key1_fpr, &ecdh_key1.pubkey));
+        assert_rnp_success(pgp_fingerprint(&ecdh_key1_fpr, &ecdh_key1.pubkey.pkt));
 
         assert_rnp_success(ecdh_encrypt_pkcs5(&global_rng,
                                               &enc,
@@ -423,7 +423,7 @@ ecdh_decryptionNegativeCases(void **state)
 
     pgp_fingerprint_t ecdh_key1_fpr;
     memset(&ecdh_key1_fpr, 0, sizeof(ecdh_key1_fpr));
-    assert_rnp_success(pgp_fingerprint(&ecdh_key1_fpr, &ecdh_key1.pubkey));
+    assert_rnp_success(pgp_fingerprint(&ecdh_key1_fpr, &ecdh_key1.pubkey.pkt));
 
     assert_rnp_success(ecdh_encrypt_pkcs5(&global_rng,
                                           &enc,

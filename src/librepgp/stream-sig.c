@@ -335,22 +335,28 @@ signature_fill_hashed_data(pgp_signature_t *sig)
 }
 
 bool
-signature_hash_key(pgp_key_pkt_t *key, pgp_hash_t *hash)
+signature_hash_key(const pgp_key_pkt_t *key, pgp_hash_t *hash)
 {
-    uint8_t hdr[3] = {0x99, 0x00, 0x00};
+    uint8_t       hdr[3] = {0x99, 0x00, 0x00};
+    pgp_key_pkt_t keycp = {0};
+    bool          res = false;
 
     if (!key || !hash) {
         RNP_LOG("null key or hash");
         return false;
     }
-    if (!key->hashed_data && !key_fill_hashed_data(key)) {
-        RNP_LOG("failed to build hashed data");
-        return false;
-    }
-    write_uint16(hdr + 1, key->hashed_len);
 
-    return !pgp_hash_add(hash, hdr, 3) &&
-           !pgp_hash_add(hash, key->hashed_data, key->hashed_len);
+    if (key->hashed_data) {
+        write_uint16(hdr + 1, key->hashed_len);
+        return !pgp_hash_add(hash, hdr, 3) &&
+               !pgp_hash_add(hash, key->hashed_data, key->hashed_len);
+    }
+
+    /* call self recursively if hashed data is not filled, to overcome const restriction */
+    res = copy_key_pkt(&keycp, key) && key_fill_hashed_data(&keycp) &&
+          signature_hash_key(&keycp, hash);
+    free_key_pkt(&keycp);
+    return res;
 }
 
 bool
