@@ -504,7 +504,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     pkey.version = PGP_PKSK_V3;
     pkey.alg = pubkey->pkt.alg;
     rnp_result_t tmpret;
-    if ((tmpret = pgp_keyid(pkey.key_id, PGP_KEY_ID_SIZE, pubkey))) {
+    if ((tmpret = pgp_keyid(pkey.key_id, PGP_KEY_ID_SIZE, &pubkey->pkt))) {
         RNP_LOG("key id calculation failed");
         return tmpret;
     }
@@ -550,7 +550,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     case PGP_PKA_ECDH: {
         pgp_fingerprint_t fingerprint;
 
-        if ((ret = pgp_fingerprint(&fingerprint, pubkey))) {
+        if ((ret = pgp_fingerprint(&fingerprint, &pubkey->pkt))) {
             RNP_LOG("ECDH fingerprint calculation failed");
             goto finish;
         }

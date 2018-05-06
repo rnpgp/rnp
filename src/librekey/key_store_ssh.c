@@ -162,7 +162,7 @@ findstr(str_t *array, const char *name)
 }
 
 static int
-ssh_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key)
+ssh_keyid(uint8_t *keyid, const size_t idlen, const pgp_key_pkt_t *key)
 {
     pgp_fingerprint_t finger;
 
@@ -317,9 +317,9 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
             snprintf(buffer, buffer_size, "%s (%s) <%s>", hostname, f, owner);
             userid = (uint8_t *) buffer;
         }
-        ssh_keyid(key->keyid, sizeof(key->keyid), pubkey);
+        ssh_keyid(key->keyid, sizeof(key->keyid), &pubkey->pkt);
         pgp_add_userid(key, userid);
-        ssh_fingerprint(&key->fingerprint, pubkey);
+        ssh_fingerprint(&key->fingerprint, &pubkey->pkt);
 
         free((void *) userid);
 
@@ -386,8 +386,8 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
                          key->key.seckey.pubkey.pkt.sec_protection.symm_alg,
                          sesskey,
                          key->key.seckey.pubkey.pkt.sec_protection.iv);
-    ssh_fingerprint(&key->fingerprint, pubkey);
-    ssh_keyid(key->keyid, sizeof(key->keyid), pubkey);
+    ssh_fingerprint(&key->fingerprint, &pubkey->pkt);
+    ssh_keyid(key->keyid, sizeof(key->keyid), &pubkey->pkt);
     return true;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2018, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -32,6 +32,9 @@
 #include "fingerprint.h"
 #include "crypto/hash.h"
 #include "packet-create.h"
+#include <librepgp/stream-key.h>
+#include <librepgp/stream-sig.h>
+#include <librepgp/stream-packet.h>
 #include "utils.h"
 
 /* hash a string - first length, then string itself */
@@ -44,7 +47,7 @@ hash_string(pgp_hash_t *hash, const uint8_t *buf, size_t len)
 }
 
 rnp_result_t
-ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
+ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_key_pkt_t *key)
 {
     pgp_hash_t  hash = {0};
     const char *type;
@@ -53,18 +56,18 @@ ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
-    type = (key->pkt.alg == PGP_PKA_RSA) ? "ssh-rsa" : "ssh-dss";
+    type = (key->alg == PGP_PKA_RSA) ? "ssh-rsa" : "ssh-dss";
     hash_string(&hash, (const uint8_t *) (const void *) type, (unsigned) strlen(type));
-    switch (key->pkt.alg) {
+    switch (key->alg) {
     case PGP_PKA_RSA:
-        (void) mpi_hash(&key->pkt.material.rsa.e, &hash);
-        (void) mpi_hash(&key->pkt.material.rsa.n, &hash);
+        (void) mpi_hash(&key->material.rsa.e, &hash);
+        (void) mpi_hash(&key->material.rsa.n, &hash);
         break;
     case PGP_PKA_DSA:
-        (void) mpi_hash(&key->pkt.material.dsa.p, &hash);
-        (void) mpi_hash(&key->pkt.material.dsa.q, &hash);
-        (void) mpi_hash(&key->pkt.material.dsa.g, &hash);
-        (void) mpi_hash(&key->pkt.material.dsa.y, &hash);
+        (void) mpi_hash(&key->material.dsa.p, &hash);
+        (void) mpi_hash(&key->material.dsa.q, &hash);
+        (void) mpi_hash(&key->material.dsa.g, &hash);
+        (void) mpi_hash(&key->material.dsa.y, &hash);
         break;
     default:
         pgp_hash_finish(&hash, fp->fingerprint);
@@ -78,14 +81,12 @@ ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
 }
 
 rnp_result_t
-pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
+pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_key_pkt_t *key)
 {
-    pgp_memory_t *mem;
-    pgp_hash_t    hash = {0};
+    pgp_hash_t hash = {0};
 
-    if (key->pkt.version == 2 || key->pkt.version == 3) {
-        if (key->pkt.alg != PGP_PKA_RSA && key->pkt.alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
-            key->pkt.alg != PGP_PKA_RSA_SIGN_ONLY) {
+    if ((key->version == PGP_V2) || (key->version == PGP_V3)) {
+        if (!is_rsa_key_alg(key->alg)) {
             RNP_LOG("bad algorithm");
             return RNP_ERROR_NOT_SUPPORTED;
         }
@@ -93,42 +94,32 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
             RNP_LOG("bad md5 alloc");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        (void) mpi_hash(&key->pkt.material.rsa.n, &hash);
-        (void) mpi_hash(&key->pkt.material.rsa.e, &hash);
+        (void) mpi_hash(&key->material.rsa.n, &hash);
+        (void) mpi_hash(&key->material.rsa.e, &hash);
         fp->length = pgp_hash_finish(&hash, fp->fingerprint);
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "v2/v3 fingerprint", fp->fingerprint, fp->length);
         }
-    } else if (key->pkt.version == 4) {
-        mem = pgp_memory_new();
-        if (mem == NULL) {
-            RNP_LOG("can't allocate mem");
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
-        if (!pgp_build_pubkey(mem, key, 0)) {
-            RNP_LOG("failed to build pubkey");
-            pgp_memory_free(mem);
-            return RNP_ERROR_GENERIC;
-        }
+        return RNP_SUCCESS;
+    }
+
+    if (key->version == PGP_V4) {
         if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
             RNP_LOG("bad sha1 alloc");
-            pgp_memory_free(mem);
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        size_t len = pgp_mem_len(mem);
-        pgp_hash_add_int(&hash, 0x99, 1);
-        pgp_hash_add_int(&hash, len, 2);
-        pgp_hash_add(&hash, pgp_mem_data(mem), len);
+        if (!signature_hash_key(key, &hash)) {
+            return RNP_ERROR_GENERIC;
+        }
         fp->length = pgp_hash_finish(&hash, fp->fingerprint);
-        pgp_memory_free(mem);
         if (rnp_get_debug(__FILE__)) {
             hexdump(stderr, "sha1 fingerprint", fp->fingerprint, fp->length);
         }
-    } else {
-        RNP_LOG("unsupported key version");
-        return RNP_ERROR_NOT_SUPPORTED;
+        return RNP_SUCCESS;
     }
-    return RNP_SUCCESS;
+
+    RNP_LOG("unsupported key version");
+    return RNP_ERROR_NOT_SUPPORTED;
 }
 
 /**
@@ -139,25 +130,25 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_pubkey_t *key)
  */
 
 rnp_result_t
-pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_pubkey_t *key)
+pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_key_pkt_t *key)
 {
-    if (key->pkt.version == 2 || key->pkt.version == 3) {
-        size_t n;
-        if (key->pkt.alg != PGP_PKA_RSA && key->pkt.alg != PGP_PKA_RSA_ENCRYPT_ONLY &&
-            key->pkt.alg != PGP_PKA_RSA_SIGN_ONLY) {
+    pgp_fingerprint_t fp;
+    rnp_result_t      ret;
+    size_t            n;
+
+    if ((key->version == PGP_V2) || (key->version == PGP_V3)) {
+        if (!is_rsa_key_alg(key->alg)) {
             RNP_LOG("bad algorithm");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        n = mpi_bytes(&key->pkt.material.rsa.n);
-        (void) memcpy(keyid, key->pkt.material.rsa.n.mpi + n - idlen, idlen);
-    } else {
-        pgp_fingerprint_t finger;
-
-        rnp_result_t ret;
-        if ((ret = pgp_fingerprint(&finger, key))) {
-            return ret;
-        }
-        (void) memcpy(keyid, finger.fingerprint + finger.length - idlen, idlen);
+        n = mpi_bytes(&key->material.rsa.n);
+        (void) memcpy(keyid, key->material.rsa.n.mpi + n - idlen, idlen);
+        return RNP_SUCCESS;
     }
+
+    if ((ret = pgp_fingerprint(&fp, key))) {
+        return ret;
+    }
+    (void) memcpy(keyid, fp.fingerprint + fp.length - idlen, idlen);
     return RNP_SUCCESS;
 }
