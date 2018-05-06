@@ -317,6 +317,34 @@ hex_encode(const uint8_t v[], size_t len)
     return s;
 }
 
+bool
+bin_eq_hex(uint8_t *data, size_t len, const char *val)
+{
+    uint8_t *dec;
+    size_t   stlen = strlen(val);
+    if (stlen != len * 2) {
+        return false;
+    }
+
+    assert_non_null(dec = malloc(len));
+    assert_true(rnp_hex_decode(val, dec, len));
+    bool res = !memcmp(data, dec, len);
+    free(dec);
+    return res;
+}
+
+bool
+cmp_keyid(uint8_t *id, const char *val)
+{
+    return bin_eq_hex(id, PGP_KEY_ID_SIZE, val);
+}
+
+bool
+cmp_keyfp(pgp_fingerprint_t *fp, const char *val)
+{
+    return bin_eq_hex(fp->fingerprint, fp->length, val);
+}
+
 int
 test_value_equal(const char *what, const char *expected_value, const uint8_t v[], size_t v_len)
 {

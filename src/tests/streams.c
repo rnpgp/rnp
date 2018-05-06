@@ -167,10 +167,13 @@ test_stream_signatures(void **state)
 void
 test_stream_key_load(void **state)
 {
-    pgp_source_t            keysrc = {0};
-    pgp_dest_t              keydst = {0};
-    pgp_key_sequence_t      keyseq;
-    pgp_transferable_key_t *key = NULL;
+    pgp_source_t               keysrc = {0};
+    pgp_dest_t                 keydst = {0};
+    pgp_key_sequence_t         keyseq;
+    uint8_t                    keyid[PGP_KEY_ID_SIZE];
+    pgp_fingerprint_t          keyfp;
+    pgp_transferable_key_t *   key = NULL;
+    pgp_transferable_subkey_t *skey = NULL;
 
     /* public keyring, read-save-read-save armored-read */
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/1/pubring.gpg"));
@@ -226,7 +229,10 @@ test_stream_key_load(void **state)
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/4/rsav3-p.asc"));
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
     assert_int_equal(list_length(keyseq.keys), 1);
-    assert_non_null(list_front(keyseq.keys));
+    assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_rnp_success(pgp_keyid(keyid, PGP_KEY_ID_SIZE, &key->key));
+    assert_true(cmp_keyid(keyid, "7D0BC10E933404C9"));
+    assert_false(cmp_keyid(keyid, "1D0BC10E933404C9"));
     key_sequence_destroy(&keyseq);
     src_close(&keysrc);
 
@@ -234,7 +240,9 @@ test_stream_key_load(void **state)
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/4/rsav3-s.asc"));
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
     assert_int_equal(list_length(keyseq.keys), 1);
-    assert_non_null(list_front(keyseq.keys));
+    assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_rnp_success(pgp_keyid(keyid, PGP_KEY_ID_SIZE, &key->key));
+    assert_true(cmp_keyid(keyid, "7D0BC10E933404C9"));
     key_sequence_destroy(&keyseq);
     src_close(&keysrc);
 
@@ -243,6 +251,10 @@ test_stream_key_load(void **state)
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
     assert_int_equal(list_length(keyseq.keys), 1);
     assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_rnp_success(pgp_fingerprint(&keyfp, &key->key));
+    assert_true(cmp_keyfp(&keyfp, "6BC04A5A3DDB35766B9A40D82FB9179118898E8B"));
+    assert_rnp_success(pgp_keyid(keyid, PGP_KEY_ID_SIZE, &key->key));
+    assert_true(cmp_keyid(keyid, "2FB9179118898E8B"));
     assert_int_equal(list_length(key->subkeys), 1);
     assert_non_null(list_front(key->subkeys));
     key_sequence_destroy(&keyseq);
@@ -253,6 +265,10 @@ test_stream_key_load(void **state)
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
     assert_int_equal(list_length(keyseq.keys), 1);
     assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_rnp_success(pgp_fingerprint(&keyfp, &key->key));
+    assert_true(cmp_keyfp(&keyfp, "6BC04A5A3DDB35766B9A40D82FB9179118898E8B"));
+    assert_rnp_success(pgp_keyid(keyid, PGP_KEY_ID_SIZE, &key->key));
+    assert_true(cmp_keyid(keyid, "2FB9179118898E8B"));
     assert_int_equal(list_length(key->subkeys), 1);
     assert_non_null(list_front(key->subkeys));
     key_sequence_destroy(&keyseq);
@@ -263,8 +279,12 @@ test_stream_key_load(void **state)
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
     assert_int_equal(list_length(keyseq.keys), 1);
     assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_rnp_success(pgp_fingerprint(&keyfp, &key->key));
+    assert_true(cmp_keyfp(&keyfp, "091C44CE9CFBC3FF7EC7A64DC8A10A7D78273E10"));
     assert_int_equal(list_length(key->subkeys), 1);
-    assert_non_null(list_front(key->subkeys));
+    assert_non_null(skey = (pgp_transferable_subkey_t *) list_front(key->subkeys));
+    assert_rnp_success(pgp_keyid(keyid, PGP_KEY_ID_SIZE, &skey->subkey));
+    assert_true(cmp_keyid(keyid, "02A5715C3537717E"));
     key_sequence_destroy(&keyseq);
     src_close(&keysrc);
 
@@ -282,7 +302,9 @@ test_stream_key_load(void **state)
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-25519-pub.asc"));
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
     assert_int_equal(list_length(keyseq.keys), 1);
-    assert_non_null(list_front(keyseq.keys));
+    assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_rnp_success(pgp_fingerprint(&keyfp, &key->key));
+    assert_true(cmp_keyfp(&keyfp, "21FC68274AAE3B5DE39A4277CC786278981B0728"));
     key_sequence_destroy(&keyseq);
     src_close(&keysrc);
 
@@ -301,6 +323,8 @@ test_stream_key_load(void **state)
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
     assert_int_equal(list_length(keyseq.keys), 1);
     assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_rnp_success(pgp_fingerprint(&keyfp, &key->key));
+    assert_true(cmp_keyfp(&keyfp, "B54FDEBBB673423A5D0AA54423674F21B2441527"));
     assert_int_equal(list_length(key->subkeys), 1);
     assert_non_null(list_front(key->subkeys));
     key_sequence_destroy(&keyseq);
@@ -321,6 +345,8 @@ test_stream_key_load(void **state)
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
     assert_int_equal(list_length(keyseq.keys), 1);
     assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_rnp_success(pgp_fingerprint(&keyfp, &key->key));
+    assert_true(cmp_keyfp(&keyfp, "AB25CBA042DD924C3ACC3ED3242A3AA5EA85F44A"));
     assert_int_equal(list_length(key->subkeys), 1);
     assert_non_null(list_front(key->subkeys));
     key_sequence_destroy(&keyseq);
@@ -341,6 +367,8 @@ test_stream_key_load(void **state)
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
     assert_int_equal(list_length(keyseq.keys), 1);
     assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_rnp_success(pgp_fingerprint(&keyfp, &key->key));
+    assert_true(cmp_keyfp(&keyfp, "4FB39FF6FA4857A4BD7EF5B42092CA8324263B6A"));
     assert_int_equal(list_length(key->subkeys), 1);
     assert_non_null(list_front(key->subkeys));
     key_sequence_destroy(&keyseq);
