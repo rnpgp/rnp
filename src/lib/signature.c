@@ -277,7 +277,7 @@ hash_add_key(pgp_hash_t *hash, const pgp_pubkey_t *key)
         (void) fprintf(stderr, "can't allocate mem\n");
         return false;
     }
-    if (!pgp_build_pubkey(mem, key, dontmakepacket)) {
+    if (!pgp_build_pubkey(mem, &key->pkt, dontmakepacket)) {
         return false;
     }
     len = pgp_mem_len(mem);

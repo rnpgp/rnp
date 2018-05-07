@@ -760,7 +760,7 @@ encrypted_src_close(pgp_source_t *src)
 }
 
 static bool
-signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t *key)
+signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_key_pkt_t *key)
 {
     pgp_hash_t                 shash;
     pgp_source_signed_param_t *param = src->param;
@@ -772,7 +772,7 @@ signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_pubkey_t 
     }
 
     return !signature_validate(
-      sig, &key->pkt.material, &shash, rnp_ctx_rng_handle(param->ctx->handler.ctx));
+      sig, &key->material, &shash, rnp_ctx_rng_handle(param->ctx->handler.ctx));
 }
 
 static void
@@ -970,10 +970,11 @@ signed_src_finish(pgp_source_t *src)
                 continue;
             }
         }
-        sinfo->signer = &(key->key.pubkey);
+        sinfo->signer = key;
 
         /* Validate signature itself */
-        sinfo->valid = signed_validate_signature(src, sinfo->sig, sinfo->signer);
+        sinfo->valid =
+          signed_validate_signature(src, sinfo->sig, &sinfo->signer->key.pubkey.pkt);
 
         /* Check signature's expiration time */
         now = time(NULL);

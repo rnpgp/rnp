@@ -52,6 +52,7 @@
 #include "crypto.h"
 #include "crypto/common.h"
 #include "pgp-key.h"
+#include <librepgp/stream-packet.h>
 #include "fingerprint.h"
 #include "utils.h"
 
@@ -176,19 +177,19 @@ ssh_keyid(uint8_t *keyid, const size_t idlen, const pgp_key_pkt_t *key)
 static int
 ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
 {
-    pgp_pubkey_t *pubkey;
-    struct stat   st;
-    bufgap_t      bg;
-    uint32_t      len;
-    int64_t       off;
-    uint8_t *     userid;
-    char          hostname[_POSIX_HOST_NAME_MAX + 1];
-    char          owner[_POSIX_LOGIN_NAME_MAX + sizeof(hostname) + 1];
-    char *        space;
-    char *        buf;
-    char *        bin;
-    int           ok;
-    int           cc;
+    pgp_key_pkt_t *keypkt;
+    struct stat    st;
+    bufgap_t       bg;
+    uint32_t       len;
+    int64_t        off;
+    uint8_t *      userid;
+    char           hostname[_POSIX_HOST_NAME_MAX + 1];
+    char           owner[_POSIX_LOGIN_NAME_MAX + sizeof(hostname) + 1];
+    char *         space;
+    char *         buf;
+    char *         bin;
+    int            ok;
+    int            cc;
 
     memset(&bg, 0x0, sizeof(bg));
     if (!bufgap_open(&bg, f)) {
@@ -216,8 +217,9 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
     }
 
     /* move past ascii type of key */
-    while (bufgap_peek(&bg, 0) != ' ')
+    while (bufgap_peek(&bg, 0) != ' ') {
         bufgap_seek(&bg, 1, BGFromHere, BGByte);
+    }
     bufgap_seek(&bg, 1, BGFromHere, BGByte);
     off = bufgap_tell(&bg, BGFromBOF, BGByte);
 
@@ -253,30 +255,30 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
     bufgap_seek(&bg, len, BGFromHere, BGByte);
 
     memset(key, 0x0, sizeof(*key));
-    pubkey = &key->key.seckey.pubkey;
-    pubkey->pkt.version = PGP_V4;
-    pubkey->pkt.creation_time = 0;
+    keypkt = &key->key.seckey.pubkey.pkt;
+    keypkt->version = PGP_V4;
+    keypkt->creation_time = 0;
     /* get key type */
     ok = true;
-    switch (pubkey->pkt.alg = findstr(pkatypes, buf)) {
+    switch (keypkt->alg = findstr(pkatypes, buf)) {
     case PGP_PKA_RSA:
         /* get the 'e' param of the key */
-        getmpi(&bg, buf, "RSA E", &pubkey->pkt.material.rsa.e);
+        getmpi(&bg, buf, "RSA E", &keypkt->material.rsa.e);
         /* get the 'n' param of the key */
-        getmpi(&bg, buf, "RSA N", &pubkey->pkt.material.rsa.n);
+        getmpi(&bg, buf, "RSA N", &keypkt->material.rsa.n);
         break;
     case PGP_PKA_DSA:
         /* get the 'p' param of the key */
-        getmpi(&bg, buf, "DSA P", &pubkey->pkt.material.dsa.p);
+        getmpi(&bg, buf, "DSA P", &keypkt->material.dsa.p);
         /* get the 'q' param of the key */
-        getmpi(&bg, buf, "DSA Q", &pubkey->pkt.material.dsa.q);
+        getmpi(&bg, buf, "DSA Q", &keypkt->material.dsa.q);
         /* get the 'g' param of the key */
-        getmpi(&bg, buf, "DSA G", &pubkey->pkt.material.dsa.g);
+        getmpi(&bg, buf, "DSA G", &keypkt->material.dsa.g);
         /* get the 'y' param of the key */
-        getmpi(&bg, buf, "DSA Y", &pubkey->pkt.material.dsa.y);
+        getmpi(&bg, buf, "DSA Y", &keypkt->material.dsa.y);
         break;
     default:
-        fprintf(stderr, "Unrecognised pubkey type %d for '%s'\n", pubkey->pkt.alg, f);
+        fprintf(stderr, "Unrecognised pubkey type %d for '%s'\n", keypkt->alg, f);
         ok = false;
         break;
     }
@@ -317,9 +319,9 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
             snprintf(buffer, buffer_size, "%s (%s) <%s>", hostname, f, owner);
             userid = (uint8_t *) buffer;
         }
-        ssh_keyid(key->keyid, sizeof(key->keyid), &pubkey->pkt);
+        ssh_keyid(key->keyid, sizeof(key->keyid), keypkt);
         pgp_add_userid(key, userid);
-        ssh_fingerprint(&key->fingerprint, &pubkey->pkt);
+        ssh_fingerprint(&key->fingerprint, keypkt);
 
         free((void *) userid);
 
@@ -336,11 +338,12 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
 
 /* convert an ssh (host) seckey to a pgp seckey */
 static int
-ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
+ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_key_pkt_t *pubkey)
 {
-    pgp_crypt_t crypted;
-    uint8_t     sesskey[PGP_MAX_KEY_SIZE];
-    unsigned    sesskey_len;
+    pgp_crypt_t    crypted;
+    uint8_t        sesskey[PGP_MAX_KEY_SIZE];
+    unsigned       sesskey_len;
+    pgp_key_pkt_t *seckey;
 
     RNP_USED(io);
     /* XXX - check for rsa/dsa */
@@ -351,43 +354,45 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_pubkey_t *pubkey)
         /*pgp_print_keydata(io, key, "sec", &key->key.seckey.pubkey, 0);*/
         /* XXX */
     }
+    seckey = &key->key.seckey.pubkey.pkt;
     /* let's add some sane defaults */
-    (void) memcpy(&key->key.seckey.pubkey, pubkey, sizeof(*pubkey));
-    key->key.seckey.pubkey.pkt.alg = PGP_PKA_RSA;
-    key->key.seckey.pubkey.pkt.sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    key->key.seckey.pubkey.pkt.sec_protection.symm_alg = PGP_SA_CAST5;
-    key->key.seckey.pubkey.pkt.sec_protection.s2k.specifier = PGP_S2KS_SALTED;
-    key->key.seckey.pubkey.pkt.sec_protection.s2k.hash_alg = PGP_HASH_SHA1;
+    if (!copy_key_pkt(seckey, pubkey)) {
+        return false;
+    }
+    seckey->alg = PGP_PKA_RSA;
+    seckey->sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    seckey->sec_protection.symm_alg = PGP_SA_CAST5;
+    seckey->sec_protection.s2k.specifier = PGP_S2KS_SALTED;
+    seckey->sec_protection.s2k.hash_alg = PGP_HASH_SHA1;
 
-    if (!rng_generate(key->key.seckey.pubkey.pkt.sec_protection.s2k.salt, PGP_SALT_SIZE)) {
+    if (!rng_generate(seckey->sec_protection.s2k.salt, PGP_SALT_SIZE)) {
         RNP_LOG("rng_generate failed");
         return false;
     }
 
-    if (key->key.seckey.pubkey.pkt.alg == PGP_PKA_RSA) {
+    if (seckey->alg == PGP_PKA_RSA) {
         /* openssh and openssl have p and q swapped */
-        pgp_mpi_t tmp = key->key.pubkey.pkt.material.rsa.p;
-        key->key.pubkey.pkt.material.rsa.p = key->key.pubkey.pkt.material.rsa.q;
-        key->key.pubkey.pkt.material.rsa.q = tmp;
+        pgp_mpi_t tmp = seckey->material.rsa.p;
+        seckey->material.rsa.p = seckey->material.rsa.q;
+        seckey->material.rsa.q = tmp;
     }
 
-    sesskey_len = pgp_key_size(key->key.seckey.pubkey.pkt.sec_protection.symm_alg);
+    sesskey_len = pgp_key_size(seckey->sec_protection.symm_alg);
 
-    if (pgp_s2k_salted(key->key.seckey.pubkey.pkt.sec_protection.s2k.hash_alg,
+    if (pgp_s2k_salted(seckey->sec_protection.s2k.hash_alg,
                        sesskey,
                        sesskey_len,
                        "",
-                       key->key.seckey.pubkey.pkt.sec_protection.s2k.salt)) {
+                       seckey->sec_protection.s2k.salt)) {
         (void) fprintf(stderr, "pgp_s2k_salted failed\n");
         return false;
     }
 
-    pgp_cipher_cfb_start(&crypted,
-                         key->key.seckey.pubkey.pkt.sec_protection.symm_alg,
-                         sesskey,
-                         key->key.seckey.pubkey.pkt.sec_protection.iv);
-    ssh_fingerprint(&key->fingerprint, &pubkey->pkt);
-    ssh_keyid(key->keyid, sizeof(key->keyid), &pubkey->pkt);
+    /* this definitely doesn't work well, let's leave it for later */
+    pgp_cipher_cfb_start(
+      &crypted, seckey->sec_protection.symm_alg, sesskey, seckey->sec_protection.iv);
+    ssh_fingerprint(&key->fingerprint, pubkey);
+    ssh_keyid(key->keyid, sizeof(key->keyid), pubkey);
     return true;
 }
 
@@ -423,7 +428,7 @@ rnp_key_store_ssh_load_keys(rnp_t *rnp, rnp_key_store_t *pubring, rnp_key_store_
         if (pubkey == NULL) {
             pubkey = (pgp_key_t *) list_front(pubring->keys);
         }
-        if (!ssh2seckey(rnp->io, secring->path, &key, &pubkey->key.pubkey)) {
+        if (!ssh2seckey(rnp->io, secring->path, &key, &pubkey->key.pubkey.pkt)) {
             RNP_LOG("can't read seckeys '%s'", secring->path);
             return false;
         }
@@ -471,7 +476,7 @@ rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *
         return false;
     }
 
-    if (ssh2seckey(io, filename, &key, &pubkey.key.pubkey)) {
+    if (ssh2seckey(io, filename, &key, &pubkey.key.pubkey.pkt)) {
         (void) fprintf(io->errs, "rnp_key_store_ssh_from_file: it's seckey '%s'\n", filename);
         key.type = PGP_PTAG_CT_SECRET_KEY;
         rnp_key_store_add_key(io, keyring, &key);

@@ -64,7 +64,7 @@ typedef struct pgp_parse_handler_t {
 /* information about the signature */
 typedef struct pgp_signature_info_t {
     pgp_signature_t *sig;       /* signature, or NULL if there were parsing error */
-    pgp_pubkey_t *   signer;    /* signer's public key if found */
+    pgp_key_t *      signer;    /* signer's public key if found */
     bool             valid;     /* signature is cryptographically valid (but may be expired) */
     bool             unknown;   /* signature is unknown - parsing error, wrong version, etc */
     bool             no_signer; /* no signer's public key available */

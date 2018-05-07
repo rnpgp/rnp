@@ -3547,9 +3547,8 @@ done:
 static rnp_result_t
 add_json_public_mpis(json_object *jso, pgp_key_t *key)
 {
-    const pgp_pubkey_t *      pubkey = pgp_get_pubkey(key);
-    const pgp_key_material_t *km = &pubkey->pkt.material;
-    switch (pubkey->pkt.alg) {
+    const pgp_key_material_t *km = &key->key.pubkey.pkt.material;
+    switch (km->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
@@ -3574,8 +3573,7 @@ add_json_public_mpis(json_object *jso, pgp_key_t *key)
 static rnp_result_t
 add_json_secret_mpis(json_object *jso, pgp_key_t *key)
 {
-    const pgp_seckey_t *      seckey = pgp_get_seckey(key);
-    const pgp_key_material_t *km = &seckey->pubkey.pkt.material;
+    const pgp_key_material_t *km = &key->key.seckey.pubkey.pkt.material;
     switch (pgp_get_pubkey(key)->pkt.alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -3827,14 +3825,14 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
 static rnp_result_t
 key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
 {
-    bool                have_sec = handle->sec != NULL;
-    bool                have_pub = handle->pub != NULL;
-    pgp_key_t *         key = get_key_prefer_public(handle);
-    const char *        str = NULL;
-    const pgp_pubkey_t *pubkey = pgp_get_pubkey(key);
+    bool                 have_sec = handle->sec != NULL;
+    bool                 have_pub = handle->pub != NULL;
+    pgp_key_t *          key = get_key_prefer_public(handle);
+    const char *         str = NULL;
+    const pgp_key_pkt_t *pubkey = &key->key.pubkey.pkt;
 
     // type
-    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, pubkey->pkt.alg, str);
+    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, pubkey->alg, str);
     if (!str) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -3842,21 +3840,21 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // length
-    if (!add_json_int_field(jso, "length", key_bitlength(&pubkey->pkt.material))) {
+    if (!add_json_int_field(jso, "length", key_bitlength(&pubkey->material))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // curve / alg-specific items
-    switch (pubkey->pkt.alg) {
+    switch (pubkey->alg) {
     case PGP_PKA_ECDH: {
         const char *hash_name = NULL;
         ARRAY_LOOKUP_BY_ID(
-          hash_alg_map, type, string, pubkey->pkt.material.ec.kdf_hash_alg, hash_name);
+          hash_alg_map, type, string, pubkey->material.ec.kdf_hash_alg, hash_name);
         if (!hash_name) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         const char *cipher_name = NULL;
         ARRAY_LOOKUP_BY_ID(
-          symm_alg_map, type, string, pubkey->pkt.material.ec.key_wrap_alg, cipher_name);
+          symm_alg_map, type, string, pubkey->material.ec.key_wrap_alg, cipher_name);
         if (!cipher_name) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
@@ -3875,7 +3873,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
         const char *curve_name = NULL;
-        if (!curve_type_to_str(pubkey->pkt.material.ec.curve, &curve_name)) {
+        if (!curve_type_to_str(pubkey->material.ec.curve, &curve_name)) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         json_object *jsocurve = json_object_new_string(curve_name);
@@ -3924,14 +3922,14 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     }
     json_object_object_add(jso, "revoked", jsorevoked);
     // creation time
-    json_object *jsocreation_time = json_object_new_int64(pubkey->pkt.creation_time);
+    json_object *jsocreation_time = json_object_new_int64(pubkey->creation_time);
     if (!jsocreation_time) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     json_object_object_add(jso, "creation time", jsocreation_time);
     // expiration
     json_object *jsoexpiration = json_object_new_int64(
-      pubkey->pkt.version >= 4 ? key->expiration : (pubkey->pkt.v3_days * 86400));
+      pubkey->version >= 4 ? key->expiration : (pubkey->v3_days * 86400));
     if (!jsoexpiration) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
