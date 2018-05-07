@@ -464,9 +464,9 @@ rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring, const int psigs
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
         if (pgp_is_key_secret(key)) {
-            repgp_print_key(io, keyring, key, "sec", &key->key.seckey.pubkey, 0);
+            repgp_print_key(io, keyring, key, "sec", 0);
         } else {
-            repgp_print_key(io, keyring, key, "pub", &key->key.pubkey, psigs);
+            repgp_print_key(io, keyring, key, "pub", psigs);
         }
         (void) fputc('\n', io->res);
     }
@@ -481,10 +481,9 @@ rnp_key_store_json(pgp_io_t *             io,
 {
     for (list_item *key_item = list_front(keyring->keys); key_item;
          key_item = list_next(key_item)) {
-        pgp_key_t *   key = (pgp_key_t *) key_item;
-        json_object * jso = json_object_new_object();
-        pgp_pubkey_t *pubkey = &key->key.pubkey;
-        const char *  header = NULL;
+        pgp_key_t *  key = (pgp_key_t *) key_item;
+        json_object *jso = json_object_new_object();
+        const char * header = NULL;
         if (pgp_is_key_secret(key)) { /* secret key is always shown as "sec" */
             header = "sec";
         } else if (pgp_key_is_primary_key(key)) { /* top-level public key */
@@ -492,7 +491,7 @@ rnp_key_store_json(pgp_io_t *             io,
         } else {
             header = "sub"; /* subkey */
         }
-        repgp_sprint_json(io, keyring, key, jso, header, pubkey, psigs);
+        repgp_sprint_json(io, keyring, key, jso, header, psigs);
         json_object_array_add(obj, jso);
     }
     return true;
@@ -791,7 +790,7 @@ grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val)
 bool
 rnp_key_store_get_key_grip(pgp_key_material_t *key, uint8_t *grip)
 {
-    pgp_hash_t          hash = {0};
+    pgp_hash_t hash = {0};
 
     if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
         RNP_LOG("bad sha1 alloc");

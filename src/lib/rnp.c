@@ -739,16 +739,10 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
         if (key != NULL) {
             ALLOC(char *, pubs.v, pubs.size, pubs.c, 10, 10, "rnp_match_keys", return 0);
             if (strcmp(fmt, "mr") == 0) {
-                pgp_hkp_sprint_key(
-                  rnp->io, rnp->pubring, key, &pubs.v[pubs.c], &key->key.pubkey, psigs);
+                pgp_hkp_sprint_key(rnp->io, rnp->pubring, key, &pubs.v[pubs.c], psigs);
             } else {
-                pgp_sprint_key(rnp->io,
-                               rnp->pubring,
-                               key,
-                               &pubs.v[pubs.c],
-                               "signature ",
-                               &key->key.pubkey,
-                               psigs);
+                pgp_sprint_key(
+                  rnp->io, rnp->pubring, key, &pubs.v[pubs.c], "signature ", psigs);
             }
             if (pubs.v[pubs.c] != NULL) {
                 pubs.c += 1;
@@ -789,7 +783,7 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
         }
         if (key != NULL) {
             if (strcmp(fmt, "mr") == 0) {
-                pgp_hkp_sprint_key(rnp->io, rnp->pubring, key, &newkey, &key->key.pubkey, 0);
+                pgp_hkp_sprint_key(rnp->io, rnp->pubring, key, &newkey, 0);
                 if (newkey) {
                     printf("%s\n", newkey);
                     free(newkey);
@@ -802,7 +796,6 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
                                   key,
                                   obj,
                                   pgp_is_primary_key_tag(key->type) ? "pub" : "sub",
-                                  &key->key.pubkey,
                                   psigs);
                 json_object_array_add(id_array, obj);
             }
@@ -869,15 +862,11 @@ rnp_get_key(rnp_t *rnp, const char *name, const char *fmt)
         return NULL;
     }
     if (strcmp(fmt, "mr") == 0) {
-        return (pgp_hkp_sprint_key(rnp->io, rnp->pubring, key, &newkey, &key->key.pubkey, 0) >
-                0) ?
-                 newkey :
-                 NULL;
+        return (pgp_hkp_sprint_key(rnp->io, rnp->pubring, key, &newkey, 0) > 0) ? newkey :
+                                                                                  NULL;
     }
-    return (pgp_sprint_key(
-              rnp->io, rnp->pubring, key, &newkey, "signature", &key->key.pubkey, 0) > 0) ?
-             newkey :
-             NULL;
+    return (pgp_sprint_key(rnp->io, rnp->pubring, key, &newkey, "signature", 0) > 0) ? newkey :
+                                                                                       NULL;
 }
 
 /* export a given key */
@@ -961,7 +950,7 @@ rnp_import_key(rnp_t *rnp, char *f)
         importedkey = rnp_key_store_get_key_by_grip(rnp->io, dest, key->grip);
         if (!importedkey) {
             // print it out
-            repgp_print_key(rnp->io, tmp_keystore, key, header, pgp_get_pubkey(key), 0);
+            repgp_print_key(rnp->io, tmp_keystore, key, header, 0);
 
             // add it to the dest store
             if (!rnp_key_store_add_key(rnp->io, dest, key)) {
@@ -1049,7 +1038,7 @@ rnp_generate_key(rnp_t *rnp)
     }
 
     // show the primary key
-    pgp_sprint_key(rnp->io, NULL, &primary_pub, &cp, "pub", &primary_pub.key.pubkey, 0);
+    pgp_sprint_key(rnp->io, NULL, &primary_pub, &cp, "pub", 0);
     (void) fprintf(stdout, "%s", cp);
     free(cp);
 
@@ -1060,7 +1049,7 @@ rnp_generate_key(rnp_t *rnp)
     }
 
     // show the subkey
-    pgp_sprint_key(rnp->io, NULL, &subkey_pub, &cp, "sub", &subkey_pub.key.pubkey, 0);
+    pgp_sprint_key(rnp->io, NULL, &subkey_pub, &cp, "sub", 0);
     (void) fprintf(stdout, "%s", cp);
     free(cp);
 

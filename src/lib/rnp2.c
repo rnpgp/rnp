@@ -3842,7 +3842,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // length
-    if (!add_json_int_field(jso, "length", key_bitlength(pubkey))) {
+    if (!add_json_int_field(jso, "length", key_bitlength(&pubkey->pkt.material))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // curve / alg-specific items
