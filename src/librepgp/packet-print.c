@@ -84,23 +84,23 @@ static bool format_key_usage(char *buffer, size_t size, uint8_t flags);
 
 // returns bitlength of a key
 size_t
-key_bitlength(const pgp_pubkey_t *pubkey)
+key_bitlength(const pgp_key_material_t *key)
 {
-    switch (pubkey->pkt.alg) {
+    switch (key->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return 8 * mpi_bytes(&pubkey->pkt.material.rsa.n);
+        return 8 * mpi_bytes(&key->rsa.n);
     case PGP_PKA_DSA:
-        return 8 * mpi_bytes(&pubkey->pkt.material.dsa.p);
+        return 8 * mpi_bytes(&key->dsa.p);
     case PGP_PKA_ELGAMAL:
-        return 8 * mpi_bytes(&pubkey->pkt.material.eg.y);
+        return 8 * mpi_bytes(&key->eg.y);
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
         // bn_num_bytes returns value <= curve order
-        const ec_curve_desc_t *curve = get_curve_desc(pubkey->pkt.material.ec.curve);
+        const ec_curve_desc_t *curve = get_curve_desc(key->ec.curve);
         return curve ? curve->bitlen : 0;
     }
     default:
@@ -150,14 +150,13 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
     char key_usage[8];
 
     format_key_usage(key_usage, sizeof(key_usage), key->key_flags);
-    const pgp_pubkey_t *pubkey = pgp_get_pubkey(key);
     return snprintf(buf,
                     size,
                     "encryption %zu/%s %s %s [%s] %s\n",
-                    key_bitlength(pubkey),
-                    pgp_show_pka(pubkey->pkt.alg),
+                    key_bitlength(&key->key.pubkey.pkt.material),
+                    pgp_show_pka(key->key.pubkey.pkt.alg),
                     rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, ""),
-                    ptimestr(t, sizeof(t), (time_t) pubkey->pkt.creation_time),
+                    ptimestr(t, sizeof(t), (time_t) key->key.pubkey.pkt.creation_time),
                     key_usage,
                     expired);
 }
@@ -385,7 +384,6 @@ pgp_sprint_key(pgp_io_t *             io,
                const pgp_key_t *      key,
                char **                buf,
                const char *           header,
-               const pgp_pubkey_t *   pubkey,
                const int              psigs)
 {
     unsigned i;
@@ -400,8 +398,9 @@ pgp_sprint_key(pgp_io_t *             io,
     char     creation[32];
     char     key_usage[8];
 
-    if (key->revoked)
+    if (key->revoked) {
         return -1;
+    }
 
     now = time(NULL);
 
@@ -413,8 +412,9 @@ pgp_sprint_key(pgp_io_t *             io,
     }
 
     uid_notices = (char *) malloc(NOTICE_BUFFER_SIZE);
-    if (uid_notices == NULL)
+    if (uid_notices == NULL) {
         return -1;
+    }
 
     /* TODO: Perhaps this should index key->uids instead of using the
      *       iterator index.
@@ -422,11 +422,13 @@ pgp_sprint_key(pgp_io_t *             io,
     for (i = 0; i < key->uidc; i++) {
         int flags = 0;
 
-        if (iscompromised(key, i))
+        if (iscompromised(key, i)) {
             continue;
+        }
 
-        if (psigs)
+        if (psigs) {
             flags |= F_PRINTSIGS;
+        }
 
         uid_notices_offset += format_uid_notice(uid_notices + uid_notices_offset,
                                                 io,
@@ -442,7 +444,7 @@ pgp_sprint_key(pgp_io_t *             io,
 
     rnp_strhexdump(fingerprint, key->fingerprint.fingerprint, key->fingerprint.length, " ");
 
-    ptimestr(creation, sizeof(creation), (time_t) pubkey->pkt.creation_time);
+    ptimestr(creation, sizeof(creation), (time_t) key->key.pubkey.pkt.creation_time);
 
     if (!format_key_usage(key_usage, sizeof(key_usage), key->key_flags)) {
         free(uid_notices);
@@ -462,8 +464,8 @@ pgp_sprint_key(pgp_io_t *             io,
                                 KB(16),
                                 "%s %zu/%s %s %s [%s] %s\n                 %s\n%s",
                                 header,
-                                key_bitlength(pubkey),
-                                pgp_show_pka(pubkey->pkt.alg),
+                                key_bitlength(&key->key.pubkey.pkt.material),
+                                pgp_show_pka(key->key.pubkey.pkt.alg),
                                 keyid,
                                 creation,
                                 key_usage,
@@ -485,7 +487,6 @@ repgp_sprint_json(pgp_io_t *                    io,
                   const pgp_key_t *             key,
                   json_object *                 keyjson,
                   const char *                  header,
-                  const pgp_pubkey_t *          pubkey,
                   const int                     psigs)
 {
     char     keyid[PGP_KEY_ID_SIZE * 3];
@@ -500,9 +501,10 @@ repgp_sprint_json(pgp_io_t *                    io,
 
     // add the top-level values
     json_object_object_add(keyjson, "header", json_object_new_string(header));
-    json_object_object_add(keyjson, "key bits", json_object_new_int(key_bitlength(pubkey)));
     json_object_object_add(
-      keyjson, "pka", json_object_new_string(pgp_show_pka(pubkey->pkt.alg)));
+      keyjson, "key bits", json_object_new_int(key_bitlength(&key->key.pubkey.pkt.material)));
+    json_object_object_add(
+      keyjson, "pka", json_object_new_string(pgp_show_pka(key->key.pubkey.pkt.alg)));
     json_object_object_add(
       keyjson,
       "key id",
@@ -512,7 +514,7 @@ repgp_sprint_json(pgp_io_t *                    io,
                            json_object_new_string(rnp_strhexdump(
                              fp, key->fingerprint.fingerprint, key->fingerprint.length, "")));
     json_object_object_add(
-      keyjson, "creation time", json_object_new_int(pubkey->pkt.creation_time));
+      keyjson, "creation time", json_object_new_int(key->key.pubkey.pkt.creation_time));
     json_object_object_add(keyjson, "expiration", json_object_new_int(key->expiration));
     json_object_object_add(keyjson, "key flags", json_object_new_int(key->key_flags));
     json_object *usage_arr = json_object_new_array();
@@ -582,7 +584,6 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                    const struct rnp_key_store_t *keyring,
                    const pgp_key_t *             key,
                    char **                       buf,
-                   const pgp_pubkey_t *          pubkey,
                    const int                     psigs)
 {
     const pgp_key_t *trustkey;
@@ -600,7 +601,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
         n += snprintf(&uidbuf[n],
                       sizeof(uidbuf) - n,
                       "uid:%lld:%lld:%s\n",
-                      (long long) pubkey->pkt.creation_time,
+                      (long long) key->key.pubkey.pkt.creation_time,
                       (long long) key->expiration,
                       key->uids[i]);
         for (j = 0; j < key->subsigc; j++) {
@@ -622,7 +623,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                   snprintf(&uidbuf[n],
                            sizeof(uidbuf) - n,
                            "sub:%zu:%d:%s:%lld:%lld\n",
-                           key_bitlength(pubkey),
+                           key_bitlength(&key->key.pubkey.pkt.material),
                            key->subsigs[j].sig.info.key_alg,
                            rnp_strhexdump(
                              keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, ""),
@@ -653,9 +654,9 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                          KB(16),
                          "pub:%s:%d:%zu:%lld:%lld\n%s",
                          fingerprint,
-                         pubkey->pkt.alg,
-                         key_bitlength(pubkey),
-                         (long long) pubkey->pkt.creation_time,
+                         key->key.pubkey.pkt.alg,
+                         key_bitlength(&key->key.pubkey.pkt.material),
+                         (long long) &key->key.pubkey.pkt.creation_time,
                          (long long) key->expiration,
                          uidbuf);
             *buf = buffer;
@@ -670,12 +671,11 @@ repgp_print_key(pgp_io_t *             io,
                 const rnp_key_store_t *keyring,
                 const pgp_key_t *      key,
                 const char *           header,
-                const pgp_pubkey_t *   pubkey,
                 const int              psigs)
 {
     char *cp;
 
-    if (pgp_sprint_key(io, keyring, key, &cp, header, pubkey, psigs) >= 0) {
+    if (pgp_sprint_key(io, keyring, key, &cp, header, psigs) >= 0) {
         (void) fprintf(io->res, "%s", cp);
         free(cp);
     }

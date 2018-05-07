@@ -122,7 +122,7 @@ void hexdump(FILE *, const char *, const uint8_t *, size_t);
 const char *pgp_str_from_map(int, pgp_map_t *);
 void *      pgp_new(size_t);
 
-size_t key_bitlength(const pgp_pubkey_t *pubkey);
+size_t key_bitlength(const pgp_key_material_t *key);
 
 /* Portable way to convert bits to bytes */
 #define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
