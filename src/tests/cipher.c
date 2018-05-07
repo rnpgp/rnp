@@ -135,8 +135,7 @@ pkcs1_rsa_test_success(void **state)
     pgp_rsa_encrypted_t enc;
     size_t              dec_size;
 
-    const pgp_pubkey_t *pub_key;
-    pgp_seckey_t *      sec_key;
+    pgp_seckey_t *sec_key;
 
     const pgp_rsa_key_t *key_rsa;
 
@@ -148,8 +147,6 @@ pkcs1_rsa_test_success(void **state)
     assert_non_null(sec_key);
     assert_true(pgp_generate_seckey(&key_desc, sec_key));
     rnp_assert_non_null(rstate, sec_key);
-    pub_key = &sec_key->pubkey;
-    rnp_assert_non_null(rstate, pub_key);
     key_rsa = &sec_key->pubkey.pkt.material.rsa;
 
 #if defined(DEBUG_PRINT)
@@ -493,12 +490,7 @@ sm2_roundtrip(void **state)
     assert_non_null(sec_key);
     assert_true(pgp_generate_seckey(&key_desc, sec_key));
 
-    rnp_assert_non_null(rstate, sec_key);
-
-    const pgp_pubkey_t *pub_key = &sec_key->pubkey;
-    rnp_assert_non_null(rstate, pub_key);
-
-    const pgp_ec_key_t *eckey = &pub_key->pkt.material.ec;
+    const pgp_ec_key_t *eckey = &sec_key->pubkey.pkt.material.ec;
 
     uint8_t             hashes[] = {PGP_HASH_SM3, PGP_HASH_SHA256, PGP_HASH_SHA512};
     pgp_sm2_encrypted_t enc;

@@ -66,12 +66,12 @@
 pgp_output_t *pgp_output_new(void);
 void          pgp_output_delete(pgp_output_t *);
 
-bool pgp_build_pubkey(pgp_memory_t *, const pgp_pubkey_t *, unsigned);
+bool pgp_build_pubkey(pgp_memory_t *, const pgp_key_pkt_t *, unsigned);
 
 unsigned pgp_write_struct_userid(pgp_output_t *, const uint8_t *);
 unsigned pgp_write_ss_header(pgp_output_t *, unsigned, pgp_content_enum);
 
-bool     pgp_write_struct_pubkey(pgp_output_t *, pgp_content_enum, const pgp_pubkey_t *);
+bool     pgp_write_struct_pubkey(pgp_output_t *, pgp_content_enum, const pgp_key_pkt_t *);
 unsigned pgp_write_struct_seckey(pgp_output_t *output,
                                  pgp_content_enum,
                                  pgp_seckey_t *,
@@ -80,10 +80,10 @@ unsigned pgp_write_xfer_pubkey(pgp_output_t *,
                                const pgp_key_t *,
                                const rnp_key_store_t *,
                                const unsigned);
-bool pgp_write_xfer_seckey(pgp_output_t *,
-                           const pgp_key_t *,
-                           const rnp_key_store_t *,
-                           const unsigned);
+bool     pgp_write_xfer_seckey(pgp_output_t *,
+                               const pgp_key_t *,
+                               const rnp_key_store_t *,
+                               const unsigned);
 
 bool pgp_write_selfsig_cert(pgp_output_t *               output,
                             const pgp_seckey_t *         seckey,

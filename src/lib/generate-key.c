@@ -375,7 +375,7 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
     if (!pgp_setup_memory_write(NULL, &output, &mem, 4096)) {
         goto end;
     }
-    if (!pgp_write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &seckey.pubkey) ||
+    if (!pgp_write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &seckey.pubkey.pkt) ||
         !pgp_write_struct_userid(output, desc->cert.userid) ||
         !pgp_write_selfsig_cert(output, &seckey, desc->crypto.hash_alg, &desc->cert)) {
         RNP_LOG("failed to write out generated key+sigs");
@@ -524,7 +524,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
     if (!pgp_setup_memory_write(NULL, &output, &mem, 4096)) {
         goto end;
     }
-    if (!pgp_write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_SUBKEY, &seckey.pubkey) ||
+    if (!pgp_write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_SUBKEY, &seckey.pubkey.pkt) ||
         !pgp_write_selfsig_binding(
           output, primary_seckey, desc->crypto.hash_alg, &seckey.pubkey, &desc->binding)) {
         RNP_LOG("failed to write out generated key+sigs");
