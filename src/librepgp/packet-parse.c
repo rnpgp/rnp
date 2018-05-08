@@ -2151,15 +2151,11 @@ consume_packet(pgp_region_t *region, pgp_stream_t *stream, unsigned warn)
 static bool
 parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 {
-    pgp_packet_t  pkt;
-    pgp_region_t  encregion;
-    pgp_region_t *saved_region = NULL;
-    pgp_crypt_t   decrypt;
-    pgp_hash_t    checkhash;
-    unsigned      blocksize;
-    bool          crypted;
-    uint8_t       c = 0x0;
-    int           ret = 1;
+    pgp_packet_t pkt;
+    unsigned     blocksize;
+    bool         crypted;
+    uint8_t      c = 0x0;
+    int          ret = 1;
 
     if (rnp_get_debug(__FILE__)) {
         fprintf(stderr, "\n---------\nparse_seckey:\n");
@@ -2229,9 +2225,7 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
 
     if (crypted) {
         pgp_packet_t seckey;
-        uint8_t      derived_key[PGP_MAX_KEY_SIZE];
         char *       password;
-        unsigned     keysize;
 
         if (rnp_get_debug(__FILE__)) {
             (void) fprintf(stderr, "crypted seckey\n");
@@ -2250,74 +2244,20 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
         seckey.u.skey_password.password = &password;
         seckey.u.skey_password.seckey = &pkt.u.seckey;
         CALLBACK(PGP_GET_PASSWORD, &stream->cbinfo, &seckey);
-        if (!password) {
-            if (rnp_get_debug(__FILE__)) {
-                /* \todo make into proper error */
-                (void) fprintf(stderr, "parse_seckey: can't get password\n");
-            }
-            if (!consume_packet(region, stream, 0)) {
-                return false;
-            }
-            CALLBACK(tag, &stream->cbinfo, &pkt);
-            return true;
-        }
-        keysize = pgp_key_size(prot->symm_alg);
-        if (keysize == 0) {
-            (void) fprintf(stderr, "parse_seckey: unknown symmetric algo");
-            pgp_forget(password, strlen(password));
+        if (password) {
+            RNP_LOG("internal error - old decrypt code should not be used");
             return false;
         }
-
-        if (!pgp_s2k_derive_key(&prot->s2k, password, derived_key, keysize)) {
-            (void) fprintf(stderr, "pgp_s2k_derive_key failed\n");
-            pgp_forget(password, strlen(password));
+        if (!consume_packet(region, stream, 0)) {
             return false;
         }
-
-        pgp_forget(password, strlen(password));
-
-        if (rnp_get_debug(__FILE__)) {
-            hexdump(stderr, "input iv", prot->iv, pgp_block_size(prot->symm_alg));
-            hexdump(stderr, "key", derived_key, keysize);
-        }
-
-        if (!pgp_cipher_cfb_start(&decrypt, prot->symm_alg, derived_key, prot->iv)) {
-            return false;
-        }
-
-        /* now read encrypted data */
-
-        pgp_reader_push_decrypt(stream, &decrypt, region);
-        pkt.u.seckey.encrypted = false;
-
-        /*
-         * Since all known encryption for PGP doesn't compress, we
-         * can limit to the same length as the current region (for
-         * now).
-         */
-        pgp_init_subregion(&encregion, NULL);
-        encregion.length = region->length - region->readc;
-        if (pkt.u.seckey.pubkey.pkt.version != PGP_V4) {
-            encregion.length -= 2;
-        }
-        saved_region = region;
-        region = &encregion;
+        CALLBACK(tag, &stream->cbinfo, &pkt);
+        return true;
     }
     if (rnp_get_debug(__FILE__)) {
         fprintf(stderr, "parse_seckey: end of crypted password\n");
     }
-    if (prot->s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
-        if (!pgp_hash_create(&checkhash, PGP_HASH_SHA1)) {
-            (void) fprintf(stderr, "parse_seckey: bad alloc\n");
-            return false;
-        }
-        if (!pgp_reader_push_hash(stream, &checkhash)) {
-            (void) fprintf(stderr, "parse_seckey: bad alloc\n");
-            return false;
-        }
-    } else {
-        pgp_reader_push_sum16(stream);
-    }
+    pgp_reader_push_sum16(stream);
     if (rnp_get_debug(__FILE__)) {
         fprintf(stderr, "parse_seckey: checkhash, reading MPIs\n");
     }
@@ -2371,46 +2311,17 @@ parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
     }
     stream->reading_v3_secret = 0;
 
-    if (prot->s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
-        uint8_t hash[PGP_CHECKHASH_SIZE];
-
-        pgp_reader_pop_hash(stream);
-        pgp_hash_finish(&checkhash, hash);
-
-        if (crypted && pkt.u.seckey.pubkey.pkt.version != PGP_V4) {
-            pgp_reader_pop_decrypt(stream);
-            region = saved_region;
+    uint16_t sum = pgp_reader_pop_sum16(stream);
+    if (ret) {
+        if (!limread_scalar(&pkt.u.seckey.checksum, 2, region, stream)) {
+            return false;
         }
-        if (ret) {
-            if (!limread(pkt.u.seckey.checkhash, PGP_CHECKHASH_SIZE, region, stream)) {
-                return false;
-            }
 
-            if (memcmp(hash, pkt.u.seckey.checkhash, PGP_CHECKHASH_SIZE) != 0) {
-                ERRP(&stream->cbinfo, pkt, "Hash mismatch in secret key");
-            }
-        }
-    } else {
-        uint16_t sum;
-
-        sum = pgp_reader_pop_sum16(stream);
-        if (crypted && pkt.u.seckey.pubkey.pkt.version != PGP_V4) {
-            pgp_reader_pop_decrypt(stream);
-            region = saved_region;
-        }
-        if (ret) {
-            if (!limread_scalar(&pkt.u.seckey.checksum, 2, region, stream))
-                return false;
-
-            if (sum != pkt.u.seckey.checksum) {
-                ERRP(&stream->cbinfo, pkt, "Checksum mismatch in secret key");
-            }
+        if (sum != pkt.u.seckey.checksum) {
+            ERRP(&stream->cbinfo, pkt, "Checksum mismatch in secret key");
         }
     }
 
-    if (crypted && pkt.u.seckey.pubkey.pkt.version == PGP_V4) {
-        pgp_reader_pop_decrypt(stream);
-    }
     if (region == NULL) {
         (void) fprintf(stderr, "parse_seckey: NULL region\n");
         return false;

@@ -60,6 +60,7 @@
 #include <rnp/rnp_sdk.h>
 #include <librepgp/validate.h>
 #include <librepgp/stream-packet.h>
+#include <librepgp/stream-key.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -342,103 +343,41 @@ pgp_get_writable_seckey(pgp_key_t *key)
     return pgp_is_key_secret(key) ? &key->key.seckey : NULL;
 }
 
-typedef struct {
-    char *        password;
-    pgp_seckey_t *seckey;
-} decrypt_t;
-
-static pgp_cb_ret_t
-decrypt_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
-{
-    const pgp_contents_t *content = &pkt->u;
-    decrypt_t *           decrypt;
-
-    decrypt = pgp_callback_arg(cbinfo);
-    switch (pkt->tag) {
-    case PGP_PARSER_PTAG:
-    case PGP_PTAG_CT_USER_ID:
-    case PGP_PTAG_CT_SIGNATURE:
-    case PGP_PTAG_CT_SIGNATURE_HEADER:
-    case PGP_PTAG_CT_SIGNATURE_FOOTER:
-    case PGP_PTAG_CT_TRUST:
-        break;
-
-    case PGP_GET_PASSWORD:
-        *content->skey_password.password = decrypt->password;
-        return PGP_KEEP_MEMORY;
-
-    case PGP_PARSER_ERRCODE:
-        switch (content->errcode.errcode) {
-        case PGP_E_P_MPI_FORMAT_ERROR:
-            /* Generally this means a bad password */
-            fprintf(stderr, "Bad password!\n");
-            return PGP_RELEASE_MEMORY;
-
-        case PGP_E_P_PACKET_CONSUMED:
-            /* And this is because of an error we've accepted */
-            return PGP_RELEASE_MEMORY;
-        default:
-            break;
-        }
-        (void) fprintf(stderr, "parse error: %s\n", pgp_errcode(content->errcode.errcode));
-        return PGP_FINISHED;
-
-    case PGP_PARSER_ERROR:
-        fprintf(stderr, "parse error: %s\n", content->error);
-        return PGP_FINISHED;
-
-    case PGP_PTAG_CT_SECRET_KEY:
-    case PGP_PTAG_CT_SECRET_SUBKEY:
-        if ((decrypt->seckey = calloc(1, sizeof(*decrypt->seckey))) == NULL) {
-            (void) fprintf(stderr, "decrypt_cb: bad alloc\n");
-            return PGP_FINISHED;
-        }
-        *decrypt->seckey = content->seckey;
-        return PGP_KEEP_MEMORY;
-
-    case PGP_PARSER_PACKET_END:
-    case PGP_PARSER_DONE:
-        /* nothing to do */
-        break;
-
-    default:
-        fprintf(stderr, "Unexpected tag %d (0x%x)\n", pkt->tag, pkt->tag);
-        return PGP_FINISHED;
-    }
-
-    return PGP_RELEASE_MEMORY;
-}
-
 pgp_seckey_t *
 pgp_decrypt_seckey_pgp(const uint8_t *     data,
                        size_t              data_len,
                        const pgp_pubkey_t *pubkey,
                        const char *        password)
 {
-    pgp_stream_t *stream = NULL;
-    const int     printerrors = 1;
-    decrypt_t     decrypt = {0};
+    pgp_source_t  src = {0};
+    pgp_seckey_t *res = NULL;
 
-    // we don't really use this, G10 does
-    RNP_USED(pubkey);
-    decrypt.password = rnp_strdup(password);
-    if (!decrypt.password) {
-        goto done;
+    res = calloc(1, sizeof(*res));
+    if (!res) {
+        return NULL;
     }
-    stream = pgp_new(sizeof(*stream));
-    if (!pgp_reader_set_memory(stream, data, data_len)) {
-        goto done;
-    }
-    pgp_set_callback(stream, decrypt_cb, &decrypt);
-    repgp_parse(stream, !printerrors);
 
-done:
-    if (decrypt.password) {
-        pgp_forget(decrypt.password, strlen(decrypt.password));
-        free(decrypt.password);
+    if (init_mem_src(&src, data, data_len, false)) {
+        return NULL;
     }
-    pgp_stream_delete(stream);
-    return decrypt.seckey;
+
+    if (stream_parse_key(&src, &res->pubkey.pkt)) {
+        goto error;
+    }
+
+    if (decrypt_secret_key(&res->pubkey.pkt, password)) {
+        goto error;
+    }
+
+    res->encrypted = false;
+    src_close(&src);
+    return res;
+error:
+    src_close(&src);
+    forget_secret_key_fields(&res->pubkey.pkt.material);
+    free_key_pkt(&res->pubkey.pkt);
+    free(res);
+    return NULL;
 }
 
 /* Note that this function essentially serves two purposes.

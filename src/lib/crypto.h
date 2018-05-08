@@ -133,14 +133,6 @@ bool pgp_generate_keypair(rng_t *                    rng,
                           pgp_key_t *                subkey_pub,
                           key_store_format_t         secformat);
 
-void pgp_reader_push_decrypt(pgp_stream_t *, pgp_crypt_t *, pgp_region_t *);
-void pgp_reader_pop_decrypt(pgp_stream_t *);
-
-/* Hash everything that's read */
-int  pgp_reader_push_hash(pgp_stream_t *, pgp_hash_t *);
-void pgp_reader_pop_hash(pgp_stream_t *);
-
-/* Encrypt everything that's written */
 struct pgp_key_data;
 
 bool read_pem_seckey(const char *, pgp_key_t *, const char *, int);
