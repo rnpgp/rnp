@@ -83,6 +83,7 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 #include "fingerprint.h"
 #include "signature.h"
 #include "pgp-key.h"
+#include <librepgp/stream-sig.h>
 #include "utils.h"
 
 /** \ingroup Core_Create
@@ -269,23 +270,7 @@ eddsa_sign_wrapper(rng_t *rng, pgp_hash_t *hash, const pgp_ec_key_t *key, pgp_ou
 static bool
 hash_add_key(pgp_hash_t *hash, const pgp_pubkey_t *key)
 {
-    pgp_memory_t * mem = pgp_memory_new();
-    const unsigned dontmakepacket = 0;
-    size_t         len;
-
-    if (mem == NULL) {
-        (void) fprintf(stderr, "can't allocate mem\n");
-        return false;
-    }
-    if (!pgp_build_pubkey(mem, &key->pkt, dontmakepacket)) {
-        return false;
-    }
-    len = pgp_mem_len(mem);
-    pgp_hash_add_int(hash, 0x99, 1);
-    pgp_hash_add_int(hash, (unsigned) len, 2);
-    pgp_hash_add(hash, pgp_mem_data(mem), (unsigned) len);
-    pgp_memory_free(mem);
-    return true;
+    return signature_hash_key(&key->pkt, hash);
 }
 
 static bool

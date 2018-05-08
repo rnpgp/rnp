@@ -569,41 +569,6 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
 }
 
 /**
- * \ingroup Core_Create
- * \param out
- * \param key
- * \param make_packet
- */
-bool
-pgp_build_pubkey(pgp_memory_t *out, const pgp_key_pkt_t *key, unsigned make_packet)
-{
-    pgp_output_t *output = NULL;
-    bool          ret = false;
-
-    output = pgp_output_new();
-    if (output == NULL) {
-        fprintf(stderr, "Can't allocate memory\n");
-        goto done;
-    }
-    pgp_memory_init(out, 128);
-    pgp_writer_set_memory(output, out);
-    if (!write_pubkey_body(key, output)) {
-        goto done;
-    }
-    if (make_packet) {
-        pgp_memory_make_packet(out, PGP_PTAG_CT_PUBLIC_KEY);
-    }
-    ret = true;
-
-done:
-    if (!ret) {
-        pgp_memory_release(out);
-    }
-    pgp_output_delete(output);
-    return ret;
-}
-
-/**
  * \ingroup Core_WritePackets
  * \brief Writes a Secret Key packet.
  * \param key The secret key
