@@ -1063,155 +1063,6 @@ pgp_pubkey_free(pgp_pubkey_t *p)
     free_key_pkt(&p->pkt);
 }
 
-static bool
-parse_ec_pubkey_data(pgp_ec_key_t *key, pgp_region_t *region, pgp_stream_t *stream)
-{
-    pgp_data_t OID = {0};
-    unsigned   OID_len = 0;
-    if (!limread_scalar(&OID_len, 1, region, stream) || (OID_len == 0x00) ||
-        (OID_len == 0xFF)) { // values reserved for future extensions
-        return false;
-    }
-
-    if (!limread_data(&OID, OID_len, region, stream)) {
-        return false;
-    }
-
-    if (!limread_mpi(&key->p, region, stream)) {
-        pgp_data_free(&OID);
-        return false;
-    }
-
-    const pgp_curve_t curve = find_curve_by_OID(OID.contents, OID.len);
-    if (PGP_CURVE_MAX == curve) {
-        RNP_LOG("Unsupported curve %u", curve);
-        pgp_data_free(&OID);
-        return false;
-    }
-
-    key->curve = curve;
-    pgp_data_free(&OID);
-    return true;
-}
-
-/**
-   \ingroup Core_ReadPackets
-*/
-static bool
-parse_pubkey_data(pgp_key_pkt_t *key, pgp_region_t *region, pgp_stream_t *stream)
-{
-    uint8_t c = 0x0;
-
-    if (region->readc != 0) {
-        /* We should not have read anything so far */
-        (void) fprintf(stderr, "parse_pubkey_data: bad length\n");
-        return false;
-    }
-    if (!limread(&c, 1, region, stream)) {
-        return false;
-    }
-    key->version = (pgp_version_t) c;
-    switch (key->version) {
-    case PGP_V2:
-    case PGP_V3:
-    case PGP_V4:
-        break;
-    default:
-        PGP_ERROR_1(&stream->errors,
-                    PGP_E_PROTO_BAD_PUBLIC_KEY_VRSN,
-                    "Bad public key version (0x%02x)",
-                    key->version);
-        return false;
-    }
-    time_t cr_time;
-    if (!limited_read_time(&cr_time, region, stream)) {
-        return false;
-    }
-    key->creation_time = cr_time;
-
-    unsigned v_days = 0;
-    if (((key->version == PGP_V2) || (key->version == PGP_V3)) &&
-        !limread_scalar(&v_days, 2, region, stream)) {
-        return false;
-    }
-    key->v3_days = v_days;
-
-    if (!limread(&c, 1, region, stream)) {
-        return false;
-    }
-    key->alg = c;
-    key->material.alg = c;
-
-    switch (key->alg) {
-    case PGP_PKA_DSA:
-        if (!limread_mpi(&key->material.dsa.p, region, stream) ||
-            !limread_mpi(&key->material.dsa.q, region, stream) ||
-            !limread_mpi(&key->material.dsa.g, region, stream) ||
-            !limread_mpi(&key->material.dsa.y, region, stream)) {
-            return false;
-        }
-        break;
-
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        if (!limread_mpi(&key->material.rsa.n, region, stream) ||
-            !limread_mpi(&key->material.rsa.e, region, stream)) {
-            return false;
-        }
-        break;
-
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!limread_mpi(&key->material.eg.p, region, stream) ||
-            !limread_mpi(&key->material.eg.g, region, stream) ||
-            !limread_mpi(&key->material.eg.y, region, stream)) {
-            return false;
-        }
-        break;
-
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-        if (!parse_ec_pubkey_data(&key->material.ec, region, stream)) {
-            return false;
-        }
-        break;
-
-    case PGP_PKA_ECDH: {
-        if (!parse_ec_pubkey_data(&key->material.ec, region, stream)) {
-            return false;
-        }
-
-        unsigned tmp = 0;
-        if (!limread_scalar(&tmp, 1, region, stream) || (tmp != 3)) {
-            return false;
-        }
-        if (!limread_scalar(&tmp, 1, region, stream) || (tmp != 1)) {
-            return false;
-        }
-
-        unsigned h_alg = 0, w_alg = 0;
-        if (!limread_scalar(&h_alg, 1, region, stream) ||
-            !limread_scalar(&w_alg, 1, region, stream)) {
-            return false;
-        }
-        key->material.ec.kdf_hash_alg = h_alg;
-        key->material.ec.key_wrap_alg = w_alg;
-        break;
-    }
-
-    default:
-        PGP_ERROR_1(&stream->errors,
-                    PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG,
-                    "Unsupported Public Key algorithm (%s)",
-                    pgp_show_pka(key->alg));
-        return false;
-    }
-
-    return true;
-}
-
 /**
  * \ingroup Core_ReadPackets
  * \brief Parse a public key packet.
@@ -1230,26 +1081,27 @@ parse_pubkey_data(pgp_key_pkt_t *key, pgp_region_t *region, pgp_stream_t *stream
  * \see RFC4880 5.5.2
  */
 static bool
-parse_pubkey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
+parse_pubkey(pgp_stream_t *stream)
 {
+    pgp_source_t src;
     pgp_packet_t pkt;
     memset(&pkt, 0x00, sizeof(pgp_packet_t));
 
-    if (!parse_pubkey_data(&pkt.u.pubkey.pkt, region, stream)) {
-        RNP_LOG("parse_pubkey_data failed");
+    if (!stream->readinfo.accumulate) {
         return false;
     }
 
-    /* XXX: this test should be done for all packets, surely? */
-    if (region->readc != region->length) {
-        PGP_ERROR_1(&stream->errors,
-                    PGP_E_R_UNCONSUMED_DATA,
-                    "Unconsumed data (%d)",
-                    region->length - region->readc);
+    if (init_mem_src(&src, stream->readinfo.accumulated, stream->readinfo.alength, false)) {
         return false;
     }
-    CALLBACK(tag, &stream->cbinfo, &pkt);
 
+    if (stream_parse_key(&src, &pkt.u.pubkey.pkt)) {
+        src_close(&src);
+        return false;
+    }
+    src_close(&src);
+
+    CALLBACK(pkt.u.pubkey.pkt.tag, &stream->cbinfo, &pkt);
     return true;
 }
 
@@ -2149,196 +2001,32 @@ consume_packet(pgp_region_t *region, pgp_stream_t *stream, unsigned warn)
  * \brief Parse a secret key
  */
 static bool
-parse_seckey(pgp_content_enum tag, pgp_region_t *region, pgp_stream_t *stream)
+parse_seckey(pgp_stream_t *stream)
 {
+    pgp_source_t src;
     pgp_packet_t pkt;
-    unsigned     blocksize;
-    bool         crypted;
-    uint8_t      c = 0x0;
-    int          ret = 1;
+    memset(&pkt, 0x00, sizeof(pgp_packet_t));
 
-    if (rnp_get_debug(__FILE__)) {
-        fprintf(stderr, "\n---------\nparse_seckey:\n");
-        fprintf(stderr,
-                "region length=%u, readc=%u, remainder=%u\n",
-                region->length,
-                region->readc,
-                region->length - region->readc);
-    }
-    (void) memset(&pkt, 0x0, sizeof(pkt));
-    if (!parse_pubkey_data(&pkt.u.seckey.pubkey.pkt, region, stream)) {
+    if (!stream->readinfo.accumulate) {
         return false;
     }
-    stream->reading_v3_secret = (pkt.u.seckey.pubkey.pkt.version != PGP_V4);
 
-    if (!limread(&c, 1, region, stream)) {
+    if (init_mem_src(&src, stream->readinfo.accumulated, stream->readinfo.alength, false)) {
         return false;
     }
-    /* shortcuts, to easuer replace/remove later on */
-    pgp_key_protection_t *prot = &pkt.u.seckey.pubkey.pkt.sec_protection;
 
-    prot->s2k.usage = (pgp_s2k_usage_t) c;
-
-    if (prot->s2k.usage == PGP_S2KU_ENCRYPTED ||
-        prot->s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED) {
-        if (!limread(&c, 1, region, stream)) {
-            return false;
-        }
-        prot->symm_alg = (pgp_symm_alg_t) c;
-        if (!limread(&c, 1, region, stream)) {
-            return false;
-        }
-        prot->s2k.specifier = (pgp_s2k_specifier_t) c;
-        switch (prot->s2k.specifier) {
-        case PGP_S2KS_SIMPLE:
-        case PGP_S2KS_SALTED:
-        case PGP_S2KS_ITERATED_AND_SALTED:
-            break;
-        default:
-            (void) fprintf(stderr, "parse_seckey: bad seckey\n");
-            return false;
-        }
-        if (!limread(&c, 1, region, stream)) {
-            return false;
-        }
-        prot->s2k.hash_alg = (pgp_hash_alg_t) c;
-        if (prot->s2k.specifier != PGP_S2KS_SIMPLE &&
-            !limread(prot->s2k.salt, PGP_SALT_SIZE, region, stream)) {
-            return false;
-        }
-        if (prot->s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-            if (!limread(&c, 1, region, stream)) {
-                return false;
-            }
-            prot->s2k.iterations = pgp_s2k_decode_iterations(c);
-        }
-    } else if (prot->s2k.usage != PGP_S2KU_NONE) {
-        /* this is V3 style, looks just like a V4 simple hash */
-        prot->symm_alg = (pgp_symm_alg_t) c;
-        prot->s2k.usage = PGP_S2KU_ENCRYPTED;
-        prot->s2k.specifier = PGP_S2KS_SIMPLE;
-        prot->s2k.hash_alg = PGP_HASH_MD5;
-    }
-    crypted = prot->s2k.usage == PGP_S2KU_ENCRYPTED ||
-              prot->s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED;
-    pkt.u.seckey.encrypted = crypted;
-
-    if (crypted) {
-        pgp_packet_t seckey;
-        char *       password;
-
-        if (rnp_get_debug(__FILE__)) {
-            (void) fprintf(stderr, "crypted seckey\n");
-        }
-        blocksize = pgp_block_size(prot->symm_alg);
-        if (blocksize == 0 || blocksize > PGP_MAX_BLOCK_SIZE) {
-            (void) fprintf(stderr, "parse_seckey: bad blocksize\n");
-            return false;
-        }
-
-        if (!limread(prot->iv, blocksize, region, stream)) {
-            return false;
-        }
-        (void) memset(&seckey, 0x0, sizeof(seckey));
-        password = NULL;
-        seckey.u.skey_password.password = &password;
-        seckey.u.skey_password.seckey = &pkt.u.seckey;
-        CALLBACK(PGP_GET_PASSWORD, &stream->cbinfo, &seckey);
-        if (password) {
-            RNP_LOG("internal error - old decrypt code should not be used");
-            return false;
-        }
-        if (!consume_packet(region, stream, 0)) {
-            return false;
-        }
-        CALLBACK(tag, &stream->cbinfo, &pkt);
-        return true;
-    }
-    if (rnp_get_debug(__FILE__)) {
-        fprintf(stderr, "parse_seckey: end of crypted password\n");
-    }
-    pgp_reader_push_sum16(stream);
-    if (rnp_get_debug(__FILE__)) {
-        fprintf(stderr, "parse_seckey: checkhash, reading MPIs\n");
-    }
-
-    pgp_key_material_t *material = &pkt.u.seckey.pubkey.pkt.material;
-
-    switch (pkt.u.seckey.pubkey.pkt.alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        if (!limread_mpi(&material->rsa.d, region, stream) ||
-            !limread_mpi(&material->rsa.p, region, stream) ||
-            !limread_mpi(&material->rsa.q, region, stream) ||
-            !limread_mpi(&material->rsa.u, region, stream)) {
-            ret = 0;
-        }
-        break;
-
-    case PGP_PKA_DSA:
-        if (!limread_mpi(&material->dsa.x, region, stream)) {
-            ret = 0;
-        }
-        break;
-
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDH:
-        if (!limread_mpi(&material->ec.x, region, stream)) {
-            ret = 0;
-        }
-        break;
-
-    case PGP_PKA_ELGAMAL:
-        if (!limread_mpi(&material->eg.x, region, stream)) {
-            ret = 0;
-        }
-        break;
-
-    default:
-        PGP_ERROR_2(&stream->errors,
-                    PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG,
-                    "Unsupported Public Key algorithm %d (%s)",
-                    pkt.u.seckey.pubkey.pkt.alg,
-                    pgp_show_pka(pkt.u.seckey.pubkey.pkt.alg));
-        ret = 0;
-    }
-
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr, "4 MPIs read\n");
-    }
-    stream->reading_v3_secret = 0;
-
-    uint16_t sum = pgp_reader_pop_sum16(stream);
-    if (ret) {
-        if (!limread_scalar(&pkt.u.seckey.checksum, 2, region, stream)) {
-            return false;
-        }
-
-        if (sum != pkt.u.seckey.checksum) {
-            ERRP(&stream->cbinfo, pkt, "Checksum mismatch in secret key");
-        }
-    }
-
-    if (region == NULL) {
-        (void) fprintf(stderr, "parse_seckey: NULL region\n");
+    if (stream_parse_key(&src, &pkt.u.seckey.pubkey.pkt)) {
+        src_close(&src);
         return false;
     }
-    if (ret && region->readc != region->length) {
-        (void) fprintf(stderr, "parse_seckey: bad length\n");
+    src_close(&src);
+
+    pkt.u.seckey.encrypted = pkt.u.seckey.pubkey.pkt.sec_protection.s2k.usage != PGP_S2KU_NONE;
+    if (!pkt.u.seckey.encrypted && decrypt_secret_key(&pkt.u.seckey.pubkey.pkt, NULL)) {
         return false;
     }
-    if (!ret) {
-        pgp_seckey_free(&pkt.u.seckey);
-        return false;
-    }
-    pkt.u.seckey.pubkey.pkt.material.secret = true;
-    CALLBACK(tag, &stream->cbinfo, &pkt);
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr, "--- end of parse_seckey\n\n");
-    }
+
+    CALLBACK(pkt.u.seckey.pubkey.pkt.tag, &stream->cbinfo, &pkt);
     return true;
 }
 
@@ -2436,7 +2124,11 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
         break;
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        ret = parse_pubkey((pgp_content_enum) pkt.u.ptag.type, &region, stream);
+        if (!consume_packet(&region, stream, 0)) {
+            ret = -1;
+            break;
+        }
+        ret = parse_pubkey(stream);
         break;
     case PGP_PTAG_CT_TRUST:
         ret = parse_trust(&region, stream);
@@ -2449,7 +2141,11 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
         break;
     case PGP_PTAG_CT_SECRET_KEY:
     case PGP_PTAG_CT_SECRET_SUBKEY:
-        ret = parse_seckey((pgp_content_enum) pkt.u.ptag.type, &region, stream);
+        if (!consume_packet(&region, stream, 0)) {
+            ret = -1;
+            break;
+        }
+        ret = parse_seckey(stream);
         break;
     default:
         PGP_ERROR_1(
