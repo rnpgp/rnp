@@ -83,7 +83,8 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include <rnp/rnp_sdk.h>
 
 #include "crypto/common.h"
-#include "crypto/s2k.h"
+#include <librepgp/stream-packet.h>
+#include <librepgp/stream-key.h>
 #include "signature.h"
 #include "packet-create.h"
 #include "memory.h"
@@ -124,310 +125,6 @@ pgp_write_struct_userid(pgp_output_t *output, const uint8_t *id)
            pgp_write(output, id, (unsigned) strlen((const char *) id));
 }
 
-static bool
-ec_serialize_pubkey(pgp_output_t *output, const pgp_ec_key_t *key)
-{
-    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
-    if (!curve) {
-        return false;
-    }
-
-    return pgp_write_scalar(output, curve->OIDhex_len, 1) &&
-           pgp_write(output, curve->OIDhex, curve->OIDhex_len) &&
-           pgp_write_mpi(output, &key->p);
-}
-
-static size_t
-mpi_length(const pgp_mpi_t *val)
-{
-    size_t res = mpi_bits(val);
-    return 2 + ((res + 7) >> 3);
-}
-
-static unsigned
-pubkey_length(const pgp_key_pkt_t *key)
-{
-    switch (key->alg) {
-    case PGP_PKA_ELGAMAL:
-        return mpi_length(&key->material.eg.p) + mpi_length(&key->material.eg.g) +
-               mpi_length(&key->material.eg.y);
-    case PGP_PKA_DSA:
-        return mpi_length(&key->material.dsa.p) + mpi_length(&key->material.dsa.q) +
-               mpi_length(&key->material.dsa.g) + mpi_length(&key->material.dsa.y);
-    case PGP_PKA_RSA:
-        return mpi_length(&key->material.rsa.n) + mpi_length(&key->material.rsa.e);
-    case PGP_PKA_ECDH: {
-        const ec_curve_desc_t *c = get_curve_desc(key->material.ec.curve);
-        if (!c) {
-            RNP_LOG("Unknown curve");
-            return 0;
-        }
-        /* OID len, OID, mpi, and 4 bytes of additional data (2 const, and kdf/hash algs) */
-        return 1 + c->OIDhex_len + mpi_length(&key->material.ec.p) + 4;
-    }
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2: {
-        const ec_curve_desc_t *c = get_curve_desc(key->material.ec.curve);
-        if (!c) {
-            RNP_LOG("Unknown curve");
-            return 0;
-        }
-        return 1 + c->OIDhex_len + mpi_length(&key->material.ec.p);
-    }
-    default:
-        RNP_LOG("unknown key algorithm");
-    }
-    return 0;
-}
-
-static unsigned
-seckey_length(const pgp_key_pkt_t *key)
-{
-    switch (key->alg) {
-    case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-        return mpi_length(&key->material.ec.x) + pubkey_length(key);
-    case PGP_PKA_DSA:
-        return mpi_length(&key->material.dsa.x) + pubkey_length(key);
-    case PGP_PKA_RSA:
-        return mpi_length(&key->material.rsa.d) + mpi_length(&key->material.rsa.p) +
-               mpi_length(&key->material.rsa.q) + mpi_length(&key->material.rsa.u) +
-               pubkey_length(key);
-    case PGP_PKA_ELGAMAL:
-        return mpi_length(&key->material.eg.x) + pubkey_length(key);
-    default:
-        RNP_LOG("unknown key algorithm");
-    }
-    return 0;
-}
-
-/*
- * Note that we support v3 keys here because they're needed for for
- * verification - the writer doesn't allow them, though
- */
-
-static bool
-write_pubkey_body(const pgp_key_pkt_t *key, pgp_output_t *output)
-{
-    if (!(pgp_write_scalar(output, (unsigned) key->version, 1) &&
-          pgp_write_scalar(output, (unsigned) key->creation_time, 4))) {
-        return false;
-    }
-
-    switch (key->version) {
-    case PGP_V2:
-    case PGP_V3:
-        if (!pgp_write_scalar(output, (unsigned) key->v3_days, 2)) {
-            return false;
-        }
-        break;
-    case PGP_V4:
-        break;
-    default:
-        RNP_LOG("invalid pubkey version: %d", (int) key->version);
-        return false;
-    }
-    if (!pgp_write_scalar(output, (unsigned) key->alg, 1)) {
-        return false;
-    }
-
-    switch (key->alg) {
-    case PGP_PKA_DSA:
-        return pgp_write_mpi(output, &key->material.dsa.p) &&
-               pgp_write_mpi(output, &key->material.dsa.q) &&
-               pgp_write_mpi(output, &key->material.dsa.g) &&
-               pgp_write_mpi(output, &key->material.dsa.y);
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-        return ec_serialize_pubkey(output, &key->material.ec);
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        return pgp_write_mpi(output, &key->material.rsa.n) &&
-               pgp_write_mpi(output, &key->material.rsa.e);
-    case PGP_PKA_ECDH:
-        return ec_serialize_pubkey(output, &key->material.ec) &&
-               pgp_write_scalar(output, 3 /*size of following attributes*/, 1) &&
-               pgp_write_scalar(output, 1 /*reserved*/, 1) &&
-               pgp_write_scalar(output, (unsigned) key->material.ec.kdf_hash_alg, 1) &&
-               pgp_write_scalar(output, (unsigned) key->material.ec.key_wrap_alg, 1);
-    case PGP_PKA_ELGAMAL:
-        return pgp_write_mpi(output, &key->material.eg.p) &&
-               pgp_write_mpi(output, &key->material.eg.g) &&
-               pgp_write_mpi(output, &key->material.eg.y);
-    default:
-        RNP_LOG("bad algorithm");
-        break;
-    }
-    return false;
-}
-
-/* This starts writing right after the s2k usage. */
-static bool
-write_protected_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const char *password)
-{
-    uint8_t     sesskey[PGP_MAX_KEY_SIZE];
-    size_t      sesskey_size = pgp_key_size(seckey->pubkey.pkt.sec_protection.symm_alg);
-    unsigned    block_size = pgp_block_size(seckey->pubkey.pkt.sec_protection.symm_alg);
-    pgp_crypt_t crypt = {{{0}}, 0};
-    pgp_hash_t  hash = {0};
-    unsigned    writers_pushed = 0;
-    bool        ret = false;
-    pgp_key_protection_t *prot = &seckey->pubkey.pkt.sec_protection;
-
-    // sanity checks
-    if (prot->s2k.usage != PGP_S2KU_ENCRYPTED_AND_HASHED) {
-        RNP_LOG("s2k usage");
-        goto done;
-    }
-    if (prot->s2k.specifier != PGP_S2KS_SIMPLE && prot->s2k.specifier != PGP_S2KS_SALTED &&
-        prot->s2k.specifier != PGP_S2KS_ITERATED_AND_SALTED) {
-        RNP_LOG("invalid/unsupported s2k specifier %d", prot->s2k.specifier);
-        goto done;
-    }
-    if (!sesskey_size || !block_size) {
-        RNP_LOG("unknown encryption algorithm");
-        goto done;
-    }
-
-    // start writing
-    if (!pgp_write_scalar(output, (unsigned) prot->symm_alg, 1) ||
-        !pgp_write_scalar(output, (unsigned) prot->s2k.specifier, 1) ||
-        !pgp_write_scalar(output, (unsigned) prot->s2k.hash_alg, 1)) {
-        RNP_LOG("writes failed");
-        goto done;
-    }
-
-    // salt
-    if (prot->s2k.specifier != PGP_S2KS_SIMPLE) {
-        if (!rng_generate(prot->s2k.salt, PGP_SALT_SIZE)) {
-            RNP_LOG("rng_generate failed");
-            goto done;
-        }
-        if (!pgp_write(output, prot->s2k.salt, PGP_SALT_SIZE)) {
-            goto done;
-        }
-    }
-
-    // iterations
-    if (prot->s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-        uint8_t enc_it = pgp_s2k_encode_iterations(prot->s2k.iterations);
-        if (!pgp_write_scalar(output, enc_it, 1)) {
-            RNP_LOG("write failed");
-            goto done;
-        }
-    }
-
-    // derive key
-    if (!pgp_s2k_derive_key(&prot->s2k, password, sesskey, sesskey_size)) {
-        RNP_LOG("failed to derive key");
-        goto done;
-    }
-
-    // randomize and write IV
-    if (!rng_generate(prot->iv, block_size)) {
-        goto done;
-    }
-    if (!pgp_write(output, prot->iv, block_size)) {
-        goto done;
-    }
-
-    // use the session key to encrypt
-    if (!pgp_cipher_cfb_start(&crypt, prot->symm_alg, sesskey, prot->iv)) {
-        goto done;
-    }
-    // debugging
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "writing: iv=", prot->iv, pgp_block_size(prot->symm_alg));
-        hexdump(stderr, "key= ", sesskey, sesskey_size);
-        (void) fprintf(stderr, "\nturning encryption on...\n");
-    }
-    if (!pgp_push_enc_crypt(output, &crypt)) {
-        goto done;
-    }
-    writers_pushed++;
-
-    // compute checkhash
-    if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
-        goto done;
-    }
-    if (!pgp_writer_push_hash(output, &hash)) {
-        goto done;
-    }
-    writers_pushed++;
-    // write key material
-    if (!pgp_write_secret_mpis(output, seckey)) {
-        goto done;
-    }
-    pgp_writer_pop(output); // hash
-    writers_pushed--;
-    // write checkhash
-    pgp_hash_finish(&hash, seckey->checkhash);
-    if (!pgp_write(output, seckey->checkhash, PGP_CHECKHASH_SIZE)) {
-        goto done;
-    }
-
-    ret = true;
-done:
-    // pop any remaining writers we pushed
-    for (unsigned i = 0; i < writers_pushed; i++) {
-        pgp_writer_pop(output);
-    }
-    pgp_cipher_cfb_finish(&crypt);
-    return ret;
-}
-
-/*
- * Note that we support v3 keys here because they're needed for
- * verification.
- */
-static bool
-write_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const char *password)
-{
-    /* RFC4880 Section 5.5.3 Secret-Key Packet Formats */
-
-    if (!write_pubkey_body(&seckey->pubkey.pkt, output)) {
-        RNP_LOG("failed to write pubkey body");
-        return false;
-    }
-    if (!pgp_write_scalar(output, (unsigned) seckey->pubkey.pkt.sec_protection.s2k.usage, 1)) {
-        RNP_LOG("failed tow rite s2k usage");
-        return false;
-    }
-    switch (seckey->pubkey.pkt.sec_protection.s2k.usage) {
-    case PGP_S2KU_NONE:
-        if (!pgp_writer_push_sum16(output)) {
-            RNP_LOG("failed to push checksum calculator");
-            return false;
-        }
-        if (!pgp_write_secret_mpis(output, seckey)) {
-            pgp_writer_pop(output); // sum16
-            RNP_LOG("failed to write secret MPIs");
-            return false;
-        }
-        seckey->checksum = pgp_writer_pop_sum16(output);
-        if (!pgp_write_scalar(output, seckey->checksum, 2)) {
-            RNP_LOG("failed to write checksum");
-            return false;
-        }
-        break;
-    case PGP_S2KU_ENCRYPTED_AND_HASHED:
-        if (!write_protected_seckey_body(output, seckey, password)) {
-            RNP_LOG("failed to write protected secret key body");
-            return false;
-        }
-        break;
-    default:
-        RNP_LOG("unsupported s2k usage");
-        return false;
-    }
-    return true;
-}
-
 /**
  * \ingroup Core_WritePackets
  * \brief Writes a Public Key packet
@@ -436,11 +133,27 @@ write_seckey_body(pgp_output_t *output, pgp_seckey_t *seckey, const char *passwo
  * \return 1 if OK, otherwise 0
  */
 bool
-pgp_write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, const pgp_key_pkt_t *key)
+pgp_write_struct_pubkey(pgp_output_t *output, pgp_content_enum tag, pgp_key_pkt_t *key)
 {
-    return pgp_write_ptag(output, tag) &&
-           pgp_write_length(output, 1 + 4 + 1 + pubkey_length(key)) &&
-           write_pubkey_body(key, output);
+    pgp_dest_t dst;
+    bool       res = false;
+
+    if (init_mem_dest(&dst, NULL, 0)) {
+        return false;
+    }
+
+    int oldtag = key->tag;
+    key->tag = tag;
+
+    if (!stream_write_key(key, &dst)) {
+        goto done;
+    }
+
+    res = pgp_write(output, mem_dest_get_memory(&dst), dst.writeb);
+done:
+    key->tag = oldtag;
+    dst_close(&dst, true);
+    return res;
 }
 
 static bool
@@ -577,89 +290,35 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
  * \param output
  * \return 1 if OK; else 0
  */
-unsigned
+bool
 pgp_write_struct_seckey(pgp_output_t *   output,
                         pgp_content_enum tag,
                         pgp_seckey_t *   seckey,
                         const char *     password)
 {
-    unsigned length = 0;
+    pgp_dest_t dst;
+    bool       res = false;
 
-    if (seckey->pubkey.pkt.version != 4) {
-        (void) fprintf(stderr, "pgp_write_struct_seckey: public key version\n");
+    if (init_mem_dest(&dst, NULL, 0)) {
         return false;
     }
 
-    /* Ref: RFC4880 Section 5.5.3 */
+    int oldtag = seckey->pubkey.pkt.tag;
+    seckey->pubkey.pkt.tag = tag;
 
-    /* pubkey, excluding MPIs */
-    length += 1 + 4 + 1;
-
-    /* s2k usage */
-    length += 1;
-
-    switch (seckey->pubkey.pkt.sec_protection.s2k.usage) {
-    case PGP_S2KU_NONE:
-        /* nothing to add */
-        break;
-
-    case PGP_S2KU_ENCRYPTED_AND_HASHED: /* 254 */
-    case PGP_S2KU_ENCRYPTED:            /* 255 */
-
-        /* Ref: RFC4880 Section 3.7 */
-        length += 1; /* symm alg */
-        length += 1; /* s2k_specifier */
-
-        switch (seckey->pubkey.pkt.sec_protection.s2k.specifier) {
-        case PGP_S2KS_SIMPLE:
-            length += 1; /* hash algorithm */
-            break;
-
-        case PGP_S2KS_SALTED:
-            length += 1 + 8; /* hash algorithm + salt */
-            break;
-
-        case PGP_S2KS_ITERATED_AND_SALTED:
-            length += 1 + 8 + 1; /* hash algorithm, salt +
-                                  * count */
-            break;
-
-        default:
-            (void) fprintf(stderr, "pgp_write_struct_seckey: s2k spec\n");
-            return false;
-        }
-        break;
-
-    default:
-        (void) fprintf(stderr, "pgp_write_struct_seckey: s2k usage\n");
-        return false;
+    if (encrypt_secret_key(&seckey->pubkey.pkt, password, NULL)) {
+        goto done;
     }
 
-    /* IV */
-    if (seckey->pubkey.pkt.sec_protection.s2k.usage) {
-        length += pgp_block_size(seckey->pubkey.pkt.sec_protection.symm_alg);
-    }
-    /* checksum or hash */
-    switch (seckey->pubkey.pkt.sec_protection.s2k.usage) {
-    case PGP_S2KU_NONE:
-    case PGP_S2KU_ENCRYPTED:
-        length += 2;
-        break;
-
-    case PGP_S2KU_ENCRYPTED_AND_HASHED:
-        length += PGP_CHECKHASH_SIZE;
-        break;
-
-    default:
-        (void) fprintf(stderr, "pgp_write_struct_seckey: s2k cksum usage\n");
-        return false;
+    if (!stream_write_key(&seckey->pubkey.pkt, &dst)) {
+        goto done;
     }
 
-    /* secret key and public key MPIs */
-    length += (unsigned) seckey_length(&seckey->pubkey.pkt);
-
-    return pgp_write_ptag(output, tag) && pgp_write_length(output, (unsigned) length) &&
-           write_seckey_body(output, seckey, password);
+    res = pgp_write(output, mem_dest_get_memory(&dst), dst.writeb);
+done:
+    seckey->pubkey.pkt.tag = oldtag;
+    dst_close(&dst, true);
+    return res;
 }
 
 /**
@@ -860,45 +519,5 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
 end:
     rng_destroy(&rng);
     pgp_create_sig_delete(sig);
-    return ok;
-}
-
-bool
-pgp_write_secret_mpis(pgp_output_t *output, const pgp_seckey_t *seckey)
-{
-    bool ok = false;
-
-    switch (seckey->pubkey.pkt.alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        ok = pgp_write_mpi(output, &seckey->pubkey.pkt.material.rsa.d) &&
-             pgp_write_mpi(output, &seckey->pubkey.pkt.material.rsa.p) &&
-             pgp_write_mpi(output, &seckey->pubkey.pkt.material.rsa.q) &&
-             pgp_write_mpi(output, &seckey->pubkey.pkt.material.rsa.u);
-        break;
-
-    case PGP_PKA_DSA:
-        ok = pgp_write_mpi(output, &seckey->pubkey.pkt.material.dsa.x);
-        break;
-
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDH:
-        ok = pgp_write_mpi(output, &seckey->pubkey.pkt.material.ec.x);
-        break;
-
-    case PGP_PKA_ELGAMAL:
-        ok = pgp_write_mpi(output, &seckey->pubkey.pkt.material.eg.x);
-        break;
-
-    default:
-        RNP_LOG("unsupported pk alg %d", seckey->pubkey.pkt.alg);
-        break;
-    }
-    if (!ok) {
-        RNP_LOG("failed to write MPIs for pk alg %d", seckey->pubkey.pkt.alg);
-    }
     return ok;
 }

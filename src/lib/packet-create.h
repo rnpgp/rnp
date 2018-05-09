@@ -69,8 +69,8 @@ void          pgp_output_delete(pgp_output_t *);
 unsigned pgp_write_struct_userid(pgp_output_t *, const uint8_t *);
 unsigned pgp_write_ss_header(pgp_output_t *, unsigned, pgp_content_enum);
 
-bool     pgp_write_struct_pubkey(pgp_output_t *, pgp_content_enum, const pgp_key_pkt_t *);
-unsigned pgp_write_struct_seckey(pgp_output_t *output,
+bool     pgp_write_struct_pubkey(pgp_output_t *, pgp_content_enum, pgp_key_pkt_t *);
+bool     pgp_write_struct_seckey(pgp_output_t *output,
                                  pgp_content_enum,
                                  pgp_seckey_t *,
                                  const char *);
@@ -92,7 +92,5 @@ bool pgp_write_selfsig_binding(pgp_output_t *                  output,
                                const pgp_hash_alg_t            hash_alg,
                                const pgp_pubkey_t *            subkey,
                                const rnp_selfsig_binding_info *binding);
-
-bool pgp_write_secret_mpis(pgp_output_t *output, const pgp_seckey_t *seckey);
 
 #endif /* CREATE_H_ */

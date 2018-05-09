@@ -638,16 +638,28 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t *rng)
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto error;
     }
-    /* generate iv */
-    if (!rng_get_data(rng, key->sec_protection.iv, blsize)) {
-        ret = RNP_ERROR_RNG;
-        goto error;
-    }
-    /* generate s2k salt */
-    if ((key->sec_protection.s2k.specifier != PGP_S2KS_SIMPLE) &&
-        !rng_get_data(rng, key->sec_protection.s2k.salt, PGP_SALT_SIZE)) {
-        ret = RNP_ERROR_RNG;
-        goto error;
+    /* generate iv and s2k salt */
+    if (rng) {
+        if (!rng_get_data(rng, key->sec_protection.iv, blsize)) {
+            ret = RNP_ERROR_RNG;
+            goto error;
+        }
+        if ((key->sec_protection.s2k.specifier != PGP_S2KS_SIMPLE) &&
+            !rng_get_data(rng, key->sec_protection.s2k.salt, PGP_SALT_SIZE)) {
+            ret = RNP_ERROR_RNG;
+            goto error;
+        }
+    } else {
+        /* temporary solution! */
+        if (!rng_generate(key->sec_protection.iv, blsize)) {
+            ret = RNP_ERROR_RNG;
+            goto error;
+        }
+        if ((key->sec_protection.s2k.specifier != PGP_S2KS_SIMPLE) &&
+            !rng_generate(key->sec_protection.s2k.salt, PGP_SALT_SIZE)) {
+            ret = RNP_ERROR_RNG;
+            goto error;
+        }
     }
     /* derive key */
     if (!pgp_s2k_derive_key(&key->sec_protection.s2k, password, keybuf, keysize)) {
