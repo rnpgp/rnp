@@ -65,7 +65,6 @@
 
 /* SHA1 Hash Size */
 #define PGP_SHA1_HASH_SIZE 20
-#define PGP_CHECKHASH_SIZE PGP_SHA1_HASH_SIZE
 
 /* Maximum length of the packet header */
 #define PGP_MAX_HEADER_SIZE 6
@@ -239,9 +238,7 @@ typedef struct pgp_seckey_t {
      * If true, the key union does not contain any valid secret
      * key material and must be decrypted prior to use.
      */
-    bool     encrypted;
-    unsigned checksum;
-    uint8_t  checkhash[PGP_CHECKHASH_SIZE];
+    bool encrypted;
 } pgp_seckey_t;
 
 /** Struct to hold userid or userattr packet. We don't parse userattr now, just storing the

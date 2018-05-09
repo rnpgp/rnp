@@ -736,18 +736,19 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passwor
             goto done;
         }
 
-        if (!g10_calculated_hash(seckey, protected_at, seckey->checkhash)) {
+        uint8_t checkhash[G10_SHA1_HASH_SIZE];
+        if (!g10_calculated_hash(seckey, protected_at, checkhash)) {
             RNP_LOG("failed to calculate hash");
             goto done;
         }
 
         if (decrypted_s_exp.sub_elements[1].s_exp.sub_elements[2].block.len !=
               G10_SHA1_HASH_SIZE ||
-            memcmp(seckey->checkhash,
+            memcmp(checkhash,
                    decrypted_s_exp.sub_elements[1].s_exp.sub_elements[2].block.bytes,
                    G10_SHA1_HASH_SIZE) != 0) {
             if (rnp_get_debug(__FILE__)) {
-                hexdump(stderr, "Expected hash", seckey->checkhash, G10_SHA1_HASH_SIZE);
+                hexdump(stderr, "Expected hash", checkhash, G10_SHA1_HASH_SIZE);
                 hexdump(stderr,
                         "Has hash",
                         decrypted_s_exp.sub_elements[1].s_exp.sub_elements[2].block.bytes,
