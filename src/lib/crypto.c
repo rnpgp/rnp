@@ -94,6 +94,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
     seckey->pubkey.pkt.version = PGP_V4;
     seckey->pubkey.pkt.creation_time = time(NULL);
     seckey->pubkey.pkt.alg = crypto->key_alg;
+    seckey->pubkey.pkt.material.alg = crypto->key_alg;
     rng_t *             rng = crypto->rng;
     pgp_key_material_t *kmaterial = &seckey->pubkey.pkt.material;
 
@@ -142,8 +143,8 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_seckey_t *seck
         break;
     }
     seckey->pubkey.pkt.sec_protection.s2k.usage = PGP_S2KU_NONE;
+    seckey->pubkey.pkt.material.secret = true;
     ok = true;
-
 end:
     if (!ok && seckey) {
         RNP_LOG("failed, freeing internal seckey data");

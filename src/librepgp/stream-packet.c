@@ -403,7 +403,7 @@ add_packet_body_key_curve(pgp_packet_body_t *body, const pgp_curve_t curve)
 }
 
 static bool
-add_packet_body_s2k(pgp_packet_body_t *body, pgp_s2k_t *s2k)
+add_packet_body_s2k(pgp_packet_body_t *body, const pgp_s2k_t *s2k)
 {
     if (!add_packet_body_byte(body, s2k->specifier) ||
         !add_packet_body_byte(body, s2k->hash_alg)) {
@@ -415,9 +415,14 @@ add_packet_body_s2k(pgp_packet_body_t *body, pgp_s2k_t *s2k)
         return true;
     case PGP_S2KS_SALTED:
         return add_packet_body(body, s2k->salt, PGP_SALT_SIZE);
-    case PGP_S2KS_ITERATED_AND_SALTED:
+    case PGP_S2KS_ITERATED_AND_SALTED: {
+        uint8_t iter = s2k->iterations;
+        if (s2k->iterations > 255) {
+            iter = pgp_s2k_encode_iterations(s2k->iterations);
+        }
         return add_packet_body(body, s2k->salt, PGP_SALT_SIZE) &&
-               add_packet_body_byte(body, s2k->iterations);
+               add_packet_body_byte(body, iter);
+    }
     default:
         RNP_LOG("unknown s2k specifier");
         return false;
