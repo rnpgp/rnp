@@ -344,10 +344,10 @@ pgp_get_writable_seckey(pgp_key_t *key)
 }
 
 pgp_seckey_t *
-pgp_decrypt_seckey_pgp(const uint8_t *     data,
-                       size_t              data_len,
-                       const pgp_pubkey_t *pubkey,
-                       const char *        password)
+pgp_decrypt_seckey_pgp(const uint8_t *      data,
+                       size_t               data_len,
+                       const pgp_key_pkt_t *pubkey,
+                       const char *         password)
 {
     pgp_source_t  src = {0};
     pgp_seckey_t *res = NULL;
@@ -393,7 +393,7 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
 {
     pgp_seckey_t *               decrypted_seckey = NULL;
     typedef struct pgp_seckey_t *pgp_seckey_decrypt_t(
-      const uint8_t *data, size_t data_len, const pgp_pubkey_t *pubkey, const char *password);
+      const uint8_t *data, size_t data_len, const pgp_key_pkt_t *pubkey, const char *password);
     pgp_seckey_decrypt_t *decryptor = NULL;
     char                  password[MAX_PASSWORD_LENGTH] = {0};
 
@@ -427,8 +427,8 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
         }
     }
     // attempt to decrypt with the provided password
-    decrypted_seckey =
-      decryptor(key->packets[0].raw, key->packets[0].length, pgp_get_pubkey(key), password);
+    decrypted_seckey = decryptor(
+      key->packets[0].raw, key->packets[0].length, &pgp_get_pubkey(key)->pkt, password);
 
 done:
     pgp_forget(password, sizeof(password));
@@ -759,7 +759,7 @@ write_key_to_rawpacket(pgp_seckey_t *     seckey,
     switch (format) {
     case GPG_KEY_STORE:
     case KBX_KEY_STORE:
-        if (!pgp_write_struct_seckey(output, type, seckey, password)) {
+        if (!pgp_write_struct_seckey(output, type, &seckey->pubkey.pkt, password)) {
             RNP_LOG("failed to write seckey");
             goto done;
         }
@@ -993,7 +993,7 @@ pgp_key_add_userid(pgp_key_t *            key,
     }
     // write userid and selfsig packets
     if (!pgp_write_struct_userid(output, cert->userid) ||
-        !pgp_write_selfsig_cert(output, seckey, hash_alg, cert)) {
+        !pgp_write_selfsig_cert(output, &seckey->pubkey.pkt, hash_alg, cert)) {
         RNP_LOG("failed to write userid + selfsig");
         goto done;
     }
@@ -1155,17 +1155,17 @@ pgp_get_primary_key_for(pgp_io_t *                io,
 }
 
 pgp_hash_alg_t
-pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_pubkey_t *pubkey)
+pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
 {
-    if ((pubkey->pkt.alg != PGP_PKA_DSA) && (pubkey->pkt.alg != PGP_PKA_ECDSA)) {
+    if ((pubkey->alg != PGP_PKA_DSA) && (pubkey->alg != PGP_PKA_ECDSA)) {
         return hash;
     }
 
     pgp_hash_alg_t hash_min;
-    if (pubkey->pkt.alg == PGP_PKA_ECDSA) {
-        hash_min = ecdsa_get_min_hash(pubkey->pkt.material.ec.curve);
+    if (pubkey->alg == PGP_PKA_ECDSA) {
+        hash_min = ecdsa_get_min_hash(pubkey->material.ec.curve);
     } else {
-        hash_min = dsa_get_min_hash(mpi_bits(&pubkey->pkt.material.dsa.q));
+        hash_min = dsa_get_min_hash(mpi_bits(&pubkey->material.dsa.q));
     }
 
     if (pgp_digest_length(hash) < pgp_digest_length(hash_min)) {

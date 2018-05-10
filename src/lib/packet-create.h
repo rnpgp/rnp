@@ -72,7 +72,7 @@ unsigned pgp_write_ss_header(pgp_output_t *, unsigned, pgp_content_enum);
 bool     pgp_write_struct_pubkey(pgp_output_t *, pgp_content_enum, pgp_key_pkt_t *);
 bool     pgp_write_struct_seckey(pgp_output_t *output,
                                  pgp_content_enum,
-                                 pgp_seckey_t *,
+                                 pgp_key_pkt_t *,
                                  const char *);
 unsigned pgp_write_xfer_pubkey(pgp_output_t *,
                                const pgp_key_t *,
@@ -84,13 +84,13 @@ bool     pgp_write_xfer_seckey(pgp_output_t *,
                                const unsigned);
 
 bool pgp_write_selfsig_cert(pgp_output_t *               output,
-                            const pgp_seckey_t *         seckey,
+                            const pgp_key_pkt_t *        seckey,
                             const pgp_hash_alg_t         hash_alg,
                             const rnp_selfsig_cert_info *cert);
 bool pgp_write_selfsig_binding(pgp_output_t *                  output,
                                const pgp_seckey_t *            primary_sec,
                                const pgp_hash_alg_t            hash_alg,
-                               const pgp_pubkey_t *            subkey,
+                               const pgp_key_pkt_t *           subkey,
                                const rnp_selfsig_binding_info *binding);
 
 #endif /* CREATE_H_ */

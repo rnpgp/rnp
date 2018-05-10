@@ -81,10 +81,10 @@ typedef struct format_info {
 static bool   g10_calculated_hash(const pgp_seckey_t *key,
                                   const char *        protected_at,
                                   uint8_t *           checksum);
-pgp_seckey_t *g10_decrypt_seckey(const uint8_t *     data,
-                                 size_t              data_len,
-                                 const pgp_pubkey_t *pubkey,
-                                 const char *        password);
+pgp_seckey_t *g10_decrypt_seckey(const uint8_t *      data,
+                                 size_t               data_len,
+                                 const pgp_key_pkt_t *pubkey,
+                                 const char *         password);
 
 static const format_info formats[] = {{PGP_SA_AES_128,
                                        PGP_CIPHER_MODE_CBC,
@@ -409,33 +409,32 @@ write_mpi(s_exp_t *s_exp, const char *name, const pgp_mpi_t *val)
 }
 
 static bool
-parse_pubkey(pgp_pubkey_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
+parse_pubkey(pgp_key_pkt_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 {
-    pgp_key_pkt_t *pkt = &pubkey->pkt;
-    pkt->version = PGP_V4;
-    pkt->alg = alg;
-    pkt->material.alg = alg;
+    pubkey->version = PGP_V4;
+    pubkey->alg = alg;
+    pubkey->material.alg = alg;
     switch (alg) {
     case PGP_PKA_DSA:
-        if (!read_mpi(s_exp, "p", &pkt->material.dsa.p) ||
-            !read_mpi(s_exp, "q", &pkt->material.dsa.q) ||
-            !read_mpi(s_exp, "g", &pkt->material.dsa.g) ||
-            !read_mpi(s_exp, "y", &pkt->material.dsa.y)) {
+        if (!read_mpi(s_exp, "p", &pubkey->material.dsa.p) ||
+            !read_mpi(s_exp, "q", &pubkey->material.dsa.q) ||
+            !read_mpi(s_exp, "g", &pubkey->material.dsa.g) ||
+            !read_mpi(s_exp, "y", &pubkey->material.dsa.y)) {
             return false;
         }
         break;
 
     case PGP_PKA_RSA:
-        if (!read_mpi(s_exp, "n", &pkt->material.rsa.n) ||
-            !read_mpi(s_exp, "e", &pkt->material.rsa.e)) {
+        if (!read_mpi(s_exp, "n", &pubkey->material.rsa.n) ||
+            !read_mpi(s_exp, "e", &pubkey->material.rsa.e)) {
             return false;
         }
         break;
 
     case PGP_PKA_ELGAMAL:
-        if (!read_mpi(s_exp, "p", &pkt->material.eg.p) ||
-            !read_mpi(s_exp, "g", &pkt->material.eg.g) ||
-            !read_mpi(s_exp, "y", &pkt->material.eg.y)) {
+        if (!read_mpi(s_exp, "p", &pubkey->material.eg.p) ||
+            !read_mpi(s_exp, "g", &pubkey->material.eg.g) ||
+            !read_mpi(s_exp, "y", &pubkey->material.eg.y)) {
             return false;
         }
         break;
@@ -882,7 +881,7 @@ g10_parse_seckey(pgp_io_t *                io,
         goto done;
     }
 
-    if (!parse_pubkey(&seckey->pubkey, algorithm_s_exp, alg)) {
+    if (!parse_pubkey(&seckey->pubkey.pkt, algorithm_s_exp, alg)) {
         RNP_LOG("failed to parse pubkey");
         goto done;
     }
@@ -938,10 +937,10 @@ done:
 }
 
 pgp_seckey_t *
-g10_decrypt_seckey(const uint8_t *     data,
-                   size_t              data_len,
-                   const pgp_pubkey_t *pubkey,
-                   const char *        password)
+g10_decrypt_seckey(const uint8_t *      data,
+                   size_t               data_len,
+                   const pgp_key_pkt_t *pubkey,
+                   const char *         password)
 {
     pgp_seckey_t *seckey = NULL;
     pgp_io_t      io = {.errs = stderr, .res = stdout, .outs = stdout};
@@ -955,7 +954,7 @@ g10_decrypt_seckey(const uint8_t *     data,
     if (!g10_parse_seckey(&io, seckey, data, data_len, password, NULL)) {
         goto done;
     }
-    if (pubkey && !copy_key_pkt(&seckey->pubkey.pkt, &pubkey->pkt)) {
+    if (pubkey && !copy_key_pkt(&seckey->pubkey.pkt, pubkey)) {
         goto done;
     }
     ok = true;
@@ -1059,10 +1058,10 @@ write_sexp(s_exp_t *s_exp, pgp_memory_t *mem)
 }
 
 static bool
-write_pubkey(s_exp_t *s_exp, const pgp_pubkey_t *key)
+write_pubkey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
 {
-    const pgp_key_material_t *kmaterial = &key->pkt.material;
-    switch (key->pkt.alg) {
+    const pgp_key_material_t *kmaterial = &key->material;
+    switch (key->alg) {
     case PGP_PKA_DSA:
         if (!add_string_block_to_sexp(s_exp, "dsa")) {
             return false;
@@ -1100,7 +1099,7 @@ write_pubkey(s_exp_t *s_exp, const pgp_pubkey_t *key)
         break;
 
     default:
-        fprintf(stderr, "Unsupported public key algorithm: %d\n", key->pkt.alg);
+        fprintf(stderr, "Unsupported public key algorithm: %d\n", key->alg);
         return NULL;
     }
 
@@ -1303,7 +1302,7 @@ g10_write_seckey(pgp_output_t *output, pgp_seckey_t *seckey, const char *passwor
     if (!add_string_block_to_sexp(&s_exp,
                                   protected ? "protected-private-key" : "private-key") ||
         !add_sub_sexp_to_sexp(&s_exp, &sub_s_exp) ||
-        !write_pubkey(sub_s_exp, &seckey->pubkey)) {
+        !write_pubkey(sub_s_exp, &seckey->pubkey.pkt)) {
         goto done;
     }
     if (protected) {
@@ -1346,7 +1345,7 @@ g10_calculated_hash(const pgp_seckey_t *key, const char *protected_at, uint8_t *
         goto error;
     }
 
-    if (!write_pubkey(&s_exp, &key->pubkey)) {
+    if (!write_pubkey(&s_exp, &key->pubkey.pkt)) {
         RNP_LOG("failed to write pubkey");
         goto error;
     }

@@ -73,10 +73,10 @@ typedef struct {
 
 /** Struct used with the validate_key_cb callback */
 typedef struct {
-    pgp_pubkey_t pubkey;
-    pgp_pubkey_t subkey;
-    pgp_seckey_t seckey;
-    bool         loaded_pubkey;
+    pgp_key_pkt_t pubkey;
+    pgp_key_pkt_t subkey;
+    pgp_seckey_t  seckey;
+    bool          loaded_pubkey;
     enum { ATTRIBUTE = 1, ID } last_seen;
     uint8_t *              userid;
     pgp_data_t             userattr;
