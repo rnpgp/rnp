@@ -367,7 +367,7 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
     }
 
     // generate the raw key pair
-    if (!pgp_generate_seckey(&desc->crypto, &seckey)) {
+    if (!pgp_generate_seckey(&desc->crypto, &seckey.pubkey.pkt)) {
         goto end;
     }
 
@@ -516,7 +516,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
     }
 
     // generate the raw key pair
-    if (!pgp_generate_seckey(&desc->crypto, &seckey)) {
+    if (!pgp_generate_seckey(&desc->crypto, &seckey.pubkey.pkt)) {
         goto end;
     }
 

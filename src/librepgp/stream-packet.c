@@ -2141,12 +2141,12 @@ void
 free_key_pkt(pgp_key_pkt_t *key)
 {
     free(key->hashed_data);
-    key->hashed_data = NULL;
     if (key->sec_data) {
         pgp_forget(key->sec_data, key->sec_len);
         free(key->sec_data);
-        key->sec_data = NULL;
+        pgp_forget(key, sizeof(*key));
     }
+    memset(key, 0, sizeof(*key));
 }
 
 bool
