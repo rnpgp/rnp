@@ -133,8 +133,6 @@ bool pgp_generate_keypair(rng_t *                    rng,
                           pgp_key_t *                subkey_pub,
                           key_store_format_t         secformat);
 
-struct pgp_key_data;
-
 bool read_pem_seckey(const char *, pgp_key_t *, const char *, int);
 
 typedef int pgp_reader_func_t(
@@ -156,29 +154,14 @@ struct pgp_reader_t {
     pgp_stream_t *          parent; /* parent parse_info structure */
 };
 
-/** pgp_cryptinfo_t
- Encrypt/decrypt settings
-*/
-typedef struct pgp_cryptinfo_t {
-    rnp_key_store_t *       secring;
-    const pgp_key_t *       key;
-    pgp_password_provider_t password_provider;
-    rnp_key_store_t *       pubring;
-} pgp_cryptinfo_t;
-
 /** pgp_cbdata_t */
 struct pgp_cbdata_t {
-    pgp_cbfunc_t *   cbfunc; /* callback function */
-    void *           arg;    /* args to pass to callback func */
-    pgp_error_t **   errors; /* address of error stack */
-    pgp_cbdata_t *   next;
-    pgp_output_t *   output;     /* when writing out parsed info */
-    pgp_io_t *       io;         /* error/output messages */
-    pgp_cryptinfo_t  cryptinfo;  /* used when decrypting */
-    pgp_printstate_t printstate; /* used to keep printing state */
-    pgp_seckey_t *   sshseckey;  /* secret key for ssh */
-    int              numtries;   /* # of password attempts */
-    int              gotpass;    /* when password entered */
+    pgp_cbfunc_t *cbfunc; /* callback function */
+    void *        arg;    /* args to pass to callback func */
+    pgp_error_t **errors; /* address of error stack */
+    pgp_cbdata_t *next;
+    pgp_output_t *output; /* when writing out parsed info */
+    pgp_io_t *    io;     /* error/output messages */
 };
 
 /** pgp_hashtype_t */
@@ -220,12 +203,8 @@ struct pgp_stream_t {
     pgp_error_t *   errors;
     void *          io; /* io streams */
     pgp_crypt_t     decrypt;
-    pgp_cryptinfo_t cryptinfo;
     size_t          hashc;
     pgp_hashtype_t *hashes;
-    unsigned        reading_v3_secret : 1;
-    unsigned        reading_mpi_len : 1;
-    unsigned        resync : 1;
     unsigned        exact_read : 1;
     unsigned        partial_read : 1;
     unsigned        coalescing : 1;

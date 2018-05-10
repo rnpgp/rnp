@@ -57,18 +57,8 @@
 #include "packet-parse.h"
 #include <rekey/rnp_key_store.h>
 
-typedef struct pgp_io_t     pgp_io_t;
-typedef struct pgp_key_t    pgp_key_t;
-
-/* structure to keep track of printing state variables */
-typedef void (*content_printer_t)(int, const char *, const char *, const uint8_t *, size_t);
-
-typedef struct pgp_printstate_t {
-    unsigned          unarmored;
-    unsigned          skipping;
-    int               indent;
-    content_printer_t content_printer;
-} pgp_printstate_t;
+typedef struct pgp_io_t  pgp_io_t;
+typedef struct pgp_key_t pgp_key_t;
 
 void repgp_print_key(
   pgp_io_t *, const struct rnp_key_store_t *, const pgp_key_t *, const char *, const int);
