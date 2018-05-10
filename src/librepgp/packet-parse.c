@@ -602,12 +602,10 @@ limread_mpi(pgp_mpi_t *mpi, pgp_region_t *region, pgp_stream_t *stream)
     unsigned nonzero;
     unsigned ret;
 
-    stream->reading_mpi_len = 1;
     ret = (unsigned) limread_scalar(&length, 2, region, stream);
-
-    stream->reading_mpi_len = 0;
-    if (!ret)
+    if (!ret) {
         return false;
+    }
 
     nonzero = length & 7; /* there should be this many zero bits in the MS byte */
     if (!nonzero) {
@@ -636,42 +634,6 @@ limread_mpi(pgp_mpi_t *mpi, pgp_region_t *region, pgp_stream_t *stream)
     }
     mpi->len = length;
     return true;
-}
-
-static bool read_new_length(unsigned *, pgp_stream_t *);
-
-/* allocate space, read, and stash data away in a virtual pkt */
-static void
-streamread(pgp_stream_t *stream, unsigned c)
-{
-    int cc;
-
-    stream->virtualpkt = realloc(stream->virtualpkt, stream->virtualc + c);
-    cc = stream->readinfo.reader(stream,
-                                 &stream->virtualpkt[stream->virtualc],
-                                 c,
-                                 &stream->errors,
-                                 &stream->readinfo,
-                                 &stream->cbinfo);
-    stream->virtualc += cc;
-}
-
-/* coalesce all the partial blocks together */
-static void
-coalesce_blocks(pgp_stream_t *stream, unsigned length)
-{
-    unsigned c = 0;
-
-    stream->coalescing = 1;
-    /* already read a partial block length - prime the array */
-    streamread(stream, length);
-    while (read_new_length(&c, stream) && stream->partial_read) {
-        /* length we read is partial - add to end of array */
-        streamread(stream, c);
-    }
-    /* not partial - add the last extent to the end of the array */
-    streamread(stream, c);
-    stream->coalescing = 0;
 }
 
 /** Read some data with a New-Format length from reader.
@@ -709,16 +671,7 @@ read_new_length(unsigned *length, pgp_stream_t *stream)
         return true;
     }
     if (c < 255) {
-        /* 3. Partial Body Length */
-        stream->partial_read = 1;
-        *length = 1 << (c & 0x1f);
-        if (!stream->coalescing) {
-            /* we have been called from coalesce_blocks -
-             * just return with the partial length */
-            coalesce_blocks(stream, *length);
-            *length = stream->virtualc;
-        }
-        return true;
+        return false;
     }
     /* 4. Five-Octet packet */
     return _read_scalar(length, 4, stream);
@@ -767,15 +720,7 @@ limited_read_new_length(unsigned *length, pgp_region_t *region, pgp_stream_t *st
         return true;
     }
     if (c < 255) {
-        stream->partial_read = 1;
-        *length = 1 << (c & 0x1f);
-        if (!stream->coalescing) {
-            /* we have been called from coalesce_blocks -
-             * just return with the partial length */
-            coalesce_blocks(stream, *length);
-            *length = stream->virtualc;
-        }
-        return true;
+        return false;
     }
     return limread_scalar(length, 4, region, stream);
 }
