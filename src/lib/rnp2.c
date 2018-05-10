@@ -3574,7 +3574,7 @@ static rnp_result_t
 add_json_secret_mpis(json_object *jso, pgp_key_t *key)
 {
     const pgp_key_material_t *km = &key->key.seckey.pubkey.pkt.material;
-    switch (pgp_get_pubkey(key)->pkt.alg) {
+    switch (pgp_get_key_pkt(key)->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:

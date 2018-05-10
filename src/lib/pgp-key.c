@@ -213,10 +213,10 @@ pgp_key_free(pgp_key_t *key)
   \note This is not a copy, do not free it after use.
 */
 
-const pgp_pubkey_t *
-pgp_get_pubkey(const pgp_key_t *key)
+const pgp_key_pkt_t *
+pgp_get_key_pkt(const pgp_key_t *key)
 {
-    return pgp_is_key_public(key) ? &key->key.pubkey : &key->key.seckey.pubkey;
+    return pgp_is_key_public(key) ? &key->key.pubkey.pkt : &key->key.seckey.pubkey.pkt;
 }
 
 bool
@@ -427,8 +427,8 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
         }
     }
     // attempt to decrypt with the provided password
-    decrypted_seckey = decryptor(
-      key->packets[0].raw, key->packets[0].length, &pgp_get_pubkey(key)->pkt, password);
+    decrypted_seckey =
+      decryptor(key->packets[0].raw, key->packets[0].length, pgp_get_key_pkt(key), password);
 
 done:
     pgp_forget(password, sizeof(password));
