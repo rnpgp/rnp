@@ -483,7 +483,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                         const uint8_t *      key,
                         const unsigned       keylen)
 {
-    pgp_key_pkt_t *             keypkt;
+    const pgp_key_pkt_t *       keypkt;
     uint8_t                     enckey[PGP_MAX_KEY_SIZE + 3];
     unsigned                    checksum = 0;
     pgp_pk_sesskey_t            pkey = {0};
@@ -496,7 +496,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     if (!userkey) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    keypkt = &userkey->key.pubkey.pkt;
+    keypkt = pgp_get_key_pkt(userkey);
 
     /* Fill pkey */
     pkey.version = PGP_PKSK_V3;
@@ -1090,8 +1090,8 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
     }
 
     /* calculate the signature */
-    ret = signature_calculate(
-      sig, &deckey->pubkey.pkt.material, &hash, rnp_ctx_rng_handle(param->ctx));
+    ret =
+      signature_calculate(sig, &deckey->pkt.material, &hash, rnp_ctx_rng_handle(param->ctx));
 
     /* destroy decrypted secret key */
     if (seckey->key.seckey.encrypted) {
@@ -1118,9 +1118,8 @@ signed_write_signature(pgp_dest_signed_param_t *param,
         sig.palg = onepass->palg;
         sig.type = onepass->type;
     } else {
-        sig.halg =
-          pgp_hash_adjust_alg_to_key(param->ctx->halg, &seckey->key.seckey.pubkey.pkt);
-        sig.palg = seckey->key.pubkey.pkt.alg;
+        sig.halg = pgp_hash_adjust_alg_to_key(param->ctx->halg, pgp_get_key_pkt(seckey));
+        sig.palg = pgp_get_key_alg(seckey);
         sig.type = param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT;
     }
 
@@ -1237,7 +1236,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, pgp_key_t *key, bool last)
     pgp_hash_alg_t     halg;
 
     /* Add hash to the list */
-    halg = pgp_hash_adjust_alg_to_key(param->ctx->halg, &key->key.seckey.pubkey.pkt);
+    halg = pgp_hash_adjust_alg_to_key(param->ctx->halg, pgp_get_key_pkt(key));
     if (!pgp_hash_list_add(&param->hashes, halg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1247,7 +1246,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, pgp_key_t *key, bool last)
         onepass.version = 3;
         onepass.type = PGP_SIG_BINARY;
         onepass.halg = halg;
-        onepass.palg = key->key.pubkey.pkt.alg;
+        onepass.palg = pgp_get_key_alg(key);
         memcpy(onepass.keyid, key->keyid, PGP_KEY_ID_SIZE);
         onepass.nested = false;
 

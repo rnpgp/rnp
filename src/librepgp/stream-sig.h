@@ -172,10 +172,10 @@ bool signature_hash_finish(pgp_signature_t *sig,
  * @param rng random number generator
  * @return RNP_SUCCESS if signature was successfully validated or error code otherwise.
  */
-rnp_result_t signature_validate(pgp_signature_t *   sig,
-                                pgp_key_material_t *key,
-                                pgp_hash_t *        hash,
-                                rng_t *             rng);
+rnp_result_t signature_validate(pgp_signature_t *         sig,
+                                const pgp_key_material_t *key,
+                                pgp_hash_t *              hash,
+                                rng_t *                   rng);
 
 /**
  * @brief Calculate signature with pre-populated hash
@@ -186,9 +186,9 @@ rnp_result_t signature_validate(pgp_signature_t *   sig,
  * @param rng random number generator
  * @return RNP_SUCCESS if signature was successfully calculated or error code otherwise
  */
-rnp_result_t signature_calculate(pgp_signature_t *   sig,
-                                 pgp_key_material_t *seckey,
-                                 pgp_hash_t *        hash,
-                                 rng_t *             rng);
+rnp_result_t signature_calculate(pgp_signature_t *         sig,
+                                 const pgp_key_material_t *seckey,
+                                 pgp_hash_t *              hash,
+                                 rng_t *                   rng);
 
 #endif

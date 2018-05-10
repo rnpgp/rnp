@@ -118,7 +118,8 @@ key_expires(const pgp_key_t *key)
 static bool
 key_has_expired(const pgp_key_t *key, time_t t)
 {
-    return (key->expiration > 0) && (key->key.pubkey.pkt.creation_time + key->expiration < t);
+    return (key->expiration > 0) &&
+           (pgp_get_key_pkt(key)->creation_time + key->expiration < t);
 }
 
 /* Write the time as a string to buffer `dest`. The time string is guaranteed
@@ -153,10 +154,10 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
     return snprintf(buf,
                     size,
                     "encryption %zu/%s %s %s [%s] %s\n",
-                    key_bitlength(&key->key.pubkey.pkt.material),
-                    pgp_show_pka(key->key.pubkey.pkt.alg),
+                    key_bitlength(pgp_get_key_material(key)),
+                    pgp_show_pka(pgp_get_key_alg(key)),
                     rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, ""),
-                    ptimestr(t, sizeof(t), (time_t) key->key.pubkey.pkt.creation_time),
+                    ptimestr(t, sizeof(t), (time_t) pgp_get_key_pkt(key)->creation_time),
                     key_usage,
                     expired);
 }
@@ -210,7 +211,8 @@ format_pubkey_expiration_notice(char *buffer, const pgp_key_t *key, time_t time,
     }
 
     /* Write the expiration time. */
-    ptimestr(buffer, buffer_end - buffer, key->key.pubkey.pkt.creation_time + key->expiration);
+    ptimestr(
+      buffer, buffer_end - buffer, pgp_get_key_pkt(key)->creation_time + key->expiration);
     buffer += PTIMESTR_LEN;
     if (buffer >= buffer_end) {
         return false;
@@ -444,7 +446,7 @@ pgp_sprint_key(pgp_io_t *             io,
 
     rnp_strhexdump(fingerprint, key->fingerprint.fingerprint, key->fingerprint.length, " ");
 
-    ptimestr(creation, sizeof(creation), (time_t) key->key.pubkey.pkt.creation_time);
+    ptimestr(creation, sizeof(creation), (time_t) pgp_get_key_pkt(key)->creation_time);
 
     if (!format_key_usage(key_usage, sizeof(key_usage), key->key_flags)) {
         free(uid_notices);
@@ -464,8 +466,8 @@ pgp_sprint_key(pgp_io_t *             io,
                                 KB(16),
                                 "%s %zu/%s %s %s [%s] %s\n                 %s\n%s",
                                 header,
-                                key_bitlength(&key->key.pubkey.pkt.material),
-                                pgp_show_pka(key->key.pubkey.pkt.alg),
+                                key_bitlength(pgp_get_key_material(key)),
+                                pgp_show_pka(pgp_get_key_alg(key)),
                                 keyid,
                                 creation,
                                 key_usage,
@@ -502,9 +504,9 @@ repgp_sprint_json(pgp_io_t *                    io,
     // add the top-level values
     json_object_object_add(keyjson, "header", json_object_new_string(header));
     json_object_object_add(
-      keyjson, "key bits", json_object_new_int(key_bitlength(&key->key.pubkey.pkt.material)));
+      keyjson, "key bits", json_object_new_int(key_bitlength(pgp_get_key_material(key))));
     json_object_object_add(
-      keyjson, "pka", json_object_new_string(pgp_show_pka(key->key.pubkey.pkt.alg)));
+      keyjson, "pka", json_object_new_string(pgp_show_pka(pgp_get_key_alg(key))));
     json_object_object_add(
       keyjson,
       "key id",
@@ -514,7 +516,7 @@ repgp_sprint_json(pgp_io_t *                    io,
                            json_object_new_string(rnp_strhexdump(
                              fp, key->fingerprint.fingerprint, key->fingerprint.length, "")));
     json_object_object_add(
-      keyjson, "creation time", json_object_new_int(key->key.pubkey.pkt.creation_time));
+      keyjson, "creation time", json_object_new_int(pgp_get_key_pkt(key)->creation_time));
     json_object_object_add(keyjson, "expiration", json_object_new_int(key->expiration));
     json_object_object_add(keyjson, "key flags", json_object_new_int(key->key_flags));
     json_object *usage_arr = json_object_new_array();
@@ -601,7 +603,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
         n += snprintf(&uidbuf[n],
                       sizeof(uidbuf) - n,
                       "uid:%lld:%lld:%s\n",
-                      (long long) key->key.pubkey.pkt.creation_time,
+                      (long long) pgp_get_key_pkt(key)->creation_time,
                       (long long) key->expiration,
                       key->uids[i]);
         for (j = 0; j < key->subsigc; j++) {
@@ -623,7 +625,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                   snprintf(&uidbuf[n],
                            sizeof(uidbuf) - n,
                            "sub:%zu:%d:%s:%lld:%lld\n",
-                           key_bitlength(&key->key.pubkey.pkt.material),
+                           key_bitlength(pgp_get_key_material(key)),
                            key->subsigs[j].sig.info.key_alg,
                            rnp_strhexdump(
                              keyid, key->subsigs[j].sig.info.signer_id, PGP_KEY_ID_SIZE, ""),
@@ -654,9 +656,9 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                          KB(16),
                          "pub:%s:%d:%zu:%lld:%lld\n%s",
                          fingerprint,
-                         key->key.pubkey.pkt.alg,
-                         key_bitlength(&key->key.pubkey.pkt.material),
-                         (long long) &key->key.pubkey.pkt.creation_time,
+                         pgp_get_key_alg(key),
+                         key_bitlength(pgp_get_key_material(key)),
+                         (long long) pgp_get_key_pkt(key)->creation_time,
                          (long long) key->expiration,
                          uidbuf);
             *buf = buffer;
@@ -687,21 +689,23 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
     char fp[PGP_FINGERPRINT_HEX_SIZE];
     int  cc;
 
+    const pgp_key_pkt_t *     pkt = pgp_get_key_pkt(key);
+    const pgp_key_material_t *material = pgp_get_key_material(key);
     cc = snprintf(out,
                   outsize,
                   "key=%s\nname=%s\ncreation=%lld\nexpiry=%lld\nversion=%d\nalg=%d\n",
                   rnp_strhexdump(fp, key->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE, ""),
                   key->uids[key->uid0],
-                  (long long) key->key.pubkey.pkt.creation_time,
-                  (long long) key->key.pubkey.pkt.v3_days,
-                  key->key.pubkey.pkt.version,
-                  key->key.pubkey.pkt.alg);
-    switch (key->key.pubkey.pkt.alg) {
+                  (long long) pkt->creation_time,
+                  (long long) pkt->v3_days,
+                  pkt->version,
+                  pkt->alg);
+    switch (pkt->alg) {
     case PGP_PKA_DSA: {
-        char *p = mpi2hex(&key->key.pubkey.pkt.material.dsa.p);
-        char *q = mpi2hex(&key->key.pubkey.pkt.material.dsa.q);
-        char *g = mpi2hex(&key->key.pubkey.pkt.material.dsa.g);
-        char *y = mpi2hex(&key->key.pubkey.pkt.material.dsa.y);
+        char *p = mpi2hex(&material->dsa.p);
+        char *q = mpi2hex(&material->dsa.q);
+        char *g = mpi2hex(&material->dsa.g);
+        char *y = mpi2hex(&material->dsa.y);
         cc += snprintf(&out[cc], outsize - cc, "p=%s\nq=%s\ng=%s\ny=%s\n", p, q, g, y);
         free(p);
         free(q);
@@ -712,15 +716,15 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY: {
-        char *n = mpi2hex(&key->key.pubkey.pkt.material.rsa.n);
-        char *e = mpi2hex(&key->key.pubkey.pkt.material.rsa.e);
+        char *n = mpi2hex(&material->rsa.n);
+        char *e = mpi2hex(&material->rsa.e);
         cc += snprintf(&out[cc], outsize - cc, "n=%s\ne=%s\n", n, e);
         free(n);
         free(e);
         break;
     }
     case PGP_PKA_EDDSA: {
-        char *p = mpi2hex(&key->key.pubkey.pkt.material.ec.p);
+        char *p = mpi2hex(&material->ec.p);
         cc += snprintf(&out[cc], outsize - cc, "point=%s\n", p);
         free(p);
         break;
@@ -728,9 +732,9 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH: {
-        const ec_curve_desc_t *curve = get_curve_desc(key->key.pubkey.pkt.material.ec.curve);
+        const ec_curve_desc_t *curve = get_curve_desc(material->ec.curve);
         if (curve) {
-            char *p = mpi2hex(&key->key.pubkey.pkt.material.ec.p);
+            char *p = mpi2hex(&material->ec.p);
             cc +=
               snprintf(&out[cc], outsize - cc, "curve=%s\npoint=%s\n", curve->botan_name, p);
             free(p);
@@ -739,9 +743,9 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
     }
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
-        char *p = mpi2hex(&key->key.pubkey.pkt.material.eg.p);
-        char *g = mpi2hex(&key->key.pubkey.pkt.material.eg.g);
-        char *y = mpi2hex(&key->key.pubkey.pkt.material.eg.y);
+        char *p = mpi2hex(&material->eg.p);
+        char *g = mpi2hex(&material->eg.g);
+        char *y = mpi2hex(&material->eg.y);
         cc += snprintf(&out[cc], outsize - cc, "p=%s\ng=%s\ny=%s\n", p, g, y);
         free(p);
         free(g);

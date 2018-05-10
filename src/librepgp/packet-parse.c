@@ -879,7 +879,7 @@ repgp_parser_content_free(pgp_packet_t *c)
 
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        pgp_pubkey_free(&c->u.pubkey);
+        free_key_pkt(&c->u.pubkey);
         break;
 
     case PGP_PTAG_CT_USER_ID:
@@ -995,20 +995,6 @@ repgp_parser_content_free(pgp_packet_t *c)
 }
 
 /**
-\ingroup Core_Create
-\brief Free allocated memory
-*/
-/* ! Free the memory used when parsing a public key */
-void
-pgp_pubkey_free(pgp_pubkey_t *p)
-{
-    if (!p) {
-        return;
-    }
-    free_key_pkt(&p->pkt);
-}
-
-/**
  * \ingroup Core_ReadPackets
  * \brief Parse a public key packet.
  *
@@ -1040,13 +1026,13 @@ parse_pubkey(pgp_stream_t *stream)
         return false;
     }
 
-    if (stream_parse_key(&src, &pkt.u.pubkey.pkt)) {
+    if (stream_parse_key(&src, &pkt.u.pubkey)) {
         src_close(&src);
         return false;
     }
     src_close(&src);
 
-    CALLBACK(pkt.u.pubkey.pkt.tag, &stream->cbinfo, &pkt);
+    CALLBACK(pkt.u.pubkey.tag, &stream->cbinfo, &pkt);
     return true;
 }
 
@@ -1890,12 +1876,6 @@ parse_trust(pgp_region_t *region, pgp_stream_t *stream)
     return true;
 }
 
-void
-pgp_seckey_free_secret_mpis(pgp_seckey_t *seckey)
-{
-    forget_secret_key_fields(&seckey->pubkey.pkt.material);
-}
-
 /**
  * \ingroup Core_Create
  *
@@ -1911,8 +1891,8 @@ pgp_seckey_free(pgp_seckey_t *key)
     if (!key) {
         return;
     }
-    forget_secret_key_fields(&key->pubkey.pkt.material);
-    free_key_pkt(&key->pubkey.pkt);
+    forget_secret_key_fields(&key->pkt.material);
+    free_key_pkt(&key->pkt);
 }
 
 static int
@@ -1960,18 +1940,18 @@ parse_seckey(pgp_stream_t *stream)
         return false;
     }
 
-    if (stream_parse_key(&src, &pkt.u.seckey.pubkey.pkt)) {
+    if (stream_parse_key(&src, &pkt.u.seckey.pkt)) {
         src_close(&src);
         return false;
     }
     src_close(&src);
 
-    pkt.u.seckey.encrypted = pkt.u.seckey.pubkey.pkt.sec_protection.s2k.usage != PGP_S2KU_NONE;
-    if (!pkt.u.seckey.encrypted && decrypt_secret_key(&pkt.u.seckey.pubkey.pkt, NULL)) {
+    pkt.u.seckey.encrypted = pkt.u.seckey.pkt.sec_protection.s2k.usage != PGP_S2KU_NONE;
+    if (!pkt.u.seckey.encrypted && decrypt_secret_key(&pkt.u.seckey.pkt, NULL)) {
         return false;
     }
 
-    CALLBACK(pkt.u.seckey.pubkey.pkt.tag, &stream->cbinfo, &pkt);
+    CALLBACK(pkt.u.seckey.pkt.tag, &stream->cbinfo, &pkt);
     return true;
 }
 

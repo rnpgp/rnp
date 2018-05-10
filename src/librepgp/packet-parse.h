@@ -88,8 +88,6 @@ bool pgp_stacked_limited_read(pgp_stream_t *,
 
 void pgp_init_subregion(pgp_region_t *, pgp_region_t *);
 
-void pgp_pubkey_free(pgp_pubkey_t *);
-
 void pgp_seckey_free(pgp_seckey_t *);
 
 void pgp_userid_free(uint8_t **);
@@ -99,8 +97,6 @@ void pgp_data_free(pgp_data_t *);
 void pgp_sig_free(pgp_sig_t *);
 
 void pgp_rawpacket_free(pgp_rawpacket_t *);
-
-void pgp_seckey_free_secret_mpis(pgp_seckey_t *);
 
 void  pgp_set_callback(pgp_stream_t *, pgp_cbfunc_t *, void *);
 void  pgp_callback_push(pgp_stream_t *, pgp_cbfunc_t *, void *);

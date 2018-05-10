@@ -367,7 +367,7 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
     }
 
     // generate the raw key pair
-    if (!pgp_generate_seckey(&desc->crypto, &seckey.pubkey.pkt)) {
+    if (!pgp_generate_seckey(&desc->crypto, &seckey.pkt)) {
         goto end;
     }
 
@@ -375,10 +375,9 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
     if (!pgp_setup_memory_write(NULL, &output, &mem, 4096)) {
         goto end;
     }
-    if (!pgp_write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &seckey.pubkey.pkt) ||
+    if (!pgp_write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_KEY, &seckey.pkt) ||
         !pgp_write_struct_userid(output, desc->cert.userid) ||
-        !pgp_write_selfsig_cert(
-          output, &seckey.pubkey.pkt, desc->crypto.hash_alg, &desc->cert)) {
+        !pgp_write_selfsig_cert(output, &seckey.pkt, desc->crypto.hash_alg, &desc->cert)) {
         RNP_LOG("failed to write out generated key+sigs");
         goto end;
     }
@@ -394,11 +393,9 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
     switch (secformat) {
     case GPG_KEY_STORE:
     case KBX_KEY_STORE:
-        if (!pgp_write_struct_seckey(
-              output, PGP_PTAG_CT_SECRET_KEY, &seckey.pubkey.pkt, NULL) ||
+        if (!pgp_write_struct_seckey(output, PGP_PTAG_CT_SECRET_KEY, &seckey.pkt, NULL) ||
             !pgp_write_struct_userid(output, desc->cert.userid) ||
-            !pgp_write_selfsig_cert(
-              output, &seckey.pubkey.pkt, desc->crypto.hash_alg, &desc->cert)) {
+            !pgp_write_selfsig_cert(output, &seckey.pkt, desc->crypto.hash_alg, &desc->cert)) {
             RNP_LOG("failed to write out generated key+sigs");
             goto end;
         }
@@ -477,7 +474,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
     pgp_memory_t *      mem = NULL;
     const pgp_seckey_t *primary_seckey = NULL;
     pgp_seckey_t *      decrypted_primary_seckey = NULL;
-    pgp_seckey_t        seckey = {{{0}}};
+    pgp_seckey_t        seckey = {{0}};
 
     // validate args
     if (!desc || !primary_sec || !primary_pub || !subkey_sec || !subkey_pub) {
@@ -519,7 +516,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
     }
 
     // generate the raw key pair
-    if (!pgp_generate_seckey(&desc->crypto, &seckey.pubkey.pkt)) {
+    if (!pgp_generate_seckey(&desc->crypto, &seckey.pkt)) {
         goto end;
     }
 
@@ -527,9 +524,9 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
     if (!pgp_setup_memory_write(NULL, &output, &mem, 4096)) {
         goto end;
     }
-    if (!pgp_write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_SUBKEY, &seckey.pubkey.pkt) ||
+    if (!pgp_write_struct_pubkey(output, PGP_PTAG_CT_PUBLIC_SUBKEY, &seckey.pkt) ||
         !pgp_write_selfsig_binding(
-          output, primary_seckey, desc->crypto.hash_alg, &seckey.pubkey.pkt, &desc->binding)) {
+          output, primary_seckey, desc->crypto.hash_alg, &seckey.pkt, &desc->binding)) {
         RNP_LOG("failed to write out generated key+sigs");
         goto end;
     }
@@ -545,13 +542,9 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
     switch (secformat) {
     case GPG_KEY_STORE:
     case KBX_KEY_STORE:
-        if (!pgp_write_struct_seckey(
-              output, PGP_PTAG_CT_SECRET_SUBKEY, &seckey.pubkey.pkt, NULL) ||
-            !pgp_write_selfsig_binding(output,
-                                       primary_seckey,
-                                       desc->crypto.hash_alg,
-                                       &seckey.pubkey.pkt,
-                                       &desc->binding)) {
+        if (!pgp_write_struct_seckey(output, PGP_PTAG_CT_SECRET_SUBKEY, &seckey.pkt, NULL) ||
+            !pgp_write_selfsig_binding(
+              output, primary_seckey, desc->crypto.hash_alg, &seckey.pkt, &desc->binding)) {
             RNP_LOG("failed to write out generated key+sigs");
             goto end;
         }

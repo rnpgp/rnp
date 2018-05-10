@@ -760,7 +760,7 @@ encrypted_src_close(pgp_source_t *src)
 }
 
 static bool
-signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, pgp_key_pkt_t *key)
+signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, const pgp_key_pkt_t *key)
 {
     pgp_hash_t                 shash;
     pgp_source_signed_param_t *param = src->param;
@@ -974,7 +974,7 @@ signed_src_finish(pgp_source_t *src)
 
         /* Validate signature itself */
         sinfo->valid =
-          signed_validate_signature(src, sinfo->sig, &sinfo->signer->key.pubkey.pkt);
+          signed_validate_signature(src, sinfo->sig, pgp_get_key_pkt(sinfo->signer));
 
         /* Check signature's expiration time */
         now = time(NULL);
@@ -1303,7 +1303,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     pgp_symm_alg_t      salg;
     unsigned            checksum = 0;
     bool                res = false;
-    pgp_key_material_t *keymaterial = &seckey->pubkey.pkt.material;
+    pgp_key_material_t *keymaterial = &seckey->pkt.material;
 
     /* Decrypting session key value */
     switch (sesskey->alg) {
@@ -1333,7 +1333,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     }
     case PGP_PKA_ECDH: {
-        if (pgp_fingerprint(&fingerprint, &seckey->pubkey.pkt)) {
+        if (pgp_fingerprint(&fingerprint, &seckey->pkt)) {
             RNP_LOG("ECDH fingerprint calculation failed");
             return false;
         }
@@ -1347,7 +1347,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     }
     default:
-        RNP_LOG("unsupported public key algorithm %d\n", seckey->pubkey.pkt.alg);
+        RNP_LOG("unsupported public key algorithm %d\n", seckey->pkt.alg);
         return false;
     }
 

@@ -221,16 +221,10 @@ typedef struct pgp_key_pkt_t {
     size_t               sec_len;
 } pgp_key_pkt_t;
 
-/** Structure to hold a pgp public key */
-typedef struct pgp_pubkey_t {
-    pgp_key_pkt_t pkt; /* will later on replace key itself */
-} pgp_pubkey_t;
-
 typedef struct pgp_key_t pgp_key_t;
 
 typedef struct pgp_seckey_t {
-    /* Note: Keep this as the first field. */
-    pgp_pubkey_t pubkey; /* public key */
+    pgp_key_pkt_t pkt;
 
     /* This indicates the current state of the key union below.
      * If false, the key union contains valid secret key material
@@ -550,7 +544,7 @@ typedef union {
     const char *            error;
     pgp_parser_errcode_t    errcode;
     pgp_ptag_t              ptag;
-    pgp_pubkey_t            pubkey;
+    pgp_key_pkt_t           pubkey;
     pgp_data_t              trust;
     uint8_t *               userid;
     pgp_data_t              userattr;
@@ -597,8 +591,8 @@ struct pgp_packet_t {
 /** pgp_keydata_key_t
  */
 typedef union {
-    pgp_pubkey_t pubkey;
-    pgp_seckey_t seckey;
+    pgp_key_pkt_t pubkey;
+    pgp_seckey_t  seckey;
 } pgp_keydata_key_t;
 
 /* sigpacket_t */
