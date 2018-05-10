@@ -115,6 +115,10 @@ void pgp_free_user_prefs(pgp_user_prefs_t *prefs);
 
 const pgp_key_pkt_t *pgp_get_key_pkt(const pgp_key_t *);
 
+const pgp_key_material_t *pgp_get_key_material(const pgp_key_t *key);
+
+pgp_pubkey_alg_t pgp_get_key_alg(const pgp_key_t *key);
+
 bool pgp_is_key_public(const pgp_key_t *);
 
 bool pgp_is_key_secret(const pgp_key_t *);

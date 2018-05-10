@@ -385,7 +385,7 @@ formatstring(char *buffer, const uint8_t *s, size_t len)
 }
 
 static int
-formatmpi(char *buffer, pgp_mpi_t *val)
+formatmpi(char *buffer, const pgp_mpi_t *val)
 {
     size_t   len;
     uint8_t *cp;
@@ -1707,7 +1707,7 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
         (void) fprintf(stderr, "no key found for '%s'\n", userid);
         goto done;
     }
-    if (key->key.pubkey.pkt.alg != PGP_PKA_RSA) {
+    if (pgp_get_key_alg(key) != PGP_PKA_RSA) {
         /* we're not interested in supporting DSA either :-) */
         (void) fprintf(stderr, "key not RSA '%s'\n", userid);
         goto done;
@@ -1719,8 +1719,8 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
     /* get rsa e and n */
     (void) memset(out, 0x0, size);
     cc = formatstring((char *) out, (const uint8_t *) "ssh-rsa", 7);
-    cc += formatmpi((char *) &out[cc], &key->key.pubkey.pkt.material.rsa.e);
-    cc += formatmpi((char *) &out[cc], &key->key.pubkey.pkt.material.rsa.n);
+    cc += formatmpi((char *) &out[cc], &pgp_get_key_material(key)->rsa.e);
+    cc += formatmpi((char *) &out[cc], &pgp_get_key_material(key)->rsa.n);
 done:
     if (io) {
         free(io);

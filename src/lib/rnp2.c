@@ -3547,7 +3547,7 @@ done:
 static rnp_result_t
 add_json_public_mpis(json_object *jso, pgp_key_t *key)
 {
-    const pgp_key_material_t *km = &key->key.pubkey.pkt.material;
+    const pgp_key_material_t *km = pgp_get_key_material(key);
     switch (km->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -3573,7 +3573,7 @@ add_json_public_mpis(json_object *jso, pgp_key_t *key)
 static rnp_result_t
 add_json_secret_mpis(json_object *jso, pgp_key_t *key)
 {
-    const pgp_key_material_t *km = &key->key.seckey.pubkey.pkt.material;
+    const pgp_key_material_t *km = pgp_get_key_material(key);
     switch (pgp_get_key_pkt(key)->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -3829,7 +3829,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     bool                 have_pub = handle->pub != NULL;
     pgp_key_t *          key = get_key_prefer_public(handle);
     const char *         str = NULL;
-    const pgp_key_pkt_t *pubkey = &key->key.pubkey.pkt;
+    const pgp_key_pkt_t *pubkey = pgp_get_key_pkt(key);
 
     // type
     ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, pubkey->alg, str);

@@ -456,7 +456,10 @@ error:
 }
 
 rnp_result_t
-signature_validate(pgp_signature_t *sig, pgp_key_material_t *key, pgp_hash_t *hash, rng_t *rng)
+signature_validate(pgp_signature_t *         sig,
+                   const pgp_key_material_t *key,
+                   pgp_hash_t *              hash,
+                   rng_t *                   rng)
 {
     uint8_t      hval[PGP_MAX_HASH_SIZE];
     size_t       len;
@@ -504,10 +507,10 @@ signature_validate(pgp_signature_t *sig, pgp_key_material_t *key, pgp_hash_t *ha
 }
 
 rnp_result_t
-signature_calculate(pgp_signature_t *   sig,
-                    pgp_key_material_t *seckey,
-                    pgp_hash_t *        hash,
-                    rng_t *             rng)
+signature_calculate(pgp_signature_t *         sig,
+                    const pgp_key_material_t *seckey,
+                    pgp_hash_t *              hash,
+                    rng_t *                   rng)
 {
     uint8_t      hval[PGP_MAX_HASH_SIZE];
     size_t       hlen;

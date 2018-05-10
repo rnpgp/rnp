@@ -450,7 +450,7 @@ parse_pubkey(pgp_key_pkt_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 static bool
 parse_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 {
-    pgp_key_pkt_t *pkt = &seckey->pubkey.pkt;
+    pgp_key_pkt_t *pkt = &seckey->pkt;
 
     switch (alg) {
     case PGP_PKA_DSA:
@@ -500,7 +500,7 @@ decrypt_protected_section(const uint8_t *     encrypted_data,
     bool               ret = false;
 
     // sanity checks
-    const pgp_key_protection_t *prot = &seckey->pubkey.pkt.sec_protection;
+    const pgp_key_protection_t *prot = &seckey->pkt.sec_protection;
     keysize = pgp_key_size(prot->symm_alg);
     if (!keysize) {
         RNP_LOG("parse_seckey: unknown symmetric algo");
@@ -616,7 +616,7 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passwor
     }
 
     // fill in some fields based on the lookup above
-    pgp_key_protection_t *prot = &seckey->pubkey.pkt.sec_protection;
+    pgp_key_protection_t *prot = &seckey->pkt.sec_protection;
     prot->symm_alg = format->cipher;
     prot->cipher_mode = format->cipher_mode;
     prot->s2k.hash_alg = format->hash_alg;
@@ -707,8 +707,7 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passwor
                protected_at_s_exp->sub_elements[1].block.len);
     }
     // parse MPIs
-    if (!parse_seckey(
-          seckey, &decrypted_s_exp.sub_elements[0].s_exp, seckey->pubkey.pkt.alg)) {
+    if (!parse_seckey(seckey, &decrypted_s_exp.sub_elements[0].s_exp, seckey->pkt.alg)) {
         RNP_LOG("failed to parse seckey");
         goto done;
     }
@@ -758,7 +757,7 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passwor
         }
     }
     seckey->encrypted = false;
-    seckey->pubkey.pkt.material.secret = true;
+    seckey->pkt.material.secret = true;
     ret = true;
 
 done:
@@ -881,14 +880,14 @@ g10_parse_seckey(pgp_io_t *                io,
         goto done;
     }
 
-    if (!parse_pubkey(&seckey->pubkey.pkt, algorithm_s_exp, alg)) {
+    if (!parse_pubkey(&seckey->pkt, algorithm_s_exp, alg)) {
         RNP_LOG("failed to parse pubkey");
         goto done;
     }
 
     if (key_provider) {
         pgp_key_search_t search = {.type = PGP_KEY_SEARCH_GRIP};
-        if (!rnp_key_store_get_key_grip(&seckey->pubkey.pkt.material, search.by.grip)) {
+        if (!rnp_key_store_get_key_grip(&seckey->pkt.material, search.by.grip)) {
             goto done;
         }
         pgp_key_t *pubkey = NULL;
@@ -899,7 +898,7 @@ g10_parse_seckey(pgp_io_t *                io,
             goto done;
         }
 
-        if (!copy_key_pkt(&seckey->pubkey.pkt, pgp_get_key_pkt(pubkey))) {
+        if (!copy_key_pkt(&seckey->pkt, pgp_get_key_pkt(pubkey))) {
             goto done;
         }
     }
@@ -909,9 +908,9 @@ g10_parse_seckey(pgp_io_t *                io,
             goto done;
         }
     } else {
-        seckey->pubkey.pkt.sec_protection.s2k.usage = PGP_S2KU_NONE;
-        seckey->pubkey.pkt.sec_protection.symm_alg = PGP_SA_PLAINTEXT;
-        seckey->pubkey.pkt.sec_protection.s2k.hash_alg = PGP_HASH_UNKNOWN;
+        seckey->pkt.sec_protection.s2k.usage = PGP_S2KU_NONE;
+        seckey->pkt.sec_protection.symm_alg = PGP_SA_PLAINTEXT;
+        seckey->pkt.sec_protection.s2k.hash_alg = PGP_HASH_UNKNOWN;
         if (!parse_seckey(seckey, algorithm_s_exp, alg)) {
             RNP_LOG("failed to parse seckey");
             goto done;
@@ -921,7 +920,7 @@ g10_parse_seckey(pgp_io_t *                io,
     if (rnp_get_debug(__FILE__)) {
         uint8_t grip[PGP_FINGERPRINT_SIZE];
         char    grips[PGP_FINGERPRINT_HEX_SIZE];
-        if (rnp_key_store_get_key_grip(&seckey->pubkey.pkt.material, grip)) {
+        if (rnp_key_store_get_key_grip(&seckey->pkt.material, grip)) {
             RNP_LOG("loaded G10 key with GRIP: %s\n",
                     rnp_strhexdump_upper(grips, grip, PGP_FINGERPRINT_SIZE, ""));
         }
@@ -954,7 +953,7 @@ g10_decrypt_seckey(const uint8_t *      data,
     if (!g10_parse_seckey(&io, seckey, data, data_len, password, NULL)) {
         goto done;
     }
-    if (pubkey && !copy_key_pkt(&seckey->pubkey.pkt, pubkey)) {
+    if (pubkey && !copy_key_pkt(&seckey->pkt, pubkey)) {
         goto done;
     }
     ok = true;
@@ -976,7 +975,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *                io,
     pgp_key_t key = {0};
     bool      ret = false;
 
-    pgp_keydata_key_t keydata = {{{0}}};
+    pgp_keydata_key_t keydata = {{0}};
     if (!g10_parse_seckey(
           io, &keydata.seckey, memory->buf, memory->length, NULL, key_provider)) {
         goto done;
@@ -985,7 +984,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *                io,
         goto done;
     }
     // this data belongs to the key now
-    keydata = (pgp_keydata_key_t){{{0}}};
+    keydata = (pgp_keydata_key_t){{0}};
     EXPAND_ARRAY((&key), packet);
     if (!key.packets) {
         goto done;
@@ -1109,8 +1108,8 @@ write_pubkey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
 static bool
 write_seckey(s_exp_t *s_exp, const pgp_seckey_t *key)
 {
-    const pgp_key_material_t *kmaterial = &key->pubkey.pkt.material;
-    switch (key->pubkey.pkt.alg) {
+    const pgp_key_material_t *kmaterial = &key->pkt.material;
+    switch (key->pkt.alg) {
     case PGP_PKA_DSA:
         if (!write_mpi(s_exp, "x", &kmaterial->dsa.x)) {
             return false;
@@ -1136,7 +1135,7 @@ write_seckey(s_exp_t *s_exp, const pgp_seckey_t *key)
         break;
 
     default:
-        fprintf(stderr, "Unsupported public key algorithm: %d\n", key->pubkey.pkt.alg);
+        fprintf(stderr, "Unsupported public key algorithm: %d\n", key->pkt.alg);
         return NULL;
     }
 
@@ -1156,7 +1155,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passwor
     unsigned              keysize;
     uint8_t               checksum[G10_SHA1_HASH_SIZE];
     uint8_t               derived_key[PGP_MAX_KEY_SIZE];
-    pgp_key_protection_t *prot = &seckey->pubkey.pkt.sec_protection;
+    pgp_key_protection_t *prot = &seckey->pkt.sec_protection;
 
     if (prot->s2k.specifier != PGP_S2KS_ITERATED_AND_SALTED) {
         return false;
@@ -1282,7 +1281,7 @@ g10_write_seckey(pgp_output_t *output, pgp_seckey_t *seckey, const char *passwor
     bool protected = true;
     bool ret = false;
 
-    switch (seckey->pubkey.pkt.sec_protection.s2k.usage) {
+    switch (seckey->pkt.sec_protection.s2k.usage) {
     case PGP_S2KU_NONE:
       protected
         = false;
@@ -1291,9 +1290,9 @@ g10_write_seckey(pgp_output_t *output, pgp_seckey_t *seckey, const char *passwor
       protected
         = true;
         // TODO: these are forced for now, until openpgp-native is implemented
-        seckey->pubkey.pkt.sec_protection.symm_alg = PGP_SA_AES_128;
-        seckey->pubkey.pkt.sec_protection.cipher_mode = PGP_CIPHER_MODE_CBC;
-        seckey->pubkey.pkt.sec_protection.s2k.hash_alg = PGP_HASH_SHA1;
+        seckey->pkt.sec_protection.symm_alg = PGP_SA_AES_128;
+        seckey->pkt.sec_protection.cipher_mode = PGP_CIPHER_MODE_CBC;
+        seckey->pkt.sec_protection.s2k.hash_alg = PGP_HASH_SHA1;
         break;
     default:
         RNP_LOG("unsupported s2k usage");
@@ -1301,8 +1300,7 @@ g10_write_seckey(pgp_output_t *output, pgp_seckey_t *seckey, const char *passwor
     }
     if (!add_string_block_to_sexp(&s_exp,
                                   protected ? "protected-private-key" : "private-key") ||
-        !add_sub_sexp_to_sexp(&s_exp, &sub_s_exp) ||
-        !write_pubkey(sub_s_exp, &seckey->pubkey.pkt)) {
+        !add_sub_sexp_to_sexp(&s_exp, &sub_s_exp) || !write_pubkey(sub_s_exp, &seckey->pkt)) {
         goto done;
     }
     if (protected) {
@@ -1345,7 +1343,7 @@ g10_calculated_hash(const pgp_seckey_t *key, const char *protected_at, uint8_t *
         goto error;
     }
 
-    if (!write_pubkey(&s_exp, &key->pubkey.pkt)) {
+    if (!write_pubkey(&s_exp, &key->pkt)) {
         RNP_LOG("failed to write pubkey");
         goto error;
     }
