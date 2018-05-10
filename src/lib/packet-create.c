@@ -293,7 +293,7 @@ pgp_write_xfer_seckey(pgp_output_t *         output,
 bool
 pgp_write_struct_seckey(pgp_output_t *   output,
                         pgp_content_enum tag,
-                        pgp_seckey_t *   seckey,
+                        pgp_key_pkt_t *  seckey,
                         const char *     password)
 {
     pgp_dest_t dst;
@@ -303,20 +303,20 @@ pgp_write_struct_seckey(pgp_output_t *   output,
         return false;
     }
 
-    int oldtag = seckey->pubkey.pkt.tag;
-    seckey->pubkey.pkt.tag = tag;
+    int oldtag = seckey->tag;
+    seckey->tag = tag;
 
-    if (encrypt_secret_key(&seckey->pubkey.pkt, password, NULL)) {
+    if (encrypt_secret_key(seckey, password, NULL)) {
         goto done;
     }
 
-    if (!stream_write_key(&seckey->pubkey.pkt, &dst)) {
+    if (!stream_write_key(seckey, &dst)) {
         goto done;
     }
 
     res = pgp_write(output, mem_dest_get_memory(&dst), dst.writeb);
 done:
-    seckey->pubkey.pkt.tag = oldtag;
+    seckey->tag = oldtag;
     dst_close(&dst, true);
     return res;
 }
@@ -357,7 +357,7 @@ pgp_output_delete(pgp_output_t *output)
 
 bool
 pgp_write_selfsig_cert(pgp_output_t *               output,
-                       const pgp_seckey_t *         seckey,
+                       const pgp_key_pkt_t *        seckey,
                        const pgp_hash_alg_t         hash_alg,
                        const rnp_selfsig_cert_info *cert)
 {
@@ -376,7 +376,7 @@ pgp_write_selfsig_cert(pgp_output_t *               output,
         return false;
     }
 
-    if (pgp_keyid(keyid, sizeof(keyid), &seckey->pubkey.pkt)) {
+    if (pgp_keyid(keyid, sizeof(keyid), seckey)) {
         RNP_LOG("failed to calculate keyid");
         goto end;
     }
@@ -386,8 +386,7 @@ pgp_write_selfsig_cert(pgp_output_t *               output,
         RNP_LOG("create sig failed");
         goto end;
     }
-    if (!pgp_sig_start_key_sig(
-          sig, &seckey->pubkey, cert->userid, PGP_CERT_POSITIVE, hash_alg)) {
+    if (!pgp_sig_start_key_sig(sig, seckey, cert->userid, PGP_CERT_POSITIVE, hash_alg)) {
         RNP_LOG("failed to start key sig");
         goto end;
     }
@@ -441,7 +440,7 @@ pgp_write_selfsig_cert(pgp_output_t *               output,
         goto end;
     }
 
-    if (!pgp_sig_write(&rng, output, sig, &seckey->pubkey, seckey)) {
+    if (!pgp_sig_write(&rng, output, sig, seckey)) {
         RNP_LOG("failed to write signature");
         goto end;
     }
@@ -456,7 +455,7 @@ bool
 pgp_write_selfsig_binding(pgp_output_t *                  output,
                           const pgp_seckey_t *            primary_sec,
                           const pgp_hash_alg_t            hash_alg,
-                          const pgp_pubkey_t *            subkey,
+                          const pgp_key_pkt_t *           subkey,
                           const rnp_selfsig_binding_info *binding)
 {
     pgp_create_sig_t *sig = NULL;
@@ -485,7 +484,7 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
         goto end;
     }
     if (!pgp_sig_start_subkey_sig(
-          sig, &primary_sec->pubkey, subkey, PGP_SIG_SUBKEY, hash_alg)) {
+          sig, &primary_sec->pubkey.pkt, subkey, PGP_SIG_SUBKEY, hash_alg)) {
         RNP_LOG("failed to start subkey sig");
         goto end;
     }
@@ -511,7 +510,7 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
         goto end;
     }
 
-    if (!pgp_sig_write(&rng, output, sig, &primary_sec->pubkey, primary_sec)) {
+    if (!pgp_sig_write(&rng, output, sig, &primary_sec->pubkey.pkt)) {
         RNP_LOG("failed to write signature");
         goto end;
     }

@@ -81,6 +81,7 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 
 #include <librepgp/packet-show.h>
 #include <librepgp/reader.h>
+#include <librepgp/stream-packet.h>
 #include "signature.h"
 #include "utils.h"
 #include "memory.h"
@@ -211,25 +212,25 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     errors = pgp_callback_errors(cbinfo);
     switch (pkt->tag) {
     case PGP_PTAG_CT_PUBLIC_KEY:
-        if (key->pubkey.pkt.version != 0) {
+        if (key->pubkey.version != 0) {
             (void) fprintf(io->errs, "pgp_validate_key_cb: version bad\n");
             return PGP_FINISHED;
         }
-        key->pubkey = content->pubkey;
+        key->pubkey = content->pubkey.pkt;
         key->loaded_pubkey = true;
         return PGP_KEEP_MEMORY;
 
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        if (key->subkey.pkt.version) {
-            pgp_pubkey_free(&key->subkey);
+        if (key->subkey.version) {
+            free_key_pkt(&key->subkey);
         }
-        key->subkey = content->pubkey;
+        key->subkey = content->pubkey.pkt;
         return PGP_KEEP_MEMORY;
 
     case PGP_PTAG_CT_SECRET_KEY:
         key->seckey = content->seckey;
         if (!key->loaded_pubkey) {
-            key->pubkey = key->seckey.pubkey;
+            key->pubkey = key->seckey.pubkey.pkt;
         }
         return PGP_KEEP_MEMORY;
 
@@ -281,13 +282,13 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
                                          &key->pubkey,
                                          key->userid,
                                          &content->sig,
-                                         pgp_get_pubkey(signer),
+                                         &pgp_get_pubkey(signer)->pkt,
                                          key->reader->key->packets[key->reader->packet].raw) :
                 pgp_check_userattrcert_sig(rnp_ctx,
                                            &key->pubkey,
                                            &key->userattr,
                                            &content->sig,
-                                           pgp_get_pubkey(signer),
+                                           &pgp_get_pubkey(signer)->pkt,
                                            key->reader->key->packets[key->reader->packet].raw);
             break;
 
@@ -300,7 +301,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
                                          &key->pubkey,
                                          &key->subkey,
                                          &content->sig,
-                                         pgp_get_pubkey(signer),
+                                         &pgp_get_pubkey(signer)->pkt,
                                          key->reader->key->packets[key->reader->packet].raw);
             break;
 
@@ -308,7 +309,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             valid = pgp_check_direct_sig(rnp_ctx,
                                          &key->pubkey,
                                          &content->sig,
-                                         pgp_get_pubkey(signer),
+                                         &pgp_get_pubkey(signer)->pkt,
                                          key->reader->key->packets[key->reader->packet].raw);
             break;
 
@@ -500,10 +501,10 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
     repgp_parse(stream, true);
 
     if (keysigs.loaded_pubkey) {
-        pgp_pubkey_free(&keysigs.pubkey);
+        free_key_pkt(&keysigs.pubkey);
     }
-    if (keysigs.subkey.pkt.version) {
-        pgp_pubkey_free(&keysigs.subkey);
+    if (keysigs.subkey.version) {
+        free_key_pkt(&keysigs.subkey);
     }
     pgp_seckey_free(&keysigs.seckey);
     pgp_userid_free(&keysigs.userid);

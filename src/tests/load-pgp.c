@@ -89,7 +89,7 @@ test_load_v3_keyring_pgp(void **state)
 
     // decrypt the key
     pgp_seckey_t *seckey = pgp_decrypt_seckey_pgp(
-      key->packets[0].raw, key->packets[0].length, pgp_get_pubkey(key), "password");
+      key->packets[0].raw, key->packets[0].length, &pgp_get_pubkey(key)->pkt, "password");
     assert_non_null(seckey);
 
     // cleanup

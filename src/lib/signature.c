@@ -268,13 +268,13 @@ eddsa_sign_wrapper(rng_t *rng, pgp_hash_t *hash, const pgp_ec_key_t *key, pgp_ou
 }
 
 static bool
-hash_add_key(pgp_hash_t *hash, const pgp_pubkey_t *key)
+hash_add_key(pgp_hash_t *hash, const pgp_key_pkt_t *key)
 {
-    return signature_hash_key(&key->pkt, hash);
+    return signature_hash_key(key, hash);
 }
 
 static bool
-init_key_sig(pgp_hash_t *hash, const pgp_sig_t *sig, const pgp_pubkey_t *key)
+init_key_sig(pgp_hash_t *hash, const pgp_sig_t *sig, const pgp_key_pkt_t *key)
 {
     pgp_hash_create(hash, sig->info.hash_alg);
     return hash_add_key(hash, key);
@@ -307,11 +307,11 @@ hash_add_trailer(pgp_hash_t *hash, const pgp_sig_t *sig, const uint8_t *raw_pack
    \return 1 if good; else 0
 */
 bool
-pgp_check_sig(rng_t *             rng,
-              const uint8_t *     hash,
-              unsigned            length,
-              const pgp_sig_t *   sig,
-              const pgp_pubkey_t *signer)
+pgp_check_sig(rng_t *              rng,
+              const uint8_t *      hash,
+              unsigned             length,
+              const pgp_sig_t *    sig,
+              const pgp_key_pkt_t *signer)
 {
     if (rnp_get_debug(__FILE__)) {
         hexdump(stdout, "hash", hash, length);
@@ -319,20 +319,16 @@ pgp_check_sig(rng_t *             rng,
 
     switch (sig->info.key_alg) {
     case PGP_PKA_DSA:
-        return !dsa_verify(&sig->info.sig.dsa, hash, length, &signer->pkt.material.dsa);
+        return !dsa_verify(&sig->info.sig.dsa, hash, length, &signer->material.dsa);
     case PGP_PKA_EDDSA:
-        return !eddsa_verify(&sig->info.sig.ec, hash, length, &signer->pkt.material.ec);
+        return !eddsa_verify(&sig->info.sig.ec, hash, length, &signer->material.ec);
     case PGP_PKA_SM2:
-        return !sm2_verify(&sig->info.sig.ec, hash, length, &signer->pkt.material.ec);
+        return !sm2_verify(&sig->info.sig.ec, hash, length, &signer->material.ec);
     case PGP_PKA_RSA:
-        return !rsa_verify_pkcs1(rng,
-                                 &sig->info.sig.rsa,
-                                 sig->info.hash_alg,
-                                 hash,
-                                 length,
-                                 &signer->pkt.material.rsa);
+        return !rsa_verify_pkcs1(
+          rng, &sig->info.sig.rsa, sig->info.hash_alg, hash, length, &signer->material.rsa);
     case PGP_PKA_ECDSA:
-        return !ecdsa_verify(&sig->info.sig.ec, hash, length, &signer->pkt.material.ec);
+        return !ecdsa_verify(&sig->info.sig.ec, hash, length, &signer->material.ec);
     default:
         RNP_LOG("Unknown algorithm");
         return false;
@@ -340,11 +336,11 @@ pgp_check_sig(rng_t *             rng,
 }
 
 static bool
-finalise_sig(rng_t *             rng,
-             pgp_hash_t *        hash,
-             const pgp_sig_t *   sig,
-             const pgp_pubkey_t *signer,
-             const uint8_t *     raw_packet)
+finalise_sig(rng_t *              rng,
+             pgp_hash_t *         hash,
+             const pgp_sig_t *    sig,
+             const pgp_key_pkt_t *signer,
+             const uint8_t *      raw_packet)
 {
     hash_add_trailer(hash, sig, raw_packet);
 
@@ -366,12 +362,12 @@ finalise_sig(rng_t *             rng,
  * \return true if OK
  */
 bool
-pgp_check_useridcert_sig(rnp_ctx_t *         rnp_ctx,
-                         const pgp_pubkey_t *key,
-                         const uint8_t *     id,
-                         const pgp_sig_t *   sig,
-                         const pgp_pubkey_t *signer,
-                         const uint8_t *     raw_packet)
+pgp_check_useridcert_sig(rnp_ctx_t *          rnp_ctx,
+                         const pgp_key_pkt_t *key,
+                         const uint8_t *      id,
+                         const pgp_sig_t *    sig,
+                         const pgp_key_pkt_t *signer,
+                         const uint8_t *      raw_packet)
 {
     pgp_hash_t hash;
     size_t     userid_len;
@@ -402,12 +398,12 @@ pgp_check_useridcert_sig(rnp_ctx_t *         rnp_ctx,
  * \return true if OK
  */
 bool
-pgp_check_userattrcert_sig(rnp_ctx_t *         rnp_ctx,
-                           const pgp_pubkey_t *key,
-                           const pgp_data_t *  attribute,
-                           const pgp_sig_t *   sig,
-                           const pgp_pubkey_t *signer,
-                           const uint8_t *     raw_packet)
+pgp_check_userattrcert_sig(rnp_ctx_t *          rnp_ctx,
+                           const pgp_key_pkt_t *key,
+                           const pgp_data_t *   attribute,
+                           const pgp_sig_t *    sig,
+                           const pgp_key_pkt_t *signer,
+                           const uint8_t *      raw_packet)
 {
     pgp_hash_t hash;
 
@@ -436,12 +432,12 @@ pgp_check_userattrcert_sig(rnp_ctx_t *         rnp_ctx,
  * \return true if OK
  */
 bool
-pgp_check_subkey_sig(rnp_ctx_t *         rnp_ctx,
-                     const pgp_pubkey_t *key,
-                     const pgp_pubkey_t *subkey,
-                     const pgp_sig_t *   sig,
-                     const pgp_pubkey_t *signer,
-                     const uint8_t *     raw_packet)
+pgp_check_subkey_sig(rnp_ctx_t *          rnp_ctx,
+                     const pgp_key_pkt_t *key,
+                     const pgp_key_pkt_t *subkey,
+                     const pgp_sig_t *    sig,
+                     const pgp_key_pkt_t *signer,
+                     const uint8_t *      raw_packet)
 {
     pgp_hash_t hash;
 
@@ -468,11 +464,11 @@ pgp_check_subkey_sig(rnp_ctx_t *         rnp_ctx,
  * \return true if OK
  */
 bool
-pgp_check_direct_sig(rnp_ctx_t *         rnp_ctx,
-                     const pgp_pubkey_t *key,
-                     const pgp_sig_t *   sig,
-                     const pgp_pubkey_t *signer,
-                     const uint8_t *     raw_packet)
+pgp_check_direct_sig(rnp_ctx_t *          rnp_ctx,
+                     const pgp_key_pkt_t *key,
+                     const pgp_sig_t *    sig,
+                     const pgp_key_pkt_t *signer,
+                     const uint8_t *      raw_packet)
 {
     pgp_hash_t hash;
     unsigned   ret;
@@ -520,11 +516,11 @@ start_sig_in_mem(pgp_create_sig_t *sig)
  * \param type Signature type
  */
 bool
-pgp_sig_start_key_sig(pgp_create_sig_t *  sig,
-                      const pgp_pubkey_t *key,
-                      const uint8_t *     id,
-                      pgp_sig_type_t      type,
-                      pgp_hash_alg_t      hash_alg)
+pgp_sig_start_key_sig(pgp_create_sig_t *   sig,
+                      const pgp_key_pkt_t *key,
+                      const uint8_t *      id,
+                      pgp_sig_type_t       type,
+                      pgp_hash_alg_t       hash_alg)
 {
     sig->output = pgp_output_new();
     if (sig->output == NULL) {
@@ -537,7 +533,7 @@ pgp_sig_start_key_sig(pgp_create_sig_t *  sig,
      * (done), and also should share code for hash calculation) */
     sig->sig.info.version = PGP_V4;
     sig->sig.info.hash_alg = pgp_hash_adjust_alg_to_key(hash_alg, key);
-    sig->sig.info.key_alg = key->pkt.alg;
+    sig->sig.info.key_alg = key->alg;
     sig->sig.info.type = type;
     sig->hashlen = (unsigned) -1;
     if (!init_key_sig(&sig->hash, &sig->sig, key)) {
@@ -552,11 +548,11 @@ pgp_sig_start_key_sig(pgp_create_sig_t *  sig,
 }
 
 bool
-pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
-                         const pgp_pubkey_t *key,
-                         const pgp_pubkey_t *subkey,
-                         pgp_sig_type_t      type,
-                         pgp_hash_alg_t      hash_alg)
+pgp_sig_start_subkey_sig(pgp_create_sig_t *   sig,
+                         const pgp_key_pkt_t *key,
+                         const pgp_key_pkt_t *subkey,
+                         pgp_sig_type_t       type,
+                         pgp_hash_alg_t       hash_alg)
 {
     sig->output = pgp_output_new();
     if (sig->output == NULL) {
@@ -566,7 +562,7 @@ pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
 
     sig->sig.info.version = PGP_V4;
     sig->sig.info.hash_alg = pgp_hash_adjust_alg_to_key(hash_alg, key);
-    sig->sig.info.key_alg = key->pkt.alg;
+    sig->sig.info.key_alg = key->alg;
     sig->sig.info.type = type;
     sig->hashlen = (unsigned) -1;
     if (!init_key_sig(&sig->hash, &sig->sig, key)) {
@@ -579,46 +575,6 @@ pgp_sig_start_subkey_sig(pgp_create_sig_t *  sig,
     }
     start_sig_in_mem(sig);
     return true;
-}
-
-/**
- * \ingroup Core_Signature
- *
- * Create a V4 public key signature over some cleartext.
- *
- * \param sig The signature structure to initialise
- * \param id
- * \param type
- * \todo Expand description. Allow other hashes.
- */
-
-void
-pgp_sig_start(pgp_create_sig_t *   sig,
-              const pgp_seckey_t * key,
-              const pgp_hash_alg_t hash,
-              const pgp_sig_type_t type)
-{
-    sig->output = pgp_output_new();
-    if (sig->output == NULL) {
-        fprintf(stderr, "Can't allocate memory\n");
-        return;
-    }
-
-    /* XXX:  refactor with check (in several ways - check should
-     * probably use the buffered writer to construct packets
-     * (done), and also should share code for hash calculation) */
-    sig->sig.info.version = PGP_V4;
-    sig->sig.info.key_alg = key->pubkey.pkt.alg;
-    sig->sig.info.hash_alg = hash;
-    sig->sig.info.type = type;
-
-    sig->hashlen = (unsigned) -1;
-
-    if (rnp_get_debug(__FILE__)) {
-        fprintf(stderr, "initialising hash for sig in mem\n");
-    }
-    pgp_hash_create(&sig->hash, sig->sig.info.hash_alg);
-    start_sig_in_mem(sig);
 }
 
 /**
@@ -652,28 +608,27 @@ pgp_sig_end_hashed_subpkts(pgp_create_sig_t *sig)
  */
 
 bool
-pgp_sig_write(rng_t *             rng,
-              pgp_output_t *      output,
-              pgp_create_sig_t *  sig,
-              const pgp_pubkey_t *key,
-              const pgp_seckey_t *seckey)
+pgp_sig_write(rng_t *              rng,
+              pgp_output_t *       output,
+              pgp_create_sig_t *   sig,
+              const pgp_key_pkt_t *seckey)
 {
     bool   ret = false;
     size_t len = pgp_mem_len(sig->mem);
 
     /* check key not decrypted */
-    switch (seckey->pubkey.pkt.alg) {
+    switch (seckey->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!mpi_bytes(&seckey->pubkey.pkt.material.rsa.d)) {
+        if (!mpi_bytes(&seckey->material.rsa.d)) {
             (void) fprintf(stderr, "pgp_sig_write: null rsa.d\n");
             return false;
         }
         break;
 
     case PGP_PKA_DSA:
-        if (!mpi_bytes(&seckey->pubkey.pkt.material.dsa.x)) {
+        if (!mpi_bytes(&seckey->material.dsa.x)) {
             (void) fprintf(stderr, "pgp_sig_write: null dsa.x\n");
             return false;
         }
@@ -683,14 +638,14 @@ pgp_sig_write(rng_t *             rng,
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        if (!mpi_bytes(&seckey->pubkey.pkt.material.ec.x)) {
+        if (!mpi_bytes(&seckey->material.ec.x)) {
             RNP_LOG("empty ec.x");
             return false;
         }
         break;
 
     default:
-        (void) fprintf(stderr, "Unsupported algorithm %d\n", seckey->pubkey.pkt.alg);
+        (void) fprintf(stderr, "Unsupported algorithm %d\n", seckey->alg);
         return false;
     }
 
@@ -720,35 +675,32 @@ pgp_sig_write(rng_t *             rng,
     /* XXX: technically, we could figure out how big the signature is */
     /* and write it directly to the output instead of via memory. */
 
-    switch (seckey->pubkey.pkt.alg) {
+    switch (seckey->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!rsa_sign_wrapper(
-              rng, &sig->hash, &seckey->pubkey.pkt.material.rsa, sig->output)) {
+        if (!rsa_sign_wrapper(rng, &sig->hash, &seckey->material.rsa, sig->output)) {
             RNP_LOG("rsa_sign failure");
             return false;
         }
         break;
 
     case PGP_PKA_EDDSA:
-        if (!eddsa_sign_wrapper(
-              rng, &sig->hash, &seckey->pubkey.pkt.material.ec, sig->output)) {
+        if (!eddsa_sign_wrapper(rng, &sig->hash, &seckey->material.ec, sig->output)) {
             RNP_LOG("eddsa_sign failure");
             return false;
         }
         break;
 
     case PGP_PKA_SM2:
-        if (!sm2_sign_wrapper(rng, &sig->hash, &seckey->pubkey.pkt.material.ec, sig->output)) {
+        if (!sm2_sign_wrapper(rng, &sig->hash, &seckey->material.ec, sig->output)) {
             RNP_LOG("sm2_sign failure");
             return false;
         }
         break;
 
     case PGP_PKA_DSA:
-        if (!dsa_sign_wrapper(
-              rng, &sig->hash, &seckey->pubkey.pkt.material.dsa, sig->output)) {
+        if (!dsa_sign_wrapper(rng, &sig->hash, &seckey->material.dsa, sig->output)) {
             RNP_LOG("dsa_sign failure");
             return false;
         }
@@ -760,14 +712,13 @@ pgp_sig_write(rng_t *             rng,
      */
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
-        if (!ecdsa_sign_wrapper(
-              rng, &sig->hash, &seckey->pubkey.pkt.material.ec, sig->output)) {
+        if (!ecdsa_sign_wrapper(rng, &sig->hash, &seckey->material.ec, sig->output)) {
             RNP_LOG("ecdsa sign failure");
             return false;
         }
         break;
     default:
-        (void) fprintf(stderr, "Unsupported algorithm %d\n", (int) seckey->pubkey.pkt.alg);
+        (void) fprintf(stderr, "Unsupported algorithm %d\n", (int) seckey->alg);
         return false;
     }
 

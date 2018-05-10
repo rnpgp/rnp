@@ -137,7 +137,7 @@ pgp_seckey_t *pgp_get_writable_seckey(pgp_key_t *);
 
 pgp_seckey_t *pgp_decrypt_seckey_pgp(const uint8_t *,
                                      size_t,
-                                     const pgp_pubkey_t *,
+                                     const pgp_key_pkt_t *,
                                      const char *);
 
 pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *,
@@ -285,6 +285,6 @@ pgp_key_t *pgp_get_primary_key_for(pgp_io_t *                io,
  *  @returns hash algorithm that must be use for operation (mostly
              signing with secure key which corresponds to 'pubkey')
  */
-pgp_hash_alg_t pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_pubkey_t *pubkey);
+pgp_hash_alg_t pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey);
 
 #endif // RNP_PACKET_KEY_H

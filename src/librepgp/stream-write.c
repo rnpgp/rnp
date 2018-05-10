@@ -1118,7 +1118,8 @@ signed_write_signature(pgp_dest_signed_param_t *param,
         sig.palg = onepass->palg;
         sig.type = onepass->type;
     } else {
-        sig.halg = pgp_hash_adjust_alg_to_key(param->ctx->halg, &seckey->key.seckey.pubkey);
+        sig.halg =
+          pgp_hash_adjust_alg_to_key(param->ctx->halg, &seckey->key.seckey.pubkey.pkt);
         sig.palg = seckey->key.pubkey.pkt.alg;
         sig.type = param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT;
     }
@@ -1236,7 +1237,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, pgp_key_t *key, bool last)
     pgp_hash_alg_t     halg;
 
     /* Add hash to the list */
-    halg = pgp_hash_adjust_alg_to_key(param->ctx->halg, &key->key.seckey.pubkey);
+    halg = pgp_hash_adjust_alg_to_key(param->ctx->halg, &key->key.seckey.pubkey.pkt);
     if (!pgp_hash_list_add(&param->hashes, halg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
