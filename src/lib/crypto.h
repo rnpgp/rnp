@@ -69,7 +69,7 @@
 #define NTAGS 0x100 /* == 256 */
 
 /* raw key generation */
-bool pgp_generate_seckey(const rnp_keygen_crypto_params_t *params, pgp_seckey_t *seckey);
+bool pgp_generate_seckey(const rnp_keygen_crypto_params_t *params, pgp_key_pkt_t *seckey);
 
 /** generate a new primary key
  *
