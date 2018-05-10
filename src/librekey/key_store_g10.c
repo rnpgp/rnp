@@ -899,7 +899,7 @@ g10_parse_seckey(pgp_io_t *                io,
             goto done;
         }
 
-        if (!copy_key_pkt(&seckey->pubkey.pkt, &pgp_get_pubkey(pubkey)->pkt)) {
+        if (!copy_key_pkt(&seckey->pubkey.pkt, pgp_get_key_pkt(pubkey))) {
             goto done;
         }
     }

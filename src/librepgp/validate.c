@@ -282,13 +282,13 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
                                          &key->pubkey,
                                          key->userid,
                                          &content->sig,
-                                         &pgp_get_pubkey(signer)->pkt,
+                                         pgp_get_key_pkt(signer),
                                          key->reader->key->packets[key->reader->packet].raw) :
                 pgp_check_userattrcert_sig(rnp_ctx,
                                            &key->pubkey,
                                            &key->userattr,
                                            &content->sig,
-                                           &pgp_get_pubkey(signer)->pkt,
+                                           pgp_get_key_pkt(signer),
                                            key->reader->key->packets[key->reader->packet].raw);
             break;
 
@@ -301,7 +301,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
                                          &key->pubkey,
                                          &key->subkey,
                                          &content->sig,
-                                         &pgp_get_pubkey(signer)->pkt,
+                                         pgp_get_key_pkt(signer),
                                          key->reader->key->packets[key->reader->packet].raw);
             break;
 
@@ -309,7 +309,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             valid = pgp_check_direct_sig(rnp_ctx,
                                          &key->pubkey,
                                          &content->sig,
-                                         &pgp_get_pubkey(signer)->pkt,
+                                         pgp_get_key_pkt(signer),
                                          key->reader->key->packets[key->reader->packet].raw);
             break;
 

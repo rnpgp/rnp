@@ -113,7 +113,7 @@ void pgp_key_free_data(pgp_key_t *);
 
 void pgp_free_user_prefs(pgp_user_prefs_t *prefs);
 
-const pgp_pubkey_t *pgp_get_pubkey(const pgp_key_t *);
+const pgp_key_pkt_t *pgp_get_key_pkt(const pgp_key_t *);
 
 bool pgp_is_key_public(const pgp_key_t *);
 
