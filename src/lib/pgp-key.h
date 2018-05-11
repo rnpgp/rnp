@@ -123,6 +123,8 @@ bool pgp_is_key_public(const pgp_key_t *);
 
 bool pgp_is_key_secret(const pgp_key_t *);
 
+bool pgp_is_key_encrypted(const pgp_key_t *);
+
 bool pgp_key_can_sign(const pgp_key_t *key);
 bool pgp_key_can_certify(const pgp_key_t *key);
 bool pgp_key_can_encrypt(const pgp_key_t *key);

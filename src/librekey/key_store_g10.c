@@ -479,6 +479,7 @@ parse_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         return false;
     }
 
+    pkt->material.secret = true;
     return true;
 }
 
@@ -679,7 +680,7 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passwor
 
     // we're all done if no password was provided (decryption not requested)
     if (!password) {
-        seckey->encrypted = true;
+        seckey->pkt.material.secret = false;
         ret = true;
         goto done;
     }
@@ -756,7 +757,6 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passwor
             goto done;
         }
     }
-    seckey->encrypted = false;
     seckey->pkt.material.secret = true;
     ret = true;
 
@@ -997,7 +997,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *                io,
     memcpy(key.packets[0].raw, memory->buf, memory->length);
     key.packetc++;
     key.format = G10_KEY_STORE;
-    key.is_protected = key.key.seckey.encrypted;
+    key.is_protected = pgp_is_key_encrypted(&key);
     if (!rnp_key_store_add_key(io, key_store, &key)) {
         goto done;
     }

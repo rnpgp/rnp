@@ -502,7 +502,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
     }
 
     // decrypt the primary seckey if needed (for signatures)
-    if (primary_sec->key.seckey.encrypted) {
+    if (pgp_is_key_encrypted(primary_sec)) {
         decrypted_primary_seckey = pgp_decrypt_seckey(
           primary_sec,
           password_provider,
