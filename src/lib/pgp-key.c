@@ -244,6 +244,17 @@ pgp_is_key_secret(const pgp_key_t *key)
 }
 
 bool
+pgp_is_key_encrypted(const pgp_key_t *key)
+{
+    if (!pgp_is_key_secret(key)) {
+        return false;
+    }
+
+    const pgp_key_pkt_t *pkt = pgp_get_key_pkt(key);
+    return !pkt->material.secret;
+}
+
+bool
 pgp_key_can_sign(const pgp_key_t *key)
 {
     return key->key_flags & PGP_KF_SIGN;
@@ -381,7 +392,6 @@ pgp_decrypt_seckey_pgp(const uint8_t *      data,
         goto error;
     }
 
-    res->encrypted = false;
     src_close(&src);
     return res;
 error:
@@ -688,7 +698,7 @@ pgp_key_is_locked(const pgp_key_t *key)
         RNP_LOG("key is not a secret key");
         return false;
     }
-    return key->key.seckey.encrypted;
+    return pgp_is_key_encrypted(key);
 }
 
 bool
@@ -719,7 +729,6 @@ pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider)
         // copy the decrypted mpis into the pgp_key_t
         key->key.seckey.pkt.material = decrypted_seckey->pkt.material;
         key->key.seckey.pkt.material.secret = true;
-        key->key.seckey.encrypted = false;
 
         pgp_seckey_free(decrypted_seckey);
         // free the actual structure
@@ -739,12 +748,11 @@ pgp_key_lock(pgp_key_t *key)
     }
 
     // see if it's already locked
-    if (key->key.seckey.encrypted) {
+    if (pgp_key_is_locked(key)) {
         return true;
     }
 
     forget_secret_key_fields(&key->key.seckey.pkt.material);
-    key->key.seckey.encrypted = true;
     return true;
 }
 
@@ -846,7 +854,7 @@ pgp_key_protect(pgp_key_t *                  key,
         RNP_LOG("Warning: this is not a secret key");
         goto done;
     }
-    if (decrypted_seckey->encrypted) {
+    if (!decrypted_seckey->pkt.material.secret) {
         RNP_LOG("Decrypted seckey must be provided");
         goto done;
     }
@@ -911,7 +919,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
     }
 
     seckey = &key->key.seckey;
-    if (seckey->encrypted) {
+    if (pgp_is_key_encrypted(key)) {
         decrypted_seckey = pgp_decrypt_seckey(
           key, password_provider, &(pgp_password_ctx_t){.op = PGP_OP_UNPROTECT, .key = key});
         if (!decrypted_seckey) {
@@ -923,6 +931,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
     if (!write_key_to_rawpacket(seckey, &key->packets[0], key->type, key->format, NULL)) {
         goto done;
     }
+    // TODO: should not we reload key from the rawpacket here?
     key->is_protected = false;
     ret = true;
 

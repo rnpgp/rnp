@@ -1078,7 +1078,7 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
     }
 
     /* decrypt the secret key if needed */
-    if (seckey->key.seckey.encrypted) {
+    if (pgp_is_key_encrypted(seckey)) {
         deckey = pgp_decrypt_seckey(seckey, param->password_provider, &ctx);
         if (!deckey) {
             RNP_LOG("wrong secret key password");
@@ -1094,7 +1094,7 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
       signature_calculate(sig, &deckey->pkt.material, &hash, rnp_ctx_rng_handle(param->ctx));
 
     /* destroy decrypted secret key */
-    if (seckey->key.seckey.encrypted) {
+    if (pgp_is_key_encrypted(seckey)) {
         pgp_seckey_free(deckey);
         free(deckey);
         deckey = NULL;

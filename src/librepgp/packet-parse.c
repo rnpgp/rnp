@@ -1946,8 +1946,8 @@ parse_seckey(pgp_stream_t *stream)
     }
     src_close(&src);
 
-    pkt.u.seckey.encrypted = pkt.u.seckey.pkt.sec_protection.s2k.usage != PGP_S2KU_NONE;
-    if (!pkt.u.seckey.encrypted && decrypt_secret_key(&pkt.u.seckey.pkt, NULL)) {
+    bool cleartext = pkt.u.seckey.pkt.sec_protection.s2k.usage == PGP_S2KU_NONE;
+    if (cleartext && decrypt_secret_key(&pkt.u.seckey.pkt, NULL)) {
         return false;
     }
 

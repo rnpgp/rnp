@@ -225,14 +225,6 @@ typedef struct pgp_key_t pgp_key_t;
 
 typedef struct pgp_seckey_t {
     pgp_key_pkt_t pkt;
-
-    /* This indicates the current state of the key union below.
-     * If false, the key union contains valid secret key material
-     * and is immediately available for operations.
-     * If true, the key union does not contain any valid secret
-     * key material and must be decrypted prior to use.
-     */
-    bool encrypted;
 } pgp_seckey_t;
 
 /** Struct to hold userid or userattr packet. We don't parse userattr now, just storing the

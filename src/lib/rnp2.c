@@ -3053,7 +3053,7 @@ rnp_key_add_uid(rnp_key_handle_t handle,
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     seckey = &secret_key->key.seckey;
-    if (seckey->encrypted) {
+    if (!seckey->pkt.material.secret) {
         pgp_password_ctx_t ctx = {.op = PGP_OP_ADD_USERID, .key = secret_key};
         decrypted_seckey = pgp_decrypt_seckey(secret_key, &handle->ffi->pass_provider, &ctx);
         if (!decrypted_seckey) {
@@ -3283,7 +3283,7 @@ rnp_key_protect(rnp_key_handle_t handle,
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     seckey = &key->key.seckey;
-    if (seckey->encrypted) {
+    if (pgp_is_key_encrypted(key)) {
         decrypted_seckey =
           pgp_decrypt_seckey(key,
                              &handle->ffi->pass_provider,

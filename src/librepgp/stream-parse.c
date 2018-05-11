@@ -1930,7 +1930,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
                 continue;
             }
             /* Decrypt key */
-            if (seckey->key.seckey.encrypted) {
+            if (pgp_is_key_encrypted(seckey)) {
                 decrypted_seckey = pgp_decrypt_seckey(
                   seckey,
                   ctx->handler.password_provider,
@@ -1952,7 +1952,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             }
 
             /* Destroy decrypted key */
-            if (seckey->key.seckey.encrypted) {
+            if (pgp_is_key_encrypted(seckey)) {
                 pgp_seckey_free(decrypted_seckey);
                 free(decrypted_seckey);
                 decrypted_seckey = NULL;
