@@ -353,12 +353,6 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PARSER_DONE:
         break;
 
-    case PGP_GET_PASSWORD:
-        if (key->getpassword) {
-            return key->getpassword(pkt, cbinfo);
-        }
-        break;
-
     case PGP_PTAG_CT_TRUST:
         /* 1 byte for level (depth), 1 byte for trust amount */
         printf("trust dump\n");
