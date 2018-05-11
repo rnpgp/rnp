@@ -75,7 +75,7 @@ test_key_add_userid(void **state)
     // add a userid
     assert_true(pgp_key_add_userid(
       key,
-      pgp_get_seckey(key),
+      pgp_get_key_pkt(key),
       PGP_HASH_SHA1,
       &(rnp_selfsig_cert_info){
         .userid = "added1", .key_flags = 0xAB, .key_expiration = 123456789, .primary = 1}));
@@ -85,19 +85,19 @@ test_key_add_userid(void **state)
 
     // try to add the same userid (should fail)
     assert_false(pgp_key_add_userid(
-      key, pgp_get_seckey(key), PGP_HASH_SHA1, &(rnp_selfsig_cert_info){.userid = "added1"}));
+      key, pgp_get_key_pkt(key), PGP_HASH_SHA1, &(rnp_selfsig_cert_info){.userid = "added1"}));
 
     // try to add another primary userid (should fail)
     assert_false(
       pgp_key_add_userid(key,
-                         pgp_get_seckey(key),
+                         pgp_get_key_pkt(key),
                          PGP_HASH_SHA1,
                          &(rnp_selfsig_cert_info){.userid = "added2", .primary = 1}));
 
     // actually add another userid
     assert_true(
       pgp_key_add_userid(key,
-                         pgp_get_seckey(key),
+                         pgp_get_key_pkt(key),
                          PGP_HASH_SHA1,
                          &(rnp_selfsig_cert_info){.userid = "added2", .key_flags = 0xCD}));
 

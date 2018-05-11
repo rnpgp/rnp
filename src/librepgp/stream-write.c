@@ -1053,7 +1053,7 @@ cleartext_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 static rnp_result_t
 signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_key_t *seckey)
 {
-    pgp_seckey_t *     deckey = NULL;
+    pgp_key_pkt_t *    deckey = NULL;
     pgp_hash_t         hash;
     pgp_password_ctx_t ctx = {.op = PGP_OP_SIGN, .key = seckey};
     bool               res;
@@ -1086,16 +1086,15 @@ signed_fill_signature(pgp_dest_signed_param_t *param, pgp_signature_t *sig, pgp_
             return RNP_ERROR_BAD_PASSWORD;
         }
     } else {
-        deckey = &(seckey->key.seckey);
+        deckey = &(seckey->pkt);
     }
 
     /* calculate the signature */
-    ret =
-      signature_calculate(sig, &deckey->pkt.material, &hash, rnp_ctx_rng_handle(param->ctx));
+    ret = signature_calculate(sig, &deckey->material, &hash, rnp_ctx_rng_handle(param->ctx));
 
     /* destroy decrypted secret key */
     if (pgp_is_key_encrypted(seckey)) {
-        pgp_seckey_free(deckey);
+        free_key_pkt(deckey);
         free(deckey);
         deckey = NULL;
     }

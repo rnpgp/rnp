@@ -453,7 +453,7 @@ end:
 
 bool
 pgp_write_selfsig_binding(pgp_output_t *                  output,
-                          const pgp_seckey_t *            primary_sec,
+                          const pgp_key_pkt_t *           primary_sec,
                           const pgp_hash_alg_t            hash_alg,
                           const pgp_key_pkt_t *           subkey,
                           const rnp_selfsig_binding_info *binding)
@@ -473,7 +473,7 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
         return false;
     }
 
-    if (pgp_keyid(keyid, sizeof(keyid), &primary_sec->pkt)) {
+    if (pgp_keyid(keyid, sizeof(keyid), primary_sec)) {
         RNP_LOG("failed to calculate keyid");
         goto end;
     }
@@ -483,7 +483,7 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
         RNP_LOG("create sig failed");
         goto end;
     }
-    if (!pgp_sig_start_subkey_sig(sig, &primary_sec->pkt, subkey, PGP_SIG_SUBKEY, hash_alg)) {
+    if (!pgp_sig_start_subkey_sig(sig, primary_sec, subkey, PGP_SIG_SUBKEY, hash_alg)) {
         RNP_LOG("failed to start subkey sig");
         goto end;
     }
@@ -509,7 +509,7 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
         goto end;
     }
 
-    if (!pgp_sig_write(&rng, output, sig, &primary_sec->pkt)) {
+    if (!pgp_sig_write(&rng, output, sig, primary_sec)) {
         RNP_LOG("failed to write signature");
         goto end;
     }

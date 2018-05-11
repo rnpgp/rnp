@@ -3020,8 +3020,8 @@ rnp_key_add_uid(rnp_key_handle_t handle,
     pgp_hash_alg_t        hash_alg = PGP_HASH_UNKNOWN;
     pgp_key_t *           public_key = NULL;
     pgp_key_t *           secret_key = NULL;
-    pgp_seckey_t *        seckey = NULL;
-    pgp_seckey_t *        decrypted_seckey = NULL;
+    pgp_key_pkt_t *        seckey = NULL;
+    pgp_key_pkt_t *        decrypted_seckey = NULL;
 
     if (!handle || !uid || !hash) {
         return RNP_ERROR_NULL_POINTER;
@@ -3052,8 +3052,8 @@ rnp_key_add_uid(rnp_key_handle_t handle,
     if (!public_key && secret_key->format == G10_KEY_STORE) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    seckey = &secret_key->key.seckey;
-    if (!seckey->pkt.material.secret) {
+    seckey = &secret_key->pkt;
+    if (!seckey->material.secret) {
         pgp_password_ctx_t ctx = {.op = PGP_OP_ADD_USERID, .key = secret_key};
         decrypted_seckey = pgp_decrypt_seckey(secret_key, &handle->ffi->pass_provider, &ctx);
         if (!decrypted_seckey) {
@@ -3071,7 +3071,7 @@ rnp_key_add_uid(rnp_key_handle_t handle,
 
     ret = RNP_SUCCESS;
 done:
-    pgp_seckey_free(decrypted_seckey);
+    free_key_pkt(decrypted_seckey);
     free(decrypted_seckey);
     return ret;
 }
@@ -3244,8 +3244,8 @@ rnp_key_protect(rnp_key_handle_t handle,
                 size_t           iterations)
 {
     rnp_result_t                ret = RNP_ERROR_GENERIC;
-    pgp_seckey_t *              seckey = NULL;
-    pgp_seckey_t *              decrypted_seckey = NULL;
+    pgp_key_pkt_t *              seckey = NULL;
+    pgp_key_pkt_t *              decrypted_seckey = NULL;
     rnp_key_protection_params_t protection = {0};
 
     // checks
@@ -3282,7 +3282,7 @@ rnp_key_protect(rnp_key_handle_t handle,
     if (!key) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    seckey = &key->key.seckey;
+    seckey = &key->pkt;
     if (pgp_is_key_encrypted(key)) {
         decrypted_seckey =
           pgp_decrypt_seckey(key,
@@ -3299,7 +3299,7 @@ rnp_key_protect(rnp_key_handle_t handle,
     ret = RNP_SUCCESS;
 
 done:
-    pgp_seckey_free(decrypted_seckey);
+    free_key_pkt(decrypted_seckey);
     free(decrypted_seckey);
     return ret;
 }

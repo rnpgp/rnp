@@ -122,18 +122,19 @@ pgp_key_new(void)
 }
 
 bool
-pgp_key_from_keydata(pgp_key_t *key, pgp_keydata_key_t *keydata, const pgp_content_enum tag)
+pgp_key_from_keypkt(pgp_key_t *key, const pgp_key_pkt_t *pkt, const pgp_content_enum tag)
 {
-    assert(!key->key.pubkey.version);
+    assert(!key->pkt.version);
     assert(is_key_pkt(tag));
-    assert(keydata->pubkey.material.alg);
-    if (pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, &keydata->pubkey) ||
-        pgp_fingerprint(&key->fingerprint, &keydata->pubkey) ||
-        !rnp_key_store_get_key_grip(&keydata->pubkey.material, key->grip)) {
+    assert(pkt->material.alg);
+    if (pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, pkt) ||
+        pgp_fingerprint(&key->fingerprint, pkt) ||
+        !rnp_key_store_get_key_grip(&pkt->material, key->grip)) {
         return false;
     }
     key->type = tag;
-    key->key = *keydata;
+    /* this is correct since changes ownership */
+    key->pkt = *pkt;
     return true;
 }
 
@@ -188,11 +189,7 @@ pgp_key_free_data(pgp_key_t *key)
 
     list_destroy(&key->subkey_grips);
 
-    if (pgp_is_key_public(key)) {
-        free_key_pkt(&key->key.pubkey);
-    } else {
-        pgp_seckey_free(&key->key.seckey);
-    }
+    free_key_pkt(&key->pkt);
 }
 
 void
@@ -216,7 +213,7 @@ pgp_key_free(pgp_key_t *key)
 const pgp_key_pkt_t *
 pgp_get_key_pkt(const pgp_key_t *key)
 {
-    return pgp_is_key_public(key) ? &key->key.pubkey : &key->key.seckey.pkt;
+    return &key->pkt;
 }
 
 const pgp_key_material_t *
@@ -332,48 +329,14 @@ pgp_key_is_subkey(const pgp_key_t *key)
     return pgp_is_subkey_tag(key->type);
 }
 
-/**
- \ingroup HighLevel_KeyGeneral
-
- \brief Returns the secret key in the given key.
-
- \note This is not a copy, do not free it after use.
-
- \note This returns a const.  If you need to be able to write to this
- pointer, use pgp_get_writable_seckey
-*/
-
-const pgp_seckey_t *
-pgp_get_seckey(const pgp_key_t *key)
-{
-    return pgp_is_key_secret(key) ? &key->key.seckey : NULL;
-}
-
-/**
- \ingroup HighLevel_KeyGeneral
-
-  \brief Returns the secret key in the given key.
-
-  \note This is not a copy, do not free it after use.
-
-  \note If you do not need to be able to modify this key, there is an
-  equivalent read-only function pgp_get_seckey.
-*/
-
-pgp_seckey_t *
-pgp_get_writable_seckey(pgp_key_t *key)
-{
-    return pgp_is_key_secret(key) ? &key->key.seckey : NULL;
-}
-
-pgp_seckey_t *
+pgp_key_pkt_t *
 pgp_decrypt_seckey_pgp(const uint8_t *      data,
                        size_t               data_len,
                        const pgp_key_pkt_t *pubkey,
                        const char *         password)
 {
     pgp_source_t  src = {0};
-    pgp_seckey_t *res = NULL;
+    pgp_key_pkt_t *res = NULL;
 
     res = calloc(1, sizeof(*res));
     if (!res) {
@@ -384,11 +347,11 @@ pgp_decrypt_seckey_pgp(const uint8_t *      data,
         return NULL;
     }
 
-    if (stream_parse_key(&src, &res->pkt)) {
+    if (stream_parse_key(&src, res)) {
         goto error;
     }
 
-    if (decrypt_secret_key(&res->pkt, password)) {
+    if (decrypt_secret_key(res, password)) {
         goto error;
     }
 
@@ -396,8 +359,7 @@ pgp_decrypt_seckey_pgp(const uint8_t *      data,
     return res;
 error:
     src_close(&src);
-    forget_secret_key_fields(&res->pkt.material);
-    free_key_pkt(&res->pkt);
+    free_key_pkt(res);
     free(res);
     return NULL;
 }
@@ -408,13 +370,13 @@ error:
  * - In the case of an unprotected key, it simply re-loads
  *   key->key.seckey by parsing the key data in packets[0].
  */
-pgp_seckey_t *
+pgp_key_pkt_t *
 pgp_decrypt_seckey(const pgp_key_t *              key,
                    const pgp_password_provider_t *provider,
                    const pgp_password_ctx_t *     ctx)
 {
-    pgp_seckey_t *               decrypted_seckey = NULL;
-    typedef struct pgp_seckey_t *pgp_seckey_decrypt_t(
+    pgp_key_pkt_t *               decrypted_seckey = NULL;
+    typedef struct pgp_key_pkt_t *pgp_seckey_decrypt_t(
       const uint8_t *data, size_t data_len, const pgp_key_pkt_t *pubkey, const char *password);
     pgp_seckey_decrypt_t *decryptor = NULL;
     char                  password[MAX_PASSWORD_LENGTH] = {0};
@@ -704,7 +666,7 @@ pgp_key_is_locked(const pgp_key_t *key)
 bool
 pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider)
 {
-    pgp_seckey_t *decrypted_seckey = NULL;
+    pgp_key_pkt_t *decrypted_seckey = NULL;
 
     // sanity checks
     if (!key || !provider) {
@@ -725,12 +687,12 @@ pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider)
 
     if (decrypted_seckey) {
         // this shouldn't really be necessary, but just in case
-        forget_secret_key_fields(&key->key.seckey.pkt.material);
+        forget_secret_key_fields(&key->pkt.material);
         // copy the decrypted mpis into the pgp_key_t
-        key->key.seckey.pkt.material = decrypted_seckey->pkt.material;
-        key->key.seckey.pkt.material.secret = true;
+        key->pkt.material = decrypted_seckey->material;
+        key->pkt.material.secret = true;
 
-        pgp_seckey_free(decrypted_seckey);
+        free_key_pkt(decrypted_seckey);
         // free the actual structure
         free(decrypted_seckey);
         return true;
@@ -752,12 +714,12 @@ pgp_key_lock(pgp_key_t *key)
         return true;
     }
 
-    forget_secret_key_fields(&key->key.seckey.pkt.material);
+    forget_secret_key_fields(&key->pkt.material);
     return true;
 }
 
 static bool
-write_key_to_rawpacket(pgp_seckey_t *     seckey,
+write_key_to_rawpacket(pgp_key_pkt_t *     seckey,
                        pgp_rawpacket_t *  packet,
                        pgp_content_enum   type,
                        key_store_format_t format,
@@ -774,7 +736,7 @@ write_key_to_rawpacket(pgp_seckey_t *     seckey,
     switch (format) {
     case GPG_KEY_STORE:
     case KBX_KEY_STORE:
-        if (!pgp_write_struct_seckey(output, type, &seckey->pkt, password)) {
+        if (!pgp_write_struct_seckey(output, type, seckey, password)) {
             RNP_LOG("failed to write seckey");
             goto done;
         }
@@ -826,14 +788,14 @@ rnp_key_add_protection(pgp_key_t *                    key,
         return false;
     }
 
-    bool ret = pgp_key_protect(key, &key->key.seckey, format, protection, password);
+    bool ret = pgp_key_protect(key, &key->pkt, format, protection, password);
     pgp_forget(password, sizeof(password));
     return ret;
 }
 
 bool
 pgp_key_protect(pgp_key_t *                  key,
-                pgp_seckey_t *               decrypted_seckey,
+                pgp_key_pkt_t *              decrypted_seckey,
                 key_store_format_t           format,
                 rnp_key_protection_params_t *protection,
                 const char *                 new_password)
@@ -843,7 +805,7 @@ pgp_key_protect(pgp_key_t *                  key,
                                                       .cipher_mode = DEFAULT_PGP_CIPHER_MODE,
                                                       .iterations = DEFAULT_S2K_ITERATIONS,
                                                       .hash_alg = DEFAULT_PGP_HASH_ALG};
-    pgp_seckey_t *              seckey = NULL;
+    pgp_key_pkt_t *              seckey = NULL;
 
     // sanity check
     if (!key || !decrypted_seckey || !new_password) {
@@ -854,15 +816,15 @@ pgp_key_protect(pgp_key_t *                  key,
         RNP_LOG("Warning: this is not a secret key");
         goto done;
     }
-    if (!decrypted_seckey->pkt.material.secret) {
+    if (!decrypted_seckey->material.secret) {
         RNP_LOG("Decrypted seckey must be provided");
         goto done;
     }
 
-    seckey = &key->key.seckey;
+    seckey = &key->pkt;
     // force these, as it's the only method we support
-    seckey->pkt.sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    seckey->pkt.sec_protection.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
+    seckey->sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    seckey->sec_protection.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
 
     if (!protection) {
         protection = &default_protection;
@@ -881,11 +843,10 @@ pgp_key_protect(pgp_key_t *                  key,
         protection->hash_alg = default_protection.hash_alg;
     }
 
-    seckey->pkt.sec_protection.symm_alg = protection->symm_alg;
-    seckey->pkt.sec_protection.cipher_mode = protection->cipher_mode;
-    seckey->pkt.sec_protection.s2k.iterations =
-      pgp_s2k_round_iterations(protection->iterations);
-    seckey->pkt.sec_protection.s2k.hash_alg = protection->hash_alg;
+    seckey->sec_protection.symm_alg = protection->symm_alg;
+    seckey->sec_protection.cipher_mode = protection->cipher_mode;
+    seckey->sec_protection.s2k.iterations = pgp_s2k_round_iterations(protection->iterations);
+    seckey->sec_protection.s2k.hash_alg = protection->hash_alg;
 
     // write the protected key to packets[0]
     if (!write_key_to_rawpacket(
@@ -904,8 +865,8 @@ bool
 pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provider)
 {
     bool          ret = false;
-    pgp_seckey_t *seckey = NULL;
-    pgp_seckey_t *decrypted_seckey = NULL;
+    pgp_key_pkt_t *seckey = NULL;
+    pgp_key_pkt_t *decrypted_seckey = NULL;
 
     // sanity check
     if (!pgp_is_key_secret(key)) {
@@ -918,7 +879,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
         goto done;
     }
 
-    seckey = &key->key.seckey;
+    seckey = &key->pkt;
     if (pgp_is_key_encrypted(key)) {
         decrypted_seckey = pgp_decrypt_seckey(
           key, password_provider, &(pgp_password_ctx_t){.op = PGP_OP_UNPROTECT, .key = key});
@@ -927,7 +888,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
         }
         seckey = decrypted_seckey;
     }
-    seckey->pkt.sec_protection.s2k.usage = PGP_S2KU_NONE;
+    seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
     if (!write_key_to_rawpacket(seckey, &key->packets[0], key->type, key->format, NULL)) {
         goto done;
     }
@@ -936,7 +897,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
     ret = true;
 
 done:
-    pgp_seckey_free(decrypted_seckey);
+    free_key_pkt(decrypted_seckey);
     free(decrypted_seckey);
     return ret;
 }
@@ -964,7 +925,7 @@ key_has_userid(const pgp_key_t *key, const uint8_t *userid)
 
 bool
 pgp_key_add_userid(pgp_key_t *            key,
-                   const pgp_seckey_t *   seckey,
+                   const pgp_key_pkt_t *   seckey,
                    pgp_hash_alg_t         hash_alg,
                    rnp_selfsig_cert_info *cert)
 {
@@ -992,7 +953,7 @@ pgp_key_add_userid(pgp_key_t *            key,
         goto done;
     }
     // We only support modifying v4 and newer keys
-    if (key->key.seckey.pkt.version < PGP_V4) {
+    if (key->pkt.version < PGP_V4) {
         RNP_LOG("adding a userid to V2/V3 key is not supported");
         goto done;
     }
@@ -1009,7 +970,7 @@ pgp_key_add_userid(pgp_key_t *            key,
     }
     // write userid and selfsig packets
     if (!pgp_write_struct_userid(output, cert->userid) ||
-        !pgp_write_selfsig_cert(output, &seckey->pkt, hash_alg, cert)) {
+        !pgp_write_selfsig_cert(output, seckey, hash_alg, cert)) {
         RNP_LOG("failed to write userid + selfsig");
         goto done;
     }

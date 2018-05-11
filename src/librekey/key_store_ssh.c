@@ -255,7 +255,7 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
     bufgap_seek(&bg, len, BGFromHere, BGByte);
 
     memset(key, 0x0, sizeof(*key));
-    keypkt = &key->key.pubkey;
+    keypkt = &key->pkt;
     keypkt->version = PGP_V4;
     keypkt->creation_time = 0;
     /* get key type */
@@ -354,7 +354,7 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_key_pkt_t *pubkey)
         /*pgp_print_keydata(io, key, "sec", &key->key.seckey.pubkey, 0);*/
         /* XXX */
     }
-    seckey = &key->key.seckey.pkt;
+    seckey = &key->pkt;
     /* let's add some sane defaults */
     if (!copy_key_pkt(seckey, pubkey)) {
         return false;
@@ -428,7 +428,7 @@ rnp_key_store_ssh_load_keys(rnp_t *rnp, rnp_key_store_t *pubring, rnp_key_store_
         if (pubkey == NULL) {
             pubkey = (pgp_key_t *) list_front(pubring->keys);
         }
-        if (!ssh2seckey(rnp->io, secring->path, &key, &pubkey->key.pubkey)) {
+        if (!ssh2seckey(rnp->io, secring->path, &key, &pubkey->pkt)) {
             RNP_LOG("can't read seckeys '%s'", secring->path);
             return false;
         }
@@ -476,7 +476,7 @@ rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *
         return false;
     }
 
-    if (ssh2seckey(io, filename, &key, &pubkey.key.pubkey)) {
+    if (ssh2seckey(io, filename, &key, &pubkey.pkt)) {
         (void) fprintf(io->errs, "rnp_key_store_ssh_from_file: it's seckey '%s'\n", filename);
         key.type = PGP_PTAG_CT_SECRET_KEY;
         rnp_key_store_add_key(io, keyring, &key);

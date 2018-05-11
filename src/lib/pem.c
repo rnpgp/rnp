@@ -138,7 +138,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
             goto end;
         }
 
-        pgp_rsa_key_t *rsa = &(key->key.seckey.pkt.material.rsa);
+        pgp_rsa_key_t *rsa = &(key->pkt.material.rsa);
         bignum_t *     d = bn_new();
         bignum_t *     p = bn_new();
         bignum_t *     q = bn_new();
@@ -164,7 +164,7 @@ read_pem_seckey(const char *f, pgp_key_t *key, const char *type, int verbose)
         } else {
             x = bn_new();
             botan_privkey_get_field(x->mp, priv_key, "x");
-            ok = bn2mpi(x, &key->key.pubkey.material.dsa.x);
+            ok = bn2mpi(x, &key->pkt.material.dsa.x);
             botan_privkey_destroy(priv_key);
             bn_free(x);
         }

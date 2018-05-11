@@ -88,7 +88,7 @@ bool pgp_write_selfsig_cert(pgp_output_t *               output,
                             const pgp_hash_alg_t         hash_alg,
                             const rnp_selfsig_cert_info *cert);
 bool pgp_write_selfsig_binding(pgp_output_t *                  output,
-                               const pgp_seckey_t *            primary_sec,
+                               const pgp_key_pkt_t *           primary_sec,
                                const pgp_hash_alg_t            hash_alg,
                                const pgp_key_pkt_t *           subkey,
                                const rnp_selfsig_binding_info *binding);

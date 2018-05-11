@@ -72,7 +72,7 @@ struct pgp_key_t {
     uint8_t *          primary_grip;   /* grip of primary key (for subkeys) */
     pgp_content_enum   type;           /* type of key */
     time_t             expiration;     /* key expiration time, if available */
-    pgp_keydata_key_t  key;            /* pubkey/seckey data */
+    pgp_key_pkt_t      pkt;            /* pubkey/seckey data packet */
     uint8_t            key_flags;      /* key flags */
     uint8_t            keyid[PGP_KEY_ID_SIZE];
     pgp_fingerprint_t  fingerprint;
@@ -93,9 +93,9 @@ struct pgp_key_t *pgp_key_new(void);
  *  This sets up basic properties of the key like keyid/fpr/grip, type, etc.
  *  It does not set primary_grip or subkey_grips (the key store does this).
  */
-bool pgp_key_from_keydata(pgp_key_t *            key,
-                          pgp_keydata_key_t *    keydata,
-                          const pgp_content_enum tag);
+bool pgp_key_from_keypkt(pgp_key_t *            key,
+                         const pgp_key_pkt_t *    pkt,
+                         const pgp_content_enum tag);
 
 /** free the internal data of a key *and* the key structure itself
  *
@@ -137,16 +137,12 @@ bool pgp_is_public_key_tag(pgp_content_enum tag);
 bool pgp_key_is_primary_key(const pgp_key_t *key);
 bool pgp_key_is_subkey(const pgp_key_t *key);
 
-const struct pgp_seckey_t *pgp_get_seckey(const pgp_key_t *);
-
-pgp_seckey_t *pgp_get_writable_seckey(pgp_key_t *);
-
-pgp_seckey_t *pgp_decrypt_seckey_pgp(const uint8_t *,
+pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const uint8_t *,
                                      size_t,
                                      const pgp_key_pkt_t *,
                                      const char *);
 
-pgp_seckey_t *pgp_decrypt_seckey(const pgp_key_t *,
+pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t *,
                                  const pgp_password_provider_t *,
                                  const pgp_password_ctx_t *);
 
@@ -219,7 +215,7 @@ bool rnp_key_add_protection(pgp_key_t *                    key,
  *  @return true if key was successfully protected, false otherwise
  **/
 bool pgp_key_protect(pgp_key_t *                  key,
-                     pgp_seckey_t *               decrypted_seckey,
+                     pgp_key_pkt_t *              decrypted_seckey,
                      key_store_format_t           format,
                      rnp_key_protection_params_t *protection,
                      const char *                 new_password);
@@ -248,7 +244,7 @@ bool pgp_key_is_protected(const pgp_key_t *key);
  *  @return true if the userid was added, false otherwise
  */
 bool pgp_key_add_userid(pgp_key_t *            key,
-                        const pgp_seckey_t *   seckey,
+                        const pgp_key_pkt_t *   seckey,
                         pgp_hash_alg_t         hash_alg,
                         rnp_selfsig_cert_info *cert);
 

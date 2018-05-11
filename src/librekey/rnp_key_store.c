@@ -788,7 +788,7 @@ grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val)
 
 /* keygrip is subjectKeyHash from pkcs#15. */
 bool
-rnp_key_store_get_key_grip(pgp_key_material_t *key, uint8_t *grip)
+rnp_key_store_get_key_grip(const pgp_key_material_t *key, uint8_t *grip)
 {
     pgp_hash_t hash = {0};
 
