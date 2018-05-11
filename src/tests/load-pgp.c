@@ -25,6 +25,7 @@
  */
 
 #include "../librekey/key_store_pgp.h"
+#include "../librepgp/stream-packet.h"
 #include "pgp-key.h"
 
 #include "rnp_tests.h"
@@ -88,12 +89,12 @@ test_load_v3_keyring_pgp(void **state)
     assert_true(pgp_key_is_locked(key));
 
     // decrypt the key
-    pgp_seckey_t *seckey = pgp_decrypt_seckey_pgp(
+    pgp_key_pkt_t *seckey = pgp_decrypt_seckey_pgp(
       key->packets[0].raw, key->packets[0].length, pgp_get_key_pkt(key), "password");
     assert_non_null(seckey);
 
     // cleanup
-    pgp_seckey_free(seckey);
+    free_key_pkt(seckey);
     free(seckey);
     rnp_key_store_free(key_store);
     pgp_memory_release(&mem);

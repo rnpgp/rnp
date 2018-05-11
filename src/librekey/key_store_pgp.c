@@ -357,7 +357,6 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
     const pgp_contents_t *content = &pkt->u;
     keyringcb_t *         cb;
-    pgp_keydata_key_t     keydata;
 
     cb = pgp_callback_arg(cbinfo);
 
@@ -372,20 +371,13 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
                 return PGP_FINISHED;
             }
         }
-
         // start to process the new key
-        bool secret = pgp_is_secret_key_tag(pkt->tag);
-        if (secret) {
-            keydata.seckey = content->seckey;
-        } else {
-            keydata.pubkey = content->pubkey;
-        }
-        if (!pgp_key_from_keydata(&cb->key, &keydata, pkt->tag)) {
+        if (!pgp_key_from_keypkt(&cb->key, &content->key, pkt->tag)) {
             PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to create key from keydata.");
             return PGP_FINISHED;
         }
         cb->key.format = GPG_KEY_STORE;
-        if (secret) {
+        if (pgp_is_secret_key_tag(pkt->tag)) {
             cb->key.is_protected = pgp_is_key_encrypted(&cb->key);
         }
         // Set some default key flags which will be overridden by signature

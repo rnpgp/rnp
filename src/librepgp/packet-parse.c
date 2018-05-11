@@ -865,7 +865,7 @@ repgp_parser_content_free(pgp_packet_t *c)
 
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        free_key_pkt(&c->u.pubkey);
+        free_key_pkt(&c->u.key);
         break;
 
     case PGP_PTAG_CT_USER_ID:
@@ -968,7 +968,7 @@ repgp_parser_content_free(pgp_packet_t *c)
 
     case PGP_PTAG_CT_SECRET_KEY:
     case PGP_PTAG_CT_SECRET_SUBKEY:
-        pgp_seckey_free(&c->u.seckey);
+        free_key_pkt(&c->u.key);
         break;
 
     default:
@@ -1008,13 +1008,13 @@ parse_pubkey(pgp_stream_t *stream)
         return false;
     }
 
-    if (stream_parse_key(&src, &pkt.u.pubkey)) {
+    if (stream_parse_key(&src, &pkt.u.key)) {
         src_close(&src);
         return false;
     }
     src_close(&src);
 
-    CALLBACK(pkt.u.pubkey.tag, &stream->cbinfo, &pkt);
+    CALLBACK(pkt.u.key.tag, &stream->cbinfo, &pkt);
     return true;
 }
 
@@ -1858,25 +1858,6 @@ parse_trust(pgp_region_t *region, pgp_stream_t *stream)
     return true;
 }
 
-/**
- * \ingroup Core_Create
- *
- * pgp_seckey_free() frees the memory associated with "key". Note that
- * the key itself is not freed.
- *
- * \param key
- */
-
-void
-pgp_seckey_free(pgp_seckey_t *key)
-{
-    if (!key) {
-        return;
-    }
-    forget_secret_key_fields(&key->pkt.material);
-    free_key_pkt(&key->pkt);
-}
-
 static int
 consume_packet(pgp_region_t *region, pgp_stream_t *stream, unsigned warn)
 {
@@ -1922,18 +1903,18 @@ parse_seckey(pgp_stream_t *stream)
         return false;
     }
 
-    if (stream_parse_key(&src, &pkt.u.seckey.pkt)) {
+    if (stream_parse_key(&src, &pkt.u.key)) {
         src_close(&src);
         return false;
     }
     src_close(&src);
 
-    bool cleartext = pkt.u.seckey.pkt.sec_protection.s2k.usage == PGP_S2KU_NONE;
-    if (cleartext && decrypt_secret_key(&pkt.u.seckey.pkt, NULL)) {
+    bool cleartext = pkt.u.key.sec_protection.s2k.usage == PGP_S2KU_NONE;
+    if (cleartext && decrypt_secret_key(&pkt.u.key, NULL)) {
         return false;
     }
 
-    CALLBACK(pkt.u.seckey.pkt.tag, &stream->cbinfo, &pkt);
+    CALLBACK(pkt.u.key.tag, &stream->cbinfo, &pkt);
     return true;
 }
 

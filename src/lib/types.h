@@ -223,10 +223,6 @@ typedef struct pgp_key_pkt_t {
 
 typedef struct pgp_key_t pgp_key_t;
 
-typedef struct pgp_seckey_t {
-    pgp_key_pkt_t pkt;
-} pgp_seckey_t;
-
 /** Struct to hold userid or userattr packet. We don't parse userattr now, just storing the
  *  binary blob as it is. It may be distinguished by tag field.
  */
@@ -528,7 +524,7 @@ typedef union {
     const char *            error;
     pgp_parser_errcode_t    errcode;
     pgp_ptag_t              ptag;
-    pgp_key_pkt_t           pubkey;
+    pgp_key_pkt_t           key;
     pgp_data_t              trust;
     uint8_t *               userid;
     pgp_data_t              userattr;
@@ -557,7 +553,6 @@ typedef union {
     pgp_data_t              ss_embedded_sig;
     pgp_data_t              ss_issuer_fpr;
     pgp_ss_revocation_t     ss_revocation;
-    pgp_seckey_t            seckey;
     uint8_t *               ss_signer;
     pgp_armor_header_t      armor_header;
     const char *            armor_trailer;
@@ -570,13 +565,6 @@ struct pgp_packet_t {
     uint8_t          critical; /* for sig subpackets */
     pgp_contents_t   u;        /* union for contents */
 };
-
-/** pgp_keydata_key_t
- */
-typedef union {
-    pgp_key_pkt_t pubkey;
-    pgp_seckey_t  seckey;
-} pgp_keydata_key_t;
 
 /* sigpacket_t */
 typedef struct sigpacket_t {

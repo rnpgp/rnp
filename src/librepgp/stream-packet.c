@@ -2140,11 +2140,16 @@ copy_key_pkt(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src)
 void
 free_key_pkt(pgp_key_pkt_t *key)
 {
+    if (!key) {
+        return;
+    }
     free(key->hashed_data);
     if (key->sec_data) {
         pgp_forget(key->sec_data, key->sec_len);
         free(key->sec_data);
-        pgp_forget(key, sizeof(*key));
+    }
+    if (key->material.secret) {
+        pgp_forget(&key->material, sizeof(key->material));
     }
     memset(key, 0, sizeof(*key));
 }

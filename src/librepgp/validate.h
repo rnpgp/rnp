@@ -75,7 +75,7 @@ typedef struct {
 typedef struct {
     pgp_key_pkt_t pubkey;
     pgp_key_pkt_t subkey;
-    pgp_seckey_t  seckey;
+    pgp_key_pkt_t seckey;
     bool          loaded_pubkey;
     enum { ATTRIBUTE = 1, ID } last_seen;
     uint8_t *              userid;

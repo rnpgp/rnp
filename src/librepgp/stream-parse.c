@@ -1292,7 +1292,7 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
 static bool
 encrypted_try_key(pgp_source_encrypted_param_t *param,
                   pgp_pk_sesskey_t *            sesskey,
-                  pgp_seckey_t *                seckey,
+                  pgp_key_pkt_t *               seckey,
                   rng_t *                       rng)
 {
     uint8_t             decbuf[PGP_MPINT_SIZE];
@@ -1303,7 +1303,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     pgp_symm_alg_t      salg;
     unsigned            checksum = 0;
     bool                res = false;
-    pgp_key_material_t *keymaterial = &seckey->pkt.material;
+    pgp_key_material_t *keymaterial = &seckey->material;
 
     /* Decrypting session key value */
     switch (sesskey->alg) {
@@ -1333,7 +1333,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     }
     case PGP_PKA_ECDH: {
-        if (pgp_fingerprint(&fingerprint, &seckey->pkt)) {
+        if (pgp_fingerprint(&fingerprint, seckey)) {
             RNP_LOG("ECDH fingerprint calculation failed");
             return false;
         }
@@ -1347,7 +1347,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     }
     default:
-        RNP_LOG("unsupported public key algorithm %d\n", seckey->pkt.alg);
+        RNP_LOG("unsupported public key algorithm %d\n", seckey->alg);
         return false;
     }
 
@@ -1877,7 +1877,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     pgp_source_encrypted_param_t *param;
     pgp_key_t *                   seckey = NULL;
     pgp_key_request_ctx_t         keyctx;
-    pgp_seckey_t *                decrypted_seckey = NULL;
+    pgp_key_pkt_t *               decrypted_seckey = NULL;
     char                          password[MAX_PASSWORD_LENGTH] = {0};
     int                           intres;
     bool                          have_key = false;
@@ -1940,7 +1940,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
                     continue;
                 }
             } else {
-                decrypted_seckey = &(seckey->key.seckey);
+                decrypted_seckey = &(seckey->pkt);
             }
 
             /* Try to initialize the decryption */
@@ -1953,7 +1953,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
 
             /* Destroy decrypted key */
             if (pgp_is_key_encrypted(seckey)) {
-                pgp_seckey_free(decrypted_seckey);
+                free_key_pkt(decrypted_seckey);
                 free(decrypted_seckey);
                 decrypted_seckey = NULL;
             }

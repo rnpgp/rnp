@@ -78,10 +78,10 @@ typedef struct format_info {
     size_t            iv_size;
 } format_info;
 
-static bool   g10_calculated_hash(const pgp_seckey_t *key,
+static bool   g10_calculated_hash(const pgp_key_pkt_t *key,
                                   const char *        protected_at,
                                   uint8_t *           checksum);
-pgp_seckey_t *g10_decrypt_seckey(const uint8_t *      data,
+pgp_key_pkt_t *g10_decrypt_seckey(const uint8_t *      data,
                                  size_t               data_len,
                                  const pgp_key_pkt_t *pubkey,
                                  const char *         password);
@@ -448,28 +448,26 @@ parse_pubkey(pgp_key_pkt_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 }
 
 static bool
-parse_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
+parse_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 {
-    pgp_key_pkt_t *pkt = &seckey->pkt;
-
     switch (alg) {
     case PGP_PKA_DSA:
-        if (!read_mpi(s_exp, "x", &pkt->material.dsa.x)) {
+        if (!read_mpi(s_exp, "x", &seckey->material.dsa.x)) {
             return false;
         }
         break;
 
     case PGP_PKA_RSA:
-        if (!read_mpi(s_exp, "d", &pkt->material.rsa.d) ||
-            !read_mpi(s_exp, "p", &pkt->material.rsa.p) ||
-            !read_mpi(s_exp, "q", &pkt->material.rsa.q) ||
-            !read_mpi(s_exp, "u", &pkt->material.rsa.u)) {
+        if (!read_mpi(s_exp, "d", &seckey->material.rsa.d) ||
+            !read_mpi(s_exp, "p", &seckey->material.rsa.p) ||
+            !read_mpi(s_exp, "q", &seckey->material.rsa.q) ||
+            !read_mpi(s_exp, "u", &seckey->material.rsa.u)) {
             return false;
         }
         break;
 
     case PGP_PKA_ELGAMAL:
-        if (!read_mpi(s_exp, "x", &pkt->material.eg.x)) {
+        if (!read_mpi(s_exp, "x", &seckey->material.eg.x)) {
             return false;
         }
         break;
@@ -479,14 +477,14 @@ parse_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         return false;
     }
 
-    pkt->material.secret = true;
+    seckey->material.secret = true;
     return true;
 }
 
 static bool
 decrypt_protected_section(const uint8_t *     encrypted_data,
                           size_t              encrypted_data_len,
-                          const pgp_seckey_t *seckey,
+                          const pgp_key_pkt_t *seckey,
                           const char *        password,
                           s_exp_t *           r_s_exp)
 {
@@ -501,7 +499,7 @@ decrypt_protected_section(const uint8_t *     encrypted_data,
     bool               ret = false;
 
     // sanity checks
-    const pgp_key_protection_t *prot = &seckey->pkt.sec_protection;
+    const pgp_key_protection_t *prot = &seckey->sec_protection;
     keysize = pgp_key_size(prot->symm_alg);
     if (!keysize) {
         RNP_LOG("parse_seckey: unknown symmetric algo");
@@ -587,7 +585,7 @@ done:
 }
 
 static bool
-parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *password)
+parse_protected_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, const char *password)
 {
     const format_info *format;
     bool               ret = false;
@@ -617,7 +615,7 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passwor
     }
 
     // fill in some fields based on the lookup above
-    pgp_key_protection_t *prot = &seckey->pkt.sec_protection;
+    pgp_key_protection_t *prot = &seckey->sec_protection;
     prot->symm_alg = format->cipher;
     prot->cipher_mode = format->cipher_mode;
     prot->s2k.hash_alg = format->hash_alg;
@@ -680,7 +678,7 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passwor
 
     // we're all done if no password was provided (decryption not requested)
     if (!password) {
-        seckey->pkt.material.secret = false;
+        seckey->material.secret = false;
         ret = true;
         goto done;
     }
@@ -708,7 +706,7 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passwor
                protected_at_s_exp->sub_elements[1].block.len);
     }
     // parse MPIs
-    if (!parse_seckey(seckey, &decrypted_s_exp.sub_elements[0].s_exp, seckey->pkt.alg)) {
+    if (!parse_seckey(seckey, &decrypted_s_exp.sub_elements[0].s_exp, seckey->alg)) {
         RNP_LOG("failed to parse seckey");
         goto done;
     }
@@ -757,7 +755,7 @@ parse_protected_seckey(pgp_seckey_t *seckey, s_exp_t *s_exp, const char *passwor
             goto done;
         }
     }
-    seckey->pkt.material.secret = true;
+    seckey->material.secret = true;
     ret = true;
 
 done:
@@ -767,7 +765,7 @@ done:
 
 static bool
 g10_parse_seckey(pgp_io_t *                io,
-                 pgp_seckey_t *            seckey,
+                 pgp_key_pkt_t *           seckey,
                  const uint8_t *           data,
                  size_t                    data_len,
                  const char *              password,
@@ -880,14 +878,14 @@ g10_parse_seckey(pgp_io_t *                io,
         goto done;
     }
 
-    if (!parse_pubkey(&seckey->pkt, algorithm_s_exp, alg)) {
+    if (!parse_pubkey(seckey, algorithm_s_exp, alg)) {
         RNP_LOG("failed to parse pubkey");
         goto done;
     }
 
     if (key_provider) {
         pgp_key_search_t search = {.type = PGP_KEY_SEARCH_GRIP};
-        if (!rnp_key_store_get_key_grip(&seckey->pkt.material, search.by.grip)) {
+        if (!rnp_key_store_get_key_grip(&seckey->material, search.by.grip)) {
             goto done;
         }
         pgp_key_t *pubkey = NULL;
@@ -898,7 +896,7 @@ g10_parse_seckey(pgp_io_t *                io,
             goto done;
         }
 
-        if (!copy_key_pkt(&seckey->pkt, pgp_get_key_pkt(pubkey))) {
+        if (!copy_key_pkt(seckey, pgp_get_key_pkt(pubkey))) {
             goto done;
         }
     }
@@ -908,9 +906,9 @@ g10_parse_seckey(pgp_io_t *                io,
             goto done;
         }
     } else {
-        seckey->pkt.sec_protection.s2k.usage = PGP_S2KU_NONE;
-        seckey->pkt.sec_protection.symm_alg = PGP_SA_PLAINTEXT;
-        seckey->pkt.sec_protection.s2k.hash_alg = PGP_HASH_UNKNOWN;
+        seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
+        seckey->sec_protection.symm_alg = PGP_SA_PLAINTEXT;
+        seckey->sec_protection.s2k.hash_alg = PGP_HASH_UNKNOWN;
         if (!parse_seckey(seckey, algorithm_s_exp, alg)) {
             RNP_LOG("failed to parse seckey");
             goto done;
@@ -920,7 +918,7 @@ g10_parse_seckey(pgp_io_t *                io,
     if (rnp_get_debug(__FILE__)) {
         uint8_t grip[PGP_FINGERPRINT_SIZE];
         char    grips[PGP_FINGERPRINT_HEX_SIZE];
-        if (rnp_key_store_get_key_grip(&seckey->pkt.material, grip)) {
+        if (rnp_key_store_get_key_grip(&seckey->material, grip)) {
             RNP_LOG("loaded G10 key with GRIP: %s\n",
                     rnp_strhexdump_upper(grips, grip, PGP_FINGERPRINT_SIZE, ""));
         }
@@ -930,18 +928,18 @@ g10_parse_seckey(pgp_io_t *                io,
 done:
     destroy_s_exp(&s_exp);
     if (!ret) {
-        pgp_seckey_free(seckey);
+        free_key_pkt(seckey);
     }
     return ret;
 }
 
-pgp_seckey_t *
+pgp_key_pkt_t *
 g10_decrypt_seckey(const uint8_t *      data,
                    size_t               data_len,
                    const pgp_key_pkt_t *pubkey,
                    const char *         password)
 {
-    pgp_seckey_t *seckey = NULL;
+    pgp_key_pkt_t *seckey = NULL;
     pgp_io_t      io = {.errs = stderr, .res = stdout, .outs = stdout};
     bool          ok = false;
 
@@ -953,7 +951,7 @@ g10_decrypt_seckey(const uint8_t *      data,
     if (!g10_parse_seckey(&io, seckey, data, data_len, password, NULL)) {
         goto done;
     }
-    if (pubkey && !copy_key_pkt(&seckey->pkt, pubkey)) {
+    if (pubkey && !copy_key_pkt(seckey, pubkey)) {
         goto done;
     }
     ok = true;
@@ -973,18 +971,17 @@ rnp_key_store_g10_from_mem(pgp_io_t *                io,
                            const pgp_key_provider_t *key_provider)
 {
     pgp_key_t key = {0};
+    pgp_key_pkt_t keypkt = {0};
     bool      ret = false;
-
-    pgp_keydata_key_t keydata = {{0}};
-    if (!g10_parse_seckey(
-          io, &keydata.seckey, memory->buf, memory->length, NULL, key_provider)) {
+    
+    if (!g10_parse_seckey(io, &keypkt, memory->buf, memory->length, NULL, key_provider)) {
         goto done;
     }
-    if (!pgp_key_from_keydata(&key, &keydata, PGP_PTAG_CT_SECRET_KEY)) {
+    if (!pgp_key_from_keypkt(&key, &keypkt, PGP_PTAG_CT_SECRET_KEY)) {
         goto done;
     }
     // this data belongs to the key now
-    keydata = (pgp_keydata_key_t){{0}};
+    keypkt = (pgp_key_pkt_t){0};
     EXPAND_ARRAY((&key), packet);
     if (!key.packets) {
         goto done;
@@ -1005,7 +1002,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *                io,
 
 done:
     if (!ret) {
-        pgp_seckey_free(&keydata.seckey);
+        free_key_pkt(&keypkt);
         pgp_key_free_data(&key);
     }
     return ret;
@@ -1106,12 +1103,11 @@ write_pubkey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
 }
 
 static bool
-write_seckey(s_exp_t *s_exp, const pgp_seckey_t *key)
+write_seckey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
 {
-    const pgp_key_material_t *kmaterial = &key->pkt.material;
-    switch (key->pkt.alg) {
+    switch (key->alg) {
     case PGP_PKA_DSA:
-        if (!write_mpi(s_exp, "x", &kmaterial->dsa.x)) {
+        if (!write_mpi(s_exp, "x", &key->material.dsa.x)) {
             return false;
         }
 
@@ -1120,22 +1116,22 @@ write_seckey(s_exp_t *s_exp, const pgp_seckey_t *key)
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA:
-        if (!write_mpi(s_exp, "d", &kmaterial->rsa.d) ||
-            !write_mpi(s_exp, "p", &kmaterial->rsa.p) ||
-            !write_mpi(s_exp, "q", &kmaterial->rsa.q) ||
-            !write_mpi(s_exp, "u", &kmaterial->rsa.u)) {
+        if (!write_mpi(s_exp, "d", &key->material.rsa.d) ||
+            !write_mpi(s_exp, "p", &key->material.rsa.p) ||
+            !write_mpi(s_exp, "q", &key->material.rsa.q) ||
+            !write_mpi(s_exp, "u", &key->material.rsa.u)) {
             return false;
         }
         break;
 
     case PGP_PKA_ELGAMAL:
-        if (!write_mpi(s_exp, "x", &kmaterial->eg.x)) {
+        if (!write_mpi(s_exp, "x", &key->material.eg.x)) {
             return false;
         }
         break;
 
     default:
-        fprintf(stderr, "Unsupported public key algorithm: %d\n", key->pkt.alg);
+        fprintf(stderr, "Unsupported public key algorithm: %d\n", key->alg);
         return NULL;
     }
 
@@ -1143,7 +1139,7 @@ write_seckey(s_exp_t *s_exp, const pgp_seckey_t *key)
 }
 
 static bool
-write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *password)
+write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *password)
 {
     bool                  ret = false;
     const format_info *   format;
@@ -1155,7 +1151,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_seckey_t *seckey, const char *passwor
     unsigned              keysize;
     uint8_t               checksum[G10_SHA1_HASH_SIZE];
     uint8_t               derived_key[PGP_MAX_KEY_SIZE];
-    pgp_key_protection_t *prot = &seckey->pkt.sec_protection;
+    pgp_key_protection_t *prot = &seckey->sec_protection;
 
     if (prot->s2k.specifier != PGP_S2KS_ITERATED_AND_SALTED) {
         return false;
@@ -1273,7 +1269,7 @@ done:
 }
 
 bool
-g10_write_seckey(pgp_output_t *output, pgp_seckey_t *seckey, const char *password)
+g10_write_seckey(pgp_output_t *output, pgp_key_pkt_t *seckey, const char *password)
 {
     s_exp_t      s_exp = {0};
     s_exp_t *    sub_s_exp = NULL;
@@ -1281,18 +1277,16 @@ g10_write_seckey(pgp_output_t *output, pgp_seckey_t *seckey, const char *passwor
     bool protected = true;
     bool ret = false;
 
-    switch (seckey->pkt.sec_protection.s2k.usage) {
+    switch (seckey->sec_protection.s2k.usage) {
     case PGP_S2KU_NONE:
-      protected
-        = false;
+        protected = false;
         break;
     case PGP_S2KU_ENCRYPTED_AND_HASHED:
-      protected
-        = true;
+        protected = true;
         // TODO: these are forced for now, until openpgp-native is implemented
-        seckey->pkt.sec_protection.symm_alg = PGP_SA_AES_128;
-        seckey->pkt.sec_protection.cipher_mode = PGP_CIPHER_MODE_CBC;
-        seckey->pkt.sec_protection.s2k.hash_alg = PGP_HASH_SHA1;
+        seckey->sec_protection.symm_alg = PGP_SA_AES_128;
+        seckey->sec_protection.cipher_mode = PGP_CIPHER_MODE_CBC;
+        seckey->sec_protection.s2k.hash_alg = PGP_HASH_SHA1;
         break;
     default:
         RNP_LOG("unsupported s2k usage");
@@ -1300,7 +1294,7 @@ g10_write_seckey(pgp_output_t *output, pgp_seckey_t *seckey, const char *passwor
     }
     if (!add_string_block_to_sexp(&s_exp,
                                   protected ? "protected-private-key" : "private-key") ||
-        !add_sub_sexp_to_sexp(&s_exp, &sub_s_exp) || !write_pubkey(sub_s_exp, &seckey->pkt)) {
+        !add_sub_sexp_to_sexp(&s_exp, &sub_s_exp) || !write_pubkey(sub_s_exp, seckey)) {
         goto done;
     }
     if (protected) {
@@ -1324,7 +1318,7 @@ done:
 }
 
 static bool
-g10_calculated_hash(const pgp_seckey_t *key, const char *protected_at, uint8_t *checksum)
+g10_calculated_hash(const pgp_key_pkt_t *key, const char *protected_at, uint8_t *checksum)
 {
     s_exp_t      s_exp = {0};
     s_exp_t *    sub_s_exp;
@@ -1343,7 +1337,7 @@ g10_calculated_hash(const pgp_seckey_t *key, const char *protected_at, uint8_t *
         goto error;
     }
 
-    if (!write_pubkey(&s_exp, &key->pkt)) {
+    if (!write_pubkey(&s_exp, key)) {
         RNP_LOG("failed to write pubkey");
         goto error;
     }
