@@ -523,14 +523,6 @@ typedef struct {
     unsigned       ivlen;
 } pgp_sk_sesskey_t;
 
-/** pgp_seckey_password_t */
-typedef struct {
-    const pgp_seckey_t *seckey;
-    char **             password; /* point somewhere that gets filled
-                                   * in to work around constness of
-                                   * content */
-} pgp_seckey_password_t;
-
 /** pgp_parser_union_content_t */
 typedef union {
     const char *            error;
@@ -570,7 +562,6 @@ typedef union {
     pgp_armor_header_t      armor_header;
     const char *            armor_trailer;
     pgp_dyn_body_t          unarmored_text;
-    pgp_seckey_password_t   skey_password;
 } pgp_contents_t;
 
 /** pgp_packet_t */

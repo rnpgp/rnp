@@ -252,10 +252,6 @@ typedef enum {
     PGP_PTAG_CT_ARMOR_TRAILER = 0x300 + 5,
     PGP_PTAG_CT_UNARMORED_TEXT = 0x300 + 9,
 
-    /* commands to the callback */
-    PGP_GET_PASSWORD = 0x400,
-    PGP_GET_SECKEY = 0x400 + 1,
-
     /* Errors */
     PGP_PARSER_ERROR = 0x500,      /* Internal Use: Parser Error */
     PGP_PARSER_ERRCODE = 0x500 + 1,/* Internal Use: Parser Error

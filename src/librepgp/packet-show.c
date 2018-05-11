@@ -130,8 +130,6 @@ static pgp_map_t packet_tag_map[] = {
   {PGP_PTAG_CT_ARMOR_HEADER, "CT: Armor Header"},
   {PGP_PTAG_CT_ARMOR_TRAILER, "CT: Armor Trailer"},
   {PGP_PTAG_CT_UNARMORED_TEXT, "CT: Unarmored Text"},
-  {PGP_GET_PASSWORD, "CMD: Get Secret Key Password"},
-  {PGP_GET_SECKEY, "CMD: Get Secret Key"},
   {PGP_PARSER_ERROR, "PGP_PARSER_ERROR"},
   {PGP_PARSER_ERRCODE, "PGP_PARSER_ERRCODE"},
 

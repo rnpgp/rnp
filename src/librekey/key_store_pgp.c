@@ -104,7 +104,6 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
     switch (pkt->tag) {
     case PGP_PARSER_DONE:
     case PGP_PARSER_PTAG:
-    case PGP_GET_PASSWORD:
         return PGP_RELEASE_MEMORY;
     case PGP_PARSER_ERROR:
         // these will be printed out later

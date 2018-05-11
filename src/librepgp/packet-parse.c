@@ -781,19 +781,6 @@ headers_free(pgp_headers_t *headers)
 }
 
 /**
-\ingroup Core_Create
-\brief Free allocated memory
-*/
-static void
-cmd_get_password_free(pgp_seckey_password_t *skp)
-{
-    if (skp->password && *skp->password) {
-        free(*skp->password);
-        *skp->password = NULL;
-    }
-}
-
-/**
  * \ingroup Core_Create
  * \brief Free the memory used when parsing a signature
  * \param sig
@@ -860,7 +847,6 @@ repgp_parser_content_free(pgp_packet_t *c)
     case PGP_PTAG_CT_UNARMORED_TEXT:
     case PGP_PTAG_CT_ARMOR_TRAILER:
     case PGP_PTAG_CT_SIGNATURE_HEADER:
-    case PGP_GET_SECKEY:
     case PGP_PARSER_DONE:
         break;
 
@@ -983,10 +969,6 @@ repgp_parser_content_free(pgp_packet_t *c)
     case PGP_PTAG_CT_SECRET_KEY:
     case PGP_PTAG_CT_SECRET_SUBKEY:
         pgp_seckey_free(&c->u.seckey);
-        break;
-
-    case PGP_GET_PASSWORD:
-        cmd_get_password_free(&c->u.skey_password);
         break;
 
     default:
