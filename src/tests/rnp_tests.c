@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2018 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -32,7 +32,6 @@
 #include "rnp_tests.h"
 #include "support.h"
 
-static const char *exe_path = NULL;
 static char        original_dir[PATH_MAX];
 
 /*
@@ -44,13 +43,7 @@ static char *
 get_data_dir(void)
 {
     char  data_dir[PATH_MAX];
-    char *exe_dir = directory_from_file_path(exe_path, original_dir);
-
-    if (!exe_dir) {
-        return NULL;
-    }
-    paths_concat(data_dir, sizeof(data_dir), exe_dir, "../data", NULL);
-    free(exe_dir);
+    paths_concat(data_dir, sizeof(data_dir), original_dir, "data", NULL);
     return realpath(data_dir, NULL);
 }
 
@@ -126,7 +119,6 @@ teardown_test(void **state)
 int
 main(int argc, char *argv[])
 {
-    exe_path = argv[0];
     assert_non_null(getcwd(original_dir, sizeof(original_dir)));
 
     /* We use LOGNAME in a few places within the tests
