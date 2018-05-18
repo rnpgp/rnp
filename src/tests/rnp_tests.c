@@ -79,7 +79,7 @@ teardown_test_group(void **state)
 
     *state = NULL;
     return 0;
-}
+} 
 
 static int
 setup_test(void **state)
