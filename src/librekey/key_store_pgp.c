@@ -377,9 +377,6 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             return PGP_FINISHED;
         }
         cb->key.format = GPG_KEY_STORE;
-        if (pgp_is_secret_key_tag(pkt->tag)) {
-            cb->key.is_protected = pgp_is_key_encrypted(&cb->key);
-        }
         // Set some default key flags which will be overridden by signature
         // subpackets for V4 keys.
         cb->key.key_flags = pgp_pk_alg_capabilities(pgp_get_key_pkt(&cb->key)->alg);

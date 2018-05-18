@@ -410,7 +410,7 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
         goto done;
     }
 
-    if (key->is_protected) {
+    if (pgp_key_is_protected(key)) {
         // ask the provider for a password
         if (!pgp_request_password(provider, ctx, password, sizeof(password))) {
             goto done;
@@ -835,7 +835,6 @@ pgp_key_protect(pgp_key_t *                  key,
         goto done;
     }
     key->format = format;
-    key->is_protected = true;
     ret = true;
 
 done:
@@ -855,7 +854,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
         goto done;
     }
     // already unprotected
-    if (!key->is_protected) {
+    if (!pgp_key_is_protected(key)) {
         ret = true;
         goto done;
     }
@@ -874,8 +873,12 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
           seckey, &key->packets[0], pgp_get_key_type(key), key->format, NULL)) {
         goto done;
     }
-    // TODO: should not we reload key from the rawpacket here?
-    key->is_protected = false;
+    if (decrypted_seckey) {
+        free_key_pkt(&key->pkt);
+        copy_key_pkt(&key->pkt, decrypted_seckey);
+        /* current logic is that unprotected key should be additionally unlocked */
+        forget_secret_key_fields(&key->pkt.material);
+    }
     ret = true;
 
 done:
@@ -891,7 +894,7 @@ pgp_key_is_protected(const pgp_key_t *key)
     if (!pgp_is_key_secret(key)) {
         RNP_LOG("Warning: this is not a secret key");
     }
-    return key->is_protected;
+    return key->pkt.sec_protection.s2k.usage != PGP_S2KU_NONE;
 }
 
 static bool

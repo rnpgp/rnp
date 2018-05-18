@@ -78,13 +78,13 @@ typedef struct format_info {
     size_t            iv_size;
 } format_info;
 
-static bool   g10_calculated_hash(const pgp_key_pkt_t *key,
-                                  const char *        protected_at,
-                                  uint8_t *           checksum);
+static bool    g10_calculated_hash(const pgp_key_pkt_t *key,
+                                   const char *         protected_at,
+                                   uint8_t *            checksum);
 pgp_key_pkt_t *g10_decrypt_seckey(const uint8_t *      data,
-                                 size_t               data_len,
-                                 const pgp_key_pkt_t *pubkey,
-                                 const char *         password);
+                                  size_t               data_len,
+                                  const pgp_key_pkt_t *pubkey,
+                                  const char *         password);
 
 static const format_info formats[] = {{PGP_SA_AES_128,
                                        PGP_CIPHER_MODE_CBC,
@@ -482,11 +482,11 @@ parse_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 }
 
 static bool
-decrypt_protected_section(const uint8_t *     encrypted_data,
-                          size_t              encrypted_data_len,
+decrypt_protected_section(const uint8_t *      encrypted_data,
+                          size_t               encrypted_data_len,
                           const pgp_key_pkt_t *seckey,
-                          const char *        password,
-                          s_exp_t *           r_s_exp)
+                          const char *         password,
+                          s_exp_t *            r_s_exp)
 {
     const format_info *info = NULL;
     unsigned           keysize = 0;
@@ -940,8 +940,8 @@ g10_decrypt_seckey(const uint8_t *      data,
                    const char *         password)
 {
     pgp_key_pkt_t *seckey = NULL;
-    pgp_io_t      io = {.errs = stderr, .res = stdout, .outs = stdout};
-    bool          ok = false;
+    pgp_io_t       io = {.errs = stderr, .res = stdout, .outs = stdout};
+    bool           ok = false;
 
     if (!password) {
         return NULL;
@@ -970,10 +970,10 @@ rnp_key_store_g10_from_mem(pgp_io_t *                io,
                            pgp_memory_t *            memory,
                            const pgp_key_provider_t *key_provider)
 {
-    pgp_key_t key = {0};
+    pgp_key_t     key = {0};
     pgp_key_pkt_t keypkt = {0};
-    bool      ret = false;
-    
+    bool          ret = false;
+
     if (!g10_parse_seckey(io, &keypkt, memory->buf, memory->length, NULL, key_provider)) {
         goto done;
     }
@@ -994,7 +994,6 @@ rnp_key_store_g10_from_mem(pgp_io_t *                io,
     memcpy(key.packets[0].raw, memory->buf, memory->length);
     key.packetc++;
     key.format = G10_KEY_STORE;
-    key.is_protected = pgp_is_key_encrypted(&key);
     if (!rnp_key_store_add_key(io, key_store, &key)) {
         goto done;
     }
@@ -1279,10 +1278,12 @@ g10_write_seckey(pgp_output_t *output, pgp_key_pkt_t *seckey, const char *passwo
 
     switch (seckey->sec_protection.s2k.usage) {
     case PGP_S2KU_NONE:
-        protected = false;
+      protected
+        = false;
         break;
     case PGP_S2KU_ENCRYPTED_AND_HASHED:
-        protected = true;
+      protected
+        = true;
         // TODO: these are forced for now, until openpgp-native is implemented
         seckey->sec_protection.symm_alg = PGP_SA_AES_128;
         seckey->sec_protection.cipher_mode = PGP_CIPHER_MODE_CBC;

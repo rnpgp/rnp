@@ -57,7 +57,7 @@ test_load_g10(void **state)
     key = rnp_key_store_get_key_by_id(&io, sec_store, keyid, NULL);
     assert_non_null(key);
     // check properties
-    assert_true(key->is_protected);
+    assert_true(pgp_key_is_protected(key));
 
     // find (sub)
     key = NULL;
@@ -65,7 +65,7 @@ test_load_g10(void **state)
     key = rnp_key_store_get_key_by_id(&io, sec_store, keyid, NULL);
     assert_non_null(key);
     // check properties
-    assert_true(key->is_protected);
+    assert_true(pgp_key_is_protected(key));
 
     // cleanup
     rnp_key_store_free(pub_store);
