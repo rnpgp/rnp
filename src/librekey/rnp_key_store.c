@@ -505,7 +505,7 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
     if (io && rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "rnp_key_store_add_key\n");
     }
-    assert(srckey->type && pgp_get_key_pkt(srckey)->version);
+    assert(pgp_get_key_type(srckey) && pgp_get_key_pkt(srckey)->version);
     added_key = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
     if (io && rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "rnp_key_store_add_key: keyc %lu\n", list_length(keyring->keys));

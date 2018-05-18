@@ -795,7 +795,8 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
                                   rnp->pubring,
                                   key,
                                   obj,
-                                  pgp_is_primary_key_tag(key->type) ? "pub" : "sub",
+                                  pgp_is_primary_key_tag(pgp_get_key_type(key)) ? "pub" :
+                                                                                  "sub",
                                   psigs);
                 json_object_array_add(id_array, obj);
             }

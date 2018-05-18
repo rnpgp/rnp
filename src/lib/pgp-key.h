@@ -70,7 +70,6 @@ struct pgp_key_t {
     DYNARRAY(pgp_revoke_t, revoke);    /* array of signature revocations */
     list               subkey_grips;   /* list of subkey grips (for primary keys) */
     uint8_t *          primary_grip;   /* grip of primary key (for subkeys) */
-    pgp_content_enum   type;           /* type of key */
     time_t             expiration;     /* key expiration time, if available */
     pgp_key_pkt_t      pkt;            /* pubkey/seckey data packet */
     uint8_t            key_flags;      /* key flags */
@@ -93,9 +92,7 @@ struct pgp_key_t *pgp_key_new(void);
  *  This sets up basic properties of the key like keyid/fpr/grip, type, etc.
  *  It does not set primary_grip or subkey_grips (the key store does this).
  */
-bool pgp_key_from_keypkt(pgp_key_t *            key,
-                         const pgp_key_pkt_t *    pkt,
-                         const pgp_content_enum tag);
+bool pgp_key_from_keypkt(pgp_key_t *key, const pgp_key_pkt_t *pkt, const pgp_content_enum tag);
 
 /** free the internal data of a key *and* the key structure itself
  *
@@ -119,6 +116,8 @@ const pgp_key_material_t *pgp_get_key_material(const pgp_key_t *key);
 
 pgp_pubkey_alg_t pgp_get_key_alg(const pgp_key_t *key);
 
+int pgp_get_key_type(const pgp_key_t *key);
+
 bool pgp_is_key_public(const pgp_key_t *);
 
 bool pgp_is_key_secret(const pgp_key_t *);
@@ -138,13 +137,13 @@ bool pgp_key_is_primary_key(const pgp_key_t *key);
 bool pgp_key_is_subkey(const pgp_key_t *key);
 
 pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const uint8_t *,
-                                     size_t,
-                                     const pgp_key_pkt_t *,
-                                     const char *);
+                                      size_t,
+                                      const pgp_key_pkt_t *,
+                                      const char *);
 
 pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t *,
-                                 const pgp_password_provider_t *,
-                                 const pgp_password_ctx_t *);
+                                  const pgp_password_provider_t *,
+                                  const pgp_password_ctx_t *);
 
 const unsigned char *pgp_get_key_id(const pgp_key_t *);
 
@@ -155,8 +154,6 @@ const unsigned char *pgp_get_userid(const pgp_key_t *, unsigned);
 unsigned char *pgp_add_userid(pgp_key_t *, const unsigned char *);
 
 struct pgp_rawpacket_t *pgp_add_rawpacket(pgp_key_t *, const pgp_rawpacket_t *);
-
-void pgp_key_init(pgp_key_t *, const pgp_content_enum);
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 
@@ -244,7 +241,7 @@ bool pgp_key_is_protected(const pgp_key_t *key);
  *  @return true if the userid was added, false otherwise
  */
 bool pgp_key_add_userid(pgp_key_t *            key,
-                        const pgp_key_pkt_t *   seckey,
+                        const pgp_key_pkt_t *  seckey,
                         pgp_hash_alg_t         hash_alg,
                         rnp_selfsig_cert_info *cert);
 

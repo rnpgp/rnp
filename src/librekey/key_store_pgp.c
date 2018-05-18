@@ -366,7 +366,7 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PTAG_CT_PUBLIC_KEY:
     case PGP_PTAG_CT_PUBLIC_SUBKEY:
         // finish up with previous key (if any)
-        if (cb->key.type) {
+        if (pgp_get_key_type(&cb->key)) {
             if (!finish_loading_key(cb, cbinfo)) {
                 return PGP_FINISHED;
             }
@@ -389,7 +389,7 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         break;
     case PGP_PARSER_DONE:
         // finish up with previous key (if any)
-        if (cb->key.type) {
+        if (pgp_get_key_type(&cb->key)) {
             if (!finish_loading_key(cb, cbinfo)) {
                 return PGP_FINISHED;
             }

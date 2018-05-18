@@ -132,9 +132,9 @@ pgp_key_from_keypkt(pgp_key_t *key, const pgp_key_pkt_t *pkt, const pgp_content_
         !rnp_key_store_get_key_grip(&pkt->material, key->grip)) {
         return false;
     }
-    key->type = tag;
     /* this is correct since changes ownership */
     key->pkt = *pkt;
+    key->pkt.tag = tag;
     return true;
 }
 
@@ -219,25 +219,31 @@ pgp_get_key_pkt(const pgp_key_t *key)
 const pgp_key_material_t *
 pgp_get_key_material(const pgp_key_t *key)
 {
-    return &pgp_get_key_pkt(key)->material;
+    return &key->pkt.material;
 }
 
 pgp_pubkey_alg_t
 pgp_get_key_alg(const pgp_key_t *key)
 {
-    return pgp_get_key_pkt(key)->alg;
+    return key->pkt.alg;
+}
+
+int
+pgp_get_key_type(const pgp_key_t *key)
+{
+    return key->pkt.tag;
 }
 
 bool
 pgp_is_key_public(const pgp_key_t *key)
 {
-    return pgp_is_public_key_tag(key->type);
+    return pgp_is_public_key_tag(key->pkt.tag);
 }
 
 bool
 pgp_is_key_secret(const pgp_key_t *key)
 {
-    return pgp_is_secret_key_tag(key->type);
+    return pgp_is_secret_key_tag(key->pkt.tag);
 }
 
 bool
@@ -308,7 +314,7 @@ pgp_is_primary_key_tag(pgp_content_enum tag)
 bool
 pgp_key_is_primary_key(const pgp_key_t *key)
 {
-    return pgp_is_primary_key_tag(key->type);
+    return pgp_is_primary_key_tag(key->pkt.tag);
 }
 
 bool
@@ -326,7 +332,7 @@ pgp_is_subkey_tag(pgp_content_enum tag)
 bool
 pgp_key_is_subkey(const pgp_key_t *key)
 {
-    return pgp_is_subkey_tag(key->type);
+    return pgp_is_subkey_tag(key->pkt.tag);
 }
 
 pgp_key_pkt_t *
@@ -335,7 +341,7 @@ pgp_decrypt_seckey_pgp(const uint8_t *      data,
                        const pgp_key_pkt_t *pubkey,
                        const char *         password)
 {
-    pgp_source_t  src = {0};
+    pgp_source_t   src = {0};
     pgp_key_pkt_t *res = NULL;
 
     res = calloc(1, sizeof(*res));
@@ -552,31 +558,6 @@ pgp_add_rawpacket(pgp_key_t *key, const pgp_rawpacket_t *packet)
     return copy_packet(subpktp, packet);
 }
 
-/**
-\ingroup Core_Keys
-\brief Initialise pgp_key_t
-\param key Key to initialise
-\param type PGP_PTAG_CT_PUBLIC_KEY or PGP_PTAG_CT_SECRET_KEY
-*/
-void
-pgp_key_init(pgp_key_t *key, const pgp_content_enum type)
-{
-    if (key->type != PGP_PTAG_CT_RESERVED) {
-        (void) fprintf(stderr, "pgp_key_init: wrong key type\n");
-    }
-    switch (type) {
-    case PGP_PTAG_CT_PUBLIC_KEY:
-    case PGP_PTAG_CT_PUBLIC_SUBKEY:
-    case PGP_PTAG_CT_SECRET_KEY:
-    case PGP_PTAG_CT_SECRET_SUBKEY:
-        break;
-    default:
-        RNP_LOG("invalid key type: %d", type);
-        break;
-    }
-    key->type = type;
-}
-
 char *
 pgp_export_key(rnp_t *rnp, const pgp_key_t *key)
 {
@@ -719,7 +700,7 @@ pgp_key_lock(pgp_key_t *key)
 }
 
 static bool
-write_key_to_rawpacket(pgp_key_pkt_t *     seckey,
+write_key_to_rawpacket(pgp_key_pkt_t *    seckey,
                        pgp_rawpacket_t *  packet,
                        pgp_content_enum   type,
                        key_store_format_t format,
@@ -805,7 +786,7 @@ pgp_key_protect(pgp_key_t *                  key,
                                                       .cipher_mode = DEFAULT_PGP_CIPHER_MODE,
                                                       .iterations = DEFAULT_S2K_ITERATIONS,
                                                       .hash_alg = DEFAULT_PGP_HASH_ALG};
-    pgp_key_pkt_t *              seckey = NULL;
+    pgp_key_pkt_t *             seckey = NULL;
 
     // sanity check
     if (!key || !decrypted_seckey || !new_password) {
@@ -850,7 +831,7 @@ pgp_key_protect(pgp_key_t *                  key,
 
     // write the protected key to packets[0]
     if (!write_key_to_rawpacket(
-          decrypted_seckey, &key->packets[0], key->type, format, new_password)) {
+          decrypted_seckey, &key->packets[0], pgp_get_key_type(key), format, new_password)) {
         goto done;
     }
     key->format = format;
@@ -864,7 +845,7 @@ done:
 bool
 pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provider)
 {
-    bool          ret = false;
+    bool           ret = false;
     pgp_key_pkt_t *seckey = NULL;
     pgp_key_pkt_t *decrypted_seckey = NULL;
 
@@ -889,7 +870,8 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
         seckey = decrypted_seckey;
     }
     seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
-    if (!write_key_to_rawpacket(seckey, &key->packets[0], key->type, key->format, NULL)) {
+    if (!write_key_to_rawpacket(
+          seckey, &key->packets[0], pgp_get_key_type(key), key->format, NULL)) {
         goto done;
     }
     // TODO: should not we reload key from the rawpacket here?
@@ -925,7 +907,7 @@ key_has_userid(const pgp_key_t *key, const uint8_t *userid)
 
 bool
 pgp_key_add_userid(pgp_key_t *            key,
-                   const pgp_key_pkt_t *   seckey,
+                   const pgp_key_pkt_t *  seckey,
                    pgp_hash_alg_t         hash_alg,
                    rnp_selfsig_cert_info *cert)
 {
