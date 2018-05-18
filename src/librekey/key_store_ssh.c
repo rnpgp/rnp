@@ -419,7 +419,7 @@ rnp_key_store_ssh_load_keys(rnp_t *rnp, rnp_key_store_t *pubring, rnp_key_store_
             return false;
         }
         (void) memcpy(pubkey, &key, sizeof(key));
-        pubkey->type = PGP_PTAG_CT_PUBLIC_KEY;
+        pubkey->pkt.tag = PGP_PTAG_CT_PUBLIC_KEY;
     }
     if (secring) {
         if (rnp_get_debug(__FILE__)) {
@@ -437,7 +437,7 @@ rnp_key_store_ssh_load_keys(rnp_t *rnp, rnp_key_store_t *pubring, rnp_key_store_
             return false;
         }
         (void) memcpy(seckey, &key, sizeof(key));
-        seckey->type = PGP_PTAG_CT_SECRET_KEY;
+        seckey->pkt.tag = PGP_PTAG_CT_SECRET_KEY;
     }
     return true;
 }
@@ -459,7 +459,7 @@ rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *
 
     if (ssh2pubkey(io, filename, &key)) {
         (void) fprintf(io->errs, "rnp_key_store_ssh_from_file: it's pubkeys '%s'\n", filename);
-        key.type = PGP_PTAG_CT_PUBLIC_KEY;
+        key.pkt.tag = PGP_PTAG_CT_PUBLIC_KEY;
         rnp_key_store_add_key(io, keyring, &key);
         return true;
     }
@@ -478,7 +478,7 @@ rnp_key_store_ssh_from_file(pgp_io_t *io, rnp_key_store_t *keyring, const char *
 
     if (ssh2seckey(io, filename, &key, &pubkey.pkt)) {
         (void) fprintf(io->errs, "rnp_key_store_ssh_from_file: it's seckey '%s'\n", filename);
-        key.type = PGP_PTAG_CT_SECRET_KEY;
+        key.pkt.tag = PGP_PTAG_CT_SECRET_KEY;
         rnp_key_store_add_key(io, keyring, &key);
         return true;
     }

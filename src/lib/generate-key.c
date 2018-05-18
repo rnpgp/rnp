@@ -72,7 +72,7 @@ load_generated_key(pgp_output_t **    output,
     list             key_ptrs = NULL; /* holds primary and pubkey, when used */
 
     // this should generally be zeroed
-    assert(dst->type == 0);
+    assert(pgp_get_key_type(dst) == 0);
     // if a primary is provided, make sure it's actually a primary key
     assert(!primary_key || pgp_key_is_primary_key(primary_key));
     // if a pubkey is provided, make sure it's actually a public key
@@ -352,7 +352,7 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
     if (!desc || !primary_pub || !primary_sec) {
         goto end;
     }
-    if (primary_sec->type || primary_pub->type) {
+    if (pgp_get_key_type(primary_sec) || pgp_get_key_type(primary_pub)) {
         RNP_LOG("invalid parameters (should be zeroed)");
         goto end;
     }
@@ -470,9 +470,9 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
                     const pgp_password_provider_t *password_provider,
                     key_store_format_t             secformat)
 {
-    bool                ok = false;
-    pgp_output_t *      output = NULL;
-    pgp_memory_t *      mem = NULL;
+    bool                 ok = false;
+    pgp_output_t *       output = NULL;
+    pgp_memory_t *       mem = NULL;
     const pgp_key_pkt_t *primary_seckey = NULL;
     pgp_key_pkt_t *      decrypted_primary_seckey = NULL;
     pgp_key_pkt_t        seckey = {0};
@@ -487,7 +487,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         RNP_LOG("invalid parameters");
         goto end;
     }
-    if (subkey_sec->type || subkey_pub->type) {
+    if (pgp_get_key_type(subkey_sec) || pgp_get_key_type(subkey_pub)) {
         RNP_LOG("invalid parameters (should be zeroed)");
         goto end;
     }

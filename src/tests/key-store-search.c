@@ -57,7 +57,7 @@ test_key_store_search(void **state)
         for (size_t n = 0; n < testdata[i].count; n++) {
             pgp_key_t key = {0};
 
-            key.type = PGP_PTAG_CT_PUBLIC_KEY;
+            key.pkt.tag = PGP_PTAG_CT_PUBLIC_KEY;
             key.pkt.version = 4;
 
             // set the keyid
