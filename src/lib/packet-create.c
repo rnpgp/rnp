@@ -85,6 +85,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "crypto/common.h"
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
+#include <librepgp/stream-sig.h>
 #include "signature.h"
 #include "packet-create.h"
 #include "memory.h"
@@ -361,10 +362,13 @@ pgp_write_selfsig_cert(pgp_output_t *               output,
                        const pgp_hash_alg_t         hash_alg,
                        const rnp_selfsig_cert_info *cert)
 {
-    pgp_create_sig_t *sig = NULL;
-    bool              ok = false;
-    uint8_t           keyid[PGP_KEY_ID_SIZE];
-    rng_t             rng = {0};
+    pgp_signature_t  sig = {0};
+    pgp_userid_pkt_t uid = {0};
+    pgp_hash_t       hash = {0};
+    pgp_dest_t       dst = {0};
+    bool             ok = false;
+    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    rng_t            rng = {0};
 
     if (!output || !seckey || !cert) {
         RNP_LOG("invalid parameters");
@@ -376,78 +380,90 @@ pgp_write_selfsig_cert(pgp_output_t *               output,
         return false;
     }
 
+    if (init_mem_dest(&dst, NULL, 0)) {
+        RNP_LOG("alloc failed");
+        goto end;
+    }
+
     if (pgp_keyid(keyid, sizeof(keyid), seckey)) {
         RNP_LOG("failed to calculate keyid");
         goto end;
     }
 
-    sig = pgp_create_sig_new();
-    if (!sig) {
-        RNP_LOG("create sig failed");
+    sig.version = PGP_V4;
+    sig.halg = pgp_hash_adjust_alg_to_key(hash_alg, seckey);
+    sig.palg = seckey->alg;
+    sig.type = PGP_CERT_POSITIVE;
+
+    if (!signature_set_creation(&sig, time(NULL))) {
+        RNP_LOG("failed to set creation time");
         goto end;
     }
-    if (!pgp_sig_start_key_sig(sig, seckey, cert->userid, PGP_CERT_POSITIVE, hash_alg)) {
-        RNP_LOG("failed to start key sig");
+    if (cert->key_expiration && !signature_set_key_expiration(&sig, cert->key_expiration)) {
+        RNP_LOG("failed to set key expiration time");
         goto end;
     }
-    if (!pgp_sig_add_time(sig, (int64_t) time(NULL), PGP_PTAG_SS_CREATION_TIME)) {
-        RNP_LOG("failed to add creation time");
+    if (cert->key_flags && !signature_set_key_flags(&sig, cert->key_flags)) {
+        RNP_LOG("failed to set key flags");
         goto end;
     }
-    if (cert->key_expiration &&
-        !pgp_sig_add_time(sig, cert->key_expiration, PGP_PTAG_SS_KEY_EXPIRY)) {
-        RNP_LOG("failed to add key expiration time");
+    if (cert->primary && !signature_set_primary_uid(&sig, true)) {
+        RNP_LOG("failed to set primary userid");
         goto end;
-    }
-    if (cert->key_flags && !pgp_sig_add_key_flags(sig, &cert->key_flags, 1)) {
-        RNP_LOG("failed to add key flags");
-        goto end;
-    }
-    if (cert->primary) {
-        pgp_sig_add_primary_userid(sig, 1);
     }
     const pgp_user_prefs_t *prefs = &cert->prefs;
     if (!DYNARRAY_IS_EMPTY(prefs, symm_alg) &&
-        !pgp_sig_add_pref_symm_algs(sig, prefs->symm_algs, prefs->symm_algc)) {
-        RNP_LOG("failed to add symm alg prefs");
+        !signature_set_preferred_symm_algs(&sig, prefs->symm_algs, prefs->symm_algc)) {
+        RNP_LOG("failed to set symm alg prefs");
         goto end;
     }
     if (!DYNARRAY_IS_EMPTY(prefs, hash_alg) &&
-        !pgp_sig_add_pref_hash_algs(sig, prefs->hash_algs, prefs->hash_algc)) {
-        RNP_LOG("failed to add hash alg prefs");
+        !signature_set_preferred_hash_algs(&sig, prefs->hash_algs, prefs->hash_algc)) {
+        RNP_LOG("failed to set hash alg prefs");
         goto end;
     }
     if (!DYNARRAY_IS_EMPTY(prefs, compress_alg) &&
-        !pgp_sig_add_pref_compress_algs(sig, prefs->compress_algs, prefs->compress_algc)) {
-        RNP_LOG("failed to add compress alg prefs");
+        !signature_set_preferred_z_algs(&sig, prefs->compress_algs, prefs->compress_algc)) {
+        RNP_LOG("failed to set compress alg prefs");
         goto end;
     }
     if (!DYNARRAY_IS_EMPTY(prefs, key_server_pref) &&
-        !pgp_sig_add_key_server_prefs(sig, prefs->key_server_prefs, prefs->key_server_prefc)) {
-        RNP_LOG("failed to add key server prefs");
+        !signature_set_key_server_prefs(&sig, prefs->key_server_prefs[0])) {
+        RNP_LOG("failed to set key server prefs");
         goto end;
     }
-    if (prefs->key_server && !pgp_sig_add_preferred_key_server(sig, prefs->key_server)) {
-        RNP_LOG("failed to add preferred key server");
+    if (prefs->key_server &&
+        !signature_set_preferred_key_server(&sig, (char *) prefs->key_server)) {
+        RNP_LOG("failed to set preferred key server");
         goto end;
     }
-    if (!pgp_sig_add_issuer_keyid(sig, keyid)) {
-        RNP_LOG("failed to add issuer key id");
-        goto end;
-    }
-    if (!pgp_sig_end_hashed_subpkts(sig)) {
-        RNP_LOG("failed to finalize hashed subpkts");
+    if (!signature_set_keyid(&sig, keyid)) {
+        RNP_LOG("failed to set issuer key id");
         goto end;
     }
 
-    if (!pgp_sig_write(&rng, output, sig, seckey)) {
+    /* we just set fields so no need to free later */
+    uid.tag = PGP_PTAG_CT_USER_ID;
+    uid.uid = (uint8_t *) cert->userid;
+    uid.uid_len = strlen((const char *) cert->userid);
+
+    if (!signature_fill_hashed_data(&sig) ||
+        !signature_hash_certification(&sig, seckey, &uid, &hash) ||
+        signature_calculate(&sig, &seckey->material, &hash, &rng)) {
+        RNP_LOG("failed to calculate signature");
+        goto end;
+    }
+
+    if (!stream_write_signature(&sig, &dst)) {
         RNP_LOG("failed to write signature");
         goto end;
     }
-    ok = true;
+
+    ok = pgp_write(output, mem_dest_get_memory(&dst), dst.writeb);
 end:
+    dst_close(&dst, true);
     rng_destroy(&rng);
-    pgp_create_sig_delete(sig);
+    free_signature(&sig);
     return ok;
 }
 
