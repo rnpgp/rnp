@@ -95,35 +95,35 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "writer.h"
 
 /**
- * \ingroup Core_Create
- * \param length
- * \param type
- * \param output
- * \return 1 if OK, otherwise 0
- */
-
-unsigned
-pgp_write_ss_header(pgp_output_t *output, unsigned length, pgp_content_enum type)
-{
-    // add 1 here since length includes the 1-octet subpacket type
-    return pgp_write_length(output, length + 1) &&
-           pgp_write_scalar(
-             output, (unsigned) (type - (unsigned) PGP_PTAG_SIG_SUBPKT_BASE), 1);
-}
-
-/**
  * \ingroup Core_WritePackets
  * \brief Writes a User Id packet
  * \param id
  * \param output
  * \return 1 if OK, otherwise 0
  */
-unsigned
+bool
 pgp_write_struct_userid(pgp_output_t *output, const uint8_t *id)
 {
-    return pgp_write_ptag(output, PGP_PTAG_CT_USER_ID) &&
-           pgp_write_length(output, (unsigned) strlen((const char *) id)) &&
-           pgp_write(output, id, (unsigned) strlen((const char *) id));
+    pgp_dest_t       dst;
+    pgp_userid_pkt_t uid;
+    bool             res = false;
+
+    if (init_mem_dest(&dst, NULL, 0)) {
+        return false;
+    }
+
+    uid.tag = PGP_PTAG_CT_USER_ID;
+    uid.uid = (uint8_t *) id;
+    uid.uid_len = strlen((const char *) id);
+
+    if (!stream_write_userid(&uid, &dst)) {
+        goto done;
+    }
+
+    res = pgp_write(output, mem_dest_get_memory(&dst), dst.writeb);
+done:
+    dst_close(&dst, true);
+    return res;
 }
 
 /**

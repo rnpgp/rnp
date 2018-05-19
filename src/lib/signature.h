@@ -64,11 +64,6 @@
 #include <rnp/rnp_types.h>
 #include "memory.h"
 
-typedef struct pgp_create_sig_t pgp_create_sig_t;
-
-pgp_create_sig_t *pgp_create_sig_new(void);
-void              pgp_create_sig_delete(pgp_create_sig_t *);
-
 bool pgp_check_useridcert_sig(rnp_ctx_t *,
                               const pgp_key_pkt_t *,
                               const uint8_t *,
@@ -92,37 +87,6 @@ bool pgp_check_direct_sig(rnp_ctx_t *,
                           const pgp_sig_t *,
                           const pgp_key_pkt_t *,
                           const uint8_t *);
-
-bool pgp_sig_start_key_sig(
-  pgp_create_sig_t *, const pgp_key_pkt_t *, const uint8_t *, pgp_sig_type_t, pgp_hash_alg_t);
-bool pgp_sig_start_subkey_sig(pgp_create_sig_t *,
-                              const pgp_key_pkt_t *,
-                              const pgp_key_pkt_t *,
-                              pgp_sig_type_t,
-                              pgp_hash_alg_t);
-
-pgp_hash_t *pgp_sig_get_hash(pgp_create_sig_t *);
-unsigned    pgp_sig_end_hashed_subpkts(pgp_create_sig_t *);
-bool        pgp_sig_write(rng_t *, pgp_output_t *, pgp_create_sig_t *, const pgp_key_pkt_t *);
-unsigned    pgp_sig_add_time(pgp_create_sig_t *, int64_t, pgp_content_enum);
-unsigned    pgp_sig_add_issuer_keyid(pgp_create_sig_t *, const uint8_t *);
-void        pgp_sig_add_primary_userid(pgp_create_sig_t *, unsigned);
-unsigned    pgp_sig_add_key_flags(pgp_create_sig_t *sig,
-                                  const uint8_t *   key_flags,
-                                  size_t            octet_count);
-unsigned    pgp_sig_add_pref_symm_algs(pgp_create_sig_t *sig,
-                                       const uint8_t *   algs,
-                                       size_t            octet_count);
-unsigned    pgp_sig_add_pref_hash_algs(pgp_create_sig_t *sig,
-                                       const uint8_t *   algs,
-                                       size_t            octet_count);
-unsigned    pgp_sig_add_pref_compress_algs(pgp_create_sig_t *sig,
-                                           const uint8_t *   algs,
-                                           size_t            octet_count);
-unsigned    pgp_sig_add_key_server_prefs(pgp_create_sig_t *sig,
-                                         const uint8_t *   flags,
-                                         size_t            octet_count);
-unsigned    pgp_sig_add_preferred_key_server(pgp_create_sig_t *sig, const uint8_t *uri);
 
 /* Standard Interface */
 
