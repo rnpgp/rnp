@@ -118,6 +118,61 @@ uint32_t signature_get_expiration(pgp_signature_t *sig);
 bool signature_set_expiration(pgp_signature_t *sig, uint32_t etime);
 
 /**
+ * @brief Get the key expiration time
+ * @param sig populated or loaded signature
+ * @return expiration time in seconds since the creation time. 0 if key never expires.
+ */
+uint32_t signature_get_key_expiration(pgp_signature_t *sig);
+
+/**
+ * @brief Set the key expiration time
+ * @param sig signature being populated
+ * @param etime expiration time
+ * @return true on success or false otherwise
+ */
+bool signature_set_key_expiration(pgp_signature_t *sig, uint32_t etime);
+
+/**
+ * @brief Get the key flags
+ * @param sig populated or loaded signature
+ * @return byte of key flags. If there is no corresponding subpackets then 0 is returned.
+ */
+uint8_t signature_get_key_flags(pgp_signature_t *sig);
+
+/**
+ * @brief Set the key flags
+ * @param sig signature being populated
+ * @param flags byte of key flags
+ * @return true on success or false otherwise
+ */
+bool signature_set_key_flags(pgp_signature_t *sig, uint8_t flags);
+
+/**
+ * @brief Get the primary user id flag
+ * @param sig populated or loaded signature
+ * @return true if user id is marked as primary or false otherwise
+ */
+bool signature_get_primary_uid(pgp_signature_t *sig);
+
+/**
+ * @brief Set the primary user id flag
+ * @param sig signature being populated
+ * @param primary true if user id should be marked as primary
+ * @return true on success or false otherwise
+ */
+bool signature_set_primary_uid(pgp_signature_t *sig, bool primary);
+
+bool signature_set_preferred_symm_algs(pgp_signature_t *sig, uint8_t algs[], size_t len);
+
+bool signature_set_preferred_hash_algs(pgp_signature_t *sig, uint8_t algs[], size_t len);
+
+bool signature_set_preferred_z_algs(pgp_signature_t *sig, uint8_t algs[], size_t len);
+
+bool signature_set_key_server_prefs(pgp_signature_t *sig, uint8_t prefs);
+
+bool signature_set_preferred_key_server(pgp_signature_t *sig, const char *uri);
+
+/**
  * @brief Fill signature's hashed data. This includes all the fields from signature which are
  *        hashed after the previous document or key fields.
  * @param sig Signature being populated
@@ -133,19 +188,21 @@ bool signature_fill_hashed_data(pgp_signature_t *sig);
  */
 bool signature_hash_key(const pgp_key_pkt_t *key, pgp_hash_t *hash);
 
-bool signature_hash_userid(pgp_userid_pkt_t *uid, pgp_hash_t *hash, pgp_version_t sigver);
+bool signature_hash_userid(const pgp_userid_pkt_t *uid,
+                           pgp_hash_t *            hash,
+                           pgp_version_t           sigver);
 
 bool signature_hash_signature(pgp_signature_t *sig, pgp_hash_t *hash);
 
-bool signature_hash_certification(pgp_signature_t * sig,
-                                  pgp_key_pkt_t *   key,
-                                  pgp_userid_pkt_t *userid,
-                                  pgp_hash_t *      hash);
+bool signature_hash_certification(const pgp_signature_t * sig,
+                                  const pgp_key_pkt_t *   key,
+                                  const pgp_userid_pkt_t *userid,
+                                  pgp_hash_t *            hash);
 
-bool signature_hash_binding(pgp_signature_t *sig,
-                            pgp_key_pkt_t *  key,
-                            pgp_key_pkt_t *  subkey,
-                            pgp_hash_t *     hash);
+bool signature_hash_binding(const pgp_signature_t *sig,
+                            const pgp_key_pkt_t *  key,
+                            const pgp_key_pkt_t *  subkey,
+                            pgp_hash_t *           hash);
 
 /**
  * @brief Add signature fields to the hash context and finish it.

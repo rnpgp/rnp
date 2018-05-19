@@ -262,8 +262,7 @@ signature_get_expiration(pgp_signature_t *sig)
 {
     pgp_sig_subpkt_t *subpkt;
 
-    if (sig && (sig->version > PGP_V3) &&
-        (subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_EXPIRATION_TIME))) {
+    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_EXPIRATION_TIME))) {
         return subpkt->fields.expiry;
     }
 
@@ -288,6 +287,168 @@ signature_set_expiration(pgp_signature_t *sig, uint32_t etime)
     subpkt->hashed = 1;
     STORE32BE(subpkt->data, etime);
     subpkt->fields.expiry = etime;
+    return true;
+}
+
+uint32_t
+signature_get_key_expiration(pgp_signature_t *sig)
+{
+    pgp_sig_subpkt_t *subpkt;
+
+    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_KEY_EXPIRY))) {
+        return subpkt->fields.expiry;
+    }
+
+    return 0;
+}
+
+bool
+signature_set_key_expiration(pgp_signature_t *sig, uint32_t etime)
+{
+    pgp_sig_subpkt_t *subpkt;
+
+    subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_KEY_EXPIRY, 4, true);
+    if (!subpkt) {
+        return false;
+    }
+
+    subpkt->parsed = 1;
+    subpkt->hashed = 1;
+    STORE32BE(subpkt->data, etime);
+    subpkt->fields.expiry = etime;
+    return true;
+}
+
+uint8_t
+signature_get_key_flags(pgp_signature_t *sig)
+{
+    pgp_sig_subpkt_t *subpkt;
+
+    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_KEY_FLAGS))) {
+        return subpkt->fields.key_flags;
+    }
+
+    return 0;
+}
+
+bool
+signature_set_key_flags(pgp_signature_t *sig, uint8_t flags)
+{
+    pgp_sig_subpkt_t *subpkt;
+
+    subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_KEY_FLAGS, 1, true);
+    if (!subpkt) {
+        return false;
+    }
+
+    subpkt->parsed = 1;
+    subpkt->hashed = 1;
+    subpkt->data[0] = flags;
+    subpkt->fields.key_flags = flags;
+    return true;
+}
+
+bool
+signature_get_primary_uid(pgp_signature_t *sig)
+{
+    pgp_sig_subpkt_t *subpkt;
+
+    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_PRIMARY_USER_ID))) {
+        return subpkt->fields.primary_uid;
+    }
+
+    return false;
+}
+
+bool
+signature_set_primary_uid(pgp_signature_t *sig, bool primary)
+{
+    pgp_sig_subpkt_t *subpkt;
+
+    subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_PRIMARY_USER_ID, 1, true);
+    if (!subpkt) {
+        return false;
+    }
+
+    subpkt->parsed = 1;
+    subpkt->hashed = 1;
+    subpkt->data[0] = primary;
+    subpkt->fields.primary_uid = primary;
+    return true;
+}
+
+static bool
+signature_set_preferred_algs(pgp_signature_t *        sig,
+                             uint8_t                  algs[],
+                             size_t                   len,
+                             pgp_sig_subpacket_type_t type)
+{
+    pgp_sig_subpkt_t *subpkt;
+
+    subpkt = signature_add_subpkt(sig, type, len, true);
+    if (!subpkt) {
+        return false;
+    }
+
+    subpkt->parsed = 1;
+    subpkt->hashed = 1;
+    memcpy(subpkt->data, algs, len);
+    subpkt->fields.preferred.arr = subpkt->data;
+    subpkt->fields.preferred.len = len;
+    return true;
+}
+
+bool
+signature_set_preferred_symm_algs(pgp_signature_t *sig, uint8_t algs[], size_t len)
+{
+    return signature_set_preferred_algs(sig, algs, len, PGP_SIG_SUBPKT_PREFERRED_SKA);
+}
+
+bool
+signature_set_preferred_hash_algs(pgp_signature_t *sig, uint8_t algs[], size_t len)
+{
+    return signature_set_preferred_algs(sig, algs, len, PGP_SIG_SUBPKT_PREFERRED_HASH);
+}
+
+bool
+signature_set_preferred_z_algs(pgp_signature_t *sig, uint8_t algs[], size_t len)
+{
+    return signature_set_preferred_algs(sig, algs, len, PGP_SIG_SUBPKT_PREF_COMPRESS);
+}
+
+bool
+signature_set_key_server_prefs(pgp_signature_t *sig, uint8_t prefs)
+{
+    pgp_sig_subpkt_t *subpkt;
+
+    subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_KEYSERV_PREFS, 1, true);
+    if (!subpkt) {
+        return false;
+    }
+
+    subpkt->parsed = 1;
+    subpkt->hashed = 1;
+    subpkt->data[0] = prefs;
+    subpkt->fields.ks_prefs.no_modify = prefs & 0x80;
+    return true;
+}
+
+bool
+signature_set_preferred_key_server(pgp_signature_t *sig, const char *uri)
+{
+    pgp_sig_subpkt_t *subpkt;
+    size_t            len = strlen(uri);
+
+    subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_PREF_KEYSERV, len, true);
+    if (!subpkt) {
+        return false;
+    }
+
+    subpkt->parsed = 1;
+    subpkt->hashed = 1;
+    memcpy(subpkt->data, uri, len);
+    subpkt->fields.preferred_ks.uri = (char *) subpkt->data;
+    subpkt->fields.preferred_ks.len = len;
     return true;
 }
 
@@ -360,7 +521,7 @@ signature_hash_key(const pgp_key_pkt_t *key, pgp_hash_t *hash)
 }
 
 bool
-signature_hash_userid(pgp_userid_pkt_t *uid, pgp_hash_t *hash, pgp_version_t sigver)
+signature_hash_userid(const pgp_userid_pkt_t *uid, pgp_hash_t *hash, pgp_version_t sigver)
 {
     uint8_t hdr[5] = {0};
 
@@ -410,20 +571,20 @@ signature_hash_signature(pgp_signature_t *sig, pgp_hash_t *hash)
 }
 
 bool
-signature_hash_certification(pgp_signature_t * sig,
-                             pgp_key_pkt_t *   key,
-                             pgp_userid_pkt_t *userid,
-                             pgp_hash_t *      hash)
+signature_hash_certification(const pgp_signature_t * sig,
+                             const pgp_key_pkt_t *   key,
+                             const pgp_userid_pkt_t *userid,
+                             pgp_hash_t *            hash)
 {
     return pgp_hash_create(hash, sig->halg) && signature_hash_key(key, hash) &&
            signature_hash_userid(userid, hash, sig->version);
 }
 
 bool
-signature_hash_binding(pgp_signature_t *sig,
-                       pgp_key_pkt_t *  key,
-                       pgp_key_pkt_t *  subkey,
-                       pgp_hash_t *     hash)
+signature_hash_binding(const pgp_signature_t *sig,
+                       const pgp_key_pkt_t *  key,
+                       const pgp_key_pkt_t *  subkey,
+                       pgp_hash_t *           hash)
 {
     return pgp_hash_create(hash, sig->halg) && signature_hash_key(key, hash) &&
            signature_hash_key(subkey, hash);
