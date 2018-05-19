@@ -469,17 +469,19 @@ end:
 
 bool
 pgp_write_selfsig_binding(pgp_output_t *                  output,
-                          const pgp_key_pkt_t *           primary_sec,
+                          const pgp_key_pkt_t *           key,
                           const pgp_hash_alg_t            hash_alg,
                           const pgp_key_pkt_t *           subkey,
                           const rnp_selfsig_binding_info *binding)
 {
-    pgp_create_sig_t *sig = NULL;
-    bool              ok = false;
-    uint8_t           keyid[PGP_KEY_ID_SIZE];
-    rng_t             rng = {0};
+    pgp_signature_t sig = {0};
+    pgp_hash_t      hash = {0};
+    pgp_dest_t      dst = {0};
+    bool            ok = false;
+    uint8_t         keyid[PGP_KEY_ID_SIZE];
+    rng_t           rng = {0};
 
-    if (!output || !primary_sec || !subkey || !binding) {
+    if (!output || !key || !subkey || !binding) {
         RNP_LOG("invalid parameters");
         goto end;
     }
@@ -489,49 +491,55 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
         return false;
     }
 
-    if (pgp_keyid(keyid, sizeof(keyid), primary_sec)) {
+    if (init_mem_dest(&dst, NULL, 0)) {
+        RNP_LOG("alloc failed");
+        goto end;
+    }
+
+    if (pgp_keyid(keyid, sizeof(keyid), key)) {
         RNP_LOG("failed to calculate keyid");
         goto end;
     }
 
-    sig = pgp_create_sig_new();
-    if (!sig) {
-        RNP_LOG("create sig failed");
-        goto end;
-    }
-    if (!pgp_sig_start_subkey_sig(sig, primary_sec, subkey, PGP_SIG_SUBKEY, hash_alg)) {
-        RNP_LOG("failed to start subkey sig");
-        goto end;
-    }
-    if (!pgp_sig_add_time(sig, (int64_t) time(NULL), PGP_PTAG_SS_CREATION_TIME)) {
-        RNP_LOG("failed to add creation time");
+    sig.version = PGP_V4;
+    sig.halg = pgp_hash_adjust_alg_to_key(hash_alg, key);
+    sig.palg = key->alg;
+    sig.type = PGP_SIG_SUBKEY;
+
+    if (!signature_set_creation(&sig, time(NULL))) {
+        RNP_LOG("failed to set creation time");
         goto end;
     }
     if (binding->key_expiration &&
-        !pgp_sig_add_time(sig, binding->key_expiration, PGP_PTAG_SS_KEY_EXPIRY)) {
-        RNP_LOG("failed to add key expiration time");
+        !signature_set_key_expiration(&sig, binding->key_expiration)) {
+        RNP_LOG("failed to set key expiration time");
         goto end;
     }
-    if (binding->key_flags && !pgp_sig_add_key_flags(sig, &binding->key_flags, 1)) {
-        RNP_LOG("failed to add key flags");
+    if (binding->key_flags && !signature_set_key_flags(&sig, binding->key_flags)) {
+        RNP_LOG("failed to set key flags");
         goto end;
     }
-    if (!pgp_sig_add_issuer_keyid(sig, keyid)) {
-        RNP_LOG("failed to add issuer key id");
-        goto end;
-    }
-    if (!pgp_sig_end_hashed_subpkts(sig)) {
-        RNP_LOG("failed to finalize hashed subpkts");
+    if (!signature_set_keyid(&sig, keyid)) {
+        RNP_LOG("failed to set issuer key id");
         goto end;
     }
 
-    if (!pgp_sig_write(&rng, output, sig, primary_sec)) {
+    if (!signature_fill_hashed_data(&sig) ||
+        !signature_hash_binding(&sig, key, subkey, &hash) ||
+        signature_calculate(&sig, &key->material, &hash, &rng)) {
+        RNP_LOG("failed to calculate signature");
+        goto end;
+    }
+
+    if (!stream_write_signature(&sig, &dst)) {
         RNP_LOG("failed to write signature");
         goto end;
     }
-    ok = true;
+
+    ok = pgp_write(output, mem_dest_get_memory(&dst), dst.writeb);
 end:
+    dst_close(&dst, true);
     rng_destroy(&rng);
-    pgp_create_sig_delete(sig);
+    free_signature(&sig);
     return ok;
 }
