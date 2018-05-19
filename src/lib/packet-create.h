@@ -66,9 +66,7 @@
 pgp_output_t *pgp_output_new(void);
 void          pgp_output_delete(pgp_output_t *);
 
-unsigned pgp_write_struct_userid(pgp_output_t *, const uint8_t *);
-unsigned pgp_write_ss_header(pgp_output_t *, unsigned, pgp_content_enum);
-
+bool     pgp_write_struct_userid(pgp_output_t *, const uint8_t *);
 bool     pgp_write_struct_pubkey(pgp_output_t *, pgp_content_enum, pgp_key_pkt_t *);
 bool     pgp_write_struct_seckey(pgp_output_t *output,
                                  pgp_content_enum,
