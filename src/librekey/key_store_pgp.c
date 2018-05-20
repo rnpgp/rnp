@@ -383,9 +383,6 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         // subpackets for V4 keys.
         cb->key.key_flags = pgp_pk_alg_capabilities(pgp_get_key_pkt(&cb->key)->alg);
         return PGP_KEEP_MEMORY;
-    case PGP_PTAG_CT_ARMOR_HEADER:
-    case PGP_PTAG_CT_ARMOR_TRAILER:
-        break;
     case PGP_PARSER_DONE:
         // finish up with previous key (if any)
         if (pgp_get_key_type(&cb->key)) {

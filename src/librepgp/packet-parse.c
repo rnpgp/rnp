@@ -764,23 +764,6 @@ pgp_rawpacket_free(pgp_rawpacket_t *packet)
 }
 
 /**
-\ingroup Core_Create
-\brief Free allocated memory
-*/
-static void
-headers_free(pgp_headers_t *headers)
-{
-    unsigned n;
-
-    for (n = 0; n < headers->headerc; ++n) {
-        free(headers->headers[n].key);
-        free(headers->headers[n].value);
-    }
-    free(headers->headers);
-    headers->headers = NULL;
-}
-
-/**
  * \ingroup Core_Create
  * \brief Free the memory used when parsing a signature
  * \param sig
@@ -844,14 +827,8 @@ repgp_parser_content_free(pgp_packet_t *c)
     case PGP_PTAG_SS_PRIMARY_USER_ID:
     case PGP_PTAG_SS_REVOCABLE:
     case PGP_PTAG_SS_REVOCATION_KEY:
-    case PGP_PTAG_CT_UNARMORED_TEXT:
-    case PGP_PTAG_CT_ARMOR_TRAILER:
     case PGP_PTAG_CT_SIGNATURE_HEADER:
     case PGP_PARSER_DONE:
-        break;
-
-    case PGP_PTAG_CT_ARMOR_HEADER:
-        headers_free(&c->u.armor_header.headers);
         break;
 
     case PGP_PTAG_CT_TRUST:

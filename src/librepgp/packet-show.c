@@ -127,9 +127,6 @@ static pgp_map_t packet_tag_map[] = {
 
   {PGP_PTAG_CT_SIGNATURE_HEADER, "CT: Signature Header"},
   {PGP_PTAG_CT_SIGNATURE_FOOTER, "CT: Signature Footer"},
-  {PGP_PTAG_CT_ARMOR_HEADER, "CT: Armor Header"},
-  {PGP_PTAG_CT_ARMOR_TRAILER, "CT: Armor Trailer"},
-  {PGP_PTAG_CT_UNARMORED_TEXT, "CT: Unarmored Text"},
   {PGP_PARSER_ERROR, "PGP_PARSER_ERROR"},
   {PGP_PARSER_ERRCODE, "PGP_PARSER_ERRCODE"},
 
@@ -240,7 +237,8 @@ static pgp_map_t compression_alg_map[] = {
 };
 
 static pgp_bit_map_t ss_notation_map_byte0[] = {
-  {0x80, "Human-readable"}, {0x00, NULL},
+  {0x80, "Human-readable"},
+  {0x00, NULL},
 };
 
 static pgp_bit_map_t *ss_notation_map[] = {
@@ -248,7 +246,8 @@ static pgp_bit_map_t *ss_notation_map[] = {
 };
 
 static pgp_bit_map_t ss_feature_map_byte0[] = {
-  {0x01, "Modification Detection"}, {0x00, NULL},
+  {0x01, "Modification Detection"},
+  {0x00, NULL},
 };
 
 static pgp_bit_map_t *ss_feature_map[] = {
