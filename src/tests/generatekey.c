@@ -912,25 +912,25 @@ test_generated_key_sigs(void **state)
         result = calloc(1, sizeof(*result));
         assert_non_null(result);
         result->rnp_ctx = &rnp_ctx;
-        assert_true(pgp_validate_key_sigs(result, primary_pub, pubring, NULL));
+        assert_true(pgp_validate_key_sigs(result, primary_pub, pubring));
         pgp_validate_result_free(result);
         // primary_sec + pubring
         result = calloc(1, sizeof(*result));
         assert_non_null(result);
         result->rnp_ctx = &rnp_ctx;
-        assert_true(pgp_validate_key_sigs(result, primary_sec, pubring, NULL));
+        assert_true(pgp_validate_key_sigs(result, primary_sec, pubring));
         pgp_validate_result_free(result);
         // primary_pub + secring
         result = calloc(1, sizeof(*result));
         assert_non_null(result);
         result->rnp_ctx = &rnp_ctx;
-        assert_true(pgp_validate_key_sigs(result, primary_pub, secring, NULL));
+        assert_true(pgp_validate_key_sigs(result, primary_pub, secring));
         pgp_validate_result_free(result);
         // primary_sec + secring
         result = calloc(1, sizeof(*result));
         assert_non_null(result);
         result->rnp_ctx = &rnp_ctx;
-        assert_true(pgp_validate_key_sigs(result, primary_sec, secring, NULL));
+        assert_true(pgp_validate_key_sigs(result, primary_sec, secring));
         pgp_validate_result_free(result);
 
         // do at least one modification test for pgp_validate_key_sigs too
@@ -941,7 +941,7 @@ test_generated_key_sigs(void **state)
         result = calloc(1, sizeof(*result));
         assert_non_null(result);
         result->rnp_ctx = &rnp_ctx;
-        assert_false(pgp_validate_key_sigs(result, primary_pub, pubring, NULL));
+        assert_false(pgp_validate_key_sigs(result, primary_pub, pubring));
         pgp_validate_result_free(result);
         // restore the original data
         primary_pub->packets[2].raw[primary_pub->subsigs[0].sig.v4_hashstart +
@@ -1037,7 +1037,7 @@ test_generated_key_sigs(void **state)
         pgp_validation_t *vres = calloc(1, sizeof(*vres));
         assert_non_null(vres);
         vres->rnp_ctx = &rnp_ctx;
-        assert_true(pgp_validate_key_sigs(vres, &fake, pubring, NULL));
+        assert_true(pgp_validate_key_sigs(vres, &fake, pubring));
         pgp_validate_result_free(vres);
         FREE_ARRAY(pfake, packet);
     }

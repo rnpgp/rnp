@@ -84,7 +84,6 @@ typedef struct {
     const rnp_key_store_t *keyring;
     validate_reader_t *    reader;
     pgp_validation_t *     result;
-    pgp_cb_ret_t (*getpassword)(const pgp_packet_t *, pgp_cbdata_t *);
 } validate_key_cb_t;
 
 void pgp_validate_result_free(pgp_validation_t *);
@@ -99,15 +98,13 @@ pgp_cb_ret_t pgp_validate_key_cb(const pgp_packet_t *, pgp_cbdata_t *);
  * \param result Where to put the result
  * \param key Key to validate
  * \param keyring Keyring to use for validation
- * \param cb_get_password Callback to use to get password
  * \return 1 if all signatures OK; else 0
  * \note It is the caller's responsiblity to free result after use.
  * \sa pgp_validate_result_free()
  */
 bool pgp_validate_key_sigs(pgp_validation_t *     result,
                            const pgp_key_t *      key,
-                           const rnp_key_store_t *keyring,
-                           pgp_cb_ret_t cb_get_password(const pgp_packet_t *, pgp_cbdata_t *));
+                           const rnp_key_store_t *keyring);
 
 /**
  * \ingroup HighLevel_Verify

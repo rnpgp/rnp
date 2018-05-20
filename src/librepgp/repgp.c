@@ -326,10 +326,7 @@ repgp_validate_pubkeys_signatures(void *ctx)
     bool                   ret = true;
     result.rnp_ctx = rctx;
     for (list_item *key = list_front(ring->keys); key; key = list_next(key)) {
-        ret &= pgp_validate_key_sigs(&result,
-                                     (pgp_key_t *) key,
-                                     ring,
-                                     NULL /* no pwd callback; validating public keys */);
+        ret &= pgp_validate_key_sigs(&result, (pgp_key_t *) key, ring);
     }
 
     ret &= validate_result_status("keyring", &result);
