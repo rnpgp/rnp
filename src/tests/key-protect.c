@@ -71,7 +71,7 @@ test_key_protect_load_pgp(void **state)
         pgp_memory_t mem = {0};
         paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/secring.gpg", NULL);
         assert_true(pgp_mem_readfile(&mem, path));
-        assert_true(rnp_key_store_pgp_read_from_mem(&io, ks, 0, &mem, NULL));
+        assert_true(rnp_key_store_pgp_read_from_mem(&io, ks, &mem, NULL));
         pgp_memory_release(&mem);
 
         for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
@@ -159,7 +159,7 @@ test_key_protect_load_pgp(void **state)
         pgp_memory_t mem = {0};
         mem.buf = key->packets[0].raw;
         mem.length = key->packets[0].length;
-        assert_true(rnp_key_store_pgp_read_from_mem(&io, ks, 0, &mem, NULL));
+        assert_true(rnp_key_store_pgp_read_from_mem(&io, ks, &mem, NULL));
 
         // grab the first key
         pgp_key_t *reloaded_key = NULL;

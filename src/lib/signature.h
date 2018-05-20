@@ -93,12 +93,4 @@ bool pgp_check_direct_sig(rnp_ctx_t *,
 bool pgp_check_sig(
   rng_t *, const uint8_t *, unsigned, const pgp_sig_t *, const pgp_key_pkt_t *);
 
-/* armored stuff */
-
-// TODO: This should endup in reader.h or armor.h
-void pgp_reader_push_dearmor(pgp_stream_t *);
-void pgp_reader_pop_dearmor(pgp_stream_t *);
-
-void pgp_reader_pop_dearmor(pgp_stream_t *);
-
 #endif /* SIGNATURE_H_ */

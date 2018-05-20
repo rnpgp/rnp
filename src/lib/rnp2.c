@@ -792,12 +792,11 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
-        if (!rnp_key_store_load_from_file(&ffi->io, store, 0, &key_provider)) {
+        if (!rnp_key_store_load_from_file(&ffi->io, store, &key_provider)) {
             ret = RNP_ERROR_BAD_FORMAT;
             goto done;
         }
     } else {
-        bool armored = is_armored_source(&input->src);
         // read in the full data (streaming isn't currently supported)
         rnp_result_t tmpret = read_all_input(&input->src, &buf, &buf_len);
         if (tmpret) {
@@ -806,7 +805,7 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
         }
         // load the keys
         pgp_memory_t mem = {.buf = buf, .length = buf_len};
-        if (!rnp_key_store_load_from_mem(&ffi->io, store, armored, &mem, &key_provider)) {
+        if (!rnp_key_store_load_from_mem(&ffi->io, store, &mem, &key_provider)) {
             ret = RNP_ERROR_BAD_FORMAT;
             goto done;
         }
@@ -3020,8 +3019,8 @@ rnp_key_add_uid(rnp_key_handle_t handle,
     pgp_hash_alg_t        hash_alg = PGP_HASH_UNKNOWN;
     pgp_key_t *           public_key = NULL;
     pgp_key_t *           secret_key = NULL;
-    pgp_key_pkt_t *        seckey = NULL;
-    pgp_key_pkt_t *        decrypted_seckey = NULL;
+    pgp_key_pkt_t *       seckey = NULL;
+    pgp_key_pkt_t *       decrypted_seckey = NULL;
 
     if (!handle || !uid || !hash) {
         return RNP_ERROR_NULL_POINTER;
@@ -3244,8 +3243,8 @@ rnp_key_protect(rnp_key_handle_t handle,
                 size_t           iterations)
 {
     rnp_result_t                ret = RNP_ERROR_GENERIC;
-    pgp_key_pkt_t *              seckey = NULL;
-    pgp_key_pkt_t *              decrypted_seckey = NULL;
+    pgp_key_pkt_t *             seckey = NULL;
+    pgp_key_pkt_t *             decrypted_seckey = NULL;
     rnp_key_protection_params_t protection = {0};
 
     // checks

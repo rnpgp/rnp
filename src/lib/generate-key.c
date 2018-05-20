@@ -96,7 +96,6 @@ load_generated_key(pgp_output_t **    output,
         if (!rnp_key_store_pgp_read_from_mem(
               &io,
               key_store,
-              0,
               *mem,
               &(pgp_key_provider_t){.callback = rnp_key_provider_key_ptr_list,
                                     .userdata = key_ptrs})) {

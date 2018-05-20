@@ -143,11 +143,9 @@ bool rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret);
 
 int  rnp_key_store_load_from_file(pgp_io_t *io,
                                   rnp_key_store_t *,
-                                  const unsigned,
                                   const pgp_key_provider_t *key_provider);
 bool rnp_key_store_load_from_mem(pgp_io_t *io,
                                  rnp_key_store_t *,
-                                 const unsigned,
                                  pgp_memory_t *,
                                  const pgp_key_provider_t *key_provider);
 

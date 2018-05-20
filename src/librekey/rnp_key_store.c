@@ -112,7 +112,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
         return rnp_key_store_ssh_load_keys(rnp, pubring, loadsecret ? rnp->secring : NULL);
     }
 
-    if (!rnp_key_store_load_from_file(rnp->io, pubring, 0, &rnp->key_provider)) {
+    if (!rnp_key_store_load_from_file(rnp->io, pubring, &rnp->key_provider)) {
         fprintf(io->errs, "cannot read pub keyring\n");
         return false;
     }
@@ -125,7 +125,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
     /* Only read secret keys if we need to */
     if (loadsecret) {
         rnp_key_store_clear(secring);
-        if (!rnp_key_store_load_from_file(rnp->io, secring, 0, &rnp->key_provider)) {
+        if (!rnp_key_store_load_from_file(rnp->io, secring, &rnp->key_provider)) {
             fprintf(io->errs, "cannot read sec keyring\n");
             return false;
         }
@@ -158,7 +158,6 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 int
 rnp_key_store_load_from_file(pgp_io_t *                io,
                              rnp_key_store_t *         key_store,
-                             const unsigned            armor,
                              const pgp_key_provider_t *key_provider)
 {
     DIR *          dir;
@@ -212,7 +211,7 @@ rnp_key_store_load_from_file(pgp_io_t *                io,
         return false;
     }
 
-    rc = rnp_key_store_load_from_mem(io, key_store, armor, &mem, key_provider);
+    rc = rnp_key_store_load_from_mem(io, key_store, &mem, key_provider);
     pgp_memory_release(&mem);
     return rc;
 }
@@ -220,13 +219,12 @@ rnp_key_store_load_from_file(pgp_io_t *                io,
 bool
 rnp_key_store_load_from_mem(pgp_io_t *                io,
                             rnp_key_store_t *         key_store,
-                            const unsigned            armor,
                             pgp_memory_t *            memory,
                             const pgp_key_provider_t *key_provider)
 {
     switch (key_store->format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_read_from_mem(io, key_store, armor, memory, key_provider);
+        return rnp_key_store_pgp_read_from_mem(io, key_store, memory, key_provider);
 
     case KBX_KEY_STORE:
         return rnp_key_store_kbx_from_mem(io, key_store, memory, key_provider);
