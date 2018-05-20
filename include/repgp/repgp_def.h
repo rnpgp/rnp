@@ -248,14 +248,11 @@ typedef enum {
     /* pseudo content types */
     PGP_PTAG_CT_SIGNATURE_HEADER = 0x300 + 2,
     PGP_PTAG_CT_SIGNATURE_FOOTER = 0x300 + 3,
-    PGP_PTAG_CT_ARMOR_HEADER = 0x300 + 4,
-    PGP_PTAG_CT_ARMOR_TRAILER = 0x300 + 5,
-    PGP_PTAG_CT_UNARMORED_TEXT = 0x300 + 9,
 
     /* Errors */
-    PGP_PARSER_ERROR = 0x500,      /* Internal Use: Parser Error */
-    PGP_PARSER_ERRCODE = 0x500 + 1,/* Internal Use: Parser Error
-                                    * with errcode returned */
+    PGP_PARSER_ERROR = 0x500,       /* Internal Use: Parser Error */
+    PGP_PARSER_ERRCODE = 0x500 + 1, /* Internal Use: Parser Error
+                                     * with errcode returned */
 
     PGP_PARSER_DONE = 0x600 /* parsing is complete */
 } pgp_content_enum;

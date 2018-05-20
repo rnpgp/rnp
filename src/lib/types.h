@@ -467,36 +467,6 @@ typedef enum {
     PGP_LDT_LOCAL2 = '1'
 } pgp_litdata_enum;
 
-/** pgp_header_var_t */
-typedef struct {
-    char *key;
-    char *value;
-} pgp_header_var_t;
-
-/** pgp_headers_t */
-typedef struct {
-    pgp_header_var_t *headers;
-    unsigned          headerc;
-} pgp_headers_t;
-
-/** pgp_armor_header_t */
-typedef struct {
-    const char *  type;
-    pgp_headers_t headers;
-} pgp_armor_header_t;
-
-/** pgp_fixed_body_t */
-typedef struct pgp_fixed_body_t {
-    unsigned length;
-    uint8_t  data[8192]; /* \todo fix hard-coded value? */
-} pgp_fixed_body_t;
-
-/** pgp_dyn_body_t */
-typedef struct pgp_dyn_body_t {
-    unsigned length;
-    uint8_t *data;
-} pgp_dyn_body_t;
-
 /** public-key encrypted session key packet */
 typedef struct pgp_pk_sesskey_t {
     unsigned         version;
@@ -554,9 +524,6 @@ typedef union {
     pgp_data_t              ss_issuer_fpr;
     pgp_ss_revocation_t     ss_revocation;
     uint8_t *               ss_signer;
-    pgp_armor_header_t      armor_header;
-    const char *            armor_trailer;
-    pgp_dyn_body_t          unarmored_text;
 } pgp_contents_t;
 
 /** pgp_packet_t */

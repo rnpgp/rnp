@@ -75,31 +75,24 @@ void pgp_reader_set_fd(pgp_stream_t *, int);
 void pgp_reader_set_mmap(pgp_stream_t *, int);
 bool pgp_reader_set_memory(pgp_stream_t *, const void *, size_t);
 
-/* Do a sum mod 65536 of all bytes read (as needed for secret keys) */
-void     pgp_reader_push_sum16(pgp_stream_t *);
-uint16_t pgp_reader_pop_sum16(pgp_stream_t *);
-
 unsigned pgp_reader_set_accumulate(pgp_stream_t *, unsigned);
 
 /* file reading */
-int pgp_setup_file_read(pgp_io_t *,
-                        pgp_stream_t **,
-                        const char *,
-                        void *,
-                        pgp_cb_ret_t callback(const pgp_packet_t *, pgp_cbdata_t *),
-                        unsigned);
+int  pgp_setup_file_read(pgp_io_t *,
+                         pgp_stream_t **,
+                         const char *,
+                         void *,
+                         pgp_cb_ret_t callback(const pgp_packet_t *, pgp_cbdata_t *),
+                         unsigned);
 void pgp_teardown_file_read(pgp_stream_t *, int);
 
 /* memory reading */
-int pgp_setup_memory_read(pgp_io_t *,
-                          pgp_stream_t **,
-                          pgp_memory_t *,
-                          void *,
-                          pgp_cb_ret_t callback(const pgp_packet_t *, pgp_cbdata_t *),
-                          unsigned);
+int  pgp_setup_memory_read(pgp_io_t *,
+                           pgp_stream_t **,
+                           pgp_memory_t *,
+                           void *,
+                           pgp_cb_ret_t callback(const pgp_packet_t *, pgp_cbdata_t *),
+                           unsigned);
 void pgp_teardown_memory_read(pgp_stream_t *, pgp_memory_t *);
-
-void pgp_reader_push_dearmor(pgp_stream_t *);
-void pgp_reader_pop_dearmor(pgp_stream_t *);
 
 #endif /* READER_H_ */
