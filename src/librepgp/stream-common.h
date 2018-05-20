@@ -185,6 +185,19 @@ rnp_result_t init_stdin_src(pgp_source_t *src);
  **/
 rnp_result_t init_mem_src(pgp_source_t *src, const void *mem, size_t len, bool free);
 
+/** @brief init memory source with contents of other source
+ *  @param src pre-allocated source structure
+ *  @param readsrc opened source with data
+ *  @return RNP_SUCCESS or error code
+ **/
+rnp_result_t read_mem_src(pgp_source_t *src, pgp_source_t *readsrc);
+
+/** @brief get memory from the memory source
+ *  @param src initialized memory source
+ *  @return pointer to the memory or NULL if it is not a memory source
+ **/
+const void *mem_src_get_memory(pgp_source_t *src);
+
 typedef struct pgp_dest_t {
     pgp_dest_write_func_t * write;
     pgp_dest_finish_func_t *finish;
@@ -218,7 +231,7 @@ bool init_dst_common(pgp_dest_t *dst, size_t paramsize);
 void dst_write(pgp_dest_t *dst, const void *buf, size_t len);
 
 /** @brief printf formatted string to the destination
- * 
+ *
  *  @param dst destination structure
  *  @param format format string, which is the same as printf() uses
  *  @param ... additional arguments
@@ -273,6 +286,13 @@ rnp_result_t init_mem_dest(pgp_dest_t *dst, void *mem, unsigned len);
  *  @return pointer to the memory area or NULL if memory was not allocated
  **/
 void *mem_dest_get_memory(pgp_dest_t *dst);
+
+/** @brief get ownership on the memory dest's contents. This must be called only before
+ *         closing the dest
+ *  @param dst pre-allocated and initialized memory dest
+ *  @return pointer to the memory area or NULL if memory was not allocated
+ **/
+void *mem_dest_own_memory(pgp_dest_t *dst);
 
 /** @brief init null destination which silently discards all the output
  *  @param dst pre-allocated dest structure

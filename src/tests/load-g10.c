@@ -43,13 +43,13 @@ test_load_g10(void **state)
     // load pubring
     rnp_key_store_t *pub_store = rnp_key_store_new("KBX", "data/keyrings/3/pubring.kbx");
     assert_non_null(pub_store);
-    assert_true(rnp_key_store_load_from_file(&io, pub_store, 0, NULL));
+    assert_true(rnp_key_store_load_from_file(&io, pub_store, NULL));
     // load secring
     rnp_key_store_t *sec_store = rnp_key_store_new("G10", "data/keyrings/3/private-keys-v1.d");
     assert_non_null(sec_store);
     pgp_key_provider_t key_provider = {.callback = rnp_key_provider_store,
                                        .userdata = pub_store};
-    assert_true(rnp_key_store_load_from_file(&io, sec_store, 0, &key_provider));
+    assert_true(rnp_key_store_load_from_file(&io, sec_store, &key_provider));
 
     // find (primary)
     key = NULL;

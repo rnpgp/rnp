@@ -60,6 +60,8 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <rnp/rnp_sdk.h>
 #include <librepgp/packet-show.h>
 #include <librepgp/reader.h>
+#include <librepgp/stream-common.h>
+#include <librepgp/stream-armor.h>
 
 #include "types.h"
 #include "key_store_pgp.h"
@@ -424,34 +426,57 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 bool
 rnp_key_store_pgp_read_from_mem(pgp_io_t *                io,
                                 rnp_key_store_t *         keyring,
-                                const unsigned            armor,
                                 pgp_memory_t *            mem,
                                 const pgp_key_provider_t *key_provider)
 {
+    pgp_source_t   src = {0};
+    pgp_source_t   armorsrc = {0};
+    bool           armored = false;
+    pgp_source_t   rawsrc = {0};
+    pgp_memory_t   rawmem;
     pgp_stream_t * stream;
     const unsigned printerrors = 1;
     const unsigned accum = 1;
     keyringcb_t    cb = {0};
-    bool           res;
+    bool           res = false;
+
+    if (init_mem_src(&src, mem->buf, mem->length, false)) {
+        return false;
+    }
+
+    if (is_armored_source(&src)) {
+        /* it's a bit complicated since underlying code doesn't work with streams yet */
+        if (init_armored_src(&armorsrc, &src)) {
+            goto done;
+        }
+        if (read_mem_src(&rawsrc, &armorsrc)) {
+            src_close(&armorsrc);
+            goto done;
+        }
+        src_close(&armorsrc);
+        armored = true;
+
+        pgp_memory_ref(&rawmem, (uint8_t *) mem_src_get_memory(&rawsrc), rawsrc.size);
+        mem = &rawmem;
+    }
 
     cb.keyring = keyring;
     cb.io = io;
     cb.key_provider = key_provider;
     if (!pgp_setup_memory_read(io, &stream, mem, &cb, cb_keyring_parse, accum)) {
         (void) fprintf(io->errs, "can't setup memory read\n");
-        return false;
+        goto done;
     }
     repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
-    if (armor) {
-        pgp_reader_push_dearmor(stream);
-    }
     res = repgp_parse(stream, printerrors);
     pgp_print_errors(pgp_stream_get_errors(stream));
-    if (armor) {
-        pgp_reader_pop_dearmor(stream);
-    }
     /* don't call teardown_memory_read because memory was passed in */
     pgp_stream_delete(stream);
+done:
+    src_close(&src);
+    if (armored) {
+        src_close(&rawsrc);
+    }
     return res;
 }
 

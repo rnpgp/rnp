@@ -125,42 +125,6 @@ resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
     return key;
 }
 
-/* return 1 if the file contains ascii-armored text */
-static int
-isarmored(const char *f, const void *memory, const char *text)
-{
-    regmatch_t matches[10];
-    unsigned   armored;
-    regex_t    r;
-    FILE *     fp;
-    char       buf[BUFSIZ];
-
-    armored = 0;
-    if (regcomp(&r, text, REG_EXTENDED) != 0) {
-        RNP_LOG("Can't compile regex");
-        return -1;
-    }
-    if (f) {
-        if ((fp = fopen(f, "r")) == NULL) {
-            RNP_LOG("isarmored: cannot open '%s'", f);
-            regfree(&r);
-            return 0;
-        }
-        if (fgets(buf, (int) sizeof(buf), fp) != NULL) {
-            if (regexec(&r, buf, 10, matches, 0) == 0) {
-                armored = 1;
-            }
-        }
-        (void) fclose(fp);
-    } else {
-        if (memory && regexec(&r, memory, 10, matches, 0) == 0) {
-            armored = 1;
-        }
-    }
-    regfree(&r);
-    return armored;
-}
-
 /* vararg print function */
 static void
 p(FILE *fp, const char *s, ...)
@@ -888,22 +852,14 @@ rnp_export_key(rnp_t *rnp, const char *name, bool secret_key)
     return pgp_export_key(rnp, key);
 }
 
-#define IMPORT_ARMOR_HEAD "-----BEGIN PGP (PUBLIC)|(PRIVATE) KEY BLOCK-----"
-
 /* import a key into our keyring */
 int
 rnp_import_key(rnp_t *rnp, char *f)
 {
-    int              realarmor;
     rnp_key_store_t *tmp_keystore = NULL;
     bool             ret = false;
     list             imported_grips = NULL;
     list_item *      item = NULL;
-
-    realarmor = isarmored(f, NULL, IMPORT_ARMOR_HEAD);
-    if (realarmor < 0) {
-        goto done;
-    }
 
     // guess the key format (TODO: surely this can be improved)
     size_t fname_len = strlen(f);
@@ -930,7 +886,7 @@ rnp_import_key(rnp_t *rnp, char *f)
     }
 
     // load the key(s)
-    if (!rnp_key_store_load_from_file(rnp->io, tmp_keystore, realarmor, &rnp->key_provider)) {
+    if (!rnp_key_store_load_from_file(rnp->io, tmp_keystore, &rnp->key_provider)) {
         RNP_LOG("failed to load key from file %s", f);
         goto done;
     }
@@ -1697,7 +1653,7 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
         goto done;
     }
 
-    if (!rnp_key_store_load_from_file(rnp->io, rnp->pubring, 1, NULL)) {
+    if (!rnp_key_store_load_from_file(rnp->io, rnp->pubring, NULL)) {
         (void) fprintf(stderr, "cannot import key\n");
         goto done;
     }

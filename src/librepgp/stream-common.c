@@ -420,6 +420,13 @@ typedef struct pgp_source_mem_param_t {
     size_t      pos;
 } pgp_source_mem_param_t;
 
+typedef struct pgp_dest_mem_param_t {
+    unsigned maxalloc;
+    unsigned allocated;
+    void *   memory;
+    bool     free;
+} pgp_dest_mem_param_t;
+
 static ssize_t
 mem_src_read(pgp_source_t *src, void *buf, size_t len)
 {
@@ -471,8 +478,64 @@ init_mem_src(pgp_source_t *src, const void *mem, size_t len, bool free)
     src->finish = NULL;
     src->size = len;
     src->knownsize = 1;
+    src->type = PGP_STREAM_MEMORY;
 
     return RNP_SUCCESS;
+}
+
+rnp_result_t
+read_mem_src(pgp_source_t *src, pgp_source_t *readsrc)
+{
+    pgp_dest_t   dst;
+    rnp_result_t ret;
+    uint8_t      buf[4096];
+    ssize_t      read;
+
+    if ((ret = init_mem_dest(&dst, NULL, 0))) {
+        return ret;
+    }
+
+    while (!src_eof(readsrc)) {
+        read = src_read(readsrc, buf, sizeof(buf));
+        if (read < 0) {
+            goto done;
+        }
+        if (read > 0) {
+            dst_write(&dst, buf, read);
+        }
+    }
+
+    if (dst.werr) {
+        ret = dst.werr;
+        goto done;
+    }
+
+    if ((ret = init_mem_src(src, mem_dest_own_memory(&dst), dst.writeb, true))) {
+        goto done;
+    }
+
+    ret = RNP_SUCCESS;
+done:
+    dst_close(&dst, true);
+    return ret;
+}
+
+const void *
+mem_src_get_memory(pgp_source_t *src)
+{
+    pgp_source_mem_param_t *param;
+
+    if (src->type != PGP_STREAM_MEMORY) {
+        RNP_LOG("wrong function call");
+        return NULL;
+    }
+
+    if (!src->param) {
+        return NULL;
+    }
+
+    param = src->param;
+    return param->memory;
 }
 
 bool
@@ -689,13 +752,6 @@ init_stdout_dest(pgp_dest_t *dst)
     return RNP_SUCCESS;
 }
 
-typedef struct pgp_dest_mem_param_t {
-    unsigned maxalloc;
-    unsigned allocated;
-    void *   memory;
-    bool     free;
-} pgp_dest_mem_param_t;
-
 static rnp_result_t
 mem_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
@@ -787,6 +843,18 @@ mem_dest_get_memory(pgp_dest_t *dst)
     }
 
     return NULL;
+}
+
+void *
+mem_dest_own_memory(pgp_dest_t *dst)
+{
+    void *res = mem_dest_get_memory(dst);
+
+    if (res) {
+        ((pgp_dest_mem_param_t *) dst->param)->free = false;
+    }
+
+    return res;
 }
 
 static rnp_result_t
