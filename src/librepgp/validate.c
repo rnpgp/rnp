@@ -463,15 +463,13 @@ validate_result_status(const char *f, pgp_validation_t *val)
 bool
 pgp_validate_key_sigs(pgp_validation_t *     result,
                       const pgp_key_t *      key,
-                      const rnp_key_store_t *keyring,
-                      pgp_cb_ret_t cb_get_password(const pgp_packet_t *, pgp_cbdata_t *))
+                      const rnp_key_store_t *keyring)
 {
     pgp_stream_t *    stream;
     validate_key_cb_t keysigs;
 
     (void) memset(&keysigs, 0x0, sizeof(keysigs));
     keysigs.result = result;
-    keysigs.getpassword = cb_get_password;
 
     stream = pgp_new(sizeof(*stream));
     if (stream == NULL) {
