@@ -102,96 +102,6 @@ pgp_write(pgp_output_t *output, const void *src, size_t len)
     return base_write(output, src, len);
 }
 
-/**
- * \ingroup Core_WritePackets
- * \param n
- * \param len
- * \param output
- * \return 1 if OK, otherwise 0
- */
-
-bool
-pgp_write_scalar(pgp_output_t *output, unsigned n, unsigned len)
-{
-    uint8_t c;
-
-    while (len-- > 0) {
-        c = n >> (len * 8);
-        if (!base_write(output, &c, 1)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-/**
- * \ingroup Core_WritePackets
- * \param bn
- * \param output
- * \return 1 if OK, otherwise 0
- */
-
-bool
-pgp_write_mpi(pgp_output_t *output, const pgp_mpi_t *val)
-{
-    size_t bits;
-    size_t bytes;
-    size_t idx;
-
-    bits = mpi_bits(val);
-
-    if (bits > 65535) {
-        RNP_LOG("Wrong input");
-        return false;
-    }
-
-    bytes = mpi_bytes(val);
-    for (idx = 0; (idx < bytes) && !val->mpi[idx]; idx++)
-        ;
-
-    return pgp_write_scalar(output, bits, 2) && pgp_write(output, val->mpi + idx, bytes - idx);
-}
-
-/**
- * \ingroup Core_WritePackets
- * \param tag
- * \param output
- * \return 1 if OK, otherwise 0
- */
-
-bool
-pgp_write_ptag(pgp_output_t *output, pgp_content_enum tag)
-{
-    uint8_t c;
-
-    c = tag | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
-    return base_write(output, &c, 1);
-}
-
-/**
- * \ingroup Core_WritePackets
- * \param len
- * \param output
- * \return 1 if OK, otherwise 0
- */
-
-bool
-pgp_write_length(pgp_output_t *output, unsigned len)
-{
-    uint8_t c[2];
-
-    if (len < 192) {
-        c[0] = len;
-        return base_write(output, c, 1);
-    }
-    if (len < 8192 + 192) {
-        c[0] = ((len - 192) >> 8) + 192;
-        c[1] = (len - 192) % 256;
-        return base_write(output, c, 2);
-    }
-    return pgp_write_scalar(output, 0xff, 1) && pgp_write_scalar(output, len, 4);
-}
-
 /*
  * Note that we finalise from the top down, so we don't use writers below
  * that have already been finalised
@@ -389,21 +299,6 @@ static void
 generic_destroyer(pgp_writer_t *writer)
 {
     free(pgp_writer_get_arg(writer));
-}
-
-/**
- * \ingroup Core_Writers
- *
- * A writer that just writes to the next one down. Useful for when you
- * want to insert just a finaliser into the stack.
- */
-unsigned
-pgp_writer_passthrough(const uint8_t *src,
-                       unsigned       len,
-                       pgp_error_t ** errors,
-                       pgp_writer_t * writer)
-{
-    return stacked_write(writer, src, len, errors);
 }
 
 #define CH_CR ('\r')
@@ -661,84 +556,6 @@ typedef struct {
     int          free_crypt;
 } crypt_t;
 
-/*
- * This writer simply takes plaintext as input,
- * encrypts it with the given key
- * and outputs the resulting encrypted text
- */
-static bool
-encrypt_writer(const uint8_t *src, size_t len, pgp_error_t **errors, pgp_writer_t *writer)
-{
-#define BUFSZ 1024 /* arbitrary number */
-    uint8_t  encbuf[BUFSZ];
-    size_t   remaining;
-    unsigned done = 0;
-    crypt_t *pgp_encrypt;
-
-    remaining = len;
-    pgp_encrypt = (crypt_t *) pgp_writer_get_arg(writer);
-    while (remaining > 0) {
-        size_t size = (remaining < BUFSZ) ? remaining : BUFSZ;
-
-        /* memcpy(buf,src,size); // \todo copy needed here? */
-        pgp_cipher_cfb_encrypt(pgp_encrypt->crypt, encbuf, src + done, size);
-
-        if (rnp_get_debug(__FILE__)) {
-            hexdump(stderr, "unencrypted", &src[done], 16);
-            hexdump(stderr, "encrypted", encbuf, 16);
-        }
-        if (!stacked_write(writer, encbuf, size, errors)) {
-            if (rnp_get_debug(__FILE__)) {
-                fprintf(stderr, "encrypted_writer: stacked write\n");
-            }
-            return false;
-        }
-        remaining -= size;
-        done += size;
-    }
-
-    return true;
-}
-
-static void
-encrypt_destroyer(pgp_writer_t *writer)
-{
-    crypt_t *pgp_encrypt;
-
-    pgp_encrypt = (crypt_t *) pgp_writer_get_arg(writer);
-    if (pgp_encrypt->free_crypt) {
-        free(pgp_encrypt->crypt);
-    }
-    free(pgp_encrypt);
-}
-
-/**
-\ingroup Core_WritersNext
-\brief Push Encrypted Writer onto stack (create SE packets)
-*/
-bool
-pgp_push_enc_crypt(pgp_output_t *output, pgp_crypt_t *pgp_crypt)
-{
-    /* Create encrypt to be used with this writer */
-    /* Remember to free this in the destroyer */
-    crypt_t *pgp_encrypt;
-
-    if ((pgp_encrypt = calloc(1, sizeof(*pgp_encrypt))) == NULL) {
-        (void) fprintf(stderr, "pgp_push_enc_crypt: bad alloc\n");
-        return false;
-    } else {
-        /* Setup the encrypt */
-        pgp_encrypt->crypt = pgp_crypt;
-        pgp_encrypt->free_crypt = 0;
-        /* And push writer on stack */
-        if (!pgp_writer_push(output, encrypt_writer, NULL, encrypt_destroyer, pgp_encrypt)) {
-            return false;
-            free(pgp_encrypt);
-        }
-    }
-    return true;
-}
-
 static bool
 memory_writer(const uint8_t *src, size_t len, pgp_error_t **errors, pgp_writer_t *writer)
 {
@@ -768,61 +585,6 @@ void
 pgp_writer_set_memory(pgp_output_t *output, pgp_memory_t *mem)
 {
     pgp_writer_set(output, memory_writer, NULL, NULL, mem);
-}
-
-static bool
-hash_calculator(const uint8_t *src,
-                const size_t   len,
-                pgp_error_t ** errors,
-                pgp_writer_t * writer)
-{
-    pgp_hash_t *hash = pgp_writer_get_arg(writer);
-
-    pgp_hash_add(hash, src, len);
-    return stacked_write(writer, src, len, errors);
-}
-
-bool
-pgp_writer_push_hash(pgp_output_t *output, pgp_hash_t *hash)
-{
-    if (!hash) {
-        return false;
-    }
-    return pgp_writer_push(output, hash_calculator, NULL, NULL, hash);
-}
-
-static bool
-sum16_calculator(const uint8_t *src,
-                 const size_t   len,
-                 pgp_error_t ** errors,
-                 pgp_writer_t * writer)
-{
-    uint16_t *sum = pgp_writer_get_arg(writer);
-
-    for (size_t i = 0; i < len; i++) {
-        *sum += src[i];
-    }
-    return stacked_write(writer, src, len, errors);
-}
-
-bool
-pgp_writer_push_sum16(pgp_output_t *output)
-{
-    uint16_t *sum = calloc(1, sizeof(*sum));
-    if (!sum) {
-        return false;
-    }
-    return pgp_writer_push(output, sum16_calculator, NULL, generic_destroyer, sum);
-}
-
-uint16_t
-pgp_writer_pop_sum16(pgp_output_t *output)
-{
-    uint16_t *sum = pgp_writer_get_arg(&output->writer);
-    uint16_t  value = *sum;
-
-    pgp_writer_pop(output);
-    return value;
 }
 
 /**
