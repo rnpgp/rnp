@@ -92,17 +92,11 @@ struct pgp_output_t {
 
 void *pgp_writer_get_arg(pgp_writer_t *);
 
-bool     pgp_writer_set(pgp_output_t *,
-                        pgp_writer_func_t *,
-                        pgp_writer_finaliser_t *,
-                        pgp_writer_destroyer_t *,
-                        void *);
-bool     pgp_writer_push(pgp_output_t *,
-                         pgp_writer_func_t *,
-                         pgp_writer_finaliser_t *,
-                         pgp_writer_destroyer_t *,
-                         void *);
-void     pgp_writer_pop(pgp_output_t *);
+bool pgp_writer_set(pgp_output_t *,
+                    pgp_writer_func_t *,
+                    pgp_writer_finaliser_t *,
+                    pgp_writer_destroyer_t *,
+                    void *);
 
 unsigned pgp_writer_close(pgp_output_t *);
 
@@ -114,17 +108,5 @@ unsigned pgp_writer_info_finalise(pgp_error_t **, pgp_writer_t *);
 /* memory writing */
 bool pgp_setup_memory_write(rnp_ctx_t *, pgp_output_t **, pgp_memory_t **, size_t);
 void pgp_teardown_memory_write(pgp_output_t *, pgp_memory_t *);
-
-typedef enum {
-    PGP_PGP_MESSAGE = 1,
-    PGP_PGP_PUBLIC_KEY_BLOCK,
-    PGP_PGP_PRIVATE_KEY_BLOCK,
-    PGP_PGP_MULTIPART_MESSAGE_PART_X_OF_Y,
-    PGP_PGP_MULTIPART_MESSAGE_PART_X,
-    PGP_PGP_SIGNATURE,
-    PGP_PGP_CLEARTEXT_SIGNATURE
-} pgp_armor_type_t;
-
-bool pgp_writer_push_armored(pgp_output_t *, pgp_armor_type_t);
 
 #endif /* WRITER_H_ */
