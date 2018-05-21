@@ -255,6 +255,12 @@ rnp_result_t dst_finish(pgp_dest_t *dst);
  **/
 void dst_close(pgp_dest_t *dst, bool discard);
 
+/** @brief flush cached data if any. dst_write caches small writes, so data does not
+ *         immediately go to stream write function.
+ *
+ *  @param dst destination structure
+ *  @return void
+ **/
 void dst_flush(pgp_dest_t *dst);
 
 /** @brief init file destination

@@ -57,6 +57,7 @@
 
 #include <rekey/rnp_key_store.h>
 #include <librepgp/packet-parse.h>
+#include <librepgp/stream-common.h>
 
 #include "memory.h"
 
@@ -65,10 +66,11 @@ bool rnp_key_store_pgp_read_from_mem(pgp_io_t *,
                                      pgp_memory_t *,
                                      const pgp_key_provider_t *);
 
-int rnp_key_store_pgp_write_to_mem(pgp_io_t *,
-                                   rnp_key_store_t *,
-                                   const unsigned,
-                                   pgp_memory_t *);
+bool rnp_key_store_pgp_write_to_mem(pgp_io_t *, rnp_key_store_t *, bool, pgp_memory_t *);
+
+bool rnp_key_store_pgp_write_to_stream(rnp_key_store_t *key_store,
+                                       bool             armor,
+                                       pgp_dest_t *     dst);
 
 bool pgp_parse_key_attrs(pgp_key_t *key, const uint8_t *data, size_t data_len);
 

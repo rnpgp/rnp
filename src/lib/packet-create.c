@@ -86,6 +86,7 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-sig.h>
+#include <librepgp/stream-armor.h>
 #include "signature.h"
 #include "packet-create.h"
 #include "memory.h"
@@ -169,7 +170,7 @@ packet_matches(const pgp_rawpacket_t *pkt, const pgp_content_enum tags[], size_t
 }
 
 static bool
-write_matching_packets(pgp_output_t *         output,
+write_matching_packets(pgp_dest_t *           dst,
                        const pgp_key_t *      key,
                        const rnp_key_store_t *keyring,
                        const pgp_content_enum tags[],
@@ -182,13 +183,11 @@ write_matching_packets(pgp_output_t *         output,
             RNP_LOG("skipping packet with tag: %d", pkt->tag);
             continue;
         }
-        if (!pgp_write(output, pkt->raw, (unsigned) pkt->length)) {
-            return false;
-        }
+        dst_write(dst, pkt->raw, (unsigned) pkt->length);
     }
 
     if (!keyring) {
-        return true;
+        return !dst->werr;
     }
 
     // Export subkeys
@@ -196,13 +195,13 @@ write_matching_packets(pgp_output_t *         output,
     for (list_item *grip = list_front(key->subkey_grips); grip; grip = list_next(grip)) {
         const pgp_key_t *subkey =
           rnp_key_store_get_key_by_grip(&io, keyring, (uint8_t *) grip);
-        if (!write_matching_packets(output, subkey, NULL, tags, tag_count)) {
+        if (!write_matching_packets(dst, subkey, NULL, tags, tag_count)) {
             RNP_LOG("Error occured when exporting a subkey");
             return false;
         }
     }
 
-    return true;
+    return !dst->werr;
 }
 
 /**
@@ -216,28 +215,36 @@ write_matching_packets(pgp_output_t *         output,
 
 */
 
-unsigned
-pgp_write_xfer_pubkey(pgp_output_t *         output,
+bool
+pgp_write_xfer_pubkey(pgp_dest_t *           dst,
                       const pgp_key_t *      key,
                       const rnp_key_store_t *keyring,
-                      const unsigned         armored)
+                      bool                   armored)
 {
-    static const pgp_content_enum permitted_tags[] = {PGP_PTAG_CT_PUBLIC_KEY,
-                                                      PGP_PTAG_CT_PUBLIC_SUBKEY,
-                                                      PGP_PTAG_CT_USER_ID,
-                                                      PGP_PTAG_CT_SIGNATURE};
-    if (armored) {
-        pgp_writer_push_armored(output, PGP_PGP_PUBLIC_KEY_BLOCK);
-    }
-    if (!write_matching_packets(
-          output, key, keyring, permitted_tags, ARRAY_SIZE(permitted_tags))) {
+    static const pgp_content_enum perm_tags[] = {PGP_PTAG_CT_PUBLIC_KEY,
+                                                 PGP_PTAG_CT_PUBLIC_SUBKEY,
+                                                 PGP_PTAG_CT_USER_ID,
+                                                 PGP_PTAG_CT_SIGNATURE};
+
+    pgp_dest_t armordst = {0};
+    bool       res = false;
+
+    if (!key->packetc || !key->packets) {
         return false;
     }
+
     if (armored) {
-        pgp_writer_info_finalise(&output->errors, &output->writer);
-        pgp_writer_pop(output);
+        if (init_armored_dst(&armordst, dst, PGP_ARMORED_PUBLIC_KEY)) {
+            return false;
+        }
+        dst = &armordst;
     }
-    return true;
+    res = write_matching_packets(dst, key, keyring, perm_tags, ARRAY_SIZE(perm_tags));
+
+    if (armored) {
+        dst_close(&armordst, !res);
+    }
+    return res;
 }
 
 /**
@@ -254,32 +261,35 @@ pgp_write_xfer_pubkey(pgp_output_t *         output,
 */
 
 bool
-pgp_write_xfer_seckey(pgp_output_t *         output,
+pgp_write_xfer_seckey(pgp_dest_t *           dst,
                       const pgp_key_t *      key,
                       const rnp_key_store_t *keyring,
-                      unsigned               armored)
+                      bool                   armored)
 {
-    static const pgp_content_enum permitted_tags[] = {PGP_PTAG_CT_SECRET_KEY,
-                                                      PGP_PTAG_CT_SECRET_SUBKEY,
-                                                      PGP_PTAG_CT_USER_ID,
-                                                      PGP_PTAG_CT_SIGNATURE};
+    static const pgp_content_enum perm_tags[] = {PGP_PTAG_CT_SECRET_KEY,
+                                                 PGP_PTAG_CT_SECRET_SUBKEY,
+                                                 PGP_PTAG_CT_USER_ID,
+                                                 PGP_PTAG_CT_SIGNATURE};
+
+    pgp_dest_t armordst = {0};
+    bool       res = false;
 
     if (!key->packetc || !key->packets) {
         return false;
     }
 
     if (armored) {
-        pgp_writer_push_armored(output, PGP_PGP_PRIVATE_KEY_BLOCK);
+        if (init_armored_dst(&armordst, dst, PGP_ARMORED_SECRET_KEY)) {
+            return false;
+        }
+        dst = &armordst;
     }
-    if (!write_matching_packets(
-          output, key, keyring, permitted_tags, ARRAY_SIZE(permitted_tags))) {
-        return false;
-    }
+    res = write_matching_packets(dst, key, keyring, perm_tags, ARRAY_SIZE(perm_tags));
+
     if (armored) {
-        pgp_writer_info_finalise(&output->errors, &output->writer);
-        pgp_writer_pop(output);
+        dst_close(&armordst, !res);
     }
-    return true;
+    return res;
 }
 
 /**

@@ -56,6 +56,7 @@
 
 #include <stdbool.h>
 #include <rekey/rnp_key_store.h>
+#include <librepgp/stream-common.h>
 
 #include "types.h"
 #include "crypto.h"
@@ -66,20 +67,14 @@
 pgp_output_t *pgp_output_new(void);
 void          pgp_output_delete(pgp_output_t *);
 
-bool     pgp_write_struct_userid(pgp_output_t *, const uint8_t *);
-bool     pgp_write_struct_pubkey(pgp_output_t *, pgp_content_enum, pgp_key_pkt_t *);
-bool     pgp_write_struct_seckey(pgp_output_t *output,
-                                 pgp_content_enum,
-                                 pgp_key_pkt_t *,
-                                 const char *);
-unsigned pgp_write_xfer_pubkey(pgp_output_t *,
-                               const pgp_key_t *,
-                               const rnp_key_store_t *,
-                               const unsigned);
-bool     pgp_write_xfer_seckey(pgp_output_t *,
-                               const pgp_key_t *,
-                               const rnp_key_store_t *,
-                               const unsigned);
+bool pgp_write_struct_userid(pgp_output_t *, const uint8_t *);
+bool pgp_write_struct_pubkey(pgp_output_t *, pgp_content_enum, pgp_key_pkt_t *);
+bool pgp_write_struct_seckey(pgp_output_t *output,
+                             pgp_content_enum,
+                             pgp_key_pkt_t *,
+                             const char *);
+bool pgp_write_xfer_pubkey(pgp_dest_t *, const pgp_key_t *, const rnp_key_store_t *, bool);
+bool pgp_write_xfer_seckey(pgp_dest_t *, const pgp_key_t *, const rnp_key_store_t *, bool);
 
 bool pgp_write_selfsig_cert(pgp_output_t *               output,
                             const pgp_key_pkt_t *        seckey,

@@ -561,35 +561,31 @@ pgp_add_rawpacket(pgp_key_t *key, const pgp_rawpacket_t *packet)
 char *
 pgp_export_key(rnp_t *rnp, const pgp_key_t *key)
 {
-    pgp_output_t *output;
-    pgp_memory_t *mem;
-    char *        cp;
+    pgp_dest_t dst;
+    char *     cp = NULL;
+    bool       res = false;
 
     if (!rnp || !key) {
         return NULL;
     }
-    pgp_io_t *io = rnp->io;
 
-    if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
-        RNP_LOG_FD(io->errs, "can't setup memory write\n");
+    if (init_mem_dest(&dst, NULL, 0)) {
         return NULL;
     }
 
     if (pgp_is_key_public(key)) {
-        pgp_write_xfer_pubkey(output, key, rnp->pubring, 1);
+        res = pgp_write_xfer_pubkey(&dst, key, rnp->pubring, true);
     } else {
-        pgp_write_xfer_seckey(output, key, rnp->secring, 1);
+        res = pgp_write_xfer_seckey(&dst, key, rnp->secring, true);
     }
 
-    const size_t mem_len = pgp_mem_len(mem) + 1;
-    if ((cp = (char *) malloc(mem_len)) == NULL) {
-        pgp_teardown_memory_write(output, mem);
-        return NULL;
+    if (res) {
+        dst_write(&dst, "\0", 1);
+        dst_finish(&dst);
+        cp = (char *) mem_dest_own_memory(&dst);
     }
 
-    memcpy(cp, pgp_mem_data(mem), mem_len);
-    pgp_teardown_memory_write(output, mem);
-    cp[mem_len - 1] = '\0';
+    dst_close(&dst, true);
     return cp;
 }
 

@@ -2324,37 +2324,30 @@ rnp_locate_key(rnp_ffi_t         ffi,
 rnp_result_t
 rnp_export_public_key(rnp_key_handle_t key, uint32_t flags, char **buf, size_t *buf_len)
 {
-    pgp_output_t *output;
-    pgp_memory_t *mem;
+    pgp_dest_t dst = {0};
+    bool       armor = (flags & RNP_EXPORT_FLAG_ARMORED);
 
-    bool armor = (flags & RNP_EXPORT_FLAG_ARMORED);
-
-    if (key == NULL) {
+    if (!key || !buf || !buf_len) {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    if (!pgp_setup_memory_write(NULL, &output, &mem, 128)) {
+    if (init_mem_dest(&dst, NULL, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     // TODO: populated pubkey if needed, support export sec as pub
-    pgp_write_xfer_pubkey(output, key->pub, NULL, armor);
-
-    *buf_len = pgp_mem_len(mem);
-    if (armor)
-        *buf_len += 1;
-
-    *buf = malloc(*buf_len);
-
-    if (*buf == NULL) {
-        pgp_teardown_memory_write(output, mem);
-        return RNP_ERROR_OUT_OF_MEMORY;
+    if (!pgp_write_xfer_pubkey(&dst, key->pub, NULL, armor)) {
+        dst_close(&dst, true);
+        return RNP_ERROR_GENERIC;
     }
 
-    memcpy(*buf, pgp_mem_data(mem), pgp_mem_len(mem));
+    if (armor) {
+        dst_write(&dst, "\0", 1);
+    }
 
-    if (armor)
-        (*buf)[*buf_len - 1] = 0;
+    *buf_len = dst.writeb;
+    *buf = (char *) mem_dest_own_memory(&dst);
+    dst_close(&dst, false);
 
     return RNP_SUCCESS;
 }
