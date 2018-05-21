@@ -69,6 +69,34 @@ finish:
 }
 
 void
+test_stream_memory(void **state)
+{
+    const char *data = "Sample data to test memory streams";
+    size_t      datalen;
+    pgp_dest_t  memdst;
+    void *      mown;
+    void *      mcpy;
+
+    datalen = strlen(data) + 1;
+
+    /* populate memory dst and own inner data */
+    assert_rnp_success(init_mem_dest(&memdst, NULL, 0));
+    assert_rnp_success(memdst.werr);
+    dst_write(&memdst, data, datalen);
+    assert_rnp_success(memdst.werr);
+    assert_int_equal(memdst.writeb, datalen);
+
+    assert_non_null(mcpy = mem_dest_get_memory(&memdst));
+    assert_false(memcmp(mcpy, data, datalen));
+    assert_non_null(mown = mem_dest_own_memory(&memdst));
+    assert_false(memcmp(mown, data, datalen));
+    dst_close(&memdst, true);
+    /* make sure we own data after close */
+    assert_false(memcmp(mown, data, datalen));
+    free(mown);
+}
+
+void
 test_stream_signatures(void **state)
 {
     rnp_key_store_t *pubring;

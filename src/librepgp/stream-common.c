@@ -617,14 +617,14 @@ dst_finish(pgp_dest_t *dst)
 {
     rnp_result_t res = RNP_SUCCESS;
 
-    /* flush write cache in the dst */
-    dst_flush(dst);
-
-    if (dst->finish) {
-        res = dst->finish(dst);
+    if (!dst->finished) {
+        /* flush write cache in the dst */
+        dst_flush(dst);
+        if (dst->finish) {
+            res = dst->finish(dst);
+        }
+        dst->finished = true;
     }
-
-    dst->finished = true;
 
     return res;
 }
@@ -848,12 +848,33 @@ mem_dest_get_memory(pgp_dest_t *dst)
 void *
 mem_dest_own_memory(pgp_dest_t *dst)
 {
-    void *res = mem_dest_get_memory(dst);
-
-    if (res) {
-        ((pgp_dest_mem_param_t *) dst->param)->free = false;
+    if (dst->type != PGP_STREAM_MEMORY) {
+        RNP_LOG("wrong function call");
+        return NULL;
     }
 
+    pgp_dest_mem_param_t *param = dst->param;
+
+    if (!param) {
+        RNP_LOG("null param");
+        return NULL;
+    }
+
+    dst_finish(dst);
+
+    if (param->free) {
+        /* it may be larger then required */
+        param->memory = realloc(param->memory, dst->writeb);
+        param->allocated = dst->writeb;
+        param->free = false;
+        return param->memory;
+    }
+
+    /* in this case we should copy the memory */
+    void *res = malloc(dst->writeb);
+    if (res) {
+        memcpy(res, param->memory, dst->writeb);
+    }
     return res;
 }
 

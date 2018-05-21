@@ -478,7 +478,23 @@ done:
 }
 
 static bool
-do_write(pgp_io_t *io, rnp_key_store_t *key_store, pgp_output_t *output, bool secret)
+pgp_key_write_packets_stream(const pgp_key_t *key, pgp_dest_t *dst)
+{
+    if (DYNARRAY_IS_EMPTY(key, packet)) {
+        return false;
+    }
+    for (unsigned i = 0; i < key->packetc; i++) {
+        pgp_rawpacket_t *pkt = &key->packets[i];
+        if (!pkt->raw || !pkt->length) {
+            return false;
+        }
+        dst_write(dst, pkt->raw, pkt->length);
+    }
+    return !dst->werr;
+}
+
+static bool
+do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
 {
     pgp_key_search_t search;
     for (list_item *key_item = list_front(key_store->keys); key_item;
@@ -496,7 +512,7 @@ do_write(pgp_io_t *io, rnp_key_store_t *key_store, pgp_output_t *output, bool se
             RNP_LOG("incorrect format (conversions not supported): %d", key->format);
             return false;
         }
-        if (!pgp_key_write_packets(key, output)) {
+        if (!pgp_key_write_packets_stream(key, dst)) {
             return false;
         }
         for (list_item *subkey_grip = list_front(key->subkey_grips); subkey_grip;
@@ -516,10 +532,10 @@ do_write(pgp_io_t *io, rnp_key_store_t *key_store, pgp_output_t *output, bool se
                 }
             }
             if (!subkey) {
-                RNP_LOG_FD(io->errs, "Missing subkey");
+                RNP_LOG("Missing subkey");
                 continue;
             }
-            if (!pgp_key_write_packets(subkey, output)) {
+            if (!pgp_key_write_packets_stream(subkey, dst)) {
                 return false;
             }
         }
@@ -527,34 +543,60 @@ do_write(pgp_io_t *io, rnp_key_store_t *key_store, pgp_output_t *output, bool se
     return true;
 }
 
-int
-rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
-                               rnp_key_store_t *key_store,
-                               const unsigned   armor,
-                               pgp_memory_t *   mem)
+bool
+rnp_key_store_pgp_write_to_stream(rnp_key_store_t *key_store, bool armor, pgp_dest_t *dst)
 {
-    unsigned     rc;
-    pgp_output_t output = {};
-
-    pgp_writer_set_memory(&output, mem);
+    pgp_dest_t armordst;
+    bool       res = false;
 
     if (armor) {
-        pgp_armor_type_t type = PGP_PGP_PUBLIC_KEY_BLOCK;
+        pgp_armored_msg_t type = PGP_ARMORED_PUBLIC_KEY;
         if (list_length(key_store->keys) &&
             pgp_is_key_secret((pgp_key_t *) list_front(key_store->keys))) {
-            type = PGP_PGP_PRIVATE_KEY_BLOCK;
+            type = PGP_ARMORED_SECRET_KEY;
         }
-        pgp_writer_push_armored(&output, type);
+        if (init_armored_dst(&armordst, dst, type)) {
+            return false;
+        }
+        dst = &armordst;
     }
     // two separate passes (public keys, then secret keys)
-    if (!do_write(io, key_store, &output, false) || !do_write(io, key_store, &output, true)) {
+    res = do_write(key_store, dst, false) && do_write(key_store, dst, true);
+
+    if (armor) {
+        dst_close(&armordst, !res);
+    }
+
+    return res;
+}
+
+bool
+rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
+                               rnp_key_store_t *key_store,
+                               bool             armor,
+                               pgp_memory_t *   mem)
+{
+    pgp_dest_t   dst = {0};
+    bool         res = false;
+    pgp_output_t output = {};
+
+    if (init_mem_dest(&dst, NULL, 0)) {
         return false;
     }
-    if (armor) {
-        pgp_writer_pop(&output);
-    }
-    rc = pgp_writer_close(&output);
-    pgp_writer_info_delete(&output.writer);
 
-    return rc;
+    res = rnp_key_store_pgp_write_to_stream(key_store, armor, &dst);
+
+    if (!res) {
+        goto done;
+    }
+
+    pgp_writer_set_memory(&output, mem);
+    res = pgp_write(&output, mem_dest_get_memory(&dst), dst.writeb);
+    if (!pgp_writer_close(&output)) {
+        res = false;
+    }
+    pgp_writer_info_delete(&output.writer);
+done:
+    dst_close(&dst, true);
+    return res;
 }
