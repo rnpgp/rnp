@@ -53,7 +53,7 @@ set(CPACK_RPM_POST_UNINSTALL_SCRIPT_FILE "${PROJECT_BINARY_DIR}/rpm-ldconfig")
 set(CPACK_FREEBSD_PACKAGE_MAINTAINER "${PACKAGING_EMAIL}")
 set(CPACK_FREEBSD_PACKAGE_ORIGIN "security/rnp")
 set(CPACK_FREEBSD_PACKAGE_CATEGORIES security)
-set(CPACK_FREEBSD_PACKAGE_DEPS archivers/bzip2 devel/json-c security/botan2)
+set(CPACK_FREEBSD_PACKAGE_DEPS bzip2 json-c botan2)
 
 include(CPack)
 
