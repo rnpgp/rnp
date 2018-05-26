@@ -283,13 +283,13 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
                                          key->userid,
                                          &content->sig,
                                          pgp_get_key_pkt(signer),
-                                         key->reader->key->packets[key->reader->packet].raw) :
+                                         &key->reader->key->packets[key->reader->packet]) :
                 pgp_check_userattrcert_sig(rnp_ctx,
                                            &key->pubkey,
                                            &key->userattr,
                                            &content->sig,
                                            pgp_get_key_pkt(signer),
-                                           key->reader->key->packets[key->reader->packet].raw);
+                                           &key->reader->key->packets[key->reader->packet]);
             break;
 
         case PGP_SIG_SUBKEY:
@@ -302,7 +302,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
                                          &key->subkey,
                                          &content->sig,
                                          pgp_get_key_pkt(signer),
-                                         key->reader->key->packets[key->reader->packet].raw);
+                                         &key->reader->key->packets[key->reader->packet]);
             break;
 
         case PGP_SIG_DIRECT:
@@ -310,7 +310,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
                                          &key->pubkey,
                                          &content->sig,
                                          pgp_get_key_pkt(signer),
-                                         key->reader->key->packets[key->reader->packet].raw);
+                                         &key->reader->key->packets[key->reader->packet]);
             break;
 
         case PGP_SIG_STANDALONE:
