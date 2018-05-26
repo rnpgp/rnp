@@ -37,7 +37,6 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <json.h>
 
 #include <rnp/rnp_def.h>
 #include "repgp_def.h"

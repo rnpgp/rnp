@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2018 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -48,7 +48,6 @@
 
 #include <rnp/rnp.h>
 #include <sys/stat.h>
-#include <botan/ffi.h>
 
 extern rng_t global_rng;
 

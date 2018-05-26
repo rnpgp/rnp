@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2018 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -28,6 +28,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "utils.h"
+#include <json.h>
 
 void
 test_ffi_homedir(void **state)
