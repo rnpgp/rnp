@@ -576,8 +576,19 @@ signature_hash_certification(const pgp_signature_t * sig,
                              const pgp_userid_pkt_t *userid,
                              pgp_hash_t *            hash)
 {
-    return pgp_hash_create(hash, sig->halg) && signature_hash_key(key, hash) &&
-           signature_hash_userid(userid, hash, sig->version);
+    bool res = false;
+
+    if (!pgp_hash_create(hash, sig->halg)) {
+        return false;
+    }
+
+    res = signature_hash_key(key, hash) && signature_hash_userid(userid, hash, sig->version);
+
+    if (!res) {
+        pgp_hash_finish(hash, NULL);
+    }
+
+    return res;
 }
 
 bool
@@ -586,8 +597,37 @@ signature_hash_binding(const pgp_signature_t *sig,
                        const pgp_key_pkt_t *  subkey,
                        pgp_hash_t *           hash)
 {
-    return pgp_hash_create(hash, sig->halg) && signature_hash_key(key, hash) &&
-           signature_hash_key(subkey, hash);
+    bool res = false;
+
+    if (!pgp_hash_create(hash, sig->halg)) {
+        return false;
+    }
+
+    res = signature_hash_key(key, hash) && signature_hash_key(subkey, hash);
+
+    if (!res) {
+        pgp_hash_finish(hash, NULL);
+    }
+
+    return res;
+}
+
+bool
+signature_hash_direct(const pgp_signature_t *sig, const pgp_key_pkt_t *key, pgp_hash_t *hash)
+{
+    bool res = false;
+
+    if (!pgp_hash_create(hash, sig->halg)) {
+        return false;
+    }
+
+    res = signature_hash_key(key, hash);
+
+    if (!res) {
+        pgp_hash_finish(hash, NULL);
+    }
+
+    return res;
 }
 
 bool

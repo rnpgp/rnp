@@ -84,89 +84,8 @@ __RCSID("$NetBSD: signature.c,v 1.34 2012/03/05 02:20:18 christos Exp $");
 #include "signature.h"
 #include "pgp-key.h"
 #include <librepgp/stream-sig.h>
+#include <librepgp/stream-packet.h>
 #include "utils.h"
-
-static bool
-hash_add_key(pgp_hash_t *hash, const pgp_key_pkt_t *key)
-{
-    return signature_hash_key(key, hash);
-}
-
-static bool
-init_key_sig(pgp_hash_t *hash, const pgp_sig_t *sig, const pgp_key_pkt_t *key)
-{
-    pgp_hash_create(hash, sig->info.hash_alg);
-    return hash_add_key(hash, key);
-}
-
-static void
-hash_add_trailer(pgp_hash_t *hash, const pgp_sig_t *sig, const uint8_t *raw_packet)
-{
-    if (sig->info.version == PGP_V4) {
-        if (raw_packet) {
-            pgp_hash_add(
-              hash, raw_packet + sig->v4_hashstart, (unsigned) sig->info.v4_hashlen);
-        }
-        pgp_hash_add_int(hash, (unsigned) sig->info.version, 1);
-        pgp_hash_add_int(hash, 0xff, 1);
-        pgp_hash_add_int(hash, (unsigned) sig->info.v4_hashlen, 4);
-    } else {
-        pgp_hash_add_int(hash, (unsigned) sig->info.type, 1);
-        pgp_hash_add_int(hash, (unsigned) sig->info.creation, 4);
-    }
-}
-
-/**
-   \ingroup Core_Signature
-   \brief Checks a signature
-   \param hash Signature Hash to be checked
-   \param length Signature Length
-   \param sig The Signature to be checked
-   \param signer The signer's public key
-   \return 1 if good; else 0
-*/
-bool
-pgp_check_sig(rng_t *              rng,
-              const uint8_t *      hash,
-              unsigned             length,
-              const pgp_sig_t *    sig,
-              const pgp_key_pkt_t *signer)
-{
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stdout, "hash", hash, length);
-    }
-
-    switch (sig->info.key_alg) {
-    case PGP_PKA_DSA:
-        return !dsa_verify(&sig->info.sig.dsa, hash, length, &signer->material.dsa);
-    case PGP_PKA_EDDSA:
-        return !eddsa_verify(&sig->info.sig.ec, hash, length, &signer->material.ec);
-    case PGP_PKA_SM2:
-        return !sm2_verify(&sig->info.sig.ec, hash, length, &signer->material.ec);
-    case PGP_PKA_RSA:
-        return !rsa_verify_pkcs1(
-          rng, &sig->info.sig.rsa, sig->info.hash_alg, hash, length, &signer->material.rsa);
-    case PGP_PKA_ECDSA:
-        return !ecdsa_verify(&sig->info.sig.ec, hash, length, &signer->material.ec);
-    default:
-        RNP_LOG("Unknown algorithm");
-        return false;
-    }
-}
-
-static bool
-finalise_sig(rng_t *              rng,
-             pgp_hash_t *         hash,
-             const pgp_sig_t *    sig,
-             const pgp_key_pkt_t *signer,
-             const uint8_t *      raw_packet)
-{
-    hash_add_trailer(hash, sig, raw_packet);
-
-    uint8_t hashout[PGP_MAX_HASH_SIZE];
-    size_t  hash_len = pgp_hash_finish(hash, hashout);
-    return pgp_check_sig(rng, hashout, hash_len, sig, signer);
-}
 
 /**
  * \ingroup Core_Signature
@@ -181,27 +100,41 @@ finalise_sig(rng_t *              rng,
  * \return true if OK
  */
 bool
-pgp_check_useridcert_sig(rnp_ctx_t *          rnp_ctx,
-                         const pgp_key_pkt_t *key,
-                         const uint8_t *      id,
-                         const pgp_sig_t *    sig,
-                         const pgp_key_pkt_t *signer,
-                         const uint8_t *      raw_packet)
+pgp_check_useridcert_sig(rnp_ctx_t *            rnp_ctx,
+                         const pgp_key_pkt_t *  key,
+                         const uint8_t *        id,
+                         const pgp_sig_t *      sig,
+                         const pgp_key_pkt_t *  signer,
+                         const pgp_rawpacket_t *raw_packet)
 {
-    pgp_hash_t hash;
-    size_t     userid_len;
+    pgp_signature_t  sigpkt = {0};
+    pgp_userid_pkt_t uid = {0};
+    pgp_source_t     sigsrc = {0};
+    pgp_hash_t       hash = {0};
+    bool             res = false;
 
-    userid_len = strlen((const char *) id);
-    if (!init_key_sig(&hash, sig, key)) {
-        RNP_LOG("failed to start key sig");
+    if (init_mem_src(&sigsrc, raw_packet->raw, raw_packet->length, false)) {
         return false;
     }
-    if (sig->info.version == PGP_V4) {
-        pgp_hash_add_int(&hash, 0xb4, 1);
-        pgp_hash_add_int(&hash, (unsigned) userid_len, 4);
+
+    uid.tag = PGP_PTAG_CT_USER_ID;
+    uid.uid = (uint8_t *) id;
+    uid.uid_len = strlen((const char *) id);
+
+    if (stream_parse_signature(&sigsrc, &sigpkt)) {
+        src_close(&sigsrc);
+        return false;
     }
-    pgp_hash_add(&hash, id, (unsigned) userid_len);
-    return finalise_sig(rnp_ctx_rng_handle(rnp_ctx), &hash, sig, signer, raw_packet);
+
+    if (!(res = signature_hash_certification(&sigpkt, key, &uid, &hash))) {
+        goto done;
+    }
+
+    res = !signature_validate(&sigpkt, &signer->material, &hash, rnp_ctx_rng_handle(rnp_ctx));
+done:
+    src_close(&sigsrc);
+    free_signature(&sigpkt);
+    return res;
 }
 
 /**
@@ -217,25 +150,41 @@ pgp_check_useridcert_sig(rnp_ctx_t *          rnp_ctx,
  * \return true if OK
  */
 bool
-pgp_check_userattrcert_sig(rnp_ctx_t *          rnp_ctx,
-                           const pgp_key_pkt_t *key,
-                           const pgp_data_t *   attribute,
-                           const pgp_sig_t *    sig,
-                           const pgp_key_pkt_t *signer,
-                           const uint8_t *      raw_packet)
+pgp_check_userattrcert_sig(rnp_ctx_t *            rnp_ctx,
+                           const pgp_key_pkt_t *  key,
+                           const pgp_data_t *     attribute,
+                           const pgp_sig_t *      sig,
+                           const pgp_key_pkt_t *  signer,
+                           const pgp_rawpacket_t *raw_packet)
 {
-    pgp_hash_t hash;
+    pgp_signature_t  sigpkt = {0};
+    pgp_userid_pkt_t uid = {0};
+    pgp_source_t     sigsrc = {0};
+    pgp_hash_t       hash = {0};
+    bool             res = false;
 
-    if (!init_key_sig(&hash, sig, key)) {
-        RNP_LOG("failed to start key sig");
+    if (init_mem_src(&sigsrc, raw_packet->raw, raw_packet->length, false)) {
         return false;
     }
-    if (sig->info.version == PGP_V4) {
-        pgp_hash_add_int(&hash, 0xd1, 1);
-        pgp_hash_add_int(&hash, (unsigned) attribute->len, 4);
+
+    uid.tag = PGP_PTAG_CT_USER_ATTR;
+    uid.uid = attribute->contents;
+    uid.uid_len = attribute->len;
+
+    if (stream_parse_signature(&sigsrc, &sigpkt)) {
+        src_close(&sigsrc);
+        return false;
     }
-    pgp_hash_add(&hash, attribute->contents, (unsigned) attribute->len);
-    return finalise_sig(rnp_ctx_rng_handle(rnp_ctx), &hash, sig, signer, raw_packet);
+
+    if (!(res = signature_hash_certification(&sigpkt, key, &uid, &hash))) {
+        goto done;
+    }
+
+    res = !signature_validate(&sigpkt, &signer->material, &hash, rnp_ctx_rng_handle(rnp_ctx));
+done:
+    src_close(&sigsrc);
+    free_signature(&sigpkt);
+    return res;
 }
 
 /**
@@ -251,24 +200,36 @@ pgp_check_userattrcert_sig(rnp_ctx_t *          rnp_ctx,
  * \return true if OK
  */
 bool
-pgp_check_subkey_sig(rnp_ctx_t *          rnp_ctx,
-                     const pgp_key_pkt_t *key,
-                     const pgp_key_pkt_t *subkey,
-                     const pgp_sig_t *    sig,
-                     const pgp_key_pkt_t *signer,
-                     const uint8_t *      raw_packet)
+pgp_check_subkey_sig(rnp_ctx_t *            rnp_ctx,
+                     const pgp_key_pkt_t *  key,
+                     const pgp_key_pkt_t *  subkey,
+                     const pgp_sig_t *      sig,
+                     const pgp_key_pkt_t *  signer,
+                     const pgp_rawpacket_t *raw_packet)
 {
-    pgp_hash_t hash;
+    pgp_signature_t sigpkt = {0};
+    pgp_source_t    sigsrc = {0};
+    pgp_hash_t      hash = {0};
+    bool            res = false;
 
-    if (!init_key_sig(&hash, sig, key)) {
-        RNP_LOG("failed to start key sig");
+    if (init_mem_src(&sigsrc, raw_packet->raw, raw_packet->length, false)) {
         return false;
     }
-    if (!hash_add_key(&hash, subkey)) {
-        RNP_LOG("failed to hash key");
+
+    if (stream_parse_signature(&sigsrc, &sigpkt)) {
+        src_close(&sigsrc);
         return false;
     }
-    return finalise_sig(rnp_ctx_rng_handle(rnp_ctx), &hash, sig, signer, raw_packet);
+
+    if (!(res = signature_hash_binding(&sigpkt, key, subkey, &hash))) {
+        goto done;
+    }
+
+    res = !signature_validate(&sigpkt, &signer->material, &hash, rnp_ctx_rng_handle(rnp_ctx));
+done:
+    src_close(&sigsrc);
+    free_signature(&sigpkt);
+    return res;
 }
 
 /**
@@ -283,19 +244,33 @@ pgp_check_subkey_sig(rnp_ctx_t *          rnp_ctx,
  * \return true if OK
  */
 bool
-pgp_check_direct_sig(rnp_ctx_t *          rnp_ctx,
-                     const pgp_key_pkt_t *key,
-                     const pgp_sig_t *    sig,
-                     const pgp_key_pkt_t *signer,
-                     const uint8_t *      raw_packet)
+pgp_check_direct_sig(rnp_ctx_t *            rnp_ctx,
+                     const pgp_key_pkt_t *  key,
+                     const pgp_sig_t *      sig,
+                     const pgp_key_pkt_t *  signer,
+                     const pgp_rawpacket_t *raw_packet)
 {
-    pgp_hash_t hash;
-    unsigned   ret;
+    pgp_signature_t sigpkt = {0};
+    pgp_source_t    sigsrc = {0};
+    pgp_hash_t      hash = {0};
+    bool            res = false;
 
-    if (!init_key_sig(&hash, sig, key)) {
-        RNP_LOG("failed to start key sig");
+    if (init_mem_src(&sigsrc, raw_packet->raw, raw_packet->length, false)) {
         return false;
     }
-    ret = finalise_sig(rnp_ctx_rng_handle(rnp_ctx), &hash, sig, signer, raw_packet);
-    return ret;
+
+    if (stream_parse_signature(&sigsrc, &sigpkt)) {
+        src_close(&sigsrc);
+        return false;
+    }
+
+    if (!(res = signature_hash_direct(&sigpkt, key, &hash))) {
+        goto done;
+    }
+
+    res = !signature_validate(&sigpkt, &signer->material, &hash, rnp_ctx_rng_handle(rnp_ctx));
+done:
+    src_close(&sigsrc);
+    free_signature(&sigpkt);
+    return res;
 }

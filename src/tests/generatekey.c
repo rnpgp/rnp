@@ -858,13 +858,13 @@ test_generated_key_sigs(void **state)
                                              pub.uids[0],
                                              &pub.subsigs[0].sig,
                                              pgp_get_key_pkt(&pub),
-                                             pub.packets[2].raw));
+                                             &pub.packets[2]));
         assert_true(pgp_check_useridcert_sig(&rnp_ctx,
                                              pgp_get_key_pkt(&sec),
                                              sec.uids[0],
                                              &sec.subsigs[0].sig,
                                              pgp_get_key_pkt(&sec),
-                                             sec.packets[2].raw));
+                                             &sec.packets[2]));
         // modify a hashed portion of the sig packets
         pub.packets[2]
           .raw[pub.subsigs[0].sig.v4_hashstart + pub.subsigs[0].sig.info.v4_hashlen - 1] ^=
@@ -878,13 +878,13 @@ test_generated_key_sigs(void **state)
                                               pub.uids[0],
                                               &pub.subsigs[0].sig,
                                               pgp_get_key_pkt(&pub),
-                                              pub.packets[2].raw));
+                                              &pub.packets[2]));
         assert_false(pgp_check_useridcert_sig(&rnp_ctx,
                                               pgp_get_key_pkt(&sec),
                                               sec.uids[0],
                                               &sec.subsigs[0].sig,
                                               pgp_get_key_pkt(&sec),
-                                              sec.packets[2].raw));
+                                              &sec.packets[2]));
         // restore the original data
         pub.packets[2]
           .raw[pub.subsigs[0].sig.v4_hashstart + pub.subsigs[0].sig.info.v4_hashlen - 1] ^=
@@ -898,13 +898,13 @@ test_generated_key_sigs(void **state)
                                               (const uint8_t *) "fake",
                                               &pub.subsigs[0].sig,
                                               pgp_get_key_pkt(&pub),
-                                              pub.packets[2].raw));
+                                              &pub.packets[2]));
         assert_false(pgp_check_useridcert_sig(&rnp_ctx,
                                               pgp_get_key_pkt(&sec),
                                               (const uint8_t *) "fake",
                                               &sec.subsigs[0].sig,
                                               pgp_get_key_pkt(&sec),
-                                              sec.packets[2].raw));
+                                              &sec.packets[2]));
 
         // validate via an alternative method
         pgp_validation_t *result = NULL;
@@ -977,13 +977,13 @@ test_generated_key_sigs(void **state)
                                          pgp_get_key_pkt(&pub),
                                          &pub.subsigs[0].sig,
                                          pgp_get_key_pkt(primary_pub),
-                                         pub.packets[1].raw));
+                                         &pub.packets[1]));
         assert_true(pgp_check_subkey_sig(&rnp_ctx,
                                          pgp_get_key_pkt(primary_pub),
                                          pgp_get_key_pkt(&sec),
                                          &sec.subsigs[0].sig,
                                          pgp_get_key_pkt(primary_pub),
-                                         sec.packets[1].raw));
+                                         &sec.packets[1]));
         // modify a hashed portion of the sig packets
         pub.packets[1]
           .raw[pub.subsigs[0].sig.v4_hashstart + pub.subsigs[0].sig.info.v4_hashlen - 1] ^=
@@ -997,13 +997,13 @@ test_generated_key_sigs(void **state)
                                           pgp_get_key_pkt(&pub),
                                           &pub.subsigs[0].sig,
                                           pgp_get_key_pkt(primary_pub),
-                                          pub.packets[1].raw));
+                                          &pub.packets[1]));
         assert_false(pgp_check_subkey_sig(&rnp_ctx,
                                           pgp_get_key_pkt(primary_pub),
                                           pgp_get_key_pkt(&sec),
                                           &sec.subsigs[0].sig,
                                           pgp_get_key_pkt(primary_pub),
-                                          sec.packets[1].raw));
+                                          &sec.packets[1]));
         // restore the original data
         pub.packets[1]
           .raw[pub.subsigs[0].sig.v4_hashstart + pub.subsigs[0].sig.info.v4_hashlen - 1] ^=

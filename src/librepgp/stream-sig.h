@@ -204,6 +204,10 @@ bool signature_hash_binding(const pgp_signature_t *sig,
                             const pgp_key_pkt_t *  subkey,
                             pgp_hash_t *           hash);
 
+bool signature_hash_direct(const pgp_signature_t *sig,
+                           const pgp_key_pkt_t *  key,
+                           pgp_hash_t *           hash);
+
 /**
  * @brief Add signature fields to the hash context and finish it.
  * @param hash initialized hash context feeded with signed data (document, key, etc).
