@@ -1,5 +1,0 @@
-AT_SETUP([run rnp_tests])
-
-AT_CHECK([${TOPSRCDIR}/src/tests/rnp_tests], [0], [ignore], [ignore])
-
-AT_CLEANUP
