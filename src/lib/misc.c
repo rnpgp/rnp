@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2018 [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009-2010 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -729,7 +729,7 @@ const char *
 rnp_get_info(const char *type)
 {
     if (strcmp(type, "version") == 0) {
-        return PACKAGE_STRING "[" GIT_REVISION "]";
+        return PACKAGE_STRING;
     }
     if (strcmp(type, "maintainer") == 0) {
         return PACKAGE_BUGREPORT;

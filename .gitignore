@@ -5,58 +5,20 @@
 *.loT
 *.o
 
+*.py[cod]
+
 core.*
 vgcore.*
 
-# These artifacts can be removed by ./remove_artifacts.sh
-.deps
-.libs
-Makefile
-Makefile.in
-aclocal.m4
-autom4te.cache/
-buildaux/
-builds/
-config.log
-config.status
-configure
-include/Makefile
-include/Makefile.in
-libtool
-m4/l*.m4
-src/Makefile
-src/Makefile.in
-src/lib/Makefile
-src/lib/Makefile.in
 src/lib/config.h
-src/lib/config.h.in
-src/lib/config.h.in~
-src/lib/stamp-h1
-src/libmj/Makefile
-src/libmj/Makefile.in
-src/rnp/Makefile
-src/rnp/Makefile.in
-src/rnp/rnp
-src/rnp/rnp-rnp.o
-src/rnpkeys/Makefile
-src/rnpkeys/Makefile.in
-src/rnpkeys/rnpkeys
-src/tests/*.pyc
-src/tests/Makefile
-src/tests/Makefile.in
-src/tests/config.h
-src/tests/rnp_tests
-src/fuzzing/Makefile
-src/fuzzing/Makefile.in
-src/fuzzing/config.h
-src/fuzzing/fuzz_keys
-tests/Makefile
-tests/Makefile.in
-tests/atconfig
-tests/atlocal
-src/rnp/rnp
-src/rnpkeys/rnpkeys
+librnp-*.pc
+rpm-ldconfig
+src/lib/rnp-config-version.cmake
+src/lib/rnp-config.cmake
 src/apps/packet-dumper/redumper
+src/rnp/rnp
+src/rnpkeys/rnpkeys
+src/tests/rnp_tests
 
 # Patch output
 *.orig
@@ -65,3 +27,25 @@ src/apps/packet-dumper/redumper
 # Editor temp files
 *.swp
 \#*\#
+
+# shared libs
+*.so
+*.so.*
+*.dylib
+
+# CMake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+DartConfiguration.tcl
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+build/
+
+version.txt
