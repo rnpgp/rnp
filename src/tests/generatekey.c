@@ -866,12 +866,8 @@ test_generated_key_sigs(void **state)
                                              pgp_get_key_pkt(&sec),
                                              &sec.packets[2]));
         // modify a hashed portion of the sig packets
-        pub.packets[2]
-          .raw[pub.subsigs[0].sig.v4_hashstart + pub.subsigs[0].sig.info.v4_hashlen - 1] ^=
-          0xff;
-        sec.packets[2]
-          .raw[sec.subsigs[0].sig.v4_hashstart + sec.subsigs[0].sig.info.v4_hashlen - 1] ^=
-          0xff;
+        pub.packets[2].raw[32] ^= 0xff;
+        sec.packets[2].raw[32] ^= 0xff;
         // ensure validation fails
         assert_false(pgp_check_useridcert_sig(&rnp_ctx,
                                               pgp_get_key_pkt(&pub),
@@ -886,12 +882,8 @@ test_generated_key_sigs(void **state)
                                               pgp_get_key_pkt(&sec),
                                               &sec.packets[2]));
         // restore the original data
-        pub.packets[2]
-          .raw[pub.subsigs[0].sig.v4_hashstart + pub.subsigs[0].sig.info.v4_hashlen - 1] ^=
-          0xff;
-        sec.packets[2]
-          .raw[sec.subsigs[0].sig.v4_hashstart + sec.subsigs[0].sig.info.v4_hashlen - 1] ^=
-          0xff;
+        pub.packets[2].raw[32] ^= 0xff;
+        sec.packets[2].raw[32] ^= 0xff;
         // ensure validation fails with incorrect uid
         assert_false(pgp_check_useridcert_sig(&rnp_ctx,
                                               pgp_get_key_pkt(&pub),
@@ -935,8 +927,7 @@ test_generated_key_sigs(void **state)
 
         // do at least one modification test for pgp_validate_key_sigs too
         // modify a hashed portion of the sig packet
-        primary_pub->packets[2].raw[primary_pub->subsigs[0].sig.v4_hashstart +
-                                    primary_pub->subsigs[0].sig.info.v4_hashlen - 1] ^= 0xff;
+        primary_pub->packets[2].raw[32] ^= 0xff;
         // ensure validation fails
         result = calloc(1, sizeof(*result));
         assert_non_null(result);
@@ -944,8 +935,7 @@ test_generated_key_sigs(void **state)
         assert_false(pgp_validate_key_sigs(result, primary_pub, pubring));
         pgp_validate_result_free(result);
         // restore the original data
-        primary_pub->packets[2].raw[primary_pub->subsigs[0].sig.v4_hashstart +
-                                    primary_pub->subsigs[0].sig.info.v4_hashlen - 1] ^= 0xff;
+        primary_pub->packets[2].raw[32] ^= 0xff;
     }
 
     // sub
@@ -985,12 +975,8 @@ test_generated_key_sigs(void **state)
                                          pgp_get_key_pkt(primary_pub),
                                          &sec.packets[1]));
         // modify a hashed portion of the sig packets
-        pub.packets[1]
-          .raw[pub.subsigs[0].sig.v4_hashstart + pub.subsigs[0].sig.info.v4_hashlen - 1] ^=
-          0xff;
-        sec.packets[1]
-          .raw[sec.subsigs[0].sig.v4_hashstart + sec.subsigs[0].sig.info.v4_hashlen - 1] ^=
-          0xff;
+        pub.packets[1].raw[32] ^= 0xff;
+        sec.packets[1].raw[32] ^= 0xff;
         // ensure validation fails
         assert_false(pgp_check_subkey_sig(&rnp_ctx,
                                           pgp_get_key_pkt(primary_pub),
@@ -1005,12 +991,8 @@ test_generated_key_sigs(void **state)
                                           pgp_get_key_pkt(primary_pub),
                                           &sec.packets[1]));
         // restore the original data
-        pub.packets[1]
-          .raw[pub.subsigs[0].sig.v4_hashstart + pub.subsigs[0].sig.info.v4_hashlen - 1] ^=
-          0xff;
-        sec.packets[1]
-          .raw[sec.subsigs[0].sig.v4_hashstart + sec.subsigs[0].sig.info.v4_hashlen - 1] ^=
-          0xff;
+        pub.packets[1].raw[32] ^= 0xff;
+        sec.packets[1].raw[32] ^= 0xff;
 
         // add to our rings
         assert_true(rnp_key_store_add_key(&io, pubring, &pub));
