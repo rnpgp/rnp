@@ -409,7 +409,7 @@ test_load_check_bitfields_and_times_v3(void **state)
     // check subsig count
     assert_int_equal(key->subsigc, 1);
     // check signature version
-    assert_int_equal(key->subsigs[0].sig.version, 3);
+    assert_int_equal(key->subsigs[0].sig.pkt.version, 3);
     // check issuer
     assert_true(rnp_hex_decode("DC70C124A50283F1", keyid, sizeof(keyid)));
     assert_int_equal(key->subsigs[0].sig.signer_id_set, 1);

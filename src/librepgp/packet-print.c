@@ -272,7 +272,7 @@ format_subsig_line(char *              buffer,
     if (key_expires(key)) {
         format_pubkey_expiration_notice(expired, key, time(NULL), sizeof(expired));
     }
-    if (subsig->sig.version == 4 && subsig->sig.type == PGP_SIG_SUBKEY) {
+    if (subsig->sig.pkt.version == 4 && subsig->sig.pkt.type == PGP_SIG_SUBKEY) {
         /* XXX: The character count of this was previously ignored.
          *      This seems to have been incorrect, but if not
          *      you should revert it.
@@ -315,7 +315,7 @@ format_uid_notice(char *                 buffer,
             continue;
 
             /* TODO: I'm also unsure about this one. */
-        } else if (!(subsig->sig.version == 4 && subsig->sig.type == PGP_SIG_SUBKEY &&
+        } else if (!(subsig->sig.pkt.version == 4 && subsig->sig.pkt.type == PGP_SIG_SUBKEY &&
                      uid == key->uidc - 1)) {
             continue;
         }
@@ -546,8 +546,8 @@ repgp_sprint_json(pgp_io_t *                    io,
                     continue;
                 }
             } else {
-                if (!(key->subsigs[j].sig.version == 4 &&
-                      key->subsigs[j].sig.type == PGP_SIG_SUBKEY && i == key->uidc - 1)) {
+                if (!(key->subsigs[j].sig.pkt.version == 4 &&
+                      key->subsigs[j].sig.pkt.type == PGP_SIG_SUBKEY && i == key->uidc - 1)) {
                     continue;
                 }
             }
@@ -615,21 +615,21 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                     continue;
                 }
             } else {
-                if (!(key->subsigs[j].sig.version == 4 &&
-                      key->subsigs[j].sig.type == PGP_SIG_SUBKEY && i == key->uidc - 1)) {
+                if (!(key->subsigs[j].sig.pkt.version == 4 &&
+                      key->subsigs[j].sig.pkt.type == PGP_SIG_SUBKEY && i == key->uidc - 1)) {
                     continue;
                 }
             }
             trustkey =
               rnp_key_store_get_key_by_id(io, keyring, key->subsigs[j].sig.signer_id, NULL);
-            if (key->subsigs[j].sig.version == 4 &&
-                key->subsigs[j].sig.type == PGP_SIG_SUBKEY) {
+            if (key->subsigs[j].sig.pkt.version == 4 &&
+                key->subsigs[j].sig.pkt.type == PGP_SIG_SUBKEY) {
                 n += snprintf(
                   &uidbuf[n],
                   sizeof(uidbuf) - n,
                   "sub:%zu:%d:%s:%lld:%lld\n",
                   key_bitlength(pgp_get_key_material(key)),
-                  key->subsigs[j].sig.key_alg,
+                  key->subsigs[j].sig.pkt.palg,
                   rnp_strhexdump(keyid, key->subsigs[j].sig.signer_id, PGP_KEY_ID_SIZE, ""),
                   (long long) (key->subsigs[j].sig.creation),
                   (long long) key->expiration);

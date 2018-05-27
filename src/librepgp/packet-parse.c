@@ -771,39 +771,19 @@ pgp_rawpacket_free(pgp_rawpacket_t *packet)
 void
 pgp_sig_free(pgp_sig_info_t *sig)
 {
-    switch (sig->key_alg) {
+    free_signature(&sig->pkt);
+    switch (sig->pkt.palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_SIGN_ONLY:
-        break;
-
     case PGP_PKA_DSA:
-        break;
-
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        break;
-
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
         break;
-
-    case PGP_PKA_PRIVATE00:
-    case PGP_PKA_PRIVATE01:
-    case PGP_PKA_PRIVATE02:
-    case PGP_PKA_PRIVATE03:
-    case PGP_PKA_PRIVATE04:
-    case PGP_PKA_PRIVATE05:
-    case PGP_PKA_PRIVATE06:
-    case PGP_PKA_PRIVATE07:
-    case PGP_PKA_PRIVATE08:
-    case PGP_PKA_PRIVATE09:
-    case PGP_PKA_PRIVATE10:
-        pgp_data_free(&sig->sig.unknown);
-        break;
-
     default:
-        RNP_LOG("bad sig type %u", sig->key_alg);
+        RNP_LOG("bad sig alg %u", sig->pkt.palg);
     }
 }
 
@@ -1111,7 +1091,7 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
     /* clear signature */
     (void) memset(&pkt.u.sig, 0x0, sizeof(pkt.u.sig));
 
-    pkt.u.sig.version = PGP_V3;
+    pkt.u.sig.pkt.version = PGP_V3;
 
     /* hash info length */
     if (!limread(&c, 1, region, stream)) {
@@ -1124,7 +1104,7 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
     if (!limread(&c, 1, region, stream)) {
         return false;
     }
-    pkt.u.sig.type = (pgp_sig_type_t) c;
+    pkt.u.sig.pkt.type = (pgp_sig_type_t) c;
     /* XXX: check signature type */
 
     if (!limited_read_time(&pkt.u.sig.creation, region, stream)) {
@@ -1140,30 +1120,30 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
     if (!limread(&c, 1, region, stream)) {
         return false;
     }
-    pkt.u.sig.key_alg = (pgp_pubkey_alg_t) c;
+    pkt.u.sig.pkt.palg = (pgp_pubkey_alg_t) c;
     /* XXX: check algorithm */
 
     if (!limread(&c, 1, region, stream)) {
         return false;
     }
-    pkt.u.sig.hash_alg = (pgp_hash_alg_t) c;
+    pkt.u.sig.pkt.halg = (pgp_hash_alg_t) c;
     /* XXX: check algorithm */
 
-    if (!limread(pkt.u.sig.hash2, 2, region, stream)) {
+    if (!limread(pkt.u.sig.pkt.lbits, 2, region, stream)) {
         return false;
     }
 
-    switch (pkt.u.sig.key_alg) {
+    switch (pkt.u.sig.pkt.palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!limread_mpi(&pkt.u.sig.sig.rsa.s, region, stream)) {
+        if (!limread_mpi(&pkt.u.sig.pkt.material.rsa.s, region, stream)) {
             return false;
         }
         break;
 
     case PGP_PKA_DSA:
-        if (!limread_mpi(&pkt.u.sig.sig.dsa.r, region, stream) ||
-            !limread_mpi(&pkt.u.sig.sig.dsa.s, region, stream)) {
+        if (!limread_mpi(&pkt.u.sig.pkt.material.dsa.r, region, stream) ||
+            !limread_mpi(&pkt.u.sig.pkt.material.dsa.s, region, stream)) {
             return false;
         }
         break;
@@ -1171,15 +1151,15 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-        if (!limread_mpi(&pkt.u.sig.sig.ec.r, region, stream) ||
-            !limread_mpi(&pkt.u.sig.sig.ec.s, region, stream)) {
+        if (!limread_mpi(&pkt.u.sig.pkt.material.ecc.r, region, stream) ||
+            !limread_mpi(&pkt.u.sig.pkt.material.ecc.s, region, stream)) {
             return false;
         }
         break;
 
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!limread_mpi(&pkt.u.sig.sig.eg.r, region, stream) ||
-            !limread_mpi(&pkt.u.sig.sig.eg.s, region, stream)) {
+        if (!limread_mpi(&pkt.u.sig.pkt.material.eg.r, region, stream) ||
+            !limread_mpi(&pkt.u.sig.pkt.material.eg.s, region, stream)) {
             return false;
         }
         break;
@@ -1188,7 +1168,7 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
         PGP_ERROR_1(&stream->errors,
                     PGP_E_ALG_UNSUPPORTED_SIGNATURE_ALG,
                     "Unsupported signature key algorithm (%s)",
-                    pgp_show_pka(pkt.u.sig.key_alg));
+                    pgp_show_pka(pkt.u.sig.pkt.palg));
         return false;
     }
 
@@ -1591,39 +1571,39 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
 
     /* Set version,type,algorithms */
 
-    pkt.u.sig.version = PGP_V4;
+    pkt.u.sig.pkt.version = PGP_V4;
 
     if (!limread(&c, 1, region, stream)) {
         return false;
     }
-    pkt.u.sig.type = (pgp_sig_type_t) c;
+    pkt.u.sig.pkt.type = (pgp_sig_type_t) c;
     if (rnp_get_debug(__FILE__)) {
         fprintf(stderr,
                 "signature type=%d (%s)\n",
-                pkt.u.sig.type,
-                pgp_show_sig_type(pkt.u.sig.type));
+                pkt.u.sig.pkt.type,
+                pgp_show_sig_type(pkt.u.sig.pkt.type));
     }
     /* XXX: check signature type */
 
     if (!limread(&c, 1, region, stream)) {
         return false;
     }
-    pkt.u.sig.key_alg = (pgp_pubkey_alg_t) c;
+    pkt.u.sig.pkt.palg = (pgp_pubkey_alg_t) c;
     /* XXX: check key algorithm */
     if (rnp_get_debug(__FILE__)) {
         (void) fprintf(
-          stderr, "key_alg=%d (%s)\n", pkt.u.sig.key_alg, pgp_show_pka(pkt.u.sig.key_alg));
+          stderr, "key_alg=%d (%s)\n", pkt.u.sig.pkt.palg, pgp_show_pka(pkt.u.sig.pkt.palg));
     }
     if (!limread(&c, 1, region, stream)) {
         return false;
     }
-    pkt.u.sig.hash_alg = (pgp_hash_alg_t) c;
+    pkt.u.sig.pkt.halg = (pgp_hash_alg_t) c;
     /* XXX: check hash algorithm */
     if (rnp_get_debug(__FILE__)) {
         fprintf(stderr,
                 "hash_alg=%d %s\n",
-                pkt.u.sig.hash_alg,
-                pgp_show_hash_alg(pkt.u.sig.hash_alg));
+                pkt.u.sig.pkt.halg,
+                pgp_show_hash_alg(pkt.u.sig.pkt.halg));
     }
     CALLBACK(PGP_PTAG_CT_SIGNATURE_HEADER, &stream->cbinfo, &pkt);
 
@@ -1643,24 +1623,24 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
         return false;
     }
 
-    if (!limread(pkt.u.sig.hash2, 2, region, stream)) {
+    if (!limread(pkt.u.sig.pkt.lbits, 2, region, stream)) {
         return false;
     }
 
-    switch (pkt.u.sig.key_alg) {
+    switch (pkt.u.sig.pkt.palg) {
     case PGP_PKA_RSA:
-        if (!limread_mpi(&pkt.u.sig.sig.rsa.s, region, stream)) {
+        if (!limread_mpi(&pkt.u.sig.pkt.material.rsa.s, region, stream)) {
             return false;
         }
         if (rnp_get_debug(__FILE__)) {
-            char *sig = mpi2hex(&pkt.u.sig.sig.rsa.s);
+            char *sig = mpi2hex(&pkt.u.sig.pkt.material.rsa.s);
             (void) fprintf(stderr, "parse_v4_sig: RSA: sig is \n%s\n", sig);
             free(sig);
         }
         break;
 
     case PGP_PKA_DSA:
-        if (!limread_mpi(&pkt.u.sig.sig.dsa.r, region, stream)) {
+        if (!limread_mpi(&pkt.u.sig.pkt.material.dsa.r, region, stream)) {
             /*
              * usually if this fails, it just means we've reached
              * the end of the keyring
@@ -1670,7 +1650,7 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
             }
             return false;
         }
-        if (!limread_mpi(&pkt.u.sig.sig.dsa.s, region, stream)) {
+        if (!limread_mpi(&pkt.u.sig.pkt.material.dsa.s, region, stream)) {
             ERRP(&stream->cbinfo, pkt, "Error reading DSA s field in signature\n");
         }
         break;
@@ -1679,15 +1659,15 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        if (!limread_mpi(&pkt.u.sig.sig.ec.r, region, stream) ||
-            !limread_mpi(&pkt.u.sig.sig.ec.s, region, stream)) {
+        if (!limread_mpi(&pkt.u.sig.pkt.material.ecc.r, region, stream) ||
+            !limread_mpi(&pkt.u.sig.pkt.material.ecc.s, region, stream)) {
             return false;
         }
         break;
 
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!limread_mpi(&pkt.u.sig.sig.eg.r, region, stream) ||
-            !limread_mpi(&pkt.u.sig.sig.eg.s, region, stream)) {
+        if (!limread_mpi(&pkt.u.sig.pkt.material.eg.r, region, stream) ||
+            !limread_mpi(&pkt.u.sig.pkt.material.eg.s, region, stream)) {
             return false;
         }
         break;
@@ -1702,17 +1682,19 @@ parse_v4_sig(pgp_region_t *region, pgp_stream_t *stream)
     case PGP_PKA_PRIVATE07:
     case PGP_PKA_PRIVATE08:
     case PGP_PKA_PRIVATE09:
-    case PGP_PKA_PRIVATE10:
-        if (!read_data(&pkt.u.sig.sig.unknown, region, stream)) {
+    case PGP_PKA_PRIVATE10: {
+        pgp_data_t data = {0};
+        if (!read_data(&data, region, stream)) {
             return false;
         }
+        pgp_data_free(&data);
         break;
-
+    }
     default:
         PGP_ERROR_1(&stream->errors,
                     PGP_E_ALG_UNSUPPORTED_SIGNATURE_ALG,
                     "Bad v4 signature key algorithm (%s)",
-                    pgp_show_pka(pkt.u.sig.key_alg));
+                    pgp_show_pka(pkt.u.sig.pkt.palg));
         return false;
     }
     if (region->readc != region->length) {

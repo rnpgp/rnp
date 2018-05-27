@@ -847,8 +847,8 @@ test_generated_key_sigs(void **state)
         assert_int_equal(1, pub.subsigc);
         assert_int_equal(1, sec.subsigc);
         // make sure our sig MPI is not NULL
-        assert_int_not_equal(pub.subsigs[0].sig.sig.rsa.s.len, 0);
-        assert_int_not_equal(sec.subsigs[0].sig.sig.rsa.s.len, 0);
+        assert_int_not_equal(pub.subsigs[0].sig.pkt.material.rsa.s.len, 0);
+        assert_int_not_equal(sec.subsigs[0].sig.pkt.material.rsa.s.len, 0);
         // make sure we're targeting the right packet
         assert_int_equal(PGP_PTAG_CT_SIGNATURE, pub.packets[2].tag);
         assert_int_equal(PGP_PTAG_CT_SIGNATURE, sec.packets[2].tag);
@@ -956,8 +956,8 @@ test_generated_key_sigs(void **state)
         assert_int_equal(1, pub.subsigc);
         assert_int_equal(1, sec.subsigc);
         // make sure our sig MPI is not NULL
-        assert_int_not_equal(pub.subsigs[0].sig.sig.rsa.s.len, 0);
-        assert_int_not_equal(sec.subsigs[0].sig.sig.rsa.s.len, 0);
+        assert_int_not_equal(pub.subsigs[0].sig.pkt.material.rsa.s.len, 0);
+        assert_int_not_equal(sec.subsigs[0].sig.pkt.material.rsa.s.len, 0);
         // make sure we're targeting the right packet
         assert_int_equal(PGP_PTAG_CT_SIGNATURE, pub.packets[1].tag);
         assert_int_equal(PGP_PTAG_CT_SIGNATURE, sec.packets[1].tag);
