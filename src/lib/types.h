@@ -257,8 +257,6 @@ typedef struct pgp_sig_info_t {
         pgp_ec_signature_t  ec;      /* An ECC signature - ECDSA, SM2, or EdDSA */
         pgp_data_t          unknown; /* private or experimental */
     } sig;                           /* signature params */
-    size_t   v4_hashlen;
-    uint8_t *v4_hashed;
 
     /* These are here because:
      *   creation_set
@@ -281,8 +279,6 @@ typedef struct pgp_sig_t {
     pgp_sig_info_t info; /* The signature information */
     /* The following fields are only used while parsing the signature */
     uint8_t     hash2[2];     /* high 2 bytes of hashed value */
-    size_t      v4_hashstart; /* only valid if accumulate is set */
-    pgp_hash_t *hash;         /* the hash filled in for the data so far */
 } pgp_sig_t;
 
 /* Signature subpacket, see 5.2.3.1 in RFC 4880 and RFC 4880 bis 02 */

@@ -164,12 +164,6 @@ struct pgp_cbdata_t {
     pgp_io_t *    io;     /* error/output messages */
 };
 
-/** pgp_hashtype_t */
-typedef struct {
-    pgp_hash_t hash; /* hashes we should hash data with */
-    uint8_t    keyid[PGP_KEY_ID_SIZE];
-} pgp_hashtype_t;
-
 /** \brief Structure to hold information about a packet parse.
  *
  *  This information includes options about the parse:
@@ -203,8 +197,6 @@ struct pgp_stream_t {
     pgp_error_t *   errors;
     void *          io; /* io streams */
     pgp_crypt_t     decrypt;
-    size_t          hashc;
-    pgp_hashtype_t *hashes;
     unsigned        exact_read : 1;
     unsigned        partial_read : 1;
     unsigned        coalescing : 1;

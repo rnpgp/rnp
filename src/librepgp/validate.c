@@ -133,11 +133,6 @@ static void
 copy_sig_info(pgp_sig_info_t *dst, const pgp_sig_info_t *src)
 {
     (void) memcpy(dst, src, sizeof(*src));
-    if ((dst->v4_hashed = calloc(1, src->v4_hashlen)) == NULL) {
-        (void) fprintf(stderr, "copy_sig_info: bad alloc\n");
-    } else {
-        (void) memcpy(dst->v4_hashed, src->v4_hashed, src->v4_hashlen);
-    }
 }
 
 static bool
@@ -405,17 +400,8 @@ void
 pgp_validate_result_free(pgp_validation_t *result)
 {
     if (result != NULL) {
-        for (size_t i = 0; i < result->validc; i++) {
-            free(result->valid_sigs[i].v4_hashed);
-        }
         free(result->valid_sigs);
-        for (size_t i = 0; i < result->invalidc; i++) {
-            free(result->invalid_sigs[i].v4_hashed);
-        }
         free(result->invalid_sigs);
-        for (size_t i = 0; i < result->unknownc; i++) {
-            free(result->unknown_sigs[i].v4_hashed);
-        }
         free(result->unknown_sigs);
         free(result);
         /* result = NULL; - XXX unnecessary */
