@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2018 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -141,7 +141,7 @@ rnpkeys_generatekey_testSignature(void **state)
 
                 /* Corrupt the signature */
                 /* TODO be smarter about this */
-                signatureBuf[50] ^= 0x0C;
+                signatureBuf[siglen / 2] ^= 0x0C;
 
                 ret = rnp_process_mem(
                   &ctx, signatureBuf, siglen, recoveredSig, sizeof(recoveredSig), &reslen);
