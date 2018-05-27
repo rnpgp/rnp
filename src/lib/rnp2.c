@@ -3591,20 +3591,23 @@ add_json_secret_mpis(json_object *jso, pgp_key_t *key)
 static rnp_result_t
 add_json_sig_mpis(json_object *jso, const pgp_sig_info_t *info)
 {
-    switch (info->key_alg) {
+    switch (info->pkt.palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis(jso, "sig", &info->sig.rsa.s, NULL);
+        return add_json_mpis(jso, "sig", &info->pkt.material.rsa.s, NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis(jso, "r", &info->sig.eg.r, "s", &info->sig.eg.s, NULL);
+        return add_json_mpis(
+          jso, "r", &info->pkt.material.eg.r, "s", &info->pkt.material.eg.s, NULL);
     case PGP_PKA_DSA:
-        return add_json_mpis(jso, "r", &info->sig.dsa.r, "s", &info->sig.dsa.s, NULL);
+        return add_json_mpis(
+          jso, "r", &info->pkt.material.dsa.r, "s", &info->pkt.material.dsa.s, NULL);
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        return add_json_mpis(jso, "r", &info->sig.ec.r, "s", &info->sig.ec.s, NULL);
+        return add_json_mpis(
+          jso, "r", &info->pkt.material.ecc.r, "s", &info->pkt.material.ecc.s, NULL);
     default:
         // TODO: we could use info->unknown and add a hex string of raw data here
         return RNP_ERROR_NOT_SUPPORTED;
@@ -3741,26 +3744,26 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
     }
     const pgp_sig_info_t *info = &subsig->sig;
     // version
-    json_object *jsoversion = json_object_new_int(info->version);
+    json_object *jsoversion = json_object_new_int(info->pkt.version);
     if (!jsoversion) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     json_object_object_add(jso, "version", jsoversion);
     // signature type
     const char *type = "unknown";
-    ARRAY_LOOKUP_BY_ID(sig_type_map, type, string, info->type, type);
+    ARRAY_LOOKUP_BY_ID(sig_type_map, type, string, info->pkt.type, type);
     if (!add_json_string_field(jso, "type", type)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // signer key type
     const char *key_type = "unknown";
-    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, info->key_alg, key_type);
+    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, info->pkt.palg, key_type);
     if (!add_json_string_field(jso, "key type", key_type)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // hash
     const char *hash = "unknown";
-    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, info->hash_alg, hash);
+    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, info->pkt.halg, hash);
     if (!add_json_string_field(jso, "hash", hash)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }

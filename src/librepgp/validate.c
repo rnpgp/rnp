@@ -264,7 +264,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         if (!pgp_key_can_sign(signer)) {
             (void) fprintf(io->errs, "WARNING: signature made with key that can not sign\n");
         }
-        switch (content->sig.type) {
+        switch (content->sig.pkt.type) {
         case PGP_CERT_GENERIC:
         case PGP_CERT_PERSONA:
         case PGP_CERT_CASUAL:
@@ -316,14 +316,14 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             PGP_ERROR_1(errors,
                         PGP_E_UNIMPLEMENTED,
                         "Sig Verification type 0x%02x not done yet\n",
-                        content->sig.type);
+                        content->sig.pkt.type);
             break;
 
         default:
             PGP_ERROR_1(errors,
                         PGP_E_UNIMPLEMENTED,
                         "Unexpected signature type 0x%02x\n",
-                        content->sig.type);
+                        content->sig.pkt.type);
         }
 
         if (valid) {

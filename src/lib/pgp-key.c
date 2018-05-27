@@ -1022,7 +1022,7 @@ get_subkey_binding(const pgp_key_t *subkey)
     for (unsigned i = 0; i < subkey->subsigc; i++) {
         const pgp_sig_info_t *sig = &subkey->subsigs[i].sig;
 
-        if (sig->type == PGP_SIG_SUBKEY) {
+        if (sig->pkt.type == PGP_SIG_SUBKEY) {
             return sig;
         }
     }

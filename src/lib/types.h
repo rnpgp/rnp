@@ -232,50 +232,6 @@ typedef struct pgp_userid_pkt_t {
     size_t   uid_len;
 } pgp_userid_pkt_t;
 
-/** Struct to hold a signature packet.
- *
- * \see RFC4880 5.2.2
- * \see RFC4880 5.2.3
- */
-typedef struct pgp_sig_info_t {
-    pgp_version_t  version; /* signature version number */
-    pgp_sig_type_t type;    /* signature type value */
-
-    /* **Note**: the following 3 fields are only valid if
-     * their corresponding bitfields are 1 (see below). */
-    time_t  creation;                   /* creation time of the signature */
-    time_t  expiration;                 /* number of seconds it's valid for */
-    uint8_t signer_id[PGP_KEY_ID_SIZE]; /* Eight-octet key ID
-                                         * of signer */
-    pgp_fingerprint_t signer_fpr;       /* signer fingerprint (length is 0 if not set) */
-    pgp_pubkey_alg_t  key_alg;          /* public key algorithm number */
-    pgp_hash_alg_t    hash_alg;         /* hashing algorithm number */
-    union {
-        pgp_rsa_signature_t rsa;     /* A RSA Signature */
-        pgp_dsa_signature_t dsa;     /* A DSA Signature */
-        pgp_eg_signature_t  eg;      /* deprecated */
-        pgp_ec_signature_t  ec;      /* An ECC signature - ECDSA, SM2, or EdDSA */
-        pgp_data_t          unknown; /* private or experimental */
-    } sig;                           /* signature params */
-
-    /* These are here because:
-     *   creation_set
-     *   - v3 sig pkts have an explicit creation time field
-     *   - v4 sig pkts MAY specify the creation time via a sigsubpkt
-     *   expiration_set
-     *   - v3 sig pkts have no expiration
-     *   - v4 sig pkts MAY have an expiration via a sigsubpkt
-     *   signer_id_set
-     *   - v3 sig pkts have an explicit signer id field
-     *   - v4 sig pkts MAY specify the signer id via a sigsubpkt
-     */
-    unsigned creation_set : 1;
-    unsigned signer_id_set : 1;
-    unsigned expiration_set : 1;
-
-    uint8_t hash2[2]; /* high 2 bytes of hashed value */
-} pgp_sig_info_t;
-
 /* Signature subpacket, see 5.2.3.1 in RFC 4880 and RFC 4880 bis 02 */
 typedef struct pgp_sig_subpkt_t {
     pgp_sig_subpacket_type_t type;         /* type of the subpacket */
@@ -377,6 +333,38 @@ typedef struct pgp_signature_t {
     /* v4 - only fields */
     list subpkts;
 } pgp_signature_t;
+
+/** Struct to hold a signature packet.
+ *
+ * \see RFC4880 5.2.2
+ * \see RFC4880 5.2.3
+ */
+typedef struct pgp_sig_info_t {
+    pgp_signature_t pkt;
+
+    /* **Note**: the following 3 fields are only valid if
+     * their corresponding bitfields are 1 (see below). */
+    time_t  creation;                   /* creation time of the signature */
+    time_t  expiration;                 /* number of seconds it's valid for */
+    uint8_t signer_id[PGP_KEY_ID_SIZE]; /* Eight-octet key ID
+                                         * of signer */
+    pgp_fingerprint_t signer_fpr;       /* signer fingerprint (length is 0 if not set) */
+
+    /* These are here because:
+     *   creation_set
+     *   - v3 sig pkts have an explicit creation time field
+     *   - v4 sig pkts MAY specify the creation time via a sigsubpkt
+     *   expiration_set
+     *   - v3 sig pkts have no expiration
+     *   - v4 sig pkts MAY have an expiration via a sigsubpkt
+     *   signer_id_set
+     *   - v3 sig pkts have an explicit signer id field
+     *   - v4 sig pkts MAY specify the signer id via a sigsubpkt
+     */
+    unsigned creation_set : 1;
+    unsigned signer_id_set : 1;
+    unsigned expiration_set : 1;
+} pgp_sig_info_t;
 
 /** The raw bytes of a signature subpacket */
 
