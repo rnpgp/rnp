@@ -67,24 +67,24 @@
 bool pgp_check_useridcert_sig(rnp_ctx_t *,
                               const pgp_key_pkt_t *,
                               const uint8_t *,
-                              const pgp_sig_t *,
+                              const pgp_sig_info_t *,
                               const pgp_key_pkt_t *,
                               const pgp_rawpacket_t *);
 bool pgp_check_userattrcert_sig(rnp_ctx_t *,
                                 const pgp_key_pkt_t *,
                                 const pgp_data_t *,
-                                const pgp_sig_t *,
+                                const pgp_sig_info_t *,
                                 const pgp_key_pkt_t *,
                                 const pgp_rawpacket_t *);
 bool pgp_check_subkey_sig(rnp_ctx_t *,
                           const pgp_key_pkt_t *,
                           const pgp_key_pkt_t *,
-                          const pgp_sig_t *,
+                          const pgp_sig_info_t *,
                           const pgp_key_pkt_t *,
                           const pgp_rawpacket_t *);
 bool pgp_check_direct_sig(rnp_ctx_t *,
                           const pgp_key_pkt_t *,
-                          const pgp_sig_t *,
+                          const pgp_sig_info_t *,
                           const pgp_key_pkt_t *,
                           const pgp_rawpacket_t *);
 

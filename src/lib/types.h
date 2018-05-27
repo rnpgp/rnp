@@ -272,14 +272,9 @@ typedef struct pgp_sig_info_t {
     unsigned creation_set : 1;
     unsigned signer_id_set : 1;
     unsigned expiration_set : 1;
-} pgp_sig_info_t;
 
-/** Struct used when parsing a signature */
-typedef struct pgp_sig_t {
-    pgp_sig_info_t info; /* The signature information */
-    /* The following fields are only used while parsing the signature */
-    uint8_t     hash2[2];     /* high 2 bytes of hashed value */
-} pgp_sig_t;
+    uint8_t hash2[2]; /* high 2 bytes of hashed value */
+} pgp_sig_info_t;
 
 /* Signature subpacket, see 5.2.3.1 in RFC 4880 and RFC 4880 bis 02 */
 typedef struct pgp_sig_subpkt_t {
@@ -494,7 +489,7 @@ typedef union {
     pgp_data_t              trust;
     uint8_t *               userid;
     pgp_data_t              userattr;
-    pgp_sig_t               sig;
+    pgp_sig_info_t          sig;
     pgp_ss_raw_t            ss_raw;
     pgp_ss_trust_t          ss_trust;
     unsigned                ss_revocable;
@@ -558,7 +553,7 @@ typedef struct pgp_user_prefs_t {
 /** signature subpackets */
 typedef struct pgp_subsig_t {
     uint32_t         uid;         /* index in userid array in key */
-    pgp_sig_t        sig;         /* trust signature */
+    pgp_sig_info_t   sig;         /* trust signature */
     uint8_t          trustlevel;  /* level of trust */
     uint8_t          trustamount; /* amount of trust */
     uint8_t          key_flags;   /* key flags */

@@ -574,7 +574,7 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
     }
 
     for (i = 0; i < key->subsigc; i++) {
-        if (!pu32(m, key->subsigs[i].sig.info.expiration)) {
+        if (!pu32(m, key->subsigs[i].sig.expiration)) {
             return false;
         }
     }

@@ -92,7 +92,7 @@ void pgp_userid_free(uint8_t **);
 
 void pgp_data_free(pgp_data_t *);
 
-void pgp_sig_free(pgp_sig_t *);
+void pgp_sig_free(pgp_sig_info_t *);
 
 void pgp_rawpacket_free(pgp_rawpacket_t *);
 
