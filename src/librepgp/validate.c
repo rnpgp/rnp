@@ -252,11 +252,10 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 
     case PGP_PTAG_CT_SIGNATURE:        /* V3 sigs */
     case PGP_PTAG_CT_SIGNATURE_FOOTER: /* V4 sigs */
-        signer =
-          rnp_key_store_get_key_by_id(io, key->keyring, content->sig.info.signer_id, NULL);
+        signer = rnp_key_store_get_key_by_id(io, key->keyring, content->sig.signer_id, NULL);
         if (!signer) {
             if (!add_sig_to_list(
-                  &content->sig.info, &key->result->unknown_sigs, &key->result->unknownc)) {
+                  &content->sig, &key->result->unknown_sigs, &key->result->unknownc)) {
                 (void) fprintf(io->errs, "pgp_validate_key_cb: user attribute length 0");
                 return PGP_FINISHED;
             }
@@ -265,7 +264,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         if (!pgp_key_can_sign(signer)) {
             (void) fprintf(io->errs, "WARNING: signature made with key that can not sign\n");
         }
-        switch (content->sig.info.type) {
+        switch (content->sig.type) {
         case PGP_CERT_GENERIC:
         case PGP_CERT_PERSONA:
         case PGP_CERT_CASUAL:
@@ -317,25 +316,25 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             PGP_ERROR_1(errors,
                         PGP_E_UNIMPLEMENTED,
                         "Sig Verification type 0x%02x not done yet\n",
-                        content->sig.info.type);
+                        content->sig.type);
             break;
 
         default:
             PGP_ERROR_1(errors,
                         PGP_E_UNIMPLEMENTED,
                         "Unexpected signature type 0x%02x\n",
-                        content->sig.info.type);
+                        content->sig.type);
         }
 
         if (valid) {
             if (!add_sig_to_list(
-                  &content->sig.info, &key->result->valid_sigs, &key->result->validc)) {
+                  &content->sig, &key->result->valid_sigs, &key->result->validc)) {
                 PGP_ERROR_1(errors, PGP_E_UNIMPLEMENTED, "%s", "Can't add good sig to list\n");
             }
         } else {
             PGP_ERROR_1(errors, PGP_E_V_BAD_SIGNATURE, "%s", "Bad Sig");
             if (!add_sig_to_list(
-                  &content->sig.info, &key->result->invalid_sigs, &key->result->invalidc)) {
+                  &content->sig, &key->result->invalid_sigs, &key->result->invalidc)) {
                 PGP_ERROR_1(errors, PGP_E_UNIMPLEMENTED, "%s", "Can't add good sig to list\n");
             }
         }

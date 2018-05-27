@@ -3739,7 +3739,7 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
-    const pgp_sig_info_t *info = &subsig->sig.info;
+    const pgp_sig_info_t *info = &subsig->sig;
     // version
     json_object *jsoversion = json_object_new_int(info->version);
     if (!jsoversion) {

@@ -103,7 +103,7 @@ bool
 pgp_check_useridcert_sig(rnp_ctx_t *            rnp_ctx,
                          const pgp_key_pkt_t *  key,
                          const uint8_t *        id,
-                         const pgp_sig_t *      sig,
+                         const pgp_sig_info_t * sig,
                          const pgp_key_pkt_t *  signer,
                          const pgp_rawpacket_t *raw_packet)
 {
@@ -153,7 +153,7 @@ bool
 pgp_check_userattrcert_sig(rnp_ctx_t *            rnp_ctx,
                            const pgp_key_pkt_t *  key,
                            const pgp_data_t *     attribute,
-                           const pgp_sig_t *      sig,
+                           const pgp_sig_info_t * sig,
                            const pgp_key_pkt_t *  signer,
                            const pgp_rawpacket_t *raw_packet)
 {
@@ -203,7 +203,7 @@ bool
 pgp_check_subkey_sig(rnp_ctx_t *            rnp_ctx,
                      const pgp_key_pkt_t *  key,
                      const pgp_key_pkt_t *  subkey,
-                     const pgp_sig_t *      sig,
+                     const pgp_sig_info_t * sig,
                      const pgp_key_pkt_t *  signer,
                      const pgp_rawpacket_t *raw_packet)
 {
@@ -246,7 +246,7 @@ done:
 bool
 pgp_check_direct_sig(rnp_ctx_t *            rnp_ctx,
                      const pgp_key_pkt_t *  key,
-                     const pgp_sig_t *      sig,
+                     const pgp_sig_info_t * sig,
                      const pgp_key_pkt_t *  signer,
                      const pgp_rawpacket_t *raw_packet)
 {
