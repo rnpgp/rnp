@@ -242,17 +242,17 @@ format_uid_line(char *buffer, uint8_t *uid, size_t size, int flags)
 /* TODO: Consider replacing `trustkey` with an optional `uid` parameter. */
 /* TODO: Consider passing only signer_id and creation. */
 static int
-format_sig_line(char *                buffer,
-                const pgp_sig_info_t *sig,
-                const pgp_key_t *     trustkey,
-                size_t                size)
+format_sig_line(char *                 buffer,
+                const pgp_signature_t *sig,
+                const pgp_key_t *      trustkey,
+                size_t                 size)
 {
     char    keyid[PGP_KEY_ID_SIZE * 3];
     char    time[PTIMESTR_LEN + sizeof(char)];
     uint8_t signer[PGP_KEY_ID_SIZE];
 
-    ptimestr(time, sizeof(time), signature_get_creation(&sig->pkt));
-    signature_get_keyid(&sig->pkt, signer);
+    ptimestr(time, sizeof(time), signature_get_creation(sig));
+    signature_get_keyid(sig, signer);
     return snprintf(buffer,
                     size,
                     "sig        %s  %s  %s\n",
@@ -275,7 +275,7 @@ format_subsig_line(char *              buffer,
     if (key_expires(key)) {
         format_pubkey_expiration_notice(expired, key, time(NULL), sizeof(expired));
     }
-    if (subsig->sig.pkt.version == 4 && subsig->sig.pkt.type == PGP_SIG_SUBKEY) {
+    if (subsig->sig.version == 4 && subsig->sig.type == PGP_SIG_SUBKEY) {
         /* XXX: The character count of this was previously ignored.
          *      This seems to have been incorrect, but if not
          *      you should revert it.
@@ -318,13 +318,13 @@ format_uid_notice(char *                 buffer,
             continue;
 
             /* TODO: I'm also unsure about this one. */
-        } else if (!(subsig->sig.pkt.version == 4 && subsig->sig.pkt.type == PGP_SIG_SUBKEY &&
+        } else if (!(subsig->sig.version == 4 && subsig->sig.type == PGP_SIG_SUBKEY &&
                      uid == key->uidc - 1)) {
             continue;
         }
 
         uint8_t signer[PGP_KEY_ID_SIZE] = {0};
-        signature_get_keyid(&subsig->sig.pkt, signer);
+        signature_get_keyid(&subsig->sig, signer);
         trustkey = rnp_key_store_get_key_by_id(io, keyring, signer, NULL);
 
         n += format_subsig_line(buffer + n, key, trustkey, subsig, size - n);
@@ -551,14 +551,14 @@ repgp_sprint_json(pgp_io_t *                    io,
                     continue;
                 }
             } else {
-                if (!(key->subsigs[j].sig.pkt.version == 4 &&
-                      key->subsigs[j].sig.pkt.type == PGP_SIG_SUBKEY && i == key->uidc - 1)) {
+                if (!(key->subsigs[j].sig.version == 4 &&
+                      key->subsigs[j].sig.type == PGP_SIG_SUBKEY && i == key->uidc - 1)) {
                     continue;
                 }
             }
             json_object *subsigc = json_object_new_object();
             uint8_t      signer[PGP_KEY_ID_SIZE] = {0};
-            signature_get_keyid(&key->subsigs[j].sig.pkt, signer);
+            signature_get_keyid(&key->subsigs[j].sig, signer);
             json_object_object_add(
               subsigc,
               "signer id",
@@ -566,7 +566,7 @@ repgp_sprint_json(pgp_io_t *                    io,
             json_object_object_add(
               subsigc,
               "creation time",
-              json_object_new_int((int64_t) signature_get_creation(&key->subsigs[j].sig.pkt)));
+              json_object_new_int((int64_t) signature_get_creation(&key->subsigs[j].sig)));
 
             const pgp_key_t *trustkey = rnp_key_store_get_key_by_id(io, keyring, signer, NULL);
 
@@ -620,30 +620,30 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                     continue;
                 }
             } else {
-                if (!(key->subsigs[j].sig.pkt.version == 4 &&
-                      key->subsigs[j].sig.pkt.type == PGP_SIG_SUBKEY && i == key->uidc - 1)) {
+                if (!(key->subsigs[j].sig.version == 4 &&
+                      key->subsigs[j].sig.type == PGP_SIG_SUBKEY && i == key->uidc - 1)) {
                     continue;
                 }
             }
             uint8_t signer[PGP_KEY_ID_SIZE] = {0};
-            signature_get_keyid(&key->subsigs[j].sig.pkt, signer);
+            signature_get_keyid(&key->subsigs[j].sig, signer);
             trustkey = rnp_key_store_get_key_by_id(io, keyring, signer, NULL);
-            if (key->subsigs[j].sig.pkt.version == 4 &&
-                key->subsigs[j].sig.pkt.type == PGP_SIG_SUBKEY) {
+            if (key->subsigs[j].sig.version == 4 &&
+                key->subsigs[j].sig.type == PGP_SIG_SUBKEY) {
                 n += snprintf(&uidbuf[n],
                               sizeof(uidbuf) - n,
                               "sub:%zu:%d:%s:%lld:%lld\n",
                               key_bitlength(pgp_get_key_material(key)),
-                              key->subsigs[j].sig.pkt.palg,
+                              key->subsigs[j].sig.palg,
                               rnp_strhexdump(keyid, signer, PGP_KEY_ID_SIZE, ""),
-                              (long long) signature_get_creation(&key->subsigs[j].sig.pkt),
+                              (long long) signature_get_creation(&key->subsigs[j].sig),
                               (long long) key->expiration);
             } else {
                 n += snprintf(&uidbuf[n],
                               sizeof(uidbuf) - n,
                               "sig:%s:%lld:%s\n",
                               rnp_strhexdump(keyid, signer, PGP_KEY_ID_SIZE, ""),
-                              (long long) signature_get_creation(&key->subsigs[j].sig.pkt),
+                              (long long) signature_get_creation(&key->subsigs[j].sig),
                               (trustkey) ? (char *) trustkey->uids[trustkey->uid0] : "");
             }
         }

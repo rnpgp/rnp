@@ -89,11 +89,8 @@ subsig_free(pgp_subsig_t *subsig)
     if (!subsig) {
         return;
     }
-    // user prefs
-    pgp_user_prefs_t *prefs = &subsig->prefs;
-    pgp_free_user_prefs(prefs);
-
-    pgp_sig_free(&subsig->sig);
+    pgp_free_user_prefs(&subsig->prefs);
+    free_signature(&subsig->sig);
 }
 
 static void
@@ -1016,14 +1013,14 @@ find_suitable_key(pgp_op_t            op,
     return NULL;
 }
 
-static const pgp_sig_info_t *
+static const pgp_signature_t *
 get_subkey_binding(const pgp_key_t *subkey)
 {
     // find the subkey binding signature
     for (unsigned i = 0; i < subkey->subsigc; i++) {
-        const pgp_sig_info_t *sig = &subkey->subsigs[i].sig;
+        const pgp_signature_t *sig = &subkey->subsigs[i].sig;
 
-        if (sig->pkt.type == PGP_SIG_SUBKEY) {
+        if (sig->type == PGP_SIG_SUBKEY) {
             return sig;
         }
     }
@@ -1032,7 +1029,7 @@ get_subkey_binding(const pgp_key_t *subkey)
 
 static pgp_key_t *
 find_signer(pgp_io_t *                io,
-            const pgp_sig_info_t *    sig,
+            const pgp_signature_t *   sig,
             const rnp_key_store_t *   store,
             const pgp_key_provider_t *key_provider,
             bool                      secret)
@@ -1041,9 +1038,9 @@ find_signer(pgp_io_t *                io,
     pgp_key_t *      key = NULL;
 
     // prefer using the issuer fingerprint when available
-    if (signature_has_keyfp(&sig->pkt)) {
+    if (signature_has_keyfp(sig)) {
         search.type = PGP_KEY_SEARCH_FINGERPRINT;
-        signature_get_keyfp(&sig->pkt, &search.by.fingerprint);
+        signature_get_keyfp(sig, &search.by.fingerprint);
         // search the store, if provided
         if (store && (key = rnp_key_store_search(io, store, &search, NULL)) &&
             pgp_is_key_secret(key) == secret) {
@@ -1057,7 +1054,7 @@ find_signer(pgp_io_t *                io,
             return key;
         }
     }
-    if (signature_get_keyid(&sig->pkt, search.by.keyid)) {
+    if (signature_get_keyid(sig, search.by.keyid)) {
         search.type = PGP_KEY_SEARCH_KEYID;
         // search the store, if provided
         if (store && (key = rnp_key_store_search(io, store, &search, NULL)) &&
@@ -1094,7 +1091,7 @@ pgp_get_primary_key_for(pgp_io_t *                io,
                         const rnp_key_store_t *   store,
                         const pgp_key_provider_t *key_provider)
 {
-    const pgp_sig_info_t *binding_sig = NULL;
+    const pgp_signature_t *binding_sig = NULL;
 
     // find the subkey binding signature
     binding_sig = get_subkey_binding(subkey);
@@ -1102,7 +1099,7 @@ pgp_get_primary_key_for(pgp_io_t *                io,
         RNP_LOG_FD(io->errs, "Missing subkey binding signature for key.");
         return NULL;
     }
-    if (!signature_has_keyfp(&binding_sig->pkt) && !signature_has_keyid(&binding_sig->pkt)) {
+    if (!signature_has_keyfp(binding_sig) && !signature_has_keyid(binding_sig)) {
         RNP_LOG_FD(io->errs, "No issuer information in subkey binding signature.");
         return NULL;
     }

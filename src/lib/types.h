@@ -334,15 +334,6 @@ typedef struct pgp_signature_t {
     list subpkts;
 } pgp_signature_t;
 
-/** Struct to hold a signature packet.
- *
- * \see RFC4880 5.2.2
- * \see RFC4880 5.2.3
- */
-typedef struct pgp_sig_info_t {
-    pgp_signature_t pkt;
-} pgp_sig_info_t;
-
 /** The raw bytes of a signature subpacket */
 
 typedef struct pgp_ss_raw_t {
@@ -454,7 +445,7 @@ typedef union {
     pgp_data_t              trust;
     uint8_t *               userid;
     pgp_data_t              userattr;
-    pgp_sig_info_t          sig;
+    pgp_signature_t         sig;
     pgp_ss_raw_t            ss_raw;
     pgp_ss_trust_t          ss_trust;
     unsigned                ss_revocable;
@@ -515,7 +506,7 @@ typedef struct pgp_user_prefs_t {
 /** signature subpackets */
 typedef struct pgp_subsig_t {
     uint32_t         uid;         /* index in userid array in key */
-    pgp_sig_info_t   sig;         /* trust signature */
+    pgp_signature_t  sig;         /* trust signature */
     uint8_t          trustlevel;  /* level of trust */
     uint8_t          trustamount; /* amount of trust */
     uint8_t          key_flags;   /* key flags */

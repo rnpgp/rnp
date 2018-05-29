@@ -131,20 +131,20 @@ key_reader(pgp_stream_t *stream,
 }
 
 static void
-copy_sig_info(pgp_sig_info_t *dst, const pgp_sig_info_t *src)
+copy_sig_info(pgp_signature_t *dst, const pgp_signature_t *src)
 {
     (void) memcpy(dst, src, sizeof(*src));
 }
 
 static bool
-add_sig_to_list(const pgp_sig_info_t *sig, pgp_sig_info_t **sigs, unsigned *count)
+add_sig_to_list(const pgp_signature_t *sig, pgp_signature_t **sigs, unsigned *count)
 {
-    pgp_sig_info_t *newsigs;
+    pgp_signature_t *newsigs;
 
     if (*count == 0) {
-        newsigs = calloc(*count + 1, sizeof(pgp_sig_info_t));
+        newsigs = calloc(*count + 1, sizeof(pgp_signature_t));
     } else {
-        newsigs = realloc(*sigs, (*count + 1) * sizeof(pgp_sig_info_t));
+        newsigs = realloc(*sigs, (*count + 1) * sizeof(pgp_signature_t));
     }
     if (newsigs == NULL) {
         (void) fprintf(stderr, "add_sig_to_list: alloc failure\n");
@@ -255,7 +255,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     case PGP_PTAG_CT_SIGNATURE_FOOTER: {
         /* V4 sigs */
         uint8_t signer_id[PGP_KEY_ID_SIZE] = {0};
-        signature_get_keyid(&content->sig.pkt, signer_id);
+        signature_get_keyid(&content->sig, signer_id);
         signer = rnp_key_store_get_key_by_id(io, key->keyring, signer_id, NULL);
         if (!signer) {
             if (!add_sig_to_list(
@@ -268,7 +268,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         if (!pgp_key_can_sign(signer)) {
             (void) fprintf(io->errs, "WARNING: signature made with key that can not sign\n");
         }
-        switch (content->sig.pkt.type) {
+        switch (content->sig.type) {
         case PGP_CERT_GENERIC:
         case PGP_CERT_PERSONA:
         case PGP_CERT_CASUAL:
@@ -320,14 +320,14 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             PGP_ERROR_1(errors,
                         PGP_E_UNIMPLEMENTED,
                         "Sig Verification type 0x%02x not done yet\n",
-                        content->sig.pkt.type);
+                        content->sig.type);
             break;
 
         default:
             PGP_ERROR_1(errors,
                         PGP_E_UNIMPLEMENTED,
                         "Unexpected signature type 0x%02x\n",
-                        content->sig.pkt.type);
+                        content->sig.type);
         }
 
         if (valid) {

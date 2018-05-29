@@ -168,8 +168,8 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
     case PGP_PTAG_CT_SIGNATURE_FOOTER: /* end of v4 sig */
         SUBSIG_REQUIRED_BEFORE("sig footer");
         subsig->sig = content->sig;
-        if (signature_has_key_expiration(&subsig->sig.pkt)) {
-            key->expiration = signature_get_key_expiration(&subsig->sig.pkt);
+        if (signature_has_key_expiration(&subsig->sig)) {
+            key->expiration = signature_get_key_expiration(&subsig->sig);
         }
         return PGP_KEEP_MEMORY;
     case PGP_PTAG_SS_TRUST:
