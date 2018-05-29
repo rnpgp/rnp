@@ -61,6 +61,7 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <librepgp/packet-show.h>
 #include <librepgp/reader.h>
 #include <librepgp/stream-common.h>
+#include <librepgp/stream-sig.h>
 #include <librepgp/stream-armor.h>
 
 #include "types.h"
@@ -167,6 +168,9 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
     case PGP_PTAG_CT_SIGNATURE_FOOTER: /* end of v4 sig */
         SUBSIG_REQUIRED_BEFORE("sig footer");
         subsig->sig = content->sig;
+        if (signature_has_key_expiration(&subsig->sig.pkt)) {
+            key->expiration = signature_get_key_expiration(&subsig->sig.pkt);
+        }
         return PGP_KEEP_MEMORY;
     case PGP_PTAG_SS_TRUST:
         SUBSIG_REQUIRED_BEFORE("ss trust");
@@ -174,7 +178,6 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
         subsig->trustamount = pkt->u.ss_trust.amount;
         break;
     case PGP_PTAG_SS_KEY_EXPIRY:
-        key->expiration = pkt->u.ss_time;
         break;
     case PGP_PTAG_SS_PRIMARY_USER_ID:
         if (content->ss_primary_userid) {

@@ -67,6 +67,7 @@ __RCSID("$NetBSD: packet-print.c,v 1.42 2012/02/22 06:29:40 agc Exp $");
 
 #include "crypto/ec.h"
 #include "packet-show.h"
+#include "stream-sig.h"
 #include "pgp-key.h"
 #include "reader.h"
 #include "utils.h"
@@ -249,7 +250,7 @@ format_sig_line(char *                buffer,
     char keyid[PGP_KEY_ID_SIZE * 3];
     char time[PTIMESTR_LEN + sizeof(char)];
 
-    ptimestr(time, sizeof(time), sig->creation);
+    ptimestr(time, sizeof(time), signature_get_creation(&sig->pkt));
     return snprintf(buffer,
                     size,
                     "sig        %s  %s  %s\n",
@@ -560,7 +561,7 @@ repgp_sprint_json(pgp_io_t *                    io,
             json_object_object_add(
               subsigc,
               "creation time",
-              json_object_new_int((int64_t)(key->subsigs[j].sig.creation)));
+              json_object_new_int((int64_t) signature_get_creation(&key->subsigs[j].sig.pkt)));
 
             const pgp_key_t *trustkey =
               rnp_key_store_get_key_by_id(io, keyring, key->subsigs[j].sig.signer_id, NULL);
@@ -631,7 +632,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                   key_bitlength(pgp_get_key_material(key)),
                   key->subsigs[j].sig.pkt.palg,
                   rnp_strhexdump(keyid, key->subsigs[j].sig.signer_id, PGP_KEY_ID_SIZE, ""),
-                  (long long) (key->subsigs[j].sig.creation),
+                  (long long) signature_get_creation(&key->subsigs[j].sig.pkt),
                   (long long) key->expiration);
             } else {
                 n += snprintf(
@@ -639,7 +640,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                   sizeof(uidbuf) - n,
                   "sig:%s:%lld:%s\n",
                   rnp_strhexdump(keyid, key->subsigs[j].sig.signer_id, PGP_KEY_ID_SIZE, ""),
-                  (long long) key->subsigs[j].sig.creation,
+                  (long long) signature_get_creation(&key->subsigs[j].sig.pkt),
                   (trustkey) ? (char *) trustkey->uids[trustkey->uid0] : "");
             }
         }

@@ -56,7 +56,7 @@ signature_matches_onepass(pgp_signature_t *sig, pgp_one_pass_sig_t *onepass)
 }
 
 pgp_sig_subpkt_t *
-signature_get_subpkt(pgp_signature_t *sig, pgp_sig_subpacket_type_t type)
+signature_get_subpkt(const pgp_signature_t *sig, pgp_sig_subpacket_type_t type)
 {
     pgp_sig_subpkt_t *res = NULL;
 
@@ -215,7 +215,7 @@ signature_set_keyid(pgp_signature_t *sig, uint8_t *id)
 }
 
 uint32_t
-signature_get_creation(pgp_signature_t *sig)
+signature_get_creation(const pgp_signature_t *sig)
 {
     pgp_sig_subpkt_t *subpkt;
 
@@ -258,7 +258,7 @@ signature_set_creation(pgp_signature_t *sig, uint32_t ctime)
 }
 
 uint32_t
-signature_get_expiration(pgp_signature_t *sig)
+signature_get_expiration(const pgp_signature_t *sig)
 {
     pgp_sig_subpkt_t *subpkt;
 
@@ -290,8 +290,14 @@ signature_set_expiration(pgp_signature_t *sig, uint32_t etime)
     return true;
 }
 
+bool
+signature_has_key_expiration(const pgp_signature_t *sig)
+{
+    return signature_get_subpkt(sig, PGP_SIG_SUBPKT_KEY_EXPIRY);
+}
+
 uint32_t
-signature_get_key_expiration(pgp_signature_t *sig)
+signature_get_key_expiration(const pgp_signature_t *sig)
 {
     pgp_sig_subpkt_t *subpkt;
 

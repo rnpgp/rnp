@@ -76,6 +76,7 @@ __RCSID("$NetBSD: packet-parse.c,v 1.51 2012/03/05 02:20:18 christos Exp $");
 #include "packet-show.h"
 #include "stream-packet.h"
 #include "stream-key.h"
+#include "stream-sig.h"
 #include "reader.h"
 #include "utils.h"
 
@@ -1107,10 +1108,12 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
     pkt.u.sig.pkt.type = (pgp_sig_type_t) c;
     /* XXX: check signature type */
 
-    if (!limited_read_time(&pkt.u.sig.creation, region, stream)) {
+    time_t cr = 0;
+
+    if (!limited_read_time(&cr, region, stream)) {
         return false;
     }
-    pkt.u.sig.creation_set = 1;
+    pkt.u.sig.pkt.creation_time = cr;
 
     if (!limread(pkt.u.sig.signer_id, PGP_KEY_ID_SIZE, region, stream)) {
         return false;
@@ -1255,19 +1258,24 @@ parse_one_sig_subpacket(pgp_sig_info_t *sig, pgp_region_t *region, pgp_stream_t 
     switch (pkt.tag) {
     case PGP_PTAG_SS_CREATION_TIME:
     case PGP_PTAG_SS_EXPIRATION_TIME:
-    case PGP_PTAG_SS_KEY_EXPIRY:
-        if (!limited_read_time(&pkt.u.ss_time, &subregion, stream))
+    case PGP_PTAG_SS_KEY_EXPIRY: {
+        time_t tm = 0;
+        bool   res = false;
+        if (!limited_read_time(&tm, &subregion, stream)) {
             return false;
-        if (pkt.tag == PGP_PTAG_SS_CREATION_TIME) {
-            sig->creation = pkt.u.ss_time;
-            sig->creation_set = 1;
         }
-        if (pkt.tag == PGP_PTAG_SS_EXPIRATION_TIME) {
-            sig->expiration = pkt.u.ss_time;
-            sig->expiration_set = 1;
+        if (pkt.tag == PGP_PTAG_SS_CREATION_TIME) {
+            res = signature_set_creation(&sig->pkt, tm);
+        } else if (pkt.tag == PGP_PTAG_SS_EXPIRATION_TIME) {
+            res = signature_set_expiration(&sig->pkt, tm);
+        } else if (pkt.tag == PGP_PTAG_SS_KEY_EXPIRY) {
+            res = signature_set_key_expiration(&sig->pkt, tm);
+        }
+        if (!res) {
+            return false;
         }
         break;
-
+    }
     case PGP_PTAG_SS_TRUST:
         if (!limread(&pkt.u.ss_trust.level, 1, &subregion, stream) ||
             !limread(&pkt.u.ss_trust.amount, 1, &subregion, stream)) {

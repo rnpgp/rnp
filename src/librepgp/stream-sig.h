@@ -49,7 +49,8 @@ bool signature_matches_onepass(pgp_signature_t *sig, pgp_one_pass_sig_t *onepass
  * @param type type of the subpacket to lookup for
  * @return pointer to the subpacket structure or NULL if it was not found or error occurred
  */
-pgp_sig_subpkt_t *signature_get_subpkt(pgp_signature_t *sig, pgp_sig_subpacket_type_t type);
+pgp_sig_subpkt_t *signature_get_subpkt(const pgp_signature_t *  sig,
+                                       pgp_sig_subpacket_type_t type);
 
 /**
  * @brief Get signing key's fingerprint if it is available
@@ -92,7 +93,7 @@ bool signature_set_keyid(pgp_signature_t *sig, uint8_t *id);
  * @return time in seconds since the Jan 1, 1970 UTC. 0 is the default value and returned even
  *         if creation time is not available
  */
-uint32_t signature_get_creation(pgp_signature_t *sig);
+uint32_t signature_get_creation(const pgp_signature_t *sig);
 
 /**
  * @brief Set signature's creation time
@@ -107,7 +108,7 @@ bool signature_set_creation(pgp_signature_t *sig, uint32_t ctime);
  * @param sig populated or loaded signature
  * @return expiration time in seconds since the creation time. 0 if signature never expires.
  */
-uint32_t signature_get_expiration(pgp_signature_t *sig);
+uint32_t signature_get_expiration(const pgp_signature_t *sig);
 
 /**
  * @brief Set the signature's expiration time
@@ -118,11 +119,18 @@ uint32_t signature_get_expiration(pgp_signature_t *sig);
 bool signature_set_expiration(pgp_signature_t *sig, uint32_t etime);
 
 /**
+ * @brief Check whether signature has key expiration
+ * @param sig populated or loaded signature
+ * @return true if signature has key expiration time or false otherwise
+ */
+bool signature_has_key_expiration(const pgp_signature_t *sig);
+
+/**
  * @brief Get the key expiration time
  * @param sig populated or loaded signature
  * @return expiration time in seconds since the creation time. 0 if key never expires.
  */
-uint32_t signature_get_key_expiration(pgp_signature_t *sig);
+uint32_t signature_get_key_expiration(const pgp_signature_t *sig);
 
 /**
  * @brief Set the key expiration time
