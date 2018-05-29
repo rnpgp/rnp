@@ -219,6 +219,7 @@ test_load_check_bitfields_and_times(void **state)
 {
     pgp_io_t         io = {.errs = stderr, .res = stdout, .outs = stdout};
     uint8_t          keyid[PGP_KEY_ID_SIZE];
+    uint8_t          signer_id[PGP_KEY_ID_SIZE] = {0};
     const pgp_key_t *key;
 
     // load keyring
@@ -237,10 +238,9 @@ test_load_check_bitfields_and_times(void **state)
     for (unsigned i = 0; i < key->subsigc; i++) {
         const pgp_subsig_t *ss = &key->subsigs[i];
         static const time_t expected_creation_times[] = {1500569820, 1500569836, 1500569846};
-
         // check SS_ISSUER_KEY_ID
-        assert_int_equal(ss->sig.signer_id_set, 1);
-        assert_int_equal(memcmp(keyid, ss->sig.signer_id, PGP_KEY_ID_SIZE), 0);
+        assert_true(signature_get_keyid(&ss->sig.pkt, signer_id));
+        assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
         // check SS_CREATION_TIME
         assert_int_equal(signature_get_creation(&ss->sig.pkt), expected_creation_times[i]);
         // check SS_EXPIRATION_TIME
@@ -258,8 +258,8 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigc, 1);
     // check SS_ISSUER_KEY_ID
     assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid, sizeof(keyid)));
-    assert_int_equal(key->subsigs[0].sig.signer_id_set, 1);
-    assert_int_equal(memcmp(keyid, key->subsigs[0].sig.signer_id, PGP_KEY_ID_SIZE), 0);
+    assert_true(signature_get_keyid(&key->subsigs[0].sig.pkt, signer_id));
+    assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(&key->subsigs[0].sig.pkt), 1500569820);
     assert_int_equal(signature_get_creation(&key->subsigs[0].sig.pkt),
@@ -278,8 +278,8 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigc, 1);
     // check SS_ISSUER_KEY_ID
     assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid, sizeof(keyid)));
-    assert_int_equal(key->subsigs[0].sig.signer_id_set, 1);
-    assert_int_equal(memcmp(keyid, key->subsigs[0].sig.signer_id, PGP_KEY_ID_SIZE), 0);
+    assert_true(signature_get_keyid(&key->subsigs[0].sig.pkt, signer_id));
+    assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(&key->subsigs[0].sig.pkt), 1500569851);
     assert_int_equal(signature_get_creation(&key->subsigs[0].sig.pkt),
@@ -298,8 +298,8 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigc, 1);
     // check SS_ISSUER_KEY_ID
     assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid, sizeof(keyid)));
-    assert_int_equal(key->subsigs[0].sig.signer_id_set, 1);
-    assert_int_equal(memcmp(keyid, key->subsigs[0].sig.signer_id, PGP_KEY_ID_SIZE), 0);
+    assert_true(signature_get_keyid(&key->subsigs[0].sig.pkt, signer_id));
+    assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(&key->subsigs[0].sig.pkt), 1500569896);
     assert_int_equal(signature_get_creation(&key->subsigs[0].sig.pkt),
@@ -322,8 +322,8 @@ test_load_check_bitfields_and_times(void **state)
         static const time_t expected_creation_times[] = {1501372449, 1500570153, 1500570147};
 
         // check SS_ISSUER_KEY_ID
-        assert_int_equal(ss->sig.signer_id_set, 1);
-        assert_int_equal(memcmp(keyid, ss->sig.signer_id, PGP_KEY_ID_SIZE), 0);
+        assert_true(signature_get_keyid(&ss->sig.pkt, signer_id));
+        assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
         // check SS_CREATION_TIME
         assert_int_equal(signature_get_creation(&ss->sig.pkt), expected_creation_times[i]);
         // check SS_EXPIRATION_TIME
@@ -341,8 +341,8 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigc, 1);
     // check SS_ISSUER_KEY_ID
     assert_true(rnp_hex_decode("2FCADF05FFA501BB", keyid, sizeof(keyid)));
-    assert_int_equal(key->subsigs[0].sig.signer_id_set, 1);
-    assert_int_equal(memcmp(keyid, key->subsigs[0].sig.signer_id, PGP_KEY_ID_SIZE), 0);
+    assert_true(signature_get_keyid(&key->subsigs[0].sig.pkt, signer_id));
+    assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(&key->subsigs[0].sig.pkt), 1500569946);
     assert_int_equal(signature_get_creation(&key->subsigs[0].sig.pkt),
@@ -361,8 +361,8 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(key->subsigc, 1);
     // check SS_ISSUER_KEY_ID
     assert_true(rnp_hex_decode("2FCADF05FFA501BB", keyid, sizeof(keyid)));
-    assert_int_equal(key->subsigs[0].sig.signer_id_set, 1);
-    assert_int_equal(memcmp(keyid, key->subsigs[0].sig.signer_id, PGP_KEY_ID_SIZE), 0);
+    assert_true(signature_get_keyid(&key->subsigs[0].sig.pkt, signer_id));
+    assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(&key->subsigs[0].sig.pkt), 1500570165);
     assert_int_equal(signature_get_creation(&key->subsigs[0].sig.pkt),
@@ -384,6 +384,7 @@ test_load_check_bitfields_and_times_v3(void **state)
 {
     pgp_io_t         io = {.errs = stderr, .res = stdout, .outs = stdout};
     uint8_t          keyid[PGP_KEY_ID_SIZE];
+    uint8_t          signer_id[PGP_KEY_ID_SIZE];
     const pgp_key_t *key;
 
     // load keyring
@@ -404,8 +405,8 @@ test_load_check_bitfields_and_times_v3(void **state)
     assert_int_equal(key->subsigs[0].sig.pkt.version, 3);
     // check issuer
     assert_true(rnp_hex_decode("DC70C124A50283F1", keyid, sizeof(keyid)));
-    assert_int_equal(key->subsigs[0].sig.signer_id_set, 1);
-    assert_int_equal(memcmp(keyid, key->subsigs[0].sig.signer_id, PGP_KEY_ID_SIZE), 0);
+    assert_true(signature_get_keyid(&key->subsigs[0].sig.pkt, signer_id));
+    assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check creation time
     assert_int_equal(signature_get_creation(&key->subsigs[0].sig.pkt), 1005209227);
     assert_int_equal(signature_get_creation(&key->subsigs[0].sig.pkt),

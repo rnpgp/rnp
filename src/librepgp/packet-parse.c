@@ -906,7 +906,6 @@ repgp_parser_content_free(pgp_packet_t *c)
         break;
 
     case PGP_PTAG_SS_ISSUER_FPR:
-        pgp_data_free(&c->u.ss_issuer_fpr);
         break;
 
     case PGP_PARSER_PACKET_END:
@@ -1115,10 +1114,9 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
     }
     pkt.u.sig.pkt.creation_time = cr;
 
-    if (!limread(pkt.u.sig.signer_id, PGP_KEY_ID_SIZE, region, stream)) {
+    if (!limread(pkt.u.sig.pkt.signer, PGP_KEY_ID_SIZE, region, stream)) {
         return false;
     }
-    pkt.u.sig.signer_id_set = 1;
 
     if (!limread(&c, 1, region, stream)) {
         return false;
@@ -1290,14 +1288,16 @@ parse_one_sig_subpacket(pgp_sig_info_t *sig, pgp_region_t *region, pgp_stream_t 
         pkt.u.ss_revocable = !!bools;
         break;
 
-    case PGP_PTAG_SS_ISSUER_KEY_ID:
-        if (!limread(pkt.u.ss_issuer, PGP_KEY_ID_SIZE, &subregion, stream)) {
+    case PGP_PTAG_SS_ISSUER_KEY_ID: {
+        uint8_t issuer[PGP_KEY_ID_SIZE] = {0};
+        if (!limread(issuer, PGP_KEY_ID_SIZE, &subregion, stream)) {
             return false;
         }
-        (void) memcpy(sig->signer_id, pkt.u.ss_issuer, PGP_KEY_ID_SIZE);
-        sig->signer_id_set = 1;
+        if (!signature_set_keyid(&sig->pkt, issuer)) {
+            return false;
+        }
         break;
-
+    }
     case PGP_PTAG_SS_PREFERRED_SKA:
         if (!read_data(&pkt.u.ss_skapref, &subregion, stream)) {
             return false;
@@ -1354,16 +1354,18 @@ parse_one_sig_subpacket(pgp_sig_info_t *sig, pgp_region_t *region, pgp_stream_t 
         }
         break;
 
-    case PGP_PTAG_SS_ISSUER_FPR:
-        if (!read_data(&pkt.u.ss_issuer_fpr, &subregion, stream) ||
-            pkt.u.ss_issuer_fpr.len != 21 || pkt.u.ss_issuer_fpr.contents[0] != 0x04) {
+    case PGP_PTAG_SS_ISSUER_FPR: {
+        pgp_data_t fpdata = {0};
+        if (!read_data(&fpdata, &subregion, stream) || fpdata.len != 21 ||
+            fpdata.contents[0] != 0x04) {
             return false;
         }
-        memcpy(sig->signer_fpr.fingerprint,
-               pkt.u.ss_issuer_fpr.contents + 1,
-               pkt.u.ss_issuer_fpr.len - 1);
+        pgp_fingerprint_t fp = {.length = fpdata.len - 1};
+        memcpy(fp.fingerprint, fpdata.contents + 1, fp.length);
+        signature_set_keyfp(&pkt.u.sig.pkt, &fp);
+        pgp_data_free(&fpdata);
         break;
-
+    }
     case PGP_PTAG_SS_NOTATION_DATA:
         if (!limread_data(&pkt.u.ss_notation.flags, 4, &subregion, stream)) {
             return false;

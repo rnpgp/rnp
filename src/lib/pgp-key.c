@@ -61,6 +61,7 @@
 #include <librepgp/validate.h>
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
+#include <librepgp/stream-sig.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -1040,12 +1041,9 @@ find_signer(pgp_io_t *                io,
     pgp_key_t *      key = NULL;
 
     // prefer using the issuer fingerprint when available
-    if (sig->signer_fpr.length) {
+    if (signature_has_keyfp(&sig->pkt)) {
         search.type = PGP_KEY_SEARCH_FINGERPRINT;
-        search.by.fingerprint.length = sig->signer_fpr.length;
-        memcpy(search.by.fingerprint.fingerprint,
-               sig->signer_fpr.fingerprint,
-               sig->signer_fpr.length);
+        signature_get_keyfp(&sig->pkt, &search.by.fingerprint);
         // search the store, if provided
         if (store && (key = rnp_key_store_search(io, store, &search, NULL)) &&
             pgp_is_key_secret(key) == secret) {
@@ -1059,9 +1057,8 @@ find_signer(pgp_io_t *                io,
             return key;
         }
     }
-    if (sig->signer_id_set) {
+    if (signature_get_keyid(&sig->pkt, search.by.keyid)) {
         search.type = PGP_KEY_SEARCH_KEYID;
-        memcpy(search.by.keyid, sig->signer_id, PGP_KEY_ID_SIZE);
         // search the store, if provided
         if (store && (key = rnp_key_store_search(io, store, &search, NULL)) &&
             pgp_is_key_secret(key) == secret) {
@@ -1105,7 +1102,7 @@ pgp_get_primary_key_for(pgp_io_t *                io,
         RNP_LOG_FD(io->errs, "Missing subkey binding signature for key.");
         return NULL;
     }
-    if (!binding_sig->signer_fpr.length && !binding_sig->signer_id_set) {
+    if (!signature_has_keyfp(&binding_sig->pkt) && !signature_has_keyid(&binding_sig->pkt)) {
         RNP_LOG_FD(io->errs, "No issuer information in subkey binding signature.");
         return NULL;
     }
