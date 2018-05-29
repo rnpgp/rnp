@@ -54,15 +54,15 @@
 #include "crypto/hash.h"
 
 typedef struct pgp_validation_t {
-    unsigned        validc;
-    pgp_sig_info_t *valid_sigs;
-    unsigned        invalidc;
-    pgp_sig_info_t *invalid_sigs;
-    unsigned        unknownc;
-    pgp_sig_info_t *unknown_sigs;
-    time_t          creation;
-    time_t          expiration;
-    rnp_ctx_t *     rnp_ctx;
+    unsigned         validc;
+    pgp_signature_t *valid_sigs;
+    unsigned         invalidc;
+    pgp_signature_t *invalid_sigs;
+    unsigned         unknownc;
+    pgp_signature_t *unknown_sigs;
+    time_t           creation;
+    time_t           expiration;
+    rnp_ctx_t *      rnp_ctx;
 } pgp_validation_t;
 
 typedef struct {

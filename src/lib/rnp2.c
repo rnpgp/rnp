@@ -3589,25 +3589,22 @@ add_json_secret_mpis(json_object *jso, pgp_key_t *key)
 }
 
 static rnp_result_t
-add_json_sig_mpis(json_object *jso, const pgp_sig_info_t *info)
+add_json_sig_mpis(json_object *jso, const pgp_signature_t *sig)
 {
-    switch (info->pkt.palg) {
+    switch (sig->palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis(jso, "sig", &info->pkt.material.rsa.s, NULL);
+        return add_json_mpis(jso, "sig", &sig->material.rsa.s, NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis(
-          jso, "r", &info->pkt.material.eg.r, "s", &info->pkt.material.eg.s, NULL);
+        return add_json_mpis(jso, "r", &sig->material.eg.r, "s", &sig->material.eg.s, NULL);
     case PGP_PKA_DSA:
-        return add_json_mpis(
-          jso, "r", &info->pkt.material.dsa.r, "s", &info->pkt.material.dsa.s, NULL);
+        return add_json_mpis(jso, "r", &sig->material.dsa.r, "s", &sig->material.dsa.s, NULL);
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        return add_json_mpis(
-          jso, "r", &info->pkt.material.ecc.r, "s", &info->pkt.material.ecc.s, NULL);
+        return add_json_mpis(jso, "r", &sig->material.ecc.r, "s", &sig->material.ecc.s, NULL);
     default:
         // TODO: we could use info->unknown and add a hex string of raw data here
         return RNP_ERROR_NOT_SUPPORTED;
@@ -3742,39 +3739,39 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
-    const pgp_sig_info_t *info = &subsig->sig;
+    const pgp_signature_t *sig = &subsig->sig;
     // version
-    json_object *jsoversion = json_object_new_int(info->pkt.version);
+    json_object *jsoversion = json_object_new_int(sig->version);
     if (!jsoversion) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     json_object_object_add(jso, "version", jsoversion);
     // signature type
     const char *type = "unknown";
-    ARRAY_LOOKUP_BY_ID(sig_type_map, type, string, info->pkt.type, type);
+    ARRAY_LOOKUP_BY_ID(sig_type_map, type, string, sig->type, type);
     if (!add_json_string_field(jso, "type", type)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // signer key type
     const char *key_type = "unknown";
-    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, info->pkt.palg, key_type);
+    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, sig->palg, key_type);
     if (!add_json_string_field(jso, "key type", key_type)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // hash
     const char *hash = "unknown";
-    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, info->pkt.halg, hash);
+    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, sig->halg, hash);
     if (!add_json_string_field(jso, "hash", hash)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // creation time
-    json_object *jsocreation_time = json_object_new_int64(signature_get_creation(&info->pkt));
+    json_object *jsocreation_time = json_object_new_int64(signature_get_creation(sig));
     if (!jsocreation_time) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     json_object_object_add(jso, "creation time", jsocreation_time);
     // expiration (seconds)
-    json_object *jsoexpiration = json_object_new_int64(signature_get_expiration(&info->pkt));
+    json_object *jsoexpiration = json_object_new_int64(signature_get_expiration(sig));
     if (!jsoexpiration) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -3782,14 +3779,14 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
     // signer
     json_object *jsosigner = NULL;
     // TODO: add signer fingerprint as well (no support internally yet)
-    if (signature_has_keyid(&info->pkt)) {
+    if (signature_has_keyid(sig)) {
         jsosigner = json_object_new_object();
         if (!jsosigner) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         char    keyid[PGP_KEY_ID_SIZE * 2 + 1];
         uint8_t signer[PGP_KEY_ID_SIZE] = {0};
-        if (!signature_get_keyid(&info->pkt, signer) ||
+        if (!signature_get_keyid(sig, signer) ||
             !rnp_hex_encode(
               signer, PGP_KEY_ID_SIZE, keyid, sizeof(keyid), RNP_HEX_UPPERCASE)) {
             return RNP_ERROR_GENERIC;
@@ -3808,7 +3805,7 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         rnp_result_t tmpret;
-        if ((tmpret = add_json_sig_mpis(jsompis, info))) {
+        if ((tmpret = add_json_sig_mpis(jsompis, sig))) {
             json_object_put(jsompis);
             return tmpret;
         }

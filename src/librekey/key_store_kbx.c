@@ -575,7 +575,7 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
     }
 
     for (i = 0; i < key->subsigc; i++) {
-        if (!pu32(m, signature_get_key_expiration(&key->subsigs[i].sig.pkt))) {
+        if (!pu32(m, signature_get_key_expiration(&key->subsigs[i].sig))) {
             return false;
         }
     }
