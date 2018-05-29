@@ -2247,7 +2247,7 @@ locator_to_str(const pgp_key_search_t *locator,
     switch (locator->type) {
     case PGP_KEY_SEARCH_USERID:
         if (snprintf(identifier, identifier_size, "%s", locator->by.userid) >=
-            identifier_size) {
+            (int) identifier_size) {
             return false;
         }
         break;
@@ -3768,15 +3768,13 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // creation time
-    json_object *jsocreation_time =
-      json_object_new_int64(info->creation_set ? info->creation : 0);
+    json_object *jsocreation_time = json_object_new_int64(signature_get_creation(&info->pkt));
     if (!jsocreation_time) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     json_object_object_add(jso, "creation time", jsocreation_time);
     // expiration (seconds)
-    json_object *jsoexpiration =
-      json_object_new_int64(info->expiration_set ? info->expiration : 0);
+    json_object *jsoexpiration = json_object_new_int64(signature_get_expiration(&info->pkt));
     if (!jsoexpiration) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }

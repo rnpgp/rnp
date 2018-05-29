@@ -34,6 +34,7 @@
 #include "key_store_kbx.h"
 #include "pgp-key.h"
 #include "packet-create.h"
+#include <librepgp/stream-sig.h>
 #include "utils.h"
 
 #define BLOB_SIZE_LIMIT (5 * 1024 * 1024) // same limit with GnuPG 2.1
@@ -574,7 +575,7 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
     }
 
     for (i = 0; i < key->subsigc; i++) {
-        if (!pu32(m, key->subsigs[i].sig.expiration)) {
+        if (!pu32(m, signature_get_key_expiration(&key->subsigs[i].sig.pkt))) {
             return false;
         }
     }
