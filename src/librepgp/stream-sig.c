@@ -114,21 +114,27 @@ signature_add_subpkt(pgp_signature_t *        sig,
 }
 
 bool
-signature_get_keyfp(pgp_signature_t *sig, uint8_t *fp, size_t len, size_t *outlen)
+signature_has_keyfp(const pgp_signature_t *sig)
+{
+    return signature_get_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR);
+}
+
+bool
+signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t *fp)
 {
     pgp_sig_subpkt_t *subpkt;
 
-    if (!sig || !fp || !outlen || (sig->version < PGP_V4)) {
+    if (!sig || !fp || (sig->version < PGP_V4)) {
         return false;
     }
 
-    *outlen = 0;
+    fp->length = 0;
     if (!(subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR))) {
         return false;
     }
-    *outlen = subpkt->fields.issuer_fp.len;
-    if (len >= subpkt->fields.issuer_fp.len) {
-        memcpy(fp, subpkt->fields.issuer_fp.fp, subpkt->fields.issuer_fp.len);
+    fp->length = subpkt->fields.issuer_fp.len;
+    if (subpkt->fields.issuer_fp.len <= sizeof(fp->fingerprint)) {
+        memcpy(fp->fingerprint, subpkt->fields.issuer_fp.fp, subpkt->fields.issuer_fp.len);
         return true;
     }
 
@@ -136,7 +142,7 @@ signature_get_keyfp(pgp_signature_t *sig, uint8_t *fp, size_t len, size_t *outle
 }
 
 bool
-signature_set_keyfp(pgp_signature_t *sig, uint8_t *fp, size_t len)
+signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t *fp)
 {
     pgp_sig_subpkt_t *subpkt = NULL;
 
@@ -144,7 +150,7 @@ signature_set_keyfp(pgp_signature_t *sig, uint8_t *fp, size_t len)
         return false;
     }
 
-    subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR, 1 + len, true);
+    subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR, 1 + fp->length, true);
     if (!subpkt) {
         return false;
     }
@@ -152,14 +158,27 @@ signature_set_keyfp(pgp_signature_t *sig, uint8_t *fp, size_t len)
     subpkt->parsed = 1;
     subpkt->hashed = 1;
     subpkt->data[0] = 4;
-    memcpy(subpkt->data + 1, fp, len);
+    memcpy(subpkt->data + 1, fp->fingerprint, fp->length);
+    subpkt->fields.issuer_fp.len = fp->length;
     subpkt->fields.issuer_fp.version = subpkt->data[0];
     subpkt->fields.issuer_fp.fp = subpkt->data + 1;
     return true;
 }
 
 bool
-signature_get_keyid(pgp_signature_t *sig, uint8_t *id)
+signature_has_keyid(const pgp_signature_t *sig)
+{
+    if (!sig) {
+        return false;
+    }
+
+    return (sig->version < PGP_V4) ||
+           signature_get_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_KEY_ID) ||
+           signature_get_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR);
+}
+
+bool
+signature_get_keyid(const pgp_signature_t *sig, uint8_t *id)
 {
     pgp_sig_subpkt_t *subpkt;
 

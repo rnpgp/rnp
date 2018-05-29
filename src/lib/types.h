@@ -341,25 +341,6 @@ typedef struct pgp_signature_t {
  */
 typedef struct pgp_sig_info_t {
     pgp_signature_t pkt;
-
-    /* **Note**: the following 3 fields are only valid if
-     * their corresponding bitfields are 1 (see below). */
-    uint8_t signer_id[PGP_KEY_ID_SIZE]; /* Eight-octet key ID
-                                         * of signer */
-    pgp_fingerprint_t signer_fpr;       /* signer fingerprint (length is 0 if not set) */
-
-    /* These are here because:
-     *   creation_set
-     *   - v3 sig pkts have an explicit creation time field
-     *   - v4 sig pkts MAY specify the creation time via a sigsubpkt
-     *   expiration_set
-     *   - v3 sig pkts have no expiration
-     *   - v4 sig pkts MAY have an expiration via a sigsubpkt
-     *   signer_id_set
-     *   - v3 sig pkts have an explicit signer id field
-     *   - v4 sig pkts MAY specify the signer id via a sigsubpkt
-     */
-    unsigned signer_id_set : 1;
 } pgp_sig_info_t;
 
 /** The raw bytes of a signature subpacket */
@@ -477,7 +458,6 @@ typedef union {
     pgp_ss_raw_t            ss_raw;
     pgp_ss_trust_t          ss_trust;
     unsigned                ss_revocable;
-    uint8_t                 ss_issuer[PGP_KEY_ID_SIZE];
     pgp_ss_notation_t       ss_notation;
     pgp_rawpacket_t         packet;
     pgp_data_t              ss_skapref;
@@ -495,7 +475,6 @@ typedef union {
     pgp_data_t              ss_features;
     pgp_ss_sig_target_t     ss_sig_target;
     pgp_data_t              ss_embedded_sig;
-    pgp_data_t              ss_issuer_fpr;
     pgp_ss_revocation_t     ss_revocation;
     uint8_t *               ss_signer;
 } pgp_contents_t;

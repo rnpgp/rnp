@@ -157,8 +157,7 @@ test_stream_signatures(void **state)
     sig.halg = halg;
     sig.palg = pgp_get_key_alg(key);
     sig.type = PGP_SIG_BINARY;
-    assert_true(
-      signature_set_keyfp(&sig, key->fingerprint.fingerprint, key->fingerprint.length));
+    assert_true(signature_set_keyfp(&sig, &key->fingerprint));
     assert_true(signature_set_keyid(&sig, key->keyid));
     assert_true(signature_set_creation(&sig, create));
     assert_true(signature_set_expiration(&sig, expire));

@@ -82,6 +82,7 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 #include <librepgp/packet-show.h>
 #include <librepgp/reader.h>
 #include <librepgp/stream-packet.h>
+#include <librepgp/stream-sig.h>
 #include "signature.h"
 #include "utils.h"
 #include "memory.h"
@@ -250,9 +251,12 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         key->last_seen = ATTRIBUTE;
         return PGP_KEEP_MEMORY;
 
-    case PGP_PTAG_CT_SIGNATURE:        /* V3 sigs */
-    case PGP_PTAG_CT_SIGNATURE_FOOTER: /* V4 sigs */
-        signer = rnp_key_store_get_key_by_id(io, key->keyring, content->sig.signer_id, NULL);
+    case PGP_PTAG_CT_SIGNATURE: /* V3 sigs */
+    case PGP_PTAG_CT_SIGNATURE_FOOTER: {
+        /* V4 sigs */
+        uint8_t signer_id[PGP_KEY_ID_SIZE] = {0};
+        signature_get_keyid(&content->sig.pkt, signer_id);
+        signer = rnp_key_store_get_key_by_id(io, key->keyring, signer_id, NULL);
         if (!signer) {
             if (!add_sig_to_list(
                   &content->sig, &key->result->unknown_sigs, &key->result->unknownc)) {
@@ -339,7 +343,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
             }
         }
         break;
-
+    }
     /* ignore these */
     case PGP_PARSER_PTAG:
     case PGP_PTAG_CT_SIGNATURE_HEADER:

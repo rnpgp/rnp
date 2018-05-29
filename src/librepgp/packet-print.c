@@ -247,14 +247,16 @@ format_sig_line(char *                buffer,
                 const pgp_key_t *     trustkey,
                 size_t                size)
 {
-    char keyid[PGP_KEY_ID_SIZE * 3];
-    char time[PTIMESTR_LEN + sizeof(char)];
+    char    keyid[PGP_KEY_ID_SIZE * 3];
+    char    time[PTIMESTR_LEN + sizeof(char)];
+    uint8_t signer[PGP_KEY_ID_SIZE];
 
     ptimestr(time, sizeof(time), signature_get_creation(&sig->pkt));
+    signature_get_keyid(&sig->pkt, signer);
     return snprintf(buffer,
                     size,
                     "sig        %s  %s  %s\n",
-                    rnp_strhexdump(keyid, sig->signer_id, PGP_KEY_ID_SIZE, ""),
+                    rnp_strhexdump(keyid, signer, PGP_KEY_ID_SIZE, ""),
                     time,
                     trustkey != NULL ? (char *) trustkey->uids[trustkey->uid0] : "[unknown]");
 }
@@ -321,7 +323,9 @@ format_uid_notice(char *                 buffer,
             continue;
         }
 
-        trustkey = rnp_key_store_get_key_by_id(io, keyring, subsig->sig.signer_id, NULL);
+        uint8_t signer[PGP_KEY_ID_SIZE] = {0};
+        signature_get_keyid(&subsig->sig.pkt, signer);
+        trustkey = rnp_key_store_get_key_by_id(io, keyring, signer, NULL);
 
         n += format_subsig_line(buffer + n, key, trustkey, subsig, size - n);
     }
@@ -553,18 +557,18 @@ repgp_sprint_json(pgp_io_t *                    io,
                 }
             }
             json_object *subsigc = json_object_new_object();
+            uint8_t      signer[PGP_KEY_ID_SIZE] = {0};
+            signature_get_keyid(&key->subsigs[j].sig.pkt, signer);
             json_object_object_add(
               subsigc,
               "signer id",
-              json_object_new_string(
-                rnp_strhexdump(keyid, key->subsigs[j].sig.signer_id, PGP_KEY_ID_SIZE, "")));
+              json_object_new_string(rnp_strhexdump(keyid, signer, PGP_KEY_ID_SIZE, "")));
             json_object_object_add(
               subsigc,
               "creation time",
               json_object_new_int((int64_t) signature_get_creation(&key->subsigs[j].sig.pkt)));
 
-            const pgp_key_t *trustkey =
-              rnp_key_store_get_key_by_id(io, keyring, key->subsigs[j].sig.signer_id, NULL);
+            const pgp_key_t *trustkey = rnp_key_store_get_key_by_id(io, keyring, signer, NULL);
 
             json_object_object_add(
               subsigc,
@@ -621,27 +625,26 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
                     continue;
                 }
             }
-            trustkey =
-              rnp_key_store_get_key_by_id(io, keyring, key->subsigs[j].sig.signer_id, NULL);
+            uint8_t signer[PGP_KEY_ID_SIZE] = {0};
+            signature_get_keyid(&key->subsigs[j].sig.pkt, signer);
+            trustkey = rnp_key_store_get_key_by_id(io, keyring, signer, NULL);
             if (key->subsigs[j].sig.pkt.version == 4 &&
                 key->subsigs[j].sig.pkt.type == PGP_SIG_SUBKEY) {
-                n += snprintf(
-                  &uidbuf[n],
-                  sizeof(uidbuf) - n,
-                  "sub:%zu:%d:%s:%lld:%lld\n",
-                  key_bitlength(pgp_get_key_material(key)),
-                  key->subsigs[j].sig.pkt.palg,
-                  rnp_strhexdump(keyid, key->subsigs[j].sig.signer_id, PGP_KEY_ID_SIZE, ""),
-                  (long long) signature_get_creation(&key->subsigs[j].sig.pkt),
-                  (long long) key->expiration);
+                n += snprintf(&uidbuf[n],
+                              sizeof(uidbuf) - n,
+                              "sub:%zu:%d:%s:%lld:%lld\n",
+                              key_bitlength(pgp_get_key_material(key)),
+                              key->subsigs[j].sig.pkt.palg,
+                              rnp_strhexdump(keyid, signer, PGP_KEY_ID_SIZE, ""),
+                              (long long) signature_get_creation(&key->subsigs[j].sig.pkt),
+                              (long long) key->expiration);
             } else {
-                n += snprintf(
-                  &uidbuf[n],
-                  sizeof(uidbuf) - n,
-                  "sig:%s:%lld:%s\n",
-                  rnp_strhexdump(keyid, key->subsigs[j].sig.signer_id, PGP_KEY_ID_SIZE, ""),
-                  (long long) signature_get_creation(&key->subsigs[j].sig.pkt),
-                  (trustkey) ? (char *) trustkey->uids[trustkey->uid0] : "");
+                n += snprintf(&uidbuf[n],
+                              sizeof(uidbuf) - n,
+                              "sig:%s:%lld:%s\n",
+                              rnp_strhexdump(keyid, signer, PGP_KEY_ID_SIZE, ""),
+                              (long long) signature_get_creation(&key->subsigs[j].sig.pkt),
+                              (trustkey) ? (char *) trustkey->uids[trustkey->uid0] : "");
             }
         }
     }

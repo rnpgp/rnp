@@ -3782,14 +3782,16 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
     // signer
     json_object *jsosigner = NULL;
     // TODO: add signer fingerprint as well (no support internally yet)
-    if (info->signer_id_set) {
+    if (signature_has_keyid(&info->pkt)) {
         jsosigner = json_object_new_object();
         if (!jsosigner) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
-        char keyid[PGP_KEY_ID_SIZE * 2 + 1];
-        if (!rnp_hex_encode(
-              info->signer_id, PGP_KEY_ID_SIZE, keyid, sizeof(keyid), RNP_HEX_UPPERCASE)) {
+        char    keyid[PGP_KEY_ID_SIZE * 2 + 1];
+        uint8_t signer[PGP_KEY_ID_SIZE] = {0};
+        if (!signature_get_keyid(&info->pkt, signer) ||
+            !rnp_hex_encode(
+              signer, PGP_KEY_ID_SIZE, keyid, sizeof(keyid), RNP_HEX_UPPERCASE)) {
             return RNP_ERROR_GENERIC;
         }
         if (!add_json_string_field(jsosigner, "keyid", keyid)) {

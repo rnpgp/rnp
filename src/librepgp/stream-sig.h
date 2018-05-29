@@ -53,6 +53,13 @@ pgp_sig_subpkt_t *signature_get_subpkt(const pgp_signature_t *  sig,
                                        pgp_sig_subpacket_type_t type);
 
 /**
+ * @brief Check whether signature has signing key fingerprint
+ * @param sig loaded or populated v4 signature, could not be NULL
+ * @return true if fingerprint is available or false otherwise
+ */
+bool signature_has_keyfp(const pgp_signature_t *sig);
+
+/**
  * @brief Get signing key's fingerprint if it is available
  * @param sig loaded or populated v4 signature, could not be NULL
  * @param fp pointer to the buffer of at least PGP_FINGERPRINT_SIZE bytes
@@ -60,16 +67,22 @@ pgp_sig_subpkt_t *signature_get_subpkt(const pgp_signature_t *  sig,
  * @param outlen pointer to the number of bytes written to fp (if succeeded). Could not be 0.
  * @return true if fingerprint is available and returned or false otherwise
  */
-bool signature_get_keyfp(pgp_signature_t *sig, uint8_t *fp, size_t len, size_t *outlen);
+bool signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t *fp);
 
 /**
  * @brief Set signing key fingerprint
  * @param sig v4 signature being populated
- * @param fp pointer to the buffer with fingerprint
- * @param len legth of the fingerprint
+ * @param fp fingerprint structure
  * @return true on success or false otherwise;
  */
-bool signature_set_keyfp(pgp_signature_t *sig, uint8_t *fp, size_t len);
+bool signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t *fp);
+
+/**
+ * @brief Check whether signature has signing key id
+ * @param sig populated or loaded signature
+ * @return true if key id available (via v3 field, or v4 key id/key fp subpacket)
+ */
+bool signature_has_keyid(const pgp_signature_t *sig);
 
 /**
  * @brief Get signature's signing key id
@@ -77,7 +90,7 @@ bool signature_set_keyfp(pgp_signature_t *sig, uint8_t *fp, size_t len);
  * @param id buffer to return key identifier, must be capable of storing PGP_KEY_ID_SIZE bytes
  * @return true on success or false otherwise
  */
-bool signature_get_keyid(pgp_signature_t *sig, uint8_t *id);
+bool signature_get_keyid(const pgp_signature_t *sig, uint8_t *id);
 
 /**
  * @brief Set the signature's key id
