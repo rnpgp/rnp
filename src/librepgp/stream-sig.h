@@ -53,6 +53,19 @@ pgp_sig_subpkt_t *signature_get_subpkt(const pgp_signature_t *  sig,
                                        pgp_sig_subpacket_type_t type);
 
 /**
+ * @brief Add subpacket of the specified type to v4 signature
+ * @param sig loaded or populated signature, could not be NULL
+ * @param type type of the subpacket
+ * @param datalen length of the subpacket body
+ * @param reuse replace already existing subpacket of the specified type if any
+ * @return pointer to the subpacket structure or NULL if error occurred
+ */
+pgp_sig_subpkt_t *signature_add_subpkt(pgp_signature_t *        sig,
+                                       pgp_sig_subpacket_type_t type,
+                                       size_t                   datalen,
+                                       bool                     reuse);
+
+/**
  * @brief Check whether signature has signing key fingerprint
  * @param sig loaded or populated v4 signature, could not be NULL
  * @return true if fingerprint is available or false otherwise
@@ -154,11 +167,18 @@ uint32_t signature_get_key_expiration(const pgp_signature_t *sig);
 bool signature_set_key_expiration(pgp_signature_t *sig, uint32_t etime);
 
 /**
+ * @brief Check whether signature has key flags
+ * @param sig populated or loaded signature
+ * @return true if key flags are available or false otherwise
+ */
+bool signature_has_key_flags(const pgp_signature_t *sig);
+
+/**
  * @brief Get the key flags
  * @param sig populated or loaded signature
  * @return byte of key flags. If there is no corresponding subpackets then 0 is returned.
  */
-uint8_t signature_get_key_flags(pgp_signature_t *sig);
+uint8_t signature_get_key_flags(const pgp_signature_t *sig);
 
 /**
  * @brief Set the key flags
@@ -183,15 +203,64 @@ bool signature_get_primary_uid(pgp_signature_t *sig);
  */
 bool signature_set_primary_uid(pgp_signature_t *sig, bool primary);
 
+bool signature_has_preferred_symm_algs(const pgp_signature_t *sig);
+
+bool signature_get_preferred_symm_algs(const pgp_signature_t *sig,
+                                       uint8_t **             algs,
+                                       size_t *               count);
+
 bool signature_set_preferred_symm_algs(pgp_signature_t *sig, uint8_t algs[], size_t len);
+
+bool signature_has_preferred_hash_algs(const pgp_signature_t *sig);
+
+bool signature_get_preferred_hash_algs(const pgp_signature_t *sig,
+                                       uint8_t **             algs,
+                                       size_t *               count);
 
 bool signature_set_preferred_hash_algs(pgp_signature_t *sig, uint8_t algs[], size_t len);
 
+bool signature_has_preferred_z_algs(const pgp_signature_t *sig);
+
+bool signature_get_preferred_z_algs(const pgp_signature_t *sig, uint8_t **algs, size_t *count);
+
 bool signature_set_preferred_z_algs(pgp_signature_t *sig, uint8_t algs[], size_t len);
+
+bool signature_has_key_server_prefs(const pgp_signature_t *sig);
+
+uint8_t signature_get_key_server_prefs(const pgp_signature_t *sig);
 
 bool signature_set_key_server_prefs(pgp_signature_t *sig, uint8_t prefs);
 
 bool signature_set_preferred_key_server(pgp_signature_t *sig, const char *uri);
+
+bool signature_has_trust(const pgp_signature_t *sig);
+
+bool signature_get_trust(const pgp_signature_t *sig, uint8_t *level, uint8_t *amount);
+
+bool signature_set_trust(pgp_signature_t *sig, uint8_t level, uint8_t amount);
+
+bool signature_get_revocable(const pgp_signature_t *sig);
+
+bool signature_set_revocable(pgp_signature_t *sig, bool revocable);
+
+bool signature_set_features(pgp_signature_t *sig, uint8_t features);
+
+bool signature_set_signer_uid(pgp_signature_t *sig, uint8_t *uid, size_t len);
+
+bool signature_set_embedded_sig(pgp_signature_t *sig, uint8_t *esig, size_t len);
+
+bool signature_add_notation_data(pgp_signature_t *sig,
+                                 bool             readable,
+                                 const char *     name,
+                                 const char *     value);
+
+bool signature_has_key_server(const pgp_signature_t *sig);
+
+char *signature_get_key_server(const pgp_signature_t *sig);
+
+bool signature_has_revocation_reason(const pgp_signature_t *sig);
+
+bool signature_get_revocation_reason(const pgp_signature_t *sig, uint8_t *code, char **reason);
 
 /**
  * @brief Fill signature's hashed data. This includes all the fields from signature which are

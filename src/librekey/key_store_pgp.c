@@ -171,114 +171,103 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
         if (signature_has_key_expiration(&subsig->sig)) {
             key->expiration = signature_get_key_expiration(&subsig->sig);
         }
-        return PGP_KEEP_MEMORY;
-    case PGP_PTAG_SS_TRUST:
-        SUBSIG_REQUIRED_BEFORE("ss trust");
-        subsig->trustlevel = pkt->u.ss_trust.level;
-        subsig->trustamount = pkt->u.ss_trust.amount;
-        break;
-    case PGP_PTAG_SS_KEY_EXPIRY:
-        break;
-    case PGP_PTAG_SS_PRIMARY_USER_ID:
-        if (content->ss_primary_userid) {
+        if (signature_has_trust(&subsig->sig)) {
+            signature_get_trust(&subsig->sig, &subsig->trustlevel, &subsig->trustamount);
+        }
+        if (signature_get_primary_uid(&subsig->sig)) {
             key->uid0 = key->uidc - 1;
             key->uid0_set = 1;
         }
-        break;
-    case PGP_PTAG_SS_REVOCATION_REASON: {
-        SUBSIG_REQUIRED_BEFORE("ss revocation reason");
-        pgp_revoke_t *revocation = NULL;
-        if (key->uidc == 0) {
-            /* revoke whole key */
-            key->revoked = 1;
-            revocation = &key->revocation;
-        } else {
-            /* revoke the user id */
-            EXPAND_ARRAY(key, revoke);
-            if (key->revokes == NULL) {
+        uint8_t *         algs = NULL;
+        size_t            count = 0;
+        pgp_user_prefs_t *prefs = &subsig->prefs;
+
+        if (signature_get_preferred_symm_algs(&subsig->sig, &algs, &count)) {
+            for (size_t i = 0; i < count; i++) {
+                EXPAND_ARRAY(prefs, symm_alg);
+                if (!prefs->symm_algs) {
+                    PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
+                    return PGP_FINISHED;
+                }
+                prefs->symm_algs[i] = algs[i];
+                prefs->symm_algc++;
+            }
+        }
+        if (signature_get_preferred_hash_algs(&subsig->sig, &algs, &count)) {
+            for (size_t i = 0; i < count; i++) {
+                EXPAND_ARRAY(prefs, hash_alg);
+                if (!prefs->hash_algs) {
+                    PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
+                    return PGP_FINISHED;
+                }
+                prefs->hash_algs[i] = algs[i];
+                prefs->hash_algc++;
+            }
+        }
+        if (signature_get_preferred_z_algs(&subsig->sig, &algs, &count)) {
+            for (size_t i = 0; i < count; i++) {
+                EXPAND_ARRAY(prefs, compress_alg);
+                if (!prefs->compress_algs) {
+                    PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
+                    return PGP_FINISHED;
+                }
+                prefs->compress_algs[i] = algs[i];
+                prefs->compress_algc++;
+            }
+        }
+        if (signature_has_key_flags(&subsig->sig)) {
+            subsig->key_flags = signature_get_key_flags(&subsig->sig);
+            key->key_flags = subsig->key_flags;
+        }
+        if (signature_has_key_server_prefs(&subsig->sig)) {
+            EXPAND_ARRAY(prefs, key_server_pref);
+            if (!prefs->key_server_prefs) {
                 PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
                 return PGP_FINISHED;
             }
-            revocation = &key->revokes[key->revokec];
-            key->revokes[key->revokec].uid = key->uidc - 1;
-            key->revokec += 1;
+            subsig->prefs.key_server_prefs[0] = signature_get_key_server_prefs(&subsig->sig);
+            subsig->prefs.key_server_prefc++;
         }
-        revocation->code = pkt->u.ss_revocation.code;
-        revocation->reason = rnp_strdup(pgp_show_ss_rr_code(pkt->u.ss_revocation.code));
-    } break;
-    case PGP_PTAG_SS_KEY_FLAGS:
-        SUBSIG_REQUIRED_BEFORE("ss key flags");
-        subsig->key_flags = pkt->u.ss_key_flags.contents[0];
-        key->key_flags = subsig->key_flags;
-        break;
-    case PGP_PTAG_SS_PREFERRED_SKA:
-        SUBSIG_REQUIRED_BEFORE("ss preferred symmetric key algs");
-        {
-            const pgp_data_t *data = &content->ss_skapref;
-            pgp_user_prefs_t *prefs = &subsig->prefs;
-            for (size_t i = 0; i < data->len; i++) {
-                EXPAND_ARRAY(prefs, symm_alg);
-                if (!subsig->prefs.symm_algs) {
+        if (signature_has_key_server(&subsig->sig)) {
+            subsig->prefs.key_server = (uint8_t *) signature_get_key_server(&subsig->sig);
+        }
+        if (signature_has_revocation_reason(&subsig->sig)) {
+            /* not sure whether this logic is correct - we should check signature type? */
+            pgp_revoke_t *revocation = NULL;
+            if (key->uidc == 0) {
+                /* revoke whole key */
+                key->revoked = 1;
+                revocation = &key->revocation;
+            } else {
+                /* revoke the user id */
+                EXPAND_ARRAY(key, revoke);
+                if (key->revokes == NULL) {
                     PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
                     return PGP_FINISHED;
                 }
-                subsig->prefs.symm_algs[i] = data->contents[i];
-                subsig->prefs.symm_algc++;
+                revocation = &key->revokes[key->revokec];
+                key->revokes[key->revokec].uid = key->uidc - 1;
+                key->revokec += 1;
+            }
+            signature_get_revocation_reason(
+              &subsig->sig, &revocation->code, &revocation->reason);
+            if (!strlen(revocation->reason)) {
+                free(revocation->reason);
+                revocation->reason = rnp_strdup(pgp_show_ss_rr_code(revocation->code));
             }
         }
-        break;
-    case PGP_PTAG_SS_PREFERRED_HASH:
-        SUBSIG_REQUIRED_BEFORE("ss preferred hash algs");
-        {
-            const pgp_data_t *data = &content->ss_hashpref;
-            pgp_user_prefs_t *prefs = &subsig->prefs;
-            for (size_t i = 0; i < data->len; i++) {
-                EXPAND_ARRAY(prefs, hash_alg);
-                if (!subsig->prefs.hash_algs) {
-                    PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
-                    return PGP_FINISHED;
-                }
-                subsig->prefs.hash_algs[i] = data->contents[i];
-                subsig->prefs.hash_algc++;
-            }
-        }
-        break;
-    case PGP_PTAG_SS_PREF_COMPRESS:
-        SUBSIG_REQUIRED_BEFORE("ss preferred compression algs");
-        {
-            const pgp_data_t *data = &content->ss_zpref;
-            pgp_user_prefs_t *prefs = &subsig->prefs;
-            for (size_t i = 0; i < data->len; i++) {
-                EXPAND_ARRAY(prefs, compress_alg);
-                if (!subsig->prefs.compress_algs) {
-                    PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
-                    return PGP_FINISHED;
-                }
-                subsig->prefs.compress_algs[i] = data->contents[i];
-                subsig->prefs.compress_algc++;
-            }
-        }
-        break;
-    case PGP_PTAG_SS_KEYSERV_PREFS:
-        SUBSIG_REQUIRED_BEFORE("ss key server prefs");
-        {
-            const pgp_data_t *data = &content->ss_key_server_prefs;
-            pgp_user_prefs_t *prefs = &subsig->prefs;
-            for (size_t i = 0; i < data->len; i++) {
-                EXPAND_ARRAY(prefs, key_server_pref);
-                if (!subsig->prefs.key_server_prefs) {
-                    PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
-                    return PGP_FINISHED;
-                }
-                subsig->prefs.key_server_prefs[i] = data->contents[i];
-                subsig->prefs.key_server_prefc++;
-            }
-        }
-        break;
-    case PGP_PTAG_SS_PREF_KEYSERV:
-        SUBSIG_REQUIRED_BEFORE("ss preferred key server");
-        subsig->prefs.key_server = (uint8_t *) content->ss_keyserv;
         return PGP_KEEP_MEMORY;
+    case PGP_PTAG_SS_TRUST:
+    case PGP_PTAG_SS_KEY_EXPIRY:
+    case PGP_PTAG_SS_PRIMARY_USER_ID:
+    case PGP_PTAG_SS_PREFERRED_SKA:
+    case PGP_PTAG_SS_PREFERRED_HASH:
+    case PGP_PTAG_SS_PREF_COMPRESS:
+    case PGP_PTAG_SS_KEY_FLAGS:
+    case PGP_PTAG_SS_KEYSERV_PREFS:
+    case PGP_PTAG_SS_PREF_KEYSERV:
+    case PGP_PTAG_SS_REVOCATION_REASON:
+        break;
     case PGP_PTAG_CT_TRUST:
         // valid, but not currently used
         break;
