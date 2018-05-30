@@ -236,15 +236,6 @@ static pgp_map_t compression_alg_map[] = {
   {0x00, NULL}, /* this is the end-of-array marker */
 };
 
-static pgp_bit_map_t ss_notation_map_byte0[] = {
-  {0x80, "Human-readable"},
-  {0x00, NULL},
-};
-
-static pgp_bit_map_t *ss_notation_map[] = {
-  ss_notation_map_byte0,
-};
-
 static pgp_bit_map_t ss_feature_map_byte0[] = {
   {0x01, "Modification Detection"},
   {0x00, NULL},
@@ -496,49 +487,6 @@ text_from_bytemapped_octets(const pgp_data_t *data, const char *(*text_fn)(uint8
      * ! All values have been added to either the known or the unknown
      * list
      */
-    return text;
-}
-
-/**
- * Produce a structure containing human-readable textstrings
- * representing the recognised and unrecognised contents
- * of this byte array, derived from each bit of each octet.
- *
- */
-static pgp_text_t *
-showall_octets_bits(pgp_data_t *data, pgp_bit_map_t **map, size_t nmap)
-{
-    pgp_text_t *text;
-    const char *str;
-    unsigned    i;
-    uint8_t     mask, bit;
-    int         j = 0;
-
-    /*
-     * ! allocate and initialise pgp_text_t structure to store derived
-     * strings
-     */
-    if ((text = calloc(1, sizeof(pgp_text_t))) == NULL) {
-        return NULL;
-    }
-
-    pgp_text_init(text);
-
-    /* ! for each octet in field ... */
-    for (i = 0; i < data->len; i++) {
-        /* ! for each bit in octet ... */
-        mask = 0x80;
-        for (j = 0; j<8; j++, mask = (unsigned) mask>> 1) {
-            bit = data->contents[i] & mask;
-            if (bit) {
-                str = (i >= nmap) ? "Unknown" : find_bitfield(map[i], bit);
-                if (!add_bitmap_entry(text, str, bit)) {
-                    pgp_text_free(text);
-                    return NULL;
-                }
-            }
-        }
-    }
     return text;
 }
 
@@ -850,19 +798,4 @@ pgp_show_keyserv_prefs(const pgp_data_t *prefs)
      * currently specified -- rachel
      */
     return text;
-}
-
-/**
- * \ingroup Core_Print
- *
- * returns set of descriptions of the given SS Notation Data Flags
- * \param ss_notation Signature Sub-Packet Notation Data
- * \return NULL if cannot allocate memory or other error
- * \return pointer to structure, if no error
- */
-pgp_text_t *
-pgp_showall_notation(pgp_ss_notation_t ss_notation)
-{
-    return showall_octets_bits(
-      &ss_notation.flags, ss_notation_map, ARRAY_SIZE(ss_notation_map));
 }

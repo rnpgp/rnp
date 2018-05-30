@@ -1269,7 +1269,7 @@ signature_read_v3(pgp_source_t *src, pgp_signature_t *sig, size_t len)
 }
 
 /* check the signature's subpacket for validity */
-static bool
+bool
 signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
 {
     bool oklen = true;
@@ -1332,6 +1332,7 @@ signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
         break;
     case PGP_SIG_SUBPKT_NOTATION_DATA:
         if ((oklen = subpkt->len >= 8)) {
+            memcpy(subpkt->fields.notation.flags, subpkt->data, 4);
             subpkt->fields.notation.nlen = read_uint16(&subpkt->data[4]);
             subpkt->fields.notation.vlen = read_uint16(&subpkt->data[6]);
 

@@ -108,6 +108,4 @@ const char *pgp_show_ss_key_flag(uint8_t, pgp_bit_map_t *);
 pgp_text_t *pgp_show_keyserv_prefs(const pgp_data_t *);
 const char *pgp_show_keyserv_pref(uint8_t, pgp_bit_map_t *);
 
-pgp_text_t *pgp_showall_notation(pgp_ss_notation_t);
-
 #endif /* PACKET_SHOW_H_ */

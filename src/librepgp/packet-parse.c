@@ -140,33 +140,6 @@ read_data(pgp_data_t *data, pgp_region_t *region, pgp_stream_t *stream)
     return (cc >= 0) && limread_data(data, (unsigned) cc, region, stream);
 }
 
-/**
- * Reads the remainder of the subregion as a string.
- * It is the user's responsibility to free the memory allocated here.
- */
-static bool
-read_unsig_str(uint8_t **str, pgp_region_t *subregion, pgp_stream_t *stream)
-{
-    const size_t len = subregion->length - subregion->readc;
-    if ((*str = calloc(1, len + 1)) == NULL) {
-        return false;
-    }
-    if (len &&
-        !pgp_limited_read(
-          stream, *str, len, subregion, &stream->errors, &stream->readinfo, &stream->cbinfo)) {
-        free(*str);
-        return false;
-    }
-    (*str)[len] = '\0';
-    return true;
-}
-
-static bool
-read_string(char **str, pgp_region_t *subregion, pgp_stream_t *stream)
-{
-    return read_unsig_str((uint8_t **) str, subregion, stream);
-}
-
 void
 pgp_init_subregion(pgp_region_t *subregion, pgp_region_t *region)
 {
@@ -514,42 +487,6 @@ limread_scalar(unsigned *dest, unsigned len, pgp_region_t *region, pgp_stream_t 
     return true;
 }
 
-/** Read a scalar.
- *
- * Read a big-endian scalar of length bytes, respecting packet
- * boundaries (by calling limread() to read the raw data).
- *
- * The value read is stored in a size_t, which is a different size
- * from an unsigned on some platforms.
- *
- * This function makes sure to respect packet boundaries.
- *
- * \param *dest        The scalar value is stored here
- * \param length    How many bytes make up this scalar (at most 4)
- * \param *region    Pointer to current packet region
- * \param *stream    How to parse
- * \param *cb        The callback
- * \return        1 on success, 0 on error (calls the cb with PGP_PARSER_ERROR in
- * limread()).
- *
- * \see RFC4880 3.1
- */
-static bool
-limread_size_t(size_t *dest, unsigned length, pgp_region_t *region, pgp_stream_t *stream)
-{
-    unsigned tmp;
-
-    /*
-     * Note that because the scalar is at most 4 bytes, we don't care if
-     * size_t is bigger than usigned
-     */
-    if (!limread_scalar(&tmp, length, region, stream))
-        return false;
-
-    *dest = tmp;
-    return true;
-}
-
 /** Read a timestamp.
  *
  * Timestamps in OpenPGP are unix time, i.e. seconds since The Epoch (1.1.1970).  They are
@@ -742,17 +679,6 @@ pgp_data_free(pgp_data_t *data)
 \ingroup Core_Create
 \brief Free allocated memory
 */
-static void
-string_free(char **str)
-{
-    free(*str);
-    *str = NULL;
-}
-
-/**
-\ingroup Core_Create
-\brief Free allocated memory
-*/
 /* ! Free packet memory, set pointer to NULL */
 void
 pgp_rawpacket_free(pgp_rawpacket_t *packet)
@@ -807,7 +733,6 @@ repgp_parser_content_free(pgp_packet_t *c)
         break;
 
     case PGP_PTAG_SS_SIGNERS_USER_ID:
-        pgp_userid_free(&c->u.ss_signer);
         break;
 
     case PGP_PTAG_CT_USER_ATTR:
@@ -815,70 +740,19 @@ repgp_parser_content_free(pgp_packet_t *c)
         break;
 
     case PGP_PTAG_SS_PREFERRED_SKA:
-        pgp_data_free(&c->u.ss_skapref);
-        break;
-
     case PGP_PTAG_SS_PREFERRED_HASH:
-        pgp_data_free(&c->u.ss_hashpref);
-        break;
-
     case PGP_PTAG_SS_PREF_COMPRESS:
-        pgp_data_free(&c->u.ss_zpref);
-        break;
-
     case PGP_PTAG_SS_KEY_FLAGS:
-        pgp_data_free(&c->u.ss_key_flags);
-        break;
-
     case PGP_PTAG_SS_KEYSERV_PREFS:
-        pgp_data_free(&c->u.ss_key_server_prefs);
-        break;
-
     case PGP_PTAG_SS_FEATURES:
-        pgp_data_free(&c->u.ss_features);
-        break;
-
     case PGP_PTAG_SS_NOTATION_DATA:
-        pgp_data_free(&c->u.ss_notation.name);
-        pgp_data_free(&c->u.ss_notation.value);
-        break;
-
-    case PGP_PTAG_SS_REGEXP:
-        string_free(&c->u.ss_regexp);
-        break;
-
     case PGP_PTAG_SS_POLICY_URI:
-        string_free(&c->u.ss_policy);
-        break;
-
+    case PGP_PTAG_SS_REGEXP:
     case PGP_PTAG_SS_PREF_KEYSERV:
-        string_free(&c->u.ss_keyserv);
-        break;
-
-    case PGP_PTAG_SS_USERDEFINED00:
-    case PGP_PTAG_SS_USERDEFINED01:
-    case PGP_PTAG_SS_USERDEFINED02:
-    case PGP_PTAG_SS_USERDEFINED03:
-    case PGP_PTAG_SS_USERDEFINED04:
-    case PGP_PTAG_SS_USERDEFINED05:
-    case PGP_PTAG_SS_USERDEFINED06:
-    case PGP_PTAG_SS_USERDEFINED07:
-    case PGP_PTAG_SS_USERDEFINED08:
-    case PGP_PTAG_SS_USERDEFINED09:
-    case PGP_PTAG_SS_USERDEFINED10:
-        pgp_data_free(&c->u.ss_userdef);
-        break;
-
-    case PGP_PTAG_SS_RESERVED:
-        pgp_data_free(&c->u.ss_unknown);
-        break;
-
     case PGP_PTAG_SS_REVOCATION_REASON:
-        string_free(&c->u.ss_revocation.reason);
         break;
 
     case PGP_PTAG_SS_EMBEDDED_SIGNATURE:
-        pgp_data_free(&c->u.ss_embedded_sig);
         break;
 
     case PGP_PTAG_SS_ISSUER_FPR:
@@ -1160,6 +1034,34 @@ parse_v3_sig(pgp_region_t *region, pgp_stream_t *stream)
     return true;
 }
 
+static bool
+read_subpkt(pgp_signature_t *        sig,
+            pgp_region_t *           region,
+            pgp_stream_t *           stream,
+            pgp_sig_subpacket_type_t type)
+{
+    pgp_data_t        data = {0};
+    pgp_sig_subpkt_t *subpkt = NULL;
+    if (!read_data(&data, region, stream)) {
+        return false;
+    }
+    subpkt = signature_add_subpkt(sig, type, data.len, false);
+
+    if (!subpkt) {
+        pgp_data_free(&data);
+        return false;
+    }
+
+    subpkt->hashed = 1;
+    memcpy(subpkt->data, data.contents, data.len);
+    pgp_data_free(&data);
+    if (!signature_parse_subpacket(subpkt)) {
+        return false;
+    }
+
+    return true;
+}
+
 /**
  * \ingroup Core_ReadPackets
  * \brief Parse one signature sub-packet.
@@ -1250,20 +1152,25 @@ parse_one_sig_subpacket(pgp_signature_t *sig, pgp_region_t *region, pgp_stream_t
         }
         break;
     }
-    case PGP_PTAG_SS_TRUST:
-        if (!limread(&pkt.u.ss_trust.level, 1, &subregion, stream) ||
-            !limread(&pkt.u.ss_trust.amount, 1, &subregion, stream)) {
+    case PGP_PTAG_SS_TRUST: {
+        uint8_t level, amount;
+        if (!limread(&level, 1, &subregion, stream) ||
+            !limread(&amount, 1, &subregion, stream)) {
+            return false;
+        }
+        if (!signature_set_trust(sig, level, amount)) {
             return false;
         }
         break;
-
+    }
     case PGP_PTAG_SS_REVOCABLE:
         if (!limread(&bools, 1, &subregion, stream)) {
             return false;
         }
-        pkt.u.ss_revocable = !!bools;
+        if (!signature_set_revocable(sig, bools)) {
+            return false;
+        }
         break;
-
     case PGP_PTAG_SS_ISSUER_KEY_ID: {
         uint8_t issuer[PGP_KEY_ID_SIZE] = {0};
         if (!limread(issuer, PGP_KEY_ID_SIZE, &subregion, stream)) {
@@ -1274,62 +1181,106 @@ parse_one_sig_subpacket(pgp_signature_t *sig, pgp_region_t *region, pgp_stream_t
         }
         break;
     }
-    case PGP_PTAG_SS_PREFERRED_SKA:
-        if (!read_data(&pkt.u.ss_skapref, &subregion, stream)) {
+    case PGP_PTAG_SS_PREFERRED_SKA: {
+        pgp_data_t pref = {0};
+        bool       res = false;
+        if (!read_data(&pref, &subregion, stream)) {
+            return false;
+        }
+        res = signature_set_preferred_symm_algs(sig, pref.contents, pref.len);
+        pgp_data_free(&pref);
+        if (!res) {
             return false;
         }
         break;
-
-    case PGP_PTAG_SS_PREFERRED_HASH:
-        if (!read_data(&pkt.u.ss_hashpref, &subregion, stream)) {
+    }
+    case PGP_PTAG_SS_PREFERRED_HASH: {
+        pgp_data_t pref = {0};
+        bool       res = false;
+        if (!read_data(&pref, &subregion, stream)) {
+            return false;
+        }
+        res = signature_set_preferred_hash_algs(sig, pref.contents, pref.len);
+        pgp_data_free(&pref);
+        if (!res) {
             return false;
         }
         break;
-
-    case PGP_PTAG_SS_PREF_COMPRESS:
-        if (!read_data(&pkt.u.ss_zpref, &subregion, stream)) {
+    }
+    case PGP_PTAG_SS_PREF_COMPRESS: {
+        pgp_data_t pref = {0};
+        bool       res = false;
+        if (!read_data(&pref, &subregion, stream)) {
+            return false;
+        }
+        res = signature_set_preferred_z_algs(sig, pref.contents, pref.len);
+        pgp_data_free(&pref);
+        if (!res) {
             return false;
         }
         break;
-
+    }
     case PGP_PTAG_SS_PRIMARY_USER_ID:
         if (!limread(&bools, 1, &subregion, stream)) {
             return false;
         }
-        pkt.u.ss_primary_userid = !!bools;
-        break;
-
-    case PGP_PTAG_SS_KEY_FLAGS:
-        if (!read_data(&pkt.u.ss_key_flags, &subregion, stream)) {
+        if (!signature_set_primary_uid(sig, bools)) {
             return false;
         }
         break;
-
-    case PGP_PTAG_SS_KEYSERV_PREFS:
-        if (!read_data(&pkt.u.ss_key_server_prefs, &subregion, stream)) {
+    case PGP_PTAG_SS_KEY_FLAGS: {
+        pgp_data_t flags = {0};
+        bool       res = false;
+        if (!read_data(&flags, &subregion, stream)) {
+            return false;
+        }
+        res = signature_set_key_flags(sig, flags.contents[0]);
+        pgp_data_free(&flags);
+        if (!res) {
             return false;
         }
         break;
-
-    case PGP_PTAG_SS_FEATURES:
-        if (!read_data(&pkt.u.ss_features, &subregion, stream)) {
+    }
+    case PGP_PTAG_SS_KEYSERV_PREFS: {
+        pgp_data_t prefs = {0};
+        bool       res = false;
+        if (!read_data(&prefs, &subregion, stream)) {
+            return false;
+        }
+        res = signature_set_key_server_prefs(sig, prefs.contents[0]);
+        pgp_data_free(&prefs);
+        if (!res) {
             return false;
         }
         break;
-
-    case PGP_PTAG_SS_SIGNERS_USER_ID:
-        if (!read_unsig_str(&pkt.u.ss_signer, &subregion, stream)) {
+    }
+    case PGP_PTAG_SS_FEATURES: {
+        pgp_data_t data = {0};
+        if (!read_data(&data, &subregion, stream)) {
             return false;
         }
+        signature_set_features(sig, data.contents[0]);
+        pgp_data_free(&data);
         break;
-
-    case PGP_PTAG_SS_EMBEDDED_SIGNATURE:
-        /* \todo should do something with this sig? */
-        if (!read_data(&pkt.u.ss_embedded_sig, &subregion, stream)) {
+    }
+    case PGP_PTAG_SS_SIGNERS_USER_ID: {
+        pgp_data_t data = {0};
+        if (!read_data(&data, &subregion, stream)) {
             return false;
         }
+        signature_set_signer_uid(sig, data.contents, data.len);
+        pgp_data_free(&data);
         break;
-
+    }
+    case PGP_PTAG_SS_EMBEDDED_SIGNATURE: {
+        pgp_data_t data = {0};
+        if (!read_data(&data, &subregion, stream)) {
+            return false;
+        }
+        signature_set_embedded_sig(sig, data.contents, data.len);
+        pgp_data_free(&data);
+        break;
+    }
     case PGP_PTAG_SS_ISSUER_FPR: {
         pgp_data_t fpdata = {0};
         if (!read_data(&fpdata, &subregion, stream) || fpdata.len != 21 ||
@@ -1338,104 +1289,37 @@ parse_one_sig_subpacket(pgp_signature_t *sig, pgp_region_t *region, pgp_stream_t
         }
         pgp_fingerprint_t fp = {.length = fpdata.len - 1};
         memcpy(fp.fingerprint, fpdata.contents + 1, fp.length);
-        signature_set_keyfp(&pkt.u.sig, &fp);
+        signature_set_keyfp(sig, &fp);
         pgp_data_free(&fpdata);
         break;
     }
     case PGP_PTAG_SS_NOTATION_DATA:
-        if (!limread_data(&pkt.u.ss_notation.flags, 4, &subregion, stream)) {
-            return false;
-        }
-        if (!limread_size_t(&pkt.u.ss_notation.name.len, 2, &subregion, stream)) {
-            return false;
-        }
-        if (!limread_size_t(&pkt.u.ss_notation.value.len, 2, &subregion, stream)) {
-            return false;
-        }
-        if (!limread_data(&pkt.u.ss_notation.name,
-                          (unsigned) pkt.u.ss_notation.name.len,
-                          &subregion,
-                          stream)) {
-            return false;
-        }
-        if (!limread_data(&pkt.u.ss_notation.value,
-                          (unsigned) pkt.u.ss_notation.value.len,
-                          &subregion,
-                          stream)) {
+        if (!read_subpkt(sig, &subregion, stream, PGP_SIG_SUBPKT_NOTATION_DATA)) {
             return false;
         }
         break;
-
     case PGP_PTAG_SS_POLICY_URI:
-        if (!read_string(&pkt.u.ss_policy, &subregion, stream)) {
+        if (!read_subpkt(sig, &subregion, stream, PGP_SIG_SUBPKT_POLICY_URI)) {
             return false;
         }
         break;
-
     case PGP_PTAG_SS_REGEXP:
-        if (!read_string(&pkt.u.ss_regexp, &subregion, stream)) {
+        if (!read_subpkt(sig, &subregion, stream, PGP_SIG_SUBPKT_REGEXP)) {
             return false;
         }
         break;
-
     case PGP_PTAG_SS_PREF_KEYSERV:
-        if (!read_string(&pkt.u.ss_keyserv, &subregion, stream)) {
+        if (!read_subpkt(sig, &subregion, stream, PGP_SIG_SUBPKT_PREF_KEYSERV)) {
             return false;
         }
         break;
-
-    case PGP_PTAG_SS_USERDEFINED00:
-    case PGP_PTAG_SS_USERDEFINED01:
-    case PGP_PTAG_SS_USERDEFINED02:
-    case PGP_PTAG_SS_USERDEFINED03:
-    case PGP_PTAG_SS_USERDEFINED04:
-    case PGP_PTAG_SS_USERDEFINED05:
-    case PGP_PTAG_SS_USERDEFINED06:
-    case PGP_PTAG_SS_USERDEFINED07:
-    case PGP_PTAG_SS_USERDEFINED08:
-    case PGP_PTAG_SS_USERDEFINED09:
-    case PGP_PTAG_SS_USERDEFINED10:
-        if (!read_data(&pkt.u.ss_userdef, &subregion, stream)) {
-            return false;
-        }
-        break;
-
-    case PGP_PTAG_SS_RESERVED:
-        if (!read_data(&pkt.u.ss_unknown, &subregion, stream)) {
-            return false;
-        }
-        break;
-
     case PGP_PTAG_SS_REVOCATION_REASON:
-        /* first byte is the machine-readable code */
-        if (!limread(&pkt.u.ss_revocation.code, 1, &subregion, stream)) {
-            return false;
-        }
-        /* the rest is a human-readable UTF-8 string */
-        if (!read_string(&pkt.u.ss_revocation.reason, &subregion, stream)) {
+        if (!read_subpkt(sig, &subregion, stream, PGP_SIG_SUBPKT_REVOCATION_REASON)) {
             return false;
         }
         break;
-
     case PGP_PTAG_SS_REVOCATION_KEY:
-        /* octet 0 = class. Bit 0x80 must be set */
-        if (!limread(&pkt.u.ss_revocation_key.class, 1, &subregion, stream)) {
-            return false;
-        }
-        if (!(pkt.u.ss_revocation_key.class & 0x80)) {
-            printf("Warning: PGP_PTAG_SS_REVOCATION_KEY class: "
-                   "Bit 0x80 should be set\n");
-            return false;
-        }
-        /* octet 1 = algid */
-        if (!limread(&pkt.u.ss_revocation_key.algid, 1, &subregion, stream)) {
-            return false;
-        }
-        /* octets 2-21 = fingerprint */
-        if (!limread(&pkt.u.ss_revocation_key.fingerprint[0],
-                     PGP_FINGERPRINT_SIZE,
-                     &subregion,
-                     stream)) {
+        if (!read_subpkt(sig, &subregion, stream, PGP_SIG_SUBPKT_REVOCATION_KEY)) {
             return false;
         }
         break;

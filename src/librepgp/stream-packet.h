@@ -246,6 +246,8 @@ rnp_result_t stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepas
 
 bool stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst);
 
+bool signature_parse_subpacket(pgp_sig_subpkt_t *subpkt);
+
 rnp_result_t stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig);
 
 void free_signature(pgp_signature_t *sig);

@@ -342,27 +342,6 @@ typedef struct pgp_ss_raw_t {
     uint8_t *        raw;
 } pgp_ss_raw_t;
 
-/** Signature Subpacket : Trust Level */
-
-typedef struct pgp_ss_trust_t {
-    uint8_t level;  /* Trust Level */
-    uint8_t amount; /* Amount */
-} pgp_ss_trust_t;
-
-/** Signature Subpacket : Notation Data */
-typedef struct pgp_ss_notation_t {
-    pgp_data_t flags;
-    pgp_data_t name;
-    pgp_data_t value;
-} pgp_ss_notation_t;
-
-/** Signature Subpacket : Signature Target */
-typedef struct pgp_ss_sig_target_t {
-    pgp_pubkey_alg_t pka_alg;
-    pgp_hash_alg_t   hash_alg;
-    pgp_data_t       hash;
-} pgp_ss_sig_target_t;
-
 /** pgp_rawpacket_t */
 typedef struct pgp_rawpacket_t {
     pgp_content_enum tag;
@@ -438,36 +417,16 @@ typedef struct {
 
 /** pgp_parser_union_content_t */
 typedef union {
-    const char *            error;
-    pgp_parser_errcode_t    errcode;
-    pgp_ptag_t              ptag;
-    pgp_key_pkt_t           key;
-    pgp_data_t              trust;
-    uint8_t *               userid;
-    pgp_data_t              userattr;
-    pgp_signature_t         sig;
-    pgp_ss_raw_t            ss_raw;
-    pgp_ss_trust_t          ss_trust;
-    unsigned                ss_revocable;
-    pgp_ss_notation_t       ss_notation;
-    pgp_rawpacket_t         packet;
-    pgp_data_t              ss_skapref;
-    pgp_data_t              ss_hashpref;
-    pgp_data_t              ss_zpref;
-    pgp_data_t              ss_key_flags;
-    pgp_data_t              ss_key_server_prefs;
-    unsigned                ss_primary_userid;
-    char *                  ss_regexp;
-    char *                  ss_policy;
-    char *                  ss_keyserv;
-    pgp_ss_revocation_key_t ss_revocation_key;
-    pgp_data_t              ss_userdef;
-    pgp_data_t              ss_unknown;
-    pgp_data_t              ss_features;
-    pgp_ss_sig_target_t     ss_sig_target;
-    pgp_data_t              ss_embedded_sig;
-    pgp_ss_revocation_t     ss_revocation;
-    uint8_t *               ss_signer;
+    const char *         error;
+    pgp_parser_errcode_t errcode;
+    pgp_ptag_t           ptag;
+    pgp_key_pkt_t        key;
+    pgp_data_t           trust;
+    uint8_t *            userid;
+    pgp_data_t           userattr;
+    pgp_signature_t      sig;
+    pgp_ss_raw_t         ss_raw;
+    pgp_rawpacket_t      packet;
 } pgp_contents_t;
 
 /** pgp_packet_t */
@@ -476,12 +435,6 @@ struct pgp_packet_t {
     uint8_t          critical; /* for sig subpackets */
     pgp_contents_t   u;        /* union for contents */
 };
-
-/* sigpacket_t */
-typedef struct sigpacket_t {
-    uint8_t **       userid;
-    pgp_rawpacket_t *packet;
-} sigpacket_t;
 
 /* user revocation info */
 typedef struct pgp_revoke_t {
