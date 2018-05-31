@@ -53,19 +53,6 @@ typedef enum { PGP_RELEASE_MEMORY, PGP_KEEP_MEMORY, PGP_FINISHED } pgp_cb_ret_t;
 
 typedef pgp_cb_ret_t pgp_cbfunc_t(const pgp_packet_t *, pgp_cbdata_t *);
 
-/**
- * @brief Specifies whether one or more signature subpacket types
- *        should be returned parsed; or raw; or ignored.
- *
- * @param    stream   Pointer to previously allocated structure
- * @param    tag      Packet tag. PGP_PTAG_SS_ALL for all SS tags; or one individual
- *                    signature subpacket tag
- * @param    type     Parse type
- *
- * @todo Make all packet types optional, not just subpackets
- */
-void repgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, repgp_parse_type_t type);
-
 bool repgp_parse(pgp_stream_t *, const bool show_erros);
 
 void repgp_parser_content_free(pgp_packet_t *);

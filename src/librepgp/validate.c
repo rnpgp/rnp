@@ -344,7 +344,6 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     }
     /* ignore these */
     case PGP_PARSER_PTAG:
-    case PGP_PTAG_CT_SIGNATURE_HEADER:
     case PGP_PARSER_PACKET_END:
     case PGP_PARSER_DONE:
         break;

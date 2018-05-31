@@ -245,30 +245,11 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
         }
         return PGP_KEEP_MEMORY;
     }
-    case PGP_PTAG_SS_TRUST:
-    case PGP_PTAG_SS_KEY_EXPIRY:
-    case PGP_PTAG_SS_PRIMARY_USER_ID:
-    case PGP_PTAG_SS_PREFERRED_SKA:
-    case PGP_PTAG_SS_PREFERRED_HASH:
-    case PGP_PTAG_SS_PREF_COMPRESS:
-    case PGP_PTAG_SS_KEY_FLAGS:
-    case PGP_PTAG_SS_KEYSERV_PREFS:
-    case PGP_PTAG_SS_PREF_KEYSERV:
-    case PGP_PTAG_SS_REVOCATION_REASON:
-        break;
     case PGP_PTAG_CT_TRUST:
         // valid, but not currently used
         break;
     default:
-        if (pkt->tag >= PGP_PTAG_SIG_SUBPKT_BASE && pkt->tag <= PGP_PTAG_SS_USERDEFINED10) {
-            if (rnp_get_debug(__FILE__)) {
-                RNP_LOG("Unsupported signature subpacket 0x%x (tag 0x%x)",
-                        pkt->tag - PGP_PTAG_SIG_SUBPKT_BASE,
-                        pkt->tag);
-            }
-        } else {
-            PGP_ERROR_1(cbinfo->errors, PGP_E_FAIL, "Unexpected tag 0x%02x", pkt->tag);
-        }
+        PGP_ERROR_1(cbinfo->errors, PGP_E_FAIL, "Unexpected tag 0x%02x", pkt->tag);
         break;
     }
     return PGP_RELEASE_MEMORY;
@@ -296,7 +277,6 @@ pgp_parse_key_attrs(pgp_key_t *key, const uint8_t *data, size_t data_len)
     }
     pgp_set_callback(stream, cb_keyattrs_parse, key);
     stream->readinfo.accumulate = 1;
-    repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
     ret = repgp_parse(stream, 0);
     pgp_print_errors(stream->errors);
 
@@ -444,7 +424,6 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *                io,
         (void) fprintf(io->errs, "can't setup memory read\n");
         goto done;
     }
-    repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
     res = repgp_parse(stream, printerrors);
     pgp_print_errors(pgp_stream_get_errors(stream));
     /* don't call teardown_memory_read because memory was passed in */

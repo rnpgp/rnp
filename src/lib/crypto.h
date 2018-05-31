@@ -188,18 +188,14 @@ struct pgp_cbdata_t {
  * TODO2: This structure contains too many things which are unrelated
  */
 struct pgp_stream_t {
-    uint8_t ss_raw[NTAGS / 8];
-    /* 1 bit / sig-subpkt type; set to get raw data */
-    uint8_t ss_parsed[NTAGS / 8];
-    /* 1 bit / sig-subpkt type; set to get parsed data */
-    pgp_reader_t    readinfo;
-    pgp_cbdata_t    cbinfo;
-    pgp_error_t *   errors;
-    void *          io; /* io streams */
-    pgp_crypt_t     decrypt;
-    unsigned        exact_read : 1;
-    unsigned        partial_read : 1;
-    unsigned        coalescing : 1;
+    pgp_reader_t readinfo;
+    pgp_cbdata_t cbinfo;
+    pgp_error_t *errors;
+    void *       io; /* io streams */
+    pgp_crypt_t  decrypt;
+    unsigned     exact_read : 1;
+    unsigned     partial_read : 1;
+    unsigned     coalescing : 1;
     /* used for partial length coalescing */
     unsigned virtualc;
     unsigned virtualoff;

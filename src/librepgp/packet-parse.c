@@ -495,16 +495,7 @@ repgp_parser_content_free(pgp_packet_t *c)
     switch (c->tag) {
     case PGP_PARSER_PTAG:
     case PGP_PTAG_CT_COMPRESSED:
-    case PGP_PTAG_SS_CREATION_TIME:
-    case PGP_PTAG_SS_EXPIRATION_TIME:
-    case PGP_PTAG_SS_KEY_EXPIRY:
-    case PGP_PTAG_SS_TRUST:
-    case PGP_PTAG_SS_ISSUER_KEY_ID:
     case PGP_PTAG_CT_1_PASS_SIG:
-    case PGP_PTAG_SS_PRIMARY_USER_ID:
-    case PGP_PTAG_SS_REVOCABLE:
-    case PGP_PTAG_SS_REVOCATION_KEY:
-    case PGP_PTAG_CT_SIGNATURE_HEADER:
     case PGP_PARSER_DONE:
         break;
 
@@ -513,7 +504,6 @@ repgp_parser_content_free(pgp_packet_t *c)
         break;
 
     case PGP_PTAG_CT_SIGNATURE:
-    case PGP_PTAG_CT_SIGNATURE_FOOTER:
         free_signature(&c->u.sig);
         break;
 
@@ -526,41 +516,12 @@ repgp_parser_content_free(pgp_packet_t *c)
         pgp_userid_free(&c->u.userid);
         break;
 
-    case PGP_PTAG_SS_SIGNERS_USER_ID:
-        break;
-
     case PGP_PTAG_CT_USER_ATTR:
         pgp_data_free(&c->u.userattr);
         break;
 
-    case PGP_PTAG_SS_PREFERRED_SKA:
-    case PGP_PTAG_SS_PREFERRED_HASH:
-    case PGP_PTAG_SS_PREF_COMPRESS:
-    case PGP_PTAG_SS_KEY_FLAGS:
-    case PGP_PTAG_SS_KEYSERV_PREFS:
-    case PGP_PTAG_SS_FEATURES:
-    case PGP_PTAG_SS_NOTATION_DATA:
-    case PGP_PTAG_SS_POLICY_URI:
-    case PGP_PTAG_SS_REGEXP:
-    case PGP_PTAG_SS_PREF_KEYSERV:
-    case PGP_PTAG_SS_REVOCATION_REASON:
-        break;
-
-    case PGP_PTAG_SS_EMBEDDED_SIGNATURE:
-        break;
-
-    case PGP_PTAG_SS_ISSUER_FPR:
-        break;
-
     case PGP_PARSER_PACKET_END:
         pgp_rawpacket_free(&c->u.packet);
-        break;
-
-    case PGP_PTAG_RAW_SS:
-        if (c->u.ss_raw.raw != NULL) {
-            free(c->u.ss_raw.raw);
-        }
-        c->u.ss_raw.raw = NULL;
         break;
 
     case PGP_PARSER_ERROR:
@@ -1029,44 +990,6 @@ repgp_parse(pgp_stream_t *stream, const bool show_errors)
         pgp_print_errors(stream->errors);
     }
     return (stream->errors == NULL);
-}
-
-void
-repgp_parse_options(pgp_stream_t *stream, pgp_content_enum tag, repgp_parse_type_t type)
-{
-    unsigned t7;
-    unsigned t8;
-
-    if (tag == PGP_PTAG_SS_ALL) {
-        int n;
-
-        for (n = 0; n < 256; ++n) {
-            repgp_parse_options(stream, PGP_PTAG_SIG_SUBPKT_BASE + n, type);
-        }
-        return;
-    }
-    if (tag < PGP_PTAG_SIG_SUBPKT_BASE || tag > PGP_PTAG_SIG_SUBPKT_BASE + NTAGS - 1) {
-        (void) fprintf(stderr, "repgp_parse_options: bad tag\n");
-        return;
-    }
-    t8 = (tag - PGP_PTAG_SIG_SUBPKT_BASE) / 8;
-    t7 = 1 << ((tag - PGP_PTAG_SIG_SUBPKT_BASE) & 7);
-    switch (type) {
-    case REPGP_PARSE_RAW:
-        stream->ss_raw[t8] |= t7;
-        stream->ss_parsed[t8] &= ~t7;
-        break;
-
-    case REPGP_PARSE_PARSED:
-        stream->ss_raw[t8] &= ~t7;
-        stream->ss_parsed[t8] |= t7;
-        break;
-
-    case REPGP_PARSE_IGNORE:
-        stream->ss_raw[t8] &= ~t7;
-        stream->ss_parsed[t8] &= ~t7;
-        break;
-    }
 }
 
 /**

@@ -334,14 +334,6 @@ typedef struct pgp_signature_t {
     list subpkts;
 } pgp_signature_t;
 
-/** The raw bytes of a signature subpacket */
-
-typedef struct pgp_ss_raw_t {
-    pgp_content_enum tag;
-    size_t           length;
-    uint8_t *        raw;
-} pgp_ss_raw_t;
-
 /** pgp_rawpacket_t */
 typedef struct pgp_rawpacket_t {
     pgp_content_enum tag;
@@ -370,19 +362,6 @@ typedef struct pgp_literal_hdr_t {
     uint8_t  fname_len;
     uint32_t timestamp;
 } pgp_literal_hdr_t;
-
-/** Signature Subpacket : Revocation Key */
-typedef struct {
-    uint8_t class;
-    uint8_t algid;
-    uint8_t fingerprint[PGP_FINGERPRINT_SIZE];
-} pgp_ss_revocation_key_t;
-
-/** Signature Subpacket : Revocation Reason */
-typedef struct {
-    uint8_t code;
-    char *  reason;
-} pgp_ss_revocation_t;
 
 /** litdata_type_t */
 typedef enum {
@@ -425,7 +404,6 @@ typedef union {
     uint8_t *            userid;
     pgp_data_t           userattr;
     pgp_signature_t      sig;
-    pgp_ss_raw_t         ss_raw;
     pgp_rawpacket_t      packet;
 } pgp_contents_t;
 
