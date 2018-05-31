@@ -82,7 +82,6 @@ pgp_parse_keyrings_1_pubring(void **state)
         assert_false(fd < 0);
         assert_non_null(stream);
 
-        repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
         assert_true(repgp_parse(stream, 1));
         pgp_teardown_file_read(stream, fd);
         stream = NULL;
@@ -111,7 +110,6 @@ pgp_parse_keyrings_1_pubring(void **state)
         assert_true(pgp_setup_memory_read(&io, &stream, mem, &taglist, tag_collector, 1));
         assert_non_null(stream);
 
-        repgp_parse_options(stream, PGP_PTAG_SS_ALL, REPGP_PARSE_PARSED);
         assert_true(repgp_parse(stream, 1));
         pgp_teardown_memory_read(stream, mem);
         stream = NULL;
@@ -189,8 +187,11 @@ test_repgp_decrypt(void **state)
     assert_int_equal(rnp_ctx_init(&ctx, &rnp), RNP_SUCCESS);
 
     /* Read encrypted file */
-    paths_concat(
-      (char *) input_file, sizeof(input_file), rstate->data_dir, "test_repgp/encrypted_text.gpg\0", NULL);
+    paths_concat((char *) input_file,
+                 sizeof(input_file),
+                 rstate->data_dir,
+                 "test_repgp/encrypted_text.gpg\0",
+                 NULL);
     FILE *f = fopen(input_file, "rb");
     assert_non_null(f);
     in_buf_size = fread(in_buf, 1, in_buf_size, f);
@@ -257,8 +258,11 @@ test_repgp_verify(void **state)
     setup_keystore_1(rstate, &rnp);
     assert_int_equal(rnp_ctx_init(&ctx, &rnp), RNP_SUCCESS);
 
-    paths_concat(
-      (char *) input_file, sizeof(input_file), rstate->data_dir, "test_repgp/signed.gpg", NULL);
+    paths_concat((char *) input_file,
+                 sizeof(input_file),
+                 rstate->data_dir,
+                 "test_repgp/signed.gpg",
+                 NULL);
 
     /* Test verification from file */
     repgp_io_t *io = repgp_create_io();
