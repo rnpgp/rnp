@@ -34,5 +34,4 @@ librnp_la_SOURCES	= \
 	pgp-key.c \
 	rnp.c \
 	rnp2.c \
-	signature.c \
 	writer.c
