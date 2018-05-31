@@ -145,7 +145,7 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
     case PGP_PARSER_ERRCODE:
         RNP_LOG("parse error: %s", pgp_errcode(content->errcode.errcode));
         break;
-    case PGP_PTAG_CT_SIGNATURE: /* v3 sig */
+    case PGP_PTAG_CT_SIGNATURE: {
         EXPAND_ARRAY(key, subsig);
         if (key->subsigs == NULL) {
             PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
@@ -154,20 +154,7 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
         subsig = &key->subsigs[key->subsigc++];
         subsig->uid = key->uidc - 1;
         subsig->sig = content->sig;
-        return PGP_KEEP_MEMORY;
-    case PGP_PTAG_CT_SIGNATURE_HEADER: /* start of v4 sig */
-        EXPAND_ARRAY(key, subsig);
-        if (key->subsigs == NULL) {
-            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to expand array.");
-            return PGP_FINISHED;
-        }
-        subsig = &key->subsigs[key->subsigc++];
-        memset(subsig, 0, sizeof(*subsig));
-        subsig->uid = key->uidc - 1;
-        return PGP_KEEP_MEMORY;
-    case PGP_PTAG_CT_SIGNATURE_FOOTER: /* end of v4 sig */
-        SUBSIG_REQUIRED_BEFORE("sig footer");
-        subsig->sig = content->sig;
+
         if (signature_has_key_expiration(&subsig->sig)) {
             key->expiration = signature_get_key_expiration(&subsig->sig);
         }
@@ -257,6 +244,7 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
             }
         }
         return PGP_KEEP_MEMORY;
+    }
     case PGP_PTAG_SS_TRUST:
     case PGP_PTAG_SS_KEY_EXPIRY:
     case PGP_PTAG_SS_PRIMARY_USER_ID:
