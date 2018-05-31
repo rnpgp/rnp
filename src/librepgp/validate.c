@@ -83,7 +83,6 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 #include <librepgp/reader.h>
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-sig.h>
-#include "signature.h"
 #include "utils.h"
 #include "memory.h"
 #include "crypto.h"
@@ -198,6 +197,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     pgp_io_t *            io;
     unsigned              valid = 0;
     rnp_ctx_t *           rnp_ctx;
+    rng_t *               rng;
 
     io = cbinfo->io;
     if (rnp_get_debug(__FILE__)) {
@@ -205,6 +205,7 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     }
     key = pgp_callback_arg(cbinfo);
     rnp_ctx = key->result->rnp_ctx;
+    rng = rnp_ctx_rng_handle(rnp_ctx);
     errors = pgp_callback_errors(cbinfo);
     switch (pkt->tag) {
     case PGP_PTAG_CT_PUBLIC_KEY:
@@ -271,42 +272,35 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
         case PGP_CERT_PERSONA:
         case PGP_CERT_CASUAL:
         case PGP_CERT_POSITIVE:
-        case PGP_SIG_REV_CERT:
-            valid =
-              (key->last_seen == ID) ?
-                pgp_check_useridcert_sig(rnp_ctx,
-                                         &key->pubkey,
-                                         key->userid,
-                                         &content->sig,
-                                         pgp_get_key_pkt(signer),
-                                         &key->reader->key->packets[key->reader->packet]) :
-                pgp_check_userattrcert_sig(rnp_ctx,
-                                           &key->pubkey,
-                                           &key->userattr,
-                                           &content->sig,
-                                           pgp_get_key_pkt(signer),
-                                           &key->reader->key->packets[key->reader->packet]);
-            break;
+        case PGP_SIG_REV_CERT: {
+            pgp_userid_pkt_t uid = {0};
 
+            if (key->last_seen == ID) {
+                uid.tag = PGP_PTAG_CT_USER_ID;
+                uid.uid = key->userid;
+                uid.uid_len = strlen((const char *) key->userid);
+            } else {
+                uid.tag = PGP_PTAG_CT_USER_ATTR;
+                uid.uid = key->userattr.contents;
+                uid.uid_len = key->userattr.len;
+            }
+
+            valid = !signature_validate_certification(
+              &content->sig, &key->pubkey, &uid, pgp_get_key_material(signer), rng);
+            break;
+        }
         case PGP_SIG_SUBKEY:
             /*
              * XXX: we should also check that the signer is the
              * key we are validating, I think.
              */
-            valid = pgp_check_subkey_sig(rnp_ctx,
-                                         &key->pubkey,
-                                         &key->subkey,
-                                         &content->sig,
-                                         pgp_get_key_pkt(signer),
-                                         &key->reader->key->packets[key->reader->packet]);
+            valid =
+              !signature_validate_binding(&content->sig, &key->pubkey, &key->subkey, rng);
             break;
 
         case PGP_SIG_DIRECT:
-            valid = pgp_check_direct_sig(rnp_ctx,
-                                         &key->pubkey,
-                                         &content->sig,
-                                         pgp_get_key_pkt(signer),
-                                         &key->reader->key->packets[key->reader->packet]);
+            valid = !signature_validate_direct(
+              &content->sig, &key->pubkey, pgp_get_key_material(signer), rng);
             break;
 
         case PGP_SIG_STANDALONE:

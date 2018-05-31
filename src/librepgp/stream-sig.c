@@ -942,7 +942,10 @@ signature_hash_direct(const pgp_signature_t *sig, const pgp_key_pkt_t *key, pgp_
 }
 
 bool
-signature_hash_finish(pgp_signature_t *sig, pgp_hash_t *hash, uint8_t *hbuf, size_t *hlen)
+signature_hash_finish(const pgp_signature_t *sig,
+                      pgp_hash_t *           hash,
+                      uint8_t *              hbuf,
+                      size_t *               hlen)
 {
     if (!hash || !sig || !hbuf || !hlen) {
         goto error;
@@ -968,7 +971,7 @@ error:
 }
 
 rnp_result_t
-signature_validate(pgp_signature_t *         sig,
+signature_validate(const pgp_signature_t *   sig,
                    const pgp_key_material_t *key,
                    pgp_hash_t *              hash,
                    rng_t *                   rng)
@@ -1016,6 +1019,52 @@ signature_validate(pgp_signature_t *         sig,
     }
 
     return ret;
+}
+
+rnp_result_t
+signature_validate_certification(const pgp_signature_t *   sig,
+                                 const pgp_key_pkt_t *     key,
+                                 const pgp_userid_pkt_t *  uid,
+                                 const pgp_key_material_t *signer,
+                                 rng_t *                   rng)
+{
+    pgp_hash_t hash = {0};
+
+    if (!signature_hash_certification(sig, key, uid, &hash)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    return signature_validate(sig, signer, &hash, rng);
+}
+
+rnp_result_t
+signature_validate_binding(const pgp_signature_t *sig,
+                           const pgp_key_pkt_t *  key,
+                           const pgp_key_pkt_t *  subkey,
+                           rng_t *                rng)
+{
+    pgp_hash_t hash = {0};
+
+    if (!signature_hash_binding(sig, key, subkey, &hash)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    return signature_validate(sig, &key->material, &hash, rng);
+}
+
+rnp_result_t
+signature_validate_direct(const pgp_signature_t *   sig,
+                          const pgp_key_pkt_t *     key,
+                          const pgp_key_material_t *signer,
+                          rng_t *                   rng)
+{
+    pgp_hash_t hash = {0};
+
+    if (!signature_hash_direct(sig, key, &hash)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    return signature_validate(sig, signer, &hash, rng);
 }
 
 rnp_result_t

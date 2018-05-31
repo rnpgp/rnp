@@ -307,10 +307,10 @@ bool signature_hash_direct(const pgp_signature_t *sig,
  * @param hlen on success will be filled with the hash size, otherwise zeroed
  * @return true on success or false otherwise
  */
-bool signature_hash_finish(pgp_signature_t *sig,
-                           pgp_hash_t *     hash,
-                           uint8_t *        hbuf,
-                           size_t *         hlen);
+bool signature_hash_finish(const pgp_signature_t *sig,
+                           pgp_hash_t *           hash,
+                           uint8_t *              hbuf,
+                           size_t *               hlen);
 
 /**
  * @brief Validate a signature with pre-populated hash. This method just checks correspondence
@@ -323,10 +323,26 @@ bool signature_hash_finish(pgp_signature_t *sig,
  * @param rng random number generator
  * @return RNP_SUCCESS if signature was successfully validated or error code otherwise.
  */
-rnp_result_t signature_validate(pgp_signature_t *         sig,
+rnp_result_t signature_validate(const pgp_signature_t *   sig,
                                 const pgp_key_material_t *key,
                                 pgp_hash_t *              hash,
                                 rng_t *                   rng);
+
+rnp_result_t signature_validate_certification(const pgp_signature_t *   sig,
+                                              const pgp_key_pkt_t *     key,
+                                              const pgp_userid_pkt_t *  uid,
+                                              const pgp_key_material_t *signer,
+                                              rng_t *                   rng);
+
+rnp_result_t signature_validate_binding(const pgp_signature_t *sig,
+                                        const pgp_key_pkt_t *  key,
+                                        const pgp_key_pkt_t *  subkey,
+                                        rng_t *                rng);
+
+rnp_result_t signature_validate_direct(const pgp_signature_t *   sig,
+                                       const pgp_key_pkt_t *     key,
+                                       const pgp_key_material_t *signer,
+                                       rng_t *                   rng);
 
 /**
  * @brief Calculate signature with pre-populated hash

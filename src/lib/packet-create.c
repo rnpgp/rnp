@@ -87,7 +87,6 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-armor.h>
-#include "signature.h"
 #include "packet-create.h"
 #include "memory.h"
 #include "fingerprint.h"
