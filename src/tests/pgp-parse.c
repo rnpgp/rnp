@@ -74,31 +74,6 @@ pgp_parse_keyrings_1_pubring(void **state)
     set_io(&io);
     paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/pubring.gpg", NULL);
 
-    /* file read */
-    {
-        taglist = NULL;
-        stream = NULL;
-        int fd = pgp_setup_file_read(&io, &stream, path, &taglist, tag_collector, 1);
-        assert_false(fd < 0);
-        assert_non_null(stream);
-
-        assert_true(repgp_parse(stream, 1));
-        pgp_teardown_file_read(stream, fd);
-        stream = NULL;
-
-        assert_int_equal(list_length(taglist), ARRAY_SIZE(tags_keyrings_1_pubring));
-        list_item *item = list_front(taglist);
-        size_t     i = 0;
-        while (item) {
-            pgp_content_enum tag = *(pgp_content_enum *) item;
-            assert_int_equal(tag, tags_keyrings_1_pubring[i]);
-
-            item = list_next(item);
-            i++;
-        }
-        list_destroy(&taglist);
-    }
-
     /* memory read */
     {
         taglist = NULL;

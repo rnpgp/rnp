@@ -192,14 +192,6 @@ struct pgp_stream_t {
     pgp_cbdata_t cbinfo;
     pgp_error_t *errors;
     void *       io; /* io streams */
-    pgp_crypt_t  decrypt;
-    unsigned     exact_read : 1;
-    unsigned     partial_read : 1;
-    unsigned     coalescing : 1;
-    /* used for partial length coalescing */
-    unsigned virtualc;
-    unsigned virtualoff;
-    uint8_t *virtualpkt;
 };
 
 #endif /* CRYPTO_H_ */

@@ -34,9 +34,6 @@
 
 #include "packet-create.h"
 
-/* if this is defined, we'll use mmap in preference to file ops */
-#define USE_MMAP_FOR_FILES 1
-
 /*
    A reader MUST read at least one byte if it can, and should read up
    to the number asked for. Whether it reads more for efficiency is
@@ -63,28 +60,12 @@ typedef void pgp_reader_destroyer_t(pgp_reader_t *);
 
 pgp_reader_func_t pgp_stacked_read;
 
-#define CRC24_INIT 0xb704ceL
-unsigned pgp_crc24(unsigned, uint8_t);
-
 void  pgp_reader_set(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
-bool  pgp_reader_push(pgp_stream_t *, pgp_reader_func_t *, pgp_reader_destroyer_t *, void *);
-void  pgp_reader_pop(pgp_stream_t *);
 void *pgp_reader_get_arg(pgp_reader_t *);
 
-void pgp_reader_set_fd(pgp_stream_t *, int);
-void pgp_reader_set_mmap(pgp_stream_t *, int);
 bool pgp_reader_set_memory(pgp_stream_t *, const void *, size_t);
 
 unsigned pgp_reader_set_accumulate(pgp_stream_t *, unsigned);
-
-/* file reading */
-int  pgp_setup_file_read(pgp_io_t *,
-                         pgp_stream_t **,
-                         const char *,
-                         void *,
-                         pgp_cb_ret_t callback(const pgp_packet_t *, pgp_cbdata_t *),
-                         unsigned);
-void pgp_teardown_file_read(pgp_stream_t *, int);
 
 /* memory reading */
 int  pgp_setup_memory_read(pgp_io_t *,

@@ -431,7 +431,6 @@ read_new_length(unsigned *length, pgp_stream_t *stream)
 {
     uint8_t c;
 
-    stream->partial_read = 0;
     if (base_read(&c, 1, stream) != 1) {
         return false;
     }
