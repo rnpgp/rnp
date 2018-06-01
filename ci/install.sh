@@ -261,7 +261,7 @@ if [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
 
   if [ "$GPG_VERSION" = "stable" ]; then
     #                npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
-    build_gpg_stable 1.5  1.27         1.8.2     2.5.1     1.3.5   1.1.0    2.2.4
+    build_gpg_stable 1.5  1.31         1.8.2     2.5.1     1.3.5   1.1.0    2.2.7
   elif [ "$GPG_VERSION" = "beta" ]; then
     #              gettext npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
     build_gpg_beta latest master master master master master master master
