@@ -38,12 +38,11 @@ if [ ! -e "${CMOCKA_INSTALL}/lib/libcmocka.so" ] && \
   cd "${LOCAL_BUILDS}"
   mkdir -p cmocka-build
   pushd cmocka-build
-  cmake \
-    -DCMAKE_INSTALL_DIR="${CMOCKA_INSTALL}" \
-    -DLIB_INSTALL_DIR="${CMOCKA_INSTALL}/lib" \
-    -DINCLUDE_INSTALL_DIR="${CMOCKA_INSTALL}/include" \
-    "${LOCAL_BUILDS}/cmocka"
-  ${MAKE} -j${CORES} all install
+  cmake -DCMAKE_INSTALL_PREFIX="${CMOCKA_INSTALL}" \
+        -DCMAKE_BUILD_TYPE=release \
+        -DUNIT_TESTING=OFF \
+        "${LOCAL_BUILDS}/cmocka"
+  ${MAKE} -j${CORES} install
   popd
 fi
 
