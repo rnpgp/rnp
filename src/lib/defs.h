@@ -114,7 +114,7 @@
 #define DYNARRAY(type, arr) \
     unsigned arr##c;        \
     unsigned arr##vsize;    \
-    type *   arr##s;
+    type *   arr##s
 
 #define EXPAND_ARRAY(str, arr)                                                        \
     do {                                                                              \
