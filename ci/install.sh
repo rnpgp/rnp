@@ -214,8 +214,8 @@ index 8c8b8e5..412244c 100644
  SUBDIRS = m4 secmem pinentry ${pinentry_curses} ${pinentry_tty} \
  	${pinentry_emacs} ${pinentry_gtk_2} ${pinentry_gnome_3} \
  	${pinentry_qt} ${pinentry_tqt} ${pinentry_w32} \
--	${pinentry_fltk} doc
-+	${pinentry_fltk}
+-	${pinentry_fltk} ${pinentry_efl} doc
++	${pinentry_fltk} ${pinentry_efl}
  
  
  install-exec-local:
