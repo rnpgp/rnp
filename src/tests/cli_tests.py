@@ -669,13 +669,13 @@ def setup(loglvl):
     logging.info('Running in ' + WORKDIR)
 
     RNPDIR = path.join(WORKDIR, '.rnp')
-    RNP = rnp_file_path('src/rnp/rnp')
-    RNPK = rnp_file_path('src/rnpkeys/rnpkeys')
+    RNP = os.getenv('RNP_TESTS_RNP_PATH')
+    RNPK = os.getenv('RNP_TESTS_RNPKEYS_PATH')
     os.mkdir(RNPDIR, 0700)
 
     GPGDIR = path.join(WORKDIR, '.gpg')
-    GPG = os.getenv('RNPC_GPG_PATH') or find_utility('gpg')
-    GPGCONF = os.getenv('RNPC_GPGCONF_PATH') or find_utility('gpgconf')
+    GPG = os.getenv('RNP_TESTS_GPG_PATH') or find_utility('gpg')
+    GPGCONF = os.getenv('RNP_TESTS_GPGCONF_PATH') or find_utility('gpgconf')
     os.mkdir(GPGDIR, 0700)
 
 def key_path(file_base_name, secret):

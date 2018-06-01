@@ -28,74 +28,56 @@ matrix:
     - stage: cache
       script: true
       compiler: clang
-      env: BUILD_MODE=normal RNP_TESTS=cmocka
+      env: BUILD_MODE=normal GPG_VERSION=stable
     - stage: cache
       script: true
       compiler: clang
-      env: BUILD_MODE=normal RNP_TESTS=cli GPG_VERSION=stable
+      env: BUILD_MODE=normal GPG_VERSION=beta
     - stage: cache
       script: true
       compiler: clang
-      env: BUILD_MODE=normal RNP_TESTS=cli GPG_VERSION=beta
+      env: BUILD_MODE=sanitize GPG_VERSION=stable
     - stage: cache
       script: true
       compiler: clang
-      env: BUILD_MODE=sanitize RNP_TESTS=cmocka
-    - stage: cache
-      script: true
-      compiler: clang
-      env: BUILD_MODE=sanitize RNP_TESTS=cli GPG_VERSION=stable
-    - stage: cache
-      script: true
-      compiler: clang
-      env: BUILD_MODE=sanitize RNP_TESTS=cli GPG_VERSION=beta
+      env: BUILD_MODE=sanitize GPG_VERSION=beta
     - stage: cache
       script: true
       compiler: gcc
-      env: BUILD_MODE=coverage RNP_TESTS=cmocka
+      env: BUILD_MODE=coverage RNP_TESTS=cmocka GPG_VERSION=beta
     - stage: cache
       script: true
       compiler: gcc
       env: BUILD_MODE=coverage RNP_TESTS=cli GPG_VERSION=beta
 
     # normal
-    - stage: tests
-      env: BUILD_MODE=normal RNP_TESTS=cmocka
-      compiler: clang
     # gpg stable
     - stage: tests
-      env: BUILD_MODE=normal RNP_TESTS=cli GPG_VERSION=stable
+      env: BUILD_MODE=normal GPG_VERSION=stable
       compiler: clang
     # gpg master
     - stage: tests
-      env: BUILD_MODE=normal RNP_TESTS=cli GPG_VERSION=beta
+      env: BUILD_MODE=normal GPG_VERSION=beta
       compiler: clang
 
     # clang sanitizers
-    - stage: tests
-      env: BUILD_MODE=sanitize RNP_TESTS=cmocka
-      compiler: clang
-      # requires ptrace, which isn't currently working in travis containers
-      sudo: true
     # gpg stable
     - stage: tests
-      env: BUILD_MODE=sanitize RNP_TESTS=cli GPG_VERSION=stable
+      env: BUILD_MODE=sanitize GPG_VERSION=stable
       compiler: clang
       # requires ptrace, which isn't currently working in travis containers
       sudo: true
     # gpg master
     - stage: tests
-      env: BUILD_MODE=sanitize RNP_TESTS=cli GPG_VERSION=beta
+      env: BUILD_MODE=sanitize GPG_VERSION=beta
       compiler: clang
       # requires ptrace, which isn't currently working in travis containers
       sudo: true
 
     # codecov
-    # cmocka
     - stage: tests
-      env: BUILD_MODE=coverage RNP_TESTS=cmocka
+      env: BUILD_MODE=coverage RNP_TESTS=cmocka GPG_VERSION=beta
       compiler: gcc
-    # cli
     - stage: tests
       env: BUILD_MODE=coverage RNP_TESTS=cli GPG_VERSION=beta
       compiler: gcc

@@ -5,6 +5,7 @@ set -exu
 
 : "${CORES:=2}"
 : "${MAKE:=make}"
+: "${RNP_TESTS:=all}"
 
 # botan
 botan_build=${LOCAL_BUILDS}/botan
@@ -249,9 +250,6 @@ END
   ${MAKE} -j${CORES} install
   popd
 }
-
-[[ "$RNP_TESTS" = "cli" || "$RNP_TESTS" = "all" ]] && need_gpg=true || need_gpg=false
-[[ $need_gpg = true ]] || exit 0
 
 # gpg
 gpg_build=${LOCAL_BUILDS}/gpg
