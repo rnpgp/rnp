@@ -34,6 +34,7 @@
 #include <repgp/repgp.h>
 #include <rnp/rnp.h>
 #include "stream-common.h"
+#include "validate.h"
 
 /* userid/userattr with all the corresponding signatures */
 typedef struct pgp_transferable_userid_t {
@@ -65,6 +66,12 @@ void transferable_key_destroy(pgp_transferable_key_t *key);
 void key_sequence_destroy(pgp_key_sequence_t *keys);
 
 rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys);
+
+rnp_result_t process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key);
+
+rnp_result_t validate_pgp_key_signatures(pgp_validation_t *     result,
+                                         const pgp_key_t *      key,
+                                         const rnp_key_store_t *keyring);
 
 rnp_result_t write_pgp_key(pgp_transferable_key_t *key, pgp_dest_t *dst, bool armor);
 

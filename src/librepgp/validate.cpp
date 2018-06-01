@@ -75,6 +75,7 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 #include <librepgp/reader.h>
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-sig.h>
+#include <librepgp/stream-key.h>
 #include "utils.h"
 #include "memory.h"
 #include "crypto.h"
@@ -443,7 +444,6 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
     if (stream == NULL) {
         return false;
     }
-    /* pgp_parse_options(&opt,PGP_PTAG_CT_SIGNATURE,PGP_PARSE_PARSED); */
 
     keysigs.keyring = keyring;
 

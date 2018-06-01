@@ -1708,6 +1708,36 @@ finish:
     return res;
 }
 
+bool
+copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src)
+{
+    memcpy(dst, src, sizeof(*src));
+    dst->hashed_data = NULL;
+    dst->subpkts = NULL;
+    if (src->hashed_data) {
+        if (!(dst->hashed_data = malloc(dst->hashed_len))) {
+            return false;
+        }
+        memcpy(dst->hashed_data, src->hashed_data, dst->hashed_len);
+    }
+
+    for (list_item *sp = list_front(src->subpkts); sp; sp = list_next(sp)) {
+        pgp_sig_subpkt_t *dstsp;
+        dstsp = (pgp_sig_subpkt_t *) list_append(&dst->subpkts, sp, sizeof(*dstsp));
+        if (!dstsp) {
+            free_signature(dst);
+            return false;
+        }
+        memcpy(dstsp, sp, sizeof(*dstsp));
+        if (!(dstsp->data = malloc(dstsp->len))) {
+            free_signature(dst);
+            return false;
+        }
+        memcpy(dstsp->data, ((pgp_sig_subpkt_t *) sp)->data, dstsp->len);
+    }
+    return true;
+}
+
 void
 free_signature(pgp_signature_t *sig)
 {

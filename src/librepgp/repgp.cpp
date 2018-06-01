@@ -39,6 +39,7 @@
 #include <rnp/rnpcfg.h>
 #include <repgp/repgp.h>
 #include <rekey/rnp_key_store.h>
+#include "stream-key.h"
 
 #include "internal_types.h"
 #include "packet-print.h"
@@ -326,7 +327,7 @@ repgp_validate_pubkeys_signatures(void *ctx)
     bool                   ret = true;
     result.rnp_ctx = rctx;
     for (list_item *key = list_front(ring->keys); key; key = list_next(key)) {
-        ret &= pgp_validate_key_sigs(&result, (pgp_key_t *) key, ring);
+        ret &= !validate_pgp_key_signatures(&result, (pgp_key_t *) key, ring);
     }
 
     ret &= validate_result_status("keyring", &result);

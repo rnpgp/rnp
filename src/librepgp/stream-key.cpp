@@ -35,6 +35,7 @@
 #include "stream-key.h"
 #include "stream-armor.h"
 #include "stream-packet.h"
+#include "stream-sig.h"
 #include "defs.h"
 #include "types.h"
 #include "crypto/symmetric.h"
@@ -228,6 +229,37 @@ finish:
         key_sequence_destroy(keys);
     }
     return ret;
+}
+
+rnp_result_t
+process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key)
+{
+    rnp_result_t       res = RNP_ERROR_GENERIC;
+    pgp_key_sequence_t keys = {0};
+
+    if (!key || !src) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    if ((res = process_pgp_keys(src, &keys))) {
+        return res;
+    }
+
+    if (!list_length(keys.keys)) {
+        RNP_LOG("empty key sequence");
+        key_sequence_destroy(&keys);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (list_length(keys.keys) > 1) {
+        RNP_LOG("multiple keys found");
+        key_sequence_destroy(&keys);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    *key = *(pgp_transferable_key_t *) list_front(keys.keys);
+    list_destroy(&keys.keys);
+    return RNP_SUCCESS;
 }
 
 static bool
@@ -728,4 +760,210 @@ forget_secret_key_fields(pgp_key_material_t *key)
     }
 
     key->secret = false;
+}
+
+typedef struct validate_info_t {
+    pgp_validation_t *     result;
+    const rnp_key_store_t *keystore;
+    pgp_key_pkt_t *        key;
+    pgp_key_pkt_t *        subkey;
+    pgp_userid_pkt_t *     uid;
+    rng_t *                rng;
+} validate_info_t;
+
+static bool
+add_sig_to_list(const pgp_signature_t *sig, pgp_signature_t **sigs, unsigned *count)
+{
+    pgp_signature_t *newsigs;
+
+    if (*count == 0) {
+        newsigs = calloc(*count + 1, sizeof(pgp_signature_t));
+    } else {
+        newsigs = realloc(*sigs, (*count + 1) * sizeof(pgp_signature_t));
+    }
+    if (newsigs == NULL) {
+        (void) fprintf(stderr, "add_sig_to_list: alloc failure\n");
+        return false;
+    }
+    *sigs = newsigs;
+    if (!copy_signature_packet(&(*sigs)[*count], sig)) {
+        return false;
+    }
+    *count += 1;
+    return true;
+}
+
+static rnp_result_t
+validate_pgp_key_signature(pgp_signature_t *sig, validate_info_t *info)
+{
+    rnp_result_t res = RNP_ERROR_SIGNATURE_INVALID;
+    pgp_key_t *  signer = NULL;
+    uint8_t      signer_id[PGP_KEY_ID_SIZE] = {0};
+    pgp_io_t     io = {.errs = stderr, .res = stdout, .outs = stdout};
+
+    if (!signature_get_keyid(sig, signer_id)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    signer = rnp_key_store_get_key_by_id(&io, info->keystore, signer_id, NULL);
+    if (!signer) {
+        if (!add_sig_to_list(sig, &info->result->unknown_sigs, &info->result->unknownc)) {
+            RNP_LOG("failed to add unknown signature to the list");
+            return RNP_ERROR_BAD_STATE;
+        }
+        return RNP_SUCCESS;
+    }
+    if (!pgp_key_can_sign(signer)) {
+        RNP_LOG("WARNING: signature made with key that can not sign");
+    }
+
+    switch (sig->type) {
+    case PGP_CERT_GENERIC:
+    case PGP_CERT_PERSONA:
+    case PGP_CERT_CASUAL:
+    case PGP_CERT_POSITIVE:
+    case PGP_SIG_REV_CERT: {
+        if (!info->key || !info->uid || info->subkey) {
+            RNP_LOG("wrong certification parameters");
+            res = RNP_ERROR_SIGNATURE_INVALID;
+            break;
+        }
+        res = signature_validate_certification(
+          sig, info->key, info->uid, pgp_get_key_material(signer), info->rng);
+        break;
+    }
+    case PGP_SIG_SUBKEY:
+        if (!info->key || info->uid || !info->subkey) {
+            RNP_LOG("wrong binding parameters");
+            res = RNP_ERROR_SIGNATURE_INVALID;
+            break;
+        }
+
+        /* subkey binding always uses main key's material */
+        res = signature_validate_binding(sig, info->key, info->subkey, info->rng);
+        break;
+    case PGP_SIG_DIRECT:
+        if (!info->key || info->uid || info->subkey) {
+            RNP_LOG("wrong direct sig parameters");
+            res = RNP_ERROR_SIGNATURE_INVALID;
+            break;
+        }
+        res =
+          signature_validate_direct(sig, info->key, pgp_get_key_material(signer), info->rng);
+        break;
+    case PGP_SIG_STANDALONE:
+    case PGP_SIG_PRIMARY:
+    case PGP_SIG_REV_KEY:
+    case PGP_SIG_REV_SUBKEY:
+    case PGP_SIG_TIMESTAMP:
+    case PGP_SIG_3RD_PARTY:
+        RNP_LOG("signature type %d verification is not supported yet", (int) sig->type);
+        res = RNP_ERROR_SIGNATURE_INVALID;
+        break;
+    default:
+        RNP_LOG("unexpected signature type %d", (int) sig->type);
+        res = RNP_ERROR_SIGNATURE_INVALID;
+    }
+
+    // TODO: check signature creation and expiration times
+
+    if (!res) {
+        if (!add_sig_to_list(sig, &info->result->valid_sigs, &info->result->validc)) {
+            RNP_LOG("failed to add good sig to list");
+        }
+    } else {
+        RNP_LOG("bad signature");
+        if (!add_sig_to_list(sig, &info->result->invalid_sigs, &info->result->invalidc)) {
+            RNP_LOG("failed to add bad sig to list");
+        }
+    }
+
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+validate_pgp_key_signature_list(list sigs, validate_info_t *info)
+{
+    rnp_result_t res = RNP_SUCCESS;
+
+    for (list_item *s = list_front(sigs); s; s = list_next(s)) {
+        if ((res = validate_pgp_key_signature((pgp_signature_t *) s, info))) {
+            return res;
+        }
+    }
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+validate_pgp_key_signatures(pgp_validation_t *     result,
+                            const pgp_key_t *      key,
+                            const rnp_key_store_t *keyring)
+{
+    pgp_source_t           src = {0};
+    pgp_dest_t             dst = {0};
+    pgp_transferable_key_t tkey = {{0}};
+    rnp_result_t           res = RNP_ERROR_GENERIC;
+    validate_info_t        info = {0};
+    rng_t                  rng = {0};
+
+    /* write raw key packets to the memory and load transferable key */
+    if ((res = init_mem_dest(&dst, NULL, 0))) {
+        return res;
+    }
+
+    for (unsigned i = 0; i < key->packetc; i++) {
+        dst_write(&dst, key->packets[i].raw, key->packets[i].length);
+    }
+
+    if ((res = init_mem_src(&src, mem_dest_own_memory(&dst), dst.writeb, true))) {
+        dst_close(&dst, true);
+        return res;
+    }
+
+    dst_close(&dst, false);
+    res = process_pgp_key(&src, &tkey);
+    src_close(&src);
+    if (res) {
+        return res;
+    }
+
+    if (!rng_init(&rng, RNG_SYSTEM)) {
+        res = RNP_ERROR_RNG;
+        goto done;
+    }
+    info.rng = &rng;
+    info.result = result;
+    info.keystore = keyring;
+
+    /* validate direct-key signatures */
+    info.key = &tkey.key;
+    info.uid = NULL;
+    info.subkey = NULL;
+    if ((res = validate_pgp_key_signature_list(tkey.signatures, &info))) {
+        goto done;
+    }
+
+    /* validate certifications */
+    for (list_item *uid = list_front(tkey.userids); uid; uid = list_next(uid)) {
+        pgp_transferable_userid_t *tuid = (pgp_transferable_userid_t *) uid;
+        info.uid = &tuid->uid;
+        if ((res = validate_pgp_key_signature_list(tuid->signatures, &info))) {
+            goto done;
+        }
+    }
+
+    /* validate subkey signatures */
+    info.uid = NULL;
+    for (list_item *sk = list_front(tkey.subkeys); sk; sk = list_next(sk)) {
+        pgp_transferable_subkey_t *skey = (pgp_transferable_subkey_t *) sk;
+        info.subkey = &skey->subkey;
+        if ((res = validate_pgp_key_signature_list(skey->signatures, &info))) {
+            goto done;
+        }
+    }
+
+done:
+    transferable_key_destroy(&tkey);
+    rng_destroy(&rng);
+    return res;
 }
