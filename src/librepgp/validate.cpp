@@ -82,67 +82,6 @@ __RCSID("$NetBSD: validate.c,v 1.44 2012/03/05 02:20:18 christos Exp $");
 #include "validate.h"
 #include "pgp-key.h"
 
-static int
-key_reader(pgp_stream_t *stream,
-           void *        dest,
-           size_t        length,
-           pgp_error_t **errors,
-           pgp_reader_t *readinfo,
-           pgp_cbdata_t *cbinfo)
-{
-    validate_reader_t *reader = (validate_reader_t *) pgp_reader_get_arg(readinfo);
-
-    RNP_USED(stream);
-    RNP_USED(errors);
-    RNP_USED(cbinfo);
-    if (reader->offset == reader->key->packets[reader->packet].length) {
-        reader->packet += 1;
-        reader->offset = 0;
-    }
-    if (reader->packet == reader->key->packetc) {
-        return 0;
-    }
-
-    /*
-     * we should never be asked to cross a packet boundary in a single
-     * read
-     */
-    if (reader->key->packets[reader->packet].length < reader->offset + length) {
-        (void) fprintf(stderr, "key_reader: weird length\n");
-        return 0;
-    }
-
-    (void) memcpy(dest, &reader->key->packets[reader->packet].raw[reader->offset], length);
-    reader->offset += (unsigned) length;
-
-    return (int) length;
-}
-
-static void
-copy_sig_info(pgp_signature_t *dst, const pgp_signature_t *src)
-{
-    (void) memcpy(dst, src, sizeof(*src));
-}
-
-static bool
-add_sig_to_list(const pgp_signature_t *sig, pgp_signature_t **sigs, unsigned *count)
-{
-    pgp_signature_t *newsigs;
-
-    if (*count == 0) {
-        newsigs = (pgp_signature_t *) calloc(*count + 1, sizeof(pgp_signature_t));
-    } else {
-        newsigs = (pgp_signature_t *) realloc(*sigs, (*count + 1) * sizeof(pgp_signature_t));
-    }
-    if (newsigs == NULL) {
-        (void) fprintf(stderr, "add_sig_to_list: alloc failure\n");
-        return false;
-    }
-    *sigs = newsigs;
-    copy_sig_info(&(*sigs)[*count], sig);
-    *count += 1;
-    return true;
-}
 
 static char *
 fmtsecs(int64_t n, char *buf, size_t size)
@@ -176,203 +115,6 @@ fmtsecs(int64_t n, char *buf, size_t size)
     return buf;
 }
 
-pgp_cb_ret_t
-pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
-{
-    const pgp_contents_t *content = &pkt->u;
-    const pgp_key_t *     signer;
-    validate_key_cb_t *   key;
-    pgp_error_t **        errors;
-    pgp_io_t *            io;
-    unsigned              valid = 0;
-    rnp_ctx_t *           rnp_ctx;
-    rng_t *               rng;
-
-    io = cbinfo->io;
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(io->errs, "%s\n", pgp_show_packet_tag(pkt->tag));
-    }
-    key = (validate_key_cb_t *) pgp_callback_arg(cbinfo);
-    rnp_ctx = key->result->rnp_ctx;
-    rng = rnp_ctx_rng_handle(rnp_ctx);
-    errors = (pgp_error_t **) pgp_callback_errors(cbinfo);
-    switch (pkt->tag) {
-    case PGP_PTAG_CT_PUBLIC_KEY:
-        if (key->pubkey.version != 0) {
-            (void) fprintf(io->errs, "pgp_validate_key_cb: version bad\n");
-            return PGP_FINISHED;
-        }
-        key->pubkey = content->key;
-        key->loaded_pubkey = true;
-        return PGP_KEEP_MEMORY;
-
-    case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        if (key->subkey.version) {
-            free_key_pkt(&key->subkey);
-        }
-        key->subkey = content->key;
-        return PGP_KEEP_MEMORY;
-
-    case PGP_PTAG_CT_SECRET_KEY:
-        key->seckey = content->key;
-        if (!key->loaded_pubkey) {
-            key->pubkey = key->seckey;
-        }
-        return PGP_KEEP_MEMORY;
-
-    case PGP_PTAG_CT_USER_ID:
-        if (key->userid) {
-            pgp_userid_free(&key->userid);
-        }
-        key->userid = content->userid;
-        key->last_seen = ID;
-        return PGP_KEEP_MEMORY;
-
-    case PGP_PTAG_CT_USER_ATTR:
-        if (content->userattr.len == 0) {
-            (void) fprintf(io->errs, "pgp_validate_key_cb: user attribute length 0");
-            return PGP_FINISHED;
-        }
-        (void) fprintf(io->outs, "user attribute, length=%d\n", (int) content->userattr.len);
-        if (key->userattr.len) {
-            pgp_data_free(&key->userattr);
-        }
-        key->userattr = content->userattr;
-        key->last_seen = ATTRIBUTE;
-        return PGP_KEEP_MEMORY;
-
-    case PGP_PTAG_CT_SIGNATURE: {
-        uint8_t signer_id[PGP_KEY_ID_SIZE] = {0};
-        signature_get_keyid(&content->sig, signer_id);
-        signer = rnp_key_store_get_key_by_id(io, key->keyring, signer_id, NULL);
-        if (!signer) {
-            if (!add_sig_to_list(
-                  &content->sig, &key->result->unknown_sigs, &key->result->unknownc)) {
-                (void) fprintf(io->errs, "pgp_validate_key_cb: user attribute length 0");
-                return PGP_FINISHED;
-            }
-            break;
-        }
-        if (!pgp_key_can_sign(signer)) {
-            (void) fprintf(io->errs, "WARNING: signature made with key that can not sign\n");
-        }
-        switch (content->sig.type) {
-        case PGP_CERT_GENERIC:
-        case PGP_CERT_PERSONA:
-        case PGP_CERT_CASUAL:
-        case PGP_CERT_POSITIVE:
-        case PGP_SIG_REV_CERT: {
-            pgp_userid_pkt_t uid = {0};
-
-            if (key->last_seen == ID) {
-                uid.tag = PGP_PTAG_CT_USER_ID;
-                uid.uid = key->userid;
-                uid.uid_len = strlen((const char *) key->userid);
-            } else {
-                uid.tag = PGP_PTAG_CT_USER_ATTR;
-                uid.uid = key->userattr.contents;
-                uid.uid_len = key->userattr.len;
-            }
-
-            valid = !signature_validate_certification(
-              &content->sig, &key->pubkey, &uid, pgp_get_key_material(signer), rng);
-            break;
-        }
-        case PGP_SIG_SUBKEY:
-            /*
-             * XXX: we should also check that the signer is the
-             * key we are validating, I think.
-             */
-            valid = !signature_validate_binding(
-              &content->sig, pgp_get_key_pkt(signer), &key->subkey, rng);
-            break;
-
-        case PGP_SIG_DIRECT:
-            valid = !signature_validate_direct(
-              &content->sig, &key->pubkey, pgp_get_key_material(signer), rng);
-            break;
-
-        case PGP_SIG_STANDALONE:
-        case PGP_SIG_PRIMARY:
-        case PGP_SIG_REV_KEY:
-        case PGP_SIG_REV_SUBKEY:
-        case PGP_SIG_TIMESTAMP:
-        case PGP_SIG_3RD_PARTY:
-            PGP_ERROR_1(errors,
-                        PGP_E_UNIMPLEMENTED,
-                        "Sig Verification type 0x%02x not done yet\n",
-                        content->sig.type);
-            break;
-
-        default:
-            PGP_ERROR_1(errors,
-                        PGP_E_UNIMPLEMENTED,
-                        "Unexpected signature type 0x%02x\n",
-                        content->sig.type);
-        }
-
-        if (valid) {
-            if (!add_sig_to_list(
-                  &content->sig, &key->result->valid_sigs, &key->result->validc)) {
-                PGP_ERROR_1(errors, PGP_E_UNIMPLEMENTED, "%s", "Can't add good sig to list\n");
-            }
-        } else {
-            PGP_ERROR_1(errors, PGP_E_V_BAD_SIGNATURE, "%s", "Bad Sig");
-            if (!add_sig_to_list(
-                  &content->sig, &key->result->invalid_sigs, &key->result->invalidc)) {
-                PGP_ERROR_1(errors, PGP_E_UNIMPLEMENTED, "%s", "Can't add good sig to list\n");
-            }
-        }
-        break;
-    }
-    /* ignore these */
-    case PGP_PARSER_PTAG:
-    case PGP_PARSER_PACKET_END:
-    case PGP_PARSER_DONE:
-        break;
-
-    case PGP_PTAG_CT_TRUST:
-        /* 1 byte for level (depth), 1 byte for trust amount */
-        printf("trust dump\n");
-        printf("Got trust\n");
-        // hexdump(stdout, (const uint8_t *)content->trust.data, 10, " ");
-        // hexdump(stdout, (const uint8_t *)&content->ss_trust, 2, " ");
-        // printf("Trust level %d, amount %d\n", key->trust.level, key->trust.amount);
-        break;
-
-    default:
-        (void) fprintf(stderr, "unexpected tag=0x%x\n", pkt->tag);
-        return PGP_FINISHED;
-    }
-    return PGP_RELEASE_MEMORY;
-}
-
-static void
-key_destroyer(pgp_reader_t *readinfo)
-{
-    free(pgp_reader_get_arg(readinfo));
-}
-
-bool
-pgp_key_reader_set(pgp_stream_t *stream, const pgp_key_t *key)
-{
-    validate_reader_t *data;
-
-    data = (validate_reader_t *) calloc(1, sizeof(*data));
-
-    if (data == NULL) {
-        (void) fprintf(stderr, "pgp_key_reader_set: bad alloc\n");
-        return false;
-    }
-
-    data->key = key;
-    data->packet = 0;
-    data->offset = 0;
-    pgp_reader_set(stream, key_reader, key_destroyer, data);
-
-    return true;
-}
-
 /**
    \ingroup HighLevel_Verify
    \brief Frees validation result and associated memory
@@ -382,12 +124,20 @@ pgp_key_reader_set(pgp_stream_t *stream, const pgp_key_t *key)
 void
 pgp_validate_result_free(pgp_validation_t *result)
 {
-    if (result != NULL) {
+    if (result) {
+        for (size_t i = 0; i < result->validc; i++) {
+            free_signature(&result->valid_sigs[i]);
+        }
         free(result->valid_sigs);
+        for (size_t i = 0; i < result->invalidc; i++) {
+            free_signature(&result->invalid_sigs[i]);
+        }
         free(result->invalid_sigs);
+        for (size_t i = 0; i < result->unknownc; i++) {
+            free_signature(&result->unknown_sigs[i]);
+        }
         free(result->unknown_sigs);
         free(result);
-        /* result = NULL; - XXX unnecessary */
     }
 }
 
@@ -427,50 +177,4 @@ validate_result_status(const char *f, pgp_validation_t *val)
         return false;
     }
     return val->validc && !val->invalidc && !val->unknownc;
-}
-
-bool
-pgp_validate_key_sigs(pgp_validation_t *     result,
-                      const pgp_key_t *      key,
-                      const rnp_key_store_t *keyring)
-{
-    pgp_stream_t *    stream;
-    validate_key_cb_t keysigs;
-
-    (void) memset(&keysigs, 0x0, sizeof(keysigs));
-    keysigs.result = result;
-
-    stream = (pgp_stream_t *) pgp_new(sizeof(*stream));
-    if (stream == NULL) {
-        return false;
-    }
-
-    keysigs.keyring = keyring;
-
-    pgp_set_callback(stream, pgp_validate_key_cb, &keysigs);
-    stream->readinfo.accumulate = 1;
-    if (!pgp_key_reader_set(stream, key)) {
-        pgp_stream_delete(stream);
-        return false;
-    }
-
-    /* Note: Coverity incorrectly reports an error that keysigs.reader */
-    /* is never used. */
-    keysigs.reader = (validate_reader_t *) stream->readinfo.arg;
-
-    repgp_parse(stream, true);
-
-    if (keysigs.loaded_pubkey) {
-        free_key_pkt(&keysigs.pubkey);
-    }
-    if (keysigs.subkey.version) {
-        free_key_pkt(&keysigs.subkey);
-    }
-    free_key_pkt(&keysigs.seckey);
-    pgp_userid_free(&keysigs.userid);
-    pgp_data_free(&keysigs.userattr);
-
-    pgp_stream_delete(stream);
-
-    return (!result->invalidc && !result->unknownc && result->validc);
 }

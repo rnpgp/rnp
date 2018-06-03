@@ -51,7 +51,6 @@
 #ifndef VALIDATE_H_
 #define VALIDATE_H_ 1
 
-#include "crypto/hash.h"
 #include "reader.h"
 
 typedef struct pgp_validation_t {
@@ -66,48 +65,7 @@ typedef struct pgp_validation_t {
     rnp_ctx_t *      rnp_ctx;
 } pgp_validation_t;
 
-typedef struct {
-    const pgp_key_t *key;
-    unsigned         packet;
-    unsigned         offset;
-} validate_reader_t;
-
-enum last_obj_type { ATTRIBUTE = 1, ID };
-
-/** Struct used with the validate_key_cb callback */
-typedef struct {
-    pgp_key_pkt_t          pubkey;
-    pgp_key_pkt_t          subkey;
-    pgp_key_pkt_t          seckey;
-    bool                   loaded_pubkey;
-    last_obj_type          last_seen;
-    uint8_t *              userid;
-    pgp_data_t             userattr;
-    uint8_t                hash[PGP_MAX_HASH_SIZE];
-    const rnp_key_store_t *keyring;
-    validate_reader_t *    reader;
-    pgp_validation_t *     result;
-} validate_key_cb_t;
-
 void pgp_validate_result_free(pgp_validation_t *);
-
-bool pgp_key_reader_set(pgp_stream_t *, const pgp_key_t *);
-
-pgp_cb_ret_t pgp_validate_key_cb(const pgp_packet_t *, pgp_cbdata_t *);
-
-/**
- * \ingroup HighLevel_Verify
- * \brief Validate all signatures on a single key against the given keyring
- * \param result Where to put the result
- * \param key Key to validate
- * \param keyring Keyring to use for validation
- * \return 1 if all signatures OK; else 0
- * \note It is the caller's responsiblity to free result after use.
- * \sa pgp_validate_result_free()
- */
-bool pgp_validate_key_sigs(pgp_validation_t *     result,
-                           const pgp_key_t *      key,
-                           const rnp_key_store_t *keyring);
 
 /**
  * \ingroup HighLevel_Verify
