@@ -36,6 +36,7 @@
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-dump.h>
+#include <librepgp/validate.h>
 
 static bool
 stream_hash_file(pgp_hash_t *hash, const char *path)
@@ -743,6 +744,98 @@ test_stream_key_signatures(void **state)
     rnp_key_store_free(pubring);
     key_sequence_destroy(&keyseq);
     rng_destroy(&rng);
+}
+
+static void
+validate_key_sigs(const char *path)
+{
+    rnp_key_store_t * pubring;
+    rng_t             rng;
+    rnp_ctx_t         ctx;
+    pgp_io_t          io = {.errs = stderr, .res = stdout, .outs = stdout};
+    pgp_key_t *       pkey = NULL;
+    pgp_validation_t *vres = NULL;
+
+    /* we need rng for key validation */
+    assert_true(rng_init(&rng, RNG_SYSTEM));
+    ctx.rng = &rng;
+
+    pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, path);
+    assert_non_null(pubring);
+    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_non_null(pkey = (pgp_key_t *) list_front(pubring->keys));
+    assert_non_null(vres = calloc(1, sizeof(*vres)));
+    vres->rnp_ctx = &ctx;
+    assert_rnp_success(validate_pgp_key_signatures(vres, pkey, pubring));
+    pgp_validate_result_free(vres);
+    memset(&vres, 0, sizeof(vres));
+    rnp_key_store_free(pubring);
+
+    rng_destroy(&rng);
+}
+
+void
+test_stream_key_signature_validate(void **state)
+{
+    rnp_key_store_t * pubring;
+    rng_t             rng;
+    rnp_ctx_t         ctx;
+    pgp_io_t          io = {.errs = stderr, .res = stdout, .outs = stdout};
+    pgp_key_t *       pkey = NULL;
+    pgp_validation_t *vres = NULL;
+
+    /* we need rng for key validation */
+    assert_true(rng_init(&rng, RNG_SYSTEM));
+    ctx.rng = &rng;
+
+    /* v3 public key */
+    pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/4/rsav3-p.asc");
+    assert_non_null(pubring);
+    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_int_equal(list_length(pubring->keys), 1);
+    assert_non_null(pkey = (pgp_key_t *) list_front(pubring->keys));
+    assert_non_null(vres = calloc(1, sizeof(*vres)));
+    vres->rnp_ctx = &ctx;
+    assert_rnp_success(validate_pgp_key_signatures(vres, pkey, pubring));
+    pgp_validate_result_free(vres);
+    memset(&vres, 0, sizeof(vres));
+    rnp_key_store_free(pubring);
+
+    /* keyring */
+    pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/1/pubring.gpg");
+    assert_non_null(pubring);
+    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_true(list_length(pubring->keys) > 0);
+    for (list_item *k = list_front(pubring->keys); k; k = list_next(k)) {
+        pkey = (pgp_key_t *) k;
+        if (!pgp_is_primary_key_tag(pgp_get_key_pkt(pkey)->tag)) {
+            continue;
+        }
+
+        assert_non_null(vres = calloc(1, sizeof(*vres)));
+        vres->rnp_ctx = &ctx;
+        assert_rnp_success(validate_pgp_key_signatures(vres, pkey, pubring));
+        pgp_validate_result_free(vres);
+        memset(&vres, 0, sizeof(vres));
+    }
+    rnp_key_store_free(pubring);
+    rng_destroy(&rng);
+
+    /* misc key files */
+    const char *key_files[] = {"data/test_stream_key_load/dsa-eg-pub.asc",
+                               "data/test_stream_key_load/dsa-eg-sec.asc",
+                               "data/test_stream_key_load/ecc-25519-pub.asc",
+                               "data/test_stream_key_load/ecc-25519-sec.asc",
+                               "data/test_stream_key_load/ecc-p256-pub.asc",
+                               "data/test_stream_key_load/ecc-p256-sec.asc",
+                               "data/test_stream_key_load/ecc-p384-pub.asc",
+                               "data/test_stream_key_load/ecc-p384-sec.asc",
+                               "data/test_stream_key_load/ecc-p521-pub.asc",
+                               "data/test_stream_key_load/ecc-p521-sec.asc"};
+
+    for (size_t i = 0; i < sizeof(key_files) / sizeof(char *); i++) {
+        validate_key_sigs(key_files[i]);
+    }
 }
 
 void
