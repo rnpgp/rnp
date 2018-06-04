@@ -842,7 +842,7 @@ armored_dst_close(pgp_dest_t *dst, bool discard)
 rnp_result_t
 init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtype)
 {
-    char                      hdr[40];
+    char                      hdr[64];
     pgp_dest_armored_param_t *param;
     rnp_result_t              ret = RNP_SUCCESS;
 
@@ -880,6 +880,7 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     armor_write_eol(param);
     /* version string */
     strncpy(hdr, "Version: " PACKAGE_STRING, sizeof(hdr));
+    hdr[sizeof(hdr) - 1] = '\0';
     dst_write(writedst, hdr, strlen(hdr));
     armor_write_eol(param);
     /* empty line */
