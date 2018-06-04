@@ -131,7 +131,6 @@ add_library(librnp
   pgp-key.c
   rnp2.c
   rnp.c
-  signature.c
   writer.c
 )
 
