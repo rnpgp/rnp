@@ -214,190 +214,21 @@ yum install -y rnp
 
 Clone this repo or download a release and expand it.
 
-General:
-
 ``` bash
-./build.sh
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=on -DBUILD_TESTING=off .
 make install
-```
-
-RHEL/CentOS:
-
-``` bash
-./build-install.sh
-```
-
-
-# Packaging
-
-## Prerequisites
-
-These steps require `docker` installed. It's not strictly necessary,
-but just provides a consistent baseline for this guide to work.
-
-Clone source:
-``` bash
-# cd ~/src
-git clone https://github.com/riboseinc/rnp
-```
-
-Start container (assuming you git cloned to `~/src/rnp`. Change
-accordingly):
-
-``` bash
-docker run -v ~/src/rnp:/usr/local/rnp -it centos:7 bash
-```
-
-
-## Simple steps (if you want to ignore the rest)
-
-In CentOS container:
-
-``` bash
-cd /usr/local/rnp
-./package.sh
-```
-
-
-## Install Dependencies
-
-
-### Required packages
-
-Set up build environment.
-
-In the container:
-```
-/usr/local/rnp/packaging/redhat/extra/prepare_build.sh
-```
-
-### Botan
-
-Botan 2.1 or higher is required.
-
-Installed via `packaging/redhat/extra/build_rpm.sh`.
-
-#### Development versions of Botan
-
-Development branches may depend on unreleased Botan versions (i.e. when
-adding support for new crypto algorithms), and should use following
-instructions to install Botan instead.
-
-Update `packaging/redhat/extra/build_rpm.sh` to run `install_botan_dev`
-instead of `install_botan_stable` to use Botan's development version.
-
-
-### Cmocka
-
-CMocka 1.1 is required to build and run tests.
-
-Installed via `packaging/redhat/extra/build_rpm.sh`.
-
-
-## Compile and Install
-
-In the container:
-
-``` bash
-cd /usr/local/rnp
-ACFLAGS=--with-botan=/usr/local ./build.sh
-make install
-```
-
-
-## Running cmocka tests
-
-In the container:
-
-``` bash
-export LD_LIBRARY_PATH=/usr/lib:/usr/local/lib
-rnp_tests
-```
-
-
-## Clean build artifacts
-
-In the container:
-
-``` bash
-cd /usr/local/rnp
-./remove_artifacts.sh
-```
-
-Otherwise use `git clean`.
-
-
-## Building RPMs
-
-### Signing
-
-If you're going to sign the RPM,
-
-(In the container:)
-
-``` bash
-# Import your packager private key.
-gpg --import your-packager.key
-
-# Edit your identities.
-PACKAGER="${PACKAGER:-Your Packager <your@packager.com>}"
-GPG_NAME="${GPG_NAME:-${PACKAGER}}"
-
-cat <<MACROS >~/.rpmmacros
-%_signature gpg
-%_gpg_path $HOME/.gnupg
-%_gpg_name ${GPG_NAME}
-%_gpgbin /usr/bin/gpg
-%packager ${PACKAGER}
-%_topdir $HOME/rpmbuild
-MACROS
-```
-
-But if you're just going to test the RPM build process without
-GPG-signing,
-(In the container:)
-
-``` bash
-export SIGN=
-```
-
-### Building
-
-Run the rpmbuild script.
-(In the container:)
-```
-cd /usr/local/rnp
-./remove_artifacts.sh
-packaging/redhat/extra/build_rpm.sh
-```
-
-The you can copy out the RPMs from the container:
-``` bash
-cp ~/rpmbuild/SRPMS/rnp*.rpm ~/rpmbuild/RPMS/x86_64/*.rpm /usr/local/rnp
 ```
 
 # Versioning
 
 rnp follows the [semantic versioning](http://semver.org/) syntax.
 
-## Syntax
-
-The autoconf package version (set in `AC_INIT()` in `configure.ac`) uses
-'x.y.z~' as package version value during development and at release the
-`~` suffix is removed.
-
 ## Checking versions
 
 The '--version' output of the `rnp` commands contains the `git` hash of
 the version the binary was built from, which value is generated when
-`autoreconf` ran, consequently a release tarball generated with `make
+`cmake` ran, consequently a release tarball generated with `make
 dist` will contain this hash version.
-
-## Tagging
-
-After a release version is tagged/branched, the kicking off of the new
-development cycle starts with a commit which adds the new upcoming
-version suffixed with `~` to the `AC_INIT()` call.
 
 ## Historic
 
