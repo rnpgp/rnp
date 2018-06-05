@@ -26,17 +26,6 @@
 find_package(cmocka REQUIRED)
 find_package(JSON-C 0.11 REQUIRED)
 
-# current cmocka doesn't define a target
-if (NOT TARGET cmocka)
-  add_library(cmocka UNKNOWN IMPORTED)
-  set_target_properties(cmocka
-    PROPERTIES
-      INTERFACE_INCLUDE_DIRECTORIES "${CMOCKA_INCLUDE_DIR}"
-      IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-      IMPORTED_LOCATION "${CMOCKA_LIBRARIES}"
-  )
-endif()
-
 add_executable(rnp_tests
   ../rnp/rnpcfg.c
   ../rnpkeys/rnpkeys.c
@@ -70,7 +59,7 @@ target_link_libraries(rnp_tests
   PRIVATE
     librnp
     JSON-C::JSON-C
-    cmocka
+    cmocka::cmocka
 )
 
 # fixture to copy the test data directory
