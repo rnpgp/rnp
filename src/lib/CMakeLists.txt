@@ -153,7 +153,9 @@ target_include_directories(librnp
 
 # This has precedence and can cause some confusion when the binary
 # dir one isn't actually being used. To be improved.
-file(REMOVE "${CMAKE_CURRENT_SOURCE_DIR}/config.h")
+if (NOT CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_CURRENT_BINARY_DIR)
+  file(REMOVE "${CMAKE_CURRENT_SOURCE_DIR}/config.h")
+endif()
 
 target_link_libraries(librnp
   PRIVATE
