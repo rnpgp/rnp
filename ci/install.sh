@@ -16,7 +16,7 @@ if [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ] && \
     rm -rf "${botan_build}"
   fi
 
-  git clone https://github.com/randombit/botan "${botan_build}"
+  git clone --depth 1 https://github.com/randombit/botan "${botan_build}"
   pushd "${botan_build}"
   ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer"
   ${MAKE} -j${CORES} install
@@ -32,10 +32,7 @@ if [ ! -e "${CMOCKA_INSTALL}/lib/libcmocka.so" ] && \
     rm -rf "${cmocka_build}"
   fi
 
-  git clone git://git.cryptomilk.org/projects/cmocka.git ${cmocka_build}
-  cd ${cmocka_build}
-  git checkout tags/cmocka-1.1.1
-
+  git clone --depth 1 --branch cmocka-1.1.1 git://git.cryptomilk.org/projects/cmocka.git ${cmocka_build}
   cd "${LOCAL_BUILDS}"
   mkdir -p cmocka-build
   pushd cmocka-build
@@ -162,49 +159,43 @@ build_gpg_beta() {
   # alternatively, forcing the libgpg-error build to use gcc should work
   export LD_LIBRARY_PATH="/usr/local/clang-5.0.0/lib"
 
-  git clone git://git.gnupg.org/npth
+  git clone --depth 1 --branch "$NPTH_VERSION" git://git.gnupg.org/npth
   pushd npth
-  git checkout "$NPTH_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc
   ${MAKE} -j${CORES} install
   popd
 
-  git clone git://git.gnupg.org/libgpg-error
+  git clone --depth 1 --branch "$LIBGPG_ERROR_VERSION" git://git.gnupg.org/libgpg-error
   pushd libgpg-error
-  git checkout "$LIBGPG_ERROR_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc
   ${MAKE} -j${CORES} install
   popd
 
-  git clone git://git.gnupg.org/libgcrypt
+  git clone --depth 1 --branch "$LIBGCRYPT_VERSION" git://git.gnupg.org/libgcrypt
   pushd libgcrypt
-  git checkout "$LIBGCRYPT_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
   ${MAKE} -j${CORES} install
   popd
 
-  git clone git://git.gnupg.org/libassuan
+  git clone --depth 1 --branch "$LIBASSUAN_VERSION" git://git.gnupg.org/libassuan
   pushd libassuan
-  git checkout "$LIBASSUAN_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
   ${MAKE} -j${CORES} install
   popd
 
-  git clone git://git.gnupg.org/libksba
+  git clone --depth 1 --branch "$LIBKSBA_VERSION" git://git.gnupg.org/libksba
   pushd libksba
-  git checkout "$LIBKSBA_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
   ${MAKE} -j${CORES} install
   popd
 
-  git clone git://git.gnupg.org/pinentry.git
+  git clone --depth 1 --branch "$PINENTRY_VERSION" git://git.gnupg.org/pinentry.git
   pushd pinentry
-  git checkout "$PINENTRY_VERSION"
   cat << 'END' | git apply -
 diff --git a/Makefile.am b/Makefile.am
 index 8c8b8e5..412244c 100644
@@ -235,9 +226,8 @@ END
   ${MAKE} -j${CORES} install
   popd
 
-  git clone git://git.gnupg.org/gnupg.git
+  git clone --depth 1 --branch "$GNUPG_VERSION" git://git.gnupg.org/gnupg.git
   pushd gnupg
-  git checkout "$GNUPG_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" \
     --with-libgpg-error-prefix="${GPG_INSTALL}" \
