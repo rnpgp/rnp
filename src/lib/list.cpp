@@ -44,7 +44,7 @@ get_item_ptr(list_item *item)
     return item ? (item - 1) : NULL;
 }
 
-static void *
+static list_item *
 get_data_ptr(list_item *item)
 {
     return item ? (item + 1) : NULL;
@@ -64,7 +64,7 @@ list_do_insert(list *lst, list_item *where, const void *data, size_t data_size)
     }
     bool allocated_head = false;
     if (!*lst) {
-        *lst = calloc(1, sizeof(**lst));
+        *lst = (list_head*)calloc(1, sizeof(**lst));
         allocated_head = true;
         if (!*lst) {
             return NULL;
@@ -72,7 +72,7 @@ list_do_insert(list *lst, list_item *where, const void *data, size_t data_size)
     }
     list head = *lst;
 
-    list_item *item = malloc(sizeof(*item) + data_size);
+    list_item *item = (list_item*)malloc(sizeof(*item) + data_size);
     if (!item) {
         if (allocated_head) {
             free(*lst);

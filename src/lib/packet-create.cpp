@@ -343,7 +343,7 @@ done:
 pgp_output_t *
 pgp_output_new(void)
 {
-    return calloc(1, sizeof(pgp_output_t));
+    return (pgp_output_t*)calloc(1, sizeof(pgp_output_t));
 }
 
 /**
@@ -371,13 +371,14 @@ pgp_write_selfsig_cert(pgp_output_t *               output,
                        const pgp_hash_alg_t         hash_alg,
                        const rnp_selfsig_cert_info *cert)
 {
-    pgp_signature_t  sig = {0};
+    pgp_signature_t  sig = {(pgp_version_t)0};
     pgp_userid_pkt_t uid = {0};
     pgp_hash_t       hash = {0};
     pgp_dest_t       dst = {0};
     bool             ok = false;
     uint8_t          keyid[PGP_KEY_ID_SIZE];
     rng_t            rng = {0};
+    const pgp_user_prefs_t *prefs = NULL;
 
     if (!output || !seckey || !cert) {
         RNP_LOG("invalid parameters");
@@ -420,7 +421,7 @@ pgp_write_selfsig_cert(pgp_output_t *               output,
         RNP_LOG("failed to set primary userid");
         goto end;
     }
-    const pgp_user_prefs_t *prefs = &cert->prefs;
+    prefs = &cert->prefs;
     if (!DYNARRAY_IS_EMPTY(prefs, symm_alg) &&
         !signature_set_preferred_symm_algs(&sig, prefs->symm_algs, prefs->symm_algc)) {
         RNP_LOG("failed to set symm alg prefs");
@@ -483,7 +484,7 @@ pgp_write_selfsig_binding(pgp_output_t *                  output,
                           const pgp_key_pkt_t *           subkey,
                           const rnp_selfsig_binding_info *binding)
 {
-    pgp_signature_t sig = {0};
+    pgp_signature_t sig = {(pgp_version_t)0};
     pgp_hash_t      hash = {0};
     pgp_dest_t      dst = {0};
     bool            ok = false;

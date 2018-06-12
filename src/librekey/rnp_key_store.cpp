@@ -81,10 +81,10 @@ rnp_key_store_new(const char *format, const char *path)
     enum key_store_format_t key_store_format = UNKNOW_KEY_STORE;
 
     if (!parse_ks_format(&key_store_format, format)) {
-        return false;
+        return NULL;
     }
 
-    key_store = calloc(1, sizeof(*key_store));
+    key_store = (rnp_key_store_t*)calloc(1, sizeof(*key_store));
     if (key_store == NULL) {
         fprintf(stderr, "Can't allocate memory\n");
         return NULL;

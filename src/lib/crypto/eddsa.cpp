@@ -131,6 +131,7 @@ eddsa_sign(rng_t *             rng,
     rnp_result_t       ret = RNP_ERROR_SIGNING_FAILED;
     uint8_t            bn_buf[64] = {0};
     size_t             sz;
+    size_t sig_size = sizeof(bn_buf);
 
     // Check curve OID matches 25519
     if (key->curve != PGP_CURVE_ED25519) {
@@ -160,7 +161,6 @@ eddsa_sign(rng_t *             rng,
         goto done;
     }
 
-    size_t sig_size = sizeof(bn_buf);
     if (botan_pk_op_sign_finish(sign_op, rng_handle(rng), bn_buf, &sig_size) != 0) {
         goto done;
     }

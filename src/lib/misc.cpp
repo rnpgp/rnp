@@ -206,7 +206,7 @@ pgp_push_error(pgp_error_t **errstack,
     va_list      args;
     char *       comment;
 
-    if ((comment = calloc(1, maxbuf + 1)) == NULL) {
+    if ((comment = (char*)calloc(1, maxbuf + 1)) == NULL) {
         (void) fprintf(stderr, "calloc comment failure\n");
         return;
     }
@@ -217,7 +217,7 @@ pgp_push_error(pgp_error_t **errstack,
 
     /* alloc a new error and add it to the top of the stack */
 
-    if ((err = calloc(1, sizeof(*err))) == NULL) {
+    if ((err = (pgp_error_t*)calloc(1, sizeof(*err))) == NULL) {
         (void) fprintf(stderr, "calloc comment failure\n");
         free((void *) comment);
         return;
@@ -318,7 +318,7 @@ pgp_memory_init(pgp_memory_t *mem, size_t needed)
     mem->length = 0;
     if (mem->buf) {
         if (mem->allocated < needed) {
-            if ((temp = realloc(mem->buf, needed)) == NULL) {
+            if ((temp = (uint8_t*)realloc(mem->buf, needed)) == NULL) {
                 RNP_LOG("bad alloc");
             } else {
                 mem->buf = temp;
@@ -326,7 +326,7 @@ pgp_memory_init(pgp_memory_t *mem, size_t needed)
             }
         }
     } else {
-        if ((mem->buf = calloc(1, needed)) == NULL) {
+        if ((mem->buf = (uint8_t*)calloc(1, needed)) == NULL) {
             RNP_LOG("bad alloc");
         } else {
             mem->allocated = needed;
@@ -360,7 +360,7 @@ pgp_memory_pad(pgp_memory_t *mem, size_t length)
     }
     if (mem->allocated < mem->length + length) {
         mem->allocated = mem->allocated * 2 + length;
-        temp = realloc(mem->buf, mem->allocated);
+        temp = (uint8_t*)realloc(mem->buf, mem->allocated);
         if (temp == NULL) {
             (void) fprintf(stderr, "pgp_memory_pad: bad alloc\n");
             return false;
@@ -478,7 +478,7 @@ pgp_memory_make_packet(pgp_memory_t *out, pgp_content_enum tag)
 pgp_memory_t *
 pgp_memory_new(void)
 {
-    return calloc(1, sizeof(pgp_memory_t));
+return (pgp_memory_t*)calloc(1, sizeof(pgp_memory_t));
 }
 
 /**
@@ -535,10 +535,10 @@ pgp_mem_readfile(pgp_memory_t *mem, const char *f)
     }
     (void) fstat(fileno(fp), &st);
     mem->allocated = (size_t) st.st_size;
-    mem->buf = mmap(NULL, mem->allocated, PROT_READ, MAP_PRIVATE | MAP_FILE, fileno(fp), 0);
+    mem->buf = (uint8_t*)mmap(NULL, mem->allocated, PROT_READ, MAP_PRIVATE | MAP_FILE, fileno(fp), 0);
     if (mem->buf == MAP_FAILED) {
         /* mmap failed for some reason - try to allocate memory */
-        if ((mem->buf = calloc(1, mem->allocated)) == NULL) {
+        if ((mem->buf = (uint8_t*)calloc(1, mem->allocated)) == NULL) {
             RNP_LOG("calloc failed");
             (void) fclose(fp);
             return false;
@@ -762,7 +762,7 @@ rnp_strdup(const char *s)
     char * cp;
 
     len = strlen(s);
-    if ((cp = calloc(1, len + 1)) != NULL) {
+    if ((cp = (char*)calloc(1, len + 1)) != NULL) {
         (void) memcpy(cp, s, len);
         cp[len] = 0x0;
     }
@@ -825,7 +825,7 @@ rnp_filemtime(const char *path)
 const char *
 rnp_filename(const char *path)
 {
-    char *res = strrchr(path, '/');
+    char *res = strrchr((char*)path, '/');
     if (!res) {
         return path;
     } else {
@@ -858,7 +858,7 @@ vcompose_path(char **buf, size_t *buf_len, const char *first, va_list ap)
         // len of this path component
         size_t reqsize = curlen + 1 + 1 + len;
         if (*buf_len < reqsize) {
-            char *newbuf = realloc(*buf, reqsize);
+            char *newbuf = (char*)realloc(*buf, reqsize);
             if (!newbuf) {
                 // realloc failed, bail
                 free(*buf);

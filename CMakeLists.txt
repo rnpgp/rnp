@@ -55,12 +55,13 @@ endif()
 
 # set warning flags at the top level
 add_compile_options(
-  -Wall -Wextra -Wpedantic
+  -Wall -Wextra 
   -Wunreachable-code -Wpointer-arith
   -Wmissing-declarations
 )
 # relax some warnings a bit
 add_compile_options(
+  -Wno-pedantic
   -Wno-ignored-qualifiers
   -Wno-unused-parameter
   -Wno-missing-field-initializers
