@@ -57,19 +57,21 @@ endif()
 add_compile_options(
   -Wall -Wextra -Wpedantic
   -Wunreachable-code -Wpointer-arith
-  -Wmissing-declarations -Wmissing-prototypes
+  -Wmissing-declarations
 )
 # relax some warnings a bit
 add_compile_options(
   -Wno-ignored-qualifiers
   -Wno-unused-parameter
   -Wno-missing-field-initializers
+  -fpermissive
 )
 
 # set a few other things at the top level to prevent incompatibilities
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD 11)
 add_definitions(-D_GNU_SOURCE)
 
 # everything else is in subdirs

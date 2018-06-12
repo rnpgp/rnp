@@ -35,7 +35,11 @@
 #include <limits.h>
 #include <ftw.h>
 #include <sys/stat.h>
+
+extern "C" {
 #include <cmocka.h>
+}
+
 #include <rnp/rnp.h>
 
 /* Check if a file exists.

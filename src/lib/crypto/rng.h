@@ -88,7 +88,7 @@ bool rng_get_data(rng_t *ctx, uint8_t *data, size_t len);
  *
  * @param   valid pointer to rng_t object
  */
-void *rng_handle(rng_t *);
+struct botan_rng_struct *rng_handle(rng_t *);
 
 /*
  * @brief   Initializes RNG_SYSTEM and generates random data.

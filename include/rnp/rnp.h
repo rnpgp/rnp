@@ -37,17 +37,9 @@
 #include <rnp/rnp_def.h>
 #include <rnp/rnp_types.h>
 
-#ifndef BEGIN_DECLS__
 #if defined(__cplusplus)
-#define BEGIN_DECLS__ extern "C" {
-#define END_DECLS__ }
-#else
-#define BEGIN_DECLS__
-#define END_DECLS__
+extern "C" {
 #endif
-#endif
-
-BEGIN_DECLS__
 
 typedef struct rnp_t        rnp_t;
 typedef struct rnp_params_t rnp_params_t;
@@ -66,7 +58,7 @@ void rnp_params_free(rnp_params_t *);
 rnp_result_t rnp_ctx_init(rnp_ctx_t *, rnp_t *);
 void         rnp_ctx_reset(rnp_ctx_t *);
 void         rnp_ctx_free(rnp_ctx_t *);
-void *rnp_ctx_rng_handle(const rnp_ctx_t *ctx);
+struct rng_st_t *rnp_ctx_rng_handle(const rnp_ctx_t *ctx);
 
 /* debugging, reflection and information */
 int         rnp_set_debug(const char *);
@@ -125,6 +117,8 @@ rnp_result_t rnp_encrypt_set_pass_info(rnp_symmetric_pass_info_t *info,
                                        pgp_symm_alg_t             s2k_cipher);
 rnp_result_t rnp_encrypt_add_password(rnp_ctx_t *ctx);
 
-END_DECLS__
+#if defined(__cplusplus)
+}
+#endif
 
 #endif /* !RNP_H_ */
