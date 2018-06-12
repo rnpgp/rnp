@@ -762,8 +762,9 @@ forget_secret_key_fields(pgp_key_material_t *key)
     key->secret = false;
 }
 
+/* internally used struct to pass parameters to functions */
 typedef struct validate_info_t {
-    pgp_validation_t *     result;
+    pgp_signatures_info_t *result;
     const rnp_key_store_t *keystore;
     pgp_key_pkt_t *        key;
     pgp_key_pkt_t *        subkey;
@@ -771,48 +772,24 @@ typedef struct validate_info_t {
     rng_t *                rng;
 } validate_info_t;
 
-static bool
-add_sig_to_list(const pgp_signature_t *sig, pgp_signature_t **sigs, unsigned *count)
-{
-    pgp_signature_t *newsigs;
-
-    if (*count == 0) {
-        newsigs = calloc(*count + 1, sizeof(pgp_signature_t));
-    } else {
-        newsigs = realloc(*sigs, (*count + 1) * sizeof(pgp_signature_t));
-    }
-    if (newsigs == NULL) {
-        (void) fprintf(stderr, "add_sig_to_list: alloc failure\n");
-        return false;
-    }
-    *sigs = newsigs;
-    if (!copy_signature_packet(&(*sigs)[*count], sig)) {
-        return false;
-    }
-    *count += 1;
-    return true;
-}
-
 static rnp_result_t
-validate_pgp_key_signature(pgp_signature_t *sig, validate_info_t *info)
+validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
 {
-    rnp_result_t res = RNP_ERROR_SIGNATURE_INVALID;
-    pgp_key_t *  signer = NULL;
-    uint8_t      signer_id[PGP_KEY_ID_SIZE] = {0};
-    pgp_io_t     io = {.errs = stderr, .res = stdout, .outs = stdout};
+    rnp_result_t         res = RNP_ERROR_SIGNATURE_INVALID;
+    uint8_t              signer_id[PGP_KEY_ID_SIZE] = {0};
+    pgp_io_t             io = {.errs = stderr, .res = stdout, .outs = stdout};
+    pgp_signature_info_t sinfo = {0};
 
     if (!signature_get_keyid(sig, signer_id)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    signer = rnp_key_store_get_key_by_id(&io, info->keystore, signer_id, NULL);
-    if (!signer) {
-        if (!add_sig_to_list(sig, &info->result->unknown_sigs, &info->result->unknownc)) {
-            RNP_LOG("failed to add unknown signature to the list");
-            return RNP_ERROR_BAD_STATE;
-        }
-        return RNP_SUCCESS;
+
+    sinfo.signer = rnp_key_store_get_key_by_id(&io, info->keystore, signer_id, NULL);
+    if (!sinfo.signer) {
+        sinfo.no_signer = true;
+        goto done;
     }
-    if (!pgp_key_can_sign(signer)) {
+    if (!pgp_key_can_sign(sinfo.signer)) {
         RNP_LOG("WARNING: signature made with key that can not sign");
     }
 
@@ -828,7 +805,7 @@ validate_pgp_key_signature(pgp_signature_t *sig, validate_info_t *info)
             break;
         }
         res = signature_validate_certification(
-          sig, info->key, info->uid, pgp_get_key_material(signer), info->rng);
+          sig, info->key, info->uid, pgp_get_key_material(sinfo.signer), info->rng);
         break;
     }
     case PGP_SIG_SUBKEY:
@@ -847,8 +824,8 @@ validate_pgp_key_signature(pgp_signature_t *sig, validate_info_t *info)
             res = RNP_ERROR_SIGNATURE_INVALID;
             break;
         }
-        res =
-          signature_validate_direct(sig, info->key, pgp_get_key_material(signer), info->rng);
+        res = signature_validate_direct(
+          sig, info->key, pgp_get_key_material(sinfo.signer), info->rng);
         break;
     case PGP_SIG_STANDALONE:
     case PGP_SIG_PRIMARY:
@@ -864,17 +841,48 @@ validate_pgp_key_signature(pgp_signature_t *sig, validate_info_t *info)
         res = RNP_ERROR_SIGNATURE_INVALID;
     }
 
-    // TODO: check signature creation and expiration times
+    sinfo.valid = !res;
+    if (sinfo.valid) {
+        /* for valid signature we check creation/expiration time */
+        uint32_t now = time(NULL);
+        uint32_t creation = signature_get_creation(sig);
+        uint32_t expiration = signature_get_expiration(sig);
 
-    if (!res) {
-        if (!add_sig_to_list(sig, &info->result->valid_sigs, &info->result->validc)) {
-            RNP_LOG("failed to add good sig to list");
+        if (creation && (creation > now)) {
+            sinfo.expired = true;
+            RNP_LOG("signature created in future");
         }
+        if (creation && expiration && (creation + expiration <= now)) {
+            sinfo.expired = true;
+            RNP_LOG("signature expired");
+        }
+    }
+
+done:
+    if (!(sinfo.sig = (pgp_signature_t *) calloc(1, sizeof(*sig)))) {
+        RNP_LOG("sig alloc failed");
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!copy_signature_packet(sinfo.sig, sig)) {
+        free(sinfo.sig);
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!list_append(&info->result->sigs, &sinfo, sizeof(sinfo))) {
+        free_signature(sinfo.sig);
+        free(sinfo.sig);
+        RNP_LOG("failed to add signature to the list");
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    if (sinfo.no_signer) {
+        info->result->unknownc++;
+    } else if (sinfo.expired) {
+        info->result->expiredc++;
+    } else if (sinfo.valid) {
+        info->result->validc++;
     } else {
         RNP_LOG("bad signature");
-        if (!add_sig_to_list(sig, &info->result->invalid_sigs, &info->result->invalidc)) {
-            RNP_LOG("failed to add bad sig to list");
-        }
+        info->result->invalidc++;
     }
 
     return RNP_SUCCESS;
@@ -895,7 +903,7 @@ validate_pgp_key_signature_list(list sigs, validate_info_t *info)
 }
 
 rnp_result_t
-validate_pgp_key_signatures(pgp_validation_t *     result,
+validate_pgp_key_signatures(pgp_signatures_info_t *result,
                             const pgp_key_t *      key,
                             const rnp_key_store_t *keyring)
 {

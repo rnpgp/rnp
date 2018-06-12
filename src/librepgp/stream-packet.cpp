@@ -1715,7 +1715,7 @@ copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src)
     dst->hashed_data = NULL;
     dst->subpkts = NULL;
     if (src->hashed_data) {
-        if (!(dst->hashed_data = malloc(dst->hashed_len))) {
+        if (!(dst->hashed_data = (uint8_t *) malloc(dst->hashed_len))) {
             return false;
         }
         memcpy(dst->hashed_data, src->hashed_data, dst->hashed_len);
@@ -1729,7 +1729,7 @@ copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src)
             return false;
         }
         memcpy(dstsp, sp, sizeof(*dstsp));
-        if (!(dstsp->data = malloc(dstsp->len))) {
+        if (!(dstsp->data = (uint8_t *) malloc(dstsp->len))) {
             free_signature(dst);
             return false;
         }

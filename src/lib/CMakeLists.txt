@@ -95,7 +95,6 @@ add_library(librnp
   ../librepgp/stream-parse.cpp
   ../librepgp/stream-sig.cpp
   ../librepgp/stream-write.cpp
-  ../librepgp/validate.cpp
 
   # librekey
   ../librekey/key_store_g10.cpp

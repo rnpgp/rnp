@@ -63,7 +63,6 @@
 #include <repgp/repgp.h>
 #include <librepgp/packet-print.h>
 #include <librepgp/packet-show.h>
-#include <librepgp/validate.h>
 #include "errors.h"
 #include "memory.h"
 #include "utils.h"

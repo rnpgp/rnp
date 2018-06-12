@@ -61,16 +61,6 @@ typedef struct pgp_parse_handler_t {
     void *     param; /* additional parameters */
 } pgp_parse_handler_t;
 
-/* information about the signature */
-typedef struct pgp_signature_info_t {
-    pgp_signature_t *sig;       /* signature, or NULL if there were parsing error */
-    pgp_key_t *      signer;    /* signer's public key if found */
-    bool             valid;     /* signature is cryptographically valid (but may be expired) */
-    bool             unknown;   /* signature is unknown - parsing error, wrong version, etc */
-    bool             no_signer; /* no signer's public key available */
-    bool             expired;   /* signature is expired */
-} pgp_signature_info_t;
-
 /* @brief Process the OpenPGP source: file, memory, stdin
  * Function will parse input data, provided by any source conforming to pgp_source_t,
  * autodetecting whether it is armored, cleartext or binary.

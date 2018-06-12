@@ -47,7 +47,6 @@
 #include "utils.h"
 #include "crypto.h"
 #include "reader.h"
-#include "validate.h"
 #include "pgp-key.h"
 
 repgp_handle_t *
@@ -321,15 +320,19 @@ repgp_validate_pubkeys_signatures(void *ctx)
     if (!rctx || !rctx->rnp) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
     const rnp_key_store_t *ring = rctx->rnp->pubring;
-    pgp_validation_t       result = {0};
-    bool                   ret = true;
-    result.rnp_ctx = rctx;
+    pgp_signatures_info_t  result = {0};
+    rnp_result_t           ret;
+    bool                   valid = true;
+
     for (list_item *key = list_front(ring->keys); key; key = list_next(key)) {
-        ret &= !validate_pgp_key_signatures(&result, (pgp_key_t *) key, ring);
+        ret = validate_pgp_key_signatures(&result, (pgp_key_t *) key, ring);
+        valid &= check_signatures_info(&result);
+        free_signatures_info(&result);
+        if (ret) {
+            break;
+        }
     }
 
-    ret &= validate_result_status("keyring", &result);
-    return ret ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+    return valid ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 }
