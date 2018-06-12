@@ -26,10 +26,10 @@
 find_package(JSON-C 0.11 REQUIRED)
 
 add_executable(rnpkeys
-  rnpkeys.c
-  tui.c
-  main.c
-  ../rnp/rnpcfg.c
+  rnpkeys.cpp
+  tui.cpp
+  main.cpp
+  ../rnp/rnpcfg.cpp
 )
 
 target_include_directories(rnpkeys

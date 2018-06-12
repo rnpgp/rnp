@@ -48,7 +48,7 @@
 
 #define NEWARRAY(type, ptr, size, where, action)                       \
     do {                                                               \
-        if ((ptr = calloc(sizeof(type), (unsigned) (size))) == NULL) { \
+       if ((ptr = (type*)calloc(sizeof(type), (unsigned) (size))) == NULL) { \
             (void) fprintf(stderr,                                     \
                            "%s: can't allocate %lu bytes\n",           \
                            where,                                      \
@@ -60,7 +60,7 @@
 #define RENEW(type, ptr, size, where, action)                      \
     do {                                                           \
         type *_newptr;                                             \
-        _newptr = realloc(ptr, (size_t)(sizeof(type) * (size)));   \
+        _newptr = (type*)realloc(ptr, (size_t)(sizeof(type) * (size))); \
         if (_newptr == NULL) {                                     \
             (void) fprintf(stderr,                                 \
                            "%s: can't realloc %lu bytes\n",        \

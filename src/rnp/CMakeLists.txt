@@ -25,7 +25,7 @@
 # for the headers
 find_package(JSON-C 0.11 REQUIRED)
 
-add_executable(rnp rnp.c rnpcfg.c)
+add_executable(rnp rnp.cpp rnpcfg.cpp)
 
 target_include_directories(rnp
   PRIVATE

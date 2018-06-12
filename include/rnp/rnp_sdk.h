@@ -35,6 +35,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #include <rnp/rnp_def.h>
 
 #ifndef PRINTFLIKE
@@ -99,5 +103,7 @@ char *rnp_strlwr(char *s);
 char *rnp_strip_eol(char *s);
 
 char *userid_to_id(const uint8_t *userid, char *id);
+
+}
 
 #endif

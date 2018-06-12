@@ -27,26 +27,26 @@ find_package(cmocka REQUIRED)
 find_package(JSON-C 0.11 REQUIRED)
 
 add_executable(rnp_tests
-  ../rnp/rnpcfg.c
-  ../rnpkeys/rnpkeys.c
-  ../rnpkeys/tui.c
-  cipher.c
-  exportkey.c
-  ffi.c
-  generatekey.c
-  key-add-userid.c
-  key-protect.c
-  key-store-search.c
-  key-unlock.c
-  load-g10.c
-  load-pgp.c
-  pgp-parse.c
-  rnp_tests.c
-  streams.c
-  support.c
-  user-prefs.c
-  utils-list.c
-  utils-rnpcfg.c
+  ../rnp/rnpcfg.cpp
+  ../rnpkeys/rnpkeys.cpp
+  ../rnpkeys/tui.cpp
+  cipher.cpp
+  exportkey.cpp
+  ffi.cpp
+  generatekey.cpp
+  key-add-userid.cpp
+  key-protect.cpp
+  key-store-search.cpp
+  key-unlock.cpp
+  load-g10.cpp
+  load-pgp.cpp
+  pgp-parse.cpp
+  rnp_tests.cpp
+  streams.cpp
+  support.cpp
+  user-prefs.cpp
+  utils-list.cpp
+  utils-rnpcfg.cpp
 )
 
 target_include_directories(rnp_tests
