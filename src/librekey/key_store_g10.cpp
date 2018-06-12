@@ -183,7 +183,7 @@ add_block_to_sexp(s_exp_t *s_exp, const uint8_t *bytes, size_t len)
 
     sub_element->is_block = true;
     sub_element->block.len = (size_t) len;
-    sub_element->block.bytes = malloc(sub_element->block.len);
+    sub_element->block.bytes = (uint8_t*)malloc(sub_element->block.len);
     if (sub_element->block.bytes == NULL) {
         fprintf(stderr, "can't allocate memory\n");
         return false;
@@ -592,6 +592,10 @@ parse_protected_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, const char *passwo
     const format_info *format;
     bool               ret = false;
     s_exp_t            decrypted_s_exp = {0};
+    s_exp_t *protected_at_s_exp = NULL;
+    s_exp_t *alg = NULL;
+    s_exp_t *params = NULL;
+    pgp_key_protection_t *prot;
 
     // find and validate the protected section
     s_exp_t *protected_key = lookup_variable(s_exp, "protected");
@@ -617,13 +621,13 @@ parse_protected_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, const char *passwo
     }
 
     // fill in some fields based on the lookup above
-    pgp_key_protection_t *prot = &seckey->sec_protection;
+    prot = &seckey->sec_protection;
     prot->symm_alg = format->cipher;
     prot->cipher_mode = format->cipher_mode;
     prot->s2k.hash_alg = format->hash_alg;
 
     // locate and validate the protection parameters
-    s_exp_t *params = &protected_key->sub_elements[2].s_exp;
+    params = &protected_key->sub_elements[2].s_exp;
     if (params->sub_elementc != 2 || params->sub_elements[0].is_block ||
         !params->sub_elements[1].is_block) {
         RNP_LOG("Wrong params format, expected: ((hash salt no_of_iterations) iv)\n");
@@ -631,7 +635,7 @@ parse_protected_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, const char *passwo
     }
 
     // locate and validate the (hash salt no_of_iterations) exp
-    s_exp_t *alg = &params->sub_elements[0].s_exp;
+    alg = &params->sub_elements[0].s_exp;
     if (alg->sub_elementc != 3 || !alg->sub_elements[0].is_block ||
         !alg->sub_elements[1].is_block || !alg->sub_elements[2].is_block) {
         RNP_LOG("Wrong params sub-level format, expected: (hash salt no_of_iterations)\n");
@@ -694,7 +698,7 @@ parse_protected_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, const char *passwo
         goto done;
     }
     // see if we have a protected-at section
-    s_exp_t *protected_at_s_exp = lookup_variable(s_exp, "protected-at");
+    protected_at_s_exp = lookup_variable(s_exp, "protected-at");
     char     protected_at[G10_PROTECTED_AT_SIZE];
     if (protected_at_s_exp != NULL && protected_at_s_exp->sub_elements[1].is_block) {
         if (protected_at_s_exp->sub_elements[1].block.len != G10_PROTECTED_AT_SIZE) {
@@ -776,6 +780,8 @@ g10_parse_seckey(pgp_io_t *                io,
     s_exp_t s_exp = {0};
     bool    ret = false;
     // pgp_io_t    io = {.outs = stdout, .errs = stderr, .res = stdout};
+    pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
+    s_exp_t *algorithm_s_exp = NULL;
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "S-exp", (const uint8_t *) data, data_len);
@@ -820,7 +826,7 @@ g10_parse_seckey(pgp_io_t *                io,
         goto done;
     }
 
-    s_exp_t *algorithm_s_exp = &s_exp.sub_elements[1].s_exp;
+    algorithm_s_exp = &s_exp.sub_elements[1].s_exp;
 
     if (algorithm_s_exp->sub_elementc < 2) {
         fprintf(stderr,
@@ -833,8 +839,6 @@ g10_parse_seckey(pgp_io_t *                io,
         fprintf(stderr, "Expected block with algorithm name, but has s-exp\n");
         goto done;
     }
-
-    pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
 
     if (!strncmp("rsa",
                  (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
@@ -891,10 +895,14 @@ g10_parse_seckey(pgp_io_t *                io,
             goto done;
         }
         pgp_key_t *pubkey = NULL;
-        if (!(pubkey = pgp_request_key(key_provider,
-                                       &(const pgp_key_request_ctx_t){.op = PGP_OP_MERGE_INFO,
-                                                                      .secret = false,
-                                                                      .search = search}))) {
+
+        pgp_key_request_ctx_t req_ctx;
+        memset(&req_ctx, 0, sizeof(req_ctx));
+        req_ctx.op = PGP_OP_MERGE_INFO;
+        req_ctx.secret = false;
+        req_ctx.search = search;
+
+        if (!(pubkey = pgp_request_key(key_provider, &req_ctx))) {
             goto done;
         }
 
@@ -949,7 +957,7 @@ g10_decrypt_seckey(const uint8_t *      data,
         return NULL;
     }
 
-    seckey = calloc(1, sizeof(*seckey));
+    seckey = (pgp_key_pkt_t*)calloc(1, sizeof(*seckey));
     if (!g10_parse_seckey(&io, seckey, data, data_len, password, NULL)) {
         goto done;
     }
@@ -988,7 +996,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *                io,
     if (!key.packets) {
         goto done;
     }
-    key.packets[0].raw = malloc(memory->length);
+    key.packets[0].raw = (uint8_t*)malloc(memory->length);
     if (!key.packets[0].raw) {
         goto done;
     }
@@ -1153,6 +1161,8 @@ write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *passwo
     uint8_t               checksum[G10_SHA1_HASH_SIZE];
     uint8_t               derived_key[PGP_MAX_KEY_SIZE];
     pgp_key_protection_t *prot = &seckey->sec_protection;
+    size_t encrypted_data_len = 0;
+    size_t output_written, input_consumed;
 
     if (prot->s2k.specifier != PGP_S2KS_ITERATED_AND_SALTED) {
         return false;
@@ -1213,8 +1223,8 @@ write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *passwo
         }
     }
 
-    size_t encrypted_data_len = raw.length;
-    encrypted_data = malloc(encrypted_data_len);
+    encrypted_data_len = raw.length;
+    encrypted_data = (uint8_t*)malloc(encrypted_data_len);
     if (!encrypted_data) {
         goto done;
     }
@@ -1231,7 +1241,6 @@ write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *passwo
         botan_cipher_start(encrypt, prot->iv, format->iv_size)) {
         goto done;
     }
-    size_t output_written, input_consumed;
     if (botan_cipher_update(encrypt,
                             BOTAN_CIPHER_UPDATE_FLAG_FINAL,
                             encrypted_data,

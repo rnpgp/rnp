@@ -48,6 +48,7 @@ sm2_sign(rng_t *             rng,
         return RNP_ERROR_GENERIC;
     }
     const size_t sign_half_len = BITS_TO_BYTES(curve->bitlen);
+    size_t sig_len = 2 * sign_half_len;
 
     x = mpi2bn(&key->x);
     if (botan_privkey_load_sm2(&b_key, BN_HANDLE_PTR(x), curve->botan_name)) {
@@ -63,7 +64,6 @@ sm2_sign(rng_t *             rng,
         goto end;
     }
 
-    size_t sig_len = 2 * sign_half_len;
     if (botan_pk_op_sign_finish(signer, rng_handle(rng), out_buf, &sig_len)) {
         RNP_LOG("Signing failed");
         goto end;
@@ -170,6 +170,8 @@ sm2_encrypt(rng_t *              rng,
     const size_t point_len = BITS_TO_BYTES(curve->bitlen);
     uint8_t      point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
     size_t       hash_alg_len;
+    size_t ctext_len;
+    const char* curve_name = NULL;
 
     if (curve == NULL) {
         return RNP_ERROR_GENERIC;
@@ -185,7 +187,8 @@ sm2_encrypt(rng_t *              rng,
      * Format of SM2 ciphertext is a point (2*point_len+1) plus
      * the masked ciphertext (out_len) plus a hash.
      */
-    const size_t ctext_len = (2 * point_len + 1) + in_len + hash_alg_len;
+    ctext_len = (2 * point_len + 1) + in_len + hash_alg_len;
+    curve_name = curve->botan_name;
 
     if (ctext_len > PGP_MPINT_SIZE) {
         RNP_LOG("too large output for SM2 encryption");
@@ -204,7 +207,6 @@ sm2_encrypt(rng_t *              rng,
         goto done;
     }
 
-    const char *curve_name = curve->botan_name;
     if (botan_pubkey_load_sm2_enc(&sm2_key, public_x, public_y, curve_name)) {
         RNP_LOG("Failed to load public key");
         goto done;
@@ -249,6 +251,8 @@ sm2_decrypt(uint8_t *                  out,
     botan_mp_t             x = NULL;
     size_t                 in_len;
     rnp_result_t           ret = RNP_ERROR_GENERIC;
+    uint8_t hash_id;
+    const char* hash_name = NULL;
 
     in_len = mpi_bytes(&in->m);
     if (curve == NULL || in_len < 64) {
@@ -264,8 +268,8 @@ sm2_decrypt(uint8_t *                  out,
         goto done;
     }
 
-    const uint8_t hash_id = in->m.mpi[in_len - 1];
-    const char *  hash_name = pgp_hash_name_botan(hash_id);
+    hash_id = in->m.mpi[in_len - 1];
+    hash_name = pgp_hash_name_botan((pgp_hash_alg_t)hash_id);
     if (!hash_name) {
         RNP_LOG("Unknown hash used in SM2 ciphertext");
         goto done;

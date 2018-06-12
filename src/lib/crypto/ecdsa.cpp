@@ -47,6 +47,10 @@ ecdsa_sign(rng_t *             rng,
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
+    const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
+    const size_t leftmost_bytes = hash_len > curve_order ? curve_order : hash_len;
+    size_t sig_len = 2 * curve_order;
+
     if (!(x = mpi2bn(&key->x))) {
         goto end;
     }
@@ -60,13 +64,10 @@ ecdsa_sign(rng_t *             rng,
         goto end;
     }
 
-    const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
-    const size_t leftmost_bytes = hash_len > curve_order ? curve_order : hash_len;
     if (botan_pk_op_sign_update(signer, hash, leftmost_bytes)) {
         goto end;
     }
 
-    size_t sig_len = 2 * curve_order;
     if (botan_pk_op_sign_finish(signer, rng_handle(rng), out_buf, &sig_len)) {
         RNP_LOG("Signing failed");
         goto end;
@@ -105,6 +106,9 @@ ecdsa_verify(const pgp_ec_signature_t *sig,
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
+    const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
+    const size_t leftmost_bytes = hash_len > curve_order ? curve_order : hash_len;
+
     r_blen = mpi_bytes(&key->p);
     if (!r_blen || (r_blen > sizeof(point_bytes)) || (key->p.mpi[0] != 0x04)) {
         RNP_LOG("Failed to load public key");
@@ -113,7 +117,6 @@ ecdsa_verify(const pgp_ec_signature_t *sig,
     }
     mpi2mem(&key->p, point_bytes);
 
-    const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
     if (botan_mp_init(&public_x) || botan_mp_init(&public_y) ||
         botan_mp_from_bin(public_x, &point_bytes[1], curve_order) ||
         botan_mp_from_bin(public_y, &point_bytes[1 + curve_order], curve_order)) {
@@ -129,7 +132,6 @@ ecdsa_verify(const pgp_ec_signature_t *sig,
         goto end;
     }
 
-    const size_t leftmost_bytes = hash_len > curve_order ? curve_order : hash_len;
     if (botan_pk_op_verify_update(verifier, hash, leftmost_bytes)) {
         goto end;
     }

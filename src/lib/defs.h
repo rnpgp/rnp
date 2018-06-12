@@ -123,14 +123,14 @@
             char *   __newarrc;                                                       \
             unsigned __newsize;                                                       \
             __newsize = (str->arr##vsize * 2) + 10;                                   \
-            if ((__newarrc = __newarr =                                               \
-                   realloc(str->arr##s, __newsize * sizeof(*str->arr##s))) == NULL) { \
+            if ((__newarr = __newarrc =                                               \
+                 (char*)realloc(str->arr##s, __newsize * sizeof(*str->arr##s))) == NULL) { \
                 (void) fprintf(stderr, "EXPAND_ARRAY - bad realloc\n");               \
             } else {                                                                  \
                 (void) memset(&__newarrc[str->arr##vsize * sizeof(*str->arr##s)],     \
                               0x0,                                                    \
                               (__newsize - str->arr##vsize) * sizeof(*str->arr##s));  \
-                str->arr##s = __newarr;                                               \
+                str->arr##s = static_cast<decltype(str->arr##s)>(__newarr); \
                 str->arr##vsize = __newsize;                                          \
             }                                                                         \
         }                                                                             \

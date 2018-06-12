@@ -110,7 +110,7 @@ mpi2hex(const pgp_mpi_t *val)
     size_t             idx = 0;
 
     len = mpi_bytes(val);
-    out = malloc(len * 2 + 1);
+    out = (char*)malloc(len * 2 + 1);
 
     if (!out) {
         return out;

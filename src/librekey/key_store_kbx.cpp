@@ -199,7 +199,7 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
     }
 
     if (pgp_blob->sn_size > 0) {
-        pgp_blob->sn = malloc(pgp_blob->sn_size);
+        pgp_blob->sn = (uint8_t*)malloc(pgp_blob->sn_size);
         if (pgp_blob->sn == NULL) {
             RNP_LOG("bad malloc");
             return false;
@@ -318,20 +318,20 @@ rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
 
     switch (type) {
     case KBX_EMPTY_BLOB:
-        blob = calloc(1, sizeof(kbx_blob_t));
+        blob = (kbx_blob_t*)calloc(1, sizeof(kbx_blob_t));
         break;
 
     case KBX_HEADER_BLOB:
-        blob = calloc(1, sizeof(kbx_header_blob_t));
+        blob = (kbx_blob_t*)calloc(1, sizeof(kbx_header_blob_t));
         break;
 
     case KBX_PGP_BLOB:
-        blob = calloc(1, sizeof(kbx_pgp_blob_t));
+        blob = (kbx_blob_t*)calloc(1, sizeof(kbx_pgp_blob_t));
         break;
 
     case KBX_X509_BLOB:
         // current we doesn't parse X509 blob, so, keep it as is
-        blob = calloc(1, sizeof(kbx_blob_t));
+        blob = (kbx_blob_t*)calloc(1, sizeof(kbx_blob_t));
         break;
 
     // unsuported blob type

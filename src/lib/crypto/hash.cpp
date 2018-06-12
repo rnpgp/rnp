@@ -191,7 +191,7 @@ pgp_hash_copy(pgp_hash_t *dst, const pgp_hash_t *src)
     }
 
     botan_hash_t handle;
-    if (botan_hash_copy_state(&handle, src->handle)) {
+    if (botan_hash_copy_state(&handle, (botan_hash_t)src->handle)) {
         return false;
     }
 
@@ -222,7 +222,7 @@ pgp_hash_add_int(pgp_hash_t *hash, unsigned n, size_t length)
 int
 pgp_hash_add(pgp_hash_t *hash, const void *buf, size_t len)
 {
-    return botan_hash_update(hash->handle, buf, len);
+    return botan_hash_update((botan_hash_t)hash->handle, (const uint8_t*)buf, len);
 }
 
 size_t
@@ -233,11 +233,11 @@ pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
         return 0;
     }
 
-    if (out && botan_hash_final(hash->handle, out)) {
+    if (out && botan_hash_final((botan_hash_t)hash->handle, out)) {
         RNP_LOG("Hash finalization failed");
         return 0;
     }
-    botan_hash_destroy(hash->handle);
+    botan_hash_destroy((botan_hash_t)hash->handle);
     hash->handle = NULL;
     hash->_output_len = 0;
     return outlen;

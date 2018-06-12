@@ -116,7 +116,7 @@ revoke_free(pgp_revoke_t *revoke)
 pgp_key_t *
 pgp_key_new(void)
 {
-    return calloc(1, sizeof(pgp_key_t));
+    return (pgp_key_t*)calloc(1, sizeof(pgp_key_t));
 }
 
 bool
@@ -235,13 +235,13 @@ pgp_get_key_type(const pgp_key_t *key)
 bool
 pgp_is_key_public(const pgp_key_t *key)
 {
-    return pgp_is_public_key_tag(key->pkt.tag);
+    return pgp_is_public_key_tag((pgp_content_enum)key->pkt.tag);
 }
 
 bool
 pgp_is_key_secret(const pgp_key_t *key)
 {
-    return pgp_is_secret_key_tag(key->pkt.tag);
+    return pgp_is_secret_key_tag((pgp_content_enum)key->pkt.tag);
 }
 
 bool
@@ -312,7 +312,7 @@ pgp_is_primary_key_tag(pgp_content_enum tag)
 bool
 pgp_key_is_primary_key(const pgp_key_t *key)
 {
-    return pgp_is_primary_key_tag(key->pkt.tag);
+    return pgp_is_primary_key_tag((pgp_content_enum)key->pkt.tag);
 }
 
 bool
@@ -330,7 +330,7 @@ pgp_is_subkey_tag(pgp_content_enum tag)
 bool
 pgp_key_is_subkey(const pgp_key_t *key)
 {
-    return pgp_is_subkey_tag(key->pkt.tag);
+    return pgp_is_subkey_tag((pgp_content_enum)key->pkt.tag);
 }
 
 pgp_key_pkt_t *
@@ -342,7 +342,7 @@ pgp_decrypt_seckey_pgp(const uint8_t *      data,
     pgp_source_t   src = {0};
     pgp_key_pkt_t *res = NULL;
 
-    res = calloc(1, sizeof(*res));
+    res = (pgp_key_pkt_t*)calloc(1, sizeof(*res));
     if (!res) {
         return NULL;
     }
@@ -477,7 +477,7 @@ copy_userid(uint8_t **dst, const uint8_t *src)
     if (*dst) {
         free(*dst);
     }
-    if ((*dst = calloc(1, len + 1)) == NULL) {
+    if ((*dst = (uint8_t*)calloc(1, len + 1)) == NULL) {
         (void) fprintf(stderr, "copy_userid: bad alloc\n");
     } else {
         (void) memcpy(*dst, src, len);
@@ -499,7 +499,7 @@ copy_packet(pgp_rawpacket_t *dst, const pgp_rawpacket_t *src)
     if (dst->raw) {
         free(dst->raw);
     }
-    if ((dst->raw = calloc(1, src->length)) == NULL) {
+    if ((dst->raw = (uint8_t*)calloc(1, src->length)) == NULL) {
         (void) fprintf(stderr, "copy_packet: bad alloc\n");
     } else {
         dst->length = src->length;
@@ -592,7 +592,7 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 {
     switch (alg) {
     case PGP_PKA_RSA:
-        return PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH | PGP_KF_ENCRYPT;
+        return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH | PGP_KF_ENCRYPT);
 
     case PGP_PKA_RSA_SIGN_ONLY:
         // deprecated, but still usable
@@ -607,18 +607,14 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
         return PGP_KF_NONE;
 
     case PGP_PKA_DSA:
-        return PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH;
-
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
-        return PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH;
+        return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 
     case PGP_PKA_SM2:
-        return PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH | PGP_KF_ENCRYPT;
+        return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH | PGP_KF_ENCRYPT);
 
     case PGP_PKA_ECDH:
-        return PGP_KF_ENCRYPT;
-
     case PGP_PKA_ELGAMAL:
         return PGP_KF_ENCRYPT;
 
@@ -657,8 +653,11 @@ pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider)
         return true;
     }
 
-    decrypted_seckey = pgp_decrypt_seckey(
-      key, provider, &(pgp_password_ctx_t){.op = PGP_OP_UNLOCK, .key = key});
+    pgp_password_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.op = PGP_OP_UNLOCK;
+    ctx.key = key;
+    decrypted_seckey = pgp_decrypt_seckey(key, provider, &ctx);
 
     if (decrypted_seckey) {
         // this shouldn't really be necessary, but just in case
@@ -755,9 +754,14 @@ rnp_key_add_protection(pgp_key_t *                    key,
         return false;
     }
 
+    pgp_password_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.op = PGP_OP_PROTECT;
+    ctx.key = key;
+
     // ask the provider for a password
     if (!pgp_request_password(password_provider,
-                              &(pgp_password_ctx_t){.op = PGP_OP_PROTECT, .key = key},
+                              &ctx,
                               password,
                               sizeof(password))) {
         return false;
@@ -825,7 +829,7 @@ pgp_key_protect(pgp_key_t *                  key,
 
     // write the protected key to packets[0]
     if (!write_key_to_rawpacket(
-          decrypted_seckey, &key->packets[0], pgp_get_key_type(key), format, new_password)) {
+           decrypted_seckey, &key->packets[0], (pgp_content_enum)pgp_get_key_type(key), format, new_password)) {
         goto done;
     }
     key->format = format;
@@ -854,9 +858,15 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
     }
 
     seckey = &key->pkt;
+
     if (pgp_is_key_encrypted(key)) {
+        pgp_password_ctx_t ctx;
+        memset(&ctx, 0, sizeof(ctx));
+        ctx.op = PGP_OP_UNPROTECT;
+        ctx.key = key;
+
         decrypted_seckey = pgp_decrypt_seckey(
-          key, password_provider, &(pgp_password_ctx_t){.op = PGP_OP_UNPROTECT, .key = key});
+           key, password_provider, &ctx);
         if (!decrypted_seckey) {
             goto done;
         }
@@ -864,7 +874,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
     }
     seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
     if (!write_key_to_rawpacket(
-          seckey, &key->packets[0], pgp_get_key_type(key), key->format, NULL)) {
+           seckey, &key->packets[0], (pgp_content_enum)pgp_get_key_type(key), key->format, NULL)) {
         goto done;
     }
     if (decrypted_seckey) {
@@ -1050,11 +1060,15 @@ find_signer(pgp_io_t *                io,
             pgp_is_key_secret(key) == secret) {
             return key;
         }
+
+        pgp_key_request_ctx_t ctx;
+        memset(&ctx, 0, sizeof(ctx));
+        ctx.op = PGP_OP_MERGE_INFO;
+        ctx.secret = secret;
+        ctx.search = search;
+
         // try the key provider
-        if ((key = pgp_request_key(key_provider,
-                                   &(pgp_key_request_ctx_t){.op = PGP_OP_MERGE_INFO,
-                                                            .secret = secret,
-                                                            .search = search}))) {
+        if ((key = pgp_request_key(key_provider, &ctx))) {
             return key;
         }
     }
@@ -1065,10 +1079,14 @@ find_signer(pgp_io_t *                io,
             pgp_is_key_secret(key) == secret) {
             return key;
         }
-        if ((key = pgp_request_key(key_provider,
-                                   &(pgp_key_request_ctx_t){.op = PGP_OP_MERGE_INFO,
-                                                            .secret = secret,
-                                                            .search = search}))) {
+
+        pgp_key_request_ctx_t ctx;
+        memset(&ctx, 0, sizeof(ctx));
+        ctx.op = PGP_OP_MERGE_INFO;
+        ctx.secret = secret;
+        ctx.search = search;
+
+        if ((key = pgp_request_key(key_provider, &ctx))) {
             return key;
         }
     }

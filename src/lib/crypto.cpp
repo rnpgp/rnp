@@ -85,6 +85,7 @@ bool
 pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_key_pkt_t *seckey)
 {
     bool ok = false;
+    rng_t *rng = NULL;
 
     if (!crypto || !seckey) {
         RNP_LOG("NULL args");
@@ -96,7 +97,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_key_pkt_t *sec
     seckey->creation_time = time(NULL);
     seckey->alg = crypto->key_alg;
     seckey->material.alg = crypto->key_alg;
-    rng_t *rng = crypto->rng;
+    rng = crypto->rng;
 
     switch (seckey->alg) {
     case PGP_PKA_RSA:

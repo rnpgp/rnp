@@ -277,6 +277,7 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
     size_t          deckey_len = sizeof(deckey);
     bignum_t *      x = NULL;
     size_t offset = 0;
+    size_t kek_len = 0;
 
     if (!out_len || !in || !key || !mpi_bytes(&key->x)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -319,7 +320,7 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
     /* Security: Always return same error code in case compute_kek,
      *           botan_key_unwrap3394 or unpad_pkcs7 fails
      */
-    size_t kek_len = pgp_key_size(wrap_alg);
+    kek_len = pgp_key_size(wrap_alg);
     if (!compute_kek(
           kek, kek_len, other_info, other_info_size, curve_desc, &in->p, prv_key, kdf_hash)) {
         goto end;

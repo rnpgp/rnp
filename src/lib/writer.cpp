@@ -84,7 +84,7 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 static bool
 base_write(pgp_output_t *out, const void *src, size_t len)
 {
-    return !!out->writer.writer(src, len, &out->errors, &out->writer);
+    return !!out->writer.writer((const uint8_t*)src, len, &out->errors, &out->writer);
 }
 
 /**
@@ -211,7 +211,7 @@ memory_writer(const uint8_t *src, size_t len, pgp_error_t **errors, pgp_writer_t
     pgp_memory_t *mem;
 
     RNP_USED(errors);
-    mem = pgp_writer_get_arg(writer);
+    mem = (pgp_memory_t*)pgp_writer_get_arg(writer);
     if (!pgp_memory_add(mem, src, len)) {
         return false;
     }
