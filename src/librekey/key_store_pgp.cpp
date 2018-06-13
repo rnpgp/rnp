@@ -258,7 +258,7 @@ parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbin
 static pgp_cb_ret_t
 cb_keyattrs_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
-    pgp_key_t *key = (pgp_key_t*)pgp_callback_arg(cbinfo);
+    pgp_key_t *key = (pgp_key_t *) pgp_callback_arg(cbinfo);
     return parse_key_attributes(key, pkt, cbinfo);
 }
 
@@ -268,7 +268,7 @@ pgp_parse_key_attrs(pgp_key_t *key, const uint8_t *data, size_t data_len)
     pgp_stream_t *stream = NULL;
     bool          ret = false;
 
-    stream = (pgp_stream_t*)pgp_new(sizeof(*stream));
+    stream = (pgp_stream_t *) pgp_new(sizeof(*stream));
     if (!stream) {
         goto done;
     }
@@ -295,7 +295,7 @@ finish_loading_key(keyringcb_t *cb, pgp_cbdata_t *cbinfo)
             PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Subkey missing primary key.");
             return false;
         }
-        cb->key.primary_grip = (uint8_t*)malloc(PGP_FINGERPRINT_SIZE);
+        cb->key.primary_grip = (uint8_t *) malloc(PGP_FINGERPRINT_SIZE);
         if (!cb->key.primary_grip) {
             PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Alloc failed");
             return PGP_FINISHED;
@@ -320,7 +320,7 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     const pgp_contents_t *content = &pkt->u;
     keyringcb_t *         cb;
 
-    cb = (keyringcb_t*)pgp_callback_arg(cbinfo);
+    cb = (keyringcb_t *) pgp_callback_arg(cbinfo);
 
     switch (pkt->tag) {
     case PGP_PTAG_CT_SECRET_KEY:

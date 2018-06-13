@@ -89,7 +89,7 @@ key_reader(pgp_stream_t *stream,
            pgp_reader_t *readinfo,
            pgp_cbdata_t *cbinfo)
 {
-    validate_reader_t *reader = (validate_reader_t*)pgp_reader_get_arg(readinfo);
+    validate_reader_t *reader = (validate_reader_t *) pgp_reader_get_arg(readinfo);
 
     RNP_USED(stream);
     RNP_USED(errors);
@@ -129,9 +129,9 @@ add_sig_to_list(const pgp_signature_t *sig, pgp_signature_t **sigs, unsigned *co
     pgp_signature_t *newsigs;
 
     if (*count == 0) {
-       newsigs = (pgp_signature_t*)calloc(*count + 1, sizeof(pgp_signature_t));
+        newsigs = (pgp_signature_t *) calloc(*count + 1, sizeof(pgp_signature_t));
     } else {
-       newsigs = (pgp_signature_t*)realloc(*sigs, (*count + 1) * sizeof(pgp_signature_t));
+        newsigs = (pgp_signature_t *) realloc(*sigs, (*count + 1) * sizeof(pgp_signature_t));
     }
     if (newsigs == NULL) {
         (void) fprintf(stderr, "add_sig_to_list: alloc failure\n");
@@ -191,10 +191,10 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     if (rnp_get_debug(__FILE__)) {
         (void) fprintf(io->errs, "%s\n", pgp_show_packet_tag(pkt->tag));
     }
-    key = (validate_key_cb_t*)pgp_callback_arg(cbinfo);
+    key = (validate_key_cb_t *) pgp_callback_arg(cbinfo);
     rnp_ctx = key->result->rnp_ctx;
     rng = rnp_ctx_rng_handle(rnp_ctx);
-    errors = (pgp_error_t**)pgp_callback_errors(cbinfo);
+    errors = (pgp_error_t **) pgp_callback_errors(cbinfo);
     switch (pkt->tag) {
     case PGP_PTAG_CT_PUBLIC_KEY:
         if (key->pubkey.version != 0) {
@@ -282,8 +282,8 @@ pgp_validate_key_cb(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
              * XXX: we should also check that the signer is the
              * key we are validating, I think.
              */
-            valid =
-              !signature_validate_binding(&content->sig, &key->pubkey, &key->subkey, rng);
+            valid = !signature_validate_binding(
+              &content->sig, pgp_get_key_pkt(signer), &key->subkey, rng);
             break;
 
         case PGP_SIG_DIRECT:
@@ -357,7 +357,7 @@ pgp_key_reader_set(pgp_stream_t *stream, const pgp_key_t *key)
 {
     validate_reader_t *data;
 
-    data = (validate_reader_t*)calloc(1, sizeof(*data));
+    data = (validate_reader_t *) calloc(1, sizeof(*data));
 
     if (data == NULL) {
         (void) fprintf(stderr, "pgp_key_reader_set: bad alloc\n");
@@ -439,7 +439,7 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
     (void) memset(&keysigs, 0x0, sizeof(keysigs));
     keysigs.result = result;
 
-    stream = (pgp_stream_t*)pgp_new(sizeof(*stream));
+    stream = (pgp_stream_t *) pgp_new(sizeof(*stream));
     if (stream == NULL) {
         return false;
     }
@@ -456,7 +456,7 @@ pgp_validate_key_sigs(pgp_validation_t *     result,
 
     /* Note: Coverity incorrectly reports an error that keysigs.reader */
     /* is never used. */
-    keysigs.reader = (validate_reader_t*)stream->readinfo.arg;
+    keysigs.reader = (validate_reader_t *) stream->readinfo.arg;
 
     repgp_parse(stream, true);
 

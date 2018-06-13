@@ -84,7 +84,7 @@ rnp_key_store_new(const char *format, const char *path)
         return NULL;
     }
 
-    key_store = (rnp_key_store_t*)calloc(1, sizeof(*key_store));
+    key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
     if (key_store == NULL) {
         fprintf(stderr, "Can't allocate memory\n");
         return NULL;

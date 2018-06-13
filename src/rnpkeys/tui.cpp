@@ -86,7 +86,7 @@ ask_curve(FILE *input_fp)
     do {
         printf("Please select which elliptic curve you want:\n");
         for (int i = 1; (i < PGP_CURVE_MAX) && (i != PGP_CURVE_ED25519); i++) {
-            printf("\t(%u) %s\n", i, get_curve_desc(i)->pgp_name);
+            printf("\t(%u) %s\n", i, get_curve_desc((const pgp_curve_t) i)->pgp_name);
         }
         printf("(default %s)> ", get_curve_desc(DEFAULT_CURVE)->pgp_name);
         val = DEFAULT_CURVE;
@@ -117,7 +117,7 @@ ask_algorithm(FILE *input_fp)
                "> ");
 
     } while (!rnp_secure_get_long_from_fd(input_fp, &result, false) ||
-             !is_keygen_supported_for_alg(result));
+             !is_keygen_supported_for_alg((pgp_pubkey_alg_t) result));
     return result;
 }
 
@@ -128,7 +128,7 @@ ask_rsa_bitlen(FILE *input_fp)
     do {
         result = DEFAULT_RSA_NUMBITS;
         printf("Please provide bit length of the key (between 1024 and 4096):\n(default %d)> ",
-            DEFAULT_RSA_NUMBITS);
+               DEFAULT_RSA_NUMBITS);
     } while (!rnp_secure_get_long_from_fd(input_fp, &result, true) ||
              !is_rsa_keysize_supported(result));
     return result;
@@ -140,14 +140,16 @@ ask_dsa_bitlen(FILE *input_fp)
     long result = 0;
     do {
         result = DSA_DEFAULT_P_BITLEN;
-        printf("Please provide bit length of the DSA key (between %d and %d):\n(default %d) > ",
-                DSA_MIN_P_BITLEN, DSA_MAX_P_BITLEN, DSA_DEFAULT_P_BITLEN);
-    } while (
-             !rnp_secure_get_long_from_fd(input_fp, &result, true) ||
+        printf(
+          "Please provide bit length of the DSA key (between %d and %d):\n(default %d) > ",
+          DSA_MIN_P_BITLEN,
+          DSA_MAX_P_BITLEN,
+          DSA_DEFAULT_P_BITLEN);
+    } while (!rnp_secure_get_long_from_fd(input_fp, &result, true) ||
              (result < DSA_MIN_P_BITLEN) || (result > DSA_MAX_P_BITLEN));
 
     // round up to multiple of 1024
-    result = ((result + 63) / 64 ) * 64;
+    result = ((result + 63) / 64) * 64;
     printf("Bitlen of the key will be %lu\n", result);
     return result;
 }

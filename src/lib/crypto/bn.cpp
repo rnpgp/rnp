@@ -75,7 +75,7 @@ bn_new(void)
 {
     bignum_t *a;
 
-    a = (bignum_t*)calloc(1, sizeof(*a));
+    a = (bignum_t *) calloc(1, sizeof(*a));
     if (a == NULL) {
         return NULL;
     }
@@ -190,7 +190,7 @@ bn_print_fp(FILE *fp, const bignum_t *a)
         fprintf(fp, "-");
     }
 
-    buf = (char*)calloc(num_bytes * 2 + 2, 1);
+    buf = (char *) calloc(num_bytes * 2 + 2, 1);
     botan_mp_to_hex(a->mp, buf);
     ret = fprintf(fp, "%s", buf);
     free(buf);
@@ -209,7 +209,7 @@ bn_bn2hex(const bignum_t *a)
     const size_t initial_guess = 512;
 
     out_len = initial_guess;
-    out = (char*)malloc(out_len);
+    out = (char *) malloc(out_len);
 
     rc = botan_mp_to_str(a->mp, radix, out, &out_len);
 
@@ -217,7 +217,7 @@ bn_bn2hex(const bignum_t *a)
         return out;
     } else if (out_len != initial_guess) {
         /* need to retry with longer buffer... */
-        out = (char*)realloc(out, out_len);
+        out = (char *) realloc(out, out_len);
         rc = botan_mp_to_str(a->mp, radix, out, &out_len);
         if (rc == 0) {
             return out;
@@ -246,7 +246,7 @@ bn_hash(const bignum_t *bignum, pgp_hash_t *hash)
         return pgp_hash_uint32(hash, 0) ? 4 : 0;
     }
 
-    if ((bn = (uint8_t*)calloc(1, len + 1)) == NULL) {
+    if ((bn = (uint8_t *) calloc(1, len + 1)) == NULL) {
         RNP_LOG("bad bn alloc");
         return 0;
     }

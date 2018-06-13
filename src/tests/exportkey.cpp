@@ -34,10 +34,11 @@ void
 rnpkeys_exportkey_verifyUserId(void **state)
 {
     /* Generate the key and export it */
-    rnp_test_state_t *rstate = *state;
-    rnp_t             rnp;
-    int               pipefd[2];
-    char *            exportedkey = NULL;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
+    ;
+    rnp_t rnp;
+    int   pipefd[2];
+    char *exportedkey = NULL;
 
     /* Initialize the rnp structure. */
     rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));

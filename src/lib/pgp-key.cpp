@@ -116,7 +116,7 @@ revoke_free(pgp_revoke_t *revoke)
 pgp_key_t *
 pgp_key_new(void)
 {
-    return (pgp_key_t*)calloc(1, sizeof(pgp_key_t));
+    return (pgp_key_t *) calloc(1, sizeof(pgp_key_t));
 }
 
 bool
@@ -235,13 +235,13 @@ pgp_get_key_type(const pgp_key_t *key)
 bool
 pgp_is_key_public(const pgp_key_t *key)
 {
-    return pgp_is_public_key_tag((pgp_content_enum)key->pkt.tag);
+    return pgp_is_public_key_tag((pgp_content_enum) key->pkt.tag);
 }
 
 bool
 pgp_is_key_secret(const pgp_key_t *key)
 {
-    return pgp_is_secret_key_tag((pgp_content_enum)key->pkt.tag);
+    return pgp_is_secret_key_tag((pgp_content_enum) key->pkt.tag);
 }
 
 bool
@@ -274,7 +274,7 @@ pgp_key_can_encrypt(const pgp_key_t *key)
 }
 
 bool
-pgp_is_secret_key_tag(pgp_content_enum tag)
+pgp_is_secret_key_tag(int tag)
 {
     switch (tag) {
     case PGP_PTAG_CT_SECRET_KEY:
@@ -286,7 +286,7 @@ pgp_is_secret_key_tag(pgp_content_enum tag)
 }
 
 bool
-pgp_is_public_key_tag(pgp_content_enum tag)
+pgp_is_public_key_tag(int tag)
 {
     switch (tag) {
     case PGP_PTAG_CT_PUBLIC_KEY:
@@ -298,7 +298,7 @@ pgp_is_public_key_tag(pgp_content_enum tag)
 }
 
 bool
-pgp_is_primary_key_tag(pgp_content_enum tag)
+pgp_is_primary_key_tag(int tag)
 {
     switch (tag) {
     case PGP_PTAG_CT_PUBLIC_KEY:
@@ -312,7 +312,7 @@ pgp_is_primary_key_tag(pgp_content_enum tag)
 bool
 pgp_key_is_primary_key(const pgp_key_t *key)
 {
-    return pgp_is_primary_key_tag((pgp_content_enum)key->pkt.tag);
+    return pgp_is_primary_key_tag((pgp_content_enum) key->pkt.tag);
 }
 
 bool
@@ -330,7 +330,7 @@ pgp_is_subkey_tag(pgp_content_enum tag)
 bool
 pgp_key_is_subkey(const pgp_key_t *key)
 {
-    return pgp_is_subkey_tag((pgp_content_enum)key->pkt.tag);
+    return pgp_is_subkey_tag((pgp_content_enum) key->pkt.tag);
 }
 
 pgp_key_pkt_t *
@@ -342,7 +342,7 @@ pgp_decrypt_seckey_pgp(const uint8_t *      data,
     pgp_source_t   src = {0};
     pgp_key_pkt_t *res = NULL;
 
-    res = (pgp_key_pkt_t*)calloc(1, sizeof(*res));
+    res = (pgp_key_pkt_t *) calloc(1, sizeof(*res));
     if (!res) {
         return NULL;
     }
@@ -477,7 +477,7 @@ copy_userid(uint8_t **dst, const uint8_t *src)
     if (*dst) {
         free(*dst);
     }
-    if ((*dst = (uint8_t*)calloc(1, len + 1)) == NULL) {
+    if ((*dst = (uint8_t *) calloc(1, len + 1)) == NULL) {
         (void) fprintf(stderr, "copy_userid: bad alloc\n");
     } else {
         (void) memcpy(*dst, src, len);
@@ -499,7 +499,7 @@ copy_packet(pgp_rawpacket_t *dst, const pgp_rawpacket_t *src)
     if (dst->raw) {
         free(dst->raw);
     }
-    if ((dst->raw = (uint8_t*)calloc(1, src->length)) == NULL) {
+    if ((dst->raw = (uint8_t *) calloc(1, src->length)) == NULL) {
         (void) fprintf(stderr, "copy_packet: bad alloc\n");
     } else {
         dst->length = src->length;
@@ -653,10 +653,7 @@ pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider)
         return true;
     }
 
-    pgp_password_ctx_t ctx;
-    memset(&ctx, 0, sizeof(ctx));
-    ctx.op = PGP_OP_UNLOCK;
-    ctx.key = key;
+    pgp_password_ctx_t ctx = {.op = PGP_OP_UNLOCK, .key = key};
     decrypted_seckey = pgp_decrypt_seckey(key, provider, &ctx);
 
     if (decrypted_seckey) {
@@ -760,10 +757,7 @@ rnp_key_add_protection(pgp_key_t *                    key,
     ctx.key = key;
 
     // ask the provider for a password
-    if (!pgp_request_password(password_provider,
-                              &ctx,
-                              password,
-                              sizeof(password))) {
+    if (!pgp_request_password(password_provider, &ctx, password, sizeof(password))) {
         return false;
     }
 
@@ -828,8 +822,11 @@ pgp_key_protect(pgp_key_t *                  key,
     seckey->sec_protection.s2k.hash_alg = protection->hash_alg;
 
     // write the protected key to packets[0]
-    if (!write_key_to_rawpacket(
-           decrypted_seckey, &key->packets[0], (pgp_content_enum)pgp_get_key_type(key), format, new_password)) {
+    if (!write_key_to_rawpacket(decrypted_seckey,
+                                &key->packets[0],
+                                (pgp_content_enum) pgp_get_key_type(key),
+                                format,
+                                new_password)) {
         goto done;
     }
     key->format = format;
@@ -865,16 +862,18 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
         ctx.op = PGP_OP_UNPROTECT;
         ctx.key = key;
 
-        decrypted_seckey = pgp_decrypt_seckey(
-           key, password_provider, &ctx);
+        decrypted_seckey = pgp_decrypt_seckey(key, password_provider, &ctx);
         if (!decrypted_seckey) {
             goto done;
         }
         seckey = decrypted_seckey;
     }
     seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
-    if (!write_key_to_rawpacket(
-           seckey, &key->packets[0], (pgp_content_enum)pgp_get_key_type(key), key->format, NULL)) {
+    if (!write_key_to_rawpacket(seckey,
+                                &key->packets[0],
+                                (pgp_content_enum) pgp_get_key_type(key),
+                                key->format,
+                                NULL)) {
         goto done;
     }
     if (decrypted_seckey) {
@@ -1010,10 +1009,7 @@ find_suitable_key(pgp_op_t            op,
         return key;
     }
     list_item *           subkey_grip = list_front(key->subkey_grips);
-    pgp_key_request_ctx_t ctx{
-      .op = op,
-       .secret = pgp_is_key_secret(key)
-       };
+    pgp_key_request_ctx_t ctx{.op = op, .secret = pgp_is_key_secret(key)};
     ctx.search.type = PGP_KEY_SEARCH_GRIP;
 
     while (subkey_grip) {

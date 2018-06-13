@@ -151,7 +151,7 @@ bufgap_open(bufgap_t *bp, const char *f)
             FREE(bp->buf);
             return 0;
         }
-        bp->name = strnsave((char*)RNP_UNCONST(f), (int) utfbytes((char*)RNP_UNCONST(f)));
+        bp->name = strnsave((char *) RNP_UNCONST(f), (int) utfbytes((char *) RNP_UNCONST(f)));
         bp->bbc = s.st_size;
         cp = &BEFSUB(bp, cc);
         for (;;) {
@@ -409,7 +409,7 @@ bufgap_insert(bufgap_t *bp, const char *s, int n)
             RENEW(char, bp->buf, bp->size, "bufgap_insert", return 0);
             (void) bufgap_seek(bp, off, BGFromBOF, BGChar);
         }
-        if ((rlen = chartorune(&r, (char*)RNP_UNCONST(s))) == 1) {
+        if ((rlen = chartorune(&r, (char *) RNP_UNCONST(s))) == 1) {
             AFTSUB(bp, bp->abc) = *s;
         } else {
             (void) memmove(&AFTSUB(bp, bp->abc), s, (size_t) rlen);

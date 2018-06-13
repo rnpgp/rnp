@@ -84,7 +84,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 bool
 pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_key_pkt_t *seckey)
 {
-    bool ok = false;
+    bool   ok = false;
     rng_t *rng = NULL;
 
     if (!crypto || !seckey) {

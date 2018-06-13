@@ -62,7 +62,7 @@ find_subsig(const pgp_key_t *key, const char *userid)
 void
 test_load_user_prefs(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     rnp_t             rnp;
     int               pipefd[2];
     char              homedir[PATH_MAX];

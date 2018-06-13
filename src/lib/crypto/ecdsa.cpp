@@ -49,7 +49,7 @@ ecdsa_sign(rng_t *             rng,
 
     const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
     const size_t leftmost_bytes = hash_len > curve_order ? curve_order : hash_len;
-    size_t sig_len = 2 * curve_order;
+    size_t       sig_len = 2 * curve_order;
 
     if (!(x = mpi2bn(&key->x))) {
         goto end;

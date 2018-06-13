@@ -89,7 +89,7 @@
     do {                                                                        \
         for (size_t i__ = 0; i__ < ARRAY_SIZE(array); i__++) {                  \
             if (!rnp_strcasecmp((array)[i__].str_field, (lookup_value))) {      \
-                (ret) = static_cast<decltype(ret)>(((array)[i__].ret_field)); \
+                (ret) = static_cast<decltype(ret)>(((array)[i__].ret_field));   \
                 break;                                                          \
             }                                                                   \
         }                                                                       \

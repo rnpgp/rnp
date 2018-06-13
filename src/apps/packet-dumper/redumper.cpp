@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <unistd.h>      /* getopt() */
+#include <unistd.h> /* getopt() */
 #include <getopt.h>
 #include <repgp/repgp.h> /* repgp API */
 #include <librepgp/stream-dump.h>

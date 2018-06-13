@@ -338,7 +338,7 @@ rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
         return RNP_ERROR_NULL_POINTER;
     }
 
-    ob = (rnp_ffi_st*)calloc(1, sizeof(struct rnp_ffi_st));
+    ob = (rnp_ffi_st *) calloc(1, sizeof(struct rnp_ffi_st));
     if (!ob) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -504,7 +504,7 @@ rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
 
     struct rnp_key_handle_st key;
     key.ffi = ffi;
-    key.sec = (pgp_key_t*)ctx->key;
+    key.sec = (pgp_key_t *) ctx->key;
     return ffi->getpasscb(ffi,
                           ffi->getpasscb_ctx,
                           ctx->key ? &key : NULL,
@@ -752,7 +752,7 @@ read_all_input(pgp_source_t *src, uint8_t **buf, size_t *buf_len)
             ret = RNP_ERROR_READ;
             goto done;
         } else if (read > 0) {
-            uint8_t *new_buf = (uint8_t*)realloc(*buf, *buf_len + read);
+            uint8_t *new_buf = (uint8_t *) realloc(*buf, *buf_len + read);
             if (!new_buf) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
@@ -776,18 +776,15 @@ done:
 static rnp_result_t
 load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
 {
-    rnp_result_t              ret = RNP_ERROR_GENERIC;
-    uint8_t *                 buf = NULL;
-    size_t                    buf_len;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    uint8_t *    buf = NULL;
+    size_t       buf_len;
 
     pgp_key_provider_t chained;
     chained.callback = rnp_key_provider_store;
     chained.userdata = store;
 
-    const pgp_key_provider_t *key_providers[] = {
-       &chained,
-       &ffi->key_provider,
-       NULL};
+    const pgp_key_provider_t *key_providers[] = {&chained, &ffi->key_provider, NULL};
 
     const pgp_key_provider_t key_provider = {.callback = rnp_key_provider_chained,
                                              .userdata = key_providers};
@@ -1092,7 +1089,7 @@ rnp_input_from_path(rnp_input_t *input, const char *path)
     if (!input || !path) {
         return RNP_ERROR_NULL_POINTER;
     }
-    ob = (rnp_input_st*)calloc(1, sizeof(*ob));
+    ob = (rnp_input_st *) calloc(1, sizeof(*ob));
     if (!ob) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -1124,13 +1121,13 @@ rnp_input_from_memory(rnp_input_t *input, const uint8_t buf[], size_t buf_len, b
     if (!buf_len) {
         return RNP_ERROR_SHORT_BUFFER;
     }
-    *input = (rnp_input_t)calloc(1, sizeof(**input));
+    *input = (rnp_input_t) calloc(1, sizeof(**input));
     if (!*input) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     uint8_t *data = (uint8_t *) buf;
     if (do_copy) {
-        data = (uint8_t*)malloc(buf_len);
+        data = (uint8_t *) malloc(buf_len);
         if (!data) {
             free(*input);
             *input = NULL;
@@ -1150,7 +1147,7 @@ rnp_input_from_memory(rnp_input_t *input, const uint8_t buf[], size_t buf_len, b
 static ssize_t
 input_reader_bounce(pgp_source_t *src, void *buf, size_t len)
 {
-    rnp_input_t input = (rnp_input_t)src->param;
+    rnp_input_t input = (rnp_input_t) src->param;
     if (!input->reader) {
         return -1;
     }
@@ -1160,7 +1157,7 @@ input_reader_bounce(pgp_source_t *src, void *buf, size_t len)
 static void
 input_closer_bounce(pgp_source_t *src)
 {
-    rnp_input_t input = (rnp_input_t)src->param;
+    rnp_input_t input = (rnp_input_t) src->param;
     if (input->closer) {
         input->closer(input->app_ctx);
     }
@@ -1178,7 +1175,7 @@ rnp_input_from_callback(rnp_input_t *       input,
     if (!input || !reader) {
         return RNP_ERROR_NULL_POINTER;
     }
-    obj = (rnp_input_st*)calloc(1, sizeof(*obj));
+    obj = (rnp_input_st *) calloc(1, sizeof(*obj));
     if (!obj) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -1218,7 +1215,7 @@ rnp_output_to_path(rnp_output_t *output, const char *path)
     if (!output || !path) {
         return RNP_ERROR_NULL_POINTER;
     }
-    ob = (rnp_output_st*)calloc(1, sizeof(*ob));
+    ob = (rnp_output_st *) calloc(1, sizeof(*ob));
     if (!ob) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -1249,7 +1246,7 @@ rnp_output_to_memory(rnp_output_t *output, size_t max_alloc)
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *output = (rnp_output_t)calloc(1, sizeof(**output));
+    *output = (rnp_output_t) calloc(1, sizeof(**output));
     if (!*output) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -1270,13 +1267,13 @@ rnp_output_memory_get_buf(rnp_output_t output, uint8_t **buf, size_t *len, bool 
     }
 
     *len = output->dst.writeb;
-    *buf = (uint8_t*)mem_dest_get_memory(&output->dst);
+    *buf = (uint8_t *) mem_dest_get_memory(&output->dst);
     if (!*buf) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     if (do_copy) {
         uint8_t *tmp_buf = *buf;
-        *buf = (uint8_t*)malloc(*len);
+        *buf = (uint8_t *) malloc(*len);
         if (!*buf) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
@@ -1288,7 +1285,7 @@ rnp_output_memory_get_buf(rnp_output_t output, uint8_t **buf, size_t *len, bool 
 static rnp_result_t
 output_writer_bounce(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    rnp_output_t output = (rnp_output_t)dst->param;
+    rnp_output_t output = (rnp_output_t) dst->param;
     if (!output->writer) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -1301,7 +1298,7 @@ output_writer_bounce(pgp_dest_t *dst, const void *buf, size_t len)
 static void
 output_closer_bounce(pgp_dest_t *dst, bool discard)
 {
-    rnp_output_t output = (rnp_output_t)dst->param;
+    rnp_output_t output = (rnp_output_t) dst->param;
     if (output->closer) {
         output->closer(output->app_ctx, discard);
     }
@@ -1315,7 +1312,7 @@ rnp_output_to_null(rnp_output_t *output)
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *output = (rnp_output_t)calloc(1, sizeof(**output));
+    *output = (rnp_output_t) calloc(1, sizeof(**output));
     if (!*output) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -1339,7 +1336,7 @@ rnp_output_to_callback(rnp_output_t *       output,
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *output = (rnp_output_t)calloc(1, sizeof(**output));
+    *output = (rnp_output_t) calloc(1, sizeof(**output));
     if (!*output) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -1493,7 +1490,7 @@ rnp_op_encrypt_create(rnp_op_encrypt_t *op,
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = (rnp_op_encrypt_t)calloc(1, sizeof(**op));
+    *op = (rnp_op_encrypt_t) calloc(1, sizeof(**op));
     if (!*op) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -1568,7 +1565,7 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
                             size_t           iterations,
                             const char *     s2k_cipher)
 {
-    rnp_symmetric_pass_info_t info = {{(pgp_s2k_usage_t)0}};
+    rnp_symmetric_pass_info_t info = {{(pgp_s2k_usage_t) 0}};
     rnp_result_t              ret = RNP_ERROR_GENERIC;
 
     // checks
@@ -1673,19 +1670,20 @@ rnp_op_encrypt_set_file_mtime(rnp_op_encrypt_t op, uint32_t mtime)
     return rnp_op_set_file_mtime(&op->rnpctx, mtime);
 }
 
-static pgp_write_handler_t pgp_write_handler(pgp_password_provider_t *pass_provider,
-                                             rnp_ctx_t *rnpctx,
-                                             void* param,
-                                             pgp_key_provider_t *key_provider)
-   {
-   pgp_write_handler_t handler;
-   memset(&handler, 0, sizeof(handler));
-   handler.password_provider = pass_provider;
-   handler.ctx = rnpctx;
-   handler.param = param;
-   handler.key_provider = key_provider;
-   return handler;
-   }
+static pgp_write_handler_t
+pgp_write_handler(pgp_password_provider_t *pass_provider,
+                  rnp_ctx_t *              rnpctx,
+                  void *                   param,
+                  pgp_key_provider_t *     key_provider)
+{
+    pgp_write_handler_t handler;
+    memset(&handler, 0, sizeof(handler));
+    handler.password_provider = pass_provider;
+    handler.ctx = rnpctx;
+    handler.param = param;
+    handler.key_provider = key_provider;
+    return handler;
+}
 
 rnp_result_t
 rnp_op_encrypt_execute(rnp_op_encrypt_t op)
@@ -1699,10 +1697,8 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
     if (!op->rnpctx.halg) {
         op->rnpctx.halg = DEFAULT_PGP_HASH_ALG;
     }
-    pgp_write_handler_t handler = pgp_write_handler(&op->ffi->pass_provider,
-                                                    &op->rnpctx,
-                                                    NULL,
-                                                    &op->ffi->key_provider);
+    pgp_write_handler_t handler =
+      pgp_write_handler(&op->ffi->pass_provider, &op->rnpctx, NULL, &op->ffi->key_provider);
 
     rnp_result_t ret;
     if (list_length(op->signatures)) {
@@ -1743,7 +1739,7 @@ rnp_op_sign_create(rnp_op_sign_t *op, rnp_ffi_t ffi, rnp_input_t input, rnp_outp
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = (rnp_op_sign_t)calloc(1, sizeof(**op));
+    *op = (rnp_op_sign_t) calloc(1, sizeof(**op));
     if (!*op) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -1883,10 +1879,8 @@ rnp_op_sign_execute(rnp_op_sign_t op)
     if (!op->rnpctx.halg) {
         op->rnpctx.halg = DEFAULT_PGP_HASH_ALG;
     }
-    pgp_write_handler_t handler = pgp_write_handler(&op->ffi->pass_provider,
-                                                    &op->rnpctx,
-                                                    NULL,
-                                                    &op->ffi->key_provider);
+    pgp_write_handler_t handler =
+      pgp_write_handler(&op->ffi->pass_provider, &op->rnpctx, NULL, &op->ffi->key_provider);
 
     for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
         pgp_key_t *key = ((rnp_op_sign_signature_t) sig)->key;
@@ -1924,9 +1918,9 @@ rnp_op_verify_on_signatures(pgp_parse_handler_t * handler,
                             int                   count)
 {
     struct rnp_op_verify_signature_st res;
-    rnp_op_verify_t                   op = (rnp_op_verify_t)handler->param;
+    rnp_op_verify_t                   op = (rnp_op_verify_t) handler->param;
 
-    op->signatures = (rnp_op_verify_signature_t)calloc(count, sizeof(*op->signatures));
+    op->signatures = (rnp_op_verify_signature_t) calloc(count, sizeof(*op->signatures));
     if (!op->signatures) {
         // TODO: report allocation error?
         return;
@@ -1959,7 +1953,7 @@ static bool
 rnp_verify_src_provider(pgp_parse_handler_t *handler, pgp_source_t *src)
 {
     /* this one is called only when input for detached signature is needed */
-    rnp_op_verify_t op = (rnp_op_verify_t)handler->param;
+    rnp_op_verify_t op = (rnp_op_verify_t) handler->param;
     *src = op->detached_input->src;
     /* we should give ownership on src to caller */
     memset(&op->detached_input->src, 0, sizeof(op->detached_input->src));
@@ -1972,7 +1966,7 @@ rnp_verify_dest_provider(pgp_parse_handler_t *handler,
                          bool *               closedst,
                          const char *         filename)
 {
-    rnp_op_verify_t op = (rnp_op_verify_t)handler->param;
+    rnp_op_verify_t op = (rnp_op_verify_t) handler->param;
     *dst = &(op->output->dst);
     *closedst = false;
     op->filename = filename ? rnp_strdup(filename) : NULL;
@@ -1990,7 +1984,7 @@ rnp_op_verify_create(rnp_op_verify_t *op,
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = (rnp_op_verify_t)calloc(1, sizeof(**op));
+    *op = (rnp_op_verify_t) calloc(1, sizeof(**op));
     if (!*op) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -2013,7 +2007,7 @@ rnp_op_verify_detached_create(rnp_op_verify_t *op,
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = (rnp_op_verify_t)calloc(1, sizeof(**op));
+    *op = (rnp_op_verify_t) calloc(1, sizeof(**op));
     if (!*op) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -2029,15 +2023,15 @@ rnp_op_verify_detached_create(rnp_op_verify_t *op,
 rnp_result_t
 rnp_op_verify_execute(rnp_op_verify_t op)
 {
-   pgp_parse_handler_t handler;
-   
-   handler.password_provider = &op->ffi->pass_provider;
-   handler.key_provider = &op->ffi->key_provider;
-   handler.on_signatures = rnp_op_verify_on_signatures;
-   handler.src_provider = rnp_verify_src_provider;
-   handler.dest_provider = rnp_verify_dest_provider;
-   handler.param = op;
-   handler.ctx = &op->rnpctx;
+    pgp_parse_handler_t handler;
+
+    handler.password_provider = &op->ffi->pass_provider;
+    handler.key_provider = &op->ffi->key_provider;
+    handler.on_signatures = rnp_op_verify_on_signatures;
+    handler.src_provider = rnp_verify_src_provider;
+    handler.dest_provider = rnp_verify_dest_provider;
+    handler.param = op;
+    handler.ctx = &op->rnpctx;
 
     rnp_result_t ret = process_pgp_source(&handler, &op->input->src);
     if (op->output) {
@@ -2142,7 +2136,7 @@ rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig, rnp_key_handle_t 
         return RNP_ERROR_KEY_NOT_FOUND;
     }
 
-    struct rnp_key_handle_st *handle = (rnp_key_handle_st*)calloc(1, sizeof(*handle));
+    struct rnp_key_handle_st *handle = (rnp_key_handle_st *) calloc(1, sizeof(*handle));
     if (!handle) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -2324,7 +2318,7 @@ rnp_locate_key(rnp_ffi_t         ffi,
     }
 
     // figure out the identifier type
-    pgp_key_search_t locator = {(pgp_key_search_type_t)0};
+    pgp_key_search_t locator = {(pgp_key_search_type_t) 0};
     rnp_result_t     ret = str_to_locator(ffi, &locator, identifier_type, identifier);
     if (ret) {
         return ret;
@@ -2336,7 +2330,7 @@ rnp_locate_key(rnp_ffi_t         ffi,
     pgp_key_t *sec = rnp_key_store_search(&ffi->io, ffi->secring, &locator, NULL);
 
     if (pub || sec) {
-        *handle = (rnp_key_handle_t)malloc(sizeof(**handle));
+        *handle = (rnp_key_handle_t) malloc(sizeof(**handle));
         if (!handle) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
@@ -2740,16 +2734,16 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
 {
     rnp_result_t              ret = RNP_ERROR_GENERIC;
     json_object *             jso = NULL;
-    rnp_keygen_primary_desc_t primary_desc = {{(pgp_pubkey_alg_t)0}};
-    rnp_keygen_subkey_desc_t  sub_desc = {{(pgp_pubkey_alg_t)0}};
+    rnp_keygen_primary_desc_t primary_desc = {{(pgp_pubkey_alg_t) 0}};
+    rnp_keygen_subkey_desc_t  sub_desc = {{(pgp_pubkey_alg_t) 0}};
     char *                    identifier_type = NULL;
     char *                    identifier = NULL;
     pgp_key_t                 primary_pub = {0};
     pgp_key_t                 primary_sec = {0};
     pgp_key_t                 sub_pub = {0};
     pgp_key_t                 sub_sec = {0};
-    json_object *jsoprimary = NULL;
-    json_object *jsosub = NULL;
+    json_object *             jsoprimary = NULL;
+    json_object *             jsosub = NULL;
 
     // checks
     if (!ffi || (!ffi->pubring && !ffi->secring) || !json) {
@@ -2766,27 +2760,29 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
     }
 
     // locate the appropriate sections
-    json_object_object_foreach(jso, key, value)
     {
-        json_object **dest = NULL;
+        json_object_object_foreach(jso, key, value)
+        {
+            json_object **dest = NULL;
 
-        if (rnp_strcasecmp(key, "primary") == 0) {
-            dest = &jsoprimary;
-        } else if (rnp_strcasecmp(key, "sub") == 0) {
-            dest = &jsosub;
-        } else {
-            // unrecognized key in the object
-            FFI_LOG(ffi, "Unexpected key in JSON: %s", key);
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            goto done;
-        }
+            if (rnp_strcasecmp(key, "primary") == 0) {
+                dest = &jsoprimary;
+            } else if (rnp_strcasecmp(key, "sub") == 0) {
+                dest = &jsosub;
+            } else {
+                // unrecognized key in the object
+                FFI_LOG(ffi, "Unexpected key in JSON: %s", key);
+                ret = RNP_ERROR_BAD_PARAMETERS;
+                goto done;
+            }
 
-        // duplicate "primary"/"sub"
-        if (*dest) {
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            goto done;
+            // duplicate "primary"/"sub"
+            if (*dest) {
+                ret = RNP_ERROR_BAD_PARAMETERS;
+                goto done;
+            }
+            *dest = value;
         }
-        *dest = value;
     }
 
     if (jsoprimary && jsosub) { // generating primary+sub
@@ -2885,7 +2881,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
         rnp_strlwr(identifier_type);
         json_object_object_del(jsosub, "primary");
 
-        pgp_key_search_t locator = {(pgp_key_search_type_t)0};
+        pgp_key_search_t locator = {(pgp_key_search_type_t) 0};
         rnp_result_t     tmpret = str_to_locator(ffi, &locator, identifier_type, identifier);
         if (tmpret) {
             ret = tmpret;
@@ -3020,7 +3016,7 @@ key_get_uid_at(pgp_key_t *key, size_t idx, char **uid)
         return RNP_ERROR_BAD_PARAMETERS;
     }
     size_t len = strlen((const char *) key->uids[idx]);
-    *uid = calloc(1, len + 1);
+    *uid = (char *) calloc(1, len + 1);
     if (!*uid) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -3135,7 +3131,7 @@ rnp_key_get_fprint(rnp_key_handle_t handle, char **fprint)
         return RNP_ERROR_NULL_POINTER;
 
     size_t hex_len = PGP_FINGERPRINT_HEX_SIZE + 1;
-    *fprint = malloc(hex_len);
+    *fprint = (char *) malloc(hex_len);
     if (*fprint == NULL)
         return RNP_ERROR_OUT_OF_MEMORY;
 
@@ -3157,7 +3153,7 @@ rnp_key_get_keyid(rnp_key_handle_t handle, char **keyid)
         return RNP_ERROR_NULL_POINTER;
 
     size_t hex_len = PGP_KEY_ID_SIZE * 2 + 1;
-    *keyid = malloc(hex_len);
+    *keyid = (char *) malloc(hex_len);
     if (*keyid == NULL)
         return RNP_ERROR_OUT_OF_MEMORY;
 
@@ -3175,7 +3171,7 @@ rnp_key_get_grip(rnp_key_handle_t handle, char **grip)
         return RNP_ERROR_NULL_POINTER;
 
     size_t hex_len = PGP_FINGERPRINT_HEX_SIZE + 1;
-    *grip = malloc(hex_len);
+    *grip = (char *) malloc(hex_len);
     if (*grip == NULL)
         return RNP_ERROR_OUT_OF_MEMORY;
 
@@ -3228,10 +3224,9 @@ rnp_key_unlock(rnp_key_handle_t handle, const char *password)
     }
     bool ok = false;
     if (password) {
-        ok =
-          pgp_key_unlock(key,
-                         &(pgp_password_provider_t){.callback = rnp_password_provider_string,
-                                                    .userdata = RNP_UNCONST(password)});
+        pgp_password_provider_t prov = {.callback = rnp_password_provider_string,
+                                        .userdata = RNP_UNCONST(password)};
+        ok = pgp_key_unlock(key, &prov);
     } else {
         ok = pgp_key_unlock(key, &handle->ffi->pass_provider);
     }
@@ -3267,7 +3262,7 @@ rnp_key_protect(rnp_key_handle_t handle,
     rnp_result_t                ret = RNP_ERROR_GENERIC;
     pgp_key_pkt_t *             seckey = NULL;
     pgp_key_pkt_t *             decrypted_seckey = NULL;
-    rnp_key_protection_params_t protection = {0};
+    rnp_key_protection_params_t protection = {};
 
     // checks
     if (!handle || !password) {
@@ -3305,10 +3300,8 @@ rnp_key_protect(rnp_key_handle_t handle,
     }
     seckey = &key->pkt;
     if (pgp_is_key_encrypted(key)) {
-        decrypted_seckey =
-          pgp_decrypt_seckey(key,
-                             &handle->ffi->pass_provider,
-                             &(pgp_password_ctx_t){.op = PGP_OP_PROTECT, .key = key});
+        pgp_password_ctx_t ctx = {.op = PGP_OP_PROTECT, .key = key};
+        decrypted_seckey = pgp_decrypt_seckey(key, &handle->ffi->pass_provider, &ctx);
         if (!decrypted_seckey) {
             goto done;
         }
@@ -3340,10 +3333,9 @@ rnp_key_unprotect(rnp_key_handle_t handle, const char *password)
     }
     bool ok = false;
     if (password) {
-        ok = pgp_key_unprotect(
-          key,
-          &(pgp_password_provider_t){.callback = rnp_password_provider_string,
-                                     .userdata = RNP_UNCONST(password)});
+        pgp_password_provider_t prov = {.callback = rnp_password_provider_string,
+                                        .userdata = RNP_UNCONST(password)};
+        ok = pgp_key_unprotect(key, &prov);
     } else {
         ok = pgp_key_unprotect(key, &handle->ffi->pass_provider);
     }
@@ -3413,7 +3405,7 @@ key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
         *buf_len += pkt->length;
     }
     // allocate our buffer
-    *buf = malloc(*buf_len);
+    *buf = (uint8_t *) malloc(*buf_len);
     if (!*buf) {
         *buf_len = 0;
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -3654,7 +3646,7 @@ add_json_user_prefs(json_object *jso, const pgp_user_prefs_t *prefs)
         json_object_object_add(jso, "ciphers", jsoarr);
         for (unsigned i = 0; i < prefs->symm_algc; i++) {
             const char *         name = "Unknown";
-            const pgp_symm_alg_t alg = prefs->symm_algs[i];
+            const pgp_symm_alg_t alg = (pgp_symm_alg_t) prefs->symm_algs[i];
             ARRAY_LOOKUP_BY_ID(symm_alg_map, type, string, alg, name);
             json_object *jsoname = json_object_new_string(name);
             if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
@@ -3670,7 +3662,7 @@ add_json_user_prefs(json_object *jso, const pgp_user_prefs_t *prefs)
         json_object_object_add(jso, "hashes", jsoarr);
         for (unsigned i = 0; i < prefs->hash_algc; i++) {
             const char *         name = "Unknown";
-            const pgp_hash_alg_t alg = prefs->hash_algs[i];
+            const pgp_hash_alg_t alg = (pgp_hash_alg_t) prefs->hash_algs[i];
             ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, alg, name);
             json_object *jsoname = json_object_new_string(name);
             if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
@@ -3686,7 +3678,8 @@ add_json_user_prefs(json_object *jso, const pgp_user_prefs_t *prefs)
         json_object_object_add(jso, "compression", jsoarr);
         for (unsigned i = 0; i < prefs->compress_algc; i++) {
             const char *                 name = "Unknown";
-            const pgp_compression_type_t alg = prefs->compress_algs[i];
+            const pgp_compression_type_t alg =
+              (pgp_compression_type_t) prefs->compress_algs[i];
             ARRAY_LOOKUP_BY_ID(compress_alg_map, type, string, alg, name);
             json_object *jsoname = json_object_new_string(name);
             if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
@@ -4265,7 +4258,7 @@ rnp_identifier_iterator_create(rnp_ffi_t                  ffi,
         return RNP_ERROR_NULL_POINTER;
     }
     // create iterator
-    obj = calloc(1, sizeof(*obj));
+    obj = (struct rnp_identifier_iterator_st *) calloc(1, sizeof(*obj));
     if (!obj) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }

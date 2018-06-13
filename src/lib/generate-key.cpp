@@ -66,12 +66,11 @@ load_generated_key(pgp_output_t **    output,
                    pgp_key_t *        primary_key,
                    pgp_key_t *        pubkey)
 {
-    bool             ok = false;
-    pgp_io_t         io = pgp_io_from_fp(stderr, stdout, stdout);
-    rnp_key_store_t *key_store = NULL;
-    list             key_ptrs = NULL; /* holds primary and pubkey, when used */
-    pgp_key_provider_t prov;
-    memset(&prov, 0, sizeof(prov));
+    bool               ok = false;
+    pgp_io_t           io = pgp_io_from_fp(stderr, stdout, stdout);
+    rnp_key_store_t *  key_store = NULL;
+    list               key_ptrs = NULL; /* holds primary and pubkey, when used */
+    pgp_key_provider_t prov = {};
 
     // this should generally be zeroed
     assert(pgp_get_key_type(dst) == 0);
@@ -83,7 +82,7 @@ load_generated_key(pgp_output_t **    output,
     assert(format != G10_KEY_STORE || pubkey);
 
     // this would be better on the stack but the key store does not allow it
-    key_store = (rnp_key_store_t*)calloc(1, sizeof(*key_store));
+    key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
     if (!key_store) {
         goto end;
     }
@@ -94,17 +93,12 @@ load_generated_key(pgp_output_t **    output,
     }
 
     prov.callback = rnp_key_provider_key_ptr_list;
-    prov.userdata = key_ptrs;
 
     switch (format) {
     case GPG_KEY_STORE:
     case KBX_KEY_STORE:
-
-        if (!rnp_key_store_pgp_read_from_mem(
-              &io,
-              key_store,
-              *mem,
-              &prov)) {
+        prov.userdata = key_ptrs;
+        if (!rnp_key_store_pgp_read_from_mem(&io, key_store, *mem, &prov)) {
             RNP_LOG("failed to read back generated key");
             goto end;
         }
@@ -114,11 +108,8 @@ load_generated_key(pgp_output_t **    output,
         if (!list_append(&key_ptrs, &pubkey, sizeof(pubkey))) {
             goto end;
         }
-        if (!rnp_key_store_g10_from_mem(
-              &io,
-              key_store,
-              *mem,
-              &prov)) {
+        prov.userdata = key_ptrs;
+        if (!rnp_key_store_g10_from_mem(&io, key_store, *mem, &prov)) {
             goto end;
         }
     } break;
@@ -270,10 +261,11 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
-       if(const ec_curve_desc_t *curve = get_curve_desc(crypto->ecc.curve))
-           return curve->bitlen;
-       else
-           return 0;
+        if (const ec_curve_desc_t *curve = get_curve_desc(crypto->ecc.curve)) {
+            return curve->bitlen;
+        } else {
+            return 0;
+        }
     }
     case PGP_PKA_DSA:
         return crypto->dsa.p_bitlen;
@@ -482,6 +474,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
     const pgp_key_pkt_t *primary_seckey = NULL;
     pgp_key_pkt_t *      decrypted_primary_seckey = NULL;
     pgp_key_pkt_t        seckey = {0};
+    pgp_password_ctx_t   ctx = {};
 
     // validate args
     if (!desc || !primary_sec || !primary_pub || !subkey_sec || !subkey_pub) {
@@ -508,17 +501,11 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         goto end;
     }
 
-    pgp_password_ctx_t ctx;
-    memset(&ctx, 0, sizeof(ctx));
-    ctx.op = PGP_OP_ADD_SUBKEY;
-    ctx.key = primary_sec;
+    ctx = {.op = PGP_OP_ADD_SUBKEY, .key = primary_sec};
 
     // decrypt the primary seckey if needed (for signatures)
     if (pgp_is_key_encrypted(primary_sec)) {
-        decrypted_primary_seckey = pgp_decrypt_seckey(
-          primary_sec,
-          password_provider,
-          &ctx);
+        decrypted_primary_seckey = pgp_decrypt_seckey(primary_sec, password_provider, &ctx);
         if (!decrypted_primary_seckey) {
             goto end;
         }

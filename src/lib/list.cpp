@@ -64,7 +64,7 @@ list_do_insert(list *lst, list_item *where, const void *data, size_t data_size)
     }
     bool allocated_head = false;
     if (!*lst) {
-        *lst = (list_head*)calloc(1, sizeof(**lst));
+        *lst = (list_head *) calloc(1, sizeof(**lst));
         allocated_head = true;
         if (!*lst) {
             return NULL;
@@ -72,7 +72,7 @@ list_do_insert(list *lst, list_item *where, const void *data, size_t data_size)
     }
     list head = *lst;
 
-    list_item *item = (list_item*)malloc(sizeof(*item) + data_size);
+    list_item *item = (list_item *) malloc(sizeof(*item) + data_size);
     if (!item) {
         if (allocated_head) {
             free(*lst);
@@ -154,7 +154,8 @@ list_insert(list *lst, const void *data, size_t data_size)
 }
 
 bool
-list_is_member(list head, list_item *item) {
+list_is_member(list head, list_item *item)
+{
     if (!head || !item) {
         return false;
     }

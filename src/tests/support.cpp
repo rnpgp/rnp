@@ -98,7 +98,7 @@ file_contents(const char *path, ssize_t *size)
     if (fd < 0) {
         return NULL;
     }
-    if ((mem = malloc(st.st_size))) {
+    if ((mem = (uint8_t *) malloc(st.st_size))) {
         *size = read(fd, mem, st.st_size);
     }
     close(fd);
@@ -222,7 +222,7 @@ char *
 make_temp_dir()
 {
     const char *tmplate = "/tmp/rnp-cmocka-XXXXXX";
-    char *buffer = calloc(1, strlen(tmplate) + 1);
+    char *      buffer = (char *) calloc(1, strlen(tmplate) + 1);
     if (buffer == NULL) {
         return NULL;
     }
@@ -240,7 +240,7 @@ directory_from_absolute_file_path(const char *file_path)
 
     size_t file_path_len = (last_sep - file_path);
     size_t dir_len = file_path_len + 1;
-    char * dir = calloc(1, dir_len);
+    char * dir = (char *) calloc(1, dir_len);
     if (!dir) {
         return NULL;
     }
@@ -262,7 +262,7 @@ directory_from_relative_file_path(const char *file_path, const char *reldir)
 
     size_t file_path_len = (last_sep - file_path);
     size_t dir_len = strlen(reldir) + 1 + file_path_len + 1;
-    char * dir = calloc(1, dir_len);
+    char * dir = (char *) calloc(1, dir_len);
     if (!dir) {
         return NULL;
     }
@@ -296,7 +296,7 @@ hex_encode(const uint8_t v[], size_t len)
     char * s;
     size_t i;
 
-    s = malloc(2 * len + 1);
+    s = (char *) malloc(2 * len + 1);
     if (s == NULL)
         return NULL;
 
@@ -324,7 +324,7 @@ bin_eq_hex(uint8_t *data, size_t len, const char *val)
         return false;
     }
 
-    assert_non_null(dec = malloc(len));
+    assert_non_null(dec = (uint8_t *) malloc(len));
     assert_true(rnp_hex_decode(val, dec, len));
     bool res = !memcmp(data, dec, len);
     free(dec);

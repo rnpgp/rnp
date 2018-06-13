@@ -276,8 +276,8 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
     uint8_t         deckey[MAX_SESSION_KEY_SIZE] = {0};
     size_t          deckey_len = sizeof(deckey);
     bignum_t *      x = NULL;
-    size_t offset = 0;
-    size_t kek_len = 0;
+    size_t          offset = 0;
+    size_t          kek_len = 0;
 
     if (!out_len || !in || !key || !mpi_bytes(&key->x)) {
         return RNP_ERROR_BAD_PARAMETERS;

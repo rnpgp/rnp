@@ -310,7 +310,7 @@ init_src_common(pgp_source_t *src, size_t paramsize)
 {
     memset(src, 0, sizeof(*src));
 
-    if ((src->cache = (pgp_source_cache_t*)calloc(1, sizeof(pgp_source_cache_t))) == NULL) {
+    if ((src->cache = (pgp_source_cache_t *) calloc(1, sizeof(pgp_source_cache_t))) == NULL) {
         RNP_LOG("cache allocation failed");
         return false;
     }
@@ -335,7 +335,7 @@ typedef struct pgp_source_file_param_t {
 static ssize_t
 file_src_read(pgp_source_t *src, void *buf, size_t len)
 {
-    pgp_source_file_param_t *param = (pgp_source_file_param_t*)src->param;
+    pgp_source_file_param_t *param = (pgp_source_file_param_t *) src->param;
 
     if (param == NULL) {
         return -1;
@@ -347,7 +347,7 @@ file_src_read(pgp_source_t *src, void *buf, size_t len)
 static void
 file_src_close(pgp_source_t *src)
 {
-    pgp_source_file_param_t *param = (pgp_source_file_param_t*)src->param;
+    pgp_source_file_param_t *param = (pgp_source_file_param_t *) src->param;
     if (param) {
         if (src->type == PGP_STREAM_FILE) {
             close(param->fd);
@@ -384,7 +384,7 @@ init_file_src(pgp_source_t *src, const char *path)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_source_file_param_t*)src->param;
+    param = (pgp_source_file_param_t *) src->param;
     param->fd = fd;
     src->read = file_src_read;
     src->close = file_src_close;
@@ -404,7 +404,7 @@ init_stdin_src(pgp_source_t *src)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_source_file_param_t*)src->param;
+    param = (pgp_source_file_param_t *) src->param;
     param->fd = 0;
     src->read = file_src_read;
     src->close = file_src_close;
@@ -430,7 +430,7 @@ typedef struct pgp_dest_mem_param_t {
 static ssize_t
 mem_src_read(pgp_source_t *src, void *buf, size_t len)
 {
-    pgp_source_mem_param_t *param = (pgp_source_mem_param_t*)src->param;
+    pgp_source_mem_param_t *param = (pgp_source_mem_param_t *) src->param;
 
     if (param == NULL) {
         return -1;
@@ -448,7 +448,7 @@ mem_src_read(pgp_source_t *src, void *buf, size_t len)
 static void
 mem_src_close(pgp_source_t *src)
 {
-    pgp_source_mem_param_t *param = (pgp_source_mem_param_t*)src->param;
+    pgp_source_mem_param_t *param = (pgp_source_mem_param_t *) src->param;
     if (param) {
         if (param->free) {
             free((void *) param->memory);
@@ -468,7 +468,7 @@ init_mem_src(pgp_source_t *src, const void *mem, size_t len, bool free)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_source_mem_param_t*)src->param;
+    param = (pgp_source_mem_param_t *) src->param;
     param->memory = mem;
     param->len = len;
     param->pos = 0;
@@ -534,7 +534,7 @@ mem_src_get_memory(pgp_source_t *src)
         return NULL;
     }
 
-    param = (pgp_source_mem_param_t*)src->param;
+    param = (pgp_source_mem_param_t *) src->param;
     return param->memory;
 }
 
@@ -651,7 +651,7 @@ static rnp_result_t
 file_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     ssize_t                ret;
-    pgp_dest_file_param_t *param = (pgp_dest_file_param_t*)dst->param;
+    pgp_dest_file_param_t *param = (pgp_dest_file_param_t *) dst->param;
 
     if (!param) {
         RNP_LOG("wrong param");
@@ -673,7 +673,7 @@ file_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 static void
 file_dst_close(pgp_dest_t *dst, bool discard)
 {
-    pgp_dest_file_param_t *param = (pgp_dest_file_param_t*)dst->param;
+    pgp_dest_file_param_t *param = (pgp_dest_file_param_t *) dst->param;
 
     if (!param) {
         return;
@@ -724,7 +724,7 @@ init_file_dest(pgp_dest_t *dst, const char *path, bool overwrite)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_dest_file_param_t*)dst->param;
+    param = (pgp_dest_file_param_t *) dst->param;
     param->fd = fd;
     strcpy(param->path, path);
     dst->write = file_dst_write;
@@ -743,7 +743,7 @@ init_stdout_dest(pgp_dest_t *dst)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_dest_file_param_t*)dst->param;
+    param = (pgp_dest_file_param_t *) dst->param;
     param->fd = STDOUT_FILENO;
     dst->write = file_dst_write;
     dst->close = file_dst_close;
@@ -757,7 +757,7 @@ mem_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     size_t                alloc;
     void *                newalloc;
-    pgp_dest_mem_param_t *param = (pgp_dest_mem_param_t*)dst->param;
+    pgp_dest_mem_param_t *param = (pgp_dest_mem_param_t *) dst->param;
 
     if (!param) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -792,7 +792,7 @@ mem_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 static void
 mem_dst_close(pgp_dest_t *dst, bool discard)
 {
-    pgp_dest_mem_param_t *param = (pgp_dest_mem_param_t*)dst->param;
+    pgp_dest_mem_param_t *param = (pgp_dest_mem_param_t *) dst->param;
 
     if (param) {
         if (param->free) {
@@ -812,7 +812,7 @@ init_mem_dest(pgp_dest_t *dst, void *mem, unsigned len)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_dest_mem_param_t*)dst->param;
+    param = (pgp_dest_mem_param_t *) dst->param;
 
     param->maxalloc = len;
     param->allocated = mem ? len : 0;
@@ -836,7 +836,7 @@ mem_dest_get_memory(pgp_dest_t *dst)
         return NULL;
     }
 
-    pgp_dest_mem_param_t *param = (pgp_dest_mem_param_t*)dst->param;
+    pgp_dest_mem_param_t *param = (pgp_dest_mem_param_t *) dst->param;
 
     if (param) {
         return param->memory;
@@ -853,7 +853,7 @@ mem_dest_own_memory(pgp_dest_t *dst)
         return NULL;
     }
 
-    pgp_dest_mem_param_t *param = (pgp_dest_mem_param_t*)dst->param;
+    pgp_dest_mem_param_t *param = (pgp_dest_mem_param_t *) dst->param;
 
     if (!param) {
         RNP_LOG("null param");

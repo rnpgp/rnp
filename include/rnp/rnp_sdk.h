@@ -72,14 +72,14 @@ bool rnp_file_exists(const char *path);
 /** @brief strip extension from the path
  *  @param path NULL-terminated file path
  *  @return true if extension was located (via .) and stripped out, or false otherwise
-*/
+ */
 bool rnp_path_strip_ext(char *path);
 
 /** @brief check whether given path has given extension
  *  @param path NULL-terminated file path
  *  @param ext NULL-terminated extension, with or without the leading dot
  *  @return true if path has given extension or false otherwise
-*/
+ */
 bool rnp_path_has_ext(const char *path, const char *ext);
 
 /** @brief append given extension to the path
@@ -87,7 +87,7 @@ bool rnp_path_has_ext(const char *path, const char *ext);
  *  @param len maximum number of bytes which may be stored in path
  *  @param ext NULL-terminated extension, with or without the leading dot
  *  @return true if extension was added successfully or false if there is no room in path
-*/
+ */
 bool rnp_path_add_ext(char *path, size_t len, const char *ext);
 
 bool rnp_hex_encode(
@@ -103,7 +103,6 @@ char *rnp_strlwr(char *s);
 char *rnp_strip_eol(char *s);
 
 char *userid_to_id(const uint8_t *userid, char *id);
-
 }
 
 #endif

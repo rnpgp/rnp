@@ -97,9 +97,9 @@ dsa_sign(rng_t *              rng,
     uint8_t            sign_buf[2 * BITS_TO_BYTES(DSA_MAX_Q_BITLEN)] = {0};
     bignum_t *         p = NULL, *q = NULL, *g = NULL, *x = NULL;
     rnp_result_t       ret = RNP_ERROR_SIGNING_FAILED;
-    size_t sigbuf_size = sizeof(sign_buf);
+    size_t             sigbuf_size = sizeof(sign_buf);
 
-    size_t z_len       = 0;
+    size_t z_len = 0;
 
     memset(sig, 0, sizeof(*sig));
     q_order = mpi_bytes(&key->q);

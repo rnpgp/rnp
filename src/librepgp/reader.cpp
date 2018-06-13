@@ -136,7 +136,7 @@ mem_reader(pgp_stream_t *stream,
            pgp_reader_t *readinfo,
            pgp_cbdata_t *cbinfo)
 {
-    reader_mem_t *reader = (reader_mem_t*)pgp_reader_get_arg(readinfo);
+    reader_mem_t *reader = (reader_mem_t *) pgp_reader_get_arg(readinfo);
     unsigned      n;
 
     RNP_USED(cbinfo);
@@ -170,11 +170,11 @@ pgp_reader_set_memory(pgp_stream_t *stream, const void *buffer, size_t length)
 {
     reader_mem_t *mem;
 
-    if ((mem = (reader_mem_t*)calloc(1, sizeof(*mem))) == NULL) {
+    if ((mem = (reader_mem_t *) calloc(1, sizeof(*mem))) == NULL) {
         (void) fprintf(stderr, "pgp_reader_set_memory: bad alloc\n");
         return false;
     } else {
-        mem->buffer = (uint8_t*)buffer;
+        mem->buffer = (uint8_t *) buffer;
         mem->length = length;
         mem->offset = 0;
         pgp_reader_set(stream, mem_reader, mem_destroyer, mem);
@@ -192,7 +192,7 @@ pgp_setup_memory_read(pgp_io_t *     io,
                       pgp_cb_ret_t   callback(const pgp_packet_t *, pgp_cbdata_t *),
                       unsigned       accumulate)
 {
-    *stream = (pgp_stream_t*)pgp_new(sizeof(**stream));
+    *stream = (pgp_stream_t *) pgp_new(sizeof(**stream));
     if (*stream == NULL) {
         return false;
     }

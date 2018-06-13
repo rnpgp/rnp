@@ -37,8 +37,8 @@
 #include <stdlib.h>
 
 enum { RNG_DRBG, RNG_SYSTEM };
-typedef uint8_t rng_type_t;
-typedef struct botan_rng_struct* botan_rng_t;
+typedef uint8_t                  rng_type_t;
+typedef struct botan_rng_struct *botan_rng_t;
 
 typedef struct rng_st_t {
     bool        initialized;

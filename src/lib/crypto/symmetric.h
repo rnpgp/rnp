@@ -76,24 +76,24 @@
 #define PGP_AEAD_MAX_AD_LEN 32
 
 struct pgp_crypt_cfb_param_t {
-   struct botan_block_cipher_struct *obj;
-   size_t                            remaining;
-   uint8_t                           iv[PGP_MAX_BLOCK_SIZE];
-   };
+    struct botan_block_cipher_struct *obj;
+    size_t                            remaining;
+    uint8_t                           iv[PGP_MAX_BLOCK_SIZE];
+};
 
 struct pgp_crypt_aead_param_t {
-   struct botan_cipher_struct *obj;
-   pgp_aead_alg_t              alg;
-   bool                        decrypt;
-   size_t                      granularity;
-   size_t                      taglen;
-   };
+    struct botan_cipher_struct *obj;
+    pgp_aead_alg_t              alg;
+    bool                        decrypt;
+    size_t                      granularity;
+    size_t                      taglen;
+};
 
 /** pgp_crypt_t */
 typedef struct pgp_crypt_t {
     union {
-       struct pgp_crypt_cfb_param_t cfb;
-       struct pgp_crypt_aead_param_t aead;
+        struct pgp_crypt_cfb_param_t  cfb;
+        struct pgp_crypt_aead_param_t aead;
     };
 
     pgp_symm_alg_t alg;

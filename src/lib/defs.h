@@ -46,30 +46,30 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NEWARRAY(type, ptr, size, where, action)                       \
-    do {                                                               \
-       if ((ptr = (type*)calloc(sizeof(type), (unsigned) (size))) == NULL) { \
-            (void) fprintf(stderr,                                     \
-                           "%s: can't allocate %lu bytes\n",           \
-                           where,                                      \
-                           (unsigned long) (size * sizeof(type)));     \
-            action;                                                    \
-        }                                                              \
+#define NEWARRAY(type, ptr, size, where, action)                                \
+    do {                                                                        \
+        if ((ptr = (type *) calloc(sizeof(type), (unsigned) (size))) == NULL) { \
+            (void) fprintf(stderr,                                              \
+                           "%s: can't allocate %lu bytes\n",                    \
+                           where,                                               \
+                           (unsigned long) (size * sizeof(type)));              \
+            action;                                                             \
+        }                                                                       \
     } while (/* CONSTCOND */ 0)
 
-#define RENEW(type, ptr, size, where, action)                      \
-    do {                                                           \
-        type *_newptr;                                             \
-        _newptr = (type*)realloc(ptr, (size_t)(sizeof(type) * (size))); \
-        if (_newptr == NULL) {                                     \
-            (void) fprintf(stderr,                                 \
-                           "%s: can't realloc %lu bytes\n",        \
-                           where,                                  \
-                           (unsigned long) (size * sizeof(type))); \
-            action;                                                \
-        } else {                                                   \
-            ptr = _newptr;                                         \
-        }                                                          \
+#define RENEW(type, ptr, size, where, action)                             \
+    do {                                                                  \
+        type *_newptr;                                                    \
+        _newptr = (type *) realloc(ptr, (size_t)(sizeof(type) * (size))); \
+        if (_newptr == NULL) {                                            \
+            (void) fprintf(stderr,                                        \
+                           "%s: can't realloc %lu bytes\n",               \
+                           where,                                         \
+                           (unsigned long) (size * sizeof(type)));        \
+            action;                                                       \
+        } else {                                                          \
+            ptr = _newptr;                                                \
+        }                                                                 \
     } while (/* CONSTCOND */ 0)
 
 #define NEW(type, ptr, where, action) NEWARRAY(type, ptr, 1, where, action)
@@ -116,24 +116,24 @@
     unsigned arr##vsize;    \
     type *   arr##s
 
-#define EXPAND_ARRAY(str, arr)                                                        \
-    do {                                                                              \
-        if (str->arr##c == str->arr##vsize) {                                         \
-            void *   __newarr;                                                        \
-            char *   __newarrc;                                                       \
-            unsigned __newsize;                                                       \
-            __newsize = (str->arr##vsize * 2) + 10;                                   \
-            if ((__newarr = __newarrc =                                               \
-                 (char*)realloc(str->arr##s, __newsize * sizeof(*str->arr##s))) == NULL) { \
-                (void) fprintf(stderr, "EXPAND_ARRAY - bad realloc\n");               \
-            } else {                                                                  \
-                (void) memset(&__newarrc[str->arr##vsize * sizeof(*str->arr##s)],     \
-                              0x0,                                                    \
-                              (__newsize - str->arr##vsize) * sizeof(*str->arr##s));  \
-                str->arr##s = static_cast<decltype(str->arr##s)>(__newarr); \
-                str->arr##vsize = __newsize;                                          \
-            }                                                                         \
-        }                                                                             \
+#define EXPAND_ARRAY(str, arr)                                                       \
+    do {                                                                             \
+        if (str->arr##c == str->arr##vsize) {                                        \
+            void *   __newarr;                                                       \
+            char *   __newarrc;                                                      \
+            unsigned __newsize;                                                      \
+            __newsize = (str->arr##vsize * 2) + 10;                                  \
+            if ((__newarr = __newarrc = (char *) realloc(                            \
+                   str->arr##s, __newsize * sizeof(*str->arr##s))) == NULL) {        \
+                (void) fprintf(stderr, "EXPAND_ARRAY - bad realloc\n");              \
+            } else {                                                                 \
+                (void) memset(&__newarrc[str->arr##vsize * sizeof(*str->arr##s)],    \
+                              0x0,                                                   \
+                              (__newsize - str->arr##vsize) * sizeof(*str->arr##s)); \
+                str->arr##s = static_cast<decltype(str->arr##s)>(__newarr);          \
+                str->arr##vsize = __newsize;                                         \
+            }                                                                        \
+        }                                                                            \
     } while (/*CONSTCOND*/ 0)
 
 #define EXPAND_ARRAY_EX(str, arr, num)                                                \

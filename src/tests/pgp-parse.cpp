@@ -57,7 +57,7 @@ set_io(pgp_io_t *io)
 static pgp_cb_ret_t
 tag_collector(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
-    list *taglist = pgp_callback_arg(cbinfo);
+    list *taglist = (list *) pgp_callback_arg(cbinfo);
     list_append(taglist, &pkt->tag, sizeof(pkt->tag));
     return PGP_RELEASE_MEMORY;
 }
@@ -65,7 +65,7 @@ tag_collector(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 void
 pgp_parse_keyrings_1_pubring(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     char              path[PATH_MAX];
     pgp_stream_t *    stream;
     list              taglist;
@@ -145,17 +145,15 @@ end:
 void
 test_repgp_decrypt(void **state)
 {
-    rnp_t     rnp = {0};
-    rnp_ctx_t ctx = {0};
-
-    rnp_test_state_t *rstate = *state;
-
-    uint8_t out_buf[1024] = {0};
-    char    input_file[1024] = {0};
-    size_t  out_buf_size = sizeof(out_buf);
-    uint8_t in_buf[1024] = {0};
-    size_t  in_buf_size = sizeof(in_buf);
-    char    plaintext[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890\n";
+    rnp_t             rnp = {0};
+    rnp_ctx_t         ctx = {0};
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
+    uint8_t           out_buf[1024] = {0};
+    char              input_file[1024] = {0};
+    size_t            out_buf_size = sizeof(out_buf);
+    uint8_t           in_buf[1024] = {0};
+    size_t            in_buf_size = sizeof(in_buf);
+    char              plaintext[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890\n";
 
     /*  Setup keystore. This text was encrypted with keys stored in keyrings/1/.. */
     setup_keystore_1(rstate, &rnp);
@@ -191,7 +189,7 @@ test_repgp_decrypt(void **state)
        - Create temporary directory with file called "o" in it
        - Try to decrypt to "o" */
     char *tmpdir = make_temp_dir();
-    char *tmp_filename = malloc(strlen(tmpdir) + 3);
+    char *tmp_filename = (char *) malloc(strlen(tmpdir) + 3);
     memcpy(tmp_filename, tmpdir, strlen(tmpdir));
     memcpy(tmp_filename + strlen(tmpdir), "/o", 3);
 
@@ -222,10 +220,9 @@ test_repgp_decrypt(void **state)
 void
 test_repgp_verify(void **state)
 {
-    rnp_t     rnp = {0};
-    rnp_ctx_t ctx = {0};
-
-    rnp_test_state_t *rstate = *state;
+    rnp_t             rnp = {0};
+    rnp_ctx_t         ctx = {0};
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     char              input_file[1024] = {0};
     uint8_t           input_buf[1024] = {0};
 

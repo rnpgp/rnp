@@ -37,7 +37,7 @@
 void
 test_key_add_userid(void **state)
 {
-    rnp_test_state_t * rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t * rstate = (rnp_test_state_t *) *state;
     char               path[PATH_MAX];
     pgp_io_t           io = pgp_io_from_fp(stderr, stdout, stdout);
     pgp_key_t *        key = NULL;
@@ -49,7 +49,7 @@ test_key_add_userid(void **state)
                                    "54505a936a4a970e",
                                    "326ef111425d14a5"};
 
-    rnp_key_store_t *ks = calloc(1, sizeof(*ks));
+    rnp_key_store_t *ks = (rnp_key_store_t *) calloc(1, sizeof(*ks));
     assert_non_null(ks);
 
     pgp_memory_t mem = {0};
@@ -63,10 +63,9 @@ test_key_add_userid(void **state)
     assert_non_null(key);
 
     // unlock the key
-    assert_true(
-      pgp_key_unlock(key,
-                     &(pgp_password_provider_t){.callback = string_copy_password_callback,
-                                                .userdata = "password"}));
+    pgp_password_provider_t pprov = {.callback = string_copy_password_callback,
+                                     .userdata = (void *) "password"};
+    assert_true(pgp_key_unlock(key, &pprov));
 
     // save the counts for a few items
     unsigned uidc = key->uidc;
@@ -76,15 +75,11 @@ test_key_add_userid(void **state)
 
     rnp_selfsig_cert_info selfsig;
     memset(&selfsig, 0, sizeof(selfsig));
-    strcpy(selfsig.userid, "added1");
+    strcpy((char *) selfsig.userid, "added1");
     selfsig.key_flags = 0xAB;
     selfsig.key_expiration = 123456789;
     selfsig.primary = 1;
-    assert_true(pgp_key_add_userid(
-      key,
-      pgp_get_key_pkt(key),
-      PGP_HASH_SHA1,
-      &selfsig));
+    assert_true(pgp_key_add_userid(key, pgp_get_key_pkt(key), PGP_HASH_SHA1, &selfsig));
 
     // make sure this userid has been marked as primary
     assert_int_equal(key->uidc - 1, key->uid0);
@@ -92,31 +87,22 @@ test_key_add_userid(void **state)
     // try to add the same userid (should fail)
     rnp_selfsig_cert_info dup_selfsig;
     memset(&dup_selfsig, 0, sizeof(dup_selfsig));
-    strcpy(dup_selfsig.userid, "added1");
-    assert_false(pgp_key_add_userid(
-                    key, pgp_get_key_pkt(key), PGP_HASH_SHA1, &dup_selfsig));
+    strcpy((char *) dup_selfsig.userid, "added1");
+    assert_false(pgp_key_add_userid(key, pgp_get_key_pkt(key), PGP_HASH_SHA1, &dup_selfsig));
 
     // try to add another primary userid (should fail)
     rnp_selfsig_cert_info selfsig2;
     memset(&selfsig2, 0, sizeof(selfsig2));
-    strcpy(selfsig2.userid, "added2");
+    strcpy((char *) selfsig2.userid, "added2");
     selfsig2.primary = 1;
-    assert_false(
-      pgp_key_add_userid(key,
-                         pgp_get_key_pkt(key),
-                         PGP_HASH_SHA1,
-                         &selfsig2));
+    assert_false(pgp_key_add_userid(key, pgp_get_key_pkt(key), PGP_HASH_SHA1, &selfsig2));
 
-    strcpy(selfsig2.userid, "added2");
+    strcpy((char *) selfsig2.userid, "added2");
     selfsig2.key_flags = 0xCD;
     selfsig2.primary = 0;
 
     // actually add another userid
-    assert_true(
-      pgp_key_add_userid(key,
-                         pgp_get_key_pkt(key),
-                         PGP_HASH_SHA1,
-                         &selfsig2));
+    assert_true(pgp_key_add_userid(key, pgp_get_key_pkt(key), PGP_HASH_SHA1, &selfsig2));
 
     // confirm that the counts have increased as expected
     assert_int_equal(key->uidc, uidc + 2);
@@ -143,7 +129,7 @@ test_key_add_userid(void **state)
     key = NULL;
 
     // start over
-    ks = calloc(1, sizeof(*ks));
+    ks = (rnp_key_store_t *) calloc(1, sizeof(*ks));
     assert_non_null(ks);
     // read from the saved packets
     assert_true(rnp_key_store_pgp_read_from_mem(&io, ks, &mem, NULL));

@@ -84,14 +84,15 @@ typedef struct pgp_io_t {
     FILE *res;  /* file stream to put results */
 } pgp_io_t;
 
-inline pgp_io_t pgp_io_from_fp(FILE *outs, FILE *errs, FILE *res)
-   {
-   pgp_io_t io;
-   io.outs = outs;
-   io.errs = errs;
-   io.res = res;
-   return io;
-   }
+inline pgp_io_t
+pgp_io_from_fp(FILE *outs, FILE *errs, FILE *res)
+{
+    pgp_io_t io;
+    io.outs = outs;
+    io.errs = errs;
+    io.res = res;
+    return io;
+}
 
 /** pgp_map_t
  */
@@ -270,7 +271,7 @@ typedef struct pgp_sig_subpkt_t {
                      /* 5.2.3.8.  Preferred Hash Algorithms */
                      /* 5.2.3.9.  Preferred Compression Algorithms */
         struct {
-            uint8_t klass;
+            uint8_t          klass;
             pgp_pubkey_alg_t pkalg;
             uint8_t *        fp;
         } revocation_key; /* 5.2.3.15.  Revocation Key */
@@ -454,21 +455,21 @@ typedef struct pgp_subsig_t {
 } pgp_subsig_t;
 
 struct rnp_keygen_ecc_params_t {
-   pgp_curve_t curve;
-   };
+    pgp_curve_t curve;
+};
 
 struct rnp_keygen_rsa_params_t {
-   uint32_t modulus_bit_len;
-   };
+    uint32_t modulus_bit_len;
+};
 
 struct rnp_keygen_dsa_params_t {
-   size_t p_bitlen;
-   size_t q_bitlen;
-   };
+    size_t p_bitlen;
+    size_t q_bitlen;
+};
 
 struct rnp_keygen_elgamal_params_t {
-   size_t key_bitlen;
-   };
+    size_t key_bitlen;
+};
 
 /* structure used to hold context of key generation */
 typedef struct rnp_keygen_crypto_params_t {
@@ -479,10 +480,10 @@ typedef struct rnp_keygen_crypto_params_t {
     // Pointer to initialized RNG engine
     rng_t *rng;
     union {
-       struct rnp_keygen_ecc_params_t ecc;
-       struct rnp_keygen_rsa_params_t rsa;
-       struct rnp_keygen_dsa_params_t dsa;
-       struct rnp_keygen_elgamal_params_t elgamal;
+        struct rnp_keygen_ecc_params_t     ecc;
+        struct rnp_keygen_rsa_params_t     rsa;
+        struct rnp_keygen_dsa_params_t     dsa;
+        struct rnp_keygen_elgamal_params_t elgamal;
     };
 } rnp_keygen_crypto_params_t;
 

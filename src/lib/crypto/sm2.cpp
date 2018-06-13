@@ -48,7 +48,7 @@ sm2_sign(rng_t *             rng,
         return RNP_ERROR_GENERIC;
     }
     const size_t sign_half_len = BITS_TO_BYTES(curve->bitlen);
-    size_t sig_len = 2 * sign_half_len;
+    size_t       sig_len = 2 * sign_half_len;
 
     x = mpi2bn(&key->x);
     if (botan_privkey_load_sm2(&b_key, BN_HANDLE_PTR(x), curve->botan_name)) {
@@ -170,8 +170,8 @@ sm2_encrypt(rng_t *              rng,
     const size_t point_len = BITS_TO_BYTES(curve->bitlen);
     uint8_t      point_bytes[BITS_TO_BYTES(521) * 2 + 1] = {0};
     size_t       hash_alg_len;
-    size_t ctext_len;
-    const char* curve_name = NULL;
+    size_t       ctext_len;
+    const char * curve_name = NULL;
 
     if (curve == NULL) {
         return RNP_ERROR_GENERIC;
@@ -251,8 +251,8 @@ sm2_decrypt(uint8_t *                  out,
     botan_mp_t             x = NULL;
     size_t                 in_len;
     rnp_result_t           ret = RNP_ERROR_GENERIC;
-    uint8_t hash_id;
-    const char* hash_name = NULL;
+    uint8_t                hash_id;
+    const char *           hash_name = NULL;
 
     in_len = mpi_bytes(&in->m);
     if (curve == NULL || in_len < 64) {
@@ -269,7 +269,7 @@ sm2_decrypt(uint8_t *                  out,
     }
 
     hash_id = in->m.mpi[in_len - 1];
-    hash_name = pgp_hash_name_botan((pgp_hash_alg_t)hash_id);
+    hash_name = pgp_hash_name_botan((pgp_hash_alg_t) hash_id);
     if (!hash_name) {
         RNP_LOG("Unknown hash used in SM2 ciphertext");
         goto done;

@@ -119,7 +119,7 @@ typedef struct pgp_dest_partial_param_t {
 static rnp_result_t
 partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    pgp_dest_partial_param_t *param = (pgp_dest_partial_param_t*)dst->param;
+    pgp_dest_partial_param_t *param = (pgp_dest_partial_param_t *) dst->param;
     int                       wrlen;
 
     if (!param) {
@@ -159,7 +159,7 @@ partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 static rnp_result_t
 partial_dst_finish(pgp_dest_t *dst)
 {
-    pgp_dest_partial_param_t *param = (pgp_dest_partial_param_t*)dst->param;
+    pgp_dest_partial_param_t *param = (pgp_dest_partial_param_t *) dst->param;
     uint8_t                   hdr[5];
     int                       lenlen;
 
@@ -173,7 +173,7 @@ partial_dst_finish(pgp_dest_t *dst)
 static void
 partial_dst_close(pgp_dest_t *dst, bool discard)
 {
-    pgp_dest_partial_param_t *param = (pgp_dest_partial_param_t*)dst->param;
+    pgp_dest_partial_param_t *param = (pgp_dest_partial_param_t *) dst->param;
 
     if (!param) {
         return;
@@ -192,7 +192,7 @@ init_partial_pkt_dst(pgp_dest_t *dst, pgp_dest_t *writedst)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_dest_partial_param_t*)dst->param;
+    param = (pgp_dest_partial_param_t *) dst->param;
     param->writedst = writedst;
     param->partlen = PGP_PARTIAL_PKT_BLOCK_SIZE;
     param->parthdr = 0xE0 | PGP_PARTIAL_PKT_SIZE_BITS;
@@ -217,7 +217,7 @@ init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
         param->hdr[0] = param->tag | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
         dst_write(dst, &param->hdr, 1);
 
-        if ((param->writedst = (pgp_dest_t*)calloc(1, sizeof(*param->writedst))) == NULL) {
+        if ((param->writedst = (pgp_dest_t *) calloc(1, sizeof(*param->writedst))) == NULL) {
             RNP_LOG("part len dest allocation failed");
             return false;
         }
@@ -254,8 +254,8 @@ init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
 static rnp_result_t
 finish_streamed_packet(pgp_dest_packet_param_t *param)
 {
-    if(param->partial)
-        return  dst_finish(param->writedst);
+    if (param->partial)
+        return dst_finish(param->writedst);
     return RNP_SUCCESS;
 }
 
@@ -272,7 +272,7 @@ close_streamed_packet(pgp_dest_packet_param_t *param, bool discard)
 static rnp_result_t
 encrypted_dst_write_cfb(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t*)dst->param;
+    pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t *) dst->param;
     size_t                      sz;
 
     if (!param) {
@@ -286,7 +286,7 @@ encrypted_dst_write_cfb(pgp_dest_t *dst, const void *buf, size_t len)
 
     while (len > 0) {
         sz = len > sizeof(param->cache) ? sizeof(param->cache) : len;
-        pgp_cipher_cfb_encrypt(&param->encrypt, param->cache, (const uint8_t*)buf, sz);
+        pgp_cipher_cfb_encrypt(&param->encrypt, param->cache, (const uint8_t *) buf, sz);
         dst_write(param->pkt.writedst, param->cache, sz);
         len -= sz;
         buf = (uint8_t *) buf + sz;
@@ -367,11 +367,11 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
 static rnp_result_t
 encrypted_dst_write_aead(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t*)dst->param;
+    pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t *) dst->param;
 
-    size_t                      sz;
-    size_t                      gran;
-    rnp_result_t                res;
+    size_t       sz;
+    size_t       gran;
+    rnp_result_t res;
 
     if (!param) {
         RNP_LOG("wrong param");
@@ -425,7 +425,7 @@ static rnp_result_t
 encrypted_dst_finish(pgp_dest_t *dst)
 {
     uint8_t                     mdcbuf[MDC_V1_SIZE];
-    pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t*)dst->param;
+    pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t *) dst->param;
     rnp_result_t                res;
 
     if (param->aead) {
@@ -456,7 +456,7 @@ encrypted_dst_finish(pgp_dest_t *dst)
 static void
 encrypted_dst_close(pgp_dest_t *dst, bool discard)
 {
-    pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t*)dst->param;
+    pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t *) dst->param;
 
     if (!param) {
         return;
@@ -484,7 +484,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     uint8_t                     enckey[PGP_MAX_KEY_SIZE + 3];
     unsigned                    checksum = 0;
     pgp_pk_sesskey_t            pkey = {0};
-    pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t*)dst->param;
+    pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t *) dst->param;
     rnp_result_t                ret = RNP_ERROR_GENERIC;
 
     /* Use primary key if good for encryption, otherwise look in subkey list */
@@ -823,7 +823,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_dest_encrypted_param_t*)dst->param;
+    param = (pgp_dest_encrypted_param_t *) dst->param;
     param->has_mdc = true;
     param->aead = handler->ctx->aalg != PGP_AEAD_NONE;
     param->aalg = handler->ctx->aalg;
@@ -914,7 +914,7 @@ finish:
 static rnp_result_t
 signed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t*)dst->param;
+    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
     dst_write(param->writedst, buf, len);
     return RNP_SUCCESS;
 }
@@ -988,11 +988,11 @@ cleartext_dst_scanline(const uint8_t *buf, size_t len, bool *eol)
 static rnp_result_t
 cleartext_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    const uint8_t *          linebg = (const uint8_t*)buf;
+    const uint8_t *          linebg = (const uint8_t *) buf;
     size_t                   linelen;
     size_t                   cplen;
     bool                     eol;
-    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t*)dst->param;
+    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
 
     if (param->clr_buflen > 0) {
         /* number of edge cases may happen here */
@@ -1105,10 +1105,10 @@ signed_write_signature(pgp_dest_signed_param_t *param,
                        pgp_key_t *              seckey,
                        pgp_dest_t *             writedst)
 {
-    pgp_signature_t sig = {(pgp_version_t)0};
+    pgp_signature_t sig = {(pgp_version_t) 0};
     rnp_result_t    ret;
 
-    sig.version = (pgp_version_t)4;
+    sig.version = (pgp_version_t) 4;
     if (onepass) {
         sig.halg = onepass->halg;
         sig.palg = onepass->palg;
@@ -1131,7 +1131,7 @@ static rnp_result_t
 signed_dst_finish(pgp_dest_t *dst)
 {
     rnp_result_t             ret;
-    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t*)dst->param;
+    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
     list_item *              op = list_front(param->onepasses);
     list_item *              key = list_front(param->keys);
 
@@ -1152,7 +1152,7 @@ static rnp_result_t
 signed_detached_dst_finish(pgp_dest_t *dst)
 {
     rnp_result_t             ret;
-    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t*)dst->param;
+    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
 
     /* just calculating and writing signatures to the output */
     for (list_item *key = list_front(param->keys); key; key = list_next(key)) {
@@ -1171,7 +1171,7 @@ cleartext_dst_finish(pgp_dest_t *dst)
 {
     pgp_dest_t               armordst = {0};
     rnp_result_t             ret;
-    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t*)dst->param;
+    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
 
     /* writing cached line if any */
     if (param->clr_buflen > 0) {
@@ -1204,7 +1204,7 @@ cleartext_dst_finish(pgp_dest_t *dst)
 static void
 signed_dst_close(pgp_dest_t *dst, bool discard)
 {
-    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t*)dst->param;
+    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
 
     if (!param) {
         return;
@@ -1221,7 +1221,7 @@ signed_dst_close(pgp_dest_t *dst, bool discard)
 static void
 signed_dst_update(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t*)dst->param;
+    pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
     pgp_hash_list_update(param->hashes, buf, len);
 }
 
@@ -1288,7 +1288,7 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_dest_signed_param_t*)dst->param;
+    param = (pgp_dest_signed_param_t *) dst->param;
     param->writedst = writedst;
     param->ctx = handler->ctx;
     param->password_provider = handler->password_provider;
@@ -1349,7 +1349,7 @@ finish:
 static rnp_result_t
 compressed_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    pgp_dest_compressed_param_t *param = (pgp_dest_compressed_param_t*)dst->param;
+    pgp_dest_compressed_param_t *param = (pgp_dest_compressed_param_t *) dst->param;
     int                          zret;
 
     if (!param) {
@@ -1420,7 +1420,7 @@ static rnp_result_t
 compressed_dst_finish(pgp_dest_t *dst)
 {
     int                          zret;
-    pgp_dest_compressed_param_t *param = (pgp_dest_compressed_param_t*)dst->param;
+    pgp_dest_compressed_param_t *param = (pgp_dest_compressed_param_t *) dst->param;
 
     if ((param->alg == PGP_C_ZIP) || (param->alg == PGP_C_ZLIB)) {
         param->z.next_in = Z_NULL;
@@ -1483,7 +1483,7 @@ compressed_dst_finish(pgp_dest_t *dst)
 static void
 compressed_dst_close(pgp_dest_t *dst, bool discard)
 {
-    pgp_dest_compressed_param_t *param = (pgp_dest_compressed_param_t*)dst->param;
+    pgp_dest_compressed_param_t *param = (pgp_dest_compressed_param_t *) dst->param;
 
     if (!param) {
         return;
@@ -1516,12 +1516,12 @@ init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *w
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_dest_compressed_param_t*)dst->param;
+    param = (pgp_dest_compressed_param_t *) dst->param;
     dst->write = compressed_dst_write;
     dst->finish = compressed_dst_finish;
     dst->close = compressed_dst_close;
     dst->type = PGP_STREAM_COMPRESSED;
-    param->alg = (pgp_compression_type_t)handler->ctx->zalg;
+    param->alg = (pgp_compression_type_t) handler->ctx->zalg;
     param->pkt.partial = true;
     param->pkt.indeterminate = false;
     param->pkt.tag = PGP_PTAG_CT_COMPRESSED;
@@ -1584,7 +1584,7 @@ finish:
 static rnp_result_t
 literal_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    pgp_dest_packet_param_t *param = (pgp_dest_packet_param_t*)dst->param;
+    pgp_dest_packet_param_t *param = (pgp_dest_packet_param_t *) dst->param;
 
     if (!param) {
         RNP_LOG("wrong param");
@@ -1598,13 +1598,13 @@ literal_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 static rnp_result_t
 literal_dst_finish(pgp_dest_t *dst)
 {
-    return finish_streamed_packet((pgp_dest_packet_param_t*)dst->param);
+    return finish_streamed_packet((pgp_dest_packet_param_t *) dst->param);
 }
 
 static void
 literal_dst_close(pgp_dest_t *dst, bool discard)
 {
-    pgp_dest_packet_param_t *param = (pgp_dest_packet_param_t*)dst->param;
+    pgp_dest_packet_param_t *param = (pgp_dest_packet_param_t *) dst->param;
 
     if (!param) {
         return;
@@ -1627,7 +1627,7 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_dest_packet_param_t*)dst->param;
+    param = (pgp_dest_packet_param_t *) dst->param;
     dst->write = literal_dst_write;
     dst->finish = literal_dst_finish;
     dst->close = literal_dst_close;
@@ -1680,7 +1680,7 @@ process_stream_sequence(pgp_source_t *src, pgp_dest_t *streams, unsigned count)
     pgp_dest_t * wstream = NULL; /* stream to dst_write() source data, may be empty */
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
-    if (!(readbuf = (uint8_t*)calloc(1, PGP_INPUT_CACHE_SIZE))) {
+    if (!(readbuf = (uint8_t *) calloc(1, PGP_INPUT_CACHE_SIZE))) {
         RNP_LOG("allocation failure");
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto finish;

@@ -144,7 +144,7 @@ pobj(FILE *fp, json_object *obj, int depth)
     case json_type_string:
         fprintf(fp, "%s", json_object_get_string(obj));
         break;
-    case json_type_array:;
+    case json_type_array: {
         int arrsize = json_object_array_length(obj);
         int i;
         for (i = 0; i < arrsize; i++) {
@@ -156,7 +156,8 @@ pobj(FILE *fp, json_object *obj, int depth)
         }
         (void) fprintf(fp, "\n");
         break;
-    case json_type_object:;
+    }
+    case json_type_object: {
         json_object_object_foreach(obj, key, val)
         {
             printf("key: \"%s\"\n", key);
@@ -164,6 +165,7 @@ pobj(FILE *fp, json_object *obj, int depth)
         }
         p(fp, "\n", NULL);
         break;
+    }
     default:
         break;
     }
@@ -336,7 +338,7 @@ formatmpi(char *buffer, const pgp_mpi_t *val)
     int      cc;
 
     len = mpi_bytes(val);
-    if ((cp = calloc(1, len + 1)) == NULL) {
+    if ((cp = (uint8_t *) calloc(1, len + 1)) == NULL) {
         RNP_LOG("calloc failure");
         return 0;
     }
@@ -840,14 +842,15 @@ rnp_import_key(rnp_t *rnp, char *f)
     bool             ret = false;
     list             imported_grips = NULL;
     list_item *      item = NULL;
+    const char *     suffix = NULL;
+    const char *     fmt = NULL;
 
     // guess the key format (TODO: surely this can be improved)
     size_t fname_len = strlen(f);
     if (fname_len < 4) {
         goto done;
     }
-    const char *suffix = f + fname_len - 4;
-    const char *fmt = NULL;
+    suffix = f + fname_len - 4;
     if (strcmp(suffix, ".asc") == 0 || strcmp(suffix, ".gpg") == 0) {
         fmt = RNP_KEYSTORE_GPG;
     } else if (strcmp(suffix, ".kbx") == 0) {
@@ -1100,7 +1103,7 @@ rnp_initialize_io(
 {
     char         outname[PATH_MAX] = {0};
     char         newname[PATH_MAX] = {0};
-    char *       ext = NULL;
+    const char * ext = NULL;
     bool         is_stdin;
     rnp_result_t res = RNP_ERROR_GENERIC;
 
@@ -1196,7 +1199,7 @@ rnp_parse_handler_dest(pgp_parse_handler_t *handler,
                        bool *               closedst,
                        const char *         filename)
 {
-    pgp_parse_handler_param_t *param = handler->param;
+    pgp_parse_handler_param_t *param = (pgp_parse_handler_param_t *) handler->param;
     rnp_result_t               res = RNP_ERROR_GENERIC;
 
     if (!handler->ctx) {
@@ -1227,7 +1230,7 @@ rnp_parse_handler_dest(pgp_parse_handler_t *handler,
 static bool
 rnp_parse_handler_src(pgp_parse_handler_t *handler, pgp_source_t *src)
 {
-    pgp_parse_handler_param_t *param = handler->param;
+    pgp_parse_handler_param_t *param = (pgp_parse_handler_param_t *) handler->param;
     char                       srcname[PATH_MAX] = {0};
 
     if (!param) {
@@ -1250,7 +1253,7 @@ rnp_init_parse_handler(pgp_parse_handler_t *handler, rnp_ctx_t *ctx)
 {
     pgp_parse_handler_param_t *param;
 
-    if (!(param = calloc(1, sizeof(*param)))) {
+    if (!(param = (pgp_parse_handler_param_t *) calloc(1, sizeof(*param)))) {
         return false;
     }
 
@@ -1263,7 +1266,7 @@ rnp_init_parse_handler(pgp_parse_handler_t *handler, rnp_ctx_t *ctx)
     handler->key_provider = &ctx->rnp->key_provider;
     handler->dest_provider = rnp_parse_handler_dest;
     handler->src_provider = rnp_parse_handler_src;
-    handler->on_signatures = ctx->on_signatures;
+    handler->on_signatures = (pgp_signatures_func_t *) ctx->on_signatures;
     handler->param = param;
 
     return true;
@@ -1300,7 +1303,7 @@ rnp_process_file(rnp_ctx_t *ctx, const char *in, const char *out)
     }
 
     /* fill param */
-    param = handler.param;
+    param = (pgp_parse_handler_param_t *) handler.param;
     param->mem = false;
 
     /* initialize input */
@@ -1344,7 +1347,7 @@ rnp_process_mem(
     }
 
     /* fill param */
-    param = handler.param;
+    param = (pgp_parse_handler_param_t *) handler.param;
     param->mem = true;
 
     /* initialize input */
@@ -1418,7 +1421,7 @@ rnp_init_write_handler(pgp_write_handler_t *handler, rnp_ctx_t *ctx)
 
     ctx->operation = RNP_OP_ENCRYPT_SIGN;
 
-    if (!(param = calloc(1, sizeof(*param)))) {
+    if (!(param = (pgp_write_handler_param_t *) calloc(1, sizeof(*param)))) {
         return false;
     }
 
@@ -1470,7 +1473,7 @@ rnp_protect_file(rnp_ctx_t *ctx, const char *in, const char *out)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = handler.param;
+    param = (pgp_write_handler_param_t *) handler.param;
 
     /* initialize input/output */
     if ((result = rnp_initialize_io(ctx, &param->src, &param->dst, in, out))) {
@@ -1504,7 +1507,7 @@ rnp_protect_mem(
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = handler.param;
+    param = (pgp_write_handler_param_t *) handler.param;
 
     /* initialize input and output */
     if (!rnp_initialize_mem_io(&param->src, &param->dst, in, len)) {
@@ -1613,7 +1616,7 @@ rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size
 
     io = NULL;
     cc = 0;
-    if ((io = calloc(1, sizeof(pgp_io_t))) == NULL) {
+    if ((io = (pgp_io_t *) calloc(1, sizeof(*io))) == NULL) {
         (void) fprintf(stderr, "rnp_save_sshpub: bad alloc 1\n");
         goto done;
     }
@@ -1703,11 +1706,10 @@ rnp_encrypt_add_password(rnp_ctx_t *ctx)
     rnp_result_t              ret = RNP_ERROR_GENERIC;
     rnp_symmetric_pass_info_t info = {{(pgp_s2k_usage_t) 0}};
     char                      password[MAX_PASSWORD_LENGTH] = {0};
+    pgp_password_ctx_t        pswdctx = {.op = PGP_OP_ENCRYPT_SYM, .key = NULL};
 
-    if (!pgp_request_password(&ctx->rnp->password_provider,
-                              &(pgp_password_ctx_t){.op = PGP_OP_ENCRYPT_SYM, .key = NULL},
-                              password,
-                              sizeof(password))) {
+    if (!pgp_request_password(
+          &ctx->rnp->password_provider, &pswdctx, password, sizeof(password))) {
         return RNP_ERROR_BAD_PASSWORD;
     }
 

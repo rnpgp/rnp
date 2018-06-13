@@ -33,15 +33,15 @@
 void
 test_rnpcfg(void **state)
 {
-    rnp_cfg_t cfg1 = {0}, cfg2 = {0};
+    rnp_cfg_t  cfg1 = {0}, cfg2 = {0};
     rnp_cfg_t *cfgs[2] = {&cfg1, &cfg2};
     rnp_cfg_t *cfg = NULL;
-    list *lst;
-    char buf[32];
+    list *     lst;
+    char       buf[32];
 
     assert_null(rnp_cfg_getstr(&cfg1, "key"));
 
-    /* set the values */ 
+    /* set the values */
 
     assert_true(rnp_cfg_setstr(&cfg1, "key_str", "val"));
     assert_true(rnp_cfg_setstr(&cfg1, "key_true", "true"));
@@ -83,7 +83,7 @@ test_rnpcfg(void **state)
 
         for (int j = 0; j < 10; j++) {
             assert_non_null(li);
-            const char *val = rnp_cfg_val_getstr((rnp_cfg_val_t*)li);
+            const char *val = rnp_cfg_val_getstr((rnp_cfg_val_t *) li);
             assert_non_null(val);
             snprintf(buf, sizeof(buf), "val%d", j);
             assert_string_equal(buf, val);

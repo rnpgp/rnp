@@ -412,7 +412,7 @@ static str2cipher_t str2cipher[] = {{"cast5", PGP_SA_CAST5},
                                     {"camellia192", PGP_SA_CAMELLIA_192},
                                     {"camellia256", PGP_SA_CAMELLIA_256},
                                     {"tripledes", PGP_SA_TRIPLEDES},
-                                    {NULL, (pgp_symm_alg_t)0}};
+                                    {NULL, (pgp_symm_alg_t) 0}};
 
 /* convert from a string to a cipher definition */
 pgp_symm_alg_t

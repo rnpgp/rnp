@@ -491,7 +491,7 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (!(decdata = (uint8_t*)malloc(key->sec_len))) {
+    if (!(decdata = (uint8_t *) malloc(key->sec_len))) {
         RNP_LOG("allocation failed");
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto finish;

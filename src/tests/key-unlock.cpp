@@ -35,7 +35,7 @@
 void
 test_key_unlock_pgp(void **state)
 {
-    rnp_test_state_t *      rstate = *state;
+    rnp_test_state_t *      rstate = (rnp_test_state_t *) *state;
     char                    path[PATH_MAX];
     rnp_t                   rnp;
     pgp_key_t *             key = NULL;
@@ -103,13 +103,13 @@ test_key_unlock_pgp(void **state)
 
     // try to unlock with an incorrect password
     provider = (pgp_password_provider_t){.callback = string_copy_password_callback,
-                                         .userdata = "badpass"};
+                                         .userdata = (void *) "badpass"};
     rnp_assert_false(rstate, pgp_key_unlock(key, &provider));
     rnp_assert_true(rstate, pgp_key_is_locked(key));
 
     // unlock the signing key
     provider = (pgp_password_provider_t){.callback = string_copy_password_callback,
-                                         .userdata = "password"};
+                                         .userdata = (void *) "password"};
     rnp_assert_true(rstate, pgp_key_unlock(key, &provider));
     rnp_assert_false(rstate, pgp_key_is_locked(key));
 
@@ -187,7 +187,7 @@ test_key_unlock_pgp(void **state)
 
     // unlock the encrypting key
     provider = (pgp_password_provider_t){.callback = string_copy_password_callback,
-                                         .userdata = "password"};
+                                         .userdata = (void *) "password"};
     rnp_assert_true(rstate, pgp_key_unlock(key, &provider));
     rnp_assert_false(rstate, pgp_key_is_locked(key));
 
