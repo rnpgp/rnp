@@ -15,6 +15,9 @@ set -eux
  -fno-omit-frame-pointer             \
  -fno-common"
 
+# CFLAGS for valgrind
+[ "$BUILD_MODE" = "valgrind" ] && CFLAGS+=" -O1 -g"
+
 export CFLAGS
 
 srcdir="$PWD"
@@ -30,15 +33,17 @@ make -j${CORES} VERBOSE=1
 : "${COVERITY_SCAN_BRANCH:=0}"
 [[ ${COVERITY_SCAN_BRANCH} = 1 ]] && exit 0
 
+CTEST="ctest"
+[ "$BUILD_MODE" = "valgrind" ] && CTEST+=" -T memcheck"
 case "$RNP_TESTS" in
   cmocka)
-    ctest -R rnp_tests --output-on-failure
+    ${CTEST} -R rnp_tests --output-on-failure
     ;;
   cli)
-    ctest -R cli_tests --output-on-failure
+    ${CTEST} -R cli_tests --output-on-failure
     ;;
   all)
-    ctest -j${CORES} --output-on-failure
+    ${CTEST} -j${CORES} --output-on-failure
     ;;
   *) exit 1 ;;
 esac

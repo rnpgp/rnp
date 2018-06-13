@@ -64,6 +64,36 @@ matrix:
       sudo: true
       stage: test
 
+    # valgrind
+    # gpg stable
+    - env: BUILD_MODE=valgrind GPG_VERSION=stable
+      compiler: clang
+      sudo: true
+      stage: cache
+      script: true
+    - env: BUILD_MODE=valgrind GPG_VERSION=stable
+      compiler: clang
+      sudo: true
+      stage: test
+      addons:
+        apt:
+          packages:
+            - valgrind
+    # gpg master
+    - env: BUILD_MODE=valgrind GPG_VERSION=beta
+      compiler: clang
+      sudo: true
+      stage: cache
+      script: true
+    - env: BUILD_MODE=valgrind GPG_VERSION=beta
+      compiler: clang
+      sudo: true
+      stage: test
+      addons:
+        apt:
+          packages:
+            - valgrind
+
     # codecov
     - env: BUILD_MODE=coverage RNP_TESTS=cmocka GPG_VERSION=beta
       compiler: gcc
