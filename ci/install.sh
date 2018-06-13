@@ -226,8 +226,9 @@ END
   ${MAKE} -j${CORES} install
   popd
 
-  git clone --depth 1 --branch "$GNUPG_VERSION" git://git.gnupg.org/gnupg.git
+  git clone git://git.gnupg.org/gnupg.git
   pushd gnupg
+  git checkout "$GNUPG_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" \
     --with-libgpg-error-prefix="${GPG_INSTALL}" \
@@ -252,7 +253,7 @@ if [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
     build_gpg_stable 1.5  1.31         1.8.2     2.5.1     1.3.5   1.1.0    2.2.7
   elif [ "$GPG_VERSION" = "beta" ]; then
     #              gettext npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
-    build_gpg_beta latest master master master master master master master
+    build_gpg_beta latest master master master master master master fe621cc
   else
     echo "\$GPG_VERSION is set to invalid value: $GPG_VERSION"
     exit 1
