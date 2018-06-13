@@ -24,67 +24,66 @@ env:
 matrix:
   fast_finish: true
   include:
-    # cache
-    - stage: cache
-      script: true
-      compiler: clang
-      env: BUILD_MODE=normal GPG_VERSION=stable
-    - stage: cache
-      script: true
-      compiler: clang
-      env: BUILD_MODE=normal GPG_VERSION=beta
-    - stage: cache
-      script: true
-      compiler: clang
-      env: BUILD_MODE=sanitize GPG_VERSION=stable
-    - stage: cache
-      script: true
-      compiler: clang
-      env: BUILD_MODE=sanitize GPG_VERSION=beta
-    - stage: cache
-      script: true
-      compiler: gcc
-      env: BUILD_MODE=coverage RNP_TESTS=cmocka GPG_VERSION=beta
-    - stage: cache
-      script: true
-      compiler: gcc
-      env: BUILD_MODE=coverage RNP_TESTS=cli GPG_VERSION=beta
-
     # normal
     # gpg stable
-    - stage: tests
-      env: BUILD_MODE=normal GPG_VERSION=stable
+    - env: BUILD_MODE=normal GPG_VERSION=stable
       compiler: clang
+      stage: cache
+      script: true
+    - env: BUILD_MODE=normal GPG_VERSION=stable
+      compiler: clang
+      stage: test
     # gpg master
-    - stage: tests
-      env: BUILD_MODE=normal GPG_VERSION=beta
+    - env: BUILD_MODE=normal GPG_VERSION=beta
       compiler: clang
+      stage: cache
+      script: true
+    - env: BUILD_MODE=normal GPG_VERSION=beta
+      compiler: clang
+      stage: test
 
     # clang sanitizers
     # gpg stable
-    - stage: tests
-      env: BUILD_MODE=sanitize GPG_VERSION=stable
+    - env: BUILD_MODE=sanitize GPG_VERSION=stable
       compiler: clang
-      # requires ptrace, which isn't currently working in travis containers
       sudo: true
+      stage: cache
+      script: true
+    - env: BUILD_MODE=sanitize GPG_VERSION=stable
+      compiler: clang
+      sudo: true
+      stage: test
     # gpg master
-    - stage: tests
-      env: BUILD_MODE=sanitize GPG_VERSION=beta
+    - env: BUILD_MODE=sanitize GPG_VERSION=beta
       compiler: clang
-      # requires ptrace, which isn't currently working in travis containers
       sudo: true
+      stage: cache
+      script: true
+    - env: BUILD_MODE=sanitize GPG_VERSION=beta
+      compiler: clang
+      sudo: true
+      stage: test
 
     # codecov
-    - stage: tests
-      env: BUILD_MODE=coverage RNP_TESTS=cmocka GPG_VERSION=beta
+    - env: BUILD_MODE=coverage RNP_TESTS=cmocka GPG_VERSION=beta
       compiler: gcc
-    - stage: tests
-      env: BUILD_MODE=coverage RNP_TESTS=cli GPG_VERSION=beta
+      stage: cache
+      script: true
+    - env: BUILD_MODE=coverage RNP_TESTS=cmocka GPG_VERSION=beta
       compiler: gcc
+      stage: test
+    - env: BUILD_MODE=coverage RNP_TESTS=cli GPG_VERSION=beta
+      compiler: gcc
+      stage: cache
+      script: true
+    - env: BUILD_MODE=coverage RNP_TESTS=cli GPG_VERSION=beta
+      compiler: gcc
+      stage: test
 
     # clang-format style checks
-    - stage: tests
-      env: BUILD_MODE=style-check
+    - env: BUILD_MODE=style-check
+      install: true
+      stage: test
       addons:
         apt:
           sources:
@@ -94,8 +93,13 @@ matrix:
 
   allow_failures:
     # allowed to fail until we have stabilized on a clang-format version
-    - stage: tests
-      env: BUILD_MODE=style-check
+    - env: BUILD_MODE=style-check
+      install: true
+      stage: test
+
+stages:
+  - cache
+  - test
 
 cache:
   directories:
