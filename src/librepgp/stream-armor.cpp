@@ -101,7 +101,7 @@ armor_read_padding(pgp_source_t *src)
 {
     char                        st[64];
     ssize_t                     stlen;
-    pgp_source_armored_param_t *param = (pgp_source_armored_param_t*)src->param;
+    pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
 
     if ((stlen = src_peek_line(param->readsrc, st, 12)) < 0) {
         return -1;
@@ -128,7 +128,7 @@ armor_read_crc(pgp_source_t *src)
     uint8_t                     dec[4];
     char                        crc[8];
     ssize_t                     clen;
-    pgp_source_armored_param_t *param = (pgp_source_armored_param_t*)src->param;
+    pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
 
     if ((clen = src_peek_line(param->readsrc, crc, sizeof(crc))) < 0) {
         return false;
@@ -160,7 +160,7 @@ armor_read_trailer(pgp_source_t *src)
     char                        str[64];
     size_t                      stlen;
     ssize_t                     read;
-    pgp_source_armored_param_t *param = (pgp_source_armored_param_t*)src->param;
+    pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
 
     stlen = strlen(param->armorhdr);
     strncpy(st, ST_ARMOR_END, 8); /* 8 here is mandatory */
@@ -178,10 +178,10 @@ armor_read_trailer(pgp_source_t *src)
 static ssize_t
 armored_src_read(pgp_source_t *src, void *buf, size_t len)
 {
-    pgp_source_armored_param_t *param = (pgp_source_armored_param_t*)src->param;
+    pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
     uint8_t  b64buf[ARMORED_BLOCK_SIZE];     /* input base64 data with spaces and so on */
     uint8_t  decbuf[ARMORED_BLOCK_SIZE + 4]; /* decoded 6-bit values */
-    uint8_t *bufptr = (uint8_t*)buf;               /* for better readability below */
+    uint8_t *bufptr = (uint8_t *) buf;       /* for better readability below */
     uint8_t *bptr, *bend;                    /* pointer to input data in b64buf */
     uint8_t *dptr, *dend, *pend; /* pointers to decoded data in decbuf: working pointer, last
                                     available byte, last byte to process */
@@ -365,7 +365,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
 static void
 armored_src_close(pgp_source_t *src)
 {
-    pgp_source_armored_param_t *param = (pgp_source_armored_param_t*)src->param;
+    pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
 
     if (param) {
         (void) pgp_hash_finish(&param->crc_ctx, NULL);
@@ -477,7 +477,7 @@ armor_parse_header(pgp_source_t *src)
     const char *                armhdr;
     size_t                      armhdrlen;
     ssize_t                     read;
-    pgp_source_armored_param_t *param = (pgp_source_armored_param_t*)src->param;
+    pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
 
     read = src_peek(param->readsrc, hdr, sizeof(hdr));
     if (read < 20) {
@@ -499,7 +499,7 @@ armor_parse_header(pgp_source_t *src)
         return false;
     }
 
-    if ((param->armorhdr = (char*)malloc(armhdrlen - 9)) == NULL) {
+    if ((param->armorhdr = (char *) malloc(armhdrlen - 9)) == NULL) {
         RNP_LOG("allocation failed");
         return false;
     }
@@ -513,7 +513,7 @@ armor_parse_header(pgp_source_t *src)
 static bool
 armor_parse_headers(pgp_source_t *src)
 {
-    pgp_source_armored_param_t *param = (pgp_source_armored_param_t*)src->param;
+    pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
     char                        header[1024];
     ssize_t                     hdrlen;
     char *                      hdrval;
@@ -525,7 +525,7 @@ armor_parse_headers(pgp_source_t *src)
         }
 
         if (hdrlen > 0) {
-            if ((hdrval = (char*)malloc(hdrlen + 1)) == NULL) {
+            if ((hdrval = (char *) malloc(hdrlen + 1)) == NULL) {
                 RNP_LOG("malloc failed");
                 return false;
             }
@@ -572,7 +572,7 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_source_armored_param_t*)src->param;
+    param = (pgp_source_armored_param_t *) src->param;
     param->readsrc = readsrc;
 
     if (!pgp_hash_create(&param->crc_ctx, PGP_HASH_CRC24)) {
@@ -696,7 +696,7 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     uint8_t *                 inlend;
     uint32_t                  t;
     unsigned                  inllen;
-    pgp_dest_armored_param_t *param = (pgp_dest_armored_param_t*)dst->param;
+    pgp_dest_armored_param_t *param = (pgp_dest_armored_param_t *) dst->param;
 
     if (!param) {
         RNP_LOG("wrong param");
@@ -785,7 +785,7 @@ armored_dst_finish(pgp_dest_t *dst)
 {
     uint8_t                   buf[64];
     uint8_t                   crcbuf[3];
-    pgp_dest_armored_param_t *param = (pgp_dest_armored_param_t*)dst->param;
+    pgp_dest_armored_param_t *param = (pgp_dest_armored_param_t *) dst->param;
 
     /* writing tail */
     if (param->tailc == 1) {
@@ -827,7 +827,7 @@ armored_dst_finish(pgp_dest_t *dst)
 static void
 armored_dst_close(pgp_dest_t *dst, bool discard)
 {
-    pgp_dest_armored_param_t *param = (pgp_dest_armored_param_t*)dst->param;
+    pgp_dest_armored_param_t *param = (pgp_dest_armored_param_t *) dst->param;
 
     if (!param) {
         return;
@@ -849,7 +849,7 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     if (!init_dst_common(dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    param = (pgp_dest_armored_param_t*)dst->param;
+    param = (pgp_dest_armored_param_t *) dst->param;
 
     dst->write = armored_dst_write;
     dst->finish = armored_dst_finish;

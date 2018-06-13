@@ -33,7 +33,7 @@
 void
 test_ffi_homedir(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     rnp_ffi_t         ffi = NULL;
     char *            homedir = NULL;
     size_t            homedir_size = 0;
@@ -186,7 +186,7 @@ load_test_data(const char *data_dir, const char *file, char **data, size_t *size
     if (size) {
         *size = st.st_size;
     }
-    *data = calloc(1, st.st_size + 1);
+    *data = (char *) calloc(1, st.st_size + 1);
     assert_non_null(*data);
 
     FILE *fp = fopen(path, "r");
@@ -199,7 +199,7 @@ load_test_data(const char *data_dir, const char *file, char **data, size_t *size
 void
 test_ffi_detect_key_format(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     char *            data = NULL;
     size_t            data_size = 0;
     char *            format = NULL;
@@ -262,7 +262,7 @@ test_ffi_detect_key_format(void **state)
 void
 test_ffi_load_keys(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     rnp_ffi_t         ffi = NULL;
     rnp_input_t       input = NULL;
     size_t            count;
@@ -361,7 +361,7 @@ test_ffi_load_keys(void **state)
     load_test_data(rstate->data_dir, "keyrings/1/pubring.gpg", &pub_buf, &pub_buf_len);
     load_test_data(rstate->data_dir, "keyrings/1/secring.gpg", &sec_buf, &sec_buf_len);
     size_t   buf_len = pub_buf_len + sec_buf_len;
-    uint8_t *buf = malloc(buf_len);
+    uint8_t *buf = (uint8_t *) malloc(buf_len);
     memcpy(buf, pub_buf, pub_buf_len);
     memcpy(buf + pub_buf_len, sec_buf, sec_buf_len);
     free(pub_buf);
@@ -544,7 +544,8 @@ test_ffi_save_keys(void **state)
 }
 
 static void
-unused_getkeycb(rnp_ffi_t ffi, void *      app_ctx,
+unused_getkeycb(rnp_ffi_t   ffi,
+                void *      app_ctx,
                 const char *identifier_type,
                 const char *identifier,
                 bool        secret)
@@ -552,7 +553,7 @@ unused_getkeycb(rnp_ffi_t ffi, void *      app_ctx,
     assert_true(false);
 }
 
-#define TBL_MAX_USERIDS   4
+#define TBL_MAX_USERIDS 4
 typedef struct key_tbl_t {
     const uint8_t *key_data;
     size_t         key_data_size;
@@ -572,7 +573,7 @@ tbl_getkeycb(rnp_ffi_t   ffi,
     key_tbl_t *found = NULL;
     for (key_tbl_t *tbl = (key_tbl_t *) app_ctx; tbl && tbl->key_data && !found; tbl++) {
         if (tbl->secret != secret) {
-          continue;
+            continue;
         }
         if (!strcmp(identifier_type, "keyid") && !strcmp(identifier, tbl->keyid)) {
             found = tbl;
@@ -591,11 +592,13 @@ tbl_getkeycb(rnp_ffi_t   ffi,
     }
     if (found) {
         char *format = NULL;
-        assert_rnp_success(rnp_detect_key_format(found->key_data, found->key_data_size, &format));
+        assert_rnp_success(
+          rnp_detect_key_format(found->key_data, found->key_data_size, &format));
         assert_non_null(format);
-        uint32_t flags = secret ? RNP_LOAD_SAVE_SECRET_KEYS : RNP_LOAD_SAVE_PUBLIC_KEYS;
+        uint32_t    flags = secret ? RNP_LOAD_SAVE_SECRET_KEYS : RNP_LOAD_SAVE_PUBLIC_KEYS;
         rnp_input_t input = NULL;
-        assert_rnp_success(rnp_input_from_memory(&input, found->key_data, found->key_data_size, true));
+        assert_rnp_success(
+          rnp_input_from_memory(&input, found->key_data, found->key_data_size, true));
         assert_non_null(input);
         assert_rnp_success(rnp_load_keys(ffi, format, input, flags));
         free(format);
@@ -605,24 +608,36 @@ tbl_getkeycb(rnp_ffi_t   ffi,
 }
 
 static bool
-unused_getpasscb(
-  rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+unused_getpasscb(rnp_ffi_t        ffi,
+                 void *           app_ctx,
+                 rnp_key_handle_t key,
+                 const char *     pgp_context,
+                 char *           buf,
+                 size_t           buf_len)
 {
     assert_true(false);
     return false;
 }
 
 static bool
-getpasscb(
-  rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+getpasscb(rnp_ffi_t        ffi,
+          void *           app_ctx,
+          rnp_key_handle_t key,
+          const char *     pgp_context,
+          char *           buf,
+          size_t           buf_len)
 {
     strcpy(buf, (const char *) app_ctx);
     return true;
 }
 
 static bool
-getpasscb_once(
-  rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+getpasscb_once(rnp_ffi_t        ffi,
+               void *           app_ctx,
+               rnp_key_handle_t key,
+               const char *     pgp_context,
+               char *           buf,
+               size_t           buf_len)
 {
     const char **pass = (const char **) app_ctx;
     if (!*pass) {
@@ -656,7 +671,7 @@ check_key_properties(rnp_key_handle_t key,
 void
 test_ffi_keygen_json_pair(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     rnp_ffi_t         ffi = NULL;
     char *            json = NULL;
     char *            results = NULL;
@@ -731,7 +746,7 @@ test_ffi_keygen_json_pair(void **state)
 void
 test_ffi_keygen_json_primary(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     rnp_ffi_t         ffi = NULL;
     char *            json = NULL;
     char *            results = NULL;
@@ -793,7 +808,7 @@ test_ffi_keygen_json_primary(void **state)
 void
 test_ffi_keygen_json_sub(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     char *            json = NULL;
     char *            results = NULL;
     size_t            count = 0;
@@ -916,7 +931,7 @@ test_ffi_keygen_json_sub(void **state)
 void
 test_ffi_add_userid(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     rnp_ffi_t         ffi = NULL;
     char *            json = NULL;
     char *            results = NULL;
@@ -953,7 +968,8 @@ test_ffi_add_userid(void **state)
     assert_int_equal(1, count);
 
     // protect+lock the key
-    assert_int_equal(RNP_SUCCESS, rnp_key_protect(key_handle, "pass", "SM4", "CFB", "SM3", 999999));
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_key_protect(key_handle, "pass", "SM4", "CFB", "SM3", 999999));
     assert_int_equal(RNP_SUCCESS, rnp_key_lock(key_handle));
 
     // add the userid (no pass provider, should fail)
@@ -962,10 +978,9 @@ test_ffi_add_userid(void **state)
       rnp_key_add_uid(key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
 
     // actually add the userid
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "pass"));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "pass"));
     assert_int_equal(
-      RNP_SUCCESS,
-      rnp_key_add_uid(key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
+      RNP_SUCCESS, rnp_key_add_uid(key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
 
     assert_int_equal(RNP_SUCCESS, rnp_key_get_uid_count(key_handle, &count));
     assert_int_equal(2, count);
@@ -982,7 +997,7 @@ test_ffi_add_userid(void **state)
 void
 test_ffi_keygen_json_sub_pass_required(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     char *            json = NULL;
     char *            results = NULL;
     size_t            count = 0;
@@ -1068,11 +1083,12 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     assert_int_not_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
 
     // generate the subkey (wrong pass, should fail)
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "wrong"));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "wrong"));
     assert_int_not_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
 
     // generate the subkey
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "pass123"));
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "pass123"));
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
     free(json);
     json = NULL;
@@ -1199,7 +1215,7 @@ test_ffi_encrypt_pass(void **state)
     assert_non_null(input);
     assert_int_equal(RNP_SUCCESS, rnp_output_to_path(&output, "decrypted"));
     assert_non_null(output);
-    char *pass = "wrong1";
+    const char *pass = "wrong1";
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb_once, &pass));
     assert_int_not_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
@@ -1213,7 +1229,7 @@ test_ffi_encrypt_pass(void **state)
     assert_non_null(input);
     assert_int_equal(RNP_SUCCESS, rnp_output_to_path(&output, "decrypted"));
     assert_non_null(output);
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "pass1"));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "pass1"));
     assert_int_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
@@ -1235,7 +1251,7 @@ test_ffi_encrypt_pass(void **state)
     assert_non_null(input);
     assert_int_equal(RNP_SUCCESS, rnp_output_to_path(&output, "decrypted"));
     assert_non_null(output);
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "pass2"));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "pass2"));
     assert_int_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
@@ -1336,7 +1352,7 @@ test_ffi_encrypt_pk(void **state)
     assert_non_null(input);
     assert_int_equal(RNP_SUCCESS, rnp_output_to_path(&output, "decrypted"));
     assert_non_null(output);
-    char *pass = "wrong1";
+    const char *pass = "wrong1";
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb_once, &pass));
     assert_int_not_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
@@ -1350,7 +1366,8 @@ test_ffi_encrypt_pk(void **state)
     assert_non_null(input);
     assert_int_equal(RNP_SUCCESS, rnp_output_to_path(&output, "decrypted"));
     assert_non_null(output);
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
     assert_int_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
@@ -1377,10 +1394,10 @@ test_ffi_encrypt_pk_key_provider(void **state)
     rnp_output_t     output = NULL;
     rnp_op_encrypt_t op = NULL;
     const char *     plaintext = "data1";
-    uint8_t * primary_sec_key_data = NULL;
-    size_t primary_sec_size = 0;
-    uint8_t *        sub_sec_key_data= NULL;
-    size_t           sub_sec_size= 0;
+    uint8_t *        primary_sec_key_data = NULL;
+    size_t           primary_sec_size = 0;
+    uint8_t *        sub_sec_key_data = NULL;
+    size_t           sub_sec_size = 0;
 
     /* first, let's generate some encrypted data */
     // setup FFI
@@ -1420,12 +1437,13 @@ test_ffi_encrypt_pk_key_provider(void **state)
     assert_non_null(key);
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_add_recipient(op, key));
     // save the primary key data for later
-    assert_int_equal(
-      RNP_SUCCESS, rnp_get_secret_key_data(key, &primary_sec_key_data, &primary_sec_size));
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_get_secret_key_data(key, &primary_sec_key_data, &primary_sec_size));
     assert_non_null(primary_sec_key_data);
     assert_int_equal(RNP_SUCCESS, rnp_key_handle_destroy(key));
     key = NULL;
-    // save the appropriate encrypting subkey for the key provider to use during decryption later
+    // save the appropriate encrypting subkey for the key provider to use during decryption
+    // later
     assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "keyid", "54505A936A4A970E", &key));
     assert_non_null(key);
     assert_int_equal(RNP_SUCCESS,
@@ -1454,7 +1472,9 @@ test_ffi_encrypt_pk_key_provider(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
     // load the primary
     input = NULL;
-    assert_int_equal(RNP_SUCCESS, rnp_input_from_memory(&input, primary_sec_key_data, primary_sec_size, true));
+    assert_int_equal(
+      RNP_SUCCESS,
+      rnp_input_from_memory(&input, primary_sec_key_data, primary_sec_size, true));
     assert_non_null(input);
     assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
@@ -1474,16 +1494,15 @@ test_ffi_encrypt_pk_key_provider(void **state)
 
     // key_data key_data_size secret keyid grip userids
     const key_tbl_t keydb[] = {
-      {sub_sec_key_data, sub_sec_size, true, "54505A936A4A970E", NULL, {NULL}},
-      {0}};
+      {sub_sec_key_data, sub_sec_size, true, "54505A936A4A970E", NULL, {NULL}}, {0}};
 
     // decrypt
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "encrypted"));
     assert_non_null(input);
     assert_int_equal(RNP_SUCCESS, rnp_output_to_path(&output, "decrypted"));
     assert_non_null(output);
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_key_provider(ffi, tbl_getkeycb, (void*)keydb));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_key_provider(ffi, tbl_getkeycb, (void *) keydb));
     assert_int_equal(RNP_SUCCESS, rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
@@ -1564,7 +1583,7 @@ test_ffi_encrypt_and_sign(void **state)
     rnp_key_handle_destroy(key);
     key = NULL;
     // execute the operation
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
     assert_rnp_success(rnp_op_encrypt_execute(op));
 
     // make sure the output file was created
@@ -1598,7 +1617,7 @@ test_ffi_encrypt_and_sign(void **state)
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
     assert_non_null(output);
-    char *pass = "wrong1";
+    const char *pass = "wrong1";
     assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb_once, &pass));
     assert_rnp_failure(rnp_decrypt(ffi, input, output));
     // cleanup
@@ -1612,7 +1631,7 @@ test_ffi_encrypt_and_sign(void **state)
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
     assert_non_null(output);
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
@@ -1634,7 +1653,7 @@ test_ffi_encrypt_and_sign(void **state)
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_path(&output, "verified"));
     assert_non_null(output);
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, "password"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
 
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(verify));
@@ -1774,7 +1793,7 @@ test_ffi_setup_signatures(void **state, rnp_ffi_t *ffi, rnp_op_sign_t *op)
     assert_rnp_success(rnp_op_sign_set_expiration_time(*op, expires));
 
     // set pass provider
-    assert_rnp_success(rnp_ffi_set_pass_provider(*ffi, getpasscb, "password"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(*ffi, getpasscb, (void *) "password"));
 
     // set signature key
     rnp_key_handle_t key = NULL;

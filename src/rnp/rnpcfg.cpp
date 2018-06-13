@@ -182,7 +182,7 @@ rnp_cfg_val_copy(rnp_cfg_val_t *dst, rnp_cfg_val_t *src)
     case RNP_CFG_VAL_LIST:
         dst->type = RNP_CFG_VAL_LIST;
         for (list_item *li = list_front(src->val._list); li; li = list_next(li)) {
-            rnp_cfg_val_t val = {0};
+            rnp_cfg_val_t val = {};
             if (!rnp_cfg_val_copy(&val, (rnp_cfg_val_t *) li) ||
                 !list_append(&dst->val._list, &val, sizeof(val))) {
                 rnp_cfg_val_free(dst);
@@ -791,9 +791,9 @@ grabdate(const char *s, int64_t *t)
 uint64_t
 get_expiration(const char *s)
 {
-    uint64_t now;
-    int64_t  t;
-    char *   mult;
+    uint64_t    now;
+    int64_t     t;
+    const char *mult;
 
     if ((s == NULL) || (strlen(s) < 1)) {
         return 0;

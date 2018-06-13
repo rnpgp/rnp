@@ -97,11 +97,11 @@ signature_add_subpkt(pgp_signature_t *        sig,
     }
 
     if (!subpkt) {
-    pgp_sig_subpkt_t s = {(pgp_sig_subpacket_type_t)0};
+        pgp_sig_subpkt_t s = {(pgp_sig_subpacket_type_t) 0};
         subpkt = (pgp_sig_subpkt_t *) list_append(&sig->subpkts, &s, sizeof(s));
     }
 
-    if (!subpkt || ((datalen > 0) && !(subpkt->data = (uint8_t*)calloc(1, datalen)))) {
+    if (!subpkt || ((datalen > 0) && !(subpkt->data = (uint8_t *) calloc(1, datalen)))) {
         RNP_LOG("data allocation failed");
         list_remove((list_item *) subpkt);
         return NULL;
@@ -721,7 +721,7 @@ signature_get_key_server(const pgp_signature_t *sig)
     pgp_sig_subpkt_t *subpkt;
 
     if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_PREF_KEYSERV))) {
-        char *res = (char*)malloc(subpkt->len + 1);
+        char *res = (char *) malloc(subpkt->len + 1);
         if (res) {
             memcpy(res, subpkt->data, subpkt->len);
             res[subpkt->len] = '\0';
@@ -749,7 +749,7 @@ signature_get_revocation_reason(const pgp_signature_t *sig, uint8_t *code, char 
         }
         if (reason) {
             size_t len = subpkt->fields.revocation_reason.len;
-            *reason = (char*)malloc(len + 1);
+            *reason = (char *) malloc(len + 1);
             if (!*reason) {
                 RNP_LOG("alloc failed");
                 return false;

@@ -208,8 +208,8 @@ test_utils_list(void **state)
     // check membership
     {
         list_item *item = list_front(l);
-        list list2 = NULL;
-        int i = 1;
+        list       list2 = NULL;
+        int        i = 1;
         assert_true(list_append(&list2, &i, sizeof(i)));
         while (item) {
             assert_true(list_is_member(l, item));

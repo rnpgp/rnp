@@ -111,13 +111,13 @@ ec_generate(rng_t *                rng,
      *
      * P-521 is biggest supported curve
      */
-    botan_privkey_t pr_key = NULL;
-    botan_pubkey_t  pu_key = NULL;
-    bignum_t *      px = NULL;
-    bignum_t *      py = NULL;
-    bignum_t *      x = NULL;
-    rnp_result_t    ret = RNP_ERROR_KEY_GENERATION;
-    size_t filed_byte_size = 0;
+    botan_privkey_t        pr_key = NULL;
+    botan_pubkey_t         pu_key = NULL;
+    bignum_t *             px = NULL;
+    bignum_t *             py = NULL;
+    bignum_t *             x = NULL;
+    rnp_result_t           ret = RNP_ERROR_KEY_GENERATION;
+    size_t                 filed_byte_size = 0;
     const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
     if (!ec_desc) {
         ret = RNP_ERROR_BAD_PARAMETERS;

@@ -40,7 +40,7 @@ extern rng_t global_rng;
 void
 hash_test_success(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     pgp_hash_t        hash = {0};
     uint8_t           hash_output[PGP_MAX_HASH_SIZE];
 
@@ -93,7 +93,7 @@ hash_test_success(void **state)
 void
 cipher_test_success(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     const uint8_t     key[16] = {0};
     uint8_t           iv[16];
     pgp_symm_alg_t    alg = PGP_SA_AES_128;
@@ -130,7 +130,7 @@ cipher_test_success(void **state)
 void
 pkcs1_rsa_test_success(void **state)
 {
-    rnp_test_state_t *  rstate = *state;
+    rnp_test_state_t *  rstate = (rnp_test_state_t *) *state;
     uint8_t             ptext[1024 / 8] = {'a', 'b', 'c', 0};
     uint8_t             dec[1024 / 8];
     pgp_rsa_encrypted_t enc;
@@ -238,7 +238,7 @@ elgamal_roundtrip(rnp_test_state_t *state, pgp_eg_key_t *key)
 void
 raw_elgamal_fixed_512bit_key_test_success(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     // largest prime under 512 bits
     const uint8_t p512[64] = {
       0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -285,7 +285,7 @@ raw_elgamal_fixed_512bit_key_test_success(void **state)
 void
 raw_elgamal_random_key_test_success(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     pgp_eg_key_t      key;
 
     rnp_assert_int_equal(rstate, elgamal_generate(&global_rng, &key, 1024), RNP_SUCCESS);
@@ -295,7 +295,7 @@ raw_elgamal_random_key_test_success(void **state)
 void
 ecdsa_signverify_success(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     uint8_t           message[64];
 
     struct curve {
@@ -308,7 +308,7 @@ ecdsa_signverify_success(void **state)
         // Generate test data. Mainly to make valgrind not to complain about unitialized data
         rnp_assert_true(rstate, rng_get_data(&global_rng, message, sizeof(message)));
 
-        pgp_ec_signature_t               sig = {{{0}}};
+        pgp_ec_signature_t         sig = {{{0}}};
         rnp_keygen_crypto_params_t key_desc;
         key_desc.key_alg = PGP_PKA_ECDSA;
         key_desc.hash_alg = PGP_HASH_SHA512;
@@ -349,7 +349,7 @@ ecdh_roundtrip(void **state)
     } curves[] = {
       {PGP_CURVE_NIST_P_256, 32}, {PGP_CURVE_NIST_P_384, 48}, {PGP_CURVE_NIST_P_521, 66}};
 
-    rnp_test_state_t *   rstate = *state;
+    rnp_test_state_t *   rstate = (rnp_test_state_t *) *state;
     pgp_ecdh_encrypted_t enc;
     uint8_t              plaintext[32] = {0};
     size_t               plaintext_len = sizeof(plaintext);
@@ -390,7 +390,7 @@ ecdh_roundtrip(void **state)
 void
 ecdh_decryptionNegativeCases(void **state)
 {
-    rnp_test_state_t *   rstate = *state;
+    rnp_test_state_t *   rstate = (rnp_test_state_t *) *state;
     uint8_t              plaintext[32] = {0};
     size_t               plaintext_len = sizeof(plaintext);
     uint8_t              result[32] = {0};
@@ -447,7 +447,7 @@ ecdh_decryptionNegativeCases(void **state)
       rstate,
       ecdh_decrypt_pkcs5(result, &result_len, &enc, &ecdh_key1.material.ec, &ecdh_key1_fpr),
       RNP_ERROR_NOT_SUPPORTED);
-    ecdh_key1.material.ec.key_wrap_alg = key_wrapping_alg;
+    ecdh_key1.material.ec.key_wrap_alg = (pgp_symm_alg_t) key_wrapping_alg;
 
     free_key_pkt(&ecdh_key1);
 }
@@ -455,7 +455,7 @@ ecdh_decryptionNegativeCases(void **state)
 void
 sm2_roundtrip(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     uint8_t           key[27] = {0};
     uint8_t           decrypted[27];
     size_t            decrypted_size;
@@ -473,7 +473,7 @@ sm2_roundtrip(void **state)
 
     const pgp_ec_key_t *eckey = &seckey.material.ec;
 
-    uint8_t             hashes[] = {PGP_HASH_SM3, PGP_HASH_SHA256, PGP_HASH_SHA512};
+    pgp_hash_alg_t      hashes[] = {PGP_HASH_SM3, PGP_HASH_SHA256, PGP_HASH_SHA512};
     pgp_sm2_encrypted_t enc;
     rnp_result_t        ret;
 
@@ -497,7 +497,7 @@ sm2_roundtrip(void **state)
 void
 test_dsa_roundtrip(void **state)
 {
-    rnp_test_state_t *  rstate = *state;
+    rnp_test_state_t *  rstate = (rnp_test_state_t *) *state;
     uint8_t             message[PGP_MAX_HASH_SIZE];
     pgp_key_pkt_t       seckey;
     pgp_dsa_signature_t sig = {{{0}}};
@@ -555,7 +555,7 @@ test_dsa_roundtrip(void **state)
 void
 test_dsa_verify_negative(void **state)
 {
-    rnp_test_state_t *  rstate = *state;
+    rnp_test_state_t *  rstate = (rnp_test_state_t *) *state;
     uint8_t             message[PGP_MAX_HASH_SIZE];
     pgp_key_pkt_t       sec_key1;
     pgp_key_pkt_t       sec_key2;

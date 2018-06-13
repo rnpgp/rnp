@@ -58,7 +58,7 @@ test_key_store_search(void **state)
             pgp_key_t key = {0};
 
             key.pkt.tag = PGP_PTAG_CT_PUBLIC_KEY;
-            key.pkt.version = 4;
+            key.pkt.version = PGP_V4;
 
             // set the keyid
             assert_true(rnp_hex_decode(testdata[i].keyid, key.keyid, sizeof(key.keyid)));

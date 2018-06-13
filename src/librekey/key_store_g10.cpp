@@ -183,7 +183,7 @@ add_block_to_sexp(s_exp_t *s_exp, const uint8_t *bytes, size_t len)
 
     sub_element->is_block = true;
     sub_element->block.len = (size_t) len;
-    sub_element->block.bytes = (uint8_t*)malloc(sub_element->block.len);
+    sub_element->block.bytes = (uint8_t *) malloc(sub_element->block.len);
     if (sub_element->block.bytes == NULL) {
         fprintf(stderr, "can't allocate memory\n");
         return false;
@@ -499,7 +499,7 @@ decrypt_protected_section(const uint8_t *      encrypted_data,
     bool               ret = false;
 
     const char *decrypted_bytes;
-    size_t s_exp_len;
+    size_t      s_exp_len;
 
     // sanity checks
     const pgp_key_protection_t *prot = &seckey->sec_protection;
@@ -535,7 +535,7 @@ decrypt_protected_section(const uint8_t *      encrypted_data,
     }
 
     // decrypt
-    decrypted_data = (uint8_t*)malloc(encrypted_data_len);
+    decrypted_data = (uint8_t *) malloc(encrypted_data_len);
     if (decrypted_data == NULL) {
         RNP_LOG("can't allocate memory");
         goto done;
@@ -589,12 +589,12 @@ done:
 static bool
 parse_protected_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, const char *password)
 {
-    const format_info *format;
-    bool               ret = false;
-    s_exp_t            decrypted_s_exp = {0};
-    s_exp_t *protected_at_s_exp = NULL;
-    s_exp_t *alg = NULL;
-    s_exp_t *params = NULL;
+    const format_info *   format;
+    bool                  ret = false;
+    s_exp_t               decrypted_s_exp = {0};
+    s_exp_t *             protected_at_s_exp = NULL;
+    s_exp_t *             alg = NULL;
+    s_exp_t *             params = NULL;
     pgp_key_protection_t *prot;
 
     // find and validate the protected section
@@ -699,7 +699,7 @@ parse_protected_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, const char *passwo
     }
     // see if we have a protected-at section
     protected_at_s_exp = lookup_variable(s_exp, "protected-at");
-    char     protected_at[G10_PROTECTED_AT_SIZE];
+    char protected_at[G10_PROTECTED_AT_SIZE];
     if (protected_at_s_exp != NULL && protected_at_s_exp->sub_elements[1].is_block) {
         if (protected_at_s_exp->sub_elements[1].block.len != G10_PROTECTED_AT_SIZE) {
             RNP_LOG("protected-at has wrong length: %zu, expected, %d\n",
@@ -781,7 +781,7 @@ g10_parse_seckey(pgp_io_t *                io,
     bool    ret = false;
     // pgp_io_t    io = {.outs = stdout, .errs = stderr, .res = stdout};
     pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
-    s_exp_t *algorithm_s_exp = NULL;
+    s_exp_t *        algorithm_s_exp = NULL;
 
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "S-exp", (const uint8_t *) data, data_len);
@@ -811,13 +811,11 @@ g10_parse_seckey(pgp_io_t *                io,
     if (!strncmp("private-key",
                  (const char *) s_exp.sub_elements[0].block.bytes,
                  s_exp.sub_elements[0].block.len)) {
-      is_protected
-        = false;
+        is_protected = false;
     } else if (!strncmp("protected-private-key",
                         (const char *) s_exp.sub_elements[0].block.bytes,
                         s_exp.sub_elements[0].block.len)) {
-      is_protected
-        = true;
+        is_protected = true;
     } else {
         fprintf(stderr,
                 "Unsupported top-level block: '%.*s'\n",
@@ -957,7 +955,7 @@ g10_decrypt_seckey(const uint8_t *      data,
         return NULL;
     }
 
-    seckey = (pgp_key_pkt_t*)calloc(1, sizeof(*seckey));
+    seckey = (pgp_key_pkt_t *) calloc(1, sizeof(*seckey));
     if (!g10_parse_seckey(&io, seckey, data, data_len, password, NULL)) {
         goto done;
     }
@@ -996,7 +994,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *                io,
     if (!key.packets) {
         goto done;
     }
-    key.packets[0].raw = (uint8_t*)malloc(memory->length);
+    key.packets[0].raw = (uint8_t *) malloc(memory->length);
     if (!key.packets[0].raw) {
         goto done;
     }
@@ -1105,7 +1103,7 @@ write_pubkey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
 
     default:
         fprintf(stderr, "Unsupported public key algorithm: %d\n", key->alg);
-        return NULL;
+        return false;
     }
 
     return true;
@@ -1141,7 +1139,7 @@ write_seckey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
 
     default:
         fprintf(stderr, "Unsupported public key algorithm: %d\n", key->alg);
-        return NULL;
+        return false;
     }
 
     return true;
@@ -1161,8 +1159,8 @@ write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *passwo
     uint8_t               checksum[G10_SHA1_HASH_SIZE];
     uint8_t               derived_key[PGP_MAX_KEY_SIZE];
     pgp_key_protection_t *prot = &seckey->sec_protection;
-    size_t encrypted_data_len = 0;
-    size_t output_written, input_consumed;
+    size_t                encrypted_data_len = 0;
+    size_t                output_written, input_consumed;
 
     if (prot->s2k.specifier != PGP_S2KS_ITERATED_AND_SALTED) {
         return false;
@@ -1224,7 +1222,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *passwo
     }
 
     encrypted_data_len = raw.length;
-    encrypted_data = (uint8_t*)malloc(encrypted_data_len);
+    encrypted_data = (uint8_t *) malloc(encrypted_data_len);
     if (!encrypted_data) {
         goto done;
     }
@@ -1284,17 +1282,15 @@ g10_write_seckey(pgp_output_t *output, pgp_key_pkt_t *seckey, const char *passwo
     s_exp_t      s_exp = {0};
     s_exp_t *    sub_s_exp = NULL;
     pgp_memory_t mem = {0};
-    bool is_protected = true;
-    bool ret = false;
+    bool         is_protected = true;
+    bool         ret = false;
 
     switch (seckey->sec_protection.s2k.usage) {
     case PGP_S2KU_NONE:
-      is_protected
-        = false;
+        is_protected = false;
         break;
     case PGP_S2KU_ENCRYPTED_AND_HASHED:
-      is_protected
-        = true;
+        is_protected = true;
         // TODO: these are forced for now, until openpgp-native is implemented
         seckey->sec_protection.symm_alg = PGP_SA_AES_128;
         seckey->sec_protection.cipher_mode = PGP_CIPHER_MODE_CBC;

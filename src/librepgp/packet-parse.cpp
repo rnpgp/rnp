@@ -109,7 +109,7 @@ limread_data(pgp_data_t *data, unsigned len, pgp_region_t *subregion, pgp_stream
         return false;
     }
 
-    data->contents = (uint8_t*)calloc(1, data->len);
+    data->contents = (uint8_t *) calloc(1, data->len);
     if (!data->contents) {
         return false;
     }
@@ -223,7 +223,7 @@ sub_base_read(pgp_stream_t *stream,
             uint8_t *temp;
 
             readinfo->asize = (readinfo->asize * 2) + (unsigned) n;
-            temp = (uint8_t*)realloc(readinfo->accumulated, readinfo->asize);
+            temp = (uint8_t *) realloc(readinfo->accumulated, readinfo->asize);
             if (temp == NULL) {
                 (void) fprintf(stderr, "sub_base_read: bad alloc\n");
                 return 0;
@@ -575,7 +575,7 @@ parse_pubkey(pgp_stream_t *stream)
     }
     src_close(&src);
 
-    CALLBACK((pgp_content_enum)pkt.u.key.tag, &stream->cbinfo, &pkt);
+    CALLBACK((pgp_content_enum) pkt.u.key.tag, &stream->cbinfo, &pkt);
     return true;
 }
 
@@ -656,7 +656,7 @@ parse_userid(pgp_region_t *region, pgp_stream_t *stream)
         return false;
     }
 
-    if ((pkt.u.userid = (uint8_t*)calloc(1, region->length + 1)) == NULL) {
+    if ((pkt.u.userid = (uint8_t *) calloc(1, region->length + 1)) == NULL) {
         (void) fprintf(stderr, "parse_userid: bad alloc\n");
         return false;
     }
@@ -780,7 +780,7 @@ parse_seckey(pgp_stream_t *stream)
         return false;
     }
 
-    CALLBACK((pgp_content_enum)pkt.u.key.tag, &stream->cbinfo, &pkt);
+    CALLBACK((pgp_content_enum) pkt.u.key.tag, &stream->cbinfo, &pkt);
     return true;
 }
 
@@ -862,7 +862,7 @@ parse_packet(pgp_stream_t *stream, uint32_t *pktlen)
             return RNP_ERROR_GENERIC;
         }
     }
-    tag = (pgp_content_enum)pkt.u.ptag.type;
+    tag = (pgp_content_enum) pkt.u.ptag.type;
 
     CALLBACK(PGP_PARSER_PTAG, &stream->cbinfo, &pkt);
 
@@ -1052,12 +1052,12 @@ pgp_callback_push(pgp_stream_t *stream, pgp_cbfunc_t *cb, void *arg)
 {
     pgp_cbdata_t *cbinfo;
 
-    if ((cbinfo = (pgp_cbdata_t*)calloc(1, sizeof(*cbinfo))) == NULL) {
+    if ((cbinfo = (pgp_cbdata_t *) calloc(1, sizeof(*cbinfo))) == NULL) {
         (void) fprintf(stderr, "pgp_callback_push: bad alloc\n");
         return;
     }
     (void) memcpy(cbinfo, &stream->cbinfo, sizeof(*cbinfo));
-    cbinfo->io = (pgp_io_t*)stream->io;
+    cbinfo->io = (pgp_io_t *) stream->io;
     stream->cbinfo.next = cbinfo;
     pgp_set_callback(stream, cb, arg);
 }

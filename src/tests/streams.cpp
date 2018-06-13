@@ -153,7 +153,7 @@ test_stream_signatures(void **state)
     uint32_t create = time(NULL);
     uint32_t expire = 123456;
     memset(&sig, 0, sizeof(sig));
-    sig.version = 4;
+    sig.version = PGP_V4;
     sig.halg = halg;
     sig.palg = pgp_get_key_alg(key);
     sig.type = PGP_SIG_BINARY;
@@ -167,7 +167,7 @@ test_stream_signatures(void **state)
     assert_rnp_failure(signature_calculate(&sig, pgp_get_key_material(key), &hash, &rng));
     /* now unlock the key and sign */
     pgp_password_provider_t pswd_prov = {.callback = rnp_password_provider_string,
-                                         .userdata = "password"};
+                                         .userdata = (void *) "password"};
     assert_true(pgp_key_unlock(key, &pswd_prov));
     assert_true(pgp_hash_copy(&hash, &hash_orig));
     assert_rnp_success(signature_calculate(&sig, pgp_get_key_material(key), &hash, &rng));
@@ -766,7 +766,7 @@ test_stream_verify_no_key(void **state)
     assert_rnp_success(rnp_init(&rnp, &params));
 
     /* load signed and encrypted data */
-    out_data = malloc(out_alloc);
+    out_data = (uint8_t *) malloc(out_alloc);
     assert_non_null(out_data);
 
     data = file_contents("data/test_stream_verification/verify_encrypted_no_key.pgp", &len);

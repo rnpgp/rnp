@@ -243,7 +243,7 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
     uint8_t          keyid[PGP_KEY_ID_SIZE];
     char             id[MAX_ID_LENGTH + 1];
     const pgp_key_t *key;
-    char *           title = "UNKNOWN signature";
+    const char *     title = "UNKNOWN signature";
     pgp_io_t *       io = handler->ctx->rnp->io;
 
     for (int i = 0; i < count; i++) {
@@ -393,7 +393,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
             ctx->halg = pgp_str_to_hash_alg(rnp_cfg_getstr(cfg, CFG_HASH));
             ctx->zalg = rnp_cfg_getint(cfg, CFG_ZALG);
             ctx->zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
-            ctx->aalg = rnp_cfg_getint(cfg, CFG_AEAD);
+            ctx->aalg = (pgp_aead_alg_t) rnp_cfg_getint(cfg, CFG_AEAD);
             ctx->abits = rnp_cfg_getint_default(cfg, CFG_AEAD_CHUNK, DEFAULT_AEAD_CHUNK_BITS);
 
             /* adding passwords if password-based encryption is used */
@@ -456,7 +456,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
     } else if (cmd == CMD_PROCESS) {
         ctx->discard =
           rnp_cfg_getbool(cfg, CFG_NO_OUTPUT) && !rnp_cfg_getstr(cfg, CFG_OUTFILE);
-        ctx->on_signatures = rnp_on_signatures;
+        ctx->on_signatures = (void *) rnp_on_signatures;
     }
 
     return true;
@@ -737,7 +737,7 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
         rnp_cfg_setint(cfg, CFG_ZALG, PGP_C_BZIP2);
         break;
     case OPT_AEAD: {
-        pgp_aead_alg_t alg = 0;
+        pgp_aead_alg_t alg = PGP_AEAD_NONE;
         if (!arg || !strcmp(arg, "1") || !rnp_strcasecmp(arg, "eax")) {
             alg = PGP_AEAD_EAX;
         } else if (!strcmp(arg, "2") || !rnp_strcasecmp(arg, "ocb")) {

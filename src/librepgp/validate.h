@@ -75,11 +75,11 @@ enum last_obj_type { ATTRIBUTE = 1, ID };
 
 /** Struct used with the validate_key_cb callback */
 typedef struct {
-    pgp_key_pkt_t pubkey;
-    pgp_key_pkt_t subkey;
-    pgp_key_pkt_t seckey;
-    bool          loaded_pubkey;
-    last_obj_type last_seen;
+    pgp_key_pkt_t          pubkey;
+    pgp_key_pkt_t          subkey;
+    pgp_key_pkt_t          seckey;
+    bool                   loaded_pubkey;
+    last_obj_type          last_seen;
     uint8_t *              userid;
     pgp_data_t             userattr;
     uint8_t                hash[PGP_MAX_HASH_SIZE];

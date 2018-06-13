@@ -204,12 +204,12 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
         return false;
     }
 
-    if ((buf = (char*)calloc(1, (size_t) st.st_size)) == NULL) {
+    if ((buf = (char *) calloc(1, (size_t) st.st_size)) == NULL) {
         fprintf(stderr, "can't calloc %zu bytes for '%s'\n", (size_t) st.st_size, f);
         bufgap_close(&bg);
         return false;
     }
-    if ((bin = (char*)calloc(1, (size_t) st.st_size)) == NULL) {
+    if ((bin = (char *) calloc(1, (size_t) st.st_size)) == NULL) {
         fprintf(stderr, "can't calloc %zu bytes for '%s'\n", (size_t) st.st_size, f);
         free((void *) buf);
         bufgap_close(&bg);
@@ -261,7 +261,7 @@ ssh2pubkey(pgp_io_t *io, const char *f, pgp_key_t *key)
     /* get key type */
     ok = true;
 
-    keypkt->alg = (pgp_pubkey_alg_t)findstr(pkatypes, buf);
+    keypkt->alg = (pgp_pubkey_alg_t) findstr(pkatypes, buf);
     switch (keypkt->alg) {
     case PGP_PKA_RSA:
         /* get the 'e' param of the key */

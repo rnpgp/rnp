@@ -38,7 +38,7 @@
 void
 test_load_v3_keyring_pgp(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     char              path[PATH_MAX];
     pgp_io_t          io = pgp_io_from_fp(stderr, stdout, stdout);
     pgp_memory_t      mem = {0};
@@ -47,7 +47,7 @@ test_load_v3_keyring_pgp(void **state)
     // read the pubring into memory
     assert_true(pgp_mem_readfile(&mem, path));
 
-    rnp_key_store_t *key_store = calloc(1, sizeof(*key_store));
+    rnp_key_store_t *key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
     assert_non_null(key_store);
 
     // load it in to the key store
@@ -71,7 +71,7 @@ test_load_v3_keyring_pgp(void **state)
     paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/4/secring.pgp", NULL);
     assert_true(pgp_mem_readfile(&mem, path));
 
-    key_store = calloc(1, sizeof(*key_store));
+    key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
     assert_non_null(key_store);
 
     assert_true(rnp_key_store_pgp_read_from_mem(&io, key_store, &mem, NULL));
@@ -108,7 +108,7 @@ test_load_v3_keyring_pgp(void **state)
 void
 test_load_v4_keyring_pgp(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     char              path[PATH_MAX];
     pgp_io_t          io = pgp_io_from_fp(stderr, stdout, stdout);
     pgp_memory_t      mem = {0};
@@ -117,7 +117,7 @@ test_load_v4_keyring_pgp(void **state)
     // read the pubring into memory
     assert_true(pgp_mem_readfile(&mem, path));
 
-    rnp_key_store_t *key_store = calloc(1, sizeof(*key_store));
+    rnp_key_store_t *key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
     assert_non_null(key_store);
 
     // load it in to the key store
@@ -149,7 +149,7 @@ check_pgp_keyring_counts(const char *   path,
     // read the keyring into memory
     assert_true(pgp_mem_readfile(&mem, path));
 
-    rnp_key_store_t *key_store = calloc(1, sizeof(*key_store));
+    rnp_key_store_t *key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
     assert_non_null(key_store);
 
     // load it in to the key store
@@ -195,7 +195,7 @@ check_pgp_keyring_counts(const char *   path,
 void
 test_load_keyring_and_count_pgp(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     char              path[PATH_MAX];
 
     unsigned int primary_count = 2;

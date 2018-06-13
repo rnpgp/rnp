@@ -56,7 +56,7 @@ create_filepath_handle(const char *filename)
         return NULL;
     }
 
-    repgp_handle_t *s = (repgp_handle_t*)calloc(sizeof(*s), 1);
+    repgp_handle_t *s = (repgp_handle_t *) calloc(sizeof(*s), 1);
     if (!s) {
         return NULL;
     }
@@ -69,7 +69,7 @@ create_filepath_handle(const char *filename)
 repgp_handle_t *
 create_buffer_handle(const size_t buffer_size)
 {
-    repgp_handle_t *s = (repgp_handle_t*)calloc(sizeof(*s), 1);
+    repgp_handle_t *s = (repgp_handle_t *) calloc(sizeof(*s), 1);
     if (!s) {
         return NULL;
     }
@@ -89,7 +89,7 @@ create_buffer_handle(const size_t buffer_size)
 repgp_handle_t *
 create_data_handle(const uint8_t *data, size_t size)
 {
-    repgp_handle_t *s = (repgp_handle_t*)calloc(sizeof(*s), 1);
+    repgp_handle_t *s = (repgp_handle_t *) calloc(sizeof(*s), 1);
     if (!s) {
         return NULL;
     }
@@ -116,7 +116,7 @@ create_stdin_handle(void)
     size_t   size = 0;
     ssize_t  n;
 
-    repgp_handle_t *s = (repgp_handle_t*)calloc(sizeof(*s), 1);
+    repgp_handle_t *s = (repgp_handle_t *) calloc(sizeof(*s), 1);
     if (!s) {
         return NULL;
     }
@@ -130,7 +130,7 @@ create_stdin_handle(void)
     while ((n = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
         /* round up the allocation */
         size_t   newsize = size + ((n / BUFSIZ) + 1) * BUFSIZ;
-        uint8_t *loc = (uint8_t*)realloc(data, newsize);
+        uint8_t *loc = (uint8_t *) realloc(data, newsize);
         if (loc == NULL) {
             RNP_LOG("Short read");
             free(s);
@@ -222,7 +222,7 @@ repgp_verify(const void *ctx, repgp_io_t *io)
     }
 
     if (io->in->type == REPGP_HANDLE_FILE) {
-        return rnp_process_file((rnp_ctx_t *) ctx, io->in->filepath, (const char*)output);
+        return rnp_process_file((rnp_ctx_t *) ctx, io->in->filepath, (const char *) output);
     } else if (io->in->type == REPGP_HANDLE_BUFFER) {
         ret = rnp_process_mem((rnp_ctx_t *) ctx,
                               io->in->buffer.data,
@@ -292,7 +292,7 @@ repgp_set_output(repgp_io_t *io, repgp_handle_t *stream)
 repgp_io_t *
 repgp_create_io(void)
 {
-    repgp_io_t *io = (repgp_io_t*)malloc(sizeof(*io));
+    repgp_io_t *io = (repgp_io_t *) malloc(sizeof(*io));
     if (!io) {
         return NULL;
     }

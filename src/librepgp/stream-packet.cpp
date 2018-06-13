@@ -302,7 +302,7 @@ stream_read_mpi(pgp_source_t *src, uint8_t *mpi, size_t maxlen)
 bool
 init_packet_body(pgp_packet_body_t *body, int tag)
 {
-    body->data = (uint8_t*)malloc(16);
+    body->data = (uint8_t *) malloc(16);
     if (!body->data) {
         return false;
     }
@@ -320,11 +320,11 @@ add_packet_body(pgp_packet_body_t *body, const void *data, size_t len)
 
     if (body->len + len > body->allocated) {
         newlen = (body->len + len) * 2;
-        newdata = (uint8_t*)realloc(body->data, newlen);
+        newdata = (uint8_t *) realloc(body->data, newlen);
         if (!newdata) {
             return false;
         }
-        body->data = (uint8_t*)newdata;
+        body->data = (uint8_t *) newdata;
         body->allocated = newlen;
     }
 
@@ -586,8 +586,8 @@ get_packet_body_s2k(pgp_packet_body_t *body, pgp_s2k_t *s2k)
     if (!get_packet_body_byte(body, &spec) || !get_packet_body_byte(body, &halg)) {
         return false;
     }
-    s2k->specifier = (pgp_s2k_specifier_t)spec;
-    s2k->hash_alg = (pgp_hash_alg_t)halg;
+    s2k->specifier = (pgp_s2k_specifier_t) spec;
+    s2k->hash_alg = (pgp_hash_alg_t) halg;
 
     switch (s2k->specifier) {
     case PGP_S2KS_SIMPLE:
@@ -661,7 +661,7 @@ stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
     }
 
     /* Read the packet contents */
-    if (!(body->data = (uint8_t*)malloc(len))) {
+    if (!(body->data = (uint8_t *) malloc(len))) {
         RNP_LOG("malloc of %d bytes failed", (int) len);
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -978,11 +978,11 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
     }
 
     /* symmetric algorithm */
-    skey->alg = (pgp_symm_alg_t)buf[idx++];
+    skey->alg = (pgp_symm_alg_t) buf[idx++];
 
     if (skey->version == PGP_SKSK_V5) {
         /* aead algorithm */
-        skey->aalg = (pgp_aead_alg_t)buf[idx++];
+        skey->aalg = (pgp_aead_alg_t) buf[idx++];
         if ((skey->aalg != PGP_AEAD_EAX) && (skey->aalg != PGP_AEAD_OCB)) {
             RNP_LOG("unsupported AEAD algorithm : %d", (int) skey->aalg);
             return RNP_ERROR_BAD_PARAMETERS;
@@ -996,8 +996,8 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
     }
 
     /* s2k */
-    skey->s2k.specifier = (pgp_s2k_specifier_t)buf[idx++];
-    skey->s2k.hash_alg = (pgp_hash_alg_t)buf[idx++];
+    skey->s2k.specifier = (pgp_s2k_specifier_t) buf[idx++];
+    skey->s2k.hash_alg = (pgp_hash_alg_t) buf[idx++];
     len -= idx;
 
     switch (skey->s2k.specifier) {
@@ -1104,7 +1104,7 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
     memcpy(pkey->key_id, &buf[1], 8);
 
     /* pk alg */
-    pkey->alg = (pgp_pubkey_alg_t)buf[9];
+    pkey->alg = (pgp_pubkey_alg_t) buf[9];
 
     len -= 10;
 
@@ -1203,13 +1203,13 @@ stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass)
     onepass->version = buf[0];
 
     /* signature type */
-    onepass->type = (pgp_sig_type_t)buf[1];
+    onepass->type = (pgp_sig_type_t) buf[1];
 
     /* hash algorithm */
-    onepass->halg = (pgp_hash_alg_t)buf[2];
+    onepass->halg = (pgp_hash_alg_t) buf[2];
 
     /* pk algorithm */
-    onepass->palg = (pgp_pubkey_alg_t)buf[3];
+    onepass->palg = (pgp_pubkey_alg_t) buf[3];
 
     /* key id */
     memcpy(onepass->keyid, &buf[4], PGP_KEY_ID_SIZE);
@@ -1243,7 +1243,7 @@ signature_read_v3(pgp_source_t *src, pgp_signature_t *sig, size_t len)
     }
 
     /* hashed data */
-    if ((sig->hashed_data = (uint8_t*)malloc(5)) == NULL) {
+    if ((sig->hashed_data = (uint8_t *) malloc(5)) == NULL) {
         RNP_LOG("allocation failed");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -1251,7 +1251,7 @@ signature_read_v3(pgp_source_t *src, pgp_signature_t *sig, size_t len)
     sig->hashed_len = 5;
 
     /* signature type */
-    sig->type = (pgp_sig_type_t)buf[1];
+    sig->type = (pgp_sig_type_t) buf[1];
 
     /* creation time */
     sig->creation_time = read_uint32(&buf[2]);
@@ -1260,10 +1260,10 @@ signature_read_v3(pgp_source_t *src, pgp_signature_t *sig, size_t len)
     memcpy(sig->signer, &buf[6], PGP_KEY_ID_SIZE);
 
     /* public key algorithm */
-    sig->palg = (pgp_pubkey_alg_t)buf[14];
+    sig->palg = (pgp_pubkey_alg_t) buf[14];
 
     /* hash algorithm */
-    sig->halg = (pgp_hash_alg_t)buf[15];
+    sig->halg = (pgp_hash_alg_t) buf[15];
 
     return RNP_SUCCESS;
 }
@@ -1321,7 +1321,7 @@ signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
     case PGP_SIG_SUBPKT_REVOCATION_KEY:
         if ((oklen = subpkt->len == 22)) {
             subpkt->fields.revocation_key.klass = subpkt->data[0];
-            subpkt->fields.revocation_key.pkalg = (pgp_pubkey_alg_t)subpkt->data[1];
+            subpkt->fields.revocation_key.pkalg = (pgp_pubkey_alg_t) subpkt->data[1];
             subpkt->fields.revocation_key.fp = &subpkt->data[2];
         }
         break;
@@ -1389,8 +1389,8 @@ signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
         break;
     case PGP_SIG_SUBPKT_SIGNATURE_TARGET:
         if ((oklen = subpkt->len >= 18)) {
-            subpkt->fields.sig_target.pkalg = (pgp_pubkey_alg_t)subpkt->data[0];
-            subpkt->fields.sig_target.halg = (pgp_hash_alg_t)subpkt->data[1];
+            subpkt->fields.sig_target.pkalg = (pgp_pubkey_alg_t) subpkt->data[0];
+            subpkt->fields.sig_target.halg = (pgp_hash_alg_t) subpkt->data[1];
             subpkt->fields.sig_target.hash = &subpkt->data[2];
             subpkt->fields.sig_target.hlen = subpkt->len - 2;
         }
@@ -1467,7 +1467,7 @@ signature_parse_subpackets(pgp_signature_t *sig, uint8_t *buf, size_t len, bool 
 
         memset(&subpkt, 0, sizeof(subpkt));
 
-        if ((subpkt.data = (uint8_t*)malloc(splen - 1)) == NULL) {
+        if ((subpkt.data = (uint8_t *) malloc(splen - 1)) == NULL) {
             RNP_LOG("subpacket data allocation failed");
             return false;
         }
@@ -1513,13 +1513,13 @@ signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
     len -= 5;
 
     /* signature type */
-    sig->type = (pgp_sig_type_t)buf[0];
+    sig->type = (pgp_sig_type_t) buf[0];
 
     /* public key algorithm */
-    sig->palg = (pgp_pubkey_alg_t)buf[1];
+    sig->palg = (pgp_pubkey_alg_t) buf[1];
 
     /* hash algorithm */
-    sig->halg = (pgp_hash_alg_t)buf[2];
+    sig->halg = (pgp_hash_alg_t) buf[2];
 
     /* hashed subpackets length */
     splen = read_uint16(&buf[3]);
@@ -1531,7 +1531,7 @@ signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
     }
 
     /* building hashed data */
-    if ((sig->hashed_data = (uint8_t*)malloc(splen + 6)) == NULL) {
+    if ((sig->hashed_data = (uint8_t *) malloc(splen + 6)) == NULL) {
         RNP_LOG("allocation failed");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -1565,7 +1565,7 @@ signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    if ((spbuf = (uint8_t*)malloc(splen)) == NULL) {
+    if ((spbuf = (uint8_t *) malloc(splen)) == NULL) {
         RNP_LOG("allocation of unhashed subpackets failed");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -1612,7 +1612,7 @@ stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
         return RNP_ERROR_READ;
     }
     len--;
-    sig->version = (pgp_version_t)ver;
+    sig->version = (pgp_version_t) ver;
 
     /* parsing version-specific fields */
     if ((ver == PGP_V2) || (ver == PGP_V3)) {
@@ -1926,8 +1926,8 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     pgp_packet_body_t pkt;
     rnp_result_t      res;
     int               tag;
-    uint8_t alg = 0;
-    uint8_t ver = 0;
+    uint8_t           alg = 0;
+    uint8_t           ver = 0;
 
     /* check the key tag */
     tag = stream_pkt_type(src);
@@ -1952,7 +1952,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
         RNP_LOG("wrong key packet version");
         goto finish;
     }
-    key->version = (pgp_version_t)ver;
+    key->version = (pgp_version_t) ver;
 
     /* creation time */
     if (!get_packet_body_uint32(&pkt, &key->creation_time)) {
@@ -1968,8 +1968,8 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     if (!get_packet_body_byte(&pkt, &alg)) {
         goto finish;
     }
-    key->alg = (pgp_pubkey_alg_t)alg;
-    key->material.alg = (pgp_pubkey_alg_t)alg;
+    key->alg = (pgp_pubkey_alg_t) alg;
+    key->material.alg = (pgp_pubkey_alg_t) alg;
 
     /* v3 keys must be RSA-only */
     if ((key->version < PGP_V4) && !is_rsa_key_alg(key->alg)) {
@@ -2028,8 +2028,8 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
         if (!get_packet_body_byte(&pkt, &halg) || !get_packet_body_byte(&pkt, &walg)) {
             goto finish;
         }
-        key->material.ec.kdf_hash_alg = (pgp_hash_alg_t)halg;
-        key->material.ec.key_wrap_alg = (pgp_symm_alg_t)walg;
+        key->material.ec.kdf_hash_alg = (pgp_hash_alg_t) halg;
+        key->material.ec.key_wrap_alg = (pgp_symm_alg_t) walg;
         break;
     }
     default:
@@ -2038,7 +2038,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     }
 
     /* fill hashed data used for signatures */
-    if (!(key->hashed_data = (uint8_t*)malloc(pkt.pos))) {
+    if (!(key->hashed_data = (uint8_t *) malloc(pkt.pos))) {
         RNP_LOG("allocation failed");
         res = RNP_ERROR_OUT_OF_MEMORY;
         goto finish;
@@ -2053,7 +2053,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
             RNP_LOG("failed to read key protection");
             goto finish;
         }
-        key->sec_protection.s2k.usage = (pgp_s2k_usage_t)usage;
+        key->sec_protection.s2k.usage = (pgp_s2k_usage_t) usage;
         key->sec_protection.cipher_mode = PGP_CIPHER_MODE_CFB;
 
         switch (key->sec_protection.s2k.usage) {
@@ -2068,12 +2068,12 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
                 RNP_LOG("failed to read key protection");
                 goto finish;
             }
-            key->sec_protection.symm_alg = (pgp_symm_alg_t)salg;
+            key->sec_protection.symm_alg = (pgp_symm_alg_t) salg;
             break;
         }
         default:
             /* old-style: usage is symmetric algorithm identifier */
-            key->sec_protection.symm_alg = (pgp_symm_alg_t)usage;
+            key->sec_protection.symm_alg = (pgp_symm_alg_t) usage;
             key->sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED;
             key->sec_protection.s2k.specifier = PGP_S2KS_SIMPLE;
             key->sec_protection.s2k.hash_alg = PGP_HASH_MD5;
@@ -2091,7 +2091,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
 
         /* encrypted/cleartext secret MPIs are left */
         size_t sec_len = pkt.len - pkt.pos;
-        if (!(key->sec_data = (uint8_t*)calloc(1, sec_len))) {
+        if (!(key->sec_data = (uint8_t *) calloc(1, sec_len))) {
             res = RNP_ERROR_OUT_OF_MEMORY;
             goto finish;
         }
@@ -2121,14 +2121,14 @@ copy_key_pkt(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src)
 {
     memcpy(dst, src, sizeof(*src));
     if (src->hashed_data) {
-        dst->hashed_data = (uint8_t*)malloc(src->hashed_len);
+        dst->hashed_data = (uint8_t *) malloc(src->hashed_len);
         if (!dst->hashed_data) {
             return false;
         }
         memcpy(dst->hashed_data, src->hashed_data, src->hashed_len);
     }
     if (src->sec_data) {
-        dst->sec_data = (uint8_t*)malloc(src->sec_len);
+        dst->sec_data = (uint8_t *) malloc(src->sec_len);
         if (!dst->sec_data) {
             free(dst->hashed_data);
             return false;

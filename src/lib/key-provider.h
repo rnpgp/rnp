@@ -42,15 +42,15 @@ typedef enum {
 typedef struct pgp_key_search_t {
     pgp_key_search_type_t type;
     union {
-        uint8_t keyid[PGP_KEY_ID_SIZE];
-        uint8_t grip[PGP_FINGERPRINT_SIZE];
+        uint8_t           keyid[PGP_KEY_ID_SIZE];
+        uint8_t           grip[PGP_FINGERPRINT_SIZE];
         pgp_fingerprint_t fingerprint;
-        char    userid[MAX_ID_LENGTH + 1];
+        char              userid[MAX_ID_LENGTH + 1];
     } by;
 } pgp_key_search_t;
 
 typedef struct pgp_key_request_ctx_t {
-    uint8_t          op;
+    pgp_op_t         op;
     bool             secret;
     pgp_key_search_t search;
 } pgp_key_request_ctx_t;
@@ -71,8 +71,7 @@ typedef struct pgp_key_provider_t {
  *  @param search the search criteria to check against
  *  @return true if the key satisfies the search criteria, false otherwise
  **/
-bool
-rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search);
+bool rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search);
 
 /** @brief request public or secret pgp key, according to information stored in ctx
  *  @param ctx information about the request - which operation requested the key, which search

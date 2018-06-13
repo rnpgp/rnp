@@ -49,7 +49,7 @@ rnpkeys_generatekey_testSignature(void **state)
      * Sign a message, then verify it
      */
 
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     const char * hashAlg[] = {"SHA1", "SHA224", "SHA256", "SHA384", "SHA512", "SM3", NULL};
     rnp_t        rnp;
     rnp_ctx_t    ctx;
@@ -156,7 +156,7 @@ rnpkeys_generatekey_testSignature(void **state)
 void
 rnpkeys_generatekey_testEncryption(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     const char *      cipherAlg[] = {"Blowfish",
                                "Twofish",
                                "CAST5",
@@ -268,7 +268,7 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
     /* Generate key for each of the hash algorithms. Check whether key was generated
      * successfully */
 
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     const char *hashAlg[] = {"MD5", "SHA1", "SHA256", "SHA384", "SHA512", "SHA224", "SM3"};
     const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_GPG21, RNP_KEYSTORE_KBX};
     rnp_t       rnp;
@@ -330,7 +330,7 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
      * Execute the Generate-key command to generate a new keypair
      * Verify the key was generated with the correct UserId. */
 
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     char              userId[1024] = {0};
     const char *      userIds[] = {"rnpkeys_generatekey_verifyUserIdOption_MD5",
                              "rnpkeys_generatekey_verifyUserIdOption_SHA-1",
@@ -383,7 +383,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 {
     /* Try to generate keypair in different home directories */
 
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     const char *      ourdir = rstate->home;
     char              newhome[256];
     rnp_t             rnp;
@@ -454,7 +454,7 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
 {
     /* Try to generate keypair in different home directories for KBX keystorage */
 
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     const char *      ourdir = rstate->home;
     char              newhome[256];
     rnp_t             rnp;
@@ -534,7 +534,7 @@ rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state)
 void
 rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     const char *      ourdir = rstate->home;
     char              nopermsdir[256];
     rnp_t             rnp;
@@ -608,7 +608,7 @@ end:
 void
 rnpkeys_generatekey_testExpertMode(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     rnp_t             rnp;
     rnp_cfg_t         ops = {0};
 
@@ -738,7 +738,7 @@ rnpkeys_generatekey_testExpertMode(void **state)
 void
 generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     rnp_t             rnp;
     rnp_cfg_t         ops = {0};
 
@@ -759,7 +759,7 @@ generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state)
 void
 generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     rnp_t             rnp;
     rnp_cfg_t         ops = {0};
 
@@ -780,7 +780,7 @@ generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
 void
 generatekeyECDSA_explicitlySetWrongDigest_ShouldSuceed(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     rnp_t             rnp;
     rnp_cfg_t         ops = {0};
 
@@ -803,7 +803,7 @@ generatekeyECDSA_explicitlySetWrongDigest_ShouldSuceed(void **state)
 void
 test_generated_key_sigs(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t*)*state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     rnp_key_store_t * pubring = NULL;
     rnp_key_store_t * secring = NULL;
     pgp_io_t          io = pgp_io_from_fp(stderr, stdout, stdout);
@@ -815,8 +815,8 @@ test_generated_key_sigs(void **state)
     rng_t *           rng;
 
     // create a couple keyrings
-    pubring = calloc(1, sizeof(*pubring));
-    secring = calloc(1, sizeof(*secring));
+    pubring = (rnp_key_store_t *) calloc(1, sizeof(*pubring));
+    secring = (rnp_key_store_t *) calloc(1, sizeof(*secring));
     assert_non_null(pubring);
     assert_non_null(secring);
 
@@ -835,7 +835,7 @@ test_generated_key_sigs(void **state)
         desc.crypto.key_alg = PGP_PKA_RSA;
         desc.crypto.rsa.modulus_bit_len = 1024;
         desc.crypto.rng = &global_rng;
-        strcpy(desc.cert.userid, "test");
+        strcpy((char *) desc.cert.userid, "test");
 
         // generate
         assert_true(pgp_generate_primary_key(&desc, true, &sec, &pub, GPG_KEY_STORE));
@@ -897,25 +897,25 @@ test_generated_key_sigs(void **state)
         // validate via an alternative method
         pgp_validation_t *result = NULL;
         // primary_pub + pubring
-        result = calloc(1, sizeof(*result));
+        result = (pgp_validation_t *) calloc(1, sizeof(*result));
         assert_non_null(result);
         result->rnp_ctx = &rnp_ctx;
         assert_true(pgp_validate_key_sigs(result, primary_pub, pubring));
         pgp_validate_result_free(result);
         // primary_sec + pubring
-        result = calloc(1, sizeof(*result));
+        result = (pgp_validation_t *) calloc(1, sizeof(*result));
         assert_non_null(result);
         result->rnp_ctx = &rnp_ctx;
         assert_true(pgp_validate_key_sigs(result, primary_sec, pubring));
         pgp_validate_result_free(result);
         // primary_pub + secring
-        result = calloc(1, sizeof(*result));
+        result = (pgp_validation_t *) calloc(1, sizeof(*result));
         assert_non_null(result);
         result->rnp_ctx = &rnp_ctx;
         assert_true(pgp_validate_key_sigs(result, primary_pub, secring));
         pgp_validate_result_free(result);
         // primary_sec + secring
-        result = calloc(1, sizeof(*result));
+        result = (pgp_validation_t *) calloc(1, sizeof(*result));
         assert_non_null(result);
         result->rnp_ctx = &rnp_ctx;
         assert_true(pgp_validate_key_sigs(result, primary_sec, secring));
@@ -925,7 +925,7 @@ test_generated_key_sigs(void **state)
         // modify a hashed portion of the sig packet
         primary_pub->packets[2].raw[32] ^= 0xff;
         // ensure validation fails
-        result = calloc(1, sizeof(*result));
+        result = (pgp_validation_t *) calloc(1, sizeof(*result));
         assert_non_null(result);
         result->rnp_ctx = &rnp_ctx;
         assert_false(pgp_validate_key_sigs(result, primary_pub, pubring));
@@ -998,7 +998,7 @@ test_generated_key_sigs(void **state)
             fake.packets[fake.packetc++] = sub_pub->packets[i];
         }
         // validate via an alternative method
-        pgp_validation_t *vres = calloc(1, sizeof(*vres));
+        pgp_validation_t *vres = (pgp_validation_t *) calloc(1, sizeof(*vres));
         assert_non_null(vres);
         vres->rnp_ctx = &rnp_ctx;
         assert_true(pgp_validate_key_sigs(vres, &fake, pubring));

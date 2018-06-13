@@ -31,7 +31,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 
-static char        original_dir[PATH_MAX];
+static char original_dir[PATH_MAX];
 
 /*
  * Handler used to access DRBG.
@@ -41,7 +41,7 @@ rng_t global_rng;
 static char *
 get_data_dir(void)
 {
-    char  data_dir[PATH_MAX];
+    char data_dir[PATH_MAX];
     paths_concat(data_dir, sizeof(data_dir), original_dir, "data", NULL);
     return realpath(data_dir, NULL);
 }
@@ -49,7 +49,7 @@ get_data_dir(void)
 static int
 setup_test_group(void **state)
 {
-    rnp_test_state_t *rstate = calloc(1, sizeof(rnp_test_state_t));
+    rnp_test_state_t *rstate = (rnp_test_state_t *) calloc(1, sizeof(*rstate));
 
     if (!rstate) {
         return -1;
@@ -61,7 +61,7 @@ setup_test_group(void **state)
 static int
 teardown_test_group(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
 
     if (!rstate) {
         return -1;
@@ -76,7 +76,7 @@ teardown_test_group(void **state)
 static int
 setup_test(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
 
     rstate->home = make_temp_dir();
     if (rstate->home == NULL) {
@@ -105,7 +105,7 @@ setup_test(void **state)
 static int
 teardown_test(void **state)
 {
-    rnp_test_state_t *rstate = *state;
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     delete_recursively(rstate->home);
     free(rstate->home);
     rstate->home = NULL;

@@ -183,8 +183,8 @@ typedef struct pgp_dest_indent_param_t {
 static rnp_result_t
 indent_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t*)dst->param;
-    const char *             line = (const char*)buf;
+    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t *) dst->param;
+    const char *             line = (const char *) buf;
     char                     indent[4] = {' ', ' ', ' ', ' '};
 
     if (!len) {
@@ -216,7 +216,7 @@ indent_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 static void
 indent_dst_close(pgp_dest_t *dst, bool discard)
 {
-    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t*)dst->param;
+    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t *) dst->param;
     if (!param) {
         return;
     }
@@ -237,7 +237,7 @@ init_indent_dest(pgp_dest_t *dst, pgp_dest_t *origdst)
     dst->close = indent_dst_close;
     dst->finish = NULL;
     dst->no_cache = true;
-    param = (pgp_dest_indent_param_t*)dst->param;
+    param = (pgp_dest_indent_param_t *) dst->param;
     param->writedst = origdst;
     param->lstart = true;
 
@@ -247,14 +247,14 @@ init_indent_dest(pgp_dest_t *dst, pgp_dest_t *origdst)
 static void
 indent_dest_increase(pgp_dest_t *dst)
 {
-    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t*)dst->param;
+    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t *) dst->param;
     param->level++;
 }
 
 static void
 indent_dest_decrease(pgp_dest_t *dst)
 {
-    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t*)dst->param;
+    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t *) dst->param;
     if (param->level > 0) {
         param->level--;
     }
@@ -263,7 +263,7 @@ indent_dest_decrease(pgp_dest_t *dst)
 static void
 indent_dest_set(pgp_dest_t *dst, int level)
 {
-    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t*)dst->param;
+    pgp_dest_indent_param_t *param = (pgp_dest_indent_param_t *) dst->param;
     param->level = level;
 }
 
@@ -977,7 +977,7 @@ stream_dump_compressed(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     indent_dest_increase(dst);
 
     get_compressed_src_alg(&zsrc, &zalg);
-    dst_print_zalg(dst, NULL, (pgp_compression_type_t)zalg);
+    dst_print_zalg(dst, NULL, (pgp_compression_type_t) zalg);
     dst_printf(dst, "Decompressed contents:\n");
     ret = stream_dump_packets_raw(ctx, &zsrc, dst);
 

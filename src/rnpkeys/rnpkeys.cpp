@@ -205,7 +205,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
             return false;
         }
         return rnp_import_key(rnp, f);
-    case CMD_GENERATE_KEY:
+    case CMD_GENERATE_KEY: {
         key = f ? f : rnp_cfg_getstr(cfg, CFG_USERID);
         rnp_action_keygen_t *        action = &rnp->action.generate_key_ctx;
         rnp_keygen_primary_desc_t *  primary_desc = &action->primary.keygen;
@@ -231,6 +231,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
             return false;
         }
         return rnp_generate_key(rnp);
+    }
     case CMD_GET_KEY: {
         char *keydesc = rnp_get_key(rnp, f, rnp_cfg_getstr(cfg, CFG_KEYFORMAT));
         if (keydesc) {
@@ -260,7 +261,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         break;
     case CMD_GENERATE_KEY:
         rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
-        *cmd = val;
+        *cmd = (optdefs_t) val;
         break;
     case OPT_EXPERT:
         rnp_cfg_setbool(cfg, CFG_EXPERT, true);
@@ -273,7 +274,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
     case CMD_GET_KEY:
     case CMD_TRUSTED_KEYS:
     case CMD_HELP:
-        *cmd = val;
+        *cmd = (optdefs_t) val;
         break;
     case CMD_VERSION:
         print_praise();
