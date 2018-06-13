@@ -14,6 +14,9 @@ env:
     - CMOCKA_INSTALL="${LOCAL_BUILDS}/cmocka-install"
     - JSONC_INSTALL="${LOCAL_BUILDS}/jsonc-install"
     - GPG_INSTALL="${LOCAL_BUILDS}/gpg-install"
+    - RNP_INSTALL="${LOCAL_BUILDS}/rnp-install"
+    - RUBY_RNP_INSTALL="${LOCAL_BUILDS}/ruby-rnp"
+    - RUBY_RNP_VERSION="v1.0.0"
     - LOGNAME="Travis"
     - CLANG_FORMAT_DIFF="clang-format-diff-4.0"
 
@@ -103,9 +106,12 @@ cache:
     - "$CMOCKA_INSTALL"
     - "$JSONC_INSTALL"
     - "$GPG_INSTALL"
+    - "$RUBY_RNP_INSTALL"
 
 before_install:
   - ./ci/before_install.sh
+  - rvm get stable
+  - rvm use 2.3.4 --install --binary --fuzzy
 
 install:
   - travis_wait 50 ./ci/install.sh

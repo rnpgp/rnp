@@ -259,3 +259,12 @@ if [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
     exit 1
   fi
 fi
+
+# ruby-rnp
+if [ ! -e "${RUBY_RNP_INSTALL}/Gemfile" ]; then
+  git clone --depth 1 --branch "$RUBY_RNP_VERSION" https://github.com/riboseinc/ruby-rnp "$RUBY_RNP_INSTALL"
+  pushd "$RUBY_RNP_INSTALL"
+  gem install bundler
+  bundle install --path .
+  popd
+fi
