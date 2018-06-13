@@ -157,7 +157,7 @@ build_gpg_beta() {
 
   # workaround https://github.com/travis-ci/travis-ci/issues/8613
   # alternatively, forcing the libgpg-error build to use gcc should work
-  export LD_LIBRARY_PATH="/usr/local/clang-5.0.0/lib"
+  export LD_LIBRARY_PATH="/usr/local/clang/lib"
 
   git clone --depth 1 --branch "$NPTH_VERSION" git://git.gnupg.org/npth
   pushd npth
