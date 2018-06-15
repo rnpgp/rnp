@@ -62,6 +62,8 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <librepgp/reader.h>
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-sig.h>
+#include <librepgp/stream-packet.h>
+#include <librepgp/stream-key.h>
 #include <librepgp/stream-armor.h>
 
 #include "types.h"
@@ -357,82 +359,392 @@ cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
     return PGP_RELEASE_MEMORY;
 }
 
-/**
-   \ingroup HighLevel_KeyringRead
+static bool
+rnp_key_add_stream_rawpacket(pgp_key_t *key, int tag, pgp_dest_t *memdst)
+{
+    pgp_rawpacket_t rawpkt = {};
+    EXPAND_ARRAY(key, packet);
+    if (!key->packets) {
+        RNP_LOG("Failed to expand packet array.");
+        dst_close(memdst, true);
+        return false;
+    }
 
-   \brief Reads a keyring from memory
+    rawpkt.tag = (pgp_content_enum) tag;
+    rawpkt.length = memdst->writeb;
+    rawpkt.raw = (uint8_t*) mem_dest_own_memory(memdst);
+    key->packets[key->packetc++] = rawpkt;
 
-   \param keyring Pointer to existing keyring_t struct
-   \param armor 1 if file is armored; else 0
-   \param mem Pointer to a pgp_memory_t struct containing keyring to be read
+    dst_close(memdst, false);
+    return true;
+}
 
-   \return pgp true if OK; false on error
+static bool
+rnp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t *pkt)
+{
+    pgp_dest_t dst = {};
 
-   \note Keyring struct must already exist.
+    if (init_mem_dest(&dst, NULL, 0)) {
+        return false;
+    }
 
-   \note Can be used with either a public or secret keyring.
+    if (!stream_write_key(pkt, &dst)) {
+        dst_close(&dst, true);
+        return false;
+    }
 
-   \note You must call pgp_keyring_free() after usage to free alloc-ed memory.
+    return rnp_key_add_stream_rawpacket(key, pkt->tag, &dst);
+}
 
-   \note If you call this twice on the same keyring struct, without calling
-   pgp_keyring_free() between these calls, you will introduce a memory leak.
+static bool
+rnp_key_add_sig_rawpacket(pgp_key_t *key, pgp_signature_t *pkt)
+{
+    pgp_dest_t dst = {};
 
-   \sa pgp_keyring_fileread
-   \sa pgp_keyring_free
-*/
+    if (init_mem_dest(&dst, NULL, 0)) {
+        return false;
+    }
+
+    if (!stream_write_signature(pkt, &dst)) {
+        dst_close(&dst, true);
+        return false;
+    }
+
+    return rnp_key_add_stream_rawpacket(key, PGP_PTAG_CT_SIGNATURE, &dst);
+}
+
+static bool
+rnp_key_add_uid_rawpacket(pgp_key_t *key, pgp_userid_pkt_t *pkt)
+{
+    pgp_dest_t dst = {};
+
+    if (init_mem_dest(&dst, NULL, 0)) {
+        return false;
+    }
+
+    if (!stream_write_userid(pkt, &dst)) {
+        dst_close(&dst, true);
+        return false;
+    }
+
+    return rnp_key_add_stream_rawpacket(key, pkt->tag, &dst);
+}
+
+static bool
+create_key_from_pkt(pgp_key_t *key, pgp_key_pkt_t *pkt)
+{
+    pgp_key_pkt_t keypkt = {};
+
+    memset(key, 0, sizeof(*key));
+
+    if (!copy_key_pkt(&keypkt, pkt)) {
+        RNP_LOG("failed to copy key packet");
+        return false;
+    }
+
+    /* parse secret key if not encrypted */
+    if (is_secret_key_pkt(keypkt.tag)) {
+        bool cleartext = keypkt.sec_protection.s2k.usage == PGP_S2KU_NONE;
+        if (cleartext && decrypt_secret_key(&keypkt, NULL)) {
+            RNP_LOG("failed to setup key fields");
+            free_key_pkt(&keypkt);
+            return false;
+        }
+    }
+
+    /* this call transfers ownership */
+    if (!pgp_key_from_keypkt(key, &keypkt, (pgp_content_enum) pkt->tag)) {
+        RNP_LOG("failed to setup key fields");
+        free_key_pkt(&keypkt);
+        return false;
+    }
+
+    /* add key rawpacket */
+    if (!rnp_key_add_key_rawpacket(key, pkt)) {
+        free_key_pkt(&keypkt);
+        return false;
+    }
+
+    key->format = GPG_KEY_STORE;
+    key->key_flags = pgp_pk_alg_capabilities(pgp_get_key_pkt(key)->alg);
+    return true;
+}
+
+static bool
+rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
+{
+    pgp_subsig_t *subsig = NULL;
+
+    EXPAND_ARRAY(key, subsig);
+    if (key->subsigs == NULL) {
+        RNP_LOG("Failed to expand signature array.");
+        return false;
+    }
+
+    /* add signature rawpacket */
+    if (!rnp_key_add_sig_rawpacket(key, sig)) {
+        return false;
+    }
+
+    subsig = &key->subsigs[key->subsigc++];
+    subsig->uid = key->uidc - 1;
+    if (!copy_signature_packet(&subsig->sig, sig)) {
+        return false;
+    }
+
+    if (signature_has_key_expiration(&subsig->sig)) {
+        key->expiration = signature_get_key_expiration(&subsig->sig);
+    }
+    if (signature_has_trust(&subsig->sig)) {
+        signature_get_trust(&subsig->sig, &subsig->trustlevel, &subsig->trustamount);
+    }
+    if (signature_get_primary_uid(&subsig->sig)) {
+        key->uid0 = key->uidc - 1;
+        key->uid0_set = 1;
+    }
+
+    uint8_t *         algs = NULL;
+    size_t            count = 0;
+    pgp_user_prefs_t *prefs = &subsig->prefs;
+
+    if (signature_get_preferred_symm_algs(&subsig->sig, &algs, &count)) {
+        for (size_t i = 0; i < count; i++) {
+            EXPAND_ARRAY(prefs, symm_alg);
+            if (!prefs->symm_algs) {
+                RNP_LOG("Failed to expand symm array.");
+                return false;
+            }
+            prefs->symm_algs[i] = algs[i];
+            prefs->symm_algc++;
+        }
+    }
+    if (signature_get_preferred_hash_algs(&subsig->sig, &algs, &count)) {
+        for (size_t i = 0; i < count; i++) {
+            EXPAND_ARRAY(prefs, hash_alg);
+            if (!prefs->hash_algs) {
+                RNP_LOG("Failed to expand hash array.");
+                return false;
+            }
+            prefs->hash_algs[i] = algs[i];
+            prefs->hash_algc++;
+        }
+    }
+    if (signature_get_preferred_z_algs(&subsig->sig, &algs, &count)) {
+        for (size_t i = 0; i < count; i++) {
+            EXPAND_ARRAY(prefs, compress_alg);
+            if (!prefs->compress_algs) {
+                RNP_LOG("Failed to expand z array.");
+                return PGP_FINISHED;
+            }
+            prefs->compress_algs[i] = algs[i];
+            prefs->compress_algc++;
+        }
+    }
+    if (signature_has_key_flags(&subsig->sig)) {
+        subsig->key_flags = signature_get_key_flags(&subsig->sig);
+        key->key_flags = subsig->key_flags;
+    }
+    if (signature_has_key_server_prefs(&subsig->sig)) {
+        EXPAND_ARRAY(prefs, key_server_pref);
+        if (!prefs->key_server_prefs) {
+            RNP_LOG("Failed to expand key serv prefs array.");
+            return PGP_FINISHED;
+        }
+        subsig->prefs.key_server_prefs[0] = signature_get_key_server_prefs(&subsig->sig);
+        subsig->prefs.key_server_prefc++;
+    }
+    if (signature_has_key_server(&subsig->sig)) {
+        subsig->prefs.key_server = (uint8_t *) signature_get_key_server(&subsig->sig);
+    }
+    if (signature_has_revocation_reason(&subsig->sig)) {
+        /* not sure whether this logic is correct - we should check signature type? */
+        pgp_revoke_t *revocation = NULL;
+        if (key->uidc == 0) {
+            /* revoke whole key */
+            key->revoked = 1;
+            revocation = &key->revocation;
+        } else {
+            /* revoke the user id */
+            EXPAND_ARRAY(key, revoke);
+            if (key->revokes == NULL) {
+                RNP_LOG("Failed to expand revoke array.");
+                return PGP_FINISHED;
+            }
+            revocation = &key->revokes[key->revokec];
+            key->revokes[key->revokec].uid = key->uidc - 1;
+            key->revokec += 1;
+        }
+        signature_get_revocation_reason(&subsig->sig, &revocation->code, &revocation->reason);
+        if (!strlen(revocation->reason)) {
+            free(revocation->reason);
+            revocation->reason = rnp_strdup(pgp_show_ss_rr_code(revocation->code));
+        }
+    }
+
+    return true;
+}
+
+static bool
+rnp_key_add_signatures(pgp_key_t *key, list signatures)
+{
+    for (list_item *sig = list_front(signatures); sig; sig = list_next(sig)) {
+        if (!rnp_key_add_signature(key, (pgp_signature_t *) sig)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool
+rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
+                                      pgp_transferable_subkey_t *tskey,
+                                      pgp_key_t *                pkey)
+{
+    pgp_key_t skey = {};
+    pgp_io_t  io = {.outs = stdout, .errs = stderr, .res = stdout};
+
+    /* create key */
+    if (!create_key_from_pkt(&skey, &tskey->subkey)) {
+        return false;
+    }
+
+    /* add subkey binding signatures */
+    if (!rnp_key_add_signatures(&skey, tskey->signatures)) {
+        RNP_LOG("failed to add subkey signatures");
+        goto error;
+    }
+
+    skey.primary_grip = (uint8_t*) malloc(PGP_FINGERPRINT_SIZE);
+    if (!skey.primary_grip) {
+        RNP_LOG("alloc failed");
+        goto error;
+    }
+    memcpy(skey.primary_grip, pkey->grip, PGP_FINGERPRINT_SIZE);
+    if (!list_append(&pkey->subkey_grips, skey.grip, PGP_FINGERPRINT_SIZE)) {
+        RNP_LOG("failed to add subkey grip");
+        goto error;
+    }
+
+    if (!rnp_key_store_add_key(&io, keyring, &skey)) {
+        RNP_LOG("Failed to add subkey to key store.");
+        goto error;
+    }
+
+    return true;
+error:
+    pgp_key_free_data(&skey);
+    return false;
+}
+
+bool
+rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_key_t *tkey)
+{
+    pgp_key_t  key = {};
+    pgp_key_t *addkey = NULL;
+    pgp_io_t   io = {.outs = stdout, .errs = stderr, .res = stdout};
+
+    /* create key */
+    if (!create_key_from_pkt(&key, &tkey->key)) {
+        return false;
+    }
+
+    /* add direct-key signatures */
+    if (!rnp_key_add_signatures(&key, tkey->signatures)) {
+        goto error;
+    }
+
+    /* add userids and their signatures */
+    for (list_item *uid = list_front(tkey->userids); uid; uid = list_next(uid)) {
+        pgp_transferable_userid_t *tuid = (pgp_transferable_userid_t *) uid;
+        uint8_t *                  uidz;
+
+        if (!rnp_key_add_uid_rawpacket(&key, &tuid->uid)) {
+            goto error;
+        }
+
+        if (!(uidz = (uint8_t*) calloc(1, tuid->uid.uid_len + 1))) {
+            RNP_LOG("uid alloc failed");
+            goto error;
+        }
+
+        memcpy(uidz, tuid->uid.uid, tuid->uid.uid_len);
+        uidz[tuid->uid.uid_len] = 0;
+        if (!pgp_add_userid(&key, uidz)) {
+            RNP_LOG("failed to add user id");
+            free(uidz);
+            goto error;
+        }
+        free(uidz);
+        if (!rnp_key_add_signatures(&key, tuid->signatures)) {
+            goto error;
+        }
+    }
+
+    /* add key to the storage before subkeys */
+    if (!(addkey = rnp_key_store_add_key(&io, keyring, &key))) {
+        RNP_LOG("Failed to add key to key store.");
+        goto error;
+    }
+
+    /* add subkeys */
+    for (list_item *skey = list_front(tkey->subkeys); skey; skey = list_next(skey)) {
+        pgp_transferable_subkey_t *subkey = (pgp_transferable_subkey_t *) skey;
+        if (!rnp_key_store_add_transferable_subkey(keyring, subkey, addkey)) {
+            goto error;
+        }
+    }
+
+    return true;
+error:
+    if (addkey) {
+        /* during key addition all fields are copied so will be cleaned below */
+        rnp_key_store_remove_key(&io, keyring, addkey);
+        pgp_key_free_data(addkey);
+    } else {
+        pgp_key_free_data(&key);
+    }
+    return false;
+}
+
+rnp_result_t
+rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src)
+{
+    pgp_key_sequence_t keys = {};
+    rnp_result_t       ret = RNP_ERROR_GENERIC;
+
+    if ((ret = process_pgp_keys(src, &keys))) {
+        return ret;
+    }
+
+    for (list_item *key = list_front(keys.keys); key; key = list_next(key)) {
+        if (!rnp_key_store_add_transferable_key(keyring, (pgp_transferable_key_t *) key)) {
+            ret = RNP_ERROR_BAD_STATE;
+            goto done;
+        }
+    }
+
+    ret = RNP_SUCCESS;
+done:
+    key_sequence_destroy(&keys);
+    return ret;
+}
+
 bool
 rnp_key_store_pgp_read_from_mem(pgp_io_t *                io,
                                 rnp_key_store_t *         keyring,
                                 pgp_memory_t *            mem,
                                 const pgp_key_provider_t *key_provider)
 {
-    pgp_source_t   src = {0};
-    pgp_source_t   armorsrc = {0};
-    bool           armored = false;
-    pgp_source_t   rawsrc = {0};
-    pgp_memory_t   rawmem;
-    pgp_stream_t * stream;
-    const unsigned printerrors = 1;
-    const unsigned accum = 1;
-    keyringcb_t    cb = {0};
-    bool           res = false;
+    pgp_source_t src = {};
+    bool         res = false;
 
     if (init_mem_src(&src, mem->buf, mem->length, false)) {
         return false;
     }
 
-    if (is_armored_source(&src)) {
-        /* it's a bit complicated since underlying code doesn't work with streams yet */
-        if (init_armored_src(&armorsrc, &src)) {
-            goto done;
-        }
-        if (read_mem_src(&rawsrc, &armorsrc)) {
-            src_close(&armorsrc);
-            goto done;
-        }
-        src_close(&armorsrc);
-        armored = true;
+    res = !rnp_key_store_pgp_read_from_src(keyring, &src);
 
-        pgp_memory_ref(&rawmem, (uint8_t *) mem_src_get_memory(&rawsrc), rawsrc.size);
-        mem = &rawmem;
-    }
-
-    cb.keyring = keyring;
-    cb.io = io;
-    cb.key_provider = key_provider;
-    if (!pgp_setup_memory_read(io, &stream, mem, &cb, cb_keyring_parse, accum)) {
-        (void) fprintf(io->errs, "can't setup memory read\n");
-        goto done;
-    }
-    res = repgp_parse(stream, printerrors);
-    pgp_print_errors(pgp_stream_get_errors(stream));
-    /* don't call teardown_memory_read because memory was passed in */
-    pgp_stream_delete(stream);
-done:
     src_close(&src);
-    if (armored) {
-        src_close(&rawsrc);
-    }
     return res;
 }
 
@@ -503,7 +815,7 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
 }
 
 bool
-rnp_key_store_pgp_write_to_stream(rnp_key_store_t *key_store, bool armor, pgp_dest_t *dst)
+rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, bool armor, pgp_dest_t *dst)
 {
     pgp_dest_t armordst;
     bool       res = false;
@@ -535,7 +847,7 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
                                bool             armor,
                                pgp_memory_t *   mem)
 {
-    pgp_dest_t   dst = {0};
+    pgp_dest_t   dst = {};
     bool         res = false;
     pgp_output_t output = {};
 
@@ -543,7 +855,7 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
         return false;
     }
 
-    res = rnp_key_store_pgp_write_to_stream(key_store, armor, &dst);
+    res = rnp_key_store_pgp_write_to_dst(key_store, armor, &dst);
 
     if (!res) {
         goto done;

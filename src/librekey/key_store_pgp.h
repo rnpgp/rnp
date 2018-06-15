@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2018, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -58,8 +58,10 @@
 #include <rekey/rnp_key_store.h>
 #include <librepgp/packet-parse.h>
 #include <librepgp/stream-common.h>
-
+#include <librepgp/stream-key.h>
 #include "memory.h"
+
+rnp_result_t rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src);
 
 bool rnp_key_store_pgp_read_from_mem(pgp_io_t *,
                                      rnp_key_store_t *,
@@ -68,10 +70,15 @@ bool rnp_key_store_pgp_read_from_mem(pgp_io_t *,
 
 bool rnp_key_store_pgp_write_to_mem(pgp_io_t *, rnp_key_store_t *, bool, pgp_memory_t *);
 
-bool rnp_key_store_pgp_write_to_stream(rnp_key_store_t *key_store,
-                                       bool             armor,
-                                       pgp_dest_t *     dst);
+bool rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, bool armor, pgp_dest_t *dst);
 
 bool pgp_parse_key_attrs(pgp_key_t *key, const uint8_t *data, size_t data_len);
+
+bool rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
+                                           pgp_transferable_subkey_t *tskey,
+                                           pgp_key_t *                pkey);
+
+bool rnp_key_store_add_transferable_key(rnp_key_store_t *       keyring,
+                                        pgp_transferable_key_t *tkey);
 
 #endif /* KEY_STORE_PGP_H_ */

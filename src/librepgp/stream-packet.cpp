@@ -1741,13 +1741,16 @@ copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src)
             free_signature(dst);
             return false;
         }
-        memcpy(dstsp, sp, sizeof(*dstsp));
         if (!(dstsp->data = (uint8_t *) malloc(dstsp->len))) {
             free_signature(dst);
             return false;
         }
-        memcpy(dstsp->data, ((pgp_sig_subpkt_t *) sp)->data, dstsp->len);
+        memcpy(dstsp->data, srcsp->data, srcsp->len);
+        dstsp->len = srcsp->len;
+        memset(&dstsp->fields, 0, sizeof(dstsp->fields));
+        signature_parse_subpacket(dstsp);
     }
+
     return true;
 }
 

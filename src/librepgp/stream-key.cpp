@@ -57,6 +57,14 @@ signature_list_destroy(list *sigs)
 }
 
 void
+transferable_subkey_destroy(pgp_transferable_subkey_t *subkey)
+{
+    forget_secret_key_fields(&subkey->subkey.material);
+    free_key_pkt(&subkey->subkey);
+    signature_list_destroy(&subkey->signatures);
+}
+
+void
 transferable_key_destroy(pgp_transferable_key_t *key)
 {
     forget_secret_key_fields(&key->key.material);
@@ -69,10 +77,7 @@ transferable_key_destroy(pgp_transferable_key_t *key)
     list_destroy(&key->userids);
 
     for (list_item *li = list_front(key->subkeys); li; li = list_next(li)) {
-        pgp_transferable_subkey_t *skey = (pgp_transferable_subkey_t *) li;
-        forget_secret_key_fields(&skey->subkey.material);
-        free_key_pkt(&skey->subkey);
-        signature_list_destroy(&skey->signatures);
+        transferable_subkey_destroy((pgp_transferable_subkey_t *) li);
     }
     list_destroy(&key->subkeys);
 
@@ -846,7 +851,7 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
     rnp_result_t         res = RNP_ERROR_SIGNATURE_INVALID;
     uint8_t              signer_id[PGP_KEY_ID_SIZE] = {0};
     pgp_io_t             io = {.outs = stdout, .errs = stderr, .res = stdout};
-    pgp_signature_info_t sinfo = {0};
+    pgp_signature_info_t sinfo = {};
 
     if (!signature_get_keyid(sig, signer_id)) {
         return RNP_ERROR_BAD_PARAMETERS;
