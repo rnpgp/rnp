@@ -96,13 +96,38 @@ load_generated_key(pgp_output_t **    output,
 
     switch (format) {
     case GPG_KEY_STORE:
-    case KBX_KEY_STORE:
-        prov.userdata = key_ptrs;
-        if (!rnp_key_store_pgp_read_from_mem(&io, key_store, *mem, &prov)) {
+    case KBX_KEY_STORE: {
+        pgp_source_t src = {0};
+        bool         res = false;
+
+        if (init_mem_src(&src, (*mem)->buf, (*mem)->length, false)) {
+            goto end;
+        }
+
+        if (primary_key) {
+            pgp_transferable_subkey_t tskey = {{0}};
+            res = !process_pgp_subkey(&src, &tskey);
+            if (res) {
+                res = rnp_key_store_add_transferable_subkey(key_store, &tskey, primary_key);
+                transferable_subkey_destroy(&tskey);
+            }
+        } else {
+            pgp_transferable_key_t tkey = {{0}};
+            res = !process_pgp_key(&src, &tkey);
+            if (res) {
+                res = rnp_key_store_add_transferable_key(key_store, &tkey);
+                transferable_key_destroy(&tkey);
+            }
+        }
+        src_close(&src);
+
+        if (!res) {
             RNP_LOG("failed to read back generated key");
             goto end;
         }
+
         break;
+    }
     case G10_KEY_STORE: {
         // G10 needs the pubkey for copying some attributes (key version, creation time, etc)
         if (!list_append(&key_ptrs, &pubkey, sizeof(pubkey))) {
@@ -519,7 +544,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         goto end;
     }
 
-    // write the public subkey, userid, and binding self-signature
+    // write the public subkey, and binding self-signature
     if (!pgp_setup_memory_write(NULL, &output, &mem, 4096)) {
         goto end;
     }
@@ -534,7 +559,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         goto end;
     }
 
-    // write the secret subkey, userid, and binding self-signature
+    // write the secret subkey, and binding self-signature
     if (!pgp_setup_memory_write(NULL, &output, &mem, 4096)) {
         goto end;
     }

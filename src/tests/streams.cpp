@@ -831,7 +831,6 @@ static void
 validate_key_sigs(const char *path)
 {
     rnp_key_store_t *     pubring;
-    rng_t                 rng;
     pgp_io_t              io = {.outs = stdout, .errs = stderr, .res = stdout};
     pgp_key_t *           pkey = NULL;
     pgp_signatures_info_t info = {0};
@@ -845,8 +844,6 @@ validate_key_sigs(const char *path)
     assert_true(check_signatures_info(&info));
     free_signatures_info(&info);
     rnp_key_store_free(pubring);
-
-    rng_destroy(&rng);
 }
 
 void

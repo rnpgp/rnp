@@ -61,6 +61,8 @@ typedef struct pgp_key_sequence_t {
     list keys; /* list of pgp_transferable_key_t records */
 } pgp_key_sequence_t;
 
+void transferable_subkey_destroy(pgp_transferable_subkey_t *subkey);
+
 void transferable_key_destroy(pgp_transferable_key_t *key);
 
 void key_sequence_destroy(pgp_key_sequence_t *keys);
