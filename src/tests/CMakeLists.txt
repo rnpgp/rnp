@@ -75,7 +75,10 @@ add_test(
   NAME rnp_tests
   COMMAND rnp_tests
 )
-set_tests_properties(rnp_tests PROPERTIES FIXTURES_REQUIRED testdata)
+set_tests_properties(rnp_tests PROPERTIES
+  TIMEOUT 3000
+  FIXTURES_REQUIRED testdata
+)
 
 # cli_tests
 find_package(PythonInterp 2.7 EXACT)
@@ -85,6 +88,7 @@ add_test(
   COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/cli_tests.py" -v -d
 )
 set_tests_properties(cli_tests PROPERTIES
+  TIMEOUT 3000
   FIXTURES_REQUIRED testdata
   ENVIRONMENT "\
 RNP_TESTS_RNP_PATH=$<TARGET_FILE:rnp>;\
