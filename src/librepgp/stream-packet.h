@@ -258,6 +258,10 @@ void free_signature(pgp_signature_t *sig);
 
 bool is_key_pkt(int tag);
 
+bool is_subkey_pkt(int tag);
+
+bool is_primary_key_pkt(int tag);
+
 bool is_public_key_pkt(int tag);
 
 bool is_secret_key_pkt(int tag);
