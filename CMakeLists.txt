@@ -32,7 +32,7 @@ determine_version("${CMAKE_CURRENT_SOURCE_DIR}" RNP)
 # project name, etc
 project(RNP
   VERSION "${RNP_VERSION}"
-  LANGUAGES C CXX
+  LANGUAGES CXX
   DESCRIPTION "${PACKAGE_DESCRIPTION_SHORT}"
 )
 
@@ -69,10 +69,9 @@ add_compile_options(
 )
 
 # set a few other things at the top level to prevent incompatibilities
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 add_definitions(-D_GNU_SOURCE)
 
 # everything else is in subdirs
