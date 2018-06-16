@@ -69,13 +69,15 @@ rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys);
 
 rnp_result_t process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key);
 
+rnp_result_t process_pgp_subkey(pgp_source_t *src, pgp_transferable_subkey_t *subkey);
+
 /**
  * @brief Validate key signatures and fill pgp_signatures_info_t structure. It should be freed
  *        with free_signatures_info. To check status of validated signatures function
  *        check_signatures_info should be used.
  *
  * @param result pointer to the structure
- * @param key pgp key which signatures should be validated
+ * @param key pgp primary key which signatures should be validated
  * @param keyring keyring where signing keys are looked for
  * @return RNP_SUCCESS if all signatures are validated successfully or error code otherwise.
  *         Please note that this doesn't mean that all signatures are valid.

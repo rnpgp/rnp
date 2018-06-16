@@ -95,13 +95,17 @@ stream_pkt_type(pgp_source_t *src)
     uint8_t hdr[PGP_MAX_HEADER_SIZE];
     ssize_t hdrlen = 0;
 
-    hdrlen = stream_pkt_hdr_len(src);
-    if (hdrlen < 0) {
+    if (src_eof(src)) {
         return 0;
     }
 
+    hdrlen = stream_pkt_hdr_len(src);
+    if (hdrlen < 0) {
+        return -1;
+    }
+
     if (src_peek(src, hdr, hdrlen) != hdrlen) {
-        return 0;
+        return -1;
     }
 
     return get_packet_type(hdr[0]);
@@ -1589,12 +1593,18 @@ signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
 rnp_result_t
 stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
 {
+    int          ptag;
     ssize_t      len;
     ssize_t      read;
     ssize_t      read2;
     uint8_t      ver;
     uint64_t     pktend;
     rnp_result_t res = RNP_SUCCESS;
+
+    if ((ptag = stream_pkt_type(src)) != PGP_PTAG_CT_SIGNATURE) {
+        RNP_LOG("wrong signature ptag: %d", ptag);
+        return RNP_ERROR_BAD_FORMAT;
+    }
 
     memset(sig, 0, sizeof(*sig));
 
@@ -1760,6 +1770,18 @@ is_key_pkt(int tag)
     default:
         return false;
     }
+}
+
+bool
+is_subkey_pkt(int tag)
+{
+    return (tag == PGP_PTAG_CT_PUBLIC_SUBKEY) || (tag == PGP_PTAG_CT_SECRET_SUBKEY);
+}
+
+bool
+is_primary_key_pkt(int tag)
+{
+    return (tag == PGP_PTAG_CT_PUBLIC_KEY) || (tag == PGP_PTAG_CT_SECRET_KEY);
 }
 
 bool
