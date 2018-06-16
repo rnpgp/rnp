@@ -13,7 +13,7 @@ docker run -ti --rm -v $PWD/rnp:/usr/local/rnp centos:7 bash
 # for newer cmake and other things
 yum -y install epel-release
 # rnp
-yum -y install git cmake3 make gcc gcc-c++
+yum -y install git cmake3 make gcc-c++
 yum -y install bzip2-devel zlib-devel json-c12-devel libcmocka-devel
 
 # botan

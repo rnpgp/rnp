@@ -12,5 +12,5 @@ export RUBY_RNP_INSTALL="${LOCAL_BUILDS}/builds/ruby-rnp"
 export RUBY_RNP_VERSION="v1.0.0"
 export BUILD_MODE=normal
 export CLANG_FORMAT_DIFF="clang-format-diff-4.0"
-export CC=clang
+export CXX=clang++
 export MAKE=gmake
