@@ -1576,6 +1576,7 @@ signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
 
     if (src_read(src, spbuf, splen) != (ssize_t) splen) {
         RNP_LOG("read of unhashed subpackets failed");
+        free(spbuf);
         return RNP_ERROR_READ;
     }
     len -= splen;
@@ -1733,7 +1734,9 @@ copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src)
 
     for (list_item *sp = list_front(src->subpkts); sp; sp = list_next(sp)) {
         pgp_sig_subpkt_t *dstsp;
-        dstsp = (pgp_sig_subpkt_t *) list_append(&dst->subpkts, sp, sizeof(*dstsp));
+        pgp_sig_subpkt_t *srcsp = (pgp_sig_subpkt_t *) sp;
+        /* subpacket may have internal pointers to the subpkt->data ! */
+        dstsp = (pgp_sig_subpkt_t *) list_append(&dst->subpkts, srcsp, sizeof(*dstsp));
         if (!dstsp) {
             free_signature(dst);
             return false;
