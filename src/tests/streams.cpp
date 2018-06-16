@@ -36,6 +36,7 @@
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-dump.h>
+#include <librepgp/stream-armor.h>
 
 static bool
 stream_hash_file(pgp_hash_t *hash, const char *path)
@@ -469,6 +470,87 @@ test_stream_key_load(void **state)
     assert_null(list_front(keyseq.keys));
     key_sequence_destroy(&keyseq);
     src_close(&keysrc);
+}
+
+static void
+buggy_key_load_single(const void *keydata, size_t keylen)
+{
+    pgp_source_t       memsrc = {0};
+    pgp_key_sequence_t keyseq;
+    size_t             partlen;
+    uint8_t *          dataptr;
+
+    /* try truncated load */
+    for (partlen = 1; partlen < keylen; partlen += 15) {
+        assert_rnp_success(init_mem_src(&memsrc, keydata, partlen, false));
+        if (!process_pgp_keys(&memsrc, &keyseq)) {
+            /* it may succeed if we accidentally hit some packet boundary */
+            assert_non_null(list_front(keyseq.keys));
+            key_sequence_destroy(&keyseq);
+        } else {
+            assert_null(list_front(keyseq.keys));
+        }
+        src_close(&memsrc);
+    }
+
+    /* try modified load */
+    dataptr = (uint8_t *) keydata;
+    for (partlen = 1; partlen < keylen; partlen++) {
+        dataptr[partlen] ^= 0xff;
+        assert_rnp_success(init_mem_src(&memsrc, keydata, keylen, false));
+        if (!process_pgp_keys(&memsrc, &keyseq)) {
+            /* it may succeed if we accidentally hit some packet boundary */
+            assert_non_null(list_front(keyseq.keys));
+            key_sequence_destroy(&keyseq);
+        } else {
+            assert_null(list_front(keyseq.keys));
+        }
+        src_close(&memsrc);
+    }
+}
+
+/* check for memory leaks during buggy key loads */
+void
+test_stream_key_load_errors(void **state)
+{
+    pgp_source_t fsrc = {0};
+    pgp_source_t armorsrc = {0};
+    pgp_source_t memsrc = {0};
+
+    const char *key_files[] = {"data/keyrings/4/rsav3-p.asc",
+                               "data/keyrings/4/rsav3-s.asc",
+                               "data/keyrings/1/pubring.gpg",
+                               "data/keyrings/1/secring.gpg",
+                               "data/test_stream_key_load/dsa-eg-pub.asc",
+                               "data/test_stream_key_load/dsa-eg-sec.asc",
+                               "data/test_stream_key_load/ecc-25519-pub.asc",
+                               "data/test_stream_key_load/ecc-25519-sec.asc",
+                               "data/test_stream_key_load/ecc-p256-pub.asc",
+                               "data/test_stream_key_load/ecc-p256-sec.asc",
+                               "data/test_stream_key_load/ecc-p384-pub.asc",
+                               "data/test_stream_key_load/ecc-p384-sec.asc",
+                               "data/test_stream_key_load/ecc-p521-pub.asc",
+                               "data/test_stream_key_load/ecc-p521-sec.asc",
+                               "data/test_stream_key_load/ecc-bp256-pub.asc",
+                               "data/test_stream_key_load/ecc-bp256-sec.asc",
+                               "data/test_stream_key_load/ecc-bp384-pub.asc",
+                               "data/test_stream_key_load/ecc-bp384-sec.asc",
+                               "data/test_stream_key_load/ecc-bp512-pub.asc",
+                               "data/test_stream_key_load/ecc-bp512-sec.asc"};
+
+    for (size_t i = 0; i < sizeof(key_files) / sizeof(char *); i++) {
+        assert_rnp_success(init_file_src(&fsrc, key_files[i]));
+        if (is_armored_source(&fsrc)) {
+            assert_rnp_success(init_armored_src(&armorsrc, &fsrc));
+            assert_rnp_success(read_mem_src(&memsrc, &armorsrc));
+            src_close(&armorsrc);
+        } else {
+            assert_rnp_success(read_mem_src(&memsrc, &fsrc));
+        }
+        src_close(&fsrc);
+        buggy_key_load_single(mem_src_get_memory(&memsrc), memsrc.size);
+        src_close(&memsrc);
+    }
 }
 
 void
