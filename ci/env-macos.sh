@@ -12,8 +12,8 @@ export RUBY_RNP_INSTALL="${LOCAL_BUILDS}/builds/ruby-rnp"
 export RUBY_RNP_VERSION="v1.0.0"
 export BUILD_MODE=normal
 export CLANG_FORMAT_DIFF="clang-format-diff-4.0"
-export CC=clang
+export CXX=clang++
 
 brew_prefix=$(brew --prefix)
-export CFLAGS="${CFLAGS} -I${brew_prefix}/include"
+export CXXFLAGS="${CXXFLAGS} -I${brew_prefix}/include"
 export LDFLAGS="$LDFLAGS -L${brew_prefix}/lib"

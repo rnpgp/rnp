@@ -196,7 +196,7 @@ crashes, which we can then analyze for issues.
 Here is an example:
 
 ``` sh
-env CC=afl-gcc AFL_HARDEN=1 CFLAGS=-ggdb ./configure --disable-shared
+env CXX=afl-g++ AFL_HARDEN=1 CXXFLAGS=-ggdb ./configure --disable-shared
 make -j$(grep -c '^$' /proc/cpuinfo) clean all
 mkdir afl_in afl_out
 cp some_tests/*.asc afl_in/
@@ -219,7 +219,7 @@ To use them, you should rebuild with the sanitizers enabled, and then
 run the tests (or any executable):
 
 ``` sh
-env CC=clang CFLAGS="-fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" ./configure
+env CXX=clang++ CXXFLAGS="-fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" ./configure
 make -j4
 src/tests/rnp_tests
 ```

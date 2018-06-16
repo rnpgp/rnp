@@ -6,16 +6,16 @@ set -eux
 : "${CORES:=2}"
 : "${RNP_TESTS:=all}"
 
-[ "$BUILD_MODE" = "coverage" ] && CFLAGS+=" -O0 --coverage"
+[ "$BUILD_MODE" = "coverage" ] && CXXFLAGS+=" -O0 --coverage"
 
-# CFLAGS for sanitize
-[ "$BUILD_MODE" = "sanitize" ] && CFLAGS+=" \
+# CXXFLAGS for sanitize
+[ "$BUILD_MODE" = "sanitize" ] && CXXFLAGS+=" \
  -O1                                 \
  -fsanitize=leak,address,undefined   \
  -fno-omit-frame-pointer             \
  -fno-common"
 
-export CFLAGS
+export CXXFLAGS
 
 srcdir="$PWD"
 mkdir "${LOCAL_BUILDS}/rnp-build"
