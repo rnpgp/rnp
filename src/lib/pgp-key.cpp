@@ -916,9 +916,11 @@ pgp_key_add_userid(pgp_key_t *            key,
                    pgp_hash_alg_t         hash_alg,
                    rnp_selfsig_cert_info *cert)
 {
-    bool          ret = false;
-    pgp_output_t *output = NULL;
-    pgp_memory_t *mem = NULL;
+    bool                      ret = false;
+    pgp_output_t *            output = NULL;
+    pgp_memory_t *            mem = NULL;
+    pgp_source_t              src = {0};
+    pgp_transferable_userid_t uid = {{0}};
 
     // sanity checks
     if (!key || !seckey || !cert || !cert->userid[0]) {
@@ -962,15 +964,18 @@ pgp_key_add_userid(pgp_key_t *            key,
         goto done;
     }
 
-    // parse the packets back into the key structure
-    if (!pgp_parse_key_attrs(key, mem->buf, mem->length)) {
-        RNP_LOG("failed to parse key attributes back in");
+    if (init_mem_src(&src, mem->buf, mem->length, false)) {
         goto done;
     }
-    ret = true;
 
+    if (process_pgp_userid(&src, &uid)) {
+        goto done;
+    }
+
+    ret = rnp_key_add_transferable_userid(key, &uid);
 done:
     if (output && mem) {
+        src_close(&src);
         pgp_teardown_memory_write(output, mem);
     }
     return ret;

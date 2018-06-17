@@ -65,6 +65,8 @@ void transferable_subkey_destroy(pgp_transferable_subkey_t *subkey);
 
 void transferable_key_destroy(pgp_transferable_key_t *key);
 
+void transferable_userid_destroy(pgp_transferable_userid_t *userid);
+
 void key_sequence_destroy(pgp_key_sequence_t *keys);
 
 rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys);
@@ -73,6 +75,7 @@ rnp_result_t process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key);
 
 rnp_result_t process_pgp_subkey(pgp_source_t *src, pgp_transferable_subkey_t *subkey);
 
+rnp_result_t process_pgp_userid(pgp_source_t *src, pgp_transferable_userid_t *uid);
 /**
  * @brief Validate key signatures and fill pgp_signatures_info_t structure. It should be freed
  *        with free_signatures_info. To check status of validated signatures function

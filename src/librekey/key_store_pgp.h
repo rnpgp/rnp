@@ -81,4 +81,6 @@ bool rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
 bool rnp_key_store_add_transferable_key(rnp_key_store_t *       keyring,
                                         pgp_transferable_key_t *tkey);
 
+bool rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid);
+
 #endif /* KEY_STORE_PGP_H_ */
