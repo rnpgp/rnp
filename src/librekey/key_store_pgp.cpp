@@ -280,7 +280,7 @@ rnp_key_add_stream_rawpacket(pgp_key_t *key, int tag, pgp_dest_t *memdst)
 
     rawpkt.tag = (pgp_content_enum) tag;
     rawpkt.length = memdst->writeb;
-    rawpkt.raw = (uint8_t*) mem_dest_own_memory(memdst);
+    rawpkt.raw = (uint8_t *) mem_dest_own_memory(memdst);
     key->packets[key->packetc++] = rawpkt;
 
     dst_close(memdst, false);
@@ -522,7 +522,7 @@ rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
         goto error;
     }
 
-    skey.primary_grip = (uint8_t*) malloc(PGP_FINGERPRINT_SIZE);
+    skey.primary_grip = (uint8_t *) malloc(PGP_FINGERPRINT_SIZE);
     if (!skey.primary_grip) {
         RNP_LOG("alloc failed");
         goto error;
@@ -545,6 +545,36 @@ error:
 }
 
 bool
+rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
+{
+    uint8_t *uidz;
+
+    if (!rnp_key_add_uid_rawpacket(key, &uid->uid)) {
+        return false;
+    }
+
+    if (!(uidz = (uint8_t *) calloc(1, uid->uid.uid_len + 1))) {
+        RNP_LOG("uid alloc failed");
+        return false;
+        ;
+    }
+
+    memcpy(uidz, uid->uid.uid, uid->uid.uid_len);
+    uidz[uid->uid.uid_len] = 0;
+    if (!pgp_add_userid(key, uidz)) {
+        RNP_LOG("failed to add user id");
+        free(uidz);
+        return false;
+    }
+    free(uidz);
+    if (!rnp_key_add_signatures(key, uid->signatures)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool
 rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_key_t *tkey)
 {
     pgp_key_t  key = {};
@@ -564,26 +594,7 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
     /* add userids and their signatures */
     for (list_item *uid = list_front(tkey->userids); uid; uid = list_next(uid)) {
         pgp_transferable_userid_t *tuid = (pgp_transferable_userid_t *) uid;
-        uint8_t *                  uidz;
-
-        if (!rnp_key_add_uid_rawpacket(&key, &tuid->uid)) {
-            goto error;
-        }
-
-        if (!(uidz = (uint8_t*) calloc(1, tuid->uid.uid_len + 1))) {
-            RNP_LOG("uid alloc failed");
-            goto error;
-        }
-
-        memcpy(uidz, tuid->uid.uid, tuid->uid.uid_len);
-        uidz[tuid->uid.uid_len] = 0;
-        if (!pgp_add_userid(&key, uidz)) {
-            RNP_LOG("failed to add user id");
-            free(uidz);
-            goto error;
-        }
-        free(uidz);
-        if (!rnp_key_add_signatures(&key, tuid->signatures)) {
+        if (!rnp_key_add_transferable_userid(&key, tuid)) {
             goto error;
         }
     }

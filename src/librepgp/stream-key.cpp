@@ -65,14 +65,19 @@ transferable_subkey_destroy(pgp_transferable_subkey_t *subkey)
 }
 
 void
+transferable_userid_destroy(pgp_transferable_userid_t *userid)
+{
+    free_userid_pkt(&userid->uid);
+    signature_list_destroy(&userid->signatures);
+}
+
+void
 transferable_key_destroy(pgp_transferable_key_t *key)
 {
     forget_secret_key_fields(&key->key.material);
 
     for (list_item *li = list_front(key->userids); li; li = list_next(li)) {
-        pgp_transferable_userid_t *uid = (pgp_transferable_userid_t *) li;
-        free_userid_pkt(&uid->uid);
-        signature_list_destroy(&uid->signatures);
+        transferable_userid_destroy((pgp_transferable_userid_t *) li);
     }
     list_destroy(&key->userids);
 
@@ -133,12 +138,13 @@ process_pgp_key_signatures(pgp_source_t *src, list *sigs)
     return ptag < 0 ? RNP_ERROR_BAD_FORMAT : RNP_SUCCESS;
 }
 
-static rnp_result_t
-process_pgp_key_userid(pgp_source_t *src, pgp_transferable_userid_t *uid)
+rnp_result_t
+process_pgp_userid(pgp_source_t *src, pgp_transferable_userid_t *uid)
 {
     int          ptag;
     rnp_result_t ret = RNP_ERROR_BAD_FORMAT;
 
+    memset(uid, 0, sizeof(*uid));
     ptag = stream_pkt_type(src);
 
     if ((ptag != PGP_PTAG_CT_USER_ID) && (ptag != PGP_PTAG_CT_USER_ATTR)) {
@@ -147,14 +153,20 @@ process_pgp_key_userid(pgp_source_t *src, pgp_transferable_userid_t *uid)
     }
 
     if ((ret = stream_parse_userid(src, &uid->uid))) {
-        return ret;
+        goto done;
     }
 
     if ((ret = process_pgp_key_trusts(src))) {
-        return ret;
+        goto done;
     }
 
-    return process_pgp_key_signatures(src, &uid->signatures);
+    ret = process_pgp_key_signatures(src, &uid->signatures);
+done:
+    if (ret) {
+        transferable_userid_destroy(uid);
+        memset(uid, 0, sizeof(*uid));
+    }
+    return ret;
 }
 
 rnp_result_t
@@ -163,6 +175,7 @@ process_pgp_subkey(pgp_source_t *src, pgp_transferable_subkey_t *subkey)
     int          ptag;
     rnp_result_t ret = RNP_ERROR_BAD_FORMAT;
 
+    memset(subkey, 0, sizeof(*subkey));
     if (!is_subkey_pkt(ptag = stream_pkt_type(src))) {
         RNP_LOG("wrong subkey ptag: %d", ptag);
         return RNP_ERROR_BAD_FORMAT;
@@ -170,14 +183,20 @@ process_pgp_subkey(pgp_source_t *src, pgp_transferable_subkey_t *subkey)
 
     if ((ret = stream_parse_key(src, &subkey->subkey))) {
         RNP_LOG("failed to parse subkey");
-        return ret;
+        goto done;
     }
 
     if ((ret = process_pgp_key_trusts(src))) {
-        return ret;
+        goto done;
     }
 
-    return process_pgp_key_signatures(src, &subkey->signatures);
+    ret = process_pgp_key_signatures(src, &subkey->signatures);
+done:
+    if (ret) {
+        transferable_subkey_destroy(subkey);
+        memset(subkey, 0, sizeof(*subkey));
+    }
+    return ret;
 }
 
 rnp_result_t
@@ -300,7 +319,7 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key)
             goto finish;
         }
 
-        if ((ret = process_pgp_key_userid(src, uid))) {
+        if ((ret = process_pgp_userid(src, uid))) {
             goto finish;
         }
     }
