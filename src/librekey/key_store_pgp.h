@@ -72,8 +72,6 @@ bool rnp_key_store_pgp_write_to_mem(pgp_io_t *, rnp_key_store_t *, bool, pgp_mem
 
 bool rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, bool armor, pgp_dest_t *dst);
 
-bool pgp_parse_key_attrs(pgp_key_t *key, const uint8_t *data, size_t data_len);
-
 bool rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
                                            pgp_transferable_subkey_t *tskey,
                                            pgp_key_t *                pkey);
