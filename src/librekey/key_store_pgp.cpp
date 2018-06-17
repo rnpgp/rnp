@@ -73,26 +73,6 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 
 void print_packet_hex(const pgp_rawpacket_t *pkt);
 
-/* used to point to data during keyring read */
-typedef struct keyringcb_t {
-    rnp_key_store_t *         keyring; /* the keyring we're reading */
-    pgp_io_t *                io;
-    pgp_key_t                 key; /* the key we're currently loading */
-    const pgp_key_provider_t *key_provider;
-} keyringcb_t;
-
-#define SUBSIG_REQUIRED_BEFORE(str)                                 \
-    do {                                                            \
-        if (!(subsig)) {                                            \
-            RNP_LOG("Signature packet expected before %s.", (str)); \
-            PGP_ERROR_1(cbinfo->errors,                             \
-                        PGP_E_R_BAD_FORMAT,                         \
-                        "Signature packet expected before %s.",     \
-                        (str));                                     \
-            return PGP_FINISHED;                                    \
-        }                                                           \
-    } while (0)
-
 static pgp_cb_ret_t
 parse_key_attributes(pgp_key_t *key, const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
 {
@@ -285,78 +265,6 @@ pgp_parse_key_attrs(pgp_key_t *key, const uint8_t *data, size_t data_len)
 done:
     pgp_stream_delete(stream);
     return ret;
-}
-
-static bool
-finish_loading_key(keyringcb_t *cb, pgp_cbdata_t *cbinfo)
-{
-    if (pgp_key_is_subkey(&cb->key)) {
-        pgp_key_t *primary =
-          pgp_get_primary_key_for(cb->io, &cb->key, cb->keyring, cb->key_provider);
-        if (!primary) {
-            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Subkey missing primary key.");
-            return false;
-        }
-        cb->key.primary_grip = (uint8_t *) malloc(PGP_FINGERPRINT_SIZE);
-        if (!cb->key.primary_grip) {
-            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Alloc failed");
-            return PGP_FINISHED;
-        }
-        memcpy(cb->key.primary_grip, primary->grip, PGP_FINGERPRINT_SIZE);
-        if (!list_append(&primary->subkey_grips, cb->key.grip, PGP_FINGERPRINT_SIZE)) {
-            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Alloc failed");
-            return PGP_FINISHED;
-        }
-    }
-    if (!rnp_key_store_add_key(cb->io, cb->keyring, &cb->key)) {
-        PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to add key to key store.");
-        return false;
-    }
-    cb->key = (pgp_key_t){0};
-    return true;
-}
-
-static pgp_cb_ret_t
-cb_keyring_parse(const pgp_packet_t *pkt, pgp_cbdata_t *cbinfo)
-{
-    const pgp_contents_t *content = &pkt->u;
-    keyringcb_t *         cb;
-
-    cb = (keyringcb_t *) pgp_callback_arg(cbinfo);
-
-    switch (pkt->tag) {
-    case PGP_PTAG_CT_SECRET_KEY:
-    case PGP_PTAG_CT_SECRET_SUBKEY:
-    case PGP_PTAG_CT_PUBLIC_KEY:
-    case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        // finish up with previous key (if any)
-        if (pgp_get_key_type(&cb->key)) {
-            if (!finish_loading_key(cb, cbinfo)) {
-                return PGP_FINISHED;
-            }
-        }
-        // start to process the new key
-        if (!pgp_key_from_keypkt(&cb->key, &content->key, pkt->tag)) {
-            PGP_ERROR(cbinfo->errors, PGP_E_FAIL, "Failed to create key from keydata.");
-            return PGP_FINISHED;
-        }
-        cb->key.format = GPG_KEY_STORE;
-        // Set some default key flags which will be overridden by signature
-        // subpackets for V4 keys.
-        cb->key.key_flags = pgp_pk_alg_capabilities(pgp_get_key_pkt(&cb->key)->alg);
-        return PGP_KEEP_MEMORY;
-    case PGP_PARSER_DONE:
-        // finish up with previous key (if any)
-        if (pgp_get_key_type(&cb->key)) {
-            if (!finish_loading_key(cb, cbinfo)) {
-                return PGP_FINISHED;
-            }
-        }
-        break;
-    default:
-        return parse_key_attributes(&cb->key, pkt, cbinfo);
-    }
-    return PGP_RELEASE_MEMORY;
 }
 
 static bool
