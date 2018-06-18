@@ -30,11 +30,12 @@
 #include <librekey/key_store_pgp.h>
 #include <librekey/key_store_g10.h>
 #include <librepgp/packet-show.h>
-#include <librepgp/packet-parse.h>
 #include <librepgp/stream-packet.h>
 #include "crypto.h"
 #include "pgp-key.h"
 #include "memory.h"
+#include "writer.h"
+#include "packet-create.h"
 #include "defaults.h"
 #include "utils.h"
 

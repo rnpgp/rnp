@@ -51,14 +51,6 @@
         }                                             \
     } while (false)
 
-#define CALLBACK(t, cbinfo, pkt)                               \
-    do {                                                       \
-        (pkt)->tag = (t);                                      \
-        if (pgp_callback(pkt, cbinfo) == PGP_RELEASE_MEMORY) { \
-            repgp_parser_content_free(pkt);                    \
-        }                                                      \
-    } while (/* CONSTCOND */ 0)
-
 /*
  * @params
  * array:       array of the structures to lookup

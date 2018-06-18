@@ -77,8 +77,6 @@ void test_utils_list(void **state);
 
 void test_rnpcfg(void **state);
 
-void pgp_parse_keyrings_1_pubring(void **state);
-
 void test_load_user_prefs(void **state);
 
 void ecdh_roundtrip(void **state);

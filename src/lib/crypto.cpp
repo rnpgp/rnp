@@ -70,7 +70,6 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include <rnp/rnp_sdk.h>
 #include <rnp/rnp_def.h>
 
-#include <librepgp/reader.h>
 #include <librepgp/stream-packet.h>
 
 #include "types.h"

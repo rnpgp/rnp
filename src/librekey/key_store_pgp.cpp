@@ -59,7 +59,6 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 
 #include <rnp/rnp_sdk.h>
 #include <librepgp/packet-show.h>
-#include <librepgp/reader.h>
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-packet.h>
@@ -67,6 +66,7 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <librepgp/stream-armor.h>
 
 #include "types.h"
+#include "writer.h"
 #include "key_store_pgp.h"
 #include "pgp-key.h"
 #include "utils.h"
@@ -248,7 +248,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
             EXPAND_ARRAY(prefs, compress_alg);
             if (!prefs->compress_algs) {
                 RNP_LOG("Failed to expand z array.");
-                return PGP_FINISHED;
+                return false;
             }
             prefs->compress_algs[i] = algs[i];
             prefs->compress_algc++;
@@ -262,7 +262,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
         EXPAND_ARRAY(prefs, key_server_pref);
         if (!prefs->key_server_prefs) {
             RNP_LOG("Failed to expand key serv prefs array.");
-            return PGP_FINISHED;
+            return false;
         }
         subsig->prefs.key_server_prefs[0] = signature_get_key_server_prefs(&subsig->sig);
         subsig->prefs.key_server_prefc++;
@@ -282,7 +282,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
             EXPAND_ARRAY(key, revoke);
             if (key->revokes == NULL) {
                 RNP_LOG("Failed to expand revoke array.");
-                return PGP_FINISHED;
+                return false;
             }
             revocation = &key->revokes[key->revokec];
             key->revokes[key->revokec].uid = key->uidc - 1;
