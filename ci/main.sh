@@ -51,7 +51,9 @@ if [ "$BUILD_MODE" != "sanitize" ]; then
   pushd "$RUBY_RNP_INSTALL"
   bundle exec ruby --version
   bundle env
-  env LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib" bundle exec rspec
+  env CI=false \
+      LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib" \
+      bundle exec rspec
   popd
 fi
 
