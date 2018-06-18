@@ -51,7 +51,6 @@
 
 #include "pgp-key.h"
 #include "utils.h"
-#include <librepgp/reader.h>
 #include <librekey/key_store_pgp.h>
 #include <librekey/key_store_g10.h>
 #include "crypto/s2k.h"
@@ -61,6 +60,8 @@
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-sig.h>
+#include "writer.h"
+#include "packet-create.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -116,6 +117,26 @@ pgp_key_t *
 pgp_key_new(void)
 {
     return (pgp_key_t *) calloc(1, sizeof(pgp_key_t));
+}
+
+static void
+pgp_rawpacket_free(pgp_rawpacket_t *packet)
+{
+    if (packet->raw == NULL) {
+        return;
+    }
+    free(packet->raw);
+    packet->raw = NULL;
+}
+
+static void
+pgp_userid_free(uint8_t **id)
+{
+    if (!id) {
+        return;
+    }
+    free(*id);
+    *id = NULL;
 }
 
 bool

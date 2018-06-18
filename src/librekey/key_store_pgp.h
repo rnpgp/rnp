@@ -56,7 +56,6 @@
 #define KEY_STORE_PGP_H_
 
 #include <rekey/rnp_key_store.h>
-#include <librepgp/packet-parse.h>
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-key.h>
 #include "memory.h"

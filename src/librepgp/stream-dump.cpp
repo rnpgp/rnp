@@ -44,7 +44,6 @@
 #include "fingerprint.h"
 #include "pgp-key.h"
 #include "list.h"
-#include "packet-parse.h"
 #include "crypto.h"
 #include "utils.h"
 

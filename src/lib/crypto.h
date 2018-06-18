@@ -57,9 +57,7 @@
 
 #include <limits.h>
 
-#include <librepgp/packet-parse.h>
 #include <librepgp/packet-print.h>
-#include <librepgp/reader.h>
 
 #include "memory.h"
 #include "crypto/common.h"
@@ -134,64 +132,5 @@ bool pgp_generate_keypair(rng_t *                    rng,
                           key_store_format_t         secformat);
 
 bool read_pem_seckey(const char *, pgp_key_t *, const char *, int);
-
-typedef int pgp_reader_func_t(
-  pgp_stream_t *, void *, size_t, pgp_error_t **, pgp_reader_t *, pgp_cbdata_t *);
-
-typedef void pgp_reader_destroyer_t(pgp_reader_t *);
-
-/** pgp_reader_t */
-struct pgp_reader_t {
-    pgp_reader_func_t *     reader; /* reader func to get parse data */
-    pgp_reader_destroyer_t *destroyer;
-    void *                  arg;            /* args to pass to reader function */
-    unsigned                accumulate : 1; /* set to gather packet data */
-    uint8_t *               accumulated;    /* the accumulated data */
-    unsigned                asize;          /* size of the buffer */
-    unsigned                alength;        /* used buffer */
-    unsigned                position;       /* reader-specific offset */
-    pgp_reader_t *          next;
-    pgp_stream_t *          parent; /* parent parse_info structure */
-};
-
-/** pgp_cbdata_t */
-struct pgp_cbdata_t {
-    pgp_cbfunc_t *cbfunc; /* callback function */
-    void *        arg;    /* args to pass to callback func */
-    pgp_error_t **errors; /* address of error stack */
-    pgp_cbdata_t *next;
-    pgp_output_t *output; /* when writing out parsed info */
-    pgp_io_t *    io;     /* error/output messages */
-};
-
-/** \brief Structure to hold information about a packet parse.
- *
- *  This information includes options about the parse:
- *  - whether the packet contents should be accumulated or not
- *  - whether signature subpackets should be parsed or left raw
- *
- *  It contains options specific to the parsing of armored data:
- *  - whether headers are allowed in armored data without a gap
- *  - whether a blank line is allowed at the start of the armored data
- *
- *  It also specifies :
- *  - the callback function to use and its arguments
- *  - the reader function to use and its arguments
- *
- *  It also contains information about the current state of the parse:
- *  - offset from the beginning
- *  - the accumulated data, if any
- *  - the size of the buffer, and how much has been used
- *
- *  It has a linked list of errors.
- * TODO1: Shouldn't this be in some other place than crypto.h?
- * TODO2: This structure contains too many things which are unrelated
- */
-struct pgp_stream_t {
-    pgp_reader_t readinfo;
-    pgp_cbdata_t cbinfo;
-    pgp_error_t *errors;
-    void *       io; /* io streams */
-};
 
 #endif /* CRYPTO_H_ */

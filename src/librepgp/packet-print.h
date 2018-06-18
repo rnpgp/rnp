@@ -54,7 +54,6 @@
 
 #include <time.h>
 
-#include "packet-parse.h"
 #include <rekey/rnp_key_store.h>
 
 typedef struct pgp_io_t  pgp_io_t;

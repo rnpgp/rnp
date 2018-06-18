@@ -46,7 +46,6 @@
 #include "memory.h"
 #include "utils.h"
 #include "crypto.h"
-#include "reader.h"
 #include "pgp-key.h"
 
 repgp_handle_t *
