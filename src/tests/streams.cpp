@@ -750,7 +750,7 @@ validate_key_sigs(const char *path)
 {
     rnp_key_store_t *     pubring;
     rng_t                 rng;
-    pgp_io_t              io = {.errs = stderr, .res = stdout, .outs = stdout};
+    pgp_io_t              io = {.outs = stdout, .errs = stderr, .res = stdout};
     pgp_key_t *           pkey = NULL;
     pgp_signatures_info_t info = {0};
 
@@ -771,7 +771,7 @@ void
 test_stream_key_signature_validate(void **state)
 {
     rnp_key_store_t *     pubring;
-    pgp_io_t              io = {.errs = stderr, .res = stdout, .outs = stdout};
+    pgp_io_t              io = {.outs = stdout, .errs = stderr, .res = stdout};
     pgp_key_t *           pkey = NULL;
     pgp_signatures_info_t info = {0};
 

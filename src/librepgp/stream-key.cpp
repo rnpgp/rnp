@@ -777,7 +777,7 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
 {
     rnp_result_t         res = RNP_ERROR_SIGNATURE_INVALID;
     uint8_t              signer_id[PGP_KEY_ID_SIZE] = {0};
-    pgp_io_t             io = {.errs = stderr, .res = stdout, .outs = stdout};
+    pgp_io_t             io = {.outs = stdout, .errs = stderr, .res = stdout};
     pgp_signature_info_t sinfo = {0};
 
     if (!signature_get_keyid(sig, signer_id)) {
