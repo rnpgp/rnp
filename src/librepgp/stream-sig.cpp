@@ -1167,3 +1167,22 @@ signature_calculate(pgp_signature_t *         sig,
 
     return ret;
 }
+
+bool
+check_signatures_info(const pgp_signatures_info_t *info)
+{
+    return list_length(info->sigs) && !info->unknownc && !info->invalidc && !info->expiredc &&
+           (info->validc == list_length(info->sigs));
+}
+
+void
+free_signatures_info(pgp_signatures_info_t *info)
+{
+    for (list_item *si = list_front(info->sigs); si; si = list_next(si)) {
+        pgp_signature_info_t *sinfo = (pgp_signature_info_t *) si;
+        free_signature(sinfo->sig);
+        free(sinfo->sig);
+    }
+    list_destroy(&info->sigs);
+    memset(info, 0, sizeof(*info));
+}

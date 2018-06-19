@@ -35,6 +35,24 @@
 #include <rnp/rnp.h>
 #include "stream-common.h"
 
+/* information about the validated signature */
+typedef struct pgp_signature_info_t {
+    pgp_signature_t *sig;       /* signature, or NULL if there were parsing error */
+    pgp_key_t *      signer;    /* signer's public key if found */
+    bool             valid;     /* signature is cryptographically valid (but may be expired) */
+    bool             unknown;   /* signature is unknown - parsing error, wrong version, etc */
+    bool             no_signer; /* no signer's public key available */
+    bool             expired;   /* signature is expired */
+} pgp_signature_info_t;
+
+typedef struct pgp_signatures_info_t {
+    list     sigs; /* list of pgp_signature_info_t structures, struct owns them */
+    unsigned validc;
+    unsigned expiredc;
+    unsigned invalidc;
+    unsigned unknownc;
+} pgp_signatures_info_t;
+
 /**
  * @brief Check whether signature packet matches one-pass signature packet.
  * @param sig pointer to the read signature packet
@@ -357,5 +375,16 @@ rnp_result_t signature_calculate(pgp_signature_t *         sig,
                                  const pgp_key_material_t *seckey,
                                  pgp_hash_t *              hash,
                                  rng_t *                   rng);
+
+/**
+ * @brief Check whether signatures info structure has all correct signatures.
+ *
+ * @param info populated signatures info
+ * @return true if all signatures are valid and there is at least one signature
+ * @return false if there are invalid, unknown or expired signature(s)
+ */
+bool check_signatures_info(const pgp_signatures_info_t *info);
+
+void free_signatures_info(pgp_signatures_info_t *info);
 
 #endif

@@ -34,6 +34,7 @@
 #include <repgp/repgp.h>
 #include <rnp/rnp.h>
 #include "stream-common.h"
+#include "stream-sig.h"
 
 /* userid/userattr with all the corresponding signatures */
 typedef struct pgp_transferable_userid_t {
@@ -65,6 +66,24 @@ void transferable_key_destroy(pgp_transferable_key_t *key);
 void key_sequence_destroy(pgp_key_sequence_t *keys);
 
 rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys);
+
+rnp_result_t process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key);
+
+/**
+ * @brief Validate key signatures and fill pgp_signatures_info_t structure. It should be freed
+ *        with free_signatures_info. To check status of validated signatures function
+ *        check_signatures_info should be used.
+ *
+ * @param result pointer to the structure
+ * @param key pgp key which signatures should be validated
+ * @param keyring keyring where signing keys are looked for
+ * @return RNP_SUCCESS if all signatures are validated successfully or error code otherwise.
+ *         Please note that this doesn't mean that all signatures are valid.
+ *         Use method check_signatures_info for this purpose.
+ */
+rnp_result_t validate_pgp_key_signatures(pgp_signatures_info_t *result,
+                                         const pgp_key_t *      key,
+                                         const rnp_key_store_t *keyring);
 
 rnp_result_t write_pgp_key(pgp_transferable_key_t *key, pgp_dest_t *dst, bool armor);
 

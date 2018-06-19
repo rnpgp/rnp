@@ -34,8 +34,8 @@
 #include "crypto/common.h"
 #include "pgp-key.h"
 #include "librepgp/reader.h"
-#include "librepgp/validate.h"
 #include "librepgp/stream-sig.h"
+#include "librepgp/stream-key.h"
 #include "defaults.h"
 
 extern rng_t global_rng;
@@ -895,41 +895,31 @@ test_generated_key_sigs(void **state)
           &sec.subsigs[0].sig, pgp_get_key_pkt(&sec), &uid, pgp_get_key_material(&sec), rng));
 
         // validate via an alternative method
-        pgp_validation_t *result = NULL;
+        pgp_signatures_info_t result = {0};
         // primary_pub + pubring
-        result = (pgp_validation_t *) calloc(1, sizeof(*result));
-        assert_non_null(result);
-        result->rnp_ctx = &rnp_ctx;
-        assert_true(pgp_validate_key_sigs(result, primary_pub, pubring));
-        pgp_validate_result_free(result);
+        assert_rnp_success(validate_pgp_key_signatures(&result, primary_pub, pubring));
+        assert_true(check_signatures_info(&result));
+        free_signatures_info(&result);
         // primary_sec + pubring
-        result = (pgp_validation_t *) calloc(1, sizeof(*result));
-        assert_non_null(result);
-        result->rnp_ctx = &rnp_ctx;
-        assert_true(pgp_validate_key_sigs(result, primary_sec, pubring));
-        pgp_validate_result_free(result);
+        assert_rnp_success(validate_pgp_key_signatures(&result, primary_sec, pubring));
+        assert_true(check_signatures_info(&result));
+        free_signatures_info(&result);
         // primary_pub + secring
-        result = (pgp_validation_t *) calloc(1, sizeof(*result));
-        assert_non_null(result);
-        result->rnp_ctx = &rnp_ctx;
-        assert_true(pgp_validate_key_sigs(result, primary_pub, secring));
-        pgp_validate_result_free(result);
+        assert_rnp_success(validate_pgp_key_signatures(&result, primary_pub, secring));
+        assert_true(check_signatures_info(&result));
+        free_signatures_info(&result);
         // primary_sec + secring
-        result = (pgp_validation_t *) calloc(1, sizeof(*result));
-        assert_non_null(result);
-        result->rnp_ctx = &rnp_ctx;
-        assert_true(pgp_validate_key_sigs(result, primary_sec, secring));
-        pgp_validate_result_free(result);
+        assert_rnp_success(validate_pgp_key_signatures(&result, primary_sec, secring));
+        assert_true(check_signatures_info(&result));
+        free_signatures_info(&result);
 
-        // do at least one modification test for pgp_validate_key_sigs too
+        // do at least one modification test for validate_pgp_key_signatures too
         // modify a hashed portion of the sig packet
         primary_pub->packets[2].raw[32] ^= 0xff;
         // ensure validation fails
-        result = (pgp_validation_t *) calloc(1, sizeof(*result));
-        assert_non_null(result);
-        result->rnp_ctx = &rnp_ctx;
-        assert_false(pgp_validate_key_sigs(result, primary_pub, pubring));
-        pgp_validate_result_free(result);
+        assert_rnp_success(validate_pgp_key_signatures(&result, primary_pub, pubring));
+        assert_false(check_signatures_info(&result));
+        free_signatures_info(&result);
         // restore the original data
         primary_pub->packets[2].raw[32] ^= 0xff;
     }
@@ -985,7 +975,7 @@ test_generated_key_sigs(void **state)
         assert_non_null(sub_pub);
         assert_non_null(sub_sec);
 
-        // TODO: pgp_validate_key_sigs expects key->packets[] to contain
+        // TODO: validate_pgp_key_signatures expects key->packets[] to contain
         // both the primary and sub, so we have to fake it.
         pgp_key_t  fake = {0};
         pgp_key_t *pfake = &fake;
@@ -998,11 +988,10 @@ test_generated_key_sigs(void **state)
             fake.packets[fake.packetc++] = sub_pub->packets[i];
         }
         // validate via an alternative method
-        pgp_validation_t *vres = (pgp_validation_t *) calloc(1, sizeof(*vres));
-        assert_non_null(vres);
-        vres->rnp_ctx = &rnp_ctx;
-        assert_true(pgp_validate_key_sigs(vres, &fake, pubring));
-        pgp_validate_result_free(vres);
+        pgp_signatures_info_t result = {0};
+        assert_rnp_success(validate_pgp_key_signatures(&result, &fake, pubring));
+        assert_true(check_signatures_info(&result));
+        free_signatures_info(&result);
         FREE_ARRAY(pfake, packet);
     }
 
