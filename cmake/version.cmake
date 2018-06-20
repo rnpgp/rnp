@@ -77,7 +77,7 @@ function(determine_version source_dir var_prefix)
     #   v1.9.1-0-g38ffe82-dirty  (a tagged release with local modifications)
     #   v1.9.0-3-g5b92266        (post-release snapshot)
     #   v1.9.0-3-g5b92266-dirty  (post-release snapshot with local modifications)
-    _git(version describe --abbrev=${GIT_REV_LEN} --match "v[0-9]*" --long --dirty)
+    _git(version describe --tags --abbrev=${GIT_REV_LEN} --match "v[0-9]*" --long --dirty)
     if (NOT _git_ec EQUAL 0)
       # no annotated tags, fake one
       git(revision rev-parse --short=${GIT_REV_LEN} --verify HEAD)
