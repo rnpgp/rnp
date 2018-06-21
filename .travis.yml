@@ -49,7 +49,6 @@ matrix:
     # gpg stable
     - env: BUILD_MODE=sanitize GPG_VERSION=stable
       compiler: clang
-      sudo: true
       stage: cache
       script: true
     - env: BUILD_MODE=sanitize GPG_VERSION=stable
@@ -59,7 +58,6 @@ matrix:
     # gpg master
     - env: BUILD_MODE=sanitize GPG_VERSION=beta
       compiler: clang
-      sudo: true
       stage: cache
       script: true
     - env: BUILD_MODE=sanitize GPG_VERSION=beta
