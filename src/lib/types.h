@@ -487,27 +487,27 @@ typedef struct rnp_keygen_crypto_params_t {
     };
 } rnp_keygen_crypto_params_t;
 
-typedef struct rnp_selfsig_cert_info {
+typedef struct rnp_selfsig_cert_info_t {
     uint8_t          userid[MAX_ID_LENGTH]; /* userid, required */
     uint8_t          key_flags;             /* key flags */
     uint32_t         key_expiration;        /* key expiration time (sec), 0 = no expiration */
     pgp_user_prefs_t prefs;                 /* user preferences, optional */
     unsigned         primary : 1;           /* mark this as the primary user id */
-} rnp_selfsig_cert_info;
+} rnp_selfsig_cert_info_t;
 
-typedef struct rnp_selfsig_binding_info {
+typedef struct rnp_selfsig_binding_info_t {
     uint8_t  key_flags;
     uint32_t key_expiration;
-} rnp_selfsig_binding_info;
+} rnp_selfsig_binding_info_t;
 
 typedef struct rnp_keygen_primary_desc_t {
     rnp_keygen_crypto_params_t crypto;
-    rnp_selfsig_cert_info      cert;
+    rnp_selfsig_cert_info_t    cert;
 } rnp_keygen_primary_desc_t;
 
 typedef struct rnp_keygen_subkey_desc_t {
     rnp_keygen_crypto_params_t crypto;
-    rnp_selfsig_binding_info   binding;
+    rnp_selfsig_binding_info_t binding;
 } rnp_keygen_subkey_desc_t;
 
 typedef struct rnp_key_protection_params_t {
