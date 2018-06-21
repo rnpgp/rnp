@@ -932,10 +932,10 @@ key_has_userid(const pgp_key_t *key, const uint8_t *userid)
 }
 
 bool
-pgp_key_add_userid(pgp_key_t *            key,
-                   const pgp_key_pkt_t *  seckey,
-                   pgp_hash_alg_t         hash_alg,
-                   rnp_selfsig_cert_info *cert)
+pgp_key_add_userid(pgp_key_t *              key,
+                   const pgp_key_pkt_t *    seckey,
+                   pgp_hash_alg_t           hash_alg,
+                   rnp_selfsig_cert_info_t *cert)
 {
     bool                      ret = false;
     pgp_output_t *            output = NULL;

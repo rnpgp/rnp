@@ -76,14 +76,14 @@ bool pgp_write_struct_seckey(pgp_output_t *output,
 bool pgp_write_xfer_pubkey(pgp_dest_t *, const pgp_key_t *, const rnp_key_store_t *, bool);
 bool pgp_write_xfer_seckey(pgp_dest_t *, const pgp_key_t *, const rnp_key_store_t *, bool);
 
-bool pgp_write_selfsig_cert(pgp_output_t *               output,
-                            const pgp_key_pkt_t *        seckey,
-                            const pgp_hash_alg_t         hash_alg,
-                            const rnp_selfsig_cert_info *cert);
-bool pgp_write_selfsig_binding(pgp_output_t *                  output,
-                               const pgp_key_pkt_t *           primary_sec,
-                               const pgp_hash_alg_t            hash_alg,
-                               const pgp_key_pkt_t *           subkey,
-                               const rnp_selfsig_binding_info *binding);
+bool pgp_write_selfsig_cert(pgp_output_t *                 output,
+                            const pgp_key_pkt_t *          seckey,
+                            const pgp_hash_alg_t           hash_alg,
+                            const rnp_selfsig_cert_info_t *cert);
+bool pgp_write_selfsig_binding(pgp_output_t *                    output,
+                               const pgp_key_pkt_t *             primary_sec,
+                               const pgp_hash_alg_t              hash_alg,
+                               const pgp_key_pkt_t *             subkey,
+                               const rnp_selfsig_binding_info_t *binding);
 
 #endif /* CREATE_H_ */

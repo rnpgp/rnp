@@ -2536,7 +2536,7 @@ parse_keygen_primary(json_object *jso, rnp_keygen_primary_desc_t *desc)
 {
     static const char *properties[] = {
       "userid", "usage", "expiration", "preferences", "protection"};
-    rnp_selfsig_cert_info *cert = &desc->cert;
+    rnp_selfsig_cert_info_t *cert = &desc->cert;
 
     if (!parse_keygen_crypto(jso, &desc->crypto)) {
         return false;
@@ -2617,8 +2617,8 @@ parse_keygen_primary(json_object *jso, rnp_keygen_primary_desc_t *desc)
 static bool
 parse_keygen_sub(json_object *jso, rnp_keygen_subkey_desc_t *desc)
 {
-    static const char *       properties[] = {"usage", "expiration"};
-    rnp_selfsig_binding_info *binding = &desc->binding;
+    static const char *         properties[] = {"usage", "expiration"};
+    rnp_selfsig_binding_info_t *binding = &desc->binding;
 
     if (!parse_keygen_crypto(jso, &desc->crypto)) {
         return false;
@@ -3033,13 +3033,13 @@ rnp_key_add_uid(rnp_key_handle_t handle,
                 uint8_t          key_flags,
                 bool             primary)
 {
-    rnp_result_t          ret = RNP_ERROR_GENERIC;
-    rnp_selfsig_cert_info info = {{0}};
-    pgp_hash_alg_t        hash_alg = PGP_HASH_UNKNOWN;
-    pgp_key_t *           public_key = NULL;
-    pgp_key_t *           secret_key = NULL;
-    pgp_key_pkt_t *       seckey = NULL;
-    pgp_key_pkt_t *       decrypted_seckey = NULL;
+    rnp_result_t            ret = RNP_ERROR_GENERIC;
+    rnp_selfsig_cert_info_t info = {{0}};
+    pgp_hash_alg_t          hash_alg = PGP_HASH_UNKNOWN;
+    pgp_key_t *             public_key = NULL;
+    pgp_key_t *             secret_key = NULL;
+    pgp_key_pkt_t *         seckey = NULL;
+    pgp_key_pkt_t *         decrypted_seckey = NULL;
 
     if (!handle || !uid || !hash) {
         return RNP_ERROR_NULL_POINTER;

@@ -238,10 +238,10 @@ bool pgp_key_is_protected(const pgp_key_t *key);
  *  @param cert the self-signature information
  *  @return true if the userid was added, false otherwise
  */
-bool pgp_key_add_userid(pgp_key_t *            key,
-                        const pgp_key_pkt_t *  seckey,
-                        pgp_hash_alg_t         hash_alg,
-                        rnp_selfsig_cert_info *cert);
+bool pgp_key_add_userid(pgp_key_t *              key,
+                        const pgp_key_pkt_t *    seckey,
+                        pgp_hash_alg_t           hash_alg,
+                        rnp_selfsig_cert_info_t *cert);
 
 bool pgp_key_write_packets(const pgp_key_t *key, pgp_output_t *output);
 

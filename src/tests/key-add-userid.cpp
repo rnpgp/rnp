@@ -73,7 +73,7 @@ test_key_add_userid(void **state)
 
     // add a userid
 
-    rnp_selfsig_cert_info selfsig;
+    rnp_selfsig_cert_info_t selfsig;
     memset(&selfsig, 0, sizeof(selfsig));
     strcpy((char *) selfsig.userid, "added1");
     selfsig.key_flags = 0xAB;
@@ -85,13 +85,13 @@ test_key_add_userid(void **state)
     assert_int_equal(key->uidc - 1, key->uid0);
 
     // try to add the same userid (should fail)
-    rnp_selfsig_cert_info dup_selfsig;
+    rnp_selfsig_cert_info_t dup_selfsig;
     memset(&dup_selfsig, 0, sizeof(dup_selfsig));
     strcpy((char *) dup_selfsig.userid, "added1");
     assert_false(pgp_key_add_userid(key, pgp_get_key_pkt(key), PGP_HASH_SHA1, &dup_selfsig));
 
     // try to add another primary userid (should fail)
-    rnp_selfsig_cert_info selfsig2;
+    rnp_selfsig_cert_info_t selfsig2;
     memset(&selfsig2, 0, sizeof(selfsig2));
     strcpy((char *) selfsig2.userid, "added2");
     selfsig2.primary = 1;
