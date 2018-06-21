@@ -6,27 +6,21 @@ set -eux
 : "${CORES:=2}"
 : "${RNP_TESTS:=all}"
 
-[ "$BUILD_MODE" = "coverage" ] && CXXFLAGS+=" -O0 --coverage"
+cmakeopts=(
+  "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+  "-DBUILD_SHARED_LIBS=yes"
+  "-DCMAKE_INSTALL_PREFIX=${RNP_INSTALL}"
+  "-DCMAKE_PREFIX_PATH=${BOTAN_INSTALL};${CMOCKA_INSTALL};${JSONC_INSTALL};${GPG_INSTALL}"
+  "-Dcmocka_DIR=${CMOCKA_INSTALL}/cmocka"
+)
+[ "$BUILD_MODE" = "coverage" ] && cmakeopts+=("-DENABLE_COVERAGE=yes")
+[ "$BUILD_MODE" = "sanitize" ] && cmakeopts+=("-DENABLE_SANITIZERS=yes")
 
-# CXXFLAGS for sanitize
-[ "$BUILD_MODE" = "sanitize" ] && CXXFLAGS+=" \
- -O1                                 \
- -fsanitize=leak,address,undefined   \
- -fno-omit-frame-pointer             \
- -fno-common"
-
-export CXXFLAGS
-
-srcdir="$PWD"
-mkdir "${LOCAL_BUILDS}/rnp-build"
-pushd "${LOCAL_BUILDS}/rnp-build"
+mkdir build
+pushd build
 export LD_LIBRARY_PATH="${GPG_INSTALL}/lib"
-cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-      -DBUILD_SHARED_LIBS=yes \
-      -DCMAKE_INSTALL_PREFIX="${RNP_INSTALL}" \
-      -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL};${CMOCKA_INSTALL};${JSONC_INSTALL};${GPG_INSTALL}" \
-      -Dcmocka_DIR="${CMOCKA_INSTALL}/cmocka" \
-      "$srcdir"
+
+cmake "${cmakeopts[@]}" ..
 make -j${CORES} VERBOSE=1 install
 
 : "${COVERITY_SCAN_BRANCH:=0}"

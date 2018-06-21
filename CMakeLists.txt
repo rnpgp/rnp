@@ -36,6 +36,10 @@ project(RNP
   DESCRIPTION "${PACKAGE_DESCRIPTION_SHORT}"
 )
 
+# options
+option(ENABLE_COVERAGE "Enable code coverage testing.")
+option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
+
 # contact email, other info
 include(cmake/info.cmake)
 
@@ -55,7 +59,7 @@ endif()
 
 # set warning flags at the top level
 add_compile_options(
-  -Wall -Wextra 
+  -Wall -Wextra
   -Wunreachable-code -Wpointer-arith
   -Wmissing-declarations
 )
@@ -73,6 +77,29 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 add_definitions(-D_GNU_SOURCE)
+
+if (ENABLE_COVERAGE OR ENABLE_SANITIZERS)
+  message(WARNING "Forcing build type to Debug (for code coverage or sanitizers).")
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type. Forced to Debug." FORCE)
+endif()
+
+# coverage
+if (ENABLE_COVERAGE)
+  if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    message(FATAL_ERROR "Coverage has only been tested with the GNU compiler.")
+  endif()
+  add_compile_options(--coverage -O0)
+  link_libraries(--coverage)
+endif()
+
+# sanitizers
+if (ENABLE_SANITIZERS)
+  if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(FATAL_ERROR "Sanitizers have only been tested with the clang compiler.")
+  endif()
+  add_compile_options(-fsanitize=leak,address,undefined -fno-omit-frame-pointer -fno-common -O1)
+  link_libraries(-fsanitize=leak,address,undefined)
+endif()
 
 # everything else is in subdirs
 add_subdirectory(src/apps/packet-dumper)
