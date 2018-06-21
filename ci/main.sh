@@ -49,8 +49,6 @@ popd
 # don't run ruby-rnp tests when librnp is built with sanitizers (various issues)
 if [ "$BUILD_MODE" != "sanitize" ]; then
   pushd "$RUBY_RNP_INSTALL"
-  bundle exec ruby --version
-  bundle env
   env CI=false \
       LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib" \
       bundle exec rspec
