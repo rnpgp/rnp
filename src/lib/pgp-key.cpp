@@ -898,7 +898,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
     }
     if (decrypted_seckey) {
         free_key_pkt(&key->pkt);
-        copy_key_pkt(&key->pkt, decrypted_seckey);
+        copy_key_pkt(&key->pkt, decrypted_seckey, false);
         /* current logic is that unprotected key should be additionally unlocked */
         forget_secret_key_fields(&key->pkt.material);
     }

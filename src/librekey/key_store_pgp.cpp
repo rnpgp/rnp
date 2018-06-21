@@ -151,7 +151,7 @@ create_key_from_pkt(pgp_key_t *key, pgp_key_pkt_t *pkt)
 
     memset(key, 0, sizeof(*key));
 
-    if (!copy_key_pkt(&keypkt, pkt)) {
+    if (!copy_key_pkt(&keypkt, pkt, false)) {
         RNP_LOG("failed to copy key packet");
         return false;
     }

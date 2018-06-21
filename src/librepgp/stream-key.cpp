@@ -70,6 +70,97 @@ transferable_userid_destroy(pgp_transferable_userid_t *userid)
     signature_list_destroy(&userid->signatures);
 }
 
+static bool
+copy_signatures(list *dst, const list *src)
+{
+    for (list_item *sig = list_front(*src); sig; sig = list_next(sig)) {
+        pgp_signature_t *newsig = (pgp_signature_t *) list_append(dst, NULL, sizeof(*newsig));
+        if (!newsig || !copy_signature_packet(newsig, (pgp_signature_t *) sig)) {
+            signature_list_destroy(dst);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool
+transferable_userid_copy(pgp_transferable_userid_t *dst, const pgp_transferable_userid_t *src)
+{
+    if (!copy_userid_pkt(&dst->uid, &src->uid)) {
+        return false;
+    }
+
+    if (!copy_signatures(&dst->signatures, &src->signatures)) {
+        transferable_userid_destroy(dst);
+        return false;
+    }
+
+    return true;
+}
+
+bool
+transferable_subkey_copy(pgp_transferable_subkey_t *      dst,
+                         const pgp_transferable_subkey_t *src,
+                         bool                             pubonly)
+{
+    memset(dst, 0, sizeof(*dst));
+
+    if (!copy_key_pkt(&dst->subkey, &src->subkey, pubonly)) {
+        RNP_LOG("failed to copy subkey pkt");
+        goto error;
+    }
+
+    if (!copy_signatures(&dst->signatures, &src->signatures)) {
+        RNP_LOG("failed to copy subkey signatures");
+        goto error;
+    }
+    return true;
+error:
+    transferable_subkey_destroy(dst);
+    return false;
+}
+
+bool
+transferable_key_copy(pgp_transferable_key_t *      dst,
+                      const pgp_transferable_key_t *src,
+                      bool                          pubonly)
+{
+    memset(dst, 0, sizeof(*dst));
+
+    if (!copy_key_pkt(&dst->key, &src->key, pubonly)) {
+        RNP_LOG("failed to copy key pkt");
+        goto error;
+    }
+
+    for (list_item *uid = list_front(src->userids); uid; uid = list_next(uid)) {
+        pgp_transferable_userid_t *tuid =
+          (pgp_transferable_userid_t *) list_append(&dst->userids, NULL, sizeof(*tuid));
+        if (!tuid || !transferable_userid_copy(tuid, (pgp_transferable_userid_t *) uid)) {
+            RNP_LOG("failed to copy uid");
+            goto error;
+        }
+    }
+
+    for (list_item *skey = list_front(src->subkeys); skey; skey = list_next(skey)) {
+        pgp_transferable_subkey_t *tskey =
+          (pgp_transferable_subkey_t *) list_append(&dst->subkeys, NULL, sizeof(*tskey));
+        if (!tskey ||
+            !transferable_subkey_copy(tskey, (pgp_transferable_subkey_t *) skey, pubonly)) {
+            RNP_LOG("failed to copy subkey");
+            goto error;
+        }
+    }
+
+    if (!copy_signatures(&dst->signatures, &src->signatures)) {
+        RNP_LOG("failed to copy key signatures");
+        goto error;
+    }
+    return true;
+error:
+    transferable_key_destroy(dst);
+    return false;
+}
+
 void
 transferable_key_destroy(pgp_transferable_key_t *key)
 {

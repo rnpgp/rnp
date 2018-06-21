@@ -358,7 +358,7 @@ ssh2seckey(pgp_io_t *io, const char *f, pgp_key_t *key, pgp_key_pkt_t *pubkey)
     }
     seckey = &key->pkt;
     /* let's add some sane defaults */
-    if (!copy_key_pkt(seckey, pubkey)) {
+    if (!copy_key_pkt(seckey, pubkey, false)) {
         return false;
     }
     seckey->alg = PGP_PKA_RSA;

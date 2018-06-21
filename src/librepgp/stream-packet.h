@@ -274,7 +274,7 @@ bool stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst);
 
 rnp_result_t stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key);
 
-bool copy_key_pkt(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src);
+bool copy_key_pkt(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src, bool pubonly);
 
 void free_key_pkt(pgp_key_pkt_t *key);
 
@@ -283,6 +283,8 @@ void free_key_pkt(pgp_key_pkt_t *key);
 bool stream_write_userid(pgp_userid_pkt_t *userid, pgp_dest_t *dst);
 
 rnp_result_t stream_parse_userid(pgp_source_t *src, pgp_userid_pkt_t *userid);
+
+bool copy_userid_pkt(pgp_userid_pkt_t *dst, const pgp_userid_pkt_t *src);
 
 void free_userid_pkt(pgp_userid_pkt_t *userid);
 

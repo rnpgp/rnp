@@ -904,7 +904,7 @@ g10_parse_seckey(pgp_io_t *                io,
             goto done;
         }
 
-        if (!copy_key_pkt(seckey, pgp_get_key_pkt(pubkey))) {
+        if (!copy_key_pkt(seckey, pgp_get_key_pkt(pubkey), false)) {
             goto done;
         }
     }
@@ -959,7 +959,7 @@ g10_decrypt_seckey(const uint8_t *      data,
     if (!g10_parse_seckey(&io, seckey, data, data_len, password, NULL)) {
         goto done;
     }
-    if (pubkey && !copy_key_pkt(seckey, pubkey)) {
+    if (pubkey && !copy_key_pkt(seckey, pubkey, false)) {
         goto done;
     }
     ok = true;
