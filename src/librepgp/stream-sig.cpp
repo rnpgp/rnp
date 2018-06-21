@@ -825,7 +825,7 @@ signature_hash_key(const pgp_key_pkt_t *key, pgp_hash_t *hash)
     }
 
     /* call self recursively if hashed data is not filled, to overcome const restriction */
-    res = copy_key_pkt(&keycp, key) && key_fill_hashed_data(&keycp) &&
+    res = copy_key_pkt(&keycp, key, true) && key_fill_hashed_data(&keycp) &&
           signature_hash_key(&keycp, hash);
     free_key_pkt(&keycp);
     return res;

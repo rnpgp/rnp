@@ -36,6 +36,7 @@
 #include "crypto/symmetric.h"
 #include "crypto/s2k.h"
 #include "stream-packet.h"
+#include "stream-key.h"
 #include "utils.h"
 
 uint32_t
@@ -2175,8 +2176,12 @@ finish:
 }
 
 bool
-copy_key_pkt(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src)
+copy_key_pkt(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src, bool pubonly)
 {
+    if (!is_key_pkt(src->tag)) {
+        return false;
+    }
+
     memcpy(dst, src, sizeof(*src));
     if (src->hashed_data) {
         dst->hashed_data = (uint8_t *) malloc(src->hashed_len);
@@ -2185,7 +2190,8 @@ copy_key_pkt(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src)
         }
         memcpy(dst->hashed_data, src->hashed_data, src->hashed_len);
     }
-    if (src->sec_data) {
+
+    if (!pubonly && src->sec_data) {
         dst->sec_data = (uint8_t *) malloc(src->sec_len);
         if (!dst->sec_data) {
             free(dst->hashed_data);
@@ -2193,6 +2199,22 @@ copy_key_pkt(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src)
         }
         memcpy(dst->sec_data, src->sec_data, src->sec_len);
     }
+
+    if (!pubonly || is_public_key_pkt(src->tag)) {
+        return true;
+    }
+
+    if (src->tag == PGP_PTAG_CT_SECRET_KEY) {
+        dst->tag = PGP_PTAG_CT_PUBLIC_KEY;
+    } else {
+        dst->tag = PGP_PTAG_CT_PUBLIC_SUBKEY;
+    }
+
+    forget_secret_key_fields(&dst->material);
+    dst->sec_data = NULL;
+    dst->sec_len = 0;
+    memset(&dst->sec_protection, 0, sizeof(dst->sec_protection));
+
     return true;
 }
 
@@ -2271,6 +2293,21 @@ stream_parse_userid(pgp_source_t *src, pgp_userid_pkt_t *userid)
     userid->uid = pkt.data; /* take ownership on data */
     userid->uid_len = pkt.len;
     return RNP_SUCCESS;
+}
+
+bool
+copy_userid_pkt(pgp_userid_pkt_t *dst, const pgp_userid_pkt_t *src)
+{
+    *dst = *src;
+    if (src->uid) {
+        dst->uid = (uint8_t *) malloc(src->uid_len);
+        if (!dst->uid) {
+            return false;
+        }
+        memcpy(dst->uid, src->uid, src->uid_len);
+    }
+
+    return true;
 }
 
 void

@@ -67,6 +67,10 @@ void transferable_key_destroy(pgp_transferable_key_t *key);
 
 void transferable_userid_destroy(pgp_transferable_userid_t *userid);
 
+bool transferable_key_copy(pgp_transferable_key_t *      dst,
+                           const pgp_transferable_key_t *src,
+                           bool                          pubonly);
+
 void key_sequence_destroy(pgp_key_sequence_t *keys);
 
 rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys);
