@@ -506,6 +506,7 @@ buggy_key_load_single(const void *keydata, size_t keylen)
             assert_null(list_front(keyseq.keys));
         }
         src_close(&memsrc);
+        dataptr[partlen] ^= 0xff;
     }
 }
 
