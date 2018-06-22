@@ -4,7 +4,8 @@
 
 ```sh
 git clone https://github.com/riboseinc/rnp
-docker run -ti --rm -v $PWD/rnp:/usr/local/rnp centos:7 bash
+cd rnp
+docker run -ti --rm -v $PWD:/usr/local/rnp centos:7 bash
 ```
 
 ## Inside the container
@@ -17,15 +18,9 @@ yum -y install git cmake3 make gcc-c++
 yum -y install bzip2-devel zlib-devel json-c12-devel libcmocka-devel
 
 # botan
-# This should really be installed as an RPM. Otherwise it may be neccessary
-# to turn AUTOREQPROV off in order to install the created rnp RPM.
-yum -y install gcc-c++ boost-devel
-yum -y install wget
-wget https://github.com/randombit/botan/archive/2.6.0.tar.gz
-tar xzf 2.6.0.tar.gz
-cd botan-2.6.0
-./configure.py --prefix=/usr/local
-make install
+rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
+curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
+yum -y install botan2-devel
 
 # rnp rpm
 yum -y install rpm-build
