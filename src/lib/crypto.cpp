@@ -71,6 +71,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include <rnp/rnp_def.h>
 
 #include <librepgp/stream-packet.h>
+#include <librepgp/stream-key.h>
 
 #include "types.h"
 #include "crypto/common.h"
@@ -81,7 +82,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "utils.h"
 
 bool
-pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_key_pkt_t *seckey)
+pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_key_pkt_t *seckey, bool primary)
 {
     bool   ok = false;
     rng_t *rng = NULL;
@@ -96,6 +97,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_key_pkt_t *sec
     seckey->creation_time = time(NULL);
     seckey->alg = crypto->key_alg;
     seckey->material.alg = crypto->key_alg;
+    seckey->tag = primary ? PGP_PTAG_CT_SECRET_KEY : PGP_PTAG_CT_SECRET_SUBKEY;
     rng = crypto->rng;
 
     switch (seckey->alg) {
@@ -148,7 +150,8 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_key_pkt_t *sec
     }
     seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
     seckey->material.secret = true;
-    ok = true;
+    /* fill the sec_data/sec_len */
+    ok = !encrypt_secret_key(seckey, NULL, NULL);
 end:
     if (!ok && seckey) {
         RNP_LOG("failed, freeing internal seckey data");

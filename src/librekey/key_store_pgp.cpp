@@ -362,7 +362,6 @@ rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
     if (!(uidz = (uint8_t *) calloc(1, uid->uid.uid_len + 1))) {
         RNP_LOG("uid alloc failed");
         return false;
-        ;
     }
 
     memcpy(uidz, uid->uid.uid, uid->uid.uid_len);
@@ -429,6 +428,40 @@ error:
         pgp_key_free_data(&key);
     }
     return false;
+}
+
+bool
+rnp_key_from_transferable_key(pgp_key_t *key, pgp_transferable_key_t *tkey)
+{
+    rnp_key_store_t keystore = {};
+
+    if (!rnp_key_store_add_transferable_key(&keystore, tkey)) {
+        RNP_LOG("Failed to add key");
+        return false;
+    }
+
+    memcpy(key, list_front(keystore.keys), sizeof(*key));
+    rnp_key_store_remove_key(NULL, &keystore, (pgp_key_t *) list_front(keystore.keys));
+    rnp_key_store_clear(&keystore);
+    return true;
+}
+
+bool
+rnp_key_from_transferable_subkey(pgp_key_t *                key,
+                                 pgp_transferable_subkey_t *tskey,
+                                 pgp_key_t *                primary)
+{
+    rnp_key_store_t keystore = {};
+
+    if (!rnp_key_store_add_transferable_subkey(&keystore, tskey, primary)) {
+        RNP_LOG("Failed to add subkey");
+        return false;
+    }
+
+    memcpy(key, list_front(keystore.keys), sizeof(*key));
+    rnp_key_store_remove_key(NULL, &keystore, (pgp_key_t *) list_front(keystore.keys));
+    rnp_key_store_clear(&keystore);
+    return true;
 }
 
 rnp_result_t
