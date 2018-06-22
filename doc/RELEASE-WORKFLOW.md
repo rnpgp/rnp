@@ -14,11 +14,15 @@ version (and x is a literal -- not a placeholder).
 git checkout -b release/v1.x master
 ```
 
-## Create a CHANGELOG.md
+## Create a CHANGELOG.md and version.txt
 
 ```
 vim CHANGELOG.md
 git add CHANGELOG.md
+
+git describe --long --dirty > version.txt
+git add version.txt
+
 git commit
 ```
 
