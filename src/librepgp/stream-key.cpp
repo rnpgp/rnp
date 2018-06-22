@@ -161,6 +161,192 @@ error:
     return false;
 }
 
+pgp_transferable_userid_t *
+transferable_key_add_userid(pgp_transferable_key_t *key, const char *userid)
+{
+    pgp_userid_pkt_t           uid = {};
+    pgp_transferable_userid_t *tuid = NULL;
+
+    uid.tag = PGP_PTAG_CT_USER_ID;
+    uid.uid_len = strlen(userid);
+    if (!(uid.uid = (uint8_t *) malloc(uid.uid_len))) {
+        return NULL;
+    }
+    memcpy(uid.uid, userid, uid.uid_len);
+
+    tuid = (pgp_transferable_userid_t *) list_append(&key->userids, NULL, sizeof(*tuid));
+    if (!tuid) {
+        free(uid.uid);
+        return NULL;
+    }
+
+    memcpy(&tuid->uid, &uid, sizeof(uid));
+    return tuid;
+}
+
+pgp_signature_t *
+transferable_key_certify(pgp_transferable_key_t *       key,
+                         pgp_transferable_userid_t *    userid,
+                         pgp_key_pkt_t *                signer,
+                         pgp_hash_alg_t                 hash_alg,
+                         const rnp_selfsig_cert_info_t *cert)
+{
+    pgp_signature_t         sig = {};
+    pgp_signature_t *       res = NULL;
+    pgp_hash_t              hash = {};
+    uint8_t                 keyid[PGP_KEY_ID_SIZE];
+    rng_t                   rng = {};
+    const pgp_user_prefs_t *prefs = NULL;
+
+    if (!key || !userid || !signer || !cert) {
+        RNP_LOG("invalid parameters");
+        return NULL;
+    }
+
+    if (!rng_init(&rng, RNG_SYSTEM)) {
+        RNP_LOG("RNG init failed");
+        return NULL;
+    }
+
+    if (pgp_keyid(keyid, sizeof(keyid), signer)) {
+        RNP_LOG("failed to calculate keyid");
+        goto end;
+    }
+
+    sig.version = PGP_V4;
+    sig.halg = pgp_hash_adjust_alg_to_key(hash_alg, signer);
+    sig.palg = signer->alg;
+    sig.type = PGP_CERT_POSITIVE;
+
+    if (!signature_set_creation(&sig, time(NULL))) {
+        RNP_LOG("failed to set creation time");
+        goto end;
+    }
+    if (cert->key_expiration && !signature_set_key_expiration(&sig, cert->key_expiration)) {
+        RNP_LOG("failed to set key expiration time");
+        goto end;
+    }
+    if (cert->key_flags && !signature_set_key_flags(&sig, cert->key_flags)) {
+        RNP_LOG("failed to set key flags");
+        goto end;
+    }
+    if (cert->primary && !signature_set_primary_uid(&sig, true)) {
+        RNP_LOG("failed to set primary userid");
+        goto end;
+    }
+    prefs = &cert->prefs;
+    if (!DYNARRAY_IS_EMPTY(prefs, symm_alg) &&
+        !signature_set_preferred_symm_algs(&sig, prefs->symm_algs, prefs->symm_algc)) {
+        RNP_LOG("failed to set symm alg prefs");
+        goto end;
+    }
+    if (!DYNARRAY_IS_EMPTY(prefs, hash_alg) &&
+        !signature_set_preferred_hash_algs(&sig, prefs->hash_algs, prefs->hash_algc)) {
+        RNP_LOG("failed to set hash alg prefs");
+        goto end;
+    }
+    if (!DYNARRAY_IS_EMPTY(prefs, compress_alg) &&
+        !signature_set_preferred_z_algs(&sig, prefs->compress_algs, prefs->compress_algc)) {
+        RNP_LOG("failed to set compress alg prefs");
+        goto end;
+    }
+    if (!DYNARRAY_IS_EMPTY(prefs, key_server_pref) &&
+        !signature_set_key_server_prefs(&sig, prefs->key_server_prefs[0])) {
+        RNP_LOG("failed to set key server prefs");
+        goto end;
+    }
+    if (prefs->key_server &&
+        !signature_set_preferred_key_server(&sig, (char *) prefs->key_server)) {
+        RNP_LOG("failed to set preferred key server");
+        goto end;
+    }
+    if (!signature_set_keyid(&sig, keyid)) {
+        RNP_LOG("failed to set issuer key id");
+        goto end;
+    }
+
+    if (!signature_fill_hashed_data(&sig) ||
+        !signature_hash_certification(&sig, &key->key, &userid->uid, &hash) ||
+        signature_calculate(&sig, &signer->material, &hash, &rng)) {
+        RNP_LOG("failed to calculate signature");
+        goto end;
+    }
+
+    res = (pgp_signature_t *) list_append(&userid->signatures, &sig, sizeof(sig));
+end:
+    rng_destroy(&rng);
+    if (!res) {
+        free_signature(&sig);
+    }
+    return res;
+}
+
+pgp_signature_t *
+transferable_key_bind_subkey(const pgp_key_pkt_t *             key,
+                             pgp_transferable_subkey_t *       subkey,
+                             pgp_hash_alg_t                    hash_alg,
+                             const rnp_selfsig_binding_info_t *binding)
+{
+    pgp_signature_t  sig = {};
+    pgp_signature_t *res = NULL;
+    pgp_hash_t       hash = {};
+    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    rng_t            rng = {};
+
+    if (!key || !subkey || !binding) {
+        RNP_LOG("invalid parameters");
+        return NULL;
+    }
+
+    if (!rng_init(&rng, RNG_SYSTEM)) {
+        RNP_LOG("RNG init failed");
+        return NULL;
+    }
+
+    if (pgp_keyid(keyid, sizeof(keyid), key)) {
+        RNP_LOG("failed to calculate keyid");
+        goto end;
+    }
+
+    sig.version = PGP_V4;
+    sig.halg = pgp_hash_adjust_alg_to_key(hash_alg, key);
+    sig.palg = key->alg;
+    sig.type = PGP_SIG_SUBKEY;
+
+    if (!signature_set_creation(&sig, time(NULL))) {
+        RNP_LOG("failed to set creation time");
+        goto end;
+    }
+    if (binding->key_expiration &&
+        !signature_set_key_expiration(&sig, binding->key_expiration)) {
+        RNP_LOG("failed to set key expiration time");
+        goto end;
+    }
+    if (binding->key_flags && !signature_set_key_flags(&sig, binding->key_flags)) {
+        RNP_LOG("failed to set key flags");
+        goto end;
+    }
+    if (!signature_set_keyid(&sig, keyid)) {
+        RNP_LOG("failed to set issuer key id");
+        goto end;
+    }
+
+    if (!signature_fill_hashed_data(&sig) ||
+        !signature_hash_binding(&sig, key, &subkey->subkey, &hash) ||
+        signature_calculate(&sig, &key->material, &hash, &rng)) {
+        RNP_LOG("failed to calculate signature");
+        goto end;
+    }
+
+    res = (pgp_signature_t *) list_append(&subkey->signatures, &sig, sizeof(sig));
+end:
+    rng_destroy(&rng);
+    if (!res) {
+        free_signature(&sig);
+    }
+    return res;
+}
+
 void
 transferable_key_destroy(pgp_transferable_key_t *key)
 {
@@ -583,6 +769,10 @@ parse_secret_key_mpis(pgp_key_pkt_t *key, const uint8_t *mpis, size_t len)
 {
     pgp_packet_body_t body;
     bool              res;
+
+    if (!mpis) {
+        return RNP_ERROR_NULL_POINTER;
+    }
 
     /* check the cleartext data */
     switch (key->sec_protection.s2k.usage) {

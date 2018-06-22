@@ -71,6 +71,24 @@ bool transferable_key_copy(pgp_transferable_key_t *      dst,
                            const pgp_transferable_key_t *src,
                            bool                          pubonly);
 
+bool transferable_subkey_copy(pgp_transferable_subkey_t *      dst,
+                              const pgp_transferable_subkey_t *src,
+                              bool                             pubonly);
+
+pgp_transferable_userid_t *transferable_key_add_userid(pgp_transferable_key_t *key,
+                                                       const char *            userid);
+
+pgp_signature_t *transferable_key_certify(pgp_transferable_key_t *       key,
+                                          pgp_transferable_userid_t *    userid,
+                                          pgp_key_pkt_t *                signer,
+                                          pgp_hash_alg_t                 hash_alg,
+                                          const rnp_selfsig_cert_info_t *cert);
+
+pgp_signature_t *transferable_key_bind_subkey(const pgp_key_pkt_t *             primary_key,
+                                              pgp_transferable_subkey_t *       subkey,
+                                              pgp_hash_alg_t                    hash_alg,
+                                              const rnp_selfsig_binding_info_t *binding);
+
 void key_sequence_destroy(pgp_key_sequence_t *keys);
 
 rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys);

@@ -144,7 +144,7 @@ pkcs1_rsa_test_success(void **state)
     key_desc.hash_alg = PGP_HASH_SHA256;
     key_desc.rsa.modulus_bit_len = 1024;
     key_desc.rng = &global_rng;
-    assert_true(pgp_generate_seckey(&key_desc, &seckey));
+    assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
     key_rsa = &seckey.material.rsa;
 
 #if defined(DEBUG_PRINT)
@@ -198,7 +198,7 @@ rnp_test_eddsa(void **state)
     key_desc.rng = &global_rng;
 
     pgp_key_pkt_t seckey;
-    assert_true(pgp_generate_seckey(&key_desc, &seckey));
+    assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
 
     const uint8_t      hash[32] = {0};
     pgp_ec_signature_t sig = {{{0}}};
@@ -318,8 +318,8 @@ ecdsa_signverify_success(void **state)
         pgp_key_pkt_t seckey1;
         pgp_key_pkt_t seckey2;
 
-        rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, &seckey1));
-        rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, &seckey2));
+        rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, &seckey1, true));
+        rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, &seckey2, true));
 
         const pgp_ec_key_t *key1 = &seckey1.material.ec;
         const pgp_ec_key_t *key2 = &seckey2.material.ec;
@@ -365,7 +365,7 @@ ecdh_roundtrip(void **state)
 
         pgp_key_pkt_t ecdh_key1;
         memset(&ecdh_key1, 0, sizeof(ecdh_key1));
-        rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, &ecdh_key1));
+        rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, &ecdh_key1, true));
 
         pgp_fingerprint_t ecdh_key1_fpr;
         memset(&ecdh_key1_fpr, 0, sizeof(ecdh_key1_fpr));
@@ -405,7 +405,7 @@ ecdh_decryptionNegativeCases(void **state)
 
     pgp_key_pkt_t ecdh_key1;
     memset(&ecdh_key1, 0, sizeof(ecdh_key1));
-    rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, &ecdh_key1));
+    rnp_assert_true(rstate, pgp_generate_seckey(&key_desc, &ecdh_key1, true));
 
     pgp_fingerprint_t ecdh_key1_fpr;
     memset(&ecdh_key1_fpr, 0, sizeof(ecdh_key1_fpr));
@@ -469,7 +469,7 @@ sm2_roundtrip(void **state)
     assert_true(rng_get_data(&global_rng, key, sizeof(key)));
 
     pgp_key_pkt_t seckey;
-    assert_true(pgp_generate_seckey(&key_desc, &seckey));
+    assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
 
     const pgp_ec_key_t *eckey = &seckey.material.ec;
 
@@ -534,7 +534,7 @@ test_dsa_roundtrip(void **state)
         key_desc.dsa.q_bitlen = keys[i].q;
         key_desc.rng = &global_rng;
 
-        assert_true(pgp_generate_seckey(&key_desc, &seckey));
+        assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
         // try to prevent timeouts in travis-ci
         printf("p: %zu q: %zu h: %s\n",
                key_desc.dsa.p_bitlen,
@@ -579,13 +579,13 @@ test_dsa_verify_negative(void **state)
     key_desc.dsa.q_bitlen = key.q;
     key_desc.rng = &global_rng;
 
-    assert_true(pgp_generate_seckey(&key_desc, &sec_key1));
+    assert_true(pgp_generate_seckey(&key_desc, &sec_key1, true));
     // try to prevent timeouts in travis-ci
     printf("p: %zu q: %zu h: %s\n",
            key_desc.dsa.p_bitlen,
            key_desc.dsa.q_bitlen,
            pgp_show_hash_alg(key_desc.hash_alg));
-    assert_true(pgp_generate_seckey(&key_desc, &sec_key2));
+    assert_true(pgp_generate_seckey(&key_desc, &sec_key2, true));
 
     pgp_dsa_key_t *key1 = &sec_key1.material.dsa;
     pgp_dsa_key_t *key2 = &sec_key2.material.dsa;
