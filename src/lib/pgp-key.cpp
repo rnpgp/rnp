@@ -994,6 +994,7 @@ pgp_key_add_userid(pgp_key_t *              key,
     }
 
     ret = rnp_key_add_transferable_userid(key, &uid);
+    transferable_userid_destroy(&uid);
 done:
     if (output && mem) {
         src_close(&src);
