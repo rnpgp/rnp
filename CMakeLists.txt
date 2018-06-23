@@ -79,7 +79,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_definitions(-D_GNU_SOURCE)
 
 if (ENABLE_COVERAGE OR ENABLE_SANITIZERS)
-  message(WARNING "Forcing build type to Debug (for code coverage or sanitizers).")
+  message("Forcing build type to Debug (for code coverage or sanitizers).")
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type. Forced to Debug." FORCE)
 endif()
 
