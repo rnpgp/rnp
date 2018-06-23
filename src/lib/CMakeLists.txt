@@ -135,8 +135,8 @@ add_library(librnp
 
 set_target_properties(librnp
   PROPERTIES
-    VERSION "${VERSION}"
-    SOVERSION 0
+    VERSION "${RNP_VERSION}"
+    SOVERSION "${RNP_VERSION_MAJOR}"
     PREFIX ""
 )
 
