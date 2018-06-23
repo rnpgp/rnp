@@ -78,16 +78,16 @@ bool transferable_subkey_copy(pgp_transferable_subkey_t *      dst,
 pgp_transferable_userid_t *transferable_key_add_userid(pgp_transferable_key_t *key,
                                                        const char *            userid);
 
-pgp_signature_t *transferable_key_certify(pgp_transferable_key_t *       key,
-                                          pgp_transferable_userid_t *    userid,
-                                          pgp_key_pkt_t *                signer,
-                                          pgp_hash_alg_t                 hash_alg,
-                                          const rnp_selfsig_cert_info_t *cert);
+pgp_signature_t *transferable_userid_certify(const pgp_key_pkt_t *          key,
+                                             pgp_transferable_userid_t *    userid,
+                                             const pgp_key_pkt_t *          signer,
+                                             pgp_hash_alg_t                 hash_alg,
+                                             const rnp_selfsig_cert_info_t *cert);
 
-pgp_signature_t *transferable_key_bind_subkey(const pgp_key_pkt_t *             primary_key,
-                                              pgp_transferable_subkey_t *       subkey,
-                                              pgp_hash_alg_t                    hash_alg,
-                                              const rnp_selfsig_binding_info_t *binding);
+pgp_signature_t *transferable_subkey_bind(const pgp_key_pkt_t *             primary_key,
+                                          pgp_transferable_subkey_t *       subkey,
+                                          pgp_hash_alg_t                    hash_alg,
+                                          const rnp_selfsig_binding_info_t *binding);
 
 void key_sequence_destroy(pgp_key_sequence_t *keys);
 
