@@ -7,11 +7,11 @@
   Some steps would be omitted for minor releases.
 
 ## Create the Branch
-Release branches have names of the form `release/vN.x`, where N is the major
+Release branches have names of the form `release/N.x`, where N is the major
 version (and x is a literal -- not a placeholder).
 
 ```
-git checkout -b release/v1.x master
+git checkout -b release/1.x master
 ```
 
 ## Create a CHANGELOG.md and version.txt
@@ -38,7 +38,7 @@ git tag -a v1.0.0 -m ''
 
 ```
 # push the branch
-git push origin release/v1.x
+git push origin release/1.x
 
 # push the tag
 git push origin :v1.0.0
