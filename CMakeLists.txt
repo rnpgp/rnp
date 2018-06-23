@@ -44,7 +44,7 @@ option(ENABLE_COVERAGE "Enable code coverage testing.")
 option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
 
 # so we can use our bundled finders
-set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${PROJECT_SOURCE_DIR}/cmake/Modules")
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules")
 
 # required modules
 include(CTest)

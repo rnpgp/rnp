@@ -6,6 +6,13 @@ set -eux
 : "${CORES:=2}"
 : "${RNP_TESTS:=all}"
 
+# check for use of uninitialized or unused vars in CMake
+function cmake {
+  log=$(mktemp)
+  command cmake --warn-uninitialized --warn-unused "$@" 2>&1 | tee "$log"
+  if grep -Fqi 'cmake warning' "$log"; then exit 1; fi
+}
+
 cmakeopts=(
   "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
   "-DBUILD_SHARED_LIBS=yes"
