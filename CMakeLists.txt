@@ -25,6 +25,9 @@
 # 3.7+ for the BZip2 target in the cmake-bundled finder
 cmake_minimum_required(VERSION 3.7)
 
+# contact email, other info
+include(cmake/info.cmake)
+
 # determine version
 include(cmake/version.cmake)
 determine_version("${CMAKE_CURRENT_SOURCE_DIR}" RNP)
@@ -39,9 +42,6 @@ project(RNP
 # options
 option(ENABLE_COVERAGE "Enable code coverage testing.")
 option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
-
-# contact email, other info
-include(cmake/info.cmake)
 
 # so we can use our bundled finders
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${PROJECT_SOURCE_DIR}/cmake/Modules")
