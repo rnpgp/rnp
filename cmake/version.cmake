@@ -68,10 +68,6 @@ function(determine_version source_dir var_prefix)
   if (IS_DIRECTORY "${source_dir}/.git/")
     # for GIT_EXECUTABLE
     find_package(Git REQUIRED)
-    # this should really only be in snapshots
-    if (EXISTS "${source_dir}/version.txt")
-      message(AUTHOR_WARNING "version.txt should not exist in the repository.")
-    endif()
     # get a description of the version, something like:
     #   v1.9.1-0-g38ffe82        (a tagged release)
     #   v1.9.1-0-g38ffe82-dirty  (a tagged release with local modifications)
