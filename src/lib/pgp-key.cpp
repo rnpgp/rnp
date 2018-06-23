@@ -938,13 +938,11 @@ pgp_key_add_userid(pgp_key_t *              key,
                    rnp_selfsig_cert_info_t *cert)
 {
     bool                      ret = false;
-    pgp_output_t *            output = NULL;
-    pgp_memory_t *            mem = NULL;
-    pgp_source_t              src = {0};
-    pgp_transferable_userid_t uid = {{0}};
+    pgp_transferable_userid_t uid = {};
 
     // sanity checks
     if (!key || !seckey || !cert || !cert->userid[0]) {
+        RNP_LOG("wrong parameters");
         goto done;
     }
     // userids are only valid for primary keys, not subkeys
@@ -973,33 +971,24 @@ pgp_key_add_userid(pgp_key_t *              key,
         goto done;
     }
 
-    // write the packets
-    if (!pgp_setup_memory_write(NULL, &output, &mem, 4096)) {
-        RNP_LOG("failed to setup memory write");
+    /* Fill the transferable userid */
+    uid.uid.tag = PGP_PTAG_CT_USER_ID;
+    uid.uid.uid_len = strlen((char *) cert->userid);
+    if (!(uid.uid.uid = (uint8_t *) malloc(uid.uid.uid_len))) {
+        RNP_LOG("allocation failed");
         goto done;
     }
-    // write userid and selfsig packets
-    if (!pgp_write_struct_userid(output, cert->userid) ||
-        !pgp_write_selfsig_cert(output, seckey, hash_alg, cert)) {
-        RNP_LOG("failed to write userid + selfsig");
-        goto done;
-    }
+    /* uid.uid.uid looks really weird */
+    memcpy(uid.uid.uid, (char *) cert->userid, uid.uid.uid_len);
 
-    if (init_mem_src(&src, mem->buf, mem->length, false)) {
-        goto done;
-    }
-
-    if (process_pgp_userid(&src, &uid)) {
+    if (!transferable_userid_certify(seckey, &uid, seckey, hash_alg, cert)) {
+        RNP_LOG("failed to add userid certification");
         goto done;
     }
 
     ret = rnp_key_add_transferable_userid(key, &uid);
-    transferable_userid_destroy(&uid);
 done:
-    if (output && mem) {
-        src_close(&src);
-        pgp_teardown_memory_write(output, mem);
-    }
+    transferable_userid_destroy(&uid);
     return ret;
 }
 

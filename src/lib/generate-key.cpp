@@ -353,8 +353,8 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
         goto end;
     }
 
-    if (!transferable_key_certify(
-          &tkeysec, uid, &tkeysec.key, desc->crypto.hash_alg, &desc->cert)) {
+    if (!transferable_userid_certify(
+          &tkeysec.key, uid, &tkeysec.key, desc->crypto.hash_alg, &desc->cert)) {
         RNP_LOG("failed to certify key");
         goto end;
     }
@@ -485,7 +485,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         goto end;
     }
 
-    if (!transferable_key_bind_subkey(
+    if (!transferable_subkey_bind(
           primary_seckey, &tskeysec, desc->crypto.hash_alg, &desc->binding)) {
         RNP_LOG("failed to add subkey binding signature");
         goto end;

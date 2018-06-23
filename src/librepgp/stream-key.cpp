@@ -185,11 +185,11 @@ transferable_key_add_userid(pgp_transferable_key_t *key, const char *userid)
 }
 
 pgp_signature_t *
-transferable_key_certify(pgp_transferable_key_t *       key,
-                         pgp_transferable_userid_t *    userid,
-                         pgp_key_pkt_t *                signer,
-                         pgp_hash_alg_t                 hash_alg,
-                         const rnp_selfsig_cert_info_t *cert)
+transferable_userid_certify(const pgp_key_pkt_t *          key,
+                            pgp_transferable_userid_t *    userid,
+                            const pgp_key_pkt_t *          signer,
+                            pgp_hash_alg_t                 hash_alg,
+                            const rnp_selfsig_cert_info_t *cert)
 {
     pgp_signature_t         sig = {};
     pgp_signature_t *       res = NULL;
@@ -266,7 +266,7 @@ transferable_key_certify(pgp_transferable_key_t *       key,
     }
 
     if (!signature_fill_hashed_data(&sig) ||
-        !signature_hash_certification(&sig, &key->key, &userid->uid, &hash) ||
+        !signature_hash_certification(&sig, key, &userid->uid, &hash) ||
         signature_calculate(&sig, &signer->material, &hash, &rng)) {
         RNP_LOG("failed to calculate signature");
         goto end;
@@ -282,10 +282,10 @@ end:
 }
 
 pgp_signature_t *
-transferable_key_bind_subkey(const pgp_key_pkt_t *             key,
-                             pgp_transferable_subkey_t *       subkey,
-                             pgp_hash_alg_t                    hash_alg,
-                             const rnp_selfsig_binding_info_t *binding)
+transferable_subkey_bind(const pgp_key_pkt_t *             key,
+                         pgp_transferable_subkey_t *       subkey,
+                         pgp_hash_alg_t                    hash_alg,
+                         const rnp_selfsig_binding_info_t *binding)
 {
     pgp_signature_t  sig = {};
     pgp_signature_t *res = NULL;
