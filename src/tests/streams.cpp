@@ -112,6 +112,7 @@ test_stream_signatures(void **state)
     uint8_t          keyid[PGP_KEY_ID_SIZE];
     pgp_key_t *      key = NULL;
     rng_t            rng;
+    pgp_fingerprint_t fp;
 
     /* we need rng for key validation */
     assert_true(rng_init(&rng, RNG_SYSTEM));
@@ -177,6 +178,10 @@ test_stream_signatures(void **state)
     /* validate signature and fields */
     assert_int_equal(signature_get_creation(&sig), create);
     assert_int_equal(signature_get_expiration(&sig), expire);
+    assert_true(signature_has_keyfp(&sig));
+    assert_true(signature_get_keyfp(&sig, &fp));
+    assert_int_equal(fp.length, key->fingerprint.length);
+    assert_int_equal(0, memcmp(fp.fingerprint, key->fingerprint.fingerprint, fp.length));
     assert_rnp_success(signature_validate(&sig, pgp_get_key_material(key), &hash, &rng));
     free_signature(&sig);
     /* cleanup */
