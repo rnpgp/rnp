@@ -151,8 +151,6 @@ const unsigned char *pgp_get_userid(const pgp_key_t *, unsigned);
 
 unsigned char *pgp_add_userid(pgp_key_t *, const unsigned char *);
 
-struct pgp_rawpacket_t *pgp_add_rawpacket(pgp_key_t *, const pgp_rawpacket_t *);
-
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 
 char *pgp_export_key(rnp_t *, const pgp_key_t *);

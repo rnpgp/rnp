@@ -60,7 +60,6 @@
 
 #include "types.h"
 #include "crypto.h"
-#include "errors.h"
 #include "writer.h"
 #include "memory.h"
 

@@ -505,30 +505,6 @@ copy_userid(uint8_t **dst, const uint8_t *src)
     return *dst;
 }
 
-/* \todo check where pkt pointers are copied */
-/**
-\ingroup Core_Keys
-\brief Copy packet, including contents
-\param dst Destination packet
-\param src Source packet
-\note If dst already has a packet, it will be freed.
-*/
-static pgp_rawpacket_t *
-copy_packet(pgp_rawpacket_t *dst, const pgp_rawpacket_t *src)
-{
-    if (dst->raw) {
-        free(dst->raw);
-    }
-    if ((dst->raw = (uint8_t *) calloc(1, src->length)) == NULL) {
-        (void) fprintf(stderr, "copy_packet: bad alloc\n");
-    } else {
-        dst->length = src->length;
-        (void) memcpy(dst->raw, src->raw, src->length);
-        dst->tag = src->tag;
-    }
-    return dst;
-}
-
 /**
 \ingroup Core_Keys
 \brief Add User ID to key
@@ -550,30 +526,6 @@ pgp_add_userid(pgp_key_t *key, const uint8_t *userid)
     *uidp = NULL;
     /* now copy it */
     return copy_userid(uidp, userid);
-}
-
-/**
-\ingroup Core_Keys
-\brief Add packet to key
-\param key Key to which to add packet
-\param packet Packet to add
-\return Pointer to new packet
-*/
-pgp_rawpacket_t *
-pgp_add_rawpacket(pgp_key_t *key, const pgp_rawpacket_t *packet)
-{
-    pgp_rawpacket_t *subpktp;
-
-    EXPAND_ARRAY(key, packet);
-    if (key->packets == NULL) {
-        return NULL;
-    }
-    /* initialise new entry in array */
-    subpktp = &key->packets[key->packetc++];
-    subpktp->length = 0;
-    subpktp->raw = NULL;
-    /* now copy it */
-    return copy_packet(subpktp, packet);
 }
 
 char *

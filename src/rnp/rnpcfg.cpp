@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <regex.h>
 #include <time.h>
+#include <errno.h>
 
 #include "rnpcfg.h"
 #include "utils.h"

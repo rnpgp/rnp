@@ -55,7 +55,6 @@
 #include <rnp/rnp_def.h>
 #include "memory.h"
 #include "defs.h"
-#include "errors.h"
 #include "memory.h"
 #include "list.h"
 #include "crypto/common.h"
@@ -68,15 +67,6 @@
 
 /* Maximum length of the packet header */
 #define PGP_MAX_HEADER_SIZE 6
-
-/** General-use structure for variable-length data
- */
-
-typedef struct {
-    size_t   len;
-    uint8_t *contents;
-    uint8_t  mmapped; /* contents need an munmap(2) */
-} pgp_data_t;
 
 typedef struct pgp_io_t {
     FILE *outs; /* output file stream */
@@ -101,9 +91,6 @@ typedef struct {
     const char *string;
 } pgp_map_t;
 
-/** pgp_errcode_name_map_t */
-typedef pgp_map_t pgp_errcode_name_map_t;
-
 typedef struct pgp_crypt_t pgp_crypt_t;
 
 /** pgp_hash_t */
@@ -112,49 +99,17 @@ typedef struct pgp_hash_t pgp_hash_t;
 /** Revocation Reason type */
 typedef uint8_t pgp_ss_rr_code_t;
 
-/** pgp_packet_t */
-typedef struct pgp_packet_t pgp_packet_t;
-
-/** Writer flags */
-typedef enum { PGP_WF_DUMMY } pgp_writer_flags_t;
-
 /**
  * \ingroup Create
  * Contains the required information about how to write
  */
 typedef struct pgp_output_t pgp_output_t;
 
-/** Structure to hold one error code */
-typedef struct {
-    pgp_errcode_t errcode;
-} pgp_parser_errcode_t;
-
 /** pgp_fingerprint_t */
 typedef struct pgp_fingerprint_t {
     uint8_t  fingerprint[PGP_FINGERPRINT_SIZE];
     unsigned length;
 } pgp_fingerprint_t;
-
-/** Structure to hold one packet tag.
- * \see RFC4880 4.2
- */
-typedef struct {
-    unsigned new_format;            /* Whether this packet tag is new
-                                     * (1) or old format (0) */
-    unsigned type;                  /* content_tag value - See
-                                     * #pgp_content_enum for meanings */
-    pgp_ptag_of_lt_t length_type;   /* Length type (#pgp_ptag_of_lt_t)
-                                     * - only if this packet tag is old
-                                     * format.  Set to 0 if new format. */
-    unsigned length; /* The length of the packet.  This value
-                 * is set when we read and compute the length
-                 * information, not at the same moment we
-                 * create the packet tag structure. Only
-     * defined if #readc is set. */ /* XXX: Ben, is this correct? */
-    unsigned position;              /* The position (within the
-                                     * current reader) of the packet */
-    unsigned size;                  /* number of bits */
-} pgp_ptag_t;
 
 /**
  * Type to keep public/secret key mpis without any openpgp-dependent data.
@@ -403,26 +358,6 @@ typedef struct {
     uint8_t        iv[PGP_MAX_BLOCK_SIZE];
     unsigned       ivlen;
 } pgp_sk_sesskey_t;
-
-/** pgp_parser_union_content_t */
-typedef union {
-    const char *         error;
-    pgp_parser_errcode_t errcode;
-    pgp_ptag_t           ptag;
-    pgp_key_pkt_t        key;
-    pgp_data_t           trust;
-    uint8_t *            userid;
-    pgp_data_t           userattr;
-    pgp_signature_t      sig;
-    pgp_rawpacket_t      packet;
-} pgp_contents_t;
-
-/** pgp_packet_t */
-struct pgp_packet_t {
-    pgp_content_enum tag;      /* type of contents */
-    uint8_t          critical; /* for sig subpackets */
-    pgp_contents_t   u;        /* union for contents */
-};
 
 /* user revocation info */
 typedef struct pgp_revoke_t {
