@@ -50,14 +50,20 @@ function(extract_version_info version var_prefix)
   # extract the main components
   #   v1.9.0-3-g5b92266
   #   v1.9.0-3-g5b92266-dirty
-  string(REGEX MATCH "^v([0-9]+\\.[0-9]+\\.[0-9]+)-([0-9]+)-g([0-9a-f]+)(-dirty)?$" matches "${version}")
+  string(REGEX MATCH "^v?([0-9]+\\.[0-9]+\\.[0-9]+)(-([0-9]+)-g([0-9a-f]+)(-dirty)?)?$" matches "${version}")
   if (NOT matches)
     message(FATAL_ERROR "Failed to extract version components.")
   endif()
   set(${var_prefix}_VERSION "${CMAKE_MATCH_1}" PARENT_SCOPE) # 1.9.0
-  set(${var_prefix}_VERSION_NCOMMITS "${CMAKE_MATCH_2}" PARENT_SCOPE) # 3
-  set(${var_prefix}_VERSION_GIT_REV "${CMAKE_MATCH_3}" PARENT_SCOPE) # 5b92266
-  if (CMAKE_MATCH_4 STREQUAL "-dirty")
+  if (NOT CMAKE_MATCH_3)
+    set(CMAKE_MATCH_3 "0")
+  endif()
+  set(${var_prefix}_VERSION_NCOMMITS "${CMAKE_MATCH_3}" PARENT_SCOPE) # 3
+  if (NOT CMAKE_MATCH_4)
+    set(CMAKE_MATCH_4 "0")
+  endif()
+  set(${var_prefix}_VERSION_GIT_REV "${CMAKE_MATCH_4}" PARENT_SCOPE) # 5b92266
+  if (CMAKE_MATCH_5 STREQUAL "-dirty")
     set(${var_prefix}_VERSION_IS_DIRTY TRUE PARENT_SCOPE)
   else()
     set(${var_prefix}_VERSION_IS_DIRTY FALSE PARENT_SCOPE)
