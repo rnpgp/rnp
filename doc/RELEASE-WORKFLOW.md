@@ -3,7 +3,7 @@
 ## General Notes
 * Avoid tagging commits in the `master` branch.
 * Release branches should have annotated tags and a CHANGELOG.md.
-* The steps below detail creation of a brand new 1.x release.
+* The steps below detail creation of a brand new 1.0.0 release.
   Some steps would be omitted for minor releases.
 
 ## Create the Branch
@@ -20,8 +20,8 @@ git checkout -b release/1.x master
 vim CHANGELOG.md
 git add CHANGELOG.md
 
-git describe --long --dirty > version.txt
-git add version.txt
+echo 1.0.0 > version.txt
+git add -f version.txt
 
 git commit
 ```
