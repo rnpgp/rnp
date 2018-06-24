@@ -78,9 +78,9 @@ function(determine_version source_dir var_prefix)
       # no annotated tags, fake one
       git(revision rev-parse --short=${GIT_REV_LEN} --verify HEAD)
       set(version "v0.0.0-0-g${revision}")
-      # check if dirty
-      git(changes --no-pager diff)
-      if (NOT changes STREQUAL "")
+      # check if dirty (this won't detect untracked files, but should be ok)
+      _git(changes diff-index --quiet HEAD --)
+      if (NOT _git_ec EQUAL 0)
         string(APPEND version "-dirty")
       endif()
     endif()
