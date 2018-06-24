@@ -5,7 +5,7 @@ language: cpp
 branches:
   only:
     - master
-    - /^release\/v\d+\.x$/
+    - /^release\/\d+\.x$/
     - coverity_scan
 
 env:
