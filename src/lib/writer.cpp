@@ -85,7 +85,7 @@ __RCSID("$NetBSD: writer.c,v 1.33 2012/03/05 02:20:18 christos Exp $");
 static bool
 base_write(pgp_output_t *out, const void *src, size_t len)
 {
-    return !!out->writer.writer((const uint8_t *) src, len, &out->errors, &out->writer);
+    return !!out->writer.writer((const uint8_t *) src, len, &out->writer);
 }
 
 /**
@@ -108,15 +108,15 @@ pgp_write(pgp_output_t *output, const void *src, size_t len)
  * that have already been finalised
  */
 unsigned
-pgp_writer_info_finalise(pgp_error_t **errors, pgp_writer_t *writer)
+pgp_writer_info_finalise(pgp_writer_t *writer)
 {
     unsigned ret = 1;
 
     if (writer->finaliser) {
-        ret = writer->finaliser(errors, writer);
+        ret = writer->finaliser(writer);
         writer->finaliser = NULL;
     }
-    if (writer->next && !pgp_writer_info_finalise(errors, writer->next)) {
+    if (writer->next && !pgp_writer_info_finalise(writer->next)) {
         writer->finaliser = NULL;
         return 0;
     }
@@ -187,7 +187,7 @@ pgp_writer_close(pgp_output_t *output)
         return 0;
     }
 
-    unsigned ret = pgp_writer_info_finalise(&output->errors, &output->writer);
+    unsigned ret = pgp_writer_info_finalise(&output->writer);
     pgp_writer_info_delete(&output->writer);
     return ret;
 }
@@ -207,11 +207,10 @@ pgp_writer_get_arg(pgp_writer_t *writer)
 }
 
 static bool
-memory_writer(const uint8_t *src, size_t len, pgp_error_t **errors, pgp_writer_t *writer)
+memory_writer(const uint8_t *src, size_t len, pgp_writer_t *writer)
 {
     pgp_memory_t *mem;
 
-    RNP_USED(errors);
     mem = (pgp_memory_t *) pgp_writer_get_arg(writer);
     if (!pgp_memory_add(mem, src, len)) {
         return false;

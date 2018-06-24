@@ -74,6 +74,7 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include <string.h>
 #include <regex.h>
 #include <time.h>
+#include <errno.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -81,7 +82,6 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 
 #include <botan/ffi.h>
 #include "crypto.h"
-#include "errors.h"
 #include <repgp/repgp.h>
 #include <rnp/rnp_sdk.h>
 #include "utils.h"
@@ -91,217 +91,11 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #define vsnprintf _vsnprintf
 #endif
 
-/** \file
- * \brief Error Handling
- */
-#define ERRNAME(code) \
-    {                 \
-        code, #code   \
-    }
-
-static pgp_errcode_name_map_t errcode_name_map[] = {
-  ERRNAME(PGP_E_OK),
-  ERRNAME(PGP_E_FAIL),
-  ERRNAME(PGP_E_SYSTEM_ERROR),
-  ERRNAME(PGP_E_UNIMPLEMENTED),
-
-  ERRNAME(PGP_E_R),
-  ERRNAME(PGP_E_R_READ_FAILED),
-  ERRNAME(PGP_E_R_EARLY_EOF),
-  ERRNAME(PGP_E_R_BAD_FORMAT),
-  ERRNAME(PGP_E_R_UNCONSUMED_DATA),
-
-  ERRNAME(PGP_E_W),
-  ERRNAME(PGP_E_W_WRITE_FAILED),
-  ERRNAME(PGP_E_W_WRITE_TOO_SHORT),
-
-  ERRNAME(PGP_E_P),
-  ERRNAME(PGP_E_P_NOT_ENOUGH_DATA),
-  ERRNAME(PGP_E_P_UNKNOWN_TAG),
-  ERRNAME(PGP_E_P_PACKET_CONSUMED),
-  ERRNAME(PGP_E_P_MPI_FORMAT_ERROR),
-
-  ERRNAME(PGP_E_C),
-
-  ERRNAME(PGP_E_V),
-  ERRNAME(PGP_E_V_BAD_SIGNATURE),
-  ERRNAME(PGP_E_V_NO_SIGNATURE),
-  ERRNAME(PGP_E_V_UNKNOWN_SIGNER),
-
-  ERRNAME(PGP_E_ALG),
-  ERRNAME(PGP_E_ALG_UNSUPPORTED_SYMMETRIC_ALG),
-  ERRNAME(PGP_E_ALG_UNSUPPORTED_PUBLIC_KEY_ALG),
-  ERRNAME(PGP_E_ALG_UNSUPPORTED_SIGNATURE_ALG),
-  ERRNAME(PGP_E_ALG_UNSUPPORTED_HASH_ALG),
-
-  ERRNAME(PGP_E_PROTO),
-  ERRNAME(PGP_E_PROTO_BAD_SYMMETRIC_DECRYPT),
-  ERRNAME(PGP_E_PROTO_UNKNOWN_SS),
-  ERRNAME(PGP_E_PROTO_CRITICAL_SS_IGNORED),
-  ERRNAME(PGP_E_PROTO_BAD_PUBLIC_KEY_VRSN),
-  ERRNAME(PGP_E_PROTO_BAD_SIGNATURE_VRSN),
-  ERRNAME(PGP_E_PROTO_BAD_ONE_PASS_SIG_VRSN),
-  ERRNAME(PGP_E_PROTO_BAD_PKSK_VRSN),
-  ERRNAME(PGP_E_PROTO_DECRYPTED_MSG_WRONG_LEN),
-  ERRNAME(PGP_E_PROTO_BAD_SK_CHECKSUM),
-
-  {0x00, NULL}, /* this is the end-of-array marker */
-};
-
-/**
- * \ingroup Core_Errors
- * \brief returns error code name
- * \param errcode
- * \return error code name or "Unknown"
- */
-const char *
-pgp_errcode(const pgp_errcode_t errcode)
-{
-    return (pgp_str_from_map((int) errcode, (pgp_map_t *) errcode_name_map));
-}
-
-/* generic grab new storage function */
-void *
-pgp_new(size_t size)
-{
-    void *vp;
-
-    if ((vp = calloc(1, size)) == NULL) {
-        (void) fprintf(stderr, "allocation failure for %" PRIsize "u bytes", size);
-    }
-    return vp;
-}
-
 /* utility function to zero out memory */
 void
 pgp_forget(void *vp, size_t size)
 {
     botan_scrub_mem(vp, size);
-}
-
-/**
- * \ingroup Core_Errors
- * \brief Pushes the given error on the given errorstack
- * \param errstack Error stack to use
- * \param errcode Code of error to push
- * \param sys_errno System errno (used if errcode=PGP_E_SYSTEM_ERROR)
- * \param file Source filename where error occurred
- * \param line Line in source file where error occurred
- * \param fmt Comment
- *
- */
-
-void
-pgp_push_error(pgp_error_t **errstack,
-               pgp_errcode_t errcode,
-               int           sys_errno,
-               const char *  file,
-               int           line,
-               const char *  fmt,
-               ...)
-{
-    /* first get the varargs and generate the comment */
-    pgp_error_t *err;
-    unsigned     maxbuf = 128;
-    va_list      args;
-    char *       comment;
-
-    if ((comment = (char *) calloc(1, maxbuf + 1)) == NULL) {
-        (void) fprintf(stderr, "calloc comment failure\n");
-        return;
-    }
-
-    va_start(args, fmt);
-    vsnprintf(comment, maxbuf + 1, fmt, args);
-    va_end(args);
-
-    /* alloc a new error and add it to the top of the stack */
-
-    if ((err = (pgp_error_t *) calloc(1, sizeof(*err))) == NULL) {
-        (void) fprintf(stderr, "calloc comment failure\n");
-        free((void *) comment);
-        return;
-    }
-
-    err->next = *errstack;
-    *errstack = err;
-
-    /* fill in the details */
-    err->errcode = errcode;
-    err->sys_errno = sys_errno;
-    err->file = file;
-    err->line = line;
-
-    err->comment = comment;
-}
-
-/**
-\ingroup Core_Errors
-\brief print this error
-\param err Error to print
-*/
-void
-pgp_print_error(pgp_error_t *err)
-{
-    printf("%s:%d: ", err->file, err->line);
-    if (err->errcode == PGP_E_SYSTEM_ERROR) {
-        printf("system error %d returned from %s()\n", err->sys_errno, err->comment);
-    } else {
-        printf("%s, %s\n", pgp_errcode(err->errcode), err->comment);
-    }
-}
-
-/**
-\ingroup Core_Errors
-\brief Print all errors on stack
-\param errstack Error stack to print
-*/
-void
-pgp_print_errors(pgp_error_t *errstack)
-{
-    pgp_error_t *err;
-
-    for (err = errstack; err != NULL; err = err->next) {
-        pgp_print_error(err);
-    }
-}
-
-/**
-\ingroup Core_Errors
-\brief Return 1 if given error is present anywhere on stack
-\param errstack Error stack to check
-\param errcode Error code to look for
-\return 1 if found; else 0
-*/
-int
-pgp_has_error(pgp_error_t *errstack, pgp_errcode_t errcode)
-{
-    pgp_error_t *err;
-
-    for (err = errstack; err != NULL; err = err->next) {
-        if (err->errcode == errcode) {
-            return true;
-        }
-    }
-    return false;
-}
-
-/**
-\ingroup Core_Errors
-\brief Frees all errors on stack
-\param errstack Error stack to free
-*/
-void
-pgp_free_errors(pgp_error_t *errstack)
-{
-    pgp_error_t *next;
-
-    while (errstack != NULL) {
-        next = errstack->next;
-        free(errstack->comment);
-        free(errstack);
-        errstack = next;
-    }
 }
 
 /**
@@ -394,20 +188,6 @@ pgp_memory_add(pgp_memory_t *mem, const uint8_t *src, size_t length)
     return true;
 }
 
-/* XXX: this could be refactored via the writer, but an awful lot of */
-/* hoops to jump through for 2 lines of code! */
-void
-pgp_memory_place_int(pgp_memory_t *mem, unsigned offset, unsigned n, size_t length)
-{
-    if (mem->allocated < offset + length) {
-        (void) fprintf(stderr, "pgp_memory_place_int: bad alloc\n");
-    } else {
-        while (length-- > 0) {
-            mem->buf[offset++] = n >> (length * 8);
-        }
-    }
-}
-
 /**
  * \ingroup HighLevel_Memory
  * \brief Retains allocated memory and set length of stored data to zero.
@@ -439,32 +219,6 @@ pgp_memory_release(pgp_memory_t *mem)
     }
     mem->buf = NULL;
     mem->length = 0;
-}
-
-void
-pgp_memory_make_packet(pgp_memory_t *out, pgp_content_enum tag)
-{
-    size_t extra;
-
-    extra = (out->length < 192) ? 1 : (out->length < 8192 + 192) ? 2 : 5;
-    if (!pgp_memory_pad(out, extra + 1)) {
-        return;
-    }
-    memmove(out->buf + extra + 1, out->buf, out->length);
-
-    out->buf[0] = PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT | tag;
-
-    if (out->length < 192) {
-        out->buf[1] = (uint8_t) out->length;
-    } else if (out->length < 8192 + 192) {
-        out->buf[1] = (uint8_t)((out->length - 192) >> 8) + 192;
-        out->buf[2] = (uint8_t)(out->length - 192);
-    } else {
-        out->buf[1] = 0xff;
-        STORE32BE(&out->buf[2], out->length);
-    }
-
-    out->length += extra + 1;
 }
 
 /**

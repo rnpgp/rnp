@@ -30,7 +30,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include "errors.h"
 #include <repgp/repgp.h>
 #include <rnp/rnp.h>
 #include "stream-common.h"

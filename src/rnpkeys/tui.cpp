@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <errno.h>
 #include "crypto.h"
 #include "crypto/common.h"
 #include "rnp/rnpcfg.h"

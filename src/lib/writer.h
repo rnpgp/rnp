@@ -57,7 +57,6 @@
 
 #include "types.h"
 #include "crypto.h"
-#include "errors.h"
 
 /**
  * \ingroup Writer
@@ -65,9 +64,9 @@
  */
 
 typedef struct pgp_writer_t pgp_writer_t;
-typedef bool pgp_writer_func_t(const uint8_t *, size_t, pgp_error_t **, pgp_writer_t *);
-typedef bool pgp_writer_finaliser_t(pgp_error_t **, pgp_writer_t *);
-typedef void pgp_writer_destroyer_t(pgp_writer_t *);
+typedef bool                pgp_writer_func_t(const uint8_t *, size_t, pgp_writer_t *);
+typedef bool                pgp_writer_finaliser_t(pgp_writer_t *);
+typedef void                pgp_writer_destroyer_t(pgp_writer_t *);
 
 /** Writer settings */
 struct pgp_writer_t {
@@ -86,8 +85,7 @@ struct pgp_writer_t {
  */
 struct pgp_output_t {
     pgp_writer_t writer;
-    pgp_error_t *errors; /* error stack */
-    rnp_ctx_t *  ctx;    /* current operation context */
+    rnp_ctx_t *  ctx; /* current operation context */
 };
 
 void *pgp_writer_get_arg(pgp_writer_t *);
@@ -103,7 +101,7 @@ unsigned pgp_writer_close(pgp_output_t *);
 bool pgp_write(pgp_output_t *, const void *, size_t);
 
 void     pgp_writer_info_delete(pgp_writer_t *);
-unsigned pgp_writer_info_finalise(pgp_error_t **, pgp_writer_t *);
+unsigned pgp_writer_info_finalise(pgp_writer_t *);
 
 /* memory writing */
 bool pgp_setup_memory_write(rnp_ctx_t *, pgp_output_t **, pgp_memory_t **, size_t);

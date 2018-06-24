@@ -41,7 +41,6 @@
 #include <rnp/rnp_def.h>
 #include "repgp_def.h"
 
-typedef struct pgp_packet_t   pgp_packet_t;
 typedef struct repgp_handle_t repgp_handle_t;
 typedef struct repgp_io_t     repgp_io_t;
 

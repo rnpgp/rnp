@@ -88,8 +88,6 @@ bool          pgp_memory_add(pgp_memory_t *, const uint8_t *, size_t);
  *
 -------------------------------------------------------------------------------- */
 void pgp_memory_ref(pgp_memory_t *mem, uint8_t *data, size_t data_len);
-void pgp_memory_place_int(pgp_memory_t *, unsigned, unsigned, size_t);
-void pgp_memory_make_packet(pgp_memory_t *, pgp_content_enum);
 void pgp_memory_clear(pgp_memory_t *);
 void pgp_memory_release(pgp_memory_t *);
 
