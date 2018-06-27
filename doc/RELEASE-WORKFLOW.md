@@ -41,7 +41,7 @@ git tag -a v1.0.0 -m ''
 git push origin release/1.x
 
 # push the tag
-git push origin :v1.0.0
+git push origin v1.0.0
 ```
 
 # Maintaining a Release
