@@ -173,6 +173,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_repgp_verify),
       cmocka_unit_test(test_generated_key_sigs),
       cmocka_unit_test(test_key_store_search),
+      cmocka_unit_test(test_key_store_search_by_name),
       cmocka_unit_test(test_stream_memory),
       cmocka_unit_test(test_stream_signatures),
       cmocka_unit_test(test_stream_key_load),
