@@ -350,10 +350,6 @@ pgp_mem_writefile(pgp_memory_t *mem, const char *f)
     return true;
 }
 
-typedef struct {
-    uint16_t sum;
-} sum16_t;
-
 /**
  * Searches the given map for the given type.
  * Returns a human-readable descriptive string if found,
