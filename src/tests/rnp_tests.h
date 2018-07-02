@@ -111,6 +111,8 @@ void test_generated_key_sigs(void **state);
 
 void test_key_store_search(void **state);
 
+void test_key_store_search_by_name(void **state);
+
 void test_ffi_api(void **state);
 
 void test_ffi_homedir(void **state);
