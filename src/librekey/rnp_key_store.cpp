@@ -650,39 +650,91 @@ rnp_key_store_get_key_by_fpr(pgp_io_t *               io,
     return NULL;
 }
 
-/* convert a string keyid into a binary keyid */
-static void
-str2keyid(const char *userid, uint8_t *keyid, size_t len)
+/* check whether string is hex */
+static bool
+ishex(const char *hexid, size_t hexlen)
 {
-    static const char *uppers = "0123456789ABCDEF";
-    static const char *lowers = "0123456789abcdef";
-    const char *       hi;
-    const char *       lo;
-    uint8_t            hichar;
-    uint8_t            lochar;
-    size_t             j;
-    int                i;
-
-    for (i = 0, j = 0; j < len && userid[i] && userid[i + 1]; i += 2, j++) {
-        if ((hi = strchr(uppers, userid[i])) == NULL) {
-            if ((hi = strchr(lowers, userid[i])) == NULL) {
-                break;
-            }
-            hichar = (uint8_t)(hi - lowers);
-        } else {
-            hichar = (uint8_t)(hi - uppers);
-        }
-        if ((lo = strchr(uppers, userid[i + 1])) == NULL) {
-            if ((lo = strchr(lowers, userid[i + 1])) == NULL) {
-                break;
-            }
-            lochar = (uint8_t)(lo - lowers);
-        } else {
-            lochar = (uint8_t)(lo - uppers);
-        }
-        keyid[j] = (hichar << 4) | (lochar);
+    /* check for 0x prefix */
+    if ((hexlen >= 2) && (hexid[0] == '0') && ((hexid[1] == 'x') || (hexid[1] == 'X'))) {
+        hexid += 2;
+        hexlen -= 2;
     }
-    keyid[j] = 0x0;
+
+    for (size_t i = 0; i < hexlen; i++) {
+        if ((hexid[i] >= '0') && (hexid[i] <= '9')) {
+            continue;
+        }
+        if ((hexid[i] >= 'a') && (hexid[i] <= 'f')) {
+            continue;
+        }
+        if ((hexid[i] >= 'A') && (hexid[i] <= 'F')) {
+            continue;
+        }
+        if ((hexid[i] == ' ') || (hexid[i] == '\t')) {
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+/* convert hex string, probably prefixes with 0x, to binary form */
+static bool
+hex2bin(const char *hexid, size_t hexlen, uint8_t *keyid, size_t len, size_t *out)
+{
+    bool    haslow = false;
+    uint8_t low = 0;
+    size_t  binlen = 0;
+
+    *out = 0;
+    if (hexlen < 2) {
+        return false;
+    }
+
+    /* check for 0x prefix */
+    if ((hexlen >= 2) && (hexid[0] == '0') && ((hexid[1] == 'x') || (hexid[1] == 'X'))) {
+        hexid += 2;
+        hexlen -= 2;
+    }
+
+    for (size_t i = 0; i < hexlen; i++) {
+        bool digit = false;
+        if ((hexid[i] == ' ') || (hexid[i] == '\t')) {
+            continue;
+        }
+
+        if ((hexid[i] >= '0') && (hexid[i] <= '9')) {
+            low = (low << 4) | (hexid[i] - '0');
+            digit = true;
+        }
+        if ((hexid[i] >= 'a') && (hexid[i] <= 'f')) {
+            low = (low << 4) | (hexid[i] - ('a' - 10));
+            digit = true;
+        }
+        if ((hexid[i] >= 'A') && (hexid[i] <= 'F')) {
+            low = (low << 4) | (hexid[i] - ('A' - 10));
+            digit = true;
+        }
+
+        if (!digit) {
+            return false;
+        }
+
+        /* we had low bits before - so have the whole byte now */
+        if (haslow) {
+            if (binlen < len) {
+                keyid[binlen] = low;
+            }
+            binlen++;
+            low = 0;
+        }
+        haslow = !haslow;
+    }
+
+    if (haslow) {
+        return false;
+    }
+    *out = binlen;
+    return true;
 }
 
 /* return the next key which matches, starting searching after *after */
@@ -698,8 +750,9 @@ get_key_by_name(pgp_io_t *             io,
     unsigned   i = 0;
     pgp_key_t *keyp;
     regex_t    r;
-    uint8_t    keyid[PGP_KEY_ID_SIZE + 1];
+    uint8_t    keyid[PGP_FINGERPRINT_SIZE];
     size_t     len;
+    size_t     binlen = 0;
 
     *key = NULL;
 
@@ -714,13 +767,26 @@ get_key_by_name(pgp_io_t *             io,
     }
     /* first try name as a keyid */
     (void) memset(keyid, 0x0, sizeof(keyid));
-    str2keyid(name, keyid, sizeof(keyid));
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(io->outs, "keyid", keyid, 4);
-    }
-    if ((kp = rnp_key_store_get_key_by_id(io, keyring, keyid, after)) != NULL) {
-        *key = kp;
-        return true;
+    if (ishex(name, len) && hex2bin(name, len, keyid, sizeof(keyid), &binlen)) {
+        if (rnp_get_debug(__FILE__)) {
+            hexdump(io->outs, "keyid", keyid, 4);
+        }
+
+        if (binlen <= PGP_KEY_ID_SIZE) {
+            kp = rnp_key_store_get_key_by_id(io, keyring, keyid, after);
+        } else if (binlen <= PGP_FINGERPRINT_SIZE) {
+            pgp_fingerprint_t fp = {};
+            memcpy(fp.fingerprint, keyid, binlen);
+            fp.length = binlen;
+            kp = rnp_key_store_get_key_by_fpr(io, keyring, &fp);
+        } else {
+            kp = NULL;
+        }
+
+        if (kp) {
+            *key = kp;
+            return true;
+        }
     }
     if (rnp_get_debug(__FILE__)) {
         RNP_LOG_FD(io->outs, "regex match '%s' after %p", name, after);
