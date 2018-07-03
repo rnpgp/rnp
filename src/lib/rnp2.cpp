@@ -1970,7 +1970,7 @@ rnp_verify_dest_provider(pgp_parse_handler_t *handler,
     rnp_op_verify_t op = (rnp_op_verify_t) handler->param;
     *dst = &(op->output->dst);
     *closedst = false;
-    op->filename = filename ? rnp_strdup(filename) : NULL;
+    op->filename = filename ? strdup(filename) : NULL;
 
     return true;
 }
@@ -2075,7 +2075,7 @@ rnp_op_verify_get_file_info(rnp_op_verify_t op, char **filename, uint32_t *mtime
     }
     if (filename) {
         if (op->filename) {
-            *filename = rnp_strdup(op->filename);
+            *filename = strdup(op->filename);
         } else {
             *filename = NULL;
         }
@@ -2114,7 +2114,7 @@ rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t sig, char **hash)
     const char *hname = NULL;
     ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, sig->halg, hname);
     if (hname) {
-        *hash = rnp_strdup(hname);
+        *hash = strdup(hname);
         return RNP_SUCCESS;
     }
     return RNP_ERROR_BAD_STATE;

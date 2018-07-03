@@ -176,7 +176,7 @@ rnp_cfg_val_copy(rnp_cfg_val_t *dst, rnp_cfg_val_t *src)
         break;
     case RNP_CFG_VAL_STRING:
         dst->type = RNP_CFG_VAL_STRING;
-        if (!(dst->val._string = rnp_strdup(src->val._string))) {
+        if (!(dst->val._string = strdup(src->val._string))) {
             return false;
         }
         break;
@@ -229,7 +229,7 @@ rnp_cfg_set(rnp_cfg_t *cfg, const char *key, rnp_cfg_val_t *val)
     if (!(it = rnp_cfg_find(cfg, key))) {
         it = (rnp_cfg_item_t *) list_append(&cfg->vals, NULL, sizeof(*it));
 
-        if (!it || !(it->key = rnp_strdup(key))) {
+        if (!it || !(it->key = strdup(key))) {
             RNP_LOG("bad alloc");
             return NULL;
         }
@@ -274,7 +274,7 @@ rnp_cfg_setstr(rnp_cfg_t *cfg, const char *key, const char *val)
 {
     rnp_cfg_val_t _val = {.type = RNP_CFG_VAL_STRING, .val = {._string = NULL}};
 
-    if (val && !(_val.val._string = rnp_strdup(val))) {
+    if (val && !(_val.val._string = strdup(val))) {
         return false;
     }
 
@@ -308,7 +308,7 @@ rnp_cfg_addstr(rnp_cfg_t *cfg, const char *key, const char *str)
     }
 
     val.type = RNP_CFG_VAL_STRING;
-    if (!(val.val._string = rnp_strdup(str)) ||
+    if (!(val.val._string = strdup(str)) ||
         !list_append(&it->val.val._list, &val, sizeof(val))) {
         if (added) {
             rnp_cfg_unset(cfg, key);
