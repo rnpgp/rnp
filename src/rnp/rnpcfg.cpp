@@ -397,7 +397,12 @@ rnp_cfg_copylist_str(rnp_cfg_t *cfg, list *dst, const char *key)
 {
     rnp_cfg_item_t *it = rnp_cfg_find(cfg, key);
 
-    if (!it || (it->val.type != RNP_CFG_VAL_LIST)) {
+    if (!it) {
+        /* copy empty list is okay */
+        return true;
+    }
+
+    if (it->val.type != RNP_CFG_VAL_LIST) {
         goto fail;
     }
 
