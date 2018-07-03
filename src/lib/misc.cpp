@@ -451,7 +451,7 @@ rnp_set_debug(const char *f)
     if (i == MAX_DEBUG_NAMES) {
         return false;
     }
-    debugv[debugc++] = rnp_strdup(name);
+    debugv[debugc++] = strdup(name);
     return true;
 }
 
@@ -503,21 +503,6 @@ rnp_log(const char *fmt, ...)
     va_end(vp);
     /* do something with message */
     /* put into log buffer? */
-}
-
-/* portable replacement for strdup(3) */
-char *
-rnp_strdup(const char *s)
-{
-    size_t len;
-    char * cp;
-
-    len = strlen(s);
-    if ((cp = (char *) calloc(1, len + 1)) != NULL) {
-        (void) memcpy(cp, s, len);
-        cp[len] = 0x0;
-    }
-    return cp;
 }
 
 /* portable replacement for strcasecmp(3) */

@@ -291,7 +291,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
         signature_get_revocation_reason(&subsig->sig, &revocation->code, &revocation->reason);
         if (!strlen(revocation->reason)) {
             free(revocation->reason);
-            revocation->reason = rnp_strdup(pgp_show_ss_rr_code(revocation->code));
+            revocation->reason = strdup(pgp_show_ss_rr_code(revocation->code));
         }
     }
 
