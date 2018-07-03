@@ -397,6 +397,20 @@ rnp_result_t
 rnp_do_operation(const char *param1, const int param2, int *size, char *buffer);
 ```
 
+# OpenPGP protocol specification
+
+During development you'll need to reference OpenPGP protocol and related documents.
+Here is the list of RFCs and Internet Drafts available at the moment:
+* [RFC 1991](https://www.ietf.org/rfc/rfc1991.txt): PGP Message Exchange Formats. Now obsolete, but may have some historical interest.
+* [RFC 2440](https://www.ietf.org/rfc/rfc2440.txt): OpenPGP Message Format. Superceded by RFC 4880.
+* [RFC 4880](https://www.ietf.org/rfc/rfc4880.txt): OpenPGP Message Format. Latest RFC available at the moment, however has a lot of suggested changes via RFC 4880bis
+* [RFC 5581](https://tools.ietf.org/rfc/rfc5581.txt): The Camellia cipher in OpenPGP.
+* [RFC 4880bis-04](https://tools.ietf.org/id/draft-ietf-openpgp-rfc4880bis-04.txt): OpenPGP Message Format. Latest suggested update to the RFC 4880.
+
+More information sources:
+* [OpenPGP Working Group mailing list](https://mailarchive.ietf.org/arch/browse/openpgp/). Here you can pick up all the latest discussions and suggestions regarding the update of RFC 4880
+* [OpenPGP Working Group gitlab](https://gitlab.com/openpgp-wg/rfc4880bis). Latest work on RFC update is available here.
+
 # Reviewers and Responsibility areas
 
 The individuals are responsible for the following areas of `rnp`.
