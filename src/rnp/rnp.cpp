@@ -828,7 +828,7 @@ parse_option(rnp_cfg_t *cfg, const char *s)
 }
 
 int
-#ifndef RNP_TESTS
+#ifndef RNP_RUN_TESTS
 main(int argc, char **argv)
 #else
 rnp_main(int argc, char **argv)

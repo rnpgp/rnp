@@ -28,9 +28,11 @@ find_package(JSON-C 0.11 REQUIRED)
 
 add_executable(rnp_tests
   ../rnp/rnpcfg.cpp
+  ../rnp/rnp.cpp
   ../rnpkeys/rnpkeys.cpp
   ../rnpkeys/tui.cpp
   cipher.cpp
+  cli.cpp
   exportkey.cpp
   ffi.cpp
   generatekey.cpp
@@ -60,6 +62,11 @@ target_link_libraries(rnp_tests
     librnp
     JSON-C::JSON-C
     cmocka::cmocka
+)
+
+target_compile_definitions(rnp_tests
+  PRIVATE
+    RNP_RUN_TESTS
 )
 
 # fixture to copy the test data directory
