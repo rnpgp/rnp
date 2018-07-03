@@ -501,9 +501,13 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp)
     case CMD_SHOW_KEYS:
         ret = repgp_validate_pubkeys_signatures(&ctx) == RNP_SUCCESS;
         break;
+    case CMD_VERSION:
+        print_praise();
+        ret = RNP_SUCCESS;
+        break;
     default:
         print_usage(usage);
-        exit(EXIT_SUCCESS);
+        ret = RNP_SUCCESS;
     }
 
 done:
@@ -511,7 +515,7 @@ done:
     return ret;
 }
 
-static void
+static bool
 setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
 {
     int newcmd = cmd;
@@ -566,7 +570,7 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
                 msgt = PGP_ARMORED_SIGNATURE;
             } else {
                 fprintf(stderr, "Wrong enarmor argument: %s\n", arg);
-                exit(EXIT_ERROR);
+                return false;
             }
         }
 
@@ -575,17 +579,15 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
         break;
     }
     case CMD_HELP:
-        print_usage(usage);
-        exit(EXIT_SUCCESS);
     case CMD_VERSION:
-        print_praise();
-        exit(EXIT_SUCCESS);
+        break;
     default:
         newcmd = CMD_HELP;
         break;
     }
 
     rnp_cfg_setint(cfg, CFG_COMMAND, newcmd);
+    return true;
 }
 
 /* set an option */
@@ -619,28 +621,28 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
     case OPT_KEYRING:
         if (arg == NULL) {
             fputs("No keyring argument provided\n", stderr);
-            exit(EXIT_ERROR);
+            return false;
         }
         rnp_cfg_setstr(cfg, CFG_KEYRING, arg);
         break;
     case OPT_KEY_STORE_FORMAT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring format argument provided\n");
-            exit(EXIT_ERROR);
+            return false;
         }
         rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, arg);
         break;
     case OPT_USERID:
         if (arg == NULL) {
             fputs("No userid argument provided\n", stderr);
-            exit(EXIT_ERROR);
+            return false;
         }
         rnp_cfg_addstr(cfg, CFG_SIGNERS, arg);
         break;
     case OPT_RECIPIENT:
         if (arg == NULL) {
             fputs("No recipient argument provided\n", stderr);
-            exit(EXIT_ERROR);
+            return false;
         }
         rnp_cfg_addstr(cfg, CFG_RECIPIENTS, arg);
         break;
@@ -656,28 +658,28 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
     case OPT_HOMEDIR:
         if (arg == NULL) {
             (void) fprintf(stderr, "No home directory argument provided\n");
-            exit(EXIT_ERROR);
+            return false;
         }
         rnp_cfg_setstr(cfg, CFG_HOMEDIR, arg);
         break;
     case OPT_HASH_ALG:
         if (arg == NULL) {
             (void) fprintf(stderr, "No hash algorithm argument provided\n");
-            exit(EXIT_ERROR);
+            return false;
         }
         rnp_cfg_setstr(cfg, CFG_HASH, arg);
         break;
     case OPT_PASSWDFD:
         if (arg == NULL) {
             (void) fprintf(stderr, "No pass-fd argument provided\n");
-            exit(EXIT_ERROR);
+            return false;
         }
         rnp_cfg_setstr(cfg, CFG_PASSFD, arg);
         break;
     case OPT_PASSWD:
         if (arg == NULL) {
             (void) fprintf(stderr, "No password argument provided\n");
-            exit(EXIT_ERROR);
+            return false;
         }
         rnp_cfg_setstr(cfg, CFG_PASSWD, arg);
         break;
@@ -685,13 +687,13 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
         int count;
         if (arg == NULL) {
             (void) fprintf(stderr, "You must provide a number with --passwords option\n");
-            exit(EXIT_ERROR);
+            return false;
         }
 
         count = atoi(arg);
         if (count <= 0) {
             (void) fprintf(stderr, "Incorrect value for --passwords option: %s\n", arg);
-            exit(EXIT_ERROR);
+            return false;
         }
 
         rnp_cfg_setint(cfg, CFG_PASSWORDC, count);
@@ -703,14 +705,14 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
     case OPT_OUTPUT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No output filename argument provided\n");
-            exit(EXIT_ERROR);
+            return false;
         }
         rnp_cfg_setstr(cfg, CFG_OUTFILE, arg);
         break;
     case OPT_RESULTS:
         if (arg == NULL) {
             (void) fprintf(stderr, "No output filename argument provided\n");
-            exit(EXIT_ERROR);
+            return false;
         }
         rnp_cfg_setstr(cfg, CFG_RESULTS, arg);
         break;
@@ -747,7 +749,7 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
             alg = PGP_AEAD_OCB;
         } else {
             (void) fprintf(stderr, "Wrong AEAD algorithm: %s\n", arg);
-            exit(EXIT_ERROR);
+            return false;
         }
 
         rnp_cfg_setint(cfg, CFG_AEAD, alg);
@@ -756,14 +758,14 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
     case OPT_AEAD_CHUNK: {
         if (!arg) {
             (void) fprintf(stderr, "Option aead-chunk-bits requires parameter\n");
-            exit(EXIT_ERROR);
+            return false;
         }
 
         int bits = atoi(arg);
 
         if ((bits < 0) || (bits > 56)) {
             (void) fprintf(stderr, "Wrong argument value %s for aead-chunk-bits\n", arg);
-            exit(EXIT_ERROR);
+            return false;
         }
 
         rnp_cfg_setint(cfg, CFG_AEAD_CHUNK, bits);
@@ -826,7 +828,11 @@ parse_option(rnp_cfg_t *cfg, const char *s)
 }
 
 int
+#ifndef RNP_TESTS
 main(int argc, char **argv)
+#else
+rnp_main(int argc, char **argv)
+#endif
 {
     rnp_params_t rnp_params = {0};
     rnp_t        rnp = {0};
@@ -838,7 +844,7 @@ main(int argc, char **argv)
 
     if (argc < 2) {
         print_usage(usage);
-        exit(EXIT_ERROR);
+        return EXIT_ERROR;
     }
 
     rnp_cfg_init(&cfg);
@@ -850,7 +856,8 @@ main(int argc, char **argv)
         if (ch >= CMD_ENCRYPT) {
             /* getopt_long returns 0 for long options */
             if (!setoption(&cfg, options[optindex].val, optarg)) {
-                (void) fprintf(stderr, "Bad option\n");
+                ret = EXIT_ERROR;
+                goto finish;
             }
         } else {
             switch (ch) {
@@ -859,8 +866,8 @@ main(int argc, char **argv)
                 rnp_cfg_setstr(&cfg, CFG_SSHKEYFILE, optarg);
                 break;
             case 'V':
-                print_praise();
-                exit(EXIT_SUCCESS);
+                setcmd(&cfg, CMD_VERSION, optarg);
+                break;
             case 'd':
                 setcmd(&cfg, CMD_DECRYPT, optarg);
                 break;
@@ -879,6 +886,8 @@ main(int argc, char **argv)
             case 'o':
                 if (!parse_option(&cfg, optarg)) {
                     (void) fprintf(stderr, "Bad option\n");
+                    ret = EXIT_ERROR;
+                    goto finish;
                 }
                 break;
             case 'r':
@@ -891,7 +900,8 @@ main(int argc, char **argv)
             case 'u':
                 if (!optarg) {
                     fputs("No userid argument provided\n", stderr);
-                    exit(EXIT_ERROR);
+                    ret = EXIT_ERROR;
+                    goto finish;
                 }
                 rnp_cfg_addstr(&cfg, CFG_SIGNERS, optarg);
                 break;
@@ -907,6 +917,15 @@ main(int argc, char **argv)
                 break;
             }
         }
+    }
+
+    switch (rnp_cfg_getint(&cfg, CFG_COMMAND)) {
+    case CMD_HELP:
+    case CMD_VERSION:
+        rnp_cmd(&cfg, &rnp);
+        ret = EXIT_SUCCESS;
+        goto finish;
+    default:;
     }
 
     rnp_params_init(&rnp_params);
