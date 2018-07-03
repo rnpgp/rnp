@@ -347,6 +347,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
 
             list signers = NULL;
             if (!rnp_cfg_copylist_str(cfg, &signers, CFG_SIGNERS)) {
+                fprintf(stderr, "Failed to copy signers list\n");
                 return false;
             }
             for (list_item *signer = list_front(signers); signer; signer = list_next(signer)) {
@@ -412,6 +413,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
             if (rnp_cfg_getbool(cfg, CFG_ENCRYPT_PK)) {
                 list recipients = NULL;
                 if (!rnp_cfg_copylist_str(cfg, &recipients, CFG_RECIPIENTS)) {
+                    fprintf(stderr, "Failed to copy recipients list\n");
                     return false;
                 }
                 for (list_item *recipient = list_front(recipients); recipient;
@@ -426,6 +428,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
                         return false;
                     }
                     if (!list_append(&ctx->recipients, &key, sizeof(key))) {
+                        fprintf(stderr, "Failed to add key to recipient list\n");
                         list_destroy(&recipients);
                         return false;
                     }
