@@ -503,11 +503,11 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp)
         break;
     case CMD_VERSION:
         print_praise();
-        ret = RNP_SUCCESS;
+        ret = true;
         break;
     default:
         print_usage(usage);
-        ret = RNP_SUCCESS;
+        ret = true;
     }
 
 done:
@@ -609,7 +609,9 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
     case CMD_ENARMOR:
     case CMD_HELP:
     case CMD_VERSION:
-        setcmd(cfg, val, arg);
+        if (!setcmd(cfg, val, arg)) {
+            return false;
+        }
         break;
     /* options */
     case OPT_COREDUMPS:
@@ -779,7 +781,9 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
         rnp_set_debug(arg);
         break;
     default:
-        setcmd(cfg, CMD_HELP, arg);
+        if (!setcmd(cfg, CMD_HELP, arg)) {
+            return false;
+        }
         break;
     }
 
@@ -838,7 +842,7 @@ rnp_main(int argc, char **argv)
     rnp_t        rnp = {0};
     rnp_cfg_t    cfg;
     int          optindex;
-    int          ret;
+    int          ret = EXIT_ERROR;
     int          ch;
     int          i;
 
@@ -860,28 +864,29 @@ rnp_main(int argc, char **argv)
                 goto finish;
             }
         } else {
+            int cmd = 0;
             switch (ch) {
             case 'S':
                 rnp_cfg_setstr(&cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
                 rnp_cfg_setstr(&cfg, CFG_SSHKEYFILE, optarg);
                 break;
             case 'V':
-                setcmd(&cfg, CMD_VERSION, optarg);
+                cmd = CMD_VERSION;
                 break;
             case 'd':
-                setcmd(&cfg, CMD_DECRYPT, optarg);
+                cmd = CMD_DECRYPT;
                 break;
             case 'e':
-                setcmd(&cfg, CMD_ENCRYPT, optarg);
+                cmd = CMD_ENCRYPT;
                 break;
             case 'c':
-                setcmd(&cfg, CMD_SYM_ENCRYPT, optarg);
+                cmd = CMD_SYM_ENCRYPT;
                 break;
             case 's':
-                setcmd(&cfg, CMD_SIGN, optarg);
+                cmd = CMD_SIGN;
                 break;
             case 'v':
-                setcmd(&cfg, CMD_VERIFY, optarg);
+                cmd = CMD_VERIFY;
                 break;
             case 'o':
                 if (!parse_option(&cfg, optarg)) {
@@ -913,8 +918,13 @@ rnp_main(int argc, char **argv)
                 }
                 break;
             default:
-                setcmd(&cfg, CMD_HELP, optarg);
+                cmd = CMD_HELP;
                 break;
+            }
+
+            if (cmd && !setcmd(&cfg, cmd, optarg)) {
+                ret = EXIT_ERROR;
+                goto finish;
             }
         }
     }
@@ -922,8 +932,7 @@ rnp_main(int argc, char **argv)
     switch (rnp_cfg_getint(&cfg, CFG_COMMAND)) {
     case CMD_HELP:
     case CMD_VERSION:
-        rnp_cmd(&cfg, &rnp);
-        ret = EXIT_SUCCESS;
+        ret = rnp_cmd(&cfg, &rnp) ? EXIT_SUCCESS : EXIT_FAILURE;
         goto finish;
     default:;
     }
