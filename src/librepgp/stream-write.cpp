@@ -231,7 +231,10 @@ init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
 
         param->hdr[1] = ((pgp_dest_partial_param_t *) param->writedst->param)->parthdr;
         param->hdrlen = 2;
-    } else if (param->indeterminate) {
+        return true;
+    }
+
+    if (param->indeterminate) {
         if (param->tag > 0xf) {
             RNP_LOG("indeterminate tag > 0xf");
         }
@@ -243,19 +246,19 @@ init_streamed_packet(pgp_dest_packet_param_t *param, pgp_dest_t *dst)
 
         param->writedst = dst;
         param->origdst = dst;
-    } else {
-        RNP_LOG("wrong call");
-        return false;
+        return true;
     }
 
-    return true;
+    RNP_LOG("wrong call");
+    return false;
 }
 
 static rnp_result_t
 finish_streamed_packet(pgp_dest_packet_param_t *param)
 {
-    if (param->partial)
+    if (param->partial) {
         return dst_finish(param->writedst);
+    }
     return RNP_SUCCESS;
 }
 
@@ -1237,39 +1240,39 @@ signed_add_signer(pgp_dest_signed_param_t *param, pgp_key_t *key, bool last)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    /* Write one-pass signature if not detached/cleartext */
-    if (!param->ctx->detached && !param->ctx->clearsign) {
-        onepass.version = 3;
-        onepass.type = PGP_SIG_BINARY;
-        onepass.halg = halg;
-        onepass.palg = pgp_get_key_alg(key);
-        memcpy(onepass.keyid, key->keyid, PGP_KEY_ID_SIZE);
-        onepass.nested = false;
+    // Do not add onepass for detached/clearsign
+    if (param->ctx->detached || param->ctx->clearsign) {
+        return list_append(&param->keys, &key, sizeof(key)) ? RNP_SUCCESS :
+                                                              RNP_ERROR_OUT_OF_MEMORY;
+    }
 
-        if (!list_append(&param->onepasses, &onepass, sizeof(onepass))) {
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
+    // Add onepass
+    onepass.version = 3;
+    onepass.type = PGP_SIG_BINARY;
+    onepass.halg = halg;
+    onepass.palg = pgp_get_key_alg(key);
+    memcpy(onepass.keyid, key->keyid, PGP_KEY_ID_SIZE);
+    onepass.nested = false;
 
-        if (last) {
-            /* write onepasses in reverse order so signature order will match signers list */
-            for (list_item *op = list_back(param->onepasses); op; op = list_prev(op)) {
-                if (!list_prev(op)) {
-                    ((pgp_one_pass_sig_t *) op)->nested = true;
-                }
+    if (!list_append(&param->onepasses, &onepass, sizeof(onepass))) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
 
-                if (!stream_write_one_pass((pgp_one_pass_sig_t *) op, param->writedst)) {
-                    return RNP_ERROR_WRITE;
-                }
+    // write onepasses in reverse order so signature order will match signers list
+    if (last) {
+        for (list_item *op = list_back(param->onepasses); op; op = list_prev(op)) {
+            pgp_one_pass_sig_t *nonepass = (pgp_one_pass_sig_t *) op;
+            nonepass->nested = !list_prev(op);
+
+            if (!stream_write_one_pass(nonepass, param->writedst)) {
+                return RNP_ERROR_WRITE;
             }
         }
     }
 
     /* Save the private key for later usage */
-    if (!list_append(&param->keys, &key, sizeof(key))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    return RNP_SUCCESS;
+    return list_append(&param->keys, &key, sizeof(key)) ? RNP_SUCCESS :
+                                                          RNP_ERROR_OUT_OF_MEMORY;
 }
 
 static rnp_result_t
@@ -1445,8 +1448,9 @@ compressed_dst_finish(pgp_dest_t *dst)
 
         param->len = sizeof(param->cache) - param->z.avail_out;
         dst_write(param->pkt.writedst, param->cache, param->len);
-    } else if (param->alg == PGP_C_BZIP2) {
+    }
 #ifdef HAVE_BZLIB_H
+    if (param->alg == PGP_C_BZIP2) {
         param->bz.next_in = NULL;
         param->bz.avail_in = 0;
         param->bz.next_out = (char *) (param->cache + param->len);
@@ -1470,8 +1474,8 @@ compressed_dst_finish(pgp_dest_t *dst)
 
         param->len = sizeof(param->cache) - param->bz.avail_out;
         dst_write(param->pkt.writedst, param->cache, param->len);
-#endif
     }
+#endif
 
     if (param->pkt.writedst->werr) {
         return param->pkt.writedst->werr;
@@ -1492,11 +1496,12 @@ compressed_dst_close(pgp_dest_t *dst, bool discard)
     if (param->zstarted) {
         if ((param->alg == PGP_C_ZIP) || (param->alg == PGP_C_ZLIB)) {
             deflateEnd(&param->z);
-        } else if (param->alg == PGP_C_BZIP2) {
-#ifdef HAVE_BZLIB_H
-            BZ2_bzCompressEnd(&param->bz);
-#endif
         }
+#ifdef HAVE_BZLIB_H
+        if (param->alg == PGP_C_BZIP2) {
+            BZ2_bzCompressEnd(&param->bz);
+        }
+#endif
     }
 
     close_streamed_packet(&param->pkt, discard);
@@ -1620,7 +1625,7 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
 {
     pgp_dest_packet_param_t *param;
     rnp_result_t             ret = RNP_ERROR_GENERIC;
-    int                      flen;
+    int                      flen = 0;
     uint8_t                  buf[4];
 
     if (!init_dst_common(dst, sizeof(*param))) {
@@ -1651,8 +1656,6 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
             RNP_LOG("filename too long, truncating");
             flen = 255;
         }
-    } else {
-        flen = 0;
     }
     buf[1] = (uint8_t) flen;
     dst_write(param->writedst, buf, 2);

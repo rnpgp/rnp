@@ -152,73 +152,83 @@ stream_pkt_hdr_len(pgp_source_t *src)
 ssize_t
 stream_read_pkt_len(pgp_source_t *src)
 {
-    uint8_t buf[6];
+    uint8_t buf[6] = {};
     ssize_t read;
 
-    read = src_read(src, buf, 2);
-    if ((read < 2) || !(buf[0] & PGP_PTAG_ALWAYS_SET)) {
+    if ((read = stream_pkt_hdr_len(src)) < 0) {
+        return read;
+    }
+
+    if (!src_read_eq(src, buf, read)) {
         return -1;
     }
 
-    if (buf[0] & PGP_PTAG_NEW_FORMAT) {
-        if (buf[1] < 192) {
-            return (ssize_t) buf[1];
-        } else if (buf[1] < 224) {
-            if (src_read(src, &buf[2], 1) < 1) {
-                return -1;
-            }
-            return ((ssize_t)(buf[1] - 192) << 8) + (ssize_t) buf[2] + 192;
-        } else if (buf[1] < 255) {
-            // we do not allow partial length here
-            return -1;
-        } else {
-            if (src_read(src, &buf[2], 4) < 4) {
-                return -1;
-            } else {
-                return read_uint32(&buf[2]);
-            }
-        }
-    } else {
-        switch (buf[0] & PGP_PTAG_OF_LENGTH_TYPE_MASK) {
-        case PGP_PTAG_OLD_LEN_1:
-            return (ssize_t) buf[1];
-        case PGP_PTAG_OLD_LEN_2:
-            if (src_read(src, &buf[2], 1) < 1) {
-                return -1;
-            }
-            return read_uint16(&buf[1]);
-        case PGP_PTAG_OLD_LEN_4:
-            if (src_read(src, &buf[2], 3) < 3) {
-                return -1;
-            }
-            return read_uint32(&buf[1]);
-        default:
-            return -1;
-        }
+    return get_pkt_len(buf);
+}
+
+ssize_t
+stream_read_partial_chunk_len(pgp_source_t *src, bool *last)
+{
+    uint8_t hdr[5] = {};
+    ssize_t read = 0;
+
+    read = src_read(src, hdr, 1);
+    if (read < 0) {
+        RNP_LOG("failed to read header");
+        return -1;
     }
+    if (read < 1) {
+        RNP_LOG("wrong eof");
+        return -1;
+    }
+
+    *last = true;
+
+    // partial length
+    if ((hdr[0] >= 224) && (hdr[0] < 255)) {
+        *last = false;
+        return get_partial_pkt_len(hdr[0]);
+    }
+    // 1-byte length
+    if (hdr[0] < 192) {
+        return hdr[0];
+    }
+    // 2-byte length
+    if (hdr[0] < 224) {
+        if (!src_read_eq(src, &hdr[1], 1)) {
+            RNP_LOG("wrong 2-byte length");
+            return -1;
+        }
+        return ((ssize_t)(hdr[0] - 192) << 8) + (ssize_t) hdr[1] + 192;
+    }
+    // 4-byte length
+    if (!src_read_eq(src, &hdr[1], 4)) {
+        RNP_LOG("wrong 4-byte length");
+        return -1;
+    }
+    return ((ssize_t) hdr[1] << 24) | ((ssize_t) hdr[2] << 16) | ((ssize_t) hdr[3] << 8) |
+           (ssize_t) hdr[4];
 }
 
 bool
 stream_intedeterminate_pkt_len(pgp_source_t *src)
 {
-    uint8_t ptag;
+    uint8_t ptag = 0;
     if (src_peek(src, &ptag, 1) == 1) {
         return !(ptag & PGP_PTAG_NEW_FORMAT) &&
                ((ptag & PGP_PTAG_OF_LENGTH_TYPE_MASK) == PGP_PTAG_OLD_LEN_INDETERMINATE);
-    } else {
-        return false;
     }
+    return false;
 }
 
 bool
 stream_partial_pkt_len(pgp_source_t *src)
 {
-    uint8_t hdr[2];
+    uint8_t hdr[2] = {};
     if (src_peek(src, hdr, 2) < 2) {
         return false;
-    } else {
-        return (hdr[0] & PGP_PTAG_NEW_FORMAT) && (hdr[1] >= 224) && (hdr[1] < 255);
     }
+    return (hdr[0] & PGP_PTAG_NEW_FORMAT) && (hdr[1] >= 224) && (hdr[1] < 255);
 }
 
 size_t
@@ -231,28 +241,31 @@ ssize_t
 get_pkt_len(uint8_t *hdr)
 {
     if (hdr[0] & PGP_PTAG_NEW_FORMAT) {
+        // 1-byte length
         if (hdr[1] < 192) {
             return (ssize_t) hdr[1];
         }
+        // 2-byte length
         if (hdr[1] < 224) {
             return ((ssize_t)(hdr[1] - 192) << 8) + (ssize_t) hdr[2] + 192;
         }
+        // partial length - we do not allow it here
         if (hdr[1] < 255) {
-            // we do not allow partial length here
             return -1;
         }
+        // 4-byte length
         return read_uint32(&hdr[2]);
-    } else {
-        switch (hdr[0] & PGP_PTAG_OF_LENGTH_TYPE_MASK) {
-        case PGP_PTAG_OLD_LEN_1:
-            return (ssize_t) hdr[1];
-        case PGP_PTAG_OLD_LEN_2:
-            return read_uint16(&hdr[1]);
-        case PGP_PTAG_OLD_LEN_4:
-            return read_uint32(&hdr[1]);
-        default:
-            return -1;
-        }
+    }
+
+    switch (hdr[0] & PGP_PTAG_OF_LENGTH_TYPE_MASK) {
+    case PGP_PTAG_OLD_LEN_1:
+        return (ssize_t) hdr[1];
+    case PGP_PTAG_OLD_LEN_2:
+        return read_uint16(&hdr[1]);
+    case PGP_PTAG_OLD_LEN_4:
+        return read_uint32(&hdr[1]);
+    default:
+        return -1;
     }
 }
 
@@ -660,7 +673,8 @@ stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
     len = stream_read_pkt_len(src);
     if (len <= 0) {
         return RNP_ERROR_READ;
-    } else if (len > PGP_MAX_PKT_SIZE) {
+    }
+    if (len > PGP_MAX_PKT_SIZE) {
         RNP_LOG("too large packet");
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -699,7 +713,7 @@ stream_skip_packet(pgp_source_t *src)
 {
     ssize_t len;
     ssize_t partlen;
-    uint8_t parthdr[6];
+    bool    last = true;
 
     if (stream_intedeterminate_pkt_len(src)) {
         while (!src_eof(src)) {
@@ -711,44 +725,13 @@ stream_skip_packet(pgp_source_t *src)
     }
 
     if (stream_partial_pkt_len(src)) {
-        if (!src_read_eq(src, parthdr, 2)) {
-            return RNP_ERROR_READ;
-        }
-        partlen = get_partial_pkt_len(parthdr[1]);
-        while (partlen > 0) {
+        partlen = stream_read_partial_chunk_len(src, &last);
+        while (!last && (partlen > 0)) {
             if (src_skip(src, partlen) != partlen) {
                 return RNP_ERROR_READ;
             }
-            if (!src_read_eq(src, parthdr, 1)) {
-                return RNP_ERROR_READ;
-            }
-            if ((parthdr[0] >= 224) && (parthdr[0] < 255)) {
-                partlen = get_partial_pkt_len(parthdr[0]);
-            } else {
-                break;
-            }
+            partlen = stream_read_partial_chunk_len(src, &last);
         }
-
-        /* parthdr has first byte of the length */
-        if (parthdr[0] < 192) {
-            partlen = parthdr[0] + 1;
-        } else if (parthdr[0] < 224) {
-            if (!src_read_eq(src, &parthdr[1], 1)) {
-                return RNP_ERROR_READ;
-            }
-            partlen = ((ssize_t)(parthdr[0] - 192) << 8) + (ssize_t) parthdr[1] + 192;
-        } else {
-            if (!src_read_eq(src, &parthdr[1], 4)) {
-                return RNP_ERROR_READ;
-            }
-            partlen = ((ssize_t) parthdr[1] << 24) | ((ssize_t) parthdr[2] << 16) |
-                      ((ssize_t) parthdr[3] << 8) | (ssize_t) parthdr[4];
-        }
-
-        if (src_skip(src, partlen) != partlen) {
-            return RNP_ERROR_READ;
-        }
-
         return RNP_SUCCESS;
     }
 

@@ -99,6 +99,14 @@ ssize_t get_pkt_len(uint8_t *hdr);
  **/
 ssize_t stream_read_pkt_len(pgp_source_t *src);
 
+/** @brief Read partial packet chunk length.
+ *
+ *  @param src source to read length from
+ *  @param last will be set to true if chunk is last (i.e. has non-partial length)
+ *  @return length of the chunk or -1 if there is read error or packet length is ill-formed
+ **/
+ssize_t stream_read_partial_chunk_len(pgp_source_t *src, bool *last);
+
 /** @brief initialize writing of packet body
  *  @param body preallocated structure
  *  @param tag tag of the packet
