@@ -269,54 +269,6 @@ get_pkt_len(uint8_t *hdr)
     }
 }
 
-/** @brief read mpi from the source
- *  @param src source to read from
- *  @param mpi preallocated mpi body buffer of PGP_MPINT_SIZE bytes
- *  @param maxlen maximum length of the MPI (including header), or zero if we should not care
- *  @return number of bytes in mpi body or -1 on error
- **/
-static ssize_t
-stream_read_mpi(pgp_source_t *src, uint8_t *mpi, size_t maxlen)
-{
-    uint8_t  hdr[2];
-    unsigned bits;
-    unsigned bytes;
-    unsigned hbits;
-    ssize_t  read;
-
-    if ((maxlen > 0) && (maxlen < 2)) {
-        return -1;
-    }
-
-    if ((read = src_read(src, hdr, 2)) < 2) {
-        return -1;
-    }
-
-    bits = read_uint16(hdr);
-    if (!bits || (bits > PGP_MPINT_BITS)) {
-        RNP_LOG("too large or zero mpi, %d bits", bits);
-        return -1;
-    }
-
-    bytes = (bits + 7) >> 3;
-    if ((maxlen > 0) && (bytes > maxlen - 2)) {
-        RNP_LOG("mpi out of bounds");
-        return -1;
-    }
-
-    if ((read = src_read(src, mpi, bytes)) < bytes) {
-        return -1;
-    }
-
-    hbits = bits & 7 ? bits & 7 : 8;
-    if ((((unsigned) mpi[0] >> hbits) != 0) || !((unsigned) mpi[0] & (1U << (hbits - 1)))) {
-        RNP_LOG("wrong mpi bit count");
-        return -1;
-    }
-
-    return bytes;
-}
-
 bool
 init_packet_body(pgp_packet_body_t *body, int tag)
 {
@@ -940,250 +892,228 @@ stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst)
 rnp_result_t
 stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
 {
-    uint8_t  buf[5];
-    ssize_t  len;
-    ssize_t  read;
-    unsigned idx = 0;
+    uint8_t           bt;
+    int               ptag;
+    pgp_packet_body_t pkt = {};
+    rnp_result_t      res = RNP_ERROR_BAD_FORMAT;
 
-    /* read packet length */
-    len = stream_read_pkt_len(src);
-    if (len < 0) {
-        return RNP_ERROR_READ;
-    } else if (len < 4) {
+    if ((ptag = stream_pkt_type(src)) != PGP_PTAG_CT_SK_SESSION_KEY) {
+        RNP_LOG("wrong sk ptag: %d", ptag);
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    /* version + symalg + s2k type + hash alg for v4 */
-    if ((read = src_read(src, buf, 4)) < 4) {
-        return RNP_ERROR_READ;
+    if ((res = stream_read_packet_body(src, &pkt))) {
+        return res;
     }
+
+    memset(skey, 0, sizeof(*skey));
+    res = RNP_ERROR_BAD_FORMAT;
 
     /* version */
-    skey->version = buf[idx++];
-    if ((skey->version != PGP_SKSK_V4) && (skey->version != PGP_SKSK_V5)) {
+    if (!get_packet_body_byte(&pkt, &bt) || ((bt != PGP_SKSK_V4) && (bt != PGP_SKSK_V5))) {
         RNP_LOG("wrong packet version");
-        return RNP_ERROR_BAD_FORMAT;
+        goto finish;
     }
+    skey->version = bt;
 
     /* symmetric algorithm */
-    skey->alg = (pgp_symm_alg_t) buf[idx++];
+    if (!get_packet_body_byte(&pkt, &bt)) {
+        RNP_LOG("failed to get symm alg");
+        goto finish;
+    }
+    skey->alg = (pgp_symm_alg_t) bt;
 
     if (skey->version == PGP_SKSK_V5) {
         /* aead algorithm */
-        skey->aalg = (pgp_aead_alg_t) buf[idx++];
+        if (!get_packet_body_byte(&pkt, &bt)) {
+            RNP_LOG("failed to get aead alg");
+            goto finish;
+        }
+        skey->aalg = (pgp_aead_alg_t) bt;
         if ((skey->aalg != PGP_AEAD_EAX) && (skey->aalg != PGP_AEAD_OCB)) {
             RNP_LOG("unsupported AEAD algorithm : %d", (int) skey->aalg);
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-        if (len < 5) {
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        if (src_read(src, buf + 4, 1) != 1) {
-            return RNP_ERROR_READ;
+            res = RNP_ERROR_BAD_PARAMETERS;
+            goto finish;
         }
     }
 
     /* s2k */
-    skey->s2k.specifier = (pgp_s2k_specifier_t) buf[idx++];
-    skey->s2k.hash_alg = (pgp_hash_alg_t) buf[idx++];
-    len -= idx;
-
-    switch (skey->s2k.specifier) {
-    case PGP_S2KS_SIMPLE:
-        break;
-    case PGP_S2KS_SALTED:
-    case PGP_S2KS_ITERATED_AND_SALTED:
-        /* salt */
-        if (len < PGP_SALT_SIZE) {
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        if (src_read(src, skey->s2k.salt, PGP_SALT_SIZE) != PGP_SALT_SIZE) {
-            return RNP_ERROR_READ;
-        }
-        len -= PGP_SALT_SIZE;
-
-        /* iterations */
-        if (skey->s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-            if (len < 1) {
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            if (src_read(src, buf, 1) != 1) {
-                return RNP_ERROR_READ;
-            }
-            skey->s2k.iterations = (unsigned) buf[0];
-            len--;
-        }
-        break;
-    default:
-        RNP_LOG("wrong s2k specifier");
-        return RNP_ERROR_BAD_FORMAT;
+    if (!get_packet_body_s2k(&pkt, &skey->s2k)) {
+        RNP_LOG("failed to parse s2k");
+        goto finish;
     }
 
     if (skey->version == PGP_SKSK_V5) {
         /* v5: iv + esk + tag. For both EAX and OCB ivlen and taglen are 16 octets */
-        ssize_t ivlen = pgp_cipher_aead_nonce_len(skey->aalg);
-        ssize_t taglen = pgp_cipher_aead_tag_len(skey->aalg);
-        if (len > ivlen + taglen + PGP_MAX_KEY_SIZE) {
+        size_t ivlen = pgp_cipher_aead_nonce_len(skey->aalg);
+        size_t taglen = pgp_cipher_aead_tag_len(skey->aalg);
+        size_t keylen = 0;
+
+        if (pkt.len > pkt.pos + ivlen + taglen + PGP_MAX_KEY_SIZE) {
             RNP_LOG("too long esk");
-            return RNP_ERROR_BAD_FORMAT;
+            goto finish;
         }
-        if (len < ivlen + taglen + 8) {
+        if (pkt.len < ivlen + taglen + 8) {
             RNP_LOG("too short esk");
-            return RNP_ERROR_BAD_FORMAT;
+            goto finish;
         }
 
         /* iv */
-        if (src_read(src, skey->iv, ivlen) != ivlen) {
-            return RNP_ERROR_READ;
+        if (!get_packet_body_buf(&pkt, skey->iv, ivlen)) {
+            RNP_LOG("failed to get iv");
+            goto finish;
         }
         skey->ivlen = ivlen;
 
         /* key */
-        read = len - ivlen;
-        if (src_read(src, skey->enckey, read) != read) {
-            return RNP_ERROR_READ;
+        keylen = pkt.len - pkt.pos;
+        if (!get_packet_body_buf(&pkt, skey->enckey, keylen)) {
+            RNP_LOG("failed to get key");
+            goto finish;
         }
-        skey->enckeylen = read;
+        skey->enckeylen = keylen;
     } else {
         /* v4: encrypted session key if present */
-        if (len > 0) {
-            if (len > PGP_MAX_KEY_SIZE + 1) {
+        size_t keylen = pkt.len - pkt.pos;
+        if (keylen) {
+            if (keylen > PGP_MAX_KEY_SIZE + 1) {
                 RNP_LOG("too long esk");
-                return RNP_ERROR_BAD_FORMAT;
+                goto finish;
             }
-            if (src_read(src, skey->enckey, len) != len) {
-                return RNP_ERROR_READ;
+            if (!get_packet_body_buf(&pkt, skey->enckey, keylen)) {
+                RNP_LOG("failed to get key");
+                goto finish;
             }
         }
-
-        skey->enckeylen = len;
+        skey->enckeylen = keylen;
     }
 
-    return RNP_SUCCESS;
+    res = RNP_SUCCESS;
+finish:
+    free_packet_body(&pkt);
+    return res;
 }
 
 rnp_result_t
 stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
 {
-    ssize_t len;
-    ssize_t read;
-    uint8_t buf[10];
-    uint8_t mpi[PGP_MPINT_SIZE];
+    uint8_t           bt = 0;
+    pgp_packet_body_t pkt = {};
+    rnp_result_t      res = RNP_ERROR_BAD_FORMAT;
+    int               ptag;
 
-    len = stream_read_pkt_len(src);
-    if (len < 0) {
-        return RNP_ERROR_READ;
-    } else if (len < 10) {
+    if ((ptag = stream_pkt_type(src)) != PGP_PTAG_CT_PK_SESSION_KEY) {
+        RNP_LOG("wrong pk ptag: %d", ptag);
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    if ((read = src_read(src, buf, 10)) < 10) {
-        return RNP_ERROR_READ;
+    if ((res = stream_read_packet_body(src, &pkt))) {
+        return res;
     }
+
+    memset(pkey, 0, sizeof(*pkey));
+    res = RNP_ERROR_BAD_FORMAT;
 
     /* version */
-    if (buf[0] != PGP_PKSK_V3) {
+    if (!get_packet_body_byte(&pkt, &bt) || (bt != PGP_PKSK_V3)) {
         RNP_LOG("wrong packet version");
-        return RNP_ERROR_BAD_FORMAT;
+        goto finish;
     }
-    pkey->version = buf[0];
+    pkey->version = bt;
 
     /* key id */
-    memcpy(pkey->key_id, &buf[1], 8);
-
-    /* pk alg */
-    pkey->alg = (pgp_pubkey_alg_t) buf[9];
-
-    len -= 10;
-
-    /* all algos have first mpi, so let's save some code lines */
-    if ((read = stream_read_mpi(src, mpi, len)) < 0) {
-        return RNP_ERROR_BAD_FORMAT;
+    if (!get_packet_body_buf(&pkt, pkey->key_id, PGP_KEY_ID_SIZE)) {
+        RNP_LOG("failed to get key id");
+        goto finish;
     }
-    len -= read + 2;
+
+    /* public key algorithm */
+    if (!get_packet_body_byte(&pkt, &bt)) {
+        RNP_LOG("failed to get palg");
+        goto finish;
+    }
+    pkey->alg = (pgp_pubkey_alg_t) bt;
 
     switch (pkey->alg) {
     case PGP_PKA_RSA:
         /* RSA m */
-        pkey->material.rsa.m.len = read;
-        memcpy(pkey->material.rsa.m.mpi, mpi, read);
+        if (!get_packet_body_mpi(&pkt, &pkey->material.rsa.m)) {
+            RNP_LOG("failed to get rsa m");
+            goto finish;
+        }
         break;
     case PGP_PKA_ELGAMAL:
-        /* ElGamal g */
-        pkey->material.eg.g.len = read;
-        memcpy(pkey->material.eg.g.mpi, mpi, read);
-        /* ElGamal m */
-        if ((read = stream_read_mpi(src, pkey->material.eg.m.mpi, len)) < 0) {
-            return RNP_ERROR_BAD_FORMAT;
+        /* ElGamal g, m */
+        if (!get_packet_body_mpi(&pkt, &pkey->material.eg.g) ||
+            !get_packet_body_mpi(&pkt, &pkey->material.eg.m)) {
+            RNP_LOG("failed to get elgamal mpis");
+            goto finish;
         }
-        pkey->material.eg.m.len = read;
-        len -= read + 2;
         break;
     case PGP_PKA_SM2:
         /* SM2 m */
-        pkey->material.sm2.m.len = read;
-        memcpy(pkey->material.sm2.m.mpi, mpi, read);
+        if (!get_packet_body_mpi(&pkt, &pkey->material.sm2.m)) {
+            RNP_LOG("failed to get sm2 m");
+            goto finish;
+        }
         break;
     case PGP_PKA_ECDH:
         /* ECDH ephemeral point */
-        pkey->material.ecdh.p.len = read;
-        memcpy(pkey->material.ecdh.p.mpi, mpi, read);
+        if (!get_packet_body_mpi(&pkt, &pkey->material.ecdh.p)) {
+            RNP_LOG("failed to get ecdh p");
+            goto finish;
+        }
         /* ECDH m */
-        if ((len < 1) || ((read = src_read(src, buf, 1)) < 1)) {
-            return RNP_ERROR_READ;
+        if (!get_packet_body_byte(&pkt, &bt)) {
+            RNP_LOG("failed to get ecdh m len");
+            goto finish;
         }
-        len--;
-        if ((buf[0] > ECDH_WRAPPED_KEY_SIZE) || (len < buf[0])) {
-            return RNP_ERROR_BAD_FORMAT;
+        if (bt > ECDH_WRAPPED_KEY_SIZE) {
+            RNP_LOG("wrong ecdh m len");
+            goto finish;
         }
-        pkey->material.ecdh.mlen = buf[0];
-
-        if ((read = src_read(src, pkey->material.ecdh.m, buf[0])) < buf[0]) {
-            return RNP_ERROR_READ;
+        pkey->material.ecdh.mlen = bt;
+        if (!get_packet_body_buf(&pkt, pkey->material.ecdh.m, bt)) {
+            RNP_LOG("failed to get ecdh m len");
+            goto finish;
         }
-        len -= buf[0];
-
         break;
     default:
         RNP_LOG("unknown pk alg %d", (int) pkey->alg);
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    if (len > 0) {
-        RNP_LOG("extra %d bytes", (int) len);
-        return RNP_ERROR_BAD_FORMAT;
+    if (pkt.pos < pkt.len) {
+        RNP_LOG("extra %d bytes in pk packet", (int) (pkt.len - pkt.pos));
+        goto finish;
     }
 
-    return RNP_SUCCESS;
+    res = RNP_SUCCESS;
+finish:
+    free_packet_body(&pkt);
+    return res;
 }
 
 rnp_result_t
 stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass)
 {
-    ssize_t len;
-    ssize_t read;
-    uint8_t buf[13];
+    uint8_t           buf[13];
+    pgp_packet_body_t pkt = {};
+    rnp_result_t      res;
 
-    len = stream_read_pkt_len(src);
-
-    if (len < 0) {
-        return RNP_ERROR_READ;
-    } else if (len != 13) {
-        read = src_skip(src, len);
-
-        if (read == len) {
-            return RNP_ERROR_BAD_FORMAT;
-        } else {
-            return RNP_ERROR_READ;
-        }
+    /* Read the packet into memory */
+    if ((res = stream_read_packet_body(src, &pkt))) {
+        return res;
     }
 
-    read = src_read(src, buf, 13);
-    if (read != 13) {
-        return RNP_ERROR_READ;
+    memset(onepass, 0, sizeof(*onepass));
+    res = RNP_ERROR_BAD_FORMAT;
+
+    if ((pkt.len != 13) || (!get_packet_body_buf(&pkt, buf, 13))) {
+        goto finish;
     }
 
-    /* vesion */
+    /* vesrion */
     if (buf[0] != 3) {
         RNP_LOG("wrong packet version");
         return RNP_ERROR_BAD_FORMAT;
@@ -1205,23 +1135,21 @@ stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass)
     /* nested flag */
     onepass->nested = !!buf[12];
 
-    return RNP_SUCCESS;
+    res = RNP_SUCCESS;
+finish:
+    free_packet_body(&pkt);
+    return res;
 }
 
 /* parse v3-specific fields, not the whole signature */
 static rnp_result_t
-signature_read_v3(pgp_source_t *src, pgp_signature_t *sig, size_t len)
+signature_read_v3(pgp_packet_body_t *pkt, pgp_signature_t *sig)
 {
-    uint8_t buf[16];
+    uint8_t buf[16] = {};
 
-    if (len < 16) {
-        RNP_LOG("wrong packet length");
+    if (!get_packet_body_buf(pkt, buf, 16)) {
+        RNP_LOG("cannot get enough bytes");
         return RNP_ERROR_BAD_FORMAT;
-    }
-
-    if (src_read(src, buf, 16) != 16) {
-        RNP_LOG("read failed");
-        return RNP_ERROR_READ;
     }
 
     /* length of hashed data, 5 */
@@ -1483,22 +1411,17 @@ signature_parse_subpackets(pgp_signature_t *sig, uint8_t *buf, size_t len, bool 
 
 /* parse v4-specific fields, not the whole signature */
 static rnp_result_t
-signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
+signature_read_v4(pgp_packet_body_t *pkt, pgp_signature_t *sig)
 {
-    uint8_t  buf[5];
-    uint8_t *spbuf;
-    size_t   splen;
+    uint8_t      buf[5];
+    uint8_t *    spbuf;
+    uint16_t     splen;
+    rnp_result_t res = RNP_ERROR_BAD_FORMAT;
 
-    if (len < 5) {
-        RNP_LOG("wrong packet length, less then 5");
+    if (!get_packet_body_buf(pkt, buf, 5)) {
+        RNP_LOG("cannot get first 5 bytes");
         return RNP_ERROR_BAD_FORMAT;
     }
-
-    if (src_read(src, buf, 5) != 5) {
-        RNP_LOG("read of 5 bytes failed");
-        return RNP_ERROR_READ;
-    }
-    len -= 5;
 
     /* signature type */
     sig->type = (pgp_sig_type_t) buf[0];
@@ -1513,7 +1436,7 @@ signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
     splen = read_uint16(&buf[3]);
 
     /* hashed subpackets length + 2 bytes of length of unhashed subpackets */
-    if (len < splen + 2) {
+    if (pkt->len < pkt->pos + splen + 2) {
         RNP_LOG("wrong packet or hashed subpackets length");
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -1527,12 +1450,11 @@ signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
     sig->hashed_data[0] = sig->version;
     memcpy(sig->hashed_data + 1, buf, 5);
 
-    if (src_read(src, sig->hashed_data + 6, splen) != (ssize_t) splen) {
-        RNP_LOG("read of hashed subpackets failed");
-        return RNP_ERROR_READ;
+    if (!get_packet_body_buf(pkt, sig->hashed_data + 6, splen)) {
+        RNP_LOG("cannot get hashed subpackets data");
+        return RNP_ERROR_BAD_FORMAT;
     }
     sig->hashed_len = splen + 6;
-    len -= splen;
 
     /* parsing hashed subpackets */
     if (!signature_parse_subpackets(sig, sig->hashed_data + 6, splen, true)) {
@@ -1541,14 +1463,12 @@ signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
     }
 
     /* reading unhashed subpackets */
-    if (src_read(src, buf, 2) != 2) {
-        RNP_LOG("read of unhashed len failed");
-        return RNP_ERROR_READ;
+    if (!get_packet_body_uint16(pkt, &splen)) {
+        RNP_LOG("cannot get unhashed len");
+        return RNP_ERROR_BAD_FORMAT;
     }
-    len -= 2;
 
-    splen = read_uint16(buf);
-    if (len < splen) {
+    if (pkt->len < pkt->pos + splen) {
         RNP_LOG("not enough data for unhashed subpackets");
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -1558,148 +1478,110 @@ signature_read_v4(pgp_source_t *src, pgp_signature_t *sig, size_t len)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    if (src_read(src, spbuf, splen) != (ssize_t) splen) {
+    if (!get_packet_body_buf(pkt, spbuf, splen)) {
         RNP_LOG("read of unhashed subpackets failed");
-        free(spbuf);
-        return RNP_ERROR_READ;
+        goto finish;
     }
-    len -= splen;
 
     if (!signature_parse_subpackets(sig, spbuf, splen, false)) {
         RNP_LOG("failed to parse unhashed subpackets");
-        free(spbuf);
-        return RNP_ERROR_BAD_FORMAT;
+        goto finish;
     }
 
+    res = RNP_SUCCESS;
+finish:
     free(spbuf);
-    return RNP_SUCCESS;
+    return res;
 }
 
 rnp_result_t
 stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
 {
-    int          ptag;
-    ssize_t      len;
-    ssize_t      read;
-    ssize_t      read2;
-    uint8_t      ver;
-    uint64_t     pktend;
-    rnp_result_t res = RNP_SUCCESS;
+    int               ptag;
+    uint8_t           ver;
+    pgp_packet_body_t pkt = {};
+    rnp_result_t      res = RNP_ERROR_BAD_FORMAT;
 
     if ((ptag = stream_pkt_type(src)) != PGP_PTAG_CT_SIGNATURE) {
         RNP_LOG("wrong signature ptag: %d", ptag);
         return RNP_ERROR_BAD_FORMAT;
     }
 
+    if ((res = stream_read_packet_body(src, &pkt))) {
+        return res;
+    }
+
     memset(sig, 0, sizeof(*sig));
+    res = RNP_ERROR_BAD_FORMAT;
 
-    len = stream_read_pkt_len(src);
-
-    if (len < 0) {
-        return RNP_ERROR_READ;
-    } else if (len < 1) {
-        return RNP_ERROR_BAD_FORMAT;
+    if (!get_packet_body_byte(&pkt, &ver)) {
+        goto finish;
     }
-    pktend = src->readb + len;
-
-    /* version */
-    if ((read = src_read(src, &ver, 1)) != 1) {
-        return RNP_ERROR_READ;
-    }
-    len--;
     sig->version = (pgp_version_t) ver;
 
-    /* parsing version-specific fields */
+    /* v3 or v4 signature body */
     if ((ver == PGP_V2) || (ver == PGP_V3)) {
-        res = signature_read_v3(src, sig, len);
+        res = signature_read_v3(&pkt, sig);
     } else if (ver == PGP_V4) {
-        res = signature_read_v4(src, sig, len);
+        res = signature_read_v4(&pkt, sig);
     } else {
         RNP_LOG("unknown signature version: %d", (int) ver);
-        res = RNP_ERROR_BAD_FORMAT;
-    }
-
-    /* skipping the packet and returning error */
-    if (res != RNP_SUCCESS) {
         goto finish;
     }
 
     /* left 16 bits of the hash */
-    if (pktend - src->readb < 2) {
+    if (!get_packet_body_buf(&pkt, sig->lbits, 2)) {
         RNP_LOG("not enough data for hash left bits");
-        goto finish;
-    }
-
-    if (src_read(src, sig->lbits, 2) != 2) {
-        res = RNP_ERROR_READ;
         goto finish;
     }
 
     /* signature MPIs */
     switch (sig->palg) {
     case PGP_PKA_RSA:
-        if ((read = stream_read_mpi(src, sig->material.rsa.s.mpi, pktend - src->readb)) < 0) {
-            res = RNP_ERROR_BAD_FORMAT;
+        if (!get_packet_body_mpi(&pkt, &sig->material.rsa.s)) {
             goto finish;
         }
-        sig->material.rsa.s.len = read;
         break;
     case PGP_PKA_DSA:
-        if (((read = stream_read_mpi(src, sig->material.dsa.r.mpi, pktend - src->readb)) <
-             0) ||
-            ((read2 = stream_read_mpi(src, sig->material.dsa.s.mpi, pktend - src->readb)) <
-             0)) {
-            res = RNP_ERROR_BAD_FORMAT;
+        if (!get_packet_body_mpi(&pkt, &sig->material.dsa.r) ||
+            !get_packet_body_mpi(&pkt, &sig->material.dsa.s)) {
             goto finish;
         }
-        sig->material.dsa.r.len = read;
-        sig->material.dsa.s.len = read2;
         break;
     case PGP_PKA_EDDSA:
-        if (sig->version < 4) {
+        if (sig->version < PGP_V4) {
             RNP_LOG("Warning! v3 EdDSA signature.");
         }
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        if (((read = stream_read_mpi(src, sig->material.ecc.r.mpi, pktend - src->readb)) <
-             0) ||
-            ((read2 = stream_read_mpi(src, sig->material.ecc.s.mpi, pktend - src->readb)) <
-             0)) {
-            res = RNP_ERROR_BAD_FORMAT;
+        if (!get_packet_body_mpi(&pkt, &sig->material.ecc.r) ||
+            !get_packet_body_mpi(&pkt, &sig->material.ecc.s)) {
             goto finish;
         }
-        sig->material.ecc.r.len = read;
-        sig->material.ecc.s.len = read2;
         break;
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (((read = stream_read_mpi(src, sig->material.eg.r.mpi, pktend - src->readb)) < 0) ||
-            ((read2 = stream_read_mpi(src, sig->material.eg.s.mpi, pktend - src->readb)) <
-             0)) {
-            res = RNP_ERROR_BAD_FORMAT;
+        if (!get_packet_body_mpi(&pkt, &sig->material.eg.r) ||
+            !get_packet_body_mpi(&pkt, &sig->material.eg.s)) {
             goto finish;
         }
-        sig->material.eg.r.len = read;
-        sig->material.eg.s.len = read2;
         break;
     default:
         RNP_LOG("Unknown pk algorithm : %d", (int) sig->palg);
-        res = RNP_ERROR_BAD_FORMAT;
+        goto finish;
     }
 
-    if (pktend > src->readb) {
-        RNP_LOG("Warning! %d bytes beyond of signature.", (int) len);
+    if (pkt.pos < pkt.len) {
+        RNP_LOG("extra %d bytes in signature packet", (int) (pkt.len - pkt.pos));
+        goto finish;
     }
 
+    res = RNP_SUCCESS;
 finish:
-    /* skipping rest of the packet in case of non-read error */
-    if (res != RNP_SUCCESS) {
+    if (res) {
         free_signature(sig);
-        if (res != RNP_ERROR_READ) {
-            src_skip(src, pktend - src->readb);
-        }
     }
-
+    free_packet_body(&pkt);
     return res;
 }
 
