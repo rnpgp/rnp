@@ -181,19 +181,7 @@ typedef enum {
     PGP_PTAG_CT_SE_IP_DATA = 18,     /* Sym. Encrypted and Integrity
                                       * Protected Data Packet */
     PGP_PTAG_CT_MDC = 19,            /* Modification Detection Code Packet */
-    PGP_PTAG_CT_AEAD_ENCRYPTED = 20, /* AEAD Encrypted Data Packet, RFC 4880bis */
-
-    PGP_PARSER_PTAG = 0x100, /* Internal Use: The packet is the "Packet
-                              * Tag" itself - used when callback sends
-                              * back the PTag. */
-    PGP_PARSER_PACKET_END = 0x103,
-
-    /* Errors */
-    PGP_PARSER_ERROR = 0x500,       /* Internal Use: Parser Error */
-    PGP_PARSER_ERRCODE = 0x500 + 1, /* Internal Use: Parser Error
-                                     * with errcode returned */
-
-    PGP_PARSER_DONE = 0x600 /* parsing is complete */
+    PGP_PTAG_CT_AEAD_ENCRYPTED = 20  /* AEAD Encrypted Data Packet, RFC 4880bis */
 } pgp_content_enum;
 
 /** Public Key Algorithm Numbers.

@@ -94,10 +94,6 @@ static pgp_map_t packet_tag_map[] = {
   {PGP_PTAG_CT_USER_ATTR, "User Attribute"},
   {PGP_PTAG_CT_SE_IP_DATA, "Symmetric Encrypted and Integrity Protected Data"},
   {PGP_PTAG_CT_MDC, "Modification Detection Code"},
-  {PGP_PARSER_PTAG, "PGP_PARSER_PTAG"},
-  {PGP_PARSER_PACKET_END, "PGP_PARSER_PACKET_END"},
-  {PGP_PARSER_ERROR, "PGP_PARSER_ERROR"},
-  {PGP_PARSER_ERRCODE, "PGP_PARSER_ERRCODE"},
 
   {0x00, NULL}, /* this is the end-of-array marker */
 };
