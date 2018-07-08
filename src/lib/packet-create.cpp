@@ -228,43 +228,22 @@ pgp_write_xfer_seckey(pgp_dest_t *           dst,
     return res;
 }
 
-/**
- * \ingroup Core_WritePackets
- * \brief Writes a Secret Key packet.
- * \param key The secret key
- * \param password The password
- * \param pplen Length of password
- * \param output
- * \return 1 if OK; else 0
- */
 bool
-pgp_write_struct_seckey(pgp_output_t *   output,
+pgp_write_struct_seckey(pgp_dest_t *     dst,
                         pgp_content_enum tag,
                         pgp_key_pkt_t *  seckey,
                         const char *     password)
 {
-    pgp_dest_t dst;
-    bool       res = false;
+    bool res = false;
+    int  oldtag = seckey->tag;
 
-    if (init_mem_dest(&dst, NULL, 0)) {
-        return false;
-    }
-
-    int oldtag = seckey->tag;
     seckey->tag = tag;
-
     if (encrypt_secret_key(seckey, password, NULL)) {
         goto done;
     }
-
-    if (!stream_write_key(seckey, &dst)) {
-        goto done;
-    }
-
-    res = pgp_write(output, mem_dest_get_memory(&dst), dst.writeb);
+    res = stream_write_key(seckey, dst);
 done:
     seckey->tag = oldtag;
-    dst_close(&dst, true);
     return res;
 }
 

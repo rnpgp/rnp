@@ -668,24 +668,24 @@ write_key_to_rawpacket(pgp_key_pkt_t *    seckey,
                        key_store_format_t format,
                        const char *       password)
 {
-    pgp_output_t *output = NULL;
-    pgp_memory_t *mem = NULL;
-    bool          ret = false;
+    pgp_dest_t memdst = {};
+    bool       ret = false;
 
-    if (!pgp_setup_memory_write(NULL, &output, &mem, 2048)) {
+    if (init_mem_dest(&memdst, NULL, 0)) {
         goto done;
     }
+
     // encrypt+write the key in the appropriate format
     switch (format) {
     case GPG_KEY_STORE:
     case KBX_KEY_STORE:
-        if (!pgp_write_struct_seckey(output, type, seckey, password)) {
+        if (!pgp_write_struct_seckey(&memdst, type, seckey, password)) {
             RNP_LOG("failed to write seckey");
             goto done;
         }
         break;
     case G10_KEY_STORE:
-        if (!g10_write_seckey(output, seckey, password)) {
+        if (!g10_write_seckey(&memdst, seckey, password)) {
             RNP_LOG("failed to write g10 seckey");
             goto done;
         }
@@ -698,16 +698,11 @@ write_key_to_rawpacket(pgp_key_pkt_t *    seckey,
     // free the existing data if needed
     pgp_rawpacket_free(packet);
     // take ownership of this memory
-    packet->raw = mem->buf;
-    packet->length = mem->length;
-    // we don't want this memory getting freed below
-    *mem = (pgp_memory_t){0};
+    packet->raw = (uint8_t *) mem_dest_own_memory(&memdst);
+    packet->length = memdst.writeb;
     ret = true;
-
 done:
-    if (output && mem) {
-        pgp_teardown_memory_write(output, mem);
-    }
+    dst_close(&memdst, true);
     return ret;
 }
 
