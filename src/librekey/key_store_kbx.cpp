@@ -26,9 +26,9 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
-
 #include <string.h>
 #include <stdint.h>
+#include <time.h>
 
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
@@ -487,14 +487,12 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
                             pgp_key_t *      key,
                             pgp_memory_t *   m)
 {
-    unsigned     i;
-    int          rc;
-    size_t       start, key_start, uid_start;
-    uint8_t *    p;
-    uint8_t      checksum[20];
-    uint32_t     pt;
-    pgp_hash_t   hash = {0};
-    pgp_output_t output = {};
+    unsigned   i;
+    size_t     start, key_start, uid_start;
+    uint8_t *  p;
+    uint8_t    checksum[20];
+    uint32_t   pt;
+    pgp_hash_t hash = {0};
 
     start = m->length;
 
@@ -617,25 +615,17 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
     p = m->buf + start + 8;
     STORE32BE(p, pt);
 
-    pgp_writer_set_memory(&output, m);
-
-    if (!pgp_key_write_packets(key, &output)) {
+    if (!pgp_key_write_packets(key, m)) {
         return false;
     }
     subkey_grip = list_front(key->subkey_grips);
     while (subkey_grip) {
         const pgp_key_t *subkey =
           rnp_key_store_get_key_by_grip(io, key_store, (uint8_t *) subkey_grip);
-        if (!pgp_key_write_packets(subkey, &output)) {
+        if (!pgp_key_write_packets(subkey, m)) {
             return false;
         }
         subkey_grip = list_next(subkey_grip);
-    }
-
-    rc = pgp_writer_close(&output);
-    pgp_writer_info_delete(&output.writer);
-    if (!rc) {
-        return false;
     }
 
     pt = m->length - key_start;

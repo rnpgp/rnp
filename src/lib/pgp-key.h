@@ -241,7 +241,7 @@ bool pgp_key_add_userid(pgp_key_t *              key,
                         pgp_hash_alg_t           hash_alg,
                         rnp_selfsig_cert_info_t *cert);
 
-bool pgp_key_write_packets(const pgp_key_t *key, pgp_output_t *output);
+bool pgp_key_write_packets(const pgp_key_t *key, pgp_memory_t *mem);
 
 /** find a key suitable for a particular operation
  *

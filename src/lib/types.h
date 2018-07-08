@@ -99,12 +99,6 @@ typedef struct pgp_hash_t pgp_hash_t;
 /** Revocation Reason type */
 typedef uint8_t pgp_ss_rr_code_t;
 
-/**
- * \ingroup Create
- * Contains the required information about how to write
- */
-typedef struct pgp_output_t pgp_output_t;
-
 /** pgp_fingerprint_t */
 typedef struct pgp_fingerprint_t {
     uint8_t  fingerprint[PGP_FINGERPRINT_SIZE];

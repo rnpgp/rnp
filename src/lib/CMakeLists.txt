@@ -128,7 +128,6 @@ add_library(librnp
   pgp-key.cpp
   rnp2.cpp
   rnp.cpp
-  writer.cpp
 )
 
 set_target_properties(librnp
