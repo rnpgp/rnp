@@ -1277,7 +1277,7 @@ done:
 }
 
 bool
-g10_write_seckey(pgp_output_t *output, pgp_key_pkt_t *seckey, const char *password)
+g10_write_seckey(pgp_dest_t *dst, pgp_key_pkt_t *seckey, const char *password)
 {
     s_exp_t      s_exp = {0};
     s_exp_t *    sub_s_exp = NULL;
@@ -1314,11 +1314,11 @@ g10_write_seckey(pgp_output_t *output, pgp_key_pkt_t *seckey, const char *passwo
             goto done;
         }
     }
-    if (!write_sexp(&s_exp, &mem) || !pgp_write(output, mem.buf, mem.length)) {
+    if (!write_sexp(&s_exp, &mem)) {
         goto done;
     }
-    ret = true;
-
+    dst_write(dst, mem.buf, mem.length);
+    ret = !dst->werr;
 done:
     pgp_memory_release(&mem);
     destroy_s_exp(&s_exp);

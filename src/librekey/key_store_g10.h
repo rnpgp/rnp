@@ -29,16 +29,17 @@
 
 #include <rnp/rnp.h>
 #include <rekey/rnp_key_store.h>
+#include <librepgp/stream-common.h>
 
-bool rnp_key_store_g10_from_mem(pgp_io_t *,
-                                rnp_key_store_t *,
-                                pgp_memory_t *,
-                                const pgp_key_provider_t *);
-bool rnp_key_store_g10_key_to_mem(pgp_io_t *, pgp_key_t *, pgp_memory_t *);
-bool g10_write_seckey(pgp_output_t *output, pgp_key_pkt_t *seckey, const char *password);
+bool           rnp_key_store_g10_from_mem(pgp_io_t *,
+                                          rnp_key_store_t *,
+                                          pgp_memory_t *,
+                                          const pgp_key_provider_t *);
+bool           rnp_key_store_g10_key_to_mem(pgp_io_t *, pgp_key_t *, pgp_memory_t *);
+bool           g10_write_seckey(pgp_dest_t *dst, pgp_key_pkt_t *seckey, const char *password);
 pgp_key_pkt_t *g10_decrypt_seckey(const uint8_t *      data,
-                                 size_t               data_len,
-                                 const pgp_key_pkt_t *pubkey,
-                                 const char *         password);
+                                  size_t               data_len,
+                                  const pgp_key_pkt_t *pubkey,
+                                  const char *         password);
 
 #endif // RNP_KEY_STORE_G10_H
