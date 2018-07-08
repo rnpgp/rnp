@@ -53,8 +53,8 @@ load_generated_g10_key(pgp_key_t *    dst,
                        pgp_key_t *    pubkey)
 {
     bool               ok = false;
-    pgp_output_t *     output = NULL;
-    pgp_memory_t *     mem = NULL;
+    pgp_memory_t       mem = {};
+    pgp_dest_t         memdst = {};
     rnp_key_store_t *  key_store = NULL;
     list               key_ptrs = NULL; /* holds primary and pubkey, when used */
     pgp_key_provider_t prov = {};
@@ -69,10 +69,11 @@ load_generated_g10_key(pgp_key_t *    dst,
     // G10 always needs pubkey here
     assert(pubkey);
 
-    if (!pgp_setup_memory_write(NULL, &output, &mem, 4096)) {
+    if (init_mem_dest(&memdst, NULL, 0)) {
         goto end;
     }
-    if (!g10_write_seckey(output, newkey, NULL)) {
+
+    if (!g10_write_seckey(&memdst, newkey, NULL)) {
         RNP_LOG("failed to write generated seckey");
         goto end;
     }
@@ -95,7 +96,9 @@ load_generated_g10_key(pgp_key_t *    dst,
     prov.callback = rnp_key_provider_key_ptr_list;
     prov.userdata = key_ptrs;
 
-    if (!rnp_key_store_g10_from_mem(&io, key_store, mem, &prov)) {
+    pgp_memory_ref(&mem, (uint8_t *) mem_dest_get_memory(&memdst), memdst.writeb);
+
+    if (!rnp_key_store_g10_from_mem(&io, key_store, &mem, &prov)) {
         goto end;
     }
     // if a primary key is provided, it should match the sub with regards to type
@@ -111,7 +114,7 @@ load_generated_g10_key(pgp_key_t *    dst,
 
 end:
     rnp_key_store_free(key_store);
-    pgp_teardown_memory_write(output, mem);
+    dst_close(&memdst, true);
     list_destroy(&key_ptrs);
     return ok;
 }
