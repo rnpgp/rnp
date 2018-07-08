@@ -64,7 +64,6 @@
 #include <rekey/rnp_key_store.h>
 
 #define PGP_MIN_HASH_SIZE 16
-#define NTAGS 0x100 /* == 256 */
 
 /* raw key generation */
 bool pgp_generate_seckey(const rnp_keygen_crypto_params_t *params, pgp_key_pkt_t *seckey, bool primary);

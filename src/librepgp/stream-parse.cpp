@@ -1696,7 +1696,7 @@ init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc)
         break;
 #endif
     default:
-        RNP_LOG("unknown compression algorithm");
+        RNP_LOG("unknown compression algorithm: %d", (int) alg);
         errcode = RNP_ERROR_BAD_FORMAT;
         goto finish;
     }
