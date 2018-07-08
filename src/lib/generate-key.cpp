@@ -34,7 +34,6 @@
 #include "crypto.h"
 #include "pgp-key.h"
 #include "memory.h"
-#include "writer.h"
 #include "packet-create.h"
 #include "defaults.h"
 #include "utils.h"

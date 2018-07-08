@@ -58,8 +58,6 @@
 #include <stdbool.h>
 #include <repgp/repgp_def.h>
 
-typedef struct pgp_output_t pgp_output_t;
-
 /** pgp_memory_t
  */
 typedef struct pgp_memory_t {
@@ -90,8 +88,6 @@ bool          pgp_memory_add(pgp_memory_t *, const uint8_t *, size_t);
 void pgp_memory_ref(pgp_memory_t *mem, uint8_t *data, size_t data_len);
 void pgp_memory_clear(pgp_memory_t *);
 void pgp_memory_release(pgp_memory_t *);
-
-void pgp_writer_set_memory(pgp_output_t *, pgp_memory_t *);
 
 size_t pgp_mem_len(const pgp_memory_t *);
 void * pgp_mem_data(pgp_memory_t *);
