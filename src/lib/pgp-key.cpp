@@ -60,7 +60,6 @@
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-sig.h>
-#include "writer.h"
 #include "packet-create.h"
 
 #include <stdio.h>
@@ -940,7 +939,7 @@ done:
 }
 
 bool
-pgp_key_write_packets(const pgp_key_t *key, pgp_output_t *output)
+pgp_key_write_packets(const pgp_key_t *key, pgp_memory_t *mem)
 {
     if (DYNARRAY_IS_EMPTY(key, packet)) {
         return false;
@@ -950,7 +949,7 @@ pgp_key_write_packets(const pgp_key_t *key, pgp_output_t *output)
         if (!pkt->raw || !pkt->length) {
             return false;
         }
-        if (!pgp_write(output, pkt->raw, pkt->length)) {
+        if (!pgp_memory_add(mem, pkt->raw, pkt->length)) {
             return false;
         }
     }

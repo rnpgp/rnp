@@ -92,7 +92,6 @@ __RCSID("$NetBSD: create.c,v 1.38 2010/11/15 08:03:39 agc Exp $");
 #include "fingerprint.h"
 #include "pgp-key.h"
 #include "utils.h"
-#include "writer.h"
 
 static bool
 packet_matches(const pgp_rawpacket_t *pkt, const pgp_content_enum tags[], size_t tag_count)
@@ -245,38 +244,4 @@ pgp_write_struct_seckey(pgp_dest_t *     dst,
 done:
     seckey->tag = oldtag;
     return res;
-}
-
-/**
- * \ingroup Core_Create
- *
- * \brief Create a new pgp_output_t structure.
- *
- * \return the new structure.
- * \note It is the responsiblity of the caller to call pgp_output_delete().
- * \sa pgp_output_delete()
- */
-pgp_output_t *
-pgp_output_new(void)
-{
-    return (pgp_output_t *) calloc(1, sizeof(pgp_output_t));
-}
-
-/**
- * \ingroup Core_Create
- * \brief Delete an pgp_output_t strucut and associated resources.
- *
- * Delete an pgp_output_t structure. If a writer is active, then
- * that is also deleted.
- *
- * \param info the structure to be deleted.
- */
-void
-pgp_output_delete(pgp_output_t *output)
-{
-    if (!output) {
-        return;
-    }
-    pgp_writer_info_delete(&output->writer);
-    free(output);
 }

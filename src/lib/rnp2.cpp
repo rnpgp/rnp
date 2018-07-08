@@ -39,7 +39,6 @@
 #include <librepgp/stream-write.h>
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-packet.h>
-#include "writer.h"
 #include "packet-create.h"
 #include <rnp/rnp2.h>
 #include <rnp/rnp_types.h>

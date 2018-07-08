@@ -66,7 +66,6 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <librepgp/stream-armor.h>
 
 #include "types.h"
-#include "writer.h"
 #include "key_store_pgp.h"
 #include "pgp-key.h"
 #include "utils.h"
@@ -605,27 +604,16 @@ rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
                                bool             armor,
                                pgp_memory_t *   mem)
 {
-    pgp_dest_t   dst = {};
-    bool         res = false;
-    pgp_output_t output = {};
+    pgp_dest_t dst = {};
+    bool       res = false;
 
     if (init_mem_dest(&dst, NULL, 0)) {
         return false;
     }
 
-    res = rnp_key_store_pgp_write_to_dst(key_store, armor, &dst);
+    res = rnp_key_store_pgp_write_to_dst(key_store, armor, &dst) &&
+          pgp_memory_add(mem, (uint8_t *) mem_dest_get_memory(&dst), dst.writeb);
 
-    if (!res) {
-        goto done;
-    }
-
-    pgp_writer_set_memory(&output, mem);
-    res = pgp_write(&output, mem_dest_get_memory(&dst), dst.writeb);
-    if (!pgp_writer_close(&output)) {
-        res = false;
-    }
-    pgp_writer_info_delete(&output.writer);
-done:
     dst_close(&dst, true);
     return res;
 }

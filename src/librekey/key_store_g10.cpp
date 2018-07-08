@@ -37,7 +37,6 @@
 #include "key_store_g10.h"
 
 #include "crypto/common.h"
-#include "writer.h"
 #include "pgp-key.h"
 #include "utils.h"
 

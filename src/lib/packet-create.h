@@ -59,12 +59,6 @@
 #include <librepgp/stream-common.h>
 
 #include "types.h"
-#include "crypto.h"
-#include "writer.h"
-#include "memory.h"
-
-pgp_output_t *pgp_output_new(void);
-void          pgp_output_delete(pgp_output_t *);
 
 bool pgp_write_struct_seckey(pgp_dest_t *, pgp_content_enum, pgp_key_pkt_t *, const char *);
 bool pgp_write_xfer_pubkey(pgp_dest_t *, const pgp_key_t *, const rnp_key_store_t *, bool);
