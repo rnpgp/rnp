@@ -2456,3 +2456,105 @@ test_ffi_key_iter(void **state)
     // cleanup
     rnp_ffi_destroy(ffi);
 }
+
+void
+test_ffi_locate_key(void **state)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    // setup FFI
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    // load our keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+
+    // keyid
+    {
+        static const char *ids[] = {"7BC6709B15C23A4A",
+                                    "1ED63EE56FADC34D",
+                                    "1D7E8A5393C997A8",
+                                    "8A05B89FAD5ADED1",
+                                    "2FCADF05FFA501BB",
+                                    "54505A936A4A970E",
+                                    "326EF111425D14A5"};
+        for (size_t i = 0; i < ARRAY_SIZE(ids); i++) {
+            const char *     id = ids[i];
+            rnp_key_handle_t key = NULL;
+            assert_rnp_success(rnp_locate_key(ffi, "keyid", id, &key));
+            assert_non_null(key);
+            rnp_key_handle_destroy(key);
+        }
+        // invalid
+        {
+            rnp_key_handle_t key = NULL;
+            assert_rnp_failure(rnp_locate_key(ffi, "keyid", "invalid-keyid", &key));
+            assert_null(key);
+        }
+        // valid but non-existent
+        {
+            rnp_key_handle_t key = NULL;
+            assert_rnp_success(rnp_locate_key(ffi, "keyid", "AAAAAAAAAAAAAAAA", &key));
+            assert_null(key);
+        }
+    }
+
+    // userid
+    {
+        static const char *ids[] = {
+          "key0-uid0", "key0-uid1", "key0-uid2", "key1-uid0", "key1-uid2", "key1-uid1"};
+        for (size_t i = 0; i < ARRAY_SIZE(ids); i++) {
+            const char *     id = ids[i];
+            rnp_key_handle_t key = NULL;
+            assert_rnp_success(rnp_locate_key(ffi, "userid", id, &key));
+            assert_non_null(key);
+            rnp_key_handle_destroy(key);
+        }
+        // valid but non-existent
+        {
+            rnp_key_handle_t key = NULL;
+            assert_rnp_success(rnp_locate_key(ffi, "userid", "bad-userid", &key));
+            assert_null(key);
+        }
+    }
+
+    // fingerprint
+    {
+        static const char *ids[] = {"E95A3CBF583AA80A2CCC53AA7BC6709B15C23A4A",
+                                    "E332B27CAF4742A11BAA677F1ED63EE56FADC34D",
+                                    "C5B15209940A7816A7AF3FB51D7E8A5393C997A8",
+                                    "5CD46D2A0BD0B8CFE0B130AE8A05B89FAD5ADED1",
+                                    "BE1C4AB951F4C2F6B604C7F82FCADF05FFA501BB",
+                                    "A3E94DE61A8CB229413D348E54505A936A4A970E",
+                                    "57F8ED6E5C197DB63C60FFAF326EF111425D14A5"};
+        for (size_t i = 0; i < ARRAY_SIZE(ids); i++) {
+            const char *     id = ids[i];
+            rnp_key_handle_t key = NULL;
+            assert_rnp_success(rnp_locate_key(ffi, "fingerprint", id, &key));
+            assert_non_null(key);
+            rnp_key_handle_destroy(key);
+        }
+        // invalid
+        {
+            rnp_key_handle_t key = NULL;
+            assert_rnp_failure(rnp_locate_key(ffi, "fingerprint", "invalid-fpr", &key));
+            assert_null(key);
+        }
+        // valid but non-existent
+        {
+            rnp_key_handle_t key = NULL;
+            assert_rnp_success(rnp_locate_key(
+              ffi, "fingerprint", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", &key));
+            assert_null(key);
+        }
+    }
+
+    // grip
+    // TODO: add test once key grip calculation for all algs is fixed
+
+    // cleanup
+    rnp_ffi_destroy(ffi);
+}
