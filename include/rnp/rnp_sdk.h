@@ -91,7 +91,7 @@ bool rnp_path_add_ext(char *path, size_t len, const char *ext);
 
 bool rnp_hex_encode(
   const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format);
-bool rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len);
+size_t rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len);
 
 char *rnp_strlwr(char *s);
 

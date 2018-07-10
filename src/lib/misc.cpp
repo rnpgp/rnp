@@ -788,10 +788,14 @@ rnp_hex_encode(
     return botan_hex_encode(buf, buf_len, hex, flags) == 0;
 }
 
-bool
+size_t
 rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len)
 {
-    return botan_hex_decode(hex, strlen(hex), buf, &buf_len) == 0;
+    if (botan_hex_decode(hex, strlen(hex), buf, &buf_len) != 0) {
+        RNP_LOG("Hex decode failed on string: %s", hex);
+        return 0;
+    }
+    return buf_len;
 }
 
 char *
