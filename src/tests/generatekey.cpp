@@ -831,6 +831,9 @@ test_generated_key_sigs(void **state)
         pgp_key_t                 pub = {0};
         pgp_key_t                 sec = {0};
         rnp_keygen_primary_desc_t desc;
+        pgp_fingerprint_t         fp = {};
+        pgp_sig_subpkt_t *        subpkt = NULL;
+
         memset(&desc, 0, sizeof(desc));
         desc.crypto.key_alg = PGP_PKA_RSA;
         desc.crypto.rsa.modulus_bit_len = 1024;
@@ -860,16 +863,33 @@ test_generated_key_sigs(void **state)
         // make sure we're targeting the right packet
         assert_int_equal(PGP_PTAG_CT_SIGNATURE, pub.packets[2].tag);
         assert_int_equal(PGP_PTAG_CT_SIGNATURE, sec.packets[2].tag);
-        // validate the userid self-sig
 
+        // validate the userid self-sig
         uid.uid = pub.uids[0];
         uid.uid_len = strlen((char *) uid.uid);
         assert_rnp_success(signature_validate_certification(
           &pub.subsigs[0].sig, pgp_get_key_pkt(&pub), &uid, pgp_get_key_material(&pub), rng));
+        assert_true(signature_get_keyfp(&pub.subsigs[0].sig, &fp));
+        assert_true(fingerprint_equal(&fp, &pub.fingerprint));
+        // check subpackets and their contents
+        subpkt = signature_get_subpkt(&pub.subsigs[0].sig, PGP_SIG_SUBPKT_ISSUER_FPR);
+        assert_non_null(subpkt);
+        assert_true(subpkt->hashed);
+        subpkt = signature_get_subpkt(&pub.subsigs[0].sig, PGP_SIG_SUBPKT_ISSUER_KEY_ID);
+        assert_non_null(subpkt);
+        assert_false(subpkt->hashed);
+        assert_int_equal(0, memcmp(subpkt->fields.issuer, pub.keyid, PGP_KEY_ID_SIZE));
+        subpkt = signature_get_subpkt(&pub.subsigs[0].sig, PGP_SIG_SUBPKT_CREATION_TIME);
+        assert_non_null(subpkt);
+        assert_true(subpkt->hashed);
+        assert_true(subpkt->fields.create <= time(NULL));
+
         uid.uid = sec.uids[0];
         uid.uid_len = strlen((char *) uid.uid);
         assert_rnp_success(signature_validate_certification(
           &sec.subsigs[0].sig, pgp_get_key_pkt(&sec), &uid, pgp_get_key_material(&sec), rng));
+        assert_true(signature_get_keyfp(&sec.subsigs[0].sig, &fp));
+        assert_true(fingerprint_equal(&fp, &sec.fingerprint));
 
         // modify a hashed portion of the sig packets
         pub.subsigs[0].sig.hashed_data[32] ^= 0xff;
@@ -914,14 +934,14 @@ test_generated_key_sigs(void **state)
         free_signatures_info(&result);
 
         // do at least one modification test for validate_pgp_key_signatures too
-        // modify a hashed portion of the sig packet
-        primary_pub->packets[2].raw[32] ^= 0xff;
+        // modify a hashed portion of the sig packet, offset may change in future
+        primary_pub->packets[2].raw[37] ^= 0xff;
         // ensure validation fails
         assert_rnp_success(validate_pgp_key_signatures(&result, primary_pub, pubring));
         assert_false(check_signatures_info(&result));
         free_signatures_info(&result);
         // restore the original data
-        primary_pub->packets[2].raw[32] ^= 0xff;
+        primary_pub->packets[2].raw[37] ^= 0xff;
     }
 
     // sub
@@ -929,6 +949,9 @@ test_generated_key_sigs(void **state)
         pgp_key_t                pub = {0};
         pgp_key_t                sec = {0};
         rnp_keygen_subkey_desc_t desc;
+        pgp_fingerprint_t        fp = {};
+        pgp_sig_subpkt_t *       subpkt = NULL;
+
         memset(&desc, 0, sizeof(desc));
         desc.crypto.key_alg = PGP_PKA_RSA;
         desc.crypto.rsa.modulus_bit_len = 1024;
@@ -952,8 +975,27 @@ test_generated_key_sigs(void **state)
         // validate the binding sig
         assert_rnp_success(signature_validate_binding(
           &pub.subsigs[0].sig, pgp_get_key_pkt(primary_pub), pgp_get_key_pkt(&pub), rng));
+        assert_true(signature_get_keyfp(&pub.subsigs[0].sig, &fp));
+        assert_true(fingerprint_equal(&fp, &primary_pub->fingerprint));
+        // check subpackets and their contents
+        subpkt = signature_get_subpkt(&pub.subsigs[0].sig, PGP_SIG_SUBPKT_ISSUER_FPR);
+        assert_non_null(subpkt);
+        assert_true(subpkt->hashed);
+        subpkt = signature_get_subpkt(&pub.subsigs[0].sig, PGP_SIG_SUBPKT_ISSUER_KEY_ID);
+        assert_non_null(subpkt);
+        assert_false(subpkt->hashed);
+        assert_int_equal(0,
+                         memcmp(subpkt->fields.issuer, primary_pub->keyid, PGP_KEY_ID_SIZE));
+        subpkt = signature_get_subpkt(&pub.subsigs[0].sig, PGP_SIG_SUBPKT_CREATION_TIME);
+        assert_non_null(subpkt);
+        assert_true(subpkt->hashed);
+        assert_true(subpkt->fields.create <= time(NULL));
+
         assert_rnp_success(signature_validate_binding(
           &sec.subsigs[0].sig, pgp_get_key_pkt(primary_pub), pgp_get_key_pkt(&sec), rng));
+        assert_true(signature_get_keyfp(&sec.subsigs[0].sig, &fp));
+        assert_true(fingerprint_equal(&fp, &primary_sec->fingerprint));
+
         // modify a hashed portion of the sig packets
         pub.subsigs[0].sig.hashed_data[10] ^= 0xff;
         sec.subsigs[0].sig.hashed_data[10] ^= 0xff;
