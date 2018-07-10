@@ -152,3 +152,9 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_key_pkt_t *key)
     (void) memcpy(keyid, fp.fingerprint + fp.length - idlen, idlen);
     return RNP_SUCCESS;
 }
+
+bool
+fingerprint_equal(pgp_fingerprint_t *fp1, pgp_fingerprint_t *fp2)
+{
+    return (fp1->length == fp2->length) && (!memcmp(fp1->fingerprint, fp2->fingerprint, fp1->length));
+}

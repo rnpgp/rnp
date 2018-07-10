@@ -39,4 +39,6 @@ rnp_result_t pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_key_pkt_t *key);
 
 rnp_result_t pgp_keyid(uint8_t *out, const size_t len, const pgp_key_pkt_t *key);
 
+bool fingerprint_equal(pgp_fingerprint_t *fp1, pgp_fingerprint_t *fp2);
+
 #endif

@@ -195,6 +195,7 @@ transferable_userid_certify(const pgp_key_pkt_t *          key,
     pgp_signature_t *       res = NULL;
     pgp_hash_t              hash = {};
     uint8_t                 keyid[PGP_KEY_ID_SIZE];
+    pgp_fingerprint_t       keyfp;
     rng_t                   rng = {};
     const pgp_user_prefs_t *prefs = NULL;
 
@@ -213,11 +214,20 @@ transferable_userid_certify(const pgp_key_pkt_t *          key,
         goto end;
     }
 
+    if (pgp_fingerprint(&keyfp, signer)) {
+        RNP_LOG("failed to calculate keyfp");
+        goto end;
+    }
+
     sig.version = PGP_V4;
     sig.halg = pgp_hash_adjust_alg_to_key(hash_alg, signer);
     sig.palg = signer->alg;
     sig.type = PGP_CERT_POSITIVE;
 
+    if (!signature_set_keyfp(&sig, &keyfp)) {
+        RNP_LOG("failed to set issuer fingerprint");
+        goto end;
+    }
     if (!signature_set_creation(&sig, time(NULL))) {
         RNP_LOG("failed to set creation time");
         goto end;
@@ -291,6 +301,7 @@ transferable_subkey_bind(const pgp_key_pkt_t *             key,
     pgp_signature_t *res = NULL;
     pgp_hash_t       hash = {};
     uint8_t          keyid[PGP_KEY_ID_SIZE];
+    pgp_fingerprint_t keyfp;
     rng_t            rng = {};
 
     if (!key || !subkey || !binding) {
@@ -308,11 +319,20 @@ transferable_subkey_bind(const pgp_key_pkt_t *             key,
         goto end;
     }
 
+    if (pgp_fingerprint(&keyfp, key)) {
+        RNP_LOG("failed to calculate keyfp");
+        goto end;
+    }
+
     sig.version = PGP_V4;
     sig.halg = pgp_hash_adjust_alg_to_key(hash_alg, key);
     sig.palg = key->alg;
     sig.type = PGP_SIG_SUBKEY;
 
+    if (!signature_set_keyfp(&sig, &keyfp)) {
+        RNP_LOG("failed to set issuer fingerprint");
+        goto end;
+    }
     if (!signature_set_creation(&sig, time(NULL))) {
         RNP_LOG("failed to set creation time");
         goto end;
