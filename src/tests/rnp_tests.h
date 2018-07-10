@@ -153,6 +153,8 @@ void test_ffi_key_to_json(void **state);
 
 void test_ffi_key_iter(void **state);
 
+void test_ffi_locate_key(void **state);
+
 void test_dsa_roundtrip(void **state);
 
 void test_dsa_verify_negative(void **state);
