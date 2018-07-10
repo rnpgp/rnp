@@ -2230,9 +2230,13 @@ str_to_locator(rnp_ffi_t         ffi,
     } break;
     case PGP_KEY_SEARCH_FINGERPRINT: {
         // TODO: support v5 fingerprints
-        if (strlen(identifier) != (PGP_FINGERPRINT_SIZE * 2) ||
-            !rnp_hex_decode(
-              identifier, locator->by.fingerprint.fingerprint, PGP_FINGERPRINT_SIZE)) {
+        if (strlen(identifier) != (PGP_FINGERPRINT_SIZE * 2)) {
+            FFI_LOG(ffi, "Invalid fingerprint: %s", identifier);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        locator->by.fingerprint.length = rnp_hex_decode(
+          identifier, locator->by.fingerprint.fingerprint, PGP_FINGERPRINT_SIZE);
+        if (!locator->by.fingerprint.length) {
             FFI_LOG(ffi, "Invalid fingerprint: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
         }
