@@ -1379,7 +1379,13 @@ rnp_op_add_signature(list *signatures, rnp_key_handle_t key, rnp_op_sign_signatu
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     newsig->key = find_suitable_key(
-      PGP_OP_SIGN, get_key_require_secret(key), &key->ffi->key_provider, PGP_KF_SIGN);
+      PGP_OP_SIGN, get_key_prefer_public(key), &key->ffi->key_provider, PGP_KF_SIGN);
+    if (newsig->key && !pgp_is_key_secret(newsig->key)) {
+        pgp_key_request_ctx_t ctx = {.op = PGP_OP_SIGN, .secret = true};
+        ctx.search.type = PGP_KEY_SEARCH_GRIP;
+        memcpy(ctx.search.by.grip, newsig->key->grip, PGP_FINGERPRINT_SIZE);
+        newsig->key = pgp_request_key(&key->ffi->key_provider, &ctx);
+    }
     if (!newsig->key) {
         list_remove((list_item *) newsig);
         return RNP_ERROR_NO_SUITABLE_KEY;
