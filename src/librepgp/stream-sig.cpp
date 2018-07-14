@@ -1043,13 +1043,50 @@ signature_validate_binding(const pgp_signature_t *sig,
                            const pgp_key_pkt_t *  subkey,
                            rng_t *                rng)
 {
-    pgp_hash_t hash = {0};
+    pgp_hash_t   hash = {};
+    pgp_hash_t   hashcp = {};
+    rnp_result_t res = RNP_ERROR_SIGNATURE_INVALID;
 
     if (!signature_hash_binding(sig, key, subkey, &hash)) {
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    return signature_validate(sig, &key->material, &hash, rng);
+    if (!pgp_hash_copy(&hashcp, &hash)) {
+        RNP_LOG("hash copy failed");
+        return RNP_ERROR_BAD_STATE;
+    }
+
+    res = signature_validate(sig, &key->material, &hash, rng);
+
+    /* check primary key binding signature if any */
+    if (!res && (signature_get_key_flags(sig) & PGP_KF_SIGN)) {
+        pgp_sig_subpkt_t *subpkt =
+          signature_get_subpkt(sig, PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE);
+        if (!subpkt) {
+            /* must fail once we generate this subpacket! */
+            RNP_LOG("warning! no primary key binding signature");
+            goto finish;
+        }
+        if (!subpkt->parsed) {
+            RNP_LOG("invalid embedded signature subpacket");
+            res = RNP_ERROR_SIGNATURE_INVALID;
+            goto finish;
+        }
+        if (subpkt->fields.sig.type != PGP_SIG_PRIMARY) {
+            RNP_LOG("invalid primary key binding signature");
+            res = RNP_ERROR_SIGNATURE_INVALID;
+            goto finish;
+        }
+        if (subpkt->fields.sig.version < PGP_V4) {
+            RNP_LOG("invalid primary key binding signature version");
+            res = RNP_ERROR_SIGNATURE_INVALID;
+            goto finish;
+        }
+        res = signature_validate(&subpkt->fields.sig, &subkey->material, &hashcp, rng);
+    }
+finish:
+    pgp_hash_finish(&hashcp, NULL);
+    return res;
 }
 
 rnp_result_t

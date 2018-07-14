@@ -297,12 +297,12 @@ transferable_subkey_bind(const pgp_key_pkt_t *             key,
                          pgp_hash_alg_t                    hash_alg,
                          const rnp_selfsig_binding_info_t *binding)
 {
-    pgp_signature_t  sig = {};
-    pgp_signature_t *res = NULL;
-    pgp_hash_t       hash = {};
-    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    pgp_signature_t   sig = {};
+    pgp_signature_t * res = NULL;
+    pgp_hash_t        hash = {};
+    uint8_t           keyid[PGP_KEY_ID_SIZE];
     pgp_fingerprint_t keyfp;
-    rng_t            rng = {};
+    rng_t             rng = {};
 
     if (!key || !subkey || !binding) {
         RNP_LOG("invalid parameters");
