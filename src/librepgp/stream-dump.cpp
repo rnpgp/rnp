@@ -478,6 +478,9 @@ dst_hexdump(pgp_dest_t *dst, const uint8_t *src, size_t length)
 static rnp_result_t stream_dump_packets_raw(rnp_dump_ctx_t *ctx,
                                             pgp_source_t *  src,
                                             pgp_dest_t *    dst);
+static rnp_result_t stream_dump_signature_pkt(rnp_dump_ctx_t * ctx,
+                                              pgp_signature_t *sig,
+                                              pgp_dest_t *     dst);
 
 static void
 signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, pgp_sig_subpkt_t *subpkt)
@@ -591,6 +594,10 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, pgp_sig_subpkt_t 
         dst_printf(dst, "%s", subpkt->fields.features.key_v5 ? "v5 keys " : "");
         dst_printf(dst, ")\n");
         break;
+    case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE:
+        dst_printf(dst, "%s:\n", sname);
+        stream_dump_signature_pkt(ctx, &subpkt->fields.sig, dst);
+        break;
     case PGP_SIG_SUBPKT_ISSUER_FPR:
         dst_print_hex(
           dst, sname, subpkt->fields.issuer_fp.fp, subpkt->fields.issuer_fp.len, true);
@@ -643,6 +650,63 @@ signature_dump_subpackets(rnp_dump_ctx_t * ctx,
 }
 
 static rnp_result_t
+stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t *dst)
+{
+    indent_dest_increase(dst);
+
+    dst_printf(dst, "version: %d\n", (int) sig->version);
+    dst_print_sig_type(dst, "type", sig->type);
+    if (sig->version < PGP_V4) {
+        dst_print_time(dst, "creation time", sig->creation_time);
+        dst_print_keyid(dst, "signing key id", sig->signer);
+    }
+    dst_print_palg(dst, NULL, sig->palg);
+    dst_print_halg(dst, NULL, sig->halg);
+
+    if (sig->version >= PGP_V4) {
+        dst_printf(dst, "hashed subpackets:\n");
+        indent_dest_increase(dst);
+        signature_dump_subpackets(ctx, dst, sig, true);
+        indent_dest_decrease(dst);
+
+        dst_printf(dst, "unhashed subpackets:\n");
+        indent_dest_increase(dst);
+        signature_dump_subpackets(ctx, dst, sig, false);
+        indent_dest_decrease(dst);
+    }
+
+    dst_print_hex(dst, "lbits", sig->lbits, sizeof(sig->lbits), false);
+    dst_printf(dst, "signature material:\n");
+    indent_dest_increase(dst);
+
+    switch (sig->palg) {
+    case PGP_PKA_RSA:
+        dst_print_mpi(dst, "rsa s", &sig->material.rsa.s, ctx->dump_mpi);
+        break;
+    case PGP_PKA_DSA:
+        dst_print_mpi(dst, "dsa r", &sig->material.dsa.r, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa s", &sig->material.dsa.s, ctx->dump_mpi);
+        break;
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
+        dst_print_mpi(dst, "ecc r", &sig->material.ecc.r, ctx->dump_mpi);
+        dst_print_mpi(dst, "ecc s", &sig->material.ecc.s, ctx->dump_mpi);
+        break;
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        dst_print_mpi(dst, "eg r", &sig->material.eg.r, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg s", &sig->material.eg.s, ctx->dump_mpi);
+        break;
+    default:
+        dst_printf(dst, "unknown algorithm\n");
+    }
+    indent_dest_decrease(dst);
+    indent_dest_decrease(dst);
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
 stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_signature_t sig;
@@ -653,60 +717,9 @@ stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     }
 
     dst_printf(dst, "Signature packet\n");
-    indent_dest_increase(dst);
-
-    dst_printf(dst, "version: %d\n", (int) sig.version);
-    dst_print_sig_type(dst, "type", sig.type);
-    if (sig.version < PGP_V4) {
-        dst_print_time(dst, "creation time", sig.creation_time);
-        dst_print_keyid(dst, "signing key id", sig.signer);
-    }
-    dst_print_palg(dst, NULL, sig.palg);
-    dst_print_halg(dst, NULL, sig.halg);
-
-    if (sig.version >= PGP_V4) {
-        dst_printf(dst, "hashed subpackets:\n");
-        indent_dest_increase(dst);
-        signature_dump_subpackets(ctx, dst, &sig, true);
-        indent_dest_decrease(dst);
-
-        dst_printf(dst, "unhashed subpackets:\n");
-        indent_dest_increase(dst);
-        signature_dump_subpackets(ctx, dst, &sig, false);
-        indent_dest_decrease(dst);
-    }
-
-    dst_print_hex(dst, "lbits", sig.lbits, sizeof(sig.lbits), false);
-    dst_printf(dst, "signature material:\n");
-    indent_dest_increase(dst);
-
-    switch (sig.palg) {
-    case PGP_PKA_RSA:
-        dst_print_mpi(dst, "rsa s", &sig.material.rsa.s, ctx->dump_mpi);
-        break;
-    case PGP_PKA_DSA:
-        dst_print_mpi(dst, "dsa r", &sig.material.dsa.r, ctx->dump_mpi);
-        dst_print_mpi(dst, "dsa s", &sig.material.dsa.s, ctx->dump_mpi);
-        break;
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDH:
-        dst_print_mpi(dst, "ecc r", &sig.material.ecc.r, ctx->dump_mpi);
-        dst_print_mpi(dst, "ecc s", &sig.material.ecc.s, ctx->dump_mpi);
-        break;
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        dst_print_mpi(dst, "eg r", &sig.material.eg.r, ctx->dump_mpi);
-        dst_print_mpi(dst, "eg s", &sig.material.eg.s, ctx->dump_mpi);
-        break;
-    default:
-        dst_printf(dst, "unknown algorithm\n");
-    }
-    indent_dest_decrease(dst);
-
+    ret = stream_dump_signature_pkt(ctx, &sig, dst);
     free_signature(&sig);
-    indent_dest_decrease(dst);
-    return RNP_SUCCESS;
+    return ret;
 }
 
 static rnp_result_t
