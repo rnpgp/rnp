@@ -17,7 +17,7 @@ env:
     - GPG_INSTALL="${LOCAL_BUILDS}/gpg-install"
     - RNP_INSTALL="${LOCAL_BUILDS}/rnp-install"
     - RUBY_RNP_INSTALL="${LOCAL_BUILDS}/ruby-rnp"
-    - RUBY_RNP_VERSION="v1.0.0"
+    - RUBY_RNP_VERSION="master"
     - LOGNAME="Travis"
     - CLANG_FORMAT_DIFF="clang-format-diff-4.0"
 
