@@ -1311,9 +1311,13 @@ signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
             subpkt->fields.sig_target.hlen = subpkt->len - 2;
         }
         break;
-    case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE:
-        /* no special processing - we have data and len already */
+    case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE: {
+        /* parse signature */
+        pgp_packet_body_t pkt = {};
+        packet_body_part_from_mem(&pkt, subpkt->data, subpkt->len);
+        oklen = checked = !stream_parse_signature_body(&pkt, &subpkt->fields.sig);
         break;
+    }
     case PGP_SIG_SUBPKT_ISSUER_FPR:
         if ((oklen = subpkt->len >= 21)) {
             subpkt->fields.issuer_fp.version = subpkt->data[0];
@@ -1495,10 +1499,85 @@ finish:
 }
 
 rnp_result_t
+stream_parse_signature_body(pgp_packet_body_t *pkt, pgp_signature_t *sig)
+{
+    uint8_t      ver;
+    rnp_result_t res = RNP_ERROR_BAD_FORMAT;
+
+    memset(sig, 0, sizeof(*sig));
+    if (!get_packet_body_byte(pkt, &ver)) {
+        goto finish;
+    }
+    sig->version = (pgp_version_t) ver;
+
+    /* v3 or v4 signature body */
+    if ((ver == PGP_V2) || (ver == PGP_V3)) {
+        res = signature_read_v3(pkt, sig);
+    } else if (ver == PGP_V4) {
+        res = signature_read_v4(pkt, sig);
+    } else {
+        RNP_LOG("unknown signature version: %d", (int) ver);
+        goto finish;
+    }
+
+    /* left 16 bits of the hash */
+    if (!get_packet_body_buf(pkt, sig->lbits, 2)) {
+        RNP_LOG("not enough data for hash left bits");
+        goto finish;
+    }
+
+    /* signature MPIs */
+    switch (sig->palg) {
+    case PGP_PKA_RSA:
+        if (!get_packet_body_mpi(pkt, &sig->material.rsa.s)) {
+            goto finish;
+        }
+        break;
+    case PGP_PKA_DSA:
+        if (!get_packet_body_mpi(pkt, &sig->material.dsa.r) ||
+            !get_packet_body_mpi(pkt, &sig->material.dsa.s)) {
+            goto finish;
+        }
+        break;
+    case PGP_PKA_EDDSA:
+        if (sig->version < PGP_V4) {
+            RNP_LOG("Warning! v3 EdDSA signature.");
+        }
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
+        if (!get_packet_body_mpi(pkt, &sig->material.ecc.r) ||
+            !get_packet_body_mpi(pkt, &sig->material.ecc.s)) {
+            goto finish;
+        }
+        break;
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        if (!get_packet_body_mpi(pkt, &sig->material.eg.r) ||
+            !get_packet_body_mpi(pkt, &sig->material.eg.s)) {
+            goto finish;
+        }
+        break;
+    default:
+        RNP_LOG("Unknown pk algorithm : %d", (int) sig->palg);
+        goto finish;
+    }
+
+    if (pkt->pos < pkt->len) {
+        RNP_LOG("extra %d bytes in signature packet", (int) (pkt->len - pkt->pos));
+        goto finish;
+    }
+    res = RNP_SUCCESS;
+finish:
+    if (res) {
+        free_signature(sig);
+    }
+    return res;
+}
+
+rnp_result_t
 stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
 {
     int               ptag;
-    uint8_t           ver;
     pgp_packet_body_t pkt = {};
     rnp_result_t      res = RNP_ERROR_BAD_FORMAT;
 
@@ -1511,76 +1590,7 @@ stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
         return res;
     }
 
-    memset(sig, 0, sizeof(*sig));
-    res = RNP_ERROR_BAD_FORMAT;
-
-    if (!get_packet_body_byte(&pkt, &ver)) {
-        goto finish;
-    }
-    sig->version = (pgp_version_t) ver;
-
-    /* v3 or v4 signature body */
-    if ((ver == PGP_V2) || (ver == PGP_V3)) {
-        res = signature_read_v3(&pkt, sig);
-    } else if (ver == PGP_V4) {
-        res = signature_read_v4(&pkt, sig);
-    } else {
-        RNP_LOG("unknown signature version: %d", (int) ver);
-        goto finish;
-    }
-
-    /* left 16 bits of the hash */
-    if (!get_packet_body_buf(&pkt, sig->lbits, 2)) {
-        RNP_LOG("not enough data for hash left bits");
-        goto finish;
-    }
-
-    /* signature MPIs */
-    switch (sig->palg) {
-    case PGP_PKA_RSA:
-        if (!get_packet_body_mpi(&pkt, &sig->material.rsa.s)) {
-            goto finish;
-        }
-        break;
-    case PGP_PKA_DSA:
-        if (!get_packet_body_mpi(&pkt, &sig->material.dsa.r) ||
-            !get_packet_body_mpi(&pkt, &sig->material.dsa.s)) {
-            goto finish;
-        }
-        break;
-    case PGP_PKA_EDDSA:
-        if (sig->version < PGP_V4) {
-            RNP_LOG("Warning! v3 EdDSA signature.");
-        }
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDH:
-        if (!get_packet_body_mpi(&pkt, &sig->material.ecc.r) ||
-            !get_packet_body_mpi(&pkt, &sig->material.ecc.s)) {
-            goto finish;
-        }
-        break;
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!get_packet_body_mpi(&pkt, &sig->material.eg.r) ||
-            !get_packet_body_mpi(&pkt, &sig->material.eg.s)) {
-            goto finish;
-        }
-        break;
-    default:
-        RNP_LOG("Unknown pk algorithm : %d", (int) sig->palg);
-        goto finish;
-    }
-
-    if (pkt.pos < pkt.len) {
-        RNP_LOG("extra %d bytes in signature packet", (int) (pkt.len - pkt.pos));
-        goto finish;
-    }
-
-    res = RNP_SUCCESS;
-finish:
-    if (res) {
-        free_signature(sig);
-    }
+    res = stream_parse_signature_body(&pkt, sig);
     free_packet_body(&pkt);
     return res;
 }
@@ -1621,11 +1631,23 @@ copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src)
 }
 
 void
+free_signature_subpkt(pgp_sig_subpkt_t *subpkt)
+{
+    if (!subpkt) {
+        return;
+    }
+    if (subpkt->parsed && (subpkt->type == PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE)) {
+        free_signature(&subpkt->fields.sig);
+    }
+    free(subpkt->data);
+}
+
+void
 free_signature(pgp_signature_t *sig)
 {
     free(sig->hashed_data);
     for (list_item *sp = list_front(sig->subpkts); sp; sp = list_next(sp)) {
-        free(((pgp_sig_subpkt_t *) sp)->data);
+        free_signature_subpkt((pgp_sig_subpkt_t *) sp);
     }
     list_destroy(&sig->subpkts);
 }
@@ -2030,7 +2052,6 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
         RNP_LOG("extra %d bytes in key packet", (int) (pkt.len - pkt.pos));
         goto finish;
     }
-
     res = RNP_SUCCESS;
 finish:
     free_packet_body(&pkt);

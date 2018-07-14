@@ -191,6 +191,26 @@ typedef struct pgp_userid_pkt_t {
     size_t   uid_len;
 } pgp_userid_pkt_t;
 
+typedef struct pgp_signature_t {
+    pgp_version_t version;
+    /* common v3 and v4 fields */
+    pgp_sig_type_t   type;
+    pgp_pubkey_alg_t palg;
+    pgp_hash_alg_t   halg;
+    uint8_t          lbits[2];
+    uint8_t *        hashed_data;
+    size_t           hashed_len;
+
+    pgp_signature_material_t material;
+
+    /* v3 - only fields */
+    uint32_t creation_time;
+    uint8_t  signer[PGP_KEY_ID_SIZE];
+
+    /* v4 - only fields */
+    list subpkts;
+} pgp_signature_t;
+
 /* Signature subpacket, see 5.2.3.1 in RFC 4880 and RFC 4880 bis 02 */
 typedef struct pgp_sig_subpkt_t {
     pgp_sig_subpacket_type_t type;         /* type of the subpacket */
@@ -264,34 +284,15 @@ typedef struct pgp_sig_subpkt_t {
             pgp_hash_alg_t   halg;
             uint8_t *        hash;
             unsigned         hlen;
-        } sig_target; /* 5.2.3.25.  Signature Target */
+        } sig_target;        /* 5.2.3.25.  Signature Target */
+        pgp_signature_t sig; /* 5.2.3.27. Embedded Signature */
         struct {
             uint8_t  version;
             uint8_t *fp;
             unsigned len;
-        } issuer_fp; /* 5.2.3.27.  Issuer Fingerprint, RFC 4880 bis 02 */
+        } issuer_fp; /* 5.2.3.28.  Issuer Fingerprint, RFC 4880 bis 04 */
     } fields;        /* parsed contents of the subpacket */
 } pgp_sig_subpkt_t;
-
-typedef struct pgp_signature_t {
-    pgp_version_t version;
-    /* common v3 and v4 fields */
-    pgp_sig_type_t   type;
-    pgp_pubkey_alg_t palg;
-    pgp_hash_alg_t   halg;
-    uint8_t          lbits[2];
-    uint8_t *        hashed_data;
-    size_t           hashed_len;
-
-    pgp_signature_material_t material;
-
-    /* v3 - only fields */
-    uint32_t creation_time;
-    uint8_t  signer[PGP_KEY_ID_SIZE];
-
-    /* v4 - only fields */
-    list subpkts;
-} pgp_signature_t;
 
 /** pgp_rawpacket_t */
 typedef struct pgp_rawpacket_t {
