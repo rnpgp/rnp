@@ -559,6 +559,7 @@ decrypt_protected_section(const uint8_t *      encrypted_data,
         goto done;
     }
     decrypted_data_len = output_written;
+    s_exp_len = decrypted_data_len;
     decrypted_bytes = (const char *) decrypted_data;
     if (rnp_get_debug(__FILE__)) {
         hexdump(stderr, "decrypted data", decrypted_data, decrypted_data_len);
@@ -955,10 +956,10 @@ g10_decrypt_seckey(const uint8_t *      data,
     }
 
     seckey = (pgp_key_pkt_t *) calloc(1, sizeof(*seckey));
-    if (!g10_parse_seckey(&io, seckey, data, data_len, password, NULL)) {
+    if (pubkey && !copy_key_pkt(seckey, pubkey, false)) {
         goto done;
     }
-    if (pubkey && !copy_key_pkt(seckey, pubkey, false)) {
+    if (!g10_parse_seckey(&io, seckey, data, data_len, password, NULL)) {
         goto done;
     }
     ok = true;
