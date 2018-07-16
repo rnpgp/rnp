@@ -76,4 +76,41 @@ test_cli_rnp(void **state)
     ret = call_rnp(
       "rnp", "--homedir", KEYS "/1", "--encrypt", FILES "/hello.txt", "--overwrite", NULL);
     assert_int_equal(ret, 0);
+
+    /* sign and verify back with g10 key */
+    ret = call_rnp("rnp",
+                   "--homedir",
+                   KEYS "/3",
+                   "-u",
+                   "4BE147BB22DF1E60",
+                   "--password",
+                   "password",
+                   "--sign",
+                   FILES "/hello.txt",
+                   "--overwrite",
+                   NULL);
+    assert_int_equal(ret, 0);
+    ret = call_rnp("rnp", "--homedir", KEYS "/3", "--verify", FILES "/hello.txt.pgp", NULL);
+    assert_int_equal(ret, 0);
+
+    /* encrypt and decrypt back with g10 key */
+    ret = call_rnp("rnp",
+                   "--homedir",
+                   KEYS "/3",
+                   "-r",
+                   "4BE147BB22DF1E60",
+                   "--encrypt",
+                   FILES "/hello.txt",
+                   "--overwrite",
+                   NULL);
+    assert_int_equal(ret, 0);
+    ret = call_rnp("rnp",
+                   "--homedir",
+                   KEYS "/3",
+                   "--password",
+                   "password",
+                   "--decrypt",
+                   FILES "/hello.txt.pgp",
+                   NULL);
+    assert_int_equal(ret, 0);
 }
