@@ -3512,7 +3512,7 @@ add_json_key_flags(json_object *jso, uint8_t key_flags)
 {
     json_object *jsoarr = json_object_new_array();
     if (!jsoarr) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+        return false;
     }
     for (size_t i = 0; i < ARRAY_SIZE(key_flags_map); i++) {
         if (key_flags_map[i].mask & key_flags) {
@@ -3892,7 +3892,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         json_object_object_add(jso, "key wrap cipher", jsocipher);
-    }
+    } // fall through
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
