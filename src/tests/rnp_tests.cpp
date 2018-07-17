@@ -204,6 +204,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_key_to_json),
       cmocka_unit_test(test_ffi_key_iter),
       cmocka_unit_test(test_ffi_locate_key),
+      cmocka_unit_test(test_ffi_signatures_detached_memory_g10),
       cmocka_unit_test(test_cli_rnp),
     };
 
