@@ -8,7 +8,7 @@ export JSONC_INSTALL="${LOCAL_BUILDS}/jsonc-install"
 export GPG_INSTALL="${LOCAL_BUILDS}/gpg-install"
 export RNP_INSTALL="${LOCAL_BUILDS}/rnp-install"
 export RUBY_RNP_INSTALL="${LOCAL_BUILDS}/ruby-rnp"
-export RUBY_RNP_VERSION="v1.0.0"
+export RUBY_RNP_VERSION="master"
 export CXX=clang++
 export CORES=$(grep -c '^$' /proc/cpuinfo)
 ci/install.sh
