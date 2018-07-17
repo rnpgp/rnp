@@ -2558,3 +2558,110 @@ test_ffi_locate_key(void **state)
     // cleanup
     rnp_ffi_destroy(ffi);
 }
+
+void
+test_ffi_signatures_detached_memory_g10(void **state)
+{
+    rnp_ffi_t        ffi = NULL;
+    rnp_input_t      input = NULL;
+    rnp_input_t      input_sig = NULL;
+    rnp_output_t     output = NULL;
+    rnp_key_handle_t key = NULL;
+    rnp_op_sign_t    opsign = NULL;
+    rnp_op_verify_t  opverify = NULL;
+    const char *     data = "my data";
+    uint8_t *        sig = NULL;
+    size_t           sig_len = 0;
+
+    // setup FFI
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "KBX", "G10"));
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+
+    // load our keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/3/pubring.kbx"));
+    assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "KBX", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_input_from_path(&input, "data/keyrings/3/private-keys-v1.d"));
+    assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "G10", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+
+    // find our signing key
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "4BE147BB22DF1E60", &key));
+    assert_non_null(key);
+
+    // create our input
+    assert_rnp_success(rnp_input_from_memory(&input, (uint8_t *) data, strlen(data), false));
+    assert_non_null(input);
+    // create our output
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_non_null(output);
+    // create the signing operation
+    assert_rnp_success(rnp_op_sign_detached_create(&opsign, ffi, input, output));
+    assert_non_null(opsign);
+
+    // add the signer
+    assert_rnp_success(rnp_op_sign_add_signature(opsign, key, NULL));
+    // execute the signing operation
+    assert_rnp_success(rnp_op_sign_execute(opsign));
+    // get the resulting signature
+    assert_rnp_success(rnp_output_memory_get_buf(output, &sig, &sig_len, true));
+    assert_non_null(sig);
+    assert_int_not_equal(0, sig_len);
+    // cleanup
+    rnp_op_sign_destroy(opsign);
+    opsign = NULL;
+    rnp_input_destroy(input);
+    input = NULL;
+    rnp_output_destroy(output);
+    output = NULL;
+
+    // verify
+    // create our data input
+    assert_rnp_success(rnp_input_from_memory(&input, (uint8_t *) data, strlen(data), false));
+    assert_non_null(input);
+    // create our signature input
+    assert_rnp_success(rnp_input_from_memory(&input_sig, sig, sig_len, true));
+    assert_non_null(input_sig);
+    // create our operation
+    assert_rnp_success(rnp_op_verify_detached_create(&opverify, ffi, input, input_sig));
+    assert_non_null(opverify);
+    // execute the verification
+    assert_rnp_success(rnp_op_verify_execute(opverify));
+    // cleanup
+    rnp_op_verify_destroy(opverify);
+    opverify = NULL;
+    rnp_input_destroy(input);
+    input = NULL;
+    rnp_input_destroy(input_sig);
+    input_sig = NULL;
+
+    // verify (tamper with signature)
+    // create our data input
+    assert_rnp_success(rnp_input_from_memory(&input, (uint8_t *) data, strlen(data), false));
+    assert_non_null(input);
+    // create our signature input
+    sig[sig_len - 5] ^= 0xff;
+    assert_rnp_success(rnp_input_from_memory(&input_sig, sig, sig_len, true));
+    assert_non_null(input_sig);
+    // create our operation
+    assert_rnp_success(rnp_op_verify_detached_create(&opverify, ffi, input, input_sig));
+    assert_non_null(opverify);
+    // execute the verification
+    assert_rnp_failure(rnp_op_verify_execute(opverify));
+    // cleanup
+    rnp_op_verify_destroy(opverify);
+    opverify = NULL;
+    rnp_input_destroy(input);
+    input = NULL;
+    rnp_input_destroy(input_sig);
+    input_sig = NULL;
+
+    // cleanup
+    rnp_buffer_destroy(sig);
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+}
