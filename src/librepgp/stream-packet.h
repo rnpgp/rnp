@@ -261,6 +261,8 @@ rnp_result_t stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig);
 
 bool copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src);
 
+void free_signature_subpkt(pgp_sig_subpkt_t *subpkt);
+
 void free_signature(pgp_signature_t *sig);
 
 /* Public/Private key or Subkey */
