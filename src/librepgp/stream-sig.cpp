@@ -113,6 +113,15 @@ signature_add_subpkt(pgp_signature_t *        sig,
     return subpkt;
 }
 
+void
+signature_remove_subpkt(pgp_signature_t *sig, pgp_sig_subpkt_t *subpkt)
+{
+    if (list_is_member(sig->subpkts, (list_item *) subpkt)) {
+        free_signature_subpkt(subpkt);
+        list_remove((list_item *) subpkt);
+    }
+}
+
 bool
 signature_has_keyfp(const pgp_signature_t *sig)
 {
@@ -661,18 +670,55 @@ signature_set_signer_uid(pgp_signature_t *sig, uint8_t *uid, size_t len)
 }
 
 bool
-signature_set_embedded_sig(pgp_signature_t *sig, uint8_t *esig, size_t len)
+signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig)
 {
-    pgp_sig_subpkt_t *subpkt;
+    pgp_sig_subpkt_t *subpkt = NULL;
+    pgp_dest_t        memdst = {};
+    pgp_source_t      memsrc = {};
+    ssize_t           len = 0;
+    bool              res = false;
+
+    if (init_mem_dest(&memdst, NULL, 0)) {
+        RNP_LOG("alloc failed");
+        return false;
+    }
+    if (!stream_write_signature(esig, &memdst)) {
+        RNP_LOG("failed to write signature");
+        goto finish;
+    }
+    if (init_mem_src(&memsrc, mem_dest_get_memory(&memdst), memdst.writeb, false)) {
+        RNP_LOG("failed to init mem src");
+        goto finish;
+    }
+    if ((len = stream_read_pkt_len(&memsrc)) < 0) {
+        RNP_LOG("wrong pkt len");
+        goto finish;
+    }
 
     subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE, len, true);
     if (!subpkt) {
-        return false;
+        RNP_LOG("failed to add subpkt");
+        goto finish;
     }
 
-    subpkt->hashed = 1;
-    memcpy(subpkt->data, esig, len);
-    return signature_parse_subpacket(subpkt);
+    subpkt->hashed = 0;
+    if (src_read(&memsrc, subpkt->data, len) != len) {
+        RNP_LOG("failed to read back signature");
+        goto finish;
+    }
+    if (!copy_signature_packet(&subpkt->fields.sig, esig)) {
+        RNP_LOG("failed to copy signature");
+        goto finish;
+    }
+    subpkt->parsed = 1;
+    res = true;
+finish:
+    if (!res && subpkt) {
+        signature_remove_subpkt(sig, subpkt);
+    }
+    src_close(&memsrc);
+    dst_close(&memdst, true);
+    return res;
 }
 
 bool
@@ -1063,8 +1109,8 @@ signature_validate_binding(const pgp_signature_t *sig,
         pgp_sig_subpkt_t *subpkt =
           signature_get_subpkt(sig, PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE);
         if (!subpkt) {
-            /* must fail once we generate this subpacket! */
-            RNP_LOG("warning! no primary key binding signature");
+            RNP_LOG("error! no primary key binding signature");
+            res = RNP_ERROR_SIGNATURE_INVALID;
             goto finish;
         }
         if (!subpkt->parsed) {
