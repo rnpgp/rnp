@@ -83,6 +83,13 @@ pgp_sig_subpkt_t *signature_add_subpkt(pgp_signature_t *        sig,
                                        bool                     reuse);
 
 /**
+ * @brief Remove signature's subpacket
+ * @param sig loaded or populated signature, could not be NULL
+ * @param subpkt subpacket to remove. If not in the subpackets list then no action is taken.
+ */
+void signature_remove_subpkt(pgp_signature_t *sig, pgp_sig_subpkt_t *subpkt);
+
+/**
  * @brief Check whether signature has signing key fingerprint
  * @param sig loaded or populated v4 signature, could not be NULL
  * @return true if fingerprint is available or false otherwise
@@ -264,7 +271,7 @@ bool signature_set_features(pgp_signature_t *sig, uint8_t features);
 
 bool signature_set_signer_uid(pgp_signature_t *sig, uint8_t *uid, size_t len);
 
-bool signature_set_embedded_sig(pgp_signature_t *sig, uint8_t *esig, size_t len);
+bool signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig);
 
 bool signature_add_notation_data(pgp_signature_t *sig,
                                  bool             readable,
