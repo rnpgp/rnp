@@ -113,6 +113,16 @@ rnp_result_t validate_pgp_key_signatures(pgp_signatures_info_t *result,
                                          const pgp_key_t *      key,
                                          const rnp_key_store_t *keyring);
 
+/**
+ * @brief Validate whether pgp key or subkey is usable, i.e. has all valid signatures, valid
+ *        key material and so on.
+ *
+ * @param key pgp key which is being validated.
+ * @param keyring additional keys which could be required for certifications validation
+ * @return rnp_result_t RNP_SUCCESS if key is valid and usable or error code otherwise
+ */
+rnp_result_t validate_pgp_key(const pgp_key_t *key, const rnp_key_store_t *keyring);
+
 rnp_result_t write_pgp_key(pgp_transferable_key_t *key, pgp_dest_t *dst, bool armor);
 
 rnp_result_t write_pgp_keys(pgp_key_sequence_t *keys, pgp_dest_t *dst, bool armor);

@@ -944,8 +944,13 @@ signed_src_finish(pgp_source_t *src)
         sinfo->signer = key;
 
         /* Validate signature itself */
-        sinfo->valid =
-          signed_validate_signature(src, sinfo->sig, pgp_get_key_pkt(sinfo->signer));
+        if (key->valid) {
+            sinfo->valid =
+              signed_validate_signature(src, sinfo->sig, pgp_get_key_pkt(sinfo->signer));
+        } else {
+            sinfo->valid = false;
+            RNP_LOG("invalid or untrusted key");
+        }
 
         /* Check signature's expiration time */
         now = time(NULL);

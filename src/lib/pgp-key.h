@@ -81,6 +81,7 @@ struct pgp_key_t {
     uint8_t            revoked;      /* key has been revoked */
     pgp_revoke_t       revocation;   /* revocation reason */
     key_store_format_t format;       /* the format of the key in packets[0] */
+    bool               valid;        /* this key is valid and usable */
 };
 
 struct pgp_key_t *pgp_key_new(void);

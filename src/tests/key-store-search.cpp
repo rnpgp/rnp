@@ -42,6 +42,7 @@ test_key_store_search(void **state)
     // create our store
     rnp_key_store_t *store = rnp_key_store_new("GPG", "");
     assert_non_null(store);
+    store->disable_validation = true;
 
     // some fake key data
     static const struct {
