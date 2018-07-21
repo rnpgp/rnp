@@ -501,6 +501,7 @@ pgp_key_t *
 rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
 {
     pgp_key_t *added_key = NULL;
+
     if (io && rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "rnp_key_store_add_key\n");
     }
@@ -508,6 +509,11 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
     added_key = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
     if (io && rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "rnp_key_store_add_key: keyc %lu\n", list_length(keyring->keys));
+    }
+
+    /* validate all added keys if not disabled */
+    if (!keyring->disable_validation) {
+        added_key->valid = !validate_pgp_key(added_key, keyring);
     }
 
     return added_key;

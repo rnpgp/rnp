@@ -434,6 +434,7 @@ rnp_key_from_transferable_key(pgp_key_t *key, pgp_transferable_key_t *tkey)
 {
     rnp_key_store_t keystore = {};
 
+    keystore.disable_validation = true;
     if (!rnp_key_store_add_transferable_key(&keystore, tkey)) {
         RNP_LOG("Failed to add key");
         return false;
@@ -452,6 +453,7 @@ rnp_key_from_transferable_subkey(pgp_key_t *                key,
 {
     rnp_key_store_t keystore = {};
 
+    keystore.disable_validation = true;
     if (!rnp_key_store_add_transferable_subkey(&keystore, tskey, primary)) {
         RNP_LOG("Failed to add subkey");
         return false;
