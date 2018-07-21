@@ -308,6 +308,18 @@ rnp_key_add_signatures(pgp_key_t *key, list signatures)
     return true;
 }
 
+static bool
+rnp_key_add_subkey_grip(pgp_key_t *key, uint8_t *grip)
+{
+    for (list_item *li = list_front(key->subkey_grips); li; li = list_next(li)) {
+        if (!memcmp(grip, (uint8_t *) li, PGP_FINGERPRINT_SIZE)) {
+            return true;
+        }
+    }
+
+    return list_append(&key->subkey_grips, grip, PGP_FINGERPRINT_SIZE);
+}
+
 bool
 rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
                                       pgp_transferable_subkey_t *tskey,
@@ -316,28 +328,13 @@ rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
     pgp_key_t skey = {};
     pgp_io_t  io = {.outs = stdout, .errs = stderr, .res = stdout};
 
-    /* create key */
-    if (!create_key_from_pkt(&skey, &tskey->subkey)) {
+    /* create subkey */
+    if (!rnp_key_from_transferable_subkey(&skey, tskey, pkey)) {
+        RNP_LOG("failed to create subkey");
         return false;
     }
 
-    /* add subkey binding signatures */
-    if (!rnp_key_add_signatures(&skey, tskey->signatures)) {
-        RNP_LOG("failed to add subkey signatures");
-        goto error;
-    }
-
-    skey.primary_grip = (uint8_t *) malloc(PGP_FINGERPRINT_SIZE);
-    if (!skey.primary_grip) {
-        RNP_LOG("alloc failed");
-        goto error;
-    }
-    memcpy(skey.primary_grip, pkey->grip, PGP_FINGERPRINT_SIZE);
-    if (!list_append(&pkey->subkey_grips, skey.grip, PGP_FINGERPRINT_SIZE)) {
-        RNP_LOG("failed to add subkey grip");
-        goto error;
-    }
-
+    /* add it to the storage */
     if (!rnp_key_store_add_key(&io, keyring, &skey)) {
         RNP_LOG("Failed to add subkey to key store.");
         goto error;
@@ -385,22 +382,10 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
     pgp_key_t *addkey = NULL;
     pgp_io_t   io = {.outs = stdout, .errs = stderr, .res = stdout};
 
-    /* create key */
-    if (!create_key_from_pkt(&key, &tkey->key)) {
+    /* create key from transferable key */
+    if (!rnp_key_from_transferable_key(&key, tkey)) {
+        RNP_LOG("failed to create key");
         return false;
-    }
-
-    /* add direct-key signatures */
-    if (!rnp_key_add_signatures(&key, tkey->signatures)) {
-        goto error;
-    }
-
-    /* add userids and their signatures */
-    for (list_item *uid = list_front(tkey->userids); uid; uid = list_next(uid)) {
-        pgp_transferable_userid_t *tuid = (pgp_transferable_userid_t *) uid;
-        if (!rnp_key_add_transferable_userid(&key, tuid)) {
-            goto error;
-        }
     }
 
     /* add key to the storage before subkeys */
@@ -432,37 +417,63 @@ error:
 bool
 rnp_key_from_transferable_key(pgp_key_t *key, pgp_transferable_key_t *tkey)
 {
-    rnp_key_store_t keystore = {};
-
-    keystore.disable_validation = true;
-    if (!rnp_key_store_add_transferable_key(&keystore, tkey)) {
-        RNP_LOG("Failed to add key");
+    memset(key, 0, sizeof(*key));
+    /* create key */
+    if (!create_key_from_pkt(key, &tkey->key)) {
         return false;
     }
 
-    memcpy(key, list_front(keystore.keys), sizeof(*key));
-    rnp_key_store_remove_key(NULL, &keystore, (pgp_key_t *) list_front(keystore.keys));
-    rnp_key_store_clear(&keystore);
+    /* add direct-key signatures */
+    if (!rnp_key_add_signatures(key, tkey->signatures)) {
+        goto error;
+    }
+
+    /* add userids and their signatures */
+    for (list_item *uid = list_front(tkey->userids); uid; uid = list_next(uid)) {
+        pgp_transferable_userid_t *tuid = (pgp_transferable_userid_t *) uid;
+        if (!rnp_key_add_transferable_userid(key, tuid)) {
+            goto error;
+        }
+    }
+
     return true;
+error:
+    pgp_key_free_data(key);
+    return false;
 }
 
 bool
-rnp_key_from_transferable_subkey(pgp_key_t *                key,
+rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
                                  pgp_transferable_subkey_t *tskey,
                                  pgp_key_t *                primary)
 {
-    rnp_key_store_t keystore = {};
+    memset(subkey, 0, sizeof(*subkey));
 
-    keystore.disable_validation = true;
-    if (!rnp_key_store_add_transferable_subkey(&keystore, tskey, primary)) {
-        RNP_LOG("Failed to add subkey");
+    /* create key */
+    if (!create_key_from_pkt(subkey, &tskey->subkey)) {
         return false;
     }
 
-    memcpy(key, list_front(keystore.keys), sizeof(*key));
-    rnp_key_store_remove_key(NULL, &keystore, (pgp_key_t *) list_front(keystore.keys));
-    rnp_key_store_clear(&keystore);
+    /* add subkey binding signatures */
+    if (!rnp_key_add_signatures(subkey, tskey->signatures)) {
+        RNP_LOG("failed to add subkey signatures");
+        goto error;
+    }
+
+    subkey->primary_grip = (uint8_t *) malloc(PGP_FINGERPRINT_SIZE);
+    if (!subkey->primary_grip) {
+        RNP_LOG("alloc failed");
+        goto error;
+    }
+    memcpy(subkey->primary_grip, primary->grip, PGP_FINGERPRINT_SIZE);
+    if (!rnp_key_add_subkey_grip(primary, subkey->grip)) {
+        RNP_LOG("failed to add subkey grip");
+        goto error;
+    }
     return true;
+error:
+    pgp_key_free_data(subkey);
+    return false;
 }
 
 rnp_result_t
