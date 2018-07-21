@@ -80,7 +80,7 @@ bool rnp_key_store_add_transferable_key(rnp_key_store_t *       keyring,
 
 bool rnp_key_from_transferable_key(pgp_key_t *key, pgp_transferable_key_t *tkey);
 
-bool rnp_key_from_transferable_subkey(pgp_key_t *                key,
+bool rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
                                       pgp_transferable_subkey_t *tskey,
                                       pgp_key_t *                primary);
 
