@@ -496,6 +496,10 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     if (!userkey) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
+    if (!userkey->valid) {
+        RNP_LOG("attempt to use invalid key as recipient");
+        return RNP_ERROR_NO_SUITABLE_KEY;
+    }
     keypkt = pgp_get_key_pkt(userkey);
 
     /* Fill pkey */

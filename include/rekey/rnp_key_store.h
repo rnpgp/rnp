@@ -132,6 +132,7 @@ typedef struct rnp_key_store_t {
     const char *            path;
     const char *            format_label;
     enum key_store_format_t format;
+    bool disable_validation; /* do not automatically validate keys, added to this key store */
 
     list keys;
     DYNARRAY(kbx_blob_t *, blob);

@@ -1232,12 +1232,12 @@ forget_secret_key_fields(pgp_key_material_t *key)
 
 /* internally used struct to pass parameters to functions */
 typedef struct validate_info_t {
-    pgp_signatures_info_t *result;
-    const rnp_key_store_t *keystore;
-    pgp_key_pkt_t *        key;
-    pgp_key_pkt_t *        subkey;
-    pgp_userid_pkt_t *     uid;
-    rng_t *                rng;
+    pgp_signatures_info_t * result;
+    const rnp_key_store_t * keystore;
+    const pgp_key_pkt_t *   key;
+    const pgp_key_pkt_t *   subkey;
+    const pgp_userid_pkt_t *uid;
+    rng_t *                 rng;
 } validate_info_t;
 
 static rnp_result_t
@@ -1375,12 +1375,19 @@ validate_pgp_key_signatures(pgp_signatures_info_t *result,
                             const pgp_key_t *      key,
                             const rnp_key_store_t *keyring)
 {
-    pgp_source_t           src = {0};
-    pgp_dest_t             dst = {0};
-    pgp_transferable_key_t tkey = {{0}};
-    rnp_result_t           res = RNP_ERROR_GENERIC;
-    validate_info_t        info = {0};
-    rng_t                  rng = {0};
+    pgp_source_t              src = {};
+    pgp_dest_t                dst = {};
+    pgp_transferable_key_t    tkey = {};
+    pgp_transferable_subkey_t tskey = {};
+    rnp_result_t              res = RNP_ERROR_GENERIC;
+    validate_info_t           info = {};
+    rng_t                     rng = {};
+    pgp_io_t                  io = {.outs = stdout, .errs = stderr, .res = stdout};
+
+    /* no signatures in g10 secret keys */
+    if (pgp_is_key_secret(key) && (key->format == G10_KEY_STORE)) {
+        return RNP_SUCCESS;
+    }
 
     /* write raw key packets to the memory and load transferable key */
     if ((res = init_mem_dest(&dst, NULL, 0))) {
@@ -1397,9 +1404,16 @@ validate_pgp_key_signatures(pgp_signatures_info_t *result,
     }
 
     dst_close(&dst, false);
-    res = process_pgp_key(&src, &tkey);
+
+    if (pgp_key_is_subkey(key)) {
+        res = process_pgp_subkey(&src, &tskey);
+    } else {
+        res = process_pgp_key(&src, &tkey);
+    }
+
     src_close(&src);
     if (res) {
+        RNP_LOG("warning! failed to parse key back");
         return res;
     }
 
@@ -1410,6 +1424,21 @@ validate_pgp_key_signatures(pgp_signatures_info_t *result,
     info.rng = &rng;
     info.result = result;
     info.keystore = keyring;
+
+    /* subkey may have only binding signatures */
+    if (pgp_key_is_subkey(key)) {
+        pgp_key_t *primary = rnp_key_store_get_key_by_grip(&io, keyring, key->primary_grip);
+        if (!primary) {
+            RNP_LOG("no primary key for subkey");
+            res = RNP_ERROR_BAD_STATE;
+            goto done;
+        }
+        info.key = pgp_get_key_pkt(primary);
+        info.uid = NULL;
+        info.subkey = &tskey.subkey;
+        res = validate_pgp_key_signature_list(tskey.signatures, &info);
+        goto done;
+    }
 
     /* validate direct-key signatures */
     info.key = &tkey.key;
@@ -1437,9 +1466,21 @@ validate_pgp_key_signatures(pgp_signatures_info_t *result,
             goto done;
         }
     }
-
 done:
     transferable_key_destroy(&tkey);
+    transferable_subkey_destroy(&tskey);
     rng_destroy(&rng);
+    return res;
+}
+
+rnp_result_t
+validate_pgp_key(const pgp_key_t *key, const rnp_key_store_t *keyring)
+{
+    pgp_signatures_info_t sinfo = {};
+    rnp_result_t          res = RNP_ERROR_GENERIC;
+
+    res = validate_pgp_key_signatures(&sinfo, key, keyring);
+    free_signatures_info(&sinfo);
+
     return res;
 }
