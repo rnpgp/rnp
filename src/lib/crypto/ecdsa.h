@@ -29,6 +29,8 @@
 
 #include "crypto/ec.h"
 
+rnp_result_t ecdsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret);
+
 rnp_result_t ecdsa_sign(rng_t *             rng,
                         pgp_ec_signature_t *sig,
                         const uint8_t *     hash,
