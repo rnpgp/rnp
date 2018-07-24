@@ -33,6 +33,7 @@
 
 #include "ec.h"
 
+rnp_result_t eddsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret);
 /*
  * curve_len must be 255 currently (for Ed25519)
  * If Ed448 was supported in the future curve_len=448 would also be allowed.

@@ -29,6 +29,74 @@
 #include "eddsa.h"
 #include "utils.h"
 
+static bool
+eddsa_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *keydata)
+{
+    if (keydata->curve != PGP_CURVE_ED25519) {
+        return false;
+    }
+    /*
+     * See draft-ietf-openpgp-rfc4880bis-01 section 13.3
+     */
+    if ((mpi_bytes(&keydata->p) != 33) || (keydata->p.mpi[0] != 0x40)) {
+        return false;
+    }
+    if (botan_pubkey_load_ed25519(pubkey, keydata->p.mpi + 1)) {
+        return false;
+    }
+
+    return true;
+}
+
+static bool
+eddsa_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata)
+{
+    uint8_t keybuf[32] = {0};
+    size_t  sz;
+
+    if (keydata->curve != PGP_CURVE_ED25519) {
+        return false;
+    }
+    sz = mpi_bytes(&keydata->x);
+    if (!sz || (sz > 32)) {
+        return false;
+    }
+    mpi2mem(&keydata->x, keybuf + 32 - sz);
+    if (botan_privkey_load_ed25519(seckey, keybuf)) {
+        return false;
+    }
+
+    return true;
+}
+
+rnp_result_t
+eddsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
+{
+    botan_pubkey_t  bpkey = NULL;
+    botan_privkey_t bskey = NULL;
+    rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
+
+    if (!eddsa_load_public_key(&bpkey, key) ||
+        botan_pubkey_check_key(bpkey, rng_handle(rng), 1)) {
+        goto done;
+    }
+
+    if (!secret) {
+        ret = RNP_SUCCESS;
+        goto done;
+    }
+
+    if (!eddsa_load_secret_key(&bskey, key) ||
+        botan_privkey_check_key(bskey, rng_handle(rng), 1)) {
+        goto done;
+    }
+    ret = RNP_SUCCESS;
+done:
+    botan_privkey_destroy(bskey);
+    botan_pubkey_destroy(bpkey);
+    return ret;
+}
+
 rnp_result_t
 eddsa_generate(rng_t *rng, pgp_ec_key_t *key, size_t numbits)
 {
@@ -73,24 +141,8 @@ eddsa_verify(const pgp_ec_signature_t *sig,
     botan_pk_op_verify_t verify_op = NULL;
     rnp_result_t         ret = RNP_ERROR_SIGNATURE_INVALID;
     uint8_t              bn_buf[64] = {0};
-    size_t               sz;
 
-    // Check curve OID matches 25519
-    if (key->curve != PGP_CURVE_ED25519) {
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto done;
-    }
-
-    /*
-     * See draft-ietf-openpgp-rfc4880bis-01 section 13.3
-     */
-    sz = mpi_bytes(&key->p);
-    if ((sz != 33) || (key->p.mpi[0] != 0x40)) {
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto done;
-    }
-
-    if (botan_pubkey_load_ed25519(&eddsa, key->p.mpi + 1)) {
+    if (!eddsa_load_public_key(&eddsa, key)) {
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto done;
     }
@@ -130,25 +182,9 @@ eddsa_sign(rng_t *             rng,
     botan_pk_op_sign_t sign_op = NULL;
     rnp_result_t       ret = RNP_ERROR_SIGNING_FAILED;
     uint8_t            bn_buf[64] = {0};
-    size_t             sz;
     size_t             sig_size = sizeof(bn_buf);
 
-    // Check curve OID matches 25519
-    if (key->curve != PGP_CURVE_ED25519) {
-        goto done;
-    }
-
-    // Unexpected size for Ed25519 key
-    sz = mpi_bytes(&key->x);
-    if (!sz || (sz > 32)) {
-        RNP_LOG("wrong key");
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto done;
-    }
-
-    mpi2mem(&key->x, bn_buf + 32 - sz);
-
-    if (botan_privkey_load_ed25519(&eddsa, bn_buf) != 0) {
+    if (!eddsa_load_secret_key(&eddsa, key)) {
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto done;
     }
