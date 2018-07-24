@@ -54,6 +54,17 @@ typedef struct pgp_dsa_signature_t {
     pgp_mpi_t s;
 } pgp_dsa_signature_t;
 
+/**
+ * @brief Checks DSA key fields for validity
+ *
+ * @param rng initialized PRNG
+ * @param key initialized DSA key structure
+ * @param secret flag which tells whether key has populated secret fields
+ *
+ * @return RNP_SUCCESS if key is valid or error code otherwise
+ */
+rnp_result_t dsa_validate_key(rng_t *rng, const pgp_dsa_key_t *key, bool secret);
+
 /*
  * @brief   Performs DSA signing
  *
