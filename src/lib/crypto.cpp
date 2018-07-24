@@ -82,7 +82,9 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "utils.h"
 
 bool
-pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto, pgp_key_pkt_t *seckey, bool primary)
+pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto,
+                    pgp_key_pkt_t *                   seckey,
+                    bool                              primary)
 {
     bool   ok = false;
     rng_t *rng = NULL;
@@ -158,4 +160,29 @@ end:
         free_key_pkt(seckey);
     }
     return ok;
+}
+
+rnp_result_t
+validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng)
+{
+    switch (material->alg) {
+    case PGP_PKA_RSA:
+        return RNP_SUCCESS;
+    case PGP_PKA_DSA:
+        return RNP_SUCCESS;
+    case PGP_PKA_EDDSA:
+        return RNP_SUCCESS;
+    case PGP_PKA_ECDH:
+        return RNP_SUCCESS;
+    case PGP_PKA_ECDSA:
+        return RNP_SUCCESS;
+    case PGP_PKA_SM2:
+        return RNP_SUCCESS;
+    case PGP_PKA_ELGAMAL:
+        return RNP_SUCCESS;
+    default:
+        RNP_LOG("unknown public key algorithm: %d", (int) material->alg);
+    }
+
+    return RNP_ERROR_BAD_PARAMETERS;
 }

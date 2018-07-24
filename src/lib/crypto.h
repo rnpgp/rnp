@@ -66,7 +66,9 @@
 #define PGP_MIN_HASH_SIZE 16
 
 /* raw key generation */
-bool pgp_generate_seckey(const rnp_keygen_crypto_params_t *params, pgp_key_pkt_t *seckey, bool primary);
+bool pgp_generate_seckey(const rnp_keygen_crypto_params_t *params,
+                         pgp_key_pkt_t *                   seckey,
+                         bool                              primary);
 
 /** generate a new primary key
  *
@@ -131,5 +133,7 @@ bool pgp_generate_keypair(rng_t *                    rng,
                           key_store_format_t         secformat);
 
 bool read_pem_seckey(const char *, pgp_key_t *, const char *, int);
+
+rnp_result_t validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng);
 
 #endif /* CRYPTO_H_ */
