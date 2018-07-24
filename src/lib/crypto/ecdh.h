@@ -45,6 +45,8 @@ typedef struct pgp_ecdh_encrypted_t {
     size_t    mlen;
 } pgp_ecdh_encrypted_t;
 
+rnp_result_t ecdh_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret);
+
 /*
  * @brief   Sets hash algorithm and key wrapping algo
  *          based on curve_id
