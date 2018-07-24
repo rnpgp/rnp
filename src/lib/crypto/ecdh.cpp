@@ -181,6 +181,18 @@ ecdh_set_params(pgp_ec_key_t *key, pgp_curve_t curve_id)
 }
 
 rnp_result_t
+ecdh_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
+{
+    const ec_curve_desc_t *curve_desc = get_curve_desc(key->curve);
+    if (!curve_desc) {
+        return RNP_ERROR_NOT_SUPPORTED;
+    }
+
+    /* botan doesn't seem to have specific checks for ecdh keys yet, probably needs updating */
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 ecdh_encrypt_pkcs5(rng_t *                  rng,
                    pgp_ecdh_encrypted_t *   out,
                    const uint8_t *const     in,
