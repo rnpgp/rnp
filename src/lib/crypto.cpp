@@ -177,7 +177,7 @@ validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng)
     case PGP_PKA_ECDSA:
         return ecdsa_validate_key(rng, &material->ec, material->secret);
     case PGP_PKA_SM2:
-        return RNP_SUCCESS;
+        return sm2_validate_key(rng, &material->ec, material->secret);
     case PGP_PKA_ELGAMAL:
         return RNP_SUCCESS;
     default:
