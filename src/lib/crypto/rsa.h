@@ -58,6 +58,8 @@ typedef struct pgp_rsa_encrypted_t {
  * RSA encrypt/decrypt
  */
 
+rnp_result_t rsa_validate_key(rng_t *rng, const pgp_rsa_key_t *key, bool secret);
+
 rnp_result_t rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits);
 
 rnp_result_t rsa_encrypt_pkcs1(rng_t *              rng,

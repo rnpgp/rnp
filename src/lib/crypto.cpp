@@ -167,7 +167,7 @@ validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng)
 {
     switch (material->alg) {
     case PGP_PKA_RSA:
-        return RNP_SUCCESS;
+        return rsa_validate_key(rng, &material->rsa, material->secret);
     case PGP_PKA_DSA:
         return RNP_SUCCESS;
     case PGP_PKA_EDDSA:
