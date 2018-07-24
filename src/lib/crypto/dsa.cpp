@@ -85,6 +85,72 @@
 #define DSA_MAX_Q_BITLEN 256
 
 rnp_result_t
+dsa_validate_key(rng_t *rng, const pgp_dsa_key_t *key, bool secret)
+{
+    bignum_t *      p = NULL;
+    bignum_t *      q = NULL;
+    bignum_t *      g = NULL;
+    bignum_t *      y = NULL;
+    bignum_t *      x = NULL;
+    botan_pubkey_t  bpkey = NULL;
+    botan_privkey_t bskey = NULL;
+    rnp_result_t    ret = RNP_ERROR_GENERIC;
+
+    /* load and check public key part */
+    p = mpi2bn(&key->p);
+    q = mpi2bn(&key->q);
+    g = mpi2bn(&key->g);
+    y = mpi2bn(&key->y);
+
+    if (!p || !q || !g || !y) {
+        RNP_LOG("out of memory");
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    if (botan_pubkey_load_dsa(
+          &bpkey, BN_HANDLE_PTR(p), BN_HANDLE_PTR(q), BN_HANDLE_PTR(g), BN_HANDLE_PTR(y))) {
+        goto done;
+    }
+
+    if (botan_pubkey_check_key(bpkey, rng_handle(rng), 1)) {
+        goto done;
+    }
+
+    if (!secret) {
+        ret = RNP_SUCCESS;
+        goto done;
+    }
+
+    /* load and check secret key part */
+    if (!(x = mpi2bn(&key->x))) {
+        RNP_LOG("out of memory");
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    if (botan_privkey_load_dsa(
+          &bskey, BN_HANDLE_PTR(p), BN_HANDLE_PTR(q), BN_HANDLE_PTR(g), BN_HANDLE_PTR(x))) {
+        goto done;
+    }
+
+    if (botan_privkey_check_key(bskey, rng_handle(rng), 1)) {
+        goto done;
+    }
+
+    ret = RNP_SUCCESS;
+done:
+    bn_free(p);
+    bn_free(q);
+    bn_free(g);
+    bn_free(y);
+    bn_free(x);
+    botan_privkey_destroy(bskey);
+    botan_pubkey_destroy(bpkey);
+    return ret;
+}
+
+rnp_result_t
 dsa_sign(rng_t *              rng,
          pgp_dsa_signature_t *sig,
          const uint8_t *      hash,
