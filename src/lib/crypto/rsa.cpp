@@ -83,8 +83,65 @@
 #include "config.h"
 #include "utils.h"
 
+rnp_result_t
+rsa_validate_key(rng_t *rng, const pgp_rsa_key_t *key, bool secret)
+{
+    bignum_t *      n = NULL;
+    bignum_t *      e = NULL;
+    bignum_t *      p = NULL;
+    bignum_t *      q = NULL;
+    botan_pubkey_t  bpkey = NULL;
+    botan_privkey_t bskey = NULL;
+    rnp_result_t    ret = RNP_ERROR_GENERIC;
+
+    /* load and check public key part */
+    if (!(n = mpi2bn(&key->n)) || !(e = mpi2bn(&key->e))) {
+        RNP_LOG("out of memory");
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    if (botan_pubkey_load_rsa(&bpkey, BN_HANDLE_PTR(n), BN_HANDLE_PTR(e)) != 0) {
+        goto done;
+    }
+
+    if (botan_pubkey_check_key(bpkey, rng_handle(rng), 1)) {
+        goto done;
+    }
+
+    if (!secret) {
+        ret = RNP_SUCCESS;
+        goto done;
+    }
+
+    /* load and check secret key part */
+    if (!(p = mpi2bn(&key->p)) || !(q = mpi2bn(&key->q))) {
+        RNP_LOG("out of memory");
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    /* p and q are reversed from normal usage in PGP */
+    if (botan_privkey_load_rsa(&bskey, BN_HANDLE_PTR(q), BN_HANDLE_PTR(p), BN_HANDLE_PTR(e))) {
+        goto done;
+    }
+
+    if (botan_privkey_check_key(bskey, rng_handle(rng), 0)) {
+        goto done;
+    }
+    ret = RNP_SUCCESS;
+done:
+    botan_pubkey_destroy(bpkey);
+    botan_privkey_destroy(bskey);
+    bn_free(n);
+    bn_free(e);
+    bn_free(p);
+    bn_free(q);
+    return ret;
+}
+
 static bool
-rsa_load_public_key(rng_t *rng, botan_pubkey_t *bkey, const pgp_rsa_key_t *key)
+rsa_load_public_key(botan_pubkey_t *bkey, const pgp_rsa_key_t *key)
 {
     bignum_t *n = NULL;
     bignum_t *e = NULL;
@@ -99,17 +156,7 @@ rsa_load_public_key(rng_t *rng, botan_pubkey_t *bkey, const pgp_rsa_key_t *key)
         goto done;
     }
 
-    if (botan_pubkey_load_rsa(bkey, BN_HANDLE_PTR(n), BN_HANDLE_PTR(e)) != 0) {
-        goto done;
-    }
-
-    if (botan_pubkey_check_key(*bkey, rng_handle(rng), 1) != 0) {
-        botan_pubkey_destroy(*bkey);
-        *bkey = NULL;
-        goto done;
-    }
-
-    res = true;
+    res = !botan_pubkey_load_rsa(bkey, BN_HANDLE_PTR(n), BN_HANDLE_PTR(e));
 done:
     bn_free(n);
     bn_free(e);
@@ -117,7 +164,7 @@ done:
 }
 
 static bool
-rsa_load_secret_key(rng_t *rng, botan_privkey_t *bkey, const pgp_rsa_key_t *key)
+rsa_load_secret_key(botan_privkey_t *bkey, const pgp_rsa_key_t *key)
 {
     bignum_t *p = NULL;
     bignum_t *q = NULL;
@@ -135,17 +182,7 @@ rsa_load_secret_key(rng_t *rng, botan_privkey_t *bkey, const pgp_rsa_key_t *key)
     }
 
     /* p and q are reversed from normal usage in PGP */
-    if (botan_privkey_load_rsa(bkey, BN_HANDLE_PTR(q), BN_HANDLE_PTR(p), BN_HANDLE_PTR(e))) {
-        goto done;
-    }
-
-    if (botan_privkey_check_key(*bkey, rng_handle(rng), 0) != 0) {
-        botan_privkey_destroy(*bkey);
-        *bkey = NULL;
-        return false;
-    }
-
-    res = true;
+    res = !botan_privkey_load_rsa(bkey, BN_HANDLE_PTR(q), BN_HANDLE_PTR(p), BN_HANDLE_PTR(e));
 done:
     bn_free(p);
     bn_free(q);
@@ -164,7 +201,7 @@ rsa_encrypt_pkcs1(rng_t *              rng,
     botan_pubkey_t        rsa_key = NULL;
     botan_pk_op_encrypt_t enc_op = NULL;
 
-    if (!rsa_load_public_key(rng, &rsa_key, key)) {
+    if (!rsa_load_public_key(&rsa_key, key)) {
         RNP_LOG("failed to load key");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -198,7 +235,7 @@ rsa_verify_pkcs1(rng_t *                    rng,
     botan_pk_op_verify_t verify_op = NULL;
     rnp_result_t         ret = RNP_ERROR_SIGNATURE_INVALID;
 
-    if (!rsa_load_public_key(rng, &rsa_key, key)) {
+    if (!rsa_load_public_key(&rsa_key, key)) {
         RNP_LOG("failed to load key");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -245,7 +282,7 @@ rsa_sign_pkcs1(rng_t *              rng,
         return ret;
     }
 
-    if (!rsa_load_secret_key(rng, &rsa_key, key)) {
+    if (!rsa_load_secret_key(&rsa_key, key)) {
         RNP_LOG("failed to load key");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -291,7 +328,7 @@ rsa_decrypt_pkcs1(rng_t *                    rng,
         return ret;
     }
 
-    if (!rsa_load_secret_key(rng, &rsa_key, key)) {
+    if (!rsa_load_secret_key(&rsa_key, key)) {
         RNP_LOG("failed to load key");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
