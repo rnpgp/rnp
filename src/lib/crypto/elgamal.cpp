@@ -86,6 +86,89 @@
 // Max supported key byte size
 #define ELGAMAL_MAX_P_BYTELEN BITS_TO_BYTES(DSA_MAX_P_BITLEN)
 
+static bool
+elgamal_load_public_key(botan_pubkey_t *pubkey, const pgp_eg_key_t *keydata)
+{
+    bignum_t *p = NULL;
+    bignum_t *g = NULL;
+    bignum_t *y = NULL;
+    bool      res = false;
+
+    // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
+    if (mpi_bytes(&keydata->p) > ELGAMAL_MAX_P_BYTELEN) {
+        goto done;
+    }
+
+    if (!(p = mpi2bn(&keydata->p)) || !(g = mpi2bn(&keydata->g)) ||
+        !(y = mpi2bn(&keydata->y))) {
+        goto done;
+    }
+
+    res =
+      !botan_pubkey_load_elgamal(pubkey, BN_HANDLE_PTR(p), BN_HANDLE_PTR(g), BN_HANDLE_PTR(y));
+done:
+    bn_free(p);
+    bn_free(g);
+    bn_free(y);
+    return res;
+}
+
+static bool
+elgamal_load_secret_key(botan_privkey_t *seckey, const pgp_eg_key_t *keydata)
+{
+    bignum_t *p = NULL;
+    bignum_t *g = NULL;
+    bignum_t *x = NULL;
+    bool      res = false;
+
+    // Check if provided secret key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
+    if (mpi_bytes(&keydata->p) > ELGAMAL_MAX_P_BYTELEN) {
+        goto done;
+    }
+
+    if (!(p = mpi2bn(&keydata->p)) || !(g = mpi2bn(&keydata->g)) ||
+        !(x = mpi2bn(&keydata->x))) {
+        goto done;
+    }
+
+    res = !botan_privkey_load_elgamal(
+      seckey, BN_HANDLE_PTR(p), BN_HANDLE_PTR(g), BN_HANDLE_PTR(x));
+done:
+    bn_free(p);
+    bn_free(g);
+    bn_free(x);
+    return res;
+}
+
+rnp_result_t
+elgamal_validate_key(rng_t *rng, const pgp_eg_key_t *key, bool secret)
+{
+    botan_pubkey_t  bpkey = NULL;
+    botan_privkey_t bskey = NULL;
+    rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
+
+    // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
+    if (!elgamal_load_public_key(&bpkey, key) ||
+        botan_pubkey_check_key(bpkey, rng_handle(rng), 1)) {
+        goto done;
+    }
+
+    if (!secret) {
+        ret = RNP_SUCCESS;
+        goto done;
+    }
+
+    if (elgamal_load_secret_key(&bskey, key) ||
+        botan_privkey_check_key(bskey, rng_handle(rng), 1)) {
+        goto done;
+    }
+    ret = RNP_SUCCESS;
+done:
+    botan_privkey_destroy(bskey);
+    botan_pubkey_destroy(bpkey);
+    return ret;
+}
+
 rnp_result_t
 elgamal_encrypt_pkcs1(rng_t *             rng,
                       pgp_eg_encrypted_t *out,
@@ -97,31 +180,10 @@ elgamal_encrypt_pkcs1(rng_t *             rng,
     botan_pk_op_encrypt_t op_ctx = NULL;
     rnp_result_t          ret = RNP_ERROR_BAD_PARAMETERS;
     /* Max size of an output len is twice an order of underlying group (p length) */
-    uint8_t   enc_buf[ELGAMAL_MAX_P_BYTELEN * 2] = {0};
-    bignum_t *p = NULL;
-    bignum_t *g = NULL;
-    bignum_t *y = NULL;
+    uint8_t enc_buf[ELGAMAL_MAX_P_BYTELEN * 2] = {0};
+    size_t  p_len;
 
-    // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
-    size_t p_len = mpi_bytes(&key->p);
-    if ((p_len * 2) > sizeof(enc_buf)) {
-        RNP_LOG("Unsupported public key size");
-        goto end;
-    }
-
-    p = mpi2bn(&key->p);
-    g = mpi2bn(&key->g);
-    y = mpi2bn(&key->y);
-
-    if (!p || !g || !y) {
-        RNP_LOG("allocation failed");
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto end;
-    }
-
-    if (botan_pubkey_load_elgamal(
-          &b_key, BN_HANDLE_PTR(p), BN_HANDLE_PTR(g), BN_HANDLE_PTR(y)) ||
-        botan_pubkey_check_key(b_key, rng_handle(rng), 1)) {
+    if (!elgamal_load_public_key(&b_key, key)) {
         RNP_LOG("Failed to load public key");
         goto end;
     }
@@ -132,7 +194,8 @@ elgamal_encrypt_pkcs1(rng_t *             rng,
      * Successful call to botan's ElGamal encryption will return output that's
      * always 2*pubkey size.
      */
-    p_len *= 2;
+    p_len = mpi_bytes(&key->p) * 2;
+
     if (botan_pk_op_encrypt_create(&op_ctx, b_key, "PKCS1v15", 0) ||
         botan_pk_op_encrypt(op_ctx, rng_handle(rng), enc_buf, &p_len, in, in_len)) {
         RNP_LOG("Failed to create operation context");
@@ -157,9 +220,6 @@ elgamal_encrypt_pkcs1(rng_t *             rng,
 end:
     botan_pk_op_encrypt_destroy(op_ctx);
     botan_pubkey_destroy(b_key);
-    bn_free(p);
-    bn_free(g);
-    bn_free(y);
     return ret;
 }
 
@@ -177,9 +237,6 @@ elgamal_decrypt_pkcs1(rng_t *                   rng,
     size_t                p_len;
     size_t                g_len;
     size_t                m_len;
-    bignum_t *            p = NULL;
-    bignum_t *            g = NULL;
-    bignum_t *            x = NULL;
 
     if (!mpi_bytes(&key->x)) {
         RNP_LOG("empty secret key");
@@ -196,21 +253,7 @@ elgamal_decrypt_pkcs1(rng_t *                   rng,
         goto end;
     }
 
-    p = mpi2bn(&key->p);
-    g = mpi2bn(&key->g);
-    x = mpi2bn(&key->x);
-
-    if (!p || !g || !x) {
-        RNP_LOG("allocation failed");
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto end;
-    }
-
-    /* Max size of an output len is twice an order of underlying group (twice byte-size of p)
-     * Allocate all buffers needed for encryption and post encryption processing */
-    if (botan_privkey_load_elgamal(
-          &b_key, BN_HANDLE_PTR(p), BN_HANDLE_PTR(g), BN_HANDLE_PTR(x)) ||
-        botan_privkey_check_key(b_key, rng_handle(rng), 1)) {
+    if (!elgamal_load_secret_key(&b_key, key)) {
         RNP_LOG("Failed to load private key");
         goto end;
     }
@@ -231,9 +274,6 @@ elgamal_decrypt_pkcs1(rng_t *                   rng,
 end:
     botan_pk_op_decrypt_destroy(op_ctx);
     botan_privkey_destroy(b_key);
-    bn_free(p);
-    bn_free(g);
-    bn_free(x);
     return ret;
 }
 

@@ -55,6 +55,8 @@ typedef struct pgp_eg_encrypted_t {
     pgp_mpi_t m;
 } pgp_eg_encrypted_t;
 
+rnp_result_t elgamal_validate_key(rng_t *rng, const pgp_eg_key_t *key, bool secret);
+
 /*
  * Performs ElGamal encryption
  * Result of an encryption is composed of two parts - g2k and encm
