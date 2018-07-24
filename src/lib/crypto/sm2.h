@@ -33,6 +33,8 @@ typedef struct pgp_sm2_encrypted_t {
     pgp_mpi_t m;
 } pgp_sm2_encrypted_t;
 
+rnp_result_t sm2_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret);
+
 rnp_result_t sm2_sign(rng_t *             rng,
                       pgp_ec_signature_t *sig,
                       const uint8_t *     hash,
