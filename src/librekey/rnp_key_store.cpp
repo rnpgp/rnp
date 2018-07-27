@@ -513,6 +513,7 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
 
     /* validate all added keys if not disabled */
     if (!keyring->disable_validation) {
+        added_key->valid = true; // we need to this to check key's signatures
         added_key->valid = !validate_pgp_key(added_key, keyring);
     }
 

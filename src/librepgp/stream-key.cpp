@@ -1248,10 +1248,17 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
     pgp_io_t             io = {.outs = stdout, .errs = stderr, .res = stdout};
     pgp_signature_info_t sinfo = {};
 
-    if (!signature_get_keyid(sig, signer_id)) {
+    if (!(sinfo.sig = (pgp_signature_t *) calloc(1, sizeof(*sig)))) {
+        RNP_LOG("sig alloc failed");
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!copy_signature_packet(sinfo.sig, sig)) {
+        free(sinfo.sig);
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!signature_get_keyid(sinfo.sig, signer_id)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
     sinfo.signer = rnp_key_store_get_key_by_id(&io, info->keystore, signer_id, NULL);
     if (!sinfo.signer) {
         sinfo.no_signer = true;
@@ -1261,7 +1268,7 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
         RNP_LOG("WARNING: signature made with key that can not sign");
     }
 
-    switch (sig->type) {
+    switch (sinfo.sig->type) {
     case PGP_CERT_GENERIC:
     case PGP_CERT_PERSONA:
     case PGP_CERT_CASUAL:
@@ -1272,8 +1279,7 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
             res = RNP_ERROR_SIGNATURE_INVALID;
             break;
         }
-        res = signature_validate_certification(
-          sig, info->key, info->uid, pgp_get_key_material(sinfo.signer), info->rng);
+        res = signature_check_certification(&sinfo, info->key, info->uid, info->rng);
         break;
     }
     case PGP_SIG_SUBKEY:
@@ -1284,7 +1290,7 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
         }
 
         /* subkey binding always uses main key's material */
-        res = signature_validate_binding(sig, info->key, info->subkey, info->rng);
+        res = signature_check_binding(&sinfo, info->key, info->subkey, info->rng);
         break;
     case PGP_SIG_DIRECT:
         if (!info->key || info->uid || info->subkey) {
@@ -1292,8 +1298,7 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
             res = RNP_ERROR_SIGNATURE_INVALID;
             break;
         }
-        res = signature_validate_direct(
-          sig, info->key, pgp_get_key_material(sinfo.signer), info->rng);
+        res = signature_check_direct(&sinfo, info->key, info->rng);
         break;
     case PGP_SIG_STANDALONE:
     case PGP_SIG_PRIMARY:
@@ -1301,40 +1306,14 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
     case PGP_SIG_REV_SUBKEY:
     case PGP_SIG_TIMESTAMP:
     case PGP_SIG_3RD_PARTY:
-        RNP_LOG("signature type %d verification is not supported yet", (int) sig->type);
+        RNP_LOG("signature type %d verification is not supported yet", (int) sinfo.sig->type);
         res = RNP_ERROR_SIGNATURE_INVALID;
         break;
     default:
-        RNP_LOG("unexpected signature type %d", (int) sig->type);
+        RNP_LOG("unexpected signature type %d", (int) sinfo.sig->type);
         res = RNP_ERROR_SIGNATURE_INVALID;
     }
-
-    sinfo.valid = !res;
-    if (sinfo.valid) {
-        /* for valid signature we check creation/expiration time */
-        uint32_t now = time(NULL);
-        uint32_t creation = signature_get_creation(sig);
-        uint32_t expiration = signature_get_expiration(sig);
-
-        if (creation && (creation > now)) {
-            sinfo.expired = true;
-            RNP_LOG("signature created in future");
-        }
-        if (creation && expiration && (creation + expiration <= now)) {
-            sinfo.expired = true;
-            RNP_LOG("signature expired");
-        }
-    }
-
 done:
-    if (!(sinfo.sig = (pgp_signature_t *) calloc(1, sizeof(*sig)))) {
-        RNP_LOG("sig alloc failed");
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    if (!copy_signature_packet(sinfo.sig, sig)) {
-        free(sinfo.sig);
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
     if (!list_append(&info->result->sigs, &sinfo, sizeof(sinfo))) {
         free_signature(sinfo.sig);
         free(sinfo.sig);
