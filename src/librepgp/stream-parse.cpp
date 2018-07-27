@@ -729,20 +729,20 @@ encrypted_src_close(pgp_source_t *src)
     src->param = NULL;
 }
 
-static bool
-signed_validate_signature(pgp_source_t *src, pgp_signature_t *sig, const pgp_key_pkt_t *key)
+static void
+signed_validate_signature(pgp_source_signed_param_t *param, pgp_signature_info_t *sinfo)
 {
-    pgp_hash_t                 shash;
-    pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
+    pgp_hash_t shash = {};
 
     /* Get the hash context and clone it */
-    if (!pgp_hash_copy(&shash, pgp_hash_list_get(param->hashes, sig->halg))) {
+    if (!pgp_hash_copy(&shash, pgp_hash_list_get(param->hashes, sinfo->sig->halg))) {
         RNP_LOG("failed to clone hash context");
-        return false;
+        sinfo->valid = false;
+        return;
     }
 
-    return !signature_validate(
-      sig, &key->material, &shash, (rng_t *) rnp_ctx_rng_handle(param->ctx->handler.ctx));
+    /* fill the signature info */
+    signature_check(sinfo, &shash, (rng_t *) rnp_ctx_rng_handle(param->ctx->handler.ctx));
 }
 
 static void
@@ -890,8 +890,6 @@ signed_src_finish(pgp_source_t *src)
     pgp_key_request_ctx_t      keyctx;
     pgp_key_t *                key = NULL;
     rnp_result_t               ret = RNP_ERROR_GENERIC;
-    time_t                     now;
-    uint32_t                   create, expiry;
 
     if (param->cleartext) {
         ret = signed_read_cleartext_signatures(src);
@@ -942,30 +940,8 @@ signed_src_finish(pgp_source_t *src)
             }
         }
         sinfo->signer = key;
-
-        /* Validate signature itself */
-        if (key->valid) {
-            sinfo->valid =
-              signed_validate_signature(src, sinfo->sig, pgp_get_key_pkt(sinfo->signer));
-        } else {
-            sinfo->valid = false;
-            RNP_LOG("invalid or untrusted key");
-        }
-
-        /* Check signature's expiration time */
-        now = time(NULL);
-        create = signature_get_creation(sinfo->sig);
-        expiry = signature_get_expiration(sinfo->sig);
-        if (create > 0) {
-            if (create > now) {
-                /* signature created later then now */
-                sinfo->expired = true;
-            }
-            if ((expiry > 0) && (create + expiry <= now)) {
-                /* signature expired */
-                sinfo->expired = true;
-            }
-        }
+        /* validate signature */
+        signed_validate_signature(param, sinfo);
     }
 
     /* checking the validation results */
