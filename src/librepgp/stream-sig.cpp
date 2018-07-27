@@ -35,6 +35,7 @@
 #include "utils.h"
 #include "stream-sig.h"
 #include "stream-packet.h"
+#include "pgp-key.h"
 #include "crypto.h"
 #include "crypto/common.h"
 
@@ -1148,6 +1149,147 @@ signature_validate_direct(const pgp_signature_t *   sig,
     }
 
     return signature_validate(sig, signer, &hash, rng);
+}
+
+rnp_result_t
+signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash, rng_t *rng)
+{
+    time_t            now;
+    uint32_t          create, expiry;
+    pgp_fingerprint_t fp = {};
+    rnp_result_t      ret = RNP_ERROR_SIGNATURE_INVALID;
+
+    sinfo->no_signer = !sinfo->signer;
+    sinfo->valid = false;
+    sinfo->expired = false;
+
+    if (!sinfo->sig) {
+        ret = RNP_ERROR_NULL_POINTER;
+        goto finish;
+    }
+
+    if (!sinfo->signer) {
+        ret = RNP_ERROR_NO_SUITABLE_KEY;
+        goto finish;
+    }
+
+    /* Validate signature itself */
+    if (sinfo->signer->valid) {
+        sinfo->valid =
+          !signature_validate(sinfo->sig, pgp_get_key_material(sinfo->signer), hash, rng);
+    } else {
+        sinfo->valid = false;
+        RNP_LOG("invalid or untrusted key");
+    }
+
+    /* Check signature's expiration time */
+    now = time(NULL);
+    create = signature_get_creation(sinfo->sig);
+    expiry = signature_get_expiration(sinfo->sig);
+    if (create > 0) {
+        if (create > now) {
+            /* signature created later then now */
+            sinfo->expired = true;
+        }
+        if ((expiry > 0) && (create + expiry <= now)) {
+            /* signature expired */
+            sinfo->expired = true;
+        }
+    }
+
+    /* Check signer's fingerprint */
+    if (signature_get_keyfp(sinfo->sig, &fp) &&
+        !fingerprint_equal(&fp, &sinfo->signer->fingerprint)) {
+        RNP_LOG("issuer fingerprint doesn't match signer's one");
+        sinfo->valid = false;
+    }
+
+    if (sinfo->expired) {
+        ret = RNP_ERROR_SIGNATURE_EXPIRED;
+    } else {
+        ret = sinfo->valid ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
+    }
+finish:
+    pgp_hash_finish(hash, NULL);
+    return ret;
+}
+
+rnp_result_t
+signature_check_certification(pgp_signature_info_t *  sinfo,
+                              const pgp_key_pkt_t *   key,
+                              const pgp_userid_pkt_t *uid,
+                              rng_t *                 rng)
+{
+    pgp_hash_t hash = {};
+
+    if (!signature_hash_certification(sinfo->sig, key, uid, &hash)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    return signature_check(sinfo, &hash, rng);
+}
+
+rnp_result_t
+signature_check_binding(pgp_signature_info_t *sinfo,
+                        const pgp_key_pkt_t * key,
+                        const pgp_key_pkt_t * subkey,
+                        rng_t *               rng)
+{
+    pgp_hash_t   hash = {};
+    pgp_hash_t   hashcp = {};
+    rnp_result_t res = RNP_ERROR_SIGNATURE_INVALID;
+
+    if (!signature_hash_binding(sinfo->sig, key, subkey, &hash)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    if (!pgp_hash_copy(&hashcp, &hash)) {
+        RNP_LOG("hash copy failed");
+        return RNP_ERROR_BAD_STATE;
+    }
+
+    res = signature_check(sinfo, &hash, rng);
+
+    /* check primary key binding signature if any */
+    if (!res && (signature_get_key_flags(sinfo->sig) & PGP_KF_SIGN)) {
+        res = RNP_ERROR_SIGNATURE_INVALID;
+        sinfo->valid = false;
+        pgp_sig_subpkt_t *subpkt =
+          signature_get_subpkt(sinfo->sig, PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE);
+        if (!subpkt) {
+            RNP_LOG("error! no primary key binding signature");
+            goto finish;
+        }
+        if (!subpkt->parsed) {
+            RNP_LOG("invalid embedded signature subpacket");
+            goto finish;
+        }
+        if (subpkt->fields.sig.type != PGP_SIG_PRIMARY) {
+            RNP_LOG("invalid primary key binding signature");
+            goto finish;
+        }
+        if (subpkt->fields.sig.version < PGP_V4) {
+            RNP_LOG("invalid primary key binding signature version");
+            goto finish;
+        }
+        res = signature_validate(&subpkt->fields.sig, &subkey->material, &hashcp, rng);
+        sinfo->valid = !res;
+    }
+finish:
+    pgp_hash_finish(&hashcp, NULL);
+    return res;
+}
+
+rnp_result_t
+signature_check_direct(pgp_signature_info_t *sinfo, const pgp_key_pkt_t *key, rng_t *rng)
+{
+    pgp_hash_t hash = {};
+
+    if (!signature_hash_direct(sinfo->sig, key, &hash)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    return signature_check(sinfo, &hash, rng);
 }
 
 rnp_result_t
