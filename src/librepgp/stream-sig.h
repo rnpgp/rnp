@@ -369,6 +369,31 @@ rnp_result_t signature_validate_direct(const pgp_signature_t *   sig,
                                        rng_t *                   rng);
 
 /**
+ * @brief Check signature, including the expiration time, key validity and so on.
+ *
+ * @param sinfo populated signature info structure. Method will set flags valid, no_signer,
+ *              expired.
+ * @param hash populated hash
+ * @param rng random number generator
+ * @return rnp_result_t RNP_SUCCESS if all checks were passed, or error code otherwise.
+ */
+rnp_result_t signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash, rng_t *rng);
+
+rnp_result_t signature_check_certification(pgp_signature_info_t *  sinfo,
+                                           const pgp_key_pkt_t *   key,
+                                           const pgp_userid_pkt_t *uid,
+                                           rng_t *                 rng);
+
+rnp_result_t signature_check_binding(pgp_signature_info_t *sinfo,
+                                     const pgp_key_pkt_t * key,
+                                     const pgp_key_pkt_t * subkey,
+                                     rng_t *               rng);
+
+rnp_result_t signature_check_direct(pgp_signature_info_t *sinfo,
+                                    const pgp_key_pkt_t * key,
+                                    rng_t *               rng);
+
+/**
  * @brief Calculate signature with pre-populated hash
  * @param sig signature to calculate
  * @param seckey signing secret key material
