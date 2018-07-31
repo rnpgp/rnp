@@ -99,6 +99,8 @@ void test_load_g10(void **state);
 
 void test_key_unlock_pgp(void **state);
 
+void test_key_validate(void **state);
+
 void test_key_protect_load_pgp(void **state);
 
 void test_key_add_userid(void **state);
