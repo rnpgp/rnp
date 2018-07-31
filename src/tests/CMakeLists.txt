@@ -40,6 +40,7 @@ add_executable(rnp_tests
   key-protect.cpp
   key-store-search.cpp
   key-unlock.cpp
+  key-validate.cpp
   load-g10.cpp
   load-pgp.cpp
   pgp-parse.cpp
