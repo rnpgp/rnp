@@ -1204,7 +1204,7 @@ signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash, rng_t *rng)
         sinfo->valid = false;
     }
 
-    if (sinfo->expired) {
+    if (sinfo->expired && sinfo->valid) {
         ret = RNP_ERROR_SIGNATURE_EXPIRED;
     } else {
         ret = sinfo->valid ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
