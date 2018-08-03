@@ -113,7 +113,7 @@ dsa_validate_key(rng_t *rng, const pgp_dsa_key_t *key, bool secret)
         goto done;
     }
 
-    if (botan_pubkey_check_key(bpkey, rng_handle(rng), 1)) {
+    if (botan_pubkey_check_key(bpkey, rng_handle(rng), 0)) {
         goto done;
     }
 
@@ -134,7 +134,7 @@ dsa_validate_key(rng_t *rng, const pgp_dsa_key_t *key, bool secret)
         goto done;
     }
 
-    if (botan_privkey_check_key(bskey, rng_handle(rng), 1)) {
+    if (botan_privkey_check_key(bskey, rng_handle(rng), 0)) {
         goto done;
     }
 
