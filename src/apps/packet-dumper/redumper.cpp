@@ -17,6 +17,7 @@ print_usage(char *program_name)
             "Program dumps PGP packets. \n\nUsage:\n"
             "\t%s [-d|-h] [input.pgp]\n"
             "\t  -d : indicates whether to print packet content. Data is represented as hex\n"
+            "\t  -m : dump mpi values\n"
             "\t  -h : prints help and exists\n",
             basename(program_name));
 }
