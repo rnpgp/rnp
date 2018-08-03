@@ -149,7 +149,7 @@ elgamal_validate_key(rng_t *rng, const pgp_eg_key_t *key, bool secret)
 
     // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
     if (!elgamal_load_public_key(&bpkey, key) ||
-        botan_pubkey_check_key(bpkey, rng_handle(rng), 1)) {
+        botan_pubkey_check_key(bpkey, rng_handle(rng), 0)) {
         goto done;
     }
 
@@ -159,7 +159,7 @@ elgamal_validate_key(rng_t *rng, const pgp_eg_key_t *key, bool secret)
     }
 
     if (elgamal_load_secret_key(&bskey, key) ||
-        botan_privkey_check_key(bskey, rng_handle(rng), 1)) {
+        botan_privkey_check_key(bskey, rng_handle(rng), 0)) {
         goto done;
     }
     ret = RNP_SUCCESS;
