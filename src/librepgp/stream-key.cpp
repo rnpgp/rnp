@@ -1341,7 +1341,8 @@ validate_pgp_key_signature_list(list sigs, validate_info_t *info)
     rnp_result_t res = RNP_SUCCESS;
 
     for (list_item *s = list_front(sigs); s; s = list_next(s)) {
-        if ((res = validate_pgp_key_signature((pgp_signature_t *) s, info))) {
+        res = validate_pgp_key_signature((pgp_signature_t *) s, info);
+        if (res) {
             return res;
         }
     }
@@ -1464,8 +1465,20 @@ validate_pgp_key(const pgp_key_t *key, const rnp_key_store_t *keyring)
         return RNP_ERROR_RNG;
     }
 
+    /* check signatures first */
     res = validate_pgp_key_signatures(&sinfo, key, keyring);
+    if (!res) {
+        bool valid = false;
+        if (pgp_is_key_secret(key)) {
+            // secret key may be stored without signatures
+            valid = sinfo.validc == list_length(sinfo.sigs);
+        } else {
+            valid = check_signatures_info(&sinfo);
+        }
+        res = valid ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
+    }
     free_signatures_info(&sinfo);
+    /* if signatures are ok then check key material */
     if (!res) {
         res = validate_pgp_key_material(pgp_get_key_material(key), &rng);
     }
