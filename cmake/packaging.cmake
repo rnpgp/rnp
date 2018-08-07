@@ -49,6 +49,8 @@ set(CPACK_RPM_PACKAGE_AUTOREQPROV ON)
 file(WRITE "${PROJECT_BINARY_DIR}/rpm-ldconfig" "/sbin/ldconfig")
 set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${PROJECT_BINARY_DIR}/rpm-ldconfig")
 set(CPACK_RPM_POST_UNINSTALL_SCRIPT_FILE "${PROJECT_BINARY_DIR}/rpm-ldconfig")
+# obsolete the original package name, now preferring to append the major ver
+set(CPACK_RPM_PACKAGE_OBSOLETES "rnp")
 
 # bsd-specific
 set(CPACK_FREEBSD_PACKAGE_MAINTAINER "${PACKAGING_EMAIL}")
