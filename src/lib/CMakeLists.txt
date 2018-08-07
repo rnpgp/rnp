@@ -135,6 +135,7 @@ set_target_properties(librnp
     VERSION "${RNP_VERSION}"
     SOVERSION "${RNP_VERSION_MAJOR}"
     PREFIX ""
+    OUTPUT_NAME "librnp-${RNP_VERSION_MAJOR}"
 )
 
 target_include_directories(librnp
