@@ -1,5 +1,16 @@
 ## Changelog
 
+### 0.9.2 [08-13-2018]
+#### General
+
+* Support for generation and verification of embedded signature subpacket for signing subkeys
+* Verification of public key signatures and key material
+* Improved performance of assymetric operations (key material is now validated on load)
+
+#### FFI
+
+* Fixed rnp_op_add_signature for G10 keys
+
 ### 0.9.1 [07-12-2018]
 #### General
 
