@@ -577,6 +577,7 @@ process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys)
     int                     ptag;
     bool                    armored = false;
     pgp_source_t            armorsrc = {0};
+    pgp_source_t *          origsrc = src;
     bool                    has_secret = false;
     bool                    has_public = false;
     pgp_transferable_key_t *curkey = NULL;
@@ -585,6 +586,7 @@ process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys)
     memset(keys, 0, sizeof(*keys));
 
     /* check whether keys are armored */
+armoredpass:
     if (is_armored_source(src)) {
         if ((ret = init_armored_src(&armorsrc, src))) {
             RNP_LOG("failed to parse armored data");
@@ -617,6 +619,14 @@ process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys)
 
         has_secret |= (ptag == PGP_PTAG_CT_SECRET_KEY);
         has_public |= (ptag == PGP_PTAG_CT_PUBLIC_KEY);
+    }
+
+    /* file may have multiple armored keys */
+    if (armored && !src_eof(origsrc) && is_armored_source(origsrc)) {
+        src_close(&armorsrc);
+        armored = false;
+        src = origsrc;
+        goto armoredpass;
     }
 
     if (has_secret && has_public) {
