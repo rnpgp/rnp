@@ -33,12 +33,6 @@
 #include "crypto/hash.h"
 
 static bool
-mpi_equal(const pgp_mpi_t *val1, const pgp_mpi_t *val2)
-{
-    return (val1->len == val2->len) && !memcmp(val1->mpi, val2->mpi, val1->len);
-}
-
-static bool
 mpi_empty(const pgp_mpi_t *val)
 {
     return val->len == 0;

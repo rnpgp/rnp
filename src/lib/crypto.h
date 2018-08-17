@@ -134,6 +134,16 @@ bool pgp_generate_keypair(rng_t *                    rng,
 
 bool read_pem_seckey(const char *, pgp_key_t *, const char *, int);
 
+/**
+ * @brief Check two key material for equality. Only public part is checked, so this can be
+ *        called on public/secret key material
+ *
+ * @param key1 first key material
+ * @param key2 second key material
+ * @return true if both key materials are equal or false otherwise
+ */
+bool key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key2);
+
 rnp_result_t validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng);
 
 #endif /* CRYPTO_H_ */
