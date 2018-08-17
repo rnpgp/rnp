@@ -124,6 +124,22 @@ mpi2hex(const pgp_mpi_t *val)
     return out;
 }
 
+bool
+mpi_equal(const pgp_mpi_t *val1, const pgp_mpi_t *val2)
+{
+    size_t idx1 = 0;
+    size_t idx2 = 0;
+
+    for (idx1 = 0; (idx1 < val1->len) && !val1->mpi[idx1]; idx1++)
+        ;
+
+    for (idx2 = 0; (idx2 < val2->len) && !val2->mpi[idx2]; idx2++)
+        ;
+
+    return ((val1->len - idx1) == (val2->len - idx2) &&
+            !memcmp(val1->mpi + idx1, val2->mpi + idx2, val1->len - idx1));
+}
+
 /* hashes 32-bit length + mpi body (paddded with 0 if high order byte is >= 0x80) */
 bool
 mpi_hash(const pgp_mpi_t *val, pgp_hash_t *hash)
