@@ -33,11 +33,13 @@ rnp_result_t ecdsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret
 
 rnp_result_t ecdsa_sign(rng_t *             rng,
                         pgp_ec_signature_t *sig,
+                        pgp_hash_alg_t      hash_alg,
                         const uint8_t *     hash,
                         size_t              hash_len,
                         const pgp_ec_key_t *key);
 
 rnp_result_t ecdsa_verify(const pgp_ec_signature_t *sig,
+                          pgp_hash_alg_t            hash_alg,
                           const uint8_t *           hash,
                           size_t                    hash_len,
                           const pgp_ec_key_t *      key);
