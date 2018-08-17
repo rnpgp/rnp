@@ -1027,6 +1027,8 @@ signature_validate(const pgp_signature_t *   sig,
     size_t       len;
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
+    pgp_hash_alg_t hash_alg = pgp_hash_alg_type(hash);
+
     /* Finalize hash */
     if (!signature_hash_finish(sig, hash, hval, &len)) {
         return RNP_ERROR_BAD_FORMAT;
@@ -1058,7 +1060,7 @@ signature_validate(const pgp_signature_t *   sig,
         ret = rsa_verify_pkcs1(rng, &sig->material.rsa, sig->halg, hval, len, &key->rsa);
         break;
     case PGP_PKA_ECDSA:
-        ret = ecdsa_verify(&sig->material.ecc, hval, len, &key->ec);
+        ret = ecdsa_verify(&sig->material.ecc, hash_alg, hval, len, &key->ec);
         break;
     default:
         RNP_LOG("Unknown algorithm");
@@ -1348,6 +1350,7 @@ signature_calculate(pgp_signature_t *         sig,
     uint8_t      hval[PGP_MAX_HASH_SIZE];
     size_t       hlen;
     rnp_result_t ret = RNP_ERROR_GENERIC;
+    pgp_hash_alg_t hash_alg = pgp_hash_alg_type(hash);
 
     /* Finalize hash first, since function is required to do this */
     if (!signature_hash_finish(sig, hash, hval, &hlen)) {
@@ -1425,7 +1428,7 @@ signature_calculate(pgp_signature_t *         sig,
             ret = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
-        ret = ecdsa_sign(rng, &sig->material.ecc, hval, hlen, &seckey->ec);
+        ret = ecdsa_sign(rng, &sig->material.ecc, hash_alg, hval, hlen, &seckey->ec);
         if (ret) {
             RNP_LOG("ECDSA signing failed");
             break;
