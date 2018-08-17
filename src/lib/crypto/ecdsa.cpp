@@ -24,10 +24,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <string.h>
-#include <botan/ffi.h>
 #include "ecdsa.h"
 #include "utils.h"
+#include <botan/ffi.h>
+#include <string.h>
 
 static bool
 ecdsa_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *keydata)
@@ -110,9 +110,41 @@ done:
     return ret;
 }
 
+static const char *
+ecdsa_padding_str_for(pgp_hash_alg_t hash_alg)
+{
+    switch (hash_alg) {
+    case PGP_HASH_MD5:
+        return "Raw(MD5)";
+    case PGP_HASH_SHA1:
+        return "Raw(SHA-1)";
+    case PGP_HASH_RIPEMD:
+        return "Raw(RIPEMD-160)";
+
+    case PGP_HASH_SHA256:
+        return "Raw(SHA-256)";
+    case PGP_HASH_SHA384:
+        return "Raw(SHA-384)";
+    case PGP_HASH_SHA512:
+        return "Raw(SHA-512)";
+    case PGP_HASH_SHA224:
+        return "Raw(SHA-224)";
+    case PGP_HASH_SHA3_256:
+        return "Raw(SHA3(256))";
+    case PGP_HASH_SHA3_512:
+        return "Raw(SHA3(512))";
+
+    case PGP_HASH_SM3:
+        return "Raw(SM3)";
+    default:
+        return "Raw";
+    }
+}
+
 rnp_result_t
 ecdsa_sign(rng_t *             rng,
            pgp_ec_signature_t *sig,
+           pgp_hash_alg_t      hash_alg,
            const uint8_t *     hash,
            size_t              hash_len,
            const pgp_ec_key_t *key)
@@ -122,12 +154,12 @@ ecdsa_sign(rng_t *             rng,
     rnp_result_t           ret = RNP_ERROR_GENERIC;
     uint8_t                out_buf[2 * MAX_CURVE_BYTELEN] = {0};
     const ec_curve_desc_t *curve = get_curve_desc(key->curve);
+    const char *           padding_str = ecdsa_padding_str_for(hash_alg);
 
     if (!curve) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
-    const size_t leftmost_bytes = hash_len > curve_order ? curve_order : hash_len;
     size_t       sig_len = 2 * curve_order;
 
     if (!ecdsa_load_secret_key(&b_key, key)) {
@@ -135,11 +167,11 @@ ecdsa_sign(rng_t *             rng,
         goto end;
     }
 
-    if (botan_pk_op_sign_create(&signer, b_key, "Raw", 0)) {
+    if (botan_pk_op_sign_create(&signer, b_key, padding_str, 0)) {
         goto end;
     }
 
-    if (botan_pk_op_sign_update(signer, hash, leftmost_bytes)) {
+    if (botan_pk_op_sign_update(signer, hash, hash_len)) {
         goto end;
     }
 
@@ -161,6 +193,7 @@ end:
 
 rnp_result_t
 ecdsa_verify(const pgp_ec_signature_t *sig,
+             pgp_hash_alg_t            hash_alg,
              const uint8_t *           hash,
              size_t                    hash_len,
              const pgp_ec_key_t *      key)
@@ -170,6 +203,7 @@ ecdsa_verify(const pgp_ec_signature_t *sig,
     rnp_result_t         ret = RNP_ERROR_SIGNATURE_INVALID;
     uint8_t              sign_buf[2 * MAX_CURVE_BYTELEN] = {0};
     size_t               r_blen, s_blen;
+    const char *         padding_str = ecdsa_padding_str_for(hash_alg);
 
     const ec_curve_desc_t *curve = get_curve_desc(key->curve);
     if (!curve) {
@@ -177,17 +211,16 @@ ecdsa_verify(const pgp_ec_signature_t *sig,
         return RNP_ERROR_BAD_PARAMETERS;
     }
     const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
-    const size_t leftmost_bytes = hash_len > curve_order ? curve_order : hash_len;
 
     if (!ecdsa_load_public_key(&pub, key)) {
         goto end;
     }
 
-    if (botan_pk_op_verify_create(&verifier, pub, "Raw", 0)) {
+    if (botan_pk_op_verify_create(&verifier, pub, padding_str, 0)) {
         goto end;
     }
 
-    if (botan_pk_op_verify_update(verifier, hash, leftmost_bytes)) {
+    if (botan_pk_op_verify_update(verifier, hash, hash_len)) {
         goto end;
     }
 

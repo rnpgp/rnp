@@ -297,6 +297,7 @@ ecdsa_signverify_success(void **state)
 {
     rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     uint8_t           message[64];
+    const pgp_hash_alg_t hash_alg = PGP_HASH_SHA512;
 
     struct curve {
         pgp_curve_t id;
@@ -311,7 +312,7 @@ ecdsa_signverify_success(void **state)
         pgp_ec_signature_t         sig = {{{0}}};
         rnp_keygen_crypto_params_t key_desc;
         key_desc.key_alg = PGP_PKA_ECDSA;
-        key_desc.hash_alg = PGP_HASH_SHA512;
+        key_desc.hash_alg = hash_alg;
         key_desc.ecc.curve = curves[i].id;
         key_desc.rng = &global_rng;
 
@@ -324,16 +325,16 @@ ecdsa_signverify_success(void **state)
         const pgp_ec_key_t *key1 = &seckey1.material.ec;
         const pgp_ec_key_t *key2 = &seckey2.material.ec;
 
-        assert_rnp_success(ecdsa_sign(&global_rng, &sig, message, curves[i].size, key1));
+        assert_rnp_success(ecdsa_sign(&global_rng, &sig, hash_alg, message, sizeof(message), key1));
 
-        assert_rnp_success(ecdsa_verify(&sig, message, curves[i].size, key1));
+        assert_rnp_success(ecdsa_verify(&sig, hash_alg, message, sizeof(message), key1));
 
         // Fails because of different key used
-        assert_rnp_failure(ecdsa_verify(&sig, message, curves[i].size, key2));
+        assert_rnp_failure(ecdsa_verify(&sig, hash_alg, message, sizeof(message), key2));
 
         // Fails because message won't verify
         message[0] = ~message[0];
-        assert_rnp_failure(ecdsa_verify(&sig, message, sizeof(message), key1));
+        assert_rnp_failure(ecdsa_verify(&sig, hash_alg, message, sizeof(message), key1));
 
         free_key_pkt(&seckey1);
         free_key_pkt(&seckey2);
