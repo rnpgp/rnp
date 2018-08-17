@@ -73,6 +73,8 @@ size_t mpi_bytes(const pgp_mpi_t *val);
 
 bool mpi_hash(const pgp_mpi_t *val, pgp_hash_t *hash);
 
+bool mpi_equal(const pgp_mpi_t *val1, const pgp_mpi_t *val2);
+
 void mpi_forget(pgp_mpi_t *val);
 
 #endif // MPI_H_
