@@ -15,7 +15,7 @@ of NetBSD.
 
 [![Travis CI Build Status](https://travis-ci.org/riboseinc/rnp.svg?branch=master)](https://travis-ci.org/riboseinc/rnp)
 [![Coverity Scan Build Status](https://img.shields.io/coverity/scan/12616.svg)](https://scan.coverity.com/projects/riboseinc-rnp)
-
+[![Code coverage](https://codecov.io/gh/riboseinc/rnp/branch/master/graph/badge.svg)](https://codecov.io/gh/riboseinc/rnp)
 
 # Supported Platforms
 
