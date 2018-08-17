@@ -33,8 +33,7 @@
 #include <rnp/rnp_def.h>
 #include "defs.h"
 #include "types.h"
-#include "crypto/symmetric.h"
-#include "crypto/s2k.h"
+#include "crypto.h"
 #include "stream-packet.h"
 #include "stream-key.h"
 #include "utils.h"
@@ -1630,6 +1629,39 @@ copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src)
     return true;
 }
 
+bool
+signature_pkt_equal(const pgp_signature_t *sig1, const pgp_signature_t *sig2)
+{
+    if ((sig1->hashed_len != sig2->hashed_len) ||
+        memcmp(sig1->hashed_data, sig2->hashed_data, sig1->hashed_len)) {
+        return false;
+    }
+
+    if (sig1->lbits != sig2->lbits) {
+        return false;
+    }
+
+    switch (sig1->palg) {
+    case PGP_PKA_RSA:
+        return mpi_equal(&sig1->material.rsa.s, &sig2->material.rsa.s);
+    case PGP_PKA_DSA:
+        return mpi_equal(&sig1->material.dsa.r, &sig2->material.dsa.r) &&
+               mpi_equal(&sig1->material.dsa.s, &sig2->material.dsa.s);
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        return mpi_equal(&sig1->material.eg.r, &sig2->material.eg.r) &&
+               mpi_equal(&sig1->material.eg.s, &sig2->material.eg.s);
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
+        return mpi_equal(&sig1->material.ecc.r, &sig2->material.ecc.r) &&
+               mpi_equal(&sig1->material.ecc.s, &sig2->material.ecc.s);
+    default:
+        RNP_LOG("Unknown pk algorithm : %d", (int) sig1->palg);
+        return false;
+    }
+}
+
 void
 free_signature_subpkt(pgp_sig_subpkt_t *subpkt)
 {
@@ -2104,6 +2136,31 @@ copy_key_pkt(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src, bool pubonly)
     return true;
 }
 
+bool
+key_pkt_equal(const pgp_key_pkt_t *key1, const pgp_key_pkt_t *key2, bool pubonly)
+{
+    /* check tag. We allow public/secret key comparision here */
+    if (pubonly) {
+        if (is_subkey_pkt(key1->tag) && !is_subkey_pkt(key2->tag)) {
+            return false;
+        }
+        if (is_key_pkt(key1->tag) && !is_key_pkt(key2->tag)) {
+            return false;
+        }
+    } else if (key1->tag != key2->tag) {
+        return false;
+    }
+
+    /* check basic tags */
+    if ((key1->version != key2->version) || (key1->alg != key2->alg) ||
+        (key1->creation_time != key2->creation_time)) {
+        return false;
+    }
+
+    /* check key material */
+    return key_material_equal(&key1->material, &key2->material);
+}
+
 void
 free_key_pkt(pgp_key_pkt_t *key)
 {
@@ -2194,6 +2251,16 @@ copy_userid_pkt(pgp_userid_pkt_t *dst, const pgp_userid_pkt_t *src)
     }
 
     return true;
+}
+
+bool
+userid_pkt_equal(const pgp_userid_pkt_t *uid1, const pgp_userid_pkt_t *uid2)
+{
+    if ((uid1->tag != uid2->tag) || (uid1->uid_len != uid2->uid_len)) {
+        return false;
+    }
+
+    return !memcmp(uid1->uid, uid2->uid, uid1->uid_len);
 }
 
 void

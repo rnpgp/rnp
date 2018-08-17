@@ -162,6 +162,34 @@ end:
     return ok;
 }
 
+bool
+key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key2)
+{
+    if (key1->alg != key2->alg) {
+        return false;
+    }
+
+    switch (key1->alg) {
+    case PGP_PKA_RSA:
+        return mpi_equal(&key1->rsa.n, &key2->rsa.n) && mpi_equal(&key1->rsa.e, &key2->rsa.e);
+    case PGP_PKA_DSA:
+        return mpi_equal(&key1->dsa.p, &key2->dsa.p) &&
+               mpi_equal(&key1->dsa.q, &key2->dsa.q) &&
+               mpi_equal(&key1->dsa.g, &key2->dsa.g) && mpi_equal(&key1->dsa.y, &key2->dsa.y);
+    case PGP_PKA_ELGAMAL:
+        return mpi_equal(&key1->eg.p, &key2->eg.p) && mpi_equal(&key1->eg.g, &key2->eg.g) &&
+               mpi_equal(&key1->eg.y, &key2->eg.y);
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+        return (key1->ec.curve == key2->ec.curve) && mpi_equal(&key1->ec.p, &key2->ec.p);
+    default:
+        RNP_LOG("unknown public key algorithm: %d", (int) key1->alg);
+        return false;
+    }
+}
+
 rnp_result_t
 validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng)
 {
