@@ -83,7 +83,7 @@ copy_signatures(list *dst, const list *src)
     return true;
 }
 
-bool
+static bool
 transferable_userid_copy(pgp_transferable_userid_t *dst, const pgp_transferable_userid_t *src)
 {
     if (!copy_userid_pkt(&dst->uid, &src->uid)) {

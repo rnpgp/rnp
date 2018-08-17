@@ -128,7 +128,7 @@ bool pgp_key_can_certify(const pgp_key_t *key);
 bool pgp_key_can_encrypt(const pgp_key_t *key);
 
 bool pgp_is_primary_key_tag(int tag);
-bool pgp_is_subkey_tag(int tag);
+bool pgp_is_subkey_tag(pgp_content_enum tag);
 bool pgp_is_secret_key_tag(int tag);
 bool pgp_is_public_key_tag(int tag);
 
