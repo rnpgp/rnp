@@ -33,6 +33,8 @@
 #include "support.h"
 #include "utils.h"
 #include <json.h>
+#include <vector>
+#include <string>
 
 void
 test_ffi_homedir(void **state)
@@ -2798,5 +2800,276 @@ test_ffi_version(void **state)
     assert_true(rnp_version_for(1, 0, 1) > rnp_version_for(1, 0, 0));
     assert_true(rnp_version_for(1, 1, 0) > rnp_version_for(1, 0, 1023));
     assert_true(rnp_version_for(2, 0, 0) > rnp_version_for(1, 1023, 1023));
+}
+
+static void
+check_loaded_keys(const char *                    format,
+                  bool                            armored,
+                  uint8_t *                       buf,
+                  size_t                          buf_len,
+                  const char *                    id_type,
+                  const std::vector<std::string> &expected_ids,
+                  bool                            secret)
+{
+    rnp_ffi_t                 ffi = NULL;
+    rnp_input_t               input = NULL;
+    rnp_identifier_iterator_t it = NULL;
+    const char *              identifier = NULL;
+
+    if (armored) {
+        assert_memory_equal("-----", buf, 5);
+    } else {
+        assert_memory_not_equal("-----", buf, 5);
+    }
+
+    // setup FFI
+    assert_rnp_success(rnp_ffi_create(&ffi, format, format));
+
+    // load our keyrings
+    assert_rnp_success(rnp_input_from_memory(&input, buf, buf_len, true));
+    assert_rnp_success(rnp_load_keys(
+      ffi, format, input, secret ? RNP_LOAD_SAVE_SECRET_KEYS : RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+
+    std::vector<std::string> ids;
+    assert_rnp_success(rnp_identifier_iterator_create(ffi, &it, id_type));
+    do {
+        identifier = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_next(it, &identifier));
+        if (identifier) {
+            rnp_key_handle_t key = NULL;
+            bool             expected_secret = secret;
+            bool             expected_public = !secret;
+            bool             result;
+            assert_rnp_success(rnp_locate_key(ffi, id_type, identifier, &key));
+            assert_non_null(key);
+            assert_rnp_success(rnp_key_have_secret(key, &result));
+            assert_int_equal(result, expected_secret);
+            assert_rnp_success(rnp_key_have_public(key, &result));
+            assert_int_equal(result, expected_public);
+            assert_rnp_success(rnp_key_handle_destroy(key));
+            ids.push_back(identifier);
+        }
+    } while (identifier);
+    assert_true(ids == expected_ids);
+    rnp_identifier_iterator_destroy(it);
+    rnp_ffi_destroy(ffi);
+}
+
+void
+test_ffi_key_export(void **state)
+{
+    rnp_ffi_t        ffi = NULL;
+    rnp_input_t      input = NULL;
+    rnp_output_t     output = NULL;
+    rnp_key_handle_t key = NULL;
+    uint8_t *        buf = NULL;
+    size_t           buf_len = 0;
+
+    // setup FFI
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    // load our keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
+    assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+
+    // primary pub only
+    {
+        // locate key
+        key = NULL;
+        assert_rnp_success(rnp_locate_key(ffi, "keyid", "2FCADF05FFA501BB", &key));
+        assert_non_null(key);
+
+        // create output
+        output = NULL;
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        assert_non_null(output);
+
+        // export
+        assert_rnp_success(rnp_key_export(key, output, RNP_KEY_EXPORT_PUBLIC));
+
+        // get output
+        buf = NULL;
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buf_len, false));
+        assert_non_null(buf);
+
+        // check results
+        check_loaded_keys("GPG", false, buf, buf_len, "keyid", {"2FCADF05FFA501BB"}, false);
+
+        // cleanup
+        rnp_output_destroy(output);
+        rnp_key_handle_destroy(key);
+    }
+
+    // primary sec only (armored)
+    {
+        // locate key
+        key = NULL;
+        assert_rnp_success(rnp_locate_key(ffi, "keyid", "2FCADF05FFA501BB", &key));
+        assert_non_null(key);
+
+        // create output
+        output = NULL;
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        assert_non_null(output);
+
+        // export
+        assert_rnp_success(
+          rnp_key_export(key, output, RNP_KEY_EXPORT_SECRET | RNP_KEY_EXPORT_ARMORED));
+
+        // get output
+        buf = NULL;
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buf_len, false));
+        assert_non_null(buf);
+
+        // check results
+        check_loaded_keys("GPG", true, buf, buf_len, "keyid", {"2FCADF05FFA501BB"}, true);
+
+        // cleanup
+        rnp_output_destroy(output);
+        rnp_key_handle_destroy(key);
+    }
+
+    // primary pub and subs
+    {
+        // locate key
+        key = NULL;
+        assert_rnp_success(rnp_locate_key(ffi, "keyid", "2FCADF05FFA501BB", &key));
+        assert_non_null(key);
+
+        // create output
+        output = NULL;
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        assert_non_null(output);
+
+        // export
+        assert_rnp_success(
+          rnp_key_export(key, output, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SUBKEYS));
+
+        // get output
+        buf = NULL;
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buf_len, false));
+        assert_non_null(buf);
+
+        // check results
+        check_loaded_keys("GPG",
+                          false,
+                          buf,
+                          buf_len,
+                          "keyid",
+                          {"2FCADF05FFA501BB", "54505A936A4A970E", "326EF111425D14A5"},
+                          false);
+
+        // cleanup
+        rnp_output_destroy(output);
+        rnp_key_handle_destroy(key);
+    }
+
+    // primary sec and subs (armored)
+    {
+        // locate key
+        key = NULL;
+        assert_rnp_success(rnp_locate_key(ffi, "keyid", "2FCADF05FFA501BB", &key));
+        assert_non_null(key);
+
+        // create output
+        output = NULL;
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        assert_non_null(output);
+
+        // export
+        assert_rnp_success(rnp_key_export(key,
+                                          output,
+                                          RNP_KEY_EXPORT_SECRET | RNP_KEY_EXPORT_SUBKEYS |
+                                            RNP_KEY_EXPORT_ARMORED));
+
+        // get output
+        buf = NULL;
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buf_len, false));
+        assert_non_null(buf);
+
+        // check results
+        check_loaded_keys("GPG",
+                          true,
+                          buf,
+                          buf_len,
+                          "keyid",
+                          {"2FCADF05FFA501BB", "54505A936A4A970E", "326EF111425D14A5"},
+                          true);
+
+        // cleanup
+        rnp_output_destroy(output);
+        rnp_key_handle_destroy(key);
+    }
+
+    // sub pub
+    {
+        // locate key
+        key = NULL;
+        assert_rnp_success(rnp_locate_key(ffi, "keyid", "54505A936A4A970E", &key));
+        assert_non_null(key);
+
+        // create output
+        output = NULL;
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        assert_non_null(output);
+
+        // export
+        assert_rnp_success(
+          rnp_key_export(key, output, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_ARMORED));
+
+        // get output
+        buf = NULL;
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buf_len, false));
+        assert_non_null(buf);
+
+        // check results
+        check_loaded_keys(
+          "GPG", true, buf, buf_len, "keyid", {"2FCADF05FFA501BB", "54505A936A4A970E"}, false);
+
+        // cleanup
+        rnp_output_destroy(output);
+        rnp_key_handle_destroy(key);
+    }
+
+    // sub sec
+    {
+        // locate key
+        key = NULL;
+        assert_rnp_success(rnp_locate_key(ffi, "keyid", "54505A936A4A970E", &key));
+        assert_non_null(key);
+
+        // create output
+        output = NULL;
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        assert_non_null(output);
+
+        // export
+        assert_rnp_success(
+          rnp_key_export(key, output, RNP_KEY_EXPORT_SECRET | RNP_KEY_EXPORT_ARMORED));
+
+        // get output
+        buf = NULL;
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buf_len, false));
+        assert_non_null(buf);
+
+        // check results
+        check_loaded_keys(
+          "GPG", true, buf, buf_len, "keyid", {"2FCADF05FFA501BB", "54505A936A4A970E"}, true);
+
+        // cleanup
+        rnp_output_destroy(output);
+        rnp_key_handle_destroy(key);
+    }
+
+    // cleanup
+    rnp_ffi_destroy(ffi);
 }
 

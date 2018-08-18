@@ -151,34 +151,19 @@ write_matching_packets(pgp_dest_t *           dst,
 */
 
 bool
-pgp_write_xfer_pubkey(pgp_dest_t *           dst,
-                      const pgp_key_t *      key,
-                      const rnp_key_store_t *keyring,
-                      bool                   armored)
+pgp_write_xfer_pubkey(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t *keyring)
 {
     static const pgp_content_enum perm_tags[] = {PGP_PTAG_CT_PUBLIC_KEY,
                                                  PGP_PTAG_CT_PUBLIC_SUBKEY,
                                                  PGP_PTAG_CT_USER_ID,
                                                  PGP_PTAG_CT_SIGNATURE};
 
-    pgp_dest_t armordst = {0};
-    bool       res = false;
+    bool res = false;
 
     if (!key->packetc || !key->packets) {
         return false;
     }
-
-    if (armored) {
-        if (init_armored_dst(&armordst, dst, PGP_ARMORED_PUBLIC_KEY)) {
-            return false;
-        }
-        dst = &armordst;
-    }
     res = write_matching_packets(dst, key, keyring, perm_tags, ARRAY_SIZE(perm_tags));
-
-    if (armored) {
-        dst_close(&armordst, !res);
-    }
     return res;
 }
 
@@ -196,34 +181,20 @@ pgp_write_xfer_pubkey(pgp_dest_t *           dst,
 */
 
 bool
-pgp_write_xfer_seckey(pgp_dest_t *           dst,
-                      const pgp_key_t *      key,
-                      const rnp_key_store_t *keyring,
-                      bool                   armored)
+pgp_write_xfer_seckey(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t *keyring)
 {
     static const pgp_content_enum perm_tags[] = {PGP_PTAG_CT_SECRET_KEY,
                                                  PGP_PTAG_CT_SECRET_SUBKEY,
                                                  PGP_PTAG_CT_USER_ID,
                                                  PGP_PTAG_CT_SIGNATURE};
 
-    pgp_dest_t armordst = {0};
-    bool       res = false;
+    bool res = false;
 
     if (!key->packetc || !key->packets) {
         return false;
     }
 
-    if (armored) {
-        if (init_armored_dst(&armordst, dst, PGP_ARMORED_SECRET_KEY)) {
-            return false;
-        }
-        dst = &armordst;
-    }
     res = write_matching_packets(dst, key, keyring, perm_tags, ARRAY_SIZE(perm_tags));
-
-    if (armored) {
-        dst_close(&armordst, !res);
-    }
     return res;
 }
 
