@@ -259,6 +259,25 @@ rnp_result_t rnp_export_public_key(rnp_key_handle_t key,
 
 /* TODO: export encrypted secret keys */
 
+/** Add ASCII Armor
+ *
+ *  @param input stream to read data from
+ *  @param output stream to write armored data to
+ *  @param type the type of armor to add ("message", "public key",
+ *         "secret key", "signature", "cleartext"). Use NULL to try
+ *         to guess the type.
+ *  @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_enarmor(rnp_input_t input, rnp_output_t output, const char *type);
+
+/** Remove ASCII Armor
+ *
+ *  @param input stream to read armored data from
+ *  @param output stream to write dearmored data to
+ *  @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_dearmor(rnp_input_t input, rnp_output_t output);
+
 rnp_result_t rnp_key_get_primary_uid(rnp_key_handle_t key, char **uid);
 rnp_result_t rnp_key_get_uid_count(rnp_key_handle_t key, size_t *count);
 rnp_result_t rnp_key_get_uid_at(rnp_key_handle_t key, size_t idx, char **uid);

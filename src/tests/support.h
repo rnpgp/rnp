@@ -24,6 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <string>
 #include <stdarg.h>
 #include <stddef.h>
 #include <setjmp.h>
@@ -158,3 +159,6 @@ bool string_copy_password_callback(const pgp_password_ctx_t *ctx,
                                    char *                    password,
                                    size_t                    password_size,
                                    void *                    userdata);
+
+bool starts_with(const std::string &data, const std::string &match);
+bool ends_with(const std::string &data, const std::string &match);
