@@ -161,6 +161,8 @@ void test_ffi_locate_key(void **state);
 
 void test_ffi_signatures_detached_memory_g10(void **state);
 
+void test_ffi_enarmor_dearmor(void **state);
+
 void test_dsa_roundtrip(void **state);
 
 void test_dsa_verify_negative(void **state);
