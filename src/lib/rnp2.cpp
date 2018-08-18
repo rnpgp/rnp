@@ -39,6 +39,7 @@
 #include <librepgp/stream-write.h>
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-packet.h>
+#include <librepgp/stream-key.h>
 #include "packet-create.h"
 #include <rnp/rnp2.h>
 #include <rnp/rnp_types.h>
@@ -171,8 +172,8 @@ typedef enum key_type_t {
         RNP_LOG_FD(fp, __VA_ARGS__); \
     } while (0)
 
+static pgp_key_t *get_key_require_public(rnp_key_handle_t handle);
 static pgp_key_t *get_key_prefer_public(rnp_key_handle_t handle);
-
 static pgp_key_t *get_key_require_secret(rnp_key_handle_t handle);
 
 static bool locator_to_str(const pgp_key_search_t *locator,
@@ -2407,33 +2408,105 @@ rnp_locate_key(rnp_ffi_t         ffi,
 }
 
 rnp_result_t
-rnp_export_public_key(rnp_key_handle_t key, uint32_t flags, char **buf, size_t *buf_len)
+rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
 {
-    pgp_dest_t dst = {0};
-    bool       armor = (flags & RNP_EXPORT_FLAG_ARMORED);
+    bool (*xfer_func)(pgp_dest_t *, const pgp_key_t *, const rnp_key_store_t *);
+    pgp_dest_t *     dst = NULL;
+    pgp_dest_t       armordst = {};
+    pgp_key_t *      key = NULL;
+    rnp_key_store_t *store = NULL;
+    bool             export_subs = false;
+    bool             armored = false;
 
-    if (!key || !buf || !buf_len) {
+    // checks
+    if (!handle || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
-
-    if (init_mem_dest(&dst, NULL, 0)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+    dst = &output->dst;
+    if ((flags & RNP_KEY_EXPORT_PUBLIC) && (flags & RNP_KEY_EXPORT_SECRET)) {
+        FFI_LOG(handle->ffi, "Invalid export flags, select only public or secret, not both.");
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    // TODO: populated pubkey if needed, support export sec as pub
-    if (!pgp_write_xfer_pubkey(&dst, key->pub, NULL, armor)) {
-        dst_close(&dst, true);
-        return RNP_ERROR_GENERIC;
+    // handle flags
+    if (flags & RNP_KEY_EXPORT_ARMORED) {
+        flags &= ~RNP_KEY_EXPORT_ARMORED;
+        armored = true;
     }
-
-    if (armor) {
-        dst_write(&dst, "\0", 1);
+    if (flags & RNP_KEY_EXPORT_PUBLIC) {
+        flags &= ~RNP_KEY_EXPORT_PUBLIC;
+        xfer_func = pgp_write_xfer_pubkey;
+        key = get_key_require_public(handle);
+        store = handle->ffi->pubring;
+    } else if (flags & RNP_KEY_EXPORT_SECRET) {
+        flags &= ~RNP_KEY_EXPORT_SECRET;
+        xfer_func = pgp_write_xfer_seckey;
+        key = get_key_require_secret(handle);
+        store = handle->ffi->secring;
+    } else {
+        FFI_LOG(handle->ffi, "must specify public or secret key for export");
+        return RNP_ERROR_BAD_PARAMETERS;
     }
+    if (flags & RNP_KEY_EXPORT_SUBKEYS) {
+        flags &= ~RNP_KEY_EXPORT_SUBKEYS;
+        export_subs = true;
+    }
+    // check for any unrecognized flags
+    if (flags) {
+        FFI_LOG(handle->ffi, "unrecognized flags remaining: 0x%X", flags);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    // make sure we found our key
+    if (!key) {
+        FFI_LOG(handle->ffi, "no suitable key found");
+        return RNP_ERROR_NO_SUITABLE_KEY;
+    }
+    // only PGP packets supported for now
+    if (key->format != GPG_KEY_STORE && key->format != KBX_KEY_STORE) {
+        return RNP_ERROR_NOT_IMPLEMENTED;
+    }
+    if (armored) {
+        rnp_result_t res;
+        if ((res = init_armored_dst(&armordst,
+                                    &output->dst,
+                                    pgp_is_key_secret(key) ? PGP_ARMORED_SECRET_KEY :
+                                                             PGP_ARMORED_PUBLIC_KEY))) {
+            return res;
+        }
+        dst = &armordst;
+    }
+    // write
+    if (pgp_key_is_primary_key(key)) {
+        // primary key, write just the primary or primary and all subkeys
+        if (!xfer_func(dst, key, export_subs ? store : NULL)) {
+            return RNP_ERROR_GENERIC;
+        }
+    } else {
+        // subkeys flag is only valid for primary
+        if (export_subs) {
+            FFI_LOG(handle->ffi, "export with subkeys requested but key is primary");
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        // subkey, write the primary + this subkey only
+        pgp_key_t *primary;
+        if (!(primary =
+                rnp_key_store_get_key_by_grip(&handle->ffi->io, store, key->primary_grip))) {
+            // shouldn't happen
+            return RNP_ERROR_GENERIC;
+        }
+        if (!xfer_func(dst, primary, NULL)) {
+            return RNP_ERROR_GENERIC;
+        }
+        if (!xfer_func(dst, key, NULL)) {
+            return RNP_ERROR_GENERIC;
+        }
+    }
+    if (armored) {
+        dst_finish(&armordst);
+        dst_close(&armordst, true);
 
-    *buf_len = dst.writeb;
-    *buf = (char *) mem_dest_own_memory(&dst);
-    dst_close(&dst, false);
-
+        dst_write(&output->dst, "\0", 1);
+    }
     return RNP_SUCCESS;
 }
 
@@ -3025,7 +3098,7 @@ rnp_buffer_destroy(void *ptr)
 }
 
 static pgp_key_t *
-get_key_prefer_public(rnp_key_handle_t handle)
+get_key_require_public(rnp_key_handle_t handle)
 {
     if (!handle->pub) {
         pgp_key_request_ctx_t request;
@@ -3044,7 +3117,14 @@ get_key_prefer_public(rnp_key_handle_t handle)
         memcpy(request.search.by.keyid, handle->sec->keyid, PGP_KEY_ID_SIZE);
         handle->pub = pgp_request_key(&handle->ffi->key_provider, &request);
     }
-    return handle->pub ? handle->pub : handle->sec;
+    return handle->pub;
+}
+
+static pgp_key_t *
+get_key_prefer_public(rnp_key_handle_t handle)
+{
+    pgp_key_t *pub = get_key_require_public(handle);
+    return pub ? pub : get_key_require_secret(handle);
 }
 
 static pgp_key_t *
