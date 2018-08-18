@@ -309,6 +309,12 @@ static const pgp_map_t identifier_type_map[] = {{PGP_KEY_SEARCH_USERID, "userid"
 
 static const pgp_map_t key_server_prefs_map[] = {{PGP_KEY_SERVER_NO_MODIFY, "no-modify"}};
 
+static const pgp_map_t armor_type_map[] = {{PGP_ARMORED_MESSAGE, "message"},
+                                           {PGP_ARMORED_PUBLIC_KEY, "public key"},
+                                           {PGP_ARMORED_SECRET_KEY, "secret key"},
+                                           {PGP_ARMORED_SIGNATURE, "signature"},
+                                           {PGP_ARMORED_CLEARTEXT, "cleartext"}};
+
 static bool
 curve_str_to_type(const char *str, pgp_curve_t *value)
 {
@@ -4359,3 +4365,36 @@ rnp_identifier_iterator_destroy(rnp_identifier_iterator_t it)
     }
     return RNP_SUCCESS;
 }
+
+rnp_result_t
+rnp_enarmor(rnp_input_t input, rnp_output_t output, const char *type)
+{
+    pgp_armored_msg_t msgtype = PGP_ARMORED_UNKNOWN;
+    if (!input || !output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (type) {
+        ARRAY_LOOKUP_BY_STRCASE(armor_type_map, string, type, type, msgtype);
+        if (!msgtype) {
+            RNP_LOG("Unsupported armor type: %s", type);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+    } else {
+        msgtype = rnp_armor_guess_type(&input->src);
+        if (!msgtype) {
+            RNP_LOG("Unrecognized data to armor (try specifying a type)");
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+    }
+    return rnp_armor_source(&input->src, &output->dst, msgtype);
+}
+
+rnp_result_t
+rnp_dearmor(rnp_input_t input, rnp_output_t output)
+{
+    if (!input || !output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return rnp_dearmor_source(&input->src, &output->dst);
+}
+

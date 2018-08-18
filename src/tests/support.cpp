@@ -533,3 +533,16 @@ string_copy_password_callback(const pgp_password_ctx_t *ctx,
     strncpy(password, str, password_size - 1);
     return true;
 }
+
+bool
+starts_with(const std::string &data, const std::string &match)
+{
+    return data.find(match) == 0;
+}
+
+bool
+ends_with(const std::string &data, const std::string &match)
+{
+    return data.size() >= match.size() &&
+           data.substr(data.size() - match.size(), match.size()) == match;
+}
