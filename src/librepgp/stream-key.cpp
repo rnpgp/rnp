@@ -84,6 +84,54 @@ copy_signatures(list *dst, const list *src)
 }
 
 static bool
+list_has_signature(const list *lst, const pgp_signature_t *sig)
+{
+    for (list_item *lsig = list_front(*lst); lsig; lsig = list_next(lsig)) {
+        if (signature_pkt_equal((pgp_signature_t *) lsig, sig)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief Add signatures from src to list dst, skipping the dupliocates.
+ *
+ * @param dst List which will contain all distinct signatures from src and dst
+ * @param src List to merge signatures from
+ * @return true on success or false otherwise. On failure dst may have some sigs appended.
+ */
+static rnp_result_t
+merge_signatures(list *dst, const list *src)
+{
+    for (list_item *sig = list_front(*src); sig; sig = list_next(sig)) {
+        if (list_has_signature(dst, (pgp_signature_t *) sig)) {
+            continue;
+        }
+        pgp_signature_t *newsig = (pgp_signature_t *) list_append(dst, NULL, sizeof(*newsig));
+        if (!newsig) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        if (!copy_signature_packet(newsig, (pgp_signature_t *) sig)) {
+            list_remove((list_item *) newsig);
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+transferable_userid_merge(pgp_transferable_userid_t *dst, const pgp_transferable_userid_t *src)
+{
+    if (!userid_pkt_equal(&dst->uid, &src->uid)) {
+        RNP_LOG("wrong userid merge attempt");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    return merge_signatures(&dst->signatures, &src->signatures);
+}
+
+static bool
 transferable_userid_copy(pgp_transferable_userid_t *dst, const pgp_transferable_userid_t *src)
 {
     if (!copy_userid_pkt(&dst->uid, &src->uid)) {
@@ -118,6 +166,22 @@ transferable_subkey_copy(pgp_transferable_subkey_t *      dst,
 error:
     transferable_subkey_destroy(dst);
     return false;
+}
+
+rnp_result_t
+transferable_subkey_merge(pgp_transferable_subkey_t *dst, const pgp_transferable_subkey_t *src)
+{
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    if (!key_pkt_equal(&dst->subkey, &src->subkey, true)) {
+        RNP_LOG("wrong subkey merge call");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if ((ret = merge_signatures(&dst->signatures, &src->signatures))) {
+        RNP_LOG("failed to merge signatures");
+    }
+    return ret;
 }
 
 bool
@@ -159,6 +223,92 @@ transferable_key_copy(pgp_transferable_key_t *      dst,
 error:
     transferable_key_destroy(dst);
     return false;
+}
+
+static pgp_transferable_userid_t *
+transferable_key_has_userid(const pgp_transferable_key_t *src, const pgp_userid_pkt_t *userid)
+{
+    for (list_item *uid = list_front(src->userids); uid; uid = list_next(uid)) {
+        pgp_transferable_userid_t *tuid = (pgp_transferable_userid_t *) uid;
+        if (userid_pkt_equal(&tuid->uid, userid)) {
+            return tuid;
+        }
+    }
+
+    return NULL;
+}
+
+static pgp_transferable_subkey_t *
+transferable_key_has_subkey(const pgp_transferable_key_t *src, const pgp_key_pkt_t *subkey)
+{
+    for (list_item *skey = list_front(src->subkeys); skey; skey = list_next(skey)) {
+        pgp_transferable_subkey_t *tskey = (pgp_transferable_subkey_t *) skey;
+        if (key_pkt_equal(&tskey->subkey, subkey, true)) {
+            return tskey;
+        }
+    }
+
+    return NULL;
+}
+
+rnp_result_t
+transferable_key_merge(pgp_transferable_key_t *dst, const pgp_transferable_key_t *src)
+{
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    if (!key_pkt_equal(&dst->key, &src->key, true)) {
+        RNP_LOG("wrong key merge call");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    /* direct-key signatures */
+    if ((ret = merge_signatures(&dst->signatures, &src->signatures))) {
+        RNP_LOG("failed to merge signatures");
+        return ret;
+    }
+    /* userids */
+    for (list_item *li = list_front(src->userids); li; li = list_next(li)) {
+        pgp_transferable_userid_t *luid = (pgp_transferable_userid_t *) li;
+        pgp_transferable_userid_t *userid = transferable_key_has_userid(dst, &luid->uid);
+        if (userid) {
+            if ((ret = transferable_userid_merge(userid, luid))) {
+                RNP_LOG("failed to merge userid");
+                return ret;
+            }
+            continue;
+        }
+        /* add userid */
+        userid =
+          (pgp_transferable_userid_t *) list_append(&dst->userids, NULL, sizeof(*userid));
+        if (!userid || !transferable_userid_copy(userid, luid)) {
+            list_remove((list_item *) userid);
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+
+    /* subkeys */
+    for (list_item *li = list_front(src->subkeys); li; li = list_next(li)) {
+        pgp_transferable_subkey_t *lskey = (pgp_transferable_subkey_t *) li;
+        pgp_transferable_subkey_t *subkey = transferable_key_has_subkey(dst, &lskey->subkey);
+        if (subkey) {
+            if ((ret = transferable_subkey_merge(subkey, lskey))) {
+                RNP_LOG("failed to merge subkey");
+                return ret;
+            }
+            continue;
+        }
+        /* add subkey */
+        if (pgp_is_public_key_tag(dst->key.tag) != pgp_is_public_key_tag(lskey->subkey.tag)) {
+            RNP_LOG("warning: adding public/secret subkey to secret/public key");
+        }
+        subkey =
+          (pgp_transferable_subkey_t *) list_append(&dst->subkeys, NULL, sizeof(*subkey));
+        if (!subkey || !transferable_subkey_copy(subkey, lskey, false)) {
+            list_remove((list_item *) subkey);
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+
+    return RNP_SUCCESS;
 }
 
 pgp_transferable_userid_t *

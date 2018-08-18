@@ -70,9 +70,15 @@ bool transferable_key_copy(pgp_transferable_key_t *      dst,
                            const pgp_transferable_key_t *src,
                            bool                          pubonly);
 
+rnp_result_t transferable_key_merge(pgp_transferable_key_t *      dst,
+                                    const pgp_transferable_key_t *src);
+
 bool transferable_subkey_copy(pgp_transferable_subkey_t *      dst,
                               const pgp_transferable_subkey_t *src,
                               bool                             pubonly);
+
+rnp_result_t transferable_subkey_merge(pgp_transferable_subkey_t *      dst,
+                                       const pgp_transferable_subkey_t *src);
 
 pgp_transferable_userid_t *transferable_key_add_userid(pgp_transferable_key_t *key,
                                                        const char *            userid);
