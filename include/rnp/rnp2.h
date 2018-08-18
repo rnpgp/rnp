@@ -39,7 +39,10 @@ extern "C" {
  */
 typedef uint32_t rnp_result_t;
 
-#define RNP_EXPORT_FLAG_ARMORED (1U << 0)
+#define RNP_KEY_EXPORT_ARMORED (1U << 0)
+#define RNP_KEY_EXPORT_PUBLIC (1U << 1)
+#define RNP_KEY_EXPORT_SECRET (1U << 2)
+#define RNP_KEY_EXPORT_SUBKEYS (1U << 3)
 
 /**
  * Flags for optional details to include in JSON.
@@ -258,15 +261,14 @@ rnp_result_t rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **resul
 
 /* Key operations */
 
-/**
- * Export a public key from the keyring
- */
-rnp_result_t rnp_export_public_key(rnp_key_handle_t key,
-                                   uint32_t         flags,
-                                   char **          output,
-                                   size_t *         output_len);
-
-/* TODO: export encrypted secret keys */
+/** export a key
+ *
+ *  @param key the key to export
+ *  @param output the stream to write to
+ *  @param flags see RNP_KEY_EXPORT_*.
+ *  @return 0 on success, or any other value on error
+ **/
+rnp_result_t rnp_key_export(rnp_key_handle_t key, rnp_output_t output, uint32_t flags);
 
 /** Add ASCII Armor
  *

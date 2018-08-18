@@ -209,6 +209,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_signatures_detached_memory_g10),
       cmocka_unit_test(test_ffi_enarmor_dearmor),
       cmocka_unit_test(test_ffi_version),
+      cmocka_unit_test(test_ffi_key_export),
       cmocka_unit_test(test_cli_rnp),
     };
 

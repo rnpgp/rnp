@@ -60,6 +60,7 @@
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-sig.h>
+#include <librepgp/stream-armor.h>
 #include "packet-create.h"
 
 #include <stdio.h>
@@ -530,7 +531,8 @@ pgp_add_userid(pgp_key_t *key, const uint8_t *userid)
 char *
 pgp_export_key(rnp_t *rnp, const pgp_key_t *key)
 {
-    pgp_dest_t dst;
+    pgp_dest_t memdst = {};
+    pgp_dest_t armordst = {};
     char *     cp = NULL;
     bool       res = false;
 
@@ -538,23 +540,27 @@ pgp_export_key(rnp_t *rnp, const pgp_key_t *key)
         return NULL;
     }
 
-    if (init_mem_dest(&dst, NULL, 0)) {
+    if (init_mem_dest(&memdst, NULL, 0)) {
         return NULL;
     }
-
-    if (pgp_is_key_public(key)) {
-        res = pgp_write_xfer_pubkey(&dst, key, rnp->pubring, true);
+    bool is_public = pgp_is_key_public(key);
+    if (init_armored_dst(
+          &armordst, &memdst, is_public ? PGP_ARMORED_PUBLIC_KEY : PGP_ARMORED_SECRET_KEY)) {
+        dst_close(&memdst, true);
+        return NULL;
+    }
+    if (is_public) {
+        res = pgp_write_xfer_pubkey(&armordst, key, rnp->pubring);
     } else {
-        res = pgp_write_xfer_seckey(&dst, key, rnp->secring, true);
+        res = pgp_write_xfer_seckey(&armordst, key, rnp->secring);
     }
-
-    if (res) {
-        dst_write(&dst, "\0", 1);
-        dst_finish(&dst);
-        cp = (char *) mem_dest_own_memory(&dst);
+    if (res && !dst_finish(&armordst)) {
+        dst_write(&memdst, "\0", 1);
+        dst_finish(&memdst);
+        cp = (char *) mem_dest_own_memory(&memdst);
     }
-
-    dst_close(&dst, true);
+    dst_close(&armordst, true);
+    dst_close(&memdst, true);
     return cp;
 }
 
