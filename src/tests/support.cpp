@@ -546,3 +546,26 @@ ends_with(const std::string &data, const std::string &match)
     return data.size() >= match.size() &&
            data.substr(data.size() - match.size(), match.size()) == match;
 }
+
+std::string
+fmt(const char *format, ...)
+{
+    int     size;
+    va_list ap;
+
+    va_start(ap, format);
+    size = vsnprintf(NULL, 0, format, ap);
+    va_end(ap);
+
+    // +1 for terminating null
+    std::string buf(size + 1, '\0');
+
+    va_start(ap, format);
+    size = vsnprintf(&buf[0], buf.size(), format, ap);
+    va_end(ap);
+
+    // drop terminating null
+    buf.resize(size);
+    return buf;
+}
+
