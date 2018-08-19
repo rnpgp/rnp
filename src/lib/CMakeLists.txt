@@ -48,6 +48,8 @@ check_include_file_cxx(unistd.h HAVE_UNISTD_H)
 set(HAVE_ZLIB_H "${ZLIB_FOUND}")
 set(HAVE_BZLIB_H "${BZIP2_FOUND}")
 configure_file(config.h.in config.h)
+# generate a version.h
+configure_file(version.h.in version.h)
 
 # check botan's enabled features
 set(CMAKE_REQUIRED_INCLUDES "${BOTAN2_INCLUDE_DIRS}")
@@ -152,6 +154,7 @@ target_include_directories(librnp
 # dir one isn't actually being used. To be improved.
 if (NOT CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_CURRENT_BINARY_DIR)
   file(REMOVE "${CMAKE_CURRENT_SOURCE_DIR}/config.h")
+  file(REMOVE "${CMAKE_CURRENT_SOURCE_DIR}/version.h")
 endif()
 
 target_link_libraries(librnp

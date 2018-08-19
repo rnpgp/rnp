@@ -162,3 +162,6 @@ bool string_copy_password_callback(const pgp_password_ctx_t *ctx,
 
 bool starts_with(const std::string &data, const std::string &match);
 bool ends_with(const std::string &data, const std::string &match);
+
+std::string fmt(const char *format, ...);
+

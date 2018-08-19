@@ -2767,3 +2767,36 @@ test_ffi_enarmor_dearmor(void **state)
     }
 }
 
+void
+test_ffi_version(void **state)
+{
+    const uint32_t version = rnp_version();
+    const uint32_t major = rnp_version_major(version);
+    const uint32_t minor = rnp_version_minor(version);
+    const uint32_t patch = rnp_version_patch(version);
+
+    // reconstruct the version string
+    assert_string_equal(fmt("%d.%d.%d", major, minor, patch).c_str(), rnp_version_string());
+
+    // full version string should probably be at least as long as regular version string
+    assert_true(strlen(rnp_version_string_full()) >= strlen(rnp_version_string()));
+
+    // reconstruct the version value
+    assert_int_equal(version, rnp_version_for(major, minor, patch));
+
+    // check out-of-range handling
+    assert_int_equal(0, rnp_version_for(1024, 0, 0));
+    assert_int_equal(0, rnp_version_for(0, 1024, 0));
+    assert_int_equal(0, rnp_version_for(0, 0, 1024));
+
+    // check component extraction again
+    assert_int_equal(rnp_version_major(rnp_version_for(5, 4, 3)), 5);
+    assert_int_equal(rnp_version_minor(rnp_version_for(5, 4, 3)), 4);
+    assert_int_equal(rnp_version_patch(rnp_version_for(5, 4, 3)), 3);
+
+    // simple comparisons
+    assert_true(rnp_version_for(1, 0, 1) > rnp_version_for(1, 0, 0));
+    assert_true(rnp_version_for(1, 1, 0) > rnp_version_for(1, 0, 1023));
+    assert_true(rnp_version_for(2, 0, 0) > rnp_version_for(1, 1023, 1023));
+}
+
