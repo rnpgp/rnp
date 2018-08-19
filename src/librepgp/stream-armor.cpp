@@ -628,7 +628,7 @@ armor_message_header(pgp_armored_msg_t type, bool finish, char *buf)
         str = "PUBLIC KEY BLOCK";
         break;
     case PGP_ARMORED_SECRET_KEY:
-        str = "SECRET KEY BLOCK";
+        str = "PRIVATE KEY BLOCK";
         break;
     case PGP_ARMORED_SIGNATURE:
         str = "SIGNATURE";
