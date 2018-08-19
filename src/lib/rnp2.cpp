@@ -47,6 +47,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include "utils.h"
+#include "version.h"
 
 struct rnp_key_handle_st {
     rnp_ffi_t        ffi;
@@ -582,6 +583,53 @@ rnp_result_to_string(rnp_result_t result)
     }
 
     return "Unknown error";
+}
+
+const char *
+rnp_version_string()
+{
+    return RNP_VERSION_STRING;
+}
+
+const char *
+rnp_version_string_full()
+{
+    return RNP_VERSION_STRING_FULL;
+}
+
+uint32_t
+rnp_version()
+{
+    return RNP_VERSION_CODE;
+}
+
+uint32_t
+rnp_version_for(uint32_t major, uint32_t minor, uint32_t patch)
+{
+    if (major > RNP_VERSION_COMPONENT_MASK || minor > RNP_VERSION_COMPONENT_MASK ||
+        patch > RNP_VERSION_COMPONENT_MASK) {
+        RNP_LOG("invalid version, out of range: %d.%d.%d", major, minor, patch);
+        return 0;
+    }
+    return RNP_VERSION_CODE_FOR(major, minor, patch);
+}
+
+uint32_t
+rnp_version_major(uint32_t version)
+{
+    return (version >> RNP_VERSION_MAJOR_SHIFT) & RNP_VERSION_COMPONENT_MASK;
+}
+
+uint32_t
+rnp_version_minor(uint32_t version)
+{
+    return (version >> RNP_VERSION_MINOR_SHIFT) & RNP_VERSION_COMPONENT_MASK;
+}
+
+uint32_t
+rnp_version_patch(uint32_t version)
+{
+    return (version >> RNP_VERSION_PATCH_SHIFT) & RNP_VERSION_COMPONENT_MASK;
 }
 
 rnp_result_t

@@ -60,6 +60,15 @@ typedef uint32_t rnp_result_t;
  */
 const char *rnp_result_to_string(rnp_result_t result);
 
+const char *rnp_version_string();
+const char *rnp_version_string_full();
+
+uint32_t rnp_version();
+uint32_t rnp_version_for(uint32_t major, uint32_t minor, uint32_t patch);
+uint32_t rnp_version_major(uint32_t version);
+uint32_t rnp_version_minor(uint32_t version);
+uint32_t rnp_version_patch(uint32_t version);
+
 /*
  * Opaque structures
  */

@@ -11,6 +11,7 @@ core.*
 vgcore.*
 
 src/lib/config.h
+src/lib/version.h
 librnp-*.pc
 rpm-ldconfig
 src/lib/rnp-config-version.cmake
