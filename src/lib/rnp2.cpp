@@ -2504,8 +2504,6 @@ rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
     if (armored) {
         dst_finish(&armordst);
         dst_close(&armordst, true);
-
-        dst_write(&output->dst, "\0", 1);
     }
     return RNP_SUCCESS;
 }
