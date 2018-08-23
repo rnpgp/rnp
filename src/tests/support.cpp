@@ -494,6 +494,9 @@ set_default_rsa_key_desc(rnp_action_keygen_t *action, pgp_hash_alg_t hashalg)
     primary->crypto.hash_alg = hashalg;
     primary->crypto.rng = &global_rng;
 
+    action->primary.protection.iterations = 1;
+    action->subkey.protection.iterations = 1;
+
     subkey->crypto.key_alg = PGP_PKA_RSA;
     subkey->crypto.rsa.modulus_bit_len = 1024;
     subkey->crypto.hash_alg = hashalg;

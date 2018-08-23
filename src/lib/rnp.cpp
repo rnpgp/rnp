@@ -1565,6 +1565,9 @@ rnp_encrypt_set_pass_info(rnp_symmetric_pass_info_t *info,
     if (!rng_generate(info->s2k.salt, sizeof(info->s2k.salt))) {
         return RNP_ERROR_GENERIC;
     }
+    if(iterations == 0) {
+        iterations = pgp_s2k_compute_iters(hash_alg, DEFAULT_S2K_MSEC);
+    }
     info->s2k.iterations = pgp_s2k_encode_iterations(iterations);
     info->s2k_cipher = s2k_cipher;
     /* Note: we're relying on the fact that a longer-than-needed key length
@@ -1601,7 +1604,7 @@ rnp_encrypt_add_password(rnp_ctx_t *ctx)
            rnp_encrypt_set_pass_info(&info,
                                      password,
                                      ctx->halg /* TODO: should be separate s2k-specific */,
-                                     DEFAULT_S2K_ITERATIONS /* TODO: make this configurable */,
+                                     0,
                                      ctx->ealg /* TODO: should be separate s2k-specific */))) {
         goto done;
     }

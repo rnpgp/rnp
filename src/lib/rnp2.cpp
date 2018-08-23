@@ -1643,9 +1643,6 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
     if (!s2k_hash) {
         s2k_hash = DEFAULT_HASH_ALG;
     }
-    if (!iterations) {
-        iterations = DEFAULT_S2K_ITERATIONS;
-    }
     if (!s2k_cipher) {
         s2k_cipher = DEFAULT_SYMM_ALG;
     }
