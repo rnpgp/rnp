@@ -1637,7 +1637,7 @@ signature_pkt_equal(const pgp_signature_t *sig1, const pgp_signature_t *sig2)
         return false;
     }
 
-    if (sig1->lbits != sig2->lbits) {
+    if (memcmp(sig1->lbits, sig2->lbits, 2)) {
         return false;
     }
 

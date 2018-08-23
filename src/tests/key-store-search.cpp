@@ -63,6 +63,9 @@ test_key_store_search(void **state)
 
             // set the keyid
             assert_true(rnp_hex_decode(testdata[i].keyid, key.keyid, sizeof(key.keyid)));
+            // keys should have different grips otherwise rnp_key_store_add_key will fail here
+            assert_true(rnp_hex_decode(testdata[i].keyid, key.grip, sizeof(key.grip)));
+            key.grip[0] = (uint8_t) n;
             // set the userids
             for (size_t uidn = 0; testdata[i].userids[uidn]; uidn++) {
                 const char *userid = testdata[i].userids[uidn];

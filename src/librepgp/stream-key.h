@@ -70,12 +70,17 @@ bool transferable_key_copy(pgp_transferable_key_t *      dst,
                            const pgp_transferable_key_t *src,
                            bool                          pubonly);
 
+rnp_result_t transferable_key_from_key(pgp_transferable_key_t *dst, const pgp_key_t *key);
+
 rnp_result_t transferable_key_merge(pgp_transferable_key_t *      dst,
                                     const pgp_transferable_key_t *src);
 
 bool transferable_subkey_copy(pgp_transferable_subkey_t *      dst,
                               const pgp_transferable_subkey_t *src,
                               bool                             pubonly);
+
+rnp_result_t transferable_subkey_from_key(pgp_transferable_subkey_t *dst,
+                                          const pgp_key_t *          key);
 
 rnp_result_t transferable_subkey_merge(pgp_transferable_subkey_t *      dst,
                                        const pgp_transferable_subkey_t *src);
