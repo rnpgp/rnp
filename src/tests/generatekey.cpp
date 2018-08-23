@@ -75,6 +75,7 @@ rnpkeys_generatekey_testSignature(void **state)
         strncpy((char *) rnp.action.generate_key_ctx.primary.keygen.cert.userid,
                 userId,
                 sizeof(rnp.action.generate_key_ctx.primary.keygen.cert.userid));
+        rnp.action.generate_key_ctx.primary.protection.iterations = 1;
         rnp_assert_ok(rstate, rnp_generate_key(&rnp));
 
         /* Load the newly generated rnp key */
@@ -625,6 +626,7 @@ rnpkeys_generatekey_testExpertMode(void **state)
     static const char test_rsa_ask_twice_4096[] = "1\n1023\n4096\n";
 
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
+    rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdh_256, strlen(test_ecdh_256)));
@@ -746,6 +748,7 @@ generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state)
 
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
     rnp_assert_true(rstate, rnp_cfg_setstr(&ops, CFG_HASH, "SHA1"));
+    rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_384, strlen(test_ecdsa_384)));
@@ -767,6 +770,7 @@ generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
 
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
     rnp_assert_true(rstate, rnp_cfg_setstr(&ops, CFG_HASH, "SHA512"));
+    rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
 
     rnp_assert_true(rstate,
                     ask_expert_details(&rnp, &ops, test_ecdsa_384, strlen(test_ecdsa_384)));
@@ -788,6 +792,7 @@ generatekeyECDSA_explicitlySetWrongDigest_ShouldSuceed(void **state)
 
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
     rnp_assert_true(rstate, rnp_cfg_setstr(&ops, CFG_HASH, "WRONG_DIGEST_ALGORITHM"));
+    rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
 
     // Finds out that hash doesn't exist and uses
     // hash which generates output that's long enough

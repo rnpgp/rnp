@@ -785,7 +785,7 @@ pgp_key_protect(pgp_key_t *                  key,
         protection->hash_alg = default_protection.hash_alg;
     }
     if (!protection->iterations) {
-        protection->iterations = pgp_s2k_compute_iters(protection->hash_alg, DEFAULT_S2K_MSEC);
+        protection->iterations = pgp_s2k_compute_iters(protection->hash_alg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
     }
 
     seckey->sec_protection.symm_alg = protection->symm_alg;
