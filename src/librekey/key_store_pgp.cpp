@@ -518,8 +518,8 @@ rnp_key_store_pgp_read_from_mem(pgp_io_t *                io,
     return res;
 }
 
-static bool
-pgp_key_write_packets_stream(const pgp_key_t *key, pgp_dest_t *dst)
+bool
+rnp_key_write_packets_stream(const pgp_key_t *key, pgp_dest_t *dst)
 {
     if (DYNARRAY_IS_EMPTY(key, packet)) {
         return false;
@@ -532,6 +532,22 @@ pgp_key_write_packets_stream(const pgp_key_t *key, pgp_dest_t *dst)
         dst_write(dst, pkt->raw, pkt->length);
     }
     return !dst->werr;
+}
+
+bool
+rnp_key_to_src(const pgp_key_t *key, pgp_source_t *src)
+{
+    pgp_dest_t dst = {};
+    bool       res;
+
+    if (init_mem_dest(&dst, NULL, 0)) {
+        return false;
+    }
+
+    res = rnp_key_write_packets_stream(key, &dst) &&
+          !init_mem_src(src, mem_dest_own_memory(&dst), dst.writeb, true);
+    dst_close(&dst, true);
+    return res;
 }
 
 static bool
@@ -553,7 +569,7 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
             RNP_LOG("incorrect format (conversions not supported): %d", key->format);
             return false;
         }
-        if (!pgp_key_write_packets_stream(key, dst)) {
+        if (!rnp_key_write_packets_stream(key, dst)) {
             return false;
         }
         for (list_item *subkey_grip = list_front(key->subkey_grips); subkey_grip;
@@ -576,7 +592,7 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
                 RNP_LOG("Missing subkey");
                 continue;
             }
-            if (!pgp_key_write_packets_stream(subkey, dst)) {
+            if (!rnp_key_write_packets_stream(subkey, dst)) {
                 return false;
             }
         }

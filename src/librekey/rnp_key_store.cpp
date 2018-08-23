@@ -485,6 +485,108 @@ rnp_key_store_json(pgp_io_t *             io,
     return true;
 }
 
+static bool
+rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *primary)
+{
+    pgp_transferable_subkey_t dstkey = {};
+    pgp_transferable_subkey_t srckey = {};
+    pgp_key_t                 tmpkey = {};
+    bool                      res = false;
+
+    if (!pgp_key_is_subkey(dst) || !pgp_key_is_subkey(src)) {
+        RNP_LOG("wrong subkey merge call");
+        return false;
+    }
+
+    if (transferable_subkey_from_key(&dstkey, dst)) {
+        RNP_LOG("failed to get transferable key from dstkey");
+        return false;
+    }
+
+    if (transferable_subkey_from_key(&srckey, src)) {
+        RNP_LOG("failed to get transferable key from srckey");
+        transferable_subkey_destroy(&dstkey);
+        return false;
+    }
+
+    /* if src is secret key then merged key will become secret as well. */
+    if (pgp_is_secret_key_tag(srckey.subkey.tag) &&
+        !pgp_is_secret_key_tag(dstkey.subkey.tag)) {
+        pgp_key_pkt_t tmp = dstkey.subkey;
+        dstkey.subkey = srckey.subkey;
+        srckey.subkey = tmp;
+    }
+
+    if (transferable_subkey_merge(&dstkey, &srckey)) {
+        RNP_LOG("failed to merge transferable subkeys");
+        goto done;
+    }
+
+    if (!rnp_key_from_transferable_subkey(&tmpkey, &dstkey, primary)) {
+        RNP_LOG("failed to process subkey");
+        goto done;
+    }
+
+    pgp_key_free_data(dst);
+    *dst = tmpkey;
+    res = true;
+done:
+    transferable_subkey_destroy(&dstkey);
+    transferable_subkey_destroy(&srckey);
+    return res;
+}
+
+static bool
+rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
+{
+    pgp_transferable_key_t dstkey = {};
+    pgp_transferable_key_t srckey = {};
+    pgp_key_t              tmpkey = {};
+    bool                   res = false;
+
+    if (pgp_key_is_subkey(dst) || pgp_key_is_subkey(src)) {
+        RNP_LOG("wrong key merge call");
+        return false;
+    }
+
+    if (transferable_key_from_key(&dstkey, dst)) {
+        RNP_LOG("failed to get transferable key from dstkey");
+        return false;
+    }
+
+    if (transferable_key_from_key(&srckey, src)) {
+        RNP_LOG("failed to get transferable key from srckey");
+        transferable_key_destroy(&dstkey);
+        return false;
+    }
+
+    /* if src is secret key then merged key will become secret as well. */
+    if (pgp_is_secret_key_tag(srckey.key.tag) && !pgp_is_secret_key_tag(dstkey.key.tag)) {
+        pgp_key_pkt_t tmp = dstkey.key;
+        dstkey.key = srckey.key;
+        srckey.key = tmp;
+        /* no subkey processing here - they are separated from the main key */
+    }
+
+    if (transferable_key_merge(&dstkey, &srckey)) {
+        RNP_LOG("failed to merge transferable keys");
+        goto done;
+    }
+
+    if (!rnp_key_from_transferable_key(&tmpkey, &dstkey)) {
+        RNP_LOG("failed to process key");
+        goto done;
+    }
+
+    pgp_key_free_data(dst);
+    *dst = tmpkey;
+    res = true;
+done:
+    transferable_key_destroy(&dstkey);
+    transferable_key_destroy(&srckey);
+    return res;
+}
+
 /* add a key to keyring */
 pgp_key_t *
 rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
@@ -495,7 +597,37 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
         fprintf(io->errs, "rnp_key_store_add_key\n");
     }
     assert(pgp_get_key_type(srckey) && pgp_get_key_pkt(srckey)->version);
-    added_key = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
+    added_key = rnp_key_store_get_key_by_grip(io, keyring, srckey->grip);
+
+    if (added_key && (srckey->format != G10_KEY_STORE)) {
+        bool mergeres = false;
+        /* in case we already have key let's merge it in */
+        if (pgp_key_is_subkey(added_key)) {
+            pgp_io_t   io = {.outs = stdout, .errs = stderr, .res = stdout};
+            pgp_key_t *primary =
+              rnp_key_store_get_key_by_grip(&io, keyring, added_key->primary_grip);
+            if (!primary) {
+                RNP_LOG("no primary key for subkey");
+            }
+            mergeres = primary && rnp_key_store_merge_subkey(added_key, srckey, primary);
+        } else {
+            mergeres = rnp_key_store_merge_key(added_key, srckey);
+        }
+
+        if (!mergeres) {
+            RNP_LOG("failed to merge key or subkey");
+            return NULL;
+        }
+        pgp_key_free_data(srckey);
+    } else {
+        added_key = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
+    }
+
+    if (!added_key) {
+        RNP_LOG("allocation failed");
+        return NULL;
+    }
+
     if (io && rnp_get_debug(__FILE__)) {
         fprintf(io->errs, "rnp_key_store_add_key: keyc %lu\n", list_length(keyring->keys));
     }
