@@ -81,8 +81,6 @@ where the long options for all commands are:
 .br
 .Op Fl Fl keyring Ns = Ns Ar keyring
 .br
-.Op Fl Fl ssh-keys
-.br
 .Op Fl Fl userid Ns = Ns Ar userid
 .br
 .Op Fl Fl verbose
@@ -215,11 +213,6 @@ The default cipher is
 .Dq CAST5 .
 .It Fl Fl hash Ar hash\-algorithm
 Specify the hash algorithm which is used during fingerprint calculation.
-For reference, at the present time,
-.Xr ssh-keygen 1
-uses
-.Dq MD5
-for its fingerprint values.
 .It Fl Fl homedir Ar home\-directory
 Keyrings are normally located, for historical reasons, within
 the user's home directory in a subdirectory called
@@ -268,15 +261,6 @@ This option can be used to view information during
 the process of the
 .Nm
 requests.
-.It Fl Fl ssh-keys
-specifies that the public and private keys should be taken
-from the
-.Xr ssh 1
-host key files, usually found in
-.Pa /etc/ssh/ssh_host_rsa_key
-and
-.Pa /etc/ssh/ssh_host_rsa_key.pub
-for the private and public host keys.
 .It Fl Fl coredumps
 in normal processing,
 if an error occurs, the contents of memory are saved to disk, and can
@@ -333,18 +317,6 @@ utility will return 0 for success,
 1 if the file's signature does not match what was expected,
 or 2 if any other error occurs.
 .Sh EXAMPLES
-.Bd -literal
-% rnpkeys --ssh-keys --sshkeyfile=/etc/ssh/ssh_host_rsa_key.pub --list-keys --hash=md5
-1 key
-pub 1024/RSA (Encrypt or Sign) fcdd1c608bef4c4b 2008-08-11
-Key fingerprint: e935 902d ebf1 76ba fcdd 1c60 8bef 4c4b
-uid              osx-vm1.crowthorne.alistaircrooks.co.uk (/etc/ssh/ssh_host_rsa_key.pub) <root@osx-vm1.crowthorne.alistaircrooks.co.uk>
-
-% ssh-keygen -l -f /etc/ssh/ssh_host_rsa_key.pub
-1024 e9:35:90:2d:eb:f1:76:ba:fc:dd:1c:60:8b:ef:4c:4b /etc/ssh/ssh_host_rsa_key.pub (RSA)
-%
-.Ed
-.Pp
 The following is an example of RSA key generation:
 .Bd -literal
 % rnpkeys --generate\-key
@@ -370,8 +342,6 @@ uid              RSA 2048-bit key \*[Lt]agc@localhost\*[Gt]
 .Ed
 .Sh SEE ALSO
 .Xr rnp 1 ,
-.Xr ssh 1 ,
-.Xr ssh-keygen 1 ,
 .Xr getpass 3 ,
 .\" .Xr libbz2 3 ,
 .Xr librnp 3 ,

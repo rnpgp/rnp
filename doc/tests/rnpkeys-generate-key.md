@@ -26,8 +26,7 @@ Following hash algorithm are tested for the key generation:
 ## Preconditions
 
 * Initialize RNP
-* Set the default value for `sshkeydir`, `res`, `format`, `hash` via
-  `rnp_setvar()`.
+* Set the default value for `res`, `format`, `hash` via `rnp_setvar()`.
 
 ## Test steps and expected behavior
 
@@ -84,7 +83,7 @@ Following different `userid`s are tested:
 ## Preconditions
 
 * Initialize RNP
-* Set the default value for sshkeydir, res, format, hash via `rnp_setvar`.
+* Set the default value for res, format, hash via `rnp_setvar`.
 
 ## Test steps and expected behavior
 
@@ -122,8 +121,7 @@ The test aims to test key generation with the user specified keyring.
 ## Preconditions
 
 * Initialize RNP
-* Set the default value for `sshkeydir`, `res`, `format`, `hash` via
-  `rnp_setvar()`.
+* Set the default value for `res`, `format`, `hash` via `rnp_setvar()`.
 
 ## Test steps and expected behavior
 
@@ -172,8 +170,7 @@ The test aims to test key generation with the user specified keyring.
 * Create new home dir with read/write permissions.
 * Delete the keys (if any) in the previous default directory.
 * Initialize RNP
-* Set the default value for `sshkeydir`, `res`, `format`, `hash` via
-  `rnp_setvar()`.
+* Set the default value for `res`, `format`, `hash` via `rnp_setvar()`.
 
 ## Test steps and expected behavior
 

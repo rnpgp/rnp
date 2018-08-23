@@ -97,8 +97,6 @@ where the long options for all commands are:
 .br
 .Op Fl Fl results Ns = Ns Ar filename
 .br
-.Op Fl Fl ssh\-keys
-.br
 .Op Fl Fl userid Ns = Ns Ar userid
 .br
 .Op Fl Fl verbose
@@ -251,15 +249,6 @@ value.
 specifies a filename to which the results of the operation
 should be sent.
 The default is to send the results to stderr.
-.It Fl Fl ssh\-keys
-specifies that the public and private keys should be taken
-from the
-.Xr ssh 1
-host key files, usually found in
-.Pa /etc/ssh/ssh_host_rsa_key
-and
-.Pa /etc/ssh/ssh_host_rsa_key.pub
-for the private and public host keys.
 .It Fl Fl userid Ar userid
 This option specifies the user identity to be used for all operations.
 This identity can either be in the form of the full name, or as an
@@ -504,7 +493,6 @@ utility will return 0 for success,
 or 2 if any other error occurs.
 .Sh SEE ALSO
 .Xr rnpkeys 1 ,
-.Xr ssh 1 ,
 .Xr getpass 3 ,
 .\" .Xr libbz2 3 ,
 .Xr librnp 3 ,

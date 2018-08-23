@@ -98,9 +98,6 @@ struct option options[] = {
   {"home", required_argument, NULL, OPT_HOMEDIR},
   {"homedir", required_argument, NULL, OPT_HOMEDIR},
   {"numbits", required_argument, NULL, OPT_NUMBITS},
-  {"ssh", no_argument, NULL, OPT_SSHKEYS},
-  {"ssh-keys", no_argument, NULL, OPT_SSHKEYS},
-  {"sshkeyfile", required_argument, NULL, OPT_SSHKEYFILE},
   {"verbose", no_argument, NULL, OPT_VERBOSE},
   {"pass-fd", required_argument, NULL, OPT_PASSWDFD},
   {"results", required_argument, NULL, OPT_RESULTS},
@@ -280,9 +277,6 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         print_praise();
         exit(EXIT_SUCCESS);
     /* options */
-    case OPT_SSHKEYS:
-        rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
-        break;
     case OPT_KEYRING:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring argument provided\n");
@@ -341,10 +335,6 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
             exit(EXIT_ERROR);
         }
         rnp_cfg_setstr(cfg, CFG_IO_RESS, arg);
-        break;
-    case OPT_SSHKEYFILE:
-        rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
-        rnp_cfg_setstr(cfg, CFG_SSHKEYFILE, arg);
         break;
     case OPT_FORMAT:
         rnp_cfg_setstr(cfg, CFG_KEYFORMAT, arg);

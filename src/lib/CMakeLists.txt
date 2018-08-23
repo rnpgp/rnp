@@ -100,7 +100,6 @@ add_library(librnp
   ../librekey/key_store_g10.cpp
   ../librekey/key_store_kbx.cpp
   ../librekey/key_store_pgp.cpp
-  ../librekey/key_store_ssh.cpp
   ../librekey/rnp_key_store.cpp
 
   bufgap.cpp
@@ -126,7 +125,6 @@ add_library(librnp
   misc.cpp
   packet-create.cpp
   pass-provider.cpp
-  pem.cpp
   pgp-key.cpp
   rnp2.cpp
   rnp.cpp

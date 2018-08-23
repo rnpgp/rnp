@@ -49,7 +49,6 @@
 #include "key_store_internal.h"
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
-#include "key_store_ssh.h"
 #include "key_store_g10.h"
 
 #include "pgp-key.h"
@@ -64,8 +63,6 @@ parse_ks_format(enum key_store_format_t *key_store_format, const char *format)
         *key_store_format = GPG_KEY_STORE;
     } else if (strcmp(format, RNP_KEYSTORE_KBX) == 0) {
         *key_store_format = KBX_KEY_STORE;
-    } else if (strcmp(format, RNP_KEYSTORE_SSH) == 0) {
-        *key_store_format = SSH_KEY_STORE;
     } else if (strcmp(format, RNP_KEYSTORE_G10) == 0) {
         *key_store_format = G10_KEY_STORE;
     } else {
@@ -108,10 +105,6 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
     rnp_key_store_t *secring = rnp->secring;
 
     rnp_key_store_clear(pubring);
-
-    if (pubring->format == SSH_KEY_STORE || secring->format == SSH_KEY_STORE) {
-        return rnp_key_store_ssh_load_keys(rnp, pubring, loadsecret ? rnp->secring : NULL);
-    }
 
     if (!rnp_key_store_load_from_file(rnp->io, pubring, &rnp->key_provider)) {
         fprintf(io->errs, "cannot read pub keyring\n");
@@ -166,10 +159,6 @@ rnp_key_store_load_from_file(pgp_io_t *                io,
     pgp_memory_t   mem = {0};
     struct dirent *ent;
     char           path[MAXPATHLEN];
-
-    if (key_store->format == SSH_KEY_STORE) {
-        return rnp_key_store_ssh_from_file(io, key_store, key_store->path);
-    }
 
     if (key_store->format == G10_KEY_STORE) {
         dir = opendir(key_store->path);
