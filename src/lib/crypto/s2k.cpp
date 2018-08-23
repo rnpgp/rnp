@@ -172,15 +172,12 @@ uint8_t pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec)
       return MIN_ITERS;
 
    const double bytes_per_usec = static_cast<double>(bytes) / duration;
-   //fprintf(stderr, "bytes/usec %f\n", bytes_per_usec);
-
    const double desired_usec = desired_msec * 1000.0;
-   //fprintf(stderr, "desired usec %f\n", desired_usec);
-
    const double bytes_for_target = bytes_per_usec * desired_usec;
-   //fprintf(stderr, "bytes %f\n", bytes_for_target);
+   const uint8_t iters = pgp_s2k_encode_iterations(bytes_for_target);
 
-   uint8_t iters = pgp_s2k_encode_iterations(bytes_for_target);
+   fprintf(stderr, "PGP S2K hash %d tuned bytes/usec=%f desired_usec=%f bytes_for_target=%f iters %d\n",
+           alg, bytes_per_usec, desired_usec, bytes_for_target, iters);
 
    return (iters > MIN_ITERS) ? iters : MIN_ITERS;
 }

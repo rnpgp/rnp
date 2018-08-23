@@ -46,6 +46,9 @@
 /* Default number of S2K iterations */
 #define DEFAULT_S2K_ITERATIONS 33554432
 
+/* Default number of msec to run S2K derivation */
+#define DEFAULT_S2K_MSEC 100
+
 /* Default compression algorithm and level */
 #define DEFAULT_Z_ALG PGP_C_ZIP
 #define DEFAULT_Z_LEVEL 6
