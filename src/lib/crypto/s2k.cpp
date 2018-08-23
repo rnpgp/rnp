@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <botan/ffi.h>
 #include "types.h"
+#include "sys/time.h"
 #include "crypto/s2k.h"
 
 bool
@@ -128,9 +129,58 @@ pgp_s2k_encode_iterations(size_t iterations)
      * For more info refer to rfc 4880 section 3.7.2.1.
      */
     for (uint16_t c = 0; c < 256; ++c) {
+        // This could be a binary search
         if (pgp_s2k_decode_iterations(c) >= iterations) {
             return c;
         }
     }
     return 255;
+}
+
+/// Should this function be elsewhere?
+static uint64_t get_timestamp_usec()
+   {
+   // Consider clock_gettime
+   struct timeval tv;
+   ::gettimeofday(&tv, NULL);
+   return (static_cast<uint64_t>(tv.tv_sec) * 1000000) + static_cast<uint64_t>(tv.tv_usec);
+   }
+
+uint8_t pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec)
+{
+   const uint64_t TRIAL_USEC = 30 * 1000;
+   const uint8_t MIN_ITERS = 96;
+   uint8_t buf[8192] = { 0 };
+   size_t bytes = 0;
+
+   pgp_hash_t hash;
+   pgp_hash_create(&hash, alg);
+
+   const uint64_t start = get_timestamp_usec();
+   uint64_t end = start;
+
+   while(end - start < TRIAL_USEC)
+      {
+      pgp_hash_add(&hash, buf, sizeof(buf));
+      bytes += sizeof(buf);
+      end = get_timestamp_usec();
+      }
+
+   const uint64_t duration = end - start;
+
+   if(duration == 0)
+      return MIN_ITERS;
+
+   const double bytes_per_usec = static_cast<double>(bytes) / duration;
+   //fprintf(stderr, "bytes/usec %f\n", bytes_per_usec);
+
+   const double desired_usec = desired_msec * 1000.0;
+   //fprintf(stderr, "desired usec %f\n", desired_usec);
+
+   const double bytes_for_target = bytes_per_usec * desired_usec;
+   //fprintf(stderr, "bytes %f\n", bytes_for_target);
+
+   uint8_t iters = pgp_s2k_encode_iterations(bytes_for_target);
+
+   return (iters > MIN_ITERS) ? iters : MIN_ITERS;
 }
