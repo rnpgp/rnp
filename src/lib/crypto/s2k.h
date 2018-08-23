@@ -57,6 +57,8 @@ uint8_t pgp_s2k_encode_iterations(size_t iterations);
 // Round iterations to nearest representable value
 size_t pgp_s2k_round_iterations(size_t iterations);
 
+uint8_t pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec);
+
 /** @brief Derive key from password using the information stored in s2k structure
  *  @param s2k pointer to s2k structure, filled according to RFC 4880.
  *  Iterations field may contain encoded ( < 256) or decoded ( > 256) value.
