@@ -73,6 +73,8 @@ void generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **st
 
 void generatekeyECDSA_explicitlySetWrongDigest_ShouldSuceed(void **state);
 
+void s2k_iteration_tuning(void **state);
+
 void test_utils_list(void **state);
 
 void test_rnpcfg(void **state);
