@@ -95,9 +95,6 @@ int rnp_match_keys(rnp_t *, char *, const char *, void *, const int);
 int rnp_match_pubkeys(rnp_t *, char *, void *);
 int rnp_format_json(void *, const char *, const int);
 
-/* save pgp key in ssh format */
-int rnp_write_sshkey(rnp_t *, char *, const char *, char *, size_t);
-
 /**
  * @brief   Armor (convert to ASCII) or dearmor (convert back to binary) PGP data
  *

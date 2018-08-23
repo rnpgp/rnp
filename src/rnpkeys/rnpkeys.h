@@ -21,7 +21,6 @@ typedef enum {
     CMD_TRUSTED_KEYS,
 
     /* options */
-    OPT_SSHKEYS,
     OPT_KEYRING,
     OPT_KEY_STORE_FORMAT,
     OPT_USERID,
@@ -32,7 +31,6 @@ typedef enum {
     OPT_COREDUMPS,
     OPT_PASSWDFD,
     OPT_RESULTS,
-    OPT_SSHKEYFILE,
     OPT_CIPHER,
     OPT_FORMAT,
     OPT_EXPERT,
@@ -45,11 +43,11 @@ typedef enum {
 } optdefs_t;
 
 rnp_result_t rnp_generate_key_expert_mode(rnp_t *rnp);
-bool rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f);
-int setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg);
-void print_praise(void);
-void print_usage(const char *usagemsg);
-int parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s);
+bool         rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f);
+int          setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg);
+void         print_praise(void);
+void         print_usage(const char *usagemsg);
+int          parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s);
 
 /* -----------------------------------------------------------------------------
  * @brief   Initializes rnpkeys. Function allocates memory dynamically for
