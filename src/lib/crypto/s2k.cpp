@@ -166,6 +166,8 @@ uint8_t pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t tr
       end = get_timestamp_usec();
       }
 
+   pgp_hash_finish(&hash, buf);
+
    const uint64_t duration = end - start;
 
    if(duration == 0)
