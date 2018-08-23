@@ -42,12 +42,10 @@
 #define CFG_NO_OUTPUT "no_output"        /* do not output any data - just verify or process */
 #define CFG_INFILE "infile"              /* name/path of the input file */
 #define CFG_RESULTS "results"            /* name/path for results, not used right now */
-#define CFG_KEYSTOREFMT "keystorefmt" /* keyring format : GPG, SSH */
-#define CFG_SSHKEYFILE "sshkeyfile"   /* SSH key file */
-#define CFG_SUBDIRGPG "subdirgpg"     /* gpg/rnp files subdirectory: .rnp by default */
-#define CFG_SUBDIRSSH "subdirssh"     /* ssh files (keys) subdirectory: .ssh by default */
-#define CFG_COREDUMPS "coredumps"     /* enable/disable core dumps. 1 or 0. */
-#define CFG_NEEDSSECKEY "needsseckey" /* needs secret key for the ongoing operation */
+#define CFG_KEYSTOREFMT "keystorefmt"    /* keyring format : GPG, G10, KBX */
+#define CFG_SUBDIRGPG "subdirgpg"        /* gpg/rnp files subdirectory: .rnp by default */
+#define CFG_COREDUMPS "coredumps"        /* enable/disable core dumps. 1 or 0. */
+#define CFG_NEEDSSECKEY "needsseckey"    /* needs secret key for the ongoing operation */
 #define CFG_KEYRING "keyring"       /* path to the keyring ?? seems not to be used anywhere */
 #define CFG_USERID "userid"         /* userid for the ongoing operation */
 #define CFG_RECIPIENTS "recipients" /* list of encrypted data recipients */
@@ -76,8 +74,8 @@
 #define CFG_AEAD "aead"                 /* if nonzero then AEAD enryption mode, int */
 #define CFG_AEAD_CHUNK "aead_chunk"     /* AEAD chunk size bits, int from 0 to 56 */
 #define CFG_KEYSTORE_DISABLED \
-    "disable_keystore"    /* indicates wether keystore must be initialized */
-#define CFG_FORCE "force" /* force command to succeed operation */
+    "disable_keystore"      /* indicates wether keystore must be initialized */
+#define CFG_FORCE "force"   /* force command to succeed operation */
 #define CFG_SECRET "secret" /* indicates operation on secret key */
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration

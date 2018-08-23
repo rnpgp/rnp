@@ -79,7 +79,6 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
     rnp_cfg_setint(cfg, CFG_ZLEVEL, DEFAULT_Z_LEVEL);
     rnp_cfg_setstr(cfg, CFG_CIPHER, DEFAULT_SYMM_ALG);
     rnp_cfg_setstr(cfg, CFG_SUBDIRGPG, SUBDIRECTORY_RNP);
-    rnp_cfg_setstr(cfg, CFG_SUBDIRSSH, SUBDIRECTORY_SSH);
     rnp_cfg_setint(cfg, CFG_NUMTRIES, MAX_PASSWORD_ATTEMPTS);
 }
 
@@ -584,10 +583,6 @@ rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg, int defhomedir, const char *ksfmt)
 
     if (!defhomedir) {
         subdir = NULL;
-    } else if (strcmp(ksfmt, RNP_KEYSTORE_SSH) == 0) {
-        if ((subdir = rnp_cfg_getstr(cfg, CFG_SUBDIRSSH)) == NULL) {
-            subdir = SUBDIRECTORY_SSH;
-        }
     } else {
         if ((subdir = rnp_cfg_getstr(cfg, CFG_SUBDIRGPG)) == NULL) {
             subdir = SUBDIRECTORY_RNP;
@@ -603,14 +598,13 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
     bool        defhomedir = false;
     const char *homedir;
     const char *subdir;
-    const char *sshfile;
     const char *ks_format;
     char        pubpath[MAXPATHLEN] = {0};
     char        secpath[MAXPATHLEN] = {0};
     struct stat st;
 
     /* getting path to keyrings. If it is specified by user in 'homedir' param then it is
-     * considered as the final path, no .rnp/.ssh is added */
+     * considered as the final path */
     params->keystore_disabled = rnp_cfg_getint_default(cfg, CFG_KEYSTORE_DISABLED, 0);
     if (params->keystore_disabled) {
         return true;
@@ -623,29 +617,25 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
 
     /* detecting key storage format */
     if ((ks_format = rnp_cfg_getstr(cfg, CFG_KEYSTOREFMT)) == NULL) {
-        if (rnp_cfg_getstr(cfg, CFG_SSHKEYFILE)) {
-            ks_format = RNP_KEYSTORE_SSH;
+        if ((subdir = rnp_cfg_getstr(cfg, CFG_SUBDIRGPG)) == NULL) {
+            subdir = SUBDIRECTORY_RNP;
+        }
+        rnp_path_compose(
+          homedir, defhomedir ? subdir : NULL, PUBRING_KBX, pubpath, sizeof(pubpath));
+        rnp_path_compose(
+          homedir, defhomedir ? subdir : NULL, SECRING_G10, secpath, sizeof(secpath));
+
+        bool pubpath_exists = stat(pubpath, &st) == 0;
+        bool secpath_exists = stat(secpath, &st) == 0;
+
+        if (pubpath_exists && secpath_exists) {
+            ks_format = RNP_KEYSTORE_GPG21;
+        } else if (secpath_exists) {
+            ks_format = RNP_KEYSTORE_G10;
+        } else if (pubpath_exists) {
+            ks_format = RNP_KEYSTORE_KBX;
         } else {
-            if ((subdir = rnp_cfg_getstr(cfg, CFG_SUBDIRGPG)) == NULL) {
-                subdir = SUBDIRECTORY_RNP;
-            }
-            rnp_path_compose(
-              homedir, defhomedir ? subdir : NULL, PUBRING_KBX, pubpath, sizeof(pubpath));
-            rnp_path_compose(
-              homedir, defhomedir ? subdir : NULL, SECRING_G10, secpath, sizeof(secpath));
-
-            bool pubpath_exists = stat(pubpath, &st) == 0;
-            bool secpath_exists = stat(secpath, &st) == 0;
-
-            if (pubpath_exists && secpath_exists) {
-                ks_format = RNP_KEYSTORE_GPG21;
-            } else if (secpath_exists) {
-                ks_format = RNP_KEYSTORE_G10;
-            } else if (pubpath_exists) {
-                ks_format = RNP_KEYSTORE_KBX;
-            } else {
-                ks_format = RNP_KEYSTORE_GPG;
-            }
+            ks_format = RNP_KEYSTORE_GPG;
         }
     }
 
@@ -697,29 +687,6 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
         params->secpath = strdup(secpath);
         params->ks_pub_format = RNP_KEYSTORE_G10;
         params->ks_sec_format = RNP_KEYSTORE_G10;
-    } else if (strcmp(ks_format, RNP_KEYSTORE_SSH) == 0) {
-        if ((sshfile = rnp_cfg_getstr(cfg, CFG_SSHKEYFILE)) == NULL) {
-            /* set reasonable default for RSA key */
-            if (!rnp_path_compose(homedir, subdir, "id_rsa.pub", pubpath, sizeof(pubpath)) ||
-                !rnp_path_compose(homedir, subdir, "id_rsa", secpath, sizeof(secpath))) {
-                return false;
-            }
-        } else if ((strlen(sshfile) < 4) ||
-                   (strcmp(&sshfile[strlen(sshfile) - 4], ".pub") != 0)) {
-            /* got ssh keys, but no .pub extension */
-            (void) snprintf(pubpath, sizeof(pubpath), "%s.pub", sshfile);
-            (void) snprintf(secpath, sizeof(secpath), "%s", sshfile);
-        } else {
-            /* got ssh key name with .pub extension */
-            strncpy(pubpath, sshfile, sizeof(pubpath));
-            strncpy(secpath, sshfile, sizeof(secpath));
-            secpath[strlen(sshfile) - 4] = 0;
-        }
-
-        params->pubpath = strdup(pubpath);
-        params->secpath = strdup(secpath);
-        params->ks_pub_format = RNP_KEYSTORE_SSH;
-        params->ks_sec_format = RNP_KEYSTORE_SSH;
     } else {
         fprintf(stderr, "rnp: unsupported keystore format: \"%s\"\n", ks_format);
         return false;

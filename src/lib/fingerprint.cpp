@@ -37,49 +37,6 @@
 #include <librepgp/stream-packet.h>
 #include "utils.h"
 
-/* hash a string - first length, then string itself */
-static size_t
-hash_string(pgp_hash_t *hash, const uint8_t *buf, size_t len)
-{
-    pgp_hash_uint32(hash, len);
-    pgp_hash_add(hash, buf, len);
-    return (len + 4);
-}
-
-rnp_result_t
-ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_key_pkt_t *key)
-{
-    pgp_hash_t  hash = {0};
-    const char *type;
-
-    if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
-        return RNP_ERROR_NOT_SUPPORTED;
-    }
-
-    type = (key->alg == PGP_PKA_RSA) ? "ssh-rsa" : "ssh-dss";
-    hash_string(&hash, (const uint8_t *) (const void *) type, (unsigned) strlen(type));
-    switch (key->alg) {
-    case PGP_PKA_RSA:
-        (void) mpi_hash(&key->material.rsa.e, &hash);
-        (void) mpi_hash(&key->material.rsa.n, &hash);
-        break;
-    case PGP_PKA_DSA:
-        (void) mpi_hash(&key->material.dsa.p, &hash);
-        (void) mpi_hash(&key->material.dsa.q, &hash);
-        (void) mpi_hash(&key->material.dsa.g, &hash);
-        (void) mpi_hash(&key->material.dsa.y, &hash);
-        break;
-    default:
-        pgp_hash_finish(&hash, fp->fingerprint);
-        fp->length = 0;
-        RNP_LOG("Algorithm not supported");
-        return RNP_ERROR_NOT_SUPPORTED;
-    }
-
-    fp->length = pgp_hash_finish(&hash, fp->fingerprint);
-    return RNP_SUCCESS;
-}
-
 rnp_result_t
 pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_key_pkt_t *key)
 {
@@ -156,5 +113,6 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_key_pkt_t *key)
 bool
 fingerprint_equal(pgp_fingerprint_t *fp1, pgp_fingerprint_t *fp2)
 {
-    return (fp1->length == fp2->length) && (!memcmp(fp1->fingerprint, fp2->fingerprint, fp1->length));
+    return (fp1->length == fp2->length) &&
+           (!memcmp(fp1->fingerprint, fp2->fingerprint, fp1->length));
 }
