@@ -146,9 +146,9 @@ static uint64_t get_timestamp_usec()
    return (static_cast<uint64_t>(tv.tv_sec) * 1000000) + static_cast<uint64_t>(tv.tv_usec);
    }
 
-uint8_t pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec)
+uint8_t pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t trial_msec)
 {
-   const uint64_t TRIAL_USEC = 30 * 1000;
+   const uint64_t TRIAL_USEC = trial_msec * 1000;
    const uint8_t MIN_ITERS = 96;
    uint8_t buf[8192] = { 0 };
    size_t bytes = 0;
@@ -176,8 +176,11 @@ uint8_t pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec)
    const double bytes_for_target = bytes_per_usec * desired_usec;
    const uint8_t iters = pgp_s2k_encode_iterations(bytes_for_target);
 
+#if 0
+   // Useful for debugging
    fprintf(stderr, "PGP S2K hash %d tuned bytes/usec=%f desired_usec=%f bytes_for_target=%f iters %d\n",
            alg, bytes_per_usec, desired_usec, bytes_for_target, iters);
+#endif
 
    return (iters > MIN_ITERS) ? iters : MIN_ITERS;
 }

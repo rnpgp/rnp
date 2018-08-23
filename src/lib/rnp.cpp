@@ -1566,7 +1566,7 @@ rnp_encrypt_set_pass_info(rnp_symmetric_pass_info_t *info,
         return RNP_ERROR_GENERIC;
     }
     if(iterations == 0) {
-        iterations = pgp_s2k_compute_iters(hash_alg, DEFAULT_S2K_MSEC);
+        iterations = pgp_s2k_compute_iters(hash_alg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
     }
     info->s2k.iterations = pgp_s2k_encode_iterations(iterations);
     info->s2k_cipher = s2k_cipher;
