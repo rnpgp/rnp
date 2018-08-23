@@ -66,10 +66,6 @@ main(int argc, char **argv)
                 fprintf(stderr, "Bad setoption result %d\n", ch);
         } else {
             switch (ch) {
-            case 'S':
-                rnp_cfg_setstr(&opt_cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
-                rnp_cfg_setstr(&opt_cfg, CFG_SSHKEYFILE, optarg);
-                break;
             case 'V':
                 print_praise();
                 exit(EXIT_SUCCESS);

@@ -114,7 +114,6 @@ enum optdefs {
     CMD_PROCESS,
 
     /* Options */
-    OPT_SSHKEYS,
     OPT_KEYRING,
     OPT_KEY_STORE_FORMAT,
     OPT_USERID,
@@ -130,7 +129,6 @@ enum optdefs {
     OPT_PASSWDFD,
     OPT_PASSWD,
     OPT_PASSWORDS,
-    OPT_SSHKEYFILE,
     OPT_EXPIRATION,
     OPT_CREATION,
     OPT_CIPHER,
@@ -173,9 +171,6 @@ static struct option options[] = {
   {"show-keys", no_argument, NULL, CMD_SHOW_KEYS},
   {"showkeys", no_argument, NULL, CMD_SHOW_KEYS},
   /* options */
-  {"ssh", no_argument, NULL, OPT_SSHKEYS},
-  {"ssh-keys", no_argument, NULL, OPT_SSHKEYS},
-  {"sshkeyfile", required_argument, NULL, OPT_SSHKEYFILE},
   {"coredumps", no_argument, NULL, OPT_COREDUMPS},
   {"keyring", required_argument, NULL, OPT_KEYRING},
   {"keystore-format", required_argument, NULL, OPT_KEY_STORE_FORMAT},
@@ -617,9 +612,6 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
     case OPT_COREDUMPS:
         rnp_cfg_setbool(cfg, CFG_COREDUMPS, true);
         break;
-    case OPT_SSHKEYS:
-        rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
-        break;
     case OPT_KEYRING:
         if (arg == NULL) {
             fputs("No keyring argument provided\n", stderr);
@@ -717,10 +709,6 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
             return false;
         }
         rnp_cfg_setstr(cfg, CFG_RESULTS, arg);
-        break;
-    case OPT_SSHKEYFILE:
-        rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
-        rnp_cfg_setstr(cfg, CFG_SSHKEYFILE, arg);
         break;
     case OPT_EXPIRATION:
         rnp_cfg_setstr(cfg, CFG_EXPIRATION, arg);
@@ -866,10 +854,6 @@ rnp_main(int argc, char **argv)
         } else {
             int cmd = 0;
             switch (ch) {
-            case 'S':
-                rnp_cfg_setstr(&cfg, CFG_KEYSTOREFMT, RNP_KEYSTORE_SSH);
-                rnp_cfg_setstr(&cfg, CFG_SSHKEYFILE, optarg);
-                break;
             case 'V':
                 cmd = CMD_VERSION;
                 break;

@@ -298,57 +298,6 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
     }
 }
 
-/* save a pgp pubkey to a temp file */
-static bool
-savepubkey(char *res, char *f, size_t size)
-{
-    size_t len;
-    int    cc;
-    int    wc;
-    int    fd;
-
-    (void) snprintf(f, size, "/tmp/pgp2ssh.XXXXXXX");
-    if ((fd = mkstemp(f)) < 0) {
-        (void) fprintf(stderr, "cannot create temp file '%s'\n", f);
-        return false;
-    }
-    len = strlen(res);
-    for (cc = 0; (wc = (int) write(fd, &res[cc], len - (size_t) cc)) > 0; cc += wc) {
-    }
-    (void) close(fd);
-    return true;
-}
-
-/* format a string as (len, string) */
-static int
-formatstring(char *buffer, const uint8_t *s, size_t len)
-{
-    STORE32BE(buffer, len);
-    (void) memcpy(&buffer[4], s, len);
-    return 4 + (int) len;
-}
-
-static int
-formatmpi(char *buffer, const pgp_mpi_t *val)
-{
-    size_t   len;
-    uint8_t *cp;
-    int      cc;
-
-    len = mpi_bytes(val);
-    if ((cp = (uint8_t *) calloc(1, len + 1)) == NULL) {
-        RNP_LOG("calloc failure");
-        return 0;
-    }
-
-    memcpy(cp + 1, val->mpi, len);
-    cp[0] = 0x0;
-    cc =
-      (cp[1] & 0x80) ? formatstring(buffer, cp, len + 1) : formatstring(buffer, &cp[1], len);
-    free(cp);
-    return cc;
-}
-
 #ifdef HAVE_SYS_RESOURCE_H
 
 /* When system resource consumption limit controls are available this
@@ -1601,69 +1550,6 @@ rnp_format_json(void *vp, const char *json, const int psigs)
     /* clean up */
     json_object_put(ids);
     return idc;
-}
-
-/* find a key in keyring, and write it in ssh format */
-int
-rnp_write_sshkey(rnp_t *rnp, char *s, const char *userid, char *out, size_t size)
-{
-    pgp_key_t *key = NULL;
-    pgp_io_t * io;
-    size_t     cc;
-    char       f[MAXPATHLEN];
-
-    io = NULL;
-    cc = 0;
-    if ((io = (pgp_io_t *) calloc(1, sizeof(*io))) == NULL) {
-        (void) fprintf(stderr, "rnp_save_sshpub: bad alloc 1\n");
-        goto done;
-    }
-    io->outs = stdout;
-    io->errs = stderr;
-    io->res = stderr;
-    rnp->io = io;
-    /* write new to temp file */
-    savepubkey(s, f, sizeof(f));
-
-    if (rnp->pubring) {
-        rnp_key_store_free(rnp->pubring);
-    }
-
-    rnp->pubring = rnp_key_store_new(RNP_KEYSTORE_SSH, f);
-    if (rnp->pubring == NULL) {
-        goto done;
-    }
-
-    if (!rnp_key_store_load_from_file(rnp->io, rnp->pubring, NULL)) {
-        (void) fprintf(stderr, "cannot import key\n");
-        goto done;
-    }
-
-    /* get rsa key */
-    key = rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, userid, key);
-    if (!key) {
-        (void) fprintf(stderr, "no key found for '%s'\n", userid);
-        goto done;
-    }
-    if (pgp_get_key_alg(key) != PGP_PKA_RSA) {
-        /* we're not interested in supporting DSA either :-) */
-        (void) fprintf(stderr, "key not RSA '%s'\n", userid);
-        goto done;
-    }
-    /* XXX - check trust sigs */
-    /* XXX - check expiry */
-    /* XXX - check start */
-    /* XXX - check not weak key */
-    /* get rsa e and n */
-    (void) memset(out, 0x0, size);
-    cc = formatstring((char *) out, (const uint8_t *) "ssh-rsa", 7);
-    cc += formatmpi((char *) &out[cc], &pgp_get_key_material(key)->rsa.e);
-    cc += formatmpi((char *) &out[cc], &pgp_get_key_material(key)->rsa.n);
-done:
-    if (io) {
-        free(io);
-    }
-    return (int) cc;
 }
 
 rnp_result_t

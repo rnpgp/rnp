@@ -115,14 +115,12 @@ typedef struct {
 typedef enum key_store_format_t {
     UNKNOW_KEY_STORE = 0,
     GPG_KEY_STORE,
-    SSH_KEY_STORE,
     KBX_KEY_STORE,
     G10_KEY_STORE,
 } key_store_format_t;
 
 #define RNP_KEYSTORE_GPG "GPG" /* GPG keystore format */
 #define RNP_KEYSTORE_KBX "KBX" /* KBX keystore format */
-#define RNP_KEYSTORE_SSH "SSH" /* SSH keystore format */
 #define RNP_KEYSTORE_G10 "G10" /* G10 keystore format */
 
 // combinated keystores

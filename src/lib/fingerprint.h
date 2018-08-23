@@ -34,7 +34,6 @@
 typedef struct pgp_fingerprint_t pgp_fingerprint_t;
 typedef struct pgp_key_pkt_t     pgp_key_pkt_t;
 
-rnp_result_t ssh_fingerprint(pgp_fingerprint_t *fp, const pgp_key_pkt_t *key);
 rnp_result_t pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_key_pkt_t *key);
 
 rnp_result_t pgp_keyid(uint8_t *out, const size_t len, const pgp_key_pkt_t *key);
