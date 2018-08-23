@@ -38,13 +38,12 @@
 #include "stream-sig.h"
 #include "defs.h"
 #include "types.h"
-#include "crypto/symmetric.h"
-#include "crypto/s2k.h"
 #include "fingerprint.h"
 #include "pgp-key.h"
 #include "list.h"
 #include "utils.h"
 #include "crypto.h"
+#include "../librekey/key_store_pgp.h"
 
 static void
 signature_list_destroy(list *sigs)
@@ -169,6 +168,21 @@ error:
 }
 
 rnp_result_t
+transferable_subkey_from_key(pgp_transferable_subkey_t *dst, const pgp_key_t *key)
+{
+    pgp_source_t memsrc = {};
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    if (!rnp_key_to_src(key, &memsrc)) {
+        return RNP_ERROR_BAD_STATE;
+    }
+
+    ret = process_pgp_subkey(&memsrc, dst);
+    src_close(&memsrc);
+    return ret;
+}
+
+rnp_result_t
 transferable_subkey_merge(pgp_transferable_subkey_t *dst, const pgp_transferable_subkey_t *src)
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
@@ -223,6 +237,21 @@ transferable_key_copy(pgp_transferable_key_t *      dst,
 error:
     transferable_key_destroy(dst);
     return false;
+}
+
+rnp_result_t
+transferable_key_from_key(pgp_transferable_key_t *dst, const pgp_key_t *key)
+{
+    pgp_source_t memsrc = {};
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    if (!rnp_key_to_src(key, &memsrc)) {
+        return RNP_ERROR_BAD_STATE;
+    }
+
+    ret = process_pgp_key(&memsrc, dst);
+    src_close(&memsrc);
+    return ret;
 }
 
 static pgp_transferable_userid_t *
@@ -1516,7 +1545,6 @@ validate_pgp_key_signatures(pgp_signatures_info_t *result,
                             const rnp_key_store_t *keyring)
 {
     pgp_source_t              src = {};
-    pgp_dest_t                dst = {};
     pgp_transferable_key_t    tkey = {};
     pgp_transferable_subkey_t tskey = {};
     rnp_result_t              res = RNP_ERROR_GENERIC;
@@ -1529,29 +1557,18 @@ validate_pgp_key_signatures(pgp_signatures_info_t *result,
         return RNP_SUCCESS;
     }
 
-    /* write raw key packets to the memory and load transferable key */
-    if ((res = init_mem_dest(&dst, NULL, 0))) {
-        return res;
+    if (!rnp_key_to_src(key, &src)) {
+        RNP_LOG("failed to write key packets");
+        return RNP_ERROR_GENERIC;
     }
-
-    for (unsigned i = 0; i < key->packetc; i++) {
-        dst_write(&dst, key->packets[i].raw, key->packets[i].length);
-    }
-
-    if ((res = init_mem_src(&src, mem_dest_own_memory(&dst), dst.writeb, true))) {
-        dst_close(&dst, true);
-        return res;
-    }
-
-    dst_close(&dst, false);
 
     if (pgp_key_is_subkey(key)) {
         res = process_pgp_subkey(&src, &tskey);
     } else {
         res = process_pgp_key(&src, &tkey);
     }
-
     src_close(&src);
+
     if (res) {
         RNP_LOG("warning! failed to parse key back");
         return res;
