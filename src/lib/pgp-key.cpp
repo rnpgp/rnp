@@ -748,7 +748,7 @@ pgp_key_protect(pgp_key_t *                  key,
     bool                        ret = false;
     rnp_key_protection_params_t default_protection = {.symm_alg = DEFAULT_PGP_SYMM_ALG,
                                                       .cipher_mode = DEFAULT_PGP_CIPHER_MODE,
-                                                      .iterations = DEFAULT_S2K_ITERATIONS,
+                                                      .iterations = 0,
                                                       .hash_alg = DEFAULT_PGP_HASH_ALG};
     pgp_key_pkt_t *             seckey = NULL;
 
@@ -781,11 +781,11 @@ pgp_key_protect(pgp_key_t *                  key,
     if (!protection->cipher_mode) {
         protection->cipher_mode = default_protection.cipher_mode;
     }
-    if (!protection->iterations) {
-        protection->iterations = default_protection.iterations;
-    }
     if (!protection->hash_alg) {
         protection->hash_alg = default_protection.hash_alg;
+    }
+    if (!protection->iterations) {
+        protection->iterations = pgp_s2k_compute_iters(protection->hash_alg, DEFAULT_S2K_MSEC);
     }
 
     seckey->sec_protection.symm_alg = protection->symm_alg;
