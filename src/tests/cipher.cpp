@@ -622,7 +622,7 @@ void s2k_iteration_tuning(void **state) {
 
     //fprintf(stderr, "%d %d\n", bytes_10, bytes_100);
     // Test roughly linear cost, often skeyed by clock idle
-    assert_true(static_cast<double>(bytes_100) / bytes_10 > 8);
+    assert_true(static_cast<double>(bytes_100) / bytes_10 > 6);
 
     /// TODO test that hashing bytes_xx data takes roughly requested time
 }
