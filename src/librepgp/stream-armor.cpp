@@ -489,8 +489,12 @@ armor_parse_header(pgp_source_t *src)
         return false;
     }
 
-    if (armhdr > hdr) {
-        RNP_LOG("extra data before the header line");
+    /* if there are non-whitespaces before the armor header then issue warning */
+    for (char *ch = hdr; ch < armhdr; ch++) {
+        if (B64DEC[(int) *ch] != 0xfd) {
+            RNP_LOG("extra data before the header line");
+            break;
+        }
     }
 
     param->type = armor_str_to_data_type(armhdr + 5, armhdrlen - 10);
