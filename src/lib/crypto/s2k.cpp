@@ -30,7 +30,9 @@
 
 #include <stdio.h>
 #include <botan/ffi.h>
+#include "rnp.h"
 #include "types.h"
+#include "utils.h"
 #include "sys/time.h"
 #include "crypto/s2k.h"
 
@@ -178,11 +180,10 @@ uint8_t pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t tr
    const double bytes_for_target = bytes_per_usec * desired_usec;
    const uint8_t iters = pgp_s2k_encode_iterations(bytes_for_target);
 
-#if 0
-   // Useful for debugging
-   fprintf(stderr, "PGP S2K hash %d tuned bytes/usec=%f desired_usec=%f bytes_for_target=%f iters %d\n",
-           alg, bytes_per_usec, desired_usec, bytes_for_target, iters);
-#endif
+   if (rnp_get_debug(__FILE__)) {
+      RNP_LOG("PGP S2K hash %d tuned bytes/usec=%f desired_usec=%f bytes_for_target=%f iters %d\n",
+              alg, bytes_per_usec, desired_usec, bytes_for_target, iters);
+   }
 
    return (iters > MIN_ITERS) ? iters : MIN_ITERS;
 }
