@@ -167,6 +167,8 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_load_check_bitfields_and_times),
       cmocka_unit_test(test_load_check_bitfields_and_times_v3),
       cmocka_unit_test(test_load_g10),
+      cmocka_unit_test(test_load_armored_pub_sec),
+      cmocka_unit_test(test_load_merge),
       cmocka_unit_test(test_key_unlock_pgp),
       cmocka_unit_test(test_key_protect_load_pgp),
       cmocka_unit_test(test_key_add_userid),
