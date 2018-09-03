@@ -99,6 +99,10 @@ void test_load_check_bitfields_and_times_v3(void **state);
 
 void test_load_g10(void **state);
 
+void test_load_armored_pub_sec(void **state);
+
+void test_load_merge(void **state);
+
 void test_key_unlock_pgp(void **state);
 
 void test_key_validate(void **state);
