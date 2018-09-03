@@ -419,3 +419,312 @@ test_load_check_bitfields_and_times_v3(void **state)
     // cleanup
     rnp_key_store_free(key_store);
 }
+
+#define MERGE_PATH "data/test_stream_key_merge/"
+
+void
+test_load_armored_pub_sec(void **state)
+{
+    pgp_io_t   io = {.outs = stdout, .errs = stderr, .res = stdout};
+    pgp_key_t *key;
+    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    rnp_key_store_t *key_store;
+
+    key_store = rnp_key_store_new("GPG", MERGE_PATH "key-both.asc");
+    assert_non_null(key_store);
+    assert_true(rnp_key_store_load_from_file(&io, key_store, NULL));
+
+    /* we must have 1 main key and 2 subkeys */
+    assert_int_equal(list_length(key_store->keys), 3);
+
+    assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid, sizeof(keyid)));
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL));
+    assert_true(key->valid);
+    assert_true(pgp_key_is_primary_key(key));
+    assert_true(pgp_is_key_secret(key));
+    assert_int_equal(key->packetc, 5);
+    assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_SECRET_KEY);
+    assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[2].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(key->packets[3].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[4].tag, PGP_PTAG_CT_SIGNATURE);
+
+    assert_true(rnp_hex_decode("AF1114A47F5F5B28", keyid, sizeof(keyid)));
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL));
+    assert_true(key->valid);
+    assert_true(pgp_key_is_subkey(key));
+    assert_true(pgp_is_key_secret(key));
+    assert_int_equal(key->packetc, 2);
+    assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_SECRET_SUBKEY);
+    assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_SIGNATURE);
+
+    assert_true(rnp_hex_decode("16CD16F267CCDD4F", keyid, sizeof(keyid)));
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL));
+    assert_true(key->valid);
+    assert_true(pgp_key_is_subkey(key));
+    assert_true(pgp_is_key_secret(key));
+    assert_int_equal(key->packetc, 2);
+    assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_SECRET_SUBKEY);
+    assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_SIGNATURE);
+
+    /* both user ids should be present */
+    assert_non_null(rnp_key_store_get_key_by_name(&io, key_store, "key-merge-uid-1", NULL));
+    assert_non_null(rnp_key_store_get_key_by_name(&io, key_store, "key-merge-uid-2", NULL));
+
+    rnp_key_store_free(key_store);
+}
+
+static bool
+load_transferable_key(pgp_transferable_key_t *key, const char *fname)
+{
+    pgp_source_t src = {};
+    bool res = !init_file_src(&src, fname) && !process_pgp_key(&src, key);
+    src_close(&src);
+    return res;
+}
+
+static bool
+load_transferable_subkey(pgp_transferable_subkey_t *key, const char *fname)
+{
+    pgp_source_t src = {};
+    bool res = !init_file_src(&src, fname) && !process_pgp_subkey(&src, key);
+    src_close(&src);
+    return res;
+}
+
+void
+test_load_merge(void **state)
+{
+    pgp_io_t   io = {.outs = stdout, .errs = stderr, .res = stdout};
+    pgp_key_t *key, *skey1, *skey2;
+    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    uint8_t          sub1id[PGP_KEY_ID_SIZE];
+    uint8_t          sub2id[PGP_KEY_ID_SIZE];
+    rnp_key_store_t *key_store;
+    pgp_transferable_key_t tkey = {};
+    pgp_transferable_subkey_t tskey = {};
+    pgp_password_provider_t provider = (pgp_password_provider_t){.callback = string_copy_password_callback,
+                                         .userdata = (void *) "password"};
+
+    key_store = rnp_key_store_new("GPG", "");
+    assert_non_null(key_store);
+    assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid, sizeof(keyid)));
+    assert_true(rnp_hex_decode("AF1114A47F5F5B28", sub1id, sizeof(sub1id)));
+    assert_true(rnp_hex_decode("16CD16F267CCDD4F", sub2id, sizeof(sub2id)));
+
+    /* load just key packet */
+    assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-just-key.pgp"));
+    assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
+    transferable_key_destroy(&tkey);
+    assert_int_equal(list_length(key_store->keys), 1);
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL));
+    assert_false(key->valid);
+    assert_int_equal(key->packetc, 1);
+    assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_PUBLIC_KEY);
+
+    /* load key + user id 1 without sigs */
+    assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-uid-1-no-sigs.pgp"));
+    assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
+    transferable_key_destroy(&tkey);
+    assert_int_equal(list_length(key_store->keys), 1);
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL));
+    assert_false(key->valid);
+    assert_int_equal(key->uidc, 1);
+    assert_int_equal(key->packetc, 2);
+    assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_PUBLIC_KEY);
+    assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_USER_ID);
+    assert_true(key == rnp_key_store_get_key_by_name(&io, key_store, "key-merge-uid-1", NULL));
+
+    /* load key + user id 1 with sigs */
+    assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-uid-1.pgp"));
+    assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
+    transferable_key_destroy(&tkey);
+    assert_int_equal(list_length(key_store->keys), 1);
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL));
+    assert_true(key->valid);
+    assert_int_equal(key->uidc, 1);
+    assert_int_equal(key->packetc, 3);
+    assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_PUBLIC_KEY);
+    assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[2].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_true(key == rnp_key_store_get_key_by_name(&io, key_store, "key-merge-uid-1", NULL));
+
+    /* load key + user id 2 with sigs */
+    assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-uid-2.pgp"));
+    assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
+    /* try to add it twice */
+    assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
+    transferable_key_destroy(&tkey);
+    assert_int_equal(list_length(key_store->keys), 1);
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL));
+    assert_true(key->valid);
+    assert_int_equal(key->uidc, 2);
+    assert_int_equal(key->packetc, 5);
+    assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_PUBLIC_KEY);
+    assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[2].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(key->packets[3].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[4].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_true(key == rnp_key_store_get_key_by_name(&io, key_store, "key-merge-uid-1", NULL));
+    assert_true(key == rnp_key_store_get_key_by_name(&io, key_store, "key-merge-uid-2", NULL));
+
+    /* load key + subkey 1 without sigs */
+    assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-subkey-1-no-sigs.pgp"));
+    assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
+    transferable_key_destroy(&tkey);
+    assert_int_equal(list_length(key_store->keys), 2);
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL));
+    assert_non_null(skey1 = rnp_key_store_get_key_by_id(&io, key_store, sub1id, NULL));
+    assert_true(key->valid);
+    assert_false(skey1->valid);
+    assert_int_equal(key->uidc, 2);
+    assert_int_equal(list_length(key->subkey_grips), 1);
+    assert_int_equal(memcmp(list_front(key->subkey_grips), skey1->grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(key->packetc, 5);
+    assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_PUBLIC_KEY);
+    assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[2].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(key->packets[3].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[4].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(skey1->uidc, 0);
+    assert_int_equal(memcmp(key->grip, skey1->primary_grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(skey1->packetc, 1);
+    assert_int_equal(skey1->packets[0].tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
+
+    /* load just subkey 1 but with signature */
+    assert_true(load_transferable_subkey(&tskey, MERGE_PATH "key-pub-no-key-subkey-1.pgp"));
+    assert_true(rnp_key_store_add_transferable_subkey(key_store, &tskey, key));
+    /* try to add it twice */
+    assert_true(rnp_key_store_add_transferable_subkey(key_store, &tskey, key));
+    transferable_subkey_destroy(&tskey);
+    assert_int_equal(list_length(key_store->keys), 2);
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL));
+    assert_non_null(skey1 = rnp_key_store_get_key_by_id(&io, key_store, sub1id, NULL));
+    assert_true(key->valid);
+    assert_true(skey1->valid);
+    assert_int_equal(key->uidc, 2);
+    assert_int_equal(list_length(key->subkey_grips), 1);
+    assert_int_equal(memcmp(list_front(key->subkey_grips), skey1->grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(key->packetc, 5);
+    assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_PUBLIC_KEY);
+    assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[2].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(key->packets[3].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[4].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(skey1->uidc, 0);
+    assert_int_equal(memcmp(key->grip, skey1->primary_grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(skey1->packetc, 2);
+    assert_int_equal(skey1->packets[0].tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
+    assert_int_equal(skey1->packets[1].tag, PGP_PTAG_CT_SIGNATURE);
+
+    /* load key + subkey 2 with signature */
+    assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-subkey-2.pgp"));
+    assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
+    /* try to add it twice */
+    assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
+    transferable_key_destroy(&tkey);
+    assert_int_equal(list_length(key_store->keys), 3);
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL));
+    assert_non_null(skey1 = rnp_key_store_get_key_by_id(&io, key_store, sub1id, NULL));
+    assert_non_null(skey2 = rnp_key_store_get_key_by_id(&io, key_store, sub2id, NULL));
+    assert_true(key->valid);
+    assert_true(skey1->valid);
+    assert_true(skey2->valid);
+    assert_int_equal(key->uidc, 2);
+    assert_int_equal(list_length(key->subkey_grips), 2);
+    assert_int_equal(memcmp(list_front(key->subkey_grips), skey1->grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(memcmp(list_next(list_front(key->subkey_grips)), skey2->grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(key->packetc, 5);
+    assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_PUBLIC_KEY);
+    assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[2].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(key->packets[3].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[4].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(skey1->uidc, 0);
+    assert_int_equal(memcmp(key->grip, skey1->primary_grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(skey1->packetc, 2);
+    assert_int_equal(skey1->packets[0].tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
+    assert_int_equal(skey1->packets[1].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(skey2->uidc, 0);
+    assert_int_equal(memcmp(key->grip, skey2->primary_grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(skey2->packetc, 2);
+    assert_int_equal(skey2->packets[0].tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
+    assert_int_equal(skey2->packets[1].tag, PGP_PTAG_CT_SIGNATURE);
+
+    /* load secret key & subkeys */
+    assert_true(load_transferable_key(&tkey, MERGE_PATH "key-sec-no-uid-no-sigs.pgp"));
+    assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
+    /* try to add it twice */
+    assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
+    transferable_key_destroy(&tkey);
+    assert_int_equal(list_length(key_store->keys), 3);
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL));
+    assert_non_null(skey1 = rnp_key_store_get_key_by_id(&io, key_store, sub1id, NULL));
+    assert_non_null(skey2 = rnp_key_store_get_key_by_id(&io, key_store, sub2id, NULL));
+    assert_true(key->valid);
+    assert_true(skey1->valid);
+    assert_true(skey2->valid);
+    assert_int_equal(key->uidc, 2);
+    assert_int_equal(list_length(key->subkey_grips), 2);
+    assert_int_equal(memcmp(list_front(key->subkey_grips), skey1->grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(memcmp(list_next(list_front(key->subkey_grips)), skey2->grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(key->packetc, 5);
+    assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_SECRET_KEY);
+    assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[2].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(key->packets[3].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[4].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(skey1->uidc, 0);
+    assert_int_equal(memcmp(key->grip, skey1->primary_grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(skey1->packetc, 2);
+    assert_int_equal(skey1->packets[0].tag, PGP_PTAG_CT_SECRET_SUBKEY);
+    assert_int_equal(skey1->packets[1].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(skey2->uidc, 0);
+    assert_int_equal(memcmp(key->grip, skey2->primary_grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(skey2->packetc, 2);
+    assert_int_equal(skey2->packets[0].tag, PGP_PTAG_CT_SECRET_SUBKEY);
+    assert_int_equal(skey2->packets[1].tag, PGP_PTAG_CT_SIGNATURE);
+
+    assert_true(pgp_key_unlock(key, &provider));
+    assert_true(pgp_key_unlock(skey1, &provider));
+    assert_true(pgp_key_unlock(skey2, &provider));
+
+    /* load the whole public + secret key */
+    assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub.asc"));
+    assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
+    transferable_key_destroy(&tkey);
+    assert_true(load_transferable_key(&tkey, MERGE_PATH "key-sec.asc"));
+    assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
+    transferable_key_destroy(&tkey);
+    assert_int_equal(list_length(key_store->keys), 3);
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, key_store, keyid, NULL));
+    assert_non_null(skey1 = rnp_key_store_get_key_by_id(&io, key_store, sub1id, NULL));
+    assert_non_null(skey2 = rnp_key_store_get_key_by_id(&io, key_store, sub2id, NULL));
+    assert_true(key->valid);
+    assert_true(skey1->valid);
+    assert_true(skey2->valid);
+    assert_int_equal(key->uidc, 2);
+    assert_int_equal(list_length(key->subkey_grips), 2);
+    assert_int_equal(memcmp(list_front(key->subkey_grips), skey1->grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(memcmp(list_next(list_front(key->subkey_grips)), skey2->grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(key->packetc, 5);
+    assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_SECRET_KEY);
+    assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[2].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(key->packets[3].tag, PGP_PTAG_CT_USER_ID);
+    assert_int_equal(key->packets[4].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(skey1->uidc, 0);
+    assert_int_equal(memcmp(key->grip, skey1->primary_grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(skey1->packetc, 2);
+    assert_int_equal(skey1->packets[0].tag, PGP_PTAG_CT_SECRET_SUBKEY);
+    assert_int_equal(skey1->packets[1].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_int_equal(skey2->uidc, 0);
+    assert_int_equal(memcmp(key->grip, skey2->primary_grip, PGP_FINGERPRINT_SIZE), 0);
+    assert_int_equal(skey2->packetc, 2);
+    assert_int_equal(skey2->packets[0].tag, PGP_PTAG_CT_SECRET_SUBKEY);
+    assert_int_equal(skey2->packets[1].tag, PGP_PTAG_CT_SIGNATURE);
+    assert_true(key == rnp_key_store_get_key_by_name(&io, key_store, "key-merge-uid-1", NULL));
+    assert_true(key == rnp_key_store_get_key_by_name(&io, key_store, "key-merge-uid-2", NULL));
+
+    rnp_key_store_free(key_store);
+}
