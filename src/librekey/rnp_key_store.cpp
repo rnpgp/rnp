@@ -578,6 +578,10 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
         goto done;
     }
 
+    /* move existing subkey grips since they are not present in transferable key */
+    tmpkey.subkey_grips = dst->subkey_grips;
+    dst->subkey_grips = NULL;
+
     pgp_key_free_data(dst);
     *dst = tmpkey;
     res = true;
