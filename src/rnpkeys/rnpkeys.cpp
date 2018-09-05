@@ -217,6 +217,12 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         protection->hash_alg = primary_desc->crypto.hash_alg;
         protection->symm_alg = pgp_str_to_cipher(rnp_cfg_getstr(cfg, CFG_CIPHER));
         protection->iterations = rnp_cfg_getint(cfg, CFG_S2K_ITER);
+
+        if(protection->iterations == 0) {
+           protection->iterations =
+              pgp_s2k_compute_iters(protection->hash_alg, rnp_cfg_getint(cfg, CFG_S2K_ITER), 10);
+        }
+
         action->subkey.keygen.crypto.rng = &rnp->rng;
 
         if (!rnp_cfg_getbool(cfg, CFG_EXPERT)) {
