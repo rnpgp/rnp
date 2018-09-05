@@ -460,15 +460,18 @@ rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
         goto error;
     }
 
-    subkey->primary_grip = (uint8_t *) malloc(PGP_FINGERPRINT_SIZE);
-    if (!subkey->primary_grip) {
-        RNP_LOG("alloc failed");
-        goto error;
-    }
-    memcpy(subkey->primary_grip, primary->grip, PGP_FINGERPRINT_SIZE);
-    if (!rnp_key_add_subkey_grip(primary, subkey->grip)) {
-        RNP_LOG("failed to add subkey grip");
-        goto error;
+    /* setup key grips if primary is available */
+    if (primary) {
+        subkey->primary_grip = (uint8_t *) malloc(PGP_FINGERPRINT_SIZE);
+        if (!subkey->primary_grip) {
+            RNP_LOG("alloc failed");
+            goto error;
+        }
+        memcpy(subkey->primary_grip, primary->grip, PGP_FINGERPRINT_SIZE);
+        if (!rnp_key_add_subkey_grip(primary, subkey->grip)) {
+            RNP_LOG("failed to add subkey grip");
+            goto error;
+        }
     }
     return true;
 error:
