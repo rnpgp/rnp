@@ -614,15 +614,12 @@ void s2k_iteration_tuning(void **state) {
     */
     const size_t TRIAL_MSEC = 250;
 
-    const uint8_t iters_100 = pgp_s2k_compute_iters(hash_alg, 100, TRIAL_MSEC);
-    const uint8_t iters_10 = pgp_s2k_compute_iters(hash_alg, 10, TRIAL_MSEC);
+    const size_t iters_100 = pgp_s2k_compute_iters(hash_alg, 100, TRIAL_MSEC);
+    const size_t iters_10 = pgp_s2k_compute_iters(hash_alg, 10, TRIAL_MSEC);
 
-    const size_t bytes_100 = pgp_s2k_decode_iterations(iters_100);
-    const size_t bytes_10 = pgp_s2k_decode_iterations(iters_10);
-
-    //fprintf(stderr, "%d %d\n", bytes_10, bytes_100);
+    //fprintf(stderr, "%d %d\n", iters_10, iters_100);
     // Test roughly linear cost, often skeyed by clock idle
-    assert_true(static_cast<double>(bytes_100) / bytes_10 > 6);
+    assert_true(static_cast<double>(iters_100) / iters_10 > 6);
 
-    /// TODO test that hashing bytes_xx data takes roughly requested time
+    /// TODO test that hashing iters_xx data takes roughly requested time
 }

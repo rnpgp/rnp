@@ -43,11 +43,8 @@
 /* Default symmetric algorithm as PGP constant */
 #define DEFAULT_PGP_SYMM_ALG PGP_SA_AES_256
 
-/* Default number of S2K iterations */
-#define DEFAULT_S2K_ITERATIONS 33554432
-
 /* Default number of msec to run S2K derivation */
-#define DEFAULT_S2K_MSEC 200
+#define DEFAULT_S2K_MSEC 150
 
 /* Default number of msec to run S2K tuning */
 #define DEFAULT_S2K_TUNE_MSEC 10

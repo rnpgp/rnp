@@ -30,11 +30,13 @@
 
 #include <stdio.h>
 #include <botan/ffi.h>
+#include <sys/time.h>
+
 #include "rnp.h"
 #include "types.h"
 #include "utils.h"
-#include "sys/time.h"
 #include "crypto/s2k.h"
+#include "defaults.h"
 
 bool
 pgp_s2k_derive_key(pgp_s2k_t *s2k, const char *password, uint8_t *key, int keysize)
@@ -148,12 +150,17 @@ static uint64_t get_timestamp_usec()
    return (static_cast<uint64_t>(tv.tv_sec) * 1000000) + static_cast<uint64_t>(tv.tv_usec);
    }
 
-uint8_t pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t trial_msec)
+size_t pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t trial_msec)
 {
    const uint64_t TRIAL_USEC = trial_msec * 1000;
    const uint8_t MIN_ITERS = 96;
    uint8_t buf[8192] = { 0 };
    size_t bytes = 0;
+
+   if(desired_msec == 0)
+      desired_msec = DEFAULT_S2K_MSEC;
+   if(trial_msec == 0)
+      trial_msec = DEFAULT_S2K_TUNE_MSEC;
 
    pgp_hash_t hash;
    pgp_hash_create(&hash, alg);
@@ -185,5 +192,5 @@ uint8_t pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t tr
               alg, bytes_per_usec, desired_usec, bytes_for_target, iters);
    }
 
-   return (iters > MIN_ITERS) ? iters : MIN_ITERS;
+   return pgp_s2k_decode_iterations((iters > MIN_ITERS) ? iters : MIN_ITERS);
 }
