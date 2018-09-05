@@ -107,6 +107,17 @@ void pgp_key_free(pgp_key_t *);
  **/
 void pgp_key_free_data(pgp_key_t *);
 
+/**
+ * @brief Copy key, optionally copying only the public key part.
+ *
+ * @param dst destination of copying
+ * @param src source key
+ * @param public if true then only public key fields will be copied, i.e. key converted from
+ *               secret to public
+ * @return RNP_SUCCESS if operation succeeded or error code otherwise
+ */
+rnp_result_t pgp_key_copy(pgp_key_t *dst, const pgp_key_t *src, bool pubonly);
+
 void pgp_free_user_prefs(pgp_user_prefs_t *prefs);
 
 const pgp_key_pkt_t *pgp_get_key_pkt(const pgp_key_t *);

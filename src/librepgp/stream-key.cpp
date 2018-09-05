@@ -239,6 +239,39 @@ error:
     return false;
 }
 
+bool
+transferable_subkey_to_public(pgp_transferable_subkey_t *key)
+{
+    pgp_key_pkt_t tmp = {};
+
+    if (!copy_key_pkt(&tmp, &key->subkey, true)) {
+        return false;
+    }
+    free_key_pkt(&key->subkey);
+    key->subkey = tmp;
+    return true;
+}
+
+bool
+transferable_key_to_public(pgp_transferable_key_t *key)
+{
+    pgp_key_pkt_t tmp = {};
+
+    if (!copy_key_pkt(&tmp, &key->key, true)) {
+        return false;
+    }
+    free_key_pkt(&key->key);
+    key->key = tmp;
+
+    for (list_item *skey = list_front(key->subkeys); skey; skey = list_next(skey)) {
+        if (!transferable_subkey_to_public((pgp_transferable_subkey_t *) skey)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 rnp_result_t
 transferable_key_from_key(pgp_transferable_key_t *dst, const pgp_key_t *key)
 {

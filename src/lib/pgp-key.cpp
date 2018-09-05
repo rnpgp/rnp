@@ -217,6 +217,90 @@ pgp_key_free(pgp_key_t *key)
     free(key);
 }
 
+static rnp_result_t
+pgp_key_copy_primary(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
+{
+    pgp_transferable_key_t tkey = {};
+    rnp_result_t           res = RNP_ERROR_GENERIC;
+
+    if ((res = transferable_key_from_key(&tkey, src))) {
+        RNP_LOG("failed to build transferable key");
+        return res;
+    }
+
+    if (pubonly && pgp_is_key_secret(src) && !transferable_key_to_public(&tkey)) {
+        RNP_LOG("failed to convert key to public");
+        res = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    if (!rnp_key_from_transferable_key(dst, &tkey)) {
+        RNP_LOG("failed to create key from transferable");
+        goto done;
+    }
+
+    /* copy subkey grips if they are */
+    for (list_item *li = list_front(src->subkey_grips); li; li = list_next(li)) {
+        if (!list_append(&dst->subkey_grips, li, PGP_FINGERPRINT_SIZE)) {
+            pgp_key_free_data(dst);
+            res = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+    }
+    res = RNP_SUCCESS;
+done:
+    transferable_key_destroy(&tkey);
+    return res;
+}
+
+static rnp_result_t
+pgp_key_copy_subkey(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
+{
+    pgp_transferable_subkey_t tskey = {};
+    rnp_result_t              res = RNP_ERROR_GENERIC;
+
+    if ((res = transferable_subkey_from_key(&tskey, src))) {
+        RNP_LOG("failed to build transferable key");
+        return res;
+    }
+
+    if (pubonly && pgp_is_key_secret(src) && !transferable_subkey_to_public(&tskey)) {
+        RNP_LOG("failed to convert subkey to public");
+        res = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    if (!rnp_key_from_transferable_subkey(dst, &tskey, NULL)) {
+        RNP_LOG("failed to create key from transferable");
+        goto done;
+    }
+
+    /* copy primary key grip if it is available */
+    if (src->primary_grip) {
+        dst->primary_grip = (uint8_t *) calloc(1, PGP_FINGERPRINT_SIZE);
+        if (!dst->primary_grip) {
+            pgp_key_free_data(dst);
+            res = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        memcpy(dst->primary_grip, src->primary_grip, PGP_FINGERPRINT_SIZE);
+    }
+    res = RNP_SUCCESS;
+done:
+    transferable_subkey_destroy(&tskey);
+    return res;
+}
+
+rnp_result_t
+pgp_key_copy(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
+{
+    if (pgp_key_is_primary_key(src)) {
+        return pgp_key_copy_primary(dst, src, pubonly);
+    }
+
+    return pgp_key_copy_subkey(dst, src, pubonly);
+}
+
 /**
  \ingroup HighLevel_KeyGeneral
 
