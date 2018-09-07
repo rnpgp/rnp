@@ -728,3 +728,85 @@ test_load_merge(void **state)
 
     rnp_key_store_free(key_store);
 }
+
+void
+test_load_public_from_secret(void **state)
+{
+    pgp_io_t   io = {.outs = stdout, .errs = stderr, .res = stdout};
+    pgp_key_t *key, *skey1, *skey2, keycp;
+    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    uint8_t          sub1id[PGP_KEY_ID_SIZE];
+    uint8_t          sub2id[PGP_KEY_ID_SIZE];
+    rnp_key_store_t *secstore, *pubstore;
+
+    assert_non_null(secstore = rnp_key_store_new("GPG", MERGE_PATH "key-sec.asc"));
+    assert_true(rnp_key_store_load_from_file(&io, secstore, NULL));
+    assert_non_null(pubstore = rnp_key_store_new("GPG", "pubring.gpg"));
+
+    assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid, sizeof(keyid)));
+    assert_true(rnp_hex_decode("AF1114A47F5F5B28", sub1id, sizeof(sub1id)));
+    assert_true(rnp_hex_decode("16CD16F267CCDD4F", sub2id, sizeof(sub2id)));
+
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, secstore, keyid, NULL));
+    assert_non_null(skey1 = rnp_key_store_get_key_by_id(&io, secstore, sub1id, NULL));
+    assert_non_null(skey2 = rnp_key_store_get_key_by_id(&io, secstore, sub2id, NULL));
+
+    /* copy the secret key */
+    assert_rnp_success(pgp_key_copy(&keycp, key, false));
+    assert_true(pgp_is_key_secret(&keycp));
+    assert_int_equal(list_length(keycp.subkey_grips), 2);
+    assert_false(memcmp(list_front(keycp.subkey_grips), skey1->grip, PGP_FINGERPRINT_SIZE));
+    assert_false(memcmp(list_back(keycp.subkey_grips), skey2->grip, PGP_FINGERPRINT_SIZE));
+    assert_false(memcmp(keycp.grip, key->grip, PGP_FINGERPRINT_SIZE));
+    assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_SECRET_KEY);
+    pgp_key_free_data(&keycp);
+
+    /* copy the public part */
+    assert_rnp_success(pgp_key_copy(&keycp, key, true));
+    assert_false(pgp_is_key_secret(&keycp));
+    assert_int_equal(list_length(keycp.subkey_grips), 2);
+    assert_false(memcmp(list_front(keycp.subkey_grips), skey1->grip, PGP_FINGERPRINT_SIZE));
+    assert_false(memcmp(list_back(keycp.subkey_grips), skey2->grip, PGP_FINGERPRINT_SIZE));
+    assert_false(memcmp(keycp.grip, key->grip, PGP_FINGERPRINT_SIZE));
+    assert_int_equal(keycp.packets[0].tag, PGP_PTAG_CT_PUBLIC_KEY);
+    assert_null(pgp_get_key_pkt(&keycp)->sec_data);
+    assert_int_equal(pgp_get_key_pkt(&keycp)->sec_len, 0);
+    assert_false(pgp_get_key_pkt(&keycp)->material.secret);
+    rnp_key_store_add_key(&io, pubstore, &keycp);
+    /* subkey 1 */
+    assert_rnp_success(pgp_key_copy(&keycp, skey1, true));
+    assert_false(pgp_is_key_secret(&keycp));
+    assert_int_equal(list_length(keycp.subkey_grips), 0);
+    assert_false(memcmp(keycp.primary_grip, key->grip, PGP_FINGERPRINT_SIZE));
+    assert_false(memcmp(keycp.grip, skey1->grip, PGP_FINGERPRINT_SIZE));
+    assert_false(memcmp(keycp.keyid, sub1id, PGP_KEY_ID_SIZE));
+    assert_int_equal(keycp.packets[0].tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
+    assert_null(pgp_get_key_pkt(&keycp)->sec_data);
+    assert_int_equal(pgp_get_key_pkt(&keycp)->sec_len, 0);
+    assert_false(pgp_get_key_pkt(&keycp)->material.secret);
+    rnp_key_store_add_key(&io, pubstore, &keycp);
+    /* subkey 2 */
+    assert_rnp_success(pgp_key_copy(&keycp, skey2, true));
+    assert_false(pgp_is_key_secret(&keycp));
+    assert_int_equal(list_length(keycp.subkey_grips), 0);
+    assert_false(memcmp(keycp.primary_grip, key->grip, PGP_FINGERPRINT_SIZE));
+    assert_false(memcmp(keycp.grip, skey2->grip, PGP_FINGERPRINT_SIZE));
+    assert_false(memcmp(keycp.keyid, sub2id, PGP_KEY_ID_SIZE));
+    assert_int_equal(keycp.packets[0].tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
+    assert_null(pgp_get_key_pkt(&keycp)->sec_data);
+    assert_int_equal(pgp_get_key_pkt(&keycp)->sec_len, 0);
+    assert_false(pgp_get_key_pkt(&keycp)->material.secret);
+    rnp_key_store_add_key(&io, pubstore, &keycp);
+    /* save pubring */
+    assert_true(rnp_key_store_write_to_file(&io, pubstore, false));
+    rnp_key_store_free(pubstore);
+    /* reload */
+    assert_non_null(pubstore = rnp_key_store_new("GPG", "pubring.gpg"));
+    assert_true(rnp_key_store_load_from_file(&io, pubstore, NULL));
+    assert_non_null(key = rnp_key_store_get_key_by_id(&io, pubstore, keyid, NULL));
+    assert_non_null(skey1 = rnp_key_store_get_key_by_id(&io, pubstore, sub1id, NULL));
+    assert_non_null(skey2 = rnp_key_store_get_key_by_id(&io, pubstore, sub2id, NULL));
+
+    rnp_key_store_free(pubstore);
+    rnp_key_store_free(secstore);
+}
