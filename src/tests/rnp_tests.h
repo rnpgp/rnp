@@ -103,6 +103,8 @@ void test_load_armored_pub_sec(void **state);
 
 void test_load_merge(void **state);
 
+void test_load_public_from_secret(void **state);
+
 void test_key_unlock_pgp(void **state);
 
 void test_key_validate(void **state);
