@@ -308,7 +308,7 @@ rnp_key_add_signatures(pgp_key_t *key, list signatures)
     return true;
 }
 
-static bool
+bool
 rnp_key_add_subkey_grip(pgp_key_t *key, uint8_t *grip)
 {
     for (list_item *li = list_front(key->subkey_grips); li; li = list_next(li)) {

@@ -581,6 +581,11 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
     /* move existing subkey grips since they are not present in transferable key */
     tmpkey.subkey_grips = dst->subkey_grips;
     dst->subkey_grips = NULL;
+    for (list_item *li = list_front(src->subkey_grips); li; li = list_next(li)) {
+        if (!rnp_key_add_subkey_grip(&tmpkey, (uint8_t *) li)) {
+            RNP_LOG("failed to add subkey grip");
+        }
+    }
 
     pgp_key_free_data(dst);
     *dst = tmpkey;
