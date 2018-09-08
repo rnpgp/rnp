@@ -787,8 +787,6 @@ rnp_import_key(rnp_t *rnp, char *f)
 {
     rnp_key_store_t *tmp_keystore = NULL;
     bool             ret = false;
-    list             imported_grips = NULL;
-    list_item *      item = NULL;
     const char *     suffix = NULL;
     const char *     fmt = NULL;
 
@@ -802,7 +800,7 @@ rnp_import_key(rnp_t *rnp, char *f)
         fmt = RNP_KEYSTORE_GPG;
     } else if (strcmp(suffix, ".kbx") == 0) {
         fmt = RNP_KEYSTORE_KBX;
-    } else if (strcmp(suffix, ".key") == 0) {
+    } else if ((strcmp(suffix, ".key") == 0) || (strcmp(suffix, "v1.d") == 0)) {
         fmt = RNP_KEYSTORE_G10;
     } else {
         RNP_LOG("Warning: failed to guess key format, assuming GPG.");
@@ -826,62 +824,60 @@ rnp_import_key(rnp_t *rnp, char *f)
     }
 
     // loop through each key
-    for (list_item *key_item = list_front(tmp_keystore->keys); key_item;
-         key_item = list_next(key_item)) {
-        pgp_key_t *      key = (pgp_key_t *) key_item;
-        pgp_key_t *      importedkey = NULL;
-        rnp_key_store_t *dest = pgp_is_key_secret(key) ? rnp->secring : rnp->pubring;
-        const char *     header = pgp_is_key_secret(key) ? "sec" : "pub";
+    for (list_item *ki = list_front(tmp_keystore->keys); ki; ki = list_next(ki)) {
+        pgp_key_t  keycp = {};
+        pgp_key_t *imported = (pgp_key_t *) ki;
+        pgp_key_t *exkey = NULL;
+        size_t     expackets = 0;
+        bool       changed = false;
 
-        // check if it already exists
-        importedkey = rnp_key_store_get_key_by_grip(rnp->io, dest, key->grip);
-        if (!importedkey) {
-            // print it out
-            repgp_print_key(rnp->io, tmp_keystore, key, header, 0);
+        /* add public key */
+        if (pgp_key_copy(&keycp, imported, true)) {
+            RNP_LOG("failed to create key copy");
+            continue;
+        }
+        exkey = rnp_key_store_get_key_by_grip(rnp->io, rnp->pubring, imported->grip);
+        expackets = exkey ? exkey->packetc : 0;
+        if (!(exkey = rnp_key_store_add_key(rnp->io, rnp->pubring, &keycp))) {
+            RNP_LOG("failed to add key to the keyring");
+            pgp_key_free_data(&keycp);
+            continue;
+        }
+        changed = exkey->packetc > expackets;
 
-            // add it to the dest store
-            if (!rnp_key_store_add_key(rnp->io, dest, key)) {
-                RNP_LOG("failed to add key to destination key store");
-                goto done;
+        /* add secret key if there is one */
+        if (!pgp_is_key_secret(imported)) {
+            if (changed) {
+                repgp_print_key(rnp->io, rnp->pubring, exkey, "pub", 0);
             }
-            // keep track of what keys have been imported
-            list_append(&imported_grips, key->grip, sizeof(key->grip));
-            importedkey = rnp_key_store_get_key_by_grip(rnp->io, dest, key->grip);
-            list_item *subkey_grip = list_front(key->subkey_grips);
-            while (subkey_grip) {
-                pgp_key_t *subkey = rnp_key_store_get_key_by_grip(
-                  rnp->io, tmp_keystore, (uint8_t *) subkey_grip);
-                assert(subkey);
-                if (!rnp_key_store_add_key(rnp->io, dest, subkey)) {
-                    RNP_LOG("failed to add key to destination key store");
-                    goto done;
-                }
-                // keep track of what keys have been imported
-                list_append(&imported_grips, subkey->grip, sizeof(subkey->grip));
-                subkey_grip = list_next(subkey_grip);
-            }
+            continue;
+        }
+
+        if (pgp_key_copy(&keycp, imported, false)) {
+            RNP_LOG("failed to create secret key copy");
+            continue;
+        }
+        exkey = rnp_key_store_get_key_by_grip(rnp->io, rnp->secring, imported->grip);
+        expackets = exkey ? exkey->packetc : 0;
+        if (!(exkey = rnp_key_store_add_key(rnp->io, rnp->secring, &keycp))) {
+            RNP_LOG("failed to add key to the keyring");
+            pgp_key_free_data(&keycp);
+            continue;
+        }
+
+        if (changed || (exkey->packetc > expackets)) {
+            repgp_print_key(rnp->io, rnp->pubring, exkey, "sec", 0);
         }
     }
 
-    // update the keyrings on disk
     if (!rnp_key_store_write_to_file(rnp->io, rnp->secring, 0) ||
         !rnp_key_store_write_to_file(rnp->io, rnp->pubring, 0)) {
         RNP_LOG("failed to write keyring");
         goto done;
     }
-    ret = true;
 
+    ret = true;
 done:
-    // remove all the imported keys from the temporary store,
-    // since we're taking ownership of their internal data
-    item = list_front(imported_grips);
-    while (item) {
-        uint8_t *grip = (uint8_t *) item;
-        rnp_key_store_remove_key(
-          rnp->io, tmp_keystore, rnp_key_store_get_key_by_grip(rnp->io, tmp_keystore, grip));
-        item = list_next(item);
-    }
-    list_destroy(&imported_grips);
     rnp_key_store_free(tmp_keystore);
     return ret;
 }
