@@ -38,6 +38,7 @@ typedef enum {
     OPT_FORCE,
     OPT_SECRET,
     OPT_S2K_ITER,
+    OPT_S2K_MSEC,
 
     /* debug */
     OPT_DEBUG

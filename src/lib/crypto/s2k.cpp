@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017,2018 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -28,15 +28,15 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
 #include <botan/ffi.h>
+#include <stdio.h>
 #include <sys/time.h>
 
+#include "crypto/s2k.h"
+#include "defaults.h"
 #include "rnp.h"
 #include "types.h"
 #include "utils.h"
-#include "crypto/s2k.h"
-#include "defaults.h"
 
 bool
 pgp_s2k_derive_key(pgp_s2k_t *s2k, const char *password, uint8_t *key, int keysize)
@@ -142,55 +142,62 @@ pgp_s2k_encode_iterations(size_t iterations)
 }
 
 /// Should this function be elsewhere?
-static uint64_t get_timestamp_usec()
-   {
-   // Consider clock_gettime
-   struct timeval tv;
-   ::gettimeofday(&tv, NULL);
-   return (static_cast<uint64_t>(tv.tv_sec) * 1000000) + static_cast<uint64_t>(tv.tv_usec);
-   }
-
-size_t pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t trial_msec)
+static uint64_t
+get_timestamp_usec()
 {
-   const uint64_t TRIAL_USEC = trial_msec * 1000;
-   const uint8_t MIN_ITERS = 96;
-   uint8_t buf[8192] = { 0 };
-   size_t bytes = 0;
+    // Consider clock_gettime
+    struct timeval tv;
+    ::gettimeofday(&tv, NULL);
+    return (static_cast<uint64_t>(tv.tv_sec) * 1000000) + static_cast<uint64_t>(tv.tv_usec);
+}
 
-   if(desired_msec == 0)
-      desired_msec = DEFAULT_S2K_MSEC;
-   if(trial_msec == 0)
-      trial_msec = DEFAULT_S2K_TUNE_MSEC;
+size_t
+pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t trial_msec)
+{
+    const uint8_t MIN_ITERS = 96;
+    uint8_t       buf[8192] = {0};
+    size_t        bytes = 0;
 
-   pgp_hash_t hash;
-   pgp_hash_create(&hash, alg);
+    if (desired_msec == 0) {
+        desired_msec = DEFAULT_S2K_MSEC;
+    }
+    if (trial_msec == 0) {
+        trial_msec = DEFAULT_S2K_TUNE_MSEC;
+    }
 
-   const uint64_t start = get_timestamp_usec();
-   uint64_t end = start;
+    pgp_hash_t hash;
+    pgp_hash_create(&hash, alg);
 
-   while(end - start < TRIAL_USEC)
-      {
-      pgp_hash_add(&hash, buf, sizeof(buf));
-      bytes += sizeof(buf);
-      end = get_timestamp_usec();
-      }
+    const uint64_t start = get_timestamp_usec();
+    uint64_t       end = start;
 
-   pgp_hash_finish(&hash, buf);
+    while (end - start < trial_msec * 1000ull) {
+        pgp_hash_add(&hash, buf, sizeof(buf));
+        bytes += sizeof(buf);
+        end = get_timestamp_usec();
+    }
 
-   const uint64_t duration = end - start;
+    pgp_hash_finish(&hash, buf);
 
-   if(duration == 0)
-      return MIN_ITERS;
+    const uint64_t duration = end - start;
 
-   const double bytes_per_usec = static_cast<double>(bytes) / duration;
-   const double desired_usec = desired_msec * 1000.0;
-   const double bytes_for_target = bytes_per_usec * desired_usec;
-   const uint8_t iters = pgp_s2k_encode_iterations(bytes_for_target);
+    if (duration == 0)
+        return pgp_s2k_decode_iterations(MIN_ITERS);
 
-   if (rnp_get_debug(__FILE__)) {
-      RNP_LOG("PGP S2K hash %d tuned bytes/usec=%f desired_usec=%f bytes_for_target=%f iters %d\n",
-              alg, bytes_per_usec, desired_usec, bytes_for_target, iters);
-   }
+    const double  bytes_per_usec = static_cast<double>(bytes) / duration;
+    const double  desired_usec = desired_msec * 1000.0;
+    const double  bytes_for_target = bytes_per_usec * desired_usec;
+    const uint8_t iters = pgp_s2k_encode_iterations(bytes_for_target);
 
-   return pgp_s2k_decode_iterations((iters > MIN_ITERS) ? iters : MIN_ITERS);
+    if (rnp_get_debug(__FILE__)) {
+        RNP_LOG("PGP S2K hash %d tuned bytes/usec=%f desired_usec=%f "
+                "bytes_for_target=%f iters %d\n",
+                alg,
+                bytes_per_usec,
+                desired_usec,
+                bytes_for_target,
+                iters);
+    }
+
+    return pgp_s2k_decode_iterations((iters > MIN_ITERS) ? iters : MIN_ITERS);
 }
