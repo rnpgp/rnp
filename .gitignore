@@ -10,6 +10,7 @@
 core.*
 vgcore.*
 
+src/lib/librnp-*.a
 src/lib/config.h
 src/lib/version.h
 librnp-*.pc
@@ -20,6 +21,8 @@ src/apps/packet-dumper/redumper
 src/rnp/rnp
 src/rnpkeys/rnpkeys
 src/tests/rnp_tests
+
+*.log
 
 # Patch output
 *.orig
