@@ -99,6 +99,7 @@ struct option options[] = {
   {"homedir", required_argument, NULL, OPT_HOMEDIR},
   {"numbits", required_argument, NULL, OPT_NUMBITS},
   {"s2k-iterations", required_argument, NULL, OPT_S2K_ITER},
+  {"s2k-msec", required_argument, NULL, OPT_S2K_MSEC},
   {"verbose", no_argument, NULL, OPT_VERBOSE},
   {"pass-fd", required_argument, NULL, OPT_PASSWDFD},
   {"results", required_argument, NULL, OPT_RESULTS},
@@ -220,7 +221,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
 
         if(protection->iterations == 0) {
            protection->iterations =
-              pgp_s2k_compute_iters(protection->hash_alg, rnp_cfg_getint(cfg, CFG_S2K_ITER), 10);
+              pgp_s2k_compute_iters(protection->hash_alg, rnp_cfg_getint(cfg, CFG_S2K_MSEC), 10);
         }
 
         action->subkey.keygen.crypto.rng = &rnp->rng;
@@ -336,6 +337,13 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
             exit(EXIT_ERROR);
         }
         rnp_cfg_setint(cfg, CFG_S2K_ITER, atoi(arg));
+        break;
+    case OPT_S2K_MSEC:
+        if (arg == NULL) {
+            (void) fprintf(stderr, "No s2k msec argument provided\n");
+            exit(EXIT_ERROR);
+        }
+        rnp_cfg_setint(cfg, CFG_S2K_MSEC, atoi(arg));
         break;
     case OPT_PASSWDFD:
         if (arg == NULL) {
