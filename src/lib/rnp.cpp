@@ -782,8 +782,8 @@ rnp_export_key(rnp_t *rnp, const char *name, bool secret_key)
 }
 
 /* import a key into our keyring */
-int
-rnp_import_key(rnp_t *rnp, char *f)
+bool
+rnp_import_key(rnp_t *rnp, const char *f)
 {
     rnp_key_store_t *tmp_keystore = NULL;
     bool             ret = false;
