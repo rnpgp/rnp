@@ -75,7 +75,7 @@ bool   rnp_list_keys_json(rnp_t *, char **, const int);
 bool   rnp_find_key(rnp_t *, const char *);
 char * rnp_get_key(rnp_t *, const char *, const char *);
 char * rnp_export_key(rnp_t *, const char *, bool);
-int    rnp_import_key(rnp_t *, char *);
+bool   rnp_import_key(rnp_t *, const char *);
 bool   rnp_generate_key(rnp_t *);
 size_t rnp_secret_count(rnp_t *);
 size_t rnp_public_count(rnp_t *);

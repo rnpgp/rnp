@@ -170,6 +170,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_load_armored_pub_sec),
       cmocka_unit_test(test_load_merge),
       cmocka_unit_test(test_load_public_from_secret),
+      cmocka_unit_test(test_key_import),
       cmocka_unit_test(test_key_unlock_pgp),
       cmocka_unit_test(test_key_protect_load_pgp),
       cmocka_unit_test(test_key_add_userid),

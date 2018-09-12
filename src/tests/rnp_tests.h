@@ -105,6 +105,8 @@ void test_load_merge(void **state);
 
 void test_load_public_from_secret(void **state);
 
+void test_key_import(void **state);
+
 void test_key_unlock_pgp(void **state);
 
 void test_key_validate(void **state);
