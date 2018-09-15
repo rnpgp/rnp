@@ -1632,12 +1632,12 @@ copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src)
 bool
 signature_pkt_equal(const pgp_signature_t *sig1, const pgp_signature_t *sig2)
 {
-    if ((sig1->hashed_len != sig2->hashed_len) ||
-        memcmp(sig1->hashed_data, sig2->hashed_data, sig1->hashed_len)) {
+    if (memcmp(sig1->lbits, sig2->lbits, 2)) {
         return false;
     }
 
-    if (memcmp(sig1->lbits, sig2->lbits, 2)) {
+    if ((sig1->hashed_len != sig2->hashed_len) ||
+        memcmp(sig1->hashed_data, sig2->hashed_data, sig1->hashed_len)) {
         return false;
     }
 
