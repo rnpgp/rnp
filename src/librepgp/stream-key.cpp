@@ -94,7 +94,7 @@ list_has_signature(const list *lst, const pgp_signature_t *sig)
 }
 
 /**
- * @brief Add signatures from src to list dst, skipping the dupliocates.
+ * @brief Add signatures from src to list dst, skipping the duplicates.
  *
  * @param dst List which will contain all distinct signatures from src and dst
  * @param src List to merge signatures from

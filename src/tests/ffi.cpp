@@ -308,7 +308,7 @@ test_ffi_load_keys(void **state)
     input = NULL;
     // check counts
     assert_int_equal(RNP_SUCCESS, rnp_get_public_key_count(ffi, &count));
-    assert_int_equal(0, count);
+    assert_int_equal(7, count);
     assert_int_equal(RNP_SUCCESS, rnp_get_secret_key_count(ffi, &count));
     assert_int_equal(0, count);
     // cleanup
@@ -408,6 +408,7 @@ test_ffi_save_keys(void **state)
     char *       temp_dir = NULL;
     char *       pub_path = NULL;
     char *       sec_path = NULL;
+    char *       both_path = NULL;
     size_t       count;
 
     temp_dir = make_temp_dir();
@@ -444,6 +445,17 @@ test_ffi_save_keys(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_output_destroy(output));
     output = NULL;
     assert_true(rnp_file_exists(sec_path));
+    // save pubring && secring
+    both_path = rnp_compose_path(temp_dir, "bothring.gpg", NULL);
+    assert_false(rnp_file_exists(both_path));
+    assert_int_equal(RNP_SUCCESS, rnp_output_to_path(&output, both_path));
+    assert_int_equal(
+      RNP_SUCCESS,
+      rnp_save_keys(
+        ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS));
+    assert_int_equal(RNP_SUCCESS, rnp_output_destroy(output));
+    output = NULL;
+    assert_true(rnp_file_exists(both_path));
     // cleanup
     rnp_ffi_destroy(ffi);
     ffi = NULL;
@@ -471,8 +483,30 @@ test_ffi_save_keys(void **state)
     // cleanup
     rnp_ffi_destroy(ffi);
     ffi = NULL;
+    // load both keyrings from the single file
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+    // load pubring
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, both_path));
+    assert_non_null(input);
+    assert_int_equal(
+      RNP_SUCCESS,
+      rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    // check the counts. We should get both secret and public keys, since public keys are
+    // extracted from the secret ones.
+    count = 0;
+    assert_int_equal(RNP_SUCCESS, rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(7, count);
+    count = 0;
+    assert_int_equal(RNP_SUCCESS, rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(7, count);
+    // cleanup
+    rnp_ffi_destroy(ffi);
+    ffi = NULL;
     free(pub_path);
     free(sec_path);
+    free(both_path);
 
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "KBX", "G10"));
@@ -3072,4 +3106,3 @@ test_ffi_key_export(void **state)
     // cleanup
     rnp_ffi_destroy(ffi);
 }
-
