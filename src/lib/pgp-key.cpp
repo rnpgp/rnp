@@ -291,9 +291,63 @@ done:
     return res;
 }
 
+static rnp_result_t
+pgp_key_copy_g10(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
+{
+    pgp_key_pkt_t pktcp = {};
+    rnp_result_t  ret = RNP_ERROR_GENERIC;
+
+    if (pubonly) {
+        RNP_LOG("attempt to copy public part from g10 key");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (src->packetc != 1) {
+        RNP_LOG("wrong g10 key packets");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (!copy_key_pkt(&pktcp, &src->pkt, false)) {
+        RNP_LOG("failed to copy key pkt");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (!pgp_key_from_keypkt(dst, &pktcp, (pgp_content_enum) src->pkt.tag)) {
+        goto done;
+    }
+    // this data belongs to the key now
+    pktcp = {};
+
+    EXPAND_ARRAY((dst), packet);
+    if (!dst->packets) {
+        goto done;
+    }
+    dst->packets[0].raw = (uint8_t *) malloc(src->packets[0].length);
+    if (!dst->packets[0].raw) {
+        goto done;
+    }
+    dst->packets[0].length = src->packets[0].length;
+    memcpy(dst->packets[0].raw, src->packets[0].raw, src->packets[0].length);
+    dst->packetc++;
+    dst->format = G10_KEY_STORE;
+    ret = RNP_SUCCESS;
+done:
+    if (ret) {
+        free_key_pkt(&pktcp);
+        pgp_key_free_data(dst);
+    }
+    return ret;
+}
+
 rnp_result_t
 pgp_key_copy(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
 {
+    memset(dst, 0, sizeof(*dst));
+
+    if (src->format == G10_KEY_STORE) {
+        return pgp_key_copy_g10(dst, src, pubonly);
+    }
+
     if (pgp_key_is_primary_key(src)) {
         return pgp_key_copy_primary(dst, src, pubonly);
     }
@@ -869,7 +923,8 @@ pgp_key_protect(pgp_key_t *                  key,
         protection->hash_alg = default_protection.hash_alg;
     }
     if (!protection->iterations) {
-        protection->iterations = pgp_s2k_compute_iters(protection->hash_alg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
+        protection->iterations =
+          pgp_s2k_compute_iters(protection->hash_alg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
     }
 
     seckey->sec_protection.symm_alg = protection->symm_alg;

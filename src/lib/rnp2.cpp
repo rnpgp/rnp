@@ -903,7 +903,7 @@ do_load_keys(rnp_ffi_t ffi, rnp_input_t input, const char *format, key_type_t ke
 {
     rnp_result_t     ret = RNP_ERROR_GENERIC;
     rnp_key_store_t *tmp_store = NULL;
-    list             key_list = NULL;
+    pgp_key_t        keycp = {};
     rnp_result_t     tmpret;
 
     // create a temporary key store to hold the keys
@@ -926,47 +926,64 @@ do_load_keys(rnp_ffi_t ffi, rnp_input_t input, const char *format, key_type_t ke
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
         // check that the key is the correct type and has not already been loaded
-        bool             is_secret = pgp_is_key_secret(key);
-        rnp_key_store_t *dest = is_secret ? ffi->secring : ffi->pubring;
-        // check that the key type matches what we're looking for
-        if (key_type == KEY_TYPE_ANY || (is_secret == (key_type == KEY_TYPE_SECRET))) {
-            // see if the key already exists in the destination store
-            if (!rnp_key_store_get_key_by_grip(&ffi->io, dest, key->grip)) {
-                /* TODO: We could do this a few different ways. There isn't an obvious reason
-                 * to restrict what formats we load, so we don't necessarily need to require a
-                 * conversion just to load and use a G10 key when using GPG keyrings, for
-                 * example. We could just convert when saving.
-                 */
-                if (key_needs_conversion(key, dest)) {
-                    FFI_LOG(ffi, "This key format conversion is not yet supported");
-                    ret = RNP_ERROR_NOT_IMPLEMENTED;
-                    goto done;
-                }
-                if (!list_append(&key_list, &key, sizeof(key))) {
-                    ret = RNP_ERROR_OUT_OF_MEMORY;
-                    goto done;
-                }
-                // add the key to the destination ring
-                if (!rnp_key_store_add_key(&ffi->io, dest, key)) {
-                    list_remove(list_back(key_list));
-                    goto done;
-                }
+        // add secret key part if it is and we need it
+        if (pgp_is_key_secret(key) &&
+            ((key_type == KEY_TYPE_SECRET) || (key_type == KEY_TYPE_ANY))) {
+            if (key_needs_conversion(key, ffi->secring)) {
+                FFI_LOG(ffi, "This key format conversion is not yet supported");
+                ret = RNP_ERROR_NOT_IMPLEMENTED;
+                goto done;
             }
+
+            if ((tmpret = pgp_key_copy(&keycp, key, false))) {
+                FFI_LOG(ffi, "Failed to copy secret key");
+                ret = tmpret;
+                goto done;
+            }
+
+            if (!rnp_key_store_add_key(&ffi->io, ffi->secring, &keycp)) {
+                FFI_LOG(ffi, "Failed to add secret key");
+                pgp_key_free_data(&keycp);
+                ret = RNP_ERROR_GENERIC;
+                goto done;
+            }
+        }
+
+        // add public key part if needed
+        if ((key->format == G10_KEY_STORE) ||
+            ((key_type != KEY_TYPE_ANY) && (key_type != KEY_TYPE_PUBLIC))) {
+            continue;
+        }
+
+        if ((tmpret = pgp_key_copy(&keycp, key, true))) {
+            ret = tmpret;
+            goto done;
+        }
+
+        /* TODO: We could do this a few different ways. There isn't an obvious reason
+         * to restrict what formats we load, so we don't necessarily need to require a
+         * conversion just to load and use a G10 key when using GPG keyrings, for
+         * example. We could just convert when saving.
+         */
+
+        if (key_needs_conversion(key, ffi->pubring)) {
+            FFI_LOG(ffi, "This key format conversion is not yet supported");
+            pgp_key_free_data(&keycp);
+            ret = RNP_ERROR_NOT_IMPLEMENTED;
+            goto done;
+        }
+
+        if (!rnp_key_store_add_key(&ffi->io, ffi->pubring, &keycp)) {
+            FFI_LOG(ffi, "Failed to add public key");
+            pgp_key_free_data(&keycp);
+            ret = RNP_ERROR_GENERIC;
+            goto done;
         }
     }
 
     // success, even if we didn't actually load any
     ret = RNP_SUCCESS;
 done:
-    // remove all loaded keys from the temporary store, ownership has changed
-    {
-        list_item *key = list_front(key_list);
-        while (key) {
-            rnp_key_store_remove_key(&ffi->io, tmp_store, *(pgp_key_t **) key);
-            key = list_next(key);
-        }
-        list_destroy(&key_list);
-    }
     rnp_key_store_free(tmp_store);
     return ret;
 }
@@ -1011,11 +1028,17 @@ rnp_load_keys(rnp_ffi_t ffi, const char *format, rnp_input_t input, uint32_t fla
 }
 
 static bool
-copy_store_keys(pgp_io_t *io, rnp_key_store_t *dest, rnp_key_store_t *src)
+copy_store_keys(rnp_ffi_t ffi, rnp_key_store_t *dest, rnp_key_store_t *src)
 {
-    for (list_item *key_item = list_front(src->keys); key_item;
-         key_item = list_next(key_item)) {
-        if (!rnp_key_store_add_key(io, dest, (pgp_key_t *) key_item)) {
+    pgp_key_t keycp = {};
+    for (list_item *key = list_front(src->keys); key; key = list_next(key)) {
+        if (pgp_key_copy(&keycp, (pgp_key_t *) key, false)) {
+            FFI_LOG(ffi, "failed to create key copy");
+            return false;
+        }
+        if (!rnp_key_store_add_key(&ffi->io, dest, &keycp)) {
+            pgp_key_free_data(&keycp);
+            FFI_LOG(ffi, "failed to add key to the store");
             return false;
         }
     }
@@ -1037,14 +1060,14 @@ do_save_keys(rnp_ffi_t ffi, rnp_output_t output, const char *format, key_type_t 
     }
     // include the public keys, if desired
     if (key_type == KEY_TYPE_PUBLIC || key_type == KEY_TYPE_ANY) {
-        if (!copy_store_keys(&ffi->io, tmp_store, ffi->pubring)) {
+        if (!copy_store_keys(ffi, tmp_store, ffi->pubring)) {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
     }
     // include the secret keys, if desired
     if (key_type == KEY_TYPE_SECRET || key_type == KEY_TYPE_ANY) {
-        if (!copy_store_keys(&ffi->io, tmp_store, ffi->secring)) {
+        if (!copy_store_keys(ffi, tmp_store, ffi->secring)) {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
@@ -1086,8 +1109,6 @@ do_save_keys(rnp_ffi_t ffi, rnp_output_t output, const char *format, key_type_t 
 
 done:
     if (tmp_store) {
-        // don't free the keys since they don't really belong to this temporary store
-        list_destroy(&tmp_store->keys);
         rnp_key_store_free(tmp_store);
     }
     return ret;
@@ -4520,4 +4541,3 @@ rnp_dearmor(rnp_input_t input, rnp_output_t output)
     }
     return rnp_dearmor_source(&input->src, &output->dst);
 }
-

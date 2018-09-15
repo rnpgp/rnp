@@ -608,7 +608,13 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
     assert(pgp_get_key_type(srckey) && pgp_get_key_pkt(srckey)->version);
     added_key = rnp_key_store_get_key_by_grip(io, keyring, srckey->grip);
 
-    if (added_key && (srckey->format != G10_KEY_STORE)) {
+    if (added_key) {
+        /* we cannot merge G10 keys - so just return it */
+        if (srckey->format == G10_KEY_STORE) {
+            pgp_key_free_data(srckey);
+            return added_key;
+        }
+
         bool mergeres = false;
         /* in case we already have key let's merge it in */
         if (pgp_key_is_subkey(added_key)) {
