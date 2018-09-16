@@ -1,5 +1,17 @@
 ## Changelog
 
+### 0.11.0 [09-16-2018]
+#### General
+
+* Remove some old SSH key support.
+* Add support for dynamically calculating the S2K iterations.
+* Add support for extracing the public key from the secret key.
+* Add support for merging information between keys.
+
+#### CLI
+
+* Add options for custom S2K iterations/times (dynamic by default).
+
 ### 0.10.0 [08-20-2018]
 #### General
 
