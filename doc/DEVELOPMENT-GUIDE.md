@@ -154,14 +154,15 @@ etc.
 Clang includes a useful static analyzer that can also be used to locate
 potential bugs.
 
-To use it, pass the build command to `scan-build`:
+Note: It is normal for the build time to increase significantly when using this static analyzer.
 
-``` sh
-./configure
-scan-build make -j4
+```sh
+# it's important to start fresh for this!
+rm -rf build && mkdir build && cd build
+scan-build cmake .. && scan-build make -j8
 [...]
-scan-build: 6 bugs found.
-scan-build: Run 'scan-view /tmp/scan-build-2017-05-29-223318-9830-1' to examine bug reports.
+scan-build: 61 bugs found.
+scan-build: Run 'scan-view /tmp/scan-build-2018-09-17-085354-22998-1' to examine bug reports.
 ```
 
 Then use `scan-view`, as indicated above, to start a web server and use
