@@ -1462,10 +1462,19 @@ typedef struct validate_info_t {
     rng_t *                 rng;
 } validate_info_t;
 
+/**
+ * @brief validate single key's signatures
+ *
+ * @param sig signature to validate
+ * @param info additional validation info
+ * @return RNP_SUCCESS if signature was successfully validated (however, this doesn't
+ *         guarantee that it is valid). Other error code means that there were problems
+ *         during the validation.
+ */
 static rnp_result_t
 validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
 {
-    rnp_result_t         res = RNP_ERROR_SIGNATURE_INVALID;
+    rnp_result_t         res = RNP_ERROR_GENERIC;
     uint8_t              signer_id[PGP_KEY_ID_SIZE] = {0};
     pgp_io_t             io = {.outs = stdout, .errs = stderr, .res = stdout};
     pgp_signature_info_t sinfo = {};
@@ -1498,7 +1507,7 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
     case PGP_SIG_REV_CERT: {
         if (!info->key || !info->uid || info->subkey) {
             RNP_LOG("wrong certification parameters");
-            res = RNP_ERROR_SIGNATURE_INVALID;
+            res = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
         res = signature_check_certification(&sinfo, info->key, info->uid, info->rng);
@@ -1507,7 +1516,7 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
     case PGP_SIG_SUBKEY:
         if (!info->key || info->uid || !info->subkey) {
             RNP_LOG("wrong binding parameters");
-            res = RNP_ERROR_SIGNATURE_INVALID;
+            res = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
 
@@ -1517,7 +1526,7 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
     case PGP_SIG_DIRECT:
         if (!info->key || info->uid || info->subkey) {
             RNP_LOG("wrong direct sig parameters");
-            res = RNP_ERROR_SIGNATURE_INVALID;
+            res = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
         res = signature_check_direct(&sinfo, info->key, info->rng);
@@ -1554,7 +1563,11 @@ done:
         info->result->invalidc++;
     }
 
-    return RNP_SUCCESS;
+    if ((res == RNP_ERROR_SIGNATURE_INVALID) || (res == RNP_ERROR_SIGNATURE_EXPIRED)) {
+        res = RNP_SUCCESS;
+    }
+
+    return res;
 }
 
 static rnp_result_t

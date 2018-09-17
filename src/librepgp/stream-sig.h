@@ -375,7 +375,9 @@ rnp_result_t signature_validate_direct(const pgp_signature_t *   sig,
  *              expired.
  * @param hash populated hash
  * @param rng random number generator
- * @return rnp_result_t RNP_SUCCESS if all checks were passed, or error code otherwise.
+ * @return RNP_SUCCESS if all checks were passed, RNP_ERROR_SIGNATURE_INVALID for invalid sig,
+ *         RNP_ERROR_SIGNATURE_EXPIRED for expired signature. Other error code means problems
+ *         during the signature validation (out of memory, wrong parameters, etc).
  */
 rnp_result_t signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash, rng_t *rng);
 
