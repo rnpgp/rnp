@@ -102,7 +102,6 @@ add_library(librnp
   ../librekey/key_store_pgp.cpp
   ../librekey/rnp_key_store.cpp
 
-  bufgap.cpp
   crypto/bn.cpp
   crypto/dsa.cpp
   crypto/ec.cpp
