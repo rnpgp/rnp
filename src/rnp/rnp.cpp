@@ -86,6 +86,7 @@ static const char *usage = "--help OR\n"
                            "\t[--aead-chunk-bits=0..56] AND/OR\n"
                            "\t[--coredumps] AND/OR\n"
                            "\t[--homedir=<homedir>] AND/OR\n"
+                           "\t[-f, --keyfile=<path to key] AND/OR\n"
                            "\t[--keyring=<keyring>] AND/OR\n"
                            "\t[--keystore-format=<format>] AND/OR\n"
                            "\t[--numtries=<attempts>] AND/OR\n"
@@ -140,6 +141,7 @@ enum optdefs {
     OPT_OVERWRITE,
     OPT_AEAD,
     OPT_AEAD_CHUNK,
+    OPT_KEYFILE,
 
     /* debug */
     OPT_DEBUG
@@ -178,6 +180,7 @@ static struct option options[] = {
   {"recipient", required_argument, NULL, OPT_RECIPIENT},
   {"home", required_argument, NULL, OPT_HOMEDIR},
   {"homedir", required_argument, NULL, OPT_HOMEDIR},
+  {"keyfile", required_argument, NULL, OPT_KEYFILE},
   {"ascii", no_argument, NULL, OPT_ARMOR},
   {"armor", no_argument, NULL, OPT_ARMOR},
   {"armour", no_argument, NULL, OPT_ARMOR},
@@ -656,6 +659,14 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
         }
         rnp_cfg_setstr(cfg, CFG_HOMEDIR, arg);
         break;
+    case OPT_KEYFILE:
+        if (arg == NULL) {
+            (void) fprintf(stderr, "No keyfile argument provided\n");
+            return false;
+        }
+        rnp_cfg_setstr(cfg, CFG_KEYFILE, arg);
+        rnp_cfg_setbool(cfg, CFG_KEYSTORE_DISABLED, true);
+        break;
     case OPT_HASH_ALG:
         if (arg == NULL) {
             (void) fprintf(stderr, "No hash algorithm argument provided\n");
@@ -844,7 +855,7 @@ rnp_main(int argc, char **argv)
     optindex = 0;
 
     /* TODO: These options should be set after initialising the context. */
-    while ((ch = getopt_long(argc, argv, "S:Vdeco:r:su:vz:", options, &optindex)) != -1) {
+    while ((ch = getopt_long(argc, argv, "S:Vdeco:r:su:vz:f:", options, &optindex)) != -1) {
         if (ch >= CMD_ENCRYPT) {
             /* getopt_long returns 0 for long options */
             if (!setoption(&cfg, options[optindex].val, optarg)) {
@@ -901,6 +912,15 @@ rnp_main(int argc, char **argv)
                     rnp_cfg_setint(&cfg, CFG_ZLEVEL, (int) (optarg[0] - '0'));
                 }
                 break;
+            case 'f':
+                if (!optarg) {
+                    (void) fprintf(stderr, "No keyfile argument provided\n");
+                    ret = EXIT_ERROR;
+                    goto finish;
+                }
+                rnp_cfg_setstr(&cfg, CFG_KEYFILE, optarg);
+                rnp_cfg_setbool(&cfg, CFG_KEYSTORE_DISABLED, true);
+                break;
             default:
                 cmd = CMD_HELP;
                 break;
@@ -937,6 +957,14 @@ rnp_main(int argc, char **argv)
     if (!rnp_params.keystore_disabled &&
         !rnp_key_store_load_keys(&rnp, rnp_cfg_getbool(&cfg, CFG_NEEDSSECKEY))) {
         fputs("fatal: failed to load keys\n", stderr);
+        ret = EXIT_ERROR;
+        goto finish;
+    }
+
+    /* load the keyfile if any */
+    if (rnp_params.keystore_disabled && rnp_cfg_getstr(&cfg, CFG_KEYFILE) &&
+        !rnp_add_key(&rnp, rnp_cfg_getstr(&cfg, CFG_KEYFILE), false)) {
+        fputs("fatal: failed to load key(s) from the file\n", stderr);
         ret = EXIT_ERROR;
         goto finish;
     }
