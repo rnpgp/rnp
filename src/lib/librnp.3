@@ -61,10 +61,6 @@ The following functions are for debugging, reflection and information:
 .Fo rnp_get_info
 .Fa "const char *type"
 .Fc
-.Ft int
-.Fo rnp_list_packets
-.Fa "rnp_t *rnp" "char *filename" "int armor" "char *pubringname"
-.Fc
 .Pp
 The following functions are for variable management:
 .Ft int
@@ -255,10 +251,6 @@ is made up of
 .Dq packets
 which hold information pertaining to the signature,
 encryption method, and the data which is being protected.
-This information can be displayed in a verbose manner using
-the
-.Fn rnp_list_packets
-function.
 .Pp
 The
 .Fn rnp_setvar

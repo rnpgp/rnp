@@ -608,6 +608,13 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
      * considered as the final path */
     params->keystore_disabled = rnp_cfg_getint_default(cfg, CFG_KEYSTORE_DISABLED, 0);
     if (params->keystore_disabled) {
+        if ((homedir = rnp_cfg_getstr(cfg, CFG_KEYFILE))) {
+            params->pubpath = strdup("");
+            params->secpath = strdup("");
+            params->ks_pub_format = RNP_KEYSTORE_GPG;
+            params->ks_sec_format = RNP_KEYSTORE_GPG;
+        }
+
         return true;
     }
 
