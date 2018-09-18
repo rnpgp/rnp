@@ -343,7 +343,7 @@ pgp_mem_writefile(pgp_memory_t *mem, const char *f)
 
     if (rename(tmp, f)) {
         fprintf(
-          stderr, "pgp_mem_writefile: can't rename to traget file: %s\n", strerror(errno));
+          stderr, "pgp_mem_writefile: can't rename to target file: %s\n", strerror(errno));
         return false;
     }
 

@@ -78,6 +78,7 @@
 #include <librepgp/stream-write.h>
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-dump.h>
+#include <librekey/key_store_internal.h>
 
 #include <json.h>
 #include <rnp.h>
@@ -468,13 +469,14 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
     rnp->pswdtries = MAX_PASSWORD_ATTEMPTS;
 
     /* set keystore type and pathes */
-    if (!params->keystore_disabled) {
+    if (params->pubpath) {
         rnp->pubring = rnp_key_store_new(params->ks_pub_format, params->pubpath);
         if (rnp->pubring == NULL) {
             fputs("rnp: can't create empty pubring keystore\n", io->errs);
             return RNP_ERROR_BAD_PARAMETERS;
         }
-
+    }
+    if (params->secpath) {
         rnp->secring = rnp_key_store_new(params->ks_sec_format, params->secpath);
         if (rnp->secring == NULL) {
             fputs("rnp: can't create empty secring keystore\n", io->errs);
@@ -781,21 +783,21 @@ rnp_export_key(rnp_t *rnp, const char *name, bool secret_key)
     return pgp_export_key(rnp, key);
 }
 
-/* import a key into our keyring */
 bool
-rnp_import_key(rnp_t *rnp, const char *f)
+rnp_add_key(rnp_t *rnp, const char *path, bool print)
 {
     rnp_key_store_t *tmp_keystore = NULL;
     bool             ret = false;
     const char *     suffix = NULL;
     const char *     fmt = NULL;
+    char             keyid[MAX_ID_LENGTH] = {0};
 
     // guess the key format (TODO: surely this can be improved)
-    size_t fname_len = strlen(f);
+    size_t fname_len = strlen(path);
     if (fname_len < 4) {
         goto done;
     }
-    suffix = f + fname_len - 4;
+    suffix = path + fname_len - 4;
     if (strcmp(suffix, ".asc") == 0 || strcmp(suffix, ".gpg") == 0) {
         fmt = RNP_KEYSTORE_GPG;
     } else if (strcmp(suffix, ".kbx") == 0) {
@@ -808,18 +810,18 @@ rnp_import_key(rnp_t *rnp, const char *f)
     }
 
     // create a temporary key store
-    tmp_keystore = rnp_key_store_new(fmt, f);
+    tmp_keystore = rnp_key_store_new(fmt, path);
     if (!tmp_keystore) {
         goto done;
     }
 
     // load the key(s)
     if (!rnp_key_store_load_from_file(rnp->io, tmp_keystore, &rnp->key_provider)) {
-        RNP_LOG("failed to load key from file %s", f);
+        RNP_LOG("failed to load key from file %s", path);
         goto done;
     }
     if (!list_length(tmp_keystore->keys)) {
-        RNP_LOG("failed to load any keys to import");
+        RNP_LOG("failed to load any keys");
         goto done;
     }
 
@@ -847,7 +849,7 @@ rnp_import_key(rnp_t *rnp, const char *f)
 
         /* add secret key if there is one */
         if (!pgp_is_key_secret(imported)) {
-            if (changed) {
+            if (changed && print) {
                 repgp_print_key(rnp->io, rnp->pubring, exkey, "pub", 0);
             }
             continue;
@@ -865,21 +867,37 @@ rnp_import_key(rnp_t *rnp, const char *f)
             continue;
         }
 
-        if (changed || (exkey->packetc > expackets)) {
+        if (print && (changed || (exkey->packetc > expackets))) {
             repgp_print_key(rnp->io, rnp->pubring, exkey, "sec", 0);
         }
     }
 
-    if (!rnp_key_store_write_to_file(rnp->io, rnp->secring, 0) ||
-        !rnp_key_store_write_to_file(rnp->io, rnp->pubring, 0)) {
-        RNP_LOG("failed to write keyring");
-        goto done;
+    /* set the default key if needed */
+    if (!rnp->defkey && rnp_key_store_get_first_ring(rnp->pubring, keyid, sizeof(keyid), 0)) {
+        rnp->defkey = strdup(keyid);
     }
 
     ret = true;
 done:
     rnp_key_store_free(tmp_keystore);
     return ret;
+}
+
+/* import a key into our keyring */
+bool
+rnp_import_key(rnp_t *rnp, const char *f)
+{
+    if (!rnp_add_key(rnp, f, true)) {
+        return false;
+    }
+
+    if (!rnp_key_store_write_to_file(rnp->io, rnp->secring, 0) ||
+        !rnp_key_store_write_to_file(rnp->io, rnp->pubring, 0)) {
+        RNP_LOG("failed to write keyring");
+        return false;
+    }
+
+    return true;
 }
 
 size_t
@@ -1561,7 +1579,7 @@ rnp_encrypt_set_pass_info(rnp_symmetric_pass_info_t *info,
     if (!rng_generate(info->s2k.salt, sizeof(info->s2k.salt))) {
         return RNP_ERROR_GENERIC;
     }
-    if(iterations == 0) {
+    if (iterations == 0) {
         iterations = pgp_s2k_compute_iters(hash_alg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
     }
     info->s2k.iterations = pgp_s2k_encode_iterations(iterations);
