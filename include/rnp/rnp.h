@@ -64,7 +64,6 @@ struct rng_st_t *rnp_ctx_rng_handle(const rnp_ctx_t *ctx);
 int         rnp_set_debug(const char *);
 int         rnp_get_debug(const char *);
 const char *rnp_get_info(const char *);
-int         rnp_list_packets(rnp_t *, char *, int);
 
 /* set key store format information */
 int rnp_set_key_store_format(rnp_t *, const char *);
@@ -75,6 +74,7 @@ bool   rnp_list_keys_json(rnp_t *, char **, const int);
 bool   rnp_find_key(rnp_t *, const char *);
 char * rnp_get_key(rnp_t *, const char *, const char *);
 char * rnp_export_key(rnp_t *, const char *, bool);
+bool   rnp_add_key(rnp_t *rnp, const char *path, bool print);
 bool   rnp_import_key(rnp_t *, const char *);
 bool   rnp_generate_key(rnp_t *);
 size_t rnp_secret_count(rnp_t *);
