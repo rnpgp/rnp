@@ -53,7 +53,116 @@ call_rnp(const char *cmd, ...)
 }
 
 #define KEYS "data/keyrings"
+#define MKEYS "data/test_stream_key_merge/"
 #define FILES "data/test_cli"
+
+void
+test_cli_rnp_keyfile(void **state)
+{
+    int ret;
+
+    /* sign with keyfile, using default key */
+    ret = call_rnp("rnp",
+                   "--keyfile",
+                   MKEYS "key-sec.asc",
+                   "--password",
+                   "password",
+                   "-s",
+                   FILES "/hello.txt",
+                   NULL);
+    assert_int_equal(ret, 0);
+    assert_true(file_exists(FILES "/hello.txt.pgp"));
+    /* verify signed file */
+    ret =
+      call_rnp("rnp", "--keyfile", MKEYS "key-pub.asc", "-v", FILES "/hello.txt.pgp", NULL);
+    assert_int_equal(ret, 0);
+    assert_int_equal(unlink(FILES "/hello.txt.pgp"), 0);
+
+    /* sign with keyfile, using user id */
+    ret = call_rnp("rnp",
+                   "-f",
+                   MKEYS "key-sec.asc",
+                   "-u",
+                   "key-merge-uid-2",
+                   "--password",
+                   "password",
+                   "--armor",
+                   "-s",
+                   FILES "/hello.txt",
+                   NULL);
+    assert_int_equal(ret, 0);
+    assert_true(file_exists(FILES "/hello.txt.asc"));
+    /* verify signed file */
+    ret = call_rnp("rnp", "-f", MKEYS "key-pub.asc", "-v", FILES "/hello.txt.asc", NULL);
+    assert_int_equal(ret, 0);
+    /* verify with key without self-signature - should fail */
+    ret =
+      call_rnp("rnp", "-f", MKEYS "key-pub-just-key.pgp", "-v", FILES "/hello.txt.asc", NULL);
+    assert_int_not_equal(ret, 0);
+    assert_int_equal(unlink(FILES "/hello.txt.asc"), 0);
+
+    /* encrypt with keyfile, using default key */
+    ret = call_rnp("rnp", "--keyfile", MKEYS "key-pub.asc", "-e", FILES "/hello.txt", NULL);
+    assert_int_equal(ret, 0);
+    assert_true(file_exists(FILES "/hello.txt.pgp"));
+    /* decrypt it with raw seckey, without userids and sigs */
+    ret = call_rnp("rnp",
+                   "--keyfile",
+                   MKEYS "key-sec-no-uid-no-sigs.pgp",
+                   "--password",
+                   "password",
+                   "-d",
+                   FILES "/hello.txt.pgp",
+                   NULL);
+    assert_int_equal(ret, 0);
+    assert_int_equal(unlink(FILES "/hello.txt.pgp"), 0);
+
+    /* try to encrypt with keyfile, using the signing subkey */
+    ret = call_rnp("rnp",
+                   "--keyfile",
+                   MKEYS "key-pub.asc",
+                   "-r",
+                   "16CD16F267CCDD4F",
+                   "--armor",
+                   "-e",
+                   FILES "/hello.txt",
+                   NULL);
+    assert_int_not_equal(ret, 0);
+    assert_false(file_exists(FILES "/hello.txt.asc"));
+    /* now encrypt with keyfile, using the encrypting subkey */
+    ret = call_rnp("rnp",
+                   "--keyfile",
+                   MKEYS "key-pub.asc",
+                   "-r",
+                   "AF1114A47F5F5B28",
+                   "--armor",
+                   "-e",
+                   FILES "/hello.txt",
+                   NULL);
+    assert_int_equal(ret, 0);
+    assert_true(file_exists(FILES "/hello.txt.asc"));
+    /* fail to decrypt it with pubkey */
+    ret = call_rnp("rnp",
+                   "--keyfile",
+                   MKEYS "key-pub-subkey-1.pgp",
+                   "--password",
+                   "password",
+                   "-d",
+                   FILES "/hello.txt.asc",
+                   NULL);
+    assert_int_not_equal(ret, 0);
+    /* decrypt correctly with seckey + subkeys */
+    ret = call_rnp("rnp",
+                   "--keyfile",
+                   MKEYS "key-sec.pgp",
+                   "--password",
+                   "password",
+                   "-d",
+                   FILES "/hello.txt.asc",
+                   NULL);
+    assert_int_equal(ret, 0);
+    assert_int_equal(unlink(FILES "/hello.txt.asc"), 0);
+}
 
 void
 test_cli_rnp(void **state)

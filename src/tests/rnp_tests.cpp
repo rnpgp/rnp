@@ -216,7 +216,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_version),
       cmocka_unit_test(test_ffi_key_export),
       cmocka_unit_test(test_cli_rnp),
-    };
+      cmocka_unit_test(test_cli_rnp_keyfile)};
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */
