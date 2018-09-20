@@ -482,9 +482,23 @@ error:
 rnp_result_t
 rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src)
 {
-    pgp_key_sequence_t keys = {};
-    rnp_result_t       ret = RNP_ERROR_GENERIC;
+    pgp_key_sequence_t        keys = {};
+    pgp_transferable_subkey_t tskey = {};
+    rnp_result_t              ret = RNP_ERROR_GENERIC;
 
+    /* check whether we have transferable subkey in source */
+    if (is_subkey_pkt(stream_pkt_type(src))) {
+        if ((ret = process_pgp_subkey(src, &tskey))) {
+            return ret;
+        }
+        ret = rnp_key_store_add_transferable_subkey(keyring, &tskey, NULL) ?
+                RNP_SUCCESS :
+                RNP_ERROR_BAD_STATE;
+        transferable_subkey_destroy(&tskey);
+        return ret;
+    }
+
+    /* process armored or raw transferable key packets sequence(s) */
     if ((ret = process_pgp_keys(src, &keys))) {
         return ret;
     }

@@ -171,6 +171,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_load_merge),
       cmocka_unit_test(test_load_public_from_secret),
       cmocka_unit_test(test_key_import),
+      cmocka_unit_test(test_load_subkey),
       cmocka_unit_test(test_key_unlock_pgp),
       cmocka_unit_test(test_key_protect_load_pgp),
       cmocka_unit_test(test_key_add_userid),
@@ -216,7 +217,8 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_version),
       cmocka_unit_test(test_ffi_key_export),
       cmocka_unit_test(test_cli_rnp),
-      cmocka_unit_test(test_cli_rnp_keyfile)};
+      cmocka_unit_test(test_cli_rnp_keyfile)
+    };
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */
