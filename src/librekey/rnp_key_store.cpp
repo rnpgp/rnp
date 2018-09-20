@@ -596,6 +596,64 @@ done:
     return res;
 }
 
+static bool
+rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
+{
+    uint8_t           keyid[PGP_KEY_ID_SIZE] = {0};
+    pgp_fingerprint_t keyfp = {};
+
+    if (pgp_key_is_subkey(key)) {
+        RNP_LOG("wrong argument");
+        return false;
+    }
+
+    for (list_item *ki = list_front(keyring->keys); ki; ki = list_next(ki)) {
+        pgp_key_t *skey = (pgp_key_t *) ki;
+        bool       found = false;
+
+        /* if we have primary_grip then we also added to subkey_grips */
+        if (!pgp_key_is_subkey(skey) || skey->primary_grip) {
+            continue;
+        }
+
+        for (unsigned i = 0; i < skey->subsigc; i++) {
+            pgp_subsig_t *subsig = &skey->subsigs[i];
+
+            if (subsig->sig.type != PGP_SIG_SUBKEY) {
+                continue;
+            }
+
+            if (signature_get_keyfp(&subsig->sig, &keyfp) &&
+                (key->fingerprint.length == keyfp.length) &&
+                !memcmp(key->fingerprint.fingerprint, keyfp.fingerprint, keyfp.length)) {
+                found = true;
+                break;
+            }
+
+            if (signature_get_keyid(&subsig->sig, keyid) &&
+                !memcmp(key->keyid, keyid, PGP_KEY_ID_SIZE)) {
+                found = true;
+                break;
+            }
+        }
+
+        if (found) {
+            skey->primary_grip = (uint8_t *) malloc(PGP_FINGERPRINT_SIZE);
+            if (!skey->primary_grip) {
+                RNP_LOG("alloc failed");
+                return false;
+            }
+            memcpy(skey->primary_grip, key->grip, PGP_FINGERPRINT_SIZE);
+            if (!rnp_key_add_subkey_grip(key, skey->grip)) {
+                RNP_LOG("failed to add subkey grip");
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 /* add a key to keyring */
 pgp_key_t *
 rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
@@ -618,13 +676,14 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
         bool mergeres = false;
         /* in case we already have key let's merge it in */
         if (pgp_key_is_subkey(added_key)) {
-            pgp_io_t   io = {.outs = stdout, .errs = stderr, .res = stdout};
-            pgp_key_t *primary =
-              rnp_key_store_get_key_by_grip(&io, keyring, added_key->primary_grip);
+            pgp_key_t *primary = rnp_key_store_get_primary_key(keyring, added_key);
+            if (!primary) {
+                primary = rnp_key_store_get_primary_key(keyring, srckey);
+            }
             if (!primary) {
                 RNP_LOG("no primary key for subkey");
             }
-            mergeres = primary && rnp_key_store_merge_subkey(added_key, srckey, primary);
+            mergeres = rnp_key_store_merge_subkey(added_key, srckey, primary);
         } else {
             mergeres = rnp_key_store_merge_key(added_key, srckey);
         }
@@ -636,6 +695,11 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
         pgp_key_free_data(srckey);
     } else {
         added_key = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
+        /* primary key may be added after subkeys, so let's handle this case correctly */
+        if (pgp_key_is_primary_key(added_key) &&
+            !rnp_key_store_refresh_subkey_grips(keyring, added_key)) {
+            RNP_LOG("failed to refresh subkey grips");
+        }
     }
 
     if (!added_key) {
@@ -651,6 +715,17 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
     if (!keyring->disable_validation) {
         added_key->valid = true; // we need to this to check key's signatures
         added_key->valid = !validate_pgp_key(added_key, keyring);
+
+        /* validate/re-validate all subkeys as well */
+        if (pgp_key_is_primary_key(added_key)) {
+            for (list_item *grip = list_front(added_key->subkey_grips); grip; grip = list_next(grip)) {
+                pgp_key_t *subkey = rnp_key_store_get_key_by_grip(io, keyring, (uint8_t*) grip);
+                if (subkey) {
+                    subkey->valid = true;
+                    subkey->valid = !validate_pgp_key(subkey, keyring);
+                }
+            }
+        }
     }
 
     return added_key;
@@ -763,6 +838,10 @@ rnp_key_store_get_key_by_grip(pgp_io_t *             io,
         fprintf(io->errs, "looking keyring %p\n", keyring);
     }
 
+    if (!grip) {
+        return NULL;
+    }
+
     for (list_item *key_item = list_front(keyring->keys); key_item;
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
@@ -790,6 +869,39 @@ rnp_key_store_get_key_by_fpr(pgp_io_t *               io,
             return key;
         }
     }
+    return NULL;
+}
+
+pgp_key_t *
+rnp_key_store_get_primary_key(const rnp_key_store_t *keyring, const pgp_key_t *subkey)
+{
+    pgp_io_t          io = {.outs = stdout, .errs = stderr, .res = stdout};
+    uint8_t           keyid[PGP_KEY_ID_SIZE] = {0};
+    pgp_fingerprint_t keyfp = {};
+
+    if (!pgp_key_is_subkey(subkey)) {
+        return NULL;
+    }
+
+    if (subkey->primary_grip) {
+        return rnp_key_store_get_key_by_grip(&io, keyring, subkey->primary_grip);
+    }
+
+    for (unsigned i = 0; i < subkey->subsigc; i++) {
+        pgp_subsig_t *subsig = &subkey->subsigs[i];
+        if (subsig->sig.type != PGP_SIG_SUBKEY) {
+            continue;
+        }
+
+        if (signature_get_keyfp(&subsig->sig, &keyfp)) {
+            return rnp_key_store_get_key_by_fpr(&io, keyring, &keyfp);
+        }
+
+        if (signature_get_keyid(&subsig->sig, keyid)) {
+            return rnp_key_store_get_key_by_id(&io, keyring, keyid, NULL);
+        }
+    }
+
     return NULL;
 }
 
