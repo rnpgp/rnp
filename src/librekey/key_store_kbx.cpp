@@ -309,7 +309,7 @@ rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
 
     // a blob shouldn't be less of length + type
     if (image_len < BLOB_HEADER_SIZE) {
-        fprintf(stderr, "Blob size is %u but it shouldn't be less of header\n", image_len);
+        RNP_LOG("Blob size is %u but it shouldn't be less of header", image_len);
         return NULL;
     }
 
@@ -336,12 +336,12 @@ rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
 
     // unsuported blob type
     default:
-        fprintf(stderr, "Unsupported blob type: %d\n", type);
+        RNP_LOG("Unsupported blob type: %d", type);
         return NULL;
     }
 
     if (blob == NULL) {
-        fprintf(stderr, "Can't allocate memory\n");
+        RNP_LOG("Can't allocate memory");
         return NULL;
     }
 
@@ -389,15 +389,12 @@ rnp_key_store_kbx_from_mem(rnp_key_store_t *         key_store,
     while (has_bytes > 0) {
         blob_length = ru32(buf);
         if (blob_length > BLOB_SIZE_LIMIT) {
-            fprintf(stderr,
-                    "Blob size is %d bytes but limit is %d bytes\n",
-                    blob_length,
-                    BLOB_SIZE_LIMIT);
+            RNP_LOG(
+              "Blob size is %d bytes but limit is %d bytes", blob_length, BLOB_SIZE_LIMIT);
             return false;
         }
         if (has_bytes < blob_length) {
-            fprintf(stderr,
-                    "Blob have size %d bytes but file contains only %zu bytes\n",
+            RNP_LOG("Blob have size %d bytes but file contains only %zu bytes",
                     blob_length,
                     has_bytes);
             return false;
@@ -421,7 +418,7 @@ rnp_key_store_kbx_from_mem(rnp_key_store_t *         key_store,
             mem.allocated = 0;
 
             if (pgp_blob->keyblock_length == 0) {
-                fprintf(stderr, "PGP blob have zero size\n");
+                RNP_LOG("PGP blob have zero size");
                 return false;
             }
 
@@ -679,7 +676,7 @@ rnp_key_store_kbx_to_mem(rnp_key_store_t *key_store, pgp_memory_t *memory)
     pgp_memory_clear(memory);
 
     if (!rnp_key_store_kbx_write_header(key_store, memory)) {
-        fprintf(stderr, "Can't write KBX header\n");
+        RNP_LOG("Can't write KBX header");
         return false;
     }
 
@@ -696,7 +693,7 @@ rnp_key_store_kbx_to_mem(rnp_key_store_t *key_store, pgp_memory_t *memory)
     }
 
     if (!rnp_key_store_kbx_write_x509(key_store, memory)) {
-        fprintf(stderr, "Can't write X509 blobs\n");
+        RNP_LOG("Can't write X509 blobs");
         return false;
     }
 

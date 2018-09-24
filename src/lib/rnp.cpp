@@ -123,7 +123,7 @@ pobj(FILE *fp, json_object *obj, int depth)
     unsigned i;
 
     if (obj == NULL) {
-        (void) fprintf(stderr, "No object found\n");
+        RNP_LOG("No object found");
         return;
     }
     for (i = 0; i < (unsigned) depth; i++) {
@@ -376,7 +376,7 @@ init_io(rnp_t *rnp, pgp_io_t *io, const char *outs, const char *errs, const char
         io->res = stderr;
     } else {
         if ((io->res = fopen(ress, "w")) == NULL) {
-            fprintf(io->errs, "cannot open results %s for writing\n", ress);
+            fprintf(stderr, "cannot open results %s for writing\n", ress);
             return false;
         }
     }
@@ -573,7 +573,7 @@ bool
 rnp_list_keys(rnp_t *rnp, const int psigs)
 {
     if (rnp->pubring == NULL) {
-        (void) fprintf(stderr, "No keyring\n");
+        RNP_LOG("No keyring");
         return false;
     }
     return rnp_key_store_list(rnp->pubring, psigs);
@@ -589,11 +589,11 @@ rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
         return false;
     }
     if (rnp->pubring == NULL) {
-        (void) fprintf(stderr, "No keyring\n");
+        RNP_LOG("No keyring");
         return false;
     }
     if (!rnp_key_store_json(rnp->pubring, obj, psigs)) {
-        (void) fprintf(stderr, "No keys in keyring\n");
+        RNP_LOG("No keys in keyring");
         return false;
     }
     const char *j = json_object_to_json_string(obj);
@@ -731,7 +731,7 @@ rnp_find_key(rnp_t *rnp, const char *id)
     pgp_key_t *key;
 
     if (id == NULL) {
-        (void) fprintf(stderr, "NULL id to search for\n");
+        RNP_LOG("NULL id to search for");
         return false;
     }
     key = rnp_key_store_get_key_by_name(rnp->pubring, id, NULL);

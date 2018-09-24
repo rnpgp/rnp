@@ -115,7 +115,7 @@ pgp_sa_to_botan_string(pgp_symm_alg_t alg)
     case PGP_SA_PLAINTEXT:
         return NULL; // ???
     default:
-        fprintf(stderr, "Unsupported PGP symmetric alg %d", (int) alg);
+        RNP_LOG("Unsupported PGP symmetric alg %d", (int) alg);
         return NULL;
     }
 }
@@ -164,7 +164,7 @@ pgp_cipher_cfb_start(pgp_crypt_t *  crypt,
 
     const char *cipher_name = pgp_sa_to_botan_string(alg);
     if (cipher_name == NULL) {
-        fprintf(stderr, "Unsupported algorithm: %d\n", alg);
+        RNP_LOG("Unsupported algorithm: %d", alg);
         return false;
     }
 
@@ -173,14 +173,14 @@ pgp_cipher_cfb_start(pgp_crypt_t *  crypt,
 
     // This shouldn't happen if pgp_sa_to_botan_string returned a ptr
     if (botan_block_cipher_init(&(crypt->cfb.obj), cipher_name) != 0) {
-        (void) fprintf(stderr, "Block cipher '%s' not available\n", cipher_name);
+        RNP_LOG("Block cipher '%s' not available", cipher_name);
         return false;
     }
 
     const size_t keysize = pgp_key_size(alg);
 
     if (botan_block_cipher_set_key(crypt->cfb.obj, key, keysize) != 0) {
-        (void) fprintf(stderr, "Failure setting key on block cipher object\n");
+        RNP_LOG("Failure setting key on block cipher object");
         return false;
     }
 
@@ -501,7 +501,7 @@ pgp_is_sa_supported(pgp_symm_alg_t alg)
     if (cipher_name != NULL)
         return true;
 
-    fprintf(stderr, "\nWarning: cipher %d not supported", (int) alg);
+    RNP_LOG("Warning: cipher %d not supported", (int) alg);
     return false;
 }
 

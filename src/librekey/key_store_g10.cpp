@@ -184,7 +184,7 @@ add_block_to_sexp(s_exp_t *s_exp, const uint8_t *bytes, size_t len)
     sub_element->block.len = (size_t) len;
     sub_element->block.bytes = (uint8_t *) malloc(sub_element->block.len);
     if (sub_element->block.bytes == NULL) {
-        fprintf(stderr, "can't allocate memory\n");
+        RNP_LOG("can't allocate memory");
         return false;
     }
 
@@ -235,7 +235,7 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
     s_exp_t new_s_exp = {0};
 
     if (bytes == NULL || length == 0) {
-        fprintf(stderr, "empty s-exp\n");
+        RNP_LOG("empty s-exp");
         return true;
     }
 
@@ -248,7 +248,7 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
 
     do {
         if (length <= 0) { // unexpected end
-            fprintf(stderr, "s-exp finished before ')'\n");
+            RNP_LOG("s-exp finished before ')'");
             destroy_s_exp(&new_s_exp);
             return false;
         }
@@ -272,7 +272,7 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
         long  len = strtol(bytes, &next, 10);
 
         if (*next != ':') { // doesn't contain :
-            fprintf(stderr, "s-exp doesn't contain ':'\n");
+            RNP_LOG("s-exp doesn't contain ':'");
             destroy_s_exp(&new_s_exp);
             return false;
         }
@@ -283,9 +283,8 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
         bytes = next;
 
         if (len == LONG_MIN || len == LONG_MAX || len <= 0 || (size_t) len >= length) {
-            fprintf(
-              stderr,
-              "len over/under flow or bigger than remaining bytes, len: %ld, length: %zu\n",
+            RNP_LOG(
+              "len over/under flow or bigger than remaining bytes, len: %ld, length: %zu",
               len,
               length);
             destroy_s_exp(&new_s_exp);
@@ -345,7 +344,7 @@ lookup_variable(s_exp_t *s_exp, const char *name)
         }
         if (s_exp->sub_elements[i].s_exp.sub_elementc < 2 ||
             !s_exp->sub_elements[i].s_exp.sub_elements[0].is_block) {
-            fprintf(stderr, "Expected sub-s-exp with 2 first blocks\n");
+            RNP_LOG("Expected sub-s-exp with 2 first blocks");
             return NULL;
         }
         if (name_len == s_exp->sub_elements[i].s_exp.sub_elements[0].block.len &&
@@ -355,7 +354,7 @@ lookup_variable(s_exp_t *s_exp, const char *name)
             return &s_exp->sub_elements[i].s_exp;
         }
     }
-    fprintf(stderr, "Haven't got variable '%s'\n", name);
+    RNP_LOG("Haven't got variable '%s'", name);
     return NULL;
 }
 
@@ -368,7 +367,7 @@ read_mpi(s_exp_t *s_exp, const char *name, pgp_mpi_t *val)
     }
 
     if (!var->sub_elements[1].is_block) {
-        fprintf(stderr, "Expected block value\n");
+        RNP_LOG("Expected block value");
         return false;
     }
 
@@ -439,7 +438,7 @@ parse_pubkey(pgp_key_pkt_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         break;
 
     default:
-        fprintf(stderr, "Unsupported public key algorithm: %d\n", alg);
+        RNP_LOG("Unsupported public key algorithm: %d", (int) alg);
         return false;
     }
 
@@ -472,7 +471,7 @@ parse_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         break;
 
     default:
-        fprintf(stderr, "Unsupported public key algorithm: %d\n", alg);
+        RNP_LOG("Unsupported public key algorithm: %d", (int) alg);
         return false;
     }
 
@@ -802,7 +801,7 @@ g10_parse_seckey(pgp_key_pkt_t *           seckey,
 
     if (s_exp.sub_elementc != 2 || !s_exp.sub_elements[0].is_block ||
         s_exp.sub_elements[1].is_block) {
-        fprintf(stderr, "Wrong format, expected: (<type> (...))\n");
+        RNP_LOG("Wrong format, expected: (<type> (...))");
         goto done;
     }
 
@@ -816,8 +815,7 @@ g10_parse_seckey(pgp_key_pkt_t *           seckey,
                         s_exp.sub_elements[0].block.len)) {
         is_protected = true;
     } else {
-        fprintf(stderr,
-                "Unsupported top-level block: '%.*s'\n",
+        RNP_LOG("Unsupported top-level block: '%.*s'",
                 (int) s_exp.sub_elements[0].block.len,
                 s_exp.sub_elements[0].block.bytes);
         goto done;
@@ -826,14 +824,13 @@ g10_parse_seckey(pgp_key_pkt_t *           seckey,
     algorithm_s_exp = &s_exp.sub_elements[1].s_exp;
 
     if (algorithm_s_exp->sub_elementc < 2) {
-        fprintf(stderr,
-                "Wrong count of algorithm-level elements: %d, should great than 1\n",
+        RNP_LOG("Wrong count of algorithm-level elements: %d, should great than 1",
                 algorithm_s_exp->sub_elementc);
         goto done;
     }
 
     if (!algorithm_s_exp->sub_elements[0].is_block) {
-        fprintf(stderr, "Expected block with algorithm name, but has s-exp\n");
+        RNP_LOG("Expected block with algorithm name, but has s-exp");
         goto done;
     }
 
@@ -874,8 +871,7 @@ g10_parse_seckey(pgp_key_pkt_t *           seckey,
                         algorithm_s_exp->sub_elements[0].block.len)) {
         alg = PGP_PKA_DSA;
     } else {
-        fprintf(stderr,
-                "Unsupported algorithm: '%.*s'\n",
+        RNP_LOG("Unsupported algorithm: '%.*s'",
                 (int) s_exp.sub_elements[0].block.len,
                 s_exp.sub_elements[0].block.bytes);
         goto done;
@@ -1099,7 +1095,7 @@ write_pubkey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
         break;
 
     default:
-        fprintf(stderr, "Unsupported public key algorithm: %d\n", key->alg);
+        RNP_LOG("Unsupported public key algorithm: %d", (int) key->alg);
         return false;
     }
 
@@ -1135,7 +1131,7 @@ write_seckey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
         break;
 
     default:
-        fprintf(stderr, "Unsupported public key algorithm: %d\n", key->alg);
+        RNP_LOG("Unsupported public key algorithm: %d", (int) key->alg);
         return false;
     }
 
@@ -1335,10 +1331,8 @@ g10_calculated_hash(const pgp_key_pkt_t *key, const char *protected_at, uint8_t 
     }
 
     if (hash._output_len != G10_SHA1_HASH_SIZE) {
-        fprintf(stderr,
-                "wrong hash size %zu, should be %d bytes\n",
-                hash._output_len,
-                G10_SHA1_HASH_SIZE);
+        RNP_LOG(
+          "wrong hash size %zu, should be %d bytes", hash._output_len, G10_SHA1_HASH_SIZE);
         goto error;
     }
 
