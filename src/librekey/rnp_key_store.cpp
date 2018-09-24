@@ -66,7 +66,7 @@ parse_ks_format(enum key_store_format_t *key_store_format, const char *format)
     } else if (strcmp(format, RNP_KEYSTORE_G10) == 0) {
         *key_store_format = G10_KEY_STORE;
     } else {
-        fprintf(stderr, "rnp: unsupported keystore format: \"%s\"\n", format);
+        RNP_LOG("unsupported keystore format: \"%s\"", format);
         return false;
     }
     return true;
@@ -84,7 +84,7 @@ rnp_key_store_new(const char *format, const char *path)
 
     key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
     if (key_store == NULL) {
-        fprintf(stderr, "Can't allocate memory\n");
+        RNP_LOG("Can't allocate memory");
         return NULL;
     }
 
@@ -111,7 +111,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
     }
 
     if (list_length(pubring->keys) < 1) {
-        fprintf(stderr, "pub keyring '%s' is empty\n", ((rnp_key_store_t *) pubring)->path);
+        RNP_LOG("pub keyring '%s' is empty", ((rnp_key_store_t *) pubring)->path);
         return false;
     }
 
@@ -119,13 +119,12 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
     if (loadsecret) {
         rnp_key_store_clear(secring);
         if (!rnp_key_store_load_from_file(secring, &rnp->key_provider)) {
-            fprintf(stderr, "cannot read sec keyring\n");
+            RNP_LOG("cannot read sec keyring");
             return false;
         }
 
         if (list_length(secring->keys) < 1) {
-            fprintf(
-              stderr, "sec keyring '%s' is empty\n", ((rnp_key_store_t *) secring)->path);
+            RNP_LOG("sec keyring '%s' is empty", ((rnp_key_store_t *) secring)->path);
             return false;
         }
 
@@ -161,8 +160,7 @@ rnp_key_store_load_from_file(rnp_key_store_t *         key_store,
     if (key_store->format == G10_KEY_STORE) {
         dir = opendir(key_store->path);
         if (dir == NULL) {
-            fprintf(
-              stderr, "Can't open G10 directory %s: %s\n", key_store->path, strerror(errno));
+            RNP_LOG("Can't open G10 directory %s: %s", key_store->path, strerror(errno));
             return false;
         }
 
@@ -180,13 +178,13 @@ rnp_key_store_load_from_file(rnp_key_store_t *         key_store,
             }
 
             if (!pgp_mem_readfile(&mem, path)) {
-                fprintf(stderr, "Can't read file '%s' to memory\n", path);
+                RNP_LOG("Can't read file '%s' to memory", path);
                 continue;
             }
 
             // G10 may don't read one file, so, ignore it!
             if (!rnp_key_store_g10_from_mem(key_store, &mem, key_provider)) {
-                fprintf(stderr, "Can't parse file: %s\n", path);
+                RNP_LOG("Can't parse file: %s", path);
             }
             pgp_memory_release(&mem);
         }
@@ -212,17 +210,12 @@ rnp_key_store_load_from_mem(rnp_key_store_t *         key_store,
     switch (key_store->format) {
     case GPG_KEY_STORE:
         return rnp_key_store_pgp_read_from_mem(key_store, memory, key_provider);
-
     case KBX_KEY_STORE:
         return rnp_key_store_kbx_from_mem(key_store, memory, key_provider);
-
     case G10_KEY_STORE:
         return rnp_key_store_g10_from_mem(key_store, memory, key_provider);
-
     default:
-        fprintf(stderr,
-                "Unsupported load from memory for key-store format: %d\n",
-                key_store->format);
+        RNP_LOG("Unsupported load from memory for key-store format: %d", key_store->format);
     }
 
     return false;
@@ -241,16 +234,16 @@ rnp_key_store_write_to_file(rnp_key_store_t *key_store, const unsigned armor)
         struct stat path_stat;
         if (stat(key_store->path, &path_stat) != -1) {
             if (!S_ISDIR(path_stat.st_mode)) {
-                fprintf(stderr, "G10 keystore should be a directory: %s\n", key_store->path);
+                RNP_LOG("G10 keystore should be a directory: %s", key_store->path);
                 return false;
             }
         } else {
             if (errno != ENOENT) {
-                fprintf(stderr, "stat(%s): %s\n", key_store->path, strerror(errno));
+                RNP_LOG("stat(%s): %s", key_store->path, strerror(errno));
                 return false;
             }
             if (mkdir(key_store->path, S_IRWXU) != 0) {
-                fprintf(stderr, "mkdir(%s, S_IRWXU): %s\n", key_store->path, strerror(errno));
+                RNP_LOG("mkdir(%s, S_IRWXU): %s", key_store->path, strerror(errno));
                 return false;
             }
         }
@@ -304,8 +297,7 @@ rnp_key_store_write_to_mem(rnp_key_store_t *key_store,
         return rnp_key_store_kbx_to_mem(key_store, memory);
 
     default:
-        fprintf(
-          stderr, "Unsupported write to memory for key-store format: %d\n", key_store->format);
+        RNP_LOG("Unsupported write to memory for key-store format: %d", key_store->format);
     }
 
     return false;
