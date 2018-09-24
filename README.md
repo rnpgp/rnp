@@ -207,8 +207,21 @@ yum install -y rnp
 
 ## On Debian
 
-(WIP)
-
+``` sh
+# Clone the repository by version tag (or omit it to get the latest sources)
+sudo apt install git
+git clone https://github.com/riboseinc/rnp.git -b v0.11.0
+# Enable access to `testing` packages by editing /etc/apt/sources.list
+# deb http://deb.debian.org/debian testing main
+# Install required packages
+sudo apt install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev libbotan-2-dev build-essential
+# Cmake recommend out-of-source builds
+mkdir rnp-build
+cd rnp-build
+# Cmake it
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=on -DBUILD_TESTING=off ../rnp/
+make install
+```
 
 ## Compiling from source
 
