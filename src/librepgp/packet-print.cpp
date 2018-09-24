@@ -753,7 +753,7 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
         break;
     }
     default:
-        (void) fprintf(stderr, "pgp_print_pubkey: Unusual algorithm\n");
+        RNP_LOG("pgp_print_pubkey: Unusual algorithm: %d", (int) pkt->alg);
     }
     return cc;
 }

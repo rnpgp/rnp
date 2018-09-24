@@ -149,21 +149,21 @@ pgp_memory_pad(pgp_memory_t *mem, size_t length)
     uint8_t *temp;
 
     if (mem->allocated < mem->length) {
-        (void) fprintf(stderr, "pgp_memory_pad: bad alloc in\n");
+        RNP_LOG("bad alloc in");
         return false;
     }
     if (mem->allocated < mem->length + length) {
         mem->allocated = mem->allocated * 2 + length;
         temp = (uint8_t *) realloc(mem->buf, mem->allocated);
         if (temp == NULL) {
-            (void) fprintf(stderr, "pgp_memory_pad: bad alloc\n");
+            RNP_LOG("bad realloc");
             return false;
         } else {
             mem->buf = temp;
         }
     }
     if (mem->allocated < mem->length + length) {
-        (void) fprintf(stderr, "pgp_memory_pad: bad alloc out\n");
+        RNP_LOG("bad alloc out");
         return false;
     }
 
@@ -323,18 +323,18 @@ pgp_mem_writefile(pgp_memory_t *mem, const char *f)
 
     fd = mkstemp(tmp);
     if (fd < 0) {
-        fprintf(stderr, "pgp_mem_writefile: can't open temp file: %s\n", strerror(errno));
+        RNP_LOG("pgp_mem_writefile: can't open temp file: %s", strerror(errno));
         return false;
     }
 
     if ((fp = fdopen(fd, "wb")) == NULL) {
-        fprintf(stderr, "pgp_mem_writefile: can't open \"%s\"\n", strerror(errno));
+        RNP_LOG("pgp_mem_writefile: can't open \"%s\"", strerror(errno));
         return false;
     }
 
     fwrite(mem->buf, mem->length, 1, fp);
     if (ferror(fp)) {
-        fprintf(stderr, "pgp_mem_writefile: can't write to file\n");
+        RNP_LOG("pgp_mem_writefile: can't write to file");
         fclose(fp);
         return false;
     }
@@ -342,8 +342,7 @@ pgp_mem_writefile(pgp_memory_t *mem, const char *f)
     fclose(fp);
 
     if (rename(tmp, f)) {
-        fprintf(
-          stderr, "pgp_mem_writefile: can't rename to target file: %s\n", strerror(errno));
+        RNP_LOG("pgp_mem_writefile: can't rename to target file: %s", strerror(errno));
         return false;
     }
 
