@@ -47,7 +47,6 @@ test_key_protect_load_pgp(void **state)
 {
     rnp_test_state_t * rstate = (rnp_test_state_t *) *state;
     char               path[PATH_MAX];
-    pgp_io_t           io = pgp_io_from_fp(stderr, stdout, stdout);
     pgp_key_t *        key = NULL;
     static const char *keyids[] = {"7bc6709b15c23a4a", // primary
                                    "1ed63ee56fadc34d",
@@ -65,13 +64,13 @@ test_key_protect_load_pgp(void **state)
         pgp_memory_t mem = {0};
         paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/secring.gpg", NULL);
         assert_true(pgp_mem_readfile(&mem, path));
-        assert_true(rnp_key_store_pgp_read_from_mem(&io, ks, &mem, NULL));
+        assert_true(rnp_key_store_pgp_read_from_mem(ks, &mem, NULL));
         pgp_memory_release(&mem);
 
         for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
             pgp_key_t * key = NULL;
             const char *keyid = keyids[i];
-            assert_non_null(key = rnp_key_store_get_key_by_name(&io, ks, keyid, NULL));
+            assert_non_null(key = rnp_key_store_get_key_by_name(ks, keyid, NULL));
             assert_non_null(key);
             // all keys in this keyring are encrypted and thus should be both protected and
             // locked initially
@@ -80,14 +79,14 @@ test_key_protect_load_pgp(void **state)
         }
 
         pgp_key_t *tmp = NULL;
-        assert_non_null(tmp = rnp_key_store_get_key_by_name(&io, ks, keyids[0], NULL));
+        assert_non_null(tmp = rnp_key_store_get_key_by_name(ks, keyids[0], NULL));
         assert_non_null(tmp);
 
         // steal this key from the store
         key = (pgp_key_t *) calloc(1, sizeof(*key));
         assert_non_null(key);
         memcpy(key, tmp, sizeof(*key));
-        assert_true(rnp_key_store_remove_key(&io, ks, tmp));
+        assert_true(rnp_key_store_remove_key(ks, tmp));
         rnp_key_store_free(ks);
     }
 
@@ -147,12 +146,11 @@ test_key_protect_load_pgp(void **state)
         pgp_memory_t mem = {0};
         mem.buf = key->packets[0].raw;
         mem.length = key->packets[0].length;
-        assert_true(rnp_key_store_pgp_read_from_mem(&io, ks, &mem, NULL));
+        assert_true(rnp_key_store_pgp_read_from_mem(ks, &mem, NULL));
 
         // grab the first key
         pgp_key_t *reloaded_key = NULL;
-        assert_non_null(reloaded_key =
-                          rnp_key_store_get_key_by_name(&io, ks, keyids[0], NULL));
+        assert_non_null(reloaded_key = rnp_key_store_get_key_by_name(ks, keyids[0], NULL));
         assert_non_null(reloaded_key);
 
         // should not be locked, nor protected

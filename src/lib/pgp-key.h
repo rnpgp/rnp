@@ -276,8 +276,7 @@ pgp_key_t *find_suitable_key(pgp_op_t            op,
                              pgp_key_provider_t *key_provider,
                              uint8_t             desired_usage);
 
-pgp_key_t *pgp_get_primary_key_for(pgp_io_t *                io,
-                                   const pgp_key_t *         subkey,
+pgp_key_t *pgp_get_primary_key_for(const pgp_key_t *         subkey,
                                    const rnp_key_store_t *   store,
                                    const pgp_key_provider_t *key_provider);
 

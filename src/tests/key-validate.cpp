@@ -52,16 +52,15 @@ all_keys_valid(const rnp_key_store_t *keyring)
 void
 test_key_validate(void **state)
 {
-    pgp_io_t         io = pgp_io_from_fp(stderr, stdout, stdout);
     rnp_key_store_t *pubring;
     rnp_key_store_t *secring;
-    pgp_key_t       *key = NULL;
+    pgp_key_t *      key = NULL;
 
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/1/pubring.gpg");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_true(rnp_key_store_load_from_file(pubring, NULL));
     /* this keyring has one expired subkey */
-    assert_non_null(key = rnp_key_store_get_key_by_name(&io, pubring, "1d7e8a5393c997a8", NULL));
+    assert_non_null(key = rnp_key_store_get_key_by_name(pubring, "1d7e8a5393c997a8", NULL));
     assert_false(key->valid);
     key->valid = true;
     assert_true(all_keys_valid(pubring));
@@ -69,8 +68,8 @@ test_key_validate(void **state)
 
     secring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/1/secring.gpg");
     assert_non_null(secring);
-    assert_true(rnp_key_store_load_from_file(&io, secring, NULL));
-    assert_non_null(key = rnp_key_store_get_key_by_name(&io, secring, "1d7e8a5393c997a8", NULL));
+    assert_true(rnp_key_store_load_from_file(secring, NULL));
+    assert_non_null(key = rnp_key_store_get_key_by_name(secring, "1d7e8a5393c997a8", NULL));
     assert_false(key->valid);
     key->valid = true;
     assert_true(all_keys_valid(secring));
@@ -78,51 +77,51 @@ test_key_validate(void **state)
 
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/2/pubring.gpg");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_true(rnp_key_store_load_from_file(pubring, NULL));
     assert_true(all_keys_valid(pubring));
     rnp_key_store_free(pubring);
 
     secring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/2/secring.gpg");
     assert_non_null(secring);
-    assert_true(rnp_key_store_load_from_file(&io, secring, NULL));
+    assert_true(rnp_key_store_load_from_file(secring, NULL));
     assert_true(all_keys_valid(secring));
     rnp_key_store_free(secring);
 
     pubring = rnp_key_store_new(RNP_KEYSTORE_KBX, "data/keyrings/3/pubring.kbx");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_true(rnp_key_store_load_from_file(pubring, NULL));
     assert_true(all_keys_valid(pubring));
 
     secring = rnp_key_store_new(RNP_KEYSTORE_G10, "data/keyrings/3/private-keys-v1.d");
     assert_non_null(secring);
     pgp_key_provider_t key_provider = {.callback = rnp_key_provider_store,
                                        .userdata = pubring};
-    assert_true(rnp_key_store_load_from_file(&io, secring, &key_provider));
+    assert_true(rnp_key_store_load_from_file(secring, &key_provider));
     assert_true(all_keys_valid(secring));
     rnp_key_store_free(pubring);
     rnp_key_store_free(secring);
 
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/4/pubring.pgp");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_true(rnp_key_store_load_from_file(pubring, NULL));
     assert_true(all_keys_valid(pubring));
     rnp_key_store_free(pubring);
 
     secring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/4/secring.pgp");
     assert_non_null(secring);
-    assert_true(rnp_key_store_load_from_file(&io, secring, NULL));
+    assert_true(rnp_key_store_load_from_file(secring, NULL));
     assert_true(all_keys_valid(secring));
     rnp_key_store_free(secring);
 
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/5/pubring.gpg");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_true(rnp_key_store_load_from_file(pubring, NULL));
     assert_true(all_keys_valid(pubring));
     rnp_key_store_free(pubring);
 
     secring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/5/secring.gpg");
     assert_non_null(secring);
-    assert_true(rnp_key_store_load_from_file(&io, secring, NULL));
+    assert_true(rnp_key_store_load_from_file(secring, NULL));
     assert_true(all_keys_valid(secring));
     rnp_key_store_free(secring);
 }
@@ -147,208 +146,207 @@ test_forged_key_validate(void **state)
 {
     rnp_key_store_t *pubring;
     pgp_key_t *      key = NULL;
-    pgp_io_t         io = pgp_io_from_fp(stderr, stdout, stdout);
 
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "");
     assert_non_null(pubring);
 
     /* load valid dsa-eg key */
     key_store_add(pubring, DATA_PATH "dsa-eg-pub.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "C8A10A7D78273E10", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "C8A10A7D78273E10", NULL);
     assert_non_null(key);
     assert_true(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load dsa-eg key with forged self-signature. Subkey will not be valid as well. */
     key_store_add(pubring, DATA_PATH "dsa-eg-pub-forged-key.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "C8A10A7D78273E10", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "C8A10A7D78273E10", NULL);
     assert_non_null(key);
     assert_false(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "02A5715C3537717E", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "02A5715C3537717E", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load dsa-eg key with forged key material */
     key_store_add(pubring, DATA_PATH "dsa-eg-pub-forged-material.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "C8A10A7D78273E10", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "C8A10A7D78273E10", NULL);
     assert_null(key);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "dsa-eg", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "dsa-eg", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load dsa-eg keypair with forged subkey binding signature */
     key_store_add(pubring, DATA_PATH "dsa-eg-pub-forged-subkey.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "02A5715C3537717E", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "02A5715C3537717E", NULL);
     assert_non_null(key);
     assert_false(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "C8A10A7D78273E10", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "C8A10A7D78273E10", NULL);
     assert_non_null(key);
     assert_true(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load valid eddsa key */
     key_store_add(pubring, DATA_PATH "ecc-25519-pub.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "CC786278981B0728", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "CC786278981B0728", NULL);
     assert_non_null(key);
     assert_true(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load eddsa key with forged self-signature */
     key_store_add(pubring, DATA_PATH "ecc-25519-pub-forged-key.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "CC786278981B0728", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "CC786278981B0728", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load eddsa key with forged key material */
     key_store_add(pubring, DATA_PATH "ecc-25519-pub-forged-material.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "ecc-25519", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "ecc-25519", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load valid ecdsa/ecdh p-256 keypair */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "23674F21B2441527", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "23674F21B2441527", NULL);
     assert_non_null(key);
     assert_true(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "37E285E9E9851491", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "37E285E9E9851491", NULL);
     assert_non_null(key);
     assert_true(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load ecdsa/ecdh key with forged self-signature. Subkey is not valid as well. */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-forged-key.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "23674F21B2441527", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "23674F21B2441527", NULL);
     assert_non_null(key);
     assert_false(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "37E285E9E9851491", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "37E285E9E9851491", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load ecdsa/ecdh key with forged key material. Subkey is not valid as well. */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-forged-material.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "23674F21B2441527", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "23674F21B2441527", NULL);
     assert_null(key);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "ecc-p256", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "ecc-p256", NULL);
     assert_non_null(key);
     assert_false(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "37E285E9E9851491", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "37E285E9E9851491", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load ecdsa/ecdh keypair with forged subkey binding signature */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-forged-subkey.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "37E285E9E9851491", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "37E285E9E9851491", NULL);
     assert_non_null(key);
     assert_false(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "23674F21B2441527", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "23674F21B2441527", NULL);
     assert_non_null(key);
     assert_true(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load ecdsa/ecdh keypair without certification */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-no-certification.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "23674F21B2441527", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "23674F21B2441527", NULL);
     assert_non_null(key);
     assert_false(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "37E285E9E9851491", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "37E285E9E9851491", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load ecdsa/ecdh keypair without subkey binding */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-no-binding.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "23674F21B2441527", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "23674F21B2441527", NULL);
     assert_non_null(key);
     assert_true(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "37E285E9E9851491", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "37E285E9E9851491", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load valid rsa/rsa keypair */
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "2FB9179118898E8B", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "2FB9179118898E8B", NULL);
     assert_non_null(key);
     assert_true(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "6E2F73008F8B8D6E", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "6E2F73008F8B8D6E", NULL);
     assert_non_null(key);
     assert_true(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load rsa/rsa key with forged self-signature. Subkey is not valid as well. */
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub-forged-key.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "2FB9179118898E8B", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "2FB9179118898E8B", NULL);
     assert_non_null(key);
     assert_false(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "6E2F73008F8B8D6E", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "6E2F73008F8B8D6E", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load rsa/rsa key with forged key material. Subkey is not valid as well. */
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub-forged-material.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "2FB9179118898E8B", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "2FB9179118898E8B", NULL);
     assert_null(key);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "rsa-rsa", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "rsa-rsa", NULL);
     assert_non_null(key);
     assert_false(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "6E2F73008F8B8D6E", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "6E2F73008F8B8D6E", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load rsa/rsa keypair with forged subkey binding signature */
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub-forged-subkey.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "6E2F73008F8B8D6E", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "6E2F73008F8B8D6E", NULL);
     assert_non_null(key);
     assert_false(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "2FB9179118898E8B", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "2FB9179118898E8B", NULL);
     assert_non_null(key);
     assert_true(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load rsa/rsa keypair with future creation date */
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub-future-key.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "3D032D00EE1EC3F5", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "3D032D00EE1EC3F5", NULL);
     assert_non_null(key);
     assert_false(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "021085B640CE8DCE", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "021085B640CE8DCE", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load eddsa/rsa keypair with certification with future creation date */
     key_store_add(pubring, DATA_PATH "ecc-25519-pub-future-cert.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "D3B746FA852C2BE8", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "D3B746FA852C2BE8", NULL);
     assert_non_null(key);
     assert_false(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "EB8C21ACDC15CA14", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "EB8C21ACDC15CA14", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load ecdsa/rsa keypair with expired subkey */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-expired-subkey.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "1E4526C06A6D482B", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "1E4526C06A6D482B", NULL);
     assert_non_null(key);
     assert_true(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "B20D0A7D37200BEB", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "B20D0A7D37200BEB", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load ecdsa/ecdh keypair with expired key */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-expired-key.pgp");
-    key = rnp_key_store_get_key_by_name(&io, pubring, "1CBED48ED08792BB", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "1CBED48ED08792BB", NULL);
     assert_non_null(key);
     assert_false(key->valid);
-    key = rnp_key_store_get_key_by_name(&io, pubring, "F4CA7C5CDD74AB81", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "F4CA7C5CDD74AB81", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);

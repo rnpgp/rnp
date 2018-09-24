@@ -108,7 +108,6 @@ test_stream_signatures(void **state)
     pgp_hash_t        hash;
     pgp_hash_alg_t    halg;
     pgp_source_t      sigsrc;
-    pgp_io_t          io = pgp_io_from_fp(stderr, stdout, stdout);
     uint8_t           keyid[PGP_KEY_ID_SIZE];
     pgp_key_t *       key = NULL;
     rng_t             rng;
@@ -119,7 +118,7 @@ test_stream_signatures(void **state)
     /* load keys */
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/test_stream_signatures/pub.asc");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_true(rnp_key_store_load_from_file(pubring, NULL));
     /* load signature */
     assert_rnp_success(init_file_src(&sigsrc, "data/test_stream_signatures/source.txt.sig"));
     assert_rnp_success(stream_parse_signature(&sigsrc, &sig));
@@ -134,7 +133,7 @@ test_stream_signatures(void **state)
       stream_hash_file(&hash_forged, "data/test_stream_signatures/source_forged.txt"));
     /* find signing key */
     assert_true(signature_get_keyid(&sig, keyid));
-    assert_non_null(key = rnp_key_store_get_key_by_id(&io, pubring, keyid, NULL));
+    assert_non_null(key = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
     /* validate signature and fields */
     assert_true(pgp_hash_copy(&hash, &hash_orig));
     assert_int_equal(signature_get_creation(&sig), 1522241943);
@@ -148,8 +147,8 @@ test_stream_signatures(void **state)
     /* load secret key */
     secring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/test_stream_signatures/sec.asc");
     assert_non_null(secring);
-    assert_true(rnp_key_store_load_from_file(&io, secring, NULL));
-    assert_non_null(key = rnp_key_store_get_key_by_id(&io, secring, keyid, NULL));
+    assert_true(rnp_key_store_load_from_file(secring, NULL));
+    assert_non_null(key = rnp_key_store_get_key_by_id(secring, keyid, NULL));
     assert_true(pgp_is_key_secret(key));
     /* fill signature */
     uint32_t create = time(NULL);
@@ -751,7 +750,6 @@ test_stream_key_signatures(void **state)
     pgp_transferable_userid_t *uid = NULL;
     rng_t                      rng;
     pgp_signature_t *          sig;
-    pgp_io_t                   io = pgp_io_from_fp(stderr, stdout, stdout);
     uint8_t                    keyid[PGP_KEY_ID_SIZE];
     pgp_key_t *                pkey = NULL;
     pgp_hash_t                 hash;
@@ -762,7 +760,7 @@ test_stream_key_signatures(void **state)
     /* v3 public key */
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/4/rsav3-p.asc");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_true(rnp_key_store_load_from_file(pubring, NULL));
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/4/rsav3-p.asc"));
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
     src_close(&keysrc);
@@ -771,7 +769,7 @@ test_stream_key_signatures(void **state)
     assert_non_null(uid = (pgp_transferable_userid_t *) list_front(key->userids));
     assert_non_null(sig = (pgp_signature_t *) list_front(uid->signatures));
     assert_true(signature_get_keyid(sig, keyid));
-    assert_non_null(pkey = rnp_key_store_get_key_by_id(&io, pubring, keyid, NULL));
+    assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
     /* check certification signature */
     assert_true(signature_hash_certification(sig, &key->key, &uid->uid, &hash));
     assert_rnp_success(signature_validate(sig, pgp_get_key_material(pkey), &hash, &rng));
@@ -785,7 +783,7 @@ test_stream_key_signatures(void **state)
     /* keyring */
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/1/pubring.gpg");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_true(rnp_key_store_load_from_file(pubring, NULL));
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/1/pubring.gpg"));
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
     src_close(&keysrc);
@@ -802,7 +800,7 @@ test_stream_key_signatures(void **state)
                 sig = (pgp_signature_t *) sli;
 
                 assert_true(signature_get_keyid(sig, keyid));
-                assert_non_null(pkey = rnp_key_store_get_key_by_id(&io, pubring, keyid, NULL));
+                assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
                 /* high level interface */
                 assert_rnp_success(signature_validate_certification(
                   sig, &key->key, &uid->uid, pgp_get_key_material(pkey), &rng));
@@ -826,7 +824,7 @@ test_stream_key_signatures(void **state)
             sig = (pgp_signature_t *) list_front(subkey->signatures);
             assert_non_null(sig);
             assert_true(signature_get_keyid(sig, keyid));
-            assert_non_null(pkey = rnp_key_store_get_key_by_id(&io, pubring, keyid, NULL));
+            assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
             /* high level interface */
             assert_rnp_success(
               signature_validate_binding(sig, &key->key, &subkey->subkey, &rng));
@@ -846,14 +844,13 @@ static void
 validate_key_sigs(const char *path)
 {
     rnp_key_store_t *     pubring;
-    pgp_io_t              io = {.outs = stdout, .errs = stderr, .res = stdout};
     pgp_key_t *           pkey = NULL;
     pgp_signatures_info_t info = {0};
 
     /* we need rng for key validation */
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, path);
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_true(rnp_key_store_load_from_file(pubring, NULL));
     assert_non_null(pkey = (pgp_key_t *) list_front(pubring->keys));
     assert_rnp_success(validate_pgp_key_signatures(&info, pkey, pubring));
     assert_true(check_signatures_info(&info));
@@ -865,14 +862,13 @@ void
 test_stream_key_signature_validate(void **state)
 {
     rnp_key_store_t *     pubring;
-    pgp_io_t              io = {.outs = stdout, .errs = stderr, .res = stdout};
     pgp_key_t *           pkey = NULL;
     pgp_signatures_info_t info = {0};
 
     /* v3 public key */
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/4/rsav3-p.asc");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_true(rnp_key_store_load_from_file(pubring, NULL));
     assert_int_equal(list_length(pubring->keys), 1);
     assert_non_null(pkey = (pgp_key_t *) list_front(pubring->keys));
     assert_rnp_success(validate_pgp_key_signatures(&info, pkey, pubring));
@@ -884,7 +880,7 @@ test_stream_key_signature_validate(void **state)
     /* keyring */
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/1/pubring.gpg");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(&io, pubring, NULL));
+    assert_true(rnp_key_store_load_from_file(pubring, NULL));
     assert_true(list_length(pubring->keys) > 0);
     for (list_item *k = list_front(pubring->keys); k; k = list_next(k)) {
         pkey = (pgp_key_t *) k;

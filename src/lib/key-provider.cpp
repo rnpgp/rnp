@@ -125,8 +125,8 @@ rnp_key_provider_store(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
     rnp_key_store_t *ks = (rnp_key_store_t *) userdata;
 
-    for (pgp_key_t *key = rnp_key_store_search(NULL, ks, &ctx->search, NULL); key;
-         key = rnp_key_store_search(NULL, ks, &ctx->search, key)) {
+    for (pgp_key_t *key = rnp_key_store_search(ks, &ctx->search, NULL); key;
+         key = rnp_key_store_search(ks, &ctx->search, key)) {
         if (pgp_is_key_secret(key) == ctx->secret) {
             return key;
         }
