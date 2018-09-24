@@ -126,10 +126,8 @@ write_matching_packets(pgp_dest_t *           dst,
     }
 
     // Export subkeys
-    pgp_io_t io = pgp_io_from_fp(stderr, stdout, stdout);
     for (list_item *grip = list_front(key->subkey_grips); grip; grip = list_next(grip)) {
-        const pgp_key_t *subkey =
-          rnp_key_store_get_key_by_grip(&io, keyring, (uint8_t *) grip);
+        const pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, (uint8_t *) grip);
         if (!write_matching_packets(dst, subkey, NULL, tags, tag_count)) {
             RNP_LOG("Error occured when exporting a subkey");
             return false;

@@ -57,7 +57,6 @@ load_generated_g10_key(pgp_key_t *    dst,
     rnp_key_store_t *  key_store = NULL;
     list               key_ptrs = NULL; /* holds primary and pubkey, when used */
     pgp_key_provider_t prov = {};
-    pgp_io_t           io = pgp_io_from_fp(stderr, stdout, stdout);
 
     // this should generally be zeroed
     assert(pgp_get_key_type(dst) == 0);
@@ -97,7 +96,7 @@ load_generated_g10_key(pgp_key_t *    dst,
 
     pgp_memory_ref(&mem, (uint8_t *) mem_dest_get_memory(&memdst), memdst.writeb);
 
-    if (!rnp_key_store_g10_from_mem(&io, key_store, &mem, &prov)) {
+    if (!rnp_key_store_g10_from_mem(key_store, &mem, &prov)) {
         goto end;
     }
     // if a primary key is provided, it should match the sub with regards to type
@@ -108,7 +107,7 @@ load_generated_g10_key(pgp_key_t *    dst,
     }
     memcpy(dst, (pgp_key_t *) list_front(key_store->keys), sizeof(*dst));
     // we don't want the key store to free the internal key data
-    rnp_key_store_remove_key(&io, key_store, (pgp_key_t *) list_front(key_store->keys));
+    rnp_key_store_remove_key(key_store, (pgp_key_t *) list_front(key_store->keys));
     ok = true;
 
 end:

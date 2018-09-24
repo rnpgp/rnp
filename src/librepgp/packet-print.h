@@ -59,26 +59,19 @@
 typedef struct pgp_io_t  pgp_io_t;
 typedef struct pgp_key_t pgp_key_t;
 
-void repgp_print_key(
-  pgp_io_t *, const struct rnp_key_store_t *, const pgp_key_t *, const char *, const int);
+void repgp_print_key(const struct rnp_key_store_t *,
+                     const pgp_key_t *,
+                     const char *,
+                     const int);
 
-int repgp_sprint_json(pgp_io_t *,
-                      const struct rnp_key_store_t *,
-                      const pgp_key_t *,
-                      json_object *,
-                      const char *,
-                      const int);
+int repgp_sprint_json(
+  const struct rnp_key_store_t *, const pgp_key_t *, json_object *, const char *, const int);
 
 int pgp_sprint_key(
-  pgp_io_t *, const rnp_key_store_t *, const pgp_key_t *, char **, const char *, const int);
-int pgp_sprint_json(pgp_io_t *,
-                    const rnp_key_store_t *,
-                    const pgp_key_t *,
-                    json_object *,
-                    const char *,
-                    const int);
-int pgp_hkp_sprint_key(
-  pgp_io_t *, const rnp_key_store_t *, const pgp_key_t *, char **, const int);
+  const rnp_key_store_t *, const pgp_key_t *, char **, const char *, const int);
+int pgp_sprint_json(
+  const rnp_key_store_t *, const pgp_key_t *, json_object *, const char *, const int);
+int pgp_hkp_sprint_key(const rnp_key_store_t *, const pgp_key_t *, char **, const int);
 int pgp_sprint_pubkey(const pgp_key_t *, char *, size_t);
 
 #endif /* PACKET_PRINT_H_ */

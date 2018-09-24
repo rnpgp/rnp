@@ -63,8 +63,8 @@ test_key_unlock_pgp(void **state)
 
     for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
         const char *keyid = keyids[i];
-        rnp_assert_non_null(
-          rstate, key = rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyid, NULL));
+        rnp_assert_non_null(rstate,
+                            key = rnp_key_store_get_key_by_name(rnp.secring, keyid, NULL));
         assert_non_null(key);
         // all keys in this keyring are encrypted and thus should be locked initially
         rnp_assert_true(rstate, pgp_key_is_locked(key));
@@ -75,7 +75,7 @@ test_key_unlock_pgp(void **state)
       (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
     rnp_ctx_init(&ctx, &rnp);
     ctx.halg = pgp_str_to_hash_alg("SHA1");
-    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyids[0], NULL));
+    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.secring, keyids[0], NULL));
     rnp_assert_non_null(rstate, list_append(&ctx.signers, &key, sizeof(key)));
     memset(signature, 0, sizeof(signature));
     ret = rnp_protect_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
@@ -83,8 +83,8 @@ test_key_unlock_pgp(void **state)
     rnp_ctx_free(&ctx);
 
     // grab the signing key to unlock
-    rnp_assert_non_null(
-      rstate, key = rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyids[0], NULL));
+    rnp_assert_non_null(rstate,
+                        key = rnp_key_store_get_key_by_name(rnp.secring, keyids[0], NULL));
     rnp_assert_non_null(rstate, key);
 
     // confirm that this key is indeed RSA first
@@ -126,7 +126,7 @@ test_key_unlock_pgp(void **state)
     // sign, with no password
     rnp_ctx_init(&ctx, &rnp);
     ctx.halg = pgp_str_to_hash_alg("SHA1");
-    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyids[0], NULL));
+    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.secring, keyids[0], NULL));
     rnp_assert_non_null(rstate, list_append(&ctx.signers, &key, sizeof(key)));
     memset(signature, 0, sizeof(signature));
     ret = rnp_protect_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
@@ -156,7 +156,7 @@ test_key_unlock_pgp(void **state)
     // sign, with no password (should now fail)
     rnp_ctx_init(&ctx, &rnp);
     ctx.halg = pgp_str_to_hash_alg("SHA1");
-    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyids[0], NULL));
+    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.secring, keyids[0], NULL));
     rnp_assert_non_null(rstate, list_append(&ctx.signers, &key, sizeof(key)));
     memset(signature, 0, sizeof(signature));
     ret = rnp_protect_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
@@ -166,7 +166,7 @@ test_key_unlock_pgp(void **state)
     // encrypt
     rnp_ctx_init(&ctx, &rnp);
     ctx.ealg = PGP_SA_AES_256;
-    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.io, rnp.pubring, keyids[1], NULL));
+    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.pubring, keyids[1], NULL));
     list_append(&ctx.recipients, &key, sizeof(key));
     // Note: keyids[1] is an encrypting subkey
     ret = rnp_protect_mem(&ctx, data, strlen(data), encrypted, sizeof(encrypted), &enclen);
@@ -182,8 +182,8 @@ test_key_unlock_pgp(void **state)
     rnp_ctx_free(&ctx);
 
     // grab the encrypting key to unlock
-    rnp_assert_non_null(
-      rstate, key = rnp_key_store_get_key_by_name(rnp.io, rnp.secring, keyids[1], NULL));
+    rnp_assert_non_null(rstate,
+                        key = rnp_key_store_get_key_by_name(rnp.secring, keyids[1], NULL));
 
     // unlock the encrypting key
     provider = (pgp_password_provider_t){.callback = string_copy_password_callback,

@@ -373,8 +373,7 @@ rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
 }
 
 bool
-rnp_key_store_kbx_from_mem(pgp_io_t *                io,
-                           rnp_key_store_t *         key_store,
+rnp_key_store_kbx_from_mem(rnp_key_store_t *         key_store,
                            pgp_memory_t *            memory,
                            const pgp_key_provider_t *key_provider)
 {
@@ -390,14 +389,14 @@ rnp_key_store_kbx_from_mem(pgp_io_t *                io,
     while (has_bytes > 0) {
         blob_length = ru32(buf);
         if (blob_length > BLOB_SIZE_LIMIT) {
-            fprintf(io->errs,
+            fprintf(stderr,
                     "Blob size is %d bytes but limit is %d bytes\n",
                     blob_length,
                     BLOB_SIZE_LIMIT);
             return false;
         }
         if (has_bytes < blob_length) {
-            fprintf(io->errs,
+            fprintf(stderr,
                     "Blob have size %d bytes but file contains only %zu bytes\n",
                     blob_length,
                     has_bytes);
@@ -422,11 +421,11 @@ rnp_key_store_kbx_from_mem(pgp_io_t *                io,
             mem.allocated = 0;
 
             if (pgp_blob->keyblock_length == 0) {
-                fprintf(io->errs, "PGP blob have zero size\n");
+                fprintf(stderr, "PGP blob have zero size\n");
                 return false;
             }
 
-            if (!rnp_key_store_pgp_read_from_mem(io, key_store, &mem, key_provider)) {
+            if (!rnp_key_store_pgp_read_from_mem(key_store, &mem, key_provider)) {
                 return false;
             }
         }
@@ -482,10 +481,7 @@ rnp_key_store_kbx_write_header(rnp_key_store_t *key_store, pgp_memory_t *m)
 }
 
 static bool
-rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
-                            rnp_key_store_t *key_store,
-                            pgp_key_t *      key,
-                            pgp_memory_t *   m)
+rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_memory_t *m)
 {
     unsigned   i;
     size_t     start, key_start, uid_start;
@@ -530,7 +526,7 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
     list_item *subkey_grip = list_front(key->subkey_grips);
     while (subkey_grip) {
         const pgp_key_t *subkey =
-          rnp_key_store_get_key_by_grip(io, key_store, (const uint8_t *) subkey_grip);
+          rnp_key_store_get_key_by_grip(key_store, (const uint8_t *) subkey_grip);
         if (!pgp_memory_add(m, subkey->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE) ||
             !pu32(m, m->length - start - 8) || // offset to keyid (part of fpr for V4)
             !pu16(m, 0) ||                     // flags, not used by GnuPG
@@ -621,7 +617,7 @@ rnp_key_store_kbx_write_pgp(pgp_io_t *       io,
     subkey_grip = list_front(key->subkey_grips);
     while (subkey_grip) {
         const pgp_key_t *subkey =
-          rnp_key_store_get_key_by_grip(io, key_store, (uint8_t *) subkey_grip);
+          rnp_key_store_get_key_by_grip(key_store, (uint8_t *) subkey_grip);
         if (!pgp_key_write_packets(subkey, m)) {
             return false;
         }
@@ -678,12 +674,12 @@ rnp_key_store_kbx_write_x509(rnp_key_store_t *key_store, pgp_memory_t *m)
 }
 
 bool
-rnp_key_store_kbx_to_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_t *memory)
+rnp_key_store_kbx_to_mem(rnp_key_store_t *key_store, pgp_memory_t *memory)
 {
     pgp_memory_clear(memory);
 
     if (!rnp_key_store_kbx_write_header(key_store, memory)) {
-        fprintf(io->errs, "Can't write KBX header\n");
+        fprintf(stderr, "Can't write KBX header\n");
         return false;
     }
 
@@ -693,14 +689,14 @@ rnp_key_store_kbx_to_mem(pgp_io_t *io, rnp_key_store_t *key_store, pgp_memory_t 
         if (!pgp_key_is_primary_key(key)) {
             continue;
         }
-        if (!rnp_key_store_kbx_write_pgp(io, key_store, key, memory)) {
-            RNP_LOG_FD(io->errs, "Can't write PGP blobs for key %p\n", key);
+        if (!rnp_key_store_kbx_write_pgp(key_store, key, memory)) {
+            RNP_LOG("Can't write PGP blobs for key %p", key);
             return false;
         }
     }
 
     if (!rnp_key_store_kbx_write_x509(key_store, memory)) {
-        fprintf(io->errs, "Can't write X509 blobs\n");
+        fprintf(stderr, "Can't write X509 blobs\n");
         return false;
     }
 

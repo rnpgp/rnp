@@ -88,17 +88,15 @@ static pgp_key_t *
 resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
 {
     pgp_key_t *key;
-    pgp_io_t * io;
 
     if (userid == NULL) {
         return NULL;
     } else if ((strlen(userid) > 1) && userid[0] == '0' && userid[1] == 'x') {
         userid += 2;
     }
-    io = rnp->io;
-    key = rnp_key_store_get_key_by_name(io, keyring, userid, NULL);
+    key = rnp_key_store_get_key_by_name(keyring, userid, NULL);
     if (!key) {
-        (void) fprintf(io->errs, "cannot find key '%s'\n", userid);
+        (void) fprintf(stderr, "cannot find key '%s'\n", userid);
         return NULL;
     }
     return key;
@@ -578,7 +576,7 @@ rnp_list_keys(rnp_t *rnp, const int psigs)
         (void) fprintf(stderr, "No keyring\n");
         return false;
     }
-    return rnp_key_store_list(rnp->io, rnp->pubring, psigs);
+    return rnp_key_store_list(rnp->pubring, psigs);
 }
 
 /* list the keys in a keyring, returning a JSON encoded string */
@@ -594,7 +592,7 @@ rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
         (void) fprintf(stderr, "No keyring\n");
         return false;
     }
-    if (!rnp_key_store_json(rnp->io, rnp->pubring, obj, psigs)) {
+    if (!rnp_key_store_json(rnp->pubring, obj, psigs)) {
         (void) fprintf(stderr, "No keys in keyring\n");
         return false;
     }
@@ -627,17 +625,16 @@ rnp_match_keys(rnp_t *rnp, char *name, const char *fmt, void *vp, const int psig
     }
     (void) memset(&pubs, 0x0, sizeof(pubs));
     do {
-        key = rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, name, NULL);
+        key = rnp_key_store_get_key_by_name(rnp->pubring, name, NULL);
         if (!key) {
             return 0;
         }
         if (key != NULL) {
             ALLOC(char *, pubs.v, pubs.size, pubs.c, 10, 10, "rnp_match_keys", return 0);
             if (strcmp(fmt, "mr") == 0) {
-                pgp_hkp_sprint_key(rnp->io, rnp->pubring, key, &pubs.v[pubs.c], psigs);
+                pgp_hkp_sprint_key(rnp->pubring, key, &pubs.v[pubs.c], psigs);
             } else {
-                pgp_sprint_key(
-                  rnp->io, rnp->pubring, key, &pubs.v[pubs.c], "signature ", psigs);
+                pgp_sprint_key(rnp->pubring, key, &pubs.v[pubs.c], "signature ", psigs);
             }
             if (pubs.v[pubs.c] != NULL) {
                 pubs.c += 1;
@@ -672,13 +669,13 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
     printf("%s,%d, NAME: %s\n", __FILE__, __LINE__, name);
     *json = NULL;
     do {
-        key = rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, name, key);
+        key = rnp_key_store_get_key_by_name(rnp->pubring, name, key);
         if (!key) {
             return 0;
         }
         if (key != NULL) {
             if (strcmp(fmt, "mr") == 0) {
-                pgp_hkp_sprint_key(rnp->io, rnp->pubring, key, &newkey, 0);
+                pgp_hkp_sprint_key(rnp->pubring, key, &newkey, 0);
                 if (newkey) {
                     printf("%s\n", newkey);
                     free(newkey);
@@ -686,8 +683,7 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
                 }
             } else {
                 json_object *obj = json_object_new_object();
-                repgp_sprint_json(rnp->io,
-                                  rnp->pubring,
+                repgp_sprint_json(rnp->pubring,
                                   key,
                                   obj,
                                   pgp_is_primary_key_tag(pgp_get_key_type(key)) ? "pub" :
@@ -715,7 +711,7 @@ rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
     FILE *     fp = (FILE *) vp;
 
     do {
-        key = rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, name, key);
+        key = rnp_key_store_get_key_by_name(rnp->pubring, name, key);
         if (!key) {
             return 0;
         }
@@ -732,15 +728,13 @@ rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
 bool
 rnp_find_key(rnp_t *rnp, const char *id)
 {
-    pgp_io_t * io;
     pgp_key_t *key;
 
-    io = rnp->io;
     if (id == NULL) {
-        (void) fprintf(io->errs, "NULL id to search for\n");
+        (void) fprintf(stderr, "NULL id to search for\n");
         return false;
     }
-    key = rnp_key_store_get_key_by_name(rnp->io, rnp->pubring, id, NULL);
+    key = rnp_key_store_get_key_by_name(rnp->pubring, id, NULL);
     if (!key) {
         return false;
     }
@@ -758,11 +752,9 @@ rnp_get_key(rnp_t *rnp, const char *name, const char *fmt)
         return NULL;
     }
     if (strcmp(fmt, "mr") == 0) {
-        return (pgp_hkp_sprint_key(rnp->io, rnp->pubring, key, &newkey, 0) > 0) ? newkey :
-                                                                                  NULL;
+        return (pgp_hkp_sprint_key(rnp->pubring, key, &newkey, 0) > 0) ? newkey : NULL;
     }
-    return (pgp_sprint_key(rnp->io, rnp->pubring, key, &newkey, "signature", 0) > 0) ? newkey :
-                                                                                       NULL;
+    return (pgp_sprint_key(rnp->pubring, key, &newkey, "signature", 0) > 0) ? newkey : NULL;
 }
 
 /* export a given key */
@@ -816,7 +808,7 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
     }
 
     // load the key(s)
-    if (!rnp_key_store_load_from_file(rnp->io, tmp_keystore, &rnp->key_provider)) {
+    if (!rnp_key_store_load_from_file(tmp_keystore, &rnp->key_provider)) {
         RNP_LOG("failed to load key from file %s", path);
         goto done;
     }
@@ -838,9 +830,9 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
             RNP_LOG("failed to create key copy");
             continue;
         }
-        exkey = rnp_key_store_get_key_by_grip(rnp->io, rnp->pubring, imported->grip);
+        exkey = rnp_key_store_get_key_by_grip(rnp->pubring, imported->grip);
         expackets = exkey ? exkey->packetc : 0;
-        if (!(exkey = rnp_key_store_add_key(rnp->io, rnp->pubring, &keycp))) {
+        if (!(exkey = rnp_key_store_add_key(rnp->pubring, &keycp))) {
             RNP_LOG("failed to add key to the keyring");
             pgp_key_free_data(&keycp);
             continue;
@@ -850,7 +842,7 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
         /* add secret key if there is one */
         if (!pgp_is_key_secret(imported)) {
             if (changed && print) {
-                repgp_print_key(rnp->io, rnp->pubring, exkey, "pub", 0);
+                repgp_print_key(rnp->pubring, exkey, "pub", 0);
             }
             continue;
         }
@@ -859,16 +851,16 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
             RNP_LOG("failed to create secret key copy");
             continue;
         }
-        exkey = rnp_key_store_get_key_by_grip(rnp->io, rnp->secring, imported->grip);
+        exkey = rnp_key_store_get_key_by_grip(rnp->secring, imported->grip);
         expackets = exkey ? exkey->packetc : 0;
-        if (!(exkey = rnp_key_store_add_key(rnp->io, rnp->secring, &keycp))) {
+        if (!(exkey = rnp_key_store_add_key(rnp->secring, &keycp))) {
             RNP_LOG("failed to add key to the keyring");
             pgp_key_free_data(&keycp);
             continue;
         }
 
         if (print && (changed || (exkey->packetc > expackets))) {
-            repgp_print_key(rnp->io, rnp->pubring, exkey, "sec", 0);
+            repgp_print_key(rnp->pubring, exkey, "sec", 0);
         }
     }
 
@@ -891,8 +883,8 @@ rnp_import_key(rnp_t *rnp, const char *f)
         return false;
     }
 
-    if (!rnp_key_store_write_to_file(rnp->io, rnp->secring, 0) ||
-        !rnp_key_store_write_to_file(rnp->io, rnp->pubring, 0)) {
+    if (!rnp_key_store_write_to_file(rnp->secring, 0) ||
+        !rnp_key_store_write_to_file(rnp->pubring, 0)) {
         RNP_LOG("failed to write keyring");
         return false;
     }
@@ -939,7 +931,7 @@ rnp_generate_key(rnp_t *rnp)
     }
 
     // show the primary key
-    pgp_sprint_key(rnp->io, NULL, &primary_pub, &cp, "pub", 0);
+    pgp_sprint_key(NULL, &primary_pub, &cp, "pub", 0);
     (void) fprintf(stdout, "%s", cp);
     free(cp);
 
@@ -950,7 +942,7 @@ rnp_generate_key(rnp_t *rnp)
     }
 
     // show the subkey
-    pgp_sprint_key(rnp->io, NULL, &subkey_pub, &cp, "sub", 0);
+    pgp_sprint_key(NULL, &subkey_pub, &cp, "sub", 0);
     (void) fprintf(stdout, "%s", cp);
     free(cp);
 
@@ -962,17 +954,17 @@ rnp_generate_key(rnp_t *rnp)
     }
 
     // add them all to the key store
-    if (!rnp_key_store_add_key(rnp->io, rnp->secring, &primary_sec) ||
-        !rnp_key_store_add_key(rnp->io, rnp->secring, &subkey_sec) ||
-        !rnp_key_store_add_key(rnp->io, rnp->pubring, &primary_pub) ||
-        !rnp_key_store_add_key(rnp->io, rnp->pubring, &subkey_pub)) {
+    if (!rnp_key_store_add_key(rnp->secring, &primary_sec) ||
+        !rnp_key_store_add_key(rnp->secring, &subkey_sec) ||
+        !rnp_key_store_add_key(rnp->pubring, &primary_pub) ||
+        !rnp_key_store_add_key(rnp->pubring, &subkey_pub)) {
         RNP_LOG("failed to add keys to key store");
         return false;
     }
 
     // update the keyring on disk
-    if (!rnp_key_store_write_to_file(rnp->io, rnp->secring, 0) ||
-        !rnp_key_store_write_to_file(rnp->io, rnp->pubring, 0)) {
+    if (!rnp_key_store_write_to_file(rnp->secring, 0) ||
+        !rnp_key_store_write_to_file(rnp->pubring, 0)) {
         RNP_LOG("failed to write keyring");
         return false;
     }

@@ -74,16 +74,6 @@ typedef struct pgp_io_t {
     FILE *res;  /* file stream to put results */
 } pgp_io_t;
 
-inline pgp_io_t
-pgp_io_from_fp(FILE *outs, FILE *errs, FILE *res)
-{
-    pgp_io_t io;
-    io.outs = outs;
-    io.errs = errs;
-    io.res = res;
-    return io;
-}
-
 /** pgp_map_t
  */
 typedef struct {

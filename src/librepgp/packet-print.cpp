@@ -291,7 +291,6 @@ format_subsig_line(char *              buffer,
 
 static int
 format_uid_notice(char *                 buffer,
-                  pgp_io_t *             io,
                   const rnp_key_store_t *keyring,
                   const pgp_key_t *      key,
                   unsigned               uid,
@@ -326,7 +325,7 @@ format_uid_notice(char *                 buffer,
 
         uint8_t signer[PGP_KEY_ID_SIZE] = {0};
         signature_get_keyid(&subsig->sig, signer);
-        trustkey = rnp_key_store_get_key_by_id(io, keyring, signer, NULL);
+        trustkey = rnp_key_store_get_key_by_id(keyring, signer, NULL);
 
         n += format_subsig_line(buffer + n, key, trustkey, subsig, size - n);
     }
@@ -390,8 +389,7 @@ format_key_usage_json(json_object *arr, uint8_t flags)
 
 /* print into a string (malloc'ed) the pubkeydata */
 int
-pgp_sprint_key(pgp_io_t *             io,
-               const rnp_key_store_t *keyring,
+pgp_sprint_key(const rnp_key_store_t *keyring,
                const pgp_key_t *      key,
                char **                buf,
                const char *           header,
@@ -442,7 +440,6 @@ pgp_sprint_key(pgp_io_t *             io,
         }
 
         uid_notices_offset += format_uid_notice(uid_notices + uid_notices_offset,
-                                                io,
                                                 keyring,
                                                 key,
                                                 i,
@@ -493,8 +490,7 @@ pgp_sprint_key(pgp_io_t *             io,
 
 /* return the key info as a JSON encoded string */
 int
-repgp_sprint_json(pgp_io_t *                    io,
-                  const struct rnp_key_store_t *keyring,
+repgp_sprint_json(const struct rnp_key_store_t *keyring,
                   const pgp_key_t *             key,
                   json_object *                 keyjson,
                   const char *                  header,
@@ -569,7 +565,7 @@ repgp_sprint_json(pgp_io_t *                    io,
               "creation time",
               json_object_new_int((int64_t) signature_get_creation(&key->subsigs[j].sig)));
 
-            const pgp_key_t *trustkey = rnp_key_store_get_key_by_id(io, keyring, signer, NULL);
+            const pgp_key_t *trustkey = rnp_key_store_get_key_by_id(keyring, signer, NULL);
 
             json_object_object_add(
               subsigc,
@@ -591,8 +587,7 @@ repgp_sprint_json(pgp_io_t *                    io,
 }
 
 int
-pgp_hkp_sprint_key(pgp_io_t *                    io,
-                   const struct rnp_key_store_t *keyring,
+pgp_hkp_sprint_key(const struct rnp_key_store_t *keyring,
                    const pgp_key_t *             key,
                    char **                       buf,
                    const int                     psigs)
@@ -628,7 +623,7 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
             }
             uint8_t signer[PGP_KEY_ID_SIZE] = {0};
             signature_get_keyid(&key->subsigs[j].sig, signer);
-            trustkey = rnp_key_store_get_key_by_id(io, keyring, signer, NULL);
+            trustkey = rnp_key_store_get_key_by_id(keyring, signer, NULL);
             if (key->subsigs[j].sig.version == 4 &&
                 key->subsigs[j].sig.type == PGP_SIG_SUBKEY) {
                 n += snprintf(&uidbuf[n],
@@ -675,16 +670,15 @@ pgp_hkp_sprint_key(pgp_io_t *                    io,
 
 /* print the key data for a pub or sec key */
 void
-repgp_print_key(pgp_io_t *             io,
-                const rnp_key_store_t *keyring,
+repgp_print_key(const rnp_key_store_t *keyring,
                 const pgp_key_t *      key,
                 const char *           header,
                 const int              psigs)
 {
     char *cp;
 
-    if (pgp_sprint_key(io, keyring, key, &cp, header, psigs) >= 0) {
-        (void) fprintf(io->res, "%s", cp);
+    if (pgp_sprint_key(keyring, key, &cp, header, psigs) >= 0) {
+        (void) fprintf(stdout, "%s", cp);
         free(cp);
     }
 }

@@ -110,8 +110,7 @@ rnpkeys_generatekey_testSignature(void **state)
                 ctx.filename = strdup("dummyfile.dat");
                 ctx.clearsign = cleartext;
                 rnp_assert_int_not_equal(rstate, ctx.halg, PGP_HASH_UNKNOWN);
-                pgp_key_t *key =
-                  rnp_key_store_get_key_by_name(rnp.io, rnp.secring, userId, NULL);
+                pgp_key_t *key = rnp_key_store_get_key_by_name(rnp.secring, userId, NULL);
                 assert_non_null(key);
                 rnp_assert_non_null(rstate, list_append(&ctx.signers, &key, sizeof(key)));
 
@@ -220,7 +219,7 @@ rnpkeys_generatekey_testEncryption(void **state)
                               (strcmp(cipherAlg[i], "AES256") == 0));
             pgp_key_t *key;
             rnp_assert_non_null(
-              rstate, key = rnp_key_store_get_key_by_name(rnp.io, rnp.pubring, userId, NULL));
+              rstate, key = rnp_key_store_get_key_by_name(rnp.pubring, userId, NULL));
             rnp_assert_non_null(rstate, list_append(&ctx.recipients, &key, sizeof(key)));
             /* Encrypting the memory */
             size_t       reslen = 0;
@@ -811,7 +810,6 @@ test_generated_key_sigs(void **state)
     rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     rnp_key_store_t * pubring = NULL;
     rnp_key_store_t * secring = NULL;
-    pgp_io_t          io = pgp_io_from_fp(stderr, stdout, stdout);
     pgp_key_t *       primary_pub = NULL, *primary_sec = NULL;
     pgp_key_t *       sub_pub = NULL, *sub_sec = NULL;
     pgp_userid_pkt_t  uid = {0};
@@ -849,11 +847,11 @@ test_generated_key_sigs(void **state)
         assert_true(pgp_generate_primary_key(&desc, true, &sec, &pub, GPG_KEY_STORE));
 
         // add to our rings
-        assert_true(rnp_key_store_add_key(&io, pubring, &pub));
-        assert_true(rnp_key_store_add_key(&io, secring, &sec));
+        assert_true(rnp_key_store_add_key(pubring, &pub));
+        assert_true(rnp_key_store_add_key(secring, &sec));
         // retrieve back from our rings (for later)
-        primary_pub = rnp_key_store_get_key_by_grip(&io, pubring, pub.grip);
-        primary_sec = rnp_key_store_get_key_by_grip(&io, secring, pub.grip);
+        primary_pub = rnp_key_store_get_key_by_grip(pubring, pub.grip);
+        primary_sec = rnp_key_store_get_key_by_grip(secring, pub.grip);
         assert_non_null(primary_pub);
         assert_non_null(primary_sec);
 
@@ -1014,11 +1012,11 @@ test_generated_key_sigs(void **state)
         sec.subsigs[0].sig.hashed_data[10] ^= 0xff;
 
         // add to our rings
-        assert_true(rnp_key_store_add_key(&io, pubring, &pub));
-        assert_true(rnp_key_store_add_key(&io, secring, &sec));
+        assert_true(rnp_key_store_add_key(pubring, &pub));
+        assert_true(rnp_key_store_add_key(secring, &sec));
         // retrieve back from our rings
-        sub_pub = rnp_key_store_get_key_by_grip(&io, pubring, pub.grip);
-        sub_sec = rnp_key_store_get_key_by_grip(&io, secring, pub.grip);
+        sub_pub = rnp_key_store_get_key_by_grip(pubring, pub.grip);
+        sub_sec = rnp_key_store_get_key_by_grip(secring, pub.grip);
         assert_non_null(sub_pub);
         assert_non_null(sub_sec);
 

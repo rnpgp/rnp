@@ -1476,7 +1476,6 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
 {
     rnp_result_t         res = RNP_ERROR_GENERIC;
     uint8_t              signer_id[PGP_KEY_ID_SIZE] = {0};
-    pgp_io_t             io = {.outs = stdout, .errs = stderr, .res = stdout};
     pgp_signature_info_t sinfo = {};
 
     if (!(sinfo.sig = (pgp_signature_t *) calloc(1, sizeof(*sig)))) {
@@ -1490,7 +1489,7 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
     if (!signature_get_keyid(sinfo.sig, signer_id)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    sinfo.signer = rnp_key_store_get_key_by_id(&io, info->keystore, signer_id, NULL);
+    sinfo.signer = rnp_key_store_get_key_by_id(info->keystore, signer_id, NULL);
     if (!sinfo.signer) {
         sinfo.no_signer = true;
         goto done;
@@ -1596,7 +1595,6 @@ validate_pgp_key_signatures(pgp_signatures_info_t *result,
     rnp_result_t              res = RNP_ERROR_GENERIC;
     validate_info_t           info = {};
     rng_t                     rng = {};
-    pgp_io_t                  io = {.outs = stdout, .errs = stderr, .res = stdout};
 
     /* no signatures in g10 secret keys */
     if (pgp_is_key_secret(key) && (key->format == G10_KEY_STORE)) {
@@ -1630,7 +1628,7 @@ validate_pgp_key_signatures(pgp_signatures_info_t *result,
 
     /* subkey may have only binding signatures */
     if (pgp_key_is_subkey(key)) {
-        pgp_key_t *primary = rnp_key_store_get_key_by_grip(&io, keyring, key->primary_grip);
+        pgp_key_t *primary = rnp_key_store_get_key_by_grip(keyring, key->primary_grip);
         if (!primary) {
             res = RNP_ERROR_BAD_STATE;
             goto done;

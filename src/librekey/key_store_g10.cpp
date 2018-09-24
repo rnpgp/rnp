@@ -770,8 +770,7 @@ done:
 }
 
 static bool
-g10_parse_seckey(pgp_io_t *                io,
-                 pgp_key_pkt_t *           seckey,
+g10_parse_seckey(pgp_key_pkt_t *           seckey,
                  const uint8_t *           data,
                  size_t                    data_len,
                  const char *              password,
@@ -948,7 +947,6 @@ g10_decrypt_seckey(const uint8_t *      data,
                    const char *         password)
 {
     pgp_key_pkt_t *seckey = NULL;
-    pgp_io_t       io = pgp_io_from_fp(stderr, stdout, stdout);
     bool           ok = false;
 
     if (!password) {
@@ -959,7 +957,7 @@ g10_decrypt_seckey(const uint8_t *      data,
     if (pubkey && !copy_key_pkt(seckey, pubkey, false)) {
         goto done;
     }
-    if (!g10_parse_seckey(&io, seckey, data, data_len, password, NULL)) {
+    if (!g10_parse_seckey(seckey, data, data_len, password, NULL)) {
         goto done;
     }
     ok = true;
@@ -973,8 +971,7 @@ done:
 }
 
 bool
-rnp_key_store_g10_from_mem(pgp_io_t *                io,
-                           rnp_key_store_t *         key_store,
+rnp_key_store_g10_from_mem(rnp_key_store_t *         key_store,
                            pgp_memory_t *            memory,
                            const pgp_key_provider_t *key_provider)
 {
@@ -982,7 +979,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *                io,
     pgp_key_pkt_t keypkt = {0};
     bool          ret = false;
 
-    if (!g10_parse_seckey(io, &keypkt, memory->buf, memory->length, NULL, key_provider)) {
+    if (!g10_parse_seckey(&keypkt, memory->buf, memory->length, NULL, key_provider)) {
         goto done;
     }
     if (!pgp_key_from_keypkt(&key, &keypkt, PGP_PTAG_CT_SECRET_KEY)) {
@@ -1002,7 +999,7 @@ rnp_key_store_g10_from_mem(pgp_io_t *                io,
     memcpy(key.packets[0].raw, memory->buf, memory->length);
     key.packetc++;
     key.format = G10_KEY_STORE;
-    if (!rnp_key_store_add_key(io, key_store, &key)) {
+    if (!rnp_key_store_add_key(key_store, &key)) {
         goto done;
     }
     ret = true;
@@ -1393,7 +1390,7 @@ error:
 }
 
 bool
-rnp_key_store_g10_key_to_mem(pgp_io_t *io, pgp_key_t *key, pgp_memory_t *memory)
+rnp_key_store_g10_key_to_mem(pgp_key_t *key, pgp_memory_t *memory)
 {
     if (DYNARRAY_IS_EMPTY(key, packet)) {
         return false;
