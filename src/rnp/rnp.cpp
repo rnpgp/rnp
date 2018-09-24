@@ -286,21 +286,21 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
                 userid_to_id(keyid, id));
 
         if (!sigs[i].no_signer) {
-            key = rnp_key_store_get_key_by_id(io, handler->ctx->rnp->pubring, keyid, NULL);
-            repgp_print_key(io, handler->ctx->rnp->pubring, key, "signature ", 0);
+            key = rnp_key_store_get_key_by_id(handler->ctx->rnp->pubring, keyid, NULL);
+            repgp_print_key(handler->ctx->rnp->pubring, key, "signature ", 0);
         }
     }
 
     if (count == 0) {
-        fprintf(io->res, "No signature(s) found - is this a signed file?\n");
+        fprintf(stdout, "No signature(s) found - is this a signed file?\n");
     } else if (invalidc > 0 || unknownc > 0) {
         fprintf(
-          io->res,
+          stdout,
           "Signature verification failure: %u invalid signature(s), %u unknown signature(s)\n",
           invalidc,
           unknownc);
     } else {
-        fprintf(io->res, "Signature(s) verified successfully\n");
+        fprintf(stdout, "Signature(s) verified successfully\n");
     }
 }
 
@@ -349,8 +349,8 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
                 return false;
             }
             for (list_item *signer = list_front(signers); signer; signer = list_next(signer)) {
-                pgp_key_t *key = rnp_key_store_get_key_by_name(
-                  rnp->io, rnp->secring, (const char *) signer, NULL);
+                pgp_key_t *key =
+                  rnp_key_store_get_key_by_name(rnp->secring, (const char *) signer, NULL);
                 if (!key) {
                     fprintf(
                       stderr, "Invalid or unavailable signer: %s\n", (const char *) signer);
@@ -370,7 +370,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
                     return false;
                 }
                 pgp_key_t *key =
-                  rnp_key_store_get_key_by_name(rnp->io, rnp->secring, rnp->defkey, NULL);
+                  rnp_key_store_get_key_by_name(rnp->secring, rnp->defkey, NULL);
                 if (!key) {
                     return false;
                 }
@@ -417,7 +417,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
                 for (list_item *recipient = list_front(recipients); recipient;
                      recipient = list_next(recipient)) {
                     pgp_key_t *key = rnp_key_store_get_key_by_name(
-                      rnp->io, rnp->pubring, (const char *) recipient, NULL);
+                      rnp->pubring, (const char *) recipient, NULL);
                     if (!key) {
                         fprintf(stderr,
                                 "Invalid or unavailable recipient: %s\n",
@@ -439,7 +439,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
                         return false;
                     }
                     pgp_key_t *key = rnp_key_store_get_key_by_name(
-                      rnp->io, rnp->pubring, (const char *) rnp->defkey, NULL);
+                      rnp->pubring, (const char *) rnp->defkey, NULL);
                     if (!key) {
                         fprintf(stderr,
                                 "Invalid or unavailable recipient: %s\n",

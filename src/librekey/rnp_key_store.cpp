@@ -98,35 +98,34 @@ rnp_key_store_new(const char *format, const char *path)
 bool
 rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 {
-    char      id[MAX_ID_LENGTH];
-    pgp_io_t *io = rnp->io;
+    char id[MAX_ID_LENGTH];
 
     rnp_key_store_t *pubring = rnp->pubring;
     rnp_key_store_t *secring = rnp->secring;
 
     rnp_key_store_clear(pubring);
 
-    if (!rnp_key_store_load_from_file(rnp->io, pubring, &rnp->key_provider)) {
-        fprintf(io->errs, "cannot read pub keyring\n");
+    if (!rnp_key_store_load_from_file(pubring, &rnp->key_provider)) {
+        RNP_LOG("cannot read pub keyring");
         return false;
     }
 
     if (list_length(pubring->keys) < 1) {
-        fprintf(io->errs, "pub keyring '%s' is empty\n", ((rnp_key_store_t *) pubring)->path);
+        fprintf(stderr, "pub keyring '%s' is empty\n", ((rnp_key_store_t *) pubring)->path);
         return false;
     }
 
     /* Only read secret keys if we need to */
     if (loadsecret) {
         rnp_key_store_clear(secring);
-        if (!rnp_key_store_load_from_file(rnp->io, secring, &rnp->key_provider)) {
-            fprintf(io->errs, "cannot read sec keyring\n");
+        if (!rnp_key_store_load_from_file(secring, &rnp->key_provider)) {
+            fprintf(stderr, "cannot read sec keyring\n");
             return false;
         }
 
         if (list_length(secring->keys) < 1) {
             fprintf(
-              io->errs, "sec keyring '%s' is empty\n", ((rnp_key_store_t *) secring)->path);
+              stderr, "sec keyring '%s' is empty\n", ((rnp_key_store_t *) secring)->path);
             return false;
         }
 
@@ -150,8 +149,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 }
 
 int
-rnp_key_store_load_from_file(pgp_io_t *                io,
-                             rnp_key_store_t *         key_store,
+rnp_key_store_load_from_file(rnp_key_store_t *         key_store,
                              const pgp_key_provider_t *key_provider)
 {
     DIR *          dir;
@@ -164,7 +162,7 @@ rnp_key_store_load_from_file(pgp_io_t *                io,
         dir = opendir(key_store->path);
         if (dir == NULL) {
             fprintf(
-              io->errs, "Can't open G10 directory %s: %s\n", key_store->path, strerror(errno));
+              stderr, "Can't open G10 directory %s: %s\n", key_store->path, strerror(errno));
             return false;
         }
 
@@ -178,17 +176,17 @@ rnp_key_store_load_from_file(pgp_io_t *                io,
             memset(&mem, 0, sizeof(mem));
 
             if (rnp_get_debug(__FILE__)) {
-                fprintf(io->errs, "Loading G10 key from file '%s'\n", path);
+                fprintf(stderr, "Loading G10 key from file '%s'\n", path);
             }
 
             if (!pgp_mem_readfile(&mem, path)) {
-                fprintf(io->errs, "Can't read file '%s' to memory\n", path);
+                fprintf(stderr, "Can't read file '%s' to memory\n", path);
                 continue;
             }
 
             // G10 may don't read one file, so, ignore it!
-            if (!rnp_key_store_g10_from_mem(io, key_store, &mem, key_provider)) {
-                fprintf(io->errs, "Can't parse file: %s\n", path);
+            if (!rnp_key_store_g10_from_mem(key_store, &mem, key_provider)) {
+                fprintf(stderr, "Can't parse file: %s\n", path);
             }
             pgp_memory_release(&mem);
         }
@@ -201,29 +199,28 @@ rnp_key_store_load_from_file(pgp_io_t *                io,
         return false;
     }
 
-    rc = rnp_key_store_load_from_mem(io, key_store, &mem, key_provider);
+    rc = rnp_key_store_load_from_mem(key_store, &mem, key_provider);
     pgp_memory_release(&mem);
     return rc;
 }
 
 bool
-rnp_key_store_load_from_mem(pgp_io_t *                io,
-                            rnp_key_store_t *         key_store,
+rnp_key_store_load_from_mem(rnp_key_store_t *         key_store,
                             pgp_memory_t *            memory,
                             const pgp_key_provider_t *key_provider)
 {
     switch (key_store->format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_read_from_mem(io, key_store, memory, key_provider);
+        return rnp_key_store_pgp_read_from_mem(key_store, memory, key_provider);
 
     case KBX_KEY_STORE:
-        return rnp_key_store_kbx_from_mem(io, key_store, memory, key_provider);
+        return rnp_key_store_kbx_from_mem(key_store, memory, key_provider);
 
     case G10_KEY_STORE:
-        return rnp_key_store_g10_from_mem(io, key_store, memory, key_provider);
+        return rnp_key_store_g10_from_mem(key_store, memory, key_provider);
 
     default:
-        fprintf(io->errs,
+        fprintf(stderr,
                 "Unsupported load from memory for key-store format: %d\n",
                 key_store->format);
     }
@@ -232,7 +229,7 @@ rnp_key_store_load_from_mem(pgp_io_t *                io,
 }
 
 bool
-rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *key_store, const unsigned armor)
+rnp_key_store_write_to_file(rnp_key_store_t *key_store, const unsigned armor)
 {
     bool         rc;
     pgp_memory_t mem = {0};
@@ -244,17 +241,16 @@ rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *key_store, const unsi
         struct stat path_stat;
         if (stat(key_store->path, &path_stat) != -1) {
             if (!S_ISDIR(path_stat.st_mode)) {
-                fprintf(io->errs, "G10 keystore should be a directory: %s\n", key_store->path);
+                fprintf(stderr, "G10 keystore should be a directory: %s\n", key_store->path);
                 return false;
             }
         } else {
             if (errno != ENOENT) {
-                fprintf(io->errs, "stat(%s): %s\n", key_store->path, strerror(errno));
+                fprintf(stderr, "stat(%s): %s\n", key_store->path, strerror(errno));
                 return false;
             }
             if (mkdir(key_store->path, S_IRWXU) != 0) {
-                fprintf(
-                  io->errs, "mkdir(%s, S_IRWXU): %s\n", key_store->path, strerror(errno));
+                fprintf(stderr, "mkdir(%s, S_IRWXU): %s\n", key_store->path, strerror(errno));
                 return false;
             }
         }
@@ -269,7 +265,7 @@ rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *key_store, const unsi
                      rnp_strhexdump_upper(grips, key->grip, 20, ""));
 
             memset(&mem, 0, sizeof(mem));
-            if (!rnp_key_store_g10_key_to_mem(io, key, &mem)) {
+            if (!rnp_key_store_g10_key_to_mem(key, &mem)) {
                 pgp_memory_release(&mem);
                 return false;
             }
@@ -285,7 +281,7 @@ rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *key_store, const unsi
         return true;
     }
 
-    if (!rnp_key_store_write_to_mem(io, key_store, armor, &mem)) {
+    if (!rnp_key_store_write_to_mem(key_store, armor, &mem)) {
         pgp_memory_release(&mem);
         return false;
     }
@@ -296,22 +292,20 @@ rnp_key_store_write_to_file(pgp_io_t *io, rnp_key_store_t *key_store, const unsi
 }
 
 bool
-rnp_key_store_write_to_mem(pgp_io_t *       io,
-                           rnp_key_store_t *key_store,
+rnp_key_store_write_to_mem(rnp_key_store_t *key_store,
                            const unsigned   armor,
                            pgp_memory_t *   memory)
 {
     switch (key_store->format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_write_to_mem(io, key_store, armor, memory);
+        return rnp_key_store_pgp_write_to_mem(key_store, armor, memory);
 
     case KBX_KEY_STORE:
-        return rnp_key_store_kbx_to_mem(io, key_store, memory);
+        return rnp_key_store_kbx_to_mem(key_store, memory);
 
     default:
-        fprintf(io->errs,
-                "Unsupported write to memory for key-store format: %d\n",
-                key_store->format);
+        fprintf(
+          stderr, "Unsupported write to memory for key-store format: %d\n", key_store->format);
     }
 
     return false;
@@ -438,11 +432,11 @@ rnp_key_store_free(rnp_key_store_t *keyring)
    \return none
 */
 bool
-rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring, const int psigs)
+rnp_key_store_list(const rnp_key_store_t *keyring, const int psigs)
 {
     unsigned keyc = (keyring != NULL) ? list_length(keyring->keys) : 0;
 
-    (void) fprintf(io->res, "%u key%s\n", keyc, (keyc == 1) ? "" : "s");
+    (void) fprintf(stdout, "%u key%s\n", keyc, (keyc == 1) ? "" : "s");
 
     if (keyring == NULL) {
         return true;
@@ -452,20 +446,17 @@ rnp_key_store_list(pgp_io_t *io, const rnp_key_store_t *keyring, const int psigs
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
         if (pgp_is_key_secret(key)) {
-            repgp_print_key(io, keyring, key, "sec", 0);
+            repgp_print_key(keyring, key, "sec", 0);
         } else {
-            repgp_print_key(io, keyring, key, "pub", psigs);
+            repgp_print_key(keyring, key, "pub", psigs);
         }
-        (void) fputc('\n', io->res);
+        (void) fputc('\n', stdout);
     }
     return true;
 }
 
 bool
-rnp_key_store_json(pgp_io_t *             io,
-                   const rnp_key_store_t *keyring,
-                   json_object *          obj,
-                   const int              psigs)
+rnp_key_store_json(const rnp_key_store_t *keyring, json_object *obj, const int psigs)
 {
     for (list_item *key_item = list_front(keyring->keys); key_item;
          key_item = list_next(key_item)) {
@@ -479,7 +470,7 @@ rnp_key_store_json(pgp_io_t *             io,
         } else {
             header = "sub"; /* subkey */
         }
-        repgp_sprint_json(io, keyring, key, jso, header, psigs);
+        repgp_sprint_json(keyring, key, jso, header, psigs);
         json_object_array_add(obj, jso);
     }
     return true;
@@ -656,15 +647,15 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
 
 /* add a key to keyring */
 pgp_key_t *
-rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
+rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
 {
     pgp_key_t *added_key = NULL;
 
-    if (io && rnp_get_debug(__FILE__)) {
-        fprintf(io->errs, "rnp_key_store_add_key\n");
+    if (rnp_get_debug(__FILE__)) {
+        fprintf(stderr, "rnp_key_store_add_key\n");
     }
     assert(pgp_get_key_type(srckey) && pgp_get_key_pkt(srckey)->version);
-    added_key = rnp_key_store_get_key_by_grip(io, keyring, srckey->grip);
+    added_key = rnp_key_store_get_key_by_grip(keyring, srckey->grip);
 
     if (added_key) {
         /* we cannot merge G10 keys - so just return it */
@@ -707,8 +698,8 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
         return NULL;
     }
 
-    if (io && rnp_get_debug(__FILE__)) {
-        fprintf(io->errs, "rnp_key_store_add_key: keyc %lu\n", list_length(keyring->keys));
+    if (rnp_get_debug(__FILE__)) {
+        fprintf(stderr, "rnp_key_store_add_key: keyc %lu\n", list_length(keyring->keys));
     }
 
     /* validate all added keys if not disabled */
@@ -719,7 +710,7 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
         /* validate/re-validate all subkeys as well */
         if (pgp_key_is_primary_key(added_key)) {
             for (list_item *grip = list_front(added_key->subkey_grips); grip; grip = list_next(grip)) {
-                pgp_key_t *subkey = rnp_key_store_get_key_by_grip(io, keyring, (uint8_t*) grip);
+                pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, (uint8_t*) grip);
                 if (subkey) {
                     subkey->valid = true;
                     subkey->valid = !validate_pgp_key(subkey, keyring);
@@ -732,7 +723,7 @@ rnp_key_store_add_key(pgp_io_t *io, rnp_key_store_t *keyring, pgp_key_t *srckey)
 }
 
 bool
-rnp_key_store_remove_key(pgp_io_t *io, rnp_key_store_t *keyring, const pgp_key_t *key)
+rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key)
 {
     // check if we were passed a key that isn't from this ring
     if (!list_is_member(keyring->keys, (list_item *) key)) {
@@ -743,13 +734,13 @@ rnp_key_store_remove_key(pgp_io_t *io, rnp_key_store_t *keyring, const pgp_key_t
 }
 
 bool
-rnp_key_store_remove_key_by_id(pgp_io_t *io, rnp_key_store_t *keyring, const uint8_t *keyid)
+rnp_key_store_remove_key_by_id(rnp_key_store_t *keyring, const uint8_t *keyid)
 {
     const pgp_key_t *key;
 
-    key = rnp_key_store_get_key_by_id(io, keyring, keyid, NULL);
+    key = rnp_key_store_get_key_by_id(keyring, keyid, NULL);
     if (key != NULL) {
-        return rnp_key_store_remove_key(io, keyring, key);
+        return rnp_key_store_remove_key(keyring, key);
     }
 
     return false;
@@ -770,13 +761,12 @@ rnp_key_store_remove_key_by_id(pgp_io_t *io, rnp_key_store_t *keyring, const uin
 
 */
 pgp_key_t *
-rnp_key_store_get_key_by_id(pgp_io_t *             io,
-                            const rnp_key_store_t *keyring,
+rnp_key_store_get_key_by_id(const rnp_key_store_t *keyring,
                             const uint8_t *        keyid,
                             pgp_key_t *            after)
 {
     if (rnp_get_debug(__FILE__)) {
-        fprintf(io->errs, "searching keyring %p\n", keyring);
+        fprintf(stderr, "searching keyring %p\n", keyring);
     }
 
     if (!keyring) {
@@ -792,8 +782,8 @@ rnp_key_store_get_key_by_id(pgp_io_t *             io,
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
         if (rnp_get_debug(__FILE__)) {
-            hexdump(io->errs, "keyring keyid", key->keyid, PGP_KEY_ID_SIZE);
-            hexdump(io->errs, "keyid", keyid, PGP_KEY_ID_SIZE);
+            hexdump(stderr, "keyring keyid", key->keyid, PGP_KEY_ID_SIZE);
+            hexdump(stderr, "keyid", keyid, PGP_KEY_ID_SIZE);
         }
         if (memcmp(key->keyid, keyid, PGP_KEY_ID_SIZE) == 0 ||
             memcmp(&key->keyid[PGP_KEY_ID_SIZE / 2], keyid, PGP_KEY_ID_SIZE / 2) == 0) {
@@ -804,8 +794,7 @@ rnp_key_store_get_key_by_id(pgp_io_t *             io,
 }
 
 pgp_key_t *
-rnp_key_store_get_key_by_userid(pgp_io_t *             io,
-                                const rnp_key_store_t *keyring,
+rnp_key_store_get_key_by_userid(const rnp_key_store_t *keyring,
                                 const char *           userid,
                                 pgp_key_t *            after)
 {
@@ -830,12 +819,10 @@ rnp_key_store_get_key_by_userid(pgp_io_t *             io,
 }
 
 pgp_key_t *
-rnp_key_store_get_key_by_grip(pgp_io_t *             io,
-                              const rnp_key_store_t *keyring,
-                              const uint8_t *        grip)
+rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const uint8_t *grip)
 {
     if (rnp_get_debug(__FILE__)) {
-        fprintf(io->errs, "looking keyring %p\n", keyring);
+        fprintf(stderr, "looking keyring %p\n", keyring);
     }
 
     if (!grip) {
@@ -846,8 +833,8 @@ rnp_key_store_get_key_by_grip(pgp_io_t *             io,
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
         if (rnp_get_debug(__FILE__)) {
-            hexdump(io->errs, "looking for grip", grip, PGP_FINGERPRINT_SIZE);
-            hexdump(io->errs, "keyring grip", key->grip, PGP_FINGERPRINT_SIZE);
+            hexdump(stderr, "looking for grip", grip, PGP_FINGERPRINT_SIZE);
+            hexdump(stderr, "keyring grip", key->grip, PGP_FINGERPRINT_SIZE);
         }
         if (memcmp(key->grip, grip, PGP_FINGERPRINT_SIZE) == 0) {
             return key;
@@ -857,9 +844,7 @@ rnp_key_store_get_key_by_grip(pgp_io_t *             io,
 }
 
 pgp_key_t *
-rnp_key_store_get_key_by_fpr(pgp_io_t *               io,
-                             const rnp_key_store_t *  keyring,
-                             const pgp_fingerprint_t *fpr)
+rnp_key_store_get_key_by_fpr(const rnp_key_store_t *keyring, const pgp_fingerprint_t *fpr)
 {
     for (list_item *key_item = list_front(keyring->keys); key_item;
          key_item = list_next(key_item)) {
@@ -875,7 +860,6 @@ rnp_key_store_get_key_by_fpr(pgp_io_t *               io,
 pgp_key_t *
 rnp_key_store_get_primary_key(const rnp_key_store_t *keyring, const pgp_key_t *subkey)
 {
-    pgp_io_t          io = {.outs = stdout, .errs = stderr, .res = stdout};
     uint8_t           keyid[PGP_KEY_ID_SIZE] = {0};
     pgp_fingerprint_t keyfp = {};
 
@@ -884,7 +868,7 @@ rnp_key_store_get_primary_key(const rnp_key_store_t *keyring, const pgp_key_t *s
     }
 
     if (subkey->primary_grip) {
-        return rnp_key_store_get_key_by_grip(&io, keyring, subkey->primary_grip);
+        return rnp_key_store_get_key_by_grip(keyring, subkey->primary_grip);
     }
 
     for (unsigned i = 0; i < subkey->subsigc; i++) {
@@ -894,11 +878,11 @@ rnp_key_store_get_primary_key(const rnp_key_store_t *keyring, const pgp_key_t *s
         }
 
         if (signature_get_keyfp(&subsig->sig, &keyfp)) {
-            return rnp_key_store_get_key_by_fpr(&io, keyring, &keyfp);
+            return rnp_key_store_get_key_by_fpr(keyring, &keyfp);
         }
 
         if (signature_get_keyid(&subsig->sig, keyid)) {
-            return rnp_key_store_get_key_by_id(&io, keyring, keyid, NULL);
+            return rnp_key_store_get_key_by_id(keyring, keyid, NULL);
         }
     }
 
@@ -994,8 +978,7 @@ hex2bin(const char *hexid, size_t hexlen, uint8_t *keyid, size_t len, size_t *ou
 
 /* return the next key which matches, starting searching after *after */
 static bool
-get_key_by_name(pgp_io_t *             io,
-                const rnp_key_store_t *keyring,
+get_key_by_name(const rnp_key_store_t *keyring,
                 const char *           name,
                 pgp_key_t *            after,
                 pgp_key_t **           key)
@@ -1012,28 +995,28 @@ get_key_by_name(pgp_io_t *             io,
     *key = NULL;
 
     if (!keyring || !name) {
-        RNP_LOG_FD(io->errs, "keyring, name and after shouldn't be NULL");
+        RNP_LOG("keyring, name and after shouldn't be NULL");
         return false;
     }
     assert(!after || list_is_member(keyring->keys, (list_item *) after));
     len = strlen(name);
     if (rnp_get_debug(__FILE__)) {
-        RNP_LOG_FD(io->outs, "[%p] name '%s', len %zu", after, name, len);
+        RNP_LOG_FD(stdout, "[%p] name '%s', len %zu", after, name, len);
     }
     /* first try name as a keyid */
     (void) memset(keyid, 0x0, sizeof(keyid));
     if (ishex(name, len) && hex2bin(name, len, keyid, sizeof(keyid), &binlen)) {
         if (rnp_get_debug(__FILE__)) {
-            hexdump(io->outs, "keyid", keyid, 4);
+            hexdump(stdout, "keyid", keyid, 4);
         }
 
         if (binlen <= PGP_KEY_ID_SIZE) {
-            kp = rnp_key_store_get_key_by_id(io, keyring, keyid, after);
+            kp = rnp_key_store_get_key_by_id(keyring, keyid, after);
         } else if (binlen <= PGP_FINGERPRINT_SIZE) {
             pgp_fingerprint_t fp = {};
             memcpy(fp.fingerprint, keyid, binlen);
             fp.length = binlen;
-            kp = rnp_key_store_get_key_by_fpr(io, keyring, &fp);
+            kp = rnp_key_store_get_key_by_fpr(keyring, &fp);
         } else {
             kp = NULL;
         }
@@ -1044,11 +1027,11 @@ get_key_by_name(pgp_io_t *             io,
         }
     }
     if (rnp_get_debug(__FILE__)) {
-        RNP_LOG_FD(io->outs, "regex match '%s' after %p", name, after);
+        RNP_LOG_FD(stdout, "regex match '%s' after %p", name, after);
     }
     /* match on full name or email address as a NOSUB, ICASE regexp */
     if (regcomp(&r, name, REG_EXTENDED | REG_ICASE) != 0) {
-        RNP_LOG_FD(io->errs, "Can't compile regex from string: '%s'", name);
+        RNP_LOG("Can't compile regex from string: '%s'", name);
         return false;
     }
     for (list_item *key_item = after ? list_next((list_item *) after) :
@@ -1061,7 +1044,7 @@ get_key_by_name(pgp_io_t *             io,
             if (regexec(&r, (char *) *uidp, 0, NULL, 0) == 0) {
                 if (rnp_get_debug(__FILE__)) {
                     RNP_LOG_FD(
-                      io->outs, "MATCHED keyid \"%s\" len %" PRIsize "u", (char *) *uidp, len);
+                      stdout, "MATCHED keyid \"%s\" len %" PRIsize "u", (char *) *uidp, len);
                 }
                 regfree(&r);
                 *key = keyp;
@@ -1074,13 +1057,12 @@ get_key_by_name(pgp_io_t *             io,
 }
 
 pgp_key_t *
-rnp_key_store_get_key_by_name(pgp_io_t *             io,
-                              const rnp_key_store_t *keyring,
+rnp_key_store_get_key_by_name(const rnp_key_store_t *keyring,
                               const char *           name,
                               pgp_key_t *            after)
 {
     pgp_key_t *key = NULL;
-    get_key_by_name(io, keyring, name, after, &key);
+    get_key_by_name(keyring, name, after, &key);
     return key;
 }
 
@@ -1154,8 +1136,7 @@ rnp_key_store_get_key_grip(const pgp_key_material_t *key, uint8_t *grip)
 }
 
 pgp_key_t *
-rnp_key_store_search(pgp_io_t *              io,
-                     const rnp_key_store_t * keyring,
+rnp_key_store_search(const rnp_key_store_t * keyring,
                      const pgp_key_search_t *search,
                      pgp_key_t *             after)
 {

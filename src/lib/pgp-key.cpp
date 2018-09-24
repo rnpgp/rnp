@@ -1144,8 +1144,7 @@ get_subkey_binding(const pgp_key_t *subkey)
 }
 
 static pgp_key_t *
-find_signer(pgp_io_t *                io,
-            const pgp_signature_t *   sig,
+find_signer(const pgp_signature_t *   sig,
             const rnp_key_store_t *   store,
             const pgp_key_provider_t *key_provider,
             bool                      secret)
@@ -1158,7 +1157,7 @@ find_signer(pgp_io_t *                io,
         search.type = PGP_KEY_SEARCH_FINGERPRINT;
         signature_get_keyfp(sig, &search.by.fingerprint);
         // search the store, if provided
-        if (store && (key = rnp_key_store_search(io, store, &search, NULL)) &&
+        if (store && (key = rnp_key_store_search(store, &search, NULL)) &&
             pgp_is_key_secret(key) == secret) {
             return key;
         }
@@ -1177,7 +1176,7 @@ find_signer(pgp_io_t *                io,
     if (signature_get_keyid(sig, search.by.keyid)) {
         search.type = PGP_KEY_SEARCH_KEYID;
         // search the store, if provided
-        if (store && (key = rnp_key_store_search(io, store, &search, NULL)) &&
+        if (store && (key = rnp_key_store_search(store, &search, NULL)) &&
             pgp_is_key_secret(key) == secret) {
             return key;
         }
@@ -1210,8 +1209,7 @@ find_signer(pgp_io_t *                io,
  * Rather than requiring it to be loaded first, we just use the key provider.
  */
 pgp_key_t *
-pgp_get_primary_key_for(pgp_io_t *                io,
-                        const pgp_key_t *         subkey,
+pgp_get_primary_key_for(const pgp_key_t *         subkey,
                         const rnp_key_store_t *   store,
                         const pgp_key_provider_t *key_provider)
 {
@@ -1220,14 +1218,14 @@ pgp_get_primary_key_for(pgp_io_t *                io,
     // find the subkey binding signature
     binding_sig = get_subkey_binding(subkey);
     if (!binding_sig) {
-        RNP_LOG_FD(io->errs, "Missing subkey binding signature for key.");
+        RNP_LOG("Missing subkey binding signature for key.");
         return NULL;
     }
     if (!signature_has_keyfp(binding_sig) && !signature_has_keyid(binding_sig)) {
-        RNP_LOG_FD(io->errs, "No issuer information in subkey binding signature.");
+        RNP_LOG("No issuer information in subkey binding signature.");
         return NULL;
     }
-    return find_signer(io, binding_sig, store, key_provider, pgp_is_key_secret(subkey));
+    return find_signer(binding_sig, store, key_provider, pgp_is_key_secret(subkey));
 }
 
 pgp_hash_alg_t

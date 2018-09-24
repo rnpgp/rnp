@@ -78,8 +78,8 @@ test_load_user_prefs(void **state)
 
         // find the key
         pgp_key_t *key = NULL;
-        rnp_assert_non_null(
-          rstate, key = rnp_key_store_get_key_by_name(rnp.io, rnp.pubring, userid, NULL));
+        rnp_assert_non_null(rstate,
+                            key = rnp_key_store_get_key_by_name(rnp.pubring, userid, NULL));
         assert_non_null(key);
 
         const pgp_subsig_t *subsig = find_subsig(key, userid);
@@ -124,8 +124,8 @@ test_load_user_prefs(void **state)
 
         // find the key
         pgp_key_t *key = NULL;
-        rnp_assert_non_null(
-          rstate, key = rnp_key_store_get_key_by_name(rnp.io, rnp.pubring, userid, NULL));
+        rnp_assert_non_null(rstate,
+                            key = rnp_key_store_get_key_by_name(rnp.pubring, userid, NULL));
         assert_non_null(key);
 
         const pgp_subsig_t *subsig = find_subsig(key, userid);
